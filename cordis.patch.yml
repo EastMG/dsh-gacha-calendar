@@ -1,0 +1,4 @@
+# dsh bundle patch: inserts the gacha calendar plugin into the profile layer stack.
+- insert:
+    - id: gacha-calendar
+      name: dsh-gacha-calendar
