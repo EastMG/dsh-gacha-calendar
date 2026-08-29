@@ -41,8 +41,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "tsc && tsdown",
-    "prepack": "npm run build"
+    "build": "tsc && tsdown"
   },
   "license": "MIT",
   "peerDependencies": {
