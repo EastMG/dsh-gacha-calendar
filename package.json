@@ -42,7 +42,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc && tsdown",
-    "prepare": "npm run build"
+    "prepack": "npm run build"
   },
   "license": "MIT",
   "peerDependencies": {
