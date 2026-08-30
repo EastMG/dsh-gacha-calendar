@@ -6,9 +6,9 @@ DeepSeek Harness 桌面端侧边栏插件：一键查看主流二游的**当期�
 ## 截图
 
 <p align="center">
-  <img src="assets/screenshot-1.png" width="32%" alt="排期面板">
-  <img src="assets/screenshot-2.png" width="32%" alt="面板详情">
-  <img src="assets/screenshot-3.png" width="32%" alt="设置页">
+  <img src="https://cdn.jsdelivr.net/gh/EastMG/dsh-gacha-calendar@main/assets/screenshot-1.png" width="32%" alt="排期面板">
+  <img src="https://cdn.jsdelivr.net/gh/EastMG/dsh-gacha-calendar@main/assets/screenshot-2.png" width="32%" alt="面板详情">
+  <img src="https://cdn.jsdelivr.net/gh/EastMG/dsh-gacha-calendar@main/assets/screenshot-3.png" width="32%" alt="设置页">
 </p>
 
 ## 功能
