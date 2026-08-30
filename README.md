@@ -3,6 +3,14 @@
 DeepSeek Harness 桌面端侧边栏插件：一键查看主流二游的**当期卡池与活动起止**，支持联网自动刷新，支持手动添加或删除条目。
 全程使用 DeepSeek Harness 进行 Vibe Coding 开发。
 
+## 截图
+
+<p align="center">
+  <img src="assets/screenshot-1.png" width="32%" alt="排期面板">
+  <img src="assets/screenshot-2.png" width="32%" alt="面板详情">
+  <img src="assets/screenshot-3.png" width="32%" alt="设置页">
+</p>
+
 ## 功能
 
 - 侧边栏底部「📅 二游排期」按钮 → 悬浮面板，按行展示每款游戏的当期卡池、卡池起止、当期活动、活动起止
