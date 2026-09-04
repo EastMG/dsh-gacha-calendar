@@ -1,0 +1,38 @@
+#!/bin/sh
+# dsh-gacha-calendar pre-commit hook — UTF-8 BOM guard
+#
+# WHY: DSH desktop's plugin-config phase reads package.json with a raw JSON.parse
+# that does NOT strip a UTF-8 BOM. A BOM written by PowerShell
+#   Set-Content -Encoding UTF8   (PS 5.1 default = UTF-8 WITH BOM)
+# broke DSH startup with:  Unexpected token '﻿', "﻿{\n  "nam"... is not valid JSON
+# Node's require() strips BOM, so node --check/require never caught it.
+#
+# This hook blocks any staged text file that begins with the UTF-8 BOM bytes
+# (EF BB BF). It protects .json (plugin manifests) plus other text types.
+#
+# Activation (one time per clone, repo-local):
+#   git config core.hooksPath .githooks
+# Skip for a single commit if ever needed:
+#   DSH_SKIP_BOM_CHECK=1 git commit ...
+if [ -n "$DSH_SKIP_BOM_CHECK" ]; then
+	exit 0
+fi
+
+fail=0
+for f in $(git diff --cached --name-only --diff-filter=ACM); do
+	case "$f" in
+		*.json|*.js|*.mjs|*.cjs|*.ts|*.jsonc|*.yml|*.yaml|*.md|*.toml|*.txt) ;;
+		*) continue ;;
+	esac
+	[ -f "$f" ] || continue
+	if [ "$(head -c 3 -- "$f" | od -An -tx1 | tr -d ' \n')" = "efbbbf" ]; then
+		echo "ERROR: UTF-8 BOM detected in staged file: $f" >&2
+		echo "  This breaks DSH plugin loading (JSON.parse does not strip BOM). Commit blocked." >&2
+		echo "  Fix (strip BOM), then re-add:" >&2
+		echo "    sed -i '1s/^\\xEF\\xBB\\xBF//' \"$f\"" >&2
+		echo "    git add \"$f\"" >&2
+		echo "  (Or save the file as 'UTF-8 without BOM' in your editor.)" >&2
+		fail=1
+	fi
+done
+exit $fail
