@@ -49,20 +49,47 @@ dsh plugin --profile desktop add dsh-gacha-calendar
 
 ## 开发
 
+**`src/` 是唯一真源，`lib/` 是构建产物 —— 不要直接改 `lib/`。**
+
 ```bash
-npm run typecheck   # 类型检查
-npm run build       # 构建（tsdown）
+npm run build   # src/ → lib/（确定性拼接，无第三方依赖）
+npm run check   # 只校验：src/ 拼出来的结果是否与 lib/ 现有产物一致（不写盘）
 ```
+
+- 构建由 `build.mjs` 完成：把 `src/client/*.js` 按 `ORDER` 顺序原样拼接成
+  `lib/client.js`（DSH 的 `__ModuleLoader__` 工厂形态），并把 `src/index.js`
+  复制成 `lib/index.js`。拼接是逐字节确定的，所以 `check` 能给出"一致/不一致"的确定结论。
+- 源文件约定：**LF 换行、UTF-8 无 BOM、Tab 缩进**。`build.mjs` 会强制校验（带 BOM 会让
+  DSH 启动直接失败，见 `.githooks/pre-commit`）；`.githooks/pre-commit` 还会在提交
+  `src/**` 或 `lib/**` 时自动跑一次 `check`，防止有人绕过源码直接改产物。
+- 历史说明：本仓库此前只提交了打包产物（没有 `src/`），`package.json` 里声明的
+  `tsc && tsdown` 从未真正可用。当前构建脚本是从产物回填源码时一并落地的替代方案，
+  目标是"改一处源码 → 确定性产出产物"，也便于把同一份解析/抓取核心复用到浏览器扩展。
 
 ## 插件结构
 
 ```
 dsh-gacha-calendar/
+├── build.mjs        # 构建脚本（确定性拼接 + --check 校验）
+├── src/             # 唯一真源
+│   ├── index.js     # host 端：配置 schema + 同源代理（CORS/Referer 反爬绕行，白名单域名）
+│   └── client/      # web 端，按原产物 //#region 顺序切分（拼接顺序见 build.mjs 的 ORDER）
+│       ├── 00-head.js       # DSH 模块加载壳 + react require
+│       ├── 10-config.js     # 配置常量 / 刷新频率选项
+│       ├── 20-sources.js    # SOURCES 来源注册表（11 款游戏 / 25 个来源）
+│       ├── 30-parsers.js    # 全部解析器（纯函数）
+│       ├── 40-fetchers.js   # 抓取器 + GACHA_FETCHERS / EVENT_FETCHERS 注册表
+│       ├── 50-refresh.js    # 刷新编排、失败沿用旧值、提示归类
+│       ├── 60-helpers.js    # 格式化 / 悬停 / 排序 helpers
+│       ├── 70-styles.js     # 样式
+│       ├── 80-components.js # React 组件（面板 + 设置页）
+│       ├── 90-plugin.js     # apply(ctx)：slots / settingsScope / 悬停 marquee
+│       └── 99-tail.js       # exports.apply / exports.inject
+├── lib/             # 构建产物（npm 包只发布这里）
+│   ├── index.js
+│   └── client.js
 ├── package.json     # dsh.bundle.patch + dsh.client.inject（DSH 加载规范）
 ├── cordis.patch.yml # bundle patch
-├── lib/
-│   ├── index.js     # host 端：配置 schema + 同源代理（CORS/Referer 反爬绕行，白名单域名）
-│   └── client.js    # web 端：面板 + 设置页 + 各游戏解析器与来源注册表
 └── README.md
 ```
 

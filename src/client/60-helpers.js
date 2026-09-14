@@ -1,0 +1,185 @@
+		//#region helpers
+		// 按设置中的排序（order: id 数组）重排；未设置时保持 SOURCES 顺序
+		function applyOrder(sources, order) {
+			if (!Array.isArray(order) || order.length === 0) return sources;
+			const byId = new Map(sources.map((s) => [s.id, s]));
+			const out = [];
+			for (const id of order) if (byId.has(id)) out.push(byId.get(id));
+			for (const s of sources) if (!out.includes(s)) out.push(s);
+			return out;
+		}
+
+		// 安全解析 JSON 字符串
+		function parseJsonStr(str, fallback) {
+			try { return JSON.parse(str || "") ?? fallback; } catch { return fallback; }
+		}
+
+		// 全部条目 = 内置(去除已删除) + 自定义条目
+		function getAllEntries(s) {
+			const removed = Array.isArray(s.removed) ? s.removed : [];
+			const base = SOURCES.filter((x) => !removed.includes(x.id));
+			const customs = parseJsonStr(s.customEntries, []);
+			if (!Array.isArray(customs)) return base;
+			const out = base.slice();
+			for (const c of customs) {
+				if (!c || typeof c.id !== "string") continue;
+				out.push({
+					id: c.id,
+					name: c.name || c.id,
+					banner: c.banner || "",
+					bannerDates: c.bannerDates || "",
+					event: c.event || "",
+					eventDates: c.eventDates || "",
+					next: c.next || "",
+					icon: c.icon || "",
+					source: c.source || "",
+					url: c.url || "",
+					eventUrl: c.eventUrl || "",
+					custom: true
+				});
+			}
+			return out;
+		}
+
+		// 蔚蓝档案三服角色名特例（一处规则、两个效果合并）：
+		// 1) 括号后缀是换装版本标识（桔梗（泳装）、椿(導覽員)、Shiroko (Cycling)），不去除——去掉会与基础版撞名；
+		// 2) 括号一律归一为半角（全角（）、半角() 都写成 ()），与日服/国际服源站写法对齐。
+		// 其它游戏仍按原规则删掉（属性/职业）后缀（如 克拉蕾（锋御·电）→ 克拉蕾）。
+		const BA_ROLE_IDS = ["ba-cn", "ba-global", "ba-jp"];
+
+		function baRoleName(name) {
+			return String(name || "").replace(/（/g, "(").replace(/）/g, ")");
+		}
+
+		// 角色名精简（面板外显用）：去「」装饰、去（属性/职业）后缀；
+		// 「称号·名字」按分隔符去称号（· U+00B7 不限字数；• U+2022 仅 4 字前缀）。
+		// 悬停全文仍用原始 roles。
+		function cleanRoleNames(roles, gameId) {
+			const isBa = BA_ROLE_IDS.includes(gameId);
+			return String(roles || "")
+				.split(/[、,，]/)
+				.map((n) => {
+					let s = n.replace(/[「」【】]/g, "");
+					if (isBa) s = baRoleName(s); // 蔚蓝三服：保留括号后缀 + 统一半角
+					else s = s.replace(/[（(][^）)]*[）)]/g, "");
+					s = s.trim();
+					// 称号去前缀，按分隔符区分（避免误删角色名）：
+					// ·  U+00B7 居中点 = 称号分隔（原神「轰隆雷鸣波·伊涅芙」→ 伊涅芙），不限称号字数；
+					// •  U+2022 间隔号 = 角色·变体（星铁「砂金•戏浪」→ 保留），仅在旧规则（4 字前缀）下才去
+					const mDot = s.match(/^([\u4e00-\u9fff]{2,10})[\u00B7](.+)$/);
+					if (mDot && mDot[2].trim()) {
+						s = mDot[2].trim();
+					} else {
+						const mBullet = s.match(/^([\u4e00-\u9fff]{4})[\u2022](.+)$/);
+						if (mBullet) s = mBullet[2].trim();
+					}
+					return s;
+				})
+				.filter(Boolean)
+				.join("、");
+		}
+
+		// 默认爬取源显示名（设置页下拉默认项）
+		// urlField: "url"（卡池源）或 "eventUrl"（活动源）
+		// 卡池源：source 字段，否则域名/未配置
+		// 活动源：eventSource 标签（或域名）；无活动源 → "未配置"
+		function getDefaultSourceName(g, urlField) {
+			const isEvent = urlField === "eventUrl";
+			const u = isEvent ? g.eventUrl : g.url;
+			if (isEvent) {
+				if (g.eventSource && g.eventSource.trim() !== "") return g.eventSource.trim();
+				if (u && u.trim() !== "") {
+					try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u.trim(); }
+				}
+				return "未配置";
+			}
+			if (g.source && g.source.trim() !== "") return g.source.trim();
+			if (u && u.trim() !== "") {
+				try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u.trim(); }
+			}
+			return "未配置";
+		}
+
+		// 可见条目 = 全部条目 - 隐藏条目
+		function getVisibleEntries(s) {
+			const hidden = Array.isArray(s.hidden) ? s.hidden : [];
+			return getAllEntries(s).filter((x) => !hidden.includes(x.id));
+		}
+
+		// 某条目的实际爬取地址：自定义覆盖默认；urlField 区分卡池源(customUrls)/活动源(customEventUrls)
+		// 存储值约定：custom:<url>（用户自定义输入，剥前缀返回 url）；其它值经 normalizeSourceId 归一
+		// （备选源的标识就是它的 url 或 id，老配置的 proxy:/gk-*: 写法在这里翻译）
+		function getEntryUrl(s, id, fallbackUrl, urlField) {
+			const urls = parseJsonStr(urlField === "eventUrl" ? s.customEventUrls : s.customUrls, {});
+			const u = urls && typeof urls === "object" ? urls[id] : undefined;
+			if (typeof u !== "string" || u.trim() === "") return fallbackUrl;
+			if (u.startsWith("custom:")) {
+				const v = u.slice("custom:".length).trim();
+				return v !== "" ? v : fallbackUrl;
+			}
+			const normalized = normalizeSourceId(u.trim());
+			return normalized !== "" ? normalized : fallbackUrl;
+		}
+		// 该条目的来源地址是否由用户自己填的（设置里存的是 custom:<url>）：
+		// 自定义网址允许通用解析兜底（用户在设置页粘 api.php 等页面时，内置解析器可能吃不下）
+		function isCustomSource(s, id, urlField) {
+			const urls = parseJsonStr(urlField === "eventUrl" ? s.customEventUrls : s.customUrls, {});
+			const u = urls && typeof urls === "object" ? urls[id] : undefined;
+			return typeof u === "string" && u.startsWith("custom:");
+		}
+
+		// 解析面板展示的时间段（mm-dd hh:mm ~ mm-dd hh:mm，无年份，如 "08-12 06:00 ~ 09-01 17:59"）
+		// → { startTs, endTs }；无法解析返回 null。年份按当前年补全，跨年（end 月份 < start 月份）自动 +1 年。
+		function parseDisplayRange(str, now) {
+			if (typeof str !== "string") return null;
+			const parts = str.split(/~/).map((x) => x.trim());
+			if (parts.length < 2) return null;
+			const parsePart = (p) => {
+				const m = p.match(/^(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?$/);
+				if (!m) return null;
+				const mo = Number(m[1]), d = Number(m[2]);
+				if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+				const h = m[3] ? Number(m[3]) : 0;
+				const mi = m[4] ? Number(m[4]) : 0;
+				return { mo, d, base: new Date(now.getFullYear(), mo - 1, d, h, mi).getTime() };
+			};
+			const a = parsePart(parts[0]);
+			const b = parsePart(parts[1]);
+			if (!a || !b) return null;
+			let startTs = a.base;
+			let endTs = b.base;
+			// 跨年：结束月份小于开始月份（如 12-20 ~ 01-05），结束补下一年
+			if (b.mo < a.mo) endTs += 365 * 24 * 60 * 60 * 1000;
+			return { startTs, endTs };
+		}
+
+		// 游戏名/图标悬停：这行数据的刷新时间（= 最近一次整行都拿到新数据的时间；
+		// 有列沿用旧值时保持旧时间，不谎报新时间）；没有成功记录则只显示名称
+		function buildRowTitle(g) {
+			return g._okAt ? g.name + "\n刷新时间 " + new Date(g._okAt).toLocaleString() : g.name;
+		}
+
+		// 剩余时间文本："X 天 X 小时 X 分钟"；负数（已过）返回 null 由调用方处理
+		function formatRemaining(ts, now) {
+			const diff = ts - now.getTime();
+			if (diff < 0) return null;
+			const days = Math.floor(diff / 86400000);
+			const hours = Math.floor((diff % 86400000) / 3600000);
+			const mins = Math.floor((diff % 3600000) / 60000);
+			return `${days}\u5929${hours}\u5C0F\u65F6${mins}\u5206\u949F`;
+		}
+
+		// 面板时间列展示：未开始→"还有 X 天 X 小时 X 分钟开始"；进行中→"还剩 X 天 X 小时 X 分钟"；已结束→"已结束"
+		function displayTimeCell(raw, now) {
+			const r = parseDisplayRange(raw, now);
+			if (!r) return raw || "";
+			if (now.getTime() < r.startTs) {
+				const t = formatRemaining(r.startTs, now);
+				return t === null ? raw : `\u8FD8\u6709 ${t} \u5F00\u59CB`;
+			}
+			if (now.getTime() > r.endTs) return "\u5DF2\u7ED3\u675F";
+			const t = formatRemaining(r.endTs, now);
+			return t === null ? raw : `\u8FD8\u6709 ${t}`;
+		}
+		//#endregion
+		//#endregion

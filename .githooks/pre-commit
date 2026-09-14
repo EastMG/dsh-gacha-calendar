@@ -1,5 +1,5 @@
 #!/bin/sh
-# dsh-gacha-calendar pre-commit hook — UTF-8 BOM guard
+# dsh-gacha-calendar pre-commit hook — UTF-8 BOM guard + src/lib 一致性守卫
 #
 # WHY: DSH desktop's plugin-config phase reads package.json with a raw JSON.parse
 # that does NOT strip a UTF-8 BOM. A BOM written by PowerShell
@@ -13,12 +13,13 @@
 # Activation (one time per clone, repo-local):
 #   git config core.hooksPath .githooks
 # Skip for a single commit if ever needed:
-#   DSH_SKIP_BOM_CHECK=1 git commit ...
-if [ -n "$DSH_SKIP_BOM_CHECK" ]; then
-	exit 0
-fi
+#   DSH_SKIP_BOM_CHECK=1 git commit ...      # 只跳过 BOM 检查
+#   DSH_SKIP_BUILD_CHECK=1 git commit ...    # 只跳过 src/lib 一致性检查
+skip_bom=${DSH_SKIP_BOM_CHECK:-}
+skip_build=${DSH_SKIP_BUILD_CHECK:-}
 
 fail=0
+if [ -z "$skip_bom" ]; then
 for f in $(git diff --cached --name-only --diff-filter=ACM); do
 	case "$f" in
 		*.json|*.js|*.mjs|*.cjs|*.ts|*.jsonc|*.yml|*.yaml|*.md|*.toml|*.txt) ;;
@@ -35,4 +36,25 @@ for f in $(git diff --cached --name-only --diff-filter=ACM); do
 		fail=1
 	fi
 done
+fi
+
+# ---- src/lib 一致性守卫 ----
+# WHY: src/ 是唯一真源，lib/ 只是构建产物。若直接改 lib/ 而忘了改 src/，下次 build
+# 就会把手改悄悄冲掉（本仓库历史上正是这么积累技术债的）。所以提交涉及 src/**、lib/**
+# 或 build.mjs 时，强制跑一次 `node build.mjs --check`。
+if [ -z "$skip_build" ]; then
+	if git diff --cached --name-only --diff-filter=ACM | grep -qE '^(src/|lib/|build\.mjs$)'; then
+		if command -v node >/dev/null 2>&1; then
+			if ! node build.mjs --check >/dev/null 2>&1; then
+				echo "ERROR: lib/ 与 src/ 不一致 —— src/ 是唯一真源，请不要直接改 lib/。Commit blocked." >&2
+				echo "  Fix: node build.mjs && git add lib/" >&2
+				echo "  (Or, if you really must ship a hand-edited lib/: DSH_SKIP_BUILD_CHECK=1 git commit ...)" >&2
+				fail=1
+			fi
+		else
+			echo "WARN: 未找到 node，跳过 lib/ 与 src/ 一致性检查" >&2
+		fi
+	fi
+fi
+
 exit $fail
