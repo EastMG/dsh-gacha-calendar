@@ -49,13 +49,12 @@ dsh plugin --profile desktop add dsh-gacha-calendar
 
 ## 开发
 
-**`src/` 是唯一真源，`lib/` 是构建产物 —— 不要直接改 `lib/`。**
-
 ```bash
 npm run build   # src/ → lib/（确定性拼接，无第三方依赖）
 npm run check   # 只校验：src/ 拼出来的结果是否与 lib/ 现有产物一致（不写盘）
 ```
 
+- `src/` 是唯一真源，`lib/` 是构建产物 —— 不要直接改 `lib/`。
 - 构建由 `build.mjs` 完成：把 `src/client/*.js` 按 `ORDER` 顺序原样拼接成
   `lib/client.js`（DSH 的 `__ModuleLoader__` 工厂形态），并把 `src/index.js`
   复制成 `lib/index.js`。拼接是逐字节确定的，所以 `check` 能给出"一致/不一致"的确定结论。
