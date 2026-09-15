@@ -42,17 +42,42 @@
 				return out;
 			}
 
+			// 记录归一：**Result JSON 的形状必须固定**（这才是"冻结契约"）——
+			// 内容字段无论抓没抓到都存在（缺就是空串），消费方不必到处 `?? ""`；
+			// 状态字段永远在（gachaFail / eventFail / okAt，可选 gachaStale / eventStale / skipped）。
+			// 判断"是没抓到还是源站没内容"要把内容字段与 gachaFail/gachaStale 一起看。
+			const CONTENT_FIELDS = [
+				"banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover",
+				"event", "eventDates", "eventDatesRaw", "eventHover"
+			];
+			function normalizeRecord(rec, name) {
+				const src = rec || {};
+				const out = { name: name || src.name || "" };
+				for (const f of CONTENT_FIELDS) out[f] = typeof src[f] === "string" ? src[f] : "";
+				out.gachaFail = src.gachaFail || null;
+				out.eventFail = src.eventFail || null;
+				out.gachaStale = !!src.gachaStale;
+				out.eventStale = !!src.eventStale;
+				if (src.skipped) out.skipped = true;
+				out.okAt = typeof src.okAt === "number" ? src.okAt : 0;
+				return out;
+			}
+
 			// 上次结果（Result JSON 形态；没有缓存时 games 为空对象，UI 直接显示静态默认值即可）
 			async function getCached() {
 				const raw = await storage.get("lastData");
-				const games = raw ? parseJsonStr(raw, {}) : {};
+				const parsed = raw ? parseJsonStr(raw, {}) : {};
+				const byId = parsed && typeof parsed === "object" ? parsed : {};
+				const games = {};
+				// 老缓存也补齐成同一形状（缺字段填空串）——消费方只需认一种形状
+				for (const [id, rec] of Object.entries(byId)) games[id] = normalizeRecord(rec, rec && rec.name);
 				const at = await storage.get("lastRefresh");
 				const entries = getAllEntries(await readSettings());
 				return {
 					schemaVersion: ENGINE_SCHEMA_VERSION,
 					refreshedAt: Number(at) || 0,
 					parserVersions: parserVersionsOf(entries),
-					games: games && typeof games === "object" ? games : {}
+					games
 				};
 			}
 

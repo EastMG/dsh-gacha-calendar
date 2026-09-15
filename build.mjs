@@ -23,7 +23,9 @@ const SRC_CLIENT = path.join(ROOT, "src", "client");
 const OUT_CLIENT = path.join(ROOT, "lib", "client.js");
 const SRC_HOST = path.join(ROOT, "src", "index.js");
 const OUT_HOST = path.join(ROOT, "lib", "index.js");
-const OUT_CORE = path.join(ROOT, "dist", "core.mjs");
+// core 包（中立名，供浏览器扩展 / Windows / 原生平台 import）；版本号跟随根 package.json
+const OUT_CORE = path.join(ROOT, "packages", "core", "core.mjs");
+const OUT_CORE_PKG = path.join(ROOT, "packages", "core", "package.json");
 
 // 拼接顺序（= 原产物的 //#region 顺序，改了这里就等于改了产物结构）
 const ORDER = [
@@ -95,7 +97,7 @@ function readChunks(order) {
 const clientBuilt = readChunks(ORDER).join("\n");
 const hostBuilt = read(SRC_HOST);
 
-// dist/core.mjs：把 createEngine 改成 ESM 导出（唯一一处变换，改不到就大声报错）
+// packages/core/core.mjs：把 createEngine 改成 ESM 导出（唯一一处变换，改不到就大声报错）
 const ENGINE_DECL = "\t\tfunction createEngine(env) {";
 const coreChunks = readChunks(CORE_ORDER).map((text) => {
   if (!text.includes(ENGINE_DECL)) return text;
@@ -105,6 +107,26 @@ if (!coreChunks.some((t) => t.includes("export function createEngine(env) {"))) 
   fail("未能把 createEngine 改成 ESM 导出（engine-head.js 里的函数声明写法变了？）");
 }
 const coreBuilt = coreChunks.join("\n");
+// core 包的 package.json：**由本脚本生成**，版本号跟随根包，避免两处手改漂移。
+// （packages/core/README.md 是手写的，不在此生成；包名刻意中立，不含 dsh —— 扩展/原生平台要用它。）
+const rootPkg = JSON.parse(read(path.join(ROOT, "package.json")));
+const corePkgBuilt = JSON.stringify({
+  name: "gacha-calendar-core",
+  version: rootPkg.version,
+  description: "二游活动/卡池排期抓取核心：11 款游戏的来源注册表 + 解析器 + 刷新编排 + 缓存降级。" +
+    "零依赖、零宿主环境依赖，任何 JS 运行时（浏览器扩展 background / Tauri / JavaScriptCore / ArkTS 嵌入式引擎）都能跑。",
+  type: "module",
+  main: "./core.mjs",
+  exports: {
+    ".": "./core.mjs",
+    "./package.json": "./package.json"
+  },
+  files: ["core.mjs", "README.md"],
+  license: rootPkg.license,
+  repository: { type: "git", url: "git+https://github.com/EastMG/dsh-gacha-calendar.git" },
+  homepage: "https://github.com/EastMG/dsh-gacha-calendar",
+  keywords: ["gacha", "calendar", "scraper", "anime-game", "dsh-plugin", "browser-extension"]
+}, null, 2) + "\n";
 
 const checkOnly = process.argv.includes("--check");
 const same = (a, b) => a === b;
@@ -114,15 +136,18 @@ if (checkOnly) {
   const curHost = read(OUT_HOST);
   const okClient = same(clientBuilt, curClient);
   const okHost = same(hostBuilt, curHost);
-  console.log(`lib/client.js  ${okClient ? "一致" : "不一致"}  ${sha(clientBuilt).slice(0, 16)}`);
-  console.log(`lib/index.js   ${okHost ? "一致" : "不一致"}  ${sha(hostBuilt).slice(0, 16)}`);
-  // dist/ 是构建产物（.gitignore 里），存在就一起校验、不存在只提示（不会让 --check 失败）
+  console.log(`lib/client.js              ${okClient ? "一致" : "不一致"}  ${sha(clientBuilt).slice(0, 16)}`);
+  console.log(`lib/index.js               ${okHost ? "一致" : "不一致"}  ${sha(hostBuilt).slice(0, 16)}`);
+  // core 包两个文件由本脚本生成；缺失只提示（新克隆还没 build 时不算错），存在则必须一致
   let okCore = true;
-  if (fs.existsSync(OUT_CORE)) {
-    okCore = same(coreBuilt, read(OUT_CORE));
-    console.log(`dist/core.mjs  ${okCore ? "一致" : "不一致"}  ${sha(coreBuilt).slice(0, 16)}`);
-  } else {
-    console.log("dist/core.mjs  不存在（dist/ 是产物目录，可跑 node build.mjs 生成）");
+  for (const [label, p, built] of [["packages/core/core.mjs", OUT_CORE, coreBuilt], ["packages/core/package.json", OUT_CORE_PKG, corePkgBuilt]]) {
+    if (fs.existsSync(p)) {
+      const ok = same(built, read(p));
+      okCore = okCore && ok;
+      console.log(`${label.padEnd(26)} ${ok ? "一致" : "不一致"}  ${sha(built).slice(0, 16)}`);
+    } else {
+      console.log(`${label.padEnd(26)} 不存在（可跑 node build.mjs 生成）`);
+    }
   }
   if (!okClient || !okHost || !okCore) {
     console.error("\n✗ src/ 与产物不一致 —— 要么忘了跑 build，要么有人直接改了产物（请改 src/ 后重新 build）");
@@ -137,6 +162,8 @@ fs.writeFileSync(OUT_CLIENT, clientBuilt, "utf8");
 fs.writeFileSync(OUT_HOST, hostBuilt, "utf8");
 fs.mkdirSync(path.dirname(OUT_CORE), { recursive: true });
 fs.writeFileSync(OUT_CORE, coreBuilt, "utf8");
-console.log(`写出 lib/client.js  ${clientBuilt.length} 字符  sha256=${sha(clientBuilt).slice(0, 16)}`);
-console.log(`写出 lib/index.js   ${hostBuilt.length} 字符  sha256=${sha(hostBuilt).slice(0, 16)}`);
-console.log(`写出 dist/core.mjs  ${coreBuilt.length} 字符  sha256=${sha(coreBuilt).slice(0, 16)}`);
+fs.writeFileSync(OUT_CORE_PKG, corePkgBuilt, "utf8");
+console.log(`写出 lib/client.js               ${clientBuilt.length} 字符  sha256=${sha(clientBuilt).slice(0, 16)}`);
+console.log(`写出 lib/index.js                ${hostBuilt.length} 字符  sha256=${sha(hostBuilt).slice(0, 16)}`);
+console.log(`写出 packages/core/core.mjs      ${coreBuilt.length} 字符  sha256=${sha(coreBuilt).slice(0, 16)}`);
+console.log(`写出 packages/core/package.json  ${corePkgBuilt.length} 字符  (gacha-calendar-core@${rootPkg.version})`);

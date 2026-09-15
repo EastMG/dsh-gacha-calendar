@@ -18,7 +18,8 @@
 				entries.forEach((e, i) => {
 					const rec = mergeEntryRecord(result.results[i], prev.games[e.id], nowMs());
 					if (result.results[i].reason === "skipped") rec.skipped = true;
-					games[e.id] = { name: e.name, ...rec };
+					// 统一成固定形状（内容字段缺失填空串）——见 engine-head.js 的 normalizeRecord
+					games[e.id] = normalizeRecord(rec, e.name);
 				});
 				await storage.set("lastData", JSON.stringify(games));
 				await storage.set("lastRefresh", result.at);
