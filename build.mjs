@@ -35,6 +35,8 @@ const ORDER = [
   "40-fetchers.js",    // 抓取器 + 两个来源注册表（GACHA_FETCHERS / EVENT_FETCHERS）
   "50-refresh.js",     // 刷新编排、失败沿用旧值
   "60-helpers.js",     // 共用纯函数：状态归一 / 提示文案 / 格式化 / 悬停 / 排序
+  "engine-head.js",    // core 引擎外壳：createEngine（面板只通过它拿 Result JSON）
+  "engine-api.js",     // 引擎 API：refresh() / 测试出口 / return
   "70-styles.js",      // 样式
   "80-components.js",  // React 组件（面板 + 设置页）
   "90-plugin.js",      // apply(ctx)：slots / settingsScope / 悬停 marquee

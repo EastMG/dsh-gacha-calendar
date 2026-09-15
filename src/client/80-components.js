@@ -1,5 +1,6 @@
 		//#region components
-		function CalendarPanel({ wide, scope }) {
+		// engine：core 引擎（抓取/解析/缓存合并都在里面）。面板只读它返回的 Result JSON。
+		function CalendarPanel({ wide, scope, engine }) {
 			const [open, setOpen] = (0, react.useState)(false);
 			const [snapshot, setSnapshot] = (0, react.useState)(() => scope.getSnapshot());
 			const [refreshing, setRefreshing] = (0, react.useState)(false);
@@ -63,32 +64,19 @@
 				if (refreshing) return;
 				setRefreshing(true);
 				try {
-					// 函数内部读取最新 snapshot，避免把 s 放进依赖数组导致定时器频繁重建
-					const snap = scope.getSnapshot();
-					const sNow = { ...DEFAULT_SETTINGS, ...(snap.value ?? {}) };
-					const entries = getAllEntries(sNow);
-					const result = await refreshAll(entries, sNow);
-					const prevById = JSON.parse(sNow.lastData || "{}") || {};
-					const dataById = {};
-					result.results.forEach((r, i) => {
-						const rec = mergeEntryRecord(r, prevById[entries[i].id], nowMs());
-						// 无来源的条目：既不算成功也不算失败，只记一个标记供提示里"（跳过 k 个）"
-						if (r.reason === "skipped") rec.skipped = true;
-						dataById[entries[i].id] = rec;
-					});
-					await scope.set("lastData", JSON.stringify(dataById));
-					await scope.set("lastRefresh", result.at);
-					await scope.set("lastSource", result.status === "ok" ? "web" : "none");
-					// 抓取详情（成功数 + 五类归类），供面板顶部展示；原因不进行内文字，放悬停里分行显示。
-					// 只把"结果"喂给提示函数（Result JSON 形态），不把抓取内部状态漏给外壳。
-					const { info, lines } = buildScrapeInfo(entries, { schemaVersion: 1, refreshedAt: result.at, games: dataById });
+					// 抓取/解析/合并/写缓存全部交给 core 引擎（面板不再自己编排）
+					const result = await engine.refresh();
+					// 顶部提示：只读 Result JSON（按游戏顺序取 name，交给共用提示函数分类）
+					const games = Object.entries(result.games).map(([id, g]) => ({ id, name: g.name || id }));
+					const { info, lines } = buildScrapeInfo(games, result);
 					setScrapeInfo(info);
 					setScrapeLines(lines);
+					// 引擎已把 lastData/lastRefresh/lastSource 写进 settings，刷新快照即可重渲染
 					setSnapshot(scope.getSnapshot());
 				} finally {
 					setRefreshing(false);
 				}
-			}, [refreshing, scope]);
+			}, [refreshing, scope, engine]);
 
 			// 定时自动刷新（按设置频率）。
 			// 注意：setTimeout/setInterval 的 delay 上限为 2^31-1 ms（约 24.86 天），

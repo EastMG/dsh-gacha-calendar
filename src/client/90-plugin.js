@@ -79,13 +79,16 @@
 			}, "dsh-gacha-calendar: marquee");
 
 			const scope = ctx.settingsScope.bind({ namespace: NS });
+			// core 引擎：抓取/解析/缓存合并都在 engine 里（面板只读它返回的 Result JSON）。
+			// 存储适配（settings scope）与传输适配（直连 + 宿主代理）见 92-dsh-env.js。
+			const engine = createDshEngine(scope);
 
 			ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
 				name: "sidebar.footer.action",
 				id: "dsh-gacha-calendar",
 				priority: -10,
 				locale: NS,
-				inject: () => ({ scope })
+				inject: () => ({ scope, engine })
 			}, CalendarPanel));
 
 			// 设置页单开一个 section（左侧导航独立页面，参照 dsh-cost-meter 的 settings.section 用法）
