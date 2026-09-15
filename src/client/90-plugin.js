@@ -92,13 +92,14 @@
 			}, CalendarPanel));
 
 			// 设置页单开一个 section（左侧导航独立页面，参照 dsh-cost-meter 的 settings.section 用法）
+			// 也把 engine 注入进去：设置页的「解析器自检」要调 engine.selfCheck()
 			ctx.slots.inject("settings.section", () => ctx.slots.register({
 				name: "settings.section",
 				id: "gacha-calendar",
 				order: 25,
 				label: "\u4E8C\u6E38\u6392\u671F",
 				locale: NS,
-				inject: () => ({ scope })
+				inject: () => ({ scope, engine })
 			}, CalendarSettingsPage));
 		}
 		//#endregion

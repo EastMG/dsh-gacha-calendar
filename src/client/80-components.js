@@ -271,13 +271,31 @@
 			});
 		}
 
-		function CalendarSettingsPage({ scope }) {
+		// engine：core 引擎（设置页的「解析器自检」用它跑 selfCheck()）
+		function CalendarSettingsPage({ scope, engine }) {
 			const [snapshot, setSnapshot] = (0, react.useState)(() => scope.getSnapshot());
 			const [adding, setAdding] = (0, react.useState)(false);
 			// 添加表单临时值（名称/图标手动填；卡池与活动内容由链接解析产出）
 			const [form, setForm] = (0, react.useState)({ name: "", icon: "", url: "", eventUrl: "" });
 			const [customInputs, setCustomInputs] = (0, react.useState)({});
 			const [eventCustomInputs, setEventCustomInputs] = (0, react.useState)({});
+			// 解析器自检（只读）：运行中标记 + 上一次的报告
+			const [selfChecking, setSelfChecking] = (0, react.useState)(false);
+			const [selfReport, setSelfReport] = (0, react.useState)(null);
+			// 逐个来源跑一遍，报告「解析出 0 条 / 抓取报错」；不改动设置与缓存
+			const runSelfCheck = async () => {
+				if (selfChecking) return;
+				setSelfChecking(true);
+				try {
+					const started = Date.now();
+					const report = await engine.selfCheck();
+					setSelfReport({ ...report, elapsedMs: Date.now() - started });
+				} catch (err) {
+					setSelfReport({ error: String((err && err.message) || err) });
+				} finally {
+					setSelfChecking(false);
+				}
+			};
 			(0, react.useEffect)(() => scope.subscribe(() => setSnapshot(scope.getSnapshot())), [scope]);
 			const s = { ...DEFAULT_SETTINGS, ...(snapshot.value ?? {}) };
 
@@ -419,6 +437,26 @@
 							] })
 						] }),
 						(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 12 }, children: "\u5728\u4FA7\u8FB9\u680F\u9762\u677F\u6253\u5F00\u671F\u95F4\uFF0C\u6309\u6B64\u9891\u7387\u81EA\u52A8\u5237\u65B0\u6E90\u6570\u636E\u3002" })
+					] }),
+					// 解析器自检：逐个来源跑一遍，报告「解析出 0 条 / 抓取报错」——源站改版后用来定位问题。
+					// 只读：不写缓存、不动设置（core 的 selfCheck() 保证）
+					(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 8, border: "1px solid var(--dsw-alias-border-l1)", borderRadius: 10, padding: "12px 14px", background: "var(--dsw-alias-bg-layer-1)" }, children: [
+						(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 10 }, children: [
+							(0, react_jsx_runtime.jsx)("span", { style: { fontWeight: 600 }, children: "解析器自检" }),
+							(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-refresh", disabled: selfChecking, onClick: runSelfCheck, children: selfChecking ? "自检中…" : (selfReport ? "重新自检" : "开始自检") })
+						] }),
+						(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 12 }, children: "逐个来源跑一遍，检查有没有源「解析不出当期内容」或「抓取报错」（源站改版后用它定位问题）。只读，不改动你的设置与缓存。" }),
+						selfReport ? (selfReport.error
+							? (0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-primary)", fontSize: 12 }, children: "自检失败：" + selfReport.error })
+							: (0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }, children: [
+								(0, react_jsx_runtime.jsx)("div", { children: "共 " + selfReport.total + " 条 · 来源结论 " + (selfReport.summary.ok + selfReport.summary.nomatch + selfReport.summary.down) + " 个：正常 " + selfReport.summary.ok + " / 未公布 " + selfReport.summary.nomatch + " / 报错 " + selfReport.summary.down + " · 用时 " + (selfReport.elapsedMs / 1000).toFixed(1) + "s" }),
+								selfReport.problems.length === 0
+									? (0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-state-business-primary)" }, children: "✓ 所有来源都能解析出当期内容，没有发现问题" })
+									: (0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 2 }, children: [
+										(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)" }, children: "需要关注（这些源这次没给出当期内容）：" }),
+										selfReport.problems.map((p, i) => (0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-primary)" }, children: "· " + p }, i))
+									] })
+							] })) : null
 					] }),
 					(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 6, border: "1px solid var(--dsw-alias-border-l1)", borderRadius: 10, padding: "12px 14px", background: "var(--dsw-alias-bg-layer-1)" }, children: [
 						(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }, children: [
