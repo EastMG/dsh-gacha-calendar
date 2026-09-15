@@ -21,29 +21,8 @@
 			return { ts, text: `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} ${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}` };
 		}
 
-		// 经 host 代理抓取文本（fetch 同源 /api/gacha-calendar-proxy）→ 返回原始 body 字符串
-		// extraHeaders：可选额外请求头（对象，如 GameKee 的 game-alias）
-		// body：可选（对象）；提供时以 POST + JSON body 请求目标（如重返未来官网资讯 API）
-		async function proxyFetchText(proxyUrl, referer, extraHeaders, body) {
-			let api = "/api/gacha-calendar-proxy?url=" + encodeURIComponent(proxyUrl) + "&referer=" + encodeURIComponent(referer || "");
-			if (extraHeaders) api += "&headers=" + encodeURIComponent(JSON.stringify(extraHeaders));
-			const opts = { headers: { "Accept": "application/json" } };
-			if (body !== void 0) {
-				opts.method = "POST";
-				opts.headers["Content-Type"] = "application/json; charset=utf-8";
-				opts.body = JSON.stringify(body);
-			}
-			const res = await fetch(api, opts);
-			if (!res.ok) throw new Error("proxy-http-" + res.status);
-			const j = await res.json();
-			if (!j || j.status !== 200 || typeof j.body !== "string") throw new Error("proxy-bad:" + (j?.error || j?.status));
-			return j.body;
-		}
-
-		// 经 host 代理抓取 JSON（body 为 JSON 时；body 参数同 proxyFetchText）
-		async function proxyFetchJson(proxyUrl, referer, extraHeaders, body) {
-			return JSON.parse(await proxyFetchText(proxyUrl, referer, extraHeaders, body));
-		}
+		// 经 host 代理抓取文本 / JSON 两个函数的**实现**已移到外壳（92-dsh-env.js），
+		// core 侧只在 15-env.js 保留同名薄封装（转调 coreEnv.transport）——这是 core 零宿主依赖的接缝之一。
 
 		// 解析繁体时间段："8月18日(二)維護後 ~ 9月1日(二)上午9點59分"
 		function parseBaZhRange(raw, nowYear) {
@@ -89,7 +68,7 @@
 
 		// 蔚蓝档案·国际服：nexon 官方「更新日誌」board(3352) → 当期卡池 + 当期活动
 		// 一次请求拿到更新日誌正文，从日程表同时提取 特選招募（卡池）与 活動劇情/總力戰（活动）
-		async function fetchBaGlobal(logListUrl, signal, now = Date.now()) {
+		async function fetchBaGlobal(logListUrl, signal, now = nowMs()) {
 			const ref = "https://forum.nexon.com/bluearchiveTW/";
 			const list = await proxyFetchJson(logListUrl, ref);
 			const threads = Array.isArray(list?.threads) ? list.threads : [];
@@ -219,7 +198,7 @@
 		//   ▼実施期間 2026年9月9日(水) メンテナンス後 ~ 2026年9月23日(水・祝) 10:59
 		// 时间按 JST(+09:00) 解析（展示时转本地）；起点写「メンテナンス後」时取同期维护公告
 		// 「▼実施時間 … ～ … 17:00前後」的结束时刻。活动取同期「イベント」条目的開催期間。
-		function parseBaJpNews(json, now = Date.now()) {
+		function parseBaJpNews(json, now = nowMs()) {
 			const rows = Array.isArray(json?.data?.rows) ? json.data.rows : [];
 			const clean = (s) => String(s || "")
 				.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " ")
@@ -303,7 +282,7 @@
 
 		// 日服卡池默认抓取器：官网新闻接口优先；失败或无当期募集 → 回退 GameKee 当期卡池（仅池名+档期）。
 		// 只返回卡池字段：活动字段由活动源单独负责（卡池/活动解耦，避免活动源失败时静默混入官方活动）
-		async function fetchBaJpGacha(url, signal, now = Date.now()) {
+		async function fetchBaJpGacha(url, signal, now = nowMs()) {
 			try {
 				const json = await proxyFetchJson(url, "https://bluearchive.jp/");
 				const d = parseBaJpNews(json, now);
@@ -318,7 +297,7 @@
 		}
 
 		// 日服活动备选抓取器：同一个官方接口的「イベント」条目（只取 event 字段）
-		async function fetchBaJpOfficialEvent(url, signal, now = Date.now()) {
+		async function fetchBaJpOfficialEvent(url, signal, now = nowMs()) {
 			const json = await proxyFetchJson(url, "https://bluearchive.jp/");
 			const d = parseBaJpNews(json, now);
 			if (!d || !d.event) return null;
@@ -418,7 +397,7 @@
 
 		// 蔚蓝国服（官网 bluearchive-cn.com）：news/list → 最新维护更新说明 → 当期卡池/活动名 + 维护起止
 		// 时间：维护日 14:00 ~ 下次维护前（约 +14 天，取维护日开始、预加载下一期预告前）
-		async function fetchBaCn(listUrl, now = Date.now()) {
+		async function fetchBaCn(listUrl, now = nowMs()) {
 			const H = { "game-alias": "ba" };
 			const ref = "https://bluearchive-cn.com/";
 			const nowYear = new Date(now).getFullYear();
@@ -529,7 +508,7 @@
 			const raw = html.slice(start);
 			const marks = [...raw.matchAll(/\{"viewpointId":"/g)].map((x) => x.index);
 			if (marks.length === 0) return null;
-			const now = Date.now();
+			const now = nowMs();
 			const nowYear = new Date().getFullYear();
 			const fmt = (mo, d, h, mi) => `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} ${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
 			let best = null;
@@ -570,7 +549,7 @@
 		// 重返未来：1999（官网 re.bluepoch.com 新闻 API，POST 经 host 代理）
 		// 列表接口（informationType=2 资讯）按上线时间倒序返回含全文的公告，
 		// 取最新一期「版本更新维护公告」：当期卡池（首位6星角色名，官网无征集名）/ 当期活动 / 维护起止 + 下一期维护日
-		async function fetchR99(listUrl, signal, now = Date.now()) {
+		async function fetchR99(listUrl, signal, now = nowMs()) {
 			const ref = "https://re.bluepoch.com/";
 			const list = await proxyFetchJson(listUrl, ref, {}, { current: 1, pageSize: 30, informationType: 2 });
 			const items = list?.data?.pageData || [];

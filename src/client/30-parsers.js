@@ -136,7 +136,7 @@
 		}
 
 		// 明日方舟当期卡池：外显按 限时 > 标准 > 中坚 优先级选一个；悬停 bannerHover 列出三种。
-		function selectArknights(html, now = Date.now()) {
+		function selectArknights(html, now = nowMs()) {
 			const items = parseArknights(html);
 			fillMissingStarts(items);
 			const tiers = ["限时", "标准", "中坚"];
@@ -188,7 +188,7 @@
 		}
 
 		// 列表 → 当期 限时/联动寻访池数组（bannerDates 统一为 "MM-DD HH:mm ~ MM-DD HH:mm"）
-		function parseAkOfficialPools(list, now = Date.now()) {
+		function parseAkOfficialPools(list, now = nowMs()) {
 			const nowYear = new Date(now).getFullYear();
 			const out = [];
 			for (const it of list || []) {
@@ -226,7 +226,7 @@
 		}
 
 		// 官方当期限时寻访（经 host 代理：列表 + 每池详情各 1 次请求）
-		async function fetchArknightsOfficialPools(signal, now = Date.now()) {
+		async function fetchArknightsOfficialPools(signal, now = nowMs()) {
 			const ref = "https://ak.hypergryph.com/";
 			const listUrl = AK_OFFICIAL_BULLETIN + "?lang=zh-cn&code=arknights&page=1&pageSize=30";
 			const json = await proxyFetchJson(listUrl, ref);
@@ -248,7 +248,7 @@
 		// 方舟卡池默认抓取器：官方公告 CMS 优先（当期限时/联动寻访），
 		// 官方无当期寻访公告（常规轮换周）或官方失败时自动回退 PRTS 卡池一览（逻辑同 selectArknights）。
 		// 设置页手动切到 PRTS 备选源时则走 GACHA_FETCHERS["arknights-prts"]，不经本函数。
-		async function fetchArknightsGacha(url, signal, now = Date.now()) {
+		async function fetchArknightsGacha(url, signal, now = nowMs()) {
 			try {
 				const official = await fetchArknightsOfficialPools(signal, now);
 				if (official.length > 0) {
@@ -271,7 +271,7 @@
 				}
 			} catch { /* 官方失败 → 回退 PRTS */ }
 			const apiUrl = ARKNIGHTS_PRTS_URL + (ARKNIGHTS_PRTS_URL.includes("?") ? "&" : "?") + "origin=*";
-			const res = await fetch(apiUrl, { signal, headers: { Accept: "application/json" } });
+			const res = await transportFetchRaw(apiUrl, { signal, headers: { Accept: "application/json" } });
 			if (!res.ok) throw new Error("http-" + res.status);
 			const json = await res.json();
 			const html = json?.parse?.text;
@@ -470,7 +470,7 @@
 
 		// 鸣潮官方公告解析：从全量公告（game/activity/recommend）中取"覆盖当前时刻"的「角色活动唤取」
 		// 公告形如：tabTitle="[身赴三途]角色活动唤取"，content 内含"✦活动时间✦ 2026年9月10日10:00 ~ 2026年9月29日11:59"
-		function parseWuwaNotice(list, now = Date.now()) {
+		function parseWuwaNotice(list, now = nowMs()) {
 			const groups = [list?.game, list?.activity, list?.recommend].filter(Array.isArray);
 			const stripH = (s) => String(s || "")
 				.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " ")
@@ -519,7 +519,7 @@
 
 		// 鸣潮卡池默认抓取器：官方公告（entrypoint → 目录 → zh-Hans.json 全量）优先；
 		// 无当期公告 / 抓取失败 → 自动回退 Bwiki 角色轮换池（逻辑同 parseWuwaPool）
-		async function fetchWuwaGacha(entryUrl, signal, now = Date.now()) {
+		async function fetchWuwaGacha(entryUrl, signal, now = nowMs()) {
 			try {
 				const ref = "https://aki-gm-resources.aki-game.com/";
 				const ej = await proxyFetchJson(entryUrl, ref);
@@ -532,7 +532,7 @@
 				if (d) return d;
 			} catch { /* 官方失败 → Bwiki 备选 */ }
 			const apiUrl = WUWA_BWIKI_URL + (WUWA_BWIKI_URL.includes("?") ? "&" : "?") + "origin=*";
-			const res = await fetch(apiUrl, { signal, headers: { Accept: "application/json" } });
+			const res = await transportFetchRaw(apiUrl, { signal, headers: { Accept: "application/json" } });
 			if (!res.ok) throw new Error("http-" + res.status);
 			const json = await res.json();
 			const html = json?.parse?.text;
@@ -544,7 +544,7 @@
 		// 公告形如：sIntro="本期代理人与音擎调频活动时间为：3.2版本更新后 ~ 2026/09/30 11:59"，
 		// sContent 内含「活动期间，限定S级代理人[克拉蕾(电·锋御)]、[南宫羽(以太·击破)]…」。
 		// 起点为"版本更新后"时，用同版本「更新公告」的 dtStartTime 补全；「独家重映/音擎回响」自选段跳过。
-		function parseZzzFreq(payload, now = Date.now()) {
+		function parseZzzFreq(payload, now = nowMs()) {
 			const list = Array.isArray(payload?.data?.list) ? payload.data.list : [];
 			const clean = (s) => stripTags(s);
 			// 版本更新公告 → "X.Y版本更新后"的起点；同时抽取「S级代理人[X] → 「Y」频段」对应表
@@ -635,14 +635,14 @@
 		}
 
 		// 绝区零卡池默认抓取器：官网公告优先；无当期频段公告 / 抓取失败 → 自动回退 Bwiki 往期调频
-		async function fetchZzzGacha(listUrl, signal, now = Date.now()) {
+		async function fetchZzzGacha(listUrl, signal, now = nowMs()) {
 			try {
 				const payload = await proxyFetchJson(listUrl, "https://zzz.mihoyo.com/");
 				const d = parseZzzFreq(payload, now);
 				if (d) return d;
 			} catch { /* 官方失败 → Bwiki 备选 */ }
 			const apiUrl = ZZZ_BWIKI_URL + (ZZZ_BWIKI_URL.includes("?") ? "&" : "?") + "origin=*";
-			const res = await fetch(apiUrl, { signal, headers: { Accept: "application/json" } });
+			const res = await transportFetchRaw(apiUrl, { signal, headers: { Accept: "application/json" } });
 			if (!res.ok) throw new Error("http-" + res.status);
 			const json = await res.json();
 			const html = json?.parse?.text;
@@ -665,7 +665,7 @@
 				const range = parseRange(timeText);
 				items.push({ banner: name, name, ...range, isMain: true });
 			}
-			const now = Date.now();
+			const now = nowMs();
 			const active = sortEventItems(items
 				.filter((it) => it.endTs != null && it.endTs >= now && (it.startTs == null || it.startTs <= now))
 				.map((it) => ({ name: it.name || it.banner, startTs: it.startTs, endTs: it.endTs, raw: it.rawOriginal || it.raw })));
@@ -700,7 +700,7 @@
 				}
 			}
 			// 不依赖 isMain 过滤的当期选择：直接按覆盖 now 判断
-			if (!(startTs != null && endTs != null && startTs <= Date.now() && endTs >= Date.now())) return null;
+			if (!(startTs != null && endTs != null && startTs <= nowMs() && endTs >= nowMs())) return null;
 			return {
 				banner,
 				roles: [...new Set(upM.map((m) => m[1]))].join("、"),
@@ -729,7 +729,7 @@
 					endTs: new Date(end + "T23:59:59+08:00").getTime()
 				});
 			}
-			const now = Date.now();
+			const now = nowMs();
 			const cur = items.find((it) => it.startTs <= now && it.endTs >= now) || null;
 			if (!cur) return null;
 			const fmt = (ts) => {
@@ -768,7 +768,7 @@
 		// 从 canmoe chunk JS 提取当期卡池：只采用"时间窗口覆盖当前时刻"的条目。
 		// 当期在 d={角色:{windows:[{start,end,version,period,isRerun}]}}；过期/下一期在 p=[{title,subtitle,version,periodStart,periodEnd,featured}]。
 		function currentFromCanmoe(js, now) {
-			now = now || Date.now();
+			now = now || nowMs();
 			const fmt = (iso) => {
 				const d = new Date(iso);
 				return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -836,14 +836,14 @@
 		}
 
 		// 兼容旧调用：parseCanmoe / parseCanmoeLoose 均走统一的"当期选择"逻辑（now 可注入）
-		function parseCanmoe(js, now = Date.now()) { return currentFromCanmoe(js, now); }
-		function parseCanmoeLoose(js, now = Date.now()) { return currentFromCanmoe(js, now); }
+		function parseCanmoe(js, now = nowMs()) { return currentFromCanmoe(js, now); }
+		function parseCanmoeLoose(js, now = nowMs()) { return currentFromCanmoe(js, now); }
 
 		// 终末地（canmoe 经 host 代理）：页面 HTML → 定位 BannerCalendar chunk → 抓 chunk JS → 窗口匹配当期
 		// canmoe 无 CORS 头，两步都经 host 代理（referer 用页面 origin 满足反爬）
 		// 数据在某一组件的 chunk 里（含当期 d={...} 与历史 p=[...]，p 内含多期 periodStart/End），
 		// currentFromCanmoe(js, now) 按 now 在 d/p 的多期窗口里做匹配，now 可注入以回放其他时刻
-		async function fetchCanmoeEndfield(pageUrl, now = Date.now()) {
+		async function fetchCanmoeEndfield(pageUrl, now = nowMs()) {
 			const html = await proxyFetchText(pageUrl, "https://end.canmoe.com/");
 			const chunks = nextJsChunkUrls(html, "BannerCalendar", pageUrl);
 			if (chunks.length === 0) return null;
@@ -932,7 +932,7 @@
 			const html = await proxyFetchText(pageUrl, "https://www.ldshop.gg/");
 			const pools = parseLdshopPools(html);
 			if (pools.length === 0) return null;
-			return selectCurrent(pools, Date.now());
+			return selectCurrent(pools, nowMs());
 		}
 
 		// 异环（官网 yh.wanmei.com 公告，经 host 代理）：抓游戏公告列表 → 取最新维护/更新公告 → 解析当期限定棋盘卡池与限时活动
@@ -984,7 +984,7 @@
 		// 通用抓取网页文本：MediaWiki api.php（action=parse）→ JSON 的 parse.text；其它 URL → 原始 HTML
 		async function fetchHtmlText(url, signal) {
 			const apiUrl = url + (url.includes("?") ? "&" : "?") + "origin=*";
-			const res = await fetch(apiUrl, { signal, headers: { Accept: "application/json" } });
+			const res = await transportFetchRaw(apiUrl, { signal, headers: { Accept: "application/json" } });
 			if (!res.ok) throw new Error("http-" + res.status);
 			if (/action\s*=\s*parse/i.test(url)) {
 				const json = await res.json();
@@ -1001,7 +1001,7 @@
 		// 全部失败返回 null（调用方按解析失败处理，不做可达性健康检查）
 		async function tryParseGenericGacha(url, signal) {
 			const html = await fetchHtmlText(url, signal);
-			const now = Date.now();
+			const now = nowMs();
 			const cur = selectCurrent(parseAllBwiki(html), now) || selectCurrent(parseArknights(html), now);
 			if (cur && cur.banner && cur.bannerDates) return cur;
 			const gt = parseGachaTracker(html);
@@ -1056,7 +1056,7 @@
 
 		// 当期活动（外显取 selectCurrent 的那条，行为同旧版）
 		function parseGenericEvents(html) {
-			return selectCurrent(collectGenericEvents(html), Date.now());
+			return selectCurrent(collectGenericEvents(html), nowMs());
 		}
 
 		// Bwiki 卡池列载荷（原神/星铁）：外显沿用 selectCurrent（同窗口主池角色合并、武器/光锥池不入选）；
@@ -1065,9 +1065,9 @@
 			const items = parseAllBwiki(html);
 			// selectCurrent 会就地补全缺失起点（fillMissingStarts），故先取快照
 			const snapshot = items.map((it) => ({ banner: it.banner, roles: it.roles, startTs: it.startTs, endTs: it.endTs, raw: it.rawOriginal || it.raw, isMain: it.isMain }));
-			const cur = selectCurrent(items, Date.now());
+			const cur = selectCurrent(items, nowMs());
 			if (!cur) return null;
-			const now = Date.now();
+			const now = nowMs();
 			const pools = snapshot
 				.filter((it) => it.isMain && it.endTs != null && it.endTs >= now && (it.startTs == null || it.startTs <= now))
 				.map((it) => ({
@@ -1087,7 +1087,7 @@
 		function genericEventPayload(html) {
 			const items = collectGenericEvents(html);
 			const snapshot = items.map((it) => ({ name: it.banner, cat: it.cat || "", startTs: it.startTs, endTs: it.endTs, raw: it.rawOriginal || it.raw }));
-			const now = Date.now();
+			const now = nowMs();
 			const active = sortEventItems(snapshot.filter((it) => it.endTs != null && it.endTs >= now && (it.startTs == null || it.startTs <= now)));
 			if (active.length === 0) return null;
 			// 外显：类别优先（剧情/叙事、限时高难），同级内结束时间升序；悬停仍按 endTs 升序全量
@@ -1148,14 +1148,14 @@
 
 		// 当期活动（外显取 selectCurrent 的那条，行为同旧版）
 		function parsePrtsEvents(html) {
-			return selectCurrent(collectPrtsEvents(html), Date.now());
+			return selectCurrent(collectPrtsEvents(html), nowMs());
 		}
 
 		// 活动列载荷：外显=排序第一条（最快结束的当期活动，③）；eventHover=全部覆盖当前时刻的活动（同序）
 		function prtsEventPayload(html) {
 			const items = collectPrtsEvents(html);
 			const snapshot = items.map((it) => ({ name: it.banner, cat: it.cat || "", startTs: it.startTs, endTs: it.endTs, raw: it.raw }));
-			const now = Date.now();
+			const now = nowMs();
 			const active = sortEventItems(snapshot.filter((it) => it.endTs != null && it.endTs >= now && (it.startTs == null || it.startTs <= now)));
 			if (active.length === 0) return null;
 			// 外显：类别优先（支线故事/危机合约等 vs 登录活动），同级内结束时间升序
@@ -1207,7 +1207,7 @@
 				});
 			}
 			if (items.length === 0) return null;
-			const now = Date.now();
+			const now = nowMs();
 			// 当期（进行中）选结束最晚；无当期时返回 null
 			const cur = items
 				.filter((it) => it.startTs <= now && it.endTs >= now)
@@ -1239,7 +1239,7 @@
 				items.push({ banner: m[1].trim(), roles: "", startTs: a.getTime(), endTs: b.getTime(), isMain: true });
 			}
 			if (items.length === 0) return null;
-			const now = Date.now();
+			const now = nowMs();
 			const cur = items.filter((it) => it.startTs <= now && it.endTs >= now).sort((x, y) => y.endTs - x.endTs)[0];
 			if (!cur) return null;
 			const fmt = (ts) => {
@@ -1325,7 +1325,7 @@
 			})(obj);
 			if (acts.length === 0) return null;
 			const parseT = (s) => new Date(String(s).replace(/\//g, "-")).getTime();
-			const t0 = now || Date.now();
+			const t0 = now || nowMs();
 			// 覆盖当前时刻的活动统一排序（③ 结束时间升序）供悬停；外显另按类别优先挑选
 			const activeActs = sortEventItems(acts
 				.filter((a) => parseT(a.open) <= t0 && parseT(a.close) >= t0)
@@ -1342,7 +1342,7 @@
 		}
 
 		// 终末地（FZ Wiki 经 host 代理，无 CORS）：活动排期页
-		async function fetchFzWikiEndfield(pageUrl, now = Date.now()) {
+		async function fetchFzWikiEndfield(pageUrl, now = nowMs()) {
 			const html = await proxyFetchText(pageUrl, "https://fz.wiki/");
 			const d = parseFzWikiActivities(html, now);
 			if (d) return d;
@@ -1367,7 +1367,7 @@
 		// 查询 URL 由 fetchYsActivity 构造，浏览器直连（api.php 带 origin=* 有 CORS）。
 		function parseSmwActivity(json) {
 			const results = json?.query?.results || {};
-			const now = Date.now();
+			const now = nowMs();
 			const covering = [];
 			// SMW timestamp 是 UTC 秒，raw 形如 "1/2026/8/28/10/0/0/0"（服务器本地时间 +08）。
 			// 用 raw 直接构造本地时间，避免 UTC 秒被本地时区再偏移。
@@ -1428,7 +1428,7 @@
 			const nowYear = new Date().getFullYear();
 			const q = "[[\u5206\u7C7B:\u6D3B\u52A8]][[\u7ED3\u675F\u65F6\u95F4::>" + nowYear + "/01/01]]|?\u540D\u79F0|?\u5F00\u59CB\u65F6\u95F4|?\u7ED3\u675F\u65F6\u95F4|?\u7C7B\u578B|sort=\u5F00\u59CB\u65F6\u95F4|order=desc|limit=60";
 			const apiUrl = "https://wiki.biligame.com/ys/api.php?action=ask&query=" + encodeURIComponent(q) + "&format=json&origin=*";
-			const res = await fetch(apiUrl, { signal, headers: { Accept: "application/json" } });
+			const res = await transportFetchRaw(apiUrl, { signal, headers: { Accept: "application/json" } });
 			if (!res.ok) throw new Error("http-" + res.status);
 			const json = await res.json();
 			const d = parseSmwActivity(json);
@@ -1450,7 +1450,7 @@
 		function mkMediaWiki(parse) {
 			return async (url, signal) => {
 				const apiUrl = url + (url.includes("?") ? "&" : "?") + "origin=*";
-				const res = await fetch(apiUrl, { signal, headers: { Accept: "application/json" } });
+				const res = await transportFetchRaw(apiUrl, { signal, headers: { Accept: "application/json" } });
 				if (!res.ok) throw new Error("http-" + res.status);
 				const json = await res.json();
 				const text = json?.parse?.text;
@@ -1461,11 +1461,11 @@
 		function mkRaw(parse) {
 			return async (url, signal) => {
 				const apiUrl = url + (url.includes("?") ? "&" : "?") + "origin=*";
-				const res = await fetch(apiUrl, { signal, headers: { Accept: "application/json" } });
+				const res = await transportFetchRaw(apiUrl, { signal, headers: { Accept: "application/json" } });
 				if (!res.ok) throw new Error("http-" + res.status);
 				return parse(await res.text());
 			};
 		}
 		// bwiki 通用"选当期"包装（原神/星铁/绝区零/方舟）
-		const pickCurrent = (parse) => (html) => selectCurrent(parse(html), Date.now());
+		const pickCurrent = (parse) => (html) => selectCurrent(parse(html), nowMs());
 		//#endregion

@@ -214,7 +214,7 @@
 		}
 		async function refreshAll(entries, s) {
 			const controller = new AbortController();
-			const timeout = window.setTimeout(() => controller.abort(), 12000);
+			const timeout = coreEnv.timer.setTimeout(() => controller.abort(), 12000);
 			// 自定义爬取地址覆盖默认；克隆避免污染原始对象（卡池源+活动源分别覆盖）
 			// allowGeneric*：只有"用户自己填的地址"（custom:<url>）或自定义条目才允许通用解析兜底
 			const targets = entries.map((e) => ({
@@ -225,12 +225,12 @@
 				allowGenericEvent: !!e.custom || isCustomSource(s, e.id, "eventUrl")
 			}));
 			const results = await Promise.all(targets.map((t) => fetchEntry(t, controller.signal)));
-			window.clearTimeout(timeout);
+			coreEnv.timer.clearTimeout(timeout);
 			const okCount = results.filter((r) => r.ok).length;
 			return {
 				okCount,
 				total: entries.length,
-				at: Date.now(),
+				at: nowMs(),
 				status: okCount > 0 ? "ok" : "unreachable",
 				results
 			};

@@ -1,0 +1,13 @@
+# 换行规则：本仓库的源码与产物一律 LF。
+#
+# WHY: 本仓库 core.autocrlf=true，git 在 checkout / rebase / pull 重写工作区时会把 LF 换成 CRLF。
+# 而 lib/client.js 是 DSH 直接加载的产物、build.mjs 的 --check 与 .githooks/pre-commit 守卫
+# 都按"LF + 无 BOM"校验 —— 一旦被换成 CRLF，构建会直接拒绝（实测：变基后 src/client/15-env.js 报"含 CR"）。
+# 显式声明 eol=lf 后，无论用户机器上的 autocrlf 怎么设，检出结果都是 LF。
+* text=auto eol=lf
+
+# 二进制素材：不要做任何换行/编码转换
+*.png binary
+*.jpg binary
+*.ico binary
+*.zip binary

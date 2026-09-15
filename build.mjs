@@ -28,6 +28,7 @@ const OUT_HOST = path.join(ROOT, "lib", "index.js");
 const ORDER = [
   "00-head.js",        // DSH 模块加载壳 + react require
   "10-config.js",      // 配置常量
+  "15-env.js",         // core 环境注入缝（transport / now / 计时器）
   "20-sources.js",     // SOURCES 来源注册表（11 款游戏 / 25 个来源）
   "30-parsers.js",     // 全部解析器（纯函数）
   "40-fetchers.js",    // 抓取器 + 两个来源注册表（GACHA_FETCHERS / EVENT_FETCHERS）
@@ -36,6 +37,7 @@ const ORDER = [
   "70-styles.js",      // 样式
   "80-components.js",  // React 组件（面板 + 设置页）
   "90-plugin.js",      // apply(ctx)：slots / settingsScope / 悬停 marquee
+  "92-dsh-env.js",     // DSH 环境适配：注入 transport（直连 + 宿主代理）
   "99-tail.js"         // exports.apply / exports.inject / return
 ];
 
