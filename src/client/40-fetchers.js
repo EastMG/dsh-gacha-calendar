@@ -745,21 +745,9 @@
 			}
 		};
 
-		// —— 备选源（altSources / eventAltSources）字段约定 ——
-		//   label   设置页显示名
-		//   fetcher 抓取器键名（GACHA_FETCHERS / EVENT_FETCHERS[条目 id] 里注册）
-		//   url     该来源要抓的地址（大多数备选源）
-		//   id      抓取器自带地址的内部来源（如 GameKee）的稳定标识
-		// 设置页持久化的"当前来源"就是 url ?? id（不再用伪地址或前缀编码语义）。
-		// 老配置里的两种旧写法在读取时自动翻译，无需迁移脚本：
-		//   "proxy:<url>"（旧版本用前缀标记"经 host 代理"）、"gk-jp:" / "gk-global:"（旧伪地址）
-		const altSourceId = (alt) => alt.url || alt.id || "";
-		const LEGACY_ALT_IDS = { "gk-jp:": "ba-jp:gamekee", "gk-global:": "ba-global:gamekee" };
-		function normalizeSourceId(v) {
-			const s = String(v ?? "");
-			const mapped = Object.prototype.hasOwnProperty.call(LEGACY_ALT_IDS, s) ? LEGACY_ALT_IDS[s] : s;
-			return mapped.startsWith("proxy:") ? mapped.slice("proxy:".length) : mapped;
-		}
+		// —— 备选源（altSources / eventAltSources）的字段约定与 altSourceId / normalizeSourceId，
+		//    以及下面的 gachaFetcherFor / eventFetcherFor 用到的标识归一，都在 60-helpers.js ——
+		//    （设置页也要用这两个纯函数，所以放在 core 与外壳共用的 helpers 里，而不是 core 内部）
 		// 取条目当前卡池源的抓取器：命中的备选源 > 默认抓取器（无 → null）
 		function gachaFetcherFor(source, url) {
 			const want = normalizeSourceId(url);

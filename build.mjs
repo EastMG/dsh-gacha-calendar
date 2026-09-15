@@ -23,6 +23,7 @@ const SRC_CLIENT = path.join(ROOT, "src", "client");
 const OUT_CLIENT = path.join(ROOT, "lib", "client.js");
 const SRC_HOST = path.join(ROOT, "src", "index.js");
 const OUT_HOST = path.join(ROOT, "lib", "index.js");
+const OUT_CORE = path.join(ROOT, "dist", "core.mjs");
 
 // 拼接顺序（= 原产物的 //#region 顺序，改了这里就等于改了产物结构）
 const ORDER = [
@@ -32,13 +33,29 @@ const ORDER = [
   "20-sources.js",     // SOURCES 来源注册表（11 款游戏 / 25 个来源）
   "30-parsers.js",     // 全部解析器（纯函数）
   "40-fetchers.js",    // 抓取器 + 两个来源注册表（GACHA_FETCHERS / EVENT_FETCHERS）
-  "50-refresh.js",     // 刷新编排、失败沿用旧值、提示归类
-  "60-helpers.js",     // 格式化 / 悬停 / 排序等 helpers
+  "50-refresh.js",     // 刷新编排、失败沿用旧值
+  "60-helpers.js",     // 共用纯函数：状态归一 / 提示文案 / 格式化 / 悬停 / 排序
   "70-styles.js",      // 样式
   "80-components.js",  // React 组件（面板 + 设置页）
   "90-plugin.js",      // apply(ctx)：slots / settingsScope / 悬停 marquee
   "92-dsh-env.js",     // DSH 环境适配：注入 transport（直连 + 宿主代理）
   "99-tail.js"         // exports.apply / exports.inject / return
+];
+
+// 第二个产物：dist/core.mjs —— 独立、零依赖的 ESM 模块，供浏览器扩展 / Windows / 原生平台 import。
+// 组装方式：共用部分（配置 / 来源表 / helpers）放模块顶层；core 主体（15/30/40/50 + 引擎外壳）
+// 包进 `export function createEngine(env) { … }` —— 同一个函数体，与 DSH 产物同源。
+// 注：engine-head.js 里那一行 `function createEngine(env) {` 会被加上 `export ` 前缀（见下）。
+const CORE_ORDER = [
+  "10-config.js",      // 默认配置（DEFAULT_SETTINGS / REFRESH_OPTIONS）
+  "20-sources.js",     // SOURCES 来源注册表
+  "60-helpers.js",     // 共用纯函数（core 与 UI 都要用）
+  "engine-head.js",    // createEngine 外壳：storage 读写 / listGames / getCached
+  "15-env.js",         // core 环境注入缝
+  "30-parsers.js",     // 解析器
+  "40-fetchers.js",    // 抓取器 + 来源注册表
+  "50-refresh.js",     // 刷新编排
+  "engine-api.js"      // 注入 env + refresh() + 测试出口 + return
 ];
 
 const sha = (s) => crypto.createHash("sha256").update(s, "utf8").digest("hex");
@@ -49,29 +66,43 @@ function fail(msg) {
   process.exit(1);
 }
 
-// —— 前置校验：src/client 的文件集合必须与 ORDER 完全一致（防止加了文件忘了排序）——
+// —— 前置校验：src/client 的每个文件都必须被某个产物用到（防止加了文件忘了接线）——
 const present = fs.readdirSync(SRC_CLIENT).filter((f) => f.endsWith(".js")).sort();
-const missing = ORDER.filter((f) => !present.includes(f));
-const extra = present.filter((f) => !ORDER.includes(f));
+const used = new Set([...ORDER, ...CORE_ORDER]);
+const missing = [...used].filter((f) => !present.includes(f));
+const unused = present.filter((f) => !used.has(f));
 if (missing.length) fail(`src/client 缺少文件：${missing.join("、")}`);
-if (extra.length) fail(`src/client 有多余文件（未列入 ORDER）：${extra.join("、")}`);
+if (unused.length) fail(`src/client 有文件未被任何产物使用（请加入 ORDER 或 CORE_ORDER）：${unused.join("、")}`);
 
 // —— 逐段读取并校验编码/换行（历史教训：BOM 会让 DSH 启动直接失败）——
 // 源文件约定：每个文件以"恰好一个换行"结尾、文件内不留尾部空行；**段与段之间的空行由本脚本插入**
-// （`pieces.join("\n")`）——这样源文件干净（git diff --check 不会有 "new blank line at EOF"），
-// 产物又与迁移前逐字节一致。段的来源见上面 ORDER 的注释。
-const pieces = [];
-for (const name of ORDER) {
-  const p = path.join(SRC_CLIENT, name);
-  const text = read(p);
-  if (text.charCodeAt(0) === 0xfeff) fail(`${name} 带 UTF-8 BOM（必须无 BOM）`);
-  if (text.includes("\r")) fail(`${name} 含 CR（必须 LF 换行）`);
-  if (!text.endsWith("\n")) fail(`${name} 末尾缺少换行`);
-  if (text.endsWith("\n\n")) fail(`${name} 末尾有多余空行（段间空行由 build.mjs 插入，源文件不要留）`);
-  pieces.push(text);
+// （`pieces.join("\n")`）——这样源文件干净（git diff --check 不会有 "new blank line at EOF"）。
+function readChunks(order) {
+  const out = [];
+  for (const name of order) {
+    const p = path.join(SRC_CLIENT, name);
+    const text = read(p);
+    if (text.charCodeAt(0) === 0xfeff) fail(`${name} 带 UTF-8 BOM（必须无 BOM）`);
+    if (text.includes("\r")) fail(`${name} 含 CR（必须 LF 换行）`);
+    if (!text.endsWith("\n")) fail(`${name} 末尾缺少换行`);
+    if (text.endsWith("\n\n")) fail(`${name} 末尾有多余空行（段间空行由 build.mjs 插入，源文件不要留）`);
+    out.push(text);
+  }
+  return out;
 }
-const clientBuilt = pieces.join("\n");
+const clientBuilt = readChunks(ORDER).join("\n");
 const hostBuilt = read(SRC_HOST);
+
+// dist/core.mjs：把 createEngine 改成 ESM 导出（唯一一处变换，改不到就大声报错）
+const ENGINE_DECL = "\t\tfunction createEngine(env) {";
+const coreChunks = readChunks(CORE_ORDER).map((text) => {
+  if (!text.includes(ENGINE_DECL)) return text;
+  return text.replace(ENGINE_DECL, "export function createEngine(env) {");
+});
+if (!coreChunks.some((t) => t.includes("export function createEngine(env) {"))) {
+  fail("未能把 createEngine 改成 ESM 导出（engine-head.js 里的函数声明写法变了？）");
+}
+const coreBuilt = coreChunks.join("\n");
 
 const checkOnly = process.argv.includes("--check");
 const same = (a, b) => a === b;
@@ -83,16 +114,27 @@ if (checkOnly) {
   const okHost = same(hostBuilt, curHost);
   console.log(`lib/client.js  ${okClient ? "一致" : "不一致"}  ${sha(clientBuilt).slice(0, 16)}`);
   console.log(`lib/index.js   ${okHost ? "一致" : "不一致"}  ${sha(hostBuilt).slice(0, 16)}`);
-  if (!okClient || !okHost) {
-    console.error("\n✗ src/ 与 lib/ 产物不一致 —— 要么忘了跑 build，要么有人直接改了 lib/（请改 src/ 后重新 build）");
+  // dist/ 是构建产物（.gitignore 里），存在就一起校验、不存在只提示（不会让 --check 失败）
+  let okCore = true;
+  if (fs.existsSync(OUT_CORE)) {
+    okCore = same(coreBuilt, read(OUT_CORE));
+    console.log(`dist/core.mjs  ${okCore ? "一致" : "不一致"}  ${sha(coreBuilt).slice(0, 16)}`);
+  } else {
+    console.log("dist/core.mjs  不存在（dist/ 是产物目录，可跑 node build.mjs 生成）");
+  }
+  if (!okClient || !okHost || !okCore) {
+    console.error("\n✗ src/ 与产物不一致 —— 要么忘了跑 build，要么有人直接改了产物（请改 src/ 后重新 build）");
     process.exit(1);
   }
-  console.log("\n✓ src/ 与 lib/ 产物一致");
+  console.log("\n✓ src/ 与产物一致");
   process.exit(0);
 }
 
 fs.mkdirSync(path.dirname(OUT_CLIENT), { recursive: true });
 fs.writeFileSync(OUT_CLIENT, clientBuilt, "utf8");
 fs.writeFileSync(OUT_HOST, hostBuilt, "utf8");
+fs.mkdirSync(path.dirname(OUT_CORE), { recursive: true });
+fs.writeFileSync(OUT_CORE, coreBuilt, "utf8");
 console.log(`写出 lib/client.js  ${clientBuilt.length} 字符  sha256=${sha(clientBuilt).slice(0, 16)}`);
 console.log(`写出 lib/index.js   ${hostBuilt.length} 字符  sha256=${sha(hostBuilt).slice(0, 16)}`);
+console.log(`写出 dist/core.mjs  ${coreBuilt.length} 字符  sha256=${sha(coreBuilt).slice(0, 16)}`);

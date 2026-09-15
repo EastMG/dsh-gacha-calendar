@@ -1,55 +1,4 @@
 		//#region refresh
-		// —— 抓取状态与错误归一（统一机制，不做任何游戏特判）——
-		// 每一侧（卡池/活动）只有三种状态：
-		//   ok      ：本次抓到当期内容
-		//   down    ：抓取器报错（网络错误 / CORS 被拦 / 超时 / HTTP 非 2xx / 解析崩，都算）
-		//   nomatch ：请求成功，但源站里没有当期内容（"未命中"，不是失败）
-		// 判定口径：任一侧 down → 整条 ok=false；只有 nomatch → 仍算 ok（面板提示"未公布"）。
-		// 环境原文（fetch failed / Failed to fetch / NetworkError…）一律归一成简短中文，不再外显。
-		const SIDE_TEXT = {
-			gacha: { fail: "卡池失败", nomatch: "新卡池未公布" },
-			event: { fail: "活动失败", nomatch: "新活动未公布" }
-		};
-		function normErr(err) {
-			const name = String((err && err.name) || "");
-			const msg = String((err && err.message) || err || "");
-			if (name === "AbortError" || /abort/i.test(msg)) return "超时";
-			if (/^proxy-bad:/.test(msg)) return "代理响应异常";
-			const m = msg.match(/^(?:proxy-http|http)-(\d{3})$/);
-			if (m) return "HTTP " + m[1];
-			if (/^bad-json$/.test(msg)) return "响应格式异常";
-			if (/fetch failed|Failed to fetch|NetworkError|net::|Load failed|network error/i.test(msg)) return "网络不通";
-			if (/^no-source$/.test(msg)) return "无可用来源";
-			return "抓取异常";
-		}
-		const isDown = (f) => !!f && f.kind === "down";
-		const isNomatch = (f) => !!f && f.kind === "nomatch";
-		// 一侧状态的单行文案：down → "卡池失败：网络不通"；nomatch → "新卡池未公布"；ok → ""
-		// 兼容老版本缓存：旧 lastData 里 eventFail 是**字符串**（"event-down" / "no-match" / 错误原文），
-		// 读到时升级成 { kind, reason }；新格式原样返回（否则老缓存会把"失败"错显成"未公布"）。
-		function normalizeFail(f) {
-			if (!f) return null;
-			if (typeof f === "string") {
-				return /nomatch|no-match/i.test(f) ? { kind: "nomatch" } : { kind: "down", reason: normErr(f) };
-			}
-			return f.kind === "down" || f.kind === "nomatch" ? f : null;
-		}
-		function sideFailText(side, fail) {
-			const f = normalizeFail(fail);
-			if (!f) return "";
-			return f.kind === "down"
-				? SIDE_TEXT[side].fail + "：" + (f.reason || "抓取异常")
-				: SIDE_TEXT[side].nomatch;
-		}
-		// 逐条归类（固定顺序：卡池在前、活动在后；每侧至多一条），面板顶部提示与悬停共用同一份
-		function entryFailParts(r) {
-			const parts = [];
-			const gf = normalizeFail(r && r.gachaFail);
-			const ef = normalizeFail(r && r.eventFail);
-			if (gf) parts.push({ side: "gacha", kind: gf.kind, text: sideFailText("gacha", gf) });
-			if (ef) parts.push({ side: "event", kind: ef.kind, text: sideFailText("event", ef) });
-			return parts;
-		}
 		// 两侧各自只允许写自己的字段：某些来源的载荷同时含卡池与活动字段（如 GameKee），
 		// 若把整对象直接合并，活动源的数据会污染卡池列（反之亦然）——解耦契约的一部分。
 		const GACHA_FIELDS = ["banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover"];
@@ -184,33 +133,6 @@
 			}
 			rec.okAt = (!gachaFail && !eventFail) ? nowTs : (prevRec && prevRec.okAt) || 0;
 			return rec;
-		}
-		// 面板顶部提示（通用分类，不针对任何游戏特判）：
-		// 行内只给"分类 + 条目名"（段间用空格，零项不显示）；悬停明细逐条分行给原因。
-		function buildScrapeInfo(entries, results) {
-			const okCount = entries.filter((x, i) => results[i]?.ok && results[i]?.reason !== "skipped").length;
-			const skippedCount = entries.filter((x, i) => results[i]?.reason === "skipped").length;
-			const skippedNote = skippedCount > 0 ? `（跳过 ${skippedCount} 个）` : "";
-			// 固定类别顺序：卡池失败 / 活动失败 / 新卡池未公布 / 新活动未公布
-			const CATS = [
-				["gachaFail", "down", SIDE_TEXT.gacha.fail],
-				["eventFail", "down", SIDE_TEXT.event.fail],
-				["gachaFail", "nomatch", SIDE_TEXT.gacha.nomatch],
-				["eventFail", "nomatch", SIDE_TEXT.event.nomatch]
-			];
-			const groups = CATS.map(([field, kind, label]) => ({
-				label,
-				names: entries
-					.filter((x, i) => ((results[i] && results[i][field]) || {}).kind === kind)
-					.map((x) => x.name)
-			})).filter((grp) => grp.names.length > 0);
-			let info = `成功 ${okCount}/${entries.length}${skippedNote}`;
-			groups.forEach((grp) => { info += ` ${grp.label}：${grp.names.join("、")}`; });
-			const lines = entries.map((x, i) => {
-				const parts = entryFailParts(results[i]);
-				return parts.length > 0 ? `${x.name} ${parts.map((p) => p.text).join("、")}` : "";
-			}).filter(Boolean);
-			return { info, lines };
 		}
 		async function refreshAll(entries, s) {
 			const controller = new AbortController();

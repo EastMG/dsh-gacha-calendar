@@ -1,0 +1,72 @@
+		//#region engine（core 对外唯一入口：createEngine）
+		// core = 环境无关的"抓取 + 解析 + 缓存合并"逻辑。宿主（DSH 插件 / 浏览器扩展 / Windows /
+		// Android / iOS / 鸿蒙）只需注入三样东西，然后读它返回的 Result JSON 画界面：
+		//   transport: { fetchRaw(url, opts), fetchViaProxy(url, { referer, headers, body }) }
+		//   storage:   { get(key), set(key, value) }      —— 配置与缓存都走它（键名见 CONFIG_KEYS）
+		//   now:       () => 毫秒时间戳（可注入 → 单测能固定时间）
+		//   timer:     { setTimeout, clearTimeout }（可选；不传就用宿主全局的）
+		// 硬约束（交接文档 §13.3）：core 内部不得出现 window / document / Node API / 直接 fetch /
+		// 直接 Date.now —— 全部经 15-env.js 的 coreEnv。违反此约束会让 Android/iOS/鸿蒙 无法嵌入。
+		const ENGINE_SCHEMA_VERSION = 1;
+
+		function createEngine(env) {
+			const engineEnv = env || {};
+			// 各平台自己实现这两个方法；缺省实现只保证"不崩"，不联网、不落盘
+			const storage = engineEnv.storage || {
+				async get() { return undefined; },
+				async set() { /* 无存储：算完就返回，不持久化 */ }
+			};
+			// engine 会读取的存储键（宿主按自己的方式实现即可；读不到就用 DEFAULT_SETTINGS 的默认值）
+			//   order / hidden / removed / customEntries / customUrls / customEventUrls  —— 配置
+			//   lastData / lastRefresh / lastSource                                    —— 缓存
+			const CONFIG_KEYS = [
+				"order", "hidden", "removed", "customEntries", "customUrls", "customEventUrls",
+				"autoRefresh", "refreshMinutes", "lastData", "lastRefresh", "lastSource"
+			];
+
+			// 读取配置（缺失项回落到 10-config.js 的 DEFAULT_SETTINGS）
+			async function readSettings() {
+				const out = { ...DEFAULT_SETTINGS };
+				for (const k of CONFIG_KEYS) {
+					const v = await storage.get(k);
+					if (v !== undefined && v !== null) out[k] = v;
+				}
+				return out;
+			}
+
+			// 上次结果（Result JSON 形态；没有缓存时 games 为空对象，UI 直接显示静态默认值即可）
+			async function getCached() {
+				const raw = await storage.get("lastData");
+				const games = raw ? parseJsonStr(raw, {}) : {};
+				const at = await storage.get("lastRefresh");
+				return {
+					schemaVersion: ENGINE_SCHEMA_VERSION,
+					refreshedAt: Number(at) || 0,
+					games: games && typeof games === "object" ? games : {}
+				};
+			}
+
+			// 条目元信息（名字 / 图标 / 来源标签 / 可选来源清单 / 静态默认值 / 是否隐藏）。
+			// 各平台 UI 用它画列表；**不含抓取结果**（结果在 getCached() / refresh() 里）。
+			async function listGames() {
+				const s = await readSettings();
+				const hidden = Array.isArray(s.hidden) ? s.hidden : [];
+				return getAllEntries(s).map((g) => ({
+					id: g.id,
+					name: g.name,
+					icon: g.icon,
+					source: g.source,
+					eventSource: g.eventSource,
+					altSources: (g.altSources || []).map((a) => ({ label: a.label, value: altSourceId(a) })),
+					eventAltSources: (g.eventAltSources || []).map((a) => ({ label: a.label, value: altSourceId(a) })),
+					custom: !!g.custom,
+					hidden: hidden.includes(g.id),
+					defaults: {
+						banner: g.banner || "",
+						roles: g.roles || "",
+						bannerDates: g.bannerDates || "",
+						event: g.event || "",
+						eventDates: g.eventDates || ""
+					}
+				}));
+			}

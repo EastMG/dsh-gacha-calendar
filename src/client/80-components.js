@@ -71,13 +71,17 @@
 					const prevById = JSON.parse(sNow.lastData || "{}") || {};
 					const dataById = {};
 					result.results.forEach((r, i) => {
-						dataById[entries[i].id] = mergeEntryRecord(r, prevById[entries[i].id], Date.now());
+						const rec = mergeEntryRecord(r, prevById[entries[i].id], nowMs());
+						// 无来源的条目：既不算成功也不算失败，只记一个标记供提示里"（跳过 k 个）"
+						if (r.reason === "skipped") rec.skipped = true;
+						dataById[entries[i].id] = rec;
 					});
 					await scope.set("lastData", JSON.stringify(dataById));
 					await scope.set("lastRefresh", result.at);
 					await scope.set("lastSource", result.status === "ok" ? "web" : "none");
-					// 抓取详情（成功数 + 五类归类），供面板顶部展示；原因不进行内文字，放悬停里分行显示
-					const { info, lines } = buildScrapeInfo(entries, result.results);
+					// 抓取详情（成功数 + 五类归类），供面板顶部展示；原因不进行内文字，放悬停里分行显示。
+					// 只把"结果"喂给提示函数（Result JSON 形态），不把抓取内部状态漏给外壳。
+					const { info, lines } = buildScrapeInfo(entries, { schemaVersion: 1, refreshedAt: result.at, games: dataById });
 					setScrapeInfo(info);
 					setScrapeLines(lines);
 					setSnapshot(scope.getSnapshot());

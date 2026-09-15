@@ -1,4 +1,109 @@
-		//#region helpers
+		//#region helpers（core 与外壳共用：纯函数、零宿主依赖）
+		// —— 抓取状态与错误归一（统一机制，不做任何游戏特判）——
+		// 每一侧（卡池/活动）只有三种状态：
+		//   ok      ：本次抓到当期内容
+		//   down    ：抓取器报错（网络错误 / CORS 被拦 / 超时 / HTTP 非 2xx / 解析崩，都算）
+		//   nomatch ：请求成功，但源站里没有当期内容（"未命中"，不是失败）
+		// 判定口径：任一侧 down → 整条 ok=false；只有 nomatch → 仍算 ok（面板提示"未公布"）。
+		// 环境原文（fetch failed / Failed to fetch / NetworkError…）一律归一成简短中文，不再外显。
+		// 放在 helpers（而非 core 内部）是因为**外壳也要用**：面板要在列悬停里显示失败原因、
+		// 要在顶部拼"成功 N/M + 五类归类"，这些都只依赖失败对象本身，与抓取无关。
+		const SIDE_TEXT = {
+			gacha: { fail: "卡池失败", nomatch: "新卡池未公布" },
+			event: { fail: "活动失败", nomatch: "新活动未公布" }
+		};
+		function normErr(err) {
+			const name = String((err && err.name) || "");
+			const msg = String((err && err.message) || err || "");
+			if (name === "AbortError" || /abort/i.test(msg)) return "超时";
+			if (/^proxy-bad:/.test(msg)) return "代理响应异常";
+			const m = msg.match(/^(?:proxy-http|http)-(\d{3})$/);
+			if (m) return "HTTP " + m[1];
+			if (/^bad-json$/.test(msg)) return "响应格式异常";
+			if (/fetch failed|Failed to fetch|NetworkError|net::|Load failed|network error/i.test(msg)) return "网络不通";
+			if (/^no-source$/.test(msg)) return "无可用来源";
+			return "抓取异常";
+		}
+		const isDown = (f) => !!f && f.kind === "down";
+		const isNomatch = (f) => !!f && f.kind === "nomatch";
+		// 兼容老版本缓存：旧 lastData 里 eventFail 是**字符串**（"event-down" / "no-match" / 错误原文），
+		// 读到时升级成 { kind, reason }；新格式原样返回（否则老缓存会把"失败"错显成"未公布"）。
+		function normalizeFail(f) {
+			if (!f) return null;
+			if (typeof f === "string") {
+				return /nomatch|no-match/i.test(f) ? { kind: "nomatch" } : { kind: "down", reason: normErr(f) };
+			}
+			return f.kind === "down" || f.kind === "nomatch" ? f : null;
+		}
+		// 一侧状态的单行文案：down → "卡池失败：网络不通"；nomatch → "新卡池未公布"；ok → ""
+		function sideFailText(side, fail) {
+			const f = normalizeFail(fail);
+			if (!f) return "";
+			return f.kind === "down"
+				? SIDE_TEXT[side].fail + "：" + (f.reason || "抓取异常")
+				: SIDE_TEXT[side].nomatch;
+		}
+		// 逐条归类（固定顺序：卡池在前、活动在后；每侧至多一条）
+		function entryFailParts(r) {
+			const parts = [];
+			const gf = normalizeFail(r && r.gachaFail);
+			const ef = normalizeFail(r && r.eventFail);
+			if (gf) parts.push({ side: "gacha", kind: gf.kind, text: sideFailText("gacha", gf) });
+			if (ef) parts.push({ side: "event", kind: ef.kind, text: sideFailText("event", ef) });
+			return parts;
+		}
+		// —— 备选源（altSources / eventAltSources）字段约定 ——
+		//   label   设置页显示名
+		//   fetcher 抓取器键名（GACHA_FETCHERS / EVENT_FETCHERS[条目 id] 里注册）
+		//   url     该来源要抓的地址（大多数备选源）
+		//   id      抓取器自带地址的内部来源（如 GameKee）的稳定标识
+		// 设置页持久化的"当前来源"就是 url ?? id（不再用伪地址或前缀编码语义）。
+		// 老配置里的两种旧写法在读取时自动翻译，无需迁移脚本：
+		//   "proxy:<url>"（旧版本用前缀标记"经 host 代理"）、"gk-jp:" / "gk-global:"（旧伪地址）
+		const altSourceId = (alt) => alt.url || alt.id || "";
+		const LEGACY_ALT_IDS = { "gk-jp:": "ba-jp:gamekee", "gk-global:": "ba-global:gamekee" };
+		function normalizeSourceId(v) {
+			const s = String(v ?? "");
+			const mapped = Object.prototype.hasOwnProperty.call(LEGACY_ALT_IDS, s) ? LEGACY_ALT_IDS[s] : s;
+			return mapped.startsWith("proxy:") ? mapped.slice("proxy:".length) : mapped;
+		}
+		// 顶部提示（**只读 Result JSON**，不碰抓取内部状态）：行内给"分类 + 条目名"（段间空格，
+		// 零项不显示），悬停明细逐条分行给原因。games 为按显示顺序排列的条目元信息（含 name）。
+		function buildScrapeInfo(games, result) {
+			const list = Array.isArray(games) ? games : [];
+			const rec = (result && result.games) || {};
+			// "成功"口径 = 两侧都没有**报错**（down）；只有 nomatch（未命中）仍算成功
+			const okCount = list.filter((g) => {
+				const r = rec[g.id];
+				if (!r || r.skipped) return false;
+				return !isDown(r.gachaFail) && !isDown(r.eventFail);
+			}).length;
+			// 无任何来源的条目（skipped）既不算成功也不算失败，单独给一句"（跳过 k 个）"
+			const skippedCount = list.filter((g) => rec[g.id] && rec[g.id].skipped).length;
+			const skippedNote = skippedCount > 0 ? `（跳过 ${skippedCount} 个）` : "";
+			// 固定类别顺序：卡池失败 / 活动失败 / 新卡池未公布 / 新活动未公布
+			const CATS = [
+				["gachaFail", "down", SIDE_TEXT.gacha.fail],
+				["eventFail", "down", SIDE_TEXT.event.fail],
+				["gachaFail", "nomatch", SIDE_TEXT.gacha.nomatch],
+				["eventFail", "nomatch", SIDE_TEXT.event.nomatch]
+			];
+			const groups = CATS.map(([field, kind, label]) => ({
+				label,
+				names: list.filter((g) => {
+					const f = normalizeFail(rec[g.id] && rec[g.id][field]);
+					return f && f.kind === kind;
+				}).map((g) => g.name)
+			})).filter((grp) => grp.names.length > 0);
+			let info = `成功 ${okCount}/${list.length}${skippedNote}`;
+			groups.forEach((grp) => { info += ` ${grp.label}：${grp.names.join("、")}`; });
+			const lines = list.map((g) => {
+				const parts = entryFailParts(rec[g.id] || {});
+				return parts.length > 0 ? `${g.name} ${parts.map((p) => p.text).join("、")}` : "";
+			}).filter(Boolean);
+			return { info, lines };
+		}
+
 		// 按设置中的排序（order: id 数组）重排；未设置时保持 SOURCES 顺序
 		function applyOrder(sources, order) {
 			if (!Array.isArray(order) || order.length === 0) return sources;
