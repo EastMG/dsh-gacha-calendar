@@ -23,6 +23,9 @@
 		const SOURCES = [
 			{
 				id: "genshin",
+				// parserVersion：该条目「解析逻辑」的版本号 —— 源站改版/规则更新后 +1。
+				// 用途：无服务端分发时定位「坏了的是哪个版本的用户、哪个源」（见交接文档 §13.4）。
+				parserVersion: 1,
 				name: "原神",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/b/b0/%E5%8E%9F%E7%A5%9E%E5%9B%BE%E6%A0%87.png!/fw/64",
 				source: "Bwiki \u5F80\u671F\u7948\u613F",
@@ -33,6 +36,7 @@
 			},
 			{
 				id: "hsr",
+				parserVersion: 1,
 				name: "崩坏：星穹铁道",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/3/38/HonkaiStarRailIcon_StartingVer3.6_CHN.png!/fw/64",
 				source: "Bwiki \u5386\u53F2\u8DC3\u8FC1",
@@ -43,6 +47,7 @@
 			},
 			{
 				id: "zzz",
+				parserVersion: 1,
 				name: "绝区零",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/3/3e/ZZZ_miYoYo_logo.jpg!/fw/64",
 				source: "官方公告",
@@ -59,6 +64,7 @@
 			},
 			{
 				id: "wuwa",
+				parserVersion: 1,
 				name: "鸣潮",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/2/29/WutheringWavesIcon.png!/fw/64",
 				source: "官方公告",
@@ -74,6 +80,7 @@
 			},
 			{
 				id: "arknights",
+				parserVersion: 1,
 				name: "明日方舟",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/4/41/ArknightsAppIcon.png!/fw/64",
 				source: "官方公告+PRTS",
@@ -89,6 +96,7 @@
 			},
 			{
 				id: "endfield",
+				parserVersion: 1,
 				name: "明日方舟：终末地",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/f/f1/ArknightsEndfieldAppIcon.png!/fw/64",
 				source: "Canmoe",
@@ -119,6 +127,7 @@
 			},
 			{
 				id: "ba-cn",
+				parserVersion: 1,
 				name: "蔚蓝档案·国服",
 				icon: "https://webcnstatic.yostar.net/ba_cn_web/prod/web/favicon.png?x-oss-process=image/resize,w_64",
 				source: "\u5B98\u7F51\u516C\u544A",
@@ -130,6 +139,7 @@
 			},
 			{
 				id: "ba-global",
+				parserVersion: 1,
 				name: "蔚蓝档案·国际服",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/2/25/AppIcon_Arona.png!/fw/64",
 				source: "Nexon \u66F4\u65B0\u65E5\u8A8C",
@@ -149,6 +159,7 @@
 			},
 			{
 				id: "ba-jp",
+				parserVersion: 1,
 				name: "蔚蓝档案·日服",
 				icon: "https://play-lh.googleusercontent.com/H975s6W1-boCSogzpF5_rIyawbjiXfG842ncgjIRiVGzhXHFTCVut0DkBhlDR4CgN1nn98OOC1fWN-LE7kUHnQ=s64",
 				source: "官方公告（日文）",
@@ -169,6 +180,7 @@
 			},
 			{
 				id: "r1999",
+				parserVersion: 1,
 				name: "重返未来：1999",
 				icon: "https://play-lh.googleusercontent.com/LwcueZMBbLq6aELtqJVn61ToKkJUgxEO8O4KgK_5052hfYoDAglQJIzqSu8srUJeaOZwv36Qi5YKtsXZjo-JPg=s64",
 				source: "\u5B98\u7F51\u516C\u544A+\u5C0F\u7C73",
@@ -179,6 +191,7 @@
 			},
 			{
 				id: "nte",
+				parserVersion: 1,
 				name: "异环",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/8/8c/YH_APP.png!/fw/64",
 				source: "官网公告",

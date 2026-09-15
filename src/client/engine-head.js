@@ -34,14 +34,24 @@
 				return out;
 			}
 
+			// 解析器版本号（代码元信息，不随缓存走）：无服务端分发时用来定位
+			// 「坏了的是哪个版本的用户、哪个源」（交接文档 §13.4）。自定义条目没有维护中的解析器，故不出现在这里。
+			function parserVersionsOf(entries) {
+				const out = {};
+				for (const e of entries) if (typeof e.parserVersion === "number") out[e.id] = e.parserVersion;
+				return out;
+			}
+
 			// 上次结果（Result JSON 形态；没有缓存时 games 为空对象，UI 直接显示静态默认值即可）
 			async function getCached() {
 				const raw = await storage.get("lastData");
 				const games = raw ? parseJsonStr(raw, {}) : {};
 				const at = await storage.get("lastRefresh");
+				const entries = getAllEntries(await readSettings());
 				return {
 					schemaVersion: ENGINE_SCHEMA_VERSION,
 					refreshedAt: Number(at) || 0,
+					parserVersions: parserVersionsOf(entries),
 					games: games && typeof games === "object" ? games : {}
 				};
 			}
