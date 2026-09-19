@@ -715,6 +715,12 @@
 				default: (url, signal) => fetchZzzEventsOfficial(url, signal),
 				"zzz-event-bwiki": mkMediaWiki(genericEventPayload)
 			},
+			// 异环：活动源就是同一篇官网公告（与卡池侧同址，fetchNteWanmei 一个函数同时解析两者）。
+			// 注册成独立活动源的意义：卡池侧本轮抓挂、或用户把**卡池**来源改成自定义/备选时，
+			// 活动侧仍能自己抓、自己报错，而不是整列空掉（同址复用只是"能省一次请求"的优化，不是它的腿）。
+			nte: {
+				default: (url, signal) => fetchNteWanmei(url, signal)
+			},
 			// 明日方舟：PRTS 活动一览（「活动开始时间」表 + data-time 起止时间戳）→ 同上
 			arknights: {
 				default: mkMediaWiki(prtsEventPayload)

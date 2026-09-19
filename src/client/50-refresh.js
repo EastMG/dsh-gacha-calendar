@@ -76,11 +76,12 @@
 							eventDatesRaw: g.data.eventDatesRaw || g.data.bannerDatesRaw || "",
 							eventHover: g.data.eventHover || ""
 						};
-					} else if (eventUrl === gachaUrl && g.data && !evFetcher) {
-						// 同 URL、卡池那次已抓成功、**且活动侧没有自己的抓取器**（如异环：活动源就是同一篇公告）：
-						// 这份载荷里没有活动字段 → 该侧就是"未公布"。
-						// 只在这一种情况下短路：若活动侧有自己的抓取器（如绝区零的活动解析器），照旧独立抓取，解耦不变。
-						eventFail = { kind: "nomatch" };
+					} else if (eventUrl === gachaUrl && !evFetcher) {
+						// 同 URL 且活动侧**没有自己的抓取器**（该条目就只有这一份载荷可用）：
+						//  · 卡池那次已抓成功但载荷里没有活动字段 → 该侧就是"未公布"；
+						//  · 卡池那次本身失败 → 沿用它的失败原因（同一次请求的结果，不该另起一个"无可用来源"）。
+						// 只在这一种情况下短路：若活动侧有自己的抓取器（如绝区零/异环），照旧独立抓取，解耦不变。
+						eventFail = g.data ? { kind: "nomatch" } : (g.fail || { kind: "nomatch" });
 					} else {
 						const ev = await resolveSide("event", {
 							fetcher: evFetcher,
