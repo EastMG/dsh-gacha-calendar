@@ -47,7 +47,7 @@
 			},
 			{
 				id: "zzz",
-				parserVersion: 1,
+				parserVersion: 2,
 				name: "绝区零",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/3/3e/ZZZ_miYoYo_logo.jpg!/fw/64",
 				source: "官方公告",
@@ -58,9 +58,18 @@
 				altSources: [
 					{ label: "Bwiki 往期调频", url: ZZZ_BWIKI_URL, fetcher: "zzz-bwiki" }
 				],
-				// 独立活动源：绝区零活动一览（api.php 带 origin=* 可直连；「活动时间」表含当期活动）
-				eventUrl: "https://wiki.biligame.com/zzz/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
-				eventSource: "Bwiki \u6D3B\u52A8\u4E00\u89C8"
+				// 独立活动源：官方公告（api-takumi-static，与卡池侧同一接口，经 host 代理）。
+				// 「…活动说明」公告正文自带【活动时间】起止（含"X.Y版本更新后/版本结束"折算），
+				// 官方口径最及时；Bwiki 活动一览作为备选（编辑滞后时反而无当期内容）。
+				eventUrl: ZZZ_NEWS_LIST_URL,
+				eventSource: "官方公告",
+				eventAltSources: [
+					{
+						label: "Bwiki 活动一览",
+						url: "https://wiki.biligame.com/zzz/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
+						fetcher: "zzz-event-bwiki"
+					}
+				]
 			},
 			{
 				id: "wuwa",

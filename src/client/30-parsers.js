@@ -650,6 +650,71 @@
 			return selectCurrent(parseAllBwiki(html), now);
 		}
 
+		// 绝区零：官方公告列表（api-takumi-static，与卡池侧同一接口，经 host 代理）→ 当期活动。
+		// 活动时间就写在公告正文里（【活动时间】A ~ B），**不需要再抓详情页**；
+		// A/B 可能是绝对时间，也可能是"X.Y版本更新后" / "X.Y版本结束"——用「X.Y版本更新公告」的发布时间折算：
+		//   版本起点 = 该版本更新公告发布时间；版本结束 = 下一个已知版本起点 − 1 分钟。
+		// 当前版本还没有下一版本公告 → 结束时间未知：这类活动**保留**（endTs=null），
+		// 由 sortEventItems / pickEventPrimary 的既有规则自然沉到外显与悬停的最后，不跳过、不丢弃。
+		const ZZZ_EVENT_WINDOW_RE = /((?:\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\s+\d{1,2}:\d{2})|(?:\d+\.\d+\s*版本更新后))\s*[~～\-—]\s*((?:\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\s+\d{1,2}:\d{2})|(?:\d+\.\d+\s*版本结束))/g;
+
+		function parseZzzEventsOfficial(payload, now = nowMs()) {
+			const list = Array.isArray(payload?.data?.list) ? payload.data.list : [];
+			const clean = (s) => stripTags(s);
+			// 版本起点表：版本更新公告的发布时间
+			const verStart = {};
+			for (const it of list) {
+				const title = clean(it?.sTitle);
+				const vm = title.match(/(\d+\.\d+)\s*版本/);
+				if (!vm || !/更新(?:公告|通知)/.test(title)) continue;
+				const ts = parseTime(it.dtStartTime).ts;
+				if (ts != null && verStart[vm[1]] == null) verStart[vm[1]] = ts;
+			}
+			const versions = Object.keys(verStart).sort((a, b) => verStart[a] - verStart[b]);
+			const tsOf = (text) => {
+				const vm = String(text).match(/(\d+\.\d+)\s*版本(更新后|结束)/);
+				if (!vm) { const p = parseTime(text); return p.ts == null ? null : p.ts; }
+				if (verStart[vm[1]] == null) return null;
+				if (vm[2] === "更新后") return verStart[vm[1]];
+				const later = versions.find((v) => verStart[v] > verStart[vm[1]]);
+				return later != null ? verStart[later] - 60000 : null;
+			};
+			// 标题筛选用「活动说明」：正文里带活动时间的都是这类；商城/城募/剧情/频段公告不在此列
+			const byName = new Map();
+			for (const it of list) {
+				const title = clean(it?.sTitle);
+				if (!/活动说明/.test(title)) continue;
+				const name = (title.match(/^「([^」]+)」/) || [])[1] || title.replace(/活动说明$/, "").trim();
+				if (!name || byName.has(name)) continue;
+				const text = clean(it.sIntro) + " " + clean(it.sContent);
+				for (const m of text.matchAll(ZZZ_EVENT_WINDOW_RE)) {
+					const startTs = tsOf(m[1]);
+					const endTs = tsOf(m[2]);
+					if (startTs == null && endTs == null) continue;   // 两个端点都折算不出来 → 看下一个窗口
+					if (endTs != null && endTs < now) continue;       // 这个窗口已结束 → 看下一个
+					if (startTs != null && startTs > now) continue;   // 还没开始（下一期）→ 看下一个
+					byName.set(name, { banner: name, name, cat: "", startTs, endTs, raw: `${m[1]} ~ ${m[2]}` });
+					break;                                            // 一篇公告只取第一个覆盖当前时刻的窗口
+				}
+			}
+			const active = sortEventItems([...byName.values()]);
+			if (active.length === 0) return null;
+			const primary = pickEventPrimary(active) || active[0];
+			const dates = primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs) : (primary.raw || "");
+			return {
+				event: primary.name,
+				eventDates: dates,
+				eventDatesRaw: primary.raw || "",
+				// 只有 1 条时 buildEventHover 返回 ""，由 UI 退回单条展示（与其它源一致）
+				eventHover: buildEventHover(active)
+			};
+		}
+
+		async function fetchZzzEventsOfficial(listUrl, signal) {
+			const payload = await proxyFetchJson(listUrl, "https://zzz.mihoyo.com/");
+			return parseZzzEventsOfficial(payload);
+		}
+
 		// 鸣潮：活动日历页 → font-size:17px 标题 + font-size:11px 时间，选当期
 		// 注意：复用 selectCurrent 需要 isMain 字段（该函数按 isMain 过滤主池）
 		function parseWuwaCalendar(html) {

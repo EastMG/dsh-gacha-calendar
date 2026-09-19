@@ -700,9 +700,11 @@
 			hsr: {
 				default: mkMediaWiki(genericEventPayload)
 			},
-			// 绝区零：活动一览（静态「活动时间」表，api.php 可直连）→ 同上
+			// 绝区零：默认=官方公告（api-takumi-static，与卡池侧同一接口；活动时间写在公告正文里，
+			// 含"X.Y版本更新后/版本结束"的换算；结束时间未知的活动保留并沉底）→ 备选=Bwiki 活动一览
 			zzz: {
-				default: mkMediaWiki(genericEventPayload)
+				default: (url, signal) => fetchZzzEventsOfficial(url, signal),
+				"zzz-event-bwiki": mkMediaWiki(genericEventPayload)
 			},
 			// 明日方舟：PRTS 活动一览（「活动开始时间」表 + data-time 起止时间戳）→ 同上
 			arknights: {
