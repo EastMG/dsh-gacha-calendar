@@ -129,7 +129,7 @@
 			},
 			{
 				id: "endfield",
-				parserVersion: 1,
+				parserVersion: 2,
 				name: "明日方舟：终末地",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/f/f1/ArknightsEndfieldAppIcon.png!/fw/64",
 				source: "Canmoe",
@@ -1461,11 +1461,11 @@ export function createEngine(env) {
 		}
 
 		// 从 canmoe chunk JS 提取当期卡池：
-		// 当期数据形如 d={梨诺:{windows:[{start,end,version,period,isRerun}]}},u=[...]
-		// 历史数据形如 p=[{id,title,subtitle,version,periodStart,periodEnd,featured:[...]}]
-		// 返回 { banner, roles, bannerDates }；无法识别返回 null。
-		// 从 canmoe chunk JS 提取当期卡池：只采用"时间窗口覆盖当前时刻"的条目。
-		// 当期在 d={角色:{windows:[{start,end,version,period,isRerun}]}}；过期/下一期在 p=[{title,subtitle,version,periodStart,periodEnd,featured}]。
+		// ① 当期角色窗口形如 d={梨诺:{windows:[{start,end,version,period,isRerun}]}},u=[...]
+		//   （注意：d 在 canmoe 侧可能长期不更新，只能当"覆盖当前时刻才采信"的快速路径）
+		// ② 期次列表形如 <变量>=[{id,title,subtitle,version,periodStart,periodEnd,featured:[...]}]，
+		//   变量名随构建变化（曾见 p= / 现为 f=），由 extractCanmoePeriods 按内容定位。
+		// 只采用"时间窗口覆盖当前时刻"的条目；无法识别返回 null。
 		function currentFromCanmoe(js, now) {
 			now = now || nowMs();
 			const fmt = (iso) => {
@@ -1484,7 +1484,7 @@ export function createEngine(env) {
 				}
 			}
 			// 2) p 数组中的"当前进行中"条目（过期当期后以此为兜底）
-			const arr = extractCanmoeP(js);
+			const arr = extractCanmoePeriods(js);
 			if (arr) {
 				for (const e of arr) {
 					const ps = (e.match(/periodStart\s*:\s*"([^"]*)"/) || [])[1];
@@ -1503,10 +1503,16 @@ export function createEngine(env) {
 			return null;
 		}
 
-		// 提取 canmoe chunk 中 p=[...] 数组（含 periodStart 的那个，平衡括号解析），返回元素子串数组
-		function extractCanmoeP(js) {
-			for (let s = js.indexOf("p=["); s >= 0; s = js.indexOf("p=[", s + 1)) {
-				const start = js.indexOf("[", s);
+		// 提取 canmoe chunk 里的"卡池期次数组"（元素含 periodStart/periodEnd 的那个），返回元素子串数组。
+		// 数组的变量名是压缩产物的一部分：canmoe 每次重新构建都可能改名（曾见 p=[…]，现为 f=[…]），
+		// 所以按"任意 `名字=[` 且数组体里有 periodStart"来定位，不写死变量名
+		// （曾因写死 p= 而在 canmoe 改版后静默抓不到当期卡池）。
+		function extractCanmoePeriods(js) {
+			const re = /[A-Za-z_$][\w$]*\s*=\s*\[/g;
+			for (let m = re.exec(js); m; m = re.exec(js)) {
+				const start = js.indexOf("[", m.index);
+				// 便宜预筛：数组开头不远处就有 periodStart 字段，省掉对每个数组都做括号平衡扫描
+				if (!/periodStart\s*:/.test(js.slice(start, start + 4000))) continue;
 				let depth = 0, inStr = false, q = "", end = -1;
 				for (let i = start; i < js.length; i++) {
 					const ch = js[i];
@@ -1517,7 +1523,7 @@ export function createEngine(env) {
 				}
 				if (end < 0) continue;
 				const body = js.slice(start + 1, end);
-				if (!/periodStart/.test(body)) continue;
+				if (!/periodStart\s*:/.test(body)) continue;
 				const out = [];
 				let d2 = 0, s2 = false, q2 = "", st = 0;
 				for (let k = 0; k < body.length; k++) {
@@ -1563,7 +1569,7 @@ export function createEngine(env) {
 		// 终末地卡池列悬停：canmoe 卡池日历 chunk 内同期全部卡池条目（特许寻访 / 重构寻访 等），
 		// 每池"卡池名：角色"一行 + 时间；窗口相同则合并时间；结束时间升序（0/1 池返回 "" 走单条兜底）
 		function canmoePoolHover(js, now) {
-			const arr = extractCanmoeP(js);
+			const arr = extractCanmoePeriods(js);
 			if (!arr) return "";
 			const pools = [];
 			for (const e of arr) {

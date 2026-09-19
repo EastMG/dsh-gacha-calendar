@@ -96,7 +96,7 @@
 			},
 			{
 				id: "endfield",
-				parserVersion: 1,
+				parserVersion: 2,
 				name: "明日方舟：终末地",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/f/f1/ArknightsEndfieldAppIcon.png!/fw/64",
 				source: "Canmoe",
