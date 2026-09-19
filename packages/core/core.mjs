@@ -1369,23 +1369,48 @@ export function createEngine(env) {
 		function parseZzzEventsOfficial(payload, now = nowMs()) {
 			const list = Array.isArray(payload?.data?.list) ? payload.data.list : [];
 			const clean = (s) => stripTags(s);
-			// 版本起点表：版本更新公告的发布时间
+			// 版本起点表：取该版本的「更新公告」发布时间。
+			// 必须排除「X.Y版本…预下载开启&更新通知」——它比正式更新早 1~2 天发布，
+			// 若当成版本起点，会把上一版本"版本结束"型活动提前判死、并让新版本活动提前出现。
 			const verStart = {};
 			for (const it of list) {
 				const title = clean(it?.sTitle);
 				const vm = title.match(/(\d+\.\d+)\s*版本/);
 				if (!vm || !/更新(?:公告|通知)/.test(title)) continue;
+				if (/预下载|预约|前瞻|预抽/.test(title)) continue;
 				const ts = parseTime(it.dtStartTime).ts;
 				if (ts != null && verStart[vm[1]] == null) verStart[vm[1]] = ts;
 			}
 			const versions = Object.keys(verStart).sort((a, b) => verStart[a] - verStart[b]);
-			const tsOf = (text) => {
-				const vm = String(text).match(/(\d+\.\d+)\s*版本(更新后|结束)/);
-				if (!vm) { const p = parseTime(text); return p.ts == null ? null : p.ts; }
-				if (verStart[vm[1]] == null) return null;
-				if (vm[2] === "更新后") return verStart[vm[1]];
-				const later = versions.find((v) => verStart[v] > verStart[vm[1]]);
-				return later != null ? verStart[later] - 60000 : null;
+			// 折算一个窗口的两个端点；返回 null 表示**窗口此刻不成立**（含"该版本还没开始/无法判定"）。
+			// 规则：绝对时间直接用；"X.Y版本更新后"要求该版本已开始（版本更新公告已发布）；
+			//      "X.Y版本结束" = 下一个已知版本起点 − 1 分钟；若 X.Y 已是最新版本 → 结束时间未知（endTs=null，
+			//      仍算成立：活动在跑，只是没有绝对结束日）→ 由排序规则沉底，不跳过、不丢弃。
+			const windowAt = (startText, endText) => {
+				let startTs = null;
+				const sv = startText.match(/(\d+\.\d+)\s*版本更新后/);
+				if (sv) {
+					if (verStart[sv[1]] == null) return null;   // 该版本尚未开始 → 活动还没上线
+					startTs = verStart[sv[1]];
+				} else {
+					const p = parseTime(startText);
+					if (p.ts == null) return null;
+					startTs = p.ts;
+				}
+				if (startTs > now) return null;
+				let endTs = null;
+				const ev = endText.match(/(\d+\.\d+)\s*版本结束/);
+				if (ev) {
+					if (verStart[ev[1]] == null) return null;   // 版本未知 → 无法判定，保守略过
+					const later = versions.find((v) => verStart[v] > verStart[ev[1]]);
+					if (later != null) endTs = verStart[later] - 60000;
+				} else {
+					const p = parseTime(endText);
+					if (p.ts == null) return null;
+					endTs = p.ts;
+				}
+				if (endTs != null && endTs < now) return null;
+				return { startTs, endTs };
 			};
 			// 标题筛选用「活动说明」：正文里带活动时间的都是这类；商城/城募/剧情/频段公告不在此列
 			const byName = new Map();
@@ -1396,13 +1421,10 @@ export function createEngine(env) {
 				if (!name || byName.has(name)) continue;
 				const text = clean(it.sIntro) + " " + clean(it.sContent);
 				for (const m of text.matchAll(ZZZ_EVENT_WINDOW_RE)) {
-					const startTs = tsOf(m[1]);
-					const endTs = tsOf(m[2]);
-					if (startTs == null && endTs == null) continue;   // 两个端点都折算不出来 → 看下一个窗口
-					if (endTs != null && endTs < now) continue;       // 这个窗口已结束 → 看下一个
-					if (startTs != null && startTs > now) continue;   // 还没开始（下一期）→ 看下一个
-					byName.set(name, { banner: name, name, cat: "", startTs, endTs, raw: `${m[1]} ~ ${m[2]}` });
-					break;                                            // 一篇公告只取第一个覆盖当前时刻的窗口
+					const w = windowAt(m[1], m[2]);
+					if (!w) continue;                                  // 这个窗口此刻不成立 → 看下一个窗口
+					byName.set(name, { banner: name, name, cat: "", ...w, raw: `${m[1]} ~ ${m[2]}` });
+					break;                                             // 一篇公告只取第一个成立的窗口
 				}
 			}
 			const active = sortEventItems([...byName.values()]);
