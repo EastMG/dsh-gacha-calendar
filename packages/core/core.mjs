@@ -224,7 +224,7 @@
 			},
 			{
 				id: "nte",
-				parserVersion: 1,
+				parserVersion: 2,
 				name: "异环",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/8/8c/YH_APP.png!/fw/64",
 				source: "官网公告",
@@ -1635,17 +1635,52 @@ export function createEngine(env) {
 		}
 
 		// 异环（官网 yh.wanmei.com 公告，经 host 代理）：抓游戏公告列表 → 取最新维护/更新公告 → 解析当期限定棋盘卡池与限时活动
+		// 官网公告列表条目：<a href="/news/gamebroad/YYYYMMDD/N.html">…<h2 class="title">标题</h2>
+		const NTE_ITEM_RE = /<a href="(\/news\/gamebroad\/\d+\/\d+\.html)"[\s\S]*?<h2 class="title">([^<]+)<\/h2>/g;
+		// 带新卡池的公告标题：停服维护/版本更新；"1.3版本「…」更新公告"这类版本名夹在中间，所以"更新公告"也要算
+		const NTE_MAINT_RE = /停服维护|停服更新|维护公告|版本更新|更新公告/;
+		// 逐页向下的上限：维护公告会随新公告发布被挤到第 2、3 页，只看第 1 页会把"进行中的卡池"误判成未公布
+		const NTE_MAX_LIST_PAGES = 3;
+		// 每次最多试几篇公告正文（按从新到旧），避免某篇规则失效时白抓一堆
+		const NTE_MAX_DETAILS = 3;
+
+		// 取分页控件里的后续页地址（相对当前页）：<ul class="pagination"> … <a href="index1.html">2</a>
+		function nteNextPageUrls(listUrl, html, seen) {
+			const pg = String(html || "").match(/<ul class="pagination">[\s\S]*?<\/ul>/);
+			if (!pg) return [];
+			const dir = listUrl.split("#")[0].split("?")[0].replace(/[^/]*$/, "");
+			const out = [];
+			for (const m of pg[0].matchAll(/href="(index\d+\.html)"/g)) {
+				const u = dir + m[1];
+				if (u !== listUrl && !seen.has(u) && !out.includes(u)) out.push(u);
+			}
+			return out;
+		}
+
+		// 逐页（index.html → index1.html → index2.html …）从新到旧找"带新卡池"的维护/版本更新公告，
+		// 取第一篇能解析出当期卡池/活动的正文；"不停服更新"不含新卡池，跳过。
+		// 找不到（含试满上限）返回 null → 调用方按"新卡池未公布"记。
 		async function fetchNteWanmei(listUrl, signal) {
 			const ref = "https://yh.wanmei.com/";
-			const list = await proxyFetchText(listUrl, ref);
-			// 定位最新"维护/更新"公告链接：优先"停服维护/版本更新"（带新卡池），排除"不停服"更新（无新卡池）
-			const links = [...list.matchAll(/<a href="(\/news\/gamebroad\/\d+\/\d+\.html)"[\s\S]*?<h2 class="title">([^<]+)<\/h2>/g)];
-			const maint = links.find((x) => /停服维护|停服更新|版本更新/.test(x[2]) && !/不停服/.test(x[2]))
-				|| links.find((x) => !/不停服/.test(x[2]))
-				|| links[0];
-			if (!maint) return null;
-			const detail = await proxyFetchText("https://yh.wanmei.com" + maint[1], ref);
-			return parseNteWanmei(detail);
+			const seen = new Set();
+			const queue = [listUrl];
+			let details = 0;
+			while (queue.length && seen.size < NTE_MAX_LIST_PAGES) {
+				const url = queue.shift();
+				if (seen.has(url)) continue;
+				seen.add(url);
+				const html = await proxyFetchText(url, ref);
+				// 列表条目本身从新到旧：边收集边试，命中当期内容立刻返回
+				for (const m of html.matchAll(NTE_ITEM_RE)) {
+					if (!NTE_MAINT_RE.test(m[2]) || /不停服/.test(m[2])) continue;
+					if (details >= NTE_MAX_DETAILS) return null;
+					details++;
+					const data = parseNteWanmei(await proxyFetchText("https://yh.wanmei.com" + m[1], ref));
+					if (data) return data;
+				}
+				for (const u of nteNextPageUrls(listUrl, html, seen)) if (!queue.includes(u)) queue.push(u);
+			}
+			return null;
 		}
 
 		// 解析官网公告正文 → 当期卡池（全新限定S级角色所属限定棋盘）+ 当期活动（限时活动）

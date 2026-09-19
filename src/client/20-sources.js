@@ -191,7 +191,7 @@
 			},
 			{
 				id: "nte",
-				parserVersion: 1,
+				parserVersion: 2,
 				name: "异环",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/8/8c/YH_APP.png!/fw/64",
 				source: "官网公告",
