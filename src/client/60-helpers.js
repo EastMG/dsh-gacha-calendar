@@ -22,6 +22,9 @@
 			if (/^bad-json$/.test(msg)) return "响应格式异常";
 			if (/fetch failed|Failed to fetch|NetworkError|net::|Load failed|network error/i.test(msg)) return "网络不通";
 			if (/^no-source$/.test(msg)) return "无可用来源";
+			// 解析器用 throw 表达"页面结构变了/一条都没解析出来"（哨兵错误名见各解析器）：
+			// 给一句比"抓取异常"更有信息量的归因
+			if (/parse-empty|no-activities/.test(msg)) return "页面解析出 0 条";
 			return "抓取异常";
 		}
 		const isDown = (f) => !!f && f.kind === "down";
@@ -246,15 +249,16 @@
 				if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
 				const h = m[3] ? Number(m[3]) : 0;
 				const mi = m[4] ? Number(m[4]) : 0;
-				return { mo, d, base: new Date(now.getFullYear(), mo - 1, d, h, mi).getTime() };
+				return { mo, d, h, mi, base: new Date(now.getFullYear(), mo - 1, d, h, mi).getTime() };
 			};
 			const a = parsePart(parts[0]);
 			const b = parsePart(parts[1]);
 			if (!a || !b) return null;
-			let startTs = a.base;
+			const startTs = a.base;
 			let endTs = b.base;
-			// 跨年：结束月份小于开始月份（如 12-20 ~ 01-05），结束补下一年
-			if (b.mo < a.mo) endTs += 365 * 24 * 60 * 60 * 1000;
+			// 跨年：结束月份小于开始月份（如 12-20 ~ 01-05）→ 结束端按"下一年的同月同日同时刻"重算。
+			// 注意不能用 +365 天近似：闰年会差 1 天（实测 2028-12-31 看 "12-30 ~ 01-05" 会少 1 天）。
+			if (b.mo < a.mo) endTs = new Date(now.getFullYear() + 1, b.mo - 1, b.d, b.h, b.mi).getTime();
 			return { startTs, endTs };
 		}
 

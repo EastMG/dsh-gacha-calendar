@@ -49,8 +49,14 @@
 			return requireTransport().fetchViaProxy(proxyUrl, { referer, headers: extraHeaders, body });
 		}
 
-		// 经代理抓取 JSON
+		// 经代理抓取 JSON。解析失败统一抛 "bad-json"（normErr 会显示成"响应格式异常"），
+		// 而不是把原生 SyntaxError 漏出去（那会被归成泛化的"抓取异常"）
 		async function proxyFetchJson(proxyUrl, referer, extraHeaders, body) {
-			return JSON.parse(await proxyFetchText(proxyUrl, referer, extraHeaders, body));
+			const text = await proxyFetchText(proxyUrl, referer, extraHeaders, body);
+			try {
+				return JSON.parse(text);
+			} catch {
+				throw new Error("bad-json");
+			}
 		}
 		//#endregion

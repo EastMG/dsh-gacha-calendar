@@ -28,7 +28,7 @@
 					fail = { kind: "down", reason: normErr(err) };
 				}
 			}
-			if (emptyOf(data) && (!fetcher || allowGeneric)) {
+			if (emptyOf(data) && allowGeneric) {
 				try {
 					const g = await parseGeneric();
 					if (!emptyOf(g)) { data = g; fail = null; } // 兜底成功 → 该侧按成功算
@@ -37,6 +37,9 @@
 					if (!fail) fail = { kind: "down", reason: normErr(err) };
 				}
 			}
+			// 有地址、但既没注册抓取器、也不允许通用解析 → 这一侧根本没有可用来源：
+			// 如实记"无可用来源"（既不冒充"未公布"，也不去发注定被 CORS 拦的直连——历史 bug）
+			if (emptyOf(data) && !fetcher && !allowGeneric) return { data: data || null, fail: { kind: "down", reason: "无可用来源" } };
 			if (emptyOf(data)) return { data: data || null, fail: fail || { kind: "nomatch" } };
 			return { data, fail: null };
 		}
@@ -63,6 +66,8 @@
 				let evData = null;
 				let eventFail = null;
 				if (source.eventUrl) {
+					// 活动侧自己的抓取器（与卡池侧各自独立选择，来源可以完全不同）
+					const evFetcher = eventFetcherFor(source, eventUrl);
 					if (eventUrl === gachaUrl && g.data && g.data.event) {
 						// 同 URL：活动字段就在卡池载荷里，不重复抓
 						evData = {
@@ -71,9 +76,14 @@
 							eventDatesRaw: g.data.eventDatesRaw || g.data.bannerDatesRaw || "",
 							eventHover: g.data.eventHover || ""
 						};
+					} else if (eventUrl === gachaUrl && g.data && !evFetcher) {
+						// 同 URL、卡池那次已抓成功、**且活动侧没有自己的抓取器**（如异环：活动源就是同一篇公告）：
+						// 这份载荷里没有活动字段 → 该侧就是"未公布"。
+						// 只在这一种情况下短路：若活动侧有自己的抓取器（如绝区零的活动解析器），照旧独立抓取，解耦不变。
+						eventFail = { kind: "nomatch" };
 					} else {
 						const ev = await resolveSide("event", {
-							fetcher: eventFetcherFor(source, eventUrl),
+							fetcher: evFetcher,
 							url: eventUrl,
 							allowGeneric: !!(source.custom || source.allowGenericEvent),
 							signal

@@ -54,8 +54,11 @@
 				const src = rec || {};
 				const out = { name: name || src.name || "" };
 				for (const f of CONTENT_FIELDS) out[f] = typeof src[f] === "string" ? src[f] : "";
-				out.gachaFail = src.gachaFail || null;
-				out.eventFail = src.eventFail || null;
+				// 老缓存的 fail 是**字符串**（"event-down" / "no-match" / 错误原文）：必须在这里就归一成
+				// { kind, reason }，否则按契约实现的其它消费者（扩展/CLI）用 isDown() 会把字符串判成成功
+				// （"失败被错显成未公布"）。键名与值域不变，不需要升 schemaVersion。
+				out.gachaFail = normalizeFail(src.gachaFail);
+				out.eventFail = normalizeFail(src.eventFail);
 				out.gachaStale = !!src.gachaStale;
 				out.eventStale = !!src.eventStale;
 				if (src.skipped) out.skipped = true;

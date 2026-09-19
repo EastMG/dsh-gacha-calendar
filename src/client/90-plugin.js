@@ -68,7 +68,11 @@
 				};
 				const onOut = (e) => {
 					const cell = e.target.closest(".gacha-cal-name, .gacha-cal-cell");
-					if (cell) cell.classList.remove("gacha-cal-marq");
+					if (!cell) return;
+					// mouseout 会在"从格子移到它内部的 span"时也触发（并冒泡到这里）：
+					// 只有真的离开这整块区域才停滚动，否则悬停滚动会在格子里抖一下/被打断
+					if (e.relatedTarget && cell.contains(e.relatedTarget)) return;
+					cell.classList.remove("gacha-cal-marq");
 				};
 				document.addEventListener("mouseover", onOver);
 				document.addEventListener("mouseout", onOut);

@@ -25,12 +25,16 @@
 		// core 侧只在 15-env.js 保留同名薄封装（转调 coreEnv.transport）——这是 core 零宿主依赖的接缝之一。
 
 		// 解析繁体时间段："8月18日(二)維護後 ~ 9月1日(二)上午9點59分"
+		// 跨年（如 12月30日 ~ 1月5日）：结束月份小于开始月份 → 结束端按"下一年"解析；
+		// 否则 end 会早于 start，当期会被误判成"未公布"（每年 12 月底~1 月初复发）。
 		function parseBaZhRange(raw, nowYear) {
 			const s = stripTags(raw);
 			const parts = s.split(/[~～]/).map((x) => x.trim());
 			if (parts.length < 2) return null;
+			const moOf = (x) => { const m = String(x).match(/(\d{1,2})月/); return m ? Number(m[1]) : null; };
+			const am = moOf(parts[0]), bm = moOf(parts[1]);
 			const a = parseZhTime(parts[0], nowYear);
-			const b = parseZhTime(parts[1], nowYear);
+			const b = parseZhTime(parts[1], am != null && bm != null && bm < am ? nowYear + 1 : nowYear);
 			if (!a || !b) return null;
 			return { startTs: a.ts, endTs: b.ts, startText: a.text, endText: b.text, raw: `${a.text} ~ ${b.text}` };
 		}
@@ -220,7 +224,7 @@
 				if (e != null) { maintEnd = e; break; }
 			}
 			// 当期卡池：最新一篇含「ピックアップ名／ピックアップ生徒」的募集公告
-			let pools = null, win = null;
+			let pools = null;
 			for (const it of rows) {
 				const text = clean(it.content);
 				if (!/ピックアップ募集/.test(text) || !/ピックアップ名/.test(text)) continue;
@@ -235,19 +239,21 @@
 				});
 				const fallback = windows[0] || { startTs: null, endTs: null, raw: "" };
 				pools = found.map((f, i) => Object.assign({ name: f.name, student: f.student }, windows[i] || fallback));
-				win = fallback;
 				break;
 			}
 			if (!pools) return null;
 			// 只保留覆盖当前时刻的池（起点缺省时按"结束在未来"宽松判定）
 			const cur = pools.filter((p) => p.endTs != null && p.endTs >= now && (p.startTs == null || p.startTs <= now));
 			if (cur.length === 0) return null;
-			const dates = win && win.startTs != null && win.endTs != null ? fmtWindow(win.startTs, win.endTs) : (win?.raw || "");
+			// 展示用的档期必须取"被选中的那个池"自己的窗口（cur[0]）—— 旧实现固定取 windows[0]，
+			// 一旦当期命中的不是第一个池，就会显示"B 池名字 + A 池时间"，倒计时按错档期跑。
+			const win0 = cur[0];
+			const dates = win0.startTs != null && win0.endTs != null ? fmtWindow(win0.startTs, win0.endTs) : (win0.raw || "");
 			const data = {
 				banner: cur[0].name,
 				roles: [...new Set(cur.map((p) => p.student))].join("、"),
 				bannerDates: dates,
-				bannerDatesRaw: win?.raw || dates,
+				bannerDatesRaw: win0.raw || dates,
 				startTs: cur[0].startTs,
 				endTs: cur[0].endTs
 			};
@@ -312,16 +318,19 @@
 			const inner = m[1].replace(/\s+/g, "");
 			const parts = inner.split(/[~～\-—]/);
 			if (parts.length < 2) return null;
-			const parseGkTime = (p) => {
+			const moOf = (p) => { const md = p.match(/(\d{1,2})[\/月](\d{1,2})日?/); return md ? Number(md[1]) : null; };
+			const parseGkTime = (p, year) => {
 				// 8/18 或 8月18日（日服可能带 日）
 				const md = p.match(/(\d{1,2})[\/月](\d{1,2})日?/);
 				if (!md) return null;
 				const mo = Number(md[1]), d = Number(md[2]);
-				const ts = new Date(nowYear, mo - 1, d, 0, 0).getTime();
+				const ts = new Date(year, mo - 1, d, 0, 0).getTime();
 				return { ts, text: `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} 00:00` };
 			};
-			const a = parseGkTime(parts[0]);
-			const b = parseGkTime(parts[1]);
+			// 跨年（如 【12/28~1/5】）：结束月份小于开始月份 → 结束端按"下一年"解析
+			const am = moOf(parts[0]), bm = moOf(parts[1]);
+			const a = parseGkTime(parts[0], nowYear);
+			const b = parseGkTime(parts[1], am != null && bm != null && bm < am ? nowYear + 1 : nowYear);
 			if (!a || !b) return null;
 			return { startTs: a.ts, endTs: b.ts, startText: a.text, endText: b.text, raw: `${a.text} ~ ${b.text}` };
 		}

@@ -453,19 +453,31 @@
 			return lines.join("\n");
 		}
 
-		// 鸣潮：角色轮换池页 → data-start/data-end + 当期角色
-		function parseWuwaPool(html) {
-			const tm = html.match(/data-start="([^"]+)"\s+data-end="([^"]+)"/);
-			if (!tm) return null;
-			const start = parseTime(tm[1]);
-			const end = parseTime(tm[2]);
-			const chars = [...new Set([...html.matchAll(/共鸣者\/([^"]+)"/g)].map((m) => m[1]))].slice(0, 6);
-			return {
-				banner: "\u89D2\u8272\u6362\u53EC\u6C60",
-				roles: chars.join("、"),
-				startTs: start.ts, endTs: end.ts,
-				bannerDates: start.text && end.text ? `${start.text} ~ ${end.text}` : ""
-			};
+		// 鸣潮：角色轮换池页（Bwiki 汇总页，逐期列出）→ 取"覆盖当前时刻"的那一组：
+		// 每一组 = 该组 data-start/data-end 之后、到下一组之前的那段里的「共鸣者/xxx」。
+		// 旧实现取页面第一组时间 + 整页前 6 个角色名 → 备选/兜底源会显示"过期档期 + 跨池混入的角色"，
+		// 且不报任何失败（实测该页当前只有一组已过期计时器）。没有覆盖当前的组 → 返回 null（未公布）。
+		function parseWuwaPool(html, now = nowMs()) {
+			const text = String(html || "");
+			const marks = [...text.matchAll(/data-start="([^"]+)"\s+data-end="([^"]+)"/g)];
+			if (marks.length === 0) return null;
+			for (let i = 0; i < marks.length; i++) {
+				const m = marks[i];
+				const start = parseTime(m[1]);
+				const end = parseTime(m[2]);
+				if (start.ts == null || end.ts == null) continue;
+				if (!(start.ts <= now && now <= end.ts)) continue;
+				const seg = text.slice(m.index + m[0].length, i + 1 < marks.length ? marks[i + 1].index : text.length);
+				const chars = [...new Set([...seg.matchAll(/共鸣者\/([^"]+)"/g)].map((x) => x[1]))].slice(0, 6);
+				if (chars.length === 0) continue;
+				return {
+					banner: "\u89D2\u8272\u6362\u53EC\u6C60",
+					roles: chars.join("、"),
+					startTs: start.ts, endTs: end.ts,
+					bannerDates: `${start.text} ~ ${end.text}`
+				};
+			}
+			return null;
 		}
 
 		// 鸣潮官方公告解析：从全量公告（game/activity/recommend）中取"覆盖当前时刻"的「角色活动唤取」
@@ -549,13 +561,16 @@
 			const clean = (s) => stripTags(s);
 			// 版本更新公告 → "X.Y版本更新后"的起点；同时抽取「S级代理人[X] → 「Y」频段」对应表
 			// （频段名只写在更新公告里，逐期频段公告不含频段名，故用它回填卡池标题）
+			// 注意：必须排除「X.Y版本…预下载开启&更新通知」——它比正式更新早 1~2 天发布，
+			// 若当成版本起点，下一期频段会被提前判成"覆盖当前"、把真实在跑的上一期挤掉
+			// （与活动侧 parseZzzEventsOfficial 同一口径）。
 			const verStart = {};
 			const poolOf = {};
 			for (const it of list) {
 				const t = clean(it?.sTitle);
 				const vm = t.match(/(\d+\.\d+)\s*版本/);
 				if (!vm) continue;
-				if (/更新(?:公告|通知)/.test(t)) {
+				if (/更新(?:公告|通知)/.test(t) && !/预下载|预约|前瞻|预抽/.test(t)) {
 					const p = parseTime(it.dtStartTime);
 					if (p.ts != null && verStart[vm[1]] == null) verStart[vm[1]] = p;
 				}
@@ -1451,13 +1466,16 @@
 				}
 				for (const k of Object.keys(n)) walk(n[k]);
 			})(obj);
-			if (acts.length === 0) return null;
+			// 一条活动都没解析出来 → 页面结构变了（不是"当期没活动"）：抛错让该侧记 down，
+			// 面板会显示"活动失败"，而不是伪装成"新活动未公布"（历史教训：源站改版长期静默失灵）。
+			if (acts.length === 0) throw new Error("fz-wiki-no-activities");
 			const parseT = (s) => new Date(String(s).replace(/\//g, "-")).getTime();
 			const t0 = now || nowMs();
 			// 覆盖当前时刻的活动统一排序（③ 结束时间升序）供悬停；外显另按类别优先挑选
 			const activeActs = sortEventItems(acts
 				.filter((a) => parseT(a.open) <= t0 && parseT(a.close) >= t0)
 				.map((a) => ({ name: a.name, tags: (a.tags || []).join("/"), startTs: parseT(a.open), endTs: parseT(a.close) })));
+			// 解析到活动、但当期没有覆盖当前时刻的 → 返回 null（这一侧记 nomatch = "新活动未公布"）
 			if (activeActs.length === 0) return null;
 			const primary = pickEventPrimary(activeActs) || activeActs[0]; // 叙事活动/挑战活动优先于签到类
 			const win = fmtWindow(primary.startTs, primary.endTs);
@@ -1469,12 +1487,12 @@
 			};
 		}
 
-		// 终末地（FZ Wiki 经 host 代理，无 CORS）：活动排期页
+		// 终末地（FZ Wiki 经 host 代理，无 CORS）：活动排期页。
+		// 三态口径：有当期活动 → 数据；解析到活动但没有当期 → null（nomatch）；
+		// 页面结构变了/一条都解析不出 → parseFzWikiActivities 抛错（down）。
 		async function fetchFzWikiEndfield(pageUrl, now = nowMs()) {
 			const html = await proxyFetchText(pageUrl, "https://fz.wiki/");
-			const d = parseFzWikiActivities(html, now);
-			if (d) return d;
-			throw new Error("fz-wiki-parse-empty");
+			return parseFzWikiActivities(html, now);
 		}
 
 		// 通用活动源解析（自定义条目/自定义活动来源地址用）：抓取页面 → parseGenericEvents → {event, eventDates}

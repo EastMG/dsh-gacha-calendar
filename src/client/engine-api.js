@@ -55,7 +55,10 @@
 					coreEnv.timer.clearTimeout(timer);
 				}
 				// 一侧的结论：ok=有内容；nomatch=抓到页面但没当期内容（这才是"解析出 0 条"）；down=抓取/解析报错
-				const describe = (kind, fail, data) => {
+				const describe = (kind, fail, data, url) => {
+					// 该侧压根没配来源（如自定义条目只填了卡池地址）：自检的意义就是指出"哪个源没内容/报错"，
+					// 这里必须报出来，不能因为"从没抓过"而显示成正常（fail 恒为 null 的假 ok）
+					if (!url) return { state: "down", reason: "未配置来源", text: "未配置来源" };
 					const f = normalizeFail(fail);
 					if (!f) {
 						const text = kind === "gacha"
@@ -71,8 +74,9 @@
 				entries.forEach((e, i) => {
 					const r = results[i] || {};
 					const d = r.data || {};
-					const gacha = describe("gacha", r.gachaFail, d);
-					const event = describe("event", r.eventFail, d);
+					const t = targets[i] || {};
+					const gacha = describe("gacha", r.gachaFail, d, t.url);
+					const event = describe("event", r.eventFail, d, t.eventUrl);
 					games[e.id] = { name: e.name, parserVersion: e.parserVersion, gacha, event };
 					for (const side of [gacha, event]) summary[side.state]++;
 				});

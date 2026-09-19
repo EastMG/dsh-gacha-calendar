@@ -333,7 +333,9 @@
 				next.splice(target, 0, id);
 				await setOrder(next);
 			};
-			const resetOrder = async () => { await commit("order", null); };
+			// 恢复默认顺序：写空数组而不是 null —— 宿主 settings schema 是 z.array(z.string())，
+			// 写 null 会被校验拒绝（旧实现因此永久点不动，还抛未捕获 rejection）；applyOrder 对空数组等价"未设置"
+			const resetOrder = async () => { await commit("order", []); };
 
 			// 展示开关
 			const toggleHidden = async (id) => {
