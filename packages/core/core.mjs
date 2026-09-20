@@ -261,8 +261,8 @@
 		// 放在 helpers（而非 core 内部）是因为**外壳也要用**：面板要在列悬停里显示失败原因、
 		// 要在顶部拼"成功 N/M + 五类归类"，这些都只依赖失败对象本身，与抓取无关。
 		const SIDE_TEXT = {
-			gacha: { fail: "卡池失败", nomatch: "新卡池未公布", nomatchUser: "该地址未解析出卡池内容" },
-			event: { fail: "活动失败", nomatch: "新活动未公布", nomatchUser: "该地址未解析出活动内容" }
+			gacha: { fail: "卡池失败", nomatch: "新卡池未公布", nomatchUser: "未解析出内容" },
+			event: { fail: "活动失败", nomatch: "新活动未公布", nomatchUser: "未解析出内容" }
 		};
 		function normErr(err) {
 			const name = String((err && err.name) || "");
