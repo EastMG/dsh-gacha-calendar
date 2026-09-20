@@ -3023,6 +3023,22 @@ export function createEngine(env) {
 			return { startTs, endTs: new Date(endYear, em - 1, ed, eh, emi).getTime() };
 		}
 
+		// 自选池（湖的涟漪／湖的馈赠／限定复刻自选等）**没有 UP 角色名单**，改为标注自选位数：
+		// 「自主选择1位六星角色」/「自主选择并锁定3位6星角色」→【自选 N 位 6★】；
+		// 只提到"自选"但原文没写位数 → 退化为【自选 6★】；两者都没有 → 返回 ""（不臆造）。
+		const R99_CN_NUM = { "\u4e00": 1, "\u4e8c": 2, "\u4e24": 2, "\u4e09": 3, "\u56db": 4, "\u4e94": 5, "\u516d": 6, "\u4e03": 7, "\u516b": 8, "\u4e5d": 9, "\u5341": 10 };
+
+		function r99SelfSelectRoles(body) {
+			const text = String(body || "");
+			const m = text.match(/\u9009\u62e9(?:\u5e76\u9501\u5b9a)?\s*(\d+|[一二两三四五六七八九十])\s*\u4f4d\s*(?:\u516d\u661f|6\u661f)/);
+			if (m) {
+				const n = R99_CN_NUM[m[1]] !== undefined ? R99_CN_NUM[m[1]] : Number(m[1]);
+				return `\u3010\u81ea\u9009 ${n} \u4f4d 6\u2605\u3011`;
+			}
+			if (/\u81ea\u9009/.test(text)) return "\u3010\u81ea\u9009 6\u2605\u3011";
+			return "";
+		}
+
 		// 解析一篇「版本活动一览」→ { pools, events, rotations }
 		function parseR99Overview(item, now = nowMs()) {
 			const lines = r99NoticeLines(item);
@@ -3046,7 +3062,8 @@ export function createEngine(env) {
 				for (const m of body.matchAll(/5\u661f\u89d2\u8272\s*((?:\u300c[^\u300d]+\u300d[\u3001\s]*)+)/g)) {
 					for (const x of String(m[1]).matchAll(/\u300c([^\u300d]+)\u300d/g)) five.push(cleanRoles(x[1]));
 				}
-				const roles = six.concat(five).filter((x) => x !== "").join("\u3001");
+				const upRoles = six.concat(five).filter((x) => x !== "").join("\u3001");
+				const roles = upRoles || r99SelfSelectRoles(body);   // 自选池没有 UP 名单 → 标注自选位数
 				if (/\u5f81\u96c6/.test(sec.kind)) {
 					// 征集段：只认【征集时间】（活动段才有【活动时间】）
 					const line = sec.lines.find((l) => /^\u3010\u5f81\u96c6\u65f6\u95f4\u3011/.test(l));
