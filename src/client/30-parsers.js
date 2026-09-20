@@ -780,12 +780,40 @@
 			return { banner: primary.name, roles: "", bannerDates: dates, bannerDatesRaw: primary.raw || dates, eventHover: buildEventHover(active) };
 		}
 
+		// 解 HTML 数字实体（wiki.gg 的区间分隔符写成 &#8211; = en dash、&#8722; = 减号）+
+		// 常见具名实体。stripTags 不解实体，所以需要它才能把时间串拆干净。
+		function decodeHtmlEntities(s) {
+			return String(s)
+				.replace(/&#(\d+);/g, (_, d) => { try { return String.fromCodePoint(Number(d)); } catch { return ""; } })
+				.replace(/&#x([0-9a-f]+);/gi, (_, h) => { try { return String.fromCodePoint(parseInt(h, 16)); } catch { return ""; } })
+				.replace(/&nbsp;/g, " ").replace(/&minus;/g, "\u2212").replace(/&ndash;/g, "\u2013").replace(/&mdash;/g, "\u2014").replace(/&amp;/g, "&");
+		}
+
+		// 英文月份日期 → { ts, text }（如 "Sep 02, 2026, 12:00"、"September 2, 2026"）。
+		// 英文源站（wiki.gg / Game8 等）用这种写法，而 parseTime 只认纯数字日期，需要单独一支。
+		// 与插件其余来源同一口径：按"源站墙钟时间"直接构造（CN 用户本地即 UTC+8）。
+		const EN_MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+		function parseEnDate(raw) {
+			const m = String(raw).match(/([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})(?:,?\s+(\d{1,2}):(\d{2}))?/);
+			if (!m) return null;
+			const mo = EN_MONTHS[m[1].slice(0, 3).toLowerCase()];
+			if (!mo) return null;
+			const d = Number(m[2]), y = Number(m[3]);
+			const h = m[4] ? Number(m[4]) : 0, mi = m[5] ? Number(m[5]) : 0;
+			const pad = (n) => String(n).padStart(2, "0");
+			return { ts: new Date(y, mo - 1, d, h, mi).getTime(), text: `${pad(mo)}-${pad(d)} ${pad(h)}:${pad(mi)}` };
+		}
+
 		// 终末地（wiki.gg）：Headhunting/Banners 页 Current 分节 → 当期卡池
 		// 该源经 host 代理抓取（fetchEndfieldWikiGg → proxyFetchText 设 Referer=wiki.gg origin），
 		// 满足 Wiki.gg 的 Referer 校验，不会触发 403；本解析器仅处理代理返回的 HTML。
+		// 线上真实标记（2026-09 实测）：Asia 行是 "Sep 02, 2026, 12:00 &#8211; Sep 30, 2026, 11:59 (UTC+8)"，
+		// 同一格里还有 AM/EU 行（UTC−5）；旧实现用 parseTime + split(/[–-]/) 解不了英文月份与实体，恒返回 null
+		// → 该备选源长期"抓得到但解析不出"。现在：解实体 + 只取 Asia 行 + 英文月份解析。
 		function parseEndfieldCurrent(html) {
 			const i = html.indexOf('id="Current"');
-			if (i < 0) return null;
+			// 页面拿到了却没有 Current 分节 → wiki 页改版（抛错，别伪装成"未公布"）
+			if (i < 0) throw new Error("endfield-current-no-section");
 			const seg = html.slice(i);
 			const tableEnd = seg.indexOf("</table>");
 			const table = tableEnd >= 0 ? seg.slice(0, tableEnd) : seg;
@@ -795,16 +823,18 @@
 			const banner = nameM ? nameM[1].trim() : "";
 			let startTs = null, endTs = null, startText = null, endText = null;
 			if (asiaM) {
-				const parts = stripTags(asiaM[1]).split(/[–-]/).map((x) => x.trim());
-				if (parts.length >= 2) {
-					const a = parseTime(parts[0]);
-					const b = parseTime(parts[1]);
-					if (a) { startTs = a.ts; startText = a.text; }
-					if (b) { endTs = b.ts; endText = b.text; }
-				}
+				// 只取 Asia 行（非贪婪已停在 Asia span 结束处）；解实体后按 en/em dash 或"带空格的短横线"切两段
+				const asiaText = decodeHtmlEntities(stripTags(asiaM[1]));
+				const parts = asiaText.split(/[\u2013\u2014\u2212]|\s+-\s+/).map((x) => x.trim()).filter(Boolean);
+				const a = parseEnDate(parts[0] || "");
+				const b = parseEnDate(parts[1] || "");
+				if (a) { startTs = a.ts; startText = a.text; }
+				if (b) { endTs = b.ts; endText = b.text; }
 			}
-			// 不依赖 isMain 过滤的当期选择：直接按覆盖 now 判断
-			if (!(startTs != null && endTs != null && startTs <= nowMs() && endTs >= nowMs())) return null;
+			// 分节在、但卡池名/Asia 档期读不出来 → 表结构变了（抛错）；读得出但不覆盖当前 → null（未公布）
+			if (!banner) throw new Error("endfield-current-no-banner");
+			if (startTs == null || endTs == null) throw new Error("endfield-current-no-dates");
+			if (!(startTs <= nowMs() && endTs >= nowMs())) return null;
 			return {
 				banner,
 				roles: [...new Set(upM.map((m) => m[1]))].join("、"),
@@ -1184,7 +1214,9 @@
 			for (const c of chunks) {
 				try {
 					const js = await fetchHtmlText(c, signal);
-					const d = parseCanmoe(js) || parseCanmoeLoose(js);
+					// 只调一次：parseCanmoe 与 parseCanmoeLoose 是同一实现，旧写法 a || a 在最重的解析
+					// （chunk 的括号平衡扫描）上白跑两遍，而"没命中当期"恰恰是最常见的情况
+					const d = parseCanmoe(js);
 					if (d && d.banner && d.bannerDates) return d;
 				} catch { /* 下一个 chunk */ }
 			}

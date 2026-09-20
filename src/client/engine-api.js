@@ -105,7 +105,9 @@
 				return { at: nowMs(), total: entries.length, summary, problems, games };
 			}
 
-			// 测试出口：给回归脚本用（DSH 产物里只在 globalThis.__DSH_GACHA_TEST__ 为真时对外暴露）
+			// 测试出口：给回归脚本用。**如实暴露**（不做隐藏门控/环境变量开关）：
+			// 它只是内部函数的引用、不含任何数据，而"测试看得见、生产看不见"两套行为反而更容易埋坑；
+			// 各平台的 UI 只应使用 createEngine 返回的公开方法。
 			const __test = {
 				fetchEntry,
 				resolveSide,

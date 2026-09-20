@@ -188,9 +188,14 @@
 		}
 
 		// 终末地（wiki.gg 经 host 代理）：抓取 Headhunting/Banners HTML → parseEndfieldCurrent
-		// wiki.gg 校验 Referer（非 wiki.gg 域名 403），经代理后 Referer=目标 origin 满足要求
+		// wiki.gg 校验 Referer（非 wiki.gg 域名 403），经代理后 Referer=目标 origin 满足要求。
+		// 注意：这个地址是 MediaWiki 的 **api.php**，返回的是 JSON（`{"parse":{"text":"<html>"}}`）——
+		// 必须取 parse.text 再解析。旧实现直接把原始 JSON 串喂给解析器，于是 id="Current" 在 JSON 里是
+		// 转义形式（id=\"Current\"）永远匹配不到 → 该备选源长期"抓得到但解析不出"（这才是真根因）。
 		async function fetchEndfieldWikiGg(proxyUrl) {
-			const html = await proxyFetchText(proxyUrl, "https://endfield.wiki.gg/");
+			const json = await proxyFetchJson(proxyUrl, "https://endfield.wiki.gg/");
+			const html = json?.parse?.text;
+			if (typeof html !== "string") throw new Error("bad-json");
 			return parseEndfieldCurrent(html);
 		}
 
@@ -421,13 +426,16 @@
 			// 列表 content 被截断时按 id 取详情补齐再判定；选覆盖 now 的那一篇（不再无条件取最新）
 			const mains = rows.filter((n) => /维护更新说明/.test(n.title || ""));
 			let maintTitle = null;
+			let maintRaw = null;      // 选中那篇的**原始正文**：循环里已经为它抓过详情时直接复用，不再重复请求
 			for (const it of mains.slice(0, 8)) {
-				let txt = clean(it.content || "");
+				let raw = String(it.content || "");
+				let txt = clean(raw);
 				let first = txt.match(/(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{2})/);
 				if (!first && it.id) {
 					try {
 						const det = await proxyFetchJson(`https://bluearchive-cn.com/api/news/detail?id=${it.id}`, ref, H);
-						txt = clean(det?.data?.news?.content || "");
+						raw = String(det?.data?.news?.content || "");
+						txt = clean(raw);
 						first = txt.match(/(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{2})/);
 					} catch { /* 跳过该候选 */ }
 				}
@@ -435,11 +443,11 @@
 				const mo = Number(first[1]), d = Number(first[2]);
 				const startTs = new Date(nowYear, mo - 1, d, Number(first[3]), Number(first[4])).getTime();
 				const endTs = new Date(nowYear, mo - 1, d + 14, 13, 59).getTime();
-				if (startTs <= now && now <= endTs) { maintTitle = it; break; }
+				if (startTs <= now && now <= endTs) { maintTitle = it; maintRaw = raw; break; }
 			}
 			if (!maintTitle?.id) return null;
-			const detail = await proxyFetchJson(`https://bluearchive-cn.com/api/news/detail?id=${maintTitle.id}`, ref, H);
-			const content = detail?.data?.news?.content || "";
+			// 选中那篇若已经在上面抓过详情（列表 content 被截断的情况）→ 直接复用，省掉一次代理往返
+			const content = maintRaw || String((await proxyFetchJson(`https://bluearchive-cn.com/api/news/detail?id=${maintTitle.id}`, ref, H))?.data?.news?.content || "");
 			if (!content) return null;
 			// HTML → 文本
 			const text = String(content)

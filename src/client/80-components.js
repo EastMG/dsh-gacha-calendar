@@ -200,8 +200,10 @@
 									})
 								}),
 								// 设置按钮：跳转到 DSH 设置页并关闭本面板。
-								// DSH 设置面板是 modal、打开状态组件私有（无官方跳转 API），
-								// 通过触发侧边栏设置触发器（aria-haspopup="dialog" 是设置对话框的标准契约属性）打开面板。
+								// DSH 设置面板是 modal、打开状态组件私有（无官方跳转 API），只能触发侧边栏那个
+								// 设置触发器（aria-haspopup="dialog" 是它的契约属性）。注意 DSH 自身有 6+ 个元素
+								// 带这个属性，旧写法直接取文档序第一个（恰好排在最前才碰对）——这里按
+								// "可见 + 无障碍名匹配 设置/Settings" 挑，挑不到才退回第一个。
 								(0, react_jsx_runtime.jsx)("button", {
 									type: "button",
 									className: "gacha-cal-refresh",
@@ -209,7 +211,13 @@
 									"aria-label": "\u8BBE\u7F6E",
 									onClick: () => {
 										setOpen(false);
-										const t = document.querySelector('[aria-haspopup="dialog"]');
+										const all = [...document.querySelectorAll('[aria-haspopup="dialog"]')];
+										const visible = all.filter((el) => typeof el.getClientRects === "function" && el.getClientRects().length > 0);
+										const named = visible.find((el) => {
+											const label = (el.getAttribute("aria-label") || el.getAttribute("title") || el.textContent || "").trim();
+											return /\u8BBE\u7F6E|\u8A2D\u5B9A|Settings/i.test(label);
+										});
+										const t = named || visible[0] || all[0];
 										if (t && typeof t.click === "function") t.click();
 									},
 									children: (0, react_jsx_runtime.jsx)("svg", {

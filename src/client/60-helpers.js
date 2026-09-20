@@ -23,10 +23,10 @@
 			if (/fetch failed|Failed to fetch|NetworkError|net::|Load failed|network error/i.test(msg)) return "网络不通";
 			if (/^no-source$/.test(msg)) return "无可用来源";
 			// 解析器用 throw 表达"页面结构变了/一条都没解析出来"（哨兵错误名见各解析器，统一带
-			// shape-changed / layout-changed / no-table / no-timer / no-chunk / no-activities 这类后缀）：
+			// shape-changed / layout-changed / no-table / no-timer / no-chunk / no-section 这类后缀）：
 			// 给一句比"抓取异常"更有信息量的归因 —— 让"源站改版"在面板上**看得见**，
 			// 而不是伪装成"新卡池未公布"（终末地上次长期静默失灵就是这么来的）
-			if (/shape-changed|layout-changed|no-table|no-timer|no-chunk|no-activities|parse-empty/.test(msg)) {
+			if (/shape-changed|layout-changed|no-table|no-timer|no-chunk|no-section|no-banner|no-dates|no-activities|parse-empty/.test(msg)) {
 				return "页面结构变了（解析出 0 条）";
 			}
 			return "抓取异常";
