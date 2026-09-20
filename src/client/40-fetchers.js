@@ -737,13 +737,13 @@
 		}
 
 		// 重返未来：1999 入口：默认源＝官方游戏内公告（逐期征集时间）；
-		// 来源被切到官网维护公告（备选源）或自定义地址时直接走官网解析（旧行为）。
+		// 来源被切到官网公告（备选源）或自定义地址时直接走官网解析（旧行为）。
 		async function fetchR99(url, signal, now = nowMs()) {
 			if (!/noticecp/.test(String(url || ""))) return fetchR99Official(url, signal, now);
 			try {
 				return await fetchR99Notice(now);
 			} catch {
-				// 游戏内公告接口不可用/结构变了 → 回退官网维护公告（宁可少时间信息，也不要整格报错）
+				// 游戏内公告接口不可用/结构变了 → 回退官网公告（宁可少时间信息，也不要整格报错）
 				return fetchR99Official(R1999_OFFICIAL_URL, signal, now);
 			}
 		}
@@ -891,7 +891,7 @@
 			"ba-jp": (url, signal) => fetchBaJpGacha(url, signal),
 			"ba-jp-gamekee": () => fetchGameKeeBa("jp"),
 			"r1999": (url, signal) => fetchR99(url, signal),
-			// 重返未来1999 备选：官网维护公告（只有维护时间与活动名，无逐期征集时间）
+			// 重返未来1999 备选：官网公告（只有维护时间与活动名，无逐期征集时间）
 			"r1999-official": (url, signal) => fetchR99Official(url, signal)
 		};
 		// 活动源注册表：条目 → { 默认 + 备选抓取器 }。没有独立活动源的条目活动来源显示"未配置"。
@@ -952,7 +952,7 @@
 				"ba-jp-official": (url, signal) => fetchBaJpOfficialEvent(url, signal)
 			},
 			// 重返未来：默认与卡池同 URL（同一篇「版本活动一览」同时含征集与活动）；
-			// 备选＝官网维护公告（只有维护时间与活动名）
+			// 备选＝官网公告（只有维护时间与活动名）
 			"r1999": {
 				default: (url, signal) => fetchR99(url, signal),
 				"r1999-official": (url, signal) => fetchR99Official(url, signal)
