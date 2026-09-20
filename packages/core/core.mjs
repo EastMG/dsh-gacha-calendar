@@ -4,7 +4,7 @@
 		// 用途：缓存里记录"这份数据是哪版插件产出的"。更新插件后首次启动，据此**强制**刷新一次
 		// （不看自动刷新开关）——因为有些改动（悬停格式、来源地址、样式、解析器）不刷新就看不到效果。
 		// 写入时机见 engine-api.js 的 refresh()；判定见 60-helpers.js 的 autoRefreshPlan()。
-		const PLUGIN_VERSION = "0.9.39";
+		const PLUGIN_VERSION = "0.9.40";
 		//#endregion
 
 		//#region config
@@ -239,7 +239,7 @@
 			},
 			{
 				id: "r1999",
-				parserVersion: 2,
+				parserVersion: 3,
 				name: "重返未来：1999",
 				icon: "https://play-lh.googleusercontent.com/LwcueZMBbLq6aELtqJVn61ToKkJUgxEO8O4KgK_5052hfYoDAglQJIzqSu8srUJeaOZwv36Qi5YKtsXZjo-JPg=s64",
 				source: "\u5B98\u65B9\u516C\u544A",
@@ -3092,7 +3092,31 @@ export function createEngine(env) {
 			return "";
 		}
 
-		// 解析一篇「版本活动一览」→ { pools, events, rotations }
+		// 独立池公告：标题形如「池名」类型开启！，正文只有一张图（拿不到 UP 名单），
+		// 但接口的 beginTime/endTime 就是该池的真实起止。官方**逐池各发一篇**，且**过期即从公告板下线**：
+		// 实测公告板上 22 条无一条过期，已结束的池与其轮换期全都没有公告（"有公告" ⟺ "该池在开"）。
+		// 所以轮换征集只能靠它——一览里那三行日期不带时间，过期后连日期行也会随版本一起消失。
+		const R99_SOLO_POOL = /^\u300c([^\u300d]{1,40})\u300d([^\u300c\u300d]{1,12})\u5f00\u542f\uff01$/;
+		function r99SoloPools(items) {
+			const out = [];
+			for (const it of items) {
+				const title = String((it.contentMap && it.contentMap["zh-CN"] && it.contentMap["zh-CN"].title) || "").trim();
+				const m = title.match(R99_SOLO_POOL);
+				if (!m) continue;
+				const kind = m[2].trim();
+				if (R99_POOL_TIERS.indexOf(kind) < 0) continue;   // 衣着上新/上架/上新等不是卡池
+				const startTs = Number(it.beginTime);
+				const endTs = Number(it.endTime) - 6e4;           // 接口边界是排他的（…05:00），面板统一显示末分钟 04:59
+				if (!startTs || !endTs) continue;
+				out.push({
+					name: `\u300c${m[1]}\u300d${kind}`, kind, roles: "", startTs, endTs, raw: "",
+					display: fmtWindow(startTs, endTs)
+				});
+			}
+			return out;
+		}
+
+		// 解析一篇「版本活动一览」→ { pools, events, rotRows }
 		function parseR99Overview(item, now = nowMs()) {
 			const lines = r99NoticeLines(item);
 			if (!lines) return null;
@@ -3147,20 +3171,16 @@ export function createEngine(env) {
 				seenEvent.add(key);
 				events.push({ name: sec.name, cat: sec.kind, startTs, endTs, raw: fmtWindow(startTs, endTs) });
 			}
-			// 轮换征集：一览以「X月X日更新：角色、角色」逐期公布（14 天一期，末日 04:59）
-			const rotations = [];
+			// 轮换征集在一览里**只有日期行**（「N月N日更新：角色」，不带起止时间）→ 这里只当"角色字典"。
+			// 时间不再用"+14 天"推算：每期轮换都有自己的独立公告（见 r99SoloPools），接口给的就是真实起止。
+			const rotRows = [];
 			for (const line of lines) {
 				const m = line.match(/^(\d{1,2})\u6708(\d{1,2})\u65e5\u66f4\u65b0[\uff1a:]\s*(.+)$/);
 				if (!m) continue;
-				const startTs = new Date(year, Number(m[1]) - 1, Number(m[2]), 5, 0).getTime();
-				const endTs = startTs + 14 * 864e5 - 6e4;
-				rotations.push({
-					name: "\u300c\u8f6e\u6362\u5f81\u96c6\u300d", kind: "\u8f6e\u6362\u5f81\u96c6", roles: cleanRoles(m[3]),
-					startTs, endTs, raw: `\u3010${m[1]}\u6708${m[2]}\u65e5\u66f4\u65b0\u3011${cleanRoles(m[3])}`,
-					display: fmtWindow(startTs, endTs)
-				});
+				// 只用"更新日"当匹配键（与同一期独立公告的 startTs 同一天），不作为时间来源
+				rotRows.push({ startTs: new Date(year, Number(m[1]) - 1, Number(m[2]), 5, 0).getTime(), roles: cleanRoles(m[3]) });
 			}
-			return { pools, events, rotations };
+			return { pools, events, rotRows };
 		}
 
 		// 官方游戏内公告 → 当期征集（含真实起止、悬停列全部并行）+ 当期活动（同其它游戏的活动列规则）。
@@ -3173,7 +3193,7 @@ export function createEngine(env) {
 			const titleOf = (it) => String((it.contentMap && it.contentMap["zh-CN"] && it.contentMap["zh-CN"].title) || "");
 			const overviews = items.filter((it) => /\u7248\u672c\u6d3b\u52a8\u4e00\u89c8/.test(titleOf(it)));
 			if (overviews.length === 0) throw new Error("r1999-notice-no-section");
-			const pools = [], events = [], rotations = [];
+			const pools = [], events = [], rotRows = [];
 			let parsed = 0;
 			for (const it of overviews) {
 				const o = parseR99Overview(it, now);
@@ -3181,11 +3201,27 @@ export function createEngine(env) {
 				parsed++;
 				pools.push.apply(pools, o.pools);
 				events.push.apply(events, o.events);
-				rotations.push.apply(rotations, o.rotations);
+				rotRows.push.apply(rotRows, o.rotRows);
 			}
 			if (parsed === 0) throw new Error("r1999-notice-no-dates");
+			// 用独立公告补齐一览没有的池（当前就是轮换征集）。同名池**以一览为准**——它有正文【征集时间】
+			// 与 UP 名单；独立公告正文只有图，只能补"池名 + 真实起止"，角色另从日期行字典里按同一天取。
+			const dayKey = (ts) => { const d = new Date(ts); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+			const rolesByDay = new Map(rotRows.map((r) => [dayKey(r.startTs), r.roles]));
+			for (const p of r99SoloPools(items)) {
+				if (pools.some((x) => x.name === p.name)) continue;
+				p.roles = rolesByDay.get(dayKey(p.startTs)) || "";
+				pools.push(p);
+			}
 			const data = {};
-			const active = pools.concat(rotations).filter((p) => p.startTs <= now && p.endTs >= now);
+			// 当期 = 窗口覆盖现在的池；同名多期（一览的下一期 + 公告的当期）只留第一个 = 一览优先
+			const seenName = new Set();
+			const active = pools.filter((p) => {
+				if (!(p.startTs <= now && p.endTs >= now)) return false;
+				if (seenName.has(p.name)) return false;
+				seenName.add(p.name);
+				return true;
+			});
 			if (active.length > 0) {
 				const rank = (p) => {
 					const i = R99_POOL_TIERS.indexOf(p.kind);

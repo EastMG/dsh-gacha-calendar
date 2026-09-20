@@ -195,7 +195,7 @@
 			},
 			{
 				id: "r1999",
-				parserVersion: 2,
+				parserVersion: 3,
 				name: "重返未来：1999",
 				icon: "https://play-lh.googleusercontent.com/LwcueZMBbLq6aELtqJVn61ToKkJUgxEO8O4KgK_5052hfYoDAglQJIzqSu8srUJeaOZwv36Qi5YKtsXZjo-JPg=s64",
 				source: "\u5B98\u65B9\u516C\u544A",
