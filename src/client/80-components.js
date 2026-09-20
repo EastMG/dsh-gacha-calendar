@@ -1,4 +1,35 @@
 		//#region components
+		// 本插件在 DSH 设置面板里的导航名；面板按钮与弹层标题也用它（唯一事实来源，90-plugin.js 注册分区时共用）。
+		const SETTINGS_SECTION_LABEL = "\u4E8C\u6E38\u6392\u671F";
+		// DSH 设置面板是"点了才挂载"，打开后要等导航渲染出来才能切页；预算给足但不无限等。
+		const SETTINGS_NAV_TIMEOUT_MS = 600;
+		const SETTINGS_NAV_POLL_MS = 30;
+
+		// 打开 DSH 设置面板并切到本插件的分区（面板上的「设置」按钮用，注释见按钮处）。
+		// DSH 没有给插件"跳转设置页"的官方 API：面板是 modal，open 与 activeId 都是组件私有 state，
+		// 且 activeId 每次打开都重置为 undefined，面板按 rows[0] 兜底（= 导航第一项）。所以只能：
+		// ① 点侧边栏那个设置触发器；② 等面板挂载出来，按导航名点本插件那一项。
+		function openPluginSettingsSection() {
+			const all = [...document.querySelectorAll('[aria-haspopup="dialog"]')];
+			const visible = all.filter((el) => typeof el.getClientRects === "function" && el.getClientRects().length > 0);
+			const named = visible.find((el) => {
+				const label = (el.getAttribute("aria-label") || el.getAttribute("title") || el.textContent || "").trim();
+				return /\u8BBE\u7F6E|\u8A2D\u5B9A|Settings/i.test(label);
+			});
+			const trigger = named || visible[0] || all[0];
+			if (!trigger || typeof trigger.click !== "function") return;
+			trigger.click();
+			const deadline = Date.now() + SETTINGS_NAV_TIMEOUT_MS;
+			const tick = () => {
+				// 不锁定"文档序第一个 [role=dialog]"：别的插件也可能有带 nav 的对话框。
+				const btn = [...document.querySelectorAll('[role="dialog"] nav button')]
+					.find((b) => b.textContent.trim() === SETTINGS_SECTION_LABEL);
+				if (btn) { btn.click(); return; }
+				if (Date.now() < deadline) window.setTimeout(tick, SETTINGS_NAV_POLL_MS);
+			};
+			window.setTimeout(tick, 0);
+		}
+
 		// engine：core 引擎（抓取/解析/缓存合并都在里面）。面板只读它返回的 Result JSON。
 		function CalendarPanel({ wide, scope, engine }) {
 			const [open, setOpen] = (0, react.useState)(false);
@@ -177,7 +208,7 @@
 
 			const lastRefreshText = s.lastRefresh ? new Date(s.lastRefresh).toLocaleString() : "\u2014";
 			const dataStatus = s.lastSource === "web" ? "\u8054\u7F51\u6570\u636E" : "\u2014";
-			const label = "\u4E8C\u6E38\u6392\u671F";
+			const label = SETTINGS_SECTION_LABEL;
 
 			return (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
 				children: [
@@ -204,7 +235,7 @@
 						className: "gacha-cal-pop",
 						style: { left: anchor.left, bottom: anchor.bottom },
 						children: [
-							(0, react_jsx_runtime.jsx)("p", { className: "gacha-cal-title", children: "\u4E8C\u6E38\u6392\u671F" }),
+							(0, react_jsx_runtime.jsx)("p", { className: "gacha-cal-title", children: SETTINGS_SECTION_LABEL }),
 							(0, react_jsx_runtime.jsxs)("p", { className: "gacha-cal-meta", children: [
 								(0, react_jsx_runtime.jsx)("span", { children: "\u6570\u636E\uFF1A" + dataStatus }),
 								(0, react_jsx_runtime.jsx)("span", { children: "\u5237\u65B0\uFF1A" + lastRefreshText }),
@@ -234,11 +265,13 @@
 										})
 									})
 								}),
-								// 设置按钮：跳转到 DSH 设置页并关闭本面板。
-								// DSH 设置面板是 modal、打开状态组件私有（无官方跳转 API），只能触发侧边栏那个
-								// 设置触发器（aria-haspopup="dialog" 是它的契约属性）。注意 DSH 自身有 6+ 个元素
-								// 带这个属性，旧写法直接取文档序第一个（恰好排在最前才碰对）——这里按
-								// "可见 + 无障碍名匹配 设置/Settings" 挑，挑不到才退回第一个。
+								// 设置按钮：打开 DSH 设置面板并切到本插件的「二游排期」页，同时关闭本面板。
+								// 为什么这么绕：DSH 没给插件"跳转设置页"的官方 API——面板是 modal，open/activeId 都是组件
+								// 私有 state（dsh-client-ui-settings-general 的 SettingsRoot），打开后按 rows[0] 兜底，也就是停在
+								// 导航第一项「通用」；插件拿不到 openSection。只能点侧边栏那个设置触发器（aria-haspopup="dialog"
+								// 是它的契约属性：全客户端带这个属性的有 6 个 dialog 类 + 12 个 menu/listbox/tree，所以按
+								// "可见 + 无障碍名匹配 设置/Settings" 挑，挑不到才退回第一个），再交给 openPluginSettingsSection
+								// 等面板挂载后按导航名切到本插件那一节。
 								(0, react_jsx_runtime.jsx)("button", {
 									type: "button",
 									className: "gacha-cal-refresh",
@@ -246,14 +279,7 @@
 									"aria-label": "\u8BBE\u7F6E",
 									onClick: () => {
 										setOpen(false);
-										const all = [...document.querySelectorAll('[aria-haspopup="dialog"]')];
-										const visible = all.filter((el) => typeof el.getClientRects === "function" && el.getClientRects().length > 0);
-										const named = visible.find((el) => {
-											const label = (el.getAttribute("aria-label") || el.getAttribute("title") || el.textContent || "").trim();
-											return /\u8BBE\u7F6E|\u8A2D\u5B9A|Settings/i.test(label);
-										});
-										const t = named || visible[0] || all[0];
-										if (t && typeof t.click === "function") t.click();
+										openPluginSettingsSection();
 									},
 									children: (0, react_jsx_runtime.jsx)("svg", {
 										width: "13",

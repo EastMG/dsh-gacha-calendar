@@ -15,7 +15,7 @@
 			// 性能：MutationObserver 回调只置脏标记，用 requestAnimationFrame 合并执行；
 			// patch 先查 dialog 是否存在，不存在立即返回（Web 端高频 DOM 变化时开销极小）。
 			ctx.effect(() => {
-				const LABEL = "\u4E8C\u6E38\u6392\u671F";
+				const LABEL = SETTINGS_SECTION_LABEL;
 				const CAL_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex:none"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>';
 				let raf = 0;
 				const patch = () => {
@@ -101,7 +101,7 @@
 				name: "settings.section",
 				id: "gacha-calendar",
 				order: 25,
-				label: "\u4E8C\u6E38\u6392\u671F",
+				label: SETTINGS_SECTION_LABEL,
 				locale: NS,
 				inject: () => ({ scope, engine })
 			}, CalendarSettingsPage));
