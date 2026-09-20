@@ -721,6 +721,17 @@ export function createEngine(env) {
 			return requireTransport().fetchRaw(url, opts);
 		}
 
+		// 直连抓取的统一请求头：Accept + Referer=<目标站>/。
+		// 为什么必须带 Referer：bwiki（wiki.biligame.com）已对"无 Referer 的裸请求"返回 **567**（实测：
+		// 带 Referer 200；只带 UA 或 Accept 均 567；单给 Origin 无效）。浏览器会自动带上本站 Referer
+		// （Referer 是禁止脚本设置的头，浏览器会忽略这里设置的值），所以 DSH 生产路径正常；但
+		// Node / 原生运行时不会自动带 → core 包在其它平台会整片 567（原神/星铁/鸣潮活动等 bwiki 源）。
+		function rawHeaders(url) {
+			const h = { Accept: "application/json" };
+			try { h.Referer = new URL(url).origin + "/"; } catch { /* 非法 URL 交由 fetch 报错 */ }
+			return h;
+		}
+
 		// 经代理抓取文本（需要绕过 CORS / Referer 反爬的源）。语义与原 host 代理调用完全一致：
 		// referer / headers（可选对象）/ body（可选，提供时以 POST + JSON 发出）→ 原始 body 字符串
 		async function proxyFetchText(proxyUrl, referer, extraHeaders, body) {
@@ -836,16 +847,18 @@ export function createEngine(env) {
 		// 兼容历史「限时寻访」表（寻访页面|开启时间|特定干员6星|特定干员5星&4星）作为兜底。
 		function parseArknights(html) {
 			const out = [];
-			// 标准（干员轮换卡池）+ 中坚（中坚甄选）：行内 title="寻访模拟/干员轮换卡池N" 或 "寻访模拟/中坚甄选N"
+			// 标准（干员轮换卡池N）+ 中坚（中坚甄选N / 中坚干员轮换卡池N）：
+			// 行内 title="寻访模拟/<池名>"。**档位按池名判定且中坚优先**——「中坚干员轮换卡池74」
+			// 名字里也含"干员轮换卡池"，先测标准会把整批中坚池误判进标准档（实测踩过）。
 			for (const rm of html.matchAll(/<tr(?:[^>]*)>([\s\S]*?)<\/tr>/g)) {
 				const row = rm[1];
-				const tier = /干员轮换卡池/.test(row) ? ("标准") : (/中坚甄选/.test(row) ? "中坚" : null);
-				if (!tier) continue;
 				const tds = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) => m[1]);
 				if (tds.length < 3) continue;
 				const titleM = (tds[1] || "").match(/title="([^"]*)"/);
 				if (!titleM) continue;
 				const banner = String(titleM[1]).replace(/^寻访模拟\//, ""); // 干员轮换卡池192 / 中坚甄选14
+				if (!/干员轮换卡池|中坚甄选/.test(banner)) continue;         // 只认这两类轮换池行
+				const tier = /中坚/.test(banner) ? "中坚" : "标准";
 				const roles = [...((tds[3] || "") + (tds[4] || "")).matchAll(/<a[^>]*title="([^"]+)"/g)]
 					.map((m) => m[1]).filter(Boolean);
 				const range = parseRange(tds[2]);
@@ -876,32 +889,32 @@ export function createEngine(env) {
 			return out;
 		}
 
-		// 明日方舟当期卡池：外显按 限时 > 标准 > 中坚 优先级选一个；悬停 bannerHover 列出三种。
+		// 明日方舟当期卡池：**外显与悬停共用同一份"当期池"列表**（不再各挑一个）——
+		// 外显按档位优先（限时 > 标准 > 中坚）、档内先结束者优先；悬停走统一的 buildPoolHover，
+		// 与其它游戏同格式（每池『池名：角色』+ 时间行、同窗口合并时间、结束时间升序）。
 		function selectArknights(html, now = nowMs()) {
 			const items = parseArknights(html);
 			fillMissingStarts(items);
 			const tiers = ["限时", "标准", "中坚"];
-			const curByTier = {};
-			for (const t of tiers) {
-				curByTier[t] = items.filter((it) => it.tier === t && it.startTs != null && it.startTs <= now && it.endTs != null && it.endTs >= now);
-			}
-			let winner = null;
-			for (const t of tiers) {
-				if (curByTier[t].length > 0) { winner = curByTier[t][0]; break; }
-			}
-			if (!winner) return null;
-			const lines = tiers.map((t) => {
-				const arr = curByTier[t];
-				if (arr.length === 0) return `${t}：（无）`;
-				const it = arr.slice().sort((a, b) => b.startTs - a.startTs)[0];
-				return `${t}：${it.banner}${it.roles ? `\uFF1A${it.roles}` : ""}\n${it.rawOriginal || it.raw}`;
-			});
+			const rank = (it) => {
+				const i = tiers.indexOf(it.tier);
+				return i < 0 ? tiers.length : i;
+			};
+			const active = items
+				.filter((it) => it.startTs != null && it.endTs != null && it.startTs <= now && it.endTs >= now)
+				.sort((a, b) => (rank(a) - rank(b)) || (a.endTs - b.endTs) || (a.startTs - b.startTs));
+			if (active.length === 0) return null;
+			const win = active[0];
 			return {
-				banner: winner.banner,
-				roles: winner.roles,
-				bannerDates: winner.raw,
-				bannerDatesRaw: winner.rawOriginal || winner.raw,
-				bannerHover: lines.join("\n")
+				banner: win.banner,
+				roles: win.roles,
+				bannerDates: win.raw,
+				bannerDatesRaw: win.rawOriginal || win.raw,
+				bannerHover: buildPoolHover(active.map((it) => ({
+					name: it.banner,
+					label: `${it.banner}${it.roles ? `\uFF1A${it.roles}` : ""}`,
+					startTs: it.startTs, endTs: it.endTs, raw: it.rawOriginal || it.raw
+				})))
 			};
 		}
 
@@ -993,9 +1006,11 @@ export function createEngine(env) {
 			try {
 				const official = await fetchArknightsOfficialPools(signal, now);
 				if (official.length > 0) {
-					const p = official[0];
+					// 外显与悬停同源同序：先结束者优先（与 PRTS 路径、其它游戏一致），不再取列表首条
+					const sorted = official.slice().sort((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs));
+					const p = sorted[0];
 					// 悬停：与其它游戏统一为「池名：角色」+ 时间（多池时逐池一行、同窗口合并时间、结束时间升序）
-					const pools = official.map((x) => ({
+					const pools = sorted.map((x) => ({
 						name: x.banner,
 						label: `${x.banner}${x.roles ? `\uFF1A${x.roles}` : (x.family ? `\uFF1A${x.family}` : "")}`,
 						startTs: x.startTs,
@@ -1012,7 +1027,7 @@ export function createEngine(env) {
 				}
 			} catch { /* 官方失败 → 回退 PRTS */ }
 			const apiUrl = ARKNIGHTS_PRTS_URL + (ARKNIGHTS_PRTS_URL.includes("?") ? "&" : "?") + "origin=*";
-			const res = await transportFetchRaw(apiUrl, { signal, headers: { Accept: "application/json" } });
+			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
 			if (!res.ok) throw new Error("http-" + res.status);
 			const json = await res.json();
 			const html = json?.parse?.text;
@@ -1287,7 +1302,7 @@ export function createEngine(env) {
 				if (d) return d;
 			} catch { /* 官方失败 → Bwiki 备选 */ }
 			const apiUrl = WUWA_BWIKI_URL + (WUWA_BWIKI_URL.includes("?") ? "&" : "?") + "origin=*";
-			const res = await transportFetchRaw(apiUrl, { signal, headers: { Accept: "application/json" } });
+			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
 			if (!res.ok) throw new Error("http-" + res.status);
 			const json = await res.json();
 			const html = json?.parse?.text;
@@ -1400,7 +1415,7 @@ export function createEngine(env) {
 				if (d) return d;
 			} catch { /* 官方失败 → Bwiki 备选 */ }
 			const apiUrl = ZZZ_BWIKI_URL + (ZZZ_BWIKI_URL.includes("?") ? "&" : "?") + "origin=*";
-			const res = await transportFetchRaw(apiUrl, { signal, headers: { Accept: "application/json" } });
+			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
 			if (!res.ok) throw new Error("http-" + res.status);
 			const json = await res.json();
 			const html = json?.parse?.text;
@@ -1927,7 +1942,7 @@ export function createEngine(env) {
 		// 通用抓取网页文本：MediaWiki api.php（action=parse）→ JSON 的 parse.text；其它 URL → 原始 HTML
 		async function fetchHtmlText(url, signal) {
 			const apiUrl = url + (url.includes("?") ? "&" : "?") + "origin=*";
-			const res = await transportFetchRaw(apiUrl, { signal, headers: { Accept: "application/json" } });
+			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
 			if (!res.ok) throw new Error("http-" + res.status);
 			if (/action\s*=\s*parse/i.test(url)) {
 				const json = await res.json();
@@ -2382,7 +2397,7 @@ export function createEngine(env) {
 			const nowYear = new Date(nowMs()).getFullYear();   // 走注入时钟（core 不得直接读宿主时钟）
 			const q = "[[\u5206\u7C7B:\u6D3B\u52A8]][[\u7ED3\u675F\u65F6\u95F4::>" + nowYear + "/01/01]]|?\u540D\u79F0|?\u5F00\u59CB\u65F6\u95F4|?\u7ED3\u675F\u65F6\u95F4|?\u7C7B\u578B|sort=\u5F00\u59CB\u65F6\u95F4|order=desc|limit=60";
 			const apiUrl = "https://wiki.biligame.com/ys/api.php?action=ask&query=" + encodeURIComponent(q) + "&format=json&origin=*";
-			const res = await transportFetchRaw(apiUrl, { signal, headers: { Accept: "application/json" } });
+			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
 			if (!res.ok) throw new Error("http-" + res.status);
 			const json = await res.json();
 			const d = parseSmwActivity(json);
@@ -2404,7 +2419,7 @@ export function createEngine(env) {
 		function mkMediaWiki(parse) {
 			return async (url, signal) => {
 				const apiUrl = url + (url.includes("?") ? "&" : "?") + "origin=*";
-				const res = await transportFetchRaw(apiUrl, { signal, headers: { Accept: "application/json" } });
+				const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
 				if (!res.ok) throw new Error("http-" + res.status);
 				const json = await res.json();
 				const text = json?.parse?.text;
@@ -2415,7 +2430,7 @@ export function createEngine(env) {
 		function mkRaw(parse) {
 			return async (url, signal) => {
 				const apiUrl = url + (url.includes("?") ? "&" : "?") + "origin=*";
-				const res = await transportFetchRaw(apiUrl, { signal, headers: { Accept: "application/json" } });
+				const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
 				if (!res.ok) throw new Error("http-" + res.status);
 				return parse(await res.text());
 			};

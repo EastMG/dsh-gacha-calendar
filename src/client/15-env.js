@@ -43,6 +43,17 @@
 			return requireTransport().fetchRaw(url, opts);
 		}
 
+		// 直连抓取的统一请求头：Accept + Referer=<目标站>/。
+		// 为什么必须带 Referer：bwiki（wiki.biligame.com）已对"无 Referer 的裸请求"返回 **567**（实测：
+		// 带 Referer 200；只带 UA 或 Accept 均 567；单给 Origin 无效）。浏览器会自动带上本站 Referer
+		// （Referer 是禁止脚本设置的头，浏览器会忽略这里设置的值），所以 DSH 生产路径正常；但
+		// Node / 原生运行时不会自动带 → core 包在其它平台会整片 567（原神/星铁/鸣潮活动等 bwiki 源）。
+		function rawHeaders(url) {
+			const h = { Accept: "application/json" };
+			try { h.Referer = new URL(url).origin + "/"; } catch { /* 非法 URL 交由 fetch 报错 */ }
+			return h;
+		}
+
 		// 经代理抓取文本（需要绕过 CORS / Referer 反爬的源）。语义与原 host 代理调用完全一致：
 		// referer / headers（可选对象）/ body（可选，提供时以 POST + JSON 发出）→ 原始 body 字符串
 		async function proxyFetchText(proxyUrl, referer, extraHeaders, body) {
