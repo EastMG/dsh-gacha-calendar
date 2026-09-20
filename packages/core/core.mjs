@@ -4,18 +4,20 @@
 		// 用途：缓存里记录"这份数据是哪版插件产出的"。更新插件后首次启动，据此**强制**刷新一次
 		// （不看自动刷新开关）——因为有些改动（悬停格式、来源地址、样式、解析器）不刷新就看不到效果。
 		// 写入时机见 engine-api.js 的 refresh()；判定见 60-helpers.js 的 autoRefreshPlan()。
-		const PLUGIN_VERSION = "0.9.33";
+		const PLUGIN_VERSION = "0.9.34";
 		//#endregion
 
 		//#region config
 		const NS = "gacha-calendar";
-		// 刷新频率选项：按天（存分钟），与 host 端 Config.refreshMinutes 对应
+		// 刷新频率选项：按天（存分钟），与 host 端 Config.refreshMinutes 对应。
+		// 档位对齐常见版本周期：14/21/28/35/42 天 —— 15≈蔚蓝档案的 14 天轮换、21=1999 半版本/3.6 整版本
+		// 与异环当期、30≈方舟月度、42=米系与 1999 的整版本
 		const REFRESH_OPTIONS = [
 			{ label: "1 天", minutes: 1 * 24 * 60 },
 			{ label: "5 天", minutes: 5 * 24 * 60 },
 			{ label: "7 天", minutes: 7 * 24 * 60 },
 			{ label: "15 天", minutes: 15 * 24 * 60 },
-			{ label: "24 天", minutes: 24 * 24 * 60 },
+			{ label: "21 天", minutes: 21 * 24 * 60 },
 			{ label: "30 天", minutes: 30 * 24 * 60 },
 			{ label: "42 天", minutes: 42 * 24 * 60 }
 		];
@@ -472,8 +474,9 @@
 
 		// 默认爬取源显示名（设置页下拉默认项）
 		// urlField: "url"（卡池源）或 "eventUrl"（活动源）
-		// 卡池源：source 字段，否则域名/未配置
-		// 活动源：eventSource 标签（或域名）；无活动源 → "未配置"
+		// 卡池源：source 字段，否则域名；活动源：eventSource 标签，否则域名
+		// 该侧压根没配来源时（只抓另一侧的自定义条目会这样）→ 明确写成"未配置（不抓取X）"，
+		// 否则下拉里光一个"未配置"看着像坏了（实测：内置 11 款两侧都配了来源，只有自定义条目会遇到）
 		function getDefaultSourceName(g, urlField) {
 			const isEvent = urlField === "eventUrl";
 			const u = isEvent ? g.eventUrl : g.url;
@@ -482,13 +485,13 @@
 				if (u && u.trim() !== "") {
 					try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u.trim(); }
 				}
-				return "未配置";
+				return "未配置（不抓取活动）";
 			}
 			if (g.source && g.source.trim() !== "") return g.source.trim();
 			if (u && u.trim() !== "") {
 				try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u.trim(); }
 			}
-			return "未配置";
+			return "未配置（不抓取卡池）";
 		}
 
 		// 可见条目 = 全部条目 - 隐藏条目
@@ -3738,30 +3741,30 @@ export function createEngine(env) {
 				}));
 				// 与刷新同一套"到点收尾"兜底：transport 不理会 signal 时，自检也不会永远转圈
 				const results = await runEntriesWithDeadline(targets, timeoutMs);
-				// 一侧的结论：ok=有内容；nomatch=抓到页面但没当期内容（这才是"解析出 0 条"）；down=抓取/解析报错
+				// 一侧的结论：ok=有内容；nomatch=抓到页面但没当期内容；down=抓取/解析报错；
+				// unconfigured=该侧压根没配来源（合法状态，**不算失败**——面板把它当"没这回事"，
+				// 自检也必须同口径：单列一类，否则"没配"会混进"报错"数字里，用户去修也无从下手）
 				const describe = (kind, fail, data, url) => {
-					// 该侧压根没配来源（如自定义条目只填了卡池地址）：自检的意义就是指出"哪个源没内容/报错"，
-					// 这里必须报出来，不能因为"从没抓过"而显示成正常（fail 恒为 null 的假 ok）
-					if (!url) return { state: "down", reason: "未配置来源", text: "未配置来源" };
+					if (!url) return { state: "unconfigured", reason: "未配置来源", text: "未配置来源" };
 					const f = normalizeFail(fail);
 					if (!f) {
 						const text = kind === "gacha"
 							? [data.roles || data.banner, data.bannerDates].filter(Boolean).join(" / ")
 							: [data.event, data.eventDates].filter(Boolean).join(" / ");
-						return { state: "ok", reason: "", text: text || "（抓到了，但内容为空）" };
+						return { state: "ok", reason: "", text: text || "解析结果为空" };
 					}
-					if (f.kind === "nomatch") return { state: "nomatch", reason: "", text: "解析出 0 条（源站无当期内容）" };
+					if (f.kind === "nomatch") return { state: "nomatch", reason: "", text: "未公布（源站无当期内容）" };
 					return { state: "down", reason: f.reason || "抓取异常", text: "抓取失败：" + (f.reason || "抓取异常") };
 				};
 				const games = {};
-				const summary = { ok: 0, nomatch: 0, down: 0 };
+				const summary = { ok: 0, nomatch: 0, unconfigured: 0, down: 0 };
 				entries.forEach((e, i) => {
 					const r = results[i] || {};
 					const d = r.data || {};
 					const t = targets[i] || {};
 					const gacha = describe("gacha", r.gachaFail, d, t.url);
 					const event = describe("event", r.eventFail, d, t.eventUrl);
-					games[e.id] = { name: e.name, parserVersion: e.parserVersion, gacha, event };
+					games[e.id] = { name: e.name, parserVersion: e.parserVersion, custom: !!e.custom, gacha, event };
 					for (const side of [gacha, event]) summary[side.state]++;
 				});
 				const problems = [];
@@ -3769,7 +3772,8 @@ export function createEngine(env) {
 					const bad = [];
 					if (v.gacha.state !== "ok") bad.push("卡池 " + v.gacha.text);
 					if (v.event.state !== "ok") bad.push("活动 " + v.event.text);
-					if (bad.length) problems.push(`${v.name}(${id}): ${bad.join("；")}`);
+					// 内部 id 只对自定义条目有意义（用户要靠它区分自己加的条目）；内置条目写游戏名即可
+					if (bad.length) problems.push(`${v.name}${v.custom ? `(${id})` : ""}: ${bad.join("；")}`);
 				}
 				return { at: nowMs(), total: entries.length, summary, problems, games };
 			}

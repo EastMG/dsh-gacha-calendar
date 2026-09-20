@@ -74,30 +74,30 @@
 				}));
 				// 与刷新同一套"到点收尾"兜底：transport 不理会 signal 时，自检也不会永远转圈
 				const results = await runEntriesWithDeadline(targets, timeoutMs);
-				// 一侧的结论：ok=有内容；nomatch=抓到页面但没当期内容（这才是"解析出 0 条"）；down=抓取/解析报错
+				// 一侧的结论：ok=有内容；nomatch=抓到页面但没当期内容；down=抓取/解析报错；
+				// unconfigured=该侧压根没配来源（合法状态，**不算失败**——面板把它当"没这回事"，
+				// 自检也必须同口径：单列一类，否则"没配"会混进"报错"数字里，用户去修也无从下手）
 				const describe = (kind, fail, data, url) => {
-					// 该侧压根没配来源（如自定义条目只填了卡池地址）：自检的意义就是指出"哪个源没内容/报错"，
-					// 这里必须报出来，不能因为"从没抓过"而显示成正常（fail 恒为 null 的假 ok）
-					if (!url) return { state: "down", reason: "未配置来源", text: "未配置来源" };
+					if (!url) return { state: "unconfigured", reason: "未配置来源", text: "未配置来源" };
 					const f = normalizeFail(fail);
 					if (!f) {
 						const text = kind === "gacha"
 							? [data.roles || data.banner, data.bannerDates].filter(Boolean).join(" / ")
 							: [data.event, data.eventDates].filter(Boolean).join(" / ");
-						return { state: "ok", reason: "", text: text || "（抓到了，但内容为空）" };
+						return { state: "ok", reason: "", text: text || "解析结果为空" };
 					}
-					if (f.kind === "nomatch") return { state: "nomatch", reason: "", text: "解析出 0 条（源站无当期内容）" };
+					if (f.kind === "nomatch") return { state: "nomatch", reason: "", text: "未公布（源站无当期内容）" };
 					return { state: "down", reason: f.reason || "抓取异常", text: "抓取失败：" + (f.reason || "抓取异常") };
 				};
 				const games = {};
-				const summary = { ok: 0, nomatch: 0, down: 0 };
+				const summary = { ok: 0, nomatch: 0, unconfigured: 0, down: 0 };
 				entries.forEach((e, i) => {
 					const r = results[i] || {};
 					const d = r.data || {};
 					const t = targets[i] || {};
 					const gacha = describe("gacha", r.gachaFail, d, t.url);
 					const event = describe("event", r.eventFail, d, t.eventUrl);
-					games[e.id] = { name: e.name, parserVersion: e.parserVersion, gacha, event };
+					games[e.id] = { name: e.name, parserVersion: e.parserVersion, custom: !!e.custom, gacha, event };
 					for (const side of [gacha, event]) summary[side.state]++;
 				});
 				const problems = [];
@@ -105,7 +105,8 @@
 					const bad = [];
 					if (v.gacha.state !== "ok") bad.push("卡池 " + v.gacha.text);
 					if (v.event.state !== "ok") bad.push("活动 " + v.event.text);
-					if (bad.length) problems.push(`${v.name}(${id}): ${bad.join("；")}`);
+					// 内部 id 只对自定义条目有意义（用户要靠它区分自己加的条目）；内置条目写游戏名即可
+					if (bad.length) problems.push(`${v.name}${v.custom ? `(${id})` : ""}: ${bad.join("；")}`);
 				}
 				return { at: nowMs(), total: entries.length, summary, problems, games };
 			}

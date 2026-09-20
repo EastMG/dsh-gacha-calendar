@@ -1,12 +1,14 @@
 		//#region config
 		const NS = "gacha-calendar";
-		// 刷新频率选项：按天（存分钟），与 host 端 Config.refreshMinutes 对应
+		// 刷新频率选项：按天（存分钟），与 host 端 Config.refreshMinutes 对应。
+		// 档位对齐常见版本周期：14/21/28/35/42 天 —— 15≈蔚蓝档案的 14 天轮换、21=1999 半版本/3.6 整版本
+		// 与异环当期、30≈方舟月度、42=米系与 1999 的整版本
 		const REFRESH_OPTIONS = [
 			{ label: "1 天", minutes: 1 * 24 * 60 },
 			{ label: "5 天", minutes: 5 * 24 * 60 },
 			{ label: "7 天", minutes: 7 * 24 * 60 },
 			{ label: "15 天", minutes: 15 * 24 * 60 },
-			{ label: "24 天", minutes: 24 * 24 * 60 },
+			{ label: "21 天", minutes: 21 * 24 * 60 },
 			{ label: "30 天", minutes: 30 * 24 * 60 },
 			{ label: "42 天", minutes: 42 * 24 * 60 }
 		];
