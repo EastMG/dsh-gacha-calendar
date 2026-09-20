@@ -20,30 +20,37 @@ skip_build=${DSH_SKIP_BUILD_CHECK:-}
 
 fail=0
 if [ -z "$skip_bom" ]; then
-for f in $(git diff --cached --name-only --diff-filter=ACM); do
+# 用 -z + read -d '' 读文件名：旧写法 `for f in $(git diff ...)` 会按空白切分，且 git 默认把
+# 非 ASCII 文件名转义输出（core.quotePath）→ 文件名含中文/空格时那条 BOM 检查会被**静默跳过**。
+# 注意：管道里的 while 在子 shell 里，`fail=1` 传不出来 —— 所以把命中的文件名收集到变量再判定。
+bom_hits=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=ACM -z 2>/dev/null | while IFS= read -r -d '' f; do
 	case "$f" in
 		*.json|*.js|*.mjs|*.cjs|*.ts|*.jsonc|*.yml|*.yaml|*.md|*.toml|*.txt) ;;
 		*) continue ;;
 	esac
 	[ -f "$f" ] || continue
 	if [ "$(head -c 3 -- "$f" | od -An -tx1 | tr -d ' \n')" = "efbbbf" ]; then
-		echo "ERROR: UTF-8 BOM detected in staged file: $f" >&2
-		echo "  This breaks DSH plugin loading (JSON.parse does not strip BOM). Commit blocked." >&2
-		echo "  Fix (strip BOM), then re-add:" >&2
-		echo "    sed -i '1s/^\\xEF\\xBB\\xBF//' \"$f\"" >&2
-		echo "    git add \"$f\"" >&2
-		echo "  (Or save the file as 'UTF-8 without BOM' in your editor.)" >&2
-		fail=1
+		printf '%s\n' "$f"
 	fi
-done
+done)
+if [ -n "$bom_hits" ]; then
+	echo "ERROR: UTF-8 BOM detected in staged file(s):" >&2
+	printf '%s\n' "$bom_hits" | while IFS= read -r f; do
+		echo "  $f" >&2
+		echo "    Fix: strip BOM, then re-add — sed -i '1s/^\\xEF\\xBB\\xBF//' \"$f\" && git add \"$f\"" >&2
+	done
+	echo "  This breaks DSH plugin loading (JSON.parse does not strip BOM). Commit blocked." >&2
+	echo "  (Or save the file as 'UTF-8 without BOM' in your editor.)" >&2
+	fail=1
+fi
 fi
 
 # ---- src/lib 一致性守卫 ----
-# WHY: src/ 是唯一真源，lib/ 只是构建产物。若直接改 lib/ 而忘了改 src/，下次 build
-# 就会把手改悄悄冲掉（本仓库历史上正是这么积累技术债的）。所以提交涉及 src/**、lib/**
+# WHY: src/ 是唯一真源，lib/ 与 packages/core/ 都只是构建产物。若直接改产物而忘了改 src/，下次 build
+# 就会把手改悄悄冲掉（本仓库历史上正是这么积累技术债的）。所以提交涉及 src/**、lib/**、packages/**
 # 或 build.mjs 时，强制跑一次 `node build.mjs --check`。
 if [ -z "$skip_build" ]; then
-	if git diff --cached --name-only --diff-filter=ACM | grep -qE '^(src/|lib/|build\.mjs$)'; then
+	if git diff --cached --name-only --diff-filter=ACM | grep -qE '^(src/|lib/|packages/|build\.mjs$)'; then
 		if command -v node >/dev/null 2>&1; then
 			if ! node build.mjs --check >/dev/null 2>&1; then
 				echo "ERROR: lib/ 与 src/ 不一致 —— src/ 是唯一真源，请不要直接改 lib/。Commit blocked." >&2

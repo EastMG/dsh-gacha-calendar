@@ -79,7 +79,10 @@ npm run publish:core     # 发布中立核心包（gacha-calendar-core，版本�
   拼接是逐字节确定的，所以 `check` 能给出"一致/不一致"的确定结论。
 - 源文件约定：**LF 换行、UTF-8 无 BOM、Tab 缩进**。`build.mjs` 会强制校验（带 BOM 会让
   DSH 启动直接失败，见 `.githooks/pre-commit`）；`.githooks/pre-commit` 还会在提交
-  `src/**` 或 `lib/**` 时自动跑一次 `check`，防止有人绕过源码直接改产物。
+  `src/**`、`lib/**`、`packages/**` 或 `build.mjs` 时自动跑一次 `check`，防止有人绕过源码直接改产物。
+- **钩子怎么生效**：`npm install` 会自动执行 `prepare` 脚本把 `core.hooksPath` 指到 `.githooks`
+  （旧版只有钩子文件、没有这个脚本，新克隆时守卫是**静默不生效**的）。若你跳过了 install，
+  手工执行一次即可：`git config core.hooksPath .githooks`。
 - 历史说明：本仓库此前只提交了打包产物（没有 `src/`），`package.json` 里声明的
   `tsc && tsdown` 从未真正可用。当前构建脚本是从产物回填源码时一并落地的替代方案，
   目标是"改一处源码 → 确定性产出产物"，也便于把同一份解析/抓取核心复用到浏览器扩展。

@@ -16,6 +16,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -78,24 +79,64 @@ const unused = present.filter((f) => !used.has(f));
 if (missing.length) fail(`src/client 缺少文件：${missing.join("、")}`);
 if (unused.length) fail(`src/client 有文件未被任何产物使用（请加入 ORDER 或 CORE_ORDER）：${unused.join("、")}`);
 
-// —— 逐段读取并校验编码/换行（历史教训：BOM 会让 DSH 启动直接失败）——
+// —— 编码/换行校验（历史教训：BOM 会让 DSH 启动直接失败）——
 // 源文件约定：每个文件以"恰好一个换行"结尾、文件内不留尾部空行；**段与段之间的空行由本脚本插入**
 // （`pieces.join("\n")`）——这样源文件干净（git diff --check 不会有 "new blank line at EOF"）。
+function validateText(name, text, { requireTrailingNewline = true, forbidTrailingBlank = true } = {}) {
+  if (text.charCodeAt(0) === 0xfeff) fail(`${name} 带 UTF-8 BOM（必须无 BOM）`);
+  if (text.includes("\r")) fail(`${name} 含 CR（必须 LF 换行）`);
+  if (requireTrailingNewline && !text.endsWith("\n")) fail(`${name} 末尾缺少换行`);
+  if (forbidTrailingBlank && text.endsWith("\n\n")) fail(`${name} 末尾有多余空行（段间空行由 build.mjs 插入，源文件不要留）`);
+}
 function readChunks(order) {
   const out = [];
   for (const name of order) {
     const p = path.join(SRC_CLIENT, name);
     const text = read(p);
-    if (text.charCodeAt(0) === 0xfeff) fail(`${name} 带 UTF-8 BOM（必须无 BOM）`);
-    if (text.includes("\r")) fail(`${name} 含 CR（必须 LF 换行）`);
-    if (!text.endsWith("\n")) fail(`${name} 末尾缺少换行`);
-    if (text.endsWith("\n\n")) fail(`${name} 末尾有多余空行（段间空行由 build.mjs 插入，源文件不要留）`);
+    validateText(name, text);
     out.push(text);
   }
   return out;
 }
 const clientBuilt = readChunks(ORDER).join("\n");
+// 宿主入口 src/index.js 会被逐字节复制成 lib/index.js（发布包的 main）——**同样必须校验编码**：
+// 否则一个 BOM/CRLF 会原样进发布包，而 --check 两边一样脏仍报"一致"，什么提示都没有
 const hostBuilt = read(SRC_HOST);
+validateText("src/index.js", hostBuilt);
+
+// —— core 纯净度守卫：core 产物里不得出现宿主 API ——
+// core 要给浏览器扩展 / JavaScriptCore / ArkTS 复用，"零宿主依赖"这条不能只靠人记得
+// （第 1 批修的 4 处裸 new Date() 就是这类问题，靠人肉审查才发现）。
+// 允许默认实现的文件：15-env.js（coreEnv 的默认时钟/计时器）、engine-api.js（ENGINE_ENV 的默认 timer/now）。
+// 先去掉注释再匹配：注释里会写"不得出现 window / 裸 fetch"这类说明文字，不剥会误报。
+const CORE_DEFAULT_IMPL_OK = new Set(["15-env.js", "engine-api.js"]);
+const CORE_FORBIDDEN = [
+  [/\bwindow\s*[.[]/, "window"],
+  [/\bdocument\s*[.[]/, "document"],
+  [/\blocalStorage\b|\bsessionStorage\b/, "localStorage/sessionStorage"],
+  [/(^|[^.\w$])fetch\s*\(/, "裸 fetch("],
+  [/\bXMLHttpRequest\b/, "XMLHttpRequest"],
+  [/\bnew Date\(\s*\)/, "裸 new Date()（应走 nowMs()）"]
+];
+const CORE_FORBIDDEN_EXCEPT_DEFAULTS = [
+  [/(^|[^.\w$])setTimeout\s*\(/, "裸 setTimeout(（应走 coreEnv.timer）"],
+  [/(^|[^.\w$])clearTimeout\s*\(/, "裸 clearTimeout(（应走 coreEnv.timer）"],
+  [/\bDate\.now\s*\(\)/, "裸 Date.now()（应走 nowMs()）"]
+];
+const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|\s)\/\/[^\n]*/g, "$1");
+function assertCorePurity() {
+  CORE_ORDER.forEach((name, i) => {
+    const text = stripComments(coreChunks[i]);
+    const isDefaultImpl = CORE_DEFAULT_IMPL_OK.has(name);
+    for (const [re, label] of CORE_FORBIDDEN) {
+      if (re.test(text)) fail(`core 纯净度：${name} 出现 ${label}（core 必须零宿主依赖）`);
+    }
+    if (isDefaultImpl) return;
+    for (const [re, label] of CORE_FORBIDDEN_EXCEPT_DEFAULTS) {
+      if (re.test(text)) fail(`core 纯净度：${name} 出现 ${label}（core 必须零宿主依赖）`);
+    }
+  });
+}
 
 // packages/core/core.mjs：把 createEngine 改成 ESM 导出（唯一一处变换，改不到就大声报错）
 const ENGINE_DECL = "\t\tfunction createEngine(env) {";
@@ -106,6 +147,7 @@ const coreChunks = readChunks(CORE_ORDER).map((text) => {
 if (!coreChunks.some((t) => t.includes("export function createEngine(env) {"))) {
   fail("未能把 createEngine 改成 ESM 导出（engine-head.js 里的函数声明写法变了？）");
 }
+assertCorePurity();
 const coreBuilt = coreChunks.join("\n");
 // core 包的 package.json：**由本脚本生成**，版本号跟随根包，避免两处手改漂移。
 // （packages/core/README.md 是手写的，不在此生成；包名刻意中立，不含 dsh —— 扩展/原生平台要用它。）
@@ -122,6 +164,8 @@ const corePkgBuilt = JSON.stringify({
     "./package.json": "./package.json"
   },
   files: ["core.mjs", "README.md"],
+  // 发布前自动校验产物与源码一致（否则可能发出"手改过/漂移"的包）
+  scripts: { prepublishOnly: "node ../../build.mjs --check" },
   license: rootPkg.license,
   repository: { type: "git", url: "git+https://github.com/EastMG/dsh-gacha-calendar.git" },
   homepage: "https://github.com/EastMG/dsh-gacha-calendar",
@@ -131,6 +175,17 @@ const corePkgBuilt = JSON.stringify({
 const checkOnly = process.argv.includes("--check");
 const same = (a, b) => a === b;
 
+// 产物语法自检（免费且能挡住"拼接拼坏了"这类问题）。
+// 用 stdio:"ignore" 而不是捕获输出：沙箱/受限环境下子进程管道会 EPERM，而这里只需要退出码。
+function syntaxOk(file) {
+  try {
+    execFileSync(process.execPath, ["--check", file], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 if (checkOnly) {
   const curClient = read(OUT_CLIENT);
   const curHost = read(OUT_HOST);
@@ -138,7 +193,7 @@ if (checkOnly) {
   const okHost = same(hostBuilt, curHost);
   console.log(`lib/client.js              ${okClient ? "一致" : "不一致"}  ${sha(clientBuilt).slice(0, 16)}`);
   console.log(`lib/index.js               ${okHost ? "一致" : "不一致"}  ${sha(hostBuilt).slice(0, 16)}`);
-  // core 包两个文件由本脚本生成；缺失只提示（新克隆还没 build 时不算错），存在则必须一致
+  // core 包两个文件由本脚本生成；**缺失即失败**（旧实现只打印"不存在"仍 exit 0 → 删掉产物也能过守卫）
   let okCore = true;
   for (const [label, p, built] of [["packages/core/core.mjs", OUT_CORE, coreBuilt], ["packages/core/package.json", OUT_CORE_PKG, corePkgBuilt]]) {
     if (fs.existsSync(p)) {
@@ -146,14 +201,30 @@ if (checkOnly) {
       okCore = okCore && ok;
       console.log(`${label.padEnd(26)} ${ok ? "一致" : "不一致"}  ${sha(built).slice(0, 16)}`);
     } else {
-      console.log(`${label.padEnd(26)} 不存在（可跑 node build.mjs 生成）`);
+      okCore = false;
+      console.log(`${label.padEnd(26)} 不存在 —— 请跑 node build.mjs 生成`);
     }
   }
-  if (!okClient || !okHost || !okCore) {
-    console.error("\n✗ src/ 与产物不一致 —— 要么忘了跑 build，要么有人直接改了产物（请改 src/ 后重新 build）");
+  // 类型声明在产物目录里且被 package.json 的 types/exports 指向：缺了就是"包看起来正常但类型引用是坏的"
+  let okTypes = true;
+  for (const rel of ["lib/types/index.d.ts", "lib/types/client/index.d.ts"]) {
+    const exists = fs.existsSync(path.join(ROOT, rel));
+    okTypes = okTypes && exists;
+    console.log(`${rel.padEnd(26)} ${exists ? "存在" : "缺失（package.json 的 types 指向它）"}`);
+  }
+  // 语法自检
+  let okSyntax = true;
+  for (const rel of ["lib/client.js", "lib/index.js", "packages/core/core.mjs"]) {
+    const exists = fs.existsSync(path.join(ROOT, rel));
+    const ok = exists && syntaxOk(path.join(ROOT, rel));
+    okSyntax = okSyntax && ok;
+    console.log(`${(rel + " 语法").padEnd(26)} ${ok ? "✓" : "✗ 语法检查失败"}`);
+  }
+  if (!okClient || !okHost || !okCore || !okTypes || !okSyntax) {
+    console.error("\n✗ 产物校验未通过 —— 要么忘了跑 build，要么有人直接改了产物（请改 src/ 后重新 build）");
     process.exit(1);
   }
-  console.log("\n✓ src/ 与产物一致");
+  console.log("\n✓ src/ 与产物一致（含语法与类型声明）");
   process.exit(0);
 }
 
