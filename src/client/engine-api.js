@@ -86,8 +86,8 @@
 							: [data.event, data.eventDates].filter(Boolean).join(" / ");
 						return { state: "ok", reason: "", text: text || "解析结果为空" };
 					}
-					// 只写状态词本身：「未公布」已经表达了"源站没内容"，不必再缀一句解释（那句既长又口语）
-					if (f.kind === "nomatch") return { state: "nomatch", reason: "", text: "未公布" };
+					// 状态词写成「无匹配/未公布」：既说清"解析没命中"，也保留面板那边的"未公布"口径
+					if (f.kind === "nomatch") return { state: "nomatch", reason: "", text: "无匹配/未公布" };
 					return { state: "down", reason: f.reason || "抓取异常", text: "抓取失败：" + (f.reason || "抓取异常") };
 				};
 				const games = {};

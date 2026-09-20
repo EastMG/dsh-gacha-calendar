@@ -4,7 +4,7 @@
 		// 用途：缓存里记录"这份数据是哪版插件产出的"。更新插件后首次启动，据此**强制**刷新一次
 		// （不看自动刷新开关）——因为有些改动（悬停格式、来源地址、样式、解析器）不刷新就看不到效果。
 		// 写入时机见 engine-api.js 的 refresh()；判定见 60-helpers.js 的 autoRefreshPlan()。
-		const PLUGIN_VERSION = "0.9.35";
+		const PLUGIN_VERSION = "0.9.36";
 		//#endregion
 
 		//#region config
@@ -3753,8 +3753,8 @@ export function createEngine(env) {
 							: [data.event, data.eventDates].filter(Boolean).join(" / ");
 						return { state: "ok", reason: "", text: text || "解析结果为空" };
 					}
-					// 只写状态词本身：「未公布」已经表达了"源站没内容"，不必再缀一句解释（那句既长又口语）
-					if (f.kind === "nomatch") return { state: "nomatch", reason: "", text: "未公布" };
+					// 状态词写成「无匹配/未公布」：既说清"解析没命中"，也保留面板那边的"未公布"口径
+					if (f.kind === "nomatch") return { state: "nomatch", reason: "", text: "无匹配/未公布" };
 					return { state: "down", reason: f.reason || "抓取异常", text: "抓取失败：" + (f.reason || "抓取异常") };
 				};
 				const games = {};
