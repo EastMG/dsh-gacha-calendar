@@ -367,7 +367,7 @@
 			};
 			const bannerTitle = bannerEntry ? await getTitle(bannerEntry) : "";
 			const eventTitle = eventEntry ? await getTitle(eventEntry) : "";
-			const nowYear = new Date().getFullYear();
+			const nowYear = new Date(nowMs()).getFullYear();   // 走注入时钟（core 不得直接读宿主时钟）
 			const data = { banner: "", roles: "", bannerDates: "", event: "", eventDates: "" };
 			if (bannerTitle) {
 				const rng = parseGkRange(bannerTitle, nowYear);
@@ -518,7 +518,7 @@
 			const marks = [...raw.matchAll(/\{"viewpointId":"/g)].map((x) => x.index);
 			if (marks.length === 0) return null;
 			const now = nowMs();
-			const nowYear = new Date().getFullYear();
+			const nowYear = new Date(now).getFullYear();   // 复用同一注入时钟（core 不得直接读宿主时钟）
 			const fmt = (mo, d, h, mi) => `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} ${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
 			let best = null;
 			for (let i = 0; i < marks.length; i++) {

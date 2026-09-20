@@ -142,12 +142,47 @@
 					rec.eventStale = true;
 				}
 			}
-			rec.okAt = (!gachaFail && !eventFail) ? nowTs : (prevRec && prevRec.okAt) || 0;
+			// "两侧都拿到新数据"才算 okAt；被跳过的条目（两侧都没配来源）本轮根本没抓，不能算新数据
+			const skipped = !!(r && r.reason === "skipped");
+			rec.okAt = (!skipped && !gachaFail && !eventFail) ? nowTs : (prevRec && prevRec.okAt) || 0;
 			return rec;
 		}
-		async function refreshAll(entries, s) {
-			const controller = new AbortController();
-			const timeout = coreEnv.timer.setTimeout(() => controller.abort(), 12000);
+
+		// 一轮刷新的总预算（毫秒）。注意：这只是"到点收尾"的兜底——被掐断的前提是 transport 理会 signal；
+		// 宿主代理等不理会 signal 的实现靠 runEntriesWithDeadline 的兜底收尾，不会让调用方永远等下去。
+		const REFRESH_TIMEOUT_MS = 12000;
+
+		// 跑一批 fetchEntry，并施加"到点即超时"的兜底：
+		// · 到点时**已经回来**的条目保留自己的结果；
+		// · 还没回来的条目按该条目"有哪一侧来源"记成 {kind:"down", reason:"超时"}（与 fetchEntry 顶层 catch 同口径）；
+		// 这样即使 transport 完全不理会 signal（宿主代理就是这样），刷新也一定会结束、面板不会永远"刷新中"。
+		async function runEntriesWithDeadline(targets, timeoutMs) {
+			const ms = timeoutMs || REFRESH_TIMEOUT_MS;
+			const controller = typeof AbortController === "function" ? new AbortController() : null;
+			const signal = controller ? controller.signal : void 0;
+			const timeoutResult = (t) => {
+				const fail = { kind: "down", reason: "超时" };
+				return { ok: false, reason: "超时", gachaFail: t.url ? fail : null, eventFail: t.eventUrl ? fail : null };
+			};
+			let timer = 0;
+			const deadline = new Promise((resolve) => {
+				timer = coreEnv.timer.setTimeout(() => {
+					if (controller) { try { controller.abort(); } catch { /* ignore */ } }
+					resolve(null);
+				}, ms);
+			});
+			try {
+				const raced = targets.map(async (t) => {
+					const r = await Promise.race([fetchEntry(t, signal), deadline]);
+					return r || timeoutResult(t);   // null ⇒ 到点时这条还没回来
+				});
+				return await Promise.all(raced);
+			} finally {
+				coreEnv.timer.clearTimeout(timer);
+			}
+		}
+
+		async function refreshAll(entries, s, timeoutMs) {
 			// 自定义爬取地址覆盖默认；克隆避免污染原始对象（卡池源+活动源分别覆盖）
 			// allowGeneric*：只有"用户自己填的地址"（custom:<url>）或自定义条目才允许通用解析兜底
 			const targets = entries.map((e) => ({
@@ -157,9 +192,9 @@
 				allowGenericGacha: !!e.custom || isCustomSource(s, e.id),
 				allowGenericEvent: !!e.custom || isCustomSource(s, e.id, "eventUrl")
 			}));
-			const results = await Promise.all(targets.map((t) => fetchEntry(t, controller.signal)));
-			coreEnv.timer.clearTimeout(timeout);
-			const okCount = results.filter((r) => r.ok).length;
+			const results = await runEntriesWithDeadline(targets, timeoutMs);
+			// 被跳过的条目（两侧都没配来源）不算成功——与外壳 buildScrapeInfo 的口径一致
+			const okCount = results.filter((r) => r.ok && r.reason !== "skipped").length;
 			return {
 				okCount,
 				total: entries.length,

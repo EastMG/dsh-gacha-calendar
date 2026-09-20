@@ -1026,7 +1026,7 @@
 			const s = String(raw).trim();
 			const m = s.match(/(\d{1,2})月(\d{1,2})日\s*[－\-]\s*(\d{1,2})月(\d{1,2})日/);
 			if (!m) return null;
-			const base = now || new Date();
+			const base = now || new Date(nowMs());   // 缺省走注入时钟（core 不得直接读宿主时钟）
 			const y = base.getFullYear();
 			const a = new Date(y, Number(m[1]) - 1, Number(m[2]), 0, 0);
 			let b = new Date(y, Number(m[3]) - 1, Number(m[4]), 23, 59);
@@ -1571,7 +1571,7 @@
 		// 原神 SMW 活动查询（经 origin=* 直连）
 		// 返回 EVENT_FETCHERS 契约格式 {event, eventDates, eventDatesRaw}（parseSmwActivity 产出卡池格式，这里转换）
 		async function fetchYsActivity(signal) {
-			const nowYear = new Date().getFullYear();
+			const nowYear = new Date(nowMs()).getFullYear();   // 走注入时钟（core 不得直接读宿主时钟）
 			const q = "[[\u5206\u7C7B:\u6D3B\u52A8]][[\u7ED3\u675F\u65F6\u95F4::>" + nowYear + "/01/01]]|?\u540D\u79F0|?\u5F00\u59CB\u65F6\u95F4|?\u7ED3\u675F\u65F6\u95F4|?\u7C7B\u578B|sort=\u5F00\u59CB\u65F6\u95F4|order=desc|limit=60";
 			const apiUrl = "https://wiki.biligame.com/ys/api.php?action=ask&query=" + encodeURIComponent(q) + "&format=json&origin=*";
 			const res = await transportFetchRaw(apiUrl, { signal, headers: { Accept: "application/json" } });

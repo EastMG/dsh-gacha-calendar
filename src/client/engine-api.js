@@ -1,15 +1,33 @@
 			// —— 环境注入：把宿主给的三样东西接到 coreEnv（15-env.js）——
 			// 必须放在 core 段之后：coreEnv 是 let 声明，提前调用会踩 TDZ。
-			setCoreEnv({
+			// 保存成本引擎自己的一份（含**完整的** timer 默认实现），并在每个公开方法入口重新注入：
+			// coreEnv 是模块级单例，同一进程里建第二个引擎会把它覆盖；不重注入就会出现
+			// "第一个引擎的时钟/传输/计时器被第二个引擎偷走"（安静串台，最难查）。
+			const DEFAULT_TIMER = {
+				setTimeout: (fn, ms) => setTimeout(fn, ms),
+				clearTimeout: (id) => clearTimeout(id)
+			};
+			const ENGINE_ENV = {
 				transport: engineEnv.transport,
 				now: engineEnv.now || (() => Date.now()),
-				timer: engineEnv.timer || {}
-			});
+				// 补全默认实现：宿主只注入 setTimeout 时，clearTimeout 也必须是配套的那一个
+				timer: { ...DEFAULT_TIMER, ...(engineEnv.timer || {}) }
+			};
+			function useEnv() {
+				setCoreEnv(ENGINE_ENV);
+			}
+			useEnv();
 
 			// 抓取一轮：读配置 → 逐条抓取（卡池/活动各自独立）→ 与上次缓存按列合并 →
 			// 写回缓存 → 返回 Result JSON（这就是"产品接口"，各平台 UI 只读它）。
-			async function refresh() {
-				const s = await readSettings();
+			// 在途保护：同一引擎并发调用时复用同一轮（否则两轮各自无条件写缓存，慢的那轮会用更旧的数据
+			// 盖掉快的那轮，而 lastRefresh 却是更晚的时间戳 = "旧内容配新时间"）。
+			let refreshInFlight = null;
+			function refresh() {
+				useEnv();
+				if (refreshInFlight) return refreshInFlight;
+				refreshInFlight = (async () => {
+					const s = await readSettings();
 				// 用"全部条目"（含隐藏）抓取：隐藏再显示时立刻有数据，与既有行为一致
 				const entries = getAllEntries(s);
 				const result = await refreshAll(entries, s);
@@ -30,13 +48,16 @@
 					parserVersions: parserVersionsOf(entries),
 					games
 				};
+				})();
+				return refreshInFlight.finally(() => { refreshInFlight = null; });
 			}
 
 			// 解析器自检（交接文档 §13.4）：对每个条目的两侧来源各跑一次，报告「解析出什么 / 报错原因」。
 			// 用途：源站改版时快速定位「哪个源解析出 0 条、哪个源 403/超时」——各平台都能调用
 			// （将来扩展里做「自检」按钮、CLI、CI 都行）。**只读**：不写缓存、不动设置。
 			async function selfCheck(options) {
-				const timeoutMs = (options && options.timeoutMs) || 12000;
+				useEnv();
+				const timeoutMs = (options && options.timeoutMs) || REFRESH_TIMEOUT_MS;
 				const s = await readSettings();
 				const entries = getAllEntries(s);
 				const targets = entries.map((e) => ({
@@ -46,14 +67,8 @@
 					allowGenericGacha: !!e.custom || isCustomSource(s, e.id),
 					allowGenericEvent: !!e.custom || isCustomSource(s, e.id, "eventUrl")
 				}));
-				const ac = typeof AbortController === "function" ? new AbortController() : null;
-				const timer = coreEnv.timer.setTimeout(() => { if (ac) ac.abort(); }, timeoutMs);
-				let results;
-				try {
-					results = await Promise.all(targets.map((t) => fetchEntry(t, ac ? ac.signal : void 0)));
-				} finally {
-					coreEnv.timer.clearTimeout(timer);
-				}
+				// 与刷新同一套"到点收尾"兜底：transport 不理会 signal 时，自检也不会永远转圈
+				const results = await runEntriesWithDeadline(targets, timeoutMs);
 				// 一侧的结论：ok=有内容；nomatch=抓到页面但没当期内容（这才是"解析出 0 条"）；down=抓取/解析报错
 				const describe = (kind, fail, data, url) => {
 					// 该侧压根没配来源（如自定义条目只填了卡池地址）：自检的意义就是指出"哪个源没内容/报错"，

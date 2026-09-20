@@ -60,8 +60,12 @@
 				};
 			});
 
+			// 在途锁用 ref 而不是 state：state 更新是异步的，"自动刷新与手动点击落在同一 tick"时
+			// 两次调用可能都看到 refreshing=false 而并发跑两轮（请求翻倍，且慢的那轮会用更旧的数据盖掉新的）
+			const refreshLock = (0, react.useRef)(false);
 			const doRefresh = (0, react.useCallback)(async () => {
-				if (refreshing) return;
+				if (refreshLock.current) return;
+				refreshLock.current = true;
 				setRefreshing(true);
 				try {
 					// 抓取/解析/合并/写缓存全部交给 core 引擎（面板不再自己编排）
@@ -73,10 +77,16 @@
 					setScrapeLines(lines);
 					// 引擎已把 lastData/lastRefresh/lastSource 写进 settings，刷新快照即可重渲染
 					setSnapshot(scope.getSnapshot());
+				} catch (err) {
+					// 刷新失败必须说出来：否则顶部还挂着上一次的"成功 N/M"，看起来像是刷新成功了
+					const msg = String((err && err.message) || err || "未知错误");
+					setScrapeInfo("\u5237\u65B0\u5931\u8D25\uFF1A" + msg);
+					setScrapeLines([msg]);
 				} finally {
+					refreshLock.current = false;
 					setRefreshing(false);
 				}
-			}, [refreshing, scope, engine]);
+			}, [scope, engine]);
 
 			// 定时自动刷新（按设置频率）。
 			// 注意：setTimeout/setInterval 的 delay 上限为 2^31-1 ms（约 24.86 天），
@@ -311,8 +321,16 @@
 			// 旧配置可能存了分钟值（不在按天选项里），额外补一个"自定义"选项避免 select 空白
 			const inOptions = REFRESH_OPTIONS.some((o) => o.minutes === currentMinutes);
 
+			// 保存失败必须可见：旧实现只 await 不 catch，写被宿主拒绝时控件弹回原值、
+			// 用户只会觉得"点了没反应"（「恢复默认顺序」写 null 被拒就是这种病的极端例子）
+			const [saveError, setSaveError] = (0, react.useState)("");
 			const commit = async (key, value) => {
-				await scope.set(key, value);
+				try {
+					await scope.set(key, value);
+					setSaveError("");
+				} catch (err) {
+					setSaveError("\u4FDD\u5B58\u5931\u8D25\uFF1A" + String((err && err.message) || err || "未知错误"));
+				}
 				setSnapshot(scope.getSnapshot());
 			};
 
@@ -426,6 +444,7 @@
 						(0, react_jsx_runtime.jsx)("div", { style: { fontSize: 16, fontWeight: 600 }, children: "\u4E8C\u6E38\u6392\u671F" }),
 						(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 12, marginTop: 2 }, children: "\u5361\u6C60\u65E5\u5386\u63D2\u4EF6\u8BBE\u7F6E" })
 					] }),
+					saveError ? (0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-state-error-primary, #d4380d)", fontSize: 12 }, children: saveError }) : null,
 					(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 12, border: "1px solid var(--dsw-alias-border-l1)", borderRadius: 10, padding: "12px 14px", background: "var(--dsw-alias-bg-layer-1)" }, children: [
 						(0, react_jsx_runtime.jsxs)("label", { style: { display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }, children: [
 							(0, react_jsx_runtime.jsx)("input", { type: "checkbox", checked: !!s.autoRefresh, onChange: (e) => commit("autoRefresh", e.target.checked) }),

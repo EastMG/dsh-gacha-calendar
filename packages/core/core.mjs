@@ -1747,7 +1747,7 @@ export function createEngine(env) {
 			const s = String(raw).trim();
 			const m = s.match(/(\d{1,2})月(\d{1,2})日\s*[－\-]\s*(\d{1,2})月(\d{1,2})日/);
 			if (!m) return null;
-			const base = now || new Date();
+			const base = now || new Date(nowMs());   // 缺省走注入时钟（core 不得直接读宿主时钟）
 			const y = base.getFullYear();
 			const a = new Date(y, Number(m[1]) - 1, Number(m[2]), 0, 0);
 			let b = new Date(y, Number(m[3]) - 1, Number(m[4]), 23, 59);
@@ -2292,7 +2292,7 @@ export function createEngine(env) {
 		// 原神 SMW 活动查询（经 origin=* 直连）
 		// 返回 EVENT_FETCHERS 契约格式 {event, eventDates, eventDatesRaw}（parseSmwActivity 产出卡池格式，这里转换）
 		async function fetchYsActivity(signal) {
-			const nowYear = new Date().getFullYear();
+			const nowYear = new Date(nowMs()).getFullYear();   // 走注入时钟（core 不得直接读宿主时钟）
 			const q = "[[\u5206\u7C7B:\u6D3B\u52A8]][[\u7ED3\u675F\u65F6\u95F4::>" + nowYear + "/01/01]]|?\u540D\u79F0|?\u5F00\u59CB\u65F6\u95F4|?\u7ED3\u675F\u65F6\u95F4|?\u7C7B\u578B|sort=\u5F00\u59CB\u65F6\u95F4|order=desc|limit=60";
 			const apiUrl = "https://wiki.biligame.com/ys/api.php?action=ask&query=" + encodeURIComponent(q) + "&format=json&origin=*";
 			const res = await transportFetchRaw(apiUrl, { signal, headers: { Accept: "application/json" } });
@@ -2706,7 +2706,7 @@ export function createEngine(env) {
 			};
 			const bannerTitle = bannerEntry ? await getTitle(bannerEntry) : "";
 			const eventTitle = eventEntry ? await getTitle(eventEntry) : "";
-			const nowYear = new Date().getFullYear();
+			const nowYear = new Date(nowMs()).getFullYear();   // 走注入时钟（core 不得直接读宿主时钟）
 			const data = { banner: "", roles: "", bannerDates: "", event: "", eventDates: "" };
 			if (bannerTitle) {
 				const rng = parseGkRange(bannerTitle, nowYear);
@@ -2857,7 +2857,7 @@ export function createEngine(env) {
 			const marks = [...raw.matchAll(/\{"viewpointId":"/g)].map((x) => x.index);
 			if (marks.length === 0) return null;
 			const now = nowMs();
-			const nowYear = new Date().getFullYear();
+			const nowYear = new Date(now).getFullYear();   // 复用同一注入时钟（core 不得直接读宿主时钟）
 			const fmt = (mo, d, h, mi) => `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} ${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
 			let best = null;
 			for (let i = 0; i < marks.length; i++) {
@@ -3265,12 +3265,47 @@ export function createEngine(env) {
 					rec.eventStale = true;
 				}
 			}
-			rec.okAt = (!gachaFail && !eventFail) ? nowTs : (prevRec && prevRec.okAt) || 0;
+			// "两侧都拿到新数据"才算 okAt；被跳过的条目（两侧都没配来源）本轮根本没抓，不能算新数据
+			const skipped = !!(r && r.reason === "skipped");
+			rec.okAt = (!skipped && !gachaFail && !eventFail) ? nowTs : (prevRec && prevRec.okAt) || 0;
 			return rec;
 		}
-		async function refreshAll(entries, s) {
-			const controller = new AbortController();
-			const timeout = coreEnv.timer.setTimeout(() => controller.abort(), 12000);
+
+		// 一轮刷新的总预算（毫秒）。注意：这只是"到点收尾"的兜底——被掐断的前提是 transport 理会 signal；
+		// 宿主代理等不理会 signal 的实现靠 runEntriesWithDeadline 的兜底收尾，不会让调用方永远等下去。
+		const REFRESH_TIMEOUT_MS = 12000;
+
+		// 跑一批 fetchEntry，并施加"到点即超时"的兜底：
+		// · 到点时**已经回来**的条目保留自己的结果；
+		// · 还没回来的条目按该条目"有哪一侧来源"记成 {kind:"down", reason:"超时"}（与 fetchEntry 顶层 catch 同口径）；
+		// 这样即使 transport 完全不理会 signal（宿主代理就是这样），刷新也一定会结束、面板不会永远"刷新中"。
+		async function runEntriesWithDeadline(targets, timeoutMs) {
+			const ms = timeoutMs || REFRESH_TIMEOUT_MS;
+			const controller = typeof AbortController === "function" ? new AbortController() : null;
+			const signal = controller ? controller.signal : void 0;
+			const timeoutResult = (t) => {
+				const fail = { kind: "down", reason: "超时" };
+				return { ok: false, reason: "超时", gachaFail: t.url ? fail : null, eventFail: t.eventUrl ? fail : null };
+			};
+			let timer = 0;
+			const deadline = new Promise((resolve) => {
+				timer = coreEnv.timer.setTimeout(() => {
+					if (controller) { try { controller.abort(); } catch { /* ignore */ } }
+					resolve(null);
+				}, ms);
+			});
+			try {
+				const raced = targets.map(async (t) => {
+					const r = await Promise.race([fetchEntry(t, signal), deadline]);
+					return r || timeoutResult(t);   // null ⇒ 到点时这条还没回来
+				});
+				return await Promise.all(raced);
+			} finally {
+				coreEnv.timer.clearTimeout(timer);
+			}
+		}
+
+		async function refreshAll(entries, s, timeoutMs) {
 			// 自定义爬取地址覆盖默认；克隆避免污染原始对象（卡池源+活动源分别覆盖）
 			// allowGeneric*：只有"用户自己填的地址"（custom:<url>）或自定义条目才允许通用解析兜底
 			const targets = entries.map((e) => ({
@@ -3280,9 +3315,9 @@ export function createEngine(env) {
 				allowGenericGacha: !!e.custom || isCustomSource(s, e.id),
 				allowGenericEvent: !!e.custom || isCustomSource(s, e.id, "eventUrl")
 			}));
-			const results = await Promise.all(targets.map((t) => fetchEntry(t, controller.signal)));
-			coreEnv.timer.clearTimeout(timeout);
-			const okCount = results.filter((r) => r.ok).length;
+			const results = await runEntriesWithDeadline(targets, timeoutMs);
+			// 被跳过的条目（两侧都没配来源）不算成功——与外壳 buildScrapeInfo 的口径一致
+			const okCount = results.filter((r) => r.ok && r.reason !== "skipped").length;
 			return {
 				okCount,
 				total: entries.length,
@@ -3295,16 +3330,34 @@ export function createEngine(env) {
 
 			// —— 环境注入：把宿主给的三样东西接到 coreEnv（15-env.js）——
 			// 必须放在 core 段之后：coreEnv 是 let 声明，提前调用会踩 TDZ。
-			setCoreEnv({
+			// 保存成本引擎自己的一份（含**完整的** timer 默认实现），并在每个公开方法入口重新注入：
+			// coreEnv 是模块级单例，同一进程里建第二个引擎会把它覆盖；不重注入就会出现
+			// "第一个引擎的时钟/传输/计时器被第二个引擎偷走"（安静串台，最难查）。
+			const DEFAULT_TIMER = {
+				setTimeout: (fn, ms) => setTimeout(fn, ms),
+				clearTimeout: (id) => clearTimeout(id)
+			};
+			const ENGINE_ENV = {
 				transport: engineEnv.transport,
 				now: engineEnv.now || (() => Date.now()),
-				timer: engineEnv.timer || {}
-			});
+				// 补全默认实现：宿主只注入 setTimeout 时，clearTimeout 也必须是配套的那一个
+				timer: { ...DEFAULT_TIMER, ...(engineEnv.timer || {}) }
+			};
+			function useEnv() {
+				setCoreEnv(ENGINE_ENV);
+			}
+			useEnv();
 
 			// 抓取一轮：读配置 → 逐条抓取（卡池/活动各自独立）→ 与上次缓存按列合并 →
 			// 写回缓存 → 返回 Result JSON（这就是"产品接口"，各平台 UI 只读它）。
-			async function refresh() {
-				const s = await readSettings();
+			// 在途保护：同一引擎并发调用时复用同一轮（否则两轮各自无条件写缓存，慢的那轮会用更旧的数据
+			// 盖掉快的那轮，而 lastRefresh 却是更晚的时间戳 = "旧内容配新时间"）。
+			let refreshInFlight = null;
+			function refresh() {
+				useEnv();
+				if (refreshInFlight) return refreshInFlight;
+				refreshInFlight = (async () => {
+					const s = await readSettings();
 				// 用"全部条目"（含隐藏）抓取：隐藏再显示时立刻有数据，与既有行为一致
 				const entries = getAllEntries(s);
 				const result = await refreshAll(entries, s);
@@ -3325,13 +3378,16 @@ export function createEngine(env) {
 					parserVersions: parserVersionsOf(entries),
 					games
 				};
+				})();
+				return refreshInFlight.finally(() => { refreshInFlight = null; });
 			}
 
 			// 解析器自检（交接文档 §13.4）：对每个条目的两侧来源各跑一次，报告「解析出什么 / 报错原因」。
 			// 用途：源站改版时快速定位「哪个源解析出 0 条、哪个源 403/超时」——各平台都能调用
 			// （将来扩展里做「自检」按钮、CLI、CI 都行）。**只读**：不写缓存、不动设置。
 			async function selfCheck(options) {
-				const timeoutMs = (options && options.timeoutMs) || 12000;
+				useEnv();
+				const timeoutMs = (options && options.timeoutMs) || REFRESH_TIMEOUT_MS;
 				const s = await readSettings();
 				const entries = getAllEntries(s);
 				const targets = entries.map((e) => ({
@@ -3341,14 +3397,8 @@ export function createEngine(env) {
 					allowGenericGacha: !!e.custom || isCustomSource(s, e.id),
 					allowGenericEvent: !!e.custom || isCustomSource(s, e.id, "eventUrl")
 				}));
-				const ac = typeof AbortController === "function" ? new AbortController() : null;
-				const timer = coreEnv.timer.setTimeout(() => { if (ac) ac.abort(); }, timeoutMs);
-				let results;
-				try {
-					results = await Promise.all(targets.map((t) => fetchEntry(t, ac ? ac.signal : void 0)));
-				} finally {
-					coreEnv.timer.clearTimeout(timer);
-				}
+				// 与刷新同一套"到点收尾"兜底：transport 不理会 signal 时，自检也不会永远转圈
+				const results = await runEntriesWithDeadline(targets, timeoutMs);
 				// 一侧的结论：ok=有内容；nomatch=抓到页面但没当期内容（这才是"解析出 0 条"）；down=抓取/解析报错
 				const describe = (kind, fail, data, url) => {
 					// 该侧压根没配来源（如自定义条目只填了卡池地址）：自检的意义就是指出"哪个源没内容/报错"，
