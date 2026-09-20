@@ -42,11 +42,11 @@
 				await storage.set("lastData", JSON.stringify(games));
 				await storage.set("lastRefresh", result.at);
 				await storage.set("lastSource", result.status === "ok" ? "web" : "none");
-				// 版本哨兵：**整轮全绿**（所有非跳过条目两侧都没 down）才记当前插件版本。
-				// 有任一条目失败就保留旧值 → "更新插件后首次启动强制刷新"会在下次启动重试（自愈，不循环重试）；
-				// 全部失败（okCount=0）时也不记，避免"失败也盖章"导致更新后的新逻辑永不生效。
-				const expected = result.results.filter((r) => r.reason !== "skipped").length;
-				if (expected > 0 && result.okCount === expected) await storage.set("lastVersion", PLUGIN_VERSION);
+				// 版本哨兵：只要这一轮**真的抓到了东西**（okCount > 0）就记当前插件版本。
+				// 为什么不要求"整轮全绿"：长期挂掉的源（最常见的是用户自己填错的自定义条目）会永远失败，
+				// 那样哨兵永远盖不上章 → 每次启动都强制刷一次（实测踩到：3 个自定义条目 404，11 个内置源全绿）。
+				// 为什么不无条件写：整轮全失败（断网/全局故障）时不盖章 → 下次启动自动重试。
+				if (result.okCount > 0) await storage.set("lastVersion", PLUGIN_VERSION);
 				return {
 					schemaVersion: ENGINE_SCHEMA_VERSION,
 					refreshedAt: result.at,
