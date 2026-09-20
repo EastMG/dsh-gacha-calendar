@@ -20,6 +20,11 @@
 		// 返回 {data:{rows:[{id,title(お知らせ/イベント/メンテナンス),summary,content,publishTime}],count}}，
 		// 「ピックアップ募集紹介」条目内含逐池「ピックアップ名／ピックアップ生徒／実施期間」。
 		const BA_JP_NEWS_URL = "https://api-web.bluearchive.jp/api/news/list?pageIndex=1&pageNum=30";
+		// 重返未来1999：默认=官方**游戏内公告**接口（noticecp），它有官网 CMS 不发布的逐期「征集时间」
+		// （正文「X.X「…」版本活动一览」按段落给出【征集时间】起止与 UP 角色）；
+		// 备选=官网新闻 API（只有维护时间与活动名，无逐期征集时间）。
+		const R1999_NOTICE_URL = "https://notice.sl916.com/noticecp/client/query?gameId=50001&channelId=100&subChannelId=1009&serverType=4";
+		const R1999_OFFICIAL_URL = "https://re.bluepoch.com/activity/official/websites/information/query";
 		const SOURCES = [
 			{
 				id: "genshin",
@@ -189,14 +194,24 @@
 			},
 			{
 				id: "r1999",
-				parserVersion: 1,
+				parserVersion: 2,
 				name: "重返未来：1999",
 				icon: "https://play-lh.googleusercontent.com/LwcueZMBbLq6aELtqJVn61ToKkJUgxEO8O4KgK_5052hfYoDAglQJIzqSu8srUJeaOZwv36Qi5YKtsXZjo-JPg=s64",
-				source: "\u5B98\u7F51\u516C\u544A+\u5C0F\u7C73",
-				// 经 host 代理 POST 抓取（官网新闻 API，征集名另经小米官方资讯流增强）；维护公告同时含当期卡池与活动
-				url: "https://re.bluepoch.com/activity/official/websites/information/query",
-				eventUrl: "https://re.bluepoch.com/activity/official/websites/information/query",
-				eventSource: "\u5B98\u7F51\u516C\u544A"
+				source: "\u5B98\u65B9\u6E38\u620F\u5185\u516C\u544A",
+				// 经 host 代理 GET 抓取（官方游戏内公告接口）。逐期「征集时间」只在这里发布：
+				// 「版本活动一览」公告正文按段落给出【征集时间】起止 + 【征集说明】里的 6★/5★ UP 角色，
+				// 以及各活动的【活动时间】；一个版本上下半场两期都列在同一篇里（下期常提前公布）。
+				// 接口不可用/结构变了 → 自动回退官网维护公告解析（旧行为，无逐期时间）；也可在设置里手动切备选源
+				url: R1999_NOTICE_URL,
+				altSources: [
+					{ label: "\u5B98\u7F51\u7EF4\u62A4\u516C\u544A", url: R1999_OFFICIAL_URL, fetcher: "r1999-official" }
+				],
+				// 活动源与卡池源同址（同一篇「版本活动一览」同时含征集与活动），仍作为独立来源存在
+				eventUrl: R1999_NOTICE_URL,
+				eventSource: "\u5B98\u65B9\u6E38\u620F\u5185\u516C\u544A",
+				eventAltSources: [
+					{ label: "\u5B98\u7F51\u7EF4\u62A4\u516C\u544A", url: R1999_OFFICIAL_URL, fetcher: "r1999-official" }
+				]
 			},
 			{
 				id: "nte",

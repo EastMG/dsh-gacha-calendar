@@ -563,10 +563,175 @@
 			return best ? { banner: best.banner, bannerDates: best.bannerDates, roles: best.roles } : null;
 		}
 
+		// ---- 重返未来：1999 官方游戏内公告（noticecp）----
+		// 官网 CMS 公告只发布维护时间与活动名，**逐期征集起止**只出现在官方游戏内公告的
+		// 「X.X「…」版本活动一览」里：正文是块状富文本（content 为 JSON 字符串），按
+		// `「名称」类型` 分段 —— 征集段含【征集时间】+【征集说明】(6★/5★ UP)，活动段含【活动时间】。
+		// 接口归属：notice.sl916.com 证书主体=广州深蓝互动网络科技有限公司（与官网 re.bluepoch.com
+		// 同主体、同 EdgeOne CDN），免登录/无 CORS，经 host 代理读取；开源项目 MAA1999/M9A 长期使用
+		// 同一接口（见 README 致谢）。一版本上下半场两期都列在同一篇里，下期常提前公布。
+		// 征集类别 → 外显优先级（同类内先结束者优先，与其它游戏"越快结束越靠前"一致）
+		const R99_POOL_TIERS = ["活动征集", "巡游限定征集", "限定复刻自选征集", "巡游限定复刻征集", "联动征集", "限定征集", "限时征集", "轮换征集"];
+
+		// 块状富文本 → 纯文本行数组（保持原顺序）；content 不是预期的 JSON 数组时返回 null
+		function r99NoticeLines(item) {
+			const raw = item && item.contentMap && item.contentMap["zh-CN"] && item.contentMap["zh-CN"].content;
+			if (typeof raw !== "string" || raw === "") return null;
+			let blocks;
+			try { blocks = JSON.parse(raw); } catch { return null; }
+			if (!Array.isArray(blocks)) return null;
+			return blocks.map((b) => stripTags(String((b && b.content) || ""))).filter((x) => x !== "");
+		}
+
+		// "8/13 10:00 - 9/3 4:59" → 时间戳；年份用公告自身的 beginTime 锚定（避免跨年误判）
+		function r99ParseWindow(text, year) {
+			const m = String(text).match(/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})\s*[-\u2014~]\s*(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})/);
+			if (!m) return null;
+			const sm = Number(m[1]), sd = Number(m[2]), sh = Number(m[3]), smi = Number(m[4]);
+			const em = Number(m[5]), ed = Number(m[6]), eh = Number(m[7]), emi = Number(m[8]);
+			const startTs = new Date(year, sm - 1, sd, sh, smi).getTime();
+			const endYear = em < sm || (em === sm && ed < sd) ? year + 1 : year;   // 跨年（如 12/28 - 1/5）
+			return { startTs, endTs: new Date(endYear, em - 1, ed, eh, emi).getTime() };
+		}
+
+		// 解析一篇「版本活动一览」→ { pools, events, rotations }
+		function parseR99Overview(item, now = nowMs()) {
+			const lines = r99NoticeLines(item);
+			if (!lines) return null;
+			const year = new Date(Number(item.beginTime) || now).getFullYear();
+			// 段：`「名称」类型` 开一段，其后各行归该段（直至下一个段标题）
+			const sections = [];
+			let cur = null;
+			for (const line of lines) {
+				const head = line.match(/^\u300c([^\u300d]{1,40})\u300d([^\u3010\u203b\uff1a:]{1,16})[\uff1a:]?$/);
+				if (head) { cur = { name: head[1], kind: head[2].trim(), lines: [] }; sections.push(cur); continue; }
+				if (cur) cur.lines.push(line);
+			}
+			const pools = [], events = [];
+			const seenEvent = new Set();
+			for (const sec of sections) {
+				const body = sec.lines.join("\n");
+				// UP 角色：6★ 单个；5★ 常写成「阿夫西维（木）」、「X（智）」连列 → 取标记后的整串
+				const six = [...body.matchAll(/6\u661f\u89d2\u8272\s*\u300c([^\u300d]+)\u300d/g)].map((m) => cleanRoles(m[1]));
+				const five = [];
+				for (const m of body.matchAll(/5\u661f\u89d2\u8272\s*((?:\u300c[^\u300d]+\u300d[\u3001\s]*)+)/g)) {
+					for (const x of String(m[1]).matchAll(/\u300c([^\u300d]+)\u300d/g)) five.push(cleanRoles(x[1]));
+				}
+				const roles = six.concat(five).filter((x) => x !== "").join("\u3001");
+				if (/\u5f81\u96c6/.test(sec.kind)) {
+					// 征集段：只认【征集时间】（活动段才有【活动时间】）
+					const line = sec.lines.find((l) => /^\u3010\u5f81\u96c6\u65f6\u95f4\u3011/.test(l));
+					const w = line ? r99ParseWindow(line, year) : null;
+					if (!w) continue;   // 该段没有可解析的征集时间 → 跳过（整篇都没有则由上层按结构异常处理）
+					pools.push({
+						name: `\u300c${sec.name}\u300d${sec.kind}`, kind: sec.kind, roles,
+						startTs: w.startTs, endTs: w.endTs,
+						raw: (line.match(/\u3010\u5f81\u96c6\u65f6\u95f4\u3011\s*(.+)$/) || [])[1] || "",
+						display: fmtWindow(w.startTs, w.endTs)
+					});
+					continue;
+				}
+				// 活动段：取该段全部【…时间】/【…模式】窗口的整体跨度
+				// （如「活动正篇」＝故事模式起 → 商店兑换止；段落内没有时间的不算活动）
+				const wins = [];
+				for (const l of sec.lines) {
+					if (!/^\u3010[^\u3011]{1,12}\u3011/.test(l)) continue;
+					const w = r99ParseWindow(l, year);
+					if (w) wins.push(w);
+				}
+				if (wins.length === 0) continue;
+				const startTs = Math.min.apply(null, wins.map((w) => w.startTs));
+				const endTs = Math.max.apply(null, wins.map((w) => w.endTs));
+				// 同一活动在一篇里可能出现多次（同名同窗口，如两处「衣着风尚」）→ 去重
+				const key = `${sec.name}|${startTs}|${endTs}`;
+				if (seenEvent.has(key)) continue;
+				seenEvent.add(key);
+				events.push({ name: sec.name, cat: sec.kind, startTs, endTs, raw: fmtWindow(startTs, endTs) });
+			}
+			// 轮换征集：一览以「X月X日更新：角色、角色」逐期公布（14 天一期，末日 04:59）
+			const rotations = [];
+			for (const line of lines) {
+				const m = line.match(/^(\d{1,2})\u6708(\d{1,2})\u65e5\u66f4\u65b0[\uff1a:]\s*(.+)$/);
+				if (!m) continue;
+				const startTs = new Date(year, Number(m[1]) - 1, Number(m[2]), 5, 0).getTime();
+				const endTs = startTs + 14 * 864e5 - 6e4;
+				rotations.push({
+					name: "\u300c\u8f6e\u6362\u5f81\u96c6\u300d", kind: "\u8f6e\u6362\u5f81\u96c6", roles: cleanRoles(m[3]),
+					startTs, endTs, raw: `\u3010${m[1]}\u6708${m[2]}\u65e5\u66f4\u65b0\u3011${cleanRoles(m[3])}`,
+					display: fmtWindow(startTs, endTs)
+				});
+			}
+			return { pools, events, rotations };
+		}
+
+		// 官方游戏内公告 → 当期征集（含真实起止、悬停列全部并行）+ 当期活动（同其它游戏的活动列规则）。
+		// 结构异常（接口改版 / 正文不再可解析）→ 抛错，由上层回退官网公告；
+		// 结构正常但没有覆盖当前时刻的征集/活动 → 返回 null（该侧按"未公布"）。
+		async function fetchR99Notice(now = nowMs()) {
+			const json = await proxyFetchJson(R1999_NOTICE_URL, "https://www.sl916.com/");
+			const items = json && Array.isArray(json.data) ? json.data : null;
+			if (!items) throw new Error("r1999-notice-no-section");
+			const titleOf = (it) => String((it.contentMap && it.contentMap["zh-CN"] && it.contentMap["zh-CN"].title) || "");
+			const overviews = items.filter((it) => /\u7248\u672c\u6d3b\u52a8\u4e00\u89c8/.test(titleOf(it)));
+			if (overviews.length === 0) throw new Error("r1999-notice-no-section");
+			const pools = [], events = [], rotations = [];
+			let parsed = 0;
+			for (const it of overviews) {
+				const o = parseR99Overview(it, now);
+				if (!o) continue;
+				parsed++;
+				pools.push.apply(pools, o.pools);
+				events.push.apply(events, o.events);
+				rotations.push.apply(rotations, o.rotations);
+			}
+			if (parsed === 0) throw new Error("r1999-notice-no-dates");
+			const data = {};
+			const active = pools.concat(rotations).filter((p) => p.startTs <= now && p.endTs >= now);
+			if (active.length > 0) {
+				const rank = (p) => {
+					const i = R99_POOL_TIERS.indexOf(p.kind);
+					return i < 0 ? R99_POOL_TIERS.length : i;
+				};
+				const win = active.slice().sort((a, b) => (rank(a) - rank(b)) || (a.endTs - b.endTs))[0];
+				data.banner = win.name;
+				data.roles = win.roles || "";
+				data.bannerDates = win.display;
+				data.bannerDatesRaw = win.raw || win.display;
+				const hover = buildPoolHover(active.map((p) => ({
+					name: p.name,
+					label: `${p.name}${p.roles ? `\uFF1A${p.roles}` : ""}`,
+					startTs: p.startTs, endTs: p.endTs, raw: p.raw
+				})));
+				if (hover) data.bannerHover = hover;
+			}
+			const activeEvents = sortEventItems(events.filter((e) => e.startTs <= now && e.endTs >= now));
+			const primary = pickEventPrimary(activeEvents);
+			if (primary) {
+				data.event = primary.name;
+				data.eventDates = fmtWindow(primary.startTs, primary.endTs);
+				data.eventDatesRaw = primary.raw || data.eventDates;
+				const hover = buildEventHover(activeEvents);
+				if (hover) data.eventHover = hover;
+			}
+			return (data.banner || data.event) ? data : null;
+		}
+
+		// 重返未来：1999 入口：默认源＝官方游戏内公告（逐期征集时间）；
+		// 来源被切到官网维护公告（备选源）或自定义地址时直接走官网解析（旧行为）。
+		async function fetchR99(url, signal, now = nowMs()) {
+			if (!/noticecp/.test(String(url || ""))) return fetchR99Official(url, signal, now);
+			try {
+				return await fetchR99Notice(now);
+			} catch {
+				// 游戏内公告接口不可用/结构变了 → 回退官网维护公告（宁可少时间信息，也不要整格报错）
+				return fetchR99Official(R1999_OFFICIAL_URL, signal, now);
+			}
+		}
+
 		// 重返未来：1999（官网 re.bluepoch.com 新闻 API，POST 经 host 代理）
 		// 列表接口（informationType=2 资讯）按上线时间倒序返回含全文的公告，
 		// 取最新一期「版本更新维护公告」：当期卡池（首位6星角色名，官网无征集名）/ 当期活动 / 维护起止 + 下一期维护日
-		async function fetchR99(listUrl, signal, now = nowMs()) {
+		async function fetchR99Official(listUrl, signal, now = nowMs()) {
 			const ref = "https://re.bluepoch.com/";
 			const list = await proxyFetchJson(listUrl, ref, {}, { current: 1, pageSize: 30, informationType: 2 });
 			const items = list?.data?.pageData || [];
@@ -705,7 +870,9 @@
 			"ba-global-gamekee": () => fetchGameKeeBa("global"),
 			"ba-jp": (url, signal) => fetchBaJpGacha(url, signal),
 			"ba-jp-gamekee": () => fetchGameKeeBa("jp"),
-			"r1999": (url, signal) => fetchR99(url, signal)
+			"r1999": (url, signal) => fetchR99(url, signal),
+			// 重返未来1999 备选：官网维护公告（只有维护时间与活动名，无逐期征集时间）
+			"r1999-official": (url, signal) => fetchR99Official(url, signal)
 		};
 		// 活动源注册表：条目 → { 默认 + 备选抓取器 }。没有独立活动源的条目活动来源显示"未配置"。
 		const EVENT_FETCHERS = {
@@ -764,9 +931,11 @@
 				default: () => fetchGameKeeBa("jp"),
 				"ba-jp-official": (url, signal) => fetchBaJpOfficialEvent(url, signal)
 			},
-			// 重返未来：默认与卡池同 URL（维护公告含活动）
+			// 重返未来：默认与卡池同 URL（同一篇「版本活动一览」同时含征集与活动）；
+			// 备选＝官网维护公告（只有维护时间与活动名）
 			"r1999": {
-				default: (url, signal) => fetchR99(url, signal)
+				default: (url, signal) => fetchR99(url, signal),
+				"r1999-official": (url, signal) => fetchR99Official(url, signal)
 			}
 		};
 
