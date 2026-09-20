@@ -295,5 +295,28 @@
 			const t = formatRemaining(r.endTs, now);
 			return t === null ? raw : `\u8FD8\u6709 ${t}`;
 		}
+
+		// "这次启动要不要自动刷新一次" —— 纯函数（面板挂载时判定一次；core 不联网、不做决定）。
+		// 规则（按优先级）：
+		//   ① 版本哨兵对不上 → **强制**刷一次，**不看自动刷新开关**：
+		//      · lastVersion 为空 = 首次安装（或装了本功能之前的旧缓存、上次刷新没成功）
+		//      · 否则 = 插件已更新（悬停格式、来源地址、解析器、样式等改动不刷新就看不到效果）
+		//   ② 到点（lastRefresh + refreshMinutes 已过） → 仅当自动刷新开关为开时刷
+		// 为什么必须有它：定时器只按"本次运行时长"计时（重启即归零，谁也不会一直不关电脑），
+		// 所以"启动时判一次"才是间隔设置真正生效的地方。UI 只负责照做与提示。
+		function autoRefreshPlan(input) {
+			const s = input || {};
+			const pluginVersion = String(s.pluginVersion || "");
+			const cachedVersion = String(s.lastVersion || "");
+			if (pluginVersion && cachedVersion !== pluginVersion) {
+				return { due: true, force: true, reason: cachedVersion ? "\u63D2\u4EF6\u5DF2\u66F4\u65B0" : "\u9996\u6B21\u542F\u52A8" };
+			}
+			if (!s.autoRefresh) return { due: false, force: false, reason: "" };
+			const minutes = Number(s.refreshMinutes);
+			const at = Number(s.lastRefresh) || 0;
+			if (!Number.isFinite(minutes) || minutes <= 0 || at <= 0) return { due: false, force: false, reason: "" };
+			if (at + minutes * 60000 <= (Number(s.now) || 0)) return { due: true, force: false, reason: "\u5DF2\u5230\u5237\u65B0\u95F4\u9694" };
+			return { due: false, force: false, reason: "" };
+		}
 		//#endregion
 		//#endregion

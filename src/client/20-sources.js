@@ -94,7 +94,8 @@
 			},
 			{
 				id: "arknights",
-				parserVersion: 1,
+				// 2：档位改按池名判定（中坚优先）+ 外显与悬停共用同一份排序列表（v0.9.25 修）
+				parserVersion: 2,
 				name: "明日方舟",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/4/41/ArknightsAppIcon.png!/fw/64",
 				source: "官方公告+PRTS",

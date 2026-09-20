@@ -30,6 +30,7 @@ const OUT_CORE_PKG = path.join(ROOT, "packages", "core", "package.json");
 
 // 拼接顺序（= 原产物的 //#region 顺序，改了这里就等于改了产物结构）
 const ORDER = [
+  "05-version.js",     // 插件版本号（占位符，由本脚本用根 package.json 注入）
   "00-head.js",        // DSH 模块加载壳 + react require
   "10-config.js",      // 配置常量
   "15-env.js",         // core 环境注入缝（transport / now / 计时器）
@@ -52,6 +53,7 @@ const ORDER = [
 // 包进 `export function createEngine(env) { … }` —— 同一个函数体，与 DSH 产物同源。
 // 注：engine-head.js 里那一行 `function createEngine(env) {` 会被加上 `export ` 前缀（见下）。
 const CORE_ORDER = [
+  "05-version.js",     // 插件版本号（占位符，由本脚本注入）
   "10-config.js",      // 默认配置（DEFAULT_SETTINGS / REFRESH_OPTIONS）
   "20-sources.js",     // SOURCES 来源注册表
   "60-helpers.js",     // 共用纯函数（core 与 UI 都要用）
@@ -98,7 +100,18 @@ function readChunks(order) {
   }
   return out;
 }
-const clientBuilt = readChunks(ORDER).join("\n");
+const rootPkg = JSON.parse(read(path.join(ROOT, "package.json")));
+// 插件版本注入：把 src/client/05-version.js 的占位符替换成根 package.json 的 version。
+// 两个产物都注入（lib/client.js 与 packages/core/core.mjs），--check 走同一条路径 → 一致性校验照旧有效。
+// 找不到占位符就大声失败：否则"改了 05-version.js 的名字/写法"会静默变成"版本永远是 __PLUGIN_VERSION__"，
+// 而那正好会让"更新后自动刷新"每次都触发（或永不触发）。
+const VERSION_TOKEN = "__PLUGIN_VERSION__";
+if (!/^\d+\.\d+\.\d+/.test(String(rootPkg.version))) fail(`package.json 版本号不像 semver：${rootPkg.version}`);
+function injectVersion(text, label) {
+  if (!text.includes(VERSION_TOKEN)) fail(`${label} 里找不到版本占位符 ${VERSION_TOKEN}（05-version.js 被改动了？）`);
+  return text.split(VERSION_TOKEN).join(rootPkg.version);
+}
+const clientBuilt = injectVersion(readChunks(ORDER).join("\n"), "lib/client.js");
 // 宿主入口 src/index.js 会被逐字节复制成 lib/index.js（发布包的 main）——**同样必须校验编码**：
 // 否则一个 BOM/CRLF 会原样进发布包，而 --check 两边一样脏仍报"一致"，什么提示都没有
 const hostBuilt = read(SRC_HOST);
@@ -148,10 +161,9 @@ if (!coreChunks.some((t) => t.includes("export function createEngine(env) {"))) 
   fail("未能把 createEngine 改成 ESM 导出（engine-head.js 里的函数声明写法变了？）");
 }
 assertCorePurity();
-const coreBuilt = coreChunks.join("\n");
+const coreBuilt = injectVersion(coreChunks.join("\n"), "packages/core/core.mjs");
 // core 包的 package.json：**由本脚本生成**，版本号跟随根包，避免两处手改漂移。
 // （packages/core/README.md 是手写的，不在此生成；包名刻意中立，不含 dsh —— 扩展/原生平台要用它。）
-const rootPkg = JSON.parse(read(path.join(ROOT, "package.json")));
 const corePkgBuilt = JSON.stringify({
   name: "gacha-calendar-core",
   version: rootPkg.version,

@@ -1,3 +1,12 @@
+		//#region version
+		// 插件版本号：**不要手改这个字符串** —— build.mjs 会用根 package.json 的 version 替换下面的占位符
+		// （唯一真源，避免两处手改漂移；lib/client.js 与 packages/core/core.mjs 都会被注入）。
+		// 用途：缓存里记录"这份数据是哪版插件产出的"。更新插件后首次启动，据此**强制**刷新一次
+		// （不看自动刷新开关）——因为有些改动（悬停格式、来源地址、样式、解析器）不刷新就看不到效果。
+		// 写入时机见 engine-api.js 的 refresh()；判定见 60-helpers.js 的 autoRefreshPlan()。
+		const PLUGIN_VERSION = "0.9.26";
+		//#endregion
+
 		//#region config
 		const NS = "gacha-calendar";
 		// 刷新频率选项：按天（存分钟），与 host 端 Config.refreshMinutes 对应
@@ -127,7 +136,8 @@
 			},
 			{
 				id: "arknights",
-				parserVersion: 1,
+				// 2：档位改按池名判定（中坚优先）+ 外显与悬停共用同一份排序列表（v0.9.25 修）
+				parserVersion: 2,
 				name: "明日方舟",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/4/41/ArknightsAppIcon.png!/fw/64",
 				source: "官方公告+PRTS",
@@ -562,6 +572,29 @@
 			const t = formatRemaining(r.endTs, now);
 			return t === null ? raw : `\u8FD8\u6709 ${t}`;
 		}
+
+		// "这次启动要不要自动刷新一次" —— 纯函数（面板挂载时判定一次；core 不联网、不做决定）。
+		// 规则（按优先级）：
+		//   ① 版本哨兵对不上 → **强制**刷一次，**不看自动刷新开关**：
+		//      · lastVersion 为空 = 首次安装（或装了本功能之前的旧缓存、上次刷新没成功）
+		//      · 否则 = 插件已更新（悬停格式、来源地址、解析器、样式等改动不刷新就看不到效果）
+		//   ② 到点（lastRefresh + refreshMinutes 已过） → 仅当自动刷新开关为开时刷
+		// 为什么必须有它：定时器只按"本次运行时长"计时（重启即归零，谁也不会一直不关电脑），
+		// 所以"启动时判一次"才是间隔设置真正生效的地方。UI 只负责照做与提示。
+		function autoRefreshPlan(input) {
+			const s = input || {};
+			const pluginVersion = String(s.pluginVersion || "");
+			const cachedVersion = String(s.lastVersion || "");
+			if (pluginVersion && cachedVersion !== pluginVersion) {
+				return { due: true, force: true, reason: cachedVersion ? "\u63D2\u4EF6\u5DF2\u66F4\u65B0" : "\u9996\u6B21\u542F\u52A8" };
+			}
+			if (!s.autoRefresh) return { due: false, force: false, reason: "" };
+			const minutes = Number(s.refreshMinutes);
+			const at = Number(s.lastRefresh) || 0;
+			if (!Number.isFinite(minutes) || minutes <= 0 || at <= 0) return { due: false, force: false, reason: "" };
+			if (at + minutes * 60000 <= (Number(s.now) || 0)) return { due: true, force: false, reason: "\u5DF2\u5230\u5237\u65B0\u95F4\u9694" };
+			return { due: false, force: false, reason: "" };
+		}
 		//#endregion
 		//#endregion
 
@@ -585,10 +618,11 @@ export function createEngine(env) {
 			};
 			// engine 会读取的存储键（宿主按自己的方式实现即可；读不到就用 DEFAULT_SETTINGS 的默认值）
 			//   order / hidden / removed / customEntries / customUrls / customEventUrls  —— 配置
-			//   lastData / lastRefresh / lastSource                                    —— 缓存
+			//   lastData / lastRefresh / lastSource / lastVersion                      —— 缓存
+			//   （lastVersion = 产出该缓存的插件版本，用于"更新插件后首次启动强制刷新"，见 autoRefreshPlan）
 			const CONFIG_KEYS = [
 				"order", "hidden", "removed", "customEntries", "customUrls", "customEventUrls",
-				"autoRefresh", "refreshMinutes", "lastData", "lastRefresh", "lastSource"
+				"autoRefresh", "refreshMinutes", "lastData", "lastRefresh", "lastSource", "lastVersion"
 			];
 
 			// 读取配置（缺失项回落到 10-config.js 的 DEFAULT_SETTINGS）
@@ -3671,6 +3705,11 @@ export function createEngine(env) {
 				await storage.set("lastData", JSON.stringify(games));
 				await storage.set("lastRefresh", result.at);
 				await storage.set("lastSource", result.status === "ok" ? "web" : "none");
+				// 版本哨兵：**整轮全绿**（所有非跳过条目两侧都没 down）才记当前插件版本。
+				// 有任一条目失败就保留旧值 → "更新插件后首次启动强制刷新"会在下次启动重试（自愈，不循环重试）；
+				// 全部失败（okCount=0）时也不记，避免"失败也盖章"导致更新后的新逻辑永不生效。
+				const expected = result.results.filter((r) => r.reason !== "skipped").length;
+				if (expected > 0 && result.okCount === expected) await storage.set("lastVersion", PLUGIN_VERSION);
 				return {
 					schemaVersion: ENGINE_SCHEMA_VERSION,
 					refreshedAt: result.at,
@@ -3761,7 +3800,10 @@ export function createEngine(env) {
 				GACHA_FETCHERS,
 				EVENT_FETCHERS,
 				SOURCES,
-				DEFAULT_SETTINGS
+				DEFAULT_SETTINGS,
+				// 启动自动刷新判定（纯函数）与当前插件版本（注入自 package.json）：回归脚本据此验收
+				autoRefreshPlan,
+				PLUGIN_VERSION
 			};
 
 			return {

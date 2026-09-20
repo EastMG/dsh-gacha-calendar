@@ -18,10 +18,11 @@
 			};
 			// engine 会读取的存储键（宿主按自己的方式实现即可；读不到就用 DEFAULT_SETTINGS 的默认值）
 			//   order / hidden / removed / customEntries / customUrls / customEventUrls  —— 配置
-			//   lastData / lastRefresh / lastSource                                    —— 缓存
+			//   lastData / lastRefresh / lastSource / lastVersion                      —— 缓存
+			//   （lastVersion = 产出该缓存的插件版本，用于"更新插件后首次启动强制刷新"，见 autoRefreshPlan）
 			const CONFIG_KEYS = [
 				"order", "hidden", "removed", "customEntries", "customUrls", "customEventUrls",
-				"autoRefresh", "refreshMinutes", "lastData", "lastRefresh", "lastSource"
+				"autoRefresh", "refreshMinutes", "lastData", "lastRefresh", "lastSource", "lastVersion"
 			];
 
 			// 读取配置（缺失项回落到 10-config.js 的 DEFAULT_SETTINGS）

@@ -63,6 +63,9 @@
 			// 在途锁用 ref 而不是 state：state 更新是异步的，"自动刷新与手动点击落在同一 tick"时
 			// 两次调用可能都看到 refreshing=false 而并发跑两轮（请求翻倍，且慢的那轮会用更旧的数据盖掉新的）
 			const refreshLock = (0, react.useRef)(false);
+			// 启动自动刷新的"一次提示"（如"插件已更新"）与"同挂载只试一次"闸（防断网时无限重刷）
+			const autoNoteRef = (0, react.useRef)("");
+			const startupGuardRef = (0, react.useRef)("");
 			const doRefresh = (0, react.useCallback)(async () => {
 				if (refreshLock.current) return;
 				refreshLock.current = true;
@@ -73,7 +76,10 @@
 					// 顶部提示：只读 Result JSON（按游戏顺序取 name，交给共用提示函数分类）
 					const games = Object.entries(result.games).map(([id, g]) => ({ id, name: g.name || id }));
 					const { info, lines } = buildScrapeInfo(games, result);
-					setScrapeInfo(info);
+					// 自动刷新时说明原因（只消费一次）："成功 N/M …（插件已更新，已自动刷新）"
+					const note = autoNoteRef.current;
+					autoNoteRef.current = "";
+					setScrapeInfo(note ? `${info}\uFF08${note}\uFF0C\u5DF2\u81EA\u52A8\u5237\u65B0\uFF09` : info);
 					setScrapeLines(lines);
 					// 引擎已把 lastData/lastRefresh/lastSource 写进 settings，刷新快照即可重渲染
 					setSnapshot(scope.getSnapshot());
@@ -99,7 +105,11 @@
 				const intervalMs = minutes * 60 * 1000;
 				let disposed = false;
 				let timer = 0;
-				let last = Date.now();
+				// 锚点＝**上次成功刷新的时刻**，而不是"本次挂载时刻"：否则重启就把计时清零，
+				// 设置成 7 天等于"连续开机 7 天"才刷一次（谁也不会一直不关电脑）。
+				// 0 / 非法 / 未来时间戳（时钟回拨）都退回挂载时刻，避免刚启动就疯狂刷。
+				const anchorAt = Number(s.lastRefresh) || 0;
+				let last = anchorAt > 0 && anchorAt <= Date.now() ? anchorAt : Date.now();
 				const tick = () => {
 					if (disposed) return;
 					const now = Date.now();
@@ -109,12 +119,37 @@
 					}
 					timer = window.setTimeout(tick, Math.min(Math.max(last + intervalMs - Date.now(), 1000), MAX_DELAY));
 				};
-				timer = window.setTimeout(tick, Math.min(intervalMs, MAX_DELAY));
+				timer = window.setTimeout(tick, 1000);
 				return () => {
 					disposed = true;
 					window.clearTimeout(timer);
 				};
-			}, [s.autoRefresh, s.refreshMinutes, doRefresh]);
+			}, [s.autoRefresh, s.refreshMinutes, s.lastRefresh, doRefresh]);
+
+			// 启动时判定一次"要不要自动刷新"（定时器管不到的场景：插件更新、首次安装、重启后已过间隔）。
+			// 版本变化与首次安装是**强制**的（不看自动刷新开关）——见 autoRefreshPlan 的注释。
+			// 三个防坑点：
+			//  ① 等设置真的送到（快照非空）再判，否则"还没加载"会被当成"首次安装"而多刷一轮；
+			//  ② 同一次挂载对同一 (版本|原因) 只尝试一次——refresh 失败也会写 lastRefresh，
+			//     依赖里带着它会让 effect 重跑 → 变成断网时无限重刷；
+			//  ③ 提示只消费一次（autoNoteRef），不常驻。
+			(0, react.useEffect)(() => {
+				if (!snapshot.value || Object.keys(snapshot.value).length === 0) return;
+				const plan = autoRefreshPlan({
+					autoRefresh: s.autoRefresh ?? DEFAULT_SETTINGS.autoRefresh,
+					refreshMinutes: s.refreshMinutes ?? DEFAULT_SETTINGS.refreshMinutes,
+					lastRefresh: s.lastRefresh,
+					lastVersion: s.lastVersion,
+					pluginVersion: PLUGIN_VERSION,
+					now: Date.now()
+				});
+				if (!plan.due) return;
+				const key = `${PLUGIN_VERSION}|${plan.reason}`;
+				if (startupGuardRef.current === key) return;
+				startupGuardRef.current = key;
+				autoNoteRef.current = plan.reason;
+				doRefresh();
+			}, [snapshot, s.autoRefresh, s.refreshMinutes, s.lastRefresh, s.lastVersion, doRefresh]);
 
 			// 锚定面板到 trigger 上方
 			(0, react.useLayoutEffect)(() => {
