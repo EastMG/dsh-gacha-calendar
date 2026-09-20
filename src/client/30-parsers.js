@@ -460,7 +460,9 @@
 		function parseWuwaPool(html, now = nowMs()) {
 			const text = String(html || "");
 			const marks = [...text.matchAll(/data-start="([^"]+)"\s+data-end="([^"]+)"/g)];
-			if (marks.length === 0) return null;
+			// 页面拿到了却一个计时器都没有 → 汇总页改版（抛错让面板显示"卡池失败"），
+			// 而不是伪装成"新卡池未公布"（这是本条目的备选/兜底源）
+			if (marks.length === 0) throw new Error("wuwa-pool-no-timer");
 			for (let i = 0; i < marks.length; i++) {
 				const m = marks[i];
 				const start = parseTime(m[1]);
@@ -868,9 +870,13 @@
 		//   （注意：d 在 canmoe 侧可能长期不更新，只能当"覆盖当前时刻才采信"的快速路径）
 		// ② 期次列表形如 <变量>=[{id,title,subtitle,version,periodStart,periodEnd,featured:[...]}]，
 		//   变量名随构建变化（曾见 p= / 现为 f=），由 extractCanmoePeriods 按内容定位。
-		// 只采用"时间窗口覆盖当前时刻"的条目；无法识别返回 null。
+		// 只采用"时间窗口覆盖当前时刻"的条目。
+		// 返回值三态：数据对象 / null（**结构在**但没有覆盖当前时刻的期次 → 未公布）/ undefined
+		// （这份 JS 里**根本没有**卡池数据结构 → 交给调用方决定：多 chunk 时继续找下一个，
+		//  全部 chunk 都没有则说明页面改版 → 报错，而不是伪装成"未公布"）。
 		function currentFromCanmoe(js, now) {
 			now = now || nowMs();
+			let sawStructure = false;
 			const fmt = (iso) => {
 				const d = new Date(iso);
 				return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -878,6 +884,7 @@
 			// 1) 当期 d：windows 覆盖当前 → 直接用
 			const curM = js.match(/\bd=\{(.+?)\},\s*u=\[/);
 			if (curM) {
+				sawStructure = true;
 				const inner = curM[1];
 				const featuredM = inner.match(/([^:{}]+):\{windows:/);
 				const roles = featuredM ? featuredM[1].trim() : "";
@@ -889,6 +896,7 @@
 			// 2) p 数组中的"当前进行中"条目（过期当期后以此为兜底）
 			const arr = extractCanmoePeriods(js);
 			if (arr) {
+				sawStructure = true;
 				for (const e of arr) {
 					const ps = (e.match(/periodStart\s*:\s*"([^"]*)"/) || [])[1];
 					const pe = (e.match(/periodEnd\s*:\s*"([^"]*)"/) || [])[1];
@@ -903,7 +911,8 @@
 					}
 				}
 			}
-			return null;
+			// 结构在但没覆盖当前时刻 → null（未公布）；连结构都没有 → undefined（页面改版，交上层决定）
+			return sawStructure ? null : void 0;
 		}
 
 		// 提取 canmoe chunk 里的"卡池期次数组"（元素含 periodStart/periodEnd 的那个），返回元素子串数组。
@@ -943,30 +952,46 @@
 			return null;
 		}
 
-		// 兼容旧调用：parseCanmoe / parseCanmoeLoose 均走统一的"当期选择"逻辑（now 可注入）
-		function parseCanmoe(js, now = nowMs()) { return currentFromCanmoe(js, now); }
-		function parseCanmoeLoose(js, now = nowMs()) { return currentFromCanmoe(js, now); }
+		// 兼容旧调用：parseCanmoe / parseCanmoeLoose 均走统一的"当期选择"逻辑（now 可注入）。
+		// 这两个是**给通用解析（自定义条目/自定义地址）用的宽松包装**：把 undefined 归一成 null，
+		// 即"读不出来 → 未公布"，不在这里抛错（用户自定义地址读不出内容是常态，不该报成源站故障）。
+		function parseCanmoe(js, now = nowMs()) { const d = currentFromCanmoe(js, now); return d === void 0 ? null : d; }
+		function parseCanmoeLoose(js, now = nowMs()) { return parseCanmoe(js, now); }
 
 		// 终末地（canmoe 经 host 代理）：页面 HTML → 定位 BannerCalendar chunk → 抓 chunk JS → 窗口匹配当期
 		// canmoe 无 CORS 头，两步都经 host 代理（referer 用页面 origin 满足反爬）
-		// 数据在某一组件的 chunk 里（含当期 d={...} 与历史 p=[...]，p 内含多期 periodStart/End），
-		// currentFromCanmoe(js, now) 按 now 在 d/p 的多期窗口里做匹配，now 可注入以回放其他时刻
+		// 数据在某一组件的 chunk 里（含当期 d={...} 与历史期次数组），currentFromCanmoe(js, now) 做窗口匹配
+		//
+		// 三态（这是本条目的**默认来源**，必须把"源站改版"和"没公布"分开，否则会重演长期静默失灵）：
+		//   · 有覆盖当前时刻的期次 → 返回数据；
+		//   · 拿到 JS 且里面有卡池结构、但没有覆盖当前的期次 → return null（未公布）；
+		//   · 页面/所有 chunk 里都找不到卡池结构（或 chunk 全抓失败）→ **抛错**（面板显示"卡池失败"）。
 		async function fetchCanmoeEndfield(pageUrl, now = nowMs()) {
 			const html = await proxyFetchText(pageUrl, "https://end.canmoe.com/");
 			const chunks = nextJsChunkUrls(html, "BannerCalendar", pageUrl);
-			if (chunks.length === 0) return null;
+			if (chunks.length === 0) throw new Error("canmoe-no-chunk");   // 页面拿到了但没有数据块链接 = 改版
+			let fetchedAny = false, sawStructure = false, lastErr = null;
 			for (const c of chunks) {
+				let js = null;
 				try {
-					const js = await proxyFetchText(c, "https://end.canmoe.com/");
-					const d = parseCanmoe(js, now) || parseCanmoeLoose(js, now);
-					if (d) {
-						const hover = canmoePoolHover(js, now);
-						if (hover) d.bannerHover = hover;
-						return d;
-					}
-				} catch { /* 下一个 chunk */ }
+					js = await proxyFetchText(c, "https://end.canmoe.com/");
+				} catch (err) {
+					lastErr = err;      // 单个 chunk 抓失败：继续试下一个（错误留着，全失败时抛出去）
+					continue;
+				}
+				fetchedAny = true;
+				const d = currentFromCanmoe(js, now);
+				if (d === void 0) continue;      // 这份 chunk 里没有卡池结构 → 看下一个
+				sawStructure = true;
+				if (d) {
+					const hover = canmoePoolHover(js, now);
+					if (hover) d.bannerHover = hover;
+					return d;
+				}
 			}
-			return null;
+			if (!fetchedAny) throw (lastErr || new Error("canmoe-chunk-fetch-failed"));
+			if (!sawStructure) throw new Error("canmoe-layout-changed");
+			return null;   // 结构在、但当期没有覆盖现在的期次 → 未公布
 		}
 
 		// 终末地卡池列悬停：canmoe 卡池日历 chunk 内同期全部卡池条目（特许寻访 / 重构寻访 等），
@@ -1068,27 +1093,31 @@
 
 		// 逐页（index.html → index1.html → index2.html …）从新到旧找"带新卡池"的维护/版本更新公告，
 		// 取第一篇能解析出当期卡池/活动的正文；"不停服更新"不含新卡池，跳过。
-		// 找不到（含试满上限）返回 null → 调用方按"新卡池未公布"记。
+		// 三态：有当期内容 → 数据；列表页有公告但都不含当期内容（或"不停服更新"）→ null（未公布）；
+		//      列表页**一条公告链接都没有** → 抛错（官网列表改版，让面板显示"卡池失败"而不是"未公布"）。
 		async function fetchNteWanmei(listUrl, signal) {
 			const ref = "https://yh.wanmei.com/";
 			const seen = new Set();
 			const queue = [listUrl];
 			let details = 0;
+			let sawAnyLink = false;
 			while (queue.length && seen.size < NTE_MAX_LIST_PAGES) {
 				const url = queue.shift();
 				if (seen.has(url)) continue;
 				seen.add(url);
 				const html = await proxyFetchText(url, ref);
+				if (/\/news\/gamebroad\/\d+\/\d+\.html/.test(html)) sawAnyLink = true;
 				// 列表条目本身从新到旧：边收集边试，命中当期内容立刻返回
 				for (const m of html.matchAll(NTE_ITEM_RE)) {
 					if (!NTE_MAINT_RE.test(m[2]) || /不停服/.test(m[2])) continue;
-					if (details >= NTE_MAX_DETAILS) return null;
+					if (details >= NTE_MAX_DETAILS) return null;   // 试读额度用完（此时必然已见到公告链接）
 					details++;
 					const data = parseNteWanmei(await proxyFetchText("https://yh.wanmei.com" + m[1], ref));
 					if (data) return data;
 				}
 				for (const u of nteNextPageUrls(listUrl, html, seen)) if (!queue.includes(u)) queue.push(u);
 			}
+			if (!sawAnyLink) throw new Error("nte-list-shape-changed");
 			return null;
 		}
 
@@ -1206,6 +1235,9 @@
 		// bannerHover 列出同期全部主池（每池"池名：角色"+时间；窗口相同则合并时间；结束时间升序）
 		function bwikiGachaPayload(html) {
 			const items = parseAllBwiki(html);
+			// 页面拿到了却连一行候选都没有 → wiki 表结构变了（抛错，面板显示"卡池失败"）；
+			// 有候选但都不覆盖当前时刻 → 下面返回 null（未公布）。这两件事必须分开。
+			if (items.length === 0) throw new Error("bwiki-gacha-no-table");
 			// selectCurrent 会就地补全缺失起点（fillMissingStarts），故先取快照
 			const snapshot = items.map((it) => ({ banner: it.banner, roles: it.roles, startTs: it.startTs, endTs: it.endTs, raw: it.rawOriginal || it.raw, isMain: it.isMain }));
 			const cur = selectCurrent(items, nowMs());
@@ -1229,6 +1261,9 @@
 		// 只有 1 条时 buildEventHover 返回 ""，由 UI 退回单条展示（兜底）。
 		function genericEventPayload(html) {
 			const items = collectGenericEvents(html);
+			// 页面拿到了却连一行候选都没有 → 活动表结构变了（抛错 = "活动失败"）；
+			// 有候选但当期没有覆盖现在的 → 下面返回 null（未公布）
+			if (items.length === 0) throw new Error("bwiki-event-no-table");
 			const snapshot = items.map((it) => ({ name: it.banner, cat: it.cat || "", startTs: it.startTs, endTs: it.endTs, raw: it.rawOriginal || it.raw }));
 			const now = nowMs();
 			const active = sortEventItems(snapshot.filter((it) => it.endTs != null && it.endTs >= now && (it.startTs == null || it.startTs <= now)));

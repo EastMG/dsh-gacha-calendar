@@ -9,8 +9,8 @@
 		// 放在 helpers（而非 core 内部）是因为**外壳也要用**：面板要在列悬停里显示失败原因、
 		// 要在顶部拼"成功 N/M + 五类归类"，这些都只依赖失败对象本身，与抓取无关。
 		const SIDE_TEXT = {
-			gacha: { fail: "卡池失败", nomatch: "新卡池未公布" },
-			event: { fail: "活动失败", nomatch: "新活动未公布" }
+			gacha: { fail: "卡池失败", nomatch: "新卡池未公布", nomatchUser: "该地址未解析出卡池内容" },
+			event: { fail: "活动失败", nomatch: "新活动未公布", nomatchUser: "该地址未解析出活动内容" }
 		};
 		function normErr(err) {
 			const name = String((err && err.name) || "");
@@ -22,9 +22,13 @@
 			if (/^bad-json$/.test(msg)) return "响应格式异常";
 			if (/fetch failed|Failed to fetch|NetworkError|net::|Load failed|network error/i.test(msg)) return "网络不通";
 			if (/^no-source$/.test(msg)) return "无可用来源";
-			// 解析器用 throw 表达"页面结构变了/一条都没解析出来"（哨兵错误名见各解析器）：
-			// 给一句比"抓取异常"更有信息量的归因
-			if (/parse-empty|no-activities/.test(msg)) return "页面解析出 0 条";
+			// 解析器用 throw 表达"页面结构变了/一条都没解析出来"（哨兵错误名见各解析器，统一带
+			// shape-changed / layout-changed / no-table / no-timer / no-chunk / no-activities 这类后缀）：
+			// 给一句比"抓取异常"更有信息量的归因 —— 让"源站改版"在面板上**看得见**，
+			// 而不是伪装成"新卡池未公布"（终末地上次长期静默失灵就是这么来的）
+			if (/shape-changed|layout-changed|no-table|no-timer|no-chunk|no-activities|parse-empty/.test(msg)) {
+				return "页面结构变了（解析出 0 条）";
+			}
 			return "抓取异常";
 		}
 		const isDown = (f) => !!f && f.kind === "down";
@@ -39,12 +43,13 @@
 			return f.kind === "down" || f.kind === "nomatch" ? f : null;
 		}
 		// 一侧状态的单行文案：down → "卡池失败：网络不通"；nomatch → "新卡池未公布"；ok → ""
-		function sideFailText(side, fail) {
+		// opts.userSupplied：该侧地址由用户自己填（自定义条目 / 自定义网址）时，"未命中"多半意味着
+		// "你填的这个地址读不出卡池内容"，而不是"官方还没公布"——文案换一句更贴切的，状态仍是"未公布"
+		function sideFailText(side, fail, opts) {
 			const f = normalizeFail(fail);
 			if (!f) return "";
-			return f.kind === "down"
-				? SIDE_TEXT[side].fail + "：" + (f.reason || "抓取异常")
-				: SIDE_TEXT[side].nomatch;
+			if (f.kind === "down") return SIDE_TEXT[side].fail + "：" + (f.reason || "抓取异常");
+			return (opts && opts.userSupplied) ? SIDE_TEXT[side].nomatchUser : SIDE_TEXT[side].nomatch;
 		}
 		// 逐条归类（固定顺序：卡池在前、活动在后；每侧至多一条）
 		function entryFailParts(r) {
