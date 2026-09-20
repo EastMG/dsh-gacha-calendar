@@ -118,7 +118,7 @@ dsh-gacha-calendar/
 
 ## 致谢
 
-- [MAA1999/M9A](https://github.com/MAA1999/M9A)——重返未来：1999 的逐期「征集时间」依赖官方**游戏内公告**接口，该接口线索来自它的 `tools/activity_data`（长期使用同一接口抓「版本活动一览」）。
+- [MAA1999/M9A](https://github.com/MAA1999/M9A)——重返未来：1999 的逐期「征集时间」依赖官方**游戏内公告**接口，该接口线索来自它的 `tools/activity_data`。
 
 ## License
 
