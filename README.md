@@ -65,7 +65,7 @@ npm run check   # 只校验：src/ 拼出来的结果是否与产物一致（不
 | npm 包 | 内容 | 谁用 |
 |---|---|---|
 | `dsh-gacha-calendar` | DSH 桌面端插件（已内联同一份 core，运行时不依赖 npm 解析） | DSH Desktop |
-| [`gacha-calendar-core`](packages/core) | 平台中立的抓取核心：`createEngine({ transport, storage, now })`，零依赖、零宿主依赖 | 其它平台（开发中） |
+| [`gacha-calendar-core`](packages/core) | 平台中立的抓取核心：`createEngine({ transport, storage, now })`，零依赖、零宿主依赖 | 其它平台（浏览器插件［`gacha-calendar-extension`］(EastMG/gacha-calendar-extension)等 开发中） |
 
 ```bash
 npm run publish:plugin   # 发布 DSH 插件包（dsh-gacha-calendar）
