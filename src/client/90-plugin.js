@@ -11,9 +11,9 @@
 				return () => style.remove();
 			}, "dsh-gacha-calendar: styles");
 
-			// DSH 设置页左侧导航的 section 图标由 navIcon 硬编码（未知 id 一律默认齿轮），
+			// 设置页左侧导航的 section 图标由 navIcon 硬编码（未知 id 一律默认齿轮），
 			// 插件无法通过 settings.section 配置图标；这里在设置面板打开后，把
-			// "二游排期" 导航项的齿轮图标替换为日历图标（Lucide 风格 16px，幂等）。
+			// "二游日历" 导航项的齿轮图标替换为日历图标（Lucide 风格 16px，幂等）。
 			// 性能：MutationObserver 回调只置脏标记，用 requestAnimationFrame 合并执行；
 			// patch 先查 dialog 是否存在，不存在立即返回（Web 端高频 DOM 变化时开销极小）。
 			ctx.effect(() => {

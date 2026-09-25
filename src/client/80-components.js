@@ -1,6 +1,9 @@
 		//#region components
 		// 本插件在 DSH 设置面板里的导航名；面板按钮与弹层标题也用它（唯一事实来源，90-plugin.js 注册分区时共用）。
-		const SETTINGS_SECTION_LABEL = "\u4E8C\u6E38\u6392\u671F";
+		const SETTINGS_SECTION_LABEL = "\u4E8C\u6E38\u65E5\u5386";
+		// 面板上那个「设置」按钮：**临时隐藏**（用户要求）。函数与样式都保留，
+		// 改回 true 即可恢复，不用重写逻辑。
+		const SETTINGS_BUTTON_VISIBLE = false;
 		// DSH 设置面板是"点了才挂载"，打开后要等导航渲染出来才能切页；预算给足但不无限等。
 		const SETTINGS_NAV_TIMEOUT_MS = 600;
 		const SETTINGS_NAV_POLL_MS = 30;
@@ -290,14 +293,16 @@
 										})
 									})
 								}),
-								// 设置按钮：打开 DSH 设置面板并切到本插件的「二游排期」页，同时关闭本面板。
+								// 设置按钮：打开 DSH 设置面板并切到本插件的设置页，同时关闭本面板。
+								// **当前按用户要求临时隐藏**（SETTINGS_BUTTON_VISIBLE = false）；
+								// 下面这段逻辑与说明全部保留，改回 true 即可恢复。
 								// 为什么这么绕：DSH 没给插件"跳转设置页"的官方 API——面板是 modal，open/activeId 都是组件
 								// 私有 state（dsh-client-ui-settings-general 的 SettingsRoot），打开后按 rows[0] 兜底，也就是停在
 								// 导航第一项「通用」；插件拿不到 openSection。只能点侧边栏那个设置触发器（aria-haspopup="dialog"
 								// 是它的契约属性：全客户端带这个属性的有 6 个 dialog 类 + 12 个 menu/listbox/tree，所以按
 								// "可见 + 无障碍名匹配 设置/Settings" 挑，挑不到才退回第一个），再交给 openPluginSettingsSection
 								// 等面板挂载后按导航名切到本插件那一节。
-								(0, react_jsx_runtime.jsx)("button", {
+								SETTINGS_BUTTON_VISIBLE && (0, react_jsx_runtime.jsx)("button", {
 									type: "button",
 									className: "gacha-cal-refresh",
 									title: "\u8BBE\u7F6E",
@@ -557,7 +562,7 @@
 				style: { display: "flex", flexDirection: "column", gap: 14, maxWidth: 720, fontSize: 13, padding: "2px 0 8px" },
 				children: [
 					(0, react_jsx_runtime.jsx)("div", { children: [
-						(0, react_jsx_runtime.jsx)("div", { style: { fontSize: 16, fontWeight: 600 }, children: "二游排期" })
+						(0, react_jsx_runtime.jsx)("div", { style: { fontSize: 16, fontWeight: 600 }, children: SETTINGS_SECTION_LABEL })
 					] }),
 					saveError ? (0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-state-error-primary, #d4380d)", fontSize: 12 }, children: saveError }) : null,
 					// 配置表单本身的状态：只在"写不进去"时才出现，平时不占位。
