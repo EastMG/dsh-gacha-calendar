@@ -142,6 +142,7 @@
 				DEFAULT_SETTINGS,
 				// 启动自动刷新判定（纯函数）与当前插件版本（注入自 package.json）：回归脚本据此验收
 				autoRefreshPlan,
+				formRejectHint,
 				PLUGIN_VERSION
 			};
 

@@ -12,6 +12,25 @@
 			gacha: { fail: "卡池失败", nomatch: "新卡池未公布", nomatchUser: "未解析出内容" },
 			event: { fail: "活动失败", nomatch: "新活动未公布", nomatchUser: "未解析出内容" }
 		};
+
+		// —— 配置表单写入被拒时的归因（纯函数）——
+		// DSH 0.1.7 的 configForms 表单有四种"能读不能写"的状态，肉眼在界面上完全分不出来
+		// （控件点一下弹回原值、没有任何提示）。这里按快照如实说清是哪一种，让下次出问题能一眼定位：
+		//   memory  = 本次连接不是本机回环 → 宿主压根不接受持久化写入（只读）
+		//   loading = 表单数据还没送到（点太早了）
+		//   unavailable = 宿主没在 serve 本插件的条目（多半是条目 id 对不上 / 没进 describe）
+		//   其它    = 宿主明确拒绝（字段没进表单，或修订号冲突）
+		function formRejectHint(scope, key) {
+			var snap = null;
+			try { snap = scope && scope.getSnapshot ? scope.getSnapshot() : null; } catch (e) { snap = null; }
+			const status = snap && snap.status ? snap.status : "unknown";
+			const mode = snap && snap.mode ? snap.mode : "unknown";
+			const rev = snap && typeof snap.revision === "number" ? " (rev " + snap.revision + ")" : "";
+			if (mode === "memory") return "本次连接不是本机，宿主不接受写入（只读模式）";
+			if (status === "loading") return "配置表单还没送到，请稍后重试";
+			if (status === "unavailable") return "宿主未提供本插件的配置条目，请确认插件已正确加载";
+			return "宿主拒绝了该写入（表单状态 " + status + " / " + mode + rev + "）";
+		}
 		function normErr(err) {
 			const name = String((err && err.name) || "");
 			const msg = String((err && err.message) || err || "");
