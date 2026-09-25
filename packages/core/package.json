@@ -1,6 +1,6 @@
 {
   "name": "gacha-calendar-core",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "二游活动/卡池排期抓取核心：11 款游戏的来源注册表 + 解析器 + 刷新编排 + 缓存降级。零依赖、零宿主环境依赖，任何 JS 运行时（浏览器扩展 background / Tauri / JavaScriptCore / ArkTS 嵌入式引擎）都能跑。",
   "type": "module",
   "main": "./core.mjs",
