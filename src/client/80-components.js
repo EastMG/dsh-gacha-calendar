@@ -381,6 +381,8 @@
 
 		// engine：core 引擎（设置页的「解析器自检」用它跑 selfCheck()）
 		function CalendarSettingsPage({ scope, engine }) {
+			// 设置表单服务本体（用于在写不进去时列出宿主真正 serve 的 namespace，见 formStateText）
+			const ctxConfigForms = scope && scope.configForms ? scope.configForms : null;
 			const [snapshot, setSnapshot] = (0, react.useState)(() => scope.getSnapshot());
 			const [adding, setAdding] = (0, react.useState)(false);
 			// 添加表单临时值（名称/图标手动填；卡池与活动内容由链接解析产出）
@@ -406,14 +408,15 @@
 			};
 			(0, react.useEffect)(() => scope.subscribe(() => setSnapshot(scope.getSnapshot())), [scope]);
 			const s = { ...DEFAULT_SETTINGS, ...(snapshot.value ?? {}) };
-			// 表单可用性（写不进去时在页面上如实说明，见下面渲染处）
+			// 表单可用性（写不进去时在页面上如实说明，见下面渲染处）。
+			// 文案与 formRejectHint 同源：只解释"为什么写不了"，不猜。
 			const formReady = snapshot.status === "ready" && snapshot.mode !== "memory";
 			const formStateText = snapshot.mode === "memory"
 				? "本次连接不是本机，宿主不接受写入"
 				: snapshot.status === "loading"
 					? "配置表单还没送到，请稍后重试"
 					: snapshot.status === "unavailable"
-						? "宿主未提供本插件的配置条目"
+						? "宿主未 serve 条目「" + (scope.entryId || "?") + "」" + servedNamespacesText(ctxConfigForms)
 						: "宿主拒绝了写入（表单状态 " + String(snapshot.status) + "）";
 
 			const allEntries = getAllEntries(s);

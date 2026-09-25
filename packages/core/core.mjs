@@ -4,11 +4,17 @@
 		// 用途：缓存里记录"这份数据是哪版插件产出的"。更新插件后首次启动，据此**强制**刷新一次
 		// （不看自动刷新开关）——因为有些改动（悬停格式、来源地址、样式、解析器）不刷新就看不到效果。
 		// 写入时机见 engine-api.js 的 refresh()；判定见 60-helpers.js 的 autoRefreshPlan()。
-		const PLUGIN_VERSION = "0.9.42";
+		const PLUGIN_VERSION = "0.9.43";
 		//#endregion
 
 		//#region config
 		const NS = "gacha-calendar";
+		// 本插件在 profile 里的条目 id 候选（用于解析设置表单，见 92-dsh-env.js 的 resolveSettingsEntryId）。
+		// DSH 0.1.7 起设置文档按**条目 id**寻址，而"插件名/条目 id/包名"三者未必同名：
+		//   · cordis.patch.yml 里是 id: gacha-calendar（我们自己的 insert 声明）
+		//   · 包名是 dsh-gacha-calendar
+		// 所以不写死单一字符串，按顺序试，谁能拿到表单就用谁。
+		const SETTINGS_ENTRY_IDS = [NS, "dsh-gacha-calendar"];
 		// 刷新频率选项：按天（存分钟），与 host 端 Config.refreshMinutes 对应。
 		// 档位对齐常见版本周期：14/21/28/35/42 天 —— 15≈蔚蓝档案的 14 天轮换、21=1999 半版本/3.6 整版本
 		// 与异环当期、30≈方舟月度、42=米系与 1999 的整版本
@@ -306,10 +312,25 @@
 			const status = snap && snap.status ? snap.status : "unknown";
 			const mode = snap && snap.mode ? snap.mode : "unknown";
 			const rev = snap && typeof snap.revision === "number" ? " (rev " + snap.revision + ")" : "";
+			const id = scope && scope.entryId ? scope.entryId : "(未解析)";
 			if (mode === "memory") return "本次连接不是本机，宿主不接受写入（只读模式）";
 			if (status === "loading") return "配置表单还没送到，请稍后重试";
-			if (status === "unavailable") return "宿主未提供本插件的配置条目，请确认插件已正确加载";
+			if (status === "unavailable") return "宿主未 serve 条目「" + id + "」" + servedNamespacesText(scope.configForms);
 			return "宿主拒绝了该写入（表单状态 " + status + " / " + mode + rev + "）";
+		}
+
+		// 把宿主**真正 serve 的**设置 namespace 列出来。这一条是给"地址对不上"这类故障留的现场：
+		// 只说"没提供配置条目"定位不了，列出真实 id 就能一眼看出该用哪个。
+		function servedNamespacesText(configForms) {
+			try {
+				const mirror = configForms && typeof configForms.describe === "function" ? configForms.describe() : null;
+				const view = mirror && typeof mirror.getSnapshot === "function" ? mirror.getSnapshot().view : null;
+				const rows = view && Array.isArray(view.namespaces) ? view.namespaces : [];
+				const names = rows.map((r) => r && r.ns).filter((ns) => typeof ns === "string");
+				return names.length ? "（宿主当前 serve：" + names.join(", ") + "）" : "（宿主当前一个设置条目都没 serve）";
+			} catch (e) {
+				return "";
+			}
 		}
 		function normErr(err) {
 			const name = String((err && err.name) || "");

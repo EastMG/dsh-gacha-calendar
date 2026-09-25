@@ -85,8 +85,14 @@
 			}, "dsh-gacha-calendar: marquee");
 
 			// 取本插件的配置表单：读走镜像快照，写由表单自己排队并带修订号。
-			// NS 既是本客户端插件的 locale 命名空间，也是 host 侧 profile 条目 id —— 0.1.7 起两者必须同名。
-			const scope = ctx.configForms.get(NS);
+			// 条目 id 从宿主**真正 serve 的** namespace 列表里解析（候选见 10-config.js 的
+			// SETTINGS_ENTRY_IDS）—— 不写死的原因见 92-dsh-env.js 的 resolveSettingsEntryId 注释。
+			const settingsEntryId = resolveSettingsEntryId(ctx.configForms, SETTINGS_ENTRY_IDS);
+			const scope = ctx.configForms.get(settingsEntryId);
+			// 把解析结果与表单服务挂到 scope 上：设置页要靠它们说明"为什么写不进去"，
+			// 以及列出宿主真正 serve 的条目（排障用，见 60-helpers.js 的 servedNamespacesText）。
+			scope.entryId = settingsEntryId;
+			scope.configForms = ctx.configForms;
 			// core 引擎：抓取/解析/缓存合并都在 engine 里（面板只读它返回的 Result JSON）。
 			// 存储适配（settings scope）与传输适配（直连 + 宿主代理）见 92-dsh-env.js。
 			const engine = createDshEngine(scope);

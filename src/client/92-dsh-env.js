@@ -32,7 +32,28 @@
 		const DSH_TRANSPORT = { fetchRaw: dshFetchRaw, fetchViaProxy: dshFetchViaProxy };
 		setCoreEnv({ transport: DSH_TRANSPORT });
 
-		// DSH 的存储适配：插件配置表单（profile 条目 id = gacha-calendar）→ engine 的 storage 接口。
+		// 解析本插件的设置条目 id：从 configForms 的 describe 镜像里读**宿主真正 serve 的** namespace 列表，
+		// 在候选里挑第一个匹配。为什么不能直接写死：0.1.7 按条目 id 寻址，而条目 id、包名、插件名
+		// 三者未必同名；写死一旦对不上，表现就是"表单永远 unavailable、所有写入被拒、
+		// 面板只显示 schema 默认值"——症状和"数据被清空"极像，其实只是地址找错了。
+		// 拿不到镜像时回退到第一个候选，保持原行为、不更坏。
+		function listServedNamespaces(configForms) {
+			try {
+				const mirror = configForms && typeof configForms.describe === "function" ? configForms.describe() : null;
+				const view = mirror && typeof mirror.getSnapshot === "function" ? mirror.getSnapshot().view : null;
+				const rows = view && Array.isArray(view.namespaces) ? view.namespaces : [];
+				return rows.map((r) => r && r.ns).filter((ns) => typeof ns === "string");
+			} catch (e) {
+				return [];
+			}
+		}
+		function resolveSettingsEntryId(configForms, candidates) {
+			const served = listServedNamespaces(configForms);
+			for (const id of candidates) if (served.indexOf(id) >= 0) return id;
+			return candidates[0];
+		}
+
+		// DSH 的存储适配：插件配置表单（profile 条目 id）→ engine 的 storage 接口。
 		// engine 只认 get(key)/set(key, value)，键名沿用既有设置键，所以设置页与历史缓存都不用迁移。
 		//
 		// DSH 0.1.7 起这个表单由 `configForms` 服务给出（旧名 `settingsScope`，已改名），

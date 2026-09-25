@@ -1,5 +1,11 @@
 		//#region config
 		const NS = "gacha-calendar";
+		// 本插件在 profile 里的条目 id 候选（用于解析设置表单，见 92-dsh-env.js 的 resolveSettingsEntryId）。
+		// DSH 0.1.7 起设置文档按**条目 id**寻址，而"插件名/条目 id/包名"三者未必同名：
+		//   · cordis.patch.yml 里是 id: gacha-calendar（我们自己的 insert 声明）
+		//   · 包名是 dsh-gacha-calendar
+		// 所以不写死单一字符串，按顺序试，谁能拿到表单就用谁。
+		const SETTINGS_ENTRY_IDS = [NS, "dsh-gacha-calendar"];
 		// 刷新频率选项：按天（存分钟），与 host 端 Config.refreshMinutes 对应。
 		// 档位对齐常见版本周期：14/21/28/35/42 天 —— 15≈蔚蓝档案的 14 天轮换、21=1999 半版本/3.6 整版本
 		// 与异环当期、30≈方舟月度、42=米系与 1999 的整版本

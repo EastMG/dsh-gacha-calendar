@@ -26,10 +26,25 @@
 			const status = snap && snap.status ? snap.status : "unknown";
 			const mode = snap && snap.mode ? snap.mode : "unknown";
 			const rev = snap && typeof snap.revision === "number" ? " (rev " + snap.revision + ")" : "";
+			const id = scope && scope.entryId ? scope.entryId : "(未解析)";
 			if (mode === "memory") return "本次连接不是本机，宿主不接受写入（只读模式）";
 			if (status === "loading") return "配置表单还没送到，请稍后重试";
-			if (status === "unavailable") return "宿主未提供本插件的配置条目，请确认插件已正确加载";
+			if (status === "unavailable") return "宿主未 serve 条目「" + id + "」" + servedNamespacesText(scope.configForms);
 			return "宿主拒绝了该写入（表单状态 " + status + " / " + mode + rev + "）";
+		}
+
+		// 把宿主**真正 serve 的**设置 namespace 列出来。这一条是给"地址对不上"这类故障留的现场：
+		// 只说"没提供配置条目"定位不了，列出真实 id 就能一眼看出该用哪个。
+		function servedNamespacesText(configForms) {
+			try {
+				const mirror = configForms && typeof configForms.describe === "function" ? configForms.describe() : null;
+				const view = mirror && typeof mirror.getSnapshot === "function" ? mirror.getSnapshot().view : null;
+				const rows = view && Array.isArray(view.namespaces) ? view.namespaces : [];
+				const names = rows.map((r) => r && r.ns).filter((ns) => typeof ns === "string");
+				return names.length ? "（宿主当前 serve：" + names.join(", ") + "）" : "（宿主当前一个设置条目都没 serve）";
+			} catch (e) {
+				return "";
+			}
 		}
 		function normErr(err) {
 			const name = String((err && err.name) || "");
