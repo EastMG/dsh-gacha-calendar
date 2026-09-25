@@ -32,17 +32,28 @@
 		const DSH_TRANSPORT = { fetchRaw: dshFetchRaw, fetchViaProxy: dshFetchViaProxy };
 		setCoreEnv({ transport: DSH_TRANSPORT });
 
-		// DSH 的存储适配：settings scope（settings.yaml 的 gacha-calendar 命名空间）→ engine 的 storage 接口。
+		// DSH 的存储适配：插件配置表单（profile 条目 id = gacha-calendar）→ engine 的 storage 接口。
 		// engine 只认 get(key)/set(key, value)，键名沿用既有设置键，所以设置页与历史缓存都不用迁移。
+		//
+		// DSH 0.1.7 起这个表单由 `configForms` 服务给出（旧名 `settingsScope`，已改名），
+		// 快照形态也从「恒有 value」变成带状态机的 `{ status, value, base, user, revision, writable, mode }`：
+		// 只有 status === "ready" 时 value 才可信（其余是 loading / unavailable）。
+		// 取不到值一律回 undefined —— engine 会把 undefined 回落成 DEFAULT_SETTINGS，
+		// 绝不能回落成 {} 之外的东西，否则"读不到"会被当成"读到了空配置"。
 		function dshStorage(scope) {
 			return {
 				async get(key) {
 					const snap = scope.getSnapshot();
-					const value = snap && snap.value ? snap.value : {};
+					if (!snap || snap.status !== "ready") return undefined;
+					const value = snap.value;
+					if (!value || typeof value !== "object") return undefined;
 					return value[key];
 				},
 				async set(key, value) {
-					await scope.set(key, value);
+					// set 返回"宿主是否接受本次写入"；engine 不消费该布尔值，
+					// 但失败时抛错比静默丢数据好（静默会把"没存上"伪装成"已存"）。
+					const accepted = await scope.set(key, value);
+					if (accepted === false) throw new Error("settings-write-rejected:" + key);
 				}
 			};
 		}

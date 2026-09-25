@@ -1,5 +1,7 @@
 		//#region plugin
-		const inject = ["slots", "settingsScope", "locale"];
+		// configForms = DSH 0.1.7 起的设置表单服务；0.1.6 及以前叫 settingsScope。
+		// 两者都是"按 profile 条目 id 取一个表单"，本插件的条目 id 就是 NS。
+		const inject = ["slots", "configForms", "locale"];
 		function apply(ctx) {
 			ctx.effect(() => {
 				const style = document.createElement("style");
@@ -82,7 +84,9 @@
 				};
 			}, "dsh-gacha-calendar: marquee");
 
-			const scope = ctx.settingsScope.bind({ namespace: NS });
+			// 取本插件的配置表单：读走镜像快照，写由表单自己排队并带修订号。
+			// NS 既是本客户端插件的 locale 命名空间，也是 host 侧 profile 条目 id —— 0.1.7 起两者必须同名。
+			const scope = ctx.configForms.get(NS);
 			// core 引擎：抓取/解析/缓存合并都在 engine 里（面板只读它返回的 Result JSON）。
 			// 存储适配（settings scope）与传输适配（直连 + 宿主代理）见 92-dsh-env.js。
 			const engine = createDshEngine(scope);

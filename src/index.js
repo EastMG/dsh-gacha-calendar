@@ -1,15 +1,17 @@
 // Host-side entry for dsh-gacha-calendar.
-// 1) Registers the settings namespace so the browser half's Settings > 二游排期
-//    section can read/write persisted config through the settings scope.
+// 1) Declares the persisted Config schema the browser half's Settings >
+//    二游排期 section reads and writes. DSH 0.1.7 derives the settings document
+//    from this schema automatically, so there is nothing to register here.
 // 2) Registers a same-origin HTTP proxy route on DSH's webServer so the browser
 //    half can fetch external sources that block cross-origin browser requests
 //    (CORS / Referer anti-scrape) — the host runs Node fetch with full control
 //    over headers, bypassing browser-only restrictions.
-import { installSettingsSection, settingsNamespace } from "@deepseek-ai/dsh-settings";
 import z from "@deepseek-ai/schemastery";
 
-/** Settings namespace persisted through DSH Settings. */
-const GACHA_NAMESPACE = "gacha-calendar";
+// 设置文档的标识已不再是插件自报的 namespace，而是**本插件在 profile 里的条目 id**
+// （`~/.dsh/profiles/<profile>/cordis.patch.yml` 的 `- id: gacha-calendar`）。
+// 旧的 settingsNamespace("gacha-calendar") 随 API 一并删除，两边现在只靠这个 id 对齐；
+// 浏览器半边的同一字面量在 src/client/10-config.js 的 `NS`。
 
 /** Route prefix owned by this plugin on DSH's webServer. */
 const PROXY_PREFIX = "/api/gacha-calendar-proxy";
@@ -227,32 +229,45 @@ async function proxyHandler(req, res) {
 	}
 }
 
-/** Cordis configuration schema for this plugin's persisted settings. */
+/**
+ * Cordis configuration schema for this plugin's persisted settings.
+ *
+ * 每个字段都标 `.volatile()`：DSH 0.1.7 起设置文档**只投影 volatile 字段**
+ * （见 @deepseek-ai/dsh-settings 的 volatileForm/projectForm），未标记的字段
+ * 既不进表单、也不接受表单写入。本插件的持久化状态（含 lastData 缓存、
+ * lastRefresh、排序、自定义条目）全都要经表单读写，所以必须整份标记。
+ * 约束：volatile 字段必须是固定对象路径、外层不能再套 volatile —— 这里全平铺，满足。
+ * 用户可见的设置页由 80-components.js 以 settings.section 自带，配合
+ * settings.configure({ auto: false }) 抑制自动生成页，故不会把 lastData 这类
+ * 运行时状态暴露成输入框。
+ */
 const Config = z.object({
-	autoRefresh: z.boolean().default(true),
-	refreshMinutes: z.number().min(1).max(60480).default(1440),
-	order: z.array(z.string()).default([]),
-	lastRefresh: z.number().default(0),
-	lastSource: z.string().default("builtin"),
-	lastData: z.string().default(""),
+	autoRefresh: z.boolean().default(true).volatile(),
+	refreshMinutes: z.number().min(1).max(60480).default(1440).volatile(),
+	order: z.array(z.string()).default([]).volatile(),
+	lastRefresh: z.number().default(0).volatile(),
+	lastSource: z.string().default("builtin").volatile(),
+	lastData: z.string().default("").volatile(),
 	// 产出上面那份缓存的插件版本（空 = 首次安装 / 装了本功能之前的旧缓存）。
 	// 更新插件后首次启动据此**强制**刷新一次（不看自动刷新开关），判定见 60-helpers.js 的 autoRefreshPlan
-	lastVersion: z.string().default(""),
-	hidden: z.array(z.string()).default([]),
-	removed: z.array(z.string()).default([]),
-	customUrls: z.string().default("{}"),
-	customEventUrls: z.string().default("{}"),
-	customEntries: z.string().default("[]")
+	lastVersion: z.string().default("").volatile(),
+	hidden: z.array(z.string()).default([]).volatile(),
+	removed: z.array(z.string()).default([]).volatile(),
+	customUrls: z.string().default("{}").volatile(),
+	customEventUrls: z.string().default("{}").volatile(),
+	customEntries: z.string().default("[]").volatile()
 });
 
 /** Required services (host side). */
 const inject = ["webServer"];
 
 export function apply(ctx, config = {}) {
-	installSettingsSection(ctx, settingsNamespace(GACHA_NAMESPACE), Config, config, {
-		// hooks 为 dsh-settings 要求的回调位（source 同步 / 配置变更通知），当前版本无需额外处理
-		setSource: () => {},
-		onChange: () => {}
+	// 抑制「按 schema 自动生成」的设置页：本插件自带 settings.section 页面
+	// （80-components.js），自动页会把 lastData 等运行时状态渲染成可编辑输入框。
+	// 这是 DSH 官方 README 给自带页面插件的做法；配置读写不受影响。
+	// 走可选子级注入：未挂载 settings 服务的主机不会因此起不来。
+	ctx.inject(["settings"], (settingsCtx) => {
+		settingsCtx.effect(() => settingsCtx.settings.configure({ auto: false }, ctx.fiber));
 	});
 	ctx.inject(["webServer"], (injected) => {
 		const webServer = injected.get("webServer");
