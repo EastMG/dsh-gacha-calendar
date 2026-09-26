@@ -4,7 +4,7 @@
 		// 用途：缓存里记录"这份数据是哪版插件产出的"。更新插件后首次启动，据此**强制**刷新一次
 		// （不看自动刷新开关）——因为有些改动（悬停格式、来源地址、样式、解析器）不刷新就看不到效果。
 		// 写入时机见 engine-api.js 的 refresh()；判定见 60-helpers.js 的 autoRefreshPlan()。
-		const PLUGIN_VERSION = "0.10.1";
+		const PLUGIN_VERSION = "0.10.2";
 		//#endregion
 
 		//#region config
