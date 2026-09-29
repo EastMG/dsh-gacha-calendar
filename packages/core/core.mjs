@@ -1813,7 +1813,15 @@ export function createEngine(env) {
 				const d = new Date(iso);
 				return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 			};
-			// 1) 当期 d：windows 覆盖当前 → 直接用
+			// **统一规则（§49）**：当前时刻落在持续期间内的卡池**全部合并**外显。
+			// 旧实现是"两个分支各自命中第一个就 return" → 只显示一个池，同期的另一个池看不到
+			// （用户实测：终末地外显没合并）。现在先把两类候选都收集起来再合并。
+			//
+			// ⚠️ 这条路径**不走 `selectCurrent`**（canmoe 的 chunk 是压缩 JS，得单独解析），
+			// 所以 §49 改 `selectCurrent` 时漏了这里 —— 教训：改"通用规则"要**枚举所有外显路径**，
+			// 不能只改名字最像的那个函数。
+			const active = [];
+			// 1) 当期 d：windows 覆盖当前 → 收进来
 			const curM = js.match(/\bd=\{(.+?)\},\s*u=\[/);
 			if (curM) {
 				sawStructure = true;
@@ -1822,10 +1830,12 @@ export function createEngine(env) {
 				const roles = featuredM ? featuredM[1].trim() : "";
 				for (const w of inner.matchAll(/windows\s*:\s*\[\s*\{\s*start\s*:\s*"([^"]+)"\s*,\s*end\s*:\s*"([^"]+)"\s*,\s*version\s*:\s*"([^"]+)"\s*,\s*period\s*:\s*(\d+)\s*,\s*isRerun\s*:\s*(!0|!1|true|false)\s*\}\s*\]/g)) {
 					const a = new Date(w[1]).getTime(), b = new Date(w[2]).getTime();
-					if (a <= now && now <= b) return { banner: `\u3010${w[3]}\u3011${roles}`, roles, bannerDates: `${fmt(w[1])} ~ ${fmt(w[2])}` };
+					if (a <= now && now <= b) {
+						active.push({ banner: `\u3010${w[3]}\u3011${roles}`, roles, startTs: a, endTs: b, dates: `${fmt(w[1])} ~ ${fmt(w[2])}`, raw: `${fmt(w[1])} ~ ${fmt(w[2])}` });
+					}
 				}
 			}
-			// 2) p 数组中的"当前进行中"条目（过期当期后以此为兜底）
+			// 2) p 数组中的"当前进行中"条目（过期当期后以此为兜底）—— 同样**全部收**，不是取第一个
 			const arr = extractCanmoePeriods(js);
 			if (arr) {
 				sawStructure = true;
@@ -1834,14 +1844,27 @@ export function createEngine(env) {
 					const pe = (e.match(/periodEnd\s*:\s*"([^"]*)"/) || [])[1];
 					if (!ps || !pe) continue;
 					const a = new Date(ps).getTime(), b = new Date(pe).getTime();
-					if (a <= now && now <= b) {
-						const title = (e.match(/title\s*:\s*"([^"]*)"/) || [])[1] || "";
-						const subtitle = (e.match(/subtitle\s*:\s*"([^"]*)"/) || [])[1] || "";
-						const version = (e.match(/version\s*:\s*"([^"]*)"/) || [])[1] || "";
-						const roles = subtitle || title;
-						return { banner: title || `\u3010${version}\u3011${subtitle}`, roles, bannerDates: `${fmt(ps)} ~ ${fmt(pe)}`, bannerDatesRaw: `${fmt(ps)} ~ ${fmt(pe)}` };
-					}
+					if (!(a <= now && now <= b)) continue;
+					const title = (e.match(/title\s*:\s*"([^"]*)"/) || [])[1] || "";
+					const subtitle = (e.match(/subtitle\s*:\s*"([^"]*)"/) || [])[1] || "";
+					const version = (e.match(/version\s*:\s*"([^"]*)"/) || [])[1] || "";
+					active.push({
+						banner: title || `\u3010${version}\u3011${subtitle}`,
+						roles: subtitle || title,
+						startTs: a, endTs: b,
+						dates: `${fmt(ps)} ~ ${fmt(pe)}`, raw: `${fmt(ps)} ~ ${fmt(pe)}`
+					});
 				}
+			}
+			if (active.length > 0) {
+				// 外显名与窗口取**结束最早**的那个池（越快结束越该被盯住；与 selectCurrent 的 first 同口径）
+				const first = active.slice().sort((x, y) => x.endTs - y.endTs)[0];
+				return {
+					banner: first.banner,
+					roles: [...new Set(active.map((p) => p.roles).filter(Boolean))].join("、"),
+					bannerDates: first.dates,
+					bannerDatesRaw: first.raw
+				};
 			}
 			// 结构在但没覆盖当前时刻 → null（未公布）；连结构都没有 → undefined（页面改版，交上层决定）
 			return sawStructure ? null : void 0;
