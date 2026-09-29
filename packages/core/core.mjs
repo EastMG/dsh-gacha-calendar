@@ -4,7 +4,7 @@
 		// 用途：缓存里记录"这份数据是哪版插件产出的"。更新插件后首次启动，据此**强制**刷新一次
 		// （不看自动刷新开关）——因为有些改动（悬停格式、来源地址、样式、解析器）不刷新就看不到效果。
 		// 写入时机见 engine-api.js 的 refresh()；判定见 60-helpers.js 的 autoRefreshPlan()。
-		const PLUGIN_VERSION = "0.10.5";
+		const PLUGIN_VERSION = "0.10.6";
 		//#endregion
 
 		//#region config
@@ -1271,6 +1271,13 @@ export function createEngine(env) {
 			})[0] || null;
 		}
 
+		// 永久/常驻活动的计数行。抽成函数是为了**措辞只有一处**，并让守卫能直接断言文案
+		// （曾经的写法是 `常驻/永久活动 N 项（无结束时间，不参与倒计时）`，用户要求改为
+		// `以及常驻活动 N 项`）。
+		function permanentLine(count) {
+			return count > 0 ? `以及常驻活动 ${count} 项` : "";
+		}
+
 		// 活动列悬停（鸣潮式多行）：按传入顺序（调用方已 sortEventItems）每条一行；
 		// 各行窗口完全相同 → 时间只在末尾写一遍；缺起止的行原样显示该行原文；跨年窗口两端带年份（②）。
 		// 兜底：只有 0/1 条时返回 ""，由 UI 退回原有"活动名 + 时间"单条展示 ——
@@ -1283,7 +1290,7 @@ export function createEngine(env) {
 			// 只有 1 条当期活动时，本函数仍返回 ""（由 UI 单条展示）；但若还有永久活动，
 			// 就必须把那一行计数带上，否则永久活动又变成看不见。
 			if (list.length < 2) {
-				return permanentCount > 0 ? `常驻/永久活动 ${permanentCount} 项（无结束时间，不参与倒计时）` : "";
+				return permanentLine(permanentCount);
 			}
 			const allTimed = list.every((x) => x.startTs != null && x.endTs != null);
 			const same = allTimed && new Set(list.map((x) => `${x.startTs}~${x.endTs}`)).size === 1;
@@ -1296,7 +1303,7 @@ export function createEngine(env) {
 				return raw ? `${x.name}   ${raw}` : x.name;
 			});
 			if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs));
-			if (permanentCount > 0) lines.push(`常驻/永久活动 ${permanentCount} 项（无结束时间，不参与倒计时）`);
+			if (permanentCount > 0) lines.push(permanentLine(permanentCount));
 			return lines.join("\n");
 		}
 
