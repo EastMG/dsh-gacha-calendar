@@ -457,9 +457,50 @@
 				.replace(/&ldquo;/g, "「").replace(/&rdquo;/g, "」")
 				.replace(/&hellip;/g, "…").replace(/&times;/g, "×").replace(/&bull;/g, "·")
 				.replace(/\n\s*\n+/g, "\n").trim();
-			// 当期卡池名（第一个"更新限时招募【X】"或复刻）
-			const bannerM = text.match(/更新限时招募【([^】]+)】/);
-			const bannerR = text.match(/更新限时复刻招募【([^】]+)】/);
+			return parseBaCnMaintText(text, nowYear);
+		}
+		// 国服公告里「招募」开头的东西**不是一类**。实测（09月24日维护更新说明）：
+		//   更新限时限定招募【秩序隐匿于粼粼波光中】   ← 限定角色卡池（当期主卡池）
+		//   更新限时限定招募【思绪飘散在漫漫夏夜里】   ← 限定角色卡池（同期第二池）
+		//   更新限时招募活动【100次免费招募】          ← 免费招募**活动**（不是卡池）
+		//   更新限时招募活动【3★必得招募】            ← 必得**活动**
+		//   更新限时招募活动【3★限定成员必得招募】    ← 限定必得**活动**
+		//   更新限时招募活动【3★自选招募】            ← 自选**活动**
+		// 关键区分点在**词序**：`…招募【` 后面紧跟 `】` 的是**卡池名**；
+		//   而 `招募活动【` 是"招募"作定语去修饰"活动"，是**活动**。
+		// 曾经的糟糕修法是"把所有 招募 塞进一条正则按出现顺序取第一条" —— 那等于把
+		// 限定卡池与招募活动混成同一类（用户指出）。这里按类型分级取，并显式排除活动类。
+		const BA_CN_CHAR_POOL_RE = /^更新限时(限定复刻|限定|复刻|)招募$/;
+		// 档位：限定角色池 > 普通角色池 > 限定复刻池 > 复刻池（数值越小越优先）
+		const BA_CN_POOL_RANK = { 限定: 0, "": 1, 限定复刻: 2, 复刻: 3 };
+
+		function baCnPoolInfo(line) {
+			const m = line.match(/更新限时([^【]*)【([^】]+)】/);
+			if (!m) return null;
+			const t = BA_CN_CHAR_POOL_RE.exec(`更新限时${m[1]}`);
+			return { isPool: !!t, kind: t ? t[1] : "", name: m[2] };
+		}
+
+		// 国服维护公告正文 → 卡池/活动数据（纯函数：只吃**已清洗的文本**，不碰网络）。
+		// 抽出来是为了能用合成文本精确回归 —— 这个源的坑全在措辞（见上面类型表），
+		// 而措辞能不能认出来只能靠测解析，靠抓线上只能"等它坏了才发现"。
+		// 无角色卡池时返回 null（调用方据此判"未公布"）。
+		function parseBaCnMaintText(text, nowYear) {
+			// 当期卡池名：在**角色卡池**里按档位取最优（限定 > 普通 > 限定复刻 > 复刻）；
+			// 同档位取正文中最早出现的那条。活动类（招募活动/登录活动/网页活动…）一律不算卡池。
+			//
+			// WHY 不能只认一种写法：措辞漂移过。旧写法 `更新限时招募【X】` 曾一度**一处都没有**
+			//   （实测 0 处），当前正文用的是 `更新限时限定招募【X】`。老代码只认旧写法 →
+			//   banner 为空 → 末尾 `if (!data.banner) return null` 把整条记录判死，
+			//   表现为卡池与活动**两列同时**「无匹配/未公布」（两列共用本函数）。
+			const bannerPools = [];
+			for (const line of text.split("\n")) {
+				const info = baCnPoolInfo(line);
+				if (info && info.isPool) bannerPools.push({ ...info, line });
+			}
+			// 按（档位, 出现顺序）取最优：稳定排序即可，因为 bannerPools 已按文档顺序收集
+			bannerPools.sort((a, b) => (BA_CN_POOL_RANK[a.kind] ?? 9) - (BA_CN_POOL_RANK[b.kind] ?? 9));
+			const bannerPool = bannerPools[0] || null;
 			// 当期活动名（第一个"更新限时活动【X】"）
 			const eventM = text.match(/更新限时活动【([^】]+)】/);
 			// 维护开始时间 "08月20日 14:00"
@@ -476,18 +517,16 @@
 				const eEnd = new Date(nowYear, mo - 1, d + 28, 13, 59);
 				eventDates = `${start} ~ ${fmt(eEnd.getMonth() + 1, eEnd.getDate(), eEnd.getHours(), eEnd.getMinutes())}`;
 			}
-			// 公告里同期全部招募池（更新限时招募 / 更新限时限定复刻招募 / 更新限时复刻招募）：
-			// 池名 + 该行成员名，如
+			// 公告里同期**全部角色卡池**（只含卡池，不含招募活动）：池名 + 该行成员名，如
 			// 2、更新限时招募【夏日思绪长…】，…全新3★成员「桔梗（泳装）」、2★成员「莲华（泳装）」登场
-			const recPools = [];
-			for (const m of text.matchAll(/更新限时(?:限定复刻|复刻|)招募【([^】]+)】([^\n]*)/g)) {
-				const members = [...new Set([...m[2].matchAll(/(?:\d★)?(?:限定)?成员\s*[「“"]([^」”"]+)[」”"]/g)].map((x) => baRoleName(x[1].trim())).filter(Boolean))];
-				recPools.push({ name: m[1], members });
-			}
+			const recPools = bannerPools.map((p) => {
+				const members = [...new Set([...p.line.matchAll(/(?:\d★)?(?:限定)?成员\s*[「“"]([^」”"]+)[」”"]/g)].map((x) => baRoleName(x[1].trim())).filter(Boolean))];
+				return { name: p.name, kind: p.kind, members };
+			});
 			// 外显：合并同期各池成员（与其它游戏"同窗口角色合并"一致；此前只取第一个池的成员，导致外显不全）
 			const roleNames = [...new Set(recPools.flatMap((p) => p.members))];
 			const data = {
-				banner: bannerM ? bannerM[1] : (bannerR ? `复刻·${bannerR[1]}` : ""),
+				banner: bannerPool ? bannerPool.name : "",
 				roles: roleNames.join("、"),
 				bannerDates,
 				event: eventM ? eventM[1] : "",
