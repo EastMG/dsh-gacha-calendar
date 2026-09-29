@@ -43,8 +43,9 @@
     "check": "node build.mjs --check",
     "prepare": "git config core.hooksPath .githooks || true",
     "prepublishOnly": "node build.mjs --check",
-    "publish:core": "node build.mjs && npm publish ./packages/core",
-    "publish:plugin": "node build.mjs && npm publish"
+    "guard:publish": "node tools/require-publish-consent.mjs",
+    "publish:core": "node tools/require-publish-consent.mjs && node build.mjs && npm publish ./packages/core",
+    "publish:plugin": "node tools/require-publish-consent.mjs && node build.mjs && npm publish"
   },
   "license": "MIT",
   "repository": {
