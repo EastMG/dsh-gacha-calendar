@@ -2053,7 +2053,64 @@ export function createEngine(env) {
 			return null;
 		}
 
-		// 解析官网公告正文 → 当期卡池（全新限定S级角色所属限定棋盘）+ 当期活动（限时活动）
+		// 异环公告里的「棋盘」条目解析（角色卡池）。
+		//
+		// 为什么从**「棋盘」**入手（用户建议，2026-09-30）：
+		//   异环的角色卡池在公告里叫「X」**限定棋盘**，条目形如
+		//     ● 全新限定S级角色「黑羽」
+		//     开放时间：9月24日版本更新后-10月15日05:59
+		//     棋盘说明：可通过「预言终幕时」限定棋盘获得S级角色「黑羽」。…
+		//   `棋盘说明` 是**角色卡池独有的锚点** —— 弧盘走 `研募说明`、剧情段没有这个字段。
+		//   用「有棋盘说明」筛，比用"全新限定S级角色"精确：后者漏掉**返场**（`限定S级角色「安魂曲」返场`，
+		//   没有"全新"二字），而那也是一张在开的角色池。
+		//
+		// 旧实现只认 `全新限定S级角色「X」…开放时间：N月N日**维护**更新后-…` 一条正则，
+		// 而现公告写的是 `**版本**更新后` → 一条都匹配不上 → 卡池为空 → `if (!data.banner) return null`
+		// → `fetchNteWanmei` 继续往下试，最终拿 index1 页那篇**已过期**的旧公告冒充当期。
+		function parseNteBoards(text, nowYear) {
+			const lines = text.split("\n").map((l) => l.trim());
+			// 「一、 全新角色&弧盘」这一段的边界（只在这里找，避免匹配到别处的"开放时间"）
+			const start = lines.findIndex((l) => /^一、/.test(l));
+			if (start < 0) return [];
+			let end = lines.findIndex((l, i) => i > start && /^二、/.test(l));
+			if (end < 0) end = lines.length;
+			const pools = [];
+			for (let i = start; i < end; i++) {
+				const m = lines[i].match(/^●\s*(?:全新)?(限定S级角色|S级角色)「([^」]+)」(返场)?/);
+				if (!m) continue;
+				// 往后找该条目的「开放时间」与「棋盘说明」（各限 8 行内）
+				let range = null, board = "";
+				for (let j = i + 1; j < Math.min(end, i + 8); j++) {
+					if (!range) {
+						const t = lines[j].match(/^开放时间：(\d+)月(\d+)日(?:(?:维护|版本)更新后|(\d{1,2}):(\d{2}))\s*[-–—]\s*(\d+)月(\d+)日(\d{1,2}):(\d{2})/);
+						if (t) {
+							range = {
+								sMo: +t[1], sD: +t[2], sH: t[3] ? +t[3] : 11, sMi: t[4] ? +t[4] : 0,
+								eMo: +t[5], eD: +t[6], eH: +t[7], eMi: +t[8]
+							};
+						}
+					}
+					if (!board) {
+						const b = lines[j].match(/棋盘说明：可通过「([^」]+)」限定棋盘获得/);
+						if (b) board = b[1];
+					}
+				}
+				// **有棋盘说明才是角色卡池**（弧盘那条走研募说明，会在这里被排除）
+				if (!range || !board) continue;
+				pools.push({
+					name: board,
+					// 类型：`全新限定S级角色` → 限定棋盘；`限定S级角色…返场` → 返场限定棋盘。
+					// 注意 `限定` 属于**类型的一部分**，不是动词/修饰（与国服"更新限时限定招募"同理）。
+					type: `${m[3] ? "返场" : ""}限定棋盘`,
+					roles: baRoleName(m[2]),
+					startTs: new Date(nowYear, range.sMo - 1, range.sD, range.sH, range.sMi).getTime(),
+					endTs: new Date(nowYear, range.eMo - 1, range.eD, range.eH, range.eMi).getTime()
+				});
+			}
+			return pools;
+		}
+
+		// 解析官网公告正文 → 当期卡池（有「棋盘说明」的角色卡池，按**统一规则**合并）+ 当期活动（限时活动）
 		function parseNteWanmei(html) {
 			const text = String(html || "")
 				.replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -2063,17 +2120,24 @@ export function createEngine(env) {
 				.replace(/\n\s*\n+/g, "\n").trim();
 			const fmt = (mo, d, h, mi) => `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} ${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
 			const data = { banner: "", roles: "", bannerDates: "", bannerDatesRaw: "", event: "", eventDates: "", eventDatesRaw: "" };
-			// 当期卡池：全新限定S级角色「X」→「Y」限定棋盘, 开放时间 M月D日维护更新后-M月D日05:59
-			const newRole = text.match(/全新限定S级角色「([^」]+)」[\s\S]{0,400}?可通过「([^」]+)」限定棋盘获得[\s\S]{0,300}?开放时间：(\d+)月(\d+)日维护更新后-(\d+)月(\d+)日05:59/);
-			if (newRole) {
-				const mo = +newRole[3], d = +newRole[4], emo = +newRole[5], ed = +newRole[6];
-				data.banner = `「${newRole[2]}」限定棋盘`;
-				data.roles = newRole[1];
-				data.bannerDates = `${fmt(mo, d, 11, 0)} ~ ${fmt(emo, ed, 5, 59)}`;
+			// 当期卡池：**按统一规则**——当前时刻落在开放期间内的「棋盘」全部合并外显。
+			// 卡片/悬停都走 banner + roles（与其它游戏一致）：类型进 `banner`，
+			// 悬停由面板兜底显示 `类型：角色` + 日期。**不构造 bannerHover**（同国服，见 §48.3d）。
+			const now = nowMs();
+			const nowYear = new Date(now).getFullYear();
+			const active = parseNteBoards(text, nowYear)
+				.filter((p) => p.endTs >= now && p.startTs <= now)
+				.sort((a, b) => a.endTs - b.endTs);
+			if (active.length > 0) {
+				data.banner = [...new Set(active.map((p) => p.type))].join(" & ");
+				data.roles = [...new Set(active.map((p) => p.roles).filter(Boolean))].join("、");
+				// 窗口取结束最早的那个（与 selectCurrent 的 `first` 同口径）
+				const first = active[0];
+				data.bannerDates = `${fmt(new Date(first.startTs).getMonth() + 1, new Date(first.startTs).getDate(), new Date(first.startTs).getHours(), new Date(first.startTs).getMinutes())} ~ ${fmt(new Date(first.endTs).getMonth() + 1, new Date(first.endTs).getDate(), new Date(first.endTs).getHours(), new Date(first.endTs).getMinutes())}`;
 				data.bannerDatesRaw = data.bannerDates;
 			}
-			// 当期活动：「X」限时活动 活动时间：M月D日(维护更新后|hh:mm)-M月D日hh:mm
-			const ev = text.match(/「([^」]+)」限时活动[\s\S]{0,200}?活动时间：(\d+)月(\d+)日(?:维护更新后|(\d{2}):(\d{2}))-(\d+)月(\d+)日(\d{2}):(\d{2})/);
+			// 当期活动：「X」限时活动 活动时间：M月D日(维护|版本)更新后|hh:mm-M月D日hh:mm
+			const ev = text.match(/「([^」]+)」限时活动[\s\S]{0,200}?活动时间：(\d+)月(\d+)日(?:(?:维护|版本)更新后|(\d{1,2}):(\d{2}))\s*[-–—]\s*(\d+)月(\d+)日(\d{1,2}):(\d{2})/);
 			if (ev) {
 				const sMo = +ev[2], sD = +ev[3], sH = ev[4] ? +ev[4] : 11, sMi = ev[5] ? +ev[5] : 0;
 				const eMo = +ev[6], eD = +ev[7], eH = +ev[8], eMi = +ev[9];
