@@ -49,7 +49,9 @@ dsh plugin --profile desktop add dsh-gacha-calendar
 
 或将仓库复制到 profile 的 `node_modules` 后重启 DSH Desktop。
 
-> 适用于 DSH Desktop（peer 依赖 `@deepseek-ai/*@>=0.1.1-rc.2 <0.2.0-0`）；插件本身零运行时依赖。
+> 适用于 DSH Desktop：`@deepseek-ai/dsh*` 的 peer 范围为
+> `>=0.1.1-rc.2 <0.2.0-0 || >=0.2.0-rc.1 <0.3.0-0`（`cordis ^4.0.1`、`schemastery >=3.18.0 <4`）；
+> 插件本身零运行时依赖。
 
 ## 开发
 
