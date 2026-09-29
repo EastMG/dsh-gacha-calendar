@@ -335,17 +335,36 @@
 
 		// 选当期：优先"起始明确且覆盖 now"的主池；
 		// 其次"起始未知（版本更新后）但结束在未来"的主池（星铁/zzz 上半，此时起始已被 fillMissingStarts 补齐）；
-		// 同期多张主池（如 104期+104-2期）合并角色。返回 null 时调用方回退内置数据。
+		// **当期多个主池的角色全部合并**（见下方合并说明）。返回 null 时调用方回退内置数据。
 		// bannerDates 为补全后用于倒计时的文本；bannerDatesRaw 为源站原文（悬停展示）。
 		function selectCurrent(items, now) {
+			// 先记下**补全前**哪些行的起点是"版本更新后"（startTs 原本为 null）。
+			// 为什么要记：fillMissingStarts 会用"上一组结束时间"去猜这类行的起点，
+			// 而那个猜测**并非总是对的** —— 星铁 4.6 上线时间期有两池：
+			//   「韶艾裁英」4.6版本更新后 ~ 10-21 11:59
+			//   「沧海萃珠」4.6版本更新后 ~ 11-10 15:00
+			// 两者同为"4.6 上线"，只是结束不同；按"上一组结束"补会把后者补成 10-21，
+			// 于是"起点已过"判定失败、它被踢出当期 —— 而它其实覆盖当前时刻
+			// （用户实测：卡片只显示绯英，真珠不见了）。
+			const hadOpenStart = new Set(items.filter((it) => it.startTs == null).map((it) => it));
 			fillMissingStarts(items);
-			const exact = items.filter((it) => it.startTs != null && it.startTs <= now && it.endTs != null && it.endTs >= now);
-			const loose = items.filter((it) => it.startTs == null && it.endTs != null && it.endTs >= now);
-			const pool = (exact.length > 0 ? exact : loose).filter((it) => it.isMain);
+			const inWindow = (it) => it.endTs != null && it.endTs >= now
+				&& (it.startTs == null ? true : it.startTs <= now || hadOpenStart.has(it));
+			// 说明最后一个条件：起点原本为 null（写作"版本更新后"）的行，**一定已经开始**——
+			// 源站表只列**已发布版本**的排期，"X.Y版本更新后"里的 X.Y 必已上线，
+			// 所以它的真实起点在版本更新那天（≤ now），补出来的那个值不可信、不应用来判"未开始"。
+			// 注意这里**不覆盖**补全后的 startTs：显示（bannerDates 等）仍用补出来的窗口，
+			// 悬停也仍显示源站原文"4.6版本更新后 ~ …"，不编造日期。
+			const pool = items.filter(inWindow).filter((it) => it.isMain);
 			if (pool.length === 0) return null;
-			const first = pool[0];
-			const sameRange = pool.filter((it) => it.startTs === first.startTs && it.endTs === first.endTs);
-			const roles = [...new Set(sameRange.map((it) => cleanRoles(it.roles)).filter(Boolean))].join("、");
+			// 外显取哪个池的"名字与时间"：结束最早的（越快结束越该被盯住）。
+			//
+			// ⚠️ 合并条件（用户要求，2026-09-30 改）：
+			//   旧 = 起止**完全相同**才合并 → 星铁同期两池结束不同就只合到自己，
+			//        卡片只显示一个池的角色。
+			//   新 = **当前时刻落在其持续区间内的主池全部合并**（就是这个 `pool`）。
+			const first = pool.slice().sort((a, b) => a.endTs - b.endTs)[0];
+			const roles = [...new Set(pool.map((it) => cleanRoles(it.roles)).filter(Boolean))].join("、");
 			return {
 				banner: first.banner,
 				roles,
