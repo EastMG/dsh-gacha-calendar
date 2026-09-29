@@ -486,8 +486,7 @@
 		// 而措辞能不能认出来只能靠测解析，靠抓线上只能"等它坏了才发现"。
 		// 无角色卡池时返回 null（调用方据此判"未公布"）。
 		function parseBaCnMaintText(text, nowYear) {
-			// 当期卡池名：在**角色卡池**里按档位取最优（限定 > 普通 > 限定复刻 > 复刻）；
-			// 同档位取正文中最早出现的那条。活动类（招募活动/登录活动/网页活动…）一律不算卡池。
+			// 卡池识别分两步：① 挑出**角色卡池**（排除招募活动）；② 按档位选外显那一类。
 			//
 			// WHY 不能只认一种写法：措辞漂移过。旧写法 `更新限时招募【X】` 曾一度**一处都没有**
 			//   （实测 0 处），当前正文用的是 `更新限时限定招募【X】`。老代码只认旧写法 →
@@ -523,21 +522,37 @@
 				const members = [...new Set([...p.line.matchAll(/(?:\d★)?(?:限定)?成员\s*[「“"]([^」”"]+)[」”"]/g)].map((x) => baRoleName(x[1].trim())).filter(Boolean))];
 				return { name: p.name, kind: p.kind, members };
 			});
-			// 外显：合并同期各池成员（与其它游戏"同窗口角色合并"一致；此前只取第一个池的成员，导致外显不全）
-			const roleNames = [...new Set(recPools.flatMap((p) => p.members))];
+			// ---- 外显 = **卡池类型**（对齐国际服「特選招募」的呈现方式），不是某个池名 ----
+			//
+			// WHY 改成显示类型（用户要求，2026-09-30）：国服一期公告常同时开**同类多个池**
+			//   （当期两个「限定招募」），只显示第一个池名会漏掉另一个池；而卡池类型才是
+			//   "这一期在开什么"的稳定答案。国际服走结构化日程表，外显本来就是类别（`特選招募`），
+			//   这里对齐它。
+			// 同类型多池的**角色合并**展示（同国际服 roles 的做法）；悬停只列同类型那些池，
+			// 不把其它档位的池混进来（否则"显示限定招募、悬停却列着复刻池"自相矛盾）。
+			//
+			// 类型只放在 `banner` 里（悬停第一行会显示它，与国际服 `特選招募` 的位置一致）。
+			// **不另外加 `bannerKind` 字段**：面板卡片格的规则是"有角色就显示角色"，
+			// 而 core 的 Result JSON 是冻结契约、字段白名单外的会被丢掉（实测过），
+			// 想让卡片显示类型就得改契约。用户 2026-09-30 选择方案 A（类型只进悬停），
+			// 故这里不留没有消费者的字段。
+			const bannerKind = bannerPool ? bannerPool.kind : null;
+			const sameKindPools = bannerPool ? recPools.filter((p) => p.kind === bannerKind) : [];
+			const roleNames = [...new Set(sameKindPools.flatMap((p) => p.members))];
 			const data = {
-				banner: bannerPool ? bannerPool.name : "",
+				banner: bannerPool ? `更新限时${bannerKind}招募` : "",
 				roles: roleNames.join("、"),
 				bannerDates,
 				event: eventM ? eventM[1] : "",
 				eventDates
 			};
-			// 卡池列悬停：每池"池名：成员"一行；公告只给整期维护窗口 → 各池窗口相同，时间按"相同窗口合并"只在末尾写一遍
+			// 卡池列悬停：每池"池名：成员"一行（只列外显类型下的池）；公告只给整期维护窗口 →
+			// 各池窗口相同，时间按"相同窗口合并"只在末尾写一遍
 			if (maintM) {
 				const mo = Number(maintM[1]), d = Number(maintM[2]);
 				const sTs = new Date(nowYear, mo - 1, d, Number(maintM[3]), Number(maintM[4])).getTime();
 				const eTs = new Date(nowYear, mo - 1, d + 14, 13, 59).getTime();
-				const hover = buildPoolHover(recPools.map((p) => ({
+				const hover = buildPoolHover(sameKindPools.map((p) => ({
 					name: p.name,
 					label: `${p.name}${p.members.length ? `\uFF1A${p.members.join("、")}` : ""}`,
 					startTs: sTs,
