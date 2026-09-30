@@ -3922,9 +3922,21 @@ export function createEngine(env) {
 				let evData = null;
 				let eventFail = null;
 				if (source.eventUrl) {
-					// 活动侧自己的抓取器（与卡池侧各自独立选择，来源可以完全不同）
+					// 活动侧自己的抓取器（与卡池侧各自独立选择，来源可以完全不同）。
+					// 注意：**默认路径就是"活动侧自己抓"** —— 解耦是常态，复用只是优化。
 					const evFetcher = eventFetcherFor(source, eventUrl);
-					if (eventUrl === gachaUrl && g.data && g.data.event) {
+					// ── 同址复用：**命中才触发**的分支 ──────────────────────────────
+					// 只有两个条件**同时**成立才复用，否则一律走下面的独立抓取：
+					//   ① 两侧地址相同（同一次请求本来就能拿到两侧数据）
+					//   ② 卡池那次的载荷**确实带了活动字段**（`event`）
+					// 复用只是"省掉一次本来会重复的请求"，**不是解耦的腿**：
+					// 活动侧的抓取器、失败归因、来源选择都保持独立（见 §53）。
+					//
+					// 2026-10-01 实测（11 内置条目逐条）：复用支命中 5 次
+					//   （wuwa / nte / r1999 / ba-cn / ba-global —— 它们的卡池载荷本身就含活动字段），
+					// 其余 6 条目（zzz / genshin / hsr / arknights / ba-jp / endfield）走独立抓取。
+					const reuseSameUrl = eventUrl === gachaUrl && !!(g.data && g.data.event);
+					if (reuseSameUrl) {
 						// 同 URL：活动字段就在卡池载荷里，不重复抓
 						evData = {
 							event: g.data.event,
@@ -3933,12 +3945,20 @@ export function createEngine(env) {
 							eventHover: g.data.eventHover || ""
 						};
 					} else if (eventUrl === gachaUrl && !evFetcher) {
-						// 同 URL 且活动侧**没有自己的抓取器**（该条目就只有这一份载荷可用）：
-						//  · 卡池那次已抓成功但载荷里没有活动字段 → 该侧就是"未公布"；
-						//  · 卡池那次本身失败 → 沿用它的失败原因（同一次请求的结果，不该另起一个"无可用来源"）。
-						// 只在这一种情况下短路：若活动侧有自己的抓取器（如绝区零/异环），照旧独立抓取，解耦不变。
+						// ── 同址但活动侧**没有自己的抓取器**（该条目就只有这一份载荷可用）──
+						// ⚠️ **这一支不是死代码，别删**：**自定义条目**可以没有注册抓取器 ——
+						//   `getAllEntries` 里 customEntries 带 `custom:true` + 用户填的 url/eventUrl，
+						//   而 GACHA_FETCHERS / EVENT_FETCHERS 里没有它们的 id → `eventFetcherFor` 返回 null。
+						// 语义：
+						//  · 卡池那次成功但载荷没有活动字段 → 该侧就是"未公布"（nomatch），
+						//    且**不发**那次注定被 CORS 拦的直连；
+						//  · 卡池那次本身失败 → 沿用**同一次请求**的失败原因（如 HTTP 567），
+						//    而不是笼统报"无可用来源"。
+						// 教训：我一度只按"内置 11 条目命中 0 次"就判它死代码 —— **错的**，
+						// 把"当前没命中"当成了"不可达"。`_batch1` A3 用合成条目（sim-nte）刻意覆盖这两条语义。
 						eventFail = g.data ? { kind: "nomatch" } : (g.fail || { kind: "nomatch" });
 					} else {
+						// 活动侧独立抓取（含"地址不同"与"同址但载荷无活动字段"两种情形）
 						const ev = await resolveSide("event", {
 							fetcher: evFetcher,
 							url: eventUrl,
