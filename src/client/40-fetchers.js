@@ -1024,9 +1024,13 @@
 					d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "" } : null
 				)
 			},
-			// 鸣潮：活动日历页（独立 eventUrl 源）→ 外显当期 + 悬停列出全部并行活动
+			// 鸣潮：**默认=同一份官方公告**（`recommend` 组里 tag=5 为限时活动），与卡池同址
+			// → 一次请求复用两侧数据（refresh 的同址复用优化）。
+			// ⚠️ 2026-10-01 改：Bwiki 活动日历**已停更**（最新一条结束于 2026/9/29），
+			// 所以把官方提为默认、Bwiki 降级为备选（`wuwa-event-bwiki`），仍可在设置里手动切回。
 			wuwa: {
-				default: mkMediaWiki((html) => {
+				default: (url, signal) => fetchWuwaEventsOfficial(url, signal),
+				"wuwa-event-bwiki": mkMediaWiki((html) => {
 					const d = parseWuwaCalendar(html);
 					return d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "", eventHover: d.eventHover || "" } : null;
 				})

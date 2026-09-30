@@ -554,8 +554,13 @@
 			return null;
 		}
 
-		// 鸣潮官方公告解析：从全量公告（game/activity/recommend）中取"覆盖当前时刻"的「角色活动唤取」
-		// 公告形如：tabTitle="[身赴三途]角色活动唤取"，content 内含"✦活动时间✦ 2026年9月10日10:00 ~ 2026年9月29日11:59"
+		// 鸣潮官方公告解析：从全量公告（game/activity/recommend）中取"覆盖当前时刻"的「角色活动唤取」。
+		//
+		// ⚠️ 时间**必须用 JSON 里的绝对时间戳** `startTimeMs` / `endTimeMs`，不要再去解析正文。
+		// 正文写的是 `✦活动时间✦ 3.7版本更新后 ~ 2026年10月22日09:59（服务器时间）` ——
+		// 起始端是**版本标签**而非绝对日期，旧实现用 `(\d{4})年(\d{1,2})月…` 匹配整段 → 恒失败 →
+		// 卡池侧返回 null（2026-10-01 实测：官方 JSON 已带 3 个在开角色池，却显示"未公布"）。
+		// 现在源站直接给了时间戳，比解析正文更准，也不受措辞漂移影响。
 		function parseWuwaNotice(list, now = nowMs()) {
 			const groups = [list?.game, list?.activity, list?.recommend].filter(Array.isArray);
 			const stripH = (s) => String(s || "")
@@ -566,41 +571,88 @@
 			const pools = [];
 			for (const arr of groups) {
 				for (const it of arr) {
-					const title = stripH(it.tabTitle || it.title || "");
-					if (!/活动唤取/.test(title)) continue;
-					const text = stripH(it.content || "");
-					const m = text.match(/(\d{4})年(\d{1,2})月(\d{1,2})日\s*(\d{1,2}):(\d{2})\s*[~～-]\s*(?:(\d{4})年)?(\d{1,2})月(\d{1,2})日\s*(\d{1,2}):(\d{2})/);
-					if (!m) continue;
-					const sTs = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime();
-					const eTs = new Date(+(m[6] || m[1]), +m[7] - 1, +m[8], +m[9], +m[10]).getTime();
+					// 标题可能是 "[但愿长圆如此夜]\n角色活动唤取" / "「玉阙玄华」武器活动唤取"
+					const title = stripH(it.tabTitle || it.title || "").replace(/\s+/g, " ").trim();
+					const isChar = /角色活动唤取/.test(title);
+					const isWeapon = /武器活动唤取/.test(title);
+					if (!isChar && !isWeapon) continue;
+					const sTs = Number(it.startTimeMs), eTs = Number(it.endTimeMs);
+					if (!Number.isFinite(sTs) || !Number.isFinite(eTs)) continue;
 					if (sTs > now || eTs < now) continue; // 只要当期覆盖
 					const name = title
 						.replace(/\s*(?:角色|武器)活动唤取\s*$/, "")
 						.replace(/^[\[【「]\s*/, "")
 						.replace(/\s*[\]】」]$/, "")
 						.trim();
-					const upPart = text.split(/✦\s*活动时间/)[0] || "";
-					const ups = [...upPart.matchAll(/[「【]([^」】]+)[」】]/g)].map((x) => x[1].trim()).filter(Boolean);
-					pools.push({ name, isChar: /角色活动唤取/.test(title), roles: ups.join("、"), startTs: sTs, endTs: eTs });
+					if (!name) continue;
+					// 类型名（外显用）：标题尾部那一段，如 `角色活动唤取` / `武器活动唤取`
+					const type = isChar ? "角色活动唤取" : "武器活动唤取";
+					// 角色名：正文开头那句「活动期间，5星角色「心」，4星角色「卜灵」、「桃祈」、「釉瑚」唤取概率限时提升！」
+					// 用 [^。！？\n]+ 限在一句内，避免把后面「唤取说明」里的角色也带进来
+					const text = stripH(it.content || "");
+					const upM = text.match(/活动期间，([^。！？\n]+?)唤取概率限时提升/);
+					const roles = upM
+						? [...new Set([...upM[1].matchAll(/[「【]([^」】]+)[」】]/g)].map((x) => x[1].trim()).filter(Boolean))].join("、")
+						: "";
+					pools.push({ name, type, isChar, roles, startTs: sTs, endTs: eTs });
 				}
 			}
 			const cur = pools.filter((p) => p.isChar && p.name);
 			if (cur.length === 0) return null;
-			const first = cur[0];
-			const roles = [...new Set(cur.flatMap((p) => p.roles.split("、")).filter(Boolean))].join("、");
+			// 外显与窗口取**结束最早**的那个池（与 selectCurrent 的 first 同口径）。
+			const first = cur.slice().sort((a, b) => a.endTs - b.endTs)[0];
+			// 角色：**先拆成单个名字再去重**，然后合并。
+			// ⚠️ 别写成 `new Set(cur.map(p => p.roles))` —— 那样比较的是"整串"（各池的 4★ 名单相同
+			// 但 5★ 不同 → 整串不同 → 重复留下）。拆开才能把三池共有的 4★ 去成一份。
+			// 顺序 = 各池依次展开（5★ 在前、4★ 共有名在后），去重后即 `心、千咲、尤诺、卜灵、桃祈、釉瑚`。
+			const roles = [...new Set(cur.flatMap((p) => p.roles.split("、").map((s) => s.trim()).filter(Boolean)))].join("、");
 			const fmt = (ts) => {
 				const d = new Date(ts);
 				return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 			};
 			const raw = fmtWindow(first.startTs, first.endTs);
-			// 悬停：每池"池名：角色"一行 + 时间一行；各池窗口相同则时间只在末尾写一遍；按结束时间升序
-			const bannerHover = buildPoolHover(cur.map((p) => ({
+			// 悬停：首行=卡池类型（与卡片外显同源），随后每池"池名：角色"一行；窗口相同则时间只在末尾写一遍；
+			// 按结束时间升序。**类型行只在本源补**，不动全站共用的 buildPoolHover（它按约定对 0/1 池返回 ""）。
+			const poolHover = buildPoolHover(cur.map((p) => ({
 				name: p.name,
 				label: `${p.name}\uFF1A${p.roles || "-"}`,
 				startTs: p.startTs,
 				endTs: p.endTs
 			})));
-			return { banner: first.name, roles, bannerDates: raw, bannerDatesRaw: raw, startTs: first.startTs, endTs: first.endTs, bannerHover };
+			const bannerHover = poolHover ? `${first.type}\n${poolHover}` : "";
+			// **外显用卡池类型**（`角色活动唤取`），不用某一个池名：
+			// 角色是多池合并的，若外显挂"但愿长圆如此夜"，卡片就成了"标题只说一个池、角色却是三个池的合成"。
+			// 与用户 2026-09-30 定的统一口径一致（国服显示 `限时限定招募`、异环显示 `限定棋盘`）。
+			// 具体池名在悬停里逐条列出，不丢信息。
+			return { banner: first.type, roles, bannerDates: raw, bannerDatesRaw: raw, startTs: first.startTs, endTs: first.endTs, bannerHover };
+		}
+
+		// 鸣潮官方活动解析：同一份全量公告的 `recommend` 组里，`tag === 7` 是卡池、**`tag === 5` 是限时活动**。
+		// 活动条目形如 tabTitle="[团团勇者大乱斗]休闲活动"，同样带绝对时间戳。
+		// 这是 2026-10-01 起鸣潮活动的**默认源**——Bwiki 活动日历页已停更（最新一条结束于 2026/9/29），
+		// 而官方源有当期 3.7 的活动，且与卡池同源、同一次请求即可拿到两侧数据。
+		function parseWuwaRecommendEvents(list, now = nowMs()) {
+			const arr = Array.isArray(list?.recommend) ? list.recommend : [];
+			const stripH = (s) => String(s || "")
+				.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " ")
+				.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
+				.replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
+			const events = [];
+			for (const it of arr) {
+				if (Number(it.tag) !== 5) continue; // 7=卡池；5=限时活动
+				const name = stripH(it.tabTitle || "").replace(/\s+/g, " ").trim();
+				if (!name) continue;
+				const sTs = Number(it.startTimeMs), eTs = Number(it.endTimeMs);
+				if (!Number.isFinite(sTs) || !Number.isFinite(eTs)) continue;
+				if (sTs > now || eTs < now) continue;
+				events.push({ name, cat: "", startTs: sTs, endTs: eTs });
+			}
+			if (events.length === 0) return null;
+			const sorted = sortEventItems(events);
+			if (sorted.length === 0) return null;
+			const primary = pickEventPrimary(sorted) || sorted[0];
+			const dates = fmtWindow(primary.startTs, primary.endTs);
+			return { banner: primary.name, bannerDates: dates, bannerDatesRaw: dates, eventHover: buildEventHover(sorted) };
 		}
 
 		// 鸣潮卡池默认抓取器：官方公告（entrypoint → 目录 → zh-Hans.json 全量）优先；
@@ -624,6 +676,25 @@
 			const html = json?.parse?.text;
 			if (typeof html !== "string") throw new Error("bad-json");
 			return parseWuwaPool(html);
+		}
+
+		// 鸣潮活动默认抓取器：抓同一份官方公告，取 `recommend` 组里 tag=5 的限时活动。
+		// 与卡池侧同一 URL（entrypoint.json），所以 refresh 的同址复用会让两侧共用一次请求。
+		async function fetchWuwaEventsOfficial(entryUrl) {
+			const ref = "https://aki-gm-resources.aki-game.com/";
+			const ej = await proxyFetchJson(entryUrl, ref);
+			const contentUrl = Array.isArray(ej?.contentUrl) ? ej.contentUrl[0] : "";
+			const dir = contentUrl ? contentUrl.replace(/[^/]*$/, "") : String(entryUrl).replace(/[^/]*$/, "");
+			const list = await proxyFetchJson(dir + "zh-Hans.json", ref);
+			if (!list || typeof list !== "object") throw new Error("wuwa-event-bad-json");
+			const d = parseWuwaRecommendEvents(list, nowMs());
+			if (!d) return null;
+			return {
+				event: d.banner,
+				eventDates: d.bannerDates || "",
+				eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "",
+				eventHover: d.eventHover || ""
+			};
 		}
 
 		// 绝区零官网公告解析：从公告频道（iChanId=279）取「X.Y版本限时频段（上/下期）」，选覆盖当前时刻的一期。

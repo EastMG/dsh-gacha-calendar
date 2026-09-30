@@ -11,6 +11,10 @@
 		// 其中 recommend 组含逐期「角色/武器活动唤取」公告，正文带 ✦活动时间✦ 起止
 		const WUWA_NOTICE_ENTRY = "https://aki-gm-resources-back.aki-game.com/gamenotice/G152/76402e5b20be2c39f095a152090afddc/entrypoint.json";
 		const WUWA_BWIKI_URL = "https://wiki.biligame.com/wutheringwaves/api.php?action=parse&page=%E9%A6%96%E9%A1%B5%2F%E8%A7%92%E8%89%B2%E8%BD%AE%E6%8D%A2%E6%B1%A0&prop=text&format=json&formatversion=2";
+		// 鸣潮 Bwiki 活动日历页（已从**默认活动源降级为备选**，2026-10-01）：
+		// 该页仍可解析（parseWuwaCalendar 能抽到 11 条），但**已停更**——最新一条结束于 2026/9/29，
+		// 没有当期 3.7 的活动，所以不改解析器，只把它挪到备选。
+		const WUWA_EVENT_BWIKI_URL = "https://wiki.biligame.com/wutheringwaves/api.php?action=parse&page=%E9%A6%96%E9%A1%B5%2F%E6%B4%BB%E5%8A%A8%E6%97%A5%E5%8E%86&prop=text&format=json&formatversion=2";
 		// 绝区零官网公告（api-takumi-static content_v2_user，经 host 代理；无 CORS、无需登录）：
 		// iChanId=279（公告频道）返回逐条公告正文（sIntro/sContent），其中「X.Y版本限时频段（上/下期）」
 		// 含该期精确起止 + 限定 S 级代理人/音擎；起点写「版本更新后」时取同版本「更新公告」的 dtStartTime。
@@ -78,19 +82,27 @@
 			},
 			{
 				id: "wuwa",
-				parserVersion: 1,
+				parserVersion: 2,
 				name: "鸣潮",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/2/29/WutheringWavesIcon.png!/fw/64",
 				source: "官方公告",
-				// 默认卡池源=官方公告（aki-gm-resources-back，经 host 代理）：逐期「角色/武器活动唤取」公告含起止时间；
+				// 默认卡池源=官方公告（aki-gm-resources-back，经 host 代理）：
+				// entrypoint.json → <dir>/zh-Hans.json，其 `recommend` 组里 tag=7 为逐期「角色/武器活动唤取」，
+				// 条目自带 `startTimeMs`/`endTimeMs` 绝对时间戳（不再解析正文，见 parseWuwaNotice）。
 				// 无当期公告或抓取失败时由抓取器自动回退 Bwiki 角色轮换池；也可在设置中手动切 Bwiki（备选）
 				url: WUWA_NOTICE_ENTRY,
 				altSources: [
 					{ label: "Bwiki 角色轮换池", url: WUWA_BWIKI_URL, fetcher: "wuwa-bwiki" }
 				],
-				// 独立活动源：鸣潮活动日历页（与卡池源不同）
-				eventUrl: "https://wiki.biligame.com/wutheringwaves/api.php?action=parse&page=%E9%A6%96%E9%A1%B5%2F%E6%B4%BB%E5%8A%A8%E6%97%A5%E5%8E%86&prop=text&format=json&formatversion=2",
-				eventSource: "Bwiki 活动日历"
+				// 活动源：**默认=同一份官方公告**（`recommend` 组里 tag=5 为限时活动，见 parseWuwaRecommendEvents），
+				// 与卡池同址 → 一次请求复用两侧数据。
+				// ⚠️ 2026-10-01 改：Bwiki 活动日历页**已停更**（最新一条结束于 2026/9/29，无 3.7 内容），
+				// 所以把它从默认**降级为备选**（eventAltSources），仍可在设置里手动切回。
+				eventUrl: WUWA_NOTICE_ENTRY,
+				eventSource: "官方公告",
+				eventAltSources: [
+					{ label: "Bwiki 活动日历", url: WUWA_EVENT_BWIKI_URL, fetcher: "wuwa-event-bwiki" }
+				]
 			},
 			{
 				id: "arknights",
