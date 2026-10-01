@@ -72,7 +72,7 @@
 
 		// 蔚蓝档案·国际服：nexon 官方「更新日誌」board(3352) → 当期卡池 + 当期活动
 		// 一次请求拿到更新日誌正文，从日程表同时提取 特選招募（卡池）与 活動劇情/總力戰（活动）
-		async function fetchBaGlobal(logListUrl, signal, now = nowMs()) {
+		async function fetchBaGlobal(logListUrl, signal, tz, now = nowMs()) {
 			const ref = "https://forum.nexon.com/bluearchiveTW/";
 			const list = await proxyFetchJson(logListUrl, ref);
 			const threads = Array.isArray(list?.threads) ? list.threads : [];
@@ -207,7 +207,7 @@
 		//   ▼実施期間 2026年9月9日(水) メンテナンス後 ~ 2026年9月23日(水・祝) 10:59
 		// 时间按 JST(+09:00) 解析（展示时转本地）；起点写「メンテナンス後」时取同期维护公告
 		// 「▼実施時間 … ～ … 17:00前後」的结束时刻。活动取同期「イベント」条目的開催期間。
-		function parseBaJpNews(json, now = nowMs()) {
+		function parseBaJpNews(json, now = nowMs(), tz) {
 			const rows = Array.isArray(json?.data?.rows) ? json.data.rows : [];
 			const clean = (s) => String(s || "")
 				.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " ")
@@ -253,7 +253,7 @@
 			// 展示用的档期必须取"被选中的那个池"自己的窗口（cur[0]）—— 旧实现固定取 windows[0]，
 			// 一旦当期命中的不是第一个池，就会显示"B 池名字 + A 池时间"，倒计时按错档期跑。
 			const win0 = cur[0];
-			const dates = win0.startTs != null && win0.endTs != null ? fmtWindow(win0.startTs, win0.endTs) : (win0.raw || "");
+			const dates = win0.startTs != null && win0.endTs != null ? fmtWindow(win0.startTs, win0.endTs, tz) : (win0.raw || "");
 			const data = {
 				banner: cur[0].name,
 				roles: [...new Set(cur.map((p) => p.student))].join("、"),
@@ -293,10 +293,10 @@
 
 		// 日服卡池默认抓取器：官网新闻接口优先；失败或无当期募集 → 回退 GameKee 当期卡池（仅池名+档期）。
 		// 只返回卡池字段：活动字段由活动源单独负责（卡池/活动解耦，避免活动源失败时静默混入官方活动）
-		async function fetchBaJpGacha(url, signal, now = nowMs()) {
+		async function fetchBaJpGacha(url, signal, tz, now = nowMs()) {
 			try {
 				const json = await proxyFetchJson(url, "https://bluearchive.jp/");
-				const d = parseBaJpNews(json, now);
+				const d = parseBaJpNews(json, now, tz);
 				if (d) {
 					delete d.event;
 					delete d.eventDates;
@@ -308,9 +308,9 @@
 		}
 
 		// 日服活动备选抓取器：同一个官方接口的「イベント」条目（只取 event 字段）
-		async function fetchBaJpOfficialEvent(url, signal, now = nowMs()) {
+		async function fetchBaJpOfficialEvent(url, signal, tz, now = nowMs()) {
 			const json = await proxyFetchJson(url, "https://bluearchive.jp/");
-			const d = parseBaJpNews(json, now);
+			const d = parseBaJpNews(json, now, tz);
 			if (!d || !d.event) return null;
 			return { event: d.event, eventDates: d.eventDates || "", eventDatesRaw: d.eventDatesRaw || d.eventDates || "" };
 		}
@@ -411,7 +411,7 @@
 
 		// 蔚蓝国服（官网 bluearchive-cn.com）：news/list → 最新维护更新说明 → 当期卡池/活动名 + 维护起止
 		// 时间：维护日 14:00 ~ 下次维护前（约 +14 天，取维护日开始、预加载下一期预告前）
-		async function fetchBaCn(listUrl, now = nowMs()) {
+		async function fetchBaCn(listUrl, _signal, tz, now = nowMs()) {
 			const H = { "game-alias": "ba" };
 			const ref = "https://bluearchive-cn.com/";
 			const nowYear = new Date(now).getFullYear();
@@ -457,7 +457,7 @@
 				.replace(/&ldquo;/g, "「").replace(/&rdquo;/g, "」")
 				.replace(/&hellip;/g, "…").replace(/&times;/g, "×").replace(/&bull;/g, "·")
 				.replace(/\n\s*\n+/g, "\n").trim();
-			return parseBaCnMaintText(text, nowYear);
+			return parseBaCnMaintText(text, nowYear, tz);
 		}
 		// 国服公告里「招募」开头的东西**不是一类**。实测（09月24日维护更新说明）：
 		//   更新限时限定招募【秩序隐匿于粼粼波光中】   ← 限定角色卡池（当期主卡池）
@@ -485,7 +485,7 @@
 		// 抽出来是为了能用合成文本精确回归 —— 这个源的坑全在措辞（见上面类型表），
 		// 而措辞能不能认出来只能靠测解析，靠抓线上只能"等它坏了才发现"。
 		// 无角色卡池时返回 null（调用方据此判"未公布"）。
-		function parseBaCnMaintText(text, nowYear) {
+		function parseBaCnMaintText(text, nowYear, tz) {
 			// 卡池识别分两步：① 挑出**角色卡池**（排除招募活动）；② 按档位选外显那一类。
 			//
 			// WHY 不能只认一种写法：措辞漂移过。旧写法 `更新限时招募【X】` 曾一度**一处都没有**
@@ -833,20 +833,20 @@
 
 		// 重返未来：1999 入口：默认源＝官方游戏内公告（逐期征集时间）；
 		// 来源被切到官网公告（备选源）或自定义地址时直接走官网解析（旧行为）。
-		async function fetchR99(url, signal, now = nowMs()) {
+		async function fetchR99(url, signal, tz, now = nowMs()) {
 			if (!/noticecp/.test(String(url || ""))) return fetchR99Official(url, signal, now);
 			try {
 				return await fetchR99Notice(now);
 			} catch {
 				// 游戏内公告接口不可用/结构变了 → 回退官网公告（宁可少时间信息，也不要整格报错）
-				return fetchR99Official(R1999_OFFICIAL_URL, signal, now);
+				return fetchR99Official(R1999_OFFICIAL_URL, signal, tz, now);
 			}
 		}
 
 		// 重返未来：1999（官网 re.bluepoch.com 新闻 API，POST 经 host 代理）
 		// 列表接口（informationType=2 资讯）按上线时间倒序返回含全文的公告，
 		// 取最新一期「版本更新维护公告」：当期卡池（首位6星角色名，官网无征集名）/ 当期活动 / 维护起止 + 下一期维护日
-		async function fetchR99Official(listUrl, signal, now = nowMs()) {
+		async function fetchR99Official(listUrl, signal, tz, now = nowMs()) {
 			const ref = "https://re.bluepoch.com/";
 			const list = await proxyFetchJson(listUrl, ref, {}, { current: 1, pageSize: 30, informationType: 2 });
 			const items = list?.data?.pageData || [];
@@ -966,34 +966,38 @@
 		const GACHA_FETCHERS = {
 			genshin: mkMediaWiki(bwikiGachaPayload),
 			hsr: mkMediaWiki(bwikiGachaPayload),
-			zzz: (url, signal) => fetchZzzGacha(url, signal),
+			zzz: (url, signal, tz) => fetchZzzGacha(url, signal, tz),
 			"zzz-bwiki": mkMediaWiki(pickCurrent(parseAllBwiki)),
-			arknights: (url, signal) => fetchArknightsGacha(url, signal),
-			"arknights-prts": mkMediaWiki(selectArknights),
-			wuwa: (url, signal) => fetchWuwaGacha(url, signal),
-			"wuwa-bwiki": mkMediaWiki(parseWuwaPool),
+			arknights: (url, signal, tz) => fetchArknightsGacha(url, signal, tz),
+			// ⚠️ `selectArknights` / `parseWuwaPool` 的**第二参是 `now`**（不是 tz），
+			// 而 mkMediaWiki 只会传 `(text, tz)` —— 直接包进去会让 `now` 收到时区值，
+			// `startTs <= now` 恒为 false → 解析结果恒为 null（静默"未公布"，极难查）。
+			// 所以这两个注册点必须**显式传 nowMs()**。
+			"arknights-prts": (url, signal, tz) => mkMediaWiki((text) => selectArknights(text, nowMs(), tz))(url, signal, tz),
+			wuwa: (url, signal, tz) => fetchWuwaGacha(url, signal, tz),
+			"wuwa-bwiki": (url, signal, tz) => mkMediaWiki((text) => parseWuwaPool(text, nowMs(), tz))(url, signal, tz),
 			// 终末地默认：Canmoe（中文，Next.js 数据经 host 代理两步抓取）
-			endfield: (url, signal) => fetchCanmoeEndfield(url),
+			endfield: (url, signal, tz) => fetchCanmoeEndfield(url, signal, tz),
 			// 终末地备选：GachaTracker（英文，浏览器直连）/ wiki.gg（英文，经 host 代理）
 			"endfield-gachatracker": mkRaw(parseGachaTracker),
-			"endfield-wiki-gg": (url, signal) => fetchEndfieldWikiGg(url),
+			"endfield-wiki-gg": (url, signal, tz) => fetchEndfieldWikiGg(url, signal, tz),
 			// 异环：ldshop（繁体，静态表格经 host 代理）
-			nte: (url, signal) => fetchNteWanmei(url, signal),
-			"nte-ldshop": (url, signal) => fetchLdshopNte(url),
-			"ba-cn": (url, signal) => fetchBaCn(url),
-			"ba-global": (url, signal) => fetchBaGlobal(url, signal),
+			nte: (url, signal, tz) => fetchNteWanmei(url, signal, tz),
+			"nte-ldshop": (url, signal, tz) => fetchLdshopNte(url, signal, tz),
+			"ba-cn": (url, signal, tz) => fetchBaCn(url, signal, tz),
+			"ba-global": (url, signal, tz) => fetchBaGlobal(url, signal, tz),
 			"ba-global-gamekee": () => fetchGameKeeBa("global"),
-			"ba-jp": (url, signal) => fetchBaJpGacha(url, signal),
+			"ba-jp": (url, signal, tz) => fetchBaJpGacha(url, signal, tz),
 			"ba-jp-gamekee": () => fetchGameKeeBa("jp"),
-			"r1999": (url, signal) => fetchR99(url, signal),
+			"r1999": (url, signal, tz) => fetchR99(url, signal, tz),
 			// 重返未来1999 备选：官网公告（只有维护时间与活动名，无逐期征集时间）
-			"r1999-official": (url, signal) => fetchR99Official(url, signal)
+			"r1999-official": (url, signal, tz) => fetchR99Official(url, signal, tz)
 		};
 		// 活动源注册表：条目 → { 默认 + 备选抓取器 }。没有独立活动源的条目活动来源显示"未配置"。
 		const EVENT_FETCHERS = {
 			// 原神：活动一览为 JS 动态加载（Dquery+SMW），走 SMW ask 查询（fetchYsActivity 忽略 URL 参数）
 			genshin: {
-				default: (url, signal) => fetchYsActivity(signal)
+				default: (url, signal, tz) => fetchYsActivity(signal, tz)
 			},
 			// 星铁：活动一览（静态「活动时间」表，api.php 可直连）→ 外显当期 + 悬停列出全部并行活动
 			hsr: {
@@ -1002,14 +1006,14 @@
 			// 绝区零：默认=官方公告（api-takumi-static，与卡池侧同一接口；活动时间写在公告正文里，
 			// 含"X.Y版本更新后/版本结束"的换算；结束时间未知的活动保留并沉底）→ 备选=Bwiki 活动一览
 			zzz: {
-				default: (url, signal) => fetchZzzEventsOfficial(url, signal),
+				default: (url, signal, tz) => fetchZzzEventsOfficial(url, signal, tz),
 				"zzz-event-bwiki": mkMediaWiki(genericEventPayload)
 			},
 			// 异环：活动源就是同一篇官网公告（与卡池侧**同一条 URL**，fetchNteWanmei 一个函数同时解析两者）。
 			// 注册成独立活动源的意义：卡池侧本轮抓挂、或用户把**卡池**来源改成自定义/备选时，
 			// 活动侧仍能自己抓、自己报错，而不是整列空掉（复用只是"同一 URL 省一次请求"的优化，不是它的腿）。
 			nte: {
-				default: (url, signal) => fetchNteWanmei(url, signal)
+				default: (url, signal, tz) => fetchNteWanmei(url, signal, tz)
 			},
 			// 明日方舟：PRTS 活动一览（「活动开始时间」表 + data-time 起止时间戳）→ 同上
 			arknights: {
@@ -1017,10 +1021,10 @@
 			},
 			// 终末地：FZ Wiki（中文，经 host 代理、抓 RSC 数据；外显当期=结束最晚，悬停列出全部并行）
 			endfield: {
-				default: (url, signal) => fetchFzWikiEndfield(url).then((d) =>
+				default: (url, signal, tz) => fetchFzWikiEndfield(url, signal, tz).then((d) =>
 					d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "", eventHover: d.eventHover || "" } : null
 				),
-				"endfield-game8": (url, signal) => fetchGame8Endfield(url).then((d) =>
+				"endfield-game8": (url, signal, tz) => fetchGame8Endfield(url, signal, tz).then((d) =>
 					d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "" } : null
 				)
 			},
@@ -1029,32 +1033,32 @@
 			// ⚠️ 2026-10-01 改：Bwiki 活动日历**已停更**（最新一条结束于 2026/9/29），
 			// 所以把官方提为默认、Bwiki 降级为备选（`wuwa-event-bwiki`），仍可在设置里手动切回。
 			wuwa: {
-				default: (url, signal) => fetchWuwaEventsOfficial(url, signal),
+				default: (url, signal, tz) => fetchWuwaEventsOfficial(url, signal, tz),
 				"wuwa-event-bwiki": mkMediaWiki((html) => {
-					const d = parseWuwaCalendar(html);
+					const d = parseWuwaCalendar(html, tz);
 					return d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "", eventHover: d.eventHover || "" } : null;
 				})
 			},
 			// 蔚蓝国服：默认与卡池同 URL（维护公告含活动名），也可独立配置其他来源
 			"ba-cn": {
-				default: (url, signal) => fetchBaCn(url)
+				default: (url, signal, tz) => fetchBaCn(url, signal, tz)
 			},
 			// 蔚蓝国际服：默认与卡池同 URL（更新日誌含活动排期）；备选 GameKee
 			"ba-global": {
-				default: (url, signal) => fetchBaGlobal(url, signal),
+				default: (url, signal, tz) => fetchBaGlobal(url, signal, tz),
 				"ba-global-gamekee": () => fetchGameKeeBa("global")
 			},
 			// 蔚蓝日服：活动源与卡池源独立——默认 GameKee 当期活动条目（原行为不变）；
 			// 备选 = 日服官方公告里的イベント条目（抓取器复用官方解析，仅取 event/eventDates）
 			"ba-jp": {
 				default: () => fetchGameKeeBa("jp"),
-				"ba-jp-official": (url, signal) => fetchBaJpOfficialEvent(url, signal)
+				"ba-jp-official": (url, signal, tz) => fetchBaJpOfficialEvent(url, signal, tz)
 			},
 			// 重返未来：默认与卡池同 URL（同一篇「版本活动一览」同时含征集与活动）；
 			// 备选＝官网公告（只有维护时间与活动名）
 			"r1999": {
-				default: (url, signal) => fetchR99(url, signal),
-				"r1999-official": (url, signal) => fetchR99Official(url, signal)
+				default: (url, signal, tz) => fetchR99(url, signal, tz),
+				"r1999-official": (url, signal, tz) => fetchR99Official(url, signal, tz)
 			}
 		};
 

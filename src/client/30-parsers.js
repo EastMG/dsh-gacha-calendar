@@ -29,12 +29,23 @@
 		const VERSION_UPDATE_ANCHOR = { h: 4, mi: 0 };
 
 		// 解析单个时间 → {ts, text}；无法解析返回 {ts:null, text:null}
-		function parseTime(s) {
+		// `tz`（可选）= 源站墙钟时区（见 15-env.js / 20-sources.js 的 `tz`）。
+		// 传了 → 绝对时刻按**源站时区**换算；不传 → 沿用本机时区（= 改造前行为）。
+		// **text 一律是源站墙钟原文**，不随 tz 变 —— 玩家看游戏内公告走的就是这串时间。
+		//
+		// 兜底：`sourceInstant` 定义在 15-env.js。若调用方只把本文件单独抽出来用
+		// （回归脚本用 `new Function` 注入单个函数、或把 core 拆到别处），它可能不在作用域；
+		// 那时退回 `new Date(...)`（本机时区）而不是抛 ReferenceError ——
+		// 少一次时区换算，但绝不让"抽函数"这种用法直接崩掉。
+		function parseTime(s, tz) {
+			const mkTs = (y, mo, d, h, mi) => (typeof sourceInstant === "function"
+				? sourceInstant(y, mo, d, h, mi, tz)
+				: new Date(y, mo - 1, d, h, mi).getTime());
 			const m = String(s).match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
 			if (m) {
 				const y = Number(m[1]), mo = Number(m[2]), d = Number(m[3]), h = Number(m[4]), mi = Number(m[5]);
 				const text = `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} ${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
-				return { ts: new Date(y, mo - 1, d, h, mi).getTime(), text };
+				return { ts: mkTs(y, mo, d, h, mi), text };
 			}
 			// 回退：`YYYY/MM/DD <版本更新后>`（日期 + 版本标签，缺时分）→ 按锚点时刻补全。
 			// 注意只认**带日期前缀**的这种；纯标签（`4.6版本更新后`）保持 null —— 那种确实
@@ -44,21 +55,22 @@
 				const y = Number(v[1]), mo = Number(v[2]), d = Number(v[3]);
 				const { h, mi } = VERSION_UPDATE_ANCHOR;
 				const text = `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} ${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
-				return { ts: new Date(y, mo - 1, d, h, mi).getTime(), text };
+				return { ts: mkTs(y, mo, d, h, mi), text };
 			}
 			return { ts: null, text: null };
 		}
 
 		// 时间段 → startTs/endTs + 统一文本 mm-dd hh:mm ~ mm-dd hh:mm（无法解析的一侧保留原文）
-		function parseRange(raw) {
+		// `tz` 同 parseTime：源站墙钟时区（可选，不传 = 本机时区）
+		function parseRange(raw, tz) {
 			const t = stripTags(raw);
 			const parts = t.split(/~/).map((x) => x.trim());
 			if (parts.length < 2) {
-				const p = parseTime(parts[0]);
+				const p = parseTime(parts[0], tz);
 				return { startTs: p.ts, endTs: null, startText: p.text, endText: null, raw: p.text ?? t };
 			}
-			const a = parseTime(parts[0]);
-			const b = parseTime(parts[1]);
+			const a = parseTime(parts[0], tz);
+			const b = parseTime(parts[1], tz);
 			return {
 				startTs: a.ts, endTs: b.ts,
 				startText: a.text ?? parts[0], endText: b.text ?? parts[1],
@@ -80,7 +92,7 @@
 		}
 
 		// bwiki 通用：解析所有含「时间+版本」的卡池表（原神/星铁/绝区零）
-		function parseAllBwiki(html) {
+		function parseAllBwiki(html, tz) {
 			const out = [];
 			const tables = [...html.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/g)];
 			for (const t of tables) {
@@ -100,7 +112,7 @@
 				const timeM = body.match(/<th[^>]*>\s*时间\s*<\/th>\s*<td[^>]*>([\s\S]*?)<\/td>/i);
 				const charM = body.match(/<th[^>]*>\s*(?:5星角色|S级代理人|6星干员|5星干员)\s*<\/th>\s*<td[^>]*>([\s\S]*?)<\/td>/i);
 				if (!timeM) continue;
-				const range = parseRange(timeM[1]);
+				const range = parseRange(timeM[1], tz);
 				out.push({
 					banner,
 					roles: charM ? stripTags(charM[1]) : "",
@@ -114,7 +126,7 @@
 		// 方舟：解析「干员轮换卡池」（标准寻访/当期轮换池）所有数据行。
 		// 该表行结构：序号 | 寻访页面(title=寻访模拟/干员轮换卡池N) | 开启时间 | 特定干员(6星) | 特定干员(5星)。
 		// 兼容历史「限时寻访」表（寻访页面|开启时间|特定干员6星|特定干员5星&4星）作为兜底。
-		function parseArknights(html) {
+		function parseArknights(html, tz) {
 			const out = [];
 			// 标准（干员轮换卡池N）+ 中坚（中坚甄选N / 中坚干员轮换卡池N）：
 			// 行内 title="寻访模拟/<池名>"。**档位按池名判定且中坚优先**——「中坚干员轮换卡池74」
@@ -130,7 +142,7 @@
 				const tier = /中坚/.test(banner) ? "中坚" : "标准";
 				const roles = [...((tds[3] || "") + (tds[4] || "")).matchAll(/<a[^>]*title="([^"]+)"/g)]
 					.map((m) => m[1]).filter(Boolean);
-				const range = parseRange(tds[2]);
+				const range = parseRange(tds[2], tz);
 				out.push({ tier, banner, roles: roles.join("、"), ...range, isMain: true });
 			}
 			// 限时（联合行动/限定）：解析「限时寻访」表
@@ -150,7 +162,7 @@
 							? [...tds[2].matchAll(/<a[^>]*href="\/w\/[^"]*"[^>]*title="([^"]*)"/g)]
 								.map((m) => m[1].trim()).filter(Boolean).join("、")
 							: "";
-						const range = parseRange(tds[1]);
+						const range = parseRange(tds[1], tz);
 						out.push({ tier: "限时", banner, roles, ...range, isMain: true });
 					}
 				}
@@ -161,8 +173,8 @@
 		// 明日方舟当期卡池：**外显与悬停共用同一份"当期池"列表**（不再各挑一个）——
 		// 外显按档位优先（限时 > 标准 > 中坚）、档内先结束者优先；悬停走统一的 buildPoolHover，
 		// 与其它游戏同格式（每池『池名：角色』+ 时间行、同窗口合并时间、结束时间升序）。
-		function selectArknights(html, now = nowMs()) {
-			const items = parseArknights(html);
+		function selectArknights(html, now = nowMs(), tz) {
+			const items = parseArknights(html, tz);
 			fillMissingStarts(items);
 			const tiers = ["限时", "标准", "中坚"];
 			const rank = (it) => {
@@ -271,7 +283,7 @@
 		// 方舟卡池默认抓取器：官方公告 CMS 优先（当期限时/联动寻访），
 		// 官方无当期寻访公告（常规轮换周）或官方失败时自动回退 PRTS 卡池一览（逻辑同 selectArknights）。
 		// 设置页手动切到 PRTS 备选源时则走 GACHA_FETCHERS["arknights-prts"]，不经本函数。
-		async function fetchArknightsGacha(url, signal, now = nowMs()) {
+		async function fetchArknightsGacha(url, signal, tz, now = nowMs()) {
 			try {
 				const official = await fetchArknightsOfficialPools(signal, now);
 				if (official.length > 0) {
@@ -301,7 +313,7 @@
 			const json = await res.json();
 			const html = json?.parse?.text;
 			if (typeof html !== "string") throw new Error("bad-json");
-			const d = selectArknights(html, now);
+			const d = selectArknights(html, now, tz);
 			return d ? { ...d } : null;
 		}
 
@@ -374,21 +386,33 @@
 		}
 
 		// MM-DD HH:MM（同年窗口用）
-		function fmtMdHm(ts) {
+		// 时间戳 → 显示文本。`tz`（可选）= **按该时区渲染**（源站时区）。
+		// 为什么必须带 tz：绝对时刻已按源站时区换算，若文本仍按本机时区渲染，
+		// 海外用户会看到"文本与时刻不一致"（例如源站写 09-30 04:00，却显示 09-29 20:00）。
+		// 传 tz 后：**文本 = 源站墙钟**（与游戏内公告一致）、**时刻 = 正确绝对时刻**，两边统一。
+		// 不传 tz 时行为与改造前完全一致（本机时区）。
+		//
+		// 兜底同 parseTime：`sourceWallParts` 在 15-env.js，单抽本文件时可能不在作用域。
+		function wallOf(ts, tz) {
+			if (typeof sourceWallParts === "function") return sourceWallParts(ts, tz);
 			const d = new Date(ts);
-			return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+			return { y: d.getFullYear(), mo: d.getMonth() + 1, d: d.getDate(), h: d.getHours(), mi: d.getMinutes() };
+		}
+		function fmtMdHm(ts, tz) {
+			const w = wallOf(ts, tz);
+			return `${String(w.mo).padStart(2, "0")}-${String(w.d).padStart(2, "0")} ${String(w.h).padStart(2, "0")}:${String(w.mi).padStart(2, "0")}`;
 		}
 
 		// YYYY-MM-DD HH:MM（跨年窗口用：避免"05-15 16:00 ~ 05-15 03:59"看着像结束早于开始）
-		function fmtYmdHm(ts) {
-			const d = new Date(ts);
-			return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+		function fmtYmdHm(ts, tz) {
+			const w = wallOf(ts, tz);
+			return `${w.y}-${String(w.mo).padStart(2, "0")}-${String(w.d).padStart(2, "0")} ${String(w.h).padStart(2, "0")}:${String(w.mi).padStart(2, "0")}`;
 		}
 
 		// 窗口起止文本：两端同一年 → MM-DD；跨年 → 两端都带年份
-		function fmtWindow(startTs, endTs) {
-			const sameYear = new Date(startTs).getFullYear() === new Date(endTs).getFullYear();
-			return sameYear ? `${fmtMdHm(startTs)} ~ ${fmtMdHm(endTs)}` : `${fmtYmdHm(startTs)} ~ ${fmtYmdHm(endTs)}`;
+		function fmtWindow(startTs, endTs, tz) {
+			const sameYear = wallOf(startTs, tz).y === wallOf(endTs, tz).y;
+			return sameYear ? `${fmtMdHm(startTs, tz)} ~ ${fmtMdHm(endTs, tz)}` : `${fmtYmdHm(startTs, tz)} ~ ${fmtYmdHm(endTs, tz)}`;
 		}
 
 		// 长期/常驻玩法判定：声明窗口超过该天数的不当作"当期活动"（外显与悬停共用，①）。
@@ -529,7 +553,7 @@
 		// 每一组 = 该组 data-start/data-end 之后、到下一组之前的那段里的「共鸣者/xxx」。
 		// 旧实现取页面第一组时间 + 整页前 6 个角色名 → 备选/兜底源会显示"过期档期 + 跨池混入的角色"，
 		// 且不报任何失败（实测该页当前只有一组已过期计时器）。没有覆盖当前的组 → 返回 null（未公布）。
-		function parseWuwaPool(html, now = nowMs()) {
+		function parseWuwaPool(html, now = nowMs(), tz) {
 			const text = String(html || "");
 			const marks = [...text.matchAll(/data-start="([^"]+)"\s+data-end="([^"]+)"/g)];
 			// 页面拿到了却一个计时器都没有 → 汇总页改版（抛错让面板显示"卡池失败"），
@@ -537,8 +561,8 @@
 			if (marks.length === 0) throw new Error("wuwa-pool-no-timer");
 			for (let i = 0; i < marks.length; i++) {
 				const m = marks[i];
-				const start = parseTime(m[1]);
-				const end = parseTime(m[2]);
+				const start = parseTime(m[1], tz);
+				const end = parseTime(m[2], tz);
 				if (start.ts == null || end.ts == null) continue;
 				if (!(start.ts <= now && now <= end.ts)) continue;
 				const seg = text.slice(m.index + m[0].length, i + 1 < marks.length ? marks[i + 1].index : text.length);
@@ -561,7 +585,7 @@
 		// 起始端是**版本标签**而非绝对日期，旧实现用 `(\d{4})年(\d{1,2})月…` 匹配整段 → 恒失败 →
 		// 卡池侧返回 null（2026-10-01 实测：官方 JSON 已带 3 个在开角色池，却显示"未公布"）。
 		// 现在源站直接给了时间戳，比解析正文更准，也不受措辞漂移影响。
-		function parseWuwaNotice(list, now = nowMs()) {
+		function parseWuwaNotice(list, now = nowMs(), tz) {
 			const groups = [list?.game, list?.activity, list?.recommend].filter(Array.isArray);
 			const stripH = (s) => String(s || "")
 				.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " ")
@@ -610,7 +634,7 @@
 				const d = new Date(ts);
 				return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 			};
-			const raw = fmtWindow(first.startTs, first.endTs);
+			const raw = fmtWindow(first.startTs, first.endTs, tz);
 			// 悬停：首行=卡池类型（与卡片外显同源），随后每池"池名：角色"一行；窗口相同则时间只在末尾写一遍；
 			// 按结束时间升序。**类型行只在本源补**，不动全站共用的 buildPoolHover（它按约定对 0/1 池返回 ""）。
 			const poolHover = buildPoolHover(cur.map((p) => ({
@@ -631,7 +655,7 @@
 		// 活动条目形如 tabTitle="[团团勇者大乱斗]休闲活动"，同样带绝对时间戳。
 		// 这是 2026-10-01 起鸣潮活动的**默认源**——Bwiki 活动日历页已停更（最新一条结束于 2026/9/29），
 		// 而官方源有当期 3.7 的活动，且**与卡池是同一条 URL**、同一次请求即可拿到两侧数据。
-		function parseWuwaRecommendEvents(list, now = nowMs()) {
+		function parseWuwaRecommendEvents(list, now = nowMs(), tz) {
 			const arr = Array.isArray(list?.recommend) ? list.recommend : [];
 			const stripH = (s) => String(s || "")
 				.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " ")
@@ -651,13 +675,13 @@
 			const sorted = sortEventItems(events);
 			if (sorted.length === 0) return null;
 			const primary = pickEventPrimary(sorted) || sorted[0];
-			const dates = fmtWindow(primary.startTs, primary.endTs);
+			const dates = fmtWindow(primary.startTs, primary.endTs, tz);
 			return { banner: primary.name, bannerDates: dates, bannerDatesRaw: dates, eventHover: buildEventHover(sorted) };
 		}
 
 		// 鸣潮卡池默认抓取器：官方公告（entrypoint → 目录 → zh-Hans.json 全量）优先；
 		// 无当期公告 / 抓取失败 → 自动回退 Bwiki 角色轮换池（逻辑同 parseWuwaPool）
-		async function fetchWuwaGacha(entryUrl, signal, now = nowMs()) {
+		async function fetchWuwaGacha(entryUrl, signal, tz, now = nowMs()) {
 			try {
 				const ref = "https://aki-gm-resources.aki-game.com/";
 				const ej = await proxyFetchJson(entryUrl, ref);
@@ -672,11 +696,11 @@
 				// ⚠️ 我重写解析时一度只返回卡池字段，导致鸣潮每轮请求从 1 次变成 2 次 —— 已补回。
 				// 活动侧仍保留自己的抓取器（fetchWuwaEventsOfficial）：卡池侧失败、或用户在设置里
 				// 单独选活动来源时，活动侧要能自己抓、自己报错（解耦不变）。
-				const ev = parseWuwaRecommendEvents(list, now);
+				const ev = parseWuwaRecommendEvents(list, now, tz);
 				const evFields = ev
 					? { event: ev.banner, eventDates: ev.bannerDates || "", eventDatesRaw: ev.bannerDatesRaw || ev.bannerDates || "", eventHover: ev.eventHover || "" }
 					: {};
-				const d = parseWuwaNotice(list, now);
+				const d = parseWuwaNotice(list, now, tz);
 				if (d) return { ...d, ...evFields };
 			} catch { /* 官方失败 → Bwiki 备选 */ }
 			const apiUrl = WUWA_BWIKI_URL + (WUWA_BWIKI_URL.includes("?") ? "&" : "?") + "origin=*";
@@ -685,19 +709,19 @@
 			const json = await res.json();
 			const html = json?.parse?.text;
 			if (typeof html !== "string") throw new Error("bad-json");
-			return parseWuwaPool(html);
+			return parseWuwaPool(html, nowMs(), tz);
 		}
 
 		// 鸣潮活动默认抓取器：抓同一份官方公告，取 `recommend` 组里 tag=5 的限时活动。
 		// 与卡池侧是**同一条 URL**（entrypoint.json），所以 refresh 的复用会让两侧共用一次请求。
-		async function fetchWuwaEventsOfficial(entryUrl) {
+		async function fetchWuwaEventsOfficial(entryUrl, _signal, tz) {
 			const ref = "https://aki-gm-resources.aki-game.com/";
 			const ej = await proxyFetchJson(entryUrl, ref);
 			const contentUrl = Array.isArray(ej?.contentUrl) ? ej.contentUrl[0] : "";
 			const dir = contentUrl ? contentUrl.replace(/[^/]*$/, "") : String(entryUrl).replace(/[^/]*$/, "");
 			const list = await proxyFetchJson(dir + "zh-Hans.json", ref);
 			if (!list || typeof list !== "object") throw new Error("wuwa-event-bad-json");
-			const d = parseWuwaRecommendEvents(list, nowMs());
+			const d = parseWuwaRecommendEvents(list, nowMs(), tz);
 			if (!d) return null;
 			return {
 				event: d.banner,
@@ -711,7 +735,7 @@
 		// 公告形如：sIntro="本期代理人与音擎调频活动时间为：3.2版本更新后 ~ 2026/09/30 11:59"，
 		// sContent 内含「活动期间，限定S级代理人[克拉蕾(电·锋御)]、[南宫羽(以太·击破)]…」。
 		// 起点为"版本更新后"时，用同版本「更新公告」的 dtStartTime 补全；「独家重映/音擎回响」自选段跳过。
-		function parseZzzFreq(payload, now = nowMs()) {
+		function parseZzzFreq(payload, now = nowMs(), tz) {
 			const list = Array.isArray(payload?.data?.list) ? payload.data.list : [];
 			const clean = (s) => stripTags(s);
 			// 版本更新公告 → "X.Y版本更新后"的起点；同时抽取「S级代理人[X] → 「Y」频段」对应表
@@ -726,7 +750,7 @@
 				const vm = t.match(/(\d+\.\d+)\s*版本/);
 				if (!vm) continue;
 				if (/更新(?:公告|通知)/.test(t) && !/预下载|预约|前瞻|预抽/.test(t)) {
-					const p = parseTime(it.dtStartTime);
+					const p = parseTime(it.dtStartTime, tz);
 					if (p.ts != null && verStart[vm[1]] == null) verStart[vm[1]] = p;
 				}
 				const text = clean(it.sIntro) + " " + clean(it.sContent);
@@ -756,7 +780,7 @@
 				while ((m = re.exec(text)) !== null) {
 					marks.push({ start: m[1], end: m[2], from: m.index, to: m.index + m[0].length, after: /版本更新后/.test(m[1]) });
 				}
-				const created = parseTime(it.dtCreateTime).ts ?? 0;
+				const created = parseTime(it.dtCreateTime, tz).ts ?? 0;
 				for (let i = 0; i < marks.length; i++) {
 					const seg = text.slice(marks[i].to, i + 1 < marks.length ? marks[i + 1].from : text.length);
 					// 该时间窗对应的「限定S级代理人」句（排除独家重映/音擎回响的自选说明）
@@ -766,8 +790,8 @@
 					if (!roleM) continue;
 					const roles = [...roleM[1].matchAll(/[\[【]([^\]】]+)[\]】]/g)].map((x) => normRole(x[1].trim())).join("、");
 					if (!roles) continue;
-					const sp = marks[i].after ? (verStart[ver] || { ts: null, text: null }) : parseTime(marks[i].start);
-					const ep = parseTime(marks[i].end);
+					const sp = marks[i].after ? (verStart[ver] || { ts: null, text: null }) : parseTime(marks[i].start, tz);
+					const ep = parseTime(marks[i].end, tz);
 					if (ep.ts == null) continue;
 					pools.push({
 						ver, part, roles,
@@ -805,7 +829,7 @@
 		}
 
 		// 绝区零卡池默认抓取器：官网公告优先；无当期频段公告 / 抓取失败 → 自动回退 Bwiki 往期调频
-		async function fetchZzzGacha(listUrl, signal, now = nowMs()) {
+		async function fetchZzzGacha(listUrl, signal, tz, now = nowMs()) {
 			try {
 				const payload = await proxyFetchJson(listUrl, "https://zzz.mihoyo.com/");
 				// **同一份 payload 里活动数据也在**（该接口同时含频段公告与「活动说明」公告）→ 顺带返回活动字段。
@@ -814,11 +838,11 @@
 				// 一次 parseZzzFreq 取频段、一次 parseZzzEventsOfficial 取活动 —— 纯重复（2026-10-01 实测）。
 				// 活动侧**仍保留**自己的抓取器（fetchZzzEventsOfficial 与 `zzz-event-bwiki` 备选）：
 				// 卡池侧失败、或用户在设置里单独选活动来源时，活动侧要能自己抓、自己报错（解耦不变）。
-				const ev = parseZzzEventsOfficial(payload, now);
+				const ev = parseZzzEventsOfficial(payload, now, tz);
 				const evFields = ev
 					? { event: ev.event, eventDates: ev.eventDates || "", eventDatesRaw: ev.eventDatesRaw || "", eventHover: ev.eventHover || "" }
 					: {};
-				const d = parseZzzFreq(payload, now);
+				const d = parseZzzFreq(payload, now, tz);
 				if (d) return { ...d, ...evFields };
 			} catch { /* 官方失败 → Bwiki 备选 */ }
 			const apiUrl = ZZZ_BWIKI_URL + (ZZZ_BWIKI_URL.includes("?") ? "&" : "?") + "origin=*";
@@ -838,7 +862,7 @@
 		// 由 sortEventItems / pickEventPrimary 的既有规则自然沉到外显与悬停的最后，不跳过、不丢弃。
 		const ZZZ_EVENT_WINDOW_RE = /((?:\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\s+\d{1,2}:\d{2})|(?:\d+\.\d+\s*版本更新后))\s*[~～\-—]\s*((?:\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\s+\d{1,2}:\d{2})|(?:\d+\.\d+\s*版本结束))/g;
 
-		function parseZzzEventsOfficial(payload, now = nowMs()) {
+		function parseZzzEventsOfficial(payload, now = nowMs(), tz) {
 			const list = Array.isArray(payload?.data?.list) ? payload.data.list : [];
 			const clean = (s) => stripTags(s);
 			// 版本起点表：取该版本的「更新公告」发布时间。
@@ -850,7 +874,7 @@
 				const vm = title.match(/(\d+\.\d+)\s*版本/);
 				if (!vm || !/更新(?:公告|通知)/.test(title)) continue;
 				if (/预下载|预约|前瞻|预抽/.test(title)) continue;
-				const ts = parseTime(it.dtStartTime).ts;
+				const ts = parseTime(it.dtStartTime, tz).ts;
 				if (ts != null && verStart[vm[1]] == null) verStart[vm[1]] = ts;
 			}
 			const versions = Object.keys(verStart).sort((a, b) => verStart[a] - verStart[b]);
@@ -865,7 +889,7 @@
 					if (verStart[sv[1]] == null) return null;   // 该版本尚未开始 → 活动还没上线
 					startTs = verStart[sv[1]];
 				} else {
-					const p = parseTime(startText);
+					const p = parseTime(startText, tz);
 					if (p.ts == null) return null;
 					startTs = p.ts;
 				}
@@ -877,7 +901,7 @@
 					const later = versions.find((v) => verStart[v] > verStart[ev[1]]);
 					if (later != null) endTs = verStart[later] - 60000;
 				} else {
-					const p = parseTime(endText);
+					const p = parseTime(endText, tz);
 					if (p.ts == null) return null;
 					endTs = p.ts;
 				}
@@ -902,7 +926,7 @@
 			const active = sortEventItems([...byName.values()]);
 			if (active.length === 0) return null;
 			const primary = pickEventPrimary(active) || active[0];
-			const dates = primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs) : (primary.raw || "");
+			const dates = primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs, tz) : (primary.raw || "");
 			return {
 				event: primary.name,
 				eventDates: dates,
@@ -912,14 +936,14 @@
 			};
 		}
 
-		async function fetchZzzEventsOfficial(listUrl, signal) {
+		async function fetchZzzEventsOfficial(listUrl, signal, tz) {
 			const payload = await proxyFetchJson(listUrl, "https://zzz.mihoyo.com/");
-			return parseZzzEventsOfficial(payload);
+			return parseZzzEventsOfficial(payload, nowMs(), tz);
 		}
 
 		// 鸣潮：活动日历页 → font-size:17px 标题 + font-size:11px 时间，选当期
 		// 注意：复用 selectCurrent 需要 isMain 字段（该函数按 isMain 过滤主池）
-		function parseWuwaCalendar(html) {
+		function parseWuwaCalendar(html, tz) {
 			const items = [];
 			const re = /font-size:17px[^>]*>\s*<p>\s*([\s\S]*?)\s*<\/p>([\s\S]*?)(?=font-size:17px|$)/g;
 			let m;
@@ -929,7 +953,7 @@
 				const timeM = m[2].match(/font-size:11px[^>]*>\s*<p>\s*([\s\S]*?)\s*<\/p>/);
 				const timeText = timeM ? stripTags(timeM[1]) : "";
 				if (!/20\d{2}\//.test(timeText)) continue;
-				const range = parseRange(timeText);
+				const range = parseRange(timeText, tz);
 				items.push({ banner: name, name, ...range, isMain: true });
 			}
 			const now = nowMs();
@@ -939,7 +963,7 @@
 			if (active.length === 0) return null;
 			// 外显：类别优先（战斗/高难类优先），同级内结束时间升序（③）；悬停仍按 endTs 升序全量
 			const primary = pickEventPrimary(active) || active[0];
-			const dates = primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs) : (primary.raw || "");
+			const dates = primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs, tz) : (primary.raw || "");
 			return { banner: primary.name, roles: "", bannerDates: dates, bannerDatesRaw: primary.raw || dates, eventHover: buildEventHover(active) };
 		}
 
@@ -1067,12 +1091,14 @@
 		// 返回值三态：数据对象 / null（**结构在**但没有覆盖当前时刻的期次 → 未公布）/ undefined
 		// （这份 JS 里**根本没有**卡池数据结构 → 交给调用方决定：多 chunk 时继续找下一个，
 		//  全部 chunk 都没有则说明页面改版 → 报错，而不是伪装成"未公布"）。
-		function currentFromCanmoe(js, now) {
+		function currentFromCanmoe(js, now, tz) {
 			now = now || nowMs();
 			let sawStructure = false;
 			const fmt = (iso) => {
-				const d = new Date(iso);
-				return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+				// 按**源站时区**（`tz`）渲染，而不是本机时区：否则海外用户会看到
+				// 与 `startTs/endTs`（已按源站时区换算）不一致的钟点。
+				const w = sourceWallParts(new Date(iso).getTime(), tz);
+				return `${String(w.mo).padStart(2, "0")}-${String(w.d).padStart(2, "0")} ${String(w.h).padStart(2, "0")}:${String(w.mi).padStart(2, "0")}`;
 			};
 			// **统一规则（§49）**：当前时刻落在持续期间内的卡池**全部合并**外显。
 			// 旧实现是"两个分支各自命中第一个就 return" → 只显示一个池，同期的另一个池看不到
@@ -1171,8 +1197,8 @@
 		// 兼容旧调用：parseCanmoe / parseCanmoeLoose 均走统一的"当期选择"逻辑（now 可注入）。
 		// 这两个是**给通用解析（自定义条目/自定义地址）用的宽松包装**：把 undefined 归一成 null，
 		// 即"读不出来 → 未公布"，不在这里抛错（用户自定义地址读不出内容是常态，不该报成源站故障）。
-		function parseCanmoe(js, now = nowMs()) { const d = currentFromCanmoe(js, now); return d === void 0 ? null : d; }
-		function parseCanmoeLoose(js, now = nowMs()) { return parseCanmoe(js, now); }
+		function parseCanmoe(js, now = nowMs(), tz) { const d = currentFromCanmoe(js, now, tz); return d === void 0 ? null : d; }
+		function parseCanmoeLoose(js, now = nowMs(), tz) { return parseCanmoe(js, now, tz); }
 
 		// 终末地（canmoe 经 host 代理）：页面 HTML → 定位 BannerCalendar chunk → 抓 chunk JS → 窗口匹配当期
 		// canmoe 无 CORS 头，两步都经 host 代理（referer 用页面 origin 满足反爬）
@@ -1182,7 +1208,7 @@
 		//   · 有覆盖当前时刻的期次 → 返回数据；
 		//   · 拿到 JS 且里面有卡池结构、但没有覆盖当前的期次 → return null（未公布）；
 		//   · 页面/所有 chunk 里都找不到卡池结构（或 chunk 全抓失败）→ **抛错**（面板显示"卡池失败"）。
-		async function fetchCanmoeEndfield(pageUrl, now = nowMs()) {
+		async function fetchCanmoeEndfield(pageUrl, _signal, tz, now = nowMs()) {
 			const html = await proxyFetchText(pageUrl, "https://end.canmoe.com/");
 			const chunks = nextJsChunkUrls(html, "BannerCalendar", pageUrl);
 			if (chunks.length === 0) throw new Error("canmoe-no-chunk");   // 页面拿到了但没有数据块链接 = 改版
@@ -1196,7 +1222,7 @@
 					continue;
 				}
 				fetchedAny = true;
-				const d = currentFromCanmoe(js, now);
+				const d = currentFromCanmoe(js, now, tz);
 				if (d === void 0) continue;      // 这份 chunk 里没有卡池结构 → 看下一个
 				sawStructure = true;
 				if (d) {
@@ -1277,7 +1303,7 @@
 		}
 
 		// 异环（ldshop 经 host 代理）：抓页面 → 解析卡池表 → 选当期
-		async function fetchLdshopNte(pageUrl) {
+		async function fetchLdshopNte(pageUrl, _signal, tz) {
 			const html = await proxyFetchText(pageUrl, "https://www.ldshop.gg/");
 			const pools = parseLdshopPools(html);
 			if (pools.length === 0) return null;
@@ -1311,7 +1337,7 @@
 		// 取第一篇能解析出当期卡池/活动的正文；"不停服更新"不含新卡池，跳过。
 		// 三态：有当期内容 → 数据；列表页有公告但都不含当期内容（或"不停服更新"）→ null（未公布）；
 		//      列表页**一条公告链接都没有** → 抛错（官网列表改版，让面板显示"卡池失败"而不是"未公布"）。
-		async function fetchNteWanmei(listUrl, signal) {
+		async function fetchNteWanmei(listUrl, signal, tz) {
 			const ref = "https://yh.wanmei.com/";
 			const seen = new Set();
 			const queue = [listUrl];
@@ -1328,7 +1354,7 @@
 					if (!NTE_MAINT_RE.test(m[2]) || /不停服/.test(m[2])) continue;
 					if (details >= NTE_MAX_DETAILS) return null;   // 试读额度用完（此时必然已见到公告链接）
 					details++;
-					const data = parseNteWanmei(await proxyFetchText("https://yh.wanmei.com" + m[1], ref));
+					const data = parseNteWanmei(await proxyFetchText("https://yh.wanmei.com" + m[1], ref), tz);
 					if (data) return data;
 				}
 				for (const u of nteNextPageUrls(listUrl, html, seen)) if (!queue.includes(u)) queue.push(u);
@@ -1395,7 +1421,7 @@
 		}
 
 		// 解析官网公告正文 → 当期卡池（有「棋盘说明」的角色卡池，按**统一规则**合并）+ 当期活动（限时活动）
-		function parseNteWanmei(html) {
+		function parseNteWanmei(html, tz) {
 			const text = String(html || "")
 				.replace(/<script[\s\S]*?<\/script>/gi, " ")
 				.replace(/<style[\s\S]*?<\/style>/gi, " ")
@@ -1451,10 +1477,10 @@
 		// 依次尝试 bwiki 式「时间+版本」表、方舟式「限时寻访」表、GachaTracker 式日期表、
 		// Next.js SPA（canmoe 等，页面无表格、数据在组件 chunk 里），选当期；
 		// 全部失败返回 null（调用方按解析失败处理，不做可达性健康检查）
-		async function tryParseGenericGacha(url, signal) {
+		async function tryParseGenericGacha(url, signal, tz) {
 			const html = await fetchHtmlText(url, signal);
 			const now = nowMs();
-			const cur = selectCurrent(parseAllBwiki(html), now) || selectCurrent(parseArknights(html), now);
+			const cur = selectCurrent(parseAllBwiki(html, tz), now) || selectCurrent(parseArknights(html, tz), now);
 			if (cur && cur.banner && cur.bannerDates) return cur;
 			const gt = parseGachaTracker(html);
 			if (gt && gt.banner && gt.bannerDates) return gt;
@@ -1475,7 +1501,7 @@
 
 		// 通用活动解析：扫描含「时间」（或「活动时间」）表头的表格，行内找时间与名称列，选当期
 		// 起始为"版本更新后"等无日期文本时保留 startTs=null，由 selectCurrent 的 fillMissingStarts 补全
-		function collectGenericEvents(html) {
+		function collectGenericEvents(html, tz) {
 			const items = [];
 			const tables = [...html.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/g)];
 			for (const t of tables) {
@@ -1499,7 +1525,7 @@
 					// 名字里偶发混进图片文件名残渣（如「文件:巡星之礼第二十六期.png 」）→ 去掉该前缀
 					name = name.replace(/^文件:[^\s]*?\.(?:png|jpe?g|gif|webp|svg)\s*/i, "").trim();
 					if (!name) continue;
-					const range = parseRange(time);
+					const range = parseRange(time, tz);
 					// 起始可为 null（"版本更新后"），结束时间必须有效——**除非这行是永久活动**。
 					// 原来这里一律 `endTs == null → continue`，把「…~永久」的行在采集阶段就丢了，
 					// 下游连"它存在过"都看不到（表现为源站表里有、面板悬停里没有）。
@@ -1515,14 +1541,14 @@
 		}
 
 		// 当期活动（外显取 selectCurrent 的那条，行为同旧版）
-		function parseGenericEvents(html) {
-			return selectCurrent(collectGenericEvents(html), nowMs());
+		function parseGenericEvents(html, tz) {
+			return selectCurrent(collectGenericEvents(html, tz), nowMs());
 		}
 
 		// Bwiki 卡池列载荷（原神/星铁）：外显沿用 selectCurrent（同窗口主池角色合并、武器/光锥池不入选）；
 		// bannerHover 列出同期全部主池（每池"池名：角色"+时间；窗口相同则合并时间；结束时间升序）
-		function bwikiGachaPayload(html) {
-			const items = parseAllBwiki(html);
+		function bwikiGachaPayload(html, tz) {
+			const items = parseAllBwiki(html, tz);
 			// 页面拿到了却连一行候选都没有 → wiki 表结构变了（抛错，面板显示"卡池失败"）；
 			// 有候选但都不覆盖当前时刻 → 下面返回 null（未公布）。这两件事必须分开。
 			if (items.length === 0) throw new Error("bwiki-gacha-no-table");
@@ -1547,8 +1573,8 @@
 		// 注意 selectCurrent 会就地补全缺失起点（fillMissingStarts），故这里只取快照自行排序，
 		// 避免"版本更新后 ~ 未来"这类起点未给的行被补成未来起点而漏掉。
 		// 只有 1 条时 buildEventHover 返回 ""，由 UI 退回单条展示（兜底）。
-		function genericEventPayload(html) {
-			const items = collectGenericEvents(html);
+		function genericEventPayload(html, tz) {
+			const items = collectGenericEvents(html, tz);
 			// 页面拿到了却连一行候选都没有 → 活动表结构变了（抛错 = "活动失败"）；
 			// 有候选但当期没有覆盖现在的 → 下面返回 null（未公布）
 			if (items.length === 0) throw new Error("bwiki-event-no-table");
@@ -1574,7 +1600,7 @@
 		// 注意 data-time 第一个值是页面缓存时刻（非开始时间），故开始以文本列为准。
 		// 活动名带核心分类前缀（"支线故事：墟·复刻"）：分类取第三列 <a title="分类:XXX"> 链接，
 		// 核心分类 = 排除"复刻活动"（修饰词）后的第一个。
-		function collectPrtsEvents(html) {
+		function collectPrtsEvents(html, tz) {
 			const items = [];
 			const tables = [...html.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/g)];
 			for (const t of tables) {
@@ -1603,7 +1629,7 @@
 					}
 					const label = coreCat ? `${coreCat}\uFF1A${name}` : name;
 					// 开始：第一列文本（"2026-08-22 04:00"）
-					const st = parseTime(stripTags(tds[0]).trim());
+					const st = parseTime(stripTags(tds[0]).trim(), tz);
 					items.push({
 						banner: label,
 						cat: coreCat,
@@ -1616,13 +1642,13 @@
 		}
 
 		// 当期活动（外显取 selectCurrent 的那条，行为同旧版）
-		function parsePrtsEvents(html) {
-			return selectCurrent(collectPrtsEvents(html), nowMs());
+		function parsePrtsEvents(html, tz) {
+			return selectCurrent(collectPrtsEvents(html, tz), nowMs());
 		}
 
 		// 活动列载荷：外显=排序第一条（最快结束的当期活动，③）；eventHover=全部覆盖当前时刻的活动（同序）
-		function prtsEventPayload(html) {
-			const items = collectPrtsEvents(html);
+		function prtsEventPayload(html, tz) {
+			const items = collectPrtsEvents(html, tz);
 			const snapshot = items.map((it) => ({ name: it.banner, cat: it.cat || "", startTs: it.startTs, endTs: it.endTs, raw: it.raw }));
 			const now = nowMs();
 			const active = sortEventItems(snapshot.filter((it) => it.endTs != null && it.endTs >= now && (it.startTs == null || it.startTs <= now)));
@@ -1656,7 +1682,7 @@
 		// <a class="a-link" href="...">Bedazzling Dawnstar Sign-In</a><br>(Version 1.4)<br>08/09/26 - 09/02/26
 		// 日期为美式 MM/DD/YY；多个并行当期活动时选"结束最晚"（覆盖全部当期窗口）。
 		// 无起止区间（只有开始日，如 "07/16"）的条目跳过。
-		function parseGame8Events(html) {
+		function parseGame8Events(html, tz) {
 			const items = [];
 			for (const m of html.matchAll(/<a class="a-link"[^>]*>([^<]+)<\/a><br>\((Version[^)]*)\)<br>([^<]*)/g)) {
 				const period = m[3].trim();
@@ -1695,7 +1721,7 @@
 		}
 
 		// parseGame8Events 的宽松回退：容忍 <a> 属性顺序/空白变化。仅在主解析未命中时使用。
-		function parseGame8EventsLoose(html) {
+		function parseGame8EventsLoose(html, tz) {
 			const items = [];
 			for (const m of html.matchAll(/<a[^>]*>\s*([^<]+?)\s*<\/a>[\s\S]*?\(Version[^)]*\)[\s\S]*?(\d{1,2}\/\d{1,2}\/\d{2,4}\s*-\s*\d{1,2}\/\d{1,2}\/\d{2,4})/g)) {
 				const period = m[2].trim();
@@ -1724,9 +1750,9 @@
 		}
 
 		// 终末地（Game8 经 host 代理，无 CORS）：活动排期页
-		async function fetchGame8Endfield(pageUrl) {
+		async function fetchGame8Endfield(pageUrl, _signal, tz) {
 			const html = await proxyFetchText(pageUrl, "https://game8.co/");
-			return parseGame8Events(html) || parseGame8EventsLoose(html);
+			return parseGame8Events(html, tz) || parseGame8EventsLoose(html, tz);
 		}
 
 		// 从 fz.wiki 页面（Next.js App Router）内联 RSC flight payload 中抽取 contentJson 的 JSON 字符串。
@@ -1761,7 +1787,7 @@
 		// 只收"有明确起止"的活动（timeRanges 末段的 open+close 都非空），
 		// 与旧行为一致——无 close 的是新手/每周/引导等常驻活动，不当作当期活动。
 		// 时间格式 "2026/9/2 7:00:00"；外显=排序第一条（结束最早的），悬停按同序逐行。
-		function parseFzWikiActivities(html, now) {
+		function parseFzWikiActivities(html, now, tz) {
 			const obj = extractFzContentJson(html);
 			if (!obj) return null;
 			const acts = [];
@@ -1804,7 +1830,7 @@
 			// 解析到活动、但当期没有覆盖当前时刻的 → 返回 null（这一侧记 nomatch = "新活动未公布"）
 			if (activeActs.length === 0) return null;
 			const primary = pickEventPrimary(activeActs) || activeActs[0]; // 叙事活动/挑战活动优先于签到类
-			const win = fmtWindow(primary.startTs, primary.endTs);
+			const win = fmtWindow(primary.startTs, primary.endTs, tz);
 			return {
 				banner: primary.name,
 				bannerDatesRaw: win,
@@ -1816,15 +1842,15 @@
 		// 终末地（FZ Wiki 经 host 代理，无 CORS）：活动排期页。
 		// 三态口径：有当期活动 → 数据；解析到活动但没有当期 → null（nomatch）；
 		// 页面结构变了/一条都解析不出 → parseFzWikiActivities 抛错（down）。
-		async function fetchFzWikiEndfield(pageUrl, now = nowMs()) {
+		async function fetchFzWikiEndfield(pageUrl, _signal, tz, now = nowMs()) {
 			const html = await proxyFetchText(pageUrl, "https://fz.wiki/");
-			return parseFzWikiActivities(html, now);
+			return parseFzWikiActivities(html, now, tz);
 		}
 
 		// 通用活动源解析（自定义条目/自定义活动来源地址用）：抓取页面 → parseGenericEvents → {event, eventDates}
-		async function tryParseGenericEvent(url, signal) {
+		async function tryParseGenericEvent(url, signal, tz) {
 			const html = await fetchHtmlText(url, signal);
-			const cur = parseGenericEvents(html);
+			const cur = parseGenericEvents(html, tz);
 			if (cur && cur.banner) return {
 				event: cur.banner,
 				eventDates: cur.bannerDates || "",
@@ -1837,7 +1863,7 @@
 		// 改用 api.php?action=ask 直接查询「分类:活动」的开始/结束时间，选当期。
 		// 属性：名称/开始时间/结束时间/所属版本；结束时间 9999/01/01 为永久活动占位（跳过）。
 		// 查询 URL 由 fetchYsActivity 构造，浏览器直连（api.php 带 origin=* 有 CORS）。
-		function parseSmwActivity(json) {
+		function parseSmwActivity(json, tz) {
 			const results = json?.query?.results || {};
 			const now = nowMs();
 			const covering = [];
@@ -1884,7 +1910,7 @@
 			// 悬停按结束时间升序；外显按类别优先（剧情活动/挑战类优先于常规/网页类）
 			const ordered = sortEventItems(covering);
 			const best = pickEventPrimary(ordered) || ordered[0];
-			const win = fmtWindow(best.startTs, best.endTs);
+			const win = fmtWindow(best.startTs, best.endTs, tz);
 			return {
 				banner: best.name,
 				roles: "",
@@ -1896,14 +1922,14 @@
 
 		// 原神 SMW 活动查询（经 origin=* 直连）
 		// 返回 EVENT_FETCHERS 契约格式 {event, eventDates, eventDatesRaw}（parseSmwActivity 产出卡池格式，这里转换）
-		async function fetchYsActivity(signal) {
+		async function fetchYsActivity(signal, tz) {
 			const nowYear = new Date(nowMs()).getFullYear();   // 走注入时钟（core 不得直接读宿主时钟）
 			const q = "[[\u5206\u7C7B:\u6D3B\u52A8]][[\u7ED3\u675F\u65F6\u95F4::>" + nowYear + "/01/01]]|?\u540D\u79F0|?\u5F00\u59CB\u65F6\u95F4|?\u7ED3\u675F\u65F6\u95F4|?\u7C7B\u578B|sort=\u5F00\u59CB\u65F6\u95F4|order=desc|limit=60";
 			const apiUrl = "https://wiki.biligame.com/ys/api.php?action=ask&query=" + encodeURIComponent(q) + "&format=json&origin=*";
 			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
 			if (!res.ok) throw new Error("http-" + res.status);
 			const json = await res.json();
-			const d = parseSmwActivity(json);
+			const d = parseSmwActivity(json, tz);
 			if (!d) return null;
 			return {
 				event: d.banner,
@@ -1918,24 +1944,26 @@
 		// mkRaw：直接抓取原始 HTML（非 MediaWiki 源，如 GachaTracker）
 		// 经 host 同源代理的来源（蔚蓝系列 / 终末地 wiki.gg / 1999 等）不用工厂包装：
 		// 其抓取器内部自行调用 proxyFetchText / proxyFetchJson（绕过 CORS 与 Referer 反爬）。
-		// 抓取器签名：async (url, signal) → 数据对象 | null
+		// 抓取器签名：async (url, signal, tz) → 数据对象 | null
+		//   第三个参数 `tz` = 源站墙钟时区（可选，见 15-env.js）。工厂把它透传给解析函数，
+		//   解析函数再交给 parseTime/parseRange —— 这样"源站时区"只需在来源声明里写一次。
 		function mkMediaWiki(parse) {
-			return async (url, signal) => {
+			return async (url, signal, tz) => {
 				const apiUrl = url + (url.includes("?") ? "&" : "?") + "origin=*";
 				const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
 				if (!res.ok) throw new Error("http-" + res.status);
 				const json = await res.json();
 				const text = json?.parse?.text;
 				if (typeof text !== "string") throw new Error("bad-json");
-				return parse(text);
+				return parse(text, tz);
 			};
 		}
 		function mkRaw(parse) {
-			return async (url, signal) => {
+			return async (url, signal, tz) => {
 				const apiUrl = url + (url.includes("?") ? "&" : "?") + "origin=*";
 				const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
 				if (!res.ok) throw new Error("http-" + res.status);
-				return parse(await res.text());
+				return parse(await res.text(), tz);
 			};
 		}
 		// bwiki 通用"选当期"包装（原神/星铁/绝区零/方舟）

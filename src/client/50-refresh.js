@@ -13,16 +13,17 @@
 		// 才允许通用解析兜底——内置默认源不兜底：代理源直连必被 CORS 拦，那个错误不该算到来源头上。
 		// 返回 { data, fail }：fail=null 表示该侧成功，否则 { kind: "down"|"nomatch", reason }。
 		// data 一律原样带回（未命中时也可能附带可供同 URL 复用的其它字段）。
-		async function resolveSide(side, { fetcher, url, allowGeneric, signal }) {
+		// `tz`（可选）= 源站墙钟时区，透传给抓取器/解析器（不传 = 本机时区，向后兼容）。
+		async function resolveSide(side, { fetcher, url, allowGeneric, signal, tz }) {
 			const emptyOf = (d) => (side === "gacha" ? !d || !d.banner : !d || !d.event);
 			const parseGeneric = () => (side === "gacha"
-				? tryParseGenericGacha(url, signal)
-				: tryParseGenericEvent(url, signal));
+				? tryParseGenericGacha(url, signal, tz)
+				: tryParseGenericEvent(url, signal, tz));
 			let data = null;
 			let fail = null;
 			if (fetcher) {
 				try {
-					data = await fetcher(url, signal);
+					data = await fetcher(url, signal, tz);
 				} catch (err) {
 					if (err && err.name === "AbortError") throw err;
 					fail = { kind: "down", reason: normErr(err) };
@@ -60,7 +61,8 @@
 						fetcher: gachaFetcherFor(source, gachaUrl),
 						url: gachaUrl,
 						allowGeneric: !!(source.custom || source.allowGenericGacha),
-						signal
+						signal,
+						tz: source.tz
 					});
 				}
 				let evData = null;
@@ -110,7 +112,8 @@
 							fetcher: evFetcher,
 							url: eventUrl,
 							allowGeneric: !!(source.custom || source.allowGenericEvent),
-							signal
+							signal,
+							tz: source.tz
 						});
 						evData = ev.data;
 						eventFail = ev.fail;

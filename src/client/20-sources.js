@@ -4,6 +4,18 @@
 		// 默认活动源与卡池源相同时（ba-*/r1999 的公告同时含卡池与活动），仍作为独立来源存在，
 		// 抓取时同 URL 单次请求复用，换用其他来源时独立抓取。
 		// 明日方舟来源地址：默认=官方公告 CMS（web-news.hypergryph.com）；PRTS 卡池一览为备选（mediawiki，浏览器直连）
+		// —— 源站时区（`tz`）——
+		// 每个条目声明其**源站墙上时钟所用时区**，由 15-env.js 的 sourceInstant() 换算成绝对时刻。
+		// 只影响"绝对时刻"（倒计时 / 是否在开），**显示文本仍是源站墙钟原文**（与游戏内公告一致）。
+		// 取值依据（2026-10-01 实测源站标注，详见交接文档 §59）：
+		//   · 国服系（原神/星铁/绝区零/鸣潮/方舟/终末地/蔚蓝国服/1999/异环）→ UTC+8
+		//     其中绝区零正文标 `UTC+8`×17、鸣潮 `UTC+8`×10、1999 `UTC+8`×1
+		//   · 蔚蓝日服 → `Asia/Tokyo`（正文标 `JST`×3）
+		//   · 蔚蓝国际服 → `UTC`（国际服标准重置点 = UTC 01:59，公告写"上午9點59分"）
+		//   · 未声明 → 沿用本机时区（与改造前一致）
+		const TZ_CN = "Asia/Shanghai";      // UTC+8：国服一览
+		const TZ_JP = "Asia/Tokyo";         // UTC+9：日服
+		const TZ_UTC = "UTC";               // UTC  ：国际服
 		const AK_OFFICIAL_BULLETIN = "https://web-news.hypergryph.com/api/bulletin";
 		const ARKNIGHTS_OFFICIAL_LIST_URL = AK_OFFICIAL_BULLETIN + "?lang=zh-cn&code=arknights&page=1&pageSize=30";
 		const ARKNIGHTS_PRTS_URL = "https://prts.wiki/api.php?action=parse&page=%E5%8D%A1%E6%B1%A0%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2";
@@ -32,6 +44,7 @@
 		const SOURCES = [
 			{
 				id: "genshin",
+				tz: TZ_CN,
 				// parserVersion：该条目「解析逻辑」的版本号 —— 源站改版/规则更新后 +1。
 				// 用途：无服务端分发时定位「坏了的是哪个版本的用户、哪个源」（见交接文档 §13.4）。
 				parserVersion: 1,
@@ -45,6 +58,7 @@
 			},
 			{
 				id: "hsr",
+				tz: TZ_CN,
 				parserVersion: 1,
 				name: "崩坏：星穹铁道",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/3/38/HonkaiStarRailIcon_StartingVer3.6_CHN.png!/fw/64",
@@ -56,6 +70,7 @@
 			},
 			{
 				id: "zzz",
+				tz: TZ_CN,
 				parserVersion: 2,
 				name: "绝区零",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/3/3e/ZZZ_miYoYo_logo.jpg!/fw/64",
@@ -82,6 +97,7 @@
 			},
 			{
 				id: "wuwa",
+				tz: TZ_CN,
 				parserVersion: 2,
 				name: "鸣潮",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/2/29/WutheringWavesIcon.png!/fw/64",
@@ -106,6 +122,7 @@
 			},
 			{
 				id: "arknights",
+				tz: TZ_CN,
 				// 2：档位改按池名判定（中坚优先）+ 外显与悬停共用同一份排序列表（v0.9.25 修）
 				parserVersion: 2,
 				name: "明日方舟",
@@ -123,6 +140,7 @@
 			},
 			{
 				id: "endfield",
+				tz: TZ_CN,
 				parserVersion: 2,
 				name: "明日方舟：终末地",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/f/f1/ArknightsEndfieldAppIcon.png!/fw/64",
@@ -154,6 +172,7 @@
 			},
 			{
 				id: "ba-cn",
+				tz: TZ_CN,
 				parserVersion: 1,
 				name: "蔚蓝档案·国服",
 				icon: "https://webcnstatic.yostar.net/ba_cn_web/prod/web/favicon.png?x-oss-process=image/resize,w_64",
@@ -166,6 +185,7 @@
 			},
 			{
 				id: "ba-global",
+				tz: TZ_UTC,
 				parserVersion: 1,
 				name: "蔚蓝档案·国际服",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/2/25/AppIcon_Arona.png!/fw/64",
@@ -186,6 +206,7 @@
 			},
 			{
 				id: "ba-jp",
+				tz: TZ_JP,
 				parserVersion: 1,
 				name: "蔚蓝档案·日服",
 				icon: "https://play-lh.googleusercontent.com/H975s6W1-boCSogzpF5_rIyawbjiXfG842ncgjIRiVGzhXHFTCVut0DkBhlDR4CgN1nn98OOC1fWN-LE7kUHnQ=s64",
@@ -207,6 +228,7 @@
 			},
 			{
 				id: "r1999",
+				tz: TZ_CN,
 				parserVersion: 3,
 				name: "重返未来：1999",
 				icon: "https://play-lh.googleusercontent.com/LwcueZMBbLq6aELtqJVn61ToKkJUgxEO8O4KgK_5052hfYoDAglQJIzqSu8srUJeaOZwv36Qi5YKtsXZjo-JPg=s64",
@@ -229,6 +251,7 @@
 			},
 			{
 				id: "nte",
+				tz: TZ_CN,
 				parserVersion: 2,
 				name: "异环",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/8/8c/YH_APP.png!/fw/64",
