@@ -1589,7 +1589,7 @@
 			const primary = pickEventPrimary(active) || active[0];
 			return {
 				event: primary.name,
-				eventDates: primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs) : (primary.raw || ""),
+				eventDates: primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs, tz) : (primary.raw || ""),
 				eventDatesRaw: primary.raw || "",
 				eventHover: buildEventHover(active, permanent.length)
 			};
@@ -1657,7 +1657,7 @@
 			const primary = pickEventPrimary(active) || active[0];
 			return {
 				event: primary.name,
-				eventDates: primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs) : (primary.raw || ""),
+				eventDates: primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs, tz) : (primary.raw || ""),
 				eventDatesRaw: primary.raw || "",
 				eventHover: buildEventHover(active)
 			};
@@ -1821,7 +1821,14 @@
 			// 一条活动都没解析出来 → 页面结构变了（不是"当期没活动"）：抛错让该侧记 down，
 			// 面板会显示"活动失败"，而不是伪装成"新活动未公布"（历史教训：源站改版长期静默失灵）。
 			if (acts.length === 0) throw new Error("fz-wiki-no-activities");
-			const parseT = (s) => new Date(String(s).replace(/\//g, "-")).getTime();
+			// 时间格式 "2026/9/2 7:00:00"（fz.wiki 的**服务器墙钟**，+08）。
+			// 不能直接丢给 `new Date(str)`：那个格式不是 ISO，会被当**本机时区**解释 →
+			// 海外用户拿到偏移的时刻。这里显式拆出字段，按**源站时区**（`tz`）构造。
+			const parseT = (s) => {
+				const m = String(s).match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/);
+				if (m) return sourceInstant(Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4]), Number(m[5]), tz);
+				return new Date(String(s).replace(/\//g, "-")).getTime();
+			};
 			const t0 = now || nowMs();
 			// 覆盖当前时刻的活动统一排序（③ 结束时间升序）供悬停；外显另按类别优先挑选
 			const activeActs = sortEventItems(acts
@@ -1867,15 +1874,16 @@
 			const results = json?.query?.results || {};
 			const now = nowMs();
 			const covering = [];
-			// SMW timestamp 是 UTC 秒，raw 形如 "1/2026/8/28/10/0/0/0"（服务器本地时间 +08）。
-			// 用 raw 直接构造本地时间，避免 UTC 秒被本地时区再偏移。
+			// SMW timestamp 是 UTC 秒，raw 形如 "1/2026/8/28/10/0/0/0"（**服务器本地时间 +08**）。
+			// 用 raw 的值直接构造，但必须按**源站时区**（`tz`）解释 —— 否则海外用户
+			// 得到的绝对时刻会整体偏移（"是否在开/倒计时"随之出错）。
 			const parseRaw = (v) => {
 				if (!v) return null;
 				if (v.raw != null) {
 					const p = String(v.raw).split("/");
 					if (p.length >= 8) {
 						const y = Number(p[1]), mo = Number(p[2]), d = Number(p[3]), h = Number(p[4]), mi = Number(p[5]);
-						if (y && mo && d) return new Date(y, mo - 1, d, h || 0, mi || 0).getTime();
+						if (y && mo && d) return sourceInstant(y, mo, d, h || 0, mi || 0, tz);
 					}
 				}
 				// 回退：value 若是严格 ISO 本地时间则用之（避免把展示文本误判为时间）
