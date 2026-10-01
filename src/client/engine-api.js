@@ -47,9 +47,24 @@
 				allEntries.forEach((e) => {
 					const i = resultByIndex.get(e.id);
 					if (i === void 0) {
-						// 隐藏（未选中展示）→ 本轮不抓、也不改它的缓存记录：
-						// 沿用上次内容与时间戳，保证"取消隐藏立刻有数据"这一既有体验不变。
-						games[e.id] = normalizeRecord(prev.games[e.id], e.name);
+						// 隐藏（未选中展示）→ 本轮**不抓、也不判定**，但要把两件事分开处理：
+						//
+						// · **内容字段与 okAt 原样保留** —— 取消隐藏时仍能立刻看到上次内容（既有体验）。
+						// · **失败状态（gachaFail/eventFail）与 stale 标记一律清空** ——
+						//   隐藏期间我们**没有发起请求**，所以"失败"这个判断**根本不成立**：
+						//   保留一个未经验证的旧失败等于在说谎。更要命的是它会被**冻结**：
+						//   这里只做 `normalizeRecord(prev.games[e.id])` 的搬运、从不重新判定，
+						//   于是那条失败原因会一直是"隐藏前最后一次抓取"留下的值——
+						//   实测：源站恢复后连刷 3 轮，隐藏记录里的 `抓取异常` 依然不动。
+						//   后果：用户取消隐藏后，会先看到一条**可能早已过期**的失败原因。
+						//   （2026-10-01 用户追问"失败原因是哪来的"后定为方案 B。）
+						const kept = prev.games[e.id];
+						const blank = { ...(kept || {}) };
+						delete blank.gachaFail;
+						delete blank.eventFail;
+						delete blank.gachaStale;
+						delete blank.eventStale;
+						games[e.id] = normalizeRecord(blank, e.name);
 						return;
 					}
 					const r = result.results[i] || { reason: "skipped" };
