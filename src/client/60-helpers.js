@@ -162,6 +162,9 @@
 		}
 
 		// 全部条目 = 内置(去除已删除) + 自定义条目
+		// ⚠️ 这里是**白名单重建**：每加一个内置条目支持的新字段，都必须同步加到这里，
+		// 否则自定义条目上写了也会被静默丢掉（2026-10-01 踩到：`tz` 不在列表里，
+		// 用户给自定义条目配的源站时区被丢弃，永远退回本机时区）。
 		function getAllEntries(s) {
 			const removed = Array.isArray(s.removed) ? s.removed : [];
 			const base = SOURCES.filter((x) => !removed.includes(x.id));
@@ -182,6 +185,8 @@
 					source: c.source || "",
 					url: c.url || "",
 					eventUrl: c.eventUrl || "",
+					// 源站墙钟时区（可选）：留空/不写 → 沿用本机时区（与改造前一致）
+					tz: c.tz || null,
 					custom: true
 				});
 			}

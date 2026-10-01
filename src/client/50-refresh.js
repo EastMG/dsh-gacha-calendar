@@ -98,14 +98,29 @@
 						// ⚠️ **这一支不是死代码，别删**：**自定义条目**可以没有注册抓取器 ——
 						//   `getAllEntries` 里 customEntries 带 `custom:true` + 用户填的 url/eventUrl，
 						//   而 GACHA_FETCHERS / EVENT_FETCHERS 里没有它们的 id → `eventFetcherFor` 返回 null。
-						// 语义：
-						//  · 卡池那次成功但载荷没有活动字段 → 该侧就是"未公布"（nomatch），
-						//    且**不发**那次注定被 CORS 拦的直连；
-						//  · 卡池那次本身失败 → 沿用**同一次请求**的失败原因（如 HTTP 567），
-						//    而不是笼统报"无可用来源"。
+						//
+						// 语义（2026-10-01 修）：
+						//  · 卡池那次**成功**（g.data 非空）→ 用**同一份 HTML** 再跑一次通用活动解析。
+						//    为什么必须试：卡池那次的载荷里可能只有卡池字段（没有 event），但**同一个页面**
+						//    里就写着活动表。此前这里直接判 nomatch，于是自定义条目"卡池列有内容、活动列恒空"
+						//    （用户点名，与卡池侧新加的普通表兜底不对称 —— 同一张表两侧口径必须一致）。
+						//    复用 HTML 而不是重新抓：这条分支的初衷就是"省掉同一条 URL 的重复请求"。
+						//  · 复用没解析出活动、或卡池那次本身失败 → 记 nomatch；
+						//    后者沿用**同一次请求**的失败原因（如 HTTP 567），而不是笼统报"无可用来源"。
 						// 教训：我一度只按"内置 11 条目命中 0 次"就判它死代码 —— **错的**，
 						// 把"当前没命中"当成了"不可达"。`_batch1` A3 用合成条目（sim-nte）刻意覆盖这两条语义。
-						eventFail = g.data ? { kind: "nomatch" } : (g.fail || { kind: "nomatch" });
+						// 取同一份文本：**只读缓存**（`peekHtmlText` 命中才返回，绝不发动新请求）。
+						// 为什么不能调 fetchHtmlText：卡池那次若是走注册抓取器、或直连取到的，
+						// 缓存里就没有它 —— 那时再去取就等于**打一次必被 CORS 拦的直连**，
+						// 而这条分支的既有语义恰恰是"不打直连、如实记未公布"（`_batch1` A3 守护着）。
+						// 只有"卡池那次确实经 fetchHtmlText 取过同一 URL"（自定义条目的常态）才复用。
+						const sameHtml = g.data ? peekHtmlText(gachaUrl) : null;
+						const reusedEvent = sameHtml ? genericEventPayloadFromHtml(sameHtml, source.tz) : null;
+						if (reusedEvent) {
+							evData = reusedEvent;
+						} else {
+							eventFail = g.data ? { kind: "nomatch" } : (g.fail || { kind: "nomatch" });
+						}
 					} else {
 						// 活动侧独立抓取（含"两侧不是同一条 URL"与"同一条 URL 但载荷无活动字段"两种情形）
 						const ev = await resolveSide("event", {
@@ -209,6 +224,9 @@
 		}
 
 		async function refreshAll(entries, s, timeoutMs) {
+			// 每轮清空 HTML 文本缓存：两侧同址的复用必须落在**同一轮内**，
+			// 跨轮复用会拿到过期页面（见 30-parsers.js 的 fetchHtmlText）
+			resetHtmlTextCache();
 			// 自定义爬取地址覆盖默认；克隆避免污染原始对象（卡池源+活动源分别覆盖）
 			// allowGeneric*：只有"用户自己填的地址"（custom:<url>）或自定义条目才允许通用解析兜底
 			const targets = entries.map((e) => ({
