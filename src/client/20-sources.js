@@ -95,7 +95,7 @@
 					{ label: "Bwiki 角色轮换池", url: WUWA_BWIKI_URL, fetcher: "wuwa-bwiki" }
 				],
 				// 活动源：**默认=同一份官方公告**（`recommend` 组里 tag=5 为限时活动，见 parseWuwaRecommendEvents），
-				// 与卡池同址 → 一次请求复用两侧数据。
+				// 与卡池是**同一条 URL** → 一次请求复用两侧数据。
 				// ⚠️ 2026-10-01 改：Bwiki 活动日历页**已停更**（最新一条结束于 2026/9/29，无 3.7 内容），
 				// 所以把它从默认**降级为备选**（eventAltSources），仍可在设置里手动切回。
 				eventUrl: WUWA_NOTICE_ENTRY,
@@ -220,7 +220,7 @@
 				altSources: [
 					{ label: "\u5B98\u7F51\u516C\u544A+\u5C0F\u7C73", url: R1999_OFFICIAL_URL, fetcher: "r1999-official" }
 				],
-				// 活动源与卡池源同址（同一篇「版本活动一览」同时含征集与活动），仍作为独立来源存在
+				// 活动源与卡池源是**同一条 URL**（同一篇「版本活动一览」同时含征集与活动），仍作为独立来源存在
 				eventUrl: R1999_NOTICE_URL,
 				eventSource: "\u5B98\u65B9\u516C\u544A",
 				eventAltSources: [

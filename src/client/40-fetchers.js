@@ -1005,9 +1005,9 @@
 				default: (url, signal) => fetchZzzEventsOfficial(url, signal),
 				"zzz-event-bwiki": mkMediaWiki(genericEventPayload)
 			},
-			// 异环：活动源就是同一篇官网公告（与卡池侧同址，fetchNteWanmei 一个函数同时解析两者）。
+			// 异环：活动源就是同一篇官网公告（与卡池侧**同一条 URL**，fetchNteWanmei 一个函数同时解析两者）。
 			// 注册成独立活动源的意义：卡池侧本轮抓挂、或用户把**卡池**来源改成自定义/备选时，
-			// 活动侧仍能自己抓、自己报错，而不是整列空掉（同址复用只是"能省一次请求"的优化，不是它的腿）。
+			// 活动侧仍能自己抓、自己报错，而不是整列空掉（复用只是"同一 URL 省一次请求"的优化，不是它的腿）。
 			nte: {
 				default: (url, signal) => fetchNteWanmei(url, signal)
 			},
@@ -1024,8 +1024,8 @@
 					d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "" } : null
 				)
 			},
-			// 鸣潮：**默认=同一份官方公告**（`recommend` 组里 tag=5 为限时活动），与卡池同址
-			// → 一次请求复用两侧数据（refresh 的同址复用优化）。
+			// 鸣潮：**默认=同一份官方公告**（`recommend` 组里 tag=5 为限时活动），与卡池是**同一条 URL**
+			// → 一次请求复用两侧数据（refresh 的复用优化）。
 			// ⚠️ 2026-10-01 改：Bwiki 活动日历**已停更**（最新一条结束于 2026/9/29），
 			// 所以把官方提为默认、Bwiki 降级为备选（`wuwa-event-bwiki`），仍可在设置里手动切回。
 			wuwa: {

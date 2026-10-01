@@ -145,7 +145,7 @@
 					{ label: "Bwiki 角色轮换池", url: WUWA_BWIKI_URL, fetcher: "wuwa-bwiki" }
 				],
 				// 活动源：**默认=同一份官方公告**（`recommend` 组里 tag=5 为限时活动，见 parseWuwaRecommendEvents），
-				// 与卡池同址 → 一次请求复用两侧数据。
+				// 与卡池是**同一条 URL** → 一次请求复用两侧数据。
 				// ⚠️ 2026-10-01 改：Bwiki 活动日历页**已停更**（最新一条结束于 2026/9/29，无 3.7 内容），
 				// 所以把它从默认**降级为备选**（eventAltSources），仍可在设置里手动切回。
 				eventUrl: WUWA_NOTICE_ENTRY,
@@ -270,7 +270,7 @@
 				altSources: [
 					{ label: "\u5B98\u7F51\u516C\u544A+\u5C0F\u7C73", url: R1999_OFFICIAL_URL, fetcher: "r1999-official" }
 				],
-				// 活动源与卡池源同址（同一篇「版本活动一览」同时含征集与活动），仍作为独立来源存在
+				// 活动源与卡池源是**同一条 URL**（同一篇「版本活动一览」同时含征集与活动），仍作为独立来源存在
 				eventUrl: R1999_NOTICE_URL,
 				eventSource: "\u5B98\u65B9\u516C\u544A",
 				eventAltSources: [
@@ -1472,7 +1472,7 @@ export function createEngine(env) {
 		// 鸣潮官方活动解析：同一份全量公告的 `recommend` 组里，`tag === 7` 是卡池、**`tag === 5` 是限时活动**。
 		// 活动条目形如 tabTitle="[团团勇者大乱斗]休闲活动"，同样带绝对时间戳。
 		// 这是 2026-10-01 起鸣潮活动的**默认源**——Bwiki 活动日历页已停更（最新一条结束于 2026/9/29），
-		// 而官方源有当期 3.7 的活动，且与卡池同源、同一次请求即可拿到两侧数据。
+		// 而官方源有当期 3.7 的活动，且**与卡池是同一条 URL**、同一次请求即可拿到两侧数据。
 		function parseWuwaRecommendEvents(list, now = nowMs()) {
 			const arr = Array.isArray(list?.recommend) ? list.recommend : [];
 			const stripH = (s) => String(s || "")
@@ -1509,8 +1509,8 @@ export function createEngine(env) {
 				try { list = await proxyFetchJson(dir + "zh-Hans.json", ref); } catch { list = null; }
 				if (!list || typeof list !== "object") list = await proxyFetchJson(dir + "notice.json", ref);
 				// **同一份 JSON 里卡池（tag=7）与活动（tag=5）都在** → 顺带把活动字段也返回。
-				// 这是"统一来源注册表"里写明的同址复用契约：卡池载荷带 event 字段时，
-				// refresh 不再为活动侧另抓一次（否则同址条目每轮多一个请求）。
+				// 这是"统一来源注册表"里写明的复用契约：**两侧是同一条 URL** 且卡池载荷带 event 字段时，
+				// refresh 不再为活动侧另抓一次（否则每轮会向同一条 URL 重复发一次请求）。
 				// ⚠️ 我重写解析时一度只返回卡池字段，导致鸣潮每轮请求从 1 次变成 2 次 —— 已补回。
 				// 活动侧仍保留自己的抓取器（fetchWuwaEventsOfficial）：卡池侧失败、或用户在设置里
 				// 单独选活动来源时，活动侧要能自己抓、自己报错（解耦不变）。
@@ -1531,7 +1531,7 @@ export function createEngine(env) {
 		}
 
 		// 鸣潮活动默认抓取器：抓同一份官方公告，取 `recommend` 组里 tag=5 的限时活动。
-		// 与卡池侧同一 URL（entrypoint.json），所以 refresh 的同址复用会让两侧共用一次请求。
+		// 与卡池侧是**同一条 URL**（entrypoint.json），所以 refresh 的复用会让两侧共用一次请求。
 		async function fetchWuwaEventsOfficial(entryUrl) {
 			const ref = "https://aki-gm-resources.aki-game.com/";
 			const ej = await proxyFetchJson(entryUrl, ref);
@@ -1651,8 +1651,8 @@ export function createEngine(env) {
 			try {
 				const payload = await proxyFetchJson(listUrl, "https://zzz.mihoyo.com/");
 				// **同一份 payload 里活动数据也在**（该接口同时含频段公告与「活动说明」公告）→ 顺带返回活动字段。
-				// 这是"统一来源注册表"里写明的同址复用契约：卡池载荷带 event 字段时，refresh 不再为活动侧
-				// 另抓一次。绝区零两侧**地址相同**（同一 iChanId=279），所以此前每轮会向同一地址发 2 次请求：
+				// 这是"统一来源注册表"里写明的复用契约：卡池载荷带 event 字段时，refresh 不再为活动侧
+				// 另抓一次。绝区零两侧是**同一条 URL**（同一 iChanId=279），所以此前每轮会向它发 2 次请求：
 				// 一次 parseZzzFreq 取频段、一次 parseZzzEventsOfficial 取活动 —— 纯重复（2026-10-01 实测）。
 				// 活动侧**仍保留**自己的抓取器（fetchZzzEventsOfficial 与 `zzz-event-bwiki` 备选）：
 				// 卡池侧失败、或用户在设置里单独选活动来源时，活动侧要能自己抓、自己报错（解耦不变）。
@@ -3791,9 +3791,9 @@ export function createEngine(env) {
 				default: (url, signal) => fetchZzzEventsOfficial(url, signal),
 				"zzz-event-bwiki": mkMediaWiki(genericEventPayload)
 			},
-			// 异环：活动源就是同一篇官网公告（与卡池侧同址，fetchNteWanmei 一个函数同时解析两者）。
+			// 异环：活动源就是同一篇官网公告（与卡池侧**同一条 URL**，fetchNteWanmei 一个函数同时解析两者）。
 			// 注册成独立活动源的意义：卡池侧本轮抓挂、或用户把**卡池**来源改成自定义/备选时，
-			// 活动侧仍能自己抓、自己报错，而不是整列空掉（同址复用只是"能省一次请求"的优化，不是它的腿）。
+			// 活动侧仍能自己抓、自己报错，而不是整列空掉（复用只是"同一 URL 省一次请求"的优化，不是它的腿）。
 			nte: {
 				default: (url, signal) => fetchNteWanmei(url, signal)
 			},
@@ -3810,8 +3810,8 @@ export function createEngine(env) {
 					d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "" } : null
 				)
 			},
-			// 鸣潮：**默认=同一份官方公告**（`recommend` 组里 tag=5 为限时活动），与卡池同址
-			// → 一次请求复用两侧数据（refresh 的同址复用优化）。
+			// 鸣潮：**默认=同一份官方公告**（`recommend` 组里 tag=5 为限时活动），与卡池是**同一条 URL**
+			// → 一次请求复用两侧数据（refresh 的复用优化）。
 			// ⚠️ 2026-10-01 改：Bwiki 活动日历**已停更**（最新一条结束于 2026/9/29），
 			// 所以把官方提为默认、Bwiki 降级为备选（`wuwa-event-bwiki`），仍可在设置里手动切回。
 			wuwa: {
@@ -3935,18 +3935,21 @@ export function createEngine(env) {
 					// 活动侧自己的抓取器（与卡池侧各自独立选择，来源可以完全不同）。
 					// 注意：**默认路径就是"活动侧自己抓"** —— 解耦是常态，复用只是优化。
 					const evFetcher = eventFetcherFor(source, eventUrl);
-					// ── 同址复用：**命中才触发**的分支 ──────────────────────────────
+					// ── 两侧同一条 URL 时的请求复用：**命中才触发**的分支 ───────────
 					// 只有两个条件**同时**成立才复用，否则一律走下面的独立抓取：
-					//   ① 两侧地址相同（同一次请求本来就能拿到两侧数据）
+					//   ① 两侧是**同一条 URL**（按**完整 URL 含查询参数**比，不是「同一个网站」）
+					//      —— 例如星铁的卡池与活动都是 wiki.biligame.com/sr/api.php，
+					//         但 `page=历史跃迁` vs `page=活动一览`，**不是**同一条 URL；
+					//         而绝区零/鸣潮两侧是字面完全相同的 URL，一次请求的响应完全一样。
 					//   ② 卡池那次的载荷**确实带了活动字段**（`event`）
-					// 复用只是"省掉一次本来会重复的请求"，**不是解耦的腿**：
+					// 复用只是"省掉一次**同一 URL** 的重复请求"，**不是解耦的腿**：
 					// 活动侧的抓取器、失败归因、来源选择都保持独立（见 §53）。
 					//
 					// 2026-10-01 实测（11 内置条目逐条）：复用支命中 5 次
 					//   （wuwa / nte / r1999 / ba-cn / ba-global —— 它们的卡池载荷本身就含活动字段），
 					// 其余 6 条目（zzz / genshin / hsr / arknights / ba-jp / endfield）走独立抓取。
-					const reuseSameUrl = eventUrl === gachaUrl && !!(g.data && g.data.event);
-					if (reuseSameUrl) {
+					const reuseSameRequest = eventUrl === gachaUrl && !!(g.data && g.data.event);
+					if (reuseSameRequest) {
 						// 同 URL：活动字段就在卡池载荷里，不重复抓
 						evData = {
 							event: g.data.event,
@@ -3955,7 +3958,7 @@ export function createEngine(env) {
 							eventHover: g.data.eventHover || ""
 						};
 					} else if (eventUrl === gachaUrl && !evFetcher) {
-						// ── 同址但活动侧**没有自己的抓取器**（该条目就只有这一份载荷可用）──
+						// ── 两侧同一条 URL、但活动侧**没有自己的抓取器**（该条目就只有这一份载荷可用）──
 						// ⚠️ **这一支不是死代码，别删**：**自定义条目**可以没有注册抓取器 ——
 						//   `getAllEntries` 里 customEntries 带 `custom:true` + 用户填的 url/eventUrl，
 						//   而 GACHA_FETCHERS / EVENT_FETCHERS 里没有它们的 id → `eventFetcherFor` 返回 null。
@@ -3968,7 +3971,7 @@ export function createEngine(env) {
 						// 把"当前没命中"当成了"不可达"。`_batch1` A3 用合成条目（sim-nte）刻意覆盖这两条语义。
 						eventFail = g.data ? { kind: "nomatch" } : (g.fail || { kind: "nomatch" });
 					} else {
-						// 活动侧独立抓取（含"地址不同"与"同址但载荷无活动字段"两种情形）
+						// 活动侧独立抓取（含"两侧不是同一条 URL"与"同一条 URL 但载荷无活动字段"两种情形）
 						const ev = await resolveSide("event", {
 							fetcher: evFetcher,
 							url: eventUrl,

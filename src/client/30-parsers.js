@@ -630,7 +630,7 @@
 		// 鸣潮官方活动解析：同一份全量公告的 `recommend` 组里，`tag === 7` 是卡池、**`tag === 5` 是限时活动**。
 		// 活动条目形如 tabTitle="[团团勇者大乱斗]休闲活动"，同样带绝对时间戳。
 		// 这是 2026-10-01 起鸣潮活动的**默认源**——Bwiki 活动日历页已停更（最新一条结束于 2026/9/29），
-		// 而官方源有当期 3.7 的活动，且与卡池同源、同一次请求即可拿到两侧数据。
+		// 而官方源有当期 3.7 的活动，且**与卡池是同一条 URL**、同一次请求即可拿到两侧数据。
 		function parseWuwaRecommendEvents(list, now = nowMs()) {
 			const arr = Array.isArray(list?.recommend) ? list.recommend : [];
 			const stripH = (s) => String(s || "")
@@ -667,8 +667,8 @@
 				try { list = await proxyFetchJson(dir + "zh-Hans.json", ref); } catch { list = null; }
 				if (!list || typeof list !== "object") list = await proxyFetchJson(dir + "notice.json", ref);
 				// **同一份 JSON 里卡池（tag=7）与活动（tag=5）都在** → 顺带把活动字段也返回。
-				// 这是"统一来源注册表"里写明的同址复用契约：卡池载荷带 event 字段时，
-				// refresh 不再为活动侧另抓一次（否则同址条目每轮多一个请求）。
+				// 这是"统一来源注册表"里写明的复用契约：**两侧是同一条 URL** 且卡池载荷带 event 字段时，
+				// refresh 不再为活动侧另抓一次（否则每轮会向同一条 URL 重复发一次请求）。
 				// ⚠️ 我重写解析时一度只返回卡池字段，导致鸣潮每轮请求从 1 次变成 2 次 —— 已补回。
 				// 活动侧仍保留自己的抓取器（fetchWuwaEventsOfficial）：卡池侧失败、或用户在设置里
 				// 单独选活动来源时，活动侧要能自己抓、自己报错（解耦不变）。
@@ -689,7 +689,7 @@
 		}
 
 		// 鸣潮活动默认抓取器：抓同一份官方公告，取 `recommend` 组里 tag=5 的限时活动。
-		// 与卡池侧同一 URL（entrypoint.json），所以 refresh 的同址复用会让两侧共用一次请求。
+		// 与卡池侧是**同一条 URL**（entrypoint.json），所以 refresh 的复用会让两侧共用一次请求。
 		async function fetchWuwaEventsOfficial(entryUrl) {
 			const ref = "https://aki-gm-resources.aki-game.com/";
 			const ej = await proxyFetchJson(entryUrl, ref);
@@ -809,8 +809,8 @@
 			try {
 				const payload = await proxyFetchJson(listUrl, "https://zzz.mihoyo.com/");
 				// **同一份 payload 里活动数据也在**（该接口同时含频段公告与「活动说明」公告）→ 顺带返回活动字段。
-				// 这是"统一来源注册表"里写明的同址复用契约：卡池载荷带 event 字段时，refresh 不再为活动侧
-				// 另抓一次。绝区零两侧**地址相同**（同一 iChanId=279），所以此前每轮会向同一地址发 2 次请求：
+				// 这是"统一来源注册表"里写明的复用契约：卡池载荷带 event 字段时，refresh 不再为活动侧
+				// 另抓一次。绝区零两侧是**同一条 URL**（同一 iChanId=279），所以此前每轮会向它发 2 次请求：
 				// 一次 parseZzzFreq 取频段、一次 parseZzzEventsOfficial 取活动 —— 纯重复（2026-10-01 实测）。
 				// 活动侧**仍保留**自己的抓取器（fetchZzzEventsOfficial 与 `zzz-event-bwiki` 备选）：
 				// 卡池侧失败、或用户在设置里单独选活动来源时，活动侧要能自己抓、自己报错（解耦不变）。

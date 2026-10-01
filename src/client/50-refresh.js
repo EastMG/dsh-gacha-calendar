@@ -69,18 +69,21 @@
 					// 活动侧自己的抓取器（与卡池侧各自独立选择，来源可以完全不同）。
 					// 注意：**默认路径就是"活动侧自己抓"** —— 解耦是常态，复用只是优化。
 					const evFetcher = eventFetcherFor(source, eventUrl);
-					// ── 同址复用：**命中才触发**的分支 ──────────────────────────────
+					// ── 两侧同一条 URL 时的请求复用：**命中才触发**的分支 ───────────
 					// 只有两个条件**同时**成立才复用，否则一律走下面的独立抓取：
-					//   ① 两侧地址相同（同一次请求本来就能拿到两侧数据）
+					//   ① 两侧是**同一条 URL**（按**完整 URL 含查询参数**比，不是「同一个网站」）
+					//      —— 例如星铁的卡池与活动都是 wiki.biligame.com/sr/api.php，
+					//         但 `page=历史跃迁` vs `page=活动一览`，**不是**同一条 URL；
+					//         而绝区零/鸣潮两侧是字面完全相同的 URL，一次请求的响应完全一样。
 					//   ② 卡池那次的载荷**确实带了活动字段**（`event`）
-					// 复用只是"省掉一次本来会重复的请求"，**不是解耦的腿**：
+					// 复用只是"省掉一次**同一 URL** 的重复请求"，**不是解耦的腿**：
 					// 活动侧的抓取器、失败归因、来源选择都保持独立（见 §53）。
 					//
 					// 2026-10-01 实测（11 内置条目逐条）：复用支命中 5 次
 					//   （wuwa / nte / r1999 / ba-cn / ba-global —— 它们的卡池载荷本身就含活动字段），
 					// 其余 6 条目（zzz / genshin / hsr / arknights / ba-jp / endfield）走独立抓取。
-					const reuseSameUrl = eventUrl === gachaUrl && !!(g.data && g.data.event);
-					if (reuseSameUrl) {
+					const reuseSameRequest = eventUrl === gachaUrl && !!(g.data && g.data.event);
+					if (reuseSameRequest) {
 						// 同 URL：活动字段就在卡池载荷里，不重复抓
 						evData = {
 							event: g.data.event,
@@ -89,7 +92,7 @@
 							eventHover: g.data.eventHover || ""
 						};
 					} else if (eventUrl === gachaUrl && !evFetcher) {
-						// ── 同址但活动侧**没有自己的抓取器**（该条目就只有这一份载荷可用）──
+						// ── 两侧同一条 URL、但活动侧**没有自己的抓取器**（该条目就只有这一份载荷可用）──
 						// ⚠️ **这一支不是死代码，别删**：**自定义条目**可以没有注册抓取器 ——
 						//   `getAllEntries` 里 customEntries 带 `custom:true` + 用户填的 url/eventUrl，
 						//   而 GACHA_FETCHERS / EVENT_FETCHERS 里没有它们的 id → `eventFetcherFor` 返回 null。
@@ -102,7 +105,7 @@
 						// 把"当前没命中"当成了"不可达"。`_batch1` A3 用合成条目（sim-nte）刻意覆盖这两条语义。
 						eventFail = g.data ? { kind: "nomatch" } : (g.fail || { kind: "nomatch" });
 					} else {
-						// 活动侧独立抓取（含"地址不同"与"同址但载荷无活动字段"两种情形）
+						// 活动侧独立抓取（含"两侧不是同一条 URL"与"同一条 URL 但载荷无活动字段"两种情形）
 						const ev = await resolveSide("event", {
 							fetcher: evFetcher,
 							url: eventUrl,
