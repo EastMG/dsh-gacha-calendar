@@ -1,0 +1,8 @@
+# next-sources 的夹具是「抓包存档」——某时点的真实响应快照，源站改版后本就该重抓，
+# 且合计 12.1MB（单文件最大 4.2MB）。不入库；本地保留，测试照常离线全绿。
+# 重建方式见 README.md 的「夹具未入库 —— 怎么重建」。
+fixtures/**/response.txt
+fixtures/**/response.txt.meta.json
+
+# 但 map.json 要入库：它记录"哪个 URL 对应哪个夹具"，是重建夹具的索引。
+!test/map.json
