@@ -37,6 +37,7 @@ const ORDER = [
   "20-sources.js",     // SOURCES 来源注册表（11 款游戏 / 25 个来源）
   "30-parsers.js",     // 全部解析器（纯函数）
   "40-fetchers.js",    // 抓取器 + 两个来源注册表（GACHA_FETCHERS / EVENT_FETCHERS）
+  "45-next-sources.js",// 【试合并分支专用】next-sources 的解析器 + 来源追加 + 抓取器登记
   "50-refresh.js",     // 刷新编排、失败沿用旧值
   "60-helpers.js",     // 共用纯函数：状态归一 / 提示文案 / 格式化 / 悬停 / 排序
   "engine-head.js",    // core 引擎外壳：createEngine（面板只通过它拿 Result JSON）
