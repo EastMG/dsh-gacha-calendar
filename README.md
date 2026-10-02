@@ -97,6 +97,7 @@ dsh-gacha-calendar/
 │       ├── 20-sources.js     # SOURCES 来源注册表（11 款游戏：默认源 + 备选源）
 │       ├── 30-parsers.js     # 全部解析器（纯函数）
 │       ├── 40-fetchers.js    # 抓取器 + GACHA_FETCHERS / EVENT_FETCHERS 注册表
+│       ├── 45-next-sources.js # 【试合并】新增游戏来源的解析器（生成物，源自 next-sources/）
 │       ├── 50-refresh.js     # 刷新编排、失败沿用旧值、提示归类
 │       ├── 60-helpers.js     # 格式化 / 悬停 / 排序 / 启动刷新判定
 │       ├── engine-head.js    # core 外壳：createEngine（storage / listGames / getCached）
