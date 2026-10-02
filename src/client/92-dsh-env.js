@@ -12,14 +12,23 @@
 
 		// 经宿主代理抓取：GET/POST + referer + 可选额外请求头 → 返回目标站原始 body 字符串。
 		// 宿主侧会做白名单校验（见 lib/index.js 的 PROXY_ALLOW_HOSTS），未列入白名单的主机一律拒绝。
-		async function dshFetchViaProxy(proxyUrl, { referer, headers: extraHeaders, body } = {}) {
+		//
+		// ⚠️ POST 时**必须把 Content-Type 也放进 query 的 `contentType`**：
+		//    宿主 `src/index.js` 的 proxyHandler 只在 `body !== ""` 时设置请求头，且取的是
+		//    `parsed.searchParams.get("contentType") || "application/json; charset=utf-8"`。
+		//    表面上默认值就是 JSON，但**一旦 body 为空就不会进那个分支**，
+		//    而赛马娘国际服（umamusume.com）对"无 Content-Type 的 POST"回 `{"response_code":200}`
+		//    （实测：带 content-type → 170KB 正常；不带 → 21B 报错）。故这里显式带上，别依赖默认值。
+		async function dshFetchViaProxy(proxyUrl, { referer, headers: extraHeaders, body, contentType } = {}) {
 			let api = DSH_PROXY_PREFIX + "?url=" + encodeURIComponent(proxyUrl) + "&referer=" + encodeURIComponent(referer || "");
 			if (extraHeaders) api += "&headers=" + encodeURIComponent(JSON.stringify(extraHeaders));
 			const opts = { headers: { "Accept": "application/json" } };
 			if (body !== void 0) {
+				const ct = contentType || "application/json; charset=utf-8";
+				api += "&contentType=" + encodeURIComponent(ct);
 				opts.method = "POST";
-				opts.headers["Content-Type"] = "application/json; charset=utf-8";
-				opts.body = JSON.stringify(body);
+				opts.headers["Content-Type"] = ct;
+				opts.body = typeof body === "string" ? body : JSON.stringify(body);
 			}
 			const res = await fetch(api, opts);
 			if (!res.ok) throw new Error("proxy-http-" + res.status);

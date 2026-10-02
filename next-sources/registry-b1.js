@@ -15,48 +15,19 @@
 //     ⚠️ 服区存疑：仓库是 `cn-diff`，但首条事件 2021-10-09 15:00(UTC+8) 更像**繁中服**上线期，
 //        且部分条目名是繁体 → 只写"中文服数据"，**不要**当成国服专属源（简中/繁中同为 UTC+8，时区不受影响）。
 
-import { gachaUmapyoi } from "./parsers/umapyoi.js";
-import { gachaBestdori, eventsBestdori } from "./parsers/bestdori.js";
 import { gachaSekai, eventsSekai } from "./parsers/sekai.js";
 
 const TZ_CN = "Asia/Shanghai";
-const TZ_JP = "Asia/Tokyo";
 
 export const SOURCES_B1 = [
-	{
-		id: "uma-jp-umapyoi",
-		name: "赛马娘 日服（umapyoi）",
-		tz: TZ_JP,
-		// 单侧来源：api.umapyoi.net 只提供卡池（卡级窗口），**没有活动侧**。
-		// ⚠️ 源站是"卡"不是"卡池"：无卡池名、end_date=2147483647 是常驻哨兵 → banner 为合成文本。
-		gacha: {
-			url: "https://api.umapyoi.net/api/v1/gacha",
-			fetcher: gachaUmapyoi,
-			kind: "third-party",
-			mode: "direct"   // 实测 ACAO=*
-		}
-	},
-	{
-		id: "bandori-bestdori",
-		name: "BanG Dream! 国服（Bestdori）",
-		tz: TZ_CN,
-		// 社区数据库，取 **简中服**（下标 3）的起止毫秒：gacha 1734/2149、events 325/345 条带 CN 时间。
-		gacha: {
-			url: "https://bestdori.com/api/gacha/all.5.json",
-			fetcher: gachaBestdori,
-			kind: "third-party",
-			mode: "proxy"    // 实测无 ACAO，必须走宿主代理
-		},
-		event: {
-			url: "https://bestdori.com/api/events/all.5.json",
-			fetcher: eventsBestdori,
-			kind: "third-party",
-			mode: "proxy"
-		}
-	},
+	// ⚠️ 原 `uma-jp-umapyoi`（赛马娘 日服 umapyoi）**已被吸收**进 `registry-p5.js` 的 `uma-jp` 作为**卡池备选源**；
+	//   原 `bandori-bestdori`（BanG Dream 国服 Bestdori）**已被吸收**进 `registry-b3.js` 的 `bandori` 作为**两侧备选源**。
+	//   原因：插件既有设计是「一游戏一条目，多来源走 altSources 在设置页切换」，
+	//   不该为同一游戏并行列出两条（用户在 review 时明确指出）。
+	//   两个抓取器仍在本仓库（`parsers/umapyoi.js` / `parsers/bestdori.js`），由各自条目的 altSources 引用。
 	{
 		id: "pjsk",
-		name: "PJSK 缤纷舞台（sekai-master-db cn-diff）",
+		name: "初音未来：缤纷舞台",
 		tz: TZ_CN,
 		// GitHub Pages 静态 master DB：epoch 毫秒，可直接读。
 		// ⚠️ 服区存疑（见文件头）：只声明"中文服"，不写成国服专属源。

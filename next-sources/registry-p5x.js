@@ -13,7 +13,7 @@ const TZ_CN = "Asia/Shanghai";
 export const NEXT_SOURCES = [
 	{
 		id: "p5x",
-		name: "P5X 国服（女神异闻录：夜幕魅影）",
+		name: "女神异闻录：夜幕魅影",
 		tz: TZ_CN,
 		gacha: {
 			url: "https://p5x.wanmei.com/news/gamenews/index.html",

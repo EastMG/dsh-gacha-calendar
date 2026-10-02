@@ -50,9 +50,9 @@ export default async function run() {
 	// ───────────────────────── 注册表片段 ─────────────────────────
 	section("B1-0 注册表片段（契约字段齐备）");
 	{
-		check("SOURCES_B1 有 3 条", SOURCES_B1.length === 3, String(SOURCES_B1.length));
+		check("SOURCES_B1 有 1 条（另 2 条已吸收为备选源，见 registry-extras.js）", SOURCES_B1.length === 1, String(SOURCES_B1.length));
 		const ids = SOURCES_B1.map((s) => s.id);
-		check("id 与 registry.js 预留 stub 一致", JSON.stringify(ids) === JSON.stringify(["uma-jp-umapyoi", "bandori-bestdori", "pjsk"]), ids.join(","));
+		check("id = [pjsk]（uma-jp-umapyoi / bandori-bestdori 已移入 altSources）", JSON.stringify(ids) === JSON.stringify(["pjsk"]), ids.join(","));
 		check("id 无重复", new Set(ids).size === ids.length, ids.join(","));
 		for (const s of SOURCES_B1) {
 			check(`${s.id} 声明了 tz`, typeof s.tz === "string" && s.tz.length > 0, String(s.tz));
@@ -65,11 +65,12 @@ export default async function run() {
 			}
 		}
 		// 调研实测：只有 api.umapyoi.net / sekai-world.github.io 可直连，bestdori 必须走代理
-		check("umapyoi/sekai 用 direct、bestdori 用 proxy",
-			findSource("uma-jp-umapyoi").gacha.mode === "direct"
-			&& findSource("pjsk").gacha.mode === "direct" && findSource("pjsk").event.mode === "direct"
-			&& findSource("bandori-bestdori").gacha.mode === "proxy" && findSource("bandori-bestdori").event.mode === "proxy");
-		check("umapyoi 是单侧来源（源站无活动侧）", !findSource("uma-jp-umapyoi").event);
+		// ⚠️ uma-jp-umapyoi / bandori-bestdori 已**吸收为备选源**（分别为 registry-p5.js 的 uma-jp.altSources
+		//    与 registry-b3.js 的 bandori.altSources/eventAltSources）；它们的 direct/proxy 取值
+		//    改由 all.mjs 的「备选源登记」守卫与各条目自己的 registry 校验。
+		check("sekai 用 direct（GitHub Pages 静态资源）",
+			findSource("pjsk").gacha.mode === "direct" && findSource("pjsk").event.mode === "direct");
+		// umapyoi 已作为 uma-jp 的**卡池备选源**；它本身仍只有卡池侧（由 registry-extras.js 单侧登记）
 		// 共享 test/map.json 必须能查到本批次 5 个 URL（否则合并进 run.mjs 后 useFixtures() 会 404）
 		const map = JSON.parse(readFileSync(new URL("./map.json", import.meta.url), "utf8"));
 		for (const url of Object.keys(B1_FIXTURE_URLS)) {
@@ -249,18 +250,19 @@ export default async function run() {
 	// ───────────────────────── 4. 抓取器端到端（离线走夹具） ─────────────────────────
 	section("B1-4 抓取器端到端（夹具 fetch，now=夹具快照时刻）");
 	{
-		const umaSrc = findSource("uma-jp-umapyoi");
-		const r1 = await grab(() => umaSrc.gacha.fetcher(umaSrc.gacha.url, undefined, umaSrc.tz, SNAP));
+		// ⚠️ uma-jp-umapyoi / bandori-bestdori 已吸收为**备选源**，不再是 SOURCES_B1 的独立条目。
+		//    这里直接用**原始导出函数**测端到端（备选源最终也是调用同一个函数），
+		//    等价于原来"经 registry 包装层"的测试。
+		const r1 = await grab(() => gachaUmapyoi("https://api.umapyoi.net/api/v1/gacha", undefined, "Asia/Tokyo", SNAP));
 		check("umapyoi.gacha 抓取成功", r1.ok, r1.err);
 		assertContract("赛马娘日服", "gacha", r1.ok ? r1.data : null);
 		check("umapyoi.gacha 与纯函数结果一致", r1.ok && r1.data && r1.data.bannerDates === uma.bannerDates, JSON.stringify(r1.ok && r1.data && r1.data.bannerDates));
 
-		const bdSrc = findSource("bandori-bestdori");
-		const r2 = await grab(() => bdSrc.gacha.fetcher(bdSrc.gacha.url, undefined, bdSrc.tz, SNAP));
+		const r2 = await grab(() => gachaBestdori("https://bestdori.com/api/gacha/all.5.json", undefined, "Asia/Shanghai", SNAP));
 		check("bestdori.gacha 抓取成功", r2.ok, r2.err);
 		assertContract("BanG Dream 国服", "gacha", r2.ok ? r2.data : null);
 		check("bestdori.gacha 与纯函数结果一致", r2.ok && r2.data && r2.data.banner === bdG.banner, JSON.stringify(r2.ok && r2.data && r2.data.banner));
-		const r3 = await grab(() => bdSrc.event.fetcher(bdSrc.event.url, undefined, bdSrc.tz, SNAP));
+		const r3 = await grab(() => eventsBestdori("https://bestdori.com/api/events/all.5.json", undefined, "Asia/Shanghai", SNAP));
 		check("bestdori.event 抓取成功", r3.ok, r3.err);
 		assertContract("BanG Dream 国服", "event", r3.ok ? r3.data : null);
 		check("bestdori.event 与纯函数结果一致", r3.ok && r3.data && r3.data.event === bdE.event, JSON.stringify(r3.ok && r3.data && r3.data.event));

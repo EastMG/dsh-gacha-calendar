@@ -27,6 +27,8 @@
 import { fetchJson, fmtWindow } from "../lib/env.js";
 
 const DEFAULT_URL = "https://api.umapyoi.net/api/v1/gacha";
+// 供注册表引用（作为「备选源」时必须与 `altSourceId(alt) = alt.url` 的字符串**完全一致**才能命中）
+export const UMAPYOI_URL = DEFAULT_URL;
 export const PERMANENT_END = 2147483647;   // 源站常驻哨兵（Unix 秒 = INT32_MAX）
 const HOVER_MAX = 20;                      // hover 最多列这么多行，余下只报数量
 

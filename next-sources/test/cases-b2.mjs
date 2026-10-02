@@ -10,7 +10,8 @@ import { SOURCES_B2, findSourceB2 } from "../registry-b2.js";
 import {
 	parsePoints, windowsFromCell, detectOrientation,
 	parseWhmxGacha, parseWhmxEvents, parseUmaCnGacha, parseUmaJpEvents,
-	parseZspmsGacha, parseKedrGacha, parseCznGacha, parseStellasoraEvents
+	parseZspmsGacha, parseKedrGacha, parseCznGacha, parseStellasoraEvents,
+	gachaKedr, eventsUmaJp, eventsStellasora
 } from "../parsers/bwiki.js";
 
 const TZ_CN = "Asia/Shanghai";
@@ -43,7 +44,7 @@ export default async function run() {
 	//#region ① 注册表结构
 	section("① 批次 B2 注册表结构（7 个 bwiki 来源）");
 	{
-		check("SOURCES_B2 共 7 条", SOURCES_B2.length === 7, String(SOURCES_B2.length));
+		check("SOURCES_B2 共 4 条（uma-jp-bwiki / kedrgame / stellasora-bwiki 已吸收为备选源）", SOURCES_B2.length === 4, String(SOURCES_B2.length));
 		const ids = SOURCES_B2.map((s) => s.id);
 		check("id 无重复", new Set(ids).size === ids.length, ids.join(","));
 		for (const s of SOURCES_B2) {
@@ -60,10 +61,14 @@ export default async function run() {
 			}
 		}
 		check("闪耀优俊少女国服（uma-cn）只注册卡池侧", !!findSourceB2("uma-cn").gacha && !findSourceB2("uma-cn").event);
-		check("赛马娘日服（uma-jp-bwiki）只注册活动侧且 tz=Asia/Tokyo（硬标注）",
-			!findSourceB2("uma-jp-bwiki").gacha && findSourceB2("uma-jp-bwiki").tz === TZ_JP);
-		check("星塔旅人（stellasora）只注册活动侧（卡池纯图片无时间）",
-			!!findSourceB2("stellasora").event && !findSourceB2("stellasora").gacha);
+		// ⚠️ uma-jp-bwiki / kedrgame / stellasora-bwiki 三条已**吸收为备选源**（不再独立成条目）：
+		//    uma-jp-bwiki     → registry-p5.js 的 uma-jp.eventAltSources（tz=Asia/Tokyo 硬标注随条目）
+		//    kedrgame         → registry-p6.js 的 kedr.altSources
+		//    stellasora-bwiki → registry-p7.js 的 stellasora.eventAltSources
+		//    备选源的登记与 URL 命中由 all.mjs 的「备选源登记」守卫 + registry-extras.js 统一校验。
+		check("B2 里不再有已吸收的 3 条（一游戏一条目）",
+			!SOURCES_B2.some((s) => ["uma-jp-bwiki", "kedrgame", "stellasora-bwiki"].includes(s.id)),
+			SOURCES_B2.map((s) => s.id).join(","));
 	}
 	//#endregion
 
@@ -172,11 +177,13 @@ export default async function run() {
 	}
 	//#endregion
 
-	//#region ⑤ 赛马娘 日服（uma-jp-bwiki 活动侧）
-	section("⑤ 赛马娘 日服（uma-jp-bwiki）—— tz=Asia/Tokyo 硬标注");
+	//#region ⑤ 赛马娘 日服（bwiki 活动页；已吸收为 uma-jp 的活动备选源）
+	section("⑤ 赛马娘 日服 bwiki 活动页 —— tz=Asia/Tokyo 硬标注");
 	{
-		const src = findSourceB2("uma-jp-bwiki");
-		const html = await fixtureText(src.event.url);
+		// ⚠️ 该页已作为 `uma-jp`（registry-p5.js）的 eventAltSources 备选源，不再是 B2 独立条目。
+		//    这里直接用解析器 + 原始 URL 测，等价于原来的经 registry 测试。
+		const UMA_EVENT_URL = "https://wiki.biligame.com/umamusume/api.php?action=parse&page=活动&prop=text&format=json&formatversion=2";
+		const html = await fixtureText(UMA_EVENT_URL);
 		const { items, permanent } = parseUmaJpEvents(html, TZ_JP);
 		check("活动页解析出 97 行（100 行 = 表头 1 + 常驻 1 + 错行 1 + 数据 97）", items.length === 97, String(items.length));
 		check("常驻行（`常驻~ 常驻`）单独计数 = 1，不进当期排序", permanent === 1, String(permanent));
@@ -187,7 +194,7 @@ export default async function run() {
 		check("源站错行（2025/04/10 11:00~ 2024/04/18 10:59）被丢弃，无 endTs<=startTs 的行",
 			items.every((x) => x.endTs > x.startTs) && !items.some((x) => x.raw.includes("2024/04/18")));
 
-		const e = await safeCall("uma-jp-bwiki.event", () => src.event.fetcher(src.event.url, undefined, src.tz, NOW));
+		const e = await safeCall("uma-jp-bwiki.event", () => eventsUmaJp(UMA_EVENT_URL, undefined, TZ_JP, NOW));
 		assertContract("赛马娘日服(bwiki)", "event", e);
 		check("⚠️ 归档最新一条止于 2026-01-08 → 当期无覆盖 → 如实返回 null", e === null, JSON.stringify(e));
 	}
@@ -213,16 +220,20 @@ export default async function run() {
 	//#endregion
 
 	//#region ⑦ 雪松 / 卡厄斯梦境 / 星塔旅人（三个"解析不出当期内容"的来源）
-	section("⑦ 雪松 / 卡厄斯梦境 / 星塔旅人 —— 如实报告");
+	section("⑦ 雪松 bwiki 卡池信息 / 卡厄斯梦境 / 星塔旅人 bwiki —— 如实报告");
 	{
-		const kedr = findSourceB2("kedrgame");
-		const kd = parseKedrGacha(await fixtureText(kedr.gacha.url), TZ_CN);
+		// ⚠️ 这三条里 `kedrgame` 与 `stellasora-bwiki` 已**吸收为备选源**
+		//    （kedr.altSources / stellasora.eventAltSources），不再是 B2 的独立条目。
+		//    这里直接用解析器 + 原始 URL 测，等价于原来经 registry 的测试。
+		const KEDR_KAXI_URL = "https://wiki.biligame.com/kedrgame/api.php?action=parse&page=卡池信息&prop=text&format=json&formatversion=2";
+		const STELLA_BWIKI_URL = "https://wiki.biligame.com/stellasora/api.php?action=parse&page=首页&prop=text&format=json&formatversion=2";
+		const kd = parseKedrGacha(await fixtureText(KEDR_KAXI_URL), TZ_CN);
 		check("雪松「卡池信息」无表格，只解析出 1 条台架测试窗口（第二段是「？-？」）", kd.length === 1, String(kd.length));
 		check("雪松窗口 = 2024/12/07 00:00 ~ 2024/12/13 23:59 (UTC+8)（源站只有日期无时刻）",
 			kd[0].startTs === Date.UTC(2024, 11, 6, 16, 0) && kd[0].endTs === Date.UTC(2024, 11, 13, 15, 59),
 			`${SH(kd[0].startTs)} ~ ${SH(kd[0].endTs)}`);
 		check("雪松池名取自小节标题「台架测试[一]」", kd[0].banner === "台架测试[一]", kd[0].banner);
-		const kg = await safeCall("kedrgame.gacha", () => kedr.gacha.fetcher(kedr.gacha.url, undefined, kedr.tz, NOW));
+		const kg = await safeCall("kedr-kaxi.gacha", () => gachaKedr(KEDR_KAXI_URL, undefined, TZ_CN, NOW));
 		assertContract("雪松", "gacha", kg);
 		check("⚠️ 雪松：台架测试占位页 + 窗口停在 2024-12 → 如实返回 null（可能已停更）", kg === null, JSON.stringify(kg));
 
@@ -233,14 +244,13 @@ export default async function run() {
 		assertContract("卡厄斯梦境", "gacha", cg);
 		check("⚠️ 卡厄斯梦境：页面无任何表格/日期 → 如实返回 null", cg === null, JSON.stringify(cg));
 
-		const ss = findSourceB2("stellasora");
-		const st = parseStellasoraEvents(await fixtureText(ss.event.url), TZ_CN);
+		const st = parseStellasoraEvents(await fixtureText(STELLA_BWIKI_URL), TZ_CN);
 		check("星塔旅人首页「活动日历」解析出 2 项", st.length === 2, String(st.length));
 		check("星塔没有活动名字段，只能取立绘文件名（Banner bossrush 5.png → bossrush 5）",
 			st[0].event === "bossrush 5" && st[0].imgRaw === "Banner bossrush 5.png", JSON.stringify(st[0]));
 		check("data-end-time（无时区 ISO）按国服墙钟解释：2026-04-07 10:59 +08 → 02:59Z",
 			st[1].endTs === Date.UTC(2026, 3, 7, 2, 59), SH(st[1].endTs));
-		const se = await safeCall("stellasora.event", () => ss.event.fetcher(ss.event.url, undefined, ss.tz, NOW));
+		const se = await safeCall("stellasora-bwiki.event", () => eventsStellasora(STELLA_BWIKI_URL, undefined, TZ_CN, NOW));
 		assertContract("星塔旅人", "event", se);
 		check("⚠️ 星塔旅人：两项都止于 2026-04 → 当期无覆盖 → 如实返回 null", se === null, JSON.stringify(se));
 	}

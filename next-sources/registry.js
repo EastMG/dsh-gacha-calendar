@@ -24,13 +24,49 @@ import { NEXT_SOURCES as P5X_SOURCES } from "./registry-p5x.js";
 import { SOURCES_B1 } from "./registry-b1.js";
 import { SOURCES_B2 } from "./registry-b2.js";
 import { SOURCES_B3 } from "./registry-b3.js";
+import { SOURCES_P4 } from "./registry-p4.js";
+import { SOURCES_P5 } from "./registry-p5.js";
+import { SOURCES_P6 } from "./registry-p6.js";
+import { SOURCES_P7 } from "./registry-p7.js";
+import { SOURCES_P8 } from "./registry-p8.js";
+import { SOURCES_P9, EXTRA_GACHA_FETCHERS_P9, EXTRA_EVENT_FETCHERS_P9 } from "./registry-p9.js";
+import { EXTRA_GACHA_FETCHERS, EXTRA_EVENT_FETCHERS } from "./registry-extras.js";
 
-// 合并全部条目；若出现重复 id 直接抛错（汇总期就暴露，别留到运行期静默覆盖）
-const ALL = [...P5X_SOURCES, ...SOURCES_B1, ...SOURCES_B2, ...SOURCES_B3];
-const seen = new Set();
-for (const s of ALL) {
-	if (seen.has(s.id)) throw new Error("next-sources 注册表 id 重复: " + s.id);
-	seen.add(s.id);
+// ── 合并规则：**后来者覆盖同 id 的先前条目**（Map 的 set 保留首次插入位置，所以顺序稳定）──
+// 为什么不是"重复就抛错"：P8/P9 是**对既有条目的补强/取代**，本就该覆盖：
+//   · P8 的 `zspms` / `czn` / `kedr` 取代 B2 的旧页面源（旧页面停更/空页）
+//   · P9 的 `wuhuamixin`（补活动侧）/ `uma-cn`（官方源取代 wiki 推算表）
+// 若改成"重复即抛错"，这些补强就没法落进来（它们的 id 必须与原条目相同，才能让用户看见同一个游戏）。
+const byId = new Map();
+for (const s of [...P5X_SOURCES, ...SOURCES_B1, ...SOURCES_B2, ...SOURCES_B3, ...SOURCES_P4, ...SOURCES_P5, ...SOURCES_P6, ...SOURCES_P7]) {
+	if (byId.has(s.id)) throw new Error("next-sources 注册表 id 重复（同一批内不该重复）: " + s.id);
+	byId.set(s.id, s);
+}
+for (const s of [...SOURCES_P8, ...SOURCES_P9]) byId.set(s.id, s);   // 覆盖
+const ALL = [...byId.values()];
+
+// ── 备选源守卫 ──
+// 插件契约：`gachaFetcherFor` 查 `GACHA_FETCHERS[alt.fetcher]`（扁平表）；
+//           `eventFetcherFor` 查 `EVENT_FETCHERS[source.id][alt.fetcher]`（**按条目 id 分组**）。
+// 这里在汇总期就校验每个 altSources/eventAltSources 引用的 fetcher 都被登记了，
+// 且 URL 与条目自身不同（否则永远命不中自己的备选）。
+{
+	// P9 也自带一组备选抓取器（`uma-cn-bwiki` / `ournotes-global-*`），一起纳入守卫
+	const gachaKeys = new Set([...Object.keys(EXTRA_GACHA_FETCHERS), ...Object.keys(EXTRA_GACHA_FETCHERS_P9)]);
+	const eventTables = { ...EXTRA_EVENT_FETCHERS, ...EXTRA_EVENT_FETCHERS_P9 };
+	const problems = [];
+	for (const s of ALL) {
+		for (const a of s.altSources || []) {
+			if (!gachaKeys.has(a.fetcher)) problems.push(`${s.id}.altSources 的 fetcher「${a.fetcher}」未登记`);
+			if (!a.url) problems.push(`${s.id}.altSources 缺 url（altSourceId 靠 url 命中）`);
+		}
+		for (const a of s.eventAltSources || []) {
+			const tbl = eventTables[s.id];
+			if (!tbl || !tbl[a.fetcher]) problems.push(`${s.id}.eventAltSources 的 fetcher「${a.fetcher}」未在 EVENT 表[${JSON.stringify(s.id)}] 登记`);
+			if (!a.url) problems.push(`${s.id}.eventAltSources 缺 url（altSourceId 靠 url 命中）`);
+		}
+	}
+	if (problems.length) throw new Error("备选源登记有问题：\n  - " + problems.join("\n  - "));
 }
 
 export const NEXT_SOURCES = ALL;

@@ -31,7 +31,7 @@ import { gachaFgo, eventsFgo, FGO_GACHA_URL, FGO_EVENT_URL, FGO_TZ } from "./par
 export const SOURCES_B3 = [
 	{
 		id: "gf2",
-		name: "少女前线2：追放 国服",
+		name: "少女前线2：追放",
 		tz: GF2_TZ,
 		// 官方 API。两侧 URL 就是任务书给的两个 typeId：
 		//   typeId=4 = 活动&卡池混排（卡池公告靠标题过滤出「概率UP/采购/军备提升」）
@@ -41,18 +41,28 @@ export const SOURCES_B3 = [
 		event: { url: GF2_EVENT_URL, fetcher: eventsGf2, kind: "official-api", mode: "proxy" }
 	},
 	{
+		// 一游戏一条目：主源 = 官方公告；备选源 = Bestdori（见 registry-extras.js）
+		// （原 `bandori-bestdori` 独立条目已吸收到这里 —— 插件设计是"多来源走 altSources 切换"，
+		//   不该为同一游戏并行列出两条；用户在 review 时明确指出。）
 		id: "bandori",
-		name: "BanG Dream! 少女乐团派对 国服 · 官方公告",
+		name: "BanG Dream！少女乐团派对·国服",
 		tz: BANDORI_TZ,
 		// 两侧**同源同一份公告列表**（biligame 官方公告 API，typeId=1）：
 		// 卡池侧取「…招募」那一节、活动侧取「…挑战演出活动」那一节。
 		// 列表页 content 被截断 + 顺序非严格倒序 → 抓取器会自行倒序并按需取详情。
 		gacha: { url: BANDORI_LIST_URL, fetcher: gachaBandori, kind: "official-api", mode: "proxy" },
-		event: { url: BANDORI_LIST_URL, fetcher: eventsBandori, kind: "official-api", mode: "proxy" }
+		event: { url: BANDORI_LIST_URL, fetcher: eventsBandori, kind: "official-api", mode: "proxy" },
+		// 备选源（设置页可切）：Bestdori 是社区数据库，但结构化更好、带简中服起止毫秒。
+		altSources: [
+			{ label: "Bestdori 扭蛋（社区数据库）", url: "https://bestdori.com/api/gacha/all.5.json", fetcher: "bandori-bestdori-gacha" }
+		],
+		eventAltSources: [
+			{ label: "Bestdori 活动（社区数据库）", url: "https://bestdori.com/api/events/all.5.json", fetcher: "bandori-bestdori-event" }
+		]
 	},
 	{
 		id: "ournotes",
-		name: "BanG Dream! OurNotes 日服 · 官方公告",
+		name: "BanG Dream！OurNotes·日服",
 		tz: OURNOTES_TZ,
 		// **只有活动/公告侧**（无卡池专用源）——按用户要求"只有一侧就只写一侧"。
 		// WordPress REST；实测 ACAO 回显 Origin → 三个可直连源之一，故 mode="direct"。
@@ -61,7 +71,7 @@ export const SOURCES_B3 = [
 	},
 	{
 		id: "fgo",
-		name: "Fate/Grand Order 国服 · fgo.wiki",
+		name: "Fate/Grand Order",
 		tz: FGO_TZ,
 		// MediaWiki + SemanticMediaWiki。**外显走 action=parse 的 HTML 表格**：
 		// 卡池页第一张表表头就是「国服当前卡池」，活动页的国服表按年份分节、日服表显式标注
