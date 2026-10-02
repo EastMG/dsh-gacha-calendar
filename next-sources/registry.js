@@ -10,7 +10,7 @@
 //       - 少前2：API `Date` 口径（发布 18:31、维护 09:00~12:00、【迭代回廊】05:00 刷新点）
 //   · 赛马娘日服 = Asia/Tokyo（**硬标注**：bwiki 正文「日服卡池时间记录统一为日本时间」）
 //   · OurNotes 日服 = Asia/Tokyo（**实测**：`date` 与 `date_gmt` 差 9 小时）
-//   · PJSK = UTC+8（**推测**；且服区存疑，见 registry-b1.js 注）
+//   · PJSK = UTC+8（**推测**；区服**已确认 = 国服**，证据见 registry-b1.js 注）
 //
 // ── 可用性现状（"当期有数据" = 窗口覆盖 now；不覆盖则抓取器如实返回 null = 未公布）──
 //   可用：p5x / uma-jp-umapyoi / bandori-bestdori / pjsk / gf2 / bandori / ournotes / fgo / wuhuamixin(卡池)

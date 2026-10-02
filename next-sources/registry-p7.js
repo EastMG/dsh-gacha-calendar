@@ -22,6 +22,8 @@ export const SOURCES_P7 = [
 	{
 		id: "stellasora",
 		name: "星塔旅人",
+		// 图标：国服官网 stellasora.yostar.cn 的 rel=icon（悠星自家 OSS）。与蔚蓝档案国服的图标同一 CDN 范式；`?x-oss-process=...w_128` 实测在 OSS 侧真实生效
+		icon: "https://webcnstatic.yostar.net/stellasora/stellasora-cn-official-frontend/main/h5/favicon.png?x-oss-process=image/resize,w_128",
 		tz: TZ_CN,
 		// 一游戏一条目，两侧同源（同一公告列表，按标题分流：招募=卡池 / 活动说明=活动）
 		gacha: {

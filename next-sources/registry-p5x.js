@@ -14,6 +14,8 @@ export const NEXT_SOURCES = [
 	{
 		id: "p5x",
 		name: "女神异闻录：夜幕魅影",
+		// 图标：官方商店列表（App Store 中国区，id 6466264792，卖家完美世界，bundle com.pwrd.persona5x.pw）
+		icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/03/1e/f4/031ef49f-b3d0-5bdd-077b-67d213f99c86/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
 		tz: TZ_CN,
 		gacha: {
 			url: "https://p5x.wanmei.com/news/gamenews/index.html",

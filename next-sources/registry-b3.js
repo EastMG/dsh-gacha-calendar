@@ -32,6 +32,8 @@ export const SOURCES_B3 = [
 	{
 		id: "gf2",
 		name: "少女前线2：追放",
+		// 图标：国服官网 gf2.sunborngame.com 的 rel=icon/og:image（散爆自家 CDN）
+		icon: "https://gf2-cn.cdn.sunborngame.com/website/official_zf/mobile/image/logo.png",
 		tz: GF2_TZ,
 		// 官方 API。两侧 URL 就是任务书给的两个 typeId：
 		//   typeId=4 = 活动&卡池混排（卡池公告靠标题过滤出「概率UP/采购/军备提升」）
@@ -46,6 +48,8 @@ export const SOURCES_B3 = [
 		//   不该为同一游戏并行列出两条；用户在 review 时明确指出。）
 		id: "bandori",
 		name: "BanG Dream！少女乐团派对·国服",
+		// 图标：官方商店列表（App Store 中国区，bundle com.bilibili.star）。官网 game.bilibili.com/bangdream 的 og:image 是 hdslb 防盗链，不用
+		icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/cb/ae/11/cbae1132-58ee-8b5c-3016-dfd2f5e91e51/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
 		tz: BANDORI_TZ,
 		// 两侧**同源同一份公告列表**（biligame 官方公告 API，typeId=1）：
 		// 卡池侧取「…招募」那一节、活动侧取「…挑战演出活动」那一节。
@@ -63,6 +67,8 @@ export const SOURCES_B3 = [
 	{
 		id: "ournotes",
 		name: "BanG Dream！OurNotes·日服",
+		// 图标：日服官网的 apple-touch-icon（Bushiroad）。与条目的数据源同域，一致性最好
+		icon: "https://bang-dream-on.bushimo.jp/wordpress/wp-content/themes/bang-dream-on_prod/assets/images/common/apple-touch-icon-180x180.png",
 		tz: OURNOTES_TZ,
 		// **只有活动/公告侧**（无卡池专用源）——按用户要求"只有一侧就只写一侧"。
 		// WordPress REST；实测 ACAO 回显 Origin → 三个可直连源之一，故 mode="direct"。
@@ -72,6 +78,8 @@ export const SOURCES_B3 = [
 	{
 		id: "fgo",
 		name: "Fate/Grand Order",
+		// 图标：官方商店列表（App Store 中国区「命运-冠位指定」，bundle com.bilibili.fatego）——与条目的国服向来源 fgo.wiki 一致
+		icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/db/d4/19/dbd4196a-68cb-8a74-ca0b-045d0795e10c/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
 		tz: FGO_TZ,
 		// MediaWiki + SemanticMediaWiki。**外显走 action=parse 的 HTML 表格**：
 		// 卡池页第一张表表头就是「国服当前卡池」，活动页的国服表按年份分节、日服表显式标注

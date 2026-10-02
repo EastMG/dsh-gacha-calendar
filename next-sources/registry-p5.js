@@ -38,6 +38,8 @@ export const SOURCES_P5 = [
 		// 一游戏（日服）一条目
 		id: "uma-jp",
 		name: "赛马娘·日服",
+		// 图标：日服官网 apple-touch-icon（Cygames）。⚠️ 不要用 umamusume.jp/favicon.ico —— 实测与 umamusume.com/favicon.ico 字节完全相同，无法区分区服
+		icon: "https://umamusume.jp/apple-touch-icon.png",
 		tz: "Asia/Tokyo",
 		gacha: { url: UMA_JP_INDEX_URL, fetcher: gachaUmaJpOfficial, kind: "official-api", mode: "proxy" },
 		event: { url: UMA_JP_INDEX_URL, fetcher: eventsUmaJpOfficial, kind: "official-api", mode: "proxy" },
@@ -53,6 +55,8 @@ export const SOURCES_P5 = [
 		// 国际服：独立服区/站点/时区，**不是**日服的备选
 		id: "uma-global",
 		name: "赛马娘·国际服",
+		// 图标：Google Play 国际服官方列表（com.cygames.umamusume）；与日服 jp.co.cygames.umamusume 的图标不同，**可区分区服**
+		icon: "https://play-lh.googleusercontent.com/yN6cCSP7UB_2bsvlCxrtv-FUpEt1IvEFwr0Ucb3wr39QsAd5PLsueSVXuCinDbE4rifhMlX4YNtpLpkGnpsLhCQ=s64-rw",
 		tz: "UTC",
 		gacha: { url: UMA_GLOBAL_INDEX_URL, fetcher: gachaUmaGlobal, kind: "official-api", mode: "proxy" },
 		event: { url: UMA_GLOBAL_INDEX_URL, fetcher: eventsUmaGlobal, kind: "official-api", mode: "proxy" }

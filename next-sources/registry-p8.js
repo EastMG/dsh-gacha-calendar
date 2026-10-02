@@ -57,6 +57,8 @@ export const SOURCES_P8 = [
 		// ⚠️ 就地覆盖 B2 的 `zspms`（原挂 `研发记录` 的 HTML 表，停在 2024Q1）
 		id: "zspms",
 		name: "战双帕弥什",
+		// 图标：官方商店列表（App Store 中国区，卖家库洛游戏）。官网 pns-cdnstatic.kurogames.com 的 favicon 只有 30×30，故取商店图
+		icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/b2/99/ed/b299ed39-90ea-03df-c7ee-bd09548991e5/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/200x200bb.jpg",
 		tz: ZSPMS_TZ,                                        // Asia/Shanghai（**推测**）
 		// 卡池 + 活动都读**同一份**「版本更新公告」（SMW ask 找最新版本公告 → 取其 wikitext 正文）：
 		//   · 卡池 = 正文里「在<窗口>时间段内，通过…研发池产出/获得」的 6 个研发池
@@ -72,6 +74,8 @@ export const SOURCES_P8 = [
 		// ⚠️ 就地覆盖 B2 的 `czn`（原挂 `卡池记录` 的 HTML，实测空页）
 		id: "czn",
 		name: "卡厄斯梦境",
+		// 图标：官方商店列表（App Store 中国区 id 6751272153，卖家腾讯天游，bundle com.tencent.czn）——与官网 czn.qq.com 发行方一致
+		icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/e2/c9/48/e2c94812-11cd-2a52-445a-d67d6ae9e169/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/200x200bb.jpg",
 		tz: CZN_TZ,                                          // Asia/Shanghai（**推测**）
 		// ⚠️ 页面名是 `Module:Gacha/data`，但返回的 `parse.title` 是 **`模块:Gacha/data`**（中文别名）——
 		//    不要用 title 反查页面名，也别改 URL 的大小写/分隔符。
@@ -83,6 +87,8 @@ export const SOURCES_P8 = [
 		// ⚠️ 就地覆盖/补强 P6 的 `kedr`（P6 主源 `往期动员【常驻】` 归档页已全过期）
 		id: "kedr",
 		name: "雪松",
+		// 图标：官方商店列表（App Store 中国区，bundle com.kedrgame.xuesong）。官网 cdn.kedrgame.com 的 icon 只有 40×40，故取商店图
+		icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/b5/8c/b6/b58cb6b2-4be3-0be0-852a-af761afaab06/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
 		tz: KEDR_TZ,                                         // Asia/Shanghai（**推测**）
 		// 两侧都读 `Template:首页游戏版本内容` 的 `{{时间进度条|开始时间=…|结束时间=…|名称=…}}`：
 		//   卡池 = 名称含 `精英集结`/`演习`（雪松抽卡叫「动员」）

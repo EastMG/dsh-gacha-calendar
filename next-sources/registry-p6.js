@@ -39,6 +39,8 @@ export const SOURCES_P6 = [
 	{
 		id: "ddlezj",
 		name: "嘟嘟脸恶作剧",
+		// 图标：官方商店列表（App Store 中国区，bundle com.bilibili.trickcalcn）。该作**没有独立官网**（game.bilibili.com/ddlezj 实测 404），故只能取商店图
+		icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/64/f0/21/64f02145-182e-857a-133c-8de0151425d9/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
 		tz: DDLEZJ_TZ,                                        // "+540" = UTC+9（**源站正文自标**）
 		gacha: { url: DDLEZJ_LIST_URL, fetcher: gachaDdlezj, kind: "official-api", mode: "proxy" },
 		event: { url: DDLEZJ_LIST_URL, fetcher: eventsDdlezj, kind: "official-api", mode: "proxy" }
@@ -48,6 +50,8 @@ export const SOURCES_P6 = [
 		// 备选源 = bwiki `卡池信息`（台架测试占位页）—— B2 原 `kedrgame` 条目已吸收到这里。
 		id: "kedr",
 		name: "雪松",
+		// 图标：官方商店列表（App Store 中国区，bundle com.kedrgame.xuesong）。官网 cdn.kedrgame.com 的 icon 只有 40×40，故取商店图
+		icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/b5/8c/b6/b58cb6b2-4be3-0be0-852a-af761afaab06/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
 		tz: KEDR_TZ,                                          // Asia/Shanghai（**推测**，源站未标注）
 		gacha: { url: KEDR_ARCHIVE_URL, fetcher: gachaKedrWiki, kind: "wiki", mode: "proxy" },
 		// 无活动侧：该页只有卡池（动员）档期

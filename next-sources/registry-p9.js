@@ -63,6 +63,8 @@ export const SOURCES_P9 = [
 		// 本条目**补强活动侧**：卡池侧沿用 B2 的 bwiki（不动），活动侧换成官方 API。
 		id: "wuhuamixin",
 		name: "物华弥新",
+		// 图标：官方商店列表（App Store 中国区，bundle com.bilibili.wuhuamixin）。⚠️ 官网 og:image 走 i0.hdslb.com，实测**带 Referer 即 403**（防盗链），故不用
+		icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/13/7f/87/137f873a-f458-678d-347e-068830a74a69/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
 		tz: BILIGAME_ACTIVITY_TZ,                          // Asia/Shanghai（官方公告正文未标时区，推定；见解析器文件头交叉印证）
 		// B2 原文：wiki 子域 whmx，卡池页「限时招集档案」= CardSelect 表 114 行 → 当期可用
 		gacha: { url: parseUrl("whmx", "限时招集档案"), fetcher: gachaWhmx, kind: "wiki", mode: "proxy" },
@@ -73,6 +75,8 @@ export const SOURCES_P9 = [
 		// 官方源**取代** bwiki 推算表作主源；bwiki 降级为卡池备选源（可切回）
 		id: "uma-cn",
 		name: "闪耀！优俊少女",
+		// 图标：官方商店列表（App Store 中国区，bundle com.bilibili.umamusu）。官网 game.bilibili.com/pd 的 og:image 同样 hdslb 防盗链，不用
+		icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/ca/23/bc/ca23bc1f-5dff-c21a-1881-66c48d02f5b2/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
 		tz: BILIGAME_ACTIVITY_TZ,                          // Asia/Shanghai（官方 displayTime 与正文墙钟逐字一致 → 推定 UTC+8）
 		gacha: { url: UMA_CN_LIST_URL, fetcher: gachaUmaCnOfficial, kind: "official-api", mode: "proxy" },
 		event: { url: UMA_CN_LIST_URL, fetcher: eventsUmaCnOfficial, kind: "official-api", mode: "proxy" },
@@ -86,6 +90,8 @@ export const SOURCES_P9 = [
 		// **默认未配置**：只有备选源，没有 url / eventUrl（= 不抓取、UI 显示「未配置」）
 		id: "ournotes-global",
 		name: "BanG Dream！OurNotes·国际服",
+		// 图标：官方商店列表（App Store 国际区，卖家 **BILIBILI HK LIMITED**，bundle com.bilibili.sirius）——与条目来源 l11-web-api.biligames.com（BHK）发行方一致；与日服的 Bushiroad 图标不同，**可区分区服**
+		icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/ca/da/3a/cada3a9a-491a-fbe5-5494-9be7390e3a9b/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
 		tz: OURNOTES_GLOBAL_TZ,                            // Asia/Shanghai（任务书指定；国际服含港澳台，不用 Asia/Tokyo）
 		altSources: [
 			{ label: "官方公告（BHK）", url: OURNOTES_GLOBAL_LIST_URL, fetcher: "ournotes-global-gacha" }

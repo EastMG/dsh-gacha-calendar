@@ -58,6 +58,44 @@
 			window.setTimeout(tick, 0);
 		}
 
+		// ── 游戏图标（含**降级兜底**）──
+		// 为什么需要：图标全是**外链**（README 承诺"不存储任何游戏资源"，故不打包进仓库）。
+		// 外链随时可能挂掉、改路径、或对第三方来源防盗链 —— 没有这一层，面板上就是一排裂图。
+		// 所以：没配图标 / 图片加载失败 → 退化成「游戏名首字」小方块，信息不丢、观感不崩。
+		// 换 URL 后要能重试（自定义条目改图标时），故用 useEffect 按 icon 复位 failed。
+		function gameIconGlyph(name) {
+			const s = String(name == null ? "" : name).replace(/[\s\u3000]+/g, "");
+			if (!s) return "?";
+			// 优先取第一个汉字/假名/字母/数字（跳过「·」「：」「！」这类分隔符与符号）
+			const m = s.match(/[\u4e00-\u9fff\u3040-\u30ffA-Za-z0-9]/);
+			return m ? m[0].toUpperCase() : s.charAt(0);
+		}
+		function GameIcon({ icon, name, size }) {
+			const px = size || 20;
+			const [failed, setFailed] = (0, react.useState)(false);
+			(0, react.useEffect)(() => { setFailed(false); }, [icon]);
+			const box = { width: px, height: px, borderRadius: 5, flex: "none" };
+			if (!icon || failed) {
+				return (0, react_jsx_runtime.jsx)("span", {
+					className: "gacha-cal-icon-fb",
+					"aria-label": name,
+					title: name,
+					style: Object.assign({}, box, {
+						display: "inline-flex", alignItems: "center", justifyContent: "center",
+						background: "var(--dsw-alias-bg-l2, rgba(127,127,127,.2))",
+						color: "var(--dsw-alias-text-l2, inherit)",
+						fontSize: Math.round(px * 0.55), fontWeight: 600, lineHeight: 1,
+						userSelect: "none", overflow: "hidden"
+					}),
+					children: gameIconGlyph(name)
+				});
+			}
+			return (0, react_jsx_runtime.jsx)("img", {
+				src: icon, alt: name, loading: "lazy", style: Object.assign({}, box, { objectFit: "cover" }),
+				onError: () => setFailed(true)
+			});
+		}
+
 		// engine：core 引擎（抓取/解析/缓存合并都在里面）。面板只读它返回的 Result JSON。
 		function CalendarPanel({ wide, scope, engine }) {
 			const [open, setOpen] = (0, react.useState)(false);
@@ -376,7 +414,7 @@
 									key: g.id,
 									title: rowTitle,
 									children: [
-										(0, react_jsx_runtime.jsx)("img", { src: g.icon, alt: g.name, loading: "lazy" }),
+										(0, react_jsx_runtime.jsx)(GameIcon, { icon: g.icon, name: g.name }),
 										(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-name", title: rowTitle, children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: g.name }) }),
 										(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-cell", title: withFailNote(g.bannerHover || gachaTitle, "gacha", g.gachaFail, g.gachaStale, gachaUser), children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: gachaVisible }) }),
 										// 起止列：倒计时用补全后的时间；悬停显示源站原文（如"4.5版本更新后 ~ …"）
@@ -621,7 +659,7 @@
 										style: { display: "grid", gridTemplateColumns: "minmax(90px,1fr) auto minmax(130px,1.2fr) minmax(130px,1.2fr) auto", gap: 10, alignItems: "center", padding: "4px 0" },
 										children: [
 											(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6, minWidth: 0 }, children: [
-												(0, react_jsx_runtime.jsx)("img", { src: g.icon, alt: g.name, style: { width: 22, height: 22, borderRadius: 5, objectFit: "cover", flex: "none" } }),
+												(0, react_jsx_runtime.jsx)(GameIcon, { icon: g.icon, name: g.name, size: 22 }),
 												(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-name gacha-cal-settings-name", style: { flex: "1 1 auto", minWidth: 0 }, children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: g.name }) })
 											] }),
 											(0, react_jsx_runtime.jsxs)("label", { style: { ...labelStyle, cursor: "pointer", justifySelf: "center" }, children: [
