@@ -1,17 +1,14 @@
-		//#region next-sources（试合并：新增游戏的解析器，生成自 next-sources/）
+		//#region next-sources（新增游戏来源：解析器 + 来源声明 + 抓取器登记）
 		// ⚠️ 生成物，勿手改：改 next-sources/ 后重跑
 		//    node diag/handoff-2026/merge-next-sources.mjs
-		// 位置：40-fetchers.js 之后（两个注册表已就绪）、50-refresh.js 之前。
 
-		//#region next-sources 桥接适配器（试合并专用）
-		// next-sources 的解析器原本 import ./lib/env.js 的这几个名字；这里用插件已有实现 + 少量补齐顶上，
-		// 于是解析器代码**一行都不用改**（只做命名空间重命名）就能跑在插件里。
-		//   · sourceInstant / sourceWallParts / fmtWindow / fmtMdHm / pad2 / stripTags → 15-env.js 与 30-parsers.js 已有
-		//   · decodeEntities / textOf                                                  → 这里补
-		//   · fetchText / fetchJson / fetchMediaWikiText                               → 接到插件 transport
+		//#region next-sources 桥接适配器
+		// 解析器原本 import ./lib/env.js；这里用插件已有实现 + 少量补齐顶上（解析器代码不改）。
+		//   sourceInstant / sourceWallParts / fmtWindow / fmtMdHm / stripTags → 本体已有
+		//   pad2 / decodeEntities / textOf                                    → 本区补
+		//   fetchText / fetchJson / fetchMediaWikiText                        → 接宿主代理 / 直连
 		const ENTITIES_NS = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
-		// ⚠️ pad2 插件本体**没有**（我第一版误以为有 → 7 个 bwiki 来源全报 "pad2 is not defined"）。
-		//    网络其实是好的（HTTP 200 / JSON 正常），纯粹是这个名字缺定义。
+		// ⚠️ pad2 本体**没有**（第一版误以为有 → 7 个 bwiki 来源全报 "pad2 is not defined"）
 		function pad2(n) { return String(n).padStart(2, "0"); }
 		function decodeEntities(s) {
 			return String(s).replace(/&(#\d+|[a-z]+);/gi, (m, k) => {
@@ -25,20 +22,13 @@
 			return decodeEntities(String(html).replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " "))
 				.replace(/[ \t\u00a0]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
 		}
-		// direct 模式：走插件直连（transportFetchRaw）
-		async function nsFetchTextDirect(url, opts) {
-			const o = opts || {};
-			const res = await transportFetchRaw(url, {
-				signal: o.signal,
-				headers: Object.assign({}, rawHeaders(url), o.headers || {})
-			});
-			if (!res.ok) throw new Error("http-" + res.status);
-			return res.text();
-		}
-		// 与 next-sources/lib/env.js 的 fetchText 同语义：proxy(默认) / direct
 		async function fetchText(url, opts) {
 			const o = opts || {};
-			if (o.mode === "direct") return nsFetchTextDirect(url, o);
+			if (o.mode === "direct") {
+				const res = await transportFetchRaw(url, { signal: o.signal, headers: Object.assign({}, rawHeaders(url), o.headers || {}) });
+				if (!res.ok) throw new Error("http-" + res.status);
+				return res.text();
+			}
 			return proxyFetchText(url, o.referer || "", o.headers, o.body);
 		}
 		async function fetchJson(url, opts) {
@@ -2191,163 +2181,166 @@ async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ) {
 	};
 }
 
-		// ===== 追加来源进 SOURCES =====
+		// ===== 追加来源进 SOURCES（格式对齐原有：name=游戏名 / source=中文来源名 / icon）=====
 
 		const NS_SOURCES = [
 
 			{
 				id: "p5x",
 				tz: "Asia/Shanghai",
-				name: "P5X 国服（女神异闻录：夜幕魅影）",
+				name: "女神异闻录：夜幕魅影",
+				icon: "https://p5x.wanmei.com/favicon.ico",
 				url: "https://p5x.wanmei.com/news/gamenews/index.html",
-				source: "official-html",
+				source: "官网公告",
 				eventUrl: "https://p5x.wanmei.com/news/gamenews/index.html",
-				eventSource: "official-html",
-			},
-
-			{
-				id: "uma-jp-umapyoi",
-				tz: "Asia/Tokyo",
-				name: "赛马娘 日服（umapyoi）",
-				url: "https://api.umapyoi.net/api/v1/gacha",
-				source: "third-party",
-			},
-
-			{
-				id: "bandori-bestdori",
-				tz: "Asia/Shanghai",
-				name: "BanG Dream! 国服（Bestdori）",
-				url: "https://bestdori.com/api/gacha/all.5.json",
-				source: "third-party",
-				eventUrl: "https://bestdori.com/api/events/all.5.json",
-				eventSource: "third-party",
-			},
-
-			{
-				id: "pjsk",
-				tz: "Asia/Shanghai",
-				name: "PJSK 缤纷舞台（sekai-master-db cn-diff）",
-				url: "https://sekai-world.github.io/sekai-master-db-cn-diff/gachas.json",
-				source: "third-party",
-				eventUrl: "https://sekai-world.github.io/sekai-master-db-cn-diff/events.json",
-				eventSource: "third-party",
-			},
-
-			{
-				id: "wuhuamixin",
-				tz: "Asia/Shanghai",
-				name: "物华弥新 国服（bwiki）",
-				url: "https://wiki.biligame.com/whmx/api.php?action=parse&page=限时招集档案&prop=text&format=json&formatversion=2",
-				source: "wiki",
-				eventUrl: "https://wiki.biligame.com/whmx/api.php?action=parse&page=活动&prop=text&format=json&formatversion=2",
-				eventSource: "wiki",
-			},
-
-			{
-				id: "uma-cn",
-				tz: "Asia/Shanghai",
-				name: "闪耀优俊少女 国服（bwiki，简中卡池）",
-				url: "https://wiki.biligame.com/umamusume/api.php?action=parse&page=简中卡池&prop=text&format=json&formatversion=2",
-				source: "wiki",
-			},
-
-			{
-				id: "uma-jp-bwiki",
-				tz: "Asia/Tokyo",
-				name: "赛马娘 日服（bwiki 活动侧）",
-				eventUrl: "https://wiki.biligame.com/umamusume/api.php?action=parse&page=活动&prop=text&format=json&formatversion=2",
-				eventSource: "wiki",
-			},
-
-			{
-				id: "zspms",
-				tz: "Asia/Shanghai",
-				name: "战双帕弥什 国服（bwiki 研发记录）",
-				url: "https://wiki.biligame.com/zspms/api.php?action=parse&page=研发记录&prop=text&format=json&formatversion=2",
-				source: "wiki",
-			},
-
-			{
-				id: "kedrgame",
-				tz: "Asia/Shanghai",
-				name: "雪松（bwiki 卡池信息）",
-				url: "https://wiki.biligame.com/kedrgame/api.php?action=parse&page=卡池信息&prop=text&format=json&formatversion=2",
-				source: "wiki",
-			},
-
-			{
-				id: "czn",
-				tz: "Asia/Shanghai",
-				name: "卡厄斯梦境 国服（bwiki 卡池记录）",
-				url: "https://wiki.biligame.com/czn/api.php?action=parse&page=卡池记录&prop=text&format=json&formatversion=2",
-				source: "wiki",
-			},
-
-			{
-				id: "stellasora",
-				tz: "Asia/Shanghai",
-				name: "星塔旅人 国服（bwiki 首页·活动日历）",
-				eventUrl: "https://wiki.biligame.com/stellasora/api.php?action=parse&page=首页&prop=text&format=json&formatversion=2",
-				eventSource: "wiki",
+				eventSource: "官网公告",
 			},
 
 			{
 				id: "gf2",
 				tz: "Asia/Shanghai",
-				name: "少女前线2：追放 国服",
+				name: "少女前线2：追放",
+				icon: "https://gf2-cn.cdn.sunborngame.com/website/official_zf/mobile/image/logo.png",
 				url: "https://gf2-web-preregister-api.sunborngame.com/website/news_list/4?page=1&limit=10",
-				source: "official-api",
+				source: "官网公告",
 				eventUrl: "https://gf2-web-preregister-api.sunborngame.com/website/news_list/3?page=1&limit=10",
-				eventSource: "official-api",
+				eventSource: "官网公告",
 			},
 
 			{
 				id: "bandori",
 				tz: "Asia/Shanghai",
-				name: "BanG Dream! 少女乐团派对 国服 · 官方公告",
+				name: "BanG Dream！少女乐团派对·国服",
+				icon: "https://static.hdslb.com/images/favicon.ico",
 				url: "https://api.biligame.com/news/list?gameExtensionId=138&positionId=2&typeId=1&pageNum=1&pageSize=20",
-				source: "official-api",
+				source: "官网公告",
 				eventUrl: "https://api.biligame.com/news/list?gameExtensionId=138&positionId=2&typeId=1&pageNum=1&pageSize=20",
-				eventSource: "official-api",
+				eventSource: "官网公告",
+				altSources: [{"label":"Bestdori 扭蛋","url":"https://bestdori.com/api/gacha/all.5.json","fetcher":"ns-alt-bandori-bestdori-gacha"}],
+				eventAltSources: [{"label":"Bestdori 活动","url":"https://bestdori.com/api/events/all.5.json","fetcher":"ns-alt-bandori-bestdori-event"}],
 			},
 
 			{
 				id: "ournotes",
 				tz: "Asia/Tokyo",
-				name: "BanG Dream! OurNotes 日服 · 官方公告",
+				name: "BanG Dream！OurNotes·日服",
+				icon: "https://bang-dream-on.bushimo.jp/wordpress/wp-content/themes/bang-dream-on_prod/assets/images/common/favicon.ico",
 				eventUrl: "https://bang-dream-on.bushimo.jp/wp-json/wp/v2/posts?per_page=20&page=1",
-				eventSource: "official-api",
+				eventSource: "官网公告（日文）",
+			},
+
+			{
+				id: "pjsk",
+				tz: "Asia/Shanghai",
+				name: "初音未来：缤纷舞台",
+				icon: "https://p16-sg.dailygn.com/obj/g-marketing-assets-sg/2021_12_15_07_41_24/icon_s54607.png",
+				url: "https://sekai-world.github.io/sekai-master-db-cn-diff/gachas.json",
+				source: "Sekai Master DB",
+				eventUrl: "https://sekai-world.github.io/sekai-master-db-cn-diff/events.json",
+				eventSource: "Sekai Master DB",
+			},
+
+			{
+				id: "umamusume-jp",
+				tz: "Asia/Tokyo",
+				name: "赛马娘·日服",
+				icon: "https://umamusume.jp/favicon.ico",
+				url: "https://api.umapyoi.net/api/v1/gacha",
+				source: "umapyoi API",
+				eventUrl: "https://wiki.biligame.com/umamusume/api.php?action=parse&page=活动&prop=text&format=json&formatversion=2",
+				eventSource: "Bwiki 活动（日文）",
+			},
+
+			{
+				id: "uma-cn",
+				tz: "Asia/Shanghai",
+				name: "闪耀！优俊少女",
+				icon: "https://static.hdslb.com/images/favicon.ico",
+				url: "https://wiki.biligame.com/umamusume/api.php?action=parse&page=简中卡池&prop=text&format=json&formatversion=2",
+				source: "Bwiki 简中卡池",
+			},
+
+			{
+				id: "wuhuamixin",
+				tz: "Asia/Shanghai",
+				name: "物华弥新",
+				icon: "https://s1.hdslb.com/bfs/game-static/web/caster/static/script/vue/favicon/favicon.ico",
+				url: "https://wiki.biligame.com/whmx/api.php?action=parse&page=限时招集档案&prop=text&format=json&formatversion=2",
+				source: "Bwiki 限时招集档案",
+				eventUrl: "https://wiki.biligame.com/whmx/api.php?action=parse&page=活动&prop=text&format=json&formatversion=2",
+				eventSource: "Bwiki 活动",
 			},
 
 			{
 				id: "fgo",
 				tz: "Asia/Shanghai",
-				name: "Fate/Grand Order 国服 · fgo.wiki",
-				url: "https://fgo.wiki/api.php?action=parse&page=%E5%8D%A1%E6%B1%A0%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
-				source: "wiki",
-				eventUrl: "https://fgo.wiki/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
-				eventSource: "wiki",
+				name: "Fate/Grand Order",
+				icon: "https://fgo.wiki/public/favicon.ico",
+				url: "https://fgo.wiki/api.php?action=parse&page=卡池一览&prop=text&format=json&formatversion=2",
+				source: "fgo.wiki 卡池一览",
+				eventUrl: "https://fgo.wiki/api.php?action=parse&page=活动一览&prop=text&format=json&formatversion=2",
+				eventSource: "fgo.wiki 活动一览",
+			},
+
+			{
+				id: "zspms",
+				tz: "Asia/Shanghai",
+				name: "战双帕弥什",
+				icon: "https://static.hdslb.com/images/favicon.ico",
+				url: "https://wiki.biligame.com/zspms/api.php?action=parse&page=研发记录&prop=text&format=json&formatversion=2",
+				source: "Bwiki 研发记录",
+			},
+
+			{
+				id: "kedrgame",
+				tz: "Asia/Shanghai",
+				name: "雪松",
+				icon: "https://static.hdslb.com/images/favicon.ico",
+				url: "https://wiki.biligame.com/kedrgame/api.php?action=parse&page=卡池信息&prop=text&format=json&formatversion=2",
+				source: "Bwiki 卡池信息",
+			},
+
+			{
+				id: "czn",
+				tz: "Asia/Shanghai",
+				name: "卡厄斯梦境",
+				icon: "https://czn.qq.com/favicon.ico",
+				url: "https://wiki.biligame.com/czn/api.php?action=parse&page=卡池记录&prop=text&format=json&formatversion=2",
+				source: "Bwiki 卡池记录",
+			},
+
+			{
+				id: "stellasora",
+				tz: "Asia/Shanghai",
+				name: "星塔旅人",
+				icon: "https://webcnstatic.yostar.net/stellasora/stellasora-cn-official-frontend/main/h5/favicon.png",
+				eventUrl: "https://wiki.biligame.com/stellasora/api.php?action=parse&page=首页&prop=text&format=json&formatversion=2",
+				eventSource: "Bwiki 活动日历",
 			},
 
 		];
 
 		for (const s of NS_SOURCES) SOURCES.push(s);
 
-		// ===== 注册抓取器（函数名取自 next-sources 真实导出，已加前缀）=====
+		// ===== 登记抓取器（键 = 条目 id）=====
 
 		Object.assign(GACHA_FETCHERS, {
 
 			"p5x": (url, signal, tz) => ns_p5x_gachaP5x(url, signal, tz),
 
-			"uma-jp-umapyoi": (url, signal, tz) => ns_umapyoi_gachaUmapyoi(url, signal, tz),
+			"gf2": (url, signal, tz) => ns_gf2_gachaGf2(url, signal, tz),
 
-			"bandori-bestdori": (url, signal, tz) => ns_bestdori_gachaBestdori(url, signal, tz),
+			"bandori": (url, signal, tz) => ns_bandori_gachaBandori(url, signal, tz),
 
 			"pjsk": (url, signal, tz) => ns_sekai_gachaSekai(url, signal, tz),
 
-			"wuhuamixin": (url, signal, tz) => ns_bwiki_gachaWhmx(url, signal, tz),
+			"umamusume-jp": (url, signal, tz) => ns_umapyoi_gachaUmapyoi(url, signal, tz),
 
 			"uma-cn": (url, signal, tz) => ns_bwiki_gachaUmaCn(url, signal, tz),
+
+			"wuhuamixin": (url, signal, tz) => ns_bwiki_gachaWhmx(url, signal, tz),
+
+			"fgo": (url, signal, tz) => ns_fgo_gachaFgo(url, signal, tz),
 
 			"zspms": (url, signal, tz) => ns_bwiki_gachaZspms(url, signal, tz),
 
@@ -2355,27 +2348,11 @@ async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ) {
 
 			"czn": (url, signal, tz) => ns_bwiki_gachaCzn(url, signal, tz),
 
-			"gf2": (url, signal, tz) => ns_gf2_gachaGf2(url, signal, tz),
-
-			"bandori": (url, signal, tz) => ns_bandori_gachaBandori(url, signal, tz),
-
-			"fgo": (url, signal, tz) => ns_fgo_gachaFgo(url, signal, tz),
-
 		});
 
 		Object.assign(EVENT_FETCHERS, {
 
 			"p5x": { default: (url, signal, tz) => ns_p5x_eventsP5x(url, signal, tz) },
-
-			"bandori-bestdori": { default: (url, signal, tz) => ns_bestdori_eventsBestdori(url, signal, tz) },
-
-			"pjsk": { default: (url, signal, tz) => ns_sekai_eventsSekai(url, signal, tz) },
-
-			"wuhuamixin": { default: (url, signal, tz) => ns_bwiki_eventsWhmx(url, signal, tz) },
-
-			"uma-jp-bwiki": { default: (url, signal, tz) => ns_bwiki_eventsUmaJp(url, signal, tz) },
-
-			"stellasora": { default: (url, signal, tz) => ns_bwiki_eventsStellasora(url, signal, tz) },
 
 			"gf2": { default: (url, signal, tz) => ns_gf2_eventsGf2(url, signal, tz) },
 
@@ -2383,7 +2360,31 @@ async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ) {
 
 			"ournotes": { default: (url, signal, tz) => ns_ournotes_eventsOurNotes(url, signal, tz) },
 
+			"pjsk": { default: (url, signal, tz) => ns_sekai_eventsSekai(url, signal, tz) },
+
+			"umamusume-jp": { default: (url, signal, tz) => ns_bwiki_eventsUmaJp(url, signal, tz) },
+
+			"wuhuamixin": { default: (url, signal, tz) => ns_bwiki_eventsWhmx(url, signal, tz) },
+
 			"fgo": { default: (url, signal, tz) => ns_fgo_eventsFgo(url, signal, tz) },
+
+			"stellasora": { default: (url, signal, tz) => ns_bwiki_eventsStellasora(url, signal, tz) },
+
+		});
+
+		// ===== 额外登记的卡池抓取器（GACHA_FETCHERS 是扁平的，注册在顶层即可）=====
+
+		Object.assign(GACHA_FETCHERS, {
+
+			"ns-alt-bandori-bestdori-gacha": (url, signal, tz) => ns_bestdori_gachaBestdori(url, signal, tz),
+
+		});
+
+		// ===== 额外登记的活动抓取器 → EVENT_FETCHERS["bandori"] =====
+
+		Object.assign(EVENT_FETCHERS["bandori"], {
+
+			"ns-alt-bandori-bestdori-event": { default: (url, signal, tz) => ns_bestdori_eventsBestdori(url, signal, tz) },
 
 		});
 
