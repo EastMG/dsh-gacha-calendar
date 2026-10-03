@@ -68,23 +68,11 @@ function ns_ournotes_global_langOf(url, fallback = ns_ournotes_global_OURNOTES_G
 	} catch { return fallback; }
 }
 
-//#region 文本工具（自带一份，理由见文件头「合并器注意」）
-const ns_ournotes_global_ENT_EXTRA = {
-	middot: "·", times: "×", hellip: "…", mdash: "—", ndash: "–", nbsp: " ", amp: "&",
-	lsquo: "‘", rsquo: "’", ldquo: "“", rdquo: "”", sup2: "²", sup3: "³", yen: "¥"
-};
-function ns_ournotes_global_decodeExtra(s) {
-	return decodeEntities(String(s == null ? "" : s).replace(/&([a-z][a-z0-9]{1,8});/gi, (m, k) => {
-		const v = ns_ournotes_global_ENT_EXTRA[String(k).toLowerCase()];
-		return v != null ? v : m;
-	}));
-}
-function ns_ournotes_global_plain(html) { return ns_ournotes_global_decodeExtra(textOf(html)).replace(/\s+/g, " ").trim(); }
 // 按 </p> 切段（详情正文若是 HTML）；纯文本没有 <p> → 退化成按行切
 function ns_ournotes_global_ournotesGlobalParagraphs(html) {
 	const s = String(html == null ? "" : html);
 	const chunks = /<\/p\s*>/i.test(s) ? s.split(/<\/p\s*>/i) : s.split(/\r?\n/);
-	return chunks.map((c) => ns_ournotes_global_plain(c)).filter(Boolean);
+	return chunks.map((c) => htmlTextTight(c)).filter(Boolean);
 }
 //#endregion
 
@@ -111,7 +99,7 @@ const ns_ournotes_global_K_CONTENT = ["content", "body", "text", "detail", "desc
 const ns_ournotes_global_K_START = ["start_time", "startTime", "begin_time", "beginTime", "start_at", "startAt", "start_date"];
 const ns_ournotes_global_K_END = ["end_time", "endTime", "end_at", "endAt", "end_date", "endDate"];
 function ns_ournotes_global_ournotesGlobalTitle(x) {
-	return ns_ournotes_global_plain(ns_ournotes_global_pickStr(x, ns_ournotes_global_K_TITLE));
+	return htmlTextTight(ns_ournotes_global_pickStr(x, ns_ournotes_global_K_TITLE));
 }
 function ns_ournotes_global_ournotesGlobalInstant(x, tz = ns_ournotes_global_OURNOTES_GLOBAL_TZ) {
 	return ns_ournotes_global_parseOurNotesGlobalStamp(ns_ournotes_global_pickStr(x, ns_ournotes_global_K_TIME), tz);

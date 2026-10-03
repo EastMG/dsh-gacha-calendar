@@ -43,27 +43,11 @@ const ns_bandori_BANDORI_LIST_URL = "https://api.biligame.com/news/list?gameExte
 const ns_bandori_BANDORI_TZ = "Asia/Shanghai";
 const ns_bandori_BANDORI_HOME = "https://www.biligame.com/detail/?id=138";
 
-// lib/env.js 的 decodeEntities 只覆盖了少量实体，公告正文里高频出现的
-// `&middot;` / `&times;` / `&hellip;` / `&sup2;` 需要本地补齐（不改 lib/）。
-const ns_bandori_ENT_EXTRA = {
-	middot: "·", times: "×", hellip: "…", mdash: "—", ndash: "–",
-	lsquo: "‘", rsquo: "’", ldquo: "“", rdquo: "”",
-	sup2: "²", sup3: "³", deg: "°", ensp: " ", emsp: " ", thinsp: " ",
-	bull: "•", copy: "©", reg: "®", trade: "™", laquo: "«", raquo: "»"
-};
-function ns_bandori_decodeExtra(s) {
-	return decodeEntities(String(s == null ? "" : s).replace(/&([a-z][a-z0-9]{1,8});/gi, (m, k) => {
-		const v = ns_bandori_ENT_EXTRA[String(k).toLowerCase()];
-		return v != null ? v : m;
-	}));
-}
-// 公告 HTML → 纯文本（先补实体再走 textOf，保证 &middot; 这类不残留）
-function ns_bandori_plain(html) { return ns_bandori_decodeExtra(textOf(html)); }
 // 标题（WP/REST 的 title 可能是对象；这里统一取字符串）
 function ns_bandori_bandoriTitle(x) {
 	const t = x && x.title;
-	if (t && typeof t === "object") return ns_bandori_decodeExtra(t.rendered || "");
-	return ns_bandori_decodeExtra(t || "");
+	if (t && typeof t === "object") return decodeExtra(t.rendered || "");
+	return decodeExtra(t || "");
 }
 
 // ── 列表解析 ──
@@ -211,7 +195,7 @@ function ns_bandori_pickBandoriEventSection(sections) {
 // 外显与悬停**必须逐字一致**。
 // ⚠️ 只用于悬停标签；roles 字段的对外契约不变（既有的 `&sup2;` 形态由既有测试钉住）。
 function ns_bandori_hoverLabel(s) {
-	return ns_bandori_decodeExtra(String(s == null ? "" : s)).replace(/\s+/g, " ").trim();
+	return decodeExtra(String(s == null ? "" : s)).replace(/\s+/g, " ").trim();
 }
 // 每节的主窗口 → 悬停条目 `{ name, startTs, endTs, raw }`（hoverPool / hoverEvent 的入参形状）。
 // 名称取节内第一个「…」里的名字（quote），比整段干净；raw 保留源站原文（缺起止时才用）。
@@ -268,7 +252,7 @@ async function ns_bandori_loadAnnouncement(listUrl, signal, selector, limit = 5)
 			const detail = await fetchJson(ns_bandori_bandoriDetailUrl(listUrl, it.id), { referer: ns_bandori_BANDORI_HOME, signal, mode: "proxy" });
 			const d = detail && detail.data;
 			if (!d || typeof d.content !== "string") continue;
-			const text = ns_bandori_plain(d.content);
+			const text = htmlText(d.content);
 			const hint = ns_bandori_parseBandoriDate(d.displayTime || d.mtime || it.displayTime || it.ctime) || it.dateTs;
 			const sections = ns_bandori_parseBandoriSections(text, ns_bandori_BANDORI_TZ, hint);
 			const picked = selector(sections);

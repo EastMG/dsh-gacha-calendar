@@ -29,6 +29,35 @@
 			return decodeEntities(String(html).replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " "))
 				.replace(/[ \t\u00a0]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
 		}
+
+		// ── HTML 命名实体（**唯一真源**）───────────────────────────────────────────
+		// 2026-10-03 合并：此前 **5 个解析器**各写一份 `ENT_EXTRA` + `decodeExtra`
+		//   （bandori / biligame-activity / biligame-announce / ournotes-global / ournotes），
+		//   函数体**逐字节相同**，差别只在实体表 —— 而 5 张表**互为子集**。
+		//   现在用**并集**（30 个，行为探测确认完整覆盖 5 张表），所以：
+		//     · 零回归（原来能解的仍然能解）
+		//     · 更正确（原来哪个解析器缺 `&copy;` / `&yen;`，就会把实体字面量漏到面板上）
+		//   表里也含 `amp/lt/gt/quot/apos/nbsp`（下面 `decodeEntities` 本来就处理），重复无害。
+		const ENTITIES_EXTRA = {
+			middot: "·", times: "×", hellip: "…", mdash: "—", ndash: "–",
+			nbsp: " ", lsquo: "‘", rsquo: "’", ldquo: "“", rdquo: "”",
+			sup2: "²", sup3: "³", deg: "°", ensp: " ", emsp: " ",
+			thinsp: " ", bull: "•", copy: "©", reg: "®", trade: "™",
+			laquo: "«", raquo: "»", amp: "&", quot: "\"", apos: "'",
+			lt: "<", gt: ">", yen: "¥", hearts: "♥", star: "★",
+		};
+		/** 在 `decodeEntities` 之上再解一批命名实体（媒体/排版符号）。 */
+		function decodeExtra(s) {
+			return decodeEntities(String(s == null ? "" : s).replace(/&([a-z][a-z0-9]{1,8});/gi, (m, k) => {
+				const v = ENTITIES_EXTRA[String(k).toLowerCase()];
+				return v != null ? v : m;
+			}));
+		}
+		/** HTML → 纯文本（保留换行结构）。原来 5 个文件里的 `plain()` 都是这个。 */
+		function htmlText(html) { return decodeExtra(textOf(html)); }
+		/** 同上，但把空白压成单空格并去首尾空白（原来只有 ournotes-global 这么做）。 */
+		function htmlTextTight(html) { return htmlText(html).replace(/\s+/g, " ").trim(); }
+
 		async function fetchText(url, opts) {
 			const o = opts || {};
 			if (o.mode === "direct") {

@@ -29,11 +29,13 @@
 //
 // ── 为什么不再 import `biligame-announce.js`（P6 嘟嘟脸，同形态）─────────────
 //   思路/函数确实同源（列表 → 逐条详情 → 正文抽档期 → 挑覆盖 now 的窗口 → 抽不到就 null），
-//   但**插件合并器 `diag/handoff-2026/merge-next-sources.mjs` 按文件做命名空间隔离**：
-//   它剥掉每个解析器的 import/export 并给本文件的声明加 `ns_<file>_` 前缀，
-//   **并不会重命名别的解析器文件里 import 进来的名字** → 跨解析器 import 会在生成物里变成
-//   `ns_biligame_activity_decodeExtra is not defined`。故本文件自带一份 `ns_biligame_activity_decodeExtra`（与 biligame-announce.js 同表），
-//   只 import `lib/env.js` 的名字（那些由合并器的桥接适配器顶上）。
+//   但历史上跨解析器 import 会被合并器的命名空间隔离打断（它给本文件的**声明**加 `ns_<file>_`
+//   前缀，却不重命名"从别的解析器 import 进来的名字"）→ 生成物里会变成 `… is not defined`。
+//   所以当时两个文件各自抄了一份 `decodeExtra` + 实体表。
+//   ⚠️ 2026-10-03 更新：压平成 `src/client/` 普通源码段后**不再有命名空间合并器**，
+//   而那两份 `ENT_EXTRA` / `decodeExtra` / `plain` **函数体逐字节相同、表互为子集** ——
+//   已统一到 `41-sources-shared.js` 的 `decodeExtra` / `htmlText` / `htmlTextTight`（并集表）。
+//   本条历史记录保留，因为"跨文件同名/同源"这个坑值得记住。
 //
 // ══ 接口实测形态（2026-10-02 抓夹具）════════════════════════════════════════
 // 列表：GET https://api.biligame.com/news/list?gameExtensionId=<id>&positionId=2&typeId=<t>&pageNum=1&pageSize=50
@@ -148,25 +150,11 @@ function ns_biligame_activity_biligameDetailUrl(listUrl, id) {
 	return `${origin}/news/${id}`;
 }
 
-//#region 文本工具（本文件自带；见文件头「为什么不再 import」）
-// lib/env.js 的 decodeEntities 只覆盖少量实体，公告正文里的这几个高频实体本地补齐（不改 lib/）
-const ns_biligame_activity_ENT_EXTRA = {
-	middot: "·", times: "×", hellip: "…", mdash: "—", ndash: "–", nbsp: " ",
-	lsquo: "‘", rsquo: "’", ldquo: "“", rdquo: "”", sup2: "²", sup3: "³",
-	yen: "¥", deg: "°", bull: "•", copy: "©", reg: "®", hearts: "♥", star: "★"
-};
-function ns_biligame_activity_decodeExtra(s) {
-	return decodeEntities(String(s == null ? "" : s).replace(/&([a-z][a-z0-9]{1,8});/gi, (m, k) => {
-		const v = ns_biligame_activity_ENT_EXTRA[String(k).toLowerCase()];
-		return v != null ? v : m;
-	}));
-}
-function ns_biligame_activity_plain(html) { return ns_biligame_activity_decodeExtra(textOf(html)); }
 // 按 </p> 切段（公告正文的每个逻辑单元都是 <p>；textOf 的行会把多段粘一起，不能用）
 function ns_biligame_activity_biligameParagraphs(html) {
 	return String(html == null ? "" : html)
 		.split(/<\/p\s*>/i)
-		.map((chunk) => ns_biligame_activity_plain(chunk).replace(/\s+/g, " ").trim())
+		.map((chunk) => htmlText(chunk).replace(/\s+/g, " ").trim())
 		.filter(Boolean);
 }
 //#endregion
@@ -225,7 +213,7 @@ function ns_biligame_activity_parseBiligameList(json) {
 			const sortKey = displayTime || ctime;      // 实测大量条目缺 displayTime → 退 ctime
 			return {
 				id: x.id,
-				title: ns_biligame_activity_decodeExtra(x.title).replace(/\s+/g, " ").trim(),
+				title: decodeExtra(x.title).replace(/\s+/g, " ").trim(),
 				typeId: x.typeId,
 				displayTime,
 				ctime,
@@ -556,7 +544,7 @@ async function ns_biligame_activity_eventsWhmxOfficial(url, signal, tz = ns_bili
 		}
 		if (!d || typeof d.content !== "string") continue;
 		loaded++;
-		const title = ns_biligame_activity_decodeExtra(d.title || it.title || "").replace(/\s+/g, " ").trim();
+		const title = decodeExtra(d.title || it.title || "").replace(/\s+/g, " ").trim();
 		const parsed = ns_biligame_activity_parseWhmxActivity(d.content, tz, ns_biligame_activity_yearHintOf(it, tz));
 		const best = ns_biligame_activity_pickWhmxEvent(parsed.items, now, ns_biligame_activity_quotedName(title));
 		if (!best) continue;
@@ -588,7 +576,7 @@ async function ns_biligame_activity_loadUmaCn(url, signal, tz, now, want) {
 	if (!list.length) return null;                     // 空列表 → 源站无公告 = 未公布
 	let firstErr = null, loaded = 0, tried = 0;
 	for (const it of list.slice(0, ns_biligame_activity_DETAIL_LIMIT_UMA)) {
-		const title = ns_biligame_activity_decodeExtra(it.title || "").replace(/\s+/g, " ").trim();
+		const title = decodeExtra(it.title || "").replace(/\s+/g, " ").trim();
 		if (ns_biligame_activity_classifyUmaCnTitle(title) !== want) continue;   // 标题分流：不相关的不抓详情（省请求）
 		tried++;
 		let d = null;
@@ -601,7 +589,7 @@ async function ns_biligame_activity_loadUmaCn(url, signal, tz, now, want) {
 		}
 		if (!d || typeof d.content !== "string") continue;
 		loaded++;
-		const dt = ns_biligame_activity_decodeExtra(d.title || title).replace(/\s+/g, " ").trim();
+		const dt = decodeExtra(d.title || title).replace(/\s+/g, " ").trim();
 		const parsed = ns_biligame_activity_parseUmaCnAnnouncement(d.content, tz, ns_biligame_activity_yearHintOf(it, tz));
 		const best = ns_biligame_activity_pickUmaWindow(parsed.items, now, want);
 		if (!best) continue;

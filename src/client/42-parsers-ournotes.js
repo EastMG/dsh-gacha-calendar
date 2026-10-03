@@ -40,19 +40,10 @@
 const ns_ournotes_OURNOTES_LIST_URL = "https://bang-dream-on.bushimo.jp/wp-json/wp/v2/posts?per_page=20&page=1";
 const ns_ournotes_OURNOTES_TZ = "Asia/Tokyo";
 
-// lib/env.js 的 decodeEntities 未覆盖的常见实体（公告里 `&hellip;` 之类）
-const ns_ournotes_ENT_EXTRA = { hellip: "…", middot: "·", times: "×", mdash: "—", ndash: "–", nbsp: " ", amp: "&", quot: '"', apos: "'" };
-function ns_ournotes_decodeExtra(s) {
-	return decodeEntities(String(s == null ? "" : s).replace(/&([a-z][a-z0-9]{1,8});/gi, (m, k) => {
-		const v = ns_ournotes_ENT_EXTRA[String(k).toLowerCase()];
-		return v != null ? v : m;
-	}));
-}
-function ns_ournotes_plain(html) { return ns_ournotes_decodeExtra(textOf(html)); }
 function ns_ournotes_ournotesTitle(x) {
 	const t = x && x.title;
-	if (t && typeof t === "object") return ns_ournotes_decodeExtra(t.rendered || "").replace(/\s+/g, " ").trim();
-	return ns_ournotes_decodeExtra(t || "").replace(/\s+/g, " ").trim();
+	if (t && typeof t === "object") return decodeExtra(t.rendered || "").replace(/\s+/g, " ").trim();
+	return decodeExtra(t || "").replace(/\s+/g, " ").trim();
 }
 
 // ── 日文日期区间令牌 ──
@@ -138,8 +129,8 @@ function ns_ournotes_parseOurNotesPosts(json, tz = ns_ournotes_OURNOTES_TZ) {
 			const hint = ns_ournotes_parseOurNotesInstant(p.date, tz);
 			const hay = [
 				ns_ournotes_ournotesTitle(p),
-				ns_ournotes_plain(p.excerpt && p.excerpt.rendered),
-				ns_ournotes_plain(p.content && p.content.rendered)
+				htmlText(p.excerpt && p.excerpt.rendered),
+				htmlText(p.content && p.content.rendered)
 			].join("\n");
 			return {
 				id: p.id,

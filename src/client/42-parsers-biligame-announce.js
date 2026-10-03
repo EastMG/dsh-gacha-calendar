@@ -67,19 +67,6 @@ const ns_biligame_announce_DDLEZJ_HOME = "https://game.bilibili.com/trickcal/new
 // 一条公告最多往下抓几篇详情（公告很稀疏：全站只有 13 篇）
 const ns_biligame_announce_DETAIL_LIMIT = 6;
 
-// lib/env.js 的 decodeEntities 只覆盖少量实体，公告正文里的这几个高频实体本地补齐（不改 lib/）
-const ns_biligame_announce_ENT_EXTRA = {
-	middot: "·", times: "×", hellip: "…", mdash: "—", ndash: "–", nbsp: " ",
-	sup2: "²", sup3: "³", deg: "°", bull: "•", copy: "©", reg: "®",
-	lsquo: "‘", rsquo: "’", ldquo: "“", rdquo: "”", laquo: "«", raquo: "»"
-};
-function ns_biligame_announce_decodeExtra(s) {
-	return decodeEntities(String(s == null ? "" : s).replace(/&([a-z][a-z0-9]{1,8});/gi, (m, k) => {
-		const v = ns_biligame_announce_ENT_EXTRA[String(k).toLowerCase()];
-		return v != null ? v : m;
-	}));
-}
-function ns_biligame_announce_plain(html) { return ns_biligame_announce_decodeExtra(textOf(html)); }
 
 //#region 列表
 // 列表条目 → [{ id, title, displayTime, ctime, mtime, sortKey, dateTs }]，严格按生效时刻倒序
@@ -95,7 +82,7 @@ function ns_biligame_announce_parseDdlezjList(json) {
 			const sortKey = displayTime || ctime;      // 实测 5/13 条没有 displayTime → 退 ctime
 			return {
 				id: x.id,
-				title: ns_biligame_announce_decodeExtra(x.title).replace(/\s+/g, " ").trim(),
+				title: decodeExtra(x.title).replace(/\s+/g, " ").trim(),
 				typeId: x.typeId,
 				displayTime,
 				ctime,
@@ -124,7 +111,7 @@ function ns_biligame_announce_ddlezjDetailUrl(listUrl, id) {
 function ns_biligame_announce_ddlezjParagraphs(html) {
 	return String(html == null ? "" : html)
 		.split(/<\/p\s*>/i)
-		.map((chunk) => ns_biligame_announce_plain(chunk).replace(/\s+/g, " ").trim())
+		.map((chunk) => htmlText(chunk).replace(/\s+/g, " ").trim())
 		.filter(Boolean);
 }
 //#endregion

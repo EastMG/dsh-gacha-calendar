@@ -152,6 +152,25 @@ export default async function run() {
 			/function coversNow\(/.test(p30) && /function coversNowBounded\(/.test(p30) && /function pickCovering\(/.test(p30));
 	}
 
+	// ── HTML 解码：只能有一份（2026-10-03 合并了 5 份逐字节相同的 ENT_EXTRA/decodeExtra/plain）──
+	{
+		const dup = [];
+		for (const f of files) {
+			const src = readFileSync(path.join(SRC, f), "utf8");
+			const code = src.split("\n").map((l) => l.replace(/\/\/.*$/, "")).join("\n");
+			if (/(?:^|[;{}\s])(?:const|let|var)\s+\S*ENT_EXTRA\s*=/.test(code)) dup.push(`${f}: 本地 ENT_EXTRA`);
+			if (/(?:^|[;{}\s])function\s+\S*(?:decodeExtra|plain)\s*\(/.test(code)) dup.push(`${f}: 本地 decodeExtra/plain`);
+		}
+		check("没有本地自制的 HTML 实体表与解码函数（只允许 41-sources-shared.js 那一份）", dup.length === 0, dup.join(" / "));
+		const sh = readFileSync(path.join(SRC, "41-sources-shared.js"), "utf8");
+		check("共用 ENTITIES_EXTRA / decodeExtra / htmlText / htmlTextTight 存在",
+			/const ENTITIES_EXTRA = \{/.test(sh) && /function decodeExtra\(/.test(sh) && /function htmlText\(/.test(sh) && /function htmlTextTight\(/.test(sh));
+		// 反证：并集表必须真的覆盖原来 5 张表里出现过的实体（抽查几个"只有个别表有"的）
+		for (const e of ["middot", "yen", "hearts", "star", "trade", "thinsp", "laquo", "copy"]) {
+			check(`并集表含 &${e};`, new RegExp(`\\b${e}:`).test(sh));
+		}
+	}
+
 	// 反证：共用工具必须真的在（否则上面的守卫会因为"没实现"而假通过）
 	const shared = readFileSync(path.join(SRC, "41-sources-shared.js"), "utf8");
 	check("共用工具 hoverPool / hoverEvent 存在", /function hoverPool\(/.test(shared) && /function hoverEvent\(/.test(shared));
