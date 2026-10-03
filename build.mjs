@@ -199,6 +199,73 @@ function syntaxOk(file) {
   }
 }
 
+// ── 命名空间裸引用守卫（2026-10-03）──────────────────────────────────────────
+// 真实事故：`next-sources/parsers/bandori.js` 里写了 `{ ...bandoriSectionItem(s, name) }`，
+// 而拼接脚本的改名规则 `(?<![\w$.])名字` 把 `...` 里的 `.` 误判成"属性访问"，**跳过了改名**
+// → 生成物里声明是 `ns_bandori_bandoriSectionItem`、调用却是裸的 `bandoriSectionItem`
+// → 运行时 `bandoriSectionItem is not defined` → 面板上 BanG Dream 的卡池整列变成 "—"。
+// 而离线夹具测试**没有走到那条代码路径**（只在"多个当期池"分支用到该函数），门禁全绿却线上已坏。
+//
+// 生成器侧已按模块加了同样的守卫；这里在**构建期**再查一遍产物，好处是：
+//   · 不依赖生成器是否被重跑（有人手改 `src/client/45-next-sources.js` 也会被拦住）
+//   · `--check` 与正式 build 都会跑到
+// 分段依据就是产物里的 `// ===== 内联自 next-sources/parsers/<x>.js…=====` 标记，
+// 每段只检查**这一段自己**声明的名字 —— 这样不同模块里的同名局部变量（如两个模块各有
+// 函数内 `const plain`）不会被误报。
+function stripStringsAndComments(src) {
+  let out = "", i = 0;
+  const n = src.length;
+  while (i < n) {
+    const c = src[i], c2 = src[i + 1];
+    if (c === "/" && c2 === "/") { while (i < n && src[i] !== "\n") { out += " "; i++; } continue; }
+    if (c === "/" && c2 === "*") {
+      out += "  "; i += 2;
+      while (i < n && !(src[i] === "*" && src[i + 1] === "/")) { out += src[i] === "\n" ? "\n" : " "; i++; }
+      if (i < n) { out += "  "; i += 2; }
+      continue;
+    }
+    if (c === '"' || c === "'" || c === "`") {
+      const q = c; out += " "; i++;
+      while (i < n) {
+        if (src[i] === "\\") { out += "  "; i += 2; continue; }
+        if (src[i] === q) { out += " "; i++; break; }
+        out += src[i] === "\n" ? "\n" : " "; i++;
+      }
+      continue;
+    }
+    out += c; i++;
+  }
+  return out;
+}
+function nsBareRefProblems(clientText) {
+  const problems = [];
+  const marker = /\/\/ ===== 内联自 next-sources\/parsers\/([^\s（]+)\.js/;
+  const lines = clientText.split("\n");
+  const sections = [];
+  let cur = null;
+  for (const line of lines) {
+    const m = marker.exec(line);
+    if (m) { if (cur) sections.push(cur); cur = { file: m[1], body: [] }; continue; }
+    if (cur) cur.body.push(line);
+  }
+  if (cur) sections.push(cur);
+  if (sections.length === 0) return problems;   // 没有内联段（不该发生）→ 不误报
+  for (const sec of sections) {
+    const safe = sec.file.replace(/[^A-Za-z0-9_$]/g, "_");   // 与生成器的 safeNs 同一套规则
+    const code = stripStringsAndComments(sec.body.join("\n"));
+    const prefix = `ns_${safe}_`;
+    const names = new Set();
+    for (const m of code.matchAll(new RegExp(`${prefix}([A-Za-z_$][\\w$]*)`, "g"))) names.add(m[1]);
+    for (const name of names) {
+      const esc = name.replace(/[$]/g, "\\$");
+      // 与生成器同一条前缀规则：允许行首 / 非标识符非点 / `...`；`obj.名字` 不算引用
+      const re = new RegExp(`(^|[^\\w$.]|\\.\\.\\.)${esc}(?![\\w$])`, "g");
+      if (re.test(code)) problems.push(`parsers/${sec.file}.js 的 ${name}（应为 ${prefix}${name}）`);
+    }
+  }
+  return [...new Set(problems)];
+}
+
 if (checkOnly) {
   const curClient = read(OUT_CLIENT);
   const curHost = read(OUT_HOST);
@@ -233,7 +300,11 @@ if (checkOnly) {
     okSyntax = okSyntax && ok;
     console.log(`${(rel + " 语法").padEnd(26)} ${ok ? "✓" : "✗ 语法检查失败"}`);
   }
-  if (!okClient || !okHost || !okCore || !okTypes || !okSyntax) {
+  // 命名空间裸引用守卫（见 nsBareRefProblems 的说明）
+  const nsProblems = nsBareRefProblems(clientBuilt);
+  console.log(`命名空间裸引用${" ".repeat(10)} ${nsProblems.length === 0 ? "✓ 无" : `✗ ${nsProblems.length} 处`}`);
+  for (const p of nsProblems.slice(0, 8)) console.log(`  - ${p}`);
+  if (!okClient || !okHost || !okCore || !okTypes || !okSyntax || nsProblems.length > 0) {
     console.error("\n✗ 产物校验未通过 —— 要么忘了跑 build，要么有人直接改了产物（请改 src/ 后重新 build）");
     process.exit(1);
   }
@@ -242,6 +313,18 @@ if (checkOnly) {
 }
 
 fs.mkdirSync(path.dirname(OUT_CLIENT), { recursive: true });
+// 写盘前也要过命名空间裸引用守卫：宁可构建失败，也不让"运行时必定 ReferenceError"的产物落盘。
+// （生成器侧已有同样的守卫；这里是第二道，防的是"生成器没重跑 / 有人手改生成物"。）
+{
+  const nsProblems = nsBareRefProblems(clientBuilt);
+  if (nsProblems.length > 0) {
+    console.error("✗ 产物里有命名空间裸引用（内联解析器改名漏了，运行时会 ReferenceError）：");
+    for (const p of nsProblems.slice(0, 12)) console.error(`  - ${p}`);
+    console.error("  请重跑生成器（node diag/handoff-2026/merge-next-sources.mjs）后重新 build。\n");
+    process.exit(1);
+  }
+}
+
 fs.writeFileSync(OUT_CLIENT, clientBuilt, "utf8");
 fs.writeFileSync(OUT_HOST, hostBuilt, "utf8");
 fs.mkdirSync(path.dirname(OUT_CORE), { recursive: true });
