@@ -17,21 +17,14 @@
 
 import { readFileSync } from "node:fs";
 import { useFixtures, check, section, assertContract, summary } from "./harness.mjs";
-import { sourceInstant, sourceWallParts, fmtWindow, hoverPool, hoverEvent } from "../lib/env.js";
-import { SOURCES_P8, findSourceP8, listIdsP8 } from "../registry-p8.js";
+const { sourceInstant, sourceWallParts, fmtWindow, hoverPool, hoverEvent } = T;
+import { SOURCES_P8, findSourceP8, listIdsP8 } from "./registry-shim.mjs";
+import { T } from "./load.mjs";
 
-import {
-	mediaWikiWikitext, parseZspmsAsk, zspmsNormalize, zspmsMaintenanceWindow, parseZspmsAnnouncement,
-	gachaZspms, eventsZspms, zspmsParseUrl, zspmsNameAt, zspmsHeadings,
-	parseCznLua, parseCznRecord, cznStamp, gachaCzn,
-	kedrTemplateCalls, kedrStamp, kedrIsGacha, kedrIsEvent, kedrRoleFromName, parseKedrTemplate,
-	gachaKedrTemplate, eventsKedrTemplate, kedrTemplateUrl,
-	ZSPMS_TZ, ZSPMS_ASK_URL, ZSPMS_ASK_QUERY, CZN_TZ, CZN_MODULE_URL, CZN_MODULE_PAGE, CZN_RECORD_URL,
-	KEDR_TZ, KEDR_TEMPLATE_URL, KEDR_TEMPLATE_PAGE
-} from "../parsers/bwiki-wikitext.js";
+const { mediaWikiWikitext, parseZspmsAsk, zspmsNormalize, zspmsMaintenanceWindow, parseZspmsAnnouncement, gachaZspms, eventsZspms, zspmsParseUrl, zspmsNameAt, zspmsHeadings, parseCznLua, parseCznRecord, cznStamp, gachaCzn, kedrTemplateCalls, kedrStamp, kedrIsGacha, kedrIsEvent, kedrRoleFromName, parseKedrTemplate, gachaKedrTemplate, eventsKedrTemplate, kedrTemplateUrl, ZSPMS_TZ, ZSPMS_ASK_URL, ZSPMS_ASK_QUERY, CZN_TZ, CZN_MODULE_URL, CZN_MODULE_PAGE, CZN_RECORD_URL, KEDR_TZ, KEDR_TEMPLATE_URL, KEDR_TEMPLATE_PAGE } = T.parsers["bwiki-wikitext"];
 
 // ── 夹具读取 ──
-const fxText = (p) => readFileSync(new URL("../fixtures/" + p, import.meta.url), "utf8");
+const fxText = (p) => readFileSync(new URL("./fixtures/" + p, import.meta.url), "utf8");
 const fxJson = (p) => JSON.parse(fxText(p));
 const fxMeta = (p) => JSON.parse(fxText(p + ".meta.json"));
 

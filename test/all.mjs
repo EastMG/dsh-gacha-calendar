@@ -8,8 +8,8 @@
 //   也避免"谁先 import 谁就定了 fetch 实现"的隐式耦合。run.mjs 保留为 P5X 的早期入口。
 
 import { check, section, summary, listFixtures, counts } from "./harness.mjs";
-import { NEXT_SOURCES, stats } from "../registry.js";
-import { EXTRA_GACHA_FETCHERS, EXTRA_EVENT_FETCHERS } from "../registry-extras.js";
+import { NEXT_SOURCES, stats } from "./registry-shim.mjs";
+import { EXTRA_GACHA_FETCHERS, EXTRA_EVENT_FETCHERS } from "./registry-shim.mjs";
 
 import runP5x from "./cases-p5x.mjs";
 import runB1 from "./cases-b1.mjs";

@@ -15,19 +15,14 @@
 
 import { readFileSync } from "node:fs";
 import { useFixtures, check, section, assertContract, summary } from "./harness.mjs";
-import { sourceWallParts, fmtWindow, hoverPool, hoverEvent } from "../lib/env.js";
-import { SOURCES_P5, findSource } from "../registry-p5.js";
-import {
-	classifyUmaTitle, parseUmaIndex, parseUmaInstant, parseUmaDetail, parseUmaWindows,
-	extractUmaRangePlates, pickUmaWindow, umaCurrentItems, umaJpPageUrl, proxyUrlFor, postJsonUma,
-	gachaUmaJpOfficial, eventsUmaJpOfficial, gachaUmaGlobal, eventsUmaGlobal,
-	UMA_JP_TZ, UMA_GLOBAL_TZ, UMA_GLOBAL_INDEX_URL, UMA_GLOBAL_DETAIL_URL, UMA_JP_DETAIL_URL,
-	UMA_JP_INDEX_URL
-} from "../parsers/umamusume-official.js";
+const { sourceWallParts, fmtWindow, hoverPool, hoverEvent } = T;
+import { SOURCES_P5, findSource } from "./registry-shim.mjs";
+import { T } from "./load.mjs";
+const { classifyUmaTitle, parseUmaIndex, parseUmaInstant, parseUmaDetail, parseUmaWindows, extractUmaRangePlates, pickUmaWindow, umaCurrentItems, umaJpPageUrl, proxyUrlFor, postJsonUma, gachaUmaJpOfficial, eventsUmaJpOfficial, gachaUmaGlobal, eventsUmaGlobal, UMA_JP_TZ, UMA_GLOBAL_TZ, UMA_GLOBAL_INDEX_URL, UMA_GLOBAL_DETAIL_URL, UMA_JP_DETAIL_URL, UMA_JP_INDEX_URL } = T.parsers["umamusume-official"];
 
-const fixture = (name) => JSON.parse(readFileSync(new URL(`../fixtures/${name}/response.txt`, import.meta.url), "utf8"));
-const fixtureText = (name) => readFileSync(new URL(`../fixtures/${name}/response.txt`, import.meta.url), "utf8");
-const fixtureMeta = (name) => JSON.parse(readFileSync(new URL(`../fixtures/${name}/response.txt.meta.json`, import.meta.url), "utf8"));
+const fixture = (name) => JSON.parse(readFileSync(new URL(`./fixtures/${name}/response.txt`, import.meta.url), "utf8"));
+const fixtureText = (name) => readFileSync(new URL(`./fixtures/${name}/response.txt`, import.meta.url), "utf8");
+const fixtureMeta = (name) => JSON.parse(readFileSync(new URL(`./fixtures/${name}/response.txt.meta.json`, import.meta.url), "utf8"));
 
 // 夹具抓取时刻 = 「当前时刻」（确定性）
 const SNAP = Date.parse(fixtureMeta("p5-uma-jp-index").capturedAt);
@@ -70,7 +65,7 @@ function installP5Fixtures() {
 	//    P5-5 测完 restore 成真 fetch 后，P5-6 若还去读 globalThis.fetch 拿到的是**真** fetch
 	//    （实测症状：`Failed to parse URL from /api/gacha-calendar-proxy…`）。
 	const fixtureFetch = useFixtures(P5_FIXTURE_URLS);
-	const FIX = new URL("../fixtures/", import.meta.url);
+	const FIX = new URL("./fixtures/", import.meta.url);
 	globalThis.fetch = async (url, opts) => {
 		const u = String(url);
 		if (u.startsWith("/api/gacha-calendar-proxy")) {

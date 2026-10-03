@@ -4,15 +4,11 @@
 // 时间断言全部用**固定 now**（夹具抓取时刻 2026-10-02 01:41 +08）→ 测试永久可复现，
 // 不会因为"今天超过了夹具档期"而假失败。真实 now 的路径另用一遍契约守卫覆盖（null 亦合法）。
 
-import { useFixtures, check, section, assertContract } from "./harness.mjs";
-import { setFetchImpl } from "../lib/env.js";
-import { SOURCES_B2, findSourceB2 } from "../registry-b2.js";
-import {
-	parsePoints, windowsFromCell, detectOrientation,
-	parseWhmxGacha, parseWhmxEvents, parseUmaCnGacha, parseUmaJpEvents,
-	parseZspmsGacha, parseKedrGacha, parseCznGacha, parseStellasoraEvents,
-	gachaKedr, eventsUmaJp, eventsStellasora
-} from "../parsers/bwiki.js";
+import { useFixtures, check, section, assertContract, setFetchImpl } from "./harness.mjs";
+
+import { SOURCES_B2, findSourceB2 } from "./registry-shim.mjs";
+import { T } from "./load.mjs";
+const { parsePoints, windowsFromCell, detectOrientation, parseWhmxGacha, parseWhmxEvents, parseUmaCnGacha, parseUmaJpEvents, parseZspmsGacha, parseKedrGacha, parseCznGacha, parseStellasoraEvents, gachaKedr, eventsUmaJp, eventsStellasora } = T.parsers["bwiki"];
 
 const TZ_CN = "Asia/Shanghai";
 const TZ_JP = "Asia/Tokyo";

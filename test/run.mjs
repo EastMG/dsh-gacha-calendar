@@ -4,8 +4,9 @@
 //       node test/run.mjs --live     （打真实网络，抽检夹具是否过期）
 
 import { useFixtures, check, section, summary, listFixtures, assertContract } from "./harness.mjs";
-import { NEXT_SOURCES, findSource } from "../registry.js";
-import { gachaP5x, eventsP5x, parseP5xList, parseP5xWindows } from "../parsers/p5x.js";
+import { NEXT_SOURCES, findSource } from "./registry-shim.mjs";
+import { T } from "./load.mjs";
+const { gachaP5x, eventsP5x, parseP5xList, parseP5xWindows } = T.parsers["p5x"];
 
 const LIVE = process.argv.includes("--live");
 if (!LIVE) useFixtures();

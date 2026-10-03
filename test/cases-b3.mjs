@@ -20,27 +20,15 @@
 
 import { readFileSync } from "node:fs";
 import { useFixtures, check, section, assertContract } from "./harness.mjs";
-import { SOURCES_B3, findSource } from "../registry-b3.js";
-import { sourceInstant, sourceWallParts, textOf, fmtWindow } from "../lib/env.js";
+import { SOURCES_B3, findSource } from "./registry-shim.mjs";
+import { T } from "./load.mjs";
+const { sourceInstant, sourceWallParts, textOf, fmtWindow } = T;
 
-import {
-	gachaGf2, eventsGf2, parseGf2Windows, parseGf2List, parseGf2Date,
-	GF2_GACHA_URL, GF2_EVENT_URL, GF2_BASE, GF2_TZ
-} from "../parsers/gf2.js";
-import {
-	gachaBandori, eventsBandori, parseBandoriSections, parseBandoriList, parseBandoriDate,
-	pickBandoriGachaSection, pickBandoriEventSection, parseBandoriWindow,
-	BANDORI_LIST_URL, BANDORI_TZ
-} from "../parsers/bandori.js";
-import {
-	eventsOurNotes, parseOurNotesPosts, parseOurNotesWindows, parseOurNotesInstant,
-	selectOurNotesPrimary, OURNOTES_LIST_URL, OURNOTES_TZ
-} from "../parsers/ournotes.js";
-import {
-	gachaFgo, eventsFgo, parseFgoBannerTable, parseFgoEventTable, findFgoEventTable, parseFgoWindow,
-	FGO_GACHA_URL, FGO_EVENT_URL, FGO_TZ
-} from "../parsers/fgo.js";
-import { hoverEvent, hoverPool } from "../lib/env.js";
+const { gachaGf2, eventsGf2, parseGf2Windows, parseGf2List, parseGf2Date, GF2_GACHA_URL, GF2_EVENT_URL, GF2_BASE, GF2_TZ } = T.parsers["gf2"];
+const { gachaBandori, eventsBandori, parseBandoriSections, parseBandoriList, parseBandoriDate, pickBandoriGachaSection, pickBandoriEventSection, parseBandoriWindow, BANDORI_LIST_URL, BANDORI_TZ } = T.parsers["bandori"];
+const { eventsOurNotes, parseOurNotesPosts, parseOurNotesWindows, parseOurNotesInstant, selectOurNotesPrimary, OURNOTES_LIST_URL, OURNOTES_TZ } = T.parsers["ournotes"];
+const { gachaFgo, eventsFgo, parseFgoBannerTable, parseFgoEventTable, findFgoEventTable, parseFgoWindow, FGO_GACHA_URL, FGO_EVENT_URL, FGO_TZ } = T.parsers["fgo"];
+const { hoverEvent, hoverPool } = T;
 
 // 悬停守卫（用户 2026-10-03：「元信息彻底删掉」）：来源站名/域名/URL/API 名、时区推定说明、
 // 抓取统计、内部 id、源站分类词（Event/Campaign）、括注实现说明 —— 一律不得出现在悬停文本里。
@@ -71,7 +59,7 @@ const OVERRIDES = {
 	[SYNTH_DETAIL_URL]: "bandori-synth-detail/response.txt"
 };
 
-const fx = (p) => new URL("../fixtures/" + p, import.meta.url);
+const fx = (p) => new URL("./fixtures/" + p, import.meta.url);
 const readJsonFx = (p) => JSON.parse(readFileSync(fx(p), "utf8"));
 
 // 固定"当前时刻"＝ 2026-10-02 01:27 (UTC+8)，即夹具抓取时刻

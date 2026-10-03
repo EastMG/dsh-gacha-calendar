@@ -22,33 +22,18 @@
 
 import { readFileSync } from "node:fs";
 import { useFixtures, check, section, assertContract, summary } from "./harness.mjs";
-import { sourceInstant, sourceWallParts, fmtWindow } from "../lib/env.js";
-import {
-	SOURCES_P9, findSourceP9, listIdsP9, EXTRA_GACHA_FETCHERS_P9, EXTRA_EVENT_FETCHERS_P9
-} from "../registry-p9.js";
+const { sourceInstant, sourceWallParts, fmtWindow } = T;
+import { SOURCES_P9, findSourceP9, listIdsP9, EXTRA_GACHA_FETCHERS_P9, EXTRA_EVENT_FETCHERS_P9 } from "./registry-shim.mjs";
+import { T } from "./load.mjs";
 // 仅测试用：核对备选源登记的就是 B2 那份实现（解析器本体不改）
-import { gachaUmaCn } from "../parsers/bwiki.js";
+const { gachaUmaCn } = T.parsers["bwiki"];
 
-import {
-	eventsWhmxOfficial, gachaUmaCnOfficial, eventsUmaCnOfficial,
-	parseBiligameList, mergeBiligameLists, parseWhmxActivity, parseUmaCnAnnouncement,
-	classifyUmaCnTitle, pickWhmxEvent, pickUmaWindow, umaRoles, quotedName, cleanTitle,
-	biligameParagraphs, extractWindowsDetailed, deglueDateTimes, siblingListUrl, whmxListUrls,
-	biligameDetailUrl, biligameListUrl, parseCmsStamp,
-	whmxEventHover, umaCnEventHover, umaCnPoolHover,
-	BILIGAME_ACTIVITY_TZ, WHMX_GAME_EXTENSION_ID, UMA_CN_GAME_EXTENSION_ID,
-	WHMX_LIST_URL, WHMX_LIST_URLS, UMA_CN_LIST_URL
-} from "../parsers/biligame-activity.js";
+const { eventsWhmxOfficial, gachaUmaCnOfficial, eventsUmaCnOfficial, parseBiligameList, mergeBiligameLists, parseWhmxActivity, parseUmaCnAnnouncement, classifyUmaCnTitle, pickWhmxEvent, pickUmaWindow, umaRoles, quotedName, cleanTitle, biligameParagraphs, extractWindowsDetailed, deglueDateTimes, siblingListUrl, whmxListUrls, biligameDetailUrl, biligameListUrl, parseCmsStamp, whmxEventHover, umaCnEventHover, umaCnPoolHover, BILIGAME_ACTIVITY_TZ, WHMX_GAME_EXTENSION_ID, UMA_CN_GAME_EXTENSION_ID, WHMX_LIST_URL, WHMX_LIST_URLS, UMA_CN_LIST_URL } = T.parsers["biligame-activity"];
 
-import {
-	gachaOurNotesGlobal, eventsOurNotesGlobal, parseOurNotesGlobalPage, isOurNotesGlobalEmpty,
-	classifyOurNotesGlobalTitle, cleanTitle as cleanTitleGlobal, extractOurNotesGlobalWindows,
-	ournotesGlobalListUrl, ournotesGlobalDetailUrl, OURNOTES_GLOBAL_LIST_URL, OURNOTES_GLOBAL_TZ,
-	OURNOTES_GLOBAL_GAME_BASE_ID
-} from "../parsers/ournotes-global.js";
+const { gachaOurNotesGlobal, eventsOurNotesGlobal, parseOurNotesGlobalPage, isOurNotesGlobalEmpty, classifyOurNotesGlobalTitle, cleanTitle: cleanTitleGlobal, extractOurNotesGlobalWindows, ournotesGlobalListUrl, ournotesGlobalDetailUrl, OURNOTES_GLOBAL_LIST_URL, OURNOTES_GLOBAL_TZ, OURNOTES_GLOBAL_GAME_BASE_ID } = T.parsers["ournotes-global"];
 
 // ── 夹具读取 ──
-const fixtureText = (p) => readFileSync(new URL("../fixtures/" + p, import.meta.url), "utf8");
+const fixtureText = (p) => readFileSync(new URL("./fixtures/" + p, import.meta.url), "utf8");
 const fixtureJson = (p) => JSON.parse(fixtureText(p));
 const meta = (p) => JSON.parse(fixtureText(p + ".meta.json"));
 

@@ -96,6 +96,7 @@ dsh-gacha-calendar/
 │       ├── 15-env.js         # core 环境缝：transport / 时钟 / 计时器
 │       ├── 20-sources.js     # SOURCES 来源注册表（11 款游戏：默认源 + 备选源）
 │       ├── 30-parsers.js     # 全部解析器（纯函数）
+│       ├── 40-fetchers.js    # 抓取器 + GACHA_FETCHERS / EVENT_FETCHERS 注册表
 │       ├── 41-sources-shared.js # 新增来源共用：抓取桥接 + 悬停排版（hoverPool / hoverEvent）
 │       ├── 42-parsers-p5x.js # 女神异闻录：夜幕魅影
 │       ├── 42-parsers-bwiki.js # 物华弥新 / 闪耀优俊少女 / 战双 / 雪松 / 卡厄斯 / 星塔旅人（bwiki 系）
@@ -114,8 +115,8 @@ dsh-gacha-calendar/
 │       ├── 42-parsers-bwiki-wikitext.js # 战双 / 卡厄斯 / 雪松（bwiki wikitext 形态）
 │       ├── 42-parsers-biligame-activity.js # 物华弥新 / 闪耀优俊少女（biligame 官方公告）
 │       ├── 42-parsers-ournotes-global.js # BanG Dream！OurNotes·国际服（BHK）
-│       ├── 40-fetchers.js    # 抓取器 + GACHA_FETCHERS / EVENT_FETCHERS 注册表
 │       ├── 43-sources-register.js # 新增来源的条目声明 + 抓取器登记 + 米游社公告并入
+│       ├── 44-test-exports.js # 回归出口：解析器 + env 工具 + 来源表（挂 exports.__regression，测试用）
 │       ├── 50-refresh.js     # 刷新编排、失败沿用旧值、提示归类
 │       ├── 60-helpers.js     # 格式化 / 悬停 / 排序 / 启动刷新判定
 │       ├── engine-head.js    # core 外壳：createEngine（storage / listGames / getCached）
@@ -129,6 +130,11 @@ dsh-gacha-calendar/
 │   ├── index.js / client.js
 │   └── types/       # 类型声明（package.json 的 types 指向它）
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
+├── test/            # 新增来源的离线夹具测试（`node build.mjs` 后 `node test/all.mjs`）
+│   ├── all.mjs      # 统一门禁：聚合注册表守卫 + 10 个批次用例
+│   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
+│   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约断言
+│   └── fixtures/    # 真实响应快照（**未入库**，重建方式见 test/README.md）
 ├── assets/          # README 截图
 ├── .githooks/       # pre-commit：编码校验 + src/产物一致性
 ├── package.json     # dsh.bundle.patch + dsh.client.inject（DSH 加载规范）

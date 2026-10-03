@@ -1,8 +1,9 @@
 // next-sources/test/cases-p5x.mjs —— P5X 国服（Lead 参考实现）的离线用例
 // 从 run.mjs 抽出，便于被 test/all.mjs 统一组合。
 import { useFixtures, check, section, assertContract } from "./harness.mjs";
-import { findSource } from "../registry-p5x.js";
-import { parseP5xList, parseP5xWindows } from "../parsers/p5x.js";
+import { findSource } from "./registry-shim.mjs";
+import { T } from "./load.mjs";
+const { parseP5xList, parseP5xWindows } = T.parsers["p5x"];
 
 export default async function run() {
 	useFixtures();

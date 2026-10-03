@@ -11,19 +11,14 @@
 // **刻意不调用 sourceInstant()**，避免"用同一个函数验证它自己"。
 
 import { readFileSync } from "node:fs";
-import { useFixtures, check, section, assertContract, summary } from "./harness.mjs";
-import { setFetchImpl, sourceWallParts } from "../lib/env.js";
-import { findSource, SOURCES_P4 } from "../registry-p4.js";
-import {
-	parseMiyousheList, parseMiyousheDetail, classifyMiyousheTitle, collectMiyousheWindows,
-	miyousheVersionStarts, miyousheRoles, isMiyousheMissing,
-	gachaMiyoushe, eventsMiyoushe,
-	MIYOUSHE_TZ, MIYOUSHE_GIDS, MIYOUSHE_TYPES, MIYOUSHE_MAX_DETAILS,
-	MIYOUSHE_REFERER, miyousheListUrl, miyousheDetailUrl
-} from "../parsers/miyoushe.js";
+import { useFixtures, check, section, assertContract, summary, setFetchImpl } from "./harness.mjs";
+const { sourceWallParts } = T;
+import { findSource, SOURCES_P4 } from "./registry-shim.mjs";
+import { T } from "./load.mjs";
+const { parseMiyousheList, parseMiyousheDetail, classifyMiyousheTitle, collectMiyousheWindows, miyousheVersionStarts, miyousheRoles, isMiyousheMissing, gachaMiyoushe, eventsMiyoushe, MIYOUSHE_TZ, MIYOUSHE_GIDS, MIYOUSHE_TYPES, MIYOUSHE_MAX_DETAILS, MIYOUSHE_REFERER, miyousheListUrl, miyousheDetailUrl } = T.parsers["miyoushe"];
 
-const fixture = (name) => JSON.parse(readFileSync(new URL(`../fixtures/${name}/response.txt`, import.meta.url), "utf8"));
-const meta = (name) => JSON.parse(readFileSync(new URL(`../fixtures/${name}/response.txt.meta.json`, import.meta.url), "utf8"));
+const fixture = (name) => JSON.parse(readFileSync(new URL(`./fixtures/${name}/response.txt`, import.meta.url), "utf8"));
+const meta = (name) => JSON.parse(readFileSync(new URL(`./fixtures/${name}/response.txt.meta.json`, import.meta.url), "utf8"));
 // 夹具抓取时刻（= 快照的"当前时刻"）
 const snap = (name) => Date.parse(meta(name).capturedAt);
 

@@ -1,3 +1,17 @@
+// src/client/43-sources-register.js —— 新增来源的「条目声明 + 抓取器登记」
+//
+// 三件事：
+//   ① 把 20 条新增来源（17 款游戏）追加进 SOURCES（`NS_SOURCES` 数组 + push）
+//   ② 登记主抓取器到 `GACHA_FETCHERS` / `EVENT_FETCHERS`
+//   ③ 登记备选源抓取器，并把「米游社公告」挂成既有条目（原神/星铁/绝区零）的备选源 + 新建 `bh3`
+//
+// 位置说明：本文件排在 `40-fetchers.js` **之后**（ORDER），因为它要往那两张表里登记、往 SOURCES 里追加。
+//
+// 历史沿革：内容原为生成物 `src/client/45-next-sources.js` 的尾部（由 `next-sources/registry*.js` 生成）。
+// 2026-10-03 用户要求「把 next-sources 合并进原 source，不留 next-source」后压平为普通源码，
+// `next-sources/` 与生成器均已删除 —— **这里就是唯一真源，直接改这里**。
+// （备选源的「键名 → 函数」对照表仍在 `test/registry-shim.mjs`，供测试侧的注册表结构守卫使用。）
+
 		// ===== 追加来源进 SOURCES（对齐原有格式：name=游戏名 / source=中文来源名 / tz）=====
 
 		// 注意：米游社那 4 条（bh3 / *-official）不在此列 —— 它们只作为**备选源**挂在下方。

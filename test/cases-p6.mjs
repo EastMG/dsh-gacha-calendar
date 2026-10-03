@@ -13,21 +13,15 @@
 
 import { readFileSync } from "node:fs";
 import { useFixtures, check, section, assertContract, summary } from "./harness.mjs";
-import { sourceInstant, sourceWallParts, fmtWindow } from "../lib/env.js";
-import { SOURCES_P6, findSourceP6, listIdsP6 } from "../registry-p6.js";
+const { sourceInstant, sourceWallParts, fmtWindow } = T;
+import { SOURCES_P6, findSourceP6, listIdsP6 } from "./registry-shim.mjs";
+import { T } from "./load.mjs";
 
-import {
-	gachaDdlezj, eventsDdlezj, parseDdlezjList, parseDdlezjAnnouncement, parseDdlezjWindows,
-	pickDdlezjGacha, pickDdlezjEvent, parseDdlezjStamp, ddlezjParagraphs,
-	DDLEZJ_LIST_URL, DDLEZJ_TZ, DDLEZJ_CMS_TZ, DDLEZJ_GAME_EXTENSION_ID
-} from "../parsers/biligame-announce.js";
-import {
-	gachaKedrWiki, parseKedrArchive, kedrSections, kedrStamp, kedrPools, kedrRoles, kedrParseUrl,
-	KEDR_ARCHIVE_URL, KEDR_ARCHIVE_PAGE, KEDR_TZ
-} from "../parsers/kedr-wiki.js";
+const { gachaDdlezj, eventsDdlezj, parseDdlezjList, parseDdlezjAnnouncement, parseDdlezjWindows, pickDdlezjGacha, pickDdlezjEvent, parseDdlezjStamp, ddlezjParagraphs, DDLEZJ_LIST_URL, DDLEZJ_TZ, DDLEZJ_CMS_TZ, DDLEZJ_GAME_EXTENSION_ID } = T.parsers["biligame-announce"];
+const { gachaKedrWiki, parseKedrArchive, kedrSections, kedrStamp, kedrPools, kedrRoles, kedrParseUrl, KEDR_ARCHIVE_URL, KEDR_ARCHIVE_PAGE, KEDR_TZ } = T.parsers["kedr-wiki"];
 
 // ── 夹具读取 ──
-const fixtureText = (p) => readFileSync(new URL("../fixtures/" + p, import.meta.url), "utf8");
+const fixtureText = (p) => readFileSync(new URL("./fixtures/" + p, import.meta.url), "utf8");
 const fixtureJson = (p) => JSON.parse(fixtureText(p));
 const meta = (p) => JSON.parse(fixtureText(p + ".meta.json"));
 

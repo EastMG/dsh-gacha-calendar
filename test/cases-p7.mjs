@@ -6,17 +6,14 @@
 //   ③ 不拖垮共享 runner：抓取器调用都包 try/catch，失败只记 ✗，不抛出去中断别的批次
 import { readFileSync } from "node:fs";
 import { useFixtures, check, section, assertContract, summary } from "./harness.mjs";
-import { sourceWallParts, hoverPool, hoverEvent } from "../lib/env.js";
-import { SOURCES_P7 } from "../registry-p7.js";
-import {
-	parseStellaList, parseStellaWindow, parseStellaWindows, stellaWindowsFromDetail,
-	stellaIsGacha, stellaIsEvent, stellaGachaName, stellaFeaturedName,
-	gachaStellasora, eventsStellasora, STELLA_TZ
-} from "../parsers/stellasora.js";
+const { sourceWallParts, hoverPool, hoverEvent } = T;
+import { SOURCES_P7 } from "./registry-shim.mjs";
+import { T } from "./load.mjs";
+const { parseStellaList, parseStellaWindow, parseStellaWindows, stellaWindowsFromDetail, stellaIsGacha, stellaIsEvent, stellaGachaName, stellaFeaturedName, gachaStellasora, eventsStellasora, STELLA_TZ } = T.parsers["stellasora"];
 
-const fixture = (name) => JSON.parse(readFileSync(new URL(`../fixtures/${name}/response.txt`, import.meta.url), "utf8"));
-const meta = (name) => JSON.parse(readFileSync(new URL(`../fixtures/${name}/response.txt.meta.json`, import.meta.url), "utf8"));
-const raw = (name) => readFileSync(new URL(`../fixtures/${name}/response.txt`, import.meta.url), "utf8");
+const fixture = (name) => JSON.parse(readFileSync(new URL(`./fixtures/${name}/response.txt`, import.meta.url), "utf8"));
+const meta = (name) => JSON.parse(readFileSync(new URL(`./fixtures/${name}/response.txt.meta.json`, import.meta.url), "utf8"));
+const raw = (name) => readFileSync(new URL(`./fixtures/${name}/response.txt`, import.meta.url), "utf8");
 
 // 夹具快照时刻（= 抓取那一刻）作为"当前时刻"，保证确定性
 const SNAP = Date.parse(meta("p7-stella-notice").capturedAt);
