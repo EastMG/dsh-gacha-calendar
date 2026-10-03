@@ -35,7 +35,6 @@ const ns_umapyoi_DEFAULT_URL = "https://api.umapyoi.net/api/v1/gacha";
 // 供注册表引用（作为「备选源」时必须与 `altSourceId(alt) = alt.url` 的字符串**完全一致**才能命中）
 const ns_umapyoi_UMAPYOI_URL = ns_umapyoi_DEFAULT_URL;
 const ns_umapyoi_PERMANENT_END = 2147483647;   // 源站常驻哨兵（Unix 秒 = INT32_MAX）
-const ns_umapyoi_HOVER_MAX = 20;                      // hover 最多列这么多行，余下只报数量
 
 const ns_umapyoi_toNum = (v) => {
 	if (v == null || v === "") return null;
@@ -93,16 +92,20 @@ function ns_umapyoi_parseUmapyoiGacha(json, now = Date.now(), tz = "Asia/Tokyo")
 	const types = cur.cardTypes.join("、");
 	const banner = types ? `赛马娘日服卡池（${types}）` : "赛马娘日服卡池";
 	const dates = fmtWindow(cur.startTs, cur.endTs, tz);
-	const lines = active.slice(0, ns_umapyoi_HOVER_MAX).map((p) => {
-		const detail = `${p.cardTypes.join("、") || "卡"}×${p.items.length}`
-			+ (p.ids.length ? `（id ${p.ids.join("、")}）` : "");
-		return `${fmtWindow(p.startTs, p.endTs, tz)}  ${detail}`;
-	});
-	if (active.length > lines.length) lines.push(`…另有 ${active.length - lines.length} 个同期窗口未列出`);
-	const permActive = rows.filter((r) => r.permanent && r.startTs <= now).length;
-	if (permActive > 0) lines.push(`另有 ${permActive} 张常驻卡（end_date=2147483647 哨兵，无结束时间，不计入当期窗口）`);
-	// 源站无卡池名 → hover 首行如实说明 banner 是合成的
-	const hover = ["赛马娘日服（源站为卡级数据，无卡池名；起止＝该批新卡的获取窗口）", ...lines].join("\n");
+	// ⚠️ 2026-10-03 改：这里原本**手搓悬停**，且三处违反方案 A 的悬停规则 ——
+	//    ① 档期在前（`档期  卡级明细`），本体一律「池名 ⏎ 档期」（卡池侧）
+	//    ② 塞元信息：内部 id（`（id 30474、50248）`）、源站字段名（`end_date=2147483647 哨兵`）、
+	//       来源与实现说明（`赛马娘日服（源站为卡级数据，无卡池名；起止＝该批新卡的获取窗口）`）、
+	//       `另有 N 个同期窗口未列出`
+	//    ③ 自带 20 行截断（`HOVER_MAX`）
+	//    它会漏网是因为它只是 `uma-jp.altSources` 里的**备选源**，不在主源悬停审计的覆盖范围内。
+	//    现在改用共用 hoverPool：池名与档期分开两行，无元信息，无截断。
+	//    （源站没有卡池名 → 池名用「赛马娘日服卡池（卡级构成）」，与 banner 同构。）
+	const hover = hoverPool(active.map((p) => ({
+		name: p.cardTypes.length ? `赛马娘日服卡池（${p.cardTypes.join("、")}）` : "赛马娘日服卡池",
+		startTs: p.startTs,
+		endTs: p.endTs
+	})), tz);
 
 	return {
 		banner,
@@ -111,7 +114,7 @@ function ns_umapyoi_parseUmapyoiGacha(json, now = Date.now(), tz = "Asia/Tokyo")
 		bannerDatesRaw: dates,
 		startTs: cur.startTs,
 		endTs: cur.endTs,
-		bannerHover: hover
+		...(hover ? { bannerHover: hover } : {})
 	};
 }
 

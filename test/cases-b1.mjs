@@ -113,11 +113,22 @@ export default async function run() {
 			!!uma && jst(uma.startTs).h === 12 && jst(uma.endTs).h === 11 && jst(uma.endTs).mi === 59);
 		check("常驻哨兵没有被当成真实结束时刻",
 			!!uma && uma.endTs < PERMANENT_END * 1000 && !/2147483647/.test(uma.bannerDates));
-		check("hover 如实说明 banner 是合成的（源站只有卡级数据）",
-			!!uma && uma.bannerHover.includes("无卡池名"));
-		check("hover 多行且列出同期窗口 + 常驻卡张数",
-			!!uma && uma.bannerHover.split("\n").length >= 4 && /另有 38 张常驻卡/.test(uma.bannerHover),
-			JSON.stringify((uma && uma.bannerHover || "").split("\n").slice(-1)[0]));
+		// ── 悬停（2026-10-03 方案 A 补漏：umapyoi 是**备选源**，此前没被审计覆盖）──
+		// 旧实现：`赛马娘日服（源站为卡级数据，无卡池名；起止＝…）` + 档期在前的行 + 内部 id
+		//        + 「另有 N 张常驻卡（end_date=2147483647 哨兵…）」—— 全是元信息，且档期在前。
+		// 现要求：走共用 hoverPool，**只有池名与档期**，池名在档期之前，无内部 id / 无源站字段名 / 无来源说明。
+		check("hover 不再含来源/实现说明（无卡池名 / 哨兵 / 无卡级数据）",
+			!!uma && !/无卡池名|哨兵|卡级数据|end_date|2147483647/.test(uma.bannerHover), JSON.stringify(uma && uma.bannerHover));
+		check("hover 不含内部 id",
+			!!uma && !/\bid \d/.test(uma.bannerHover), JSON.stringify(uma && uma.bannerHover));
+		check("hover 每池「池名」+「档期」两行、且池名在档期之前（不是档期在前）",
+			!!uma && (() => {
+				const L = uma.bannerHover.split("\n");
+				const isDate = (s) => /^(\d{4}-)?\d{2}-\d{2} \d{2}:\d{2} ~ /.test(s);
+				return L.length >= 4 && L.length % 2 === 0
+					&& L.filter((_, i) => i % 2 === 0).every((s) => !isDate(s))
+					&& L.filter((_, i) => i % 2 === 1).every(isDate);
+			})(), JSON.stringify(uma && uma.bannerHover));
 		assertContract("赛马娘日服", "gacha", uma);
 
 		// 回归守卫：**不能只按 start_date 分组**。实测 29 个 start_date 挂多组不同 end_date，
@@ -130,8 +141,12 @@ export default async function run() {
 		];
 		const synOut = parseUmapyoiGacha(syn, SNAP, "Asia/Tokyo");
 		check("同 start 不同 end：各成窗口，当期只算在架那张",
-			!!synOut && synOut.startTs === S * 1000 && synOut.endTs === (S + 20 * 86400) * 1000 && synOut.bannerHover.includes("×1"),
+			!!synOut && synOut.startTs === S * 1000 && synOut.endTs === (S + 20 * 86400) * 1000,
 			JSON.stringify(synOut && [synOut.startTs, synOut.endTs]));
+		// 只有 1 个当期有界窗口 → hoverPool 返回 ""，不设 bannerHover（UI 走默认两行式）。
+		// 旧实现会输出「卡池×1（id 3）  档期」这种带 ×n 与内部 id 的单行式 —— 已随方案 A 删除。
+		check("只 1 个当期窗口 → 不设 bannerHover（也不再有 ×n / 内部 id 记法）",
+			!!synOut && !("bannerHover" in synOut), JSON.stringify(synOut && synOut.bannerHover));
 
 		check("结构损坏（对象/空数组）→ 抛错", throws(() => parseUmapyoiGacha({}), "obj") && throws(() => parseUmapyoiGacha([]), "empty"));
 		// 夹具快照之后很久（2030）再看：全部窗口都过期 → null（未公布），而不是硬造一个
@@ -175,10 +190,22 @@ export default async function run() {
 		check("窗口 = 10-01 00:00 ~ 10-03 23:59（绝对 UTC 毫秒按 UTC+8 渲染）",
 			!!bdG && bdG.bannerDates === "10-01 00:00 ~ 10-03 23:59" && bdG.startTs === 1790784000000 && bdG.endTs === 1791043199000,
 			JSON.stringify(bdG && [bdG.bannerDates, bdG.startTs, bdG.endTs]));
-		check("长期/常驻卡池（closedAt=2100 哨兵）不参与当期",
-			!!bdG && !/2100/.test(bdG.bannerDates) && /另有 9 个长期\/常驻卡池/.test(bdG.bannerHover),
-			JSON.stringify(bdG && bdG.bannerHover.split("\n").slice(-1)[0]));
-		check("hover 列出同期有界卡池（≥10 行）", !!bdG && bdG.bannerHover.split("\n").length >= 10, String(bdG && bdG.bannerHover.split("\n").length));
+		check("长期/常驻卡池（closedAt=2100 哨兵）不参与当期，也不出现在悬停里",
+			!!bdG && !/2100/.test(bdG.bannerDates) && !/2100|哨兵|未列出|另有/.test(bdG.bannerHover),
+			JSON.stringify(bdG && bdG.bannerHover.split("\n").slice(-2)));
+		// 悬停 = 共用 hoverPool：每池「池名」+「档期」两行，按结束时间升序，**无**类型枚举 / ×n / 元信息
+		check("hover 每池两行（池名 / 档期）、按结束时间升序、无类型枚举与元信息",
+			!!bdG && (() => {
+				const L = bdG.bannerHover.split("\n");
+				const isDate = (s) => /^(\d{4}-)?\d{2}-\d{2} \d{2}:\d{2} ~ /.test(s);
+				if (L.length < 4 || L.length % 2 !== 0) return false;
+				if (!L.filter((_, i) => i % 2 === 0).every((s) => !isDate(s))) return false;   // 池名行不是档期
+				if (!L.filter((_, i) => i % 2 === 1).every(isDate)) return false;             // 档期行是档期
+				if (/（[a-z]+）|×\d|（id |未列出|哨兵/.test(bdG.bannerHover)) return false;      // 无类型枚举 / ×n / 内部 id / 元信息
+				// 按**结束时刻**升序：档期文本以开始日期开头，所以只能比 ` ~ ` 之后那段
+				const ends = L.filter((_, i) => i % 2 === 1).map((s) => s.split(" ~ ")[1]);
+				return ends.slice().sort().join("|") === ends.join("|");
+			})(), JSON.stringify(bdG && bdG.bannerHover));
 		assertContract("BanG Dream 国服", "gacha", bdG);
 		// 只有长期池在期（或全都过期）→ null，而不是把 2100 哨兵当成当期
 		check("没有在架有界卡池 → null（未公布）", parseBestdoriGacha(bdGachaRaw, Date.UTC(2035, 0, 1), "Asia/Shanghai") === null);

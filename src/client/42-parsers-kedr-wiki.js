@@ -157,8 +157,17 @@ async function ns_kedr_wiki_gachaKedrWiki(url, signal, tz = ns_kedr_wiki_KEDR_TZ
 		.map((o) => o.x);
 	if (act.length === 0) return null;
 	const first = act[0];
-	const head = `${ns_kedr_wiki_KEDR_ARCHIVE_PAGE}（bwiki 社区页，非官方源；tz=UTC+8 为推测）`;
-	const lines = act.map((x) => `${fmtWindow(x.startTs, x.endTs, tz)}   ${x.section}${x.pools.length ? `（${x.pools.join(" / ")}）` : ""}`);
+	// ⚠️ 2026-10-03 改：这里原本手搓悬停，且三处不合规 ——
+	//   ① 头行 `${KEDR_ARCHIVE_PAGE}（bwiki 社区页，非官方源；tz=UTC+8 为推测）` = 来源名 + 可信度说明 + 时区推定
+	//      （「社区页 / 非官方 / tz 为推测」这类信息应写在**来源声明**里：条目 tz 字段 + 设置页来源标签）
+	//   ② 行格式是 `档期   节名`（**档期在前**），本体一律「池名 ⏎ 档期」
+	//   ③ 自带排版实现（没走共用 hoverPool）
+	// 现在改用共用 hoverPool。
+	const hover = hoverPool(act.map((x) => ({
+		name: `${x.section}${x.pools.length ? `（${x.pools.join(" / ")}）` : ""}`,
+		startTs: x.startTs,
+		endTs: x.endTs
+	})), tz);
 	return {
 		banner: first.pools.length ? `${first.section}（${first.pools.join(" / ")}）` : first.section,
 		roles: first.roles.join("、"),
@@ -166,7 +175,7 @@ async function ns_kedr_wiki_gachaKedrWiki(url, signal, tz = ns_kedr_wiki_KEDR_TZ
 		bannerDatesRaw: first.raw,
 		startTs: first.startTs,
 		endTs: first.endTs,
-		bannerHover: [head, ...lines].join("\n")
+		...(hover ? { bannerHover: hover } : {})
 	};
 }
 //#endregion

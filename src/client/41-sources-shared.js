@@ -72,11 +72,10 @@
 //   卡池 `池名：角色名` ⏎ `档期`；活动 `名称` ⏎ `档期`。
 // 所以调用方**不要**在返回值后面再拼任何东西；空串就让字段留空。
 
-// 长期/常驻判定：声明窗口超过 120 天的不当作「当期活动」（阈值同本体 EVENT_MAX_WINDOW_DAYS）
-const HOVER_MAX_WINDOW_DAYS = 120;
-function hoverIsLongTerm(x) {
-	return !!x && x.startTs != null && x.endTs != null && (x.endTs - x.startTs) > HOVER_MAX_WINDOW_DAYS * 864e5;
-}
+// 长期/常驻判定：**直接用本体 30-parsers.js 的那一条**（阈值也只有那一处）。
+// ⚠️ 2026-10-03 收敛：这里曾有一份逐字重复的实现 + 第二个 `HOVER_MAX_WINDOW_DAYS = 120` 常量。
+//    同一条规则不该有第二份实现/第二个值 —— 已删，改为调用 `isLongTermWindow`。
+//    （函数声明会提升，所以 41 在本体的 30 之后拼接也不影响这里的调用。）
 // 排序：结束时间升序（无/未知结束时间排最后），再按开始时间
 function hoverSortByEnd(a, b) {
 	const ea = a.endTs == null ? Infinity : a.endTs;
@@ -124,7 +123,7 @@ function hoverPool(pools, tz) {
 function hoverEvent(items, tz, permanentCount = 0) {
 	const list = (Array.isArray(items) ? items : [])
 		.filter((x) => x && typeof x.name === "string" && x.name.trim() !== "")
-		.filter((x) => !hoverIsLongTerm(x));
+		.filter((x) => !isLongTermWindow(x));
 	if (list.length < 2) return hoverPermanentLine(permanentCount);
 	const allTimed = list.every((x) => x.startTs != null && x.endTs != null);
 	const same = allTimed && new Set(list.map((x) => `${x.startTs}~${x.endTs}`)).size === 1;

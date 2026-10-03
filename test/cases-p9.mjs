@@ -21,7 +21,7 @@
 // 本地直接跑：node test/cases-p9.mjs
 
 import { readFileSync } from "node:fs";
-import { useFixtures, check, section, assertContract, summary } from "./harness.mjs";
+import { useFixtures, check, section, assertContract, assertHoverConvention, summary } from "./harness.mjs";
 const { sourceInstant, sourceWallParts, fmtWindow } = T;
 import { SOURCES_P9, findSourceP9, listIdsP9, EXTRA_GACHA_FETCHERS_P9, EXTRA_EVENT_FETCHERS_P9 } from "./registry-shim.mjs";
 import { T } from "./load.mjs";
@@ -667,10 +667,10 @@ export default async function run() {
 		check("eventDatesRaw = `2026/09/30 12:00 - 2026/10/14 11:59`（任务书给的那种带年份+连字符形态）",
 			e.ok && e.data && e.data.eventDatesRaw === "2026/09/30 12:00 - 2026/10/14 11:59",
 			JSON.stringify(e.ok && e.data && e.data.eventDatesRaw));
-		check("hover 写明国际服 tz 依据（港澳台 / 不是 Asia/Tokyo）+ 来源域名",
-			e.ok && e.data && /Asia\/Shanghai/.test(e.data.eventHover) && /Asia\/Tokyo/.test(e.data.eventHover)
-			&& /l11-web-api\.biligames\.com/.test(e.data.eventHover),
-			JSON.stringify(((e.ok && e.data && e.data.eventHover) || "").split("\n")[1]));
+		// 2026-10-03 方案 A 补漏：原来这里断言悬停里**写着** tz 依据与来源域名 —— 那正是要删掉的元信息。
+		// 该条目**默认未配置**（出厂不抓取），所以活体审计永远看不到它的悬停，一直没被发现。
+		// 现在悬停只允许「名称 ⏎ 档期」；tz 依据写在条目 tz 字段 + 源文件注释里。
+		assertHoverConvention("OurNotes 国际服 event", e.data && e.data.eventHover);
 		const g = await grab(() => gachaOurNotesGlobal(OURNOTES_GLOBAL_LIST_URL, undefined, OURNOTES_GLOBAL_TZ, NOW_GLOBAL));
 		check("gacha 抓取成功", g.ok, g.err);
 		assertContract("OurNotes 国际服", "gacha", g.ok ? g.data : null);

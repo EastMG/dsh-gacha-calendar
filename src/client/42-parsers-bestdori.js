@@ -30,8 +30,12 @@
 const ns_bestdori_DEFAULT_GACHA = "https://bestdori.com/api/gacha/all.5.json";
 const ns_bestdori_DEFAULT_EVENT = "https://bestdori.com/api/events/all.5.json";
 const ns_bestdori_CN_INDEX = 3;                        // 简中服下标（见文件头实测）
-const ns_bestdori_LONG_MS = 400 * 86400e3;             // >400 天 = 长期/常驻池（如 closedAt=2100-08-15）
-const ns_bestdori_HOVER_MAX = 20;
+// 长期/常驻池阈值：**用本体那一条**（LONG_TERM_MAX_WINDOW_DAYS = 120）。
+// ⚠️ 2026-10-03 收敛：这里原本是 400 天，与本体/sekai 的 120 天**不是同一个值** ——
+//    同一条规则不该有两个值。实测影响：夹具里 22 个窗口落在 (120, 400] 天之间
+//    （「新手限定 / 回归纪念 / 每日免费 / 少女们的回忆 / 开服纪念」这类长期池），
+//    在 400 天下会被误判成"当期"。当前真实在架池恰好 0 个落在该区间，故属**潜在**不一致。
+const ns_bestdori_LONG_MS = LONG_TERM_MAX_WINDOW_DAYS * 864e5;
 
 const ns_bestdori_toTs = (v) => {
 	if (v == null || v === "") return null;
@@ -68,16 +72,19 @@ function ns_bestdori_parseBestdoriGacha(json, now = Date.now(), tz = "Asia/Shang
 	if (!cur) return null;   // 抓到数据但没有"当期"有界窗口 = 未公布（长期池不算当期）
 
 	const dates = fmtWindow(cur.startTs, cur.endTs, tz);
-	// 同名同期（同一期招募在多处登记）→ 合并成一行并标 ×n，hover 才不会被重复行刷屏
-	const pooled = [];
-	for (const p of bounded) {
-		const hit = pooled.find((x) => x.name === p.name && x.startTs === p.startTs && x.endTs === p.endTs);
-		if (hit) hit.n += 1; else pooled.push({ ...p, n: 1 });
-	}
-	const shown = pooled.slice(0, ns_bestdori_HOVER_MAX).map((p) => `${p.name}（${p.type}）${p.n > 1 ? `×${p.n}` : ""}  ${fmtWindow(p.startTs, p.endTs, tz)}`);
-	if (pooled.length > shown.length) shown.push(`…另有 ${pooled.length - shown.length} 个同期卡池未列出`);
-	const longN = active.length - bounded.length;
-	if (longN > 0) shown.push(`另有 ${longN} 个长期/常驻卡池（结束时间是 2100 之类的哨兵值，未计入"当期"）`);
+	// 同一期招募可能被源站多处登记（同名同窗口）→ 先去重成一条（本体没有「×n」记法，也不该有重复行）。
+	// ⚠️ 2026-10-03 改：这里原本**手搓悬停**（`名称（类型枚举）×n  档期` 单行式 + 「另有 N 个未列出」
+	//    + 「结束时间是 2100 之类的哨兵值」这类元信息），与本体/其它来源的
+	//    「池名 ⏎ 档期」两行式不一致 —— 本备选源没被方案 A 的悬停审计覆盖到（它只是 altSources 里的一个）。
+	//    现在改用共用 hoverPool：排版只有一处实现。
+	const seen = new Set();
+	const uniq = bounded.filter((p) => {
+		const k = `${p.name}|${p.startTs}|${p.endTs}`;
+		if (seen.has(k)) return false;
+		seen.add(k);
+		return true;
+	});
+	const hover = hoverPool(uniq.map((p) => ({ name: p.name, startTs: p.startTs, endTs: p.endTs })), tz);
 
 	return {
 		banner: cur.name,
@@ -86,7 +93,7 @@ function ns_bestdori_parseBestdoriGacha(json, now = Date.now(), tz = "Asia/Shang
 		bannerDatesRaw: dates,
 		startTs: cur.startTs,
 		endTs: cur.endTs,
-		bannerHover: shown.length >= 2 ? shown.join("\n") : ""
+		...(hover ? { bannerHover: hover } : {})
 	};
 }
 

@@ -167,9 +167,14 @@ export default async function run() {
 			g && g.banner === "3★空中神宫、克里斯象征 优俊少女招募", g && g.banner);
 		check("当期窗口 = 09-21 12:00 ~ 10-02 11:59", g && g.bannerDates === "09-21 12:00 ~ 10-02 11:59", g && g.bannerDates);
 		check("当期 roles 合并同期覆盖的多个主池", g && g.roles.includes("空中神宫") && g.roles.includes("小栗帽"), g && g.roles.slice(0, 60));
-		check("⚠️ 预测卡池结果只在 bannerHover 里、且显式标注「非官方时刻表」",
-			g && /非官方时刻表/.test(g.bannerHover) && /预测卡池/.test(g.bannerHover), g && g.bannerHover);
+		// 2026-10-03 方案 A 补漏：uma-cn 是**备选源**，此前没被悬停审计覆盖。
+		// 旧实现往 bannerHover 追加「—— 接下来的预测卡池（按日服时差推算，非官方时刻表） ——」+ 3 条未来条目；
+		// 那既是"非当期"内容，头部又属元信息/来源说明 —— 而「社区推算，非官方」已写在来源标签里
+		// （`Bwiki 简中卡池（社区推算，非官方）`）。现在悬停只放当期池。
+		check("悬停不含预测卡池、也不含「非官方时刻表」这类来源说明",
+			g && !/预测|非官方|推算/.test(g.bannerHover || ""), g && g.bannerHover);
 		check("⚠️ 来源类型是社区 wiki（kind=wiki），注释写明不是官方源", src.gacha.kind === "wiki");
+		// 预测表本身仍能解析（解析能力不删，只是不进悬停）—— 见下面 ② 的 240 行断言
 	}
 	//#endregion
 

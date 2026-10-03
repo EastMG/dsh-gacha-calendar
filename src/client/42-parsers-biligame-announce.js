@@ -258,13 +258,13 @@ function ns_biligame_announce_covering(items, now, kind) {
 		.sort((a, b) => (a.x.endTs - b.x.endTs) || (a.i - b.i))
 		.map((o) => o.x);
 }
-// hover 里把"抽不出来的档期"如实说明（本公告里有 15 条 `维护后` 起点）
-function ns_biligame_announce_skipNote(parsed) {
-	const n = parsed.skippedNoTime.length;
-	if (!n) return "";
-	return `—— 另有 ${n} 条档期起点写作「维护后」（源站未给钟点、且公告发布时间 ≠ 维护结束时刻）→ 不产出，绝不硬凑 ——`;
-}
-const ns_biligame_announce_TZ_NOTE = "（源站正文自标 (UTC+9)，本条目 tz=+540）";
+// ⚠️ 2026-10-03 删：这里原本有两个只服务于**悬停元信息**的常量/函数 ——
+//   · `skipNote(parsed)` → `—— 另有 N 条档期起点写作「维护后」（源站未给钟点、…）→ 不产出，绝不硬凑 ——`
+//   · `TZ_NOTE = "（源站正文自标 (UTC+9)，本条目 tz=+540）"`
+//   两者都进了 `bannerHover` / `eventHover`：分隔线装饰 + 抓取统计 + 时区说明 + 内部 tz 值，
+//   而方案 A 要求悬停**只**有名称与档期。
+//   「本条目 tz=+540」这类信息本来就在**来源声明**里（条目 tz 字段），不需要在悬停里复述。
+//   `parsed.skippedNoTime` 本身仍保留（测试要断言"维护后档期不产出"），只是不再写进悬停。
 //#endregion
 
 //#region 抓取器（契约：async (url, signal, tz) → 对象 | null；now 在最后、有默认值）
@@ -300,13 +300,8 @@ async function ns_biligame_announce_gachaDdlezj(url, signal, tz = ns_biligame_an
 		const best = ns_biligame_announce_pickDdlezjGacha(parsed.items, now);
 		if (!best) continue;
 		const act = ns_biligame_announce_covering(parsed.items, now, "gacha");
-		const lines = act.map((x) => `${fmtWindow(x.startTs, x.endTs, tz)}   ${x.name}`);
-		const note = ns_biligame_announce_skipNote(parsed);
-		const hover = [
-			`嘟嘟脸恶作剧 国服 · ${data.title || item.title} ${ns_biligame_announce_TZ_NOTE}`,
-			...lines,
-			...(note ? [note] : [])
-		].join("\n");
+		// 悬停 = 共用 hoverPool（池名 ⏎ 档期）；元信息（来源/公告标题/时区说明/维护后统计）一律不进
+		const hover = hoverPool(act.map((x) => ({ name: x.name, startTs: x.startTs, endTs: x.endTs })), tz);
 		return {
 			banner: best.name,
 			roles: "",                                  // 源站为公告正文，无结构化角色名单（池名里已带角色）
@@ -314,7 +309,7 @@ async function ns_biligame_announce_gachaDdlezj(url, signal, tz = ns_biligame_an
 			bannerDatesRaw: best.raw,
 			startTs: best.startTs,
 			endTs: best.endTs,
-			bannerHover: hover
+			...(hover ? { bannerHover: hover } : {})
 		};
 	}
 	return null;                                       // 抓到公告但当期无覆盖 → 未公布
@@ -327,18 +322,17 @@ async function ns_biligame_announce_eventsDdlezj(url, signal, tz = ns_biligame_a
 		const best = ns_biligame_announce_pickDdlezjEvent(parsed.items, now);
 		if (!best) continue;
 		const act = ns_biligame_announce_covering(parsed.items, now, "event");
-		const lines = act.map((x) => `${fmtWindow(x.startTs, x.endTs, tz)}   ${x.name}${x.label === "活动时间" ? "" : `（${x.label}）`}`);
-		const note = ns_biligame_announce_skipNote(parsed);
-		const hover = [
-			`嘟嘟脸恶作剧 国服 · ${data.title || item.title} ${ns_biligame_announce_TZ_NOTE}`,
-			...lines,
-			...(note ? [note] : [])
-		].join("\n");
+		// 非「活动时间」标签的档期在**名称**里标注它是什么窗口（内容，不是元信息）
+		const hover = hoverEvent(act.map((x) => ({
+			name: `${x.name}${x.label === "活动时间" ? "" : `（${x.label}）`}`,
+			startTs: x.startTs,
+			endTs: x.endTs
+		})), tz);
 		return {
 			event: best.name,
 			eventDates: fmtWindow(best.startTs, best.endTs, tz),
 			eventDatesRaw: best.raw,
-			eventHover: hover
+			...(hover ? { eventHover: hover } : {})
 		};
 	}
 	return null;

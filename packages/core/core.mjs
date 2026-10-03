@@ -1412,15 +1412,29 @@ export function createEngine(env) {
 			return sameYear ? `${fmtMdHm(startTs, tz)} ~ ${fmtMdHm(endTs, tz)}` : `${fmtYmdHm(startTs, tz)} ~ ${fmtYmdHm(endTs, tz)}`;
 		}
 
-		// 长期/常驻玩法判定：声明窗口超过该天数的不当作"当期活动"（外显与悬停共用，①）。
+		// ── 「长期/常驻窗口」通用规则（**唯一真源**）────────────────────────────────
+		// 判定：声明窗口超过该天数的不当作"当期"（外显与悬停共用，①）。
 		// 依据：各游戏限时活动实测最长约 84 天（原神），而常驻玩法动辄半年以上——
 		// 明日方舟 PRTS 活动一览里「生息演算：重启锚点」245 天、「集成战略：沉沦者的黑流树海」179 天，
 		// 两者都是常驻玩法（表内含"进行中"徽标），且因外显不带年份会被误读成"结束早于开始"。
-		const EVENT_MAX_WINDOW_DAYS = 120;
+		//
+		// ⚠️ 2026-10-03 收敛：这条规则此前有 **3 套实现 / 2 个值** ——
+		//   · 本文件 `EVENT_MAX_WINDOW_DAYS = 120` + `isLongTermEvent`（事件侧）
+		//   · `41-sources-shared.js` `HOVER_MAX_WINDOW_DAYS = 120` + `hoverIsLongTerm`（**逐字重复**）
+		//   · `42-parsers-bestdori.js` `LONG_MS = 400 天` ← **值不同**（sekai 是 120）
+		//   实测：bestdori 历史上有 22 个窗口落在 (120, 400] 天之间（全是「新手限定/回归纪念/
+		//   每日免费/少女们的回忆/开服纪念」这类长期池）→ 在 400 天下会被误判成"当期"。
+		//   当前真实在架池里恰好 0 个落在这个区间，所以是**潜在**不一致而非现行 bug；
+		//   但既然是同一条规则，就不该有第二个值。现在统一到下面这一处。
+		const LONG_TERM_MAX_WINDOW_DAYS = 120;
 
-		function isLongTermEvent(x) {
-			return !!x && x.startTs != null && x.endTs != null && (x.endTs - x.startTs) > EVENT_MAX_WINDOW_DAYS * 864e5;
+		/** 声明窗口超阈值 = 长期/常驻（不当作"当期"）。名与阈值都只有这一处。 */
+		function isLongTermWindow(x) {
+			return !!x && x.startTs != null && x.endTs != null && (x.endTs - x.startTs) > LONG_TERM_MAX_WINDOW_DAYS * 864e5;
 		}
+
+		// 旧名（事件侧语境下可读性更好）。**只是别名**，判定逻辑仍在上面。
+		function isLongTermEvent(x) { return isLongTermWindow(x); }
 
 		// 永久/常驻活动判定：源站把「结束时间」写成 `永久`（星铁「星际碰碰好搭档！」等）。
 		// 这类行 endTs 为 null，**过去被静默丢弃**——不是判定为"非当期"，而是连痕都没留下，
@@ -3262,12 +3276,20 @@ export function createEngine(env) {
 		}
 
 		// 终末地（wiki.gg 经 host 代理）：抓取 Headhunting/Banners HTML → parseEndfieldCurrent
-		// wiki.gg 校验 Referer（非 wiki.gg 域名 403），经代理后 Referer=目标 origin 满足要求。
+		// ⚠️ 2026-10-03 实测更正（原注释说"校验 Referer，非 wiki.gg 域名 403"，**是错的**）：
+		//    wiki.gg 拦的是 **浏览器型 User-Agent**，不是 Referer。逐项实测（同一 URL）：
+		//      无头 200 / 仅 Referer 200 / 仅 Accept 200 / Referer+Accept 200
+		//      仅 UA=Chrome/126 **403** / 仅 UA=curl/8.0 200 / 仅 UA=dsh-gacha-calendar 200
+		//    而宿主代理 `src/index.js` 对所有请求统一发**浏览器 UA**（它的注释写着
+		//    "browser-like, to satisfy anti-scrape"）—— 于是这个备选源经代理必然 403。
+		//    修法：本抓取器显式覆盖 UA 为中性值（代理的 `headers` 参数会覆盖默认 UA）。
+		//    不给末端用户添麻烦，也不动全局 UA（别处可能正依赖浏览器 UA）。
+		const ENDFIELD_WG_UA = "dsh-gacha-calendar";
 		// 注意：这个地址是 MediaWiki 的 **api.php**，返回的是 JSON（`{"parse":{"text":"<html>"}}`）——
 		// 必须取 parse.text 再解析。旧实现直接把原始 JSON 串喂给解析器，于是 id="Current" 在 JSON 里是
 		// 转义形式（id=\"Current\"）永远匹配不到 → 该备选源长期"抓得到但解析不出"（这才是真根因）。
 		async function fetchEndfieldWikiGg(proxyUrl) {
-			const json = await proxyFetchJson(proxyUrl, "https://endfield.wiki.gg/");
+			const json = await proxyFetchJson(proxyUrl, "https://endfield.wiki.gg/", { "User-Agent": ENDFIELD_WG_UA });
 			const html = json?.parse?.text;
 			if (typeof html !== "string") throw new Error("bad-json");
 			return parseEndfieldCurrent(html);
@@ -4108,7 +4130,11 @@ export function createEngine(env) {
 			// 所以把官方提为默认、Bwiki 降级为备选（`wuwa-event-bwiki`），仍可在设置里手动切回。
 			wuwa: {
 				default: (url, signal, tz) => fetchWuwaEventsOfficial(url, signal, tz),
-				"wuwa-event-bwiki": mkMediaWiki((html) => {
+				// ⚠️ 回调**必须**声明第二个参数 `tz`：mkMediaWiki 的契约是 `parse(text, tz)`
+				//   （见 30-parsers.js 的 mkMediaWiki）。原来只写了 `(html)` 却在体内用 `tz`
+				//   → 运行时 `tz is not defined`：用户在设置页把鸣潮活动源切到「Bwiki 活动日历」就必然抓取失败。
+				//   2026-10-03 修正（同批还加了静态守卫 `test/cases-fetcher-args.mjs`）。
+				"wuwa-event-bwiki": mkMediaWiki((html, tz) => {
 					const d = parseWuwaCalendar(html, tz);
 					return d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "", eventHover: d.eventHover || "" } : null;
 				})

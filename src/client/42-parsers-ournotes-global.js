@@ -318,13 +318,14 @@ async function ns_ournotes_global_loadOurNotesGlobal(url, signal, tz, now, want)
 			.map((x, i) => ({ x, i }))
 			.sort((a, b) => (a.x.startTs - b.x.startTs) || (a.i - b.i))
 			.map((o) => o.x);
-		const lines = active.map((x) => `${x === best ? "▶ " : "  "}${fmtWindow(x.startTs, x.endTs, tz)}${x.structured ? "   （结构化字段）" : ""}`);
-		const note = "（国际服含港澳台，源站未标时区；tz=Asia/Shanghai 按任务书指定，**不是** Asia/Tokyo）";
-		const hover = [
-			`BanG Dream！OurNotes·国际服 · ${title} ${note}`,
-			`来源：BHK 官方公告 l11-web-api.biligames.com（game_base_id=${ns_ournotes_global_OURNOTES_GLOBAL_GAME_BASE_ID}，lang=${lang}）`,
-			...lines
-		].join("\n");
+		// ⚠️ 2026-10-03 改：这里原本手搓悬停，且有**三层**元信息 ——
+		//   ① 头行 `BanG Dream！OurNotes·国际服 · ${title}（国际服含港澳台，源站未标时区；tz=… 按任务书指定…）`
+		//   ② `来源：BHK 官方公告 l11-web-api.biligames.com（game_base_id=…，lang=…）` ← 来源 URL + 内部字段名 + 内部 id
+		//   ③ 行内装饰符 `▶ ` / `  ` + `（结构化字段）` ← 实现说明；且**档期在前**
+		//   它一直没被发现，是因为该条目**默认未配置**（出厂不抓取）→ 活体审计永远看不到它的悬停。
+		//   现在改用共用 hoverPool：只留「名称 ⏎ 档期」。时区依据写在本文件顶部注释与条目 tz 字段里。
+		const name = ns_ournotes_global_cleanTitle(title) || "（未命名）";
+		const hover = hoverPool(active.map((x) => ({ name, startTs: x.startTs, endTs: x.endTs })), tz);
 		return { title, best, hover };
 	}
 	if (loaded === 0 && tried > 0 && firstErr) throw firstErr;   // 本侧相关详情全失败 → 抛错

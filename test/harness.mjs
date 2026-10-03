@@ -138,6 +138,42 @@ export function assertContract(label, side, data) {
 	return true;
 }
 
+// ── 悬停合规（方案 A，2026-10-03）──────────────────────────────────────────────
+// 规则：悬停**只**允许有名称与档期；元信息（来源/时区/内部字段/抓取统计/实现说明）一律不许进。
+// 三种合法形态：
+//   ① 未设 hover（"" / undefined）—— <2 条时交回 UI 默认两行式，**合法**
+//   ② 逐条两行式：`名称` ⏎ `档期`（名称行在前、档期行在后；行数为偶数）
+//   ③ 窗口全同时折叠：若干 `名称` 行 + 末尾**一行**档期（行数为奇数、≥3）
+// 特意抽到 harness：此前三个用例文件各写各的判定，其中两处把「折叠式」误判成不合规。
+const HOVER_META_RE = /来源|官方公告|api\.|bwiki|bilibili|biligames|game_base_id|gameExtensionId|typeId|post_id|tz\s*=|时区|UTC[+-]\d|推测|推定|哨兵|未列出|未计入|社区页|非官方|自标|（id |——|▶|结构化字段|维护后|另有/;
+const HOVER_DATE_RE = /^(\d{4}-)?\d{2}-\d{2} \d{2}:\d{2} ~ (\d{4}-)?\d{2}-\d{2} \d{2}:\d{2}$/;
+
+/** 判定一段悬停文本是否符合方案 A；不合格时按 `label` 记一条失败。返回布尔。 */
+export function assertHoverConvention(label, text, { requireSet = false } = {}) {
+	if (text == null || text === "") {
+		if (requireSet) { check(`${label} 应设悬停（≥2 条）`, false, JSON.stringify(text)); return false; }
+		return true;   // 合法：交回 UI 默认两行式
+	}
+	const L = text.split("\n").filter((s) => s !== "");
+	const isDate = (s) => HOVER_DATE_RE.test(s);
+	if (HOVER_META_RE.test(text)) {
+		check(`${label} 悬停不含元信息`, false, JSON.stringify(text.slice(0, 140)));
+		return false;
+	}
+	// ② 逐条两行式
+	if (L.length % 2 === 0 && L.filter((_, i) => i % 2 === 0).every((s) => !isDate(s)) && L.filter((_, i) => i % 2 === 1).every(isDate)) {
+		check(`${label} 悬停＝逐条「名称 ⏎ 档期」`, true);
+		return true;
+	}
+	// ③ 窗口全同折叠（末尾一行档期，前面全是名称）
+	if (L.length >= 3 && isDate(L[L.length - 1]) && L.slice(0, -1).every((s) => !isDate(s))) {
+		check(`${label} 悬停＝同名同窗折叠（名称… ⏎ 档期）`, true);
+		return true;
+	}
+	check(`${label} 悬停＝「名称 ⏎ 档期」两行式（或同名同窗折叠）`, false, JSON.stringify(L.slice(0, 6)));
+	return false;
+}
+
 export function summary() {
 	console.log(`\n结果：${pass} 通过 / ${fail} 失败`);
 	if (failures.length) console.log("失败项：" + failures.join(" | "));

@@ -47,11 +47,11 @@
 
 const ns_sekai_DEFAULT_GACHA = "https://sekai-world.github.io/sekai-master-db-cn-diff/gachas.json";
 const ns_sekai_DEFAULT_EVENT = "https://sekai-world.github.io/sekai-master-db-cn-diff/events.json";
-// 长期/常驻池阈值：**对齐本体** `EVENT_MAX_WINDOW_DAYS = 120`（本体对"长期/常驻玩法"的定义）。
+// 长期/常驻池阈值：**用本体那一条**（`LONG_TERM_MAX_WINDOW_DAYS`），不再自带数字。
 // 旧值 400 天只够挡住 2099 哨兵值，会放过 365 天的**永久**池 ——
 // 实测 `新手限定★4自选阶梯招募`（03-26 16:00 ~ 次年 03-26 15:59，整 365 天）就是这样漏进"当期招募"的
 // （用户 2026-10-03 要求「规则和原来一致」）。限时招募最长约 1 个月，120 天阈值不会误伤。
-const ns_sekai_LONG_MS = 120 * 86400e3;
+const ns_sekai_LONG_MS = LONG_TERM_MAX_WINDOW_DAYS * 864e5;
 
 const ns_sekai_toTs = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 const ns_sekai_byNewestStart = (a, b) => (b.startTs - a.startTs)

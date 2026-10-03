@@ -188,12 +188,20 @@
 		}
 
 		// 终末地（wiki.gg 经 host 代理）：抓取 Headhunting/Banners HTML → parseEndfieldCurrent
-		// wiki.gg 校验 Referer（非 wiki.gg 域名 403），经代理后 Referer=目标 origin 满足要求。
+		// ⚠️ 2026-10-03 实测更正（原注释说"校验 Referer，非 wiki.gg 域名 403"，**是错的**）：
+		//    wiki.gg 拦的是 **浏览器型 User-Agent**，不是 Referer。逐项实测（同一 URL）：
+		//      无头 200 / 仅 Referer 200 / 仅 Accept 200 / Referer+Accept 200
+		//      仅 UA=Chrome/126 **403** / 仅 UA=curl/8.0 200 / 仅 UA=dsh-gacha-calendar 200
+		//    而宿主代理 `src/index.js` 对所有请求统一发**浏览器 UA**（它的注释写着
+		//    "browser-like, to satisfy anti-scrape"）—— 于是这个备选源经代理必然 403。
+		//    修法：本抓取器显式覆盖 UA 为中性值（代理的 `headers` 参数会覆盖默认 UA）。
+		//    不给末端用户添麻烦，也不动全局 UA（别处可能正依赖浏览器 UA）。
+		const ENDFIELD_WG_UA = "dsh-gacha-calendar";
 		// 注意：这个地址是 MediaWiki 的 **api.php**，返回的是 JSON（`{"parse":{"text":"<html>"}}`）——
 		// 必须取 parse.text 再解析。旧实现直接把原始 JSON 串喂给解析器，于是 id="Current" 在 JSON 里是
 		// 转义形式（id=\"Current\"）永远匹配不到 → 该备选源长期"抓得到但解析不出"（这才是真根因）。
 		async function fetchEndfieldWikiGg(proxyUrl) {
-			const json = await proxyFetchJson(proxyUrl, "https://endfield.wiki.gg/");
+			const json = await proxyFetchJson(proxyUrl, "https://endfield.wiki.gg/", { "User-Agent": ENDFIELD_WG_UA });
 			const html = json?.parse?.text;
 			if (typeof html !== "string") throw new Error("bad-json");
 			return parseEndfieldCurrent(html);
@@ -1034,7 +1042,11 @@
 			// 所以把官方提为默认、Bwiki 降级为备选（`wuwa-event-bwiki`），仍可在设置里手动切回。
 			wuwa: {
 				default: (url, signal, tz) => fetchWuwaEventsOfficial(url, signal, tz),
-				"wuwa-event-bwiki": mkMediaWiki((html) => {
+				// ⚠️ 回调**必须**声明第二个参数 `tz`：mkMediaWiki 的契约是 `parse(text, tz)`
+				//   （见 30-parsers.js 的 mkMediaWiki）。原来只写了 `(html)` 却在体内用 `tz`
+				//   → 运行时 `tz is not defined`：用户在设置页把鸣潮活动源切到「Bwiki 活动日历」就必然抓取失败。
+				//   2026-10-03 修正（同批还加了静态守卫 `test/cases-fetcher-args.mjs`）。
+				"wuwa-event-bwiki": mkMediaWiki((html, tz) => {
 					const d = parseWuwaCalendar(html, tz);
 					return d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "", eventHover: d.eventHover || "" } : null;
 				})

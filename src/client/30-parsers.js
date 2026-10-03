@@ -424,15 +424,29 @@
 			return sameYear ? `${fmtMdHm(startTs, tz)} ~ ${fmtMdHm(endTs, tz)}` : `${fmtYmdHm(startTs, tz)} ~ ${fmtYmdHm(endTs, tz)}`;
 		}
 
-		// 长期/常驻玩法判定：声明窗口超过该天数的不当作"当期活动"（外显与悬停共用，①）。
+		// ── 「长期/常驻窗口」通用规则（**唯一真源**）────────────────────────────────
+		// 判定：声明窗口超过该天数的不当作"当期"（外显与悬停共用，①）。
 		// 依据：各游戏限时活动实测最长约 84 天（原神），而常驻玩法动辄半年以上——
 		// 明日方舟 PRTS 活动一览里「生息演算：重启锚点」245 天、「集成战略：沉沦者的黑流树海」179 天，
 		// 两者都是常驻玩法（表内含"进行中"徽标），且因外显不带年份会被误读成"结束早于开始"。
-		const EVENT_MAX_WINDOW_DAYS = 120;
+		//
+		// ⚠️ 2026-10-03 收敛：这条规则此前有 **3 套实现 / 2 个值** ——
+		//   · 本文件 `EVENT_MAX_WINDOW_DAYS = 120` + `isLongTermEvent`（事件侧）
+		//   · `41-sources-shared.js` `HOVER_MAX_WINDOW_DAYS = 120` + `hoverIsLongTerm`（**逐字重复**）
+		//   · `42-parsers-bestdori.js` `LONG_MS = 400 天` ← **值不同**（sekai 是 120）
+		//   实测：bestdori 历史上有 22 个窗口落在 (120, 400] 天之间（全是「新手限定/回归纪念/
+		//   每日免费/少女们的回忆/开服纪念」这类长期池）→ 在 400 天下会被误判成"当期"。
+		//   当前真实在架池里恰好 0 个落在这个区间，所以是**潜在**不一致而非现行 bug；
+		//   但既然是同一条规则，就不该有第二个值。现在统一到下面这一处。
+		const LONG_TERM_MAX_WINDOW_DAYS = 120;
 
-		function isLongTermEvent(x) {
-			return !!x && x.startTs != null && x.endTs != null && (x.endTs - x.startTs) > EVENT_MAX_WINDOW_DAYS * 864e5;
+		/** 声明窗口超阈值 = 长期/常驻（不当作"当期"）。名与阈值都只有这一处。 */
+		function isLongTermWindow(x) {
+			return !!x && x.startTs != null && x.endTs != null && (x.endTs - x.startTs) > LONG_TERM_MAX_WINDOW_DAYS * 864e5;
 		}
+
+		// 旧名（事件侧语境下可读性更好）。**只是别名**，判定逻辑仍在上面。
+		function isLongTermEvent(x) { return isLongTermWindow(x); }
 
 		// 永久/常驻活动判定：源站把「结束时间」写成 `永久`（星铁「星际碰碰好搭档！」等）。
 		// 这类行 endTs 为 null，**过去被静默丢弃**——不是判定为"非当期"，而是连痕都没留下，

@@ -237,33 +237,17 @@ function ns_bwiki_pickCurrentEvent(items, now) {
 		|| (a.endTs - b.endTs) || (a.startTs - b.startTs) || ((a._i || 0) - (b._i || 0)));
 	return { first: ordered[0], ordered };
 }
-const ns_bwiki_permanentLine = (n) => (n > 0 ? `以及常驻活动 ${n} 项` : "");
-// 卡池悬停：每池一行「池名：角色」，窗口不同时逐行补时间
-function ns_bwiki_buildPoolHover(pools, tz) {
-	if (pools.length < 2) return "";
-	const same = new Set(pools.map((p) => `${p.startTs}~${p.endTs}`)).size === 1;
-	const lines = [];
-	for (const p of pools) {
-		lines.push(`${p.banner}${p.roles ? `：${p.roles}` : ""}`);
-		if (!same) lines.push(fmtWindow(p.startTs, p.endTs, tz));
-	}
-	if (same) lines.push(fmtWindow(pools[0].startTs, pools[0].endTs, tz));
-	return lines.join("\n");
-}
-// 活动悬停：结束时间升序逐行；全部同窗口时时间只在末尾写一遍（与插件 ns_bwiki_buildEventHover 同）
-function ns_bwiki_buildEventHover(items, tz, permanentCount = 0) {
-	if (items.length < 2) return ns_bwiki_permanentLine(permanentCount);
-	const same = new Set(items.map((x) => `${x.startTs}~${x.endTs}`)).size === 1;
-	const lines = items.map((x) => (same ? x.event : `${x.event}   ${fmtWindow(x.startTs, x.endTs, tz)}`));
-	if (same) lines.push(fmtWindow(items[0].startTs, items[0].endTs, tz));
-	if (permanentCount > 0) lines.push(ns_bwiki_permanentLine(permanentCount));
-	return lines.join("\n");
-}
-function ns_bwiki_gachaPayload(items, tz, now, extraHover = "") {
+// ⚠️ 2026-10-03 删掉了本文件自带的三个重复实现：`ns_bwiki_permanentLine` / `ns_bwiki_buildPoolHover` /
+//    `ns_bwiki_buildEventHover`。它们与共用工具 `hoverPermanentLine` / `hoverPool` / `hoverEvent`
+//    是同一套排版（措辞逐字相同），且卡池那份**少了按结束时间排序**（本体 buildPoolHover 会排）——
+//    属于"同一条规则的第二份实现"。本文件只剩 4 个**备选源**仍在用（uma-cn-bwiki / kedr-kaxi /
+//    uma-jp-bwiki / stellasora-bwiki），它们此前没被方案 A 的悬停审计覆盖到，所以漏改了。
+function ns_bwiki_gachaPayload(items, tz, now) {
 	const cur = ns_bwiki_pickCurrentPool(items, now);
 	if (!cur) return null;                       // 有候选但都不覆盖当期 → 未公布（不硬凑过期档期）
 	const first = cur.first;
-	const hover = [ns_bwiki_buildPoolHover(cur.pool, tz), extraHover].filter(Boolean).join("\n");
+	// 池名与本体同构：有角色名 →「池名：角色」，没有 → 只写池名
+	const hover = hoverPool(cur.pool.map((p) => ({ name: p.banner, label: `${p.banner}${p.roles ? `：${p.roles}` : ""}`, startTs: p.startTs, endTs: p.endTs, raw: p.raw })), tz);
 	return {
 		banner: first.banner,
 		roles: ns_bwiki_mergeRoles(cur.pool),
@@ -278,11 +262,14 @@ function ns_bwiki_eventPayload(items, tz, now, permanentCount = 0) {
 	const cur = ns_bwiki_pickCurrentEvent(items, now);
 	if (!cur) return null;
 	const first = cur.first;
+	// 排序由调用方负责（hoverEvent **不排序**，与本体一致）：这里按结束时间升序
+	const ordered = cur.ordered.slice().sort((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs) || ((a._i || 0) - (b._i || 0)));
+	const hover = hoverEvent(ordered.map((x) => ({ name: x.event, startTs: x.startTs, endTs: x.endTs, raw: x.raw })), tz, permanentCount);
 	return {
 		event: first.event,
 		eventDates: fmtWindow(first.startTs, first.endTs, tz),
 		eventDatesRaw: first.raw || "",
-		eventHover: ns_bwiki_buildEventHover(cur.ordered, tz, permanentCount)
+		...(hover ? { eventHover: hover } : {})
 	};
 }
 //#endregion
@@ -390,14 +377,17 @@ function ns_bwiki_parseUmaCnGacha(html, tz = "Asia/Shanghai") {
 	const predTbl = (withHead.find((x) => /预测/.test(x.head)) || withHead[1] || withHead[0]).tbl;
 	return { live: parseOne(liveTbl), predicted: predTbl === liveTbl ? [] : parseOne(predTbl) };
 }
-// 预测卡池：只列"还没开始"的若干条（按开始时间升序），并显式标注为推算。
-// 注：该表是 wiki 按日服时差机械平移出来的，池名里连**日服原始年份**都还留着
-// （如 `八骏赛马娘卡池 20230911` 被平移到 2026-09），且远期条目一路排到 2029 年 ⇒ 只能当参考。
+// 预测卡池：**不进悬停**（方案 A：悬停只放"当期"，且不得含元信息）。
+// 该表是 wiki 按日服时差机械平移出来的：池名里连**日服原始年份**都还留着
+// （如 `八骏赛马娘卡池 20230911` 被平移到 2026-09），远期条目一路排到 2029 年。
+// 2026-10-03 改：原先这里给 bannerHover 追加「—— 接下来的预测卡池（按日服时差推算，非官方时刻表） ——」
+//   + 3 条未来条目。那既是"非当期"内容，头部又是元信息/来源说明 ——
+//   「社区推算，非官方」这层意思已经写在来源标签里（`Bwiki 简中卡池（社区推算，非官方）`），
+//   不需要再在悬停里重复。保留函数是为了让夹具测试仍能直接断言"预测表的解析结果"。
 function ns_bwiki_umaCnPredictHover(predicted, tz, now, limit = 3) {
 	const next = predicted.filter((p) => p.startTs > now).sort((a, b) => a.startTs - b.startTs || (a._i - b._i)).slice(0, limit);
 	if (next.length === 0) return "";
-	const lines = next.map((p) => `${p.banner}   ${fmtWindow(p.startTs, p.endTs, tz)}`);
-	return ["—— 接下来的预测卡池（按日服时差推算，非官方时刻表） ——", ...lines].join("\n");
+	return hoverEvent(next.map((p) => ({ name: p.banner, startTs: p.startTs, endTs: p.endTs })), tz);
 }
 //#endregion
 
@@ -582,7 +572,8 @@ async function ns_bwiki_eventsWhmx(url, signal, tz = "Asia/Shanghai", now) {
 async function ns_bwiki_gachaUmaCn(url, signal, tz = "Asia/Shanghai", now) {
 	const { live, predicted } = ns_bwiki_parseUmaCnGacha(await ns_bwiki_fetchHtml(url, signal), tz);
 	const n = ns_bwiki_nowOf(now);
-	return ns_bwiki_gachaPayload(live, tz, n, ns_bwiki_umaCnPredictHover(predicted, tz, n));
+	// 预测表只用来让夹具测试断言解析结果，**不进悬停**（见 ns_bwiki_umaCnPredictHover 的说明）
+	return ns_bwiki_gachaPayload(live, tz, n);
 }
 // 赛马娘 日服 —— 活动（bwiki 侧；页面为「往期活动」归档）
 async function ns_bwiki_eventsUmaJp(url, signal, tz = "Asia/Tokyo", now) {

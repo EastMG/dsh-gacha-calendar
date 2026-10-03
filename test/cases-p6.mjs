@@ -12,7 +12,7 @@
 // 本地直接跑：node test/cases-p6.mjs
 
 import { readFileSync } from "node:fs";
-import { useFixtures, check, section, assertContract, summary } from "./harness.mjs";
+import { useFixtures, check, section, assertContract, assertHoverConvention, summary } from "./harness.mjs";
 const { sourceInstant, sourceWallParts, fmtWindow } = T;
 import { SOURCES_P6, findSourceP6, listIdsP6 } from "./registry-shim.mjs";
 import { T } from "./load.mjs";
@@ -295,10 +295,10 @@ export default async function run() {
 		check("bannerDatesRaw 保留源站原文（含 (UTC+9) 后缀）",
 			rg.ok && rg.data && rg.data.bannerDatesRaw === "2026/04/30 03:00 ~ 2026/05/07 09:59 (UTC+9)",
 			JSON.stringify(rg.ok && rg.data && rg.data.bannerDatesRaw));
-		check("gacha hover 多行：说明源站自标 UTC+9 + 列出同期卡池 + 说明「维护后」档期为何不产出",
-			rg.ok && rg.data && rg.data.bannerHover.split("\n").length >= 3
-			&& /UTC\+9/.test(rg.data.bannerHover) && /维护后/.test(rg.data.bannerHover),
-			JSON.stringify(((rg.ok && rg.data && rg.data.bannerHover) || "").slice(0, 160)));
+		// 2026-10-03 方案 A 补漏：原来这里断言悬停里**写着**「源站自标 UTC+9」与「维护后为何不产出」——
+		// 那两行正是要删掉的元信息（时区说明 + 抓取统计 + 分隔线装饰），且行格式是「档期在前」。
+		// 该条目出厂默认不勾选，活体审计看不到；是静态守卫把它揪出来的。
+		assertHoverConvention("嘟嘟脸恶作剧 gacha", rg.data && rg.data.bannerHover);
 
 		const re = await grab(() => src.event.fetcher(src.event.url, undefined, src.tz, NOW_IN_PERIOD));
 		check("event 抓取成功（now 传第 4 参）", re.ok, re.err);
@@ -401,9 +401,10 @@ export default async function run() {
 			rk.ok && rk.data && rk.data.bannerDates === "06-22 12:00 ~ 06-29 05:00"
 			&& rk.data.bannerDatesRaw === "2026-06-22-12:00 ~ 2026-06-29-05:00",
 			JSON.stringify(rk.ok && rk.data && [rk.data.bannerDates, rk.data.bannerDatesRaw]));
-		check("kedr hover 如实标注「社区页 / 非官方源 / tz 为推测」",
-			rk.ok && rk.data && /社区页/.test(rk.data.bannerHover) && /非官方源/.test(rk.data.bannerHover) && /推测/.test(rk.data.bannerHover),
-			JSON.stringify(((rk.ok && rk.data && rk.data.bannerHover) || "").split("\n")[0]));
+		// 2026-10-03 方案 A 补漏：原来断言悬停首行写着「bwiki 社区页，非官方源；tz=UTC+8 为推测」——
+		// 那正是要删掉的元信息（来源可信度 + 时区推定），且行格式是「档期在前」。
+		// 现在悬停只允许「池名 ⏎ 档期」；「非官方源 / tz 为推测」写在来源标签与条目 tz 字段里。
+		assertHoverConvention("雪松（bwiki）gacha", rk.data && rk.data.bannerHover);
 		const rk2 = await grab(() => src.gacha.fetcher(src.gacha.url, undefined, src.tz, KEDR_NOW2));
 		check("now=07-01 → 换到下一期 1.0.0-2（06-29 05:00 ~ 07-06 05:00）",
 			rk2.ok && rk2.data && rk2.data.banner === "1.0.0-2（精英集结·特射 / 演习·协约组织）" && rk2.data.bannerDates === "06-29 05:00 ~ 07-06 05:00",
