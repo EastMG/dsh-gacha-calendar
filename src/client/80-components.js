@@ -472,6 +472,7 @@
 
 			const allEntries = getAllEntries(s);
 			const hidden = Array.isArray(s.hidden) ? s.hidden : [];
+			const shown = Array.isArray(s.shown) ? s.shown : [];
 			const removed = Array.isArray(s.removed) ? s.removed : [];
 			const urls = parseJsonStr(s.customUrls, {});
 			const customs = parseJsonStr(s.customEntries, []);
@@ -522,10 +523,21 @@
 			// 写 null 会被校验拒绝（旧实现因此永久点不动，还抛未捕获 rejection）；applyOrder 对空数组等价"未设置"
 			const resetOrder = async () => { await commit("order", []); };
 
-			// 展示开关
+			// 展示开关（勾选/取消勾选）
+			// 三态语义见 60-helpers.js 的 isEntryHidden：hidden = 明确关掉，shown = 明确打开
+			// （shown 用来把「出厂默认隐藏 defaultHidden」的条目重新打开）。
+			// 每次切换都把 id 从**另一个**列表里摘掉，避免两边同时存在造成判定歧义。
 			const toggleHidden = async (id) => {
-				const next = hidden.includes(id) ? hidden.filter((x) => x !== id) : [...hidden, id];
-				await commit("hidden", next);
+				const isHiddenNow = isEntryHidden(allEntries.find((x) => x.id === id) || {}, s);
+				if (isHiddenNow) {
+					// 打开：从 hidden 摘掉，并记进 shown（这样 defaultHidden 的条目也能被打开）
+					await commit("hidden", hidden.filter((x) => x !== id));
+					if (!shown.includes(id)) await commit("shown", [...shown, id]);
+				} else {
+					// 关掉：记进 hidden，并从 shown 摘掉（否则 defaultHidden 条目会出现"勾了却仍然显示"的矛盾）
+					if (!hidden.includes(id)) await commit("hidden", [...hidden, id]);
+					if (shown.includes(id)) await commit("shown", shown.filter((x) => x !== id));
+				}
 			};
 			// 删除条目：内置条目记入 removed；自定义条目从 customEntries 移除
 			const removeEntry = async (g) => {
@@ -663,7 +675,7 @@
 												(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-name gacha-cal-settings-name", style: { flex: "1 1 auto", minWidth: 0 }, children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: g.name }) })
 											] }),
 											(0, react_jsx_runtime.jsxs)("label", { style: { ...labelStyle, cursor: "pointer", justifySelf: "center" }, children: [
-												(0, react_jsx_runtime.jsx)("input", { type: "checkbox", checked: !hidden.includes(g.id), onChange: () => toggleHidden(g.id) }),
+												(0, react_jsx_runtime.jsx)("input", { type: "checkbox", checked: !isEntryHidden(g, s), onChange: () => toggleHidden(g.id) }),
 												(0, react_jsx_runtime.jsx)("span", { children: "\u5C55\u793A" })
 											] }),
 											// 卡池来源选择器

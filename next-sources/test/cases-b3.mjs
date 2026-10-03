@@ -42,10 +42,14 @@ import {
 } from "../parsers/fgo.js";
 
 // 夹具覆盖：URL → fixtures/<name>/response.txt
+// ⚠️ GF2 两侧现在**同一个 URL**（typeId=4），所以只能映射一次 —— 若同时写
+//    `[GF2_GACHA_URL]` 与 `[GF2_EVENT_URL]`，后面的键会覆盖前者（同键），
+//    结果卡池侧读到活动夹具（实测踩过：卡池 banner 变成「9月22日版本更新公告」）。
 const OVERRIDES = {
 	[GF2_GACHA_URL]: "gf2-gacha/response.txt",
 	[`${GF2_BASE}/website/news/2128`]: "gf2-detail-up/response.txt",
-	[GF2_EVENT_URL]: "gf2-event/response.txt",
+	[`${GF2_BASE}/website/news/2129`]: "gf2-detail-gacha/response.txt",
+	// typeId=3 的版本更新公告详情（现在活动侧不再走它；保留映射供"旧路径/对照"用例直接读夹具）
 	[`${GF2_BASE}/website/news/2142`]: "gf2-detail-event/response.txt",
 	[BANDORI_LIST_URL]: "bandori-list/response.txt",
 	"https://api.biligame.com/news/18418": "bandori-detail-18418/response.txt",
@@ -179,12 +183,21 @@ export default async function run() {
 
 		const e = await src.event.fetcher(src.event.url, undefined, src.tz);
 		assertContract("GF2", "event", e);
-		check("GF2 活动侧取最新「版本更新公告」",
-			!!e && /版本更新公告/.test(e.event), JSON.stringify(e && e.event));
-		check("GF2 活动侧 eventDates = 维护窗口",
-			!!e && e.eventDates === "09-22 09:00 ~ 09-22 12:00", JSON.stringify(e && e.eventDates));
-		check("GF2 活动侧 eventHover 带标签「维护时间」",
-			!!e && /维护时间/.test(e.eventHover || ""), JSON.stringify(e && e.eventHover));
+		// ⚠️ 2026-10-03 修的真实 bug（用户反馈"少前2 活动有问题"）：
+		//   活动侧原先读 typeId=3（官方公告栏目）取最新「版本更新公告」，外显成
+		//     「9月22日版本更新公告」09-22 09:00 ~ 09-22 12:00
+		//   —— 那是**停机维护的 3 小时**，不是活动。实测 typeId=3 里只有版本更新/临时维护/封禁，
+		//   活动与卡池都在 typeId=4。现在两侧同读 typeId=4，卡池按 GF2_POOL_RE 过滤，其余归活动。
+		check("GF2 活动侧取的是**主题活动**（不是版本更新公告）",
+			!!e && /静默突触/.test(e.event) && !/版本更新公告/.test(e.event), JSON.stringify(e && e.event));
+		check("GF2 活动侧 eventDates = 活动玩法窗口（不是维护窗口）",
+			!!e && e.eventDates === "09-22 12:00 ~ 11-03 08:59", JSON.stringify(e && e.eventDates));
+		check("GF2 活动侧不再把维护窗口当活动",
+			!!e && !/09-22 09:00 ~ 09-22 12:00/.test(e.eventDates || ""), JSON.stringify(e && e.eventDates));
+		check("GF2 活动侧 eventHover 带官方标签「玩法开启时间」",
+			!!e && /玩法开启时间/.test(e.eventHover || ""), JSON.stringify(e && e.eventHover));
+		check("GF2 活动侧两侧读同一个 typeId=4（互补过滤分流）",
+			src.gacha.url === src.event.url, src.gacha.url + " vs " + src.event.url);
 	}
 	//#endregion
 

@@ -254,9 +254,24 @@
 		}
 
 		// 可见条目 = 全部条目 - 隐藏条目
+		//
+		// ── 出厂默认隐藏（`defaultHidden`）──
+		// 有些来源"能用但不可靠/信息量低"（如 p5x 只有版本公告里的契约块、卡厄斯数据已过期、
+		// OurNotes 日服没有卡池源），出厂不该占用面板版面，但**必须仍能在设置页勾选启用**。
+		// 用**两个列表**表达三态，避免"默认值只在首次安装生效"这个坑：
+		//   · `hidden` —— 用户**明确关掉**的（出厂默认即为空）
+		//   · `shown`  —— 用户**明确打开**的（用来覆盖 defaultHidden）
+		// 判定：`hidden` 里有 → 隐；`defaultHidden` 且 `shown` 里没有 → 隐；否则显。
+		// 这样**老用户**（配置里只有 hidden=[]、没有 shown）也能立刻生效，不必等配置重置。
+		function isEntryHidden(x, s) {
+			const hidden = Array.isArray(s && s.hidden) ? s.hidden : [];
+			if (hidden.includes(x.id)) return true;
+			if (!x.defaultHidden) return false;
+			const shown = Array.isArray(s && s.shown) ? s.shown : [];
+			return !shown.includes(x.id);
+		}
 		function getVisibleEntries(s) {
-			const hidden = Array.isArray(s.hidden) ? s.hidden : [];
-			return getAllEntries(s).filter((x) => !hidden.includes(x.id));
+			return getAllEntries(s).filter((x) => !isEntryHidden(x, s));
 		}
 
 		// 某条目的实际爬取地址：自定义覆盖默认；urlField 区分卡池源(customUrls)/活动源(customEventUrls)

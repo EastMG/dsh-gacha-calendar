@@ -35,9 +35,10 @@ export const SOURCES_B3 = [
 		// 图标：国服官网 gf2.sunborngame.com 的 rel=icon/og:image（散爆自家 CDN）
 		icon: "https://gf2-cn.cdn.sunborngame.com/website/official_zf/mobile/image/logo.png",
 		tz: GF2_TZ,
-		// 官方 API。两侧 URL 就是任务书给的两个 typeId：
-		//   typeId=4 = 活动&卡池混排（卡池公告靠标题过滤出「概率UP/采购/军备提升」）
-		//   typeId=3 = 官方公告（活动侧取最新「版本更新公告」的维护窗口）
+		// 官方 API。**两侧读同一个 typeId=4**（活动与卡池混排，实测 536 条），靠标题互补过滤分流：
+		//   命中 概率UP/采购/军备提升 → 卡池；其余 → 活动（【静默突触】【迭代回廊】…）。
+		// ⚠️ 活动侧原先用 typeId=3「官方公告」，那里**只有版本更新/临时维护/封禁公告**，
+		//   结果面板把「9月22日版本更新公告」的**停机维护窗口 09:00~12:00** 当成了活动档期（已修）。
 		// 列表里的 Content 恒为空 → 抓取器会再取一次 /website/news/{Id} 拿正文窗口。
 		gacha: { url: GF2_GACHA_URL, fetcher: gachaGf2, kind: "official-api", mode: "proxy" },
 		event: { url: GF2_EVENT_URL, fetcher: eventsGf2, kind: "official-api", mode: "proxy" }
@@ -70,6 +71,12 @@ export const SOURCES_B3 = [
 		// 图标：日服官网的 apple-touch-icon（Bushiroad）。与条目的数据源同域，一致性最好
 		icon: "https://bang-dream-on.bushimo.jp/wordpress/wp-content/themes/bang-dream-on_prod/assets/images/common/apple-touch-icon-180x180.png",
 		tz: OURNOTES_TZ,
+		// 出厂**默认不勾选展示**（用户 2026-10-03 要求）。原因：
+		//   **没有卡池来源** —— 该作 2026-09-24 才上线，卡池只发在游戏内公告与官方 X；
+		//   官网 WP REST 实测仅 11 篇文章、零卡池，无自定义 post type，`/gacha/` 404，
+		//   altema / game8 也均 404。面板上**卡池列恒空**，只有活动列有内容。
+		//   仍可在设置页勾选启用（三态判定见 60-helpers.js 的 isEntryHidden）。
+		defaultHidden: true,
 		// **只有活动/公告侧**（无卡池专用源）——按用户要求"只有一侧就只写一侧"。
 		// WordPress REST；实测 ACAO 回显 Origin → 三个可直连源之一，故 mode="direct"。
 		// ⚠️ 不要加 `_fields=` 裁剪：活动区间藏在 excerpt/content 里，裁掉就只剩发布时刻。

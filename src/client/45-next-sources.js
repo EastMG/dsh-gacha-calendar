@@ -1305,11 +1305,17 @@ async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = Dat
 // 详情 API：GET /website/news/{Id} → { code:0, data:{ Id, Type, Title, Date, Content:"<p>…<br>…", … } }
 //
 // ── typeId 实测语义（与任务书的「简化版形态」有出入，以实测为准）──────────────
-//   · typeId=4：**活动与卡池混排**。同页既有【静默突触】这类大型主题活动，也有
-//     「…限时概率UP活动现已开启！」「【新装采购·睡醒的人鱼】」「【重逢采购】」这类卡池公告。
-//     → 卡池侧**必须按标题过滤**出卡池类公告，不能无脑取第一条（第一条往往是主题活动）。
-//   · typeId=3：官方公告（版本更新公告 / 临时维护公告 / 封禁公告）。
-//   · 卡池过滤词：概率UP / 采购 / 军备提升（GF2 的卡池就叫「采购」，装备池叫「军备提升」）。
+//   · typeId=1：资讯（艾莫远航 / 邮件赠礼 / 外观情报），1163 条。不是排期。
+//   · typeId=2/5/6/7/8：**全为空**（total=0）。
+//   · typeId=3：官方公告（版本更新公告 / 临时维护公告 / 封禁公告），83 条。**里面没有活动。**
+//   · typeId=4：**活动与卡池混排**，536 条。同页既有【静默突触】【迭代回廊】这类主题活动，
+//     也有「…限时概率UP活动现已开启！」「【新装采购·睡醒的人鱼】」「【重逢采购】」这类卡池公告。
+//   ⇒ **两侧都读 typeId=4**，靠标题互补过滤分流：
+//        命中 概率UP/采购/军备提升 → 卡池；其余 → 活动。
+//     （GF2 的卡池就叫「采购」，装备池叫「军备提升」。）
+//   ⚠️ 2026-10-03 修：活动侧原先读 typeId=3 并外显版本更新公告的**维护窗口**
+//      （面板上出现「9月22日版本更新公告 · 09-22 09:00~12:00」= 停机维护 3 小时），
+//      已改为读 typeId=4。详见 ns_gf2_eventsGf2 处的注释。
 //
 // ── `Date` 字段的真正含义（实测的交叉验证，非猜测）──────────────────────────
 //   · 9/22 版本更新公告：Date="2026-09-21 18:31:03"（公告发布时刻），
@@ -1331,9 +1337,13 @@ async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = Dat
 const ns_gf2_GF2_BASE = "https://gf2-web-preregister-api.sunborngame.com";
 const ns_gf2_GF2_HOME = "https://gf2.sunborngame.com/";
 const ns_gf2_GF2_TZ = "Asia/Shanghai";
-// 注册表用的两个入口（两侧 URL 就是任务书给的那两个 typeId）
+// 注册表用的两个入口。
+// ⚠️ 两侧**同一个 typeId=4**（活动与卡池混排），用互补过滤分流：
+//    命中 ns_gf2_GF2_POOL_RE → 卡池；其余 → 活动。
+//    曾经的 eventUrl 是 typeId=3（官方公告），那里面**只有版本更新/维护/封禁**，
+//    导致活动侧外显成「9月22日版本更新公告 · 09-22 09:00~12:00」= 停机维护窗口（已修）。
 const ns_gf2_GF2_GACHA_URL = `${ns_gf2_GF2_BASE}/website/news_list/4?page=1&limit=10`;
-const ns_gf2_GF2_EVENT_URL = `${ns_gf2_GF2_BASE}/website/news_list/3?page=1&limit=10`;
+const ns_gf2_GF2_EVENT_URL = `${ns_gf2_GF2_BASE}/website/news_list/4?page=1&limit=10`;
 
 // 依次试候选：单条失败（网络/404）不整体崩，留给下一条；**全部失败则抛出第一个错误**
 // —— 不能把"源站挂了"静默降级成"未公布"（那会让上层以为当期真的没内容）。
@@ -1353,8 +1363,6 @@ async function ns_gf2_firstWorking(candidates, work) {
 
 // 卡池类公告的标题特征（实测：采购 = 角色池，军备提升 = 装备池）
 const ns_gf2_GF2_POOL_RE = /概率UP|采购|军备提升/;
-// 版本更新公告的特征（活动侧优先取它；其余是临时维护/封禁公告）
-const ns_gf2_GF2_VERSION_RE = /版本更新|维护/;
 
 // ── 列表解析 ──
 // 容错：形状不对 → 抛错（= 该侧抓取失败）；list 为空数组 → 返回 []（= 当期无内容）
@@ -1554,22 +1562,28 @@ async function ns_gf2_gachaGf2(url, signal, tz = ns_gf2_GF2_TZ) {
 }
 
 // ── 活动侧 ──
-// typeId=3 = 官方公告栏目。GF2 **没有独立的「活动一览」**：
-//   · 版本更新公告给出的时间窗口是「维护时间：2026年9月22日09:00~12:00」（版本开服窗口）
-//   · 主题大活动的窗口（如【静默突触】2026年9月22日 版本更新后~2026年11月3日 08:59）
-//     落在 typeId=4 里，不在 typeId=3。
-// 本侧按任务书给定的 URL（typeId=3）取**最新版本更新公告**，外显其维护窗口；
-// 公告正文里所有可解析窗口逐行进 eventHover 如实交代。已知语义弱点：维护窗口只有几小时，
-// 不等于「活动周期」——这是源站该栏目本身的形态，报告里已注明（不硬造活动区间）。
+// ⚠️ 2026-10-03 修的真实 bug：原实现读 **typeId=3（官方公告栏目）**，取最新「版本更新公告」，
+//   外显其**维护窗口** —— 面板上就出现了
+//       「9月22日版本更新公告」  09-22 09:00 ~ 09-22 12:00
+//   这是**停机维护的 3 小时**，跟"当前活动"毫无关系（用户反馈"少前2 活动有问题"）。
+//   实测确认：typeId=3 里只有版本更新/临时维护/封禁公告，**没有活动**；
+//   `typeId=2/5/6/7/8` 全为空，`typeId=1` 是资讯（艾莫远航）；**活动与卡池同在 typeId=4**。
+//   例（typeId=4 实测）：
+//     【静默突触】现已开启            玩法开启时间：2026年9月22日 版本更新后~2026年11月3日 08:59
+//     代理人、莉塔拉、科谢尼娅限时概率UP活动现已开启！  活动时间：…~2026年10月13日 08:59
+//   修法：活动侧与卡池侧**读同一个 typeId=4**，用**互补过滤**分流 ——
+//     命中 ns_gf2_GF2_POOL_RE（概率UP/采购/军备提升）→ 卡池；其余 → 活动。
 async function ns_gf2_eventsGf2(url, signal, tz = ns_gf2_GF2_TZ) {
 	const listUrl = url || ns_gf2_GF2_EVENT_URL;
 	const list = ns_gf2_parseGf2List(await fetchJson(listUrl, { referer: ns_gf2_GF2_HOME, signal, mode: "proxy" }), tz);
 	if (!list.length) return null;
-	const byId = list.slice().sort((a, b) => b.id - a.id);
-	const versions = byId.filter((x) => ns_gf2_GF2_VERSION_RE.test(x.title));
-	const ordered = (versions.length ? versions : byId).slice(0, 3);
+	// 排除法：typeId=4 排掉卡池，剩下的就是活动
+	const acts = list.filter((x) => !ns_gf2_GF2_POOL_RE.test(x.title));
+	const ordered = (acts.length ? acts : list).slice().sort((a, b) => b.id - a.id);
 	const now = Date.now();
-	return ns_gf2_firstWorking(ordered, async (it) => {
+	// 逐条试，取**第一条能解出覆盖当前时刻窗口**的活动（列表按 Id 倒序 = 最新在前；
+	// 版本大活动如【静默突触】排在最前，与官方"头条"一致）
+	return ns_gf2_firstWorking(ordered.slice(0, 4), async (it) => {
 		const detail = await fetchJson(ns_gf2_gf2DetailUrl(it.id), { referer: ns_gf2_GF2_HOME, signal, mode: "proxy" });
 		const d = detail && detail.data;
 		if (!d) return null;
@@ -1577,8 +1591,9 @@ async function ns_gf2_eventsGf2(url, signal, tz = ns_gf2_GF2_TZ) {
 		const wins = ns_gf2_parseGf2Windows(textOf(d.Content || ""), tz, hint);
 		const w = ns_gf2_selectGf2Window(wins, now);
 		if (!w) return null;
+		// 只把**覆盖当前时刻**的窗口当作"当期"，其余（未来/已过）不列进 hover，避免误导
 		const hover = wins
-			.slice()
+			.filter((x) => x.startTs <= now && x.endTs >= now)
 			.sort((a, b) => a.endTs - b.endTs)
 			.map((x) => `${fmtWindow(x.startTs, x.endTs, tz)}${x.label ? `   ${x.label}` : ""}`)
 			.join("\n");
@@ -5758,6 +5773,7 @@ async function ns_ournotes_global_eventsOurNotesGlobal(url, signal, tz = ns_ourn
 				tz: "Asia/Shanghai",
 				name: "女神异闻录：夜幕魅影",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/03/1e/f4/031ef49f-b3d0-5bdd-077b-67d213f99c86/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
+				defaultHidden: true,
 				url: "https://p5x.wanmei.com/news/gamenews/index.html",
 				source: "官网公告",
 				eventUrl: "https://p5x.wanmei.com/news/gamenews/index.html",
@@ -5814,6 +5830,7 @@ async function ns_ournotes_global_eventsOurNotesGlobal(url, signal, tz = ns_ourn
 				tz: "Asia/Shanghai",
 				name: "卡厄斯梦境",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/e2/c9/48/e2c94812-11cd-2a52-445a-d67d6ae9e169/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/200x200bb.jpg",
+				defaultHidden: true,
 				url: "https://wiki.biligame.com/czn/api.php?action=parse&page=Module%3AGacha%2Fdata&prop=wikitext&format=json",
 				source: "Bwiki",
 			},
@@ -5825,7 +5842,7 @@ async function ns_ournotes_global_eventsOurNotesGlobal(url, signal, tz = ns_ourn
 				icon: "https://gf2-cn.cdn.sunborngame.com/website/official_zf/mobile/image/logo.png",
 				url: "https://gf2-web-preregister-api.sunborngame.com/website/news_list/4?page=1&limit=10",
 				source: "官方公告",
-				eventUrl: "https://gf2-web-preregister-api.sunborngame.com/website/news_list/3?page=1&limit=10",
+				eventUrl: "https://gf2-web-preregister-api.sunborngame.com/website/news_list/4?page=1&limit=10",
 				eventSource: "官方公告",
 			},
 
@@ -5847,6 +5864,7 @@ async function ns_ournotes_global_eventsOurNotesGlobal(url, signal, tz = ns_ourn
 				tz: "Asia/Tokyo",
 				name: "BanG Dream！OurNotes·日服",
 				icon: "https://bang-dream-on.bushimo.jp/wordpress/wp-content/themes/bang-dream-on_prod/assets/images/common/apple-touch-icon-180x180.png",
+				defaultHidden: true,
 				eventUrl: "https://bang-dream-on.bushimo.jp/wp-json/wp/v2/posts?per_page=20&page=1",
 				eventSource: "官方公告",
 			},

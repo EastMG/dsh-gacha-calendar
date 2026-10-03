@@ -76,6 +76,11 @@ export const SOURCES_P8 = [
 		name: "卡厄斯梦境",
 		// 图标：官方商店列表（App Store 中国区 id 6751272153，卖家腾讯天游，bundle com.tencent.czn）——与官网 czn.qq.com 发行方一致
 		icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/e2/c9/48/e2c94812-11cd-2a52-445a-d67d6ae9e169/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/200x200bb.jpg",
+		// 出厂**默认不勾选展示**（用户 2026-10-03 要求）。原因：
+		//   官方公告在源站层面被注释停用（官网 news 列表函数整段注释），唯一可抓的 `Module:Gacha/data`
+		//   最新一期止于 **2026-07-08**，且只有卡池、没有活动 → 长期显示"未公布"，信息量为零。
+		//   仍可在设置页勾选启用（三态判定见 60-helpers.js 的 isEntryHidden）。
+		defaultHidden: true,
 		tz: CZN_TZ,                                          // Asia/Shanghai（**推测**）
 		// ⚠️ 页面名是 `Module:Gacha/data`，但返回的 `parse.title` 是 **`模块:Gacha/data`**（中文别名）——
 		//    不要用 title 反查页面名，也别改 URL 的大小写/分隔符。

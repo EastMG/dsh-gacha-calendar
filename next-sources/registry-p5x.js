@@ -16,6 +16,12 @@ export const NEXT_SOURCES = [
 		name: "女神异闻录：夜幕魅影",
 		// 图标：官方商店列表（App Store 中国区，id 6466264792，卖家完美世界，bundle com.pwrd.persona5x.pw）
 		icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/03/1e/f4/031ef49f-b3d0-5bdd-077b-67d213f99c86/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
+		// 出厂**默认不勾选展示**（用户 2026-10-03 要求）。原因：
+		//   官方站的卡池/活动专栏已停更两年，唯一在更新的「游戏新闻」是**版本更新公告**；
+		//   卡池只能从公告正文的「契约更新」块里抠，**多数版本只给自选复刻契约**（如"缘结之契"），
+		//   本期限定池（如汐见琴音）常常连档期都没写 → 信息量明显低于其它条目。
+		//   仍可在设置页勾选启用（三态判定见 60-helpers.js 的 isEntryHidden）。
+		defaultHidden: true,
 		tz: TZ_CN,
 		gacha: {
 			url: "https://p5x.wanmei.com/news/gamenews/index.html",
