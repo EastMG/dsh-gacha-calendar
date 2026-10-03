@@ -144,7 +144,7 @@ const FORBIDDEN = [
 export default async function run() {
 	section("规则静态守卫（方案 A 悬停：只有名称与档期；选当期：只有一处判定）");
 	const files = readdirSync(SRC).filter((f) => /^42-parsers-.*\.js$/.test(f)).sort();
-	check("解析器文件齐备（17 个）", files.length === 17, String(files.length));
+	check("解析器文件齐备（按厂商合并后 10 个）", files.length === 10, String(files.length));
 
 	const hit = [];
 	for (const f of files) {
@@ -228,8 +228,8 @@ export default async function run() {
 			if (/(?:const|let|var)\s+\S*toTs\s*=\s*(?:\(|function\b|async\b)/.test(code)) dup.push(`${f}: 本地 toTs`);
 			if (/(?:const|let|var)\s+\S*byNewestStart\s*=\s*(?:\(|function\b|async\b)/.test(code)) dup.push(`${f}: 本地 byNewestStart`);
 		}
-		check("没有本地自制的实体表/解码/时间戳/排序工具（只允许 41-sources-shared.js 那一份）", dup.length === 0, dup.slice(0, 5).join(" / "));
-		const shCode = codeOnly(readFileSync(path.join(SRC, "41-sources-shared.js"), "utf8"));   // 查代码，别被解释性注释误报
+		check("没有本地自制的实体表/解码/时间戳/排序工具（只允许 30-parsers.js 那一份）", dup.length === 0, dup.slice(0, 5).join(" / "));
+		const shCode = codeOnly(readFileSync(path.join(SRC, "30-parsers.js"), "utf8"));   // 查代码，别被解释性注释误报
 		check("共用 ENTITIES_EXTRA / decodeExtra / htmlText / htmlTextTight 存在",
 			/const ENTITIES_EXTRA = \{/.test(shCode) && /function decodeExtra\(/.test(shCode) && /function htmlText\(/.test(shCode) && /function htmlTextTight\(/.test(shCode));
 		check("共用 numOrNull / byNewestStart 存在", /function numOrNull\(/.test(shCode) && /function byNewestStart\(/.test(shCode));
@@ -326,14 +326,20 @@ export default async function run() {
 	}
 
 	// 反证：共用工具必须真的在（否则上面的守卫会因为"没实现"而假通过）
-	const shared = readFileSync(path.join(SRC, "41-sources-shared.js"), "utf8");
+	// ⚠️ 2026-10-03：`41-sources-shared.js` 已内联进 `30-parsers.js`（用户要求按厂商合并文件），
+	//    所以下面查的都是本体那个文件。
+	const shared = codeOnly(readFileSync(path.join(SRC, "30-parsers.js"), "utf8"));
 	check("共用工具 hoverPool / hoverEvent 存在", /function hoverPool\(/.test(shared) && /function hoverEvent\(/.test(shared));
 	check("长期/常驻阈值只有一处（本体 LONG_TERM_MAX_WINDOW_DAYS）",
-		["30-parsers.js", "41-sources-shared.js", "42-parsers-bestdori.js", "42-parsers-sekai.js"]
+		["30-parsers.js", "42-parsers-bandori.js", "42-parsers-sekai.js"]
 			.every((f) => {
-				const t = readFileSync(path.join(SRC, f), "utf8");
-				if (f === "30-parsers.js") return /const LONG_TERM_MAX_WINDOW_DAYS = \d+;/.test(t);
-				if (f === "41-sources-shared.js") return /isLongTermWindow/.test(t) && !/HOVER_MAX_WINDOW_DAYS/.test(t.replace(/\/\/.*$/gm, ""));
+				const t = codeOnly(readFileSync(path.join(SRC, f), "utf8"));
+				if (f === "30-parsers.js") {
+					return /const LONG_TERM_MAX_WINDOW_DAYS = \d+;/.test(t)
+						&& /isLongTermWindow/.test(t)            // 共用判定在本体
+						&& !/HOVER_MAX_WINDOW_DAYS/.test(t);     // 旧的重复常量已删
+				}
+				// bestdori 的解析器已并入 bandori 文件 → 这两个文件都必须用共用常量
 				return /LONG_TERM_MAX_WINDOW_DAYS \* 864e5/.test(t) && !/=\s*(?:120|400)\s*\*\s*86400e3/.test(t);
 			}));
 }

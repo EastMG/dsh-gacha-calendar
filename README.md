@@ -95,26 +95,18 @@ dsh-gacha-calendar/
 │       ├── 10-config.js      # 默认配置 / 刷新频率选项
 │       ├── 15-env.js         # core 环境缝：transport / 时钟 / 计时器
 │       ├── 20-sources.js     # **内置 11 款**游戏的来源声明（默认源 + 备选源）
-│       ├── 30-parsers.js     # 内置源的解析器（纯函数）+ 共用判定（当期/长期/年份）
+│       ├── 30-parsers.js     # 内置源的解析器（纯函数）+ 共用判定（当期/长期/年份）+ 共用工具（抓取桥接 / 悬停排版 / 实体解码 / 时间戳排序）
 │       ├── 40-fetchers.js    # 抓取器 + GACHA_FETCHERS / EVENT_FETCHERS 注册表
-│       ├── 41-sources-shared.js # 共用工具：抓取桥接 + 悬停排版（hoverPool / hoverEvent）+ HTML 实体解码 + 时间戳/排序
-│       ├── 42-parsers-p5x.js # 女神异闻录：夜幕魅影
-│       ├── 42-parsers-bwiki.js # 物华弥新 + 4 个 bwiki 备选源（kedr-kaxi / uma-cn-bwiki / uma-jp-bwiki / stellasora-bwiki）
-│       ├── 42-parsers-umapyoi.js # 赛马娘日服（umapyoi 第三方，备选源）
-│       ├── 42-parsers-bestdori.js # BanG Dream（Bestdori 社区库，备选源）
-│       ├── 42-parsers-sekai.js # 初音未来：缤纷舞台·国服
-│       ├── 42-parsers-gf2.js # 少女前线2：追放
-│       ├── 42-parsers-bandori.js # BanG Dream！少女乐团派对·国服
-│       ├── 42-parsers-ournotes.js # BanG Dream！OurNotes·日服
-│       ├── 42-parsers-fgo.js # Fate/Grand Order
-│       ├── 42-parsers-miyoushe.js # 米游社官方公告（p5x 之外的 崩坏3/原神/星铁/绝区零 备选源）
-│       ├── 42-parsers-umamusume-official.js # 赛马娘日服 / 国际服 官网公告
-│       ├── 42-parsers-biligame-announce.js # 嘟嘟脸恶作剧（biligame 官方公告）
-│       ├── 42-parsers-kedr-wiki.js # 雪松 wiki 页解析工具（生产已改走 bwiki-wikitext；本文件供回归测试）
-│       ├── 42-parsers-stellasora.js # 星塔旅人（悠星官方 CMS）
-│       ├── 42-parsers-bwiki-wikitext.js # 战双 / 卡厄斯 / 雪松（bwiki wikitext 形态）
-│       ├── 42-parsers-biligame-activity.js # 物华弥新 / 闪耀优俊少女（biligame 官方公告）
-│       ├── 42-parsers-ournotes-global.js # BanG Dream！OurNotes·国际服（BHK）
+│       ├── 42-parsers-p5x.js # 完美世界：女神异闻录：夜幕魅影
+│       ├── 42-parsers-bandori.js # BanG Dream 全系：国服手游 / OurNotes 日服 / OurNotes 国际服 / Bestdori 备选源
+│       ├── 42-parsers-bwiki.js # bwiki 系：物华弥新 / 战双 / 卡厄斯 / 雪松 + 4 个备选源
+│       ├── 42-parsers-biligame.js # biligame 官方公告系：物华弥新 / 闪耀优俊少女 / 嘟嘟脸恶作剧
+│       ├── 42-parsers-cygames.js # Cygames 系：赛马娘 日服 / 国际服（官网 + umapyoi 备选）
+│       ├── 42-parsers-sekai.js # 世嘉：初音未来：缤纷舞台·国服
+│       ├── 42-parsers-gf2.js # 散爆：少女前线2：追放
+│       ├── 42-parsers-fgo.js # Aniplex/TYPE-MOON：Fate/Grand Order
+│       ├── 42-parsers-miyoushe.js # 米哈游：米游社公告（崩坏3/原神/星铁/绝区零 备选源）
+│       ├── 42-parsers-stellasora.js # 悠星：星塔旅人
 │       ├── 43-sources-register.js # 另外 17 款游戏的来源声明 + 抓取器登记（与 20-sources.js 合成最终 SOURCES，共 28 条）
 │       ├── 44-test-exports.js # 回归出口：解析器 + env 工具 + 来源表（挂 exports.__regression，测试用）
 │       ├── 50-refresh.js     # 刷新编排、失败沿用旧值、提示归类

@@ -34,37 +34,32 @@ const ORDER = [
   "00-head.js",        // DSH 模块加载壳 + react require
   "10-config.js",      // 配置常量
   "15-env.js",         // core 环境注入缝（transport / now / 计时器）
-  "20-sources.js",     // SOURCES 来源注册表（11 款游戏 / 25 个来源）
-  "30-parsers.js",     // 全部解析器（纯函数）
+  "20-sources.js",     // SOURCES 来源注册表（内置 11 款游戏）
+  "30-parsers.js",     // 内置源的解析器（纯函数）+ 共用判定（当期/长期/年份）+ 共用工具（解码/悬停/时间戳）
   "40-fetchers.js",    // 抓取器 + 两个来源注册表（GACHA_FETCHERS / EVENT_FETCHERS）
-  // ── 新增来源（2026-10-03「不留 next-source」：原 next-sources/ 压平成普通源码段）──
-  "41-sources-shared.js",   // 解析器共用：抓取桥接（fetchText/Json/MediaWikiText）+ 文本工具 + 悬停排版（hoverPool/hoverEvent）
-  "42-parsers-p5x.js",
-  "42-parsers-bwiki.js",
-  "42-parsers-umapyoi.js",
-  "42-parsers-bestdori.js",
-  "42-parsers-sekai.js",
-  "42-parsers-gf2.js",
-  "42-parsers-bandori.js",
-  "42-parsers-ournotes.js",
-  "42-parsers-fgo.js",
-  "42-parsers-miyoushe.js",
-  "42-parsers-umamusume-official.js",
-  "42-parsers-biligame-announce.js",
-  "42-parsers-kedr-wiki.js",
-  "42-parsers-stellasora.js",
-  "42-parsers-bwiki-wikitext.js",
-  "42-parsers-biligame-activity.js",
-  "42-parsers-ournotes-global.js",
+  // ── 另外 17 款游戏（2026-10-03「不留 next-source」：原 next-sources/ 压平成普通源码段）──
+  // 2026-10-03 用户要求「按游戏厂商分类合并」：17 个文件 → 6 个（一个厂商/系列一个文件），
+  // 符号名（`ns_<域>_` 前缀）**未动**，所以导出表 / 测试 / 注册表都不受影响。顺序无关紧要
+  // （各域前缀互不冲突，函数声明会提升），按"单游戏 → 厂商系列"排列便于阅读。
+  "42-parsers-p5x.js",        // 完美世界：女神异闻录：夜幕魅影
+  "42-parsers-bandori.js",    // BanG Dream 全系：国服手游 / OurNotes 日服 / OurNotes 国际服 / Bestdori 备选
+  "42-parsers-bwiki.js",      // bwiki 系：物华弥新 / 战双 / 卡厄斯 / 雪松 + 4 个备选源
+  "42-parsers-biligame.js",   // biligame 官方公告系：物华弥新 / 闪耀优俊少女 / 嘟嘟脸恶作剧
+  "42-parsers-cygames.js",    // Cygames 系：赛马娘 日服 / 国际服
+  "42-parsers-sekai.js",      // 初音未来：缤纷舞台·国服
+  "42-parsers-gf2.js",        // 少女前线2：追放
+  "42-parsers-fgo.js",        // Fate/Grand Order
+  "42-parsers-miyoushe.js",   // 米哈游：米游社公告（崩坏3/原神/星铁/绝区零 备选源）
+  "42-parsers-stellasora.js", // 悠星：星塔旅人
   "43-sources-register.js", // 追加来源进 SOURCES + 登记抓取器与备选抓取器 + 米游社公告并入既有条目
   "44-test-exports.js",// 回归出口：解析器 + env 工具（外层作用域，测试用）
   "50-refresh.js",     // 刷新编排、失败沿用旧值
-  "60-helpers.js",     // 共用纯函数：状态归一 / 提示文案 / 格式化 / 悬停 / 排序
+  "60-helpers.js",     // 共用纯函数：状态归一 / 提示文案 / 显隐 / 格式化 / 排序 / 启动刷新判定
   "engine-head.js",    // core 引擎外壳：createEngine（面板只通过它拿 Result JSON）
   "engine-api.js",     // 引擎 API：refresh() / 测试出口 / return
   "70-styles.js",      // 样式
   "80-components.js",  // React 组件（面板 + 设置页）
-  "90-plugin.js",      // apply(ctx)：slots / settingsScope / 悬停 marquee
+  "90-plugin.js",      // apply(ctx)：slots / configForms / 悬停 marquee
   "92-dsh-env.js",     // DSH 环境适配：注入 transport（直连 + 宿主代理）
   "99-tail.js"         // exports.apply / exports.inject / return
 ];
