@@ -1179,7 +1179,7 @@ export function createEngine(env) {
 				return i < 0 ? tiers.length : i;
 			};
 			const active = items
-				.filter((it) => it.startTs != null && it.endTs != null && it.startTs <= now && it.endTs >= now)
+				.filter((it) => coversNowBounded(it, now))
 				.sort((a, b) => (rank(a) - rank(b)) || (a.endTs - b.endTs) || (a.startTs - b.startTs));
 			if (active.length === 0) return null;
 			const win = active[0];
@@ -1435,6 +1435,53 @@ export function createEngine(env) {
 
 		// 旧名（事件侧语境下可读性更好）。**只是别名**，判定逻辑仍在上面。
 		function isLongTermEvent(x) { return isLongTermWindow(x); }
+
+		// ── 「覆盖 now」与「选当期」（**唯一真源**）────────────────────────────────
+		// 2026-10-03 普查：全仓有 **92 处**「覆盖 now」判定、**25 种写法**，实质只有 3 种方言：
+		//   ① `x.startTs <= now && x.endTs >= now`                        ← 主流
+		//   ② `endTs != null && endTs >= now && (startTs == null || startTs <= now)`  ← 显式容许 open start
+		//   ③ `startTs != null && endTs != null && startTs <= now && endTs >= now`    ← 两端都要求
+		// 其中 **① 与 ② 完全等价**（`startTs == null` 时 `null <= now` 恒真），只是②写得更"诚实"；
+		// ③ 更严：它把 startTs 为 null 的行排除掉。所以只需要两个判定，各写各的没有意义。
+		//
+		// `endTs == null` 表示"没有结束时间"（永久/常驻，或源站没给）——**不覆盖 now**（不以"没结束"当"永远在开"）。
+
+		/** 覆盖 now（常用）：起可为 null（视为"已开始"，如源站写"X.Y版本更新后"），末必须有且未过。 */
+		function coversNow(x, now) {
+			return !!x && x.endTs != null && x.endTs >= now && (x.startTs == null || x.startTs <= now);
+		}
+
+		/** 覆盖 now（**两端都必须有**）：需要明确起止的场合（如按窗口合并/排序的源）。 */
+		function coversNowBounded(x, now) {
+			return !!x && x.startTs != null && x.endTs != null && x.startTs <= now && x.endTs >= now;
+		}
+
+		/**
+		 * 选「当期」条目（唯一真源）。在 `coversNow` 之上再加可选条件：
+		 *   now            选哪一刻（毫秒，必传）
+		 *   kind           只取 `x.kind === kind` 的行（biligame 系用）
+		 *   bounded        true → 用 `coversNowBounded`（要求两端都有）
+		 *   dropLongTerm   true → 剔除长期/常驻窗口（`isLongTermWindow`）；默认 **false**（保持各源原有语义）
+		 *   sort           可选比较函数，对结果排序
+		 *   first          可选 true → 只返回第一条（排序后）
+		 *   map            可选，先做一次映射再判定（如把 `{win:{startTs,…}}` 摊平）
+		 *
+		 * ⚠️ `dropLongTerm` 默认 false 是**故意的**：多数调用点原本就没做这个过滤，
+		 *    擅自打开会改变选择结果。要改的站点逐个显式打开。
+		 *
+		 * ⚠️ 名字：不叫 `pickCurrent` —— 那个名字在**本文件上方**已被抓取器工厂占用
+		 *    （`const pickCurrent = (parse) => (html) => selectCurrent(...)`）。
+		 *    同作用域重名会让产物直接语法错误（构建守卫会报出来）。
+		 */
+		function pickCovering(items, opts) {
+			const o = opts || {};
+			const now = o.now;
+			const pred = o.bounded ? coversNowBounded : coversNow;
+			let list = (Array.isArray(items) ? items : []).filter((x) => x && (o.kind == null || x.kind === o.kind) && pred(x, now));
+			if (o.dropLongTerm) list = list.filter((x) => !isLongTermWindow(x));
+			if (typeof o.sort === "function") list = list.slice().sort(o.sort);
+			return o.first ? (list[0] || null) : list;
+		}
 
 		// 永久/常驻活动判定：源站把「结束时间」写成 `永久`（星铁「星际碰碰好搭档！」等）。
 		// 这类行 endTs 为 null，**过去被静默丢弃**——不是判定为"非当期"，而是连痕都没留下，
@@ -1815,7 +1862,7 @@ export function createEngine(env) {
 				}
 			}
 			if (pools.length === 0) return null;
-			const cover = pools.filter((p) => p.startTs != null && p.startTs <= now && p.endTs >= now);
+			const cover = pools.filter((p) => p.startTs != null && coversNow(p, now));
 			// 起点未知（同版本更新公告未收录）但结束在未来 → 仍作为当期（与 selectCurrent 的宽松分支一致）
 			const loose = pools.filter((p) => p.startTs == null && p.endTs >= now);
 			const picked = (cover.length > 0 ? cover : loose).sort((a, b) => (b.created - a.created) || (a.endTs - b.endTs));
@@ -1969,7 +2016,7 @@ export function createEngine(env) {
 			}
 			const now = nowMs();
 			const active = sortEventItems(items
-				.filter((it) => it.endTs != null && it.endTs >= now && (it.startTs == null || it.startTs <= now))
+				.filter((it) => coversNow(it, now))
 				.map((it) => ({ name: it.name || it.banner, startTs: it.startTs, endTs: it.endTs, raw: it.rawOriginal || it.raw })));
 			if (active.length === 0) return null;
 			// 外显：类别优先（战斗/高难类优先），同级内结束时间升序（③）；悬停仍按 endTs 升序全量
@@ -2077,7 +2124,7 @@ export function createEngine(env) {
 				});
 			}
 			const now = nowMs();
-			const cur = items.find((it) => it.startTs <= now && it.endTs >= now) || null;
+			const cur = items.find((it) => coversNow(it, now)) || null;
 			if (!cur) return null;
 			// 输出文本：直接用源站墙钟原文（`YYYY-MM-DD` → `MM-DD`），不随本机时区变
 			const fmtDate = (s) => {
@@ -2654,7 +2701,7 @@ export function createEngine(env) {
 			if (!cur) return null;
 			const now = nowMs();
 			const pools = snapshot
-				.filter((it) => it.isMain && it.endTs != null && it.endTs >= now && (it.startTs == null || it.startTs <= now))
+				.filter((it) => it.isMain && coversNow(it, now))
 				.map((it) => ({
 					name: it.banner,
 					label: `${it.banner}${it.roles ? `\uFF1A${cleanRoles(it.roles)}` : ""}`,
@@ -2679,7 +2726,7 @@ export function createEngine(env) {
 			// 永久/常驻活动单独计一项：它们 endTs 为 null，本就不该混进"当期"排序，
 			// 但也不能像以前那样无声丢掉（见 isPermanentEvent 注释）。
 			const permanent = snapshot.filter((it) => isPermanentEvent(it));
-			const active = sortEventItems(snapshot.filter((it) => it.endTs != null && it.endTs >= now && (it.startTs == null || it.startTs <= now)));
+			const active = sortEventItems(snapshot.filter((it) => coversNow(it, now)));
 			if (active.length === 0) return null;
 			// 外显：类别优先（剧情/叙事、限时高难），同级内结束时间升序；悬停仍按 endTs 升序全量
 			const primary = pickEventPrimary(active) || active[0];
@@ -2747,7 +2794,7 @@ export function createEngine(env) {
 			const items = collectPrtsEvents(html, tz);
 			const snapshot = items.map((it) => ({ name: it.banner, cat: it.cat || "", startTs: it.startTs, endTs: it.endTs, raw: it.raw }));
 			const now = nowMs();
-			const active = sortEventItems(snapshot.filter((it) => it.endTs != null && it.endTs >= now && (it.startTs == null || it.startTs <= now)));
+			const active = sortEventItems(snapshot.filter((it) => coversNow(it, now)));
 			if (active.length === 0) return null;
 			// 外显：类别优先（支线故事/危机合约等 vs 登录活动），同级内结束时间升序
 			const primary = pickEventPrimary(active) || active[0];
@@ -2801,7 +2848,7 @@ export function createEngine(env) {
 			const now = nowMs();
 			// 当期（进行中）选结束最晚；无当期时返回 null
 			const cur = items
-				.filter((it) => it.startTs <= now && it.endTs >= now)
+				.filter((it) => coversNow(it, now))
 				.sort((x, y) => y.endTs - x.endTs)[0];
 			if (!cur) return null;
 			const fmt = (ts) => {
@@ -2831,7 +2878,7 @@ export function createEngine(env) {
 			}
 			if (items.length === 0) return null;
 			const now = nowMs();
-			const cur = items.filter((it) => it.startTs <= now && it.endTs >= now).sort((x, y) => y.endTs - x.endTs)[0];
+			const cur = items.filter((it) => coversNow(it, now)).sort((x, y) => y.endTs - x.endTs)[0];
 			if (!cur) return null;
 			const fmt = (ts) => {
 				const d = new Date(ts);
@@ -3212,7 +3259,7 @@ export function createEngine(env) {
 				}
 			}
 			// 当期卡池：特別特選招募 / 特選招募（时间覆盖 now）
-			const bannerRow = rows.find((r) => /特選招募/.test(r.cat) && r.range && r.range.startTs <= now && r.range.endTs >= now);
+			const bannerRow = rows.find((r) => /特選招募/.test(r.cat) && r.range && coversNow(r.range, now));
 			// 当期活动候选：活動劇情 > 迷你活動 > 總力戰/大決戰/制約解除決戰/綜合戰術考試；
 			// 常駐化活動（名稱含「常駐」）优先级最低；只有起点、官方未给结束端的行同样纳入候选
 			const activeRow = (r) => !!r.range && r.range.startTs != null && r.range.startTs <= now &&
@@ -3256,7 +3303,7 @@ export function createEngine(env) {
 				data.bannerDates = evDates;
 			}
 			// 卡池列悬停：日程表里同期所有招募行（特選招募/特別特選招募 等），每池"类别：成员"一行 + 时间
-			const recRows = rows.filter((r) => /招募/.test(r.cat) && r.range && r.range.startTs != null && r.range.endTs != null && r.range.startTs <= now && r.range.endTs >= now);
+			const recRows = rows.filter((r) => /招募/.test(r.cat) && r.range && coversNowBounded(r.range, now));
 			const poolHover = buildPoolHover(recRows.map((r) => ({
 				name: r.cat,
 				label: `${r.cat}\uFF1A${baRoleName(r.name)}`,
@@ -3344,7 +3391,7 @@ export function createEngine(env) {
 			}
 			if (!pools) return null;
 			// 只保留覆盖当前时刻的池（起点缺省时按"结束在未来"宽松判定）
-			const cur = pools.filter((p) => p.endTs != null && p.endTs >= now && (p.startTs == null || p.startTs <= now));
+			const cur = pools.filter((p) => coversNow(p, now));
 			if (cur.length === 0) return null;
 			// 展示用的档期必须取"被选中的那个池"自己的窗口（cur[0]）—— 旧实现固定取 windows[0]，
 			// 一旦当期命中的不是第一个池，就会显示"B 池名字 + A 池时间"，倒计时按错档期跑。
@@ -3893,7 +3940,7 @@ export function createEngine(env) {
 			// 当期 = 窗口覆盖现在的池；同名多期（一览的下一期 + 公告的当期）只留第一个 = 一览优先
 			const seenName = new Set();
 			const active = pools.filter((p) => {
-				if (!(p.startTs <= now && p.endTs >= now)) return false;
+				if (!(coversNow(p, now))) return false;
 				if (seenName.has(p.name)) return false;
 				seenName.add(p.name);
 				return true;
@@ -3915,7 +3962,7 @@ export function createEngine(env) {
 				})));
 				if (hover) data.bannerHover = hover;
 			}
-			const activeEvents = sortEventItems(events.filter((e) => e.startTs <= now && e.endTs >= now));
+			const activeEvents = sortEventItems(events.filter((e) => coversNow(e, now)));
 			const primary = pickEventPrimary(activeEvents);
 			if (primary) {
 				data.event = primary.name;
@@ -3984,7 +4031,7 @@ export function createEngine(env) {
 				const n = versions[i];
 				const t = cleanText(n.content);
 				const w = maintWindow(t, i);
-				if (w && w.startTs <= now && w.endTs >= now) { maint = n; win = w; text = t; break; }
+				if (w && coversNow(w, now)) { maint = n; win = w; text = t; break; }
 			}
 			if (!maint) {
 				// 官方无当期覆盖 → 小米资讯流当期主池兜底（UP 名单取最新版本公告）

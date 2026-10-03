@@ -147,6 +147,15 @@ export function assertContract(label, side, data) {
 // 特意抽到 harness：此前三个用例文件各写各的判定，其中两处把「折叠式」误判成不合规。
 const HOVER_META_RE = /来源|官方公告|api\.|bwiki|bilibili|biligames|game_base_id|gameExtensionId|typeId|post_id|tz\s*=|时区|UTC[+-]\d|推测|推定|哨兵|未列出|未计入|社区页|非官方|自标|（id |——|▶|结构化字段|维护后|另有/;
 const HOVER_DATE_RE = /^(\d{4}-)?\d{2}-\d{2} \d{2}:\d{2} ~ (\d{4}-)?\d{2}-\d{2} \d{2}:\d{2}$/;
+// 活动侧单行式：`名称` + **3 个空格** + `档期`（本体 buildEventHover 的格式）
+const HOVER_EVENT_LINE_RE = /^\S.*   (\d{4}-)?\d{2}-\d{2} \d{2}:\d{2} ~ (\d{4}-)?\d{2}-\d{2} \d{2}:\d{2}$/;
+// 本体**允许**的两种"非标准档期行"（不是偏差，检查器必须接受）：
+//   · 源站原文档期：`4.6版本更新后 ~ 10-21 11:59`、`3.2版本更新后 ~ 3.2版本结束`
+//     —— buildPoolHover/buildEventHover 对**缺起止**的行"原样显示该行原文"（本体注释明写）
+//   · 常驻计数行：`以及常驻活动 12 项` —— 本体 permanentLine 的唯一措辞
+const HOVER_RAW_WINDOW_RE = /^.*\s~\s.*$/;
+const HOVER_PERMANENT_RE = /^以及常驻活动 \d+ 项$/;
+const isRawWindow = (s) => HOVER_RAW_WINDOW_RE.test(s) && !HOVER_META_RE.test(s);
 
 /** 判定一段悬停文本是否符合方案 A；不合格时按 `label` 记一条失败。返回布尔。 */
 export function assertHoverConvention(label, text, { requireSet = false } = {}) {
@@ -160,17 +169,22 @@ export function assertHoverConvention(label, text, { requireSet = false } = {}) 
 		check(`${label} 悬停不含元信息`, false, JSON.stringify(text.slice(0, 140)));
 		return false;
 	}
-	// ② 逐条两行式
-	if (L.length % 2 === 0 && L.filter((_, i) => i % 2 === 0).every((s) => !isDate(s)) && L.filter((_, i) => i % 2 === 1).every(isDate)) {
+	// ① 活动侧：每行 `名称 + 3 空格 + 档期`（或原文档期 / 常驻计数行）
+	if (L.every((s) => HOVER_EVENT_LINE_RE.test(s) || isRawWindow(s) || HOVER_PERMANENT_RE.test(s)) && L.some((s) => HOVER_EVENT_LINE_RE.test(s) || isRawWindow(s))) {
+		check(`${label} 悬停＝活动单行式「名称 + 3 空格 + 档期」`, true);
+		return true;
+	}
+	// ② 卡池侧：逐条两行式（档期行可为"原文"）
+	if (L.length % 2 === 0 && L.filter((_, i) => i % 2 === 0).every((s) => !isDate(s) && !isRawWindow(s)) && L.filter((_, i) => i % 2 === 1).every((s) => isDate(s) || isRawWindow(s))) {
 		check(`${label} 悬停＝逐条「名称 ⏎ 档期」`, true);
 		return true;
 	}
-	// ③ 窗口全同折叠（末尾一行档期，前面全是名称）
-	if (L.length >= 3 && isDate(L[L.length - 1]) && L.slice(0, -1).every((s) => !isDate(s))) {
+	// ③ 卡池侧：窗口全同折叠（末尾一行档期，前面全是名称）
+	if (L.length >= 3 && (isDate(L[L.length - 1]) || isRawWindow(L[L.length - 1])) && L.slice(0, -1).every((s) => !isDate(s) && !isRawWindow(s))) {
 		check(`${label} 悬停＝同名同窗折叠（名称… ⏎ 档期）`, true);
 		return true;
 	}
-	check(`${label} 悬停＝「名称 ⏎ 档期」两行式（或同名同窗折叠）`, false, JSON.stringify(L.slice(0, 6)));
+	check(`${label} 悬停＝「名称＋档期」的三种合法形态之一`, false, JSON.stringify(L.slice(0, 6)));
 	return false;
 }
 

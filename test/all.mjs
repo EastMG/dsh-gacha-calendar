@@ -21,7 +21,7 @@ import runP6 from "./cases-p6.mjs";
 import runP7 from "./cases-p7.mjs";
 import runP8 from "./cases-p8.mjs";
 import runP9 from "./cases-p9.mjs";
-import runHoverLint from "./cases-hover-lint.mjs";
+import runRuleLint from "./cases-rule-lint.mjs";
 
 const LIVE = process.argv.includes("--live");
 
@@ -94,7 +94,7 @@ const batches = [
 	["P7 星塔旅人（悠星官方 CMS API）", runP7],
 	["P8 bwiki wikitext（战双 SMW+公告 / 卡厄斯 Lua / 雪松模板）", runP8],
 	["P9 biligame 官方（物华活动 / 闪耀）+ OurNotes 国际服", runP9],
-	["悬停规则静态守卫（方案 A：元信息不许进悬停 / 排版只有一处实现）", runHoverLint]
+	["规则静态守卫（方案 A 悬停 + 选当期判定不许各写各的）", runRuleLint]
 ];
 const before = counts();
 for (const [label, fn] of batches) {

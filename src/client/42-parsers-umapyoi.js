@@ -85,7 +85,7 @@ function ns_umapyoi_parseUmapyoiGacha(json, now = Date.now(), tz = "Asia/Tokyo")
 		cardTypes: [...new Set(p.items.map((x) => x.cardType).filter(Boolean))]
 	}));
 
-	const active = pools.filter((p) => p.startTs <= now && p.endTs >= now).sort(ns_umapyoi_byNewestStart);
+	const active = pools.filter((p) => coversNow(p, now)).sort(ns_umapyoi_byNewestStart);
 	const cur = active[0] || null;
 	if (!cur) return null;   // 抓到数据但当期没有有界窗口（常驻卡不算） = 未公布
 

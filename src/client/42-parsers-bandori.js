@@ -230,12 +230,12 @@ function ns_bandori_bandoriSectionItem(section, name) {
 function ns_bandori_bandoriActiveGachaSections(sections, text, now) {
 	return (sections || []).filter((s) =>
 		s.primary && !ns_bandori_GACHA_SIDE_RE.test(s.name) && ns_bandori_GACHA_SEC_RE.test(s.name)
-		&& s.primary.startTs <= now && s.primary.endTs >= now
+		&& coversNow(s.primary, now)
 		&& !!ns_bandori_bandoriRolesFromSection(text, s));
 }
 // 当期（覆盖 now）的全部活动节（含卡池节 —— 这一期一起开的档期都能在悬停里看到）
 function ns_bandori_bandoriActiveSections(sections, now) {
-	return (sections || []).filter((s) => s.primary && s.primary.startTs <= now && s.primary.endTs >= now);
+	return (sections || []).filter((s) => s.primary && coversNow(s.primary, now));
 }
 
 // 节内 ★5 名单 → roles（实测形态：`★5 丸山彩[镜中无法映照的手中]`、`★5 CHU² [这样的休假方式]`）

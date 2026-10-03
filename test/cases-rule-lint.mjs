@@ -97,7 +97,7 @@ const FORBIDDEN = [
 ];
 
 export default async function run() {
-	section("悬停规则静态守卫（方案 A：只有名称与档期，元信息一律不许进）");
+	section("规则静态守卫（方案 A 悬停：只有名称与档期；选当期：只有一处判定）");
 	const files = readdirSync(SRC).filter((f) => /^42-parsers-.*\.js$/.test(f)).sort();
 	check("解析器文件齐备（17 个）", files.length === 17, String(files.length));
 
@@ -126,6 +126,31 @@ export default async function run() {
 		}
 	}
 	check("没有本地自制的悬停排版实现（只允许共用 hoverPool / hoverEvent）", localHover.length === 0, localHover.join(" / "));
+
+	// ── 「覆盖 now / 选当期」也要只有一处实现（2026-10-03 普查：曾散成 92 处 / 25 种写法）──
+	// 允许的出现位置：唯一真源 `30-parsers.js` 的三个函数体内（coversNow / coversNowBounded / pickCovering）。
+	{
+		const INLINE = /[A-Za-z_$][\w$.]*\.startTs\s*<=\s*now\s*&&\s*[A-Za-z_$][\w$.]*\.endTs\s*>=\s*now/;
+		const hits = [];
+		for (const f of readdirSync(SRC).filter((x) => /^(?:30-parsers|40-fetchers|42-parsers-.*)\.js$/.test(x))) {
+			const src = readFileSync(path.join(SRC, f), "utf8");
+			// 把唯一真源那段挖掉（挖法同迁移脚本：从标记到 pickCovering 的返回行）
+			const ia = src.indexOf("// ── 「覆盖 now」与「选当期」（**唯一真源**）");
+			const ib = src.indexOf("return o.first ? (list[0] || null) : list;", ia);
+			const body = ia >= 0 && ib >= 0
+				? src.slice(0, ia) + src.slice(src.indexOf("\n", src.indexOf("}", ib)) + 1)
+				: src;
+			body.split("\n").forEach((l, i) => {
+				if (l.trim().startsWith("//")) return;
+				if (INLINE.test(l)) hits.push(`${f}:${i + 1}  ${l.trim().slice(0, 90)}`);
+			});
+		}
+		check("没有内联的「覆盖 now」判定（一律走 coversNow / coversNowBounded / pickCovering）", hits.length === 0, hits.slice(0, 4).join(" / "));
+		// 反证：三个共用判定必须真的在
+		const p30 = readFileSync(path.join(SRC, "30-parsers.js"), "utf8");
+		check("共用判定 coversNow / coversNowBounded / pickCovering 存在",
+			/function coversNow\(/.test(p30) && /function coversNowBounded\(/.test(p30) && /function pickCovering\(/.test(p30));
+	}
 
 	// 反证：共用工具必须真的在（否则上面的守卫会因为"没实现"而假通过）
 	const shared = readFileSync(path.join(SRC, "41-sources-shared.js"), "utf8");

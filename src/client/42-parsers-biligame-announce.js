@@ -240,23 +240,21 @@ function ns_biligame_announce_parseDdlezjWindows(html, tz = ns_biligame_announce
 // 卡池：覆盖当前的招募档里取**结束最早**的（越快结束越该盯住，与插件 selectCurrent 同口径）；
 //       并列按文档顺序。
 function ns_biligame_announce_pickDdlezjGacha(items, now) {
-	const act = (items || []).filter((x) => x.kind === "gacha" && x.startTs <= now && x.endTs >= now);
+	const act = (items || []).filter((x) => x.kind === "gacha" && coversNow(x, now));
 	if (!act.length) return null;
 	return act.map((x, i) => ({ x, i })).sort((a, b) => (a.x.endTs - b.x.endTs) || (a.i - b.i))[0].x;
 }
 // 活动：覆盖当前的**活动档**（label=`活动时间`）优先，其次其它标签（商店兑换时间 / BOSS登场时间…）；
 //       同级内结束最早优先，并列按文档顺序。
 function ns_biligame_announce_pickDdlezjEvent(items, now) {
-	const act = (items || []).filter((x) => x.kind === "event" && x.startTs <= now && x.endTs >= now);
+	const act = (items || []).filter((x) => x.kind === "event" && coversNow(x, now));
 	if (!act.length) return null;
 	const rank = (x) => (x.label === "活动时间" ? 0 : 1);
 	return act.map((x, i) => ({ x, i })).sort((a, b) => (rank(a.x) - rank(b.x)) || (a.x.endTs - b.x.endTs) || (a.i - b.i))[0].x;
 }
+// 选当期条目：**直接用共用 pickCovering**（覆盖 now + kind 过滤 + 按结束时间升序）
 function ns_biligame_announce_covering(items, now, kind) {
-	return (items || []).filter((x) => x.kind === kind && x.startTs <= now && x.endTs >= now)
-		.map((x, i) => ({ x, i }))
-		.sort((a, b) => (a.x.endTs - b.x.endTs) || (a.i - b.i))
-		.map((o) => o.x);
+	return pickCovering(items, { now, kind, sort: (a, b) => (a.endTs - b.endTs) || 0 });
 }
 // ⚠️ 2026-10-03 删：这里原本有两个只服务于**悬停元信息**的常量/函数 ——
 //   · `skipNote(parsed)` → `—— 另有 N 条档期起点写作「维护后」（源站未给钟点、…）→ 不产出，绝不硬凑 ——`

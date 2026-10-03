@@ -357,7 +357,7 @@ function ns_umamusume_official_parseUmaDetail(json, tz = ns_umamusume_official_U
  */
 function ns_umamusume_official_umaCurrentWindows(entries, now) {
 	const active = [];
-	for (const e of entries) for (const w of e.windows) if (w.startTs <= now && w.endTs >= now) active.push({ e, w });
+	for (const e of entries) for (const w of e.windows) if (coversNow(w, now)) active.push({ e, w });
 	if (!active.length) return [];
 	const previewRank = (e) => (/予告|coming soon/i.test(String(e.title || "")) ? 1 : 0);
 	active.sort((x, y) =>
@@ -509,7 +509,7 @@ async function ns_umamusume_official_collectSide({ side, kind, indexUrl, tz, now
 			if (!det.title) det.title = c.title;
 			if (det.id == null) det.id = c.id;
 			details.push(det);
-			if (det.windows.some((w) => w.startTs <= now && w.endTs >= now)) covered = true;
+			if (det.windows.some((w) => coversNow(w, now))) covered = true;
 		}
 		if (covered) break;                      // 本页已有覆盖 now 的候选 → 不再翻页（更早的页只会更旧）
 	}

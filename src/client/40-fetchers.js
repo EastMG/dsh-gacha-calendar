@@ -124,7 +124,7 @@
 				}
 			}
 			// 当期卡池：特別特選招募 / 特選招募（时间覆盖 now）
-			const bannerRow = rows.find((r) => /特選招募/.test(r.cat) && r.range && r.range.startTs <= now && r.range.endTs >= now);
+			const bannerRow = rows.find((r) => /特選招募/.test(r.cat) && r.range && coversNow(r.range, now));
 			// 当期活动候选：活動劇情 > 迷你活動 > 總力戰/大決戰/制約解除決戰/綜合戰術考試；
 			// 常駐化活動（名稱含「常駐」）优先级最低；只有起点、官方未给结束端的行同样纳入候选
 			const activeRow = (r) => !!r.range && r.range.startTs != null && r.range.startTs <= now &&
@@ -168,7 +168,7 @@
 				data.bannerDates = evDates;
 			}
 			// 卡池列悬停：日程表里同期所有招募行（特選招募/特別特選招募 等），每池"类别：成员"一行 + 时间
-			const recRows = rows.filter((r) => /招募/.test(r.cat) && r.range && r.range.startTs != null && r.range.endTs != null && r.range.startTs <= now && r.range.endTs >= now);
+			const recRows = rows.filter((r) => /招募/.test(r.cat) && r.range && coversNowBounded(r.range, now));
 			const poolHover = buildPoolHover(recRows.map((r) => ({
 				name: r.cat,
 				label: `${r.cat}\uFF1A${baRoleName(r.name)}`,
@@ -256,7 +256,7 @@
 			}
 			if (!pools) return null;
 			// 只保留覆盖当前时刻的池（起点缺省时按"结束在未来"宽松判定）
-			const cur = pools.filter((p) => p.endTs != null && p.endTs >= now && (p.startTs == null || p.startTs <= now));
+			const cur = pools.filter((p) => coversNow(p, now));
 			if (cur.length === 0) return null;
 			// 展示用的档期必须取"被选中的那个池"自己的窗口（cur[0]）—— 旧实现固定取 windows[0]，
 			// 一旦当期命中的不是第一个池，就会显示"B 池名字 + A 池时间"，倒计时按错档期跑。
@@ -805,7 +805,7 @@
 			// 当期 = 窗口覆盖现在的池；同名多期（一览的下一期 + 公告的当期）只留第一个 = 一览优先
 			const seenName = new Set();
 			const active = pools.filter((p) => {
-				if (!(p.startTs <= now && p.endTs >= now)) return false;
+				if (!(coversNow(p, now))) return false;
 				if (seenName.has(p.name)) return false;
 				seenName.add(p.name);
 				return true;
@@ -827,7 +827,7 @@
 				})));
 				if (hover) data.bannerHover = hover;
 			}
-			const activeEvents = sortEventItems(events.filter((e) => e.startTs <= now && e.endTs >= now));
+			const activeEvents = sortEventItems(events.filter((e) => coversNow(e, now)));
 			const primary = pickEventPrimary(activeEvents);
 			if (primary) {
 				data.event = primary.name;
@@ -896,7 +896,7 @@
 				const n = versions[i];
 				const t = cleanText(n.content);
 				const w = maintWindow(t, i);
-				if (w && w.startTs <= now && w.endTs >= now) { maint = n; win = w; text = t; break; }
+				if (w && coversNow(w, now)) { maint = n; win = w; text = t; break; }
 			}
 			if (!maint) {
 				// 官方无当期覆盖 → 小米资讯流当期主池兜底（UP 名单取最新版本公告）

@@ -237,7 +237,7 @@ async function ns_stellasora_collectStellaSide(url, signal, tz, now, side) {
 	}
 	if (candidates.length === 0) return null;
 	// 覆盖 now 的里，取「起点最新」的那条（并列时取终点更晚的）
-	const covering = candidates.filter((c) => c.win.startTs <= now && c.win.endTs >= now);
+	const covering = candidates.filter((c) => coversNow(c.win, now));
 	if (covering.length === 0) return null;
 	covering.sort((a, b) => (b.win.startTs - a.win.startTs) || (b.win.endTs - a.win.endTs) || (b.row.id - a.row.id));
 	return { picked: covering[0], covering };

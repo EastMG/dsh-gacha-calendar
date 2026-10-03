@@ -162,7 +162,7 @@ function ns_ournotes_parseOurNotesInstant(s, tz = ns_ournotes_OURNOTES_TZ) {
 // 外显挑选：第一条"覆盖当前时刻"的区间（按公告倒序、区间原序）；都没有则取最新一篇的第一条区间
 function ns_ournotes_selectOurNotesPrimary(entries, now) {
 	const list = Array.isArray(entries) ? entries : [];
-	for (const p of list) for (const w of p.windows) if (w.startTs <= now && w.endTs >= now) return { post: p, win: w };
+	for (const p of list) for (const w of p.windows) if (coversNow(w, now)) return { post: p, win: w };
 	for (const p of list) if (p.windows.length) return { post: p, win: p.windows[0] };
 	return null;
 }
@@ -179,7 +179,7 @@ async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES
 	const picked = ns_ournotes_selectOurNotesPrimary(posts, now);
 	if (!picked || !picked.win) return null;
 	const active = [];
-	for (const p of posts) for (const w of p.windows) if (w.startTs <= now && w.endTs >= now) active.push({ p, w });
+	for (const p of posts) for (const w of p.windows) if (coversNow(w, now)) active.push({ p, w });
 	// 悬停格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover）：`名称` + 3 空格 + `档期`，
 	// **名称在前**（旧实现「档期在前、名称在后」，与本体相反 —— 用户 2026-10-03 反馈的偏差②）。
 	// 名称用公告标题（这是该站的"活动名"来源）；行内不再附来源站名/URL/时区推定等元信息。

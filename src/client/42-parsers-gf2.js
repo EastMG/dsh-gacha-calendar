@@ -260,7 +260,7 @@ function ns_gf2_gf2WindowName(baseName, w) {
 function ns_gf2_selectGf2Window(wins, now) {
 	const list = Array.isArray(wins) ? wins : [];
 	if (!list.length) return null;
-	const covering = list.filter((w) => w.startTs <= now && w.endTs >= now);
+	const covering = list.filter((w) => coversNow(w, now));
 	if (covering.length) return covering.slice().sort((a, b) => a.endTs - b.endTs)[0];
 	const future = list.filter((w) => w.startTs > now).sort((a, b) => a.startTs - b.startTs);
 	if (future.length) return future[0];
@@ -333,7 +333,7 @@ async function ns_gf2_eventsGf2(url, signal, tz = ns_gf2_GF2_TZ) {
 		// 只有 1 条窗口 → hoverEvent 返回 "" → 不设 eventHover，由 UI 走默认两行式。
 		const baseName = ns_gf2_gf2EventName(it.title);
 		const active = wins
-			.filter((x) => x.startTs <= now && x.endTs >= now)
+			.filter((x) => coversNow(x, now))
 			.sort((a, b) => a.endTs - b.endTs);
 		const eventHover = hoverEvent(active.map((x) => ({
 			name: ns_gf2_gf2WindowName(baseName, x),

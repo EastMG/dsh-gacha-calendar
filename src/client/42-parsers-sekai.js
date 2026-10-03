@@ -72,7 +72,7 @@ function ns_sekai_parseSekaiGachas(json, now = Date.now(), tz = "Asia/Shanghai")
 		pools.push({ id: g.id, name, type: String(g.gachaType || ""), startTs: s, endTs: e, long: e - s > ns_sekai_LONG_MS });
 	}
 	if (pools.length === 0) throw new Error("sekai-gacha-bad-shape");
-	const active = pools.filter((x) => x.startTs <= now && x.endTs >= now);
+	const active = pools.filter((x) => coversNow(x, now));
 	const bounded = active.filter((x) => !x.long).sort(ns_sekai_byNewestStart);
 	const cur = bounded[0] || null;
 	if (!cur) return null;
@@ -111,7 +111,7 @@ function ns_sekai_parseSekaiEvents(json, now = Date.now(), tz = "Asia/Shanghai")
 		rows.push({ id: e.id, name, type: String(e.eventType || ""), startTs: s, endTs: end, closedAt: ns_sekai_toTs(e.closedAt) });
 	}
 	if (rows.length === 0) throw new Error("sekai-event-bad-shape");
-	const active = rows.filter((x) => x.startTs <= now && x.endTs >= now).sort(ns_sekai_byNewestStart);
+	const active = rows.filter((x) => coversNow(x, now)).sort(ns_sekai_byNewestStart);
 	const cur = active[0] || null;
 	if (!cur) return null;
 	const dates = fmtWindow(cur.startTs, cur.endTs, tz);

@@ -206,7 +206,7 @@ function ns_bwiki_nowOf(now) { return typeof now === "number" && Number.isFinite
 
 // 覆盖 now 的条目：结束在未来且已开始（起点未知的行按"已开始"处理）
 function ns_bwiki_activeItems(items, now) {
-	return items.filter((it) => it.endTs != null && it.endTs >= now && (it.startTs == null || it.startTs <= now));
+	return items.filter((it) => coversNow(it, now));
 }
 // 卡池：主池优先；外显取结束最早（同结束按**页面顺序**，与插件 `selectCurrent` 的稳定排序一致）
 function ns_bwiki_pickCurrentPool(items, now) {

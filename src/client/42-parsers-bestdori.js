@@ -66,7 +66,7 @@ function ns_bestdori_parseBestdoriGacha(json, now = Date.now(), tz = "Asia/Shang
 		pools.push({ id: k, name: String(name), type: String(v.type || ""), startTs: p, endTs: c, long: c - p > ns_bestdori_LONG_MS });
 	}
 	if (!sawIndexed) throw new Error("bestdori-gacha-bad-shape");   // 结构变了（不再有 publishedAt/closedAt 数组）
-	const active = pools.filter((x) => x.startTs <= now && x.endTs >= now);
+	const active = pools.filter((x) => coversNow(x, now));
 	const bounded = active.filter((x) => !x.long).sort(ns_bestdori_byNewestStart);
 	const cur = bounded[0] || null;
 	if (!cur) return null;   // 抓到数据但没有"当期"有界窗口 = 未公布（长期池不算当期）
@@ -115,7 +115,7 @@ function ns_bestdori_parseBestdoriEvents(json, now = Date.now(), tz = "Asia/Shan
 		rows.push({ id: k, name: String(name), type: String(v.eventType || ""), startTs: s, endTs: e });
 	}
 	if (!sawIndexed) throw new Error("bestdori-event-bad-shape");
-	const active = rows.filter((x) => x.startTs <= now && x.endTs >= now).sort(ns_bestdori_byNewestStart);
+	const active = rows.filter((x) => coversNow(x, now)).sort(ns_bestdori_byNewestStart);
 	const cur = active[0] || null;
 	if (!cur) return null;
 	const dates = fmtWindow(cur.startTs, cur.endTs, tz);

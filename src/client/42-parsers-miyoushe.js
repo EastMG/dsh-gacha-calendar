@@ -416,7 +416,7 @@ function ns_miyoushe_collectMiyousheWindows(text, tz = ns_miyoushe_MIYOUSHE_TZ, 
 
 // 当期 = 文档顺序里**第一条覆盖 now** 的窗口；没有就是没有（不退回过期档期）
 function ns_miyoushe_pickMiyousheWindow(windows, now) {
-	for (const w of windows || []) if (w.startTs <= now && w.endTs >= now) return w;
+	for (const w of windows || []) if (coversNow(w, now)) return w;
 	return null;
 }
 
@@ -509,7 +509,7 @@ async function ns_miyoushe_collectMiyousheSide(listUrl, signal, tz, now, want) {
 			w.roles = roles;
 			w.source = "content";
 			// 候选已按 created_at 倒序、窗口按文档顺序 → covering[0] 就是"最新一篇公告里的第一条当期窗口"
-			if (w.startTs <= now && w.endTs >= now) covering.push(w);
+			if (coversNow(w, now)) covering.push(w);
 		}
 	}
 	// 一篇正文都没拿到、且出现过硬错（403/567/坏 JSON）→ 抛出去，让界面显示"抓取失败"
@@ -523,7 +523,7 @@ async function ns_miyoushe_collectMiyousheSide(listUrl, signal, tz, now, want) {
 	if (covering.length === 0) {
 		for (const it of cands) {
 			const nm = it.newsMeta;
-			if (!nm || !(nm.startTs <= now && nm.endTs >= now)) continue;
+			if (!nm || !(coversNow(nm, now))) continue;
 			covering.push({
 				startTs: nm.startTs, endTs: nm.endTs,
 				// ⚠️ 不留「news_meta start_at_sec=… end_at_sec=…」这种内部字段说明：内部字段名不进数据

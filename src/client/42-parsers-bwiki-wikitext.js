@@ -85,7 +85,7 @@ async function ns_bwiki_wikitext_fetchWikitext(url, signal, referer = "") {
 function ns_bwiki_wikitext_nowOf(now) { return typeof now === "number" && Number.isFinite(now) ? now : Date.now(); }
 // 覆盖 now 的条目（起点/终点都有绝对时刻才进候选；缺任一端的不产出）
 function ns_bwiki_wikitext_activeItems(items, now) {
-	return items.filter((it) => it.endTs != null && it.startTs != null && it.startTs <= now && it.endTs >= now);
+	return items.filter((it) => it.endTs != null && it.startTs != null && coversNow(it, now));
 }
 // 卡池条目 → `hoverPool` 入参。`name` = 池名原文（工具用它判空/兜底），`label` = 外显同构的「池名：角色」
 // （逐字照本体调用方：src/client/30-parsers.js 的 selectArknights`label: `${it.banner}：${it.roles}``）。

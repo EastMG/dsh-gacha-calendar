@@ -254,22 +254,48 @@ function stripStringsAndComments(src) {
   }
   return out;
 }
-// 只认**顶格**声明（行首无缩进）—— 缩进的 const/let 是函数内局部变量，不共享作用域。
-const TOP_DECL = /^(?:async\s+function|function|const|let|var|class)\s+([A-Za-z_$][\w$]*)/gm;
+// 判定"哪些声明在**共享作用域**"（= 文件自身顶层）。
+// ⚠️ 这个守卫改过三版，每版都被"看起来很稳"的静态分析坑过，记在这里免得再犯：
+//   v1 用"行首无缩进"当判据 → 什么都查不到：整个插件体都缩进在模块工厂 IIFE 里，
+//      所有源文件的顶层声明都是**缩进**的（实测：真存在同名 `pickCurrent` 却报「✓ 无」）。
+//   v2 用大括号深度 → 也错：`stripStringsAndComments` 不处理**正则字面量**，
+//      而代码里到处是 `/\w{1,8}/` 这类带花括号的正则 → 深度被永久带偏（实测报出 275 处假重名）。
+//   v3（当前）用**每个文件自身的"基线缩进"**：一个文件的顶层语句共享同一个缩进量，
+//      函数体内只会更深。取该文件所有非空非注释行的**最小缩进**作为基线，缩进恰等于基线的声明即顶层。
+//      这对"整个文件都缩进 2 个 Tab"与"顶格"两种形态都成立，也不受正则/模板字面量影响。
+const DECL_LINE = /^([ \t]*)(?:async\s+function|function|const|let|var|class)\s+([A-Za-z_$][\w$]*)/;
+function sharedScopeDecls(src) {
+  const lines = src.split("\n");
+  let base = null;
+  for (const l of lines) {
+    if (l.trim() === "" || l.trim().startsWith("//")) continue;
+    const ind = l.length - l.trimStart().length;
+    if (base === null || ind < base) base = ind;
+  }
+  // ⚠️ 必须返回**多重集**（数组），不能用 Set：同一文件内重名（const + function 同名）
+  //    也会让产物直接语法错误，而 Set 会把它去重吃掉（实测踩过：真撞名却报「✓ 无」）。
+  const out = [];
+  for (const l of lines) {
+    const ind = l.length - l.trimStart().length;
+    if (ind !== base) continue;
+    const m = DECL_LINE.exec(l);
+    if (m) out.push(m[2]);
+  }
+  return out;
+}
 function topLevelCollisionProblems(order) {
-  const owner = new Map();     // 标识符 → 首个声明的文件
+  const seen = new Map();     // 标识符 → 首次出现的文件
   const problems = [];
   for (const file of order) {
     const p = path.join(SRC_CLIENT, file);
     if (!fs.existsSync(p)) continue;
-    const code = stripStringsAndComments(read(p));
-    const local = new Map();
-    for (const m of code.matchAll(TOP_DECL)) {
-      const name = m[1];
-      if (local.has(name)) continue;              // 同文件内重名：不归本守卫管
-      local.set(name, true);
-      if (owner.has(name)) problems.push(`${name}：${owner.get(name)} 与 ${file} 都声明了（后拼接者会静默覆盖）`);
-      else owner.set(name, file);
+    for (const name of sharedScopeDecls(read(p))) {
+      if (seen.has(name)) {
+        const prev = seen.get(name);
+        problems.push(prev === file
+          ? `${name}：${file} **同一文件内**重复声明（const/let 直接语法错误；function/var 会静默覆盖）`
+          : `${name}：${prev} 与 ${file} 都在共享作用域声明了（后者会静默覆盖；const/let 还会直接语法错误）`);
+      } else seen.set(name, file);
     }
   }
   return problems;

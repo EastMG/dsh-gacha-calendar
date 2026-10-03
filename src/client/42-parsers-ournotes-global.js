@@ -280,7 +280,7 @@ function ns_ournotes_global_cleanTitle(t) {
 //#region 抓取器（契约：async (url, signal, tz, now = Date.now()) → 对象 | null）
 // 外显挑选：覆盖 now 的窗口里取结束最早的（并列按文档顺序）
 function ns_ournotes_global_pickOurNotesGlobalWindow(items, now) {
-	const act = (items || []).filter((x) => x.startTs <= now && x.endTs >= now);
+	const act = (items || []).filter((x) => coversNow(x, now));
 	if (!act.length) return null;
 	return act.map((x, i) => ({ x, i })).sort((a, b) => (a.x.endTs - b.x.endTs) || (a.i - b.i))[0].x;
 }
@@ -314,7 +314,7 @@ async function ns_ournotes_global_loadOurNotesGlobal(url, signal, tz, now, want)
 		const windows = structured ? [structured, ...parsed.windows] : parsed.windows;
 		const best = ns_ournotes_global_pickOurNotesGlobalWindow(windows, now);
 		if (!best) continue;
-		const active = windows.filter((x) => x.startTs <= now && x.endTs >= now)
+		const active = windows.filter((x) => coversNow(x, now))
 			.map((x, i) => ({ x, i }))
 			.sort((a, b) => (a.x.startTs - b.x.startTs) || (a.i - b.i))
 			.map((o) => o.x);

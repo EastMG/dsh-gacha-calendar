@@ -456,7 +456,7 @@ function ns_biligame_activity_parseUmaCnAnnouncement(html, tz = ns_biligame_acti
 // 外显挑选：卡池侧优先标签含`招募`；活动侧优先`活动期间`，其次含`期间|时间`，最后其它细分期间。
 // 同级取结束最早，并列按文档顺序。（实测：18425 活动期间 / 18423 活动期间 都是 rank0）
 function ns_biligame_activity_pickUmaWindow(items, now, want) {
-	const act = (items || []).filter((x) => x.startTs <= now && x.endTs >= now);
+	const act = (items || []).filter((x) => coversNow(x, now));
 	if (!act.length) return null;
 	const rank = (x) => {
 		const l = String(x.label || "");
@@ -501,7 +501,7 @@ function ns_biligame_activity_quotedName(title) {
 
 //#region 物华弥新 外显挑选 / 抓取器
 function ns_biligame_activity_pickWhmxEvent(items, now, preferName = "") {
-	const act = (items || []).filter((x) => x.kind === "event" && x.startTs <= now && x.endTs >= now);
+	const act = (items || []).filter((x) => x.kind === "event" && coversNow(x, now));
 	if (!act.length) return null;
 	const rank = (x) => {
 		if (!preferName) return 1;
@@ -511,12 +511,9 @@ function ns_biligame_activity_pickWhmxEvent(items, now, preferName = "") {
 	};
 	return act.map((x, i) => ({ x, i })).sort((a, b) => rank(a.x) - rank(b.x) || (a.x.endTs - b.x.endTs) || (a.i - b.i))[0].x;
 }
+// 选当期事件：**直接用共用 pickCovering**（覆盖 now + kind 过滤 + 按开始时间升序）
 function ns_biligame_activity_coveringWhmxEvents(items, now) {
-	return (items || [])
-		.filter((x) => x.kind === "event" && x.startTs <= now && x.endTs >= now)
-		.map((x, i) => ({ x, i }))
-		.sort((a, b) => (a.x.startTs - b.x.startTs) || (a.i - b.i))
-		.map((o) => o.x);
+	return pickCovering(items, { now, kind: "event", sort: (a, b) => (a.startTs - b.startTs) || 0 });
 }
 // ⚠️ 曾经这里有 `WHMX_TZ_NOTE`（时区推定说明）与 `skipNote()`（「常驻不产出」说明），两者都只用于
 //    拼旧悬停 → 用户要求「元信息彻底删掉」后**已整体删除**（时区推定的依据仍在文件头 ① 的交叉印证里，
@@ -615,7 +612,7 @@ async function ns_biligame_activity_loadUmaCn(url, signal, tz, now, want) {
 		// typeId=1 卡池/活动混排，按标题分流）」「闪耀！优俊少女 国服 · 标题 + tz 推定」「▶ 支线」
 		// 与「源站原文粘连 → 按 … 解析」全是元信息/实现说明 → 已彻底删除（见文件头「悬停规则」）。
 		const active = parsed.items
-			.filter((x) => x.startTs <= now && x.endTs >= now)
+			.filter((x) => coversNow(x, now))
 			.sort(ns_biligame_activity_byEndAsc);
 		return { title: dt, best, active, roles: want === "gacha" ? ns_biligame_activity_umaRoles(parsed.paragraphs) : [] };
 	}

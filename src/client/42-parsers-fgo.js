@@ -127,7 +127,7 @@ function ns_fgo_parseFgoWindow(cellText, tz = ns_fgo_FGO_TZ) {
 // 没有覆盖的 → 取最近要开的；再没有 → null（未公布，不硬造）。
 function ns_fgo_pickRow(rows, now) {
 	if (!rows.length) return null;
-	const covering = rows.filter((r) => r.startTs <= now && r.endTs >= now);
+	const covering = rows.filter((r) => coversNow(r, now));
 	const pool = covering.length ? covering : rows.filter((r) => r.startTs > now);
 	if (!pool.length) return null;
 	return pool.slice().sort((a, b) => {
@@ -232,7 +232,7 @@ function ns_fgo_parseFgoEventTable(html, tz = ns_fgo_FGO_TZ, now = Date.now()) {
 	//    又把分类词冒充成名称的一部分。用户 2026-10-03 反馈后**彻底删掉**（分类只用于 `tier` 排序，
 	//    保留在 rows 里供外部使用，不进悬停文本）。
 	const active = rows
-		.filter((x) => x.startTs <= now && x.endTs >= now)
+		.filter((x) => coversNow(x, now))
 		.sort((a, b) => (a.endTs === b.endTs ? a.startTs - b.startTs : a.endTs - b.endTs));
 	// <2 条时 hoverEvent 返回 "" → 不设 eventHover，由 UI 走默认两行式
 	const eventHover = hoverEvent(active, tz);

@@ -186,7 +186,7 @@ function ns_p5x_pickCurrentBlock(cands, tz, now) {
 		if (wins.length === 0) continue;
 		withWin.push({ block: b, win: wins[0] });
 	}
-	return withWin.find((x) => x.win.startTs <= now && x.win.endTs >= now) || null;
+	return withWin.find((x) => coversNow(x.win, now)) || null;
 }
 
 // 正文导语里的「…「X」获取概率限时UP！」—— 本期限定 UP 池名（官方只给名字，常不给档期）
@@ -210,17 +210,17 @@ async function ns_p5x_gachaP5x(url, signal, tz = "Asia/Shanghai") {
 		const hit = ns_p5x_pickCurrentBlock(poolBlocks, tz, now);
 		if (!hit) continue;
 		const up = ns_p5x_p5xUpNames(text);
-		const hover = [
-			hit.block.title,
-			fmtWindow(hit.win.startTs, hit.win.endTs, tz),
-			up.length ? `本期限定UP：${up.join("、")}` : ""
-		].filter(Boolean).join("\n");
+		// ⚠️ 2026-10-03 改（方案 A 收敛）：这里原本**手搓**三行悬停 `池名` ⏎ `档期` ⏎ `本期限定UP：角色`
+		//    —— 档期夹在名称与角色中间，与本体「池名：角色 ⏎ 档期」的顺序不一致。
+		//    现在按通用规则表达：把 UP 角色放进 **`roles`** 字段。
+		//    效果（与本体同构）：外显 = 角色名（本体对"有角色名的卡池"就是这么外显的），
+		//    UI 默认两行式 = `缘结之契开启：汐见琴音` ⏎ `09-24 04:00 ~ 10-22 03:59`。
+		//    只有 1 个当期池 → 不设 bannerHover（hoverPool 的契约就是 <2 条交回 UI）。
 		return {
 			banner: hit.block.title,
-			roles: "",
+			roles: up.join("、"),
 			bannerDates: fmtWindow(hit.win.startTs, hit.win.endTs, tz),
 			bannerDatesRaw: hit.block.windowRaw,
-			bannerHover: hover,
 			startTs: hit.win.startTs,
 			endTs: hit.win.endTs
 		};
@@ -241,18 +241,19 @@ async function ns_p5x_eventsP5x(url, signal, tz = "Asia/Shanghai") {
 			const wins = ns_p5x_parseP5xWindows(b.windowRaw, tz);
 			if (wins.length === 0) continue;
 			const w = wins[0];
-			if (w.startTs <= now && w.endTs >= now && b.title) active.push({ block: b, win: w });
+			if (coversNow(w, now) && b.title) active.push({ block: b, win: w });
 		}
 		if (active.length === 0) continue;
 		// 稳定排序：先按结束时间升序（越紧迫越前），同结束时间保持原文顺序
 		active.sort((a, b) => a.win.endTs - b.win.endTs);
 		const primary = active[0];
-		const hover = active.map((x) => `${x.block.title}  ${fmtWindow(x.win.startTs, x.win.endTs, tz)}`).join("\n");
+		// ⚠️ 2026-10-03 改：原本手搓 `名称  + 档期`（**2 个空格**），本体一律 **3 个空格** → 改用共用 hoverEvent。
+		const hover = hoverEvent(active.map((x) => ({ name: x.block.title, startTs: x.win.startTs, endTs: x.win.endTs })), tz);
 		return {
 			event: primary.block.title,
 			eventDates: fmtWindow(primary.win.startTs, primary.win.endTs, tz),
 			eventDatesRaw: primary.block.windowRaw,
-			eventHover: hover
+			...(hover ? { eventHover: hover } : {})
 		};
 	}
 	return null;

@@ -151,7 +151,7 @@ async function ns_kedr_wiki_gachaKedrWiki(url, signal, tz = ns_kedr_wiki_KEDR_TZ
 	const html = await fetchMediaWikiText(url || ns_kedr_wiki_KEDR_ARCHIVE_URL, { referer: ns_kedr_wiki_KEDR_REFERER, signal, mode: "proxy" });
 	const parsed = ns_kedr_wiki_parseKedrArchive(html, tz);
 	const act = parsed.items
-		.filter((x) => x.startTs <= now && x.endTs >= now)
+		.filter((x) => coversNow(x, now))
 		.map((x, i) => ({ x, i }))
 		.sort((a, b) => (a.x.endTs - b.x.endTs) || (a.x._i - b.x._i))
 		.map((o) => o.x);
