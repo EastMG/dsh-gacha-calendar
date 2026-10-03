@@ -245,6 +245,13 @@ function ns_umamusume_official_labelBeforeUma(text, at) {
 function ns_umamusume_official_parseUmaWindows(text, tz, hintTs = null) {
 	const s = String(text == null ? "" : text);
 	const hintParts = hintTs != null && Number.isFinite(hintTs) ? sourceWallParts(hintTs, tz) : null;
+	// ⚠️ 这里**有意**不用共用 `inferYear`，理由有两条（不是漏改）：
+	//   ① 本源的年份线索是**公告自己的时间戳**（`post_at`），生产路径上一定拿得到，
+	//      所以"没有线索"分支实际不可达；退回 `new Date().getFullYear()` 只是兜底。
+	//   ② `inferYear` 会做"起始月比线索月晚 6 个月以上 → 算**去年**"的修正 —— 那条规则是为
+	//      **当期/近期**公告写的；而赛马娘日服会提前 1~2 个月公告未来活动，
+	//      极端情况下（年初公告年末活动）套上去会把**今年**误判成去年。
+	//   凡是要合并这条规则的场合，先确认该源的窗口不会远在 hints 之后。
 	const hintYear = hintParts ? hintParts.y : new Date().getFullYear();
 	const out = [];
 	const seen = new Set();
@@ -269,7 +276,7 @@ function ns_umamusume_official_parseUmaWindows(text, tz, hintTs = null) {
 			const ey = endDate.y != null ? endDate.y : (right.find((t) => t.k === "y") || {}).y;
 			y2 = ey != null ? ey : y1;
 			// 跨年：末段月日比起点早且没写年份 → +1 年
-			if (ey == null && (mo2 < startDate.mo || (mo2 === startDate.mo && d2 < startDate.d))) y2 = y1 + 1;
+			if (ey == null && endsNextYear(startDate.mo, startDate.d, mo2, d2)) y2 = y1 + 1;
 		} else {
 			mo2 = startDate.mo; d2 = startDate.d; y2 = y1;
 		}

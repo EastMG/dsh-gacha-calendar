@@ -152,7 +152,27 @@ export default async function run() {
 			/function coversNow\(/.test(p30) && /function coversNowBounded\(/.test(p30) && /function pickCovering\(/.test(p30));
 	}
 
-	// ── HTML 解码：只能有一份（2026-10-03 合并了 5 份逐字节相同的 ENT_EXTRA/decodeExtra/plain）──
+	// ── 无年份日期的两条规则：补年份 / 跨年（2026-10-03 收敛，此前 12+ 处 4 种写法）──
+	{
+		const p30 = readFileSync(path.join(SRC, "30-parsers.js"), "utf8");
+		check("共用 inferYear / endsNextYear / YEAR_HINT_MONTH_GAP 存在",
+			/function inferYear\(/.test(p30) && /function endsNextYear\(/.test(p30) && /const YEAR_HINT_MONTH_GAP = \d+;/.test(p30));
+		const bad = [];
+		for (const f of readdirSync(SRC).filter((x) => x.endsWith(".js"))) {
+			const code = readFileSync(path.join(SRC, f), "utf8").split("\n")
+				.map((l) => l.replace(/\/\/.*$/, "")).join("\n");
+			// 内联的"结束早于开始 → 次年"判定（应走 endsNextYear）
+			if (/\w+\.mo\s*<\s*\w+\.mo\s*\|\||\w+\s*<\s*\w+\s*&&\s*\w+\.d\s*<\s*\w+\.d/.test(code)) bad.push(`${f}: 内联月日跨年判定`);
+			if (/(?:nowYear|year|y1|lastY)\s*\+\s*1/.test(code) && !/endsNextYear|YEAR_HINT_MONTH_GAP/.test(code)) bad.push(`${f}: 内联 nowYear+1`);
+			// 又出现本地 yearOf 副本
+			if (/function\s+\S*yearOf\s*\(/.test(code)) bad.push(`${f}: 本地 yearOf 副本`);
+		}
+		// 白名单：bwiki 的**滚动列表版**（比的是"上一条的月"，语义不同，已改用共用常量）
+		const allow = new Set(["42-parsers-bwiki.js", "30-parsers.js"]);
+		const real = bad.filter((b) => !allow.has(b.split(":")[0]));
+		check("没有内联的跨年判定 / 本地 yearOf 副本（一律走 endsNextYear / inferYear）", real.length === 0, real.slice(0, 4).join(" / "));
+	}
+
 	{
 		const dup = [];
 		for (const f of files) {

@@ -90,20 +90,21 @@ function ns_ournotes_parseOurNotesWindows(text, tz = ns_ournotes_OURNOTES_TZ, hi
 		if (toks[j] && toks[j].time) { endTime = toks[j].time; j++; }
 		if (!endDate && !endTime) { i++; continue; }
 
-		// 年份：源站常只写月日 → 取公告年份
-		const y1 = t0.date.y != null ? t0.date.y : (hintParts ? hintParts.y : null);
+		// 年份：源站常只写月日 → 借公告年（共用 inferYear）。
+		// ⚠️ 2026-10-03 改：原先是 `t0.date.y ?? hintParts.y` —— **不做"跨年份修正"**，
+		//    于是「1 月公告里写的 12 月活动」会被算成**本**年 12 月（实际是去年 12 月）。
+		//    `inferYear` 的"起始月比公告月晚 6 个月以上 → 算去年"正为此而设。
+		const y1 = inferYear(t0.date.y, t0.date.mo, hintParts);
 		if (y1 == null) { i++; continue; }
 		let y2, mo2, d2;
 		if (endDate) {
 			mo2 = endDate.mo != null ? endDate.mo : t0.date.mo;
 			d2 = endDate.d;
 			y2 = endDate.y != null ? endDate.y : y1;
-			if (endDate.y == null) {
-				if (mo2 < t0.date.mo || (mo2 === t0.date.mo && d2 < t0.date.d)) {
-					// 末段只写「日」且比起点日小 → 视为下一个月
-					if (endDate.mo == null) { mo2 = t0.date.mo + 1; if (mo2 > 12) { mo2 = 1; y2 = y1 + 1; } }
-					else y2 = y1 + 1;
-				}
+			if (endDate.y == null && endsNextYear(t0.date.mo, t0.date.d, mo2, d2)) {
+				// 末段只写「日」且比起点日小 → 视为下一个月（可能跨年）
+				if (endDate.mo == null) { mo2 = t0.date.mo + 1; if (mo2 > 12) { mo2 = 1; y2 = y1 + 1; } }
+				else y2 = y1 + 1;
 			}
 		} else {
 			mo2 = t0.date.mo; d2 = t0.date.d; y2 = y1;

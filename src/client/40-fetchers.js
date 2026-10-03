@@ -34,7 +34,7 @@
 			const moOf = (x) => { const m = String(x).match(/(\d{1,2})月/); return m ? Number(m[1]) : null; };
 			const am = moOf(parts[0]), bm = moOf(parts[1]);
 			const a = parseZhTime(parts[0], nowYear);
-			const b = parseZhTime(parts[1], am != null && bm != null && bm < am ? nowYear + 1 : nowYear);
+			const b = parseZhTime(parts[1], am != null && bm != null && endsNextYear(am, null, bm, null) ? nowYear + 1 : nowYear);
 			if (!a || !b) return null;
 			return { startTs: a.ts, endTs: b.ts, startText: a.text, endText: b.text, raw: `${a.text} ~ ${b.text}` };
 		}
@@ -77,12 +77,17 @@
 			const list = await proxyFetchJson(logListUrl, ref);
 			const threads = Array.isArray(list?.threads) ? list.threads : [];
 			// 每篇日志的维护日取标题日期（"8/18(二) 更新日誌"）；日期跨年按当前年推断
+			// ⚠️ 这里是 `inferYear`（30-parsers.js）那条规则的**绝对值版本**：拿不到公告年、
+			//    只拿得到 now，于是用"按今年解释后若落在 now 之后 45 天以外 → 必是去年"代替月份比较。
+			//    之所以 45 天而非 6 个月：日志列表按时间倒序、且只取 `ts <= now` 的那篇，
+			//    正常日期一定紧贴 now；超出一个半月的"未来日期"只可能是把去年的 12/31 解释成了今年。
+			const LOG_DATE_ROLLBACK_DAYS = 45;
 			const y = new Date(now).getFullYear();
 			const threadDate = (t) => {
 				const m = String(t.title || "").match(/(\d{1,2})\/(\d{1,2})\(/);
 				if (!m) return null;
 				let d = new Date(y, Number(m[1]) - 1, Number(m[2]), 0, 0);
-				if (d.getTime() > now + 45 * 864e5) d = new Date(y - 1, Number(m[1]) - 1, Number(m[2]), 0, 0);
+				if (d.getTime() > now + LOG_DATE_ROLLBACK_DAYS * 864e5) d = new Date(y - 1, Number(m[1]) - 1, Number(m[2]), 0, 0);
 				return d.getTime();
 			};
 			const dated = threads
@@ -343,7 +348,7 @@
 			// 跨年（如 【12/28~1/5】）：结束月份小于开始月份 → 结束端按"下一年"解析
 			const am = moOf(parts[0]), bm = moOf(parts[1]);
 			const a = parseGkTime(parts[0], nowYear);
-			const b = parseGkTime(parts[1], am != null && bm != null && bm < am ? nowYear + 1 : nowYear);
+			const b = parseGkTime(parts[1], am != null && bm != null && endsNextYear(am, null, bm, null) ? nowYear + 1 : nowYear);
 			if (!a || !b) return null;
 			return { startTs: a.ts, endTs: b.ts, startText: a.text, endText: b.text, raw: `${a.text} ~ ${b.text}` };
 		}
@@ -611,7 +616,7 @@
 				const em = Number(timeM[5]), ed = Number(timeM[6]), eh = timeM[7] ? Number(timeM[7]) : 0, emi = timeM[8] ? Number(timeM[8]) : 0;
 				const startTs = new Date(nowYear, sm - 1, sd, sh, smi).getTime();
 				// 跨年（如 12/28-1/5）结束补下一年
-				const endTs = new Date(em < sm ? nowYear + 1 : nowYear, em - 1, ed, eh, emi).getTime();
+				const endTs = new Date(endsNextYear(sm, null, em, null) ? nowYear + 1 : nowYear, em - 1, ed, eh, emi).getTime();
 				if (startTs > now || endTs < now) continue; // 只取覆盖当期的征集
 				// 主池判定：带定向 UP（【X】受邀概率UP）且 UP 角色属于官网新增角色
 				const upM = title.match(/【([^】]+)】受邀概率UP/) || content.match(/【([^】]+)】受邀概率UP/);
@@ -660,7 +665,7 @@
 			const sm = Number(m[1]), sd = Number(m[2]), sh = Number(m[3]), smi = Number(m[4]);
 			const em = Number(m[5]), ed = Number(m[6]), eh = Number(m[7]), emi = Number(m[8]);
 			const startTs = new Date(year, sm - 1, sd, sh, smi).getTime();
-			const endYear = em < sm || (em === sm && ed < sd) ? year + 1 : year;   // 跨年（如 12/28 - 1/5）
+			const endYear = endsNextYear(sm, sd, em, ed) ? year + 1 : year;   // 跨年（如 12/28 - 1/5）
 			return { startTs, endTs: new Date(endYear, em - 1, ed, eh, emi).getTime() };
 		}
 

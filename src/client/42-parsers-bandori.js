@@ -114,7 +114,7 @@ function ns_bandori_parseBandoriWindow(line, tz = ns_bandori_BANDORI_TZ, hint = 
 	const y1 = a.y != null ? a.y : (hintParts ? hintParts.y : null);
 	if (y1 == null) return null;
 	let y2 = b.y != null ? b.y : y1;
-	if (b.y == null && (b.mo < a.mo || (b.mo === a.mo && b.d < a.d))) y2 = y1 + 1;
+	if (b.y == null && endsNextYear(a.mo, a.d, b.mo, b.d)) y2 = y1 + 1;
 
 	let h1 = a.h, mi1 = a.mi;
 	if (h1 == null) {

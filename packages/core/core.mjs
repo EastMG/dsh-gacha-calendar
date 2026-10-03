@@ -1235,7 +1235,7 @@ export function createEngine(env) {
 				const sm = Number(timeM[1]), sd = Number(timeM[2]);
 				const em = Number(timeM[5]), ed = Number(timeM[6]);
 				const startTs = mk(nowYear, sm, sd, Number(timeM[3]), Number(timeM[4]));
-				const endTs = mk(em < sm ? nowYear + 1 : nowYear, em, ed, Number(timeM[7]), Number(timeM[8]));
+				const endTs = mk(endsNextYear(sm, null, em, null) ? nowYear + 1 : nowYear, em, ed, Number(timeM[7]), Number(timeM[8]));
 				if (startTs > now || endTs < now) continue; // 只要当期覆盖
 				const fmt = (mo, d, h, mi) => `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} ${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
 				const startText = fmt(sm, sd, Number(timeM[3]), Number(timeM[4]));
@@ -1481,6 +1481,41 @@ export function createEngine(env) {
 			if (o.dropLongTerm) list = list.filter((x) => !isLongTermWindow(x));
 			if (typeof o.sort === "function") list = list.slice().sort(o.sort);
 			return o.first ? (list[0] || null) : list;
+		}
+
+		// ── 无年份日期的两条通用规则（**唯一真源**）──────────────────────────────
+		// 源站常写「10月22日」这种**不带年份**的日期（限时活动、卡池档期）。要把它变成绝对时刻，
+		// 必须回答两个问题；此前各解析器各写各的，共 12+ 处、4 种写法：
+		//   A. 这是**哪一年**？—— 借一个"年份线索"（通常是公告发布时刻的墙钟）
+		//   B. 结束日期排在开始日期之前 —— 说明**跨年**了（12/28 ~ 1/5），结束该算次年
+		// 2026-10-03 收敛：`yearOf` 在 biligame-activity 与 ournotes-global 里**逐字相同**；
+		//   「月+日都有的跨年判定」有 **4 处逐字相同**的副本（bandori / biligame-activity /
+		//   ournotes-global / umamusume-official），另有 4 处只有月份的退化版。
+
+		/** 月份比线索月晚这么多 → 该日期只可能是**上一年**（例：线索 1 月，档期写 12 月）。 */
+		const YEAR_HINT_MONTH_GAP = 6;
+
+		/**
+		 * 补年份。`hint` = `{ y, mo }`（本地墙钟字段，通常来自公告发布时刻）。
+		 * · 已有年份 → 原样返回
+		 * · **没有线索 → 返回 null（不猜当前年）** —— 宁可这条档期不产出，也不编一个年份出来
+		 *   （猜错会把整条档期挪到错误的时间，比"未公布"更糟；`40-fetchers.js` 里那条 45 天规则
+		 *     属于"能拿到 now 但拿不到公告年"的少数源，单独保留并注明）
+		 */
+		function inferYear(y, mo, hint) {
+			if (y != null) return y;
+			if (!hint || hint.y == null) return null;
+			return mo > hint.mo + YEAR_HINT_MONTH_GAP ? hint.y - 1 : hint.y;
+		}
+
+		/**
+		 * 「结束排在开始之前」= 跨年，结束应记次年。
+		 * `sd` / `ed` 可省（只有月份信息时退化为按月比较）——这一点覆盖了此前 4 处只有月份的写法。
+		 */
+		function endsNextYear(sm, sd, em, ed) {
+			if (em !== sm) return em < sm;
+			if (sd == null || ed == null) return false;
+			return ed < sd;
 		}
 
 		// 永久/常驻活动判定：源站把「结束时间」写成 `永久`（星铁「星际碰碰好搭档！」等）。
@@ -3169,7 +3204,7 @@ export function createEngine(env) {
 			const moOf = (x) => { const m = String(x).match(/(\d{1,2})月/); return m ? Number(m[1]) : null; };
 			const am = moOf(parts[0]), bm = moOf(parts[1]);
 			const a = parseZhTime(parts[0], nowYear);
-			const b = parseZhTime(parts[1], am != null && bm != null && bm < am ? nowYear + 1 : nowYear);
+			const b = parseZhTime(parts[1], am != null && bm != null && endsNextYear(am, null, bm, null) ? nowYear + 1 : nowYear);
 			if (!a || !b) return null;
 			return { startTs: a.ts, endTs: b.ts, startText: a.text, endText: b.text, raw: `${a.text} ~ ${b.text}` };
 		}
@@ -3212,12 +3247,17 @@ export function createEngine(env) {
 			const list = await proxyFetchJson(logListUrl, ref);
 			const threads = Array.isArray(list?.threads) ? list.threads : [];
 			// 每篇日志的维护日取标题日期（"8/18(二) 更新日誌"）；日期跨年按当前年推断
+			// ⚠️ 这里是 `inferYear`（30-parsers.js）那条规则的**绝对值版本**：拿不到公告年、
+			//    只拿得到 now，于是用"按今年解释后若落在 now 之后 45 天以外 → 必是去年"代替月份比较。
+			//    之所以 45 天而非 6 个月：日志列表按时间倒序、且只取 `ts <= now` 的那篇，
+			//    正常日期一定紧贴 now；超出一个半月的"未来日期"只可能是把去年的 12/31 解释成了今年。
+			const LOG_DATE_ROLLBACK_DAYS = 45;
 			const y = new Date(now).getFullYear();
 			const threadDate = (t) => {
 				const m = String(t.title || "").match(/(\d{1,2})\/(\d{1,2})\(/);
 				if (!m) return null;
 				let d = new Date(y, Number(m[1]) - 1, Number(m[2]), 0, 0);
-				if (d.getTime() > now + 45 * 864e5) d = new Date(y - 1, Number(m[1]) - 1, Number(m[2]), 0, 0);
+				if (d.getTime() > now + LOG_DATE_ROLLBACK_DAYS * 864e5) d = new Date(y - 1, Number(m[1]) - 1, Number(m[2]), 0, 0);
 				return d.getTime();
 			};
 			const dated = threads
@@ -3478,7 +3518,7 @@ export function createEngine(env) {
 			// 跨年（如 【12/28~1/5】）：结束月份小于开始月份 → 结束端按"下一年"解析
 			const am = moOf(parts[0]), bm = moOf(parts[1]);
 			const a = parseGkTime(parts[0], nowYear);
-			const b = parseGkTime(parts[1], am != null && bm != null && bm < am ? nowYear + 1 : nowYear);
+			const b = parseGkTime(parts[1], am != null && bm != null && endsNextYear(am, null, bm, null) ? nowYear + 1 : nowYear);
 			if (!a || !b) return null;
 			return { startTs: a.ts, endTs: b.ts, startText: a.text, endText: b.text, raw: `${a.text} ~ ${b.text}` };
 		}
@@ -3746,7 +3786,7 @@ export function createEngine(env) {
 				const em = Number(timeM[5]), ed = Number(timeM[6]), eh = timeM[7] ? Number(timeM[7]) : 0, emi = timeM[8] ? Number(timeM[8]) : 0;
 				const startTs = new Date(nowYear, sm - 1, sd, sh, smi).getTime();
 				// 跨年（如 12/28-1/5）结束补下一年
-				const endTs = new Date(em < sm ? nowYear + 1 : nowYear, em - 1, ed, eh, emi).getTime();
+				const endTs = new Date(endsNextYear(sm, null, em, null) ? nowYear + 1 : nowYear, em - 1, ed, eh, emi).getTime();
 				if (startTs > now || endTs < now) continue; // 只取覆盖当期的征集
 				// 主池判定：带定向 UP（【X】受邀概率UP）且 UP 角色属于官网新增角色
 				const upM = title.match(/【([^】]+)】受邀概率UP/) || content.match(/【([^】]+)】受邀概率UP/);
@@ -3795,7 +3835,7 @@ export function createEngine(env) {
 			const sm = Number(m[1]), sd = Number(m[2]), sh = Number(m[3]), smi = Number(m[4]);
 			const em = Number(m[5]), ed = Number(m[6]), eh = Number(m[7]), emi = Number(m[8]);
 			const startTs = new Date(year, sm - 1, sd, sh, smi).getTime();
-			const endYear = em < sm || (em === sm && ed < sd) ? year + 1 : year;   // 跨年（如 12/28 - 1/5）
+			const endYear = endsNextYear(sm, sd, em, ed) ? year + 1 : year;   // 跨年（如 12/28 - 1/5）
 			return { startTs, endTs: new Date(endYear, em - 1, ed, eh, emi).getTime() };
 		}
 

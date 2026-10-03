@@ -247,7 +247,7 @@
 				const sm = Number(timeM[1]), sd = Number(timeM[2]);
 				const em = Number(timeM[5]), ed = Number(timeM[6]);
 				const startTs = mk(nowYear, sm, sd, Number(timeM[3]), Number(timeM[4]));
-				const endTs = mk(em < sm ? nowYear + 1 : nowYear, em, ed, Number(timeM[7]), Number(timeM[8]));
+				const endTs = mk(endsNextYear(sm, null, em, null) ? nowYear + 1 : nowYear, em, ed, Number(timeM[7]), Number(timeM[8]));
 				if (startTs > now || endTs < now) continue; // 只要当期覆盖
 				const fmt = (mo, d, h, mi) => `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} ${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
 				const startText = fmt(sm, sd, Number(timeM[3]), Number(timeM[4]));
@@ -493,6 +493,41 @@
 			if (o.dropLongTerm) list = list.filter((x) => !isLongTermWindow(x));
 			if (typeof o.sort === "function") list = list.slice().sort(o.sort);
 			return o.first ? (list[0] || null) : list;
+		}
+
+		// ── 无年份日期的两条通用规则（**唯一真源**）──────────────────────────────
+		// 源站常写「10月22日」这种**不带年份**的日期（限时活动、卡池档期）。要把它变成绝对时刻，
+		// 必须回答两个问题；此前各解析器各写各的，共 12+ 处、4 种写法：
+		//   A. 这是**哪一年**？—— 借一个"年份线索"（通常是公告发布时刻的墙钟）
+		//   B. 结束日期排在开始日期之前 —— 说明**跨年**了（12/28 ~ 1/5），结束该算次年
+		// 2026-10-03 收敛：`yearOf` 在 biligame-activity 与 ournotes-global 里**逐字相同**；
+		//   「月+日都有的跨年判定」有 **4 处逐字相同**的副本（bandori / biligame-activity /
+		//   ournotes-global / umamusume-official），另有 4 处只有月份的退化版。
+
+		/** 月份比线索月晚这么多 → 该日期只可能是**上一年**（例：线索 1 月，档期写 12 月）。 */
+		const YEAR_HINT_MONTH_GAP = 6;
+
+		/**
+		 * 补年份。`hint` = `{ y, mo }`（本地墙钟字段，通常来自公告发布时刻）。
+		 * · 已有年份 → 原样返回
+		 * · **没有线索 → 返回 null（不猜当前年）** —— 宁可这条档期不产出，也不编一个年份出来
+		 *   （猜错会把整条档期挪到错误的时间，比"未公布"更糟；`40-fetchers.js` 里那条 45 天规则
+		 *     属于"能拿到 now 但拿不到公告年"的少数源，单独保留并注明）
+		 */
+		function inferYear(y, mo, hint) {
+			if (y != null) return y;
+			if (!hint || hint.y == null) return null;
+			return mo > hint.mo + YEAR_HINT_MONTH_GAP ? hint.y - 1 : hint.y;
+		}
+
+		/**
+		 * 「结束排在开始之前」= 跨年，结束应记次年。
+		 * `sd` / `ed` 可省（只有月份信息时退化为按月比较）——这一点覆盖了此前 4 处只有月份的写法。
+		 */
+		function endsNextYear(sm, sd, em, ed) {
+			if (em !== sm) return em < sm;
+			if (sd == null || ed == null) return false;
+			return ed < sd;
 		}
 
 		// 永久/常驻活动判定：源站把「结束时间」写成 `永久`（星铁「星际碰碰好搭档！」等）。

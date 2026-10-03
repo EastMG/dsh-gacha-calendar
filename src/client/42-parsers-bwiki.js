@@ -157,7 +157,7 @@ function ns_bwiki_parsePoints(text) {
 		else { y = null; mo = +m[7]; d = +m[8]; }
 		if (y == null) {
 			if (lastY == null) continue;                        // 前面也没有年份 → 无法定位
-			y = lastMo != null && mo < lastMo - 6 ? lastY + 1 : lastY;   // 跨年（12月 → 1月）
+			y = lastMo != null && mo < lastMo - YEAR_HINT_MONTH_GAP ? lastY + 1 : lastY;   // 跨年（12月 → 1月）
 		}
 		const t = ns_bwiki_timeAfter(s, m.index + m[0].length);
 		out.push({ y, mo, d, h: t ? t.h : 0, mi: t ? t.mi : 0, noTime: !t });

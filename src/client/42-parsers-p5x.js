@@ -85,7 +85,7 @@ function ns_p5x_parseP5xWindows(text, tz) {
 	const re = /(20\d{2})年(\d{1,2})月(\d{1,2})日\s*[—\-~～至]\s*(?:(20\d{2})年)?(\d{1,2})月(\d{1,2})日/g;
 	for (const m of String(text).matchAll(re)) {
 		const y1 = +m[1], mo1 = +m[2], d1 = +m[3];
-		const y2 = m[4] ? +m[4] : (mo1 > +m[5] ? y1 + 1 : y1);   // 跨年：结束月小于开始月
+		const y2 = m[4] ? +m[4] : (endsNextYear(mo1, null, +m[5], null) ? y1 + 1 : y1);   // 跨年：结束月小于开始月
 		const mo2 = +m[5], d2 = +m[6];
 		// 时刻：公告只给日期 → 按国服惯例补 04:00 开 / 03:59 收（推算，见文件头）
 		const startTs = sourceInstant(y1, mo1, d1, 4, 0, tz);

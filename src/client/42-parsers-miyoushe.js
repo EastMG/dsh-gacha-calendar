@@ -355,7 +355,8 @@ function ns_miyoushe_collectMiyousheWindows(text, tz = ns_miyoushe_MIYOUSHE_TZ, 
 		if (y == null) {
 			const sw = sourceWallParts(startTs, tz);
 			y = sw.y;
-			if (info.mo < sw.mo || (info.mo === sw.mo && info.d < sw.d)) y += 1;
+			// 月日排在起点之前 → 跨年（共用判定）
+			if (endsNextYear(sw.mo, sw.d, info.mo, info.d)) y += 1;
 		}
 		return sourceInstant(y, info.mo, info.d, h, mi, tz);
 	};

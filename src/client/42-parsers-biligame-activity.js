@@ -313,12 +313,6 @@ function ns_biligame_activity_tokenizeWindows(text) {
 	}
 	return out;
 }
-// 源站不写年份时的补全：以公告发布年为准；起月比发布月大 6 个月以上 → 视为上一年（跨年公告）
-function ns_biligame_activity_yearOf(y, mo, hint) {
-	if (y != null) return y;
-	if (!hint || hint.y == null) return null;
-	return mo > hint.mo + 6 ? hint.y - 1 : hint.y;
-}
 // 一段文本 → { norm, windows:[{ startTs, endTs, raw(源站原文), rawNorm(归一化后), glued, perm? }] }
 //   · 起点必须带时刻（令牌 ①）  · 终点可以是时刻/日期（缺时刻 → 23:59）/「常驻」
 //   · 年份抽不出来（源站无年份且公告也没年份）→ 该窗口进 skipped，不产出
@@ -341,7 +335,7 @@ function ns_biligame_activity_extractWindowsDetailed(text, yearHint, tz = ns_bil
 		const b = toks[i + 2];
 		if (!b) continue;
 		const raws = rawOf(a, b);
-		const y1 = ns_biligame_activity_yearOf(a.y, a.mo, yearHint);
+		const y1 = inferYear(a.y, a.mo, yearHint);
 		if (y1 == null) { skipped.push({ raw: raws.src, rawNorm: raws.norm, reason: "no-year" }); i += 2; continue; }
 		if (b.kind === "perm") {
 			skipped.push({ raw: raws.src, rawNorm: raws.norm, reason: "perm" });   // 「常驻」= 无终点 → 不产出
@@ -353,7 +347,7 @@ function ns_biligame_activity_extractWindowsDetailed(text, yearHint, tz = ns_bil
 		const h2 = b.kind === "stamp" ? b.h : 23;
 		const mi2 = b.kind === "stamp" ? b.mi : 59;
 		let y2 = b.y != null ? b.y : y1;
-		if (b.y == null && (b.mo < a.mo || (b.mo === a.mo && b.d < a.d))) y2 = y1 + 1;
+		if (b.y == null && endsNextYear(a.mo, a.d, b.mo, b.d)) y2 = y1 + 1;
 		const startTs = sourceInstant(y1, a.mo, a.d, h1, mi1, tz);
 		const endTs = sourceInstant(y2, b.mo, b.d, h2, mi2, tz);
 		if (!(endTs > startTs)) { skipped.push({ raw: raws.src, rawNorm: raws.norm, reason: "bad-order" }); i += 2; continue; }

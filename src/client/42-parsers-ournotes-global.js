@@ -187,11 +187,8 @@ const ns_ournotes_global_TOK_RE = new RegExp([
 	"(?<sep>[~\uff5e\u301c\u223c至到]|\\s[-\\u2013\\u2014\\uff0d]\\s|[-\\u2013\\u2014\\uff0d])",
 	"(?<perm>常驻|常駐|永久|常設|長期)"
 ].join("|"), "g");
-function ns_ournotes_global_yearOf(y, mo, hint) {
-	if (y != null) return y;
-	if (!hint || hint.y == null) return null;
-	return mo > hint.mo + 6 ? hint.y - 1 : hint.y;
-}
+// ⚠️ 2026-10-03：此处原有本地 `yearOf`（补年份）—— 与 `biligame-activity.js` 那份**逐字相同**，
+//    已统一到 `30-parsers.js` 的共用 `inferYear(y, mo, hint)`。
 // 一段文本 → { norm, windows:[{ startTs, endTs, raw, glued }], skipped }
 function ns_ournotes_global_extractOurNotesGlobalWindows(text, tz = ns_ournotes_global_OURNOTES_GLOBAL_TZ, yearHint = null) {
 	const src = String(text == null ? "" : text);
@@ -223,10 +220,10 @@ function ns_ournotes_global_extractOurNotesGlobalWindows(text, tz = ns_ournotes_
 		const raw = norm.slice(a.at, b.end).trim();
 		if (b.kind === "perm") { skipped.push({ raw, reason: "perm" }); i += 2; continue; }
 		if (b.kind !== "stamp" && b.kind !== "date") continue;
-		const y1 = ns_ournotes_global_yearOf(a.y, a.mo, yearHint);
+		const y1 = inferYear(a.y, a.mo, yearHint);
 		if (y1 == null) { skipped.push({ raw, reason: "no-year" }); i += 2; continue; }
 		let y2 = b.y != null ? b.y : y1;
-		if (b.y == null && (b.mo < a.mo || (b.mo === a.mo && b.d < a.d))) y2 = y1 + 1;
+		if (b.y == null && endsNextYear(a.mo, a.d, b.mo, b.d)) y2 = y1 + 1;
 		const h2 = b.kind === "stamp" ? b.h : 23;
 		const mi2 = b.kind === "stamp" ? b.mi : 59;
 		const startTs = sourceInstant(y1, a.mo, a.d, a.h, a.mi, tz);
