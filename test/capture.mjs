@@ -1,4 +1,4 @@
-// next-sources/test/capture.mjs —— 抓真实响应存成夹具
+// test/capture.mjs —— 抓真实响应存成夹具
 //
 // 用法：node test/capture.mjs <name> <url> [referer]
 //   · 走宿主代理形态抓取（模拟真实运行路径），存到 fixtures/ 下按 host 分目录
@@ -12,8 +12,8 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(HERE, "..");
-const FIXTURES = path.join(ROOT, "fixtures");
+// ⚠️ 夹具就在 test/fixtures —— 不能用 HERE/..（那是仓库根；2026-10-03 从 next-sources/ 迁来时踩过）
+const FIXTURES = path.join(HERE, "fixtures");
 const MAP_FILE = path.join(HERE, "map.json");
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0.0.0 Safari/537.36";

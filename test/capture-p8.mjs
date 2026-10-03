@@ -1,4 +1,4 @@
-// next-sources/test/capture-p8.mjs —— P8 批次夹具抓取（bwiki 专用：限速 + 退避重试 + JSON 校验）
+// test/capture-p8.mjs —— P8 批次夹具抓取（bwiki 专用：限速 + 退避重试 + JSON 校验）
 //
 // 为什么不直接用 test/capture.mjs：
 //   bwiki（EdgeOne WAF）对高频请求返回 **HTTP 567 挑战页**（~7KB JS，非 JSON，页内含 requestId）。
@@ -16,8 +16,8 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(HERE, "..");
-const FIXTURES = path.join(ROOT, "fixtures");
+// ⚠️ 夹具就在 test/fixtures —— 不能用 HERE/..（那是仓库根；2026-10-03 从 next-sources/ 迁来时踩过）
+const FIXTURES = path.join(HERE, "fixtures");
 const MAP_FILE = path.join(HERE, "map.json");
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/126.0.0.0 Safari/537.36";
