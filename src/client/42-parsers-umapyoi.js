@@ -41,7 +41,9 @@ const ns_umapyoi_toNum = (v) => {
 	const n = Number(v);
 	return Number.isFinite(n) ? n : null;
 };
-const ns_umapyoi_byNewestStart = (a, b) => (b.startTs - a.startTs) || (a.endTs - b.endTs) || (a.id0 - b.id0);
+// ⚠️ 2026-10-03 收敛：本文件原有 `byNewestStart`，与 bestdori/sekai 那两份**是同一概念的第 3 种写法** ——
+//    而且它 `(a.endTs - b.endTs)` **没有 null 守卫**，任一 endTs 为 null 就整条得 NaN、排序未定义。
+//    已统一到 `41-sources-shared.js` 的 `byNewestStart`（带 Infinity 兜底），潜在 bug 一并修掉。
 
 // 纯函数：夹具/单测可直接喂 JSON（不联网）
 function ns_umapyoi_parseUmapyoiGacha(json, now = Date.now(), tz = "Asia/Tokyo") {
@@ -79,13 +81,15 @@ function ns_umapyoi_parseUmapyoiGacha(json, now = Date.now(), tz = "Asia/Tokyo")
 	const pools = [...merged.values()].map((p) => ({
 		startTs: p.startTs,
 		endTs: p.endTs,
-		id0: p.id0,
+		// `id` 供共用 `byNewestStart` 做末级 tie-break（原来叫 `id0`、只有本地比较器认它）。
+		// 池已按 `startTs|endTs` 去重，所以这一级实际不会决出胜负 —— 只是让对象形状与别处一致。
+		id: p.id0,
 		items: p.items,
 		ids: p.items.map((x) => x.id).filter((x) => x != null),
 		cardTypes: [...new Set(p.items.map((x) => x.cardType).filter(Boolean))]
 	}));
 
-	const active = pools.filter((p) => coversNow(p, now)).sort(ns_umapyoi_byNewestStart);
+	const active = pools.filter((p) => coversNow(p, now)).sort(byNewestStart);
 	const cur = active[0] || null;
 	if (!cur) return null;   // 抓到数据但当期没有有界窗口（常驻卡不算） = 未公布
 

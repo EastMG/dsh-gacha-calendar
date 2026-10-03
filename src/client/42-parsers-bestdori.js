@@ -37,14 +37,9 @@ const ns_bestdori_CN_INDEX = 3;                        // 简中服下标（见�
 //    在 400 天下会被误判成"当期"。当前真实在架池恰好 0 个落在该区间，故属**潜在**不一致。
 const ns_bestdori_LONG_MS = LONG_TERM_MAX_WINDOW_DAYS * 864e5;
 
-const ns_bestdori_toTs = (v) => {
-	if (v == null || v === "") return null;
-	const n = Number(v);
-	return Number.isFinite(n) ? n : null;
-};
-const ns_bestdori_byNewestStart = (a, b) => (b.startTs - a.startTs)
-	|| ((a.endTs == null ? Infinity : a.endTs) - (b.endTs == null ? Infinity : b.endTs))
-	|| ((Number(a.id) || 0) - (Number(b.id) || 0));
+// ⚠️ 2026-10-03 收敛：本文件原有 `toTs`（宽容版）与 `byNewestStart` —— 前者与 sekai 那份**语义不同**、
+//    后者与 sekai 那份逐字相同（差别只在 `Number(a.id)` 与 `a.id`）。均已统一到
+//    `41-sources-shared.js` 的 `numOrNull` / `byNewestStart`。
 
 // ── 卡池侧 ──
 // 覆盖当前时刻的**有界**（≤400 天）简中池里取 startTs 最新的一期当"当期卡池"；
@@ -60,14 +55,14 @@ function ns_bestdori_parseBestdoriGacha(json, now = Date.now(), tz = "Asia/Shang
 		if (!Array.isArray(v.publishedAt) || !Array.isArray(v.closedAt)) continue;
 		sawIndexed = true;
 		const name = Array.isArray(v.gachaName) ? v.gachaName[ns_bestdori_CN_INDEX] : null;
-		const p = ns_bestdori_toTs(v.publishedAt[ns_bestdori_CN_INDEX]);
-		const c = ns_bestdori_toTs(v.closedAt[ns_bestdori_CN_INDEX]);
+		const p = numOrNull(v.publishedAt[ns_bestdori_CN_INDEX]);
+		const c = numOrNull(v.closedAt[ns_bestdori_CN_INDEX]);
 		if (!name || p == null || c == null || c <= p) continue;   // 该服区没出这期 → 跳过
 		pools.push({ id: k, name: String(name), type: String(v.type || ""), startTs: p, endTs: c, long: c - p > ns_bestdori_LONG_MS });
 	}
 	if (!sawIndexed) throw new Error("bestdori-gacha-bad-shape");   // 结构变了（不再有 publishedAt/closedAt 数组）
 	const active = pools.filter((x) => coversNow(x, now));
-	const bounded = active.filter((x) => !x.long).sort(ns_bestdori_byNewestStart);
+	const bounded = active.filter((x) => !x.long).sort(byNewestStart);
 	const cur = bounded[0] || null;
 	if (!cur) return null;   // 抓到数据但没有"当期"有界窗口 = 未公布（长期池不算当期）
 
@@ -109,13 +104,13 @@ function ns_bestdori_parseBestdoriEvents(json, now = Date.now(), tz = "Asia/Shan
 		if (!Array.isArray(v.startAt) || !Array.isArray(v.endAt)) continue;
 		sawIndexed = true;
 		const name = Array.isArray(v.eventName) ? v.eventName[ns_bestdori_CN_INDEX] : null;
-		const s = ns_bestdori_toTs(v.startAt[ns_bestdori_CN_INDEX]);
-		const e = ns_bestdori_toTs(v.endAt[ns_bestdori_CN_INDEX]);
+		const s = numOrNull(v.startAt[ns_bestdori_CN_INDEX]);
+		const e = numOrNull(v.endAt[ns_bestdori_CN_INDEX]);
 		if (!name || s == null || e == null || e <= s) continue;
 		rows.push({ id: k, name: String(name), type: String(v.eventType || ""), startTs: s, endTs: e });
 	}
 	if (!sawIndexed) throw new Error("bestdori-event-bad-shape");
-	const active = rows.filter((x) => coversNow(x, now)).sort(ns_bestdori_byNewestStart);
+	const active = rows.filter((x) => coversNow(x, now)).sort(byNewestStart);
 	const cur = active[0] || null;
 	if (!cur) return null;
 	const dates = fmtWindow(cur.startTs, cur.endTs, tz);

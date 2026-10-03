@@ -53,10 +53,10 @@ const ns_sekai_DEFAULT_EVENT = "https://sekai-world.github.io/sekai-master-db-cn
 // （用户 2026-10-03 要求「规则和原来一致」）。限时招募最长约 1 个月，120 天阈值不会误伤。
 const ns_sekai_LONG_MS = LONG_TERM_MAX_WINDOW_DAYS * 864e5;
 
-const ns_sekai_toTs = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
-const ns_sekai_byNewestStart = (a, b) => (b.startTs - a.startTs)
-	|| ((a.endTs == null ? Infinity : a.endTs) - (b.endTs == null ? Infinity : b.endTs))
-	|| ((a.id || 0) - (b.id || 0));
+// ⚠️ 2026-10-03 收敛：本文件原有 `toTs`（**严格版**：只接受 number，数字字符串返回 null）
+//    与 `byNewestStart`（与 bestdori 那份逐字相同）。均已统一到 `41-sources-shared.js` 的
+//    `numOrNull` / `byNewestStart`。取宽容版对本源无影响（`gachas.json`/`events.json` 里都是数字），
+//    但若源站哪天改成字符串就能直接吃下，不必再改代码。
 
 // ── 卡池侧 ──
 // 覆盖当前时刻的**有界**池里取 startTs 最新的一期当"当期招募"；长期池（2099 哨兵等）不参与"当期"，
@@ -66,14 +66,14 @@ function ns_sekai_parseSekaiGachas(json, now = Date.now(), tz = "Asia/Shanghai")
 	const pools = [];
 	for (const g of json) {
 		if (!g || typeof g !== "object") continue;
-		const s = ns_sekai_toTs(g.startAt), e = ns_sekai_toTs(g.endAt);
+		const s = numOrNull(g.startAt), e = numOrNull(g.endAt);
 		const name = typeof g.name === "string" ? g.name.trim() : "";
 		if (!name || s == null || e == null || e <= s) continue;
 		pools.push({ id: g.id, name, type: String(g.gachaType || ""), startTs: s, endTs: e, long: e - s > ns_sekai_LONG_MS });
 	}
 	if (pools.length === 0) throw new Error("sekai-gacha-bad-shape");
 	const active = pools.filter((x) => coversNow(x, now));
-	const bounded = active.filter((x) => !x.long).sort(ns_sekai_byNewestStart);
+	const bounded = active.filter((x) => !x.long).sort(byNewestStart);
 	const cur = bounded[0] || null;
 	if (!cur) return null;
 
@@ -103,15 +103,15 @@ function ns_sekai_parseSekaiEvents(json, now = Date.now(), tz = "Asia/Shanghai")
 	const rows = [];
 	for (const e of json) {
 		if (!e || typeof e !== "object") continue;
-		const s = ns_sekai_toTs(e.startAt);
-		const agg = ns_sekai_toTs(e.aggregateAt);
-		const end = agg != null ? agg : ns_sekai_toTs(e.closedAt);   // 源站无 endAt：优先 aggregateAt
+		const s = numOrNull(e.startAt);
+		const agg = numOrNull(e.aggregateAt);
+		const end = agg != null ? agg : numOrNull(e.closedAt);   // 源站无 endAt：优先 aggregateAt
 		const name = typeof e.name === "string" ? e.name.trim() : "";
 		if (!name || s == null || end == null || end <= s) continue;
-		rows.push({ id: e.id, name, type: String(e.eventType || ""), startTs: s, endTs: end, closedAt: ns_sekai_toTs(e.closedAt) });
+		rows.push({ id: e.id, name, type: String(e.eventType || ""), startTs: s, endTs: end, closedAt: numOrNull(e.closedAt) });
 	}
 	if (rows.length === 0) throw new Error("sekai-event-bad-shape");
-	const active = rows.filter((x) => coversNow(x, now)).sort(ns_sekai_byNewestStart);
+	const active = rows.filter((x) => coversNow(x, now)).sort(byNewestStart);
 	const cur = active[0] || null;
 	if (!cur) return null;
 	const dates = fmtWindow(cur.startTs, cur.endTs, tz);

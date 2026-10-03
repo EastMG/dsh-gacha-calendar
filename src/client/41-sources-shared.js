@@ -58,6 +58,32 @@
 		/** 同上，但把空白压成单空格并去首尾空白（原来只有 ournotes-global 这么做）。 */
 		function htmlTextTight(html) { return htmlText(html).replace(/\s+/g, " ").trim(); }
 
+		// ── 时间戳与排序（**唯一真源**）────────────────────────────────────────────
+		// 2026-10-03 收敛：
+		//   · `toTs` 有 2 份、语义还不同（bestdori **宽容**：接受数字字符串；sekai **严格**：只接受 number）
+		//   · `byNewestStart` 有 3 份，其中 umapyoi 那份**缺 null 守卫**
+		//     （`a.endTs - b.endTs` 在 endTs 为 null 时得 NaN，排序行为未定义）
+		//   现在统一为下面两个。取**宽容版** `numOrNull`：对 number 两者行为一致，
+		//   对数字字符串宽容版能解出来而严格版返回 null —— 即"能解析的更多"，属改进。
+
+		/** 源站时间戳 → 数字毫秒；`null` / `""` / 非数字 → null。接受数字字符串。 */
+		function numOrNull(v) {
+			if (v == null || v === "") return null;
+			const n = Number(v);
+			return Number.isFinite(n) ? n : null;
+		}
+
+		/**
+		 * 「按开始时间从新到旧」排序：开始晚的在前；同开始则**结束早的在前**（空结束排最后）；
+		 * 再同则按 id 升序。`endTs` 用 `Infinity` 兜空值 —— 原 umapyoi 版直接相减，
+		 * 一旦有 null 就得 NaN（潜在 bug），这里一并修掉。
+		 */
+		function byNewestStart(a, b) {
+			return (b.startTs - a.startTs)
+				|| ((a.endTs == null ? Infinity : a.endTs) - (b.endTs == null ? Infinity : b.endTs))
+				|| ((Number(a.id) || 0) - (Number(b.id) || 0));
+		}
+
 		async function fetchText(url, opts) {
 			const o = opts || {};
 			if (o.mode === "direct") {
@@ -114,8 +140,9 @@ function hoverSortByEnd(a, b) {
 	const sb = b.startTs == null ? Infinity : b.startTs;
 	return sa - sb;
 }
-// 永久/常驻活动计数行（措辞与本体 permanentLine 逐字一致）
-function hoverPermanentLine(count) { return count > 0 ? `以及常驻活动 ${count} 项` : ""; }
+// 永久/常驻活动计数行 —— **直接用本体 `permanentLine`**（30-parsers.js）。
+// ⚠️ 2026-10-03 收敛：这里曾有一份逐字相同的副本 `hoverPermanentLine`（措辞 `以及常驻活动 N 项`）。
+//    本体注释写着"抽成函数是为了**措辞只有一处**"，副本正是打破了那句话，已删。
 
 /**
  * 卡池列悬停。复刻本体 `buildPoolHover`：
@@ -153,7 +180,7 @@ function hoverEvent(items, tz, permanentCount = 0) {
 	const list = (Array.isArray(items) ? items : [])
 		.filter((x) => x && typeof x.name === "string" && x.name.trim() !== "")
 		.filter((x) => !isLongTermWindow(x));
-	if (list.length < 2) return hoverPermanentLine(permanentCount);
+	if (list.length < 2) return permanentLine(permanentCount);
 	const allTimed = list.every((x) => x.startTs != null && x.endTs != null);
 	const same = allTimed && new Set(list.map((x) => `${x.startTs}~${x.endTs}`)).size === 1;
 	const lines = list.map((x) => {
@@ -164,6 +191,6 @@ function hoverEvent(items, tz, permanentCount = 0) {
 		return raw ? `${x.name}   ${raw}` : x.name;
 	});
 	if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs, tz));
-	if (permanentCount > 0) lines.push(hoverPermanentLine(permanentCount));
+	if (permanentCount > 0) lines.push(permanentLine(permanentCount));
 	return lines.join("\n");
 }

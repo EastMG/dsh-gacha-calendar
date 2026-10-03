@@ -180,11 +180,20 @@ export default async function run() {
 			const code = src.split("\n").map((l) => l.replace(/\/\/.*$/, "")).join("\n");
 			if (/(?:^|[;{}\s])(?:const|let|var)\s+\S*ENT_EXTRA\s*=/.test(code)) dup.push(`${f}: 本地 ENT_EXTRA`);
 			if (/(?:^|[;{}\s])function\s+\S*(?:decodeExtra|plain)\s*\(/.test(code)) dup.push(`${f}: 本地 decodeExtra/plain`);
+			// 时间戳/排序工具：2026-10-03 收敛（曾各 2~3 份，umapyoi 那份还缺 null 守卫）
+			// ⚠️ 只认「被赋成函数」的：解析器里还有同名的**局部变量**（如
+			//    `const toTs = parseUmaInstant(...)`），那不是工具副本，不该报。
+			if (/(?:const|let|var)\s+\S*toTs\s*=\s*(?:\(|function\b|async\b)/.test(code)) dup.push(`${f}: 本地 toTs`);
+			if (/(?:const|let|var)\s+\S*byNewestStart\s*=\s*(?:\(|function\b|async\b)/.test(code)) dup.push(`${f}: 本地 byNewestStart`);
 		}
-		check("没有本地自制的 HTML 实体表与解码函数（只允许 41-sources-shared.js 那一份）", dup.length === 0, dup.join(" / "));
+		check("没有本地自制的实体表/解码/时间戳/排序工具（只允许 41-sources-shared.js 那一份）", dup.length === 0, dup.slice(0, 5).join(" / "));
 		const sh = readFileSync(path.join(SRC, "41-sources-shared.js"), "utf8");
+		const shCode = sh.split("\n").map((l) => l.replace(/\/\/.*$/, "")).join("\n");   // 查代码，别被解释性注释误报
 		check("共用 ENTITIES_EXTRA / decodeExtra / htmlText / htmlTextTight 存在",
-			/const ENTITIES_EXTRA = \{/.test(sh) && /function decodeExtra\(/.test(sh) && /function htmlText\(/.test(sh) && /function htmlTextTight\(/.test(sh));
+			/const ENTITIES_EXTRA = \{/.test(shCode) && /function decodeExtra\(/.test(shCode) && /function htmlText\(/.test(shCode) && /function htmlTextTight\(/.test(shCode));
+		check("共用 numOrNull / byNewestStart 存在", /function numOrNull\(/.test(shCode) && /function byNewestStart\(/.test(shCode));
+		check("常驻计数行只有本体那一份措辞（41 直接调 permanentLine，不再自带副本）",
+			!/function hoverPermanentLine/.test(shCode) && /function permanentLine\(/.test(readFileSync(path.join(SRC, "30-parsers.js"), "utf8")));
 		// 反证：并集表必须真的覆盖原来 5 张表里出现过的实体（抽查几个"只有个别表有"的）
 		for (const e of ["middot", "yen", "hearts", "star", "trade", "thinsp", "laquo", "copy"]) {
 			check(`并集表含 &${e};`, new RegExp(`\\b${e}:`).test(sh));
