@@ -17,11 +17,22 @@
 				async set() { /* 无存储：算完就返回，不持久化 */ }
 			};
 			// engine 会读取的存储键（宿主按自己的方式实现即可；读不到就用 DEFAULT_SETTINGS 的默认值）
-			//   order / hidden / removed / customEntries / customUrls / customEventUrls  —— 配置
-			//   lastData / lastRefresh / lastSource / lastVersion                      —— 缓存
+			//   order / hidden / shown / removed / customEntries / customUrls / customEventUrls —— 配置
+			//   lastData / lastRefresh / lastSource / lastVersion                            —— 缓存
 			//   （lastVersion = 产出该缓存的插件版本，用于"更新插件后首次启动强制刷新"，见 autoRefreshPlan）
+			//
+			// ⚠️ 2026-10-03 修：这里**漏了 `shown`**，后果是「出厂默认隐藏的条目，勾上也不抓」。
+			//    链路：设置页勾选 → 写入 `shown`（宿主表单）→ 面板直接读表单快照 `snapshot.value`，
+			//    所以**行能显示出来**；但引擎的 `readSettings()` 走这份 `CONFIG_KEYS`，
+			//    读不到 `shown`（永远回落到 DEFAULT_SETTINGS 的 `[]`）→ `isEntryHidden` 对
+			//    `defaultHidden` 条目恒为 true → `getVisibleEntries` 里没有它 → **refresh 一轮
+			//    一个请求都不给它发**。表现就是用户报的"勾了 p5x、点刷新，这条不刷新"。
+			//    受影响的正是 6 个 defaultHidden 条目：p5x / czn / ournotes / ddlezj /
+			//    ournotes-global / bh3（它们都在 43-sources-register.js，core 侧没有，
+			//    所以这个 bug 只在 DSH 插件里显现）。
+			//    防回归见 test/cases-rule-lint.mjs 的「DEFAULT_SETTINGS 的键必须都在 CONFIG_KEYS 里」。
 			const CONFIG_KEYS = [
-				"order", "hidden", "removed", "customEntries", "customUrls", "customEventUrls",
+				"order", "hidden", "shown", "removed", "customEntries", "customUrls", "customEventUrls",
 				"autoRefresh", "refreshMinutes", "lastData", "lastRefresh", "lastSource", "lastVersion"
 			];
 

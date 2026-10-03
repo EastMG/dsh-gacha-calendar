@@ -241,6 +241,28 @@ export default async function run() {
 		}
 	}
 
+	// ── 配置键必须成套：DEFAULT_SETTINGS 里有的，引擎 CONFIG_KEYS 必须都读 ──
+	// 2026-10-03 用户报「勾选 p5x 后点刷新，这条不刷新」→ 根因就是这里漏了一个键：
+	//   `shown`（用户明确打开的条目，用来覆盖出厂 `defaultHidden`）在 10-config.js 里有、
+	//   在 engine-head.js 的 CONFIG_KEYS 里**没有** → `readSettings()` 永远回落到 `[]`
+	//   → `isEntryHidden` 对 `defaultHidden` 条目恒为 true → 刷新**一个请求都不给它发**。
+	//   而面板直接读宿主表单快照，所以"行能显示出来" —— 正是用户看到的"显示了、但刷不动它"。
+	// 为什么必须机器查：加设置项很容易（10-config.js 一行），但让它真被引擎读到需要**同时**改
+	//   engine-head.js 的另一处；两处不在同一文件、没有类型约束、漏了也不报错。
+	{
+		const cfgText = readFileSync(path.join(SRC, "10-config.js"), "utf8");
+		const i = cfgText.indexOf("const DEFAULT_SETTINGS = {");
+		const defBlock = i >= 0 ? cfgText.slice(i, cfgText.indexOf("};", i)) : "";
+		const defKeys = [...defBlock.matchAll(/^\t{3}([A-Za-z_$][\w$]*):/gm)].map((m) => m[1]);
+		const ehText = readFileSync(path.join(SRC, "engine-head.js"), "utf8");
+		const j = ehText.indexOf("const CONFIG_KEYS = [");
+		const cfgBlock = j >= 0 ? ehText.slice(j, ehText.indexOf("];", j)) : "";
+		const cfgKeys = [...cfgBlock.matchAll(/"([A-Za-z_$][\w$]*)"/g)].map((m) => m[1]);
+		check("能解析出 DEFAULT_SETTINGS 与 CONFIG_KEYS（守卫自身没瞎）", defKeys.length >= 10 && cfgKeys.length >= 10, `def=${defKeys.length} cfg=${cfgKeys.length}`);
+		const missing = defKeys.filter((k) => !cfgKeys.includes(k));
+		check("DEFAULT_SETTINGS 的每个键都在引擎 CONFIG_KEYS 里（漏了就会「设了却不生效」）", missing.length === 0, "漏读：" + missing.join(", "));
+	}
+
 	// ── P2：不许再攒死声明（2026-10-03 一次清掉 13 个）──
 	// 判定：文件顶层声明，在**生产代码**里除声明行外 0 引用，且**未**被 44-test-exports.js 导出。
 	// ⚠️ 排除 44-test-exports.js 是关键：测试面符号（导出给测试的纯函数）看起来"没人用"，
