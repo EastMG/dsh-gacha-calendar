@@ -36,9 +36,11 @@
 				name: "初音未来：缤纷舞台·国服",
 				icon: "https://p16-sg.dailygn.com/obj/g-marketing-assets-sg/2021_12_15_07_41_24/icon_s54607.png",
 				url: "https://sekai-world.github.io/sekai-master-db-cn-diff/gachas.json",
-				source: "第三方数据",
+				// 站点名 + 资源名（对齐本体惯例：`Bwiki 往期祈愿` / `Bwiki 活动一览`）
+				// 旧值写的是「第三方数据」——那是**类别**不是站点名，用户 2026-10-03 要求改成网站名称。
+				source: "Sekai World 卡池表",
 				eventUrl: "https://sekai-world.github.io/sekai-master-db-cn-diff/events.json",
-				eventSource: "第三方数据",
+				eventSource: "Sekai World 活动表",
 			},
 
 			{
@@ -116,7 +118,8 @@
 				icon: "https://bang-dream-on.bushimo.jp/wordpress/wp-content/themes/bang-dream-on_prod/assets/images/common/apple-touch-icon-180x180.png",
 				defaultHidden: true,
 				eventUrl: "https://bang-dream-on.bushimo.jp/wp-json/wp/v2/posts?per_page=20&page=1",
-				eventSource: "官方公告",
+				// 日文站点 → 加语言括号（本体惯例，见 ba-jp 的 `官方公告（日文）`）
+				eventSource: "官方公告（日文）",
 			},
 
 			{
@@ -136,9 +139,10 @@
 				name: "赛马娘·日服",
 				icon: "https://umamusume.jp/apple-touch-icon.png",
 				url: "https://umamusume.jp/api/ajax/pr_info_index?format=json&page=1",
-				source: "官方公告",
+				// 日文站点 → 加语言括号（本体惯例，见 ba-jp 的 `官方公告（日文）`）
+				source: "官方公告（日文）",
 				eventUrl: "https://umamusume.jp/api/ajax/pr_info_index?format=json&page=1",
-				eventSource: "官方公告",
+				eventSource: "官方公告（日文）",
 				altSources: [{"label":"umapyoi（第三方，无卡池名）","url":"https://api.umapyoi.net/api/v1/gacha","fetcher":"uma-jp-umapyoi"}],
 				eventAltSources: [{"label":"Bwiki 活动（往期归档）","url":"https://wiki.biligame.com/umamusume/api.php?action=parse&page=活动&prop=text&format=json&formatversion=2","fetcher":"uma-jp-bwiki"}],
 			},
@@ -149,9 +153,10 @@
 				name: "赛马娘·国际服",
 				icon: "https://play-lh.googleusercontent.com/yN6cCSP7UB_2bsvlCxrtv-FUpEt1IvEFwr0Ucb3wr39QsAd5PLsueSVXuCinDbE4rifhMlX4YNtpLpkGnpsLhCQ=s64-rw",
 				url: "https://umamusume.com/api/ajax/pr_info_index?format=json",
-				source: "官方公告",
+				// 英文站点 → 加语言括号（本体惯例，见 ba-jp 的 `官方公告（日文）`）
+				source: "官方公告（英文）",
 				eventUrl: "https://umamusume.com/api/ajax/pr_info_index?format=json",
-				eventSource: "官方公告",
+				eventSource: "官方公告（英文）",
 			},
 
 			{

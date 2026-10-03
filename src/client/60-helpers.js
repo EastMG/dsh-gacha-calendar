@@ -234,8 +234,9 @@
 		// 默认爬取源显示名（设置页下拉默认项）
 		// urlField: "url"（卡池源）或 "eventUrl"（活动源）
 		// 卡池源：source 字段，否则域名；活动源：eventSource 标签，否则域名
-		// 该侧压根没配来源时（只抓另一侧的自定义条目会这样）→ 明确写成"未配置（不抓取X）"，
-		// 否则下拉里光一个"未配置"看着像坏了（实测：内置 11 款两侧都配了来源，只有自定义条目会遇到）
+		// 该侧压根没配来源时（只抓另一侧的自定义条目会这样）→ 就写"未配置"。
+		// ⚠️ 曾经写成"未配置（不抓取卡池/活动）"以免看着像坏了；用户 2026-10-03 明确要求**去掉括号注释**
+		//    （下拉里那一列本来就窄，括号反而喧宾夺主）→ 保持裸"未配置"。
 		function getDefaultSourceName(g, urlField) {
 			const isEvent = urlField === "eventUrl";
 			const u = isEvent ? g.eventUrl : g.url;
@@ -244,13 +245,13 @@
 				if (u && u.trim() !== "") {
 					try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u.trim(); }
 				}
-				return "未配置（不抓取活动）";
+				return "未配置";
 			}
 			if (g.source && g.source.trim() !== "") return g.source.trim();
 			if (u && u.trim() !== "") {
 				try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u.trim(); }
 			}
-			return "未配置（不抓取卡池）";
+			return "未配置";
 		}
 
 		// 可见条目 = 全部条目 - 隐藏条目
