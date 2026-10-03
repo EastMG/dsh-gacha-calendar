@@ -45,7 +45,8 @@
 //                  → 这里的 end 是**开奖时刻**，不是参与截止（口径不同）
 //      结论：外显仍取**公告正文**（玩家看到的活动时间就是正文那句），
 //      `news_meta` 只作**兜底**：当正文一个可解析窗口都抽不到时，用它的显式档期顶上，
-//      并在 `eventDatesRaw` / 悬停里**标明来源是 news_meta**（不冒充正文）。
+//      并在 `eventDatesRaw` / `bannerDatesRaw` 里标明来源是 news_meta（不冒充正文）。
+//      ⚠️ 这句来源说明**只进 raw 字段**（既有约定：本体也有条目这么做）；**悬停里不写**（见 §五）。
 //
 //  ⚠️ **详情端点有 Referer 门（实测）**：不带 Referer 一律 `HTTP 403 / body "Forbidden"`：
 //        · 桌面 UA + 无 Referer                     → 403
@@ -69,7 +70,8 @@
 //      是国服"中午开、下午收"的典型口径（与 bwiki 各源一致）；
 //    · 官方公告的发布时刻 `created_at` 落在 UTC+8 的整点/半点（10:00、04:00、12:00 等），
 //      而按 UTC+9 渲染会变成 11:00、05:00、13:00（不整）。
-//  → 因此本文件把 `tz` 默认写成 `Asia/Shanghai`，并在注释/悬停里都**如实标"推测"**。
+//  → 因此本文件把 `tz` 默认写成 `Asia/Shanghai`，并在**注释**里如实标"推测"
+//    （⚠️ 悬停里**不写**时区说明 —— 用户 2026-10-03：「元信息彻底删掉」，见 §五）。
 //
 // ══════════════════════════════════════════════════════════════════════════════
 // 三、正文档期抽取（**实测的格式清单**，全部来自 p4-*-detail-* 夹具）
@@ -121,12 +123,37 @@
 //   · 单篇详情 HTTP 404/410                                   → 跳过该篇
 //   · 全部候选都失败且出现过**硬错**（403/567/坏 JSON…）      → **throw**（别把封禁静默成"未公布"）
 //     （实测详情缺 Referer 就是 403 "Forbidden" —— 这种必须能被看见）
+//
+// ══════════════════════════════════════════════════════════════════════════════
+// 五、悬停排版（用户 2026-10-03：「元信息彻底删掉」）
+// ══════════════════════════════════════════════════════════════════════════════
+//  排版**不再本地实现**，一律调 `lib/env.js` 的 `hoverPool` / `hoverEvent`
+//  （与本体 `buildPoolHover` / `buildEventHover` 逐字一致），本文件只负责：
+//    · 卡池侧：每池一项 `{ name: 公告标题, label: 「池名：角色」, startTs, endTs }` → hoverPool
+//      （角色名空 → label 退化成池名；与本体 `banner：roles` 同构）
+//    · 活动侧：每条 `{ name: 公告标题, startTs, endTs }`，**先按结束时间升序排好**再传给 hoverEvent
+//      （`hoverEvent` 自己不排序，与本体一致）
+//    · 当期**不足 2 项**时两个工具返回 `""` → **不设** `bannerHover` / `eventHover` 字段，
+//      让 UI 走默认两行式（卡池 `池名：角色` ⏎ 档期；活动 `名称` ⏎ 档期）
+//
+//  🚫 以下信息**一律不进悬停文本**（只留在本文件的代码注释里）：
+//     · 来源站名 / 域名 / URL / API 名（米游社官方公告、bbs-api.miyoushe.com、getNewsList…）
+//     · 时区推定说明（"国服墙钟按 UTC+8 换算 —— 源站未标注时区＝推测"）
+//     · 抓取统计（"本轮有 N 篇公告正文抓取失败"）
+//     · 内部 id / 源站字段名（post_id、start_at_sec、end_at_sec、activity_status、news_meta…）
+//     · 游戏名 + 区服前缀（悬停里不重复游戏名）
+//     · 任何「（…）」形式的实现说明（"本篇第 N 段档期"、"起点为推断"、"源站 news_meta 显式档期"…）
+//  ⇒ 用户明确要求"直接删掉"：**删除**，不要把这些信息改放到悬停的别的行/字段里。
+//     （`bannerDatesRaw` / `eventDatesRaw` 是**既有**的"源站原文 / 溯源说明"约定字段，
+//      本次维持现状 —— 那不是"迁移目的地"，只是原本就长这样。）
 
-import { fetchJson, textOf, sourceInstant, sourceWallParts, fmtWindow } from "../lib/env.js";
+import { fetchJson, textOf, sourceInstant, sourceWallParts, fmtWindow, hoverPool, hoverEvent } from "../lib/env.js";
 
 export const MIYOUSHE_TZ = "Asia/Shanghai";                     // **推测**（理由见文件头 §二）
 export const MIYOUSHE_REFERER = "https://www.miyoushe.com/";    // 详情端点的 Referer 门（实测）
-export const MIYOUSHE_PROVENANCE = "米游社官方公告（档期由公告正文抽出；国服墙钟按 UTC+8 换算 —— 源站未标注时区＝推测）";
+// ⚠️ 这里**曾**导出 `MIYOUSHE_PROVENANCE`（"米游社官方公告（档期由公告正文抽出；国服墙钟按 UTC+8 换算
+//    —— 源站未标注时区＝推测）"），专门塞进悬停首行。用户 2026-10-03 要求「元信息彻底删掉」→
+//    常量与悬停首行**一并删除**。来源站名 / 时区推定这类信息只留在**本文件注释**里（§一/§二）。
 
 const LIST_BASE = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList";
 const DETAIL_BASE = "https://bbs-api.miyoushe.com/post/wapi/getPostFull";
@@ -413,29 +440,35 @@ export function miyousheRoles(text, stopAt = null) {
 //#region 抓取
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function hoverOf(windows, tz, note) {
-	const lines = [MIYOUSHE_PROVENANCE];
-	if (note) lines.push(note);
-	const total = new Map();
-	for (const w of windows) total.set(w.subject, (total.get(w.subject) || 0) + 1);
-	const nth = new Map();
-	for (const w of windows) {
-		const n = (nth.get(w.subject) || 0) + 1;
-		nth.set(w.subject, n);
-		const multi = total.get(w.subject) > 1 ? `（本篇第 ${n} 段档期）` : "";
-		const inf = w.inferred ? "（起点为推断）" : "";
-		// 兜底来源必须说清楚，别让读者以为是公告正文里的原文
-		const src = w.source === "news_meta" ? "（源站 news_meta 显式档期，非正文原文）" : "";
-		lines.push(`${fmtWindow(w.startTs, w.endTs, tz)}   ${w.subject}${multi}${inf}${src}`);
-	}
-	return lines.join("\n");
-}
-
-// 源站原文（悬停/raw 用）：正文抽的给原文；news_meta 兜底的给可读且可追溯的说明
+// 源站原文（`bannerDatesRaw` / `eventDatesRaw` 用）。
+// ⚠️ 这两个字段**会被 UI 的默认两行式直接显示**（面板取 `bannerDatesRaw || bannerDates`、
+//    `eventDatesRaw || eventDates`）—— 所以它们**只能放档期文本本身**，
+//    绝不能夹带「这来自哪个字段」之类的说明（用户 2026-10-03：「元信息彻底删掉」）。
+//    旧实现在 news_meta 兜底时返回 `news_meta 档期（源站显式字段，非正文）：…`，
+//    一旦兜底路径触发，这句话就会原样出现在面板上 —— 已修。
+//    「本窗口来自 news_meta 兜底」这一事实保留在 `p.source`（不显示）+ 代码注释里。
 function rawOf(p, tz) {
-	if (p.source === "news_meta") return `news_meta 档期（源站显式字段，非正文）：${fmtWindow(p.startTs, p.endTs, tz)}`;
+	if (p.source === "news_meta") return fmtWindow(p.startTs, p.endTs, tz);
 	return p.raw;
 }
+
+// ── 悬停条目 ──────────────────────────────────────────────────────────────────
+// 排版交给 lib/env.js 的 `hoverPool` / `hoverEvent`（与本体 buildPoolHover / buildEventHover 逐字一致）。
+// 用户 2026-10-03：「悬停里的元信息彻底删掉」→ 这里**只**产出名称与档期，别的一概不传。
+// 池名与本体 `banner：roles` 同构：有角色名 →「池名：角色」，没有 → 只写池名。
+const hoverPoolName = (w) => (w.roles ? `${w.subject}：${w.roles}` : w.subject);
+// 活动悬停顺序：结束时间升序（无/未知结束排在最后），并列再按开始时间 —— 与 lib/env.js 内部规则一致
+function byEndTs(a, b) {
+	const ea = a.endTs == null ? Infinity : a.endTs;
+	const eb = b.endTs == null ? Infinity : b.endTs;
+	if (ea !== eb) return ea - eb;
+	const sa = a.startTs == null ? Infinity : a.startTs;
+	const sb = b.startTs == null ? Infinity : b.startTs;
+	return sa - sb;
+}
+// `raw` 只在"缺起止"时才会被 hoverEvent 印出来；news_meta 兜底行的 raw 是内部字段说明
+// （`start_at_sec=…`）→ 不给它，免得内部字段名有机会漏进悬停。
+const hoverRaw = (w) => (w.source === "news_meta" ? "" : w.raw);
 
 // 列表 → 候选 → 逐篇详情 → 抽档期。返回值可能是 null（未公布）；结构性损坏直接抛。
 async function collectMiyousheSide(listUrl, signal, tz, now, want) {
@@ -450,7 +483,7 @@ async function collectMiyousheSide(listUrl, signal, tz, now, want) {
 	if (cands.length === 0) return null;                       // 该列表里没有本侧公告
 
 	const covering = [];
-	let okCount = 0, failed = 0, firstHardErr = null;
+	let okCount = 0, firstHardErr = null;
 	for (let idx = 0; idx < cands.length; idx++) {
 		if (idx > 0 && MIYOUSHE_DETAIL_DELAY_MS > 0) await sleep(MIYOUSHE_DETAIL_DELAY_MS);
 		const it = cands[idx];
@@ -458,7 +491,7 @@ async function collectMiyousheSide(listUrl, signal, tz, now, want) {
 		try {
 			d = parseMiyousheDetail(await fetchJson(miyousheDetailUrl(it.postId), { signal, mode: "proxy", referer: MIYOUSHE_REFERER }));
 		} catch (e) {
-			if (!isMiyousheMissing(e)) { failed++; if (!firstHardErr) firstHardErr = e; }
+			if (!isMiyousheMissing(e) && !firstHardErr) firstHardErr = e;
 			continue;
 		}
 		okCount++;
@@ -488,18 +521,16 @@ async function collectMiyousheSide(listUrl, signal, tz, now, want) {
 			if (!nm || !(nm.startTs <= now && nm.endTs >= now)) continue;
 			covering.push({
 				startTs: nm.startTs, endTs: nm.endTs,
-				raw: `news_meta start_at_sec=${nm.startTs / 1000} end_at_sec=${nm.endTs / 1000}`,
+				// ⚠️ 不留「news_meta start_at_sec=… end_at_sec=…」这种内部字段说明：内部字段名不进数据
+				//    （`eventDatesRaw` 的溯源说明由 rawOf 统一给；悬停由 hoverRaw 屏蔽）
+				raw: fmtWindow(nm.startTs, nm.endTs, tz),
 				subject: it.subject, postId: it.postId, roles: "",
 				inferred: false, note: "", source: "news_meta", status: nm.status
 			});
 		}
 	}
 	if (covering.length === 0) return null;                    // 抓到正文但没有覆盖 now 的档期 = 未公布
-	return {
-		primary: covering[0],
-		covering,
-		note: failed > 0 ? `※本轮有 ${failed} 篇公告正文抓取失败（限流/网络），结果可能不完整` : ""
-	};
+	return { primary: covering[0], covering };
 }
 
 /** 卡池侧（type=1 公告/补给；标题按卡池关键词分流） */
@@ -508,6 +539,15 @@ export async function gachaMiyoushe(url, signal, tz = MIYOUSHE_TZ, now = Date.no
 	const r = await collectMiyousheSide(listUrl, signal, tz, now, "gacha");
 	if (!r) return null;
 	const p = r.primary;
+	// 悬停 = 全部当期池，每池「池名：角色」一行 + 档期（排版交给共用工具 hoverPool，≥2 池才有内容）。
+	// 只有 1 个当期池 → "" → **不设** bannerHover，由 UI 走默认两行式「banner ⏎ bannerDates」。
+	const bannerHover = hoverPool(r.covering.map((w) => ({
+		name: w.subject,
+		label: hoverPoolName(w),
+		startTs: w.startTs,
+		endTs: w.endTs,
+		raw: hoverRaw(w)
+	})), tz);
 	return {
 		banner: p.subject,
 		roles: p.roles || "",
@@ -515,7 +555,7 @@ export async function gachaMiyoushe(url, signal, tz = MIYOUSHE_TZ, now = Date.no
 		bannerDatesRaw: rawOf(p, tz),
 		startTs: p.startTs,
 		endTs: p.endTs,
-		bannerHover: hoverOf(r.covering, tz, r.note)
+		...(bannerHover ? { bannerHover } : {})
 	};
 }
 
@@ -525,11 +565,20 @@ export async function eventsMiyoushe(url, signal, tz = MIYOUSHE_TZ, now = Date.n
 	const r = await collectMiyousheSide(listUrl, signal, tz, now, "event");
 	if (!r) return null;
 	const p = r.primary;
+	// 悬停 = 全部当期活动，结束时间升序逐行「名称 + 3 空格 + 档期」
+	// （排版交给共用工具 hoverEvent；它自己**不排序** → 这里先排好再传）。
+	// 只有 1 条 → "" → **不设** eventHover，由 UI 走默认两行式「event ⏎ eventDates」。
+	const eventHover = hoverEvent(r.covering.slice().sort(byEndTs).map((w) => ({
+		name: w.subject,
+		startTs: w.startTs,
+		endTs: w.endTs,
+		raw: hoverRaw(w)
+	})), tz);
 	return {
 		event: p.subject,
 		eventDates: fmtWindow(p.startTs, p.endTs, tz),
 		eventDatesRaw: rawOf(p, tz),
-		eventHover: hoverOf(r.covering, tz, r.note)
+		...(eventHover ? { eventHover } : {})
 	};
 }
 //#endregion

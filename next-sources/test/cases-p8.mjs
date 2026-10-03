@@ -3,19 +3,21 @@
 //   ② 卡厄斯梦境（`Module:Gacha/data` 的 Lua 表）
 //   ③ 雪松（`Template:首页游戏版本内容` 的 `{{时间进度条}}` 模板调用）
 //
-// 五个原则（照 CONVENTIONS.md 与 cases-b1/b3/p6）：
+// 六条原则（照 CONVENTIONS.md 与 cases-b1/b3/p6）：
 //   ① 全程离线：`useFixtures(OVERRIDES)` 注入夹具 fetch；纯函数测试直接读 fixtures/*/response.txt。
 //   ② 确定性：「当前时刻」一律用**夹具抓取时刻**（meta.capturedAt）或**显式注入的 now**，
 //      绝不用 Date.now() —— 否则一个月后"当期"变了会**假失败**。
 //   ③ 每个抓取器调用都包 try/catch，失败只记 ✗，不抛出去中断 test/all.mjs。
 //   ④ 断言里的硬编码值都是**夹具快照值**（重抓夹具后需同步更新），并标注推导过程。
 //   ⑤ `now` 一律传**第 4 个参数**，并显式验证"过期 → null"（证明 now 真的生效，不是摆设）。
+//   ⑥ 悬停断言按**方案 A**（用户 2026-10-03「元信息彻底删掉」）：只断言「本体同格式」+「不含元信息」，
+//      **不再**断言旧文本（来源站名/SMW 时间/tz 推定/抓取条数/起点锚点/档期在前）。见 P8-5 的两条全局守卫。
 //
 // 本地直接跑：node test/cases-p8.mjs
 
 import { readFileSync } from "node:fs";
 import { useFixtures, check, section, assertContract, summary } from "./harness.mjs";
-import { sourceInstant, sourceWallParts, fmtWindow } from "../lib/env.js";
+import { sourceInstant, sourceWallParts, fmtWindow, hoverPool, hoverEvent } from "../lib/env.js";
 import { SOURCES_P8, findSourceP8, listIdsP8 } from "../registry-p8.js";
 
 import {
@@ -58,6 +60,7 @@ const CZN_NOW_1 = sourceInstant(2026, 5, 30, 12, 0, CZN_TZ);           // 第 1 
 const CZN_NOW_2 = sourceInstant(2026, 6, 20, 12, 0, CZN_TZ);           // 第 2+3 批并存
 const CZN_NOW_3 = sourceInstant(2026, 7, 5, 0, 0, CZN_TZ);             // 只剩第 3 批
 const KEDR_NOW_OUT = sourceInstant(2026, 9, 1, 0, 0, KEDR_TZ);         // 个人剧情未开、卡池未开
+const KEDR_NOW_ONE = sourceInstant(2026, 10, 5, 12, 0, KEDR_TZ);       // 活动只剩「个人剧情」1 条在期（赛季/边境 10-04 收）
 const KEDR_NOW_AFTER = sourceInstant(2026, 12, 1, 0, 0, KEDR_TZ);      // 全部过期
 
 // 抓取器调用包装：失败只记 ✗（不抛，避免中断共享 runner）
@@ -326,12 +329,23 @@ export default async function run() {
 			&& rg.data.bannerDatesRaw === "2026年9月29日10:00 - 2026年11月3日23:59"
 			&& rg.data.startTs === 1790647200000 && rg.data.endTs === 1793721540000,
 			JSON.stringify(rg.ok && rg.data && [rg.data.bannerDates, rg.data.startTs, rg.data.endTs]));
-		check("roles = 时崎狂三；hover 首行写明来源/时区推测/起点锚点，并列出 6 个研发池",
+		// —— 卡池 hover：方案 A（2026-10-03）后一律走共用 hoverPool ——
+		// 旧的「战双帕弥什 bwiki 版本更新公告「…」（SMW 时间=…；…；tz=UTC+8 为推测；起点锚点=源站维护结束 …）」
+		// 首行元信息 + 「档期在前、名称在后」两处偏差都**必须**消失。
+		const zsHover = (rg.ok && rg.data && rg.data.bannerHover) || "";
+		const zsLines = zsHover.split("\n");
+		check("roles = 时崎狂三；hover 走共用 hoverPool：**6 池 × 2 行 = 12 行**、每池「池名：角色」+ 档期行（名称在前）",
 			rg.ok && rg.data && rg.data.roles === "时崎狂三"
-			&& /SMW 时间=20260922/.test(rg.data.bannerHover) && /tz=UTC\+8 为推测/.test(rg.data.bannerHover)
-			&& /起点锚点=源站维护结束 2026-09-24 05:00 - 11:00/.test(rg.data.bannerHover)
-			&& rg.data.bannerHover.split("\n").length === 7,
-			JSON.stringify(((rg.ok && rg.data && rg.data.bannerHover) || "").split("\n").slice(0, 2)));
+			&& zsLines.length === 12
+			&& zsLines[0] === "时崎狂三狙击 / 命运时崎狂三狙击：时崎狂三"
+			&& zsLines[1] === "09-29 10:00 ~ 11-03 23:59"
+			&& zsLines.filter((l) => l.includes("：")).length === 6
+			&& zsLines.filter((l) => /^\d{2}-\d{2} \d{2}:\d{2} ~ \d{2}-\d{2} \d{2}:\d{2}$/.test(l)).length === 6,
+			JSON.stringify(zsLines.slice(0, 4)));
+		check("⚠️ 战双卡池 hover 里**不再有任何元信息**（来源站名/URL/API 名/SMW 时间/tz 推定/抓取条数/起点锚点/「（…）」实现说明）",
+			rg.ok && rg.data
+			&& !/bwiki|biligame|api\.php|https?:|SMW|tz\s*=|UTC|推测|推定|共\s*扫描|起点锚点|维护结束|Lua|Module:|Template:|来源|起点推断/.test(zsHover),
+			JSON.stringify(zsHover.split("\n").slice(0, 1)));
 
 		const re = await grab(() => eventsZspms(ZSPMS_ASK_URL, undefined, ZSPMS_TZ, SNAP));
 		check("event 抓取成功（now 传第 4 参）", re.ok, re.err);
@@ -339,10 +353,20 @@ export default async function run() {
 		check("活动外显 = 内容档里结束最早的（悍猎季风-BOSS挑战 09-25 ~ 10-19）",
 			re.ok && re.data && re.data.event === "悍猎季风-BOSS挑战" && re.data.eventDates === "09-25 10:00 ~ 10-19 05:00",
 			JSON.stringify(re.ok && re.data && [re.data.event, re.data.eventDates]));
-		check("活动 hover 多行且注明「起点推断」；未开的活动（忽忽破坏王 10-08 起）不在外显",
-			re.ok && re.data && re.data.eventHover.split("\n").length >= 5 && /起点推断/.test(re.data.eventHover)
+		// —— 活动 hover：方案 A 后一律走共用 hoverEvent（名称在前 + 3 空格 + 档期，档期由 fmtWindow 格式化）——
+		const zeHover = (re.ok && re.data && re.data.eventHover) || "";
+		const zeLines = zeHover.split("\n");
+		check("活动 hover 走共用 hoverEvent：21 条当期、**行首是名称不是日期**、「名称 + 3 空格 + 档期」；未开的活动（忽忽破坏王 10-08 起）不在外显",
+			re.ok && re.data && zeLines.length === 21
+			&& zeLines[0] === "悍猎季风-BOSS挑战   09-25 10:00 ~ 10-19 05:00"
+			&& zeLines.every((l) => /\S {3}\d{2}-\d{2} \d{2}:\d{2} ~ \d{2}-\d{2} \d{2}:\d{2}$/.test(l))
+			&& zeLines.every((l) => !/^\d{2}-\d{2} /.test(l))          // 「档期在前」必须消失
 			&& re.data.event !== "忽忽破坏王",
-			JSON.stringify(re.ok && re.data && re.data.eventHover.split("\n").slice(0, 3)));
+			JSON.stringify(zeLines.slice(0, 3)));
+		check("⚠️ 战双活动 hover 里**不再有任何元信息**（来源站名/tz 推定/抓取条数/「起点推断」注记/起点锚点）",
+			re.ok && re.data
+			&& !/bwiki|biligame|api\.php|https?:|SMW|tz\s*=|UTC|推测|推定|共\s*扫描|起点锚点|维护结束|Lua|Module:|Template:|来源|起点推断|…以及另外/.test(zeHover),
+			JSON.stringify(zeLines.slice(0, 1)));
 
 		// now 真的是第 4 参：换成 2027 → 全部过期 → 两侧都 null（不硬凑）
 		const rgNull = await grab(() => gachaZspms(ZSPMS_ASK_URL, undefined, ZSPMS_TZ, ZSPMS_NOW_AFTER));
@@ -429,10 +453,26 @@ export default async function run() {
 		assertContract("卡厄斯梦境", "gacha", r2.ok ? r2.data : null);
 		check("now=07-05 → 只剩第 3 批（0005/0006）",
 			r3.ok && r3.data && r3.data.banner === "赛季限定主战员营救概率提升（海德玛丽）", JSON.stringify(r3.ok && r3.data && r3.data.banner));
-		check("hover 列出全部覆盖当期条目（4 条）且**不重复**角色名（`（海德玛丽）（海德玛丽）` 是回归项）",
-			r2.ok && r2.data && r2.data.bannerHover.split("\n").length === 5
-			&& !/）（/.test(r2.data.bannerHover) && (r2.data.bannerHover.match(/海德玛丽/g) || []).length === 1,
-			JSON.stringify(((r2.ok && r2.data && r2.data.bannerHover) || "").split("\n").slice(1, 3)));
+		// —— czn 卡池 hover：同样走共用 hoverPool（方案 A）——
+		// 旧实现的首行是「卡厄斯梦境 bwiki Module:Gacha/data（Lua 表 6 期；tz=UTC+8 为推测）」，
+		// 且每行「档期在前、名称在后」；两处偏差都必须消失（角色名在「池名：角色」里出现两次是**本体约定**：
+		// UI 单条兜底也是 `banner：roles`，故不再断言「角色名只出现一次」，改为断言精确格式与无 `）（` 连写）。
+		const cznHover = (r2.ok && r2.data && r2.data.bannerHover) || "";
+		const cznLines = cznHover.split("\n");
+		check("czn hover 走共用 hoverPool：4 池 × 2 行 = 8 行、每行「池名：角色」+ 档期（名称在前），无 `）（` 连写",
+			r2.ok && r2.data && cznLines.length === 8
+			&& cznLines[4] === "赛季限定主战员营救概率提升（海德玛丽）：海德玛丽"
+			&& cznLines[5] === "06-17 10:00 ~ 07-08 02:00"
+			&& cznLines.filter((l) => l.includes("：")).length === 4
+			&& !/）（/.test(cznHover)
+			&& cznLines.every((l) => !/^\d{2}-\d{2} /.test(l) || /^\d{2}-\d{2} \d{2}:\d{2} ~ \d{2}-\d{2} \d{2}:\d{2}$/.test(l)),
+			JSON.stringify(cznLines.slice(0, 3)));
+		check("⚠️ czn hover 里**不再有任何元信息**（来源站名/页面名/Lua 表条数/tz 推定）",
+			r2.ok && r2.data && !/bwiki|biligame|Module:|Lua|tz\s*=|UTC|推测|推定|来源|api\.php|https?:/.test(cznHover),
+			JSON.stringify(cznLines.slice(0, 1)));
+		check("同窗口的 2 池 → 只列池名、档期在末尾写一次（hoverPool 的 same 分支）",
+			r3.ok && r3.data && r3.data.bannerHover === "赛季限定主战员营救概率提升（海德玛丽）：海德玛丽\n赛季限定辅战员营救概率提升（西尔维亚）：西尔维亚\n06-17 10:00 ~ 07-08 02:00",
+			JSON.stringify(r3.ok && r3.data && r3.data.bannerHover));
 
 		// —— 备选页 `卡池记录`（只有 1 条，本批只做纯函数解析，不挂抓取器）——
 		const rec = fxJson("p8-czn-record/response.txt");
@@ -506,10 +546,13 @@ export default async function run() {
 			&& rg.data.bannerDatesRaw === "2026/10/02 05:00 ~ 2026/10/09 05:00"
 			&& rg.data.startTs === 1790888400000 && rg.data.endTs === 1791493200000,
 			JSON.stringify(rg.ok && rg.data && [rg.data.banner, rg.data.bannerDates, rg.data.startTs]));
-		check("卡池 hover：首行说明社区维护/分流口径/tz 推测 + 2 个池",
-			rg.ok && rg.data && /社区维护/.test(rg.data.bannerHover) && /tz=UTC\+8 为推测/.test(rg.data.bannerHover)
-			&& rg.data.bannerHover.split("\n").length === 3,
-			JSON.stringify(((rg.ok && rg.data && rg.data.bannerHover) || "").split("\n").length));
+		// —— kedr 卡池 hover：走共用 hoverPool（2 池同窗口 → 只列池名 + 档期只在末尾写一遍）——
+		check("卡池 hover 走共用 hoverPool：2 池同窗口 → 3 行（池名 ×2 + 末尾一次档期），**名称在前**",
+			rg.ok && rg.data && rg.data.bannerHover === "【精英集结·支援】西尔维亚：西尔维亚\n【演习·联合领】莫菲：莫菲\n10-02 05:00 ~ 10-09 05:00",
+			JSON.stringify(((rg.ok && rg.data && rg.data.bannerHover) || "").split("\n")));
+		check("⚠️ 雪松卡池 hover 里**不再有任何元信息**（来源站名/Template 页名/分流口径说明/tz 推定）",
+			rg.ok && rg.data && !/bwiki|biligame|Template:|社区维护|分流|tz\s*=|UTC|推测|推定|来源|api\.php|https?:/.test(rg.data.bannerHover),
+			JSON.stringify(((rg.ok && rg.data && rg.data.bannerHover) || "").split("\n")));
 
 		const re = await grab(() => eventsKedrTemplate(KEDR_TEMPLATE_URL, undefined, KEDR_TZ, SNAP));
 		check("event 抓取成功（now 传第 4 参）", re.ok, re.err);
@@ -519,10 +562,18 @@ export default async function run() {
 			&& re.data.eventDates === "09-25 05:00 ~ 10-09 05:00"
 			&& re.data.eventDatesRaw === "2026/9/25 05:00 ~ 2026/10/09 05:00",
 			JSON.stringify(re.ok && re.data && [re.data.event, re.data.eventDates]));
-		check("活动 hover 列出 3 条（含 战令通行证赛季 / 第三期边境防卫活动）",
-			re.ok && re.data && re.data.eventHover.split("\n").length === 4
-			&& /战令通行证赛季/.test(re.data.eventHover) && /第三期边境防卫活动/.test(re.data.eventHover),
-			JSON.stringify(re.ok && re.data && re.data.eventHover.split("\n").length));
+		const keHover = (re.ok && re.data && re.data.eventHover) || "";
+		const keLines = keHover.split("\n");
+		check("活动 hover 走共用 hoverEvent：3 条「名称 + 3 空格 + 档期」（**行首是名称**），含 战令通行证赛季 / 第三期边境防卫活动",
+			re.ok && re.data && keLines.length === 3
+			&& keLines[0] === "个人剧情活动第1期：【新机动队故事】   09-25 05:00 ~ 10-09 05:00"
+			&& /战令通行证赛季/.test(keHover) && /第三期边境防卫活动/.test(keHover)
+			&& keLines.every((l) => /\S {3}\d{2}-\d{2} \d{2}:\d{2} ~ \d{2}-\d{2} \d{2}:\d{2}$/.test(l))
+			&& keLines.every((l) => !/^\d{2}-\d{2} /.test(l)),
+			JSON.stringify(keLines));
+		check("⚠️ 雪松活动 hover 里**不再有任何元信息**（来源站名/Template 页名/分流口径说明/tz 推定）",
+			re.ok && re.data && !/bwiki|biligame|Template:|社区维护|分流|tz\s*=|UTC|推测|推定|来源|api\.php|https?:/.test(keHover),
+			JSON.stringify(keLines.slice(0, 1)));
 
 		// now 注入：09-01（卡池未开 → null；活动只有赛季/边境在期）
 		const rgOut = await grab(() => gachaKedrTemplate(KEDR_TEMPLATE_URL, undefined, KEDR_TZ, KEDR_NOW_OUT));
@@ -531,11 +582,22 @@ export default async function run() {
 			rgOut.ok && rgOut.data === null && reOut.ok && reOut.data
 			&& reOut.data.event === "战令通行证赛季" && reOut.data.eventDates === "08-31 05:00 ~ 10-04 05:00",
 			JSON.stringify([rgOut.ok ? rgOut.data : rgOut.err, reOut.ok && reOut.data && reOut.data.event]));
+		check("活动 hover 的「同窗口」分支：2 条同窗口 → 只列名称 + 档期在末尾写一次（与本体同）",
+			reOut.ok && reOut.data && reOut.data.eventHover === "战令通行证赛季\n第三期边境防卫活动\n08-31 05:00 ~ 10-04 05:00",
+			JSON.stringify(reOut.ok && reOut.data && reOut.data.eventHover));
 		const rgNull = await grab(() => gachaKedrTemplate(KEDR_TEMPLATE_URL, undefined, KEDR_TZ, KEDR_NOW_AFTER));
 		const reNull = await grab(() => eventsKedrTemplate(KEDR_TEMPLATE_URL, undefined, KEDR_TZ, KEDR_NOW_AFTER));
 		check("now=2026-12-01（全部过期）→ 两侧都 null（未公布，不硬凑）",
 			rgNull.ok && rgNull.data === null && reNull.ok && reNull.data === null,
 			JSON.stringify([rgNull.ok ? rgNull.data : rgNull.err, reNull.ok ? reNull.data : reNull.err]));
+		// 方案 A 规则 3：**只有 1 条**当期活动 → **不设 eventHover**（交回 UI 的「活动名 ⏎ 档期」两行式）
+		const rgOne = await grab(() => gachaKedrTemplate(KEDR_TEMPLATE_URL, undefined, KEDR_TZ, KEDR_NOW_ONE));
+		const reOne = await grab(() => eventsKedrTemplate(KEDR_TEMPLATE_URL, undefined, KEDR_TZ, KEDR_NOW_ONE));
+		check("now=10-05：活动只剩 个人剧情 1 条在期 → **不设 eventHover 字段**（交回 UI 两行式兜底）；卡池 2 池仍是 hoverPool",
+			rgOne.ok && rgOne.data && reOne.ok && reOne.data
+			&& reOne.data.event === "个人剧情活动第1期：【新机动队故事】" && !("eventHover" in reOne.data)
+			&& rgOne.data.bannerHover === "【精英集结·支援】西尔维亚：西尔维亚\n【演习·联合领】莫菲：莫菲\n10-02 05:00 ~ 10-09 05:00",
+			JSON.stringify([reOne.ok && reOne.data, rgOne.ok && rgOne.data && rgOne.data.bannerHover]));
 		check("抓取失败 → 抛错（不静默降级成 null）",
 			await throwsAsync(() => gachaKedrTemplate("https://example.invalid/kedr", undefined, KEDR_TZ, SNAP)));
 	}
@@ -563,6 +625,29 @@ export default async function run() {
 			check(`P8 ${id}.${side} 当期可用性符合实测（${expectData ? "有数据" : "如实 null"}）`,
 				r.ok && (expectData ? (r.data !== null && (side === "gacha" ? r.data.banner.length > 0 : r.data.event.length > 0)) : r.data === null),
 				JSON.stringify(r.ok ? (r.data && (r.data.banner || r.data.event)) : r.err));
+
+			// ── 方案 A 守卫（用户 2026-10-03）──────────────────────────────────
+			// ① 悬停里**不许**再出现元信息：来源站名/域名/URL/API 或页面名、tz 推定、抓取条数、内部 id、实现说明
+			//    （卡池侧没有当期池 → 字段缺失，也合法）
+			const hover = r.ok && r.data ? (side === "gacha" ? r.data.bannerHover : r.data.eventHover) : null;
+			check(`P8 ${id}.${side} 悬停无元信息（无来源站名/URL/页面名/tz 推定/抓取条数/内部 id）`,
+				!hover || !/bwiki|biligame\.com|api\.php|https?:|SMW|tz\s*=|UTC|推测|推定|共\s*扫描|起点锚点|维护结束|Module:|Template:|Lua 表|post_id|typeId|gameExtensionId/.test(hover),
+				JSON.stringify((hover || "").split("\n").slice(0, 2)));
+			// ② 排版与本体一致：**名称在前**（以日期开头的行只能是纯档期行）；活动侧档期前必须是**3 个空格**
+			const lines = hover ? hover.split("\n") : [];
+			const WINDOW_RE = /^(\d{4}-)?\d{2}-\d{2} \d{2}:\d{2} ~ (\d{4}-)?\d{2}-\d{2} \d{2}:\d{2}$/;
+			check(`P8 ${id}.${side} 悬停「名称在前」（日期开头的行必须是纯档期行）`,
+				lines.every((l) => WINDOW_RE.test(l) || !/^(\d{4}-)?\d{2}-\d{2} \d{2}:\d{2}/.test(l)),
+				JSON.stringify(lines.slice(0, 3)));
+			if (side === "event") {
+				check(`P8 ${id}.event 悬停档期排版与本体逐字一致（名称 + 3 空格 + fmtWindow 档期）`,
+					lines.every((l) => {
+						const m = WINDOW_RE.exec(l);
+						if (!m) return true;
+						return m.index === 0 || / {3}$/.test(l.slice(0, m.index));
+					}),
+					JSON.stringify(lines.slice(0, 3)));
+			}
 		}
 		// 夹具卫生：5 个夹具都是真响应（非空 JSON，且是预期的源站结构）
 		for (const f of ["p8-zspms-ask", "p8-zspms-notice", "p8-czn-module", "p8-kedr-template", "p8-czn-record"]) {
@@ -576,6 +661,14 @@ export default async function run() {
 		check("夹具里**没有** WAF 挑战页痕迹（567 / requestId / <html）",
 			["p8-zspms-ask", "p8-zspms-notice", "p8-czn-module", "p8-kedr-template", "p8-czn-record"]
 				.every((f) => !/requestId|<html|EdgeOne/i.test(fxText(`${f}/response.txt`).slice(0, 2000))));
+
+		// ── 方案 A 的兜底约定（本文件三源据此决定「是否设 bannerHover / eventHover」）──
+		// 共用工具对 **<2 池 / <2 条** 返回 ""（= 交回 UI 的「池名：角色 ⏎ 档期」/「event ⏎ 档期」两行式）。
+		// 所以解析器必须**不设**该字段（而不是设成空串）——上面 kedr now=10-05 那条就是端到端证据。
+		check("共用工具兜底：hoverPool / hoverEvent 对 <2 项返回 \"\"（解析器据此不设 hover 字段）",
+			hoverPool([{ name: "唯一池：角色", startTs: SNAP, endTs: SNAP + 864e5 }], ZSPMS_TZ) === ""
+			&& hoverEvent([{ name: "唯一活动", startTs: SNAP, endTs: SNAP + 864e5 }], ZSPMS_TZ) === ""
+			&& hoverPool([], ZSPMS_TZ) === "" && hoverEvent([], ZSPMS_TZ) === "");
 	}
 	//#endregion
 

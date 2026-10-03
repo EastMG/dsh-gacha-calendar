@@ -39,7 +39,7 @@
 //   维护 09:00~12:00）；② 每日刷新点 05:00 是国服惯例；③ 同一条公告里的维护窗口与
 //   卡池窗口同源同口径。属**推定**，报告里已注明（非硬证据）。
 
-import { fetchJson, textOf, sourceInstant, sourceWallParts, fmtWindow } from "../lib/env.js";
+import { fetchJson, textOf, sourceInstant, sourceWallParts, fmtWindow, hoverEvent } from "../lib/env.js";
 
 export const GF2_BASE = "https://gf2-web-preregister-api.sunborngame.com";
 const GF2_HOME = "https://gf2.sunborngame.com/";
@@ -227,6 +227,29 @@ function cleanTitle(t) {
 	return String(t == null ? "" : t).replace(/\s+/g, " ").trim();
 }
 
+// 活动名（悬停行首用）：标题去掉「现已开启/限时开启/正式开启」这类**通用开启语**，其余原样保留。
+//   `【静默突触】现已开启` → `【静默突触】`
+// 为什么要去：一行里若写成「【静默突触】现已开启·玩法开启时间」，「开启」重复两次很难读。
+// 去不掉（标题本身就是完整名称）时回退原标题，绝不返回空串。
+// ⚠️ 副词组必须**含「现」**（实测夹具标题就是「现已开启」），且动词组必须**必需**：
+//    若写成 `(?:已|限时)?(?:开启|上线|开放)?$`，因为整组可空，引擎会退化成只吃掉末尾的「开」，
+//    把「现已开启」削成「现」（实测踩到）。
+const GF2_OPEN_SUFFIX = /[!！。.\s]*((?:现已|现已正式|正式|限时|即将|已)?(?:开启|上线|开放))[!！。.\s]*$/;
+export function gf2EventName(title) {
+	const s = cleanTitle(title).replace(GF2_OPEN_SUFFIX, "").trim();
+	return s || cleanTitle(title);
+}
+
+// 一个「活动名 + 该窗口的区分名（源站标签，如「玩法开启时间」/「奖励兑换时间」）」。
+// 同一条公告里多个**不同名**的时间窗（玩法开启 / 奖励兑换）必须能互相区分，
+// 且**行首必须可读名称而不是纯档期**（用户 2026-10-03 反馈的偏差②，少前2 最严重：
+// 旧悬停里根本没有活动名，只有 `09-22 12:00 ~ 11-03 08:59   玩法开启时间`）。
+// 拿不到标签的行退化为「活动名」+ 该行 raw 原文（由 hoverEvent 处理，不硬造标签）。
+function gf2WindowName(baseName, w) {
+	const label = String((w && w.label) || "").trim();
+	return label ? `${baseName}·${label}` : baseName;
+}
+
 // 选当期窗口：优先「覆盖 now」的（越快结束越该被盯住，与插件 selectCurrent 同口径），
 // 其次未来最近要开的，最后退化为结束最晚的。
 export function selectGf2Window(wins, now) {
@@ -298,17 +321,26 @@ export async function eventsGf2(url, signal, tz = GF2_TZ) {
 		const wins = parseGf2Windows(textOf(d.Content || ""), tz, hint);
 		const w = selectGf2Window(wins, now);
 		if (!w) return null;
-		// 只把**覆盖当前时刻**的窗口当作"当期"，其余（未来/已过）不列进 hover，避免误导
-		const hover = wins
+		// 悬停：只把**覆盖当前时刻**的窗口当作"当期"，其余（未来/已过）不列进 hover，避免误导。
+		// 格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover）：`名称` + 3 空格 + `档期`。
+		// 名称 = 活动名 + 该窗口的源站标签（「玩法开启时间」/「奖励兑换时间」），这样一条公告里的
+		// 多个不同名窗口既**行首可读**（不再是纯档期打头），又能互相区分。
+		// 只有 1 条窗口 → hoverEvent 返回 "" → 不设 eventHover，由 UI 走默认两行式。
+		const baseName = gf2EventName(it.title);
+		const active = wins
 			.filter((x) => x.startTs <= now && x.endTs >= now)
-			.sort((a, b) => a.endTs - b.endTs)
-			.map((x) => `${fmtWindow(x.startTs, x.endTs, tz)}${x.label ? `   ${x.label}` : ""}`)
-			.join("\n");
+			.sort((a, b) => a.endTs - b.endTs);
+		const eventHover = hoverEvent(active.map((x) => ({
+			name: gf2WindowName(baseName, x),
+			startTs: x.startTs,
+			endTs: x.endTs,
+			raw: x.raw
+		})), tz);
 		return {
 			event: cleanTitle(it.title),
 			eventDates: fmtWindow(w.startTs, w.endTs, tz),
 			eventDatesRaw: w.raw,
-			eventHover: hover
+			...(eventHover ? { eventHover } : {})
 		};
 	});
 }

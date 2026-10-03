@@ -45,6 +45,101 @@
 		}
 		//#endregion
 
+		//#region 悬停排版共用工具（**从 next-sources/lib/env.js 原样内联，勿手改**）
+		// 方案 A（用户 2026-10-03）：新增来源的悬停频出「格式/规则与原有条目差别很大」，
+		// 根因是各批次各写各的。这里把排版逻辑做成唯一真源，解析器一律调用。
+		// 本区域内容由 merge-next-sources.mjs 从 env.js 的「悬停排版」区域抽取，改实现请改 env.js。
+// ── 为什么单独立一个区域 ──
+// 用户 2026-10-03 反馈「新增游戏的悬停样式/格式/规则和原来的差别很大」。核实后确认：
+// 各批次解析器**各写各的悬停**，出现了三类偏差 ——
+//   ① 悬停里塞元信息（来源 URL / 时区推定 / 抓取条数 / 实现细节）—— 本体条目**从不**这样做
+//   ② 「档期在前、名称在后」（本体一律 `名称 + 3 空格 + 档期`）
+//   ③ 档期用源站原文而非 fmtWindow 格式化
+// 修法（方案 A）：把本体那两个函数的排版逻辑抽到这里做**唯一真源**，解析器一律调用。
+//
+// ── 为什么能同时服务测试与运行时 ──
+//   · Node 测试直接 `import { hoverPool, hoverEvent } from "../lib/env.js"`
+//   · 插件运行时由生成器把**本区域原样内联**进 ADAPTER（见 diag/handoff-2026/merge-next-sources.mjs）
+//   ⇒ 只有一份实现，不存在漂移。
+//
+// ── 与本体唯一的差别 ──
+// 本体的两个函数调 `fmtWindow(ts, endTs)` **漏传 tz**（`wallOf` 会退回本机时区）；
+// 这里 tz 是**显式参数**，非 UTC+8 的源（日服 JST / 国际服 UTC）才能排对时刻。
+//
+// ── 返回 "" 的语义（与本体一致，调用方必须遵守）──
+// 「当期条数 < 2」时返回 ""，表示**交回 UI 的默认单条两行式**：
+//   卡池 `池名：角色名` ⏎ `档期`；活动 `名称` ⏎ `档期`。
+// 所以调用方**不要**在返回值后面再拼任何东西；空串就让字段留空。
+
+// 长期/常驻判定：声明窗口超过 120 天的不当作「当期活动」（阈值同本体 EVENT_MAX_WINDOW_DAYS）
+const HOVER_MAX_WINDOW_DAYS = 120;
+function hoverIsLongTerm(x) {
+	return !!x && x.startTs != null && x.endTs != null && (x.endTs - x.startTs) > HOVER_MAX_WINDOW_DAYS * 864e5;
+}
+// 排序：结束时间升序（无/未知结束时间排最后），再按开始时间
+function hoverSortByEnd(a, b) {
+	const ea = a.endTs == null ? Infinity : a.endTs;
+	const eb = b.endTs == null ? Infinity : b.endTs;
+	if (ea !== eb) return ea - eb;
+	const sa = a.startTs == null ? Infinity : a.startTs;
+	const sb = b.startTs == null ? Infinity : b.startTs;
+	return sa - sb;
+}
+// 永久/常驻活动计数行（措辞与本体 permanentLine 逐字一致）
+function hoverPermanentLine(count) { return count > 0 ? `以及常驻活动 ${count} 项` : ""; }
+
+/**
+ * 卡池列悬停。复刻本体 `buildPoolHover`：
+ *   每池两行 —— `池名：角色` ⏎ `档期`；窗口完全相同的池合并时间（只在末尾写一遍）。
+ * `pools` 项：`{ name, label?, startTs?, endTs?, raw? }`（`label` 优先于 `name`）。
+ * 返回 "" = 不足 2 池，交回 UI 默认两行式。
+ */
+function hoverPool(pools, tz) {
+	const list = (Array.isArray(pools) ? pools : [])
+		.filter((p) => p && typeof p.name === "string" && p.name.trim() !== "")
+		.sort(hoverSortByEnd);
+	if (list.length < 2) return "";
+	const allTimed = list.every((p) => p.startTs != null && p.endTs != null);
+	const same = allTimed && new Set(list.map((p) => `${p.startTs}~${p.endTs}`)).size === 1;
+	const lines = [];
+	for (const p of list) {
+		lines.push(p.label || p.name);
+		if (same) continue;
+		const t = p.startTs != null && p.endTs != null ? fmtWindow(p.startTs, p.endTs, tz) : String(p.raw || "").trim();
+		if (t) lines.push(t);
+	}
+	if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs, tz));
+	return lines.join("\n");
+}
+
+/**
+ * 活动列悬停。复刻本体 `buildEventHover`：
+ *   每条一行 `名称` + **3 空格** + `档期`（档期用 fmtWindow 格式化）；
+ *   窗口完全相同时只列名称、末尾写一次档期；缺起止的行显示该行 `raw` 原文。
+ * **不排序**（与本体一致：调用方负责排序）。
+ * `permanentCount` = 永久/常驻活动数，只在末尾补一行计数。
+ * 返回 "" = 不足 2 条（交回 UI 默认两行式）。
+ */
+function hoverEvent(items, tz, permanentCount = 0) {
+	const list = (Array.isArray(items) ? items : [])
+		.filter((x) => x && typeof x.name === "string" && x.name.trim() !== "")
+		.filter((x) => !hoverIsLongTerm(x));
+	if (list.length < 2) return hoverPermanentLine(permanentCount);
+	const allTimed = list.every((x) => x.startTs != null && x.endTs != null);
+	const same = allTimed && new Set(list.map((x) => `${x.startTs}~${x.endTs}`)).size === 1;
+	const lines = list.map((x) => {
+		if (x.startTs != null && x.endTs != null) {
+			return same ? x.name : `${x.name}   ${fmtWindow(x.startTs, x.endTs, tz)}`;
+		}
+		const raw = String(x.raw || "").trim();
+		return raw ? `${x.name}   ${raw}` : x.name;
+	});
+	if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs, tz));
+	if (permanentCount > 0) lines.push(hoverPermanentLine(permanentCount));
+	return lines.join("\n");
+}
+		//#endregion
+
 
 		// ===== 内联自 next-sources/parsers/p5x.js（模块级标识符已加 ns_p5x_ 前缀）=====
 
@@ -1204,8 +1299,11 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 
 const ns_sekai_DEFAULT_GACHA = "https://sekai-world.github.io/sekai-master-db-cn-diff/gachas.json";
 const ns_sekai_DEFAULT_EVENT = "https://sekai-world.github.io/sekai-master-db-cn-diff/events.json";
-const ns_sekai_LONG_MS = 400 * 86400e3;   // >400 天 = 长期/常驻池（2099 哨兵）
-const ns_sekai_HOVER_MAX = 20;
+// 长期/常驻池阈值：**对齐本体** `EVENT_MAX_WINDOW_DAYS = 120`（本体对"长期/常驻玩法"的定义）。
+// 旧值 400 天只够挡住 2099 哨兵值，会放过 365 天的**永久**池 ——
+// 实测 `新手限定★4自选阶梯招募`（03-26 16:00 ~ 次年 03-26 15:59，整 365 天）就是这样漏进"当期招募"的
+// （用户 2026-10-03 要求「规则和原来一致」）。限时招募最长约 1 个月，120 天阈值不会误伤。
+const ns_sekai_LONG_MS = 120 * 86400e3;
 
 const ns_sekai_toTs = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 const ns_sekai_byNewestStart = (a, b) => (b.startTs - a.startTs)
@@ -1213,7 +1311,8 @@ const ns_sekai_byNewestStart = (a, b) => (b.startTs - a.startTs)
 	|| ((a.id || 0) - (b.id || 0));
 
 // ── 卡池侧 ──
-// 覆盖当前时刻的**有界**池里取 startTs 最新的一期当"当期招募"；长期池不参与（只在 hover 报个数）。
+// 覆盖当前时刻的**有界**池里取 startTs 最新的一期当"当期招募"；长期池（2099 哨兵等）不参与"当期"，
+// 也不进悬停（它们恒在架，列出来是噪音）。
 function ns_sekai_parseSekaiGachas(json, now = Date.now(), tz = "Asia/Shanghai") {
 	if (!Array.isArray(json)) throw new Error("sekai-gacha-bad-shape");
 	const pools = [];
@@ -1231,17 +1330,13 @@ function ns_sekai_parseSekaiGachas(json, now = Date.now(), tz = "Asia/Shanghai")
 	if (!cur) return null;
 
 	const dates = fmtWindow(cur.startTs, cur.endTs, tz);
-	// 同名同期（实测：阶梯招募/高级礼物招募各按角色重复 4~6 条）→ 合并成一行并标 ×n
-	const pooled = [];
-	for (const p of bounded) {
-		const hit = pooled.find((x) => x.name === p.name && x.startTs === p.startTs && x.endTs === p.endTs);
-		if (hit) hit.n += 1; else pooled.push({ ...p, n: 1 });
-	}
-	const shown = pooled.slice(0, ns_sekai_HOVER_MAX).map((p) => `${p.name}（${p.type}）${p.n > 1 ? `×${p.n}` : ""}  ${fmtWindow(p.startTs, p.endTs, tz)}`);
-	if (pooled.length > shown.length) shown.push(`…另有 ${pooled.length - shown.length} 组同期招募未列出`);
-	const longN = active.length - bounded.length;
-	if (longN > 0) shown.push(`另有 ${longN} 个长期/常驻招募（endAt 是 2099 之类的哨兵值，未计入"当期"）`);
-
+	// 悬停 = 全部当期**有界**池（长期池不参与"当期"，见上）。每池一行池名 + 档期，窗口完全相同则
+	// 档期只在末尾写一遍 —— 排版交给共用工具 hoverPool（与本体 buildPoolHover 逐字一致）。
+	// 源站没有角色名 → name 就用池名本身（对应本体的「池名：角色」里的池名位置）。
+	// 池名里的「（ceil）」等后缀来自 `gachaType` 枚举，**不是源站原文** → 不进悬停；
+	// 同名同窗的阶梯/高级礼物招募多条各自成行（源站如此，不再合并成 ×n）。
+	const hover = hoverPool(bounded.map((p) => ({ name: p.name, startTs: p.startTs, endTs: p.endTs })), tz);
+	// 只有 1 个当期池 → hover 为 ""，**不设 bannerHover**，由 UI 走默认两行式「banner ⏎ bannerDates」
 	return {
 		banner: cur.name,
 		roles: "",
@@ -1249,7 +1344,7 @@ function ns_sekai_parseSekaiGachas(json, now = Date.now(), tz = "Asia/Shanghai")
 		bannerDatesRaw: dates,
 		startTs: cur.startTs,
 		endTs: cur.endTs,
-		bannerHover: shown.length >= 2 ? shown.join("\n") : ""
+		...(hover ? { bannerHover: hover } : {})
 	};
 }
 
@@ -1272,12 +1367,26 @@ function ns_sekai_parseSekaiEvents(json, now = Date.now(), tz = "Asia/Shanghai")
 	const cur = active[0] || null;
 	if (!cur) return null;
 	const dates = fmtWindow(cur.startTs, cur.endTs, tz);
-	// 源站没有"活动起止"这一对字段名 → 悬停里注明映射，避免读者以为 endAt 是从源站直接读到的
-	const raw = `${dates}（源站无 endAt：结束取 aggregateAt${cur.closedAt != null ? `；closedAt=${fmtWindow(cur.closedAt, cur.closedAt, tz).split(" ~ ")[0]} 为结果公布` : ""}）`;
-	const hover = active.length >= 2
-		? active.map((x) => `${x.name}（${x.type}）  ${fmtWindow(x.startTs, x.endTs, tz)}`).join("\n")
-		: "";
-	return { event: cur.name, eventDates: dates, eventDatesRaw: raw, eventHover: hover };
+	// ⚠️ 降级逻辑（保留）：源站 `events.json` **没有** `endAt` 字段，活动游玩期取 `startAt ~ aggregateAt`
+	//    （aggregateAt = 活动结束、开始统计的时刻）；aggregateAt 缺失时退回 `closedAt`。
+	//    这句说明是**实现细节**，只留在代码注释里，**不进悬停**。
+	// `eventDatesRaw`：既有约定是"保留源站原文"，这里如实记录上面那次映射（本体也有条目这么做）。
+	// `eventDatesRaw` 就写格式化档期本身：UI 的默认两行式会直接显示它
+	// （`eventDatesRaw || eventDates`），所以**不能**在这儿夹带说明文字
+	// —— 用户 2026-10-03 明确要求「元信息彻底删掉」。实测旧版把说明拼进来后，
+	//    面板上出现了 `09-30 15:00 ~ 10-09 20:59（源站无 endAt：结束取 aggregateAt；…）` 这种尾巴。
+	const raw = dates;
+	// 悬停 = 全部当期活动，结束时间升序逐行「名称 + 3 空格 + 档期」（档期由共用工具 fmtWindow 格式化，
+	// 与本体 buildEventHover 逐字一致）。**不排序**由工具负责 → 这里先排好序再传。
+	// 只有 1 条 → 工具返回 ""，不设 eventHover，由 UI 走默认两行式「event ⏎ eventDates」。
+	const ordered = active.slice().sort((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs));
+	const hover = hoverEvent(ordered.map((x) => ({ name: x.name, startTs: x.startTs, endTs: x.endTs })), tz);
+	return {
+		event: cur.name,
+		eventDates: dates,
+		eventDatesRaw: raw,
+		...(hover ? { eventHover: hover } : {})
+	};
 }
 
 // 抓取器：mode="direct"（实测 sekai-world.github.io = GitHub Pages 静态资源，带 ACAO）
@@ -1520,6 +1629,29 @@ function ns_gf2_cleanTitle(t) {
 	return String(t == null ? "" : t).replace(/\s+/g, " ").trim();
 }
 
+// 活动名（悬停行首用）：标题去掉「现已开启/限时开启/正式开启」这类**通用开启语**，其余原样保留。
+//   `【静默突触】现已开启` → `【静默突触】`
+// 为什么要去：一行里若写成「【静默突触】现已开启·玩法开启时间」，「开启」重复两次很难读。
+// 去不掉（标题本身就是完整名称）时回退原标题，绝不返回空串。
+// ⚠️ 副词组必须**含「现」**（实测夹具标题就是「现已开启」），且动词组必须**必需**：
+//    若写成 `(?:已|限时)?(?:开启|上线|开放)?$`，因为整组可空，引擎会退化成只吃掉末尾的「开」，
+//    把「现已开启」削成「现」（实测踩到）。
+const ns_gf2_GF2_OPEN_SUFFIX = /[!！。.\s]*((?:现已|现已正式|正式|限时|即将|已)?(?:开启|上线|开放))[!！。.\s]*$/;
+function ns_gf2_gf2EventName(title) {
+	const s = ns_gf2_cleanTitle(title).replace(ns_gf2_GF2_OPEN_SUFFIX, "").trim();
+	return s || ns_gf2_cleanTitle(title);
+}
+
+// 一个「活动名 + 该窗口的区分名（源站标签，如「玩法开启时间」/「奖励兑换时间」）」。
+// 同一条公告里多个**不同名**的时间窗（玩法开启 / 奖励兑换）必须能互相区分，
+// 且**行首必须可读名称而不是纯档期**（用户 2026-10-03 反馈的偏差②，少前2 最严重：
+// 旧悬停里根本没有活动名，只有 `09-22 12:00 ~ 11-03 08:59   玩法开启时间`）。
+// 拿不到标签的行退化为「活动名」+ 该行 raw 原文（由 hoverEvent 处理，不硬造标签）。
+function ns_gf2_gf2WindowName(baseName, w) {
+	const label = String((w && w.label) || "").trim();
+	return label ? `${baseName}·${label}` : baseName;
+}
+
 // 选当期窗口：优先「覆盖 now」的（越快结束越该被盯住，与插件 selectCurrent 同口径），
 // 其次未来最近要开的，最后退化为结束最晚的。
 function ns_gf2_selectGf2Window(wins, now) {
@@ -1591,17 +1723,26 @@ async function ns_gf2_eventsGf2(url, signal, tz = ns_gf2_GF2_TZ) {
 		const wins = ns_gf2_parseGf2Windows(textOf(d.Content || ""), tz, hint);
 		const w = ns_gf2_selectGf2Window(wins, now);
 		if (!w) return null;
-		// 只把**覆盖当前时刻**的窗口当作"当期"，其余（未来/已过）不列进 hover，避免误导
-		const hover = wins
+		// 悬停：只把**覆盖当前时刻**的窗口当作"当期"，其余（未来/已过）不列进 hover，避免误导。
+		// 格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover）：`名称` + 3 空格 + `档期`。
+		// 名称 = 活动名 + 该窗口的源站标签（「玩法开启时间」/「奖励兑换时间」），这样一条公告里的
+		// 多个不同名窗口既**行首可读**（不再是纯档期打头），又能互相区分。
+		// 只有 1 条窗口 → hoverEvent 返回 "" → 不设 eventHover，由 UI 走默认两行式。
+		const baseName = ns_gf2_gf2EventName(it.title);
+		const active = wins
 			.filter((x) => x.startTs <= now && x.endTs >= now)
-			.sort((a, b) => a.endTs - b.endTs)
-			.map((x) => `${fmtWindow(x.startTs, x.endTs, tz)}${x.label ? `   ${x.label}` : ""}`)
-			.join("\n");
+			.sort((a, b) => a.endTs - b.endTs);
+		const eventHover = hoverEvent(active.map((x) => ({
+			name: ns_gf2_gf2WindowName(baseName, x),
+			startTs: x.startTs,
+			endTs: x.endTs,
+			raw: x.raw
+		})), tz);
 		return {
 			event: ns_gf2_cleanTitle(it.title),
 			eventDates: fmtWindow(w.startTs, w.endTs, tz),
 			eventDatesRaw: w.raw,
-			eventHover: hover
+			...(eventHover ? { eventHover } : {})
 		};
 	});
 }
@@ -1809,6 +1950,38 @@ function ns_bandori_pickBandoriEventSection(sections) {
 	if (pool.length) return pool[0];
 	return (sections || []).find((s) => s.primary && !ns_bandori_GACHA_SEC_RE.test(s.name)) || null;
 }
+// 悬停标签用的实体清理：卡池/活动名进悬停前必须把 `&middot;` 之类还原，
+// 否则同一期内容会出现两种形态 —— 外显 banner 走 `ns_bandori_bandoriTitle`（已还原成 `·`），
+// 而悬停用节里的 quote（未还原，会显示成 `黄金周纪念&middot;前篇…`）。
+// 外显与悬停**必须逐字一致**。
+// ⚠️ 只用于悬停标签；roles 字段的对外契约不变（既有的 `&sup2;` 形态由既有测试钉住）。
+function ns_bandori_hoverLabel(s) {
+	return ns_bandori_decodeExtra(String(s == null ? "" : s)).replace(/\s+/g, " ").trim();
+}
+// 每节的主窗口 → 悬停条目 `{ name, startTs, endTs, raw }`（hoverPool / hoverEvent 的入参形状）。
+// 名称取节内第一个「…」里的名字（quote），比整段干净；raw 保留源站原文（缺起止时才用）。
+function ns_bandori_bandoriSectionItem(section, name) {
+	return {
+		name: ns_bandori_hoverLabel(name || section.quote || section.name),
+		startTs: section.primary.startTs,
+		endTs: section.primary.endTs,
+		raw: section.primary.raw
+	};
+}
+// 当期（覆盖 now）的主卡池节：含「招募」且排除免费/确定/StepUp 这类派生池。
+// ⚠️ 还要**有 ★5 名单**才算"池"：公告里「★5 期间限定 奇迹招募券礼包」这种**礼包上架**节
+//    名字也带「招募」，但没有任何角色（实测真实夹具 18418 第 2 个这样的节）。
+//    卡池悬停是「池名：角色」两行式，没有角色的节塞进去只会让悬停出现光秃秃的商品名。
+function ns_bandori_bandoriActiveGachaSections(sections, text, now) {
+	return (sections || []).filter((s) =>
+		s.primary && !ns_bandori_GACHA_SIDE_RE.test(s.name) && ns_bandori_GACHA_SEC_RE.test(s.name)
+		&& s.primary.startTs <= now && s.primary.endTs >= now
+		&& !!ns_bandori_bandoriRolesFromSection(text, s));
+}
+// 当期（覆盖 now）的全部活动节（含卡池节 —— 这一期一起开的档期都能在悬停里看到）
+function ns_bandori_bandoriActiveSections(sections, now) {
+	return (sections || []).filter((s) => s.primary && s.primary.startTs <= now && s.primary.endTs >= now);
+}
 
 // 节内 ★5 名单 → roles（实测形态：`★5 丸山彩[镜中无法映照的手中]`、`★5 CHU² [这样的休假方式]`）
 function ns_bandori_bandoriRolesFromSection(text, section) {
@@ -1861,13 +2034,22 @@ async function ns_bandori_gachaBandori(url, signal, tz = ns_bandori_BANDORI_TZ) 
 	if (!a) return null;
 	const w = a.picked.primary;
 	const banner = a.picked.quote || a.picked.name;
+	// 悬停（本体 buildPoolHover 格式）：当期主池每池两行「池名：角色」⏎「档期」，结束时间升序。
+	// 派生池（免费/确定/StepUp）不进悬停；只有 1 个当期主池时 hoverPool 返回 "" → 不设 bannerHover。
+	const pools = ns_bandori_bandoriActiveGachaSections(a.sections, a.text, Date.now()).map((s) => {
+		const roles = ns_bandori_bandoriRolesFromSection(a.text, s).replace(/、/g, "/");
+		const name = ns_bandori_hoverLabel(s.quote || s.name);
+		return { ...ns_bandori_bandoriSectionItem(s, name), label: roles ? `${name}：${roles}` : name };
+	});
+	const bannerHover = hoverPool(pools, tz);
 	return {
 		banner,
 		roles: ns_bandori_bandoriRolesFromSection(a.text, a.picked),
 		bannerDates: fmtWindow(w.startTs, w.endTs, tz),
 		bannerDatesRaw: w.raw,
 		startTs: w.startTs,
-		endTs: w.endTs
+		endTs: w.endTs,
+		...(bannerHover ? { bannerHover } : {})
 	};
 }
 
@@ -1879,16 +2061,16 @@ async function ns_bandori_eventsBandori(url, signal, tz = ns_bandori_BANDORI_TZ)
 	const a = await ns_bandori_loadAnnouncement(listUrl, signal, ns_bandori_pickBandoriEventSection);
 	if (!a) return null;
 	const w = a.picked.primary;
-	const lines = [];
-	for (const s of a.sections) {
-		if (!s.primary) continue;
-		lines.push(`${fmtWindow(s.primary.startTs, s.primary.endTs, tz)}   ${s.quote || s.name}`);
-	}
+	// 悬停格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover）：`名称` + 3 空格 + `档期`，
+	// **名称在前**（旧实现是「档期在前、名称在后」，与本体相反 —— 用户 2026-10-03 反馈的偏差②）。
+	// 只有 1 条当期 → hoverEvent 返回 "" → 不设 eventHover，由 UI 走默认两行式。
+	const active = ns_bandori_bandoriActiveSections(a.sections, Date.now());
+	const eventHover = hoverEvent(active.map((s) => ns_bandori_bandoriSectionItem(s)), tz);
 	return {
 		event: a.picked.quote || ns_bandori_bandoriTitle(a.item) || a.picked.name,
 		eventDates: fmtWindow(w.startTs, w.endTs, tz),
 		eventDatesRaw: w.raw,
-		eventHover: lines.join("\n")
+		...(eventHover ? { eventHover } : {})
 	};
 }
 
@@ -2070,12 +2252,23 @@ async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES
 	if (!picked || !picked.win) return null;
 	const active = [];
 	for (const p of posts) for (const w of p.windows) if (w.startTs <= now && w.endTs >= now) active.push({ p, w });
-	const hoverLines = (active.length ? active : [picked]).map(({ p, w }) => `${fmtWindow(w.startTs, w.endTs, tz)}   ${p.title}`);
+	// 悬停格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover）：`名称` + 3 空格 + `档期`，
+	// **名称在前**（旧实现「档期在前、名称在后」，与本体相反 —— 用户 2026-10-03 反馈的偏差②）。
+	// 名称用公告标题（这是该站的"活动名"来源）；行内不再附来源站名/URL/时区推定等元信息。
+	// ⚠️ 只有 1 条当期窗口时 hoverEvent 返回 "" → **不设 eventHover**，由 UI 走默认两行式
+	//    「名称 ⏎ 档期」（实测夹具里覆盖当期的只有 1 条：288 那篇）。
+	const list = (active.length ? active : [picked]).map(({ p, w }) => ({
+		name: p.title,
+		startTs: w.startTs,
+		endTs: w.endTs,
+		raw: w.raw
+	}));
+	const eventHover = hoverEvent(list, tz);
 	return {
 		event: picked.post.title,
 		eventDates: fmtWindow(picked.win.startTs, picked.win.endTs, tz),
 		eventDatesRaw: picked.win.raw,
-		eventHover: hoverLines.join("\n")
+		...(eventHover ? { eventHover } : {})
 	};
 }
 
@@ -2216,20 +2409,25 @@ function ns_fgo_pickRow(rows, now) {
 }
 
 // ── 卡池侧：国服当前卡池 ──
+// 悬停里的角色名用「、」连接（与本体 buildPoolHover 的 `池名：角色` 观感一致）：
+// wiki 表格用**空格**分隔从者名（`阿蒂拉 罗摩 兰斯洛特(Saber) …`），
+// 直接塞进「池名：角色」会变成一长串空格分隔名，跟本体的「A、B、C」不一致。
+function ns_fgo_formatFgoRoles(roles) {
+	return String(roles || "").replace(/\s+/g, " ").trim().replace(/ +/g, "、");
+}
+
 function ns_fgo_parseFgoBannerTable(html, tz = ns_fgo_FGO_TZ, now = Date.now()) {
 	const tables = ns_fgo_fgoTables(html);
 	if (!tables.length) throw new Error("fgo-no-table");
 	const tb = tables.find((t) => /国服当前卡池/.test(stripTags(ns_fgo_rowsOf(t.html)[0] || "")));
 	if (!tb) throw new Error("fgo-no-current-banner-table");
 	const rows = [];
-	let openCount = 0;
 	for (const r of ns_fgo_rowsOf(tb.html)) {
 		const cells = ns_fgo_cellsOf(r);
 		if (cells.length < 2 || ns_fgo_isHeaderRow(cells)) continue;
 		const name = stripTags(cells[0]).replace(/\s+/g, " ").trim();
 		const w = ns_fgo_parseFgoWindow(stripTags(cells[1]), tz);
 		if (!name || !w) continue;
-		openCount++;
 		let roles = cells.length > 2 ? stripTags(cells[2]).replace(/\s+/g, " ").trim() : "";
 		// wiki 在"推荐召唤从者>15 骑"时用一行占位提示顶替名单 → 不把它当角色名
 		if (/请前往|大于15|详见|Template:/.test(roles)) roles = "";
@@ -2237,7 +2435,30 @@ function ns_fgo_parseFgoBannerTable(html, tz = ns_fgo_FGO_TZ, now = Date.now()) 
 	}
 	const best = ns_fgo_pickRow(rows, now);
 	if (!best) return null;
-	return { ...best, openCount };
+	// 悬停（本体 buildPoolHover 格式）：当期主池每池「池名：角色」+ 档期两行，结束时间升序。
+	// 「卡池一览」的这一张表 = **国服当前卡池**，表内解析出的行本就都是当期池，不需要再按 now 过滤。
+	// 只有 1 个当期池时 hoverPool 返回 ""，此处**不设 bannerHover**，由 UI 走默认两行式。
+	// 角色名过长（>8 骑，如「天草四郎时贞推荐召唤」动辄 20 骑）会淹掉档期行 → 不放进悬停。
+	const pools = (rows.length < 2 ? [] : rows)
+		.slice()
+		.sort((a, b) => (a.endTs === b.endTs ? a.startTs - b.startTs : a.endTs - b.endTs))
+		.map((r) => {
+			const names = ns_fgo_formatFgoRoles(r.roles);
+			const short = names && names.split("、").length <= 8 ? names : "";
+			return {
+				name: r.banner,
+				label: short ? `${r.banner}：${short}` : r.banner,
+				startTs: r.startTs,
+				endTs: r.endTs,
+				raw: r.raw
+			};
+		});
+	const bannerHover = hoverPool(pools, tz);
+	return {
+		...best,
+		openCount: rows.length,
+		...(bannerHover ? { bannerHover } : {})
+	};
 }
 
 // ── 活动侧：国服当年那张表 ──
@@ -2274,13 +2495,17 @@ function ns_fgo_parseFgoEventTable(html, tz = ns_fgo_FGO_TZ, now = Date.now()) {
 	}
 	const best = ns_fgo_pickRow(rows, now);
 	if (!best) return { year: found.year, rows, skipped, event: null };
-	// 悬停：只列**覆盖当前时刻**的行（该年的表含全年 57 行，全列会淹没当期；按结束时间升序）
+	// 悬停：只列**覆盖当前时刻**的行（该年的表含全年 57 行，全列会淹没当期；按结束时间升序）。
+	// 格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover）：`名称` + 3 空格 + `档期`。
+	// ⚠️ 表格第 4 列的**类型**（Event/Campaign）是源站的**分类词**，不是活动名 —— 旧实现把它塞在
+	//    「档期」和「名称」之间（`09-24 19:00 ~ 10-15 13:59   Event   幕末…`），既把档期放在了行首，
+	//    又把分类词冒充成名称的一部分。用户 2026-10-03 反馈后**彻底删掉**（分类只用于 `tier` 排序，
+	//    保留在 rows 里供外部使用，不进悬停文本）。
 	const active = rows
 		.filter((x) => x.startTs <= now && x.endTs >= now)
 		.sort((a, b) => (a.endTs === b.endTs ? a.startTs - b.startTs : a.endTs - b.endTs));
-	const hover = active
-		.map((x) => `${fmtWindow(x.startTs, x.endTs, tz)}${x.type ? `   ${x.type}` : ""}   ${x.name}`)
-		.join("\n");
+	// <2 条时 hoverEvent 返回 "" → 不设 eventHover，由 UI 走默认两行式
+	const eventHover = hoverEvent(active, tz);
 	return {
 		year: found.year,
 		rows,
@@ -2289,7 +2514,7 @@ function ns_fgo_parseFgoEventTable(html, tz = ns_fgo_FGO_TZ, now = Date.now()) {
 		event: best.name,
 		eventDates: fmtWindow(best.startTs, best.endTs, tz),
 		eventDatesRaw: best.raw,
-		eventHover: hover
+		...(eventHover ? { eventHover } : {})
 	};
 }
 
@@ -2310,7 +2535,9 @@ async function ns_fgo_gachaFgo(url, signal, tz = ns_fgo_FGO_TZ) {
 		bannerDates: fmtWindow(r.startTs, r.endTs, tz),
 		bannerDatesRaw: r.raw,
 		startTs: r.startTs,
-		endTs: r.endTs
+		endTs: r.endTs,
+		// 有 ≥2 个当期池才有值；1 个池时 ns_fgo_parseFgoBannerTable 不设该字段（UI 走默认两行式）
+		...(r.bannerHover ? { bannerHover: r.bannerHover } : {})
 	};
 }
 
@@ -2322,7 +2549,8 @@ async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ) {
 		event: r.event,
 		eventDates: r.eventDates,
 		eventDatesRaw: r.eventDatesRaw,
-		eventHover: r.eventHover
+		// ≥2 条当期活动才有值；只有 1 条时不设该字段（UI 走默认两行式「名称 ⏎ 档期」）
+		...(r.eventHover ? { eventHover: r.eventHover } : {})
 	};
 }
 
@@ -2375,7 +2603,8 @@ async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ) {
 //                  → 这里的 end 是**开奖时刻**，不是参与截止（口径不同）
 //      结论：外显仍取**公告正文**（玩家看到的活动时间就是正文那句），
 //      `news_meta` 只作**兜底**：当正文一个可解析窗口都抽不到时，用它的显式档期顶上，
-//      并在 `eventDatesRaw` / 悬停里**标明来源是 news_meta**（不冒充正文）。
+//      并在 `eventDatesRaw` / `bannerDatesRaw` 里标明来源是 news_meta（不冒充正文）。
+//      ⚠️ 这句来源说明**只进 raw 字段**（既有约定：本体也有条目这么做）；**悬停里不写**（见 §五）。
 //
 //  ⚠️ **详情端点有 Referer 门（实测）**：不带 Referer 一律 `HTTP 403 / body "Forbidden"`：
 //        · 桌面 UA + 无 Referer                     → 403
@@ -2399,7 +2628,8 @@ async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ) {
 //      是国服"中午开、下午收"的典型口径（与 bwiki 各源一致）；
 //    · 官方公告的发布时刻 `created_at` 落在 UTC+8 的整点/半点（10:00、04:00、12:00 等），
 //      而按 UTC+9 渲染会变成 11:00、05:00、13:00（不整）。
-//  → 因此本文件把 `tz` 默认写成 `Asia/Shanghai`，并在注释/悬停里都**如实标"推测"**。
+//  → 因此本文件把 `tz` 默认写成 `Asia/Shanghai`，并在**注释**里如实标"推测"
+//    （⚠️ 悬停里**不写**时区说明 —— 用户 2026-10-03：「元信息彻底删掉」，见 §五）。
 //
 // ══════════════════════════════════════════════════════════════════════════════
 // 三、正文档期抽取（**实测的格式清单**，全部来自 p4-*-detail-* 夹具）
@@ -2451,11 +2681,36 @@ async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ) {
 //   · 单篇详情 HTTP 404/410                                   → 跳过该篇
 //   · 全部候选都失败且出现过**硬错**（403/567/坏 JSON…）      → **throw**（别把封禁静默成"未公布"）
 //     （实测详情缺 Referer 就是 403 "Forbidden" —— 这种必须能被看见）
+//
+// ══════════════════════════════════════════════════════════════════════════════
+// 五、悬停排版（用户 2026-10-03：「元信息彻底删掉」）
+// ══════════════════════════════════════════════════════════════════════════════
+//  排版**不再本地实现**，一律调 `lib/env.js` 的 `hoverPool` / `hoverEvent`
+//  （与本体 `buildPoolHover` / `buildEventHover` 逐字一致），本文件只负责：
+//    · 卡池侧：每池一项 `{ name: 公告标题, label: 「池名：角色」, startTs, endTs }` → hoverPool
+//      （角色名空 → label 退化成池名；与本体 `banner：roles` 同构）
+//    · 活动侧：每条 `{ name: 公告标题, startTs, endTs }`，**先按结束时间升序排好**再传给 hoverEvent
+//      （`hoverEvent` 自己不排序，与本体一致）
+//    · 当期**不足 2 项**时两个工具返回 `""` → **不设** `bannerHover` / `eventHover` 字段，
+//      让 UI 走默认两行式（卡池 `池名：角色` ⏎ 档期；活动 `名称` ⏎ 档期）
+//
+//  🚫 以下信息**一律不进悬停文本**（只留在本文件的代码注释里）：
+//     · 来源站名 / 域名 / URL / API 名（米游社官方公告、bbs-api.miyoushe.com、getNewsList…）
+//     · 时区推定说明（"国服墙钟按 UTC+8 换算 —— 源站未标注时区＝推测"）
+//     · 抓取统计（"本轮有 N 篇公告正文抓取失败"）
+//     · 内部 id / 源站字段名（post_id、start_at_sec、end_at_sec、activity_status、news_meta…）
+//     · 游戏名 + 区服前缀（悬停里不重复游戏名）
+//     · 任何「（…）」形式的实现说明（"本篇第 N 段档期"、"起点为推断"、"源站 news_meta 显式档期"…）
+//  ⇒ 用户明确要求"直接删掉"：**删除**，不要把这些信息改放到悬停的别的行/字段里。
+//     （`bannerDatesRaw` / `eventDatesRaw` 是**既有**的"源站原文 / 溯源说明"约定字段，
+//      本次维持现状 —— 那不是"迁移目的地"，只是原本就长这样。）
 
 
 const ns_miyoushe_MIYOUSHE_TZ = "Asia/Shanghai";                     // **推测**（理由见文件头 §二）
 const ns_miyoushe_MIYOUSHE_REFERER = "https://www.miyoushe.com/";    // 详情端点的 Referer 门（实测）
-const ns_miyoushe_MIYOUSHE_PROVENANCE = "米游社官方公告（档期由公告正文抽出；国服墙钟按 UTC+8 换算 —— 源站未标注时区＝推测）";
+// ⚠️ 这里**曾**导出 `MIYOUSHE_PROVENANCE`（"米游社官方公告（档期由公告正文抽出；国服墙钟按 UTC+8 换算
+//    —— 源站未标注时区＝推测）"），专门塞进悬停首行。用户 2026-10-03 要求「元信息彻底删掉」→
+//    常量与悬停首行**一并删除**。来源站名 / 时区推定这类信息只留在**本文件注释**里（§一/§二）。
 
 const ns_miyoushe_LIST_BASE = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList";
 const ns_miyoushe_DETAIL_BASE = "https://bbs-api.miyoushe.com/post/wapi/getPostFull";
@@ -2742,29 +2997,35 @@ function ns_miyoushe_miyousheRoles(text, stopAt = null) {
 //#region 抓取
 const ns_miyoushe_sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function ns_miyoushe_hoverOf(windows, tz, note) {
-	const lines = [ns_miyoushe_MIYOUSHE_PROVENANCE];
-	if (note) lines.push(note);
-	const total = new Map();
-	for (const w of windows) total.set(w.subject, (total.get(w.subject) || 0) + 1);
-	const nth = new Map();
-	for (const w of windows) {
-		const n = (nth.get(w.subject) || 0) + 1;
-		nth.set(w.subject, n);
-		const multi = total.get(w.subject) > 1 ? `（本篇第 ${n} 段档期）` : "";
-		const inf = w.inferred ? "（起点为推断）" : "";
-		// 兜底来源必须说清楚，别让读者以为是公告正文里的原文
-		const src = w.source === "news_meta" ? "（源站 news_meta 显式档期，非正文原文）" : "";
-		lines.push(`${fmtWindow(w.startTs, w.endTs, tz)}   ${w.subject}${multi}${inf}${src}`);
-	}
-	return lines.join("\n");
-}
-
-// 源站原文（悬停/raw 用）：正文抽的给原文；news_meta 兜底的给可读且可追溯的说明
+// 源站原文（`bannerDatesRaw` / `eventDatesRaw` 用）。
+// ⚠️ 这两个字段**会被 UI 的默认两行式直接显示**（面板取 `bannerDatesRaw || bannerDates`、
+//    `eventDatesRaw || eventDates`）—— 所以它们**只能放档期文本本身**，
+//    绝不能夹带「这来自哪个字段」之类的说明（用户 2026-10-03：「元信息彻底删掉」）。
+//    旧实现在 news_meta 兜底时返回 `news_meta 档期（源站显式字段，非正文）：…`，
+//    一旦兜底路径触发，这句话就会原样出现在面板上 —— 已修。
+//    「本窗口来自 news_meta 兜底」这一事实保留在 `p.source`（不显示）+ 代码注释里。
 function ns_miyoushe_rawOf(p, tz) {
-	if (p.source === "news_meta") return `news_meta 档期（源站显式字段，非正文）：${fmtWindow(p.startTs, p.endTs, tz)}`;
+	if (p.source === "news_meta") return fmtWindow(p.startTs, p.endTs, tz);
 	return p.raw;
 }
+
+// ── 悬停条目 ──────────────────────────────────────────────────────────────────
+// 排版交给 lib/env.js 的 `hoverPool` / `hoverEvent`（与本体 buildPoolHover / buildEventHover 逐字一致）。
+// 用户 2026-10-03：「悬停里的元信息彻底删掉」→ 这里**只**产出名称与档期，别的一概不传。
+// 池名与本体 `banner：roles` 同构：有角色名 →「池名：角色」，没有 → 只写池名。
+const ns_miyoushe_hoverPoolName = (w) => (w.roles ? `${w.subject}：${w.roles}` : w.subject);
+// 活动悬停顺序：结束时间升序（无/未知结束排在最后），并列再按开始时间 —— 与 lib/env.js 内部规则一致
+function ns_miyoushe_byEndTs(a, b) {
+	const ea = a.endTs == null ? Infinity : a.endTs;
+	const eb = b.endTs == null ? Infinity : b.endTs;
+	if (ea !== eb) return ea - eb;
+	const sa = a.startTs == null ? Infinity : a.startTs;
+	const sb = b.startTs == null ? Infinity : b.startTs;
+	return sa - sb;
+}
+// `raw` 只在"缺起止"时才会被 hoverEvent 印出来；news_meta 兜底行的 raw 是内部字段说明
+// （`start_at_sec=…`）→ 不给它，免得内部字段名有机会漏进悬停。
+const ns_miyoushe_hoverRaw = (w) => (w.source === "news_meta" ? "" : w.raw);
 
 // 列表 → 候选 → 逐篇详情 → 抽档期。返回值可能是 null（未公布）；结构性损坏直接抛。
 async function ns_miyoushe_collectMiyousheSide(listUrl, signal, tz, now, want) {
@@ -2779,7 +3040,7 @@ async function ns_miyoushe_collectMiyousheSide(listUrl, signal, tz, now, want) {
 	if (cands.length === 0) return null;                       // 该列表里没有本侧公告
 
 	const covering = [];
-	let okCount = 0, failed = 0, firstHardErr = null;
+	let okCount = 0, firstHardErr = null;
 	for (let idx = 0; idx < cands.length; idx++) {
 		if (idx > 0 && ns_miyoushe_MIYOUSHE_DETAIL_DELAY_MS > 0) await ns_miyoushe_sleep(ns_miyoushe_MIYOUSHE_DETAIL_DELAY_MS);
 		const it = cands[idx];
@@ -2787,7 +3048,7 @@ async function ns_miyoushe_collectMiyousheSide(listUrl, signal, tz, now, want) {
 		try {
 			d = ns_miyoushe_parseMiyousheDetail(await fetchJson(ns_miyoushe_miyousheDetailUrl(it.postId), { signal, mode: "proxy", referer: ns_miyoushe_MIYOUSHE_REFERER }));
 		} catch (e) {
-			if (!ns_miyoushe_isMiyousheMissing(e)) { failed++; if (!firstHardErr) firstHardErr = e; }
+			if (!ns_miyoushe_isMiyousheMissing(e) && !firstHardErr) firstHardErr = e;
 			continue;
 		}
 		okCount++;
@@ -2817,18 +3078,16 @@ async function ns_miyoushe_collectMiyousheSide(listUrl, signal, tz, now, want) {
 			if (!nm || !(nm.startTs <= now && nm.endTs >= now)) continue;
 			covering.push({
 				startTs: nm.startTs, endTs: nm.endTs,
-				raw: `news_meta start_at_sec=${nm.startTs / 1000} end_at_sec=${nm.endTs / 1000}`,
+				// ⚠️ 不留「news_meta start_at_sec=… end_at_sec=…」这种内部字段说明：内部字段名不进数据
+				//    （`eventDatesRaw` 的溯源说明由 ns_miyoushe_rawOf 统一给；悬停由 ns_miyoushe_hoverRaw 屏蔽）
+				raw: fmtWindow(nm.startTs, nm.endTs, tz),
 				subject: it.subject, postId: it.postId, roles: "",
 				inferred: false, note: "", source: "news_meta", status: nm.status
 			});
 		}
 	}
 	if (covering.length === 0) return null;                    // 抓到正文但没有覆盖 now 的档期 = 未公布
-	return {
-		primary: covering[0],
-		covering,
-		note: failed > 0 ? `※本轮有 ${failed} 篇公告正文抓取失败（限流/网络），结果可能不完整` : ""
-	};
+	return { primary: covering[0], covering };
 }
 
 /** 卡池侧（type=1 公告/补给；标题按卡池关键词分流） */
@@ -2837,6 +3096,15 @@ async function ns_miyoushe_gachaMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE_
 	const r = await ns_miyoushe_collectMiyousheSide(listUrl, signal, tz, now, "gacha");
 	if (!r) return null;
 	const p = r.primary;
+	// 悬停 = 全部当期池，每池「池名：角色」一行 + 档期（排版交给共用工具 hoverPool，≥2 池才有内容）。
+	// 只有 1 个当期池 → "" → **不设** bannerHover，由 UI 走默认两行式「banner ⏎ bannerDates」。
+	const bannerHover = hoverPool(r.covering.map((w) => ({
+		name: w.subject,
+		label: ns_miyoushe_hoverPoolName(w),
+		startTs: w.startTs,
+		endTs: w.endTs,
+		raw: ns_miyoushe_hoverRaw(w)
+	})), tz);
 	return {
 		banner: p.subject,
 		roles: p.roles || "",
@@ -2844,7 +3112,7 @@ async function ns_miyoushe_gachaMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE_
 		bannerDatesRaw: ns_miyoushe_rawOf(p, tz),
 		startTs: p.startTs,
 		endTs: p.endTs,
-		bannerHover: ns_miyoushe_hoverOf(r.covering, tz, r.note)
+		...(bannerHover ? { bannerHover } : {})
 	};
 }
 
@@ -2854,11 +3122,20 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 	const r = await ns_miyoushe_collectMiyousheSide(listUrl, signal, tz, now, "event");
 	if (!r) return null;
 	const p = r.primary;
+	// 悬停 = 全部当期活动，结束时间升序逐行「名称 + 3 空格 + 档期」
+	// （排版交给共用工具 hoverEvent；它自己**不排序** → 这里先排好再传）。
+	// 只有 1 条 → "" → **不设** eventHover，由 UI 走默认两行式「event ⏎ eventDates」。
+	const eventHover = hoverEvent(r.covering.slice().sort(ns_miyoushe_byEndTs).map((w) => ({
+		name: w.subject,
+		startTs: w.startTs,
+		endTs: w.endTs,
+		raw: ns_miyoushe_hoverRaw(w)
+	})), tz);
 	return {
 		event: p.subject,
 		eventDates: fmtWindow(p.startTs, p.endTs, tz),
 		eventDatesRaw: ns_miyoushe_rawOf(p, tz),
-		eventHover: ns_miyoushe_hoverOf(r.covering, tz, r.note)
+		...(eventHover ? { eventHover } : {})
 	};
 }
 //#endregion
@@ -2868,9 +3145,11 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 // next-sources/parsers/umamusume-official.js —— 赛马娘 **官方公告**（日服 umamusume.jp + 国际服 umamusume.com）
 //
 // 契约：async (url, signal, tz, now = Date.now()) → 数据对象 | null
-//   卡池侧 { banner, roles?, bannerDates, bannerDatesRaw?, startTs?, endTs?, event?, eventDates?, eventDatesRaw?, eventHover? }
+//   卡池侧 { banner, bannerDates, bannerDatesRaw?, startTs?, endTs?, bannerHover? }
 //   活动侧 { event, eventDates, eventDatesRaw?, eventHover? }
 //   null = 未公布（抓到了公告，但没有覆盖 now 的档期）；只有结构性损坏才 throw。
+//   `bannerHover` / `eventHover` 只在**当期 ≥2 条**时出现（`hoverPool` / `hoverEvent` 返回空串 → 本文件不设该字段），
+//   否则交回 UI 的默认单条两行式；内容只有「名称 + 档期」，**不含任何元信息**（见 `ns_umamusume_official_umaCurrentItems` 的说明）。
 //
 // ── 与既有源的关系（**并存，不替换**）────────────────────────────────────────
 //   · 日服：既有 `parsers/umapyoi.js`（第三方 api.umapyoi.net，只有"卡级获取窗口"、无卡池名）
@@ -2903,7 +3182,9 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 //     （3472 的「販売期間 9/30 12:00 ～ 10/13 4:59」），所以**绝不能**拿 from/to 当档期，
 //     否则会把"整批公告的展示期"当成卡池期，`bannerDates` 会是错的（这条是本文件存在的理由）。
 //   本解析器因此：① 先从正文抽日期区间（统一 tokenizer，日文/英文共用）；
-//                 ② 只有正文里**完全抽不到**区间时，才退化为 from_date ~ to_date（并在 hover 里注明）；
+//                 ② 只有正文里**完全抽不到**区间时，才退化为 from_date ~ to_date
+//                    （退化事实标在 `windows[].label` / `source="fallback"` 上，**供测试与排障**，
+//                     绝不写进 hover —— 用户 2026-10-03 要求悬停里元信息彻底删掉）；
 //                 ③ 外显取"覆盖 now 且开始最晚"的那条区间；一条都不覆盖 now → 返回 null。
 //
 // ── 分类（靠标题关键词，源站没有分类字段）──────────────────────────────────
@@ -2936,8 +3217,6 @@ const ns_umamusume_official_UMA_DEFAULT_MAX_DETAILS = 12;
 const ns_umamusume_official_UMA_DEFAULT_MAX_PAGES = 3;
 /** 每页候选（分类命中）上限 */
 const ns_umamusume_official_UMA_DEFAULT_PAGE_SIZE = 6;
-
-const ns_umamusume_official_HOVER_MAX = 12;
 
 // ── 分类关键词 ──
 const ns_umamusume_official_JP_GACHA_RE = /ガチャ/;
@@ -3179,7 +3458,8 @@ function ns_umamusume_official_parseUmaIndex(json, mode = "jp", tz = ns_umamusum
 /**
  * 详情 JSON → { id, title, windows, source, postTs, kind }。
  *   source = "body"    ：档期来自正文（正常路径）
- *   source = "fallback"：正文里一条区间都抽不到 → 退化为 from_date ~ to_date（hover 里注明）
+ *   source = "fallback"：正文里一条区间都抽不到 → 退化为 from_date ~ to_date
+ *                        （只在 `windows[].label` 上标注，**不进 hover**）
  *   source = "none"    ：正文与 from/to 都没有区间 → windows 为空
  */
 function ns_umamusume_official_parseUmaDetail(json, tz = ns_umamusume_official_UMA_JP_TZ, classifyMode = "jp") {
@@ -3202,49 +3482,67 @@ function ns_umamusume_official_parseUmaDetail(json, tz = ns_umamusume_official_U
 	return { id: d.announce_id, title: title || "", windows, source, postTs, kind: ns_umamusume_official_classifyUmaTitle(title, classifyMode) };
 }
 
-// ── 选当期 ──────────────────────────────────────────────────────────────────
+// ── 选当期 / 悬停 ───────────────────────────────────────────────────────────
 /**
- * 从多个详情的窗口里选当期：
- *   ① 覆盖 now 的窗口里取 startTs 最新（并列取 endTs 更早、id 更小）；
- *   ② 一条都不覆盖 → **返回 null**（未公布），绝不把过期/未来档期硬凑成"当期"。
+ * 覆盖 now 的「公告 × 窗口」对，按固定偏好排序：
+ *   ① startTs 最新（并列取 endTs 更早、id 更小）；
+ *   ② 并列时**预告稿排后**：日服同一档期常有两篇（`【予告】…開催決定！` + 正式 `…開催！`），
+ *      实测 3469/3470 的窗口完全一样（都是 10-01 12:00 ~ 11-02 11:59）→ 否则外显会显示预告稿。
  *
- * ⚠️ 并列时的"预告"偏好：日服同一档期常有两篇（`【予告】…開催決定！` + 正式 `…開催！`），
- *    实测 3469/3470 的窗口完全一样（都是 10-01 12:00 ~ 11-02 11:59）。所以 startTs 并列时
- *    **优先取标题不含 `予告`/`coming soon` 的那篇**，否则外显标题会显示成预告稿（实测就是 3469）。
+ * ⚠️ 一条都不覆盖 now → 空数组（`ns_umamusume_official_pickUmaWindow` 据此返回 null = 未公布，绝不把过期/未来档期硬凑成"当期"）。
+ * ⚠️ 排序**同时**服务外显与悬停：`ns_umamusume_official_pickUmaWindow` 取第 0 项当外显；`hoverEvent` 不重排 →
+ *    活动悬停的第一行就是外显的那条。`hoverPool` 自带"按结束时间升序"的规则（与本体一致），会重排卡池。
  */
-function ns_umamusume_official_pickUmaWindow(entries, now) {
+function ns_umamusume_official_umaCurrentWindows(entries, now) {
 	const active = [];
 	for (const e of entries) for (const w of e.windows) if (w.startTs <= now && w.endTs >= now) active.push({ e, w });
-	if (!active.length) return null;
+	if (!active.length) return [];
 	const previewRank = (e) => (/予告|coming soon/i.test(String(e.title || "")) ? 1 : 0);
 	active.sort((x, y) =>
 		(y.w.startTs - x.w.startTs)
 		|| (previewRank(x.e) - previewRank(y.e))
 		|| (x.w.endTs - y.w.endTs)
 		|| (x.e.id - y.e.id));
-	return active[0];
+	return active;
 }
 
-/** 悬浮明细：列出所有覆盖 now 的窗口（附所属公告标题）；没有覆盖的就不列。
- *  排序与 `ns_umamusume_official_pickUmaWindow` 一致（预告排后），这样 hover 第一行就是外显的那条。 */
-function ns_umamusume_official_umaHoverLines(entries, now, tz, header) {
-	const lines = [header];
-	const act = [];
-	for (const e of entries) for (const w of e.windows) if (w.startTs <= now && w.endTs >= now) act.push({ e, w });
-	const previewRank = (e) => (/予告|coming soon/i.test(String(e.title || "")) ? 1 : 0);
-	act.sort((x, y) =>
-		(y.w.startTs - x.w.startTs)
-		|| (previewRank(x.e) - previewRank(y.e))
-		|| (x.w.endTs - y.w.endTs)
-		|| (x.e.id - y.e.id));
-	for (const { e, w } of act.slice(0, ns_umamusume_official_HOVER_MAX)) {
-		const label = w.label ? w.label + "  " : "";
-		lines.push(`${fmtWindow(w.startTs, w.endTs, tz)}  ${label}[${e.id}] ${e.title}`);
+/**
+ * 从多个详情的窗口里选当期：覆盖 now 的窗口里取 startTs 最新（并列取 endTs 更早、id 更小）。
+ * 一条都不覆盖 → **返回 null**（未公布），绝不把过期/未来档期硬凑成"当期"。
+ */
+function ns_umamusume_official_pickUmaWindow(entries, now) {
+	return ns_umamusume_official_umaCurrentWindows(entries, now)[0] || null;
+}
+
+/**
+ * 当期项（交给 `lib/env.js` 的 `hoverPool` / `hoverEvent` 排版）：**一条公告最多一项**。
+ *   · `name` = 公告标题（即卡池名 / 活动名）—— 与本体的 `banner：roles` / 活动名同构；
+ *     ⚠️ 官方公告**只有标题、没有"角色"字段**，所以卡池悬停的 `name` 就是 `banner` 本身
+ *     （本体是 `池名：角色`，这里退化成只有池名；**不**去正文猜角色，也不补任何前缀）。
+ *   · 一条公告正文可能有**多段**覆盖 now 的小期间（实测 3472 有 3 段、3481 有 2 段）→ 只取
+ *     `ns_umamusume_official_umaCurrentWindows` 里该公告的**第一段**（startTs 最新、并列取 endTs 更早），
+ *     否则同名活动会在悬停里重复 2~3 行（本体一律一条目一行）。
+ *   · 档期交给共用工具用**源站 tz**（日服 JST / 国际服 UTC）格式化成 `MM-DD HH:MM ~ MM-DD HH:MM`。
+ *
+ * ⚠️ 悬停里**只放名称与档期**（用户 2026-10-03：「元信息彻底删掉」）。以下信息一律**不进悬停文本**：
+ *     来源站名 / URL / API 名 · 时区推定说明 · 抓取统计（`共扫描 N 条 / 取详情 M 条`）·
+ *     内部公告 id（`[3470]`）· 源站字段名标签（`開催期間` / `Event·Availability·Period`）·
+ *     游戏名+区服前缀 · fallback 退化说明与任何「（…）」实现说明。
+ *     这些只留在**代码注释**与 `ns_umamusume_official_parseUmaDetail` 的 `source` / `windows[].label` 字段里（供测试与排障）。
+ *     ⚠️ 所以这里**不传 `label`**：`hoverPool` 会用 `label` 顶掉 `name`，而 label 正是源站字段名。
+ *
+ * ⚠️ 抓取策略说明（"每条候选抓一次详情、每页最多 N 条候选"）写在 `ns_umamusume_official_collectSide` 的注释里，不进悬停。
+ */
+function ns_umamusume_official_umaCurrentItems(entries, now) {
+	const seen = new Set();
+	const out = [];
+	for (const { e, w } of ns_umamusume_official_umaCurrentWindows(entries, now)) {
+		const key = e.id != null ? "id:" + e.id : e;      // 同一条公告只留第一段（见上）
+		if (seen.has(key)) continue;
+		seen.add(key);
+		out.push({ name: e.title, startTs: w.startTs, endTs: w.endTs, raw: w.raw });
 	}
-	if (act.length > ns_umamusume_official_HOVER_MAX) lines.push(`…另有 ${act.length - ns_umamusume_official_HOVER_MAX} 条同期公告未列出`);
-	const fb = entries.filter((e) => e.source === "fallback");
-	if (fb.length) lines.push(`注：${fb.map((e) => e.id).join("、")} 的正文里没有日期区间，已退化为 from_date～to_date（非真实档期）`);
-	return lines.join("\n");
+	return out;
 }
 
 // ── 传输：POST 自己封装（lib/env.js 的 fetchText/fetchJson 只支持 GET）────────
@@ -3354,10 +3652,8 @@ async function ns_umamusume_official_collectSide({ side, kind, indexUrl, tz, now
 		if (covered) break;                      // 本页已有覆盖 now 的候选 → 不再翻页（更早的页只会更旧）
 	}
 	return { details, scanned, detailCount, skipped };
-}
-
-function ns_umamusume_official_headerFor(label, r) {
-	return `${label}·共扫描 ${r.scanned.length} 条 / 取详情 ${r.detailCount} 条` + (r.skipped ? ` / 跳过 ${r.skipped} 条` : "");
+	// ⚠️ `scanned` / `detailCount` / `skipped` 只作**诊断计数**（原来被拼进悬停首行「共扫描 N 条 / 取详情 M 条」，
+	//    用户 2026-10-03 要求「元信息彻底删掉」→ 该首行已删，计数保留给排障与将来日志，**绝不进悬停文本**）。
 }
 
 // ── 日服 ────────────────────────────────────────────────────────────────────
@@ -3379,13 +3675,15 @@ async function ns_umamusume_official_gachaUmaJpOfficial(url, signal, tz = ns_uma
 	});
 	const picked = ns_umamusume_official_pickUmaWindow(r.details, now);
 	if (!picked) return null;                       // 抓到公告但当期没有覆盖 now 的卡池期 = 未公布
+	// ≥2 个当期池才给悬停；只有 1 个 → **不设** bannerHover，交回 UI 默认两行式（`池名：角色` ⏎ 档期）
+	const bannerHover = hoverPool(ns_umamusume_official_umaCurrentItems(r.details, now), tz);
 	return {
 		banner: picked.e.title,
 		bannerDates: fmtWindow(picked.w.startTs, picked.w.endTs, tz),
 		bannerDatesRaw: picked.w.raw,
 		startTs: picked.w.startTs,
 		endTs: picked.w.endTs,
-		bannerHover: ns_umamusume_official_umaHoverLines(r.details, now, tz, ns_umamusume_official_headerFor("赛马娘日服官网公告（卡池）", r))
+		...(bannerHover ? { bannerHover } : {})
 	};
 }
 
@@ -3400,11 +3698,13 @@ async function ns_umamusume_official_eventsUmaJpOfficial(url, signal, tz = ns_um
 	});
 	const picked = ns_umamusume_official_pickUmaWindow(r.details, now);
 	if (!picked) return null;
+	// ≥2 条当期活动才给悬停；只有 1 条 → **不设** eventHover，交回 UI 默认两行式（`名称` ⏎ 档期）
+	const eventHover = hoverEvent(ns_umamusume_official_umaCurrentItems(r.details, now), tz);
 	return {
 		event: picked.e.title,
 		eventDates: fmtWindow(picked.w.startTs, picked.w.endTs, tz),
 		eventDatesRaw: picked.w.raw,
-		eventHover: ns_umamusume_official_umaHoverLines(r.details, now, tz, ns_umamusume_official_headerFor("赛马娘日服官网公告（活动）", r))
+		...(eventHover ? { eventHover } : {})
 	};
 }
 
@@ -3425,13 +3725,15 @@ async function ns_umamusume_official_gachaUmaGlobal(url, signal, tz = ns_umamusu
 	const r = await ns_umamusume_official_collectGlobal("gacha", url, tz, now, signal, opts);
 	const picked = ns_umamusume_official_pickUmaWindow(r.details, now);
 	if (!picked) return null;
+	// 同卡池侧：≥2 个当期池才给悬停，否则交回 UI 默认两行式
+	const bannerHover = hoverPool(ns_umamusume_official_umaCurrentItems(r.details, now), tz);
 	return {
 		banner: picked.e.title,
 		bannerDates: fmtWindow(picked.w.startTs, picked.w.endTs, tz),
 		bannerDatesRaw: picked.w.raw,
 		startTs: picked.w.startTs,
 		endTs: picked.w.endTs,
-		bannerHover: ns_umamusume_official_umaHoverLines(r.details, now, tz, ns_umamusume_official_headerFor("赛马娘国际服官网公告（卡池/Scout）", r))
+		...(bannerHover ? { bannerHover } : {})
 	};
 }
 
@@ -3440,11 +3742,13 @@ async function ns_umamusume_official_eventsUmaGlobal(url, signal, tz = ns_umamus
 	const r = await ns_umamusume_official_collectGlobal("event", url, tz, now, signal, opts);
 	const picked = ns_umamusume_official_pickUmaWindow(r.details, now);
 	if (!picked) return null;
+	// 同活动侧：≥2 条当期活动才给悬停，否则交回 UI 默认两行式
+	const eventHover = hoverEvent(ns_umamusume_official_umaCurrentItems(r.details, now), tz);
 	return {
 		event: picked.e.title,
 		eventDates: fmtWindow(picked.w.startTs, picked.w.endTs, tz),
 		eventDatesRaw: picked.w.raw,
-		eventHover: ns_umamusume_official_umaHoverLines(r.details, now, tz, ns_umamusume_official_headerFor("赛马娘国际服官网公告（活动）", r))
+		...(eventHover ? { eventHover } : {})
 	};
 }
 
@@ -3977,6 +4281,8 @@ async function ns_kedr_wiki_gachaKedrWiki(url, signal, tz = ns_kedr_wiki_KEDR_TZ
 //   · publishTime 是 epoch ms，直接是绝对时刻，无需换算
 //   · 正文档期是**国服墙钟**（如 `2026/10/01 04:00 ~ 2026/10/31 03:59`，04:00 日切 = 国服特征）
 //   · ⚠️ 源站**未显式标注时区** → 标「推测」
+//     ⚠️ 「时区是推测」这类实现说明**只留在代码注释里**，**绝不进悬停文本**
+//        （用户 2026-10-03：悬停里的元信息——来源站名/URL/时区推定/抓取条数/内部 id/实现说明——彻底删掉）。
 //
 // ── 列表里哪个分类装什么（实测）──────────────────────────────
 //   type=notice   (349 条)  ← **卡池 + 活动说明**都在这里，本解析器主用
@@ -4042,6 +4348,8 @@ function ns_stellasora_parseStellaWindow(segText, tz = ns_stellasora_STELLA_TZ, 
 	//    故「维护结束后」优先，用公告发布时刻当锚点并标 startInferred
 	//    （与仓库既有惯例一致：FGO 的 `即日起` / 绝区零的 `4.6版本更新后` 起点都标 inferred 并写进 raw）。
 	//    未出现该词时，`2026/10/01 04:00` 这类显式起点照常按原样解析。
+	//    ⚠️ 2026-10-03：`startInferred` **只作内部标记**（供 raw / 调试用），**不再写进悬停** ——
+	//       旧悬停里的「（起点按公告发布时刻推断）」是**实现说明**，用户要求元信息彻底删掉。
 	let startTs = null, startInferred = false, startRaw = "";
 	const relMatch = ns_stellasora_REL_START_RE.exec(s);
 	const head = sepMatch ? s.slice(0, sepMatch.index) : s;
@@ -4135,6 +4443,21 @@ function ns_stellasora_stellaGachaName(title) {
 	return String(title || "").replace(/(限时|限定)?招募(开启|说明|一览)?[！!。.]?$/, "").trim() || String(title || "").trim();
 }
 
+// 卡池正文 → 该池的 UP 角色/秘纹名（悬停里「池名：角色」的右半边）。
+// 实测形态（详情首段，**招募说明**里紧跟其后）：
+//   「…全新5星旅人「艾蕾」招募概率提升！」          → 艾蕾
+//   「…全新5星秘纹「睡前童话」招募概率提升！」      → 睡前童话
+// 只取**首个**匹配（4 星行一定写在 5 星行之后，如「活动期间，4星旅人「师渺」「璟麟」…」）；
+// 抓不到就返回 ""，悬停行退回只写池名 —— 与本体 `label = banner + (roles ? "：" + roles : "")` 同构，
+// **绝不臆造**一个角色名。
+const ns_stellasora_STELLA_NEW_FIVE_STAR_RE = /全新\s*5\s*星[^「」]{0,8}「([^「」]{1,24})」/;
+const ns_stellasora_STELLA_FIVE_STAR_RE = /5\s*星[^「」]{0,8}「([^「」]{1,24})」/;
+function ns_stellasora_stellaFeaturedName(html) {
+	const t = ns_stellasora_brText(html);
+	const m = ns_stellasora_STELLA_NEW_FIVE_STAR_RE.exec(t) || ns_stellasora_STELLA_FIVE_STAR_RE.exec(t);
+	return m ? m[1].trim() : "";
+}
+
 // ── 列表解析 ──
 function ns_stellasora_parseStellaList(json) {
 	if (!json || json.code !== 0 || !json.data || !Array.isArray(json.data.rows)) throw new Error("stella-bad-json");
@@ -4170,7 +4493,9 @@ async function ns_stellasora_collectStellaSide(url, signal, tz, now, side) {
 		if (!detail) continue;
 		const anchorTs = row.publishTs != null ? row.publishTs : null;
 		const wins = ns_stellasora_parseStellaWindows(detail.content, tz, anchorTs);
-		for (const w of wins) candidates.push({ row, win: w });
+		// featured：该篇正文里的 UP 主推（卡池悬停「池名：角色」用；活动侧不用）
+		const featured = ns_stellasora_stellaFeaturedName(detail.content);
+		for (const w of wins) candidates.push({ row, win: w, featured });
 	}
 	if (candidates.length === 0) return null;
 	// 覆盖 now 的里，取「起点最新」的那条（并列时取终点更晚的）
@@ -4180,11 +4505,39 @@ async function ns_stellasora_collectStellaSide(url, signal, tz, now, side) {
 	return { picked: covering[0], covering };
 }
 
-// 悬停：列出全部覆盖 now 的档期（带标签）
-function ns_stellasora_stellaHover(covering, tz, nameOf) {
+// ── 悬停 ──────────────────────────────────────────────────────────
+// 一律走 `lib/env.js` 的 hoverPool / hoverEvent（与本体 buildPoolHover / buildEventHover **逐字同格式**）。
+//
+// 为什么不再自己拼字符串（2026-10-03 修，用户点名「新增游戏的悬停样式/格式/规则和原来的差别很大」）：
+//   ① 旧实现把**元信息/实现说明**塞进了悬停 —— 主要是行尾的「（起点按公告发布时刻推断）」，
+//      那本是 `startInferred` 的**实现说明**。本体条目**从不**在悬停里写这些 →
+//      **直接删掉，且不改放到别的字段**；说明只留在本文件注释里（见 ns_stellasora_parseStellaWindow 与下方 ③）。
+//   ② 旧实现是「档期在前、名称在后」；本体一律 `名称 + 3 空格 + 档期` → 交回 hoverEvent 排版。
+//   ③ `startInferred` 的**判定逻辑原样保留**（「维护结束后」→ 用该公告 publishTime 当锚点，
+//      不硬造时刻）；变的只是"不再把它写成悬停文案"。
+//
+// 卡池池项：`{ name, label, startTs, endTs, raw }`。
+//   name  = 池名（与面板外显 `banner` 同一个字符串）
+//   label = 「池名：角色」（角色抓不到就 = 池名）—— 与本体 `label = banner + (roles ? "：" + roles : "")` 同构
+function ns_stellasora_stellaPoolItems(covering) {
+	return covering.map((c) => {
+		const name = ns_stellasora_stellaGachaName(c.row.title);
+		return {
+			name,
+			label: c.featured ? `${name}：${c.featured}` : name,
+			startTs: c.win.startTs,
+			endTs: c.win.endTs,
+			raw: c.win.raw
+		};
+	});
+}
+
+// 活动项：`{ name, startTs, endTs, raw }`。**排序由调用方负责**（hoverEvent 不排序），
+// 这里照本体 sortEventItems 同序：结束时间升序（越快结束越靠前），同结束时间再按开始时间升序。
+function ns_stellasora_stellaEventItems(covering) {
 	return covering
-		.map((c) => `${fmtWindow(c.win.startTs, c.win.endTs, tz)}   ${nameOf(c.row)}` + (c.win.startInferred ? "（起点按公告发布时刻推断）" : ""))
-		.join("\n");
+		.map((c) => ({ name: c.row.title, startTs: c.win.startTs, endTs: c.win.endTs, raw: c.win.raw }))
+		.sort((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs));
 }
 
 // ── 卡池侧 ──
@@ -4192,16 +4545,23 @@ async function ns_stellasora_gachaStellasora(url, signal, tz = ns_stellasora_STE
 	const got = await ns_stellasora_collectStellaSide(url, signal, tz, now, "gacha");
 	if (!got) return null;
 	const { picked, covering } = got;
-	return {
+	// ⚠️ 卡池列的悬停字段是 **bannerHover**（面板 `title: g.bannerHover || gachaTitle`；
+	//    50-refresh 的 `pickFields(g.data, GACHA_FIELDS)` 也只留 bannerHover）——
+	//    旧实现写的是 `eventHover`，运行时被丢弃 = 卡池悬停**根本没生效**。
+	const hover = hoverPool(ns_stellasora_stellaPoolItems(covering), tz);
+	const out = {
 		banner: ns_stellasora_stellaGachaName(picked.row.title),
 		bannerDates: fmtWindow(picked.win.startTs, picked.win.endTs, tz),
 		bannerDatesRaw: picked.win.raw,
 		startTs: picked.win.startTs,
 		endTs: picked.win.endTs,
 		event: "",
-		eventDates: "",
-		eventHover: ns_stellasora_stellaHover(covering, tz, (r) => ns_stellasora_stellaGachaName(r.title))
+		eventDates: ""
 	};
+	// hoverPool 在「当期池 < 2」时返回 ""：此时**不设** bannerHover，交回 UI 的默认两行式
+	// 「池名：角色」⏎「档期」—— 不要自己再补一行，那正是与本体不一致的来源。
+	if (hover) out.bannerHover = hover;
+	return out;
 }
 
 // ── 活动侧 ──
@@ -4209,12 +4569,18 @@ async function ns_stellasora_eventsStellasora(url, signal, tz = ns_stellasora_ST
 	const got = await ns_stellasora_collectStellaSide(url, signal, tz, now, "event");
 	if (!got) return null;
 	const { picked, covering } = got;
-	return {
+	const hover = hoverEvent(ns_stellasora_stellaEventItems(covering), tz);
+	const out = {
+		// 外显 = 该公告标题（源站的活动名写法；本次**不改**外显与档期字段的内容）。
+		// 悬停里的名称与它同源同字，故「外显能看到的活动名」在悬停里也一定看得到。
 		event: picked.row.title,
 		eventDates: fmtWindow(picked.win.startTs, picked.win.endTs, tz),
-		eventDatesRaw: picked.win.raw,
-		eventHover: ns_stellasora_stellaHover(covering, tz, (r) => r.title)
+		eventDatesRaw: picked.win.raw
 	};
+	// hoverEvent 在「当期活动 < 2」时返回 ""：此时**不设** eventHover，
+	// 交回 UI 的默认两行式「活动名」⏎「档期|原文」。
+	if (hover) out.eventHover = hover;
+	return out;
 }
 
 // 供测试：从一篇详情 JSON 直接算档期
@@ -4267,8 +4633,10 @@ function ns_stellasora_stellaWindowsFromDetail(detailJson, tz = ns_stellasora_ST
 //     ② 兜底：公告 `{{公告|时间=YYYYMMDD}}` 字段（**= stellasora 先例的"公告发布时间"**，本夹具里是 20260922）；
 //     ③ 再兜底：该相对点**自带的日期**（`2026年9月24日版本更新后`）按当日 00:00（防御性；只要正则匹配到相对点，
 //        ② 的公告时间字段就一定存在，故这条实际到不了，保留以防字段被源站删除）。
-//   三条路径**都**标 `startInferred: true`，并在 `bannerHover`/`eventHover` 里如实写明推断依据。
-//   （若坚持"一律用发布时间"，只需删掉 ns_bwiki_wikitext_zspmsMaintenanceWindow 的调用；本文件把两种依据都打印在 hover 里。）
+//   三条路径**都**标 `startInferred: true`，并把推断依据留在**数据字段**（`startFrom`/`startRel`）与代码注释里。
+//   ⚠️ 悬停**不写**推断依据（用户 2026-10-03：「悬停里的元信息彻底删掉」）——悬停只放名称/角色/档期，
+//   与本体 buildPoolHover / buildEventHover 同格式（见下面 "当期挑选 / 悬停" 区域）。
+//   （若坚持"一律用发布时间"，只需删掉 ns_bwiki_wikitext_zspmsMaintenanceWindow 的调用。兜底锚点行为不受悬停改动影响。）
 
 
 //#region 通用：MediaWiki `prop=wikitext`（fetchMediaWikiText 只取 parse.text，这里要 parse.wikitext）
@@ -4294,26 +4662,47 @@ async function ns_bwiki_wikitext_fetchWikitext(url, signal, referer = "") {
 //#endregion
 
 //#region 通用：当期挑选 / 悬停
+// ── 悬停排版（用户 2026-10-03 方案 A）────────────────────────────────────────
+// 用户反馈「新增游戏的面板外显/悬停的样式、格式、规则和原来的差别很大」。本文件此前各写各的悬停，
+// 三类偏差全中：① 首行塞元信息（来源站名/URL/SMW 时间/tz 推定/抓取条数/维护锚点）；
+// ② 「档期在前、名称在后」；③ 自拼档期文本而非 fmtWindow。
+// 修法：**排版一律交给 lib/env.js 的共用工具**（与本体 buildPoolHover / buildEventHover 逐字一致），
+// 本区域只负责把解析结果映射成入参；悬停里**只剩** 名称/角色/档期。
+// ⚠️ 元信息（来源站名、域名/URL、API/页面名、时区推定、抓取条数、内部 id、SMW 时间、起点锚点、
+//    「起点推断」注记、游戏名+区服前缀、任何「（…）」实现说明）**直接删掉**，不搬家、不进任何字段。
+//    实现说明只留在**代码注释**与数据字段（startInferred/startFrom/startRel）里，供测试与排查用。
 function ns_bwiki_wikitext_nowOf(now) { return typeof now === "number" && Number.isFinite(now) ? now : Date.now(); }
 // 覆盖 now 的条目（起点/终点都有绝对时刻才进候选；缺任一端的不产出）
 function ns_bwiki_wikitext_activeItems(items, now) {
 	return items.filter((it) => it.endTs != null && it.startTs != null && it.startTs <= now && it.endTs >= now);
 }
-// 悬停行：窗口 + 名字；超过 limit 行折叠（悬停不是数据出口，别把 20+ 行都塞进去）
-function ns_bwiki_wikitext_hoverLines(items, tz, nameOf, limit = 12) {
-	const lines = items.slice(0, limit).map((x) => `${fmtWindow(x.startTs, x.endTs, tz)}   ${nameOf(x)}`);
-	if (items.length > limit) lines.push(`…以及另外 ${items.length - limit} 项`);
-	return lines.join("\n");
+// 卡池条目 → `hoverPool` 入参。`name` = 池名原文（工具用它判空/兜底），`label` = 外显同构的「池名：角色」
+// （逐字照本体调用方：src/client/30-parsers.js 的 selectArknights`label: `${it.banner}：${it.roles}``）。
+// ⚠️ 战双的池名形如「时崎狂三狙击 / 命运时崎狂三狙击」——**原样**当池名用，不自己编角色名。
+function ns_bwiki_wikitext_poolItem(x) {
+	const name = String(x.banner == null ? "" : x.banner).trim();
+	const roles = String(x.roles == null ? "" : x.roles).trim();
+	return {
+		name,
+		label: roles ? `${name}：${roles}` : name,
+		startTs: x.startTs,
+		endTs: x.endTs,
+		raw: x.raw || ""
+	};
+}
+// 活动条目 → `hoverEvent` 入参：显示的是**活动名**（不是「活动时间」这类标签）+ 档期。
+function ns_bwiki_wikitext_eventItem(x, nameOf) {
+	return { name: nameOf(x), startTs: x.startTs, endTs: x.endTs, raw: x.raw || "" };
 }
 // 卡池侧载荷。cmp 决定"外显"优先序；默认 = 结束最早优先（越快结束越该盯住，与 bwiki.js 同口径）。
+// 悬停一律走共用 `hoverPool`：≥2 池 → 每池「池名：角色」行 + 档期行（窗口全同则只写一次档期）；
+// **<2 池 → 不设 bannerHover**（交回 UI 的「banner：roles」⏎「档期」两行式兜底，与本体约定一致）。
 function ns_bwiki_wikitext_gachaPayload(items, tz, now, opts = {}) {
 	const act = ns_bwiki_wikitext_activeItems(items, now);
 	if (act.length === 0) return null;                       // 有候选但都不覆盖当期 → 未公布（不硬凑过期档期）
 	const sorted = act.slice().sort(opts.cmp || ((a, b) => (a.endTs - b.endTs) || ((a._i || 0) - (b._i || 0))));
 	const first = sorted[0];
-	const note = first.startInferred ? `（起点「${first.startRel || "版本更新后"}」按${first.startFrom}推断）` : "";
-	const hover = [opts.header, ns_bwiki_wikitext_hoverLines(sorted, tz, (x) => `${x.banner}${x.roles && !String(x.banner).includes(x.roles) ? `（${x.roles}）` : ""}${x.startInferred ? "（起点推断）" : ""}`)]
-		.filter(Boolean).join("\n");
+	const hover = hoverPool(sorted.map(ns_bwiki_wikitext_poolItem), tz);
 	const out = {
 		banner: first.banner,
 		roles: first.roles || "",
@@ -4322,25 +4711,24 @@ function ns_bwiki_wikitext_gachaPayload(items, tz, now, opts = {}) {
 		startTs: first.startTs,
 		endTs: first.endTs
 	};
-	if (hover) out.bannerHover = (note ? `${note}\n${hover}` : hover);
+	if (hover) out.bannerHover = hover;
 	return out;
 }
-// 活动侧载荷。cmp 决定外显优先序；悬停列出**全部覆盖当期**的条目（按同一排序）。
+// 活动侧载荷。cmp 决定外显优先序；悬停列出**全部覆盖当期**的条目（按同一排序，**名称在前**）。
+// 悬停一律走共用 `hoverEvent`（名称 + 3 空格 + 档期；不排序，由调用方排好）：
+// **<2 条 → 不设 eventHover**（交回 UI 的「event」⏎「eventDates|raw」兜底）。
 function ns_bwiki_wikitext_eventPayload(items, tz, now, opts = {}) {
 	const act = ns_bwiki_wikitext_activeItems(items, now);
 	if (act.length === 0) return null;
 	const sorted = act.slice().sort(opts.cmp || ((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs) || ((a._i || 0) - (b._i || 0))));
 	const first = sorted[0];
 	const nameOf = opts.nameOf || ((x) => x.name || x.event || "");
-	const note = first.startInferred ? `（起点「${first.startRel || "版本更新后"}」按${first.startFrom}推断）` : "";
-	const hover = act.length >= 2
-		? [opts.header, note, ns_bwiki_wikitext_hoverLines(sorted, tz, (x) => `${nameOf(x)}${x.startInferred ? "（起点推断）" : ""}`)].filter(Boolean).join("\n")
-		: "";
+	const hover = hoverEvent(sorted.map((x) => ns_bwiki_wikitext_eventItem(x, nameOf)), tz, opts.permanentCount || 0);
 	return {
 		event: nameOf(first),
 		eventDates: fmtWindow(first.startTs, first.endTs, tz),
 		eventDatesRaw: first.raw || "",
-		eventHover: hover
+		...(hover ? { eventHover: hover } : {})
 	};
 }
 //#endregion
@@ -4591,10 +4979,9 @@ function ns_bwiki_wikitext_zspmsEventTier(x) { return ns_bwiki_wikitext__ZSPMS_T
 function ns_bwiki_wikitext_zspmsEventCmp(a, b) {
 	return (ns_bwiki_wikitext_zspmsEventTier(a) - ns_bwiki_wikitext_zspmsEventTier(b)) || (a.endTs - b.endTs) || (a.startTs - b.startTs) || (a._i - b._i);
 }
-function ns_bwiki_wikitext_zspmsHeader(parsed, row, side) {
-	const w = parsed.anchor ? `起点锚点=源站维护结束 ${parsed.anchor.raw}` : `起点锚点=公告时间 ${parsed.announceTime || "?"}`;
-	return `战双帕弥什 bwiki 版本更新公告「${(row && row.title) || "?"}」（SMW 时间=${parsed.announceTime || "?"}；${side}；tz=UTC+8 为推测；${w}）`;
-}
+// ⚠️ 原先这里有个 zspmsHeader()：往悬停首行拼「战双帕弥什 bwiki 版本更新公告「…」（SMW 时间=…；…；tz=UTC+8
+//    为推测；起点锚点=源站维护结束 …）」。按方案 A **整段删除**（元信息不进悬停，也不搬到别的字段）。
+//    公告标题/SMW 时间/维护窗口仍是**数据字段**（announceTime / anchor / startFrom），解析逻辑不变。
 
 // 两步抓取：ask 索引 → 最新公告正文。结构性损坏（无结果 / 坏 JSON / 正文无档期）都会抛错。
 async function ns_bwiki_wikitext_zspmsLatestNotice(url, signal) {
@@ -4605,10 +4992,10 @@ async function ns_bwiki_wikitext_zspmsLatestNotice(url, signal) {
 	return { row, rows, wikitext };
 }
 async function ns_bwiki_wikitext_gachaZspms(url, signal, tz = ns_bwiki_wikitext_ZSPMS_TZ, now = Date.now()) {
+	// `row`（ask 索引行）仍要传给解析器：`{{公告|时间=…}}` 缺失时用它兜底相对起点的锚点。
 	const { row, wikitext } = await ns_bwiki_wikitext_zspmsLatestNotice(url, signal);
 	const parsed = ns_bwiki_wikitext_parseZspmsAnnouncement(wikitext, tz, row);
 	return ns_bwiki_wikitext_gachaPayload(parsed.items.filter((x) => x.kind === "gacha"), tz, ns_bwiki_wikitext_nowOf(now), {
-		header: ns_bwiki_wikitext_zspmsHeader(parsed, row, "卡池：研发池档期"),
 		cmp: (a, b) => (a.endTs - b.endTs) || (a._i - b._i)
 	});
 }
@@ -4616,7 +5003,6 @@ async function ns_bwiki_wikitext_eventsZspms(url, signal, tz = ns_bwiki_wikitext
 	const { row, wikitext } = await ns_bwiki_wikitext_zspmsLatestNotice(url, signal);
 	const parsed = ns_bwiki_wikitext_parseZspmsAnnouncement(wikitext, tz, row);
 	return ns_bwiki_wikitext_eventPayload(parsed.items.filter((x) => x.kind === "event"), tz, ns_bwiki_wikitext_nowOf(now), {
-		header: ns_bwiki_wikitext_zspmsHeader(parsed, row, "活动：版本内限时内容档期"),
 		cmp: ns_bwiki_wikitext_zspmsEventCmp,
 		nameOf: (x) => x.name
 	});
@@ -4706,13 +5092,13 @@ function ns_bwiki_wikitext_parseCznRecord(wikitext, tz = ns_bwiki_wikitext_CZN_T
 }
 // 卡池外显：**开始最新**的覆盖档（与 bestdori/sekai/stellasora 的"最新开始"同口径：
 // 卡厄斯这 6 期是两两成对的三批，最新一批 = 赛季限定）
+// ⚠️ 原先此处给 `ns_bwiki_wikitext_gachaPayload` 传了 header「卡厄斯梦境 bwiki Module:Gacha/data（Lua 表 6 期；tz=UTC+8 为推测）」
+//    —— 那是悬停元信息（来源站名 / API 名 / 抓取条数 / 时区推定），按方案 A **整段删除**。
+//    Lua 表页名/期数仍是**数据**（ns_bwiki_wikitext_CZN_MODULE_PAGE / items.length），注释与注册表里都有，不进悬停。
 async function ns_bwiki_wikitext_gachaCzn(url, signal, tz = ns_bwiki_wikitext_CZN_TZ, now = Date.now()) {
 	const items = ns_bwiki_wikitext_parseCznLua(await ns_bwiki_wikitext_fetchWikitext(url || ns_bwiki_wikitext_CZN_MODULE_URL, signal, ns_bwiki_wikitext_CZN_REFERER), tz)
 		.map((x) => ({ ...x, banner: `${x.type}（${x.char}）`, roles: x.char }));
-	return ns_bwiki_wikitext_gachaPayload(items, tz, ns_bwiki_wikitext_nowOf(now), {
-		header: `卡厄斯梦境 bwiki ${ns_bwiki_wikitext_CZN_MODULE_PAGE}（Lua 表 ${items.length} 期；tz=UTC+8 为推测）`,
-		cmp: (a, b) => (b.startTs - a.startTs) || (a._i - b._i)
-	});
+	return ns_bwiki_wikitext_gachaPayload(items, tz, ns_bwiki_wikitext_nowOf(now), { cmp: (a, b) => (b.startTs - a.startTs) || (a._i - b._i) });
 }
 //#endregion
 
@@ -4788,16 +5174,18 @@ function ns_bwiki_wikitext_parseKedrTemplate(wikitext, tz = ns_bwiki_wikitext_KE
 	if (gacha.length + event.length === 0) throw new Error("kedr-template:no-window");
 	return { gacha, event, skipped, calls };
 }
-const ns_bwiki_wikitext__KEDR_HEADER = "雪松 bwiki Template:首页游戏版本内容（社区维护；【精英集结】/【演习】= 卡池，活动/赛季/通行证/剧情 = 活动；tz=UTC+8 为推测）";
+// ⚠️ 原先这里有个 _KEDR_HEADER：「雪松 bwiki Template:首页游戏版本内容（社区维护；【精英集结】/【演习】= 卡池，
+//    活动/赛季/通行证/剧情 = 活动；tz=UTC+8 为推测）」——悬停元信息（来源站名/页面名/分流口径/时区推定），
+//    按方案 A **整段删除**（分流规则仍在 ns_bwiki_wikitext_kedrIsGacha / ns_bwiki_wikitext_kedrIsEvent 的注释里）。
 // 卡池：开始最新的覆盖档（该模板是**当期**面板，两条卡池同窗口 → 取文档顺序第一条）
 async function ns_bwiki_wikitext_gachaKedrTemplate(url, signal, tz = ns_bwiki_wikitext_KEDR_TZ, now = Date.now()) {
 	const { gacha } = ns_bwiki_wikitext_parseKedrTemplate(await ns_bwiki_wikitext_fetchWikitext(url || ns_bwiki_wikitext_KEDR_TEMPLATE_URL, signal, ns_bwiki_wikitext_KEDR_REFERER), tz);
-	return ns_bwiki_wikitext_gachaPayload(gacha, tz, ns_bwiki_wikitext_nowOf(now), { header: ns_bwiki_wikitext__KEDR_HEADER, cmp: (a, b) => (b.startTs - a.startTs) || (a._i - b._i) });
+	return ns_bwiki_wikitext_gachaPayload(gacha, tz, ns_bwiki_wikitext_nowOf(now), { cmp: (a, b) => (b.startTs - a.startTs) || (a._i - b._i) });
 }
 // 活动：开始最新的覆盖档（个人剧情活动 > 战令通行证赛季 / 边境防卫）
 async function ns_bwiki_wikitext_eventsKedrTemplate(url, signal, tz = ns_bwiki_wikitext_KEDR_TZ, now = Date.now()) {
 	const { event } = ns_bwiki_wikitext_parseKedrTemplate(await ns_bwiki_wikitext_fetchWikitext(url || ns_bwiki_wikitext_KEDR_TEMPLATE_URL, signal, ns_bwiki_wikitext_KEDR_REFERER), tz);
-	return ns_bwiki_wikitext_eventPayload(event, tz, ns_bwiki_wikitext_nowOf(now), { header: ns_bwiki_wikitext__KEDR_HEADER, cmp: (a, b) => (b.startTs - a.startTs) || (a._i - b._i), nameOf: (x) => x.name });
+	return ns_bwiki_wikitext_eventPayload(event, tz, ns_bwiki_wikitext_nowOf(now), { cmp: (a, b) => (b.startTs - a.startTs) || (a._i - b._i), nameOf: (x) => x.name });
 }
 //#endregion
 
@@ -4806,11 +5194,25 @@ async function ns_bwiki_wikitext_eventsKedrTemplate(url, signal, tz = ns_bwiki_w
 // next-sources/parsers/biligame-activity.js —— biligame 官方公告（活动/卡池档期）
 //
 // 契约：async (url, signal, tz, now = Date.now()) → 数据对象 | null（null = 未公布）
-//   · 活动侧：{ event, eventDates, eventDatesRaw, eventHover }
-//   · 卡池侧：{ banner, roles?, bannerDates, bannerDatesRaw, startTs, endTs, bannerHover }
+//   · 活动侧：{ event, eventDates, eventDatesRaw, eventHover? }        （eventHover 缺省 = 当期只有 1 条）
+//   · 卡池侧：{ banner, roles?, bannerDates, bannerDatesRaw, startTs, endTs, bannerHover? }
 //   本文件服务两个游戏（同一套官方接口 api.biligame.com/news）：
 //     ① 物华弥新 国服 —— **只做活动侧**（卡池侧仍用 B2 的 bwiki `限时招集档案`，见 registry-p9.js）
 //     ② 闪耀优俊少女 国服 —— 卡池 + 活动两侧（**取代** B2 的 bwiki 推算表作主源）
+//
+//   ══ 悬停（hover）规则 —— 用户 2026-10-03 反馈「新增游戏的面板外显/悬停的样式、格式、规则
+//      和原来的差别很大」，核实后确认三类偏差，本文件按「方案 A」全部修掉 ══
+//     · 排版唯一真源 = `lib/env.js` 的 `hoverPool` / `hoverEvent`（与本体 buildPoolHover /
+//       buildEventHover **逐字一致**），本文件**不自己拼字符串**、不排序（工具不排序，调用方排）。
+//     · 活动侧 ≥2 条：每条一行「名称 + 3 空格 + 档期（fmtWindow）」，按结束时间升序；
+//       只有 1 条 → 工具返回 "" → **不设** `eventHover`，交回 UI 默认两行式（`event` ⏎ `eventDates`）。
+//     · 卡池侧 ≥2 池：每池「池名：角色」⏎ 档期（窗口全同则档期只在末尾写一遍）；
+//       只有 1 池 → 工具返回 "" → **不设** `bannerHover`，交回 UI 默认两行式（`banner：roles` ⏎ 档期）。
+//     · 悬停里**只放名称与档期**：来源站名 / URL / API 名 / 时区推定说明 / 抓取统计 /
+//       内部 id（gameExtensionId、typeId、post_id）/ 游戏名+区服前缀 / 任何「（…）」实现说明
+//       一律**彻底不进悬停文本**（用户原话「元信息彻底删掉」）——只留在**代码注释**与
+//       `parse*` 的返回字段里（供测试与排障），**不搬到别处、不写进别的字段**。
+//       ⚠️ 例外：`bannerDatesRaw` / `eventDatesRaw` 照既有约定**保留源站原文**（本体也有条目这么做）。
 //
 // ── 为什么不再 import `biligame-announce.js`（P6 嘟嘟脸，同形态）─────────────
 //   思路/函数确实同源（列表 → 逐条详情 → 正文抽档期 → 挑覆盖 now 的窗口 → 抽不到就 null），
@@ -4869,7 +5271,8 @@ async function ns_bwiki_wikitext_eventsKedrTemplate(url, signal, tz = ns_bwiki_w
 //       <p>活动期间 10/1 12:00 ～ 10/711:59</p>                      ← 同段；⚠️ 源站**少了一个空格**
 //     ⇒ 标签取「同段内窗口之前的文字」，空则退回「上一段非窗口段」。
 //     ⚠️ 实测源站笔误 `10/711:59`（18423 活动期间）：日期与时刻**粘连**。本解析器用
-//        `ns_biligame_activity_deglueDateTimes()` 归一成 `10/7 11:59`（并在该条上记 `glued:true`，hover 里如实说明）。
+//        `ns_biligame_activity_deglueDateTimes()` 归一成 `10/7 11:59`，并记 `glued:true` + `rawNorm`（供测试与排障）。
+//        ⚠️ 这条说明**只留在这里**：旧版曾把它拼成一个「（源站原文…粘连…）」括号注进悬停 → 已删。
 //     外显挑选：同一条公告里常有多个「…期间」（活动期间 / 奖励领取期间 / 报名期间 / 第N轮…）→
 //       卡池侧优先标签含`招募`的窗口，活动侧优先`活动期间`，其次含`期间|时间`，最后其它；同级结束早者先。
 //
@@ -4952,6 +5355,46 @@ function ns_biligame_activity_biligameParagraphs(html) {
 		.split(/<\/p\s*>/i)
 		.map((chunk) => ns_biligame_activity_plain(chunk).replace(/\s+/g, " ").trim())
 		.filter(Boolean);
+}
+//#endregion
+
+//#region 悬停排版（**只有名称与档期**，见文件头「悬停规则」）
+// 本区域只做两件事：① 从「覆盖 now 的档期」里取出名称；② 按结束时间升序排好交给共用工具。
+// 排版（3 空格 / 档期格式化 / 窗口全同只写一遍 / <2 条返回 ""）**全在 lib/env.js**，这里绝不自拼。
+//
+// ⚠️ 为什么这里有注释而悬停里没有：来源/URL/tz 推定/抓取条数/内部 id 都是**排障信息**，
+//    用户明确要求「元信息彻底删掉」→ 只留在代码注释与 `parse*` 的返回字段（skipped / section /
+//    label / raw…）里，**不搬到别处、不写进别的字段**。
+// ⚠️ 「常驻不产出」「源站日期与时刻粘连」这类**实现说明**同样不进悬停（旧版曾拼在 hover 里）。
+function ns_biligame_activity_byEndAsc(a, b) { return (a.endTs - b.endTs) || (a.startTs - b.startTs); }
+// 覆盖 now 的档期 → 悬停行（`name` 由调用方给的 nameOf 决定；空名行直接丢弃，不硬造占位名）
+function ns_biligame_activity_hoverRows(covering, nameOf) {
+	return (covering || [])
+		.slice()
+		.sort(ns_biligame_activity_byEndAsc)
+		.map((x) => {
+			const name = String(nameOf(x) || "").trim();
+			return name ? { name, startTs: x.startTs, endTs: x.endTs, raw: x.raw } : null;
+		})
+		.filter(Boolean);
+}
+// ① 物华弥新 活动侧：名称 = 源站小节名（`四、经以山海` → `经以山海`），缺小节时退回段落标签
+function ns_biligame_activity_whmxEventHover(covering, tz) {
+	return hoverEvent(ns_biligame_activity_hoverRows(covering, (x) => x.section || x.label), tz);
+}
+// ② 闪耀优俊少女 活动侧：名称 = 源站期间标签（`活动期间` / `第1轮` / `决赛轮：匹配期间` …）；
+//    标签缺失时退回公告标题（= 该活动的名字），仍为空则整行丢弃。
+//    多条期间属于**同一份公告**，因此每行只写期间名 + 档期，不再重复活动名（同一个名字重复 N 遍没有信息量）。
+function ns_biligame_activity_umaCnEventHover(covering, tz, fallbackName = "") {
+	return hoverEvent(ns_biligame_activity_hoverRows(covering, (x) => x.label || fallbackName), tz);
+}
+// ③ 闪耀优俊少女 卡池侧：每池写「池名：角色」（与本体 `banner：roles` 同构；无角色时只写池名）。
+//    池名取**源站期间标签**（`精选招募开放期间` / `开放期间`）：同一份公告可能同时开着多个期间，
+//    若用公告标题，每池同名 → `hoverPool` 会输出重复行。列出的期间集合 = 原有「覆盖 now」集合，
+//    **当期判定不变**（本次只改 hover 拼装，不动外显/档期字段）。
+function ns_biligame_activity_umaCnPoolHover(covering, tz, rolesText = "", fallbackName = "") {
+	const suffix = rolesText ? `：${rolesText}` : "";
+	return hoverPool(ns_biligame_activity_hoverRows(covering, (x) => `${x.label || fallbackName}${suffix}`), tz);
 }
 //#endregion
 
@@ -5126,7 +5569,7 @@ function ns_biligame_activity_extractWindows(text, yearHint, tz = ns_biligame_ac
 //#region ① 物华弥新 活动正文档期
 // 小节标题 `一、旅程将启-经以山海` / `十三、试炼场`
 const ns_biligame_activity_WHMX_SECTION_RE = /^[一二三四五六七八九十百]+\s*[、.．]\s*(.+)$/;
-// 小节名含这些词 → 卡池侧（本文件活动侧不用；保留 kind 便于测试与 hover 说明）
+// 小节名含这些词 → 卡池侧（本文件活动侧不用；保留 kind 便于测试断言）
 const ns_biligame_activity_GACHA_SEC_RE = /招集|招募|引介|卡池|扭蛋/;
 const ns_biligame_activity_WHMX_LABEL_RE = /^([^\s：:]{2,12})\s*[：:]/;
 // 正文 HTML → { items:[{ name, section, label, startTs, endTs, raw, glued, kind }], skipped, paragraphs }
@@ -5262,16 +5705,9 @@ function ns_biligame_activity_coveringWhmxEvents(items, now) {
 		.sort((a, b) => (a.x.startTs - b.x.startTs) || (a.i - b.i))
 		.map((o) => o.x);
 }
-const ns_biligame_activity_WHMX_TZ_NOTE = "（官方公告正文未标时区；tz=Asia/Shanghai 为推定，见文件头交叉印证）";
-function ns_biligame_activity_skipNote(skipped) {
-	const perm = (skipped || []).filter((s) => s.reason === "perm").length;
-	const noYear = (skipped || []).filter((s) => s.reason === "no-year").length;
-	const parts = [];
-	if (perm) parts.push(`${perm} 条档期终点写作「常驻」（无终点，无法渲染）`);
-	if (noYear) parts.push(`${noYear} 条档期缺年份且公告也无年份`);
-	if (!parts.length) return "";
-	return `—— 另有 ${parts.join("、")} → 不产出，绝不硬凑 ——`;
-}
+// ⚠️ 曾经这里有 `WHMX_TZ_NOTE`（时区推定说明）与 `skipNote()`（「常驻不产出」说明），两者都只用于
+//    拼旧悬停 → 用户要求「元信息彻底删掉」后**已整体删除**（时区推定的依据仍在文件头 ① 的交叉印证里，
+//    「常驻」为何不进 items 仍在 `ns_biligame_activity_extractWindowsDetailed` 的注释与 `skipped[].reason` 里）。
 function ns_biligame_activity_yearHintOf(item, tz) {
 	const ts = item && item.dateTs != null ? item.dateTs : null;
 	return ts == null ? null : sourceWallParts(ts, tz);
@@ -5314,20 +5750,18 @@ async function ns_biligame_activity_eventsWhmxOfficial(url, signal, tz = ns_bili
 		const parsed = ns_biligame_activity_parseWhmxActivity(d.content, tz, ns_biligame_activity_yearHintOf(it, tz));
 		const best = ns_biligame_activity_pickWhmxEvent(parsed.items, now, ns_biligame_activity_quotedName(title));
 		if (!best) continue;
-		const active = ns_biligame_activity_coveringWhmxEvents(parsed.items, now);
-		const lines = active.map((x) => `${x === best ? "▶ " : "  "}${fmtWindow(x.startTs, x.endTs, tz)}   ${x.section || x.label}`);
-		const hover = [
-			`物华弥新 国服 · ${title} ${ns_biligame_activity_WHMX_TZ_NOTE}`,
-			`来源：B站官方公告 api.biligame.com/news（gameExtensionId=${ns_biligame_activity_WHMX_GAME_EXTENSION_ID}，typeId=${ns_biligame_activity_WHMX_TYPE_IDS.join("/")} 两路合并去重；共 ${list.length} 篇）`,
-			...lines,
-			...(ns_biligame_activity_skipNote(parsed.skipped) ? [ns_biligame_activity_skipNote(parsed.skipped)] : [])
-		].join("\n");
+		// 悬停 = 覆盖 now 的全部活动档期，逐行「小节名 + 3 空格 + 档期」（共用工具排版，按结束时间升序）。
+		// 只有 1 条 → 工具返回 "" → **不设** eventHover，交回 UI 默认两行式（`event` ⏎ `eventDates`）。
+		// ⚠️ 旧版的「来源：B站官方公告 api.biligame.com/news（gameExtensionId=613，typeId=4/1…
+		// 共 N 篇）」「物华弥新 国服 · 标题 + tz 推定」「▶ 标出外显那条」「另有 N 条常驻不产出」
+		// 全部是元信息/实现说明 → 已彻底删除（见文件头「悬停规则」）。
+		const eventHover = ns_biligame_activity_whmxEventHover(ns_biligame_activity_coveringWhmxEvents(parsed.items, now), tz);
 		const eventDates = fmtWindow(best.startTs, best.endTs, tz);
 		return {
 			event: ns_biligame_activity_cleanTitle(title) || best.section || best.label,
 			eventDates,
 			eventDatesRaw: best.raw,
-			eventHover: hover
+			...(eventHover ? { eventHover } : {})
 		};
 	}
 	if (loaded === 0 && firstErr) throw firstErr;
@@ -5361,19 +5795,16 @@ async function ns_biligame_activity_loadUmaCn(url, signal, tz, now, want) {
 		const parsed = ns_biligame_activity_parseUmaCnAnnouncement(d.content, tz, ns_biligame_activity_yearHintOf(it, tz));
 		const best = ns_biligame_activity_pickUmaWindow(parsed.items, now, want);
 		if (!best) continue;
-		const active = parsed.items.filter((x) => x.startTs <= now && x.endTs >= now)
-			.map((x, i) => ({ x, i }))
-			.sort((a, b) => (a.x.startTs - b.x.startTs) || (a.i - b.i))
-			.map((o) => o.x);
-		const lines = active.map((x) => `${x === best ? "▶ " : "  "}${fmtWindow(x.startTs, x.endTs, tz)}   ${x.label}`);
-		const gluedNote = best.glued ? [`（源站原文日期与时刻粘连：\`${best.raw}\` → 按 \`${best.rawNorm}\` 解析）`] : [];
-		const hover = [
-			`闪耀！优俊少女 国服 · ${dt} ${ns_biligame_activity_WHMX_TZ_NOTE}`,
-			`来源：B站官方公告 api.biligame.com/news（gameExtensionId=${ns_biligame_activity_UMA_CN_GAME_EXTENSION_ID}，单一 feed typeId=1 卡池/活动混排，按标题分流）`,
-			...lines,
-			...gluedNote
-		].join("\n");
-		return { title: dt, best, hover, roles: want === "gacha" ? ns_biligame_activity_umaRoles(parsed.paragraphs) : [] };
+		// 覆盖 now 的全部期间（**当期判定不变**，与旧版同一集合），按结束时间升序排好供悬停排版。
+		// 悬停文本由调用方按侧拼（卡池 `hoverPool` / 活动 `hoverEvent`）——本函数不再返回 hover，
+		// 因为两侧排版不同（卡池要「池名：角色」+ 每池两行），旧版共用一份 hover 正是偏差来源之一。
+		// ⚠️ 旧版的「来源：B站官方公告 api.biligame.com/news（gameExtensionId=1006，单一 feed
+		// typeId=1 卡池/活动混排，按标题分流）」「闪耀！优俊少女 国服 · 标题 + tz 推定」「▶ 支线」
+		// 与「源站原文粘连 → 按 … 解析」全是元信息/实现说明 → 已彻底删除（见文件头「悬停规则」）。
+		const active = parsed.items
+			.filter((x) => x.startTs <= now && x.endTs >= now)
+			.sort(ns_biligame_activity_byEndAsc);
+		return { title: dt, best, active, roles: want === "gacha" ? ns_biligame_activity_umaRoles(parsed.paragraphs) : [] };
 	}
 	if (loaded === 0 && tried > 0 && firstErr) throw firstErr;   // 本侧相关详情全都失败 → 抛错
 	return null;
@@ -5382,27 +5813,36 @@ async function ns_biligame_activity_loadUmaCn(url, signal, tz, now, want) {
 async function ns_biligame_activity_gachaUmaCnOfficial(url, signal, tz = ns_biligame_activity_BILIGAME_ACTIVITY_TZ, now = Date.now()) {
 	const hit = await ns_biligame_activity_loadUmaCn(url, signal, tz, now, "gacha");
 	if (!hit) return null;
-	const { title, best, hover, roles } = hit;
+	const { title, best, active, roles } = hit;
+	const banner = ns_biligame_activity_cleanTitle(title) || best.label;
+	const rolesText = roles.join("、");
+	// 悬停 = 全部当期池（每池「池名：角色」+ 档期）；只有 1 个当期池 → "" → **不设** bannerHover，
+	// 交回 UI 默认两行式（`banner：roles` ⏎ `bannerDates`）。
+	const bannerHover = ns_biligame_activity_umaCnPoolHover(active, tz, rolesText, banner);
 	return {
-		banner: ns_biligame_activity_cleanTitle(title) || best.label,
-		roles: roles.join("、"),
+		banner,
+		roles: rolesText,
 		bannerDates: fmtWindow(best.startTs, best.endTs, tz),
 		bannerDatesRaw: best.raw,
 		startTs: best.startTs,
 		endTs: best.endTs,
-		bannerHover: hover
+		...(bannerHover ? { bannerHover } : {})
 	};
 }
 // 活动侧
 async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_biligame_activity_BILIGAME_ACTIVITY_TZ, now = Date.now()) {
 	const hit = await ns_biligame_activity_loadUmaCn(url, signal, tz, now, "event");
 	if (!hit) return null;
-	const { title, best, hover } = hit;
+	const { title, best, active } = hit;
+	const event = ns_biligame_activity_cleanTitle(title) || best.label;
+	// 悬停 = 全部当期期间，逐行「期间名 + 3 空格 + 档期」（档期由 fmtWindow 格式化：源站粘连笔误
+	// `10/711:59` 在这里如实显示为 `10-07 11:59`）；只有 1 条 → "" → **不设** eventHover。
+	const eventHover = ns_biligame_activity_umaCnEventHover(active, tz, event);
 	return {
-		event: ns_biligame_activity_cleanTitle(title) || best.label,
+		event,
 		eventDates: fmtWindow(best.startTs, best.endTs, tz),
 		eventDatesRaw: best.raw,
-		eventHover: hover
+		...(eventHover ? { eventHover } : {})
 	};
 }
 //#endregion

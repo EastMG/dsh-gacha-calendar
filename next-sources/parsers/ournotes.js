@@ -30,7 +30,7 @@
 //        ④ hover 逐行列出所有覆盖当前的区间（附所属公告标题）。
 //   只给"一个日期"的句子（「9月24日(木)に決定しました！」）**不算区间** → 不产出，不硬凑。
 
-import { fetchJson, textOf, decodeEntities, sourceInstant, sourceWallParts, fmtWindow } from "../lib/env.js";
+import { fetchJson, textOf, decodeEntities, sourceInstant, sourceWallParts, fmtWindow, hoverEvent } from "../lib/env.js";
 
 export const OURNOTES_LIST_URL = "https://bang-dream-on.bushimo.jp/wp-json/wp/v2/posts?per_page=20&page=1";
 export const OURNOTES_TZ = "Asia/Tokyo";
@@ -175,11 +175,22 @@ export async function eventsOurNotes(url, signal, tz = OURNOTES_TZ) {
 	if (!picked || !picked.win) return null;
 	const active = [];
 	for (const p of posts) for (const w of p.windows) if (w.startTs <= now && w.endTs >= now) active.push({ p, w });
-	const hoverLines = (active.length ? active : [picked]).map(({ p, w }) => `${fmtWindow(w.startTs, w.endTs, tz)}   ${p.title}`);
+	// 悬停格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover）：`名称` + 3 空格 + `档期`，
+	// **名称在前**（旧实现「档期在前、名称在后」，与本体相反 —— 用户 2026-10-03 反馈的偏差②）。
+	// 名称用公告标题（这是该站的"活动名"来源）；行内不再附来源站名/URL/时区推定等元信息。
+	// ⚠️ 只有 1 条当期窗口时 hoverEvent 返回 "" → **不设 eventHover**，由 UI 走默认两行式
+	//    「名称 ⏎ 档期」（实测夹具里覆盖当期的只有 1 条：288 那篇）。
+	const list = (active.length ? active : [picked]).map(({ p, w }) => ({
+		name: p.title,
+		startTs: w.startTs,
+		endTs: w.endTs,
+		raw: w.raw
+	}));
+	const eventHover = hoverEvent(list, tz);
 	return {
 		event: picked.post.title,
 		eventDates: fmtWindow(picked.win.startTs, picked.win.endTs, tz),
 		eventDatesRaw: picked.win.raw,
-		eventHover: hoverLines.join("\n")
+		...(eventHover ? { eventHover } : {})
 	};
 }

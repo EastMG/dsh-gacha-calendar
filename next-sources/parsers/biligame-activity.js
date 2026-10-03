@@ -1,11 +1,25 @@
 // next-sources/parsers/biligame-activity.js —— biligame 官方公告（活动/卡池档期）
 //
 // 契约：async (url, signal, tz, now = Date.now()) → 数据对象 | null（null = 未公布）
-//   · 活动侧：{ event, eventDates, eventDatesRaw, eventHover }
-//   · 卡池侧：{ banner, roles?, bannerDates, bannerDatesRaw, startTs, endTs, bannerHover }
+//   · 活动侧：{ event, eventDates, eventDatesRaw, eventHover? }        （eventHover 缺省 = 当期只有 1 条）
+//   · 卡池侧：{ banner, roles?, bannerDates, bannerDatesRaw, startTs, endTs, bannerHover? }
 //   本文件服务两个游戏（同一套官方接口 api.biligame.com/news）：
 //     ① 物华弥新 国服 —— **只做活动侧**（卡池侧仍用 B2 的 bwiki `限时招集档案`，见 registry-p9.js）
 //     ② 闪耀优俊少女 国服 —— 卡池 + 活动两侧（**取代** B2 的 bwiki 推算表作主源）
+//
+//   ══ 悬停（hover）规则 —— 用户 2026-10-03 反馈「新增游戏的面板外显/悬停的样式、格式、规则
+//      和原来的差别很大」，核实后确认三类偏差，本文件按「方案 A」全部修掉 ══
+//     · 排版唯一真源 = `lib/env.js` 的 `hoverPool` / `hoverEvent`（与本体 buildPoolHover /
+//       buildEventHover **逐字一致**），本文件**不自己拼字符串**、不排序（工具不排序，调用方排）。
+//     · 活动侧 ≥2 条：每条一行「名称 + 3 空格 + 档期（fmtWindow）」，按结束时间升序；
+//       只有 1 条 → 工具返回 "" → **不设** `eventHover`，交回 UI 默认两行式（`event` ⏎ `eventDates`）。
+//     · 卡池侧 ≥2 池：每池「池名：角色」⏎ 档期（窗口全同则档期只在末尾写一遍）；
+//       只有 1 池 → 工具返回 "" → **不设** `bannerHover`，交回 UI 默认两行式（`banner：roles` ⏎ 档期）。
+//     · 悬停里**只放名称与档期**：来源站名 / URL / API 名 / 时区推定说明 / 抓取统计 /
+//       内部 id（gameExtensionId、typeId、post_id）/ 游戏名+区服前缀 / 任何「（…）」实现说明
+//       一律**彻底不进悬停文本**（用户原话「元信息彻底删掉」）——只留在**代码注释**与
+//       `parse*` 的返回字段里（供测试与排障），**不搬到别处、不写进别的字段**。
+//       ⚠️ 例外：`bannerDatesRaw` / `eventDatesRaw` 照既有约定**保留源站原文**（本体也有条目这么做）。
 //
 // ── 为什么不再 import `biligame-announce.js`（P6 嘟嘟脸，同形态）─────────────
 //   思路/函数确实同源（列表 → 逐条详情 → 正文抽档期 → 挑覆盖 now 的窗口 → 抽不到就 null），
@@ -64,7 +78,8 @@
 //       <p>活动期间 10/1 12:00 ～ 10/711:59</p>                      ← 同段；⚠️ 源站**少了一个空格**
 //     ⇒ 标签取「同段内窗口之前的文字」，空则退回「上一段非窗口段」。
 //     ⚠️ 实测源站笔误 `10/711:59`（18423 活动期间）：日期与时刻**粘连**。本解析器用
-//        `deglueDateTimes()` 归一成 `10/7 11:59`（并在该条上记 `glued:true`，hover 里如实说明）。
+//        `deglueDateTimes()` 归一成 `10/7 11:59`，并记 `glued:true` + `rawNorm`（供测试与排障）。
+//        ⚠️ 这条说明**只留在这里**：旧版曾把它拼成一个「（源站原文…粘连…）」括号注进悬停 → 已删。
 //     外显挑选：同一条公告里常有多个「…期间」（活动期间 / 奖励领取期间 / 报名期间 / 第N轮…）→
 //       卡池侧优先标签含`招募`的窗口，活动侧优先`活动期间`，其次含`期间|时间`，最后其它；同级结束早者先。
 //
@@ -79,7 +94,7 @@
 //   `api.biligame.com` **无 ACAO**（调研实测）→ mode 一律 "proxy"，**不可 direct**。
 //   抓夹具时别并发太猛（列表+详情共 11 次请求，实测每 7~9 秒一发全部 HTTP 200）。
 
-import { fetchJson, decodeEntities, textOf, sourceInstant, sourceWallParts, fmtWindow } from "../lib/env.js";
+import { fetchJson, decodeEntities, textOf, sourceInstant, sourceWallParts, fmtWindow, hoverPool, hoverEvent } from "../lib/env.js";
 
 export const BILIGAME_ACTIVITY_TZ = "Asia/Shanghai";
 export const WHMX_GAME_EXTENSION_ID = 613;
@@ -148,6 +163,46 @@ export function biligameParagraphs(html) {
 		.split(/<\/p\s*>/i)
 		.map((chunk) => plain(chunk).replace(/\s+/g, " ").trim())
 		.filter(Boolean);
+}
+//#endregion
+
+//#region 悬停排版（**只有名称与档期**，见文件头「悬停规则」）
+// 本区域只做两件事：① 从「覆盖 now 的档期」里取出名称；② 按结束时间升序排好交给共用工具。
+// 排版（3 空格 / 档期格式化 / 窗口全同只写一遍 / <2 条返回 ""）**全在 lib/env.js**，这里绝不自拼。
+//
+// ⚠️ 为什么这里有注释而悬停里没有：来源/URL/tz 推定/抓取条数/内部 id 都是**排障信息**，
+//    用户明确要求「元信息彻底删掉」→ 只留在代码注释与 `parse*` 的返回字段（skipped / section /
+//    label / raw…）里，**不搬到别处、不写进别的字段**。
+// ⚠️ 「常驻不产出」「源站日期与时刻粘连」这类**实现说明**同样不进悬停（旧版曾拼在 hover 里）。
+function byEndAsc(a, b) { return (a.endTs - b.endTs) || (a.startTs - b.startTs); }
+// 覆盖 now 的档期 → 悬停行（`name` 由调用方给的 nameOf 决定；空名行直接丢弃，不硬造占位名）
+function hoverRows(covering, nameOf) {
+	return (covering || [])
+		.slice()
+		.sort(byEndAsc)
+		.map((x) => {
+			const name = String(nameOf(x) || "").trim();
+			return name ? { name, startTs: x.startTs, endTs: x.endTs, raw: x.raw } : null;
+		})
+		.filter(Boolean);
+}
+// ① 物华弥新 活动侧：名称 = 源站小节名（`四、经以山海` → `经以山海`），缺小节时退回段落标签
+export function whmxEventHover(covering, tz) {
+	return hoverEvent(hoverRows(covering, (x) => x.section || x.label), tz);
+}
+// ② 闪耀优俊少女 活动侧：名称 = 源站期间标签（`活动期间` / `第1轮` / `决赛轮：匹配期间` …）；
+//    标签缺失时退回公告标题（= 该活动的名字），仍为空则整行丢弃。
+//    多条期间属于**同一份公告**，因此每行只写期间名 + 档期，不再重复活动名（同一个名字重复 N 遍没有信息量）。
+export function umaCnEventHover(covering, tz, fallbackName = "") {
+	return hoverEvent(hoverRows(covering, (x) => x.label || fallbackName), tz);
+}
+// ③ 闪耀优俊少女 卡池侧：每池写「池名：角色」（与本体 `banner：roles` 同构；无角色时只写池名）。
+//    池名取**源站期间标签**（`精选招募开放期间` / `开放期间`）：同一份公告可能同时开着多个期间，
+//    若用公告标题，每池同名 → `hoverPool` 会输出重复行。列出的期间集合 = 原有「覆盖 now」集合，
+//    **当期判定不变**（本次只改 hover 拼装，不动外显/档期字段）。
+export function umaCnPoolHover(covering, tz, rolesText = "", fallbackName = "") {
+	const suffix = rolesText ? `：${rolesText}` : "";
+	return hoverPool(hoverRows(covering, (x) => `${x.label || fallbackName}${suffix}`), tz);
 }
 //#endregion
 
@@ -322,7 +377,7 @@ export function extractWindows(text, yearHint, tz = BILIGAME_ACTIVITY_TZ) {
 //#region ① 物华弥新 活动正文档期
 // 小节标题 `一、旅程将启-经以山海` / `十三、试炼场`
 const WHMX_SECTION_RE = /^[一二三四五六七八九十百]+\s*[、.．]\s*(.+)$/;
-// 小节名含这些词 → 卡池侧（本文件活动侧不用；保留 kind 便于测试与 hover 说明）
+// 小节名含这些词 → 卡池侧（本文件活动侧不用；保留 kind 便于测试断言）
 const GACHA_SEC_RE = /招集|招募|引介|卡池|扭蛋/;
 const WHMX_LABEL_RE = /^([^\s：:]{2,12})\s*[：:]/;
 // 正文 HTML → { items:[{ name, section, label, startTs, endTs, raw, glued, kind }], skipped, paragraphs }
@@ -458,16 +513,9 @@ export function coveringWhmxEvents(items, now) {
 		.sort((a, b) => (a.x.startTs - b.x.startTs) || (a.i - b.i))
 		.map((o) => o.x);
 }
-const WHMX_TZ_NOTE = "（官方公告正文未标时区；tz=Asia/Shanghai 为推定，见文件头交叉印证）";
-function skipNote(skipped) {
-	const perm = (skipped || []).filter((s) => s.reason === "perm").length;
-	const noYear = (skipped || []).filter((s) => s.reason === "no-year").length;
-	const parts = [];
-	if (perm) parts.push(`${perm} 条档期终点写作「常驻」（无终点，无法渲染）`);
-	if (noYear) parts.push(`${noYear} 条档期缺年份且公告也无年份`);
-	if (!parts.length) return "";
-	return `—— 另有 ${parts.join("、")} → 不产出，绝不硬凑 ——`;
-}
+// ⚠️ 曾经这里有 `WHMX_TZ_NOTE`（时区推定说明）与 `skipNote()`（「常驻不产出」说明），两者都只用于
+//    拼旧悬停 → 用户要求「元信息彻底删掉」后**已整体删除**（时区推定的依据仍在文件头 ① 的交叉印证里，
+//    「常驻」为何不进 items 仍在 `extractWindowsDetailed` 的注释与 `skipped[].reason` 里）。
 function yearHintOf(item, tz) {
 	const ts = item && item.dateTs != null ? item.dateTs : null;
 	return ts == null ? null : sourceWallParts(ts, tz);
@@ -510,20 +558,18 @@ export async function eventsWhmxOfficial(url, signal, tz = BILIGAME_ACTIVITY_TZ,
 		const parsed = parseWhmxActivity(d.content, tz, yearHintOf(it, tz));
 		const best = pickWhmxEvent(parsed.items, now, quotedName(title));
 		if (!best) continue;
-		const active = coveringWhmxEvents(parsed.items, now);
-		const lines = active.map((x) => `${x === best ? "▶ " : "  "}${fmtWindow(x.startTs, x.endTs, tz)}   ${x.section || x.label}`);
-		const hover = [
-			`物华弥新 国服 · ${title} ${WHMX_TZ_NOTE}`,
-			`来源：B站官方公告 api.biligame.com/news（gameExtensionId=${WHMX_GAME_EXTENSION_ID}，typeId=${WHMX_TYPE_IDS.join("/")} 两路合并去重；共 ${list.length} 篇）`,
-			...lines,
-			...(skipNote(parsed.skipped) ? [skipNote(parsed.skipped)] : [])
-		].join("\n");
+		// 悬停 = 覆盖 now 的全部活动档期，逐行「小节名 + 3 空格 + 档期」（共用工具排版，按结束时间升序）。
+		// 只有 1 条 → 工具返回 "" → **不设** eventHover，交回 UI 默认两行式（`event` ⏎ `eventDates`）。
+		// ⚠️ 旧版的「来源：B站官方公告 api.biligame.com/news（gameExtensionId=613，typeId=4/1…
+		// 共 N 篇）」「物华弥新 国服 · 标题 + tz 推定」「▶ 标出外显那条」「另有 N 条常驻不产出」
+		// 全部是元信息/实现说明 → 已彻底删除（见文件头「悬停规则」）。
+		const eventHover = whmxEventHover(coveringWhmxEvents(parsed.items, now), tz);
 		const eventDates = fmtWindow(best.startTs, best.endTs, tz);
 		return {
 			event: cleanTitle(title) || best.section || best.label,
 			eventDates,
 			eventDatesRaw: best.raw,
-			eventHover: hover
+			...(eventHover ? { eventHover } : {})
 		};
 	}
 	if (loaded === 0 && firstErr) throw firstErr;
@@ -557,19 +603,16 @@ async function loadUmaCn(url, signal, tz, now, want) {
 		const parsed = parseUmaCnAnnouncement(d.content, tz, yearHintOf(it, tz));
 		const best = pickUmaWindow(parsed.items, now, want);
 		if (!best) continue;
-		const active = parsed.items.filter((x) => x.startTs <= now && x.endTs >= now)
-			.map((x, i) => ({ x, i }))
-			.sort((a, b) => (a.x.startTs - b.x.startTs) || (a.i - b.i))
-			.map((o) => o.x);
-		const lines = active.map((x) => `${x === best ? "▶ " : "  "}${fmtWindow(x.startTs, x.endTs, tz)}   ${x.label}`);
-		const gluedNote = best.glued ? [`（源站原文日期与时刻粘连：\`${best.raw}\` → 按 \`${best.rawNorm}\` 解析）`] : [];
-		const hover = [
-			`闪耀！优俊少女 国服 · ${dt} ${WHMX_TZ_NOTE}`,
-			`来源：B站官方公告 api.biligame.com/news（gameExtensionId=${UMA_CN_GAME_EXTENSION_ID}，单一 feed typeId=1 卡池/活动混排，按标题分流）`,
-			...lines,
-			...gluedNote
-		].join("\n");
-		return { title: dt, best, hover, roles: want === "gacha" ? umaRoles(parsed.paragraphs) : [] };
+		// 覆盖 now 的全部期间（**当期判定不变**，与旧版同一集合），按结束时间升序排好供悬停排版。
+		// 悬停文本由调用方按侧拼（卡池 `hoverPool` / 活动 `hoverEvent`）——本函数不再返回 hover，
+		// 因为两侧排版不同（卡池要「池名：角色」+ 每池两行），旧版共用一份 hover 正是偏差来源之一。
+		// ⚠️ 旧版的「来源：B站官方公告 api.biligame.com/news（gameExtensionId=1006，单一 feed
+		// typeId=1 卡池/活动混排，按标题分流）」「闪耀！优俊少女 国服 · 标题 + tz 推定」「▶ 支线」
+		// 与「源站原文粘连 → 按 … 解析」全是元信息/实现说明 → 已彻底删除（见文件头「悬停规则」）。
+		const active = parsed.items
+			.filter((x) => x.startTs <= now && x.endTs >= now)
+			.sort(byEndAsc);
+		return { title: dt, best, active, roles: want === "gacha" ? umaRoles(parsed.paragraphs) : [] };
 	}
 	if (loaded === 0 && tried > 0 && firstErr) throw firstErr;   // 本侧相关详情全都失败 → 抛错
 	return null;
@@ -578,27 +621,36 @@ async function loadUmaCn(url, signal, tz, now, want) {
 export async function gachaUmaCnOfficial(url, signal, tz = BILIGAME_ACTIVITY_TZ, now = Date.now()) {
 	const hit = await loadUmaCn(url, signal, tz, now, "gacha");
 	if (!hit) return null;
-	const { title, best, hover, roles } = hit;
+	const { title, best, active, roles } = hit;
+	const banner = cleanTitle(title) || best.label;
+	const rolesText = roles.join("、");
+	// 悬停 = 全部当期池（每池「池名：角色」+ 档期）；只有 1 个当期池 → "" → **不设** bannerHover，
+	// 交回 UI 默认两行式（`banner：roles` ⏎ `bannerDates`）。
+	const bannerHover = umaCnPoolHover(active, tz, rolesText, banner);
 	return {
-		banner: cleanTitle(title) || best.label,
-		roles: roles.join("、"),
+		banner,
+		roles: rolesText,
 		bannerDates: fmtWindow(best.startTs, best.endTs, tz),
 		bannerDatesRaw: best.raw,
 		startTs: best.startTs,
 		endTs: best.endTs,
-		bannerHover: hover
+		...(bannerHover ? { bannerHover } : {})
 	};
 }
 // 活动侧
 export async function eventsUmaCnOfficial(url, signal, tz = BILIGAME_ACTIVITY_TZ, now = Date.now()) {
 	const hit = await loadUmaCn(url, signal, tz, now, "event");
 	if (!hit) return null;
-	const { title, best, hover } = hit;
+	const { title, best, active } = hit;
+	const event = cleanTitle(title) || best.label;
+	// 悬停 = 全部当期期间，逐行「期间名 + 3 空格 + 档期」（档期由 fmtWindow 格式化：源站粘连笔误
+	// `10/711:59` 在这里如实显示为 `10-07 11:59`）；只有 1 条 → "" → **不设** eventHover。
+	const eventHover = umaCnEventHover(active, tz, event);
 	return {
-		event: cleanTitle(title) || best.label,
+		event,
 		eventDates: fmtWindow(best.startTs, best.endTs, tz),
 		eventDatesRaw: best.raw,
-		eventHover: hover
+		...(eventHover ? { eventHover } : {})
 	};
 }
 //#endregion

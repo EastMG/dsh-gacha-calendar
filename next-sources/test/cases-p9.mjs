@@ -11,6 +11,13 @@
 //   ④ 断言里的硬编码值都是**夹具快照值**（物华/闪耀 11 个夹具是**真抓**的；
 //      OurNotes 国际服 4 个夹具是**合成**的，见 P9-6 / P9-7 的显式标注）。
 //
+//   ⑤ 悬停（2026-10-03 用户反馈「新增游戏的悬停样式/格式/规则和原来的差别很大」→ 方案 A）：
+//      悬停里**只许有名称与档期**，且一律「名称在前 + 3 空格 + fmtWindow 档期」（卡池侧「池名：角色」）；
+//      元信息（来源站/URL/gameExtensionId/typeId/tz 推定/抓取条数/▶/「粘连」「常驻不产出」说明）
+//      **一条都不许出现**（用户原话「元信息彻底删掉」）→ 本文件用 HOVER_META_RE 做统一守卫。
+//      排版唯一真源 = lib/env.js 的 hoverPool / hoverEvent（与本体 buildPoolHover / buildEventHover
+//      逐字一致）；<2 项返回 "" → 调用方**不设** bannerHover / eventHover，交回 UI 默认两行式。
+//
 // 本地直接跑：node test/cases-p9.mjs
 
 import { readFileSync } from "node:fs";
@@ -28,6 +35,7 @@ import {
 	classifyUmaCnTitle, pickWhmxEvent, pickUmaWindow, umaRoles, quotedName, cleanTitle,
 	biligameParagraphs, extractWindowsDetailed, deglueDateTimes, siblingListUrl, whmxListUrls,
 	biligameDetailUrl, biligameListUrl, parseCmsStamp,
+	whmxEventHover, umaCnEventHover, umaCnPoolHover,
 	BILIGAME_ACTIVITY_TZ, WHMX_GAME_EXTENSION_ID, UMA_CN_GAME_EXTENSION_ID,
 	WHMX_LIST_URL, WHMX_LIST_URLS, UMA_CN_LIST_URL
 } from "../parsers/biligame-activity.js";
@@ -95,6 +103,15 @@ const wall = (ts, tz) => {
 	const p = (n) => String(n).padStart(2, "0");
 	return `${w.y}-${p(w.mo)}-${p(w.d)} ${p(w.h)}:${p(w.mi)}`;
 };
+// ── 悬停元信息守卫（用户 2026-10-03：「元信息彻底删掉」）──
+//   命中任意一条 = 元信息/实现说明又漏进悬停文本了。覆盖：
+//   来源站名与域名（api.biligame.com / bwiki / 官网公告）、内部 id（gameExtensionId / typeId /
+//   post_id）、时区推定（推定 / 推测 / tz= / 时区）、抓取统计（共 N 篇 / 抓取）、
+//   旧版的排版残留（▶ 前缀 / 「粘连」「不产出」说明）、以及任何「（…）」形式的实现说明。
+//   ⚠️ 断言的是**悬停文本**，不是代码注释 —— 实现说明留在注释里是对的（用户明确要求保留）。
+const HOVER_META_RE = /来源|官方公告|api\.|bwiki|gameExtensionId|typeId|post_id|推定|推测|tz\s*=|时区|共\s*\d+\s*篇|抓取|▶|粘连|不产出|[（(]/;
+// 悬停行格式守卫：每条一行「名称 + **3 个空格** + `MM-DD HH:MM ~ MM-DD HH:MM`」（档期已 fmtWindow 格式化）
+const HOVER_EVENT_LINE_RE = /^\S.*   \d{2}-\d{2} \d{2}:\d{2} ~ \d{2}-\d{2} \d{2}:\d{2}$/;
 
 export default async function run() {
 	useFixtures(OVERRIDES);
@@ -362,21 +379,39 @@ export default async function run() {
 		check("eventDatesRaw 保留源站原文（不带年份）= `9月30日 10:00 ~ 10月22日 09:59`",
 			r.ok && r.data && r.data.eventDatesRaw === "9月30日 10:00 ~ 10月22日 09:59",
 			JSON.stringify(r.ok && r.data && r.data.eventDatesRaw));
-		check("hover 多行：写明官方源 + **两路 typeId（4/1）合并** + 当期各活动窗口（▶ 标出外显那条）",
-			r.ok && r.data && r.data.eventHover.split("\n").length >= 4
-			&& /official|官方公告|api\.biligame\.com/.test(r.data.eventHover)
-			&& /typeId=4\/1/.test(r.data.eventHover) && /▶/.test(r.data.eventHover),
-			JSON.stringify(((r.ok && r.data && r.data.eventHover) || "").split("\n").slice(0, 2)));
-		check("hover 如实说明「常驻」档期为何不产出",
-			r.ok && r.data && /常驻/.test(r.data.eventHover), JSON.stringify(((r.ok && r.data && r.data.eventHover) || "").slice(-80)));
-		check("hover 里 tz 标注为**推定**（源站未标时区）",
-			r.ok && r.data && /推定/.test(r.data.eventHover));
+		// ── 悬停（方案 A）：只放「名称 + 3 空格 + 档期」；元信息**彻底不进悬停** ──
+		const HV = (r.ok && r.data && r.data.eventHover) || "";
+		const HV_LINES = HV.split("\n");
+		check("hover 逐行「名称 + 3 空格 + 档期」：7 条（18419 公告里覆盖 10-03 的全部活动档期，按结束时间升序）",
+			HV_LINES.length === 7 && HV_LINES.every((l) => HOVER_EVENT_LINE_RE.test(l)),
+			JSON.stringify(HV_LINES));
+		check("hover 行首是**名称**而不是日期（旧版「档期在前」+「▶ 前缀」已修掉）",
+			/^旅程将启-经以山海   /.test(HV) && !/^\d{2}-\d{2}/.test(HV) && !/▶/.test(HV),
+			JSON.stringify(HV_LINES.slice(0, 3)));
+		check("hover 里能看到外显那条的**活动名**（pickWhmxEvent 选中的「经以山海」是其中一行的行首）",
+			HV_LINES.some((l) => l.startsWith("经以山海   ")), JSON.stringify(HV_LINES));
+		check("hover **不再含任何元信息**（来源站/URL/API 名/gameExtensionId/typeId/游戏名+区服前缀/tz 推定/抓取条数/内部 id/▶/「（…）」说明）",
+			!HOVER_META_RE.test(HV) && !/物华弥新/.test(HV), JSON.stringify(HV_LINES));
+		check("hover 不再写「常驻档期为何不产出」这类实现说明（只留在代码注释与 skipped[].reason 里）",
+			!/常驻|不产出|另有/.test(HV), JSON.stringify(HV_LINES));
+		check("hover 不含 tz 推定说明（源站未标时区这件事只写在文件头交叉印证里）",
+			!/推定|Asia\/Shanghai|UTC\+8/.test(HV));
+		// 守卫：<2 条 → 工具返回 ""，调用方据此**不设** eventHover（交回 UI 默认两行式）
+		check("单条当期活动 → whmxEventHover 返回空串（调用方因此不设 eventHover，UI 走默认两行式）",
+			whmxEventHover([], TZ) === ""
+			&& whmxEventHover([parsed19.items.find((x) => x.section === "经以山海")], TZ) === "");
 
 		// ⭐ 两路都拉的**行为级**证据：18265「寂夜长生」只在 typeId=1 那路，而它覆盖 2026-08-25
 		const rAug = await grab(() => src.event.fetcher(src.event.url, undefined, src.tz, NOW_WHMX_AUG));
 		check("now=2026-08-25 → 命中 18265「寂夜长生」（该 id **只在 typeId=1** 那路 → 证明两路都抓了）",
 			rAug.ok && rAug.data && rAug.data.event === "「寂夜长生」限时活动" && rAug.data.eventDates === "08-20 10:00 ~ 09-10 09:59",
 			JSON.stringify(rAug.ok ? (rAug.data && [rAug.data.event, rAug.data.eventDates]) : rAug.err));
+		const HVA = (rAug.ok && rAug.data && rAug.data.eventHover) || "";
+		check("同一规则在另一条公告上复现：5 条、首行 = `旅程将启-寂夜长生   …`、无元信息",
+			rAug.ok && rAug.data && HVA.split("\n").length === 5
+			&& /^旅程将启-寂夜长生   /.test(HVA)
+			&& HVA.split("\n").every((l) => HOVER_EVENT_LINE_RE.test(l) && !HOVER_META_RE.test(l)),
+			JSON.stringify(HVA.split("\n")));
 
 		// 任务硬要求：覆盖 now 的档期一条都没有 → **如实返回 null**（不硬凑过期档期）
 		const rNull = await grab(() => src.event.fetcher(src.event.url, undefined, src.tz, NOW_LATE));
@@ -518,9 +553,15 @@ export default async function run() {
 			JSON.stringify(rg.ok && rg.data && [rg.data.bannerDates, rg.data.bannerDatesRaw]));
 		check("gacha roles = 目白拉莫娜（可选字段，从 ★★★ 行抽）",
 			rg.ok && rg.data && rg.data.roles === "目白拉莫娜", JSON.stringify(rg.ok && rg.data && rg.data.roles));
-		check("gacha hover 多行：写明官方源 + 单一 feed 靠标题分流",
-			rg.ok && rg.data && rg.data.bannerHover.split("\n").length >= 3 && /官方公告/.test(rg.data.bannerHover)
-			&& /typeId=1/.test(rg.data.bannerHover), JSON.stringify(((rg.ok && rg.data && rg.data.bannerHover) || "").split("\n").slice(0, 2)));
+		// ── 卡池侧悬停（方案 A）：每池「池名：角色」⏎ 档期；窗口全同 → 档期只在末尾写一遍（交给共用 hoverPool）──
+		//   18426 覆盖 10-03 的期间有 2 个（精选招募开放期间 / 角色剧情开放期间，窗口完全相同）
+		//   → 列出的期间集合与旧版一致（**当期判定不变**，本次只改 hover 拼装）。
+		const HVG = (rg.ok && rg.data && rg.data.bannerHover) || "";
+		check("gacha hover = 2 个当期池逐行「池名：角色」，窗口全同 → 档期只在末尾写一遍（与本体 buildPoolHover 同格式）",
+			HVG === ["精选招募开放期间：目白拉莫娜", "角色剧情开放期间：目白拉莫娜", "10-02 12:00 ~ 10-13 11:59"].join("\n"),
+			JSON.stringify(HVG.split("\n")));
+		check("gacha hover **不再含**元信息（官方源/URL/gameExtensionId/typeId=1 分流说明/tz 推定/▶/游戏名+区服前缀）",
+			!HOVER_META_RE.test(HVG) && !/闪耀！优俊少女/.test(HVG), JSON.stringify(HVG.split("\n")));
 
 		const re = await grab(() => src.event.fetcher(src.event.url, undefined, src.tz, SNAP_UMA));
 		check("event 抓取成功（now 传第 4 参）", re.ok, re.err);
@@ -530,6 +571,9 @@ export default async function run() {
 			JSON.stringify(re.ok && re.data && [re.data.event, re.data.eventDates]));
 		check("活动侧**跳过**卡池标题（18426 是卡池 → 事件侧继续往下抓到 18425）",
 			re.ok && re.data && !/招募/.test(re.data.event), JSON.stringify(re.ok && re.data && re.data.event));
+		// 18425 在 SNAP 只有 1 条期间覆盖 now（活动期间；奖励领取·因子强化期间 10/13 才开）
+		check("活动侧只有 1 条当期 → **不设** eventHover（交回 UI 默认两行式「event ⏎ eventDates」）",
+			re.ok && re.data && !re.data.eventHover, JSON.stringify(re.ok && re.data && re.data.eventHover));
 
 		// 换一个 now：18425/18424 都还没开或已过 → 落到 18423（且这条的 raw 是源站粘连原文）
 		const re2 = await grab(() => src.event.fetcher(src.event.url, undefined, src.tz, NOW_UMA_1001));
@@ -539,9 +583,45 @@ export default async function run() {
 		check("eventDatesRaw 是**源站原文**（粘连未修正）= `10/1 12:00 ～ 10/711:59`",
 			re2.ok && re2.data && re2.data.eventDatesRaw === "10/1 12:00 ～ 10/711:59",
 			JSON.stringify(re2.ok && re2.data && re2.data.eventDatesRaw));
-		check("hover 如实说明「源站原文日期与时刻粘连 → 按 10/7 11:59 解析」",
-			re2.ok && re2.data && /粘连/.test(re2.data.eventHover) && /10\/7 11:59/.test(re2.data.eventHover),
-			JSON.stringify(((re2.ok && re2.data && re2.data.eventHover) || "").split("\n").slice(-1)[0]));
+		// ── 活动侧悬停：3 条当期期间，逐行「期间名 + 3 空格 + 档期」，按结束时间升序 ──
+		const HVE = (re2.ok && re2.data && re2.data.eventHover) || "";
+		check("hover 逐行「名称 + 3 空格 + 档期」且按结束时间升序（第1轮 → 联赛报名期间 → 活动期间）",
+			HVE === [
+				"第1轮   10-01 12:00 ~ 10-03 11:59",
+				"联赛报名期间   09-28 12:00 ~ 10-05 11:59",
+				"活动期间   10-01 12:00 ~ 10-07 11:59"
+			].join("\n"), JSON.stringify(HVE.split("\n")));
+		check("hover 行首是**名称**而不是日期（旧版「档期在前」+「▶ 前缀」已修掉）",
+			!/^\d{2}-\d{2}/.test(HVE) && !/▶/.test(HVE) && HVE.split("\n").every((l) => HOVER_EVENT_LINE_RE.test(l)),
+			JSON.stringify(HVE.split("\n")));
+		check("源站笔误 `10/711:59` 只影响 eventDatesRaw；hover 走 fmtWindow → `10-07 11:59`，**不含**「粘连」这类实现说明",
+			/10-07 11:59/.test(HVE) && !/粘连|10\/711:59/.test(HVE) && !HOVER_META_RE.test(HVE),
+			JSON.stringify(HVE.split("\n")));
+		check("hover 里能看到外显那条的**期间名**（pickUmaWindow 选中的「活动期间」是其中一行的行首）",
+			HVE.split("\n").some((l) => l.startsWith("活动期间   ")), JSON.stringify(HVE.split("\n")));
+
+		// ── helper 级守卫：<2 项一律空串（调用方据此不设 hover 字段）；2 项时排版与本体同构 ──
+		check("helper 对 <2 项一律返回空串 → 单条/单池时调用方**不设** hover 字段（UI 走默认两行式）",
+			umaCnEventHover([], TZ) === "" && umaCnPoolHover([], TZ) === ""
+			&& umaCnEventHover([{ label: "活动期间", startTs: 1, endTs: 2 }], TZ) === ""
+			&& umaCnPoolHover([{ label: "开放期间", startTs: 1, endTs: 2 }], TZ, "目白拉莫娜") === "");
+		check("helper 2 池排版（合成数据）：每池「池名：角色」+ 各自档期；2 条活动排版：名称 + 3 空格 + 档期",
+			umaCnPoolHover([
+				{ label: "精选招募开放期间", startTs: sourceInstant(2026, 10, 2, 12, 0, TZ), endTs: sourceInstant(2026, 10, 13, 11, 59, TZ) },
+				{ label: "精选协助卡招募开放期间", startTs: sourceInstant(2026, 10, 2, 12, 0, TZ), endTs: sourceInstant(2026, 10, 20, 11, 59, TZ) }
+			], TZ, "目白拉莫娜") === [
+				"精选招募开放期间：目白拉莫娜",
+				"10-02 12:00 ~ 10-13 11:59",
+				"精选协助卡招募开放期间：目白拉莫娜",
+				"10-02 12:00 ~ 10-20 11:59"
+			].join("\n")
+			&& umaCnEventHover([
+				{ label: "活动期间", startTs: sourceInstant(2026, 10, 2, 12, 0, TZ), endTs: sourceInstant(2026, 10, 13, 11, 59, TZ) },
+				{ label: "奖励领取期间", startTs: sourceInstant(2026, 10, 13, 12, 0, TZ), endTs: sourceInstant(2026, 10, 16, 11, 59, TZ) }
+			], TZ) === [
+				"活动期间   10-02 12:00 ~ 10-13 11:59",
+				"奖励领取期间   10-13 12:00 ~ 10-16 11:59"
+			].join("\n"));
 
 		// 任务硬要求：无覆盖 → null（不硬凑）
 		const rgNull = await grab(() => src.gacha.fetcher(src.gacha.url, undefined, src.tz, NOW_LATE));

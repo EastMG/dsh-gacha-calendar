@@ -19,7 +19,7 @@ import {
 	miyousheVersionStarts, miyousheRoles, isMiyousheMissing,
 	gachaMiyoushe, eventsMiyoushe,
 	MIYOUSHE_TZ, MIYOUSHE_GIDS, MIYOUSHE_TYPES, MIYOUSHE_MAX_DETAILS,
-	MIYOUSHE_PROVENANCE, MIYOUSHE_REFERER, miyousheListUrl, miyousheDetailUrl
+	MIYOUSHE_REFERER, miyousheListUrl, miyousheDetailUrl
 } from "../parsers/miyoushe.js";
 
 const fixture = (name) => JSON.parse(readFileSync(new URL(`../fixtures/${name}/response.txt`, import.meta.url), "utf8"));
@@ -38,6 +38,24 @@ async function grab(fn) {
 	catch (e) { return { ok: false, err: String((e && e.message) || e) }; }
 }
 function throws(fn) { try { fn(); return false; } catch { return true; } }
+
+// ── 悬停守卫（用户 2026-10-03：「元信息彻底删掉」+ 一律「名称在前」）──────────────────
+// 悬停文本里只允许两种行：**名称**行 与 **档期**行（`MM-DD HH:MM ~ MM-DD HH:MM`）。
+// 下面这张关键词表就是"元信息"的清单：来源站名/URL/API 名、时区推定、抓取统计、
+// 内部 id 与源站字段名、任何「（…）」形式的实现说明（本篇第 N 段档期 / 起点为推断…）。
+// ⚠️ 只对**悬停字段**生效：`bannerDatesRaw` / `eventDatesRaw` 是既有的"源站原文"约定，
+//    不随本次改造（如实来源说明照旧留在 raw 里，由 P4-8 单独断言）。
+const HOVER_META_RE = /米游社|官方公告|bbs-api|miyoushe|getNewsList|getPostFull|来源|URL|https?:\/\/|tz=|UTC|推测|共扫描|共\s*\d+\s*篇|取详情|post_id|postId|news_meta|activity_status|start_at_sec|end_at_sec|gameExtensionId|typeId|锚点|推断|第\s*\d+\s*段档期|（本篇|（起点|（源站/;
+const WINDOW_LINE_RE = /^(?:\d{4}-)?\d{2}-\d{2} \d{2}:\d{2} ~ (?:\d{4}-)?\d{2}-\d{2} \d{2}:\d{2}$/;
+function checkHoverClean(label, hover) {
+	if (hover == null) return;
+	check(`${label} 悬停不含元信息（来源/URL/时区推定/抓取统计/内部 id）`, !HOVER_META_RE.test(hover), JSON.stringify(hover));
+	for (const line of String(hover).split("\n")) {
+		// 名称行**不可能**以日期开头（旧格式"档期在前"的病灶）；档期行必须是标准 fmtWindow 形态
+		check(`${label} 悬停行不是「档期在前」：${line.slice(0, 28)}`,
+			WINDOW_LINE_RE.test(line) || !/^\s*\d{1,2}[-./]\d{1,2}\s/.test(line), JSON.stringify(line));
+	}
+}
 
 const GACHA = MIYOUSHE_TYPES.GACHA, EVENT = MIYOUSHE_TYPES.EVENT;
 
@@ -393,9 +411,15 @@ export default async function runP4() {
 		check("hsr.gacha bannerDatesRaw 保留源站原文（含「4.6版本更新后」）",
 			!!hsrG && hsrG.bannerDatesRaw === "2026/09/28 4.6版本更新后 - 2026/11/10 15:00", JSON.stringify(hsrG && hsrG.bannerDatesRaw));
 		check("hsr.gacha roles = 真珠", !!hsrG && hsrG.roles === "真珠", JSON.stringify(hsrG && hsrG.roles));
-		check("hsr.gacha bannerHover 带来源/时区交代 + 逐行同期窗口（2 段）",
-			!!hsrG && hsrG.bannerHover.startsWith(MIYOUSHE_PROVENANCE) && hsrG.bannerHover.split("\n").length === 3,
-			JSON.stringify(hsrG && hsrG.bannerHover.split("\n").length));
+		// 🔁 旧断言（已改）：曾断言 hover 首行是 MIYOUSHE_PROVENANCE 的元信息、且每行"档期在前"。
+		//    用户 2026-10-03 要求元信息彻底删掉 → 现在断言**新格式**：每池两行「池名：角色」⏎ 档期。
+		check("hsr.gacha bannerHover = 2 池 ×「池名：角色」⏎ 档期（4 行，结束时间升序）",
+			!!hsrG && hsrG.bannerHover === "4.6版本活动跃迁（其一）：真珠\n09-28 07:00 ~ 10-21 11:59\n4.6版本活动跃迁（其一）：真珠\n09-28 07:00 ~ 11-10 15:00",
+			JSON.stringify(hsrG && hsrG.bannerHover));
+		check("hsr.gacha bannerHover 行首是名称（不是档期）——「名称在前」",
+			!!hsrG && hsrG.bannerHover.split("\n").every((l, i) => (i % 2 === 0 ? /：真珠$/.test(l) : WINDOW_LINE_RE.test(l))),
+			JSON.stringify(hsrG && hsrG.bannerHover.split("\n")));
+		checkHoverClean("hsr.gacha", hsrG && hsrG.bannerHover);
 
 		const zzzG = got["zzz.gacha"].data;
 		check("zzz.gacha = 「3.2版本限时频段（下期）」", !!zzzG && zzzG.banner === "3.2版本限时频段（下期）", JSON.stringify(zzzG && zzzG.banner));
@@ -403,6 +427,10 @@ export default async function runP4() {
 			!!zzzG && zzzG.bannerDates === "09-30 12:00 ~ 10-20 14:59" && zzzG.startTs === cst(2026, 9, 30, 12, 0) && zzzG.endTs === cst(2026, 10, 20, 14, 59),
 			JSON.stringify(zzzG && [zzzG.bannerDates, zzzG.startTs, zzzG.endTs]));
 		check("zzz.gacha roles = 洛克茜、普罗米娅", !!zzzG && zzzG.roles === "洛克茜、普罗米娅", JSON.stringify(zzzG && zzzG.roles));
+		// 只有 1 个当期池 → 不设 bannerHover（交回 UI 默认两行式「池名：角色」⏎ 档期）
+		check("zzz.gacha 只有 1 个当期池 → 不设 bannerHover（UI 走默认两行式）",
+			!!zzzG && !("bannerHover" in zzzG), JSON.stringify(zzzG && zzzG.bannerHover));
+		checkHoverClean("zzz.gacha", zzzG && zzzG.bannerHover);
 
 		// 四个活动侧：断言夹具快照值
 		const expectEvents = {
@@ -415,7 +443,13 @@ export default async function runP4() {
 			const d = got[key].data;
 			check(`${key} = ${event}`, !!d && d.event === event, JSON.stringify(d && d.event));
 			check(`${key} eventDates = ${dates}`, !!d && d.eventDates === dates, JSON.stringify(d && d.eventDates));
-			check(`${key} eventHover 带来源/时区交代`, !!d && d.eventHover.startsWith(MIYOUSHE_PROVENANCE), JSON.stringify(d && d.eventHover.split("\n")[0]));
+			// 🔁 旧断言（已改）：曾断言 eventHover 首行是"来源/时区交代"的元信息。
+			//    夹具里四个活动侧**都只有 1 条当期活动** → 新版一律不设 eventHover，交回 UI 默认两行式。
+			check(`${key} 只有 1 条当期活动 → 不设 eventHover（UI 走默认「event」⏎「eventDates」）`,
+				!!d && !("eventHover" in d), JSON.stringify(d && d.eventHover));
+			check(`${key} 外显 event 就是活动名本身（本次不改 content）`,
+				!!d && /活动|征集|赛事|签到|庆典|有奖/.test(d.event || ""), JSON.stringify(d && d.event));
+			checkHoverClean(`${key}`, d && d.eventHover);
 		}
 		check("zzz.event eventDatesRaw 保留源站原文「即日起 - …」（推断起点如实可查）",
 			got["zzz.event"].data.eventDatesRaw === "即日起 - 2026年10月18日 23:59",
@@ -443,6 +477,28 @@ export default async function runP4() {
 			viaType1.ok && !!viaType1.data && viaType1.data.event === "「幽境危战」活动：紊乱地脉挑战"
 			&& viaType1.data.eventDates === "09-30 10:00 ~ 11-03 03:59",
 			JSON.stringify(viaType1.data || viaType1.err));
+		// 该篇正文有 **2 段**覆盖 now 的窗口（整体 + 紊乱爆发期）→ 走多行悬停：名称在前、3 空格、结束升序
+		check("viaType1 有 2 段当期窗口 → eventHover 逐行「名称 + 3 空格 + 档期」（结束时间升序）",
+			viaType1.ok && !!viaType1.data && viaType1.data.eventHover === [
+				"「幽境危战」活动：紊乱地脉挑战   09-30 10:00 ~ 10-10 03:59",
+				"「幽境危战」活动：紊乱地脉挑战   09-30 10:00 ~ 11-03 03:59"
+			].join("\n"),
+			JSON.stringify(viaType1.data && viaType1.data.eventHover));
+
+		// ── 悬停总守卫：本批次**所有**返回对象的悬停字段都必须"只有名称与档期" ──
+		//    （用户 2026-10-03：「元信息彻底删掉」；格式一律本体「名称在前」）
+		const allGot = [...Object.entries(got), ...direct.map((y, i) => [`direct[${i}]`, y]), ["viaType1", viaType1]];
+		let hoverSeen = 0;
+		for (const [key, x] of allGot) {
+			const d = x && x.ok ? x.data : null;
+			if (!d) continue;
+			if (d.bannerHover) hoverSeen++;
+			if (d.eventHover) hoverSeen++;
+			checkHoverClean(`${key} bannerHover`, d.bannerHover);
+			checkHoverClean(`${key} eventHover`, d.eventHover);
+		}
+		// 反向守卫：夹具里确实**有**多行悬停的场景被走到（否则上面的守卫是空转）
+		check("本批次至少走到 2 处多行悬停（hsr.gacha 2 池 / viaType1 2 段）", hoverSeen >= 2, String(hoverSeen));
 	}
 
 	// ───────────────────────── P4-7 全候选失败的分级（用真实错误夹具当替身） ─────────────────────────
@@ -469,7 +525,7 @@ export default async function runP4() {
 	}
 
 	// ───────────────────────── P4-8 news_meta 兜底（正文抽不到时用源站显式字段） ─────────────────────────
-	section("P4-8 正文抽不到档期 → 回退 news_meta（并标明来源，不冒充正文）");
+	section("P4-8 正文抽不到档期 → 回退 news_meta（来源说明只留 raw 字段，不进悬停）");
 	{
 		// 把 bh3 活动那篇的正文换成**真实的"无日期"正文**（补给公告：0 个日期）→ 触发兜底
 		useFixtures({
@@ -480,12 +536,33 @@ export default async function runP4() {
 		check("正文无日期 → 兜底成功（bh3 活动 news_meta = 09-28 12:00 ~ 10-07 23:59）",
 			r.ok && !!r.data && r.data.eventDates === "09-28 12:00 ~ 10-07 23:59",
 			JSON.stringify(r.data || r.err));
-		check("兜底的 eventDatesRaw **标明**来源是 news_meta（不是正文原文）",
-			r.ok && !!r.data && /news_meta/.test(r.data.eventDatesRaw) && r.data.eventDatesRaw === "news_meta 档期（源站显式字段，非正文）：09-28 12:00 ~ 10-07 23:59",
+		// ⚠️ 2026-10-03 变更：`*DatesRaw` **会被 UI 默认两行式直接显示**
+		//    （面板取 `eventDatesRaw || eventDates`）→ 它只能放档期文本本身。
+		//    旧实现在兜底时写 `news_meta 档期（源站显式字段，非正文）：…`，
+		//    一旦走兜底这句话就原样出现在面板上（用户要求「元信息彻底删掉」）。
+		//    「本窗口来自 news_meta」保留在内部字段 `source`（不显示）+ 代码注释。
+		check("兜底的 eventDatesRaw = 档期本身（不再夹带 news_meta 溯源说明）",
+			r.ok && !!r.data && r.data.eventDatesRaw === "09-28 12:00 ~ 10-07 23:59"
+			&& !/news_meta|[（(]/.test(r.data.eventDatesRaw),
 			JSON.stringify(r.ok && r.data && r.data.eventDatesRaw));
-		check("兜底的 eventHover 也标明「非正文原文」",
-			r.ok && !!r.data && /源站 news_meta 显式档期，非正文原文/.test(r.data.eventHover),
+		check("兜底时外显 event 是活动名本身（不是「玩法开启时间」这类标签）",
+			r.ok && !!r.data && r.data.event === "【有奖活动】分享你与崩坏3的专属片段，参与讨论赢水晶！",
+			JSON.stringify(r.ok && r.data && r.data.event));
+		// 🔁 旧断言（已改）：曾断言 eventHover 里写「源站 news_meta 显式档期，非正文原文」。
+		//    夹具里兜底会凑出 **2 条**当期活动 → 新版由 hoverEvent 逐行「名称 + 3 空格 + 档期」。
+		check("兜底时 eventHover = 2 条 ×「名称 + 3 空格 + 档期」（结束时间升序）",
+			r.ok && !!r.data && r.data.eventHover === [
+				"【有奖活动】分享你与崩坏3的专属片段，参与讨论赢水晶！   09-28 12:00 ~ 10-07 23:59",
+				"【征集活动】「时序照新」绘画征集开启，创作赢水晶&创作币！   09-09 12:00 ~ 11-03 23:59"
+			].join("\n"),
 			JSON.stringify(r.ok && r.data && r.data.eventHover));
+		check("兜底时 eventHover 每行都是「名称   档期」形态（恰好 3 个空格，行首不是日期）",
+			r.ok && !!r.data && r.data.eventHover.split("\n").every((l) => /^[^ ].* {3}(?:\d{4}-)?\d{2}-\d{2} \d{2}:\d{2} ~ /.test(l)),
+			JSON.stringify(r.ok && r.data && r.data.eventHover));
+		check("兜底时 eventHover **不再含** news_meta / 字段名 / 来源说明等元信息",
+			r.ok && !!r.data && !HOVER_META_RE.test(r.data.eventHover),
+			JSON.stringify(r.ok && r.data && r.data.eventHover));
+		checkHoverClean("崩坏3 活动（news_meta 兜底）", r.ok && r.data && r.data.eventHover);
 		assertContract("崩坏3 国服 官方公告（news_meta 兜底）", "event", r.ok ? r.data : null);
 	}
 

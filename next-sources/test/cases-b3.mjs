@@ -40,11 +40,20 @@ import {
 	gachaFgo, eventsFgo, parseFgoBannerTable, parseFgoEventTable, findFgoEventTable, parseFgoWindow,
 	FGO_GACHA_URL, FGO_EVENT_URL, FGO_TZ
 } from "../parsers/fgo.js";
+import { hoverEvent, hoverPool } from "../lib/env.js";
+
+// 悬停守卫（用户 2026-10-03：「元信息彻底删掉」）：来源站名/域名/URL/API 名、时区推定说明、
+// 抓取统计、内部 id、源站分类词（Event/Campaign）、括注实现说明 —— 一律不得出现在悬停文本里。
+// 注意：不含「（…）」这种过宽模式 —— 活动名本身可能带全角括号（如 FGO 的「…纪念活动（第2弹）」）。
+const HOVER_META = /来源|https?:|api\.|bwiki|米游社|官网公告|tz=|推定|共扫描|取详情|抓取条数|Event {3}|Campaign {3}|gameExtensionId|typeId|post_id|aggregateAt|closedAt/;
+const isDateLine = (l) => /^(\d{4}-)?\d{2}-\d{2} \d{2}:\d{2} ~ (\d{4}-)?\d{2}-\d{2} \d{2}:\d{2}$/.test(l);
 
 // 夹具覆盖：URL → fixtures/<name>/response.txt
 // ⚠️ GF2 两侧现在**同一个 URL**（typeId=4），所以只能映射一次 —— 若同时写
 //    `[GF2_GACHA_URL]` 与 `[GF2_EVENT_URL]`，后面的键会覆盖前者（同键），
 //    结果卡池侧读到活动夹具（实测踩过：卡池 banner 变成「9月22日版本更新公告」）。
+const SYNTH_LIST_URL = "https://api.biligame.com/news/synth-b3";
+const SYNTH_DETAIL_URL = "https://api.biligame.com/news/99001";
 const OVERRIDES = {
 	[GF2_GACHA_URL]: "gf2-gacha/response.txt",
 	[`${GF2_BASE}/website/news/2128`]: "gf2-detail-up/response.txt",
@@ -55,7 +64,11 @@ const OVERRIDES = {
 	"https://api.biligame.com/news/18418": "bandori-detail-18418/response.txt",
 	[OURNOTES_LIST_URL]: "ournotes-list/response.txt",
 	[FGO_GACHA_URL]: "fgo-gacha-parse/response.txt",
-	[FGO_EVENT_URL]: "fgo-event-parse/response.txt"
+	[FGO_EVENT_URL]: "fgo-event-parse/response.txt",
+	// 合成夹具：给 Bandori 造「**2 个**当期主卡池」的公告，验证 ≥2 池时才设 bannerHover
+	// （真实夹具 18418 的当期主卡池只有 1 个 → 按约定**不设** bannerHover）。
+	[SYNTH_LIST_URL]: "bandori-synth-list/response.txt",
+	[SYNTH_DETAIL_URL]: "bandori-synth-detail/response.txt"
 };
 
 const fx = (p) => new URL("../fixtures/" + p, import.meta.url);
@@ -194,10 +207,33 @@ export default async function run() {
 			!!e && e.eventDates === "09-22 12:00 ~ 11-03 08:59", JSON.stringify(e && e.eventDates));
 		check("GF2 活动侧不再把维护窗口当活动",
 			!!e && !/09-22 09:00 ~ 09-22 12:00/.test(e.eventDates || ""), JSON.stringify(e && e.eventDates));
-		check("GF2 活动侧 eventHover 带官方标签「玩法开启时间」",
-			!!e && /玩法开启时间/.test(e.eventHover || ""), JSON.stringify(e && e.eventHover));
+		// 悬停排版＝本体 buildEventHover：**行首必须是可读名称**（活动名 + 该窗口的区分名），
+		// 「名称」+ 3 空格 +「档期」。旧实现是 `档期   玩法开启时间` —— 档期在前、且**没有活动名**
+		// （少前2 是最严重的一例：用户 2026-10-03 反馈的偏差①②）。
+		{
+			const lines = (e && e.eventHover ? e.eventHover : "").split("\n");
+			check("GF2 活动 hover 逐行（2 条覆盖当期窗口）", lines.length === 2, JSON.stringify(lines));
+			check("GF2 活动 hover 行首是**活动名**（不是档期）",
+				lines.length === 2 && lines.every((l) => !isDateLine(l) && /^【静默突触】/.test(l)),
+				JSON.stringify(lines));
+			check("GF2 活动 hover 两行都带活动名 + 官方窗口标签",
+				lines.length === 2 && lines.every((l) => /【静默突触】/.test(l))
+				&& /玩法开启时间/.test(lines[0]) && /奖励兑换时间/.test(lines[1]),
+				JSON.stringify(lines));
+			check("GF2 活动 hover 逐行「名称」+ 3 空格 +「档期」（本体格式，档期同窗口不合并）",
+				(e && e.eventHover) === "【静默突触】·玩法开启时间   09-22 12:00 ~ 11-03 08:59\n【静默突触】·奖励兑换时间   09-22 12:00 ~ 11-09 04:59",
+				JSON.stringify(e && e.eventHover));
+			check("GF2 活动 hover 不再「档期在前」",
+				lines.length === 2 && lines.every((l) => !/^\d{2}-\d{2} \d{2}:\d{2} ~ /.test(l)), JSON.stringify(lines));
+			check("GF2 活动 hover 不含元信息（来源/URL/tz=/推定/抓取统计/类型标签/内部 id）",
+				!!e && !!e.eventHover && !HOVER_META.test(e.eventHover), JSON.stringify(e && e.eventHover));
+		}
 		check("GF2 活动侧两侧读同一个 typeId=4（互补过滤分流）",
 			src.gacha.url === src.event.url, src.gacha.url + " vs " + src.event.url);
+		// 只有 1 条当期窗口 → **不设 eventHover**，由 UI 走默认两行式「event ⏎ eventDates」
+		// （用合成窗口直接验 hoverEvent 的 <2 返回 ""；本源 fetch 层不便造单窗口夹具）
+		check("GF2 单条窗口 → hoverEvent 返回空串（调用方据此不设 eventHover）",
+			hoverEvent([{ name: "甲", startTs: 1, endTs: 2 }], GF2_TZ) === "");
 	}
 	//#endregion
 
@@ -260,6 +296,23 @@ export default async function run() {
 			!!g && g.bannerDates === "09-29 10:00 ~ 10-11 12:59", JSON.stringify(g && g.bannerDates));
 		check("Bandori 卡池 roles 抽出节内 ★5 名单",
 			!!g && /丸山彩/.test(g.roles || "") && /CHU²/.test(g.roles || ""), JSON.stringify(g && g.roles));
+		// 悬停（本体 buildPoolHover）：有 ≥2 个当期主池才设；每池「池名：角色」⏎「档期」，结束时间升序。
+		// 真实夹具 18418 的当期主池只有 1 个 → **不设 bannerHover**（UI 走默认两行式）。
+		check("Bandori 只 1 个当期主池 → 不设 bannerHover（UI 兜底两行式）",
+			!!g && !("bannerHover" in g), JSON.stringify(g && Object.keys(g)));
+
+		// 合成夹具：同一份公告里放**2 个**当期主卡池 → bannerHover 必须按本体格式列出两池
+		{
+			const sg = await src.gacha.fetcher(SYNTH_LIST_URL, undefined, src.tz);
+			const slines = sg && sg.bannerHover ? sg.bannerHover.split("\n") : [];
+			check("Bandori ≥2 个当期主池 → 设 bannerHover（每池「池名：角色」+ 档期两行）",
+				slines.length === 4 && /：/.test(slines[0]) && isDateLine(slines[1]) && /：/.test(slines[2]) && isDateLine(slines[3]),
+				JSON.stringify(slines));
+			check("Bandori bannerHover 池名在前、档期行不是行首（不是「档期在前」）",
+				slines.length === 4 && !isDateLine(slines[0]) && !isDateLine(slines[2]), JSON.stringify(slines));
+			check("Bandori bannerHover 不含元信息（来源/URL/tz=/推定/抓取统计/内部 id）",
+				!!sg && !!sg.bannerHover && !HOVER_META.test(sg.bannerHover), JSON.stringify(sg && sg.bannerHover));
+		}
 
 		const e = await src.event.fetcher(src.event.url, undefined, src.tz);
 		assertContract("Bandori", "event", e);
@@ -267,9 +320,20 @@ export default async function run() {
 			!!e && e.event === "All☆Stars CiRCRiNG Fes!", JSON.stringify(e && e.event));
 		check("Bandori 活动 eventDates",
 			!!e && e.eventDates === "09-29 10:00 ~ 10-14 22:59", JSON.stringify(e && e.eventDates));
-		check("Bandori 活动 eventHover 是逐行多节（含招募节）",
-			!!e && typeof e.eventHover === "string" && e.eventHover.split("\n").length >= 5,
-			JSON.stringify((e && e.eventHover || "").slice(0, 120)));
+		// 悬停格式＝本体 buildEventHover：行首是**名称**、「名称」+ 3 空格 +「档期」。
+		// 旧实现是「档期在前」（`09-29 10:00 ~ 10-14 22:59   All☆Stars…`）——用户 2026-10-03 反馈的偏差②。
+		{
+			const elines = (e && e.eventHover ? e.eventHover : "").split("\n");
+			check("Bandori 活动 hover 逐行多节（含招募节）", elines.length >= 5, JSON.stringify(elines.length));
+			check("Bandori 活动 hover 行首是名称（不是档期）",
+				elines.length > 0 && elines.every((l) => !isDateLine(l)), JSON.stringify(elines.slice(0, 2)));
+			check("Bandori 活动 hover 首行 = 外显活动名 + 3 空格 + 档期",
+				elines[0] === "All☆Stars CiRCRiNG Fes!   09-29 10:00 ~ 10-14 22:59", JSON.stringify(elines[0]));
+			check("Bandori 活动 hover 名称与档期之间是 3 空格",
+				elines.every((l) => /^.+ {3}(\d{2}-\d{2} \d{2}:\d{2} ~ \d{2}-\d{2} \d{2}:\d{2})$/.test(l)), JSON.stringify(elines.slice(0, 3)));
+			check("Bandori 活动 hover 不含元信息（来源/URL/tz=/推定/抓取统计/内部 id）",
+				!!e && !!e.eventHover && !HOVER_META.test(e.eventHover), JSON.stringify(elines.slice(0, 2)));
+		}
 	}
 	//#endregion
 
@@ -339,7 +403,23 @@ export default async function run() {
 		check("OurNotes eventDates 形态合法",
 			!!e && /^(\d{4}-)?\d{2}-\d{2} \d{2}:\d{2} ~ (\d{4}-)?\d{2}-\d{2} \d{2}:\d{2}$/.test(e.eventDates),
 			JSON.stringify(e && e.eventDates));
-		check("OurNotes eventHover 至少一行", !!(e && e.eventHover && e.eventHover.length > 0));
+		// 夹具里覆盖当期的只有 1 条（id 288）→ **不设 eventHover**，由 UI 走默认两行式
+		// 「名称 ⏎ 档期」。旧实现无论如何都塞一行「档期   名称」（档期在前）——偏差②③。
+		check("OurNotes 只 1 条当期 → 不设 eventHover（UI 兜底两行式）",
+			!!e && !("eventHover" in e), JSON.stringify(e && Object.keys(e)));
+		// 多窗口时（合成）才用 hoverEvent：行首名称、3 空格、结束时间升序
+		{
+			// 用 OURNOTES_TZ（JST）自证：源站墙钟 10:00 → fmtWindow 也按 JST 渲染
+			const many = hoverEvent([
+				{ name: "活动乙", startTs: sourceInstant(2026, 9, 2, 10, 0, OURNOTES_TZ), endTs: sourceInstant(2026, 9, 9, 14, 59, OURNOTES_TZ) },
+				{ name: "活动甲", startTs: sourceInstant(2026, 9, 2, 10, 0, OURNOTES_TZ), endTs: sourceInstant(2026, 9, 5, 14, 59, OURNOTES_TZ) }
+			].sort((a, b) => a.endTs - b.endTs), OURNOTES_TZ);
+			check("OurNotes 多窗口 hover：行首是名称、名称与档期之间 3 空格、结束时间升序",
+				many === "活动甲   09-02 10:00 ~ 09-05 14:59\n活动乙   09-02 10:00 ~ 09-09 14:59",
+				JSON.stringify(many));
+			check("OurNotes hover 不含元信息（来源/URL/tz=/推定/抓取统计/内部 id）",
+				!HOVER_META.test(many), JSON.stringify(many));
+		}
 	}
 	//#endregion
 
@@ -369,6 +449,27 @@ export default async function run() {
 		check("FGO 卡池 roles 拿到推荐召唤从者（≥15 骑时 wiki 用占位提示 → 我判空）",
 			!!g && /阿蒂拉/.test(g.roles), JSON.stringify(g && g.roles.slice(0, 40)));
 		check("FGO 国服当前卡池同期 ≥1 个", !!g && g.openCount >= 1, JSON.stringify(g && g.openCount));
+		check("FGO 卡池 roles 里不再有 & 开头的实体残留（&#32; 已由共享层 stripTags 修好）",
+			!!g && !/&[#a-zA-Z0-9]+;/.test(g.roles || ""), JSON.stringify(g && g.roles.slice(0, 60)));
+		// 悬停（本体 buildPoolHover）：夹具里国服当前卡池有 4 个当期池 → 每池「池名：角色」⏎「档期」，
+		// 结束时间升序（外显那池 10-06 → 10-15 → 10-15 → 10-22）。
+		// 外显那池的推荐从者有 13 骑（>8）→ 按"角色名过长不放进悬停"的规则只写池名（不带「：角色」）。
+		{
+			const lines = g && g.bannerHover ? g.bannerHover.split("\n") : [];
+			check("FGO 卡池 ≥2 当期池 → bannerHover 每池两行（池名 + 档期）",
+				lines.length === 8 && lines[0] === "「OVER THE SAME SKY-SEPTEMBER-」推荐召唤"
+				&& isDateLine(lines[1]) && isDateLine(lines[7]), JSON.stringify(lines));
+			check("FGO 卡池 hover 角色名单不过长的池写「池名：角色」（本体同构）",
+				lines.length === 8 && /：/.test(lines[2]) && /：/.test(lines[4]) && /：/.test(lines[6]),
+				JSON.stringify(lines.filter((_, i) => i % 2 === 0)));
+			check("FGO 卡池 hover 池名在前、档期行不是行首（不是「档期在前」）",
+				lines.length === 8 && lines.filter((_, i) => i % 2 === 0).every((l) => !isDateLine(l))
+				&& lines.filter((_, i) => i % 2 === 1).every(isDateLine), JSON.stringify(lines));
+			check("FGO 卡池 hover 结束时间升序（外显池 10-06 排第一）",
+				lines.length === 8 && /^「OVER THE SAME SKY-SEPTEMBER-」推荐召唤/.test(lines[0]), JSON.stringify(lines[0]));
+			check("FGO 卡池 hover 不含元信息（来源/URL/tz=/推定/抓取统计/内部 id）",
+				!!g && !!g.bannerHover && !HOVER_META.test(g.bannerHover), JSON.stringify(g && g.bannerHover));
+		}
 
 		const eHtml = readJsonFx("fgo-event-parse/response.txt").parse.text;
 		const found = findFgoEventTable(eHtml);
@@ -383,6 +484,21 @@ export default async function run() {
 		check("FGO 活动 hover 只列覆盖当前时刻的行（≥2 条）",
 			typeof er.eventHover === "string" && er.eventHover.split("\n").length >= 2,
 			String(er.activeCount));
+		// 悬停格式＝本体 buildEventHover：行首是**活动名**、「名称」+ 3 空格 +「档期」。
+		// 旧实现把源站**分类词**（Event / Campaign）塞在档期与名称之间，且档期打头 ——
+		// 用户 2026-10-03 反馈的偏差①②，分类词**彻底删掉**（只留作 tier 排序，不进文本）。
+		{
+			const lines = (er.eventHover || "").split("\n");
+			check("FGO 活动 hover 行首是活动名（不是档期）",
+				lines.length >= 2 && lines.every((l) => !isDateLine(l)), JSON.stringify(lines.slice(0, 2)));
+			check("FGO 活动 hover 首行 = 外显活动名 + 3 空格 + 档期",
+				lines[0] === "幕末武斗神话 唠唠叨叨新选组 THE END REVENGE OF MAKOTO   09-24 19:00 ~ 10-15 13:59",
+				JSON.stringify(lines[0]));
+			check("FGO 活动 hover 不再出现源站分类词 Event / Campaign",
+				!/\bEvent\b|\bCampaign\b/.test(er.eventHover || ""), JSON.stringify(lines.slice(0, 2)));
+			check("FGO 活动 hover 不含元信息（来源/URL/tz=/推定/抓取统计/内部 id）",
+				!!er.eventHover && !HOVER_META.test(er.eventHover), JSON.stringify(lines.slice(0, 2)));
+		}
 		check("FGO 日服表被排除（表头含「日本标准时间」不参与选表）",
 			!/(日本标准时间)/.test(er.eventDatesRaw || "") && er.event !== "见鬼去吧！ 南瓜农场屠杀", String(er.event));
 	}
@@ -426,11 +542,23 @@ export default async function run() {
 		const g = await src.gacha.fetcher(src.gacha.url, undefined, src.tz);
 		assertContract("FGO", "gacha", g);
 		check("FGO 卡池 banner 非空且是推荐召唤", !!g && /推荐召唤/.test(g.banner), JSON.stringify(g && g.banner));
+		check("FGO 卡池 fetch 层带上 bannerHover（≥2 当期池）且不含元信息",
+			!!g && typeof g.bannerHover === "string" && g.bannerHover.length > 0 && !HOVER_META.test(g.bannerHover),
+			JSON.stringify(g && g.bannerHover && g.bannerHover.slice(0, 80)));
 		const e = await src.event.fetcher(src.event.url, undefined, src.tz);
 		assertContract("FGO", "event", e);
 		check("FGO 活动 event 非空", !!(e && e.event), JSON.stringify(e && e.event));
 		check("FGO 活动 eventDates 形态合法",
 			!!e && /^\d{2}-\d{2} \d{2}:\d{2} ~ \d{2}-\d{2} \d{2}:\d{2}$/.test(e.eventDates), JSON.stringify(e && e.eventDates));
+		// fetch 层：≥2 条当期 → 设 eventHover，且行首是名称、不含分类词与元信息
+		{
+			const lines = (e && e.eventHover ? e.eventHover : "").split("\n");
+			check("FGO 活动 fetch 层 eventHover 行首是名称、不含 Event/Campaign 分类词",
+				lines.length >= 2 && lines.every((l) => !isDateLine(l)) && !/\bEvent\b|\bCampaign\b/.test(e.eventHover),
+				JSON.stringify(lines.slice(0, 2)));
+			check("FGO 活动 fetch 层 eventHover 不含元信息",
+				!!e && !!e.eventHover && !HOVER_META.test(e.eventHover), JSON.stringify(lines.slice(0, 2)));
+		}
 	}
 	//#endregion
 }

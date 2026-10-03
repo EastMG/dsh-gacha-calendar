@@ -38,12 +38,15 @@
 //      **不做机械繁转简**：两岸官方译法本就不同（`[新手应援]必定获得1名★4成员10连招募券招募`
 //      vs 繁中服 `[新手應援]必中1名★4成員10連票券招募`），机械转换会产出第三种、非官方的字符串。
 
-import { fetchJson, fmtWindow } from "../lib/env.js";
+import { fetchJson, fmtWindow, hoverPool, hoverEvent } from "../lib/env.js";
 
 const DEFAULT_GACHA = "https://sekai-world.github.io/sekai-master-db-cn-diff/gachas.json";
 const DEFAULT_EVENT = "https://sekai-world.github.io/sekai-master-db-cn-diff/events.json";
-const LONG_MS = 400 * 86400e3;   // >400 天 = 长期/常驻池（2099 哨兵）
-const HOVER_MAX = 20;
+// 长期/常驻池阈值：**对齐本体** `EVENT_MAX_WINDOW_DAYS = 120`（本体对"长期/常驻玩法"的定义）。
+// 旧值 400 天只够挡住 2099 哨兵值，会放过 365 天的**永久**池 ——
+// 实测 `新手限定★4自选阶梯招募`（03-26 16:00 ~ 次年 03-26 15:59，整 365 天）就是这样漏进"当期招募"的
+// （用户 2026-10-03 要求「规则和原来一致」）。限时招募最长约 1 个月，120 天阈值不会误伤。
+const LONG_MS = 120 * 86400e3;
 
 const toTs = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 const byNewestStart = (a, b) => (b.startTs - a.startTs)
@@ -51,7 +54,8 @@ const byNewestStart = (a, b) => (b.startTs - a.startTs)
 	|| ((a.id || 0) - (b.id || 0));
 
 // ── 卡池侧 ──
-// 覆盖当前时刻的**有界**池里取 startTs 最新的一期当"当期招募"；长期池不参与（只在 hover 报个数）。
+// 覆盖当前时刻的**有界**池里取 startTs 最新的一期当"当期招募"；长期池（2099 哨兵等）不参与"当期"，
+// 也不进悬停（它们恒在架，列出来是噪音）。
 export function parseSekaiGachas(json, now = Date.now(), tz = "Asia/Shanghai") {
 	if (!Array.isArray(json)) throw new Error("sekai-gacha-bad-shape");
 	const pools = [];
@@ -69,17 +73,13 @@ export function parseSekaiGachas(json, now = Date.now(), tz = "Asia/Shanghai") {
 	if (!cur) return null;
 
 	const dates = fmtWindow(cur.startTs, cur.endTs, tz);
-	// 同名同期（实测：阶梯招募/高级礼物招募各按角色重复 4~6 条）→ 合并成一行并标 ×n
-	const pooled = [];
-	for (const p of bounded) {
-		const hit = pooled.find((x) => x.name === p.name && x.startTs === p.startTs && x.endTs === p.endTs);
-		if (hit) hit.n += 1; else pooled.push({ ...p, n: 1 });
-	}
-	const shown = pooled.slice(0, HOVER_MAX).map((p) => `${p.name}（${p.type}）${p.n > 1 ? `×${p.n}` : ""}  ${fmtWindow(p.startTs, p.endTs, tz)}`);
-	if (pooled.length > shown.length) shown.push(`…另有 ${pooled.length - shown.length} 组同期招募未列出`);
-	const longN = active.length - bounded.length;
-	if (longN > 0) shown.push(`另有 ${longN} 个长期/常驻招募（endAt 是 2099 之类的哨兵值，未计入"当期"）`);
-
+	// 悬停 = 全部当期**有界**池（长期池不参与"当期"，见上）。每池一行池名 + 档期，窗口完全相同则
+	// 档期只在末尾写一遍 —— 排版交给共用工具 hoverPool（与本体 buildPoolHover 逐字一致）。
+	// 源站没有角色名 → name 就用池名本身（对应本体的「池名：角色」里的池名位置）。
+	// 池名里的「（ceil）」等后缀来自 `gachaType` 枚举，**不是源站原文** → 不进悬停；
+	// 同名同窗的阶梯/高级礼物招募多条各自成行（源站如此，不再合并成 ×n）。
+	const hover = hoverPool(bounded.map((p) => ({ name: p.name, startTs: p.startTs, endTs: p.endTs })), tz);
+	// 只有 1 个当期池 → hover 为 ""，**不设 bannerHover**，由 UI 走默认两行式「banner ⏎ bannerDates」
 	return {
 		banner: cur.name,
 		roles: "",
@@ -87,7 +87,7 @@ export function parseSekaiGachas(json, now = Date.now(), tz = "Asia/Shanghai") {
 		bannerDatesRaw: dates,
 		startTs: cur.startTs,
 		endTs: cur.endTs,
-		bannerHover: shown.length >= 2 ? shown.join("\n") : ""
+		...(hover ? { bannerHover: hover } : {})
 	};
 }
 
@@ -110,12 +110,26 @@ export function parseSekaiEvents(json, now = Date.now(), tz = "Asia/Shanghai") {
 	const cur = active[0] || null;
 	if (!cur) return null;
 	const dates = fmtWindow(cur.startTs, cur.endTs, tz);
-	// 源站没有"活动起止"这一对字段名 → 悬停里注明映射，避免读者以为 endAt 是从源站直接读到的
-	const raw = `${dates}（源站无 endAt：结束取 aggregateAt${cur.closedAt != null ? `；closedAt=${fmtWindow(cur.closedAt, cur.closedAt, tz).split(" ~ ")[0]} 为结果公布` : ""}）`;
-	const hover = active.length >= 2
-		? active.map((x) => `${x.name}（${x.type}）  ${fmtWindow(x.startTs, x.endTs, tz)}`).join("\n")
-		: "";
-	return { event: cur.name, eventDates: dates, eventDatesRaw: raw, eventHover: hover };
+	// ⚠️ 降级逻辑（保留）：源站 `events.json` **没有** `endAt` 字段，活动游玩期取 `startAt ~ aggregateAt`
+	//    （aggregateAt = 活动结束、开始统计的时刻）；aggregateAt 缺失时退回 `closedAt`。
+	//    这句说明是**实现细节**，只留在代码注释里，**不进悬停**。
+	// `eventDatesRaw`：既有约定是"保留源站原文"，这里如实记录上面那次映射（本体也有条目这么做）。
+	// `eventDatesRaw` 就写格式化档期本身：UI 的默认两行式会直接显示它
+	// （`eventDatesRaw || eventDates`），所以**不能**在这儿夹带说明文字
+	// —— 用户 2026-10-03 明确要求「元信息彻底删掉」。实测旧版把说明拼进来后，
+	//    面板上出现了 `09-30 15:00 ~ 10-09 20:59（源站无 endAt：结束取 aggregateAt；…）` 这种尾巴。
+	const raw = dates;
+	// 悬停 = 全部当期活动，结束时间升序逐行「名称 + 3 空格 + 档期」（档期由共用工具 fmtWindow 格式化，
+	// 与本体 buildEventHover 逐字一致）。**不排序**由工具负责 → 这里先排好序再传。
+	// 只有 1 条 → 工具返回 ""，不设 eventHover，由 UI 走默认两行式「event ⏎ eventDates」。
+	const ordered = active.slice().sort((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs));
+	const hover = hoverEvent(ordered.map((x) => ({ name: x.name, startTs: x.startTs, endTs: x.endTs })), tz);
+	return {
+		event: cur.name,
+		eventDates: dates,
+		eventDatesRaw: raw,
+		...(hover ? { eventHover: hover } : {})
+	};
 }
 
 // 抓取器：mode="direct"（实测 sekai-world.github.io = GitHub Pages 静态资源，带 ACAO）

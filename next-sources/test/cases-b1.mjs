@@ -223,13 +223,42 @@ export default async function run() {
 		check("窗口 = 10-01 00:00 ~ 10-07 23:59",
 			!!skG && skG.bannerDates === "10-01 00:00 ~ 10-07 23:59" && skG.startTs === 1790784000000 && skG.endTs === 1791388799000,
 			JSON.stringify(skG && [skG.bannerDates, skG.startTs, skG.endTs]));
-		check("长期池（endAt=2099 哨兵）不参与当期",
-			!!skG && !/2099/.test(skG.bannerDates) && /另有 8 个长期\/常驻招募/.test(skG.bannerHover),
-			JSON.stringify(skG && skG.bannerHover.split("\n").slice(-1)[0]));
-		check("hover 同名同期合并成一行（×4）", !!skG && /阶梯招募（sunormal）×4/.test(skG.bannerHover));
+		check("长期池（endAt=2099 哨兵）不参与当期，也不进悬停",
+			!!skG && !/2099/.test(skG.bannerDates) && !/2099/.test(skG.bannerHover) && !/长期|常驻招募/.test(skG.bannerHover),
+			JSON.stringify(skG && skG.bannerHover.split("\n").slice(-2)));
+		// 悬停排版＝本体 buildPoolHover：每池「池名」一行 + 档期一行（窗口相同则档期只在末尾写一遍），
+		// 结束时间升序。**名称在前、档期在后**（用户 2026-10-03 反馈的偏差②）。
+		{
+			const lines = skG ? skG.bannerHover.split("\n") : [];
+			// 40 行 = 20 个当期有界池 × （池名 + 档期）。
+			// 阈值 2026-10-03 由 400 天收紧到 **120 天**（对齐本体 EVENT_MAX_WINDOW_DAYS）后，
+			// 4 个整 365 天的「新手限定★4自选阶梯招募」被正确判为长期池剔除 → 24 池降为 20 池。
+			check("hover 每池「池名」+「档期」两行，结束时间升序",
+				lines.length === 40 && /^T恤服装特惠招募$/.test(lines[0]) && /^09-19 12:00 ~ 10-03 11:59$/.test(lines[1]),
+				JSON.stringify(lines.slice(0, 2)));
+			check("hover 行首是名称、档期行不是行首（不是「档期在前」）",
+				lines.filter((_, i) => i % 2 === 0).every((l) => l.trim() !== "" && !/^\d{2}-\d{2} \d{2}:\d{2} ~ /.test(l))
+				&& lines.filter((_, i) => i % 2 === 1).every((l) => /^(\d{4}-)?\d{2}-\d{2} \d{2}:\d{2} ~ (\d{4}-)?\d{2}-\d{2} \d{2}:\d{2}$/.test(l)));
+			// 同名同窗的 4 条阶梯招募各自成行（不再合并成「×4」这种非源站原文的记法）
+			check("同名同窗不再合并成 ×n，而是各自成行",
+				lines.filter((l) => l === "[1.5周年纪念]阶梯招募").length === 4 && !/×\d/.test(skG.bannerHover));
+		}
+		// 守护：悬停里**不能**再出现任何元信息 / 实现说明（用户 2026-10-03：「元信息彻底删掉」）
+		check("hover 不含元信息（来源/URL/tz=/推定/抓取统计/gachaType 后缀/实现说明）",
+			!!skG && !/来源|https?:|api\.|bwiki|米游社|官网|tz=|推定|共扫描|取详情|抓取|（[^）]*）|×\d/.test(skG.bannerHover),
+			JSON.stringify(skG && skG.bannerHover.split("\n").slice(0, 4)));
 		assertContract("PJSK", "gacha", skG);
 		check("只有长期池在期 → null（未公布）",
 			parseSekaiGachas([{ id: 1, gachaType: "normal", name: "任务招募", startAt: Date.UTC(2020, 0, 1), endAt: Date.UTC(2099, 11, 30) }], SNAP, "Asia/Shanghai") === null);
+		// 只有 1 个当期有界池 → **不设 bannerHover**（由 UI 走默认两行式「banner ⏎ bannerDates」）
+		{
+			const one = parseSekaiGachas([
+				{ id: 1, gachaType: "normal", name: "任务招募", startAt: Date.UTC(2026, 9, 1), endAt: Date.UTC(2099, 11, 30) },
+				{ id: 2, gachaType: "ceil", name: "独苗招募", startAt: Date.UTC(2026, 9, 1), endAt: Date.UTC(2026, 9, 20) }
+			], Date.UTC(2026, 9, 2), "Asia/Shanghai");
+			check("只有 1 个当期池 → 不设 bannerHover",
+				!!one && one.banner === "独苗招募" && !("bannerHover" in one), JSON.stringify(one && Object.keys(one)));
+		}
 
 		skE = parseSekaiEvents(skEventRaw, SNAP, "Asia/Shanghai");
 		const ev181 = skEventRaw.find((e) => e.id === 181);
@@ -241,8 +270,36 @@ export default async function run() {
 			!!skE && skE.eventDates === "09-30 15:00 ~ 10-09 20:59"
 			&& wall(cst(ev181.aggregateAt)) === "2026-10-09 20:59" && wall(cst(ev181.closedAt)) === "2026-10-11 14:59",
 			JSON.stringify([wall(cst(ev181.aggregateAt)), wall(cst(ev181.closedAt))]));
-		check("eventDatesRaw 注明源站无 endAt 的映射（避免读者以为直接读到 endAt）",
-			!!skE && /源站无 endAt/.test(skE.eventDatesRaw) && /aggregateAt/.test(skE.eventDatesRaw), JSON.stringify(skE && skE.eventDatesRaw));
+		// ⚠️ 2026-10-03 变更：实现说明**任何外显字段都不许出现**。
+		// 旧版把「（源站无 endAt：结束取 aggregateAt；closedAt=… 为结果公布）」拼进 `eventDatesRaw`，
+		// 而 UI 的默认两行式就是 `eventDatesRaw || eventDates` → 说明**照样出现在面板上**
+		// （用户要求「元信息彻底删掉」）。现在 raw 与 dates 同值，说明只留在代码注释。
+		check("eventDatesRaw 就是档期本身（不再夹带实现说明）",
+			!!skE && skE.eventDatesRaw === skE.eventDates, JSON.stringify(skE && skE.eventDatesRaw));
+		check("eventDates / eventDatesRaw 都不含实现说明（源站/aggregateAt/closedAt/括号）",
+			!!skE && !/[（(]|源站|aggregateAt|closedAt|endAt/.test(skE.eventDates)
+			&& !/[（(]|源站|aggregateAt|closedAt|endAt/.test(skE.eventDatesRaw),
+			JSON.stringify(skE && [skE.eventDates, skE.eventDatesRaw]));
+		// 只有 1 条当期活动 → **不设 eventHover**，由 UI 走默认两行式「event ⏎ eventDates」
+		check("只 1 条当期活动 → 不设 eventHover（UI 兜底）", !!skE && !("eventHover" in skE), JSON.stringify(skE && Object.keys(skE)));
+		// 多活动（合成夹具）：hoverEvent 逐行「名称 + 3 空格 + 档期」，**名称在前**，结束时间升序
+		{
+			const t = (d, h) => Date.UTC(2026, 9, d, h);
+			const many = parseSekaiEvents([
+				{ id: 1, name: "活动甲", eventType: "marathon", startAt: t(1, 7), aggregateAt: t(9, 12), closedAt: t(11, 6) },
+				{ id: 2, name: "活动乙", eventType: "cheerful_carnival", startAt: t(1, 7), aggregateAt: t(5, 12), closedAt: t(7, 6) },
+				{ id: 3, name: "长期露演", eventType: "world_bloom", startAt: t(1, 7), aggregateAt: t(1, 7) + 200 * 86400e3, closedAt: null }
+			], t(2, 12), "Asia/Shanghai");
+			const lines = many ? (many.eventHover || "").split("\n") : [];
+			check("多活动 hover：行首是名称（不是日期）、名称与档期之间是 3 空格",
+				lines.length === 2 && /^活动乙 {3}10-01 15:00 ~ 10-05 20:00$/.test(lines[0]) && /^活动甲 {3}10-01 15:00 ~ 10-09 20:00$/.test(lines[1]),
+				JSON.stringify(lines));
+			check("多活动 hover：结束时间升序（乙 10-05 在甲 10-09 之前）", lines.length === 2 && /活动乙/.test(lines[0]));
+			check("多活动 hover：长期活动（>120 天）不进悬停", !/长期露演/.test(many ? many.eventHover : ""));
+			check("多活动 hover 不含元信息（源站字段名 / eventType / aggregateAt / closedAt / 来源 / 推定）",
+				!!many && !!many.eventHover && !/来源|https?:|tz=|推定|aggregateAt|closedAt|eventType|marathon|cheerful|（|）/.test(many.eventHover),
+				JSON.stringify(many && many.eventHover));
+		}
 		assertContract("PJSK", "event", skE);
 		check("活动侧结构损坏 → 抛错", throws(() => parseSekaiEvents({}, SNAP)) && throws(() => parseSekaiGachas({}, SNAP)));
 	}

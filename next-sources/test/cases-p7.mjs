@@ -6,11 +6,11 @@
 //   ③ 不拖垮共享 runner：抓取器调用都包 try/catch，失败只记 ✗，不抛出去中断别的批次
 import { readFileSync } from "node:fs";
 import { useFixtures, check, section, assertContract, summary } from "./harness.mjs";
-import { sourceWallParts } from "../lib/env.js";
+import { sourceWallParts, hoverPool, hoverEvent } from "../lib/env.js";
 import { SOURCES_P7 } from "../registry-p7.js";
 import {
 	parseStellaList, parseStellaWindow, parseStellaWindows, stellaWindowsFromDetail,
-	stellaIsGacha, stellaIsEvent, stellaGachaName,
+	stellaIsGacha, stellaIsEvent, stellaGachaName, stellaFeaturedName,
 	gachaStellasora, eventsStellasora, STELLA_TZ
 } from "../parsers/stellasora.js";
 
@@ -137,6 +137,16 @@ export default async function runP7() {
 		// 4732「灾变防线」活动说明
 		const w4732 = stellaWindowsFromDetail(fixture("p7-stella-detail-4732"));
 		check("4732 解析出 ≥1 条档期", w4732.length >= 1, String(w4732.length));
+		// 卡池悬停「池名：角色」的**右半边**（UP 主推）来自正文，不在标题里
+		const d4760 = fixture("p7-stella-detail-4760");
+		check("4760 正文可提取 UP 主推 = 艾蕾",
+			stellaFeaturedName(d4760.data.news.content) === "艾蕾", stellaFeaturedName(d4760.data.news.content));
+		check("4761 正文可提取 UP 主推 = 睡前童话",
+			stellaFeaturedName(d4761.data.news.content) === "睡前童话", stellaFeaturedName(d4761.data.news.content));
+		check("只有 4 星行 → 空串（**不臆造**角色名）",
+			stellaFeaturedName("<p>活动期间，4星旅人「师渺」「璟麟」招募概率提升！</p>") === "",
+			stellaFeaturedName("<p>活动期间，4星旅人「师渺」「璟麟」招募概率提升！</p>"));
+		check("无正文 → 空串（不抛错）", stellaFeaturedName("") === "" && stellaFeaturedName(null) === "");
 		// 正文里的 `&ldquo;` 等实体应已解码
 		const txt4761 = String(d4761.data.news.content);
 		check("原始正文含 HTML 实体（证明解码有必要）", /&ldquo;|&amp;/.test(txt4761), txt4761.slice(0, 60));
@@ -179,7 +189,40 @@ export default async function runP7() {
 			check("卡池窗口 = 09-29 ~ 10-20（快照值）", a.mo === 9 && a.d === 29 && b.mo === 10 && b.d === 20, g.bannerDates);
 			check("卡池侧带 bannerDatesRaw 原文", typeof g.bannerDatesRaw === "string" && g.bannerDatesRaw.length > 0, g.bannerDatesRaw);
 			check("bannerDatesRaw 含「维护结束后」（源站原文）", /维护结束后/.test(g.bannerDatesRaw), g.bannerDatesRaw);
-			check("卡池 hover 列出覆盖当期条目", typeof g.eventHover === "string" && g.eventHover.length > 0);
+
+			// ── 卡池悬停（2026-10-03 修）────────────────────────────
+			// 契约：卡池列的悬停字段是 **bannerHover**（面板读 `g.bannerHover || gachaTitle`）。
+			// 旧实现误写 `eventHover` → 运行时被 `pickFields(g.data, GACHA_FIELDS)` 丢掉 = 悬停根本没生效。
+			check("卡池 hover 在 bannerHover（且不再写 eventHover）",
+				typeof g.bannerHover === "string" && g.bannerHover.length > 0 && g.eventHover === undefined,
+				JSON.stringify(g.bannerHover));
+			const gl = String(g.bannerHover || "").split("\n");
+			check("卡池 hover = hoverPool 排版：2 池 → 4 行（池名行 + 档期行）", gl.length === 4, JSON.stringify(gl));
+			check("卡池 hover 池名行是「池名：角色」（与本体 label 同构）",
+				gl.filter((s, i) => i % 2 === 0).every((s) => /^「[^」]+」：.+$/.test(s)), JSON.stringify(gl));
+			check("卡池 hover 档期行由 fmtWindow 格式化（MM-DD HH:MM ~ MM-DD HH:MM）",
+				gl.filter((s, i) => i % 2 === 1).every((s) => /^\d{2}-\d{2} \d{2}:\d{2} ~ \d{2}-\d{2} \d{2}:\d{2}$/.test(s)), JSON.stringify(gl));
+			check("卡池 hover 每池带自己的 UP 主推（艾蕾 / 睡前童话）",
+				/「沐于温情笑意中」：艾蕾/.test(g.bannerHover) && /「空白的稚梦」：睡前童话/.test(g.bannerHover),
+				JSON.stringify(gl));
+			check("卡池 hover 无元信息（来源/URL/时区推定/抓取条数/内部 id/实现说明/游戏名+区服）",
+				!/来源|http|tz=|UTC|Asia\/|推定|推断|起点按|共扫描|内部|bwiki|米游社|yostar|biligame|星塔旅人|国服/.test(g.bannerHover)
+				&& !/[（）()]/.test(g.bannerHover), JSON.stringify(gl));
+			// 单池分支：两个当期池的起点只差 847ms（各自公告的 publishTime），
+			// 取两者之间的一刻 → 只有更早的那池覆盖 now ⇒ 必须**不设** bannerHover
+			const A4761 = fixture("p7-stella-detail-4761").data.news.publishTime;
+			const A4760 = fixture("p7-stella-detail-4760").data.news.publishTime;
+			check("前置：两池起点相差 < 1 秒（借此刻构造「单池当期」）",
+				A4760 > A4761 && A4760 - A4761 < 1000, `${A4761} vs ${A4760}`);
+			let g1 = null;
+			try { g1 = await gachaStellasora(src.gacha.url, undefined, src.tz, A4761 + Math.floor((A4760 - A4761) / 2)); } catch (e) { g1 = "ERR:" + e.message; }
+			check("单池当期 → **不设** bannerHover（交回 UI 默认两行式「池名：角色」⏎「档期」）",
+				!!g1 && g1.bannerHover === undefined, JSON.stringify(g1 && g1.bannerHover));
+			check("单池当期外显照常（=「空白的稚梦」）", !!g1 && g1.banner === "「空白的稚梦」", JSON.stringify(g1 && g1.banner));
+			// 解析器「<2 就不设字段」的依据本身也守一道（lib/env.js 的契约）
+			check("契约：hoverPool/hoverEvent 在不足 2 条时返回空串",
+				hoverPool([{ name: "池", startTs: g.startTs, endTs: g.endTs }], STELLA_TZ) === ""
+				&& hoverEvent([{ name: "活动", startTs: g.startTs, endTs: g.endTs }], STELLA_TZ) === "");
 		}
 
 		// ── 活动侧 ──
@@ -191,6 +234,35 @@ export default async function runP7() {
 			console.log(`      · 活动「${ev.event}」 ${ev.eventDates}`);
 			check("活动名含「活动」（分流正确）", /活动/.test(ev.event), ev.event);
 			check("活动侧不带卡池字段", ev.banner === undefined);
+
+			// ── 活动悬停（2026-10-03 修：名称在前 + 3 空格 + 档期；删掉「（起点按公告发布时刻推断）」）──
+			check("活动 hover 在 eventHover 且非空",
+				typeof ev.eventHover === "string" && ev.eventHover.length > 0, JSON.stringify(ev.eventHover));
+			const el = String(ev.eventHover || "").split("\n");
+			check("活动 hover 逐条一行（2 条当期 → 2 行）", el.length === 2, JSON.stringify(el));
+			check("活动 hover 行首是**名称**不是档期（旧实现「档期在前」已改掉）",
+				el.every((s) => /^「[^」]+」/.test(s) && !/^\d{2}-\d{2}/.test(s)), JSON.stringify(el));
+			check("活动 hover「名称 + 3 空格 + 档期」（且档期被格式化，不是源站原文）",
+				el.every((s) => {
+					const parts = s.split("   ");
+					return parts.length === 2
+						&& /^「[^」]+」/.test(parts[0])
+						&& /^\d{2}-\d{2} \d{2}:\d{2} ~ \d{2}-\d{2} \d{2}:\d{2}$/.test(parts[1])
+						&& !/20\d\d\//.test(parts[1]);
+				}), JSON.stringify(el));
+			check("活动 hover 按结束时间升序（灾变防线 10-20 在前、联合讨伐 10-30 在后）",
+				/「灾变防线」/.test(el[0] || "") && /「联合讨伐」/.test(el[1] || ""), JSON.stringify(el));
+			check("活动 hover 无元信息（**尤其删掉**「（起点按公告发布时刻推断）」）",
+				!/来源|http|tz=|UTC|Asia\/|推定|推断|起点按|共扫描|内部|bwiki|米游社|yostar|biligame|星塔旅人|国服/.test(ev.eventHover)
+				&& !/[（）()]/.test(ev.eventHover), JSON.stringify(el));
+			check("悬停里包含外显的同一个活动名（同一字符串，不是标签）",
+				el.some((s) => s.startsWith(`${ev.event}   `)), JSON.stringify(el));
+			// 单条分支：2026-10-25 只有「联合讨伐」（10-30 止）覆盖 → 必须**不设** eventHover
+			let ev1 = null;
+			try { ev1 = await eventsStellasora(src.event.url, undefined, src.tz, Date.parse("2026-10-25T00:00:00Z")); } catch (e) { ev1 = "ERR:" + e.message; }
+			check("单条当期活动 → **不设** eventHover（交回 UI 默认两行式「活动名」⏎「档期」）",
+				!!ev1 && ev1.eventHover === undefined, JSON.stringify(ev1 && ev1.eventHover));
+			check("单条当期活动外显照常（联合讨伐）", !!ev1 && /联合讨伐/.test(ev1.event), JSON.stringify(ev1 && ev1.event));
 		}
 	}
 

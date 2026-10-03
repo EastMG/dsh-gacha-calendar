@@ -32,7 +32,7 @@
 //   任务书给的交叉证据：官方 displayTime=2026-09-29 10:00 ↔ Bestdori CN startAt=2026-09-29 02:00Z
 //   （= 10:00+08）。本条是硬证据，非推测。
 
-import { fetchJson, textOf, decodeEntities, sourceInstant, sourceWallParts, fmtWindow } from "../lib/env.js";
+import { fetchJson, textOf, decodeEntities, sourceInstant, sourceWallParts, fmtWindow, hoverPool, hoverEvent } from "../lib/env.js";
 
 export const BANDORI_LIST_URL = "https://api.biligame.com/news/list?gameExtensionId=138&positionId=2&typeId=1&pageNum=1&pageSize=20";
 export const BANDORI_TZ = "Asia/Shanghai";
@@ -200,6 +200,38 @@ export function pickBandoriEventSection(sections) {
 	if (pool.length) return pool[0];
 	return (sections || []).find((s) => s.primary && !GACHA_SEC_RE.test(s.name)) || null;
 }
+// 悬停标签用的实体清理：卡池/活动名进悬停前必须把 `&middot;` 之类还原，
+// 否则同一期内容会出现两种形态 —— 外显 banner 走 `bandoriTitle`（已还原成 `·`），
+// 而悬停用节里的 quote（未还原，会显示成 `黄金周纪念&middot;前篇…`）。
+// 外显与悬停**必须逐字一致**。
+// ⚠️ 只用于悬停标签；roles 字段的对外契约不变（既有的 `&sup2;` 形态由既有测试钉住）。
+function hoverLabel(s) {
+	return decodeExtra(String(s == null ? "" : s)).replace(/\s+/g, " ").trim();
+}
+// 每节的主窗口 → 悬停条目 `{ name, startTs, endTs, raw }`（hoverPool / hoverEvent 的入参形状）。
+// 名称取节内第一个「…」里的名字（quote），比整段干净；raw 保留源站原文（缺起止时才用）。
+export function bandoriSectionItem(section, name) {
+	return {
+		name: hoverLabel(name || section.quote || section.name),
+		startTs: section.primary.startTs,
+		endTs: section.primary.endTs,
+		raw: section.primary.raw
+	};
+}
+// 当期（覆盖 now）的主卡池节：含「招募」且排除免费/确定/StepUp 这类派生池。
+// ⚠️ 还要**有 ★5 名单**才算"池"：公告里「★5 期间限定 奇迹招募券礼包」这种**礼包上架**节
+//    名字也带「招募」，但没有任何角色（实测真实夹具 18418 第 2 个这样的节）。
+//    卡池悬停是「池名：角色」两行式，没有角色的节塞进去只会让悬停出现光秃秃的商品名。
+export function bandoriActiveGachaSections(sections, text, now) {
+	return (sections || []).filter((s) =>
+		s.primary && !GACHA_SIDE_RE.test(s.name) && GACHA_SEC_RE.test(s.name)
+		&& s.primary.startTs <= now && s.primary.endTs >= now
+		&& !!bandoriRolesFromSection(text, s));
+}
+// 当期（覆盖 now）的全部活动节（含卡池节 —— 这一期一起开的档期都能在悬停里看到）
+export function bandoriActiveSections(sections, now) {
+	return (sections || []).filter((s) => s.primary && s.primary.startTs <= now && s.primary.endTs >= now);
+}
 
 // 节内 ★5 名单 → roles（实测形态：`★5 丸山彩[镜中无法映照的手中]`、`★5 CHU² [这样的休假方式]`）
 export function bandoriRolesFromSection(text, section) {
@@ -252,13 +284,22 @@ export async function gachaBandori(url, signal, tz = BANDORI_TZ) {
 	if (!a) return null;
 	const w = a.picked.primary;
 	const banner = a.picked.quote || a.picked.name;
+	// 悬停（本体 buildPoolHover 格式）：当期主池每池两行「池名：角色」⏎「档期」，结束时间升序。
+	// 派生池（免费/确定/StepUp）不进悬停；只有 1 个当期主池时 hoverPool 返回 "" → 不设 bannerHover。
+	const pools = bandoriActiveGachaSections(a.sections, a.text, Date.now()).map((s) => {
+		const roles = bandoriRolesFromSection(a.text, s).replace(/、/g, "/");
+		const name = hoverLabel(s.quote || s.name);
+		return { ...bandoriSectionItem(s, name), label: roles ? `${name}：${roles}` : name };
+	});
+	const bannerHover = hoverPool(pools, tz);
 	return {
 		banner,
 		roles: bandoriRolesFromSection(a.text, a.picked),
 		bannerDates: fmtWindow(w.startTs, w.endTs, tz),
 		bannerDatesRaw: w.raw,
 		startTs: w.startTs,
-		endTs: w.endTs
+		endTs: w.endTs,
+		...(bannerHover ? { bannerHover } : {})
 	};
 }
 
@@ -270,15 +311,15 @@ export async function eventsBandori(url, signal, tz = BANDORI_TZ) {
 	const a = await loadAnnouncement(listUrl, signal, pickBandoriEventSection);
 	if (!a) return null;
 	const w = a.picked.primary;
-	const lines = [];
-	for (const s of a.sections) {
-		if (!s.primary) continue;
-		lines.push(`${fmtWindow(s.primary.startTs, s.primary.endTs, tz)}   ${s.quote || s.name}`);
-	}
+	// 悬停格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover）：`名称` + 3 空格 + `档期`，
+	// **名称在前**（旧实现是「档期在前、名称在后」，与本体相反 —— 用户 2026-10-03 反馈的偏差②）。
+	// 只有 1 条当期 → hoverEvent 返回 "" → 不设 eventHover，由 UI 走默认两行式。
+	const active = bandoriActiveSections(a.sections, Date.now());
+	const eventHover = hoverEvent(active.map((s) => bandoriSectionItem(s)), tz);
 	return {
 		event: a.picked.quote || bandoriTitle(a.item) || a.picked.name,
 		eventDates: fmtWindow(w.startTs, w.endTs, tz),
 		eventDatesRaw: w.raw,
-		eventHover: lines.join("\n")
+		...(eventHover ? { eventHover } : {})
 	};
 }

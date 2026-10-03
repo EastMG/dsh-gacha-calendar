@@ -48,7 +48,7 @@
 //   好在 `action=parse` 是按当前 revision 重新渲染的（夹具里页面自带的刷新链接时间戳
 //   `_=20261001172628` 正是抓取时刻），实测数据是新鲜的。
 
-import { fetchMediaWikiText, stripTags, sourceInstant, fmtWindow } from "../lib/env.js";
+import { fetchMediaWikiText, stripTags, sourceInstant, fmtWindow, hoverPool, hoverEvent } from "../lib/env.js";
 
 export const FGO_API = "https://fgo.wiki/api.php";
 export const FGO_GACHA_PAGE = "卡池一览";
@@ -134,20 +134,25 @@ function pickRow(rows, now) {
 }
 
 // ── 卡池侧：国服当前卡池 ──
+// 悬停里的角色名用「、」连接（与本体 buildPoolHover 的 `池名：角色` 观感一致）：
+// wiki 表格用**空格**分隔从者名（`阿蒂拉 罗摩 兰斯洛特(Saber) …`），
+// 直接塞进「池名：角色」会变成一长串空格分隔名，跟本体的「A、B、C」不一致。
+export function formatFgoRoles(roles) {
+	return String(roles || "").replace(/\s+/g, " ").trim().replace(/ +/g, "、");
+}
+
 export function parseFgoBannerTable(html, tz = FGO_TZ, now = Date.now()) {
 	const tables = fgoTables(html);
 	if (!tables.length) throw new Error("fgo-no-table");
 	const tb = tables.find((t) => /国服当前卡池/.test(stripTags(rowsOf(t.html)[0] || "")));
 	if (!tb) throw new Error("fgo-no-current-banner-table");
 	const rows = [];
-	let openCount = 0;
 	for (const r of rowsOf(tb.html)) {
 		const cells = cellsOf(r);
 		if (cells.length < 2 || isHeaderRow(cells)) continue;
 		const name = stripTags(cells[0]).replace(/\s+/g, " ").trim();
 		const w = parseFgoWindow(stripTags(cells[1]), tz);
 		if (!name || !w) continue;
-		openCount++;
 		let roles = cells.length > 2 ? stripTags(cells[2]).replace(/\s+/g, " ").trim() : "";
 		// wiki 在"推荐召唤从者>15 骑"时用一行占位提示顶替名单 → 不把它当角色名
 		if (/请前往|大于15|详见|Template:/.test(roles)) roles = "";
@@ -155,7 +160,30 @@ export function parseFgoBannerTable(html, tz = FGO_TZ, now = Date.now()) {
 	}
 	const best = pickRow(rows, now);
 	if (!best) return null;
-	return { ...best, openCount };
+	// 悬停（本体 buildPoolHover 格式）：当期主池每池「池名：角色」+ 档期两行，结束时间升序。
+	// 「卡池一览」的这一张表 = **国服当前卡池**，表内解析出的行本就都是当期池，不需要再按 now 过滤。
+	// 只有 1 个当期池时 hoverPool 返回 ""，此处**不设 bannerHover**，由 UI 走默认两行式。
+	// 角色名过长（>8 骑，如「天草四郎时贞推荐召唤」动辄 20 骑）会淹掉档期行 → 不放进悬停。
+	const pools = (rows.length < 2 ? [] : rows)
+		.slice()
+		.sort((a, b) => (a.endTs === b.endTs ? a.startTs - b.startTs : a.endTs - b.endTs))
+		.map((r) => {
+			const names = formatFgoRoles(r.roles);
+			const short = names && names.split("、").length <= 8 ? names : "";
+			return {
+				name: r.banner,
+				label: short ? `${r.banner}：${short}` : r.banner,
+				startTs: r.startTs,
+				endTs: r.endTs,
+				raw: r.raw
+			};
+		});
+	const bannerHover = hoverPool(pools, tz);
+	return {
+		...best,
+		openCount: rows.length,
+		...(bannerHover ? { bannerHover } : {})
+	};
 }
 
 // ── 活动侧：国服当年那张表 ──
@@ -192,13 +220,17 @@ export function parseFgoEventTable(html, tz = FGO_TZ, now = Date.now()) {
 	}
 	const best = pickRow(rows, now);
 	if (!best) return { year: found.year, rows, skipped, event: null };
-	// 悬停：只列**覆盖当前时刻**的行（该年的表含全年 57 行，全列会淹没当期；按结束时间升序）
+	// 悬停：只列**覆盖当前时刻**的行（该年的表含全年 57 行，全列会淹没当期；按结束时间升序）。
+	// 格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover）：`名称` + 3 空格 + `档期`。
+	// ⚠️ 表格第 4 列的**类型**（Event/Campaign）是源站的**分类词**，不是活动名 —— 旧实现把它塞在
+	//    「档期」和「名称」之间（`09-24 19:00 ~ 10-15 13:59   Event   幕末…`），既把档期放在了行首，
+	//    又把分类词冒充成名称的一部分。用户 2026-10-03 反馈后**彻底删掉**（分类只用于 `tier` 排序，
+	//    保留在 rows 里供外部使用，不进悬停文本）。
 	const active = rows
 		.filter((x) => x.startTs <= now && x.endTs >= now)
 		.sort((a, b) => (a.endTs === b.endTs ? a.startTs - b.startTs : a.endTs - b.endTs));
-	const hover = active
-		.map((x) => `${fmtWindow(x.startTs, x.endTs, tz)}${x.type ? `   ${x.type}` : ""}   ${x.name}`)
-		.join("\n");
+	// <2 条时 hoverEvent 返回 "" → 不设 eventHover，由 UI 走默认两行式
+	const eventHover = hoverEvent(active, tz);
 	return {
 		year: found.year,
 		rows,
@@ -207,7 +239,7 @@ export function parseFgoEventTable(html, tz = FGO_TZ, now = Date.now()) {
 		event: best.name,
 		eventDates: fmtWindow(best.startTs, best.endTs, tz),
 		eventDatesRaw: best.raw,
-		eventHover: hover
+		...(eventHover ? { eventHover } : {})
 	};
 }
 
@@ -228,7 +260,9 @@ export async function gachaFgo(url, signal, tz = FGO_TZ) {
 		bannerDates: fmtWindow(r.startTs, r.endTs, tz),
 		bannerDatesRaw: r.raw,
 		startTs: r.startTs,
-		endTs: r.endTs
+		endTs: r.endTs,
+		// 有 ≥2 个当期池才有值；1 个池时 parseFgoBannerTable 不设该字段（UI 走默认两行式）
+		...(r.bannerHover ? { bannerHover: r.bannerHover } : {})
 	};
 }
 
@@ -240,6 +274,7 @@ export async function eventsFgo(url, signal, tz = FGO_TZ) {
 		event: r.event,
 		eventDates: r.eventDates,
 		eventDatesRaw: r.eventDatesRaw,
-		eventHover: r.eventHover
+		// ≥2 条当期活动才有值；只有 1 条时不设该字段（UI 走默认两行式「名称 ⏎ 档期」）
+		...(r.eventHover ? { eventHover: r.eventHover } : {})
 	};
 }

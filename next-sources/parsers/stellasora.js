@@ -13,6 +13,8 @@
 //   · publishTime 是 epoch ms，直接是绝对时刻，无需换算
 //   · 正文档期是**国服墙钟**（如 `2026/10/01 04:00 ~ 2026/10/31 03:59`，04:00 日切 = 国服特征）
 //   · ⚠️ 源站**未显式标注时区** → 标「推测」
+//     ⚠️ 「时区是推测」这类实现说明**只留在代码注释里**，**绝不进悬停文本**
+//        （用户 2026-10-03：悬停里的元信息——来源站名/URL/时区推定/抓取条数/内部 id/实现说明——彻底删掉）。
 //
 // ── 列表里哪个分类装什么（实测）──────────────────────────────
 //   type=notice   (349 条)  ← **卡池 + 活动说明**都在这里，本解析器主用
@@ -28,7 +30,7 @@
 //
 //   ⚠️ 起点是「维护结束后」时**没有绝对时刻**：用该公告的 publishTime 当锚点，
 //      并标 `startInferred: true`。绝不硬造一个假时刻。
-import { fetchJson, sourceInstant, sourceWallParts, fmtWindow, pad2, decodeEntities } from "../lib/env.js";
+import { fetchJson, sourceInstant, sourceWallParts, fmtWindow, pad2, decodeEntities, hoverPool, hoverEvent } from "../lib/env.js";
 
 export const STELLA_BASE = "https://stellasora.yostar.cn";
 export const STELLA_TZ = "Asia/Shanghai";   // 推测：源站未标注，但 04:00 日切与国服一致
@@ -79,6 +81,8 @@ export function parseStellaWindow(segText, tz = STELLA_TZ, anchorTs = null) {
 	//    故「维护结束后」优先，用公告发布时刻当锚点并标 startInferred
 	//    （与仓库既有惯例一致：FGO 的 `即日起` / 绝区零的 `4.6版本更新后` 起点都标 inferred 并写进 raw）。
 	//    未出现该词时，`2026/10/01 04:00` 这类显式起点照常按原样解析。
+	//    ⚠️ 2026-10-03：`startInferred` **只作内部标记**（供 raw / 调试用），**不再写进悬停** ——
+	//       旧悬停里的「（起点按公告发布时刻推断）」是**实现说明**，用户要求元信息彻底删掉。
 	let startTs = null, startInferred = false, startRaw = "";
 	const relMatch = REL_START_RE.exec(s);
 	const head = sepMatch ? s.slice(0, sepMatch.index) : s;
@@ -172,6 +176,21 @@ export function stellaGachaName(title) {
 	return String(title || "").replace(/(限时|限定)?招募(开启|说明|一览)?[！!。.]?$/, "").trim() || String(title || "").trim();
 }
 
+// 卡池正文 → 该池的 UP 角色/秘纹名（悬停里「池名：角色」的右半边）。
+// 实测形态（详情首段，**招募说明**里紧跟其后）：
+//   「…全新5星旅人「艾蕾」招募概率提升！」          → 艾蕾
+//   「…全新5星秘纹「睡前童话」招募概率提升！」      → 睡前童话
+// 只取**首个**匹配（4 星行一定写在 5 星行之后，如「活动期间，4星旅人「师渺」「璟麟」…」）；
+// 抓不到就返回 ""，悬停行退回只写池名 —— 与本体 `label = banner + (roles ? "：" + roles : "")` 同构，
+// **绝不臆造**一个角色名。
+const STELLA_NEW_FIVE_STAR_RE = /全新\s*5\s*星[^「」]{0,8}「([^「」]{1,24})」/;
+const STELLA_FIVE_STAR_RE = /5\s*星[^「」]{0,8}「([^「」]{1,24})」/;
+export function stellaFeaturedName(html) {
+	const t = brText(html);
+	const m = STELLA_NEW_FIVE_STAR_RE.exec(t) || STELLA_FIVE_STAR_RE.exec(t);
+	return m ? m[1].trim() : "";
+}
+
 // ── 列表解析 ──
 export function parseStellaList(json) {
 	if (!json || json.code !== 0 || !json.data || !Array.isArray(json.data.rows)) throw new Error("stella-bad-json");
@@ -207,7 +226,9 @@ async function collectStellaSide(url, signal, tz, now, side) {
 		if (!detail) continue;
 		const anchorTs = row.publishTs != null ? row.publishTs : null;
 		const wins = parseStellaWindows(detail.content, tz, anchorTs);
-		for (const w of wins) candidates.push({ row, win: w });
+		// featured：该篇正文里的 UP 主推（卡池悬停「池名：角色」用；活动侧不用）
+		const featured = stellaFeaturedName(detail.content);
+		for (const w of wins) candidates.push({ row, win: w, featured });
 	}
 	if (candidates.length === 0) return null;
 	// 覆盖 now 的里，取「起点最新」的那条（并列时取终点更晚的）
@@ -217,11 +238,39 @@ async function collectStellaSide(url, signal, tz, now, side) {
 	return { picked: covering[0], covering };
 }
 
-// 悬停：列出全部覆盖 now 的档期（带标签）
-function stellaHover(covering, tz, nameOf) {
+// ── 悬停 ──────────────────────────────────────────────────────────
+// 一律走 `lib/env.js` 的 hoverPool / hoverEvent（与本体 buildPoolHover / buildEventHover **逐字同格式**）。
+//
+// 为什么不再自己拼字符串（2026-10-03 修，用户点名「新增游戏的悬停样式/格式/规则和原来的差别很大」）：
+//   ① 旧实现把**元信息/实现说明**塞进了悬停 —— 主要是行尾的「（起点按公告发布时刻推断）」，
+//      那本是 `startInferred` 的**实现说明**。本体条目**从不**在悬停里写这些 →
+//      **直接删掉，且不改放到别的字段**；说明只留在本文件注释里（见 parseStellaWindow 与下方 ③）。
+//   ② 旧实现是「档期在前、名称在后」；本体一律 `名称 + 3 空格 + 档期` → 交回 hoverEvent 排版。
+//   ③ `startInferred` 的**判定逻辑原样保留**（「维护结束后」→ 用该公告 publishTime 当锚点，
+//      不硬造时刻）；变的只是"不再把它写成悬停文案"。
+//
+// 卡池池项：`{ name, label, startTs, endTs, raw }`。
+//   name  = 池名（与面板外显 `banner` 同一个字符串）
+//   label = 「池名：角色」（角色抓不到就 = 池名）—— 与本体 `label = banner + (roles ? "：" + roles : "")` 同构
+function stellaPoolItems(covering) {
+	return covering.map((c) => {
+		const name = stellaGachaName(c.row.title);
+		return {
+			name,
+			label: c.featured ? `${name}：${c.featured}` : name,
+			startTs: c.win.startTs,
+			endTs: c.win.endTs,
+			raw: c.win.raw
+		};
+	});
+}
+
+// 活动项：`{ name, startTs, endTs, raw }`。**排序由调用方负责**（hoverEvent 不排序），
+// 这里照本体 sortEventItems 同序：结束时间升序（越快结束越靠前），同结束时间再按开始时间升序。
+function stellaEventItems(covering) {
 	return covering
-		.map((c) => `${fmtWindow(c.win.startTs, c.win.endTs, tz)}   ${nameOf(c.row)}` + (c.win.startInferred ? "（起点按公告发布时刻推断）" : ""))
-		.join("\n");
+		.map((c) => ({ name: c.row.title, startTs: c.win.startTs, endTs: c.win.endTs, raw: c.win.raw }))
+		.sort((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs));
 }
 
 // ── 卡池侧 ──
@@ -229,16 +278,23 @@ export async function gachaStellasora(url, signal, tz = STELLA_TZ, now = Date.no
 	const got = await collectStellaSide(url, signal, tz, now, "gacha");
 	if (!got) return null;
 	const { picked, covering } = got;
-	return {
+	// ⚠️ 卡池列的悬停字段是 **bannerHover**（面板 `title: g.bannerHover || gachaTitle`；
+	//    50-refresh 的 `pickFields(g.data, GACHA_FIELDS)` 也只留 bannerHover）——
+	//    旧实现写的是 `eventHover`，运行时被丢弃 = 卡池悬停**根本没生效**。
+	const hover = hoverPool(stellaPoolItems(covering), tz);
+	const out = {
 		banner: stellaGachaName(picked.row.title),
 		bannerDates: fmtWindow(picked.win.startTs, picked.win.endTs, tz),
 		bannerDatesRaw: picked.win.raw,
 		startTs: picked.win.startTs,
 		endTs: picked.win.endTs,
 		event: "",
-		eventDates: "",
-		eventHover: stellaHover(covering, tz, (r) => stellaGachaName(r.title))
+		eventDates: ""
 	};
+	// hoverPool 在「当期池 < 2」时返回 ""：此时**不设** bannerHover，交回 UI 的默认两行式
+	// 「池名：角色」⏎「档期」—— 不要自己再补一行，那正是与本体不一致的来源。
+	if (hover) out.bannerHover = hover;
+	return out;
 }
 
 // ── 活动侧 ──
@@ -246,12 +302,18 @@ export async function eventsStellasora(url, signal, tz = STELLA_TZ, now = Date.n
 	const got = await collectStellaSide(url, signal, tz, now, "event");
 	if (!got) return null;
 	const { picked, covering } = got;
-	return {
+	const hover = hoverEvent(stellaEventItems(covering), tz);
+	const out = {
+		// 外显 = 该公告标题（源站的活动名写法；本次**不改**外显与档期字段的内容）。
+		// 悬停里的名称与它同源同字，故「外显能看到的活动名」在悬停里也一定看得到。
 		event: picked.row.title,
 		eventDates: fmtWindow(picked.win.startTs, picked.win.endTs, tz),
-		eventDatesRaw: picked.win.raw,
-		eventHover: stellaHover(covering, tz, (r) => r.title)
+		eventDatesRaw: picked.win.raw
 	};
+	// hoverEvent 在「当期活动 < 2」时返回 ""：此时**不设** eventHover，
+	// 交回 UI 的默认两行式「活动名」⏎「档期|原文」。
+	if (hover) out.eventHover = hover;
+	return out;
 }
 
 // 供测试：从一篇详情 JSON 直接算档期

@@ -38,10 +38,12 @@
 //     ② 兜底：公告 `{{公告|时间=YYYYMMDD}}` 字段（**= stellasora 先例的"公告发布时间"**，本夹具里是 20260922）；
 //     ③ 再兜底：该相对点**自带的日期**（`2026年9月24日版本更新后`）按当日 00:00（防御性；只要正则匹配到相对点，
 //        ② 的公告时间字段就一定存在，故这条实际到不了，保留以防字段被源站删除）。
-//   三条路径**都**标 `startInferred: true`，并在 `bannerHover`/`eventHover` 里如实写明推断依据。
-//   （若坚持"一律用发布时间"，只需删掉 zspmsMaintenanceWindow 的调用；本文件把两种依据都打印在 hover 里。）
+//   三条路径**都**标 `startInferred: true`，并把推断依据留在**数据字段**（`startFrom`/`startRel`）与代码注释里。
+//   ⚠️ 悬停**不写**推断依据（用户 2026-10-03：「悬停里的元信息彻底删掉」）——悬停只放名称/角色/档期，
+//   与本体 buildPoolHover / buildEventHover 同格式（见下面 "当期挑选 / 悬停" 区域）。
+//   （若坚持"一律用发布时间"，只需删掉 zspmsMaintenanceWindow 的调用。兜底锚点行为不受悬停改动影响。）
 
-import { fetchJson, sourceInstant, fmtWindow, pad2 } from "../lib/env.js";
+import { fetchJson, sourceInstant, fmtWindow, pad2, hoverPool, hoverEvent } from "../lib/env.js";
 
 //#region 通用：MediaWiki `prop=wikitext`（fetchMediaWikiText 只取 parse.text，这里要 parse.wikitext）
 // 实测两种返回形态都要兼容：
@@ -66,26 +68,47 @@ async function fetchWikitext(url, signal, referer = "") {
 //#endregion
 
 //#region 通用：当期挑选 / 悬停
+// ── 悬停排版（用户 2026-10-03 方案 A）────────────────────────────────────────
+// 用户反馈「新增游戏的面板外显/悬停的样式、格式、规则和原来的差别很大」。本文件此前各写各的悬停，
+// 三类偏差全中：① 首行塞元信息（来源站名/URL/SMW 时间/tz 推定/抓取条数/维护锚点）；
+// ② 「档期在前、名称在后」；③ 自拼档期文本而非 fmtWindow。
+// 修法：**排版一律交给 lib/env.js 的共用工具**（与本体 buildPoolHover / buildEventHover 逐字一致），
+// 本区域只负责把解析结果映射成入参；悬停里**只剩** 名称/角色/档期。
+// ⚠️ 元信息（来源站名、域名/URL、API/页面名、时区推定、抓取条数、内部 id、SMW 时间、起点锚点、
+//    「起点推断」注记、游戏名+区服前缀、任何「（…）」实现说明）**直接删掉**，不搬家、不进任何字段。
+//    实现说明只留在**代码注释**与数据字段（startInferred/startFrom/startRel）里，供测试与排查用。
 function nowOf(now) { return typeof now === "number" && Number.isFinite(now) ? now : Date.now(); }
 // 覆盖 now 的条目（起点/终点都有绝对时刻才进候选；缺任一端的不产出）
 function activeItems(items, now) {
 	return items.filter((it) => it.endTs != null && it.startTs != null && it.startTs <= now && it.endTs >= now);
 }
-// 悬停行：窗口 + 名字；超过 limit 行折叠（悬停不是数据出口，别把 20+ 行都塞进去）
-function hoverLines(items, tz, nameOf, limit = 12) {
-	const lines = items.slice(0, limit).map((x) => `${fmtWindow(x.startTs, x.endTs, tz)}   ${nameOf(x)}`);
-	if (items.length > limit) lines.push(`…以及另外 ${items.length - limit} 项`);
-	return lines.join("\n");
+// 卡池条目 → `hoverPool` 入参。`name` = 池名原文（工具用它判空/兜底），`label` = 外显同构的「池名：角色」
+// （逐字照本体调用方：src/client/30-parsers.js 的 selectArknights`label: `${it.banner}：${it.roles}``）。
+// ⚠️ 战双的池名形如「时崎狂三狙击 / 命运时崎狂三狙击」——**原样**当池名用，不自己编角色名。
+function poolItem(x) {
+	const name = String(x.banner == null ? "" : x.banner).trim();
+	const roles = String(x.roles == null ? "" : x.roles).trim();
+	return {
+		name,
+		label: roles ? `${name}：${roles}` : name,
+		startTs: x.startTs,
+		endTs: x.endTs,
+		raw: x.raw || ""
+	};
+}
+// 活动条目 → `hoverEvent` 入参：显示的是**活动名**（不是「活动时间」这类标签）+ 档期。
+function eventItem(x, nameOf) {
+	return { name: nameOf(x), startTs: x.startTs, endTs: x.endTs, raw: x.raw || "" };
 }
 // 卡池侧载荷。cmp 决定"外显"优先序；默认 = 结束最早优先（越快结束越该盯住，与 bwiki.js 同口径）。
+// 悬停一律走共用 `hoverPool`：≥2 池 → 每池「池名：角色」行 + 档期行（窗口全同则只写一次档期）；
+// **<2 池 → 不设 bannerHover**（交回 UI 的「banner：roles」⏎「档期」两行式兜底，与本体约定一致）。
 function gachaPayload(items, tz, now, opts = {}) {
 	const act = activeItems(items, now);
 	if (act.length === 0) return null;                       // 有候选但都不覆盖当期 → 未公布（不硬凑过期档期）
 	const sorted = act.slice().sort(opts.cmp || ((a, b) => (a.endTs - b.endTs) || ((a._i || 0) - (b._i || 0))));
 	const first = sorted[0];
-	const note = first.startInferred ? `（起点「${first.startRel || "版本更新后"}」按${first.startFrom}推断）` : "";
-	const hover = [opts.header, hoverLines(sorted, tz, (x) => `${x.banner}${x.roles && !String(x.banner).includes(x.roles) ? `（${x.roles}）` : ""}${x.startInferred ? "（起点推断）" : ""}`)]
-		.filter(Boolean).join("\n");
+	const hover = hoverPool(sorted.map(poolItem), tz);
 	const out = {
 		banner: first.banner,
 		roles: first.roles || "",
@@ -94,25 +117,24 @@ function gachaPayload(items, tz, now, opts = {}) {
 		startTs: first.startTs,
 		endTs: first.endTs
 	};
-	if (hover) out.bannerHover = (note ? `${note}\n${hover}` : hover);
+	if (hover) out.bannerHover = hover;
 	return out;
 }
-// 活动侧载荷。cmp 决定外显优先序；悬停列出**全部覆盖当期**的条目（按同一排序）。
+// 活动侧载荷。cmp 决定外显优先序；悬停列出**全部覆盖当期**的条目（按同一排序，**名称在前**）。
+// 悬停一律走共用 `hoverEvent`（名称 + 3 空格 + 档期；不排序，由调用方排好）：
+// **<2 条 → 不设 eventHover**（交回 UI 的「event」⏎「eventDates|raw」兜底）。
 function eventPayload(items, tz, now, opts = {}) {
 	const act = activeItems(items, now);
 	if (act.length === 0) return null;
 	const sorted = act.slice().sort(opts.cmp || ((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs) || ((a._i || 0) - (b._i || 0))));
 	const first = sorted[0];
 	const nameOf = opts.nameOf || ((x) => x.name || x.event || "");
-	const note = first.startInferred ? `（起点「${first.startRel || "版本更新后"}」按${first.startFrom}推断）` : "";
-	const hover = act.length >= 2
-		? [opts.header, note, hoverLines(sorted, tz, (x) => `${nameOf(x)}${x.startInferred ? "（起点推断）" : ""}`)].filter(Boolean).join("\n")
-		: "";
+	const hover = hoverEvent(sorted.map((x) => eventItem(x, nameOf)), tz, opts.permanentCount || 0);
 	return {
 		event: nameOf(first),
 		eventDates: fmtWindow(first.startTs, first.endTs, tz),
 		eventDatesRaw: first.raw || "",
-		eventHover: hover
+		...(hover ? { eventHover: hover } : {})
 	};
 }
 //#endregion
@@ -363,10 +385,9 @@ export function zspmsEventTier(x) { return _ZSPMS_TIER1.test(x.name || "") ? 1 :
 function zspmsEventCmp(a, b) {
 	return (zspmsEventTier(a) - zspmsEventTier(b)) || (a.endTs - b.endTs) || (a.startTs - b.startTs) || (a._i - b._i);
 }
-function zspmsHeader(parsed, row, side) {
-	const w = parsed.anchor ? `起点锚点=源站维护结束 ${parsed.anchor.raw}` : `起点锚点=公告时间 ${parsed.announceTime || "?"}`;
-	return `战双帕弥什 bwiki 版本更新公告「${(row && row.title) || "?"}」（SMW 时间=${parsed.announceTime || "?"}；${side}；tz=UTC+8 为推测；${w}）`;
-}
+// ⚠️ 原先这里有个 zspmsHeader()：往悬停首行拼「战双帕弥什 bwiki 版本更新公告「…」（SMW 时间=…；…；tz=UTC+8
+//    为推测；起点锚点=源站维护结束 …）」。按方案 A **整段删除**（元信息不进悬停，也不搬到别的字段）。
+//    公告标题/SMW 时间/维护窗口仍是**数据字段**（announceTime / anchor / startFrom），解析逻辑不变。
 
 // 两步抓取：ask 索引 → 最新公告正文。结构性损坏（无结果 / 坏 JSON / 正文无档期）都会抛错。
 export async function zspmsLatestNotice(url, signal) {
@@ -377,10 +398,10 @@ export async function zspmsLatestNotice(url, signal) {
 	return { row, rows, wikitext };
 }
 export async function gachaZspms(url, signal, tz = ZSPMS_TZ, now = Date.now()) {
+	// `row`（ask 索引行）仍要传给解析器：`{{公告|时间=…}}` 缺失时用它兜底相对起点的锚点。
 	const { row, wikitext } = await zspmsLatestNotice(url, signal);
 	const parsed = parseZspmsAnnouncement(wikitext, tz, row);
 	return gachaPayload(parsed.items.filter((x) => x.kind === "gacha"), tz, nowOf(now), {
-		header: zspmsHeader(parsed, row, "卡池：研发池档期"),
 		cmp: (a, b) => (a.endTs - b.endTs) || (a._i - b._i)
 	});
 }
@@ -388,7 +409,6 @@ export async function eventsZspms(url, signal, tz = ZSPMS_TZ, now = Date.now()) 
 	const { row, wikitext } = await zspmsLatestNotice(url, signal);
 	const parsed = parseZspmsAnnouncement(wikitext, tz, row);
 	return eventPayload(parsed.items.filter((x) => x.kind === "event"), tz, nowOf(now), {
-		header: zspmsHeader(parsed, row, "活动：版本内限时内容档期"),
 		cmp: zspmsEventCmp,
 		nameOf: (x) => x.name
 	});
@@ -478,13 +498,13 @@ export function parseCznRecord(wikitext, tz = CZN_TZ) {
 }
 // 卡池外显：**开始最新**的覆盖档（与 bestdori/sekai/stellasora 的"最新开始"同口径：
 // 卡厄斯这 6 期是两两成对的三批，最新一批 = 赛季限定）
+// ⚠️ 原先此处给 `gachaPayload` 传了 header「卡厄斯梦境 bwiki Module:Gacha/data（Lua 表 6 期；tz=UTC+8 为推测）」
+//    —— 那是悬停元信息（来源站名 / API 名 / 抓取条数 / 时区推定），按方案 A **整段删除**。
+//    Lua 表页名/期数仍是**数据**（CZN_MODULE_PAGE / items.length），注释与注册表里都有，不进悬停。
 export async function gachaCzn(url, signal, tz = CZN_TZ, now = Date.now()) {
 	const items = parseCznLua(await fetchWikitext(url || CZN_MODULE_URL, signal, CZN_REFERER), tz)
 		.map((x) => ({ ...x, banner: `${x.type}（${x.char}）`, roles: x.char }));
-	return gachaPayload(items, tz, nowOf(now), {
-		header: `卡厄斯梦境 bwiki ${CZN_MODULE_PAGE}（Lua 表 ${items.length} 期；tz=UTC+8 为推测）`,
-		cmp: (a, b) => (b.startTs - a.startTs) || (a._i - b._i)
-	});
+	return gachaPayload(items, tz, nowOf(now), { cmp: (a, b) => (b.startTs - a.startTs) || (a._i - b._i) });
 }
 //#endregion
 
@@ -560,15 +580,17 @@ export function parseKedrTemplate(wikitext, tz = KEDR_TZ) {
 	if (gacha.length + event.length === 0) throw new Error("kedr-template:no-window");
 	return { gacha, event, skipped, calls };
 }
-const _KEDR_HEADER = "雪松 bwiki Template:首页游戏版本内容（社区维护；【精英集结】/【演习】= 卡池，活动/赛季/通行证/剧情 = 活动；tz=UTC+8 为推测）";
+// ⚠️ 原先这里有个 _KEDR_HEADER：「雪松 bwiki Template:首页游戏版本内容（社区维护；【精英集结】/【演习】= 卡池，
+//    活动/赛季/通行证/剧情 = 活动；tz=UTC+8 为推测）」——悬停元信息（来源站名/页面名/分流口径/时区推定），
+//    按方案 A **整段删除**（分流规则仍在 kedrIsGacha / kedrIsEvent 的注释里）。
 // 卡池：开始最新的覆盖档（该模板是**当期**面板，两条卡池同窗口 → 取文档顺序第一条）
 export async function gachaKedrTemplate(url, signal, tz = KEDR_TZ, now = Date.now()) {
 	const { gacha } = parseKedrTemplate(await fetchWikitext(url || KEDR_TEMPLATE_URL, signal, KEDR_REFERER), tz);
-	return gachaPayload(gacha, tz, nowOf(now), { header: _KEDR_HEADER, cmp: (a, b) => (b.startTs - a.startTs) || (a._i - b._i) });
+	return gachaPayload(gacha, tz, nowOf(now), { cmp: (a, b) => (b.startTs - a.startTs) || (a._i - b._i) });
 }
 // 活动：开始最新的覆盖档（个人剧情活动 > 战令通行证赛季 / 边境防卫）
 export async function eventsKedrTemplate(url, signal, tz = KEDR_TZ, now = Date.now()) {
 	const { event } = parseKedrTemplate(await fetchWikitext(url || KEDR_TEMPLATE_URL, signal, KEDR_REFERER), tz);
-	return eventPayload(event, tz, nowOf(now), { header: _KEDR_HEADER, cmp: (a, b) => (b.startTs - a.startTs) || (a._i - b._i), nameOf: (x) => x.name });
+	return eventPayload(event, tz, nowOf(now), { cmp: (a, b) => (b.startTs - a.startTs) || (a._i - b._i), nameOf: (x) => x.name });
 }
 //#endregion

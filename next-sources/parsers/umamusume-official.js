@@ -1,9 +1,11 @@
 // next-sources/parsers/umamusume-official.js —— 赛马娘 **官方公告**（日服 umamusume.jp + 国际服 umamusume.com）
 //
 // 契约：async (url, signal, tz, now = Date.now()) → 数据对象 | null
-//   卡池侧 { banner, roles?, bannerDates, bannerDatesRaw?, startTs?, endTs?, event?, eventDates?, eventDatesRaw?, eventHover? }
+//   卡池侧 { banner, bannerDates, bannerDatesRaw?, startTs?, endTs?, bannerHover? }
 //   活动侧 { event, eventDates, eventDatesRaw?, eventHover? }
 //   null = 未公布（抓到了公告，但没有覆盖 now 的档期）；只有结构性损坏才 throw。
+//   `bannerHover` / `eventHover` 只在**当期 ≥2 条**时出现（`hoverPool` / `hoverEvent` 返回空串 → 本文件不设该字段），
+//   否则交回 UI 的默认单条两行式；内容只有「名称 + 档期」，**不含任何元信息**（见 `umaCurrentItems` 的说明）。
 //
 // ── 与既有源的关系（**并存，不替换**）────────────────────────────────────────
 //   · 日服：既有 `parsers/umapyoi.js`（第三方 api.umapyoi.net，只有"卡级获取窗口"、无卡池名）
@@ -36,7 +38,9 @@
 //     （3472 的「販売期間 9/30 12:00 ～ 10/13 4:59」），所以**绝不能**拿 from/to 当档期，
 //     否则会把"整批公告的展示期"当成卡池期，`bannerDates` 会是错的（这条是本文件存在的理由）。
 //   本解析器因此：① 先从正文抽日期区间（统一 tokenizer，日文/英文共用）；
-//                 ② 只有正文里**完全抽不到**区间时，才退化为 from_date ~ to_date（并在 hover 里注明）；
+//                 ② 只有正文里**完全抽不到**区间时，才退化为 from_date ~ to_date
+//                    （退化事实标在 `windows[].label` / `source="fallback"` 上，**供测试与排障**，
+//                     绝不写进 hover —— 用户 2026-10-03 要求悬停里元信息彻底删掉）；
 //                 ③ 外显取"覆盖 now 且开始最晚"的那条区间；一条都不覆盖 now → 返回 null。
 //
 // ── 分类（靠标题关键词，源站没有分类字段）──────────────────────────────────
@@ -53,7 +57,7 @@
 //   PROXY_ALLOW_HOSTS 白名单里 → 代理会回 403 `host not allowed`（本批次只写 next-sources/，
 //   已上报 Lead 加白名单，未擅自改插件本体）。
 
-import { fetchJson, sourceInstant, sourceWallParts, fmtWindow } from "../lib/env.js";
+import { fetchJson, sourceInstant, sourceWallParts, fmtWindow, hoverPool, hoverEvent } from "../lib/env.js";
 
 // ── URL / 时区常量 ──
 export const UMA_JP_INDEX_URL = "https://umamusume.jp/api/ajax/pr_info_index?format=json&page=1";
@@ -70,8 +74,6 @@ export const UMA_DEFAULT_MAX_DETAILS = 12;
 export const UMA_DEFAULT_MAX_PAGES = 3;
 /** 每页候选（分类命中）上限 */
 export const UMA_DEFAULT_PAGE_SIZE = 6;
-
-const HOVER_MAX = 12;
 
 // ── 分类关键词 ──
 const JP_GACHA_RE = /ガチャ/;
@@ -313,7 +315,8 @@ export function parseUmaIndex(json, mode = "jp", tz = UMA_JP_TZ) {
 /**
  * 详情 JSON → { id, title, windows, source, postTs, kind }。
  *   source = "body"    ：档期来自正文（正常路径）
- *   source = "fallback"：正文里一条区间都抽不到 → 退化为 from_date ~ to_date（hover 里注明）
+ *   source = "fallback"：正文里一条区间都抽不到 → 退化为 from_date ~ to_date
+ *                        （只在 `windows[].label` 上标注，**不进 hover**）
  *   source = "none"    ：正文与 from/to 都没有区间 → windows 为空
  */
 export function parseUmaDetail(json, tz = UMA_JP_TZ, classifyMode = "jp") {
@@ -336,49 +339,67 @@ export function parseUmaDetail(json, tz = UMA_JP_TZ, classifyMode = "jp") {
 	return { id: d.announce_id, title: title || "", windows, source, postTs, kind: classifyUmaTitle(title, classifyMode) };
 }
 
-// ── 选当期 ──────────────────────────────────────────────────────────────────
+// ── 选当期 / 悬停 ───────────────────────────────────────────────────────────
 /**
- * 从多个详情的窗口里选当期：
- *   ① 覆盖 now 的窗口里取 startTs 最新（并列取 endTs 更早、id 更小）；
- *   ② 一条都不覆盖 → **返回 null**（未公布），绝不把过期/未来档期硬凑成"当期"。
+ * 覆盖 now 的「公告 × 窗口」对，按固定偏好排序：
+ *   ① startTs 最新（并列取 endTs 更早、id 更小）；
+ *   ② 并列时**预告稿排后**：日服同一档期常有两篇（`【予告】…開催決定！` + 正式 `…開催！`），
+ *      实测 3469/3470 的窗口完全一样（都是 10-01 12:00 ~ 11-02 11:59）→ 否则外显会显示预告稿。
  *
- * ⚠️ 并列时的"预告"偏好：日服同一档期常有两篇（`【予告】…開催決定！` + 正式 `…開催！`），
- *    实测 3469/3470 的窗口完全一样（都是 10-01 12:00 ~ 11-02 11:59）。所以 startTs 并列时
- *    **优先取标题不含 `予告`/`coming soon` 的那篇**，否则外显标题会显示成预告稿（实测就是 3469）。
+ * ⚠️ 一条都不覆盖 now → 空数组（`pickUmaWindow` 据此返回 null = 未公布，绝不把过期/未来档期硬凑成"当期"）。
+ * ⚠️ 排序**同时**服务外显与悬停：`pickUmaWindow` 取第 0 项当外显；`hoverEvent` 不重排 →
+ *    活动悬停的第一行就是外显的那条。`hoverPool` 自带"按结束时间升序"的规则（与本体一致），会重排卡池。
  */
-export function pickUmaWindow(entries, now) {
+function umaCurrentWindows(entries, now) {
 	const active = [];
 	for (const e of entries) for (const w of e.windows) if (w.startTs <= now && w.endTs >= now) active.push({ e, w });
-	if (!active.length) return null;
+	if (!active.length) return [];
 	const previewRank = (e) => (/予告|coming soon/i.test(String(e.title || "")) ? 1 : 0);
 	active.sort((x, y) =>
 		(y.w.startTs - x.w.startTs)
 		|| (previewRank(x.e) - previewRank(y.e))
 		|| (x.w.endTs - y.w.endTs)
 		|| (x.e.id - y.e.id));
-	return active[0];
+	return active;
 }
 
-/** 悬浮明细：列出所有覆盖 now 的窗口（附所属公告标题）；没有覆盖的就不列。
- *  排序与 `pickUmaWindow` 一致（预告排后），这样 hover 第一行就是外显的那条。 */
-export function umaHoverLines(entries, now, tz, header) {
-	const lines = [header];
-	const act = [];
-	for (const e of entries) for (const w of e.windows) if (w.startTs <= now && w.endTs >= now) act.push({ e, w });
-	const previewRank = (e) => (/予告|coming soon/i.test(String(e.title || "")) ? 1 : 0);
-	act.sort((x, y) =>
-		(y.w.startTs - x.w.startTs)
-		|| (previewRank(x.e) - previewRank(y.e))
-		|| (x.w.endTs - y.w.endTs)
-		|| (x.e.id - y.e.id));
-	for (const { e, w } of act.slice(0, HOVER_MAX)) {
-		const label = w.label ? w.label + "  " : "";
-		lines.push(`${fmtWindow(w.startTs, w.endTs, tz)}  ${label}[${e.id}] ${e.title}`);
+/**
+ * 从多个详情的窗口里选当期：覆盖 now 的窗口里取 startTs 最新（并列取 endTs 更早、id 更小）。
+ * 一条都不覆盖 → **返回 null**（未公布），绝不把过期/未来档期硬凑成"当期"。
+ */
+export function pickUmaWindow(entries, now) {
+	return umaCurrentWindows(entries, now)[0] || null;
+}
+
+/**
+ * 当期项（交给 `lib/env.js` 的 `hoverPool` / `hoverEvent` 排版）：**一条公告最多一项**。
+ *   · `name` = 公告标题（即卡池名 / 活动名）—— 与本体的 `banner：roles` / 活动名同构；
+ *     ⚠️ 官方公告**只有标题、没有"角色"字段**，所以卡池悬停的 `name` 就是 `banner` 本身
+ *     （本体是 `池名：角色`，这里退化成只有池名；**不**去正文猜角色，也不补任何前缀）。
+ *   · 一条公告正文可能有**多段**覆盖 now 的小期间（实测 3472 有 3 段、3481 有 2 段）→ 只取
+ *     `umaCurrentWindows` 里该公告的**第一段**（startTs 最新、并列取 endTs 更早），
+ *     否则同名活动会在悬停里重复 2~3 行（本体一律一条目一行）。
+ *   · 档期交给共用工具用**源站 tz**（日服 JST / 国际服 UTC）格式化成 `MM-DD HH:MM ~ MM-DD HH:MM`。
+ *
+ * ⚠️ 悬停里**只放名称与档期**（用户 2026-10-03：「元信息彻底删掉」）。以下信息一律**不进悬停文本**：
+ *     来源站名 / URL / API 名 · 时区推定说明 · 抓取统计（`共扫描 N 条 / 取详情 M 条`）·
+ *     内部公告 id（`[3470]`）· 源站字段名标签（`開催期間` / `Event·Availability·Period`）·
+ *     游戏名+区服前缀 · fallback 退化说明与任何「（…）」实现说明。
+ *     这些只留在**代码注释**与 `parseUmaDetail` 的 `source` / `windows[].label` 字段里（供测试与排障）。
+ *     ⚠️ 所以这里**不传 `label`**：`hoverPool` 会用 `label` 顶掉 `name`，而 label 正是源站字段名。
+ *
+ * ⚠️ 抓取策略说明（"每条候选抓一次详情、每页最多 N 条候选"）写在 `collectSide` 的注释里，不进悬停。
+ */
+export function umaCurrentItems(entries, now) {
+	const seen = new Set();
+	const out = [];
+	for (const { e, w } of umaCurrentWindows(entries, now)) {
+		const key = e.id != null ? "id:" + e.id : e;      // 同一条公告只留第一段（见上）
+		if (seen.has(key)) continue;
+		seen.add(key);
+		out.push({ name: e.title, startTs: w.startTs, endTs: w.endTs, raw: w.raw });
 	}
-	if (act.length > HOVER_MAX) lines.push(`…另有 ${act.length - HOVER_MAX} 条同期公告未列出`);
-	const fb = entries.filter((e) => e.source === "fallback");
-	if (fb.length) lines.push(`注：${fb.map((e) => e.id).join("、")} 的正文里没有日期区间，已退化为 from_date～to_date（非真实档期）`);
-	return lines.join("\n");
+	return out;
 }
 
 // ── 传输：POST 自己封装（lib/env.js 的 fetchText/fetchJson 只支持 GET）────────
@@ -488,10 +509,8 @@ async function collectSide({ side, kind, indexUrl, tz, now, signal, maxDetails, 
 		if (covered) break;                      // 本页已有覆盖 now 的候选 → 不再翻页（更早的页只会更旧）
 	}
 	return { details, scanned, detailCount, skipped };
-}
-
-function headerFor(label, r) {
-	return `${label}·共扫描 ${r.scanned.length} 条 / 取详情 ${r.detailCount} 条` + (r.skipped ? ` / 跳过 ${r.skipped} 条` : "");
+	// ⚠️ `scanned` / `detailCount` / `skipped` 只作**诊断计数**（原来被拼进悬停首行「共扫描 N 条 / 取详情 M 条」，
+	//    用户 2026-10-03 要求「元信息彻底删掉」→ 该首行已删，计数保留给排障与将来日志，**绝不进悬停文本**）。
 }
 
 // ── 日服 ────────────────────────────────────────────────────────────────────
@@ -513,13 +532,15 @@ export async function gachaUmaJpOfficial(url, signal, tz = UMA_JP_TZ, now = Date
 	});
 	const picked = pickUmaWindow(r.details, now);
 	if (!picked) return null;                       // 抓到公告但当期没有覆盖 now 的卡池期 = 未公布
+	// ≥2 个当期池才给悬停；只有 1 个 → **不设** bannerHover，交回 UI 默认两行式（`池名：角色` ⏎ 档期）
+	const bannerHover = hoverPool(umaCurrentItems(r.details, now), tz);
 	return {
 		banner: picked.e.title,
 		bannerDates: fmtWindow(picked.w.startTs, picked.w.endTs, tz),
 		bannerDatesRaw: picked.w.raw,
 		startTs: picked.w.startTs,
 		endTs: picked.w.endTs,
-		bannerHover: umaHoverLines(r.details, now, tz, headerFor("赛马娘日服官网公告（卡池）", r))
+		...(bannerHover ? { bannerHover } : {})
 	};
 }
 
@@ -534,11 +555,13 @@ export async function eventsUmaJpOfficial(url, signal, tz = UMA_JP_TZ, now = Dat
 	});
 	const picked = pickUmaWindow(r.details, now);
 	if (!picked) return null;
+	// ≥2 条当期活动才给悬停；只有 1 条 → **不设** eventHover，交回 UI 默认两行式（`名称` ⏎ 档期）
+	const eventHover = hoverEvent(umaCurrentItems(r.details, now), tz);
 	return {
 		event: picked.e.title,
 		eventDates: fmtWindow(picked.w.startTs, picked.w.endTs, tz),
 		eventDatesRaw: picked.w.raw,
-		eventHover: umaHoverLines(r.details, now, tz, headerFor("赛马娘日服官网公告（活动）", r))
+		...(eventHover ? { eventHover } : {})
 	};
 }
 
@@ -559,13 +582,15 @@ export async function gachaUmaGlobal(url, signal, tz = UMA_GLOBAL_TZ, now = Date
 	const r = await collectGlobal("gacha", url, tz, now, signal, opts);
 	const picked = pickUmaWindow(r.details, now);
 	if (!picked) return null;
+	// 同卡池侧：≥2 个当期池才给悬停，否则交回 UI 默认两行式
+	const bannerHover = hoverPool(umaCurrentItems(r.details, now), tz);
 	return {
 		banner: picked.e.title,
 		bannerDates: fmtWindow(picked.w.startTs, picked.w.endTs, tz),
 		bannerDatesRaw: picked.w.raw,
 		startTs: picked.w.startTs,
 		endTs: picked.w.endTs,
-		bannerHover: umaHoverLines(r.details, now, tz, headerFor("赛马娘国际服官网公告（卡池/Scout）", r))
+		...(bannerHover ? { bannerHover } : {})
 	};
 }
 
@@ -574,10 +599,12 @@ export async function eventsUmaGlobal(url, signal, tz = UMA_GLOBAL_TZ, now = Dat
 	const r = await collectGlobal("event", url, tz, now, signal, opts);
 	const picked = pickUmaWindow(r.details, now);
 	if (!picked) return null;
+	// 同活动侧：≥2 条当期活动才给悬停，否则交回 UI 默认两行式
+	const eventHover = hoverEvent(umaCurrentItems(r.details, now), tz);
 	return {
 		event: picked.e.title,
 		eventDates: fmtWindow(picked.w.startTs, picked.w.endTs, tz),
 		eventDatesRaw: picked.w.raw,
-		eventHover: umaHoverLines(r.details, now, tz, headerFor("赛马娘国际服官网公告（活动）", r))
+		...(eventHover ? { eventHover } : {})
 	};
 }

@@ -15,11 +15,11 @@
 
 import { readFileSync } from "node:fs";
 import { useFixtures, check, section, assertContract, summary } from "./harness.mjs";
-import { sourceWallParts, fmtWindow } from "../lib/env.js";
+import { sourceWallParts, fmtWindow, hoverPool, hoverEvent } from "../lib/env.js";
 import { SOURCES_P5, findSource } from "../registry-p5.js";
 import {
 	classifyUmaTitle, parseUmaIndex, parseUmaInstant, parseUmaDetail, parseUmaWindows,
-	extractUmaRangePlates, pickUmaWindow, umaHoverLines, umaJpPageUrl, proxyUrlFor, postJsonUma,
+	extractUmaRangePlates, pickUmaWindow, umaCurrentItems, umaJpPageUrl, proxyUrlFor, postJsonUma,
 	gachaUmaJpOfficial, eventsUmaJpOfficial, gachaUmaGlobal, eventsUmaGlobal,
 	UMA_JP_TZ, UMA_GLOBAL_TZ, UMA_GLOBAL_INDEX_URL, UMA_GLOBAL_DETAIL_URL, UMA_JP_DETAIL_URL,
 	UMA_JP_INDEX_URL
@@ -289,16 +289,46 @@ export default async function run() {
 			pickUmaWindow(gachaEntries, Date.UTC(2030, 0, 1)) === null
 			&& pickUmaWindow(eventEntries, Date.UTC(2030, 0, 1)) === null
 			&& pickUmaWindow(gachaEntries, Date.UTC(2019, 0, 1)) === null);
-		check("hover = 表头 + 3 行（3470/3469 同窗口 + 3468 ピックアップ 都覆盖 now）；3477 的窗口不覆盖 now 所以不进 hover",
-			umaHoverLines(gachaEntries, SNAP, UMA_JP_TZ, "H").split("\n").length === 4
-			&& /10-01 12:00 ~ 11-02 11:59/.test(umaHoverLines(gachaEntries, SNAP, UMA_JP_TZ, "H"))
-			&& !/3477/.test(umaHoverLines(gachaEntries, SNAP, UMA_JP_TZ, "H")),
-			umaHoverLines(gachaEntries, SNAP, UMA_JP_TZ, "H").split("\n").slice(0, 4).join(" / "));
-		check("hover 直接列出 fallback 退化条目（窗口覆盖 now 时才会出现退化注记）",
-			/3477/.test(umaHoverLines([...gachaEntries, { id: 3477, title: "fallback 条目", source: "fallback", windows: [{ startTs: Date.UTC(2026, 9, 1, 3), endTs: Date.UTC(2027, 0, 31, 14, 59), raw: "x", label: "from_date～to_date（正文无区间，退化；**非**真实档期）" }] }], SNAP, UMA_JP_TZ, "H")));
-		check("hover 第一行是正式稿 3470（预告 3469 排后）",
-			umaHoverLines(gachaEntries, SNAP, UMA_JP_TZ, "H").split("\n")[1].includes("[3470]"),
-			umaHoverLines(gachaEntries, SNAP, UMA_JP_TZ, "H").split("\n")[1]);
+		// ── 悬停（2026-10-03 改版：卡池/活动两侧一律交给 lib/env.js 的 hoverPool / hoverEvent 排版）──
+		// 旧实现每条一行「档期 + 源站字段标签 + [公告id] + 标题」，首行还有「共扫描 N 条 / 取详情 M 条」——
+		// 元信息与本体格式都不对，已删。这里断言**新行为**（并保留"当期选择"的旧不变量）。
+		const gachaPools = umaCurrentItems(gachaEntries, SNAP);
+		const gachaHover = hoverPool(gachaPools, UMA_JP_TZ);
+		const eventItems = umaCurrentItems(eventEntries, SNAP);
+		const eventHover = hoverEvent(eventItems, UMA_JP_TZ);
+		// 元信息守卫（来源站名/URL/API 名 · 时区推定 · 抓取统计 · 内部 id · 源站字段标签 · 任何「（…）」说明）
+		const META_RE = /来源|官网公告|bwiki|umamusume\.(jp|com)|api\.|tz=|共扫描|取详情|推定|未标时区|\[3\d{3}\]|開催期間|Availability·Period|from_date|to_date|http|（.*）/;
+		check("当期卡池 3 个（3470 正式稿 / 3469 预告稿 / 3468 ピックアップ 都覆盖 now）",
+			gachaPools.length === 3 && gachaPools.every((p) => typeof p.name === "string" && p.name.length > 0),
+			JSON.stringify(gachaPools.map((p) => p.name.slice(0, 16))));
+		check("卡池悬停 = 3 池 × 2 行（池名 ⏎ 档期，与本体 `banner：roles` 同构；档期按结束时间升序）",
+			gachaHover.split("\n").length === 6
+			&& gachaHover.split("\n")[1] === "09-30 12:00 ~ 10-13 11:59",
+			gachaHover.replace(/\n/g, " ⏎ "));
+		check("卡池悬停档期用 fmtWindow(JST) 格式化，**不是**源站原文（无 `10/1`、无 `～`）",
+			gachaHover.includes("09-30 12:00 ~ 10-13 11:59") && gachaHover.includes("10-01 12:00 ~ 11-02 11:59")
+			&& !/10\/1\s|～|〜/.test(gachaHover));
+		check("⚠️ 卡池悬停**不含元信息**（来源站名/URL/时区推定/抓取统计/内部 id/字段标签/实现说明）",
+			!META_RE.test(gachaHover), gachaHover.replace(/\n/g, " ⏎ "));
+		check("活动悬停 = 3 行（一条公告一行；3472 的多段小期间只留覆盖 now 的最晚一段，不重复同名）",
+			eventItems.length === 3 && eventHover.split("\n").length === 3
+			&& eventItems[0].name === "「覚醒Lv6/7追加記念キャンペーン」開催！"
+			&& eventHover.split("\n")[0] === "「覚醒Lv6/7追加記念キャンペーン」開催！   10-01 05:00 ~ 10-13 04:59",
+			eventHover.replace(/\n/g, " ⏎ "));
+		check("⚠️ 活动悬停行首是**名称**不是档期，且分隔符是 **3 个空格**（本体格式）",
+			eventHover.split("\n").every((l) => !/^\d{2}-\d{2} \d{2}:\d{2}/.test(l))
+			&& /開催！ {3}10-01 05:00 ~ 10-13 04:59/.test(eventHover), eventHover.replace(/\n/g, " ⏎ "));
+		check("⚠️ 活动悬停**不含元信息**（来源站名/URL/时区推定/抓取统计/内部 id/字段标签/实现说明）",
+			!META_RE.test(eventHover), eventHover.replace(/\n/g, " ⏎ "));
+		check("悬停第一行 = 外显那条（活动悬停与 pickUmaWindow 同序）",
+			eventItems[0].startTs === pe.w.startTs && eventItems[0].endTs === pe.w.endTs,
+			JSON.stringify([eventItems[0].startTs, pe.w.startTs]));
+		check("⚠️ 只有 1 个当期池 / 1 条当期活动 → 共用工具返回**空串**（调用方据此**不设** *Hover 字段）",
+			hoverPool(umaCurrentItems(gachaEntries.filter((d) => d.id === 3470), SNAP), UMA_JP_TZ) === ""
+			&& hoverEvent([{ name: "唯一活动", startTs: Date.UTC(2026, 9, 1), endTs: Date.UTC(2026, 9, 10) }], UMA_JP_TZ) === "");
+		check("fallback 条目（正文无区间）不再往悬停里塞退化说明，只按普通条目排版",
+			!META_RE.test(hoverPool(umaCurrentItems([...gachaEntries, { id: 3477, title: "fallback 条目", source: "fallback", windows: [{ startTs: Date.UTC(2026, 9, 1, 3), endTs: Date.UTC(2027, 0, 31, 14, 59), raw: "x", label: "from_date～to_date（正文无区间，退化；**非**真实档期）" }] }], SNAP), UMA_JP_TZ)),
+			hoverPool(umaCurrentItems([...gachaEntries, { id: 3477, title: "fallback 条目", source: "fallback", windows: [{ startTs: Date.UTC(2026, 9, 1, 3), endTs: Date.UTC(2027, 0, 31, 14, 59), raw: "x", label: "from_date～to_date（正文无区间，退化；**非**真实档期）" }] }], SNAP), UMA_JP_TZ).replace(/\n/g, " ⏎ "));
 	}
 
 	// ───────────────────────── P5-5 国际服（POST + UTC）───────────────────────
@@ -394,6 +424,12 @@ export default async function run() {
 		check("日服卡池 startTs/endTs 与夹具快照一致（JST 12:00 / 11:59）",
 			r1.ok && r1.data && r1.data.startTs === Date.UTC(2026, 9, 1, 3, 0) && r1.data.endTs === Date.UTC(2026, 10, 2, 2, 59),
 			JSON.stringify(r1.ok && r1.data && [r1.data.startTs, r1.data.endTs]));
+		check("⚠️ 日服卡池 bannerHover 只有「池名 ⏎ 档期」：无首行「共扫描…/取详情…」、无 [3470]、无 開催期間 标签",
+			r1.ok && r1.data && typeof r1.data.bannerHover === "string"
+			&& r1.data.bannerHover.split("\n").length === 6
+			&& !/共扫描|取详情|官网公告|tz=|推定|\[3470\]|開催期間|umamusume\.jp/.test(r1.data.bannerHover)
+			&& !/^\d{2}-\d{2} \d{2}:\d{2} {2}/m.test(r1.data.bannerHover),
+			JSON.stringify(r1.ok && r1.data && r1.data.bannerHover));
 
 		const r2 = await grab(() => jpSrc.event.fetcher(jpSrc.event.url, undefined, jpSrc.tz, SNAP));
 		check("uma-jp.event 抓取成功", r2.ok, r2.err);
@@ -401,6 +437,19 @@ export default async function run() {
 		check("日服活动 = 开始最晚的那段的所属公告（3472「覚醒Lv6/7追加記念キャンペーン」）/ 10-01 05:00 ~ 10-13 04:59",
 			r2.ok && r2.data && /覚醒Lv6\/7追加記念キャンペーン/.test(r2.data.event) && r2.data.eventDates === "10-01 05:00 ~ 10-13 04:59",
 			JSON.stringify(r2.ok && r2.data && [r2.data.event, r2.data.eventDates]));
+		check("⚠️ 日服活动 eventHover 行首是**活动名**（不是档期）：3 行、3 空格分隔、无元信息",
+			r2.ok && r2.data && typeof r2.data.eventHover === "string"
+			&& r2.data.eventHover.split("\n").length === 3
+			&& r2.data.eventHover.split("\n")[0].startsWith("「覚醒Lv6/7追加記念キャンペーン」開催！")
+			&& /開催！ {3}10-01 05:00 ~ 10-13 04:59/.test(r2.data.eventHover)
+			&& !/共扫描|取详情|官网公告|tz=|推定|\[3472\]|開催期間|umamusume\.jp/.test(r2.data.eventHover)
+			&& !/^\d{2}-\d{2} \d{2}:\d{2} {2}/m.test(r2.data.eventHover),
+			JSON.stringify(r2.ok && r2.data && r2.data.eventHover));
+		// 只有 1 条当期活动（pageSize=1 → 只取 3481）→ **不设** eventHover，交回 UI 默认单条两行式
+		const r2one = await grab(() => eventsUmaJpOfficial(UMA_JP_INDEX_URL, undefined, UMA_JP_TZ, SNAP, { maxDetails: 1, maxPages: 1, pageSize: 1 }));
+		check("⚠️ 只有 1 条当期活动 → **不设** eventHover 字段（eventDates = 09-30 12:00 ~ 10-13 11:59）",
+			r2one.ok && r2one.data && !("eventHover" in r2one.data) && r2one.data.eventDates === "09-30 12:00 ~ 10-13 11:59",
+			JSON.stringify(r2one.ok && r2one.data && Object.keys(r2one.data)));
 
 		// 「未公布」路径：now 取很远（2030）→ 当期没有覆盖 now 的档期 → null（不是硬凑）
 		const r1far = await grab(() => jpSrc.gacha.fetcher(jpSrc.gacha.url, undefined, jpSrc.tz, Date.UTC(2030, 0, 1)));
@@ -418,6 +467,13 @@ export default async function run() {
 		check("国际服 bannerDatesRaw 是英文原文（时刻在日期前）",
 			r3.ok && r3.data && r3.data.bannerDatesRaw === "10:00 p.m., Sep 28–9:59 p.m., Oct 12, 2026",
 			JSON.stringify(r3.ok && r3.data && r3.data.bannerDatesRaw));
+		check("⚠️ 国际服卡池 bannerHover 用 **UTC** 渲染档期（09-28 22:00 != JST 的 09-29 07:00），无元信息",
+			r3.ok && r3.data && typeof r3.data.bannerHover === "string"
+			&& r3.data.bannerHover.includes("09-28 22:00 ~ 10-12 21:59")
+			&& !r3.data.bannerHover.includes("09-29 07:00")
+			&& !/共扫描|取详情|官网公告|tz=|推定|\[1073\]|Availability·Period|umamusume\.com/.test(r3.data.bannerHover)
+			&& !/^\d{2}-\d{2} \d{2}:\d{2} {2}/m.test(r3.data.bannerHover),
+			JSON.stringify(r3.ok && r3.data && r3.data.bannerHover));
 
 		const r4 = await grab(() => glSrc.event.fetcher(glSrc.event.url, undefined, glSrc.tz, SNAP_GL));
 		check("uma-global.event 抓取成功", r4.ok, r4.err);
@@ -425,6 +481,13 @@ export default async function run() {
 		check("国际服当期活动 = The story event Illuminate the Heart is here! / 09-28 22:00 ~ 10-12 21:59",
 			r4.ok && r4.data && /Illuminate the Heart/.test(r4.data.event) && r4.data.eventDates === "09-28 22:00 ~ 10-12 21:59",
 			JSON.stringify(r4.ok && r4.data && [r4.data.event, r4.data.eventDates]));
+		check("⚠️ 国际服活动 eventHover 首行 = 活动名 + 3 空格 + UTC 档期；无 [1077] / Availability·Period 等元信息",
+			r4.ok && r4.data && typeof r4.data.eventHover === "string"
+			&& /^The story event Illuminate the Heart is here! {3}09-28 22:00 ~ 10-12 21:59$/m.test(r4.data.eventHover)
+			&& /^Holiday Celebration Part 1 now available! {3}/m.test(r4.data.eventHover)
+			&& !/共扫描|取详情|官网公告|tz=|推定|\[1077\]|Availability·Period|umamusume\.com/.test(r4.data.eventHover)
+			&& !/^\d{2}-\d{2} \d{2}:\d{2} {2}/m.test(r4.data.eventHover),
+			JSON.stringify(r4.ok && r4.data && r4.data.eventHover));
 		const r3far = await grab(() => glSrc.gacha.fetcher(glSrc.gacha.url, undefined, glSrc.tz, Date.UTC(2030, 0, 1)));
 		check("国际服卡池：now=2030 时返回 null", r3far.ok && r3far.data === null, JSON.stringify(r3far.ok ? r3far.data : r3far.err));
 
@@ -438,6 +501,9 @@ export default async function run() {
 		check("now 是第 4 参：显式传 SNAP 能拿到当期（pageSize=1 只取 3470）",
 			rNow.ok && rNow.data && rNow.data.bannerDates === "10-01 12:00 ~ 11-02 11:59",
 			JSON.stringify(rNow.ok && rNow.data && rNow.data.bannerDates));
+		check("⚠️ 只有 1 个当期池 → **不设** bannerHover 字段（交回 UI 默认两行式 `池名：角色` ⏎ 档期）",
+			rNow.ok && rNow.data && !("bannerHover" in rNow.data),
+			JSON.stringify(rNow.ok && rNow.data && Object.keys(rNow.data)));
 	}
 
 	// run.mjs/all.mjs 会调用 summary()；直接 `node test/cases-p5.mjs` 时也自报结果
