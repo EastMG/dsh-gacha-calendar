@@ -279,7 +279,7 @@ function ns_stellasora_stellaEventItems(covering) {
 }
 
 // ── 卡池侧 ──
-async function ns_stellasora_gachaStellasora(url, signal, tz = ns_stellasora_STELLA_TZ, now = Date.now()) {
+async function ns_stellasora_gachaStellasora(url, signal, tz = ns_stellasora_STELLA_TZ, now = nowMs()) {
 	const got = await ns_stellasora_collectStellaSide(url, signal, tz, now, "gacha");
 	if (!got) return null;
 	const { picked, covering } = got;
@@ -303,7 +303,7 @@ async function ns_stellasora_gachaStellasora(url, signal, tz = ns_stellasora_STE
 }
 
 // ── 活动侧 ──
-async function ns_stellasora_eventsStellasora(url, signal, tz = ns_stellasora_STELLA_TZ, now = Date.now()) {
+async function ns_stellasora_eventsStellasora(url, signal, tz = ns_stellasora_STELLA_TZ, now = nowMs()) {
 	const got = await ns_stellasora_collectStellaSide(url, signal, tz, now, "event");
 	if (!got) return null;
 	const { picked, covering } = got;

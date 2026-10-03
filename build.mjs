@@ -51,7 +51,6 @@ const ORDER = [
   "42-parsers-fgo.js",        // Fate/Grand Order
   "42-parsers-miyoushe.js",   // 米哈游：米游社公告（崩坏3/原神/星铁/绝区零 备选源）
   "42-parsers-stellasora.js", // 悠星：星塔旅人
-  "43-sources-register.js", // 追加来源进 SOURCES + 登记抓取器与备选抓取器 + 米游社公告并入既有条目
   "44-test-exports.js",// 回归出口：解析器 + env 工具（外层作用域，测试用）
   "50-refresh.js",     // 刷新编排、失败沿用旧值
   "60-helpers.js",     // 共用纯函数：状态归一 / 提示文案 / 显隐 / 格式化 / 排序 / 启动刷新判定
@@ -68,15 +67,35 @@ const ORDER = [
 // 组装方式：共用部分（配置 / 来源表 / helpers）放模块顶层；core 主体（15/30/40/50 + 引擎外壳）
 // 包进 `export function createEngine(env) { … }` —— 同一个函数体，与 DSH 产物同源。
 // 注：engine-head.js 里那一行 `function createEngine(env) {` 会被加上 `export ` 前缀（见下）。
+//
+// ⚠️ 2026-10-03（用户选方案 C2）：把 10 个 `42-parsers-*.js` 也纳入 core，**core 因此从
+//   「内置 11 款」变成「全部 28 款」**，`43-sources-register.js` 也并进了 `40-fetchers.js`
+//   （它本来就得在两张表声明之后跑）。
+//   这带来一条**必须记住的约束**：`20-sources.js`（含 `SOURCES` 数组）在 core 里位于**模块顶层**，
+//   而 `40-fetchers.js` 在 **`createEngine` 内** → 后者每建一个引擎就重跑一次。
+//   因此 `40` 里对 `SOURCES` 的写操作**必须全部幂等**（现状：按 id 找到就覆盖 / 按 fetcher 去重 /
+//   bh3 那处有 `some()` 守卫）。往 `40` 里再加"push 一条来源"时务必同样处理，否则多建几个引擎就会堆叠。
+//   回归守卫：`test/cases-core.mjs`（建两次引擎，断言 SOURCES 不增长）。
 const CORE_ORDER = [
   "05-version.js",     // 插件版本号（占位符，由本脚本注入）
   "10-config.js",      // 默认配置（DEFAULT_SETTINGS / REFRESH_OPTIONS）
-  "20-sources.js",     // SOURCES 来源注册表
+  "20-sources.js",     // SOURCES 来源注册表（内置 11 款）
   "60-helpers.js",     // 共用纯函数（core 与 UI 都要用）
   "engine-head.js",    // createEngine 外壳：storage 读写 / listGames / getCached
   "15-env.js",         // core 环境注入缝
-  "30-parsers.js",     // 解析器
-  "40-fetchers.js",    // 抓取器 + 来源注册表
+  "30-parsers.js",     // 内置源解析器 + 共用判定 + 共用工具（含原 41-sources-shared.js）
+  "40-fetchers.js",    // 抓取器 + 两张来源表 + 另外 17 款游戏的条目/抓取器登记（含原 43）
+  // ── 另外 17 款游戏的解析器（随 C2 一并进 core）──
+  "42-parsers-p5x.js",
+  "42-parsers-bandori.js",
+  "42-parsers-bwiki.js",
+  "42-parsers-biligame.js",
+  "42-parsers-cygames.js",
+  "42-parsers-sekai.js",
+  "42-parsers-gf2.js",
+  "42-parsers-fgo.js",
+  "42-parsers-miyoushe.js",
+  "42-parsers-stellasora.js",
   "50-refresh.js",     // 刷新编排
   "engine-api.js"      // 注入 env + refresh() + 测试出口 + return
 ];

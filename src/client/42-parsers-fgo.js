@@ -146,7 +146,7 @@ function ns_fgo_formatFgoRoles(roles) {
 	return String(roles || "").replace(/\s+/g, " ").trim().replace(/ +/g, "、");
 }
 
-function ns_fgo_parseFgoBannerTable(html, tz = ns_fgo_FGO_TZ, now = Date.now()) {
+function ns_fgo_parseFgoBannerTable(html, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 	const tables = ns_fgo_fgoTables(html);
 	if (!tables.length) throw new Error("fgo-no-table");
 	const tb = tables.find((t) => /国服当前卡池/.test(stripTags(ns_fgo_rowsOf(t.html)[0] || "")));
@@ -209,7 +209,7 @@ function ns_fgo_findFgoEventTable(html) {
 	return best;
 }
 
-function ns_fgo_parseFgoEventTable(html, tz = ns_fgo_FGO_TZ, now = Date.now()) {
+function ns_fgo_parseFgoEventTable(html, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 	const found = ns_fgo_findFgoEventTable(html);
 	if (!found) throw new Error("fgo-no-cn-event-table");
 	const rows = [];
@@ -257,7 +257,7 @@ async function ns_fgo_fetchPageText(url, signal) {
 
 async function ns_fgo_gachaFgo(url, signal, tz = ns_fgo_FGO_TZ) {
 	const html = await ns_fgo_fetchPageText(url || ns_fgo_fgoParseUrl(ns_fgo_FGO_GACHA_PAGE), signal);
-	const r = ns_fgo_parseFgoBannerTable(html, tz, Date.now());
+	const r = ns_fgo_parseFgoBannerTable(html, tz, nowMs());
 	if (!r) return null;
 	return {
 		banner: r.banner,
@@ -273,7 +273,7 @@ async function ns_fgo_gachaFgo(url, signal, tz = ns_fgo_FGO_TZ) {
 
 async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ) {
 	const html = await ns_fgo_fetchPageText(url || ns_fgo_fgoParseUrl(ns_fgo_FGO_EVENT_PAGE), signal);
-	const r = ns_fgo_parseFgoEventTable(html, tz, Date.now());
+	const r = ns_fgo_parseFgoEventTable(html, tz, nowMs());
 	if (!r || !r.event) return null;
 	return {
 		event: r.event,

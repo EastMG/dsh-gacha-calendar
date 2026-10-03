@@ -96,7 +96,7 @@ dsh-gacha-calendar/
 │       ├── 15-env.js         # core 环境缝：transport / 时钟 / 计时器
 │       ├── 20-sources.js     # **内置 11 款**游戏的来源声明（默认源 + 备选源）
 │       ├── 30-parsers.js     # 内置源的解析器（纯函数）+ 共用判定（当期/长期/年份）+ 共用工具（抓取桥接 / 悬停排版 / 实体解码 / 时间戳排序）
-│       ├── 40-fetchers.js    # 抓取器 + GACHA_FETCHERS / EVENT_FETCHERS 注册表
+│       ├── 40-fetchers.js    # 抓取器 + GACHA_FETCHERS / EVENT_FETCHERS 注册表 + 另外 17 款游戏的条目与抓取器登记（原 43-sources-register.js）
 │       ├── 42-parsers-p5x.js # 完美世界：女神异闻录：夜幕魅影
 │       ├── 42-parsers-bandori.js # BanG Dream 全系：国服手游 / OurNotes 日服 / OurNotes 国际服 / Bestdori 备选源
 │       ├── 42-parsers-bwiki.js # bwiki 系：物华弥新 / 战双 / 卡厄斯 / 雪松 + 4 个备选源
@@ -107,7 +107,6 @@ dsh-gacha-calendar/
 │       ├── 42-parsers-fgo.js # Aniplex/TYPE-MOON：Fate/Grand Order
 │       ├── 42-parsers-miyoushe.js # 米哈游：米游社公告（崩坏3/原神/星铁/绝区零 备选源）
 │       ├── 42-parsers-stellasora.js # 悠星：星塔旅人
-│       ├── 43-sources-register.js # 另外 17 款游戏的来源声明 + 抓取器登记（与 20-sources.js 合成最终 SOURCES，共 28 条）
 │       ├── 44-test-exports.js # 回归出口：解析器 + env 工具 + 来源表（挂 exports.__regression，测试用）
 │       ├── 50-refresh.js     # 刷新编排、失败沿用旧值、提示归类
 │       ├── 60-helpers.js     # 顶部提示归类 / 显隐判定 / 排序 / 角色名与倒计时格式化 / 启动刷新判定
@@ -123,8 +122,8 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明（package.json 的 types 指向它）
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试（`node build.mjs` 后 `node test/all.mjs`）
-│   ├── all.mjs      # 统一门禁：聚 12 段用例（P5X / B1~B3 / P4~P9 + 规则静态守卫 + README 结构图守卫）
-│   ├── cases-*.mjs  # 各段用例（12 个：cases-p5x / b1~b3 / p4~p9 / rule-lint / readme）
+│   ├── all.mjs      # 统一门禁：聚 13 段用例（P5X / B1~B3 / P4~P9 + 规则静态守卫 + README 结构图守卫 + core 产物守卫）
+│   ├── cases-*.mjs  # 各段用例（13 个：cases-p5x / b1~b3 / p4~p9 / rule-lint / readme / core）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
 │   ├── registry-shim.mjs # 各批次注册表规格快照 + DRIFT 守卫（与运行时 SOURCES 核对 tz/name）

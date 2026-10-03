@@ -291,7 +291,7 @@ async function ns_bandori_gachaBandori(url, signal, tz = ns_bandori_BANDORI_TZ) 
 	const banner = a.picked.quote || a.picked.name;
 	// 悬停（本体 buildPoolHover 格式）：当期主池每池两行「池名：角色」⏎「档期」，结束时间升序。
 	// 派生池（免费/确定/StepUp）不进悬停；只有 1 个当期主池时 hoverPool 返回 "" → 不设 bannerHover。
-	const pools = ns_bandori_bandoriActiveGachaSections(a.sections, a.text, Date.now()).map((s) => {
+	const pools = ns_bandori_bandoriActiveGachaSections(a.sections, a.text, nowMs()).map((s) => {
 		const roles = ns_bandori_bandoriRolesFromSection(a.text, s).replace(/、/g, "/");
 		const name = ns_bandori_hoverLabel(s.quote || s.name);
 		return { ...ns_bandori_bandoriSectionItem(s, name), label: roles ? `${name}：${roles}` : name };
@@ -319,7 +319,7 @@ async function ns_bandori_eventsBandori(url, signal, tz = ns_bandori_BANDORI_TZ)
 	// 悬停格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover）：`名称` + 3 空格 + `档期`，
 	// **名称在前**（旧实现是「档期在前、名称在后」，与本体相反 —— 用户 2026-10-03 反馈的偏差②）。
 	// 只有 1 条当期 → hoverEvent 返回 "" → 不设 eventHover，由 UI 走默认两行式。
-	const active = ns_bandori_bandoriActiveSections(a.sections, Date.now());
+	const active = ns_bandori_bandoriActiveSections(a.sections, nowMs());
 	const eventHover = hoverEvent(active.map((s) => ns_bandori_bandoriSectionItem(s)), tz);
 	return {
 		event: a.picked.quote || ns_bandori_bandoriTitle(a.item) || a.picked.name,
@@ -501,7 +501,7 @@ async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES
 	if (!Array.isArray(json)) throw new Error("ournotes-bad-json");
 	if (json.length === 0) return null;
 	const posts = ns_ournotes_parseOurNotesPosts(json, tz);
-	const now = Date.now();
+	const now = nowMs();
 	const picked = ns_ournotes_selectOurNotesPrimary(posts, now);
 	if (!picked || !picked.win) return null;
 	const active = [];
@@ -537,7 +537,7 @@ async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES
 
 // src/client/35-parsers-ournotes-global.js —— BanG Dream！OurNotes **国际服**（BHK 发行）
 //
-// 契约：async (url, signal, tz, now = Date.now()) → 数据对象 | null（null = 未公布）
+// 契约：async (url, signal, tz, now = nowMs()) → 数据对象 | null（null = 未公布）
 //   · 活动侧：{ event, eventDates, eventDatesRaw, eventHover }
 //   · 卡池侧：{ banner, roles?, bannerDates, bannerDatesRaw, startTs, endTs, bannerHover }
 //   两侧读**同一份公告 feed**（与国际服一致：一份公告里既有招募也有活动），靠标题分流。
@@ -785,7 +785,7 @@ function ns_ournotes_global_cleanTitle(t) {
 }
 //#endregion
 
-//#region 抓取器（契约：async (url, signal, tz, now = Date.now()) → 对象 | null）
+//#region 抓取器（契约：async (url, signal, tz, now = nowMs()) → 对象 | null）
 // 外显挑选：覆盖 now 的窗口里取结束最早的（并列按文档顺序）
 function ns_ournotes_global_pickOurNotesGlobalWindow(items, now) {
 	const act = (items || []).filter((x) => coversNow(x, now));
@@ -839,7 +839,7 @@ async function ns_ournotes_global_loadOurNotesGlobal(url, signal, tz, now, want)
 	if (loaded === 0 && tried > 0 && firstErr) throw firstErr;   // 本侧相关详情全失败 → 抛错
 	return null;
 }
-async function ns_ournotes_global_gachaOurNotesGlobal(url, signal, tz = ns_ournotes_global_OURNOTES_GLOBAL_TZ, now = Date.now()) {
+async function ns_ournotes_global_gachaOurNotesGlobal(url, signal, tz = ns_ournotes_global_OURNOTES_GLOBAL_TZ, now = nowMs()) {
 	const hit = await ns_ournotes_global_loadOurNotesGlobal(url, signal, tz, now, "gacha");
 	if (!hit) return null;
 	const { title, best, hover } = hit;
@@ -853,7 +853,7 @@ async function ns_ournotes_global_gachaOurNotesGlobal(url, signal, tz = ns_ourno
 		bannerHover: hover
 	};
 }
-async function ns_ournotes_global_eventsOurNotesGlobal(url, signal, tz = ns_ournotes_global_OURNOTES_GLOBAL_TZ, now = Date.now()) {
+async function ns_ournotes_global_eventsOurNotesGlobal(url, signal, tz = ns_ournotes_global_OURNOTES_GLOBAL_TZ, now = nowMs()) {
 	const hit = await ns_ournotes_global_loadOurNotesGlobal(url, signal, tz, now, "event");
 	if (!hit) return null;
 	const { title, best, hover } = hit;
@@ -915,7 +915,7 @@ const ns_bestdori_LONG_MS = LONG_TERM_MAX_WINDOW_DAYS * 864e5;
 // ── 卡池侧 ──
 // 覆盖当前时刻的**有界**（≤400 天）简中池里取 startTs 最新的一期当"当期卡池"；
 // 长期/常驻池（miracle/free 等，closedAt 常是 2100 哨兵）不参与选择，只在 hover 里报个数。
-function ns_bestdori_parseBestdoriGacha(json, now = Date.now(), tz = "Asia/Shanghai") {
+function ns_bestdori_parseBestdoriGacha(json, now = nowMs(), tz = "Asia/Shanghai") {
 	if (!json || typeof json !== "object" || Array.isArray(json)) throw new Error("bestdori-gacha-bad-shape");
 	const keys = Object.keys(json);
 	let sawIndexed = false;
@@ -964,7 +964,7 @@ function ns_bestdori_parseBestdoriGacha(json, now = Date.now(), tz = "Asia/Shang
 }
 
 // ── 活动侧 ──
-function ns_bestdori_parseBestdoriEvents(json, now = Date.now(), tz = "Asia/Shanghai") {
+function ns_bestdori_parseBestdoriEvents(json, now = nowMs(), tz = "Asia/Shanghai") {
 	if (!json || typeof json !== "object" || Array.isArray(json)) throw new Error("bestdori-event-bad-shape");
 	const keys = Object.keys(json);
 	let sawIndexed = false;
@@ -993,11 +993,11 @@ function ns_bestdori_parseBestdoriEvents(json, now = Date.now(), tz = "Asia/Shan
 }
 
 // 抓取器：mode="proxy"（实测 bestdori.com 无 ACAO，必须走宿主代理）
-async function ns_bestdori_gachaBestdori(url, signal, tz = "Asia/Shanghai", now = Date.now()) {
+async function ns_bestdori_gachaBestdori(url, signal, tz = "Asia/Shanghai", now = nowMs()) {
 	const data = await fetchJson(url || ns_bestdori_DEFAULT_GACHA, { signal });
 	return ns_bestdori_parseBestdoriGacha(data, now, tz);
 }
-async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now = Date.now()) {
+async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now = nowMs()) {
 	const data = await fetchJson(url || ns_bestdori_DEFAULT_EVENT, { signal });
 	return ns_bestdori_parseBestdoriEvents(data, now, tz);
 }

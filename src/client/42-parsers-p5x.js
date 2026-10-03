@@ -190,7 +190,7 @@ function ns_p5x_p5xUpNames(text) {
 // 抽不到覆盖当前的契约档期 → null（未公布）。**绝不**退化成"拿版本公告标题当卡池名"。
 async function ns_p5x_gachaP5x(url, signal, tz = "Asia/Shanghai") {
 	const anns = await ns_p5x_fetchP5xAnnouncements(url, signal, 2);
-	const now = Date.now();
+	const now = nowMs();
 	for (const { text, blocks } of anns) {
 		const poolBlocks = blocks.filter((b) => /契约/.test(b.category) || /契约/.test(b.title));
 		const hit = ns_p5x_pickCurrentBlock(poolBlocks, tz, now);
@@ -219,7 +219,7 @@ async function ns_p5x_gachaP5x(url, signal, tz = "Asia/Shanghai") {
 // 悬停按结束时间升序逐行列出全部当期活动。
 async function ns_p5x_eventsP5x(url, signal, tz = "Asia/Shanghai") {
 	const anns = await ns_p5x_fetchP5xAnnouncements(url, signal, 2);
-	const now = Date.now();
+	const now = nowMs();
 	for (const { blocks } of anns) {
 		const evBlocks = blocks.filter((b) => /活动/.test(b.category));
 		const active = [];

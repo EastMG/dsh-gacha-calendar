@@ -61,7 +61,7 @@ const ns_sekai_LONG_MS = LONG_TERM_MAX_WINDOW_DAYS * 864e5;
 // ── 卡池侧 ──
 // 覆盖当前时刻的**有界**池里取 startTs 最新的一期当"当期招募"；长期池（2099 哨兵等）不参与"当期"，
 // 也不进悬停（它们恒在架，列出来是噪音）。
-function ns_sekai_parseSekaiGachas(json, now = Date.now(), tz = "Asia/Shanghai") {
+function ns_sekai_parseSekaiGachas(json, now = nowMs(), tz = "Asia/Shanghai") {
 	if (!Array.isArray(json)) throw new Error("sekai-gacha-bad-shape");
 	const pools = [];
 	for (const g of json) {
@@ -98,7 +98,7 @@ function ns_sekai_parseSekaiGachas(json, now = Date.now(), tz = "Asia/Shanghai")
 
 // ── 活动侧 ──
 // 活动窗口 = startAt ~ aggregateAt（**源站无 endAt**，见文件头 ②；aggregateAt 缺失时退回 closedAt）
-function ns_sekai_parseSekaiEvents(json, now = Date.now(), tz = "Asia/Shanghai") {
+function ns_sekai_parseSekaiEvents(json, now = nowMs(), tz = "Asia/Shanghai") {
 	if (!Array.isArray(json)) throw new Error("sekai-event-bad-shape");
 	const rows = [];
 	for (const e of json) {
@@ -138,11 +138,11 @@ function ns_sekai_parseSekaiEvents(json, now = Date.now(), tz = "Asia/Shanghai")
 }
 
 // 抓取器：mode="direct"（实测 sekai-world.github.io = GitHub Pages 静态资源，带 ACAO）
-async function ns_sekai_gachaSekai(url, signal, tz = "Asia/Shanghai", now = Date.now()) {
+async function ns_sekai_gachaSekai(url, signal, tz = "Asia/Shanghai", now = nowMs()) {
 	const data = await fetchJson(url || ns_sekai_DEFAULT_GACHA, { signal, mode: "direct" });
 	return ns_sekai_parseSekaiGachas(data, now, tz);
 }
-async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = Date.now()) {
+async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = nowMs()) {
 	const data = await fetchJson(url || ns_sekai_DEFAULT_EVENT, { signal, mode: "direct" });
 	return ns_sekai_parseSekaiEvents(data, now, tz);
 }

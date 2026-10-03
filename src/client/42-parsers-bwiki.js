@@ -217,7 +217,7 @@ function ns_bwiki_eventTier(x) {
 	const cat = `${x.cat || ""} ${x.name || x.event || ""}`.trim();
 	return ns_bwiki_EVENT_TIER1_RE.test(cat) ? 1 : 2;
 }
-function ns_bwiki_nowOf(now) { return typeof now === "number" && Number.isFinite(now) ? now : Date.now(); }
+function ns_bwiki_nowOf(now) { return typeof now === "number" && Number.isFinite(now) ? now : nowMs(); }
 
 // 覆盖 now 的条目：结束在未来且已开始（起点未知的行按"已开始"处理）
 function ns_bwiki_activeItems(items, now) {
@@ -625,7 +625,7 @@ async function ns_bwiki_eventsStellasora(url, signal, tz = "Asia/Shanghai", now)
 //   ③ 雪松 kedrgame      —— 一步：`Template:首页游戏版本内容` 的 **模板调用**（`prop=wikitext`）
 //
 // 契约（与 CONVENTIONS.md / 插件 40-fetchers.js 完全一致）：
-//   async (url, signal, tz, now = Date.now()) → 数据对象 | null
+//   async (url, signal, tz, now = nowMs()) → 数据对象 | null
 //     · 卡池侧 { banner, roles, bannerDates, bannerDatesRaw, startTs, endTs, bannerHover }
 //     · 活动侧 { event, eventDates, eventDatesRaw, eventHover }
 //   `now` 一律**第 4 个参数**（铁律 2：本仓库历史上把 now 放第二位 → `startTs <= now` 恒假 → 静默"未公布"）。
@@ -695,7 +695,7 @@ async function ns_bwiki_wikitext_fetchWikitext(url, signal, referer = "") {
 // ⚠️ 元信息（来源站名、域名/URL、API/页面名、时区推定、抓取条数、内部 id、SMW 时间、起点锚点、
 //    「起点推断」注记、游戏名+区服前缀、任何「（…）」实现说明）**直接删掉**，不搬家、不进任何字段。
 //    实现说明只留在**代码注释**与数据字段（startInferred/startFrom/startRel）里，供测试与排查用。
-function ns_bwiki_wikitext_nowOf(now) { return typeof now === "number" && Number.isFinite(now) ? now : Date.now(); }
+function ns_bwiki_wikitext_nowOf(now) { return typeof now === "number" && Number.isFinite(now) ? now : nowMs(); }
 // 覆盖 now 的条目（起点/终点都有绝对时刻才进候选；缺任一端的不产出）
 function ns_bwiki_wikitext_activeItems(items, now) {
 	return items.filter((it) => it.endTs != null && it.startTs != null && coversNow(it, now));
@@ -1015,7 +1015,7 @@ async function ns_bwiki_wikitext_zspmsLatestNotice(url, signal) {
 	const wikitext = await ns_bwiki_wikitext_fetchWikitext(ns_bwiki_wikitext_zspmsParseUrl(row.page), signal, ns_bwiki_wikitext_ZSPMS_REFERER);
 	return { row, rows, wikitext };
 }
-async function ns_bwiki_wikitext_gachaZspms(url, signal, tz = ns_bwiki_wikitext_ZSPMS_TZ, now = Date.now()) {
+async function ns_bwiki_wikitext_gachaZspms(url, signal, tz = ns_bwiki_wikitext_ZSPMS_TZ, now = nowMs()) {
 	// `row`（ask 索引行）仍要传给解析器：`{{公告|时间=…}}` 缺失时用它兜底相对起点的锚点。
 	const { row, wikitext } = await ns_bwiki_wikitext_zspmsLatestNotice(url, signal);
 	const parsed = ns_bwiki_wikitext_parseZspmsAnnouncement(wikitext, tz, row);
@@ -1023,7 +1023,7 @@ async function ns_bwiki_wikitext_gachaZspms(url, signal, tz = ns_bwiki_wikitext_
 		cmp: (a, b) => (a.endTs - b.endTs) || (a._i - b._i)
 	});
 }
-async function ns_bwiki_wikitext_eventsZspms(url, signal, tz = ns_bwiki_wikitext_ZSPMS_TZ, now = Date.now()) {
+async function ns_bwiki_wikitext_eventsZspms(url, signal, tz = ns_bwiki_wikitext_ZSPMS_TZ, now = nowMs()) {
 	const { row, wikitext } = await ns_bwiki_wikitext_zspmsLatestNotice(url, signal);
 	const parsed = ns_bwiki_wikitext_parseZspmsAnnouncement(wikitext, tz, row);
 	return ns_bwiki_wikitext_eventPayload(parsed.items.filter((x) => x.kind === "event"), tz, ns_bwiki_wikitext_nowOf(now), {
@@ -1119,7 +1119,7 @@ function ns_bwiki_wikitext_parseCznRecord(wikitext, tz = ns_bwiki_wikitext_CZN_T
 // ⚠️ 原先此处给 `ns_bwiki_wikitext_gachaPayload` 传了 header「卡厄斯梦境 bwiki Module:Gacha/data（Lua 表 6 期；tz=UTC+8 为推测）」
 //    —— 那是悬停元信息（来源站名 / API 名 / 抓取条数 / 时区推定），按方案 A **整段删除**。
 //    Lua 表页名/期数仍是**数据**（ns_bwiki_wikitext_CZN_MODULE_PAGE / items.length），注释与注册表里都有，不进悬停。
-async function ns_bwiki_wikitext_gachaCzn(url, signal, tz = ns_bwiki_wikitext_CZN_TZ, now = Date.now()) {
+async function ns_bwiki_wikitext_gachaCzn(url, signal, tz = ns_bwiki_wikitext_CZN_TZ, now = nowMs()) {
 	const items = ns_bwiki_wikitext_parseCznLua(await ns_bwiki_wikitext_fetchWikitext(url || ns_bwiki_wikitext_CZN_MODULE_URL, signal, ns_bwiki_wikitext_CZN_REFERER), tz)
 		.map((x) => ({ ...x, banner: `${x.type}（${x.char}）`, roles: x.char }));
 	return ns_bwiki_wikitext_gachaPayload(items, tz, ns_bwiki_wikitext_nowOf(now), { cmp: (a, b) => (b.startTs - a.startTs) || (a._i - b._i) });
@@ -1202,12 +1202,12 @@ function ns_bwiki_wikitext_parseKedrTemplate(wikitext, tz = ns_bwiki_wikitext_KE
 //    活动/赛季/通行证/剧情 = 活动；tz=UTC+8 为推测）」——悬停元信息（来源站名/页面名/分流口径/时区推定），
 //    按方案 A **整段删除**（分流规则仍在 ns_bwiki_wikitext_kedrIsGacha / ns_bwiki_wikitext_kedrIsEvent 的注释里）。
 // 卡池：开始最新的覆盖档（该模板是**当期**面板，两条卡池同窗口 → 取文档顺序第一条）
-async function ns_bwiki_wikitext_gachaKedrTemplate(url, signal, tz = ns_bwiki_wikitext_KEDR_TZ, now = Date.now()) {
+async function ns_bwiki_wikitext_gachaKedrTemplate(url, signal, tz = ns_bwiki_wikitext_KEDR_TZ, now = nowMs()) {
 	const { gacha } = ns_bwiki_wikitext_parseKedrTemplate(await ns_bwiki_wikitext_fetchWikitext(url || ns_bwiki_wikitext_KEDR_TEMPLATE_URL, signal, ns_bwiki_wikitext_KEDR_REFERER), tz);
 	return ns_bwiki_wikitext_gachaPayload(gacha, tz, ns_bwiki_wikitext_nowOf(now), { cmp: (a, b) => (b.startTs - a.startTs) || (a._i - b._i) });
 }
 // 活动：开始最新的覆盖档（个人剧情活动 > 战令通行证赛季 / 边境防卫）
-async function ns_bwiki_wikitext_eventsKedrTemplate(url, signal, tz = ns_bwiki_wikitext_KEDR_TZ, now = Date.now()) {
+async function ns_bwiki_wikitext_eventsKedrTemplate(url, signal, tz = ns_bwiki_wikitext_KEDR_TZ, now = nowMs()) {
 	const { event } = ns_bwiki_wikitext_parseKedrTemplate(await ns_bwiki_wikitext_fetchWikitext(url || ns_bwiki_wikitext_KEDR_TEMPLATE_URL, signal, ns_bwiki_wikitext_KEDR_REFERER), tz);
 	return ns_bwiki_wikitext_eventPayload(event, tz, ns_bwiki_wikitext_nowOf(now), { cmp: (a, b) => (b.startTs - a.startTs) || (a._i - b._i), nameOf: (x) => x.name });
 }
@@ -1224,7 +1224,7 @@ async function ns_bwiki_wikitext_eventsKedrTemplate(url, signal, tz = ns_bwiki_w
 
 // src/client/35-parsers-kedr-wiki.js —— 雪松（bwiki 社区结构化页 `往期动员【常驻】—1.0.0—`）
 //
-// 契约：async (url, signal, tz, now = Date.now()) → { banner, roles, bannerDates, bannerDatesRaw, startTs, endTs, bannerHover } | null
+// 契约：async (url, signal, tz, now = nowMs()) → { banner, roles, bannerDates, bannerDatesRaw, startTs, endTs, bannerHover } | null
 //
 // ⚠️ **这是社区 wiki，不是官方源**：雪松（Кедр / kedrgame，俄语"雪松"）**官方源未找到**
 //    （调研结论见 `dsh-gacha-calendar-新增来源第二轮调研-2026-10-02.md` §5：官方无公告 API，
@@ -1365,7 +1365,7 @@ function ns_kedr_wiki_parseKedrArchive(html, tz = ns_kedr_wiki_KEDR_TZ) {
 
 //#region 抓取器
 // 当期 = 窗口覆盖 now 的那一节（取结束最早，并列按页面顺序）；没有覆盖 → null（未公布）
-async function ns_kedr_wiki_gachaKedrWiki(url, signal, tz = ns_kedr_wiki_KEDR_TZ, now = Date.now()) {
+async function ns_kedr_wiki_gachaKedrWiki(url, signal, tz = ns_kedr_wiki_KEDR_TZ, now = nowMs()) {
 	const html = await fetchMediaWikiText(url || ns_kedr_wiki_KEDR_ARCHIVE_URL, { referer: ns_kedr_wiki_KEDR_REFERER, signal, mode: "proxy" });
 	const parsed = ns_kedr_wiki_parseKedrArchive(html, tz);
 	const act = parsed.items

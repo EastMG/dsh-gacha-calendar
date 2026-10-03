@@ -20,7 +20,7 @@
 
 // src/client/35-parsers-umamusume-official.js —— 赛马娘 **官方公告**（日服 umamusume.jp + 国际服 umamusume.com）
 //
-// 契约：async (url, signal, tz, now = Date.now()) → 数据对象 | null
+// 契约：async (url, signal, tz, now = nowMs()) → 数据对象 | null
 //   卡池侧 { banner, bannerDates, bannerDatesRaw?, startTs?, endTs?, bannerHover? }
 //   活动侧 { event, eventDates, eventDatesRaw?, eventHover? }
 //   null = 未公布（抓到了公告，但没有覆盖 now 的档期）；只有结构性损坏才 throw。
@@ -259,12 +259,12 @@ function ns_umamusume_official_parseUmaWindows(text, tz, hintTs = null) {
 	const hintParts = hintTs != null && Number.isFinite(hintTs) ? sourceWallParts(hintTs, tz) : null;
 	// ⚠️ 这里**有意**不用共用 `inferYear`，理由有两条（不是漏改）：
 	//   ① 本源的年份线索是**公告自己的时间戳**（`post_at`），生产路径上一定拿得到，
-	//      所以"没有线索"分支实际不可达；退回 `new Date().getFullYear()` 只是兜底。
+	//      所以"没有线索"分支实际不可达；退回 `new Date(nowMs()).getFullYear()` 只是兜底。
 	//   ② `inferYear` 会做"起始月比线索月晚 6 个月以上 → 算**去年**"的修正 —— 那条规则是为
 	//      **当期/近期**公告写的；而赛马娘日服会提前 1~2 个月公告未来活动，
 	//      极端情况下（年初公告年末活动）套上去会把**今年**误判成去年。
 	//   凡是要合并这条规则的场合，先确认该源的窗口不会远在 hints 之后。
-	const hintYear = hintParts ? hintParts.y : new Date().getFullYear();
+	const hintYear = hintParts ? hintParts.y : new Date(nowMs()).getFullYear();
 	const out = [];
 	const seen = new Set();
 
@@ -546,7 +546,7 @@ async function ns_umamusume_official_collectSide({ side, kind, indexUrl, tz, now
  * @param {number} now 当前时刻（**第 4 参**；仓库历史 bug 是把 now 放第 2 参 → startTs<=now 恒假）
  * @param {{maxDetails?:number,maxPages?:number,pageSize?:number}} opts
  */
-async function ns_umamusume_official_gachaUmaJpOfficial(url, signal, tz = ns_umamusume_official_UMA_JP_TZ, now = Date.now(), opts = {}) {
+async function ns_umamusume_official_gachaUmaJpOfficial(url, signal, tz = ns_umamusume_official_UMA_JP_TZ, now = nowMs(), opts = {}) {
 	const r = await ns_umamusume_official_collectSide({
 		side: "gacha", kind: "jp", indexUrl: url || ns_umamusume_official_UMA_JP_INDEX_URL, tz, now, signal,
 		maxDetails: opts.maxDetails || ns_umamusume_official_UMA_DEFAULT_MAX_DETAILS,
@@ -569,7 +569,7 @@ async function ns_umamusume_official_gachaUmaJpOfficial(url, signal, tz = ns_uma
 }
 
 /** 赛马娘 日服 官方公告 活动侧（イベント / キャンペーン）。now 是第 4 参。 */
-async function ns_umamusume_official_eventsUmaJpOfficial(url, signal, tz = ns_umamusume_official_UMA_JP_TZ, now = Date.now(), opts = {}) {
+async function ns_umamusume_official_eventsUmaJpOfficial(url, signal, tz = ns_umamusume_official_UMA_JP_TZ, now = nowMs(), opts = {}) {
 	const r = await ns_umamusume_official_collectSide({
 		side: "event", kind: "jp", indexUrl: url || ns_umamusume_official_UMA_JP_INDEX_URL, tz, now, signal,
 		maxDetails: opts.maxDetails || ns_umamusume_official_UMA_DEFAULT_MAX_DETAILS,
@@ -602,7 +602,7 @@ async function ns_umamusume_official_collectGlobal(side, url, tz, now, signal, o
 }
 
 /** 赛马娘 国际服（Global）官方公告 卡池侧（Scout）。now 是第 4 参。 */
-async function ns_umamusume_official_gachaUmaGlobal(url, signal, tz = ns_umamusume_official_UMA_GLOBAL_TZ, now = Date.now(), opts = {}) {
+async function ns_umamusume_official_gachaUmaGlobal(url, signal, tz = ns_umamusume_official_UMA_GLOBAL_TZ, now = nowMs(), opts = {}) {
 	const r = await ns_umamusume_official_collectGlobal("gacha", url, tz, now, signal, opts);
 	const picked = ns_umamusume_official_pickUmaWindow(r.details, now);
 	if (!picked) return null;
@@ -619,7 +619,7 @@ async function ns_umamusume_official_gachaUmaGlobal(url, signal, tz = ns_umamusu
 }
 
 /** 赛马娘 国际服（Global）官方公告 活动侧。now 是第 4 参。 */
-async function ns_umamusume_official_eventsUmaGlobal(url, signal, tz = ns_umamusume_official_UMA_GLOBAL_TZ, now = Date.now(), opts = {}) {
+async function ns_umamusume_official_eventsUmaGlobal(url, signal, tz = ns_umamusume_official_UMA_GLOBAL_TZ, now = nowMs(), opts = {}) {
 	const r = await ns_umamusume_official_collectGlobal("event", url, tz, now, signal, opts);
 	const picked = ns_umamusume_official_pickUmaWindow(r.details, now);
 	if (!picked) return null;
@@ -683,7 +683,7 @@ const ns_umapyoi_toNum = (v) => {
 //    已统一到 `41-sources-shared.js` 的 `byNewestStart`（带 Infinity 兜底），潜在 bug 一并修掉。
 
 // 纯函数：夹具/单测可直接喂 JSON（不联网）
-function ns_umapyoi_parseUmapyoiGacha(json, now = Date.now(), tz = "Asia/Tokyo") {
+function ns_umapyoi_parseUmapyoiGacha(json, now = nowMs(), tz = "Asia/Tokyo") {
 	if (!Array.isArray(json)) throw new Error("umapyoi-bad-shape");
 	const rows = [];
 	for (const it of json) {
@@ -760,7 +760,7 @@ function ns_umapyoi_parseUmapyoiGacha(json, now = Date.now(), tz = "Asia/Tokyo")
 }
 
 // 抓取器：mode="direct"（实测 api.umapyoi.net 响应 ACAO=*）
-async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = Date.now()) {
+async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = nowMs()) {
 	const data = await fetchJson(url || ns_umapyoi_DEFAULT_URL, { signal, mode: "direct" });
 	return ns_umapyoi_parseUmapyoiGacha(data, now, tz);
 }

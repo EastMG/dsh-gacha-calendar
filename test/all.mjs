@@ -23,6 +23,7 @@ import runP8 from "./cases-p8.mjs";
 import runP9 from "./cases-p9.mjs";
 import runRuleLint from "./cases-rule-lint.mjs";
 import runReadme from "./cases-readme.mjs";
+import runCore from "./cases-core.mjs";
 
 const LIVE = process.argv.includes("--live");
 
@@ -96,7 +97,8 @@ const batches = [
 	["P8 bwiki wikitext（战双 SMW+公告 / 卡厄斯 Lua / 雪松模板）", runP8],
 	["P9 biligame 官方（物华活动 / 闪耀）+ OurNotes 国际服", runP9],
 	["规则静态守卫（方案 A 悬停 + 选当期判定不许各写各的）", runRuleLint],
-	["README 结构图与事实性", runReadme]
+	["README 结构图与事实性", runReadme],
+	["core 产物（零宿主依赖 + 注册幂等）", runCore]
 ];
 const before = counts();
 for (const [label, fn] of batches) {

@@ -276,7 +276,7 @@ async function ns_gf2_gachaGf2(url, signal, tz = ns_gf2_GF2_TZ) {
 	if (!list.length) return null;
 	const pools = list.filter((x) => ns_gf2_GF2_POOL_RE.test(x.title));
 	const ordered = (pools.length ? pools : list).slice().sort((a, b) => b.id - a.id);
-	const now = Date.now();
+	const now = nowMs();
 	return ns_gf2_firstWorking(ordered.slice(0, 3), async (it) => {
 		const detail = await fetchJson(ns_gf2_gf2DetailUrl(it.id), { referer: ns_gf2_GF2_HOME, signal, mode: "proxy" });
 		const d = detail && detail.data;
@@ -315,7 +315,7 @@ async function ns_gf2_eventsGf2(url, signal, tz = ns_gf2_GF2_TZ) {
 	// 排除法：typeId=4 排掉卡池，剩下的就是活动
 	const acts = list.filter((x) => !ns_gf2_GF2_POOL_RE.test(x.title));
 	const ordered = (acts.length ? acts : list).slice().sort((a, b) => b.id - a.id);
-	const now = Date.now();
+	const now = nowMs();
 	// 逐条试，取**第一条能解出覆盖当前时刻窗口**的活动（列表按 Id 倒序 = 最新在前；
 	// 版本大活动如【静默突触】排在最前，与官方"头条"一致）
 	return ns_gf2_firstWorking(ordered.slice(0, 4), async (it) => {

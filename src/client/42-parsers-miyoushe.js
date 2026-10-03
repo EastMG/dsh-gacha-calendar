@@ -9,7 +9,7 @@
 // 覆盖 4 个游戏（gids 实测四个都 200 且返回对应游戏的正确公告）：
 //   1 = 崩坏3 / 2 = 原神 / 6 = 崩坏：星穹铁道 / 8 = 绝区零
 //
-// 契约：async (url, signal, tz, now = Date.now()) → 数据对象 | null
+// 契约：async (url, signal, tz, now = nowMs()) → 数据对象 | null
 //   卡池侧 { banner, roles?, bannerDates, bannerDatesRaw?, startTs?, endTs?, bannerHover? }
 //   活动侧 { event, eventDates, eventDatesRaw?, eventHover? }
 //   ⚠️ **now 必须是第 4 个参数**。本仓库历史 bug：now 收到 tz 字符串 → `startTs <= now` 恒假
@@ -439,7 +439,7 @@ function ns_miyoushe_miyousheRoles(text, stopAt = null) {
 //#endregion
 
 //#region 抓取
-const ns_miyoushe_sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const ns_miyoushe_sleep = (ms) => new Promise((r) => coreEnv.timer.setTimeout(r, ms));
 
 // 源站原文（`bannerDatesRaw` / `eventDatesRaw` 用）。
 // ⚠️ 这两个字段**会被 UI 的默认两行式直接显示**（面板取 `bannerDatesRaw || bannerDates`、
@@ -535,7 +535,7 @@ async function ns_miyoushe_collectMiyousheSide(listUrl, signal, tz, now, want) {
 }
 
 /** 卡池侧（type=1 公告/补给；标题按卡池关键词分流） */
-async function ns_miyoushe_gachaMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE_TZ, now = Date.now()) {
+async function ns_miyoushe_gachaMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE_TZ, now = nowMs()) {
 	const listUrl = url || ns_miyoushe_miyousheListUrl(ns_miyoushe_MIYOUSHE_GIDS.bh3, ns_miyoushe_MIYOUSHE_TYPES.GACHA);
 	const r = await ns_miyoushe_collectMiyousheSide(listUrl, signal, tz, now, "gacha");
 	if (!r) return null;
@@ -561,7 +561,7 @@ async function ns_miyoushe_gachaMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE_
 }
 
 /** 活动侧（type=2 活动；标题按活动关键词分流） */
-async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE_TZ, now = Date.now()) {
+async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE_TZ, now = nowMs()) {
 	const listUrl = url || ns_miyoushe_miyousheListUrl(ns_miyoushe_MIYOUSHE_GIDS.bh3, ns_miyoushe_MIYOUSHE_TYPES.EVENT);
 	const r = await ns_miyoushe_collectMiyousheSide(listUrl, signal, tz, now, "event");
 	if (!r) return null;

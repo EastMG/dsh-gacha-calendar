@@ -20,7 +20,7 @@
 
 // src/client/35-parsers-biligame-announce.js —— 嘟嘟脸恶作剧 国服（biligame 官方公告 API）
 //
-// 契约：async (url, signal, tz, now = Date.now()) → 数据对象 | null（null = 未公布）
+// 契约：async (url, signal, tz, now = nowMs()) → 数据对象 | null（null = 未公布）
 //   · 卡池侧：{ banner, roles, bannerDates, bannerDatesRaw, startTs, endTs, bannerHover }
 //   · 活动侧：{ event, eventDates, eventDatesRaw, eventHover }
 //   两侧都读**同一份官方公告**（同 bandori.js：一份公告里既有活动档期也有招募档期）。
@@ -292,7 +292,7 @@ async function ns_biligame_announce_loadDdlezj(listUrl, signal, tz) {
 	return { seen };
 }
 // 卡池侧
-async function ns_biligame_announce_gachaDdlezj(url, signal, tz = ns_biligame_announce_DDLEZJ_TZ, now = Date.now()) {
+async function ns_biligame_announce_gachaDdlezj(url, signal, tz = ns_biligame_announce_DDLEZJ_TZ, now = nowMs()) {
 	const ctx = await ns_biligame_announce_loadDdlezj(url || ns_biligame_announce_DDLEZJ_LIST_URL, signal, tz);
 	if (!ctx) return null;
 	for (const { item, data, parsed } of ctx.seen) {
@@ -314,7 +314,7 @@ async function ns_biligame_announce_gachaDdlezj(url, signal, tz = ns_biligame_an
 	return null;                                       // 抓到公告但当期无覆盖 → 未公布
 }
 // 活动侧
-async function ns_biligame_announce_eventsDdlezj(url, signal, tz = ns_biligame_announce_DDLEZJ_TZ, now = Date.now()) {
+async function ns_biligame_announce_eventsDdlezj(url, signal, tz = ns_biligame_announce_DDLEZJ_TZ, now = nowMs()) {
 	const ctx = await ns_biligame_announce_loadDdlezj(url || ns_biligame_announce_DDLEZJ_LIST_URL, signal, tz);
 	if (!ctx) return null;
 	for (const { item, data, parsed } of ctx.seen) {
@@ -349,7 +349,7 @@ async function ns_biligame_announce_eventsDdlezj(url, signal, tz = ns_biligame_a
 
 // src/client/35-parsers-biligame-activity.js —— biligame 官方公告（活动/卡池档期）
 //
-// 契约：async (url, signal, tz, now = Date.now()) → 数据对象 | null（null = 未公布）
+// 契约：async (url, signal, tz, now = nowMs()) → 数据对象 | null（null = 未公布）
 //   · 活动侧：{ event, eventDates, eventDatesRaw, eventHover? }        （eventHover 缺省 = 当期只有 1 条）
 //   · 卡池侧：{ banner, roles?, bannerDates, bannerDatesRaw, startTs, endTs, bannerHover? }
 //   本文件服务两个游戏（同一套官方接口 api.biligame.com/news）：
@@ -844,12 +844,12 @@ function ns_biligame_activity_yearHintOf(item, tz) {
 	const ts = item && item.dateTs != null ? item.dateTs : null;
 	return ts == null ? null : sourceWallParts(ts, tz);
 }
-// 活动侧抓取器（契约：async (url, signal, tz, now = Date.now()) → 对象 | null）
+// 活动侧抓取器（契约：async (url, signal, tz, now = nowMs()) → 对象 | null）
 //   两路 typeId（4 与 1）**都拉** → 合并去重倒序 → 逐条抓详情（≤6 篇）→ 正文抽档期 → 挑覆盖 now 的
 //   · 抓到公告但没有任何覆盖 now 的活动档期 → null（未公布）
 //   · 所有详情请求都失败 → 抛错（不能把「源站挂了」静默降级成「未公布」）
 //   · 一路 feed 失败且最终没找到覆盖 now 的档期 → 抛错（此时不能声称「未公布」）
-async function ns_biligame_activity_eventsWhmxOfficial(url, signal, tz = ns_biligame_activity_BILIGAME_ACTIVITY_TZ, now = Date.now()) {
+async function ns_biligame_activity_eventsWhmxOfficial(url, signal, tz = ns_biligame_activity_BILIGAME_ACTIVITY_TZ, now = nowMs()) {
 	const listUrl = url || ns_biligame_activity_WHMX_LIST_URL;
 	const merged = [];
 	const feedErrors = [];
@@ -942,7 +942,7 @@ async function ns_biligame_activity_loadUmaCn(url, signal, tz, now, want) {
 	return null;
 }
 // 卡池侧
-async function ns_biligame_activity_gachaUmaCnOfficial(url, signal, tz = ns_biligame_activity_BILIGAME_ACTIVITY_TZ, now = Date.now()) {
+async function ns_biligame_activity_gachaUmaCnOfficial(url, signal, tz = ns_biligame_activity_BILIGAME_ACTIVITY_TZ, now = nowMs()) {
 	const hit = await ns_biligame_activity_loadUmaCn(url, signal, tz, now, "gacha");
 	if (!hit) return null;
 	const { title, best, active, roles } = hit;
@@ -962,7 +962,7 @@ async function ns_biligame_activity_gachaUmaCnOfficial(url, signal, tz = ns_bili
 	};
 }
 // 活动侧
-async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_biligame_activity_BILIGAME_ACTIVITY_TZ, now = Date.now()) {
+async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_biligame_activity_BILIGAME_ACTIVITY_TZ, now = nowMs()) {
 	const hit = await ns_biligame_activity_loadUmaCn(url, signal, tz, now, "event");
 	if (!hit) return null;
 	const { title, best, active } = hit;
