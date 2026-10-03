@@ -779,6 +779,7 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 		// ── 条目 ──
 		registerSource({
 				id: "uma-jp",
+				defaultHidden: false,
 				tz: "Asia/Tokyo",
 				name: "赛马娘·日服",
 				icon: "https://umamusume.jp/apple-touch-icon.png",
@@ -793,6 +794,7 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 
 		registerSource({
 				id: "uma-global",
+				defaultHidden: false,
 				tz: "UTC",
 				name: "赛马娘·国际服",
 				icon: "https://play-lh.googleusercontent.com/yN6cCSP7UB_2bsvlCxrtv-FUpEt1IvEFwr0Ucb3wr39QsAd5PLsueSVXuCinDbE4rifhMlX4YNtpLpkGnpsLhCQ=s64-rw",

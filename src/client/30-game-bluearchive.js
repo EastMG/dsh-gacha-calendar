@@ -531,6 +531,7 @@
 		// ── 条目 ──
 		registerSource({
 				id: "ba-cn",
+				defaultHidden: false,
 				tz: TZ_CN,
 				parserVersion: 1,
 				name: "蔚蓝档案·国服",
@@ -545,6 +546,7 @@
 
 		registerSource({
 				id: "ba-global",
+				defaultHidden: false,
 				tz: TZ_UTC,
 				parserVersion: 1,
 				name: "蔚蓝档案·国际服",
@@ -567,6 +569,7 @@
 
 		registerSource({
 				id: "ba-jp",
+				defaultHidden: false,
 				tz: TZ_JP,
 				parserVersion: 1,
 				name: "蔚蓝档案·日服",

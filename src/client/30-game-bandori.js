@@ -1016,6 +1016,7 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 		// ── 条目 ──
 		registerSource({
 				id: "bandori",
+				defaultHidden: false,
 				tz: "Asia/Shanghai",
 				name: "BanG Dream！少女乐团派对·国服",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/cb/ae/11/cbae1132-58ee-8b5c-3016-dfd2f5e91e51/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
@@ -1029,10 +1030,10 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 
 		registerSource({
 				id: "ournotes",
+				defaultHidden: true,
 				tz: "Asia/Tokyo",
 				name: "BanG Dream！OurNotes·日服",
 				icon: "https://bang-dream-on.bushimo.jp/wordpress/wp-content/themes/bang-dream-on_prod/assets/images/common/apple-touch-icon-180x180.png",
-				defaultHidden: true,
 				eventUrl: "https://bang-dream-on.bushimo.jp/wp-json/wp/v2/posts?per_page=20&page=1",
 				// 日文站点 → 加语言括号（本体惯例，见 ba-jp 的 `官方公告（日文）`）
 				eventSource: "官方公告（日文）",
@@ -1040,10 +1041,10 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 
 		registerSource({
 				id: "ournotes-global",
+				defaultHidden: true,
 				tz: "Asia/Shanghai",
 				name: "BanG Dream！OurNotes·国际服",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/ca/da/3a/cada3a9a-491a-fbe5-5494-9be7390e3a9b/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
-				defaultHidden: true,
 				altSources: [{"label":"官方公告（BHK）","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw","fetcher":"ournotes-global-gacha"}],
 				eventAltSources: [{"label":"官方公告（BHK）","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw","fetcher":"ournotes-global-event"}],
 		});

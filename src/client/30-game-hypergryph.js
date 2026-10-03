@@ -739,6 +739,7 @@
 		// ── 条目 ──
 		registerSource({
 				id: "arknights",
+				defaultHidden: false,
 				tz: TZ_CN,
 				// 2：档位改按池名判定（中坚优先）+ 外显与悬停共用同一份排序列表（v0.9.25 修）
 				parserVersion: 2,
@@ -758,6 +759,7 @@
 
 		registerSource({
 				id: "endfield",
+				defaultHidden: false,
 				tz: TZ_CN,
 				parserVersion: 2,
 				name: "明日方舟：终末地",

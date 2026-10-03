@@ -298,6 +298,7 @@ async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ) {
 		// ── 条目 ──
 		registerSource({
 				id: "fgo",
+				defaultHidden: false,
 				tz: "Asia/Shanghai",
 				name: "Fate/Grand Order",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/db/d4/19/dbd4196a-68cb-8a74-ca0b-045d0795e10c/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",

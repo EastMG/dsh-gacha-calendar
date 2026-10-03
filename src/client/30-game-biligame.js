@@ -993,10 +993,10 @@ async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_bil
 		// ── 条目 ──
 		registerSource({
 				id: "ddlezj",
+				defaultHidden: true,
 				tz: "+540",
 				name: "嘟嘟脸恶作剧",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/64/f0/21/64f02145-182e-857a-133c-8de0151425d9/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
-				defaultHidden: true,
 				url: "https://api.biligame.com/news/list?gameExtensionId=1282&positionId=2&typeId=1&pageNum=1&pageSize=50",
 				source: "官方公告",
 				eventUrl: "https://api.biligame.com/news/list?gameExtensionId=1282&positionId=2&typeId=1&pageNum=1&pageSize=50",
@@ -1005,6 +1005,7 @@ async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_bil
 
 		registerSource({
 				id: "uma-cn",
+				defaultHidden: false,
 				tz: "Asia/Shanghai",
 				name: "闪耀！优俊少女",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/ca/23/bc/ca23bc1f-5dff-c21a-1881-66c48d02f5b2/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",

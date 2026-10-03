@@ -161,6 +161,7 @@ async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = now
 		// ── 条目 ──
 		registerSource({
 				id: "pjsk",
+				defaultHidden: false,
 				tz: "Asia/Shanghai",
 				name: "初音未来：缤纷舞台·国服",
 				icon: "https://p16-sg.dailygn.com/obj/g-marketing-assets-sg/2021_12_15_07_41_24/icon_s54607.png",

@@ -1412,6 +1412,7 @@ async function ns_kedr_wiki_gachaKedrWiki(url, signal, tz = ns_kedr_wiki_KEDR_TZ
 		// ── 条目 ──
 		registerSource({
 				id: "wuhuamixin",
+				defaultHidden: false,
 				tz: "Asia/Shanghai",
 				name: "物华弥新",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/13/7f/87/137f873a-f458-678d-347e-068830a74a69/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
@@ -1423,6 +1424,7 @@ async function ns_kedr_wiki_gachaKedrWiki(url, signal, tz = ns_kedr_wiki_KEDR_TZ
 
 		registerSource({
 				id: "zspms",
+				defaultHidden: false,
 				tz: "Asia/Shanghai",
 				name: "战双帕弥什",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/b2/99/ed/b299ed39-90ea-03df-c7ee-bd09548991e5/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/200x200bb.jpg",
@@ -1434,16 +1436,17 @@ async function ns_kedr_wiki_gachaKedrWiki(url, signal, tz = ns_kedr_wiki_KEDR_TZ
 
 		registerSource({
 				id: "czn",
+				defaultHidden: true,
 				tz: "Asia/Shanghai",
 				name: "卡厄斯梦境",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/e2/c9/48/e2c94812-11cd-2a52-445a-d67d6ae9e169/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/200x200bb.jpg",
-				defaultHidden: true,
 				url: "https://wiki.biligame.com/czn/api.php?action=parse&page=Module%3AGacha%2Fdata&prop=wikitext&format=json",
 				source: "Bwiki",
 		});
 
 		registerSource({
 				id: "kedr",
+				defaultHidden: false,
 				tz: "Asia/Shanghai",
 				name: "雪松",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/b5/8c/b6/b58cb6b2-4be3-0be0-852a-af761afaab06/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",

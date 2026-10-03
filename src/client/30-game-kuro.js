@@ -375,6 +375,7 @@
 		// ── 条目 ──
 		registerSource({
 				id: "wuwa",
+				defaultHidden: false,
 				tz: TZ_CN,
 				parserVersion: 2,
 				name: "鸣潮",

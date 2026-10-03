@@ -343,6 +343,7 @@ function ns_stellasora_stellaWindowsFromDetail(detailJson, tz = ns_stellasora_ST
 		// ── 条目 ──
 		registerSource({
 				id: "stellasora",
+				defaultHidden: false,
 				tz: "Asia/Shanghai",
 				name: "星塔旅人",
 				icon: "https://webcnstatic.yostar.net/stellasora/stellasora-cn-official-frontend/main/h5/favicon.png?x-oss-process=image/resize,w_128",

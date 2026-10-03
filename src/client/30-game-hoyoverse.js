@@ -850,6 +850,7 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 		// ── 条目 ──
 		registerSource({
 				id: "genshin",
+				defaultHidden: false,
 				tz: TZ_CN,
 				// parserVersion：该条目「解析逻辑」的版本号 —— 源站改版/规则更新后 +1。
 				// 用途：无服务端分发时定位「坏了的是哪个版本的用户、哪个源」（见交接文档 §13.4）。
@@ -865,6 +866,7 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 
 		registerSource({
 				id: "hsr",
+				defaultHidden: false,
 				tz: TZ_CN,
 				parserVersion: 1,
 				name: "崩坏：星穹铁道",
@@ -878,6 +880,7 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 
 		registerSource({
 				id: "zzz",
+				defaultHidden: false,
 				tz: TZ_CN,
 				parserVersion: 2,
 				name: "绝区零",
@@ -902,6 +905,20 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 						fetcher: "zzz-event-bwiki"
 					}
 				]
+		});
+
+		registerSource({
+			id: "bh3",
+				defaultHidden: true,
+			tz: "Asia/Shanghai",
+			name: "崩坏3",
+			icon: "https://storage.moegirl.org.cn/moegirl/commons/f/f4/BH3_icon.png!/fw/64",
+			// 出厂默认不勾选展示（用户要求）：默认未配置时面板恒空，不该占版面
+			// 默认**未配置**：不给 url / eventUrl
+			source: "",
+			eventSource: "",
+			altSources: [{ label: "米游社公告", url: "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=1&type=1&page_size=20", fetcher: "bh3-miyoushe" }],
+			eventAltSources: [{ label: "米游社公告", url: "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=1&type=2&page_size=20", fetcher: "bh3-miyoushe" }]
 		});
 
 		// ── 抓取器登记 ──

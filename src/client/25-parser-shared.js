@@ -865,11 +865,8 @@
 
 		// → 不抓取、不计成功也不计失败；UI 显示「未配置（不抓取卡池/活动）」。设置页选「米游社公告」即可启用。
 
-		if (!SOURCES.some((s) => s.id === "bh3")) {
+		{
 
-			const G = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=1&type=1&page_size=20";
-
-			const E = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=1&type=2&page_size=20";
 
 			GACHA_FETCHERS["bh3-miyoushe"] = (url, signal, tz) => ns_miyoushe_gachaMiyoushe(url, signal, tz);
 
@@ -881,31 +878,6 @@
 			//    （`_core_engine_test.mjs` 就建了两个引擎，会立刻暴露）。
 			//    本文件其余写操作本来就是幂等的：上面 `NS_SOURCES` 是"按 id 找到就覆盖"、
 			//    备选源挂接是"按 fetcher 去重"，只有这处 push 不是。
-			if (!SOURCES.some((s) => s.id === "bh3")) SOURCES.push({
-
-				id: "bh3",
-
-				tz: "Asia/Shanghai",
-
-				name: "崩坏3",
-
-				icon: "https://storage.moegirl.org.cn/moegirl/commons/f/f4/BH3_icon.png!/fw/64",
-
-				// 出厂默认不勾选展示（用户要求）：默认未配置时面板恒空，不该占版面
-
-				defaultHidden: true,
-
-				// 默认**未配置**：不给 url / eventUrl
-
-				source: "",
-
-				eventSource: "",
-
-				altSources: [{ label: "米游社公告", url: G, fetcher: "bh3-miyoushe" }],
-
-				eventAltSources: [{ label: "米游社公告", url: E, fetcher: "bh3-miyoushe" }]
-
-			});
 
 		}
 

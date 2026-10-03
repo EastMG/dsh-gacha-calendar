@@ -412,6 +412,7 @@
 		// ── 条目 ──
 		registerSource({
 				id: "r1999",
+				defaultHidden: false,
 				tz: TZ_CN,
 				parserVersion: 3,
 				name: "重返未来：1999",

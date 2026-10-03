@@ -364,6 +364,7 @@ async function ns_gf2_eventsGf2(url, signal, tz = ns_gf2_GF2_TZ) {
 		// ── 条目 ──
 		registerSource({
 				id: "gf2",
+				defaultHidden: false,
 				tz: "Asia/Shanghai",
 				name: "少女前线2：追放",
 				icon: "https://gf2-cn.cdn.sunborngame.com/website/official_zf/mobile/image/logo.png",

@@ -27,9 +27,8 @@
 			//    读不到 `shown`（永远回落到 DEFAULT_SETTINGS 的 `[]`）→ `isEntryHidden` 对
 			//    `defaultHidden` 条目恒为 true → `getVisibleEntries` 里没有它 → **refresh 一轮
 			//    一个请求都不给它发**。表现就是用户报的"勾了 p5x、点刷新，这条不刷新"。
-			//    受影响的正是 6 个 defaultHidden 条目：p5x / czn / ournotes / ddlezj /
-			//    ournotes-global / bh3（它们都在 43-sources-register.js，core 侧没有，
-			//    所以这个 bug 只在 DSH 插件里显现）。
+			//    受影响的正是全部 `defaultHidden` 条目（历史上是 6 个：p5x / czn / ournotes /
+			//    ddlezj / ournotes-global / bh3；**2026-10-03 起 p5x 已改为出厂可见 → 剩 5 个**）。
 			//    防回归见 test/cases-rule-lint.mjs 的「DEFAULT_SETTINGS 的键必须都在 CONFIG_KEYS 里」。
 			const CONFIG_KEYS = [
 				"order", "hidden", "shown", "removed", "customEntries", "customUrls", "customEventUrls",
