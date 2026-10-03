@@ -96,8 +96,26 @@ dsh-gacha-calendar/
 │       ├── 15-env.js         # core 环境缝：transport / 时钟 / 计时器
 │       ├── 20-sources.js     # SOURCES 来源注册表（11 款游戏：默认源 + 备选源）
 │       ├── 30-parsers.js     # 全部解析器（纯函数）
+│       ├── 41-sources-shared.js # 新增来源共用：抓取桥接 + 悬停排版（hoverPool / hoverEvent）
+│       ├── 42-parsers-p5x.js # 女神异闻录：夜幕魅影
+│       ├── 42-parsers-bwiki.js # 物华弥新 / 闪耀优俊少女 / 战双 / 雪松 / 卡厄斯 / 星塔旅人（bwiki 系）
+│       ├── 42-parsers-umapyoi.js # 赛马娘日服（umapyoi 第三方，备选源）
+│       ├── 42-parsers-bestdori.js # BanG Dream（Bestdori 社区库，备选源）
+│       ├── 42-parsers-sekai.js # 初音未来：缤纷舞台·国服
+│       ├── 42-parsers-gf2.js # 少女前线2：追放
+│       ├── 42-parsers-bandori.js # BanG Dream！少女乐团派对·国服
+│       ├── 42-parsers-ournotes.js # BanG Dream！OurNotes·日服
+│       ├── 42-parsers-fgo.js # Fate/Grand Order
+│       ├── 42-parsers-miyoushe.js # 米游社官方公告（p5x 之外的 崩坏3/原神/星铁/绝区零 备选源）
+│       ├── 42-parsers-umamusume-official.js # 赛马娘日服 / 国际服 官网公告
+│       ├── 42-parsers-biligame-announce.js # 嘟嘟脸恶作剧（biligame 官方公告）
+│       ├── 42-parsers-kedr-wiki.js # 雪松（第三方 bwiki）
+│       ├── 42-parsers-stellasora.js # 星塔旅人（悠星官方 CMS）
+│       ├── 42-parsers-bwiki-wikitext.js # 战双 / 卡厄斯 / 雪松（bwiki wikitext 形态）
+│       ├── 42-parsers-biligame-activity.js # 物华弥新 / 闪耀优俊少女（biligame 官方公告）
+│       ├── 42-parsers-ournotes-global.js # BanG Dream！OurNotes·国际服（BHK）
 │       ├── 40-fetchers.js    # 抓取器 + GACHA_FETCHERS / EVENT_FETCHERS 注册表
-│       ├── 45-next-sources.js # 【试合并】新增游戏来源的解析器（生成物，源自 next-sources/）
+│       ├── 43-sources-register.js # 新增来源的条目声明 + 抓取器登记 + 米游社公告并入
 │       ├── 50-refresh.js     # 刷新编排、失败沿用旧值、提示归类
 │       ├── 60-helpers.js     # 格式化 / 悬停 / 排序 / 启动刷新判定
 │       ├── engine-head.js    # core 外壳：createEngine（storage / listGames / getCached）

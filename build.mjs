@@ -37,7 +37,26 @@ const ORDER = [
   "20-sources.js",     // SOURCES 来源注册表（11 款游戏 / 25 个来源）
   "30-parsers.js",     // 全部解析器（纯函数）
   "40-fetchers.js",    // 抓取器 + 两个来源注册表（GACHA_FETCHERS / EVENT_FETCHERS）
-  "45-next-sources.js",// 【试合并分支专用】next-sources 的解析器 + 来源追加 + 抓取器登记
+  // ── 新增来源（2026-10-03「不留 next-source」：原 next-sources/ 压平成普通源码段）──
+  "41-sources-shared.js",   // 解析器共用：抓取桥接（fetchText/Json/MediaWikiText）+ 文本工具 + 悬停排版（hoverPool/hoverEvent）
+  "42-parsers-p5x.js",
+  "42-parsers-bwiki.js",
+  "42-parsers-umapyoi.js",
+  "42-parsers-bestdori.js",
+  "42-parsers-sekai.js",
+  "42-parsers-gf2.js",
+  "42-parsers-bandori.js",
+  "42-parsers-ournotes.js",
+  "42-parsers-fgo.js",
+  "42-parsers-miyoushe.js",
+  "42-parsers-umamusume-official.js",
+  "42-parsers-biligame-announce.js",
+  "42-parsers-kedr-wiki.js",
+  "42-parsers-stellasora.js",
+  "42-parsers-bwiki-wikitext.js",
+  "42-parsers-biligame-activity.js",
+  "42-parsers-ournotes-global.js",
+  "43-sources-register.js", // 追加来源进 SOURCES + 登记抓取器与备选抓取器 + 米游社公告并入既有条目
   "50-refresh.js",     // 刷新编排、失败沿用旧值
   "60-helpers.js",     // 共用纯函数：状态归一 / 提示文案 / 格式化 / 悬停 / 排序
   "engine-head.js",    // core 引擎外壳：createEngine（面板只通过它拿 Result JSON）
