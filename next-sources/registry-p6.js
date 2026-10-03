@@ -42,6 +42,10 @@ export const SOURCES_P6 = [
 		// 图标：官方商店列表（App Store 中国区，bundle com.bilibili.trickcalcn）。该作**没有独立官网**（game.bilibili.com/ddlezj 实测 404），故只能取商店图
 		icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/64/f0/21/64f02145-182e-857a-133c-8de0151425d9/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
 		tz: DDLEZJ_TZ,                                        // "+540" = UTC+9（**源站正文自标**）
+		// 出厂**默认不勾选展示**（用户 2026-10-03 要求）。原因：官方 biligame 公告能抓到，
+		// 但**源站自己没发新的** —— 最新一条 2026-06-22，正文档期停在 2026-04 → 面板两侧恒"未公布"。
+		// 源站一发公告，在设置页勾选启用即可（三态判定见 60-helpers.js 的 isEntryHidden）。
+		defaultHidden: true,
 		gacha: { url: DDLEZJ_LIST_URL, fetcher: gachaDdlezj, kind: "official-api", mode: "proxy" },
 		event: { url: DDLEZJ_LIST_URL, fetcher: eventsDdlezj, kind: "official-api", mode: "proxy" }
 	},

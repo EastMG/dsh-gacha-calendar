@@ -5909,6 +5909,7 @@ async function ns_ournotes_global_eventsOurNotesGlobal(url, signal, tz = ns_ourn
 				tz: "+540",
 				name: "嘟嘟脸恶作剧",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/64/f0/21/64f02145-182e-857a-133c-8de0151425d9/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
+				defaultHidden: true,
 				url: "https://api.biligame.com/news/list?gameExtensionId=1282&positionId=2&typeId=1&pageNum=1&pageSize=50",
 				source: "官方公告",
 				eventUrl: "https://api.biligame.com/news/list?gameExtensionId=1282&positionId=2&typeId=1&pageNum=1&pageSize=50",
@@ -5944,6 +5945,7 @@ async function ns_ournotes_global_eventsOurNotesGlobal(url, signal, tz = ns_ourn
 				tz: "Asia/Shanghai",
 				name: "BanG Dream！OurNotes·国际服",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/ca/da/3a/cada3a9a-491a-fbe5-5494-9be7390e3a9b/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
+				defaultHidden: true,
 				altSources: [{"label":"官方公告（BHK）","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw","fetcher":"ournotes-global-gacha"}],
 				eventAltSources: [{"label":"官方公告（BHK）","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw","fetcher":"ournotes-global-event"}],
 			},
@@ -6198,6 +6200,10 @@ async function ns_ournotes_global_eventsOurNotesGlobal(url, signal, tz = ns_ourn
 				name: "崩坏3",
 
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/f/f4/BH3_icon.png!/fw/64",
+
+				// 出厂默认不勾选展示（用户要求）：默认未配置时面板恒空，不该占版面
+
+				defaultHidden: true,
 
 				// 默认**未配置**：不给 url / eventUrl
 

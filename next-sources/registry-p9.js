@@ -93,6 +93,10 @@ export const SOURCES_P9 = [
 		// 图标：官方商店列表（App Store 国际区，卖家 **BILIBILI HK LIMITED**，bundle com.bilibili.sirius）——与条目来源 l11-web-api.biligames.com（BHK）发行方一致；与日服的 Bushiroad 图标不同，**可区分区服**
 		icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/ca/da/3a/cada3a9a-491a-fbe5-5494-9be7390e3a9b/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
 		tz: OURNOTES_GLOBAL_TZ,                            // Asia/Shanghai（任务书指定；国际服含港澳台，不用 Asia/Tokyo）
+		// 出厂**默认不勾选展示**（用户 2026-10-03 要求）。原因：接口已定位但**源站一条公告都没发**
+		// （国际服 2026-09-24 才上线，实测 `total_count: 0`）→ 面板两侧恒空。
+		// 官网一发公告，在设置页勾选启用即可（三态判定见 60-helpers.js 的 isEntryHidden）。
+		defaultHidden: true,
 		altSources: [
 			{ label: "官方公告（BHK）", url: OURNOTES_GLOBAL_LIST_URL, fetcher: "ournotes-global-gacha" }
 		],
