@@ -1,3 +1,14 @@
+// src/client/30-game-sunborn.js —— 散爆（少女前线2：追放）
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+
+		// ══ 以下为原 42-parsers-gf2.js 的内容（原样保留）══
 // src/client/35-parsers-gf2.js
 //
 // 由 next-sources/parsers/gf2.js 压平而来（2026-10-03「不留 next-source」）。
@@ -349,3 +360,19 @@ async function ns_gf2_eventsGf2(url, signal, tz = ns_gf2_GF2_TZ) {
 		};
 	});
 }
+
+		// ── 条目 ──
+		registerSource({
+				id: "gf2",
+				tz: "Asia/Shanghai",
+				name: "少女前线2：追放",
+				icon: "https://gf2-cn.cdn.sunborngame.com/website/official_zf/mobile/image/logo.png",
+				url: "https://gf2-web-preregister-api.sunborngame.com/website/news_list/4?page=1&limit=10",
+				source: "官方公告",
+				eventUrl: "https://gf2-web-preregister-api.sunborngame.com/website/news_list/4?page=1&limit=10",
+				eventSource: "官方公告",
+		});
+
+		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
+		GACHA_FETCHERS["gf2"] = (url, signal, tz) => ns_gf2_gachaGf2(url, signal, tz);
+		EVENT_FETCHERS["gf2"] = Object.assign(EVENT_FETCHERS["gf2"] || {}, { default: (url, signal, tz) => ns_gf2_eventsGf2(url, signal, tz) });

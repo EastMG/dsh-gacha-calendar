@@ -1,3 +1,14 @@
+// src/client/30-game-sega.js —— 世嘉（初音未来：缤纷舞台）
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+
+		// ══ 以下为原 42-parsers-sekai.js 的内容（原样保留）══
 // src/client/35-parsers-sekai.js
 //
 // 由 next-sources/parsers/sekai.js 压平而来（2026-10-03「不留 next-source」）。
@@ -146,3 +157,21 @@ async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = now
 	const data = await fetchJson(url || ns_sekai_DEFAULT_EVENT, { signal, mode: "direct" });
 	return ns_sekai_parseSekaiEvents(data, now, tz);
 }
+
+		// ── 条目 ──
+		registerSource({
+				id: "pjsk",
+				tz: "Asia/Shanghai",
+				name: "初音未来：缤纷舞台·国服",
+				icon: "https://p16-sg.dailygn.com/obj/g-marketing-assets-sg/2021_12_15_07_41_24/icon_s54607.png",
+				url: "https://sekai-world.github.io/sekai-master-db-cn-diff/gachas.json",
+				// 站点名 + 资源名（对齐本体惯例：`Bwiki 往期祈愿` / `Bwiki 活动一览`）
+				// 旧值写的是「第三方数据」——那是**类别**不是站点名，用户 2026-10-03 要求改成网站名称。
+				source: "Sekai World 卡池表",
+				eventUrl: "https://sekai-world.github.io/sekai-master-db-cn-diff/events.json",
+				eventSource: "Sekai World 活动表",
+		});
+
+		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
+		GACHA_FETCHERS["pjsk"] = (url, signal, tz) => ns_sekai_gachaSekai(url, signal, tz);
+		EVENT_FETCHERS["pjsk"] = Object.assign(EVENT_FETCHERS["pjsk"] || {}, { default: (url, signal, tz) => ns_sekai_eventsSekai(url, signal, tz) });

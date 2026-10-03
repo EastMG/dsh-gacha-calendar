@@ -1,3 +1,14 @@
+// src/client/30-game-yostar.js —— 悠星（星塔旅人）
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+
+		// ══ 以下为原 42-parsers-stellasora.js 的内容（原样保留）══
 // src/client/35-parsers-stellasora.js
 //
 // 由 next-sources/parsers/stellasora.js 压平而来（2026-10-03「不留 next-source」）。
@@ -328,3 +339,35 @@ function ns_stellasora_stellaWindowsFromDetail(detailJson, tz = ns_stellasora_ST
 	const anchorTs = typeof n.publishTime === "number" ? n.publishTime : null;
 	return ns_stellasora_parseStellaWindows(n.content, tz, anchorTs);
 }
+
+		// ── 条目 ──
+		registerSource({
+				id: "stellasora",
+				tz: "Asia/Shanghai",
+				name: "星塔旅人",
+				icon: "https://webcnstatic.yostar.net/stellasora/stellasora-cn-official-frontend/main/h5/favicon.png?x-oss-process=image/resize,w_128",
+				url: "https://stellasora.yostar.cn/api/resource/news?index=1&size=20&type=notice",
+				source: "官方公告",
+				eventUrl: "https://stellasora.yostar.cn/api/resource/news?index=1&size=20&type=notice",
+				eventSource: "官方公告",
+				eventAltSources: [{"label":"Bwiki 首页活动日历（低可用）","url":"https://wiki.biligame.com/stellasora/api.php?action=parse&page=首页&prop=text&format=json&formatversion=2","fetcher":"stellasora-bwiki"}],
+		});
+
+		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
+		GACHA_FETCHERS["stellasora"] = (url, signal, tz) => ns_stellasora_gachaStellasora(url, signal, tz);
+
+		EVENT_FETCHERS["stellasora"] = Object.assign(EVENT_FETCHERS["stellasora"] || {}, { default: (url, signal, tz) => ns_stellasora_eventsStellasora(url, signal, tz) });
+
+		// ===== 登记备选源抓取器（键 = altSources/eventAltSources 的 fetcher 字段）=====
+
+		// GACHA_FETCHERS 是**扁平**表 → 卡池备选源注册在顶层即可；
+
+		// EVENT_FETCHERS 是**按条目 id 分组**的表 → 活动备选源必须注册进 EVENT_FETCHERS[<条目id>]。
+
+		EVENT_FETCHERS["stellasora"] = EVENT_FETCHERS["stellasora"] || {};
+
+		Object.assign(EVENT_FETCHERS["stellasora"], {
+
+			"stellasora-bwiki": { default: (url, signal, tz) => ns_bwiki_eventsStellasora(url, signal, tz) },
+
+		});

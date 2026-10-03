@@ -1,3 +1,14 @@
+// src/client/30-game-bandori.js —— BanG Dream（国服手游 / OurNotes 日服 / 国际服）
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+
+		// ══ 以下为原 42-parsers-bandori.js 的内容（原样保留）══
 // src/client/42-parsers-bandori.js —— BanG Dream 全系（国服手游 / OurNotes 日服 / OurNotes 国际服 / Bestdori 备选源）
 //
 // ⚠️ 2026-10-03 按**游戏厂商 / 来源平台**合并（用户要求）：原先一款游戏一个文件（17 个），
@@ -1001,3 +1012,60 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 	const data = await fetchJson(url || ns_bestdori_DEFAULT_EVENT, { signal });
 	return ns_bestdori_parseBestdoriEvents(data, now, tz);
 }
+
+		// ── 条目 ──
+		registerSource({
+				id: "bandori",
+				tz: "Asia/Shanghai",
+				name: "BanG Dream！少女乐团派对·国服",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/cb/ae/11/cbae1132-58ee-8b5c-3016-dfd2f5e91e51/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
+				url: "https://api.biligame.com/news/list?gameExtensionId=138&positionId=2&typeId=1&pageNum=1&pageSize=20",
+				source: "官方公告",
+				eventUrl: "https://api.biligame.com/news/list?gameExtensionId=138&positionId=2&typeId=1&pageNum=1&pageSize=20",
+				eventSource: "官方公告",
+				altSources: [{"label":"Bestdori 扭蛋（社区数据库）","url":"https://bestdori.com/api/gacha/all.5.json","fetcher":"bandori-bestdori-gacha"}],
+				eventAltSources: [{"label":"Bestdori 活动（社区数据库）","url":"https://bestdori.com/api/events/all.5.json","fetcher":"bandori-bestdori-event"}],
+		});
+
+		registerSource({
+				id: "ournotes",
+				tz: "Asia/Tokyo",
+				name: "BanG Dream！OurNotes·日服",
+				icon: "https://bang-dream-on.bushimo.jp/wordpress/wp-content/themes/bang-dream-on_prod/assets/images/common/apple-touch-icon-180x180.png",
+				defaultHidden: true,
+				eventUrl: "https://bang-dream-on.bushimo.jp/wp-json/wp/v2/posts?per_page=20&page=1",
+				// 日文站点 → 加语言括号（本体惯例，见 ba-jp 的 `官方公告（日文）`）
+				eventSource: "官方公告（日文）",
+		});
+
+		registerSource({
+				id: "ournotes-global",
+				tz: "Asia/Shanghai",
+				name: "BanG Dream！OurNotes·国际服",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/ca/da/3a/cada3a9a-491a-fbe5-5494-9be7390e3a9b/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
+				defaultHidden: true,
+				altSources: [{"label":"官方公告（BHK）","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw","fetcher":"ournotes-global-gacha"}],
+				eventAltSources: [{"label":"官方公告（BHK）","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw","fetcher":"ournotes-global-event"}],
+		});
+
+		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
+		GACHA_FETCHERS["bandori"] = (url, signal, tz) => ns_bandori_gachaBandori(url, signal, tz);
+		EVENT_FETCHERS["bandori"] = Object.assign(EVENT_FETCHERS["bandori"] || {}, { default: (url, signal, tz) => ns_bandori_eventsBandori(url, signal, tz) });
+		EVENT_FETCHERS["ournotes"] = Object.assign(EVENT_FETCHERS["ournotes"] || {}, { default: (url, signal, tz) => ns_ournotes_eventsOurNotes(url, signal, tz) });
+		GACHA_FETCHERS["bandori-bestdori-gacha"] = (url, signal, tz) => ns_bestdori_gachaBestdori(url, signal, tz);
+		GACHA_FETCHERS["ournotes-global-gacha"] = (url, signal, tz) => ns_ournotes_global_gachaOurNotesGlobal(url, signal, tz);
+
+		EVENT_FETCHERS["bandori"] = EVENT_FETCHERS["bandori"] || {};
+
+		Object.assign(EVENT_FETCHERS["bandori"], {
+
+			"bandori-bestdori-event": { default: (url, signal, tz) => ns_bestdori_eventsBestdori(url, signal, tz) },
+
+		});
+		EVENT_FETCHERS["ournotes-global"] = EVENT_FETCHERS["ournotes-global"] || {};
+
+		Object.assign(EVENT_FETCHERS["ournotes-global"], {
+
+			"ournotes-global-event": { default: (url, signal, tz) => ns_ournotes_global_eventsOurNotesGlobal(url, signal, tz) },
+
+		});

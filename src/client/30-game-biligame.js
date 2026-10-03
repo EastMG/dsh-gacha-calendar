@@ -1,3 +1,14 @@
+// src/client/30-game-biligame.js —— biligame 官方公告系（嘟嘟脸恶作剧 / 闪耀优俊少女）
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+
+		// ══ 以下为原 42-parsers-biligame.js 的内容（原样保留）══
 // src/client/42-parsers-biligame.js —— biligame 官方公告系（物华弥新 / 闪耀优俊少女 / 嘟嘟脸恶作剧）
 //
 // ⚠️ 2026-10-03 按**游戏厂商 / 来源平台**合并（用户要求）：原先一款游戏一个文件（17 个），
@@ -978,3 +989,35 @@ async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_bil
 	};
 }
 //#endregion
+
+		// ── 条目 ──
+		registerSource({
+				id: "ddlezj",
+				tz: "+540",
+				name: "嘟嘟脸恶作剧",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/64/f0/21/64f02145-182e-857a-133c-8de0151425d9/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
+				defaultHidden: true,
+				url: "https://api.biligame.com/news/list?gameExtensionId=1282&positionId=2&typeId=1&pageNum=1&pageSize=50",
+				source: "官方公告",
+				eventUrl: "https://api.biligame.com/news/list?gameExtensionId=1282&positionId=2&typeId=1&pageNum=1&pageSize=50",
+				eventSource: "官方公告",
+		});
+
+		registerSource({
+				id: "uma-cn",
+				tz: "Asia/Shanghai",
+				name: "闪耀！优俊少女",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/ca/23/bc/ca23bc1f-5dff-c21a-1881-66c48d02f5b2/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
+				url: "https://api.biligame.com/news/list?gameExtensionId=1006&positionId=2&typeId=1&pageNum=1&pageSize=50",
+				source: "官方公告",
+				eventUrl: "https://api.biligame.com/news/list?gameExtensionId=1006&positionId=2&typeId=1&pageNum=1&pageSize=50",
+				eventSource: "官方公告",
+				altSources: [{"label":"Bwiki 简中卡池（社区推算，非官方）","url":"https://wiki.biligame.com/umamusume/api.php?action=parse&page=简中卡池&prop=text&format=json&formatversion=2","fetcher":"uma-cn-bwiki"}],
+		});
+
+		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
+		GACHA_FETCHERS["uma-cn"] = (url, signal, tz) => ns_biligame_activity_gachaUmaCnOfficial(url, signal, tz);
+		GACHA_FETCHERS["ddlezj"] = (url, signal, tz) => ns_biligame_announce_gachaDdlezj(url, signal, tz);
+		EVENT_FETCHERS["uma-cn"] = Object.assign(EVENT_FETCHERS["uma-cn"] || {}, { default: (url, signal, tz) => ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz) });
+		EVENT_FETCHERS["ddlezj"] = Object.assign(EVENT_FETCHERS["ddlezj"] || {}, { default: (url, signal, tz) => ns_biligame_announce_eventsDdlezj(url, signal, tz) });
+		GACHA_FETCHERS["uma-cn-bwiki"] = (url, signal, tz) => ns_bwiki_gachaUmaCn(url, signal, tz);

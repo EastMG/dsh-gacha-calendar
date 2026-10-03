@@ -1,3 +1,266 @@
+// src/client/30-game-hoyoverse.js —— 米哈游（原神 / 星穹铁道 / 绝区零）
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+
+		// ── 解析器 / 抓取器 ──
+
+		// 「版本更新后」这类**只有日期没有时分**的写法，默认按当日该时刻折算。
+		// 为什么需要一个默认值：源站常见 `2026/09/28 4.6版本更新后`（日期 + 版本标签的混合体），
+		// 日期是明确的，缺的只是时分；不补的话 startTs 会是 null，外显只能回落源站原文
+		// （星铁活动列一度显示成 `2026/09/28 4.6版本更新后 ~ 11-10 15:00`，与其它游戏的
+		// `09-28 04:00 ~ 11-10 15:00` 口径不一致）。
+		// 取 04:00 是因为国内二游版本更新普遍落在凌晨维护窗口（该表内 04:00 出现最多），
+		// 拿它当锚点比"不补"更接近真实，也不会让"活动是否已开始"的判定偏移一天。
+		const VERSION_UPDATE_ANCHOR = { h: 4, mi: 0 };
+
+
+		// 绝区零官网公告解析：从公告频道（iChanId=279）取「X.Y版本限时频段（上/下期）」，选覆盖当前时刻的一期。
+		// 公告形如：sIntro="本期代理人与音擎调频活动时间为：3.2版本更新后 ~ 2026/09/30 11:59"，
+		// sContent 内含「活动期间，限定S级代理人[克拉蕾(电·锋御)]、[南宫羽(以太·击破)]…」。
+		// 起点为"版本更新后"时，用同版本「更新公告」的 dtStartTime 补全；「独家重映/音擎回响」自选段跳过。
+		function parseZzzFreq(payload, now = nowMs(), tz) {
+			const list = Array.isArray(payload?.data?.list) ? payload.data.list : [];
+			const clean = (s) => stripTags(s);
+			// 版本更新公告 → "X.Y版本更新后"的起点；同时抽取「S级代理人[X] → 「Y」频段」对应表
+			// （频段名只写在更新公告里，逐期频段公告不含频段名，故用它回填卡池标题）
+			// 注意：必须排除「X.Y版本…预下载开启&更新通知」——它比正式更新早 1~2 天发布，
+			// 若当成版本起点，下一期频段会被提前判成"覆盖当前"、把真实在跑的上一期挤掉
+			// （与活动侧 parseZzzEventsOfficial 同一口径）。
+			const verStart = {};
+			const poolOf = {};
+			for (const it of list) {
+				const t = clean(it?.sTitle);
+				const vm = t.match(/(\d+\.\d+)\s*版本/);
+				if (!vm) continue;
+				if (/更新(?:公告|通知)/.test(t) && !/预下载|预约|前瞻|预抽/.test(t)) {
+					const p = parseTime(it.dtStartTime, tz);
+					if (p.ts != null && verStart[vm[1]] == null) verStart[vm[1]] = p;
+				}
+				const text = clean(it.sIntro) + " " + clean(it.sContent);
+				for (const m of text.matchAll(/S级代理人\s*[\[【]([^\]】]+)[\]】][^「]{0,40}?「([^」]{2,14})」频段/g)) {
+					const name = m[1].replace(/[（(].*$/, "").trim();
+					if (name && poolOf[name] == null) poolOf[name] = m[2].trim();
+				}
+			}
+			// 角色名统一为「职业·属性」全角括号（与 Bwiki 显示一致）：克拉蕾(电·锋御) → 克拉蕾（锋御·电）
+			const normRole = (name) => {
+				const m = name.match(/^([^（()]+)[（(]([^）)]+)[）)]\s*$/);
+				if (!m) return name;
+				const bits = m[2].split("·");
+				return bits.length === 2 ? `${m[1]}（${bits[1]}·${bits[0]}）` : `${m[1]}（${m[2]}）`;
+			};
+			const pools = [];
+			for (const it of list) {
+				const title = clean(it?.sTitle);
+				const vm = title.match(/(\d+\.\d+)\s*版本限时频段\s*((?:（[上下]期）)?)/);
+				if (!vm) continue;
+				const ver = vm[1];
+				const part = vm[2] || "";
+				const text = clean(it.sIntro) + " " + clean(it.sContent);
+				const re = /((?:\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\s+\d{1,2}:\d{2})|(?:\d+\.\d+\s*版本更新后))\s*[~～]\s*(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\s+\d{1,2}:\d{2})/g;
+				const marks = [];
+				let m;
+				while ((m = re.exec(text)) !== null) {
+					marks.push({ start: m[1], end: m[2], from: m.index, to: m.index + m[0].length, after: /版本更新后/.test(m[1]) });
+				}
+				const created = parseTime(it.dtCreateTime, tz).ts ?? 0;
+				for (let i = 0; i < marks.length; i++) {
+					const seg = text.slice(marks[i].to, i + 1 < marks.length ? marks[i + 1].from : text.length);
+					// 该时间窗对应的「限定S级代理人」句（排除独家重映/音擎回响的自选说明）
+					const sentence = seg.split(/[。！；]/).find((s) => /限定S级代理人/.test(s) && !/重映|回响|可自选/.test(s));
+					if (!sentence) continue;
+					const roleM = sentence.match(/限定S级代理人\s*((?:[\[【][^\]】]+[\]】][、，,及和与\s]*)+)/);
+					if (!roleM) continue;
+					const roles = [...roleM[1].matchAll(/[\[【]([^\]】]+)[\]】]/g)].map((x) => normRole(x[1].trim())).join("、");
+					if (!roles) continue;
+					const sp = marks[i].after ? (verStart[ver] || { ts: null, text: null }) : parseTime(marks[i].start, tz);
+					const ep = parseTime(marks[i].end, tz);
+					if (ep.ts == null) continue;
+					pools.push({
+						ver, part, roles,
+						startTs: sp.ts, endTs: ep.ts,
+						startText: sp.text, endText: ep.text,
+						raw: `${marks[i].after ? `${ver}版本更新后` : sp.text} ~ ${ep.text}`,
+						created,
+						isMain: true
+					});
+				}
+			}
+			if (pools.length === 0) return null;
+			const cover = pools.filter((p) => p.startTs != null && coversNow(p, now));
+			// 起点未知（同版本更新公告未收录）但结束在未来 → 仍作为当期（与 selectCurrent 的宽松分支一致）
+			const loose = pools.filter((p) => p.startTs == null && p.endTs >= now);
+			const picked = (cover.length > 0 ? cover : loose).sort((a, b) => (b.created - a.created) || (a.endTs - b.endTs));
+			if (picked.length === 0) return null;
+			const first = picked[0];
+			const same = picked.filter((p) => p.ver === first.ver && p.part === first.part);
+			const roles = [...new Set(same.flatMap((p) => p.roles.split("、")).filter(Boolean))].join("、");
+			// 卡池名：优先用更新公告里的「频段名」（当期名单命中的新代理人）；复刻期无名时退回版本期名称
+			let poolName = "";
+			for (const r of roles.split("、")) {
+				const base = r.replace(/[（(].*$/, "").trim();
+				if (base && poolOf[base]) { poolName = poolOf[base]; break; }
+			}
+			return {
+				banner: poolName ? `「${poolName}」频段` : `${first.ver}版本限时频段${first.part}`,
+				roles,
+				bannerDates: first.startText && first.endText ? `${first.startText} ~ ${first.endText}` : first.raw,
+				bannerDatesRaw: first.raw,
+				startTs: first.startTs,
+				endTs: first.endTs
+			};
+		}
+
+
+		// 绝区零卡池默认抓取器：官网公告优先；无当期频段公告 / 抓取失败 → 自动回退 Bwiki 往期调频
+		async function fetchZzzGacha(listUrl, signal, tz, now = nowMs()) {
+			try {
+				const payload = await proxyFetchJson(listUrl, "https://zzz.mihoyo.com/");
+				// **同一份 payload 里活动数据也在**（该接口同时含频段公告与「活动说明」公告）→ 顺带返回活动字段。
+				// 这是"统一来源注册表"里写明的复用契约：卡池载荷带 event 字段时，refresh 不再为活动侧
+				// 另抓一次。绝区零两侧是**同一条 URL**（同一 iChanId=279），所以此前每轮会向它发 2 次请求：
+				// 一次 parseZzzFreq 取频段、一次 parseZzzEventsOfficial 取活动 —— 纯重复（2026-10-01 实测）。
+				// 活动侧**仍保留**自己的抓取器（fetchZzzEventsOfficial 与 `zzz-event-bwiki` 备选）：
+				// 卡池侧失败、或用户在设置里单独选活动来源时，活动侧要能自己抓、自己报错（解耦不变）。
+				const ev = parseZzzEventsOfficial(payload, now, tz);
+				const evFields = ev
+					? { event: ev.event, eventDates: ev.eventDates || "", eventDatesRaw: ev.eventDatesRaw || "", eventHover: ev.eventHover || "" }
+					: {};
+				const d = parseZzzFreq(payload, now, tz);
+				if (d) return { ...d, ...evFields };
+			} catch { /* 官方失败 → Bwiki 备选 */ }
+			const apiUrl = ZZZ_BWIKI_URL + (ZZZ_BWIKI_URL.includes("?") ? "&" : "?") + "origin=*";
+			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
+			if (!res.ok) throw new Error("http-" + res.status);
+			const json = await res.json();
+			const html = json?.parse?.text;
+			if (typeof html !== "string") throw new Error("bad-json");
+			return selectCurrent(parseAllBwiki(html), now);
+		}
+
+
+		// 绝区零：官方公告列表（api-takumi-static，与卡池侧同一接口，经 host 代理）→ 当期活动。
+		// 活动时间就写在公告正文里（【活动时间】A ~ B），**不需要再抓详情页**；
+		// A/B 可能是绝对时间，也可能是"X.Y版本更新后" / "X.Y版本结束"——用「X.Y版本更新公告」的发布时间折算：
+		//   版本起点 = 该版本更新公告发布时间；版本结束 = 下一个已知版本起点 − 1 分钟。
+		// 当前版本还没有下一版本公告 → 结束时间未知：这类活动**保留**（endTs=null），
+		// 由 sortEventItems / pickEventPrimary 的既有规则自然沉到外显与悬停的最后，不跳过、不丢弃。
+		const ZZZ_EVENT_WINDOW_RE = /((?:\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\s+\d{1,2}:\d{2})|(?:\d+\.\d+\s*版本更新后))\s*[~～\-—]\s*((?:\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\s+\d{1,2}:\d{2})|(?:\d+\.\d+\s*版本结束))/g;
+
+
+		function parseZzzEventsOfficial(payload, now = nowMs(), tz) {
+			const list = Array.isArray(payload?.data?.list) ? payload.data.list : [];
+			const clean = (s) => stripTags(s);
+			// 版本起点表：取该版本的「更新公告」发布时间。
+			// 必须排除「X.Y版本…预下载开启&更新通知」——它比正式更新早 1~2 天发布，
+			// 若当成版本起点，会把上一版本"版本结束"型活动提前判死、并让新版本活动提前出现。
+			const verStart = {};
+			for (const it of list) {
+				const title = clean(it?.sTitle);
+				const vm = title.match(/(\d+\.\d+)\s*版本/);
+				if (!vm || !/更新(?:公告|通知)/.test(title)) continue;
+				if (/预下载|预约|前瞻|预抽/.test(title)) continue;
+				const ts = parseTime(it.dtStartTime, tz).ts;
+				if (ts != null && verStart[vm[1]] == null) verStart[vm[1]] = ts;
+			}
+			const versions = Object.keys(verStart).sort((a, b) => verStart[a] - verStart[b]);
+			// 折算一个窗口的两个端点；返回 null 表示**窗口此刻不成立**（含"该版本还没开始/无法判定"）。
+			// 规则：绝对时间直接用；"X.Y版本更新后"要求该版本已开始（版本更新公告已发布）；
+			//      "X.Y版本结束" = 下一个已知版本起点 − 1 分钟；若 X.Y 已是最新版本 → 结束时间未知（endTs=null，
+			//      仍算成立：活动在跑，只是没有绝对结束日）→ 由排序规则沉底，不跳过、不丢弃。
+			const windowAt = (startText, endText) => {
+				let startTs = null;
+				const sv = startText.match(/(\d+\.\d+)\s*版本更新后/);
+				if (sv) {
+					if (verStart[sv[1]] == null) return null;   // 该版本尚未开始 → 活动还没上线
+					startTs = verStart[sv[1]];
+				} else {
+					const p = parseTime(startText, tz);
+					if (p.ts == null) return null;
+					startTs = p.ts;
+				}
+				if (startTs > now) return null;
+				let endTs = null;
+				const ev = endText.match(/(\d+\.\d+)\s*版本结束/);
+				if (ev) {
+					if (verStart[ev[1]] == null) return null;   // 版本未知 → 无法判定，保守略过
+					const later = versions.find((v) => verStart[v] > verStart[ev[1]]);
+					if (later != null) endTs = verStart[later] - 60000;
+				} else {
+					const p = parseTime(endText, tz);
+					if (p.ts == null) return null;
+					endTs = p.ts;
+				}
+				if (endTs != null && endTs < now) return null;
+				return { startTs, endTs };
+			};
+			// 标题筛选用「活动说明」：正文里带活动时间的都是这类；商城/城募/剧情/频段公告不在此列
+			const byName = new Map();
+			for (const it of list) {
+				const title = clean(it?.sTitle);
+				if (!/活动说明/.test(title)) continue;
+				const name = (title.match(/^「([^」]+)」/) || [])[1] || title.replace(/活动说明$/, "").trim();
+				if (!name || byName.has(name)) continue;
+				const text = clean(it.sIntro) + " " + clean(it.sContent);
+				for (const m of text.matchAll(ZZZ_EVENT_WINDOW_RE)) {
+					const w = windowAt(m[1], m[2]);
+					if (!w) continue;                                  // 这个窗口此刻不成立 → 看下一个窗口
+					byName.set(name, { banner: name, name, cat: "", ...w, raw: `${m[1]} ~ ${m[2]}` });
+					break;                                             // 一篇公告只取第一个成立的窗口
+				}
+			}
+			const active = sortEventItems([...byName.values()]);
+			if (active.length === 0) return null;
+			const primary = pickEventPrimary(active) || active[0];
+			const dates = primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs, tz) : (primary.raw || "");
+			return {
+				event: primary.name,
+				eventDates: dates,
+				eventDatesRaw: primary.raw || "",
+				// 只有 1 条时 buildEventHover 返回 ""，由 UI 退回单条展示（与其它源一致）
+				eventHover: buildEventHover(active)
+			};
+		}
+
+
+		async function fetchZzzEventsOfficial(listUrl, signal, tz) {
+			const payload = await proxyFetchJson(listUrl, "https://zzz.mihoyo.com/");
+			return parseZzzEventsOfficial(payload, nowMs(), tz);
+		}
+
+
+		// 原神 SMW 活动查询（经 origin=* 直连）
+		// 返回 EVENT_FETCHERS 契约格式 {event, eventDates, eventDatesRaw}（parseSmwActivity 产出卡池格式，这里转换）
+		async function fetchYsActivity(signal, tz) {
+			const nowYear = new Date(nowMs()).getFullYear();   // 走注入时钟（core 不得直接读宿主时钟）
+			const q = "[[\u5206\u7C7B:\u6D3B\u52A8]][[\u7ED3\u675F\u65F6\u95F4::>" + nowYear + "/01/01]]|?\u540D\u79F0|?\u5F00\u59CB\u65F6\u95F4|?\u7ED3\u675F\u65F6\u95F4|?\u7C7B\u578B|sort=\u5F00\u59CB\u65F6\u95F4|order=desc|limit=60";
+			const apiUrl = "https://wiki.biligame.com/ys/api.php?action=ask&query=" + encodeURIComponent(q) + "&format=json&origin=*";
+			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
+			if (!res.ok) throw new Error("http-" + res.status);
+			const json = await res.json();
+			const d = parseSmwActivity(json, tz);
+			if (!d) return null;
+			return {
+				event: d.banner,
+				eventDates: d.bannerDates || "",
+				eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "",
+				eventHover: d.eventHover || ""
+			};
+		}
+
+		const ZZZ_NEWS_LIST_URL = "https://api-takumi-static.mihoyo.com/content_v2_user/app/706fd13a87294881/getContentList?iChanId=279&iPageSize=50&iPage=1&sLangKey=zh-cn";
+
+
+		const ZZZ_BWIKI_URL = "https://wiki.biligame.com/zzz/api.php?action=parse&page=%E5%BE%80%E6%9C%9F%E8%B0%83%E9%A2%91&prop=text&format=json&formatversion=2";
+
+
+		// ══ 以下为原 42-parsers-miyoushe.js 的内容（原样保留）══
 // src/client/35-parsers-miyoushe.js
 //
 // 由 next-sources/parsers/miyoushe.js 压平而来（2026-10-03「不留 next-source」）。
@@ -583,3 +846,169 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 	};
 }
 //#endregion
+
+		// ── 条目 ──
+		registerSource({
+				id: "genshin",
+				tz: TZ_CN,
+				// parserVersion：该条目「解析逻辑」的版本号 —— 源站改版/规则更新后 +1。
+				// 用途：无服务端分发时定位「坏了的是哪个版本的用户、哪个源」（见交接文档 §13.4）。
+				parserVersion: 1,
+				name: "原神",
+				icon: "https://storage.moegirl.org.cn/moegirl/commons/b/b0/%E5%8E%9F%E7%A5%9E%E5%9B%BE%E6%A0%87.png!/fw/64",
+				source: "Bwiki \u5F80\u671F\u7948\u613F",
+				url: "https://wiki.biligame.com/ys/api.php?action=parse&page=%E5%BE%80%E6%9C%9F%E7%A5%88%E6%84%BF&prop=text&format=json&formatversion=2",
+				// 独立活动源：原神活动一览为 JS 动态加载（Dquery+SMW），经 SMW ask 查询开始/结束时间
+				eventUrl: "https://wiki.biligame.com/ys/api.php?action=ask&query=%5B%5B%E5%88%86%E7%B1%BB%3A%E6%B4%BB%E5%8A%A8%5D%5D&format=json",
+				eventSource: "Bwiki \u6D3B\u52A8\u4E00\u89C8"
+		});
+
+		registerSource({
+				id: "hsr",
+				tz: TZ_CN,
+				parserVersion: 1,
+				name: "崩坏：星穹铁道",
+				icon: "https://storage.moegirl.org.cn/moegirl/commons/3/38/HonkaiStarRailIcon_StartingVer3.6_CHN.png!/fw/64",
+				source: "Bwiki \u5386\u53F2\u8DC3\u8FC1",
+				url: "https://wiki.biligame.com/sr/api.php?action=parse&page=%E5%8E%86%E5%8F%B2%E8%B7%83%E8%BF%81&prop=text&format=json&formatversion=2",
+				// 独立活动源：星铁活动一览（api.php 带 origin=* 可浏览器直连；「活动时间」表含当期活动）
+				eventUrl: "https://wiki.biligame.com/sr/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
+				eventSource: "Bwiki \u6D3B\u52A8\u4E00\u89C8"
+		});
+
+		registerSource({
+				id: "zzz",
+				tz: TZ_CN,
+				parserVersion: 2,
+				name: "绝区零",
+				icon: "https://storage.moegirl.org.cn/moegirl/commons/3/3e/ZZZ_miYoYo_logo.jpg!/fw/64",
+				source: "官方公告",
+				// 默认卡池源=官网公告（api-takumi-static content_v2_user，经 host 代理，无 CORS、无需登录）：
+				// 「X.Y版本限时频段（上/下期）」公告含该期精确起止与限定 S 级代理人/音擎；
+				// 无当期频段公告或抓取失败时由抓取器自动回退 Bwiki 往期调频；也可在设置中手动切 Bwiki（备选）
+				url: ZZZ_NEWS_LIST_URL,
+				altSources: [
+					{ label: "Bwiki 往期调频", url: ZZZ_BWIKI_URL, fetcher: "zzz-bwiki" }
+				],
+				// 独立活动源：官方公告（api-takumi-static，与卡池侧同一接口，经 host 代理）。
+				// 「…活动说明」公告正文自带【活动时间】起止（含"X.Y版本更新后/版本结束"折算），
+				// 官方口径最及时；Bwiki 活动一览作为备选（编辑滞后时反而无当期内容）。
+				eventUrl: ZZZ_NEWS_LIST_URL,
+				eventSource: "官方公告",
+				eventAltSources: [
+					{
+						label: "Bwiki 活动一览",
+						url: "https://wiki.biligame.com/zzz/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
+						fetcher: "zzz-event-bwiki"
+					}
+				]
+		});
+
+		// ── 抓取器登记 ──
+		GACHA_FETCHERS["genshin"] = mkMediaWiki(bwikiGachaPayload);
+		GACHA_FETCHERS["hsr"] = mkMediaWiki(bwikiGachaPayload);
+		GACHA_FETCHERS["zzz"] = (url, signal, tz) => fetchZzzGacha(url, signal, tz);
+		GACHA_FETCHERS["zzz-bwiki"] = mkMediaWiki(pickCurrent(parseAllBwiki));
+					// 原神：活动一览为 JS 动态加载（Dquery+SMW），走 SMW ask 查询（fetchYsActivity 忽略 URL 参数）
+EVENT_FETCHERS["genshin"] = {
+				default: (url, signal, tz) => fetchYsActivity(signal, tz)
+			};
+					// 星铁：活动一览（静态「活动时间」表，api.php 可直连）→ 外显当期 + 悬停列出全部并行活动
+EVENT_FETCHERS["hsr"] = {
+				default: mkMediaWiki(genericEventPayload)
+			};
+					// 绝区零：默认=官方公告（api-takumi-static，与卡池侧同一接口；活动时间写在公告正文里，
+			// 含"X.Y版本更新后/版本结束"的换算；结束时间未知的活动保留并沉底）→ 备选=Bwiki 活动一览
+EVENT_FETCHERS["zzz"] = {
+				default: (url, signal, tz) => fetchZzzEventsOfficial(url, signal, tz),
+				"zzz-event-bwiki": mkMediaWiki(genericEventPayload)
+			};
+
+		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
+		{
+
+			const e = SOURCES.find((s) => s.id === "genshin");
+
+			if (!e) { console.warn("[next-sources] 找不到既有条目 genshin，米游社公告备选未挂上"); }
+
+			else {
+
+				const G = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=2&type=1&page_size=20";
+
+				const E = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=2&type=2&page_size=20";
+
+				GACHA_FETCHERS["genshin-miyoushe"] = (url, signal, tz) => ns_miyoushe_gachaMiyoushe(url, signal, tz);
+
+				Object.assign(EVENT_FETCHERS["genshin"], { "genshin-miyoushe": { default: (url, signal, tz) => ns_miyoushe_eventsMiyoushe(url, signal, tz) } });
+
+				// 按 fetcher 去重，避免重复执行时堆叠
+
+				const ga = (e.altSources || []).filter((a) => a.fetcher !== "genshin-miyoushe");
+
+				const ea = (e.eventAltSources || []).filter((a) => a.fetcher !== "genshin-miyoushe");
+
+				e.altSources = [...ga, { label: "米游社公告", url: G, fetcher: "genshin-miyoushe" }];
+
+				e.eventAltSources = [...ea, { label: "米游社公告", url: E, fetcher: "genshin-miyoushe" }];
+
+			}
+
+		}
+		{
+
+			const e = SOURCES.find((s) => s.id === "hsr");
+
+			if (!e) { console.warn("[next-sources] 找不到既有条目 hsr，米游社公告备选未挂上"); }
+
+			else {
+
+				const G = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=6&type=1&page_size=20";
+
+				const E = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=6&type=2&page_size=20";
+
+				GACHA_FETCHERS["hsr-miyoushe"] = (url, signal, tz) => ns_miyoushe_gachaMiyoushe(url, signal, tz);
+
+				Object.assign(EVENT_FETCHERS["hsr"], { "hsr-miyoushe": { default: (url, signal, tz) => ns_miyoushe_eventsMiyoushe(url, signal, tz) } });
+
+				// 按 fetcher 去重，避免重复执行时堆叠
+
+				const ga = (e.altSources || []).filter((a) => a.fetcher !== "hsr-miyoushe");
+
+				const ea = (e.eventAltSources || []).filter((a) => a.fetcher !== "hsr-miyoushe");
+
+				e.altSources = [...ga, { label: "米游社公告", url: G, fetcher: "hsr-miyoushe" }];
+
+				e.eventAltSources = [...ea, { label: "米游社公告", url: E, fetcher: "hsr-miyoushe" }];
+
+			}
+
+		}
+		{
+
+			const e = SOURCES.find((s) => s.id === "zzz");
+
+			if (!e) { console.warn("[next-sources] 找不到既有条目 zzz，米游社公告备选未挂上"); }
+
+			else {
+
+				const G = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=8&type=1&page_size=20";
+
+				const E = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=8&type=2&page_size=20";
+
+				GACHA_FETCHERS["zzz-miyoushe"] = (url, signal, tz) => ns_miyoushe_gachaMiyoushe(url, signal, tz);
+
+				Object.assign(EVENT_FETCHERS["zzz"], { "zzz-miyoushe": { default: (url, signal, tz) => ns_miyoushe_eventsMiyoushe(url, signal, tz) } });
+
+				// 按 fetcher 去重，避免重复执行时堆叠
+
+				const ga = (e.altSources || []).filter((a) => a.fetcher !== "zzz-miyoushe");
+
+				const ea = (e.eventAltSources || []).filter((a) => a.fetcher !== "zzz-miyoushe");
+
+				e.altSources = [...ga, { label: "米游社公告", url: G, fetcher: "zzz-miyoushe" }];
+
+				e.eventAltSources = [...ea, { label: "米游社公告", url: E, fetcher: "zzz-miyoushe" }];
+
+			}
+
+		}

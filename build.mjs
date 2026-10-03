@@ -30,37 +30,38 @@ const OUT_CORE_PKG = path.join(ROOT, "packages", "core", "package.json");
 
 // 拼接顺序（= 原产物的 //#region 顺序，改了这里就等于改了产物结构）
 const ORDER = [
-  "05-version.js",     // 插件版本号（占位符，由本脚本用根 package.json 注入）
-  "00-head.js",        // DSH 模块加载壳 + react require
-  "10-config.js",      // 配置常量
-  "15-env.js",         // core 环境注入缝（transport / now / 计时器）
-  "20-sources.js",     // SOURCES 来源注册表（内置 11 款游戏）
-  "30-parsers.js",     // 内置源的解析器（纯函数）+ 共用判定（当期/长期/年份）+ 共用工具（解码/悬停/时间戳）
-  "40-fetchers.js",    // 抓取器 + 两个来源注册表（GACHA_FETCHERS / EVENT_FETCHERS）
-  // ── 另外 17 款游戏（2026-10-03「不留 next-source」：原 next-sources/ 压平成普通源码段）──
-  // 2026-10-03 用户要求「按游戏厂商分类合并」：17 个文件 → 6 个（一个厂商/系列一个文件），
-  // 符号名（`ns_<域>_` 前缀）**未动**，所以导出表 / 测试 / 注册表都不受影响。顺序无关紧要
-  // （各域前缀互不冲突，函数声明会提升），按"单游戏 → 厂商系列"排列便于阅读。
-  "42-parsers-p5x.js",        // 完美世界：女神异闻录：夜幕魅影
-  "42-parsers-bandori.js",    // BanG Dream 全系：国服手游 / OurNotes 日服 / OurNotes 国际服 / Bestdori 备选
-  "42-parsers-bwiki.js",      // bwiki 系：物华弥新 / 战双 / 卡厄斯 / 雪松 + 4 个备选源
-  "42-parsers-biligame.js",   // biligame 官方公告系：物华弥新 / 闪耀优俊少女 / 嘟嘟脸恶作剧
-  "42-parsers-cygames.js",    // Cygames 系：赛马娘 日服 / 国际服
-  "42-parsers-sekai.js",      // 初音未来：缤纷舞台·国服
-  "42-parsers-gf2.js",        // 少女前线2：追放
-  "42-parsers-fgo.js",        // Fate/Grand Order
-  "42-parsers-miyoushe.js",   // 米哈游：米游社公告（崩坏3/原神/星铁/绝区零 备选源）
-  "42-parsers-stellasora.js", // 悠星：星塔旅人
-  "44-test-exports.js",// 回归出口：解析器 + env 工具（外层作用域，测试用）
-  "50-refresh.js",     // 刷新编排、失败沿用旧值
-  "60-helpers.js",     // 共用纯函数：状态归一 / 提示文案 / 显隐 / 格式化 / 排序 / 启动刷新判定
-  "engine-head.js",    // core 引擎外壳：createEngine（面板只通过它拿 Result JSON）
-  "engine-api.js",     // 引擎 API：refresh() / 测试出口 / return
-  "70-styles.js",      // 样式
-  "80-components.js",  // React 组件（面板 + 设置页）
-  "90-plugin.js",      // apply(ctx)：slots / configForms / 悬停 marquee
-  "92-dsh-env.js",     // DSH 环境适配：注入 transport（直连 + 宿主代理）
-  "99-tail.js"         // exports.apply / exports.inject / return
+  "05-version.js",             // 插件版本号（占位符，由本脚本用根 package.json 注入）
+  "00-head.js",                // DSH 模块加载壳 + react require
+  "10-config.js",              // 配置常量
+  "15-env.js",                 // core 环境注入缝（transport / now / 计时器）
+  "20-source-core.js",         // **模块顶层**：SOURCES 容器 + registerSource（44-test-exports 与 60-helpers 都要能看见）
+  "21-fetcher-tables.js",      // 两张抓取器表（与游戏文件同层：每引擎一份）
+  "22-fetcher-core.js",        // 抓取公共设施（抓取桥接 / 通用载荷 / 备选源解析）——与游戏文件同层
+  "25-parser-shared.js",       // 共用判定（当期/长期/年份）+ 悬停排版 + 解码 + 时间 + 选择
+  "30-game-hoyoverse.js",
+  "30-game-kuro.js",
+  "30-game-hypergryph.js",
+  "30-game-bluearchive.js",
+  "30-game-bandori.js",
+  "30-game-bwiki.js",
+  "30-game-biligame.js",
+  "30-game-cygames.js",
+  "30-game-perfectworld.js",
+  "30-game-sunborn.js",
+  "30-game-aniplex.js",
+  "30-game-sega.js",
+  "30-game-yostar.js",
+  "30-game-bluepoch.js",
+  "44-test-exports.js",        // 回归出口：解析器 + env 工具 + 来源表（挂 exports.__regression，测试用）
+  "50-refresh.js",             // 刷新编排、失败沿用旧值
+  "60-helpers.js",             // 共用纯函数：状态归一 / 提示文案 / 显隐 / 格式化 / 排序 / 启动刷新判定
+  "engine-head.js",            // core 引擎外壳：createEngine（面板只通过它拿 Result JSON）
+  "engine-api.js",             // 引擎 API：refresh() / 测试出口 / return
+  "70-styles.js",              // 样式
+  "80-components.js",          // React 组件（面板 + 设置页）
+  "90-plugin.js",              // apply(ctx)：slots / configForms / 悬停 marquee
+  "92-dsh-env.js",             // DSH 环境适配：注入 transport（直连 + 宿主代理）
+  "99-tail.js",                // exports.apply / exports.inject / return
 ];
 
 // 第二个产物：dist/core.mjs —— 独立、零依赖的 ESM 模块，供浏览器扩展 / Windows / 原生平台 import。
@@ -77,27 +78,31 @@ const ORDER = [
 //   bh3 那处有 `some()` 守卫）。往 `40` 里再加"push 一条来源"时务必同样处理，否则多建几个引擎就会堆叠。
 //   回归守卫：`test/cases-core.mjs`（建两次引擎，断言 SOURCES 不增长）。
 const CORE_ORDER = [
-  "05-version.js",     // 插件版本号（占位符，由本脚本注入）
-  "10-config.js",      // 默认配置（DEFAULT_SETTINGS / REFRESH_OPTIONS）
-  "20-sources.js",     // SOURCES 来源注册表（内置 11 款）
-  "60-helpers.js",     // 共用纯函数（core 与 UI 都要用）
-  "engine-head.js",    // createEngine 外壳：storage 读写 / listGames / getCached
-  "15-env.js",         // core 环境注入缝
-  "30-parsers.js",     // 内置源解析器 + 共用判定 + 共用工具（含原 41-sources-shared.js）
-  "40-fetchers.js",    // 抓取器 + 两张来源表 + 另外 17 款游戏的条目/抓取器登记（含原 43）
-  // ── 另外 17 款游戏的解析器（随 C2 一并进 core）──
-  "42-parsers-p5x.js",
-  "42-parsers-bandori.js",
-  "42-parsers-bwiki.js",
-  "42-parsers-biligame.js",
-  "42-parsers-cygames.js",
-  "42-parsers-sekai.js",
-  "42-parsers-gf2.js",
-  "42-parsers-fgo.js",
-  "42-parsers-miyoushe.js",
-  "42-parsers-stellasora.js",
-  "50-refresh.js",     // 刷新编排
-  "engine-api.js"      // 注入 env + refresh() + 测试出口 + return
+  "05-version.js",             // 插件版本号（占位符，由本脚本注入）
+  "10-config.js",              // 默认配置（DEFAULT_SETTINGS / REFRESH_OPTIONS）
+  "20-source-core.js",         // **模块顶层**容器：SOURCES / registerSource
+  "60-helpers.js",             // 共用纯函数（core 与 UI 都要用）
+  "engine-head.js",            // createEngine 外壳：storage 读写 / listGames / getCached
+  "21-fetcher-tables.js",      // **每引擎一份**的两张抓取器表
+  "15-env.js",                 // core 环境注入缝
+  "22-fetcher-core.js",        // 抓取公共设施
+  "25-parser-shared.js",       // 共用判定与工具
+  "30-game-hoyoverse.js",
+  "30-game-kuro.js",
+  "30-game-hypergryph.js",
+  "30-game-bluearchive.js",
+  "30-game-bandori.js",
+  "30-game-bwiki.js",
+  "30-game-biligame.js",
+  "30-game-cygames.js",
+  "30-game-perfectworld.js",
+  "30-game-sunborn.js",
+  "30-game-aniplex.js",
+  "30-game-sega.js",
+  "30-game-yostar.js",
+  "30-game-bluepoch.js",
+  "50-refresh.js",             // 刷新编排
+  "engine-api.js",             // 注入 env + refresh() + 测试出口 + return
 ];
 
 const sha = (s) => crypto.createHash("sha256").update(s, "utf8").digest("hex");

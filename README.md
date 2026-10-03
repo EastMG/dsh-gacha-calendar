@@ -91,7 +91,7 @@ npm run publish:plugin   # 发布 DSH 插件包（dsh-gacha-calendar）
 npm run publish:core     # 发布中立核心包（gacha-calendar-core，版本号跟随根包）
 ```
 
-**源站改版时只需改一处**：改 `src/client/30-parsers.js` 等核心文件 → `npm run build` → 两个包一起发版，各平台重新构建即可。
+**源站改版时只需改一处**：改 `src/client/25-parser-shared.js` 或对应的 `src/client/30-game-*.js` → `npm run build` → 两个包一起发版，各平台重新构建即可。
 
 - `src/` 是唯一真源，`lib/` 与 `packages/core/` 都是**构建产物，不要手改**。
 - `build.mjs` 做三件事：按 `ORDER` 原样拼接 `src/client/*.js` → `lib/client.js`（DSH 的 `__ModuleLoader__` 工厂形态）；复制 `src/index.js` → `lib/index.js`；把 core 主体包成 `packages/core/core.mjs`（ESM 导出 `createEngine`）。拼接逐字节确定，所以 `check` 能给出"一致/不一致"的确定结论；同时会把根 `package.json` 的版本号注入两个产物。
@@ -111,19 +111,24 @@ dsh-gacha-calendar/
 │       ├── 00-head.js        # DSH 模块加载壳 + react require
 │       ├── 10-config.js      # 默认配置 / 刷新频率选项
 │       ├── 15-env.js         # core 环境缝：transport / 时钟 / 计时器
-│       ├── 20-sources.js     # 11 款游戏的来源声明（默认源 + 备选源；其余 17 款在 40-fetchers.js 末尾登记）
-│       ├── 30-parsers.js     # 11 款游戏的解析器 + 共用判定（当期/长期/年份）+ 共用工具（抓取桥接 / 悬停排版 / 实体解码 / 时间戳排序）
-│       ├── 40-fetchers.js    # 抓取器 + GACHA_FETCHERS / EVENT_FETCHERS 注册表 + 另外 17 款游戏的条目与抓取器登记（原 43-sources-register.js）
-│       ├── 42-parsers-p5x.js # 完美世界
-│       ├── 42-parsers-bandori.js # BanG Dream
-│       ├── 42-parsers-bwiki.js # bwiki
-│       ├── 42-parsers-biligame.js # biligame
-│       ├── 42-parsers-cygames.js # Cygames
-│       ├── 42-parsers-sekai.js # 世嘉
-│       ├── 42-parsers-gf2.js # 散爆
-│       ├── 42-parsers-fgo.js # Aniplex/TYPE-MOON
-│       ├── 42-parsers-miyoushe.js # 米游社
-│       ├── 42-parsers-stellasora.js # 悠星
+│       ├── 20-source-core.js  # 来源容器 SOURCES + registerSource（模块顶层）
+│       ├── 21-fetcher-tables.js # GACHA_FETCHERS / EVENT_FETCHERS（与游戏文件同层：每引擎一份）
+│       ├── 22-fetcher-core.js # 抓取公共设施：抓取桥接 / 通用载荷 / 备选源解析
+│       ├── 25-parser-shared.js # 共用判定（当期 / 长期 / 年份）+ 悬停排版 + 实体解码 + 时间 + 选择
+│       ├── 30-game-hoyoverse.js   # 米哈游：原神 / 星穹铁道 / 绝区零（含米游社备选源与崩坏3）
+│       ├── 30-game-kuro.js        # 库洛：鸣潮
+│       ├── 30-game-hypergryph.js  # 鹰角：明日方舟 / 终末地
+│       ├── 30-game-bluearchive.js # 蔚蓝档案：国服 / 国际服 / 日服
+│       ├── 30-game-bandori.js     # BanG Dream：国服手游 / OurNotes 日服 / 国际服（Bestdori 备选）
+│       ├── 30-game-bwiki.js       # bwiki 系：物华弥新 / 战双 / 卡厄斯 / 雪松
+│       ├── 30-game-biligame.js    # biligame 系：嘟嘟脸恶作剧 / 闪耀优俊少女
+│       ├── 30-game-cygames.js     # Cygames：赛马娘 日服 / 国际服（umapyoi 备选）
+│       ├── 30-game-perfectworld.js # 完美世界：女神异闻录：夜幕魅影 / 异环
+│       ├── 30-game-sunborn.js     # 散爆：少女前线2：追放
+│       ├── 30-game-aniplex.js     # Aniplex / TYPE-MOON：Fate/Grand Order
+│       ├── 30-game-sega.js        # 世嘉：初音未来：缤纷舞台
+│       ├── 30-game-yostar.js      # 悠星：星塔旅人
+│       ├── 30-game-bluepoch.js    # 深蓝互动：重返未来：1999
 │       ├── 44-test-exports.js # 回归出口：解析器 + env 工具 + 来源表
 │       ├── 50-refresh.js     # 刷新编排、失败沿用旧值、提示归类
 │       ├── 60-helpers.js     # 顶部提示归类 / 显隐判定 / 排序 / 角色名与倒计时格式化 / 启动刷新判定

@@ -1,3 +1,14 @@
+// src/client/30-game-cygames.js —— Cygames（赛马娘 日服 / 国际服）
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+
+		// ══ 以下为原 42-parsers-cygames.js 的内容（原样保留）══
 // src/client/42-parsers-cygames.js —— Cygames 系（赛马娘 日服 / 国际服）
 //
 // ⚠️ 2026-10-03 按**游戏厂商 / 来源平台**合并（用户要求）：原先一款游戏一个文件（17 个），
@@ -764,3 +775,44 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 	const data = await fetchJson(url || ns_umapyoi_DEFAULT_URL, { signal, mode: "direct" });
 	return ns_umapyoi_parseUmapyoiGacha(data, now, tz);
 }
+
+		// ── 条目 ──
+		registerSource({
+				id: "uma-jp",
+				tz: "Asia/Tokyo",
+				name: "赛马娘·日服",
+				icon: "https://umamusume.jp/apple-touch-icon.png",
+				url: "https://umamusume.jp/api/ajax/pr_info_index?format=json&page=1",
+				// 日文站点 → 加语言括号（本体惯例，见 ba-jp 的 `官方公告（日文）`）
+				source: "官方公告（日文）",
+				eventUrl: "https://umamusume.jp/api/ajax/pr_info_index?format=json&page=1",
+				eventSource: "官方公告（日文）",
+				altSources: [{"label":"umapyoi（第三方，无卡池名）","url":"https://api.umapyoi.net/api/v1/gacha","fetcher":"uma-jp-umapyoi"}],
+				eventAltSources: [{"label":"Bwiki 活动（往期归档）","url":"https://wiki.biligame.com/umamusume/api.php?action=parse&page=活动&prop=text&format=json&formatversion=2","fetcher":"uma-jp-bwiki"}],
+		});
+
+		registerSource({
+				id: "uma-global",
+				tz: "UTC",
+				name: "赛马娘·国际服",
+				icon: "https://play-lh.googleusercontent.com/yN6cCSP7UB_2bsvlCxrtv-FUpEt1IvEFwr0Ucb3wr39QsAd5PLsueSVXuCinDbE4rifhMlX4YNtpLpkGnpsLhCQ=s64-rw",
+				url: "https://umamusume.com/api/ajax/pr_info_index?format=json",
+				// 英文站点 → 加语言括号（本体惯例，见 ba-jp 的 `官方公告（日文）`）
+				source: "官方公告（英文）",
+				eventUrl: "https://umamusume.com/api/ajax/pr_info_index?format=json",
+				eventSource: "官方公告（英文）",
+		});
+
+		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
+		GACHA_FETCHERS["uma-jp"] = (url, signal, tz) => ns_umamusume_official_gachaUmaJpOfficial(url, signal, tz);
+		GACHA_FETCHERS["uma-global"] = (url, signal, tz) => ns_umamusume_official_gachaUmaGlobal(url, signal, tz);
+		EVENT_FETCHERS["uma-jp"] = Object.assign(EVENT_FETCHERS["uma-jp"] || {}, { default: (url, signal, tz) => ns_umamusume_official_eventsUmaJpOfficial(url, signal, tz) });
+		EVENT_FETCHERS["uma-global"] = Object.assign(EVENT_FETCHERS["uma-global"] || {}, { default: (url, signal, tz) => ns_umamusume_official_eventsUmaGlobal(url, signal, tz) });
+		GACHA_FETCHERS["uma-jp-umapyoi"] = (url, signal, tz) => ns_umapyoi_gachaUmapyoi(url, signal, tz);
+		EVENT_FETCHERS["uma-jp"] = EVENT_FETCHERS["uma-jp"] || {};
+
+		Object.assign(EVENT_FETCHERS["uma-jp"], {
+
+			"uma-jp-bwiki": { default: (url, signal, tz) => ns_bwiki_eventsUmaJp(url, signal, tz) },
+
+		});

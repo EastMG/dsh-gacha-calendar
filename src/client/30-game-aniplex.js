@@ -1,3 +1,14 @@
+// src/client/30-game-aniplex.js —— Aniplex / TYPE-MOON（Fate/Grand Order）
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+
+		// ══ 以下为原 42-parsers-fgo.js 的内容（原样保留）══
 // src/client/35-parsers-fgo.js
 //
 // 由 next-sources/parsers/fgo.js 压平而来（2026-10-03「不留 next-source」）。
@@ -283,3 +294,19 @@ async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ) {
 		...(r.eventHover ? { eventHover: r.eventHover } : {})
 	};
 }
+
+		// ── 条目 ──
+		registerSource({
+				id: "fgo",
+				tz: "Asia/Shanghai",
+				name: "Fate/Grand Order",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/db/d4/19/dbd4196a-68cb-8a74-ca0b-045d0795e10c/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
+				url: "https://fgo.wiki/api.php?action=parse&page=%E5%8D%A1%E6%B1%A0%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
+				source: "Bwiki",
+				eventUrl: "https://fgo.wiki/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
+				eventSource: "Bwiki",
+		});
+
+		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
+		GACHA_FETCHERS["fgo"] = (url, signal, tz) => ns_fgo_gachaFgo(url, signal, tz);
+		EVENT_FETCHERS["fgo"] = Object.assign(EVENT_FETCHERS["fgo"] || {}, { default: (url, signal, tz) => ns_fgo_eventsFgo(url, signal, tz) });

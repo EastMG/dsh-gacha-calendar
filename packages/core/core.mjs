@@ -52,276 +52,39 @@
 		};
 		//#endregion
 
-		//#region data sources
-		// 数据源声明：不含任何内置快照数据（无联网抓取时对应列显示为空）。
-		// 卡池来源（url/altSources）与活动来源（eventUrl/eventAltSources）完全独立、各自单独选择；
-		// 默认活动源与卡池源相同时（ba-*/r1999 的公告同时含卡池与活动），仍作为独立来源存在，
-		// 抓取时同 URL 单次请求复用，换用其他来源时独立抓取。
-		// 明日方舟来源地址：默认=官方公告 CMS（web-news.hypergryph.com）；PRTS 卡池一览为备选（mediawiki，浏览器直连）
-		// —— 源站时区（`tz`）——
-		// 每个条目声明其**源站墙上时钟所用时区**，由 15-env.js 的 sourceInstant() 换算成绝对时刻。
-		// 只影响"绝对时刻"（倒计时 / 是否在开），**显示文本仍是源站墙钟原文**（与游戏内公告一致）。
-		// 取值依据（2026-10-01 实测源站标注，详见交接文档 §59）：
-		//   · 国服系（原神/星铁/绝区零/鸣潮/方舟/终末地/蔚蓝国服/1999/异环）→ UTC+8
-		//     其中绝区零正文标 `UTC+8`×17、鸣潮 `UTC+8`×10、1999 `UTC+8`×1
-		//   · 蔚蓝日服 → `Asia/Tokyo`（正文标 `JST`×3）
-		//   · 蔚蓝国际服 → `UTC`（国际服标准重置点 = UTC 01:59，公告写"上午9點59分"）
-		//   · 未声明 → 沿用本机时区（与改造前一致）
-		const TZ_CN = "Asia/Shanghai";      // UTC+8：国服一览
-		const TZ_JP = "Asia/Tokyo";         // UTC+9：日服
-		const TZ_UTC = "UTC";               // UTC  ：国际服
-		const AK_OFFICIAL_BULLETIN = "https://web-news.hypergryph.com/api/bulletin";
-		const ARKNIGHTS_OFFICIAL_LIST_URL = AK_OFFICIAL_BULLETIN + "?lang=zh-cn&code=arknights&page=1&pageSize=30";
-		const ARKNIGHTS_PRTS_URL = "https://prts.wiki/api.php?action=parse&page=%E5%8D%A1%E6%B1%A0%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2";
-		// 鸣潮官方公告（aki-gm-resources-back）：entrypoint.json → 目录（含 hash）→ <dir>/zh-Hans.json 全量公告，
-		// 其中 recommend 组含逐期「角色/武器活动唤取」公告，正文带 ✦活动时间✦ 起止
-		const WUWA_NOTICE_ENTRY = "https://aki-gm-resources-back.aki-game.com/gamenotice/G152/76402e5b20be2c39f095a152090afddc/entrypoint.json";
-		const WUWA_BWIKI_URL = "https://wiki.biligame.com/wutheringwaves/api.php?action=parse&page=%E9%A6%96%E9%A1%B5%2F%E8%A7%92%E8%89%B2%E8%BD%AE%E6%8D%A2%E6%B1%A0&prop=text&format=json&formatversion=2";
-		// 鸣潮 Bwiki 活动日历页（已从**默认活动源降级为备选**，2026-10-01）：
-		// 该页仍可解析（parseWuwaCalendar 能抽到 11 条），但**已停更**——最新一条结束于 2026/9/29，
-		// 没有当期 3.7 的活动，所以不改解析器，只把它挪到备选。
-		const WUWA_EVENT_BWIKI_URL = "https://wiki.biligame.com/wutheringwaves/api.php?action=parse&page=%E9%A6%96%E9%A1%B5%2F%E6%B4%BB%E5%8A%A8%E6%97%A5%E5%8E%86&prop=text&format=json&formatversion=2";
-		// 绝区零官网公告（api-takumi-static content_v2_user，经 host 代理；无 CORS、无需登录）：
-		// iChanId=279（公告频道）返回逐条公告正文（sIntro/sContent），其中「X.Y版本限时频段（上/下期）」
-		// 含该期精确起止 + 限定 S 级代理人/音擎；起点写「版本更新后」时取同版本「更新公告」的 dtStartTime。
-		const ZZZ_NEWS_LIST_URL = "https://api-takumi-static.mihoyo.com/content_v2_user/app/706fd13a87294881/getContentList?iChanId=279&iPageSize=50&iPage=1&sLangKey=zh-cn";
-		const ZZZ_BWIKI_URL = "https://wiki.biligame.com/zzz/api.php?action=parse&page=%E5%BE%80%E6%9C%9F%E8%B0%83%E9%A2%91&prop=text&format=json&formatversion=2";
-		// 蔚蓝档案·日服 官网新闻接口（api-web.bluearchive.jp，经 host 代理；无 CORS、无需登录）：
-		// 返回 {data:{rows:[{id,title(お知らせ/イベント/メンテナンス),summary,content,publishTime}],count}}，
-		// 「ピックアップ募集紹介」条目内含逐池「ピックアップ名／ピックアップ生徒／実施期間」。
-		const BA_JP_NEWS_URL = "https://api-web.bluearchive.jp/api/news/list?pageIndex=1&pageNum=30";
-		// 重返未来1999：默认=官方**游戏内公告**接口（noticecp），它有官网 CMS 不发布的逐期「征集时间」
-		// （正文「X.X「…」版本活动一览」按段落给出【征集时间】起止与 UP 角色）；
-		// 备选=官网新闻 API（只有维护时间与活动名，无逐期征集时间）。
-		const R1999_NOTICE_URL = "https://notice.sl916.com/noticecp/client/query?gameId=50001&channelId=100&subChannelId=1009&serverType=4";
-		const R1999_OFFICIAL_URL = "https://re.bluepoch.com/activity/official/websites/information/query";
-		const SOURCES = [
-			{
-				id: "genshin",
-				tz: TZ_CN,
-				// parserVersion：该条目「解析逻辑」的版本号 —— 源站改版/规则更新后 +1。
-				// 用途：无服务端分发时定位「坏了的是哪个版本的用户、哪个源」（见交接文档 §13.4）。
-				parserVersion: 1,
-				name: "原神",
-				icon: "https://storage.moegirl.org.cn/moegirl/commons/b/b0/%E5%8E%9F%E7%A5%9E%E5%9B%BE%E6%A0%87.png!/fw/64",
-				source: "Bwiki \u5F80\u671F\u7948\u613F",
-				url: "https://wiki.biligame.com/ys/api.php?action=parse&page=%E5%BE%80%E6%9C%9F%E7%A5%88%E6%84%BF&prop=text&format=json&formatversion=2",
-				// 独立活动源：原神活动一览为 JS 动态加载（Dquery+SMW），经 SMW ask 查询开始/结束时间
-				eventUrl: "https://wiki.biligame.com/ys/api.php?action=ask&query=%5B%5B%E5%88%86%E7%B1%BB%3A%E6%B4%BB%E5%8A%A8%5D%5D&format=json",
-				eventSource: "Bwiki \u6D3B\u52A8\u4E00\u89C8"
-			},
-			{
-				id: "hsr",
-				tz: TZ_CN,
-				parserVersion: 1,
-				name: "崩坏：星穹铁道",
-				icon: "https://storage.moegirl.org.cn/moegirl/commons/3/38/HonkaiStarRailIcon_StartingVer3.6_CHN.png!/fw/64",
-				source: "Bwiki \u5386\u53F2\u8DC3\u8FC1",
-				url: "https://wiki.biligame.com/sr/api.php?action=parse&page=%E5%8E%86%E5%8F%B2%E8%B7%83%E8%BF%81&prop=text&format=json&formatversion=2",
-				// 独立活动源：星铁活动一览（api.php 带 origin=* 可浏览器直连；「活动时间」表含当期活动）
-				eventUrl: "https://wiki.biligame.com/sr/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
-				eventSource: "Bwiki \u6D3B\u52A8\u4E00\u89C8"
-			},
-			{
-				id: "zzz",
-				tz: TZ_CN,
-				parserVersion: 2,
-				name: "绝区零",
-				icon: "https://storage.moegirl.org.cn/moegirl/commons/3/3e/ZZZ_miYoYo_logo.jpg!/fw/64",
-				source: "官方公告",
-				// 默认卡池源=官网公告（api-takumi-static content_v2_user，经 host 代理，无 CORS、无需登录）：
-				// 「X.Y版本限时频段（上/下期）」公告含该期精确起止与限定 S 级代理人/音擎；
-				// 无当期频段公告或抓取失败时由抓取器自动回退 Bwiki 往期调频；也可在设置中手动切 Bwiki（备选）
-				url: ZZZ_NEWS_LIST_URL,
-				altSources: [
-					{ label: "Bwiki 往期调频", url: ZZZ_BWIKI_URL, fetcher: "zzz-bwiki" }
-				],
-				// 独立活动源：官方公告（api-takumi-static，与卡池侧同一接口，经 host 代理）。
-				// 「…活动说明」公告正文自带【活动时间】起止（含"X.Y版本更新后/版本结束"折算），
-				// 官方口径最及时；Bwiki 活动一览作为备选（编辑滞后时反而无当期内容）。
-				eventUrl: ZZZ_NEWS_LIST_URL,
-				eventSource: "官方公告",
-				eventAltSources: [
-					{
-						label: "Bwiki 活动一览",
-						url: "https://wiki.biligame.com/zzz/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
-						fetcher: "zzz-event-bwiki"
-					}
-				]
-			},
-			{
-				id: "wuwa",
-				tz: TZ_CN,
-				parserVersion: 2,
-				name: "鸣潮",
-				icon: "https://storage.moegirl.org.cn/moegirl/commons/2/29/WutheringWavesIcon.png!/fw/64",
-				source: "官方公告",
-				// 默认卡池源=官方公告（aki-gm-resources-back，经 host 代理）：
-				// entrypoint.json → <dir>/zh-Hans.json，其 `recommend` 组里 tag=7 为逐期「角色/武器活动唤取」，
-				// 条目自带 `startTimeMs`/`endTimeMs` 绝对时间戳（不再解析正文，见 parseWuwaNotice）。
-				// 无当期公告或抓取失败时由抓取器自动回退 Bwiki 角色轮换池；也可在设置中手动切 Bwiki（备选）
-				url: WUWA_NOTICE_ENTRY,
-				altSources: [
-					{ label: "Bwiki 角色轮换池", url: WUWA_BWIKI_URL, fetcher: "wuwa-bwiki" }
-				],
-				// 活动源：**默认=同一份官方公告**（`recommend` 组里 tag=5 为限时活动，见 parseWuwaRecommendEvents），
-				// 与卡池是**同一条 URL** → 一次请求复用两侧数据。
-				// ⚠️ 2026-10-01 改：Bwiki 活动日历页**已停更**（最新一条结束于 2026/9/29，无 3.7 内容），
-				// 所以把它从默认**降级为备选**（eventAltSources），仍可在设置里手动切回。
-				eventUrl: WUWA_NOTICE_ENTRY,
-				eventSource: "官方公告",
-				eventAltSources: [
-					{ label: "Bwiki 活动日历", url: WUWA_EVENT_BWIKI_URL, fetcher: "wuwa-event-bwiki" }
-				]
-			},
-			{
-				id: "arknights",
-				tz: TZ_CN,
-				// 2：档位改按池名判定（中坚优先）+ 外显与悬停共用同一份排序列表（v0.9.25 修）
-				parserVersion: 2,
-				name: "明日方舟",
-				icon: "https://storage.moegirl.org.cn/moegirl/commons/4/41/ArknightsAppIcon.png!/fw/64",
-				source: "官方公告+PRTS",
-				// 默认卡池源=官方公告 CMS（经 host 代理）：官方只对限时/联动类寻访发公告，
-				// 无当期寻访公告（常规轮换周）时由抓取器自动回退 PRTS；也可在设置中手动切 PRTS 卡池一览（备选）
-				url: ARKNIGHTS_OFFICIAL_LIST_URL,
-				altSources: [
-					{ label: "PRTS 卡池一览", url: ARKNIGHTS_PRTS_URL, fetcher: "arknights-prts" }
-				],
-				// 独立活动源：PRTS 活动一览（「活动开始时间」表 + data-time 起止时间戳）
-				eventUrl: "https://prts.wiki/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
-				eventSource: "PRTS \u6D3B\u52A8\u4E00\u89C8"
-			},
-			{
-				id: "endfield",
-				tz: TZ_CN,
-				parserVersion: 2,
-				name: "明日方舟：终末地",
-				icon: "https://storage.moegirl.org.cn/moegirl/commons/f/f1/ArknightsEndfieldAppIcon.png!/fw/64",
-				source: "Canmoe",
-				// 经 host 代理抓取（canmoe 无 CORS 头，浏览器直连会被拦截）；
-				// 数据在 Next.js 组件 chunk 的 JS 里，需先抓页面定位 chunk 再抓 chunk 解析
-				url: "https://end.canmoe.com/zh-CN/banner-calendar",
-				// 卡池备选来源（设置页下拉可切换；GachaTracker 浏览器直连，wiki.gg 经 host 代理）
-				altSources: [
-					{
-						label: "GachaTracker\uff08\u82F1\u6587\uff09",
-						url: "https://gachatracker.app/games/endfield/banners/",
-						fetcher: "endfield-gachatracker"
-					},
-					{
-						label: "wiki.gg\uff08\u82F1\u6587\uff09",
-						// wiki.gg 校验 Referer：抓取器内部经 host 代理（代理默认 Referer=目标 origin 满足要求）
-						url: "https://endfield.wiki.gg/api.php?action=parse&page=Headhunting%2FBanners&prop=text&format=json&formatversion=2",
-						fetcher: "endfield-wiki-gg"
-					}
-				],
-				// 独立活动源：FZ Wiki（中文社区维护，经 host 代理抓 RSC 数据；当期并行活动选结束最晚）
-				eventUrl: "https://fz.wiki/wiki/%E6%B4%BB%E5%8A%A8",
-				eventSource: "FZ Wiki",
-				// 活动备选来源：Game8（英文，经 host 代理）
-				eventAltSources: [
-					{ label: "Game8\uff08\u82F1\u6587\uff09", url: "https://game8.co/games/Arknights-Endfield/archives/535443", fetcher: "endfield-game8" }
-				]
-			},
-			{
-				id: "ba-cn",
-				tz: TZ_CN,
-				parserVersion: 1,
-				name: "蔚蓝档案·国服",
-				icon: "https://webcnstatic.yostar.net/ba_cn_web/prod/web/favicon.png?x-oss-process=image/resize,w_64",
-				source: "\u5B98\u7F51\u516C\u544A",
-				// 经 host 代理 POST 抓取（官网 CORS=null + 动态 SPA）；维护说明同时含当期卡池与活动
-				url: "https://bluearchive-cn.com/api/news/list?pageIndex=1&pageNum=30&type=",
-				// 活动默认源与卡池源相同（同一公告解析活动名），可独立切换
-				eventUrl: "https://bluearchive-cn.com/api/news/list?pageIndex=1&pageNum=30&type=",
-				eventSource: "\u5B98\u7F51\u516C\u544A"
-			},
-			{
-				id: "ba-global",
-				tz: TZ_UTC,
-				parserVersion: 1,
-				name: "蔚蓝档案·国际服",
-				icon: "https://storage.moegirl.org.cn/moegirl/commons/2/25/AppIcon_Arona.png!/fw/64",
-				source: "Nexon \u66F4\u65B0\u65E5\u8A8C",
-				// 经 host 代理抓取（nexon CORS 只允许同源）；「更新日誌」board(3352) 同时含当期卡池与活动排期
-				url: "https://forum.nexon.com/api/v1/board/3352/threads?alias=bluearchiveTW&countryCode=KR&pageNo=1&paginationType=PAGING&pageSize=30&blockSize=5&hideType=WEB",
-				// 卡池备选：GameKee（中文标题含排期；默认仍是 Nexon 官方更新日誌）
-				altSources: [
-					{ label: "GameKee \u5F53\u671F\u5361\u6C60", id: "ba-global:gamekee", fetcher: "ba-global-gamekee" }
-				],
-				// 活动默认源与卡池源相同（更新日誌解析活动排期），可独立切换（如 GameKee）
-				eventUrl: "https://forum.nexon.com/api/v1/board/3352/threads?alias=bluearchiveTW&countryCode=KR&pageNo=1&paginationType=PAGING&pageSize=30&blockSize=5&hideType=WEB",
-				eventSource: "Nexon \u66F4\u65B0\u65E5\u8A8C",
-				// 活动备选来源
-				eventAltSources: [
-					{ label: "GameKee \u5F53\u671F\u6D3B\u52A8", id: "ba-global:gamekee", fetcher: "ba-global-gamekee" }
-				]
-			},
-			{
-				id: "ba-jp",
-				tz: TZ_JP,
-				parserVersion: 1,
-				name: "蔚蓝档案·日服",
-				icon: "https://play-lh.googleusercontent.com/H975s6W1-boCSogzpF5_rIyawbjiXfG842ncgjIRiVGzhXHFTCVut0DkBhlDR4CgN1nn98OOC1fWN-LE7kUHnQ=s64",
-				source: "官方公告（日文）",
-				// 日服官网新闻接口（api-web.bluearchive.jp，经 host 代理）：「ピックアップ募集紹介」公告
-				// 内含逐池「ピックアップ名／ピックアップ生徒」与「実施期間」，可直接得到日文官方池名与 UP 生徒
-				url: BA_JP_NEWS_URL,
-				// 卡池备选：GameKee 当期卡池（原标题解析，只有池名+档期、无角色名）
-				altSources: [
-					{ label: "GameKee 当期卡池", id: "ba-jp:gamekee", fetcher: "ba-jp-gamekee" }
-				],
-				// 活动源与卡池源保持独立（解耦）：默认仍是原「GameKee 当期活动」条目；
-				// 官方公告的イベント条目作为**可选备选**（备选 value 用其接口地址，抓取器 ba-jp-official）
-				eventUrl: "https://www.gamekee.com/ba/huodong/15",
-				eventSource: "GameKee 当期活动",
-				eventAltSources: [
-					{ label: "官方公告（日文）", url: BA_JP_NEWS_URL, fetcher: "ba-jp-official" }
-				]
-			},
-			{
-				id: "r1999",
-				tz: TZ_CN,
-				parserVersion: 3,
-				name: "重返未来：1999",
-				icon: "https://play-lh.googleusercontent.com/LwcueZMBbLq6aELtqJVn61ToKkJUgxEO8O4KgK_5052hfYoDAglQJIzqSu8srUJeaOZwv36Qi5YKtsXZjo-JPg=s64",
-				source: "\u5B98\u65B9\u516C\u544A",
-				// 默认源＝官方**游戏内公告**接口（经 host 代理 GET）。逐期「征集时间」只在这里发布：
-				// 「版本活动一览」公告正文按段落给出【征集时间】起止 + 【征集说明】里的 6★/5★ UP 角色，
-				// 以及各活动的【活动时间】；一个版本上下半场两期都列在同一篇里（下期常提前公布）。
-				// 接口不可用/结构变了 → 自动回退官网公告解析（旧行为，无逐期时间）；也可在设置里手动切备选源。
-				// 来源名口径：默认「官方公告」（与绝区零等条目一致）；备选沿用旧版原名（卡池侧「官网公告+小米」/活动侧「官网公告」）
-				url: R1999_NOTICE_URL,
-				altSources: [
-					{ label: "\u5B98\u7F51\u516C\u544A+\u5C0F\u7C73", url: R1999_OFFICIAL_URL, fetcher: "r1999-official" }
-				],
-				// 活动源与卡池源是**同一条 URL**（同一篇「版本活动一览」同时含征集与活动），仍作为独立来源存在
-				eventUrl: R1999_NOTICE_URL,
-				eventSource: "\u5B98\u65B9\u516C\u544A",
-				eventAltSources: [
-					{ label: "\u5B98\u7F51\u516C\u544A", url: R1999_OFFICIAL_URL, fetcher: "r1999-official" }
-				]
-			},
-			{
-				id: "nte",
-				tz: TZ_CN,
-				parserVersion: 2,
-				name: "异环",
-				icon: "https://storage.moegirl.org.cn/moegirl/commons/8/8c/YH_APP.png!/fw/64",
-				source: "官网公告",
-				// 经 host 代理抓取（wanmei 跨域无 CORS）；官方公告（服务端渲染）含当期限定棋盘卡池 + 限时活动起止
-				url: "https://yh.wanmei.com/news/gamebroad/",
-				// 活动源同官网公告（同一公告同时含卡池与活动）
-				eventUrl: "https://yh.wanmei.com/news/gamebroad/",
-				eventSource: "官网公告",
-				// 备选：LDSHOP（静态表格，经 host 代理）
-				altSources: [
-					{ label: "LDSHOP", url: "https://www.ldshop.gg/tw/blog/nte/neverness-to-everness-banner.html", fetcher: "nte-ldshop" }
-				]
-			}
-		];
-		//#endregion
+// src/client/20-source-core.js —— 来源容器（模块顶层）
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+		// ── 来源容器：各游戏文件用 `registerSource` 追加自己的条目 ──
+		const SOURCES = [];
+
+		/** 登记一条来源。**幂等**：按 id 找到就 `Object.assign` 合并，否则追加。 */
+		function registerSource(entry) {
+			const i = SOURCES.findIndex((s) => s.id === entry.id);
+			if (i >= 0) Object.assign(SOURCES[i], entry);
+			else SOURCES.push(entry);
+		}
+
+
+		// ---- 统一来源注册表 ----
+		// 卡池来源与活动来源完全独立，契约如下：
+		// - GACHA_FETCHERS[id]：卡池字段抓取器（async (url, signal) → 数据对象 | null），
+		//   数据对象形如 {banner, roles?, bannerDates, event?, eventDates?}；
+		//   当活动源与卡池源同 URL 时，event/eventDates 由卡池载荷复用（避免重复请求）。
+		// - EVENT_FETCHERS[id]：活动源注册表（{ 默认抓取器, 备选抓取器... }），
+		//   抓取器同 GACHA_FETCHERS 契约；fetchEntry 只取其中的 event/eventDates 字段。
+		//   活动源与卡池源不同 URL 时独立抓取（来源选择互不影响）。
+		// - altSources / eventAltSources：备选源列表，字段为 { label, fetcher, url? , id? }
+		//   （url = 该来源的地址；id = 抓取器自带地址的内部来源标识）。
+		//   设置页选中后按 url ?? id 路由到对应抓取器；是否走 host 代理由抓取器自己决定。见 normalizeSourceId。
+
+		// 活动源注册表：条目 → { 默认 + 备选抓取器 }。没有独立活动源的条目活动来源显示"未配置"。
 
 		//#region helpers（core 与外壳共用：纯函数、零宿主依赖）
 		// —— 抓取状态与错误归一（统一机制，不做任何游戏特判）——
@@ -825,6 +588,20 @@ export function createEngine(env) {
 				}));
 			}
 
+// src/client/21-fetcher-tables.js —— 两张抓取器表（与游戏文件同层：每引擎一份）
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+		// ── 两张抓取器表（各游戏文件往里登记；必须在游戏文件之前声明，否则 TDZ）──
+		const GACHA_FETCHERS = {};
+
+		const EVENT_FETCHERS = {};
+
 		//#region core env（环境注入缝 —— core 零宿主依赖的唯一入口）
 		// core（配置 / 来源 / 解析器 / 抓取器 / 刷新 / helpers）里**不允许**直接碰宿主：
 		// 不写 window / document / Node API，也不直接 fetch、不直接读时钟。
@@ -997,6 +774,327 @@ export function createEngine(env) {
 		}
 		//#endregion
 
+// src/client/22-fetcher-core.js —— 抓取公共设施：抓取桥接 + 通用载荷 + 备选源解析
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+
+		// 角色名清理：去首尾方括号/空白（zzz 的 [希格莉德（强攻·冰）]）
+		function cleanRoles(roles) {
+			const r = stripTags(roles).replace(/^[\[【\s]+|[\]】\s]+$/g, "");
+			return r;
+		}
+
+
+		// 主池过滤：排除武器/光锥/音擎/回响/重映等副池
+		function isMainBanner(banner) {
+			if (!banner) return false;
+			if (/武器|光锥|音擎|回响|重映|神铸赋形|流光定影|溯回忆象/.test(banner)) return false;
+			return /角色活动祈愿|角色活动跃迁|独家频段|寻访|频段/.test(banner) || banner.includes("「");
+		}
+
+
+		// 通用抓取网页文本：MediaWiki api.php（action=parse）→ JSON 的 parse.text；其它 URL → 原始 HTML
+		//
+		// 同一轮里按 URL 缓存：两侧同址时（自定义条目最常见：用户把同一个页面同时填给
+		// 卡池与活动），需要在**不重复发请求**的前提下拿到同一份文本 —— 见 50-refresh.js
+		// 的「两侧同一条 URL、活动侧无注册抓取器」分支。缓存按轮清空（refreshAll 开始时重置），
+		// 避免跨轮拿到过期数据。
+		let htmlTextCache = null;
+
+		function resetHtmlTextCache() { htmlTextCache = new Map(); }
+
+		// **只读**查询：命中才返回，绝不发起请求。
+		// 用途见 50-refresh.js：两侧同址且活动侧没有注册抓取器时，**只有在卡池那次
+		// 已经通过本函数取过同一 URL 的情况下**才复用；否则宁可记"未公布"，
+		// 也**绝不**去打那次注定被 CORS 拦的直连（这条语义有测试守护，别改成会发请求）。
+		function peekHtmlText(url) {
+			return (htmlTextCache && htmlTextCache.get(url)) || null;
+		}
+
+		async function fetchHtmlText(url, signal) {
+			if (htmlTextCache && htmlTextCache.has(url)) return htmlTextCache.get(url);
+			const apiUrl = url + (url.includes("?") ? "&" : "?") + "origin=*";
+			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
+			if (!res.ok) throw new Error("http-" + res.status);
+			let out;
+			if (/action\s*=\s*parse/i.test(url)) {
+				const json = await res.json();
+				const text = json?.parse?.text;
+				if (typeof text !== "string") throw new Error("bad-json");
+				out = text;
+			} else {
+				out = await res.text();
+			}
+			if (htmlTextCache) htmlTextCache.set(url, out);
+			return out;
+		}
+
+
+		// 通用卡池解析（新增自定义条目的"卡池来源"地址用）：
+		// 依次尝试 bwiki 式「时间+版本」表、方舟式「限时寻访」表、GachaTracker 式日期表、
+		// Next.js SPA（canmoe 等，页面无表格、数据在组件 chunk 里），选当期；
+		// 最后再退到**普通 HTML 表**（见下方 collectGenericGacha）；
+		// 全部失败返回 null（调用方按解析失败处理，不做可达性健康检查）
+		async function tryParseGenericGacha(url, signal, tz) {
+			const html = await fetchHtmlText(url, signal);
+			const now = nowMs();
+			const cur = selectCurrent(parseAllBwiki(html, tz), now) || selectCurrent(parseArknights(html, tz), now);
+			if (cur && cur.banner && cur.bannerDates) return cur;
+			const gt = parseGachaTracker(html, tz);
+			if (gt && gt.banner && gt.bannerDates) return gt;
+			// Next.js SPA：HTML 无表格数据，定位组件 chunk 后抓 chunk JS 解析。
+			// chunk 与页面同源：页面能直连（CORS 允许）时 chunk 直连，否则经 host 代理。
+			const chunks = nextJsChunkUrls(html, "BannerCalendar", url);
+			for (const c of chunks) {
+				try {
+					const js = await fetchHtmlText(c, signal);
+					// 每个 chunk 只解析一次：解析里最重的是 chunk 的括号平衡扫描，
+					// 而"没命中当期"恰恰是最常见的情况 → 不要为了`a || b`那种写法白跑两遍
+					const d = parseCanmoe(js, now, tz);
+					if (d && d.banner && d.bannerDates) return d;
+				} catch { /* 下一个 chunk */ }
+			}
+			// 末位兜底：**普通 HTML 表**（时间 + 名称两列，或含「类型」列）。
+			// 为什么需要（2026-10-01 用户点名）：上面三条都是各自的**私有格式**
+			// （bwiki 卡池列 / PRTS 卡池一览 / GachaTracker），而用户给自定义条目
+			// 填一个普通 wiki 页面时，**活动列能出、卡池列恒空** —— 同一张表明显有内容。
+			// 这一兜底复用与活动侧同一套"时间+名称"列识别，保证自定义条目两侧口径一致。
+			const generic = selectCurrent(collectGenericGacha(html, tz), now);
+			if (generic && generic.banner && generic.bannerDates) return generic;
+			return null;
+		}
+
+
+		// 通用活动解析：扫描含「时间」（或「活动时间」）表头的表格，行内找时间与名称列，选当期
+		// 起始为"版本更新后"等无日期文本时保留 startTs=null，由 selectCurrent 的 fillMissingStarts 补全
+		function collectGenericEvents(html, tz) {
+			const items = [];
+			const tables = [...html.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/g)];
+			for (const t of tables) {
+				const body = t[1];
+				if (!/<th[^>]*>[^<]*时间[^<]*<\/th>/i.test(body)) continue;
+				// 「类型」列（如 版本活动/常规活动/剧情活动）→ 用于活动外显的类别优先级
+				const heads = [...body.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((m) => stripTags(m[1]).trim());
+				const catIdx = heads.findIndex((h) => /类型|類型/.test(h));
+				for (const rm of body.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)) {
+					const row = rm[1];
+					if (!/<td/i.test(row)) continue;
+					const tds = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) => stripTags(m[1]).trim());
+					if (tds.length < 2) continue;
+					// 时间列（含日期/区间）与名称列分开
+					let name = "", time = "";
+					for (const td of tds) {
+						if (!time && /20\d{2}[\/-]\d{1,2}[\/-]\d{1,2}|[~～]/.test(td)) time = td;
+						else if (td && !name) name = td;
+					}
+					if (!time || !name) continue;
+					// 名字里偶发混进图片文件名残渣（如「文件:巡星之礼第二十六期.png 」）→ 去掉该前缀
+					name = name.replace(/^文件:[^\s]*?\.(?:png|jpe?g|gif|webp|svg)\s*/i, "").trim();
+					if (!name) continue;
+					const range = parseRange(time, tz);
+					// 起始可为 null（"版本更新后"），结束时间必须有效——**除非这行是永久活动**。
+					// 原来这里一律 `endTs == null → continue`，把「…~永久」的行在采集阶段就丢了，
+					// 下游连"它存在过"都看不到（表现为源站表里有、面板悬停里没有）。
+					// 永久活动（结束写作「永久」）保留下来，由 genericEventPayload 单独计数；
+					// 其它无结束时间的行仍按旧规则丢弃（起止都拿不到，画不出来）。
+					const cat0 = catIdx >= 0 ? (tds[catIdx] || "") : "";
+					const isPermanent = range.endTs == null && (/永久/.test(cat0) || /永久\s*$/.test(String(range.raw || time)));
+					if (range.endTs == null && !isPermanent) continue;
+					items.push({ banner: name, cat: cat0, ...range, isMain: true });
+				}
+			}
+			return items;
+		}
+
+
+		// 当期活动（外显取 selectCurrent 的那条，行为同旧版）
+				// 通用**卡池**采集（末位兜底，2026-10-01 加）：
+		// 与 collectGenericEvents 同一套「时间 + 名称」列识别，但用于**卡池列**。
+		//
+		// 为什么需要：tryParseGenericGacha 前三条路径（parseAllBwiki / parseArknights /
+		// parseGachaTracker）认的都是各自源站的**私有结构**；用户给自定义条目填一个普通
+		// wiki 页面时，活动列（走 collectGenericEvents）能出内容，**卡池列却恒空**。
+		// 这一条让"同一张表、两侧都能读"，与活动侧口径一致。
+		//
+		// 与活动侧的唯一差别：**不丢"永久"行**（卡池没有"永久"语义，但也不该在采集阶段
+		// 就无声消失），并保留 roles 空串（普通表里没有角色列的结构约定）。
+		function collectGenericGacha(html, tz) {
+			const items = [];
+			const tables = [...html.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/g)];
+			for (const t of tables) {
+				const body = t[1];
+				if (!/<th[^>]*>[^<]*时间[^<]*<\/th>/i.test(body)) continue;
+				const heads = [...body.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((m) => stripTags(m[1]).trim());
+				const catIdx = heads.findIndex((h) => /类型|類型/.test(h));
+				for (const rm of body.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)) {
+					const row = rm[1];
+					if (!/<td/i.test(row)) continue;
+					const tds = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) => stripTags(m[1]).trim());
+					if (tds.length < 2) continue;
+					let name = "", time = "";
+					for (const td of tds) {
+						if (!time && /20\d{2}[\/-]\d{1,2}[\/-]\d{1,2}|[~～]/.test(td)) time = td;
+						else if (td && !name) name = td;
+					}
+					if (!time || !name) continue;
+					name = name.replace(/^文件:[^\s]*?\.(?:png|jpe?g|gif|webp|svg)\s*/i, "").trim();
+					if (!name) continue;
+					const range = parseRange(time, tz);
+					// 起止都拿不到的行画不出来（活动侧对"永久"有特例，卡池没有该语义）
+					if (range.startTs == null && range.endTs == null) continue;
+					const cat0 = catIdx >= 0 ? (tds[catIdx] || "") : "";
+					items.push({ banner: name, roles: "", cat: cat0, ...range, isMain: true });
+				}
+			}
+			return items;
+		}
+
+
+		// 活动列载荷：外显=排序第一条（最快结束的当期活动，③）；eventHover=全部覆盖当前时刻的活动（同序）。
+		// 注意 selectCurrent 会就地补全缺失起点（fillMissingStarts），故这里只取快照自行排序，
+		// 避免"版本更新后 ~ 未来"这类起点未给的行被补成未来起点而漏掉。
+		// 只有 1 条时 buildEventHover 返回 ""，由 UI 退回单条展示（兜底）。
+		function genericEventPayload(html, tz) {
+			const items = collectGenericEvents(html, tz);
+			// 页面拿到了却连一行候选都没有 → 活动表结构变了（抛错 = "活动失败"）；
+			// 有候选但当期没有覆盖现在的 → 下面返回 null（未公布）
+			if (items.length === 0) throw new Error("bwiki-event-no-table");
+			const snapshot = items.map((it) => ({ name: it.banner, cat: it.cat || "", startTs: it.startTs, endTs: it.endTs, raw: it.rawOriginal || it.raw }));
+			const now = nowMs();
+			// 永久/常驻活动单独计一项：它们 endTs 为 null，本就不该混进"当期"排序，
+			// 但也不能像以前那样无声丢掉（见 isPermanentEvent 注释）。
+			const permanent = snapshot.filter((it) => isPermanentEvent(it));
+			const active = sortEventItems(snapshot.filter((it) => coversNow(it, now)));
+			if (active.length === 0) return null;
+			// 外显：类别优先（剧情/叙事、限时高难），同级内结束时间升序；悬停仍按 endTs 升序全量
+			const primary = pickEventPrimary(active) || active[0];
+			return {
+				event: primary.name,
+				eventDates: primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs, tz) : (primary.raw || ""),
+				eventDatesRaw: primary.raw || "",
+				eventHover: buildEventHover(active, permanent.length)
+			};
+		}
+
+
+		// 通用活动源解析（自定义条目/自定义活动来源地址用）：抓取页面 → collectGenericEvents → {event, eventDates}
+		// ⚠️ 2026-10-03：原来这里还有个 `parseGenericEvents(html, tz)`（collectGenericEvents + selectCurrent 的组合），
+		//    经全仓引用分析确认**生产与测试都没用**（活路径走的是下面的 `genericEventPayloadFromHtml`，
+		//    它多一层"表里一行都没有 → null"的错误语义处理），已删。
+		async function tryParseGenericEvent(url, signal, tz) {
+			const html = await fetchHtmlText(url, signal);
+			return genericEventPayloadFromHtml(html, tz);
+		}
+
+
+		// 已拿到 HTML 时的活动载荷（**不抛错**版本）：
+		// 供「两侧同一条 URL、且活动侧没有注册抓取器」（自定义条目）复用卡池那次已经取到的
+		// HTML —— 省掉第二次请求，同时保证活动侧也能被通用解析命中。
+		// 与 genericEventPayload 的差别：表里一行都没有时返回 null（交给调用方按 nomatch 处理），
+		// 而不是抛 "bwiki-event-no-table"（那条错误语义是给"内置源站改版"用的）。
+		function genericEventPayloadFromHtml(html, tz) {
+			let items;
+			try { items = collectGenericEvents(html, tz); } catch { return null; }
+			if (items.length === 0) return null;
+			const cur = selectCurrent(items, nowMs());
+			if (!cur || !cur.banner) return null;
+			return {
+				event: cur.banner,
+				eventDates: cur.bannerDates || "",
+				eventDatesRaw: cur.bannerDatesRaw || cur.bannerDates || ""
+			};
+		}
+
+
+		// ---- 抓取器工厂 ----
+		// mkMediaWiki：MediaWiki api.php JSON 源（追加 &origin=* 绕过 CORS）
+		// mkRaw：直接抓取原始 HTML（非 MediaWiki 源，如 GachaTracker）
+		// 经 host 同源代理的来源（蔚蓝系列 / 终末地 wiki.gg / 1999 等）不用工厂包装：
+		// 其抓取器内部自行调用 proxyFetchText / proxyFetchJson（绕过 CORS 与 Referer 反爬）。
+		// 抓取器签名：async (url, signal, tz) → 数据对象 | null
+		//   第三个参数 `tz` = 源站墙钟时区（可选，见 15-env.js）。工厂把它透传给解析函数，
+		//   解析函数再交给 parseTime/parseRange —— 这样"源站时区"只需在来源声明里写一次。
+		function mkMediaWiki(parse) {
+			return async (url, signal, tz) => {
+				const apiUrl = url + (url.includes("?") ? "&" : "?") + "origin=*";
+				const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
+				if (!res.ok) throw new Error("http-" + res.status);
+				const json = await res.json();
+				const text = json?.parse?.text;
+				if (typeof text !== "string") throw new Error("bad-json");
+				return parse(text, tz);
+			};
+		}
+
+		function mkRaw(parse) {
+			return async (url, signal, tz) => {
+				const apiUrl = url + (url.includes("?") ? "&" : "?") + "origin=*";
+				const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
+				if (!res.ok) throw new Error("http-" + res.status);
+				return parse(await res.text(), tz);
+			};
+		}
+
+
+		async function fetchText(url, opts) {
+			const o = opts || {};
+			if (o.mode === "direct") {
+				const res = await transportFetchRaw(url, { signal: o.signal, headers: Object.assign({}, rawHeaders(url), o.headers || {}) });
+				if (!res.ok) throw new Error("http-" + res.status);
+				return res.text();
+			}
+			return proxyFetchText(url, o.referer || "", o.headers, o.body);
+		}
+
+		async function fetchJson(url, opts) {
+			const t = await fetchText(url, opts);
+			try { return JSON.parse(t); } catch { throw new Error("bad-json"); }
+		}
+
+		async function fetchMediaWikiText(url, opts) {
+			const apiUrl = url + (url.includes("?") ? "&" : "?") + "origin=*";
+			const json = await fetchJson(apiUrl, opts);
+			const text = json && json.parse && json.parse.text;
+			if (typeof text !== "string") throw new Error("bad-json");
+			return text;
+		}
+
+
+		// —— 备选源（altSources / eventAltSources）的字段约定与 altSourceId / normalizeSourceId，
+		//    以及下面的 gachaFetcherFor / eventFetcherFor 用到的标识归一，都在 60-helpers.js ——
+		//    （设置页也要用这两个纯函数，所以放在 core 与外壳共用的 helpers 里，而不是 core 内部）
+		// 取条目当前卡池源的抓取器：命中的备选源 > 默认抓取器（无 → null）
+		function gachaFetcherFor(source, url) {
+			const want = normalizeSourceId(url);
+			const alt = (source.altSources || []).find((a) => altSourceId(a) === want && GACHA_FETCHERS[a.fetcher]);
+			return alt ? GACHA_FETCHERS[alt.fetcher] : GACHA_FETCHERS[source.id] || null;
+		}
+
+
+		// 取条目当前活动源的抓取器：命中的活动备选源 > 默认活动抓取器（无 → null）
+		function eventFetcherFor(source, url) {
+			const table = EVENT_FETCHERS[source.id];
+			if (!table) return null;
+			const want = normalizeSourceId(url);
+			const alt = (source.eventAltSources || []).find((a) => altSourceId(a) === want && table[a.fetcher]);
+			return alt ? table[alt.fetcher] : table.default || null;
+		}
+
+// src/client/25-parser-shared.js —— 共用判定 / 悬停排版 / 解码 / 时间 / 选择
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
 		//#region scrape parsers
 		// 纯函数解析器：同一 HTML 输入必然产生同一输出（确定性），
 		// 保证网页内容未变时手动刷新结果保持一致。
@@ -1027,14 +1125,6 @@ export function createEngine(env) {
 				.trim();
 		}
 
-		// 「版本更新后」这类**只有日期没有时分**的写法，默认按当日该时刻折算。
-		// 为什么需要一个默认值：源站常见 `2026/09/28 4.6版本更新后`（日期 + 版本标签的混合体），
-		// 日期是明确的，缺的只是时分；不补的话 startTs 会是 null，外显只能回落源站原文
-		// （星铁活动列一度显示成 `2026/09/28 4.6版本更新后 ~ 11-10 15:00`，与其它游戏的
-		// `09-28 04:00 ~ 11-10 15:00` 口径不一致）。
-		// 取 04:00 是因为国内二游版本更新普遍落在凌晨维护窗口（该表内 04:00 出现最多），
-		// 拿它当锚点比"不补"更接近真实，也不会让"活动是否已开始"的判定偏移一天。
-		const VERSION_UPDATE_ANCHOR = { h: 4, mi: 0 };
 
 		// 解析单个时间 → {ts, text}；无法解析返回 {ts:null, text:null}
 		// `tz`（可选）= 源站墙钟时区（见 15-env.js / 20-sources.js 的 `tz`）。
@@ -1068,6 +1158,7 @@ export function createEngine(env) {
 			return { ts: null, text: null };
 		}
 
+
 		// 时间段 → startTs/endTs + 统一文本 mm-dd hh:mm ~ mm-dd hh:mm（无法解析的一侧保留原文）
 		// `tz` 同 parseTime：源站墙钟时区（可选，不传 = 本机时区）
 		function parseRange(raw, tz) {
@@ -1086,18 +1177,6 @@ export function createEngine(env) {
 			};
 		}
 
-		// 角色名清理：去首尾方括号/空白（zzz 的 [希格莉德（强攻·冰）]）
-		function cleanRoles(roles) {
-			const r = stripTags(roles).replace(/^[\[【\s]+|[\]】\s]+$/g, "");
-			return r;
-		}
-
-		// 主池过滤：排除武器/光锥/音擎/回响/重映等副池
-		function isMainBanner(banner) {
-			if (!banner) return false;
-			if (/武器|光锥|音擎|回响|重映|神铸赋形|流光定影|溯回忆象/.test(banner)) return false;
-			return /角色活动祈愿|角色活动跃迁|独家频段|寻访|频段/.test(banner) || banner.includes("「");
-		}
 
 		// bwiki 通用：解析所有含「时间+版本」的卡池表（原神/星铁/绝区零）
 		function parseAllBwiki(html, tz) {
@@ -1131,199 +1210,6 @@ export function createEngine(env) {
 			return out;
 		}
 
-		// 方舟：解析「干员轮换卡池」（标准寻访/当期轮换池）所有数据行。
-		// 该表行结构：序号 | 寻访页面(title=寻访模拟/干员轮换卡池N) | 开启时间 | 特定干员(6星) | 特定干员(5星)。
-		// 兼容历史「限时寻访」表（寻访页面|开启时间|特定干员6星|特定干员5星&4星）作为兜底。
-		function parseArknights(html, tz) {
-			const out = [];
-			// 标准（干员轮换卡池N）+ 中坚（中坚甄选N / 中坚干员轮换卡池N）：
-			// 行内 title="寻访模拟/<池名>"。**档位按池名判定且中坚优先**——「中坚干员轮换卡池74」
-			// 名字里也含"干员轮换卡池"，先测标准会把整批中坚池误判进标准档（实测踩过）。
-			for (const rm of html.matchAll(/<tr(?:[^>]*)>([\s\S]*?)<\/tr>/g)) {
-				const row = rm[1];
-				const tds = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) => m[1]);
-				if (tds.length < 3) continue;
-				const titleM = (tds[1] || "").match(/title="([^"]*)"/);
-				if (!titleM) continue;
-				const banner = String(titleM[1]).replace(/^寻访模拟\//, ""); // 干员轮换卡池192 / 中坚甄选14
-				if (!/干员轮换卡池|中坚甄选/.test(banner)) continue;         // 只认这两类轮换池行
-				const tier = /中坚/.test(banner) ? "中坚" : "标准";
-				const roles = [...((tds[3] || "") + (tds[4] || "")).matchAll(/<a[^>]*title="([^"]+)"/g)]
-					.map((m) => m[1]).filter(Boolean);
-				const range = parseRange(tds[2], tz);
-				out.push({ tier, banner, roles: roles.join("、"), ...range, isMain: true });
-			}
-			// 限时（联合行动/限定）：解析「限时寻访」表
-			const i = html.indexOf("限时寻访");
-			if (i >= 0) {
-				const seg = html.slice(i);
-				const tableM = seg.match(/<table[^>]*>([\s\S]*?)<\/table>/);
-				if (tableM) {
-					const body = tableM[1];
-					for (const rm of body.matchAll(/<tr>([\s\S]*?<td[\s\S]*?)<\/tr>/g)) {
-						const row = rm[1];
-						const tds = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) => m[1]);
-						if (tds.length < 2) continue;
-						const banner = stripTags(tds[0]);
-						if (!banner) continue;
-						const roles = tds.length > 2
-							? [...tds[2].matchAll(/<a[^>]*href="\/w\/[^"]*"[^>]*title="([^"]*)"/g)]
-								.map((m) => m[1].trim()).filter(Boolean).join("、")
-							: "";
-						const range = parseRange(tds[1], tz);
-						out.push({ tier: "限时", banner, roles, ...range, isMain: true });
-					}
-				}
-			}
-			return out;
-		}
-
-		// 明日方舟当期卡池：**外显与悬停共用同一份"当期池"列表**（不再各挑一个）——
-		// 外显按档位优先（限时 > 标准 > 中坚）、档内先结束者优先；悬停走统一的 buildPoolHover，
-		// 与其它游戏同格式（每池『池名：角色』+ 时间行、同窗口合并时间、结束时间升序）。
-		function selectArknights(html, now = nowMs(), tz) {
-			const items = parseArknights(html, tz);
-			fillMissingStarts(items);
-			const tiers = ["限时", "标准", "中坚"];
-			const rank = (it) => {
-				const i = tiers.indexOf(it.tier);
-				return i < 0 ? tiers.length : i;
-			};
-			const active = items
-				.filter((it) => coversNowBounded(it, now))
-				.sort((a, b) => (rank(a) - rank(b)) || (a.endTs - b.endTs) || (a.startTs - b.startTs));
-			if (active.length === 0) return null;
-			const win = active[0];
-			return {
-				banner: win.banner,
-				roles: win.roles,
-				bannerDates: win.raw,
-				bannerDatesRaw: win.rawOriginal || win.raw,
-				bannerHover: buildPoolHover(active.map((it) => ({
-					name: it.banner,
-					label: `${it.banner}${it.roles ? `\uFF1A${it.roles}` : ""}`,
-					startTs: it.startTs, endTs: it.endTs, raw: it.rawOriginal || it.raw
-				})))
-			};
-		}
-
-		// ---- 明日方舟官方公告（web-news.hypergryph.com CMS，code=arknights）----
-		// 官方 CMS：列表接口的 brief 被服务端截断（只有时间与开头几个 UP），角色全量需按 cid 取详情。
-		// 标题格式：[家族]【池名】限时寻访(即将)开启；brief 首段即"活动时间：X月X日 HH:mm - X月X日 HH:mm"。
-
-		// 从公告正文/brief 提取 UP 干员（"★★★★★★：结城理（占…）★★★★★：埃癸斯 / 岳羽由加莉（…）"）
-		function parseAkOfficialRoles(text) {
-			const s = String(text || "")
-				.replace(/<[^>]+>/g, " ")
-				.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
-				.replace(/\\/g, " ")
-				.replace(/\s+/g, " ");
-			const segM = s.match(/(?:出现率上升|获得概率提升)\s*([\s\S]*?)(?:注意|抽取概率公示|在本期|$)/);
-			const seg = segM ? segM[1] : s;
-			const names = [];
-			for (const um of seg.matchAll(/(?:★{3,6})\s*[：:]\s*([^★（(\n]+)/g)) {
-				for (let tok of String(um[1]).split(/[\/、,，\\\s]+/)) {
-					tok = tok.replace(/\[[^\]]*\]/g, "").trim();
-					if (tok && !/^[0-9.%占出率概]+$/.test(tok) && tok.length >= 2 && tok.length <= 10) names.push(tok);
-				}
-			}
-			return [...new Set(names)].join("、");
-		}
-
-		// 列表 → 当期 限时/联动寻访池数组（bannerDates 统一为 "MM-DD HH:mm ~ MM-DD HH:mm"）
-		function parseAkOfficialPools(list, now = nowMs()) {
-			const nowYear = new Date(now).getFullYear();
-			const out = [];
-			for (const it of list || []) {
-				const title = String(it.title || "");
-				const brief = String(it.brief || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-				if (!/寻访/.test(title) || !/活动时间/.test(brief)) continue;
-				const nameM = title.match(/【([^】]+)】\s*限时寻访/);
-				if (!nameM) continue;
-				const timeM = brief.match(/活动时间\s*[：:]\s*(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{2})\s*[-—~]\s*(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{2})/);
-				if (!timeM) continue;
-				const mk = (y, mo, d, h, mi) => new Date(y, mo - 1, d, h, mi).getTime();
-				const sm = Number(timeM[1]), sd = Number(timeM[2]);
-				const em = Number(timeM[5]), ed = Number(timeM[6]);
-				const startTs = mk(nowYear, sm, sd, Number(timeM[3]), Number(timeM[4]));
-				const endTs = mk(endsNextYear(sm, null, em, null) ? nowYear + 1 : nowYear, em, ed, Number(timeM[7]), Number(timeM[8]));
-				if (startTs > now || endTs < now) continue; // 只要当期覆盖
-				const fmt = (mo, d, h, mi) => `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} ${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
-				const startText = fmt(sm, sd, Number(timeM[3]), Number(timeM[4]));
-				const endText = fmt(em, ed, Number(timeM[7]), Number(timeM[8]));
-				const raw = `${startText} ~ ${endText}`;
-				const familyM = title.match(/^\[([^\]]+)\]/);
-				out.push({
-					cid: String(it.cid || ""),
-					family: familyM ? familyM[1] : "",
-					banner: nameM[1],
-					roles: parseAkOfficialRoles(brief),
-					bannerDates: raw,
-					bannerDatesRaw: raw,
-					startTs, endTs, startText, endText, raw,
-					tier: "限时",
-					isMain: true
-				});
-			}
-			return out;
-		}
-
-		// 官方当期限时寻访（经 host 代理：列表 + 每池详情各 1 次请求）
-		async function fetchArknightsOfficialPools(signal, now = nowMs()) {
-			const ref = "https://ak.hypergryph.com/";
-			const listUrl = AK_OFFICIAL_BULLETIN + "?lang=zh-cn&code=arknights&page=1&pageSize=30";
-			const json = await proxyFetchJson(listUrl, ref);
-			const list = Array.isArray(json?.data?.list) ? json.data.list : [];
-			const pools = parseAkOfficialPools(list, now);
-			await Promise.all(pools.map(async (p) => {
-				try {
-					const d = await proxyFetchJson(`${AK_OFFICIAL_BULLETIN}/${p.cid}?lang=zh-cn&code=arknights`, ref);
-					const content = typeof d?.data?.data === "string" ? d.data.data : "";
-					if (content) {
-						const roles = parseAkOfficialRoles(content);
-						if (roles) p.roles = roles;
-					}
-				} catch { /* 详情失败保留 brief 解析的角色 */ }
-			}));
-			return pools;
-		}
-
-		// 方舟卡池默认抓取器：官方公告 CMS 优先（当期限时/联动寻访），
-		// 官方无当期寻访公告（常规轮换周）或官方失败时自动回退 PRTS 卡池一览（逻辑同 selectArknights）。
-		// 设置页手动切到 PRTS 备选源时则走 GACHA_FETCHERS["arknights-prts"]，不经本函数。
-		async function fetchArknightsGacha(url, signal, tz, now = nowMs()) {
-			try {
-				const official = await fetchArknightsOfficialPools(signal, now);
-				if (official.length > 0) {
-					// 外显与悬停同源同序：先结束者优先（与 PRTS 路径、其它游戏一致），不再取列表首条
-					const sorted = official.slice().sort((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs));
-					const p = sorted[0];
-					// 悬停：与其它游戏统一为「池名：角色」+ 时间（多池时逐池一行、同窗口合并时间、结束时间升序）
-					const pools = sorted.map((x) => ({
-						name: x.banner,
-						label: `${x.banner}${x.roles ? `\uFF1A${x.roles}` : (x.family ? `\uFF1A${x.family}` : "")}`,
-						startTs: x.startTs,
-						endTs: x.endTs,
-						raw: x.raw || x.bannerDatesRaw || x.bannerDates
-					}));
-					return {
-						banner: p.banner,
-						roles: p.roles,
-						bannerDates: p.bannerDates,
-						bannerDatesRaw: p.bannerDatesRaw,
-						bannerHover: buildPoolHover(pools)
-					};
-				}
-			} catch { /* 官方失败 → 回退 PRTS */ }
-			const apiUrl = ARKNIGHTS_PRTS_URL + (ARKNIGHTS_PRTS_URL.includes("?") ? "&" : "?") + "origin=*";
-			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
-			if (!res.ok) throw new Error("http-" + res.status);
-			const json = await res.json();
-			const html = json?.parse?.text;
-			if (typeof html !== "string") throw new Error("bad-json");
-			const d = selectArknights(html, now, tz);
-			return d ? { ...d } : null;
-		}
 
 		// 通用规则：起始时间为"版本更新后"等无具体日期的卡池，继承前一组（按结束时间分组）
 		// 卡池的结束时间 —— 同一维护时间点（如星铁 4.5 上半的"4.5版本更新后" = 4.4 下半的结束时间）。
@@ -1352,6 +1238,7 @@ export function createEngine(env) {
 				i = j;
 			}
 		}
+
 
 		// 选当期：优先"起始明确且覆盖 now"的主池；
 		// 其次"起始未知（版本更新后）但结束在未来"的主池（星铁/zzz 上半，此时起始已被 fillMissingStarts 补齐）；
@@ -1393,6 +1280,7 @@ export function createEngine(env) {
 			};
 		}
 
+
 		// MM-DD HH:MM（同年窗口用）
 		// 时间戳 → 显示文本。`tz`（可选）= **按该时区渲染**（源站时区）。
 		// 为什么必须带 tz：绝对时刻已按源站时区换算，若文本仍按本机时区渲染，
@@ -1406,10 +1294,12 @@ export function createEngine(env) {
 			const d = new Date(ts);
 			return { y: d.getFullYear(), mo: d.getMonth() + 1, d: d.getDate(), h: d.getHours(), mi: d.getMinutes() };
 		}
+
 		function fmtMdHm(ts, tz) {
 			const w = wallOf(ts, tz);
 			return `${String(w.mo).padStart(2, "0")}-${String(w.d).padStart(2, "0")} ${String(w.h).padStart(2, "0")}:${String(w.mi).padStart(2, "0")}`;
 		}
+
 
 		// YYYY-MM-DD HH:MM（跨年窗口用：避免"05-15 16:00 ~ 05-15 03:59"看着像结束早于开始）
 		function fmtYmdHm(ts, tz) {
@@ -1417,11 +1307,13 @@ export function createEngine(env) {
 			return `${w.y}-${String(w.mo).padStart(2, "0")}-${String(w.d).padStart(2, "0")} ${String(w.h).padStart(2, "0")}:${String(w.mi).padStart(2, "0")}`;
 		}
 
+
 		// 窗口起止文本：两端同一年 → MM-DD；跨年 → 两端都带年份
 		function fmtWindow(startTs, endTs, tz) {
 			const sameYear = wallOf(startTs, tz).y === wallOf(endTs, tz).y;
 			return sameYear ? `${fmtMdHm(startTs, tz)} ~ ${fmtMdHm(endTs, tz)}` : `${fmtYmdHm(startTs, tz)} ~ ${fmtYmdHm(endTs, tz)}`;
 		}
+
 
 		// ── 「长期/常驻窗口」通用规则（**唯一真源**）────────────────────────────────
 		// 判定：声明窗口超过该天数的不当作"当期"（外显与悬停共用，①）。
@@ -1440,9 +1332,11 @@ export function createEngine(env) {
 		const LONG_TERM_MAX_WINDOW_DAYS = 120;
 
 		/** 声明窗口超阈值 = 长期/常驻（不当作"当期"）。名与阈值都只有这一处。 */
+
 		function isLongTermWindow(x) {
 			return !!x && x.startTs != null && x.endTs != null && (x.endTs - x.startTs) > LONG_TERM_MAX_WINDOW_DAYS * 864e5;
 		}
+
 
 		// 旧名（事件侧语境下可读性更好）。**只是别名**，判定逻辑仍在上面。
 		function isLongTermEvent(x) { return isLongTermWindow(x); }
@@ -1458,11 +1352,13 @@ export function createEngine(env) {
 		// `endTs == null` 表示"没有结束时间"（永久/常驻，或源站没给）——**不覆盖 now**（不以"没结束"当"永远在开"）。
 
 		/** 覆盖 now（常用）：起可为 null（视为"已开始"，如源站写"X.Y版本更新后"），末必须有且未过。 */
+
 		function coversNow(x, now) {
 			return !!x && x.endTs != null && x.endTs >= now && (x.startTs == null || x.startTs <= now);
 		}
 
 		/** 覆盖 now（**两端都必须有**）：需要明确起止的场合（如按窗口合并/排序的源）。 */
+
 		function coversNowBounded(x, now) {
 			return !!x && x.startTs != null && x.endTs != null && x.startTs <= now && x.endTs >= now;
 		}
@@ -1484,6 +1380,7 @@ export function createEngine(env) {
 		 *    （`const pickCurrent = (parse) => (html) => selectCurrent(...)`）。
 		 *    同作用域重名会让产物直接语法错误（构建守卫会报出来）。
 		 */
+
 		function pickCovering(items, opts) {
 			const o = opts || {};
 			const now = o.now;
@@ -1504,6 +1401,7 @@ export function createEngine(env) {
 		//   ournotes-global / umamusume-official），另有 4 处只有月份的退化版。
 
 		/** 月份比线索月晚这么多 → 该日期只可能是**上一年**（例：线索 1 月，档期写 12 月）。 */
+
 		const YEAR_HINT_MONTH_GAP = 6;
 
 		/**
@@ -1513,6 +1411,7 @@ export function createEngine(env) {
 		 *   （猜错会把整条档期挪到错误的时间，比"未公布"更糟；`40-fetchers.js` 里那条 45 天规则
 		 *     属于"能拿到 now 但拿不到公告年"的少数源，单独保留并注明）
 		 */
+
 		function inferYear(y, mo, hint) {
 			if (y != null) return y;
 			if (!hint || hint.y == null) return null;
@@ -1523,11 +1422,13 @@ export function createEngine(env) {
 		 * 「结束排在开始之前」= 跨年，结束应记次年。
 		 * `sd` / `ed` 可省（只有月份信息时退化为按月比较）——这一点覆盖了此前 4 处只有月份的写法。
 		 */
+
 		function endsNextYear(sm, sd, em, ed) {
 			if (em !== sm) return em < sm;
 			if (sd == null || ed == null) return false;
 			return ed < sd;
 		}
+
 
 		// 永久/常驻活动判定：源站把「结束时间」写成 `永久`（星铁「星际碰碰好搭档！」等）。
 		// 这类行 endTs 为 null，**过去被静默丢弃**——不是判定为"非当期"，而是连痕都没留下，
@@ -1543,6 +1444,7 @@ export function createEngine(env) {
 			if (/永久/.test(`${x.cat || ""} ${x.tags || ""}`)) return true;
 			return /永久\s*$/.test(String(x.raw || ""));
 		}
+
 
 		// 活动列表统一排序（③）：结束时间升序（越快结束越靠前）；结束时间无/未知/未抓到的排最后；
 		// 同结束时间再按开始时间升序。同时剔除常驻/长期玩法与空名行（①）。
@@ -1561,17 +1463,20 @@ export function createEngine(env) {
 				});
 		}
 
+
 		// 活动类别优先级（只影响"外显"挑选，不影响悬停排序）：
 		// 第一档 = 剧情/叙事类活动 + 限时高难玩法（剧情/叙事/故事、总力战/大决战、危机合约、挑战活动…）；
 		// 其余为第二档。判定优先级：有类别字段（原神 SMW「类型」、星铁/绝区零表「类型」列、方舟分类前缀、
 		// 终末地 tags、蔚蓝国际服 cat 列）就按类别判定；源头没有类别信息时才回退按活动名匹配关键词。
 		const EVENT_TIER1_RE = /剧情|叙事|主线|故事|活动正篇|总力战|總力戰|大决战|大決戰|决战|決戰|危机合约|危機合約|制约解除|综合战术|綜合戰術|挑战|挑戰|深度巡防|极限|逆境深塔|冥歌海墟|全息/;
 
+
 		function eventTier(x) {
 			const cat = `${x?.cat || ""} ${x?.tags || ""}`.trim();
 			const hay = cat || `${x?.name || ""}`;
 			return EVENT_TIER1_RE.test(hay) ? 1 : 2;
 		}
+
 
 		// 外显挑选：先按类别档位（第一档优先），同档内按结束时间升序（③ 越快结束越靠前，
 		// 结束时间未知排最后）；悬停仍按 endTs 升序全量展示，不受类别影响。
@@ -1588,12 +1493,14 @@ export function createEngine(env) {
 			})[0] || null;
 		}
 
+
 		// 永久/常驻活动的计数行。抽成函数是为了**措辞只有一处**，并让守卫能直接断言文案
 		// （曾经的写法是 `常驻/永久活动 N 项（无结束时间，不参与倒计时）`，用户要求改为
 		// `以及常驻活动 N 项`）。
 		function permanentLine(count) {
 			return count > 0 ? `以及常驻活动 ${count} 项` : "";
 		}
+
 
 		// 活动列悬停（鸣潮式多行）：按传入顺序（调用方已 sortEventItems）每条一行；
 		// 各行窗口完全相同 → 时间只在末尾写一遍；缺起止的行原样显示该行原文；跨年窗口两端带年份（②）。
@@ -1624,6 +1531,7 @@ export function createEngine(env) {
 			return lines.join("\n");
 		}
 
+
 		// 卡池列悬停（统一格式，沿用方舟/面板既有"换行"排版）：
 		// 每池两行 —— "池名：角色" + "起止时间"；窗口完全相同的池合并时间（只在末尾写一遍）；
 		// 排序：结束时间升序（无/未知结束时间排最后）。
@@ -1653,187 +1561,467 @@ export function createEngine(env) {
 			return lines.join("\n");
 		}
 
-		// 鸣潮：角色轮换池页（Bwiki 汇总页，逐期列出）→ 取"覆盖当前时刻"的那一组：
-		// 每一组 = 该组 data-start/data-end 之后、到下一组之前的那段里的「共鸣者/xxx」。
-		// 旧实现取页面第一组时间 + 整页前 6 个角色名 → 备选/兜底源会显示"过期档期 + 跨池混入的角色"，
-		// 且不报任何失败（实测该页当前只有一组已过期计时器）。没有覆盖当前的组 → 返回 null（未公布）。
-		function parseWuwaPool(html, now = nowMs(), tz) {
-			const text = String(html || "");
-			const marks = [...text.matchAll(/data-start="([^"]+)"\s+data-end="([^"]+)"/g)];
-			// 页面拿到了却一个计时器都没有 → 汇总页改版（抛错让面板显示"卡池失败"），
-			// 而不是伪装成"新卡池未公布"（这是本条目的备选/兜底源）
-			if (marks.length === 0) throw new Error("wuwa-pool-no-timer");
-			for (let i = 0; i < marks.length; i++) {
-				const m = marks[i];
-				const start = parseTime(m[1], tz);
-				const end = parseTime(m[2], tz);
-				if (start.ts == null || end.ts == null) continue;
-				if (!(start.ts <= now && now <= end.ts)) continue;
-				const seg = text.slice(m.index + m[0].length, i + 1 < marks.length ? marks[i + 1].index : text.length);
-				const chars = [...new Set([...seg.matchAll(/共鸣者\/([^"]+)"/g)].map((x) => x[1]))].slice(0, 6);
-				if (chars.length === 0) continue;
-				return {
-					banner: "\u89D2\u8272\u6362\u53EC\u6C60",
-					roles: chars.join("、"),
-					startTs: start.ts, endTs: end.ts,
-					bannerDates: `${start.text} ~ ${end.text}`
-				};
-			}
-			return null;
+
+		// 解 HTML 数字实体（wiki.gg 的区间分隔符写成 &#8211; = en dash、&#8722; = 减号）+
+		// 常见具名实体。stripTags 不解实体，所以需要它才能把时间串拆干净。
+		function decodeHtmlEntities(s) {
+			return String(s)
+				.replace(/&#(\d+);/g, (_, d) => { try { return String.fromCodePoint(Number(d)); } catch { return ""; } })
+				.replace(/&#x([0-9a-f]+);/gi, (_, h) => { try { return String.fromCodePoint(parseInt(h, 16)); } catch { return ""; } })
+				.replace(/&nbsp;/g, " ").replace(/&minus;/g, "\u2212").replace(/&ndash;/g, "\u2013").replace(/&mdash;/g, "\u2014").replace(/&amp;/g, "&");
 		}
 
-		// 鸣潮官方公告解析：从全量公告（game/activity/recommend）中取"覆盖当前时刻"的「角色活动唤取」。
-		//
-		// ⚠️ 时间**必须用 JSON 里的绝对时间戳** `startTimeMs` / `endTimeMs`，不要再去解析正文。
-		// 正文写的是 `✦活动时间✦ 3.7版本更新后 ~ 2026年10月22日09:59（服务器时间）` ——
-		// 起始端是**版本标签**而非绝对日期，旧实现用 `(\d{4})年(\d{1,2})月…` 匹配整段 → 恒失败 →
-		// 卡池侧返回 null（2026-10-01 实测：官方 JSON 已带 3 个在开角色池，却显示"未公布"）。
-		// 现在源站直接给了时间戳，比解析正文更准，也不受措辞漂移影响。
-		function parseWuwaNotice(list, now = nowMs(), tz) {
-			const groups = [list?.game, list?.activity, list?.recommend].filter(Array.isArray);
-			const stripH = (s) => String(s || "")
-				.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " ")
-				.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&hellip;/g, "…")
-				.replace(/&ldquo;/g, "“").replace(/&rdquo;/g, "”")
-				.replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
-			const pools = [];
-			for (const arr of groups) {
-				for (const it of arr) {
-					// 标题可能是 "[但愿长圆如此夜]\n角色活动唤取" / "「玉阙玄华」武器活动唤取"
-					const title = stripH(it.tabTitle || it.title || "").replace(/\s+/g, " ").trim();
-					const isChar = /角色活动唤取/.test(title);
-					const isWeapon = /武器活动唤取/.test(title);
-					if (!isChar && !isWeapon) continue;
-					const sTs = Number(it.startTimeMs), eTs = Number(it.endTimeMs);
-					if (!Number.isFinite(sTs) || !Number.isFinite(eTs)) continue;
-					if (sTs > now || eTs < now) continue; // 只要当期覆盖
-					const name = title
-						.replace(/\s*(?:角色|武器)活动唤取\s*$/, "")
-						.replace(/^[\[【「]\s*/, "")
-						.replace(/\s*[\]】」]$/, "")
-						.trim();
-					if (!name) continue;
-					// 类型名（外显用）：标题尾部那一段，如 `角色活动唤取` / `武器活动唤取`
-					const type = isChar ? "角色活动唤取" : "武器活动唤取";
-					// 角色名：正文开头那句「活动期间，5星角色「心」，4星角色「卜灵」、「桃祈」、「釉瑚」唤取概率限时提升！」
-					// 用 [^。！？\n]+ 限在一句内，避免把后面「唤取说明」里的角色也带进来
-					const text = stripH(it.content || "");
-					const upM = text.match(/活动期间，([^。！？\n]+?)唤取概率限时提升/);
-					const roles = upM
-						? [...new Set([...upM[1].matchAll(/[「【]([^」】]+)[」】]/g)].map((x) => x[1].trim()).filter(Boolean))].join("、")
-						: "";
-					pools.push({ name, type, isChar, roles, startTs: sTs, endTs: eTs });
-				}
-			}
-			const cur = pools.filter((p) => p.isChar && p.name);
-			if (cur.length === 0) return null;
-			// 外显与窗口取**结束最早**的那个池（与 selectCurrent 的 first 同口径）。
-			const first = cur.slice().sort((a, b) => a.endTs - b.endTs)[0];
-			// 角色：**先拆成单个名字再去重**，然后合并。
-			// ⚠️ 别写成 `new Set(cur.map(p => p.roles))` —— 那样比较的是"整串"（各池的 4★ 名单相同
-			// 但 5★ 不同 → 整串不同 → 重复留下）。拆开才能把三池共有的 4★ 去成一份。
-			// 顺序 = 各池依次展开（5★ 在前、4★ 共有名在后），去重后即 `心、千咲、尤诺、卜灵、桃祈、釉瑚`。
-			const roles = [...new Set(cur.flatMap((p) => p.roles.split("、").map((s) => s.trim()).filter(Boolean)))].join("、");
+
+		// Bwiki 卡池列载荷（原神/星铁）：外显沿用 selectCurrent（同窗口主池角色合并、武器/光锥池不入选）；
+		// bannerHover 列出同期全部主池（每池"池名：角色"+时间；窗口相同则合并时间；结束时间升序）
+		function bwikiGachaPayload(html, tz) {
+			const items = parseAllBwiki(html, tz);
+			// 页面拿到了却连一行候选都没有 → wiki 表结构变了（抛错，面板显示"卡池失败"）；
+			// 有候选但都不覆盖当前时刻 → 下面返回 null（未公布）。这两件事必须分开。
+			if (items.length === 0) throw new Error("bwiki-gacha-no-table");
+			// selectCurrent 会就地补全缺失起点（fillMissingStarts），故先取快照
+			const snapshot = items.map((it) => ({ banner: it.banner, roles: it.roles, startTs: it.startTs, endTs: it.endTs, raw: it.rawOriginal || it.raw, isMain: it.isMain }));
+			const cur = selectCurrent(items, nowMs());
+			if (!cur) return null;
+			const now = nowMs();
+			const pools = snapshot
+				.filter((it) => it.isMain && coversNow(it, now))
+				.map((it) => ({
+					name: it.banner,
+					label: `${it.banner}${it.roles ? `\uFF1A${cleanRoles(it.roles)}` : ""}`,
+					startTs: it.startTs,
+					endTs: it.endTs,
+					raw: it.raw
+				}));
+			return { ...cur, bannerHover: buildPoolHover(pools) };
+		}
+
+		// 起止时间戳 → 统一文本 `MM-DD HH:MM ~ MM-DD HH:MM`
+		function range2(st, endTs) {
 			const fmt = (ts) => {
 				const d = new Date(ts);
 				return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 			};
-			const raw = fmtWindow(first.startTs, first.endTs, tz);
-			// 悬停：首行=卡池类型（与卡片外显同源），随后每池"池名：角色"一行；窗口相同则时间只在末尾写一遍；
-			// 按结束时间升序。**类型行只在本源补**，不动全站共用的 buildPoolHover（它按约定对 0/1 池返回 ""）。
-			const poolHover = buildPoolHover(cur.map((p) => ({
-				name: p.name,
-				label: `${p.name}\uFF1A${p.roles || "-"}`,
-				startTs: p.startTs,
-				endTs: p.endTs
-			})));
-			const bannerHover = poolHover ? `${first.type}\n${poolHover}` : "";
-			// **外显用卡池类型**（`角色活动唤取`），不用某一个池名：
-			// 角色是多池合并的，若外显挂"但愿长圆如此夜"，卡片就成了"标题只说一个池、角色却是三个池的合成"。
-			// 与用户 2026-09-30 定的统一口径一致（国服显示 `限时限定招募`、异环显示 `限定棋盘`）。
-			// 具体池名在悬停里逐条列出，不丢信息。
-			return { banner: first.type, roles, bannerDates: raw, bannerDatesRaw: raw, startTs: first.startTs, endTs: first.endTs, bannerHover };
-		}
-
-		// 鸣潮官方活动解析：同一份全量公告的 `recommend` 组里，`tag === 7` 是卡池、**`tag === 5` 是限时活动**。
-		// 活动条目形如 tabTitle="[团团勇者大乱斗]休闲活动"，同样带绝对时间戳。
-		// 这是 2026-10-01 起鸣潮活动的**默认源**——Bwiki 活动日历页已停更（最新一条结束于 2026/9/29），
-		// 而官方源有当期 3.7 的活动，且**与卡池是同一条 URL**、同一次请求即可拿到两侧数据。
-		function parseWuwaRecommendEvents(list, now = nowMs(), tz) {
-			const arr = Array.isArray(list?.recommend) ? list.recommend : [];
-			const stripH = (s) => String(s || "")
-				.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " ")
-				.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
-				.replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
-			const events = [];
-			for (const it of arr) {
-				if (Number(it.tag) !== 5) continue; // 7=卡池；5=限时活动
-				const name = stripH(it.tabTitle || "").replace(/\s+/g, " ").trim();
-				if (!name) continue;
-				const sTs = Number(it.startTimeMs), eTs = Number(it.endTimeMs);
-				if (!Number.isFinite(sTs) || !Number.isFinite(eTs)) continue;
-				if (sTs > now || eTs < now) continue;
-				events.push({ name, cat: "", startTs: sTs, endTs: eTs });
-			}
-			if (events.length === 0) return null;
-			const sorted = sortEventItems(events);
-			if (sorted.length === 0) return null;
-			const primary = pickEventPrimary(sorted) || sorted[0];
-			const dates = fmtWindow(primary.startTs, primary.endTs, tz);
-			return { banner: primary.name, bannerDates: dates, bannerDatesRaw: dates, eventHover: buildEventHover(sorted) };
-		}
-
-		// 鸣潮卡池默认抓取器：官方公告（entrypoint → 目录 → zh-Hans.json 全量）优先；
-		// 无当期公告 / 抓取失败 → 自动回退 Bwiki 角色轮换池（逻辑同 parseWuwaPool）
-		async function fetchWuwaGacha(entryUrl, signal, tz, now = nowMs()) {
-			try {
-				const ref = "https://aki-gm-resources.aki-game.com/";
-				const ej = await proxyFetchJson(entryUrl, ref);
-				const contentUrl = Array.isArray(ej?.contentUrl) ? ej.contentUrl[0] : "";
-				const dir = contentUrl ? contentUrl.replace(/[^/]*$/, "") : String(entryUrl).replace(/[^/]*$/, "");
-				let list = null;
-				try { list = await proxyFetchJson(dir + "zh-Hans.json", ref); } catch { list = null; }
-				if (!list || typeof list !== "object") list = await proxyFetchJson(dir + "notice.json", ref);
-				// **同一份 JSON 里卡池（tag=7）与活动（tag=5）都在** → 顺带把活动字段也返回。
-				// 这是"统一来源注册表"里写明的复用契约：**两侧是同一条 URL** 且卡池载荷带 event 字段时，
-				// refresh 不再为活动侧另抓一次（否则每轮会向同一条 URL 重复发一次请求）。
-				// ⚠️ 我重写解析时一度只返回卡池字段，导致鸣潮每轮请求从 1 次变成 2 次 —— 已补回。
-				// 活动侧仍保留自己的抓取器（fetchWuwaEventsOfficial）：卡池侧失败、或用户在设置里
-				// 单独选活动来源时，活动侧要能自己抓、自己报错（解耦不变）。
-				const ev = parseWuwaRecommendEvents(list, now, tz);
-				const evFields = ev
-					? { event: ev.banner, eventDates: ev.bannerDates || "", eventDatesRaw: ev.bannerDatesRaw || ev.bannerDates || "", eventHover: ev.eventHover || "" }
-					: {};
-				const d = parseWuwaNotice(list, now, tz);
-				if (d) return { ...d, ...evFields };
-			} catch { /* 官方失败 → Bwiki 备选 */ }
-			const apiUrl = WUWA_BWIKI_URL + (WUWA_BWIKI_URL.includes("?") ? "&" : "?") + "origin=*";
-			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
-			if (!res.ok) throw new Error("http-" + res.status);
-			const json = await res.json();
-			const html = json?.parse?.text;
-			if (typeof html !== "string") throw new Error("bad-json");
-			return parseWuwaPool(html, nowMs(), tz);
-		}
-
-		// 鸣潮活动默认抓取器：抓同一份官方公告，取 `recommend` 组里 tag=5 的限时活动。
-		// 与卡池侧是**同一条 URL**（entrypoint.json），所以 refresh 的复用会让两侧共用一次请求。
-		async function fetchWuwaEventsOfficial(entryUrl, _signal, tz) {
-			const ref = "https://aki-gm-resources.aki-game.com/";
-			const ej = await proxyFetchJson(entryUrl, ref);
-			const contentUrl = Array.isArray(ej?.contentUrl) ? ej.contentUrl[0] : "";
-			const dir = contentUrl ? contentUrl.replace(/[^/]*$/, "") : String(entryUrl).replace(/[^/]*$/, "");
-			const list = await proxyFetchJson(dir + "zh-Hans.json", ref);
-			if (!list || typeof list !== "object") throw new Error("wuwa-event-bad-json");
-			const d = parseWuwaRecommendEvents(list, nowMs(), tz);
-			if (!d) return null;
+			const startTs = st && st.ts != null ? st.ts : null;
 			return {
-				event: d.banner,
-				eventDates: d.bannerDates || "",
-				eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "",
-				eventHover: d.eventHover || ""
+				startTs,
+				endTs,
+				startText: st && st.text ? st.text : "",
+				endText: fmt(endTs),
+				raw: `${st && st.text ? st.text : ""} ~ ${fmt(endTs)}`.trim()
 			};
 		}
+
+		// bwiki 通用"选当期"包装（原神/星铁/绝区零/方舟）
+		const pickCurrent = (parse) => (html) => selectCurrent(parse(html), nowMs());
+
+		//#endregion
+
+		// ═══════════════════════════════════════════════════════════════════════════
+		// ⚠️ 2026-10-03 合并：以下内容原为独立文件 `src/client/41-sources-shared.js`，
+		//    现按用户要求内联到本体（它本就是「本体已有的 pad2/decodeEntities/textOf + 新增来源共用工具」，
+		//    分成两个文件只让人来回跳）。符号名与实现**一律未改**。
+		//    原文件头保留在下面，信息不丢。
+		// ═══════════════════════════════════════════════════════════════════════════
+
+// src/client/41-sources-shared.js —— 新增来源解析器共用的：抓取桥接 + 悬停排版工具
+//
+// 历史沿革：这些代码原本在 `next-sources/lib/env.js`（ESM 模块，由外部生成器内联进 45-next-sources.js）。
+// 2026-10-03 按用户要求「把 next-sources 合并进原 source，不留 next-source」压平成普通源码段，
+// `next-sources/` 目录与生成器均已删除 —— **这里就是唯一真源，直接改这里**。
+//
+// 本段提供（解析器直接引用这些名字，不再有 import）：
+//   · 抓取：fetchText / fetchJson / fetchMediaWikiText（走宿主代理或直连）
+//   · 文本：pad2 / decodeEntities / textOf
+//   · 悬停排版：hoverPool / hoverEvent（与本体 buildPoolHover / buildEventHover 逐字一致）
+// 其余 env 名字（sourceInstant / sourceWallParts / fmtWindow / fmtMdHm / stripTags）由 30-parsers.js 与 15-env.js 提供。
+
+		// 解析器原本 import ./lib/env.js；这里用插件已有实现 + 少量补齐顶上（解析器代码不改）。
+		//   sourceInstant / sourceWallParts / fmtWindow / fmtMdHm / stripTags → 本体已有
+		//   pad2 / decodeEntities / textOf                                    → 本区补
+		//   fetchText / fetchJson / fetchMediaWikiText                        → 接宿主代理 / 直连
+		const ENTITIES_NS = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+
+		// ⚠️ pad2 本体**没有**（第一版误以为有 → 7 个 bwiki 来源全报 "pad2 is not defined"）
+		function pad2(n) { return String(n).padStart(2, "0"); }
+
+		function decodeEntities(s) {
+			return String(s).replace(/&(#\d+|[a-z]+);/gi, (m, k) => {
+				const key = k.toLowerCase();
+				if (ENTITIES_NS[key] != null) return ENTITIES_NS[key];
+				if (/^#\d+$/.test(key)) { try { return String.fromCodePoint(Number(key.slice(1))); } catch { return m; } }
+				return m;
+			});
+		}
+
+		function textOf(html) {
+			return decodeEntities(String(html).replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " "))
+				.replace(/[ \t\u00a0]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
+		}
+
+
+		// ── HTML 命名实体（**唯一真源**）───────────────────────────────────────────
+		// 2026-10-03 合并：此前 **5 个解析器**各写一份 `ENT_EXTRA` + `decodeExtra`
+		//   （bandori / biligame-activity / biligame-announce / ournotes-global / ournotes），
+		//   函数体**逐字节相同**，差别只在实体表 —— 而 5 张表**互为子集**。
+		//   现在用**并集**（30 个，行为探测确认完整覆盖 5 张表），所以：
+		//     · 零回归（原来能解的仍然能解）
+		//     · 更正确（原来哪个解析器缺 `&copy;` / `&yen;`，就会把实体字面量漏到面板上）
+		//   表里也含 `amp/lt/gt/quot/apos/nbsp`（下面 `decodeEntities` 本来就处理），重复无害。
+		const ENTITIES_EXTRA = {
+			middot: "·", times: "×", hellip: "…", mdash: "—", ndash: "–",
+			nbsp: " ", lsquo: "‘", rsquo: "’", ldquo: "“", rdquo: "”",
+			sup2: "²", sup3: "³", deg: "°", ensp: " ", emsp: " ",
+			thinsp: " ", bull: "•", copy: "©", reg: "®", trade: "™",
+			laquo: "«", raquo: "»", amp: "&", quot: "\"", apos: "'",
+			lt: "<", gt: ">", yen: "¥", hearts: "♥", star: "★",
+		};
+		/** 在 `decodeEntities` 之上再解一批命名实体（媒体/排版符号）。 */
+
+		function decodeExtra(s) {
+			return decodeEntities(String(s == null ? "" : s).replace(/&([a-z][a-z0-9]{1,8});/gi, (m, k) => {
+				const v = ENTITIES_EXTRA[String(k).toLowerCase()];
+				return v != null ? v : m;
+			}));
+		}
+		/** HTML → 纯文本（保留换行结构）。原来 5 个文件里的 `plain()` 都是这个。 */
+
+		function htmlText(html) { return decodeExtra(textOf(html)); }
+		/** 同上，但把空白压成单空格并去首尾空白（原来只有 ournotes-global 这么做）。 */
+
+		function htmlTextTight(html) { return htmlText(html).replace(/\s+/g, " ").trim(); }
+
+		// ── 时间戳与排序（**唯一真源**）────────────────────────────────────────────
+		// 2026-10-03 收敛：
+		//   · `toTs` 有 2 份、语义还不同（bestdori **宽容**：接受数字字符串；sekai **严格**：只接受 number）
+		//   · `byNewestStart` 有 3 份，其中 umapyoi 那份**缺 null 守卫**
+		//     （`a.endTs - b.endTs` 在 endTs 为 null 时得 NaN，排序行为未定义）
+		//   现在统一为下面两个。取**宽容版** `numOrNull`：对 number 两者行为一致，
+		//   对数字字符串宽容版能解出来而严格版返回 null —— 即"能解析的更多"，属改进。
+
+		/** 源站时间戳 → 数字毫秒；`null` / `""` / 非数字 → null。接受数字字符串。 */
+
+		function numOrNull(v) {
+			if (v == null || v === "") return null;
+			const n = Number(v);
+			return Number.isFinite(n) ? n : null;
+		}
+
+		/**
+		 * 「按开始时间从新到旧」排序：开始晚的在前；同开始则**结束早的在前**（空结束排最后）；
+		 * 再同则按 id 升序。`endTs` 用 `Infinity` 兜空值 —— 原 umapyoi 版直接相减，
+		 * 一旦有 null 就得 NaN（潜在 bug），这里一并修掉。
+		 */
+
+		function byNewestStart(a, b) {
+			return (b.startTs - a.startTs)
+				|| ((a.endTs == null ? Infinity : a.endTs) - (b.endTs == null ? Infinity : b.endTs))
+				|| ((Number(a.id) || 0) - (Number(b.id) || 0));
+		}
+
+		//#endregion
+
+		//#region 悬停排版共用工具（**唯一真源，改实现就改这里**）
+		// 方案 A（用户 2026-10-03）：新增来源的悬停频出「格式/规则与原有条目差别很大」，
+		// 根因是各批次各写各的。这里把排版逻辑做成唯一真源，解析器一律调用。
+		// ⚠️ 2026-10-03 之后 `next-sources/` 与生成器都已删除，本段**不再由任何脚本抽取/覆盖**。
+		// ── 为什么单独立一个区域 ──
+		// 用户 2026-10-03 反馈「新增游戏的悬停样式/格式/规则和原来的差别很大」。核实后确认：
+		// 各批次解析器**各写各的悬停**，出现了三类偏差 ——
+		//   ① 悬停里塞元信息（来源 URL / 时区推定 / 抓取条数 / 实现细节）—— 本体条目**从不**这样做
+		//   ② 「档期在前、名称在后」（本体一律 `名称 + 3 空格 + 档期`）
+		//   ③ 档期用源站原文而非 fmtWindow 格式化
+		// 修法（方案 A）：把本体那两个函数的排版逻辑抽到这里做**唯一真源**，解析器一律调用。
+		// （落点原本是 next-sources/lib/env.js，压平后就是本文件；测试与运行时读的是同一份代码。）
+// ── 与本体唯一的差别 ──
+// 本体的两个函数调 `fmtWindow(ts, endTs)` **漏传 tz**（`wallOf` 会退回本机时区）；
+// 这里 tz 是**显式参数**，非 UTC+8 的源（日服 JST / 国际服 UTC）才能排对时刻。
+//
+// ── 返回 "" 的语义（与本体一致，调用方必须遵守）──
+// 「当期条数 < 2」时返回 ""，表示**交回 UI 的默认单条两行式**：
+//   卡池 `池名：角色名` ⏎ `档期`；活动 `名称` ⏎ `档期`。
+// 所以调用方**不要**在返回值后面再拼任何东西；空串就让字段留空。
+
+// 长期/常驻判定：**直接用本体 30-parsers.js 的那一条**（阈值也只有那一处）。
+// ⚠️ 2026-10-03 收敛：这里曾有一份逐字重复的实现 + 第二个 `HOVER_MAX_WINDOW_DAYS = 120` 常量。
+//    同一条规则不该有第二份实现/第二个值 —— 已删，改为调用 `isLongTermWindow`。
+//    （函数声明会提升，所以 41 在本体的 30 之后拼接也不影响这里的调用。）
+// 排序：结束时间升序（无/未知结束时间排最后），再按开始时间
+		function hoverSortByEnd(a, b) {
+			const ea = a.endTs == null ? Infinity : a.endTs;
+			const eb = b.endTs == null ? Infinity : b.endTs;
+			if (ea !== eb) return ea - eb;
+			const sa = a.startTs == null ? Infinity : a.startTs;
+			const sb = b.startTs == null ? Infinity : b.startTs;
+			return sa - sb;
+		}
+		// 永久/常驻活动计数行 —— **直接用本体 `permanentLine`**（30-parsers.js）。
+		// ⚠️ 2026-10-03 收敛：这里曾有一份逐字相同的副本 `hoverPermanentLine`（措辞 `以及常驻活动 N 项`）。
+		//    本体注释写着"抽成函数是为了**措辞只有一处**"，副本正是打破了那句话，已删。
+
+		/**
+		 * 卡池列悬停。复刻本体 `buildPoolHover`：
+		 *   每池两行 —— `池名：角色` ⏎ `档期`；窗口完全相同的池合并时间（只在末尾写一遍）。
+		 * `pools` 项：`{ name, label?, startTs?, endTs?, raw? }`（`label` 优先于 `name`）。
+		 * 返回 "" = 不足 2 池，交回 UI 默认两行式。
+		 */
+
+		function hoverPool(pools, tz) {
+			const list = (Array.isArray(pools) ? pools : [])
+				.filter((p) => p && typeof p.name === "string" && p.name.trim() !== "")
+				.sort(hoverSortByEnd);
+			if (list.length < 2) return "";
+			const allTimed = list.every((p) => p.startTs != null && p.endTs != null);
+			const same = allTimed && new Set(list.map((p) => `${p.startTs}~${p.endTs}`)).size === 1;
+			const lines = [];
+			for (const p of list) {
+				lines.push(p.label || p.name);
+				if (same) continue;
+				const t = p.startTs != null && p.endTs != null ? fmtWindow(p.startTs, p.endTs, tz) : String(p.raw || "").trim();
+				if (t) lines.push(t);
+			}
+			if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs, tz));
+			return lines.join("\n");
+		}
+
+		/**
+		 * 活动列悬停。复刻本体 `buildEventHover`：
+		 *   每条一行 `名称` + **3 空格** + `档期`（档期用 fmtWindow 格式化）；
+		 *   窗口完全相同时只列名称、末尾写一次档期；缺起止的行显示该行 `raw` 原文。
+		 * **不排序**（与本体一致：调用方负责排序）。
+		 * `permanentCount` = 永久/常驻活动数，只在末尾补一行计数。
+		 * 返回 "" = 不足 2 条（交回 UI 默认两行式）。
+		 */
+
+		function hoverEvent(items, tz, permanentCount = 0) {
+			const list = (Array.isArray(items) ? items : [])
+				.filter((x) => x && typeof x.name === "string" && x.name.trim() !== "")
+				.filter((x) => !isLongTermWindow(x));
+			if (list.length < 2) return permanentLine(permanentCount);
+			const allTimed = list.every((x) => x.startTs != null && x.endTs != null);
+			const same = allTimed && new Set(list.map((x) => `${x.startTs}~${x.endTs}`)).size === 1;
+			const lines = list.map((x) => {
+				if (x.startTs != null && x.endTs != null) {
+					return same ? x.name : `${x.name}   ${fmtWindow(x.startTs, x.endTs, tz)}`;
+				}
+				const raw = String(x.raw || "").trim();
+				return raw ? `${x.name}   ${raw}` : x.name;
+			});
+			if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs, tz));
+			if (permanentCount > 0) lines.push(permanentLine(permanentCount));
+			return lines.join("\n");
+		}
+
+		//#region proxy fetchers（经 host 代理）与统一来源注册表
+		// 中文时间解析（繁体/简体共用）：
+		// "8月18日(二)維護後" / "9月1日(二)上午9點59分" / "晚間10點59分" / "08月20日 14:00"
+		function parseZhTime(raw, nowYear) {
+			const s = String(raw).trim();
+			const md = s.match(/(\d{1,2})月(\d{1,2})日/);
+			if (!md) return null;
+			const mo = Number(md[1]), d = Number(md[2]);
+			let h = 0, mi = 0;
+			const tm = s.match(/(上午|下午|中午|凌晨|晚上|晚間)?\s*(\d{1,2})[點点](\d{1,2})?[分]?/);
+			if (tm) {
+				let hh = Number(tm[2]);
+				const mm = tm[3] ? Number(tm[3]) : 0;
+				const period = tm[1] || "";
+				if ((period === "下午" || period === "晚上" || period === "晚間") && hh < 12) hh += 12;
+				if (period === "中午" && hh < 12) hh += 12;
+				if (period === "凌晨" && hh === 12) hh = 0;
+				h = hh; mi = mm;
+			}
+			const ts = new Date(nowYear, mo - 1, d, h, mi).getTime();
+			return { ts, text: `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} ${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}` };
+		}
+
+
+		// 经 host 代理抓取文本 / JSON 两个函数的**实现**已移到外壳（92-dsh-env.js），
+		// core 侧只在 15-env.js 保留同名薄封装（转调 coreEnv.transport）——这是 core 零宿主依赖的接缝之一。
+
+		// 解析繁体时间段："8月18日(二)維護後 ~ 9月1日(二)上午9點59分"
+		// 跨年（如 12月30日 ~ 1月5日）：结束月份小于开始月份 → 结束端按"下一年"解析；
+		// 否则 end 会早于 start，当期会被误判成"未公布"（每年 12 月底~1 月初复发）。
+		function parseBaZhRange(raw, nowYear) {
+			const s = stripTags(raw);
+			const parts = s.split(/[~～]/).map((x) => x.trim());
+			if (parts.length < 2) return null;
+			const moOf = (x) => { const m = String(x).match(/(\d{1,2})月/); return m ? Number(m[1]) : null; };
+			const am = moOf(parts[0]), bm = moOf(parts[1]);
+			const a = parseZhTime(parts[0], nowYear);
+			const b = parseZhTime(parts[1], am != null && bm != null && endsNextYear(am, null, bm, null) ? nowYear + 1 : nowYear);
+			if (!a || !b) return null;
+			return { startTs: a.ts, endTs: b.ts, startText: a.text, endText: b.text, raw: `${a.text} ~ ${b.text}` };
+		}
+
+
+		// ---- GameKee（蔚蓝档案）----
+		// 解析标题里的排期：【8/18~9/01】 / 【8月26日 ~ 9月9日】 → {startText, endText, startTs, endTs}
+		function parseGkRange(title, nowYear) {
+			const m = String(title).match(/【([^】]+)】/);
+			if (!m) return null;
+			const inner = m[1].replace(/\s+/g, "");
+			const parts = inner.split(/[~～\-—]/);
+			if (parts.length < 2) return null;
+			const moOf = (p) => { const md = p.match(/(\d{1,2})[\/月](\d{1,2})日?/); return md ? Number(md[1]) : null; };
+			const parseGkTime = (p, year) => {
+				// 8/18 或 8月18日（日服可能带 日）
+				const md = p.match(/(\d{1,2})[\/月](\d{1,2})日?/);
+				if (!md) return null;
+				const mo = Number(md[1]), d = Number(md[2]);
+				const ts = new Date(year, mo - 1, d, 0, 0).getTime();
+				return { ts, text: `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} 00:00` };
+			};
+			// 跨年（如 【12/28~1/5】）：结束月份小于开始月份 → 结束端按"下一年"解析
+			const am = moOf(parts[0]), bm = moOf(parts[1]);
+			const a = parseGkTime(parts[0], nowYear);
+			const b = parseGkTime(parts[1], am != null && bm != null && endsNextYear(am, null, bm, null) ? nowYear + 1 : nowYear);
+			if (!a || !b) return null;
+			return { startTs: a.ts, endTs: b.ts, startText: a.text, endText: b.text, raw: `${a.text} ~ ${b.text}` };
+		}
+
+		const TZ_CN = "Asia/Shanghai";      // UTC+8：国服一览
+
+
+		const AK_OFFICIAL_BULLETIN = "https://web-news.hypergryph.com/api/bulletin";
+
+
+		// ⚠️ 2026-10-03 合并：以下内容原为独立文件 `src/client/43-sources-register.js`，
+		//    现按用户要求（方案 C2）并入本文件。
+		//
+		//    为什么必须放在本文件**末尾**：它要在 `GACHA_FETCHERS` / `EVENT_FETCHERS`
+		//    两张表**声明之后**才能登记（这两张表在本文件上方，是 `const`）→ 提前会 TDZ 报错。
+		//
+		//    为什么并入后仍然安全（C2 的前置条件，已逐条核实）：
+		//      · 它引用 29 个解析器符号，**全是 `function` 声明**（会提升）→ 即使本文件排在
+		//        那些 `42-parsers-*.js` 之前也不会 TDZ；
+		//      · 它对 `SOURCES`（模块级）的写操作**全部幂等**：`NS_SOURCES` 按 id 找到就覆盖、
+		//        备选源挂接按 fetcher 去重、bh3 那处 push 已补上 `some()` 守卫 —— 因为 core 产物里
+		//        本文件位于 `createEngine` 内部，**每次新建引擎都会重跑一遍**；
+		//      · 两张表本身是 `createEngine` 内的 `const` → 每个引擎各一份，不会互相污染。
+		//
+		//    符号名与实现**一律未改**，原文件头保留在下面。
+		// ═══════════════════════════════════════════════════════════════════════════
+
+// src/client/43-sources-register.js —— 新增来源的「条目声明 + 抓取器登记」
+//
+// 三件事：
+//   ① 把 **17 条**新增来源追加进 `SOURCES`（16 条在 `NS_SOURCES` + 1 条 `bh3` 单独 push）
+//   ② 登记主抓取器到 `GACHA_FETCHERS` / `EVENT_FETCHERS`
+//   ③ 登记备选源抓取器，并把「米游社公告」挂成既有条目（原神/星铁/绝区零）的备选源 + 新建 `bh3`
+//
+// ⚠️ 数字口径（2026-10-03 核实，原文写的是「20 条」—— 不对）：
+//   `20-sources.js` 内置 **11** 条 + 本文件 **17** 条 = 最终 `SOURCES` **28** 条。
+//   合并规则见下方 `for (const s of NS_SOURCES)`：**按 id 找，命中就 `Object.assign` 覆盖、否则 push**。
+//   那条"覆盖"分支当前**不会触发**（现存 17 条与内置 11 条无一重名），它是留给
+//   "新增来源要接管某条内置条目"的升级路径 —— 历史上 `wuhuamixin` / `uma-cn` 的默认源
+//   就从 bwiki 换成了 biligame 官方公告，靠的正是它。**别因为"跑不到"就删掉。**
+//
+// 位置说明：本文件排在 `40-fetchers.js` **之后**（ORDER），因为它要往那两张表里登记、往 SOURCES 里追加。
+//
+// 历史沿革：内容原为生成物 `src/client/45-next-sources.js` 的尾部（由 `next-sources/registry*.js` 生成）。
+// 2026-10-03 用户要求「把 next-sources 合并进原 source，不留 next-source」后压平为普通源码，
+// `next-sources/` 与生成器均已删除 —— **这里就是唯一真源，直接改这里**。
+// （备选源的「键名 → 函数」对照表仍在 `test/registry-shim.mjs`，供测试侧的注册表结构守卫使用。）
+//
+// 历史沿革：内容原为生成物 `src/client/45-next-sources.js` 的尾部（由 `next-sources/registry*.js` 生成）。
+// 2026-10-03 用户要求「把 next-sources 合并进原 source，不留 next-source」后压平为普通源码，
+// `next-sources/` 与生成器均已删除 —— **这里就是唯一真源，直接改这里**。
+// （备选源的「键名 → 函数」对照表仍在 `test/registry-shim.mjs`，供测试侧的注册表结构守卫使用。）
+
+
+
+
+
+		// ===== 登记抓取器（键 = 条目 id）=====
+
+
+
+
+
+		//#region 米游社公告（挂成**备选源**，不改默认主源）
+		// 用户 2026-10-02 明确要求：「米游社来源全部改名米游社公告，且降级备选，恢复原默认来源」。
+		// 所以这里**只加备选**：原神/星铁保持 Bwiki，绝区零保持官方公告（api-takumi-static）。
+		// 命中规则 `altSourceId = (alt) => alt.url` 与当前 url 字符串相等；下面是各游戏**专属 gids URL**，不会串。
+
+
+
+
+		// 崩坏3：插件本体此前无来源 → 新建条目且**默认未配置**（用户要求）。
+
+		// 未配置的语义（50-refresh.js）：`if (!source.url && !source.eventUrl) return { ok:true, reason:"skipped" }`
+
+		// → 不抓取、不计成功也不计失败；UI 显示「未配置（不抓取卡池/活动）」。设置页选「米游社公告」即可启用。
+
+		if (!SOURCES.some((s) => s.id === "bh3")) {
+
+			const G = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=1&type=1&page_size=20";
+
+			const E = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=1&type=2&page_size=20";
+
+			GACHA_FETCHERS["bh3-miyoushe"] = (url, signal, tz) => ns_miyoushe_gachaMiyoushe(url, signal, tz);
+
+			EVENT_FETCHERS["bh3"] = { default: null, "bh3-miyoushe": { default: (url, signal, tz) => ns_miyoushe_eventsMiyoushe(url, signal, tz) } };
+
+			// ⚠️ 幂等（2026-10-03 为「43 并入 40 进 core」而补）：
+			//    这一段在 core 产物里位于 `createEngine` **内部**，每次新建引擎都会重跑；
+			//    而 `SOURCES` 是**模块级**共享的 → 直接 push 会让 bh3 越堆越多
+			//    （`_core_engine_test.mjs` 就建了两个引擎，会立刻暴露）。
+			//    本文件其余写操作本来就是幂等的：上面 `NS_SOURCES` 是"按 id 找到就覆盖"、
+			//    备选源挂接是"按 fetcher 去重"，只有这处 push 不是。
+			if (!SOURCES.some((s) => s.id === "bh3")) SOURCES.push({
+
+				id: "bh3",
+
+				tz: "Asia/Shanghai",
+
+				name: "崩坏3",
+
+				icon: "https://storage.moegirl.org.cn/moegirl/commons/f/f4/BH3_icon.png!/fw/64",
+
+				// 出厂默认不勾选展示（用户要求）：默认未配置时面板恒空，不该占版面
+
+				defaultHidden: true,
+
+				// 默认**未配置**：不给 url / eventUrl
+
+				source: "",
+
+				eventSource: "",
+
+				altSources: [{ label: "米游社公告", url: G, fetcher: "bh3-miyoushe" }],
+
+				eventAltSources: [{ label: "米游社公告", url: E, fetcher: "bh3-miyoushe" }]
+
+			});
+
+		}
+
+		//#endregion
+
+		//#endregion
+
+// src/client/30-game-hoyoverse.js —— 米哈游（原神 / 星穹铁道 / 绝区零）
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+
+		// ── 解析器 / 抓取器 ──
+
+		// 「版本更新后」这类**只有日期没有时分**的写法，默认按当日该时刻折算。
+		// 为什么需要一个默认值：源站常见 `2026/09/28 4.6版本更新后`（日期 + 版本标签的混合体），
+		// 日期是明确的，缺的只是时分；不补的话 startTs 会是 null，外显只能回落源站原文
+		// （星铁活动列一度显示成 `2026/09/28 4.6版本更新后 ~ 11-10 15:00`，与其它游戏的
+		// `09-28 04:00 ~ 11-10 15:00` 口径不一致）。
+		// 取 04:00 是因为国内二游版本更新普遍落在凌晨维护窗口（该表内 04:00 出现最多），
+		// 拿它当锚点比"不补"更接近真实，也不会让"活动是否已开始"的判定偏移一天。
+		const VERSION_UPDATE_ANCHOR = { h: 4, mi: 0 };
+
 
 		// 绝区零官网公告解析：从公告频道（iChanId=279）取「X.Y版本限时频段（上/下期）」，选覆盖当前时刻的一期。
 		// 公告形如：sIntro="本期代理人与音擎调频活动时间为：3.2版本更新后 ~ 2026/09/30 11:59"，
@@ -1932,6 +2120,7 @@ export function createEngine(env) {
 			};
 		}
 
+
 		// 绝区零卡池默认抓取器：官网公告优先；无当期频段公告 / 抓取失败 → 自动回退 Bwiki 往期调频
 		async function fetchZzzGacha(listUrl, signal, tz, now = nowMs()) {
 			try {
@@ -1958,6 +2147,7 @@ export function createEngine(env) {
 			return selectCurrent(parseAllBwiki(html), now);
 		}
 
+
 		// 绝区零：官方公告列表（api-takumi-static，与卡池侧同一接口，经 host 代理）→ 当期活动。
 		// 活动时间就写在公告正文里（【活动时间】A ~ B），**不需要再抓详情页**；
 		// A/B 可能是绝对时间，也可能是"X.Y版本更新后" / "X.Y版本结束"——用「X.Y版本更新公告」的发布时间折算：
@@ -1965,6 +2155,7 @@ export function createEngine(env) {
 		// 当前版本还没有下一版本公告 → 结束时间未知：这类活动**保留**（endTs=null），
 		// 由 sortEventItems / pickEventPrimary 的既有规则自然沉到外显与悬停的最后，不跳过、不丢弃。
 		const ZZZ_EVENT_WINDOW_RE = /((?:\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\s+\d{1,2}:\d{2})|(?:\d+\.\d+\s*版本更新后))\s*[~～\-—]\s*((?:\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\s+\d{1,2}:\d{2})|(?:\d+\.\d+\s*版本结束))/g;
+
 
 		function parseZzzEventsOfficial(payload, now = nowMs(), tz) {
 			const list = Array.isArray(payload?.data?.list) ? payload.data.list : [];
@@ -2040,10 +2231,989 @@ export function createEngine(env) {
 			};
 		}
 
+
 		async function fetchZzzEventsOfficial(listUrl, signal, tz) {
 			const payload = await proxyFetchJson(listUrl, "https://zzz.mihoyo.com/");
 			return parseZzzEventsOfficial(payload, nowMs(), tz);
 		}
+
+
+		// 原神 SMW 活动查询（经 origin=* 直连）
+		// 返回 EVENT_FETCHERS 契约格式 {event, eventDates, eventDatesRaw}（parseSmwActivity 产出卡池格式，这里转换）
+		async function fetchYsActivity(signal, tz) {
+			const nowYear = new Date(nowMs()).getFullYear();   // 走注入时钟（core 不得直接读宿主时钟）
+			const q = "[[\u5206\u7C7B:\u6D3B\u52A8]][[\u7ED3\u675F\u65F6\u95F4::>" + nowYear + "/01/01]]|?\u540D\u79F0|?\u5F00\u59CB\u65F6\u95F4|?\u7ED3\u675F\u65F6\u95F4|?\u7C7B\u578B|sort=\u5F00\u59CB\u65F6\u95F4|order=desc|limit=60";
+			const apiUrl = "https://wiki.biligame.com/ys/api.php?action=ask&query=" + encodeURIComponent(q) + "&format=json&origin=*";
+			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
+			if (!res.ok) throw new Error("http-" + res.status);
+			const json = await res.json();
+			const d = parseSmwActivity(json, tz);
+			if (!d) return null;
+			return {
+				event: d.banner,
+				eventDates: d.bannerDates || "",
+				eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "",
+				eventHover: d.eventHover || ""
+			};
+		}
+
+		const ZZZ_NEWS_LIST_URL = "https://api-takumi-static.mihoyo.com/content_v2_user/app/706fd13a87294881/getContentList?iChanId=279&iPageSize=50&iPage=1&sLangKey=zh-cn";
+
+
+		const ZZZ_BWIKI_URL = "https://wiki.biligame.com/zzz/api.php?action=parse&page=%E5%BE%80%E6%9C%9F%E8%B0%83%E9%A2%91&prop=text&format=json&formatversion=2";
+
+
+		// ══ 以下为原 42-parsers-miyoushe.js 的内容（原样保留）══
+// src/client/35-parsers-miyoushe.js
+//
+// 由 next-sources/parsers/miyoushe.js 压平而来（2026-10-03「不留 next-source」）。
+// 模块级标识符仍带 ns_miyoushe__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
+// 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
+
+// src/client/35-parsers-miyoushe.js —— 米哈游系官方公告（米游社 BBS API）
+//
+// 覆盖 4 个游戏（gids 实测四个都 200 且返回对应游戏的正确公告）：
+//   1 = 崩坏3 / 2 = 原神 / 6 = 崩坏：星穹铁道 / 8 = 绝区零
+//
+// 契约：async (url, signal, tz, now = nowMs()) → 数据对象 | null
+//   卡池侧 { banner, roles?, bannerDates, bannerDatesRaw?, startTs?, endTs?, bannerHover? }
+//   活动侧 { event, eventDates, eventDatesRaw?, eventHover? }
+//   ⚠️ **now 必须是第 4 个参数**。本仓库历史 bug：now 收到 tz 字符串 → `startTs <= now` 恒假
+//      → 静默显示"未公布"。本文件全部命中判定都用传入的 now，不读全局时钟。
+//   ⚠️ 这是**官方补充源**，与既有 bwiki 条目（`genshin` / `hsr` / `zzz`）**并存**，
+//      所以 id 加 `-official` 后缀、不撞车。
+//
+// ══════════════════════════════════════════════════════════════════════════════
+// 一、端点与实测形态（夹具 2026-10-02 抓，见 fixtures/p4-*）
+// ══════════════════════════════════════════════════════════════════════════════
+//  列表  GET /painter/wapi/getNewsList?gids=<gid>&type=<1|2|3>&page_size=20
+//        type=1 公告/补给、type=2 活动、type=3 资讯
+//        → { retcode:0, message:"OK", data:{ list:[ { post:{ post_id, subject,
+//            created_at(epoch 秒), images[], content:"", summary:"", structured_content:"" },
+//            news_meta:null, text_summary:"", brief_structured_content:"" }, … ],
+//            last_id, is_last } }
+//  详情  GET /post/wapi/getPostFull?post_id=<post_id>
+//        → { retcode:0, data:{ post:{ post:{ post_id, subject, created_at, content(HTML) } } } }
+//
+//  ⚠️ `post_id` 在 JSON 里是**字符串**（"78549971"），不能用 `===` 跟数字比。
+//  ⚠️ `created_at` 是 **epoch 秒**（不是毫秒），且是**绝对时刻**（可直接用，不必按 tz 解释）。
+//
+//  ⚠️⚠️ **列表里没有"档期文本"字段**：实测各游戏的 **type=1（公告/补给）** 列表里，
+//      `post.content` / `post.summary` / `post.structured_content` / `post.meta_content` /
+//      `text_summary` / `brief_structured_content` 全为空，`news_meta` 恒为 **null**
+//      （夹具 p4-{bh3,genshin,hsr,zzz}-news：0/20 条 post.content，news_meta 全 null）。
+//      → **卡池侧必须再抓详情正文**才能拿到档期。这是本解析器"抓列表 → 抓详情 → 从正文抽档期"
+//        两步形态的原因（与 ournotes.js 同形）。
+//
+//  ✅ **但 type=2（活动）列表有一层被低估的显式字段**（实测发现，任务书原话"该 API 没有显式
+//      档期字段"**只对 type=1 成立**）：每条的 `news_meta` 都带
+//         { activity_status: 1|2|3, start_at_sec: "…", end_at_sec: "…" }   （**epoch 秒的字符串**）
+//      20/20 条齐全（夹具 p4-{bh3,genshin,hsr,zzz}-events）。`activity_status` 与"是否已结束"相关
+//      （实测 bh3：进行中的两条=1，其余历史条目=3）。
+//      ⚠️ 但它的**结束时刻口径各游戏不一致**，所以**没有**拿它当外显：
+//        · 崩坏3  `09-28 12:00 ~ 10-07 23:59` = 正文「9.28 12:00~10.7 23:59」**完全一致**
+//        · 星铁   `09-28 18:44 ~ 10-13 00:00` ≈ 正文「9月28日 - 10月12日 23:59」+1 分钟（= 参与截止）
+//        · 原神   `10-02 12:00 ~ 11-10 20:00` ← 正文写「10月2日-10月31日23:59」、**开奖时间 11月10日**
+//                  → 这里的 end 是**开奖时刻**，不是参与截止（口径不同）
+//      结论：外显仍取**公告正文**（玩家看到的活动时间就是正文那句），
+//      `news_meta` 只作**兜底**：当正文一个可解析窗口都抽不到时，用它的显式档期顶上，
+//      并在 `eventDatesRaw` / `bannerDatesRaw` 里标明来源是 news_meta（不冒充正文）。
+//      ⚠️ 这句来源说明**只进 raw 字段**（既有约定：本体也有条目这么做）；**悬停里不写**（见 §五）。
+//
+//  ⚠️ **详情端点有 Referer 门（实测）**：不带 Referer 一律 `HTTP 403 / body "Forbidden"`：
+//        · 桌面 UA + 无 Referer                     → 403
+//        · 桌面 UA + Referer: www.miyoushe.com      → 200
+//        · 桌面 UA + Referer: bbs-api.miyoushe.com（宿主代理的默认值） → 200
+//        · 只有 Origin、没有 Referer                 → 403   ← 门是 Referer，不是 UA
+//      → 本文件显式传 `referer: https://www.miyoushe.com/`；**列表**端点不需要 Referer（200）。
+//
+//  🚨 生产环境前置条件（**Lead 集成时必须处理，本文件不越界改 src/**）：
+//      `src/index.js` 的 `PROXY_ALLOW_HOSTS` **当前不含 `bbs-api.miyoushe.com`**
+//      （白名单里只有同门的 `api-takumi-static.mihoyo.com`）。本目录新源一律 `mode="proxy"`，
+//      所以离线夹具测试能全绿，但**真机上会拿到 `{error:"host not allowed"}`**。
+//      → 需 Lead 在 `PROXY_ALLOW_HOSTS` 里加 `"bbs-api.miyoushe.com"`（一行，属插件本体改动）。
+//
+// ══════════════════════════════════════════════════════════════════════════════
+// 二、时区 = Asia/Shanghai（UTC+8）—— **推测**
+// ══════════════════════════════════════════════════════════════════════════════
+//  正文里的时刻（`2026-09-30 12:00`、`9.28 12:00`）都是**国服墙钟原文**，源站**没有**标注时区。
+//  按国服惯例取 UTC+8。可佐证的旁证（非硬证据）：
+//    · 绝区零 3.2 限时频段 `2026-09-30 12:00 ~ 2026-10-20 14:59` —— 12:00 开池 / 14:59 收池，
+//      是国服"中午开、下午收"的典型口径（与 bwiki 各源一致）；
+//    · 官方公告的发布时刻 `created_at` 落在 UTC+8 的整点/半点（10:00、04:00、12:00 等），
+//      而按 UTC+9 渲染会变成 11:00、05:00、13:00（不整）。
+//  → 因此本文件把 `tz` 默认写成 `Asia/Shanghai`，并在**注释**里如实标"推测"
+//    （⚠️ 悬停里**不写**时区说明 —— 用户 2026-10-03：「元信息彻底删掉」，见 §五）。
+//
+// ══════════════════════════════════════════════════════════════════════════════
+// 三、正文档期抽取（**实测的格式清单**，全部来自 p4-*-detail-* 夹具）
+// ══════════════════════════════════════════════════════════════════════════════
+//   ✅ 能抽到：
+//     · `9.28 12:00~10.7 23:59`                       崩坏3 有奖活动（**无年份**，取公告年）
+//     · `2026-09-30 12:00 ~ 2026-10-20 14:59`         绝区零 3.2 限时频段
+//     · `参与时间：即日起 - 2026年10月18日 23:59`      绝区零 有奖活动（起点"即日起"）
+//     · `2026年10月2日-2026年10月31日23:59`           原神 有奖活动（分隔符是**紧贴的 `-`**）
+//     · `2026年9月28日 - 2026年10月12日 23:59`        星铁 有奖活动
+//     · `2026/09/28 4.6版本更新后 - 2026/11/10 15:00`  星铁 活动跃迁（起点是**版本锚点**）
+//     · `整体活动时间：2026/09/30 10:00 ~ 2026/11/03 03:59` 原神 type=1 活动说明
+//   ❌ **抽不到（正文里根本没有日期，时间画在配图里）→ 本侧如实返回 null**：
+//     · 崩坏3 补给（`p4-bh3-detail-gacha` / `-char`）：正文只有 `>>开放等级`、
+//       `>>补给信息`（**一张图**）、`>>补给规则`（`每10次装备补给必定获得4★武器或圣痕`）
+//       → 全文 0 个日期。**绝不拿 `created_at` 当档期、绝不硬凑**。
+//     · 原神 祈愿（`p4-genshin-detail-wish` / `-wish2`）：正文只有 `〓祈愿介绍〓`，
+//       全程写"活动期间"却**不给日期**，全文 0 个日期。
+//
+//  抽取策略（令牌化 + 配对，而不是一条大正则）：
+//    ① 扫令牌：ABS(YYYY-MM-DD/./年 的完整日期[+HH:MM])、VER(`X.Y版本更新后`/`X.Y版本结束`)、
+//       BARE(无年份 `M.D HH:MM`)、OPEN(`即日起`)；
+//    ② 相邻两令牌之间只允许"连接符"`~ ～ 〜 〰 - – — － 至 到`（可带空白）→ 配对成窗口；
+//       紧贴的 `YYYY/MM/DD` + `X.Y版本更新后`（中间只有空白）视作**同一个起点**；
+//    ③ 缺时刻：起点按 00:00、终点按 23:59；
+//    ④ 无年份 `M.D` 的年份取**公告发布年**（按 tz 渲染）；终点月日早于起点 → 终点进一年；
+//    ⑤ `即日起` → 起点取公告 `created_at`（并标 `inferred`）；`X.Y版本更新后` → 起点取
+//       **同列表里 `X.Y版本更新说明` 的发布时刻**（版本锚点，标 `inferred`）；
+//       锚点找不到才退回正文里的字面日期 00:00；
+//    ⑥ `endTs > startTs` 才产出；按**时间区间**去重（保留 raw 更全的那条）；**文档顺序**保留。
+//  选当期：候选公告按 `created_at` **倒序**，逐篇抓详情，取**第一条覆盖 now 的窗口**；
+//          没有覆盖 now 的窗口 → 返回 `null`（未公布），**不退回过期档期**。
+//
+//  候选筛选（标题关键词分流，见 ns_miyoushe_classifyMiyousheTitle）：
+//    · 卡池侧 补给/祈愿/跃迁/频段/调频/招募…
+//    · 活动侧 活动/征集/赛事/签到/有奖/话题…
+//    同一标题同时命中两边时**卡池关键词优先**（实例：`4.6版本活动跃迁（其一）` 是卡池公告，
+//    虽然字面含"活动"）。命不中的（版本更新说明、封禁名单、商城上新…）直接跳过。
+//
+//  成本：列表 1 次请求 + **最多 ns_miyoushe_MIYOUSHE_MAX_DETAILS 篇正文**（顺序、间隔 ns_miyoushe_MIYOUSHE_DETAIL_DELAY_MS，
+//        对 WAF 友好）；候选已按时间倒序，覆盖 now 的窗口一旦出现即被采用。
+//
+// ══════════════════════════════════════════════════════════════════════════════
+// 四、失败口径（"只有结构性损坏才 throw"）
+// ══════════════════════════════════════════════════════════════════════════════
+//   · HTTP 非 2xx / 响应不是 JSON / `retcode !== 0`          → **throw**（该侧算抓取失败）
+//   · 列表为空（实测 `gids=99999` → `retcode:0, list:[]`）    → 返回 null（未公布）
+//   · 单篇详情 `retcode 1101/1102`（"post not exist"，实测）  → **跳过该篇**（不算失败）
+//   · 单篇详情 HTTP 404/410                                   → 跳过该篇
+//   · 全部候选都失败且出现过**硬错**（403/567/坏 JSON…）      → **throw**（别把封禁静默成"未公布"）
+//     （实测详情缺 Referer 就是 403 "Forbidden" —— 这种必须能被看见）
+//
+// ══════════════════════════════════════════════════════════════════════════════
+// 五、悬停排版（用户 2026-10-03：「元信息彻底删掉」）
+// ══════════════════════════════════════════════════════════════════════════════
+//  排版**不再本地实现**，一律调 `lib/env.js` 的 `hoverPool` / `hoverEvent`
+//  （与本体 `buildPoolHover` / `buildEventHover` 逐字一致），本文件只负责：
+//    · 卡池侧：每池一项 `{ name: 公告标题, label: 「池名：角色」, startTs, endTs }` → hoverPool
+//      （角色名空 → label 退化成池名；与本体 `banner：roles` 同构）
+//    · 活动侧：每条 `{ name: 公告标题, startTs, endTs }`，**先按结束时间升序排好**再传给 hoverEvent
+//      （`hoverEvent` 自己不排序，与本体一致）
+//    · 当期**不足 2 项**时两个工具返回 `""` → **不设** `bannerHover` / `eventHover` 字段，
+//      让 UI 走默认两行式（卡池 `池名：角色` ⏎ 档期；活动 `名称` ⏎ 档期）
+//
+//  🚫 以下信息**一律不进悬停文本**（只留在本文件的代码注释里）：
+//     · 来源站名 / 域名 / URL / API 名（米游社官方公告、bbs-api.miyoushe.com、getNewsList…）
+//     · 时区推定说明（"国服墙钟按 UTC+8 换算 —— 源站未标注时区＝推测"）
+//     · 抓取统计（"本轮有 N 篇公告正文抓取失败"）
+//     · 内部 id / 源站字段名（post_id、start_at_sec、end_at_sec、activity_status、news_meta…）
+//     · 游戏名 + 区服前缀（悬停里不重复游戏名）
+//     · 任何「（…）」形式的实现说明（"本篇第 N 段档期"、"起点为推断"、"源站 news_meta 显式档期"…）
+//  ⇒ 用户明确要求"直接删掉"：**删除**，不要把这些信息改放到悬停的别的行/字段里。
+//     （`bannerDatesRaw` / `eventDatesRaw` 是**既有**的"源站原文 / 溯源说明"约定字段，
+//      本次维持现状 —— 那不是"迁移目的地"，只是原本就长这样。）
+
+
+const ns_miyoushe_MIYOUSHE_TZ = "Asia/Shanghai";                     // **推测**（理由见文件头 §二）
+const ns_miyoushe_MIYOUSHE_REFERER = "https://www.miyoushe.com/";    // 详情端点的 Referer 门（实测）
+// ⚠️ 这里**曾**导出 `MIYOUSHE_PROVENANCE`（"米游社官方公告（档期由公告正文抽出；国服墙钟按 UTC+8 换算
+//    —— 源站未标注时区＝推测）"），专门塞进悬停首行。用户 2026-10-03 要求「元信息彻底删掉」→
+//    常量与悬停首行**一并删除**。来源站名 / 时区推定这类信息只留在**本文件注释**里（§一/§二）。
+
+const ns_miyoushe_LIST_BASE = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList";
+const ns_miyoushe_DETAIL_BASE = "https://bbs-api.miyoushe.com/post/wapi/getPostFull";
+
+// gids（实测：1=崩坏3 / 2=原神 / 6=星穹铁道 / 8=绝区零）
+const ns_miyoushe_MIYOUSHE_GIDS = { bh3: 1, genshin: 2, hsr: 6, zzz: 8 };
+// type（实测：1=公告/补给、2=活动、3=资讯）
+const ns_miyoushe_MIYOUSHE_TYPES = { GACHA: 1, EVENT: 2, INFO: 3 };
+
+const ns_miyoushe_MIYOUSHE_MAX_DETAILS = 5;        // 每侧最多抓几篇正文
+const ns_miyoushe_MIYOUSHE_DETAIL_DELAY_MS = 200;  // 篇间隔（顺序抓，避免把源站打急）
+
+// ⚠️ registry-p4.js 里声明的 url 必须由这两个函数生成，否则离线夹具（map.json 按整串匹配）命中不到。
+function ns_miyoushe_miyousheListUrl(gids, type, pageSize = 20) {
+	return `${ns_miyoushe_LIST_BASE}?gids=${gids}&type=${type}&page_size=${pageSize}`;
+}
+function ns_miyoushe_miyousheDetailUrl(postId) {
+	return `${ns_miyoushe_DETAIL_BASE}?post_id=${encodeURIComponent(String(postId))}`;
+}
+
+//#region 列表 / 详情解析（纯函数）
+// type=2 列表每条都带 `news_meta`（显式档期，epoch 秒**字符串**）→ 解析成绝对毫秒；type=1 恒 null。
+function ns_miyoushe_parseNewsMeta(nm) {
+	if (!nm || typeof nm !== "object") return null;
+	const s = Number(nm.start_at_sec), e = Number(nm.end_at_sec);
+	if (!Number.isFinite(s) || !Number.isFinite(e) || !(s > 0) || !(e > s)) return null;
+	const st = Number(nm.activity_status);
+	return { startTs: s * 1000, endTs: e * 1000, status: Number.isFinite(st) ? st : null };
+}
+
+function ns_miyoushe_parseMiyousheList(json) {
+	if (!json || typeof json !== "object") throw new Error("miyoushe-bad-shape");
+	if (json.retcode !== 0) throw new Error("miyoushe-retcode-" + json.retcode);
+	const list = json.data && json.data.list;
+	if (!Array.isArray(list)) throw new Error("miyoushe-bad-list");
+	const out = [];
+	for (const it of list) {
+		const p = it && it.post;
+		if (!p || p.post_id == null || p.post_id === "") continue;
+		const sec = Number(p.created_at);
+		out.push({
+			// ⚠️ 保留字符串形态（源站就是字符串；夹具 map 的 URL 也按它拼）
+			postId: String(p.post_id),
+			subject: String(p.subject || "").replace(/\s+/g, " ").trim(),
+			// created_at 是 **epoch 秒**，转毫秒；源站的绝对时刻，不需要按 tz 解释
+			createdTs: Number.isFinite(sec) && sec > 0 ? sec * 1000 : null,
+			// 只有 type=2 列表才有（type=1 恒 null）；epoch 秒的**字符串**，要 Number() 一下
+			newsMeta: ns_miyoushe_parseNewsMeta(it && it.news_meta)
+		});
+	}
+	return out;
+}
+
+function ns_miyoushe_parseMiyousheDetail(json) {
+	if (!json || typeof json !== "object") throw new Error("miyoushe-bad-shape");
+	if (json.retcode !== 0) throw new Error("miyoushe-retcode-" + json.retcode);
+	const p = json.data && json.data.post && json.data.post.post;
+	if (!p || p.post_id == null) throw new Error("miyoushe-bad-post");
+	const sec = Number(p.created_at);
+	return {
+		postId: String(p.post_id),
+		subject: String(p.subject || "").replace(/\s+/g, " ").trim(),
+		createdTs: Number.isFinite(sec) && sec > 0 ? sec * 1000 : null,
+		content: String(p.content || "")
+	};
+}
+
+// "这篇拿不到"≠"这一侧抓取失败"：实测详情对不存在的 post 回 **HTTP 200 + retcode 1101/1102**
+// （`{"data":null,"message":"post not exist","retcode":1102}`），不是 HTTP 404。
+function ns_miyoushe_isMiyousheMissing(err) {
+	const m = String((err && err.message) || err || "");
+	return /\b(404|410)\b/.test(m) || /miyoushe-retcode-(1101|1102)\b/.test(m);
+}
+//#endregion
+
+//#region 标题关键词分流
+// 冲突时卡池优先：`4.6版本活动跃迁（其一）` 是**卡池**公告（字面含"活动"）。
+const ns_miyoushe_BANNER_KW = /祈愿|补给|跃迁|频段|调频|招募|概率UP|概率提升|扭蛋|蛋池/;
+const ns_miyoushe_EVENT_KW = /活动|征集|赛事|签到|登录|庆典|有奖|话题|抽奖|投票|答题|委托|福利/;
+
+function ns_miyoushe_classifyMiyousheTitle(subject) {
+	const t = String(subject == null ? "" : subject);
+	if (ns_miyoushe_BANNER_KW.test(t)) return "gacha";
+	if (ns_miyoushe_EVENT_KW.test(t)) return "event";
+	return "unknown";
+}
+//#endregion
+
+//#region 版本锚点（`X.Y版本更新后` → 该版本更新公告的发布时刻）
+// 实测（p4-hsr-news）：`4.6版本更新说明` created_at=2026-09-28 07:00:11 +08 → 4.6 的起点。
+// 必须排除「预下载开启&更新通知」（比正式更新早 1~2 天）与《云•XX》的更新说明。
+const ns_miyoushe_VER_UPD_RE = /(\d{1,2}\.\d{1,2})\s*版本(?:更新说明|更新公告|更新通知|更新预告)/;
+function ns_miyoushe_miyousheVersionStarts(items) {
+	const map = {};
+	for (const it of items || []) {
+		const t = String((it && it.subject) || "");
+		if (/预下载|前瞻|预约|预抽|云[•·]/.test(t)) continue;
+		const m = ns_miyoushe_VER_UPD_RE.exec(t);
+		if (!m) continue;
+		if (map[m[1]] == null && it.createdTs != null) map[m[1]] = it.createdTs;
+	}
+	return map;
+}
+// 版本锚点 → 绝对时刻。`更新后` = 该版本的起点（没有 → 不可解）；`结束` = 下一个已知版本起点 − 1 分钟。
+function ns_miyoushe_resolveVersionAnchor(ver, kind, verStarts) {
+	const cur = verStarts ? verStarts[ver] : null;
+	if (cur == null) return null;
+	if (kind === "更新后") return cur;
+	if (kind === "结束") {
+		const later = Object.keys(verStarts)
+			.filter((v) => verStarts[v] > cur)
+			.sort((a, b) => verStarts[a] - verStarts[b])[0];
+		return later == null ? null : verStarts[later] - 60000;
+	}
+	return null;
+}
+//#endregion
+
+//#region 正文档期抽取
+// 令牌化：ABS 完整日期 | VER 版本锚点 | BARE 无年份 M.D HH:MM | OPEN 即日起
+// 组序号：1-5 = ABS(y,mo,d,h,mi)，6-7 = VER(num,kind)，8-11 = BARE(mo,d,h,mi)
+const ns_miyoushe_ABS_SRC = "(20\\d{2})\\s*[-\\/年.]\\s*(\\d{1,2})\\s*[-\\/月.]\\s*(\\d{1,2})\\s*日?"
+	+ "(?:\\s*[（(]\\s*周?[一二三四五六日天]\\s*[）)])?"
+	+ "(?:\\s*(\\d{1,2})\\s*[:：]\\s*(\\d{2}))?";
+const ns_miyoushe_VER_SRC = "(\\d{1,2}\\.\\d{1,2})\\s*版本(更新后|结束)";
+const ns_miyoushe_BARE_SRC = "(\\d{1,2})\\s*[.\\/]\\s*(\\d{1,2})\\s*(\\d{1,2})\\s*[:：]\\s*(\\d{2})";
+const ns_miyoushe_OPEN_SRC = "即日起";
+const ns_miyoushe_TOKEN_RE = new RegExp([ns_miyoushe_ABS_SRC, ns_miyoushe_VER_SRC, ns_miyoushe_BARE_SRC, ns_miyoushe_OPEN_SRC].join("|"), "g");
+// 两个日期之间只允许"连接符"（可带空白）。**故意不允许空串**：避免把相邻但无关的日期配成窗口。
+const ns_miyoushe_CONNECTOR_RE = /^\s*[~～〜〰\-–—－至到]\s*$/;
+
+function ns_miyoushe_tokenizeMiyoushe(s) {
+	const toks = [];
+	ns_miyoushe_TOKEN_RE.lastIndex = 0;
+	let m;
+	while ((m = ns_miyoushe_TOKEN_RE.exec(s)) !== null) {
+		if (m[0] === "") { ns_miyoushe_TOKEN_RE.lastIndex++; continue; }
+		const start = m.index, end = m.index + m[0].length;
+		if (m[1] != null) {
+			toks.push({ kind: "abs", start, end, y: +m[1], mo: +m[2], d: +m[3], h: m[4] != null ? +m[4] : null, mi: m[5] != null ? +m[5] : null, ver: null });
+		} else if (m[6] != null) {
+			toks.push({ kind: "ver", start, end, ver: m[6], verKind: m[7] });
+		} else if (m[8] != null) {
+			toks.push({ kind: "bare", start, end, y: null, mo: +m[8], d: +m[9], h: +m[10], mi: +m[11] });
+		} else {
+			toks.push({ kind: "open", start, end });
+		}
+	}
+	return toks;
+}
+
+/**
+ * 从一段公告正文（HTML 或纯文本）里抽出所有「起 ~ 止」档期。
+ * @param {string} text 详情正文（HTML 会先 textOf 去标签；已是纯文本也安全）
+ * @param {string} tz 源站墙钟时区
+ * @param {{hintTs?:number, verStarts?:Record<string,number>}} opts
+ *        hintTs = 公告发布时刻（**无年份**日期的年份来源 + `即日起` 的起点）
+ *        verStarts = `X.Y版本更新后` 的版本锚点表（见 ns_miyoushe_miyousheVersionStarts）
+ * @returns {Array<{startTs:number,endTs:number,raw:string,at:number,inferred:boolean,note:string}>}
+ */
+function ns_miyoushe_collectMiyousheWindows(text, tz = ns_miyoushe_MIYOUSHE_TZ, opts = {}) {
+	const html = String(text == null ? "" : text);
+	const s = /<[a-z!/]/i.test(html) ? textOf(html) : html;
+	const hintTs = opts.hintTs != null && Number.isFinite(opts.hintTs) ? opts.hintTs : null;
+	const verStarts = opts.verStarts || {};
+	const hint = hintTs != null ? sourceWallParts(hintTs, tz) : null;
+	const toks = ns_miyoushe_tokenizeMiyoushe(s);
+
+	// 起点令牌 → 绝对时刻
+	const startOf = (info) => {
+		if (info.kind === "abs") {
+			let ts = sourceInstant(info.y, info.mo, info.d, info.h == null ? 0 : info.h, info.mi == null ? 0 : info.mi, tz);
+			if (info.ver) {
+				// `2026/09/28 4.6版本更新后` → 用版本更新公告时刻（更准）；锚点缺失才退回字面日期 00:00
+				const v = ns_miyoushe_resolveVersionAnchor(info.ver, info.verKind || "更新后", verStarts);
+				if (v != null) ts = v;
+			}
+			return ts;
+		}
+		if (info.kind === "bare") {
+			if (!hint) return null;      // 没有公告年份可借 → 不解（不猜当前年）
+			return sourceInstant(hint.y, info.mo, info.d, info.h == null ? 0 : info.h, info.mi == null ? 0 : info.mi, tz);
+		}
+		if (info.kind === "ver") return ns_miyoushe_resolveVersionAnchor(info.ver, info.verKind, verStarts);
+		if (info.kind === "open") return hintTs;   // `即日起` → 公告发布时刻
+		return null;
+	};
+	// 终点令牌 → 绝对时刻（无年份时按起点年，月日更早则进一年）
+	const endOf = (info, startTs) => {
+		if (info.kind === "ver") return ns_miyoushe_resolveVersionAnchor(info.ver, info.verKind, verStarts);
+		if (info.kind === "open") return null;
+		const h = info.h == null ? 23 : info.h, mi = info.mi == null ? 59 : info.mi;
+		let y = info.y;
+		if (y == null) {
+			const sw = sourceWallParts(startTs, tz);
+			y = sw.y;
+			// 月日排在起点之前 → 跨年（共用判定）
+			if (endsNextYear(sw.mo, sw.d, info.mo, info.d)) y += 1;
+		}
+		return sourceInstant(y, info.mo, info.d, h, mi, tz);
+	};
+
+	const byKey = new Map();
+	// 去重键用**时间区间**而不是 raw 文本：同一段区间在正文里常有"全写"与"只写版本锚点"两种形态
+	// （实测星铁：`2026/09/28 4.6版本更新后 ~ …` 与 `4.6版本更新后 ~ …` 是同一段），
+	// 只按 raw 去重会重复列出。保留 raw 更长的那条（信息更全），插入顺序即文档顺序。
+	const addWindow = (w) => {
+		const key = w.startTs + "|" + w.endTs;
+		const prev = byKey.get(key);
+		if (!prev) { byKey.set(key, w); return; }
+		if (w.raw.length > prev.raw.length) {
+			prev.raw = w.raw;
+			prev.at = w.at;
+			prev.inferred = w.inferred;
+			prev.note = w.note;
+		}
+	};
+	let i = 0;
+	while (i < toks.length) {
+		const a = toks[i];
+		const info = { kind: a.kind, y: a.y, mo: a.mo, d: a.d, h: a.h, mi: a.mi, ver: a.ver, verKind: a.verKind };
+		let aEnd = a.end;
+		let j = i + 1;
+		// 紧贴的 `YYYY/MM/DD` + `X.Y版本更新后`（中间只有空白）= 同一个起点
+		if (a.kind === "abs" && a.h == null && toks[j] && toks[j].kind === "ver" && /^\s*$/.test(s.slice(a.end, toks[j].start))) {
+			info.ver = toks[j].ver;
+			info.verKind = toks[j].verKind;
+			aEnd = toks[j].end;
+			j++;
+		}
+		const b = toks[j];
+		i++;
+		if (!b) continue;
+		if (!ns_miyoushe_CONNECTOR_RE.test(s.slice(aEnd, b.start))) continue;
+		if (b.kind !== "abs" && b.kind !== "bare" && b.kind !== "ver") continue;
+
+		const st = startOf(info);
+		if (st == null) continue;
+		const en = endOf(b, st);
+		if (en == null || !(en > st)) continue;
+		const raw = s.slice(a.start, b.end).replace(/\s+/g, " ").trim();
+		const inferredVer = info.kind === "ver" || (info.kind === "abs" && !!info.ver);
+		addWindow({
+			startTs: st,
+			endTs: en,
+			raw,
+			at: a.start,
+			inferred: info.kind === "open" || inferredVer,
+			note: info.kind === "open" ? "起点「即日起」＝取公告发布时刻"
+				: inferredVer ? "起点「版本更新后」＝取该版本更新公告的发布时刻"
+					: ""
+		});
+	}
+	return [...byKey.values()];
+}
+
+// 当期 = 文档顺序里**第一条覆盖 now** 的窗口；没有就是没有（不退回过期档期）
+// 卡池名册：优先只看"首个档期之前"的引言（那才是本期名单），引言里没有才退回全文。
+// 例：星铁跃迁引言 → 「真珠」；绝区零频段引言没有名单 → 全文取「洛克茜、普罗米娅」。
+const ns_miyoushe_ROLE_RE = /限定\s*(?:[5S]\s*[星级])?\s*(?:角色|代理人|女武神)\s*[「【\[]([^」】\]]+)[」】\]]/g;
+function ns_miyoushe_extractRoles(s) {
+	const names = [];
+	ns_miyoushe_ROLE_RE.lastIndex = 0;
+	let m;
+	while ((m = ns_miyoushe_ROLE_RE.exec(s)) !== null) {
+		const n = m[1].replace(/[（(].*$/, "").trim();
+		if (n && !names.includes(n)) names.push(n);
+		if (names.length >= 6) break;
+	}
+	return names.join("、");
+}
+function ns_miyoushe_miyousheRoles(text, stopAt = null) {
+	const s = String(text == null ? "" : text);
+	const plain = /<[a-z!/]/i.test(s) ? textOf(s) : s;
+	const head = stopAt != null && stopAt > 0 ? plain.slice(0, stopAt) : "";
+	return (head ? ns_miyoushe_extractRoles(head) : "") || ns_miyoushe_extractRoles(plain);
+}
+//#endregion
+
+//#region 抓取
+const ns_miyoushe_sleep = (ms) => new Promise((r) => coreEnv.timer.setTimeout(r, ms));
+
+// 源站原文（`bannerDatesRaw` / `eventDatesRaw` 用）。
+// ⚠️ 这两个字段**会被 UI 的默认两行式直接显示**（面板取 `bannerDatesRaw || bannerDates`、
+//    `eventDatesRaw || eventDates`）—— 所以它们**只能放档期文本本身**，
+//    绝不能夹带「这来自哪个字段」之类的说明（用户 2026-10-03：「元信息彻底删掉」）。
+//    旧实现在 news_meta 兜底时返回 `news_meta 档期（源站显式字段，非正文）：…`，
+//    一旦兜底路径触发，这句话就会原样出现在面板上 —— 已修。
+//    「本窗口来自 news_meta 兜底」这一事实保留在 `p.source`（不显示）+ 代码注释里。
+function ns_miyoushe_rawOf(p, tz) {
+	if (p.source === "news_meta") return fmtWindow(p.startTs, p.endTs, tz);
+	return p.raw;
+}
+
+// ── 悬停条目 ──────────────────────────────────────────────────────────────────
+// 排版交给 lib/env.js 的 `hoverPool` / `hoverEvent`（与本体 buildPoolHover / buildEventHover 逐字一致）。
+// 用户 2026-10-03：「悬停里的元信息彻底删掉」→ 这里**只**产出名称与档期，别的一概不传。
+// 池名与本体 `banner：roles` 同构：有角色名 →「池名：角色」，没有 → 只写池名。
+const ns_miyoushe_hoverPoolName = (w) => (w.roles ? `${w.subject}：${w.roles}` : w.subject);
+// 活动悬停顺序：结束时间升序（无/未知结束排在最后），并列再按开始时间 —— 与 lib/env.js 内部规则一致
+function ns_miyoushe_byEndTs(a, b) {
+	const ea = a.endTs == null ? Infinity : a.endTs;
+	const eb = b.endTs == null ? Infinity : b.endTs;
+	if (ea !== eb) return ea - eb;
+	const sa = a.startTs == null ? Infinity : a.startTs;
+	const sb = b.startTs == null ? Infinity : b.startTs;
+	return sa - sb;
+}
+// `raw` 只在"缺起止"时才会被 hoverEvent 印出来；news_meta 兜底行的 raw 是内部字段说明
+// （`start_at_sec=…`）→ 不给它，免得内部字段名有机会漏进悬停。
+const ns_miyoushe_hoverRaw = (w) => (w.source === "news_meta" ? "" : w.raw);
+
+// 列表 → 候选 → 逐篇详情 → 抽档期。返回值可能是 null（未公布）；结构性损坏直接抛。
+async function ns_miyoushe_collectMiyousheSide(listUrl, signal, tz, now, want) {
+	const listJson = await fetchJson(listUrl, { signal, mode: "proxy", referer: ns_miyoushe_MIYOUSHE_REFERER });
+	const items = ns_miyoushe_parseMiyousheList(listJson);
+	if (items.length === 0) return null;                       // 实测 gids=99999 → retcode 0 + 空 list
+	const verStarts = ns_miyoushe_miyousheVersionStarts(items);
+	const cands = items
+		.filter((it) => ns_miyoushe_classifyMiyousheTitle(it.subject) === want)
+		.sort((a, b) => (b.createdTs || 0) - (a.createdTs || 0))
+		.slice(0, ns_miyoushe_MIYOUSHE_MAX_DETAILS);
+	if (cands.length === 0) return null;                       // 该列表里没有本侧公告
+
+	const covering = [];
+	let okCount = 0, firstHardErr = null;
+	for (let idx = 0; idx < cands.length; idx++) {
+		if (idx > 0 && ns_miyoushe_MIYOUSHE_DETAIL_DELAY_MS > 0) await ns_miyoushe_sleep(ns_miyoushe_MIYOUSHE_DETAIL_DELAY_MS);
+		const it = cands[idx];
+		let d;
+		try {
+			d = ns_miyoushe_parseMiyousheDetail(await fetchJson(ns_miyoushe_miyousheDetailUrl(it.postId), { signal, mode: "proxy", referer: ns_miyoushe_MIYOUSHE_REFERER }));
+		} catch (e) {
+			if (!ns_miyoushe_isMiyousheMissing(e) && !firstHardErr) firstHardErr = e;
+			continue;
+		}
+		okCount++;
+		const hintTs = d.createdTs != null ? d.createdTs : it.createdTs;
+		const wins = ns_miyoushe_collectMiyousheWindows(d.content, tz, { hintTs, verStarts });
+		const roles = ns_miyoushe_miyousheRoles(d.content, wins.length ? wins[0].at : null);
+		for (const w of wins) {
+			w.subject = d.subject || it.subject;
+			w.postId = d.postId;
+			w.roles = roles;
+			w.source = "content";
+			// 候选已按 created_at 倒序、窗口按文档顺序 → covering[0] 就是"最新一篇公告里的第一条当期窗口"
+			if (coversNow(w, now)) covering.push(w);
+		}
+	}
+	// 一篇正文都没拿到、且出现过硬错（403/567/坏 JSON）→ 抛出去，让界面显示"抓取失败"
+	// 而不是把封禁静默成"未公布"。全是"post not exist"（1101/1102）则不算失败 → null。
+	if (okCount === 0) {
+		if (firstHardErr) throw firstHardErr;
+		return null;
+	}
+	// 兜底：正文一个覆盖 now 的窗口都抽不到时，退回源站**显式**字段 news_meta（只有 type=2 列表有）。
+	// 口径与正文可能不同（实测原神的 end 是开奖时刻）→ 悬停/raw 里**标明来源**，不冒充正文。
+	if (covering.length === 0) {
+		for (const it of cands) {
+			const nm = it.newsMeta;
+			if (!nm || !(coversNow(nm, now))) continue;
+			covering.push({
+				startTs: nm.startTs, endTs: nm.endTs,
+				// ⚠️ 不留「news_meta start_at_sec=… end_at_sec=…」这种内部字段说明：内部字段名不进数据
+				//    （`eventDatesRaw` 的溯源说明由 ns_miyoushe_rawOf 统一给；悬停由 ns_miyoushe_hoverRaw 屏蔽）
+				raw: fmtWindow(nm.startTs, nm.endTs, tz),
+				subject: it.subject, postId: it.postId, roles: "",
+				inferred: false, note: "", source: "news_meta", status: nm.status
+			});
+		}
+	}
+	if (covering.length === 0) return null;                    // 抓到正文但没有覆盖 now 的档期 = 未公布
+	return { primary: covering[0], covering };
+}
+
+/** 卡池侧（type=1 公告/补给；标题按卡池关键词分流） */
+async function ns_miyoushe_gachaMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE_TZ, now = nowMs()) {
+	const listUrl = url || ns_miyoushe_miyousheListUrl(ns_miyoushe_MIYOUSHE_GIDS.bh3, ns_miyoushe_MIYOUSHE_TYPES.GACHA);
+	const r = await ns_miyoushe_collectMiyousheSide(listUrl, signal, tz, now, "gacha");
+	if (!r) return null;
+	const p = r.primary;
+	// 悬停 = 全部当期池，每池「池名：角色」一行 + 档期（排版交给共用工具 hoverPool，≥2 池才有内容）。
+	// 只有 1 个当期池 → "" → **不设** bannerHover，由 UI 走默认两行式「banner ⏎ bannerDates」。
+	const bannerHover = hoverPool(r.covering.map((w) => ({
+		name: w.subject,
+		label: ns_miyoushe_hoverPoolName(w),
+		startTs: w.startTs,
+		endTs: w.endTs,
+		raw: ns_miyoushe_hoverRaw(w)
+	})), tz);
+	return {
+		banner: p.subject,
+		roles: p.roles || "",
+		bannerDates: fmtWindow(p.startTs, p.endTs, tz),
+		bannerDatesRaw: ns_miyoushe_rawOf(p, tz),
+		startTs: p.startTs,
+		endTs: p.endTs,
+		...(bannerHover ? { bannerHover } : {})
+	};
+}
+
+/** 活动侧（type=2 活动；标题按活动关键词分流） */
+async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE_TZ, now = nowMs()) {
+	const listUrl = url || ns_miyoushe_miyousheListUrl(ns_miyoushe_MIYOUSHE_GIDS.bh3, ns_miyoushe_MIYOUSHE_TYPES.EVENT);
+	const r = await ns_miyoushe_collectMiyousheSide(listUrl, signal, tz, now, "event");
+	if (!r) return null;
+	const p = r.primary;
+	// 悬停 = 全部当期活动，结束时间升序逐行「名称 + 3 空格 + 档期」
+	// （排版交给共用工具 hoverEvent；它自己**不排序** → 这里先排好再传）。
+	// 只有 1 条 → "" → **不设** eventHover，由 UI 走默认两行式「event ⏎ eventDates」。
+	const eventHover = hoverEvent(r.covering.slice().sort(ns_miyoushe_byEndTs).map((w) => ({
+		name: w.subject,
+		startTs: w.startTs,
+		endTs: w.endTs,
+		raw: ns_miyoushe_hoverRaw(w)
+	})), tz);
+	return {
+		event: p.subject,
+		eventDates: fmtWindow(p.startTs, p.endTs, tz),
+		eventDatesRaw: ns_miyoushe_rawOf(p, tz),
+		...(eventHover ? { eventHover } : {})
+	};
+}
+//#endregion
+
+		// ── 条目 ──
+		registerSource({
+				id: "genshin",
+				tz: TZ_CN,
+				// parserVersion：该条目「解析逻辑」的版本号 —— 源站改版/规则更新后 +1。
+				// 用途：无服务端分发时定位「坏了的是哪个版本的用户、哪个源」（见交接文档 §13.4）。
+				parserVersion: 1,
+				name: "原神",
+				icon: "https://storage.moegirl.org.cn/moegirl/commons/b/b0/%E5%8E%9F%E7%A5%9E%E5%9B%BE%E6%A0%87.png!/fw/64",
+				source: "Bwiki \u5F80\u671F\u7948\u613F",
+				url: "https://wiki.biligame.com/ys/api.php?action=parse&page=%E5%BE%80%E6%9C%9F%E7%A5%88%E6%84%BF&prop=text&format=json&formatversion=2",
+				// 独立活动源：原神活动一览为 JS 动态加载（Dquery+SMW），经 SMW ask 查询开始/结束时间
+				eventUrl: "https://wiki.biligame.com/ys/api.php?action=ask&query=%5B%5B%E5%88%86%E7%B1%BB%3A%E6%B4%BB%E5%8A%A8%5D%5D&format=json",
+				eventSource: "Bwiki \u6D3B\u52A8\u4E00\u89C8"
+		});
+
+		registerSource({
+				id: "hsr",
+				tz: TZ_CN,
+				parserVersion: 1,
+				name: "崩坏：星穹铁道",
+				icon: "https://storage.moegirl.org.cn/moegirl/commons/3/38/HonkaiStarRailIcon_StartingVer3.6_CHN.png!/fw/64",
+				source: "Bwiki \u5386\u53F2\u8DC3\u8FC1",
+				url: "https://wiki.biligame.com/sr/api.php?action=parse&page=%E5%8E%86%E5%8F%B2%E8%B7%83%E8%BF%81&prop=text&format=json&formatversion=2",
+				// 独立活动源：星铁活动一览（api.php 带 origin=* 可浏览器直连；「活动时间」表含当期活动）
+				eventUrl: "https://wiki.biligame.com/sr/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
+				eventSource: "Bwiki \u6D3B\u52A8\u4E00\u89C8"
+		});
+
+		registerSource({
+				id: "zzz",
+				tz: TZ_CN,
+				parserVersion: 2,
+				name: "绝区零",
+				icon: "https://storage.moegirl.org.cn/moegirl/commons/3/3e/ZZZ_miYoYo_logo.jpg!/fw/64",
+				source: "官方公告",
+				// 默认卡池源=官网公告（api-takumi-static content_v2_user，经 host 代理，无 CORS、无需登录）：
+				// 「X.Y版本限时频段（上/下期）」公告含该期精确起止与限定 S 级代理人/音擎；
+				// 无当期频段公告或抓取失败时由抓取器自动回退 Bwiki 往期调频；也可在设置中手动切 Bwiki（备选）
+				url: ZZZ_NEWS_LIST_URL,
+				altSources: [
+					{ label: "Bwiki 往期调频", url: ZZZ_BWIKI_URL, fetcher: "zzz-bwiki" }
+				],
+				// 独立活动源：官方公告（api-takumi-static，与卡池侧同一接口，经 host 代理）。
+				// 「…活动说明」公告正文自带【活动时间】起止（含"X.Y版本更新后/版本结束"折算），
+				// 官方口径最及时；Bwiki 活动一览作为备选（编辑滞后时反而无当期内容）。
+				eventUrl: ZZZ_NEWS_LIST_URL,
+				eventSource: "官方公告",
+				eventAltSources: [
+					{
+						label: "Bwiki 活动一览",
+						url: "https://wiki.biligame.com/zzz/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
+						fetcher: "zzz-event-bwiki"
+					}
+				]
+		});
+
+		// ── 抓取器登记 ──
+		GACHA_FETCHERS["genshin"] = mkMediaWiki(bwikiGachaPayload);
+		GACHA_FETCHERS["hsr"] = mkMediaWiki(bwikiGachaPayload);
+		GACHA_FETCHERS["zzz"] = (url, signal, tz) => fetchZzzGacha(url, signal, tz);
+		GACHA_FETCHERS["zzz-bwiki"] = mkMediaWiki(pickCurrent(parseAllBwiki));
+					// 原神：活动一览为 JS 动态加载（Dquery+SMW），走 SMW ask 查询（fetchYsActivity 忽略 URL 参数）
+EVENT_FETCHERS["genshin"] = {
+				default: (url, signal, tz) => fetchYsActivity(signal, tz)
+			};
+					// 星铁：活动一览（静态「活动时间」表，api.php 可直连）→ 外显当期 + 悬停列出全部并行活动
+EVENT_FETCHERS["hsr"] = {
+				default: mkMediaWiki(genericEventPayload)
+			};
+					// 绝区零：默认=官方公告（api-takumi-static，与卡池侧同一接口；活动时间写在公告正文里，
+			// 含"X.Y版本更新后/版本结束"的换算；结束时间未知的活动保留并沉底）→ 备选=Bwiki 活动一览
+EVENT_FETCHERS["zzz"] = {
+				default: (url, signal, tz) => fetchZzzEventsOfficial(url, signal, tz),
+				"zzz-event-bwiki": mkMediaWiki(genericEventPayload)
+			};
+
+		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
+		{
+
+			const e = SOURCES.find((s) => s.id === "genshin");
+
+			if (!e) { console.warn("[next-sources] 找不到既有条目 genshin，米游社公告备选未挂上"); }
+
+			else {
+
+				const G = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=2&type=1&page_size=20";
+
+				const E = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=2&type=2&page_size=20";
+
+				GACHA_FETCHERS["genshin-miyoushe"] = (url, signal, tz) => ns_miyoushe_gachaMiyoushe(url, signal, tz);
+
+				Object.assign(EVENT_FETCHERS["genshin"], { "genshin-miyoushe": { default: (url, signal, tz) => ns_miyoushe_eventsMiyoushe(url, signal, tz) } });
+
+				// 按 fetcher 去重，避免重复执行时堆叠
+
+				const ga = (e.altSources || []).filter((a) => a.fetcher !== "genshin-miyoushe");
+
+				const ea = (e.eventAltSources || []).filter((a) => a.fetcher !== "genshin-miyoushe");
+
+				e.altSources = [...ga, { label: "米游社公告", url: G, fetcher: "genshin-miyoushe" }];
+
+				e.eventAltSources = [...ea, { label: "米游社公告", url: E, fetcher: "genshin-miyoushe" }];
+
+			}
+
+		}
+		{
+
+			const e = SOURCES.find((s) => s.id === "hsr");
+
+			if (!e) { console.warn("[next-sources] 找不到既有条目 hsr，米游社公告备选未挂上"); }
+
+			else {
+
+				const G = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=6&type=1&page_size=20";
+
+				const E = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=6&type=2&page_size=20";
+
+				GACHA_FETCHERS["hsr-miyoushe"] = (url, signal, tz) => ns_miyoushe_gachaMiyoushe(url, signal, tz);
+
+				Object.assign(EVENT_FETCHERS["hsr"], { "hsr-miyoushe": { default: (url, signal, tz) => ns_miyoushe_eventsMiyoushe(url, signal, tz) } });
+
+				// 按 fetcher 去重，避免重复执行时堆叠
+
+				const ga = (e.altSources || []).filter((a) => a.fetcher !== "hsr-miyoushe");
+
+				const ea = (e.eventAltSources || []).filter((a) => a.fetcher !== "hsr-miyoushe");
+
+				e.altSources = [...ga, { label: "米游社公告", url: G, fetcher: "hsr-miyoushe" }];
+
+				e.eventAltSources = [...ea, { label: "米游社公告", url: E, fetcher: "hsr-miyoushe" }];
+
+			}
+
+		}
+		{
+
+			const e = SOURCES.find((s) => s.id === "zzz");
+
+			if (!e) { console.warn("[next-sources] 找不到既有条目 zzz，米游社公告备选未挂上"); }
+
+			else {
+
+				const G = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=8&type=1&page_size=20";
+
+				const E = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=8&type=2&page_size=20";
+
+				GACHA_FETCHERS["zzz-miyoushe"] = (url, signal, tz) => ns_miyoushe_gachaMiyoushe(url, signal, tz);
+
+				Object.assign(EVENT_FETCHERS["zzz"], { "zzz-miyoushe": { default: (url, signal, tz) => ns_miyoushe_eventsMiyoushe(url, signal, tz) } });
+
+				// 按 fetcher 去重，避免重复执行时堆叠
+
+				const ga = (e.altSources || []).filter((a) => a.fetcher !== "zzz-miyoushe");
+
+				const ea = (e.eventAltSources || []).filter((a) => a.fetcher !== "zzz-miyoushe");
+
+				e.altSources = [...ga, { label: "米游社公告", url: G, fetcher: "zzz-miyoushe" }];
+
+				e.eventAltSources = [...ea, { label: "米游社公告", url: E, fetcher: "zzz-miyoushe" }];
+
+			}
+
+		}
+
+// src/client/30-game-kuro.js —— 库洛（鸣潮）
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+
+		// ── 解析器 / 抓取器 ──
+
+		// 鸣潮：角色轮换池页（Bwiki 汇总页，逐期列出）→ 取"覆盖当前时刻"的那一组：
+		// 每一组 = 该组 data-start/data-end 之后、到下一组之前的那段里的「共鸣者/xxx」。
+		// 旧实现取页面第一组时间 + 整页前 6 个角色名 → 备选/兜底源会显示"过期档期 + 跨池混入的角色"，
+		// 且不报任何失败（实测该页当前只有一组已过期计时器）。没有覆盖当前的组 → 返回 null（未公布）。
+		function parseWuwaPool(html, now = nowMs(), tz) {
+			const text = String(html || "");
+			const marks = [...text.matchAll(/data-start="([^"]+)"\s+data-end="([^"]+)"/g)];
+			// 页面拿到了却一个计时器都没有 → 汇总页改版（抛错让面板显示"卡池失败"），
+			// 而不是伪装成"新卡池未公布"（这是本条目的备选/兜底源）
+			if (marks.length === 0) throw new Error("wuwa-pool-no-timer");
+			for (let i = 0; i < marks.length; i++) {
+				const m = marks[i];
+				const start = parseTime(m[1], tz);
+				const end = parseTime(m[2], tz);
+				if (start.ts == null || end.ts == null) continue;
+				if (!(start.ts <= now && now <= end.ts)) continue;
+				const seg = text.slice(m.index + m[0].length, i + 1 < marks.length ? marks[i + 1].index : text.length);
+				const chars = [...new Set([...seg.matchAll(/共鸣者\/([^"]+)"/g)].map((x) => x[1]))].slice(0, 6);
+				if (chars.length === 0) continue;
+				return {
+					banner: "\u89D2\u8272\u6362\u53EC\u6C60",
+					roles: chars.join("、"),
+					startTs: start.ts, endTs: end.ts,
+					bannerDates: `${start.text} ~ ${end.text}`
+				};
+			}
+			return null;
+		}
+
+
+		// 鸣潮官方公告解析：从全量公告（game/activity/recommend）中取"覆盖当前时刻"的「角色活动唤取」。
+		//
+		// ⚠️ 时间**必须用 JSON 里的绝对时间戳** `startTimeMs` / `endTimeMs`，不要再去解析正文。
+		// 正文写的是 `✦活动时间✦ 3.7版本更新后 ~ 2026年10月22日09:59（服务器时间）` ——
+		// 起始端是**版本标签**而非绝对日期，旧实现用 `(\d{4})年(\d{1,2})月…` 匹配整段 → 恒失败 →
+		// 卡池侧返回 null（2026-10-01 实测：官方 JSON 已带 3 个在开角色池，却显示"未公布"）。
+		// 现在源站直接给了时间戳，比解析正文更准，也不受措辞漂移影响。
+		function parseWuwaNotice(list, now = nowMs(), tz) {
+			const groups = [list?.game, list?.activity, list?.recommend].filter(Array.isArray);
+			const stripH = (s) => String(s || "")
+				.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " ")
+				.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&hellip;/g, "…")
+				.replace(/&ldquo;/g, "“").replace(/&rdquo;/g, "”")
+				.replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
+			const pools = [];
+			for (const arr of groups) {
+				for (const it of arr) {
+					// 标题可能是 "[但愿长圆如此夜]\n角色活动唤取" / "「玉阙玄华」武器活动唤取"
+					const title = stripH(it.tabTitle || it.title || "").replace(/\s+/g, " ").trim();
+					const isChar = /角色活动唤取/.test(title);
+					const isWeapon = /武器活动唤取/.test(title);
+					if (!isChar && !isWeapon) continue;
+					const sTs = Number(it.startTimeMs), eTs = Number(it.endTimeMs);
+					if (!Number.isFinite(sTs) || !Number.isFinite(eTs)) continue;
+					if (sTs > now || eTs < now) continue; // 只要当期覆盖
+					const name = title
+						.replace(/\s*(?:角色|武器)活动唤取\s*$/, "")
+						.replace(/^[\[【「]\s*/, "")
+						.replace(/\s*[\]】」]$/, "")
+						.trim();
+					if (!name) continue;
+					// 类型名（外显用）：标题尾部那一段，如 `角色活动唤取` / `武器活动唤取`
+					const type = isChar ? "角色活动唤取" : "武器活动唤取";
+					// 角色名：正文开头那句「活动期间，5星角色「心」，4星角色「卜灵」、「桃祈」、「釉瑚」唤取概率限时提升！」
+					// 用 [^。！？\n]+ 限在一句内，避免把后面「唤取说明」里的角色也带进来
+					const text = stripH(it.content || "");
+					const upM = text.match(/活动期间，([^。！？\n]+?)唤取概率限时提升/);
+					const roles = upM
+						? [...new Set([...upM[1].matchAll(/[「【]([^」】]+)[」】]/g)].map((x) => x[1].trim()).filter(Boolean))].join("、")
+						: "";
+					pools.push({ name, type, isChar, roles, startTs: sTs, endTs: eTs });
+				}
+			}
+			const cur = pools.filter((p) => p.isChar && p.name);
+			if (cur.length === 0) return null;
+			// 外显与窗口取**结束最早**的那个池（与 selectCurrent 的 first 同口径）。
+			const first = cur.slice().sort((a, b) => a.endTs - b.endTs)[0];
+			// 角色：**先拆成单个名字再去重**，然后合并。
+			// ⚠️ 别写成 `new Set(cur.map(p => p.roles))` —— 那样比较的是"整串"（各池的 4★ 名单相同
+			// 但 5★ 不同 → 整串不同 → 重复留下）。拆开才能把三池共有的 4★ 去成一份。
+			// 顺序 = 各池依次展开（5★ 在前、4★ 共有名在后），去重后即 `心、千咲、尤诺、卜灵、桃祈、釉瑚`。
+			const roles = [...new Set(cur.flatMap((p) => p.roles.split("、").map((s) => s.trim()).filter(Boolean)))].join("、");
+			const fmt = (ts) => {
+				const d = new Date(ts);
+				return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+			};
+			const raw = fmtWindow(first.startTs, first.endTs, tz);
+			// 悬停：首行=卡池类型（与卡片外显同源），随后每池"池名：角色"一行；窗口相同则时间只在末尾写一遍；
+			// 按结束时间升序。**类型行只在本源补**，不动全站共用的 buildPoolHover（它按约定对 0/1 池返回 ""）。
+			const poolHover = buildPoolHover(cur.map((p) => ({
+				name: p.name,
+				label: `${p.name}\uFF1A${p.roles || "-"}`,
+				startTs: p.startTs,
+				endTs: p.endTs
+			})));
+			const bannerHover = poolHover ? `${first.type}\n${poolHover}` : "";
+			// **外显用卡池类型**（`角色活动唤取`），不用某一个池名：
+			// 角色是多池合并的，若外显挂"但愿长圆如此夜"，卡片就成了"标题只说一个池、角色却是三个池的合成"。
+			// 与用户 2026-09-30 定的统一口径一致（国服显示 `限时限定招募`、异环显示 `限定棋盘`）。
+			// 具体池名在悬停里逐条列出，不丢信息。
+			return { banner: first.type, roles, bannerDates: raw, bannerDatesRaw: raw, startTs: first.startTs, endTs: first.endTs, bannerHover };
+		}
+
+
+		// 鸣潮官方活动解析：同一份全量公告的 `recommend` 组里，`tag === 7` 是卡池、**`tag === 5` 是限时活动**。
+		// 活动条目形如 tabTitle="[团团勇者大乱斗]休闲活动"，同样带绝对时间戳。
+		// 这是 2026-10-01 起鸣潮活动的**默认源**——Bwiki 活动日历页已停更（最新一条结束于 2026/9/29），
+		// 而官方源有当期 3.7 的活动，且**与卡池是同一条 URL**、同一次请求即可拿到两侧数据。
+		function parseWuwaRecommendEvents(list, now = nowMs(), tz) {
+			const arr = Array.isArray(list?.recommend) ? list.recommend : [];
+			const stripH = (s) => String(s || "")
+				.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " ")
+				.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
+				.replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
+			const events = [];
+			for (const it of arr) {
+				if (Number(it.tag) !== 5) continue; // 7=卡池；5=限时活动
+				const name = stripH(it.tabTitle || "").replace(/\s+/g, " ").trim();
+				if (!name) continue;
+				const sTs = Number(it.startTimeMs), eTs = Number(it.endTimeMs);
+				if (!Number.isFinite(sTs) || !Number.isFinite(eTs)) continue;
+				if (sTs > now || eTs < now) continue;
+				events.push({ name, cat: "", startTs: sTs, endTs: eTs });
+			}
+			if (events.length === 0) return null;
+			const sorted = sortEventItems(events);
+			if (sorted.length === 0) return null;
+			const primary = pickEventPrimary(sorted) || sorted[0];
+			const dates = fmtWindow(primary.startTs, primary.endTs, tz);
+			return { banner: primary.name, bannerDates: dates, bannerDatesRaw: dates, eventHover: buildEventHover(sorted) };
+		}
+
+
+		// 鸣潮卡池默认抓取器：官方公告（entrypoint → 目录 → zh-Hans.json 全量）优先；
+		// 无当期公告 / 抓取失败 → 自动回退 Bwiki 角色轮换池（逻辑同 parseWuwaPool）
+		async function fetchWuwaGacha(entryUrl, signal, tz, now = nowMs()) {
+			try {
+				const ref = "https://aki-gm-resources.aki-game.com/";
+				const ej = await proxyFetchJson(entryUrl, ref);
+				const contentUrl = Array.isArray(ej?.contentUrl) ? ej.contentUrl[0] : "";
+				const dir = contentUrl ? contentUrl.replace(/[^/]*$/, "") : String(entryUrl).replace(/[^/]*$/, "");
+				let list = null;
+				try { list = await proxyFetchJson(dir + "zh-Hans.json", ref); } catch { list = null; }
+				if (!list || typeof list !== "object") list = await proxyFetchJson(dir + "notice.json", ref);
+				// **同一份 JSON 里卡池（tag=7）与活动（tag=5）都在** → 顺带把活动字段也返回。
+				// 这是"统一来源注册表"里写明的复用契约：**两侧是同一条 URL** 且卡池载荷带 event 字段时，
+				// refresh 不再为活动侧另抓一次（否则每轮会向同一条 URL 重复发一次请求）。
+				// ⚠️ 我重写解析时一度只返回卡池字段，导致鸣潮每轮请求从 1 次变成 2 次 —— 已补回。
+				// 活动侧仍保留自己的抓取器（fetchWuwaEventsOfficial）：卡池侧失败、或用户在设置里
+				// 单独选活动来源时，活动侧要能自己抓、自己报错（解耦不变）。
+				const ev = parseWuwaRecommendEvents(list, now, tz);
+				const evFields = ev
+					? { event: ev.banner, eventDates: ev.bannerDates || "", eventDatesRaw: ev.bannerDatesRaw || ev.bannerDates || "", eventHover: ev.eventHover || "" }
+					: {};
+				const d = parseWuwaNotice(list, now, tz);
+				if (d) return { ...d, ...evFields };
+			} catch { /* 官方失败 → Bwiki 备选 */ }
+			const apiUrl = WUWA_BWIKI_URL + (WUWA_BWIKI_URL.includes("?") ? "&" : "?") + "origin=*";
+			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
+			if (!res.ok) throw new Error("http-" + res.status);
+			const json = await res.json();
+			const html = json?.parse?.text;
+			if (typeof html !== "string") throw new Error("bad-json");
+			return parseWuwaPool(html, nowMs(), tz);
+		}
+
+
+		// 鸣潮活动默认抓取器：抓同一份官方公告，取 `recommend` 组里 tag=5 的限时活动。
+		// 与卡池侧是**同一条 URL**（entrypoint.json），所以 refresh 的复用会让两侧共用一次请求。
+		async function fetchWuwaEventsOfficial(entryUrl, _signal, tz) {
+			const ref = "https://aki-gm-resources.aki-game.com/";
+			const ej = await proxyFetchJson(entryUrl, ref);
+			const contentUrl = Array.isArray(ej?.contentUrl) ? ej.contentUrl[0] : "";
+			const dir = contentUrl ? contentUrl.replace(/[^/]*$/, "") : String(entryUrl).replace(/[^/]*$/, "");
+			const list = await proxyFetchJson(dir + "zh-Hans.json", ref);
+			if (!list || typeof list !== "object") throw new Error("wuwa-event-bad-json");
+			const d = parseWuwaRecommendEvents(list, nowMs(), tz);
+			if (!d) return null;
+			return {
+				event: d.banner,
+				eventDates: d.bannerDates || "",
+				eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "",
+				eventHover: d.eventHover || ""
+			};
+		}
+
 
 		// 鸣潮：活动日历页 → font-size:17px 标题 + font-size:11px 时间，选当期
 		// 注意：复用 selectCurrent 需要 isMain 字段（该函数按 isMain 过滤主池）
@@ -2071,137 +3241,6 @@ export function createEngine(env) {
 			return { banner: primary.name, roles: "", bannerDates: dates, bannerDatesRaw: primary.raw || dates, eventHover: buildEventHover(active) };
 		}
 
-		// 解 HTML 数字实体（wiki.gg 的区间分隔符写成 &#8211; = en dash、&#8722; = 减号）+
-		// 常见具名实体。stripTags 不解实体，所以需要它才能把时间串拆干净。
-		function decodeHtmlEntities(s) {
-			return String(s)
-				.replace(/&#(\d+);/g, (_, d) => { try { return String.fromCodePoint(Number(d)); } catch { return ""; } })
-				.replace(/&#x([0-9a-f]+);/gi, (_, h) => { try { return String.fromCodePoint(parseInt(h, 16)); } catch { return ""; } })
-				.replace(/&nbsp;/g, " ").replace(/&minus;/g, "\u2212").replace(/&ndash;/g, "\u2013").replace(/&mdash;/g, "\u2014").replace(/&amp;/g, "&");
-		}
-
-		// 英文月份日期 → { ts, text }（如 "Sep 02, 2026, 12:00"、"September 2, 2026"）。
-		// 英文源站（wiki.gg / Game8 等）用这种写法，而 parseTime 只认纯数字日期，需要单独一支。
-		// 与插件其余来源同一口径：按"源站墙钟时间"直接构造（CN 用户本地即 UTC+8）。
-		const EN_MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
-		function parseEnDate(raw) {
-			const m = String(raw).match(/([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})(?:,?\s+(\d{1,2}):(\d{2}))?/);
-			if (!m) return null;
-			const mo = EN_MONTHS[m[1].slice(0, 3).toLowerCase()];
-			if (!mo) return null;
-			const d = Number(m[2]), y = Number(m[3]);
-			const h = m[4] ? Number(m[4]) : 0, mi = m[5] ? Number(m[5]) : 0;
-			const pad = (n) => String(n).padStart(2, "0");
-			return { ts: new Date(y, mo - 1, d, h, mi).getTime(), text: `${pad(mo)}-${pad(d)} ${pad(h)}:${pad(mi)}` };
-		}
-
-		// 终末地（wiki.gg）：Headhunting/Banners 页 Current 分节 → 当期卡池
-		// 该源经 host 代理抓取（fetchEndfieldWikiGg → proxyFetchText 设 Referer=wiki.gg origin），
-		// 满足 Wiki.gg 的 Referer 校验，不会触发 403；本解析器仅处理代理返回的 HTML。
-		// 线上真实标记（2026-09 实测）：Asia 行是 "Sep 02, 2026, 12:00 &#8211; Sep 30, 2026, 11:59 (UTC+8)"，
-		// 同一格里还有 AM/EU 行（UTC−5）；旧实现用 parseTime + split(/[–-]/) 解不了英文月份与实体，恒返回 null
-		// → 该备选源长期"抓得到但解析不出"。现在：解实体 + 只取 Asia 行 + 英文月份解析。
-		function parseEndfieldCurrent(html) {
-			const i = html.indexOf('id="Current"');
-			// 页面拿到了却没有 Current 分节 → wiki 页改版（抛错，别伪装成"未公布"）
-			if (i < 0) throw new Error("endfield-current-no-section");
-			const seg = html.slice(i);
-			const tableEnd = seg.indexOf("</table>");
-			const table = tableEnd >= 0 ? seg.slice(0, tableEnd) : seg;
-			const nameM = table.match(/class="header"[^>]*>([^<]+)</);
-			const asiaM = table.match(/Asia:<\/b>([\s\S]*?)<\/span>/);
-			const upM = [...table.matchAll(/<li>[\s\S]*?title="([^"]+)"[\s\S]*?\(Drop Rate-UP\)/g)];
-			const banner = nameM ? nameM[1].trim() : "";
-			let startTs = null, endTs = null, startText = null, endText = null;
-			if (asiaM) {
-				// 只取 Asia 行（非贪婪已停在 Asia span 结束处）；解实体后按 en/em dash 或"带空格的短横线"切两段
-				const asiaText = decodeHtmlEntities(stripTags(asiaM[1]));
-				const parts = asiaText.split(/[\u2013\u2014\u2212]|\s+-\s+/).map((x) => x.trim()).filter(Boolean);
-				const a = parseEnDate(parts[0] || "");
-				const b = parseEnDate(parts[1] || "");
-				if (a) { startTs = a.ts; startText = a.text; }
-				if (b) { endTs = b.ts; endText = b.text; }
-			}
-			// 分节在、但卡池名/Asia 档期读不出来 → 表结构变了（抛错）；读得出但不覆盖当前 → null（未公布）
-			if (!banner) throw new Error("endfield-current-no-banner");
-			if (startTs == null || endTs == null) throw new Error("endfield-current-no-dates");
-			if (!(startTs <= nowMs() && endTs >= nowMs())) return null;
-			return {
-				banner,
-				roles: [...new Set(upM.map((m) => m[1]))].join("、"),
-				bannerDates: startText && endText ? `${startText} ~ ${endText}` : ""
-			};
-		}
-
-		// 终末地（GachaTracker）：banners 表格 → 当期卡池（卡池名/干员/起止）
-		// GachaTracker 提供 CORS=[*]，浏览器端可直接抓取（替代被 Referer 反爬拦截的 wiki.gg）
-		//
-		// `tz`（可选）= 源站墙钟时区：
-		//  · 传了 → 墙钟按该时区换算成绝对时刻，输出文本也按该时区渲染（海外用户也正确）；
-		//  · 没传 → **保持改造前行为逐字节不变**（字符串自带 `+08:00` 定绝对时刻，
-		//    文本按本机时区取字段）。为什么不统一成"没传也按 +08 渲染"：
-		//    那会改变既有输出（实测让 `_batch6` C4 的文本从 `10-01 00:11` 偏成 `00:12`），
-		//    而调用方没声明时区时，我们**没有依据**断定它一定是 +08。
-		function parseGachaTracker(html, tz) {
-			const shift = (d) => (typeof sourceInstant === "function" ? sourceInstant(d.y, d.mo, d.d, 0, 0, tz) : new Date(d.y, d.mo - 1, d.d, 0, 0).getTime());
-			const shiftEnd = (d) => (typeof sourceInstant === "function" ? sourceInstant(d.y, d.mo, d.d, 23, 59, tz) : new Date(d.y, d.mo - 1, d.d, 23, 59).getTime());
-			const parse = (s) => { const m = String(s).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); return m ? { y: +m[1], mo: +m[2], d: +m[3] } : null; };
-			const rows = [...html.matchAll(/<tr id="([^"]+)">([\s\S]*?)<\/tr>/g)];
-			const items = [];
-			for (const rm of rows) {
-				const body = rm[2];
-				if (!body.includes("date-cell")) continue;
-				const nameM = body.match(/banner-name-cell">[\s\S]*?<a[^>]*>([^<]+)<\/a>/);
-				const dateM = [...body.matchAll(/date-cell">([\d-]+)<\/td>/g)];
-				const charM = [...body.matchAll(/\/games\/endfield\/characters\/[^"]+" title="([^"]+)"/g)];
-				if (!nameM || dateM.length < 2) continue;
-				const sd = parse(dateM[0][1]);
-				const ed = parse(dateM[1][1]);
-				if (!sd || !ed) continue;
-				items.push({
-					banner: stripTags(nameM[1]),
-					roles: [...new Set(charM.map((m) => m[1]))].join("、"),
-					// 传了 tz → 按源站墙钟换算；没传 → 沿用字符串自带 +08:00（改造前行为）
-					startTs: tz ? shift(sd) : new Date(dateM[0][1] + "T00:00:00+08:00").getTime(),
-					endTs: tz ? shiftEnd(ed) : new Date(dateM[1][1] + "T23:59:59+08:00").getTime(),
-					// 文本用**源站墙钟原文**（不经过 Date 再解释）—— 这样不传 tz 时也与改造前一致
-					startText: dateM[0][1],
-					endText: dateM[1][1]
-				});
-			}
-			const now = nowMs();
-			const cur = items.find((it) => coversNow(it, now)) || null;
-			if (!cur) return null;
-			// 输出文本：直接用源站墙钟原文（`YYYY-MM-DD` → `MM-DD`），不随本机时区变
-			const fmtDate = (s) => {
-				const m = String(s).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-				return m ? `${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}` : String(s);
-			};
-			return {
-				banner: cur.banner,
-				roles: cur.roles,
-				bannerDates: `${fmtDate(cur.startText)} 00:00 ~ ${fmtDate(cur.endText)} 23:59`
-			};
-		}
-
-
-		// 通用：从 Next.js flight payload HTML 中定位指定组件引用的 JS chunk URL 列表。
-		// 适用于"HTML 无数据、数据编译在组件 chunk 里"的 Next.js 站点（如 canmoe）。
-		// componentName 形如 "BannerCalendar"；baseUrl 用于把相对路径补全为绝对 URL。
-		function nextJsChunkUrls(html, componentName, baseUrl) {
-			const i = html.indexOf(componentName);
-			if (i < 0) return [];
-			const seg = html.slice(Math.max(0, i - 1500), i);
-			const br = seg.lastIndexOf("[");
-			if (br < 0) return [];
-			// flight payload 内 chunk 路径是双重转义（\\\"），还原一层后提取
-			const raw = seg.slice(br).replace(/\\\\"/g, '"').replace(/\\"/g, '"');
-			const names = [...raw.matchAll(/\/_next\/static\/chunks\/([A-Za-z0-9_.~-]+\.js)/g)].map((x) => x[1]);
-			// 补全为绝对 URL：优先页面 origin（chunk 路径是站内相对路径）
-			let origin = "";
-			try { origin = new URL(baseUrl || "").origin; } catch { /* 无 baseUrl 时保持相对 */ }
-			return [...new Set(names)].map((n) => origin + "/_next/static/chunks/" + n);
-		}
 
 		// 从 canmoe chunk JS 提取当期卡池：
 		// ① 当期角色窗口形如 d={梨诺:{windows:[{start,end,version,period,isRerun}]}},u=[...]
@@ -2278,6 +3317,7 @@ export function createEngine(env) {
 			return sawStructure ? null : void 0;
 		}
 
+
 		// 提取 canmoe chunk 里的"卡池期次数组"（元素含 periodStart/periodEnd 的那个），返回元素子串数组。
 		// 数组的变量名是压缩产物的一部分：canmoe 每次重新构建都可能改名（曾见 p=[…]，现为 f=[…]），
 		// 所以按"任意 `名字=[` 且数组体里有 periodStart"来定位，不写死变量名
@@ -2315,6 +3355,427 @@ export function createEngine(env) {
 			return null;
 		}
 
+
+		// 终末地卡池列悬停：canmoe 卡池日历 chunk 内同期全部卡池条目（特许寻访 / 重构寻访 等），
+		// 每池"卡池名：角色"一行 + 时间；窗口相同则合并时间；结束时间升序（0/1 池返回 "" 走单条兜底）
+		function canmoePoolHover(js, now) {
+			const arr = extractCanmoePeriods(js);
+			if (!arr) return "";
+			const pools = [];
+			for (const e of arr) {
+				const ps = (e.match(/periodStart\s*:\s*"([^"]*)"/) || [])[1];
+				const pe = (e.match(/periodEnd\s*:\s*"([^"]*)"/) || [])[1];
+				if (!ps || !pe) continue;
+				const a = new Date(ps).getTime(), b = new Date(pe).getTime();
+				if (!(a <= now && now <= b)) continue;
+				const title = (e.match(/title\s*:\s*"([^"]*)"/) || [])[1] || "";
+				const subtitle = (e.match(/subtitle\s*:\s*"([^"]*)"/) || [])[1] || "";
+				if (!title && !subtitle) continue;
+				pools.push({
+					name: title || subtitle,
+					label: title && subtitle ? `${title}\uFF1A${subtitle}` : (title || subtitle),
+					startTs: a,
+					endTs: b
+				});
+			}
+			return buildPoolHover(pools);
+		}
+
+		const WUWA_NOTICE_ENTRY = "https://aki-gm-resources-back.aki-game.com/gamenotice/G152/76402e5b20be2c39f095a152090afddc/entrypoint.json";
+
+
+		const WUWA_BWIKI_URL = "https://wiki.biligame.com/wutheringwaves/api.php?action=parse&page=%E9%A6%96%E9%A1%B5%2F%E8%A7%92%E8%89%B2%E8%BD%AE%E6%8D%A2%E6%B1%A0&prop=text&format=json&formatversion=2";
+
+
+		const WUWA_EVENT_BWIKI_URL = "https://wiki.biligame.com/wutheringwaves/api.php?action=parse&page=%E9%A6%96%E9%A1%B5%2F%E6%B4%BB%E5%8A%A8%E6%97%A5%E5%8E%86&prop=text&format=json&formatversion=2";
+
+
+		// ── 条目 ──
+		registerSource({
+				id: "wuwa",
+				tz: TZ_CN,
+				parserVersion: 2,
+				name: "鸣潮",
+				icon: "https://storage.moegirl.org.cn/moegirl/commons/2/29/WutheringWavesIcon.png!/fw/64",
+				source: "官方公告",
+				// 默认卡池源=官方公告（aki-gm-resources-back，经 host 代理）：
+				// entrypoint.json → <dir>/zh-Hans.json，其 `recommend` 组里 tag=7 为逐期「角色/武器活动唤取」，
+				// 条目自带 `startTimeMs`/`endTimeMs` 绝对时间戳（不再解析正文，见 parseWuwaNotice）。
+				// 无当期公告或抓取失败时由抓取器自动回退 Bwiki 角色轮换池；也可在设置中手动切 Bwiki（备选）
+				url: WUWA_NOTICE_ENTRY,
+				altSources: [
+					{ label: "Bwiki 角色轮换池", url: WUWA_BWIKI_URL, fetcher: "wuwa-bwiki" }
+				],
+				// 活动源：**默认=同一份官方公告**（`recommend` 组里 tag=5 为限时活动，见 parseWuwaRecommendEvents），
+				// 与卡池是**同一条 URL** → 一次请求复用两侧数据。
+				// ⚠️ 2026-10-01 改：Bwiki 活动日历页**已停更**（最新一条结束于 2026/9/29，无 3.7 内容），
+				// 所以把它从默认**降级为备选**（eventAltSources），仍可在设置里手动切回。
+				eventUrl: WUWA_NOTICE_ENTRY,
+				eventSource: "官方公告",
+				eventAltSources: [
+					{ label: "Bwiki 活动日历", url: WUWA_EVENT_BWIKI_URL, fetcher: "wuwa-event-bwiki" }
+				]
+		});
+
+		// ── 抓取器登记 ──
+		GACHA_FETCHERS["wuwa"] = (url, signal, tz) => fetchWuwaGacha(url, signal, tz);
+		GACHA_FETCHERS["wuwa-bwiki"] = (url, signal, tz) => mkMediaWiki((text) => parseWuwaPool(text, nowMs(), tz))(url, signal, tz);
+					// 鸣潮：**默认=同一份官方公告**（`recommend` 组里 tag=5 为限时活动），与卡池是**同一条 URL**
+			// → 一次请求复用两侧数据（refresh 的复用优化）。
+			// ⚠️ 2026-10-01 改：Bwiki 活动日历**已停更**（最新一条结束于 2026/9/29），
+			// 所以把官方提为默认、Bwiki 降级为备选（`wuwa-event-bwiki`），仍可在设置里手动切回。
+EVENT_FETCHERS["wuwa"] = {
+				default: (url, signal, tz) => fetchWuwaEventsOfficial(url, signal, tz),
+				// ⚠️ 回调**必须**声明第二个参数 `tz`：mkMediaWiki 的契约是 `parse(text, tz)`
+				//   （见 30-parsers.js 的 mkMediaWiki）。原来只写了 `(html)` 却在体内用 `tz`
+				//   → 运行时 `tz is not defined`：用户在设置页把鸣潮活动源切到「Bwiki 活动日历」就必然抓取失败。
+				//   2026-10-03 修正（同批还加了静态守卫 `test/cases-fetcher-args.mjs`）。
+				"wuwa-event-bwiki": mkMediaWiki((html, tz) => {
+					const d = parseWuwaCalendar(html, tz);
+					return d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "", eventHover: d.eventHover || "" } : null;
+				})
+			};
+
+// src/client/30-game-hypergryph.js —— 鹰角（明日方舟 / 终末地）
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+
+		// ── 解析器 / 抓取器 ──
+
+		// 方舟：解析「干员轮换卡池」（标准寻访/当期轮换池）所有数据行。
+		// 该表行结构：序号 | 寻访页面(title=寻访模拟/干员轮换卡池N) | 开启时间 | 特定干员(6星) | 特定干员(5星)。
+		// 兼容历史「限时寻访」表（寻访页面|开启时间|特定干员6星|特定干员5星&4星）作为兜底。
+		function parseArknights(html, tz) {
+			const out = [];
+			// 标准（干员轮换卡池N）+ 中坚（中坚甄选N / 中坚干员轮换卡池N）：
+			// 行内 title="寻访模拟/<池名>"。**档位按池名判定且中坚优先**——「中坚干员轮换卡池74」
+			// 名字里也含"干员轮换卡池"，先测标准会把整批中坚池误判进标准档（实测踩过）。
+			for (const rm of html.matchAll(/<tr(?:[^>]*)>([\s\S]*?)<\/tr>/g)) {
+				const row = rm[1];
+				const tds = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) => m[1]);
+				if (tds.length < 3) continue;
+				const titleM = (tds[1] || "").match(/title="([^"]*)"/);
+				if (!titleM) continue;
+				const banner = String(titleM[1]).replace(/^寻访模拟\//, ""); // 干员轮换卡池192 / 中坚甄选14
+				if (!/干员轮换卡池|中坚甄选/.test(banner)) continue;         // 只认这两类轮换池行
+				const tier = /中坚/.test(banner) ? "中坚" : "标准";
+				const roles = [...((tds[3] || "") + (tds[4] || "")).matchAll(/<a[^>]*title="([^"]+)"/g)]
+					.map((m) => m[1]).filter(Boolean);
+				const range = parseRange(tds[2], tz);
+				out.push({ tier, banner, roles: roles.join("、"), ...range, isMain: true });
+			}
+			// 限时（联合行动/限定）：解析「限时寻访」表
+			const i = html.indexOf("限时寻访");
+			if (i >= 0) {
+				const seg = html.slice(i);
+				const tableM = seg.match(/<table[^>]*>([\s\S]*?)<\/table>/);
+				if (tableM) {
+					const body = tableM[1];
+					for (const rm of body.matchAll(/<tr>([\s\S]*?<td[\s\S]*?)<\/tr>/g)) {
+						const row = rm[1];
+						const tds = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) => m[1]);
+						if (tds.length < 2) continue;
+						const banner = stripTags(tds[0]);
+						if (!banner) continue;
+						const roles = tds.length > 2
+							? [...tds[2].matchAll(/<a[^>]*href="\/w\/[^"]*"[^>]*title="([^"]*)"/g)]
+								.map((m) => m[1].trim()).filter(Boolean).join("、")
+							: "";
+						const range = parseRange(tds[1], tz);
+						out.push({ tier: "限时", banner, roles, ...range, isMain: true });
+					}
+				}
+			}
+			return out;
+		}
+
+
+		// 明日方舟当期卡池：**外显与悬停共用同一份"当期池"列表**（不再各挑一个）——
+		// 外显按档位优先（限时 > 标准 > 中坚）、档内先结束者优先；悬停走统一的 buildPoolHover，
+		// 与其它游戏同格式（每池『池名：角色』+ 时间行、同窗口合并时间、结束时间升序）。
+		function selectArknights(html, now = nowMs(), tz) {
+			const items = parseArknights(html, tz);
+			fillMissingStarts(items);
+			const tiers = ["限时", "标准", "中坚"];
+			const rank = (it) => {
+				const i = tiers.indexOf(it.tier);
+				return i < 0 ? tiers.length : i;
+			};
+			const active = items
+				.filter((it) => coversNowBounded(it, now))
+				.sort((a, b) => (rank(a) - rank(b)) || (a.endTs - b.endTs) || (a.startTs - b.startTs));
+			if (active.length === 0) return null;
+			const win = active[0];
+			return {
+				banner: win.banner,
+				roles: win.roles,
+				bannerDates: win.raw,
+				bannerDatesRaw: win.rawOriginal || win.raw,
+				bannerHover: buildPoolHover(active.map((it) => ({
+					name: it.banner,
+					label: `${it.banner}${it.roles ? `\uFF1A${it.roles}` : ""}`,
+					startTs: it.startTs, endTs: it.endTs, raw: it.rawOriginal || it.raw
+				})))
+			};
+		}
+
+
+		// ---- 明日方舟官方公告（web-news.hypergryph.com CMS，code=arknights）----
+		// 官方 CMS：列表接口的 brief 被服务端截断（只有时间与开头几个 UP），角色全量需按 cid 取详情。
+		// 标题格式：[家族]【池名】限时寻访(即将)开启；brief 首段即"活动时间：X月X日 HH:mm - X月X日 HH:mm"。
+
+		// 从公告正文/brief 提取 UP 干员（"★★★★★★：结城理（占…）★★★★★：埃癸斯 / 岳羽由加莉（…）"）
+		function parseAkOfficialRoles(text) {
+			const s = String(text || "")
+				.replace(/<[^>]+>/g, " ")
+				.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
+				.replace(/\\/g, " ")
+				.replace(/\s+/g, " ");
+			const segM = s.match(/(?:出现率上升|获得概率提升)\s*([\s\S]*?)(?:注意|抽取概率公示|在本期|$)/);
+			const seg = segM ? segM[1] : s;
+			const names = [];
+			for (const um of seg.matchAll(/(?:★{3,6})\s*[：:]\s*([^★（(\n]+)/g)) {
+				for (let tok of String(um[1]).split(/[\/、,，\\\s]+/)) {
+					tok = tok.replace(/\[[^\]]*\]/g, "").trim();
+					if (tok && !/^[0-9.%占出率概]+$/.test(tok) && tok.length >= 2 && tok.length <= 10) names.push(tok);
+				}
+			}
+			return [...new Set(names)].join("、");
+		}
+
+
+		// 列表 → 当期 限时/联动寻访池数组（bannerDates 统一为 "MM-DD HH:mm ~ MM-DD HH:mm"）
+		function parseAkOfficialPools(list, now = nowMs()) {
+			const nowYear = new Date(now).getFullYear();
+			const out = [];
+			for (const it of list || []) {
+				const title = String(it.title || "");
+				const brief = String(it.brief || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+				if (!/寻访/.test(title) || !/活动时间/.test(brief)) continue;
+				const nameM = title.match(/【([^】]+)】\s*限时寻访/);
+				if (!nameM) continue;
+				const timeM = brief.match(/活动时间\s*[：:]\s*(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{2})\s*[-—~]\s*(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{2})/);
+				if (!timeM) continue;
+				const mk = (y, mo, d, h, mi) => new Date(y, mo - 1, d, h, mi).getTime();
+				const sm = Number(timeM[1]), sd = Number(timeM[2]);
+				const em = Number(timeM[5]), ed = Number(timeM[6]);
+				const startTs = mk(nowYear, sm, sd, Number(timeM[3]), Number(timeM[4]));
+				const endTs = mk(endsNextYear(sm, null, em, null) ? nowYear + 1 : nowYear, em, ed, Number(timeM[7]), Number(timeM[8]));
+				if (startTs > now || endTs < now) continue; // 只要当期覆盖
+				const fmt = (mo, d, h, mi) => `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} ${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
+				const startText = fmt(sm, sd, Number(timeM[3]), Number(timeM[4]));
+				const endText = fmt(em, ed, Number(timeM[7]), Number(timeM[8]));
+				const raw = `${startText} ~ ${endText}`;
+				const familyM = title.match(/^\[([^\]]+)\]/);
+				out.push({
+					cid: String(it.cid || ""),
+					family: familyM ? familyM[1] : "",
+					banner: nameM[1],
+					roles: parseAkOfficialRoles(brief),
+					bannerDates: raw,
+					bannerDatesRaw: raw,
+					startTs, endTs, startText, endText, raw,
+					tier: "限时",
+					isMain: true
+				});
+			}
+			return out;
+		}
+
+
+		// 官方当期限时寻访（经 host 代理：列表 + 每池详情各 1 次请求）
+		async function fetchArknightsOfficialPools(signal, now = nowMs()) {
+			const ref = "https://ak.hypergryph.com/";
+			const listUrl = AK_OFFICIAL_BULLETIN + "?lang=zh-cn&code=arknights&page=1&pageSize=30";
+			const json = await proxyFetchJson(listUrl, ref);
+			const list = Array.isArray(json?.data?.list) ? json.data.list : [];
+			const pools = parseAkOfficialPools(list, now);
+			await Promise.all(pools.map(async (p) => {
+				try {
+					const d = await proxyFetchJson(`${AK_OFFICIAL_BULLETIN}/${p.cid}?lang=zh-cn&code=arknights`, ref);
+					const content = typeof d?.data?.data === "string" ? d.data.data : "";
+					if (content) {
+						const roles = parseAkOfficialRoles(content);
+						if (roles) p.roles = roles;
+					}
+				} catch { /* 详情失败保留 brief 解析的角色 */ }
+			}));
+			return pools;
+		}
+
+
+		// 方舟卡池默认抓取器：官方公告 CMS 优先（当期限时/联动寻访），
+		// 官方无当期寻访公告（常规轮换周）或官方失败时自动回退 PRTS 卡池一览（逻辑同 selectArknights）。
+		// 设置页手动切到 PRTS 备选源时则走 GACHA_FETCHERS["arknights-prts"]，不经本函数。
+		async function fetchArknightsGacha(url, signal, tz, now = nowMs()) {
+			try {
+				const official = await fetchArknightsOfficialPools(signal, now);
+				if (official.length > 0) {
+					// 外显与悬停同源同序：先结束者优先（与 PRTS 路径、其它游戏一致），不再取列表首条
+					const sorted = official.slice().sort((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs));
+					const p = sorted[0];
+					// 悬停：与其它游戏统一为「池名：角色」+ 时间（多池时逐池一行、同窗口合并时间、结束时间升序）
+					const pools = sorted.map((x) => ({
+						name: x.banner,
+						label: `${x.banner}${x.roles ? `\uFF1A${x.roles}` : (x.family ? `\uFF1A${x.family}` : "")}`,
+						startTs: x.startTs,
+						endTs: x.endTs,
+						raw: x.raw || x.bannerDatesRaw || x.bannerDates
+					}));
+					return {
+						banner: p.banner,
+						roles: p.roles,
+						bannerDates: p.bannerDates,
+						bannerDatesRaw: p.bannerDatesRaw,
+						bannerHover: buildPoolHover(pools)
+					};
+				}
+			} catch { /* 官方失败 → 回退 PRTS */ }
+			const apiUrl = ARKNIGHTS_PRTS_URL + (ARKNIGHTS_PRTS_URL.includes("?") ? "&" : "?") + "origin=*";
+			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
+			if (!res.ok) throw new Error("http-" + res.status);
+			const json = await res.json();
+			const html = json?.parse?.text;
+			if (typeof html !== "string") throw new Error("bad-json");
+			const d = selectArknights(html, now, tz);
+			return d ? { ...d } : null;
+		}
+
+
+		// 英文月份日期 → { ts, text }（如 "Sep 02, 2026, 12:00"、"September 2, 2026"）。
+		// 英文源站（wiki.gg / Game8 等）用这种写法，而 parseTime 只认纯数字日期，需要单独一支。
+		// 与插件其余来源同一口径：按"源站墙钟时间"直接构造（CN 用户本地即 UTC+8）。
+		const EN_MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+
+		function parseEnDate(raw) {
+			const m = String(raw).match(/([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})(?:,?\s+(\d{1,2}):(\d{2}))?/);
+			if (!m) return null;
+			const mo = EN_MONTHS[m[1].slice(0, 3).toLowerCase()];
+			if (!mo) return null;
+			const d = Number(m[2]), y = Number(m[3]);
+			const h = m[4] ? Number(m[4]) : 0, mi = m[5] ? Number(m[5]) : 0;
+			const pad = (n) => String(n).padStart(2, "0");
+			return { ts: new Date(y, mo - 1, d, h, mi).getTime(), text: `${pad(mo)}-${pad(d)} ${pad(h)}:${pad(mi)}` };
+		}
+
+
+		// 终末地（wiki.gg）：Headhunting/Banners 页 Current 分节 → 当期卡池
+		// 该源经 host 代理抓取（fetchEndfieldWikiGg → proxyFetchText 设 Referer=wiki.gg origin），
+		// 满足 Wiki.gg 的 Referer 校验，不会触发 403；本解析器仅处理代理返回的 HTML。
+		// 线上真实标记（2026-09 实测）：Asia 行是 "Sep 02, 2026, 12:00 &#8211; Sep 30, 2026, 11:59 (UTC+8)"，
+		// 同一格里还有 AM/EU 行（UTC−5）；旧实现用 parseTime + split(/[–-]/) 解不了英文月份与实体，恒返回 null
+		// → 该备选源长期"抓得到但解析不出"。现在：解实体 + 只取 Asia 行 + 英文月份解析。
+		function parseEndfieldCurrent(html) {
+			const i = html.indexOf('id="Current"');
+			// 页面拿到了却没有 Current 分节 → wiki 页改版（抛错，别伪装成"未公布"）
+			if (i < 0) throw new Error("endfield-current-no-section");
+			const seg = html.slice(i);
+			const tableEnd = seg.indexOf("</table>");
+			const table = tableEnd >= 0 ? seg.slice(0, tableEnd) : seg;
+			const nameM = table.match(/class="header"[^>]*>([^<]+)</);
+			const asiaM = table.match(/Asia:<\/b>([\s\S]*?)<\/span>/);
+			const upM = [...table.matchAll(/<li>[\s\S]*?title="([^"]+)"[\s\S]*?\(Drop Rate-UP\)/g)];
+			const banner = nameM ? nameM[1].trim() : "";
+			let startTs = null, endTs = null, startText = null, endText = null;
+			if (asiaM) {
+				// 只取 Asia 行（非贪婪已停在 Asia span 结束处）；解实体后按 en/em dash 或"带空格的短横线"切两段
+				const asiaText = decodeHtmlEntities(stripTags(asiaM[1]));
+				const parts = asiaText.split(/[\u2013\u2014\u2212]|\s+-\s+/).map((x) => x.trim()).filter(Boolean);
+				const a = parseEnDate(parts[0] || "");
+				const b = parseEnDate(parts[1] || "");
+				if (a) { startTs = a.ts; startText = a.text; }
+				if (b) { endTs = b.ts; endText = b.text; }
+			}
+			// 分节在、但卡池名/Asia 档期读不出来 → 表结构变了（抛错）；读得出但不覆盖当前 → null（未公布）
+			if (!banner) throw new Error("endfield-current-no-banner");
+			if (startTs == null || endTs == null) throw new Error("endfield-current-no-dates");
+			if (!(startTs <= nowMs() && endTs >= nowMs())) return null;
+			return {
+				banner,
+				roles: [...new Set(upM.map((m) => m[1]))].join("、"),
+				bannerDates: startText && endText ? `${startText} ~ ${endText}` : ""
+			};
+		}
+
+
+		// 终末地（GachaTracker）：banners 表格 → 当期卡池（卡池名/干员/起止）
+		// GachaTracker 提供 CORS=[*]，浏览器端可直接抓取（替代被 Referer 反爬拦截的 wiki.gg）
+		//
+		// `tz`（可选）= 源站墙钟时区：
+		//  · 传了 → 墙钟按该时区换算成绝对时刻，输出文本也按该时区渲染（海外用户也正确）；
+		//  · 没传 → **保持改造前行为逐字节不变**（字符串自带 `+08:00` 定绝对时刻，
+		//    文本按本机时区取字段）。为什么不统一成"没传也按 +08 渲染"：
+		//    那会改变既有输出（实测让 `_batch6` C4 的文本从 `10-01 00:11` 偏成 `00:12`），
+		//    而调用方没声明时区时，我们**没有依据**断定它一定是 +08。
+		function parseGachaTracker(html, tz) {
+			const shift = (d) => (typeof sourceInstant === "function" ? sourceInstant(d.y, d.mo, d.d, 0, 0, tz) : new Date(d.y, d.mo - 1, d.d, 0, 0).getTime());
+			const shiftEnd = (d) => (typeof sourceInstant === "function" ? sourceInstant(d.y, d.mo, d.d, 23, 59, tz) : new Date(d.y, d.mo - 1, d.d, 23, 59).getTime());
+			const parse = (s) => { const m = String(s).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); return m ? { y: +m[1], mo: +m[2], d: +m[3] } : null; };
+			const rows = [...html.matchAll(/<tr id="([^"]+)">([\s\S]*?)<\/tr>/g)];
+			const items = [];
+			for (const rm of rows) {
+				const body = rm[2];
+				if (!body.includes("date-cell")) continue;
+				const nameM = body.match(/banner-name-cell">[\s\S]*?<a[^>]*>([^<]+)<\/a>/);
+				const dateM = [...body.matchAll(/date-cell">([\d-]+)<\/td>/g)];
+				const charM = [...body.matchAll(/\/games\/endfield\/characters\/[^"]+" title="([^"]+)"/g)];
+				if (!nameM || dateM.length < 2) continue;
+				const sd = parse(dateM[0][1]);
+				const ed = parse(dateM[1][1]);
+				if (!sd || !ed) continue;
+				items.push({
+					banner: stripTags(nameM[1]),
+					roles: [...new Set(charM.map((m) => m[1]))].join("、"),
+					// 传了 tz → 按源站墙钟换算；没传 → 沿用字符串自带 +08:00（改造前行为）
+					startTs: tz ? shift(sd) : new Date(dateM[0][1] + "T00:00:00+08:00").getTime(),
+					endTs: tz ? shiftEnd(ed) : new Date(dateM[1][1] + "T23:59:59+08:00").getTime(),
+					// 文本用**源站墙钟原文**（不经过 Date 再解释）—— 这样不传 tz 时也与改造前一致
+					startText: dateM[0][1],
+					endText: dateM[1][1]
+				});
+			}
+			const now = nowMs();
+			const cur = items.find((it) => coversNow(it, now)) || null;
+			if (!cur) return null;
+			// 输出文本：直接用源站墙钟原文（`YYYY-MM-DD` → `MM-DD`），不随本机时区变
+			const fmtDate = (s) => {
+				const m = String(s).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+				return m ? `${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}` : String(s);
+			};
+			return {
+				banner: cur.banner,
+				roles: cur.roles,
+				bannerDates: `${fmtDate(cur.startText)} 00:00 ~ ${fmtDate(cur.endText)} 23:59`
+			};
+		}
+
+
+
+		// 通用：从 Next.js flight payload HTML 中定位指定组件引用的 JS chunk URL 列表。
+		// 适用于"HTML 无数据、数据编译在组件 chunk 里"的 Next.js 站点（如 canmoe）。
+		// componentName 形如 "BannerCalendar"；baseUrl 用于把相对路径补全为绝对 URL。
+		function nextJsChunkUrls(html, componentName, baseUrl) {
+			const i = html.indexOf(componentName);
+			if (i < 0) return [];
+			const seg = html.slice(Math.max(0, i - 1500), i);
+			const br = seg.lastIndexOf("[");
+			if (br < 0) return [];
+			// flight payload 内 chunk 路径是双重转义（\\\"），还原一层后提取
+			const raw = seg.slice(br).replace(/\\\\"/g, '"').replace(/\\"/g, '"');
+			const names = [...raw.matchAll(/\/_next\/static\/chunks\/([A-Za-z0-9_.~-]+\.js)/g)].map((x) => x[1]);
+			// 补全为绝对 URL：优先页面 origin（chunk 路径是站内相对路径）
+			let origin = "";
+			try { origin = new URL(baseUrl || "").origin; } catch { /* 无 baseUrl 时保持相对 */ }
+			return [...new Set(names)].map((n) => origin + "/_next/static/chunks/" + n);
+		}
+
+
 		// 终末地当期选择：走统一的"当期选择"逻辑（now 可注入）。
 		// 这是**给通用解析（自定义条目/自定义地址）用的宽松包装**：把 undefined 归一成 null，
 		// 即"读不出来 → 未公布"，不在这里抛错（用户自定义地址读不出内容是常态，不该报成源站故障）。
@@ -2322,6 +3783,7 @@ export function createEngine(env) {
 		// ⚠️ 2026-10-03：原来还有一个 `parseCanmoeLoose`（同样实现）作为"旧写法"别名，
 		//    经全仓引用分析确认**生产与测试都没用**，已删 —— 留两个同名同实现的包装只会让人猜该用哪个。
 		function parseCanmoe(js, now = nowMs(), tz) { const d = currentFromCanmoe(js, now, tz); return d === void 0 ? null : d; }
+
 		// 终末地（canmoe 经 host 代理）：页面 HTML → 定位 BannerCalendar chunk → 抓 chunk JS → 窗口匹配当期
 		// canmoe 无 CORS 头，两步都经 host 代理（referer 用页面 origin 满足反爬）
 		// 数据在某一组件的 chunk 里（含当期 d={...} 与历史期次数组），currentFromCanmoe(js, now) 做窗口匹配
@@ -2358,57 +3820,6 @@ export function createEngine(env) {
 			return null;   // 结构在、但当期没有覆盖现在的期次 → 未公布
 		}
 
-		// 终末地卡池列悬停：canmoe 卡池日历 chunk 内同期全部卡池条目（特许寻访 / 重构寻访 等），
-		// 每池"卡池名：角色"一行 + 时间；窗口相同则合并时间；结束时间升序（0/1 池返回 "" 走单条兜底）
-		function canmoePoolHover(js, now) {
-			const arr = extractCanmoePeriods(js);
-			if (!arr) return "";
-			const pools = [];
-			for (const e of arr) {
-				const ps = (e.match(/periodStart\s*:\s*"([^"]*)"/) || [])[1];
-				const pe = (e.match(/periodEnd\s*:\s*"([^"]*)"/) || [])[1];
-				if (!ps || !pe) continue;
-				const a = new Date(ps).getTime(), b = new Date(pe).getTime();
-				if (!(a <= now && now <= b)) continue;
-				const title = (e.match(/title\s*:\s*"([^"]*)"/) || [])[1] || "";
-				const subtitle = (e.match(/subtitle\s*:\s*"([^"]*)"/) || [])[1] || "";
-				if (!title && !subtitle) continue;
-				pools.push({
-					name: title || subtitle,
-					label: title && subtitle ? `${title}\uFF1A${subtitle}` : (title || subtitle),
-					startTs: a,
-					endTs: b
-				});
-			}
-			return buildPoolHover(pools);
-		}
-
-		// 异环（ldshop 繁体）：解析「項目/資訊」卡池表（含 期間/角色/棋盤 行），返回全部卡池
-		// 表格行结构：<td><p>期間</p></td><td><p>8月19日－9月9日</p></td>
-		function parseLdshopPools(html) {
-			const out = [];
-			const tables = [...html.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/gi)];
-			for (const tb of tables) {
-				const body = tb[1];
-				if (!/期間/.test(body.replace(/<[^>]+>/g, "|"))) continue;
-				let info = {};
-				for (const rm of body.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)) {
-					const tds = [...rm[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((m) => stripTags(m[1]).trim());
-					if (tds.length >= 2 && tds[0] && tds[0] !== "項目") info[tds[0]] = tds[1];
-				}
-				if (!info["期間"]) continue;
-				const range = parseLdshopRange(info["期間"]);
-				if (!range) continue;
-				const chars = [info["全新S級角色"], info["復刻S級角色"]].filter(Boolean).join("/");
-				out.push({
-					banner: info["角色棋盤"] || "异环卡池",
-					roles: chars,
-					...range,
-					isMain: true
-				});
-			}
-			return out;
-		}
 
 		// 中文明期间 → startTs/endTs/bannerDates（如 "8月19日－9月9日"；跨年自动+1年）
 		function parseLdshopRange(raw, now) {
@@ -2424,362 +3835,6 @@ export function createEngine(env) {
 			return { startTs: a.getTime(), endTs: b.getTime(), startText: fmt(a), endText: fmt(b), raw: `${fmt(a)} ~ ${fmt(b)}` };
 		}
 
-		// 异环（ldshop 经 host 代理）：抓页面 → 解析卡池表 → 选当期
-		async function fetchLdshopNte(pageUrl, _signal, tz) {
-			const html = await proxyFetchText(pageUrl, "https://www.ldshop.gg/");
-			const pools = parseLdshopPools(html);
-			if (pools.length === 0) return null;
-			return selectCurrent(pools, nowMs());
-		}
-
-		// 异环（官网 yh.wanmei.com 公告，经 host 代理）：抓游戏公告列表 → 取最新维护/更新公告 → 解析当期限定棋盘卡池与限时活动
-		// 官网公告列表条目：<a href="/news/gamebroad/YYYYMMDD/N.html">…<h2 class="title">标题</h2>
-		const NTE_ITEM_RE = /<a href="(\/news\/gamebroad\/\d+\/\d+\.html)"[\s\S]*?<h2 class="title">([^<]+)<\/h2>/g;
-		// 带新卡池的公告标题：停服维护/版本更新；"1.3版本「…」更新公告"这类版本名夹在中间，所以"更新公告"也要算
-		const NTE_MAINT_RE = /停服维护|停服更新|维护公告|版本更新|更新公告/;
-		// 逐页向下的上限：维护公告会随新公告发布被挤到第 2、3 页，只看第 1 页会把"进行中的卡池"误判成未公布
-		const NTE_MAX_LIST_PAGES = 3;
-		// 每次最多试几篇公告正文（按从新到旧），避免某篇规则失效时白抓一堆
-		const NTE_MAX_DETAILS = 3;
-
-		// 取分页控件里的后续页地址（相对当前页）：<ul class="pagination"> … <a href="index1.html">2</a>
-		function nteNextPageUrls(listUrl, html, seen) {
-			const pg = String(html || "").match(/<ul class="pagination">[\s\S]*?<\/ul>/);
-			if (!pg) return [];
-			const dir = listUrl.split("#")[0].split("?")[0].replace(/[^/]*$/, "");
-			const out = [];
-			for (const m of pg[0].matchAll(/href="(index\d+\.html)"/g)) {
-				const u = dir + m[1];
-				if (u !== listUrl && !seen.has(u) && !out.includes(u)) out.push(u);
-			}
-			return out;
-		}
-
-		// 逐页（index.html → index1.html → index2.html …）从新到旧找"带新卡池"的维护/版本更新公告，
-		// 取第一篇能解析出当期卡池/活动的正文；"不停服更新"不含新卡池，跳过。
-		// 三态：有当期内容 → 数据；列表页有公告但都不含当期内容（或"不停服更新"）→ null（未公布）；
-		//      列表页**一条公告链接都没有** → 抛错（官网列表改版，让面板显示"卡池失败"而不是"未公布"）。
-		async function fetchNteWanmei(listUrl, signal, tz) {
-			const ref = "https://yh.wanmei.com/";
-			const seen = new Set();
-			const queue = [listUrl];
-			let details = 0;
-			let sawAnyLink = false;
-			while (queue.length && seen.size < NTE_MAX_LIST_PAGES) {
-				const url = queue.shift();
-				if (seen.has(url)) continue;
-				seen.add(url);
-				const html = await proxyFetchText(url, ref);
-				if (/\/news\/gamebroad\/\d+\/\d+\.html/.test(html)) sawAnyLink = true;
-				// 列表条目本身从新到旧：边收集边试，命中当期内容立刻返回
-				for (const m of html.matchAll(NTE_ITEM_RE)) {
-					if (!NTE_MAINT_RE.test(m[2]) || /不停服/.test(m[2])) continue;
-					if (details >= NTE_MAX_DETAILS) return null;   // 试读额度用完（此时必然已见到公告链接）
-					details++;
-					const data = parseNteWanmei(await proxyFetchText("https://yh.wanmei.com" + m[1], ref), tz);
-					if (data) return data;
-				}
-				for (const u of nteNextPageUrls(listUrl, html, seen)) if (!queue.includes(u)) queue.push(u);
-			}
-			if (!sawAnyLink) throw new Error("nte-list-shape-changed");
-			return null;
-		}
-
-		// 异环公告里的「棋盘」条目解析（角色卡池）。
-		//
-		// 为什么从**「棋盘」**入手（用户建议，2026-09-30）：
-		//   异环的角色卡池在公告里叫「X」**限定棋盘**，条目形如
-		//     ● 全新限定S级角色「黑羽」
-		//     开放时间：9月24日版本更新后-10月15日05:59
-		//     棋盘说明：可通过「预言终幕时」限定棋盘获得S级角色「黑羽」。…
-		//   `棋盘说明` 是**角色卡池独有的锚点** —— 弧盘走 `研募说明`、剧情段没有这个字段。
-		//   用「有棋盘说明」筛，比用"全新限定S级角色"精确：后者漏掉**返场**（`限定S级角色「安魂曲」返场`，
-		//   没有"全新"二字），而那也是一张在开的角色池。
-		//
-		// 旧实现只认 `全新限定S级角色「X」…开放时间：N月N日**维护**更新后-…` 一条正则，
-		// 而现公告写的是 `**版本**更新后` → 一条都匹配不上 → 卡池为空 → `if (!data.banner) return null`
-		// → `fetchNteWanmei` 继续往下试，最终拿 index1 页那篇**已过期**的旧公告冒充当期。
-		function parseNteBoards(text, nowYear) {
-			const lines = text.split("\n").map((l) => l.trim());
-			// 「一、 全新角色&弧盘」这一段的边界（只在这里找，避免匹配到别处的"开放时间"）
-			const start = lines.findIndex((l) => /^一、/.test(l));
-			if (start < 0) return [];
-			let end = lines.findIndex((l, i) => i > start && /^二、/.test(l));
-			if (end < 0) end = lines.length;
-			const pools = [];
-			for (let i = start; i < end; i++) {
-				const m = lines[i].match(/^●\s*(?:全新)?(限定S级角色|S级角色)「([^」]+)」(返场)?/);
-				if (!m) continue;
-				// 往后找该条目的「开放时间」与「棋盘说明」（各限 8 行内）
-				let range = null, board = "";
-				for (let j = i + 1; j < Math.min(end, i + 8); j++) {
-					if (!range) {
-						const t = lines[j].match(/^开放时间：(\d+)月(\d+)日(?:(?:维护|版本)更新后|(\d{1,2}):(\d{2}))\s*[-–—]\s*(\d+)月(\d+)日(\d{1,2}):(\d{2})/);
-						if (t) {
-							range = {
-								sMo: +t[1], sD: +t[2], sH: t[3] ? +t[3] : 11, sMi: t[4] ? +t[4] : 0,
-								eMo: +t[5], eD: +t[6], eH: +t[7], eMi: +t[8]
-							};
-						}
-					}
-					if (!board) {
-						const b = lines[j].match(/棋盘说明：可通过「([^」]+)」限定棋盘获得/);
-						if (b) board = b[1];
-					}
-				}
-				// **有棋盘说明才是角色卡池**（弧盘那条走研募说明，会在这里被排除）
-				if (!range || !board) continue;
-				pools.push({
-					name: board,
-					// 类型：`全新限定S级角色` → 限定棋盘；`限定S级角色…返场` → 返场限定棋盘。
-					// 注意 `限定` 属于**类型的一部分**，不是动词/修饰（与国服"更新限时限定招募"同理）。
-					type: `${m[3] ? "返场" : ""}限定棋盘`,
-					roles: baRoleName(m[2]),
-					startTs: new Date(nowYear, range.sMo - 1, range.sD, range.sH, range.sMi).getTime(),
-					endTs: new Date(nowYear, range.eMo - 1, range.eD, range.eH, range.eMi).getTime()
-				});
-			}
-			return pools;
-		}
-
-		// 解析官网公告正文 → 当期卡池（有「棋盘说明」的角色卡池，按**统一规则**合并）+ 当期活动（限时活动）
-		function parseNteWanmei(html, tz) {
-			const text = String(html || "")
-				.replace(/<script[\s\S]*?<\/script>/gi, " ")
-				.replace(/<style[\s\S]*?<\/style>/gi, " ")
-				.replace(/<[^>]+>/g, "\n")
-				.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
-				.replace(/\n\s*\n+/g, "\n").trim();
-			const fmt = (mo, d, h, mi) => `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} ${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
-			const data = { banner: "", roles: "", bannerDates: "", bannerDatesRaw: "", event: "", eventDates: "", eventDatesRaw: "" };
-			// 当期卡池：**按统一规则**——当前时刻落在开放期间内的「棋盘」全部合并外显。
-			// 卡片/悬停都走 banner + roles（与其它游戏一致）：类型进 `banner`，
-			// 悬停由面板兜底显示 `类型：角色` + 日期。**不构造 bannerHover**（同国服，见 §48.3d）。
-			const now = nowMs();
-			const nowYear = new Date(now).getFullYear();
-			const active = parseNteBoards(text, nowYear)
-				.filter((p) => p.endTs >= now && p.startTs <= now)
-				.sort((a, b) => a.endTs - b.endTs);
-			if (active.length > 0) {
-				data.banner = [...new Set(active.map((p) => p.type))].join(" & ");
-				data.roles = [...new Set(active.map((p) => p.roles).filter(Boolean))].join("、");
-				// 窗口取结束最早的那个（与 selectCurrent 的 `first` 同口径）
-				const first = active[0];
-				data.bannerDates = `${fmt(new Date(first.startTs).getMonth() + 1, new Date(first.startTs).getDate(), new Date(first.startTs).getHours(), new Date(first.startTs).getMinutes())} ~ ${fmt(new Date(first.endTs).getMonth() + 1, new Date(first.endTs).getDate(), new Date(first.endTs).getHours(), new Date(first.endTs).getMinutes())}`;
-				data.bannerDatesRaw = data.bannerDates;
-			}
-			// 当期活动：「X」限时活动 活动时间：M月D日(维护|版本)更新后|hh:mm-M月D日hh:mm
-			const ev = text.match(/「([^」]+)」限时活动[\s\S]{0,200}?活动时间：(\d+)月(\d+)日(?:(?:维护|版本)更新后|(\d{1,2}):(\d{2}))\s*[-–—]\s*(\d+)月(\d+)日(\d{1,2}):(\d{2})/);
-			if (ev) {
-				const sMo = +ev[2], sD = +ev[3], sH = ev[4] ? +ev[4] : 11, sMi = ev[5] ? +ev[5] : 0;
-				const eMo = +ev[6], eD = +ev[7], eH = +ev[8], eMi = +ev[9];
-				data.event = ev[1];
-				data.eventDates = `${fmt(sMo, sD, sH, sMi)} ~ ${fmt(eMo, eD, eH, eMi)}`;
-				data.eventDatesRaw = data.eventDates;
-			}
-			if (!data.banner) return null;
-			return data;
-		}
-
-		// 通用抓取网页文本：MediaWiki api.php（action=parse）→ JSON 的 parse.text；其它 URL → 原始 HTML
-		//
-		// 同一轮里按 URL 缓存：两侧同址时（自定义条目最常见：用户把同一个页面同时填给
-		// 卡池与活动），需要在**不重复发请求**的前提下拿到同一份文本 —— 见 50-refresh.js
-		// 的「两侧同一条 URL、活动侧无注册抓取器」分支。缓存按轮清空（refreshAll 开始时重置），
-		// 避免跨轮拿到过期数据。
-		let htmlTextCache = null;
-		function resetHtmlTextCache() { htmlTextCache = new Map(); }
-		// **只读**查询：命中才返回，绝不发起请求。
-		// 用途见 50-refresh.js：两侧同址且活动侧没有注册抓取器时，**只有在卡池那次
-		// 已经通过本函数取过同一 URL 的情况下**才复用；否则宁可记"未公布"，
-		// 也**绝不**去打那次注定被 CORS 拦的直连（这条语义有测试守护，别改成会发请求）。
-		function peekHtmlText(url) {
-			return (htmlTextCache && htmlTextCache.get(url)) || null;
-		}
-		async function fetchHtmlText(url, signal) {
-			if (htmlTextCache && htmlTextCache.has(url)) return htmlTextCache.get(url);
-			const apiUrl = url + (url.includes("?") ? "&" : "?") + "origin=*";
-			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
-			if (!res.ok) throw new Error("http-" + res.status);
-			let out;
-			if (/action\s*=\s*parse/i.test(url)) {
-				const json = await res.json();
-				const text = json?.parse?.text;
-				if (typeof text !== "string") throw new Error("bad-json");
-				out = text;
-			} else {
-				out = await res.text();
-			}
-			if (htmlTextCache) htmlTextCache.set(url, out);
-			return out;
-		}
-
-		// 通用卡池解析（新增自定义条目的"卡池来源"地址用）：
-		// 依次尝试 bwiki 式「时间+版本」表、方舟式「限时寻访」表、GachaTracker 式日期表、
-		// Next.js SPA（canmoe 等，页面无表格、数据在组件 chunk 里），选当期；
-		// 最后再退到**普通 HTML 表**（见下方 collectGenericGacha）；
-		// 全部失败返回 null（调用方按解析失败处理，不做可达性健康检查）
-		async function tryParseGenericGacha(url, signal, tz) {
-			const html = await fetchHtmlText(url, signal);
-			const now = nowMs();
-			const cur = selectCurrent(parseAllBwiki(html, tz), now) || selectCurrent(parseArknights(html, tz), now);
-			if (cur && cur.banner && cur.bannerDates) return cur;
-			const gt = parseGachaTracker(html, tz);
-			if (gt && gt.banner && gt.bannerDates) return gt;
-			// Next.js SPA：HTML 无表格数据，定位组件 chunk 后抓 chunk JS 解析。
-			// chunk 与页面同源：页面能直连（CORS 允许）时 chunk 直连，否则经 host 代理。
-			const chunks = nextJsChunkUrls(html, "BannerCalendar", url);
-			for (const c of chunks) {
-				try {
-					const js = await fetchHtmlText(c, signal);
-					// 每个 chunk 只解析一次：解析里最重的是 chunk 的括号平衡扫描，
-					// 而"没命中当期"恰恰是最常见的情况 → 不要为了`a || b`那种写法白跑两遍
-					const d = parseCanmoe(js, now, tz);
-					if (d && d.banner && d.bannerDates) return d;
-				} catch { /* 下一个 chunk */ }
-			}
-			// 末位兜底：**普通 HTML 表**（时间 + 名称两列，或含「类型」列）。
-			// 为什么需要（2026-10-01 用户点名）：上面三条都是各自的**私有格式**
-			// （bwiki 卡池列 / PRTS 卡池一览 / GachaTracker），而用户给自定义条目
-			// 填一个普通 wiki 页面时，**活动列能出、卡池列恒空** —— 同一张表明显有内容。
-			// 这一兜底复用与活动侧同一套"时间+名称"列识别，保证自定义条目两侧口径一致。
-			const generic = selectCurrent(collectGenericGacha(html, tz), now);
-			if (generic && generic.banner && generic.bannerDates) return generic;
-			return null;
-		}
-
-		// 通用活动解析：扫描含「时间」（或「活动时间」）表头的表格，行内找时间与名称列，选当期
-		// 起始为"版本更新后"等无日期文本时保留 startTs=null，由 selectCurrent 的 fillMissingStarts 补全
-		function collectGenericEvents(html, tz) {
-			const items = [];
-			const tables = [...html.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/g)];
-			for (const t of tables) {
-				const body = t[1];
-				if (!/<th[^>]*>[^<]*时间[^<]*<\/th>/i.test(body)) continue;
-				// 「类型」列（如 版本活动/常规活动/剧情活动）→ 用于活动外显的类别优先级
-				const heads = [...body.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((m) => stripTags(m[1]).trim());
-				const catIdx = heads.findIndex((h) => /类型|類型/.test(h));
-				for (const rm of body.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)) {
-					const row = rm[1];
-					if (!/<td/i.test(row)) continue;
-					const tds = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) => stripTags(m[1]).trim());
-					if (tds.length < 2) continue;
-					// 时间列（含日期/区间）与名称列分开
-					let name = "", time = "";
-					for (const td of tds) {
-						if (!time && /20\d{2}[\/-]\d{1,2}[\/-]\d{1,2}|[~～]/.test(td)) time = td;
-						else if (td && !name) name = td;
-					}
-					if (!time || !name) continue;
-					// 名字里偶发混进图片文件名残渣（如「文件:巡星之礼第二十六期.png 」）→ 去掉该前缀
-					name = name.replace(/^文件:[^\s]*?\.(?:png|jpe?g|gif|webp|svg)\s*/i, "").trim();
-					if (!name) continue;
-					const range = parseRange(time, tz);
-					// 起始可为 null（"版本更新后"），结束时间必须有效——**除非这行是永久活动**。
-					// 原来这里一律 `endTs == null → continue`，把「…~永久」的行在采集阶段就丢了，
-					// 下游连"它存在过"都看不到（表现为源站表里有、面板悬停里没有）。
-					// 永久活动（结束写作「永久」）保留下来，由 genericEventPayload 单独计数；
-					// 其它无结束时间的行仍按旧规则丢弃（起止都拿不到，画不出来）。
-					const cat0 = catIdx >= 0 ? (tds[catIdx] || "") : "";
-					const isPermanent = range.endTs == null && (/永久/.test(cat0) || /永久\s*$/.test(String(range.raw || time)));
-					if (range.endTs == null && !isPermanent) continue;
-					items.push({ banner: name, cat: cat0, ...range, isMain: true });
-				}
-			}
-			return items;
-		}
-
-		// 当期活动（外显取 selectCurrent 的那条，行为同旧版）
-				// 通用**卡池**采集（末位兜底，2026-10-01 加）：
-		// 与 collectGenericEvents 同一套「时间 + 名称」列识别，但用于**卡池列**。
-		//
-		// 为什么需要：tryParseGenericGacha 前三条路径（parseAllBwiki / parseArknights /
-		// parseGachaTracker）认的都是各自源站的**私有结构**；用户给自定义条目填一个普通
-		// wiki 页面时，活动列（走 collectGenericEvents）能出内容，**卡池列却恒空**。
-		// 这一条让"同一张表、两侧都能读"，与活动侧口径一致。
-		//
-		// 与活动侧的唯一差别：**不丢"永久"行**（卡池没有"永久"语义，但也不该在采集阶段
-		// 就无声消失），并保留 roles 空串（普通表里没有角色列的结构约定）。
-		function collectGenericGacha(html, tz) {
-			const items = [];
-			const tables = [...html.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/g)];
-			for (const t of tables) {
-				const body = t[1];
-				if (!/<th[^>]*>[^<]*时间[^<]*<\/th>/i.test(body)) continue;
-				const heads = [...body.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((m) => stripTags(m[1]).trim());
-				const catIdx = heads.findIndex((h) => /类型|類型/.test(h));
-				for (const rm of body.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)) {
-					const row = rm[1];
-					if (!/<td/i.test(row)) continue;
-					const tds = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) => stripTags(m[1]).trim());
-					if (tds.length < 2) continue;
-					let name = "", time = "";
-					for (const td of tds) {
-						if (!time && /20\d{2}[\/-]\d{1,2}[\/-]\d{1,2}|[~～]/.test(td)) time = td;
-						else if (td && !name) name = td;
-					}
-					if (!time || !name) continue;
-					name = name.replace(/^文件:[^\s]*?\.(?:png|jpe?g|gif|webp|svg)\s*/i, "").trim();
-					if (!name) continue;
-					const range = parseRange(time, tz);
-					// 起止都拿不到的行画不出来（活动侧对"永久"有特例，卡池没有该语义）
-					if (range.startTs == null && range.endTs == null) continue;
-					const cat0 = catIdx >= 0 ? (tds[catIdx] || "") : "";
-					items.push({ banner: name, roles: "", cat: cat0, ...range, isMain: true });
-				}
-			}
-			return items;
-		}
-
-		// Bwiki 卡池列载荷（原神/星铁）：外显沿用 selectCurrent（同窗口主池角色合并、武器/光锥池不入选）；
-		// bannerHover 列出同期全部主池（每池"池名：角色"+时间；窗口相同则合并时间；结束时间升序）
-		function bwikiGachaPayload(html, tz) {
-			const items = parseAllBwiki(html, tz);
-			// 页面拿到了却连一行候选都没有 → wiki 表结构变了（抛错，面板显示"卡池失败"）；
-			// 有候选但都不覆盖当前时刻 → 下面返回 null（未公布）。这两件事必须分开。
-			if (items.length === 0) throw new Error("bwiki-gacha-no-table");
-			// selectCurrent 会就地补全缺失起点（fillMissingStarts），故先取快照
-			const snapshot = items.map((it) => ({ banner: it.banner, roles: it.roles, startTs: it.startTs, endTs: it.endTs, raw: it.rawOriginal || it.raw, isMain: it.isMain }));
-			const cur = selectCurrent(items, nowMs());
-			if (!cur) return null;
-			const now = nowMs();
-			const pools = snapshot
-				.filter((it) => it.isMain && coversNow(it, now))
-				.map((it) => ({
-					name: it.banner,
-					label: `${it.banner}${it.roles ? `\uFF1A${cleanRoles(it.roles)}` : ""}`,
-					startTs: it.startTs,
-					endTs: it.endTs,
-					raw: it.raw
-				}));
-			return { ...cur, bannerHover: buildPoolHover(pools) };
-		}
-
-		// 活动列载荷：外显=排序第一条（最快结束的当期活动，③）；eventHover=全部覆盖当前时刻的活动（同序）。
-		// 注意 selectCurrent 会就地补全缺失起点（fillMissingStarts），故这里只取快照自行排序，
-		// 避免"版本更新后 ~ 未来"这类起点未给的行被补成未来起点而漏掉。
-		// 只有 1 条时 buildEventHover 返回 ""，由 UI 退回单条展示（兜底）。
-		function genericEventPayload(html, tz) {
-			const items = collectGenericEvents(html, tz);
-			// 页面拿到了却连一行候选都没有 → 活动表结构变了（抛错 = "活动失败"）；
-			// 有候选但当期没有覆盖现在的 → 下面返回 null（未公布）
-			if (items.length === 0) throw new Error("bwiki-event-no-table");
-			const snapshot = items.map((it) => ({ name: it.banner, cat: it.cat || "", startTs: it.startTs, endTs: it.endTs, raw: it.rawOriginal || it.raw }));
-			const now = nowMs();
-			// 永久/常驻活动单独计一项：它们 endTs 为 null，本就不该混进"当期"排序，
-			// 但也不能像以前那样无声丢掉（见 isPermanentEvent 注释）。
-			const permanent = snapshot.filter((it) => isPermanentEvent(it));
-			const active = sortEventItems(snapshot.filter((it) => coversNow(it, now)));
-			if (active.length === 0) return null;
-			// 外显：类别优先（剧情/叙事、限时高难），同级内结束时间升序；悬停仍按 endTs 升序全量
-			const primary = pickEventPrimary(active) || active[0];
-			return {
-				event: primary.name,
-				eventDates: primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs, tz) : (primary.raw || ""),
-				eventDatesRaw: primary.raw || "",
-				eventHover: buildEventHover(active, permanent.length)
-			};
-		}
 
 		// 明日方舟（PRTS 活动一览）：表格含「活动开始时间」列 + 隐藏 data-time="开始秒,结束秒"（Unix 秒）。
 		// 开始时间用第一列文本（"2026-08-22 04:00"），结束时间用 data-time 第二个值（UTC 秒 → +08）。
@@ -2827,6 +3882,7 @@ export function createEngine(env) {
 			return items;
 		}
 
+
 		// 当期活动（外显取 selectCurrent 的那条，行为同旧版）
 				// 活动列载荷：外显=排序第一条（最快结束的当期活动，③）；eventHover=全部覆盖当前时刻的活动（同序）
 		function prtsEventPayload(html, tz) {
@@ -2844,21 +3900,7 @@ export function createEngine(env) {
 				eventHover: buildEventHover(active)
 			};
 		}
-		// 起止时间戳 → 统一文本 `MM-DD HH:MM ~ MM-DD HH:MM`
-		function range2(st, endTs) {
-			const fmt = (ts) => {
-				const d = new Date(ts);
-				return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-			};
-			const startTs = st && st.ts != null ? st.ts : null;
-			return {
-				startTs,
-				endTs,
-				startText: st && st.text ? st.text : "",
-				endText: fmt(endTs),
-				raw: `${st && st.text ? st.text : ""} ~ ${fmt(endTs)}`.trim()
-			};
-		}
+
 
 		// 终末地（Game8 英文站）：活动排期表，条目形如
 		// <a class="a-link" href="...">Bedazzling Dawnstar Sign-In</a><br>(Version 1.4)<br>08/09/26 - 09/02/26
@@ -2902,6 +3944,7 @@ export function createEngine(env) {
 			};
 		}
 
+
 		// parseGame8Events 的宽松回退：容忍 <a> 属性顺序/空白变化。仅在主解析未命中时使用。
 		function parseGame8EventsLoose(html, tz) {
 			const items = [];
@@ -2931,11 +3974,13 @@ export function createEngine(env) {
 			};
 		}
 
+
 		// 终末地（Game8 经 host 代理，无 CORS）：活动排期页
 		async function fetchGame8Endfield(pageUrl, _signal, tz) {
 			const html = await proxyFetchText(pageUrl, "https://game8.co/");
 			return parseGame8Events(html, tz) || parseGame8EventsLoose(html, tz);
 		}
+
 
 		// 从 fz.wiki 页面（Next.js App Router）内联 RSC flight payload 中抽取 contentJson 的 JSON 字符串。
 		// 数据被序列化为 self.__next_f.push([1,"..."])；拼接后按引号转义还原，再按大括号平衡取 contentJson 对象。
@@ -2960,6 +4005,7 @@ export function createEngine(env) {
 			}
 			try { return JSON.parse(full.slice(start, i + 1)); } catch { return null; }
 		}
+
 
 		// 终末地（FZ Wiki /wiki/活动）：页面 RSC payload → 覆盖当前时刻的活动列表。
 		// 活动节点有三种历史结构，全部兼容：
@@ -3028,6 +4074,7 @@ export function createEngine(env) {
 			};
 		}
 
+
 		// 终末地（FZ Wiki 经 host 代理，无 CORS）：活动排期页。
 		// 三态口径：有当期活动 → 数据；解析到活动但没有当期 → null（nomatch）；
 		// 页面结构变了/一条都解析不出 → parseFzWikiActivities 抛错（down）。
@@ -3036,32 +4083,6 @@ export function createEngine(env) {
 			return parseFzWikiActivities(html, now, tz);
 		}
 
-		// 通用活动源解析（自定义条目/自定义活动来源地址用）：抓取页面 → collectGenericEvents → {event, eventDates}
-		// ⚠️ 2026-10-03：原来这里还有个 `parseGenericEvents(html, tz)`（collectGenericEvents + selectCurrent 的组合），
-		//    经全仓引用分析确认**生产与测试都没用**（活路径走的是下面的 `genericEventPayloadFromHtml`，
-		//    它多一层"表里一行都没有 → null"的错误语义处理），已删。
-		async function tryParseGenericEvent(url, signal, tz) {
-			const html = await fetchHtmlText(url, signal);
-			return genericEventPayloadFromHtml(html, tz);
-		}
-
-		// 已拿到 HTML 时的活动载荷（**不抛错**版本）：
-		// 供「两侧同一条 URL、且活动侧没有注册抓取器」（自定义条目）复用卡池那次已经取到的
-		// HTML —— 省掉第二次请求，同时保证活动侧也能被通用解析命中。
-		// 与 genericEventPayload 的差别：表里一行都没有时返回 null（交给调用方按 nomatch 处理），
-		// 而不是抛 "bwiki-event-no-table"（那条错误语义是给"内置源站改版"用的）。
-		function genericEventPayloadFromHtml(html, tz) {
-			let items;
-			try { items = collectGenericEvents(html, tz); } catch { return null; }
-			if (items.length === 0) return null;
-			const cur = selectCurrent(items, nowMs());
-			if (!cur || !cur.banner) return null;
-			return {
-				event: cur.banner,
-				eventDates: cur.bannerDates || "",
-				eventDatesRaw: cur.bannerDatesRaw || cur.bannerDates || ""
-			};
-		}
 
 		// 原神（bwiki SMW 语义查询）：活动一览页数据在 JS 动态加载（Dquery + SMW），
 		// 改用 api.php?action=ask 直接查询「分类:活动」的开始/结束时间，选当期。
@@ -3125,300 +4146,124 @@ export function createEngine(env) {
 			};
 		}
 
-		// 原神 SMW 活动查询（经 origin=* 直连）
-		// 返回 EVENT_FETCHERS 契约格式 {event, eventDates, eventDatesRaw}（parseSmwActivity 产出卡池格式，这里转换）
-		async function fetchYsActivity(signal, tz) {
-			const nowYear = new Date(nowMs()).getFullYear();   // 走注入时钟（core 不得直接读宿主时钟）
-			const q = "[[\u5206\u7C7B:\u6D3B\u52A8]][[\u7ED3\u675F\u65F6\u95F4::>" + nowYear + "/01/01]]|?\u540D\u79F0|?\u5F00\u59CB\u65F6\u95F4|?\u7ED3\u675F\u65F6\u95F4|?\u7C7B\u578B|sort=\u5F00\u59CB\u65F6\u95F4|order=desc|limit=60";
-			const apiUrl = "https://wiki.biligame.com/ys/api.php?action=ask&query=" + encodeURIComponent(q) + "&format=json&origin=*";
-			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
-			if (!res.ok) throw new Error("http-" + res.status);
-			const json = await res.json();
-			const d = parseSmwActivity(json, tz);
-			if (!d) return null;
-			return {
-				event: d.banner,
-				eventDates: d.bannerDates || "",
-				eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "",
-				eventHover: d.eventHover || ""
+
+		// 终末地（wiki.gg 经 host 代理）：抓取 Headhunting/Banners HTML → parseEndfieldCurrent
+		// ⚠️ 2026-10-03 实测更正（原注释说"校验 Referer，非 wiki.gg 域名 403"，**是错的**）：
+		//    wiki.gg 拦的是 **浏览器型 User-Agent**，不是 Referer。逐项实测（同一 URL）：
+		//      无头 200 / 仅 Referer 200 / 仅 Accept 200 / Referer+Accept 200
+		//      仅 UA=Chrome/126 **403** / 仅 UA=curl/8.0 200 / 仅 UA=dsh-gacha-calendar 200
+		//    而宿主代理 `src/index.js` 对所有请求统一发**浏览器 UA**（它的注释写着
+		//    "browser-like, to satisfy anti-scrape"）—— 于是这个备选源经代理必然 403。
+		//    修法：本抓取器显式覆盖 UA 为中性值（代理的 `headers` 参数会覆盖默认 UA）。
+		//    不给末端用户添麻烦，也不动全局 UA（别处可能正依赖浏览器 UA）。
+		const ENDFIELD_WG_UA = "dsh-gacha-calendar";
+
+		// 注意：这个地址是 MediaWiki 的 **api.php**，返回的是 JSON（`{"parse":{"text":"<html>"}}`）——
+		// 必须取 parse.text 再解析。旧实现直接把原始 JSON 串喂给解析器，于是 id="Current" 在 JSON 里是
+		// 转义形式（id=\"Current\"）永远匹配不到 → 该备选源长期"抓得到但解析不出"（这才是真根因）。
+		async function fetchEndfieldWikiGg(proxyUrl) {
+			const json = await proxyFetchJson(proxyUrl, "https://endfield.wiki.gg/", { "User-Agent": ENDFIELD_WG_UA });
+			const html = json?.parse?.text;
+			if (typeof html !== "string") throw new Error("bad-json");
+			return parseEndfieldCurrent(html);
+		}
+
+		const ARKNIGHTS_OFFICIAL_LIST_URL = AK_OFFICIAL_BULLETIN + "?lang=zh-cn&code=arknights&page=1&pageSize=30";
+
+
+		const ARKNIGHTS_PRTS_URL = "https://prts.wiki/api.php?action=parse&page=%E5%8D%A1%E6%B1%A0%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2";
+
+
+		// ── 条目 ──
+		registerSource({
+				id: "arknights",
+				tz: TZ_CN,
+				// 2：档位改按池名判定（中坚优先）+ 外显与悬停共用同一份排序列表（v0.9.25 修）
+				parserVersion: 2,
+				name: "明日方舟",
+				icon: "https://storage.moegirl.org.cn/moegirl/commons/4/41/ArknightsAppIcon.png!/fw/64",
+				source: "官方公告+PRTS",
+				// 默认卡池源=官方公告 CMS（经 host 代理）：官方只对限时/联动类寻访发公告，
+				// 无当期寻访公告（常规轮换周）时由抓取器自动回退 PRTS；也可在设置中手动切 PRTS 卡池一览（备选）
+				url: ARKNIGHTS_OFFICIAL_LIST_URL,
+				altSources: [
+					{ label: "PRTS 卡池一览", url: ARKNIGHTS_PRTS_URL, fetcher: "arknights-prts" }
+				],
+				// 独立活动源：PRTS 活动一览（「活动开始时间」表 + data-time 起止时间戳）
+				eventUrl: "https://prts.wiki/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
+				eventSource: "PRTS \u6D3B\u52A8\u4E00\u89C8"
+		});
+
+		registerSource({
+				id: "endfield",
+				tz: TZ_CN,
+				parserVersion: 2,
+				name: "明日方舟：终末地",
+				icon: "https://storage.moegirl.org.cn/moegirl/commons/f/f1/ArknightsEndfieldAppIcon.png!/fw/64",
+				source: "Canmoe",
+				// 经 host 代理抓取（canmoe 无 CORS 头，浏览器直连会被拦截）；
+				// 数据在 Next.js 组件 chunk 的 JS 里，需先抓页面定位 chunk 再抓 chunk 解析
+				url: "https://end.canmoe.com/zh-CN/banner-calendar",
+				// 卡池备选来源（设置页下拉可切换；GachaTracker 浏览器直连，wiki.gg 经 host 代理）
+				altSources: [
+					{
+						label: "GachaTracker\uff08\u82F1\u6587\uff09",
+						url: "https://gachatracker.app/games/endfield/banners/",
+						fetcher: "endfield-gachatracker"
+					},
+					{
+						label: "wiki.gg\uff08\u82F1\u6587\uff09",
+						// wiki.gg 校验 Referer：抓取器内部经 host 代理（代理默认 Referer=目标 origin 满足要求）
+						url: "https://endfield.wiki.gg/api.php?action=parse&page=Headhunting%2FBanners&prop=text&format=json&formatversion=2",
+						fetcher: "endfield-wiki-gg"
+					}
+				],
+				// 独立活动源：FZ Wiki（中文社区维护，经 host 代理抓 RSC 数据；当期并行活动选结束最晚）
+				eventUrl: "https://fz.wiki/wiki/%E6%B4%BB%E5%8A%A8",
+				eventSource: "FZ Wiki",
+				// 活动备选来源：Game8（英文，经 host 代理）
+				eventAltSources: [
+					{ label: "Game8\uff08\u82F1\u6587\uff09", url: "https://game8.co/games/Arknights-Endfield/archives/535443", fetcher: "endfield-game8" }
+				]
+		});
+
+		// ── 抓取器登记 ──
+		GACHA_FETCHERS["arknights"] = (url, signal, tz) => fetchArknightsGacha(url, signal, tz);
+					// ⚠️ `selectArknights` / `parseWuwaPool` 的**第二参是 `now`**（不是 tz），
+			// 而 mkMediaWiki 只会传 `(text, tz)` —— 直接包进去会让 `now` 收到时区值，
+			// `startTs <= now` 恒为 false → 解析结果恒为 null（静默"未公布"，极难查）。
+			// 所以这两个注册点必须**显式传 nowMs()**。
+GACHA_FETCHERS["arknights-prts"] = (url, signal, tz) => mkMediaWiki((text) => selectArknights(text, nowMs(), tz))(url, signal, tz);
+					// 终末地默认：Canmoe（中文，Next.js 数据经 host 代理两步抓取）
+GACHA_FETCHERS["endfield"] = (url, signal, tz) => fetchCanmoeEndfield(url, signal, tz);
+					// 终末地备选：GachaTracker（英文，浏览器直连）/ wiki.gg（英文，经 host 代理）
+GACHA_FETCHERS["endfield-gachatracker"] = mkRaw(parseGachaTracker);
+		GACHA_FETCHERS["endfield-wiki-gg"] = (url, signal, tz) => fetchEndfieldWikiGg(url, signal, tz);
+					// 明日方舟：PRTS 活动一览（「活动开始时间」表 + data-time 起止时间戳）→ 同上
+EVENT_FETCHERS["arknights"] = {
+				default: mkMediaWiki(prtsEventPayload)
 			};
-		}
-
-		// ---- 抓取器工厂 ----
-		// mkMediaWiki：MediaWiki api.php JSON 源（追加 &origin=* 绕过 CORS）
-		// mkRaw：直接抓取原始 HTML（非 MediaWiki 源，如 GachaTracker）
-		// 经 host 同源代理的来源（蔚蓝系列 / 终末地 wiki.gg / 1999 等）不用工厂包装：
-		// 其抓取器内部自行调用 proxyFetchText / proxyFetchJson（绕过 CORS 与 Referer 反爬）。
-		// 抓取器签名：async (url, signal, tz) → 数据对象 | null
-		//   第三个参数 `tz` = 源站墙钟时区（可选，见 15-env.js）。工厂把它透传给解析函数，
-		//   解析函数再交给 parseTime/parseRange —— 这样"源站时区"只需在来源声明里写一次。
-		function mkMediaWiki(parse) {
-			return async (url, signal, tz) => {
-				const apiUrl = url + (url.includes("?") ? "&" : "?") + "origin=*";
-				const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
-				if (!res.ok) throw new Error("http-" + res.status);
-				const json = await res.json();
-				const text = json?.parse?.text;
-				if (typeof text !== "string") throw new Error("bad-json");
-				return parse(text, tz);
+					// 终末地：FZ Wiki（中文，经 host 代理、抓 RSC 数据；外显当期=结束最晚，悬停列出全部并行）
+EVENT_FETCHERS["endfield"] = {
+				default: (url, signal, tz) => fetchFzWikiEndfield(url, signal, tz).then((d) =>
+					d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "", eventHover: d.eventHover || "" } : null
+				),
+				"endfield-game8": (url, signal, tz) => fetchGame8Endfield(url, signal, tz).then((d) =>
+					d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "" } : null
+				)
 			};
-		}
-		function mkRaw(parse) {
-			return async (url, signal, tz) => {
-				const apiUrl = url + (url.includes("?") ? "&" : "?") + "origin=*";
-				const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
-				if (!res.ok) throw new Error("http-" + res.status);
-				return parse(await res.text(), tz);
-			};
-		}
-		// bwiki 通用"选当期"包装（原神/星铁/绝区零/方舟）
-		const pickCurrent = (parse) => (html) => selectCurrent(parse(html), nowMs());
-		//#endregion
 
-		// ═══════════════════════════════════════════════════════════════════════════
-		// ⚠️ 2026-10-03 合并：以下内容原为独立文件 `src/client/41-sources-shared.js`，
-		//    现按用户要求内联到本体（它本就是「本体已有的 pad2/decodeEntities/textOf + 新增来源共用工具」，
-		//    分成两个文件只让人来回跳）。符号名与实现**一律未改**。
-		//    原文件头保留在下面，信息不丢。
-		// ═══════════════════════════════════════════════════════════════════════════
-
-// src/client/41-sources-shared.js —— 新增来源解析器共用的：抓取桥接 + 悬停排版工具
+// src/client/30-game-bluearchive.js —— 蔚蓝档案（国服 / 国际服 / 日服）
 //
-// 历史沿革：这些代码原本在 `next-sources/lib/env.js`（ESM 模块，由外部生成器内联进 45-next-sources.js）。
-// 2026-10-03 按用户要求「把 next-sources 合并进原 source，不留 next-source」压平成普通源码段，
-// `next-sources/` 目录与生成器均已删除 —— **这里就是唯一真源，直接改这里**。
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
 //
-// 本段提供（解析器直接引用这些名字，不再有 import）：
-//   · 抓取：fetchText / fetchJson / fetchMediaWikiText（走宿主代理或直连）
-//   · 文本：pad2 / decodeEntities / textOf
-//   · 悬停排版：hoverPool / hoverEvent（与本体 buildPoolHover / buildEventHover 逐字一致）
-// 其余 env 名字（sourceInstant / sourceWallParts / fmtWindow / fmtMdHm / stripTags）由 30-parsers.js 与 15-env.js 提供。
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
 
-		// 解析器原本 import ./lib/env.js；这里用插件已有实现 + 少量补齐顶上（解析器代码不改）。
-		//   sourceInstant / sourceWallParts / fmtWindow / fmtMdHm / stripTags → 本体已有
-		//   pad2 / decodeEntities / textOf                                    → 本区补
-		//   fetchText / fetchJson / fetchMediaWikiText                        → 接宿主代理 / 直连
-		const ENTITIES_NS = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
-		// ⚠️ pad2 本体**没有**（第一版误以为有 → 7 个 bwiki 来源全报 "pad2 is not defined"）
-		function pad2(n) { return String(n).padStart(2, "0"); }
-		function decodeEntities(s) {
-			return String(s).replace(/&(#\d+|[a-z]+);/gi, (m, k) => {
-				const key = k.toLowerCase();
-				if (ENTITIES_NS[key] != null) return ENTITIES_NS[key];
-				if (/^#\d+$/.test(key)) { try { return String.fromCodePoint(Number(key.slice(1))); } catch { return m; } }
-				return m;
-			});
-		}
-		function textOf(html) {
-			return decodeEntities(String(html).replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " "))
-				.replace(/[ \t\u00a0]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
-		}
 
-		// ── HTML 命名实体（**唯一真源**）───────────────────────────────────────────
-		// 2026-10-03 合并：此前 **5 个解析器**各写一份 `ENT_EXTRA` + `decodeExtra`
-		//   （bandori / biligame-activity / biligame-announce / ournotes-global / ournotes），
-		//   函数体**逐字节相同**，差别只在实体表 —— 而 5 张表**互为子集**。
-		//   现在用**并集**（30 个，行为探测确认完整覆盖 5 张表），所以：
-		//     · 零回归（原来能解的仍然能解）
-		//     · 更正确（原来哪个解析器缺 `&copy;` / `&yen;`，就会把实体字面量漏到面板上）
-		//   表里也含 `amp/lt/gt/quot/apos/nbsp`（下面 `decodeEntities` 本来就处理），重复无害。
-		const ENTITIES_EXTRA = {
-			middot: "·", times: "×", hellip: "…", mdash: "—", ndash: "–",
-			nbsp: " ", lsquo: "‘", rsquo: "’", ldquo: "“", rdquo: "”",
-			sup2: "²", sup3: "³", deg: "°", ensp: " ", emsp: " ",
-			thinsp: " ", bull: "•", copy: "©", reg: "®", trade: "™",
-			laquo: "«", raquo: "»", amp: "&", quot: "\"", apos: "'",
-			lt: "<", gt: ">", yen: "¥", hearts: "♥", star: "★",
-		};
-		/** 在 `decodeEntities` 之上再解一批命名实体（媒体/排版符号）。 */
-		function decodeExtra(s) {
-			return decodeEntities(String(s == null ? "" : s).replace(/&([a-z][a-z0-9]{1,8});/gi, (m, k) => {
-				const v = ENTITIES_EXTRA[String(k).toLowerCase()];
-				return v != null ? v : m;
-			}));
-		}
-		/** HTML → 纯文本（保留换行结构）。原来 5 个文件里的 `plain()` 都是这个。 */
-		function htmlText(html) { return decodeExtra(textOf(html)); }
-		/** 同上，但把空白压成单空格并去首尾空白（原来只有 ournotes-global 这么做）。 */
-		function htmlTextTight(html) { return htmlText(html).replace(/\s+/g, " ").trim(); }
-
-		// ── 时间戳与排序（**唯一真源**）────────────────────────────────────────────
-		// 2026-10-03 收敛：
-		//   · `toTs` 有 2 份、语义还不同（bestdori **宽容**：接受数字字符串；sekai **严格**：只接受 number）
-		//   · `byNewestStart` 有 3 份，其中 umapyoi 那份**缺 null 守卫**
-		//     （`a.endTs - b.endTs` 在 endTs 为 null 时得 NaN，排序行为未定义）
-		//   现在统一为下面两个。取**宽容版** `numOrNull`：对 number 两者行为一致，
-		//   对数字字符串宽容版能解出来而严格版返回 null —— 即"能解析的更多"，属改进。
-
-		/** 源站时间戳 → 数字毫秒；`null` / `""` / 非数字 → null。接受数字字符串。 */
-		function numOrNull(v) {
-			if (v == null || v === "") return null;
-			const n = Number(v);
-			return Number.isFinite(n) ? n : null;
-		}
-
-		/**
-		 * 「按开始时间从新到旧」排序：开始晚的在前；同开始则**结束早的在前**（空结束排最后）；
-		 * 再同则按 id 升序。`endTs` 用 `Infinity` 兜空值 —— 原 umapyoi 版直接相减，
-		 * 一旦有 null 就得 NaN（潜在 bug），这里一并修掉。
-		 */
-		function byNewestStart(a, b) {
-			return (b.startTs - a.startTs)
-				|| ((a.endTs == null ? Infinity : a.endTs) - (b.endTs == null ? Infinity : b.endTs))
-				|| ((Number(a.id) || 0) - (Number(b.id) || 0));
-		}
-
-		async function fetchText(url, opts) {
-			const o = opts || {};
-			if (o.mode === "direct") {
-				const res = await transportFetchRaw(url, { signal: o.signal, headers: Object.assign({}, rawHeaders(url), o.headers || {}) });
-				if (!res.ok) throw new Error("http-" + res.status);
-				return res.text();
-			}
-			return proxyFetchText(url, o.referer || "", o.headers, o.body);
-		}
-		async function fetchJson(url, opts) {
-			const t = await fetchText(url, opts);
-			try { return JSON.parse(t); } catch { throw new Error("bad-json"); }
-		}
-		async function fetchMediaWikiText(url, opts) {
-			const apiUrl = url + (url.includes("?") ? "&" : "?") + "origin=*";
-			const json = await fetchJson(apiUrl, opts);
-			const text = json && json.parse && json.parse.text;
-			if (typeof text !== "string") throw new Error("bad-json");
-			return text;
-		}
-		//#endregion
-
-		//#region 悬停排版共用工具（**唯一真源，改实现就改这里**）
-		// 方案 A（用户 2026-10-03）：新增来源的悬停频出「格式/规则与原有条目差别很大」，
-		// 根因是各批次各写各的。这里把排版逻辑做成唯一真源，解析器一律调用。
-		// ⚠️ 2026-10-03 之后 `next-sources/` 与生成器都已删除，本段**不再由任何脚本抽取/覆盖**。
-		// ── 为什么单独立一个区域 ──
-		// 用户 2026-10-03 反馈「新增游戏的悬停样式/格式/规则和原来的差别很大」。核实后确认：
-		// 各批次解析器**各写各的悬停**，出现了三类偏差 ——
-		//   ① 悬停里塞元信息（来源 URL / 时区推定 / 抓取条数 / 实现细节）—— 本体条目**从不**这样做
-		//   ② 「档期在前、名称在后」（本体一律 `名称 + 3 空格 + 档期`）
-		//   ③ 档期用源站原文而非 fmtWindow 格式化
-		// 修法（方案 A）：把本体那两个函数的排版逻辑抽到这里做**唯一真源**，解析器一律调用。
-		// （落点原本是 next-sources/lib/env.js，压平后就是本文件；测试与运行时读的是同一份代码。）
-// ── 与本体唯一的差别 ──
-// 本体的两个函数调 `fmtWindow(ts, endTs)` **漏传 tz**（`wallOf` 会退回本机时区）；
-// 这里 tz 是**显式参数**，非 UTC+8 的源（日服 JST / 国际服 UTC）才能排对时刻。
-//
-// ── 返回 "" 的语义（与本体一致，调用方必须遵守）──
-// 「当期条数 < 2」时返回 ""，表示**交回 UI 的默认单条两行式**：
-//   卡池 `池名：角色名` ⏎ `档期`；活动 `名称` ⏎ `档期`。
-// 所以调用方**不要**在返回值后面再拼任何东西；空串就让字段留空。
-
-// 长期/常驻判定：**直接用本体 30-parsers.js 的那一条**（阈值也只有那一处）。
-// ⚠️ 2026-10-03 收敛：这里曾有一份逐字重复的实现 + 第二个 `HOVER_MAX_WINDOW_DAYS = 120` 常量。
-//    同一条规则不该有第二份实现/第二个值 —— 已删，改为调用 `isLongTermWindow`。
-//    （函数声明会提升，所以 41 在本体的 30 之后拼接也不影响这里的调用。）
-// 排序：结束时间升序（无/未知结束时间排最后），再按开始时间
-		function hoverSortByEnd(a, b) {
-			const ea = a.endTs == null ? Infinity : a.endTs;
-			const eb = b.endTs == null ? Infinity : b.endTs;
-			if (ea !== eb) return ea - eb;
-			const sa = a.startTs == null ? Infinity : a.startTs;
-			const sb = b.startTs == null ? Infinity : b.startTs;
-			return sa - sb;
-		}
-		// 永久/常驻活动计数行 —— **直接用本体 `permanentLine`**（30-parsers.js）。
-		// ⚠️ 2026-10-03 收敛：这里曾有一份逐字相同的副本 `hoverPermanentLine`（措辞 `以及常驻活动 N 项`）。
-		//    本体注释写着"抽成函数是为了**措辞只有一处**"，副本正是打破了那句话，已删。
-
-		/**
-		 * 卡池列悬停。复刻本体 `buildPoolHover`：
-		 *   每池两行 —— `池名：角色` ⏎ `档期`；窗口完全相同的池合并时间（只在末尾写一遍）。
-		 * `pools` 项：`{ name, label?, startTs?, endTs?, raw? }`（`label` 优先于 `name`）。
-		 * 返回 "" = 不足 2 池，交回 UI 默认两行式。
-		 */
-		function hoverPool(pools, tz) {
-			const list = (Array.isArray(pools) ? pools : [])
-				.filter((p) => p && typeof p.name === "string" && p.name.trim() !== "")
-				.sort(hoverSortByEnd);
-			if (list.length < 2) return "";
-			const allTimed = list.every((p) => p.startTs != null && p.endTs != null);
-			const same = allTimed && new Set(list.map((p) => `${p.startTs}~${p.endTs}`)).size === 1;
-			const lines = [];
-			for (const p of list) {
-				lines.push(p.label || p.name);
-				if (same) continue;
-				const t = p.startTs != null && p.endTs != null ? fmtWindow(p.startTs, p.endTs, tz) : String(p.raw || "").trim();
-				if (t) lines.push(t);
-			}
-			if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs, tz));
-			return lines.join("\n");
-		}
-
-		/**
-		 * 活动列悬停。复刻本体 `buildEventHover`：
-		 *   每条一行 `名称` + **3 空格** + `档期`（档期用 fmtWindow 格式化）；
-		 *   窗口完全相同时只列名称、末尾写一次档期；缺起止的行显示该行 `raw` 原文。
-		 * **不排序**（与本体一致：调用方负责排序）。
-		 * `permanentCount` = 永久/常驻活动数，只在末尾补一行计数。
-		 * 返回 "" = 不足 2 条（交回 UI 默认两行式）。
-		 */
-		function hoverEvent(items, tz, permanentCount = 0) {
-			const list = (Array.isArray(items) ? items : [])
-				.filter((x) => x && typeof x.name === "string" && x.name.trim() !== "")
-				.filter((x) => !isLongTermWindow(x));
-			if (list.length < 2) return permanentLine(permanentCount);
-			const allTimed = list.every((x) => x.startTs != null && x.endTs != null);
-			const same = allTimed && new Set(list.map((x) => `${x.startTs}~${x.endTs}`)).size === 1;
-			const lines = list.map((x) => {
-				if (x.startTs != null && x.endTs != null) {
-					return same ? x.name : `${x.name}   ${fmtWindow(x.startTs, x.endTs, tz)}`;
-				}
-				const raw = String(x.raw || "").trim();
-				return raw ? `${x.name}   ${raw}` : x.name;
-			});
-			if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs, tz));
-			if (permanentCount > 0) lines.push(permanentLine(permanentCount));
-			return lines.join("\n");
-		}
-
-		//#region proxy fetchers（经 host 代理）与统一来源注册表
-		// 中文时间解析（繁体/简体共用）：
-		// "8月18日(二)維護後" / "9月1日(二)上午9點59分" / "晚間10點59分" / "08月20日 14:00"
-		function parseZhTime(raw, nowYear) {
-			const s = String(raw).trim();
-			const md = s.match(/(\d{1,2})月(\d{1,2})日/);
-			if (!md) return null;
-			const mo = Number(md[1]), d = Number(md[2]);
-			let h = 0, mi = 0;
-			const tm = s.match(/(上午|下午|中午|凌晨|晚上|晚間)?\s*(\d{1,2})[點点](\d{1,2})?[分]?/);
-			if (tm) {
-				let hh = Number(tm[2]);
-				const mm = tm[3] ? Number(tm[3]) : 0;
-				const period = tm[1] || "";
-				if ((period === "下午" || period === "晚上" || period === "晚間") && hh < 12) hh += 12;
-				if (period === "中午" && hh < 12) hh += 12;
-				if (period === "凌晨" && hh === 12) hh = 0;
-				h = hh; mi = mm;
-			}
-			const ts = new Date(nowYear, mo - 1, d, h, mi).getTime();
-			return { ts, text: `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} ${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}` };
-		}
-
-		// 经 host 代理抓取文本 / JSON 两个函数的**实现**已移到外壳（92-dsh-env.js），
-		// core 侧只在 15-env.js 保留同名薄封装（转调 coreEnv.transport）——这是 core 零宿主依赖的接缝之一。
-
-		// 解析繁体时间段："8月18日(二)維護後 ~ 9月1日(二)上午9點59分"
-		// 跨年（如 12月30日 ~ 1月5日）：结束月份小于开始月份 → 结束端按"下一年"解析；
-		// 否则 end 会早于 start，当期会被误判成"未公布"（每年 12 月底~1 月初复发）。
-		function parseBaZhRange(raw, nowYear) {
-			const s = stripTags(raw);
-			const parts = s.split(/[~～]/).map((x) => x.trim());
-			if (parts.length < 2) return null;
-			const moOf = (x) => { const m = String(x).match(/(\d{1,2})月/); return m ? Number(m[1]) : null; };
-			const am = moOf(parts[0]), bm = moOf(parts[1]);
-			const a = parseZhTime(parts[0], nowYear);
-			const b = parseZhTime(parts[1], am != null && bm != null && endsNextYear(am, null, bm, null) ? nowYear + 1 : nowYear);
-			if (!a || !b) return null;
-			return { startTs: a.ts, endTs: b.ts, startText: a.text, endText: b.text, raw: `${a.text} ~ ${b.text}` };
-		}
+		// ── 解析器 / 抓取器 ──
 
 		// 解析更新日誌正文的日程表 → 行数组 {cat, name, range, dateRaw}
 		function parseBaLogRows(content, nowYear) {
@@ -3450,6 +4295,7 @@ export function createEngine(env) {
 			}
 			return items;
 		}
+
 
 		// 蔚蓝档案·国际服：nexon 官方「更新日誌」board(3352) → 当期卡池 + 当期活动
 		// 一次请求拿到更新日誌正文，从日程表同时提取 特選招募（卡池）与 活動劇情/總力戰（活动）
@@ -3573,25 +4419,6 @@ export function createEngine(env) {
 			return data;
 		}
 
-		// 终末地（wiki.gg 经 host 代理）：抓取 Headhunting/Banners HTML → parseEndfieldCurrent
-		// ⚠️ 2026-10-03 实测更正（原注释说"校验 Referer，非 wiki.gg 域名 403"，**是错的**）：
-		//    wiki.gg 拦的是 **浏览器型 User-Agent**，不是 Referer。逐项实测（同一 URL）：
-		//      无头 200 / 仅 Referer 200 / 仅 Accept 200 / Referer+Accept 200
-		//      仅 UA=Chrome/126 **403** / 仅 UA=curl/8.0 200 / 仅 UA=dsh-gacha-calendar 200
-		//    而宿主代理 `src/index.js` 对所有请求统一发**浏览器 UA**（它的注释写着
-		//    "browser-like, to satisfy anti-scrape"）—— 于是这个备选源经代理必然 403。
-		//    修法：本抓取器显式覆盖 UA 为中性值（代理的 `headers` 参数会覆盖默认 UA）。
-		//    不给末端用户添麻烦，也不动全局 UA（别处可能正依赖浏览器 UA）。
-		const ENDFIELD_WG_UA = "dsh-gacha-calendar";
-		// 注意：这个地址是 MediaWiki 的 **api.php**，返回的是 JSON（`{"parse":{"text":"<html>"}}`）——
-		// 必须取 parse.text 再解析。旧实现直接把原始 JSON 串喂给解析器，于是 id="Current" 在 JSON 里是
-		// 转义形式（id=\"Current\"）永远匹配不到 → 该备选源长期"抓得到但解析不出"（这才是真根因）。
-		async function fetchEndfieldWikiGg(proxyUrl) {
-			const json = await proxyFetchJson(proxyUrl, "https://endfield.wiki.gg/", { "User-Agent": ENDFIELD_WG_UA });
-			const html = json?.parse?.text;
-			if (typeof html !== "string") throw new Error("bad-json");
-			return parseEndfieldCurrent(html);
-		}
 
 		// ---- 蔚蓝档案·日服 官方公告（api-web.bluearchive.jp）----
 		// 「ピックアップ募集紹介」条目结构（同一公告内多池、逐池给出）：
@@ -3685,6 +4512,7 @@ export function createEngine(env) {
 			return data;
 		}
 
+
 		// 日服卡池默认抓取器：官网新闻接口优先；失败或无当期募集 → 回退 GameKee 当期卡池（仅池名+档期）。
 		// 只返回卡池字段：活动字段由活动源单独负责（卡池/活动解耦，避免活动源失败时静默混入官方活动）
 		async function fetchBaJpGacha(url, signal, tz, now = nowMs()) {
@@ -3701,6 +4529,7 @@ export function createEngine(env) {
 			return fetchGameKeeBa("jp");
 		}
 
+
 		// 日服活动备选抓取器：同一个官方接口的「イベント」条目（只取 event 字段）
 		async function fetchBaJpOfficialEvent(url, signal, tz, now = nowMs()) {
 			const json = await proxyFetchJson(url, "https://bluearchive.jp/");
@@ -3709,30 +4538,6 @@ export function createEngine(env) {
 			return { event: d.event, eventDates: d.eventDates || "", eventDatesRaw: d.eventDatesRaw || d.eventDates || "" };
 		}
 
-		// ---- GameKee（蔚蓝档案）----
-		// 解析标题里的排期：【8/18~9/01】 / 【8月26日 ~ 9月9日】 → {startText, endText, startTs, endTs}
-		function parseGkRange(title, nowYear) {
-			const m = String(title).match(/【([^】]+)】/);
-			if (!m) return null;
-			const inner = m[1].replace(/\s+/g, "");
-			const parts = inner.split(/[~～\-—]/);
-			if (parts.length < 2) return null;
-			const moOf = (p) => { const md = p.match(/(\d{1,2})[\/月](\d{1,2})日?/); return md ? Number(md[1]) : null; };
-			const parseGkTime = (p, year) => {
-				// 8/18 或 8月18日（日服可能带 日）
-				const md = p.match(/(\d{1,2})[\/月](\d{1,2})日?/);
-				if (!md) return null;
-				const mo = Number(md[1]), d = Number(md[2]);
-				const ts = new Date(year, mo - 1, d, 0, 0).getTime();
-				return { ts, text: `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} 00:00` };
-			};
-			// 跨年（如 【12/28~1/5】）：结束月份小于开始月份 → 结束端按"下一年"解析
-			const am = moOf(parts[0]), bm = moOf(parts[1]);
-			const a = parseGkTime(parts[0], nowYear);
-			const b = parseGkTime(parts[1], am != null && bm != null && endsNextYear(am, null, bm, null) ? nowYear + 1 : nowYear);
-			if (!a || !b) return null;
-			return { startTs: a.ts, endTs: b.ts, startText: a.text, endText: b.text, raw: `${a.text} ~ ${b.text}` };
-		}
 
 		// GameKee：按服务器拉当期卡池+活动（标题含排期）
 		// serverKey: "jp"|"global"；返回 {banner, roles, bannerDates, event, eventDates}
@@ -3803,6 +4608,7 @@ export function createEngine(env) {
 			return data;
 		}
 
+
 		// 蔚蓝国服（官网 bluearchive-cn.com）：news/list → 最新维护更新说明 → 当期卡池/活动名 + 维护起止
 		// 时间：维护日 14:00 ~ 下次维护前（约 +14 天，取维护日开始、预加载下一期预告前）
 		async function fetchBaCn(listUrl, _signal, tz, now = nowMs()) {
@@ -3853,6 +4659,7 @@ export function createEngine(env) {
 				.replace(/\n\s*\n+/g, "\n").trim();
 			return parseBaCnMaintText(text, nowYear, tz);
 		}
+
 		// 国服公告里「招募」开头的东西**不是一类**。实测（09月24日维护更新说明）：
 		//   更新限时限定招募【秩序隐匿于粼粼波光中】   ← 限定角色卡池（当期主卡池）
 		//   更新限时限定招募【思绪飘散在漫漫夏夜里】   ← 限定角色卡池（同期第二池）
@@ -3865,8 +4672,10 @@ export function createEngine(env) {
 		// 曾经的糟糕修法是"把所有 招募 塞进一条正则按出现顺序取第一条" —— 那等于把
 		// 限定卡池与招募活动混成同一类（用户指出）。这里按类型分级取，并显式排除活动类。
 		const BA_CN_CHAR_POOL_RE = /^更新限时(限定复刻|限定|复刻|)招募$/;
+
 		// 档位：限定角色池 > 普通角色池 > 限定复刻池 > 复刻池（数值越小越优先）
 		const BA_CN_POOL_RANK = { 限定: 0, "": 1, 限定复刻: 2, 复刻: 3 };
+
 
 		function baCnPoolInfo(line) {
 			const m = line.match(/更新限时([^【]*)【([^】]+)】/);
@@ -3874,6 +4683,7 @@ export function createEngine(env) {
 			const t = BA_CN_CHAR_POOL_RE.exec(`更新限时${m[1]}`);
 			return { isPool: !!t, kind: t ? t[1] : "", name: m[2] };
 		}
+
 
 		// 国服维护公告正文 → 卡池/活动数据（纯函数：只吃**已清洗的文本**，不碰网络）。
 		// 抽出来是为了能用合成文本精确回归 —— 这个源的坑全在措辞（见上面类型表），
@@ -3964,1287 +4774,108 @@ export function createEngine(env) {
 			return data;
 		}
 
-		// 重返未来：1999 征集名增强源（小米游戏中心官方资讯流，SSR 页免登录可抓）
-		// 官网资讯接口不发布征集名；小米游戏中心游戏页（game.xiaomi.com/game/62346241）的 SSR 数据
-		// 含官方账号「神秘学研究员」最新 3 条资讯全文，其中「活动征集」公告带真实征集名与征集时间
-		// （如【烈火悬流无尽】8/13 10:00-9/3 4:59、【湖的馈赠】自选六星 8/28 5:00-9/14 4:59）。
-		// 主池优先：只认"征集时间覆盖当前时刻"且带定向 UP 的征集公告，且 UP 角色属于官网「新增角色」
-		// （官方 SixStar 列表，如 赫多涅/纳西索斯）——自选六星池（无定向 UP）不作为主池；
-		// 无主池匹配返回 null（由官网解析兜底显示角色名）。多条主池匹配取最新发布者。
-		async function fetchXiaomiR99Gacha(gamePageUrl, officialSixStars) {
-			const html = await proxyFetchText(gamePageUrl, "https://game.xiaomi.com/");
-			const start = html.indexOf('"official":{"viewpoints":{"infos":[');
-			if (start < 0) return null;
-			const raw = html.slice(start);
-			const marks = [...raw.matchAll(/\{"viewpointId":"/g)].map((x) => x.index);
-			if (marks.length === 0) return null;
-			const now = nowMs();
-			const nowYear = new Date(now).getFullYear();   // 复用同一注入时钟（core 不得直接读宿主时钟）
-			const fmt = (mo, d, h, mi) => `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} ${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
-			let best = null;
-			for (let i = 0; i < marks.length; i++) {
-				const seg = raw.slice(marks[i], i + 1 < marks.length ? marks[i + 1] : raw.length);
-				const title = (seg.match(/"title":"([^"]*)"/) || [])[1] || "";
-				const texts = [...seg.matchAll(/"contentType":1,"positionIndex":\d+,"content":"([\s\S]*?)"/g)].map((x) => x[1]);
-				const content = texts.join(" ").replace(/\\u003c/g, "<").replace(/\\u003e/g, ">").replace(/\\u002F/g, "/").replace(/\\n/g, " ");
-				if (!/征集/.test(title + content)) continue;
-				const nameM = title.match(/【([^】]+)】活动征集/) || content.match(/【([^】]+)】活动征集/);
-				if (!nameM) continue;
-				// 征集时间："8/28 5:00-9/14 4:59" / "8/13 10:00 - 9/3 4:59"
-				const timeM = content.match(/征集(?:开放)?时间[◀◀:：\s]*(\d{1,2})\/(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?\s*[-—~]\s*(\d{1,2})\/(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?/);
-				if (!timeM) continue;
-				const sm = Number(timeM[1]), sd = Number(timeM[2]), sh = timeM[3] ? Number(timeM[3]) : 0, smi = timeM[4] ? Number(timeM[4]) : 0;
-				const em = Number(timeM[5]), ed = Number(timeM[6]), eh = timeM[7] ? Number(timeM[7]) : 0, emi = timeM[8] ? Number(timeM[8]) : 0;
-				const startTs = new Date(nowYear, sm - 1, sd, sh, smi).getTime();
-				// 跨年（如 12/28-1/5）结束补下一年
-				const endTs = new Date(endsNextYear(sm, null, em, null) ? nowYear + 1 : nowYear, em - 1, ed, eh, emi).getTime();
-				if (startTs > now || endTs < now) continue; // 只取覆盖当期的征集
-				// 主池判定：带定向 UP（【X】受邀概率UP）且 UP 角色属于官网新增角色
-				const upM = title.match(/【([^】]+)】受邀概率UP/) || content.match(/【([^】]+)】受邀概率UP/);
-				const upName = upM ? cleanRoles(upM[1]).replace(/[（）()].*$/, "") : "";
-				const isMain = upName !== "" && Array.isArray(officialSixStars) && officialSixStars.includes(upName);
-				if (!isMain) continue; // 自选六星池等非主池不作为当期卡池
-				const cand = {
-					banner: nameM[1],
-					bannerDates: `${fmt(sm, sd, sh, smi)} ~ ${fmt(em, ed, eh, emi)}`,
-					roles: upName,
-					order: i
-				};
-				// 多条主池覆盖当期时取最新发布（feed 靠前者更新）
-				if (!best || cand.order < best.order) best = cand;
-			}
-			return best ? { banner: best.banner, bannerDates: best.bannerDates, roles: best.roles } : null;
-		}
+		const TZ_JP = "Asia/Tokyo";         // UTC+9：日服
 
-		// ---- 重返未来：1999 官方游戏内公告（noticecp）----
-		// 官网 CMS 公告只发布维护时间与活动名，**逐期征集起止**只出现在官方游戏内公告的
-		// 「X.X「…」版本活动一览」里：正文是块状富文本（content 为 JSON 字符串），按
-		// `「名称」类型` 分段 —— 征集段含【征集时间】+【征集说明】(6★/5★ UP)，活动段含【活动时间】。
-		// 接口归属：notice.sl916.com 证书主体=广州深蓝互动网络科技有限公司（与官网 re.bluepoch.com
-		// 同主体、同 EdgeOne CDN），免登录/无 CORS，经 host 代理读取；开源项目 MAA1999/M9A 长期使用
-		// 同一接口（见 README 致谢）。一版本上下半场两期都列在同一篇里，下期常提前公布。
-		// 征集类别 → 外显优先级（用户拍板的口径）：
-		//   限定系（巡游限定 › 限定复刻 › 巡游限定复刻 › 联动 › 限定）＞ 活动征集 ＞ 限时征集 ＞ 轮换征集。
-		// 同类内先结束者优先（与其它游戏"越快结束越靠前"一致）；**未登记的类别排到最后**（只进悬停、不抢外显），
-		// 将来官方造新词时不会顶掉主池。
-		const R99_POOL_TIERS = ["巡游限定征集", "限定复刻自选征集", "巡游限定复刻征集", "联动征集", "限定征集", "活动征集", "限时征集", "轮换征集"];
 
-		// 块状富文本 → 纯文本行数组（保持原顺序）；content 不是预期的 JSON 数组时返回 null
-		function r99NoticeLines(item) {
-			const raw = item && item.contentMap && item.contentMap["zh-CN"] && item.contentMap["zh-CN"].content;
-			if (typeof raw !== "string" || raw === "") return null;
-			let blocks;
-			try { blocks = JSON.parse(raw); } catch { return null; }
-			if (!Array.isArray(blocks)) return null;
-			return blocks.map((b) => stripTags(String((b && b.content) || ""))).filter((x) => x !== "");
-		}
+		const TZ_UTC = "UTC";               // UTC  ：国际服
 
-		// "8/13 10:00 - 9/3 4:59" → 时间戳；年份用公告自身的 beginTime 锚定（避免跨年误判）
-		function r99ParseWindow(text, year) {
-			const m = String(text).match(/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})\s*[-\u2014~]\s*(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})/);
-			if (!m) return null;
-			const sm = Number(m[1]), sd = Number(m[2]), sh = Number(m[3]), smi = Number(m[4]);
-			const em = Number(m[5]), ed = Number(m[6]), eh = Number(m[7]), emi = Number(m[8]);
-			const startTs = new Date(year, sm - 1, sd, sh, smi).getTime();
-			const endYear = endsNextYear(sm, sd, em, ed) ? year + 1 : year;   // 跨年（如 12/28 - 1/5）
-			return { startTs, endTs: new Date(endYear, em - 1, ed, eh, emi).getTime() };
-		}
 
-		// 自选池（湖的涟漪／湖的馈赠／限定复刻自选等）**没有 UP 角色名单**，改为标注自选位数：
-		// 「自主选择1位六星角色」/「自主选择并锁定3位6星角色」→“自选 N 位 6★”（不带括号）；
-		// 只提到"自选"但原文没写位数 → 退化为“自选 6★”；两者都没有 → 返回 ""（不臆造）。
-		const R99_CN_NUM = { "\u4e00": 1, "\u4e8c": 2, "\u4e24": 2, "\u4e09": 3, "\u56db": 4, "\u4e94": 5, "\u516d": 6, "\u4e03": 7, "\u516b": 8, "\u4e5d": 9, "\u5341": 10 };
+		const BA_JP_NEWS_URL = "https://api-web.bluearchive.jp/api/news/list?pageIndex=1&pageNum=30";
 
-		function r99SelfSelectRoles(body) {
-			const text = String(body || "");
-			const m = text.match(/\u9009\u62e9(?:\u5e76\u9501\u5b9a)?\s*(\d+|[一二两三四五六七八九十])\s*\u4f4d\s*(?:\u516d\u661f|6\u661f)/);
-			if (m) {
-				const n = R99_CN_NUM[m[1]] !== undefined ? R99_CN_NUM[m[1]] : Number(m[1]);
-				return `\u81ea\u9009 ${n} \u4f4d 6\u2605`;
-			}
-			if (/\u81ea\u9009/.test(text)) return "\u81ea\u9009 6\u2605";
-			return "";
-		}
 
-		// 独立池公告：标题形如「池名」类型开启！，正文只有一张图（拿不到 UP 名单），
-		// 但接口的 beginTime/endTime 就是该池的真实起止。官方**逐池各发一篇**，且**过期即从公告板下线**：
-		// 实测公告板上 22 条无一条过期，已结束的池与其轮换期全都没有公告（"有公告" ⟺ "该池在开"）。
-		// 所以轮换征集只能靠它——一览里那三行日期不带时间，过期后连日期行也会随版本一起消失。
-		const R99_SOLO_POOL = /^\u300c([^\u300d]{1,40})\u300d([^\u300c\u300d]{1,12})\u5f00\u542f\uff01$/;
-		function r99SoloPools(items) {
-			const out = [];
-			for (const it of items) {
-				const title = String((it.contentMap && it.contentMap["zh-CN"] && it.contentMap["zh-CN"].title) || "").trim();
-				const m = title.match(R99_SOLO_POOL);
-				if (!m) continue;
-				const kind = m[2].trim();
-				if (R99_POOL_TIERS.indexOf(kind) < 0) continue;   // 衣着上新/上架/上新等不是卡池
-				const startTs = Number(it.beginTime);
-				const endTs = Number(it.endTime) - 6e4;           // 接口边界是排他的（…05:00），面板统一显示末分钟 04:59
-				if (!startTs || !endTs) continue;
-				out.push({
-					name: `\u300c${m[1]}\u300d${kind}`, kind, roles: "", startTs, endTs, raw: "",
-					display: fmtWindow(startTs, endTs)
-				});
-			}
-			return out;
-		}
+		// ── 条目 ──
+		registerSource({
+				id: "ba-cn",
+				tz: TZ_CN,
+				parserVersion: 1,
+				name: "蔚蓝档案·国服",
+				icon: "https://webcnstatic.yostar.net/ba_cn_web/prod/web/favicon.png?x-oss-process=image/resize,w_64",
+				source: "\u5B98\u7F51\u516C\u544A",
+				// 经 host 代理 POST 抓取（官网 CORS=null + 动态 SPA）；维护说明同时含当期卡池与活动
+				url: "https://bluearchive-cn.com/api/news/list?pageIndex=1&pageNum=30&type=",
+				// 活动默认源与卡池源相同（同一公告解析活动名），可独立切换
+				eventUrl: "https://bluearchive-cn.com/api/news/list?pageIndex=1&pageNum=30&type=",
+				eventSource: "\u5B98\u7F51\u516C\u544A"
+		});
 
-		// 解析一篇「版本活动一览」→ { pools, events, rotRows }
-		function parseR99Overview(item, now = nowMs()) {
-			const lines = r99NoticeLines(item);
-			if (!lines) return null;
-			const year = new Date(Number(item.beginTime) || now).getFullYear();
-			// 段：`「名称」类型` 开一段，其后各行归该段（直至下一个段标题）
-			const sections = [];
-			let cur = null;
-			for (const line of lines) {
-				const head = line.match(/^\u300c([^\u300d]{1,40})\u300d([^\u3010\u203b\uff1a:]{1,16})[\uff1a:]?$/);
-				if (head) { cur = { name: head[1], kind: head[2].trim(), lines: [] }; sections.push(cur); continue; }
-				if (cur) cur.lines.push(line);
-			}
-			const pools = [], events = [];
-			const seenEvent = new Set();
-			for (const sec of sections) {
-				const body = sec.lines.join("\n");
-				// UP 角色：6★ 单个；5★ 常写成「阿夫西维（木）」、「X（智）」连列 → 取标记后的整串
-				const six = [...body.matchAll(/6\u661f\u89d2\u8272\s*\u300c([^\u300d]+)\u300d/g)].map((m) => cleanRoles(m[1]));
-				const five = [];
-				for (const m of body.matchAll(/5\u661f\u89d2\u8272\s*((?:\u300c[^\u300d]+\u300d[\u3001\s]*)+)/g)) {
-					for (const x of String(m[1]).matchAll(/\u300c([^\u300d]+)\u300d/g)) five.push(cleanRoles(x[1]));
-				}
-				const upRoles = six.concat(five).filter((x) => x !== "").join("\u3001");
-				const roles = upRoles || r99SelfSelectRoles(body);   // 自选池没有 UP 名单 → 标注自选位数
-				if (/\u5f81\u96c6/.test(sec.kind)) {
-					// 征集段：只认【征集时间】（活动段才有【活动时间】）
-					const line = sec.lines.find((l) => /^\u3010\u5f81\u96c6\u65f6\u95f4\u3011/.test(l));
-					const w = line ? r99ParseWindow(line, year) : null;
-					if (!w) continue;   // 该段没有可解析的征集时间 → 跳过（整篇都没有则由上层按结构异常处理）
-					pools.push({
-						name: `\u300c${sec.name}\u300d${sec.kind}`, kind: sec.kind, roles,
-						startTs: w.startTs, endTs: w.endTs,
-						raw: (line.match(/\u3010\u5f81\u96c6\u65f6\u95f4\u3011\s*(.+)$/) || [])[1] || "",
-						display: fmtWindow(w.startTs, w.endTs)
-					});
-					continue;
-				}
-				// 活动段：取该段全部【…时间】/【…模式】窗口的整体跨度
-				// （如「活动正篇」＝故事模式起 → 商店兑换止；段落内没有时间的不算活动）
-				const wins = [];
-				for (const l of sec.lines) {
-					if (!/^\u3010[^\u3011]{1,12}\u3011/.test(l)) continue;
-					const w = r99ParseWindow(l, year);
-					if (w) wins.push(w);
-				}
-				if (wins.length === 0) continue;
-				const startTs = Math.min.apply(null, wins.map((w) => w.startTs));
-				const endTs = Math.max.apply(null, wins.map((w) => w.endTs));
-				// 同一活动在一篇里可能出现多次（同名同窗口，如两处「衣着风尚」）→ 去重
-				const key = `${sec.name}|${startTs}|${endTs}`;
-				if (seenEvent.has(key)) continue;
-				seenEvent.add(key);
-				events.push({ name: sec.name, cat: sec.kind, startTs, endTs, raw: fmtWindow(startTs, endTs) });
-			}
-			// 轮换征集在一览里**只有日期行**（「N月N日更新：角色」，不带起止时间）→ 这里只当"角色字典"。
-			// 时间不再用"+14 天"推算：每期轮换都有自己的独立公告（见 r99SoloPools），接口给的就是真实起止。
-			const rotRows = [];
-			for (const line of lines) {
-				const m = line.match(/^(\d{1,2})\u6708(\d{1,2})\u65e5\u66f4\u65b0[\uff1a:]\s*(.+)$/);
-				if (!m) continue;
-				// 只用"更新日"当匹配键（与同一期独立公告的 startTs 同一天），不作为时间来源
-				rotRows.push({ startTs: new Date(year, Number(m[1]) - 1, Number(m[2]), 5, 0).getTime(), roles: cleanRoles(m[3]) });
-			}
-			return { pools, events, rotRows };
-		}
+		registerSource({
+				id: "ba-global",
+				tz: TZ_UTC,
+				parserVersion: 1,
+				name: "蔚蓝档案·国际服",
+				icon: "https://storage.moegirl.org.cn/moegirl/commons/2/25/AppIcon_Arona.png!/fw/64",
+				source: "Nexon \u66F4\u65B0\u65E5\u8A8C",
+				// 经 host 代理抓取（nexon CORS 只允许同源）；「更新日誌」board(3352) 同时含当期卡池与活动排期
+				url: "https://forum.nexon.com/api/v1/board/3352/threads?alias=bluearchiveTW&countryCode=KR&pageNo=1&paginationType=PAGING&pageSize=30&blockSize=5&hideType=WEB",
+				// 卡池备选：GameKee（中文标题含排期；默认仍是 Nexon 官方更新日誌）
+				altSources: [
+					{ label: "GameKee \u5F53\u671F\u5361\u6C60", id: "ba-global:gamekee", fetcher: "ba-global-gamekee" }
+				],
+				// 活动默认源与卡池源相同（更新日誌解析活动排期），可独立切换（如 GameKee）
+				eventUrl: "https://forum.nexon.com/api/v1/board/3352/threads?alias=bluearchiveTW&countryCode=KR&pageNo=1&paginationType=PAGING&pageSize=30&blockSize=5&hideType=WEB",
+				eventSource: "Nexon \u66F4\u65B0\u65E5\u8A8C",
+				// 活动备选来源
+				eventAltSources: [
+					{ label: "GameKee \u5F53\u671F\u6D3B\u52A8", id: "ba-global:gamekee", fetcher: "ba-global-gamekee" }
+				]
+		});
 
-		// 官方游戏内公告 → 当期征集（含真实起止、悬停列全部并行）+ 当期活动（同其它游戏的活动列规则）。
-		// 结构异常（接口改版 / 正文不再可解析）→ 抛错，由上层回退官网公告；
-		// 结构正常但没有覆盖当前时刻的征集/活动 → 返回 null（该侧按"未公布"）。
-		async function fetchR99Notice(now = nowMs()) {
-			const json = await proxyFetchJson(R1999_NOTICE_URL, "https://www.sl916.com/");
-			const items = json && Array.isArray(json.data) ? json.data : null;
-			if (!items) throw new Error("r1999-notice-no-section");
-			const titleOf = (it) => String((it.contentMap && it.contentMap["zh-CN"] && it.contentMap["zh-CN"].title) || "");
-			const overviews = items.filter((it) => /\u7248\u672c\u6d3b\u52a8\u4e00\u89c8/.test(titleOf(it)));
-			if (overviews.length === 0) throw new Error("r1999-notice-no-section");
-			const pools = [], events = [], rotRows = [];
-			let parsed = 0;
-			for (const it of overviews) {
-				const o = parseR99Overview(it, now);
-				if (!o) continue;
-				parsed++;
-				pools.push.apply(pools, o.pools);
-				events.push.apply(events, o.events);
-				rotRows.push.apply(rotRows, o.rotRows);
-			}
-			if (parsed === 0) throw new Error("r1999-notice-no-dates");
-			// 用独立公告补齐一览没有的池（当前就是轮换征集）。同名池**以一览为准**——它有正文【征集时间】
-			// 与 UP 名单；独立公告正文只有图，只能补"池名 + 真实起止"，角色另从日期行字典里按同一天取。
-			const dayKey = (ts) => { const d = new Date(ts); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
-			const rolesByDay = new Map(rotRows.map((r) => [dayKey(r.startTs), r.roles]));
-			for (const p of r99SoloPools(items)) {
-				if (pools.some((x) => x.name === p.name)) continue;
-				p.roles = rolesByDay.get(dayKey(p.startTs)) || "";
-				pools.push(p);
-			}
-			const data = {};
-			// 当期 = 窗口覆盖现在的池；同名多期（一览的下一期 + 公告的当期）只留第一个 = 一览优先
-			const seenName = new Set();
-			const active = pools.filter((p) => {
-				if (!(coversNow(p, now))) return false;
-				if (seenName.has(p.name)) return false;
-				seenName.add(p.name);
-				return true;
-			});
-			if (active.length > 0) {
-				const rank = (p) => {
-					const i = R99_POOL_TIERS.indexOf(p.kind);
-					return i < 0 ? R99_POOL_TIERS.length : i;
-				};
-				const win = active.slice().sort((a, b) => (rank(a) - rank(b)) || (a.endTs - b.endTs))[0];
-				data.banner = win.name;
-				data.roles = win.roles || "";
-				data.bannerDates = win.display;
-				data.bannerDatesRaw = win.raw || win.display;
-				const hover = buildPoolHover(active.map((p) => ({
-					name: p.name,
-					label: `${p.name}${p.roles ? `\uFF1A${p.roles}` : ""}`,
-					startTs: p.startTs, endTs: p.endTs, raw: p.raw
-				})));
-				if (hover) data.bannerHover = hover;
-			}
-			const activeEvents = sortEventItems(events.filter((e) => coversNow(e, now)));
-			const primary = pickEventPrimary(activeEvents);
-			if (primary) {
-				data.event = primary.name;
-				data.eventDates = fmtWindow(primary.startTs, primary.endTs);
-				data.eventDatesRaw = primary.raw || data.eventDates;
-				const hover = buildEventHover(activeEvents);
-				if (hover) data.eventHover = hover;
-			}
-			return (data.banner || data.event) ? data : null;
-		}
+		registerSource({
+				id: "ba-jp",
+				tz: TZ_JP,
+				parserVersion: 1,
+				name: "蔚蓝档案·日服",
+				icon: "https://play-lh.googleusercontent.com/H975s6W1-boCSogzpF5_rIyawbjiXfG842ncgjIRiVGzhXHFTCVut0DkBhlDR4CgN1nn98OOC1fWN-LE7kUHnQ=s64",
+				source: "官方公告（日文）",
+				// 日服官网新闻接口（api-web.bluearchive.jp，经 host 代理）：「ピックアップ募集紹介」公告
+				// 内含逐池「ピックアップ名／ピックアップ生徒」与「実施期間」，可直接得到日文官方池名与 UP 生徒
+				url: BA_JP_NEWS_URL,
+				// 卡池备选：GameKee 当期卡池（原标题解析，只有池名+档期、无角色名）
+				altSources: [
+					{ label: "GameKee 当期卡池", id: "ba-jp:gamekee", fetcher: "ba-jp-gamekee" }
+				],
+				// 活动源与卡池源保持独立（解耦）：默认仍是原「GameKee 当期活动」条目；
+				// 官方公告的イベント条目作为**可选备选**（备选 value 用其接口地址，抓取器 ba-jp-official）
+				eventUrl: "https://www.gamekee.com/ba/huodong/15",
+				eventSource: "GameKee 当期活动",
+				eventAltSources: [
+					{ label: "官方公告（日文）", url: BA_JP_NEWS_URL, fetcher: "ba-jp-official" }
+				]
+		});
 
-		// 重返未来：1999 入口：默认源＝官方游戏内公告（逐期征集时间）；
-		// 来源被切到官网公告（备选源）或自定义地址时直接走官网解析（旧行为）。
-		async function fetchR99(url, signal, tz, now = nowMs()) {
-			if (!/noticecp/.test(String(url || ""))) return fetchR99Official(url, signal, now);
-			try {
-				return await fetchR99Notice(now);
-			} catch {
-				// 游戏内公告接口不可用/结构变了 → 回退官网公告（宁可少时间信息，也不要整格报错）
-				return fetchR99Official(R1999_OFFICIAL_URL, signal, tz, now);
-			}
-		}
-
-		// 重返未来：1999（官网 re.bluepoch.com 新闻 API，POST 经 host 代理）
-		// 列表接口（informationType=2 资讯）按上线时间倒序返回含全文的公告，
-		// 取最新一期「版本更新维护公告」：当期卡池（首位6星角色名，官网无征集名）/ 当期活动 / 维护起止 + 下一期维护日
-		async function fetchR99Official(listUrl, signal, tz, now = nowMs()) {
-			const ref = "https://re.bluepoch.com/";
-			const list = await proxyFetchJson(listUrl, ref, {}, { current: 1, pageSize: 30, informationType: 2 });
-			const items = list?.data?.pageData || [];
-			const nowYear = new Date(now).getFullYear();
-			const cleanText = (raw) => String(raw)
-				.replace(/<br\s*\/?>/gi, "\n")
-				.replace(/<[^>]+>/g, "")
-				.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
-				.replace(/&ldquo;/g, "「").replace(/&rdquo;/g, "」")
-				.replace(/&hellip;/g, "…").replace(/&times;/g, "×").replace(/&bull;/g, "·")
-				.replace(/\n\s*\n+/g, "\n").trim();
-			// 单条版本公告的"版本窗口"（仅用于判断哪一期覆盖当前，不再用于展示）：
-			// 起点 = 本篇维护结束时刻；结束端 = **比本篇更新的一期维护公告的维护开始时间**；
-			// 若还没有更新的一期（下一版本公告未发布）→ 按"维护起 + 42 天"兜底（1999 版本实测 21~42 天）。
-			// 注意：不再使用公告里「可在X月X日上午5点之后」——实测那是**心相观测商店兑换**说明，
-			// 曾据此把版本判成提前结束，导致版本中后期整格空白。
-			const maintWindow = (text, olderThanIdx) => {
-				const maintM = text.match(/【维护时间】\s*(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})\s*-\s*(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})/);
-				if (!maintM) return null;
-				const mk = (y, mo, d, h, mi) => new Date(y, mo - 1, d, h, mi).getTime();
-				const sm = Number(maintM[1]), mm = Number(maintM[2]), md = Number(maintM[3]);
-				const startTs = mk(Number(maintM[6]), Number(maintM[7]), Number(maintM[8]), Number(maintM[9]), Number(maintM[10]));
-				let endTs = null;
-				// 列表按发布时间倒序：下标更小的一期更新 → 取其维护开始时间作为本篇结束端
-				for (let i = olderThanIdx - 1; i >= 0; i--) {
-					const t2 = cleanText(versions[i].content);
-					const m2 = t2.match(/【维护时间】\s*(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})/);
-					if (!m2) continue;
-					const cand = mk(Number(m2[1]), Number(m2[2]), Number(m2[3]), Number(m2[4]), Number(m2[5]));
-					if (cand > startTs) { endTs = cand; break; }
-				}
-				if (endTs == null) endTs = new Date(sm, mm - 1, md + 42, 4, 59).getTime();
-				return { maintM, startTs, endTs };
-			};
-			// 窗口匹配：选"版本更新维护公告"中版本窗口覆盖 now 的那一期（不再无条件取最新）
-			const versions = items.filter((n) => /版本更新维护公告/.test(n.title || "") && n.content);
-			let maint = null, win = null, text = "";
-			for (let i = 0; i < versions.length; i++) {
-				const n = versions[i];
-				const t = cleanText(n.content);
-				const w = maintWindow(t, i);
-				if (w && coversNow(w, now)) { maint = n; win = w; text = t; break; }
-			}
-			if (!maint) {
-				// 官方无当期覆盖 → 小米资讯流当期主池兜底（UP 名单取最新版本公告）
-				let sixStars = [];
-				if (versions[0]) {
-					sixStars = [...cleanText(versions[0].content).matchAll(/6星角色「([^」]+)」/g)]
-						.map((m) => cleanRoles(m[1]).replace(/[（）()].*$/, ""))
-						.filter(Boolean);
-				}
-				try {
-					const xiaomi = await fetchXiaomiR99Gacha("https://game.xiaomi.com/game/62346241", sixStars);
-					if (xiaomi && xiaomi.banner && xiaomi.bannerDates) {
-						return {
-							banner: xiaomi.banner,
-							roles: xiaomi.roles || "",
-							bannerDates: xiaomi.bannerDates,
-							bannerDatesRaw: xiaomi.bannerDates,
-							event: ""
-						};
-					}
-				} catch { /* 兜底失败 → 返回空，由上层"失败沿用上次成功数据"保留展示原数据 */ }
-				return null;
-			}
-			// —— 官方当期公告解析（text 已清洗）——
-			// 当期新增角色（当期多池）：只取「版本全新内容一览 → 新增角色」段内的 6 星角色，
-			// 避免把复刻/心相/其它段的角色也算进来；多池外显合并角色（如 赫多涅、纳西索斯）
-			const newSeg = text.match(/新增角色([\s\S]{0,220}?)(?=\d+\s*[.、]\s*新增|【|$)/);
-			const newSix = (newSeg ? [...newSeg[1].matchAll(/6星角色「([^」]+)」/g)] : [])
-				.map((m) => cleanRoles(m[1]).replace(/[（）()].*$/, ""))
-				.filter(Boolean);
-			const sixStars = newSix.length > 0
-				? newSix
-				: [...text.matchAll(/6星角色「([^」]+)」/g)].map((m) => cleanRoles(m[1]).replace(/[（）()].*$/, "")).filter(Boolean);
-			const bannerName = sixStars[0] || "";
-			// 卡池时间：官网不发布逐池征集时间，靠"下一期维护/版本周期"推算并不可靠 →
-			// 外显暂时固定为简短文案（等有可靠时间源再显示真实起止）
-			const bannerDates = "暂无时间信息";
-			// 当期活动：新增活动列表第 2 项（首位6星角色剧情活动，"「赫多涅·凡人或英雄」"）
-			const actM = text.match(/活动正篇[，,]\s*「([^」]+)」/);
-			const eventName = actM ? String(actM[1]).replace(/^[^·]+·/, "") : "";
-			// 活动时间与卡池同一规则：官网不发布可靠起止，外显固定为同一文案
-			const eventDates = bannerDates;
-			const data = {
-				banner: bannerName,
-				roles: sixStars.join("、"),
-				bannerDates,
-				event: eventName,
-				eventDates
-			};
-			if (!data.banner || !data.bannerDates) return null;
-			// 征集名增强：小米官方资讯流有"主池"征集公告（UP 属于官网新增角色）时，
-			// 用真实征集名/征集时间/UP 角色覆盖卡池字段；无主池匹配则保持官网"角色名"显示
-			try {
-				const xiaomi = await fetchXiaomiR99Gacha("https://game.xiaomi.com/game/62346241", sixStars);
-				if (xiaomi && xiaomi.banner && xiaomi.bannerDates) {
-					data.banner = xiaomi.banner;
-					data.bannerDates = xiaomi.bannerDates;
-					data.roles = xiaomi.roles || "";
-				}
-			} catch { /* 增强源失败不影响官网解析结果 */ }
-			return data;
-		}
-
-		// ---- 统一来源注册表 ----
-		// 卡池来源与活动来源完全独立，契约如下：
-		// - GACHA_FETCHERS[id]：卡池字段抓取器（async (url, signal) → 数据对象 | null），
-		//   数据对象形如 {banner, roles?, bannerDates, event?, eventDates?}；
-		//   当活动源与卡池源同 URL 时，event/eventDates 由卡池载荷复用（避免重复请求）。
-		// - EVENT_FETCHERS[id]：活动源注册表（{ 默认抓取器, 备选抓取器... }），
-		//   抓取器同 GACHA_FETCHERS 契约；fetchEntry 只取其中的 event/eventDates 字段。
-		//   活动源与卡池源不同 URL 时独立抓取（来源选择互不影响）。
-		// - altSources / eventAltSources：备选源列表，字段为 { label, fetcher, url? , id? }
-		//   （url = 该来源的地址；id = 抓取器自带地址的内部来源标识）。
-		//   设置页选中后按 url ?? id 路由到对应抓取器；是否走 host 代理由抓取器自己决定。见 normalizeSourceId。
-		const GACHA_FETCHERS = {
-			genshin: mkMediaWiki(bwikiGachaPayload),
-			hsr: mkMediaWiki(bwikiGachaPayload),
-			zzz: (url, signal, tz) => fetchZzzGacha(url, signal, tz),
-			"zzz-bwiki": mkMediaWiki(pickCurrent(parseAllBwiki)),
-			arknights: (url, signal, tz) => fetchArknightsGacha(url, signal, tz),
-			// ⚠️ `selectArknights` / `parseWuwaPool` 的**第二参是 `now`**（不是 tz），
-			// 而 mkMediaWiki 只会传 `(text, tz)` —— 直接包进去会让 `now` 收到时区值，
-			// `startTs <= now` 恒为 false → 解析结果恒为 null（静默"未公布"，极难查）。
-			// 所以这两个注册点必须**显式传 nowMs()**。
-			"arknights-prts": (url, signal, tz) => mkMediaWiki((text) => selectArknights(text, nowMs(), tz))(url, signal, tz),
-			wuwa: (url, signal, tz) => fetchWuwaGacha(url, signal, tz),
-			"wuwa-bwiki": (url, signal, tz) => mkMediaWiki((text) => parseWuwaPool(text, nowMs(), tz))(url, signal, tz),
-			// 终末地默认：Canmoe（中文，Next.js 数据经 host 代理两步抓取）
-			endfield: (url, signal, tz) => fetchCanmoeEndfield(url, signal, tz),
-			// 终末地备选：GachaTracker（英文，浏览器直连）/ wiki.gg（英文，经 host 代理）
-			"endfield-gachatracker": mkRaw(parseGachaTracker),
-			"endfield-wiki-gg": (url, signal, tz) => fetchEndfieldWikiGg(url, signal, tz),
-			// 异环：ldshop（繁体，静态表格经 host 代理）
-			nte: (url, signal, tz) => fetchNteWanmei(url, signal, tz),
-			"nte-ldshop": (url, signal, tz) => fetchLdshopNte(url, signal, tz),
-			"ba-cn": (url, signal, tz) => fetchBaCn(url, signal, tz),
-			"ba-global": (url, signal, tz) => fetchBaGlobal(url, signal, tz),
-			"ba-global-gamekee": () => fetchGameKeeBa("global"),
-			"ba-jp": (url, signal, tz) => fetchBaJpGacha(url, signal, tz),
-			"ba-jp-gamekee": () => fetchGameKeeBa("jp"),
-			"r1999": (url, signal, tz) => fetchR99(url, signal, tz),
-			// 重返未来1999 备选：官网公告（只有维护时间与活动名，无逐期征集时间）
-			"r1999-official": (url, signal, tz) => fetchR99Official(url, signal, tz)
-		};
-		// 活动源注册表：条目 → { 默认 + 备选抓取器 }。没有独立活动源的条目活动来源显示"未配置"。
-		const EVENT_FETCHERS = {
-			// 原神：活动一览为 JS 动态加载（Dquery+SMW），走 SMW ask 查询（fetchYsActivity 忽略 URL 参数）
-			genshin: {
-				default: (url, signal, tz) => fetchYsActivity(signal, tz)
-			},
-			// 星铁：活动一览（静态「活动时间」表，api.php 可直连）→ 外显当期 + 悬停列出全部并行活动
-			hsr: {
-				default: mkMediaWiki(genericEventPayload)
-			},
-			// 绝区零：默认=官方公告（api-takumi-static，与卡池侧同一接口；活动时间写在公告正文里，
-			// 含"X.Y版本更新后/版本结束"的换算；结束时间未知的活动保留并沉底）→ 备选=Bwiki 活动一览
-			zzz: {
-				default: (url, signal, tz) => fetchZzzEventsOfficial(url, signal, tz),
-				"zzz-event-bwiki": mkMediaWiki(genericEventPayload)
-			},
-			// 异环：活动源就是同一篇官网公告（与卡池侧**同一条 URL**，fetchNteWanmei 一个函数同时解析两者）。
-			// 注册成独立活动源的意义：卡池侧本轮抓挂、或用户把**卡池**来源改成自定义/备选时，
-			// 活动侧仍能自己抓、自己报错，而不是整列空掉（复用只是"同一 URL 省一次请求"的优化，不是它的腿）。
-			nte: {
-				default: (url, signal, tz) => fetchNteWanmei(url, signal, tz)
-			},
-			// 明日方舟：PRTS 活动一览（「活动开始时间」表 + data-time 起止时间戳）→ 同上
-			arknights: {
-				default: mkMediaWiki(prtsEventPayload)
-			},
-			// 终末地：FZ Wiki（中文，经 host 代理、抓 RSC 数据；外显当期=结束最晚，悬停列出全部并行）
-			endfield: {
-				default: (url, signal, tz) => fetchFzWikiEndfield(url, signal, tz).then((d) =>
-					d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "", eventHover: d.eventHover || "" } : null
-				),
-				"endfield-game8": (url, signal, tz) => fetchGame8Endfield(url, signal, tz).then((d) =>
-					d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "" } : null
-				)
-			},
-			// 鸣潮：**默认=同一份官方公告**（`recommend` 组里 tag=5 为限时活动），与卡池是**同一条 URL**
-			// → 一次请求复用两侧数据（refresh 的复用优化）。
-			// ⚠️ 2026-10-01 改：Bwiki 活动日历**已停更**（最新一条结束于 2026/9/29），
-			// 所以把官方提为默认、Bwiki 降级为备选（`wuwa-event-bwiki`），仍可在设置里手动切回。
-			wuwa: {
-				default: (url, signal, tz) => fetchWuwaEventsOfficial(url, signal, tz),
-				// ⚠️ 回调**必须**声明第二个参数 `tz`：mkMediaWiki 的契约是 `parse(text, tz)`
-				//   （见 30-parsers.js 的 mkMediaWiki）。原来只写了 `(html)` 却在体内用 `tz`
-				//   → 运行时 `tz is not defined`：用户在设置页把鸣潮活动源切到「Bwiki 活动日历」就必然抓取失败。
-				//   2026-10-03 修正（同批还加了静态守卫 `test/cases-fetcher-args.mjs`）。
-				"wuwa-event-bwiki": mkMediaWiki((html, tz) => {
-					const d = parseWuwaCalendar(html, tz);
-					return d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "", eventHover: d.eventHover || "" } : null;
-				})
-			},
-			// 蔚蓝国服：默认与卡池同 URL（维护公告含活动名），也可独立配置其他来源
-			"ba-cn": {
+		// ── 抓取器登记 ──
+		GACHA_FETCHERS["ba-cn"] = (url, signal, tz) => fetchBaCn(url, signal, tz);
+		GACHA_FETCHERS["ba-global"] = (url, signal, tz) => fetchBaGlobal(url, signal, tz);
+		GACHA_FETCHERS["ba-global-gamekee"] = () => fetchGameKeeBa("global");
+		GACHA_FETCHERS["ba-jp"] = (url, signal, tz) => fetchBaJpGacha(url, signal, tz);
+		GACHA_FETCHERS["ba-jp-gamekee"] = () => fetchGameKeeBa("jp");
+					// 蔚蓝国服：默认与卡池同 URL（维护公告含活动名），也可独立配置其他来源
+EVENT_FETCHERS["ba-cn"] = {
 				default: (url, signal, tz) => fetchBaCn(url, signal, tz)
-			},
-			// 蔚蓝国际服：默认与卡池同 URL（更新日誌含活动排期）；备选 GameKee
-			"ba-global": {
+			};
+					// 蔚蓝国际服：默认与卡池同 URL（更新日誌含活动排期）；备选 GameKee
+EVENT_FETCHERS["ba-global"] = {
 				default: (url, signal, tz) => fetchBaGlobal(url, signal, tz),
 				"ba-global-gamekee": () => fetchGameKeeBa("global")
-			},
-			// 蔚蓝日服：活动源与卡池源独立——默认 GameKee 当期活动条目（原行为不变）；
+			};
+					// 蔚蓝日服：活动源与卡池源独立——默认 GameKee 当期活动条目（原行为不变）；
 			// 备选 = 日服官方公告里的イベント条目（抓取器复用官方解析，仅取 event/eventDates）
-			"ba-jp": {
+EVENT_FETCHERS["ba-jp"] = {
 				default: () => fetchGameKeeBa("jp"),
 				"ba-jp-official": (url, signal, tz) => fetchBaJpOfficialEvent(url, signal, tz)
-			},
-			// 重返未来：默认与卡池同 URL（同一篇「版本活动一览」同时含征集与活动）；
-			// 备选＝官网公告（只有维护时间与活动名）
-			"r1999": {
-				default: (url, signal, tz) => fetchR99(url, signal, tz),
-				"r1999-official": (url, signal, tz) => fetchR99Official(url, signal, tz)
-			}
-		};
+			};
 
-		// —— 备选源（altSources / eventAltSources）的字段约定与 altSourceId / normalizeSourceId，
-		//    以及下面的 gachaFetcherFor / eventFetcherFor 用到的标识归一，都在 60-helpers.js ——
-		//    （设置页也要用这两个纯函数，所以放在 core 与外壳共用的 helpers 里，而不是 core 内部）
-		// 取条目当前卡池源的抓取器：命中的备选源 > 默认抓取器（无 → null）
-		function gachaFetcherFor(source, url) {
-			const want = normalizeSourceId(url);
-			const alt = (source.altSources || []).find((a) => altSourceId(a) === want && GACHA_FETCHERS[a.fetcher]);
-			return alt ? GACHA_FETCHERS[alt.fetcher] : GACHA_FETCHERS[source.id] || null;
-		}
-
-		// 取条目当前活动源的抓取器：命中的活动备选源 > 默认活动抓取器（无 → null）
-		function eventFetcherFor(source, url) {
-			const table = EVENT_FETCHERS[source.id];
-			if (!table) return null;
-			const want = normalizeSourceId(url);
-			const alt = (source.eventAltSources || []).find((a) => altSourceId(a) === want && table[a.fetcher]);
-			return alt ? table[alt.fetcher] : table.default || null;
-		}
-		//#endregion
-
-		// ═══════════════════════════════════════════════════════════════════════════
-		// ⚠️ 2026-10-03 合并：以下内容原为独立文件 `src/client/43-sources-register.js`，
-		//    现按用户要求（方案 C2）并入本文件。
-		//
-		//    为什么必须放在本文件**末尾**：它要在 `GACHA_FETCHERS` / `EVENT_FETCHERS`
-		//    两张表**声明之后**才能登记（这两张表在本文件上方，是 `const`）→ 提前会 TDZ 报错。
-		//
-		//    为什么并入后仍然安全（C2 的前置条件，已逐条核实）：
-		//      · 它引用 29 个解析器符号，**全是 `function` 声明**（会提升）→ 即使本文件排在
-		//        那些 `42-parsers-*.js` 之前也不会 TDZ；
-		//      · 它对 `SOURCES`（模块级）的写操作**全部幂等**：`NS_SOURCES` 按 id 找到就覆盖、
-		//        备选源挂接按 fetcher 去重、bh3 那处 push 已补上 `some()` 守卫 —— 因为 core 产物里
-		//        本文件位于 `createEngine` 内部，**每次新建引擎都会重跑一遍**；
-		//      · 两张表本身是 `createEngine` 内的 `const` → 每个引擎各一份，不会互相污染。
-		//
-		//    符号名与实现**一律未改**，原文件头保留在下面。
-		// ═══════════════════════════════════════════════════════════════════════════
-
-// src/client/43-sources-register.js —— 新增来源的「条目声明 + 抓取器登记」
+// src/client/30-game-bandori.js —— BanG Dream（国服手游 / OurNotes 日服 / 国际服）
 //
-// 三件事：
-//   ① 把 **17 条**新增来源追加进 `SOURCES`（16 条在 `NS_SOURCES` + 1 条 `bh3` 单独 push）
-//   ② 登记主抓取器到 `GACHA_FETCHERS` / `EVENT_FETCHERS`
-//   ③ 登记备选源抓取器，并把「米游社公告」挂成既有条目（原神/星铁/绝区零）的备选源 + 新建 `bh3`
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
 //
-// ⚠️ 数字口径（2026-10-03 核实，原文写的是「20 条」—— 不对）：
-//   `20-sources.js` 内置 **11** 条 + 本文件 **17** 条 = 最终 `SOURCES` **28** 条。
-//   合并规则见下方 `for (const s of NS_SOURCES)`：**按 id 找，命中就 `Object.assign` 覆盖、否则 push**。
-//   那条"覆盖"分支当前**不会触发**（现存 17 条与内置 11 条无一重名），它是留给
-//   "新增来源要接管某条内置条目"的升级路径 —— 历史上 `wuhuamixin` / `uma-cn` 的默认源
-//   就从 bwiki 换成了 biligame 官方公告，靠的正是它。**别因为"跑不到"就删掉。**
-//
-// 位置说明：本文件排在 `40-fetchers.js` **之后**（ORDER），因为它要往那两张表里登记、往 SOURCES 里追加。
-//
-// 历史沿革：内容原为生成物 `src/client/45-next-sources.js` 的尾部（由 `next-sources/registry*.js` 生成）。
-// 2026-10-03 用户要求「把 next-sources 合并进原 source，不留 next-source」后压平为普通源码，
-// `next-sources/` 与生成器均已删除 —— **这里就是唯一真源，直接改这里**。
-// （备选源的「键名 → 函数」对照表仍在 `test/registry-shim.mjs`，供测试侧的注册表结构守卫使用。）
-//
-// 历史沿革：内容原为生成物 `src/client/45-next-sources.js` 的尾部（由 `next-sources/registry*.js` 生成）。
-// 2026-10-03 用户要求「把 next-sources 合并进原 source，不留 next-source」后压平为普通源码，
-// `next-sources/` 与生成器均已删除 —— **这里就是唯一真源，直接改这里**。
-// （备选源的「键名 → 函数」对照表仍在 `test/registry-shim.mjs`，供测试侧的注册表结构守卫使用。）
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
 
-		// ===== 追加来源进 SOURCES（对齐原有格式：name=游戏名 / source=中文来源名 / tz）=====
 
-		// 注意：米游社那 4 条（bh3 / *-official）不在此列 —— 它们只作为**备选源**挂在下方。
-
-		const NS_SOURCES = [
-
-			{
-				id: "p5x",
-				tz: "Asia/Shanghai",
-				name: "女神异闻录：夜幕魅影",
-				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/03/1e/f4/031ef49f-b3d0-5bdd-077b-67d213f99c86/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
-				defaultHidden: true,
-				url: "https://p5x.wanmei.com/news/gamenews/index.html",
-				source: "官网公告",
-				eventUrl: "https://p5x.wanmei.com/news/gamenews/index.html",
-				eventSource: "官网公告",
-			},
-
-			{
-				id: "pjsk",
-				tz: "Asia/Shanghai",
-				name: "初音未来：缤纷舞台·国服",
-				icon: "https://p16-sg.dailygn.com/obj/g-marketing-assets-sg/2021_12_15_07_41_24/icon_s54607.png",
-				url: "https://sekai-world.github.io/sekai-master-db-cn-diff/gachas.json",
-				// 站点名 + 资源名（对齐本体惯例：`Bwiki 往期祈愿` / `Bwiki 活动一览`）
-				// 旧值写的是「第三方数据」——那是**类别**不是站点名，用户 2026-10-03 要求改成网站名称。
-				source: "Sekai World 卡池表",
-				eventUrl: "https://sekai-world.github.io/sekai-master-db-cn-diff/events.json",
-				eventSource: "Sekai World 活动表",
-			},
-
-			{
-				id: "wuhuamixin",
-				tz: "Asia/Shanghai",
-				name: "物华弥新",
-				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/13/7f/87/137f873a-f458-678d-347e-068830a74a69/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
-				url: "https://wiki.biligame.com/whmx/api.php?action=parse&page=限时招集档案&prop=text&format=json&formatversion=2",
-				source: "Bwiki",
-				eventUrl: "https://api.biligame.com/news/list?gameExtensionId=613&positionId=2&typeId=4&pageNum=1&pageSize=50",
-				eventSource: "官方公告",
-			},
-
-			{
-				id: "uma-cn",
-				tz: "Asia/Shanghai",
-				name: "闪耀！优俊少女",
-				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/ca/23/bc/ca23bc1f-5dff-c21a-1881-66c48d02f5b2/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
-				url: "https://api.biligame.com/news/list?gameExtensionId=1006&positionId=2&typeId=1&pageNum=1&pageSize=50",
-				source: "官方公告",
-				eventUrl: "https://api.biligame.com/news/list?gameExtensionId=1006&positionId=2&typeId=1&pageNum=1&pageSize=50",
-				eventSource: "官方公告",
-				altSources: [{"label":"Bwiki 简中卡池（社区推算，非官方）","url":"https://wiki.biligame.com/umamusume/api.php?action=parse&page=简中卡池&prop=text&format=json&formatversion=2","fetcher":"uma-cn-bwiki"}],
-			},
-
-			{
-				id: "zspms",
-				tz: "Asia/Shanghai",
-				name: "战双帕弥什",
-				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/b2/99/ed/b299ed39-90ea-03df-c7ee-bd09548991e5/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/200x200bb.jpg",
-				url: "https://wiki.biligame.com/zspms/api.php?action=ask&query=%5B%5B%E5%88%86%E7%B1%BB%3A%E6%B8%B8%E6%88%8F%E6%9B%B4%E6%96%B0%E5%85%AC%E5%91%8A%5D%5D%5B%5B%E7%B1%BB%E5%88%AB%3A%3A%E7%89%88%E6%9C%AC%5D%5D%7C%3F%E6%A0%87%E9%A2%98%7C%3F%E6%97%B6%E9%97%B4%7Csort%3D%E6%97%B6%E9%97%B4%7Corder%3Ddesc%7Climit%3D40&format=json",
-				source: "Bwiki",
-				eventUrl: "https://wiki.biligame.com/zspms/api.php?action=ask&query=%5B%5B%E5%88%86%E7%B1%BB%3A%E6%B8%B8%E6%88%8F%E6%9B%B4%E6%96%B0%E5%85%AC%E5%91%8A%5D%5D%5B%5B%E7%B1%BB%E5%88%AB%3A%3A%E7%89%88%E6%9C%AC%5D%5D%7C%3F%E6%A0%87%E9%A2%98%7C%3F%E6%97%B6%E9%97%B4%7Csort%3D%E6%97%B6%E9%97%B4%7Corder%3Ddesc%7Climit%3D40&format=json",
-				eventSource: "Bwiki",
-			},
-
-			{
-				id: "czn",
-				tz: "Asia/Shanghai",
-				name: "卡厄斯梦境",
-				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/e2/c9/48/e2c94812-11cd-2a52-445a-d67d6ae9e169/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/200x200bb.jpg",
-				defaultHidden: true,
-				url: "https://wiki.biligame.com/czn/api.php?action=parse&page=Module%3AGacha%2Fdata&prop=wikitext&format=json",
-				source: "Bwiki",
-			},
-
-			{
-				id: "gf2",
-				tz: "Asia/Shanghai",
-				name: "少女前线2：追放",
-				icon: "https://gf2-cn.cdn.sunborngame.com/website/official_zf/mobile/image/logo.png",
-				url: "https://gf2-web-preregister-api.sunborngame.com/website/news_list/4?page=1&limit=10",
-				source: "官方公告",
-				eventUrl: "https://gf2-web-preregister-api.sunborngame.com/website/news_list/4?page=1&limit=10",
-				eventSource: "官方公告",
-			},
-
-			{
-				id: "bandori",
-				tz: "Asia/Shanghai",
-				name: "BanG Dream！少女乐团派对·国服",
-				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/cb/ae/11/cbae1132-58ee-8b5c-3016-dfd2f5e91e51/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
-				url: "https://api.biligame.com/news/list?gameExtensionId=138&positionId=2&typeId=1&pageNum=1&pageSize=20",
-				source: "官方公告",
-				eventUrl: "https://api.biligame.com/news/list?gameExtensionId=138&positionId=2&typeId=1&pageNum=1&pageSize=20",
-				eventSource: "官方公告",
-				altSources: [{"label":"Bestdori 扭蛋（社区数据库）","url":"https://bestdori.com/api/gacha/all.5.json","fetcher":"bandori-bestdori-gacha"}],
-				eventAltSources: [{"label":"Bestdori 活动（社区数据库）","url":"https://bestdori.com/api/events/all.5.json","fetcher":"bandori-bestdori-event"}],
-			},
-
-			{
-				id: "ournotes",
-				tz: "Asia/Tokyo",
-				name: "BanG Dream！OurNotes·日服",
-				icon: "https://bang-dream-on.bushimo.jp/wordpress/wp-content/themes/bang-dream-on_prod/assets/images/common/apple-touch-icon-180x180.png",
-				defaultHidden: true,
-				eventUrl: "https://bang-dream-on.bushimo.jp/wp-json/wp/v2/posts?per_page=20&page=1",
-				// 日文站点 → 加语言括号（本体惯例，见 ba-jp 的 `官方公告（日文）`）
-				eventSource: "官方公告（日文）",
-			},
-
-			{
-				id: "fgo",
-				tz: "Asia/Shanghai",
-				name: "Fate/Grand Order",
-				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/db/d4/19/dbd4196a-68cb-8a74-ca0b-045d0795e10c/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
-				url: "https://fgo.wiki/api.php?action=parse&page=%E5%8D%A1%E6%B1%A0%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
-				source: "Bwiki",
-				eventUrl: "https://fgo.wiki/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
-				eventSource: "Bwiki",
-			},
-
-			{
-				id: "uma-jp",
-				tz: "Asia/Tokyo",
-				name: "赛马娘·日服",
-				icon: "https://umamusume.jp/apple-touch-icon.png",
-				url: "https://umamusume.jp/api/ajax/pr_info_index?format=json&page=1",
-				// 日文站点 → 加语言括号（本体惯例，见 ba-jp 的 `官方公告（日文）`）
-				source: "官方公告（日文）",
-				eventUrl: "https://umamusume.jp/api/ajax/pr_info_index?format=json&page=1",
-				eventSource: "官方公告（日文）",
-				altSources: [{"label":"umapyoi（第三方，无卡池名）","url":"https://api.umapyoi.net/api/v1/gacha","fetcher":"uma-jp-umapyoi"}],
-				eventAltSources: [{"label":"Bwiki 活动（往期归档）","url":"https://wiki.biligame.com/umamusume/api.php?action=parse&page=活动&prop=text&format=json&formatversion=2","fetcher":"uma-jp-bwiki"}],
-			},
-
-			{
-				id: "uma-global",
-				tz: "UTC",
-				name: "赛马娘·国际服",
-				icon: "https://play-lh.googleusercontent.com/yN6cCSP7UB_2bsvlCxrtv-FUpEt1IvEFwr0Ucb3wr39QsAd5PLsueSVXuCinDbE4rifhMlX4YNtpLpkGnpsLhCQ=s64-rw",
-				url: "https://umamusume.com/api/ajax/pr_info_index?format=json",
-				// 英文站点 → 加语言括号（本体惯例，见 ba-jp 的 `官方公告（日文）`）
-				source: "官方公告（英文）",
-				eventUrl: "https://umamusume.com/api/ajax/pr_info_index?format=json",
-				eventSource: "官方公告（英文）",
-			},
-
-			{
-				id: "ddlezj",
-				tz: "+540",
-				name: "嘟嘟脸恶作剧",
-				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/64/f0/21/64f02145-182e-857a-133c-8de0151425d9/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
-				defaultHidden: true,
-				url: "https://api.biligame.com/news/list?gameExtensionId=1282&positionId=2&typeId=1&pageNum=1&pageSize=50",
-				source: "官方公告",
-				eventUrl: "https://api.biligame.com/news/list?gameExtensionId=1282&positionId=2&typeId=1&pageNum=1&pageSize=50",
-				eventSource: "官方公告",
-			},
-
-			{
-				id: "kedr",
-				tz: "Asia/Shanghai",
-				name: "雪松",
-				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/b5/8c/b6/b58cb6b2-4be3-0be0-852a-af761afaab06/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
-				url: "https://wiki.biligame.com/kedrgame/api.php?action=parse&page=Template%3A%E9%A6%96%E9%A1%B5%E6%B8%B8%E6%88%8F%E7%89%88%E6%9C%AC%E5%86%85%E5%AE%B9&prop=wikitext&format=json",
-				source: "Bwiki",
-				eventUrl: "https://wiki.biligame.com/kedrgame/api.php?action=parse&page=Template%3A%E9%A6%96%E9%A1%B5%E6%B8%B8%E6%88%8F%E7%89%88%E6%9C%AC%E5%86%85%E5%AE%B9&prop=wikitext&format=json",
-				eventSource: "Bwiki",
-				altSources: [{"label":"Bwiki 卡池信息（台架测试占位）","url":"https://wiki.biligame.com/kedrgame/api.php?action=parse&page=卡池信息&prop=text&format=json&formatversion=2","fetcher":"kedr-kaxi"}],
-			},
-
-			{
-				id: "stellasora",
-				tz: "Asia/Shanghai",
-				name: "星塔旅人",
-				icon: "https://webcnstatic.yostar.net/stellasora/stellasora-cn-official-frontend/main/h5/favicon.png?x-oss-process=image/resize,w_128",
-				url: "https://stellasora.yostar.cn/api/resource/news?index=1&size=20&type=notice",
-				source: "官方公告",
-				eventUrl: "https://stellasora.yostar.cn/api/resource/news?index=1&size=20&type=notice",
-				eventSource: "官方公告",
-				eventAltSources: [{"label":"Bwiki 首页活动日历（低可用）","url":"https://wiki.biligame.com/stellasora/api.php?action=parse&page=首页&prop=text&format=json&formatversion=2","fetcher":"stellasora-bwiki"}],
-			},
-
-			{
-				id: "ournotes-global",
-				tz: "Asia/Shanghai",
-				name: "BanG Dream！OurNotes·国际服",
-				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/ca/da/3a/cada3a9a-491a-fbe5-5494-9be7390e3a9b/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
-				defaultHidden: true,
-				altSources: [{"label":"官方公告（BHK）","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw","fetcher":"ournotes-global-gacha"}],
-				eventAltSources: [{"label":"官方公告（BHK）","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw","fetcher":"ournotes-global-event"}],
-			},
-
-		];
-
-		for (const s of NS_SOURCES) {
-
-			// 同名条目已存在时不要再 push（例如 bandori/fgo 本体已有），改为**就地覆盖**
-
-			const i = SOURCES.findIndex((x) => x.id === s.id);
-
-			if (i >= 0) { Object.assign(SOURCES[i], s); } else { SOURCES.push(s); }
-
-		}
-
-		// ===== 登记抓取器（键 = 条目 id）=====
-
-		Object.assign(GACHA_FETCHERS, {
-
-			"p5x": (url, signal, tz) => ns_p5x_gachaP5x(url, signal, tz),
-
-			"pjsk": (url, signal, tz) => ns_sekai_gachaSekai(url, signal, tz),
-
-			"wuhuamixin": (url, signal, tz) => ns_bwiki_gachaWhmx(url, signal, tz),
-
-			"uma-cn": (url, signal, tz) => ns_biligame_activity_gachaUmaCnOfficial(url, signal, tz),
-
-			"zspms": (url, signal, tz) => ns_bwiki_wikitext_gachaZspms(url, signal, tz),
-
-			"czn": (url, signal, tz) => ns_bwiki_wikitext_gachaCzn(url, signal, tz),
-
-			"gf2": (url, signal, tz) => ns_gf2_gachaGf2(url, signal, tz),
-
-			"bandori": (url, signal, tz) => ns_bandori_gachaBandori(url, signal, tz),
-
-			"fgo": (url, signal, tz) => ns_fgo_gachaFgo(url, signal, tz),
-
-			"uma-jp": (url, signal, tz) => ns_umamusume_official_gachaUmaJpOfficial(url, signal, tz),
-
-			"uma-global": (url, signal, tz) => ns_umamusume_official_gachaUmaGlobal(url, signal, tz),
-
-			"ddlezj": (url, signal, tz) => ns_biligame_announce_gachaDdlezj(url, signal, tz),
-
-			"kedr": (url, signal, tz) => ns_bwiki_wikitext_gachaKedrTemplate(url, signal, tz),
-
-			"stellasora": (url, signal, tz) => ns_stellasora_gachaStellasora(url, signal, tz),
-
-		});
-
-		Object.assign(EVENT_FETCHERS, {
-
-			"p5x": { default: (url, signal, tz) => ns_p5x_eventsP5x(url, signal, tz) },
-
-			"pjsk": { default: (url, signal, tz) => ns_sekai_eventsSekai(url, signal, tz) },
-
-			"wuhuamixin": { default: (url, signal, tz) => ns_biligame_activity_eventsWhmxOfficial(url, signal, tz) },
-
-			"uma-cn": { default: (url, signal, tz) => ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz) },
-
-			"zspms": { default: (url, signal, tz) => ns_bwiki_wikitext_eventsZspms(url, signal, tz) },
-
-			"gf2": { default: (url, signal, tz) => ns_gf2_eventsGf2(url, signal, tz) },
-
-			"bandori": { default: (url, signal, tz) => ns_bandori_eventsBandori(url, signal, tz) },
-
-			"ournotes": { default: (url, signal, tz) => ns_ournotes_eventsOurNotes(url, signal, tz) },
-
-			"fgo": { default: (url, signal, tz) => ns_fgo_eventsFgo(url, signal, tz) },
-
-			"uma-jp": { default: (url, signal, tz) => ns_umamusume_official_eventsUmaJpOfficial(url, signal, tz) },
-
-			"uma-global": { default: (url, signal, tz) => ns_umamusume_official_eventsUmaGlobal(url, signal, tz) },
-
-			"ddlezj": { default: (url, signal, tz) => ns_biligame_announce_eventsDdlezj(url, signal, tz) },
-
-			"kedr": { default: (url, signal, tz) => ns_bwiki_wikitext_eventsKedrTemplate(url, signal, tz) },
-
-			"stellasora": { default: (url, signal, tz) => ns_stellasora_eventsStellasora(url, signal, tz) },
-
-		});
-
-		// ===== 登记备选源抓取器（键 = altSources/eventAltSources 的 fetcher 字段）=====
-
-		// GACHA_FETCHERS 是**扁平**表 → 卡池备选源注册在顶层即可；
-
-		// EVENT_FETCHERS 是**按条目 id 分组**的表 → 活动备选源必须注册进 EVENT_FETCHERS[<条目id>]。
-
-		Object.assign(GACHA_FETCHERS, {
-
-			"uma-jp-umapyoi": (url, signal, tz) => ns_umapyoi_gachaUmapyoi(url, signal, tz),
-
-			"bandori-bestdori-gacha": (url, signal, tz) => ns_bestdori_gachaBestdori(url, signal, tz),
-
-			"kedr-kaxi": (url, signal, tz) => ns_bwiki_gachaKedr(url, signal, tz),
-
-			"uma-cn-bwiki": (url, signal, tz) => ns_bwiki_gachaUmaCn(url, signal, tz),
-
-			"ournotes-global-gacha": (url, signal, tz) => ns_ournotes_global_gachaOurNotesGlobal(url, signal, tz),
-
-		});
-
-		EVENT_FETCHERS["uma-jp"] = EVENT_FETCHERS["uma-jp"] || {};
-
-		Object.assign(EVENT_FETCHERS["uma-jp"], {
-
-			"uma-jp-bwiki": { default: (url, signal, tz) => ns_bwiki_eventsUmaJp(url, signal, tz) },
-
-		});
-
-		EVENT_FETCHERS["bandori"] = EVENT_FETCHERS["bandori"] || {};
-
-		Object.assign(EVENT_FETCHERS["bandori"], {
-
-			"bandori-bestdori-event": { default: (url, signal, tz) => ns_bestdori_eventsBestdori(url, signal, tz) },
-
-		});
-
-		EVENT_FETCHERS["stellasora"] = EVENT_FETCHERS["stellasora"] || {};
-
-		Object.assign(EVENT_FETCHERS["stellasora"], {
-
-			"stellasora-bwiki": { default: (url, signal, tz) => ns_bwiki_eventsStellasora(url, signal, tz) },
-
-		});
-
-		EVENT_FETCHERS["ournotes-global"] = EVENT_FETCHERS["ournotes-global"] || {};
-
-		Object.assign(EVENT_FETCHERS["ournotes-global"], {
-
-			"ournotes-global-event": { default: (url, signal, tz) => ns_ournotes_global_eventsOurNotesGlobal(url, signal, tz) },
-
-		});
-
-		//#region 米游社公告（挂成**备选源**，不改默认主源）
-		// 用户 2026-10-02 明确要求：「米游社来源全部改名米游社公告，且降级备选，恢复原默认来源」。
-		// 所以这里**只加备选**：原神/星铁保持 Bwiki，绝区零保持官方公告（api-takumi-static）。
-		// 命中规则 `altSourceId = (alt) => alt.url` 与当前 url 字符串相等；下面是各游戏**专属 gids URL**，不会串。
-
-		{
-
-			const e = SOURCES.find((s) => s.id === "genshin");
-
-			if (!e) { console.warn("[next-sources] 找不到既有条目 genshin，米游社公告备选未挂上"); }
-
-			else {
-
-				const G = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=2&type=1&page_size=20";
-
-				const E = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=2&type=2&page_size=20";
-
-				GACHA_FETCHERS["genshin-miyoushe"] = (url, signal, tz) => ns_miyoushe_gachaMiyoushe(url, signal, tz);
-
-				Object.assign(EVENT_FETCHERS["genshin"], { "genshin-miyoushe": { default: (url, signal, tz) => ns_miyoushe_eventsMiyoushe(url, signal, tz) } });
-
-				// 按 fetcher 去重，避免重复执行时堆叠
-
-				const ga = (e.altSources || []).filter((a) => a.fetcher !== "genshin-miyoushe");
-
-				const ea = (e.eventAltSources || []).filter((a) => a.fetcher !== "genshin-miyoushe");
-
-				e.altSources = [...ga, { label: "米游社公告", url: G, fetcher: "genshin-miyoushe" }];
-
-				e.eventAltSources = [...ea, { label: "米游社公告", url: E, fetcher: "genshin-miyoushe" }];
-
-			}
-
-		}
-
-		{
-
-			const e = SOURCES.find((s) => s.id === "hsr");
-
-			if (!e) { console.warn("[next-sources] 找不到既有条目 hsr，米游社公告备选未挂上"); }
-
-			else {
-
-				const G = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=6&type=1&page_size=20";
-
-				const E = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=6&type=2&page_size=20";
-
-				GACHA_FETCHERS["hsr-miyoushe"] = (url, signal, tz) => ns_miyoushe_gachaMiyoushe(url, signal, tz);
-
-				Object.assign(EVENT_FETCHERS["hsr"], { "hsr-miyoushe": { default: (url, signal, tz) => ns_miyoushe_eventsMiyoushe(url, signal, tz) } });
-
-				// 按 fetcher 去重，避免重复执行时堆叠
-
-				const ga = (e.altSources || []).filter((a) => a.fetcher !== "hsr-miyoushe");
-
-				const ea = (e.eventAltSources || []).filter((a) => a.fetcher !== "hsr-miyoushe");
-
-				e.altSources = [...ga, { label: "米游社公告", url: G, fetcher: "hsr-miyoushe" }];
-
-				e.eventAltSources = [...ea, { label: "米游社公告", url: E, fetcher: "hsr-miyoushe" }];
-
-			}
-
-		}
-
-		{
-
-			const e = SOURCES.find((s) => s.id === "zzz");
-
-			if (!e) { console.warn("[next-sources] 找不到既有条目 zzz，米游社公告备选未挂上"); }
-
-			else {
-
-				const G = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=8&type=1&page_size=20";
-
-				const E = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=8&type=2&page_size=20";
-
-				GACHA_FETCHERS["zzz-miyoushe"] = (url, signal, tz) => ns_miyoushe_gachaMiyoushe(url, signal, tz);
-
-				Object.assign(EVENT_FETCHERS["zzz"], { "zzz-miyoushe": { default: (url, signal, tz) => ns_miyoushe_eventsMiyoushe(url, signal, tz) } });
-
-				// 按 fetcher 去重，避免重复执行时堆叠
-
-				const ga = (e.altSources || []).filter((a) => a.fetcher !== "zzz-miyoushe");
-
-				const ea = (e.eventAltSources || []).filter((a) => a.fetcher !== "zzz-miyoushe");
-
-				e.altSources = [...ga, { label: "米游社公告", url: G, fetcher: "zzz-miyoushe" }];
-
-				e.eventAltSources = [...ea, { label: "米游社公告", url: E, fetcher: "zzz-miyoushe" }];
-
-			}
-
-		}
-
-		// 崩坏3：插件本体此前无来源 → 新建条目且**默认未配置**（用户要求）。
-
-		// 未配置的语义（50-refresh.js）：`if (!source.url && !source.eventUrl) return { ok:true, reason:"skipped" }`
-
-		// → 不抓取、不计成功也不计失败；UI 显示「未配置（不抓取卡池/活动）」。设置页选「米游社公告」即可启用。
-
-		if (!SOURCES.some((s) => s.id === "bh3")) {
-
-			const G = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=1&type=1&page_size=20";
-
-			const E = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=1&type=2&page_size=20";
-
-			GACHA_FETCHERS["bh3-miyoushe"] = (url, signal, tz) => ns_miyoushe_gachaMiyoushe(url, signal, tz);
-
-			EVENT_FETCHERS["bh3"] = { default: null, "bh3-miyoushe": { default: (url, signal, tz) => ns_miyoushe_eventsMiyoushe(url, signal, tz) } };
-
-			// ⚠️ 幂等（2026-10-03 为「43 并入 40 进 core」而补）：
-			//    这一段在 core 产物里位于 `createEngine` **内部**，每次新建引擎都会重跑；
-			//    而 `SOURCES` 是**模块级**共享的 → 直接 push 会让 bh3 越堆越多
-			//    （`_core_engine_test.mjs` 就建了两个引擎，会立刻暴露）。
-			//    本文件其余写操作本来就是幂等的：上面 `NS_SOURCES` 是"按 id 找到就覆盖"、
-			//    备选源挂接是"按 fetcher 去重"，只有这处 push 不是。
-			if (!SOURCES.some((s) => s.id === "bh3")) SOURCES.push({
-
-				id: "bh3",
-
-				tz: "Asia/Shanghai",
-
-				name: "崩坏3",
-
-				icon: "https://storage.moegirl.org.cn/moegirl/commons/f/f4/BH3_icon.png!/fw/64",
-
-				// 出厂默认不勾选展示（用户要求）：默认未配置时面板恒空，不该占版面
-
-				defaultHidden: true,
-
-				// 默认**未配置**：不给 url / eventUrl
-
-				source: "",
-
-				eventSource: "",
-
-				altSources: [{ label: "米游社公告", url: G, fetcher: "bh3-miyoushe" }],
-
-				eventAltSources: [{ label: "米游社公告", url: E, fetcher: "bh3-miyoushe" }]
-
-			});
-
-		}
-
-		//#endregion
-
-		//#endregion
-
-// src/client/35-parsers-p5x.js
-//
-// 由 next-sources/parsers/p5x.js 压平而来（2026-10-03「不留 next-source」）。
-// 模块级标识符仍带 ns_p5x__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
-// 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
-
-// src/client/35-parsers-p5x.js —— P5X 国服（完美世界官方站）
-//
-// ⚠️ 调研结论（2026-10-02 / 2026-10-03 实测）
-//   官方站的**卡池/活动专栏已停更两年**：
-//     · /news/gamebroad/（游戏公告）最后一条 2024-10-10
-//     · /news/gameevent/（游戏活动）最后一条 2024-09-27
-//     · /news/gamenews/（游戏新闻 = 版本更新公告）**仍在更新**（实测最新 2026-09-24「5.4.1版本今日上线」）
-//   所以只能从**版本更新公告正文**里抽卡池/活动。这没问题 —— 官方正文是**分区块**的，
-//   每个区块自带标题与 `活动时间：`，形如：
-//
-//     <p>契约更新</p>
-//     <p>缘结之契开启</p>
-//     <p>活动时间：2026年9月24日—2026年10月22日</p>
-//     <p>指定自选契约「缘结之契」再次开启！</p>
-//
-// ── 2026-10-03 修的真实 bug ──
-//   旧实现把**公告标题**（`逐月者之梦《女神异闻录：夜幕魅影》5.4.1版本今日上线`）
-//   当成"卡池名"，并在**全文**里抓第一个覆盖当前的 `A日—B日`。后果：
-//   · 面板卡池列显示的是**版本更新公告标题**，像"5.4.1版本今日上线"这种，用户看不出卡池是什么；
-//   · 抓到的档期是**版本周期**（如 09-24 ~ 10-22），而不是卡池周期。
-//   实测反例（证明两者确实不同）：5.3.1 版本周期 8/13–9/3，而官方在同篇正文里给
-//   「统统创飞」「怪盗幻像的试炼」写的是 **8/24–9/3**。
-//   修法：**先切区块**，卡池只认「契约更新」块、活动只认「活动更新」块，各自用**自己那行的**档期。
-//
-// 契约：async (url, signal, tz) → { banner, roles?, bannerDates, bannerDatesRaw? } | { event, eventDates, ... }
-//
-// 时区：国服，源站**未见显式标注**（原文只有「2026年9月24日—10月22日」），按 UTC+8 推定。
-// 数据形态：日期是**纯日期无时分** → 起止按惯例补 04:00 / 03:59（推算，非源站给定值）。
-
-
-const ns_p5x_BASE = "https://p5x.wanmei.com";
-
-// 列表页 → 条目数组 [{ href, title, dateText }]
-function ns_p5x_parseP5xList(html) {
-	const items = [];
-	// 站点形态：<a href="/news/gamenews/20260924/264338.html"> … <p class="item_title">标题</p> … <p class="date_time">2026.09.24</p>
-	const re = /<a[^>]+href="(\/news\/[a-z]+\/(\d{8})\/(\d+)\.s?html)"[^>]*>([\s\S]{0,1200}?)<\/a>/g;
-	for (const m of String(html).matchAll(re)) {
-		const block = m[4];
-		const tm = block.match(/class="item_title"[^>]*>([\s\S]*?)<\/\w+>/);
-		const dm = block.match(/class="date_time"[^>]*>([\s\S]*?)<\/\w+>/);
-		const title = tm ? stripTags(tm[1]) : "";
-		if (!title) continue;
-		items.push({ href: m[1], dateKey: m[2], id: m[3], title, dateText: dm ? stripTags(dm[1]) : "" });
-	}
-	// 兜底：站点偶有 class 顺序不同 → 退化为"按 href 切块"再就近找标题/日期
-	if (items.length === 0) {
-		const links = [...String(html).matchAll(/href="(\/news\/([a-z]+)\/(\d{8})\/(\d+)\.s?html)"/g)];
-		for (const m of links) {
-			const start = m.index;
-			const block = String(html).slice(start, start + 1400);
-			const tm = block.match(/class="item_title"[^>]*>([\s\S]*?)<\/\w+>/) || block.match(/<p[^>]*>([^<]{4,80})<\/p>/);
-			const title = tm ? stripTags(tm[1]) : "";
-			if (title) items.push({ href: m[1], dateKey: m[3], id: m[4], title, dateText: "" });
-		}
-	}
-	// 去重（同一 href 可能在"最新/推荐"两处出现）
-	const seen = new Set();
-	return items.filter((x) => (seen.has(x.href) ? false : (seen.add(x.href), true)));
-}
-
-// 详情页正文 → 纯文本（**按块级标签切行**，区块解析依赖这个行结构）
-// 导出供测试：夹具测试需要"HTML→行文本"这一步，跟抓取器用同一实现，避免测试自造。
-function ns_p5x_p5xBodyText(html) {
-	return decodeEntities(
-		String(html)
-			.replace(/<script[\s\S]*?<\/script>/gi, " ")
-			.replace(/<style[\s\S]*?<\/style>/gi, " ")
-			.replace(/<br\s*\/?>/gi, "\n")
-			.replace(/<\/p>/gi, "\n")
-			.replace(/<[^>]+>/g, " ")
-	).replace(/[ \t\u00a0]+/g, " ");
-}
-
-// 从**单行文本**抽「YYYY年M月D日 — YYYY年M月D日」档期
-// 形态（实测）：`2026年9月24日—10月22日更新前`、`2026年10月5日—2026年10月22日更新前`
-function ns_p5x_parseP5xWindows(text, tz) {
-	const out = [];
-	const re = /(20\d{2})年(\d{1,2})月(\d{1,2})日\s*[—\-~～至]\s*(?:(20\d{2})年)?(\d{1,2})月(\d{1,2})日/g;
-	for (const m of String(text).matchAll(re)) {
-		const y1 = +m[1], mo1 = +m[2], d1 = +m[3];
-		const y2 = m[4] ? +m[4] : (endsNextYear(mo1, null, +m[5], null) ? y1 + 1 : y1);   // 跨年：结束月小于开始月
-		const mo2 = +m[5], d2 = +m[6];
-		// 时刻：公告只给日期 → 按国服惯例补 04:00 开 / 03:59 收（推算，见文件头）
-		const startTs = sourceInstant(y1, mo1, d1, 4, 0, tz);
-		const endTs = sourceInstant(y2, mo2, d2, 3, 59, tz);
-		if (endTs <= startTs) continue;
-		out.push({ startTs, endTs, raw: `${y1}年${mo1}月${d1}日 ~ ${y2}年${mo2}月${d2}日` });
-	}
-	return out;
-}
-
-// ── 区块解析 ──
-// 类别行形态（实测）：`活动更新`、`契约更新`、`玩法更新`、`功能拓展`、`启示卡更新`、
-//   `版本更新`、以及**类别与标题同行**的 `活动更新-2.5周年时光庆典`、`活动BOSS更新-追欲的魔术师`。
-// 注意：不能只按"含更新"就认 —— 正文里还有 `版本更新后，将新增2种启示卡…` 这类叙述句。
-// 这里要求整行**以「类别+更新/拓展」结尾**，或后面只跟一个短分隔符+标题（≤40 字），
-// 从而把叙述句排除掉。
-const ns_p5x_P5X_CAT_RE = /^([\u4e00-\u9fffA-Za-z]{2,10}(?:更新|拓展))(?:\s*[-－—－:：]\s*(.{1,40}))?$/;
-// `活动时间：…` 及其近义写法
-const ns_p5x_P5X_TIME_RE = /^(?:活动|开放|售卖|举办|开启|持续)时间\s*[:：]\s*(.+)$/;
-
-/**
- * 把公告正文切成区块。返回 [{ category, name, title, windowRaw, lines }]
- *   · category —— 类别行（如 `契约更新` / `活动更新`）
- *   · name     —— 与类别同行的标题（`活动更新-2.5周年时光庆典` 时为 `2.5周年时光庆典`）
- *   · title    —— 该区块的展示名：优先同行标题，否则取类别行后的第一条非时间行
- *   · windowRaw—— 该区块里**第一行** `活动时间：…` 的原文
- */
-function ns_p5x_parseP5xBlocks(text) {
-	const lines = String(text).split("\n").map((s) => s.trim()).filter(Boolean);
-	const blocks = [];
-	let cur = null;
-	for (const line of lines) {
-		const cm = line.match(ns_p5x_P5X_CAT_RE);
-		if (cm) {
-			if (cur) blocks.push(cur);
-			cur = { category: cm[1], name: (cm[2] || "").trim(), title: (cm[2] || "").trim(), windowRaw: "", lines: [] };
-			continue;
-		}
-		if (!cur) continue;                    // 类别行之前的内容（导语）忽略
-		const tm = line.match(ns_p5x_P5X_TIME_RE);
-		if (tm) {
-			if (!cur.windowRaw) cur.windowRaw = tm[1].trim();
-			continue;
-		}
-		if (!cur.title) cur.title = line;       // 类别行后紧跟的第一条非时间行 = 标题
-		cur.lines.push(line);
-	}
-	if (cur) blocks.push(cur);
-	return blocks;
-}
-
-// 供测试：直接对一段正文本跑区块解析
-// 归一化标题：去掉站点尾巴「-P5X-《女神异闻录：夜幕魅影》手游官网」
-// 取列表里最新的 N 条公告并解析出区块。
-// ⚠️ **逐条容错**：只有"最新一条都抓不到"才算真失败（抛出）；
-//    次新那条只是"多看一条"的兜底（上一轮公告通常已过期），它抓不到（404/超时）不该拖垮整个条目
-//    —— 实测踩过：夹具只映射了最新一条，多抓的第 2 条 404 直接把整条报成"抓取失败"。
-async function ns_p5x_fetchP5xAnnouncements(url, signal, count = 2) {
-	const listUrl = url || `${ns_p5x_BASE}/news/gamenews/index.html`;
-	const list = ns_p5x_parseP5xList(await fetchText(listUrl, { referer: ns_p5x_BASE, signal }));
-	if (list.length === 0) throw new Error("p5x-list-empty");
-	const sorted = list.slice().sort((a, b) => (a.dateKey < b.dateKey ? 1 : -1)).slice(0, Math.max(1, count));
-	const out = [];
-	for (let i = 0; i < sorted.length; i++) {
-		const item = sorted[i];
-		const detailUrl = item.href.startsWith("http") ? item.href : ns_p5x_BASE + item.href;
-		try {
-			const text = ns_p5x_p5xBodyText(await fetchText(detailUrl, { referer: ns_p5x_BASE, signal }));
-			out.push({ item, text, blocks: ns_p5x_parseP5xBlocks(text) });
-		} catch (err) {
-			if (err && err.name === "AbortError") throw err;   // 中止信号必须透传
-			if (i === 0) throw err;                            // 最新一条失败 = 真失败
-			// 次新一条失败 → 忽略（已有一条可用）
-		}
-	}
-	return out;
-}
-
-// 在候选区块里挑"覆盖当前时刻"的那个；都没有就返回 null（= 未公布）
-function ns_p5x_pickCurrentBlock(cands, tz, now) {
-	const withWin = [];
-	for (const b of cands) {
-		const wins = ns_p5x_parseP5xWindows(b.windowRaw, tz);
-		if (wins.length === 0) continue;
-		withWin.push({ block: b, win: wins[0] });
-	}
-	return withWin.find((x) => coversNow(x.win, now)) || null;
-}
-
-// 正文导语里的「…「X」获取概率限时UP！」—— 本期限定 UP 池名（官方只给名字，常不给档期）
-function ns_p5x_p5xUpNames(text) {
-	const out = [];
-	for (const m of String(text).matchAll(/[「【]([^」】]{2,30})[」】]\s*获取概率限时UP/g)) {
-		const n = m[1].trim();
-		if (n && !out.includes(n)) out.push(n);
-	}
-	return out;
-}
-
-// ── 卡池侧 ──
-// 只认「契约更新」块（官方唯一明确写卡池档期的地方）。
-// 抽不到覆盖当前的契约档期 → null（未公布）。**绝不**退化成"拿版本公告标题当卡池名"。
-async function ns_p5x_gachaP5x(url, signal, tz = "Asia/Shanghai") {
-	const anns = await ns_p5x_fetchP5xAnnouncements(url, signal, 2);
-	const now = nowMs();
-	for (const { text, blocks } of anns) {
-		const poolBlocks = blocks.filter((b) => /契约/.test(b.category) || /契约/.test(b.title));
-		const hit = ns_p5x_pickCurrentBlock(poolBlocks, tz, now);
-		if (!hit) continue;
-		const up = ns_p5x_p5xUpNames(text);
-		// ⚠️ 2026-10-03 改（方案 A 收敛）：这里原本**手搓**三行悬停 `池名` ⏎ `档期` ⏎ `本期限定UP：角色`
-		//    —— 档期夹在名称与角色中间，与本体「池名：角色 ⏎ 档期」的顺序不一致。
-		//    现在按通用规则表达：把 UP 角色放进 **`roles`** 字段。
-		//    效果（与本体同构）：外显 = 角色名（本体对"有角色名的卡池"就是这么外显的），
-		//    UI 默认两行式 = `缘结之契开启：汐见琴音` ⏎ `09-24 04:00 ~ 10-22 03:59`。
-		//    只有 1 个当期池 → 不设 bannerHover（hoverPool 的契约就是 <2 条交回 UI）。
-		return {
-			banner: hit.block.title,
-			roles: up.join("、"),
-			bannerDates: fmtWindow(hit.win.startTs, hit.win.endTs, tz),
-			bannerDatesRaw: hit.block.windowRaw,
-			startTs: hit.win.startTs,
-			endTs: hit.win.endTs
-		};
-	}
-	return null;
-}
-
-// ── 活动侧 ──
-// 只认「活动」类区块（`活动更新` / `活动BOSS更新`）。外显取**最早结束**的当期活动（最紧迫），
-// 悬停按结束时间升序逐行列出全部当期活动。
-async function ns_p5x_eventsP5x(url, signal, tz = "Asia/Shanghai") {
-	const anns = await ns_p5x_fetchP5xAnnouncements(url, signal, 2);
-	const now = nowMs();
-	for (const { blocks } of anns) {
-		const evBlocks = blocks.filter((b) => /活动/.test(b.category));
-		const active = [];
-		for (const b of evBlocks) {
-			const wins = ns_p5x_parseP5xWindows(b.windowRaw, tz);
-			if (wins.length === 0) continue;
-			const w = wins[0];
-			if (coversNow(w, now) && b.title) active.push({ block: b, win: w });
-		}
-		if (active.length === 0) continue;
-		// 稳定排序：先按结束时间升序（越紧迫越前），同结束时间保持原文顺序
-		active.sort((a, b) => a.win.endTs - b.win.endTs);
-		const primary = active[0];
-		// ⚠️ 2026-10-03 改：原本手搓 `名称  + 档期`（**2 个空格**），本体一律 **3 个空格** → 改用共用 hoverEvent。
-		const hover = hoverEvent(active.map((x) => ({ name: x.block.title, startTs: x.win.startTs, endTs: x.win.endTs })), tz);
-		return {
-			event: primary.block.title,
-			eventDates: fmtWindow(primary.win.startTs, primary.win.endTs, tz),
-			eventDatesRaw: primary.block.windowRaw,
-			...(hover ? { eventHover: hover } : {})
-		};
-	}
-	return null;
-}
-
-// 供测试：从本地 HTML 直接跑解析（不联网）
-
+		// ══ 以下为原 42-parsers-bandori.js 的内容（原样保留）══
 // src/client/42-parsers-bandori.js —— BanG Dream 全系（国服手游 / OurNotes 日服 / OurNotes 国际服 / Bestdori 备选源）
 //
 // ⚠️ 2026-10-03 按**游戏厂商 / 来源平台**合并（用户要求）：原先一款游戏一个文件（17 个），
@@ -6249,6 +5880,74 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 	return ns_bestdori_parseBestdoriEvents(data, now, tz);
 }
 
+		// ── 条目 ──
+		registerSource({
+				id: "bandori",
+				tz: "Asia/Shanghai",
+				name: "BanG Dream！少女乐团派对·国服",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/cb/ae/11/cbae1132-58ee-8b5c-3016-dfd2f5e91e51/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
+				url: "https://api.biligame.com/news/list?gameExtensionId=138&positionId=2&typeId=1&pageNum=1&pageSize=20",
+				source: "官方公告",
+				eventUrl: "https://api.biligame.com/news/list?gameExtensionId=138&positionId=2&typeId=1&pageNum=1&pageSize=20",
+				eventSource: "官方公告",
+				altSources: [{"label":"Bestdori 扭蛋（社区数据库）","url":"https://bestdori.com/api/gacha/all.5.json","fetcher":"bandori-bestdori-gacha"}],
+				eventAltSources: [{"label":"Bestdori 活动（社区数据库）","url":"https://bestdori.com/api/events/all.5.json","fetcher":"bandori-bestdori-event"}],
+		});
+
+		registerSource({
+				id: "ournotes",
+				tz: "Asia/Tokyo",
+				name: "BanG Dream！OurNotes·日服",
+				icon: "https://bang-dream-on.bushimo.jp/wordpress/wp-content/themes/bang-dream-on_prod/assets/images/common/apple-touch-icon-180x180.png",
+				defaultHidden: true,
+				eventUrl: "https://bang-dream-on.bushimo.jp/wp-json/wp/v2/posts?per_page=20&page=1",
+				// 日文站点 → 加语言括号（本体惯例，见 ba-jp 的 `官方公告（日文）`）
+				eventSource: "官方公告（日文）",
+		});
+
+		registerSource({
+				id: "ournotes-global",
+				tz: "Asia/Shanghai",
+				name: "BanG Dream！OurNotes·国际服",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/ca/da/3a/cada3a9a-491a-fbe5-5494-9be7390e3a9b/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
+				defaultHidden: true,
+				altSources: [{"label":"官方公告（BHK）","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw","fetcher":"ournotes-global-gacha"}],
+				eventAltSources: [{"label":"官方公告（BHK）","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw","fetcher":"ournotes-global-event"}],
+		});
+
+		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
+		GACHA_FETCHERS["bandori"] = (url, signal, tz) => ns_bandori_gachaBandori(url, signal, tz);
+		EVENT_FETCHERS["bandori"] = Object.assign(EVENT_FETCHERS["bandori"] || {}, { default: (url, signal, tz) => ns_bandori_eventsBandori(url, signal, tz) });
+		EVENT_FETCHERS["ournotes"] = Object.assign(EVENT_FETCHERS["ournotes"] || {}, { default: (url, signal, tz) => ns_ournotes_eventsOurNotes(url, signal, tz) });
+		GACHA_FETCHERS["bandori-bestdori-gacha"] = (url, signal, tz) => ns_bestdori_gachaBestdori(url, signal, tz);
+		GACHA_FETCHERS["ournotes-global-gacha"] = (url, signal, tz) => ns_ournotes_global_gachaOurNotesGlobal(url, signal, tz);
+
+		EVENT_FETCHERS["bandori"] = EVENT_FETCHERS["bandori"] || {};
+
+		Object.assign(EVENT_FETCHERS["bandori"], {
+
+			"bandori-bestdori-event": { default: (url, signal, tz) => ns_bestdori_eventsBestdori(url, signal, tz) },
+
+		});
+		EVENT_FETCHERS["ournotes-global"] = EVENT_FETCHERS["ournotes-global"] || {};
+
+		Object.assign(EVENT_FETCHERS["ournotes-global"], {
+
+			"ournotes-global-event": { default: (url, signal, tz) => ns_ournotes_global_eventsOurNotesGlobal(url, signal, tz) },
+
+		});
+
+// src/client/30-game-bwiki.js —— bwiki 系（物华弥新 / 战双 / 卡厄斯 / 雪松）
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+
+		// ══ 以下为原 42-parsers-bwiki.js 的内容（原样保留）══
 // src/client/42-parsers-bwiki.js —— bwiki wiki 页系（物华弥新 / 战双 / 卡厄斯 / 雪松 + 4 个备选源）
 //
 // ⚠️ 2026-10-03 按**游戏厂商 / 来源平台**合并（用户要求）：原先一款游戏一个文件（17 个），
@@ -7649,6 +7348,72 @@ async function ns_kedr_wiki_gachaKedrWiki(url, signal, tz = ns_kedr_wiki_KEDR_TZ
 }
 //#endregion
 
+		// ── 条目 ──
+		registerSource({
+				id: "wuhuamixin",
+				tz: "Asia/Shanghai",
+				name: "物华弥新",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/13/7f/87/137f873a-f458-678d-347e-068830a74a69/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
+				url: "https://wiki.biligame.com/whmx/api.php?action=parse&page=限时招集档案&prop=text&format=json&formatversion=2",
+				source: "Bwiki",
+				eventUrl: "https://api.biligame.com/news/list?gameExtensionId=613&positionId=2&typeId=4&pageNum=1&pageSize=50",
+				eventSource: "官方公告",
+		});
+
+		registerSource({
+				id: "zspms",
+				tz: "Asia/Shanghai",
+				name: "战双帕弥什",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/b2/99/ed/b299ed39-90ea-03df-c7ee-bd09548991e5/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/200x200bb.jpg",
+				url: "https://wiki.biligame.com/zspms/api.php?action=ask&query=%5B%5B%E5%88%86%E7%B1%BB%3A%E6%B8%B8%E6%88%8F%E6%9B%B4%E6%96%B0%E5%85%AC%E5%91%8A%5D%5D%5B%5B%E7%B1%BB%E5%88%AB%3A%3A%E7%89%88%E6%9C%AC%5D%5D%7C%3F%E6%A0%87%E9%A2%98%7C%3F%E6%97%B6%E9%97%B4%7Csort%3D%E6%97%B6%E9%97%B4%7Corder%3Ddesc%7Climit%3D40&format=json",
+				source: "Bwiki",
+				eventUrl: "https://wiki.biligame.com/zspms/api.php?action=ask&query=%5B%5B%E5%88%86%E7%B1%BB%3A%E6%B8%B8%E6%88%8F%E6%9B%B4%E6%96%B0%E5%85%AC%E5%91%8A%5D%5D%5B%5B%E7%B1%BB%E5%88%AB%3A%3A%E7%89%88%E6%9C%AC%5D%5D%7C%3F%E6%A0%87%E9%A2%98%7C%3F%E6%97%B6%E9%97%B4%7Csort%3D%E6%97%B6%E9%97%B4%7Corder%3Ddesc%7Climit%3D40&format=json",
+				eventSource: "Bwiki",
+		});
+
+		registerSource({
+				id: "czn",
+				tz: "Asia/Shanghai",
+				name: "卡厄斯梦境",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/e2/c9/48/e2c94812-11cd-2a52-445a-d67d6ae9e169/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/200x200bb.jpg",
+				defaultHidden: true,
+				url: "https://wiki.biligame.com/czn/api.php?action=parse&page=Module%3AGacha%2Fdata&prop=wikitext&format=json",
+				source: "Bwiki",
+		});
+
+		registerSource({
+				id: "kedr",
+				tz: "Asia/Shanghai",
+				name: "雪松",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/b5/8c/b6/b58cb6b2-4be3-0be0-852a-af761afaab06/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
+				url: "https://wiki.biligame.com/kedrgame/api.php?action=parse&page=Template%3A%E9%A6%96%E9%A1%B5%E6%B8%B8%E6%88%8F%E7%89%88%E6%9C%AC%E5%86%85%E5%AE%B9&prop=wikitext&format=json",
+				source: "Bwiki",
+				eventUrl: "https://wiki.biligame.com/kedrgame/api.php?action=parse&page=Template%3A%E9%A6%96%E9%A1%B5%E6%B8%B8%E6%88%8F%E7%89%88%E6%9C%AC%E5%86%85%E5%AE%B9&prop=wikitext&format=json",
+				eventSource: "Bwiki",
+				altSources: [{"label":"Bwiki 卡池信息（台架测试占位）","url":"https://wiki.biligame.com/kedrgame/api.php?action=parse&page=卡池信息&prop=text&format=json&formatversion=2","fetcher":"kedr-kaxi"}],
+		});
+
+		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
+		GACHA_FETCHERS["wuhuamixin"] = (url, signal, tz) => ns_bwiki_gachaWhmx(url, signal, tz);
+		GACHA_FETCHERS["zspms"] = (url, signal, tz) => ns_bwiki_wikitext_gachaZspms(url, signal, tz);
+		GACHA_FETCHERS["czn"] = (url, signal, tz) => ns_bwiki_wikitext_gachaCzn(url, signal, tz);
+		GACHA_FETCHERS["kedr"] = (url, signal, tz) => ns_bwiki_wikitext_gachaKedrTemplate(url, signal, tz);
+		EVENT_FETCHERS["wuhuamixin"] = Object.assign(EVENT_FETCHERS["wuhuamixin"] || {}, { default: (url, signal, tz) => ns_biligame_activity_eventsWhmxOfficial(url, signal, tz) });
+		EVENT_FETCHERS["zspms"] = Object.assign(EVENT_FETCHERS["zspms"] || {}, { default: (url, signal, tz) => ns_bwiki_wikitext_eventsZspms(url, signal, tz) });
+		EVENT_FETCHERS["kedr"] = Object.assign(EVENT_FETCHERS["kedr"] || {}, { default: (url, signal, tz) => ns_bwiki_wikitext_eventsKedrTemplate(url, signal, tz) });
+		GACHA_FETCHERS["kedr-kaxi"] = (url, signal, tz) => ns_bwiki_gachaKedr(url, signal, tz);
+
+// src/client/30-game-biligame.js —— biligame 官方公告系（嘟嘟脸恶作剧 / 闪耀优俊少女）
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+
+		// ══ 以下为原 42-parsers-biligame.js 的内容（原样保留）══
 // src/client/42-parsers-biligame.js —— biligame 官方公告系（物华弥新 / 闪耀优俊少女 / 嘟嘟脸恶作剧）
 //
 // ⚠️ 2026-10-03 按**游戏厂商 / 来源平台**合并（用户要求）：原先一款游戏一个文件（17 个），
@@ -8630,6 +8395,49 @@ async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_bil
 }
 //#endregion
 
+		// ── 条目 ──
+		registerSource({
+				id: "ddlezj",
+				tz: "+540",
+				name: "嘟嘟脸恶作剧",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/64/f0/21/64f02145-182e-857a-133c-8de0151425d9/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
+				defaultHidden: true,
+				url: "https://api.biligame.com/news/list?gameExtensionId=1282&positionId=2&typeId=1&pageNum=1&pageSize=50",
+				source: "官方公告",
+				eventUrl: "https://api.biligame.com/news/list?gameExtensionId=1282&positionId=2&typeId=1&pageNum=1&pageSize=50",
+				eventSource: "官方公告",
+		});
+
+		registerSource({
+				id: "uma-cn",
+				tz: "Asia/Shanghai",
+				name: "闪耀！优俊少女",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/ca/23/bc/ca23bc1f-5dff-c21a-1881-66c48d02f5b2/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
+				url: "https://api.biligame.com/news/list?gameExtensionId=1006&positionId=2&typeId=1&pageNum=1&pageSize=50",
+				source: "官方公告",
+				eventUrl: "https://api.biligame.com/news/list?gameExtensionId=1006&positionId=2&typeId=1&pageNum=1&pageSize=50",
+				eventSource: "官方公告",
+				altSources: [{"label":"Bwiki 简中卡池（社区推算，非官方）","url":"https://wiki.biligame.com/umamusume/api.php?action=parse&page=简中卡池&prop=text&format=json&formatversion=2","fetcher":"uma-cn-bwiki"}],
+		});
+
+		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
+		GACHA_FETCHERS["uma-cn"] = (url, signal, tz) => ns_biligame_activity_gachaUmaCnOfficial(url, signal, tz);
+		GACHA_FETCHERS["ddlezj"] = (url, signal, tz) => ns_biligame_announce_gachaDdlezj(url, signal, tz);
+		EVENT_FETCHERS["uma-cn"] = Object.assign(EVENT_FETCHERS["uma-cn"] || {}, { default: (url, signal, tz) => ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz) });
+		EVENT_FETCHERS["ddlezj"] = Object.assign(EVENT_FETCHERS["ddlezj"] || {}, { default: (url, signal, tz) => ns_biligame_announce_eventsDdlezj(url, signal, tz) });
+		GACHA_FETCHERS["uma-cn-bwiki"] = (url, signal, tz) => ns_bwiki_gachaUmaCn(url, signal, tz);
+
+// src/client/30-game-cygames.js —— Cygames（赛马娘 日服 / 国际服）
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+
+		// ══ 以下为原 42-parsers-cygames.js 的内容（原样保留）══
 // src/client/42-parsers-cygames.js —— Cygames 系（赛马娘 日服 / 国际服）
 //
 // ⚠️ 2026-10-03 按**游戏厂商 / 来源平台**合并（用户要求）：原先一款游戏一个文件（17 个），
@@ -9397,155 +9205,559 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 	return ns_umapyoi_parseUmapyoiGacha(data, now, tz);
 }
 
-// src/client/35-parsers-sekai.js
+		// ── 条目 ──
+		registerSource({
+				id: "uma-jp",
+				tz: "Asia/Tokyo",
+				name: "赛马娘·日服",
+				icon: "https://umamusume.jp/apple-touch-icon.png",
+				url: "https://umamusume.jp/api/ajax/pr_info_index?format=json&page=1",
+				// 日文站点 → 加语言括号（本体惯例，见 ba-jp 的 `官方公告（日文）`）
+				source: "官方公告（日文）",
+				eventUrl: "https://umamusume.jp/api/ajax/pr_info_index?format=json&page=1",
+				eventSource: "官方公告（日文）",
+				altSources: [{"label":"umapyoi（第三方，无卡池名）","url":"https://api.umapyoi.net/api/v1/gacha","fetcher":"uma-jp-umapyoi"}],
+				eventAltSources: [{"label":"Bwiki 活动（往期归档）","url":"https://wiki.biligame.com/umamusume/api.php?action=parse&page=活动&prop=text&format=json&formatversion=2","fetcher":"uma-jp-bwiki"}],
+		});
+
+		registerSource({
+				id: "uma-global",
+				tz: "UTC",
+				name: "赛马娘·国际服",
+				icon: "https://play-lh.googleusercontent.com/yN6cCSP7UB_2bsvlCxrtv-FUpEt1IvEFwr0Ucb3wr39QsAd5PLsueSVXuCinDbE4rifhMlX4YNtpLpkGnpsLhCQ=s64-rw",
+				url: "https://umamusume.com/api/ajax/pr_info_index?format=json",
+				// 英文站点 → 加语言括号（本体惯例，见 ba-jp 的 `官方公告（日文）`）
+				source: "官方公告（英文）",
+				eventUrl: "https://umamusume.com/api/ajax/pr_info_index?format=json",
+				eventSource: "官方公告（英文）",
+		});
+
+		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
+		GACHA_FETCHERS["uma-jp"] = (url, signal, tz) => ns_umamusume_official_gachaUmaJpOfficial(url, signal, tz);
+		GACHA_FETCHERS["uma-global"] = (url, signal, tz) => ns_umamusume_official_gachaUmaGlobal(url, signal, tz);
+		EVENT_FETCHERS["uma-jp"] = Object.assign(EVENT_FETCHERS["uma-jp"] || {}, { default: (url, signal, tz) => ns_umamusume_official_eventsUmaJpOfficial(url, signal, tz) });
+		EVENT_FETCHERS["uma-global"] = Object.assign(EVENT_FETCHERS["uma-global"] || {}, { default: (url, signal, tz) => ns_umamusume_official_eventsUmaGlobal(url, signal, tz) });
+		GACHA_FETCHERS["uma-jp-umapyoi"] = (url, signal, tz) => ns_umapyoi_gachaUmapyoi(url, signal, tz);
+		EVENT_FETCHERS["uma-jp"] = EVENT_FETCHERS["uma-jp"] || {};
+
+		Object.assign(EVENT_FETCHERS["uma-jp"], {
+
+			"uma-jp-bwiki": { default: (url, signal, tz) => ns_bwiki_eventsUmaJp(url, signal, tz) },
+
+		});
+
+// src/client/30-game-perfectworld.js —— 完美世界（女神异闻录：夜幕魅影 / 异环）
 //
-// 由 next-sources/parsers/sekai.js 压平而来（2026-10-03「不留 next-source」）。
-// 模块级标识符仍带 ns_sekai__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+
+		// ── 解析器 / 抓取器 ──
+
+		// 异环（ldshop 繁体）：解析「項目/資訊」卡池表（含 期間/角色/棋盤 行），返回全部卡池
+		// 表格行结构：<td><p>期間</p></td><td><p>8月19日－9月9日</p></td>
+		function parseLdshopPools(html) {
+			const out = [];
+			const tables = [...html.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/gi)];
+			for (const tb of tables) {
+				const body = tb[1];
+				if (!/期間/.test(body.replace(/<[^>]+>/g, "|"))) continue;
+				let info = {};
+				for (const rm of body.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)) {
+					const tds = [...rm[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((m) => stripTags(m[1]).trim());
+					if (tds.length >= 2 && tds[0] && tds[0] !== "項目") info[tds[0]] = tds[1];
+				}
+				if (!info["期間"]) continue;
+				const range = parseLdshopRange(info["期間"]);
+				if (!range) continue;
+				const chars = [info["全新S級角色"], info["復刻S級角色"]].filter(Boolean).join("/");
+				out.push({
+					banner: info["角色棋盤"] || "异环卡池",
+					roles: chars,
+					...range,
+					isMain: true
+				});
+			}
+			return out;
+		}
+
+
+		// 异环（ldshop 经 host 代理）：抓页面 → 解析卡池表 → 选当期
+		async function fetchLdshopNte(pageUrl, _signal, tz) {
+			const html = await proxyFetchText(pageUrl, "https://www.ldshop.gg/");
+			const pools = parseLdshopPools(html);
+			if (pools.length === 0) return null;
+			return selectCurrent(pools, nowMs());
+		}
+
+
+		// 异环（官网 yh.wanmei.com 公告，经 host 代理）：抓游戏公告列表 → 取最新维护/更新公告 → 解析当期限定棋盘卡池与限时活动
+		// 官网公告列表条目：<a href="/news/gamebroad/YYYYMMDD/N.html">…<h2 class="title">标题</h2>
+		const NTE_ITEM_RE = /<a href="(\/news\/gamebroad\/\d+\/\d+\.html)"[\s\S]*?<h2 class="title">([^<]+)<\/h2>/g;
+
+		// 带新卡池的公告标题：停服维护/版本更新；"1.3版本「…」更新公告"这类版本名夹在中间，所以"更新公告"也要算
+		const NTE_MAINT_RE = /停服维护|停服更新|维护公告|版本更新|更新公告/;
+
+		// 逐页向下的上限：维护公告会随新公告发布被挤到第 2、3 页，只看第 1 页会把"进行中的卡池"误判成未公布
+		const NTE_MAX_LIST_PAGES = 3;
+
+		// 每次最多试几篇公告正文（按从新到旧），避免某篇规则失效时白抓一堆
+		const NTE_MAX_DETAILS = 3;
+
+
+		// 取分页控件里的后续页地址（相对当前页）：<ul class="pagination"> … <a href="index1.html">2</a>
+		function nteNextPageUrls(listUrl, html, seen) {
+			const pg = String(html || "").match(/<ul class="pagination">[\s\S]*?<\/ul>/);
+			if (!pg) return [];
+			const dir = listUrl.split("#")[0].split("?")[0].replace(/[^/]*$/, "");
+			const out = [];
+			for (const m of pg[0].matchAll(/href="(index\d+\.html)"/g)) {
+				const u = dir + m[1];
+				if (u !== listUrl && !seen.has(u) && !out.includes(u)) out.push(u);
+			}
+			return out;
+		}
+
+
+		// 逐页（index.html → index1.html → index2.html …）从新到旧找"带新卡池"的维护/版本更新公告，
+		// 取第一篇能解析出当期卡池/活动的正文；"不停服更新"不含新卡池，跳过。
+		// 三态：有当期内容 → 数据；列表页有公告但都不含当期内容（或"不停服更新"）→ null（未公布）；
+		//      列表页**一条公告链接都没有** → 抛错（官网列表改版，让面板显示"卡池失败"而不是"未公布"）。
+		async function fetchNteWanmei(listUrl, signal, tz) {
+			const ref = "https://yh.wanmei.com/";
+			const seen = new Set();
+			const queue = [listUrl];
+			let details = 0;
+			let sawAnyLink = false;
+			while (queue.length && seen.size < NTE_MAX_LIST_PAGES) {
+				const url = queue.shift();
+				if (seen.has(url)) continue;
+				seen.add(url);
+				const html = await proxyFetchText(url, ref);
+				if (/\/news\/gamebroad\/\d+\/\d+\.html/.test(html)) sawAnyLink = true;
+				// 列表条目本身从新到旧：边收集边试，命中当期内容立刻返回
+				for (const m of html.matchAll(NTE_ITEM_RE)) {
+					if (!NTE_MAINT_RE.test(m[2]) || /不停服/.test(m[2])) continue;
+					if (details >= NTE_MAX_DETAILS) return null;   // 试读额度用完（此时必然已见到公告链接）
+					details++;
+					const data = parseNteWanmei(await proxyFetchText("https://yh.wanmei.com" + m[1], ref), tz);
+					if (data) return data;
+				}
+				for (const u of nteNextPageUrls(listUrl, html, seen)) if (!queue.includes(u)) queue.push(u);
+			}
+			if (!sawAnyLink) throw new Error("nte-list-shape-changed");
+			return null;
+		}
+
+
+		// 异环公告里的「棋盘」条目解析（角色卡池）。
+		//
+		// 为什么从**「棋盘」**入手（用户建议，2026-09-30）：
+		//   异环的角色卡池在公告里叫「X」**限定棋盘**，条目形如
+		//     ● 全新限定S级角色「黑羽」
+		//     开放时间：9月24日版本更新后-10月15日05:59
+		//     棋盘说明：可通过「预言终幕时」限定棋盘获得S级角色「黑羽」。…
+		//   `棋盘说明` 是**角色卡池独有的锚点** —— 弧盘走 `研募说明`、剧情段没有这个字段。
+		//   用「有棋盘说明」筛，比用"全新限定S级角色"精确：后者漏掉**返场**（`限定S级角色「安魂曲」返场`，
+		//   没有"全新"二字），而那也是一张在开的角色池。
+		//
+		// 旧实现只认 `全新限定S级角色「X」…开放时间：N月N日**维护**更新后-…` 一条正则，
+		// 而现公告写的是 `**版本**更新后` → 一条都匹配不上 → 卡池为空 → `if (!data.banner) return null`
+		// → `fetchNteWanmei` 继续往下试，最终拿 index1 页那篇**已过期**的旧公告冒充当期。
+		function parseNteBoards(text, nowYear) {
+			const lines = text.split("\n").map((l) => l.trim());
+			// 「一、 全新角色&弧盘」这一段的边界（只在这里找，避免匹配到别处的"开放时间"）
+			const start = lines.findIndex((l) => /^一、/.test(l));
+			if (start < 0) return [];
+			let end = lines.findIndex((l, i) => i > start && /^二、/.test(l));
+			if (end < 0) end = lines.length;
+			const pools = [];
+			for (let i = start; i < end; i++) {
+				const m = lines[i].match(/^●\s*(?:全新)?(限定S级角色|S级角色)「([^」]+)」(返场)?/);
+				if (!m) continue;
+				// 往后找该条目的「开放时间」与「棋盘说明」（各限 8 行内）
+				let range = null, board = "";
+				for (let j = i + 1; j < Math.min(end, i + 8); j++) {
+					if (!range) {
+						const t = lines[j].match(/^开放时间：(\d+)月(\d+)日(?:(?:维护|版本)更新后|(\d{1,2}):(\d{2}))\s*[-–—]\s*(\d+)月(\d+)日(\d{1,2}):(\d{2})/);
+						if (t) {
+							range = {
+								sMo: +t[1], sD: +t[2], sH: t[3] ? +t[3] : 11, sMi: t[4] ? +t[4] : 0,
+								eMo: +t[5], eD: +t[6], eH: +t[7], eMi: +t[8]
+							};
+						}
+					}
+					if (!board) {
+						const b = lines[j].match(/棋盘说明：可通过「([^」]+)」限定棋盘获得/);
+						if (b) board = b[1];
+					}
+				}
+				// **有棋盘说明才是角色卡池**（弧盘那条走研募说明，会在这里被排除）
+				if (!range || !board) continue;
+				pools.push({
+					name: board,
+					// 类型：`全新限定S级角色` → 限定棋盘；`限定S级角色…返场` → 返场限定棋盘。
+					// 注意 `限定` 属于**类型的一部分**，不是动词/修饰（与国服"更新限时限定招募"同理）。
+					type: `${m[3] ? "返场" : ""}限定棋盘`,
+					roles: baRoleName(m[2]),
+					startTs: new Date(nowYear, range.sMo - 1, range.sD, range.sH, range.sMi).getTime(),
+					endTs: new Date(nowYear, range.eMo - 1, range.eD, range.eH, range.eMi).getTime()
+				});
+			}
+			return pools;
+		}
+
+
+		// 解析官网公告正文 → 当期卡池（有「棋盘说明」的角色卡池，按**统一规则**合并）+ 当期活动（限时活动）
+		function parseNteWanmei(html, tz) {
+			const text = String(html || "")
+				.replace(/<script[\s\S]*?<\/script>/gi, " ")
+				.replace(/<style[\s\S]*?<\/style>/gi, " ")
+				.replace(/<[^>]+>/g, "\n")
+				.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
+				.replace(/\n\s*\n+/g, "\n").trim();
+			const fmt = (mo, d, h, mi) => `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} ${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
+			const data = { banner: "", roles: "", bannerDates: "", bannerDatesRaw: "", event: "", eventDates: "", eventDatesRaw: "" };
+			// 当期卡池：**按统一规则**——当前时刻落在开放期间内的「棋盘」全部合并外显。
+			// 卡片/悬停都走 banner + roles（与其它游戏一致）：类型进 `banner`，
+			// 悬停由面板兜底显示 `类型：角色` + 日期。**不构造 bannerHover**（同国服，见 §48.3d）。
+			const now = nowMs();
+			const nowYear = new Date(now).getFullYear();
+			const active = parseNteBoards(text, nowYear)
+				.filter((p) => p.endTs >= now && p.startTs <= now)
+				.sort((a, b) => a.endTs - b.endTs);
+			if (active.length > 0) {
+				data.banner = [...new Set(active.map((p) => p.type))].join(" & ");
+				data.roles = [...new Set(active.map((p) => p.roles).filter(Boolean))].join("、");
+				// 窗口取结束最早的那个（与 selectCurrent 的 `first` 同口径）
+				const first = active[0];
+				data.bannerDates = `${fmt(new Date(first.startTs).getMonth() + 1, new Date(first.startTs).getDate(), new Date(first.startTs).getHours(), new Date(first.startTs).getMinutes())} ~ ${fmt(new Date(first.endTs).getMonth() + 1, new Date(first.endTs).getDate(), new Date(first.endTs).getHours(), new Date(first.endTs).getMinutes())}`;
+				data.bannerDatesRaw = data.bannerDates;
+			}
+			// 当期活动：「X」限时活动 活动时间：M月D日(维护|版本)更新后|hh:mm-M月D日hh:mm
+			const ev = text.match(/「([^」]+)」限时活动[\s\S]{0,200}?活动时间：(\d+)月(\d+)日(?:(?:维护|版本)更新后|(\d{1,2}):(\d{2}))\s*[-–—]\s*(\d+)月(\d+)日(\d{1,2}):(\d{2})/);
+			if (ev) {
+				const sMo = +ev[2], sD = +ev[3], sH = ev[4] ? +ev[4] : 11, sMi = ev[5] ? +ev[5] : 0;
+				const eMo = +ev[6], eD = +ev[7], eH = +ev[8], eMi = +ev[9];
+				data.event = ev[1];
+				data.eventDates = `${fmt(sMo, sD, sH, sMi)} ~ ${fmt(eMo, eD, eH, eMi)}`;
+				data.eventDatesRaw = data.eventDates;
+			}
+			if (!data.banner) return null;
+			return data;
+		}
+
+		// ══ 以下为原 42-parsers-p5x.js 的内容（原样保留）══
+// src/client/35-parsers-p5x.js
+//
+// 由 next-sources/parsers/p5x.js 压平而来（2026-10-03「不留 next-source」）。
+// 模块级标识符仍带 ns_p5x__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-sekai.js —— PJSK 缤纷舞台（sekai-master-db cn-diff，GitHub Pages 静态 JSON）
+// src/client/35-parsers-p5x.js —— P5X 国服（完美世界官方站）
 //
-// 契约：async (url, signal, tz) → 卡池侧 { banner, roles?, bannerDates, bannerDatesRaw?, startTs?, endTs?, bannerHover? }
-//                              活动侧 { event, eventDates, eventDatesRaw?, eventHover? }    （两侧都可为 null = 未公布）
+// ⚠️ 调研结论（2026-10-02 / 2026-10-03 实测）
+//   官方站的**卡池/活动专栏已停更两年**：
+//     · /news/gamebroad/（游戏公告）最后一条 2024-10-10
+//     · /news/gameevent/（游戏活动）最后一条 2024-09-27
+//     · /news/gamenews/（游戏新闻 = 版本更新公告）**仍在更新**（实测最新 2026-09-24「5.4.1版本今日上线」）
+//   所以只能从**版本更新公告正文**里抽卡池/活动。这没问题 —— 官方正文是**分区块**的，
+//   每个区块自带标题与 `活动时间：`，形如：
 //
-// ⚠️ 实测（2026-10-02 夹具 `b1-sekai-gachas` 59 条 / `b1-sekai-events` 198 条）与任务给的形态的差别：
-//   1. `gachas.json` 的 `gachaType` 是**字符串枚举**（beginner/normal/sureturn/subeginner/ceil/sunormal），
-//      不是数字；`events.json` 的 `eventType` 也是字符串（marathon/cheerful_carnival/world_bloom）。
-//   2. **`events.json` 里根本没有 `endAt` 字段**（这是任务给的字段形态里最需要纠正的一处）。
-//      实测字段：startAt / aggregateAt / rankingAnnounceAt / distributionStartAt / closedAt / distributionEndAt。
-//      本解析器把**活动游玩期**取为 `startAt ~ aggregateAt`（aggregateAt = 活动结束、开始统计的时刻），
-//      并在 `eventDatesRaw` 里如实注明这个映射；`closedAt` 是结果公布时刻，不作窗口结束。
-//   3. `gachas.json` 里有大量**长期池**：endAt 是 2099 哨兵（如 id 579「任务招募」2025-01-01 ~ 2099-12-30）。
-//      它们不参与"当期"选择（见下），只在 hover 里报个数。
+//     <p>契约更新</p>
+//     <p>缘结之契开启</p>
+//     <p>活动时间：2026年9月24日—2026年10月22日</p>
+//     <p>指定自选契约「缘结之契」再次开启！</p>
 //
-// 时区：UTC+8（`Asia/Shanghai`）。epoch 毫秒 = 绝对时刻，**不做时区换算**，`tz` 只用于渲染墙钟文本。
-//   依据（夹具自洽，把"推测"变成了可验证的三条）：
-//   ① 生日池 836「[桐谷遥]HAPPY BIRTHDAY 2026招募」startAt=1790784000000 → UTC+8 渲染正好是 2026-10-01 00:00
-//      （桐谷遥生日当天 00:00；UTC+9 会渲染成 01:00，不成立）；
-//   ② 月卡池 802「缤纷月卡招募」startAt=1788145200000 → UTC+8 是 2026-09-01 04:00（每月 1 日 04:00 换月卡）；
-//   ③ 常规卡池轮换时刻 825/826… 都落在 UTC+8 的 12:00。
+// ── 2026-10-03 修的真实 bug ──
+//   旧实现把**公告标题**（`逐月者之梦《女神异闻录：夜幕魅影》5.4.1版本今日上线`）
+//   当成"卡池名"，并在**全文**里抓第一个覆盖当前的 `A日—B日`。后果：
+//   · 面板卡池列显示的是**版本更新公告标题**，像"5.4.1版本今日上线"这种，用户看不出卡池是什么；
+//   · 抓到的档期是**版本周期**（如 09-24 ~ 10-22），而不是卡池周期。
+//   实测反例（证明两者确实不同）：5.3.1 版本周期 8/13–9/3，而官方在同篇正文里给
+//   「统统创飞」「怪盗幻像的试炼」写的是 **8/24–9/3**。
+//   修法：**先切区块**，卡池只认「契约更新」块、活动只认「活动更新」块，各自用**自己那行的**档期。
 //
-// ✅ 服区**已确认 = 国服（简体中文）**（2026-10-03 复核，推翻此前"存疑"的判断）：
-//   · 仓库 description = "Project Sekai (Simplified Chinese) Master DB Difference"、
-//     README = "Sekai Master Data Diff for CN server"（GitHub 原文）
-//   · 同库 events / cards / cardEpisodes / characterProfiles **全为简体**
-//     （`雨过天晴的启明星` / `卡牌剧情（上篇）` / `宫益坂女子学园`），
-//     对照 `tc-diff` 同结构全繁体（`雨後的第一顆星` / `支線劇情（前篇）` / `宮益坂女子學園`）
-//   · 官网 pjsk.nvsgames.cn 页脚 published by Nuverse；国服公测 2025-03-27
+// 契约：async (url, signal, tz) → { banner, roles?, bannerDates, bannerDatesRaw? } | { event, eventDates, ... }
 //
-// ⚠️ 但两处**数据质量**问题必须知道（它们不是"区服标错"，是上游回填残留）：
-//   ① `events.json` 首条 id=1「雨过天晴的启明星」startAt=1633762800000 = 2021-10-09 15:00(UTC+8)，
-//      **早于国服公测**（2025-03-27）→ 该时间线是上游对齐/回填的产物，
-//      拿它当"国服活动排期"会**失真**。
-//   ② 部分条目名是繁体（59 条卡池里 18 条，如 gacha 16「新手應援起跑衝刺招募」）→
-//      国服客户端为「世界」的回响回填 2020–2024 历史时**沿用了繁中串**（CN/TW 共用 Nuverse 6.4.0
-//      结构）；2024-05 之后的记录全部是简体。
-//      **不做机械繁转简**：两岸官方译法本就不同（`[新手应援]必定获得1名★4成员10连招募券招募`
-//      vs 繁中服 `[新手應援]必中1名★4成員10連票券招募`），机械转换会产出第三种、非官方的字符串。
+// 时区：国服，源站**未见显式标注**（原文只有「2026年9月24日—10月22日」），按 UTC+8 推定。
+// 数据形态：日期是**纯日期无时分** → 起止按惯例补 04:00 / 03:59（推算，非源站给定值）。
 
 
-const ns_sekai_DEFAULT_GACHA = "https://sekai-world.github.io/sekai-master-db-cn-diff/gachas.json";
-const ns_sekai_DEFAULT_EVENT = "https://sekai-world.github.io/sekai-master-db-cn-diff/events.json";
-// 长期/常驻池阈值：**用本体那一条**（`LONG_TERM_MAX_WINDOW_DAYS`），不再自带数字。
-// 旧值 400 天只够挡住 2099 哨兵值，会放过 365 天的**永久**池 ——
-// 实测 `新手限定★4自选阶梯招募`（03-26 16:00 ~ 次年 03-26 15:59，整 365 天）就是这样漏进"当期招募"的
-// （用户 2026-10-03 要求「规则和原来一致」）。限时招募最长约 1 个月，120 天阈值不会误伤。
-const ns_sekai_LONG_MS = LONG_TERM_MAX_WINDOW_DAYS * 864e5;
+const ns_p5x_BASE = "https://p5x.wanmei.com";
 
-// ⚠️ 2026-10-03 收敛：本文件原有 `toTs`（**严格版**：只接受 number，数字字符串返回 null）
-//    与 `byNewestStart`（与 bestdori 那份逐字相同）。均已统一到 `41-sources-shared.js` 的
-//    `numOrNull` / `byNewestStart`。取宽容版对本源无影响（`gachas.json`/`events.json` 里都是数字），
-//    但若源站哪天改成字符串就能直接吃下，不必再改代码。
+// 列表页 → 条目数组 [{ href, title, dateText }]
+function ns_p5x_parseP5xList(html) {
+	const items = [];
+	// 站点形态：<a href="/news/gamenews/20260924/264338.html"> … <p class="item_title">标题</p> … <p class="date_time">2026.09.24</p>
+	const re = /<a[^>]+href="(\/news\/[a-z]+\/(\d{8})\/(\d+)\.s?html)"[^>]*>([\s\S]{0,1200}?)<\/a>/g;
+	for (const m of String(html).matchAll(re)) {
+		const block = m[4];
+		const tm = block.match(/class="item_title"[^>]*>([\s\S]*?)<\/\w+>/);
+		const dm = block.match(/class="date_time"[^>]*>([\s\S]*?)<\/\w+>/);
+		const title = tm ? stripTags(tm[1]) : "";
+		if (!title) continue;
+		items.push({ href: m[1], dateKey: m[2], id: m[3], title, dateText: dm ? stripTags(dm[1]) : "" });
+	}
+	// 兜底：站点偶有 class 顺序不同 → 退化为"按 href 切块"再就近找标题/日期
+	if (items.length === 0) {
+		const links = [...String(html).matchAll(/href="(\/news\/([a-z]+)\/(\d{8})\/(\d+)\.s?html)"/g)];
+		for (const m of links) {
+			const start = m.index;
+			const block = String(html).slice(start, start + 1400);
+			const tm = block.match(/class="item_title"[^>]*>([\s\S]*?)<\/\w+>/) || block.match(/<p[^>]*>([^<]{4,80})<\/p>/);
+			const title = tm ? stripTags(tm[1]) : "";
+			if (title) items.push({ href: m[1], dateKey: m[3], id: m[4], title, dateText: "" });
+		}
+	}
+	// 去重（同一 href 可能在"最新/推荐"两处出现）
+	const seen = new Set();
+	return items.filter((x) => (seen.has(x.href) ? false : (seen.add(x.href), true)));
+}
+
+// 详情页正文 → 纯文本（**按块级标签切行**，区块解析依赖这个行结构）
+// 导出供测试：夹具测试需要"HTML→行文本"这一步，跟抓取器用同一实现，避免测试自造。
+function ns_p5x_p5xBodyText(html) {
+	return decodeEntities(
+		String(html)
+			.replace(/<script[\s\S]*?<\/script>/gi, " ")
+			.replace(/<style[\s\S]*?<\/style>/gi, " ")
+			.replace(/<br\s*\/?>/gi, "\n")
+			.replace(/<\/p>/gi, "\n")
+			.replace(/<[^>]+>/g, " ")
+	).replace(/[ \t\u00a0]+/g, " ");
+}
+
+// 从**单行文本**抽「YYYY年M月D日 — YYYY年M月D日」档期
+// 形态（实测）：`2026年9月24日—10月22日更新前`、`2026年10月5日—2026年10月22日更新前`
+function ns_p5x_parseP5xWindows(text, tz) {
+	const out = [];
+	const re = /(20\d{2})年(\d{1,2})月(\d{1,2})日\s*[—\-~～至]\s*(?:(20\d{2})年)?(\d{1,2})月(\d{1,2})日/g;
+	for (const m of String(text).matchAll(re)) {
+		const y1 = +m[1], mo1 = +m[2], d1 = +m[3];
+		const y2 = m[4] ? +m[4] : (endsNextYear(mo1, null, +m[5], null) ? y1 + 1 : y1);   // 跨年：结束月小于开始月
+		const mo2 = +m[5], d2 = +m[6];
+		// 时刻：公告只给日期 → 按国服惯例补 04:00 开 / 03:59 收（推算，见文件头）
+		const startTs = sourceInstant(y1, mo1, d1, 4, 0, tz);
+		const endTs = sourceInstant(y2, mo2, d2, 3, 59, tz);
+		if (endTs <= startTs) continue;
+		out.push({ startTs, endTs, raw: `${y1}年${mo1}月${d1}日 ~ ${y2}年${mo2}月${d2}日` });
+	}
+	return out;
+}
+
+// ── 区块解析 ──
+// 类别行形态（实测）：`活动更新`、`契约更新`、`玩法更新`、`功能拓展`、`启示卡更新`、
+//   `版本更新`、以及**类别与标题同行**的 `活动更新-2.5周年时光庆典`、`活动BOSS更新-追欲的魔术师`。
+// 注意：不能只按"含更新"就认 —— 正文里还有 `版本更新后，将新增2种启示卡…` 这类叙述句。
+// 这里要求整行**以「类别+更新/拓展」结尾**，或后面只跟一个短分隔符+标题（≤40 字），
+// 从而把叙述句排除掉。
+const ns_p5x_P5X_CAT_RE = /^([\u4e00-\u9fffA-Za-z]{2,10}(?:更新|拓展))(?:\s*[-－—－:：]\s*(.{1,40}))?$/;
+// `活动时间：…` 及其近义写法
+const ns_p5x_P5X_TIME_RE = /^(?:活动|开放|售卖|举办|开启|持续)时间\s*[:：]\s*(.+)$/;
+
+/**
+ * 把公告正文切成区块。返回 [{ category, name, title, windowRaw, lines }]
+ *   · category —— 类别行（如 `契约更新` / `活动更新`）
+ *   · name     —— 与类别同行的标题（`活动更新-2.5周年时光庆典` 时为 `2.5周年时光庆典`）
+ *   · title    —— 该区块的展示名：优先同行标题，否则取类别行后的第一条非时间行
+ *   · windowRaw—— 该区块里**第一行** `活动时间：…` 的原文
+ */
+function ns_p5x_parseP5xBlocks(text) {
+	const lines = String(text).split("\n").map((s) => s.trim()).filter(Boolean);
+	const blocks = [];
+	let cur = null;
+	for (const line of lines) {
+		const cm = line.match(ns_p5x_P5X_CAT_RE);
+		if (cm) {
+			if (cur) blocks.push(cur);
+			cur = { category: cm[1], name: (cm[2] || "").trim(), title: (cm[2] || "").trim(), windowRaw: "", lines: [] };
+			continue;
+		}
+		if (!cur) continue;                    // 类别行之前的内容（导语）忽略
+		const tm = line.match(ns_p5x_P5X_TIME_RE);
+		if (tm) {
+			if (!cur.windowRaw) cur.windowRaw = tm[1].trim();
+			continue;
+		}
+		if (!cur.title) cur.title = line;       // 类别行后紧跟的第一条非时间行 = 标题
+		cur.lines.push(line);
+	}
+	if (cur) blocks.push(cur);
+	return blocks;
+}
+
+// 供测试：直接对一段正文本跑区块解析
+// 归一化标题：去掉站点尾巴「-P5X-《女神异闻录：夜幕魅影》手游官网」
+// 取列表里最新的 N 条公告并解析出区块。
+// ⚠️ **逐条容错**：只有"最新一条都抓不到"才算真失败（抛出）；
+//    次新那条只是"多看一条"的兜底（上一轮公告通常已过期），它抓不到（404/超时）不该拖垮整个条目
+//    —— 实测踩过：夹具只映射了最新一条，多抓的第 2 条 404 直接把整条报成"抓取失败"。
+async function ns_p5x_fetchP5xAnnouncements(url, signal, count = 2) {
+	const listUrl = url || `${ns_p5x_BASE}/news/gamenews/index.html`;
+	const list = ns_p5x_parseP5xList(await fetchText(listUrl, { referer: ns_p5x_BASE, signal }));
+	if (list.length === 0) throw new Error("p5x-list-empty");
+	const sorted = list.slice().sort((a, b) => (a.dateKey < b.dateKey ? 1 : -1)).slice(0, Math.max(1, count));
+	const out = [];
+	for (let i = 0; i < sorted.length; i++) {
+		const item = sorted[i];
+		const detailUrl = item.href.startsWith("http") ? item.href : ns_p5x_BASE + item.href;
+		try {
+			const text = ns_p5x_p5xBodyText(await fetchText(detailUrl, { referer: ns_p5x_BASE, signal }));
+			out.push({ item, text, blocks: ns_p5x_parseP5xBlocks(text) });
+		} catch (err) {
+			if (err && err.name === "AbortError") throw err;   // 中止信号必须透传
+			if (i === 0) throw err;                            // 最新一条失败 = 真失败
+			// 次新一条失败 → 忽略（已有一条可用）
+		}
+	}
+	return out;
+}
+
+// 在候选区块里挑"覆盖当前时刻"的那个；都没有就返回 null（= 未公布）
+function ns_p5x_pickCurrentBlock(cands, tz, now) {
+	const withWin = [];
+	for (const b of cands) {
+		const wins = ns_p5x_parseP5xWindows(b.windowRaw, tz);
+		if (wins.length === 0) continue;
+		withWin.push({ block: b, win: wins[0] });
+	}
+	return withWin.find((x) => coversNow(x.win, now)) || null;
+}
+
+// 正文导语里的「…「X」获取概率限时UP！」—— 本期限定 UP 池名（官方只给名字，常不给档期）
+function ns_p5x_p5xUpNames(text) {
+	const out = [];
+	for (const m of String(text).matchAll(/[「【]([^」】]{2,30})[」】]\s*获取概率限时UP/g)) {
+		const n = m[1].trim();
+		if (n && !out.includes(n)) out.push(n);
+	}
+	return out;
+}
 
 // ── 卡池侧 ──
-// 覆盖当前时刻的**有界**池里取 startTs 最新的一期当"当期招募"；长期池（2099 哨兵等）不参与"当期"，
-// 也不进悬停（它们恒在架，列出来是噪音）。
-function ns_sekai_parseSekaiGachas(json, now = nowMs(), tz = "Asia/Shanghai") {
-	if (!Array.isArray(json)) throw new Error("sekai-gacha-bad-shape");
-	const pools = [];
-	for (const g of json) {
-		if (!g || typeof g !== "object") continue;
-		const s = numOrNull(g.startAt), e = numOrNull(g.endAt);
-		const name = typeof g.name === "string" ? g.name.trim() : "";
-		if (!name || s == null || e == null || e <= s) continue;
-		pools.push({ id: g.id, name, type: String(g.gachaType || ""), startTs: s, endTs: e, long: e - s > ns_sekai_LONG_MS });
+// 只认「契约更新」块（官方唯一明确写卡池档期的地方）。
+// 抽不到覆盖当前的契约档期 → null（未公布）。**绝不**退化成"拿版本公告标题当卡池名"。
+async function ns_p5x_gachaP5x(url, signal, tz = "Asia/Shanghai") {
+	const anns = await ns_p5x_fetchP5xAnnouncements(url, signal, 2);
+	const now = nowMs();
+	for (const { text, blocks } of anns) {
+		const poolBlocks = blocks.filter((b) => /契约/.test(b.category) || /契约/.test(b.title));
+		const hit = ns_p5x_pickCurrentBlock(poolBlocks, tz, now);
+		if (!hit) continue;
+		const up = ns_p5x_p5xUpNames(text);
+		// ⚠️ 2026-10-03 改（方案 A 收敛）：这里原本**手搓**三行悬停 `池名` ⏎ `档期` ⏎ `本期限定UP：角色`
+		//    —— 档期夹在名称与角色中间，与本体「池名：角色 ⏎ 档期」的顺序不一致。
+		//    现在按通用规则表达：把 UP 角色放进 **`roles`** 字段。
+		//    效果（与本体同构）：外显 = 角色名（本体对"有角色名的卡池"就是这么外显的），
+		//    UI 默认两行式 = `缘结之契开启：汐见琴音` ⏎ `09-24 04:00 ~ 10-22 03:59`。
+		//    只有 1 个当期池 → 不设 bannerHover（hoverPool 的契约就是 <2 条交回 UI）。
+		return {
+			banner: hit.block.title,
+			roles: up.join("、"),
+			bannerDates: fmtWindow(hit.win.startTs, hit.win.endTs, tz),
+			bannerDatesRaw: hit.block.windowRaw,
+			startTs: hit.win.startTs,
+			endTs: hit.win.endTs
+		};
 	}
-	if (pools.length === 0) throw new Error("sekai-gacha-bad-shape");
-	const active = pools.filter((x) => coversNow(x, now));
-	const bounded = active.filter((x) => !x.long).sort(byNewestStart);
-	const cur = bounded[0] || null;
-	if (!cur) return null;
-
-	const dates = fmtWindow(cur.startTs, cur.endTs, tz);
-	// 悬停 = 全部当期**有界**池（长期池不参与"当期"，见上）。每池一行池名 + 档期，窗口完全相同则
-	// 档期只在末尾写一遍 —— 排版交给共用工具 hoverPool（与本体 buildPoolHover 逐字一致）。
-	// 源站没有角色名 → name 就用池名本身（对应本体的「池名：角色」里的池名位置）。
-	// 池名里的「（ceil）」等后缀来自 `gachaType` 枚举，**不是源站原文** → 不进悬停；
-	// 同名同窗的阶梯/高级礼物招募多条各自成行（源站如此，不再合并成 ×n）。
-	const hover = hoverPool(bounded.map((p) => ({ name: p.name, startTs: p.startTs, endTs: p.endTs })), tz);
-	// 只有 1 个当期池 → hover 为 ""，**不设 bannerHover**，由 UI 走默认两行式「banner ⏎ bannerDates」
-	return {
-		banner: cur.name,
-		roles: "",
-		bannerDates: dates,
-		bannerDatesRaw: dates,
-		startTs: cur.startTs,
-		endTs: cur.endTs,
-		...(hover ? { bannerHover: hover } : {})
-	};
+	return null;
 }
 
 // ── 活动侧 ──
-// 活动窗口 = startAt ~ aggregateAt（**源站无 endAt**，见文件头 ②；aggregateAt 缺失时退回 closedAt）
-function ns_sekai_parseSekaiEvents(json, now = nowMs(), tz = "Asia/Shanghai") {
-	if (!Array.isArray(json)) throw new Error("sekai-event-bad-shape");
-	const rows = [];
-	for (const e of json) {
-		if (!e || typeof e !== "object") continue;
-		const s = numOrNull(e.startAt);
-		const agg = numOrNull(e.aggregateAt);
-		const end = agg != null ? agg : numOrNull(e.closedAt);   // 源站无 endAt：优先 aggregateAt
-		const name = typeof e.name === "string" ? e.name.trim() : "";
-		if (!name || s == null || end == null || end <= s) continue;
-		rows.push({ id: e.id, name, type: String(e.eventType || ""), startTs: s, endTs: end, closedAt: numOrNull(e.closedAt) });
+// 只认「活动」类区块（`活动更新` / `活动BOSS更新`）。外显取**最早结束**的当期活动（最紧迫），
+// 悬停按结束时间升序逐行列出全部当期活动。
+async function ns_p5x_eventsP5x(url, signal, tz = "Asia/Shanghai") {
+	const anns = await ns_p5x_fetchP5xAnnouncements(url, signal, 2);
+	const now = nowMs();
+	for (const { blocks } of anns) {
+		const evBlocks = blocks.filter((b) => /活动/.test(b.category));
+		const active = [];
+		for (const b of evBlocks) {
+			const wins = ns_p5x_parseP5xWindows(b.windowRaw, tz);
+			if (wins.length === 0) continue;
+			const w = wins[0];
+			if (coversNow(w, now) && b.title) active.push({ block: b, win: w });
+		}
+		if (active.length === 0) continue;
+		// 稳定排序：先按结束时间升序（越紧迫越前），同结束时间保持原文顺序
+		active.sort((a, b) => a.win.endTs - b.win.endTs);
+		const primary = active[0];
+		// ⚠️ 2026-10-03 改：原本手搓 `名称  + 档期`（**2 个空格**），本体一律 **3 个空格** → 改用共用 hoverEvent。
+		const hover = hoverEvent(active.map((x) => ({ name: x.block.title, startTs: x.win.startTs, endTs: x.win.endTs })), tz);
+		return {
+			event: primary.block.title,
+			eventDates: fmtWindow(primary.win.startTs, primary.win.endTs, tz),
+			eventDatesRaw: primary.block.windowRaw,
+			...(hover ? { eventHover: hover } : {})
+		};
 	}
-	if (rows.length === 0) throw new Error("sekai-event-bad-shape");
-	const active = rows.filter((x) => coversNow(x, now)).sort(byNewestStart);
-	const cur = active[0] || null;
-	if (!cur) return null;
-	const dates = fmtWindow(cur.startTs, cur.endTs, tz);
-	// ⚠️ 降级逻辑（保留）：源站 `events.json` **没有** `endAt` 字段，活动游玩期取 `startAt ~ aggregateAt`
-	//    （aggregateAt = 活动结束、开始统计的时刻）；aggregateAt 缺失时退回 `closedAt`。
-	//    这句说明是**实现细节**，只留在代码注释里，**不进悬停**。
-	// `eventDatesRaw`：既有约定是"保留源站原文"，这里如实记录上面那次映射（本体也有条目这么做）。
-	// `eventDatesRaw` 就写格式化档期本身：UI 的默认两行式会直接显示它
-	// （`eventDatesRaw || eventDates`），所以**不能**在这儿夹带说明文字
-	// —— 用户 2026-10-03 明确要求「元信息彻底删掉」。实测旧版把说明拼进来后，
-	//    面板上出现了 `09-30 15:00 ~ 10-09 20:59（源站无 endAt：结束取 aggregateAt；…）` 这种尾巴。
-	const raw = dates;
-	// 悬停 = 全部当期活动，结束时间升序逐行「名称 + 3 空格 + 档期」（档期由共用工具 fmtWindow 格式化，
-	// 与本体 buildEventHover 逐字一致）。**不排序**由工具负责 → 这里先排好序再传。
-	// 只有 1 条 → 工具返回 ""，不设 eventHover，由 UI 走默认两行式「event ⏎ eventDates」。
-	const ordered = active.slice().sort((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs));
-	const hover = hoverEvent(ordered.map((x) => ({ name: x.name, startTs: x.startTs, endTs: x.endTs })), tz);
-	return {
-		event: cur.name,
-		eventDates: dates,
-		eventDatesRaw: raw,
-		...(hover ? { eventHover: hover } : {})
-	};
+	return null;
 }
 
-// 抓取器：mode="direct"（实测 sekai-world.github.io = GitHub Pages 静态资源，带 ACAO）
-async function ns_sekai_gachaSekai(url, signal, tz = "Asia/Shanghai", now = nowMs()) {
-	const data = await fetchJson(url || ns_sekai_DEFAULT_GACHA, { signal, mode: "direct" });
-	return ns_sekai_parseSekaiGachas(data, now, tz);
-}
-async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = nowMs()) {
-	const data = await fetchJson(url || ns_sekai_DEFAULT_EVENT, { signal, mode: "direct" });
-	return ns_sekai_parseSekaiEvents(data, now, tz);
-}
+// 供测试：从本地 HTML 直接跑解析（不联网）
 
+		// ── 条目 ──
+		registerSource({
+				id: "p5x",
+				tz: "Asia/Shanghai",
+				name: "女神异闻录：夜幕魅影",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/03/1e/f4/031ef49f-b3d0-5bdd-077b-67d213f99c86/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
+				defaultHidden: true,
+				url: "https://p5x.wanmei.com/news/gamenews/index.html",
+				source: "官网公告",
+				eventUrl: "https://p5x.wanmei.com/news/gamenews/index.html",
+				eventSource: "官网公告",
+		});
+
+		registerSource({
+				id: "nte",
+				tz: TZ_CN,
+				parserVersion: 2,
+				name: "异环",
+				icon: "https://storage.moegirl.org.cn/moegirl/commons/8/8c/YH_APP.png!/fw/64",
+				source: "官网公告",
+				// 经 host 代理抓取（wanmei 跨域无 CORS）；官方公告（服务端渲染）含当期限定棋盘卡池 + 限时活动起止
+				url: "https://yh.wanmei.com/news/gamebroad/",
+				// 活动源同官网公告（同一公告同时含卡池与活动）
+				eventUrl: "https://yh.wanmei.com/news/gamebroad/",
+				eventSource: "官网公告",
+				// 备选：LDSHOP（静态表格，经 host 代理）
+				altSources: [
+					{ label: "LDSHOP", url: "https://www.ldshop.gg/tw/blog/nte/neverness-to-everness-banner.html", fetcher: "nte-ldshop" }
+				]
+		});
+
+		// ── 抓取器登记 ──
+					// 异环：ldshop（繁体，静态表格经 host 代理）
+GACHA_FETCHERS["nte"] = (url, signal, tz) => fetchNteWanmei(url, signal, tz);
+		GACHA_FETCHERS["nte-ldshop"] = (url, signal, tz) => fetchLdshopNte(url, signal, tz);
+					// 异环：活动源就是同一篇官网公告（与卡池侧**同一条 URL**，fetchNteWanmei 一个函数同时解析两者）。
+			// 注册成独立活动源的意义：卡池侧本轮抓挂、或用户把**卡池**来源改成自定义/备选时，
+			// 活动侧仍能自己抓、自己报错，而不是整列空掉（复用只是"同一 URL 省一次请求"的优化，不是它的腿）。
+EVENT_FETCHERS["nte"] = {
+				default: (url, signal, tz) => fetchNteWanmei(url, signal, tz)
+			};
+
+		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
+		GACHA_FETCHERS["p5x"] = (url, signal, tz) => ns_p5x_gachaP5x(url, signal, tz);
+		EVENT_FETCHERS["p5x"] = Object.assign(EVENT_FETCHERS["p5x"] || {}, { default: (url, signal, tz) => ns_p5x_eventsP5x(url, signal, tz) });
+
+// src/client/30-game-sunborn.js —— 散爆（少女前线2：追放）
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+
+		// ══ 以下为原 42-parsers-gf2.js 的内容（原样保留）══
 // src/client/35-parsers-gf2.js
 //
 // 由 next-sources/parsers/gf2.js 压平而来（2026-10-03「不留 next-source」）。
@@ -9898,6 +10110,33 @@ async function ns_gf2_eventsGf2(url, signal, tz = ns_gf2_GF2_TZ) {
 	});
 }
 
+		// ── 条目 ──
+		registerSource({
+				id: "gf2",
+				tz: "Asia/Shanghai",
+				name: "少女前线2：追放",
+				icon: "https://gf2-cn.cdn.sunborngame.com/website/official_zf/mobile/image/logo.png",
+				url: "https://gf2-web-preregister-api.sunborngame.com/website/news_list/4?page=1&limit=10",
+				source: "官方公告",
+				eventUrl: "https://gf2-web-preregister-api.sunborngame.com/website/news_list/4?page=1&limit=10",
+				eventSource: "官方公告",
+		});
+
+		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
+		GACHA_FETCHERS["gf2"] = (url, signal, tz) => ns_gf2_gachaGf2(url, signal, tz);
+		EVENT_FETCHERS["gf2"] = Object.assign(EVENT_FETCHERS["gf2"] || {}, { default: (url, signal, tz) => ns_gf2_eventsGf2(url, signal, tz) });
+
+// src/client/30-game-aniplex.js —— Aniplex / TYPE-MOON（Fate/Grand Order）
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+
+		// ══ 以下为原 42-parsers-fgo.js 的内容（原样保留）══
 // src/client/35-parsers-fgo.js
 //
 // 由 next-sources/parsers/fgo.js 压平而来（2026-10-03「不留 next-source」）。
@@ -10184,592 +10423,211 @@ async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ) {
 	};
 }
 
-// src/client/35-parsers-miyoushe.js
+		// ── 条目 ──
+		registerSource({
+				id: "fgo",
+				tz: "Asia/Shanghai",
+				name: "Fate/Grand Order",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/db/d4/19/dbd4196a-68cb-8a74-ca0b-045d0795e10c/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
+				url: "https://fgo.wiki/api.php?action=parse&page=%E5%8D%A1%E6%B1%A0%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
+				source: "Bwiki",
+				eventUrl: "https://fgo.wiki/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
+				eventSource: "Bwiki",
+		});
+
+		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
+		GACHA_FETCHERS["fgo"] = (url, signal, tz) => ns_fgo_gachaFgo(url, signal, tz);
+		EVENT_FETCHERS["fgo"] = Object.assign(EVENT_FETCHERS["fgo"] || {}, { default: (url, signal, tz) => ns_fgo_eventsFgo(url, signal, tz) });
+
+// src/client/30-game-sega.js —— 世嘉（初音未来：缤纷舞台）
 //
-// 由 next-sources/parsers/miyoushe.js 压平而来（2026-10-03「不留 next-source」）。
-// 模块级标识符仍带 ns_miyoushe__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+
+		// ══ 以下为原 42-parsers-sekai.js 的内容（原样保留）══
+// src/client/35-parsers-sekai.js
+//
+// 由 next-sources/parsers/sekai.js 压平而来（2026-10-03「不留 next-source」）。
+// 模块级标识符仍带 ns_sekai__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-miyoushe.js —— 米哈游系官方公告（米游社 BBS API）
+// src/client/35-parsers-sekai.js —— PJSK 缤纷舞台（sekai-master-db cn-diff，GitHub Pages 静态 JSON）
 //
-// 覆盖 4 个游戏（gids 实测四个都 200 且返回对应游戏的正确公告）：
-//   1 = 崩坏3 / 2 = 原神 / 6 = 崩坏：星穹铁道 / 8 = 绝区零
+// 契约：async (url, signal, tz) → 卡池侧 { banner, roles?, bannerDates, bannerDatesRaw?, startTs?, endTs?, bannerHover? }
+//                              活动侧 { event, eventDates, eventDatesRaw?, eventHover? }    （两侧都可为 null = 未公布）
 //
-// 契约：async (url, signal, tz, now = nowMs()) → 数据对象 | null
-//   卡池侧 { banner, roles?, bannerDates, bannerDatesRaw?, startTs?, endTs?, bannerHover? }
-//   活动侧 { event, eventDates, eventDatesRaw?, eventHover? }
-//   ⚠️ **now 必须是第 4 个参数**。本仓库历史 bug：now 收到 tz 字符串 → `startTs <= now` 恒假
-//      → 静默显示"未公布"。本文件全部命中判定都用传入的 now，不读全局时钟。
-//   ⚠️ 这是**官方补充源**，与既有 bwiki 条目（`genshin` / `hsr` / `zzz`）**并存**，
-//      所以 id 加 `-official` 后缀、不撞车。
+// ⚠️ 实测（2026-10-02 夹具 `b1-sekai-gachas` 59 条 / `b1-sekai-events` 198 条）与任务给的形态的差别：
+//   1. `gachas.json` 的 `gachaType` 是**字符串枚举**（beginner/normal/sureturn/subeginner/ceil/sunormal），
+//      不是数字；`events.json` 的 `eventType` 也是字符串（marathon/cheerful_carnival/world_bloom）。
+//   2. **`events.json` 里根本没有 `endAt` 字段**（这是任务给的字段形态里最需要纠正的一处）。
+//      实测字段：startAt / aggregateAt / rankingAnnounceAt / distributionStartAt / closedAt / distributionEndAt。
+//      本解析器把**活动游玩期**取为 `startAt ~ aggregateAt`（aggregateAt = 活动结束、开始统计的时刻），
+//      并在 `eventDatesRaw` 里如实注明这个映射；`closedAt` 是结果公布时刻，不作窗口结束。
+//   3. `gachas.json` 里有大量**长期池**：endAt 是 2099 哨兵（如 id 579「任务招募」2025-01-01 ~ 2099-12-30）。
+//      它们不参与"当期"选择（见下），只在 hover 里报个数。
 //
-// ══════════════════════════════════════════════════════════════════════════════
-// 一、端点与实测形态（夹具 2026-10-02 抓，见 fixtures/p4-*）
-// ══════════════════════════════════════════════════════════════════════════════
-//  列表  GET /painter/wapi/getNewsList?gids=<gid>&type=<1|2|3>&page_size=20
-//        type=1 公告/补给、type=2 活动、type=3 资讯
-//        → { retcode:0, message:"OK", data:{ list:[ { post:{ post_id, subject,
-//            created_at(epoch 秒), images[], content:"", summary:"", structured_content:"" },
-//            news_meta:null, text_summary:"", brief_structured_content:"" }, … ],
-//            last_id, is_last } }
-//  详情  GET /post/wapi/getPostFull?post_id=<post_id>
-//        → { retcode:0, data:{ post:{ post:{ post_id, subject, created_at, content(HTML) } } } }
+// 时区：UTC+8（`Asia/Shanghai`）。epoch 毫秒 = 绝对时刻，**不做时区换算**，`tz` 只用于渲染墙钟文本。
+//   依据（夹具自洽，把"推测"变成了可验证的三条）：
+//   ① 生日池 836「[桐谷遥]HAPPY BIRTHDAY 2026招募」startAt=1790784000000 → UTC+8 渲染正好是 2026-10-01 00:00
+//      （桐谷遥生日当天 00:00；UTC+9 会渲染成 01:00，不成立）；
+//   ② 月卡池 802「缤纷月卡招募」startAt=1788145200000 → UTC+8 是 2026-09-01 04:00（每月 1 日 04:00 换月卡）；
+//   ③ 常规卡池轮换时刻 825/826… 都落在 UTC+8 的 12:00。
 //
-//  ⚠️ `post_id` 在 JSON 里是**字符串**（"78549971"），不能用 `===` 跟数字比。
-//  ⚠️ `created_at` 是 **epoch 秒**（不是毫秒），且是**绝对时刻**（可直接用，不必按 tz 解释）。
+// ✅ 服区**已确认 = 国服（简体中文）**（2026-10-03 复核，推翻此前"存疑"的判断）：
+//   · 仓库 description = "Project Sekai (Simplified Chinese) Master DB Difference"、
+//     README = "Sekai Master Data Diff for CN server"（GitHub 原文）
+//   · 同库 events / cards / cardEpisodes / characterProfiles **全为简体**
+//     （`雨过天晴的启明星` / `卡牌剧情（上篇）` / `宫益坂女子学园`），
+//     对照 `tc-diff` 同结构全繁体（`雨後的第一顆星` / `支線劇情（前篇）` / `宮益坂女子學園`）
+//   · 官网 pjsk.nvsgames.cn 页脚 published by Nuverse；国服公测 2025-03-27
 //
-//  ⚠️⚠️ **列表里没有"档期文本"字段**：实测各游戏的 **type=1（公告/补给）** 列表里，
-//      `post.content` / `post.summary` / `post.structured_content` / `post.meta_content` /
-//      `text_summary` / `brief_structured_content` 全为空，`news_meta` 恒为 **null**
-//      （夹具 p4-{bh3,genshin,hsr,zzz}-news：0/20 条 post.content，news_meta 全 null）。
-//      → **卡池侧必须再抓详情正文**才能拿到档期。这是本解析器"抓列表 → 抓详情 → 从正文抽档期"
-//        两步形态的原因（与 ournotes.js 同形）。
-//
-//  ✅ **但 type=2（活动）列表有一层被低估的显式字段**（实测发现，任务书原话"该 API 没有显式
-//      档期字段"**只对 type=1 成立**）：每条的 `news_meta` 都带
-//         { activity_status: 1|2|3, start_at_sec: "…", end_at_sec: "…" }   （**epoch 秒的字符串**）
-//      20/20 条齐全（夹具 p4-{bh3,genshin,hsr,zzz}-events）。`activity_status` 与"是否已结束"相关
-//      （实测 bh3：进行中的两条=1，其余历史条目=3）。
-//      ⚠️ 但它的**结束时刻口径各游戏不一致**，所以**没有**拿它当外显：
-//        · 崩坏3  `09-28 12:00 ~ 10-07 23:59` = 正文「9.28 12:00~10.7 23:59」**完全一致**
-//        · 星铁   `09-28 18:44 ~ 10-13 00:00` ≈ 正文「9月28日 - 10月12日 23:59」+1 分钟（= 参与截止）
-//        · 原神   `10-02 12:00 ~ 11-10 20:00` ← 正文写「10月2日-10月31日23:59」、**开奖时间 11月10日**
-//                  → 这里的 end 是**开奖时刻**，不是参与截止（口径不同）
-//      结论：外显仍取**公告正文**（玩家看到的活动时间就是正文那句），
-//      `news_meta` 只作**兜底**：当正文一个可解析窗口都抽不到时，用它的显式档期顶上，
-//      并在 `eventDatesRaw` / `bannerDatesRaw` 里标明来源是 news_meta（不冒充正文）。
-//      ⚠️ 这句来源说明**只进 raw 字段**（既有约定：本体也有条目这么做）；**悬停里不写**（见 §五）。
-//
-//  ⚠️ **详情端点有 Referer 门（实测）**：不带 Referer 一律 `HTTP 403 / body "Forbidden"`：
-//        · 桌面 UA + 无 Referer                     → 403
-//        · 桌面 UA + Referer: www.miyoushe.com      → 200
-//        · 桌面 UA + Referer: bbs-api.miyoushe.com（宿主代理的默认值） → 200
-//        · 只有 Origin、没有 Referer                 → 403   ← 门是 Referer，不是 UA
-//      → 本文件显式传 `referer: https://www.miyoushe.com/`；**列表**端点不需要 Referer（200）。
-//
-//  🚨 生产环境前置条件（**Lead 集成时必须处理，本文件不越界改 src/**）：
-//      `src/index.js` 的 `PROXY_ALLOW_HOSTS` **当前不含 `bbs-api.miyoushe.com`**
-//      （白名单里只有同门的 `api-takumi-static.mihoyo.com`）。本目录新源一律 `mode="proxy"`，
-//      所以离线夹具测试能全绿，但**真机上会拿到 `{error:"host not allowed"}`**。
-//      → 需 Lead 在 `PROXY_ALLOW_HOSTS` 里加 `"bbs-api.miyoushe.com"`（一行，属插件本体改动）。
-//
-// ══════════════════════════════════════════════════════════════════════════════
-// 二、时区 = Asia/Shanghai（UTC+8）—— **推测**
-// ══════════════════════════════════════════════════════════════════════════════
-//  正文里的时刻（`2026-09-30 12:00`、`9.28 12:00`）都是**国服墙钟原文**，源站**没有**标注时区。
-//  按国服惯例取 UTC+8。可佐证的旁证（非硬证据）：
-//    · 绝区零 3.2 限时频段 `2026-09-30 12:00 ~ 2026-10-20 14:59` —— 12:00 开池 / 14:59 收池，
-//      是国服"中午开、下午收"的典型口径（与 bwiki 各源一致）；
-//    · 官方公告的发布时刻 `created_at` 落在 UTC+8 的整点/半点（10:00、04:00、12:00 等），
-//      而按 UTC+9 渲染会变成 11:00、05:00、13:00（不整）。
-//  → 因此本文件把 `tz` 默认写成 `Asia/Shanghai`，并在**注释**里如实标"推测"
-//    （⚠️ 悬停里**不写**时区说明 —— 用户 2026-10-03：「元信息彻底删掉」，见 §五）。
-//
-// ══════════════════════════════════════════════════════════════════════════════
-// 三、正文档期抽取（**实测的格式清单**，全部来自 p4-*-detail-* 夹具）
-// ══════════════════════════════════════════════════════════════════════════════
-//   ✅ 能抽到：
-//     · `9.28 12:00~10.7 23:59`                       崩坏3 有奖活动（**无年份**，取公告年）
-//     · `2026-09-30 12:00 ~ 2026-10-20 14:59`         绝区零 3.2 限时频段
-//     · `参与时间：即日起 - 2026年10月18日 23:59`      绝区零 有奖活动（起点"即日起"）
-//     · `2026年10月2日-2026年10月31日23:59`           原神 有奖活动（分隔符是**紧贴的 `-`**）
-//     · `2026年9月28日 - 2026年10月12日 23:59`        星铁 有奖活动
-//     · `2026/09/28 4.6版本更新后 - 2026/11/10 15:00`  星铁 活动跃迁（起点是**版本锚点**）
-//     · `整体活动时间：2026/09/30 10:00 ~ 2026/11/03 03:59` 原神 type=1 活动说明
-//   ❌ **抽不到（正文里根本没有日期，时间画在配图里）→ 本侧如实返回 null**：
-//     · 崩坏3 补给（`p4-bh3-detail-gacha` / `-char`）：正文只有 `>>开放等级`、
-//       `>>补给信息`（**一张图**）、`>>补给规则`（`每10次装备补给必定获得4★武器或圣痕`）
-//       → 全文 0 个日期。**绝不拿 `created_at` 当档期、绝不硬凑**。
-//     · 原神 祈愿（`p4-genshin-detail-wish` / `-wish2`）：正文只有 `〓祈愿介绍〓`，
-//       全程写"活动期间"却**不给日期**，全文 0 个日期。
-//
-//  抽取策略（令牌化 + 配对，而不是一条大正则）：
-//    ① 扫令牌：ABS(YYYY-MM-DD/./年 的完整日期[+HH:MM])、VER(`X.Y版本更新后`/`X.Y版本结束`)、
-//       BARE(无年份 `M.D HH:MM`)、OPEN(`即日起`)；
-//    ② 相邻两令牌之间只允许"连接符"`~ ～ 〜 〰 - – — － 至 到`（可带空白）→ 配对成窗口；
-//       紧贴的 `YYYY/MM/DD` + `X.Y版本更新后`（中间只有空白）视作**同一个起点**；
-//    ③ 缺时刻：起点按 00:00、终点按 23:59；
-//    ④ 无年份 `M.D` 的年份取**公告发布年**（按 tz 渲染）；终点月日早于起点 → 终点进一年；
-//    ⑤ `即日起` → 起点取公告 `created_at`（并标 `inferred`）；`X.Y版本更新后` → 起点取
-//       **同列表里 `X.Y版本更新说明` 的发布时刻**（版本锚点，标 `inferred`）；
-//       锚点找不到才退回正文里的字面日期 00:00；
-//    ⑥ `endTs > startTs` 才产出；按**时间区间**去重（保留 raw 更全的那条）；**文档顺序**保留。
-//  选当期：候选公告按 `created_at` **倒序**，逐篇抓详情，取**第一条覆盖 now 的窗口**；
-//          没有覆盖 now 的窗口 → 返回 `null`（未公布），**不退回过期档期**。
-//
-//  候选筛选（标题关键词分流，见 ns_miyoushe_classifyMiyousheTitle）：
-//    · 卡池侧 补给/祈愿/跃迁/频段/调频/招募…
-//    · 活动侧 活动/征集/赛事/签到/有奖/话题…
-//    同一标题同时命中两边时**卡池关键词优先**（实例：`4.6版本活动跃迁（其一）` 是卡池公告，
-//    虽然字面含"活动"）。命不中的（版本更新说明、封禁名单、商城上新…）直接跳过。
-//
-//  成本：列表 1 次请求 + **最多 ns_miyoushe_MIYOUSHE_MAX_DETAILS 篇正文**（顺序、间隔 ns_miyoushe_MIYOUSHE_DETAIL_DELAY_MS，
-//        对 WAF 友好）；候选已按时间倒序，覆盖 now 的窗口一旦出现即被采用。
-//
-// ══════════════════════════════════════════════════════════════════════════════
-// 四、失败口径（"只有结构性损坏才 throw"）
-// ══════════════════════════════════════════════════════════════════════════════
-//   · HTTP 非 2xx / 响应不是 JSON / `retcode !== 0`          → **throw**（该侧算抓取失败）
-//   · 列表为空（实测 `gids=99999` → `retcode:0, list:[]`）    → 返回 null（未公布）
-//   · 单篇详情 `retcode 1101/1102`（"post not exist"，实测）  → **跳过该篇**（不算失败）
-//   · 单篇详情 HTTP 404/410                                   → 跳过该篇
-//   · 全部候选都失败且出现过**硬错**（403/567/坏 JSON…）      → **throw**（别把封禁静默成"未公布"）
-//     （实测详情缺 Referer 就是 403 "Forbidden" —— 这种必须能被看见）
-//
-// ══════════════════════════════════════════════════════════════════════════════
-// 五、悬停排版（用户 2026-10-03：「元信息彻底删掉」）
-// ══════════════════════════════════════════════════════════════════════════════
-//  排版**不再本地实现**，一律调 `lib/env.js` 的 `hoverPool` / `hoverEvent`
-//  （与本体 `buildPoolHover` / `buildEventHover` 逐字一致），本文件只负责：
-//    · 卡池侧：每池一项 `{ name: 公告标题, label: 「池名：角色」, startTs, endTs }` → hoverPool
-//      （角色名空 → label 退化成池名；与本体 `banner：roles` 同构）
-//    · 活动侧：每条 `{ name: 公告标题, startTs, endTs }`，**先按结束时间升序排好**再传给 hoverEvent
-//      （`hoverEvent` 自己不排序，与本体一致）
-//    · 当期**不足 2 项**时两个工具返回 `""` → **不设** `bannerHover` / `eventHover` 字段，
-//      让 UI 走默认两行式（卡池 `池名：角色` ⏎ 档期；活动 `名称` ⏎ 档期）
-//
-//  🚫 以下信息**一律不进悬停文本**（只留在本文件的代码注释里）：
-//     · 来源站名 / 域名 / URL / API 名（米游社官方公告、bbs-api.miyoushe.com、getNewsList…）
-//     · 时区推定说明（"国服墙钟按 UTC+8 换算 —— 源站未标注时区＝推测"）
-//     · 抓取统计（"本轮有 N 篇公告正文抓取失败"）
-//     · 内部 id / 源站字段名（post_id、start_at_sec、end_at_sec、activity_status、news_meta…）
-//     · 游戏名 + 区服前缀（悬停里不重复游戏名）
-//     · 任何「（…）」形式的实现说明（"本篇第 N 段档期"、"起点为推断"、"源站 news_meta 显式档期"…）
-//  ⇒ 用户明确要求"直接删掉"：**删除**，不要把这些信息改放到悬停的别的行/字段里。
-//     （`bannerDatesRaw` / `eventDatesRaw` 是**既有**的"源站原文 / 溯源说明"约定字段，
-//      本次维持现状 —— 那不是"迁移目的地"，只是原本就长这样。）
+// ⚠️ 但两处**数据质量**问题必须知道（它们不是"区服标错"，是上游回填残留）：
+//   ① `events.json` 首条 id=1「雨过天晴的启明星」startAt=1633762800000 = 2021-10-09 15:00(UTC+8)，
+//      **早于国服公测**（2025-03-27）→ 该时间线是上游对齐/回填的产物，
+//      拿它当"国服活动排期"会**失真**。
+//   ② 部分条目名是繁体（59 条卡池里 18 条，如 gacha 16「新手應援起跑衝刺招募」）→
+//      国服客户端为「世界」的回响回填 2020–2024 历史时**沿用了繁中串**（CN/TW 共用 Nuverse 6.4.0
+//      结构）；2024-05 之后的记录全部是简体。
+//      **不做机械繁转简**：两岸官方译法本就不同（`[新手应援]必定获得1名★4成员10连招募券招募`
+//      vs 繁中服 `[新手應援]必中1名★4成員10連票券招募`），机械转换会产出第三种、非官方的字符串。
 
 
-const ns_miyoushe_MIYOUSHE_TZ = "Asia/Shanghai";                     // **推测**（理由见文件头 §二）
-const ns_miyoushe_MIYOUSHE_REFERER = "https://www.miyoushe.com/";    // 详情端点的 Referer 门（实测）
-// ⚠️ 这里**曾**导出 `MIYOUSHE_PROVENANCE`（"米游社官方公告（档期由公告正文抽出；国服墙钟按 UTC+8 换算
-//    —— 源站未标注时区＝推测）"），专门塞进悬停首行。用户 2026-10-03 要求「元信息彻底删掉」→
-//    常量与悬停首行**一并删除**。来源站名 / 时区推定这类信息只留在**本文件注释**里（§一/§二）。
+const ns_sekai_DEFAULT_GACHA = "https://sekai-world.github.io/sekai-master-db-cn-diff/gachas.json";
+const ns_sekai_DEFAULT_EVENT = "https://sekai-world.github.io/sekai-master-db-cn-diff/events.json";
+// 长期/常驻池阈值：**用本体那一条**（`LONG_TERM_MAX_WINDOW_DAYS`），不再自带数字。
+// 旧值 400 天只够挡住 2099 哨兵值，会放过 365 天的**永久**池 ——
+// 实测 `新手限定★4自选阶梯招募`（03-26 16:00 ~ 次年 03-26 15:59，整 365 天）就是这样漏进"当期招募"的
+// （用户 2026-10-03 要求「规则和原来一致」）。限时招募最长约 1 个月，120 天阈值不会误伤。
+const ns_sekai_LONG_MS = LONG_TERM_MAX_WINDOW_DAYS * 864e5;
 
-const ns_miyoushe_LIST_BASE = "https://bbs-api.miyoushe.com/painter/wapi/getNewsList";
-const ns_miyoushe_DETAIL_BASE = "https://bbs-api.miyoushe.com/post/wapi/getPostFull";
+// ⚠️ 2026-10-03 收敛：本文件原有 `toTs`（**严格版**：只接受 number，数字字符串返回 null）
+//    与 `byNewestStart`（与 bestdori 那份逐字相同）。均已统一到 `41-sources-shared.js` 的
+//    `numOrNull` / `byNewestStart`。取宽容版对本源无影响（`gachas.json`/`events.json` 里都是数字），
+//    但若源站哪天改成字符串就能直接吃下，不必再改代码。
 
-// gids（实测：1=崩坏3 / 2=原神 / 6=星穹铁道 / 8=绝区零）
-const ns_miyoushe_MIYOUSHE_GIDS = { bh3: 1, genshin: 2, hsr: 6, zzz: 8 };
-// type（实测：1=公告/补给、2=活动、3=资讯）
-const ns_miyoushe_MIYOUSHE_TYPES = { GACHA: 1, EVENT: 2, INFO: 3 };
+// ── 卡池侧 ──
+// 覆盖当前时刻的**有界**池里取 startTs 最新的一期当"当期招募"；长期池（2099 哨兵等）不参与"当期"，
+// 也不进悬停（它们恒在架，列出来是噪音）。
+function ns_sekai_parseSekaiGachas(json, now = nowMs(), tz = "Asia/Shanghai") {
+	if (!Array.isArray(json)) throw new Error("sekai-gacha-bad-shape");
+	const pools = [];
+	for (const g of json) {
+		if (!g || typeof g !== "object") continue;
+		const s = numOrNull(g.startAt), e = numOrNull(g.endAt);
+		const name = typeof g.name === "string" ? g.name.trim() : "";
+		if (!name || s == null || e == null || e <= s) continue;
+		pools.push({ id: g.id, name, type: String(g.gachaType || ""), startTs: s, endTs: e, long: e - s > ns_sekai_LONG_MS });
+	}
+	if (pools.length === 0) throw new Error("sekai-gacha-bad-shape");
+	const active = pools.filter((x) => coversNow(x, now));
+	const bounded = active.filter((x) => !x.long).sort(byNewestStart);
+	const cur = bounded[0] || null;
+	if (!cur) return null;
 
-const ns_miyoushe_MIYOUSHE_MAX_DETAILS = 5;        // 每侧最多抓几篇正文
-const ns_miyoushe_MIYOUSHE_DETAIL_DELAY_MS = 200;  // 篇间隔（顺序抓，避免把源站打急）
-
-// ⚠️ registry-p4.js 里声明的 url 必须由这两个函数生成，否则离线夹具（map.json 按整串匹配）命中不到。
-function ns_miyoushe_miyousheListUrl(gids, type, pageSize = 20) {
-	return `${ns_miyoushe_LIST_BASE}?gids=${gids}&type=${type}&page_size=${pageSize}`;
-}
-function ns_miyoushe_miyousheDetailUrl(postId) {
-	return `${ns_miyoushe_DETAIL_BASE}?post_id=${encodeURIComponent(String(postId))}`;
+	const dates = fmtWindow(cur.startTs, cur.endTs, tz);
+	// 悬停 = 全部当期**有界**池（长期池不参与"当期"，见上）。每池一行池名 + 档期，窗口完全相同则
+	// 档期只在末尾写一遍 —— 排版交给共用工具 hoverPool（与本体 buildPoolHover 逐字一致）。
+	// 源站没有角色名 → name 就用池名本身（对应本体的「池名：角色」里的池名位置）。
+	// 池名里的「（ceil）」等后缀来自 `gachaType` 枚举，**不是源站原文** → 不进悬停；
+	// 同名同窗的阶梯/高级礼物招募多条各自成行（源站如此，不再合并成 ×n）。
+	const hover = hoverPool(bounded.map((p) => ({ name: p.name, startTs: p.startTs, endTs: p.endTs })), tz);
+	// 只有 1 个当期池 → hover 为 ""，**不设 bannerHover**，由 UI 走默认两行式「banner ⏎ bannerDates」
+	return {
+		banner: cur.name,
+		roles: "",
+		bannerDates: dates,
+		bannerDatesRaw: dates,
+		startTs: cur.startTs,
+		endTs: cur.endTs,
+		...(hover ? { bannerHover: hover } : {})
+	};
 }
 
-//#region 列表 / 详情解析（纯函数）
-// type=2 列表每条都带 `news_meta`（显式档期，epoch 秒**字符串**）→ 解析成绝对毫秒；type=1 恒 null。
-function ns_miyoushe_parseNewsMeta(nm) {
-	if (!nm || typeof nm !== "object") return null;
-	const s = Number(nm.start_at_sec), e = Number(nm.end_at_sec);
-	if (!Number.isFinite(s) || !Number.isFinite(e) || !(s > 0) || !(e > s)) return null;
-	const st = Number(nm.activity_status);
-	return { startTs: s * 1000, endTs: e * 1000, status: Number.isFinite(st) ? st : null };
+// ── 活动侧 ──
+// 活动窗口 = startAt ~ aggregateAt（**源站无 endAt**，见文件头 ②；aggregateAt 缺失时退回 closedAt）
+function ns_sekai_parseSekaiEvents(json, now = nowMs(), tz = "Asia/Shanghai") {
+	if (!Array.isArray(json)) throw new Error("sekai-event-bad-shape");
+	const rows = [];
+	for (const e of json) {
+		if (!e || typeof e !== "object") continue;
+		const s = numOrNull(e.startAt);
+		const agg = numOrNull(e.aggregateAt);
+		const end = agg != null ? agg : numOrNull(e.closedAt);   // 源站无 endAt：优先 aggregateAt
+		const name = typeof e.name === "string" ? e.name.trim() : "";
+		if (!name || s == null || end == null || end <= s) continue;
+		rows.push({ id: e.id, name, type: String(e.eventType || ""), startTs: s, endTs: end, closedAt: numOrNull(e.closedAt) });
+	}
+	if (rows.length === 0) throw new Error("sekai-event-bad-shape");
+	const active = rows.filter((x) => coversNow(x, now)).sort(byNewestStart);
+	const cur = active[0] || null;
+	if (!cur) return null;
+	const dates = fmtWindow(cur.startTs, cur.endTs, tz);
+	// ⚠️ 降级逻辑（保留）：源站 `events.json` **没有** `endAt` 字段，活动游玩期取 `startAt ~ aggregateAt`
+	//    （aggregateAt = 活动结束、开始统计的时刻）；aggregateAt 缺失时退回 `closedAt`。
+	//    这句说明是**实现细节**，只留在代码注释里，**不进悬停**。
+	// `eventDatesRaw`：既有约定是"保留源站原文"，这里如实记录上面那次映射（本体也有条目这么做）。
+	// `eventDatesRaw` 就写格式化档期本身：UI 的默认两行式会直接显示它
+	// （`eventDatesRaw || eventDates`），所以**不能**在这儿夹带说明文字
+	// —— 用户 2026-10-03 明确要求「元信息彻底删掉」。实测旧版把说明拼进来后，
+	//    面板上出现了 `09-30 15:00 ~ 10-09 20:59（源站无 endAt：结束取 aggregateAt；…）` 这种尾巴。
+	const raw = dates;
+	// 悬停 = 全部当期活动，结束时间升序逐行「名称 + 3 空格 + 档期」（档期由共用工具 fmtWindow 格式化，
+	// 与本体 buildEventHover 逐字一致）。**不排序**由工具负责 → 这里先排好序再传。
+	// 只有 1 条 → 工具返回 ""，不设 eventHover，由 UI 走默认两行式「event ⏎ eventDates」。
+	const ordered = active.slice().sort((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs));
+	const hover = hoverEvent(ordered.map((x) => ({ name: x.name, startTs: x.startTs, endTs: x.endTs })), tz);
+	return {
+		event: cur.name,
+		eventDates: dates,
+		eventDatesRaw: raw,
+		...(hover ? { eventHover: hover } : {})
+	};
 }
 
-function ns_miyoushe_parseMiyousheList(json) {
-	if (!json || typeof json !== "object") throw new Error("miyoushe-bad-shape");
-	if (json.retcode !== 0) throw new Error("miyoushe-retcode-" + json.retcode);
-	const list = json.data && json.data.list;
-	if (!Array.isArray(list)) throw new Error("miyoushe-bad-list");
-	const out = [];
-	for (const it of list) {
-		const p = it && it.post;
-		if (!p || p.post_id == null || p.post_id === "") continue;
-		const sec = Number(p.created_at);
-		out.push({
-			// ⚠️ 保留字符串形态（源站就是字符串；夹具 map 的 URL 也按它拼）
-			postId: String(p.post_id),
-			subject: String(p.subject || "").replace(/\s+/g, " ").trim(),
-			// created_at 是 **epoch 秒**，转毫秒；源站的绝对时刻，不需要按 tz 解释
-			createdTs: Number.isFinite(sec) && sec > 0 ? sec * 1000 : null,
-			// 只有 type=2 列表才有（type=1 恒 null）；epoch 秒的**字符串**，要 Number() 一下
-			newsMeta: ns_miyoushe_parseNewsMeta(it && it.news_meta)
+// 抓取器：mode="direct"（实测 sekai-world.github.io = GitHub Pages 静态资源，带 ACAO）
+async function ns_sekai_gachaSekai(url, signal, tz = "Asia/Shanghai", now = nowMs()) {
+	const data = await fetchJson(url || ns_sekai_DEFAULT_GACHA, { signal, mode: "direct" });
+	return ns_sekai_parseSekaiGachas(data, now, tz);
+}
+async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = nowMs()) {
+	const data = await fetchJson(url || ns_sekai_DEFAULT_EVENT, { signal, mode: "direct" });
+	return ns_sekai_parseSekaiEvents(data, now, tz);
+}
+
+		// ── 条目 ──
+		registerSource({
+				id: "pjsk",
+				tz: "Asia/Shanghai",
+				name: "初音未来：缤纷舞台·国服",
+				icon: "https://p16-sg.dailygn.com/obj/g-marketing-assets-sg/2021_12_15_07_41_24/icon_s54607.png",
+				url: "https://sekai-world.github.io/sekai-master-db-cn-diff/gachas.json",
+				// 站点名 + 资源名（对齐本体惯例：`Bwiki 往期祈愿` / `Bwiki 活动一览`）
+				// 旧值写的是「第三方数据」——那是**类别**不是站点名，用户 2026-10-03 要求改成网站名称。
+				source: "Sekai World 卡池表",
+				eventUrl: "https://sekai-world.github.io/sekai-master-db-cn-diff/events.json",
+				eventSource: "Sekai World 活动表",
 		});
-	}
-	return out;
-}
 
-function ns_miyoushe_parseMiyousheDetail(json) {
-	if (!json || typeof json !== "object") throw new Error("miyoushe-bad-shape");
-	if (json.retcode !== 0) throw new Error("miyoushe-retcode-" + json.retcode);
-	const p = json.data && json.data.post && json.data.post.post;
-	if (!p || p.post_id == null) throw new Error("miyoushe-bad-post");
-	const sec = Number(p.created_at);
-	return {
-		postId: String(p.post_id),
-		subject: String(p.subject || "").replace(/\s+/g, " ").trim(),
-		createdTs: Number.isFinite(sec) && sec > 0 ? sec * 1000 : null,
-		content: String(p.content || "")
-	};
-}
+		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
+		GACHA_FETCHERS["pjsk"] = (url, signal, tz) => ns_sekai_gachaSekai(url, signal, tz);
+		EVENT_FETCHERS["pjsk"] = Object.assign(EVENT_FETCHERS["pjsk"] || {}, { default: (url, signal, tz) => ns_sekai_eventsSekai(url, signal, tz) });
 
-// "这篇拿不到"≠"这一侧抓取失败"：实测详情对不存在的 post 回 **HTTP 200 + retcode 1101/1102**
-// （`{"data":null,"message":"post not exist","retcode":1102}`），不是 HTTP 404。
-function ns_miyoushe_isMiyousheMissing(err) {
-	const m = String((err && err.message) || err || "");
-	return /\b(404|410)\b/.test(m) || /miyoushe-retcode-(1101|1102)\b/.test(m);
-}
-//#endregion
+// src/client/30-game-yostar.js —— 悠星（星塔旅人）
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
 
-//#region 标题关键词分流
-// 冲突时卡池优先：`4.6版本活动跃迁（其一）` 是**卡池**公告（字面含"活动"）。
-const ns_miyoushe_BANNER_KW = /祈愿|补给|跃迁|频段|调频|招募|概率UP|概率提升|扭蛋|蛋池/;
-const ns_miyoushe_EVENT_KW = /活动|征集|赛事|签到|登录|庆典|有奖|话题|抽奖|投票|答题|委托|福利/;
 
-function ns_miyoushe_classifyMiyousheTitle(subject) {
-	const t = String(subject == null ? "" : subject);
-	if (ns_miyoushe_BANNER_KW.test(t)) return "gacha";
-	if (ns_miyoushe_EVENT_KW.test(t)) return "event";
-	return "unknown";
-}
-//#endregion
-
-//#region 版本锚点（`X.Y版本更新后` → 该版本更新公告的发布时刻）
-// 实测（p4-hsr-news）：`4.6版本更新说明` created_at=2026-09-28 07:00:11 +08 → 4.6 的起点。
-// 必须排除「预下载开启&更新通知」（比正式更新早 1~2 天）与《云•XX》的更新说明。
-const ns_miyoushe_VER_UPD_RE = /(\d{1,2}\.\d{1,2})\s*版本(?:更新说明|更新公告|更新通知|更新预告)/;
-function ns_miyoushe_miyousheVersionStarts(items) {
-	const map = {};
-	for (const it of items || []) {
-		const t = String((it && it.subject) || "");
-		if (/预下载|前瞻|预约|预抽|云[•·]/.test(t)) continue;
-		const m = ns_miyoushe_VER_UPD_RE.exec(t);
-		if (!m) continue;
-		if (map[m[1]] == null && it.createdTs != null) map[m[1]] = it.createdTs;
-	}
-	return map;
-}
-// 版本锚点 → 绝对时刻。`更新后` = 该版本的起点（没有 → 不可解）；`结束` = 下一个已知版本起点 − 1 分钟。
-function ns_miyoushe_resolveVersionAnchor(ver, kind, verStarts) {
-	const cur = verStarts ? verStarts[ver] : null;
-	if (cur == null) return null;
-	if (kind === "更新后") return cur;
-	if (kind === "结束") {
-		const later = Object.keys(verStarts)
-			.filter((v) => verStarts[v] > cur)
-			.sort((a, b) => verStarts[a] - verStarts[b])[0];
-		return later == null ? null : verStarts[later] - 60000;
-	}
-	return null;
-}
-//#endregion
-
-//#region 正文档期抽取
-// 令牌化：ABS 完整日期 | VER 版本锚点 | BARE 无年份 M.D HH:MM | OPEN 即日起
-// 组序号：1-5 = ABS(y,mo,d,h,mi)，6-7 = VER(num,kind)，8-11 = BARE(mo,d,h,mi)
-const ns_miyoushe_ABS_SRC = "(20\\d{2})\\s*[-\\/年.]\\s*(\\d{1,2})\\s*[-\\/月.]\\s*(\\d{1,2})\\s*日?"
-	+ "(?:\\s*[（(]\\s*周?[一二三四五六日天]\\s*[）)])?"
-	+ "(?:\\s*(\\d{1,2})\\s*[:：]\\s*(\\d{2}))?";
-const ns_miyoushe_VER_SRC = "(\\d{1,2}\\.\\d{1,2})\\s*版本(更新后|结束)";
-const ns_miyoushe_BARE_SRC = "(\\d{1,2})\\s*[.\\/]\\s*(\\d{1,2})\\s*(\\d{1,2})\\s*[:：]\\s*(\\d{2})";
-const ns_miyoushe_OPEN_SRC = "即日起";
-const ns_miyoushe_TOKEN_RE = new RegExp([ns_miyoushe_ABS_SRC, ns_miyoushe_VER_SRC, ns_miyoushe_BARE_SRC, ns_miyoushe_OPEN_SRC].join("|"), "g");
-// 两个日期之间只允许"连接符"（可带空白）。**故意不允许空串**：避免把相邻但无关的日期配成窗口。
-const ns_miyoushe_CONNECTOR_RE = /^\s*[~～〜〰\-–—－至到]\s*$/;
-
-function ns_miyoushe_tokenizeMiyoushe(s) {
-	const toks = [];
-	ns_miyoushe_TOKEN_RE.lastIndex = 0;
-	let m;
-	while ((m = ns_miyoushe_TOKEN_RE.exec(s)) !== null) {
-		if (m[0] === "") { ns_miyoushe_TOKEN_RE.lastIndex++; continue; }
-		const start = m.index, end = m.index + m[0].length;
-		if (m[1] != null) {
-			toks.push({ kind: "abs", start, end, y: +m[1], mo: +m[2], d: +m[3], h: m[4] != null ? +m[4] : null, mi: m[5] != null ? +m[5] : null, ver: null });
-		} else if (m[6] != null) {
-			toks.push({ kind: "ver", start, end, ver: m[6], verKind: m[7] });
-		} else if (m[8] != null) {
-			toks.push({ kind: "bare", start, end, y: null, mo: +m[8], d: +m[9], h: +m[10], mi: +m[11] });
-		} else {
-			toks.push({ kind: "open", start, end });
-		}
-	}
-	return toks;
-}
-
-/**
- * 从一段公告正文（HTML 或纯文本）里抽出所有「起 ~ 止」档期。
- * @param {string} text 详情正文（HTML 会先 textOf 去标签；已是纯文本也安全）
- * @param {string} tz 源站墙钟时区
- * @param {{hintTs?:number, verStarts?:Record<string,number>}} opts
- *        hintTs = 公告发布时刻（**无年份**日期的年份来源 + `即日起` 的起点）
- *        verStarts = `X.Y版本更新后` 的版本锚点表（见 ns_miyoushe_miyousheVersionStarts）
- * @returns {Array<{startTs:number,endTs:number,raw:string,at:number,inferred:boolean,note:string}>}
- */
-function ns_miyoushe_collectMiyousheWindows(text, tz = ns_miyoushe_MIYOUSHE_TZ, opts = {}) {
-	const html = String(text == null ? "" : text);
-	const s = /<[a-z!/]/i.test(html) ? textOf(html) : html;
-	const hintTs = opts.hintTs != null && Number.isFinite(opts.hintTs) ? opts.hintTs : null;
-	const verStarts = opts.verStarts || {};
-	const hint = hintTs != null ? sourceWallParts(hintTs, tz) : null;
-	const toks = ns_miyoushe_tokenizeMiyoushe(s);
-
-	// 起点令牌 → 绝对时刻
-	const startOf = (info) => {
-		if (info.kind === "abs") {
-			let ts = sourceInstant(info.y, info.mo, info.d, info.h == null ? 0 : info.h, info.mi == null ? 0 : info.mi, tz);
-			if (info.ver) {
-				// `2026/09/28 4.6版本更新后` → 用版本更新公告时刻（更准）；锚点缺失才退回字面日期 00:00
-				const v = ns_miyoushe_resolveVersionAnchor(info.ver, info.verKind || "更新后", verStarts);
-				if (v != null) ts = v;
-			}
-			return ts;
-		}
-		if (info.kind === "bare") {
-			if (!hint) return null;      // 没有公告年份可借 → 不解（不猜当前年）
-			return sourceInstant(hint.y, info.mo, info.d, info.h == null ? 0 : info.h, info.mi == null ? 0 : info.mi, tz);
-		}
-		if (info.kind === "ver") return ns_miyoushe_resolveVersionAnchor(info.ver, info.verKind, verStarts);
-		if (info.kind === "open") return hintTs;   // `即日起` → 公告发布时刻
-		return null;
-	};
-	// 终点令牌 → 绝对时刻（无年份时按起点年，月日更早则进一年）
-	const endOf = (info, startTs) => {
-		if (info.kind === "ver") return ns_miyoushe_resolveVersionAnchor(info.ver, info.verKind, verStarts);
-		if (info.kind === "open") return null;
-		const h = info.h == null ? 23 : info.h, mi = info.mi == null ? 59 : info.mi;
-		let y = info.y;
-		if (y == null) {
-			const sw = sourceWallParts(startTs, tz);
-			y = sw.y;
-			// 月日排在起点之前 → 跨年（共用判定）
-			if (endsNextYear(sw.mo, sw.d, info.mo, info.d)) y += 1;
-		}
-		return sourceInstant(y, info.mo, info.d, h, mi, tz);
-	};
-
-	const byKey = new Map();
-	// 去重键用**时间区间**而不是 raw 文本：同一段区间在正文里常有"全写"与"只写版本锚点"两种形态
-	// （实测星铁：`2026/09/28 4.6版本更新后 ~ …` 与 `4.6版本更新后 ~ …` 是同一段），
-	// 只按 raw 去重会重复列出。保留 raw 更长的那条（信息更全），插入顺序即文档顺序。
-	const addWindow = (w) => {
-		const key = w.startTs + "|" + w.endTs;
-		const prev = byKey.get(key);
-		if (!prev) { byKey.set(key, w); return; }
-		if (w.raw.length > prev.raw.length) {
-			prev.raw = w.raw;
-			prev.at = w.at;
-			prev.inferred = w.inferred;
-			prev.note = w.note;
-		}
-	};
-	let i = 0;
-	while (i < toks.length) {
-		const a = toks[i];
-		const info = { kind: a.kind, y: a.y, mo: a.mo, d: a.d, h: a.h, mi: a.mi, ver: a.ver, verKind: a.verKind };
-		let aEnd = a.end;
-		let j = i + 1;
-		// 紧贴的 `YYYY/MM/DD` + `X.Y版本更新后`（中间只有空白）= 同一个起点
-		if (a.kind === "abs" && a.h == null && toks[j] && toks[j].kind === "ver" && /^\s*$/.test(s.slice(a.end, toks[j].start))) {
-			info.ver = toks[j].ver;
-			info.verKind = toks[j].verKind;
-			aEnd = toks[j].end;
-			j++;
-		}
-		const b = toks[j];
-		i++;
-		if (!b) continue;
-		if (!ns_miyoushe_CONNECTOR_RE.test(s.slice(aEnd, b.start))) continue;
-		if (b.kind !== "abs" && b.kind !== "bare" && b.kind !== "ver") continue;
-
-		const st = startOf(info);
-		if (st == null) continue;
-		const en = endOf(b, st);
-		if (en == null || !(en > st)) continue;
-		const raw = s.slice(a.start, b.end).replace(/\s+/g, " ").trim();
-		const inferredVer = info.kind === "ver" || (info.kind === "abs" && !!info.ver);
-		addWindow({
-			startTs: st,
-			endTs: en,
-			raw,
-			at: a.start,
-			inferred: info.kind === "open" || inferredVer,
-			note: info.kind === "open" ? "起点「即日起」＝取公告发布时刻"
-				: inferredVer ? "起点「版本更新后」＝取该版本更新公告的发布时刻"
-					: ""
-		});
-	}
-	return [...byKey.values()];
-}
-
-// 当期 = 文档顺序里**第一条覆盖 now** 的窗口；没有就是没有（不退回过期档期）
-// 卡池名册：优先只看"首个档期之前"的引言（那才是本期名单），引言里没有才退回全文。
-// 例：星铁跃迁引言 → 「真珠」；绝区零频段引言没有名单 → 全文取「洛克茜、普罗米娅」。
-const ns_miyoushe_ROLE_RE = /限定\s*(?:[5S]\s*[星级])?\s*(?:角色|代理人|女武神)\s*[「【\[]([^」】\]]+)[」】\]]/g;
-function ns_miyoushe_extractRoles(s) {
-	const names = [];
-	ns_miyoushe_ROLE_RE.lastIndex = 0;
-	let m;
-	while ((m = ns_miyoushe_ROLE_RE.exec(s)) !== null) {
-		const n = m[1].replace(/[（(].*$/, "").trim();
-		if (n && !names.includes(n)) names.push(n);
-		if (names.length >= 6) break;
-	}
-	return names.join("、");
-}
-function ns_miyoushe_miyousheRoles(text, stopAt = null) {
-	const s = String(text == null ? "" : text);
-	const plain = /<[a-z!/]/i.test(s) ? textOf(s) : s;
-	const head = stopAt != null && stopAt > 0 ? plain.slice(0, stopAt) : "";
-	return (head ? ns_miyoushe_extractRoles(head) : "") || ns_miyoushe_extractRoles(plain);
-}
-//#endregion
-
-//#region 抓取
-const ns_miyoushe_sleep = (ms) => new Promise((r) => coreEnv.timer.setTimeout(r, ms));
-
-// 源站原文（`bannerDatesRaw` / `eventDatesRaw` 用）。
-// ⚠️ 这两个字段**会被 UI 的默认两行式直接显示**（面板取 `bannerDatesRaw || bannerDates`、
-//    `eventDatesRaw || eventDates`）—— 所以它们**只能放档期文本本身**，
-//    绝不能夹带「这来自哪个字段」之类的说明（用户 2026-10-03：「元信息彻底删掉」）。
-//    旧实现在 news_meta 兜底时返回 `news_meta 档期（源站显式字段，非正文）：…`，
-//    一旦兜底路径触发，这句话就会原样出现在面板上 —— 已修。
-//    「本窗口来自 news_meta 兜底」这一事实保留在 `p.source`（不显示）+ 代码注释里。
-function ns_miyoushe_rawOf(p, tz) {
-	if (p.source === "news_meta") return fmtWindow(p.startTs, p.endTs, tz);
-	return p.raw;
-}
-
-// ── 悬停条目 ──────────────────────────────────────────────────────────────────
-// 排版交给 lib/env.js 的 `hoverPool` / `hoverEvent`（与本体 buildPoolHover / buildEventHover 逐字一致）。
-// 用户 2026-10-03：「悬停里的元信息彻底删掉」→ 这里**只**产出名称与档期，别的一概不传。
-// 池名与本体 `banner：roles` 同构：有角色名 →「池名：角色」，没有 → 只写池名。
-const ns_miyoushe_hoverPoolName = (w) => (w.roles ? `${w.subject}：${w.roles}` : w.subject);
-// 活动悬停顺序：结束时间升序（无/未知结束排在最后），并列再按开始时间 —— 与 lib/env.js 内部规则一致
-function ns_miyoushe_byEndTs(a, b) {
-	const ea = a.endTs == null ? Infinity : a.endTs;
-	const eb = b.endTs == null ? Infinity : b.endTs;
-	if (ea !== eb) return ea - eb;
-	const sa = a.startTs == null ? Infinity : a.startTs;
-	const sb = b.startTs == null ? Infinity : b.startTs;
-	return sa - sb;
-}
-// `raw` 只在"缺起止"时才会被 hoverEvent 印出来；news_meta 兜底行的 raw 是内部字段说明
-// （`start_at_sec=…`）→ 不给它，免得内部字段名有机会漏进悬停。
-const ns_miyoushe_hoverRaw = (w) => (w.source === "news_meta" ? "" : w.raw);
-
-// 列表 → 候选 → 逐篇详情 → 抽档期。返回值可能是 null（未公布）；结构性损坏直接抛。
-async function ns_miyoushe_collectMiyousheSide(listUrl, signal, tz, now, want) {
-	const listJson = await fetchJson(listUrl, { signal, mode: "proxy", referer: ns_miyoushe_MIYOUSHE_REFERER });
-	const items = ns_miyoushe_parseMiyousheList(listJson);
-	if (items.length === 0) return null;                       // 实测 gids=99999 → retcode 0 + 空 list
-	const verStarts = ns_miyoushe_miyousheVersionStarts(items);
-	const cands = items
-		.filter((it) => ns_miyoushe_classifyMiyousheTitle(it.subject) === want)
-		.sort((a, b) => (b.createdTs || 0) - (a.createdTs || 0))
-		.slice(0, ns_miyoushe_MIYOUSHE_MAX_DETAILS);
-	if (cands.length === 0) return null;                       // 该列表里没有本侧公告
-
-	const covering = [];
-	let okCount = 0, firstHardErr = null;
-	for (let idx = 0; idx < cands.length; idx++) {
-		if (idx > 0 && ns_miyoushe_MIYOUSHE_DETAIL_DELAY_MS > 0) await ns_miyoushe_sleep(ns_miyoushe_MIYOUSHE_DETAIL_DELAY_MS);
-		const it = cands[idx];
-		let d;
-		try {
-			d = ns_miyoushe_parseMiyousheDetail(await fetchJson(ns_miyoushe_miyousheDetailUrl(it.postId), { signal, mode: "proxy", referer: ns_miyoushe_MIYOUSHE_REFERER }));
-		} catch (e) {
-			if (!ns_miyoushe_isMiyousheMissing(e) && !firstHardErr) firstHardErr = e;
-			continue;
-		}
-		okCount++;
-		const hintTs = d.createdTs != null ? d.createdTs : it.createdTs;
-		const wins = ns_miyoushe_collectMiyousheWindows(d.content, tz, { hintTs, verStarts });
-		const roles = ns_miyoushe_miyousheRoles(d.content, wins.length ? wins[0].at : null);
-		for (const w of wins) {
-			w.subject = d.subject || it.subject;
-			w.postId = d.postId;
-			w.roles = roles;
-			w.source = "content";
-			// 候选已按 created_at 倒序、窗口按文档顺序 → covering[0] 就是"最新一篇公告里的第一条当期窗口"
-			if (coversNow(w, now)) covering.push(w);
-		}
-	}
-	// 一篇正文都没拿到、且出现过硬错（403/567/坏 JSON）→ 抛出去，让界面显示"抓取失败"
-	// 而不是把封禁静默成"未公布"。全是"post not exist"（1101/1102）则不算失败 → null。
-	if (okCount === 0) {
-		if (firstHardErr) throw firstHardErr;
-		return null;
-	}
-	// 兜底：正文一个覆盖 now 的窗口都抽不到时，退回源站**显式**字段 news_meta（只有 type=2 列表有）。
-	// 口径与正文可能不同（实测原神的 end 是开奖时刻）→ 悬停/raw 里**标明来源**，不冒充正文。
-	if (covering.length === 0) {
-		for (const it of cands) {
-			const nm = it.newsMeta;
-			if (!nm || !(coversNow(nm, now))) continue;
-			covering.push({
-				startTs: nm.startTs, endTs: nm.endTs,
-				// ⚠️ 不留「news_meta start_at_sec=… end_at_sec=…」这种内部字段说明：内部字段名不进数据
-				//    （`eventDatesRaw` 的溯源说明由 ns_miyoushe_rawOf 统一给；悬停由 ns_miyoushe_hoverRaw 屏蔽）
-				raw: fmtWindow(nm.startTs, nm.endTs, tz),
-				subject: it.subject, postId: it.postId, roles: "",
-				inferred: false, note: "", source: "news_meta", status: nm.status
-			});
-		}
-	}
-	if (covering.length === 0) return null;                    // 抓到正文但没有覆盖 now 的档期 = 未公布
-	return { primary: covering[0], covering };
-}
-
-/** 卡池侧（type=1 公告/补给；标题按卡池关键词分流） */
-async function ns_miyoushe_gachaMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE_TZ, now = nowMs()) {
-	const listUrl = url || ns_miyoushe_miyousheListUrl(ns_miyoushe_MIYOUSHE_GIDS.bh3, ns_miyoushe_MIYOUSHE_TYPES.GACHA);
-	const r = await ns_miyoushe_collectMiyousheSide(listUrl, signal, tz, now, "gacha");
-	if (!r) return null;
-	const p = r.primary;
-	// 悬停 = 全部当期池，每池「池名：角色」一行 + 档期（排版交给共用工具 hoverPool，≥2 池才有内容）。
-	// 只有 1 个当期池 → "" → **不设** bannerHover，由 UI 走默认两行式「banner ⏎ bannerDates」。
-	const bannerHover = hoverPool(r.covering.map((w) => ({
-		name: w.subject,
-		label: ns_miyoushe_hoverPoolName(w),
-		startTs: w.startTs,
-		endTs: w.endTs,
-		raw: ns_miyoushe_hoverRaw(w)
-	})), tz);
-	return {
-		banner: p.subject,
-		roles: p.roles || "",
-		bannerDates: fmtWindow(p.startTs, p.endTs, tz),
-		bannerDatesRaw: ns_miyoushe_rawOf(p, tz),
-		startTs: p.startTs,
-		endTs: p.endTs,
-		...(bannerHover ? { bannerHover } : {})
-	};
-}
-
-/** 活动侧（type=2 活动；标题按活动关键词分流） */
-async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE_TZ, now = nowMs()) {
-	const listUrl = url || ns_miyoushe_miyousheListUrl(ns_miyoushe_MIYOUSHE_GIDS.bh3, ns_miyoushe_MIYOUSHE_TYPES.EVENT);
-	const r = await ns_miyoushe_collectMiyousheSide(listUrl, signal, tz, now, "event");
-	if (!r) return null;
-	const p = r.primary;
-	// 悬停 = 全部当期活动，结束时间升序逐行「名称 + 3 空格 + 档期」
-	// （排版交给共用工具 hoverEvent；它自己**不排序** → 这里先排好再传）。
-	// 只有 1 条 → "" → **不设** eventHover，由 UI 走默认两行式「event ⏎ eventDates」。
-	const eventHover = hoverEvent(r.covering.slice().sort(ns_miyoushe_byEndTs).map((w) => ({
-		name: w.subject,
-		startTs: w.startTs,
-		endTs: w.endTs,
-		raw: ns_miyoushe_hoverRaw(w)
-	})), tz);
-	return {
-		event: p.subject,
-		eventDates: fmtWindow(p.startTs, p.endTs, tz),
-		eventDatesRaw: ns_miyoushe_rawOf(p, tz),
-		...(eventHover ? { eventHover } : {})
-	};
-}
-//#endregion
-
+		// ══ 以下为原 42-parsers-stellasora.js 的内容（原样保留）══
 // src/client/35-parsers-stellasora.js
 //
 // 由 next-sources/parsers/stellasora.js 压平而来（2026-10-03「不留 next-source」）。
@@ -11100,6 +10958,485 @@ function ns_stellasora_stellaWindowsFromDetail(detailJson, tz = ns_stellasora_ST
 	const anchorTs = typeof n.publishTime === "number" ? n.publishTime : null;
 	return ns_stellasora_parseStellaWindows(n.content, tz, anchorTs);
 }
+
+		// ── 条目 ──
+		registerSource({
+				id: "stellasora",
+				tz: "Asia/Shanghai",
+				name: "星塔旅人",
+				icon: "https://webcnstatic.yostar.net/stellasora/stellasora-cn-official-frontend/main/h5/favicon.png?x-oss-process=image/resize,w_128",
+				url: "https://stellasora.yostar.cn/api/resource/news?index=1&size=20&type=notice",
+				source: "官方公告",
+				eventUrl: "https://stellasora.yostar.cn/api/resource/news?index=1&size=20&type=notice",
+				eventSource: "官方公告",
+				eventAltSources: [{"label":"Bwiki 首页活动日历（低可用）","url":"https://wiki.biligame.com/stellasora/api.php?action=parse&page=首页&prop=text&format=json&formatversion=2","fetcher":"stellasora-bwiki"}],
+		});
+
+		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
+		GACHA_FETCHERS["stellasora"] = (url, signal, tz) => ns_stellasora_gachaStellasora(url, signal, tz);
+
+		EVENT_FETCHERS["stellasora"] = Object.assign(EVENT_FETCHERS["stellasora"] || {}, { default: (url, signal, tz) => ns_stellasora_eventsStellasora(url, signal, tz) });
+
+		// ===== 登记备选源抓取器（键 = altSources/eventAltSources 的 fetcher 字段）=====
+
+		// GACHA_FETCHERS 是**扁平**表 → 卡池备选源注册在顶层即可；
+
+		// EVENT_FETCHERS 是**按条目 id 分组**的表 → 活动备选源必须注册进 EVENT_FETCHERS[<条目id>]。
+
+		EVENT_FETCHERS["stellasora"] = EVENT_FETCHERS["stellasora"] || {};
+
+		Object.assign(EVENT_FETCHERS["stellasora"], {
+
+			"stellasora-bwiki": { default: (url, signal, tz) => ns_bwiki_eventsStellasora(url, signal, tz) },
+
+		});
+
+// src/client/30-game-bluepoch.js —— 深蓝互动（重返未来：1999）
+//
+// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
+//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
+//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
+//
+// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
+//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
+
+
+		// ── 解析器 / 抓取器 ──
+
+		// 重返未来：1999 征集名增强源（小米游戏中心官方资讯流，SSR 页免登录可抓）
+		// 官网资讯接口不发布征集名；小米游戏中心游戏页（game.xiaomi.com/game/62346241）的 SSR 数据
+		// 含官方账号「神秘学研究员」最新 3 条资讯全文，其中「活动征集」公告带真实征集名与征集时间
+		// （如【烈火悬流无尽】8/13 10:00-9/3 4:59、【湖的馈赠】自选六星 8/28 5:00-9/14 4:59）。
+		// 主池优先：只认"征集时间覆盖当前时刻"且带定向 UP 的征集公告，且 UP 角色属于官网「新增角色」
+		// （官方 SixStar 列表，如 赫多涅/纳西索斯）——自选六星池（无定向 UP）不作为主池；
+		// 无主池匹配返回 null（由官网解析兜底显示角色名）。多条主池匹配取最新发布者。
+		async function fetchXiaomiR99Gacha(gamePageUrl, officialSixStars) {
+			const html = await proxyFetchText(gamePageUrl, "https://game.xiaomi.com/");
+			const start = html.indexOf('"official":{"viewpoints":{"infos":[');
+			if (start < 0) return null;
+			const raw = html.slice(start);
+			const marks = [...raw.matchAll(/\{"viewpointId":"/g)].map((x) => x.index);
+			if (marks.length === 0) return null;
+			const now = nowMs();
+			const nowYear = new Date(now).getFullYear();   // 复用同一注入时钟（core 不得直接读宿主时钟）
+			const fmt = (mo, d, h, mi) => `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} ${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
+			let best = null;
+			for (let i = 0; i < marks.length; i++) {
+				const seg = raw.slice(marks[i], i + 1 < marks.length ? marks[i + 1] : raw.length);
+				const title = (seg.match(/"title":"([^"]*)"/) || [])[1] || "";
+				const texts = [...seg.matchAll(/"contentType":1,"positionIndex":\d+,"content":"([\s\S]*?)"/g)].map((x) => x[1]);
+				const content = texts.join(" ").replace(/\\u003c/g, "<").replace(/\\u003e/g, ">").replace(/\\u002F/g, "/").replace(/\\n/g, " ");
+				if (!/征集/.test(title + content)) continue;
+				const nameM = title.match(/【([^】]+)】活动征集/) || content.match(/【([^】]+)】活动征集/);
+				if (!nameM) continue;
+				// 征集时间："8/28 5:00-9/14 4:59" / "8/13 10:00 - 9/3 4:59"
+				const timeM = content.match(/征集(?:开放)?时间[◀◀:：\s]*(\d{1,2})\/(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?\s*[-—~]\s*(\d{1,2})\/(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?/);
+				if (!timeM) continue;
+				const sm = Number(timeM[1]), sd = Number(timeM[2]), sh = timeM[3] ? Number(timeM[3]) : 0, smi = timeM[4] ? Number(timeM[4]) : 0;
+				const em = Number(timeM[5]), ed = Number(timeM[6]), eh = timeM[7] ? Number(timeM[7]) : 0, emi = timeM[8] ? Number(timeM[8]) : 0;
+				const startTs = new Date(nowYear, sm - 1, sd, sh, smi).getTime();
+				// 跨年（如 12/28-1/5）结束补下一年
+				const endTs = new Date(endsNextYear(sm, null, em, null) ? nowYear + 1 : nowYear, em - 1, ed, eh, emi).getTime();
+				if (startTs > now || endTs < now) continue; // 只取覆盖当期的征集
+				// 主池判定：带定向 UP（【X】受邀概率UP）且 UP 角色属于官网新增角色
+				const upM = title.match(/【([^】]+)】受邀概率UP/) || content.match(/【([^】]+)】受邀概率UP/);
+				const upName = upM ? cleanRoles(upM[1]).replace(/[（）()].*$/, "") : "";
+				const isMain = upName !== "" && Array.isArray(officialSixStars) && officialSixStars.includes(upName);
+				if (!isMain) continue; // 自选六星池等非主池不作为当期卡池
+				const cand = {
+					banner: nameM[1],
+					bannerDates: `${fmt(sm, sd, sh, smi)} ~ ${fmt(em, ed, eh, emi)}`,
+					roles: upName,
+					order: i
+				};
+				// 多条主池覆盖当期时取最新发布（feed 靠前者更新）
+				if (!best || cand.order < best.order) best = cand;
+			}
+			return best ? { banner: best.banner, bannerDates: best.bannerDates, roles: best.roles } : null;
+		}
+
+
+		// ---- 重返未来：1999 官方游戏内公告（noticecp）----
+		// 官网 CMS 公告只发布维护时间与活动名，**逐期征集起止**只出现在官方游戏内公告的
+		// 「X.X「…」版本活动一览」里：正文是块状富文本（content 为 JSON 字符串），按
+		// `「名称」类型` 分段 —— 征集段含【征集时间】+【征集说明】(6★/5★ UP)，活动段含【活动时间】。
+		// 接口归属：notice.sl916.com 证书主体=广州深蓝互动网络科技有限公司（与官网 re.bluepoch.com
+		// 同主体、同 EdgeOne CDN），免登录/无 CORS，经 host 代理读取；开源项目 MAA1999/M9A 长期使用
+		// 同一接口（见 README 致谢）。一版本上下半场两期都列在同一篇里，下期常提前公布。
+		// 征集类别 → 外显优先级（用户拍板的口径）：
+		//   限定系（巡游限定 › 限定复刻 › 巡游限定复刻 › 联动 › 限定）＞ 活动征集 ＞ 限时征集 ＞ 轮换征集。
+		// 同类内先结束者优先（与其它游戏"越快结束越靠前"一致）；**未登记的类别排到最后**（只进悬停、不抢外显），
+		// 将来官方造新词时不会顶掉主池。
+		const R99_POOL_TIERS = ["巡游限定征集", "限定复刻自选征集", "巡游限定复刻征集", "联动征集", "限定征集", "活动征集", "限时征集", "轮换征集"];
+
+
+		// 块状富文本 → 纯文本行数组（保持原顺序）；content 不是预期的 JSON 数组时返回 null
+		function r99NoticeLines(item) {
+			const raw = item && item.contentMap && item.contentMap["zh-CN"] && item.contentMap["zh-CN"].content;
+			if (typeof raw !== "string" || raw === "") return null;
+			let blocks;
+			try { blocks = JSON.parse(raw); } catch { return null; }
+			if (!Array.isArray(blocks)) return null;
+			return blocks.map((b) => stripTags(String((b && b.content) || ""))).filter((x) => x !== "");
+		}
+
+
+		// "8/13 10:00 - 9/3 4:59" → 时间戳；年份用公告自身的 beginTime 锚定（避免跨年误判）
+		function r99ParseWindow(text, year) {
+			const m = String(text).match(/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})\s*[-\u2014~]\s*(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})/);
+			if (!m) return null;
+			const sm = Number(m[1]), sd = Number(m[2]), sh = Number(m[3]), smi = Number(m[4]);
+			const em = Number(m[5]), ed = Number(m[6]), eh = Number(m[7]), emi = Number(m[8]);
+			const startTs = new Date(year, sm - 1, sd, sh, smi).getTime();
+			const endYear = endsNextYear(sm, sd, em, ed) ? year + 1 : year;   // 跨年（如 12/28 - 1/5）
+			return { startTs, endTs: new Date(endYear, em - 1, ed, eh, emi).getTime() };
+		}
+
+
+		// 自选池（湖的涟漪／湖的馈赠／限定复刻自选等）**没有 UP 角色名单**，改为标注自选位数：
+		// 「自主选择1位六星角色」/「自主选择并锁定3位6星角色」→“自选 N 位 6★”（不带括号）；
+		// 只提到"自选"但原文没写位数 → 退化为“自选 6★”；两者都没有 → 返回 ""（不臆造）。
+		const R99_CN_NUM = { "\u4e00": 1, "\u4e8c": 2, "\u4e24": 2, "\u4e09": 3, "\u56db": 4, "\u4e94": 5, "\u516d": 6, "\u4e03": 7, "\u516b": 8, "\u4e5d": 9, "\u5341": 10 };
+
+
+		function r99SelfSelectRoles(body) {
+			const text = String(body || "");
+			const m = text.match(/\u9009\u62e9(?:\u5e76\u9501\u5b9a)?\s*(\d+|[一二两三四五六七八九十])\s*\u4f4d\s*(?:\u516d\u661f|6\u661f)/);
+			if (m) {
+				const n = R99_CN_NUM[m[1]] !== undefined ? R99_CN_NUM[m[1]] : Number(m[1]);
+				return `\u81ea\u9009 ${n} \u4f4d 6\u2605`;
+			}
+			if (/\u81ea\u9009/.test(text)) return "\u81ea\u9009 6\u2605";
+			return "";
+		}
+
+
+		// 独立池公告：标题形如「池名」类型开启！，正文只有一张图（拿不到 UP 名单），
+		// 但接口的 beginTime/endTime 就是该池的真实起止。官方**逐池各发一篇**，且**过期即从公告板下线**：
+		// 实测公告板上 22 条无一条过期，已结束的池与其轮换期全都没有公告（"有公告" ⟺ "该池在开"）。
+		// 所以轮换征集只能靠它——一览里那三行日期不带时间，过期后连日期行也会随版本一起消失。
+		const R99_SOLO_POOL = /^\u300c([^\u300d]{1,40})\u300d([^\u300c\u300d]{1,12})\u5f00\u542f\uff01$/;
+
+		function r99SoloPools(items) {
+			const out = [];
+			for (const it of items) {
+				const title = String((it.contentMap && it.contentMap["zh-CN"] && it.contentMap["zh-CN"].title) || "").trim();
+				const m = title.match(R99_SOLO_POOL);
+				if (!m) continue;
+				const kind = m[2].trim();
+				if (R99_POOL_TIERS.indexOf(kind) < 0) continue;   // 衣着上新/上架/上新等不是卡池
+				const startTs = Number(it.beginTime);
+				const endTs = Number(it.endTime) - 6e4;           // 接口边界是排他的（…05:00），面板统一显示末分钟 04:59
+				if (!startTs || !endTs) continue;
+				out.push({
+					name: `\u300c${m[1]}\u300d${kind}`, kind, roles: "", startTs, endTs, raw: "",
+					display: fmtWindow(startTs, endTs)
+				});
+			}
+			return out;
+		}
+
+
+		// 解析一篇「版本活动一览」→ { pools, events, rotRows }
+		function parseR99Overview(item, now = nowMs()) {
+			const lines = r99NoticeLines(item);
+			if (!lines) return null;
+			const year = new Date(Number(item.beginTime) || now).getFullYear();
+			// 段：`「名称」类型` 开一段，其后各行归该段（直至下一个段标题）
+			const sections = [];
+			let cur = null;
+			for (const line of lines) {
+				const head = line.match(/^\u300c([^\u300d]{1,40})\u300d([^\u3010\u203b\uff1a:]{1,16})[\uff1a:]?$/);
+				if (head) { cur = { name: head[1], kind: head[2].trim(), lines: [] }; sections.push(cur); continue; }
+				if (cur) cur.lines.push(line);
+			}
+			const pools = [], events = [];
+			const seenEvent = new Set();
+			for (const sec of sections) {
+				const body = sec.lines.join("\n");
+				// UP 角色：6★ 单个；5★ 常写成「阿夫西维（木）」、「X（智）」连列 → 取标记后的整串
+				const six = [...body.matchAll(/6\u661f\u89d2\u8272\s*\u300c([^\u300d]+)\u300d/g)].map((m) => cleanRoles(m[1]));
+				const five = [];
+				for (const m of body.matchAll(/5\u661f\u89d2\u8272\s*((?:\u300c[^\u300d]+\u300d[\u3001\s]*)+)/g)) {
+					for (const x of String(m[1]).matchAll(/\u300c([^\u300d]+)\u300d/g)) five.push(cleanRoles(x[1]));
+				}
+				const upRoles = six.concat(five).filter((x) => x !== "").join("\u3001");
+				const roles = upRoles || r99SelfSelectRoles(body);   // 自选池没有 UP 名单 → 标注自选位数
+				if (/\u5f81\u96c6/.test(sec.kind)) {
+					// 征集段：只认【征集时间】（活动段才有【活动时间】）
+					const line = sec.lines.find((l) => /^\u3010\u5f81\u96c6\u65f6\u95f4\u3011/.test(l));
+					const w = line ? r99ParseWindow(line, year) : null;
+					if (!w) continue;   // 该段没有可解析的征集时间 → 跳过（整篇都没有则由上层按结构异常处理）
+					pools.push({
+						name: `\u300c${sec.name}\u300d${sec.kind}`, kind: sec.kind, roles,
+						startTs: w.startTs, endTs: w.endTs,
+						raw: (line.match(/\u3010\u5f81\u96c6\u65f6\u95f4\u3011\s*(.+)$/) || [])[1] || "",
+						display: fmtWindow(w.startTs, w.endTs)
+					});
+					continue;
+				}
+				// 活动段：取该段全部【…时间】/【…模式】窗口的整体跨度
+				// （如「活动正篇」＝故事模式起 → 商店兑换止；段落内没有时间的不算活动）
+				const wins = [];
+				for (const l of sec.lines) {
+					if (!/^\u3010[^\u3011]{1,12}\u3011/.test(l)) continue;
+					const w = r99ParseWindow(l, year);
+					if (w) wins.push(w);
+				}
+				if (wins.length === 0) continue;
+				const startTs = Math.min.apply(null, wins.map((w) => w.startTs));
+				const endTs = Math.max.apply(null, wins.map((w) => w.endTs));
+				// 同一活动在一篇里可能出现多次（同名同窗口，如两处「衣着风尚」）→ 去重
+				const key = `${sec.name}|${startTs}|${endTs}`;
+				if (seenEvent.has(key)) continue;
+				seenEvent.add(key);
+				events.push({ name: sec.name, cat: sec.kind, startTs, endTs, raw: fmtWindow(startTs, endTs) });
+			}
+			// 轮换征集在一览里**只有日期行**（「N月N日更新：角色」，不带起止时间）→ 这里只当"角色字典"。
+			// 时间不再用"+14 天"推算：每期轮换都有自己的独立公告（见 r99SoloPools），接口给的就是真实起止。
+			const rotRows = [];
+			for (const line of lines) {
+				const m = line.match(/^(\d{1,2})\u6708(\d{1,2})\u65e5\u66f4\u65b0[\uff1a:]\s*(.+)$/);
+				if (!m) continue;
+				// 只用"更新日"当匹配键（与同一期独立公告的 startTs 同一天），不作为时间来源
+				rotRows.push({ startTs: new Date(year, Number(m[1]) - 1, Number(m[2]), 5, 0).getTime(), roles: cleanRoles(m[3]) });
+			}
+			return { pools, events, rotRows };
+		}
+
+
+		// 官方游戏内公告 → 当期征集（含真实起止、悬停列全部并行）+ 当期活动（同其它游戏的活动列规则）。
+		// 结构异常（接口改版 / 正文不再可解析）→ 抛错，由上层回退官网公告；
+		// 结构正常但没有覆盖当前时刻的征集/活动 → 返回 null（该侧按"未公布"）。
+		async function fetchR99Notice(now = nowMs()) {
+			const json = await proxyFetchJson(R1999_NOTICE_URL, "https://www.sl916.com/");
+			const items = json && Array.isArray(json.data) ? json.data : null;
+			if (!items) throw new Error("r1999-notice-no-section");
+			const titleOf = (it) => String((it.contentMap && it.contentMap["zh-CN"] && it.contentMap["zh-CN"].title) || "");
+			const overviews = items.filter((it) => /\u7248\u672c\u6d3b\u52a8\u4e00\u89c8/.test(titleOf(it)));
+			if (overviews.length === 0) throw new Error("r1999-notice-no-section");
+			const pools = [], events = [], rotRows = [];
+			let parsed = 0;
+			for (const it of overviews) {
+				const o = parseR99Overview(it, now);
+				if (!o) continue;
+				parsed++;
+				pools.push.apply(pools, o.pools);
+				events.push.apply(events, o.events);
+				rotRows.push.apply(rotRows, o.rotRows);
+			}
+			if (parsed === 0) throw new Error("r1999-notice-no-dates");
+			// 用独立公告补齐一览没有的池（当前就是轮换征集）。同名池**以一览为准**——它有正文【征集时间】
+			// 与 UP 名单；独立公告正文只有图，只能补"池名 + 真实起止"，角色另从日期行字典里按同一天取。
+			const dayKey = (ts) => { const d = new Date(ts); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+			const rolesByDay = new Map(rotRows.map((r) => [dayKey(r.startTs), r.roles]));
+			for (const p of r99SoloPools(items)) {
+				if (pools.some((x) => x.name === p.name)) continue;
+				p.roles = rolesByDay.get(dayKey(p.startTs)) || "";
+				pools.push(p);
+			}
+			const data = {};
+			// 当期 = 窗口覆盖现在的池；同名多期（一览的下一期 + 公告的当期）只留第一个 = 一览优先
+			const seenName = new Set();
+			const active = pools.filter((p) => {
+				if (!(coversNow(p, now))) return false;
+				if (seenName.has(p.name)) return false;
+				seenName.add(p.name);
+				return true;
+			});
+			if (active.length > 0) {
+				const rank = (p) => {
+					const i = R99_POOL_TIERS.indexOf(p.kind);
+					return i < 0 ? R99_POOL_TIERS.length : i;
+				};
+				const win = active.slice().sort((a, b) => (rank(a) - rank(b)) || (a.endTs - b.endTs))[0];
+				data.banner = win.name;
+				data.roles = win.roles || "";
+				data.bannerDates = win.display;
+				data.bannerDatesRaw = win.raw || win.display;
+				const hover = buildPoolHover(active.map((p) => ({
+					name: p.name,
+					label: `${p.name}${p.roles ? `\uFF1A${p.roles}` : ""}`,
+					startTs: p.startTs, endTs: p.endTs, raw: p.raw
+				})));
+				if (hover) data.bannerHover = hover;
+			}
+			const activeEvents = sortEventItems(events.filter((e) => coversNow(e, now)));
+			const primary = pickEventPrimary(activeEvents);
+			if (primary) {
+				data.event = primary.name;
+				data.eventDates = fmtWindow(primary.startTs, primary.endTs);
+				data.eventDatesRaw = primary.raw || data.eventDates;
+				const hover = buildEventHover(activeEvents);
+				if (hover) data.eventHover = hover;
+			}
+			return (data.banner || data.event) ? data : null;
+		}
+
+
+		// 重返未来：1999 入口：默认源＝官方游戏内公告（逐期征集时间）；
+		// 来源被切到官网公告（备选源）或自定义地址时直接走官网解析（旧行为）。
+		async function fetchR99(url, signal, tz, now = nowMs()) {
+			if (!/noticecp/.test(String(url || ""))) return fetchR99Official(url, signal, now);
+			try {
+				return await fetchR99Notice(now);
+			} catch {
+				// 游戏内公告接口不可用/结构变了 → 回退官网公告（宁可少时间信息，也不要整格报错）
+				return fetchR99Official(R1999_OFFICIAL_URL, signal, tz, now);
+			}
+		}
+
+
+		// 重返未来：1999（官网 re.bluepoch.com 新闻 API，POST 经 host 代理）
+		// 列表接口（informationType=2 资讯）按上线时间倒序返回含全文的公告，
+		// 取最新一期「版本更新维护公告」：当期卡池（首位6星角色名，官网无征集名）/ 当期活动 / 维护起止 + 下一期维护日
+		async function fetchR99Official(listUrl, signal, tz, now = nowMs()) {
+			const ref = "https://re.bluepoch.com/";
+			const list = await proxyFetchJson(listUrl, ref, {}, { current: 1, pageSize: 30, informationType: 2 });
+			const items = list?.data?.pageData || [];
+			const nowYear = new Date(now).getFullYear();
+			const cleanText = (raw) => String(raw)
+				.replace(/<br\s*\/?>/gi, "\n")
+				.replace(/<[^>]+>/g, "")
+				.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
+				.replace(/&ldquo;/g, "「").replace(/&rdquo;/g, "」")
+				.replace(/&hellip;/g, "…").replace(/&times;/g, "×").replace(/&bull;/g, "·")
+				.replace(/\n\s*\n+/g, "\n").trim();
+			// 单条版本公告的"版本窗口"（仅用于判断哪一期覆盖当前，不再用于展示）：
+			// 起点 = 本篇维护结束时刻；结束端 = **比本篇更新的一期维护公告的维护开始时间**；
+			// 若还没有更新的一期（下一版本公告未发布）→ 按"维护起 + 42 天"兜底（1999 版本实测 21~42 天）。
+			// 注意：不再使用公告里「可在X月X日上午5点之后」——实测那是**心相观测商店兑换**说明，
+			// 曾据此把版本判成提前结束，导致版本中后期整格空白。
+			const maintWindow = (text, olderThanIdx) => {
+				const maintM = text.match(/【维护时间】\s*(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})\s*-\s*(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})/);
+				if (!maintM) return null;
+				const mk = (y, mo, d, h, mi) => new Date(y, mo - 1, d, h, mi).getTime();
+				const sm = Number(maintM[1]), mm = Number(maintM[2]), md = Number(maintM[3]);
+				const startTs = mk(Number(maintM[6]), Number(maintM[7]), Number(maintM[8]), Number(maintM[9]), Number(maintM[10]));
+				let endTs = null;
+				// 列表按发布时间倒序：下标更小的一期更新 → 取其维护开始时间作为本篇结束端
+				for (let i = olderThanIdx - 1; i >= 0; i--) {
+					const t2 = cleanText(versions[i].content);
+					const m2 = t2.match(/【维护时间】\s*(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})/);
+					if (!m2) continue;
+					const cand = mk(Number(m2[1]), Number(m2[2]), Number(m2[3]), Number(m2[4]), Number(m2[5]));
+					if (cand > startTs) { endTs = cand; break; }
+				}
+				if (endTs == null) endTs = new Date(sm, mm - 1, md + 42, 4, 59).getTime();
+				return { maintM, startTs, endTs };
+			};
+			// 窗口匹配：选"版本更新维护公告"中版本窗口覆盖 now 的那一期（不再无条件取最新）
+			const versions = items.filter((n) => /版本更新维护公告/.test(n.title || "") && n.content);
+			let maint = null, win = null, text = "";
+			for (let i = 0; i < versions.length; i++) {
+				const n = versions[i];
+				const t = cleanText(n.content);
+				const w = maintWindow(t, i);
+				if (w && coversNow(w, now)) { maint = n; win = w; text = t; break; }
+			}
+			if (!maint) {
+				// 官方无当期覆盖 → 小米资讯流当期主池兜底（UP 名单取最新版本公告）
+				let sixStars = [];
+				if (versions[0]) {
+					sixStars = [...cleanText(versions[0].content).matchAll(/6星角色「([^」]+)」/g)]
+						.map((m) => cleanRoles(m[1]).replace(/[（）()].*$/, ""))
+						.filter(Boolean);
+				}
+				try {
+					const xiaomi = await fetchXiaomiR99Gacha("https://game.xiaomi.com/game/62346241", sixStars);
+					if (xiaomi && xiaomi.banner && xiaomi.bannerDates) {
+						return {
+							banner: xiaomi.banner,
+							roles: xiaomi.roles || "",
+							bannerDates: xiaomi.bannerDates,
+							bannerDatesRaw: xiaomi.bannerDates,
+							event: ""
+						};
+					}
+				} catch { /* 兜底失败 → 返回空，由上层"失败沿用上次成功数据"保留展示原数据 */ }
+				return null;
+			}
+			// —— 官方当期公告解析（text 已清洗）——
+			// 当期新增角色（当期多池）：只取「版本全新内容一览 → 新增角色」段内的 6 星角色，
+			// 避免把复刻/心相/其它段的角色也算进来；多池外显合并角色（如 赫多涅、纳西索斯）
+			const newSeg = text.match(/新增角色([\s\S]{0,220}?)(?=\d+\s*[.、]\s*新增|【|$)/);
+			const newSix = (newSeg ? [...newSeg[1].matchAll(/6星角色「([^」]+)」/g)] : [])
+				.map((m) => cleanRoles(m[1]).replace(/[（）()].*$/, ""))
+				.filter(Boolean);
+			const sixStars = newSix.length > 0
+				? newSix
+				: [...text.matchAll(/6星角色「([^」]+)」/g)].map((m) => cleanRoles(m[1]).replace(/[（）()].*$/, "")).filter(Boolean);
+			const bannerName = sixStars[0] || "";
+			// 卡池时间：官网不发布逐池征集时间，靠"下一期维护/版本周期"推算并不可靠 →
+			// 外显暂时固定为简短文案（等有可靠时间源再显示真实起止）
+			const bannerDates = "暂无时间信息";
+			// 当期活动：新增活动列表第 2 项（首位6星角色剧情活动，"「赫多涅·凡人或英雄」"）
+			const actM = text.match(/活动正篇[，,]\s*「([^」]+)」/);
+			const eventName = actM ? String(actM[1]).replace(/^[^·]+·/, "") : "";
+			// 活动时间与卡池同一规则：官网不发布可靠起止，外显固定为同一文案
+			const eventDates = bannerDates;
+			const data = {
+				banner: bannerName,
+				roles: sixStars.join("、"),
+				bannerDates,
+				event: eventName,
+				eventDates
+			};
+			if (!data.banner || !data.bannerDates) return null;
+			// 征集名增强：小米官方资讯流有"主池"征集公告（UP 属于官网新增角色）时，
+			// 用真实征集名/征集时间/UP 角色覆盖卡池字段；无主池匹配则保持官网"角色名"显示
+			try {
+				const xiaomi = await fetchXiaomiR99Gacha("https://game.xiaomi.com/game/62346241", sixStars);
+				if (xiaomi && xiaomi.banner && xiaomi.bannerDates) {
+					data.banner = xiaomi.banner;
+					data.bannerDates = xiaomi.bannerDates;
+					data.roles = xiaomi.roles || "";
+				}
+			} catch { /* 增强源失败不影响官网解析结果 */ }
+			return data;
+		}
+
+		const R1999_NOTICE_URL = "https://notice.sl916.com/noticecp/client/query?gameId=50001&channelId=100&subChannelId=1009&serverType=4";
+
+
+		const R1999_OFFICIAL_URL = "https://re.bluepoch.com/activity/official/websites/information/query";
+
+
+		// ── 条目 ──
+		registerSource({
+				id: "r1999",
+				tz: TZ_CN,
+				parserVersion: 3,
+				name: "重返未来：1999",
+				icon: "https://play-lh.googleusercontent.com/LwcueZMBbLq6aELtqJVn61ToKkJUgxEO8O4KgK_5052hfYoDAglQJIzqSu8srUJeaOZwv36Qi5YKtsXZjo-JPg=s64",
+				source: "\u5B98\u65B9\u516C\u544A",
+				// 默认源＝官方**游戏内公告**接口（经 host 代理 GET）。逐期「征集时间」只在这里发布：
+				// 「版本活动一览」公告正文按段落给出【征集时间】起止 + 【征集说明】里的 6★/5★ UP 角色，
+				// 以及各活动的【活动时间】；一个版本上下半场两期都列在同一篇里（下期常提前公布）。
+				// 接口不可用/结构变了 → 自动回退官网公告解析（旧行为，无逐期时间）；也可在设置里手动切备选源。
+				// 来源名口径：默认「官方公告」（与绝区零等条目一致）；备选沿用旧版原名（卡池侧「官网公告+小米」/活动侧「官网公告」）
+				url: R1999_NOTICE_URL,
+				altSources: [
+					{ label: "\u5B98\u7F51\u516C\u544A+\u5C0F\u7C73", url: R1999_OFFICIAL_URL, fetcher: "r1999-official" }
+				],
+				// 活动源与卡池源是**同一条 URL**（同一篇「版本活动一览」同时含征集与活动），仍作为独立来源存在
+				eventUrl: R1999_NOTICE_URL,
+				eventSource: "\u5B98\u65B9\u516C\u544A",
+				eventAltSources: [
+					{ label: "\u5B98\u7F51\u516C\u544A", url: R1999_OFFICIAL_URL, fetcher: "r1999-official" }
+				]
+		});
+
+		// ── 抓取器登记 ──
+		GACHA_FETCHERS["r1999"] = (url, signal, tz) => fetchR99(url, signal, tz);
+					// 重返未来1999 备选：官网公告（只有维护时间与活动名，无逐期征集时间）
+GACHA_FETCHERS["r1999-official"] = (url, signal, tz) => fetchR99Official(url, signal, tz);
+					// 重返未来：默认与卡池同 URL（同一篇「版本活动一览」同时含征集与活动）；
+			// 备选＝官网公告（只有维护时间与活动名）
+EVENT_FETCHERS["r1999"] = {
+				default: (url, signal, tz) => fetchR99(url, signal, tz),
+				"r1999-official": (url, signal, tz) => fetchR99Official(url, signal, tz)
+			};
 
 		//#region refresh
 		// 两侧各自只允许写自己的字段：某些来源的载荷同时含卡池与活动字段（如 GameKee），
