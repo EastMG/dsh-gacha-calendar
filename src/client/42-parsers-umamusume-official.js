@@ -160,8 +160,6 @@ function ns_umamusume_official_tokenizeUma(text) {
 	return toks;
 }
 /** 调试用（测试可直接断言 token 流） */
-function ns_umamusume_official_debugUmaTokens(text) { return ns_umamusume_official_tokenizeUma(text); }
-
 // ── 档期区间的"标板"（plate）正则 ───────────────────────────────────────────
 // 走「正则切候选串 → tokenizer 解释」两条腿：位置运算交给正则引擎，避免手工下标。
 // ⚠️ 本文件早期版本在同一个 token 数组上手写 `j`/`firstSepIdx` 双重游标，实测出现

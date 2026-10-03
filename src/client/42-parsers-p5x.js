@@ -138,21 +138,7 @@ function ns_p5x_parseP5xBlocks(text) {
 }
 
 // 供测试：直接对一段正文本跑区块解析
-function ns_p5x_parseP5xText(text, tz) {
-	const blocks = ns_p5x_parseP5xBlocks(text);
-	return blocks.map((b) => ({
-		category: b.category,
-		title: b.title,
-		windowRaw: b.windowRaw,
-		windows: ns_p5x_parseP5xWindows(b.windowRaw, tz)
-	}));
-}
-
 // 归一化标题：去掉站点尾巴「-P5X-《女神异闻录：夜幕魅影》手游官网」
-function ns_p5x_cleanTitle(t) {
-	return String(t).replace(/[-—|]\s*P5X\s*[-—|]?[\s\S]*$/, "").trim() || String(t).trim();
-}
-
 // 取列表里最新的 N 条公告并解析出区块。
 // ⚠️ **逐条容错**：只有"最新一条都抓不到"才算真失败（抛出）；
 //    次新那条只是"多看一条"的兜底（上一轮公告通常已过期），它抓不到（404/超时）不该拖垮整个条目
@@ -260,7 +246,3 @@ async function ns_p5x_eventsP5x(url, signal, tz = "Asia/Shanghai") {
 }
 
 // 供测试：从本地 HTML 直接跑解析（不联网）
-function ns_p5x_gachaP5xFromHtml(listHtml, detailHtml, tz = "Asia/Shanghai") {
-	void listHtml; void detailHtml; void tz;
-	throw new Error("unused");   // 夹具测试走 fetch 注入（见 test/run.mjs）
-}

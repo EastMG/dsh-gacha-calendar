@@ -384,11 +384,6 @@ function ns_bwiki_parseUmaCnGacha(html, tz = "Asia/Shanghai") {
 //   + 3 条未来条目。那既是"非当期"内容，头部又是元信息/来源说明 ——
 //   「社区推算，非官方」这层意思已经写在来源标签里（`Bwiki 简中卡池（社区推算，非官方）`），
 //   不需要再在悬停里重复。保留函数是为了让夹具测试仍能直接断言"预测表的解析结果"。
-function ns_bwiki_umaCnPredictHover(predicted, tz, now, limit = 3) {
-	const next = predicted.filter((p) => p.startTs > now).sort((a, b) => a.startTs - b.startTs || (a._i - b._i)).slice(0, limit);
-	if (next.length === 0) return "";
-	return hoverEvent(next.map((p) => ({ name: p.banner, startTs: p.startTs, endTs: p.endTs })), tz);
-}
 //#endregion
 
 //#region ③ 赛马娘 日服（umamusume / page=活动）—— 时区硬标注 Asia/Tokyo

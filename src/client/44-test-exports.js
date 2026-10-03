@@ -19,11 +19,9 @@
 			"p5x": {
 				eventsP5x: ns_p5x_eventsP5x,
 				gachaP5x: ns_p5x_gachaP5x,
-				gachaP5xFromHtml: ns_p5x_gachaP5xFromHtml,
 				p5xBodyText: ns_p5x_p5xBodyText,
 				parseP5xBlocks: ns_p5x_parseP5xBlocks,
 				parseP5xList: ns_p5x_parseP5xList,
-				parseP5xText: ns_p5x_parseP5xText,
 				parseP5xWindows: ns_p5x_parseP5xWindows,
 			},
 			"bwiki": {
@@ -49,7 +47,6 @@
 			},
 			"umapyoi": {
 				PERMANENT_END: ns_umapyoi_PERMANENT_END,
-				UMAPYOI_URL: ns_umapyoi_UMAPYOI_URL,
 				gachaUmapyoi: ns_umapyoi_gachaUmapyoi,
 				parseUmapyoiGacha: ns_umapyoi_parseUmapyoiGacha,
 			},
@@ -147,7 +144,6 @@
 				parseMiyousheDetail: ns_miyoushe_parseMiyousheDetail,
 				parseMiyousheList: ns_miyoushe_parseMiyousheList,
 				parseNewsMeta: ns_miyoushe_parseNewsMeta,
-				pickMiyousheWindow: ns_miyoushe_pickMiyousheWindow,
 			},
 			"umamusume-official": {
 				UMA_DEFAULT_MAX_DETAILS: ns_umamusume_official_UMA_DEFAULT_MAX_DETAILS,
@@ -161,7 +157,6 @@
 				UMA_JP_INDEX_URL: ns_umamusume_official_UMA_JP_INDEX_URL,
 				UMA_JP_TZ: ns_umamusume_official_UMA_JP_TZ,
 				classifyUmaTitle: ns_umamusume_official_classifyUmaTitle,
-				debugUmaTokens: ns_umamusume_official_debugUmaTokens,
 				eventsUmaGlobal: ns_umamusume_official_eventsUmaGlobal,
 				eventsUmaJpOfficial: ns_umamusume_official_eventsUmaJpOfficial,
 				extractUmaRangePlates: ns_umamusume_official_extractUmaRangePlates,
@@ -287,7 +282,6 @@
 				deglueDateTimes: ns_biligame_activity_deglueDateTimes,
 				eventsUmaCnOfficial: ns_biligame_activity_eventsUmaCnOfficial,
 				eventsWhmxOfficial: ns_biligame_activity_eventsWhmxOfficial,
-				extractWindows: ns_biligame_activity_extractWindows,
 				extractWindowsDetailed: ns_biligame_activity_extractWindowsDetailed,
 				gachaUmaCnOfficial: ns_biligame_activity_gachaUmaCnOfficial,
 				mergeBiligameLists: ns_biligame_activity_mergeBiligameLists,
@@ -320,9 +314,7 @@
 				langOf: ns_ournotes_global_langOf,
 				ournotesGlobalDetailText: ns_ournotes_global_ournotesGlobalDetailText,
 				ournotesGlobalDetailUrl: ns_ournotes_global_ournotesGlobalDetailUrl,
-				ournotesGlobalInstant: ns_ournotes_global_ournotesGlobalInstant,
 				ournotesGlobalListUrl: ns_ournotes_global_ournotesGlobalListUrl,
-				ournotesGlobalParagraphs: ns_ournotes_global_ournotesGlobalParagraphs,
 				ournotesGlobalStructuredWindow: ns_ournotes_global_ournotesGlobalStructuredWindow,
 				ournotesGlobalTitle: ns_ournotes_global_ournotesGlobalTitle,
 				parseOurNotesGlobalPage: ns_ournotes_global_parseOurNotesGlobalPage,

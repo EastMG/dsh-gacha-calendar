@@ -69,11 +69,6 @@ function ns_ournotes_global_langOf(url, fallback = ns_ournotes_global_OURNOTES_G
 }
 
 // 按 </p> 切段（详情正文若是 HTML）；纯文本没有 <p> → 退化成按行切
-function ns_ournotes_global_ournotesGlobalParagraphs(html) {
-	const s = String(html == null ? "" : html);
-	const chunks = /<\/p\s*>/i.test(s) ? s.split(/<\/p\s*>/i) : s.split(/\r?\n/);
-	return chunks.map((c) => htmlTextTight(c)).filter(Boolean);
-}
 //#endregion
 
 //#region 字段候选（**假设**，源站不可达，见文件头）
@@ -100,9 +95,6 @@ const ns_ournotes_global_K_START = ["start_time", "startTime", "begin_time", "be
 const ns_ournotes_global_K_END = ["end_time", "endTime", "end_at", "endAt", "end_date", "endDate"];
 function ns_ournotes_global_ournotesGlobalTitle(x) {
 	return htmlTextTight(ns_ournotes_global_pickStr(x, ns_ournotes_global_K_TITLE));
-}
-function ns_ournotes_global_ournotesGlobalInstant(x, tz = ns_ournotes_global_OURNOTES_GLOBAL_TZ) {
-	return ns_ournotes_global_parseOurNotesGlobalStamp(ns_ournotes_global_pickStr(x, ns_ournotes_global_K_TIME), tz);
 }
 //#endregion
 

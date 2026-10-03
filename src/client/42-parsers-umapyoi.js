@@ -33,7 +33,6 @@
 
 const ns_umapyoi_DEFAULT_URL = "https://api.umapyoi.net/api/v1/gacha";
 // 供注册表引用（作为「备选源」时必须与 `altSourceId(alt) = alt.url` 的字符串**完全一致**才能命中）
-const ns_umapyoi_UMAPYOI_URL = ns_umapyoi_DEFAULT_URL;
 const ns_umapyoi_PERMANENT_END = 2147483647;   // 源站常驻哨兵（Unix 秒 = INT32_MAX）
 
 const ns_umapyoi_toNum = (v) => {

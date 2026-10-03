@@ -76,6 +76,51 @@ function stringLiterals(src) {
 	return out;
 }
 
+// 「只留代码」版：去掉注释**并且**挖空字符串/正则内容（保留 `${}` 插值里的代码）。
+// ⚠️ 不能再用 `line.replace(/\/\/.*$/, "")` —— 行内 URL 的 `//` 会被当注释，后半行整段被切掉，
+//    于是"看起来查过了"其实什么都没查（本文件早期就这么错过了好几处，且会漏报而非误报，更隐蔽）。
+//    判据沿用上面的正则/除号启发式（同样的坑别再踩第二次）。
+function codeOnly(src) {
+	let out = "", i = 0, prev = "";
+	const n = src.length;
+	while (i < n) {
+		const c = src[i], c2 = src[i + 1];
+		if (c === "/" && c2 === "/") { while (i < n && src[i] !== "\n") i++; out += "\n"; i++; prev = "\n"; continue; }
+		if (c === "/" && c2 === "*") { i += 2; while (i < n && !(src[i] === "*" && src[i + 1] === "/")) { if (src[i] === "\n") out += "\n"; i++; } i += 2; continue; }
+		if (c === '"' || c === "'" || c === "`") {
+			const q = c; i++;
+			while (i < n) {
+				if (src[i] === "\\") { i += 2; continue; }
+				if (q === "`" && src[i] === "$" && src[i + 1] === "{") {          // 插值里是真代码
+					let depth = 1, j = i + 2;
+					while (j < n && depth > 0) { if (src[j] === "{") depth++; else if (src[j] === "}") { depth--; if (!depth) break; } j++; }
+					out += " " + codeOnly(src.slice(i + 2, j)) + " ";
+					i = j + 1; continue;
+				}
+				if (src[i] === q) { i++; break; }
+				if (src[i] === "\n") out += "\n";
+				i++;
+			}
+			out += " "; prev = q; continue;
+		}
+		if (c === "/") {
+			let j = i - 1;
+			while (j >= 0 && /\s/.test(src[j])) j--;
+			let k = j;
+			while (k >= 0 && /[\w$]/.test(src[k])) k--;
+			const valueLike = j >= 0 && /[\w$)\]]/.test(src[j]) && !REGEX_AFTER_WORD.test(src.slice(k + 1, j + 1));
+			if (!valueLike) {                       // 正则字面量 → 挖空
+				let p = i + 1, inClass = false, closed = false;
+				while (p < n) { if (src[p] === "\\") { p += 2; continue; } if (src[p] === "\n") break; if (src[p] === "[") inClass = true; else if (src[p] === "]") inClass = false; else if (src[p] === "/" && !inClass) { closed = true; break; } p++; }
+				if (closed) { p++; while (p < n && /[a-z]/i.test(src[p])) p++; out += " "; i = p; prev = "/"; continue; }
+			}
+		}
+		out += c; i++;
+		if (!/\s/.test(c)) prev = c;
+	}
+	return out;
+}
+
 // 禁止出现在**悬停文本**里的元信息写法。
 // 注意：这些词允许出现在**插件其它地方**（如设置页文案、来源标签），所以只查解析器文件。
 const FORBIDDEN = [
@@ -116,8 +161,7 @@ export default async function run() {
 	const LOCAL = /(?:function|const|let|var)\s+([A-Za-z_$][\w$]*)\s*[=(]/g;
 	const localHover = [];
 	for (const f of files) {
-		const code = readFileSync(path.join(SRC, f), "utf8")
-			.split("\n").map((l) => l.replace(/\/\/.*$/, "")).join("\n");
+		const code = codeOnly(readFileSync(path.join(SRC, f), "utf8"));
 		for (const m of code.matchAll(LOCAL)) {
 			const name = m[1].replace(/^ns_[a-z0-9_]+?_/i, "");
 			if (/^(buildPoolHover|buildEventHover|permanentLine|hoverPool|hoverEvent)$/.test(name)) {
@@ -159,8 +203,7 @@ export default async function run() {
 			/function inferYear\(/.test(p30) && /function endsNextYear\(/.test(p30) && /const YEAR_HINT_MONTH_GAP = \d+;/.test(p30));
 		const bad = [];
 		for (const f of readdirSync(SRC).filter((x) => x.endsWith(".js"))) {
-			const code = readFileSync(path.join(SRC, f), "utf8").split("\n")
-				.map((l) => l.replace(/\/\/.*$/, "")).join("\n");
+			const code = codeOnly(readFileSync(path.join(SRC, f), "utf8"));
 			// 内联的"结束早于开始 → 次年"判定（应走 endsNextYear）
 			if (/\w+\.mo\s*<\s*\w+\.mo\s*\|\||\w+\s*<\s*\w+\s*&&\s*\w+\.d\s*<\s*\w+\.d/.test(code)) bad.push(`${f}: 内联月日跨年判定`);
 			if (/(?:nowYear|year|y1|lastY)\s*\+\s*1/.test(code) && !/endsNextYear|YEAR_HINT_MONTH_GAP/.test(code)) bad.push(`${f}: 内联 nowYear+1`);
@@ -176,8 +219,7 @@ export default async function run() {
 	{
 		const dup = [];
 		for (const f of files) {
-			const src = readFileSync(path.join(SRC, f), "utf8");
-			const code = src.split("\n").map((l) => l.replace(/\/\/.*$/, "")).join("\n");
+			const code = codeOnly(readFileSync(path.join(SRC, f), "utf8"));
 			if (/(?:^|[;{}\s])(?:const|let|var)\s+\S*ENT_EXTRA\s*=/.test(code)) dup.push(`${f}: 本地 ENT_EXTRA`);
 			if (/(?:^|[;{}\s])function\s+\S*(?:decodeExtra|plain)\s*\(/.test(code)) dup.push(`${f}: 本地 decodeExtra/plain`);
 			// 时间戳/排序工具：2026-10-03 收敛（曾各 2~3 份，umapyoi 那份还缺 null 守卫）
@@ -187,8 +229,7 @@ export default async function run() {
 			if (/(?:const|let|var)\s+\S*byNewestStart\s*=\s*(?:\(|function\b|async\b)/.test(code)) dup.push(`${f}: 本地 byNewestStart`);
 		}
 		check("没有本地自制的实体表/解码/时间戳/排序工具（只允许 41-sources-shared.js 那一份）", dup.length === 0, dup.slice(0, 5).join(" / "));
-		const sh = readFileSync(path.join(SRC, "41-sources-shared.js"), "utf8");
-		const shCode = sh.split("\n").map((l) => l.replace(/\/\/.*$/, "")).join("\n");   // 查代码，别被解释性注释误报
+		const shCode = codeOnly(readFileSync(path.join(SRC, "41-sources-shared.js"), "utf8"));   // 查代码，别被解释性注释误报
 		check("共用 ENTITIES_EXTRA / decodeExtra / htmlText / htmlTextTight 存在",
 			/const ENTITIES_EXTRA = \{/.test(shCode) && /function decodeExtra\(/.test(shCode) && /function htmlText\(/.test(shCode) && /function htmlTextTight\(/.test(shCode));
 		check("共用 numOrNull / byNewestStart 存在", /function numOrNull\(/.test(shCode) && /function byNewestStart\(/.test(shCode));
@@ -196,8 +237,45 @@ export default async function run() {
 			!/function hoverPermanentLine/.test(shCode) && /function permanentLine\(/.test(readFileSync(path.join(SRC, "30-parsers.js"), "utf8")));
 		// 反证：并集表必须真的覆盖原来 5 张表里出现过的实体（抽查几个"只有个别表有"的）
 		for (const e of ["middot", "yen", "hearts", "star", "trade", "thinsp", "laquo", "copy"]) {
-			check(`并集表含 &${e};`, new RegExp(`\\b${e}:`).test(sh));
+			check(`并集表含 &${e};`, new RegExp(`\\b${e}:`).test(shCode));
 		}
+	}
+
+	// ── P2：不许再攒死声明（2026-10-03 一次清掉 13 个）──
+	// 判定：文件顶层声明，在**生产代码**里除声明行外 0 引用，且**未**被 44-test-exports.js 导出。
+	// ⚠️ 排除 44-test-exports.js 是关键：测试面符号（导出给测试的纯函数）看起来"没人用"，
+	//    删掉就会连带删掉测试覆盖 —— 这一步必须区分开。
+	{
+		const DECL = /^([ \t]*)(?:async\s+function|function|const|let|var|class)\s+([A-Za-z_$][\w$]*)/;
+		const all = readdirSync(SRC).filter((f) => f.endsWith(".js"));
+		const cache = new Map();
+		for (const f of all) cache.set(f, codeOnly(readFileSync(path.join(SRC, f), "utf8")));
+		const exportsCode = cache.get("44-test-exports.js") || "";
+		const dead = [];
+		for (const f of all) {
+			if (f === "44-test-exports.js") continue;
+			const lines = cache.get(f).split("\n");
+			let base = null;
+			for (const l of lines) {
+				if (l.trim() === "" || l.trim().startsWith("//")) continue;
+				const ind = l.length - l.trimStart().length;
+				if (base === null || ind < base) base = ind;
+			}
+			for (const l of lines) {
+				if (l.length - l.trimStart().length !== base) continue;
+				const m = DECL.exec(l);
+				if (!m) continue;
+				const name = m[2];
+				if (new RegExp(`\\b${name}\\b`).test(exportsCode)) continue;      // 测试面 → 不算死
+				let refs = 0;
+				for (const g of all) {
+					if (g === "44-test-exports.js") continue;
+					refs += (cache.get(g).match(new RegExp(`\\b${name}\\b`, "g")) || []).length;
+				}
+				if (refs <= 1) dead.push(`${f}: ${name}`);                        // 1 = 只有声明自己
+			}
+		}
+		check("没有死声明（顶层声明在生产代码里至少被引用一次，或已导出给测试）", dead.length === 0, dead.slice(0, 6).join(" / "));
 	}
 
 	// 反证：共用工具必须真的在（否则上面的守卫会因为"没实现"而假通过）

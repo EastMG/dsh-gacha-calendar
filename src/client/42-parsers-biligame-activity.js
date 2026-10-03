@@ -356,9 +356,6 @@ function ns_biligame_activity_extractWindowsDetailed(text, yearHint, tz = ns_bil
 	}
 	return { norm, windows, skipped };
 }
-function ns_biligame_activity_extractWindows(text, yearHint, tz = ns_biligame_activity_BILIGAME_ACTIVITY_TZ) {
-	return ns_biligame_activity_extractWindowsDetailed(text, yearHint, tz).windows;
-}
 //#endregion
 
 //#region ① 物华弥新 活动正文档期

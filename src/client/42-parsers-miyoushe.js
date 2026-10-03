@@ -416,11 +416,6 @@ function ns_miyoushe_collectMiyousheWindows(text, tz = ns_miyoushe_MIYOUSHE_TZ, 
 }
 
 // 当期 = 文档顺序里**第一条覆盖 now** 的窗口；没有就是没有（不退回过期档期）
-function ns_miyoushe_pickMiyousheWindow(windows, now) {
-	for (const w of windows || []) if (coversNow(w, now)) return w;
-	return null;
-}
-
 // 卡池名册：优先只看"首个档期之前"的引言（那才是本期名单），引言里没有才退回全文。
 // 例：星铁跃迁引言 → 「真珠」；绝区零频段引言没有名单 → 全文取「洛克茜、普罗米娅」。
 const ns_miyoushe_ROLE_RE = /限定\s*(?:[5S]\s*[星级])?\s*(?:角色|代理人|女武神)\s*[「【\[]([^」】\]]+)[」】\]]/g;

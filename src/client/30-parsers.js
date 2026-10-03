@@ -1316,12 +1316,13 @@
 			return null;
 		}
 
-		// 兼容旧调用：parseCanmoe / parseCanmoeLoose 均走统一的"当期选择"逻辑（now 可注入）。
-		// 这两个是**给通用解析（自定义条目/自定义地址）用的宽松包装**：把 undefined 归一成 null，
+		// 终末地当期选择：走统一的"当期选择"逻辑（now 可注入）。
+		// 这是**给通用解析（自定义条目/自定义地址）用的宽松包装**：把 undefined 归一成 null，
 		// 即"读不出来 → 未公布"，不在这里抛错（用户自定义地址读不出内容是常态，不该报成源站故障）。
+		//
+		// ⚠️ 2026-10-03：原来还有一个 `parseCanmoeLoose`（同样实现）作为"旧写法"别名，
+		//    经全仓引用分析确认**生产与测试都没用**，已删 —— 留两个同名同实现的包装只会让人猜该用哪个。
 		function parseCanmoe(js, now = nowMs(), tz) { const d = currentFromCanmoe(js, now, tz); return d === void 0 ? null : d; }
-		function parseCanmoeLoose(js, now = nowMs(), tz) { return parseCanmoe(js, now, tz); }
-
 		// 终末地（canmoe 经 host 代理）：页面 HTML → 定位 BannerCalendar chunk → 抓 chunk JS → 窗口匹配当期
 		// canmoe 无 CORS 头，两步都经 host 代理（referer 用页面 origin 满足反爬）
 		// 数据在某一组件的 chunk 里（含当期 d={...} 与历史期次数组），currentFromCanmoe(js, now) 做窗口匹配
@@ -1632,8 +1633,8 @@
 			for (const c of chunks) {
 				try {
 					const js = await fetchHtmlText(c, signal);
-					// 只调一次：parseCanmoe 与 parseCanmoeLoose 是同一实现，旧写法 a || a 在最重的解析
-					// （chunk 的括号平衡扫描）上白跑两遍，而"没命中当期"恰恰是最常见的情况
+					// 每个 chunk 只解析一次：解析里最重的是 chunk 的括号平衡扫描，
+					// 而"没命中当期"恰恰是最常见的情况 → 不要为了`a || b`那种写法白跑两遍
 					const d = parseCanmoe(js, now, tz);
 					if (d && d.banner && d.bannerDates) return d;
 				} catch { /* 下一个 chunk */ }
@@ -1690,11 +1691,7 @@
 		}
 
 		// 当期活动（外显取 selectCurrent 的那条，行为同旧版）
-		function parseGenericEvents(html, tz) {
-			return selectCurrent(collectGenericEvents(html, tz), nowMs());
-		}
-
-		// 通用**卡池**采集（末位兜底，2026-10-01 加）：
+				// 通用**卡池**采集（末位兜底，2026-10-01 加）：
 		// 与 collectGenericEvents 同一套「时间 + 名称」列识别，但用于**卡池列**。
 		//
 		// 为什么需要：tryParseGenericGacha 前三条路径（parseAllBwiki / parseArknights /
@@ -1832,11 +1829,7 @@
 		}
 
 		// 当期活动（外显取 selectCurrent 的那条，行为同旧版）
-		function parsePrtsEvents(html, tz) {
-			return selectCurrent(collectPrtsEvents(html, tz), nowMs());
-		}
-
-		// 活动列载荷：外显=排序第一条（最快结束的当期活动，③）；eventHover=全部覆盖当前时刻的活动（同序）
+				// 活动列载荷：外显=排序第一条（最快结束的当期活动，③）；eventHover=全部覆盖当前时刻的活动（同序）
 		function prtsEventPayload(html, tz) {
 			const items = collectPrtsEvents(html, tz);
 			const snapshot = items.map((it) => ({ name: it.banner, cat: it.cat || "", startTs: it.startTs, endTs: it.endTs, raw: it.raw }));
@@ -1852,7 +1845,7 @@
 				eventHover: buildEventHover(active)
 			};
 		}
-		// PRTS 起止 → 统一文本（parsePrtsEvents 内部用）
+		// 起止时间戳 → 统一文本 `MM-DD HH:MM ~ MM-DD HH:MM`
 		function range2(st, endTs) {
 			const fmt = (ts) => {
 				const d = new Date(ts);
@@ -2044,7 +2037,10 @@
 			return parseFzWikiActivities(html, now, tz);
 		}
 
-		// 通用活动源解析（自定义条目/自定义活动来源地址用）：抓取页面 → parseGenericEvents → {event, eventDates}
+		// 通用活动源解析（自定义条目/自定义活动来源地址用）：抓取页面 → collectGenericEvents → {event, eventDates}
+		// ⚠️ 2026-10-03：原来这里还有个 `parseGenericEvents(html, tz)`（collectGenericEvents + selectCurrent 的组合），
+		//    经全仓引用分析确认**生产与测试都没用**（活路径走的是下面的 `genericEventPayloadFromHtml`，
+		//    它多一层"表里一行都没有 → null"的错误语义处理），已删。
 		async function tryParseGenericEvent(url, signal, tz) {
 			const html = await fetchHtmlText(url, signal);
 			return genericEventPayloadFromHtml(html, tz);
