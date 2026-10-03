@@ -241,6 +241,31 @@ export default async function run() {
 		}
 	}
 
+	// ── 面板：doRefresh 必须经 ref 读"最新设置"，不能闭包冻结 ──
+	// 2026-10-03 用户报「面板显示 23 条条目，计数只有 22」→ 根因：
+	//   `s` 每次渲染都是新对象，而 `doRefresh` 被 useCallback 记忆化在 `[scope, engine]`，
+	//   于是它闭包里的 `s` 永远停在**首次渲染**那一刻：
+	//     渲染那条路用当次 s → 23 行；`doRefresh` 里算计数用冻结的 s → 只数到 22。
+	//   挂载后才勾选的条目会被**整个漏出报告**（不计入分母、失败也不进明细）。
+	// 之所以要机器守：这个 bug 完全不影响抓取、不报错，只让顶部那行数字差 1 —— 靠人看代码很难发现。
+	{
+		const comp = readFileSync(path.join(SRC, "80-components.js"), "utf8");
+		const i = comp.indexOf("const doRefresh = ");
+		const j = i >= 0 ? comp.indexOf("}, [scope, engine]);", i) : -1;
+		check("能定位 doRefresh 函数体（守卫自身没瞎）", i >= 0 && j > i, `i=${i} j=${j}`);
+		if (i >= 0 && j > i) {
+			// ⚠️ 必须先在 codeOnly 上扫：解释性注释里会引用 `` `s` ``（本守卫的注释自己就这么写），
+			//    直接扫原文会把注释里的示例当成代码命中 —— 这个坑本文件已经踩过好几次。
+			const body = codeOnly(comp.slice(i, j));
+			// 裸 `s`（`s.` / `(s)` / `s)` 等）：`sRef` 不会被误匹配，因为 `s` 后紧跟 `R` 不是词边界
+			const bare = [...body.matchAll(/(?:^|[^\w$.])s\b/g)].map((m) => m[0].trim());
+			check("doRefresh 里不直接读闭包中的 s（会冻结在首次渲染 → 计数少算）", bare.length === 0, "裸 s：" + bare.join(" / "));
+			check("doRefresh 经 sRef.current 读最新设置", /getVisibleEntries\(sRef\.current\)/.test(body));
+		}
+		const compCode = codeOnly(comp);
+		check("sRef 存在且每次渲染都同步最新 s", /const sRef = \(0, react\.useRef\)\(s\);/.test(compCode) && /sRef\.current = s;/.test(compCode));
+	}
+
 	// ── 配置键必须成套：DEFAULT_SETTINGS 里有的，引擎 CONFIG_KEYS 必须都读 ──
 	// 2026-10-03 用户报「勾选 p5x 后点刷新，这条不刷新」→ 根因就是这里漏了一个键：
 	//   `shown`（用户明确打开的条目，用来覆盖出厂 `defaultHidden`）在 10-config.js 里有、

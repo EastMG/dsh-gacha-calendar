@@ -163,6 +163,22 @@
 			// 启动自动刷新的"一次提示"（如"插件已更新"）与"同挂载只试一次"闸（防断网时无限重刷）
 			const autoNoteRef = (0, react.useRef)("");
 			const startupGuardRef = (0, react.useRef)("");
+			// ⚠️ 最新设置的 ref —— `doRefresh` **必须**通过它读设置，不能直接闭包读 `s`。
+			//
+			// 为什么：`s`（见上面 `const s = { ...DEFAULT_SETTINGS, ...(snapshot.value ?? {}) }`）
+			// **每次渲染都是新对象**，而 `doRefresh` 被 `useCallback` 记忆化在 `[scope, engine]` 上
+			// —— 于是它闭包里那个 `s` 会**永远停在首次渲染那一刻**。
+			// 症状（2026-10-03 用户报「面板显示 23 条条目，计数只有 22」）：
+			//   · 渲染那一条路用的是**当次** `s`（`getVisibleEntries(s)` → 23 行）✓
+			//   · `doRefresh` 里算顶部计数用的是**冻结**的 `s`（→ 只数到 22）✗
+			//   挂载后才勾选的条目会被**整个漏出报告**：既不计入分母，失败时也不会出现在明细里。
+			//
+			// 为什么不能简单地把 `s` 加进 `useCallback` 依赖：那样 `doRefresh` 每次渲染都换身份，
+			// 而下面两个 effect（依赖里带 `doRefresh`）会**每次渲染都重跑** —— 定时刷新那个
+			// effect 每次都会 clear 再 setTimeout，递归计时器被反复重置（渲染频繁时可能永不触发）。
+			// 用 ref 读最新值，`doRefresh` 的身份保持不变，两边都满足。
+			const sRef = (0, react.useRef)(s);
+			sRef.current = s;
 			const doRefresh = (0, react.useCallback)(async () => {
 				if (refreshLock.current) return;
 				refreshLock.current = true;
@@ -176,7 +192,10 @@
 					// 若把全部条目交给 buildScrapeInfo，就会出现：
 					//   · `成功 N/M` 的 M 偏大（把隐藏条目算进分母，而它们本轮根本没抓）
 					//   · 失败分类与悬停明细里列出**隐藏条目**的旧失败 —— 用户看到的"没生效"就是这个。
-					const visibleIds = new Set(getVisibleEntries(s).map((g) => g.id));
+					// ⚠️ 用 `sRef.current`（最新设置），**不能**用闭包里的 `s`：后者被 useCallback
+					// 冻结在首次渲染那一刻 → 挂载后才勾选的条目不计入分母、失败也不进明细。
+					// 详见 sRef 声明处的注释。
+					const visibleIds = new Set(getVisibleEntries(sRef.current).map((g) => g.id));
 					const games = Object.entries(result.games)
 						.filter(([id]) => visibleIds.has(id))
 						.map(([id, g]) => ({ id, name: g.name || id }));
