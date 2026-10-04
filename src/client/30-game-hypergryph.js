@@ -544,14 +544,23 @@
 		}
 
 
-		// 从 fz.wiki 页面（Next.js App Router）内联 RSC flight payload 中抽取 contentJson 的 JSON 字符串。
-		// 数据被序列化为 self.__next_f.push([1,"..."])；拼接后按引号转义还原，再按大括号平衡取 contentJson 对象。
+		// 从 fz.wiki 的数据里抽出 contentJson 的 JSON 对象。两种输入都要支持：
+		//   ① 活动页 HTML（Next.js App Router）：数据在 `self.__next_f.push([1,"..."])` 的 RSC 流里；
+		//   ② REST API 响应（`api.fz.wiki`）：**直接就是 JSON**，没有 `__next_f` 外壳。
+		// 2026-10-04：fz.wiki 的活动页已不再在 HTML/RSC 里输出卡片数据（页面只剩导航外壳，
+		// 实测 `endfieldCardActivityIndex` / `wikiCardItem` 在页面里 **0 处**），数据改由 API 提供
+		// （`revision.contentJson`，结构与原来的 RSC payload 一致）。所以 fetcher 改走 API，
+		// 这里补一条"输入本来就是 JSON"的分支；旧格式分支保留，页面若改回来也照样能用。
 		function extractFzContentJson(html) {
-			const re = /self\.__next_f\.push\(\[1,"((?:[^"\\]|\\.)*)"\]\)/g;
 			let full = "";
-			let m;
-			while ((m = re.exec(html))) {
-				try { full += JSON.parse('"' + m[1] + '"'); } catch { full += m[1]; }
+			if (html.includes("self.__next_f.push")) {
+				const re = /self\.__next_f\.push\(\[1,"((?:[^"\\]|\\.)*)"\]\)/g;
+				let m;
+				while ((m = re.exec(html))) {
+					try { full += JSON.parse('"' + m[1] + '"'); } catch { full += m[1]; }
+				}
+			} else {
+				full = html;
 			}
 			if (!full.includes('"contentJson"')) return null;
 			const ci = full.indexOf('"contentJson"');
@@ -576,7 +585,8 @@
 		//   ③ endfieldCardActivityIndex.content[] → wikiCardItem.attrs.data（当前线上结构）
 		// 只收"有明确起止"的活动（timeRanges 末段的 open+close 都非空），
 		// 与旧行为一致——无 close 的是新手/每周/引导等常驻活动，不当作当期活动。
-		// 时间格式 "2026/9/2 7:00:00"；外显=排序第一条（结束最早的），悬停按同序逐行。
+		// 时间格式 "2026/9/2 7:00:00"；悬停按**结束时间升序**逐行，外显另由 `pickEventPrimary`
+		// 挑选（叙事/挑战类优先于签到/减耗类），不是简单的"第一条"。
 		function parseFzWikiActivities(html, now, tz) {
 			const obj = extractFzContentJson(html);
 			if (!obj) return null;
@@ -637,12 +647,22 @@
 		}
 
 
-		// 终末地（FZ Wiki 经 host 代理，无 CORS）：活动排期页。
+		// 终末地（FZ Wiki 经 host 代理，无 CORS）：活动排期。
 		// 三态口径：有当期活动 → 数据；解析到活动但没有当期 → null（nomatch）；
-		// 页面结构变了/一条都解析不出 → parseFzWikiActivities 抛错（down）。
+		// 结构变了/一条都解析不出 → parseFzWikiActivities 抛错（down）。
+		// 2026-10-04：fz.wiki 把活动数据从页面 HTML/RSC 移到了 REST API（页面只剩外壳）→
+		// 改为请求 `api.fz.wiki/api/v1/articles/by-title?ns=0&title=<页面名>&withRevision=1`。
+		// 条目里的 `eventUrl` 仍是**给人看的页面地址**（设置页显示它）；标题由该地址的路径推出，
+		// 所以用户把 eventUrl 换成别的 wiki 页也能用。若直接把 eventUrl 配成 API 地址，则原样使用。
 		async function fetchFzWikiEndfield(pageUrl, _signal, tz, now = nowMs()) {
-			const html = await proxyFetchText(pageUrl, "https://fz.wiki/");
-			return parseFzWikiActivities(html, now, tz);
+			let url = pageUrl;
+			if (!/api\.fz\.wiki/.test(pageUrl)) {
+				const m = /\/wiki\/([^/?#]+)/.exec(pageUrl);
+				const title = m ? decodeURIComponent(m[1]) : "活动";
+				url = "https://api.fz.wiki/api/v1/articles/by-title?ns=0&title=" + encodeURIComponent(title) + "&withRevision=1";
+			}
+			const text = await proxyFetchText(url, "https://fz.wiki/");
+			return parseFzWikiActivities(text, now, tz);
 		}
 
 
