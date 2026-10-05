@@ -26,14 +26,16 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, "..");
 const readme = readFileSync(path.join(REPO, "README.md"), "utf8");
 const testReadme = readFileSync(path.join(REPO, "test", "README.md"), "utf8");
+// 结构树已搬到开发者文档（用户版 README 只留一行指针）
+const dev = readFileSync(path.join(REPO, "README_Dev.md"), "utf8");
 
 export default function runReadme() {
-	section("README 结构图与事实性");
+	section("README / README_Dev 结构图与事实性");
 
 	// ① src/client/ 的每个文件都要在树里
 	{
 		const actual = readdirSync(path.join(REPO, "src", "client")).filter((f) => f.endsWith(".js"));
-		const missing = actual.filter((f) => !readme.includes(f));
+		const missing = actual.filter((f) => !dev.includes(f));
 		check("结构树列出了 src/client/ 的全部文件", missing.length === 0, "缺：" + missing.join(", "));
 	}
 
@@ -41,19 +43,19 @@ export default function runReadme() {
 	{
 		const actual = readdirSync(path.join(REPO, "test")).filter((f) => f.endsWith(".mjs") || f === "map.json");
 		// 收集树里出现过的"带通配的文件名"模式，转成正则
-		const globs = [...readme.matchAll(/[A-Za-z0-9_-]*\*[A-Za-z0-9_*-]*\.mjs/g)]
+		const globs = [...dev.matchAll(/[A-Za-z0-9_-]*\*[A-Za-z0-9_*-]*\.mjs/g)]
 			.map((m) => new RegExp("^" + m[0].replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[^/]*") + "$"));
 		const missing = actual.filter((f) => {
-			if (readme.includes(f)) return false;
+			if (dev.includes(f)) return false;
 			return !globs.some((re) => re.test(f));
 		});
 		check("结构树列出了 test/ 的每个顶层文件（可用 `*` 通配成族覆盖）", missing.length === 0, "缺：" + missing.join(", "));
 		// 反证：通配不能变成"什么都不用列"的借口 —— test/README.md 与 map.json 必须显式出现
-		check("结构树显式列出 test/README.md 与 map.json", readme.includes("test/README.md") && readme.includes("map.json"));
+		check("结构树显式列出 test/README.md 与 map.json", dev.includes("test/README.md") && dev.includes("map.json"));
 	}
 
 	// ③ tools/（package.json 的 publish:* 依赖它）
-	check("结构树列出了 tools/", /├──\s*tools\//.test(readme));
+	check("结构树列出了 tools/", /├──\s*tools\//.test(dev));
 
 	// ④ 段数：README 写的 N 段 == all.mjs 的 batches 长度
 	{
@@ -67,9 +69,9 @@ export default function runReadme() {
 			if (!m) { check(`${label} 里写明了段数`, false, "没找到「N 段」"); return null; }
 			return Number(m[1]);
 		};
-		const a = numIn(readme, "README.md");
+		const a = numIn(dev, "README_Dev.md");
 		const b = numIn(testReadme, "test/README.md");
-		check("README.md 的段数与 all.mjs 实际段数一致", a === actual, `README=${a} 实际=${actual}`);
+		check("README_Dev.md 的段数与 all.mjs 实际段数一致", a === actual, `README=${a} 实际=${actual}`);
 		check("test/README.md 的段数与 all.mjs 实际段数一致", b === actual, `test/README=${b} 实际=${actual}`);
 	}
 }
