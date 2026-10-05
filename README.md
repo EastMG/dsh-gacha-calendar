@@ -166,7 +166,7 @@ dsh-gacha-calendar/
 - [yoimiya-kokomi/miao-plugin](https://github.com/yoimiya-kokomi/miao-plugin)——对 miHoYo/HoYoverse 公告接口的获取手段受到**miao-plugin**的启发。
 - [jacket-sikaha/game-schedule](https://github.com/jacket-sikaha/game-schedule)——对 miHoYo/HoYoverse 公告接口的获取手段受到**game-schedule**的启发。
 - [BTMuli/ShufflePlay](https://github.com/BTMuli/ShufflePlay)——对 miHoYo/HoYoverse 公告接口的获取手段受到**ShufflePlay**的启发。
-- [UIGF-org/mihoyo-api-collect](https://github.com/UIGF-org/mihoyo-api-collect)——对 miHoYo/HoYoverse 各游戏 `appId` 与公告接口的查证受到**mihoyo-api-collect**的启发。
+- [UIGF-org/mihoyo-api-collect](https://github.com/UIGF-org/mihoyo-api-collect)——对 miHoYo/HoYoverse 的 `appId` 与公告接口的查证受到**mihoyo-api-collect**的启发。
 - [Sekai-World/sekai-master-db-cn-diff](https://github.com/Sekai-World/sekai-master-db-cn-diff)——《初音未来：缤纷舞台》国服卡池与活动排期的**数据来源**。
 
 ## 免责声明
