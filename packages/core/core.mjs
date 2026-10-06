@@ -4233,8 +4233,10 @@ EVENT_FETCHERS["wuwa"] = {
 				eventUrl: "https://fz.wiki/wiki/%E6%B4%BB%E5%8A%A8",
 				eventSource: "FZ Wiki",
 				// 活动备选来源：Game8（英文，经 host 代理）
+				// ⚠️ 2026-10-05 起标注「（不可靠）」：game8.co 对本机出口返回 HTTP 202（2KB 机器人挑战页），
+				//    实测浏览器与脚本一致 → 该源当前不可用（详见 30-game-cygames.js 里 uma-global 同款记录）。
 				eventAltSources: [
-					{ label: "Game8\uff08\u82F1\u6587\uff09", url: "https://game8.co/games/Arknights-Endfield/archives/535443", fetcher: "endfield-game8" }
+					{ label: "Game8\uff08\u82F1\u6587\uff09\uff08\u4e0d\u53ef\u9760\uff09", url: "https://game8.co/games/Arknights-Endfield/archives/535443", fetcher: "endfield-game8" }
 				]
 		});
 
