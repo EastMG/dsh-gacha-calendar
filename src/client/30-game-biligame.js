@@ -1013,7 +1013,7 @@ async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_bil
 				source: "官方公告",
 				eventUrl: "https://api.biligame.com/news/list?gameExtensionId=1006&positionId=2&typeId=1&pageNum=1&pageSize=50",
 				eventSource: "官方公告",
-				altSources: [{"label":"Bwiki 简中卡池（社区推算，非官方）","url":"https://wiki.biligame.com/umamusume/api.php?action=parse&page=简中卡池&prop=text&format=json&formatversion=2","fetcher":"uma-cn-bwiki"}],
+				altSources: [{"label":"Bwiki 简中社区推算卡池","url":"https://wiki.biligame.com/umamusume/api.php?action=parse&page=简中卡池&prop=text&format=json&formatversion=2","fetcher":"uma-cn-bwiki"}],
 		});
 
 		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══

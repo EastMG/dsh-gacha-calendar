@@ -141,7 +141,7 @@ export default async function run() {
 		check("uma-cn 保留 B2 的 bwiki「简中卡池」为**卡池备选源**（含「非官方」提示）",
 			Array.isArray(uma.altSources) && uma.altSources.length === 1
 			&& uma.altSources[0].fetcher === "uma-cn-bwiki"
-			&& /非官方/.test(uma.altSources[0].label)
+			&& /社区推算/.test(uma.altSources[0].label)
 			&& uma.altSources[0].url === "https://wiki.biligame.com/umamusume/api.php?action=parse&page=简中卡池&prop=text&format=json&formatversion=2",
 			JSON.stringify(uma.altSources));
 		check("uma-cn 无事件备选源（官方 feed 已覆盖两侧）", !uma.eventAltSources);

@@ -556,7 +556,7 @@ async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES
 // ══ 条目形态：**默认未配置**（只挂备选源，不给 url/eventUrl）════════════════
 //   本条目在 registry-p9.js 里**没有** `url` / `eventUrl`，只有 `altSources` / `eventAltSources`。
 //   插件 50-refresh.js 的语义是 `if (!source.url && !source.eventUrl) → skipped`：
-//   不抓取、不计成功也不计失败，UI 显示「未配置（不抓取卡池/活动）」；用户在设置页选「官方公告（BHK）」
+//   不抓取、不计成功也不计失败，UI 显示「未配置（不抓取卡池/活动）」；用户在设置页选「BHK官方公告」
 //   才会真正抓取。与米游社那套「崩坏3 新建条目、默认未配置」完全同型（见 45-next-sources.js）。
 //
 // ══ 接口（Lead 定位；本机**抓不到**，夹具是**合成**的，见下）══════════════════
@@ -1024,8 +1024,8 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 				source: "官方公告",
 				eventUrl: "https://api.biligame.com/news/list?gameExtensionId=138&positionId=2&typeId=1&pageNum=1&pageSize=20",
 				eventSource: "官方公告",
-				altSources: [{"label":"Bestdori 扭蛋（社区数据库）","url":"https://bestdori.com/api/gacha/all.5.json","fetcher":"bandori-bestdori-gacha"}],
-				eventAltSources: [{"label":"Bestdori 活动（社区数据库）","url":"https://bestdori.com/api/events/all.5.json","fetcher":"bandori-bestdori-event"}],
+				altSources: [{"label":"Bestdori 扭蛋","url":"https://bestdori.com/api/gacha/all.5.json","fetcher":"bandori-bestdori-gacha"}],
+				eventAltSources: [{"label":"Bestdori 活动","url":"https://bestdori.com/api/events/all.5.json","fetcher":"bandori-bestdori-event"}],
 		});
 
 		registerSource({
@@ -1045,8 +1045,8 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 				tz: "Asia/Shanghai",
 				name: "BanG Dream！OurNotes·国际服",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/ca/da/3a/cada3a9a-491a-fbe5-5494-9be7390e3a9b/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
-				altSources: [{"label":"官方公告（BHK）","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw","fetcher":"ournotes-global-gacha"}],
-				eventAltSources: [{"label":"官方公告（BHK）","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw","fetcher":"ournotes-global-event"}],
+				altSources: [{"label":"BHK官方公告","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw","fetcher":"ournotes-global-gacha"}],
+				eventAltSources: [{"label":"BHK官方公告","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw","fetcher":"ournotes-global-event"}],
 		});
 
 		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══

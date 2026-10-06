@@ -110,11 +110,10 @@ export default async function run() {
 		check("tz 取值：zspms/czn/kedr 都是 Asia/Shanghai（**推测**，源站未标注）",
 			findSourceP8("zspms").tz === "Asia/Shanghai" && findSourceP8("czn").tz === "Asia/Shanghai" && findSourceP8("kedr").tz === "Asia/Shanghai",
 			JSON.stringify([findSourceP8("zspms").tz, findSourceP8("czn").tz, findSourceP8("kedr").tz]));
-		// kedr 保留 P6 的备选源（键 kedr-kaxi 已登记在 registry-extras.js → registry.js 守卫可过）
-		check("kedr.altSources 保留 P6 的 `kedr-kaxi`（Bwiki 卡池信息台架测试页）",
-			Array.isArray(findSourceP8("kedr").altSources) && findSourceP8("kedr").altSources.length === 1
-			&& findSourceP8("kedr").altSources[0].fetcher === "kedr-kaxi"
-			&& /page=卡池信息/.test(findSourceP8("kedr").altSources[0].url));
+		// 2026-10-05 用户要求：删除「Bwiki 卡池信息（台架测试占位）」这个占位源（备选条目 + 登记行一起删）。
+		// 解析器与回归出口保留（cases-b2 仍直接单测 parseKedrGacha / gachaKedr）。
+		check("kedr 已删除台架测试占位备选源（无 altSources 或为空）",
+			!Array.isArray(findSourceP8("kedr").altSources) || findSourceP8("kedr").altSources.length === 0);
 		// 页名/模板前缀的形态约束（写错就会命中不到夹具，也会让源站 soft-404）
 		check("czn 页面名 = Module:Gacha/data（URL 里 %3A / %2F 已编码）",
 			CZN_MODULE_PAGE === "Module:Gacha/data" && CZN_MODULE_URL.includes("Module%3AGacha%2Fdata"), CZN_MODULE_URL);

@@ -408,7 +408,7 @@ function ns_bwiki_parseUmaCnGacha(html, tz = "Asia/Shanghai") {
 // （如 `八骏赛马娘卡池 20230911` 被平移到 2026-09），远期条目一路排到 2029 年。
 // 2026-10-03 改：原先这里给 bannerHover 追加「—— 接下来的预测卡池（按日服时差推算，非官方时刻表） ——」
 //   + 3 条未来条目。那既是"非当期"内容，头部又是元信息/来源说明 ——
-//   「社区推算，非官方」这层意思已经写在来源标签里（`Bwiki 简中卡池（社区推算，非官方）`），
+//   「社区推算、非官方」这层意思已经写在来源标签里（`Bwiki 简中社区推算卡池`），
 //   不需要再在悬停里重复。保留函数是为了让夹具测试仍能直接断言"预测表的解析结果"。
 //#endregion
 
@@ -1454,7 +1454,6 @@ async function ns_kedr_wiki_gachaKedrWiki(url, signal, tz = ns_kedr_wiki_KEDR_TZ
 				source: "Bwiki",
 				eventUrl: "https://wiki.biligame.com/kedrgame/api.php?action=parse&page=Template%3A%E9%A6%96%E9%A1%B5%E6%B8%B8%E6%88%8F%E7%89%88%E6%9C%AC%E5%86%85%E5%AE%B9&prop=wikitext&format=json",
 				eventSource: "Bwiki",
-				altSources: [{"label":"Bwiki 卡池信息（台架测试占位）","url":"https://wiki.biligame.com/kedrgame/api.php?action=parse&page=卡池信息&prop=text&format=json&formatversion=2","fetcher":"kedr-kaxi"}],
 		});
 
 		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
@@ -1465,4 +1464,3 @@ async function ns_kedr_wiki_gachaKedrWiki(url, signal, tz = ns_kedr_wiki_KEDR_TZ
 		EVENT_FETCHERS["wuhuamixin"] = Object.assign(EVENT_FETCHERS["wuhuamixin"] || {}, { default: (url, signal, tz) => ns_biligame_activity_eventsWhmxOfficial(url, signal, tz) });
 		EVENT_FETCHERS["zspms"] = Object.assign(EVENT_FETCHERS["zspms"] || {}, { default: (url, signal, tz) => ns_bwiki_wikitext_eventsZspms(url, signal, tz) });
 		EVENT_FETCHERS["kedr"] = Object.assign(EVENT_FETCHERS["kedr"] || {}, { default: (url, signal, tz) => ns_bwiki_wikitext_eventsKedrTemplate(url, signal, tz) });
-		GACHA_FETCHERS["kedr-kaxi"] = (url, signal, tz) => ns_bwiki_gachaKedr(url, signal, tz);

@@ -788,8 +788,8 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 				source: "官方公告（日文）",
 				eventUrl: "https://umamusume.jp/api/ajax/pr_info_index?format=json&page=1",
 				eventSource: "官方公告（日文）",
-				altSources: [{"label":"umapyoi（第三方，无卡池名）","url":"https://api.umapyoi.net/api/v1/gacha","fetcher":"uma-jp-umapyoi"}],
-				eventAltSources: [{"label":"Bwiki 活动（往期归档）","url":"https://wiki.biligame.com/umamusume/api.php?action=parse&page=活动&prop=text&format=json&formatversion=2","fetcher":"uma-jp-bwiki"}],
+				altSources: [{"label":"umapyoi（无卡池名）","url":"https://api.umapyoi.net/api/v1/gacha","fetcher":"uma-jp-umapyoi"}],
+				eventAltSources: [{"label":"Bwiki 活动往期归档","url":"https://wiki.biligame.com/umamusume/api.php?action=parse&page=活动&prop=text&format=json&formatversion=2","fetcher":"uma-jp-bwiki"}],
 		});
 
 		registerSource({
@@ -804,12 +804,12 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 				url: "https://gachatracker.app/games/umamusume/banners/",
 				source: "GachaTracker（英文）",
 				// 活动侧暂无可用替代：GachaTracker 的活动数据站点层面就残缺（全站仅 9 条、停在 2025），
-				// Game8 返回 202 挑战页、Prydwen 返回 403 Cloudflare 挑战 → 官方公告仍是最优默认，故保留原名 + 标注。
+				// Game8 返回 202 挑战页、Prydwen 返回 403 Cloudflare 挑战 → 官方公告仍是最优默认，故只加可靠性后缀。
 				eventUrl: "https://umamusume.com/api/ajax/pr_info_index?format=json",
-				eventSource: "官方公告（英文）（不可靠）",
+				eventSource: "官方公告（英文︱不可靠）",
 				altSources: [
 					{
-						label: "官方公告（英文）（不可靠）",
+						label: "官方公告（英文︱不可靠）",
 						url: "https://umamusume.com/api/ajax/pr_info_index?format=json",
 						fetcher: "uma-global-official"
 					}

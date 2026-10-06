@@ -4233,10 +4233,10 @@ EVENT_FETCHERS["wuwa"] = {
 				eventUrl: "https://fz.wiki/wiki/%E6%B4%BB%E5%8A%A8",
 				eventSource: "FZ Wiki",
 				// 活动备选来源：Game8（英文，经 host 代理）
-				// ⚠️ 2026-10-05 起标注「（不可靠）」：game8.co 对本机出口返回 HTTP 202（2KB 机器人挑战页），
+				// ⚠️ 2026-10-05 起加可靠性后缀：game8.co 对本机出口返回 HTTP 202（2KB 机器人挑战页），
 				//    实测浏览器与脚本一致 → 该源当前不可用（详见 30-game-cygames.js 里 uma-global 同款记录）。
 				eventAltSources: [
-					{ label: "Game8\uff08\u82F1\u6587\uff09\uff08\u4e0d\u53ef\u9760\uff09", url: "https://game8.co/games/Arknights-Endfield/archives/535443", fetcher: "endfield-game8" }
+					{ label: "Game8\uff08\u82F1\u6587\ufe31\u4e0d\u53ef\u9760\uff09", url: "https://game8.co/games/Arknights-Endfield/archives/535443", fetcher: "endfield-game8" }
 				]
 		});
 
@@ -5439,7 +5439,7 @@ async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES
 // ══ 条目形态：**默认未配置**（只挂备选源，不给 url/eventUrl）════════════════
 //   本条目在 registry-p9.js 里**没有** `url` / `eventUrl`，只有 `altSources` / `eventAltSources`。
 //   插件 50-refresh.js 的语义是 `if (!source.url && !source.eventUrl) → skipped`：
-//   不抓取、不计成功也不计失败，UI 显示「未配置（不抓取卡池/活动）」；用户在设置页选「官方公告（BHK）」
+//   不抓取、不计成功也不计失败，UI 显示「未配置（不抓取卡池/活动）」；用户在设置页选「BHK官方公告」
 //   才会真正抓取。与米游社那套「崩坏3 新建条目、默认未配置」完全同型（见 45-next-sources.js）。
 //
 // ══ 接口（Lead 定位；本机**抓不到**，夹具是**合成**的，见下）══════════════════
@@ -5907,8 +5907,8 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 				source: "官方公告",
 				eventUrl: "https://api.biligame.com/news/list?gameExtensionId=138&positionId=2&typeId=1&pageNum=1&pageSize=20",
 				eventSource: "官方公告",
-				altSources: [{"label":"Bestdori 扭蛋（社区数据库）","url":"https://bestdori.com/api/gacha/all.5.json","fetcher":"bandori-bestdori-gacha"}],
-				eventAltSources: [{"label":"Bestdori 活动（社区数据库）","url":"https://bestdori.com/api/events/all.5.json","fetcher":"bandori-bestdori-event"}],
+				altSources: [{"label":"Bestdori 扭蛋","url":"https://bestdori.com/api/gacha/all.5.json","fetcher":"bandori-bestdori-gacha"}],
+				eventAltSources: [{"label":"Bestdori 活动","url":"https://bestdori.com/api/events/all.5.json","fetcher":"bandori-bestdori-event"}],
 		});
 
 		registerSource({
@@ -5928,8 +5928,8 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 				tz: "Asia/Shanghai",
 				name: "BanG Dream！OurNotes·国际服",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/ca/da/3a/cada3a9a-491a-fbe5-5494-9be7390e3a9b/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
-				altSources: [{"label":"官方公告（BHK）","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw","fetcher":"ournotes-global-gacha"}],
-				eventAltSources: [{"label":"官方公告（BHK）","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw","fetcher":"ournotes-global-event"}],
+				altSources: [{"label":"BHK官方公告","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw","fetcher":"ournotes-global-gacha"}],
+				eventAltSources: [{"label":"BHK官方公告","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw","fetcher":"ournotes-global-event"}],
 		});
 
 		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
@@ -6364,7 +6364,7 @@ function ns_bwiki_parseUmaCnGacha(html, tz = "Asia/Shanghai") {
 // （如 `八骏赛马娘卡池 20230911` 被平移到 2026-09），远期条目一路排到 2029 年。
 // 2026-10-03 改：原先这里给 bannerHover 追加「—— 接下来的预测卡池（按日服时差推算，非官方时刻表） ——」
 //   + 3 条未来条目。那既是"非当期"内容，头部又是元信息/来源说明 ——
-//   「社区推算，非官方」这层意思已经写在来源标签里（`Bwiki 简中卡池（社区推算，非官方）`），
+//   「社区推算、非官方」这层意思已经写在来源标签里（`Bwiki 简中社区推算卡池`），
 //   不需要再在悬停里重复。保留函数是为了让夹具测试仍能直接断言"预测表的解析结果"。
 //#endregion
 
@@ -7410,7 +7410,6 @@ async function ns_kedr_wiki_gachaKedrWiki(url, signal, tz = ns_kedr_wiki_KEDR_TZ
 				source: "Bwiki",
 				eventUrl: "https://wiki.biligame.com/kedrgame/api.php?action=parse&page=Template%3A%E9%A6%96%E9%A1%B5%E6%B8%B8%E6%88%8F%E7%89%88%E6%9C%AC%E5%86%85%E5%AE%B9&prop=wikitext&format=json",
 				eventSource: "Bwiki",
-				altSources: [{"label":"Bwiki 卡池信息（台架测试占位）","url":"https://wiki.biligame.com/kedrgame/api.php?action=parse&page=卡池信息&prop=text&format=json&formatversion=2","fetcher":"kedr-kaxi"}],
 		});
 
 		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
@@ -7421,7 +7420,6 @@ async function ns_kedr_wiki_gachaKedrWiki(url, signal, tz = ns_kedr_wiki_KEDR_TZ
 		EVENT_FETCHERS["wuhuamixin"] = Object.assign(EVENT_FETCHERS["wuhuamixin"] || {}, { default: (url, signal, tz) => ns_biligame_activity_eventsWhmxOfficial(url, signal, tz) });
 		EVENT_FETCHERS["zspms"] = Object.assign(EVENT_FETCHERS["zspms"] || {}, { default: (url, signal, tz) => ns_bwiki_wikitext_eventsZspms(url, signal, tz) });
 		EVENT_FETCHERS["kedr"] = Object.assign(EVENT_FETCHERS["kedr"] || {}, { default: (url, signal, tz) => ns_bwiki_wikitext_eventsKedrTemplate(url, signal, tz) });
-		GACHA_FETCHERS["kedr-kaxi"] = (url, signal, tz) => ns_bwiki_gachaKedr(url, signal, tz);
 
 // src/client/30-game-biligame.js —— biligame 官方公告系（嘟嘟脸恶作剧 / 闪耀优俊少女）
 //
@@ -8438,7 +8436,7 @@ async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_bil
 				source: "官方公告",
 				eventUrl: "https://api.biligame.com/news/list?gameExtensionId=1006&positionId=2&typeId=1&pageNum=1&pageSize=50",
 				eventSource: "官方公告",
-				altSources: [{"label":"Bwiki 简中卡池（社区推算，非官方）","url":"https://wiki.biligame.com/umamusume/api.php?action=parse&page=简中卡池&prop=text&format=json&formatversion=2","fetcher":"uma-cn-bwiki"}],
+				altSources: [{"label":"Bwiki 简中社区推算卡池","url":"https://wiki.biligame.com/umamusume/api.php?action=parse&page=简中卡池&prop=text&format=json&formatversion=2","fetcher":"uma-cn-bwiki"}],
 		});
 
 		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
@@ -9238,8 +9236,8 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 				source: "官方公告（日文）",
 				eventUrl: "https://umamusume.jp/api/ajax/pr_info_index?format=json&page=1",
 				eventSource: "官方公告（日文）",
-				altSources: [{"label":"umapyoi（第三方，无卡池名）","url":"https://api.umapyoi.net/api/v1/gacha","fetcher":"uma-jp-umapyoi"}],
-				eventAltSources: [{"label":"Bwiki 活动（往期归档）","url":"https://wiki.biligame.com/umamusume/api.php?action=parse&page=活动&prop=text&format=json&formatversion=2","fetcher":"uma-jp-bwiki"}],
+				altSources: [{"label":"umapyoi（无卡池名）","url":"https://api.umapyoi.net/api/v1/gacha","fetcher":"uma-jp-umapyoi"}],
+				eventAltSources: [{"label":"Bwiki 活动往期归档","url":"https://wiki.biligame.com/umamusume/api.php?action=parse&page=活动&prop=text&format=json&formatversion=2","fetcher":"uma-jp-bwiki"}],
 		});
 
 		registerSource({
@@ -9254,12 +9252,12 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 				url: "https://gachatracker.app/games/umamusume/banners/",
 				source: "GachaTracker（英文）",
 				// 活动侧暂无可用替代：GachaTracker 的活动数据站点层面就残缺（全站仅 9 条、停在 2025），
-				// Game8 返回 202 挑战页、Prydwen 返回 403 Cloudflare 挑战 → 官方公告仍是最优默认，故保留原名 + 标注。
+				// Game8 返回 202 挑战页、Prydwen 返回 403 Cloudflare 挑战 → 官方公告仍是最优默认，故只加可靠性后缀。
 				eventUrl: "https://umamusume.com/api/ajax/pr_info_index?format=json",
-				eventSource: "官方公告（英文）（不可靠）",
+				eventSource: "官方公告（英文︱不可靠）",
 				altSources: [
 					{
-						label: "官方公告（英文）（不可靠）",
+						label: "官方公告（英文︱不可靠）",
 						url: "https://umamusume.com/api/ajax/pr_info_index?format=json",
 						fetcher: "uma-global-official"
 					}
