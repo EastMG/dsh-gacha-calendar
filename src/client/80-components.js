@@ -598,6 +598,25 @@
 			(0, react.useEffect)(() => scope.subscribe(() => setSnapshot(scope.getSnapshot())), [scope]);
 
 			const s = { ...DEFAULT_SETTINGS, ...(snapshot.value ?? {}) };
+			// 面板高度**实测回写**（内联 + !important）：实测 DSH 侧栏环境下这个盒子会被外部撑高，
+			// 顶部到底部那一段空白就是它，而 top/height/min-height/flex 四种 CSS 复位都压不住。
+			// 这里直接量内容高度写回；内联 !important 优先级最高，任何来源都盖不过。
+			// 内容变高（数据刷新等）由 ResizeObserver 跟随；超高时按 72vh 封顶，交给视图内部滚动。
+			(0, react.useLayoutEffect)(() => {
+				const el = popRef.current;
+				if (!open || !el) return;
+				const fit = () => {
+					const inner = el.firstElementChild;
+					const content = (inner ? inner.getBoundingClientRect().height : el.scrollHeight) + 2;
+					const cap = Math.round(window.innerHeight * 0.72);
+					el.style.setProperty("height", Math.round(content > cap ? cap : content) + "px", "important");
+				};
+				fit();
+				if (typeof ResizeObserver === "undefined") return;
+				const ro = new ResizeObserver(fit);
+				if (el.firstElementChild) ro.observe(el.firstElementChild);
+				return () => ro.disconnect();
+			}, [open, s.newPanel]);
 			// 最近一次抓取结果按游戏 id 索引；解析失败/未联网时为 {}
 			let scrapedById = {};
 			try { scrapedById = JSON.parse(s.lastData || "{}") || {}; } catch { scrapedById = {}; }
