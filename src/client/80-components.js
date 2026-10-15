@@ -231,7 +231,15 @@
 
 		// 类型图标：**内联 SVG**（卡池 = 菱形星芒 / 活动 = 旗帜）。两者**形状不同** → 不靠颜色也能分辨，
 		// 也不用 emoji（用户明确说 emoji 丑）。旁边的文字标签由 CSS 隐藏，见 70-styles.js。
-		function scheduleKindIcon(kind, cls) {
+		// 悬停明细：**原面板那套**（引擎的 bannerHover / eventHover —— 当期 ≥2 条时每条一行，
+// 形如「池名：角色 ⏎ 档期」或「活动名 + 3 空格 + 档期」）。没有并列条目时给空串 →
+// 退化成「外显 ⏎ 档期」，与原面板单条时的观感一致。
+			function scheduleHoverText(x) {
+				const hv = (x.isG ? x.g.bannerHover : x.g.eventHover) || "";
+				const head = [x.title, x.raw].filter(Boolean).join("\n");
+				return [hv, head].filter(Boolean).join("\n") || "—";
+			}
+			function scheduleKindIcon(kind, cls) {
 			const box = { className: cls, viewBox: "0 0 12 12", "aria-hidden": "true", focusable: "false" };
 			if (kind === "gacha") {
 				return (0, react_jsx_runtime.jsx)("svg", Object.assign({}, box, {
@@ -400,7 +408,7 @@
 							scheduleKindIcon(x.isG ? "gacha" : "event", "gacha-cal-sched-tic"),
 							(0, react_jsx_runtime.jsx)("span", { children: x.isG ? "卡池" : "活动" })
 						] }),
-						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-what", title: x.title || x.raw, children: x.title || x.raw || "—" }),
+						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-what", title: scheduleHoverText(x), children: x.title || x.raw || "—" }),
 						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-when gacha-cal-sched-num", children: w.parts
 							? ["还剩 ", ...w.parts.map((p) => (0, react_jsx_runtime.jsxs)("span", { children: [p[0], (0, react_jsx_runtime.jsx)("small", { children: p[1] })] }, p[1]))]
 							: w.text })
