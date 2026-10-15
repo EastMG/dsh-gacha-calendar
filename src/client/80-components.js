@@ -517,7 +517,7 @@
 				]
 			});
 
-			// ④ 留白区 → 「下一个截止」卡
+			// ④ 留白区 → 「按顺序循环」的卡（背景与主体都取条目强调色）
 			//    大图标当主体；环 = 该档期"已过多少"（环快满 = 快结束了，不用读字）；
 			//    下面两行是接下来两件，各两行（游戏名一行 / 卡池活动名一行）。
 			//    数据全部取自条目已有的 startTs/endTs/raw，不需要任何新抓取。
@@ -554,28 +554,64 @@
 					] })
 				] });
 			}
+			// ⑤ 留白卡：「按顺序循环」
+			//    去掉「下一个截止」标题；**背景与主体都取该条目自己的强调色**
+			//    （卡池 = 游戏色、活动 = 浅一档，与表格 --gf 完全同一套规则）；按顺序每 4 秒切下一条，到头回到第一条。
+			//    **纯 CSS 动画**：不用定时器、不写 state（本插件环境里 hook 不可靠）。
+			//    固定 6 格：条目不足 6 条时按序重复填充 ⇒ CSS 关键帧可以写死、永远对得上。
+			const SCHEDULE_SLOT_STEPS = 6;
+			const SCHEDULE_SLOT_SECS = 4;
+			const slotAccent = (it) => scheduleGameColor(it.g);
+			const slotKind = (it) => (it.isG ? "gacha" : "event");
+			// 背景层：撑满整张卡（含下方两行），随本条目的强调色；硬切（避免两层交叉淡入透出杂色）
+			function slotBg(it, i) {
+				return (0, react_jsx_runtime.jsx)("span", {
+					className: "gacha-cal-slot-bg",
+					"data-t": slotKind(it),
+					key: "bg" + i,
+					style: { "--g": slotAccent(it), animationDelay: (i * SCHEDULE_SLOT_SECS) + "s" }
+				});
+			}
+			// 主体层：环（= 档期已过多少）+ 大图标 + 游戏名 + 剩余天数 + 事项 + 档期
+			function slotSlide(it, i) {
+				const color = slotAccent(it);
+				const frac = slotFrac(it);
+				return (0, react_jsx_runtime.jsxs)("div", {
+					className: "gacha-cal-slot-slide",
+					key: "sd" + i,
+					style: { animationDelay: (i * SCHEDULE_SLOT_SECS) + "s" },
+					children: [
+						(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-slot-ring", children: [
+							slotRing(frac, color, 132, 9),
+							(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-slot-ic", children: (0, react_jsx_runtime.jsx)(GameIcon, { icon: it.g.icon, name: it.g.name, size: 86 }) })
+						] }),
+						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-gn", children: it.g.name }),
+						(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-slot-days", children: [
+							(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-slot-n", children: String(slotLeftDays(it)) }),
+							(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-slot-u", children: "天后结束" })
+						] }),
+						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-ttl", children: it.title }),
+						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-sub", children: (it.raw || "") + " · 已过 " + Math.round(frac * 100) + "%" })
+					]
+				});
+			}
 			function slotCard(list) {
 				const ending = list.filter((x) => x && typeof x.endTs === "number" && x.state !== "long" && x.endTs > now)
 					.sort((a, b) => a.endTs - b.endTs);
-				const head = ending[0];
-				if (!head) return (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-slot gacha-cal-sched-slot--empty" });
-				const color = scheduleGameColor(head.g);
-				const frac = slotFrac(head);
-				return (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-slot", style: { "--gc": color }, children: [
-					(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-cap", children: "下一个截止" }),
-					(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-slot-ring", children: [
-						slotRing(frac, color, 132, 9),
-						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-slot-ic", children: (0, react_jsx_runtime.jsx)(GameIcon, { icon: head.g.icon, name: head.g.name, size: 86 }) })
-					] }),
-					(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-gn", children: head.g.name }),
-					(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-slot-days", children: [
-						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-slot-n", children: String(slotLeftDays(head)) }),
-						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-slot-u", children: "天后结束" })
-					] }),
-					(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-ttl", children: head.title }),
-					(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-sub", children: (head.raw || "") + " · 已过 " + Math.round(frac * 100) + "%" }),
-					ending.length > 1 ? (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-more", children: ending.slice(1, 3).map(slotLine) }) : null
-				] });
+				if (!ending.length) return (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-slot gacha-cal-sched-slot--empty" });
+				const steps = [];
+				for (let i = 0; i < SCHEDULE_SLOT_STEPS; i++) steps.push(ending[i % ending.length]);
+				// 静态层：循环之外的再往后两件（各两行）；不足则不渲染
+				const rest = ending.slice(SCHEDULE_SLOT_STEPS, SCHEDULE_SLOT_STEPS + 2);
+				return (0, react_jsx_runtime.jsxs)("div", {
+					className: "gacha-cal-sched-slot",
+					style: { "--gc": slotAccent(ending[0]) },
+					children: [
+						steps.map(slotBg),
+						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-cine", children: steps.map(slotSlide) }),
+						rest.length ? (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-more", children: rest.map(slotLine) }) : null
+					]
+				});
 			}
 			return (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched", children: [
 				// ① 标题「二游日历」+ 日期胶囊
