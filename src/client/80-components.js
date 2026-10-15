@@ -631,7 +631,7 @@
 				// 不挂 ResizeObserver：观察"会被拉伸的元素"本身就会成环。数据刷新引起的重排由 400ms 复量兜住。
 				// TEMP-DEBUG：400ms 后复量并显示在面板左上角（确认 shell 是否已等于内容跨度）。
 				const t = window.setTimeout(() => {
-					fit();
+					// 这里**只读不写**：再写一次高度会触发重排（用户观察到"刚点开翻不动、隔一会才好"）。
 					const inner = el.firstElementChild;
 					let tag = el.querySelector(".gacha-cal-dbg");
 					if (!tag) {

@@ -12,9 +12,10 @@
 			 * 故删除：页脚动作区的排布交还给宿主，我们只保证自己那个按钮的样式。
 			 * 若将来需要影响父容器，请用不依赖哈希的方式（例如容器上的稳定属性）。 */
 			/* 只当**定位壳**：卡片外观全部移到 .gacha-cal-sched 上。
-原因：实测 DSH 侧栏环境会把本盒撑得比内容高（同一个 .gacha-cal-pop CSS 在本地渲染页里高度=内容，无空白），
-而 top/height/min-height/flex 四种复位都压不住。把外观移到视图上后，**卡片高度=内容高度**，多出的空白自然不可见。 */
-.gacha-cal-pop{position:fixed;z-index:9999;width:690px;height:auto;max-height:72vh;overflow:visible;background:transparent;border:none;border-radius:0;box-shadow:none;padding:0;font-size:12px;color:var(--dsw-alias-label-primary)}
+			   ⚠️ max-height 必须是 none：实测留成 72vh 时它会**压住** JS 写入的 height
+			   （读数 inlineH=899px 而 shell 仍 734）—— 这就是"面板底部空白怎么改都不动"的最后一环。
+			   壳高由 JS 按"内容跨度 / 可用空间"写入；卡片（视图）height:100% 铺满它并内部滚动。 */
+			.gacha-cal-pop{position:fixed;z-index:9999;width:690px;height:auto;max-height:none;overflow:visible;background:transparent;border:none;border-radius:0;box-shadow:none;padding:0;font-size:12px;color:var(--dsw-alias-label-primary)}
 			.gacha-cal-title{font-size:13px;font-weight:600;margin:0 0 4px;display:flex;justify-content:space-between;align-items:center;gap:8px}
 			.gacha-cal-meta{color:var(--dsw-alias-label-tertiary);font-size:11px;margin:0 0 8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 			/* flex-basis 用 0（不是 auto）：长文案不会整块掉到下一行，而是留在本行被省略号截断；
