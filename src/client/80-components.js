@@ -602,7 +602,7 @@
 			// 顶部到底部那一段空白就是它，而 top/height/min-height/flex 四种 CSS 复位都压不住。
 			// 这里直接量内容高度写回；内联 !important 优先级最高，任何来源都盖不过。
 			// 内容变高（数据刷新等）由 ResizeObserver 跟随；超高时按 72vh 封顶，交给视图内部滚动。
-			(0, react.useLayoutEffect)(() => {
+			(0, react.useEffect)(() => {
 				const el = popRef.current;
 				if (!open || !el) return;
 				const fit = () => {
@@ -837,7 +837,31 @@
 						]
 					}),
 					open && anchor !== void 0 ? (0, react_jsx_runtime.jsx)("div", {
-						ref: popRef,
+						ref: (el) => {
+							popRef.current = el;
+							if (!el) return;
+							// 为什么不用 useEffect：本插件环境里 effect 未执行（实测 inline style 始终只有 left/bottom，
+							// 高度写不进去、面板就按内容撑到 2699）。ref 回调由 React 保证在挂载时调用，最稳。
+							const fit = () => {
+								const inner = el.firstElementChild;
+								let content;
+								if (inner && inner.children.length) {
+									const kids = Array.prototype.slice.call(inner.children);
+									const first = kids[0].getBoundingClientRect();
+									const last = kids[kids.length - 1].getBoundingClientRect();
+									const cs = window.getComputedStyle(inner);
+									content = (last.bottom - first.top) + (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0) + 2;
+								} else {
+									content = el.scrollHeight;
+								}
+								const avail = Math.round(window.innerHeight - (anchor && typeof anchor.bottom === "number" ? anchor.bottom : 0) - 8);
+								const cap = avail > 160 ? avail : Math.round(window.innerHeight * 0.72);
+								el.style.setProperty("height", Math.round(content > cap ? cap : content) + "px", "important");
+							};
+							fit();
+							window.requestAnimationFrame(fit);
+							window.setTimeout(fit, 300);
+						},
 						className: "gacha-cal-pop",
 						style: { left: anchor.left, bottom: anchor.bottom },
 						// ⚙️ 实验特性分支 —— **唯一**的切换点。

@@ -143,10 +143,12 @@
 			.gacha-cal-sched-item{display:block}
 			.gacha-cal-sched-item+.gacha-cal-sched-item{margin-top:7px}
 			/* 探头：常驻绝对定位（永不参与文档流 → 格子高度恒定、下面的行一格不动）；
-			   收起只露顶部 12px；悬停用 clip-path 揭开并**覆盖**下面各行（合成层动画、不触发布局、不重排文字）。 */
+			   收起只露顶部 12px；悬停用 clip-path 揭开并**覆盖**下面各行（合成层动画、不触发布局、不重排文字）。
+			   ⚠️ 收起态的盒子必须压成 12px：它是 absolute，盒子高达 1300px+ 时会把滚动容器的 scrollHeight 撑大
+			   （真机实测 scrollHeight 3028 vs 内容 2698）→ 滚到底时内容被推上去、下面露出空白。 */
 			.gacha-cal-sched-rest{display:block;position:absolute;left:0;right:0;top:calc(100% - 12px);
 				margin:0;padding:2px 10px 12px;pointer-events:none;background:var(--dsw-alias-bg-base);
-				clip-path:inset(0 0 calc(100% - 12px) 0);
+				clip-path:inset(0 0 calc(100% - 12px) 0);height:12px;overflow:hidden;
 				transition:clip-path .42s cubic-bezier(.22,1.2,.28,1)}
 			.gacha-cal-sched-rest .gacha-cal-sched-item:first-child{margin-top:3px}
 			/* 列与列之间有 12px 网格间隙：底板只贴列的话，越过行之后那条间隙盖不到 → 露白缝。
@@ -155,7 +157,7 @@
 			.gacha-cal-sched-cell[data-t="event"] .gacha-cal-sched-rest{left:-6px;right:-8px;padding-left:16px;padding-right:18px}
 			/* 虚化只作用在**内容**上：浮层本体绝不能有 opacity（父级 opacity 会让那层底一起变半透明 → 下一行的字透出来） */
 			.gacha-cal-sched-rest .gacha-cal-sched-item{opacity:.62;transition:opacity .2s cubic-bezier(.4,0,.2,1)}
-			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest{clip-path:inset(0 0 0 0);pointer-events:auto}
+			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest{clip-path:inset(0 0 0 0);height:auto;overflow:visible;pointer-events:auto}
 			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest .gacha-cal-sched-item{opacity:1}
 			/* 底色与遮罩渐变的终点色都挂**行悬停**（不是格子悬停）：整行还灰时底板就必须还是灰，
 			   否则指针在同一行里左右移动（或刚离开该格、底板还在收回）时，底板会瞬间变成纯白 = 用户看到的"遮罩还是白的"。 */
