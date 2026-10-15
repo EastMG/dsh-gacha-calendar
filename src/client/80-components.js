@@ -97,29 +97,44 @@
 		}
 
 		// ══ 实验特性：新「日程」面板视图（`settings.newPanel === true` 时才渲染）══
-		// 设计稿：dsh-gacha-ui-lab/a-columns.html（浅色效果图 a-columns.png）
+		// 设计稿（**唯一真源**）：dsh-gacha-ui-lab/a-v6.html（效果图 a-v6.png）
 		//
-		// 结构 = **两栏**（左 💫 卡池 / 右 🎡 活动）。原面板本来就是两列，而且卡池（约 2 周）与
-		// 活动（常常 1 个月）的时间尺度不同，混在一条列表里排"谁更急"没有意义 —— 分栏后同类比同类。
-		// 两栏用 flex + 每栏 min-width 实现：宽（弹层 690px）时并排，被压窄时**自动上下两段**，
-		// 不引入媒体查询/容器查询。
+		// 结构自上而下，与设计稿一一对应（类名统一 `gacha-cal-sched-*`，样式见 70-styles.js）：
+		//   ① 标题「二游日历」+ 日期胶囊（**没有**总计数胶囊）
+		//   ② 一行总览：今天 N 条到期 · N 条即将开始 · N 条在期 · N 个来源刷新失败
+		//   ③ 「近期」：跨游戏、按紧迫度、**全列出**（不折叠、不点开），占左约 64%，右侧一个虚线空框
+		//   ④ 游戏表（**没有区块标题**，列表头直接跟在后面）：游戏 190px / 卡池 / 活动，
+		//      顺序 = 用户在设置里拖的排列（`applyOrder` 已经排好，这里**不按紧迫度重排**）
+		//   ⑤ 图例（颜色=游戏 / 图案=状态） ⑥ 失败横条 + 重试 ⑦ 底部「上次更新 X 分钟前」+ 刷新
 		//
-		// 三条**不可改**的原则（"一元素一职责"）：
-		//   · 图标=身份 / **栏=类别**（所以行内不再有类别 chip）/ 进度条=窗口进度 / 右侧大数字=时间结论
-		//   · 进度条颜色**只表紧迫度**（蓝→琥珀→红；虚线=长期/无结束时间；淡蓝空条=还没开始）；
-		//     类别由栏本身表达，不靠颜色（色盲也能用）
-		//   · 颜色全部走 --dsw-* 令牌（见 70-styles.js 的 .gacha-cal-sched-*），跟随 DSH 浅/深色；
-		//     浅色不是深色反相，所以这里不写任何硬编码色值
-		//
-		// 刷新失败是**来源级**的问题（某个网站抓不到），不属于卡池也不属于活动 → 做成跨栏的底部横条。
+		// 三条**互不抢**的视觉分工（改这个组件前先读这一条）：
+		//   · **颜色 = 游戏**：每行内联一个 `--g`（`g.color`；自定义条目没有 color → 游戏名哈希取固定色盘）
+		//     同一款游戏的**卡池 = 深色、活动 = 浅色**（浅色由 `color-mix` 与白混出，见 70-styles.js）
+		//   · **图案 = 状态**：实心=在期 / 斜纹=已结束 / 点线=长期 / 空心描边=还没开始 / 灰底=该来源无数据
+		//   · **文字 = 紧迫度**：今天到期 / 还剩 X 天 X 时 / MM-DD HH:MM 开始 —— 迷你条**不再**用颜色表紧迫度
 		//
 		// 本区**只读** CalendarPanel 已经算好的 games / s，不碰抓取、解析、刷新与缓存。
+		const SCHEDULE_DAYS = 14;                 // 迷你条与表头刻度共用的天数（所有行同一根轴）
+		const SCHEDULE_TODAY_INDEX = 2;           // 今天在这一轴上的格号（0 基）→ 今天恒为第 3 格
 		const SCHEDULE_LONG_MS = 366 * 864e5;     // 窗口超过一年 = 长期档期（pjsk 那种 2099 哨兵）
 		const SCHEDULE_DUE_MS = 864e5;            // 24 小时内到期 = "今天到期"
-		const SCHEDULE_AMBER_MS = 7 * 864e5;      // 一周内 = 琥珀（本周留意）
+		const SCHEDULE_AMBER_MS = 7 * 864e5;      // 一周内 = 一段琥珀文字（本周留意）
+		const SCHEDULE_WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+		// 没有 color 的条目（自定义条目）→ 按**游戏名哈希**落到这组固定色盘：同一款永远同色。
+		const SCHEDULE_PALETTE = ["#E0709F", "#3FA9A0", "#E0A93B", "#4A6CF7", "#7A5AF8", "#2FB3C9", "#E06C4A", "#5C9E3F"];
+
+		// 这一款游戏的代表色：条目自带 color（由 SOURCES 下发）优先，否则按名字哈希（同名恒同色）。
+		function scheduleGameColor(g) {
+			const own = g && typeof g.color === "string" ? g.color.trim() : "";
+			if (own) return own;
+			const name = String((g && g.name) || "");
+			let h = 0;
+			for (const ch of name) h = (h * 31 + ch.codePointAt(0)) >>> 0;
+			return SCHEDULE_PALETTE[h % SCHEDULE_PALETTE.length];
+		}
 
 		// 一条档期 = 某款游戏的卡池侧或活动侧。读不出绝对档期的（源站原文）按"长期"处理，
-		// **不**硬凑一个天数——这也是设计稿里"虚线 + 长期"两字的来由。
+		// **不**硬凑一个天数——这也是设计稿里"点线 + 长期"两字的来由。
 		function scheduleNormalize(g, side, now, settings) {
 			const isG = side === "gacha";
 			const title = (isG ? g.banner : g.event) || "";
@@ -127,7 +142,7 @@
 			if (!title && !raw) return null;                       // 这一侧没有数据，不出条目
 			const fail = (isG ? g.gachaFail : g.eventFail) || null;
 			const r = parseDisplayRange(raw, now);
-			let state = "long", startTs = 0, endTs = 0, progress = 0;
+			let state = "long", startTs = 0, endTs = 0;
 			if (r) {
 				startTs = r.startTs;
 				endTs = r.endTs;
@@ -135,23 +150,14 @@
 				if (span > SCHEDULE_LONG_MS) state = "long";
 				else if (now.getTime() < startTs) state = "wait";
 				else if (now.getTime() > endTs) state = "ended";
-				else { state = "live"; progress = Math.max(0, Math.min(1, (now.getTime() - startTs) / span)); }
+				else state = "live";
 			}
 			const remain = state === "live" ? Math.max(0, endTs - now.getTime()) : 0;
-			const urgency = state === "long" ? "long"
-				: state === "wait" ? "wait"
-					: remain <= SCHEDULE_DUE_MS ? "due"
-						: remain <= SCHEDULE_AMBER_MS ? "soon" : "far";
-			return {
-				key: g.id + ":" + side, g, side, isG, title, raw, fail,
-				state, startTs, endTs, progress, remain, urgency,
-				// 该侧地址是不是用户自己填的（自定义条目 / 自定义网址）→ 失败文案换一句更贴切的
-				userSupplied: !!g.custom || isCustomSource(settings, g.id, isG ? "url" : "eventUrl")
-			};
+			return { key: g.id + ":" + side, g, side, isG, title, raw, fail, state, startTs, endTs, remain };
 		}
 
-		// 倒计时只给"数字 + 单位"，标签（还剩 / 之后开始）由渲染层写 —— 这是设计稿里
-		// "倒计时语义不再翻转"的做法：两种含义物理分开，同一个位置不会一会儿"还剩"一会儿"距开始"。
+		// 倒计时只给"数字 + 单位"，标签（还剩 / 之后开始）由渲染层写 —— 同一个位置不会一会儿"还剩"
+		// 一会儿"距开始"。
 		function scheduleCountdown(ms) {
 			if (!(ms > 0)) return [["0", "分"]];
 			const d = Math.floor(ms / 864e5), h = Math.floor((ms % 864e5) / 36e5), mi = Math.floor((ms % 36e5) / 6e4);
@@ -160,145 +166,303 @@
 			return [[String(mi), "分"]];
 		}
 
+		// 迷你条的 14 天轴：从"今天前 2 天"起 → 今天恒为第 3 格，与刻度、竖线天然对齐。
+		function scheduleDays(now) {
+			const out = [];
+			for (let i = 0; i < SCHEDULE_DAYS; i++) {
+				out.push(new Date(now.getFullYear(), now.getMonth(), now.getDate() - SCHEDULE_TODAY_INDEX + i));
+			}
+			return out;
+		}
 
-		// 日程面板本体。props 全部来自 CalendarPanel（同一份渲染快照），组件自身只多一个纯 UI 状态：
-		// "展开更多"。
-		//
-		// ⚠️ 分栏（2026-10-15 用户要求）：**栏 = 类别** —— 左「卡池」右「活动」。
-		//    因此**行内不再有类别 chip**（栏本身即类别）；卡池 2 周、活动常常 1 个月，
-		//    混在一起排"谁更急"没有意义，分栏后同类比同类。
-		//    栏用 flex-wrap + 每栏 min-width 实现窄栏降级：面板宽时并排，被压窄时自动上下两段，
-		//    不需要媒体查询/容器查询（弹层宽度由宿主决定，视图层不该假设）。
-		//    "刷新失败"是**来源级**问题（某个网站抓不到），不属于任何一栏 → 跨栏底部横条。
+		const schedule2 = (n) => (n < 10 ? "0" + n : String(n));
+		function scheduleMD(ts) { const d = new Date(ts); return schedule2(d.getMonth() + 1) + "-" + schedule2(d.getDate()); }
+		function scheduleHHMM(ts) { const d = new Date(ts); return schedule2(d.getHours()) + ":" + schedule2(d.getMinutes()); }
+		// 源站常常只给日期：没有具体时刻就不写时刻（写 00:00 是假精度）
+		function scheduleMDHM(ts) { const d = new Date(ts); return scheduleMD(ts) + (d.getHours() || d.getMinutes() ? " " + scheduleHHMM(ts) : ""); }
+		function scheduleSameDay(ts, now) {
+			const d = new Date(ts);
+			return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+		}
+
+		// 「时间结论」只用**文字**表达紧迫度（颜色已让给"认游戏"）。parts 非空时渲染成"数字 + 小号单位"。
+		function scheduleWhen(it, now) {
+			if (it.state === "wait") return { text: scheduleMDHM(it.startTs) + " 开始", parts: null };
+			if (it.state === "long") return { text: "长期", parts: null };
+			if (it.state === "ended") return { text: "已结束", parts: null };
+			if (it.remain <= SCHEDULE_DUE_MS && scheduleSameDay(it.endTs, now)) {
+				return { text: "今天 " + scheduleHHMM(it.endTs) + " 到期", parts: null };
+			}
+			const parts = scheduleCountdown(it.remain);
+			return { text: "还剩 " + parts.map((p) => p[0] + p[1]).join(""), parts };
+		}
+
+		// 表格单元格的副标题 = 「档期 · 状态」（设计稿的 `.cm`）
+		function scheduleMeta(it, now) {
+			const w = scheduleWhen(it, now);
+			if (it.state === "long" && !it.endTs) return "无结束时间 · 长期";
+			if (it.state === "wait") return w.text + " · 至 " + scheduleMD(it.endTs);
+			return scheduleMD(it.startTs) + " → " + scheduleMD(it.endTs) + " · " + w.text;
+		}
+
+		// 一格里"露哪一条"的次序：在期 > 即将开始 > 长期 > 已结束（横跨所有游戏排「近期」也用同一把尺）。
+		function scheduleRank(x) {
+			if (x.state === "live") return x.remain <= SCHEDULE_DUE_MS ? 0 : 1;
+			if (x.state === "wait") return 2;
+			if (x.state === "long") return 3;
+			return 4;
+		}
+		function schedulePickItem(a, b) {
+			const ra = scheduleRank(a), rb = scheduleRank(b);
+			if (ra !== rb) return ra - rb;
+			if (ra <= 1) return a.endTs - b.endTs;
+			if (ra === 2) return a.startTs - b.startTs;
+			if (ra === 4) return b.endTs - a.endTs;          // 已结束的：最近结束的在前
+			return 0;
+		}
+
+		// 紧迫度 → 文字色档位（"1" = 今天到期 / "2" = 一周内 / 其余不标色）。**只用于文字**
+		function scheduleUrgency(x) {
+			if (x.state !== "live") return void 0;
+			if (x.remain <= SCHEDULE_DUE_MS) return "1";
+			if (x.remain <= SCHEDULE_AMBER_MS) return "2";
+			return void 0;
+		}
+
+		// 类型图标：**内联 SVG**（卡池 = 菱形星芒 / 活动 = 旗帜）。两者**形状不同** → 不靠颜色也能分辨，
+		// 也不用 emoji（用户明确说 emoji 丑）。旁边的文字标签由 CSS 隐藏，见 70-styles.js。
+		function scheduleKindIcon(kind, cls) {
+			const box = { className: cls, viewBox: "0 0 12 12", "aria-hidden": "true", focusable: "false" };
+			if (kind === "gacha") {
+				return (0, react_jsx_runtime.jsx)("svg", Object.assign({}, box, {
+					fill: "currentColor",
+					children: (0, react_jsx_runtime.jsx)("path", { d: "M6 .9 8.1 3.9 11.1 6 8.1 8.1 6 11.1 3.9 8.1 .9 6 3.9 3.9z" })
+				}));
+			}
+			return (0, react_jsx_runtime.jsxs)("svg", Object.assign({}, box, {
+				fill: "none", stroke: "currentColor", strokeWidth: "1.3",
+				children: [
+					(0, react_jsx_runtime.jsx)("path", { d: "M2.4 1.4v9.2" }),
+					(0, react_jsx_runtime.jsx)("path", { d: "M2.4 2.1h7.2L7.8 4.2l1.8 2.1H2.4z", fill: "currentColor", stroke: "none" })
+				]
+			}));
+		}
+		// 刷新失败横条的警示图标。设计稿这里写的是 ⚠️ 表情 —— 用户明确说 emoji 丑，故同样换成内联 SVG。
+		function scheduleWarnIcon(cls) {
+			return (0, react_jsx_runtime.jsxs)("svg", {
+				className: cls, viewBox: "0 0 12 12", fill: "none", stroke: "currentColor",
+				strokeWidth: "1.3", strokeLinecap: "round", "aria-hidden": "true", focusable: "false",
+				children: [
+					(0, react_jsx_runtime.jsx)("path", { d: "M6 1.5 11.1 10.5H.9z" }),
+					(0, react_jsx_runtime.jsx)("path", { d: "M6 4.6v2.5" }),
+					(0, react_jsx_runtime.jsx)("circle", { cx: "6", cy: "8.9", r: ".6", fill: "currentColor", stroke: "none" })
+				]
+			});
+		}
+		// GameIcon 自带 5px 圆角；这里用外层方框定尺寸/圆角/描边（多出来的圆角由 overflow 裁掉）。
+		// 尺寸与设计稿一致：近期行 26（图 24 + 1px 描边）、游戏表 40（图 38 + 1px 描边）。
+		function scheduleIcon(cls, g, size) {
+			return (0, react_jsx_runtime.jsx)("span", {
+				className: cls,
+				children: (0, react_jsx_runtime.jsx)(GameIcon, { icon: g.icon, name: g.name, size })
+			});
+		}
+		// 14 天迷你条：**所有行共用同一根轴**（与表头刻度同列宽），所以今天只有一列 ——
+		// 第 3 格画一道深色竖线，与刻度上的今天对齐。图案只表状态，颜色来自该行的 `--gf`（见 70-styles.js）。
+		function scheduleBars(it, days) {
+			const state = !it ? "none" : it.state === "ended" ? "done" : it.state;
+			const marker = !it ? "" : it.state === "ended" ? "done" : it.state === "long" ? "long" : "1";
+			const cells = [];
+			for (let i = 0; i < days.length; i++) {
+				const from = days[i].getTime();
+				const to = i + 1 < days.length ? days[i + 1].getTime() : from + 864e5;
+				const attrs = { key: i };
+				if (it && (it.state === "long" || (it.endTs > from && it.startTs < to))) attrs["data-f"] = marker;
+				if (i === SCHEDULE_TODAY_INDEX) attrs["data-today"] = "true";
+				cells.push((0, react_jsx_runtime.jsx)("i", attrs));
+			}
+			return (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-tl", "data-state": state, children: cells });
+		}
+		// 底部「上次更新 X 分钟前」：只给玩家日常说法，不写绝对时间戳（绝对时间在悬停里）。
+		function scheduleAgo(ts, now) {
+			const t = Number(ts) || 0;
+			if (t <= 0) return "尚未更新";
+			const min = Math.floor(Math.max(0, now.getTime() - t) / 6e4);
+			if (min < 1) return "刚刚";
+			if (min < 60) return min + " 分钟前";
+			const h = Math.floor(min / 60);
+			if (h < 24) return h + " 小时前";
+			return Math.floor(h / 24) + " 天前";
+		}
+
+
+		// 日程面板本体。props 全部来自 CalendarPanel（同一份渲染快照）；组件自身**没有** UI 状态 ——
+		// 设计稿要求"不折叠、不点开"，所以旧版的"展开更多"连同它的 useState 一起删了。
 		function ScheduleView({ games, now, s, refreshing, onRefresh, lastRefreshText, scrapeInfo, scrapeLines }) {
-			const [expanded, setExpanded] = (0, react.useState)(false);
-
-			// 收集所有档期（卡池侧 + 活动侧）。已结束的不进日程：日程回答"现在该看哪几条"。
+			// 每一格（游戏 × 卡池/活动）的候选档期。已结束的**留在格子里**（这一侧没有在期内容时它就是
+			// 这格的代表，图案走斜纹），但不进「近期」—— 近期回答的是"现在该看哪几条"。
+			const cells = new Map();
 			const all = [];
 			for (const g of games) {
 				for (const side of ["gacha", "event"]) {
 					const it = scheduleNormalize(g, side, now, s);
-					if (it && it.state !== "ended") all.push(it);
+					if (!it) continue;                       // 这一侧没有任何数据 → 格子里写"该来源无数据"
+					const key = g.id + ":" + side;
+					const list = cells.get(key);
+					if (list) list.push(it); else cells.set(key, [it]);
+					if (it.state !== "ended") all.push(it);
 				}
 			}
-			// 刷新失败 = 来源级，跨栏横条（不塞进某一栏）
-			const failed = all.filter((x) => isDown(x.fail));
-
 			const sourceNameOf = (x) => (x.isG ? x.g.source : x.g.eventSource) || "";
-
-			// 一栏的全部内容。两栏共用同一套分区与排序，只是数据按 isG 拆开。
-			// 排序依据写进分区标题（"按紧迫度"不是口号，要让人看见依据）。
-			const columnOf = (isG) => {
-				const mine = all.filter((x) => x.isG === isG && !isDown(x.fail));
-				const due = mine.filter((x) => x.state === "live" && x.remain <= SCHEDULE_DUE_MS).sort((a, b) => a.endTs - b.endTs);
-				const live = mine.filter((x) => x.state === "live" && x.remain > SCHEDULE_DUE_MS).sort((a, b) => a.endTs - b.endTs)
-					.concat(mine.filter((x) => x.state === "long"));      // 长期档期无结束时间 → 排在"进行中"末尾
-				const wait = mine.filter((x) => x.state === "wait").sort((a, b) => a.startTs - b.startTs);
-				const liveCap = 3;
-				const liveList = expanded ? live : live.slice(0, liveCap);
-				return { due, live, wait, liveList, liveMore: live.length - liveList.length, active: live.length };
-			};
-			const gachaCol = columnOf(true);
-			const eventCol = columnOf(false);
-
-			const rowOf = (x) => {
-				const isFail = isDown(x.fail);
-				const cd = scheduleCountdown(x.remain);
-				const label = x.state === "long" ? "档期" : x.state === "wait" ? "之后开始" : "还剩";
-				const meta = [x.g.name, sourceNameOf(x), x.raw].filter(Boolean).join("\u00B7");
+			// 刷新失败是**来源级**问题（某个网站抓不到），不属于任何一格 → 底部横条 + 重试
+			const failed = [];
+			for (const list of cells.values()) for (const x of list) if (isDown(x.fail)) failed.push(x);
+			const failRows = failed.map((x) => {
+				const reason = (normalizeFail(x.fail) || {}).reason || "";
+				return x.g.name + " · " + sourceNameOf(x) + (reason ? " " + reason : "") + " —— 该条沿用上次成功数据";
+			});
+			// 总览里的"来源"按**来源名**去重：同一款的两侧都挂了也只算一个来源。
+			const failedSources = [];
+			for (const x of failed) {
+				const n = sourceNameOf(x) || x.g.name;
+				if (!failedSources.includes(n)) failedSources.push(n);
+			}
+			const dueCount = all.filter((x) => x.state === "live" && x.remain <= SCHEDULE_DUE_MS).length;
+			const waitCount = all.filter((x) => x.state === "wait").length;
+			const liveCount = all.filter((x) => x.state === "live" || x.state === "long").length;
+			const recent = all.slice().sort((a, b) => schedulePickItem(a, b) || (a.g.name < b.g.name ? -1 : a.g.name > b.g.name ? 1 : 0));
+			const days = scheduleDays(now);
+			// 日期胶囊：设计稿写「10 月 5 日 · 周日」
+			const datePill = now.getMonth() + 1 + " 月 " + now.getDate() + " 日 · " + SCHEDULE_WEEKDAYS[now.getDay()];
+			const sep = () => (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-sep", children: "·" });
+			// 表头刻度：两栏各一份（左右共用同一根轴，所以列宽必须与迷你条完全一致）
+			const ruler = () => (0, react_jsx_runtime.jsx)("div", {
+				className: "gacha-cal-sched-ruler",
+				children: days.map((d, i) => (0, react_jsx_runtime.jsx)("span", {
+					"data-today": i === SCHEDULE_TODAY_INDEX ? "true" : void 0,
+					children: String(d.getDate())
+				}, i))
+			});
+			// 「近期」一行：图标 / 游戏名 / 类型 / 事项名 / 时间结论
+			const recentRow = (x) => {
+				const w = scheduleWhen(x, now);
 				return (0, react_jsx_runtime.jsxs)("div", {
-					className: "gacha-cal-sched-row",
+					className: "gacha-cal-sched-u",
 					key: x.key,
-					"data-state": isFail ? "fail" : x.state,
-					"data-urgency": isFail ? "fail" : x.urgency,
+					"data-u": x.state === "wait" ? "wait" : scheduleUrgency(x),
 					children: [
-						// ① 图标：只做身份。**不加任何环**（外圈进度环与下面的进度条重复，
-						//    且"图标带圈"在 UI 惯例里会被读成"加载中"）
-						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-ic", children: (0, react_jsx_runtime.jsx)(GameIcon, { icon: x.g.icon, name: x.g.name, size: 26 }) }),
-						(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-mid", children: [
-							(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-t1", title: x.title || x.raw, children: x.title || x.raw || "\u2014" }),
-							// ② 副行：游戏 + 来源 + **绝对档期**（类别由所在的栏表达，行内不再挂 chip）
-							(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-t2", children: meta }),
-							// ③ 进度条：全屏**唯一**的"走了多少"。虚线=长期，空条=还没开始
-							(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-bar", children: (0, react_jsx_runtime.jsx)("i", { style: { width: (x.state === "long" ? 100 : Math.round(x.progress * 100)) + "%" } }) })
+						scheduleIcon("gacha-cal-sched-uic", x.g, 24),
+						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-who", children: x.g.name }),
+						(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-kind", "data-t": x.isG ? "gacha" : "event", children: [
+							scheduleKindIcon(x.isG ? "gacha" : "event", "gacha-cal-sched-tic"),
+							(0, react_jsx_runtime.jsx)("span", { children: x.isG ? "卡池" : "活动" })
 						] }),
-						// ④ 右侧：全屏**唯一**的"时间结论"
-						isFail
-							? (0, react_jsx_runtime.jsx)("button", {
-								type: "button", className: "gacha-cal-sched-retry", disabled: refreshing, onClick: onRefresh,
-								title: sideFailText(x.side, x.fail, { userSupplied: x.userSupplied }),
-								children: "\u91CD\u8BD5"
-							})
-							: (0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-rt", children: [
-								(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-lab", children: label }),
-								(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-cd", children: x.state === "long"
-									? "\u957F\u671F"
-									: cd.map((p) => (0, react_jsx_runtime.jsxs)("span", { children: [p[0], (0, react_jsx_runtime.jsx)("small", { children: p[1] })] }, p[1])) })
-							] })
+						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-what", title: x.title || x.raw, children: x.title || x.raw || "—" }),
+						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-when gacha-cal-sched-num", children: w.parts
+							? ["还剩 ", ...w.parts.map((p) => (0, react_jsx_runtime.jsxs)("span", { children: [p[0], (0, react_jsx_runtime.jsx)("small", { children: p[1] })] }, p[1]))]
+							: w.text })
 					]
 				});
 			};
-			// 分区标题：写明这个分区按什么排
-			const section = (text, extra) => (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-sec", children: [text, extra ? (0, react_jsx_runtime.jsx)("em", { children: extra }) : null] });
-			// 栏头：栏名（栏即类别）+ 该栏在期条数
-			const colHead = (emoji, name, n) => (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-colhead", children: [
-				(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-colname", children: [emoji, " ", name] }),
-				(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-coln", children: [String(n), " 条在期"] })
-			] });
-			// 栏体：分区 + 行 + "展开更多"
-			const colBody = (c) => [
-				c.due.length ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [section("最先结束", "今天到期"), c.due.map(rowOf)] }) : null,
-				c.live.length ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [section("进行中", "按结束时间"), c.liveList.map(rowOf),
-					c.liveMore > 0 ? (0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sched-more", onClick: () => setExpanded(true), children: "还有 " + c.liveMore + " 条进行中 \u00B7 展开" }) : null] }) : null,
-				c.wait.length ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [section("即将开始", "按开始时间"), c.wait.map(rowOf)] }) : null,
-				!c.due.length && !c.live.length && !c.wait.length
-					? (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-empty", children: "这段时间没有需要盯的档期" }) : null
-			];
-			const nowDate = (0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-pill", children: [String(now.getMonth() + 1), "\u6708", String(now.getDate()), "\u65E5"] });
+			// 表格里的一格：名称 + 「档期 · 状态」+ 14 天迷你条。**不折叠不点开**：同格多条时露一条 + 「另有 N 条」
+			const cellView = (g, side) => {
+				const isG = side === "gacha";
+				const list = cells.get(g.id + ":" + side) || [];
+				if (!list.length) {
+					return (0, react_jsx_runtime.jsxs)("div", {
+						className: "gacha-cal-sched-cell gacha-cal-sched-cell--none", "data-t": side,
+						children: [
+							(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cn", children: "—" }),
+							(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cm gacha-cal-sched-num", children: isG ? "该来源无卡池数据" : "该来源无活动数据" }),
+							scheduleBars(null, days)
+						]
+					});
+				}
+				const it = list.slice().sort(schedulePickItem)[0];
+				const title = it.title || it.raw || "—";
+				return (0, react_jsx_runtime.jsxs)("div", {
+					className: "gacha-cal-sched-cell", "data-t": side, "data-u": scheduleUrgency(it),
+					children: [
+						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cn", title, children: title }),
+						(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-cm gacha-cal-sched-num", children: [
+							scheduleMeta(it, now),
+							list.length > 1 ? (0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-more", children: [" 另有 ", String(list.length - 1), " 条"] }) : null
+						] }),
+						scheduleBars(it, days)
+					]
+				});
+			};
+			// 一行 = 一款游戏（顺序就是传进来的顺序，即设置里拖出来的排列）
+			const rowOf = (g) => (0, react_jsx_runtime.jsxs)("div", {
+				className: "gacha-cal-sched-trow",
+				key: g.id,
+				style: { "--g": scheduleGameColor(g) },
+				children: [
+					(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-gm", title: buildRowTitle(g), children: [
+						scheduleIcon("gacha-cal-sched-gic", g, 38),
+						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-gn", children: g.name })
+					] }),
+					cellView(g, "gacha"),
+					cellView(g, "event")
+				]
+			});
 
 			return (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched", children: [
-				// 头部：标题「日程」+ 日期
+				// ① 标题「二游日历」+ 日期胶囊
 				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-head", children: [
-					(0, react_jsx_runtime.jsx)("h4", { children: "\u65E5\u7A0B" }),
-					(0, react_jsx_runtime.jsx)("span", { style: { marginLeft: "auto", display: "flex", gap: 6 }, children: nowDate })
+					(0, react_jsx_runtime.jsx)("h4", { children: "二游日历" }),
+					(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-sp", children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-pill gacha-cal-sched-pill--live", children: datePill }) })
 				] }),
-				// 四格摘要：改成**按栏计数**（你是哪一边的人，先看到自己那半忙不忙）
-				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-sum", children: [
-					(0, react_jsx_runtime.jsxs)("div", { children: [(0, react_jsx_runtime.jsx)("b", { children: String(gachaCol.active) }), (0, react_jsx_runtime.jsx)("span", { children: "卡池在期" })] }),
-					(0, react_jsx_runtime.jsxs)("div", { children: [(0, react_jsx_runtime.jsx)("b", { children: String(eventCol.active) }), (0, react_jsx_runtime.jsx)("span", { children: "活动在期" })] }),
-					(0, react_jsx_runtime.jsxs)("div", { "data-warn": "true", children: [(0, react_jsx_runtime.jsx)("b", { children: String(gachaCol.due.length + eventCol.due.length) }), (0, react_jsx_runtime.jsx)("span", { children: "今天到期" })] }),
-					(0, react_jsx_runtime.jsxs)("div", { "data-warn": "true", children: [(0, react_jsx_runtime.jsx)("b", { children: String(failed.length) }), (0, react_jsx_runtime.jsx)("span", { children: "刷新失败" })] })
+				// ② 一行总览
+				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-glance", children: [
+					"今天 ", (0, react_jsx_runtime.jsx)("b", { children: String(dueCount) }), " 条到期",
+					sep(), (0, react_jsx_runtime.jsx)("b", { children: String(waitCount) }), " 条即将开始",
+					sep(), (0, react_jsx_runtime.jsx)("b", { children: String(liveCount) }), " 条在期",
+					failedSources.length ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [sep(), (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-warn", children: String(failedSources.length) + " 个来源刷新失败" })] }) : null
 				] }),
-				// 两栏：栏 = 类别。窄栏自动降级为上下两段（见 70-styles.js 的 .gacha-cal-sched-col）
-				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-cols", children: [
-					(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-col", children: [
-						colHead("\uD83D\uDCAB", "卡池", gachaCol.active),
-						colBody(gachaCol)
-					] }),
-					(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-col", children: [
-						colHead("\uD83C\uDFA1", "活动", eventCol.active),
-						colBody(eventCol)
-					] })
+				// ③ 「近期」：跨游戏、按紧迫度、全列出；右侧虚线空框先留空（用途未定）
+				(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-h2", children: (0, react_jsx_runtime.jsx)("h4", { children: "近期" }) }),
+				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-recent", children: [
+					(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-urgent", children: recent.length
+						? recent.map(recentRow)
+						: (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-empty", children: "这段时间没有要盯的档期" }) }),
+					(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-slot" })
 				] }),
-				// 刷新失败：来源级问题 → 跨栏底部横条（重试 = 整轮刷新，引擎没有单源刷新接口）
-				failed.length ? (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-errstrip", children: [
-					(0, react_jsx_runtime.jsxs)("b", { children: ["刷新失败 ", String(failed.length)] }),
-					(0, react_jsx_runtime.jsx)("span", {
-						className: "gacha-cal-sched-errtext",
-						title: sideFailText(failed[0].side, failed[0].fail, { userSupplied: failed[0].userSupplied }),
-						children: failed[0].g.name + " \u00B7 " + sourceNameOf(failed[0]) + " —— 该条沿用上次成功数据"
-					}),
-					(0, react_jsx_runtime.jsx)("button", {
-						type: "button", className: "gacha-cal-sched-retry", disabled: refreshing, onClick: onRefresh, children: "重试"
-					})
+				// ④ 游戏表：**没有区块标题**，列表头直接跟在后面
+				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-tcap", children: [
+					(0, react_jsx_runtime.jsx)("span", { children: "游戏" }),
+					(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-th", "data-t": "gacha", children: [scheduleKindIcon("gacha", "gacha-cal-sched-tic"), "卡池"] }),
+					(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-th", "data-t": "event", children: [scheduleKindIcon("event", "gacha-cal-sched-tic"), "活动"] })
+				] }),
+				// 两栏共用同一根 14 天轴：刻度只画一次（左右各一份，列宽与迷你条完全一致）
+				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-rulerrow", children: [
+					(0, react_jsx_runtime.jsx)("span", {}), ruler(), ruler()
+				] }),
+				(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-theadline" }),
+				games.length
+					? games.map(rowOf)
+					: (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-empty", children: "还没有勾选任何游戏 · 去设置里挑几款" }),
+				// ⑤ 图例：颜色认游戏、图案看状态
+				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-legend", children: [
+					(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-k", children: [(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-sw", "data-sw": "game" }), "颜色 = 游戏（深色=卡池 · 浅色=活动）"] }),
+					(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-k", children: [(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-sw", "data-sw": "done" }), "已结束"] }),
+					(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-k", children: [(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-sw", "data-sw": "long" }), "长期"] }),
+					(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-k", children: [(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-sw", "data-sw": "wait" }), "未开始"] }),
+					(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-k", children: [(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-sw", "data-sw": "today" }), "今天这一列"] })
+				] }),
+				// ⑥ 刷新失败横条 + 重试（重试 = 整轮刷新：引擎没有单源刷新接口，见 50-refresh.js）
+				failed.length ? (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-failbar", title: failRows.join("\n"), children: [
+					scheduleWarnIcon("gacha-cal-sched-fic"),
+					(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-failtext", children: failRows[0] }),
+					(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sched-retry", disabled: refreshing, onClick: onRefresh, children: "重试" })
 				] }) : null,
-				// 底部：上次更新时间 + 刷新（抓取汇总行有的话一并带出，信息不与旧面板脱节）
+				// ⑦ 底部：上次更新 X 分钟前 + 刷新（悬停给绝对时间与逐条抓取明细，信息不与旧面板脱节）
 				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-foot", children: [
-					(0, react_jsx_runtime.jsx)("span", { title: (scrapeLines || []).join("\n"), children: scrapeInfo || ("\u4E0A\u6B21\u66F4\u65B0\uFF1A" + lastRefreshText) }),
+					(0, react_jsx_runtime.jsx)("span", { title: [lastRefreshText, scrapeInfo].concat(scrapeLines || []).filter(Boolean).join("\n"), children: "上次更新 " + scheduleAgo(s.lastRefresh, now) }),
 					(0, react_jsx_runtime.jsx)("button", {
-						type: "button", className: "gacha-cal-refresh", disabled: refreshing,
-						title: refreshing ? "\u5237\u65B0\u4E2D..." : "\u5237\u65B0", "aria-label": refreshing ? "\u5237\u65B0\u4E2D..." : "\u5237\u65B0",
-						onClick: onRefresh, children: "\u5237\u65B0"
+						type: "button", className: "gacha-cal-sched-btn", disabled: refreshing,
+						title: refreshing ? "刷新中..." : "刷新", "aria-label": refreshing ? "刷新中..." : "刷新",
+						onClick: onRefresh, children: "刷新"
 					})
 				] })
 			] });

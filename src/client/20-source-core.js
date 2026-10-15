@@ -10,8 +10,52 @@
 		// ── 来源容器：各游戏文件用 `registerSource` 追加自己的条目 ──
 		const SOURCES = [];
 
+		// ── 游戏代表色（唯一一张表）──
+		// 用途：实验「日程」面板视图的"**颜色 = 游戏**"（见 80-components.js 的 ScheduleView /
+		// 70-styles.js 的 `.gacha-cal-sched-*`）。每款一个**中间调**，浅色底与深色底上都看得清；
+		// 同一款游戏只用一个色，各服的色只有明度差（便于仍能认出"是同一款"）。
+		//
+		// ⚠️ 为什么放在这里、而不是写进各 `30-game-*.js` 的 `registerSource({...})` 字面量：
+		//    `30-game-*.js` 是抓取/解析的规格（对照源站，改一处就要重新对源站），
+		//    而"面板上用什么颜色"是视图身份，与抓取无关；集中一张表才好一眼看出有没有撞色。
+		//    下发点在下面的 `registerSource` —— 于是 `SOURCES` 里每一条都带 `color`，字段只有一个新增。
+		//
+		// 没有 color 的条目（**用户自定义条目**）由视图层按游戏名哈希取固定色盘，见 SCHEDULE_PALETTE。
+		const SOURCE_COLORS = {
+			fgo: "#4E7CD8",                  // Fate/Grand Order · 迦勒底蓝
+			bandori: "#E85C97",              // BanG Dream！少女乐团派对 · 品牌粉
+			ournotes: "#5A63C8",             // BanG Dream！OurNotes·日服 · 靛蓝
+			"ournotes-global": "#7E88DC",    // 同款国际服 · 同系更浅
+			ddlezj: "#E3A02E",               // 嘟嘟脸恶作剧 · 亮黄
+			"uma-cn": "#46A96A",             // 闪耀！优俊少女 · 草地绿
+			"ba-cn": "#4C9FE0",              // 蔚蓝档案·国服 · 蔚蓝
+			"ba-global": "#6BB6E8",          // 同款国际服 · 同系更浅
+			"ba-jp": "#2E7BC4",              // 同款日服 · 同系更深
+			r1999: "#7A5AF8",                // 重返未来：1999 · 紫
+			wuhuamixin: "#43A08E",           // 物华弥新 · 青瓷玉色
+			zspms: "#D0605A",                // 战双帕弥什 · 灰调红
+			czn: "#8A66D6",                  // 卡厄斯梦境 · 梦境紫
+			kedr: "#4F8F6E",                 // 雪松 · 松绿
+			"uma-jp": "#C96BA6",             // 赛马娘·日服 · 粉紫
+			"uma-global": "#E0709F",         // 赛马娘·国际服 · 品牌粉
+			genshin: "#3FA9A0",              // 原神 · 青绿
+			hsr: "#6C6FE0",                  // 崩坏：星穹铁道 · 星轨紫蓝
+			zzz: "#E0A93B",                  // 绝区零 · 品牌黄
+			bh3: "#35A9D8",                  // 崩坏3 · 崩坏青
+			arknights: "#52798C",            // 明日方舟 · 钢板灰蓝
+			endfield: "#4A6CF7",             // 明日方舟：终末地 · 工业蓝
+			wuwa: "#2C8FB8",                 // 鸣潮 · 声骸青蓝
+			p5x: "#DC4640",                  // 女神异闻录：夜幕魅影 · Persona 红
+			nte: "#C05BC9",                  // 异环 · 霓虹品红
+			pjsk: "#2FB3C9",                 // 初音未来：缤纷舞台 · 初音青
+			gf2: "#D9773F",                  // 少女前线2：追放 · 追放橙
+			stellasora: "#5FA8F5"            // 星塔旅人 · 天蓝
+		};
+
 		/** 登记一条来源。**幂等**：按 id 找到就 `Object.assign` 合并，否则追加。 */
 		function registerSource(entry) {
+			// 颜色统一由上面的表下发（条目自己写了 color 就尊重它）。幂等：每次都是同一个字面值。
+			if (entry.color === void 0 && SOURCE_COLORS[entry.id] !== void 0) entry.color = SOURCE_COLORS[entry.id];
 			const i = SOURCES.findIndex((s) => s.id === entry.id);
 			if (i >= 0) Object.assign(SOURCES[i], entry);
 			else SOURCES.push(entry);
