@@ -140,15 +140,23 @@
 				clip-path:inset(0 0 calc(100% - 12px) 0);
 				transition:clip-path .42s cubic-bezier(.22,1.2,.28,1)}
 			.gacha-cal-sched-rest .gacha-cal-sched-item:first-child{margin-top:3px}
+			/* 列与列之间有 12px 网格间隙：底板只贴列的话，越过行之后那条间隙盖不到 → 露白缝。
+			   两侧各伸进 6px，并用内边距补回来，内容仍与列对齐；最右侧那一列右边没有间隙，故只伸左边。 */
+			.gacha-cal-sched-cell[data-t="gacha"] .gacha-cal-sched-rest{left:-6px;right:-6px;padding-left:16px;padding-right:16px}
+			.gacha-cal-sched-cell[data-t="event"] .gacha-cal-sched-rest{left:-6px;padding-left:16px}
 			/* 虚化只作用在**内容**上：浮层本体绝不能有 opacity（父级 opacity 会让那层底一起变半透明 → 下一行的字透出来） */
 			.gacha-cal-sched-rest .gacha-cal-sched-item{opacity:.62;transition:opacity .2s cubic-bezier(.4,0,.2,1)}
-			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest{clip-path:inset(0 0 0 0);pointer-events:auto;background:var(--sched-hover-bg)}
+			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest{clip-path:inset(0 0 0 0);pointer-events:auto}
 			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest .gacha-cal-sched-item{opacity:1}
+			/* 底色与遮罩渐变的终点色都挂**行悬停**（不是格子悬停）：整行还灰时底板就必须还是灰，
+			   否则指针在同一行里左右移动（或刚离开该格、底板还在收回）时，底板会瞬间变成纯白 = 用户看到的"遮罩还是白的"。 */
+			.gacha-cal-sched-trow:hover .gacha-cal-sched-rest{background:var(--sched-hover-bg)}
+			.gacha-cal-sched-trow:hover .gacha-cal-sched-rest::after{background:linear-gradient(180deg,transparent,var(--sched-hover-bg))}
 			/* 渐隐遮罩：**跟着揭开边缘往下走**；且淡入**不能有延迟**（否则下面一行会被硬边露出来，用户反馈过） */
 			.gacha-cal-sched-rest::after{content:"";position:absolute;left:0;right:0;top:5px;height:9px;
 				background:linear-gradient(180deg,transparent,var(--dsw-alias-bg-base));
 				transition:top .42s cubic-bezier(.22,1.2,.28,1),opacity .18s cubic-bezier(.4,0,.2,1);pointer-events:none}
-			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest::after{top:calc(100% - 9px);opacity:0;background:linear-gradient(180deg,transparent,var(--sched-hover-bg))}
+			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest::after{top:calc(100% - 9px);opacity:0}
 			/* 探头里的条目按**各自**的紧迫度着色（格子级 data-u 只管第一条） */
 			.gacha-cal-sched-item[data-u="1"] .gacha-cal-sched-cn{color:var(--dsw-alias-state-error-primary,#b3261e);font-weight:650}
 			.gacha-cal-sched-item[data-u="1"] .gacha-cal-sched-cm{color:var(--dsw-alias-state-error-primary,#b3261e)}
