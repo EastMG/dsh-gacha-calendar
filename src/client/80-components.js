@@ -421,6 +421,8 @@
 			// 「近期」= **7 天内有事发生**（到期或开始）；更远的只出现在下方游戏表里
 			// （用户 2026-10-15：不能把 20 多天后的也算近期）。长期/已结束不进近期。
 			const SCHEDULE_NEAR_MS = SCHEDULE_AMBER_MS;
+			// 「近期」默认只列前 10 条（已按紧迫度排序），其余折进「还有 N 条」；展开走纯 CSS 的 checkbox，不依赖 state/hook。
+			const SCHEDULE_NEAR_LIMIT = 10;
 			const scheduleNear = (x) => (x.state === "wait"
 				? x.startTs != null && x.startTs - now.getTime() <= SCHEDULE_NEAR_MS
 				: x.state === "live" && x.remain <= SCHEDULE_NEAR_MS);
@@ -592,7 +594,21 @@
 				(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-h2", children: (0, react_jsx_runtime.jsx)("h4", { children: "近期" }) }),
 				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-recent", children: [
 					(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-urgent", children: recent.length
-						? recent.map(recentRow)
+						? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
+							// 展开开关：checkbox 放在最前，靠 CSS 的 :checked ~ 兄弟选择器控制后面两组 —— 纯 CSS，不写一行 state。
+							(0, react_jsx_runtime.jsx)("input", { type: "checkbox", id: "gacha-cal-near-more", className: "gacha-cal-sched-tgl" }),
+							recent.slice(0, SCHEDULE_NEAR_LIMIT).map(recentRow),
+							recent.length > SCHEDULE_NEAR_LIMIT
+								? (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-extra", children: recent.slice(SCHEDULE_NEAR_LIMIT).map(recentRow) })
+								: null,
+							recent.length > SCHEDULE_NEAR_LIMIT
+								? (0, react_jsx_runtime.jsxs)("label", { className: "gacha-cal-sched-more", htmlFor: "gacha-cal-near-more", children: [
+									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-more-c", children: "还有 " + String(recent.length - SCHEDULE_NEAR_LIMIT) + " 条" }),
+									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-more-e", children: "收起" }),
+									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-chev" })
+								] })
+								: null
+						] })
 						: (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-empty", children: "这段时间没有要盯的档期" }) }),
 					slotCard(all)
 				] }),
