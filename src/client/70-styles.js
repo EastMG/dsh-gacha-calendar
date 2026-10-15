@@ -51,7 +51,7 @@
 			.gacha-cal-sort-btn:disabled{opacity:.35;cursor:default}
 			.gacha-cal-del-btn{color:#e5484d;padding:1px 6px}
 			.gacha-cal-del-btn:hover{background:rgba(229,72,77,.12)}
-﻿			/* ══ 实验：新「日程」面板视图（settings.newPanel 打开时才渲染，见 80-components.js）══
+			/* ══ 实验：新「日程」面板视图（settings.newPanel 打开时才渲染，见 80-components.js）══
 			 * 设计稿（**唯一真源**）：dsh-gacha-ui-lab/a-v6.html（效果图 a-v6.png）
 			 *
 			 * 三条**互不抢**的分工 —— 改这里的任何一条颜色/图案前先读它：
