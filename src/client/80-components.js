@@ -171,8 +171,10 @@
 		function scheduleHoverItems(hover, shownTitle, isG) {
 			const lines = String(hover || "").split("\n").map((x) => x.trim()).filter(Boolean);
 			if (lines.length < 2) return [];                        // 契约：只有 1 条时给的是空串
-			let rest = lines.filter((x) => !/^以及常驻活动/.test(x));
-			if (isG && rest.length > 1 && rest[0] === String(shownTitle || "").trim()) rest = rest.slice(1);
+			// ⚠️ 这里**不要**再去丢"首行等于外显标题"的那一行（我曾这么写，结果把终末地的真池子丢了：
+			// 「终末地」常驻寻访 正好既是外显标题、又是悬停里的第 1 个池子）。
+			// 重复项（含鸣潮那个"卡池类型"首行，它等于外显标题）由 scheduleHoverOnes 按标题去重处理。
+			const rest = lines.filter((x) => !/^以及常驻活动/.test(x));
 			const out = [];
 			let pending = [];                                       // 卡池式：先攒名称，等下一行（或后面某行）的档期
 			for (const line of rest) {
@@ -496,10 +498,13 @@
 				});
 			};
 			// 一行 = 一款游戏（顺序就是传进来的顺序，即设置里拖出来的排列）
-			const rowOf = (g) => (0, react_jsx_runtime.jsxs)("div", {
+			// --z 按**行序递减**：上面的行永远画在下面的行之上（越大越靠上）。
+			// 这样"鼠标向上移动"时，上一行正在展开的底板一定压得住下一行尚未收回的内容 ——
+			// 不依赖"谁在悬停"（那是会随时间变化的，会出现两格抢层级、下面的字压住上面的底板）。
+			const rowOf = (g, i) => (0, react_jsx_runtime.jsxs)("div", {
 				className: "gacha-cal-sched-trow",
 				key: g.id,
-				style: { "--g": scheduleGameColor(g) },
+				style: { "--g": scheduleGameColor(g), "--z": String(900 - i) },
 				children: [
 					(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-gm", title: buildRowTitle(g), children: [
 						scheduleIcon("gacha-cal-sched-gic", g, 38),

@@ -122,14 +122,15 @@
 			.gacha-cal-sched-gn{font-size:13px;font-weight:650;line-height:1.32;letter-spacing:-.1px;white-space:normal;overflow-wrap:break-word;text-wrap:balance}
 			/* 一格 = 该游戏的卡池侧或活动侧：**第一条完整三行**（名称 / 档期·状态 / 迷你条），
 			   其余条目收在「探头」里（见下面 .gacha-cal-sched-rest）。
-			   z-index 必须**带过渡**：:hover 一消失层级会立刻掉回默认，而**后面的行/格子默认画在上面** →
-			   收回动画期间下一行的字会被画到探头上（用 elementFromPoint 与几何对照实测抓到过）。
+			   ⚠️ 层级**不靠 :hover**（那是随时间变化的：向上移鼠标时，上一行刚进入、下一行还没退出，
+			   两格会抢层级，导致下一行未收回的字压住上一行正在展开的底板 —— 用户实测反馈）。
+			   改为由**行序**决定：行上内联 --z（上面的行更大），格子用它 → 上面永远压得住下面。
 			   ⚠️ 禁止：transform 作用于带文字的盒子（会重采样=重影）、max-height 等布局型动画（卡）、
 			   阴影/边框/浅灰底（用户要求"一体化"，悬停与收起必须同色）。 */
-			.gacha-cal-sched-cell{min-width:0;position:relative;z-index:1;border-radius:8px;padding:0 0 4px;
-				transition:background .26s cubic-bezier(.4,0,.2,1),z-index .42s linear}
+			.gacha-cal-sched-cell{min-width:0;position:relative;z-index:var(--z,1);border-radius:8px;padding:0 0 4px;
+				transition:background .26s cubic-bezier(.4,0,.2,1)}
 			.gacha-cal-sched-cell:has(.gacha-cal-sched-rest){padding-bottom:16px}
-			.gacha-cal-sched-cell:hover{background:var(--dsw-alias-bg-base);border-radius:10px 10px 0 0;z-index:20}
+			.gacha-cal-sched-cell:hover{background:var(--dsw-alias-bg-base);border-radius:10px 10px 0 0}
 			.gacha-cal-sched-item{display:block}
 			.gacha-cal-sched-item+.gacha-cal-sched-item{margin-top:7px}
 			/* 探头：常驻绝对定位（永不参与文档流 → 格子高度恒定、下面的行一格不动）；
