@@ -156,6 +156,62 @@
 			return { key: g.id + ":" + side, g, side, isG, title, raw, fail, state, startTs, endTs, remain };
 		}
 
+		// ── 同格并列条目：从悬停文本解析出来 ─────────────────────────────────────────
+		// 引擎只给**一条外显条目** + 一段供悬停用的多行文本（bannerHover / eventHover），**没有**并列数组。
+		// 契约（25-parser-shared.js 的 hoverPool / hoverEvent / buildPoolHover / buildEventHover）：
+		// 当期 ≥2 条时每条一行、不足 2 条时给空串，且三种排版：
+		//   · 活动式 —— 每条自带档期：`名称   MM-DD HH:MM ~ MM-DD HH:MM`
+		//   · 卡池式 —— 档期另起一行：`池名：角色` ⏎ `MM-DD HH:MM ~ MM-DD HH:MM`
+		//   · 两者在"窗口完全相同"时都只在**末尾**写一遍档期
+		// ⚠️ 鸣潮的卡池悬停（30-game-kuro.js）首行还多带一个"卡池类型"，它就等于外显标题 → 丢掉那一行。
+		// 解析不出（或结果少于 2 条）一律返回空，调用方回退到外显那一条 —— 宁可少列，绝不列错。
+		const SCHEDULE_WINDOW_LINE = /^(?:\d{4}-)?\d{1,2}-\d{1,2} \d{1,2}:\d{2} ~ (?:\d{4}-)?\d{1,2}-\d{1,2} \d{1,2}:\d{2}$/;
+		const SCHEDULE_INLINE_WINDOW = / (?:\d{4}-)?\d{1,2}-\d{1,2} \d{1,2}:\d{2} ~ (?:\d{4}-)?\d{1,2}-\d{1,2} \d{1,2}:\d{2}$/;
+		const scheduleNoYear = (x) => String(x).replace(/(\d{4})-(\d{1,2}-\d{1,2})/g, "$2");
+		function scheduleHoverItems(hover, shownTitle, isG) {
+			const lines = String(hover || "").split("\n").map((x) => x.trim()).filter(Boolean);
+			if (lines.length < 2) return [];                        // 契约：只有 1 条时给的是空串
+			let rest = lines.filter((x) => !/^以及常驻活动/.test(x));
+			if (isG && rest.length > 1 && rest[0] === String(shownTitle || "").trim()) rest = rest.slice(1);
+			const out = [];
+			let pending = [];                                       // 卡池式：先攒名称，等下一行（或后面某行）的档期
+			for (const line of rest) {
+				const inline = line.match(SCHEDULE_INLINE_WINDOW);
+				if (inline && inline.index > 0) {                   // 活动式：名称 + 自己的档期
+					const win = inline[0].trim();
+					for (const t of pending.concat([line.slice(0, inline.index).trim()])) out.push({ title: t, win });
+					pending = [];
+					continue;
+				}
+				if (SCHEDULE_WINDOW_LINE.test(line)) {              // 纯档期行
+					if (pending.length) for (const t of pending) out.push({ title: t, win: line });
+					else if (out.length) out[out.length - 1].win = line;   // 窗口完全相同：给上一条补上档期
+					pending = [];
+					continue;
+				}
+				pending.push(line);
+			}
+			if (out.length < 2) return [];
+			return out;
+		}
+		// 把 { title, win } 补成与 scheduleNormalize **同形**的条目（渲染层只认这一种形状）
+		function scheduleHoverOnes(items, it, now) {
+			const out = [];
+			for (const x of items) {
+				if (x.title === it.title) continue;                  // 外显那条已经有了，不重复列
+				const r = parseDisplayRange(scheduleNoYear(x.win), now);
+				if (!r) continue;                                    // 读不出绝对档期 → 不硬凑天数
+				const span = Math.max(1, r.endTs - r.startTs);
+				let state = "long", remain = 0;
+				if (span > SCHEDULE_LONG_MS) state = "long";
+				else if (now.getTime() < r.startTs) state = "wait";
+				else if (now.getTime() > r.endTs) state = "ended";
+				else { state = "live"; remain = Math.max(0, r.endTs - now.getTime()); }
+				out.push({ key: it.key, g: it.g, side: it.side, isG: it.isG, title: x.title, raw: x.win, fail: null, state, startTs: r.startTs, endTs: r.endTs, remain });
+			}
+			return out;
+		}
+
 		// 倒计时只给"数字 + 单位"，标签（还剩 / 之后开始）由渲染层写 —— 同一个位置不会一会儿"还剩"
 		// 一会儿"距开始"。
 		function scheduleCountdown(ms) {
@@ -335,9 +391,11 @@
 				for (const side of ["gacha", "event"]) {
 					const it = scheduleNormalize(g, side, now);
 					if (!it) continue;                       // 这一侧没有任何数据 → 格子里写"该来源无数据"
-					const key = g.id + ":" + side;
-					const list = cells.get(key);
-					if (list) list.push(it); else cells.set(key, [it]);
+					// 同格并列多条：**外显那条排最前**，其余由悬停文本解析补上（解析不出、或只有一条 → 就只有外显）。
+					// ⚠️ 「近期」只收外显那条（all 的语义不变）—— 大列表改版不动「近期」。
+					const extras = scheduleHoverOnes(
+						scheduleHoverItems(side === "gacha" ? g.bannerHover : g.eventHover, it.title, it.isG), it, now);
+					cells.set(g.id + ":" + side, [it].concat(extras));
 					if (it.state !== "ended") all.push(it);
 				}
 			}
