@@ -290,8 +290,12 @@ export default async function run() {
 			!!g && !("bannerHover" in g), JSON.stringify(g && Object.keys(g)));
 
 		// 合成夹具：同一份公告里放**2 个**当期主卡池 → bannerHover 必须按本体格式列出两池
+		// ⚠️ 这两处必须传 NOW（假定现在 = 夹具覆盖的 2026-10-01）：
+		//    「选当期」依赖当前时刻，若用真实时钟，快照一旦过期就会得到 null →
+		//    断言全红，而且是**假红**（不是解析器坏了，是"今天"跑到窗口外面去了）。
+		//    本文件第 66 行的 NOW 就是为这个场景准备的；本文件顶部的政策注释也写了这条规矩。
 		{
-			const sg = await src.gacha.fetcher(SYNTH_LIST_URL, undefined, src.tz);
+			const sg = await src.gacha.fetcher(SYNTH_LIST_URL, undefined, src.tz, NOW);
 			const slines = sg && sg.bannerHover ? sg.bannerHover.split("\n") : [];
 			check("Bandori ≥2 个当期主池 → 设 bannerHover（每池「池名：角色」+ 档期两行）",
 				slines.length === 4 && /：/.test(slines[0]) && isDateLine(slines[1]) && /：/.test(slines[2]) && isDateLine(slines[3]),
@@ -302,7 +306,7 @@ export default async function run() {
 				!!sg && !!sg.bannerHover && !HOVER_META.test(sg.bannerHover), JSON.stringify(sg && sg.bannerHover));
 		}
 
-		const e = await src.event.fetcher(src.event.url, undefined, src.tz);
+		const e = await src.event.fetcher(src.event.url, undefined, src.tz, NOW);
 		assertContract("Bandori", "event", e);
 		check("Bandori 活动 event = 挑战演出活动名",
 			!!e && e.event === "All☆Stars CiRCRiNG Fes!", JSON.stringify(e && e.event));
