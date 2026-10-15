@@ -97,14 +97,21 @@
 		}
 
 		// ══ 实验特性：新「日程」面板视图（`settings.newPanel === true` 时才渲染）══
-		// 设计稿：dsh-gacha-ui-lab/a-optimized.html（浅色效果图 a-optimized-light.png）
+		// 设计稿：dsh-gacha-ui-lab/a-columns.html（浅色效果图 a-columns.png）
 		//
-		// 三条**不可改**的原则（照设计稿，"一元素一职责"）：
-		//   · 每个部件只说一件事 —— 图标=身份 / chip=类别 / 进度条=窗口进度 / 右侧大数字=时间结论
+		// 结构 = **两栏**（左 💫 卡池 / 右 🎡 活动）。原面板本来就是两列，而且卡池（约 2 周）与
+		// 活动（常常 1 个月）的时间尺度不同，混在一条列表里排"谁更急"没有意义 —— 分栏后同类比同类。
+		// 两栏用 flex + 每栏 min-width 实现：宽（弹层 690px）时并排，被压窄时**自动上下两段**，
+		// 不引入媒体查询/容器查询。
+		//
+		// 三条**不可改**的原则（"一元素一职责"）：
+		//   · 图标=身份 / **栏=类别**（所以行内不再有类别 chip）/ 进度条=窗口进度 / 右侧大数字=时间结论
 		//   · 进度条颜色**只表紧迫度**（蓝→琥珀→红；虚线=长期/无结束时间；淡蓝空条=还没开始）；
-		//     类别只由 emoji+文字 chip 表达，不靠颜色（色盲也能用）
+		//     类别由栏本身表达，不靠颜色（色盲也能用）
 		//   · 颜色全部走 --dsw-* 令牌（见 70-styles.js 的 .gacha-cal-sched-*），跟随 DSH 浅/深色；
 		//     浅色不是深色反相，所以这里不写任何硬编码色值
+		//
+		// 刷新失败是**来源级**的问题（某个网站抓不到），不属于卡池也不属于活动 → 做成跨栏的底部横条。
 		//
 		// 本区**只读** CalendarPanel 已经算好的 games / s，不碰抓取、解析、刷新与缓存。
 		const SCHEDULE_LONG_MS = 366 * 864e5;     // 窗口超过一年 = 长期档期（pjsk 那种 2099 哨兵）
@@ -153,42 +160,47 @@
 			return [[String(mi), "分"]];
 		}
 
-		// 日程面板本体。props 全部来自 CalendarPanel（同一份渲染快照），组件自身只多两个纯 UI 状态：
-		// 分类筛选与"展开更多"。
+
+		// 日程面板本体。props 全部来自 CalendarPanel（同一份渲染快照），组件自身只多一个纯 UI 状态：
+		// "展开更多"。
+		//
+		// ⚠️ 分栏（2026-10-15 用户要求）：**栏 = 类别** —— 左「卡池」右「活动」。
+		//    因此**行内不再有类别 chip**（栏本身即类别）；卡池 2 周、活动常常 1 个月，
+		//    混在一起排"谁更急"没有意义，分栏后同类比同类。
+		//    栏用 flex-wrap + 每栏 min-width 实现窄栏降级：面板宽时并排，被压窄时自动上下两段，
+		//    不需要媒体查询/容器查询（弹层宽度由宿主决定，视图层不该假设）。
+		//    "刷新失败"是**来源级**问题（某个网站抓不到），不属于任何一栏 → 跨栏底部横条。
 		function ScheduleView({ games, now, s, refreshing, onRefresh, lastRefreshText, scrapeInfo, scrapeLines }) {
-			const [filter, setFilter] = (0, react.useState)("all");
 			const [expanded, setExpanded] = (0, react.useState)(false);
 
+			// 收集所有档期（卡池侧 + 活动侧）。已结束的不进日程：日程回答"现在该看哪几条"。
 			const all = [];
 			for (const g of games) {
 				for (const side of ["gacha", "event"]) {
 					const it = scheduleNormalize(g, side, now, s);
-					// 已结束的不进议程（议程回答"现在该看哪几条"，不是历史列表）
 					if (it && it.state !== "ended") all.push(it);
 				}
 			}
+			// 刷新失败 = 来源级，跨栏横条（不塞进某一栏）
 			const failed = all.filter((x) => isDown(x.fail));
-			const ok = all.filter((x) => !isDown(x.fail));
-			const due = ok.filter((x) => x.state === "live" && x.remain <= SCHEDULE_DUE_MS).sort((a, b) => a.endTs - b.endTs);
-			const liveRest = ok.filter((x) => x.state === "live" && x.remain > SCHEDULE_DUE_MS).sort((a, b) => a.endTs - b.endTs);
-			// 长期档期的 endTs 不可比（无结束时间）→ 单独排到"进行中"末尾
-			const liveAll = liveRest.concat(ok.filter((x) => x.state === "long"));
-			const wait = ok.filter((x) => x.state === "wait").sort((a, b) => a.startTs - b.startTs);
-
-			// 筛选：类别只影响列表；"刷新失败"是独立分区，任何筛选下都保留
-			const pass = (x) => filter === "all"
-				|| (filter === "gacha" && x.isG)
-				|| (filter === "event" && !x.isG)
-				|| (filter === "fail" && isDown(x.fail));
-			const dueShown = due.filter(pass);
-			const liveShown = liveAll.filter(pass);
-			const waitShown = wait.filter(pass);
-			const failShown = failed.filter(pass);
-			const liveCap = 4;
-			const liveList = expanded ? liveShown : liveShown.slice(0, liveCap);
-			const liveMore = liveShown.length - liveList.length;
 
 			const sourceNameOf = (x) => (x.isG ? x.g.source : x.g.eventSource) || "";
+
+			// 一栏的全部内容。两栏共用同一套分区与排序，只是数据按 isG 拆开。
+			// 排序依据写进分区标题（"按紧迫度"不是口号，要让人看见依据）。
+			const columnOf = (isG) => {
+				const mine = all.filter((x) => x.isG === isG && !isDown(x.fail));
+				const due = mine.filter((x) => x.state === "live" && x.remain <= SCHEDULE_DUE_MS).sort((a, b) => a.endTs - b.endTs);
+				const live = mine.filter((x) => x.state === "live" && x.remain > SCHEDULE_DUE_MS).sort((a, b) => a.endTs - b.endTs)
+					.concat(mine.filter((x) => x.state === "long"));      // 长期档期无结束时间 → 排在"进行中"末尾
+				const wait = mine.filter((x) => x.state === "wait").sort((a, b) => a.startTs - b.startTs);
+				const liveCap = 3;
+				const liveList = expanded ? live : live.slice(0, liveCap);
+				return { due, live, wait, liveList, liveMore: live.length - liveList.length, active: live.length };
+			};
+			const gachaCol = columnOf(true);
+			const eventCol = columnOf(false);
+
 			const rowOf = (x) => {
 				const isFail = isDown(x.fail);
 				const cd = scheduleCountdown(x.remain);
@@ -202,14 +214,11 @@
 					children: [
 						// ① 图标：只做身份。**不加任何环**（外圈进度环与下面的进度条重复，
 						//    且"图标带圈"在 UI 惯例里会被读成"加载中"）
-						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-ic", children: (0, react_jsx_runtime.jsx)(GameIcon, { icon: x.g.icon, name: x.g.name, size: 28 }) }),
+						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-ic", children: (0, react_jsx_runtime.jsx)(GameIcon, { icon: x.g.icon, name: x.g.name, size: 26 }) }),
 						(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-mid", children: [
 							(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-t1", title: x.title || x.raw, children: x.title || x.raw || "\u2014" }),
-							// ② 副行：类别（emoji+文字）+ 游戏 + 来源 + **绝对档期**
-							(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-t2", children: [
-								(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-cat", children: x.isG ? "\uD83D\uDCAB \u5361\u6C60" : "\uD83C\uDFA1 \u6D3B\u52A8" }),
-								meta
-							] }),
+							// ② 副行：游戏 + 来源 + **绝对档期**（类别由所在的栏表达，行内不再挂 chip）
+							(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-t2", children: meta }),
 							// ③ 进度条：全屏**唯一**的"走了多少"。虚线=长期，空条=还没开始
 							(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-bar", children: (0, react_jsx_runtime.jsx)("i", { style: { width: (x.state === "long" ? 100 : Math.round(x.progress * 100)) + "%" } }) })
 						] }),
@@ -229,12 +238,22 @@
 					]
 				});
 			};
-			// 分区标题：写明这个分区按什么排（"按紧迫度"不是口号，要让人看见依据）
+			// 分区标题：写明这个分区按什么排
 			const section = (text, extra) => (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-sec", children: [text, extra ? (0, react_jsx_runtime.jsx)("em", { children: extra }) : null] });
-			const chip = (id, text) => (0, react_jsx_runtime.jsx)("button", {
-				type: "button", className: "gacha-cal-sched-f", "data-on": filter === id ? "true" : "false",
-				onClick: () => setFilter(id), children: text
-			}, id);
+			// 栏头：栏名（栏即类别）+ 该栏在期条数
+			const colHead = (emoji, name, n) => (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-colhead", children: [
+				(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-colname", children: [emoji, " ", name] }),
+				(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-coln", children: [String(n), " 条在期"] })
+			] });
+			// 栏体：分区 + 行 + "展开更多"
+			const colBody = (c) => [
+				c.due.length ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [section("最先结束", "今天到期"), c.due.map(rowOf)] }) : null,
+				c.live.length ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [section("进行中", "按结束时间"), c.liveList.map(rowOf),
+					c.liveMore > 0 ? (0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sched-more", onClick: () => setExpanded(true), children: "还有 " + c.liveMore + " 条进行中 \u00B7 展开" }) : null] }) : null,
+				c.wait.length ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [section("即将开始", "按开始时间"), c.wait.map(rowOf)] }) : null,
+				!c.due.length && !c.live.length && !c.wait.length
+					? (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-empty", children: "这段时间没有需要盯的档期" }) : null
+			];
 			const nowDate = (0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-pill", children: [String(now.getMonth() + 1), "\u6708", String(now.getDate()), "\u65E5"] });
 
 			return (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched", children: [
@@ -243,28 +262,36 @@
 					(0, react_jsx_runtime.jsx)("h4", { children: "\u65E5\u7A0B" }),
 					(0, react_jsx_runtime.jsx)("span", { style: { marginLeft: "auto", display: "flex", gap: 6 }, children: nowDate })
 				] }),
-				// 四格摘要：先给结论，再给明细
+				// 四格摘要：改成**按栏计数**（你是哪一边的人，先看到自己那半忙不忙）
 				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-sum", children: [
-					(0, react_jsx_runtime.jsxs)("div", { children: [(0, react_jsx_runtime.jsx)("b", { children: String(liveAll.length) }), (0, react_jsx_runtime.jsx)("span", { children: "\u8FDB\u884C\u4E2D" })] }),
-					(0, react_jsx_runtime.jsxs)("div", { children: [(0, react_jsx_runtime.jsx)("b", { children: String(wait.length) }), (0, react_jsx_runtime.jsx)("span", { children: "\u5373\u5C06\u5F00\u59CB" })] }),
-					(0, react_jsx_runtime.jsxs)("div", { "data-warn": "true", children: [(0, react_jsx_runtime.jsx)("b", { children: String(due.length) }), (0, react_jsx_runtime.jsx)("span", { children: "\u4ECA\u5929\u5230\u671F" })] }),
-					(0, react_jsx_runtime.jsxs)("div", { "data-warn": "true", children: [(0, react_jsx_runtime.jsx)("b", { children: String(failed.length) }), (0, react_jsx_runtime.jsx)("span", { children: "\u5237\u65B0\u5931\u8D25" })] })
+					(0, react_jsx_runtime.jsxs)("div", { children: [(0, react_jsx_runtime.jsx)("b", { children: String(gachaCol.active) }), (0, react_jsx_runtime.jsx)("span", { children: "卡池在期" })] }),
+					(0, react_jsx_runtime.jsxs)("div", { children: [(0, react_jsx_runtime.jsx)("b", { children: String(eventCol.active) }), (0, react_jsx_runtime.jsx)("span", { children: "活动在期" })] }),
+					(0, react_jsx_runtime.jsxs)("div", { "data-warn": "true", children: [(0, react_jsx_runtime.jsx)("b", { children: String(gachaCol.due.length + eventCol.due.length) }), (0, react_jsx_runtime.jsx)("span", { children: "今天到期" })] }),
+					(0, react_jsx_runtime.jsxs)("div", { "data-warn": "true", children: [(0, react_jsx_runtime.jsx)("b", { children: String(failed.length) }), (0, react_jsx_runtime.jsx)("span", { children: "刷新失败" })] })
 				] }),
-				// 筛选行
-				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-filters", children: [
-					chip("all", "\u5168\u90E8"),
-					chip("gacha", "\uD83D\uDCAB \u5361\u6C60"),
-					chip("event", "\uD83C\uDFA1 \u6D3B\u52A8"),
-					failed.length ? chip("fail", "\u26A0\uFE0F \u5237\u65B0\u5931\u8D25 " + failed.length) : null
+				// 两栏：栏 = 类别。窄栏自动降级为上下两段（见 70-styles.js 的 .gacha-cal-sched-col）
+				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-cols", children: [
+					(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-col", children: [
+						colHead("\uD83D\uDCAB", "卡池", gachaCol.active),
+						colBody(gachaCol)
+					] }),
+					(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-col", children: [
+						colHead("\uD83C\uDFA1", "活动", eventCol.active),
+						colBody(eventCol)
+					] })
 				] }),
-				// 分区列表
-				dueShown.length ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [section("\u6700\u5148\u7ED3\u675F", "\u4ECA\u5929\u5230\u671F"), dueShown.map(rowOf)] }) : null,
-				liveShown.length ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [section("\u8FDB\u884C\u4E2D", "\u6309\u7ED3\u675F\u65F6\u95F4"), liveList.map(rowOf),
-					liveMore > 0 ? (0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sched-more", onClick: () => setExpanded(true), children: "\u8FD8\u6709 " + liveMore + " \u6761\u8FDB\u884C\u4E2D \u00B7 \u5C55\u5F00" }) : null] }) : null,
-				waitShown.length ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [section("\u5373\u5C06\u5F00\u59CB", "\u6309\u5F00\u59CB\u65F6\u95F4"), waitShown.map(rowOf)] }) : null,
-				failShown.length ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [section("\u5237\u65B0\u5931\u8D25", String(failShown.length)), failShown.map(rowOf)] }) : null,
-				!dueShown.length && !liveShown.length && !waitShown.length && !failShown.length
-					? (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-empty", children: "\u8FD9\u4E2A\u7B5B\u9009\u4E0B\u6CA1\u6709\u9700\u8981\u76EF\u7684\u6863\u671F" }) : null,
+				// 刷新失败：来源级问题 → 跨栏底部横条（重试 = 整轮刷新，引擎没有单源刷新接口）
+				failed.length ? (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-errstrip", children: [
+					(0, react_jsx_runtime.jsxs)("b", { children: ["刷新失败 ", String(failed.length)] }),
+					(0, react_jsx_runtime.jsx)("span", {
+						className: "gacha-cal-sched-errtext",
+						title: sideFailText(failed[0].side, failed[0].fail, { userSupplied: failed[0].userSupplied }),
+						children: failed[0].g.name + " \u00B7 " + sourceNameOf(failed[0]) + " —— 该条沿用上次成功数据"
+					}),
+					(0, react_jsx_runtime.jsx)("button", {
+						type: "button", className: "gacha-cal-sched-retry", disabled: refreshing, onClick: onRefresh, children: "重试"
+					})
+				] }) : null,
 				// 底部：上次更新时间 + 刷新（抓取汇总行有的话一并带出，信息不与旧面板脱节）
 				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-foot", children: [
 					(0, react_jsx_runtime.jsx)("span", { title: (scrapeLines || []).join("\n"), children: scrapeInfo || ("\u4E0A\u6B21\u66F4\u65B0\uFF1A" + lastRefreshText) }),

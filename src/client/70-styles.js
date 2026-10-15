@@ -58,7 +58,7 @@
 			 * ⚠️ 浅色不是深色反相：所以这里只出现语义令牌（label-* / border-* / bg-layer-* /
 			 *    state-* / interactive-bg-hover），**不写** #cfd8ff 这类"深色专用"硬编码色值。
 			 * ⚠️ 每行只有一个进度表达（.gacha-cal-sched-bar）；别在这里再加第二个。
-			 * ⚠️ 每个部件一个职责：图标=身份 / cat=类别 / bar=窗口进度（颜色只表紧迫度）/ cd=时间结论。 */
+			 * ⚠️ 每个部件一个职责：图标=身份 / 栏=类别 / bar=窗口进度（颜色只表紧迫度）/ cd=时间结论。 */
 			.gacha-cal-sched{display:flex;flex-direction:column;gap:0;font-size:12px;color:var(--dsw-alias-label-primary,inherit)}
 			.gacha-cal-sched-head{display:flex;align-items:center;gap:8px;padding:0 2px 9px}
 			.gacha-cal-sched-head h4{margin:0;font-size:14px;font-weight:600;letter-spacing:-.2px}
@@ -70,11 +70,6 @@
 			.gacha-cal-sched-sum b{display:block;font-size:15px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums}
 			.gacha-cal-sched-sum span{font-size:10.5px;color:var(--dsw-alias-label-tertiary,rgba(127,127,127,.85))}
 			.gacha-cal-sched-sum > div[data-warn="true"] b{color:var(--dsw-alias-state-warn-label,var(--dsw-static-amber-500,#9a4a06))}
-			/* 筛选行 */
-			.gacha-cal-sched-filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px}
-			.gacha-cal-sched-f{padding:3px 10px;border-radius:999px;font-size:11px;cursor:pointer;color:var(--dsw-alias-label-secondary,inherit);background:transparent;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25))}
-			.gacha-cal-sched-f:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.12))}
-			.gacha-cal-sched-f[data-on="true"]{background:var(--dsw-alias-bg-layer-2,rgba(127,127,127,.14));color:var(--dsw-alias-label-primary,inherit);border-color:var(--dsw-alias-border-l2,rgba(127,127,127,.4))}
 			/* 分区标题（写明排序依据，不含糊） */
 			.gacha-cal-sched-sec{display:flex;align-items:center;gap:6px;margin:9px 2px 5px;font-size:10.5px;letter-spacing:.04em;color:var(--dsw-alias-label-tertiary,rgba(127,127,127,.85))}
 			.gacha-cal-sched-sec::after{content:"";flex:1;height:1px;background:var(--dsw-alias-border-l1,rgba(127,127,127,.25))}
@@ -86,7 +81,6 @@
 			.gacha-cal-sched-mid{display:flex;flex-direction:column;min-width:0;flex:1 1 auto;gap:3px}
 			.gacha-cal-sched-t1{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 			.gacha-cal-sched-t2{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--dsw-alias-label-tertiary,rgba(127,127,127,.85));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-			.gacha-cal-sched-cat{flex:none;display:inline-flex;align-items:center;gap:2px;font-size:9.5px;padding:0 6px;border-radius:999px;background:var(--dsw-alias-bg-layer-1,rgba(127,127,127,.08));border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));color:var(--dsw-alias-label-secondary,inherit)}
 			/* 唯一的进度表达：颜色只表紧迫度 */
 			.gacha-cal-sched-bar{display:block;height:3px;border-radius:999px;background:var(--dsw-alias-bg-layer-3,rgba(127,127,127,.2));overflow:hidden}
 			.gacha-cal-sched-bar > i{display:block;height:100%;border-radius:999px;background:var(--dsw-alias-state-business-primary,var(--dsw-static-deepseek-500,#3b5bfd))}
@@ -110,6 +104,17 @@
 			.gacha-cal-sched-more{margin:6px 2px 0;padding:5px;width:calc(100% - 4px);text-align:center;font-size:11px;color:var(--dsw-alias-label-tertiary,rgba(127,127,127,.85));background:transparent;border:1px dashed var(--dsw-alias-border-l1,rgba(127,127,127,.25));border-radius:8px;cursor:pointer}
 			.gacha-cal-sched-more:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1))}
 			.gacha-cal-sched-empty{padding:14px 4px;text-align:center;font-size:11.5px;color:var(--dsw-alias-label-tertiary,rgba(127,127,127,.85))}
+			/* ══ 两栏（栏 = 类别）：左卡池 / 右活动。窄栏降级靠 flex-wrap + min-width，不用媒体查询 ══ */
+			.gacha-cal-sched-cols{display:flex;flex-wrap:wrap;align-items:flex-start}
+			.gacha-cal-sched-col{flex:1 1 300px;min-width:300px;padding:0 2px}
+			.gacha-cal-sched-col + .gacha-cal-sched-col{border-left:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));padding-left:10px;margin-left:10px}
+			.gacha-cal-sched-colhead{display:flex;align-items:center;gap:7px;padding:2px 2px 6px;font-size:12px;font-weight:600}
+			.gacha-cal-sched-coln{margin-left:auto;font-size:10.5px;font-weight:500;color:var(--dsw-alias-label-tertiary,rgba(127,127,127,.85))}
+			.gacha-cal-sched-colname{display:inline-flex;align-items:baseline;gap:4px}
+			/* 刷新失败：来源级问题 → 跨栏底部横条（不属于任何一栏） */
+			.gacha-cal-sched-errstrip{display:flex;align-items:center;gap:8px;margin-top:9px;padding:7px 10px;border-radius:12px;background:var(--dsw-alias-state-error-tertiary,rgba(229,72,77,.08));border:1px solid var(--dsw-alias-border-l2,rgba(229,72,77,.3));font-size:11px}
+			.gacha-cal-sched-errstrip > b{flex:none;color:var(--dsw-alias-label-error,var(--dsw-static-red-600,#b3261e))}
+			.gacha-cal-sched-errtext{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dsw-alias-label-secondary,inherit);cursor:help}
 			.gacha-cal-sched-foot{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));font-size:11px;color:var(--dsw-alias-label-tertiary,rgba(127,127,127,.85))}
 			.gacha-cal-sched-foot > span{min-width:0;flex:1 1 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:help}
 		`;
