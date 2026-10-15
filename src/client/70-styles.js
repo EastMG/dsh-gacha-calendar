@@ -226,7 +226,7 @@
 				box-shadow:0 1px 2px rgba(0,0,0,.06),0 8px 24px -12px rgba(0,0,0,.22)}
 			.gacha-cal-sched-slot--empty{border-style:dashed}
 			.gacha-cal-slot-cap{font-size:9.5px;font-weight:500;letter-spacing:.16em;color:var(--dsw-alias-label-tertiary,#6b7280)}
-			.gacha-cal-slot-cine{display:grid}
+			.gacha-cal-slot-cine{display:grid;grid-template-columns:minmax(0,1fr)}
 			.gacha-cal-slot-cine > *{grid-area:1/1}
 			.gacha-cal-slot-ring{position:relative;width:132px;height:132px;margin:2px auto 0;flex:0 0 auto}
 			.gacha-cal-slot-ring svg{display:block}
