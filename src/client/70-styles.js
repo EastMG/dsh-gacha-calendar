@@ -220,13 +220,13 @@
 			/* ── 留白区：「下一个截止」卡 ──
 			   大图标当主体；环 = 该档期"已过多少"（环快满 = 快结束了，不用读字）；
 			   下面两行是接下来两件，各两行（游戏名一行 / 卡池活动名一行）。 */
-			.gacha-cal-sched-slot{box-sizing:border-box;min-width:0;padding:12px 13px 11px;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.22));border-radius:22px;
+			.gacha-cal-sched-slot{box-sizing:border-box;min-width:0;display:flex;flex-direction:column;align-self:flex-start;padding:12px 13px 11px;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.22));border-radius:22px;
 				background:radial-gradient(120% 90% at 78% 0%,color-mix(in oklab,var(--gc,#888) 24%,transparent) 0%,transparent 62%),
 					linear-gradient(180deg,color-mix(in oklab,var(--gc,#888) 10%,var(--dsw-alias-bg-base,#fff)) 0%,var(--dsw-alias-bg-base,#fff) 78%);
 				box-shadow:0 1px 2px rgba(0,0,0,.06),0 8px 24px -12px rgba(0,0,0,.22)}
 			.gacha-cal-sched-slot--empty{border-style:dashed}
 			.gacha-cal-slot-cap{font-size:9.5px;font-weight:500;letter-spacing:.16em;color:var(--dsw-alias-label-tertiary,#6b7280)}
-			.gacha-cal-slot-ring{position:relative;width:132px;height:132px;margin:2px auto 0}
+			.gacha-cal-slot-ring{position:relative;width:132px;height:132px;margin:2px auto 0;flex:0 0 auto}
 			.gacha-cal-slot-ring svg{display:block}
 			.gacha-cal-slot-track{stroke:color-mix(in oklab,var(--dsw-alias-label-primary,#1f2329) 13%,transparent)}
 			.gacha-cal-slot-ic{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
@@ -239,7 +239,7 @@
 				white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 			.gacha-cal-slot-sub{margin-top:3px;text-align:center;font-size:10.5px;font-weight:400;letter-spacing:.02em;color:var(--dsw-alias-label-tertiary,#6b7280);
 				font-variant-numeric:tabular-nums}
-			.gacha-cal-slot-more{margin-top:11px;padding-top:8px;border-top:1px solid color-mix(in oklab,var(--dsw-alias-label-primary,#1f2329) 8%,transparent);display:grid;gap:9px}
+			.gacha-cal-slot-more{margin-top:auto;padding-top:8px;border-top:1px solid color-mix(in oklab,var(--dsw-alias-label-primary,#1f2329) 8%,transparent);display:grid;gap:9px}
 			.gacha-cal-slot-row{display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:8px}
 			.gacha-cal-slot-nm{min-width:0;font-size:12.5px;font-weight:600;letter-spacing:.02em;color:var(--dsw-alias-label-primary,#1f2329)}
 			.gacha-cal-slot-nm i{display:block;margin-top:1px;font-style:normal;font-size:11.5px;font-weight:400;letter-spacing:.012em;color:var(--dsw-alias-label-tertiary,#6b7280);
