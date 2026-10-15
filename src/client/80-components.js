@@ -606,9 +606,8 @@
 				const el = popRef.current;
 				if (!open || !el) return;
 				const fit = () => {
-					// ⚠️ 不能量 inner 自己的高度：外层把它 stretch 后它就恒等于面板高度 →
-					// 量出来"正好"、写回去还是同一个值 → **自锁循环**（实测 shell=inner=734 而内容仅 ~555）。
-					// 改为量**内容的实际跨度**：首个子元素顶边 → 末个子元素底边，再加视图内边距。
+					// 量**内容的实际跨度**（首个子元素顶边 → 末个子元素底边 + 视图内边距），而不是视图自身高度：
+					// 视图可能被上限/拉伸影响，"自身高度"不足以代表内容。
 					const inner = el.firstElementChild;
 					let content;
 					if (inner && inner.children.length) {
@@ -620,7 +619,12 @@
 					} else {
 						content = el.scrollHeight;
 					}
-					const cap = Math.round(window.innerHeight * 0.72);
+					// 上限 = **可用空间**（视口高 − 锚点 − 8），不再用 72vh：
+					// 实测 gapView=0 ⇒ 面板盒内本无空白，但只到 72vh 时锚点之下会留出一段；
+					// 那段虽不在我们盒内，却与卡片同为白底、观感上就是"面板下面多一块"。
+					// 铺满可用空间后：卡片被内容（scrollHeight≈3027）填满并滚动 ⇒ 视觉空白消失，一屏还能多看好几行。
+					const avail = Math.round(window.innerHeight - (anchor && typeof anchor.bottom === "number" ? anchor.bottom : 0) - 8);
+					const cap = avail > 160 ? avail : Math.round(window.innerHeight * 0.72);
 					el.style.setProperty("height", Math.round(content > cap ? cap : content) + "px", "important");
 				};
 				fit();
