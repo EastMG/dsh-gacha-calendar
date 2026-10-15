@@ -78,18 +78,18 @@
 			.gacha-cal-sched-num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
 			/* ① 标题「二游日历」+ 日期胶囊（**没有**总计数胶囊） */
 			.gacha-cal-sched-head{display:flex;align-items:center;gap:10px;padding:2px 0 8px}
-			.gacha-cal-sched-head h4{margin:0;font-size:15px;font-weight:650;letter-spacing:-.2px}
+			.gacha-cal-sched-head h4{margin:0;font-size:15px;font-weight:600;letter-spacing:-.1px}
 			.gacha-cal-sched-sp{margin-left:auto;display:flex;gap:6px}
 			.gacha-cal-sched-pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:999px;font-size:11px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));color:var(--dsw-alias-label-secondary,#4a5261)}
 			.gacha-cal-sched-pill--live{background:color-mix(in oklab,var(--dsw-alias-state-business-primary,#3b5bfd) 12%,transparent);border-color:transparent;color:var(--dsw-alias-link,#3b5bfd)}
 			/* ② 一行总览：今天 N 条到期 · N 条即将开始 · N 条在期 · N 个来源刷新失败 */
 			.gacha-cal-sched-glance{display:flex;align-items:center;gap:10px;margin:0 0 6px;font-size:12px;color:var(--dsw-alias-label-secondary,#4a5261);flex-wrap:wrap}
-			.gacha-cal-sched-glance b{color:var(--dsw-alias-label-primary,#1f2329);font-weight:650}
+			.gacha-cal-sched-glance b{color:var(--dsw-alias-label-primary,#1f2329);font-weight:500}
 			.gacha-cal-sched-warn{color:var(--dsw-alias-state-warn-label,#9a4a06)}
 			.gacha-cal-sched-sep{color:var(--dsw-alias-label-tertiary,#6b7280);margin:0 5px}
 			/* ③ 「近期」：跨游戏、按紧迫度、**全列出**（不折叠不点开），占左约 64% */
 			.gacha-cal-sched-h2{display:flex;align-items:baseline;gap:8px;margin:0 0 5px}
-			.gacha-cal-sched-h2 h4{margin:0;font-size:12px;font-weight:650}
+			.gacha-cal-sched-h2 h4{margin:0;font-size:12px;font-weight:600}
 			.gacha-cal-sched-recent{display:flex;gap:10px;margin:0 0 10px;align-items:stretch}
 			.gacha-cal-sched-urgent{flex:0 0 64%;min-width:0}
 			/* 右侧虚线空框：用途未定，先留空（设计稿的 .slot） */
@@ -105,11 +105,11 @@
 			.gacha-cal-sched-kind[data-t="event"]{color:var(--dsw-alias-state-warn-label,#9a4a06);background:color-mix(in oklab,var(--dsw-alias-state-warn-primary,#f5a524) 16%,transparent)}
 			.gacha-cal-sched-what{flex:1 1 auto;min-width:0;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 			/* 时间结论 = 紧迫度。全屏只有这几处用颜色表紧迫度（文字=紧迫度，颜色=游戏，各管一件事） */
-			.gacha-cal-sched-when{flex:0 0 auto;font-size:12px;font-weight:650;text-align:right}
+			.gacha-cal-sched-when{flex:0 0 auto;font-size:12px;font-weight:500;text-align:right}
 			.gacha-cal-sched-when small{font-size:10px;font-weight:500;color:var(--dsw-alias-label-tertiary,#6b7280);margin-left:1px}
 			.gacha-cal-sched-u[data-u="1"] .gacha-cal-sched-when{color:var(--dsw-alias-state-error-primary,#b3261e)}
 			.gacha-cal-sched-u[data-u="2"] .gacha-cal-sched-when{color:var(--dsw-alias-state-warn-label,#9a4a06)}
-			.gacha-cal-sched-u[data-u="wait"] .gacha-cal-sched-when{color:var(--dsw-alias-link,#3b5bfd);font-weight:600}
+			.gacha-cal-sched-u[data-u="wait"] .gacha-cal-sched-when{color:var(--dsw-alias-link,#3b5bfd);font-weight:500}
 			/* ④ 游戏表：**没有区块标题**，列表头直接跟在后面；列 = 游戏(158px) / 卡池 / 活动 */
 			.gacha-cal-sched-tcap{display:grid;grid-template-columns:158px 1fr 1fr;gap:0 12px;padding:2px 8px 0;font-size:10.5px;color:var(--dsw-alias-label-tertiary,#6b7280)}
 			.gacha-cal-sched-th{display:inline-flex;align-items:center;gap:5px;padding-left:9px}
@@ -118,7 +118,7 @@
 			.gacha-cal-sched-tic{width:12px;height:12px;flex:0 0 auto;display:inline-block;vertical-align:-1.5px}
 			.gacha-cal-sched-rulerrow{display:grid;grid-template-columns:158px 1fr 1fr;gap:0 12px;padding:0 8px}
 			.gacha-cal-sched-ruler{display:grid;grid-template-columns:repeat(14,1fr);gap:1px;margin-top:4px;font-size:8px;color:var(--dsw-alias-label-tertiary,#6b7280);text-align:center}
-			.gacha-cal-sched-ruler span[data-today]{color:var(--dsw-alias-label-primary,#1f2329);font-weight:700}
+			.gacha-cal-sched-ruler span[data-today]{color:var(--dsw-alias-label-primary,#1f2329);font-weight:600}
 			.gacha-cal-sched-theadline{height:1px;background:var(--dsw-alias-border-l1,rgba(127,127,127,.25));margin-top:3px}
 			/* 一行 = 一款游戏；--g 由 JS 内联（游戏代表色），这里只是拿不到内联值时的兜底 */
 			.gacha-cal-sched-trow{--g:var(--dsw-alias-state-business-primary,#3b5bfd);display:grid;grid-template-columns:158px 1fr 1fr;gap:0 12px;padding:9px 8px 10px;align-items:start;border-bottom:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25))}
@@ -128,7 +128,7 @@
 			.gacha-cal-sched-trow:hover{background:var(--sched-hover-bg)}
 			.gacha-cal-sched-gm{display:flex;align-items:center;gap:11px;min-width:0;align-self:center}
 			.gacha-cal-sched-gic{display:inline-flex;flex:0 0 auto;width:40px;height:40px;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));border-radius:11px;overflow:hidden;background:var(--dsw-alias-bg-layer-2,rgba(127,127,127,.08))}
-			.gacha-cal-sched-gn{font-size:13px;font-weight:650;line-height:1.32;letter-spacing:-.1px;white-space:normal;overflow-wrap:break-word;text-wrap:balance}
+			.gacha-cal-sched-gn{font-size:13px;font-weight:600;line-height:1.35;letter-spacing:0;white-space:normal;overflow-wrap:break-word;text-wrap:balance}
 			/* 一格 = 该游戏的卡池侧或活动侧：**第一条完整三行**（名称 / 档期·状态 / 迷你条），
 			   其余条目收在「探头」里（见下面 .gacha-cal-sched-rest）。
 			   ⚠️ 层级**不靠 :hover**（那是随时间变化的：向上移鼠标时，上一行刚进入、下一行还没退出，
@@ -169,15 +169,15 @@
 				transition:top .42s cubic-bezier(.22,1.2,.28,1),opacity .18s cubic-bezier(.4,0,.2,1);pointer-events:none}
 			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest::after{top:calc(100% - 9px);opacity:0}
 			/* 探头里的条目按**各自**的紧迫度着色（格子级 data-u 只管第一条） */
-			.gacha-cal-sched-item[data-u="1"] .gacha-cal-sched-cn{color:var(--dsw-alias-state-error-primary,#b3261e);font-weight:650}
+			.gacha-cal-sched-item[data-u="1"] .gacha-cal-sched-cn{color:var(--dsw-alias-state-error-primary,#b3261e);font-weight:600}
 			.gacha-cal-sched-item[data-u="1"] .gacha-cal-sched-cm{color:var(--dsw-alias-state-error-primary,#b3261e)}
 			.gacha-cal-sched-item[data-u="2"] .gacha-cal-sched-cm{color:var(--dsw-alias-state-warn-label,#9a4a06)}
 			.gacha-cal-sched-cell[data-t="gacha"]{--gf:var(--g)}
 			.gacha-cal-sched-cell[data-t="event"]{--gf:color-mix(in oklab,var(--g) 42%,#fff)}
-			.gacha-cal-sched-cn{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-			.gacha-cal-sched-cm{margin-top:1px;font-size:11px;color:var(--dsw-alias-label-tertiary,#6b7280);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+			.gacha-cal-sched-cn{font-size:12px;font-weight:400;letter-spacing:.012em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+			.gacha-cal-sched-cm{margin-top:1px;font-size:11px;font-weight:400;letter-spacing:.02em;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-tertiary,#6b7280);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 			.gacha-cal-sched-more{color:var(--dsw-alias-label-secondary,#4a5261)}
-			.gacha-cal-sched-cell[data-u="1"] .gacha-cal-sched-cn{color:var(--dsw-alias-state-error-primary,#b3261e);font-weight:650}
+			.gacha-cal-sched-cell[data-u="1"] .gacha-cal-sched-cn{color:var(--dsw-alias-state-error-primary,#b3261e);font-weight:600}
 			.gacha-cal-sched-cell[data-u="1"] .gacha-cal-sched-cm{color:var(--dsw-alias-state-error-primary,#b3261e)}
 			.gacha-cal-sched-cell[data-u="2"] .gacha-cal-sched-cm{color:var(--dsw-alias-state-warn-label,#9a4a06)}
 			.gacha-cal-sched-cell--none .gacha-cal-sched-cn{color:var(--dsw-alias-label-tertiary,#6b7280);font-weight:400}
@@ -209,6 +209,43 @@
 			.gacha-cal-sched-retry:disabled{opacity:.5;cursor:default}
 			/* ⑦ 底部：上次更新 X 分钟前 + 刷新 */
 			.gacha-cal-sched-foot{display:flex;align-items:center;gap:8px;margin-top:9px;padding-top:9px;border-top:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));font-size:10.5px;color:var(--dsw-alias-label-tertiary,#6b7280)}
+			/* ── 字体规范（2026-10 定）：中文不上 600+；标题 600、正文 400；中文补字距与行高。
+			   字体栈前置 MiSans / HarmonyOS Sans / 思源 / Noto：本机装了就用，没装才落回雅黑。 */
+			.gacha-cal-sched{font-family:-apple-system,"SF Pro Text","Segoe UI Variable Text","Segoe UI","MiSans","HarmonyOS Sans SC","Source Han Sans SC","Noto Sans SC","PingFang SC","Microsoft YaHei UI","Microsoft YaHei",sans-serif;
+				-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;font-synthesis:none;
+				letter-spacing:.012em;line-height:1.45}
+			.gacha-cal-sched b,.gacha-cal-sched strong{font-weight:500}
+			.gacha-cal-sched-glance,.gacha-cal-sched-tcap,.gacha-cal-sched-legend,.gacha-cal-sched-foot{letter-spacing:.02em}
+			.gacha-cal-sched-when,.gacha-cal-sched-uic,.gacha-cal-sched-when b{font-variant-numeric:tabular-nums}
+			/* ── 留白区：「下一个截止」卡 ──
+			   大图标当主体；环 = 该档期"已过多少"（环快满 = 快结束了，不用读字）；
+			   下面两行是接下来两件，各两行（游戏名一行 / 卡池活动名一行）。 */
+			.gacha-cal-sched-slot{box-sizing:border-box;padding:12px 13px 11px;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.22));border-radius:22px;
+				background:radial-gradient(120% 90% at 78% 0%,color-mix(in oklab,var(--gc,#888) 24%,transparent) 0%,transparent 62%),
+					linear-gradient(180deg,color-mix(in oklab,var(--gc,#888) 10%,var(--dsw-alias-bg-base,#fff)) 0%,var(--dsw-alias-bg-base,#fff) 78%);
+				box-shadow:0 1px 2px rgba(0,0,0,.06),0 8px 24px -12px rgba(0,0,0,.22)}
+			.gacha-cal-sched-slot--empty{border-style:dashed}
+			.gacha-cal-slot-cap{font-size:9.5px;font-weight:500;letter-spacing:.16em;color:var(--dsw-alias-label-tertiary,#6b7280)}
+			.gacha-cal-slot-ring{position:relative;width:132px;height:132px;margin:2px auto 0}
+			.gacha-cal-slot-ring svg{display:block}
+			.gacha-cal-slot-track{stroke:color-mix(in oklab,var(--dsw-alias-label-primary,#1f2329) 13%,transparent)}
+			.gacha-cal-slot-ic{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+			.gacha-cal-slot-ic > *{width:86px !important;height:86px !important;border-radius:22px !important}
+			.gacha-cal-slot-gn{margin-top:11px;text-align:center;font-size:13.5px;font-weight:600;letter-spacing:.02em;color:var(--dsw-alias-label-primary,#1f2329)}
+			.gacha-cal-slot-days{display:flex;align-items:baseline;justify-content:center;margin-top:1px}
+			.gacha-cal-slot-n{font-size:34px;font-weight:600;letter-spacing:-.018em;line-height:1;font-variant-numeric:proportional-nums;color:var(--dsw-alias-label-primary,#1f2329)}
+			.gacha-cal-slot-u{margin-left:4px;font-size:11px;font-weight:400;letter-spacing:.04em;color:var(--dsw-alias-label-secondary,#4a5261)}
+			.gacha-cal-slot-ttl{margin-top:6px;text-align:center;font-size:12.5px;font-weight:400;letter-spacing:.012em;color:var(--dsw-alias-label-secondary,#4a5261);
+				white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+			.gacha-cal-slot-sub{margin-top:3px;text-align:center;font-size:10.5px;font-weight:400;letter-spacing:.02em;color:var(--dsw-alias-label-tertiary,#6b7280);
+				font-variant-numeric:tabular-nums}
+			.gacha-cal-slot-more{margin-top:11px;padding-top:8px;border-top:1px solid color-mix(in oklab,var(--dsw-alias-label-primary,#1f2329) 8%,transparent);display:grid;gap:9px}
+			.gacha-cal-slot-row{display:grid;grid-template-columns:22px 1fr auto;align-items:center;gap:8px}
+			.gacha-cal-slot-nm{min-width:0;font-size:12.5px;font-weight:600;letter-spacing:.02em;color:var(--dsw-alias-label-primary,#1f2329)}
+			.gacha-cal-slot-nm i{display:block;margin-top:1px;font-style:normal;font-size:11.5px;font-weight:400;letter-spacing:.012em;color:var(--dsw-alias-label-tertiary,#6b7280);
+				white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+			.gacha-cal-slot-dd{font-size:10.5px;font-weight:400;letter-spacing:.02em;color:var(--dsw-alias-label-tertiary,#6b7280);font-variant-numeric:tabular-nums}
+			.gacha-cal-slot-dd em{font-style:normal;font-weight:600;color:var(--dsw-alias-label-primary,#1f2329)}
 			.gacha-cal-sched-foot > span{flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 			.gacha-cal-sched-btn{flex:0 0 auto;margin-left:auto;padding:4px 11px;border-radius:999px;background:var(--dsw-alias-bg-layer-1,rgba(127,127,127,.08));border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));color:var(--dsw-alias-label-secondary,#4a5261);font:inherit;font-size:10.5px;cursor:pointer}
 			.gacha-cal-sched-btn:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1))}

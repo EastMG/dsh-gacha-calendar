@@ -515,6 +515,66 @@
 				]
 			});
 
+			// ④ 留白区 → 「下一个截止」卡
+			//    大图标当主体；环 = 该档期"已过多少"（环快满 = 快结束了，不用读字）；
+			//    下面两行是接下来两件，各两行（游戏名一行 / 卡池活动名一行）。
+			//    数据全部取自条目已有的 startTs/endTs/raw，不需要任何新抓取。
+			function slotFrac(it) {
+				if (!it || typeof it.endTs !== "number") return 0;
+				if (typeof it.startTs === "number" && it.endTs > it.startTs) {
+					return Math.min(1, Math.max(0, (now - it.startTs) / (it.endTs - it.startTs)));
+				}
+				return 0; // 无开始时间（长期/仅知结束）：只画轨道，不假装有进度
+			}
+			function slotLeftDays(it) {
+				return Math.max(0, Math.ceil((it.endTs - now) / 86400000));
+			}
+			// 环：底轨道 + 进度弧（rotate -90 让起点在正上方，与 Apple 一致）
+			function slotRing(frac, color, size, stroke) {
+				const r = (size - stroke) / 2;
+				const c = 2 * Math.PI * r;
+				const off = c * (1 - Math.min(1, Math.max(0, frac)));
+				return (0, react_jsx_runtime.jsxs)("svg", { width: size, height: size, viewBox: "0 0 " + size + " " + size, children: [
+					(0, react_jsx_runtime.jsx)("circle", { className: "gacha-cal-slot-track", cx: size / 2, cy: size / 2, r: r, fill: "none", strokeWidth: stroke }),
+					(0, react_jsx_runtime.jsx)("circle", { cx: size / 2, cy: size / 2, r: r, fill: "none", stroke: color, strokeWidth: stroke, strokeLinecap: "round",
+						strokeDasharray: c.toFixed(1), strokeDashoffset: off.toFixed(1), transform: "rotate(-90 " + size / 2 + " " + size / 2 + ")" })
+				] });
+			}
+			function slotLine(it) {
+				return (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-slot-row", children: [
+					slotRing(slotFrac(it), scheduleGameColor(it.g), 22, 3.4),
+					(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-slot-nm", children: [
+						(0, react_jsx_runtime.jsx)("b", { children: it.g.name }),
+						(0, react_jsx_runtime.jsx)("i", { children: it.title })
+					] }),
+					(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-slot-dd", children: [
+						(0, react_jsx_runtime.jsx)("em", { children: String(slotLeftDays(it)) }), " 天后结束"
+					] })
+				] });
+			}
+			function slotCard(list) {
+				const ending = list.filter((x) => x && typeof x.endTs === "number" && x.state !== "long" && x.endTs > now)
+					.sort((a, b) => a.endTs - b.endTs);
+				const head = ending[0];
+				if (!head) return (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-slot gacha-cal-sched-slot--empty" });
+				const color = scheduleGameColor(head.g);
+				const frac = slotFrac(head);
+				return (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-slot", style: { "--gc": color }, children: [
+					(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-cap", children: "下一个截止" }),
+					(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-slot-ring", children: [
+						slotRing(frac, color, 132, 9),
+						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-slot-ic", children: (0, react_jsx_runtime.jsx)(GameIcon, { icon: head.g.icon, name: head.g.name, size: 86 }) })
+					] }),
+					(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-gn", children: head.g.name }),
+					(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-slot-days", children: [
+						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-slot-n", children: String(slotLeftDays(head)) }),
+						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-slot-u", children: "天后结束" })
+					] }),
+					(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-ttl", children: head.title }),
+					(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-sub", children: (head.raw || "") + " · 已过 " + Math.round(frac * 100) + "%" }),
+					ending.length > 1 ? (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-more", children: ending.slice(1, 3).map(slotLine) }) : null
+				] });
+			}
 			return (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched", children: [
 				// ① 标题「二游日历」+ 日期胶囊
 				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-head", children: [
@@ -528,13 +588,13 @@
 					sep(), (0, react_jsx_runtime.jsx)("b", { children: String(liveCount) }), " 条在期",
 					failedSources.length ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [sep(), (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-warn", children: String(failedSources.length) + " 个来源刷新失败" })] }) : null
 				] }),
-				// ③ 「近期」：跨游戏、按紧迫度、全列出；右侧虚线空框先留空（用途未定）
+				// ③ 「近期」：跨游戏、按紧迫度、全列出；右侧是「下一个截止」卡（见上）
 				(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-h2", children: (0, react_jsx_runtime.jsx)("h4", { children: "近期" }) }),
 				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-recent", children: [
 					(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-urgent", children: recent.length
 						? recent.map(recentRow)
 						: (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-empty", children: "这段时间没有要盯的档期" }) }),
-					(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-slot" })
+					slotCard(all)
 				] }),
 				// ④ 游戏表：**没有区块标题**，列表头直接跟在后面
 				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-tcap", children: [
