@@ -143,7 +143,7 @@
 			/* 列与列之间有 12px 网格间隙：底板只贴列的话，越过行之后那条间隙盖不到 → 露白缝。
 			   两侧各伸进 6px，并用内边距补回来，内容仍与列对齐；最右侧那一列右边没有间隙，故只伸左边。 */
 			.gacha-cal-sched-cell[data-t="gacha"] .gacha-cal-sched-rest{left:-6px;right:-6px;padding-left:16px;padding-right:16px}
-			.gacha-cal-sched-cell[data-t="event"] .gacha-cal-sched-rest{left:-6px;padding-left:16px}
+			.gacha-cal-sched-cell[data-t="event"] .gacha-cal-sched-rest{left:-6px;right:-8px;padding-left:16px;padding-right:18px}
 			/* 虚化只作用在**内容**上：浮层本体绝不能有 opacity（父级 opacity 会让那层底一起变半透明 → 下一行的字透出来） */
 			.gacha-cal-sched-rest .gacha-cal-sched-item{opacity:.62;transition:opacity .2s cubic-bezier(.4,0,.2,1)}
 			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest{clip-path:inset(0 0 0 0);pointer-events:auto}
