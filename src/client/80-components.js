@@ -307,26 +307,9 @@
 			return (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-tl", "data-state": state, children: cells });
 		}
 		// ── 「另有 N 条」的条数从哪来 ─────────────────────────────────────────────
-		// 引擎只给**一条**外显条目 + 一段供悬停用的多行文本（`bannerHover` / `eventHover`），
-		// **没有**并列条目的数组。解析器契约（25-parser-shared.js 的 hoverPool / hoverEvent /
-		// buildPoolHover / buildEventHover）是"当期 **≥2** 条时每条一行，不足 2 条给空串"，且三种排版：
-		//   · 活动式 —— 每条自带档期：`名称   MM-DD HH:MM ~ MM-DD HH:MM`
-		//   · 卡池式 —— 档期另起一行：`池名：角色` ⏎ `MM-DD HH:MM ~ MM-DD HH:MM`
-		//   · 两者在"窗口完全相同"时都只在**末尾**写一遍档期
-		// 于是按形状数行即可。⚠️ 鸣潮的卡池悬停（30-game-kuro.js）还在首行多带一个"卡池类型"，
-		// 所以最后一种排版里若首行**正好等于外显标题**（类型行就是这么来的）就减 1 —— 这只可能出现在卡池侧。
-		const SCHEDULE_WINDOW_LINE = /^(?:\d{4}-)?\d{1,2}-\d{1,2} \d{1,2}:\d{2} ~ (?:\d{4}-)?\d{1,2}-\d{1,2} \d{1,2}:\d{2}$/;
-		const SCHEDULE_INLINE_WINDOW = / (?:\d{4}-)?\d{1,2}-\d{1,2} \d{1,2}:\d{2} ~ (?:\d{4}-)?\d{1,2}-\d{1,2} \d{1,2}:\d{2}$/;
-		function scheduleParallelCount(hover, shownTitle, isG) {
-			const lines = String(hover || "").split("\n").map((x) => x.trim()).filter(Boolean);
-			if (lines.length < 2) return 0;                        // 契约：不足 2 条时给的是空串
-			const items = lines.filter((x) => !/^以及常驻活动/.test(x) && !SCHEDULE_WINDOW_LINE.test(x));
-			const windows = lines.filter((x) => SCHEDULE_WINDOW_LINE.test(x));
-			if (items.filter((x) => SCHEDULE_INLINE_WINDOW.test(x)).length >= 2) return items.length;  // 活动式
-			if (windows.length >= 2) return windows.length;        // 卡池式：档期一行一池
-			const typeHead = isG && items.length > 1 && items[0] === String(shownTitle || "").trim() ? 1 : 0;
-			return Math.max(1, items.length - typeHead);
-		}
+		// 注：原先这里有一段「按悬停文本数并列条数」的 scheduleParallelCount（靠正则猜三种排版），
+		// 用于旧格子里的「另有 N 条」。2026-10-15 大列表改为「探头 + 悬停覆盖展开」后不再需要，
+		// 已整段删除（连同两条只服务于它的正则）—— 少一处脆弱的文本解析。
 
 		// 底部「上次更新 X 分钟前」：只给玩家日常说法，不写绝对时间戳（绝对时间在悬停里）。
 		function scheduleAgo(ts, now) {
@@ -429,19 +412,28 @@
 						]
 					});
 				}
-				const it = list.slice().sort(schedulePickItem)[0];
-				const title = it.title || it.raw || "—";
-				// 同格多条：露**最该看的那条** + 「另有 N 条」（不折叠、不点开）。条数只能按悬停文本数，见上面
-				const more = scheduleParallelCount(isG ? g.bannerHover : g.eventHover, it.title, isG) - 1;
+				const sorted = list.slice().sort(schedulePickItem);
+				const it = sorted[0];
+				// 同格多条（2026-10-15 定稿）：**第一条完整三行**（名称 / 档期·状态 / 迷你条），
+				// 其余收进「探头」：收起只露顶部 12px 且虚化，悬停时该格底板向下变长**覆盖**下面的行
+				// （下面的行位置一格不动、格子高度恒定、文字不位移）。不再写「另有 N 条」文字。
+				const itemOf = (x, key) => (0, react_jsx_runtime.jsxs)("div", {
+					key, className: "gacha-cal-sched-item", "data-u": scheduleUrgency(x),
+					children: [
+						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cn", title: x.title || x.raw || "—", children: x.title || x.raw || "—" }),
+						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cm gacha-cal-sched-num", children: scheduleMeta(x, now) }),
+						scheduleBars(x, days)
+					]
+				});
+				const rest = sorted.slice(1);
 				return (0, react_jsx_runtime.jsxs)("div", {
 					className: "gacha-cal-sched-cell", "data-t": side, "data-u": scheduleUrgency(it),
 					children: [
-						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cn", title, children: title }),
-						(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-cm gacha-cal-sched-num", children: [
-							scheduleMeta(it, now),
-							more > 0 ? (0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-more", children: [" 另有 ", String(more), " 条"] }) : null
-						] }),
-						scheduleBars(it, days)
+						itemOf(it, "first"),
+						rest.length ? (0, react_jsx_runtime.jsx)("div", {
+							className: "gacha-cal-sched-rest",
+							children: rest.map((x, i) => itemOf(x, "r" + i))
+						}) : null
 					]
 				});
 			};

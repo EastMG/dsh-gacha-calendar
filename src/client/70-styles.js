@@ -118,7 +118,38 @@
 			.gacha-cal-sched-gic{display:inline-flex;flex:0 0 auto;width:40px;height:40px;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));border-radius:11px;overflow:hidden;background:var(--dsw-alias-bg-layer-2,rgba(127,127,127,.08))}
 			.gacha-cal-sched-gn{font-size:13px;font-weight:650;line-height:1.32;letter-spacing:-.1px;white-space:normal;overflow-wrap:break-word;text-wrap:balance}
 			/* 一格 = 该游戏的卡池侧或活动侧：名称 + 「档期 · 状态」，不折叠不点开；同格多条时露一条 + 「另有 N 条」 */
-			.gacha-cal-sched-cell{min-width:0}
+			/* 一格 = 该游戏的卡池侧或活动侧：**第一条完整三行**（名称 / 档期·状态 / 迷你条），
+			   其余条目收在「探头」里（见下面 .gacha-cal-sched-rest）。
+			   z-index 必须**带过渡**：:hover 一消失层级会立刻掉回默认，而**后面的行/格子默认画在上面** →
+			   收回动画期间下一行的字会被画到探头上（用 elementFromPoint 与几何对照实测抓到过）。
+			   ⚠️ 禁止：transform 作用于带文字的盒子（会重采样=重影）、max-height 等布局型动画（卡）、
+			   阴影/边框/浅灰底（用户要求"一体化"，悬停与收起必须同色）。 */
+			.gacha-cal-sched-cell{min-width:0;position:relative;z-index:1;border-radius:8px;padding:0 0 4px;
+				transition:background .26s cubic-bezier(.4,0,.2,1),z-index .42s linear}
+			.gacha-cal-sched-cell:has(.gacha-cal-sched-rest){padding-bottom:16px}
+			.gacha-cal-sched-cell:hover{background:var(--dsw-alias-bg-base);border-radius:10px 10px 0 0;z-index:20}
+			.gacha-cal-sched-item{display:block}
+			.gacha-cal-sched-item+.gacha-cal-sched-item{margin-top:7px}
+			/* 探头：常驻绝对定位（永不参与文档流 → 格子高度恒定、下面的行一格不动）；
+			   收起只露顶部 12px；悬停用 clip-path 揭开并**覆盖**下面各行（合成层动画、不触发布局、不重排文字）。 */
+			.gacha-cal-sched-rest{display:block;position:absolute;left:0;right:0;top:calc(100% - 12px);
+				margin:0;pointer-events:none;background:var(--dsw-alias-bg-base);
+				clip-path:inset(0 0 calc(100% - 12px) 0);
+				transition:clip-path .42s cubic-bezier(.22,1.2,.28,1)}
+			.gacha-cal-sched-rest .gacha-cal-sched-item:first-child{margin-top:3px}
+			/* 虚化只作用在**内容**上：浮层本体绝不能有 opacity（父级 opacity 会让那层底一起变半透明 → 下一行的字透出来） */
+			.gacha-cal-sched-rest .gacha-cal-sched-item{opacity:.62;transition:opacity .2s cubic-bezier(.4,0,.2,1)}
+			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest{clip-path:inset(0 0 0 0);pointer-events:auto}
+			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest .gacha-cal-sched-item{opacity:1}
+			/* 渐隐遮罩：**跟着揭开边缘往下走**；且淡入**不能有延迟**（否则下面一行会被硬边露出来，用户反馈过） */
+			.gacha-cal-sched-rest::after{content:"";position:absolute;left:0;right:0;top:5px;height:9px;
+				background:linear-gradient(180deg,transparent,var(--dsw-alias-bg-base));
+				transition:top .42s cubic-bezier(.22,1.2,.28,1),opacity .18s cubic-bezier(.4,0,.2,1);pointer-events:none}
+			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest::after{top:calc(100% - 9px);opacity:0}
+			/* 探头里的条目按**各自**的紧迫度着色（格子级 data-u 只管第一条） */
+			.gacha-cal-sched-item[data-u="1"] .gacha-cal-sched-cn{color:var(--dsw-alias-state-error-primary,#b3261e);font-weight:650}
+			.gacha-cal-sched-item[data-u="1"] .gacha-cal-sched-cm{color:var(--dsw-alias-state-error-primary,#b3261e)}
+			.gacha-cal-sched-item[data-u="2"] .gacha-cal-sched-cm{color:var(--dsw-alias-state-warn-label,#9a4a06)}
 			.gacha-cal-sched-cell[data-t="gacha"]{--gf:var(--g)}
 			.gacha-cal-sched-cell[data-t="event"]{--gf:color-mix(in oklab,var(--g) 42%,#fff)}
 			.gacha-cal-sched-cn{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
