@@ -113,11 +113,13 @@
 			.gacha-cal-sched-theadline{height:1px;background:var(--dsw-alias-border-l1,rgba(127,127,127,.25));margin-top:3px}
 			/* 一行 = 一款游戏；--g 由 JS 内联（游戏代表色），这里只是拿不到内联值时的兜底 */
 			.gacha-cal-sched-trow{--g:var(--dsw-alias-state-business-primary,#3b5bfd);display:grid;grid-template-columns:158px 1fr 1fr;gap:0 12px;padding:9px 8px 10px;align-items:start;border-bottom:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25))}
-			.gacha-cal-sched-trow:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1))}
+			/* 行悬停：**不再整行铺浅灰底** —— 悬停该格时底板会向下变长（不透明、面板同色），
+			   底板上再落一层灰就变成"外灰内白"的色块（用户 2026-10-15 反馈）。
+			   悬停反馈改由两件事承担：① 该格底板展开；② 下面这条只染**游戏名列**的圆角浅灰。 */
+			.gacha-cal-sched-trow:hover .gacha-cal-sched-gm{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1));border-radius:8px}
 			.gacha-cal-sched-gm{display:flex;align-items:center;gap:11px;min-width:0;align-self:center}
 			.gacha-cal-sched-gic{display:inline-flex;flex:0 0 auto;width:40px;height:40px;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));border-radius:11px;overflow:hidden;background:var(--dsw-alias-bg-layer-2,rgba(127,127,127,.08))}
 			.gacha-cal-sched-gn{font-size:13px;font-weight:650;line-height:1.32;letter-spacing:-.1px;white-space:normal;overflow-wrap:break-word;text-wrap:balance}
-			/* 一格 = 该游戏的卡池侧或活动侧：名称 + 「档期 · 状态」，不折叠不点开；同格多条时露一条 + 「另有 N 条」 */
 			/* 一格 = 该游戏的卡池侧或活动侧：**第一条完整三行**（名称 / 档期·状态 / 迷你条），
 			   其余条目收在「探头」里（见下面 .gacha-cal-sched-rest）。
 			   z-index 必须**带过渡**：:hover 一消失层级会立刻掉回默认，而**后面的行/格子默认画在上面** →
