@@ -367,7 +367,13 @@
 			const dueCount = all.filter((x) => x.state === "live" && x.remain <= SCHEDULE_DUE_MS).length;
 			const waitCount = all.filter((x) => x.state === "wait").length;
 			const liveCount = all.filter((x) => x.state === "live" || x.state === "long").length;
-			const recent = all.slice().sort((a, b) => schedulePickItem(a, b) || (a.g.name < b.g.name ? -1 : a.g.name > b.g.name ? 1 : 0));
+			// 「近期」= **7 天内有事发生**（到期或开始）；更远的只出现在下方游戏表里
+			// （用户 2026-10-15：不能把 20 多天后的也算近期）。长期/已结束不进近期。
+			const SCHEDULE_NEAR_MS = SCHEDULE_AMBER_MS;
+			const scheduleNear = (x) => (x.state === "wait"
+				? x.startTs != null && x.startTs - now.getTime() <= SCHEDULE_NEAR_MS
+				: x.state === "live" && x.remain <= SCHEDULE_NEAR_MS);
+			const recent = all.filter(scheduleNear).sort((a, b) => schedulePickItem(a, b) || (a.g.name < b.g.name ? -1 : a.g.name > b.g.name ? 1 : 0));
 			const days = scheduleDays(now);
 			// 日期胶囊：设计稿写「10 月 5 日 · 周日」
 			const datePill = now.getMonth() + 1 + " 月 " + now.getDate() + " 日 · " + SCHEDULE_WEEKDAYS[now.getDay()];

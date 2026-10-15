@@ -92,8 +92,7 @@
 			.gacha-cal-sched-who{flex:0 0 auto;width:78px;font-size:12.5px;color:var(--dsw-alias-label-secondary,#4a5261);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 			.gacha-cal-sched-kind{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:1px 5px;border-radius:999px}
 			/* 图标形状已可辨（星芒 vs 旗帜），收窄后不再显示「卡池/活动」二字（设计稿的取舍） */
-			.gacha-cal-sched-kind > span{display:none}
-			.gacha-cal-sched-kind[data-t="gacha"]{color:var(--dsw-alias-link,#3b5bfd);background:color-mix(in oklab,var(--dsw-alias-state-business-primary,#3b5bfd) 10%,transparent)}
+						.gacha-cal-sched-kind[data-t="gacha"]{color:var(--dsw-alias-link,#3b5bfd);background:color-mix(in oklab,var(--dsw-alias-state-business-primary,#3b5bfd) 10%,transparent)}
 			.gacha-cal-sched-kind[data-t="event"]{color:var(--dsw-alias-state-warn-label,#9a4a06);background:color-mix(in oklab,var(--dsw-alias-state-warn-primary,#f5a524) 16%,transparent)}
 			.gacha-cal-sched-what{flex:1 1 auto;min-width:0;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 			/* 时间结论 = 紧迫度。全屏只有这几处用颜色表紧迫度（文字=紧迫度，颜色=游戏，各管一件事） */
@@ -136,10 +135,9 @@
 			.gacha-cal-sched-tl i[data-f="done"]{background:repeating-linear-gradient(45deg,color-mix(in oklab,var(--gf,var(--dsw-alias-label-primary,#1f2329)) 45%,transparent) 0 2px,transparent 2px 4px)}
 			.gacha-cal-sched-tl i[data-f="long"]{background:repeating-linear-gradient(90deg,color-mix(in oklab,var(--gf,var(--dsw-alias-label-primary,#1f2329)) 55%,transparent) 0 3px,transparent 3px 6px)}
 			.gacha-cal-sched-tl[data-state="wait"] i[data-f]{background:transparent;box-shadow:inset 0 0 0 1.5px color-mix(in oklab,var(--dsw-alias-state-business-primary,#3b5bfd) 55%,transparent)}
-			/* 今天那一格：一道深色竖线，与刻度上的今天对齐。
+			/* 今天那一格：**不用竖线**（用户 2026-10-15 要求），改为格子本身上下各加高 3px，与刻度上的今天对齐。
 			   设计稿按**格**画（只贯穿迷你条上下各 3px），不跨过上面的事项名文字 —— 跨过去会压在字上。 */
-			.gacha-cal-sched-tl i[data-today]{position:relative}
-			.gacha-cal-sched-tl i[data-today]::after{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1.5px;transform:translateX(-50%);background:var(--dsw-alias-label-primary,#1f2329);border-radius:1px}
+			.gacha-cal-sched-tl i[data-today]{margin-block:-3px;border-radius:2.5px}
 			/* ⑤ 图例：颜色认游戏、图案看状态 */
 			.gacha-cal-sched-legend{display:flex;gap:12px;margin-top:8px;font-size:10px;color:var(--dsw-alias-label-tertiary,#6b7280);flex-wrap:wrap}
 			.gacha-cal-sched-k{display:inline-flex;align-items:center;gap:4px}
