@@ -63,7 +63,7 @@
 			 *
 			 * 颜色一律 --dsw-* 语义令牌 + fallback → 跟随 DSH 的浅/深色，**不写**深色专用色值；
 			 * 唯一的字面色是"游戏代表色"（那是数据，不是主题色）。
-			 * 尺寸与设计稿对齐：游戏列 190px / 表头刻度与迷你条共用 14 格 / 图标框 26 与 40（图 24 与 38 + 1px 描边）。
+			 * 尺寸与设计稿对齐：游戏列 174px / 表头刻度与迷你条共用 14 格 / 图标框 26 与 40（图 24 与 38 + 1px 描边）。
 			 */
 			.gacha-cal-sched{display:flex;flex-direction:column;font-size:12px;color:var(--dsw-alias-label-primary,#1f2329)}
 			.gacha-cal-sched-num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
@@ -101,22 +101,22 @@
 			.gacha-cal-sched-u[data-u="1"] .gacha-cal-sched-when{color:var(--dsw-alias-state-error-primary,#b3261e)}
 			.gacha-cal-sched-u[data-u="2"] .gacha-cal-sched-when{color:var(--dsw-alias-state-warn-label,#9a4a06)}
 			.gacha-cal-sched-u[data-u="wait"] .gacha-cal-sched-when{color:var(--dsw-alias-link,#3b5bfd);font-weight:600}
-			/* ④ 游戏表：**没有区块标题**，列表头直接跟在后面；列 = 游戏(190px) / 卡池 / 活动 */
-			.gacha-cal-sched-tcap{display:grid;grid-template-columns:190px 1fr 1fr;gap:0 12px;padding:2px 8px 0;font-size:10.5px;color:var(--dsw-alias-label-tertiary,#6b7280)}
+			/* ④ 游戏表：**没有区块标题**，列表头直接跟在后面；列 = 游戏(174px) / 卡池 / 活动 */
+			.gacha-cal-sched-tcap{display:grid;grid-template-columns:174px 1fr 1fr;gap:0 12px;padding:2px 8px 0;font-size:10.5px;color:var(--dsw-alias-label-tertiary,#6b7280)}
 			.gacha-cal-sched-th{display:inline-flex;align-items:center;gap:5px;padding-left:9px}
 			.gacha-cal-sched-th[data-t="gacha"]{color:var(--dsw-alias-link,#3b5bfd)}
 			.gacha-cal-sched-th[data-t="event"]{color:var(--dsw-alias-state-warn-label,#9a4a06)}
 			.gacha-cal-sched-tic{width:12px;height:12px;flex:0 0 auto;display:inline-block;vertical-align:-1.5px}
-			.gacha-cal-sched-rulerrow{display:grid;grid-template-columns:190px 1fr 1fr;gap:0 12px;padding:0 8px}
+			.gacha-cal-sched-rulerrow{display:grid;grid-template-columns:174px 1fr 1fr;gap:0 12px;padding:0 8px}
 			.gacha-cal-sched-ruler{display:grid;grid-template-columns:repeat(14,1fr);gap:1px;margin-top:4px;font-size:8px;color:var(--dsw-alias-label-tertiary,#6b7280);text-align:center}
 			.gacha-cal-sched-ruler span[data-today]{color:var(--dsw-alias-label-primary,#1f2329);font-weight:700}
 			.gacha-cal-sched-theadline{height:1px;background:var(--dsw-alias-border-l1,rgba(127,127,127,.25));margin-top:3px}
 			/* 一行 = 一款游戏；--g 由 JS 内联（游戏代表色），这里只是拿不到内联值时的兜底 */
-			.gacha-cal-sched-trow{--g:var(--dsw-alias-state-business-primary,#3b5bfd);display:grid;grid-template-columns:190px 1fr 1fr;gap:0 12px;padding:9px 8px 10px;align-items:start;border-bottom:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25))}
+			.gacha-cal-sched-trow{--g:var(--dsw-alias-state-business-primary,#3b5bfd);display:grid;grid-template-columns:174px 1fr 1fr;gap:0 12px;padding:9px 8px 10px;align-items:start;border-bottom:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25))}
 			.gacha-cal-sched-trow:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1))}
 			.gacha-cal-sched-gm{display:flex;align-items:center;gap:11px;min-width:0;align-self:center}
 			.gacha-cal-sched-gic{display:inline-flex;flex:0 0 auto;width:40px;height:40px;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));border-radius:11px;overflow:hidden;background:var(--dsw-alias-bg-layer-2,rgba(127,127,127,.08))}
-			.gacha-cal-sched-gn{font-size:14px;font-weight:650;line-height:1.32;letter-spacing:-.1px;white-space:normal;overflow-wrap:break-word;text-wrap:balance}
+			.gacha-cal-sched-gn{font-size:13px;font-weight:650;line-height:1.32;letter-spacing:-.1px;white-space:normal;overflow-wrap:break-word;text-wrap:balance}
 			/* 一格 = 该游戏的卡池侧或活动侧：名称 + 「档期 · 状态」，不折叠不点开；同格多条时露一条 + 「另有 N 条」 */
 			.gacha-cal-sched-cell{min-width:0}
 			.gacha-cal-sched-cell[data-t="gacha"]{--gf:var(--g)}
@@ -137,7 +137,7 @@
 			.gacha-cal-sched-tl[data-state="wait"] i[data-f]{background:transparent;box-shadow:inset 0 0 0 1.5px color-mix(in oklab,var(--dsw-alias-state-business-primary,#3b5bfd) 55%,transparent)}
 			/* 今天那一格：**不用竖线**（用户 2026-10-15 要求），改为格子本身上下各加高 3px，与刻度上的今天对齐。
 			   设计稿按**格**画（只贯穿迷你条上下各 3px），不跨过上面的事项名文字 —— 跨过去会压在字上。 */
-			.gacha-cal-sched-tl i[data-today]{margin-block:-3px;border-radius:2.5px}
+			.gacha-cal-sched-tl i[data-today]{margin-block:-2px;border-radius:2.5px}
 			/* ⑤ 图例：颜色认游戏、图案看状态 */
 			.gacha-cal-sched-legend{display:flex;gap:12px;margin-top:8px;font-size:10px;color:var(--dsw-alias-label-tertiary,#6b7280);flex-wrap:wrap}
 			.gacha-cal-sched-k{display:inline-flex;align-items:center;gap:4px}
