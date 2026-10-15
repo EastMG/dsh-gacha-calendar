@@ -51,5 +51,66 @@
 			.gacha-cal-sort-btn:disabled{opacity:.35;cursor:default}
 			.gacha-cal-del-btn{color:#e5484d;padding:1px 6px}
 			.gacha-cal-del-btn:hover{background:rgba(229,72,77,.12)}
+			/* ══ 实验：新「日程」面板视图（settings.newPanel 打开时才渲染，见 80-components.js）══
+			 * 设计稿：dsh-gacha-ui-lab/a-optimized.html（浅色效果图 a-optimized-light.png）
+			 *
+			 * 颜色**一律**走 --dsw-* 语义令牌 + fallback → 跟随 DSH 的浅/深色。
+			 * ⚠️ 浅色不是深色反相：所以这里只出现语义令牌（label-* / border-* / bg-layer-* /
+			 *    state-* / interactive-bg-hover），**不写** #cfd8ff 这类"深色专用"硬编码色值。
+			 * ⚠️ 每行只有一个进度表达（.gacha-cal-sched-bar）；别在这里再加第二个。
+			 * ⚠️ 每个部件一个职责：图标=身份 / cat=类别 / bar=窗口进度（颜色只表紧迫度）/ cd=时间结论。 */
+			.gacha-cal-sched{display:flex;flex-direction:column;gap:0;font-size:12px;color:var(--dsw-alias-label-primary,inherit)}
+			.gacha-cal-sched-head{display:flex;align-items:center;gap:8px;padding:0 2px 9px}
+			.gacha-cal-sched-head h4{margin:0;font-size:14px;font-weight:600;letter-spacing:-.2px}
+			.gacha-cal-sched-pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:999px;font-size:11px;background:var(--dsw-alias-bg-layer-1,rgba(127,127,127,.08));border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));color:var(--dsw-alias-label-secondary,inherit)}
+			/* 四格摘要：先给结论，再给明细 */
+			.gacha-cal-sched-sum{display:flex;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));border-radius:12px;overflow:hidden;margin-bottom:9px;background:var(--dsw-alias-bg-layer-1,rgba(127,127,127,.05))}
+			.gacha-cal-sched-sum > div{flex:1;padding:7px 10px}
+			.gacha-cal-sched-sum > div + div{border-left:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25))}
+			.gacha-cal-sched-sum b{display:block;font-size:15px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums}
+			.gacha-cal-sched-sum span{font-size:10.5px;color:var(--dsw-alias-label-tertiary,rgba(127,127,127,.85))}
+			.gacha-cal-sched-sum > div[data-warn="true"] b{color:var(--dsw-alias-state-warn-label,var(--dsw-static-amber-500,#9a4a06))}
+			/* 筛选行 */
+			.gacha-cal-sched-filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px}
+			.gacha-cal-sched-f{padding:3px 10px;border-radius:999px;font-size:11px;cursor:pointer;color:var(--dsw-alias-label-secondary,inherit);background:transparent;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25))}
+			.gacha-cal-sched-f:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.12))}
+			.gacha-cal-sched-f[data-on="true"]{background:var(--dsw-alias-bg-layer-2,rgba(127,127,127,.14));color:var(--dsw-alias-label-primary,inherit);border-color:var(--dsw-alias-border-l2,rgba(127,127,127,.4))}
+			/* 分区标题（写明排序依据，不含糊） */
+			.gacha-cal-sched-sec{display:flex;align-items:center;gap:6px;margin:9px 2px 5px;font-size:10.5px;letter-spacing:.04em;color:var(--dsw-alias-label-tertiary,rgba(127,127,127,.85))}
+			.gacha-cal-sched-sec::after{content:"";flex:1;height:1px;background:var(--dsw-alias-border-l1,rgba(127,127,127,.25))}
+			.gacha-cal-sched-sec em{font-style:normal;font-weight:600;color:var(--dsw-alias-label-secondary,inherit)}
+			/* 行 */
+			.gacha-cal-sched-row{display:flex;align-items:center;gap:10px;padding:8px 9px;border-radius:12px;border:1px solid transparent;margin:1px 0}
+			.gacha-cal-sched-row:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1));border-color:var(--dsw-alias-border-l1,rgba(127,127,127,.25))}
+			.gacha-cal-sched-ic{flex:none;display:inline-flex}
+			.gacha-cal-sched-mid{display:flex;flex-direction:column;min-width:0;flex:1 1 auto;gap:3px}
+			.gacha-cal-sched-t1{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+			.gacha-cal-sched-t2{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--dsw-alias-label-tertiary,rgba(127,127,127,.85));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+			.gacha-cal-sched-cat{flex:none;display:inline-flex;align-items:center;gap:2px;font-size:9.5px;padding:0 6px;border-radius:999px;background:var(--dsw-alias-bg-layer-1,rgba(127,127,127,.08));border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));color:var(--dsw-alias-label-secondary,inherit)}
+			/* 唯一的进度表达：颜色只表紧迫度 */
+			.gacha-cal-sched-bar{display:block;height:3px;border-radius:999px;background:var(--dsw-alias-bg-layer-3,rgba(127,127,127,.2));overflow:hidden}
+			.gacha-cal-sched-bar > i{display:block;height:100%;border-radius:999px;background:var(--dsw-alias-state-business-primary,var(--dsw-static-deepseek-500,#3b5bfd))}
+			.gacha-cal-sched-row[data-urgency="soon"] .gacha-cal-sched-bar > i{background:var(--dsw-alias-state-warn-primary,var(--dsw-static-amber-400,#f5a524))}
+			.gacha-cal-sched-row[data-urgency="due"] .gacha-cal-sched-bar > i,.gacha-cal-sched-row[data-urgency="fail"] .gacha-cal-sched-bar > i{background:var(--dsw-alias-state-error-primary,var(--dsw-static-red-600,#e5484d))}
+			.gacha-cal-sched-row[data-state="long"] .gacha-cal-sched-bar > i{background:repeating-linear-gradient(90deg,var(--dsw-static-neutral-bluish-300,#98a2b3) 0 4px,transparent 4px 8px)}
+			.gacha-cal-sched-row[data-state="wait"] .gacha-cal-sched-bar > i{background:var(--dsw-alias-border-l2,rgba(127,127,127,.35))}
+			/* 右侧：唯一的时间结论 */
+			.gacha-cal-sched-rt{flex:none;min-width:64px;text-align:right;display:flex;flex-direction:column;gap:1px}
+			.gacha-cal-sched-lab{font-size:9.5px;color:var(--dsw-alias-label-tertiary,rgba(127,127,127,.85))}
+			.gacha-cal-sched-cd{font-size:16px;font-weight:700;letter-spacing:-.4px;line-height:1.1;font-variant-numeric:tabular-nums}
+			.gacha-cal-sched-cd small{font-size:9.5px;font-weight:500;color:var(--dsw-alias-label-tertiary,rgba(127,127,127,.85));margin-left:1px}
+			.gacha-cal-sched-row[data-urgency="due"] .gacha-cal-sched-cd{color:var(--dsw-alias-state-error-primary,var(--dsw-static-red-600,#b3261e))}
+			.gacha-cal-sched-row[data-urgency="soon"] .gacha-cal-sched-cd{color:var(--dsw-alias-state-warn-label,var(--dsw-static-amber-500,#9a4a06))}
+			.gacha-cal-sched-row[data-state="long"] .gacha-cal-sched-cd,.gacha-cal-sched-row[data-state="wait"] .gacha-cal-sched-cd{font-size:12px;color:var(--dsw-alias-label-secondary,inherit)}
+			/* 刷新失败：独立分区 + 可重试（重试 = 整轮刷新，引擎没有单源刷新接口，见 50-refresh.js） */
+			.gacha-cal-sched-row[data-state="fail"]{background:var(--dsw-alias-state-error-tertiary,rgba(229,72,77,.08));border-color:var(--dsw-alias-border-l2,rgba(229,72,77,.3))}
+			.gacha-cal-sched-retry{flex:none;padding:3px 9px;border-radius:999px;font-size:11px;cursor:pointer;background:transparent;color:var(--dsw-alias-label-error,var(--dsw-static-red-600,#b3261e));border:1px solid var(--dsw-alias-border-l2,rgba(229,72,77,.35))}
+			.gacha-cal-sched-retry:hover{background:var(--dsw-alias-interactive-bg-hover-danger,rgba(229,72,77,.12))}
+			.gacha-cal-sched-retry:disabled{opacity:.5;cursor:default}
+			.gacha-cal-sched-more{margin:6px 2px 0;padding:5px;width:calc(100% - 4px);text-align:center;font-size:11px;color:var(--dsw-alias-label-tertiary,rgba(127,127,127,.85));background:transparent;border:1px dashed var(--dsw-alias-border-l1,rgba(127,127,127,.25));border-radius:8px;cursor:pointer}
+			.gacha-cal-sched-more:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1))}
+			.gacha-cal-sched-empty{padding:14px 4px;text-align:center;font-size:11.5px;color:var(--dsw-alias-label-tertiary,rgba(127,127,127,.85))}
+			.gacha-cal-sched-foot{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));font-size:11px;color:var(--dsw-alias-label-tertiary,rgba(127,127,127,.85))}
+			.gacha-cal-sched-foot > span{min-width:0;flex:1 1 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:help}
 		`;
 		//#endregion

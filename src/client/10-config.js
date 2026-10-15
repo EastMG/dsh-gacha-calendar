@@ -39,6 +39,13 @@
 			// 自定义活动来源地址（JSON：{ [gameId]: "url" }，覆盖内置 eventUrl）
 			customEventUrls: "{}",
 			// 自定义条目（JSON 数组，字段与 SOURCES 一致）
-			customEntries: "[]"
+			customEntries: "[]",
+			// 【实验特性】新「日程」面板视图，**默认关闭**。
+			//   false / 未设置 → 面板完全走原来的六列表格渲染（与历史行为一字不差）；
+			//   true           → 换成按紧迫度排序的日程列表（四格摘要 + 筛选 + 分区）。
+			// 开关在设置页「自动刷新」那块下面；想回退关掉即可，原渲染路径一行未动。
+			// ⚠️ 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 里，否则设置页勾了
+			//    面板读不到（历史上 `shown` 漏过它，见 test/cases-rule-lint.mjs 的守卫）。
+			newPanel: false
 		};
 		//#endregion

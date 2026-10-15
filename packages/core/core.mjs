@@ -48,7 +48,14 @@
 			// 自定义活动来源地址（JSON：{ [gameId]: "url" }，覆盖内置 eventUrl）
 			customEventUrls: "{}",
 			// 自定义条目（JSON 数组，字段与 SOURCES 一致）
-			customEntries: "[]"
+			customEntries: "[]",
+			// 【实验特性】新「日程」面板视图，**默认关闭**。
+			//   false / 未设置 → 面板完全走原来的六列表格渲染（与历史行为一字不差）；
+			//   true           → 换成按紧迫度排序的日程列表（四格摘要 + 筛选 + 分区）。
+			// 开关在设置页「自动刷新」那块下面；想回退关掉即可，原渲染路径一行未动。
+			// ⚠️ 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 里，否则设置页勾了
+			//    面板读不到（历史上 `shown` 漏过它，见 test/cases-rule-lint.mjs 的守卫）。
+			newPanel: false
 		};
 		//#endregion
 
@@ -499,7 +506,9 @@ export function createEngine(env) {
 			//    防回归见 test/cases-rule-lint.mjs 的「DEFAULT_SETTINGS 的键必须都在 CONFIG_KEYS 里」。
 			const CONFIG_KEYS = [
 				"order", "hidden", "shown", "removed", "customEntries", "customUrls", "customEventUrls",
-				"autoRefresh", "refreshMinutes", "lastData", "lastRefresh", "lastSource", "lastVersion"
+				// newPanel：实验特性「新日程面板」开关（默认 false）。**别漏**——漏了就是 2026-10-03 那个
+				// 「勾了不生效」的复刻：设置页写进表单、面板却读不到。守卫见 test/cases-rule-lint.mjs。
+				"autoRefresh", "refreshMinutes", "newPanel", "lastData", "lastRefresh", "lastSource", "lastVersion"
 			];
 
 			// 读取配置（缺失项回落到 10-config.js 的 DEFAULT_SETTINGS）

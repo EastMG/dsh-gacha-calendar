@@ -32,7 +32,9 @@
 			//    防回归见 test/cases-rule-lint.mjs 的「DEFAULT_SETTINGS 的键必须都在 CONFIG_KEYS 里」。
 			const CONFIG_KEYS = [
 				"order", "hidden", "shown", "removed", "customEntries", "customUrls", "customEventUrls",
-				"autoRefresh", "refreshMinutes", "lastData", "lastRefresh", "lastSource", "lastVersion"
+				// newPanel：实验特性「新日程面板」开关（默认 false）。**别漏**——漏了就是 2026-10-03 那个
+				// 「勾了不生效」的复刻：设置页写进表单、面板却读不到。守卫见 test/cases-rule-lint.mjs。
+				"autoRefresh", "refreshMinutes", "newPanel", "lastData", "lastRefresh", "lastSource", "lastVersion"
 			];
 
 			// 读取配置（缺失项回落到 10-config.js 的 DEFAULT_SETTINGS）
