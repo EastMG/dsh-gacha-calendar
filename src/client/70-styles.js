@@ -69,8 +69,10 @@
 			 * 尺寸与设计稿对齐：游戏列 158px / 表头刻度与迷你条共用 14 格 / 图标框 26 与 40（图 24 与 38 + 1px 描边）。
 			 */
 			.gacha-cal-sched{display:flex;flex-direction:column;font-size:12px;color:var(--dsw-alias-label-primary,#1f2329);--sched-hover-bg:color-mix(in srgb,var(--dsw-alias-bg-base,#fff) 90%,rgb(127,127,127) 10%);
-				/* 卡片外观从这里给（原来是 .gacha-cal-pop）：高度=内容，不再受外层撑高影响 */
-				box-sizing:border-box;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:10px 12px;max-height:72vh;overflow:auto}
+				/* 卡片外观从这里给（原来是 .gacha-cal-pop）。⚠️ align-self:flex-start + flex:none：
+				   实测外层（DSH 侧栏）是 flex 容器并把本视图 stretch 到面板高度 —— 缺这两条会形成
+				   "量到被拉伸的高度 → 写回同值 → 继续被拉伸"的自锁循环，怎么改都不收敛。 */
+				align-self:flex-start;flex:none;box-sizing:border-box;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:10px 12px;max-height:72vh;overflow:auto}
 			.gacha-cal-sched-num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
 			/* ① 标题「二游日历」+ 日期胶囊（**没有**总计数胶囊） */
 			.gacha-cal-sched-head{display:flex;align-items:center;gap:10px;padding:2px 0 8px}

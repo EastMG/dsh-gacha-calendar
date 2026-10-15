@@ -606,19 +606,28 @@
 				const el = popRef.current;
 				if (!open || !el) return;
 				const fit = () => {
+					// ⚠️ 不能量 inner 自己的高度：外层把它 stretch 后它就恒等于面板高度 →
+					// 量出来"正好"、写回去还是同一个值 → **自锁循环**（实测 shell=inner=734 而内容仅 ~555）。
+					// 改为量**内容的实际跨度**：首个子元素顶边 → 末个子元素底边，再加视图内边距。
 					const inner = el.firstElementChild;
-					const content = (inner ? inner.getBoundingClientRect().height : el.scrollHeight) + 2;
+					let content;
+					if (inner && inner.children.length) {
+						const kids = Array.prototype.slice.call(inner.children);
+						const first = kids[0].getBoundingClientRect();
+						const last = kids[kids.length - 1].getBoundingClientRect();
+						const cs = window.getComputedStyle(inner);
+						content = (last.bottom - first.top) + (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0) + 2;
+					} else {
+						content = el.scrollHeight;
+					}
 					const cap = Math.round(window.innerHeight * 0.72);
 					el.style.setProperty("height", Math.round(content > cap ? cap : content) + "px", "important");
 				};
 				fit();
-				let ro;
-				if (typeof ResizeObserver !== "undefined") {
-					ro = new ResizeObserver(fit);
-					if (el.firstElementChild) ro.observe(el.firstElementChild);
-				}
-				// TEMP-DEBUG：400ms 后再量一次并显示在面板左上角 —— 判断"是不是我写回之后又被改掉"。
+				// 不挂 ResizeObserver：观察"会被拉伸的元素"本身就会成环。数据刷新引起的重排由 400ms 复量兜住。
+				// TEMP-DEBUG：400ms 后复量并显示在面板左上角（确认 shell 是否已等于内容跨度）。
 				const t = window.setTimeout(() => {
+					fit();
 					const inner = el.firstElementChild;
 					let tag = el.querySelector(".gacha-cal-dbg");
 					if (!tag) {
@@ -627,12 +636,18 @@
 						tag.style.cssText = "position:absolute;left:0;top:0;z-index:99999;font:10px/1.4 ui-monospace,monospace;color:#b00;background:#ff0;padding:1px 4px;white-space:nowrap;border-radius:0 0 4px 0";
 						el.appendChild(tag);
 					}
+					let span = "?";
+					if (inner && inner.children.length) {
+						const kids = Array.prototype.slice.call(inner.children);
+						span = String(Math.round(kids[kids.length - 1].getBoundingClientRect().bottom - kids[0].getBoundingClientRect().top));
+					}
 					tag.textContent = "DBG shell=" + Math.round(el.getBoundingClientRect().height)
-						+ " inner=" + (inner ? String(inner.className) + ":" + Math.round(inner.getBoundingClientRect().height) : "none")
+						+ " span=" + span
+						+ " inner=" + (inner ? Math.round(inner.getBoundingClientRect().height) : -1)
 						+ " inlineH=" + (el.style.getPropertyValue("height") || "-")
 						+ " vh=" + window.innerHeight;
 				}, 400);
-				return () => { if (ro) ro.disconnect(); window.clearTimeout(t); };
+				return () => window.clearTimeout(t);
 			}, [open, s.newPanel]);
 			// 最近一次抓取结果按游戏 id 索引；解析失败/未联网时为 {}
 			let scrapedById = {};
