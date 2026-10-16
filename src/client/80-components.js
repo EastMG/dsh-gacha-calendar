@@ -995,6 +995,12 @@
 			(0, react.useEffect)(() => {
 				const el = popRef.current;
 				if (!open || !el) return;
+				// F4：这段"量内容高 → 写 inline height(!important)"只属于**新面板**。
+				// 新面板的壳是 .gacha-cal-pop--sched（max-height:none / overflow:visible / padding:0），
+				// 需要靠 inline height 撑满并跟随内容；旧面板的壳是 .gacha-cal-pop（max-height:72vh + overflow:auto），
+				// 它本来靠 CSS 自己限高滚动 —— 给它钉一个 inline height 只会留下一个被 72vh 夹住的死高度。
+				// 判定沿用组件里那一处（与 className / children 同一个 `s.newPanel === true`），不另立第二套。
+				if (s.newPanel !== true) { el.style.removeProperty("height"); return; }
 				const fit = () => {
 					// 量**内容的实际跨度**（首个子元素顶边 → 末个子元素底边 + 视图内边距），而不是视图自身高度：
 					// 视图可能被上限/拉伸影响，"自身高度"不足以代表内容。
@@ -1249,6 +1255,9 @@
 						ref: (el) => {
 							popRef.current = el;
 							if (!el) return;
+							// F4：与上面 effect 同一个判定 —— 量高写 inline height 只服务新面板；
+							// 旧面板（.gacha-cal-pop，max-height:72vh）必须回到"没有任何 inline height"的原状。
+							if (s.newPanel !== true) { el.style.removeProperty("height"); return; }
 							// 为什么不用 useEffect：本插件环境里 effect 未执行（实测 inline style 始终只有 left/bottom，
 							// 高度写不进去、面板就按内容撑到 2699）。ref 回调由 React 保证在挂载时调用，最稳。
 							const fit = () => {
