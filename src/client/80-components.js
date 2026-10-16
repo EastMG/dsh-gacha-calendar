@@ -1571,7 +1571,7 @@
 						] }),
 						(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 11, marginBottom: 2 }, children: "「展示」控制显示；「↑↓」调整顺序；「颜色」点开取色器换该游戏主题色；来源可切换或自定义。" }),
 						// 表头行（与数据行同 grid 列；全部居中，与下方各列边界对齐）
-						(0, react_jsx_runtime.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "minmax(130px,1.2fr) 50px minmax(140px,1fr) minmax(140px,1fr) 40px 92px", gap: 12, alignItems: "center", padding: "3px 0", borderBottom: "1px solid var(--dsw-alias-border-l1)", color: "var(--dsw-alias-label-tertiary)", fontSize: 11 }, children: [
+						(0, react_jsx_runtime.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1.2fr) 44px minmax(0,1fr) minmax(0,1fr) 34px 84px", gap: 12, alignItems: "center", padding: "3px 0", borderBottom: "1px solid var(--dsw-alias-border-l1)", color: "var(--dsw-alias-label-tertiary)", fontSize: 11 }, children: [
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u6E38\u620F" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u5C55\u793A" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u5361\u6C60\u6765\u6E90" }),
@@ -1589,7 +1589,7 @@
 								style: { borderBottom: "1px solid var(--dsw-alias-border-l1)" },
 								children: [
 									(0, react_jsx_runtime.jsxs)("div", {
-										style: { display: "grid", gridTemplateColumns: "minmax(130px,1.2fr) 50px minmax(140px,1fr) minmax(140px,1fr) 40px 92px", gap: 12, alignItems: "center", padding: "8px 0" },
+										style: { display: "grid", gridTemplateColumns: "minmax(0,1.2fr) 44px minmax(0,1fr) minmax(0,1fr) 34px 84px", gap: 12, alignItems: "center", padding: "8px 0" },
 										children: [
 											(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6, minWidth: 0 }, children: [
 												(0, react_jsx_runtime.jsx)(GameIcon, { icon: g.icon, name: g.name, size: 22 }),
