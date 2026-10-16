@@ -1344,6 +1344,10 @@
 			const [adding, setAdding] = (0, react.useState)(false);
 			// 添加表单临时值（名称/图标手动填；卡池与活动内容由链接解析产出）
 			const [form, setForm] = (0, react.useState)({ name: "", icon: "", url: "", eventUrl: "", color: "" });
+			// 取色器的**本地草稿**（{ id: "#rrggbb" }）：写入是异步的，而 `s`（设置快照）在本次会话里
+			// 不会即时推新 ⇒ 受控 input 会立刻用旧值重渲染 ⇒ 用户看到"调完自己变回去"（2026-10-16 反馈）。
+			// 用草稿值显示即可消除该现象；落盘仍走 setGameColor → commit（实测 store 里是对的）。
+			const [colorDraft, setColorDraft] = (0, react.useState)({});
 			const [customInputs, setCustomInputs] = (0, react.useState)({});
 			const [eventCustomInputs, setEventCustomInputs] = (0, react.useState)({});
 			// 解析器自检（只读）：运行中标记 + 上一次的报告
@@ -1631,8 +1635,8 @@
 											// 主题色：点开系统取色器即时写回 gameColors（点右下「重置」样的小方块可取消覆盖）
 											(0, react_jsx_runtime.jsx)("label", { title: "主题色（点开系统取色器）", style: { justifySelf: "center", display: "inline-flex", alignItems: "center", cursor: "pointer" }, children: (0, react_jsx_runtime.jsx)("input", {
 												type: "color",
-												value: /^#[0-9a-f]{6}$/i.test(String(gameColorMap[g.id] || "")) ? gameColorMap[g.id] : (() => { const c = scheduleGameColor(g, gameColorMap); return /^#[0-9a-f]{6}$/i.test(c) ? c : "#3b5bfd"; })(),
-												onChange: (e) => setGameColor(g.id, e.target.value),
+												value: colorDraft[g.id] || (/^#[0-9a-f]{6}$/i.test(String(gameColorMap[g.id] || "")) ? gameColorMap[g.id] : (() => { const c = scheduleGameColor(g, gameColorMap); return /^#[0-9a-f]{6}$/i.test(c) ? c : "#3b5bfd"; })()),
+												onChange: (e) => { const v = e.target.value; setColorDraft((p) => ({ ...p, [g.id]: v })); setGameColor(g.id, v); },
 												className: "gacha-cal-color"
 											}) }),
 											(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 4, justifySelf: "center" }, children: [
