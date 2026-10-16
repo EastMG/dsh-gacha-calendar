@@ -401,6 +401,52 @@
 			}, [count, seconds, paused]);
 			return count > 0 ? step % count : 0;
 		}
+		// 探头定位：按格子实测写 --rx/--ry/--rw（左右各补 6px 盖住网格间隙）。
+		// 之所以用 fixed：absolute 的探头会把滚动容器"撑长"（实测悬停时 +133px），
+		// 靠下的格子一展开面板内容就变长 ⇒ 滑块缩短 / 滚动锚定位移 = 用户看到的"抽搐"。
+		// 代价是 fixed 用的是**视口坐标**，会随滚轮失效 ⇒ 由 slotScroll 在滚动时对这些变量重算。
+		function slotPlace(el) {
+			if (!el) return;
+			const b = el.getBoundingClientRect();
+			el.style.setProperty("--rx", (b.left - 6) + "px");
+			el.style.setProperty("--ry", (b.bottom - 12) + "px");
+			el.style.setProperty("--rw", (b.width + (el.getAttribute("data-t") === "gacha" ? 12 : 14)) + "px");
+		}
+		// 当前被悬停的格子只记一个：滚动时只重定位它 —— 不再用 :hover 查询（那会强制样式计算与命中测试），
+		// 且合并到每帧一次（rAF），否则滚轮每 16ms 就强制一次同步布局，滚动会一顿一顿的。
+		let slotHeld = null;
+		let slotRaf = 0;
+		function slotEnter(el) { slotHeld = el; slotPlace(el); }
+		function slotLeave(el) { if (slotHeld === el) slotHeld = null; }
+		function slotScroll() {
+			if (!slotHeld || slotRaf) return;
+			slotRaf = window.requestAnimationFrame(() => {
+				slotRaf = 0;
+				if (slotHeld) slotPlace(slotHeld);
+			});
+		}
+
+		// 展开的探头是 position:fixed ⇒ 指针在它上面时滚动链挂在视口上、不经过面板视图，滚轮会像被吃掉。
+		// 但又不能靠 pointer-events:none 放行：那样指针会穿透到下面那一行、把别人的探头激活（用户明确不要）。
+		// 所以：探头照旧接管指针（挡住下面那行），滚轮在这里手动转交给面板视图；
+		// 关键是把 delta 累积起来、**每帧只应用一次** scrollTop（每个 wheel 事件都赋值 = 每 16ms 一次同步布局 = 卡顿）。
+		let slotWheelDy = 0;
+		let slotWheelRaf = 0;
+		let slotWheelView = null;
+		function slotWheel(e) {
+			const el = e && e.currentTarget;
+			const v = el && el.closest ? el.closest(".gacha-cal-sched") : null;
+			if (!v) return;
+			slotWheelView = v;
+			slotWheelDy += e.deltaY;
+			if (slotWheelRaf) return;
+			slotWheelRaf = window.requestAnimationFrame(() => {
+				slotWheelRaf = 0;
+				const d = slotWheelDy;
+				slotWheelDy = 0;
+				if (slotWheelView && d) slotWheelView.scrollTop += d;
+			});
+		}
 		// ── 留白卡（模块作用域）──────────────────────────────────────────────
 		// ⚠️ 必须定义在这里，不能定义在 ScheduleView 内部：
 		// 父组件每秒都会重渲染（时钟 setNow），定义在里面的组件每次都是**新的函数身份**，
@@ -638,11 +684,18 @@
 				const rest = sorted.slice(1);
 				return (0, react_jsx_runtime.jsxs)("div", {
 					className: "gacha-cal-sched-cell", "data-t": side, "data-u": scheduleUrgency(it),
+					// 展开的探头改成 position:fixed：绝对定位元素会把滚动容器"撑长"（实测悬停时 +133px），
+					// 靠下的格子一展开面板内容就变长 ⇒ 滚动条滑块缩短 / 滚动锚定位移 = 用户看到的"抽搐"。
+					// fixed 的包含块是视口 ⇒ 既不撑大滚动区、也不会被面板裁掉 —— 真正"伸出面板之外"。
+					// 坐标按格子实测写入（--rx/--ry/--rw），滚动时由视图的 onScroll 重算。
+					onPointerEnter: (e) => slotEnter(e.currentTarget),
+					onPointerLeave: (e) => slotLeave(e.currentTarget),
 
 					children: [
 						itemOf(it, "first"),
 						rest.length ? (0, react_jsx_runtime.jsx)("div", {
 							className: "gacha-cal-sched-rest",
+							onWheel: slotWheel,
 							children: rest.map((x, i) => itemOf(x, "r" + i))
 						}) : null
 					]
@@ -667,7 +720,7 @@
 			});
 
 
-			return (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched", children: [
+			return (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched", onScroll: slotScroll, children: [
 				// ① 标题「二游日历」+ 日期胶囊
 				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-head", children: [
 					(0, react_jsx_runtime.jsx)("h4", { children: "二游日历" }),
