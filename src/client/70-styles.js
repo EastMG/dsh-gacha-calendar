@@ -77,7 +77,7 @@
 			 * 唯一的字面色是"游戏代表色"（那是数据，不是主题色）。
 			 * 尺寸与设计稿对齐：游戏列 158px / 表头刻度与迷你条共用 14 格 / 图标框 26 与 40（图 24 与 38 + 1px 描边）。
 			 */
-			.gacha-cal-sched{display:flex;flex-direction:column;font-size:12px;overflow-anchor:none;padding-bottom:132px;color:var(--dsw-alias-label-primary,#1f2329);--sched-hover-bg:color-mix(in srgb,var(--dsw-alias-bg-base,#fff) 90%,rgb(127,127,127) 10%);
+			.gacha-cal-sched{display:flex;flex-direction:column;font-size:12px;overflow-anchor:none;color:var(--dsw-alias-label-primary,#1f2329);--sched-hover-bg:color-mix(in srgb,var(--dsw-alias-bg-base,#fff) 90%,rgb(127,127,127) 10%);
 				/* 卡片外观从这里给（原来是 .gacha-cal-pop）。
 				   align-self:flex-start + flex:none：外层（DSH 侧栏）是 flex 容器、会把它 stretch 到面板高度；
 				   height:100% + max-height:none 则让卡片**铺满面板壳**（壳高由 JS 按"内容跨度 / 可用空间"写入）。
@@ -168,15 +168,8 @@
 			.gacha-cal-sched-cell[data-t="event"] .gacha-cal-sched-rest{left:-6px;right:-8px;padding-left:6px;padding-right:8px}
 			/* 虚化只作用在**内容**上：浮层本体绝不能有 opacity（父级 opacity 会让那层底一起变半透明 → 下一行的字透出来） */
 			.gacha-cal-sched-rest .gacha-cal-sched-item{opacity:.62;transition:opacity .2s cubic-bezier(.4,0,.2,1)}
-			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest{clip-path:inset(0 0 0 0);height:auto;overflow:visible;pointer-events:auto}
-			/* 探头向上翻转（最后几行用，见 80-components.js 的 slotFlip）：
-			   ① 贴到本行**上沿**：bottom:calc(100% - 12px)，高度自增时向上长；
-			   ② 收起态要露**下沿**那 12px（贴着本行），所以 clip-path 的方向与默认相反；
-			   ③ 悬停行必须抬到最上层 —— 行间 z-index 是"越靠上越高"（默认向下弹时正好压住下面的行），
-			      向上弹时方向反了，不抬就会被上面的行盖住。 */
-			.gacha-cal-sched-cell[data-flip] .gacha-cal-sched-rest{top:auto;bottom:calc(100% - 12px);clip-path:inset(calc(100% - 12px) 0 0 0)}
-			.gacha-cal-sched-cell[data-flip]:hover .gacha-cal-sched-rest{clip-path:inset(0 0 0 0)}
-			.gacha-cal-sched-trow:hover{position:relative;z-index:900 !important}
+			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest{clip-path:inset(0 0 0 0);height:auto;overflow:visible;pointer-events:auto;
+				position:fixed !important;left:var(--rx,0) !important;right:auto !important;top:var(--ry,0) !important;width:var(--rw,auto) !important;margin:0 !important}
 			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest .gacha-cal-sched-item{opacity:1}
 			/* 底色与遮罩渐变的终点色都挂**行悬停**（不是格子悬停）：整行还灰时底板就必须还是灰，
 			   否则指针在同一行里左右移动（或刚离开该格、底板还在收回）时，底板会瞬间变成纯白 = 用户看到的"遮罩还是白的"。 */
