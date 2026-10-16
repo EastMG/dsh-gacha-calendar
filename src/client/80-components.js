@@ -426,6 +426,27 @@
 			});
 		}
 
+		// 展开的探头是 position:fixed ⇒ 指针在它上面时滚动链挂在视口上、不经过面板视图，滚轮会像被吃掉。
+		// 但又不能靠 pointer-events:none 放行：那样指针会穿透到下面那一行、把别人的探头激活（用户明确不要）。
+		// 所以：探头照旧接管指针（挡住下面那行），滚轮在这里手动转交给面板视图；
+		// 关键是把 delta 累积起来、**每帧只应用一次** scrollTop（每个 wheel 事件都赋值 = 每 16ms 一次同步布局 = 卡顿）。
+		let slotWheelDy = 0;
+		let slotWheelRaf = 0;
+		let slotWheelView = null;
+		function slotWheel(e) {
+			const el = e && e.currentTarget;
+			const v = el && el.closest ? el.closest(".gacha-cal-sched") : null;
+			if (!v) return;
+			slotWheelView = v;
+			slotWheelDy += e.deltaY;
+			if (slotWheelRaf) return;
+			slotWheelRaf = window.requestAnimationFrame(() => {
+				slotWheelRaf = 0;
+				const d = slotWheelDy;
+				slotWheelDy = 0;
+				if (slotWheelView && d) slotWheelView.scrollTop += d;
+			});
+		}
 		// ── 留白卡（模块作用域）──────────────────────────────────────────────
 		// ⚠️ 必须定义在这里，不能定义在 ScheduleView 内部：
 		// 父组件每秒都会重渲染（时钟 setNow），定义在里面的组件每次都是**新的函数身份**，
@@ -674,6 +695,7 @@
 						itemOf(it, "first"),
 						rest.length ? (0, react_jsx_runtime.jsx)("div", {
 							className: "gacha-cal-sched-rest",
+							onWheel: slotWheel,
 							children: rest.map((x, i) => itemOf(x, "r" + i))
 						}) : null
 					]
