@@ -172,7 +172,7 @@
 			.gacha-cal-sched-cell[data-t="event"] .gacha-cal-sched-rest{left:-6px;right:-8px;padding-left:6px;padding-right:8px}
 			/* 虚化只作用在**内容**上：浮层本体绝不能有 opacity（父级 opacity 会让那层底一起变半透明 → 下一行的字透出来） */
 			.gacha-cal-sched-rest .gacha-cal-sched-item{opacity:.62;transition:opacity .2s cubic-bezier(.4,0,.2,1)}
-			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest{clip-path:inset(0 0 0 0);height:auto;overflow:visible;pointer-events:auto;
+			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest{clip-path:inset(0 0 0 0);height:auto;overflow:visible;pointer-events:auto;z-index:2;border-radius:0 0 10px 10px;
 				position:fixed !important;left:var(--rx,0) !important;right:auto !important;top:var(--ry,0) !important;width:var(--rw,auto) !important;margin:0 !important}
 			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest .gacha-cal-sched-item{opacity:1}
 			/* 底色与遮罩渐变的终点色都挂**行悬停**（不是格子悬停）：整行还灰时底板就必须还是灰，
@@ -226,11 +226,10 @@
 			   包含块，探头坐标（--rx/--ry 用视口坐标）会当场失效。真要让内容自身淡出，得先解决这个冲突。 */
 			.gacha-cal-sched-foot::before{content:"";position:absolute;left:0;right:0;bottom:100%;height:22px;pointer-events:none;
 				background:linear-gradient(180deg,transparent 0%,transparent 40%,color-mix(in srgb,var(--dsw-alias-bg-base,#fff) 70%,transparent) 78%,var(--dsw-alias-bg-base,#fff) 100%)}
-			.gacha-cal-sched-foot{position:relative;z-index:1000;flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:2px 0;border-top:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));font-size:10.5px;color:var(--dsw-alias-label-tertiary,#6b7280)}
-			/* z-index 必须压过内容行：行/格子的 --z 是"越靠上越大"（实测最高 900），
-			   而展开的探头是 position:fixed、跟着所属格子一起排在 900 那层。若底栏是 auto（默认），
-			   探头会画在底栏之上 ⇒ 底栏上沿那条渐隐盖不到它 ⇒ 探头（只存在于右侧两列）就成了硬边。
-			   （第一列没有探头，所以看起来"只右侧两列是硬边缘"。） */
+			.gacha-cal-sched-foot{position:relative;flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:2px 0;border-top:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));font-size:10.5px;color:var(--dsw-alias-label-tertiary,#6b7280)}
+			/* 底栏**不要**给 z-index：展开的探头是 position:fixed + z-index:auto，与底栏同层，
+			   DOM 靠后的底栏会盖住它 ⇒ 遮罩会糊在展开内容上（用户 2026-10-16 反馈）。
+			   正解是给展开的探头 z-index:2（见上面 :hover 那条），让探头稳定在上层。 */
 			/* ── 字体规范（2026-10 定）：中文不上 600+；标题 600、正文 400；中文补字距与行高。
 			   字体栈前置 MiSans / HarmonyOS Sans / 思源 / Noto：本机装了就用，没装才落回雅黑。 */
 			.gacha-cal-sched{font-family:-apple-system,"SF Pro Text","Segoe UI Variable Text","Segoe UI","MiSans","HarmonyOS Sans SC","Source Han Sans SC","Noto Sans SC","PingFang SC","Microsoft YaHei UI","Microsoft YaHei",sans-serif;
