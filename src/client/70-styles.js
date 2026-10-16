@@ -218,10 +218,12 @@
 			/* 刷新成功/失败横幅（旧面板 .gacha-cal-scrape 的同款）：文字一行 + 悬停给逐来源明细。
 			   常驻在底栏里，所以超宽时省略号截断，明细靠 tooltip。 */
 			.gacha-cal-sched-scrape{flex:1 1 auto;min-width:0;font-size:11px;color:var(--dsw-alias-label-tertiary,#6b7280);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:help}
-						/* 渐变遮罩：底栏上沿往上 16px 渐隐，内容滚到边缘时柔化收住。
-			   ⚠️ 不能改成给 .gacha-cal-sched-body 加 mask —— mask/filter/transform 会让该元素成为
-			   position:fixed 后代的包含块，探头坐标（--rx/--ry 用的是视口坐标）会当场失效。 */
-			.gacha-cal-sched-foot::before{content:"";position:absolute;left:0;right:0;bottom:100%;height:28px;pointer-events:none;
+						/* 渐变遮罩：底栏上沿往上 12px 渐隐，只软化"内容被底栏收住"的那条硬边。
+			   ⚠️ 不能加宽：overlay 式渐隐本质是**拿背景色盖住内容**，越宽越像给最后几行蒙一层白纱
+			   （实测 28px 时最后一行文字发灰 = 用户说的"更丑 / 只渐隐第一列"）。
+			   ⚠️ 也不能改成给滚动层加 mask —— mask/filter/transform 会让该元素成为 position:fixed 后代的
+			   包含块，探头坐标（--rx/--ry 用视口坐标）会当场失效。真要让内容自身淡出，得先解决这个冲突。 */
+			.gacha-cal-sched-foot::before{content:"";position:absolute;left:0;right:0;bottom:100%;height:12px;pointer-events:none;
 				background:linear-gradient(180deg,transparent,var(--dsw-alias-bg-base,#fff))}
 			.gacha-cal-sched-foot{position:relative;flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:2px 0;border-top:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));font-size:10.5px;color:var(--dsw-alias-label-tertiary,#6b7280)}   /* 常驻面板下端：它在滚动层**之外**（见 .gacha-cal-sched-body），内容不会从它下面穿过。 */
 			/* ── 字体规范（2026-10 定）：中文不上 600+；标题 600、正文 400；中文补字距与行高。
@@ -282,7 +284,7 @@
 				.gacha-cal-slot-slide{transition:none}
 			}
 			.gacha-cal-sched-foot > span{flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-			.gacha-cal-sched-btn{flex:0 0 auto;margin-left:auto;padding:2px 9px;border-radius:999px;background:var(--dsw-alias-bg-layer-1,rgba(127,127,127,.08));border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));color:var(--dsw-alias-label-secondary,#4a5261);font:inherit;font-size:10.5px;cursor:pointer}
+			.gacha-cal-sched-btn{flex:0 0 auto;margin-left:auto;padding:1px 9px;line-height:1.35;border-radius:999px;background:var(--dsw-alias-bg-layer-1,rgba(127,127,127,.08));border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));color:var(--dsw-alias-label-secondary,#4a5261);font:inherit;font-size:10.5px;cursor:pointer}
 			.gacha-cal-sched-btn:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1))}
 			.gacha-cal-sched-btn:disabled{opacity:.5;cursor:default}
 			.gacha-cal-sched-empty{padding:12px 8px;text-align:center;font-size:11.5px;color:var(--dsw-alias-label-tertiary,#6b7280)}
