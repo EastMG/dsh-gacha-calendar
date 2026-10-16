@@ -254,18 +254,17 @@
 			.gacha-cal-slot-bg{position:absolute;inset:0;z-index:0;opacity:0;
 				background:radial-gradient(120% 90% at 78% 0%,color-mix(in oklab,var(--gc,#888) 24%,transparent) 0%,transparent 62%),
 					linear-gradient(180deg,color-mix(in oklab,var(--gc,#888) 10%,var(--dsw-alias-bg-base,#fff)) 0%,var(--dsw-alias-bg-base,#fff) 78%);
-				animation:gacha-cal-slot-bgstep 24s linear infinite both}
+				}
 			.gacha-cal-slot-bg[data-t="gacha"]{--gc:var(--g)}
 			.gacha-cal-slot-bg[data-t="event"]{--gc:color-mix(in oklab,var(--g) 42%,#fff)}
-			.gacha-cal-slot-slide{position:relative;z-index:1;opacity:0;animation:gacha-cal-slot-cycle 24s linear infinite both}
+			.gacha-cal-slot-slide{position:relative;z-index:1;opacity:0;transition:opacity .38s cubic-bezier(.4,0,.2,1)}
 			.gacha-cal-slot-cine{position:relative;z-index:1}
-			@keyframes gacha-cal-slot-bgstep{0%{opacity:0} .12%{opacity:1} 16.6%{opacity:1} 16.7%{opacity:0} 100%{opacity:0}}
-			@keyframes gacha-cal-slot-cycle{0%{opacity:0} 1.6%{opacity:1} 15%{opacity:1} 16.6%{opacity:0} 100%{opacity:0}}
-			/* 悬停暂停改由 JS 处理（slotHold）：直接把当前最亮的那条钉 1、其余钉 0，
-			   所以这里**不能**再写 :hover{animation-play-state:paused} —— 它会在淡化中途冻住、留下半透明鬼影。 */
+
+
+			/* 悬停暂停由组件处理（useState + 清掉定时器）：停的就是当前那条，它本来就是全不透明，
+			   所以不写 :hover 或关键帧 —— 不依赖任何"此刻动画值"，也就不会留下半透明鬼影。 */
 			@media (prefers-reduced-motion:reduce){
-				.gacha-cal-slot-bg,.gacha-cal-slot-slide{animation:none}
-				.gacha-cal-slot-bg:first-of-type,.gacha-cal-slot-slide:first-of-type{opacity:1}
+				.gacha-cal-slot-slide{transition:none}
 			}
 			.gacha-cal-sched-foot > span{flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 			.gacha-cal-sched-btn{flex:0 0 auto;margin-left:auto;padding:4px 11px;border-radius:999px;background:var(--dsw-alias-bg-layer-1,rgba(127,127,127,.08));border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));color:var(--dsw-alias-label-secondary,#4a5261);font:inherit;font-size:10.5px;cursor:pointer}
