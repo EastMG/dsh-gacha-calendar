@@ -629,13 +629,20 @@
 				marqEl = el;
 			}
 		}
-		function ScheduleView({ games, now, s, refreshing, onRefresh, lastRefreshText, scrapeInfo, scrapeLines }) {
+		function ScheduleView({ games, now, s, colorMap, refreshing, onRefresh, lastRefreshText, scrapeInfo, scrapeLines }) {
 			// 每游戏主题色覆盖表（面板侧；设置组件里另有一份同名的）。
 			// ⚠️ 必须在这里也定义一次：下面的行 --g 与留白卡 slotAccent 都在本组件里用它，
 			//    漏了就是 ReferenceError ⇒ 整个面板（连带插件 UI）挂不上。
-			const gameColorMap = parseJsonStr(s.gameColors, {});
+			// T3：改由 CalendarPanel 把**已经解析好的表**传进来（colorMap），消除"同一份 JSON 在
+			//     两个组件各 parse 一次"；colorMap 缺席时才退回自己解析（保持组件可独立使用）。
+			const gameColorMap = colorMap || parseJsonStr(s.gameColors, {});
 			// 每一格（游戏 × 卡池/活动）的候选档期。已结束的**留在格子里**（这一侧没有在期内容时它就是
 			// 这格的代表，图案走斜纹），但不进「近期」—— 近期回答的是"现在该看哪几条"。
+			// ↓↓↓ 纯派生数据（与 CalendarPanel 同理）：4s 一次的「近期」翻页、每分钟时钟、以及任何
+			// 无关设置写入都会让本组件重渲染；这一段原本每次都要逐游戏跑 scheduleNormalize（28×2）
+			// ＋悬停文本解析＋失败归类。用 useMemo 按真正输入（games / now）缓存。
+			//   ⚠️ 依赖只写 games / now：本段不再读别的可变输入（主题色不参与，见 gameColorMap 只在下游用）。
+			const { cells, all, failed, failRows, failedSources, dueCount, waitCount, liveCount } = (0, react.useMemo)(() => {
 			const cells = new Map();
 			const all = [];
 			for (const g of games) {
@@ -676,6 +683,9 @@
 			const dueCount = all.filter((x) => x.state === "live" && x.remain <= SCHEDULE_DUE_MS).length;
 			const waitCount = all.filter((x) => x.state === "wait").length;
 			const liveCount = all.filter((x) => x.state === "live" || x.state === "long").length;
+			return { cells, all, failed, failRows, failedSources, dueCount, waitCount, liveCount };
+			}, [games, now]);
+			// ↑↑↑ useMemo 结束（cells / all / 失败归类 / 三个计数）
 			// 「近期」= **7 天内有事发生**（到期或开始）；更远的只出现在下方游戏表里
 			// （用户 2026-10-15：不能把 20 多天后的也算近期）。长期/已结束不进近期。
 			const SCHEDULE_NEAR_MS = SCHEDULE_AMBER_MS;
@@ -684,7 +694,10 @@
 			const scheduleNear = (x) => (x.state === "wait"
 				? x.startTs != null && x.startTs - now.getTime() <= SCHEDULE_NEAR_MS
 				: x.state === "live" && x.remain <= SCHEDULE_NEAR_MS);
-			const recent = all.filter(scheduleNear).sort((a, b) => schedulePickItem(a, b) || (a.g.name < b.g.name ? -1 : a.g.name > b.g.name ? 1 : 0));
+			// 「近期」列表：只由 all（上面已 memo）+ now 决定（scheduleNear 是纯函数）⇒ 同样缓存。
+			const recent = (0, react.useMemo)(
+				() => all.filter(scheduleNear).sort((a, b) => schedulePickItem(a, b) || (a.g.name < b.g.name ? -1 : a.g.name > b.g.name ? 1 : 0)),
+				[all, now]);
 			// 「近期」循环：每 4 秒整体换一批（每批 SCHEDULE_NEAR_LIMIT 条，末页用取模环绕 ⇒ 永远满 10 条、且能转遍全部）。
 			// 悬停、或点了「展开全部」时都停住 —— 想看全就展开，想停在某批就把鼠标放上去。
 			const [nearHeld, setNearHeld] = (0, react.useState)(false);
@@ -694,7 +707,8 @@
 			const nearRows = (nearAll || recent.length <= SCHEDULE_NEAR_LIMIT)
 				? recent
 				: Array.from({ length: SCHEDULE_NEAR_LIMIT }, (_, i) => recent[(nearPage * SCHEDULE_NEAR_LIMIT + i) % recent.length]);
-			const days = scheduleDays(now);
+			// 14 天轴（days）：原本每次渲染都是新数组 ⇒ 会把下面游戏表的 useMemo 依赖打穿（每帧失效）。
+			const days = (0, react.useMemo)(() => scheduleDays(now), [now]);
 			// 日期胶囊：设计稿写「10 月 5 日 · 周日」
 			const datePill = now.getMonth() + 1 + " 月 " + now.getDate() + " 日 · " + SCHEDULE_WEEKDAYS[now.getDay()];
 			const sep = () => (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-sep", children: "·" });
@@ -816,6 +830,17 @@
 				]
 			});
 
+			// 游戏表（28 行 × 每行两格 × 14 格迷你条 ≈ 2000~2600 个 <i>）：内容只由
+			// games / days / cells / 主题色 / now 决定，与「近期」的 4s 翻页、与无关的设置写入**无关**。
+			// 这里缓存**元素本身**：React 对同一 element 引用会直接跳过这棵子树的 render + reconcile
+			// （`oldProps === newProps` 的 bailout，与 React.memo 是同一机制）⇒ 4s 翻页不再重算这 2000+
+			// 个格子。**DOM、类名、内联变量（--g/--z）、动画标记与关键帧全部不变**（纯实现层缓存）。
+			// 依赖必须覆盖 rowOf/cellView 读到的全部输入：games（行序/数据）、days（14 天刻度）、
+			// cells（每格候选档期，含 now 结果）、gameColorMap（--g）、now（档期文本/紧迫度）。
+			const tableJsx = (0, react.useMemo)(() => (games.length
+				? games.map(rowOf)
+				: (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-empty", children: "还没有勾选任何游戏 · 去设置里挑几款" })),
+				[games, days, cells, gameColorMap, now]);
 
 			return (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched", children: [
 				// 滚动层：**底栏在它之外**。这样底栏常驻面板下端，而内容在它上沿干净收住，
@@ -869,9 +894,7 @@
 					(0, react_jsx_runtime.jsx)("span", {}), ruler(), ruler()
 				] }),
 				(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-theadline" }),
-				games.length
-					? games.map(rowOf)
-					: (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-empty", children: "还没有勾选任何游戏 · 去设置里挑几款" }),
+				tableJsx,
 
 				// ⑤ 刷新失败横条 + 重试（重试 = 整轮刷新：引擎没有单源刷新接口，见 50-refresh.js）
 				failed.length ? (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-failbar", title: failRows.join("\n"), children: [
@@ -915,7 +938,13 @@
 				return () => window.clearInterval(timer);
 			}, []);
 
-			(0, react.useEffect)(() => scope.subscribe(() => setSnapshot(scope.getSnapshot())), [scope]);
+			// 数据源 = 宿主 configForms 表单的**订阅**（scope.getSnapshot/subscribe，源码证据见报告 T1）。
+			// 订阅时补读一次：覆盖"首次渲染 → effect 订阅"之间可能落下的一次变更
+			// （快照引用未变时 React 直接跳过，不会多一次渲染）。
+			(0, react.useEffect)(() => {
+				setSnapshot(scope.getSnapshot());
+				return scope.subscribe(() => setSnapshot(scope.getSnapshot()));
+			}, [scope]);
 
 			const s = { ...DEFAULT_SETTINGS, ...(snapshot.value ?? {}) };
 			// 底栏那条"刷新成功/失败"横幅：**缓存里的最近一次结果也要能显示**。
@@ -965,21 +994,32 @@
 				// 只写一次：不挂 ResizeObserver、也不做延迟复写 —— 观察被拉伸的元素、或绘制后再写一次，
 				// 都会再触发重排（用户观察到"刚点开翻不动、隔一会才正常"）。数据刷新后重新开合面板即可覆盖。
 			}, [open, s.newPanel]);
-			// 最近一次抓取结果按游戏 id 索引；解析失败/未联网时为 {}
-			let scrapedById = {};
-			try { scrapedById = JSON.parse(s.lastData || "{}") || {}; } catch { scrapedById = {}; }
-			// 清理历史抓取数据中残留的版本号字段（新版解析器已不产出）
-			for (const k of Object.keys(scrapedById)) {
-				const v = scrapedById[k];
-				if (v && typeof v === "object" && "version" in v) delete v.version;
-			}
-			// 可见条目（隐藏/已删除的不显示）；抓取成功的数据覆盖卡池/活动列
-			const visible = getVisibleEntries(s);
+			// ↓↓↓ 以下四段是**纯派生数据**（无副作用、不读 ref/时间）：真机实测面板每次重渲染
+			// （设置写入的订阅回调、每分钟时钟、……）原本都要重新 JSON.parse lastData（实测 ~19KB
+			// = 按次渲染 JSON.parse 的大头）+ 重建条目表 + 重排 + 逐条覆盖抓取结果。
+			// 用 useMemo 按**真正的输入**缓存；`s` 每次渲染都是新对象（见上面 `const s = {...}`），
+			// 拿它当依赖等于不缓存 ⇒ 依赖一律写快照里的字段本身（字段引用在快照更新前稳定）。
+			const scrapedById = (0, react.useMemo)(() => {
+				// 最近一次抓取结果按游戏 id 索引；解析失败/未联网时为 {}
+				let rec = {};
+				try { rec = JSON.parse(s.lastData || "{}") || {}; } catch (e) { rec = {}; }
+				// 清理历史抓取数据中残留的版本号字段（新版解析器已不产出）
+				for (const k of Object.keys(rec)) {
+					const v = rec[k];
+					if (v && typeof v === "object" && "version" in v) delete v.version;
+				}
+				return rec;
+			}, [s.lastData]);
 			// 主题色覆盖表（设置页取色器写入）。**并进条目自身的 color**，
 			// 让面板里所有消费者（表格行 --g、留白卡 slotAccent、……）自动拿到同一个颜色 ——
 			// 不再把这张表透传到各组件（上一版透传时漏了作用域，直接把面板渲染崩了）。
-			const colorOverrides = parseJsonStr(s.gameColors, {});
-			const games = applyOrder(visible, s.order).map((g) => {
+			const colorOverrides = (0, react.useMemo)(() => parseJsonStr(s.gameColors, {}), [s.gameColors]);
+			// 可见条目（隐藏/已删除的不显示）；抓取成功的数据覆盖卡池/活动列
+			// 依赖 = getVisibleEntries 真正读的那几个字段（60-helpers.js:276 → getAllEntries:168 / isEntryHidden:269）
+			const visible = (0, react.useMemo)(
+				() => getVisibleEntries(s),
+				[s.removed, s.customEntries, s.hidden, s.shown]);
+			const games = (0, react.useMemo)(() => applyOrder(visible, s.order).map((g) => {
 				const ov = colorOverrides[g.id];
 				if (/^#[0-9a-f]{6}$/i.test(String(ov || ""))) g = { ...g, color: String(ov) };
 				const sc = scrapedById[g.id];
@@ -1008,7 +1048,7 @@
 					// 活动列逐条悬停文本（并行活动：每条一行；仅 1 条时为空 → UI 退回单条展示）
 					eventHover: sc.eventHover || ""
 				};
-			});
+			}), [visible, s.order, colorOverrides, scrapedById]);
 
 			// 在途锁用 ref 而不是 state：state 更新是异步的，"自动刷新与手动点击落在同一 tick"时
 			// 两次调用可能都看到 refreshing=false 而并发跑两轮（请求翻倍，且慢的那轮会用更旧的数据盖掉新的）
@@ -1211,7 +1251,7 @@
 						//    默认关 → 旧面板 DOM 与行为零变化，这是回退路径。
 						children: s.newPanel === true
 							? (0, react_jsx_runtime.jsx)(ScheduleView, {
-								games, now, s, refreshing, onRefresh: doRefresh,
+								games, now, s, colorMap: colorOverrides, refreshing, onRefresh: doRefresh,
 								lastRefreshText, scrapeInfo: bannerInfo, scrapeLines: bannerLines
 							})
 							: [
@@ -1370,7 +1410,18 @@
 					setSelfChecking(false);
 				}
 			};
-			(0, react.useEffect)(() => scope.subscribe(() => setSnapshot(scope.getSnapshot())), [scope]);
+			// 数据源 = 宿主 configForms 表单的**订阅**（T1）。scope 就是 dsh-client-ui-settings 的
+			// ConfigFormController：getSnapshot / subscribe / set / unset / mutate 都在它上面，
+			// 而 subscribe 挂在它的 snapshot store 上，写入成功会经
+			// mutate → mirror.acceptView → derive → store.set 同步通知到我们（源码证据见报告 T1）。
+			// ⇒ 不再需要"每次 commit 里手写重读快照"：那是同一个 store 的另一种读法，
+			//    却要在每次写入后多渲染一次整页（拖色时每帧一次），而且只能覆盖本组件发起的写入。
+			// 订阅时补读一次，覆盖"首次渲染 → effect 订阅"之间可能落下的一次变更
+			//（快照引用未变时 React 直接跳过，不会多一次渲染）。
+			(0, react.useEffect)(() => {
+				setSnapshot(scope.getSnapshot());
+				return scope.subscribe(() => setSnapshot(scope.getSnapshot()));
+			}, [scope]);
 			const s = { ...DEFAULT_SETTINGS, ...(snapshot.value ?? {}) };
 			// 表单可用性（写不进去时在页面上如实说明，见下面渲染处）。
 			// 文案与 formRejectHint 同源：只解释"为什么写不了"，不猜。
@@ -1403,21 +1454,21 @@
 			// （旧 settingsScope 的 set() 失败会抛）。所以只写 try/catch 的话，
 			// "宿主拒绝写入"会被当成成功，控件照样弹回、依旧没有任何提示。
 			// 必须显式判返回值：false = 宿主没接受（多半是该字段没进表单 / 修订号冲突 / 页面只读）。
+			//
+			// 根修（2026-10-16，第二次）：写入后**不再**手写 `setSnapshot(scope.getSnapshot())` ——
+			// 受控值的数据源改成上面的 scope.subscribe（订阅推送，写法见该 effect 的注释）。
+			// 返回值改成"是否被宿主接受"，供取色器节流（任务 2）判断要不要把值放回待写队列。
 			const [saveError, setSaveError] = (0, react.useState)("");
 			const commit = async (key, value) => {
 				try {
 					const accepted = await scope.set(key, value);
-					// 根修（2026-10-16）：`snapshot` 只在挂载时用 scope.getSnapshot() 取过一次，
-					// 之后**从不刷新** ⇒ 所有受控控件（取色器 / 展示开关 / 两个来源选择器 …）
-					// 写入后立刻被旧快照覆盖回去（表现为"调完变回去""点了没反应"）。
-					// 每次写入成功后就地重取一次快照，让整页受控值即时跟随。
-					try { setSnapshot(scope.getSnapshot()); } catch (e) { /* 取快照失败不影响写入结果 */ }
 					if (accepted === false) throw new Error(formRejectHint(scope, key));
 					setSaveError("");
+					return true;
 				} catch (err) {
 					setSaveError("\u4FDD\u5B58\u5931\u8D25\uFF1A" + String((err && err.message) || err || "未知错误"));
+					return false;
 				}
-				setSnapshot(scope.getSnapshot());
 			};
 
 			const setOrder = async (nextIds) => { await commit("order", nextIds); };
@@ -1474,7 +1525,10 @@
 			// 爬取地址：默认/备选源/自定义。customUrls[id] 存选中值：
 			// - 无 key → 默认源；- 值 === "custom:<用户输入>" → 自定义输入；- 其它（如 "proxy:https://..."）→ 备选源值
 			const entryUrlMode = (id, g) => {
-				const urls = parseJsonStr(s.customUrls, {});
+				// T3：不再每行重新 parseJsonStr —— 本组件渲染开头已经解析出 `urls`（见上面
+				// `const urls = parseJsonStr(s.customUrls, {})`），而这里每渲染一次就有 28 行 × 2 个选择器
+				// 各 parse 一遍（真机实测：12 次取色拖动共 2316 次 JSON.parse 的主因之一）。
+				// 直接用同一份已解析结果，语义完全一致（同一字符串 + 同一个 parseJsonStr 回退语义）。
 				if (!urls || typeof urls !== "object" || !Object.prototype.hasOwnProperty.call(urls, id)) return "default";
 				const v = urls[id];
 				if (typeof v === "string" && v.startsWith("custom:")) return "custom";
@@ -1496,7 +1550,8 @@
 			// 活动来源地址：默认/自定义（存 customEventUrls），判定同上（custom: 前缀）
 			const eventUrls = parseJsonStr(s.customEventUrls, {});
 			const eventUrlMode = (id) => {
-				const eu = parseJsonStr(s.customEventUrls, {});
+				// T3：同 entryUrlMode —— 复用本渲染开头解析好的 eventUrls，不再逐行 parse。
+				const eu = eventUrls;
 				if (!eu || typeof eu !== "object" || !Object.prototype.hasOwnProperty.call(eu, id)) return "default";
 				const v = eu[id];
 				return String(v ?? "").startsWith("custom:") ? "custom" : normalizeSourceId(v);
@@ -1504,7 +1559,12 @@
 			const setEventUrlMode = async (id, mode) => {
 				const next = { ...(eventUrls || {}) };
 				if (mode === "custom") next[id] = "custom:" + (eventCustomInputs[id] ?? "");
-				else delete next[id];
+				// 修（2026-10-16 真机取证）：原来这里是无条件 `else delete next[id]` ⇒ 选**备选活动源**
+				// （如"米游社公告"）时把 key 删掉、写回 "{}"，控件立刻弹回"默认"，用户永远选不上。
+				// 真机请求体证据：{"op":"set","path":["customEventUrls"],"value":"{}"}（响应 ok:true）。
+				// 与上面的卡池来源同构：default 才删，其余（备选源的 url/id）原样存入。
+				else if (mode === "default") delete next[id];
+				else next[id] = mode;
 				await commit("customEventUrls", JSON.stringify(next));
 			};
 			const setCustomEventUrl = async (id, value) => {
@@ -1514,10 +1574,39 @@
 				await commit("customEventUrls", JSON.stringify(next));
 			};
 			// 每游戏主题色：写入 gameColors（{ id: "#rrggbb" }）。非法/空值 = 删除该项 ⇒ 回落到出厂色/名字哈希。
-			const setGameColor = async (id, value) => {
-				const next = { ...parseJsonStr(s.gameColors, {}) };
-				if (value && /^#[0-9a-f]{6}$/i.test(value)) next[id] = value; else delete next[id];
-				await commit("gameColors", JSON.stringify(next));
+			//
+			// 写入节流（任务 2）：<input type="color"> 在原生取色器里**拖动**时会高频发 input 事件，
+			// 原实现每个事件都 commit 一次（= 一次 settings/mutate + 一次整页重渲染；真机实测 12 次连续
+			// 事件 = 12 次 mutate + 2738ms 长任务）。现在：
+			//   · onChange 只更新本地草稿（颜色立刻跟着手指变，视觉不变）+ 把值记进 pending；
+			//   · 落盘推迟到 **120ms 静默期**结束（尾沿去抖）⇒ 连续拖动只有最后一次值真正发出去；
+			//   · blur / pointerup / keyup 立即 flush ⇒ "停手就生效"；
+			//   · pending 只在**写入被宿主接受后**才清 ⇒ 两次写入交叠时不会丢掉另一次的值，
+			//     写失败也会留在队列里等下一次 flush 重试。
+			const liveSettings = (0, react.useRef)(s);
+			liveSettings.current = s;
+			const colorWrite = (0, react.useRef)({ timer: null, pending: null });
+			const flushGameColors = async () => {
+				const cw = colorWrite.current;
+				if (cw.timer !== null) { window.clearTimeout(cw.timer); cw.timer = null; }
+				const batch = cw.pending;
+				if (!batch || !Object.keys(batch).length) return;
+				// 基线用**最新快照**（ref 读，避免计时器闭包停在旧渲染），再叠加尚未落盘的 pending
+				const next = { ...parseJsonStr(liveSettings.current.gameColors, {}) };
+				for (const id of Object.keys(batch)) {
+					const v = batch[id];
+					if (v && /^#[0-9a-f]{6}$/i.test(v)) next[id] = v; else delete next[id];
+				}
+				const accepted = await commit("gameColors", JSON.stringify(next));
+				if (accepted) {
+					const cur = colorWrite.current.pending;
+					if (cur) for (const id of Object.keys(batch)) if (cur[id] === batch[id]) delete cur[id];
+				}
+			};
+			const setGameColor = (id, value) => {
+				colorWrite.current.pending = { ...(colorWrite.current.pending || {}), [id]: value };
+				if (colorWrite.current.timer !== null) window.clearTimeout(colorWrite.current.timer);
+				colorWrite.current.timer = window.setTimeout(() => { colorWrite.current.timer = null; flushGameColors(); }, 120);
 			};
 			// 添加自定义条目：名称/图标手动填，卡池与活动内容由链接解析产出
 			const addEntry = async () => {
@@ -1654,6 +1743,12 @@
 												type: "color",
 												value: colorDraft[g.id] || (/^#[0-9a-f]{6}$/i.test(String(gameColorMap[g.id] || "")) ? gameColorMap[g.id] : (() => { const c = scheduleGameColor(g, gameColorMap); return /^#[0-9a-f]{6}$/i.test(c) ? c : "#3b5bfd"; })()),
 												onChange: (e) => { const v = e.target.value; setColorDraft((p) => ({ ...p, [g.id]: v })); setGameColor(g.id, v); },
+												// 松手/失焦/按键抬起后立即落盘（不等 120ms 去抖窗口）。
+												// ⚠️ 原生取色器是**独立的系统窗口**，不保证把 pointerup 交回页面 ⇒
+												//     真正兜底的是 setGameColor 里那个 120ms 尾沿计时器（"停手就生效"）。
+												onBlur: () => { flushGameColors(); },
+												onPointerUp: () => { flushGameColors(); },
+												onKeyUp: () => { flushGameColors(); },
 												className: "gacha-cal-color"
 											}) }),
 											(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 4, justifySelf: "center" }, children: [
