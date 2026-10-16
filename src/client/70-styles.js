@@ -308,10 +308,18 @@
 			.gacha-cal-sched-foot{position:relative;flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:3px 0 4px;border-top:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));font-size:10.5px;color:var(--dsw-alias-label-tertiary,#6b7280)}
 			/* 底栏**不要**给 z-index：展开的探头是 position:fixed + z-index:auto，与底栏同层，
 			   DOM 靠后的底栏会盖住它 ⇒ 遮罩会糊在展开内容上（用户 2026-10-16 反馈）。
-			   正解是给展开的探头 z-index:2（见上面 :hover 那条），**并由探头自己负责"边缘不硬"**（四角圆角 + 投影）：
-			   ⚠️ 圆角必须写在**基础态**、且展开时保持 overflow:hidden —— 探头内部有一条 ::after 渐隐带（left/right:0），
-			   若展开时改成 overflow:visible，它的方角会露在圆角之外（用户 2026-10-16："四角有方方正正的残影和闪烁"）。
-			   四角 12px 圆角 + 柔和投影 ⇒ 它看起来是一块浮层，而不是切在内容上的直角白板。
+			   正解是给展开的探头 z-index:2（见上面 :hover 那条），**并由探头自己负责"边缘不硬"**：
+			   当前实现是**直角浮层** —— 四角不做圆角、也不加投影。
+			   真机实测（本轮带 token 复核）：展开后的 .gacha-cal-sched-rest 计算样式是
+			   border-radius:0px、box-shadow:none；面板里所有 .gacha-cal-sched-rest 没有一个带圆角或投影；
+			   整份 CSS 里该元素（含 :hover 与 ::after）**没有任何** border-radius / box-shadow 声明。
+			   ⇒ 别再照旧写法补圆角/投影。现在"边缘不硬"靠的是 overflow:hidden + clip-path
+			   （收起 inset(0 0 calc(100% - 12px) 0)、悬停 inset(0 0 0 0)）以及那条 ::after
+			   渐隐带（left/right:0；展开时移到盒子底部并淡出）。
+			   ⚠️ 别把 overflow 改成 visible：基础态与 :hover 两条都写着 overflow:hidden，
+			   它负责裁掉探头内溢出盒子的内容（收起态盒子必须压成 12px，见上面那段）。
+			   （早先那版写的"四角 12px 圆角 + 柔和投影 ⇒ 看起来是一块浮层"在当前实现里并不存在；
+			    为什么被移除没有记录，原因待确认。）
 			   两条已互相打架过一次（把底栏抬到探头之上 ⇒ 内容被糊），别再把两者绑在一起。 */
 			/* ── 字体规范（2026-10 定）：中文不上 600+；标题 600、正文 400；中文补字距与行高。
 			   字体栈前置 MiSans / HarmonyOS Sans / 思源 / Noto：本机装了就用，没装才落回雅黑。 */
@@ -352,9 +360,12 @@
 				white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 			.gacha-cal-slot-dd{font-size:10.5px;font-weight:400;letter-spacing:.02em;color:var(--dsw-alias-label-tertiary,#6b7280);font-variant-numeric:tabular-nums}
 			.gacha-cal-slot-dd em{font-style:normal;font-weight:600;color:var(--dsw-alias-label-primary,#1f2329)}
-			/* ── 留白卡：「按顺序循环」（6 格 / 每格 4 秒 / 24 秒一轮）──
+			/* ── 留白卡：「按顺序循环」（条数不限 = 当前在期且带结束时间的全部条目 / 每格 4 秒 /
+			   一轮 = 条数 × 4 秒，随数据变化，不是固定时长）──
 			   背景层硬切（两层交叉淡入会透出杂色），主体层软淡入（文字不闪）。
-			   纯 CSS：无定时器、无 state；hover 暂停；prefers-reduced-motion 只留第一条。 */
+			   ⚠️ 循环**不是**纯 CSS：这里没有关键帧定时器，节奏由组件里的 useCycle
+			   （useState + setInterval）驱动，hover 暂停也由组件处理 —— 这一段只管外观。
+			   prefers-reduced-motion 只去掉淡入（.gacha-cal-slot-slide 的 transition:none），循环本身照旧。 */
 			.gacha-cal-slot-bg{position:absolute;inset:0;z-index:0;opacity:0;
 				background:radial-gradient(120% 90% at 78% 0%,color-mix(in oklab,var(--gc,#888) 24%,transparent) 0%,transparent 62%),
 					linear-gradient(180deg,color-mix(in oklab,var(--gc,#888) 10%,var(--dsw-alias-bg-base,#fff)) 0%,var(--dsw-alias-bg-base,#fff) 78%);

@@ -546,7 +546,10 @@
 			}
 			// ⚠️ 这里**不能**用设置页的覆盖表：slotAccent 定义在 ScheduleView/SlotCard 之外的作用域，
 			//    拿不到 gameColorMap（上一版就是在这里踩了 ReferenceError，面板整块渲染失败）。
-			//    留白卡暂时用出厂色/名字哈希；覆盖色只作用于表格行与设置页（见下面 ScheduleView 里的同名表）。
+			//    但留白卡的 --g **就是**用户覆盖色：CalendarPanel 已把覆盖色并进条目的 color
+			//    （colorOverrides[g.id] 命中时写 g = { ...g, color: ov }），本函数读 g.color
+			//    ⇒ 覆盖色照样生效。旧注释写"留白卡暂时用出厂色/名字哈希、覆盖色只作用于表格行与设置页"
+			//    与事实相反（真实行为比那更好）。
 			const slotAccent = (it) => scheduleGameColor(it.g);
 			// 档期行：有 raw 才补分隔符；没有开始时间就不显示"已过 0%"（那是假信息）
 			function slotSub(it, frac) {
@@ -606,9 +609,13 @@
 				});
 			}
 		// ── 悬停自动滚动（截断文字不显示省略号，改为来回滚全文）——**由面板自己驱动** ──
-		// 老面板靠 90-plugin.js 的 document 级 mouseover/mousemove；那条路径在本机对真鼠标事件不响应
-		//（已实测：手动 dispatchEvent 能加类、真鼠标移动不能）⇒ 这里改用 React 的指针事件，
-		// 与探头浮层同一套机制，可当场验证。类名/变量沿用老面板那套（CSS 不用动）：
+		// 新面板走这里的 React 指针事件（与探头浮层同一套机制）；老面板仍走 90-plugin.js 的
+		// document 级 mouseover/mousemove/mouseout。两条路径在真鼠标（CDP 可信事件）下**都能工作**：
+		// 老面板的 .gacha-cal-cell 悬停会加上 .gacha-cal-marq + --gacha-marq-d（transform 真的在动）；
+		// 新面板「近期」列表的 .gacha-cal-sched-who/.gacha-cal-sched-what 同样生效。
+		// ⚠️ 此前记的"那条 document 路径在本机对真鼠标不响应（手动 dispatchEvent 能加类、真鼠标不能）"
+		//    是当时环境下的**误判**（只用合成事件采样，没走真实鼠标）⇒ 该结论已作废。
+		// 类名/变量沿用老面板那套（CSS 不用动）：
 		//   .gacha-cal-marq .gacha-cal-inner{animation:gacha-cal-marquee 3.5s …}  +  --gacha-marq-d
 		const MARQ_SEL = ".gacha-cal-sched-who, .gacha-cal-sched-what, .gacha-cal-slot-gn, .gacha-cal-slot-sub, .gacha-cal-slot-nm b, .gacha-cal-slot-nm i";
 		let marqEl = null;
@@ -690,7 +697,9 @@
 			// 「近期」= **7 天内有事发生**（到期或开始）；更远的只出现在下方游戏表里
 			// （用户 2026-10-15：不能把 20 多天后的也算近期）。长期/已结束不进近期。
 			const SCHEDULE_NEAR_MS = SCHEDULE_AMBER_MS;
-			// 「近期」默认只列前 10 条（已按紧迫度排序），其余折进「还有 N 条」；展开走纯 CSS 的 checkbox，不依赖 state/hook。
+			// 「近期」默认只列前 10 条（已按紧迫度排序），其余靠每 4 秒换一批（取模环绕）循环看到；
+			// 底部按钮「展开全部 N 条」= React state（nearAll），展开时列全部并停住循环，再点击是「收起」。
+			// ——面板里**没有**「还有 N 条」这个文案，也不再走纯 CSS 的 checkbox。
 			const SCHEDULE_NEAR_LIMIT = 10;
 			const scheduleNear = (x) => (x.state === "wait"
 				? x.startTs != null && x.startTs - now.getTime() <= SCHEDULE_NEAR_MS
