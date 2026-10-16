@@ -1579,7 +1579,7 @@
 						] }),
 						(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 11, marginBottom: 2 }, children: "「展示」控制显示；「↑↓」调整顺序；「颜色」点开取色器换该游戏主题色；来源可切换或自定义。" }),
 						// 表头行（与数据行同 grid 列；全部居中，与下方各列边界对齐）
-						(0, react_jsx_runtime.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,0.9fr) 44px minmax(0,1fr) minmax(0,1fr) 34px 84px", gap: 12, alignItems: "center", padding: "3px 0", borderBottom: "1px solid var(--dsw-alias-border-l1)", color: "var(--dsw-alias-label-tertiary)", fontSize: 11 }, children: [
+						(0, react_jsx_runtime.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,0.9fr) 44px minmax(0,1fr) minmax(0,1fr) 34px 88px", gap: 12, alignItems: "center", padding: "3px 0", borderBottom: "1px solid var(--dsw-alias-border-l1)", color: "var(--dsw-alias-label-tertiary)", fontSize: 11 }, children: [
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u6E38\u620F" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u5C55\u793A" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u5361\u6C60\u6765\u6E90" }),
@@ -1597,7 +1597,7 @@
 								style: { borderBottom: "1px solid var(--dsw-alias-border-l1)" },
 								children: [
 									(0, react_jsx_runtime.jsxs)("div", {
-										style: { display: "grid", gridTemplateColumns: "minmax(0,0.9fr) 44px minmax(0,1fr) minmax(0,1fr) 34px 84px", gap: 12, alignItems: "center", padding: "8px 0" },
+										style: { display: "grid", gridTemplateColumns: "minmax(0,0.9fr) 44px minmax(0,1fr) minmax(0,1fr) 34px 88px", gap: 12, alignItems: "center", padding: "8px 0" },
 										children: [
 											(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6, minWidth: 0 }, children: [
 												(0, react_jsx_runtime.jsx)(GameIcon, { icon: g.icon, name: g.name, size: 22 }),
@@ -1681,7 +1681,7 @@
 							(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" }, children: [
 								(0, react_jsx_runtime.jsx)("input", { type: "text", placeholder: "名称（必填）", value: form.name, onChange: updateForm("name"), style: { ...inputStyle, flex: "1 1 140px" } }),
 								(0, react_jsx_runtime.jsx)("input", { type: "text", placeholder: "图标 URL（可选）", value: form.icon, onChange: updateForm("icon"), style: { ...inputStyle, flex: "1 1 240px" } }),
-								(0, react_jsx_runtime.jsx)("input", { type: "color", title: "主题色（可选；留空则按名称自动分配）", value: /^#[0-9a-f]{6}$/i.test(form.color) ? form.color : "#3b5bfd", onChange: updateForm("color"), className: "gacha-cal-color", style: { flex: "0 0 28px" } })
+								(0, react_jsx_runtime.jsx)("input", { type: "color", title: "主题色（可选；留空则按名称自动分配）", value: /^#[0-9a-f]{6}$/i.test(form.color) ? form.color : (() => { const c = scheduleGameColor({ id: "custom-preview", name: form.name }); return /^#[0-9a-f]{6}$/i.test(c) ? c : "#3b5bfd"; })(), onChange: updateForm("color"), className: "gacha-cal-color", style: { flex: "0 0 28px" } })
 							] }),
 							(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" }, children: [
 								(0, react_jsx_runtime.jsx)("input", { type: "text", placeholder: "卡池来源链接（必填）", value: form.url, onChange: updateForm("url"), style: { ...inputStyle, flex: "1 1 300px" } }),
