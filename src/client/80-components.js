@@ -525,8 +525,8 @@
 				return (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-slot-row", key: it.key, children: [
 					slotRing(slotFrac(it, now), slotAccent(it), 22, 3.4),
 					(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-slot-nm", children: [
-						(0, react_jsx_runtime.jsx)("b", { children: it.g.name }),
-						(0, react_jsx_runtime.jsx)("i", { children: it.title })
+						(0, react_jsx_runtime.jsx)("b", { children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: it.g.name }) }),
+						(0, react_jsx_runtime.jsx)("i", { children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: it.title }) })
 					] }),
 					(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-slot-dd", children: [
 						(0, react_jsx_runtime.jsx)("em", { children: String(slotLeftDays(it, now)) }), " 天后结束"
@@ -576,13 +576,13 @@
 										slotRing(frac, color, 132, 9),
 										(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-slot-ic", children: (0, react_jsx_runtime.jsx)(GameIcon, { icon: it.g.icon, name: it.g.name, size: 86 }) })
 									] }),
-									(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-gn", children: it.g.name }),
+									(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-gn", children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: it.g.name }) }),
 									(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-slot-days", children: [
 										(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-slot-n", children: String(slotLeftDays(it, now)) }),
 										(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-slot-u", children: "天后结束" })
 									] }),
 									(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-ttl", children: it.title }),
-									(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-sub", children: slotSub(it, frac) })
+									(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-sub", children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: slotSub(it, frac) }) })
 								]
 							});
 						}) }),
@@ -602,7 +602,18 @@
 					// 同格并列多条：**外显那条排最前**，其余由悬停文本解析补上（解析不出、或只有一条 → 就只有外显）。
 					// ⚠️ 「近期」只收外显那条（all 的语义不变）—— 大列表改版不动「近期」。
 					const extras = scheduleHoverOnes(
-						scheduleHoverItems(side === "gacha" ? g.bannerHover : g.eventHover, it.title, it.isG), it, now);
+						scheduleHoverItems(side === "gacha" ? g.bannerHover : g.eventHover, it.title, it.isG), it, now);					// ⚠️ 外显与探头是**同一份列表**（用户 2026-10-16）。引擎给的 roles 是**跨池合并**的角色表
+					//    （原神 =「丝柯克、爱可菲」），而探头会把每口池的角色再列一遍 ⇒ 同一批角色说两遍。
+					//    所以：悬停里若正好有"这一格自己那口池"的整行（池名：角色），就把它提到外显、
+					//    并从探头里移除 —— 外显与探头从此同形，同一口池只说一次。
+					//    ⚠️ 只替换**格子列表**里的那一条（用副本），不动 it 本身：
+					//       「近期」列表仍按引擎那条原文显示，与老面板一致。
+					let headItem = it;
+					const headPoolAt = extras.findIndex((x) => it.title && String(x.title || "").indexOf(it.title + "\uFF1A") === 0);
+					if (headPoolAt >= 0) {
+						headItem = Object.assign({}, it, { show: extras[headPoolAt].title });
+						extras.splice(headPoolAt, 1);
+					}
 					// ⚠️ 有并列池时，外显**不能**再显示引擎给的"合并角色表"：
 					//    探头会把每个池连角色再列一遍（原神 = 丝柯克/爱可菲 两个池、鸣潮 = 3 个池各列一遍），
 					//    同一批角色"先合并说一遍、再分池说一遍"正是用户看到的重复 + 粒度混乱。
@@ -612,7 +623,7 @@
 					// ⚠️ 这里曾有一版特例「有并列池就改显池名」（想避免角色名"先说一遍、探头再分池说一遍"），
 					//    但那是与旧面板不一致的**显示规则**，用户 2026-10-16 要求对齐 ⇒ 已删除。
 					//    并列池的角色名在探头里逐池列，重复问题留着不动（显示规则优先与旧面板一致）。
-					cells.set(g.id + ":" + side, [it].concat(extras));
+					cells.set(g.id + ":" + side, [headItem].concat(extras));
 					if (it.state !== "ended") all.push(it);
 				}
 			}
