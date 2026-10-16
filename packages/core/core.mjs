@@ -323,6 +323,8 @@
 					eventDates: c.eventDates || "",
 					next: c.next || "",
 					icon: c.icon || "",
+					// 主题色（自定义条目在添加表单里可选；"" 表示不指定 ⇒ scheduleGameColor 回落到名字哈希色）
+					color: typeof c.color === "string" ? c.color : "",
 					source: c.source || "",
 					url: c.url || "",
 					eventUrl: c.eventUrl || "",
