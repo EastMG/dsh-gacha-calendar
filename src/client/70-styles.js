@@ -58,7 +58,10 @@
 			.gacha-cal-row > :nth-child(4), .gacha-cal-row > :nth-child(6) { font-variant-numeric: tabular-nums }
 			.gacha-cal-h{display:grid;grid-template-columns:22px 96px 1fr 150px 1.3fr 150px;gap:6px;align-items:center;padding:6px 4px 2px;color:var(--dsw-alias-label-tertiary);font-size:11px}
 			.gacha-cal-h > *{text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-			.gacha-cal-sort-btn{width:26px;height:26px;padding:0;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary,#4a5261);border-radius:8px;cursor:pointer;transition:background .12s,color .12s}
+			/* 设置页按钮基类＝**长方形文字按钮**（宽度自适、左右留白、字不挤）；
+			   只要图标的按钮再加 --icon 修饰类变成方形（见下方）。 */
+			.gacha-cal-sort-btn{height:28px;padding:0 11px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary,#4a5261);border-radius:7px;font:inherit;font-size:12px;line-height:1;white-space:nowrap;cursor:pointer;transition:background .12s,color .12s}
+			.gacha-cal-sort-btn--icon{width:26px;height:26px;padding:0}
 			.gacha-cal-sort-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1));color:var(--dsw-alias-label-primary,#1f2329)}
 			.gacha-cal-sort-btn:disabled{opacity:.35;cursor:default}
 			.gacha-cal-del-btn{color:#e5484d}
