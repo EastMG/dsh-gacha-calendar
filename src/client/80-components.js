@@ -582,7 +582,7 @@
 										(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-slot-n", children: String(slotLeftDays(it, now)) }),
 										(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-slot-u", children: "天后结束" })
 									] }),
-									(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-ttl", children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: it.title }) }),
+									(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-ttl", children: it.title }),
 									(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-sub", children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: slotSub(it, frac) }) })
 								]
 							});
@@ -596,7 +596,7 @@
 		//（已实测：手动 dispatchEvent 能加类、真鼠标移动不能）⇒ 这里改用 React 的指针事件，
 		// 与探头浮层同一套机制，可当场验证。类名/变量沿用老面板那套（CSS 不用动）：
 		//   .gacha-cal-marq .gacha-cal-inner{animation:gacha-cal-marquee 3.5s …}  +  --gacha-marq-d
-		const MARQ_SEL = ".gacha-cal-sched-who, .gacha-cal-sched-what, .gacha-cal-slot-ttl, .gacha-cal-slot-gn, .gacha-cal-slot-sub, .gacha-cal-slot-nm b, .gacha-cal-slot-nm i";
+		const MARQ_SEL = ".gacha-cal-sched-who, .gacha-cal-sched-what, .gacha-cal-slot-gn, .gacha-cal-slot-sub, .gacha-cal-slot-nm b, .gacha-cal-slot-nm i";
 		let marqEl = null;
 		function marqClear() {
 			if (marqEl) { marqEl.classList.remove("gacha-cal-marq"); marqEl = null; }
