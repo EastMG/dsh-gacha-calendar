@@ -1024,7 +1024,8 @@
 							window.requestAnimationFrame(fit);
 							window.setTimeout(fit, 300);
 						},
-						className: "gacha-cal-pop",
+						// 新版要"撑满 + 不裁切"，旧版要"限高 + 滚动" —— 靠这个修饰类分开（见 70-styles.js）
+						className: s.newPanel === true ? "gacha-cal-pop gacha-cal-pop--sched" : "gacha-cal-pop",
 						style: { left: anchor.left, bottom: anchor.bottom },
 						// ⚙️ 实验特性分支 —— **唯一**的切换点。
 						//    `s.newPanel === true` 才走新日程视图；否则 children 就是下面那个

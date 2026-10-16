@@ -15,7 +15,12 @@
 			   ⚠️ max-height 必须是 none：实测留成 72vh 时它会**压住** JS 写入的 height
 			   （读数 inlineH=899px 而 shell 仍 734）—— 这就是"面板底部空白怎么改都不动"的最后一环。
 			   壳高由 JS 按"内容跨度 / 可用空间"写入；卡片（视图）height:100% 铺满它并内部滚动。 */
-			.gacha-cal-pop{position:fixed;z-index:9999;width:690px;height:auto;max-height:none;overflow:visible;background:transparent;border:none;border-radius:0;box-shadow:none;padding:0;font-size:12px;color:var(--dsw-alias-label-primary)}
+						/* ⚠️ 这个壳是**新旧两个面板共用**的：旧面板（默认）当年就靠这里的 max-height + overflow 限高并滚动。
+			   新版为了"面板撑满可用高度、且展开的探头不被裁切"，曾经把这两条直接改成 none/visible —— 那是打在共用壳上的，
+			   于是旧面板失去限高、整张表格撑到全高并溢出 = 用户看到的"旧版面板爆了"。
+			   现在按分支给：基础（旧面板）= 72vh 限高 + auto 滚动；新版加 -–sched 修饰类恢复撑满/不裁切。 */
+			.gacha-cal-pop{position:fixed;z-index:9999;width:690px;height:auto;max-height:72vh;overflow:auto;background:transparent;border:none;border-radius:0;box-shadow:none;padding:0;font-size:12px;color:var(--dsw-alias-label-primary)}
+			.gacha-cal-pop--sched{max-height:none;overflow:visible}
 			.gacha-cal-title{font-size:13px;font-weight:600;margin:0 0 4px;display:flex;justify-content:space-between;align-items:center;gap:8px}
 			.gacha-cal-meta{color:var(--dsw-alias-label-tertiary);font-size:11px;margin:0 0 8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 			/* flex-basis 用 0（不是 auto）：长文案不会整块掉到下一行，而是留在本行被省略号截断；
