@@ -508,14 +508,13 @@ function ns_ournotes_selectOurNotesPrimary(entries, now) {
 }
 
 // ── 抓取器（活动侧单侧）──
-async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES_TZ) {
+async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES_TZ, now = nowMs()) {
 	const listUrl = url || ns_ournotes_OURNOTES_LIST_URL;
 	// mode 必须与 registry-<batch>.js 里声明的 "direct" 一致（本目录只有 3 个源可直连）
 	const json = await fetchJson(listUrl, { signal, mode: "direct" });
 	if (!Array.isArray(json)) throw new Error("ournotes-bad-json");
 	if (json.length === 0) return null;
 	const posts = ns_ournotes_parseOurNotesPosts(json, tz);
-	const now = nowMs();
 	const picked = ns_ournotes_selectOurNotesPrimary(posts, now);
 	if (!picked || !picked.win) return null;
 	const active = [];

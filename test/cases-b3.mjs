@@ -389,7 +389,7 @@ export default async function run() {
 	section("B3 ⑦ BanG Dream! OurNotes 日服 —— 抓取器（夹具 / direct）");
 	{
 		const src = findSource("ournotes");
-		const e = await src.event.fetcher(src.event.url, undefined, src.tz);
+		const e = await src.event.fetcher(src.event.url, undefined, src.tz, NOW);
 		assertContract("OurNotes", "event", e);
 		check("OurNotes 活动名非空", !!(e && e.event), JSON.stringify(e && e.event));
 		check("OurNotes eventDates 形态合法",
