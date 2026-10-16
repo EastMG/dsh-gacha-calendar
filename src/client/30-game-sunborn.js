@@ -281,13 +281,16 @@ function ns_gf2_selectGf2Window(wins, now) {
 // ── 卡池侧 ──
 // 取 typeId=4 列表 → 过滤卡池类公告（概率UP/采购/军备提升）→ 详情 → 抽窗口。
 // 逐条最多试 3 条（一般第 1 条就命中），避免为了容错把请求数放大。
-async function ns_gf2_gachaGf2(url, signal, tz = ns_gf2_GF2_TZ) {
+// ⚠️ 必须收 `now`（2026-10-17 修）：此前签名只有 (url, signal, tz)、体内写死 `nowMs()` ⇒
+//   用例没法注入时刻，夹具窗口一过期"选当期窗口"就选不中 → 断言**假红**。
+//   第 4 参是**测试专用契约**（沿用 bandori 的约定）；默认值保证生产路径
+//   （引擎只传 3 参，见 50-refresh.js:26）行为完全不变。
+async function ns_gf2_gachaGf2(url, signal, tz = ns_gf2_GF2_TZ, now = nowMs()) {
 	const listUrl = url || ns_gf2_GF2_GACHA_URL;
 	const list = ns_gf2_parseGf2List(await fetchJson(listUrl, { referer: ns_gf2_GF2_HOME, signal, mode: "proxy" }), tz);
 	if (!list.length) return null;
 	const pools = list.filter((x) => ns_gf2_GF2_POOL_RE.test(x.title));
 	const ordered = (pools.length ? pools : list).slice().sort((a, b) => b.id - a.id);
-	const now = nowMs();
 	return ns_gf2_firstWorking(ordered.slice(0, 3), async (it) => {
 		const detail = await fetchJson(ns_gf2_gf2DetailUrl(it.id), { referer: ns_gf2_GF2_HOME, signal, mode: "proxy" });
 		const d = detail && detail.data;
@@ -319,14 +322,14 @@ async function ns_gf2_gachaGf2(url, signal, tz = ns_gf2_GF2_TZ) {
 //     代理人、莉塔拉、科谢尼娅限时概率UP活动现已开启！  活动时间：…~2026年10月13日 08:59
 //   修法：活动侧与卡池侧**读同一个 typeId=4**，用**互补过滤**分流 ——
 //     命中 ns_gf2_GF2_POOL_RE（概率UP/采购/军备提升）→ 卡池；其余 → 活动。
-async function ns_gf2_eventsGf2(url, signal, tz = ns_gf2_GF2_TZ) {
+// 同上：收 `now` 注入时刻（2026-10-17 修，测试专用契约，默认 nowMs() 保生产行为）
+async function ns_gf2_eventsGf2(url, signal, tz = ns_gf2_GF2_TZ, now = nowMs()) {
 	const listUrl = url || ns_gf2_GF2_EVENT_URL;
 	const list = ns_gf2_parseGf2List(await fetchJson(listUrl, { referer: ns_gf2_GF2_HOME, signal, mode: "proxy" }), tz);
 	if (!list.length) return null;
 	// 排除法：typeId=4 排掉卡池，剩下的就是活动
 	const acts = list.filter((x) => !ns_gf2_GF2_POOL_RE.test(x.title));
 	const ordered = (acts.length ? acts : list).slice().sort((a, b) => b.id - a.id);
-	const now = nowMs();
 	// 逐条试，取**第一条能解出覆盖当前时刻窗口**的活动（列表按 Id 倒序 = 最新在前；
 	// 版本大活动如【静默突触】排在最前，与官方"头条"一致）
 	return ns_gf2_firstWorking(ordered.slice(0, 4), async (it) => {

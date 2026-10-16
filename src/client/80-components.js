@@ -1391,6 +1391,9 @@
 			// 「展示」复选框的本地草稿（{ id: boolean }）：同样的原因 —— 受控 checked 读 `s`，
 			// 而 `s` 在本次会话里不即时推新 ⇒ 点一下立刻被旧值覆盖回去（用户看到的"完全点不了"）。
 			const [showDraft, setShowDraft] = (0, react.useState)({});
+			// 「展示」写入的**串行链**（见下面 setEntryShown）：连点时后一笔等前一笔落盘后再算，
+			// 保证终态 = 最后一次点击的目标状态，而不是两笔写入互相覆盖（宿主往返 1.4~3.6s）。
+			const showWriteChain = (0, react.useRef)(Promise.resolve());
 			const [customInputs, setCustomInputs] = (0, react.useState)({});
 			const [eventCustomInputs, setEventCustomInputs] = (0, react.useState)({});
 			// 解析器自检（只读）：运行中标记 + 上一次的报告
@@ -1496,17 +1499,37 @@
 			// 三态语义见 60-helpers.js 的 isEntryHidden：hidden = 明确关掉，shown = 明确打开
 			// （shown 用来把「出厂默认隐藏 defaultHidden」的条目重新打开）。
 			// 每次切换都把 id 从**另一个**列表里摘掉，避免两边同时存在造成判定歧义。
-			const toggleHidden = async (id) => {
-				const isHiddenNow = isEntryHidden(allEntries.find((x) => x.id === id) || {}, s);
-				if (isHiddenNow) {
-					// 打开：从 hidden 摘掉，并记进 shown（这样 defaultHidden 的条目也能被打开）
-					await commit("hidden", hidden.filter((x) => x !== id));
-					if (!shown.includes(id)) await commit("shown", [...shown, id]);
-				} else {
-					// 关掉：记进 hidden，并从 shown 摘掉（否则 defaultHidden 条目会出现"勾了却仍然显示"的矛盾）
-					if (!hidden.includes(id)) await commit("hidden", [...hidden, id]);
-					if (shown.includes(id)) await commit("shown", shown.filter((x) => x !== id));
-				}
+			//
+			// A1 修复（2026-10-17）：**决策与显示必须同源**。
+			//   复选框的显示值 = `shownNow(g)`（草稿优先）；而旧实现是"显示一处、决策另一处"：
+			//   显示用草稿，决策却交给 toggleHidden(g.id) —— 后者用**渲染快照 `s`** 反判
+			//   isHiddenNow。宿主一次写入往返实测 1.4~3.6s，第二次点击落在往返窗口内时 `s`
+			//   还是旧的 ⇒ 又走「隐藏」分支 ⇒ 复选框显示"已显示"、store 里其实仍是隐藏
+			//   （刷新才现原形；审计已真机复现）。
+			//   现在 onChange 用**同一个** `shownNow(g)` 取反得到目标状态，交给下面按目标状态
+			//   落盘的函数；该函数不再反判快照里的成员"当前值"，而是由目标状态**强制**决定
+			//   id 在两个列表里的归属（病根就是"store 里到底是什么"不可信，所以不能"看着
+			//   不用写就不写"），并且：
+			//     · 串行化：连点两次时第二笔在第一笔落盘后再算 ⇒ 终态 = 最后一次点击；
+			//     · 列表内容取**执行时的最新快照**（scope.getSnapshot() 是纯读、不触发渲染，
+			//       与 2026-10-16「写后不再手写 setSnapshot」的根修不冲突）⇒ 不会拿旧列表
+			//       覆盖掉别的行刚写进去的改动。
+			const shownNow = (g) => (Object.prototype.hasOwnProperty.call(showDraft, g.id) ? !!showDraft[g.id] : !isEntryHidden(g, s));
+			const setEntryShown = (id, shouldShow) => {
+				const run = showWriteChain.current.then(async () => {
+					const snap = scope.getSnapshot();
+					const live = snap && snap.status === "ready" ? snap.value : null;
+					const lh = live && Array.isArray(live.hidden) ? live.hidden : hidden;
+					const lw = live && Array.isArray(live.shown) ? live.shown : shown;
+					// 目标状态 ⇒ 终态内容：开 = hidden 里没有它且 shown 里有它（defaultHidden 的条目靠 shown 才能显示）；
+					//                    关 = hidden 里有它且 shown 里没有它。
+					const nextHidden = shouldShow ? lh.filter((x) => x !== id) : (lh.includes(id) ? lh : [...lh, id]);
+					const nextShown = shouldShow ? (lw.includes(id) ? lw : [...lw, id]) : lw.filter((x) => x !== id);
+					await commit("hidden", nextHidden);
+					await commit("shown", nextShown);
+				});
+				showWriteChain.current = run.catch(() => {});
+				return run;
 			};
 			// 删除条目：内置条目记入 removed；自定义条目从 customEntries 移除
 			const removeEntry = async (g) => {
@@ -1707,12 +1730,12 @@
 											(0, react_jsx_runtime.jsx)("label", { title: "展示/隐藏这一条", style: { ...labelStyle, cursor: "pointer", justifySelf: "center" }, children: [
 												(0, react_jsx_runtime.jsx)("input", {
 													type: "checkbox",
-													checked: Object.prototype.hasOwnProperty.call(showDraft, g.id) ? !!showDraft[g.id] : !isEntryHidden(g, s),
+													checked: shownNow(g),
 													onChange: () => {
-														const cur = Object.prototype.hasOwnProperty.call(showDraft, g.id) ? !!showDraft[g.id] : !isEntryHidden(g, s);
-														const next = !cur;
+														const next = !shownNow(g);
+														// A1：上面这行就是「决策与显示同源」——目标状态取自当前显示值（shownNow），不再用渲染快照 s 反判当前状态
 														setShowDraft((p) => ({ ...p, [g.id]: next }));
-														toggleHidden(g.id);
+														setEntryShown(g.id, next);
 													}
 												})
 											] }),

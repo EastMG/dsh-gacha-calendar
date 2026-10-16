@@ -171,7 +171,9 @@ export default async function run() {
 			JSON.stringify(w2129.map((w) => w.raw)));
 
 		const src = findSource("gf2");
-		const g = await src.gacha.fetcher(src.gacha.url, undefined, src.tz);
+		// ⚠️ 必须传 NOW（2026-10-17 修）：抓取器"选当期"依赖当前时刻，夹具窗口一过期就返回 null
+		//   → 断言假红（见本文件第 66 行 NOW 与顶部政策注释）。
+		const g = await src.gacha.fetcher(src.gacha.url, undefined, src.tz, NOW);
 		assertContract("GF2", "gacha", g);
 		check("GF2 卡池 banner 命中「概率UP」类公告（不是主题活动）",
 			!!g && /概率UP/.test(g.banner), JSON.stringify(g && g.banner));
@@ -182,7 +184,7 @@ export default async function run() {
 		check("GF2 卡池 bannerDatesRaw 保留源站原文",
 			!!g && /版本更新后/.test(g.bannerDatesRaw || ""), JSON.stringify(g && g.bannerDatesRaw));
 
-		const e = await src.event.fetcher(src.event.url, undefined, src.tz);
+		const e = await src.event.fetcher(src.event.url, undefined, src.tz, NOW);
 		assertContract("GF2", "event", e);
 		// ⚠️ 2026-10-03 修的真实 bug（用户反馈"少前2 活动有问题"）：
 		//   活动侧原先读 typeId=3（官方公告栏目）取最新「版本更新公告」，外显成
@@ -531,13 +533,14 @@ export default async function run() {
 	section("B3 ⑩ FGO 国服 · fgo.wiki —— 两侧抓取器（夹具）");
 	{
 		const src = findSource("fgo");
-		const g = await src.gacha.fetcher(src.gacha.url, undefined, src.tz);
+		// ⚠️ 必须传 NOW（2026-10-17 修）：同 GF2，抓取器"选当期"依赖当前时刻（见第 66 行 NOW）
+		const g = await src.gacha.fetcher(src.gacha.url, undefined, src.tz, NOW);
 		assertContract("FGO", "gacha", g);
 		check("FGO 卡池 banner 非空且是推荐召唤", !!g && /推荐召唤/.test(g.banner), JSON.stringify(g && g.banner));
 		check("FGO 卡池 fetch 层带上 bannerHover（≥2 当期池）且不含元信息",
 			!!g && typeof g.bannerHover === "string" && g.bannerHover.length > 0 && !HOVER_META.test(g.bannerHover),
 			JSON.stringify(g && g.bannerHover && g.bannerHover.slice(0, 80)));
-		const e = await src.event.fetcher(src.event.url, undefined, src.tz);
+		const e = await src.event.fetcher(src.event.url, undefined, src.tz, NOW);
 		assertContract("FGO", "event", e);
 		check("FGO 活动 event 非空", !!(e && e.event), JSON.stringify(e && e.event));
 		check("FGO 活动 eventDates 形态合法",

@@ -394,9 +394,12 @@ function ns_p5x_p5xUpNames(text) {
 // ── 卡池侧 ──
 // 只认「契约更新」块（官方唯一明确写卡池档期的地方）。
 // 抽不到覆盖当前的契约档期 → null（未公布）。**绝不**退化成"拿版本公告标题当卡池名"。
-async function ns_p5x_gachaP5x(url, signal, tz = "Asia/Shanghai") {
+// ⚠️ 必须收 `now`（2026-10-17 修）：此前签名只有 (url, signal, tz)、体内写死 `nowMs()` ⇒
+//   用例没法注入时刻，夹具窗口一过期（到 2026-10-22 更新前）"选当期"就选不中 → 断言**假红**。
+//   第 4 参是**测试专用契约**（沿用 bandori 的约定）；默认值保证生产路径
+//   （引擎只传 3 参，见 50-refresh.js:26）行为完全不变。
+async function ns_p5x_gachaP5x(url, signal, tz = "Asia/Shanghai", now = nowMs()) {
 	const anns = await ns_p5x_fetchP5xAnnouncements(url, signal, 2);
-	const now = nowMs();
 	for (const { text, blocks } of anns) {
 		const poolBlocks = blocks.filter((b) => /契约/.test(b.category) || /契约/.test(b.title));
 		const hit = ns_p5x_pickCurrentBlock(poolBlocks, tz, now);
@@ -423,9 +426,9 @@ async function ns_p5x_gachaP5x(url, signal, tz = "Asia/Shanghai") {
 // ── 活动侧 ──
 // 只认「活动」类区块（`活动更新` / `活动BOSS更新`）。外显取**最早结束**的当期活动（最紧迫），
 // 悬停按结束时间升序逐行列出全部当期活动。
-async function ns_p5x_eventsP5x(url, signal, tz = "Asia/Shanghai") {
+// 同上：收 `now` 注入时刻（2026-10-17 修，测试专用契约，默认 nowMs() 保生产行为）
+async function ns_p5x_eventsP5x(url, signal, tz = "Asia/Shanghai", now = nowMs()) {
 	const anns = await ns_p5x_fetchP5xAnnouncements(url, signal, 2);
-	const now = nowMs();
 	for (const { blocks } of anns) {
 		const evBlocks = blocks.filter((b) => /活动/.test(b.category));
 		const active = [];

@@ -257,7 +257,7 @@ export default async function run() {
 	}
 	//#endregion
 
-	//#region ⑧ 抓取器总览（真实 now + 代理形态）
+	//#region ⑧ 抓取器总览（真实 now 不抛错 + 固定 now 契约 + 代理形态）
 	section("⑧ 7 个来源所有侧：真实 now 下不抛错、契约成立、确实走宿主代理");
 	{
 		const seen = [];
@@ -265,7 +265,15 @@ export default async function run() {
 		for (const s of SOURCES_B2) {
 			for (const side of ["gacha", "event"]) {
 				if (!s[side]) continue;
-				const d = await safeCall(`${s.id}.${side}`, () => s[side].fetcher(s[side].url, undefined, s.tz));
+				// ⚠️ 2026-10-17 修「门禁定时炸弹」：原实现只有下面这一句（不传 now）→ 走真实时钟。
+				//   `assertContract` 对 null 不产生断言（null 合法），对非 null 产生 6 条 ⇒
+				//   断言**条数**跟着真实时刻变（夹具窗口一过期就少 12 条，0 失败但总数不再是 1698）。
+				//   修法：把两件事分开，既保住"真实 now 的 production 路径不抛错"这一覆盖，
+				//   又让契约断言的条数与真实时刻无关：
+				//     · 真实 now（不传第 4 参 ⇒ 走抓取器默认 nowMs()）→ 只守"不抛错"（safeCall 只在抛错时记一条）；
+				//     · 契约断言 → 用本文件第 16 行的固定 NOW（与 ①～⑦ 的夹具时刻一致）跑一遍再断言。
+				await safeCall(`${s.id}.${side}（真实 now）`, () => s[side].fetcher(s[side].url, undefined, s.tz));
+				const d = await safeCall(`${s.id}.${side}（固定 NOW）`, () => s[side].fetcher(s[side].url, undefined, s.tz, NOW));
 				assertContract(`${s.id}.${side}`, side, d);
 			}
 		}

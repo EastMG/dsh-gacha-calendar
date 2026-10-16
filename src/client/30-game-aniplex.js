@@ -266,9 +266,13 @@ async function ns_fgo_fetchPageText(url, signal) {
 	return fetchMediaWikiText(url, { referer: ns_fgo_FGO_REFERER, signal, mode: "proxy" });
 }
 
-async function ns_fgo_gachaFgo(url, signal, tz = ns_fgo_FGO_TZ) {
+// ⚠️ 必须收 `now`（2026-10-17 修）：此前签名只有 (url, signal, tz)、体内写死 `nowMs()` ⇒
+//   用例没法注入时刻，"选当期"一过期就选不中 → 断言**假红**。
+//   第 4 参是**测试专用契约**（沿用 bandori 的约定）；默认值保证生产路径
+//   （引擎只传 3 参，见 50-refresh.js:26）行为完全不变。
+async function ns_fgo_gachaFgo(url, signal, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 	const html = await ns_fgo_fetchPageText(url || ns_fgo_fgoParseUrl(ns_fgo_FGO_GACHA_PAGE), signal);
-	const r = ns_fgo_parseFgoBannerTable(html, tz, nowMs());
+	const r = ns_fgo_parseFgoBannerTable(html, tz, now);
 	if (!r) return null;
 	return {
 		banner: r.banner,
@@ -282,9 +286,10 @@ async function ns_fgo_gachaFgo(url, signal, tz = ns_fgo_FGO_TZ) {
 	};
 }
 
-async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ) {
+// 同上：收 `now` 注入时刻（2026-10-17 修，测试专用契约，默认 nowMs() 保生产行为）
+async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 	const html = await ns_fgo_fetchPageText(url || ns_fgo_fgoParseUrl(ns_fgo_FGO_EVENT_PAGE), signal);
-	const r = ns_fgo_parseFgoEventTable(html, tz, nowMs());
+	const r = ns_fgo_parseFgoEventTable(html, tz, now);
 	if (!r || !r.event) return null;
 	return {
 		event: r.event,

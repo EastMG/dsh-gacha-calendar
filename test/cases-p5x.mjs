@@ -5,6 +5,12 @@ import { findSource } from "./registry-shim.mjs";
 import { T } from "./load.mjs";
 const { parseP5xList, parseP5xWindows } = T.parsers["p5x"];
 
+// 固定"当前时刻"＝ 2026-10-02 01:27 (UTC+8)，即夹具覆盖的 2026-09-24 ~ 2026-10-22 更新前窗口内
+// （与 cases-b3.mjs 的 NOW 同一约定、同一取值）。必须注入而不是用真实时钟：
+//   抓取器"选当期档期"依赖当前时刻，夹具窗口一过期就会返回 null → 断言**假红**
+//   （不是解析器坏了，是"今天"跑到窗口外面去了）。第 4 参 now 是测试专用契约，见抓取器签名。
+const NOW = Date.UTC(2026, 9, 1, 17, 27);
+
 export default async function run() {
 	useFixtures();
 
@@ -43,11 +49,11 @@ export default async function run() {
 	section("P5X 国服 —— 卡池侧 / 活动侧契约");
 	{
 		const src = findSource("p5x");
-		const g = await src.gacha.fetcher(src.gacha.url, undefined, src.tz);
+		const g = await src.gacha.fetcher(src.gacha.url, undefined, src.tz, NOW);
 		assertContract("P5X", "gacha", g);
 		check("卡池 banner 非空", !!(g && g.banner), JSON.stringify(g && g.banner));
 		check("卡池 bannerDatesRaw 保留源站原文", !!(g && g.bannerDatesRaw), JSON.stringify(g && g.bannerDatesRaw));
-		const e = await src.event.fetcher(src.event.url, undefined, src.tz);
+		const e = await src.event.fetcher(src.event.url, undefined, src.tz, NOW);
 		assertContract("P5X", "event", e);
 		check("活动 eventHover 是多行（逐行列出当期窗口）",
 			typeof e.eventHover === "string" && e.eventHover.includes("\n"), JSON.stringify((e.eventHover || "").slice(0, 80)));
