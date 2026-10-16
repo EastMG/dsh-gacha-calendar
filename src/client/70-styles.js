@@ -157,8 +157,7 @@
 			.gacha-cal-sched-cell[data-t="event"] .gacha-cal-sched-rest{left:-6px;right:-8px;padding-left:6px;padding-right:8px}
 			/* 虚化只作用在**内容**上：浮层本体绝不能有 opacity（父级 opacity 会让那层底一起变半透明 → 下一行的字透出来） */
 			.gacha-cal-sched-rest .gacha-cal-sched-item{opacity:.62;transition:opacity .2s cubic-bezier(.4,0,.2,1)}
-			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest{clip-path:inset(0 0 0 0);height:auto;overflow:visible;pointer-events:auto;
-				position:fixed !important;left:var(--rx,0) !important;right:auto !important;top:var(--ry,0) !important;width:var(--rw,auto) !important;margin:0 !important}
+			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest{clip-path:inset(0 0 0 0);height:auto;overflow:visible;pointer-events:auto}
 			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest .gacha-cal-sched-item{opacity:1}
 			/* 底色与遮罩渐变的终点色都挂**行悬停**（不是格子悬停）：整行还灰时底板就必须还是灰，
 			   否则指针在同一行里左右移动（或刚离开该格、底板还在收回）时，底板会瞬间变成纯白 = 用户看到的"遮罩还是白的"。 */
