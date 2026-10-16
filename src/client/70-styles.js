@@ -172,7 +172,11 @@
 			.gacha-cal-sched-cell[data-t="event"] .gacha-cal-sched-rest{left:-6px;right:-8px;padding-left:6px;padding-right:8px}
 			/* 虚化只作用在**内容**上：浮层本体绝不能有 opacity（父级 opacity 会让那层底一起变半透明 → 下一行的字透出来） */
 			.gacha-cal-sched-rest .gacha-cal-sched-item{opacity:.62;transition:opacity .2s cubic-bezier(.4,0,.2,1)}
-			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest{clip-path:inset(0 0 0 0);height:auto;overflow:hidden;pointer-events:auto;z-index:2;box-shadow:0 10px 26px -10px rgba(0,0,0,.3),0 1px 2px rgba(0,0,0,.08);
+			/* ⚠️ 阴影必须用 filter:drop-shadow，不能用 box-shadow：
+			   这条规则同时有 clip-path:inset(0)（它**仍然在裁切**，裁的是边框盒之外的一切），
+			   而 box-shadow 画在盒子**之外** ⇒ 会被裁成矩形，展开动画里逐帧跳 = 用户看到的
+			   "方方正正的残影 + 闪烁"。filter 作用在**裁剪之后的渲染结果**上，所以阴影跟着圆角形状走。 */
+			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest{clip-path:inset(0 0 0 0);height:auto;overflow:hidden;pointer-events:auto;z-index:2;filter:drop-shadow(0 10px 18px rgba(0,0,0,.18)) drop-shadow(0 1px 2px rgba(0,0,0,.08));
 				position:fixed !important;left:var(--rx,0) !important;right:auto !important;top:var(--ry,0) !important;width:var(--rw,auto) !important;margin:0 !important}
 			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest .gacha-cal-sched-item{opacity:1}
 			/* 底色与遮罩渐变的终点色都挂**行悬停**（不是格子悬停）：整行还灰时底板就必须还是灰，
