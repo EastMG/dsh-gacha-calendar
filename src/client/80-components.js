@@ -223,7 +223,10 @@
 				if (la) seenTitle.add(la);
 				kept.push(a);
 			}
-			if (kept.length < 2) return [];
+			// ⚠️ 这里**只**在一条都不剩时收手。老写法是"少于 2 条就当没有"，那是为
+			//    "外显与探头会重复"的旧模型准备的；现在外显固定为列表第 0 条、且同池已去重，
+			//    只剩 1 条并列池时必须照常列出来（否则那口池在面板上彻底看不见，用户 2026-10-16）。
+			if (kept.length < 1) return [];
 			return kept;
 		}
 		// 把 { title, win } 补成与 scheduleNormalize **同形**的条目（渲染层只认这一种形状）
@@ -695,7 +698,13 @@
 						]
 					});
 				}
-				const sorted = list.slice().sort(schedulePickItem);
+				// ⚠️ 外显与探头在数据层面就是**同一份列表**：第 0 条 = 引擎那条 =
+				//    老面板的外显判定结果（g.roles ? cleanRoleNames(roles) : banner）。
+				//    ⇒ 外显**固定为第一条**，其余才按紧迫度排序。
+				//    不能让排序把某口并列池顶到外显：那会让外显的文本格式时而是"角色名"、
+				//    时而是"池名：角色"（用户 2026-10-16 反馈的"怪怪的"就是这个）。
+				//    同池重复已在上游处理（悬停解析那层 + scheduleHoverOnes），这里保证"一口池一条"。
+				const sorted = [list[0]].concat(list.slice(1).sort(schedulePickItem));
 				const it = sorted[0];
 				// 同格多条（2026-10-15 定稿）：**第一条完整三行**（名称 / 档期·状态 / 迷你条），
 				// 其余收进「探头」：收起只露顶部 12px 且虚化，悬停时该格底板向下变长**覆盖**下面的行
