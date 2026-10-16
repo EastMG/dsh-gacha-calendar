@@ -389,9 +389,15 @@
 			.gacha-cal-sched-nearpg{animation:gacha-cal-near-in .38s cubic-bezier(.4,0,.2,1) backwards}
 			@keyframes gacha-cal-near-in{from{opacity:0}to{opacity:1}}
 			.gacha-cal-slot-row{animation:gacha-cal-near-in .38s cubic-bezier(.4,0,.2,1) backwards}
-			/* marquee（悬停时截断文字来回滚）是无限循环动画 ⇒ 补进"减少动态效果"的关闭列表：
-			   原先 4 个 reduce 块都没有它，开了系统开关的用户仍会看到文字滚动（审计 F4）。 */
-			@media (prefers-reduced-motion:reduce){.gacha-cal-sched-nearpg,.gacha-cal-slot-row,.gacha-cal-marq .gacha-cal-inner{animation:none}}
+			/* marquee（悬停时截断文字来回滚）与刷新转圈都是无限循环动画 ⇒ 补进"减少动态效果"的关闭列表：
+			   原先 4 个 reduce 块都没有它们，开了系统开关的用户仍会看到文字滚动 / 转圈（审计 F4）。
+			   ⚠️ B4a：设置页那条 marquee 规则选择器是 **.gacha-cal-settings-name.gacha-cal-marq
+			      .gacha-cal-inner（特异性 0,3,0，见上面的 6s slow 规则）**，只写 (0,2,0) 的
+			      .gacha-cal-marq .gacha-cal-inner **压不过它**（真机 reduce 下实测 animationName
+			      仍是 gacha-cal-marquee-slow）⇒ 这里必须补**同特异性**的选择器，靠**源序在后**取胜。
+			   ⚠️ B4b：.gacha-cal-spin（面板刷新按钮的 .8s 无限旋转）原先不在任何 reduce 块里。
+			   只把 animation 置 none；名称/时长/延迟/缓动/作用目标与非 reduce 行为一律不动。 */
+			@media (prefers-reduced-motion:reduce){.gacha-cal-sched-nearpg,.gacha-cal-slot-row,.gacha-cal-marq .gacha-cal-inner,.gacha-cal-settings-name.gacha-cal-marq .gacha-cal-inner,.gacha-cal-spin{animation:none}}
 		
 
 
