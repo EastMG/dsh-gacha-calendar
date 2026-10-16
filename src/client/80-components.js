@@ -595,6 +595,34 @@
 					]
 				});
 			}
+			// 鼠标悬停的暂停：**不要在淡化中途冻住**（会留下半透明鬼影）。做法是——
+			//   pointerenter：读每条当前不透明度 → 最亮的那条钉到 1（把渐显放完）、其余钉到 0（把渐隐撤销），
+			//                 同时冻结动画 ⇒ 落到"干净的一帧"（主体与背景按同一序号一起钉，颜色不脱节）。
+			//   pointerleave：撤掉这些内联覆盖 ⇒ 从暂停处继续。
+			// 用普通 DOM 事件（不走 state/hook）；内联 opacity 必须带 !important 才压得过 CSS 动画。
+			function slotHold(el) {
+				if (!el || el.__gachaHold) return;
+				const slides = Array.prototype.slice.call(el.querySelectorAll(".gacha-cal-slot-slide"));
+				const bgs = Array.prototype.slice.call(el.querySelectorAll(".gacha-cal-slot-bg"));
+				const set = (list, best) => list.forEach((l, i) => {
+					l.style.setProperty("animation-play-state", "paused");
+					l.style.setProperty("opacity", i === best ? "1" : "0", "important");
+				});
+				const clear = (list) => list.forEach((l) => {
+					l.style.removeProperty("animation-play-state");
+					l.style.removeProperty("opacity");
+				});
+				const on = () => {
+					let best = 0, bestV = -1;
+					slides.forEach((s, i) => { const v = parseFloat(window.getComputedStyle(s).opacity) || 0; if (v > bestV) { bestV = v; best = i; } });
+					set(slides, best);
+					set(bgs, best);
+				};
+				const off = () => { clear(slides); clear(bgs); };
+				el.__gachaHold = { on: on, off: off };
+				el.addEventListener("pointerenter", on);
+				el.addEventListener("pointerleave", off);
+			}
 			function slotCard(list) {
 				const ending = list.filter((x) => x && typeof x.endTs === "number" && x.state !== "long" && x.endTs > now)
 					.sort((a, b) => a.endTs - b.endTs);
@@ -605,6 +633,7 @@
 				const rest = ending.slice(SCHEDULE_SLOT_STEPS, SCHEDULE_SLOT_STEPS + 2);
 				return (0, react_jsx_runtime.jsxs)("div", {
 					className: "gacha-cal-sched-slot",
+					ref: slotHold,
 					style: { "--gc": slotAccent(ending[0]) },
 					children: [
 						steps.map(slotBg),

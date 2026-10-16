@@ -261,7 +261,8 @@
 			.gacha-cal-slot-cine{position:relative;z-index:1}
 			@keyframes gacha-cal-slot-bgstep{0%{opacity:0} .12%{opacity:1} 16.6%{opacity:1} 16.7%{opacity:0} 100%{opacity:0}}
 			@keyframes gacha-cal-slot-cycle{0%{opacity:0} 1.6%{opacity:1} 15%{opacity:1} 16.6%{opacity:0} 100%{opacity:0}}
-			.gacha-cal-sched-slot:hover .gacha-cal-slot-bg,.gacha-cal-sched-slot:hover .gacha-cal-slot-slide{animation-play-state:paused}
+			/* 悬停暂停改由 JS 处理（slotHold）：直接把当前最亮的那条钉 1、其余钉 0，
+			   所以这里**不能**再写 :hover{animation-play-state:paused} —— 它会在淡化中途冻住、留下半透明鬼影。 */
 			@media (prefers-reduced-motion:reduce){
 				.gacha-cal-slot-bg,.gacha-cal-slot-slide{animation:none}
 				.gacha-cal-slot-bg:first-of-type,.gacha-cal-slot-slide:first-of-type{opacity:1}
