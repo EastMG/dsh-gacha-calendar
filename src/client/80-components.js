@@ -638,6 +638,17 @@
 				const rest = sorted.slice(1);
 				return (0, react_jsx_runtime.jsxs)("div", {
 					className: "gacha-cal-sched-cell", "data-t": side, "data-u": scheduleUrgency(it),
+					// 展开的探头改成 position:fixed：绝对定位元素会把滚动容器"撑长"（实测悬停时 +133px），
+					// 靠下的格子一展开面板内容就变长 ⇒ 滚动条滑块缩短 / 滚动锚定位移 = 用户看到的"抽搐"。
+					// fixed 的包含块是视口 ⇒ 既不撑大滚动区、也不会被面板裁掉 —— 真正"伸出面板之外"。
+					// 坐标在悬停这一刻按格子实测写入（--rx/--ry/--rw），左右各补 6px 盖住网格间隙。
+					onPointerEnter: (e) => {
+						const el = e.currentTarget;
+						const b = el.getBoundingClientRect();
+						el.style.setProperty("--rx", (b.left - 6) + "px");
+						el.style.setProperty("--ry", (b.bottom - 12) + "px");
+						el.style.setProperty("--rw", (b.width + (side === "gacha" ? 12 : 14)) + "px");
+					},
 					children: [
 						itemOf(it, "first"),
 						rest.length ? (0, react_jsx_runtime.jsx)("div", {
