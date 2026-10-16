@@ -581,7 +581,7 @@
 										(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-slot-n", children: String(slotLeftDays(it, now)) }),
 										(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-slot-u", children: "天后结束" })
 									] }),
-									(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-ttl", children: it.title }),
+									(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-ttl", children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: it.title }) }),
 									(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-sub", children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: slotSub(it, frac) }) })
 								]
 							});
@@ -672,12 +672,12 @@
 					"data-u": x.state === "wait" ? "wait" : scheduleUrgency(x),
 					children: [
 						scheduleIcon("gacha-cal-sched-uic", x.g, 24),
-						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-who", children: x.g.name }),
+						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-who", children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: x.g.name }) }),
 						(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-kind", "data-t": x.isG ? "gacha" : "event", children: [
 							scheduleKindIcon(x.isG ? "gacha" : "event", "gacha-cal-sched-tic"),
 							(0, react_jsx_runtime.jsx)("span", { children: x.isG ? "卡池" : "活动" })
 						] }),
-						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-what", title: scheduleHoverText(x), children: x.title || x.raw || "—" }),
+						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-what", title: scheduleHoverText(x), children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: x.title || x.raw || "—" }) }),
 						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-when gacha-cal-sched-num", children: w.parts
 							? ["还剩 ", ...w.parts.map((p) => (0, react_jsx_runtime.jsxs)("span", { children: [p[0], (0, react_jsx_runtime.jsx)("small", { children: p[1] })] }, p[1]))]
 							: w.text })
