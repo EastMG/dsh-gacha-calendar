@@ -220,7 +220,7 @@
 			/* ── 留白区：「下一个截止」卡 ──
 			   大图标当主体；环 = 该档期"已过多少"（环快满 = 快结束了，不用读字）；
 			   下面两行是接下来两件，各两行（游戏名一行 / 卡池活动名一行）。 */
-			.gacha-cal-sched-slot{box-sizing:border-box;position:relative;min-width:0;display:flex;flex-direction:column;align-self:flex-start;padding:12px 13px 11px;overflow:hidden;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.22));border-radius:22px;
+			.gacha-cal-sched-slot{box-sizing:border-box;position:relative;min-width:0;display:flex;flex-direction:column;align-self:stretch;padding:12px 13px 11px;overflow:hidden;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.22));border-radius:22px;
 				background:radial-gradient(120% 90% at 78% 0%,color-mix(in oklab,var(--gc,#888) 24%,transparent) 0%,transparent 62%),
 					linear-gradient(180deg,color-mix(in oklab,var(--gc,#888) 10%,var(--dsw-alias-bg-base,#fff)) 0%,var(--dsw-alias-bg-base,#fff) 78%);
 				box-shadow:0 1px 2px rgba(0,0,0,.06),0 8px 24px -12px rgba(0,0,0,.22)}

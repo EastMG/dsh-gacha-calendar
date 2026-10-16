@@ -458,8 +458,8 @@
 				const n = slides.length;
 				const [held, setHeld] = (0, react.useState)(false);
 				const cur = useCycle(n, SCHEDULE_SLOT_SECS, held);
-				// 下面两行跟着当前这条走：显示它之后的两个（也就在循环里一起换）
-				const rows = n > 2 ? [ending[(cur + 1) % n], ending[(cur + 2) % n]] : [];
+				// 下面三行跟着当前这条走：显示它之后的三个（也就在循环里一起换）；三行正好把卡片垫到与左侧齐平
+				const rows = n > 3 ? [ending[(cur + 1) % n], ending[(cur + 2) % n], ending[(cur + 3) % n]] : [];
 				if (!n) return (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-slot gacha-cal-sched-slot--empty" });
 				return (0, react_jsx_runtime.jsxs)("div", {
 					className: "gacha-cal-sched-slot",
