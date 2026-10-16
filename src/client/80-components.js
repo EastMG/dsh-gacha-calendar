@@ -719,7 +719,10 @@
 			});
 
 
-			return (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched", onScroll: slotScroll, children: [
+			return (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched", children: [
+				// 滚动层：**底栏在它之外**。这样底栏常驻面板下端，而内容在它上沿干净收住，
+				// 不会被底栏"浮在上面切成两半"（sticky 的固有毛病，用户反馈"字都看不清"）。
+				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-body", onScroll: slotScroll, children: [
 				// ① 标题「二游日历」+ 日期胶囊
 				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-head", children: [
 					(0, react_jsx_runtime.jsx)("h4", { children: "二游日历" }),
@@ -778,7 +781,9 @@
 					(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-failtext", children: failRows[0] }),
 					(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sched-retry", disabled: refreshing, onClick: onRefresh, children: "重试" })
 				] }) : null,
-				// ⑦ 底部（**常驻面板下端**，见 70-styles.js 里 sticky 的那条）：
+				] }),
+				// ⑦ 底部（**常驻面板下端**）：它在滚动层**之外**，所以内容不会从它下面穿过、也不会被切成两半。
+				//    左：刷新成功/失败横幅（旧面板 .gacha-cal-scrape 那条，悬停给逐来源明细）；右：上次更新 + 刷新。
 				//    左：刷新成功/失败横幅（就是旧面板 .gacha-cal-scrape 那条，悬停给逐来源明细）；
 				//    右：上次更新 X 分钟前 + 刷新。
 				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-foot", children: [
