@@ -172,7 +172,7 @@
 			.gacha-cal-sched-cell[data-t="event"] .gacha-cal-sched-rest{left:-6px;right:-8px;padding-left:6px;padding-right:8px}
 			/* 虚化只作用在**内容**上：浮层本体绝不能有 opacity（父级 opacity 会让那层底一起变半透明 → 下一行的字透出来） */
 			.gacha-cal-sched-rest .gacha-cal-sched-item{opacity:.62;transition:opacity .2s cubic-bezier(.4,0,.2,1)}
-			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest{clip-path:inset(0 0 0 0);height:auto;overflow:visible;pointer-events:auto;z-index:2;border-radius:0 0 10px 10px;
+			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest{clip-path:inset(0 0 0 0);height:auto;overflow:visible;pointer-events:auto;z-index:2;border-radius:12px;box-shadow:0 10px 26px -10px rgba(0,0,0,.3),0 1px 2px rgba(0,0,0,.08);
 				position:fixed !important;left:var(--rx,0) !important;right:auto !important;top:var(--ry,0) !important;width:var(--rw,auto) !important;margin:0 !important}
 			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest .gacha-cal-sched-item{opacity:1}
 			/* 底色与遮罩渐变的终点色都挂**行悬停**（不是格子悬停）：整行还灰时底板就必须还是灰，
@@ -229,7 +229,9 @@
 			.gacha-cal-sched-foot{position:relative;flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:2px 0;border-top:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));font-size:10.5px;color:var(--dsw-alias-label-tertiary,#6b7280)}
 			/* 底栏**不要**给 z-index：展开的探头是 position:fixed + z-index:auto，与底栏同层，
 			   DOM 靠后的底栏会盖住它 ⇒ 遮罩会糊在展开内容上（用户 2026-10-16 反馈）。
-			   正解是给展开的探头 z-index:2（见上面 :hover 那条），让探头稳定在上层。 */
+			   正解是给展开的探头 z-index:2（见上面 :hover 那条），**并由探头自己负责"边缘不硬"**：
+			   四角 12px 圆角 + 柔和投影 ⇒ 它看起来是一块浮层，而不是切在内容上的直角白板。
+			   两条已互相打架过一次（把底栏抬到探头之上 ⇒ 内容被糊），别再把两者绑在一起。 */
 			/* ── 字体规范（2026-10 定）：中文不上 600+；标题 600、正文 400；中文补字距与行高。
 			   字体栈前置 MiSans / HarmonyOS Sans / 思源 / Noto：本机装了就用，没装才落回雅黑。 */
 			.gacha-cal-sched{font-family:-apple-system,"SF Pro Text","Segoe UI Variable Text","Segoe UI","MiSans","HarmonyOS Sans SC","Source Han Sans SC","Noto Sans SC","PingFang SC","Microsoft YaHei UI","Microsoft YaHei",sans-serif;
