@@ -1348,6 +1348,9 @@
 			// 不会即时推新 ⇒ 受控 input 会立刻用旧值重渲染 ⇒ 用户看到"调完自己变回去"（2026-10-16 反馈）。
 			// 用草稿值显示即可消除该现象；落盘仍走 setGameColor → commit（实测 store 里是对的）。
 			const [colorDraft, setColorDraft] = (0, react.useState)({});
+			// 「展示」复选框的本地草稿（{ id: boolean }）：同样的原因 —— 受控 checked 读 `s`，
+			// 而 `s` 在本次会话里不即时推新 ⇒ 点一下立刻被旧值覆盖回去（用户看到的"完全点不了"）。
+			const [showDraft, setShowDraft] = (0, react.useState)({});
 			const [customInputs, setCustomInputs] = (0, react.useState)({});
 			const [eventCustomInputs, setEventCustomInputs] = (0, react.useState)({});
 			// 解析器自检（只读）：运行中标记 + 上一次的报告
@@ -1608,7 +1611,16 @@
 												(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-name gacha-cal-settings-name", style: { flex: "1 1 auto", minWidth: 0 }, children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: g.name }) })
 											] }),
 											(0, react_jsx_runtime.jsx)("label", { title: "展示/隐藏这一条", style: { ...labelStyle, cursor: "pointer", justifySelf: "center" }, children: [
-												(0, react_jsx_runtime.jsx)("input", { type: "checkbox", checked: !isEntryHidden(g, s), onChange: () => toggleHidden(g.id) })
+												(0, react_jsx_runtime.jsx)("input", {
+													type: "checkbox",
+													checked: Object.prototype.hasOwnProperty.call(showDraft, g.id) ? !!showDraft[g.id] : !isEntryHidden(g, s),
+													onChange: () => {
+														const cur = Object.prototype.hasOwnProperty.call(showDraft, g.id) ? !!showDraft[g.id] : !isEntryHidden(g, s);
+														const next = !cur;
+														setShowDraft((p) => ({ ...p, [g.id]: next }));
+														toggleHidden(g.id);
+													}
+												})
 											] }),
 											// 卡池来源选择器
 											(0, react_jsx_runtime.jsxs)("select", {
