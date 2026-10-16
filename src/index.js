@@ -280,7 +280,7 @@ async function proxyHandler(req, res) {
 const Config = z.object({
 	autoRefresh: z.boolean().default(true).volatile(),
 	refreshMinutes: z.number().min(1).max(60480).default(1440).volatile(),
-	// 实验特性：新「日程」面板视图。默认关 —— 关着时面板走原来的表格渲染（回退路径）。
+	// 实验特性：新「二游日历」面板视图。默认关 —— 关着时面板走原来的表格渲染（回退路径）。
 	newPanel: z.boolean().default(false).volatile(),
 	order: z.array(z.string()).default([]).volatile(),
 	lastRefresh: z.number().default(0).volatile(),
