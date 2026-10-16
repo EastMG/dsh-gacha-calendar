@@ -94,10 +94,7 @@
 			.gacha-cal-sched-u + .gacha-cal-sched-u{margin-top:1px}
 			.gacha-cal-sched-uic{display:inline-flex;flex:0 0 auto;width:26px;height:26px;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));border-radius:7px;overflow:hidden;background:var(--dsw-alias-bg-layer-2,rgba(127,127,127,.08))}
 			.gacha-cal-sched-who{flex:0 0 auto;width:78px;font-size:12.5px;color:var(--dsw-alias-label-secondary,#4a5261);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-			.gacha-cal-sched-kind{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:1px 5px;border-radius:999px}
 			/* 图标形状已可辨（星芒 vs 旗帜），收窄后不再显示「卡池/活动」二字（设计稿的取舍） */
-						.gacha-cal-sched-kind[data-t="gacha"]{color:var(--dsw-alias-link,#3b5bfd);background:color-mix(in oklab,var(--dsw-alias-state-business-primary,#3b5bfd) 10%,transparent)}
-			.gacha-cal-sched-kind[data-t="event"]{color:var(--dsw-alias-state-warn-label,#9a4a06);background:color-mix(in oklab,var(--dsw-alias-state-warn-primary,#f5a524) 16%,transparent)}
 			.gacha-cal-sched-what{flex:1 1 auto;min-width:0;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 			/* 时间结论 = 紧迫度。全屏只有这几处用颜色表紧迫度（文字=紧迫度，颜色=游戏，各管一件事） */
 			.gacha-cal-sched-when{flex:0 0 auto;font-size:12px;font-weight:500;text-align:right}
@@ -188,14 +185,6 @@
 			   设计稿按**格**画（只贯穿迷你条上下各 3px），不跨过上面的事项名文字 —— 跨过去会压在字上。 */
 			.gacha-cal-sched-tl i[data-today]{margin-block:-2px;border-radius:2.5px}
 			/* ⑤ 图例：颜色认游戏、图案看状态 */
-			.gacha-cal-sched-legend{display:flex;gap:12px;margin-top:8px;font-size:10px;color:var(--dsw-alias-label-tertiary,#6b7280);flex-wrap:wrap}
-			.gacha-cal-sched-k{display:inline-flex;align-items:center;gap:4px}
-			.gacha-cal-sched-sw{display:inline-block;flex:0 0 auto;width:9px;height:9px;border-radius:2px}
-			.gacha-cal-sched-sw[data-sw="game"]{background:var(--dsw-alias-state-business-primary,#3b5bfd)}
-			.gacha-cal-sched-sw[data-sw="done"]{background:repeating-linear-gradient(45deg,color-mix(in oklab,var(--dsw-alias-label-primary,#1f2329) 26%,transparent) 0 2px,transparent 2px 4px)}
-			.gacha-cal-sched-sw[data-sw="long"]{background:repeating-linear-gradient(90deg,color-mix(in oklab,var(--dsw-alias-label-primary,#1f2329) 30%,transparent) 0 3px,transparent 3px 6px)}
-			.gacha-cal-sched-sw[data-sw="wait"]{box-shadow:inset 0 0 0 1.5px color-mix(in oklab,var(--dsw-alias-state-business-primary,#3b5bfd) 55%,transparent)}
-			.gacha-cal-sched-sw[data-sw="today"]{background:color-mix(in oklab,var(--dsw-alias-label-primary,#1f2329) 7%,transparent);outline:1px solid var(--dsw-alias-label-primary,#1f2329);outline-offset:-1px}
 			/* ⑥ 刷新失败横条 + 重试（重试 = 整轮刷新：引擎没有单源刷新接口，见 50-refresh.js） */
 			.gacha-cal-sched-failbar{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11px;color:var(--dsw-alias-state-warn-label,#9a4a06)}
 			.gacha-cal-sched-fic{width:12px;height:12px;flex:0 0 auto}
@@ -211,7 +200,7 @@
 				-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;font-synthesis:none;
 				letter-spacing:.012em;line-height:1.45}
 			.gacha-cal-sched b,.gacha-cal-sched strong{font-weight:500}
-			.gacha-cal-sched-glance,.gacha-cal-sched-tcap,.gacha-cal-sched-legend,.gacha-cal-sched-foot{letter-spacing:.02em}
+			.gacha-cal-sched-glance,.gacha-cal-sched-tcap,.gacha-cal-sched-foot{letter-spacing:.02em}
 			.gacha-cal-sched-when,.gacha-cal-sched-uic,.gacha-cal-sched-when b{font-variant-numeric:tabular-nums}
 			/* ── 留白区：「下一个截止」卡 ──
 			   大图标当主体；环 = 该档期"已过多少"（环快满 = 快结束了，不用读字）；

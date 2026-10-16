@@ -729,15 +729,8 @@
 				games.length
 					? games.map(rowOf)
 					: (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-empty", children: "还没有勾选任何游戏 · 去设置里挑几款" }),
-				// ⑤ 图例：颜色认游戏、图案看状态
-				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-legend", children: [
-					(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-k", children: [(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-sw", "data-sw": "game" }), "颜色 = 游戏（深色=卡池 · 浅色=活动）"] }),
-					(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-k", children: [(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-sw", "data-sw": "done" }), "已结束"] }),
-					(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-k", children: [(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-sw", "data-sw": "long" }), "长期"] }),
-					(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-k", children: [(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-sw", "data-sw": "wait" }), "未开始"] }),
-					(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-sched-k", children: [(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-sw", "data-sw": "today" }), "今天这一列"] })
-				] }),
-				// ⑥ 刷新失败横条 + 重试（重试 = 整轮刷新：引擎没有单源刷新接口，见 50-refresh.js）
+
+				// ⑤ 刷新失败横条 + 重试（重试 = 整轮刷新：引擎没有单源刷新接口，见 50-refresh.js）
 				failed.length ? (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-failbar", title: failRows.join("\n"), children: [
 					scheduleWarnIcon("gacha-cal-sched-fic"),
 					(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-failtext", children: failRows[0] }),
