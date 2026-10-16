@@ -271,22 +271,18 @@
 			.gacha-cal-sched-btn:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1))}
 			.gacha-cal-sched-btn:disabled{opacity:.5;cursor:default}
 			.gacha-cal-sched-empty{padding:12px 8px;text-align:center;font-size:11.5px;color:var(--dsw-alias-label-tertiary,#6b7280)}
-			/* ── 「近期」默认 10 条 + 「还有 N 条」展开 ──
-			   纯 CSS：checkbox 在最前，:checked ~ 兄弟选择器控制后面的折叠区与标签文案。
-			   不写 state（本插件环境里 hook 不可靠），也不做高度动画（避免重排）。 */
-			.gacha-cal-sched-tgl{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
-			.gacha-cal-sched-extra{display:none}
-			.gacha-cal-sched-tgl:checked ~ .gacha-cal-sched-extra{display:block}
-			.gacha-cal-sched-more{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:6px;padding:5px 8px;border-radius:10px;
-				font-size:11px;font-weight:500;letter-spacing:.02em;color:var(--dsw-alias-label-tertiary,#6b7280);cursor:pointer;user-select:none}
+			/* ── 「近期」每 4 秒循环换一批（每批 10 条）+「展开全部」──
+			   状态与定时都在组件里（useCycle）；这里只负责外观。换页时整批淡入（key 变化触发重挂载）。
+			   不做高度动画（避免重排）。 */
+			.gacha-cal-sched-more{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:6px;padding:5px 8px;border:none;background:transparent;border-radius:10px;
+				font-family:inherit;font-size:11px;font-weight:500;letter-spacing:.02em;color:var(--dsw-alias-label-tertiary,#6b7280);cursor:pointer;user-select:none}
 			.gacha-cal-sched-more:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1));color:var(--dsw-alias-label-secondary,#4a5261)}
-			.gacha-cal-sched-more-e{display:none}
-			.gacha-cal-sched-tgl:checked ~ .gacha-cal-sched-more .gacha-cal-sched-more-c{display:none}
-			.gacha-cal-sched-tgl:checked ~ .gacha-cal-sched-more .gacha-cal-sched-more-e{display:inline}
-			.gacha-cal-sched-tgl:focus-visible ~ .gacha-cal-sched-more{outline:2px solid var(--dsw-alias-link,#3b5bfd);outline-offset:2px}
-			.gacha-cal-sched-chev{width:7px;height:7px;border-right:1.4px solid currentColor;border-bottom:1.4px solid currentColor;
-				transform:rotate(45deg) translate(-1px,-1px);transition:transform .2s cubic-bezier(.4,0,.2,1)}
-			.gacha-cal-sched-tgl:checked ~ .gacha-cal-sched-more .gacha-cal-sched-chev{transform:rotate(225deg) translate(-1px,-1px)}
+			.gacha-cal-sched-page{font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-tertiary,#9aa1ab)}
+			.gacha-cal-sched-more:focus-visible{outline:2px solid var(--dsw-alias-link,#3b5bfd);outline-offset:2px}
+			.gacha-cal-sched-nearpg{animation:gacha-cal-near-in .38s cubic-bezier(.4,0,.2,1) both}
+			@keyframes gacha-cal-near-in{from{opacity:0}to{opacity:1}}
+			.gacha-cal-slot-row{animation:gacha-cal-near-in .38s cubic-bezier(.4,0,.2,1) both}
+			@media (prefers-reduced-motion:reduce){.gacha-cal-sched-nearpg,.gacha-cal-slot-row{animation:none}}
 		
 
 

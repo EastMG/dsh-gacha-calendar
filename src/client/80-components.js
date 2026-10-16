@@ -384,6 +384,17 @@
 
 		// 日程面板本体。props 全部来自 CalendarPanel（同一份渲染快照）；组件自身**没有** UI 状态 ——
 		// 设计稿要求"不折叠、不点开"，所以旧版的"展开更多"连同它的 useState 一起删了。
+		// 通用循环器：每 seconds 秒把 step 推一格（count 格一轮）；paused 时不排下一拍。
+		// 近期分页与留白卡共用；模块级 hook ⇒ 组件身份稳定，状态不会被父级重渲染重置。
+		function useCycle(count, seconds, paused) {
+			const [step, setStep] = (0, react.useState)(0);
+			(0, react.useEffect)(() => {
+				if (paused || count <= 1) return;
+				const t = window.setInterval(() => setStep((v) => (v + 1) % count), seconds * 1000);
+				return () => window.clearInterval(t);
+			}, [count, seconds, paused]);
+			return count > 0 ? step % count : 0;
+		}
 		// ── 留白卡（模块作用域）──────────────────────────────────────────────
 		// ⚠️ 必须定义在这里，不能定义在 ScheduleView 内部：
 		// 父组件每秒都会重渲染（时钟 setNow），定义在里面的组件每次都是**新的函数身份**，
@@ -421,7 +432,7 @@
 			}
 			// 「再往后两件」一行：小环 + 游戏名一行 / 事项名一行 + 剩余天数
 			function slotLine(it, now) {
-				return (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-slot-row", children: [
+				return (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-slot-row", key: it.key, children: [
 					slotRing(slotFrac(it, now), slotAccent(it), 22, 3.4),
 					(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-slot-nm", children: [
 						(0, react_jsx_runtime.jsx)("b", { children: it.g.name }),
@@ -438,24 +449,18 @@
 				if (typeof it.startTs !== "number") return it.raw || "";
 				return (it.raw ? it.raw + " · " : "") + "已过 " + Math.round(frac * 100) + "%";
 			}
-			const SCHEDULE_SLOT_STEPS = 6;
 			const SCHEDULE_SLOT_SECS = 4;
 			// 留白卡本体：普通组件（useState 推进 + useEffect 定时），悬停即不再排下一拍
 			function SlotCard({ list, now }) {
 				const ending = list.filter((x) => x && typeof x.endTs === "number" && x.state !== "long" && x.endTs > now)
 					.sort((a, b) => a.endTs - b.endTs);
-				const slides = ending.slice(0, SCHEDULE_SLOT_STEPS);
-				const rest = ending.slice(SCHEDULE_SLOT_STEPS, SCHEDULE_SLOT_STEPS + 2);
+				const slides = ending;                       // 全部按顺序循环（不再限 6 条）
 				const n = slides.length;
-				const [step, setStep] = (0, react.useState)(0);
 				const [held, setHeld] = (0, react.useState)(false);
-				(0, react.useEffect)(() => {
-					if (held || n <= 1) return;
-					const t = window.setInterval(() => setStep((v) => (v + 1) % n), SCHEDULE_SLOT_SECS * 1000);
-					return () => window.clearInterval(t);
-				}, [held, n]);
+				const cur = useCycle(n, SCHEDULE_SLOT_SECS, held);
+				// 下面两行跟着当前这条走：显示它之后的两个（也就在循环里一起换）
+				const rows = n > 2 ? [ending[(cur + 1) % n], ending[(cur + 2) % n]] : [];
 				if (!n) return (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-slot gacha-cal-sched-slot--empty" });
-				const cur = step % n;
 				return (0, react_jsx_runtime.jsxs)("div", {
 					className: "gacha-cal-sched-slot",
 					style: { "--gc": slotAccent(slides[0]) },
@@ -491,7 +496,7 @@
 								]
 							});
 						}) }),
-						rest.length ? (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-more", children: rest.map((x) => slotLine(x, now)) }) : null
+						rows.length ? (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-more", children: rows.map((x) => slotLine(x, now)) }) : null
 					]
 				});
 			}
@@ -538,6 +543,15 @@
 				? x.startTs != null && x.startTs - now.getTime() <= SCHEDULE_NEAR_MS
 				: x.state === "live" && x.remain <= SCHEDULE_NEAR_MS);
 			const recent = all.filter(scheduleNear).sort((a, b) => schedulePickItem(a, b) || (a.g.name < b.g.name ? -1 : a.g.name > b.g.name ? 1 : 0));
+			// 「近期」循环：每 4 秒整体换一批（每批 SCHEDULE_NEAR_LIMIT 条，末页用取模环绕 ⇒ 永远满 10 条、且能转遍全部）。
+			// 悬停、或点了「展开全部」时都停住 —— 想看全就展开，想停在某批就把鼠标放上去。
+			const [nearHeld, setNearHeld] = (0, react.useState)(false);
+			const [nearAll, setNearAll] = (0, react.useState)(false);
+			const nearPages = Math.max(1, Math.ceil(recent.length / SCHEDULE_NEAR_LIMIT));
+			const nearPage = useCycle(nearPages, SCHEDULE_SLOT_SECS, nearHeld || nearAll);
+			const nearRows = (nearAll || recent.length <= SCHEDULE_NEAR_LIMIT)
+				? recent
+				: Array.from({ length: SCHEDULE_NEAR_LIMIT }, (_, i) => recent[(nearPage * SCHEDULE_NEAR_LIMIT + i) % recent.length]);
 			const days = scheduleDays(now);
 			// 日期胶囊：设计稿写「10 月 5 日 · 周日」
 			const datePill = now.getMonth() + 1 + " 月 " + now.getDate() + " 日 · " + SCHEDULE_WEEKDAYS[now.getDay()];
@@ -645,23 +659,27 @@
 				// ③ 「近期」：跨游戏、按紧迫度、全列出；右侧是「下一个截止」卡（见上）
 				(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-h2", children: (0, react_jsx_runtime.jsx)("h4", { children: "近期" }) }),
 				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-recent", children: [
-					(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-urgent", children: recent.length
+					(0, react_jsx_runtime.jsxs)("div", {
+						className: "gacha-cal-sched-urgent",
+						onPointerEnter: () => setNearHeld(true),
+						onPointerLeave: () => setNearHeld(false),
+						children: recent.length
 						? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
-							// 展开开关：checkbox 放在最前，靠 CSS 的 :checked ~ 兄弟选择器控制后面两组 —— 纯 CSS，不写一行 state。
-							(0, react_jsx_runtime.jsx)("input", { type: "checkbox", id: "gacha-cal-near-more", className: "gacha-cal-sched-tgl" }),
-							recent.slice(0, SCHEDULE_NEAR_LIMIT).map(recentRow),
+							(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-nearpg", key: nearAll ? "all" : "p" + nearPage, children: nearRows.map(recentRow) }),
 							recent.length > SCHEDULE_NEAR_LIMIT
-								? (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-extra", children: recent.slice(SCHEDULE_NEAR_LIMIT).map(recentRow) })
-								: null,
-							recent.length > SCHEDULE_NEAR_LIMIT
-								? (0, react_jsx_runtime.jsxs)("label", { className: "gacha-cal-sched-more", htmlFor: "gacha-cal-near-more", children: [
-									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-more-c", children: "还有 " + String(recent.length - SCHEDULE_NEAR_LIMIT) + " 条" }),
-									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-more-e", children: "收起" }),
-									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-chev" })
-								] })
+								? (0, react_jsx_runtime.jsxs)("button", {
+									type: "button",
+									className: "gacha-cal-sched-more",
+									onClick: () => setNearAll((v) => !v),
+									children: [
+										(0, react_jsx_runtime.jsx)("span", { children: nearAll ? "收起" : "展开全部 " + String(recent.length) + " 条" }),
+										nearAll ? null : (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-page", children: (nearPage + 1) + " / " + String(nearPages) })
+									]
+								})
 								: null
 						] })
-						: (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-empty", children: "这段时间没有要盯的档期" }) }),
+						: (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-empty", children: "这段时间没有要盯的档期" })
+					}),
 					(0, react_jsx_runtime.jsx)(SlotCard, { list: all, now: now })
 				] }),
 				// ④ 游戏表：**没有区块标题**，列表头直接跟在后面
