@@ -412,20 +412,20 @@
 			el.style.setProperty("--ry", (b.bottom - 12) + "px");
 			el.style.setProperty("--rw", (b.width + (el.getAttribute("data-t") === "gacha" ? 12 : 14)) + "px");
 		}
-		// 滚动时把"当下正被悬停"的格子重定位（:hover 通常最多一个；鼠标没在格子上时什么都不做）
-		function slotScroll(e) {
-			if (!e || !e.currentTarget || !e.currentTarget.querySelectorAll) return;
-			const hovered = e.currentTarget.querySelectorAll(".gacha-cal-sched-cell:hover");
-			for (let i = 0; i < hovered.length; i++) slotPlace(hovered[i]);
+		// 当前被悬停的格子只记一个：滚动时只重定位它 —— 不再用 :hover 查询（那会强制样式计算与命中测试），
+		// 且合并到每帧一次（rAF），否则滚轮每 16ms 就强制一次同步布局，滚动会一顿一顿的。
+		let slotHeld = null;
+		let slotRaf = 0;
+		function slotEnter(el) { slotHeld = el; slotPlace(el); }
+		function slotLeave(el) { if (slotHeld === el) slotHeld = null; }
+		function slotScroll() {
+			if (!slotHeld || slotRaf) return;
+			slotRaf = window.requestAnimationFrame(() => {
+				slotRaf = 0;
+				if (slotHeld) slotPlace(slotHeld);
+			});
 		}
-		// 展开的探头是 position:fixed ⇒ 指针在它上面时，浏览器的滚动链挂在**视口**上、不经过面板视图，
-		// 滚轮会像被吃掉一样（用户："鼠标悬停的时候滚轮根本动不了"）。
-		// 这里把滚轮手动转交给面板视图；视图一滚就会触发它的 onScroll ⇒ 探头随即按新位置重新定位。
-		function slotWheel(e) {
-			const el = e && e.currentTarget;
-			const v = el && el.closest ? el.closest(".gacha-cal-sched") : null;
-			if (v) v.scrollTop += e.deltaY;
-		}
+
 		// ── 留白卡（模块作用域）──────────────────────────────────────────────
 		// ⚠️ 必须定义在这里，不能定义在 ScheduleView 内部：
 		// 父组件每秒都会重渲染（时钟 setNow），定义在里面的组件每次都是**新的函数身份**，
@@ -667,13 +667,13 @@
 					// 靠下的格子一展开面板内容就变长 ⇒ 滚动条滑块缩短 / 滚动锚定位移 = 用户看到的"抽搐"。
 					// fixed 的包含块是视口 ⇒ 既不撑大滚动区、也不会被面板裁掉 —— 真正"伸出面板之外"。
 					// 坐标按格子实测写入（--rx/--ry/--rw），滚动时由视图的 onScroll 重算。
-					onPointerEnter: (e) => slotPlace(e.currentTarget),
+					onPointerEnter: (e) => slotEnter(e.currentTarget),
+					onPointerLeave: (e) => slotLeave(e.currentTarget),
 
 					children: [
 						itemOf(it, "first"),
 						rest.length ? (0, react_jsx_runtime.jsx)("div", {
 							className: "gacha-cal-sched-rest",
-							onWheel: slotWheel,
 							children: rest.map((x, i) => itemOf(x, "r" + i))
 						}) : null
 					]
