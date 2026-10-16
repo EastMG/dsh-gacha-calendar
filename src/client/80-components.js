@@ -778,9 +778,12 @@
 					(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-failtext", children: failRows[0] }),
 					(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sched-retry", disabled: refreshing, onClick: onRefresh, children: "重试" })
 				] }) : null,
-				// ⑦ 底部：上次更新 X 分钟前 + 刷新（悬停给绝对时间与逐条抓取明细，信息不与旧面板脱节）
+				// ⑦ 底部（**常驻面板下端**，见 70-styles.js 里 sticky 的那条）：
+				//    左：刷新成功/失败横幅（就是旧面板 .gacha-cal-scrape 那条，悬停给逐来源明细）；
+				//    右：上次更新 X 分钟前 + 刷新。
 				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-foot", children: [
-					(0, react_jsx_runtime.jsx)("span", { title: [lastRefreshText, scrapeInfo].concat(scrapeLines || []).filter(Boolean).join("\n"), children: "上次更新 " + scheduleAgo(s.lastRefresh, now) }),
+					scrapeInfo ? (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-scrape", title: (scrapeLines || []).join("\n"), children: scrapeInfo }) : null,
+					(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-when", title: [lastRefreshText, scrapeInfo].concat(scrapeLines || []).filter(Boolean).join("\n"), children: "上次更新 " + scheduleAgo(s.lastRefresh, now) }),
 					(0, react_jsx_runtime.jsx)("button", {
 						type: "button", className: "gacha-cal-sched-btn", disabled: refreshing,
 						title: refreshing ? "刷新中..." : "刷新", "aria-label": refreshing ? "刷新中..." : "刷新",
