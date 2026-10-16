@@ -86,7 +86,6 @@
 			@keyframes gacha-cal-rise-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 			@keyframes gacha-cal-fade-in{from{opacity:0}to{opacity:1}}
 			@keyframes gacha-cal-shell-in{from{opacity:0}to{opacity:1}}
-			@keyframes gacha-cal-sweep{from{transform:translateX(-120%)}to{transform:translateX(320%)}}
 			/* ⚠️ 一律用 animation-fill-mode: **backwards**（不是 both/forwards）：
 			   动画跑完后元素必须**回归自然态**，不能一直挂着动画标记 —— 挂着会让 Chromium 给它
 			   独立合成层、改变绘制顺序，展开的探头就会被行盖住（用户 2026-10-16 反馈"可读性被改坏"）。
@@ -107,13 +106,8 @@
 			.gacha-cal-sched-trow:nth-child(5){animation-delay:.22s}
 			.gacha-cal-sched-trow:nth-child(6){animation-delay:.25s}
 			.gacha-cal-sched-trow:nth-child(n+7){animation-delay:.28s}
-			/* 一道横向流光扫过面板顶部（纯 ::after，不加元素；只在启动时跑一次） */
-			.gacha-cal-sched::after{content:"";position:absolute;top:0;left:0;width:28%;height:100%;pointer-events:none;
-				background:linear-gradient(100deg,transparent,color-mix(in oklab,var(--dsw-alias-label-primary,#1f2329) 7%,transparent) 45%,transparent);
-				animation:gacha-cal-sweep .85s cubic-bezier(.3,.7,.3,1) .05s backwards;opacity:.9}
 			@media (prefers-reduced-motion:reduce){
 				.gacha-cal-sched,.gacha-cal-sched-head,.gacha-cal-sched-glance,.gacha-cal-sched-recent,.gacha-cal-sched-slot,.gacha-cal-sched-foot,.gacha-cal-sched-trow{animation:none}
-				.gacha-cal-sched::after{display:none}
 			}
 			.gacha-cal-sort-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1));color:var(--dsw-alias-label-primary,#1f2329)}
 			.gacha-cal-sort-btn:disabled{opacity:.35;cursor:default}
@@ -263,6 +257,22 @@
 			/* 今天那一格：**不用竖线**（用户 2026-10-15 要求），改为格子本身上下各加高 3px，与刻度上的今天对齐。
 			   设计稿按**格**画（只贯穿迷你条上下各 3px），不跨过上面的事项名文字 —— 跨过去会压在字上。 */
 			.gacha-cal-sched-tl i[data-today]{margin-block:-2px;border-radius:2.5px}
+			/* ── 进度条动画 ───────────────────────────────────────────────────────────
+			   迷你条：**填充分段逐格弹出**（缩放 + 淡入，错峰靠 nth-child 造出波浪感）；
+			   卡片环：整体轻微放大淡入。
+			   ⚠️ 只作用在**叶子**元素上（i / 环本身都不含探头）⇒ 不影响 position:fixed 探头的包含块；
+			      且一律 animation-fill-mode: backwards（跑完回归自然态、不留动画标记，避免独立合成层改变绘制顺序）。 */
+			@keyframes gacha-cal-bar-in{from{opacity:.1;transform:scaleY(.3)}to{opacity:1;transform:none}}
+			@keyframes gacha-cal-ring-in{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
+			.gacha-cal-sched-tl i[data-f],.gacha-cal-slot-tl i[data-f]{animation:gacha-cal-bar-in .36s cubic-bezier(.2,.9,.25,1.12) backwards;transform-origin:50% 100%}
+			.gacha-cal-sched-tl i[data-f]:nth-child(n){animation-delay:.12s}
+			.gacha-cal-sched-tl i[data-f]:nth-child(2n){animation-delay:.15s}
+			.gacha-cal-sched-tl i[data-f]:nth-child(3n){animation-delay:.18s}
+			.gacha-cal-sched-tl i[data-f]:nth-child(4n){animation-delay:.21s}
+			.gacha-cal-sched-tl i[data-f]:nth-child(5n){animation-delay:.24s}
+			.gacha-cal-slot-tl i[data-f]{animation-delay:.16s}
+			.gacha-cal-slot-ring{animation:gacha-cal-ring-in .5s cubic-bezier(.2,.9,.25,1.06) backwards;animation-delay:.2s}
+			@media (prefers-reduced-motion:reduce){.gacha-cal-sched-tl i[data-f],.gacha-cal-slot-tl i[data-f],.gacha-cal-slot-ring{animation:none}}
 			/* ⑤ 图例：颜色认游戏、图案看状态 */
 			/* ⑥ 刷新失败横条 + 重试（重试 = 整轮刷新：引擎没有单源刷新接口，见 50-refresh.js） */
 			.gacha-cal-sched-failbar{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11px;color:var(--dsw-alias-state-warn-label,#9a4a06)}
