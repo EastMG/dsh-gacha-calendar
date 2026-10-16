@@ -124,7 +124,11 @@
 		const SCHEDULE_PALETTE = ["#E0709F", "#3FA9A0", "#E0A93B", "#4A6CF7", "#7A5AF8", "#2FB3C9", "#E06C4A", "#5C9E3F"];
 
 		// 这一款游戏的代表色：条目自带 color（由 SOURCES 下发）优先，否则按名字哈希（同名恒同色）。
-		function scheduleGameColor(g) {
+		function scheduleGameColor(g, overrides) {
+			// 用户覆盖优先（设置页每游戏取色器写入 gameColors[id]）
+			const id = g && g.id ? String(g.id) : "";
+			const ov = overrides && id && typeof overrides[id] === "string" ? String(overrides[id]).trim() : "";
+			if (/^#[0-9a-f]{6}$/i.test(ov)) return ov;
 			const own = g && typeof g.color === "string" ? g.color.trim() : "";
 			if (own) return own;
 			const name = String((g && g.name) || "");
@@ -533,7 +537,7 @@
 					] })
 				] });
 			}
-			const slotAccent = (it) => scheduleGameColor(it.g);
+			const slotAccent = (it) => scheduleGameColor(it.g, gameColorMap);
 			// 档期行：有 raw 才补分隔符；没有开始时间就不显示"已过 0%"（那是假信息）
 			function slotSub(it, frac) {
 				if (typeof it.startTs !== "number") return it.raw || "";
@@ -788,7 +792,7 @@
 			const rowOf = (g, i) => (0, react_jsx_runtime.jsxs)("div", {
 				className: "gacha-cal-sched-trow",
 				key: g.id,
-				style: { "--g": scheduleGameColor(g), "--z": String(900 - i) },
+				style: { "--g": scheduleGameColor(g, gameColorMap), "--z": String(900 - i) },
 				children: [
 					(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-gm", title: buildRowTitle(g), children: [
 						scheduleIcon("gacha-cal-sched-gic", g, 38),
@@ -1478,6 +1482,12 @@
 				next[id] = "custom:" + value;
 				await commit("customEventUrls", JSON.stringify(next));
 			};
+			// 每游戏主题色：写入 gameColors（{ id: "#rrggbb" }）。非法/空值 = 删除该项 ⇒ 回落到出厂色/名字哈希。
+			const setGameColor = async (id, value) => {
+				const next = { ...parseJsonStr(s.gameColors, {}) };
+				if (value && /^#[0-9a-f]{6}$/i.test(value)) next[id] = value; else delete next[id];
+				await commit("gameColors", JSON.stringify(next));
+			};
 			// 添加自定义条目：名称/图标手动填，卡池与活动内容由链接解析产出
 			const addEntry = async () => {
 				if (!form.name.trim() || !form.url.trim()) return;
@@ -1495,6 +1505,8 @@
 			};
 			const updateForm = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
 
+			// 每游戏主题色覆盖表（设置里存 JSON 字符串；解析失败回空表 = 全部用出厂色/名字哈希）
+			const gameColorMap = parseJsonStr(s.gameColors, {});
 			// 选择器/输入框统一样式；textOverflow/overflow 让长选项文本省略截断，避免与下拉箭头重叠
 			const inputStyle = { padding: "2px 6px", border: "1px solid var(--dsw-alias-border-l2)", background: "var(--dsw-alias-bg-base)", color: "var(--dsw-alias-label-primary)", borderRadius: 6, fontSize: 12, maxWidth: "100%", textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" };
 			const labelStyle = { display: "flex", alignItems: "center", gap: 6, fontSize: 12, flex: "none" };
@@ -1546,11 +1558,12 @@
 						] }),
 						(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 11, marginBottom: 2 }, children: "「展示」控制显示；「↑↓」调整顺序；来源可切换或自定义。" }),
 						// 表头行（与数据行同 grid 列；全部居中，与下方各列边界对齐）
-						(0, react_jsx_runtime.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "minmax(90px,1fr) auto minmax(130px,1.2fr) minmax(130px,1.2fr) auto", gap: 10, alignItems: "center", padding: "3px 0", borderBottom: "1px solid var(--dsw-alias-border-l1)", color: "var(--dsw-alias-label-tertiary)", fontSize: 11 }, children: [
+						(0, react_jsx_runtime.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "minmax(90px,1fr) auto minmax(130px,1.2fr) minmax(130px,1.2fr) auto auto", gap: 10, alignItems: "center", padding: "3px 0", borderBottom: "1px solid var(--dsw-alias-border-l1)", color: "var(--dsw-alias-label-tertiary)", fontSize: 11 }, children: [
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u6E38\u620F" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u5C55\u793A" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u5361\u6C60\u6765\u6E90" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u6D3B\u52A8\u6765\u6E90" }),
+							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u989C\u8272" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u64CD\u4F5C" })
 						] }),
 						sorted.map((g, i) => {
@@ -1563,7 +1576,7 @@
 								style: { borderBottom: "1px solid var(--dsw-alias-border-l1)" },
 								children: [
 									(0, react_jsx_runtime.jsxs)("div", {
-										style: { display: "grid", gridTemplateColumns: "minmax(90px,1fr) auto minmax(130px,1.2fr) minmax(130px,1.2fr) auto", gap: 10, alignItems: "center", padding: "4px 0" },
+										style: { display: "grid", gridTemplateColumns: "minmax(90px,1fr) auto minmax(130px,1.2fr) minmax(130px,1.2fr) auto auto", gap: 10, alignItems: "center", padding: "4px 0" },
 										children: [
 											(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6, minWidth: 0 }, children: [
 												(0, react_jsx_runtime.jsx)(GameIcon, { icon: g.icon, name: g.name, size: 22 }),
@@ -1595,6 +1608,13 @@
 													(0, react_jsx_runtime.jsx)("option", { value: "custom", children: "自定义" })
 												]
 											}),
+											// 主题色：点开系统取色器即时写回 gameColors（点右下「重置」样的小方块可取消覆盖）
+											(0, react_jsx_runtime.jsx)("label", { title: "主题色（点开系统取色器）", style: { justifySelf: "center", display: "inline-flex", alignItems: "center", cursor: "pointer" }, children: (0, react_jsx_runtime.jsx)("input", {
+												type: "color",
+												value: /^#[0-9a-f]{6}$/i.test(String(gameColorMap[g.id] || "")) ? gameColorMap[g.id] : (() => { const c = scheduleGameColor(g, gameColorMap); return /^#[0-9a-f]{6}$/i.test(c) ? c : "#3b5bfd"; })(),
+												onChange: (e) => setGameColor(g.id, e.target.value),
+												style: { width: 24, height: 24, padding: 0, border: "1px solid var(--dsw-alias-border-l2)", borderRadius: 6, background: "transparent", cursor: "pointer" }
+											}) }),
 											(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 4, justifySelf: "center" }, children: [
 												(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", title: "\u4E0A\u79FB", disabled: i === 0, onClick: () => move(g.id, -1), children: (0, react_jsx_runtime.jsx)("svg", { width: 12, height: 12, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", children: [(0, react_jsx_runtime.jsx)("path", { d: "M12 19V5" }), (0, react_jsx_runtime.jsx)("path", { d: "M5 12l7-7 7 7" })] }) }),
 												(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", title: "\u4E0B\u79FB", disabled: i === sorted.length - 1, onClick: () => move(g.id, 1), children: (0, react_jsx_runtime.jsx)("svg", { width: 12, height: 12, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", children: [(0, react_jsx_runtime.jsx)("path", { d: "M12 5v14" }), (0, react_jsx_runtime.jsx)("path", { d: "M19 12l-7 7-7-7" })] }) }),

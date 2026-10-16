@@ -31,7 +31,7 @@
 			//    ddlezj / ournotes-global / bh3；**2026-10-03 起 p5x 已改为出厂可见 → 剩 5 个**）。
 			//    防回归见 test/cases-rule-lint.mjs 的「DEFAULT_SETTINGS 的键必须都在 CONFIG_KEYS 里」。
 			const CONFIG_KEYS = [
-				"order", "hidden", "shown", "removed", "customEntries", "customUrls", "customEventUrls",
+				"order", "hidden", "shown", "removed", "customEntries", "customUrls", "customEventUrls", "gameColors",
 				// newPanel：实验特性「新日程面板」开关（默认 false）。**别漏**——漏了就是 2026-10-03 那个
 				// 「勾了不生效」的复刻：设置页写进表单、面板却读不到。守卫见 test/cases-rule-lint.mjs。
 				"autoRefresh", "refreshMinutes", "newPanel", "lastData", "lastRefresh", "lastSource", "lastVersion"

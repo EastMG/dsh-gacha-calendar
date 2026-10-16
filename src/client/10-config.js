@@ -26,6 +26,8 @@
 			lastSource: "none",
 			// 最近一次联网抓取的解析结果（JSON：{ [gameId]: {banner,bannerDates,roles,event,eventDates} }）
 			lastData: "",
+			// 每游戏主题色覆盖：{ id: "#rrggbb" }（空 = 用出厂色 / 名字哈希），由设置页的取色器写入
+			gameColors: "{}",
 			// 不展示的条目 id 列表（设置页开关）；出厂默认隐藏见条目的 `defaultHidden` 字段
 			hidden: [],
 			// 用户**明确打开**的条目 id 列表 —— 用来覆盖条目的出厂 `defaultHidden`。

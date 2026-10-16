@@ -294,6 +294,8 @@ const Config = z.object({
 	shown: z.array(z.string()).default([]).volatile(),
 	removed: z.array(z.string()).default([]).volatile(),
 	customUrls: z.string().default("{}").volatile(),
+	// 每游戏主题色覆盖：{ id: "#rrggbb" }（空 = 用出厂色 / 名字哈希）。设置页每游戏一个取色器写入。
+	gameColors: z.string().default("{}").volatile(),
 	customEventUrls: z.string().default("{}").volatile(),
 	customEntries: z.string().default("[]").volatile()
 });
