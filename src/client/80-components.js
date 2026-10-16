@@ -101,8 +101,9 @@
 		// 设计稿（**唯一真源**）：dsh-gacha-ui-lab/a-v6.html（效果图 a-v6.png）
 		//
 		// 结构自上而下，与设计稿一一对应（类名统一 `gacha-cal-sched-*`，样式见 70-styles.js）：
-		//   ① 标题「二游日历」+ 日期胶囊（**没有**总计数胶囊）
-		//   ② 一行总览：今天 N 条到期 · N 条即将开始 · N 条在期 · N 个来源刷新失败
+		//   ① 日期胶囊（2026-10-17 起面板**内**不再写标题「二游日历」那四个字；**没有**总计数胶囊。
+		//      侧栏那个入口按钮的「二游日历」是插件入口，照旧保留 —— 两处别混）
+		//   ② 一行总览（K 版）：24 小时内 N 条 · 7 天内 M 条（为 0 的段不显示；都为 0 只留一句短兜底）
 		//   ③ 「近期」：跨游戏、按紧迫度、**全列出**（不折叠、不点开），占左约 64%，右侧一个虚线空框
 		//   ④ 游戏表（**没有区块标题**，列表头直接跟在后面）：游戏 190px / 卡池 / 活动，
 		//      顺序 = 用户在设置里拖的排列（`applyOrder` 已经排好，这里**不按紧迫度重排**）
@@ -637,6 +638,18 @@
 				marqEl = el;
 			}
 		}
+		// ── 总览那两段计数（K 版，2026-10-17）────────────────────────────────────────
+		// 面板顶部那行=「24 小时内 N 条」·「7 天内 M 条」，用共用的 gacha-cal-sched-sep（·）连接。
+		// 规则（用户明确要求）：**为 0 的段不出现**（不再有"今天 0 条到期"这种废话）；两段都为 0 时
+		// 只留一句**不带数字**的短兜底。纯函数（不碰 React / DOM）⇒ 四种组合可离线单测；
+		// 渲染侧只负责把 label + 粗体数字 + 尾字摆出来（样式沿用 .gacha-cal-sched-glance b 那份）。
+		// 返回：[{ label, n, tail }] 或 [{ text }]（兜底），长度 1~2。
+		function scheduleGlanceSegs(within24, within7) {
+			const out = [];
+			if (within24 > 0) out.push({ label: "24 小时内 ", n: within24, tail: " 条" });
+			if (within7 > 0) out.push({ label: "7 天内 ", n: within7, tail: " 条" });
+			return out.length ? out : [{ text: "最近 7 天无事" }];
+		}
 		function ScheduleView({ games, now, s, colorMap, refreshing, onRefresh, lastRefreshText, scrapeInfo, scrapeLines }) {
 			// 每游戏主题色覆盖表（面板侧；设置组件里另有一份同名的）。
 			// ⚠️ 必须在这里也定义一次：下面的行 --g 与留白卡 slotAccent 都在本组件里用它，
@@ -650,7 +663,7 @@
 			// 无关设置写入都会让本组件重渲染；这一段原本每次都要逐游戏跑 scheduleNormalize（28×2）
 			// ＋悬停文本解析＋失败归类。用 useMemo 按真正输入（games / now）缓存。
 			//   ⚠️ 依赖只写 games / now：本段不再读别的可变输入（主题色不参与，见 gameColorMap 只在下游用）。
-			const { cells, all, failed, failRows, failedSources, dueCount, waitCount, liveCount } = (0, react.useMemo)(() => {
+			const { cells, all, failed, failRows, soonCount } = (0, react.useMemo)(() => {
 			const cells = new Map();
 			const all = [];
 			for (const g of games) {
@@ -682,18 +695,18 @@
 				const reason = (normalizeFail(x.fail) || {}).reason || "";
 				return x.g.name + " · " + sourceNameOf(x) + (reason ? " " + reason : "") + " —— 该条沿用上次成功数据";
 			});
-			// 总览里的"来源"按**来源名**去重：同一款的两侧都挂了也只算一个来源。
-			const failedSources = [];
-			for (const x of failed) {
-				const n = sourceNameOf(x) || x.g.name;
-				if (!failedSources.includes(n)) failedSources.push(n);
-			}
-			const dueCount = all.filter((x) => x.state === "live" && x.remain <= SCHEDULE_DUE_MS).length;
-			const waitCount = all.filter((x) => x.state === "wait").length;
-			const liveCount = all.filter((x) => x.state === "live" || x.state === "long").length;
-			return { cells, all, failed, failRows, failedSources, dueCount, waitCount, liveCount };
+			// 「24 小时内」= 未来 24 小时内有**开始或结束**的外显条目：startTs 或 endTs 落在 (now, now+24h]。
+			// 与旧的「今天到期」不同：这里**开始也算**（原来"即将开始"是另一段，现已并进这一格）。
+			// ⚠️ 只数 all（= 每格外显那一条，与「近期」同一份候选）；探头里的并列 extras 不计。
+			// ⚠️ 0 值/哨兵不动手：长期档期（endTs=0 或 2099 那种）自然落在窗口外，不需要额外特判。
+			const nowMs = now.getTime();
+			const soonCount = all.filter((x) => (
+				(x.startTs > nowMs && x.startTs <= nowMs + SCHEDULE_DUE_MS) ||
+				(x.endTs > nowMs && x.endTs <= nowMs + SCHEDULE_DUE_MS)
+			)).length;
+			return { cells, all, failed, failRows, soonCount };
 			}, [games, now]);
-			// ↑↑↑ useMemo 结束（cells / all / 失败归类 / 三个计数）
+			// ↑↑↑ useMemo 结束（cells / all / 失败归类 / 24 小时计数）
 			// 「近期」= **7 天内有事发生**（到期或开始）；更远的只出现在下方游戏表里
 			// （用户 2026-10-15：不能把 20 多天后的也算近期）。长期/已结束不进近期。
 			const SCHEDULE_NEAR_MS = SCHEDULE_AMBER_MS;
@@ -852,21 +865,27 @@
 				: (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-empty", children: "还没有勾选任何游戏 · 去设置里挑几款" })),
 				[games, days, cells, gameColorMap, now]);
 
+			// 「总览」两段的显示内容（哪几段显示、数字各是多少，由纯函数 scheduleGlanceSegs 决定）。
+			// ⚠️ 「7 天内」那段的数字 = recent.length = **就是**「近期」底部按钮「展开全部 N 条」的 N
+			//    （同一份 recent / 同一套 scheduleNear 判定，见上）—— 绝不另写第二套 7 天条件。
+			const glanceSegs = scheduleGlanceSegs(soonCount, recent.length);
+			const glanceFallback = glanceSegs[0].text != null;
+
 			return (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched", children: [
 				// 滚动层：**底栏在它之外**。这样底栏常驻面板下端，而内容在它上沿干净收住，
 				// 不会被底栏"浮在上面切成两半"（sticky 的固有毛病，用户反馈"字都看不清"）。
 				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-body", onScroll: slotScroll, children: [
-				// ① 标题「二游日历」+ 日期胶囊
+				// ① 日期胶囊（2026-10-17：面板**内**的「二游日历」标题已删，只留胶囊；
+				//    .gacha-cal-sched-sp 的 margin-left:auto 因此独占整行 ⇒ 胶囊仍贴在右端，不留空块）
 				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-head", children: [
-					(0, react_jsx_runtime.jsx)("h4", { children: "二游日历" }),
 					(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-sp", children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-pill gacha-cal-sched-pill--live", children: datePill }) })
 				] }),
-				// ② 一行总览
+				// ② 一行总览（K 版）：24 小时内 N 条 · 7 天内 M 条；为 0 的段不渲染；都 0 → 一句短兜底。
+				//    子元素保持**静态位置**（不用 map ⇒ 不需要 key），最多 3 个：段1 / 分隔符 / 段2。
 				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-glance", children: [
-					"今天 ", (0, react_jsx_runtime.jsx)("b", { children: String(dueCount) }), " 条到期",
-					sep(), (0, react_jsx_runtime.jsx)("b", { children: String(waitCount) }), " 条即将开始",
-					sep(), (0, react_jsx_runtime.jsx)("b", { children: String(liveCount) }), " 条在期",
-					failedSources.length ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [sep(), (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-warn", children: String(failedSources.length) + " 个来源刷新失败" })] }) : null
+					glanceFallback ? glanceSegs[0].text : (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [glanceSegs[0].label, (0, react_jsx_runtime.jsx)("b", { children: String(glanceSegs[0].n) }), glanceSegs[0].tail] }),
+					!glanceFallback && glanceSegs.length > 1 ? sep() : null,
+					!glanceFallback && glanceSegs.length > 1 ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [glanceSegs[1].label, (0, react_jsx_runtime.jsx)("b", { children: String(glanceSegs[1].n) }), glanceSegs[1].tail] }) : null
 				] }),
 				// ③ 「近期」：跨游戏、按紧迫度、全列出；右侧是「下一个截止」卡（见上）
 				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-recent", children: [

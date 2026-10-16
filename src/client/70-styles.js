@@ -138,16 +138,15 @@
 			.gacha-cal-sched-body{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:auto;scrollbar-width:none}
 			.gacha-cal-sched-body::-webkit-scrollbar{width:0;height:0}
 			.gacha-cal-sched-num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
-			/* ① 标题「二游日历」+ 日期胶囊（**没有**总计数胶囊） */
+			/* ① 日期胶囊（2026-10-17：面板**内**的「二游日历」标题已删，侧栏入口按钮不动；**没有**总计数胶囊）。
+			   head 仍是 flex（错峰浮现动画 .gacha-cal-sched-head 保留），胶囊靠 sp 的 margin-left:auto 独占整行贴右端。 */
 			.gacha-cal-sched-head{display:flex;align-items:center;gap:10px;padding:2px 0 8px}
-			.gacha-cal-sched-head h4{margin:0;font-size:15px;font-weight:600;letter-spacing:-.1px}
 			.gacha-cal-sched-sp{margin-left:auto;display:flex;gap:6px}
 			.gacha-cal-sched-pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:999px;font-size:11px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));color:var(--dsw-alias-label-secondary,#4a5261)}
 			.gacha-cal-sched-pill--live{background:color-mix(in oklab,var(--dsw-alias-state-business-primary,#3b5bfd) 12%,transparent);border-color:transparent;color:var(--dsw-alias-link,#3b5bfd)}
-			/* ② 一行总览：今天 N 条到期 · N 条即将开始 · N 条在期 · N 个来源刷新失败 */
+			/* ② 一行总览（K 版）：24 小时内 N 条 · 7 天内 M 条（为 0 的段不显示；数字走 .gacha-cal-sched-glance b） */
 			.gacha-cal-sched-glance{display:flex;align-items:center;gap:10px;margin:0 0 6px;font-size:12px;color:var(--dsw-alias-label-secondary,#4a5261);flex-wrap:wrap}
 			.gacha-cal-sched-glance b{color:var(--dsw-alias-label-primary,#1f2329);font-weight:500}
-			.gacha-cal-sched-warn{color:var(--dsw-alias-state-warn-label,#9a4a06)}
 			.gacha-cal-sched-sep{color:var(--dsw-alias-label-tertiary,#6b7280);margin:0 5px}
 			/* ③ 「近期」：跨游戏、按紧迫度、**全列出**（不折叠不点开），占左约 64% */
 			.gacha-cal-sched-recent{display:flex;gap:10px;margin:10px 0 10px;align-items:stretch}
