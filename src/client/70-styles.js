@@ -58,10 +58,10 @@
 			.gacha-cal-row > :nth-child(4), .gacha-cal-row > :nth-child(6) { font-variant-numeric: tabular-nums }
 			.gacha-cal-h{display:grid;grid-template-columns:22px 96px 1fr 150px 1.3fr 150px;gap:6px;align-items:center;padding:6px 4px 2px;color:var(--dsw-alias-label-tertiary);font-size:11px}
 			.gacha-cal-h > *{text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-			.gacha-cal-sort-btn{padding:1px 8px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);border-radius:6px;font-size:11px;cursor:pointer}
-			.gacha-cal-sort-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}
+			.gacha-cal-sort-btn{width:26px;height:26px;padding:0;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary,#4a5261);border-radius:8px;cursor:pointer;transition:background .12s,color .12s}
+			.gacha-cal-sort-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1));color:var(--dsw-alias-label-primary,#1f2329)}
 			.gacha-cal-sort-btn:disabled{opacity:.35;cursor:default}
-			.gacha-cal-del-btn{color:#e5484d;padding:1px 6px}
+			.gacha-cal-del-btn{color:#e5484d}
 			.gacha-cal-del-btn:hover{background:rgba(229,72,77,.12)}
 			/* ══ 实验：新「二游日历」面板视图（settings.newPanel 打开时才渲染，见 80-components.js）══
 			 * 设计稿（**唯一真源**）：dsh-gacha-ui-lab/a-v6.html（效果图 a-v6.png）

@@ -969,7 +969,13 @@
 			}
 			// 可见条目（隐藏/已删除的不显示）；抓取成功的数据覆盖卡池/活动列
 			const visible = getVisibleEntries(s);
+			// 主题色覆盖表（设置页取色器写入）。**并进条目自身的 color**，
+			// 让面板里所有消费者（表格行 --g、留白卡 slotAccent、……）自动拿到同一个颜色 ——
+			// 不再把这张表透传到各组件（上一版透传时漏了作用域，直接把面板渲染崩了）。
+			const colorOverrides = parseJsonStr(s.gameColors, {});
 			const games = applyOrder(visible, s.order).map((g) => {
+				const ov = colorOverrides[g.id];
+				if (/^#[0-9a-f]{6}$/i.test(String(ov || ""))) g = { ...g, color: String(ov) };
 				const sc = scrapedById[g.id];
 				if (!sc) return g;
 				return {
@@ -1563,9 +1569,9 @@
 								(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", onClick: restoreAll, children: "恢复条目" })
 							] })
 						] }),
-						(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 11, marginBottom: 2 }, children: "「展示」控制显示；「↑↓」调整顺序；来源可切换或自定义。" }),
+						(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 11, marginBottom: 2 }, children: "「展示」控制显示；「↑↓」调整顺序；「颜色」点开取色器换该游戏主题色；来源可切换或自定义。" }),
 						// 表头行（与数据行同 grid 列；全部居中，与下方各列边界对齐）
-						(0, react_jsx_runtime.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "minmax(90px,1fr) auto minmax(130px,1.2fr) minmax(130px,1.2fr) auto auto", gap: 10, alignItems: "center", padding: "3px 0", borderBottom: "1px solid var(--dsw-alias-border-l1)", color: "var(--dsw-alias-label-tertiary)", fontSize: 11 }, children: [
+						(0, react_jsx_runtime.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "minmax(150px,1.4fr) 56px minmax(160px,1fr) minmax(160px,1fr) 44px 96px", gap: 14, alignItems: "center", padding: "3px 0", borderBottom: "1px solid var(--dsw-alias-border-l1)", color: "var(--dsw-alias-label-tertiary)", fontSize: 11 }, children: [
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u6E38\u620F" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u5C55\u793A" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u5361\u6C60\u6765\u6E90" }),
@@ -1583,7 +1589,7 @@
 								style: { borderBottom: "1px solid var(--dsw-alias-border-l1)" },
 								children: [
 									(0, react_jsx_runtime.jsxs)("div", {
-										style: { display: "grid", gridTemplateColumns: "minmax(90px,1fr) auto minmax(130px,1.2fr) minmax(130px,1.2fr) auto auto", gap: 10, alignItems: "center", padding: "4px 0" },
+										style: { display: "grid", gridTemplateColumns: "minmax(150px,1.4fr) 56px minmax(160px,1fr) minmax(160px,1fr) 44px 96px", gap: 14, alignItems: "center", padding: "8px 0" },
 										children: [
 											(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6, minWidth: 0 }, children: [
 												(0, react_jsx_runtime.jsx)(GameIcon, { icon: g.icon, name: g.name, size: 22 }),
@@ -1620,7 +1626,7 @@
 												type: "color",
 												value: /^#[0-9a-f]{6}$/i.test(String(gameColorMap[g.id] || "")) ? gameColorMap[g.id] : (() => { const c = scheduleGameColor(g, gameColorMap); return /^#[0-9a-f]{6}$/i.test(c) ? c : "#3b5bfd"; })(),
 												onChange: (e) => setGameColor(g.id, e.target.value),
-												style: { width: 24, height: 24, padding: 0, border: "1px solid var(--dsw-alias-border-l2)", borderRadius: 6, background: "transparent", cursor: "pointer" }
+												style: { width: 26, height: 26, padding: 0, border: "1px solid var(--dsw-alias-border-l2, rgba(127,127,127,.4))", borderRadius: 8, background: "transparent", cursor: "pointer" }
 											}) }),
 											(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 4, justifySelf: "center" }, children: [
 												(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", title: "\u4E0A\u79FB", disabled: i === 0, onClick: () => move(g.id, -1), children: (0, react_jsx_runtime.jsx)("svg", { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", children: (0, react_jsx_runtime.jsx)("path", { d: "M6 14.5l6-6 6 6" }) }) }),
