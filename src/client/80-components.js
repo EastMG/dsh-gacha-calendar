@@ -153,7 +153,13 @@
 				else state = "live";
 			}
 			const remain = state === "live" ? Math.max(0, endTs - now.getTime()) : 0;
-			return { key: g.id + ":" + side, g, side, isG, title, raw, fail, state, startTs, endTs, remain };
+			// 外显文本：卡池侧优先显示**去修饰的角色名**（旧面板一直这么显示），没有角色名就退回卡池标题；活动侧仍是活动名
+			const roles = isG ? (g.roles || "") : "";
+			const show = (isG && roles) ? (cleanRoleNames(roles, g.id) || title) : title;
+			// 悬停文本：**原始文本** = 标题 + 源站原文（优先 Raw），与旧面板 gachaTitle/eventTitle 的写法一致
+			const datesRaw = (isG ? g.bannerDatesRaw : g.eventDatesRaw) || raw;
+			const orig = title + (datesRaw ? "\n" + datesRaw : "");
+			return { key: g.id + ":" + side, g, side, isG, title, show, orig, raw, fail, state, startTs, endTs, remain };
 		}
 
 		// ── 同格并列条目：从悬停文本解析出来 ─────────────────────────────────────────
@@ -259,8 +265,8 @@
 		function scheduleMeta(it, now) {
 			const w = scheduleWhen(it, now);
 			if (it.state === "long" && !it.endTs) return "无结束时间 · 长期";
-			if (it.state === "wait") return w.text + " · 至 " + scheduleMD(it.endTs);
-			return scheduleMD(it.startTs) + " → " + scheduleMD(it.endTs) + " · " + w.text;
+			if (it.state === "wait") return w.text + " · 至 " + scheduleMDHM(it.endTs);
+			return scheduleMDHM(it.startTs) + " → " + scheduleMDHM(it.endTs) + " · " + w.text;
 		}
 
 		// 一格里"露哪一条"的次序：在期 > 即将开始 > 长期 > 已结束（横跨所有游戏排「近期」也用同一把尺）。
@@ -607,7 +613,7 @@
 				const itemOf = (x, key) => (0, react_jsx_runtime.jsxs)("div", {
 					key, className: "gacha-cal-sched-item", "data-u": scheduleUrgency(x),
 					children: [
-						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cn", title: x.title || x.raw || "—", children: x.title || x.raw || "—" }),
+						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cn", title: x.orig || x.title || x.raw || "—", children: x.show || x.title || x.raw || "—" }),
 						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cm gacha-cal-sched-num", children: scheduleMeta(x, now) }),
 						scheduleBars(x, days)
 					]

@@ -47,9 +47,6 @@
 			.gacha-cal-row > :nth-child(4), .gacha-cal-row > :nth-child(6) { font-variant-numeric: tabular-nums }
 			.gacha-cal-h{display:grid;grid-template-columns:22px 96px 1fr 150px 1.3fr 150px;gap:6px;align-items:center;padding:6px 4px 2px;color:var(--dsw-alias-label-tertiary);font-size:11px}
 			.gacha-cal-h > *{text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-			.gacha-cal-sort-row{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--dsw-alias-border-l1)}
-			.gacha-cal-sort-row img{width:22px;height:22px;border-radius:5px;object-fit:cover}
-			.gacha-cal-sort-name{flex:1;font-size:13px}
 			.gacha-cal-sort-btn{padding:1px 8px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);border-radius:6px;font-size:11px;cursor:pointer}
 			.gacha-cal-sort-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}
 			.gacha-cal-sort-btn:disabled{opacity:.35;cursor:default}
@@ -223,7 +220,6 @@
 					linear-gradient(180deg,color-mix(in oklab,var(--gc,#888) 10%,var(--dsw-alias-bg-base,#fff)) 0%,var(--dsw-alias-bg-base,#fff) 78%);
 				box-shadow:0 1px 2px rgba(0,0,0,.06),0 8px 24px -12px rgba(0,0,0,.22)}
 			.gacha-cal-sched-slot--empty{border-style:dashed}
-			.gacha-cal-slot-cap{font-size:9.5px;font-weight:500;letter-spacing:.16em;color:var(--dsw-alias-label-tertiary,#6b7280)}
 			.gacha-cal-slot-cine{display:grid;grid-template-columns:minmax(0,1fr)}
 			.gacha-cal-slot-cine > *{grid-area:1/1}
 			.gacha-cal-slot-ring{position:relative;width:132px;height:132px;margin:2px auto 0;flex:0 0 auto}
