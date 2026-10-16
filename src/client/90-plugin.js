@@ -76,10 +76,27 @@
 					if (e.relatedTarget && cell.contains(e.relatedTarget)) return;
 					cell.classList.remove("gacha-cal-marq");
 				};
+				// ⚠️ 只在 mouseover 上加类是不够的（用户 2026-10-16 反馈"没有生效滚动"）：
+				//    面板与卡片会随计时器/分页不断重渲染，节点被替换时浏览器会补一个 mouseout
+				//    ⇒ onOut 把类撤掉、而 mouseover 不会再触发（指针没离开这片区域）
+				//    ⇒ 3.5 秒的滚动动画活不到看得见。这里在每次移动时补一次（已带类就直接返回，开销很小）。
+				const onMove = (e) => {
+					const cell = e.target.closest(".gacha-cal-name, .gacha-cal-cell, .gacha-cal-sched-cn, .gacha-cal-sched-what, .gacha-cal-sched-who, .gacha-cal-slot-nm b, .gacha-cal-slot-nm i, .gacha-cal-slot-gn, .gacha-cal-slot-sub, .gacha-cal-slot-ttl");
+					if (!cell || cell.classList.contains("gacha-cal-marq")) return;
+					const inner = cell.querySelector(".gacha-cal-inner");
+					if (!inner) return;
+					const dist = inner.scrollWidth - cell.clientWidth;
+					if (dist > 0) {
+						cell.style.setProperty("--gacha-marq-d", `-${dist + 8}px`);
+						cell.classList.add("gacha-cal-marq");
+					}
+				};
+				document.addEventListener("mousemove", onMove);
 				document.addEventListener("mouseover", onOver);
 				document.addEventListener("mouseout", onOut);
 				return () => {
 					document.removeEventListener("mouseover", onOver);
+					document.removeEventListener("mousemove", onMove);
 					document.removeEventListener("mouseout", onOut);
 				};
 			}, "dsh-gacha-calendar: marquee");
