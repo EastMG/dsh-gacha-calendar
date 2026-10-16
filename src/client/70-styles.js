@@ -88,9 +88,7 @@
 			.gacha-cal-sched-warn{color:var(--dsw-alias-state-warn-label,#9a4a06)}
 			.gacha-cal-sched-sep{color:var(--dsw-alias-label-tertiary,#6b7280);margin:0 5px}
 			/* ③ 「近期」：跨游戏、按紧迫度、**全列出**（不折叠不点开），占左约 64% */
-			.gacha-cal-sched-h2{display:flex;align-items:baseline;gap:8px;margin:0 0 5px}
-			.gacha-cal-sched-h2 h4{margin:0;font-size:12px;font-weight:600}
-			.gacha-cal-sched-recent{display:flex;gap:10px;margin:0 0 10px;align-items:stretch}
+			.gacha-cal-sched-recent{display:flex;gap:10px;margin:10px 0 10px;align-items:stretch}
 			.gacha-cal-sched-urgent{flex:0 0 64%;min-width:0}
 			/* 右侧虚线空框：用途未定，先留空（设计稿的 .slot） */
 			.gacha-cal-sched-slot{flex:1 1 auto;border:1px dashed var(--dsw-alias-border-l2,rgba(127,127,127,.4));border-radius:12px}

@@ -657,7 +657,6 @@
 					failedSources.length ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [sep(), (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-warn", children: String(failedSources.length) + " 个来源刷新失败" })] }) : null
 				] }),
 				// ③ 「近期」：跨游戏、按紧迫度、全列出；右侧是「下一个截止」卡（见上）
-				(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-h2", children: (0, react_jsx_runtime.jsx)("h4", { children: "近期" }) }),
 				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-recent", children: [
 					(0, react_jsx_runtime.jsxs)("div", {
 						className: "gacha-cal-sched-urgent",
