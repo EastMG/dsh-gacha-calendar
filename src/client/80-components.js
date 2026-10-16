@@ -1603,7 +1603,7 @@
 											// 卡池来源选择器
 											(0, react_jsx_runtime.jsxs)("select", {
 												value: mode,
-												style: { ...inputStyle, textAlign: "center" },
+												className: "gacha-cal-select",
 												onChange: (e) => setUrlMode(g.id, e.target.value, g),
 												children: [
 													(0, react_jsx_runtime.jsx)("option", { value: "default", children: getDefaultSourceName(g) }),
@@ -1614,7 +1614,7 @@
 											// 活动来源选择器（未配置活动源默认项为"未配置"，选择"自定义"后展开输入行）
 											(0, react_jsx_runtime.jsxs)("select", {
 												value: evMode,
-												style: { ...inputStyle, textAlign: "center" },
+												className: "gacha-cal-select",
 												onChange: (e) => setEventUrlMode(g.id, e.target.value),
 												children: [
 													(0, react_jsx_runtime.jsx)("option", { value: "default", children: getDefaultSourceName(g, "eventUrl") }),

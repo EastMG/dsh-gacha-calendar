@@ -72,6 +72,10 @@
 			.gacha-cal-color::-webkit-color-swatch-wrapper{padding:0;margin:0}
 			.gacha-cal-color::-webkit-color-swatch{display:block;width:100%;height:100%;border:none;border-radius:6px}
 			.gacha-cal-color::-moz-color-swatch{display:block;width:100%;height:100%;border:none;border-radius:6px}
+			/* 来源选择器：原生 <select> 的箭头画在右侧，配 textAlign:center 会让文字看着偏左；
+			   改成 appearance:none + 自绘 chevron（右侧固定 8px 处），文字左对齐、高度与方形/长方形按钮一致（28）。 */
+			.gacha-cal-select{appearance:none;-webkit-appearance:none;height:28px;box-sizing:border-box;padding:0 26px 0 10px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));border-radius:7px;background-color:var(--dsw-alias-bg-base);background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aa1ab' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 8px center;background-size:12px;color:var(--dsw-alias-label-primary,#1f2329);font:inherit;font-size:12px;line-height:26px;text-align:left;text-overflow:ellipsis;white-space:nowrap;overflow:hidden;cursor:pointer;transition:border-color .12s}
+			.gacha-cal-select:hover{border-color:var(--dsw-alias-label-tertiary,#9aa1ab)}
 			.gacha-cal-sort-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1));color:var(--dsw-alias-label-primary,#1f2329)}
 			.gacha-cal-sort-btn:disabled{opacity:.35;cursor:default}
 			.gacha-cal-del-btn{color:#e5484d}
