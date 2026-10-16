@@ -30,8 +30,15 @@ const OUT_CORE_PKG = path.join(ROOT, "packages", "core", "package.json");
 
 // 拼接顺序（= 原产物的 //#region 顺序，改了这里就等于改了产物结构）
 const ORDER = [
+  // ⚠️ 00-head.js **必须排第一**：它开出 `window.__ModuleLoader__.load({ factory })` 的工厂闭包，
+  //    排在它之前的片段不会进入工厂体，而是落在**经典脚本顶层**（= 全局词法作用域）。
+  //    2026-10-17 事故：05-version.js 原本排第一，`const PLUGIN_VERSION` 因此成了全局词法绑定；
+  //    DSH 的 client-modules 在插件变更后会 invalidate 该行并**重新执行**整个客户端包
+  //    （单资源 URL，见 dsh-client-modules 的 invalidate/reloadTargets），第二段经典脚本
+  //    带着同名顶层 const → V8 "Identifier 'PLUGIN_VERSION' has already been declared"，
+  //    整段不执行、插件掉线。守卫见下方 ORDER[0] 校验。
+  "00-head.js",                // DSH 模块加载壳 + react require（**必须排第一**）
   "05-version.js",             // 插件版本号（占位符，由本脚本用根 package.json 注入）
-  "00-head.js",                // DSH 模块加载壳 + react require
   "10-config.js",              // 配置常量
   "15-env.js",                 // core 环境注入缝（transport / now / 计时器）
   "20-source-core.js",         // **模块顶层**：SOURCES 容器 + registerSource（44-test-exports 与 60-helpers 都要能看见）
@@ -120,6 +127,15 @@ const missing = [...used].filter((f) => !present.includes(f));
 const unused = present.filter((f) => !used.has(f));
 if (missing.length) fail(`src/client 缺少文件：${missing.join("、")}`);
 if (unused.length) fail(`src/client 有文件未被任何产物使用（请加入 ORDER 或 CORE_ORDER）：${unused.join("、")}`);
+
+// —— 客户端产物结构守卫：ORDER 的第一段必须是模块工厂壳（ORDER[0] === "00-head.js"）——
+// 原因见 ORDER 定义处的注释：排在 00-head 之前的片段落在**经典脚本顶层**（全局词法作用域），
+// 而 DSH 的 client-modules 会重新执行同一个包（HMR / invalidate 后走单资源 URL），
+// 于是顶层 const/let 会被 V8 判为 "Identifier '…' has already been declared"，
+// 整段脚本解析失败 ⇒ 插件静默掉线 + 控制台噪音。2026-10-17 实测复现。
+if (ORDER[0] !== "00-head.js") {
+  fail(`ORDER 的第一段必须是 00-head.js（模块工厂壳），当前是 ${ORDER[0]} —— 排在它之前的片段会落到经典脚本顶层，插件重载时会报 "already been declared"`);
+}
 
 // —— 编码/换行校验（历史教训：BOM 会让 DSH 启动直接失败）——
 // 源文件约定：每个文件以"恰好一个换行"结尾、文件内不留尾部空行；**段与段之间的空行由本脚本插入**
