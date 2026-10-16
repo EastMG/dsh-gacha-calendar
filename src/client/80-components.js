@@ -401,6 +401,21 @@
 			}, [count, seconds, paused]);
 			return count > 0 ? step % count : 0;
 		}
+		// 探头默认向下弹。**下方空间不够时向上翻转** —— 否则表格最后一行的探头会被面板下沿裁掉，
+		// 而想滚动去看时格子又离开了光标、探头当场收起 ⇒ 末尾几行永远看不全（用户："末尾还是被挡住"）。
+		// 只在 pointerenter 判断一次就够：一旦滚动，光标下的格子就换了，本来就该重新判断。
+		const SCHEDULE_PEEK_MAX = 150;   // 探头最大高度（与 CSS 里那点末尾预留同源，取保守值）
+		function slotFlip(el) {
+			if (!el || !el.closest) return;
+			const view = el.closest(".gacha-cal-sched");
+			if (!view) return;
+			const c = el.getBoundingClientRect();
+			const v = view.getBoundingClientRect();
+			const below = v.bottom - c.bottom;
+			const above = c.top - v.top;
+			if (below < SCHEDULE_PEEK_MAX && above > below) el.setAttribute("data-flip", "1");
+			else el.removeAttribute("data-flip");
+		}
 		// ── 留白卡（模块作用域）──────────────────────────────────────────────
 		// ⚠️ 必须定义在这里，不能定义在 ScheduleView 内部：
 		// 父组件每秒都会重渲染（时钟 setNow），定义在里面的组件每次都是**新的函数身份**，
@@ -638,6 +653,8 @@
 				const rest = sorted.slice(1);
 				return (0, react_jsx_runtime.jsxs)("div", {
 					className: "gacha-cal-sched-cell", "data-t": side, "data-u": scheduleUrgency(it),
+					// 悬停这一刻判断：下方放不下就翻到本行上方（见 slotFlip）
+					onPointerEnter: (e) => slotFlip(e.currentTarget),
 
 					children: [
 						itemOf(it, "first"),
