@@ -418,6 +418,14 @@
 			const hovered = e.currentTarget.querySelectorAll(".gacha-cal-sched-cell:hover");
 			for (let i = 0; i < hovered.length; i++) slotPlace(hovered[i]);
 		}
+		// 展开的探头是 position:fixed ⇒ 指针在它上面时，浏览器的滚动链挂在**视口**上、不经过面板视图，
+		// 滚轮会像被吃掉一样（用户："鼠标悬停的时候滚轮根本动不了"）。
+		// 这里把滚轮手动转交给面板视图；视图一滚就会触发它的 onScroll ⇒ 探头随即按新位置重新定位。
+		function slotWheel(e) {
+			const el = e && e.currentTarget;
+			const v = el && el.closest ? el.closest(".gacha-cal-sched") : null;
+			if (v) v.scrollTop += e.deltaY;
+		}
 		// ── 留白卡（模块作用域）──────────────────────────────────────────────
 		// ⚠️ 必须定义在这里，不能定义在 ScheduleView 内部：
 		// 父组件每秒都会重渲染（时钟 setNow），定义在里面的组件每次都是**新的函数身份**，
@@ -665,6 +673,7 @@
 						itemOf(it, "first"),
 						rest.length ? (0, react_jsx_runtime.jsx)("div", {
 							className: "gacha-cal-sched-rest",
+							onWheel: slotWheel,
 							children: rest.map((x, i) => itemOf(x, "r" + i))
 						}) : null
 					]
