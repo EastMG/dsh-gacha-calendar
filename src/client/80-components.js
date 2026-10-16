@@ -199,22 +199,30 @@
 				}
 				pending.push(line);
 			}
-			// ⚠️ 同一个池会被源描述两遍 ⇒ 探头上出现两行（用户 2026-10-16）：明日方舟
-			//    「克莱门莎」+「海渊巡游：克莱门莎」、星塔旅人「「微醺茶香，藤花幽梦」」+「…：仙踪良梦」、
-			//    重返未来「狩勋女巫红弩箭、小叶尼塞、婴儿蓝」+「「不渝者的领航」…：狩勋女巫红弩箭（星）…」。
-			//    共同点：其中一条的文本，整段出现在另一条「：」的某一侧 ⇒ 它是同一池的残缺描述。
-			//    ⚠️ 两家引擎构建器（buildPoolHover / hoverPool）都给这类文本，所以去重放在**解析结果**这一层，
-			//       而不是某一家的构建器里（放构建器里时，走 hoverPool 的那批游戏根本不受影响）。
-			//    只认「：」两侧的整段包含 —— 任意子串会把「夏日活动」误判成「夏日活动·特别篇」的重复。
+			// ⚠️ 同一口池在数据里有两种写法，一起摆进探头就是"看起来重复"（用户 2026-10-16）：
+			//    · 引擎的 roles 只给角色名 ——「克莱门莎」
+			//    · 悬停原文给「池名：角色」——「海渊巡游：克莱门莎」「「微醺茶香，藤花幽梦」：仙踪良梦」
+			//    用户定的口径：**只显示角色名那条** ⇒ 谁被另一条整个包住，就留谁、把带池名的那条丢掉。
+			//    另外：完全同名（战双帕弥什「新增涂装」×6、原神「绮星盛会」×2）只留第一条。
+			//    ⚠️ 只认「：」两侧的整段（不做任意子串）——否则「夏日活动」会被当成「夏日活动·特别篇」的重复。
 			const normTitle = (s) => String(s || "").replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, "");
-			const kept = out.filter((a) => !out.some((b) => {
-				if (a === b) return false;
-				const la = normTitle(a.title), lb = normTitle(b.title);
-				if (la === "" || la === lb) return false;
-				if (lb.indexOf(la + "\uFF1A") === 0) return true;
-				const tail = lb.lastIndexOf("\uFF1A" + la);
-				return tail >= 0 && tail === lb.length - la.length - 1;
-			}));
+			// A 是不是「池名：B」或「B：其余」这种把 B 整个包住的写法（B 通常就是那条只有角色名的）
+			const wraps = (A, B) => {
+				const la = normTitle(A), lb = normTitle(B);
+				if (lb === "" || la === lb) return false;
+				if (la.indexOf(lb + "\uFF1A") === 0) return true;
+				const tail = la.lastIndexOf("\uFF1A" + lb);
+				return tail >= 0 && tail === la.length - lb.length - 1;
+			};
+			const kept = [];
+			const seenTitle = new Set();
+			for (const a of out) {
+				const la = normTitle(a.title);
+				if (la && seenTitle.has(la)) continue;              // 完全同名 ⇒ 只留第一条
+				if (out.some((b) => b !== a && wraps(a.title, b.title))) continue;   // a 包着别人 ⇒ 丢 a，留被包住的那条
+				if (la) seenTitle.add(la);
+				kept.push(a);
+			}
 			if (kept.length < 2) return [];
 			return kept;
 		}
@@ -223,6 +231,18 @@
 			const out = [];
 			for (const x of items) {
 				if (x.title === it.title) continue;                  // 外显那条已经有了，不重复列
+				// ⚠️ 外显那条（引擎 roles → 通常只有角色名，如「克莱门莎」）与这里的「池名：角色」
+				//    （如「海渊巡游：克莱门莎」）常常是同一口池 ⇒ 按用户口径"只显示角色名那条"，
+				//    外显已经占了角色名，这里就不再把同一口池列一遍（用户 2026-10-16）。
+				//    ⚠️ 必须在**这一层**做：scheduleHoverItems 只看得到悬停解析出的条目，
+				//    看不到 it（外显那条）⇒ 上一版规则所以在真机上完全不起作用。
+				const normOne = (s) => String(s || "").replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, "");
+				const shownText = normOne(it.show || it.title || "");
+				const titleText = normOne(x.title);
+				if (shownText && titleText && titleText !== shownText) {
+					const tailAt = titleText.lastIndexOf("\uFF1A" + shownText);
+					if (titleText.indexOf(shownText + "\uFF1A") === 0 || (tailAt >= 0 && tailAt === titleText.length - shownText.length - 1)) continue;
+				}
 				const r = parseDisplayRange(scheduleNoYear(x.win), now);
 				if (!r) continue;                                    // 读不出绝对档期 → 不硬凑天数
 				const span = Math.max(1, r.endTs - r.startTs);
