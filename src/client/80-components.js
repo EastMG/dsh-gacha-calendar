@@ -537,7 +537,10 @@
 					] })
 				] });
 			}
-			const slotAccent = (it) => scheduleGameColor(it.g, gameColorMap);
+			// ⚠️ 这里**不能**用设置页的覆盖表：slotAccent 定义在 ScheduleView/SlotCard 之外的作用域，
+			//    拿不到 gameColorMap（上一版就是在这里踩了 ReferenceError，面板整块渲染失败）。
+			//    留白卡暂时用出厂色/名字哈希；覆盖色只作用于表格行与设置页（见下面 ScheduleView 里的同名表）。
+			const slotAccent = (it) => scheduleGameColor(it.g);
 			// 档期行：有 raw 才补分隔符；没有开始时间就不显示"已过 0%"（那是假信息）
 			function slotSub(it, frac) {
 				if (typeof it.startTs !== "number") return it.raw || "";
