@@ -62,6 +62,13 @@
 			   只要图标的按钮再加 --icon 修饰类变成方形（见下方）。 */
 			.gacha-cal-sort-btn{height:28px;padding:0 11px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary,#4a5261);border-radius:7px;font:inherit;font-size:12px;line-height:1;white-space:nowrap;cursor:pointer;transition:background .12s,color .12s}
 			.gacha-cal-sort-btn--icon{width:26px;height:26px;padding:0}
+			/* 取色器按钮：原生色块默认撑满整个控件、还自带方形描边 ⇒ 用 swatch 伪元素把它收进来并圆角，
+			   让它看起来是"按钮里嵌一枚圆角色标"，而不是一块贴边的色块。 */
+			.gacha-cal-color{width:28px;height:28px;padding:0;display:inline-block;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));border-radius:9px;background:var(--dsw-alias-bg-base);cursor:pointer;overflow:hidden;transition:border-color .12s}
+			.gacha-cal-color:hover{border-color:var(--dsw-alias-label-tertiary,#9aa1ab)}
+			.gacha-cal-color::-webkit-color-swatch-wrapper{padding:3px}
+			.gacha-cal-color::-webkit-color-swatch{border:none;border-radius:6px}
+			.gacha-cal-color::-moz-color-swatch{border:none;border-radius:6px}
 			.gacha-cal-sort-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1));color:var(--dsw-alias-label-primary,#1f2329)}
 			.gacha-cal-sort-btn:disabled{opacity:.35;cursor:default}
 			.gacha-cal-del-btn{color:#e5484d}

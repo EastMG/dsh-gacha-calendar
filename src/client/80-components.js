@@ -1627,7 +1627,7 @@
 												type: "color",
 												value: /^#[0-9a-f]{6}$/i.test(String(gameColorMap[g.id] || "")) ? gameColorMap[g.id] : (() => { const c = scheduleGameColor(g, gameColorMap); return /^#[0-9a-f]{6}$/i.test(c) ? c : "#3b5bfd"; })(),
 												onChange: (e) => setGameColor(g.id, e.target.value),
-												style: { width: 26, height: 26, padding: 0, border: "1px solid var(--dsw-alias-border-l2, rgba(127,127,127,.4))", borderRadius: 8, background: "transparent", cursor: "pointer" }
+												className: "gacha-cal-color"
 											}) }),
 											(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 4, justifySelf: "center" }, children: [
 												(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn gacha-cal-sort-btn--icon", title: "\u4E0A\u79FB", disabled: i === 0, onClick: () => move(g.id, -1), children: (0, react_jsx_runtime.jsx)("svg", { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", children: (0, react_jsx_runtime.jsx)("path", { d: "M6 14.5l6-6 6 6" }) }) }),
@@ -1675,7 +1675,7 @@
 							(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" }, children: [
 								(0, react_jsx_runtime.jsx)("input", { type: "text", placeholder: "名称（必填）", value: form.name, onChange: updateForm("name"), style: { ...inputStyle, flex: "1 1 140px" } }),
 								(0, react_jsx_runtime.jsx)("input", { type: "text", placeholder: "图标 URL（可选）", value: form.icon, onChange: updateForm("icon"), style: { ...inputStyle, flex: "1 1 240px" } }),
-								(0, react_jsx_runtime.jsx)("input", { type: "color", title: "主题色（可选；留空则按名称自动分配）", value: /^#[0-9a-f]{6}$/i.test(form.color) ? form.color : "#3b5bfd", onChange: updateForm("color"), style: { flex: "0 0 44px", height: 26, padding: 0, border: "1px solid var(--dsw-alias-border-l2, rgba(127,127,127,.4))", borderRadius: 8, background: "transparent", cursor: "pointer" } })
+								(0, react_jsx_runtime.jsx)("input", { type: "color", title: "主题色（可选；留空则按名称自动分配）", value: /^#[0-9a-f]{6}$/i.test(form.color) ? form.color : "#3b5bfd", onChange: updateForm("color"), className: "gacha-cal-color", style: { flex: "0 0 28px" } })
 							] }),
 							(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" }, children: [
 								(0, react_jsx_runtime.jsx)("input", { type: "text", placeholder: "卡池来源链接（必填）", value: form.url, onChange: updateForm("url"), style: { ...inputStyle, flex: "1 1 300px" } }),
