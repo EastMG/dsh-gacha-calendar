@@ -64,11 +64,13 @@
 			.gacha-cal-sort-btn--icon{width:26px;height:26px;padding:0}
 			/* 取色器按钮：原生色块默认撑满整个控件、还自带方形描边 ⇒ 用 swatch 伪元素把它收进来并圆角，
 			   让它看起来是"按钮里嵌一枚圆角色标"，而不是一块贴边的色块。 */
-			.gacha-cal-color{width:28px;height:28px;padding:0;display:inline-block;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));border-radius:9px;background:var(--dsw-alias-bg-base);cursor:pointer;overflow:hidden;transition:border-color .12s}
+			.gacha-cal-color{width:28px;height:28px;padding:3px;display:inline-block;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));border-radius:9px;background:var(--dsw-alias-bg-base);cursor:pointer;overflow:hidden;transition:border-color .12s}
 			.gacha-cal-color:hover{border-color:var(--dsw-alias-label-tertiary,#9aa1ab)}
-			.gacha-cal-color::-webkit-color-swatch-wrapper{padding:3px}
-			.gacha-cal-color::-webkit-color-swatch{border:none;border-radius:6px}
-			.gacha-cal-color::-moz-color-swatch{border:none;border-radius:6px}
+			/* 留白由 input 自己的 padding 控制（不用 wrapper 的 padding，那会在部分版本里偏心）；
+			   色块设成 display:block —— 行内盒会带基线间隙，看着就是"歪在里面"。 */
+			.gacha-cal-color::-webkit-color-swatch-wrapper{padding:0;margin:0}
+			.gacha-cal-color::-webkit-color-swatch{display:block;border:none;border-radius:6px}
+			.gacha-cal-color::-moz-color-swatch{display:block;border:none;border-radius:6px}
 			.gacha-cal-sort-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1));color:var(--dsw-alias-label-primary,#1f2329)}
 			.gacha-cal-sort-btn:disabled{opacity:.35;cursor:default}
 			.gacha-cal-del-btn{color:#e5484d}
