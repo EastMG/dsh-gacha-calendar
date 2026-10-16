@@ -449,7 +449,7 @@
 		// 排序：结束时间升序（无/未知结束时间排最后）。
 		// 外显不受此函数影响：仍按各源原有逻辑（同窗口角色合并）。兜底：0/1 池返回 ""，退回单条展示。
 		function buildPoolHover(pools) {
-			const list = (Array.isArray(pools) ? pools : [])
+			const rawList = (Array.isArray(pools) ? pools : [])
 				.filter((p) => p && typeof p.name === "string" && p.name.trim() !== "")
 				.sort((a, b) => {
 					const ea = a.endTs == null ? Infinity : a.endTs;
@@ -459,6 +459,28 @@
 					const sb = b.startTs == null ? Infinity : b.startTs;
 					return sa - sb;
 				});
+			// ⚠️ 同一个池会被源重复描述两遍 ⇒ 探头上出现"重复"两行（用户 2026-10-16）：
+			//    明日方舟「克莱门莎」+「海渊巡游：克莱门莎」；星塔旅人「「微醺茶香，藤花幽梦」」+「…：仙踪良梦」；
+			//    重返未来「狩勋女巫红弩箭、小叶尼塞、婴儿蓝」+「「不渝者的领航」…：狩勋女巫红弩箭（星）…」。
+			//    共同点：其中一条的信息，整段出现在另一条「：」的某一侧 ⇒ 它是同一池的残缺描述。
+			//    规则：只认「：」两侧的整段包含（不做任意子串）——这样不会把「夏日活动」
+			//    误当成「夏日活动·特别篇」的重复；括号后缀（(星)/（星））先归一化再去比。
+			const normLabel = (s) => String(s || "").replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, "");
+			const keep = [];
+			for (const p of rawList) {
+				const label = normLabel(p.label || p.name);
+				const dup = rawList.some((q) => {
+					if (q === p) return false;
+					const other = normLabel(q.label || q.name);
+					if (other === label) return true;
+					if (label === "") return false;
+					if (other.indexOf(label + "\uFF1A") === 0) return true;      // B = 池名：残缺信息
+					const tail = other.lastIndexOf("\uFF1A" + label);             // B = 池名：残缺信息（在尾部）
+					return tail >= 0 && tail === other.length - label.length - 1;
+				});
+				if (!dup) keep.push(p);
+			}
+			const list = keep;
 			if (list.length < 2) return "";
 			const allTimed = list.every((p) => p.startTs != null && p.endTs != null);
 			const same = allTimed && new Set(list.map((p) => `${p.startTs}~${p.endTs}`)).size === 1;

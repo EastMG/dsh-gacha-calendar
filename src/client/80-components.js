@@ -199,8 +199,24 @@
 				}
 				pending.push(line);
 			}
-			if (out.length < 2) return [];
-			return out;
+			// ⚠️ 同一个池会被源描述两遍 ⇒ 探头上出现两行（用户 2026-10-16）：明日方舟
+			//    「克莱门莎」+「海渊巡游：克莱门莎」、星塔旅人「「微醺茶香，藤花幽梦」」+「…：仙踪良梦」、
+			//    重返未来「狩勋女巫红弩箭、小叶尼塞、婴儿蓝」+「「不渝者的领航」…：狩勋女巫红弩箭（星）…」。
+			//    共同点：其中一条的文本，整段出现在另一条「：」的某一侧 ⇒ 它是同一池的残缺描述。
+			//    ⚠️ 两家引擎构建器（buildPoolHover / hoverPool）都给这类文本，所以去重放在**解析结果**这一层，
+			//       而不是某一家的构建器里（放构建器里时，走 hoverPool 的那批游戏根本不受影响）。
+			//    只认「：」两侧的整段包含 —— 任意子串会把「夏日活动」误判成「夏日活动·特别篇」的重复。
+			const normTitle = (s) => String(s || "").replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, "");
+			const kept = out.filter((a) => !out.some((b) => {
+				if (a === b) return false;
+				const la = normTitle(a.title), lb = normTitle(b.title);
+				if (la === "" || la === lb) return false;
+				if (lb.indexOf(la + "\uFF1A") === 0) return true;
+				const tail = lb.lastIndexOf("\uFF1A" + la);
+				return tail >= 0 && tail === lb.length - la.length - 1;
+			}));
+			if (kept.length < 2) return [];
+			return kept;
 		}
 		// 把 { title, win } 补成与 scheduleNormalize **同形**的条目（渲染层只认这一种形状）
 		function scheduleHoverOnes(items, it, now) {
