@@ -621,6 +621,10 @@
 			}
 		}
 		function ScheduleView({ games, now, s, refreshing, onRefresh, lastRefreshText, scrapeInfo, scrapeLines }) {
+			// 每游戏主题色覆盖表（面板侧；设置组件里另有一份同名的）。
+			// ⚠️ 必须在这里也定义一次：下面的行 --g 与留白卡 slotAccent 都在本组件里用它，
+			//    漏了就是 ReferenceError ⇒ 整个面板（连带插件 UI）挂不上。
+			const gameColorMap = parseJsonStr(s.gameColors, {});
 			// 每一格（游戏 × 卡池/活动）的候选档期。已结束的**留在格子里**（这一侧没有在期内容时它就是
 			// 这格的代表，图案走斜纹），但不进「近期」—— 近期回答的是"现在该看哪几条"。
 			const cells = new Map();
