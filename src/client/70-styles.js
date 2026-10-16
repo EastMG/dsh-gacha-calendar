@@ -82,7 +82,7 @@
 				   align-self:flex-start + flex:none：外层（DSH 侧栏）是 flex 容器、会把它 stretch 到面板高度；
 				   height:100% + max-height:none 则让卡片**铺满面板壳**（壳高由 JS 按"内容跨度 / 可用空间"写入）。
 				   两者配合：壳内不再留白，长内容在卡片内滚动。 */
-				align-self:flex-start;flex:none;box-sizing:border-box;height:100%;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:10px 12px 4px;max-height:none;overflow:hidden}
+				align-self:flex-start;flex:none;box-sizing:border-box;height:100%;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:10px 12px 0;max-height:none;overflow:hidden}
 						/* 滚动层：面板本体不滚（overflow:hidden），滚动落在这里 —— 底栏因此在滚动区**之外**，
 			   内容在它上沿干净收住；底栏用 flex 自然常驻底部（不再需要 sticky/z-index/不透明底）。 */
 			.gacha-cal-sched-body{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:auto;scrollbar-width:none}
@@ -219,7 +219,7 @@
 			/* 刷新成功/失败横幅（旧面板 .gacha-cal-scrape 的同款）：文字一行 + 悬停给逐来源明细。
 			   常驻在底栏里，所以超宽时省略号截断，明细靠 tooltip。 */
 			.gacha-cal-sched-scrape{flex:1 1 auto;min-width:0;font-size:11px;color:var(--dsw-alias-label-tertiary,#6b7280);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:help}
-			.gacha-cal-sched-foot{position:relative;flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:2px 0;border-top:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));font-size:10.5px;color:var(--dsw-alias-label-tertiary,#6b7280)}
+			.gacha-cal-sched-foot{position:relative;flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:3px 0 4px;border-top:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));font-size:10.5px;color:var(--dsw-alias-label-tertiary,#6b7280)}
 			/* 底栏**不要**给 z-index：展开的探头是 position:fixed + z-index:auto，与底栏同层，
 			   DOM 靠后的底栏会盖住它 ⇒ 遮罩会糊在展开内容上（用户 2026-10-16 反馈）。
 			   正解是给展开的探头 z-index:2（见上面 :hover 那条），**并由探头自己负责"边缘不硬"**（四角圆角 + 投影）：

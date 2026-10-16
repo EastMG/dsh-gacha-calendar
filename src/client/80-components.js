@@ -820,6 +820,20 @@
 			(0, react.useEffect)(() => scope.subscribe(() => setSnapshot(scope.getSnapshot())), [scope]);
 
 			const s = { ...DEFAULT_SETTINGS, ...(snapshot.value ?? {}) };
+			// 底栏那条"刷新成功/失败"横幅：**缓存里的最近一次结果也要能显示**。
+			// scrapeInfo 只在本轮刷新跑完时才写入 ⇒ 打开面板（数据取自缓存）时左半边是空的 ⇒ 用户看到"提示呢？"。
+			// 这里用 lastData（引擎写进设置的最近一次 Result JSON，60-helpers 的失败分类已经在用它）算出同样的横幅。
+			const cachedBanner = (0, react.useMemo)(() => {
+				if (!s.lastData) return null;
+				try {
+					const rec = JSON.parse(s.lastData) || {};
+					const games = getVisibleEntries(s).map((g) => ({ id: g.id, name: g.name || g.id }));
+					if (!games.length) return null;
+					return buildScrapeInfo(games, { games: rec });
+				} catch (e) { return null; }
+			}, [s.lastData, s]);
+			const bannerInfo = scrapeInfo || (cachedBanner && cachedBanner.info) || "";
+			const bannerLines = scrapeInfo ? scrapeLines : ((cachedBanner && cachedBanner.lines) || []);
 			// 面板高度**实测回写**（内联 + !important）：实测 DSH 侧栏环境下这个盒子会被外部撑高，
 			// 顶部到底部那一段空白就是它，而 top/height/min-height/flex 四种 CSS 复位都压不住。
 			// 这里直接量内容高度写回；内联 !important 优先级最高，任何来源都盖不过。
@@ -1094,7 +1108,7 @@
 						children: s.newPanel === true
 							? (0, react_jsx_runtime.jsx)(ScheduleView, {
 								games, now, s, refreshing, onRefresh: doRefresh,
-								lastRefreshText, scrapeInfo, scrapeLines
+								lastRefreshText, scrapeInfo: bannerInfo, scrapeLines: bannerLines
 							})
 							: [
 							(0, react_jsx_runtime.jsx)("p", { className: "gacha-cal-title", children: SETTINGS_SECTION_LABEL }),
