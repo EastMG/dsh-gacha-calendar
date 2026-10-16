@@ -82,7 +82,7 @@
 				   align-self:flex-start + flex:none：外层（DSH 侧栏）是 flex 容器、会把它 stretch 到面板高度；
 				   height:100% + max-height:none 则让卡片**铺满面板壳**（壳高由 JS 按"内容跨度 / 可用空间"写入）。
 				   两者配合：壳内不再留白，长内容在卡片内滚动。 */
-				align-self:flex-start;flex:none;box-sizing:border-box;height:100%;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:10px 12px;max-height:none;overflow:hidden}
+				align-self:flex-start;flex:none;box-sizing:border-box;height:100%;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:10px 12px 4px;max-height:none;overflow:hidden}
 						/* 滚动层：面板本体不滚（overflow:hidden），滚动落在这里 —— 底栏因此在滚动区**之外**，
 			   内容在它上沿干净收住；底栏用 flex 自然常驻底部（不再需要 sticky/z-index/不透明底）。 */
 			.gacha-cal-sched-body{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:auto}
@@ -218,7 +218,12 @@
 			/* 刷新成功/失败横幅（旧面板 .gacha-cal-scrape 的同款）：文字一行 + 悬停给逐来源明细。
 			   常驻在底栏里，所以超宽时省略号截断，明细靠 tooltip。 */
 			.gacha-cal-sched-scrape{flex:1 1 auto;min-width:0;font-size:11px;color:var(--dsw-alias-label-tertiary,#6b7280);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:help}
-			.gacha-cal-sched-foot{flex:0 0 auto;display:flex;align-items:center;gap:8px;margin-top:9px;padding-top:9px;border-top:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));font-size:10.5px;color:var(--dsw-alias-label-tertiary,#6b7280)}   /* 常驻面板下端：滚动内容从它下面穿过 */
+						/* 渐变遮罩：底栏上沿往上 16px 渐隐，内容滚到边缘时柔化收住。
+			   ⚠️ 不能改成给 .gacha-cal-sched-body 加 mask —— mask/filter/transform 会让该元素成为
+			   position:fixed 后代的包含块，探头坐标（--rx/--ry 用的是视口坐标）会当场失效。 */
+			.gacha-cal-sched-foot::before{content:"";position:absolute;left:0;right:0;bottom:100%;height:16px;pointer-events:none;
+				background:linear-gradient(180deg,transparent,var(--dsw-alias-bg-base,#fff))}
+			.gacha-cal-sched-foot{position:relative;flex:0 0 auto;display:flex;align-items:center;gap:8px;margin-top:4px;padding-top:4px;border-top:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));font-size:10.5px;color:var(--dsw-alias-label-tertiary,#6b7280)}   /* 常驻面板下端：它在滚动层**之外**（见 .gacha-cal-sched-body），内容不会从它下面穿过。 */
 			/* ── 字体规范（2026-10 定）：中文不上 600+；标题 600、正文 400；中文补字距与行高。
 			   字体栈前置 MiSans / HarmonyOS Sans / 思源 / Noto：本机装了就用，没装才落回雅黑。 */
 			.gacha-cal-sched{font-family:-apple-system,"SF Pro Text","Segoe UI Variable Text","Segoe UI","MiSans","HarmonyOS Sans SC","Source Han Sans SC","Noto Sans SC","PingFang SC","Microsoft YaHei UI","Microsoft YaHei",sans-serif;
