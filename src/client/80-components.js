@@ -401,6 +401,51 @@
 			}, [count, seconds, paused]);
 			return count > 0 ? step % count : 0;
 		}
+		// 探头定位：按格子实测写 --rx/--ry/--rw（左右各补 6px 盖住网格间隙）。
+		// 之所以用 fixed：absolute 的探头会把滚动容器"撑长"（实测悬停时 +133px），
+		// 靠下的格子一展开面板内容就变长 ⇒ 滑块缩短 / 滚动锚定位移 = 用户看到的"抽搐"。
+		// 代价是 fixed 用的是**视口坐标**，会随滚轮失效 ⇒ 由 slotScroll 在滚动时对这些变量重算。
+		function slotPlace(el) {
+			if (!el) return;
+			const b = el.getBoundingClientRect();
+			el.style.setProperty("--rx", (b.left - 6) + "px");
+			el.style.setProperty("--ry", (b.bottom - 12) + "px");
+			el.style.setProperty("--rw", (b.width + (el.getAttribute("data-t") === "gacha" ? 12 : 14)) + "px");
+		}
+		// 当前被悬停的格子只记一个：滚动时只重定位它 —— 不再用 :hover 查询（那会强制样式计算与命中测试），
+		// 且合并到每帧一次（rAF），否则滚轮每 16ms 就强制一次同步布局，滚动会一顿一顿的。
+		let slotHeld = null;
+		let slotRaf = 0;
+		function slotEnter(el) { slotHeld = el; slotPlace(el); }
+		function slotLeave(el) { if (slotHeld === el) slotHeld = null; }
+		function slotScroll() {
+			if (!slotHeld || slotRaf) return;
+			slotRaf = window.requestAnimationFrame(() => {
+				slotRaf = 0;
+				if (slotHeld) slotPlace(slotHeld);
+			});
+		}
+
+		// 展开的探头是 position:fixed ⇒ 指针在它上面时滚动链挂在视口上、不经过面板视图，滚轮会像被吃掉。
+		// 但又不能靠 pointer-events:none 放行：那样指针会穿透到下面那一行、把别人的探头激活（用户明确不要）。
+		// 所以：探头照旧接管指针（挡住下面那行），滚轮在这里手动转交给面板视图。
+		// 这里**不做 rAF 合并**：每个滚轮事件立即写一次 scrollTop —— 这正是浏览器原生滚动的节奏，
+		// 同一帧内的多次写会被浏览器合并成一次绘制；合并到 rAF 反而多等一帧、手感发涩。
+		//
+		// 🔴 后续待办（用户 2026-10-16 明确列入）：**优化滚动手感**。
+		//    现状的硬约束：fixed 元素的滚动链挂在视口上 ⇒ 指针在探头上时，浏览器不会把滚轮交给面板；
+		//    而"滚轮原生"要求探头待在滚动容器**内部** ⇒ 容器必然裁它（末行探头会被面板下沿切掉）。
+		//    两条无法同时成立，目前选的是"探头稳定、伸得出面板、挡住下面那行"，滚轮用脚本转交。
+		//    可尝试的方向（都还没做）：
+		//      a) 探头 pointer-events:none（滚轮落回容器 ⇒ 原生），另在容器内放一层透明"挡板"负责命中，
+		//         挡板撑出的那点高度用容器底部预留吸收；
+		//      b) 把探头 DOM 挪成**滚动容器的兄弟节点**（既不裁、也不撑大），坐标由 JS 给；
+		//      c) 等探头高度能被压到很小（一两条）时，重新评估是否值得为此引入 JS。
+		function slotWheel(e) {
+			const el = e && e.currentTarget;
+			const v = el && el.closest ? el.closest(".gacha-cal-sched") : null;
+			if (v) v.scrollTop += e.deltaY;
+		}
 		// ── 留白卡（模块作用域）──────────────────────────────────────────────
 		// ⚠️ 必须定义在这里，不能定义在 ScheduleView 内部：
 		// 父组件每秒都会重渲染（时钟 setNow），定义在里面的组件每次都是**新的函数身份**，
@@ -569,40 +614,6 @@
 			// 「近期」循环：每 4 秒整体换一批（每批 SCHEDULE_NEAR_LIMIT 条，末页用取模环绕 ⇒ 永远满 10 条、且能转遍全部）。
 			// 悬停、或点了「展开全部」时都停住 —— 想看全就展开，想停在某批就把鼠标放上去。
 			const [nearHeld, setNearHeld] = (0, react.useState)(false);
-			// ── 展开的探头：**一个浮层，挂在滚动层之外**（.gacha-cal-sched 的直接子节点）──
-			// 为什么挪出来：滚动层要加 mask 做"内容在边缘淡出"，而 mask 会让该元素成为 position:fixed
-			// 后代的包含块 ⇒ 探头的视口坐标会当场错位（实测 left 440/top 188，期望 195/864）。
-			// 挪出来之后滚动层可安全加 mask；浮层自己仍是 fixed + z-index:2（压过内容行与底栏）。
-			// 悬停链用 relatedTarget 保住：指针从格子移进浮层时不算"离开"。
-			const [peek, setPeek] = (0, react.useState)(null);
-			const peekRef = (0, react.useRef)(null);
-			const peekCellRef = (0, react.useRef)(null);
-			const peekRaf = (0, react.useRef)(0);
-			const placePeek = () => {
-				const cell = peekCellRef.current;
-				const el = peekRef.current;
-				if (!cell || !el) return;
-				const b = cell.getBoundingClientRect();
-				el.style.left = Math.round(b.left - 6) + "px";
-				el.style.top = Math.round(b.bottom - 12) + "px";
-			};
-			const openPeek = (cell, side, rest) => {
-				peekCellRef.current = cell;
-				const b = cell.getBoundingClientRect();
-				setPeek({ side, rest, left: Math.round(b.left - 6), top: Math.round(b.bottom - 12), width: Math.round(b.width + (side === "gacha" ? 12 : 14)) });
-			};
-			const closePeekFrom = (e) => {
-				const el = peekRef.current;
-				const rb = e && e.relatedTarget;
-				// relatedTarget 可能是 Window（指针离开窗口时）⇒ 直接 contains 会抛 TypeError
-				if (el && rb && typeof rb.nodeType === "number" && el.contains(rb)) return;
-				peekCellRef.current = null;
-				setPeek(null);
-			};
-			const onBodyScroll = () => {
-				if (!peekCellRef.current || peekRaf.current) return;
-				peekRaf.current = window.requestAnimationFrame(() => { peekRaf.current = 0; placePeek(); });
-			};
 			const [nearAll, setNearAll] = (0, react.useState)(false);
 			const nearPages = Math.max(1, Math.ceil(recent.length / SCHEDULE_NEAR_LIMIT));
 			const nearPage = useCycle(nearPages, SCHEDULE_SLOT_SECS, nearHeld || nearAll);
@@ -661,19 +672,29 @@
 				// 同格多条（2026-10-15 定稿）：**第一条完整三行**（名称 / 档期·状态 / 迷你条），
 				// 其余收进「探头」：收起只露顶部 12px 且虚化，悬停时该格底板向下变长**覆盖**下面的行
 				// （下面的行位置一格不动、格子高度恒定、文字不位移）。不再写「另有 N 条」文字。
-
+				const itemOf = (x, key) => (0, react_jsx_runtime.jsxs)("div", {
+					key, className: "gacha-cal-sched-item", "data-u": scheduleUrgency(x),
+					children: [
+						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cn", title: x.orig || x.title || x.raw || "—", children: x.show || x.title || x.raw || "—" }),
+						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cm gacha-cal-sched-num", children: scheduleMeta(x, now) }),
+						scheduleBars(x, days)
+					]
+				});
 				const rest = sorted.slice(1);
 				return (0, react_jsx_runtime.jsxs)("div", {
 					className: "gacha-cal-sched-cell", "data-t": side, "data-u": scheduleUrgency(it),
-					// 指针进出：还有并列条目时，展开内容交给**滚动层之外**那块浮层渲染（见 openPeek）。
-					// 收起态这里只留一条 12px 提示（裁剪自第一条附加内容）。
-					onPointerEnter: (e) => { if (rest.length) openPeek(e.currentTarget, side, rest); },
-					onPointerLeave: (e) => closePeekFrom(e),
+					// 展开的探头改成 position:fixed：绝对定位元素会把滚动容器"撑长"（实测悬停时 +133px），
+					// 靠下的格子一展开面板内容就变长 ⇒ 滚动条滑块缩短 / 滚动锚定位移 = 用户看到的"抽搐"。
+					// fixed 的包含块是视口 ⇒ 既不撑大滚动区、也不会被面板裁掉 —— 真正"伸出面板之外"。
+					// 坐标按格子实测写入（--rx/--ry/--rw），滚动时由视图的 onScroll 重算。
+					onPointerEnter: (e) => slotEnter(e.currentTarget),
+					onPointerLeave: (e) => slotLeave(e.currentTarget),
 
 					children: [
 						itemOf(it, "first"),
 						rest.length ? (0, react_jsx_runtime.jsx)("div", {
 							className: "gacha-cal-sched-rest",
+							onWheel: slotWheel,
 							children: rest.map((x, i) => itemOf(x, "r" + i))
 						}) : null
 					]
@@ -683,15 +704,6 @@
 			// --z 按**行序递减**：上面的行永远画在下面的行之上（越大越靠上）。
 			// 这样"鼠标向上移动"时，上一行正在展开的底板一定压得住下一行尚未收回的内容 ——
 			// 不依赖"谁在悬停"（那是会随时间变化的，会出现两格抢层级、下面的字压住上面的底板）。
-			// 一条目 = 名称 / 档期·状态 / 迷你条；格子与浮层共用同一个渲染器。
-			const itemOf = (x, key) => (0, react_jsx_runtime.jsxs)("div", {
-				key, className: "gacha-cal-sched-item", "data-u": scheduleUrgency(x),
-				children: [
-					(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cn", title: x.orig || x.title || x.raw || "—", children: x.show || x.title || x.raw || "—" }),
-					(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cm gacha-cal-sched-num", children: scheduleMeta(x, now) }),
-					scheduleBars(x, days)
-				]
-			});
 			const rowOf = (g, i) => (0, react_jsx_runtime.jsxs)("div", {
 				className: "gacha-cal-sched-trow",
 				key: g.id,
@@ -707,20 +719,10 @@
 			});
 
 
-			const peekNode = peek
-				? (0, react_jsx_runtime.jsxs)("div", {
-					ref: peekRef,
-					className: "gacha-cal-sched-rest gacha-cal-sched-rest--float",
-					"data-t": peek.side,
-					style: { left: peek.left + "px", top: peek.top + "px", width: peek.width + "px" },
-					onPointerLeave: closePeekFrom,
-					children: peek.rest.map((x, i) => itemOf(x, "f" + i))
-				})
-				: null;
 			return (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched", children: [
 				// 滚动层：**底栏在它之外**。这样底栏常驻面板下端，而内容在它上沿干净收住，
 				// 不会被底栏"浮在上面切成两半"（sticky 的固有毛病，用户反馈"字都看不清"）。
-				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-body", onScroll: onBodyScroll, children: [
+				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-body", onScroll: slotScroll, children: [
 				// ① 标题「二游日历」+ 日期胶囊
 				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-head", children: [
 					(0, react_jsx_runtime.jsx)("h4", { children: "二游日历" }),
@@ -792,9 +794,7 @@
 						title: refreshing ? "刷新中..." : "刷新", "aria-label": refreshing ? "刷新中..." : "刷新",
 						onClick: onRefresh, children: "刷新"
 					})
-				] }),
-				// 浮层必须放在**内容之后**：同层里后画的在上，放前面会被格子的 z-index(900) 压住。
-				peekNode
+				] })
 			] });
 		}
 
