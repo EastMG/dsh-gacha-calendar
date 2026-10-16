@@ -58,7 +58,7 @@
 			// gacha-cal-marq 并计算滚动距离，让内层 span 来回滚动显示全文（未超宽不加）。
 			ctx.effect(() => {
 				const onOver = (e) => {
-					const cell = e.target.closest(".gacha-cal-name, .gacha-cal-cell");
+					const cell = e.target.closest(".gacha-cal-name, .gacha-cal-cell, .gacha-cal-sched-cn, .gacha-cal-sched-what, .gacha-cal-sched-who, .gacha-cal-slot-nm b");
 					if (!cell) return;
 					const inner = cell.querySelector(".gacha-cal-inner");
 					if (!inner) return;
@@ -69,7 +69,7 @@
 					}
 				};
 				const onOut = (e) => {
-					const cell = e.target.closest(".gacha-cal-name, .gacha-cal-cell");
+					const cell = e.target.closest(".gacha-cal-name, .gacha-cal-cell, .gacha-cal-sched-cn, .gacha-cal-sched-what, .gacha-cal-sched-who, .gacha-cal-slot-nm b");
 					if (!cell) return;
 					// mouseout 会在"从格子移到它内部的 span"时也触发（并冒泡到这里）：
 					// 只有真的离开这整块区域才停滚动，否则悬停滚动会在格子里抖一下/被打断

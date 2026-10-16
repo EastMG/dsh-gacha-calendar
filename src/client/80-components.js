@@ -709,10 +709,28 @@
 				// 同格多条（2026-10-15 定稿）：**第一条完整三行**（名称 / 档期·状态 / 迷你条），
 				// 其余收进「探头」：收起只露顶部 12px 且虚化，悬停时该格底板向下变长**覆盖**下面的行
 				// （下面的行位置一格不动、格子高度恒定、文字不位移）。不再写「另有 N 条」文字。
+			// 悬停弹出的文本：**照老面板的构造**（旧面板分支 = withFailNote(g.bannerHover || gachaTitle, …)）：
+			//   · 引擎给了悬停原文（bannerHover / eventHover：全部当期池/活动的多行原文）就用它 ——
+			//     这才是老面板悬停里那段"每口池一行"的文本；没有才退回「名称 ⏎ 档期」。
+			//   · 抓取失败/沿用旧数据时补一行「（…）」（老面板同样只在有 note 时补）。
+			const hoverTextOf = (x, withFail) => {
+				const g = x && x.g;
+				if (!g) return (x && (x.orig || x.title || x.raw)) || "—";
+				const base = (x.isG ? g.bannerHover : g.eventHover) || "";
+				const own = [x.title, x.raw].filter(Boolean).join("\n");
+				let text = base ? (base + (x.title && base.indexOf(x.title) < 0 ? "\n" + own : "")) : own;
+				if (withFail) {
+					const fail = x.isG ? g.gachaFail : g.eventFail;
+					const stale = x.isG ? g.gachaStale : g.eventStale;
+					const note = sideFailText(x.side, fail, { userSupplied: false });
+					if (note) text = stale && text ? text + "\n（" + note + "）" : "（" + note + "）";
+				}
+				return text || "—";
+			};
 				const itemOf = (x, key) => (0, react_jsx_runtime.jsxs)("div", {
 					key, className: "gacha-cal-sched-item", "data-u": scheduleUrgency(x),
 					children: [
-						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cn", title: x.orig || x.title || x.raw || "—", children: x.show || x.title || x.raw || "—" }),
+						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cn", title: hoverTextOf(x, key === "first"), children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: x.show || x.title || x.raw || "—" }) }),
 						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cm gacha-cal-sched-num", children: scheduleMeta(x, now) }),
 						scheduleBars(x, days)
 					]
