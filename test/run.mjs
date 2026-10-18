@@ -4,7 +4,7 @@
 //       node test/run.mjs --live     （打真实网络，抽检夹具是否过期）
 
 import { useFixtures, check, section, summary, listFixtures, assertContract } from "./harness.mjs";
-import { NEXT_SOURCES, findSource } from "./registry-shim.mjs";
+import { NEXT_SOURCES, findSource, EXTRA_GACHA_FETCHERS, EXTRA_EVENT_FETCHERS } from "./registry-shim.mjs";
 import { T } from "./load.mjs";
 const { gachaP5x, eventsP5x, parseP5xList, parseP5xWindows } = T.parsers["p5x"];
 
@@ -22,7 +22,10 @@ section("① 注册表结构（契约字段齐备）");
 	check("id 无重复", new Set(ids).size === ids.length, ids.join(","));
 	for (const s of NEXT_SOURCES) {
 		check(`${s.id} 声明了 tz`, typeof s.tz === "string" && s.tz.length > 0, String(s.tz));
-		check(`${s.id} 至少有一侧抓取器`, !!(s.gacha || s.event), JSON.stringify({ g: !!s.gacha, e: !!s.event }));
+		// 有些源**没有默认抓取器、只有备选源**（如 ournotes-global：fetcher 全在
+		// EXTRA_GACHA_FETCHERS / EXTRA_EVENT_FETCHERS 里）⇒ 这条守卫要看"默认或备选至少一侧"。
+		const hasAlt = !!(EXTRA_GACHA_FETCHERS[s.id + "-gacha"] || EXTRA_EVENT_FETCHERS[s.id]);
+		check(`${s.id} 至少有一侧抓取器（默认或备选）`, hasAlt || !!(s.gacha || s.event), JSON.stringify({ g: !!s.gacha, e: !!s.event, alt: hasAlt }));
 		for (const side of ["gacha", "event"]) {
 			if (!s[side]) continue;
 			check(`${s.id}.${side} 有 url`, typeof s[side].url === "string" && s[side].url.startsWith("http"), String(s[side].url));
