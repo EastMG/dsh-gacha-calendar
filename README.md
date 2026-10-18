@@ -1,5 +1,10 @@
 # dsh-gacha-calendar
 
+[![verify](https://github.com/EastMG/dsh-gacha-calendar/actions/workflows/verify.yml/badge.svg)](https://github.com/EastMG/dsh-gacha-calendar/actions/workflows/verify.yml)
+[![npm](https://img.shields.io/npm/v/dsh-gacha-calendar.svg)](https://www.npmjs.com/package/dsh-gacha-calendar)
+[![release](https://img.shields.io/github/v/release/EastMG/dsh-gacha-calendar.svg)](https://github.com/EastMG/dsh-gacha-calendar/releases)
+[![license](https://img.shields.io/github/license/EastMG/dsh-gacha-calendar.svg)](./LICENSE)
+
 DeepSeek Harness 桌面端侧边栏插件：一键查看主流二游的**当期卡池与活动起止日历**，支持联网自动刷新，支持手动添加或删除条目。
 全程使用 DeepSeek Harness 进行 Vibe Coding 开发。
 
@@ -99,3 +104,5 @@ dsh plugin --profile desktop add dsh-gacha-calendar
 ## License
 
 MIT
+
+[![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
