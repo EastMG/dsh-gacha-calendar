@@ -150,7 +150,9 @@
 			   （面板**内**的「二游日历」标题已删，侧栏入口按钮不动；**没有**总计数胶囊。）
 			   head 是 **nowrap** 的 flex（错峰浮现动画 .gacha-cal-sched-head 保留），胶囊靠 sp 的
 			   margin-left:auto + flex:0 0 auto 顶到右端且自身不缩 ⇒ 窄宽度下两者**始终同一行**。 */
-			.gacha-cal-sched-head{display:flex;align-items:center;gap:10px;flex-wrap:nowrap;padding:2px 0 8px}
+			/* 上下留白对称（用户 2026-10-18）：文字上方 = 面板 padding-top 10px + head 的 2px = 12px，
+			   所以 head 的下内边距也必须是 **12px**（原来 8px ⇒ 上面多 4px，看着"这一行偏上"）。 */
+			.gacha-cal-sched-head{display:flex;align-items:center;gap:10px;flex-wrap:nowrap;padding:2px 0 12px}
 			.gacha-cal-sched-sp{margin-left:auto;display:flex;gap:6px;flex:0 0 auto}
 			.gacha-cal-sched-pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:999px;font-size:11px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));color:var(--dsw-alias-label-secondary,#4a5261)}
 			.gacha-cal-sched-pill--live{background:color-mix(in oklab,var(--dsw-alias-state-business-primary,#3b5bfd) 12%,transparent);border-color:transparent;color:var(--dsw-alias-link,#3b5bfd)}
