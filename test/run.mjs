@@ -10,6 +10,9 @@ const { gachaP5x, eventsP5x, parseP5xList, parseP5xWindows } = T.parsers["p5x"];
 
 const LIVE = process.argv.includes("--live");
 if (!LIVE) useFixtures();
+// 固定基准时间（与 test/cases-b3.mjs:66 同值）：抓取器第 4 参 now 是"测试专用契约"，
+// 不注入就会走真实墙上时钟 ⇒ 断言随日期漂移（见 AGENTS/交接说明里那次修复）。
+const NOW = Date.UTC(2026, 9, 1, 17, 27);
 
 //#region ① 注册表结构守卫
 section("① 注册表结构（契约字段齐备）");
@@ -68,10 +71,10 @@ section("④ P5X 国服 —— 卡池侧 / 活动侧契约");
 {
 	const src = findSource("p5x");
 	const tz = src.tz;
-	const g = await src.gacha.fetcher(src.gacha.url, undefined, tz);
+	const g = await src.gacha.fetcher(src.gacha.url, undefined, tz, NOW);
 	assertContract("P5X", "gacha", g);
 	check("卡池 banner 非空", !!(g && g.banner), JSON.stringify(g && g.banner));
-	const e = await src.event.fetcher(src.event.url, undefined, tz);
+	const e = await src.event.fetcher(src.event.url, undefined, tz, NOW);
 	assertContract("P5X", "event", e);
 	check("活动 eventHover 是多行（逐行列出当期窗口）",
 		typeof e.eventHover === "string" && e.eventHover.includes("\n"), JSON.stringify((e.eventHover || "").slice(0, 80)));

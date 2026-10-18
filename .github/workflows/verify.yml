@@ -1,0 +1,26 @@
+name: verify
+
+# 本仓库没有运行时/开发依赖（src/ 是唯一真源；build.mjs 与 test/ 都是纯 Node 脚本）
+# ⇒ 不需要 npm install / lockfile，检出后直接跑门禁即可。
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 门禁 ①　产物一致性 / 语法 / 类型声明
+        run: node build.mjs --check
+
+      - name: 门禁 ②　测试套件（1698 通过 / 0 失败）
+        working-directory: test
+        run: node all.mjs
