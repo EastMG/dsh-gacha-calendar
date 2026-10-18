@@ -1,0 +1,7 @@
+{
+  "url": "https://l11-web-api.biligames.com/game/news/detail?game_base_id=118241&id=9001&lang=zh-tw",
+  "status": 200,
+  "capturedAt": "2026-10-03T00:50:00.000Z",
+  "synthetic": true,
+  "note": "**合成夹具（不是真抓的）**：源站暂无公告且该域对本机 ECONNRESET。自编一条详情，正文形如 `活動時間：2026/09/30 12:00 - 2026/10/14 11:59`（用了任务书给的那种「带年份 + 连字符」形态）。"
+}

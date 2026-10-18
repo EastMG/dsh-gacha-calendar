@@ -1,0 +1,7 @@
+{
+  "url": "https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw",
+  "status": 200,
+  "capturedAt": "2026-10-03T00:50:00.000Z",
+  "synthetic": true,
+  "note": "**合成夹具（不是真抓的）**：源站暂无公告且该域对本机 ECONNRESET，无法真抓。本文件按接口 schema（`{code,data:{page_number,page_size,total_count,list[]}}`）**自编** 2 条公告，只为离线验证解析逻辑；字段名（id/title/display_time/create_time）是**假设**，不是实测。"
+}

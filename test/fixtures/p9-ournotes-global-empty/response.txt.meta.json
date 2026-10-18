@@ -1,0 +1,7 @@
+{
+  "url": "https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw",
+  "status": 200,
+  "capturedAt": "2026-10-03T00:50:00.000Z",
+  "synthetic": true,
+  "note": "**合成夹具（不是真抓的）**：复制 Lead 2026-10-02 对该接口实测抓到的那一次响应（源站暂无公告 total_count:0）。2026-10-03 本机复测 zh-tw/zh-cn/en-us 三个 lang 全部 fetch failed（ECONNRESET）→ 无法真抓，只能如实合成。"
+}

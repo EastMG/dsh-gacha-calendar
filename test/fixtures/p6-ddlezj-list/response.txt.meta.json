@@ -1,0 +1,5 @@
+{
+  "url": "https://api.biligame.com/news/list?gameExtensionId=1282&positionId=2&typeId=1&pageNum=1&pageSize=50",
+  "status": 200,
+  "capturedAt": "2026-10-02T14:37:04.003Z"
+}

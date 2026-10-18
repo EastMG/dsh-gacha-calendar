@@ -1,0 +1,6 @@
+{
+  "url": "https://api.biligame.com/news/synth-b3",
+  "status": 200,
+  "capturedAt": "2026-10-03T00:00:00.000Z",
+  "note": "合成夹具（非真实抓取）：为 test/cases-b3.mjs 造「**2 个**当期主卡池」的公告，验证 Bandori 卡池侧在 ≥2 池时才设 bannerHover（真实夹具 18418 只有 1 个当期主池）。"
+}

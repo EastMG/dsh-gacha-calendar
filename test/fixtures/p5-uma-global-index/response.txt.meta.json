@@ -1,0 +1,11 @@
+{
+  "url": "https://umamusume.com/api/ajax/pr_info_index?format=json",
+  "status": 200,
+  "capturedAt": "2026-10-02T14:36:56.361Z",
+  "method": "POST",
+  "body": {
+    "announce_label": 1,
+    "limit": 50,
+    "offset": 0
+  }
+}
