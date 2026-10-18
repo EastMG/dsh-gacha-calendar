@@ -416,7 +416,7 @@
 				tz: TZ_CN,
 				parserVersion: 3,
 				name: "重返未来：1999",
-				icon: "https://play-lh.googleusercontent.com/LwcueZMBbLq6aELtqJVn61ToKkJUgxEO8O4KgK_5052hfYoDAglQJIzqSu8srUJeaOZwv36Qi5YKtsXZjo-JPg=s64",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/20/b1/e4/20b1e434-8c20-0346-a3aa-9051bf75a400/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 				source: "\u5B98\u65B9\u516C\u544A",
 				// 默认源＝官方**游戏内公告**接口（经 host 代理 GET）。逐期「征集时间」只在这里发布：
 				// 「版本活动一览」公告正文按段落给出【征集时间】起止 + 【征集说明】里的 6★/5★ UP 角色，

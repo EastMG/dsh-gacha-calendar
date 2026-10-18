@@ -370,7 +370,7 @@ async function ns_gf2_eventsGf2(url, signal, tz = ns_gf2_GF2_TZ, now = nowMs()) 
 				defaultHidden: false,
 				tz: "Asia/Shanghai",
 				name: "少女前线2：追放",
-				icon: "https://gf2-cn.cdn.sunborngame.com/website/official_zf/mobile/image/logo.png",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/6e/24/ac/6e24aca1-ce07-8fb9-41cd-181220b6cff2/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",
 				url: "https://gf2-web-preregister-api.sunborngame.com/website/news_list/4?page=1&limit=10",
 				source: "官方公告",
 				eventUrl: "https://gf2-web-preregister-api.sunborngame.com/website/news_list/4?page=1&limit=10",

@@ -346,7 +346,7 @@ function ns_stellasora_stellaWindowsFromDetail(detailJson, tz = ns_stellasora_ST
 				defaultHidden: false,
 				tz: "Asia/Shanghai",
 				name: "星塔旅人",
-				icon: "https://webcnstatic.yostar.net/stellasora/stellasora-cn-official-frontend/main/h5/favicon.png?x-oss-process=image/resize,w_128",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/54/82/12/548212d8-790c-241d-b11e-f588000cbaef/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 				url: "https://stellasora.yostar.cn/api/resource/news?index=1&size=20&type=notice",
 				source: "官方公告",
 				eventUrl: "https://stellasora.yostar.cn/api/resource/news?index=1&size=20&type=notice",

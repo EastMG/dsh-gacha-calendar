@@ -535,7 +535,7 @@
 				tz: TZ_CN,
 				parserVersion: 1,
 				name: "蔚蓝档案·国服",
-				icon: "https://webcnstatic.yostar.net/ba_cn_web/prod/web/favicon.png?x-oss-process=image/resize,w_64",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/7c/4f/1a/7c4f1a51-59e5-977c-42e2-6c980485044a/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 				source: "\u5B98\u7F51\u516C\u544A",
 				// 经 host 代理 POST 抓取（官网 CORS=null + 动态 SPA）；维护说明同时含当期卡池与活动
 				url: "https://bluearchive-cn.com/api/news/list?pageIndex=1&pageNum=30&type=",
@@ -550,7 +550,7 @@
 				tz: TZ_UTC,
 				parserVersion: 1,
 				name: "蔚蓝档案·国际服",
-				icon: "https://storage.moegirl.org.cn/moegirl/commons/2/25/AppIcon_Arona.png!/fw/64",
+				icon: "https://storage.moegirl.org.cn/moegirl/commons/2/25/AppIcon_Arona.png!/fw/512",
 				source: "Nexon \u66F4\u65B0\u65E5\u8A8C",
 				// 经 host 代理抓取（nexon CORS 只允许同源）；「更新日誌」board(3352) 同时含当期卡池与活动排期
 				url: "https://forum.nexon.com/api/v1/board/3352/threads?alias=bluearchiveTW&countryCode=KR&pageNo=1&paginationType=PAGING&pageSize=30&blockSize=5&hideType=WEB",
@@ -573,7 +573,7 @@
 				tz: TZ_JP,
 				parserVersion: 1,
 				name: "蔚蓝档案·日服",
-				icon: "https://play-lh.googleusercontent.com/H975s6W1-boCSogzpF5_rIyawbjiXfG842ncgjIRiVGzhXHFTCVut0DkBhlDR4CgN1nn98OOC1fWN-LE7kUHnQ=s64",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/b2/83/84/b28384e9-b106-b48e-fc66-04679cd44d76/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 				source: "官方公告（日文）",
 				// 日服官网新闻接口（api-web.bluearchive.jp，经 host 代理）：「ピックアップ募集紹介」公告
 				// 内含逐池「ピックアップ名／ピックアップ生徒」与「実施期間」，可直接得到日文官方池名与 UP 生徒

@@ -764,7 +764,7 @@
 				// 2：档位改按池名判定（中坚优先）+ 外显与悬停共用同一份排序列表（v0.9.25 修）
 				parserVersion: 2,
 				name: "明日方舟",
-				icon: "https://storage.moegirl.org.cn/moegirl/commons/4/41/ArknightsAppIcon.png!/fw/64",
+				icon: "https://storage.moegirl.org.cn/moegirl/commons/4/41/ArknightsAppIcon.png!/fw/512",
 				source: "官方公告+PRTS",
 				// 默认卡池源=官方公告 CMS（经 host 代理）：官方只对限时/联动类寻访发公告，
 				// 无当期寻访公告（常规轮换周）时由抓取器自动回退 PRTS；也可在设置中手动切 PRTS 卡池一览（备选）
@@ -783,7 +783,7 @@
 				tz: TZ_CN,
 				parserVersion: 2,
 				name: "明日方舟：终末地",
-				icon: "https://storage.moegirl.org.cn/moegirl/commons/f/f1/ArknightsEndfieldAppIcon.png!/fw/64",
+				icon: "https://storage.moegirl.org.cn/moegirl/commons/f/f1/ArknightsEndfieldAppIcon.png!/fw/512",
 				source: "Canmoe",
 				// 经 host 代理抓取（canmoe 无 CORS 头，浏览器直连会被拦截）；
 				// 数据在 Next.js 组件 chunk 的 JS 里，需先抓页面定位 chunk 再抓 chunk 解析

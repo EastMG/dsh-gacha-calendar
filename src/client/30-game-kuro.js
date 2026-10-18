@@ -379,7 +379,7 @@
 				tz: TZ_CN,
 				parserVersion: 2,
 				name: "鸣潮",
-				icon: "https://storage.moegirl.org.cn/moegirl/commons/2/29/WutheringWavesIcon.png!/fw/64",
+				icon: "https://storage.moegirl.org.cn/moegirl/commons/2/29/WutheringWavesIcon.png!/fw/512",
 				source: "官方公告",
 				// 默认卡池源=官方公告（aki-gm-resources-back，经 host 代理）：
 				// entrypoint.json → <dir>/zh-Hans.json，其 `recommend` 组里 tag=7 为逐期「角色/武器活动唤取」，

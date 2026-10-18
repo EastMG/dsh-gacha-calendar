@@ -462,7 +462,7 @@ async function ns_p5x_eventsP5x(url, signal, tz = "Asia/Shanghai", now = nowMs()
 				defaultHidden: false,
 				tz: "Asia/Shanghai",
 				name: "女神异闻录：夜幕魅影",
-				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/03/1e/f4/031ef49f-b3d0-5bdd-077b-67d213f99c86/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/200x200bb.jpg",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/03/1e/f4/031ef49f-b3d0-5bdd-077b-67d213f99c86/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 				url: "https://p5x.wanmei.com/news/gamenews/index.html",
 				source: "官网公告",
 				eventUrl: "https://p5x.wanmei.com/news/gamenews/index.html",
@@ -475,7 +475,7 @@ async function ns_p5x_eventsP5x(url, signal, tz = "Asia/Shanghai", now = nowMs()
 				tz: TZ_CN,
 				parserVersion: 2,
 				name: "异环",
-				icon: "https://storage.moegirl.org.cn/moegirl/commons/8/8c/YH_APP.png!/fw/64",
+				icon: "https://storage.moegirl.org.cn/moegirl/commons/8/8c/YH_APP.png!/fw/512",
 				source: "官网公告",
 				// 经 host 代理抓取（wanmei 跨域无 CORS）；官方公告（服务端渲染）含当期限定棋盘卡池 + 限时活动起止
 				url: "https://yh.wanmei.com/news/gamebroad/",

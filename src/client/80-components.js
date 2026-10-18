@@ -92,9 +92,82 @@
 				});
 			}
 			return (0, react_jsx_runtime.jsx)("img", {
-				src: icon, alt: name, loading: "lazy", style: Object.assign({}, box, { objectFit: "cover" }),
+				src: icon, alt: name, loading: "lazy", decoding: "async", style: Object.assign({}, box, { objectFit: "cover" }),
 				onError: () => setFailed(true)
 			});
+		}
+
+		// ── 图标**空闲预热**（治「第一次打开面板时图标一格格往里填」）──
+		// 面板一开就会同时挂 20+ 张外链图标：浏览器对单域名的并发连接有限，首屏还得等握手 + TLS + 下载。
+		// 这里在插件初始化后的**空闲时段**按固定并发把 URL 先取一遍，让它们进 HTTP 缓存；
+		// 等 <img> 真正渲染时直接命中缓存（这些 CDN 都带 cache-control，重复请求走缓存）。
+		// 三条约束（改之前先读）：
+		//   ① **只预热 SOURCES 里已登记的 icon** —— 不新增白名单之外的外部请求；
+		//   ② 不阻塞渲染：requestIdleCallback（无则 setTimeout 兜底），并发 ≤ 6、总时长 ≤ 10s；
+		//   ③ 返回清理函数，交给 apply() 的 ctx.effect —— 面板卸载/插件重载后不再继续发请求。
+		const ICON_PREWARM_CONCURRENCY = 6;
+		const ICON_PREWARM_BUDGET_MS = 10000;
+		function prewarmGameIcons() {
+			// 非浏览器环境（离线用例 / SSR）没有 Image，直接跳过 —— 不要在这里抛错
+			if (typeof Image !== "function") return () => {};
+			const urls = [];
+			const seen = Object.create(null);
+			for (const s of SOURCES) {
+				const u = s && s.icon;
+				if (typeof u !== "string" || !/^https?:\/\//i.test(u) || seen[u]) continue;
+				seen[u] = 1;
+				urls.push(u);
+			}
+			let stopped = false;
+			let cursor = 0;
+			const active = [];
+			const deadline = Date.now() + ICON_PREWARM_BUDGET_MS;
+			const pump = () => {
+				if (stopped) return;
+				while (cursor < urls.length && active.length < ICON_PREWARM_CONCURRENCY && Date.now() < deadline) {
+					const img = new Image();
+					let done = false;
+					const finish = () => {
+						if (done) return;
+						done = true;
+						img.onload = img.onerror = null;
+						const i = active.indexOf(img);
+						if (i >= 0) active.splice(i, 1);
+						pump(); // 腾出一个并发位就补下一张
+					};
+					img.onload = finish;
+					// 单张失败**不重试、不降级**：面板那边 GameIcon 的 onError 兜底照旧负责显示字母
+					img.onerror = finish;
+					active.push(img);
+					img.decoding = "async";
+					img.src = urls[cursor++];
+				}
+			};
+			pump();
+			return () => {
+				stopped = true;
+				for (const img of active) { img.onload = img.onerror = null; img.src = ""; }
+				active.length = 0;
+			};
+		}
+		/** 把预热排进空闲时段；返回取消函数（给 ctx.effect 当清理器用）。 */
+		function scheduleIconPrewarm() {
+			let cancelled = false;
+			let stopPrewarm = null;
+			const run = () => {
+				if (cancelled) return;
+				stopPrewarm = prewarmGameIcons();
+			};
+			const useIdle = typeof requestIdleCallback === "function";
+			// 有 requestIdleCallback 就等真空闲（timeout 3000 兜底：最多 3s 后一定执行）；
+			// 没有就 1.2s 后跑 —— 两者都晚于面板首屏渲染，不会抢带宽/主线程。
+			const handle = useIdle ? requestIdleCallback(run, { timeout: 3000 }) : setTimeout(run, 1200);
+			return () => {
+				cancelled = true;
+				if (useIdle && typeof cancelIdleCallback === "function") cancelIdleCallback(handle);
+				else clearTimeout(handle);
+				if (stopPrewarm) stopPrewarm();
+			};
 		}
 
 		// ══ 实验特性：新「二游日历」面板视图（`settings.newPanel === true` 时才渲染）══

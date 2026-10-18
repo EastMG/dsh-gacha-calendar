@@ -164,7 +164,7 @@ async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = now
 				defaultHidden: false,
 				tz: "Asia/Shanghai",
 				name: "初音未来：缤纷舞台·国服",
-				icon: "https://p16-sg.dailygn.com/obj/g-marketing-assets-sg/2021_12_15_07_41_24/icon_s54607.png",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/00/5c/7c/005c7c99-d162-1dc9-2c38-f5e5a50619e1/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 				url: "https://sekai-world.github.io/sekai-master-db-cn-diff/gachas.json",
 				// 站点名 + 资源名（对齐本体惯例：`Bwiki 往期祈愿` / `Bwiki 活动一览`）
 				// 旧值写的是「第三方数据」——那是**类别**不是站点名，用户 2026-10-03 要求改成网站名称。

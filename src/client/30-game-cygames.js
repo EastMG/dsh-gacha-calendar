@@ -782,7 +782,7 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 				defaultHidden: false,
 				tz: "Asia/Tokyo",
 				name: "赛马娘·日服",
-				icon: "https://umamusume.jp/apple-touch-icon.png",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/73/7c/0b/737c0b9b-6e90-8838-f0d3-fc7c576fbbad/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 				url: "https://umamusume.jp/api/ajax/pr_info_index?format=json&page=1",
 				// 日文站点 → 加语言括号（本体惯例，见 ba-jp 的 `官方公告（日文）`）
 				source: "官方公告（日文）",
@@ -797,7 +797,7 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 				defaultHidden: false,
 				tz: "UTC",
 				name: "赛马娘·国际服",
-				icon: "https://play-lh.googleusercontent.com/yN6cCSP7UB_2bsvlCxrtv-FUpEt1IvEFwr0Ucb3wr39QsAd5PLsueSVXuCinDbE4rifhMlX4YNtpLpkGnpsLhCQ=s64-rw",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/8f/35/f4/8f35f477-05cb-0058-944a-0b796ee42583/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 				// 2026-10-05 换默认源：官网 umamusume.com 整站按出口 IP/地域封锁 —— 首页与 API 都返回 403，
 				// 换 browser/curl/无 UA、加 Referer / X-Requested-With / Accept-Language 全部 403，
 				// 而同机访问日服 umamusume.jp 是 200 → 与请求头无关。经排查可达且为当期的只有 GachaTracker。
