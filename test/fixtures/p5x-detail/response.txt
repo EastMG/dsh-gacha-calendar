@@ -1,0 +1,96 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+	<meta name="viewport" content="width=device-width,user-scalable=no">
+	<meta name="renderer" content="webkit">
+	<meta name="description" content="《女神异闻录：夜幕魅影》（简称：P5X）是由SEGA正版授权，ATLUS深度参与，完美世界游戏打造的《女神异闻录5》首款日式角色扮演（JRPG）手游。P5X是基于P5的世界观设定展开故事，在深度还原原作潮酷炫风格的基础上，由全新角色和全新剧情带来全新的精彩体验！" />
+	<meta name="keywords" content="P5X,P5X官网,P5X下载,P5X福利,P5X攻略,P5X预约,女神异闻录：夜幕魅影,女神异闻录夜幕魅影,女神异闻录手游,女神异闻录5,女神异闻录X,女神异闻录下载,女神异闻录官网,女神异闻录预约,女神异闻录福利,女神异闻录礼包,女神异闻录公测,女神异闻录攻略,P5,JRPG,角色扮演,日式角色扮演,Joker Persona,人格面具,persona"/>
+	<title>逐月者之梦《女神异闻录：夜幕魅影》5.4.1版本今日上线-P5X-《女神异闻录：夜幕魅影》手游官网</title>
+	<link rel="stylesheet" type="text/css" href="https://p5x.wanmei.com/style/inside240801.css" />
+	<script type="text/javascript">
+		(function(doc, win){
+			var docEl = doc.documentElement,resizeEvt = 'orientationchange' in window ? 'orientationchange' : 'resize',
+			recalc = function(){
+				var clientWidth = window.innerWidth;
+				if (!clientWidth) return;
+				var wid = 100 * (clientWidth / 2560);
+				docEl.style.fontSize = wid + 'px';
+			};
+			if (!doc.addEventListener) return;
+			win.addEventListener(resizeEvt, recalc, false);
+			recalc();
+			doc.addEventListener('DOMContentLoaded', recalc, false);
+		})(document, window);
+	</script>
+</head>
+<body>
+	<audio id="background_audio" src="https://p5xvmg.wmupd.com/webops/p5x/p5x_cn_bgm_20240326.mp3" loop></audio>
+	<div class="wrap pv_wrap">
+		<!--head-->
+		<div class="section_head">
+			<div class="top_nav_box">
+				<a href="https://p5x.wanmei.com/index.html"><img class="logo" src="https://p5x.wanmei.com/images/cover2407/logo.png" /></a>
+				<ul class="top_nav_list">
+				<li class="nav_news"><a href="https://p5x.wanmei.com/main.html?anchor=news"></a></li>
+				<li class="nav_role"><a href="https://p5x.wanmei.com/main.html?anchor=character"></a></li>
+				<li class="nav_school"><a href="https://p5x.wanmei.com/main.html?anchor=schoolLife"></a></li>
+				<li class="nav_world"><a href="https://p5x.wanmei.com/main.html?anchor=metaverseLife"></a></li>
+				<li class="nav_media"><a href="https://p5x.wanmei.com/main.html?anchor=audiovisual"></a></li>
+				<li class="nav_shequ"><a href="https://p5x.wanmei.com/main.html?anchor=community"></a></li>
+			</ul>
+			</div>
+			<div class="share_menu">
+			<span class="icon_share"></span>
+			<ul class="share_list animated fadeIn">
+				<li class="followUs_wechat">
+					<div class="ewm_box"><img src="https://p5x.wanmei.com/images/cover230301/code_wechat.jpg" /></div>
+				</li>
+				<li class="followUs_sina">
+					<a href="https://weibo.com/u/7745874119" target="_blank"></a>
+				</li>
+				<li class="followUs_douliu">
+					<div class="ewm_box"><img src="https://p5x.wanmei.com/images/cover230301/code_douliu.png" /></div>
+				</li>
+				<li class="followUs_tap">
+					<a href="https://www.taptap.cn/app/305435/topic?utm_medium=seo&utm_source=rep_110vzTu7CoH" target="_blank"></a>
+				</li>
+				<li class="followUs_qq">
+					<a href="http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=EUSz0aoIfYnAHw8cJc5-pbo2kHdUgC12&authKey=qadXAGXsL7Q5IU2KvHk2oq58Eg%2F88wxQVc4O4Ivz%2BvqNyWgoCzzHkhiOAB%2B6cTbb&noverify=0&group_code=207069170" target="_blank"></a>
+				</li>
+				<li class="followUs_tieba">
+					<a href="https://tieba.baidu.com/f?ie=utf-8&kw=%E5%A5%B3%E7%A5%9E%E5%BC%82%E9%97%BB%E5%BD%95%E5%A4%9C%E5%B9%95%E9%AD%85%E5%BD%B1" target="_blank"></a>
+				</li>
+				<li class="followUs_bili">
+					<a href="https://space.bilibili.com/1606210274" target="_blank"></a>
+				</li>
+			</ul>
+		</div>
+			<span class="menu_music off"></span>
+		</div>
+		<!--cont-->
+		<div class="section_cont">
+			<img class="news_title" src="https://p5x.wanmei.com/images/inside2407/news_title.png" />
+			<a class="link_list" href="https://p5x.wanmei.com/news/gamenews/index.html">返回列表</a>
+			<div class="article_cont">
+				<p class="article_date">2026.09.24</p>
+				<div class="article_tit">逐月者之梦《女神异闻录：夜幕魅影》5.4.1版本今日上线</div>
+				<div class="article_text">
+					<p>逐月者之梦《女神异闻录：夜幕魅影》5.4.1版本今日上线</p><p><img src="https://p5x.wanmei.com/resources/jpg/20260924/1112392bbf91076b48e4bc0863a74579a8ba.jpg" alt="图片: 1.jpg"/><br/></p><p><br/></p><p>活动主线剧情-Reach for the MOON!</p><p>再次穿过奇怪的门，在似乎没有尽头的高塔中寻找逃脱方法……不知为何，眼前的一切都有种似曾相识的感觉，唯有那在危机时刻忽然现身、召唤出人格面具的少女，拥有全然陌生的面容。</p><p>面对奇怪的空间与徘徊的阴影，幸而有活泼开朗的少女同行，令人安心之余，也在不知不觉中放下疑惑和忧虑。不过她口中提及的同伴……自己是不是曾在哪里遇到过呢？在旅程的终点后，那呼唤自己的熟悉声音又是……？</p><p><img src="https://p5x.wanmei.com/resources/jpg/20260924/1112cde8dd32eba449228486cd3152090a11.jpg" alt="图片: 2.jpg"/></p><p><br/></p><p>P3P联动角色「汐见琴音」登场！</p><p>5星限定火焰属性优越角色「汐见琴音」获取概率限时UP！</p><p>认知模拟试用角色更新！</p><p><a href="https://p5x.wanmei.com/resources/jpg/20260924/1112b1d8d73b599a41d88b139d8774ff7829.jpg" target="_blank" hidefocus="hidefocus" title="图片: 3.jpg"><img src="https://p5x.wanmei.com/resources/jpg/20260924/1112b1d8d73b599a41d88b139d8774ff7829.jpg" alt="图片: 3.jpg"/></a></p><p><br/></p><p>活动支线剧情-樱之际遇</p><p>与琴音同行之时，又一扇奇怪的门伫立于眼前，虽然不明所以，但根据先前的经验，穿过门才是唯一的通路。</p><p>不同的地点，不同的熟识之人……门指引着2人陆续来到诸多熟悉的环境、见到多位重要的友人。尽管并非真实，但自己与琴音仍然十分享受这样的旅途，而这旅途中的相遇，似乎正是打开那扇神秘之门的钥匙……</p><p><a href="https://p5x.wanmei.com/resources/jpg/20260924/1112165f12c12a324bcea61ac27f3f99d2ed.jpg" target="_blank" hidefocus="hidefocus" title="图片: 4.jpg"><img src="https://p5x.wanmei.com/resources/jpg/20260924/1112165f12c12a324bcea61ac27f3f99d2ed.jpg" alt="图片: 4.jpg"/></a></p><p><br/></p><p>活动BOSS更新-追欲的魔术师</p><p>本是4月出现的大型阴影，汐见琴音正是在那时觉醒了人格面具并将其击败。不知为何，它再次出现于严户台宿舍，并对眼前的敌人发起攻击。不过这次，它的外表似乎与之前有所不同……</p><p><br/></p><p>活动更新-2.5周年时光庆典</p><p>活动时间：2026年9月24日—10月22日更新前</p><p>拉响礼炮，共同庆祝时光庆典。积累全服热力值可以获得丰厚奖励。</p><p><a href="https://p5x.wanmei.com/resources/jpg/20260924/11126f40f9650e1444a1ad0a5f740eb3d163.jpg" target="_blank" hidefocus="hidefocus" title="图片: 5.jpg"><img src="https://p5x.wanmei.com/resources/jpg/20260924/11126f40f9650e1444a1ad0a5f740eb3d163.jpg" alt="图片: 5.jpg"/></a></p><p><br/></p><p>活动更新</p><p>怪盗团团长的特训日程</p><p>活动时间：2026年9月24日—10月22日更新前</p><p>规划特训是怪盗团Leader的必修课。活动期间，参与日程规划，满足特定条件可以获得丰厚奖励。</p><p><br/></p><p>活动更新</p><p>2.5周年庆典特别福利</p><p>活动时间：2026年9月24日—10月22日更新前</p><p>队长，2.5周年快乐！</p><p>5.4.1版本期间，登录游戏即可领取2.5周年特别邮件福利！</p><p>奖励包含：</p><p>限定角色自选*1（自选范围截止虎狼丸）</p><p>既定之命运*10</p><p><br/></p><p>活动更新</p><p>时光回顾</p><p>打开时光与羁绊的纪念册，开启属于你的2.5周年专属回忆！</p><p>点击“开启回顾”并分享纪念册后，即可获取活动奖励！</p><p><img src="https://p5x.wanmei.com/resources/jpg/20260924/1112174b4bc29aaf44d48aeecef982c3318e.jpg" alt="图片: 7.jpg"/><br/></p><p><br/></p><p>功能拓展</p><p>启示卡更新</p><p>版本更新后，将新增1种启示卡协调效果：</p><p>【诞生】&amp;【争执】效果：</p><p>战斗开始时及额外回合开始时使所有同伴暴击效果永久提升10%，该效果可叠加2层。</p><p>活动更新</p><p>映像拼图</p><p>活动时间：2026年10月5日—10月22日更新前</p><p>完成本期清单任务，获取拼图碎片。完成拼图可以获得丰厚奖励。</p><p><br/></p><p>活动更新</p><p>荆棘试炼-吹号者</p><p>活动时间：2026年10月5日—2026年10月22日更新前</p><p>大危机！异世界出现异常波动，带领怪盗团成员，挑战不同异变效果下的强大敌人，完成荆棘之路的艰难试炼。</p><p>挑战将分为均衡与崩坏模式，均衡模式为多个预设异变效果难度的挑战，并可使用试用阵容，完成挑战将解锁崩坏模式中更多的异变效果；崩坏模式下则可以自由选择异变效果，选择后的异变等级越高，敌人也将更加强悍，选择适当的异变效果组合进行挑战吧！</p><p>完成对应挑战目标，即可获取大量奖励与活动限定徽章。</p><p><br/></p><p>契约更新</p><p>缘结之契开启</p><p>活动时间：2026年9月24日—2026年10月22日</p><p>指定自选契约「缘结之契」再次开启！</p><p>队长可在 5.1.1 版本（截止到雨宫莲·星舞）及以前上线的角色中任选 3 名进行签约，获取的限定角色将只会出现当前选择 UP 的角色。</p><p>参与该契约还可获得「认知残影」代币奖励。</p><p>「契约之间 - 认知优选」商店限购道具届时将会更新，可兑换既定之命运、既定之硬币、宿命之残响、启示定制与重置相关的珍贵道具。</p><p>以上角色限定 5 星武器同步复刻，感谢各位队长一直以来的陪伴！</p><p><br/></p><p>活动更新</p><p>2.5周年魅影通行证</p><p>活动时间：2026年9月24日—2026年11月19日</p><p>魅影通行证·2.5周年限定版登场！</p><p>以下特典仅在本次通行证特别开启：</p><p>&gt;通行证前50级奖励逢5逢10限时翻倍！</p><p>&gt;珍藏版激活材料奖励限时翻倍！</p><p>&gt;头像框、名片、聊天气泡、手机壁纸外显均附带动态效果！</p><p>*本期外显主题：时光回忆</p><p><br/></p><p><br/></p><p>活动更新</p><p>2.5周年特别礼包</p><p>活动时间：2026年9月24日—2026年10月22日</p><p>活动期间，玛奇姆将推出限定特惠礼包。</p><p><br/></p><p><br/></p><p>活动更新</p><p>2.5周年特别回馈</p><p>活动时间：2026年9月24日—2026年10月22日</p><p>活动期间，在玛奇姆的商店中累计消费一定金额后即可获得超值奖励。</p><p>其中包含心象高阶养成材料、启示定制相关道具、空白命运、5星限定武器自选、珍藏空白卡片等珍贵奖励。</p><p>本期珍藏空白卡片自选范围将增加全新技能卡：「音律和鸣」。</p><p><br/></p><p>活动更新</p><p>玛奇姆的好运特卖</p><p>为庆祝2.5周年时光庆典，</p><p>玛奇姆再次推出了好运特卖商店。</p><p>使用异界原晶即可采购商品，</p><p>购买时可使用折扣券获得最高 5 折折扣,</p><p>同时可以累计概率触发幸运免单!</p><p>快来选购心仪商品吧!</p><p>*同步开启异界原晶限时返利回馈活动！消费购买指定档位异界原晶可以领取一次异界原晶返利回馈。</p><p><a href="https://p5x.wanmei.com/resources/jpg/20260924/1112482c981917b04c8fb56ca030b7b55955.jpg" target="_blank" hidefocus="hidefocus" title="图片: 8.jpg"><img src="https://p5x.wanmei.com/resources/jpg/20260924/1112482c981917b04c8fb56ca030b7b55955.jpg" alt="图片: 8.jpg"/></a></p><p><br/></p><p>平衡性改动</p><p>鹿野莓</p><p>&gt;增强了基础技能的伤害倍率；</p><p>&gt;增强了意识0的减益效果；</p><p>&gt;增强了五星武器的增益效果；</p><p>宫下美波·夏日</p><p>&gt;优化了基础技能的循环体验；</p><p>&gt;意识0新增生命值恢复效果；</p><p>&gt;增强了意识2的减益效果；</p><p>佐原海夕·夏日</p><p>&gt;增强了基础技能的伤害倍率；</p><p>&gt;增强了意识0的增益效果；</p><p>片山久未</p><p>&gt;增强了基础技能的输出能力；</p><p>&gt;增强了基础技能的减益效果；</p><p>&gt;增强了潜能的增益效果；</p><p>YUI·幻彩</p><p>&gt;增强了基础技能的伤害倍率；</p><p><br/></p><p>优化清单</p><p>1.新岛真、坂井绫香两名角色在更新后契约常驻化：</p><p>&gt;加入普通契约5星角色库和300抽特别自选奖励;</p><p>&gt;加入5.4.1版本之后的限定契约非UP5星角色库和各类精准池165抽盲选合约角色库;</p><p>&gt;加入怪盗残识碎片和意识礼愿箱的自选范围;</p><p>&gt;从「缘结之契」限定复刻契约UP角色库中移除;</p><p>&gt;五星武器加入5.0版本之后的武器补给随机/精准常驻武器库;</p><p>&gt;五星武器在宗久生存商店兑换价格下降至幸运之硬币*10;</p><p>&gt;五星武器加入「定制武器套件」自选范围(包含更新前背包中已有);</p><p>&gt;意识6之后获取重复角色时，可获得的认知精粹数量变为4个;</p><p>&gt;更新前已经在背包中的限定角色自选/随机道具角色库将不会更新，敬请注意!</p><p>2.启示卡熔炼拓展，更新后以下启示卡将加入熔炼范围：</p><p>日月星辰位：丰饶、获得、沉沦、坚韧；</p><p>宙位：敏锐、诞生；</p><p>3.优化了徽章册的排列顺序逻辑；</p><p>4.优化了悬浮随身听的手柄操作体验；</p><p>5.修复了足球社玩法中守门员扑球时的表现异常；</p><p>6.PC平台新增部分兑换商店快捷键；</p><p>7.优化了倍速战斗下onemore的语音播放逻辑；</p><p>8.修复了新账号偶现的资源下载卡死异常；</p><p>9.修复了代理海岸场景海水反射的贴图异常。</p><p>版本同期系列活动同步开启、战斗玩法更新与奖励重置，别忘记查看活动界面更新！</p><p>预祝队长在游戏内体验愉快！</p><p><br/></p>
+				</div>
+			</div>
+		</div>
+		<div class="back_box">
+			<a class="link_back" href="https://p5x.wanmei.com/main.html"></a>
+			<a class="go_top"></a>
+		</div>
+	</div>
+	<script type="text/javascript" src="https://static.games.wanmei.com/public/js/jq_183.js"></script>
+	<script type="text/javascript" src="https://static.games.wanmei.com/public/js/stat.js"></script>
+	<script type="text/javascript" src="https://static.games.wanmei.com/public/js/top/header.js"></script>
+	<script type="text/javascript" src="https://static.games.wanmei.com/public/js/footer/bottom.js"></script>
+	<script type="text/javascript" src="https://static.games.wanmei.com/public/js/jquery.cookie.js"></script>
+	<script type="text/javascript" src="https://p5x.wanmei.com/js/inside240801.js"></script>
+</body>
+</html>

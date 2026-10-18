@@ -1,0 +1,174 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+	<meta name="viewport" content="width=device-width,user-scalable=no">
+	<meta name="renderer" content="webkit">
+	<meta name="description" content="《女神异闻录：夜幕魅影》（简称：P5X）是由SEGA正版授权，ATLUS深度参与，完美世界游戏打造的《女神异闻录5》首款日式角色扮演（JRPG）手游。P5X是基于P5的世界观设定展开故事，在深度还原原作潮酷炫风格的基础上，由全新角色和全新剧情带来全新的精彩体验！" />
+	<meta name="keywords" content="P5X,P5X官网,P5X下载,P5X福利,P5X攻略,P5X预约,女神异闻录：夜幕魅影,女神异闻录夜幕魅影,女神异闻录手游,女神异闻录5,女神异闻录X,女神异闻录下载,女神异闻录官网,女神异闻录预约,女神异闻录福利,女神异闻录礼包,女神异闻录公测,女神异闻录攻略,P5,JRPG,角色扮演,日式角色扮演,Joker Persona,人格面具,persona"/>
+	<title>新闻-P5X-《女神异闻录：夜幕魅影》手游官网</title>
+	<link rel="stylesheet" type="text/css" href="https://p5x.wanmei.com/style/inside240801.css" />
+	<script type="text/javascript" src="https://static.games.wanmei.com/public/js/isMobile.js"></script>
+	<script type="text/javascript">
+		function isIpad(){
+			return /(iPad)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+		}
+		function parameter_skip(url) {
+			var pageUrl = window.location.href;
+			var urlParameter = '';
+			if(pageUrl.indexOf('?') > -1){
+				urlParameter = pageUrl.split('?')[1];
+			}
+			if(urlParameter){
+				window.location.href = url + '?' + urlParameter
+			}else{
+				window.location.href = url;
+			}
+		}
+
+		var is_mobile = isMobile();
+		var is_ipad = isIpad();
+		if(is_mobile && !is_ipad){
+			parameter_skip('https://p5x.wanmei.com/m/news/index.html');
+		}
+		(function(doc, win){
+			var docEl = doc.documentElement,resizeEvt = 'orientationchange' in window ? 'orientationchange' : 'resize',
+			recalc = function(){
+				var clientWidth = window.innerWidth;
+				if (!clientWidth) return;
+				var wid = 100 * (clientWidth / 2560);
+				docEl.style.fontSize = wid + 'px';
+			};
+			if (!doc.addEventListener) return;
+			win.addEventListener(resizeEvt, recalc, false);
+			recalc();
+			doc.addEventListener('DOMContentLoaded', recalc, false);
+		})(document, window);
+	</script>
+</head>
+<body>
+	<audio id="background_audio" src="https://p5xvmg.wmupd.com/webops/p5x/p5x_cn_bgm_20240326.mp3" loop></audio>
+	<div class="wrap pv_wrap">
+		<!--head-->
+		<div class="section_head">
+			<div class="top_nav_box">
+				<a href="https://p5x.wanmei.com/index.html"><img class="logo" src="https://p5x.wanmei.com/images/cover2407/logo.png" /></a>
+				<ul class="top_nav_list">
+				<li class="nav_news"><a href="https://p5x.wanmei.com/main.html?anchor=news"></a></li>
+				<li class="nav_role"><a href="https://p5x.wanmei.com/main.html?anchor=character"></a></li>
+				<li class="nav_school"><a href="https://p5x.wanmei.com/main.html?anchor=schoolLife"></a></li>
+				<li class="nav_world"><a href="https://p5x.wanmei.com/main.html?anchor=metaverseLife"></a></li>
+				<li class="nav_media"><a href="https://p5x.wanmei.com/main.html?anchor=audiovisual"></a></li>
+				<li class="nav_shequ"><a href="https://p5x.wanmei.com/main.html?anchor=community"></a></li>
+			</ul>
+			</div>
+			<div class="share_menu">
+			<span class="icon_share"></span>
+			<ul class="share_list animated fadeIn">
+				<li class="followUs_wechat">
+					<div class="ewm_box"><img src="https://p5x.wanmei.com/images/cover230301/code_wechat.jpg" /></div>
+				</li>
+				<li class="followUs_sina">
+					<a href="https://weibo.com/u/7745874119" target="_blank"></a>
+				</li>
+				<li class="followUs_douliu">
+					<div class="ewm_box"><img src="https://p5x.wanmei.com/images/cover230301/code_douliu.png" /></div>
+				</li>
+				<li class="followUs_tap">
+					<a href="https://www.taptap.cn/app/305435/topic?utm_medium=seo&utm_source=rep_110vzTu7CoH" target="_blank"></a>
+				</li>
+				<li class="followUs_qq">
+					<a href="http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=EUSz0aoIfYnAHw8cJc5-pbo2kHdUgC12&authKey=qadXAGXsL7Q5IU2KvHk2oq58Eg%2F88wxQVc4O4Ivz%2BvqNyWgoCzzHkhiOAB%2B6cTbb&noverify=0&group_code=207069170" target="_blank"></a>
+				</li>
+				<li class="followUs_tieba">
+					<a href="https://tieba.baidu.com/f?ie=utf-8&kw=%E5%A5%B3%E7%A5%9E%E5%BC%82%E9%97%BB%E5%BD%95%E5%A4%9C%E5%B9%95%E9%AD%85%E5%BD%B1" target="_blank"></a>
+				</li>
+				<li class="followUs_bili">
+					<a href="https://space.bilibili.com/1606210274" target="_blank"></a>
+				</li>
+			</ul>
+		</div>
+			<span class="menu_music off"></span>
+		</div>
+		<!--cont-->
+		<div class="section_cont">
+			<img class="news_title" src="https://p5x.wanmei.com/images/inside2407/news_title.png" />
+			<div class="list_nav" id="list_nav_news">
+				<a  href="https://p5x.wanmei.com/news/index.html">最新</a>
+				<a class="on" href="https://p5x.wanmei.com/news/gamenews/index.html">新闻</a>
+				<a  href="https://p5x.wanmei.com/news/gameevent/index.html">活动</a>
+				<a  href="https://p5x.wanmei.com/news/gamebroad/index.html">公告</a>
+			</div>
+			<div class="pv_list_wrap">
+				<ul class="list" id="list_news">
+					<li>
+						<a href="/news/gamenews/20260924/264338.html" target="_blank"><img class="view_img" src="https://p5x.wanmei.com/resources/jpg/20260924/1112427416b8965241e892cc22e24c8128ee.jpg" /></a>
+						<span class="date_time">2026.09.24</span>
+						<p class="item_title">逐月者之梦《女神异闻录：夜幕魅影》5.4.1版本今日上线</p>
+					</li>
+					<li>
+						<a href="/news/gamenews/20260903/263895.html" target="_blank"><img class="view_img" src="https://p5x.wanmei.com/resources/jpg/20260903/1112f3897140c8534b96a5bc21716c7233f8.jpg" /></a>
+						<span class="date_time">2026.09.03</span>
+						<p class="item_title">海盐草莓味的心跳啾《女神异闻录：夜幕魅影》5.3.2版本今日上线</p>
+					</li>
+					<li>
+						<a href="/news/gamenews/20260813/263569.html" target="_blank"><img class="view_img" src="https://p5x.wanmei.com/resources/jpg/20260813/111222d22a1f7a634c13a25b6058739d2d75.jpg" /></a>
+						<span class="date_time">2026.08.13</span>
+						<p class="item_title">海风轻拂的吉他弦音《女神异闻录：夜幕魅影》5.3.1版本今日上线</p>
+					</li>
+					<li>
+						<a href="/news/gamenews/20260716/263193.html" target="_blank"><img class="view_img" src="https://p5x.wanmei.com/resources/jpg/20260716/1112d5ac88d5969b4b398c88ae2008bc1bba.jpg" /></a>
+						<span class="date_time">2026.07.16</span>
+						<p class="item_title">嫉妒与绝望的轮舞曲《女神异闻录：夜幕魅影》5.2.2版本今日上线</p>
+					</li>
+					<li>
+						<a href="/news/gamenews/20260625/262864.html" target="_blank"><img class="view_img" src="https://p5x.wanmei.com/resources/jpg/20260625/11120af0bdebd7444e2cb214ddea850389c2.jpg" /></a>
+						<span class="date_time">2026.06.25</span>
+						<p class="item_title">奇迹的演唱会《女神异闻录：夜幕魅影》5.2.1版本今日上线</p>
+					</li>
+					<li>
+						<a href="/news/gamenews/20260604/262559.html" target="_blank"><img class="view_img" src="https://p5x.wanmei.com/resources/jpg/20260604/111290203846294f42cf88aace08d4d9fa76.jpg" /></a>
+						<span class="date_time">2026.06.04</span>
+						<p class="item_title">循舞之徊风《女神异闻录：夜幕魅影》5.1.2版本今日上线</p>
+					</li>
+				</ul>
+				<div class="page"><span>
+    <table width="98%" border="0" align="right" cellpadding="0" cellspacing="0">
+        <tr>
+            <td align=center class="nlist"> <strong><font color="green">1</font></strong>/<strong>16</strong>页;每页<strong>6</strong>条; 共<strong>95</strong>条记录.
+                <a href="index.html" title="首页">‹</a>
+
+
+                            1
+                            <a href='index1.html'>2</a>
+                            <a href='index2.html'>3</a>
+                            <a href='index3.html'>4</a>
+                            <a href='index4.html'>5</a>
+                            <a href='index5.html'>6</a>
+                            <a href='index6.html'>7</a>
+                            <a href='index7.html'>8</a>
+                            <a href='index8.html'>9</a>
+                            <a href='index9.html'>10</a>
+                        <a href="index10.html" title="下十页">»</a>
+                <a href="index15.html" title="末页">›</a>
+           </td>          
+        </tr>
+    </table>
+</span>
+</div>
+			</div>
+		</div>
+		<div class="back_box">
+			<a class="link_back" href="https://p5x.wanmei.com/main.html"></a>
+			<a class="go_top"></a>
+		</div>
+	</div>
+	<script type="text/javascript" src="https://static.games.wanmei.com/public/js/jq_183.js"></script>
+	<script type="text/javascript" src="https://static.games.wanmei.com/public/js/stat.js"></script>
+	<script type="text/javascript" src="https://static.games.wanmei.com/public/js/top/header.js"></script>
+	<script type="text/javascript" src="https://static.games.wanmei.com/public/js/footer/bottom.js"></script>
+	<script type="text/javascript" src="https://static.games.wanmei.com/public/js/jquery.cookie.js"></script>
+	<script type="text/javascript" src="https://p5x.wanmei.com/js/inside240801.js"></script>
+</body>
+</html>

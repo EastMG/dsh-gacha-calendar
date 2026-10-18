@@ -1,0 +1,1 @@
+{"code":0,"message":"ok","data":[{"label":"最新","value":"latest"},{"label":"公告","value":"notice"},{"label":"新闻","value":"news"},{"label":"活动","value":"activity"}],"timestamp":1790952798929}

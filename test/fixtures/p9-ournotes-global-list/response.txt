@@ -1,0 +1,24 @@
+{
+  "code": 0,
+  "data": {
+    "page_number": 1,
+    "page_size": 20,
+    "total_count": 2,
+    "list": [
+      {
+        "id": 9002,
+        "title": "【招募】精選招募開放！",
+        "show_position": 1,
+        "display_time": "2026-10-01 12:00:00",
+        "create_time": "2026-09-30 18:00:00"
+      },
+      {
+        "id": 9001,
+        "title": "【活動】夏日慶典開啟！",
+        "show_position": 1,
+        "display_time": "2026-09-30 12:00:00",
+        "create_time": "2026-09-29 18:00:00"
+      }
+    ]
+  }
+}
