@@ -304,10 +304,16 @@
 			if (!currentCat?.child) return null;
 			const child = currentCat.child;
 			// 找该服条目：日服(jp) 活动/卡池；国际服(global) 活动/卡池
+			//
+			// ⚠️ 2026-10-21 修：目录树里的名字是「国际服**当期**活动」/「国际服当期卡池评测」，
+			//    原来写 `includes(kw + "活动")`（= "国际服活动"）**永远匹配不到** → 活动名恒为空
+			//    （实测：直接调 GameKee 抓取器返回 {banner:"岚过天晴", event:""}）。
+			//    改成「含服别 + 含活动/卡池」两段匹配，对新旧命名都稳。
 			const isJp = serverKey === "jp";
 			const kw = isJp ? "日服" : "国际服";
-			const eventEntry = child.find((c) => c.name.includes(kw + "活动"));
-			const bannerEntry = child.find((c) => c.name.includes(kw + "当期卡池"));
+			const nameOf = (c) => String(c.name || "");
+			const eventEntry = child.find((c) => nameOf(c).includes(kw) && nameOf(c).includes("活动"));
+			const bannerEntry = child.find((c) => nameOf(c).includes(kw) && nameOf(c).includes("卡池"));
 			// 2. 拉标题（含排期）
 			const getTitle = async (entry) => {
 				if (!entry?.content_id) return null;
@@ -528,6 +534,16 @@
 		const BA_JP_NEWS_URL = "https://api-web.bluearchive.jp/api/news/list?pageIndex=1&pageNum=30";
 
 
+		// 国际服 GameKee 默认源：目录树的「当期活动｜当期卡池」页（稳定 id=15；GameKee 抓取器按目录树
+		// 找子条目，本身**不读 url** —— 这里的地址只用于设置页默认项/来源地址的真实展示）。
+		const BA_GK_HOME = "https://www.gamekee.com/ba/huodong/15";
+
+
+		// 国际服 Nexon 官方更新日誌（**备选**源：内容更全——含「特選招募」类别与角色名，
+		// 但 forum.nexon.com 在大陆被地区封锁 → 不能做默认，见下面 registerSource 的注释）
+		const BA_GLOBAL_NEXON_URL = "https://forum.nexon.com/api/v1/board/3352/threads?alias=bluearchiveTW&countryCode=KR&pageNo=1&paginationType=PAGING&pageSize=30&blockSize=5&hideType=WEB";
+
+
 		// ── 条目 ──
 		registerSource({
 				id: "ba-cn",
@@ -551,19 +567,24 @@
 				parserVersion: 1,
 				name: "蔚蓝档案·国际服",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/2/25/AppIcon_Arona.png!/fw/512",
-				source: "Nexon \u66F4\u65B0\u65E5\u8A8C",
-				// 经 host 代理抓取（nexon CORS 只允许同源）；「更新日誌」board(3352) 同时含当期卡池与活动排期
-				url: "https://forum.nexon.com/api/v1/board/3352/threads?alias=bluearchiveTW&countryCode=KR&pageNo=1&paginationType=PAGING&pageSize=30&blockSize=5&hideType=WEB",
-				// 卡池备选：GameKee（中文标题含排期；默认仍是 Nexon 官方更新日誌）
+				source: "GameKee \u5F53\u671F\u5361\u6C60",
+				// 默认走 GameKee（www.gamekee.com）：Nexon 官方论坛（forum.nexon.com）在大陆被地区封锁
+				// （itdog 大陆 275 节点里 269 个 403；海外 43/43 正常）→ 用它做默认会让大陆用户
+				// 这一格**永远空白**。改成 GameKee 后大陆可直达。
+				// 注意：`ba-global` 的抓取器（GACHA_FETCHERS["ba-global"] → fetchGameKeeBa）自带地址
+				// （按目录树找「国际服当期卡池/当期活动」），所以这里 url/eventUrl 只作**展示**；
+				// 仍填真实可打开的 GameKee 页面，免得设置页把地址显示成一条不存在的路由。
+				url: BA_GK_HOME,
+				// 备选：Nexon 官方更新日誌（境外可达时信息更全；label 里注明"大陆不可达"）
 				altSources: [
-					{ label: "GameKee \u5F53\u671F\u5361\u6C60", id: "ba-global:gamekee", fetcher: "ba-global-gamekee" }
+					{ label: "Nexon 更新日誌（境外，大陆不可达）", url: BA_GLOBAL_NEXON_URL, fetcher: "ba-global-nexon" }
 				],
-				// 活动默认源与卡池源相同（更新日誌解析活动排期），可独立切换（如 GameKee）
-				eventUrl: "https://forum.nexon.com/api/v1/board/3352/threads?alias=bluearchiveTW&countryCode=KR&pageNo=1&paginationType=PAGING&pageSize=30&blockSize=5&hideType=WEB",
-				eventSource: "Nexon \u66F4\u65B0\u65E5\u8A8C",
+				// 活动默认源与卡池源相同（同一份 GameKee 载荷同时含"国际服当期活动"），可独立切换（如 Nexon）
+				eventUrl: BA_GK_HOME,
+				eventSource: "GameKee \u5F53\u671F\u6D3B\u52A8",
 				// 活动备选来源
 				eventAltSources: [
-					{ label: "GameKee \u5F53\u671F\u6D3B\u52A8", id: "ba-global:gamekee", fetcher: "ba-global-gamekee" }
+					{ label: "Nexon 更新日誌（境外，大陆不可达）", url: BA_GLOBAL_NEXON_URL, fetcher: "ba-global-nexon" }
 				]
 		});
 
@@ -593,18 +614,23 @@
 
 		// ── 抓取器登记 ──
 		GACHA_FETCHERS["ba-cn"] = (url, signal, tz) => fetchBaCn(url, signal, tz);
-		GACHA_FETCHERS["ba-global"] = (url, signal, tz) => fetchBaGlobal(url, signal, tz);
-		GACHA_FETCHERS["ba-global-gamekee"] = () => fetchGameKeeBa("global");
+		// 国际服默认 = GameKee（大陆可直达）；Nexon 官方降为备选（-nexon 后缀的抓取器键）
+		GACHA_FETCHERS["ba-global"] = () => fetchGameKeeBa("global");
+		// 旧备选标识的抓取器键保留：它仍是同一份 GameKee 逻辑，老配置若还带着
+		// "ba-global:gamekee"（见 60-helpers.js 的 LEGACY_ALT_IDS）也不会抓不到东西。
+		GACHA_FETCHERS["ba-global-gamekee"] = GACHA_FETCHERS["ba-global"];
+		GACHA_FETCHERS["ba-global-nexon"] = (url, signal, tz) => fetchBaGlobal(url, signal, tz);
 		GACHA_FETCHERS["ba-jp"] = (url, signal, tz) => fetchBaJpGacha(url, signal, tz);
 		GACHA_FETCHERS["ba-jp-gamekee"] = () => fetchGameKeeBa("jp");
 					// 蔚蓝国服：默认与卡池同 URL（维护公告含活动名），也可独立配置其他来源
 EVENT_FETCHERS["ba-cn"] = {
 				default: (url, signal, tz) => fetchBaCn(url, signal, tz)
 			};
-					// 蔚蓝国际服：默认与卡池同 URL（更新日誌含活动排期）；备选 GameKee
+					// 蔚蓝国际服：默认与卡池同 URL（GameKee 同一份载荷含"国际服当期活动"）；备选 Nexon
 EVENT_FETCHERS["ba-global"] = {
-				default: (url, signal, tz) => fetchBaGlobal(url, signal, tz),
-				"ba-global-gamekee": () => fetchGameKeeBa("global")
+				default: () => fetchGameKeeBa("global"),
+				"ba-global-gamekee": () => fetchGameKeeBa("global"),
+				"ba-global-nexon": (url, signal, tz) => fetchBaGlobal(url, signal, tz)
 			};
 					// 蔚蓝日服：活动源与卡池源独立——默认 GameKee 当期活动条目（原行为不变）；
 			// 备选 = 日服官方公告里的イベント条目（抓取器复用官方解析，仅取 event/eventDates）

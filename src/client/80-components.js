@@ -1723,7 +1723,10 @@
 				if (!urls || typeof urls !== "object" || !Object.prototype.hasOwnProperty.call(urls, id)) return "default";
 				const v = urls[id];
 				if (typeof v === "string" && v.startsWith("custom:")) return "custom";
-				return normalizeSourceId(v); // 备选源标识（老配置的 proxy:/gk-*: 在这里翻译成新标识）
+				// 备选源标识（老配置的 proxy:/gk-*: 在这里翻译成新标识）。
+				// "" = 该标识已并入"默认源"（如 ba-global 的旧 GameKee 备选 → 默认就是 GameKee）→ 回显"默认"，
+				// 否则 <select> 的值匹配不到任何 option，控件会显示空白（用户以为来源丢了）。
+				return normalizeSourceId(v) || "default";
 			};
 			const setUrlMode = async (id, mode, g) => {
 				const next = { ...(urls || {}) };
@@ -1745,7 +1748,8 @@
 				const eu = eventUrls;
 				if (!eu || typeof eu !== "object" || !Object.prototype.hasOwnProperty.call(eu, id)) return "default";
 				const v = eu[id];
-				return String(v ?? "").startsWith("custom:") ? "custom" : normalizeSourceId(v);
+				// 同 entryUrlMode：已并入默认源的旧标识（normalizeSourceId 归一为空串）→ 回显"默认"
+				return String(v ?? "").startsWith("custom:") ? "custom" : (normalizeSourceId(v) || "default");
 			};
 			const setEventUrlMode = async (id, mode) => {
 				const next = { ...(eventUrls || {}) };

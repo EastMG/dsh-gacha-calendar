@@ -145,7 +145,7 @@
 					eventFail
 				};
 			} catch (err) {
-				// 顶层异常（含 12 秒超时中断）：两侧按"报错"记，面板照实提示
+				// 顶层异常（含 REFRESH_TIMEOUT_MS 超时中断）：两侧按"报错"记，面板照实提示
 				const aborted = !!err && err.name === "AbortError";
 				const reason = aborted ? "超时" : normErr(err);
 				const fail = { kind: "down", reason };
@@ -191,7 +191,11 @@
 
 		// 一轮刷新的总预算（毫秒）。注意：这只是"到点收尾"的兜底——被掐断的前提是 transport 理会 signal；
 		// 宿主代理等不理会 signal 的实现靠 runEntriesWithDeadline 的兜底收尾，不会让调用方永远等下去。
-		const REFRESH_TIMEOUT_MS = 12000;
+		//
+		// 2026-10-21：12000 → 20000（用户点名）。12 秒对**多请求串行**的来源不够用（如赛马娘国际服
+		// 一次刷新要 POST 列表 + 逐条详情、GameKee 要目录树 + 多个详情），慢网下还没抓完就被判超时；
+		// 20 秒与 selfCheck 的默认预算对齐（selfCheck 不传 timeoutMs 时用同一个常量）。
+		const REFRESH_TIMEOUT_MS = 20000;
 
 		// 跑一批 fetchEntry，并施加"到点即超时"的兜底：
 		// · 到点时**已经回来**的条目保留自己的结果；

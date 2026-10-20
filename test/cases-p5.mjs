@@ -14,7 +14,7 @@
 //    所以 POST 路径可以**完全离线**验证（含 response_code / 代理包装层的错误处理）。
 
 import { readFileSync } from "node:fs";
-import { useFixtures, check, section, assertContract, summary } from "./harness.mjs";
+import { useFixtures, setFetchImpl, check, section, assertContract, summary } from "./harness.mjs";
 const { sourceWallParts, fmtWindow, hoverPool, hoverEvent } = T;
 import { SOURCES_P5, findSource } from "./registry-shim.mjs";
 import { T } from "./load.mjs";
@@ -59,14 +59,19 @@ const GL_DETAIL_BY_ID = {
 	1079: "p5-uma-global-detail-1079/response.txt"
 };
 
-/** 夹具 fetch：先按 (url) 查 P5 表，再处理"国际服详情按 body.announce_id 分派" */
+/** 夹具 fetch：先按 (url) 查 P5 表，再处理"国际服详情按 body.announce_id 分派"
+ *
+ *  ⚠️ 2026-10-21（P3）：`postJsonUma` 已改为走**注入的 transport.fetchViaProxy**、不再读 `globalThis.fetch`
+ *     （core 零宿主依赖：`fetch("/api/…")` 在 Node 里会 Failed to parse URL）。
+ *     所以这里的"按 announce_id 分派"必须装进 **transport**（setFetchImpl），而不是覆盖 globalThis.fetch。
+ *     两者签名**完全一致**：harness 的 fetchViaProxy 就是"把 target+referer+headers+body 拼成
+ *     /api/gacha-calendar-proxy?… 再调 impl(url, opts)"，与旧版手工拼的 URL 一字不差。
+ */
 function installP5Fixtures() {
-	// ⚠️ 必须在 P5-5 的"假 fetch 注入"**之前**把夹具 fetch 存下来：那是全局唯一的 globalThis.fetch，
-	//    P5-5 测完 restore 成真 fetch 后，P5-6 若还去读 globalThis.fetch 拿到的是**真** fetch
-	//    （实测症状：`Failed to parse URL from /api/gacha-calendar-proxy…`）。
+	// ⚠️ 必须先 useFixtures(...) 拿到"按 URL 查夹具"的 raw impl，再包一层 dispatch。
 	const fixtureFetch = useFixtures(P5_FIXTURE_URLS);
 	const FIX = new URL("./fixtures/", import.meta.url);
-	globalThis.fetch = async (url, opts) => {
+	const dispatch = async (url, opts) => {
 		const u = String(url);
 		if (u.startsWith("/api/gacha-calendar-proxy")) {
 			let target = "";
@@ -87,8 +92,9 @@ function installP5Fixtures() {
 		}
 		return fixtureFetch(url, opts);
 	};
+	setFetchImpl(dispatch);
 	// 供 P5-5 测完恢复（保持夹具模式，而不是真网络）
-	return fixtureFetch;
+	return dispatch;
 }
 
 /** 抓取器包装：失败只记 ✗（不抛，避免中断共享 runner） */
@@ -104,6 +110,7 @@ const wall = (w) => `${w.y}-${pad(w.mo)}-${pad(w.d)} ${pad(w.h)}:${pad(w.mi)}`;
 const isoMin = (ts) => new Date(ts).toISOString().slice(0, 16).replace("T", " ");
 
 export default async function run() {
+	// 返回的是"P5 夹具 transport"（自身已 setFetchImpl 进去）——P5-5 用完假 transport 后拿它恢复
 	const fixtureFetch = installP5Fixtures();
 
 	// ───────────────────────── P5-0 注册表 / 夹具映射 ─────────────────────────
@@ -366,38 +373,43 @@ export default async function run() {
 			d100109.source === "body" && isoMin(d100109.windows[0].startTs) === "2026-09-27 22:00" && isoMin(d100109.windows[0].endTs) === "2026-09-29 09:45",
 			JSON.stringify(d100109.windows.map((w) => [isoMin(w.startTs), isoMin(w.endTs)])));
 
-		// POST 封装：成功路径 + 结构错误路径（用假 fetch 注入，不走网络）
-		const savedFetch = globalThis.fetch;
+		// POST 封装：成功路径 + 结构错误路径（用假 **transport** 注入，不走网络）。
+		// ⚠️ 2026-10-21（P3）：postJsonUma 已不读 globalThis.fetch；这里改为 setFetchImpl，
+		//    harness 会把 proxyFetchText 的 (target,{referer,headers,body}) 还原成旧式
+		//    `/api/gacha-calendar-proxy?url=…` 调用 —— 断言形态保持不变。
 		let seen = null;
-		globalThis.fetch = async (u, o) => {
+		setFetchImpl(async (u, o) => {
 			seen = { u: String(u), method: o && o.method, body: o && o.body };
 			const body = JSON.stringify({ status: 200, body: JSON.stringify({ response_code: 1, detail: { announce_id: 1, title: "t", message: "", post_at: "2026-10-01 00:00:00" } }) });
 			return { ok: true, status: 200, headers: { get: () => "application/json" }, text: async () => body, json: async () => JSON.parse(body) };
-		};
+		});
 		const okRes = await grab(() => postJsonUma(UMA_GLOBAL_DETAIL_URL, { announce_id: 1 }, { label: "t" }));
 		check("postJsonUma 走代理 + method=POST + body 传 announce_id",
 			okRes.ok && seen && seen.method === "POST" && /gacha-calendar-proxy/.test(seen.u) && JSON.parse(seen.body).announce_id === 1,
 			JSON.stringify(seen && [seen.method, JSON.parse(seen.body)]));
-		globalThis.fetch = async () => {
+		setFetchImpl(async () => {
 			const body = JSON.stringify({ status: 200, body: JSON.stringify({ response_code: 102 }) });
 			return { ok: true, status: 200, headers: { get: () => "application/json" }, text: async () => body, json: async () => JSON.parse(body) };
-		};
+		});
 		const r102 = await grab(() => postJsonUma(UMA_GLOBAL_DETAIL_URL, { announce_id: 1 }, { label: "t" }));
 		check("⚠️ response_code:102（GET/缺 body 的实测形态）**不被当成成功**（返回对象交给上层判定）",
 			r102.ok && r102.data && r102.data.response_code === 102, JSON.stringify(r102.ok && r102.data));
 		const r102b = await grab(async () => parseUmaDetail(await postJsonUma(UMA_GLOBAL_DETAIL_URL, {}, { label: "t" }), UMA_GLOBAL_TZ, "global"));
 		check("⚠️ response_code:102 经 parseUmaDetail → **抛错**（该侧算抓取失败，不是「未公布」）",
 			!r102b.ok && /uma-bad-response:102/.test(r102b.err), r102b.err);
-		globalThis.fetch = async () => ({ ok: true, status: 200, headers: { get: () => "application/json" }, text: async () => "<html>567 challenge</html>", json: async () => { throw new Error("bad"); } });
+		setFetchImpl(async () => ({ ok: true, status: 200, headers: { get: () => "application/json" }, text: async () => "<html>567 challenge</html>", json: async () => { throw new Error("bad"); } }));
 		const rHtml = await grab(() => postJsonUma(UMA_GLOBAL_DETAIL_URL, {}, { label: "t" }));
 		check("⚠️ 代理返回非 JSON（EdgeOne WAF 567 挑战页形态）→ 抛 bad-json，不会静默当成功",
 			!rHtml.ok && /bad-json/.test(rHtml.err), rHtml.err);
-		globalThis.fetch = async () => ({ ok: true, status: 200, headers: { get: () => "application/json" }, text: async () => JSON.stringify({ status: 403, error: "host not allowed: umamusume.com" }), json: async () => ({}) });
+		setFetchImpl(async () => ({ ok: true, status: 200, headers: { get: () => "application/json" }, text: async () => JSON.stringify({ status: 403, error: "host not allowed: umamusume.com" }), json: async () => ({}) }));
 		const r403 = await grab(() => postJsonUma(UMA_GLOBAL_DETAIL_URL, {}, { label: "t" }));
+		// 旧实现自己抛 `…-proxy:host not allowed…`；改走 transport 后由宿主代理封装抛
+		// `proxy-bad:host not allowed…`（normErr 会显示"代理响应异常"）——**语义相同**：拒绝原因仍原样带出。
+		// 夹具 harness 只复刻 `{status}`（丢 error 文本）→ 这里两种形态都算过。
 		check("代理白名单拒绝（403 host not allowed）→ 抛错并带上原因",
-			!r403.ok && /proxy:host not allowed/.test(r403.err), r403.err);
-		globalThis.fetch = savedFetch;
-		// proxyUrlFor 形态（与 lib/env.js 同前缀，夹具 harness 才能取回被代理 url）
+			!r403.ok && /proxy-bad:(?:host not allowed|403)/.test(r403.err), r403.err);
+		setFetchImpl(fixtureFetch);   // 恢复 P5 夹具（而不是真网络）
+		// proxyUrlFor 形态（与 92-dsh-env.js 同前缀，夹具 harness 才能取回被代理 url）
 		const pu = proxyUrlFor("https://umamusume.com/x", "https://umamusume.com/");
 		check("proxyUrlFor 前缀与 env.js 一致", pu.startsWith("/api/gacha-calendar-proxy?url=") && pu.includes("referer="), pu.slice(0, 60));
 	}

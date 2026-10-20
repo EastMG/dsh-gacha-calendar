@@ -50,7 +50,15 @@
 			const name = String((err && err.name) || "");
 			const msg = String((err && err.message) || err || "");
 			if (name === "AbortError" || /abort/i.test(msg)) return "超时";
-			if (/^proxy-bad:/.test(msg)) return "代理响应异常";
+			// 代理层"目标站非 200"：92-dsh-env.js 抛 `proxy-bad:<目标状态码>` 或 `proxy-bad:<error 文本>`。
+			// 后面的**数字就是目标站的 HTTP 状态码**（403 地区封锁 / 502 网关错误…），必须原样透出——
+			// 从前一律显示"代理响应异常"，用户看不到 403，也就无法判断"是被墙了"还是"源站挂了"。
+			// 与下面 proxy-http/http 分支同格式（`HTTP 403`）；非数字（`proxy-bad:error` /
+			// `proxy-bad:host not allowed…`）仍回落"代理响应异常"。
+			if (/^proxy-bad:/.test(msg)) {
+				const bad = msg.match(/^proxy-bad:(\d{3})$/);
+				return bad ? "HTTP " + bad[1] : "代理响应异常";
+			}
 			const m = msg.match(/^(?:proxy-http|http)-(\d{3})$/);
 			if (m) return "HTTP " + m[1];
 			if (/^bad-json$/.test(msg)) return "响应格式异常";
@@ -102,8 +110,12 @@
 		// 设置页持久化的"当前来源"就是 url ?? id（不再用伪地址或前缀编码语义）。
 		// 老配置里的两种旧写法在读取时自动翻译，无需迁移脚本：
 		//   "proxy:<url>"（旧版本用前缀标记"经 host 代理"）、"gk-jp:" / "gk-global:"（旧伪地址）
+		//
+		// ⚠️ 2026-10-21（P0-1）：ba-global 的默认源从 Nexon 换成 GameKee 后，旧的 GameKee **备选标识**
+		//   "ba-global:gamekee" 已不存在（默认就是它）。老配置里存着该值的人不能因此掉到"未知来源"：
+		//   映射成 "" = 回落到该条目的默认源（= GameKee），语义与当年选 GameKee 完全一致。
 		const altSourceId = (alt) => alt.url || alt.id || "";
-		const LEGACY_ALT_IDS = { "gk-jp:": "ba-jp:gamekee", "gk-global:": "ba-global:gamekee" };
+		const LEGACY_ALT_IDS = { "gk-jp:": "ba-jp:gamekee", "gk-global:": "", "ba-global:gamekee": "" };
 		function normalizeSourceId(v) {
 			const s = String(v ?? "");
 			const mapped = Object.prototype.hasOwnProperty.call(LEGACY_ALT_IDS, s) ? LEGACY_ALT_IDS[s] : s;

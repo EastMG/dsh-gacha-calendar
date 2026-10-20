@@ -440,7 +440,9 @@ function ns_umamusume_official_umaCurrentItems(entries, now) {
 // ── 传输：POST 自己封装（lib/env.js 的 fetchText/fetchJson 只支持 GET）────────
 const ns_umamusume_official_PROXY_PREFIX = "/api/gacha-calendar-proxy";
 
-/** 代理 URL（与 lib/env.js 同形态；测试夹具 harness 能识别该前缀并取出被代理的 url） */
+/** 代理 URL 形态（与 92-dsh-env.js 的 DSH 代理同前缀）。
+ *  ⚠️ 2026-10-21 起生产路径**不再自己拼这个 URL**（改由 transport.fetchViaProxy 负责，见 postJsonUma）；
+ *  保留它是为了让离线用例还能断言"代理调用确实打到 /api/gacha-calendar-proxy"这一契约形态。 */
 function ns_umamusume_official_proxyUrlFor(url, referer = "", headers = null, contentType = null) {
 	let api = ns_umamusume_official_PROXY_PREFIX + "?url=" + encodeURIComponent(url) + "&referer=" + encodeURIComponent(referer);
 	if (headers) api += "&headers=" + encodeURIComponent(JSON.stringify(headers));
@@ -450,16 +452,21 @@ function ns_umamusume_official_proxyUrlFor(url, referer = "", headers = null, co
 
 /**
  * POST JSON 的抓取封装。
- *   mode="proxy"（默认）：宿主代理读**请求体**并透传为 POST（见 src/index.js proxyHandler）
- *   mode="direct"       ：浏览器原生 fetch（本两源无 ACAO，实跑只能走 proxy）
+ *   mode="proxy"（默认）：经**注入的 transport.fetchViaProxy**（= 宿主代理，读请求体透传为 POST）
+ *   mode="direct"       ：经**注入的 transport.fetchRaw**（原生 HTTP，由宿主提供）
  * 结构问题（坏 JSON / 非 200 / 代理拒绝）→ throw。
+ *
+ * ⚠️ 2026-10-21（P3）：不再用 `globalThis.fetch` + **相对 URL** `/api/gacha-calendar-proxy…`。
+ *    相对 URL 只有浏览器同源能解析 —— Node / 原生宿主里 `fetch("/api/…")` 直接抛
+ *    `Failed to parse URL`（实测：纯 Node 下 uma-global 活动侧必失败），违反 core「零宿主依赖」契约。
+ *    改走 15-env.js 的 proxyFetchText（薄封装 → coreEnv.transport.fetchViaProxy）；
+ *    URL / body / headers / referer 与改动前逐项一致（headers 仍作 extraHeaders 透传，
+ *    POST 的 Content-Type 由 transport 按 application/json 发出）。
  */
 async function ns_umamusume_official_postJsonUma(url, body, { referer = "", headers = null, signal, mode = "proxy", label = "uma" } = {}) {
-	const fetchImpl = globalThis.fetch;
-	if (typeof fetchImpl !== "function") throw new Error(label + "-no-fetch");
 	const payload = JSON.stringify(body == null ? {} : body);
 	if (mode === "direct") {
-		const res = await fetchImpl(url, {
+		const res = await transportFetchRaw(url, {
 			method: "POST",
 			signal,
 			headers: { "content-type": "application/json; charset=utf-8", accept: "application/json, text/plain, */*", ...(headers || {}), ...(referer ? { referer } : {}) },
@@ -469,15 +476,16 @@ async function ns_umamusume_official_postJsonUma(url, body, { referer = "", head
 		const text = await res.text();
 		try { return JSON.parse(text); } catch { throw new Error(label + "-bad-json"); }
 	}
-	const api = ns_umamusume_official_proxyUrlFor(url, referer, headers, "application/json; charset=utf-8");
-	const res = await fetchImpl(api, { method: "POST", signal, headers: { Accept: "application/json", "content-type": "application/json; charset=utf-8" }, body: payload });
-	if (!res.ok) throw new Error(label + "-proxy-http-" + res.status);
-	const text = await res.text();
-	let j = null;
-	try { j = JSON.parse(text); } catch { j = null; }
-	if (!j || typeof j !== "object") throw new Error(label + "-proxy-bad-json");
-	if (j.status !== 200 || typeof j.body !== "string") throw new Error(label + "-proxy:" + (j.error || j.status));
-	try { return JSON.parse(j.body); } catch { throw new Error(label + "-bad-json"); }
+	let text;
+	try {
+		text = await proxyFetchText(url, referer, headers, payload);
+	} catch (e) {
+		// 代理**信封**本身不是 JSON（WAF 挑战页 / 纯文本错误页）：旧实现抛 -proxy-bad-json，
+		// 这里保持同一语义（否则会漏出原生 SyntaxError，被 normErr 归成泛化的"抓取异常"）。
+		if (e && e.name === "SyntaxError") throw new Error(label + "-proxy-bad-json");
+		throw e;   // proxy-http-<status> / proxy-bad:<目标状态码|error> 由 transport 抛出，原样上抛
+	}
+	try { return JSON.parse(text); } catch { throw new Error(label + "-bad-json"); }
 }
 
 function ns_umamusume_official_originOf(url) { try { return new URL(url).origin + "/"; } catch { return ""; } }
