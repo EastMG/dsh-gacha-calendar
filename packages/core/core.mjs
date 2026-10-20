@@ -9928,20 +9928,20 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 				// 把默认换成 GachaTracker；但 GachaTracker **数据陈旧**（2026-10-21 实测：页面能解析、
 				// 却没有任何覆盖 now 的档期 → 自检长期「未公布」）→ 现降为备选。
 				url: "https://gametora.com/data/manifests/umamusume.json",
-				source: "GameTora（英文·社区数据库）",
+				source: "GameTora（英文）",
 				// 活动侧**本次不动**：GameTora 没有活动数据；官方公告仍是活动侧默认（2026-10-21 实测可用）。
 				eventUrl: "https://umamusume.com/api/ajax/pr_info_index?format=json",
-				eventSource: "官方公告（英文︱不可靠）",
+				eventSource: "官方公告（英文 · 不可靠）",
 				altSources: [
 					{
 						// 降级：境外可达但联通线路不稳，且数据停在旧期（详细原因见文件内 GameTora 段落）
-						label: "GachaTracker（境外 · 联通不稳/数据陈旧）",
+						label: "GachaTracker（英文 · 不可靠）",
 						url: "https://gachatracker.app/games/umamusume/banners/",
 						fetcher: "uma-global-gt"
 					},
 					{
 						// 最后兜底：官方公告最准，但曾按出口 IP 封锁（2026-10-05），可能整站 403
-						label: "官方公告（英文︱曾按出口 IP 封锁，可能不可用）",
+						label: "官方公告（英文 · 不可靠）",
 						url: "https://umamusume.com/api/ajax/pr_info_index?format=json",
 						fetcher: "uma-global-official"
 					}
