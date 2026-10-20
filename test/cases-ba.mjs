@@ -295,4 +295,76 @@ export default async function run() {
 		check("块解析：排除「商店兑换时间」等等辅助窗口，活动档期取「活动持续时间」",
 			!!act && T.fmtMdHm(act.endTs, TZ_CN) === "10-22 13:59", act && T.fmtWindow(act.startTs, act.endTs, TZ_CN));
 	}
+
+	// ── ④ 活动名不许按标点截断（2026-10-21 用户报「ba-cn 活动名称不完整」）────────────
+	// 现场：`baCnEventInfoFromNotice` 原来用 `title.match(/[:：]\s*(.+)$/)` —— 把**第一个冒号之前**
+	// 整段丢掉。冒号前是纯类别词（限时活动/限时招募）时正好；是**玩法名**时就是残缺：
+	//   【预告】综合战术测试：护卫 • 特殊装甲 → 旧「护卫 • 特殊装甲」
+	//   【预告】总力战：猫鬼黑影 • 街区战     → 旧「猫鬼黑影 • 街区战」
+	//   【预告】大决战：比纳 • 街区战         → 旧「比纳 • 街区战」
+	//   【预告】无限制决战：提翡瑞 • 重装甲   → 旧「提翡瑞 • 重装甲」
+	// 标题**没有冒号**时 `fromTitle` 取不到 → 空串（面板落成 "—"）：
+	//   【预告】掉落量3倍活动即将开启！/【预告】家具互动即将更新/【预告】区域29更新/【预告】限时签到活动
+	// 夹具 `ba-cn-live-1021` = 2026-10-21 03:45 真实抓的 30 条，上面四种形态全在里面。
+	{
+		const live = JSON.parse(fx("ba-cn-live-1021/response.txt")).data.rows;
+		const titleOf = (id) => (live.find((r) => r.id === id) || {}).title;
+		const nameOf = (id) => T.baCnEventName(titleOf(id));
+
+		// ① 当期这条：冒号前是纯类别词「限时活动」→ 与仓库既有口径一致，只留活动名（**这次不改坏**）
+		check("活动名：当期 1974 仍是「-ive aLIVE!」（类别词前缀按既有口径去掉）",
+			titleOf(1974) === "【预告】限时活动：-ive aLIVE!" && nameOf(1974) === "-ive aLIVE!",
+			JSON.stringify([titleOf(1974), nameOf(1974)]));
+		check("活动名：同类 1983 / 1968 / 1962 也只留名字（Say-Bing! / 沙勒总决算 / 夏日天空的约定）",
+			nameOf(1983) === "Say-Bing!" && nameOf(1968) === "沙勒总决算" && nameOf(1962) === "夏日天空的约定",
+			JSON.stringify([nameOf(1983), nameOf(1968), nameOf(1962)]));
+
+		// ② 玩法前缀：必须**保留**（这是"不完整"的实际现场）
+		const modeCases = [
+			[1977, "综合战术测试：护卫 • 特殊装甲"],
+			[1970, "总力战：猫鬼黑影 • 街区战"],
+			[1969, "大决战：比纳 • 街区战"],
+			[1967, "无限制决战：提翡瑞 • 重装甲"]
+		];
+		for (const [id, want] of modeCases) {
+			check(`活动名：${id} 保留玩法前缀 → ${want}`, nameOf(id) === want, JSON.stringify(nameOf(id)));
+		}
+
+		// ③ 标题没有冒号 → 不许是空名（旧实现 fromTitle 为空串）
+		const bareCases = [
+			[1975, "掉落量3倍活动即将开启！"],
+			[1964, "掉落量3倍活动即将开启！"],
+			[1966, "家具互动即将更新"],
+			[1965, "区域29更新"],
+			[1955, "限时签到活动"],
+			[1956, "100次免费招募"]
+		];
+		for (const [id, want] of bareCases) {
+			check(`活动名：${id} 无冒号标题 → 完整标题（非空）`, nameOf(id) === want, JSON.stringify(nameOf(id)));
+		}
+
+		// ④ 正文优先：只在**明确是活动名**的位置取（`活动名：X` / `…活动【X】`），不抓整段
+		check("活动名：正文 `活动名：沙勒总决算` → 取正文名（优先于标题）",
+			T.baCnEventNameFromNotice("【预告】限时活动：某某", "欢迎连接【什亭之箱】，老师。\n活动名：沙勒总决算\n■ 活动时间") === "沙勒总决算",
+			JSON.stringify(T.baCnEventNameFromNotice("【预告】限时活动：某某", "老师。\n活动名：沙勒总决算\n■ 活动时间")));
+		check("活动名：正文 `更新限时活动【沙勒总决算】` → 取括号里的名字",
+			T.baCnEventNameFromNotice("【预告】限时活动：某某", "以下是更新内容：\n1、更新限时活动【沙勒总决算】\n■ 活动时间") === "沙勒总决算",
+			JSON.stringify(T.baCnEventNameFromNotice("【预告】限时活动：某某", "以下是更新内容：\n1、更新限时活动【沙勒总决算】\n■ 活动时间")));
+		check("活动名：正文深处（>6 行）的「活动【…】」不当作名字（不抓成整段）",
+			T.baCnEventNameFromNotice("【预告】限时活动：某活动", ["a", "b", "c", "d", "e", "f", "g", "h【活动时间】", "活动【不是名字】"].join("\n")) === "某活动",
+			JSON.stringify(T.baCnEventNameFromNotice("【预告】限时活动：某活动", ["a", "b", "c", "d", "e", "f", "g", "h", "活动【不是名字】"].join("\n"))));
+
+		// ⑤ 端到端：只喂 1977 那一篇真实行（10-22 14:00 ~ 10-29 03:59），活动名必须是完整的
+		const only = live.filter((r) => r.id === 1977);
+		const e2e = T.baCnFromNoticeBlocks(only, { now: Date.parse("2026-10-25T12:00:00+08:00"), nowYear: 2026, tz: TZ_CN, previewOnly: true });
+		check("活动名：端到端（1977 单篇，10-25）= 综合战术测试：护卫 • 特殊装甲",
+			!!e2e && e2e.event === "综合战术测试：护卫 • 特殊装甲" && e2e.eventDates === "10-22 14:00 ~ 10-29 03:59",
+			JSON.stringify(e2e));
+		// ⑥ 端到端：完整 30 条 @ 2026-10-21 03:40（= 报 bug 的时刻），当期活动名与档期都要对
+		const now0 = await fetchBaCnAt("ba-cn-live-1021", "2026-10-21T03:40:00+08:00");
+		check("活动名：完整 30 条 @10-21 → 当期 = -ive aLIVE!（10-08 14:00 ~ 10-22 13:59）",
+			!!now0.data && now0.data.event === "-ive aLIVE!" && now0.data.eventDates === "10-08 14:00 ~ 10-22 13:59",
+			JSON.stringify(now0.data));
+		check("活动名：完整 30 条 @10-21 → 只打列表 1 次（不因改名多请求）", now0.calls.length === 1, "requests=" + now0.calls.length);
+	}
 }

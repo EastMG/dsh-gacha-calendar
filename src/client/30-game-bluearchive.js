@@ -735,13 +735,53 @@
 			};
 		}
 
+		// 活动名（纯函数）：**不许按标点截断**。
+		//
+		// ⚠️ 2026-10-21 修（用户报「ba-cn 活动名称不完整」）：老实现是
+		//      `fromTitle = title.match(/[:：]\s*(.+)$/)[1]`
+		//    —— 把**第一个冒号之前**整段丢掉。冒号前是纯类别词（「限时活动」）时这样正好；
+		//   但它也可能是**玩法名**，丢掉就不是"简洁"而是"残缺"。实测当前 30 篇里的反例：
+		//      【预告】综合战术测试：护卫 • 特殊装甲 → 旧：护卫 • 特殊装甲
+		//      【预告】总力战：猫鬼黑影 • 街区战     → 旧：猫鬼黑影 • 街区战
+		//      【预告】大决战：比纳 • 街区战         → 旧：比纳 • 街区战
+		//      【预告】无限制决战：提翡瑞 • 重装甲   → 旧：提翡瑞 • 重装甲
+		//   标题**没有冒号**时更糟：`fromTitle` 取不到 → 活动名直接是空串（面板落成 "—"）：
+		//      【预告】掉落量3倍活动即将开启！ / 【预告】家具互动即将更新 / 【预告】区域29更新 / 【预告】限时签到活动
+		//
+		//   所以规则改成：只去掉「【预告】」这类**发布标记**与**纯类别词**前缀，其余原样保留
+		//   （含「：」「（）」「！」，一律不切）。类别词只列真正的类别，不列玩法
+		//   —— 这就是"限时活动：-ive aLIVE!"→"-ive aLIVE!"、而"总力战：猫鬼黑影"仍是整个名字的原因。
+		//   与同一文件里另两条口径一致：① 的 `更新限时活动【X】` 只留 X；日服 `【イベント】「NAME」` 只留 NAME。
+		const BA_CN_EVENT_CATEGORY_RE = /^(?:限时活动|活动|限时|更新|预告)$/;
+
+		function baCnEventName(title) {
+			let t = String(title || "")
+				.replace(/^【(?:预告|預告|公告|通知)】\s*/, "")
+				.replace(/\s+/g, " ")
+				.trim();
+			const m = t.match(/^([^：:]{1,16})[：:]\s*(.+)$/);
+			if (m && BA_CN_EVENT_CATEGORY_RE.test(m[1].trim())) t = m[2].trim();
+			return t;
+		}
+
+
 		// 一篇公告正文 → 活动信息（名称）
+		// 名称来源优先级：正文里**明确写着活动名**的位置 → 标题。
+		// "明确位置"只有两种（其余一律不取，否则会把正文里的"活动指南/活动商店"抓成名字）：
+		//   · 显式的 `活动名：X` 标注行
+		//   · `…活动【X】` 这种"活动"后紧跟【】的句式（维护公告里的 `更新限时活动【X】` 就是它）
+		// 且只在**正文开头**（前 6 行）找 —— 活动名不会出现在正文深处。
+		function baCnEventNameFromNotice(title, text) {
+			const lead = String(text || "").split("\n").slice(0, 6).join("\n");
+			const lineM = lead.match(/活动名\s*[：:]\s*([^\n]{1,40})/);
+			const bracketM = lead.match(/活动\s*【([^】]{1,40})】/);
+			return baCnEventName((lineM && lineM[1]) || (bracketM && bracketM[1]) || title);
+		}
+
+
 		function baCnEventInfoFromNotice(title, text, block) {
-			const lead = String(text || "").split("\n").slice(0, 4).join("\n");
-			const nameM = lead.match(/活动\s*【([^】]+)】/);
-			const fromTitle = (String(title || "").match(/[:：]\s*(.+)$/) || [])[1] || "";
 			return {
-				name: String(nameM ? nameM[1] : fromTitle).replace(/\s+/g, " ").trim(),
+				name: baCnEventNameFromNotice(title, text),
 				startTs: block.startTs,
 				endTs: block.endTs
 			};

@@ -561,6 +561,79 @@ export default async function runP4() {
 		assertContract("崩坏3 国服 官方公告（news_meta 兜底）", "event", r.ok ? r.data : null);
 	}
 
+	// ───────────────── P4-9 绝区零官网公告（api-takumi-static，iChanId=279）的卡池时间 ─────────────────
+	// ── 2026-10-21 修（用户报「绝区零卡池时间有问题」）──
+	// 现场：3.3上半频段公告把起点写成相对标签「3.3版本更新后」，绝对时间源站不给；
+	// 同版本唯一含版本起点的公告是「预下载开启&更新通知」（正文【版本更新时间】2026/10/21 06:00）。
+	// 老实现拿**公告的 dtStartTime** 当版本起点 → 对 3.3 就是 2026-10-19 14:00（排期上线，早了 2 天），
+	// 于是把「预下载」整类排除；排除后 3.3 一点锚点都没有 → startTs=null、
+	// bannerDates 退回原文「3.3版本更新后 ~ 11-11 11:59」、无法判定是否已开始。
+	section("P4-9 绝区零官网频段：起点「X.Y版本更新后」按公告正文的维护时刻补全");
+	{
+		const payload = fixture("p4-zzz-freq-official");
+		const ZZZ_TZ = "Asia/Shanghai";
+		const list = payload.data.list;
+		const text = (s) => String(s || "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+
+		// ── 原始字段（现场证据，断言源站确实如此）──
+		const up33 = list.find((x) => /3\.3版本限时频段（上期）/.test(text(x.sTitle)));
+		check("夹具含 3.3上半频段公告（真实夹具没坏）", !!up33, list.length + " 条");
+		check("3.3上半公告的原文起点是相对标签「3.3版本更新后」（没有绝对时刻）",
+			!!up33 && /3\.3版本更新后\s*~\s*2026\/11\/11 11:59/.test(text(up33.sIntro)),
+			up33 && text(up33.sIntro));
+		check("3.3上半公告的 dtStartTime = 2026-10-19 14:00（**排期上线时间**，不能当版本起点）",
+			!!up33 && up33.dtStartTime === "2026-10-19 14:00:00", up33 && up33.dtStartTime);
+		const pre33 = list.find((x) => /3\.3版本「重返天空的旅程」预下载开启&更新通知/.test(text(x.sTitle)));
+		check("同版本只有「预下载开启&更新通知」带版本起点，正文写【版本更新时间】2026/10/21 06:00",
+			!!pre33 && /【版本更新时间】\s*2026\/10\/21 06:00/.test(text(pre33.sContent)),
+			pre33 && text(pre33.sContent).slice(0, 48));
+		check("3.3 尚无正式「更新公告」（老实现因此拿不到锚点 → startTs=null 的直接原因）",
+			!list.some((x) => /3\.3版本.*更新公告/.test(text(x.sTitle))));
+
+		// ── 修复后：维护前夜（10-21 03:40）→ 起点由正文锚点补成 10-21 06:00 ──
+		const d0 = T.parseZzzFreq(payload, cst(2026, 10, 21, 3, 40), ZZZ_TZ);
+		check("当期（维护前）= 3.3版本限时频段（上期）", !!d0 && d0.banner === "3.3版本限时频段（上期）",
+			JSON.stringify(d0 && d0.banner));
+		check("startTs = 10-21 06:00（正文维护时刻；不是 null，也不是排期 10-19）",
+			!!d0 && d0.startTs === cst(2026, 10, 21, 6, 0), JSON.stringify(d0 && d0.startTs));
+		check("endTs = 2026/11/11 11:59（原文档期）", !!d0 && d0.endTs === cst(2026, 11, 11, 11, 59),
+			JSON.stringify(d0 && d0.endTs));
+		check("外显 bannerDates = 10-21 06:00 ~ 11-11 11:59",
+			!!d0 && d0.bannerDates === "10-21 06:00 ~ 11-11 11:59", JSON.stringify(d0 && d0.bannerDates));
+		check("bannerDatesRaw 仍保留源站原文「3.3版本更新后 ~ 11-11 11:59」",
+			!!d0 && d0.bannerDatesRaw === "3.3版本更新后 ~ 11-11 11:59", JSON.stringify(d0 && d0.bannerDatesRaw));
+		check("roles = 菲欧妮（异常·火）、维琳娜（异常·风）",
+			!!d0 && d0.roles === "菲欧妮（异常·火）、维琳娜（异常·风）", JSON.stringify(d0 && d0.roles));
+		assertContract("绝区零 官网公告 卡池（3.3上半）", "gacha", d0);
+
+		// ── 选期：开池后仍选中同一期；空档期（3.2下半已收池、3.3未开）必须给"下一期"而不是 null ──
+		const dMid = T.parseZzzFreq(payload, cst(2026, 10, 25, 12, 0), ZZZ_TZ);
+		check("开池后（10-25）仍选中 3.3上半且窗口正确",
+			!!dMid && dMid.startTs === cst(2026, 10, 21, 6, 0) && dMid.endTs === cst(2026, 11, 11, 11, 59),
+			JSON.stringify(dMid && [dMid.banner, dMid.startTs, dMid.endTs]));
+		const dGap = T.parseZzzFreq(payload, cst(2026, 10, 20, 20, 0), ZZZ_TZ);
+		check("空档期（10-20 20:00）→ 显示下一期 3.3上半且起点非 null（不是空白）",
+			!!dGap && dGap.banner === "3.3版本限时频段（上期）" && dGap.startTs === cst(2026, 10, 21, 6, 0),
+			JSON.stringify(dGap && [dGap.banner, dGap.startTs]));
+
+		// ── 回归：3.2下半（正文写了绝对时间）必须一字不动 ──
+		const d15 = T.parseZzzFreq(payload, cst(2026, 10, 15, 12, 0), ZZZ_TZ);
+		check("回归 3.2下半：banner = 「烬夜安眠」频段", !!d15 && d15.banner === "「烬夜安眠」频段",
+			JSON.stringify(d15 && d15.banner));
+		check("回归 3.2下半：09-30 12:00 ~ 10-20 14:59",
+			!!d15 && d15.bannerDates === "09-30 12:00 ~ 10-20 14:59"
+			&& d15.startTs === cst(2026, 9, 30, 12, 0) && d15.endTs === cst(2026, 10, 20, 14, 59),
+			JSON.stringify(d15 && [d15.bannerDates, d15.startTs, d15.endTs]));
+
+		// ── 活动侧吃同一份 payload：3.3 的活动此前因"版本起点缺失"被整段丢弃（windowAt 返回 null）──
+		const ev = T.parseZzzEventsOfficial(payload, cst(2026, 10, 25, 12, 0), ZZZ_TZ);
+		check("活动侧：3.3 的活动进入档期（「全新放送」3.3版本更新后 ~ 12-01 03:59）",
+			!!ev && /全新放送   10-21 06:00 ~ 12-01 03:59/.test(ev.eventHover || ""),
+			JSON.stringify(ev && ev.eventHover));
+		checkHoverClean("绝区零 官网活动（3.3）", ev && ev.eventHover);
+		assertContract("绝区零 官网公告 活动（3.3）", "event", ev);
+	}
+
 	// 直接 `node test/cases-p4.mjs` 时自报结果；被 all.mjs import 时不报（由 all.mjs 统一 summary）
 	if (process.argv[1] && process.argv[1].endsWith("cases-p4.mjs")) summary();
 }

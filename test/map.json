@@ -99,5 +99,7 @@
   "https://gametora.com/data/umamusume/en/gacha/char-standard.": "uma-gt-char-standard/response.txt",
   "https://gametora.com/data/umamusume/en/gacha/support-standard.": "uma-gt-support-standard/response.txt",
   "https://gametora.com/data/umamusume/character-cards.": "uma-gt-character-cards/response.txt",
-  "https://gametora.com/data/umamusume/support-cards.": "uma-gt-support-cards/response.txt"
+  "https://gametora.com/data/umamusume/support-cards.": "uma-gt-support-cards/response.txt",
+  "https://api-takumi-static.mihoyo.com/content_v2_user/app/706fd13a87294881/getContentList?iChanId=279&iPageSize=50&iPage=1&sLangKey=zh-cn": "p4-zzz-freq-official/response.txt",
+  "https://bluearchive-cn.com/api/news/list?pageIndex=1&pageNum=30&type=": "ba-cn-live-1021/response.txt"
 }

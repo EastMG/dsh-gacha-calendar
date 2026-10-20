@@ -336,7 +336,13 @@
 			baCnWindowIn,
 			baCnTimeBlocks,
 			baCnFromNoticeBlocks,
+			baCnEventName,
+			baCnEventNameFromNotice,
 			parseBaCnMaintText,
+			// 绝区零·官网公告（api-takumi-static，与卡池/活动侧同一 payload）：
+			// 频段解析与活动解析是纯函数，回归用例直接喂真实夹具，不经过 transport。
+			parseZzzFreq,
+			parseZzzEventsOfficial,
 			decodeEntities,
 			stripTags,
 			textOf,

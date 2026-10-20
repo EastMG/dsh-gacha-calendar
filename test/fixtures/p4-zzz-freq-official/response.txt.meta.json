@@ -1,0 +1,6 @@
+{
+  "url": "https://api-takumi-static.mihoyo.com/content_v2_user/app/706fd13a87294881/getContentList?iChanId=279&iPageSize=50&iPage=1&sLangKey=zh-cn",
+  "status": 200,
+  "capturedAt": "2026-10-21T03:45:00+08:00",
+  "note": "绝区零官网公告频道 iChanId=279 原始列表（未裁剪，50 条）。含 3.3上半频段公告（起点写作「3.3版本更新后」）与 3.3《预下载开启&更新通知》（正文【版本更新时间】2026/10/21 06:00）——后者是该版本唯一含版本起点的公告，正是 2026-10-21 卡池 startTs=null 的现场。"
+}

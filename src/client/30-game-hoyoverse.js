@@ -20,28 +20,59 @@
 		const VERSION_UPDATE_ANCHOR = { h: 4, mi: 0 };
 
 
+		// ── 「X.Y版本更新后」的锚点（**唯一真源**，卡池侧 parseZzzFreq 与活动侧 parseZzzEventsOfficial 共用）──
+		//
+		// 版本起点 = 该版本**官方公告正文里写明的维护/更新时刻**：
+		//   · 「X.Y版本…更新公告」正文：【更新开始时间】2026/09/09 06:00（UTC+8）预计5个小时完成
+		//   · 「X.Y版本…预下载开启&更新通知」正文：【版本更新时间】2026/10/21 06:00 开始，预计需要5个小时
+		//
+		// ⚠️ 2026-10-21 修（用户报「绝区零卡池时间有问题」）：老实现直接拿公告的 `dtStartTime` 当版本起点，
+		//    这是**字段选错** —— `dtStartTime` 是公告的**排期上线时间**，与维护/开服时刻没有固定关系：
+		//      · 3.2 更新公告   dtStartTime = 2026-09-09 07:00（正文维护时刻 06:00，+1h）→ 碰巧接近
+		//      · 3.3 预下载通知 dtStartTime = 2026-10-19 12:05（正文维护时刻 2026-10-21 06:00，−2 天）
+		//    第二行就是老实现把「预下载」整类排除的原因；但排除之后 **3.3 一点锚点都没有**
+		//    （3.3 正式更新公告要到开服后才发），于是当期频段 startTs=null、
+		//    bannerDates 退回源站原文「3.3版本更新后 ~ 11-11 11:59」、无法判定"是否已开始"
+		//    —— 这正是用户看到的 bug。
+		//
+		// 现在改为「正文里的官方时刻优先」；正文没有该标签时才退回 `dtStartTime`，
+		// 且**只认更新公告**：预下载通知的 dtStartTime 永远不能当锚点（比维护早 1~2 天）。
+		//
+		// 客观限制（不硬编造）：官方只给"维护**开始**"时刻，真实开服还要加上维护时长
+		// （本次写「预计需要5个小时」）。所以本锚点与真实开池时刻的差 ≈ 维护时长（约 5h），
+		// 与既有 3.2 口径（公告排期 07:00）同量级，但来源是官方明文而非巧合。
+		const ZZZ_UPDATE_INSTANT_RE = /【(?:更新开始时间|版本更新时间)】\s*(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\s+\d{1,2}:\d{2})/;
+		function zzzVersionStarts(list, tz) {
+			const out = {};
+			for (const it of list) {
+				const title = stripTags(it?.sTitle);
+				const vm = title.match(/(\d+\.\d+)\s*版本/);
+				if (!vm || !/更新(?:公告|通知)/.test(title)) continue;
+				const ver = vm[1];
+				const body = stripTags(it?.sIntro) + " " + stripTags(it?.sContent);
+				const bm = body.match(ZZZ_UPDATE_INSTANT_RE);
+				const bp = bm ? parseTime(bm[1], tz) : null;
+				if (bp && bp.ts != null) { if (out[ver] == null) out[ver] = bp; continue; }
+				if (/预下载|预约|前瞻|预抽/.test(title)) continue;   // 只有公告时间，绝不能当版本起点
+				const p = parseTime(it.dtStartTime, tz);
+				if (p.ts != null && out[ver] == null) out[ver] = p;
+			}
+			return out;
+		}
+
+
 		// 绝区零官网公告解析：从公告频道（iChanId=279）取「X.Y版本限时频段（上/下期）」，选覆盖当前时刻的一期。
 		// 公告形如：sIntro="本期代理人与音擎调频活动时间为：3.2版本更新后 ~ 2026/09/30 11:59"，
 		// sContent 内含「活动期间，限定S级代理人[克拉蕾(电·锋御)]、[南宫羽(以太·击破)]…」。
-		// 起点为"版本更新后"时，用同版本「更新公告」的 dtStartTime 补全；「独家重映/音擎回响」自选段跳过。
+		// 起点为"版本更新后"时用 zzzVersionStarts 的锚点补全；「独家重映/音擎回响」自选段跳过。
 		function parseZzzFreq(payload, now = nowMs(), tz) {
 			const list = Array.isArray(payload?.data?.list) ? payload.data.list : [];
 			const clean = (s) => stripTags(s);
-			// 版本更新公告 → "X.Y版本更新后"的起点；同时抽取「S级代理人[X] → 「Y」频段」对应表
+			// 版本起点表（卡池/活动共用同一口径）；同时抽取「S级代理人[X] → 「Y」频段」对应表
 			// （频段名只写在更新公告里，逐期频段公告不含频段名，故用它回填卡池标题）
-			// 注意：必须排除「X.Y版本…预下载开启&更新通知」——它比正式更新早 1~2 天发布，
-			// 若当成版本起点，下一期频段会被提前判成"覆盖当前"、把真实在跑的上一期挤掉
-			// （与活动侧 parseZzzEventsOfficial 同一口径）。
-			const verStart = {};
+			const verStart = zzzVersionStarts(list, tz);
 			const poolOf = {};
 			for (const it of list) {
-				const t = clean(it?.sTitle);
-				const vm = t.match(/(\d+\.\d+)\s*版本/);
-				if (!vm) continue;
-				if (/更新(?:公告|通知)/.test(t) && !/预下载|预约|前瞻|预抽/.test(t)) {
-					const p = parseTime(it.dtStartTime, tz);
-					if (p.ts != null && verStart[vm[1]] == null) verStart[vm[1]] = p;
-				}
 				const text = clean(it.sIntro) + " " + clean(it.sContent);
 				for (const m of text.matchAll(/S级代理人\s*[\[【]([^\]】]+)[\]】][^「]{0,40}?「([^」]{2,14})」频段/g)) {
 					const name = m[1].replace(/[（(].*$/, "").trim();
@@ -96,7 +127,17 @@
 			const cover = pools.filter((p) => p.startTs != null && coversNow(p, now));
 			// 起点未知（同版本更新公告未收录）但结束在未来 → 仍作为当期（与 selectCurrent 的宽松分支一致）
 			const loose = pools.filter((p) => p.startTs == null && p.endTs >= now);
-			const picked = (cover.length > 0 ? cover : loose).sort((a, b) => (b.created - a.created) || (a.endTs - b.endTs));
+			// 空档期：上一期已收池、下一期还没开（官方在版本维护前就发了下一期频段公告）。
+			// 2026-10-21 实测：3.2下半 10-20 14:59 收池、3.3上半 = 3.3版本更新后（10-21 06:00 维护）。
+			// 此时若只认 cover/loose 会返回 null → 面板在维护当天整段空白；
+			// 而"下一期 + MM-DD HH:MM 开始"才是该显示的内容（UI 的 state="wait" 分支本就支持）。
+			// 只按 startTs 升序取**最近的一期**：更远的期次（官方很少提前公布）不该顶掉下一期。
+			const upcoming = pools
+				.filter((p) => p.startTs != null && p.startTs > now && p.endTs >= now)
+				.sort((a, b) => (a.startTs - b.startTs) || (a.endTs - b.endTs));
+			const picked = cover.length > 0 ? cover.sort((a, b) => (b.created - a.created) || (a.endTs - b.endTs))
+				: loose.length > 0 ? loose.sort((a, b) => (b.created - a.created) || (a.endTs - b.endTs))
+					: upcoming;
 			if (picked.length === 0) return null;
 			const first = picked[0];
 			const same = picked.filter((p) => p.ver === first.ver && p.part === first.part);
@@ -147,8 +188,9 @@
 
 		// 绝区零：官方公告列表（api-takumi-static，与卡池侧同一接口，经 host 代理）→ 当期活动。
 		// 活动时间就写在公告正文里（【活动时间】A ~ B），**不需要再抓详情页**；
-		// A/B 可能是绝对时间，也可能是"X.Y版本更新后" / "X.Y版本结束"——用「X.Y版本更新公告」的发布时间折算：
-		//   版本起点 = 该版本更新公告发布时间；版本结束 = 下一个已知版本起点 − 1 分钟。
+		// A/B 可能是绝对时间，也可能是"X.Y版本更新后" / "X.Y版本结束"——用 zzzVersionStarts 的锚点折算
+		// （与卡池侧同一口径；2026-10-21 起不再用公告的 dtStartTime 当版本起点，见该函数的注释）：
+		//   版本起点 = 官方公告正文里的维护/更新时刻；版本结束 = 下一个已知版本起点 − 1 分钟。
 		// 当前版本还没有下一版本公告 → 结束时间未知：这类活动**保留**（endTs=null），
 		// 由 sortEventItems / pickEventPrimary 的既有规则自然沉到外显与悬停的最后，不跳过、不丢弃。
 		const ZZZ_EVENT_WINDOW_RE = /((?:\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\s+\d{1,2}:\d{2})|(?:\d+\.\d+\s*版本更新后))\s*[~～\-—]\s*((?:\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\s+\d{1,2}:\d{2})|(?:\d+\.\d+\s*版本结束))/g;
@@ -157,19 +199,10 @@
 		function parseZzzEventsOfficial(payload, now = nowMs(), tz) {
 			const list = Array.isArray(payload?.data?.list) ? payload.data.list : [];
 			const clean = (s) => stripTags(s);
-			// 版本起点表：取该版本的「更新公告」发布时间。
-			// 必须排除「X.Y版本…预下载开启&更新通知」——它比正式更新早 1~2 天发布，
-			// 若当成版本起点，会把上一版本"版本结束"型活动提前判死、并让新版本活动提前出现。
-			const verStart = {};
-			for (const it of list) {
-				const title = clean(it?.sTitle);
-				const vm = title.match(/(\d+\.\d+)\s*版本/);
-				if (!vm || !/更新(?:公告|通知)/.test(title)) continue;
-				if (/预下载|预约|前瞻|预抽/.test(title)) continue;
-				const ts = parseTime(it.dtStartTime, tz).ts;
-				if (ts != null && verStart[vm[1]] == null) verStart[vm[1]] = ts;
-			}
-			const versions = Object.keys(verStart).sort((a, b) => verStart[a] - verStart[b]);
+			// 版本起点表：与卡池侧共用 zzzVersionStarts（它已处理「预下载」与「排期上线时间 ≠ 维护时刻」两个坑）。
+			const verStart = zzzVersionStarts(list, tz);
+			const startTsOf = (v) => (verStart[v] ? verStart[v].ts : null);
+			const versions = Object.keys(verStart).sort((a, b) => startTsOf(a) - startTsOf(b));
 			// 折算一个窗口的两个端点；返回 null 表示**窗口此刻不成立**（含"该版本还没开始/无法判定"）。
 			// 规则：绝对时间直接用；"X.Y版本更新后"要求该版本已开始（版本更新公告已发布）；
 			//      "X.Y版本结束" = 下一个已知版本起点 − 1 分钟；若 X.Y 已是最新版本 → 结束时间未知（endTs=null，
@@ -178,8 +211,8 @@
 				let startTs = null;
 				const sv = startText.match(/(\d+\.\d+)\s*版本更新后/);
 				if (sv) {
-					if (verStart[sv[1]] == null) return null;   // 该版本尚未开始 → 活动还没上线
-					startTs = verStart[sv[1]];
+					if (startTsOf(sv[1]) == null) return null;   // 该版本尚未开始 → 活动还没上线
+					startTs = startTsOf(sv[1]);
 				} else {
 					const p = parseTime(startText, tz);
 					if (p.ts == null) return null;
@@ -189,9 +222,9 @@
 				let endTs = null;
 				const ev = endText.match(/(\d+\.\d+)\s*版本结束/);
 				if (ev) {
-					if (verStart[ev[1]] == null) return null;   // 版本未知 → 无法判定，保守略过
-					const later = versions.find((v) => verStart[v] > verStart[ev[1]]);
-					if (later != null) endTs = verStart[later] - 60000;
+					if (startTsOf(ev[1]) == null) return null;   // 版本未知 → 无法判定，保守略过
+					const later = versions.find((v) => startTsOf(v) > startTsOf(ev[1]));
+					if (later != null) endTs = startTsOf(later) - 60000;
 				} else {
 					const p = parseTime(endText, tz);
 					if (p.ts == null) return null;
