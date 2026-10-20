@@ -62,66 +62,88 @@ const localTs = (y, mo, d, h = 0, mi = 0) => new Date(y, mo - 1, d, h, mi).getTi
 export default async function run() {
 	section("蔚蓝档案（国际服 GameKee 当期卡池表 / 国服公告时间块）");
 
-	// ── ① GameKee「当期卡池」表 → 角色名 ─────────────────────────────────────
+	// ── ① GameKee 609133「当期卡池」表 → 当期池（角色名 + 起止）──────────────────
 	{
 		const blocks = blocksFixture();
 		const now = Date.parse("2026-10-21T03:00:00+08:00");
+		const cur = T.gkBaCurrentPool(blocks, now, 2026, null);
+		check("ba-global：609133 当期卡池表 → 角色名（旬/妃姬，含简繁与括号归一）",
+			!!cur && cur.roles === "旬(泳装)、妃姬(泳装)", JSON.stringify(cur && cur.roles));
+		// 显示口径（endDayTs）与判断口径（endTs 含当日全天）分开：显示必须是 10-27 00:00（上一轮读数），
+		// 但判断不能提前一天过期（到期当天 00:00 起仍算当期）
+		check("ba-global：档期显示 10-13 00:00 ~ 10-27 00:00 / 判断用 endTs 覆盖到 10-27 23:59",
+			!!cur && T.fmtWindow(cur.win.startTs, cur.win.endDayTs) === "10-13 00:00 ~ 10-27 00:00"
+			&& T.fmtMdHm(cur.win.endTs) === "10-27 23:59",
+			cur && [T.fmtWindow(cur.win.startTs, cur.win.endDayTs), T.fmtMdHm(cur.win.endTs)].join(" | "));
+		// titleWindow 不再是卡池标题（线上已不请求它）—— 传了也只作"没有组覆盖 now"时的兜底
+		const outside = Date.parse("2026-12-01T00:00:00+08:00");
 		const title = { startTs: localTs(2026, 10, 13), endTs: localTs(2026, 10, 27) };
-		const roles = T.gkBaPoolRoles(blocks, now, 2026, title);
-		check("ba-global：GameKee 当期卡池表 → 角色名（旬/妃姬，含简繁与括号归一）",
-			roles === "旬(泳装)、妃姬(泳装)", JSON.stringify(roles));
-		// 没有卡池标题档期可对照时，只要"恰好一组覆盖 now"也采信
-		check("ba-global：无标题档期时按「唯一覆盖 now 的组」取角色名",
-			T.gkBaPoolRoles(blocks, now, 2026, null) === roles, JSON.stringify(T.gkBaPoolRoles(blocks, now, 2026, null)));
-		// 标题档期与表不符 → 退回"唯一覆盖 now"规则（仍然正确），不能瞎配一组
-		const other = { startTs: localTs(2026, 11, 3), endTs: localTs(2026, 11, 17) };
-		check("ba-global：标题档期与表不符时退回「唯一覆盖 now」而非乱配",
-			T.gkBaPoolRoles(blocks, now, 2026, other) === roles);
-		// now 在表档期之外 + 标题也不符 → 空（宁缺勿错）
-		check("ba-global：表里没有覆盖 now 的档期 → 不返回角色名（宁缺勿错）",
-			T.gkBaPoolRoles(blocks, Date.parse("2026-12-01T00:00:00+08:00"), 2026, other) === "");
-		// 结构变化（没有「当期卡池」标题段）→ 空，不抛
+		check("ba-global：now 在表档期之外 + 标题档期同月同日 → 兜底采信（宁缺勿错的下限）",
+			T.gkBaCurrentPool(blocks, outside, 2026, title)?.roles === "旬(泳装)、妃姬(泳装)");
+		check("ba-global：now 在表档期之外且没有标题档期 → null（不残留上一期）",
+			T.gkBaCurrentPool(blocks, outside, 2026, null) === null);
+
+		// 把「一个角色都没解析出来」与「表结构不认识」分开：前者 null（未公布），后者抛（内容接口失败）
+		const noRoles = blocks.map((b) => JSON.parse(JSON.stringify(b).replace(/旬\( 泳装\)|妃姬\(泳装\)/g, "")));
+		check("ba-global：表里没有任何角色名 → null（不产出空壳）",
+			T.gkBaCurrentPool(noRoles, now, 2026, null) === null);
 		const noHead = blocks.filter((b) => !(b.type === "paragraph" && JSON.stringify(b).includes("当期卡池")));
-		check("ba-global：表结构变化（找不到「当期卡池」段）→ 返回空且不抛",
-			T.gkBaPoolRoles(noHead, now, 2026, title) === "");
-		// 列序变化 + 多档期分组 + 角色名清洗（全角括号、括号内空格、★3「」前缀）
+		let shapeErr = null;
+		try { T.gkBaCurrentPool(noHead, now, 2026, null); } catch (e) { shapeErr = String(e && e.message); }
+		check("ba-global：找不到「当期卡池」段 → 抛「GameKee 内容接口失败」（结构变化不许静默成未公布）",
+			!!shapeErr && /^GameKee 内容接口失败（当期卡池表/.test(shapeErr), shapeErr);
+
+		// ⚠️ 回归守卫：①（标题档期同月同日）**不允许**覆盖 ②（恰好一组覆盖 now）。
+		//    原因：titleWindow 现在只能来自**活动标题**，可能滞后一期；若它优先，会把上一期的角色当当期。
+		const row = (cells) => ({
+			type: "table-row", children: cells.map((c) => ({ type: "table-cell", children: [{ type: "paragraph", children: [{ text: c }] }] }))
+		});
+		const twoGroups = [
+			{ type: "paragraph", children: [{ text: "当期卡池" }] },
+			{ type: "table", children: [row(["卡池图标", "PU学生", "卡池时间"]), row(["", "白子(泳装)", "9月29日～10月13日"])] },
+			{ type: "table", children: [row(["", "旬(泳装)", "10月13日～10月27日"])] },
+			{ type: "paragraph", children: [{ text: "历史卡池" }] }
+		];
+		const staleTitle = { startTs: localTs(2026, 9, 29), endTs: localTs(2026, 10, 13) };
+		const pickStale = T.gkBaCurrentPool(twoGroups, now, 2026, staleTitle);
+		check("ba-global：活动标题滞后一期时，仍以「恰好一组覆盖 now」为准（不配上一期角色）",
+			!!pickStale && pickStale.roles === "旬(泳装)", JSON.stringify(pickStale && pickStale.roles));
+
+		// 多组同时覆盖 now → 宁缺勿错（null），不猜
+		const overlap = [
+			{ type: "paragraph", children: [{ text: "当期卡池" }] },
+			{ type: "table", children: [row(["卡池图标", "PU学生", "卡池时间"]), row(["", "阿露(礼服)", "10月13日～10月27日"])] },
+			{ type: "table", children: [row(["", "日奈(礼服)", "10月20日～11月03日"])] }
+		];
+		check("ba-global：多组同时覆盖 now → null（不猜）", T.gkBaCurrentPool(overlap, now, 2026, null) === null);
+
+		// 列序变化 + 合并单元格继承 + 角色名清洗（全角括号、括号内空格、★3「」前缀）
 		const synthetic = [
 			{ type: "paragraph", children: [{ text: "当期卡池" }] },
 			{
 				type: "table", children: [
-					{ type: "table-row", children: [
-						{ type: "table-cell", children: [{ type: "paragraph", children: [{ text: "卡池时间" }] }] },
-						{ type: "table-cell", children: [{ type: "paragraph", children: [{ text: "PU学生" }] }] }
-					] },
-					{ type: "table-row", children: [
-						{ type: "table-cell", children: [{ type: "paragraph", children: [{ text: "11月20日～11月30日" }] }] },
-						{ type: "table-cell", children: [{ type: "paragraph", children: [{ text: "★3「未花」" }] }] }
-					] },
-					{ type: "table-row", children: [
-						{ type: "table-cell", children: [{ type: "paragraph", children: [{ text: "11月01日～11月15日" }] }] },
-						{ type: "table-cell", children: [{ type: "paragraph", children: [{ text: "日奈（礼服）" }] }] }
-					] },
-					{ type: "table-row", children: [
-						{ type: "table-cell", children: [{ type: "paragraph", children: [{ text: "" }] }] },
-						{ type: "table-cell", children: [{ type: "paragraph", children: [{ text: "阿露( 礼服)" }] }] }
-					] }
+					row(["卡池时间", "PU学生"]),
+					row(["11月20日～11月30日", "★3「未花」"]),
+					row(["11月01日～11月15日", "日奈（礼服）"]),
+					row(["", "阿露( 礼服)"])
 				]
 			},
 			{ type: "paragraph", children: [{ text: "历史卡池" }] }
 		];
-		const syn = T.gkBaPoolRoles(synthetic, localTs(2026, 11, 5, 12), 2026, null);
+		const syn = T.gkBaCurrentPool(synthetic, localTs(2026, 11, 5, 12), 2026, null);
 		check("ba-global：列序调换 + 合并单元格继承 + 角色名清洗（全角括号/★3「」/括号内空格）",
-			syn === "日奈(礼服)、阿露(礼服)", JSON.stringify(syn));
+			!!syn && syn.roles === "日奈(礼服)、阿露(礼服)", JSON.stringify(syn && syn.roles));
 	}
 
-	// ── ba-global 抓取链路：只给国际服补名 + CDN 那一跳必须用纯 origin Referer ──────
+	// ── ba-global 抓取链路：卡池侧**只**走 609133（2 请求），活动侧维持目录树 ─────────
 	// 这条是**真实踩过的坑**的回归守卫：api-cdn.gamekee.com 的 WAF 对"带路径的 Referer"
 	// 直接 567（实测 origin→200、/ba/huodong/15→567、/ba/609133.html→567、无 Referer→567）。
-	// 传页面地址时整条补名会静默失效（roles 回 ""，与改造前一样），不报错、不留痕 —— 只能靠断言钉住。
+	// 传页面地址时整条链会静默失效，不报错、不留痕 —— 只能靠断言钉住。
 	{
 		const nowTs = Date.parse("2026-10-21T03:00:00+08:00");
 		T.setCoreEnv({ now: () => nowTs });
 		const blocks = blocksFixture();
+		const detail609133 = fx("ba-gamekee-pool-detail/response.txt");
 		const tree = {
 			data: {
 				entry_list: [
@@ -129,25 +151,28 @@ export default async function run() {
 						name: "常用内容", child: [{
 							name: "当期活动 | 当期卡池", child: [
 								{ name: "国际服当期活动", content_id: 1 },
-								{ name: "国际服当期卡池评测", content_id: 2 },
+								{ name: "国际服当期卡池评测", content_id: 2 },   // 已废弃：**不许**再被请求
 								{ name: "日服当期活动", content_id: 3 },
 								{ name: "日服当期卡池评测", content_id: 4 }
 							]
 						}]
-					},
-					{ name: "萌新指引", child: [{ name: "综合常用词条", child: [{ name: "际服卡池", content_id: 9 }] }] }
+					}
 				]
 			}
 		};
 		const title = (s) => JSON.stringify({ data: { title: s } });
+		let failCdn = false;
 		const route = (url) => {
 			if (url.includes("/v1/wiki/entry")) return JSON.stringify(tree);
-			if (url.includes("/v1/content/detail/1")) return title("国际服当期活动：岚过天晴【10/13~10/27】");
-			if (url.includes("/v1/content/detail/2")) return title("国际服当期卡池评测：岚过天晴【10/13~10/27】");
+			if (url.includes("/v1/content/detail/1")) return title("蔚蓝档案国际服 岚过天晴 活动攻略整理【10/13~10/27】");
+			if (url.includes("/v1/content/detail/2")) throw new Error("卡池标题不应再被请求（回退守卫）");
 			if (url.includes("/v1/content/detail/3")) return title("日服当期活动：我们是神秘学研究会！【10/07~10/21】");
 			if (url.includes("/v1/content/detail/4")) return title("日服当期卡池：我们是神秘学研究会！【10月7日 ~ 10月21日】");
-			if (url.includes("/v1/content/detail/9")) return JSON.stringify({ data: { content_cdn: "//api-cdn.gamekee.com/x/609133.json?v=1" } });
-			if (url.startsWith("https://api-cdn.gamekee.com/")) return JSON.stringify({ content: JSON.stringify(blocks) });
+			if (url.includes("/v1/content/detail/609133")) return detail609133;
+			if (url.startsWith("https://api-cdn.gamekee.com/")) {
+				if (failCdn) throw new Error("proxy-http-404");
+				return JSON.stringify({ content: JSON.stringify(blocks) });
+			}
 			throw new Error("unexpected-url:" + url);
 		};
 		const seen = [];
@@ -158,13 +183,33 @@ export default async function run() {
 			}
 		});
 		const g = await T.GACHA_FETCHERS["ba-global"]();
-		check("ba-global：roles 由 GameKee 当期卡池表补齐",
-			!!g && g.roles === "旬(泳装)、妃姬(泳装)" && g.banner === "岚过天晴", JSON.stringify(g && g.roles));
+		check("ba-global：卡池三字段全部来自 609133 单源（banner=招募类型 / roles / bannerDates）",
+			!!g && g.banner === "特选招募" && g.roles === "旬(泳装)、妃姬(泳装)" && g.bannerDates === "10-13 00:00 ~ 10-27 00:00",
+			JSON.stringify(g));
+		check("ba-global：活动侧未改动（仍来自「国际服当期活动」标题）",
+			!!g && g.event === "岚过天晴" && g.eventDates === "10-13 00:00 ~ 10-27 00:00", JSON.stringify(g && [g.event, g.eventDates]));
+		check("ba-global：整条抓取器 4 次请求（目录树 + 活动标题 + detail + CDN）",
+			seen.length === 4, "requests=" + seen.length);
+		check("ba-global：卡池侧恰好 2 次请求（detail 609133 + CDN），不再请求目录页叠加标题",
+			seen.filter((x) => x.u.includes("/v1/content/detail/609133") || x.u.startsWith("https://api-cdn.gamekee.com/")).length === 2
+			&& !seen.some((x) => x.u.includes("/v1/content/detail/2")),
+			JSON.stringify(seen.map((x) => x.u)));
 		const cdnReq = seen.find((x) => x.u.startsWith("https://api-cdn.gamekee.com/"));
 		check("ba-global：CDN 那一跳的 Referer 是纯 origin（带路径/无 Referer → WAF 567）",
 			!!cdnReq && cdnReq.referer === "https://www.gamekee.com/", JSON.stringify(cdnReq && cdnReq.referer));
-		check("ba-global：只多 2 次请求（detail + CDN），与池数无关", seen.length === 5, "requests=" + seen.length);
-		// 日服兜底不加这两次请求（roles 保持空 = 改造前行为）
+
+		// 失败路径：CDN 打错（404）→ **必须失败**（抛错），不是"只有池名/未公布"的半成品
+		seen.length = 0;
+		failCdn = true;
+		let err = null;
+		try { await T.GACHA_FETCHERS["ba-global"](); } catch (e) { err = String((e && e.message) || e); }
+		check("ba-global：CDN 失败 → 该侧抛错（不产出半成品）",
+			!!err && /^GameKee 内容接口失败（content CDN：proxy-http-404）$/.test(err), err);
+		check("ba-global：失败文案能看出是 GameKee 内容接口失败（normErr 原样透出，不再压成「抓取异常」）",
+			T.normErr(new Error(err || "")) === err, T.normErr(new Error(err || "")));
+		failCdn = false;
+
+		// 日服兜底不加这两次请求（roles 保持空 = 改造前行为；仍是 3 次：目录树 + 卡池标题 + 活动标题）
 		seen.length = 0;
 		const jp = await T.GACHA_FETCHERS["ba-jp-gamekee"]();
 		check("ba-jp（GameKee 兜底）不受影响：仍 3 次请求、roles 为空",

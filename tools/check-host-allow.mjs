@@ -80,7 +80,8 @@ const hostAllowed = (h) => ALLOW.some((a) => h === a || h.endsWith("." + a));
 
 // ── 直连源（不需要白名单；实测 ACAO 放行）──
 // 与 next-sources/test/all.mjs 的 direct 模式守卫清单保持一致。
-const DIRECT_HOSTS = ["api.umapyoi.net", "sekai-world.github.io", "bang-dream-on.bushimo.jp"];
+// gametora.com：赛马娘国际服卡池默认源（2026-10-21 接入，全部数据文件 `Access-Control-Allow-Origin: *`）。
+const DIRECT_HOSTS = ["api.umapyoi.net", "sekai-world.github.io", "bang-dream-on.bushimo.jp", "gametora.com"];
 
 // ── 收集全部真实抓取目标 ──
 const targets = new Map();   // host → Set("条目id:用途")

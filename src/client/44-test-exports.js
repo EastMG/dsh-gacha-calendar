@@ -325,9 +325,12 @@
 			// 共用工具 / env（测试原先从 next-sources/lib/env.js 取）
 			fmtWindow,
 			fmtMdHm,
+			// 错误归一（`GameKee 内容接口失败（…）` 这类结构化来源的文案必须原样透出，见 60-helpers.js）
+			normErr,
 			pad2,
-			// 蔚蓝档案：GameKee「当期卡池」表解析（纯函数，吃编辑器 block 数组）
-			gkBaPoolRoles,
+			// 蔚蓝档案：GameKee「当期卡池」表解析（纯函数，吃编辑器 block 数组）；
+			// `gkBaCurrentPool` 返回 {win, roles} | null，表结构不认识时抛错（不返回半成品）
+			gkBaCurrentPool,
 			// 蔚蓝档案·国服：「■ 标签 + 起止时间」通用块解析（纯函数，吃已清洗正文）
 			baCnNoticeText,
 			baCnWindowIn,

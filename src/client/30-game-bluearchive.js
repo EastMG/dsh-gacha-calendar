@@ -284,28 +284,39 @@
 		}
 
 
-		// ---- GameKee「往期卡池一览」→ 国际服**角色名**（2026-10-21，用户点名 https://www.gamekee.com/ba/609133.html）----
+		// ---- GameKee「往期卡池一览」→ 国际服卡池的**唯一来源**（2026-10-21 收敛，用户纠正：替换，不是叠加）----
 		//
-		// 背景：2026-10-21 把 ba-global 默认源换成 GameKee 后，`fetchGameKeeBa` 只从**标题**拿池名
-		//   （「国际服当期卡池评测：岚过天晴【10/13~10/27】」），`roles` 恒为空 ⇒ 卡池列从「特選招募＋角色名」
-		//   退化成「池名」。用户点名了这个页面，实测结论：
-		//   · `https://www.gamekee.com/ba/609133.html` 的 HTML 是**纯 SPA 壳**（3.4KB，"<div id=app>"，
-		//     全文没有池名/角色名/招募时间）→ 直接从 HTML 抓是**不可行**的；
-		//   · 但同一份内容有**结构化 JSON**：`/v1/content/detail/609133` 给出 `content_cdn`，
-		//     那个 CDN JSON 的 `content` 是编辑器 block 数组，其中「当期卡池」分节就是一张表：
-		//       paragraph「当期卡池」 → table(表头 卡池图标/PU学生/卡池时间) → table(数据行)
-		//       数据行 ["", "旬( 泳装)", "10月13日～10月27日"] / ["", "妃姬(泳装)", ""]（合并单元格 → 时间留空）
-		//     ⇒ 池名 + 角色名 + 起止**都有**，可以接进抓取器。
+		// 两轮迭代的结论（别再走回头路）：
+		//   ① 2026-10-21 把 ba-global 默认源换成 GameKee，池名/档期来自目录页 `/ba/huodong/15` 里
+		//      「国际服当期卡池评测」条目的**标题**（`…：岚过天晴【10/13~10/27】`），`roles` 恒为空；
+		//   ② 同一天为补角色名，又串了 detail + CDN（`api-cdn` ≈1MB）→ 整条抓取器 **5 次**请求
+		//      （目录树 + 卡池标题 + 活动标题 + detail + CDN）。用户明确否掉：「太臃肿，如果那个内容合适就直接换掉」；
+		//   ③ 本次：卡池侧**只**走 609133 这一条链（detail + CDN = **2 次**请求），目录页那次标题请求与
+		//      「补名」的叠加逻辑一并删除；活动侧不动（仍走目录树 + 「国际服当期活动」标题）。
+		//
+		// 609133 是什么：`https://www.gamekee.com/ba/609133.html`（detail 标题「国际服往期卡池一览」）。
+		//   页面 HTML 是**纯 SPA 壳**（3.4KB，"<div id=app>"，全文没有池名/角色名/招募时间）→ 从 HTML 抓不可行；
+		//   正文在 `content_cdn` 的 JSON 里（编辑器 block 数组），「当期卡池」分节就是一张表：
+		//     paragraph「当期卡池」 → table(表头 卡池图标|PU学生|卡池时间) → table(数据行)
+		//     数据行 ["…图标…", "旬( 泳装)", "10月13日～10月27日"] / ["…", "妃姬(泳装)", ""]（合并单元格 → 时间留空）
+		//   ⚠️ 表里**没有「池名」列**，页面标题也只是「国际服往期卡池一览」（2026-10-21 实测，别再假设有池名）——
+		//      所以 `banner` 不再是「岚过天晴」那类真实池名，改用国际服卡池的**类型标签**（见 GK_BA_POOL_BANNER）。
+		//      面板外显本来就是 roles（80-components.js: `gachaVisible = g.roles ? cleanRoleNames(...) : g.banner`），
+		//      banner 只在悬停/标题里作 `banner：roles` 的前缀 → 现状仍是「招募类型＋角色名」，与改造前的口径一致。
 		//
 		// 交叉验证（2026-10-21，本机真实网络）：Nexon 官方更新日誌（`ba-global-nexon` 备选源）同一时刻给出
 		//   `特選招募 / 妃姬(泳裝)、旬(泳裝) / 10-13 00:00 ~ 10-27 09:59` —— 与本表 **10月13日～10月27日 +
 		//   旬/妃姬** 完全一致（仅简繁差异：GameKee 简体「泳装」，与本站其余文本一致，故采用 GameKee 写法）。
 		//
-		// 成本：**2 次**额外请求（detail + CDN JSON，后者约 1MB，含全部历史卡池；我们只取「当期卡池」那张表）。
+		// 成本（2026-10-21 实测）：卡池侧 **2 次** / 1,019,699 B（≈996KB）/ 196ms；整条抓取器 **4 次** /
+		//   1,851,766 B（≈1808KB）/ 459ms（改前 5 次 / 1,858,165 B / 967ms）。
 		//   为什么不能省掉 detail：CDN URL 带 `?v=<更新时间戳>`，只有从 detail 拿到的那个才是**当期版本**；
 		//   去掉 `?v` 可能命中 CDN 旧缓存 → 表里的档期不覆盖 now → 会被下面的校验判掉（宁缺勿错，但也等于白抓）。
 		//   为什么不是"每池一次详情"：这里只有**一次**固定开销，与池数无关。
-		const GK_BA_POOL_CONTENT_ID = 609133;   // 「际服卡池」词条；目录树里找不到它时的兜底 id
+		const GK_BA_POOL_CONTENT_ID = 609133;   // 「国际服往期卡池一览」词条（固定 id；不再从目录树里找）
+		// 609133 无「池名」列 → 用国际服卡池的**类型标签**（与旧 `ba-global-nexon` 源的 banner 同口径：
+		// 那边取日程表里的「特選招募 / 特別特選招募」）。写成简体，与本站其余 GameKee 文本一致。
+		const GK_BA_POOL_BANNER = "特选招募";
 
 		// block（编辑器节点树）→ 纯文本
 		function gkBlockText(node) {
@@ -322,29 +333,39 @@
 			return s.replace(/\u00a0/g, " ").replace(/[ \t\r\n]+/g, " ").trim();
 		}
 
-		// 表格里的"无年份"档期 → 窗口：`10月13日～10月27日` / `10/13~10/27` / `2026/10/13 ~ 2026/10/27`
-		// 与 `parseGkRange` 同口径（本机时区墙钟、日粒度：起点 00:00、终点 23:59），另加跨年与可选钟点。
+		// 表格里的"无年份"档期 → 窗口：`10月13日～10月27日` / `10/13~10/27` / `2026/10/13 ~ 2026/10/27 12:00`
+		// 与 `parseGkRange` 同口径（本机时区墙钟、日粒度），另加跨年与可选钟点。
+		//   · `startTs` / `endTs`：**判断用**。没写钟点时，`endTs` 取当日 23:59:59.999（含当日全天）——
+		//     否则到期当天 00:00 起就会被判成"已过期"，整期最后一天显示空白。
+		//   · `endDayTs`：**显示用**。没写钟点时取结束日 00:00，与标题口径 `【10/13~10/27】` → `10-27 00:00` 同形
+		//     （上一轮 bannerDates 就是这个读数，收敛后保持不变）。
 		function gkBaTableWindow(raw, nowYear) {
 			const s = String(raw || "").replace(/[（(][^）)]*[）)]/g, " ").trim();
 			if (!s) return null;
 			const parts = s.split(/[~～〜]|—|–|－|\s-\s|至|到/).map((x) => x.trim()).filter(Boolean);
 			if (parts.length < 2) return null;
-			const side = (p, year, isEnd) => {
+			const side = (p, year) => {
 				const md = p.match(/(\d{1,2})\s*[\/月]\s*(\d{1,2})\s*日?/);
 				if (!md) return null;
 				const hm = p.match(/(\d{1,2})[:：](\d{2})/);
 				const mo = Number(md[1]), d = Number(md[2]);
 				if (!(mo >= 1 && mo <= 12) || !(d >= 1 && d <= 31)) return null;
-				const h = hm ? Number(hm[1]) : (isEnd ? 23 : 0);
-				const mi = hm ? Number(hm[2]) : (isEnd ? 59 : 0);
-				return new Date(year, mo - 1, d, h, mi).getTime();
+				const dayTs = new Date(year, mo - 1, d, 0, 0).getTime();
+				if (!hm) return { dayTs, ts: dayTs };
+				const h = Number(hm[1]), mi = Number(hm[2]);
+				if (!(h <= 23) || !(mi <= 59)) return null;
+				return { dayTs, ts: new Date(year, mo - 1, d, h, mi).getTime() };
 			};
 			const am = (parts[0].match(/(\d{1,2})\s*[\/月]/) || [])[1];
 			const bm = (parts[1].match(/(\d{1,2})\s*[\/月]/) || [])[1];
-			const a = side(parts[0], nowYear, false);
-			const b = side(parts[1], am != null && bm != null && endsNextYear(Number(am), null, Number(bm), null) ? nowYear + 1 : nowYear, true);
-			if (a == null || b == null || b <= a) return null;
-			return { startTs: a, endTs: b };
+			const a = side(parts[0], nowYear);
+			const b = side(parts[1], am != null && bm != null && endsNextYear(Number(am), null, Number(bm), null) ? nowYear + 1 : nowYear);
+			if (!a || !b || b.ts <= a.ts) return null;
+			return {
+				startTs: a.ts,
+				endTs: b.ts === b.dayTs ? b.dayTs + 86399999 : b.ts,
+				endDayTs: b.dayTs
+			};
 		}
 
 		// 「当期卡池」表格 → 按档期分组的角色名（[{win, roles}]）；表结构不认识 → null
@@ -413,70 +434,86 @@
 				.trim());
 		}
 
-		// 从「当期卡池」表里选**当期那一组**角色名。宁缺勿错：
-		//   ① 与卡池标题里的档期**同月同日** → 直接采信（两处独立填写、一致才用）；
-		//   ② 否则必须"恰好只有一组覆盖 now" → 采信；
-		//   ③ 其它情况（表里档期与标题不符、或同时有多组覆盖 now）→ 返回 ""（保持改造前的空 roles）。
-		function gkBaPoolRoles(blocks, now, nowYear, titleWindow) {
+		// 从「当期卡池」表里选**当期那一组**。宁缺勿错（沿用上一轮的策略，但**顺序**按"单一来源"调整）：
+		//   ② 恰好一组覆盖 now → 采信（表自己标出的当期，最高置信度）
+		//   ① 没有任何组覆盖 now 时，才退回"与标题档期**同月同日**"（titleWindow）
+		//   · 多组同时覆盖 now / 一组都对不上 → null（不猜，也不拿过期档期凑）
+		//   · 一个角色都没解析出来 → null
+		//
+		// ⚠️ 为什么把 ② 提到 ① 前面（与上一轮不同）：上一轮的 titleWindow 是**卡池标题**（与表是同一期的
+		//   两处独立填写，① 优先等于交叉验证）；现在线上**不再请求卡池标题**，titleWindow 只能来自同一条
+		//   目录树里的**活动标题**（`蔚蓝档案国际服 …活动攻略整理【10/13~10/27】`）。活动标题与卡池档期通常
+		//   一致、但可能**滞后一期**：若仍让 ① 优先，活动标题滞后时会把**上一期**的角色当成当期（真实错误）；
+		//   而 ② 只依赖表自身，滞后也不会配错。所以 ① 降级为兜底。
+		function gkBaCurrentPool(blocks, now, nowYear, titleWindow) {
 			const groups = gkBaPoolGroups(blocks, nowYear);
-			if (!groups || groups.length === 0) return "";
-			const joined = (g) => [...new Set(g.roles)].join("、");
-			const md = (ts) => { const d = new Date(ts); return `${d.getMonth() + 1}/${d.getDate()}`; };
+			// 表结构不认识（整段「当期卡池」都找不到）→ 抛：按"内容接口失败"处理，绝不产出半成品
+			if (!groups) throw new Error("GameKee 内容接口失败（当期卡池表：找不到「当期卡池」段，结构可能变了）");
+			const withRoles = groups.filter((g) => g.win && g.roles.length);
+			if (!withRoles.length) return null;
+			const pick = (g) => ({ win: g.win, roles: [...new Set(g.roles)].join("、") });
+			const cov = withRoles.filter((g) => coversNowBounded(g.win, now));
+			if (cov.length === 1) return pick(cov[0]);
+			if (cov.length > 1) return null;   // 多组同时覆盖 → 宁缺勿错
 			if (titleWindow && titleWindow.startTs != null && titleWindow.endTs != null) {
-				const hit = groups.find((g) => g.win && md(g.win.startTs) === md(titleWindow.startTs) && md(g.win.endTs) === md(titleWindow.endTs) && g.roles.length);
-				if (hit) return joined(hit);
+				const md = (ts) => { const d = new Date(ts); return `${d.getMonth() + 1}/${d.getDate()}`; };
+				const hit = withRoles.find((g) => md(g.win.startTs) === md(titleWindow.startTs) && md(g.win.endTs) === md(titleWindow.endTs));
+				if (hit) return pick(hit);
 			}
-			const cov = groups.filter((g) => g.win && coversNow(g.win, now) && g.roles.length);
-			if (cov.length === 1) return joined(cov[0]);
-			return "";
+			return null;
 		}
 
-		// 目录树里找「际服卡池」词条（站内标题缺字，正是「际服卡池」；也兼容改成「国际服卡池」）。
-		// 必须排除「国际服当期卡池**评测**」「卡池机制」「日服卡池标题语Neta」「国际服千里眼」等同名近邻。
-		function findGkBaPoolEntry(tree) {
-			let hit = null;
-			const walk = (nodes) => {
-				for (const n of nodes || []) {
-					if (hit) return;
-					const nm = String(n?.name || "");
-					if (/卡池/.test(nm) && /(国际服|际服)/.test(nm) && !/评测|評測|机制|機制|标题|標題|Neta|千里眼/.test(nm)) { hit = n; return; }
-					if (n?.child) walk(n.child);
-				}
-			};
-			walk(tree?.data?.entry_list || []);
-			return hit;
-		}
-
-		// 两次请求拿「当期卡池」表的角色名；任何一步失败/结构变化 → ""（调用方保持"只有池名"）
+		// 609133 这条链（detail + CDN）→ { win, roles } | null；**任何一步失败/结构变化都抛错**，
+		// 不返回"只有池名"之类的半成品（用户 2026-10-21 明确要求：单一来源就该单一失败）。
 		//
 		// ⚠️ CDN 的 Referer 必须是**纯 origin**（`https://www.gamekee.com/`）：
 		//   api-cdn.gamekee.com 的 WAF 对"带路径的 Referer"和"无 Referer"一律 **567**（实测矩阵，2026-10-21）：
 		//     origin + accept json → 200 / origin + accept *\/* → 200
 		//     path  (/ba/huodong/15) → 567 / 页面地址 (/ba/609133.html) → 567 / 无 Referer → 567
 		//   而 `/v1/content/detail/<id>` 用页面 Referer 是正常的 —— 两个域的反爬口径**不一样**，
-		//   所以 CDN 这一跳单独传 origin。踩过的坑：传页面地址时整条补名静默失效（roles 回 ""，
-		//   与改造前一样），不报错、不留痕，只有在 core 产物上跑 selfCheck 才看得出来。
+		//   所以 CDN 这一跳单独传 origin。踩过的坑：传页面地址时整条链静默失效，不报错、不留痕。
 		const GK_BA_CDN_REF = "https://www.gamekee.com/";
 
-		async function fetchGkBaPoolRoles(tree, ref, headers, titleWindow, now, nowYear) {
-			const id = findGkBaPoolEntry(tree)?.content_id || GK_BA_POOL_CONTENT_ID;
-			const det = await proxyFetchJson(`https://www.gamekee.com/v1/content/detail/${id}`, ref, headers);
+		// 失败文案统一前缀 `GameKee 内容接口失败（<环节>）`：normErr 会原样透出（见 60-helpers.js），
+		// 面板/自检上能一眼看出"是 GameKee 的内容接口挂了"，而不是笼统的"抓取异常"或"未公布"。
+		function gkBaPoolFail(where, cause) {
+			if (cause && cause.name === "AbortError") return cause;   // 超时/中断语义原样上抛
+			const why = cause ? String((cause && cause.message) || cause) : "";
+			return new Error(`GameKee 内容接口失败（${where}${why ? "：" + why : ""}）`);
+		}
+
+		async function fetchGkBaCurrentPool(ref, headers, now, nowYear, titleWindow) {
+			let det;
+			try {
+				det = await proxyFetchJson(`https://www.gamekee.com/v1/content/detail/${GK_BA_POOL_CONTENT_ID}`, ref, headers);
+			} catch (e) {
+				throw gkBaPoolFail("detail 609133", e);
+			}
 			const cdn = String(det?.data?.content_cdn || "");
-			if (!cdn) return "";
-			const json = await proxyFetchJson(cdn.startsWith("//") ? "https:" + cdn : cdn, GK_BA_CDN_REF, headers);
+			if (!cdn) throw gkBaPoolFail("detail 609133：content_cdn 缺失");
+			let json;
+			try {
+				json = await proxyFetchJson(cdn.startsWith("//") ? "https:" + cdn : cdn, GK_BA_CDN_REF, headers);
+			} catch (e) {
+				throw gkBaPoolFail("content CDN", e);
+			}
 			let blocks = null;
-			try { blocks = JSON.parse(String(json?.content || "")); } catch { return ""; }
-			if (!Array.isArray(blocks)) return "";
-			return gkBaPoolRoles(blocks, now, nowYear, titleWindow);
+			try { blocks = JSON.parse(String(json?.content || "")); } catch { blocks = null; }
+			if (!Array.isArray(blocks)) throw gkBaPoolFail("content CDN：content 不是 block 数组");
+			return gkBaCurrentPool(blocks, now, nowYear, titleWindow);
 		}
 
 
 		// GameKee：按服务器拉当期卡池+活动（标题含排期）
 		// serverKey: "jp"|"global"；返回 {banner, roles, bannerDates, event, eventDates}
+		//   · jp    ：池名/档期 = 目录树里「日服当期卡池评测」的**标题**（现状不变，无角色名）
+		//   · global：卡池 = 609133 **单源**（detail + CDN 两次请求，池名类型/角色名/起止都从那里来）；
+		//             活动 = 目录树里「国际服当期活动」的标题（现状不变）
+		// 请求数：jp 3 次（目录树 + 卡池标题 + 活动标题）；global 4 次（目录树 + 活动标题 + detail + CDN）。
 		async function fetchGameKeeBa(serverKey, now = nowMs()) {
 			const ref = "https://www.gamekee.com/ba/huodong/15";
 			const headers = { "game-alias": "ba" };
-			// 1. 目录树 → 找"当期活动 | 当期卡池"子条目
+			// 1. 目录树 → 找"当期活动 | 当期卡池"子条目（活动侧与日服卡池侧都要用）
 			const tree = await proxyFetchJson("https://www.gamekee.com/v1/wiki/entry?id=15", ref, headers);
 			const list = tree?.data?.entry_list || [];
 			let currentCat = null;
@@ -490,7 +527,7 @@
 			find(list);
 			if (!currentCat?.child) return null;
 			const child = currentCat.child;
-			// 找该服条目：日服(jp) 活动/卡池；国际服(global) 活动/卡池
+			// 找该服条目：日服(jp) 活动/卡池；国际服(global) 活动
 			//
 			// ⚠️ 2026-10-21 修：目录树里的名字是「国际服**当期**活动」/「国际服当期卡池评测」，
 			//    原来写 `includes(kw + "活动")`（= "国际服活动"）**永远匹配不到** → 活动名恒为空
@@ -500,34 +537,39 @@
 			const kw = isJp ? "日服" : "国际服";
 			const nameOf = (c) => String(c.name || "");
 			const eventEntry = child.find((c) => nameOf(c).includes(kw) && nameOf(c).includes("活动"));
-			const bannerEntry = child.find((c) => nameOf(c).includes(kw) && nameOf(c).includes("卡池"));
+			// international 的卡池**不再**读这个条目（池名已改由 609133 提供），只有日服还在用它
+			const bannerEntry = isJp ? child.find((c) => nameOf(c).includes(kw) && nameOf(c).includes("卡池")) : null;
 			// 2. 拉标题（含排期）
 			const getTitle = async (entry) => {
 				if (!entry?.content_id) return null;
 				const d = await proxyFetchJson(`https://www.gamekee.com/v1/content/detail/${entry.content_id}`, ref, headers);
 				return typeof d?.data?.title === "string" ? d.data.title : "";
 			};
-			const bannerTitle = bannerEntry ? await getTitle(bannerEntry) : "";
-			const eventTitle = eventEntry ? await getTitle(eventEntry) : "";
 			const nowYear = new Date(now).getFullYear();   // 走注入时钟（core 不得直接读宿主时钟）
 			const data = { banner: "", roles: "", bannerDates: "", event: "", eventDates: "" };
-			let bannerWindow = null;
-			if (bannerTitle) {
-				const rng = parseGkRange(bannerTitle, nowYear);
-				if (rng) {
-					bannerWindow = rng;
-					// 卡池名：只去「(蔚蓝档案)(日服/国际服)当期卡池(评测)：」这类表头与末尾日期括号，
-					// 池名里的标点（! ~ ！ 等）一律保留
-					data.banner = String(bannerTitle)
-						.replace(/^(?:蔚蓝档案)?\s*(?:日服|国际服|国服)?\s*(?:当期)?\s*(?:卡池|招募|评测)[^：:]*[:：]\s*/, "")
-						.replace(/【[^】]*\d[^】]*】/g, "")
-						.trim();
-					data.bannerDates = rng.raw;
+			// 3. 日服卡池侧：标题就是池名+档期（现状不变；GameKee 只是日服的兜底源，不补角色名）
+			if (isJp) {
+				const bannerTitle = bannerEntry ? await getTitle(bannerEntry) : "";
+				if (bannerTitle) {
+					const rng = parseGkRange(bannerTitle, nowYear);
+					if (rng) {
+						// 卡池名：只去「(蔚蓝档案)(日服/国际服)当期卡池(评测)：」这类表头与末尾日期括号，
+						// 池名里的标点（! ~ ！ 等）一律保留
+						data.banner = String(bannerTitle)
+							.replace(/^(?:蔚蓝档案)?\s*(?:日服|国际服|国服)?\s*(?:当期)?\s*(?:卡池|招募|评测)[^：:]*[:：]\s*/, "")
+							.replace(/【[^】]*\d[^】]*】/g, "")
+							.trim();
+						data.bannerDates = rng.raw;
+					}
 				}
 			}
+			// 4. 活动侧（两侧共用，现状不变）
+			let eventWindow = null;
+			const eventTitle = eventEntry ? await getTitle(eventEntry) : "";
 			if (eventTitle) {
 				const rng = parseGkRange(eventTitle, nowYear);
 				if (rng) {
+					eventWindow = rng;
 					// 活动名：只删可识别的游戏/服别前缀与"活动攻略整理"类后缀 + 末尾日期括号；
 					// 名字里的标点（! ~ ！ ～ 等）与「复刻」都保留
 					// 如 "蔚蓝档案国际服 比赛开始~目标！满贯全垒打！~ 复刻活动攻略整理【09/01~09/15】"
@@ -544,17 +586,19 @@
 					data.eventDates = rng.raw;
 				}
 			}
-			if (!data.banner || !data.bannerDates) return null;
-			// 国际服：补角色名（GameKee「际服卡池」页的「当期卡池」表）。
-			// 只对 global 做 —— 日服官方源本来就带生徒名，GameKee 只是日服的**兜底**，
-			// 给它加这两次请求没有收益，反而让日服兜底变慢、行为漂移。
-			// 角色名是"加分项"：拿不到就保持空（= 改造前），**任何异常都不许拖垮整个来源**。
-			if (!isJp) {
-				try {
-					const roles = await fetchGkBaPoolRoles(tree, ref, headers, bannerWindow, now, nowYear);
-					if (roles) data.roles = roles;
-				} catch { /* 保持 roles=""：不比改造前更差 */ }
+			if (isJp) {
+				if (!data.banner || !data.bannerDates) return null;
+				return data;
 			}
+			// 5. 国际服卡池侧：**唯一来源** = 609133 这条链（detail + CDN）。
+			//    任何一步失败/结构变化 → 抛（`GameKee 内容接口失败（…）`），不再有"只有池名"的半成品；
+			//    表里没有覆盖 now 的当期池（真·未公布）→ 返回 null（两侧一起记"未公布"，与改造前一致）。
+			const pool = await fetchGkBaCurrentPool(ref, headers, now, nowYear, eventWindow);
+			if (!pool) return null;
+			data.banner = GK_BA_POOL_BANNER;
+			data.roles = pool.roles;
+			// 显示用 `endDayTs`（日粒度，两端都落在 00:00）：与上一轮标题口径的读数一致（10-13 00:00 ~ 10-27 00:00）
+			data.bannerDates = fmtWindow(pool.win.startTs, pool.win.endDayTs);
 			return data;
 		}
 

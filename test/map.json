@@ -92,5 +92,12 @@
   "https://api.biligame.com/news/18376": "p9-uma-d18376/response.txt",
   "https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw": "p9-ournotes-global-empty/response.txt",
   "https://l11-web-api.biligames.com/game/news/detail?game_base_id=118241&id=9001&lang=zh-tw": "p9-ournotes-global-detail-9001/response.txt",
-  "https://l11-web-api.biligames.com/game/news/detail?game_base_id=118241&id=9002&lang=zh-tw": "p9-ournotes-global-detail-9002/response.txt"
+  "https://l11-web-api.biligames.com/game/news/detail?game_base_id=118241&id=9002&lang=zh-tw": "p9-ournotes-global-detail-9002/response.txt",
+  "https://www.gamekee.com/v1/content/detail/609133": "ba-gamekee-pool-detail/response.txt",
+  "https://api-cdn.gamekee.com/wiki2.0/pro/829/content/609133.json": "ba-gamekee-pool-blocks/response.txt",
+  "https://gametora.com/data/manifests/umamusume.json": "uma-gt-manifest/response.txt",
+  "https://gametora.com/data/umamusume/en/gacha/char-standard.": "uma-gt-char-standard/response.txt",
+  "https://gametora.com/data/umamusume/en/gacha/support-standard.": "uma-gt-support-standard/response.txt",
+  "https://gametora.com/data/umamusume/character-cards.": "uma-gt-character-cards/response.txt",
+  "https://gametora.com/data/umamusume/support-cards.": "uma-gt-support-cards/response.txt"
 }

@@ -806,18 +806,26 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 				tz: "UTC",
 				name: "赛马娘·国际服",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/8f/35/f4/8f35f477-05cb-0058-944a-0b796ee42583/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
-				// 2026-10-05 换默认源：官网 umamusume.com 整站按出口 IP/地域封锁 —— 首页与 API 都返回 403，
-				// 换 browser/curl/无 UA、加 Referer / X-Requested-With / Accept-Language 全部 403，
-				// 而同机访问日服 umamusume.jp 是 200 → 与请求头无关。经排查可达且为当期的只有 GachaTracker。
-				url: "https://gachatracker.app/games/umamusume/banners/",
-				source: "GachaTracker（英文）",
-				// 活动侧暂无可用替代：GachaTracker 的活动数据站点层面就残缺（全站仅 9 条、停在 2025），
-				// Game8 返回 202 挑战页、Prydwen 返回 403 Cloudflare 挑战 → 官方公告仍是最优默认，故只加可靠性后缀。
+				// 2026-10-21 换默认源：**GameTora**（社区数据库，en/ 就是国际服数据）。
+				// 历史：2026-10-05 曾因官网 umamusume.com 整站按出口 IP/地域封锁（首页与 API 都 403，
+				// 换 UA/Referer/X-Requested-With/Accept-Language 全部 403，而同机 umamusume.jp 是 200）
+				// 把默认换成 GachaTracker；但 GachaTracker **数据陈旧**（2026-10-21 实测：页面能解析、
+				// 却没有任何覆盖 now 的档期 → 自检长期「未公布」）→ 现降为备选。
+				url: "https://gametora.com/data/manifests/umamusume.json",
+				source: "GameTora（英文·社区数据库）",
+				// 活动侧**本次不动**：GameTora 没有活动数据；官方公告仍是活动侧默认（2026-10-21 实测可用）。
 				eventUrl: "https://umamusume.com/api/ajax/pr_info_index?format=json",
 				eventSource: "官方公告（英文︱不可靠）",
 				altSources: [
 					{
-						label: "官方公告（英文︱不可靠）",
+						// 降级：境外可达但联通线路不稳，且数据停在旧期（详细原因见文件内 GameTora 段落）
+						label: "GachaTracker（境外 · 联通不稳/数据陈旧）",
+						url: "https://gachatracker.app/games/umamusume/banners/",
+						fetcher: "uma-global-gt"
+					},
+					{
+						// 最后兜底：官方公告最准，但曾按出口 IP 封锁（2026-10-05），可能整站 403
+						label: "官方公告（英文︱曾按出口 IP 封锁，可能不可用）",
 						url: "https://umamusume.com/api/ajax/pr_info_index?format=json",
 						fetcher: "uma-global-official"
 					}
@@ -870,10 +878,134 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 			return ns_cygames_parseGtUmaGacha(html, tz);
 		}
 
+		// ══ 赛马娘国际服（Global）：**GameTora**（社区数据库，2026-10-21 起为卡池默认源）══
+		//
+		// 为什么换（用户指令：GameTora 接并设为默认，原来源降级）：
+		//   · 原默认 GachaTracker **数据陈旧**：2026-10-21 实测页面能解析，但没有一条覆盖 now 的档期
+		//     → 自检长期显示「未公布」（不是抓取失败，所以一直没人发现）；
+		//   · 官网 umamusume.com 曾按出口 IP 封锁（2026-10-05），只能当最后兜底。
+		//
+		// 为什么 GameTora 可用（2026-10-21 实测）：
+		//   · `en/` 数据集**就是国际服**：68 期，首期 start=2025-06-26 = 国际服开服日（无前缀的是日服，别用）；
+		//   · 当期 char 池 id=30136 `start=1792015200 end=1792792799` = UTC `2026-10-14 22:00 ~ 2026-10-23 21:59`，
+		//     与国际服官方公告逐秒吻合 → 时区沿用该源既有的 `UMA_GLOBAL_TZ="UTC"`，**不要**按 Asia/Tokyo 渲染；
+		//   · 该站**不含未来池**（末期 = 当期）→ 没有覆盖 now 的就返回 null（符合现有「未公布」语义）；
+		//   · 全部文件 `Access-Control-Allow-Origin: *` → 抓取走 `mode:"direct"`，**不需要**动 PROXY_ALLOW_HOSTS。
+		//
+		// 数据形态：
+		//   GET https://gametora.com/data/manifests/umamusume.json    11KB，**无 hash、稳定**
+		//     → { "en/gacha/char-standard": "<hash>", "en/gacha/support-standard": "<hash>",
+		//         "character-cards": "<hash>", "support-cards": "<hash>", … }
+		//   GET https://gametora.com/data/umamusume/<key>.<hash>.json
+		//     en/gacha/char-standard     42KB  [{id, start, end, pickups:[[cardId, rarity, isNew]], lineup}]
+		//     en/gacha/support-standard  77KB  同上（pickups 里是**支援卡** id）
+		//     character-cards           262KB  [{card_id, char_id, name_en, title_en_gl, …}]（name_en = 角色名）
+		//     support-cards             584KB  [{support_id, char_id, char_name, title_en, …}]
+		//   ⚠️ `start` / `end` 是 **unix 秒**（不是毫秒）。
+		//
+		// 请求量与正确性的权衡（用户要求"优先少请求"，所以这里刻意做了取舍）：
+		//   · 基础 **3 个文件**（manifest + 两个池表 = 130KB）：只有档期，**没有名字**；
+		//   · 池表里**没有池名**，pickups 只有 id ⇒ 不拉名字表就只剩一个空壳标题（面板外显就是 roles），
+		//     所以名字是"要显示得有意义就必须有"的字段，不是锦上添花；
+		//   · 因此只拉**当期那一个池**用到的名字表（角色池 → character-cards 262KB；支援卡池 → support-cards 584KB），
+		//     不把两张都拉（否则 +846KB）。`characters`（118KB）用不上——
+		//     character-cards 自带 name_en，实测 271/271 与 characters.name_en 完全一致。
+		//   · 当期实际成本（2026-10-21 实测，本机真实网络）：**4 次请求 / 400,713 B（≈391KB）/ 2030ms**
+		//     （角色池当期）；支援卡池当期时 4 次 / 731,270 B（≈714KB）。不拉名字表只要 3 次 / 133KB，
+		//     但那会只剩「赛马娘国际服卡池」一个空壳 —— 面板外显就是 roles，值不回票价。
+		const GT_UMA_MANIFEST = "https://gametora.com/data/manifests/umamusume.json";
+		const GT_UMA_DATA = "https://gametora.com/data/umamusume/";
+		const GT_UMA_POOL_CHAR = "en/gacha/char-standard";
+		const GT_UMA_POOL_SUPPORT = "en/gacha/support-standard";
+		const GT_UMA_CARDS_CHAR = "character-cards";
+		const GT_UMA_CARDS_SUPPORT = "support-cards";
+
+		function gtUmaFail(where) { return new Error(`GameTora 数据接口失败（${where}）`); }
+
+		// manifest 里的 hash → 取一个数据文件。hash 缺失/形状不对 → 抛（结构变化按失败处理，不猜 URL）
+		async function gtUmaFile(manifest, key, signal) {
+			const hash = manifest && manifest[key];
+			if (typeof hash !== "string" || !/^[0-9a-z]{6,32}$/i.test(hash)) throw gtUmaFail(`manifest 缺 "${key}"`);
+			try {
+				return await fetchJson(GT_UMA_DATA + key + "." + hash + ".json", { signal, mode: "direct" });
+			} catch (e) {
+				if (e && e.name === "AbortError") throw e;
+				throw gtUmaFail(`${key}：${(e && e.message) || e}`);
+			}
+		}
+
+		// 池表 → 只留有明确起止的项（unix 秒 → 毫秒）。不是数组 → 抛（结构变化）。
+		function gtUmaPools(list) {
+			if (!Array.isArray(list)) throw gtUmaFail("池表不是数组（结构可能变了）");
+			const out = [];
+			for (const p of list) {
+				const s = Number(p && p.start), e = Number(p && p.end);
+				if (!Number.isFinite(s) || !Number.isFinite(e)) continue;
+				out.push({ id: p.id, startTs: s * 1000, endTs: e * 1000, pickups: Array.isArray(p.pickups) ? p.pickups : [] });
+			}
+			return out;
+		}
+
+		// 当期 = 覆盖 now 的池里**结束最晚**的那条（多池并行时"越晚结束越靠前"，与全站惯例一致）
+		function gtUmaCurrent(pools, now) {
+			const cur = pools.filter((p) => coversNowBounded(p, now));
+			if (!cur.length) return null;
+			return cur.sort((a, b) => (b.endTs - a.endTs) || (b.startTs - a.startTs))[0];
+		}
+
+		// pickups → 角色名：char 池走 `card_id → name_en`，支援卡池走 `support_id → char_name`。
+		// 名字去重（同一角色的不同卡不再重复列）；**一个都解析不出来 → 抛**（表结构变了，不产出空 roles）。
+		function gtUmaRoleNames(pickups, table, idKey, nameKey) {
+			const byId = new Map();
+			for (const c of table || []) {
+				if (c && c[idKey] != null && typeof c[nameKey] === "string" && c[nameKey]) byId.set(Number(c[idKey]), c[nameKey]);
+			}
+			const out = [];
+			for (const p of pickups || []) {
+				const id = Number(Array.isArray(p) ? p[0] : (p && (p.cardId != null ? p.cardId : p.id)));
+				const nm = byId.get(id);
+				if (nm && !out.includes(nm)) out.push(nm);
+			}
+			return out.join("、");
+		}
+
+		async function ns_cygames_gachaGameToraUma(url, signal, tz = ns_umamusume_official_UMA_GLOBAL_TZ, now = nowMs()) {
+			const manifest = await fetchJson(url || GT_UMA_MANIFEST, { signal, mode: "direct" });
+			if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) throw gtUmaFail("manifest 不是对象（结构可能变了）");
+			// 两个池表**都要**：角色池与支援卡池常并行，得先知道"当期是哪一个"
+			const [charList, supList] = await Promise.all([
+				gtUmaFile(manifest, GT_UMA_POOL_CHAR, signal),
+				gtUmaFile(manifest, GT_UMA_POOL_SUPPORT, signal)
+			]);
+			const curChar = gtUmaCurrent(gtUmaPools(charList), now);
+			const curSup = gtUmaCurrent(gtUmaPools(supList), now);
+			const cur = curChar || curSup;          // 角色池优先（主线池是角色池；支援卡池并行时不混进同一行）
+			if (!cur) return null;                  // 没有覆盖 now 的池 = 未公布（该站无未来池）
+			// 名字：**只**拉当期那个池用到的那一张表（见上面"请求量与正确性的权衡"）
+			const isChar = cur === curChar;
+			const table = await gtUmaFile(manifest, isChar ? GT_UMA_CARDS_CHAR : GT_UMA_CARDS_SUPPORT, signal);
+			const roles = isChar
+				? gtUmaRoleNames(cur.pickups, table, "card_id", "name_en")
+				: gtUmaRoleNames(cur.pickups, table, "support_id", "char_name");
+			if (!roles) throw gtUmaFail(isChar ? "当期角色池的角色名解析出 0 条" : "当期支援卡池的角色名解析出 0 条");
+			const dates = fmtWindow(cur.startTs, cur.endTs, tz);
+			return {
+				// 该站没有池名 → 用"赛马娘国际服卡池（角色/支援卡）"，与 umapyoi 那支「赛马娘日服卡池（类型）」同构。
+				// 面板外显是 roles，banner 只在悬停/标题里作前缀。
+				banner: isChar ? "赛马娘国际服卡池（角色）" : "赛马娘国际服卡池（支援卡）",
+				roles,
+				bannerDates: dates,
+				bannerDatesRaw: dates
+			};
+		}
+
 		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
 		GACHA_FETCHERS["uma-jp"] = (url, signal, tz) => ns_umamusume_official_gachaUmaJpOfficial(url, signal, tz);
-		GACHA_FETCHERS["uma-global"] = (url, signal, tz) => ns_cygames_gachaGtUma(url, signal, tz);                     // 默认：GachaTracker（2026-10-05 起）
-		GACHA_FETCHERS["uma-global-official"] = (url, signal, tz) => ns_umamusume_official_gachaUmaGlobal(url, signal, tz);   // 原默认，降级为备选
+		// 国际服卡池默认：GameTora（2026-10-21 起）。原 GachaTracker 转备选键 `uma-global-gt`；
+		// 再往前默认过的官网公告保留 `uma-global-official`（最后兜底）。
+		GACHA_FETCHERS["uma-global"] = (url, signal, tz) => ns_cygames_gachaGameToraUma(url, signal, tz);
+		GACHA_FETCHERS["uma-global-gt"] = (url, signal, tz) => ns_cygames_gachaGtUma(url, signal, tz);            // 备选：GachaTracker（境外 · 联通不稳/数据陈旧）
+		GACHA_FETCHERS["uma-global-official"] = (url, signal, tz) => ns_umamusume_official_gachaUmaGlobal(url, signal, tz);   // 最后兜底：官网公告
 		EVENT_FETCHERS["uma-jp"] = Object.assign(EVENT_FETCHERS["uma-jp"] || {}, { default: (url, signal, tz) => ns_umamusume_official_eventsUmaJpOfficial(url, signal, tz) });
 		EVENT_FETCHERS["uma-global"] = Object.assign(EVENT_FETCHERS["uma-global"] || {}, { default: (url, signal, tz) => ns_umamusume_official_eventsUmaGlobal(url, signal, tz) });
 		GACHA_FETCHERS["uma-jp-umapyoi"] = (url, signal, tz) => ns_umapyoi_gachaUmapyoi(url, signal, tz);

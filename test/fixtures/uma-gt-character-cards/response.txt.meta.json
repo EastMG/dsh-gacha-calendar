@@ -1,0 +1,6 @@
+{
+ "url": "https://gametora.com/data/umamusume/character-cards.d3ec4f6d.json",
+ "status": 200,
+ "capturedAt": "2026-10-21T03:15:00+08:00",
+ "note": "GameTora character-cards 摘录（只留摘录池 pickups 涉及的卡）；name_en = 角色名，与 characters.name_en 逐字一致"
+}

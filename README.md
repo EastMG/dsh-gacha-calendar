@@ -69,7 +69,7 @@ DeepSeek Harness 桌面端侧边栏插件：一键查看主流二游的**当期�
 
 ## 数据来源
 
-排期数据实时抓取自各游戏**官方公告 / 官方 Wiki / 第三方站**——bwiki、PRTS、wiki.gg、Game8、GameKee、Canmoe、GachaTracker、ldshop、小米游戏中心等。采用**克制的抓取策略**设计，普通用户正常使用时的抓取请求不会影响网站正常运行。
+排期数据实时抓取自各游戏**官方公告 / 官方 Wiki / 第三方站**——bwiki、PRTS、wiki.gg、Game8、GameKee、GameTora、Canmoe、GachaTracker、ldshop、小米游戏中心等。采用**克制的抓取策略**设计，普通用户正常使用时的抓取请求不会影响网站正常运行。
 
 ## 安装
 

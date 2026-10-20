@@ -22,6 +22,7 @@ import runP7 from "./cases-p7.mjs";
 import runP8 from "./cases-p8.mjs";
 import runP9 from "./cases-p9.mjs";
 import runBa from "./cases-ba.mjs";
+import runUmaGt from "./cases-uma-gt.mjs";
 import runRuleLint from "./cases-rule-lint.mjs";
 import runReadme from "./cases-readme.mjs";
 import runCore from "./cases-core.mjs";
@@ -63,8 +64,8 @@ section("聚合注册表（全部批次合并后）");
 		}
 	}
 
-	// mode 的取值必须有依据：调研实测只有三个源 ACAO 放行
-	const DIRECT_OK = /umapyoi\.net|sekai-world\.github\.io|bang-dream-on\.bushimo\.jp/;
+	// mode 的取值必须有依据：调研实测只有三个源 ACAO 放行（+2026-10-21 接入的 gametora.com，见 tools/check-host-allow.mjs）
+	const DIRECT_OK = /umapyoi\.net|sekai-world\.github\.io|bang-dream-on\.bushimo\.jp|gametora\.com/;
 	for (const s of NEXT_SOURCES) {
 		for (const side of ["gacha", "event"]) {
 			if (!s[side] || s[side].mode !== "direct") continue;
@@ -98,6 +99,7 @@ const batches = [
 	["P8 bwiki wikitext（战双 SMW+公告 / 卡厄斯 Lua / 雪松模板）", runP8],
 	["P9 biligame 官方（物华活动 / 闪耀）+ OurNotes 国际服", runP9],
 	["蔚蓝档案（国服公告时间块 / 国际服 GameKee 当期卡池表）", runBa],
+	["赛马娘国际服卡池（GameTora 默认源）", runUmaGt],
 	["规则静态守卫（方案 A 悬停 + 选当期判定不许各写各的）", runRuleLint],
 	["README 结构图与事实性", runReadme],
 	["core 产物（零宿主依赖 + 注册幂等）", runCore]

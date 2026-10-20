@@ -1,0 +1,6 @@
+{
+ "url": "https://gametora.com/data/manifests/umamusume.json",
+ "status": 200,
+ "capturedAt": "2026-10-21T03:15:00+08:00",
+ "note": "GameTora umamusume manifest 摘录：只留本抓取器用到的 en/ 池表与名字表 hash（真实值）；无前缀的 gacha/char-standard 是日服，别用"
+}

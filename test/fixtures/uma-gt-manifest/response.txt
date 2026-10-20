@@ -1,0 +1,1 @@
+{"en/gacha/char-standard":"10bdc90e","en/gacha/support-standard":"2c1270d3","character-cards":"d3ec4f6d","support-cards":"ecbd7dc3","characters":"a0627272","gacha/char-standard":"0f9e83cf","en/gacha/special":"0db027e1"}

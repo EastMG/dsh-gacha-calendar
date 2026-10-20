@@ -71,6 +71,10 @@
 			if (/shape-changed|layout-changed|no-table|no-timer|no-chunk|no-section|no-banner|no-dates|no-activities|parse-empty/.test(msg)) {
 				return "页面结构变了（解析出 0 条）";
 			}
+			// 结构化内容接口（GameKee 编辑器 block / GameTora 数据文件）自带环节名，原样透出 ——
+			// 用户 2026-10-21 明确要求"错误文案要能看出是内容接口失败"，而不是被压成"抓取异常"。
+			// 只放行这两个前缀（其余仍是上面的归类），并限长，避免把整段 HTML 塞进面板。
+			if (/^(?:GameKee|GameTora) /.test(msg)) return msg.length > 80 ? msg.slice(0, 80) + "…" : msg;
 			return "抓取异常";
 		}
 		const isDown = (f) => !!f && f.kind === "down";
