@@ -1131,14 +1131,14 @@
 				url: BA_GK_HOME,
 				// 备选：Nexon 官方更新日誌（境外可达时信息更全；label 里注明"大陆不可达"）
 				altSources: [
-					{ label: "Nexon 更新日誌（境外，大陆不可达）", url: BA_GLOBAL_NEXON_URL, fetcher: "ba-global-nexon" }
+					{ label: "Nexon 更新日誌（直连不稳）", url: BA_GLOBAL_NEXON_URL, fetcher: "ba-global-nexon" }
 				],
 				// 活动默认源与卡池源相同（同一份 GameKee 载荷同时含"国际服当期活动"），可独立切换（如 Nexon）
 				eventUrl: BA_GK_HOME,
 				eventSource: "GameKee \u5F53\u671F\u6D3B\u52A8",
 				// 活动备选来源
 				eventAltSources: [
-					{ label: "Nexon 更新日誌（境外，大陆不可达）", url: BA_GLOBAL_NEXON_URL, fetcher: "ba-global-nexon" }
+					{ label: "Nexon 更新日誌（直连不稳）", url: BA_GLOBAL_NEXON_URL, fetcher: "ba-global-nexon" }
 				]
 		});
 

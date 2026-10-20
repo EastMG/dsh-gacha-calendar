@@ -351,7 +351,7 @@ function ns_stellasora_stellaWindowsFromDetail(detailJson, tz = ns_stellasora_ST
 				source: "官方公告",
 				eventUrl: "https://stellasora.yostar.cn/api/resource/news?index=1&size=20&type=notice",
 				eventSource: "官方公告",
-				eventAltSources: [{"label":"Bwiki 首页活动日历（低可用）","url":"https://wiki.biligame.com/stellasora/api.php?action=parse&page=首页&prop=text&format=json&formatversion=2","fetcher":"stellasora-bwiki"}],
+				eventAltSources: [{"label":"Bwiki 首页活动日历（不可靠）","url":"https://wiki.biligame.com/stellasora/api.php?action=parse&page=首页&prop=text&format=json&formatversion=2","fetcher":"stellasora-bwiki"}],
 		});
 
 		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
