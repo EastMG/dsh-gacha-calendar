@@ -336,6 +336,8 @@
 			baCnWindowIn,
 			baCnTimeBlocks,
 			baCnFromNoticeBlocks,
+			// ba-cn **源级**主活动判断（③：剧情正篇 > 限时活动(非总决算) > 其余；同级保持列表顺序）
+			baCnPickPrimary,
 			baCnEventName,
 			baCnEventNameFromNotice,
 			parseBaCnMaintText,

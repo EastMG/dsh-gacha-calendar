@@ -14,11 +14,17 @@
 //      · `ba-cn-list-0924`   09月24日维护更新说明（**旧逻辑必须逐字不变**，回归基线）
 //
 // 断言的"档期文本"一律是 `MM-DD HH:MM ~ MM-DD HH:MM`（与全仓 fmtWindow 口径一致）。
+//
+// ③ 2026-10-21 **口径类**断言（外显选谁 + 悬停里有谁）一律跑 `ba-cn-live-1021`
+//    （= 真实 30 条完整响应）。上面那几份 6/4 条的夹具是手工裁过的子集（10-08 那批里
+//    除 aLIVE 外全删了），只能证明"路径通了"，**证明不了口径**：
+//    在"唯一一篇覆盖当前"的夹具上断言 `event === "限时活动：-ive aLIVE!"`，
+//    就算实现是"取列表第一篇"也照样绿。完整夹具里同时覆盖当前的有 4 条，才有区分力。
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { check, section, setFetchImpl } from "./harness.mjs";
+import { check, section, setFetchImpl, assertHoverConvention } from "./harness.mjs";
 import { T, FIXTURES_DIR } from "./load.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -30,8 +36,7 @@ const blocksFixture = () => JSON.parse(fx("ba-gamekee-pool-blocks/response.txt")
 
 // 夹具版 fetch：旧式 impl（url → Response 形态），代理路径按 harness 约定包一层 {status, body}。
 // 返回 `calls` 数组 —— 用来断言"零额外请求"。
-function useListFixture(name) {
-	const body = fx(name + "/response.txt");
+function useBodyFixture(body) {
 	const calls = [];
 	const impl = async (url) => {
 		const u = String(url);
@@ -46,15 +51,23 @@ function useListFixture(name) {
 	return calls;
 }
 
-// 在固定 now 下跑国服抓取器
-async function fetchBaCnAt(fixture, iso) {
+function useListFixture(name) {
+	return useBodyFixture(fx(name + "/response.txt"));
+}
+
+// 在固定 now 下跑国服抓取器（入参 = 响应体原文，便于"反例夹具"在内存里改列表顺序）
+async function fetchBaCnBody(body, iso) {
 	const ts = Date.parse(iso);
 	T.setCoreEnv({ now: () => ts });
-	const calls = useListFixture(fixture);
+	const calls = useBodyFixture(body);
 	let data = null, err = null;
 	try { data = await T.GACHA_FETCHERS["ba-cn"](LIST_URL, undefined, TZ_CN); }
 	catch (e) { err = e && e.message; }
 	return { data, err, calls };
+}
+
+async function fetchBaCnAt(fixture, iso) {
+	return fetchBaCnBody(fx(fixture + "/response.txt"), iso);
 }
 
 const localTs = (y, mo, d, h = 0, mi = 0) => new Date(y, mo - 1, d, h, mi).getTime();
@@ -232,8 +245,13 @@ export default async function run() {
 		check("ba-cn/1015：① 解析不出时由 ② 预告时间块接住（乐队 3 池合并）",
 			!!b.data && b.data.banner === "限时招募" && b.data.roles === "夏(乐队)、和纱(乐队)、好美(乐队)"
 			&& b.data.bannerDates === "10-08 14:00 ~ 10-22 13:59", JSON.stringify(b.data));
-		check("ba-cn/1015：活动名取最新一篇覆盖当前的活动预告（限时活动：-ive aLIVE!）",
+		// ⚠️ 这份夹具是**裁剪子集**（只留了 aLIVE 一篇活动，10-08 同期其它活动被删）：
+		// 这条只能证明"路径能取到覆盖当前的那一条"，**口径**（多篇同时覆盖时选谁）由下面
+		// 完整 30 条夹具那一节负责 —— 否则"取列表第一篇"的实现也能在这条上假绿。
+		check("ba-cn/1015：裁剪夹具里覆盖当前的活动只有 1 篇 → 外显即它（**口径**见完整夹具那节）",
 			!!b.data && b.data.event === "限时活动：-ive aLIVE!" && b.data.eventDates === "10-08 14:00 ~ 10-22 13:59", JSON.stringify(b.data && b.data.event));
+		check("ba-cn/1015：只有 1 条覆盖当前的活动 → 不设 eventHover（交回 UI 默认两行式）",
+			!!b.data && !("eventHover" in b.data), JSON.stringify(b.data && b.data.eventHover));
 		check("ba-cn/1015：零额外请求（只打列表接口 1 次，不为条目拉详情）", b.calls.length === 1, "requests=" + b.calls.length);
 
 		// 形态 C：只有【预告】（列表里根本没有维护更新说明）→ 证明 ② 不依赖 ①
@@ -366,5 +384,111 @@ export default async function run() {
 			!!now0.data && now0.data.event === "限时活动：-ive aLIVE!" && now0.data.eventDates === "10-08 14:00 ~ 10-22 13:59",
 			JSON.stringify(now0.data));
 		check("活动名：完整 30 条 @10-21 → 只打列表 1 次（不因改名多请求）", now0.calls.length === 1, "requests=" + now0.calls.length);
+	}
+
+	// ── ②③ 口径：外显选谁 + 悬停里有谁（**完整 30 条真实夹具**）────────────────────────
+	// 覆盖当前的**有 4 条**（2026-10-21 03:40 真值）：
+	//   1974 限时活动：-ive aLIVE!       10-08 14:00 ~ 10-22 13:59  ← 剧情正篇
+	//   1968 限时活动：沙勒总决算       10-08 04:00 ~ 10-22 13:59  ← AP→道具→商店的伴随活动
+	//   1967 无限制决战：提翡瑞 • 重装甲 10-09 14:00 ~ 10-29 03:59
+	//   1964 掉落量3倍活动即将开启！     10-15 04:00 ~ 10-23 03:59
+	// 招募类（1973/1972/1971 乐队 3 池）**只算卡池侧**，不许出现在活动悬停里。
+	{
+		const NOW_ISO = "2026-10-21T03:40:00+08:00";
+		const full = await fetchBaCnAt("ba-cn-live-1021", NOW_ISO);
+		const d = full.data || {};
+		const hover = typeof d.eventHover === "string" ? d.eventHover : "";
+		const lines = hover ? hover.split("\n") : [];
+		check("ba-cn/live：@2026-10-21 外显 = 限时活动：-ive aLIVE!（同期的总决算/提翡瑞/掉落量3倍也覆盖当前）",
+			d.event === "限时活动：-ive aLIVE!" && d.eventDates === "10-08 14:00 ~ 10-22 13:59",
+			JSON.stringify([d.event, d.eventDates]));
+		check("ba-cn/live：悬停里**同时**有「沙勒总决算」「提翡瑞」「掉落量3倍」（同期其余活动不再消失）",
+			/沙勒总决算/.test(hover) && /提翡瑞/.test(hover) && /掉落量3倍/.test(hover), JSON.stringify(hover));
+		check("ba-cn/live：悬停第一行 = 外显那条（仓库既有不变量：外显必须出现在悬停里）",
+			lines[0] === "限时活动：-ive aLIVE!   10-08 14:00 ~ 10-22 13:59", JSON.stringify(lines[0]));
+		check("ba-cn/live：悬停 = 覆盖当前的全部 4 条活动；招募池（乐队）**不进**活动悬停",
+			lines.length === 4 && !/招募/.test(hover), "lines=" + lines.length + " hover=" + JSON.stringify(hover));
+		assertHoverConvention("ba-cn/live 活动 eventHover", d.eventHover, { requireSet: true });
+		check("ba-cn/live：只打列表接口 1 次（悬停不额外请求；content 已是全文）",
+			full.calls.length === 1, "requests=" + full.calls.length);
+
+		// ── ③ 反例夹具：把列表里 1968 / 1974 的**顺序对调** ──
+		// 语义 = "运营先发总决算、后发 aLIVE"。旧实现 `events[0]` 在这种排序下会选中**沙勒总决算**；
+		// 源级判断必须仍选 aLIVE。反例在内存里由真实 30 条派生（不改夹具文件，来源可复现）。
+		const baseRows = JSON.parse(fx("ba-cn-live-1021/response.txt")).data.rows;
+		const i68 = baseRows.findIndex((r) => r.id === 1968);
+		const i74 = baseRows.findIndex((r) => r.id === 1974);
+		const swapped = baseRows.slice();
+		[swapped[i68], swapped[i74]] = [swapped[i74], swapped[i68]];
+		const pos68 = swapped.findIndex((r) => r.id === 1968);
+		const pos74 = swapped.findIndex((r) => r.id === 1974);
+		check("反例夹具：1968/1974 已**真的**对调（总决算排到 aLIVE 前面，否则这条反例是假绿）",
+			i68 >= 0 && i74 >= 0 && pos68 < pos74, `1968@${pos68} < 1974@${pos74}`);
+		const counter = await fetchBaCnBody(JSON.stringify({ data: { rows: swapped } }), NOW_ISO);
+		const cd = counter.data || {};
+		// 独立复算「旧口径」（改造前的 `events[0]` = 列表顺序里第一条覆盖当前的活动）：
+		// 必须复算出**总决算**，反例才真的能骗过旧实现 —— 否则"仍是 aLIVE"没有区分力。
+		const nowTs = Date.parse(NOW_ISO);
+		let oldPick = "";
+		for (const r of swapped) {
+			const text = T.baCnNoticeText(r.content);
+			if (!text) continue;
+			const b = T.baCnTimeBlocks(text, 2026, TZ_CN).find((x) => x.tag === "活动" && !x.longTerm
+				&& x.endTs >= nowTs && (x.startTs == null || x.startTs <= nowTs));
+			if (b) { oldPick = T.baCnEventNameFromNotice(r.title, text); break; }
+		}
+		check("反例夹具：按**旧口径**（列表第一篇覆盖当前）会选到总决算 → 反例有区分力",
+			oldPick === "限时活动：沙勒总决算", JSON.stringify(oldPick));
+		check("ba-cn/反例：先发总决算、后发 aLIVE → 外显**仍是** aLIVE（不再取决于发帖顺序）",
+			cd.event === "限时活动：-ive aLIVE!", JSON.stringify(cd.event));
+		check("ba-cn/反例：悬停第一行仍是 aLIVE，且总决算仍在悬停里",
+			String(cd.eventHover || "").split("\n")[0] === "限时活动：-ive aLIVE!   10-08 14:00 ~ 10-22 13:59"
+			&& /沙勒总决算/.test(cd.eventHover || ""), JSON.stringify(cd.eventHover));
+		check("ba-cn/反例：只打列表接口 1 次", counter.calls.length === 1, "requests=" + counter.calls.length);
+	}
+
+	// ── ③ 源级主活动判断（纯函数单测：优先级 / 稳定性 / 容错逐条钉住，不依赖夹具）──────
+	{
+		const ev = (name, extra) => Object.assign({ name, startTs: 1000, endTs: 2000 }, extra || {});
+		check("baCnPickPrimary：空 / 非数组 → null（不抛）",
+			T.baCnPickPrimary([]) === null && T.baCnPickPrimary(null) === null
+			&& T.baCnPickPrimary(undefined) === null && T.baCnPickPrimary("x") === null);
+		check("baCnPickPrimary：① 正文剧情标志 > ② 限时活动（即便后者排前面）",
+			T.baCnPickPrimary([ev("限时活动：A"), ev("总力战：B", { story: true })])?.name === "总力战：B");
+		check("baCnPickPrimary：② 限时活动（不含总决算） > ③ 玩法/加成（总决算被降到 ③）",
+			T.baCnPickPrimary([ev("无限制决战：X"), ev("限时活动：沙勒总决算"), ev("限时活动：-ive aLIVE!")])?.name === "限时活动：-ive aLIVE!");
+		check("baCnPickPrimary：同级保持**列表顺序**（同档多条 → 第一条，刷新不跳变）",
+			T.baCnPickPrimary([ev("限时活动：A"), ev("限时活动：B")])?.name === "限时活动：A");
+		check("baCnPickPrimary：全部同级 → 兜底第一条（= 改造前 events[0]，不会变 null）",
+			T.baCnPickPrimary([ev("掉落量3倍活动即将开启！"), ev("家具互动即将更新")])?.name === "掉落量3倍活动即将开启！");
+		check("baCnPickPrimary：story 缺失时退回看正文 `text`（容错）",
+			T.baCnPickPrimary([{ name: "x", text: "■ 活动故事关卡" }, ev("限时活动：Y")])?.name === "x");
+		check("baCnPickPrimary：story=false 不误判成剧情（仍按名字分级）",
+			T.baCnPickPrimary([ev("限时活动：沙勒总决算", { story: false }), ev("无限制决战：Z", { story: false })])?.name === "限时活动：沙勒总决算");
+		let evilOk = true;
+		try {
+			// 字段 getter 抛异常：tierOf 内部兜住 → 当第三级，不影响其它候选
+			const evil = { get name() { throw new Error("boom"); } };
+			evilOk = T.baCnPickPrimary([evil, ev("限时活动：Y")])?.name === "限时活动：Y";
+		} catch { evilOk = false; }
+		check("baCnPickPrimary：字段 getter 抛异常也不外抛（当第三级）", evilOk);
+	}
+
+	// ── ② 常驻/长期活动：不进当期候选，按既有 permanentCount 约定在悬停末尾补一行计数 ──
+	// 背景：`baCnWindowIn` 默认把 >120 天的窗口判成"常驻/误解析"并 return null（全仓唯一真源），
+	// 于是它们会**无声消失**。现在 `baCnTimeBlocks` 用 keepLongTerm 收下并打标，
+	// `baCnFromNoticeBlocks` 把它们排除出当期、只计入 permanentCount（与通用源同做法）。
+	{
+		const synth = [
+			{ id: 9001, title: "【预告】限时活动：长期开放", content: "■ 活动时间<br>· 活动持续时间：01月01日 00:00 ~ 12月31日 23:59" },
+			{ id: 9002, title: "【预告】限时活动：-ive aLIVE!", content: "■ 活动时间<br>· 活动持续时间：10月08日 14:00 ~ 10月22日 13:59" },
+			{ id: 9003, title: "【预告】掉落量3倍活动即将开启！", content: "■ 活动时间<br>· 活动持续时间：10月15日 04:00 ~ 10月23日 03:59" }
+		];
+		const r = T.baCnFromNoticeBlocks(synth, { now: Date.parse("2026-10-21T03:00:00+08:00"), nowYear: 2026, tz: TZ_CN, previewOnly: true });
+		const rl = (r && r.eventHover ? r.eventHover : "").split("\n");
+		check("常驻/长期（>120 天）不进当期候选 → 外显仍是有明确档期的那条",
+			!!r && r.event === "限时活动：-ive aLIVE!", JSON.stringify(r && r.event));
+		check("常驻/长期活动按 permanentCount 约定出现在悬停末尾（不再无声消失）",
+			!!r && rl.length === 3 && rl[2] === "以及常驻活动 1 项", JSON.stringify(r && r.eventHover));
 	}
 }

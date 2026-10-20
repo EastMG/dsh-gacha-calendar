@@ -5080,7 +5080,10 @@ EVENT_FETCHERS["endfield"] = {
 		}
 
 		// 一行文本里的"起止时间" → {startTs,endTs,startText,endText,raw}；解析不了 / 不够严格 → null
-		function baCnWindowIn(line, nowYear, tz) {
+		// `keepLongTerm`（内部用，默认 false = 原行为）：>120 天的长窗口不 return null，而是带上
+		// `longTerm: true` 返回 —— 供 `baCnTimeBlocks` 统计"常驻/长期活动条数"（悬停末尾那行计数），
+		// 判定本身仍只认全仓唯一真源 `isLongTermWindow`。**不影响任何 3 参调用方**。
+		function baCnWindowIn(line, nowYear, tz, keepLongTerm = false) {
 			const s = String(line || "")
 				.replace(/[：]/g, ":")
 				.replace(/[～〜]/g, "~")
@@ -5114,11 +5117,14 @@ EVENT_FETCHERS["endfield"] = {
 			if (endTs <= startTs) return null;
 			// 超长窗口（>120 天）当常驻/误解析，不参与"当期"判定（阈值与全仓唯一真源共用）
 			const win = { startTs, endTs, startText: "", endText: "", raw: `${fmtMdHm(startTs, tz)} ~ ${fmtMdHm(endTs, tz)}` };
-			if (isLongTermWindow(win)) return null;
+			if (isLongTermWindow(win)) {
+				if (!keepLongTerm) return null;
+				win.longTerm = true;
+			}
 			return win;
 		}
 
-		// 正文 → 时间块数组：[{label, tag:"招募"|"活动"|"", startTs, endTs, raw}]
+		// 正文 → 时间块数组：[{label, tag:"招募"|"活动"|"", startTs, endTs, raw, longTerm?}]
 		// 只认「■ 标签」开头的块，且只收**块内能解析出起止**的行：
 		//   ■ 活动时间
 		//   · 活动持续时间：10月08日 14:00 ~ 10月22日 13:59   ← 这才是**活动本身的档期**
@@ -5143,7 +5149,10 @@ EVENT_FETCHERS["endfield"] = {
 				// 「日期前面那段文字」= 本行的窗口名；命中辅助窗口就直接丢
 				const aux = line.split(/[:：]/)[0];
 				if (/商店|兑换|任務|任务|奖励|獎勵|领取|領取|结算|結算|购买|購買|签到|簽到/.test(aux)) continue;
-				const win = baCnWindowIn(line, nowYear, tz);
+				// ⚠️ keepLongTerm=true：>120 天的长窗口也收进来（带 longTerm 标记），
+				// 由调用方 `baCnFromNoticeBlocks` 排除出"当期"候选、只计 permanentCount。
+				// 若在这里就 return null，长窗口会**无声消失**（"源站有、面板没有"）。
+				const win = baCnWindowIn(line, nowYear, tz, true);
 				if (!win) continue;
 				const tag = /招募/.test(label) ? "招募" : (/活动|活動/.test(label) ? "活动" : "");
 				if (!tag) continue;                     // 维护时间/补偿时间等与卡池/活动无关的块
@@ -5217,24 +5226,88 @@ EVENT_FETCHERS["endfield"] = {
 		}
 
 
+		// 正文里的「剧情/正篇」标志（③ 源级主活动判断的第一优先级）。
+		// 这些都是**只有剧情正篇活动才写进正文**的段落名，实测（2026-10-21 的 30 条）：
+		//   1974「-ive aLIVE!」正文命中 5/5（活动故事关卡 / 活动指南 / 活动限定成员 / 挑战关卡 / 成就任务）
+		//   1968「沙勒总决算」（AP→道具→商店兑换的伴随活动）**0 命中**
+		//   1967「无限制决战：提翡瑞」只命中「挑战关卡」（玩法类，同为第一档 —— 实测无冲突：
+		//   它在列表里排 aLIVE 之后，同级按列表顺序，aLIVE 先）
+		//   1964「掉落量3倍」0 命中
+		const BA_CN_STORY_RE = /活动故事关卡|活动限定成员|活动指南|挑战关卡|成就任务/;
+
+
 		function baCnEventInfoFromNotice(title, text, block) {
 			return {
 				name: baCnEventNameFromNotice(title, text),
 				startTs: block.startTs,
-				endTs: block.endTs
+				endTs: block.endTs,
+				// `story` 只用于**外显挑选**（不进 data、不进悬停文案）：正文有剧情/正篇标志
+				story: BA_CN_STORY_RE.test(String(text || ""))
 			};
 		}
+
+
+		// ③ 国服**源级**主活动判断（只影响 ba-cn；共享的 `pickEventPrimary` 一个字都没改）。
+		//
+		// WHY 需要它：`events` 是按**列表顺序**（= 官方发帖倒序，最新在前）收集的，
+		//   `events[0]` = "最近公布的活动"，与"这期的主活动/正篇"没有因果关系。
+		//   2026-10-21 实测：覆盖当前的有 4 条，`events[0]` 恰好是 aLIVE（碰巧对）：
+		//     1974 限时活动：-ive aLIVE!        ← 剧情正篇（有活动故事关卡/限定成员/指南/小游戏/挑战）
+		//     1968 限时活动：沙勒总决算        ← AP→道具→商店兑换的**伴随活动**（无剧情/无关卡/无成员）
+		//     1967 无限制决战：提翡瑞 • 重装甲  ← 玩法
+		//     1964 掉落量3倍活动即将开启！      ← 加成
+		//   若运营**先发总决算、后发 aLIVE**，`events[0]` 就是总决算 —— 那才是真正的错。
+		//   所以这里按"内容形态"而不是"发帖顺序"选，见下。
+		//
+		// 优先级（**同级内保持传入顺序 = 列表顺序**，不按结束时间等任何其它键 —— 否则同名同档的
+		//   几次刷新会来回跳）：
+		//   ① 正文有剧情/正篇标志（`story`）
+		//   ② 名字含「限时活动」且**不含**「总决算」（排除伴随活动）
+		//   ③ 其余（玩法/加成/其它）
+		//   ④ 兜底：全部同级时就是 `events[0]`（= 改造前行为，不会变成 null）
+		//
+		// 容错：`story` 取不到（旧数据/未算）→ 退回看 `text`；再取不到 → 落到下一级；
+		//   任何离谱入参（null / 非数组 / 抛异常的 getter）都只会退到兜底，**绝不抛**。
+		function baCnPickPrimary(events) {
+			const list = (Array.isArray(events) ? events : []).filter((x) => x && typeof x === "object");
+			if (list.length === 0) return null;
+			const storyOf = (x) => {
+				if (typeof x.story === "boolean") return x.story;
+				const t = typeof x.text === "string" ? x.text : "";
+				return t !== "" && BA_CN_STORY_RE.test(t);
+			};
+			const tierOf = (x) => {
+				try {
+					if (storyOf(x)) return 1;
+					const name = String(x.name == null ? "" : x.name);
+					if (/限时活动/.test(name) && !/总决算/.test(name)) return 2;
+					return 3;
+				} catch {
+					return 3;              // 取字段抛了 → 当"其余"，不影响其它候选
+				}
+			};
+			let best = list[0];
+			let bestTier = tierOf(best);
+			for (let i = 1; i < list.length; i++) {
+				const t = tierOf(list[i]);
+				if (t < bestTier) { best = list[i]; bestTier = t; }
+			}
+			return best;
+		}
+
 
 		// ②/③ 共用：扫**列表行**（content 即全文 → **零额外请求**），挑出覆盖当前时刻的招募/活动时间块。
 		// previewOnly=true → 只认标题带「预告」的条目（②「预告类条目」）；false → 任意条目（③ 兜底）。
 		//
 		// 卡池外显口径与 ① 一致：`限时[限定][复刻]招募`（取档位最优的那类），角色为**同期全部**招募池的成员
-		// 合并（去重、按文档顺序）。活动外显取**列表里第一篇**覆盖当前的活动公告 —— 列表是倒序（最新在前），
-		// 即"官方最近公布的那期活动"；同期其余活动不另做显示（与 ① 的单条活动口径一致）。
+		// 合并（去重、按文档顺序）。活动外显走 `baCnPickPrimary`（③：剧情正篇 > 限时活动 > 其余）；
+		// **同期其余活动一律进 `eventHover`**（②：外显那条排第一，其余按列表顺序逐行）——
+		// 单条时悬停工具返回 ""，交回 UI 的两行式，与其它源一致。
 		function baCnFromNoticeBlocks(rows, opts) {
 			const { now, nowYear, tz, previewOnly } = opts;
 			const pools = [];
 			const events = [];
+			let permanentCount = 0;
 			for (const it of rows || []) {
 				const title = String(it?.title || "");
 				if (previewOnly && !/预告/.test(title)) continue;
@@ -5242,15 +5315,27 @@ EVENT_FETCHERS["endfield"] = {
 				if (!text) continue;                      // 列表 content 被截断 → 跳过（不再为它拉详情：零额外请求）
 				const blocks = baCnTimeBlocks(text, nowYear, tz);
 				if (blocks.length === 0) continue;
-				const rec = blocks.find((b) => b.tag === "招募" && coversNow(b, now));
+				// 常驻/长期（>120 天，判定走全仓唯一真源）不参与"当期"，但也不能无声消失：
+				// 末尾按既有 `permanentCount` 约定补一行计数（与通用源 `genericEventPayload` 同做法）。
+				permanentCount += blocks.filter((b) => b.tag === "活动" && b.longTerm && coversNow(b, now)).length;
+				const rec = blocks.find((b) => b.tag === "招募" && !b.longTerm && coversNow(b, now));
 				if (rec) pools.push(baCnPoolInfoFromNotice(title, text, rec));
-				const ev = blocks.find((b) => b.tag === "活动" && coversNow(b, now));
+				const ev = blocks.find((b) => b.tag === "活动" && !b.longTerm && coversNow(b, now));
 				if (ev) events.push(baCnEventInfoFromNotice(title, text, ev));
 			}
 			if (pools.length === 0 && events.length === 0) return null;
 			const ranked = pools.slice().sort((a, b) => (BA_CN_POOL_RANK[a.kind] ?? 9) - (BA_CN_POOL_RANK[b.kind] ?? 9));
 			const primary = ranked[0] || null;
-			const ev = events[0] || null;
+			const ev = baCnPickPrimary(events);
+			// ② 悬停：**外显那条排第一**（仓库既有不变量：外显必须能在悬停里看到），其余按列表顺序。
+			// 零额外请求（content 已是全文）；<2 条时返回 ""（或只剩常驻计数行）。
+			//
+			// ⚠️ 用 `hoverEvent(…, tz)` 而不是 `buildEventHover(…)`：两者排版**逐字一致**
+			//   （`hoverEvent` 就是本体的 tz 版复刻），但本体 `buildEventHover` **不接受 tz**，
+			//   它会用**机器本地时区**格式化档期。ba-cn 的 `eventDates` 是 `fmtWindow(..., tz)`
+			//   （源站 +08 墙钟），混用会让 UTC 机器上的悬停比外显行**早 8 小时**
+			//   （2026-10-21 在 `$env:TZ=UTC` 下实测到：悬停 06:00 vs 外显 14:00）。
+			const eventHover = hoverEvent(ev ? [ev, ...events.filter((x) => x !== ev)] : events, tz, permanentCount);
 			const data = {
 				banner: primary ? primary.typeName : "",
 				roles: [...new Set(pools.map((p) => p.member).filter(Boolean))].join("、"),
@@ -5258,6 +5343,7 @@ EVENT_FETCHERS["endfield"] = {
 				event: ev ? ev.name : "",
 				eventDates: ev ? fmtWindow(ev.startTs, ev.endTs, tz) : ""
 			};
+			if (eventHover) data.eventHover = eventHover;
 			if (!data.banner && !data.event) return null;
 			return data;
 		}
