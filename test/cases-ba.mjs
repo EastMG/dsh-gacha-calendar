@@ -232,15 +232,15 @@ export default async function run() {
 		check("ba-cn/1015：① 解析不出时由 ② 预告时间块接住（乐队 3 池合并）",
 			!!b.data && b.data.banner === "限时招募" && b.data.roles === "夏(乐队)、和纱(乐队)、好美(乐队)"
 			&& b.data.bannerDates === "10-08 14:00 ~ 10-22 13:59", JSON.stringify(b.data));
-		check("ba-cn/1015：活动名取最新一篇覆盖当前的活动预告（-ive aLIVE!）",
-			!!b.data && b.data.event === "-ive aLIVE!" && b.data.eventDates === "10-08 14:00 ~ 10-22 13:59", JSON.stringify(b.data && b.data.event));
+		check("ba-cn/1015：活动名取最新一篇覆盖当前的活动预告（限时活动：-ive aLIVE!）",
+			!!b.data && b.data.event === "限时活动：-ive aLIVE!" && b.data.eventDates === "10-08 14:00 ~ 10-22 13:59", JSON.stringify(b.data && b.data.event));
 		check("ba-cn/1015：零额外请求（只打列表接口 1 次，不为条目拉详情）", b.calls.length === 1, "requests=" + b.calls.length);
 
 		// 形态 C：只有【预告】（列表里根本没有维护更新说明）→ 证明 ② 不依赖 ①
 		const c = await fetchBaCnAt("ba-cn-preview-1008", "2026-10-21T03:00:00+08:00");
 		check("ba-cn/preview：列表里没有维护公告时，② 预告时间块独立可用",
 			!!c.data && c.data.roles === "夏(乐队)、和纱(乐队)、好美(乐队)"
-			&& c.data.bannerDates === "10-08 14:00 ~ 10-22 13:59" && c.data.event === "-ive aLIVE!", JSON.stringify(c.data));
+			&& c.data.bannerDates === "10-08 14:00 ~ 10-22 13:59" && c.data.event === "限时活动：-ive aLIVE!", JSON.stringify(c.data));
 
 		// 未开始/已结束：乐队池 10-22 13:59 结束；过了这个点、又没有别的覆盖当前的预告
 		//   → 必须 nomatch（不能把已结束的档期继续显示）
@@ -312,11 +312,11 @@ export default async function run() {
 		const nameOf = (id) => T.baCnEventName(titleOf(id));
 
 		// ① 当期这条：冒号前是纯类别词「限时活动」→ 与仓库既有口径一致，只留活动名（**这次不改坏**）
-		check("活动名：当期 1974 仍是「-ive aLIVE!」（类别词前缀按既有口径去掉）",
-			titleOf(1974) === "【预告】限时活动：-ive aLIVE!" && nameOf(1974) === "-ive aLIVE!",
+		check("活动名：当期 1974 为「限时活动：-ive aLIVE!」（用户指定：连类别一起显示）",
+			titleOf(1974) === "【预告】限时活动：-ive aLIVE!" && nameOf(1974) === "限时活动：-ive aLIVE!",
 			JSON.stringify([titleOf(1974), nameOf(1974)]));
-		check("活动名：同类 1983 / 1968 / 1962 也只留名字（Say-Bing! / 沙勒总决算 / 夏日天空的约定）",
-			nameOf(1983) === "Say-Bing!" && nameOf(1968) === "沙勒总决算" && nameOf(1962) === "夏日天空的约定",
+		check("活动名：同类 1983 / 1968 / 1962 同样连类别一起显示（限时活动：Say-Bing! / 沙勒总决算 / 夏日天空的约定）",
+			nameOf(1983) === "限时活动：Say-Bing!" && nameOf(1968) === "限时活动：沙勒总决算" && nameOf(1962) === "限时活动：夏日天空的约定",
 			JSON.stringify([nameOf(1983), nameOf(1968), nameOf(1962)]));
 
 		// ② 玩法前缀：必须**保留**（这是"不完整"的实际现场）
@@ -351,7 +351,7 @@ export default async function run() {
 			T.baCnEventNameFromNotice("【预告】限时活动：某某", "以下是更新内容：\n1、更新限时活动【沙勒总决算】\n■ 活动时间") === "沙勒总决算",
 			JSON.stringify(T.baCnEventNameFromNotice("【预告】限时活动：某某", "以下是更新内容：\n1、更新限时活动【沙勒总决算】\n■ 活动时间")));
 		check("活动名：正文深处（>6 行）的「活动【…】」不当作名字（不抓成整段）",
-			T.baCnEventNameFromNotice("【预告】限时活动：某活动", ["a", "b", "c", "d", "e", "f", "g", "h【活动时间】", "活动【不是名字】"].join("\n")) === "某活动",
+			T.baCnEventNameFromNotice("【预告】限时活动：某活动", ["a", "b", "c", "d", "e", "f", "g", "h【活动时间】", "活动【不是名字】"].join("\n")) === "限时活动：某活动",
 			JSON.stringify(T.baCnEventNameFromNotice("【预告】限时活动：某活动", ["a", "b", "c", "d", "e", "f", "g", "h", "活动【不是名字】"].join("\n"))));
 
 		// ⑤ 端到端：只喂 1977 那一篇真实行（10-22 14:00 ~ 10-29 03:59），活动名必须是完整的
@@ -362,8 +362,8 @@ export default async function run() {
 			JSON.stringify(e2e));
 		// ⑥ 端到端：完整 30 条 @ 2026-10-21 03:40（= 报 bug 的时刻），当期活动名与档期都要对
 		const now0 = await fetchBaCnAt("ba-cn-live-1021", "2026-10-21T03:40:00+08:00");
-		check("活动名：完整 30 条 @10-21 → 当期 = -ive aLIVE!（10-08 14:00 ~ 10-22 13:59）",
-			!!now0.data && now0.data.event === "-ive aLIVE!" && now0.data.eventDates === "10-08 14:00 ~ 10-22 13:59",
+		check("活动名：完整 30 条 @10-21 → 当期 = 限时活动：-ive aLIVE!（10-08 14:00 ~ 10-22 13:59）",
+			!!now0.data && now0.data.event === "限时活动：-ive aLIVE!" && now0.data.eventDates === "10-08 14:00 ~ 10-22 13:59",
 			JSON.stringify(now0.data));
 		check("活动名：完整 30 条 @10-21 → 只打列表 1 次（不因改名多请求）", now0.calls.length === 1, "requests=" + now0.calls.length);
 	}
