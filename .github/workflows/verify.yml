@@ -22,6 +22,6 @@ jobs:
         run: node build.mjs --check
 
       # 夹具（test/fixtures/**/response.txt，约 12MB 抓包存档）已入库 ⇒ 干净检出即可跑全量套件。
-      - name: 门禁 ②　测试套件（1698 通过 / 0 失败）
+      - name: 门禁 ②　测试套件（全绿）
         working-directory: test
         run: node all.mjs

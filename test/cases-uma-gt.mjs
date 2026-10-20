@@ -157,10 +157,10 @@ export default async function run() {
 		const alts = (src && src.altSources) || [];
 		const gt = alts.find((a) => /gachatracker/.test(String(a.url)));
 		const off = alts.find((a) => /umamusume\.com/.test(String(a.url)));
-		check("GachaTracker 已降级为备选，label 注明「境外 · 联通不稳/数据陈旧」",
-			!!gt && /境外/.test(gt.label) && /数据陈旧/.test(gt.label) && gt.fetcher === "uma-global-gt", JSON.stringify(gt));
-		check("官方公告保留为最后兜底，label 注明「曾按出口 IP 封锁，可能不可用」",
-			!!off && /封锁/.test(off.label), JSON.stringify(off));
+		check("GachaTracker 已降级为备选，label 注明「英文 · 不可靠」",
+			!!gt && /英文/.test(gt.label) && /不可靠/.test(gt.label) && gt.fetcher === "uma-global-gt", JSON.stringify(gt));
+		check("官方公告保留为最后兜底，label 注明「英文 · 不可靠」",
+			!!off && /不可靠/.test(off.label), JSON.stringify(off));
 		check("三个抓取器都登记了（uma-global / uma-global-gt / uma-global-official）",
 			typeof T.GACHA_FETCHERS["uma-global"] === "function" && typeof T.GACHA_FETCHERS["uma-global-gt"] === "function"
 			&& typeof T.GACHA_FETCHERS["uma-global-official"] === "function");
