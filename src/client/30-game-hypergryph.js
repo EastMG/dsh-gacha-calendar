@@ -354,24 +354,67 @@
 		//   · 有覆盖当前时刻的期次 → 返回数据；
 		//   · 拿到 JS 且里面有卡池结构、但没有覆盖当前的期次 → return null（未公布）；
 		//   · 页面/所有 chunk 里都找不到卡池结构（或 chunk 全抓失败）→ **抛错**（面板显示"卡池失败"）。
+		//
+		// ── 2026-10-21 P2-2（用户点名）：串行 19 个 chunk → **限流并发 + 早停** ──
+		// 改前实测（本机，真实网络）：单侧 **20 请求 / 1184~1989ms**（该站 p50 0.30s —— 慢在串行排队，
+		// 每个 chunk 只 ~60ms，19 个叠起来就是 1.2s+）。三点改动与各自的**正确性依据**：
+		//
+		// a) 限流并发：每轮最多 `CANMOE_CHUNK_CONCURRENCY` 路（6）。错误语义**不变**：
+		//    单个 chunk 失败 → 记 lastErr、继续；全部失败 → 抛 lastErr；都成功但都没有结构 → layout-changed。
+		//
+		// b) 早停：**只要本轮有 chunk 解析出当期数据，就不再发下一轮**。
+		//    「数据完整」的判据：本函数需要的**全部**字段（当期池名 / 角色 / 起止 / 悬停池列表）都来自
+		//    同一个 chunk —— `currentFromCanmoe` 读 `d={…}` 与期次数组，`canmoePoolHover` 读同一份期次数组。
+		//    所以"currentFromCanmoe 返回非空对象"就是"所需数据已齐"的充要条件：该 chunk 命中后，其余 chunk
+		//    不会再提供任何本函数用到的字段。逐 chunk 实测（2026-10-21，19 个 chunk 逐个单独喂给抓取器）：
+		//    只有 1 个能返回非空（其余 `undefined` = 没有该结构，或 `null` = 结构在但无当期）。
+		//    ⚠️ 早停只发生在"命中"时；"结构在但无当期"（null）仍需继续扫完 —— 那一期可能是别的 chunk 才有。
+		//
+		// c) 抓取顺序：flight 列表**倒序**（页面/组件专属块通常排在共享块之后；实测数据块在倒数第 3）。
+		//    顺序**只是延迟启发式，不影响结果**：同一轮内若多个 chunk 同时命中，取**原始下标最小**者
+		//    （= 原串行实现会选中的那个）；一轮没命中就继续下一轮、直到抓完 —— 最坏情况退化成原来的全量扫描，
+		//    不会比改前更慢/更少数据。
+		//
+		// 为什么不去找 `_next/data/<buildId>/….json`（c 项探测结论：**该站没有现成 JSON API**）：
+		//   · 页面是 App Router 静态导出：HTML 里**没有** `buildId`、没有 `_next/data` 引用；
+		//   · 页面 HTML（含内联 RSC payload `self.__next_f.push`）里 `periodStart` 出现 **0** 次 ——
+		//     排期数据既不在 HTML、也不在 RSC payload 里，只在静态 chunk 里；
+		//   · 浏览器实跑该页的 XHR/fetch 只有 `changelog.json` / `version.json` / `announcements/*.md` /
+		//     `end-ops.canmoe.com/api/v1/{creatives,notice}.json`（公告与广告），**没有**排期接口。
+		//   ⇒ 读 chunk 是唯一路径，优化只能做在这条路径上。
+		const CANMOE_CHUNK_CONCURRENCY = 6;
+
 		async function fetchCanmoeEndfield(pageUrl, _signal, tz, now = nowMs()) {
-			const html = await proxyFetchText(pageUrl, "https://end.canmoe.com/");
+			const CANMOE_REF = "https://end.canmoe.com/";
+			const html = await proxyFetchText(pageUrl, CANMOE_REF);
 			const chunks = nextJsChunkUrls(html, "BannerCalendar", pageUrl);
 			if (chunks.length === 0) throw new Error("canmoe-no-chunk");   // 页面拿到了但没有数据块链接 = 改版
+			// 倒序（c）：数组末尾更可能是页面专属/数据块。`i` 保留原始下标，供同轮多命中时取最小者。
+			const ordered = chunks.map((url, i) => ({ url, i })).reverse();
 			let fetchedAny = false, sawStructure = false, lastErr = null;
-			for (const c of chunks) {
-				let js = null;
-				try {
-					js = await proxyFetchText(c, "https://end.canmoe.com/");
-				} catch (err) {
-					lastErr = err;      // 单个 chunk 抓失败：继续试下一个（错误留着，全失败时抛出去）
-					continue;
+			for (let p = 0; p < ordered.length; p += CANMOE_CHUNK_CONCURRENCY) {
+				const wave = ordered.slice(p, p + CANMOE_CHUNK_CONCURRENCY);
+				// 一轮并发：失败**不** reject 整个 Promise.all（保持"单个失败 → 换下一个"的语义）
+				const results = await Promise.all(wave.map(async (x) => {
+					try {
+						return { x, js: await proxyFetchText(x.url, CANMOE_REF) };
+					} catch (err) {
+						return { x, err };
+					}
+				}));
+				const hits = [];
+				for (const r of results) {
+					if (r.err) { lastErr = r.err; continue; }
+					fetchedAny = true;
+					const d = currentFromCanmoe(r.js, now, tz);
+					if (d === void 0) continue;      // 这份 chunk 里没有卡池结构 → 看下一份
+					sawStructure = true;
+					if (d) hits.push({ d, js: r.js, i: r.x.i });
 				}
-				fetchedAny = true;
-				const d = currentFromCanmoe(js, now, tz);
-				if (d === void 0) continue;      // 这份 chunk 里没有卡池结构 → 看下一个
-				sawStructure = true;
-				if (d) {
+				if (hits.length > 0) {
+					// 同轮多命中 → 取原始下标最小者（= 原串行实现会选中的那份）；早停：不再发下一轮
+					hits.sort((a, b) => a.i - b.i);
+					const { d, js } = hits[0];
 					const hover = canmoePoolHover(js, now);
 					if (hover) d.bannerHover = hover;
 					return d;

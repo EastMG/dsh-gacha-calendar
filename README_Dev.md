@@ -74,8 +74,8 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 13 段用例（P5X / B1~B3 / P4~P9 + 规则静态守卫 + README 结构图守卫 + core 产物守卫）
-│   ├── cases-*.mjs  # 各段用例（13 个：cases-p5x / b1~b3 / p4~p9 / rule-lint / readme / core）
+│   ├── all.mjs      # 统一门禁：聚 14 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 + 规则静态守卫 + README 结构图守卫 + core 产物守卫）
+│   ├── cases-*.mjs  # 各段用例（14 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / rule-lint / readme / core）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
 │   ├── registry-shim.mjs # 各批次注册表规格快照 + DRIFT 守卫（与运行时 SOURCES 核对 tz/name）

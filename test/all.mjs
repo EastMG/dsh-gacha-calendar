@@ -21,6 +21,7 @@ import runP6 from "./cases-p6.mjs";
 import runP7 from "./cases-p7.mjs";
 import runP8 from "./cases-p8.mjs";
 import runP9 from "./cases-p9.mjs";
+import runBa from "./cases-ba.mjs";
 import runRuleLint from "./cases-rule-lint.mjs";
 import runReadme from "./cases-readme.mjs";
 import runCore from "./cases-core.mjs";
@@ -80,7 +81,7 @@ section("夹具卫生");
 	check("夹具非空", fx.length > 0, String(fx.length));
 	check("夹具数量 ≥ 20（各批都抓了真实响应）", fx.length >= 20, String(fx.length));
 	check("夹具命名带批次前缀（便于溯源）",
-		fx.every((f) => /^(p5x|p4|p5|p6|p7|p8|p9|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori)/.test(f)), fx.slice(0, 5).join(","));
+		fx.every((f) => /^(p5x|p4|p5|p6|p7|p8|p9|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba)/.test(f)), fx.slice(0, 5).join(","));
 }
 //#endregion
 
@@ -96,6 +97,7 @@ const batches = [
 	["P7 星塔旅人（悠星官方 CMS API）", runP7],
 	["P8 bwiki wikitext（战双 SMW+公告 / 卡厄斯 Lua / 雪松模板）", runP8],
 	["P9 biligame 官方（物华活动 / 闪耀）+ OurNotes 国际服", runP9],
+	["蔚蓝档案（国服公告时间块 / 国际服 GameKee 当期卡池表）", runBa],
 	["规则静态守卫（方案 A 悬停 + 选当期判定不许各写各的）", runRuleLint],
 	["README 结构图与事实性", runReadme],
 	["core 产物（零宿主依赖 + 注册幂等）", runCore]

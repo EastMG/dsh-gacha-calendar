@@ -326,6 +326,14 @@
 			fmtWindow,
 			fmtMdHm,
 			pad2,
+			// 蔚蓝档案：GameKee「当期卡池」表解析（纯函数，吃编辑器 block 数组）
+			gkBaPoolRoles,
+			// 蔚蓝档案·国服：「■ 标签 + 起止时间」通用块解析（纯函数，吃已清洗正文）
+			baCnNoticeText,
+			baCnWindowIn,
+			baCnTimeBlocks,
+			baCnFromNoticeBlocks,
+			parseBaCnMaintText,
 			decodeEntities,
 			stripTags,
 			textOf,

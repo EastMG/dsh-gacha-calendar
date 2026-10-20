@@ -3872,24 +3872,67 @@ EVENT_FETCHERS["wuwa"] = {
 		//   · 有覆盖当前时刻的期次 → 返回数据；
 		//   · 拿到 JS 且里面有卡池结构、但没有覆盖当前的期次 → return null（未公布）；
 		//   · 页面/所有 chunk 里都找不到卡池结构（或 chunk 全抓失败）→ **抛错**（面板显示"卡池失败"）。
+		//
+		// ── 2026-10-21 P2-2（用户点名）：串行 19 个 chunk → **限流并发 + 早停** ──
+		// 改前实测（本机，真实网络）：单侧 **20 请求 / 1184~1989ms**（该站 p50 0.30s —— 慢在串行排队，
+		// 每个 chunk 只 ~60ms，19 个叠起来就是 1.2s+）。三点改动与各自的**正确性依据**：
+		//
+		// a) 限流并发：每轮最多 `CANMOE_CHUNK_CONCURRENCY` 路（6）。错误语义**不变**：
+		//    单个 chunk 失败 → 记 lastErr、继续；全部失败 → 抛 lastErr；都成功但都没有结构 → layout-changed。
+		//
+		// b) 早停：**只要本轮有 chunk 解析出当期数据，就不再发下一轮**。
+		//    「数据完整」的判据：本函数需要的**全部**字段（当期池名 / 角色 / 起止 / 悬停池列表）都来自
+		//    同一个 chunk —— `currentFromCanmoe` 读 `d={…}` 与期次数组，`canmoePoolHover` 读同一份期次数组。
+		//    所以"currentFromCanmoe 返回非空对象"就是"所需数据已齐"的充要条件：该 chunk 命中后，其余 chunk
+		//    不会再提供任何本函数用到的字段。逐 chunk 实测（2026-10-21，19 个 chunk 逐个单独喂给抓取器）：
+		//    只有 1 个能返回非空（其余 `undefined` = 没有该结构，或 `null` = 结构在但无当期）。
+		//    ⚠️ 早停只发生在"命中"时；"结构在但无当期"（null）仍需继续扫完 —— 那一期可能是别的 chunk 才有。
+		//
+		// c) 抓取顺序：flight 列表**倒序**（页面/组件专属块通常排在共享块之后；实测数据块在倒数第 3）。
+		//    顺序**只是延迟启发式，不影响结果**：同一轮内若多个 chunk 同时命中，取**原始下标最小**者
+		//    （= 原串行实现会选中的那个）；一轮没命中就继续下一轮、直到抓完 —— 最坏情况退化成原来的全量扫描，
+		//    不会比改前更慢/更少数据。
+		//
+		// 为什么不去找 `_next/data/<buildId>/….json`（c 项探测结论：**该站没有现成 JSON API**）：
+		//   · 页面是 App Router 静态导出：HTML 里**没有** `buildId`、没有 `_next/data` 引用；
+		//   · 页面 HTML（含内联 RSC payload `self.__next_f.push`）里 `periodStart` 出现 **0** 次 ——
+		//     排期数据既不在 HTML、也不在 RSC payload 里，只在静态 chunk 里；
+		//   · 浏览器实跑该页的 XHR/fetch 只有 `changelog.json` / `version.json` / `announcements/*.md` /
+		//     `end-ops.canmoe.com/api/v1/{creatives,notice}.json`（公告与广告），**没有**排期接口。
+		//   ⇒ 读 chunk 是唯一路径，优化只能做在这条路径上。
+		const CANMOE_CHUNK_CONCURRENCY = 6;
+
 		async function fetchCanmoeEndfield(pageUrl, _signal, tz, now = nowMs()) {
-			const html = await proxyFetchText(pageUrl, "https://end.canmoe.com/");
+			const CANMOE_REF = "https://end.canmoe.com/";
+			const html = await proxyFetchText(pageUrl, CANMOE_REF);
 			const chunks = nextJsChunkUrls(html, "BannerCalendar", pageUrl);
 			if (chunks.length === 0) throw new Error("canmoe-no-chunk");   // 页面拿到了但没有数据块链接 = 改版
+			// 倒序（c）：数组末尾更可能是页面专属/数据块。`i` 保留原始下标，供同轮多命中时取最小者。
+			const ordered = chunks.map((url, i) => ({ url, i })).reverse();
 			let fetchedAny = false, sawStructure = false, lastErr = null;
-			for (const c of chunks) {
-				let js = null;
-				try {
-					js = await proxyFetchText(c, "https://end.canmoe.com/");
-				} catch (err) {
-					lastErr = err;      // 单个 chunk 抓失败：继续试下一个（错误留着，全失败时抛出去）
-					continue;
+			for (let p = 0; p < ordered.length; p += CANMOE_CHUNK_CONCURRENCY) {
+				const wave = ordered.slice(p, p + CANMOE_CHUNK_CONCURRENCY);
+				// 一轮并发：失败**不** reject 整个 Promise.all（保持"单个失败 → 换下一个"的语义）
+				const results = await Promise.all(wave.map(async (x) => {
+					try {
+						return { x, js: await proxyFetchText(x.url, CANMOE_REF) };
+					} catch (err) {
+						return { x, err };
+					}
+				}));
+				const hits = [];
+				for (const r of results) {
+					if (r.err) { lastErr = r.err; continue; }
+					fetchedAny = true;
+					const d = currentFromCanmoe(r.js, now, tz);
+					if (d === void 0) continue;      // 这份 chunk 里没有卡池结构 → 看下一份
+					sawStructure = true;
+					if (d) hits.push({ d, js: r.js, i: r.x.i });
 				}
-				fetchedAny = true;
-				const d = currentFromCanmoe(js, now, tz);
-				if (d === void 0) continue;      // 这份 chunk 里没有卡池结构 → 看下一个
-				sawStructure = true;
-				if (d) {
+				if (hits.length > 0) {
+					// 同轮多命中 → 取原始下标最小者（= 原串行实现会选中的那份）；早停：不再发下一轮
+					hits.sort((a, b) => a.i - b.i);
+					const { d, js } = hits[0];
 					const hover = canmoePoolHover(js, now);
 					if (hover) d.bannerHover = hover;
 					return d;
@@ -4643,9 +4686,196 @@ EVENT_FETCHERS["endfield"] = {
 		}
 
 
+		// ---- GameKee「往期卡池一览」→ 国际服**角色名**（2026-10-21，用户点名 https://www.gamekee.com/ba/609133.html）----
+		//
+		// 背景：2026-10-21 把 ba-global 默认源换成 GameKee 后，`fetchGameKeeBa` 只从**标题**拿池名
+		//   （「国际服当期卡池评测：岚过天晴【10/13~10/27】」），`roles` 恒为空 ⇒ 卡池列从「特選招募＋角色名」
+		//   退化成「池名」。用户点名了这个页面，实测结论：
+		//   · `https://www.gamekee.com/ba/609133.html` 的 HTML 是**纯 SPA 壳**（3.4KB，"<div id=app>"，
+		//     全文没有池名/角色名/招募时间）→ 直接从 HTML 抓是**不可行**的；
+		//   · 但同一份内容有**结构化 JSON**：`/v1/content/detail/609133` 给出 `content_cdn`，
+		//     那个 CDN JSON 的 `content` 是编辑器 block 数组，其中「当期卡池」分节就是一张表：
+		//       paragraph「当期卡池」 → table(表头 卡池图标/PU学生/卡池时间) → table(数据行)
+		//       数据行 ["", "旬( 泳装)", "10月13日～10月27日"] / ["", "妃姬(泳装)", ""]（合并单元格 → 时间留空）
+		//     ⇒ 池名 + 角色名 + 起止**都有**，可以接进抓取器。
+		//
+		// 交叉验证（2026-10-21，本机真实网络）：Nexon 官方更新日誌（`ba-global-nexon` 备选源）同一时刻给出
+		//   `特選招募 / 妃姬(泳裝)、旬(泳裝) / 10-13 00:00 ~ 10-27 09:59` —— 与本表 **10月13日～10月27日 +
+		//   旬/妃姬** 完全一致（仅简繁差异：GameKee 简体「泳装」，与本站其余文本一致，故采用 GameKee 写法）。
+		//
+		// 成本：**2 次**额外请求（detail + CDN JSON，后者约 1MB，含全部历史卡池；我们只取「当期卡池」那张表）。
+		//   为什么不能省掉 detail：CDN URL 带 `?v=<更新时间戳>`，只有从 detail 拿到的那个才是**当期版本**；
+		//   去掉 `?v` 可能命中 CDN 旧缓存 → 表里的档期不覆盖 now → 会被下面的校验判掉（宁缺勿错，但也等于白抓）。
+		//   为什么不是"每池一次详情"：这里只有**一次**固定开销，与池数无关。
+		const GK_BA_POOL_CONTENT_ID = 609133;   // 「际服卡池」词条；目录树里找不到它时的兜底 id
+
+		// block（编辑器节点树）→ 纯文本
+		function gkBlockText(node) {
+			let s = "";
+			const walk = (n) => {
+				if (typeof n === "string") { s += n; return; }
+				if (Array.isArray(n)) { for (const x of n) walk(x); return; }
+				if (n && typeof n === "object") {
+					if (typeof n.text === "string") s += n.text;
+					if (n.children) walk(n.children);
+				}
+			};
+			walk(node);
+			return s.replace(/\u00a0/g, " ").replace(/[ \t\r\n]+/g, " ").trim();
+		}
+
+		// 表格里的"无年份"档期 → 窗口：`10月13日～10月27日` / `10/13~10/27` / `2026/10/13 ~ 2026/10/27`
+		// 与 `parseGkRange` 同口径（本机时区墙钟、日粒度：起点 00:00、终点 23:59），另加跨年与可选钟点。
+		function gkBaTableWindow(raw, nowYear) {
+			const s = String(raw || "").replace(/[（(][^）)]*[）)]/g, " ").trim();
+			if (!s) return null;
+			const parts = s.split(/[~～〜]|—|–|－|\s-\s|至|到/).map((x) => x.trim()).filter(Boolean);
+			if (parts.length < 2) return null;
+			const side = (p, year, isEnd) => {
+				const md = p.match(/(\d{1,2})\s*[\/月]\s*(\d{1,2})\s*日?/);
+				if (!md) return null;
+				const hm = p.match(/(\d{1,2})[:：](\d{2})/);
+				const mo = Number(md[1]), d = Number(md[2]);
+				if (!(mo >= 1 && mo <= 12) || !(d >= 1 && d <= 31)) return null;
+				const h = hm ? Number(hm[1]) : (isEnd ? 23 : 0);
+				const mi = hm ? Number(hm[2]) : (isEnd ? 59 : 0);
+				return new Date(year, mo - 1, d, h, mi).getTime();
+			};
+			const am = (parts[0].match(/(\d{1,2})\s*[\/月]/) || [])[1];
+			const bm = (parts[1].match(/(\d{1,2})\s*[\/月]/) || [])[1];
+			const a = side(parts[0], nowYear, false);
+			const b = side(parts[1], am != null && bm != null && endsNextYear(Number(am), null, Number(bm), null) ? nowYear + 1 : nowYear, true);
+			if (a == null || b == null || b <= a) return null;
+			return { startTs: a, endTs: b };
+		}
+
+		// 「当期卡池」表格 → 按档期分组的角色名（[{win, roles}]）；表结构不认识 → null
+		function gkBaPoolGroups(blocks, nowYear) {
+			if (!Array.isArray(blocks)) return null;
+			let start = -1;
+			for (let i = 0; i < blocks.length; i++) {
+				if (blocks[i]?.type !== "paragraph") continue;
+				if (/当期卡池/.test(gkBlockText(blocks[i]))) { start = i; break; }
+			}
+			if (start < 0) return null;
+			const groups = [];
+			let header = null;          // {role, time} 列下标：表头可能在**另一张** table 里（实测如此），故跨表保留
+			const pushRoles = (g, cell) => {
+				for (const part of String(cell || "").split(/[、,，\/\n]/)) {
+					const n = gkBaRoleName(part);
+					if (n && !/^卡池(图标|名)?$|^PU学生$|^时间$|^日期$/.test(n)) g.roles.push(n);
+				}
+			};
+			for (let i = start + 1; i < blocks.length; i++) {
+				const b = blocks[i];
+				if (b?.type === "paragraph") {
+					// 下一个分节（「历史卡池」等）→ 当期段结束
+					if (/历史卡池|往期卡池|往期/.test(gkBlockText(b))) break;
+					continue;
+				}
+				if (b?.type !== "table") continue;
+				for (const row of (b.children || [])) {
+					if (row?.type !== "table-row") continue;
+					const cells = (row.children || []).filter((c) => c?.type === "table-cell").map((c) => gkBlockText(c));
+					if (cells.length === 0) continue;
+					// 表头行：带「PU学生/角色/卡池名」+「时间/日期」
+					if (cells.some((c) => /PU学生|角色|卡池名/.test(c)) && cells.some((c) => /时间|日期/.test(c))) {
+						header = {
+							role: cells.findIndex((c) => /PU学生|角色/.test(c)),
+							time: cells.findIndex((c) => /时间|日期/.test(c))
+						};
+						continue;
+					}
+					// 数据行
+					let roleCell = header && header.role >= 0 ? (cells[header.role] || "") : "";
+					let timeCell = header && header.time >= 0 ? (cells[header.time] || "") : "";
+					if (!header) {   // 没有表头 → 启发式：含档期的是时间列，另一个非空且不像档期的是角色列
+						const ti = cells.findIndex((c) => gkBaTableWindow(c, nowYear));
+						timeCell = ti >= 0 ? cells[ti] : "";
+						roleCell = cells.find((c, k) => k !== ti && c && !gkBaTableWindow(c, nowYear)) || "";
+					}
+					const win = gkBaTableWindow(timeCell, nowYear);
+					if (win) groups.push({ win, roles: [] });
+					const g = groups[groups.length - 1];
+					if (g && roleCell) pushRoles(g, roleCell);
+				}
+			}
+			return groups;
+		}
+
+		// 角色名清洗：去「」、去 `★3` 前缀、括号内空格归一（"旬( 泳装)" → "旬(泳装)"），
+		// 最后交给 baRoleName（全角括号 → 半角），与国服/日服两侧的展示口径一致。
+		function gkBaRoleName(s) {
+			return baRoleName(String(s || "")
+				.replace(/[「」]/g, "")
+				.replace(/^\s*★\s*\d+\s*/, "")
+				.replace(/\s+/g, " ")
+				.replace(/\s*[（(]\s*/g, "(")
+				.replace(/\s*[）)]\s*/g, ")")
+				.trim());
+		}
+
+		// 从「当期卡池」表里选**当期那一组**角色名。宁缺勿错：
+		//   ① 与卡池标题里的档期**同月同日** → 直接采信（两处独立填写、一致才用）；
+		//   ② 否则必须"恰好只有一组覆盖 now" → 采信；
+		//   ③ 其它情况（表里档期与标题不符、或同时有多组覆盖 now）→ 返回 ""（保持改造前的空 roles）。
+		function gkBaPoolRoles(blocks, now, nowYear, titleWindow) {
+			const groups = gkBaPoolGroups(blocks, nowYear);
+			if (!groups || groups.length === 0) return "";
+			const joined = (g) => [...new Set(g.roles)].join("、");
+			const md = (ts) => { const d = new Date(ts); return `${d.getMonth() + 1}/${d.getDate()}`; };
+			if (titleWindow && titleWindow.startTs != null && titleWindow.endTs != null) {
+				const hit = groups.find((g) => g.win && md(g.win.startTs) === md(titleWindow.startTs) && md(g.win.endTs) === md(titleWindow.endTs) && g.roles.length);
+				if (hit) return joined(hit);
+			}
+			const cov = groups.filter((g) => g.win && coversNow(g.win, now) && g.roles.length);
+			if (cov.length === 1) return joined(cov[0]);
+			return "";
+		}
+
+		// 目录树里找「际服卡池」词条（站内标题缺字，正是「际服卡池」；也兼容改成「国际服卡池」）。
+		// 必须排除「国际服当期卡池**评测**」「卡池机制」「日服卡池标题语Neta」「国际服千里眼」等同名近邻。
+		function findGkBaPoolEntry(tree) {
+			let hit = null;
+			const walk = (nodes) => {
+				for (const n of nodes || []) {
+					if (hit) return;
+					const nm = String(n?.name || "");
+					if (/卡池/.test(nm) && /(国际服|际服)/.test(nm) && !/评测|評測|机制|機制|标题|標題|Neta|千里眼/.test(nm)) { hit = n; return; }
+					if (n?.child) walk(n.child);
+				}
+			};
+			walk(tree?.data?.entry_list || []);
+			return hit;
+		}
+
+		// 两次请求拿「当期卡池」表的角色名；任何一步失败/结构变化 → ""（调用方保持"只有池名"）
+		//
+		// ⚠️ CDN 的 Referer 必须是**纯 origin**（`https://www.gamekee.com/`）：
+		//   api-cdn.gamekee.com 的 WAF 对"带路径的 Referer"和"无 Referer"一律 **567**（实测矩阵，2026-10-21）：
+		//     origin + accept json → 200 / origin + accept *\/* → 200
+		//     path  (/ba/huodong/15) → 567 / 页面地址 (/ba/609133.html) → 567 / 无 Referer → 567
+		//   而 `/v1/content/detail/<id>` 用页面 Referer 是正常的 —— 两个域的反爬口径**不一样**，
+		//   所以 CDN 这一跳单独传 origin。踩过的坑：传页面地址时整条补名静默失效（roles 回 ""，
+		//   与改造前一样），不报错、不留痕，只有在 core 产物上跑 selfCheck 才看得出来。
+		const GK_BA_CDN_REF = "https://www.gamekee.com/";
+
+		async function fetchGkBaPoolRoles(tree, ref, headers, titleWindow, now, nowYear) {
+			const id = findGkBaPoolEntry(tree)?.content_id || GK_BA_POOL_CONTENT_ID;
+			const det = await proxyFetchJson(`https://www.gamekee.com/v1/content/detail/${id}`, ref, headers);
+			const cdn = String(det?.data?.content_cdn || "");
+			if (!cdn) return "";
+			const json = await proxyFetchJson(cdn.startsWith("//") ? "https:" + cdn : cdn, GK_BA_CDN_REF, headers);
+			let blocks = null;
+			try { blocks = JSON.parse(String(json?.content || "")); } catch { return ""; }
+			if (!Array.isArray(blocks)) return "";
+			return gkBaPoolRoles(blocks, now, nowYear, titleWindow);
+		}
+
+
 		// GameKee：按服务器拉当期卡池+活动（标题含排期）
 		// serverKey: "jp"|"global"；返回 {banner, roles, bannerDates, event, eventDates}
-		async function fetchGameKeeBa(serverKey) {
+		async function fetchGameKeeBa(serverKey, now = nowMs()) {
 			const ref = "https://www.gamekee.com/ba/huodong/15";
 			const headers = { "game-alias": "ba" };
 			// 1. 目录树 → 找"当期活动 | 当期卡池"子条目
@@ -4681,11 +4911,13 @@ EVENT_FETCHERS["endfield"] = {
 			};
 			const bannerTitle = bannerEntry ? await getTitle(bannerEntry) : "";
 			const eventTitle = eventEntry ? await getTitle(eventEntry) : "";
-			const nowYear = new Date(nowMs()).getFullYear();   // 走注入时钟（core 不得直接读宿主时钟）
+			const nowYear = new Date(now).getFullYear();   // 走注入时钟（core 不得直接读宿主时钟）
 			const data = { banner: "", roles: "", bannerDates: "", event: "", eventDates: "" };
+			let bannerWindow = null;
 			if (bannerTitle) {
 				const rng = parseGkRange(bannerTitle, nowYear);
 				if (rng) {
+					bannerWindow = rng;
 					// 卡池名：只去「(蔚蓝档案)(日服/国际服)当期卡池(评测)：」这类表头与末尾日期括号，
 					// 池名里的标点（! ~ ！ 等）一律保留
 					data.banner = String(bannerTitle)
@@ -4715,6 +4947,198 @@ EVENT_FETCHERS["endfield"] = {
 				}
 			}
 			if (!data.banner || !data.bannerDates) return null;
+			// 国际服：补角色名（GameKee「际服卡池」页的「当期卡池」表）。
+			// 只对 global 做 —— 日服官方源本来就带生徒名，GameKee 只是日服的**兜底**，
+			// 给它加这两次请求没有收益，反而让日服兜底变慢、行为漂移。
+			// 角色名是"加分项"：拿不到就保持空（= 改造前），**任何异常都不许拖垮整个来源**。
+			if (!isJp) {
+				try {
+					const roles = await fetchGkBaPoolRoles(tree, ref, headers, bannerWindow, now, nowYear);
+					if (roles) data.roles = roles;
+				} catch { /* 保持 roles=""：不比改造前更差 */ }
+			}
+			return data;
+		}
+
+
+		// ══ 国服公告正文「■ 标签 + 起止时间」通用块解析器（2026-10-21，任务 B）══
+		//
+		// WHY 不是"再补一条【预告】标题正则"（用户明确否掉的方案）：
+		//   标题形态是运营随手写的（「【预告】限时招募：X」/「【限时招募预告】X」/ 干脆不带前缀），
+		//   而且当期公告的标题里**根本没有档期**。真正稳定的是**公告模板的结构**：
+		//     ■ 招募时间
+		//     10月08日 14:00 ~ 10月22日 13:59
+		//   这个「标签 + 下一行的起止」组合在招募/活动/维护公告里都在用（实测 2026-10-21 的 30 篇里
+		//   招募类 30/30、活动类 30/30 都有）。所以这里做的是**扫描结构化时间块**的通用解析器，
+		//   全程不依赖标题；标题只在最后一步用来取"池名/类型/活动名"这类**文本**（取不到就不填，
+		//   不影响档期判定 —— 档期只由时间块决定）。
+		//
+		// 标签归一化 + 时间写法归一化（都在 `baCnWindowIn` 里）：
+		//   全角/半角冒号、`～`/`〜`/`—`/`–`/`－`/`-`/`至`/`到`、`月日`/`月 日`/`M/D`、
+		//   可选年份（`2026/10/08`、`2026年10月08日`）、`HH:MM`/`H:MM`、跨年（右侧月份小于左侧 → 次年）、
+		//   右侧只写钟点（`10月15日 14:00 ~ 18:00` ⇒ 与左侧同日）。
+		//
+		// 时区：走 `sourceInstant(..., tz)`（站点 +08）。**在这台 +08 机器上与旧的 `new Date(...)` 逐毫秒相同**，
+		//   对海外用户则是修正（旧口径把 +08 墙钟当本机时区解释 → 档期整体偏移）。
+		//
+		// ⚠️ 严格性（宁可 nomatch，也不要显示错的档期）：**两端都必须有明确钟点**才认。
+		//   站点常写「09月24日 维护结束后 ~ 10月01日 13:59」—— 左端是**相对时刻**，正文没给钟点，
+		//   推算（14:00？18:00？）都可能错 ⇒ 这类块**一律不解析**（该期次交给 ① 的维护公告逻辑，
+		//   它有自己的维护结束时刻来源）。实测 1961/1960/1955/1956/1962 都是这种写法：如果宽松地
+		//   把左端当 00:00，它们会跟着"当期"一起被选中，档期就错了。
+
+		// 公告 HTML → 纯文本（与 fetchBaCn 里原来那段**逐字**相同；抽出来是为了列表行与详情共用一份）
+		function baCnNoticeText(html) {
+			return String(html || "")
+				.replace(/<br\s*\/?>/gi, "\n")
+				.replace(/<[^>]+>/g, "")
+				.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
+				.replace(/&ldquo;/g, "「").replace(/&rdquo;/g, "」")
+				.replace(/&hellip;/g, "…").replace(/&times;/g, "×").replace(/&bull;/g, "·")
+				.replace(/\n\s*\n+/g, "\n").trim();
+		}
+
+		// 一行文本里的"起止时间" → {startTs,endTs,startText,endText,raw}；解析不了 / 不够严格 → null
+		function baCnWindowIn(line, nowYear, tz) {
+			const s = String(line || "")
+				.replace(/[：]/g, ":")
+				.replace(/[～〜]/g, "~")
+				.replace(/[—–－]/g, "~")
+				.replace(/[ \t\u3000]+/g, " ")
+				.trim();
+			// 左端：日期 + 明确钟点（"维护结束后"这类没有钟点的写法直接落空 → 整块不认）
+			const sm = s.match(/(?:(\d{4})\s*[\/\-年]\s*)?(\d{1,2})\s*[\/月]\s*(\d{1,2})\s*日?\s*(\d{1,2}):(\d{2})/);
+			if (!sm) return null;
+			const startY = sm[1] ? Number(sm[1]) : nowYear;
+			const aMo = Number(sm[2]), aD = Number(sm[3]), aH = Number(sm[4]), aMi = Number(sm[5]);
+			if (!(aMo >= 1 && aMo <= 12) || !(aD >= 1 && aD <= 31) || aH > 23 || aMi > 59) return null;
+			const rest = s.slice(sm.index + sm[0].length);
+			// 右端三种写法：① 只有钟点（同左端日期）② 日 + 钟点（月沿用左端）③ 月日 + 钟点（可带年份）
+			let bY = startY, bMo = aMo, bD = aD, bH = 0, bMi = 0, ok = false;
+			const onlyClock = rest.match(/^\s*~\s*(\d{1,2}):(\d{2})/);
+			const full = rest.match(/^\s*~\s*(?:(\d{4})\s*[\/\-年]\s*)?(?:(\d{1,2})\s*[\/月]\s*)?(\d{1,2})\s*日?\s*(\d{1,2}):(\d{2})/);
+			if (onlyClock) {
+				bH = Number(onlyClock[1]); bMi = Number(onlyClock[2]); ok = bH <= 23 && bMi <= 59;
+			} else if (full) {
+				bMo = full[2] != null ? Number(full[2]) : aMo;
+				bD = Number(full[3]); bH = Number(full[4]); bMi = Number(full[5]);
+				ok = bMo >= 1 && bMo <= 12 && bD >= 1 && bD <= 31 && bH <= 23 && bMi <= 59;
+				if (ok && full[1] != null) bY = Number(full[1]);
+				// 跨年：右侧月份小于左侧（12月→1月）；有显式年份时以显式为准
+				else if (ok && full[2] != null && endsNextYear(aMo, null, bMo, null)) bY = startY + 1;
+			}
+			if (!ok) return null;
+			const startTs = sourceInstant(startY, aMo, aD, aH, aMi, tz);
+			const endTs = sourceInstant(bY, bMo, bD, bH, bMi, tz);
+			if (endTs <= startTs) return null;
+			// 超长窗口（>120 天）当常驻/误解析，不参与"当期"判定（阈值与全仓唯一真源共用）
+			const win = { startTs, endTs, startText: "", endText: "", raw: `${fmtMdHm(startTs, tz)} ~ ${fmtMdHm(endTs, tz)}` };
+			if (isLongTermWindow(win)) return null;
+			return win;
+		}
+
+		// 正文 → 时间块数组：[{label, tag:"招募"|"活动"|"", startTs, endTs, raw}]
+		// 只认「■ 标签」开头的块，且只收**块内能解析出起止**的行：
+		//   ■ 活动时间
+		//   · 活动持续时间：10月08日 14:00 ~ 10月22日 13:59   ← 这才是**活动本身的档期**
+		//   · 商店兑换时间：10月08日 14:00 ~ 10月29日 13:59   ← 商店关店时间，不是活动档期 ⇒ **必须排除**
+		// 为什么要排除"辅助窗口"（商店/兑换/任务/奖励/领取/结算…）：
+		//   它们通常比活动**晚一周**结束。若一并当候选，活动结束后的一周里会显示
+		//   「-ive aLIVE! 10-08 ~ 10-29」——**错的档期**（活动其实 10-22 就结束了）。
+		//   实测（2026-10-25 真值）：-ive aLIVE! 持续时间到 10-22 13:59，商店到 10-29 13:59。
+		function baCnTimeBlocks(text, nowYear, tz) {
+			const out = [];
+			const lines = String(text || "").split("\n");
+			let label = "";
+			for (const rawLine of lines) {
+				const line = rawLine.trim();
+				if (!line) continue;
+				const head = line.match(/^■\s*(.+)$/);
+				if (head) {
+					label = head[1].replace(/\s+/g, "").replace(/[:：]/g, "");
+					continue;
+				}
+				if (!label) continue;
+				// 「日期前面那段文字」= 本行的窗口名；命中辅助窗口就直接丢
+				const aux = line.split(/[:：]/)[0];
+				if (/商店|兑换|任務|任务|奖励|獎勵|领取|領取|结算|結算|购买|購買|签到|簽到/.test(aux)) continue;
+				const win = baCnWindowIn(line, nowYear, tz);
+				if (!win) continue;
+				const tag = /招募/.test(label) ? "招募" : (/活动|活動/.test(label) ? "活动" : "");
+				if (!tag) continue;                     // 维护时间/补偿时间等与卡池/活动无关的块
+				out.push({ label, tag, ...win });
+			}
+			return out;
+		}
+
+		// 一篇公告正文 → 卡池信息（类型 / 成员 / 池名），文本取不到的就留空（**不影响档期**）
+		function baCnPoolInfoFromNotice(title, text, block) {
+			const lead = String(text || "").split("\n").slice(0, 6).join("\n");
+			// 「限时招募【池名】即将开启」/「限时限定复刻招募【池名】」—— `招募` 前面的前缀就是卡池类型
+			const typeM = lead.match(/([^\s，。！【】]{1,12}?)招募\s*【([^】]+)】/);
+			const prefix = typeM ? typeM[1] : "";
+			const kind = /限定/.test(prefix)
+				? (/复刻|復刻/.test(prefix) ? "限定复刻" : "限定")
+				: (/复刻|復刻/.test(prefix) ? "复刻" : "");
+			// 成员：`全新3★成员"夏（乐队）"登场` / `3★限定成员"和纱（乐队）"的招募概率得到提升`
+			const memM = lead.match(/成员\s*["“「]([^"”」\n]{1,24})["”」]/);
+			const fromTitle = (String(title || "").match(/[:：]\s*(.+)$/) || [])[1] || "";
+			return {
+				kind,
+				typeName: `限时${kind}招募`,
+				member: baRoleName(String(memM ? memM[1] : fromTitle).trim()),
+				poolName: typeM ? typeM[2] : "",
+				startTs: block.startTs,
+				endTs: block.endTs
+			};
+		}
+
+		// 一篇公告正文 → 活动信息（名称）
+		function baCnEventInfoFromNotice(title, text, block) {
+			const lead = String(text || "").split("\n").slice(0, 4).join("\n");
+			const nameM = lead.match(/活动\s*【([^】]+)】/);
+			const fromTitle = (String(title || "").match(/[:：]\s*(.+)$/) || [])[1] || "";
+			return {
+				name: String(nameM ? nameM[1] : fromTitle).replace(/\s+/g, " ").trim(),
+				startTs: block.startTs,
+				endTs: block.endTs
+			};
+		}
+
+		// ②/③ 共用：扫**列表行**（content 即全文 → **零额外请求**），挑出覆盖当前时刻的招募/活动时间块。
+		// previewOnly=true → 只认标题带「预告」的条目（②「预告类条目」）；false → 任意条目（③ 兜底）。
+		//
+		// 卡池外显口径与 ① 一致：`限时[限定][复刻]招募`（取档位最优的那类），角色为**同期全部**招募池的成员
+		// 合并（去重、按文档顺序）。活动外显取**列表里第一篇**覆盖当前的活动公告 —— 列表是倒序（最新在前），
+		// 即"官方最近公布的那期活动"；同期其余活动不另做显示（与 ① 的单条活动口径一致）。
+		function baCnFromNoticeBlocks(rows, opts) {
+			const { now, nowYear, tz, previewOnly } = opts;
+			const pools = [];
+			const events = [];
+			for (const it of rows || []) {
+				const title = String(it?.title || "");
+				if (previewOnly && !/预告/.test(title)) continue;
+				const text = baCnNoticeText(it?.content);
+				if (!text) continue;                      // 列表 content 被截断 → 跳过（不再为它拉详情：零额外请求）
+				const blocks = baCnTimeBlocks(text, nowYear, tz);
+				if (blocks.length === 0) continue;
+				const rec = blocks.find((b) => b.tag === "招募" && coversNow(b, now));
+				if (rec) pools.push(baCnPoolInfoFromNotice(title, text, rec));
+				const ev = blocks.find((b) => b.tag === "活动" && coversNow(b, now));
+				if (ev) events.push(baCnEventInfoFromNotice(title, text, ev));
+			}
+			if (pools.length === 0 && events.length === 0) return null;
+			const ranked = pools.slice().sort((a, b) => (BA_CN_POOL_RANK[a.kind] ?? 9) - (BA_CN_POOL_RANK[b.kind] ?? 9));
+			const primary = ranked[0] || null;
+			const ev = events[0] || null;
+			const data = {
+				banner: primary ? primary.typeName : "",
+				roles: [...new Set(pools.map((p) => p.member).filter(Boolean))].join("、"),
+				bannerDates: primary ? fmtWindow(primary.startTs, primary.endTs, tz) : "",
+				event: ev ? ev.name : "",
+				eventDates: ev ? fmtWindow(ev.startTs, ev.endTs, tz) : ""
+			};
+			if (!data.banner && !data.event) return null;
 			return data;
 		}
 
@@ -4755,19 +5179,23 @@ EVENT_FETCHERS["endfield"] = {
 				const endTs = new Date(nowYear, mo - 1, d + 14, 13, 59).getTime();
 				if (startTs <= now && now <= endTs) { maintTitle = it; maintRaw = raw; break; }
 			}
-			if (!maintTitle?.id) return null;
-			// 选中那篇若已经在上面抓过详情（列表 content 被截断的情况）→ 直接复用，省掉一次代理往返
-			const content = maintRaw || String((await proxyFetchJson(`https://bluearchive-cn.com/api/news/detail?id=${maintTitle.id}`, ref, H))?.data?.news?.content || "");
-			if (!content) return null;
-			// HTML → 文本
-			const text = String(content)
-				.replace(/<br\s*\/?>/gi, "\n")
-				.replace(/<[^>]+>/g, "")
-				.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
-				.replace(/&ldquo;/g, "「").replace(/&rdquo;/g, "」")
-				.replace(/&hellip;/g, "…").replace(/&times;/g, "×").replace(/&bull;/g, "·")
-				.replace(/\n\s*\n+/g, "\n").trim();
-			return parseBaCnMaintText(text, nowYear, tz);
+			// ---- ① 「维护更新说明」解析（**原逻辑逐字保留**，优先级最高，不许回归）----
+			// 找不到覆盖当前的维护公告、或那篇正文里没有「更新限时…招募【…】」句式 → **不再直接判死**，
+			// 而是往下走 ②/③（这正是 2026-10-15 那篇公告失灵的根因：它只有区域/预加载，没有招募句式）。
+			if (maintTitle?.id) {
+				// 选中那篇若已经在上面抓过详情（列表 content 被截断的情况）→ 直接复用，省掉一次代理往返
+				const content = maintRaw || String((await proxyFetchJson(`https://bluearchive-cn.com/api/news/detail?id=${maintTitle.id}`, ref, H))?.data?.news?.content || "");
+				if (content) {
+					const d1 = parseBaCnMaintText(baCnNoticeText(content), nowYear, tz);
+					if (d1) return d1;
+				}
+			}
+			// ---- ② 「预告」类条目的结构化时间块（招募/活动各取一条，用 coversNow 选当期）----
+			const d2 = baCnFromNoticeBlocks(rows, { now, nowYear, tz, previewOnly: true });
+			if (d2) return d2;
+			// ---- ③ 兜底：任意条目里能解析出"覆盖当前时刻的招募/活动时间块"就用 ----
+			// （宁可用带标题的近似，也不要空白；仍然靠 coversNow 判定，不会显示错档期）
+			return baCnFromNoticeBlocks(rows, { now, nowYear, tz, previewOnly: false });
 		}
 
 		// 国服公告里「招募」开头的东西**不是一类**。实测（09月24日维护更新说明）：

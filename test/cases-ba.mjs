@@ -1,0 +1,253 @@
+// test/cases-ba.mjs —— 蔚蓝档案（2026-10-21 两项改动）
+//
+// 覆盖两块**新的解析面**，都用真实抓包的夹具（`test/fixtures/ba-*`）离线复跑：
+//
+// ① 国际服 GameKee「当期卡池」表 → 角色名（任务 A）
+//    页面 https://www.gamekee.com/ba/609133.html 的 HTML 是纯 SPA 壳（3.4KB，无数据），
+//    正文在 `content_cdn` 的 JSON 里（编辑器 block 数组）。夹具 `ba-gamekee-pool-blocks`
+//    就是那份 content 的「当期卡池」段**真实字节摘录**（paragraph + 两张 table）。
+//
+// ② 国服公告正文「■ 标签 + 起止时间」通用块解析（任务 B）
+//    三种公告形态各一份夹具：
+//      · `ba-cn-list-1015`   10月15日维护更新说明（正文**没有**「更新限时…招募【】」句式 → ① 解析必失败）
+//      · `ba-cn-preview-1008` 只有【预告】、**列表里没有任何维护更新说明**（证明 ② 不依赖 ①）
+//      · `ba-cn-list-0924`   09月24日维护更新说明（**旧逻辑必须逐字不变**，回归基线）
+//
+// 断言的"档期文本"一律是 `MM-DD HH:MM ~ MM-DD HH:MM`（与全仓 fmtWindow 口径一致）。
+
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import { check, section, setFetchImpl } from "./harness.mjs";
+import { T, FIXTURES_DIR } from "./load.mjs";
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const LIST_URL = "https://bluearchive-cn.com/api/news/list?pageIndex=1&pageNum=30&type=";
+const TZ_CN = "Asia/Shanghai";
+
+const fx = (name) => readFileSync(path.join(FIXTURES_DIR, name), "utf8");
+const blocksFixture = () => JSON.parse(fx("ba-gamekee-pool-blocks/response.txt"));
+
+// 夹具版 fetch：旧式 impl（url → Response 形态），代理路径按 harness 约定包一层 {status, body}。
+// 返回 `calls` 数组 —— 用来断言"零额外请求"。
+function useListFixture(name) {
+	const body = fx(name + "/response.txt");
+	const calls = [];
+	const impl = async (url) => {
+		const u = String(url);
+		calls.push(u);
+		if (u.startsWith("/api/gacha-calendar-proxy")) {
+			const payload = JSON.stringify({ status: 200, body });
+			return { ok: true, status: 200, headers: { get: () => "application/json" }, text: async () => payload, json: async () => JSON.parse(payload) };
+		}
+		return { ok: true, status: 200, headers: { get: () => "text/html" }, text: async () => body, json: async () => JSON.parse(body) };
+	};
+	setFetchImpl(impl);
+	return calls;
+}
+
+// 在固定 now 下跑国服抓取器
+async function fetchBaCnAt(fixture, iso) {
+	const ts = Date.parse(iso);
+	T.setCoreEnv({ now: () => ts });
+	const calls = useListFixture(fixture);
+	let data = null, err = null;
+	try { data = await T.GACHA_FETCHERS["ba-cn"](LIST_URL, undefined, TZ_CN); }
+	catch (e) { err = e && e.message; }
+	return { data, err, calls };
+}
+
+const localTs = (y, mo, d, h = 0, mi = 0) => new Date(y, mo - 1, d, h, mi).getTime();
+
+export default async function run() {
+	section("蔚蓝档案（国际服 GameKee 当期卡池表 / 国服公告时间块）");
+
+	// ── ① GameKee「当期卡池」表 → 角色名 ─────────────────────────────────────
+	{
+		const blocks = blocksFixture();
+		const now = Date.parse("2026-10-21T03:00:00+08:00");
+		const title = { startTs: localTs(2026, 10, 13), endTs: localTs(2026, 10, 27) };
+		const roles = T.gkBaPoolRoles(blocks, now, 2026, title);
+		check("ba-global：GameKee 当期卡池表 → 角色名（旬/妃姬，含简繁与括号归一）",
+			roles === "旬(泳装)、妃姬(泳装)", JSON.stringify(roles));
+		// 没有卡池标题档期可对照时，只要"恰好一组覆盖 now"也采信
+		check("ba-global：无标题档期时按「唯一覆盖 now 的组」取角色名",
+			T.gkBaPoolRoles(blocks, now, 2026, null) === roles, JSON.stringify(T.gkBaPoolRoles(blocks, now, 2026, null)));
+		// 标题档期与表不符 → 退回"唯一覆盖 now"规则（仍然正确），不能瞎配一组
+		const other = { startTs: localTs(2026, 11, 3), endTs: localTs(2026, 11, 17) };
+		check("ba-global：标题档期与表不符时退回「唯一覆盖 now」而非乱配",
+			T.gkBaPoolRoles(blocks, now, 2026, other) === roles);
+		// now 在表档期之外 + 标题也不符 → 空（宁缺勿错）
+		check("ba-global：表里没有覆盖 now 的档期 → 不返回角色名（宁缺勿错）",
+			T.gkBaPoolRoles(blocks, Date.parse("2026-12-01T00:00:00+08:00"), 2026, other) === "");
+		// 结构变化（没有「当期卡池」标题段）→ 空，不抛
+		const noHead = blocks.filter((b) => !(b.type === "paragraph" && JSON.stringify(b).includes("当期卡池")));
+		check("ba-global：表结构变化（找不到「当期卡池」段）→ 返回空且不抛",
+			T.gkBaPoolRoles(noHead, now, 2026, title) === "");
+		// 列序变化 + 多档期分组 + 角色名清洗（全角括号、括号内空格、★3「」前缀）
+		const synthetic = [
+			{ type: "paragraph", children: [{ text: "当期卡池" }] },
+			{
+				type: "table", children: [
+					{ type: "table-row", children: [
+						{ type: "table-cell", children: [{ type: "paragraph", children: [{ text: "卡池时间" }] }] },
+						{ type: "table-cell", children: [{ type: "paragraph", children: [{ text: "PU学生" }] }] }
+					] },
+					{ type: "table-row", children: [
+						{ type: "table-cell", children: [{ type: "paragraph", children: [{ text: "11月20日～11月30日" }] }] },
+						{ type: "table-cell", children: [{ type: "paragraph", children: [{ text: "★3「未花」" }] }] }
+					] },
+					{ type: "table-row", children: [
+						{ type: "table-cell", children: [{ type: "paragraph", children: [{ text: "11月01日～11月15日" }] }] },
+						{ type: "table-cell", children: [{ type: "paragraph", children: [{ text: "日奈（礼服）" }] }] }
+					] },
+					{ type: "table-row", children: [
+						{ type: "table-cell", children: [{ type: "paragraph", children: [{ text: "" }] }] },
+						{ type: "table-cell", children: [{ type: "paragraph", children: [{ text: "阿露( 礼服)" }] }] }
+					] }
+				]
+			},
+			{ type: "paragraph", children: [{ text: "历史卡池" }] }
+		];
+		const syn = T.gkBaPoolRoles(synthetic, localTs(2026, 11, 5, 12), 2026, null);
+		check("ba-global：列序调换 + 合并单元格继承 + 角色名清洗（全角括号/★3「」/括号内空格）",
+			syn === "日奈(礼服)、阿露(礼服)", JSON.stringify(syn));
+	}
+
+	// ── ba-global 抓取链路：只给国际服补名 + CDN 那一跳必须用纯 origin Referer ──────
+	// 这条是**真实踩过的坑**的回归守卫：api-cdn.gamekee.com 的 WAF 对"带路径的 Referer"
+	// 直接 567（实测 origin→200、/ba/huodong/15→567、/ba/609133.html→567、无 Referer→567）。
+	// 传页面地址时整条补名会静默失效（roles 回 ""，与改造前一样），不报错、不留痕 —— 只能靠断言钉住。
+	{
+		const nowTs = Date.parse("2026-10-21T03:00:00+08:00");
+		T.setCoreEnv({ now: () => nowTs });
+		const blocks = blocksFixture();
+		const tree = {
+			data: {
+				entry_list: [
+					{
+						name: "常用内容", child: [{
+							name: "当期活动 | 当期卡池", child: [
+								{ name: "国际服当期活动", content_id: 1 },
+								{ name: "国际服当期卡池评测", content_id: 2 },
+								{ name: "日服当期活动", content_id: 3 },
+								{ name: "日服当期卡池评测", content_id: 4 }
+							]
+						}]
+					},
+					{ name: "萌新指引", child: [{ name: "综合常用词条", child: [{ name: "际服卡池", content_id: 9 }] }] }
+				]
+			}
+		};
+		const title = (s) => JSON.stringify({ data: { title: s } });
+		const route = (url) => {
+			if (url.includes("/v1/wiki/entry")) return JSON.stringify(tree);
+			if (url.includes("/v1/content/detail/1")) return title("国际服当期活动：岚过天晴【10/13~10/27】");
+			if (url.includes("/v1/content/detail/2")) return title("国际服当期卡池评测：岚过天晴【10/13~10/27】");
+			if (url.includes("/v1/content/detail/3")) return title("日服当期活动：我们是神秘学研究会！【10/07~10/21】");
+			if (url.includes("/v1/content/detail/4")) return title("日服当期卡池：我们是神秘学研究会！【10月7日 ~ 10月21日】");
+			if (url.includes("/v1/content/detail/9")) return JSON.stringify({ data: { content_cdn: "//api-cdn.gamekee.com/x/609133.json?v=1" } });
+			if (url.startsWith("https://api-cdn.gamekee.com/")) return JSON.stringify({ content: JSON.stringify(blocks) });
+			throw new Error("unexpected-url:" + url);
+		};
+		const seen = [];
+		T.setCoreEnv({
+			transport: {
+				async fetchRaw(u) { throw new Error("unexpected-direct:" + u); },
+				async fetchViaProxy(u, opts) { seen.push({ u: String(u), referer: opts && opts.referer }); return route(String(u)); }
+			}
+		});
+		const g = await T.GACHA_FETCHERS["ba-global"]();
+		check("ba-global：roles 由 GameKee 当期卡池表补齐",
+			!!g && g.roles === "旬(泳装)、妃姬(泳装)" && g.banner === "岚过天晴", JSON.stringify(g && g.roles));
+		const cdnReq = seen.find((x) => x.u.startsWith("https://api-cdn.gamekee.com/"));
+		check("ba-global：CDN 那一跳的 Referer 是纯 origin（带路径/无 Referer → WAF 567）",
+			!!cdnReq && cdnReq.referer === "https://www.gamekee.com/", JSON.stringify(cdnReq && cdnReq.referer));
+		check("ba-global：只多 2 次请求（detail + CDN），与池数无关", seen.length === 5, "requests=" + seen.length);
+		// 日服兜底不加这两次请求（roles 保持空 = 改造前行为）
+		seen.length = 0;
+		const jp = await T.GACHA_FETCHERS["ba-jp-gamekee"]();
+		check("ba-jp（GameKee 兜底）不受影响：仍 3 次请求、roles 为空",
+			seen.length === 3 && jp && jp.roles === "" && jp.banner.includes("神秘学研究会"), "requests=" + seen.length + " roles=" + JSON.stringify(jp && jp.roles));
+	}
+
+	// ── ② 国服公告时间块：三种公告形态 ───────────────────────────────────────
+	{
+		// 形态 A：09-24 维护更新说明 —— ① 老逻辑，必须逐字不变（回归基线）
+		const a = await fetchBaCnAt("ba-cn-list-0924", "2026-09-26T12:00:00+08:00");
+		check("ba-cn/0924：① 老逻辑不变（限时限定招募 + 莲见/圣娅 + 09-24~10-08）",
+			!!a.data && a.data.banner === "限时限定招募" && a.data.roles === "莲见(泳装)、圣娅(泳装)"
+			&& a.data.bannerDates === "09-24 14:00 ~ 10-08 13:59", JSON.stringify(a.data));
+		check("ba-cn/0924：活动仍走 ① 的「活动名 + 维护起算」",
+			!!a.data && a.data.event === "夏日天空的约定" && a.data.eventDates === "09-24 14:00 ~ 10-22 13:59", JSON.stringify(a.data && a.data.event));
+
+		// 形态 B：10-15 维护更新说明（正文没有招募句式 ⇒ ① 返回 null）→ ② 时间块接住
+		//   同时证明"零额外请求"：列表 content 就是全文，② 不再为任何一条拉详情。
+		const b = await fetchBaCnAt("ba-cn-list-1015", "2026-10-16T20:00:00+08:00");
+		check("ba-cn/1015：① 解析不出时由 ② 预告时间块接住（乐队 3 池合并）",
+			!!b.data && b.data.banner === "限时招募" && b.data.roles === "夏(乐队)、和纱(乐队)、好美(乐队)"
+			&& b.data.bannerDates === "10-08 14:00 ~ 10-22 13:59", JSON.stringify(b.data));
+		check("ba-cn/1015：活动名取最新一篇覆盖当前的活动预告（-ive aLIVE!）",
+			!!b.data && b.data.event === "-ive aLIVE!" && b.data.eventDates === "10-08 14:00 ~ 10-22 13:59", JSON.stringify(b.data && b.data.event));
+		check("ba-cn/1015：零额外请求（只打列表接口 1 次，不为条目拉详情）", b.calls.length === 1, "requests=" + b.calls.length);
+
+		// 形态 C：只有【预告】（列表里根本没有维护更新说明）→ 证明 ② 不依赖 ①
+		const c = await fetchBaCnAt("ba-cn-preview-1008", "2026-10-21T03:00:00+08:00");
+		check("ba-cn/preview：列表里没有维护公告时，② 预告时间块独立可用",
+			!!c.data && c.data.roles === "夏(乐队)、和纱(乐队)、好美(乐队)"
+			&& c.data.bannerDates === "10-08 14:00 ~ 10-22 13:59" && c.data.event === "-ive aLIVE!", JSON.stringify(c.data));
+
+		// 未开始/已结束：乐队池 10-22 13:59 结束；过了这个点、又没有别的覆盖当前的预告
+		//   → 必须 nomatch（不能把已结束的档期继续显示）
+		const d = await fetchBaCnAt("ba-cn-preview-1008", "2026-10-25T12:00:00+08:00");
+		check("ba-cn/preview：档期已结束后 → nomatch（不显示过期档期）", d.data === null, JSON.stringify(d.data));
+		// 未开始：乐队池 10-08 14:00 开始；之前同样 nomatch
+		const e = await fetchBaCnAt("ba-cn-preview-1008", "2026-10-08T10:00:00+08:00");
+		check("ba-cn/preview：档期尚未开始 → nomatch", e.data === null, JSON.stringify(e.data));
+
+		// 优先级：① 能给出结果时，② 不参与（同一份 0924 列表在 10-21 已无 ① 覆盖 → ②/③ 也无覆盖）
+		const f = await fetchBaCnAt("ba-cn-list-0924", "2026-10-21T03:00:00+08:00");
+		check("ba-cn/0924：过了 ① 的窗口且无覆盖当前的活跃块 → nomatch（不残留上一期）", f.data === null, JSON.stringify(f.data));
+	}
+
+	// ── ③ 通用块解析器：写法归一化 / 严格性（合成文本，逐条钉住）─────────────
+	{
+		const nowYear = 2026;
+		const w = (s) => T.baCnWindowIn(s, nowYear, TZ_CN);
+		const norm = w("· 活动持续时间：10月08日 14:00 ~ 10月22日 13:59");
+		check("块解析：标准写法 `10月08日 14:00 ~ 10月22日 13:59`",
+			!!norm && T.fmtMdHm(norm.startTs, TZ_CN) === "10-08 14:00" && T.fmtMdHm(norm.endTs, TZ_CN) === "10-22 13:59",
+			norm && T.fmtWindow(norm.startTs, norm.endTs, TZ_CN));
+		const variant = w("10月 8日 14：00 ～ 10月 22日 13：59");
+		check("块解析：全角冒号 + `～` + `月 日` 空格 与标准写法一致",
+			!!variant && !!norm && variant.startTs === norm.startTs && variant.endTs === norm.endTs);
+		const singleHour = w("10月08日 9:00 ~ 10月22日 3:59");
+		check("块解析：`H:MM`（单数字小时）可解析",
+			!!singleHour && T.fmtMdHm(singleHour.startTs, TZ_CN) === "10-08 09:00" && T.fmtMdHm(singleHour.endTs, TZ_CN) === "10-22 03:59");
+		const clockOnly = w("10月15日 14:00 ~ 18:00（预计）");
+		check("块解析：右侧只写钟点（同左侧日期）",
+			!!clockOnly && T.fmtMdHm(clockOnly.endTs, TZ_CN) === "10-15 18:00");
+		const cross = w("12月30日 10:00 ~ 01月05日 10:00");
+		check("块解析：跨年（右侧月份小于左侧 → 次年）",
+			!!cross && new Date(cross.endTs).getFullYear() === nowYear + 1, cross && new Date(cross.endTs).toISOString());
+		const withYear = w("2026年10月08日 14:00 ~ 2026年10月22日 13:59");
+		check("块解析：带年份写法与无年份写法同一时刻",
+			!!withYear && !!norm && withYear.startTs === norm.startTs && withYear.endTs === norm.endTs);
+		check("块解析：左端是「维护结束后」（无钟点）→ 一律不解析（宁缺勿错）",
+			w("09月24日 维护结束后 ~ 10月01日 13:59") === null);
+		check("块解析：右端缺失/不成区间 → 不解析", w("10月22日 13:59前") === null);
+		// 标签分类：只有 招募/活动 的时间块参与档期判定
+		const text = [
+			"■ 维护时间", "10月15日 14:00 ~ 18:00", "■ 招募时间", "10月08日 14:00 ~ 10月22日 13:59",
+			"■ 活动时间", "· 活动持续时间：10月08日 14:00 ~ 10月22日 13:59", "· 商店兑换时间：10月08日 14:00 ~ 10月29日 13:59"
+		].join("\n");
+		const blocks = T.baCnTimeBlocks(text, nowYear, TZ_CN);
+		check("块解析：标签分类——维护时间不参与、招募/活动各有条目",
+			blocks.length === 2 && blocks.filter((x) => x.tag === "招募").length === 1 && blocks.filter((x) => x.tag === "活动").length === 1,
+			JSON.stringify(blocks.map((x) => x.tag + ":" + T.fmtMdHm(x.startTs, TZ_CN))));
+		// 辅助窗口必须被排除：商店兑换时间比活动晚一周结束，若混进来会显示"错的档期"
+		const act = blocks.filter((x) => x.tag === "活动")[0];
+		check("块解析：排除「商店兑换时间」等等辅助窗口，活动档期取「活动持续时间」",
+			!!act && T.fmtMdHm(act.endTs, TZ_CN) === "10-22 13:59", act && T.fmtWindow(act.startTs, act.endTs, TZ_CN));
+	}
+}
