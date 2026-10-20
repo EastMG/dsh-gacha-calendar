@@ -10,7 +10,7 @@
 ## 自动做（无需询问）
 
 - 改 `src/`（**`src/` 是唯一真源**），然后跑 `node build.mjs` 生成 `lib/` 与 `packages/core/`
-- 跑门禁直到全绿：`node build.mjs --check`，以及 `cd test && node all.mjs`（**1698 通过 / 0 失败**）
+- 跑门禁直到全绿：`node build.mjs --check`，以及 `cd test && node all.mjs`（全绿即可；当前 **1727 通过 / 0 失败**）
   - 注：仓库同级的 `probe*.mjs` 是临时探针、`test/run.mjs` 是早期入口，**都不属于门禁**；CI 跑的也只有上面两条
 - `git add` + `git commit`
 - `git push origin HEAD:main`
