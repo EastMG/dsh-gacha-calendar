@@ -7,7 +7,7 @@ node build.mjs        # 测试跑的是**构建产物** lib/client.js，改完 s
 node test/all.mjs     # 离线门禁（走夹具）——这是门禁
 ```
 
-`all.mjs` 会依次跑注册表守卫 + 夹具卫生 + **16 段**用例（P5X / B1 / B2 / B3 / P4 / P5 / P6 / P7 / P8 / P9 / 蔚蓝档案 / 赛马娘 GameTora + 规则静态守卫 + 时区口径 + README 结构图守卫 + core 产物守卫）。
+`all.mjs` 会依次跑注册表守卫 + 夹具卫生 + **17 段**用例（P5X / B1 / B2 / B3 / P4 / P5 / P6 / P7 / P8 / P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora + 规则静态守卫 + 时区口径 + README 结构图守卫 + core 产物守卫）。
 
 ## 为什么测试改成跑构建产物（2026-10-03）
 

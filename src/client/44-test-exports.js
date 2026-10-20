@@ -24,6 +24,26 @@
 				parseP5xList: ns_p5x_parseP5xList,
 				parseP5xWindows: ns_p5x_parseP5xWindows,
 			},
+			// 异环（官网公告 yh.wanmei.com）：卡池/活动两侧**同一个抓取器**（同一篇公告里两样都有）。
+			// 2026-10-21 之前它一行用例都没有 —— 段落锚点从 `一、` 改成 `【更新内容】` 时
+			// 没有任何门禁报错，面板只是安静地一直报"未公布"。这里把解析器与两条阈值都暴露出来，
+			// 让回归用例能离线复跑（`now` 显式传，不依赖跑测那天的日期）。
+			"nte": {
+				NTE_ITEM_RE,
+				NTE_MAINT_RE,
+				NTE_MAX_LIST_PAGES,
+				NTE_MAX_LOOKBACK_DAYS,
+				NTE_MAX_DETAILS,
+				fetchLdshopNte,
+				fetchNteWanmei,
+				nteContentBounds,
+				nteNextPageUrls,
+				ntePlainText,
+				ntePostDate,
+				parseLdshopPools,
+				parseNteBoards,
+				parseNteWanmei,
+			},
 			"bwiki": {
 				detectOrientation: ns_bwiki_detectOrientation,
 				eventsStellasora: ns_bwiki_eventsStellasora,

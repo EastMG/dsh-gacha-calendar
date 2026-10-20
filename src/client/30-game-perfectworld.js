@@ -54,11 +54,25 @@
 		// 带新卡池的公告标题：停服维护/版本更新；"1.3版本「…」更新公告"这类版本名夹在中间，所以"更新公告"也要算
 		const NTE_MAINT_RE = /停服维护|停服更新|维护公告|版本更新|更新公告/;
 
-		// 逐页向下的上限：维护公告会随新公告发布被挤到第 2、3 页，只看第 1 页会把"进行中的卡池"误判成未公布
-		const NTE_MAX_LIST_PAGES = 3;
+		// 逐页向下的上限（2026-10-21 修）：维护公告会随新公告发布被挤到后面的页，只看前几页会把
+		// "进行中的卡池"误判成未公布。原值 3 实测**不够**：公告列表**每页只有 3 条**，而"不停服更新"
+		// 公告在版本期一天可能发好几条（9/25–10/17 该列表已排到 18 页），真正的版本维护公告
+		// （唯一带新卡池的那条，约 3 周一条）几天就被挤出前 3 页 → 池子开到一半又报"未公布"。
+		const NTE_MAX_LIST_PAGES = 12;
+
+		// 再深就没意义了：公告列表从新到旧，公测卡池最长 3 周（实测 10-15 → 11-05），
+		// 某页**最新一条**都已老于这个天数，说明当期档期不可能还在后面 → 提前收手，省掉一串白请求。
+		const NTE_MAX_LOOKBACK_DAYS = 40;
 
 		// 每次最多试几篇公告正文（按从新到旧），避免某篇规则失效时白抓一堆
 		const NTE_MAX_DETAILS = 3;
+
+		// 公告链接里的日期 `/news/gamebroad/20261016/264655.html` → 该日 00:00 的 epoch。
+		// 只用于"要翻多深"的判断（不参与档期计算），解不出就返回 0（当作"不知道"，不触发提前收手）。
+		function ntePostDate(href) {
+			const m = String(href || "").match(/\/(\d{4})(\d{2})(\d{2})\/\d+\.html$/);
+			return m ? sourceInstant(+m[1], +m[2], +m[3], 0, 0, TZ_CN) : 0;
+		}
 
 
 		// 取分页控件里的后续页地址（相对当前页）：<ul class="pagination"> … <a href="index1.html">2</a>
@@ -79,26 +93,32 @@
 		// 取第一篇能解析出当期卡池/活动的正文；"不停服更新"不含新卡池，跳过。
 		// 三态：有当期内容 → 数据；列表页有公告但都不含当期内容（或"不停服更新"）→ null（未公布）；
 		//      列表页**一条公告链接都没有** → 抛错（官网列表改版，让面板显示"卡池失败"而不是"未公布"）。
-		async function fetchNteWanmei(listUrl, signal, tz) {
+		async function fetchNteWanmei(listUrl, signal, tz, now = nowMs()) {
 			const ref = "https://yh.wanmei.com/";
 			const seen = new Set();
 			const queue = [listUrl];
 			let details = 0;
 			let sawAnyLink = false;
+			const cutoff = now - NTE_MAX_LOOKBACK_DAYS * 864e5;
 			while (queue.length && seen.size < NTE_MAX_LIST_PAGES) {
 				const url = queue.shift();
 				if (seen.has(url)) continue;
 				seen.add(url);
 				const html = await proxyFetchText(url, ref);
 				if (/\/news\/gamebroad\/\d+\/\d+\.html/.test(html)) sawAnyLink = true;
+				let newestOnPage = 0;      // 本页最新一条公告的发布日期（决定还要不要往下翻）
 				// 列表条目本身从新到旧：边收集边试，命中当期内容立刻返回
 				for (const m of html.matchAll(NTE_ITEM_RE)) {
+					const postTs = ntePostDate(m[1]);
+					if (postTs > newestOnPage) newestOnPage = postTs;
 					if (!NTE_MAINT_RE.test(m[2]) || /不停服/.test(m[2])) continue;
 					if (details >= NTE_MAX_DETAILS) return null;   // 试读额度用完（此时必然已见到公告链接）
 					details++;
-					const data = parseNteWanmei(await proxyFetchText("https://yh.wanmei.com" + m[1], ref), tz);
+					const data = parseNteWanmei(await proxyFetchText("https://yh.wanmei.com" + m[1], ref), tz, now);
 					if (data) return data;
 				}
+				// 这一页最新一条都已老于回看窗口 → 后面的页只会更老，当期档期不可能在那里
+				if (newestOnPage && newestOnPage < cutoff) break;
 				for (const u of nteNextPageUrls(listUrl, html, seen)) if (!queue.includes(u)) queue.push(u);
 			}
 			if (!sawAnyLink) throw new Error("nte-list-shape-changed");
@@ -120,13 +140,28 @@
 		// 旧实现只认 `全新限定S级角色「X」…开放时间：N月N日**维护**更新后-…` 一条正则，
 		// 而现公告写的是 `**版本**更新后` → 一条都匹配不上 → 卡池为空 → `if (!data.banner) return null`
 		// → `fetchNteWanmei` 继续往下试，最终拿 index1 页那篇**已过期**的旧公告冒充当期。
+		//
+		// ⚠️ 2026-10-21 第二个坑（本次真凶）：条目都解得出，但**段落锚点**失效。
+		//   旧公告按 `一、 全新角色&弧盘` / `二、 …` 分节，现行公告改成了 `【更新内容】` / `【新增/修复内容】`。
+		//   实测 2026-10-14「10月15日停服维护公告」全文**一行 `一、` 都没有** → 旧实现 `return []`
+		//   → `data.banner` 为空 → 直接 `return null`（连同一篇里的限时活动也一起丢掉）
+		//   → 卡池 + 活动两侧同时报"未公布"，而公告里明明写着「灿烂的星」限定棋盘 10/15–11/05。
+		// 所以锚点两种写法都认：起点 = `一、` 或 `【…更新内容】`；终点 = `二、`，否则取起点之后的下一个 `【…】` 小标题。
+		function nteContentBounds(lines) {
+			let start = lines.findIndex((l) => /^一、/.test(l));
+			if (start < 0) start = lines.findIndex((l) => /^【[^】]*更新内容】/.test(l));
+			if (start < 0) return null;
+			let end = lines.findIndex((l, i) => i > start && /^二、/.test(l));
+			if (end < 0) end = lines.findIndex((l, i) => i > start && /^【[^】]+】/.test(l));
+			return { start, end: end < 0 ? lines.length : end };
+		}
+
 		function parseNteBoards(text, nowYear) {
 			const lines = text.split("\n").map((l) => l.trim());
-			// 「一、 全新角色&弧盘」这一段的边界（只在这里找，避免匹配到别处的"开放时间"）
-			const start = lines.findIndex((l) => /^一、/.test(l));
-			if (start < 0) return [];
-			let end = lines.findIndex((l, i) => i > start && /^二、/.test(l));
-			if (end < 0) end = lines.length;
+			// 「一、 全新角色&弧盘」/「【更新内容】」这一段的边界（只在这里找，避免匹配到别处的"开放时间"）
+			const bounds = nteContentBounds(lines);
+			if (!bounds) return [];
+			const { start, end } = bounds;
 			const pools = [];
 			for (let i = start; i < end; i++) {
 				const m = lines[i].match(/^●\s*(?:全新)?(限定S级角色|S级角色)「([^」]+)」(返场)?/);
@@ -164,20 +199,26 @@
 		}
 
 
-		// 解析官网公告正文 → 当期卡池（有「棋盘说明」的角色卡池，按**统一规则**合并）+ 当期活动（限时活动）
-		function parseNteWanmei(html, tz) {
-			const text = String(html || "")
+		// 公告 HTML → 纯文本（保序、按行）。抽出来是为了让回归用例能直接把同一份文本喂给
+		// parseNteBoards / nteContentBounds —— 用例里再抄一份剥离规则就等于测试测自己。
+		function ntePlainText(html) {
+			return String(html || "")
 				.replace(/<script[\s\S]*?<\/script>/gi, " ")
 				.replace(/<style[\s\S]*?<\/style>/gi, " ")
 				.replace(/<[^>]+>/g, "\n")
 				.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
 				.replace(/\n\s*\n+/g, "\n").trim();
+		}
+
+		// 解析官网公告正文 → 当期卡池（有「棋盘说明」的角色卡池，按**统一规则**合并）+ 当期活动（限时活动）
+		// `now` 显式传入（默认取当前时刻）：回归用例要能在任意固定时刻复跑，不被跑测那天的时间卡住。
+		function parseNteWanmei(html, tz, now = nowMs()) {
+			const text = ntePlainText(html);
 			const fmt = (mo, d, h, mi) => `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} ${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
 			const data = { banner: "", roles: "", bannerDates: "", bannerDatesRaw: "", event: "", eventDates: "", eventDatesRaw: "" };
 			// 当期卡池：**按统一规则**——当前时刻落在开放期间内的「棋盘」全部合并外显。
 			// 卡片/悬停都走 banner + roles（与其它游戏一致）：类型进 `banner`，
 			// 悬停由面板兜底显示 `类型：角色` + 日期。**不构造 bannerHover**（同国服，见 §48.3d）。
-			const now = nowMs();
 			const nowYear = new Date(now).getFullYear();
 			const active = parseNteBoards(text, nowYear)
 				.filter((p) => p.endTs >= now && p.startTs <= now)
@@ -473,7 +514,8 @@ async function ns_p5x_eventsP5x(url, signal, tz = "Asia/Shanghai", now = nowMs()
 				id: "nte",
 				defaultHidden: false,
 				tz: TZ_CN,
-				parserVersion: 2,
+				// 3（2026-10-21）：段落锚点从 `一、/二、` 扩到 `【…更新内容】` + 翻页上限 3 → 12（带日期收手）
+				parserVersion: 3,
 				name: "异环",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/8/8c/YH_APP.png!/fw/512",
 				source: "官网公告",

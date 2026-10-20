@@ -1,0 +1,63 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="renderer" content="webkit|ie-comp|ie-stand"><meta name="format-detection" content="telephone=no"><meta name="thumbnail" content="https://yh.wanmei.com/public/images/thumbnail.jpg"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"> <meta name="description" content="《异环》是Hotta Studio自主研发的超自然都市开放世界RPG。故事将从海特洛市启篇，作为首位「无证上岗」的「异象猎人」，你将成为接取民间异象委托维持周转的古董店「伊波恩」的一员，与个性迥异、能力非凡的伙伴们一起探索各城市的大小谜团，历经有笑有泪的各式奇遇，演绎独属于你们的都市物语。" />
+<meta name="keywords" content="异环,异环官网,异环游戏官网,异环预约,异环游戏,开放世界,都市开放世界,都市,赛车,超自然,异象,完美世界,幻塔,薄荷,娜娜莉,早雾,RPG,二次元" /> <title>公告-《异环》官方网站-超自然都市开放世界RPG</title><link rel="stylesheet" type="text/css" href="https://yh.wanmei.com/style/public260423.css"><link rel="stylesheet" type="text/css" href="https://yh.wanmei.com/public/loginPop/style/login260421.css"><link rel="stylesheet" type="text/css" href="https://yh.wanmei.com/style/list260109.css"><script src="https://static.games.wanmei.com/public/js/browserTip.js"></script><script>(function () {
+      var isMobile = /iphone|ipad|ipod|android|webos|blackberry|iemobile|mobile/i.test(navigator.userAgent.toLowerCase());
+      if (isMobile && window.location.pathname.indexOf('/m/') === -1) {
+        var protocol = window.location.protocol;
+        var host = window.location.host;
+        var pathname = window.location.pathname;
+        var search = window.location.search;
+        var hash = window.location.hash;
+
+        var mobileUrl = protocol + '//' + host + '/m' + pathname + search + hash;
+
+        window.location.replace(mobileUrl);
+      }
+      var _w = 2560;
+      var _h = 1440;
+      var _p = _w / _h;
+      var docEl = document.documentElement,
+        resizeEvt = 'orientationchange' in window ? 'orientationchange' : 'resize';
+      function recalc() {
+        var clientWidth = docEl.clientWidth;
+        var clientHeight = docEl.clientHeight;
+        if (clientWidth / clientHeight < _p) {
+          clientWidth = _p * clientHeight
+        }
+        var wid = 100 * (clientWidth / 2560);
+        docEl.style.fontSize = wid + 'px';
+        var wrapper = document.querySelector('#wrapper');
+        if (wrapper) {
+          wrapper.style.display = 'block'
+        }
+      }
+      if (!document.addEventListener) return;
+      window.addEventListener(resizeEvt, recalc, false);
+      document.addEventListener('DOMContentLoaded', recalc, false)
+    })();</script></head><body><div id="wrapper"><div class="header"><a href="https://yh.wanmei.com/index.html"><img src="https://yh.wanmei.com/images/cover240718/NTE_logo.png" alt="" class="abs logo"></a><div class="abs headerNav"><a class="n0" href="https://yh.wanmei.com/main.html"></a> <button class="n2 active"></button> <a class="n3" href="https://yh.wanmei.com/main.html?nav=4"></a> <a class="n4" href="https://yh.wanmei.com/main.html?nav=5"></a> <a class="n5" href="https://yh.wanmei.com/main.html?nav=6"></a> <a class="menu-full" href="https://yh.wanmei.com/pay/index.html" target="_blank"></a></div><div class="abs headerLogin"><div class="loginBefore"><button class="loginBeforeBtn countEventClick" counttype="pc_login"></button></div><div class="loginAfter" style="display: none;"><button class="loginAfterBtn logout countEventClick" counttype="pc_logout"></button><div class="abs auto loginAfterInfo">用户UID：<span class="userId"></span></div></div></div><button class="abs bgMusic"></button></div><div class="wrap"><div class="rel page_list"><div class="abs auto articleListHead"><div class="abs listHeadCont"><nav><a class="" href="https://yh.wanmei.com/news/index.html">最新</a><a class="" href="https://yh.wanmei.com/news/gamenews/index.html">新闻</a><a class="active" href="https://yh.wanmei.com/news/gamebroad/index.html">公告</a><a class="" href="https://yh.wanmei.com/news/gameevent/index.html">活动</a></nav><a href="https://yh.wanmei.com/main.html" class="backIndex"></a></div></div><div class="abs ListCont"><div class="listNews">  <a href="/news/gamebroad/20261016/264655.html"><div class="listItem"><div><h2 class="title">《异环》10月17日不停服更新公告</h2><div class="des">服务器预计于10月17日02:00-06:00进行不停服更新，具体结束时间可能会根据更新情况有所提前或延后。</div></div><div><p class="date">2026-10-16</p><p class="type">公告</p></div></div></a><a href="/news/gamebroad/20261015/264630.html"><div class="listItem"><div><h2 class="title">《异环》10月16日不停服更新公告</h2><div class="des">服务器预计于10月16日02:00-06:00进行不停服更新，具体结束时间可能会根据更新情况有所提前或延后。</div></div><div><p class="date">2026-10-15</p><p class="type">公告</p></div></div></a><a href="/news/gamebroad/20261014/264537.html"><div class="listItem"><div><h2 class="title">《异环》10月15日停服维护公告</h2><div class="des">为了给各位鉴定师带来更好的游戏体验，《异环》将于10月15日06:00 - 11:00进行停服维护。</div></div><div><p class="date">2026-10-14</p><p class="type">公告</p></div></div></a>  </div></div><div class="abs auto listPage"> 
+
+
+        <ul class="pagination">
+                <li class="disabled"><a href="#"><span>«</span></a></li>
+                <li class="disabled"><a href="#"><span>&lt;</span></a></li>
+
+                <li class="active"><a href="#">1</a></li>
+
+
+                        <li><a href="index1.html">2</a></li>
+                        <li><a href="index2.html">3</a></li>
+
+                <li class="disabled"><a href="#">...</a></li>
+
+                    <li><a href="index17.html">18</a></li>
+
+                <li><a href="index1.html"><span>&gt;</span></a></li>
+                <li><a href="index17.html"><span>»</span></a></li>
+        </ul>
+ </div></div><a class="abs copyRightBtn">版权信息<span></span></a><div class="abs footer" id="wmgameFooterInsert"></div></div><div class="pop" id="pop-login"><div class="pop-cont pop-login-cont"><div class="pop-logo"></div><button class="closePop"></button><div id="login-wrap"></div><div class="clauses clause-yy"><p class="contract-privacy">已阅读并同意 <a href="https://www.wanmei.com/safestatic/contract.html" target="_blank">《完美世界游戏用户协议》</a> 、 <a href="https://www.wanmei.com/safestatic/privacy.html" target="_blank">《完美世界游戏个人信息保护政策》</a>，未注册的手机号验证通过将自动注册</p></div><div class="clauses clause-sms"><p class="marketing">同意通过电话或短信方式接受通知及营销信息</p></div><button type="submit" id="login-submit" type="submit">登录</button></div></div></div><script type="text/javascript" src="https://static.games.wanmei.com/public/js/jq_183.js"></script><script type="text/javascript" src="https://static.games.wanmei.com/public/js/stat.js"></script><script type="text/javascript" src="https://static.games.wanmei.com/public/js/footer/bottom.js"></script><script type="text/javascript" src="https://yh.wanmei.com/js/backgroundMusic.js"></script><script type="text/javascript" src="https://static.games.wanmei.com/public/loginPop/js/wmpoplogin0.0.2.js"></script><script type="text/javascript" src="https://yh.wanmei.com/js/public260421.js"></script><script type="text/javascript" src="https://yh.wanmei.com/public/loginPop/js/login260421.js"></script><script type="text/javascript">$(".copyRightBtn").on("click", function () {
+      $(this).toggleClass("opened");
+      if ($(this).hasClass("opened")) {
+        $(".footer").slideDown();
+      } else {
+        $(".footer").slideUp();
+      }
+    });</script></body></html>
