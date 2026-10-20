@@ -43,5 +43,5 @@ POSIX      : DSH_ALLOW_PUBLISH=1 npm run publish:plugin
 
 ## 相关
 
-- 详细规则与背景：`dsh-gacha-calendar-浏览器扩展移植_交接说明.md` §0
+- 详细规则与背景：本地文档，不进仓库
 - `pre-commit` hook 另有一道守卫：BOM 检查 + `src/`↔`lib/` 一致性（见 `.githooks/pre-commit`）
