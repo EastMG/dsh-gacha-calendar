@@ -56,8 +56,8 @@
 //      vs 繁中服 `[新手應援]必中1名★4成員10連票券招募`），机械转换会产出第三种、非官方的字符串。
 
 
-const ns_sekai_DEFAULT_GACHA = "https://sekai-world.github.io/sekai-master-db-cn-diff/gachas.json";
-const ns_sekai_DEFAULT_EVENT = "https://sekai-world.github.io/sekai-master-db-cn-diff/events.json";
+const ns_sekai_DEFAULT_GACHA = "https://gh-proxy.com/https://raw.githubusercontent.com/Sekai-World/sekai-master-db-cn-diff/main/gachas.json";
+const ns_sekai_DEFAULT_EVENT = "https://gh-proxy.com/https://raw.githubusercontent.com/Sekai-World/sekai-master-db-cn-diff/main/events.json";
 // 长期/常驻池阈值：**用本体那一条**（`LONG_TERM_MAX_WINDOW_DAYS`），不再自带数字。
 // 旧值 400 天只够挡住 2099 哨兵值，会放过 365 天的**永久**池 ——
 // 实测 `新手限定★4自选阶梯招募`（03-26 16:00 ~ 次年 03-26 15:59，整 365 天）就是这样漏进"当期招募"的
@@ -165,12 +165,29 @@ async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = now
 				tz: "Asia/Shanghai",
 				name: "初音未来：缤纷舞台·国服",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/00/5c/7c/005c7c99-d162-1dc9-2c38-f5e5a50619e1/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
-				url: "https://sekai-world.github.io/sekai-master-db-cn-diff/gachas.json",
+				url: "https://gh-proxy.com/https://raw.githubusercontent.com/Sekai-World/sekai-master-db-cn-diff/main/gachas.json",
 				// 站点名 + 资源名（对齐本体惯例：`Bwiki 往期祈愿` / `Bwiki 活动一览`）
 				// 旧值写的是「第三方数据」——那是**类别**不是站点名，用户 2026-10-03 要求改成网站名称。
-				source: "Sekai World 卡池表",
-				eventUrl: "https://sekai-world.github.io/sekai-master-db-cn-diff/events.json",
-				eventSource: "Sekai World 活动表",
+				source: "Sekai World 卡池表（代理）",
+				eventUrl: "https://gh-proxy.com/https://raw.githubusercontent.com/Sekai-World/sekai-master-db-cn-diff/main/events.json",
+				eventSource: "Sekai World 活动表（代理）",
+				// 2026-10-21 用户要求：默认走 **gh-proxy 加速**（电信成功率 74% → 99%+，itdog 320 节点实测），
+				// 原先直连 GitHub Pages 的来源降级为备选（label 保留原名字）。
+				// ⚠️ 加速器包的是 raw.githubusercontent 地址（包 Pages 地址会 404）；ACAO=* 故仍走 mode="direct"。
+				altSources: [
+					{
+						label: "Sekai World 卡池表",
+						url: "https://sekai-world.github.io/sekai-master-db-cn-diff/gachas.json",
+						fetcher: "pjsk"
+					}
+				],
+				eventAltSources: [
+					{
+						label: "Sekai World 活动表",
+						url: "https://sekai-world.github.io/sekai-master-db-cn-diff/events.json",
+						fetcher: "default"
+					}
+				],
 		});
 
 		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
