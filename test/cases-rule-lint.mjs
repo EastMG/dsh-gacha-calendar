@@ -358,4 +358,62 @@ export default async function run() {
 				// bestdori 的解析器已并入 bandori 文件 → 这两个文件都必须用共用常量
 				return /LONG_TERM_MAX_WINDOW_DAYS \* 864e5/.test(t) && !/=\s*(?:120|400)\s*\*\s*86400e3/.test(t);
 			}));
+
+	// ── 悬停时区守卫：`buildEventHover` / `buildPoolHover` 的调用**必须**传源站 tz（2026-10-21）──
+	// 口径：悬停 = **源站墙钟原文**（游戏内公告那串时间）。`tz` 参数故意**不给默认值** ——
+	// 漏传不会抛错，只会让 `fmtWindow` 静默退回**运行环境本机时区**：UTC 机器上悬停比外显早 8 小时
+	// （用户 2026-10-21 实测到：悬停 06:00 vs 外显 14:00）。这类"只在海外机器上出错"的问题靠人眼
+	// 审计守不住（CI 跑 UTC、本地跑 +08，两边都可能碰巧对），所以静态扫全仓调用点。
+	{
+		// 从 `(` 之后扫到配对的 `)`，取实参文本。扫的是 codeOnly 结果（字符串/正则/注释已挖空），
+		// 所以括号一定属于代码本身，模板字面量里的括号不会把扫描带偏。
+		const argsOf = (code, open) => {
+			let depth = 1, i = open;
+			while (i < code.length && depth > 0) {
+				const c = code[i];
+				if (c === "(" || c === "[" || c === "{") depth++;
+				else if (c === ")" || c === "]" || c === "}") depth--;
+				i++;
+			}
+			return code.slice(open, i - 1);
+		};
+		const lineAt = (code, idx) => code.slice(0, idx).split("\n").length;
+		const bad = [], defs = new Set();
+		let calls = 0;
+		for (const f of readdirSync(SRC).filter((x) => x.endsWith(".js"))) {
+			const code = codeOnly(readFileSync(path.join(SRC, f), "utf8"));
+			for (const m of code.matchAll(/\b(buildEventHover|buildPoolHover)\b\s*\(/g)) {
+				const args = argsOf(code, m.index + m[0].length);
+				// 定义处（`function buildEventHover(...)`）：形参里必须有 tz，且**不许**给默认值
+				if (/function\s+$/.test(code.slice(0, m.index))) {
+					defs.add(m[1]);
+					if (!/\btz\b/.test(args) || /\btz\s*=/.test(args)) bad.push(`${f}:${lineAt(code, m.index)} ${m[1]} 定义缺少 tz 形参（或给了默认值）`);
+					continue;
+				}
+				calls++;
+				if (!/\btz\b/.test(args)) bad.push(`${f}:${lineAt(code, m.index)} ${m[1]}(…) 调用未传 tz`);
+			}
+		}
+		check("守卫自身没瞎：两个函数都定位到了定义、且找到 ≥15 个调用点",
+			defs.has("buildEventHover") && defs.has("buildPoolHover") && calls >= 15,
+			`defs=${[...defs].join(",")} calls=${calls}`);
+		check("每个 buildEventHover / buildPoolHover 调用都传了源站 tz（漏传会退回本机时区）",
+			bad.length === 0, bad.slice(0, 6).join(" / "));
+	}
+
+	// ── 时区口径的**接线**守卫（2026-10-21）：外显=本机时区、悬停=源站原文，两边必须真接上 ──
+	// 光有 localWin/localWinText 这两个纯函数不算数 —— 得确认渲染层**确实用了**它们，
+	// 且悬停的 title 没有被顺手换成换算后的文本（那正是本次最容易搞反的一处）。
+	{
+		const comp = codeOnly(readFileSync(path.join(SRC, "80-components.js"), "utf8"));
+		check("新面板外显：scheduleNormalize 的 raw 走 localDatesOf（拿不到才回落源站原文）",
+			/function scheduleNormalize\([\s\S]{0,900}?localDatesOf\(g, isG, now\) \|\| rawSrc/.test(comp));
+		check("旧面板外显：卡池/活动两列的时间格都走 localDatesOf",
+			(comp.match(/displayTimeCell\(localDatesOf\(g, (?:true|false), now\) \|\| g\.(?:bannerDates|eventDates) \|\|/g) || []).length === 2);
+		check("悬停保持源站原文：两列 title 仍用 bannerDatesRaw / eventDatesRaw（没换成换算值）",
+			/title: withFailNote\(g\.bannerDatesRaw \|\| g\.bannerDates/.test(comp)
+			&& /title: withFailNote\(g\.eventDatesRaw \|\| g\.eventDates/.test(comp));
+		check("悬停/探头不显示换算后的 raw（两处悬停文本一律 rawSrc 优先）",
+			!/\[x\.title, x\.raw\]/.test(comp) && (comp.match(/x\.rawSrc \|\| x\.raw/g) || []).length === 2);
+	}
 }

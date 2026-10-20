@@ -202,7 +202,7 @@
 				event: primary.name,
 				eventDates: primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs, tz) : (primary.raw || ""),
 				eventDatesRaw: primary.raw || "",
-				eventHover: buildEventHover(active, permanent.length)
+				eventHover: buildEventHover(active, permanent.length, tz)
 			};
 		}
 

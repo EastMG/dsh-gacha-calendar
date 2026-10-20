@@ -1050,7 +1050,7 @@ export function createEngine(env) {
 				event: primary.name,
 				eventDates: primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs, tz) : (primary.raw || ""),
 				eventDatesRaw: primary.raw || "",
-				eventHover: buildEventHover(active, permanent.length)
+				eventHover: buildEventHover(active, permanent.length, tz)
 			};
 		}
 
@@ -1579,7 +1579,13 @@ export function createEngine(env) {
 		// 兜底：只有 0/1 条时返回 ""，由 UI 退回原有"活动名 + 时间"单条展示 ——
 		// 公告类单条源（蔚蓝国服/日服、1999、异环等）因此完全不受影响，也不会出现空行或半截区间。
 		// permanentCount：永久/常驻活动的条数（不参与排序，只在末尾补一行计数，避免"源站有、面板没有"）。
-		function buildEventHover(items, permanentCount = 0) {
+		//
+		// ⚠️ `tz`（源站时区，**必传**、故意不给默认值）：悬停文本的用户口径 = **源站墙钟原文**
+		//    （"服务器那个时间"，2026-10-21 用户定）。不传 tz 时 fmtWindow 会退化成**运行环境本机
+		//    时区** —— 海外用户看到的钟点与外显/游戏内公告都对不上（`$env:TZ=UTC` 下实测到
+		//    悬停 06:00 vs 外显 14:00）。放在**第 3 参**是为了让老调用 `(items, permanentCount)`
+		//    不会把计数错位成时区；漏传由 `test/cases-rule-lint.mjs` 的静态守卫兜住。
+		function buildEventHover(items, permanentCount = 0, tz) {
 			const list = (Array.isArray(items) ? items : [])
 				.filter((x) => x && typeof x.name === "string" && x.name.trim() !== "")
 				.filter((x) => !isLongTermEvent(x));
@@ -1593,12 +1599,12 @@ export function createEngine(env) {
 			const lines = list.map((x) => {
 				// 有起止的行按行带时间（全部同窗口时只在末尾写一遍）；缺起止的行原样显示该行原文
 				if (x.startTs != null && x.endTs != null) {
-					return same ? x.name : `${x.name}   ${fmtWindow(x.startTs, x.endTs)}`;
+					return same ? x.name : `${x.name}   ${fmtWindow(x.startTs, x.endTs, tz)}`;
 				}
 				const raw = String(x.raw || "").trim();
 				return raw ? `${x.name}   ${raw}` : x.name;
 			});
-			if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs));
+			if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs, tz));
 			if (permanentCount > 0) lines.push(permanentLine(permanentCount));
 			return lines.join("\n");
 		}
@@ -1608,7 +1614,8 @@ export function createEngine(env) {
 		// 每池两行 —— "池名：角色" + "起止时间"；窗口完全相同的池合并时间（只在末尾写一遍）；
 		// 排序：结束时间升序（无/未知结束时间排最后）。
 		// 外显不受此函数影响：仍按各源原有逻辑（同窗口角色合并）。兜底：0/1 池返回 ""，退回单条展示。
-		function buildPoolHover(pools) {
+		// `tz`（源站时区）**必传**：与 buildEventHover 同口径 —— 悬停 = 源站墙钟原文。
+		function buildPoolHover(pools, tz) {
 			const rawList = (Array.isArray(pools) ? pools : [])
 				.filter((p) => p && typeof p.name === "string" && p.name.trim() !== "")
 				.sort((a, b) => {
@@ -1648,10 +1655,10 @@ export function createEngine(env) {
 			for (const p of list) {
 				lines.push(p.label || p.name);
 				if (same) continue;
-				const t = p.startTs != null && p.endTs != null ? fmtWindow(p.startTs, p.endTs) : String(p.raw || "").trim();
+				const t = p.startTs != null && p.endTs != null ? fmtWindow(p.startTs, p.endTs, tz) : String(p.raw || "").trim();
 				if (t) lines.push(t);
 			}
-			if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs));
+			if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs, tz));
 			return lines.join("\n");
 		}
 
@@ -1687,7 +1694,7 @@ export function createEngine(env) {
 					endTs: it.endTs,
 					raw: it.raw
 				}));
-			return { ...cur, bannerHover: buildPoolHover(pools) };
+			return { ...cur, bannerHover: buildPoolHover(pools, tz) };
 		}
 
 		// 起止时间戳 → 统一文本 `MM-DD HH:MM ~ MM-DD HH:MM`
@@ -2326,7 +2333,7 @@ export function createEngine(env) {
 				eventDates: dates,
 				eventDatesRaw: primary.raw || "",
 				// 只有 1 条时 buildEventHover 返回 ""，由 UI 退回单条展示（与其它源一致）
-				eventHover: buildEventHover(active)
+				eventHover: buildEventHover(active, 0, tz)
 			};
 		}
 
@@ -3238,7 +3245,7 @@ EVENT_FETCHERS["zzz"] = {
 				label: `${p.name}\uFF1A${p.roles || "-"}`,
 				startTs: p.startTs,
 				endTs: p.endTs
-			})));
+			})), tz);
 			const bannerHover = poolHover ? `${first.type}\n${poolHover}` : "";
 			// **外显用卡池类型**（`角色活动唤取`），不用某一个池名：
 			// 角色是多池合并的，若外显挂"但愿长圆如此夜"，卡片就成了"标题只说一个池、角色却是三个池的合成"。
@@ -3273,7 +3280,7 @@ EVENT_FETCHERS["zzz"] = {
 			if (sorted.length === 0) return null;
 			const primary = pickEventPrimary(sorted) || sorted[0];
 			const dates = fmtWindow(primary.startTs, primary.endTs, tz);
-			return { banner: primary.name, bannerDates: dates, bannerDatesRaw: dates, eventHover: buildEventHover(sorted) };
+			return { banner: primary.name, bannerDates: dates, bannerDatesRaw: dates, eventHover: buildEventHover(sorted, 0, tz) };
 		}
 
 
@@ -3354,7 +3361,7 @@ EVENT_FETCHERS["zzz"] = {
 			// 外显：类别优先（战斗/高难类优先），同级内结束时间升序（③）；悬停仍按 endTs 升序全量
 			const primary = pickEventPrimary(active) || active[0];
 			const dates = primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs, tz) : (primary.raw || "");
-			return { banner: primary.name, roles: "", bannerDates: dates, bannerDatesRaw: primary.raw || dates, eventHover: buildEventHover(active) };
+			return { banner: primary.name, roles: "", bannerDates: dates, bannerDatesRaw: primary.raw || dates, eventHover: buildEventHover(active, 0, tz) };
 		}
 
 
@@ -3474,7 +3481,8 @@ EVENT_FETCHERS["zzz"] = {
 
 		// 终末地卡池列悬停：canmoe 卡池日历 chunk 内同期全部卡池条目（特许寻访 / 重构寻访 等），
 		// 每池"卡池名：角色"一行 + 时间；窗口相同则合并时间；结束时间升序（0/1 池返回 "" 走单条兜底）
-		function canmoePoolHover(js, now) {
+		// `tz` = 源站时区（必传，悬停 = 源站墙钟原文；调用方 fetchCanmoeEndfield 手里就有）。
+		function canmoePoolHover(js, now, tz) {
 			const arr = extractCanmoePeriods(js);
 			if (!arr) return "";
 			const pools = [];
@@ -3494,7 +3502,7 @@ EVENT_FETCHERS["zzz"] = {
 					endTs: b
 				});
 			}
-			return buildPoolHover(pools);
+			return buildPoolHover(pools, tz);
 		}
 
 		const WUWA_NOTICE_ENTRY = "https://aki-gm-resources-back.aki-game.com/gamenotice/G152/76402e5b20be2c39f095a152090afddc/entrypoint.json";
@@ -3638,7 +3646,7 @@ EVENT_FETCHERS["wuwa"] = {
 					name: it.banner,
 					label: `${it.banner}${it.roles ? `\uFF1A${it.roles}` : ""}`,
 					startTs: it.startTs, endTs: it.endTs, raw: it.rawOriginal || it.raw
-				})))
+				})), tz)
 			};
 		}
 
@@ -3750,7 +3758,7 @@ EVENT_FETCHERS["wuwa"] = {
 						roles: p.roles,
 						bannerDates: p.bannerDates,
 						bannerDatesRaw: p.bannerDatesRaw,
-						bannerHover: buildPoolHover(pools)
+						bannerHover: buildPoolHover(pools, tz)
 					};
 				}
 			} catch { /* 官方失败 → 回退 PRTS */ }
@@ -3970,7 +3978,7 @@ EVENT_FETCHERS["wuwa"] = {
 					// 同轮多命中 → 取原始下标最小者（= 原串行实现会选中的那份）；早停：不再发下一轮
 					hits.sort((a, b) => a.i - b.i);
 					const { d, js } = hits[0];
-					const hover = canmoePoolHover(js, now);
+					const hover = canmoePoolHover(js, now, tz);
 					if (hover) d.bannerHover = hover;
 					return d;
 				}
@@ -4057,7 +4065,7 @@ EVENT_FETCHERS["wuwa"] = {
 				event: primary.name,
 				eventDates: primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs, tz) : (primary.raw || ""),
 				eventDatesRaw: primary.raw || "",
-				eventHover: buildEventHover(active)
+				eventHover: buildEventHover(active, 0, tz)
 			};
 		}
 
@@ -4240,7 +4248,7 @@ EVENT_FETCHERS["wuwa"] = {
 				banner: primary.name,
 				bannerDatesRaw: win,
 				bannerDates: win,
-				eventHover: buildEventHover(activeActs)
+				eventHover: buildEventHover(activeActs, 0, tz)
 			};
 		}
 
@@ -4322,7 +4330,7 @@ EVENT_FETCHERS["wuwa"] = {
 				roles: "",
 				bannerDates: win,
 				bannerDatesRaw: win,
-				eventHover: buildEventHover(ordered)
+				eventHover: buildEventHover(ordered, 0, tz)
 			};
 		}
 
@@ -4566,7 +4574,7 @@ EVENT_FETCHERS["endfield"] = {
 			const evDates = eventRow
 				? (eventRow.startTs != null && eventRow.endTs != null ? fmtWindow(eventRow.startTs, eventRow.endTs) : (eventRow.raw || ""))
 				: "";
-			const eventHover = buildEventHover(evOrdered);
+			const eventHover = buildEventHover(evOrdered, 0, tz);
 			const data = {
 				banner: "",
 				roles: "",
@@ -4591,7 +4599,7 @@ EVENT_FETCHERS["endfield"] = {
 				startTs: r.range.startTs,
 				endTs: r.range.endTs,
 				raw: r.range.raw
-			})));
+			})), tz);
 			if (poolHover) data.bannerHover = poolHover;
 			if (eventRow) {
 				data.event = eventRow.name; // 活动名（去掉"活動劇情："类类别前缀，精简展示）
@@ -4674,7 +4682,7 @@ EVENT_FETCHERS["endfield"] = {
 				startTs: p.startTs,
 				endTs: p.endTs,
 				raw: p.raw
-			})));
+			})), tz);
 			if (hover) data.bannerHover = hover;
 			// 活动：同期「イベント」条目的開催期間
 			for (const it of rows) {
@@ -5330,11 +5338,11 @@ EVENT_FETCHERS["endfield"] = {
 			// ② 悬停：**外显那条排第一**（仓库既有不变量：外显必须能在悬停里看到），其余按列表顺序。
 			// 零额外请求（content 已是全文）；<2 条时返回 ""（或只剩常驻计数行）。
 			//
-			// ⚠️ 用 `hoverEvent(…, tz)` 而不是 `buildEventHover(…)`：两者排版**逐字一致**
-			//   （`hoverEvent` 就是本体的 tz 版复刻），但本体 `buildEventHover` **不接受 tz**，
-			//   它会用**机器本地时区**格式化档期。ba-cn 的 `eventDates` 是 `fmtWindow(..., tz)`
-			//   （源站 +08 墙钟），混用会让 UTC 机器上的悬停比外显行**早 8 小时**
-			//   （2026-10-21 在 `$env:TZ=UTC` 下实测到：悬停 06:00 vs 外显 14:00）。
+			// ⚠️ 这里用 `hoverEvent(…, tz)`（本体 buildEventHover 的 **tz 版复刻**，排版逐字一致）：
+			//   ba-cn 的 `eventDates` 是 `fmtWindow(..., tz)`（源站 +08 墙钟），悬停必须同口径。
+			//   （2026-10-21 之前本体 `buildEventHover` 不接受 tz、会用**机器本地时区**格式化档期，
+			//    在 `$env:TZ=UTC` 下实测到悬停 06:00 vs 外显 14:00；本体当天已补上 tz 参数，
+			//    两条路径现在等价 —— 这里保持 hoverEvent 不动，避免无谓改动已验收的 ba-cn 输出。）
 			const eventHover = hoverEvent(ev ? [ev, ...events.filter((x) => x !== ev)] : events, tz, permanentCount);
 			const data = {
 				banner: primary ? primary.typeName : "",
@@ -12196,7 +12204,7 @@ function ns_stellasora_stellaWindowsFromDetail(detailJson, tz = ns_stellasora_ST
 		// 官方游戏内公告 → 当期征集（含真实起止、悬停列全部并行）+ 当期活动（同其它游戏的活动列规则）。
 		// 结构异常（接口改版 / 正文不再可解析）→ 抛错，由上层回退官网公告；
 		// 结构正常但没有覆盖当前时刻的征集/活动 → 返回 null（该侧按"未公布"）。
-		async function fetchR99Notice(now = nowMs()) {
+		async function fetchR99Notice(now = nowMs(), tz) {
 			const json = await proxyFetchJson(R1999_NOTICE_URL, "https://www.sl916.com/");
 			const items = json && Array.isArray(json.data) ? json.data : null;
 			if (!items) throw new Error("r1999-notice-no-section");
@@ -12246,7 +12254,7 @@ function ns_stellasora_stellaWindowsFromDetail(detailJson, tz = ns_stellasora_ST
 					name: p.name,
 					label: `${p.name}${p.roles ? `\uFF1A${p.roles}` : ""}`,
 					startTs: p.startTs, endTs: p.endTs, raw: p.raw
-				})));
+				})), tz);
 				if (hover) data.bannerHover = hover;
 			}
 			const activeEvents = sortEventItems(events.filter((e) => coversNow(e, now)));
@@ -12255,7 +12263,7 @@ function ns_stellasora_stellaWindowsFromDetail(detailJson, tz = ns_stellasora_ST
 				data.event = primary.name;
 				data.eventDates = fmtWindow(primary.startTs, primary.endTs);
 				data.eventDatesRaw = primary.raw || data.eventDates;
-				const hover = buildEventHover(activeEvents);
+				const hover = buildEventHover(activeEvents, 0, tz);
 				if (hover) data.eventHover = hover;
 			}
 			return (data.banner || data.event) ? data : null;
@@ -12267,7 +12275,7 @@ function ns_stellasora_stellaWindowsFromDetail(detailJson, tz = ns_stellasora_ST
 		async function fetchR99(url, signal, tz, now = nowMs()) {
 			if (!/noticecp/.test(String(url || ""))) return fetchR99Official(url, signal, now);
 			try {
-				return await fetchR99Notice(now);
+				return await fetchR99Notice(now, tz);
 			} catch {
 				// 游戏内公告接口不可用/结构变了 → 回退官网公告（宁可少时间信息，也不要整格报错）
 				return fetchR99Official(R1999_OFFICIAL_URL, signal, tz, now);

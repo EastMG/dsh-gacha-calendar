@@ -215,7 +215,7 @@
 		// 官方游戏内公告 → 当期征集（含真实起止、悬停列全部并行）+ 当期活动（同其它游戏的活动列规则）。
 		// 结构异常（接口改版 / 正文不再可解析）→ 抛错，由上层回退官网公告；
 		// 结构正常但没有覆盖当前时刻的征集/活动 → 返回 null（该侧按"未公布"）。
-		async function fetchR99Notice(now = nowMs()) {
+		async function fetchR99Notice(now = nowMs(), tz) {
 			const json = await proxyFetchJson(R1999_NOTICE_URL, "https://www.sl916.com/");
 			const items = json && Array.isArray(json.data) ? json.data : null;
 			if (!items) throw new Error("r1999-notice-no-section");
@@ -265,7 +265,7 @@
 					name: p.name,
 					label: `${p.name}${p.roles ? `\uFF1A${p.roles}` : ""}`,
 					startTs: p.startTs, endTs: p.endTs, raw: p.raw
-				})));
+				})), tz);
 				if (hover) data.bannerHover = hover;
 			}
 			const activeEvents = sortEventItems(events.filter((e) => coversNow(e, now)));
@@ -274,7 +274,7 @@
 				data.event = primary.name;
 				data.eventDates = fmtWindow(primary.startTs, primary.endTs);
 				data.eventDatesRaw = primary.raw || data.eventDates;
-				const hover = buildEventHover(activeEvents);
+				const hover = buildEventHover(activeEvents, 0, tz);
 				if (hover) data.eventHover = hover;
 			}
 			return (data.banner || data.event) ? data : null;
@@ -286,7 +286,7 @@
 		async function fetchR99(url, signal, tz, now = nowMs()) {
 			if (!/noticecp/.test(String(url || ""))) return fetchR99Official(url, signal, now);
 			try {
-				return await fetchR99Notice(now);
+				return await fetchR99Notice(now, tz);
 			} catch {
 				// 游戏内公告接口不可用/结构变了 → 回退官网公告（宁可少时间信息，也不要整格报错）
 				return fetchR99Official(R1999_OFFICIAL_URL, signal, tz, now);

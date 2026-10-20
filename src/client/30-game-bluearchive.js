@@ -127,7 +127,7 @@
 			const evDates = eventRow
 				? (eventRow.startTs != null && eventRow.endTs != null ? fmtWindow(eventRow.startTs, eventRow.endTs) : (eventRow.raw || ""))
 				: "";
-			const eventHover = buildEventHover(evOrdered);
+			const eventHover = buildEventHover(evOrdered, 0, tz);
 			const data = {
 				banner: "",
 				roles: "",
@@ -152,7 +152,7 @@
 				startTs: r.range.startTs,
 				endTs: r.range.endTs,
 				raw: r.range.raw
-			})));
+			})), tz);
 			if (poolHover) data.bannerHover = poolHover;
 			if (eventRow) {
 				data.event = eventRow.name; // 活动名（去掉"活動劇情："类类别前缀，精简展示）
@@ -235,7 +235,7 @@
 				startTs: p.startTs,
 				endTs: p.endTs,
 				raw: p.raw
-			})));
+			})), tz);
 			if (hover) data.bannerHover = hover;
 			// 活动：同期「イベント」条目的開催期間
 			for (const it of rows) {
@@ -891,11 +891,11 @@
 			// ② 悬停：**外显那条排第一**（仓库既有不变量：外显必须能在悬停里看到），其余按列表顺序。
 			// 零额外请求（content 已是全文）；<2 条时返回 ""（或只剩常驻计数行）。
 			//
-			// ⚠️ 用 `hoverEvent(…, tz)` 而不是 `buildEventHover(…)`：两者排版**逐字一致**
-			//   （`hoverEvent` 就是本体的 tz 版复刻），但本体 `buildEventHover` **不接受 tz**，
-			//   它会用**机器本地时区**格式化档期。ba-cn 的 `eventDates` 是 `fmtWindow(..., tz)`
-			//   （源站 +08 墙钟），混用会让 UTC 机器上的悬停比外显行**早 8 小时**
-			//   （2026-10-21 在 `$env:TZ=UTC` 下实测到：悬停 06:00 vs 外显 14:00）。
+			// ⚠️ 这里用 `hoverEvent(…, tz)`（本体 buildEventHover 的 **tz 版复刻**，排版逐字一致）：
+			//   ba-cn 的 `eventDates` 是 `fmtWindow(..., tz)`（源站 +08 墙钟），悬停必须同口径。
+			//   （2026-10-21 之前本体 `buildEventHover` 不接受 tz、会用**机器本地时区**格式化档期，
+			//    在 `$env:TZ=UTC` 下实测到悬停 06:00 vs 外显 14:00；本体当天已补上 tz 参数，
+			//    两条路径现在等价 —— 这里保持 hoverEvent 不动，避免无谓改动已验收的 ba-cn 输出。）
 			const eventHover = hoverEvent(ev ? [ev, ...events.filter((x) => x !== ev)] : events, tz, permanentCount);
 			const data = {
 				banner: primary ? primary.typeName : "",

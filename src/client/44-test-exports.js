@@ -350,6 +350,19 @@
 			textOf,
 			hoverPool,
 			hoverEvent,
+			// 悬停/外显两套口径的**本体**（2026-10-21 用户口径）：
+			//   · buildEventHover / buildPoolHover —— 悬停 = **源站墙钟原文**，`tz` 必传（漏传退回本机时区，
+			//     由 test/cases-rule-lint.mjs 的静态守卫兜住）；导出后测试可直接断言"同一份 ts 在不同
+			//     tz 下渲染出不同文本"。
+			//   · localWin / localWinText / localDatesOf —— 渲染层外显 = **本机时区换算**（纯函数，可测）。
+			//     ⚠️ 它们在 80-components.js 里是**函数声明**，同作用域提升 ⇒ 这里可以提前引用；
+			//        但函数体里只能用同样提升的函数（fmtWindow / parseDisplayRange / sourceOffsetMinutes），
+			//        不许依赖 80 顶层的 const（那些在本文件执行时还在 TDZ）。
+			buildEventHover,
+			buildPoolHover,
+			localWin,
+			localWinText,
+			localDatesOf,
 			sourceInstant,
 			sourceWallParts,
 			sourceOffsetMinutes,

@@ -212,12 +212,64 @@
 			return SCHEDULE_PALETTE[h % SCHEDULE_PALETTE.length];
 		}
 
+		// ── 档期文本的两套口径（用户 2026-10-21 定）────────────────────────────────
+		//   · **外显**（面板上看得见的时间文本）= 按**用户本机时区**换算后的时间 ——
+		//     玩家要回答的是"我这边几点能抽"，所以换算成手机/电脑的钟点。
+		//   · **悬停**（tooltip / 探头展开行）= **源站墙钟原文** —— 对着游戏内公告核对用，
+		//     解析器输出的 bannerDates / eventDates 就是这串原文，渲染层的 title 一律不动。
+		//
+		// ⚠️ 为什么不直接吃 `startTs/endTs`：落盘数据里没有它们 —— `50-refresh.js` 的
+		//    GACHA_FIELDS / EVENT_FIELDS 只留文本与悬停（事件侧本来也没有 eventStartTs/eventEndTs）。
+		//    但每条来源都带源站 `tz`（`60-helpers.js` 的 getAllEntries 白名单里透传），
+		//    而源站文本就是"源站墙钟" ⇒ 「文本 + tz」足以还原绝对时刻，再按本机时区渲染。
+
+		// 绝对档期 → 本机时区文本（不传 tz = 运行环境本机时区）。拿不到绝对档期 → null。
+		function localWin(startTs, endTs) {
+			if (typeof startTs === "number" && typeof endTs === "number") return fmtWindow(startTs, endTs);
+			return null;
+		}
+
+		// 源站墙钟文本 + 源站 tz → 本机时区文本。
+		// 返回 null = 换算不了（调用方回落原文，**绝不**显示一个错的钟点）：
+		//   · 文本不是「MM-DD HH:MM ~ MM-DD HH:MM」形态（跨年带年份 / "版本更新后 ~ …" / "长期"）
+		//   · 条目没声明 tz（自定义条目；`sourceOffsetMinutes` 也不认识的时区名）
+		function localWinText(text, tz, now) {
+			if (!tz) return null;
+			const r = parseDisplayRange(text, now);
+			if (!r) return null;
+			// 把"被当成本机墙钟"解释出来的 ts 还原成绝对时刻：真值 = ts + (本机偏移 − 源站偏移)。
+			// 两端各算一次（跨 DST 的窗口不会因为只取起点偏移而差一小时）。
+			const shiftOf = (ts) => {
+				const offSrc = sourceOffsetMinutes(tz, ts);
+				if (offSrc == null) return null;
+				return (-new Date(ts).getTimezoneOffset() - offSrc) * 60000;
+			};
+			const sa = shiftOf(r.startTs), sb = shiftOf(r.endTs);
+			if (sa == null || sb == null) return null;
+			if (sa === 0 && sb === 0) return text;   // 源站时区 == 本机 → 原文即换算结果（保持原样，不重排）
+			return fmtWindow(r.startTs + sa, r.endTs + sb);
+		}
+
+		// 某条目某一侧的外显档期文本：绝对档期 → 「源站文本 + tz」→ null（调用方回落原文）。
+		// 卡池侧若数据里直出了 startTs/endTs（fetch 层契约里有）就优先用它们；
+		// 活动侧没有对应字段（不拿卡池的 startTs 冒充），一律走文本 + tz。
+		function localDatesOf(g, isG, now) {
+			if (!g) return null;
+			const hit = isG ? localWin(g.startTs, g.endTs) : null;
+			if (hit) return hit;
+			const text = (isG ? g.bannerDates : g.eventDates) || "";
+			return localWinText(text, g.tz || null, now);
+		}
+
 		// 一条档期 = 某款游戏的卡池侧或活动侧。读不出绝对档期的（源站原文）按"长期"处理，
 		// **不**硬凑一个天数——这也是设计稿里"点线 + 长期"两字的来由。
 		function scheduleNormalize(g, side, now) {
 			const isG = side === "gacha";
 			const title = (isG ? g.banner : g.event) || "";
-			const raw = (isG ? g.bannerDates : g.eventDates) || "";
+			// 源站墙钟原文（悬停用）与换算后的外显文本（本机时区）分开存：
+			//   rawSrc = 源站原文；raw = 外显（换算不了就回落 rawSrc）
+			const rawSrc = (isG ? g.bannerDates : g.eventDates) || "";
+			const raw = localDatesOf(g, isG, now) || rawSrc;
 			if (!title && !raw) return null;                       // 这一侧没有数据，不出条目
 			const fail = (isG ? g.gachaFail : g.eventFail) || null;
 			const r = parseDisplayRange(raw, now);
@@ -236,9 +288,9 @@
 			const roles = isG ? (g.roles || "") : "";
 			const show = (isG && roles) ? (cleanRoleNames(roles, g.id) || title) : title;
 			// 悬停文本：**原始文本** = 标题 + 源站原文（优先 Raw），与旧面板 gachaTitle/eventTitle 的写法一致
-			const datesRaw = (isG ? g.bannerDatesRaw : g.eventDatesRaw) || raw;
+			const datesRaw = (isG ? g.bannerDatesRaw : g.eventDatesRaw) || rawSrc;
 			const orig = title + (datesRaw ? "\n" + datesRaw : "");
-			return { key: g.id + ":" + side, g, side, isG, title, show, orig, raw, fail, state, startTs, endTs, remain };
+			return { key: g.id + ":" + side, g, side, isG, title, show, orig, raw, rawSrc, fail, state, startTs, endTs, remain };
 		}
 
 		// ── 同格并列条目：从悬停文本解析出来 ─────────────────────────────────────────
@@ -418,7 +470,8 @@
 // 退化成「外显 ⏎ 档期」，与原面板单条时的观感一致。
 			function scheduleHoverText(x) {
 				const hv = (x.isG ? x.g.bannerHover : x.g.eventHover) || "";
-				const head = [x.title, x.raw].filter(Boolean).join("\n");
+				// 悬停一律给**源站墙钟原文**（rawSrc）；换算后的本机时区文本只用于外显
+				const head = [x.title, x.rawSrc || x.raw].filter(Boolean).join("\n");
 				return [hv, head].filter(Boolean).join("\n") || "—";
 			}
 			function scheduleKindIcon(kind, cls) {
@@ -873,7 +926,8 @@
 				const g = x && x.g;
 				if (!g) return (x && (x.orig || x.title || x.raw)) || "—";
 				const base = (x.isG ? g.bannerHover : g.eventHover) || "";
-				const own = [x.title, x.raw].filter(Boolean).join("\n");
+				// 悬停（探头展开行同样）用**源站墙钟原文** rawSrc；raw 是本机时区换算后的外显文本
+				const own = [x.title, x.rawSrc || x.raw].filter(Boolean).join("\n");
 				let text = base ? (base + (x.title && base.indexOf(x.title) < 0 ? "\n" + own : "")) : own;
 				if (withFail) {
 					const fail = x.isG ? g.gachaFail : g.eventFail;
@@ -1497,10 +1551,10 @@
 										(0, react_jsx_runtime.jsx)(GameIcon, { icon: g.icon, name: g.name }),
 										(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-name", title: rowTitle, children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: g.name }) }),
 										(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-cell", title: withFailNote(g.bannerHover || gachaTitle, "gacha", g.gachaFail, g.gachaStale, gachaUser), children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: gachaVisible }) }),
-										// 起止列：倒计时用补全后的时间；悬停显示源站原文（如"4.5版本更新后 ~ …"）
-										(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-cell", title: withFailNote(g.bannerDatesRaw || g.bannerDates, "gacha", g.gachaFail, g.gachaStale, gachaUser), children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: (0, react_jsx_runtime.jsx)("b", { children: displayTimeCell(g.bannerDates || "", now) }) }) }),
+										// 起止列：**外显按本机时区换算**（localDatesOf）；悬停显示源站原文（如"4.5版本更新后 ~ …"）
+										(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-cell", title: withFailNote(g.bannerDatesRaw || g.bannerDates, "gacha", g.gachaFail, g.gachaStale, gachaUser), children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: (0, react_jsx_runtime.jsx)("b", { children: displayTimeCell(localDatesOf(g, true, now) || g.bannerDates || "", now) }) }) }),
 										(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-cell", title: withFailNote(g.eventHover || eventTitle, "event", g.eventFail, g.eventStale, eventUser), children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: eventName }) }),
-										(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-cell", title: withFailNote(g.eventDatesRaw || g.eventDates, "event", g.eventFail, g.eventStale, eventUser), children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: displayTimeCell(g.eventDates || "", now) }) })
+										(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-cell", title: withFailNote(g.eventDatesRaw || g.eventDates, "event", g.eventFail, g.eventStale, eventUser), children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: displayTimeCell(localDatesOf(g, false, now) || g.eventDates || "", now) }) })
 									]
 								});
 							})

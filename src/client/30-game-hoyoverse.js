@@ -257,7 +257,7 @@
 				eventDates: dates,
 				eventDatesRaw: primary.raw || "",
 				// 只有 1 条时 buildEventHover 返回 ""，由 UI 退回单条展示（与其它源一致）
-				eventHover: buildEventHover(active)
+				eventHover: buildEventHover(active, 0, tz)
 			};
 		}
 

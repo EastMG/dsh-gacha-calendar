@@ -24,6 +24,7 @@ import runP9 from "./cases-p9.mjs";
 import runBa from "./cases-ba.mjs";
 import runUmaGt from "./cases-uma-gt.mjs";
 import runRuleLint from "./cases-rule-lint.mjs";
+import runTz from "./cases-tz.mjs";
 import runReadme from "./cases-readme.mjs";
 import runCore from "./cases-core.mjs";
 
@@ -101,6 +102,7 @@ const batches = [
 	["蔚蓝档案（国服公告时间块 / 国际服 GameKee 当期卡池表）", runBa],
 	["赛马娘国际服卡池（GameTora 默认源）", runUmaGt],
 	["规则静态守卫（方案 A 悬停 + 选当期判定不许各写各的）", runRuleLint],
+	["时区口径（外显=本机时区 / 悬停=源站墙钟）", runTz],
 	["README 结构图与事实性", runReadme],
 	["core 产物（零宿主依赖 + 注册幂等）", runCore]
 ];

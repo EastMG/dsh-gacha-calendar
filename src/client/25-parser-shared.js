@@ -419,7 +419,13 @@
 		// 兜底：只有 0/1 条时返回 ""，由 UI 退回原有"活动名 + 时间"单条展示 ——
 		// 公告类单条源（蔚蓝国服/日服、1999、异环等）因此完全不受影响，也不会出现空行或半截区间。
 		// permanentCount：永久/常驻活动的条数（不参与排序，只在末尾补一行计数，避免"源站有、面板没有"）。
-		function buildEventHover(items, permanentCount = 0) {
+		//
+		// ⚠️ `tz`（源站时区，**必传**、故意不给默认值）：悬停文本的用户口径 = **源站墙钟原文**
+		//    （"服务器那个时间"，2026-10-21 用户定）。不传 tz 时 fmtWindow 会退化成**运行环境本机
+		//    时区** —— 海外用户看到的钟点与外显/游戏内公告都对不上（`$env:TZ=UTC` 下实测到
+		//    悬停 06:00 vs 外显 14:00）。放在**第 3 参**是为了让老调用 `(items, permanentCount)`
+		//    不会把计数错位成时区；漏传由 `test/cases-rule-lint.mjs` 的静态守卫兜住。
+		function buildEventHover(items, permanentCount = 0, tz) {
 			const list = (Array.isArray(items) ? items : [])
 				.filter((x) => x && typeof x.name === "string" && x.name.trim() !== "")
 				.filter((x) => !isLongTermEvent(x));
@@ -433,12 +439,12 @@
 			const lines = list.map((x) => {
 				// 有起止的行按行带时间（全部同窗口时只在末尾写一遍）；缺起止的行原样显示该行原文
 				if (x.startTs != null && x.endTs != null) {
-					return same ? x.name : `${x.name}   ${fmtWindow(x.startTs, x.endTs)}`;
+					return same ? x.name : `${x.name}   ${fmtWindow(x.startTs, x.endTs, tz)}`;
 				}
 				const raw = String(x.raw || "").trim();
 				return raw ? `${x.name}   ${raw}` : x.name;
 			});
-			if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs));
+			if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs, tz));
 			if (permanentCount > 0) lines.push(permanentLine(permanentCount));
 			return lines.join("\n");
 		}
@@ -448,7 +454,8 @@
 		// 每池两行 —— "池名：角色" + "起止时间"；窗口完全相同的池合并时间（只在末尾写一遍）；
 		// 排序：结束时间升序（无/未知结束时间排最后）。
 		// 外显不受此函数影响：仍按各源原有逻辑（同窗口角色合并）。兜底：0/1 池返回 ""，退回单条展示。
-		function buildPoolHover(pools) {
+		// `tz`（源站时区）**必传**：与 buildEventHover 同口径 —— 悬停 = 源站墙钟原文。
+		function buildPoolHover(pools, tz) {
 			const rawList = (Array.isArray(pools) ? pools : [])
 				.filter((p) => p && typeof p.name === "string" && p.name.trim() !== "")
 				.sort((a, b) => {
@@ -488,10 +495,10 @@
 			for (const p of list) {
 				lines.push(p.label || p.name);
 				if (same) continue;
-				const t = p.startTs != null && p.endTs != null ? fmtWindow(p.startTs, p.endTs) : String(p.raw || "").trim();
+				const t = p.startTs != null && p.endTs != null ? fmtWindow(p.startTs, p.endTs, tz) : String(p.raw || "").trim();
 				if (t) lines.push(t);
 			}
-			if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs));
+			if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs, tz));
 			return lines.join("\n");
 		}
 
@@ -527,7 +534,7 @@
 					endTs: it.endTs,
 					raw: it.raw
 				}));
-			return { ...cur, bannerHover: buildPoolHover(pools) };
+			return { ...cur, bannerHover: buildPoolHover(pools, tz) };
 		}
 
 		// 起止时间戳 → 统一文本 `MM-DD HH:MM ~ MM-DD HH:MM`

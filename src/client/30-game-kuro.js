@@ -104,7 +104,7 @@
 				label: `${p.name}\uFF1A${p.roles || "-"}`,
 				startTs: p.startTs,
 				endTs: p.endTs
-			})));
+			})), tz);
 			const bannerHover = poolHover ? `${first.type}\n${poolHover}` : "";
 			// **外显用卡池类型**（`角色活动唤取`），不用某一个池名：
 			// 角色是多池合并的，若外显挂"但愿长圆如此夜"，卡片就成了"标题只说一个池、角色却是三个池的合成"。
@@ -139,7 +139,7 @@
 			if (sorted.length === 0) return null;
 			const primary = pickEventPrimary(sorted) || sorted[0];
 			const dates = fmtWindow(primary.startTs, primary.endTs, tz);
-			return { banner: primary.name, bannerDates: dates, bannerDatesRaw: dates, eventHover: buildEventHover(sorted) };
+			return { banner: primary.name, bannerDates: dates, bannerDatesRaw: dates, eventHover: buildEventHover(sorted, 0, tz) };
 		}
 
 
@@ -220,7 +220,7 @@
 			// 外显：类别优先（战斗/高难类优先），同级内结束时间升序（③）；悬停仍按 endTs 升序全量
 			const primary = pickEventPrimary(active) || active[0];
 			const dates = primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs, tz) : (primary.raw || "");
-			return { banner: primary.name, roles: "", bannerDates: dates, bannerDatesRaw: primary.raw || dates, eventHover: buildEventHover(active) };
+			return { banner: primary.name, roles: "", bannerDates: dates, bannerDatesRaw: primary.raw || dates, eventHover: buildEventHover(active, 0, tz) };
 		}
 
 
@@ -340,7 +340,8 @@
 
 		// 终末地卡池列悬停：canmoe 卡池日历 chunk 内同期全部卡池条目（特许寻访 / 重构寻访 等），
 		// 每池"卡池名：角色"一行 + 时间；窗口相同则合并时间；结束时间升序（0/1 池返回 "" 走单条兜底）
-		function canmoePoolHover(js, now) {
+		// `tz` = 源站时区（必传，悬停 = 源站墙钟原文；调用方 fetchCanmoeEndfield 手里就有）。
+		function canmoePoolHover(js, now, tz) {
 			const arr = extractCanmoePeriods(js);
 			if (!arr) return "";
 			const pools = [];
@@ -360,7 +361,7 @@
 					endTs: b
 				});
 			}
-			return buildPoolHover(pools);
+			return buildPoolHover(pools, tz);
 		}
 
 		const WUWA_NOTICE_ENTRY = "https://aki-gm-resources-back.aki-game.com/gamenotice/G152/76402e5b20be2c39f095a152090afddc/entrypoint.json";

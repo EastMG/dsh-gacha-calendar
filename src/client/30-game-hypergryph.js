@@ -83,7 +83,7 @@
 					name: it.banner,
 					label: `${it.banner}${it.roles ? `\uFF1A${it.roles}` : ""}`,
 					startTs: it.startTs, endTs: it.endTs, raw: it.rawOriginal || it.raw
-				})))
+				})), tz)
 			};
 		}
 
@@ -195,7 +195,7 @@
 						roles: p.roles,
 						bannerDates: p.bannerDates,
 						bannerDatesRaw: p.bannerDatesRaw,
-						bannerHover: buildPoolHover(pools)
+						bannerHover: buildPoolHover(pools, tz)
 					};
 				}
 			} catch { /* 官方失败 → 回退 PRTS */ }
@@ -415,7 +415,7 @@
 					// 同轮多命中 → 取原始下标最小者（= 原串行实现会选中的那份）；早停：不再发下一轮
 					hits.sort((a, b) => a.i - b.i);
 					const { d, js } = hits[0];
-					const hover = canmoePoolHover(js, now);
+					const hover = canmoePoolHover(js, now, tz);
 					if (hover) d.bannerHover = hover;
 					return d;
 				}
@@ -502,7 +502,7 @@
 				event: primary.name,
 				eventDates: primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs, tz) : (primary.raw || ""),
 				eventDatesRaw: primary.raw || "",
-				eventHover: buildEventHover(active)
+				eventHover: buildEventHover(active, 0, tz)
 			};
 		}
 
@@ -685,7 +685,7 @@
 				banner: primary.name,
 				bannerDatesRaw: win,
 				bannerDates: win,
-				eventHover: buildEventHover(activeActs)
+				eventHover: buildEventHover(activeActs, 0, tz)
 			};
 		}
 
@@ -767,7 +767,7 @@
 				roles: "",
 				bannerDates: win,
 				bannerDatesRaw: win,
-				eventHover: buildEventHover(ordered)
+				eventHover: buildEventHover(ordered, 0, tz)
 			};
 		}
 
