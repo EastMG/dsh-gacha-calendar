@@ -397,7 +397,9 @@
 		//   某侧"即将到期" = 该侧**已开始**（startTs <= now）且 **endTs 落在 (now, now + N 小时]**。
 		//   · 未开始的窗口**不算**：它的 endTs 也在未来，但那属于"还没开始"，不是"快到期"；
 		//   · 已结束（含 now == endTs 那一刻）**不算**；
-		//   · N <= 0（设置里的「关闭」）恒为 false —— 关闭时**连算都不算**，调用方也应该短路；
+		//   · N <= 0 恒为 false（老配置里残留的 0 / 非 UI 宿主显式传 0）—— 连算都不算，调用方也应该短路；
+		//     ⚠️ 2026-10-25 三次定稿后设置页**不再有「关闭」档位**（关闭归 remindOn 总开关），
+		//     这条只是兼容旧数据与无 UI 宿主，不再是主要的"关"路径。
 		//   · startTs / endTs 任一缺失或不是有限数字 → 不算（落盘数据里这两端本来就可能是空的：
 		//     缓存只存文本，绝对档期靠 80-components.js 的 localDatesOf 现算）。
 		// 放在 helpers（而不是渲染层）的理由：它是纯判定、零宿主依赖，core 产物里也能直接用
@@ -413,7 +415,7 @@
 		}
 
 		// 从「{ startTs, endTs } 列表」里挑出即将到期的（顺序保持输入顺序）。
-		// 单独一个函数是为了让"关闭时不算"只有一处实现：N <= 0 → 直接空数组。
+		// 单独一个函数是为了让"范围无效时不算"只有一处实现：N <= 0 → 直接空数组（同上，仅兼容）。
 		function expiringSoonOf(items, nowTs, remindHours) {
 			const hours = Number(remindHours);
 			if (!(hours > 0) || !Array.isArray(items)) return [];
@@ -427,7 +429,7 @@
 		//   · "start" = 这一侧**还没开始**（startTs > now）且 startTs 落在 (now, now + N 小时]；
 		//   · 其余（还早 / 已结束 / 缺 ts / 结束早于开始的脏数据）一律 ""。
 		// 两者天然互斥（startTs <= now 的走 end 分支，> now 的走 start 分支），不需要再排优先级。
-		// N <= 0（设置里的「关闭」）恒为 "" —— 关闭时**连算都不算**，调用方也应短路。
+		// N <= 0（老配置残留 / 无 UI 宿主）恒为 "" —— 连算都不算，调用方也应短路。
 		// 纯函数、不读 Date.now / window：单测直接喂固定时刻（test/cases-remind.mjs）。
 		function remindKindOf(startTs, endTs, nowTs, remindHours) {
 			const hours = Number(remindHours);
@@ -455,6 +457,26 @@
 		function remindGameAllowed(gameId, remindGames) {
 			if (!Array.isArray(remindGames)) return false;
 			return remindGames.includes(gameId);
+		}
+
+		// 「侧栏轮播总开关」的读取口径（纯函数，2026-10-25 三次定稿）：只有**明确的 false** 才算关。
+		// undefined / null / 0 / "" 都当"开" —— 老配置里根本没有这个键，默认必须是开，
+		// 与 DEFAULT_SETTINGS.remindOn 和 schema 的 default(true) 同口径。
+		// 放在 helpers 的理由：设置页与侧栏按钮两处都要读它，判定只允许有一处实现
+		// （真机症状是"设置页显示开着、按钮却没反应"这类两套口径的病）。
+		function remindOnOf(v) {
+			return v !== false;
+		}
+
+		// 「提醒范围」的读取口径（纯函数，2026-10-25 三次定稿）：只接受正数小时；
+		// 缺失 / 0 / 负数 / 非数字都回落到**默认范围**（72 小时）。
+		// 为什么必须归一：设置页的「关闭」档位已经删了（关闭归 remindOn 开关），但**老配置里可能
+		// 还留着 0**。若渲染层仍按 `|| 0` 读，就会出现最难查的两套口径 ——
+		// 设置页显示「范围 72 小时」、按钮却一声不响（0 让 remindKindOf 全部短路）。
+		// 归一之后"0 = 不提醒"只剩纯判定层的兼容行为（直接调用 remindDueOf 的宿主才会碰到）。
+		function remindRangeOf(v) {
+			const h = Number(v);
+			return h > 0 ? h : DEFAULT_SETTINGS.remindHours;
 		}
 
 		// 从候选里挑出"该提醒的"（顺序稳定 = 按"距离那一刻还有多久"升序，同刻保持输入顺序）。
@@ -560,6 +582,33 @@
 					kind: String(it.kind || "")
 				};
 			});
+		}
+
+		// —— 轮播的**展开序列**与翻页方向（2026-10-25 三次定稿，纯函数）——
+		// 用户要求（两条）：
+		//   ① **交叉**：每两条提醒之间插回一次原按钮 —— 序列从 `[idle, 1, 2, 3, …]` 改成
+		//      `[idle, 1, idle, 2, idle, 3, …]`（长度 = 2n）。n = 0 时只剩 idle、不滚动。
+		//   ② **方向交替**：进入条目格向上翻、回到原按钮格向下翻（"上去…下来…上去…"）。
+		// 输入 = remindSlidesOf 的输出（n 格提醒）；输出 = 展开后的格序列，每格：
+		//   { idx, idle, slideIndex, dir }
+		//     · idx        —— 展开后的格号（0 起）；渲染层拿它当 key / 记 prevStep；
+		//     · idle       —— true = 原按钮外观那一格；false = 一条提醒；
+		//     · slideIndex —— idle 时 -1，否则是它在 slides 里的下标；
+		//     · dir        —— **进入这一格时**的翻页方向："up"（旧内容往上走、新内容从下方进）/
+		//                     "down"（旧内容往下走、新内容从上方进）。条目格 up、原按钮格 down。
+		// 为什么单独一个纯函数：n = 0 只有 1 格、奇偶方向、2n 长度都必须能被固定断言，
+		// 渲染层不自己算（算错了不报错，只在真机上看出来）。
+		function remindStepsOf(slides) {
+			const list = Array.isArray(slides) ? slides.filter(Boolean) : [];
+			// n = 0：只有"原按钮"这一格（长度 1），渲染层据此完全不滚动
+			if (list.length === 0) return [{ idx: 0, idle: true, slideIndex: -1, dir: "down" }];
+			const out = [];
+			for (let i = 0; i < list.length; i++) {
+				// 每两条提醒之间插回一次原按钮；插回来的那一格是 "down"，条目那一格是 "up"
+				out.push({ idx: out.length, idle: true, slideIndex: -1, dir: "down" });
+				out.push({ idx: out.length, idle: false, slideIndex: i, dir: "up" });
+			}
+			return out;
 		}
 		//#endregion
 		//#endregion

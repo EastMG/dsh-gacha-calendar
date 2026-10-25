@@ -30,6 +30,16 @@
 			   transform/filter/contain/will-change。 */
 			.gacha-cal-btn-txt{display:block;flex:1 1 auto;min-width:0;height:22px;line-height:22px;overflow:hidden}
 			.gacha-cal-btn-flip{display:block;animation:gacha-cal-btn-flip .42s cubic-bezier(.2,.9,.25,1) backwards}
+			/* 翻页**方向交替**（2026-10-25 三次定稿，用户要求）：进入条目格时向上翻（沿用下面的
+			   gacha-cal-btn-flip），回到原按钮格时向下翻（gacha-cal-btn-flip-down）—— 观感是
+			   "上去…下来…上去…"。两类只换 keyframes 名，时长 / easing / fill-mode 一个字不改。
+			   ⚠️ 下面的 reduce 媒体查询**必须**把这两个选择器也列进去：媒体查询不增加特异性，
+			   只写 .gacha-cal-btn-flip 的话，.is-down（两个类）会把 animation-name 抢回来 ⇒
+			   reduce 时仍会播一次翻页。
+			   ⚠️ 这里只碰 .gacha-cal-btn-flip 这一层；按钮与祖先层仍然不许 transform/filter/
+			   contain/will-change（面板悬停浮层 .gacha-cal-sched-rest 依赖包含块）。 */
+			.gacha-cal-btn-flip.is-up{animation:gacha-cal-btn-flip .42s cubic-bezier(.2,.9,.25,1) backwards}
+			.gacha-cal-btn-flip.is-down{animation:gacha-cal-btn-flip-down .42s cubic-bezier(.2,.9,.25,1) backwards}
 			.gacha-cal-btn-line{display:flex;align-items:center;height:22px;line-height:22px;min-width:0;overflow:hidden}
 			/* 图标（2026-10-25 二次定稿 **C 方案**）：日历图标与游戏图标都在**同一行**里，跟着整行一起翻页
 			   （不再有固定的日历图标）。尺寸 16px 与原日历图标一致；margin-right:8px 复刻原来按钮
@@ -44,9 +54,12 @@
 			   pre = nowrap + 保留空格：分隔符两侧各有一个真空格，且永不换行（flex:none 不参与收缩）。 */
 			.gacha-cal-btn-st{flex:none;white-space:pre}
 			@keyframes gacha-cal-btn-flip{from{transform:translateY(-50%)}to{transform:translateY(0)}}
+			@keyframes gacha-cal-btn-flip-down{from{transform:translateY(50%)}to{transform:translateY(0)}}
 			/* reduce：完全不滚动（动画置 none）。JS 侧同时把轮播节拍停掉并静态钉在第一条（见 80 的
-			   usePrefersReducedMotion）—— 两处都要，缺一处就还能看见翻页。 */
-			@media (prefers-reduced-motion:reduce){.gacha-cal-btn-flip{animation:none}}
+			   usePrefersReducedMotion）—— 两处都要，缺一处就还能看见翻页。
+			   三个选择器缺一不可：前两个是基础规则与 .is-up，最后一个是 .is-down（后者的特异性更高，
+			   不列进来就会盖掉这条 animation:none）。 */
+			@media (prefers-reduced-motion:reduce){.gacha-cal-btn-flip,.gacha-cal-btn-flip.is-up,.gacha-cal-btn-flip.is-down{animation:none}}
 			/* 这里曾有一条指向宿主内部 CSS Modules 类名的覆盖：
 			 *   .hHd-Xa_footerActions{flex-wrap:wrap;align-content:flex-start;align-items:stretch}
 			 * 它来自 v0.9.1「源码恢复」（从手改过的 lib/client.js 回填 src/），**不属于我们的契约**。

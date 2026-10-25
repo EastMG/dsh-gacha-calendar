@@ -330,9 +330,12 @@ async function proxyHandler(req, res) {
 const Config = z.object({
 	autoRefresh: z.boolean().default(true).volatile(),
 	refreshMinutes: z.number().min(1).max(60480).default(1440).volatile(),
-	// 到期提醒的提前量（小时；0 = 关闭）。有卡池/活动在 N 小时内结束或开始，侧栏按钮轮播提醒。
+	// 侧栏轮播的**总开关**（2026-10-25 三次定稿）：false = 不轮播、也不显示红点（按钮只有原样）。
+	// 与下面的 `remindHours`（提前多久）拆成两个控件：一个管开不开、一个管范围。
+	remindOn: z.boolean().default(true).volatile(),
+	// 提醒的**范围**（小时；12/24/48/72，默认 72）。有卡池/活动在 N 小时内结束或开始，侧栏按钮轮播提醒。
 	// 判定是纯函数 remindKindOf（60-helpers.js），按钮轮播在 80-components.js 的 CalendarPanel 里。
-	remindHours: z.number().default(24).volatile(),
+	remindHours: z.number().default(72).volatile(),
 	// 「强提醒」：参与侧栏轮播提醒的条目 id（设置页每行一个复选框）。
 	// **普通列表语义**（2026-10-25 二次定稿）：列表里有谁就提醒谁，**空数组 = 一个都不提醒**
 	// —— 不再有"空 = 全部参与"的哨兵（那个哨兵让"一个都不提醒"无法表达）。

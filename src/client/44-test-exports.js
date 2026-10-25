@@ -391,13 +391,19 @@
 			// 双向判定（2026-10-25 晚）：即将结束 / 即将开始都算提醒。
 			// remindKindOf = 方向判定；remindGameAllowed = 「强提醒」筛选语义（普通列表，空 = 都不提醒）；
 			// remindPickOf = 选取 + 排序；remindCaptionOf = 按钮那一行的两段文案（事项名 / 状态）；
-			// remindSlidesOf = 轮播**每格**的结构（C 方案：{gameId, gameIcon, itemName, statusText}）。
+			// remindSlidesOf = 轮播**每格**的结构（C 方案：{gameId, gameIcon, itemName, statusText}）；
+			// remindStepsOf = 轮播的**展开序列**（2026-10-25 三次定稿：[idle,1,idle,2,…]，每格带方向）。
 			// 全是纯函数，固定时刻可测。
 			remindKindOf,
 			remindGameAllowed,
+			// 总开关的读取口径（2026-10-25 三次定稿）：只有明确的 false 才算关（缺失 = 开）。
+			remindOnOf,
+			// 范围的读取口径：非正数 / 缺失一律回落到默认范围（72），供设置页与按钮共用。
+			remindRangeOf,
 			remindPickOf,
 			remindCaptionOf,
 			remindSlidesOf,
+			remindStepsOf,
 			remindWindowOf,
 			remindDueOf,
 			sourceInstant,

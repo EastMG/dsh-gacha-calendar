@@ -1,10 +1,11 @@
 // test/cases-remind.mjs —— 到期提醒（2026-10-25 晚：侧栏单行轮播 + 每游戏「强提醒」开关）
 //                        （同日二次定稿：强提醒改**普通列表**语义 + 轮播改 **C 方案**）
+//                        （同日三次定稿：设置页拆成「开关 + 范围」；轮播交叉；翻页方向交替）
 //
 // 功能范围（用户定）：侧栏按钮「单行轮播」+「提前 N 小时」设置 + 每游戏「强提醒」开关。
 // 不做系统通知、不做弹窗/声音、不动刷新链路、不动缓存载荷结构。
 //
-// 本文件守六件事：
+// 本文件守八件事：
 //   ① 判定口径（纯函数 `isExpiringSoon`，60-helpers.js）：
 //      某侧"即将到期" = 该侧**已开始**（startTs <= now）且 **endTs 落在 (now, now + N 小时]**。
 //   ② 双向判定（纯函数 `remindKindOf`，2026-10-25 晚）：即将**开始**也算提醒。
@@ -21,6 +22,10 @@
 //      —— 这一层必须与运行环境时区无关（CI 跑 UTC、开发机跑 +08，两边都要绿）。
 //      做法：断言 remindWindowOf 的 ts 等于 `sourceInstant(...)` 的独立算法结果，不写死本机偏移。
 //   ⑥ 样式静态守卫：按钮尺寸不许被撑开 / 动画只许一次性 backwards / 70-styles.js 模板字符串完整。
+//   ⑦ 设置页**两个控件**（2026-10-25 三次定稿）：开关 `remindOn`（默认 **开**）+ 范围
+//      `remindHours`（12/24/48/72，默认 **72**，**没有「关闭」档位**）；关掉开关 ⇒ 清单为空。
+//   ⑧ 轮播的**交叉序列**与**翻页方向交替**（同日三次定稿）：`remindStepsOf` 展开成
+//      [idle, 1, idle, 2, …]（长度 2n；n=0 只有 idle），条目格 up / 原按钮格 down。
 //
 // ⚠️ 时刻全部显式传入（`now` 是参数，不是 Date.now()），所以本文件不随跑测那天漂移。
 // ⚠️ 「今天 / 明天 / N 天后」用的是**本机日历日**，所以这里挑的偏移量在 UTC 与 +08 下落在同一天
@@ -39,8 +44,8 @@ export default async function run() {
 	section("到期提醒（侧栏单行轮播 + 「提前 N 小时」+ 每游戏「强提醒」）");
 	const {
 		isExpiringSoon, expiringSoonOf,
-		remindKindOf, remindGameAllowed, remindPickOf, remindCaptionOf, remindSlidesOf,
-		remindWindowOf, remindDueOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
+		remindKindOf, remindGameAllowed, remindOnOf, remindRangeOf, remindPickOf, remindCaptionOf, remindSlidesOf,
+		remindStepsOf, remindWindowOf, remindDueOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
 	} = T;
 
 	const NOW = Date.UTC(2026, 9, 25, 4, 0);   // 2026-10-25 12:00 +08 / 13:00 +09 / 04:00 UTC
@@ -522,16 +527,47 @@ export default async function run() {
 			!/\.gacha-cal-btn-flip\{[^}]*animation:[^;}]*\b(?:both|forwards)\b/.test(styles));
 		check("翻页 keyframes：从 -50%（露出上一行）回到 0（当前行）",
 			/@keyframes gacha-cal-btn-flip\{from\{transform:translateY\(-50%\)\}to\{transform:translateY\(0\)\}\}/.test(styles));
+		// 2026-10-25 三次定稿：**方向交替** —— 进条目格沿用上面那组（从上方来），
+		// 回原按钮格用新的一组（从下方来）。两组必须同时在，少一组就变成"永远同一个方向"。
+		check("第二组 keyframes 存在（回按钮格用：translateY(50%) → 0）",
+			/@keyframes gacha-cal-btn-flip-down\{from\{transform:translateY\(50%\)\}to\{transform:translateY\(0\)\}\}/.test(styles));
+		// 两条方向规则：时长 0.42s、同一条 easing、backwards 一字不差；且不许夹带 transform/filter/...
+		// ⚠️ 取规则时把 reduce 媒体查询里那条 `.is-down{animation:none}` 排除掉（它也是同一个选择器）。
+		const dirRules = [...styles.matchAll(/\.gacha-cal-btn-flip\.is-(?:up|down)\{([^}]*)\}/g)]
+			.map((m) => m[1])
+			.filter((r) => !/animation:\s*none/.test(r));
+		check("两条方向规则都在（.gacha-cal-btn-flip.is-up / .is-down）", dirRules.length === 2, String(dirRules.length));
+		check("方向规则只换 keyframes 名：时长 .42s + cubic-bezier(.2,.9,.25,1) + backwards 一个不改",
+			dirRules.every((r) => /animation:gacha-cal-btn-flip(?:-down)? \.42s cubic-bezier\(\.2,\.9,\.25,1\) backwards/.test(r)),
+			dirRules.join(" | "));
+		check("方向规则里没有 transform / filter / contain / will-change（动画只在 keyframes 里）",
+			dirRules.every((r) => !/transform|will-change|filter|contain|perspective/.test(r)),
+			dirRules.filter((r) => /transform|will-change|filter|contain|perspective/.test(r)).join(" | "));
 		check("prefers-reduced-motion：reduce 时动画置 none（完全不滚动）",
-			/@media \(prefers-reduced-motion:reduce\)\{\.gacha-cal-btn-flip\{animation:none\}\}/.test(styles));
+			/@media \(prefers-reduced-motion:reduce\)\{\.gacha-cal-btn-flip,\.gacha-cal-btn-flip\.is-up,\.gacha-cal-btn-flip\.is-down\{animation:none\}\}/.test(styles));
+		// reduce 这条必须把 is-down 也列进去：媒体查询不加特异性，只写基础类的话
+		// .gacha-cal-btn-flip.is-down（两个类）会把 animation-name 抢回来 ⇒ reduce 时仍会翻页。
+		check("reduce 媒体查询覆盖了两个方向类（否则 .is-down 会盖掉 animation:none）",
+			/@media \(prefers-reduced-motion:reduce\)\{[^}]*\.gacha-cal-btn-flip\.is-down\{animation:none\}/.test(styles));
 		// 不可滚动的两种情形都在渲染层短路：没有提醒项 ⇒ 整段轮播都不渲染（只留状态 0）；
 		// reduce ⇒ 轮播节拍暂停且静态钉在第 1 格。这两条都是"改错了不报错、真机才发现"的病。
 		check("无可提醒时不渲染轮播（remindSlides.length 为 0 ⇒ 按钮回到「图标 + 二文字」原样）",
 			/remindSlides\.length\s*\?/.test(comp) && /\(wide === false \|\| remindSlides\.length === 0\) \? calIcon : null/.test(comp));
 		check("轮播节拍：slides 为空 / reduce / 悬停 三种情况都暂停（useCycle 的 paused）",
-			/useCycle\(remindSlides\.length \+ 1, REMIND_SLIDE_SECS,\s*\n?\s*remindSlides\.length === 0 \|\| reduceMotion \|\| btnHover\)/.test(comp));
+			/useCycle\(remindSteps\.length, REMIND_SLIDE_SECS,\s*\n?\s*remindSlides\.length === 0 \|\| reduceMotion \|\| btnHover\)/.test(comp));
+		check("轮播节拍数的是**展开后的格数**（remindSteps.length = 2n），不再是 slides+1",
+			remindStepsOf([1, 2]).length === 4);
+		check("渲染层用纯函数展开序列（remindStepsOf(remindSlides)），不自己拼交叉",
+			/const remindSteps = remindStepsOf\(remindSlides\);/.test(comp));
 		check("reduce 时静态钉在第一条提醒（still 能看出有事）",
 			/reduceMotion && remindSlides\.length > 0 \? 1 : slideStep/.test(comp));
+		// 方向类必须真的接到 DOM 上（按展开后的格号奇偶切 is-up / is-down）
+		check("渲染层按格方向切 class（.is-up / .is-down 由 remindStepsOf 的 dir 决定）",
+			/className: "gacha-cal-btn-flip " \+ \(stepAt\(shownStep\)\.dir === "up" \? "is-up" : "is-down"\)/.test(comp));
+		check("取格子的 stepAt 有越界兜底（prevStep 可能已不在新序列里，不能抛）",
+			/const stepAt = \(step\) => remindSteps\[step\] \|\| \{ idx: 0, idle: true, slideIndex: -1, dir: "down" \};/.test(comp));
+		check("remindLine 按 slideIndex 取提醒（不再是 idx-1 的下标算术）",
+			/const at = stepAt\(idx\);/.test(comp) && /const slide = at\.slideIndex >= 0 \? remindSlides\[at\.slideIndex\] : null;/.test(comp));
 		// 祖先层**不许**出现 transform/filter/contain/will-change（浮层 .gacha-cal-sched-rest 依赖包含块）
 		const btnRules = [...styles.matchAll(/\.gacha-cal-btn[a-z-]*\{([^}]*)\}/g)].map((m) => m[1]);
 		check("能取到 .gacha-cal-btn* 的各条规则（守卫自身没瞎）", btnRules.length >= 5, String(btnRules.length));
@@ -539,8 +575,15 @@ export default async function run() {
 			btnRules.every((b) => !/transform|will-change|filter|contain|perspective/.test(b)),
 			btnRules.filter((b) => /transform|will-change|filter|contain|perspective/.test(b)).join(" | "));
 		// 接线：CSS 类名必须在渲染层真的用上（否则"样式写了但没人用"这种死代码不会报错）
-		for (const cls of ["gacha-cal-btn-txt", "gacha-cal-btn-flip", "gacha-cal-btn-line", "gacha-cal-btn-ic", "gacha-cal-btn-nm", "gacha-cal-btn-st"]) {
+		for (const cls of ["gacha-cal-btn-txt", "gacha-cal-btn-line", "gacha-cal-btn-ic", "gacha-cal-btn-nm", "gacha-cal-btn-st"]) {
 			check(`渲染层用了 .${cls}（样式不是死代码）`, comp.includes(`"${cls}"`));
+		}
+		// 翻转层的 className 是**拼接**出来的（基础类 + 方向类），普通 includes 会漏，单独守：
+		check("渲染层用了 .gacha-cal-btn-flip（基础类在拼接串里）",
+			comp.includes('"gacha-cal-btn-flip "'));
+		for (const dirCls of ["is-up", "is-down"]) {
+			check(`渲染层用得上方向类 ${dirCls}（样式不是死代码）`,
+				comp.includes(`"${dirCls}"`), dirCls);
 		}
 		check("红点在渲染层**只剩窄侧栏降级**这一处（宽侧栏一律走轮播）",
 			(comp.match(/"gacha-cal-dot"/g) || []).length === 1
@@ -553,5 +596,139 @@ export default async function run() {
 			comp.indexOf("至少留一条") < 0 && comp.indexOf("要全部关掉请把") < 0);
 		check("「全部提醒」写的是**展示中的 id 列表**，不再是空数组（空 = 一个都不提醒了）",
 			/allEntries\.filter\(\(g\) => shownNow\(g\)\)\.map\(\(g\) => g\.id\)/.test(comp));
+	}
+
+	// ── ⑨ 设置页新控件：开关 remindOn（默认开）+ 范围 remindHours（默认 72）──────────
+	// 2026-10-25 三次定稿（用户要求）：原来只有一个 remindHours（关闭/12/24/48，0 = 关闭），
+	// 现在拆成**两个控件** —— 开关（开不开）+ 范围（提前多久）。默认：开 / 72 小时。
+	{
+		check("默认 remindOn = true（开箱即用就是开的）", DEFAULT_SETTINGS.remindOn === true,
+			String(DEFAULT_SETTINGS.remindOn));
+		check("默认 remindHours = 72（范围默认改成 72 小时，不再是 24）", DEFAULT_SETTINGS.remindHours === 72,
+			String(DEFAULT_SETTINGS.remindHours));
+		// 总开关的读取口径：只有**明确的 false** 才算关（老配置里没有这个键 ⇒ 必须是开）。
+		check("remindOnOf：只有明确的 false 才算关（undefined / null / 0 / \"\" 都算开）",
+			remindOnOf(void 0) === true && remindOnOf(null) === true && remindOnOf(true) === true
+			&& remindOnOf(false) === false && remindOnOf(0) === true && remindOnOf("") === true);
+		// 范围的读取口径：老配置里残留的 0（当年「关闭」）不能被当成"关" —— 关闭现在归开关。
+		// 若这里回落到 0，设置页会显示「范围 72 小时」而按钮一声不响（最难查的两套口径）。
+		check("remindRangeOf：只接受正数小时；缺失 / 0 / 负数 / 非数字一律回落默认 72",
+			remindRangeOf(void 0) === 72 && remindRangeOf(null) === 72 && remindRangeOf(0) === 72
+			&& remindRangeOf(-1) === 72 && remindRangeOf("") === 72 && remindRangeOf("abc") === 72
+			&& remindRangeOf(NaN) === 72 && remindRangeOf(12) === 12 && remindRangeOf(48) === 48
+			&& remindRangeOf("24") === 24);
+		check("remindRangeOf 的兜底就是 DEFAULT_SETTINGS.remindHours（不是写死另一个数）",
+			remindRangeOf(0) === DEFAULT_SETTINGS.remindHours);
+
+		// 关掉开关 ⇒ 提醒清单为空 ⇒ 展开序列只有 idle（不轮播）、窄侧栏也不出红点。
+		// 这里把渲染层那条门（remindOn ? due : []）在数据层复刻一遍；
+		// 渲染层用的是同一个 remindOnOf（静态守卫见下）。
+		const onGames = [{ id: "s1", name: "开关测试", banner: "池", startTs: NOW - H, endTs: NOW + 2 * H }];
+		const dueWhen = (on) => (remindOnOf(on)
+			? remindDueOf(onGames, now, DEFAULT_SETTINGS.remindHours, ["s1"])
+			: []);
+		check("remindOn=false ⇒ 提醒清单为空（⇒ 不轮播、也不出红点）", dueWhen(false).length === 0);
+		check("remindOn=true ⇒ 清单照旧（同一组数据、默认 72 小时范围下有内容）",
+			dueWhen(true).length === 1, String(dueWhen(true).length));
+		check("remindOn=false ⇒ 展开序列只有 1 格 idle（不滚动）",
+			remindStepsOf(remindSlidesOf(dueWhen(false), NOW)).length === 1);
+		check("remindOn=true ⇒ 展开序列是 2 格（idle + 那一条）",
+			remindStepsOf(remindSlidesOf(dueWhen(true), NOW)).length === 2);
+
+		// 渲染层真的接了开关（关掉时 memo 直接给空数组，不做任何换算）
+		const compAll = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
+		check("渲染层：开关关掉时直接把清单算成空（remindOn ? remindDueOf(...) : []）",
+			/\(remindOn\s*\n\s*\? remindDueOf\(games, now, remindHours, Array\.isArray\(s\.remindGames\) \? s\.remindGames : \[\]\)\s*\n\s*: \[\]\)/.test(compAll),
+			"见 80-components.js 的 remindDue memo");
+		check("渲染层读开关也走 remindOnOf（两处口径只有一处实现）",
+			(compAll.match(/remindOnOf\(s\.remindOn\)/g) || []).length === 2,
+			String((compAll.match(/remindOnOf\(s\.remindOn\)/g) || []).length));
+		check("按钮与设置页读范围都走 remindRangeOf（老配置残留的 0 不会被当成「关闭」）",
+			(compAll.match(/remindRangeOf\(s\.remindHours\)/g) || []).length === 2,
+			String((compAll.match(/remindRangeOf\(s\.remindHours\)/g) || []).length));
+
+		// 设置页：两个控件各自 commit 各自的键；文案是「提醒」+「范围」（不再是一个「到期提醒」下拉）
+		check("设置页两个控件分别写 remindOn / remindHours",
+			compAll.includes('commit("remindOn"') && compAll.includes('commit("remindHours"'));
+		check("设置页文案：「提醒」开关 + 「范围」下拉（「到期提醒」这个单行下拉已拆掉）",
+			/children: "提醒"/.test(compAll) && /children: "范围"/.test(compAll)
+			&& !/children: "到期提醒"/.test(compAll));
+
+		// 键必须成套：DEFAULT_SETTINGS / schema / CONFIG_KEYS 三处都要有（漏了 = 设了不生效）
+		{
+			const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
+			check("src/index.js schema：remindOn = z.boolean().default(true).volatile()",
+				/remindOn:\s*z\.boolean\(\)\.default\(true\)\.volatile\(\)/.test(hostSrc));
+			check("src/index.js schema：remindHours 的 default 是 72（不再是 24）",
+				/remindHours:\s*z\.number\(\)\.default\(72\)\.volatile\(\)/.test(hostSrc));
+			const cfgSrc = readFileSync(path.join(REPO, "src", "client", "10-config.js"), "utf8");
+			const opts = /const REMIND_OPTIONS = \[([\s\S]*?)\];/.exec(cfgSrc);
+			check("能解析出 REMIND_OPTIONS（守卫自身没瞎）", !!opts);
+			const hours = opts ? [...opts[1].matchAll(/hours:\s*(\d+)/g)].map((m) => Number(m[1])) : [];
+			check("范围选项 = 12 / 24 / 48 / 72（**没有 0**：关闭已由开关负责）",
+				hours.join(",") === "12,24,48,72", hours.join(","));
+			const ehSrc = readFileSync(path.join(REPO, "src", "client", "engine-head.js"), "utf8");
+			check("engine-head.js 的 CONFIG_KEYS 里含 remindOn（漏了会让设置页写了引擎读不到）",
+				/"remindOn"/.test(ehSrc));
+		}
+	}
+
+	// ── ⑩ 轮播顺序「交叉」+ 翻页方向交替（2026-10-25 三次定稿）──────────────────
+	// 用户要求：
+	//   ① 每两条提醒之间插回一次原按钮 ⇒ 展开序列 [idle, 1, idle, 2, …]（长度 2n；n=0 只有 idle）；
+	//   ② 进条目格向上翻、回按钮格向下翻 —— 对生成序列的**每一格**断言方向。
+	{
+		const two = remindSlidesOf([
+			{ key: "a:gacha", gameId: "a", side: "gacha", name: "甲", title: "池甲", startTs: NOW - H, endTs: NOW + H, kind: "end" },
+			{ key: "b:event", gameId: "b", side: "event", name: "乙", title: "活动乙", startTs: NOW + H, endTs: NOW + 2 * H, kind: "start" }
+		], NOW);
+		const steps2 = remindStepsOf(two);
+		check("交叉·n=2：展开成 4 格（= 2n），不是 3 格（idle / 条目1 / idle / 条目2）",
+			steps2.length === 4, String(steps2.length));
+		check("交叉·n=2：顺序是 [idle, 条目1, idle, 条目2]（slideIndex = -1,0,-1,1）",
+			steps2.map((s) => s.slideIndex).join(",") === "-1,0,-1,1",
+			steps2.map((s) => s.slideIndex).join(","));
+		check("交叉·n=2：idle 标记 = [真,假,真,假]（每两条之间插回一次原按钮）",
+			steps2.map((s) => (s.idle ? 1 : 0)).join(",") === "1,0,1,0",
+			steps2.map((s) => s.idle).join(","));
+		check("交叉·n=2：格号连续 0..3（渲染层拿它当 key / prevStep）",
+			steps2.map((s) => s.idx).join(",") === "0,1,2,3", steps2.map((s) => s.idx).join(","));
+
+		// 方向交替：第 1 格（进条目）up、第 2 格（回按钮）down、第 3 格（进条目）up …
+		check("方向交替·n=2：第 1 格（进条目）up、第 2 格（回按钮）down、第 3 格 up",
+			steps2[1].dir === "up" && steps2[2].dir === "down" && steps2[3].dir === "up",
+			steps2.map((s) => s.dir).join(","));
+		check("方向交替·n=2：**每一格**都满足「条目格 up / 原按钮格 down」",
+			steps2.every((s) => s.dir === (s.idle ? "down" : "up")),
+			steps2.map((s) => (s.idle ? "idle:" : "item:") + s.dir).join(" "));
+		check("方向交替·n=2：相邻两格的 dir 一定相反（上去…下来…上去…）",
+			steps2.every((s, i) => i === 0 || s.dir !== steps2[i - 1].dir),
+			steps2.map((s) => s.dir).join(","));
+		check("方向交替·n=2：第 0 格（初始 idle）也有方向 down（DOM 上永远是 is-up / is-down 之一）",
+			steps2[0].dir === "down");
+
+		// n = 0：只有 idle、不滚动（长度 1）
+		const steps0 = remindStepsOf([]);
+		check("交叉·n=0：只有 1 格（idle），不滚动",
+			steps0.length === 1 && steps0[0].idle === true && steps0[0].slideIndex === -1,
+			JSON.stringify(steps0));
+		check("交叉·n=0：方向 down、脏输入（null / undefined / 非数组）也不抛",
+			steps0[0].dir === "down"
+			&& remindStepsOf(null).length === 1
+			&& remindStepsOf(void 0).length === 1
+			&& remindStepsOf("nope").length === 1);
+
+		// n = 1 / n = 3：长度 = 2n，条目下标 1 / 3 / 5
+		check("交叉·n=1：展开成 2 格（idle / 条目1）",
+			remindStepsOf([{}]).length === 2
+			&& remindStepsOf([{}]).map((s) => s.slideIndex).join(",") === "-1,0");
+		const steps3 = remindStepsOf([{}, {}, {}]);
+		check("交叉·n=3：展开成 6 格，条目下标 1 / 3 / 5、其余是 idle",
+			steps3.length === 6
+			&& steps3.map((s) => s.slideIndex).join(",") === "-1,0,-1,1,-1,2",
+			steps3.map((s) => s.slideIndex).join(","));
+		check("方向交替·n=3：6 格方向 = down,up,down,up,down,up",
+			steps3.map((s) => s.dir).join(",") === "down,up,down,up,down,up",
+			steps3.map((s) => s.dir).join(","));
 	}
 }

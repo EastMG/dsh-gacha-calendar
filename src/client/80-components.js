@@ -1328,9 +1328,10 @@
 			}), [visible, orderKey, colorOverrides, scrapedById]);
 
 			// ── 到期提醒：侧栏按钮的**单行轮播**（2026-10-25 晚，替代原来的小红点）────────────
-			// 设置 = 设置页的「到期提醒」（提前 N 小时，0 = 关闭）+ 每行「提醒」开关（remindGames）。
-			// **关闭时不滚动、也不做任何计算**：下面 memo 在 hours<=0 时直接返回同一个空数组
-			// （remindDueOf 的第一行就短路），不会去解析任何档期文本。
+			// 设置 = 设置页的**两个控件**：开关 `remindOn`（默认开）+ 范围 `remindHours`
+			// （12/24/48/72 小时，默认 72）+ 每行「提醒」开关（remindGames）。
+			// **关掉开关时不滚动、也不做任何计算**：下面 memo 直接给空数组，不会去解析任何档期文本；
+			// 窄侧栏的红点同样跟着消失（它也看 remindDue）。
 			//
 			// 轮播怎么感知"数据变了"（这是本功能唯一需要想清楚的地方）：
 			//   不需要新机制 —— 侧栏按钮与面板是**同一个组件**（CalendarPanel），而这个组件早就
@@ -1340,29 +1341,41 @@
 			//   时间和阈值那一条则靠组件已有的每分钟时钟 `now`（跨过 N 小时边界时自然翻面）。
 			//   ⇒ 一行订阅都不用加、也不用把状态提升到 apply() 层（那会多一个与面板生命周期
 			//   不同步的订阅，还得自己处理卸载）。这是本次能做到的最小改动。
-			const remindHours = Number(s.remindHours ?? DEFAULT_SETTINGS.remindHours) || 0;
+			// 总开关（2026-10-25 三次定稿，默认开）：false ⇒ 待提醒清单一律算成空 ——
+			// 按钮只有原样（不轮播）、窄侧栏也不显示红点。读取口径只有一处（helpers 的 remindOnOf）：
+			// 只有**明确的 false** 才算关，老配置里没有这个键（undefined）时是"开"。
+			const remindOn = remindOnOf(s.remindOn);
+			// 范围（小时）同样只有一处口径：老配置残留的 0 一律回落到默认 72（见 helpers 的
+			// remindRangeOf）—— 否则设置页显示 72、按钮却因为 0 而完全不提醒。
+			const remindHours = remindRangeOf(s.remindHours);
 			// remindGames 与 hidden/shown 一样按**值**派生依赖键：宿主每次写入都会换掉数组引用，
 			// 按引用当依赖等于这个 memo 永不命中（理由见上面 *Key 那一段）。
 			const remindGamesKey = (Array.isArray(s.remindGames) ? s.remindGames : []).join("\u0000");
 			const remindDue = (0, react.useMemo)(
-				() => remindDueOf(games, now, remindHours, Array.isArray(s.remindGames) ? s.remindGames : []),
-				[games, now, remindHours, remindGamesKey]);
-			// 轮播的"一格"：0 = 原按钮外观（日历图标 + 「二游日历」），1..n = 第 n 条提醒。
-			// 用户要求整行内容在「原按钮外观」和「一条近期内容」之间竖向翻页 ⇒ 原外观也是轮播的一格，
-			// 而不是被替换掉后永远不回来。
+				() => (remindOn
+					? remindDueOf(games, now, remindHours, Array.isArray(s.remindGames) ? s.remindGames : [])
+					: []),
+				[games, now, remindOn, remindHours, remindGamesKey]);
+			// 轮播的"一格"：**交叉序列**里的 idle = 原按钮外观（日历图标 + 「二游日历」），
+			// 其余 = 一条提醒。用户要求整行内容在原按钮与"一条近期内容"之间竖向翻页 ——
+			// 2026-10-25 三次定稿后，**每两条提醒之间都会插回一次原按钮**（见 remindStepsOf）；
 			// 2026-10-25 二次定稿（用户选的 **C 方案**）：一格 = `[游戏图标] 事项名 · X`
 			//   （三次定稿又去掉了状态前的「还剩」：`· 还剩 8 小时` → `· 8 小时`，≥1 天只说 `3 天`；
 			//    悬停/读屏那一份仍带「还剩」，见下面 remindHintNames 用 ariaText）；
 			//   · 文案交给纯函数 remindSlidesOf（事项名优先、状态单独一段），本层只管排版；
 			//   · 图标**跟着整行翻**（状态 0 是日历图标、状态 i 是该游戏自己的图标），不再留固定的日历图标。
 			const remindSlides = remindSlidesOf(remindDue, now.getTime());
+			// **交叉**序列（2026-10-25 三次定稿）：[idle, 条目1, idle, 条目2, …]（长度 2n；
+			// n = 0 时只有 1 格 idle）。每格自带翻页方向（条目 up / 原按钮 down），
+			// 全部由纯函数 remindStepsOf 算（见 60-helpers.js），渲染层不自己推导。
+			const remindSteps = remindStepsOf(remindSlides);
 			const reduceMotion = usePrefersReducedMotion();
 			const [btnHover, setBtnHover] = (0, react.useState)(false);
 			// 悬停暂停 = 把 useCycle 的 paused 打开（不排下一拍），而不是暂停 CSS 动画：
 			// 翻页动画是一次性的 0.42s，暂停它只会把画面冻在半路；这里要停的是"切内容"的节拍。
-			const slideStep = useCycle(remindSlides.length + 1, REMIND_SLIDE_SECS,
+			const slideStep = useCycle(remindSteps.length, REMIND_SLIDE_SECS,
 				remindSlides.length === 0 || reduceMotion || btnHover);
-			// reduce 时**不滚动**、但也不回到"看起来没事"的原样：静态钉在第一条提醒上
+			// reduce 时**不滚动**、但也不回到"看起来没事"的原样：静态钉在第一条提醒（展开后的第 1 格）
 			// （用户要求"仍要能看出有事"）。无提醒时自然是第 0 格 = 原按钮外观。
 			const shownStep = reduceMotion && remindSlides.length > 0 ? 1 : slideStep;
 			// 上一格的内容要**留在 DOM 里**才能做出"交叉滚动"（旧的往上走、新的从下面进来）。
@@ -1381,7 +1394,10 @@
 					(0, react_jsx_runtime.jsx)("line", { x1: "3", y1: "10", x2: "21", y2: "10" })
 				]
 			}) });
-			// 一格的内容：0 = 原按钮外观（日历图标 + 「二游日历」），其余 = 一条提醒（游戏图标 + 事项名 + 状态）。
+			// 展开序列里第 step 格的内容（越界 / 条目数变了以后残留的旧格号一律按"原按钮"处理：
+			// prevStep 是**上一次渲染**的格号，节拍刚跳完那一拍它可能已经不在这份序列里，不能抛）。
+			const stepAt = (step) => remindSteps[step] || { idx: 0, idle: true, slideIndex: -1, dir: "down" };
+			// 一格的内容：idle = 原按钮外观（日历图标 + 「二游日历」），其余 = 一条提醒（游戏图标 + 事项名 + 状态）。
 			// **图标也在这一行里** —— 它跟整行一起翻（C 方案），所以不参与按钮的固定布局。
 			// 名字与状态**分开两个盒子**：名字可省略号截断、状态 flex:none 永不截断 ——
 			// 窄侧栏里必须留下「· 3 小时 / · 明天开池 / · 24 天」。
@@ -1389,7 +1405,8 @@
 			// （用户 2026-10-25 指出）。.gacha-cal-btn-st 的 white-space:pre 保证这个空格不被折叠掉。
 			// slot 只用于 React 的 key（同一个 flip 层里两行：cur / prev）。
 			const remindLine = (idx, slot) => {
-				const slide = idx > 0 ? remindSlides[idx - 1] : null;
+				const at = stepAt(idx);
+				const slide = at.slideIndex >= 0 ? remindSlides[at.slideIndex] : null;
 				const icon = slide
 					? (0, react_jsx_runtime.jsx)(GameIcon, { icon: slide.gameIcon, name: slide.gameName || slide.itemName, size: 16 })
 					: calIcon;
@@ -1591,13 +1608,15 @@
 							(wide === false || remindSlides.length === 0) ? calIcon : null,
 							// 窄侧栏（收起状态）：**没有可滚动的那一行** ⇒ 用户允许的降级 = 小红点。
 							// 红点绝对定位、不参与 flex 布局 ⇒ 按钮尺寸/文字位置一个字都不动
-							// （用户 2026-10-25 明确要求别再重演"按钮错位"）。关闭（N=0）时 remindDue 恒空。
+							// （用户 2026-10-25 明确要求别再重演"按钮错位"）。总开关关掉（remindOn=false）
+							// 时 remindDue 恒空 ⇒ 这里也不出红点。
 							wide === false
 								? (remindDue.length
 									? (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-dot", "aria-hidden": "true" })
 									: null)
-								// 宽侧栏：有提醒 → 单行轮播（「原按钮外观」也是轮播的一格，会回来）；
-								// 没提醒 → **一字未改的原样**（图标 + 一个 span），零风险。
+								// 宽侧栏：有提醒 → 单行轮播（展开序列 = [原按钮, 条目1, 原按钮, 条目2, …]，
+								// 「原按钮外观」每两条之间都会回来一次）；没提醒 → **一字未改的原样**
+								// （图标 + 一个 span），零风险。
 								: (remindSlides.length
 									? (0, react_jsx_runtime.jsx)("span", {
 										className: "gacha-cal-btn-txt",
@@ -1605,7 +1624,10 @@
 											// key = 格号：格号一变，React 重挂载这一层 ⇒ CSS 翻页动画从头播一次
 											// （一次性 0.42s、fill-mode backwards；播完不留持久层）。
 											key: shownStep,
-											className: "gacha-cal-btn-flip",
+											// 方向交替（2026-10-25 三次定稿）：进条目格 .is-up（新内容从下方进），
+											// 回原按钮格 .is-down（新内容从上方进）。方向也来自 remindStepsOf，
+											// 渲染层只做"类名映射"，不自己数奇偶。
+											className: "gacha-cal-btn-flip " + (stepAt(shownStep).dir === "up" ? "is-up" : "is-down"),
 											children: [remindLine(shownStep, "cur"), remindLine(prevStep, "prev")]
 										})
 									})
@@ -1852,9 +1874,17 @@
 			const currentMinutes = Number(s.refreshMinutes ?? DEFAULT_SETTINGS.refreshMinutes);
 			// 旧配置可能存了分钟值（不在按天选项里），额外补一个"自定义"选项避免 select 空白
 			const inOptions = REFRESH_OPTIONS.some((o) => o.minutes === currentMinutes);
-			// 「到期提醒」的提前量（小时；0 = 关闭）。同样对"不在选项里的历史值"补一个自定义项。
-			const currentRemind = Number(s.remindHours ?? DEFAULT_SETTINGS.remindHours) || 0;
+			// 「到期提醒」的**范围**（小时；12/24/48/72，默认 72）。两个控件分开：
+			//   开关 remindOn（默认开）= 侧栏轮播功能总开关；
+			//   范围 remindHours      = 提前多久算"要来了"。
+			// 老配置里的 0（当年"关闭"那个档位）已不在选项里 —— 关闭现在归开关管，
+			// 读取口径与侧栏按钮同一处（helpers 的 remindRangeOf，非正数回落默认 72），
+			// 所以下拉里不会冒出一个孤儿档位「自定义（0 小时）」。
+			const currentRemind = remindRangeOf(s.remindHours);
 			const remindInOptions = REMIND_OPTIONS.some((o) => o.hours === currentRemind);
+			// 总开关的当前值：缺省 = 开（与 DEFAULT_SETTINGS / schema 的 default(true) 同口径，
+			// 判定走 helpers 的 remindOnOf，与侧栏按钮那一侧共用同一处口径）
+			const remindOn = remindOnOf(s.remindOn);
 
 			// 保存失败必须可见：旧实现只 await 不 catch，写被宿主拒绝时控件弹回原值、
 			// 用户只会觉得"点了没反应"（「重置排序」写 null 被拒就是这种病的极端例子）
@@ -2191,16 +2221,23 @@
 								REFRESH_OPTIONS.map((o) => (0, react_jsx_runtime.jsx)("option", { value: String(o.minutes), children: o.label }, o.minutes))
 							] })
 						] }),
-						// 到期提醒：总开关 + 时间窗（**保留**原语义，2026-10-25 晚只把外显从红点换成单行轮播）。
-						// 有卡池/活动在 N 小时内**结束或开始**时，侧栏「二游日历」按钮变成单行轮播；
-						// 「提醒」（下面游戏列表每行一个复选框）决定哪些条目参与。
-						// 结构照「刷新频率」那一行；写入走同一条 commit → scope.set 链路（键 = remindHours）。
-						// 关闭（0）时面板/轮播都不做任何计算（见 60-helpers.js 的 remindKindOf 第一行）。
-						(0, react_jsx_runtime.jsxs)("label", { style: { display: "flex", alignItems: "center", gap: 8 }, title: "有卡池或活动在 N 小时内结束或开始时，侧栏按钮轮播提醒", children: [
-							(0, react_jsx_runtime.jsx)("span", { style: { flex: "none" }, children: "到期提醒" }),
-							(0, react_jsx_runtime.jsxs)("select", { className: "gacha-cal-select", value: String(currentRemind), onChange: (e) => commit("remindHours", Number(e.target.value)), children: [
-								!remindInOptions ? (0, react_jsx_runtime.jsx)("option", { value: String(currentRemind), children: "自定义（" + currentRemind + " 小时）" }) : null,
-								REMIND_OPTIONS.map((o) => (0, react_jsx_runtime.jsx)("option", { value: String(o.hours), children: o.label }, o.hours))
+						// 到期提醒（2026-10-25 三次定稿）：**两个控件** —— 开关 + 范围。
+						//   · 开关（remindOn，默认开）= 侧栏轮播功能总开关。关掉 = 按钮只有原样
+						//     （不轮播、窄侧栏也不出红点），且面板/轮播都不做任何计算；
+						//   · 范围（remindHours，12/24/48/72 小时，默认 72）= 提前多久算"要来了"。
+						// 「提醒」（下面游戏列表每行一个复选框，remindGames）决定哪些条目参与。
+						// 两个控件分别 commit 各自的键，走同一条 commit → scope.set 链路。
+						(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }, title: "有卡池或活动在 N 小时内结束或开始时，侧栏按钮轮播提醒", children: [
+							(0, react_jsx_runtime.jsxs)("label", { style: { display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }, children: [
+								(0, react_jsx_runtime.jsx)("input", { type: "checkbox", checked: remindOn, onChange: (e) => commit("remindOn", e.target.checked) }),
+								(0, react_jsx_runtime.jsx)("span", { style: { flex: "none" }, children: "提醒" })
+							] }),
+							(0, react_jsx_runtime.jsxs)("label", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+								(0, react_jsx_runtime.jsx)("span", { style: { flex: "none" }, children: "范围" }),
+								(0, react_jsx_runtime.jsxs)("select", { className: "gacha-cal-select", value: String(currentRemind), onChange: (e) => commit("remindHours", Number(e.target.value)), children: [
+									!remindInOptions ? (0, react_jsx_runtime.jsx)("option", { value: String(currentRemind), children: "自定义（" + currentRemind + " 小时）" }) : null,
+									REMIND_OPTIONS.map((o) => (0, react_jsx_runtime.jsx)("option", { value: String(o.hours), children: o.label }, o.hours))
+								] })
 							] })
 						] })
 					] }),
