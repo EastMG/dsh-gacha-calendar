@@ -259,22 +259,31 @@ export default async function run() {
 		const capEnd = remindCaptionOf(endItem, NOW);
 		check("文案·结束：**事项名优先**（name=耀嘉音，不是游戏名绝区零）",
 			capEnd.name === "耀嘉音", JSON.stringify(capEnd));
-		check("文案·结束：整行是 `耀嘉音 · 还剩 3 小时`（结束方向上 名字在前、状态在后）",
-			capEnd.status === "还剩 3 小时" && capEnd.text === "耀嘉音 · 还剩 3 小时",
+		check("文案·结束：整行是 `耀嘉音 · 3 小时`（结束方向上 名字在前、状态在后；按钮这一侧**不带「还剩」**）",
+			capEnd.status === "3 小时" && capEnd.text === "耀嘉音 · 3 小时",
 			JSON.stringify(capEnd));
-		check("分隔符：生成的文本里有 ` · 还剩`（**前后都有空格** —— 上一版少了前导空格）",
-			capEnd.text.indexOf(" · 还剩") > 0
-			&& remindCaptionOf({ ...endItem, endTs: NOW + 45 * 60000 }, NOW).text.indexOf(" · 还剩") > 0,
+		// 读屏 / 悬停（aria-label / title）要的是完整句子 —— 那里**保留「还剩」**（用户 2026-10-25 明确要求）：
+		// 按钮省宽度去掉的词，在这一份里补回来，其余一字不差。
+		check("读屏·结束：完整句子里保留「还剩」（statusFull / ariaText）",
+			capEnd.statusFull === "还剩 3 小时" && capEnd.ariaText === "耀嘉音 · 还剩 3 小时",
+			JSON.stringify([capEnd.statusFull, capEnd.ariaText]));
+		check("分隔符：生成的文本里有 ` · `（**前后都有空格** —— 上一版少了前导空格）",
+			capEnd.text.indexOf(" · ") > 0
+			&& remindCaptionOf({ ...endItem, endTs: NOW + 45 * 60000 }, NOW).text.indexOf(" · ") > 0,
 			JSON.stringify(capEnd.text));
 		check("文案·结束：没有事项名时回退到游戏名（自定义条目可能没有 title）",
 			remindCaptionOf({ ...endItem, title: "" }, NOW).name === "绝区零"
 			&& remindCaptionOf({ ...endItem, title: "", name: "" }, NOW).name === "k");
-		check("文案·结束：不足 1 小时按分钟说（45 分钟）",
-			remindCaptionOf({ ...endItem, endTs: NOW + 45 * 60000 }, NOW).status === "还剩 45 分钟");
-		check("文案·结束：超过 1 天按「天 + 小时」说（30 小时 → 1 天 6 小时）",
-			remindCaptionOf({ ...endItem, endTs: NOW + 30 * H }, NOW).status === "还剩 1 天 6 小时");
-		check("文案·结束：向下取整（3 小时 59 分 → 还剩 3 小时，不虚报）",
-			remindCaptionOf({ ...endItem, endTs: NOW + 3 * H + 59 * 60000 }, NOW).status === "还剩 3 小时");
+		check("文案·结束：不足 1 小时按分钟说（45 分）",
+			remindCaptionOf({ ...endItem, endTs: NOW + 45 * 60000 }, NOW).status === "45 分");
+		check("文案·结束：≥1 天**只说天数**（30 小时 → 1 天，小时段丢掉）",
+			remindCaptionOf({ ...endItem, endTs: NOW + 30 * H }, NOW).status === "1 天");
+		check("文案·结束：1 天 17 时 → 1 天（丢掉 17 时，不四舍五入到 2 天）",
+			remindCaptionOf({ ...endItem, endTs: NOW + 41 * H }, NOW).status === "1 天");
+		check("文案·结束：24 天 10 时 → 24 天（天数不封顶、也不带小时）",
+			remindCaptionOf({ ...endItem, endTs: NOW + (24 * 24 + 10) * H }, NOW).status === "24 天");
+		check("文案·结束：向下取整（3 小时 59 分 → 3 小时，不虚报）",
+			remindCaptionOf({ ...endItem, endTs: NOW + 3 * H + 59 * 60000 }, NOW).status === "3 小时");
 
 		// 开始方向：今天 / 明天 / N 天后（偏移量在 UTC 与 +08 下同一天，见文件头注释）
 		const gachaStart = (startTs) => ({ key: "k", gameId: "k", side: "gacha", name: "星塔旅人", title: "限定寻访", startTs, endTs: startTs + 10 * H, kind: "start" });
@@ -313,12 +322,16 @@ export default async function run() {
 		check("每格结构：itemName = 事项名（活动名原样带引号也要照搬）",
 			slides[0].itemName === "耀嘉音" && slides[1].itemName === "「养成奖励」碎片追加活动",
 			JSON.stringify(slides.map((s) => s.itemName)));
-		check("每格结构：statusText 只有状态那半句（不把名字混进去）",
-			slides[0].statusText === "还剩 3 小时" && slides[1].statusText === "今天开始",
+		check("每格结构：statusText 只有状态那半句（不把名字混进去，也不带「还剩」）",
+			slides[0].statusText === "3 小时" && slides[1].statusText === "今天开始",
 			JSON.stringify(slides.map((s) => s.statusText)));
-		check("每格结构：text = `事项名 · 状态`（分隔符两侧都有空格）",
-			slides[0].text === "耀嘉音 · 还剩 3 小时" && slides[1].text === "「养成奖励」碎片追加活动 · 今天开始",
+		check("每格结构：text = `事项名 · 状态`（按钮上显示的那一份，分隔符两侧都有空格）",
+			slides[0].text === "耀嘉音 · 3 小时" && slides[1].text === "「养成奖励」碎片追加活动 · 今天开始",
 			JSON.stringify(slides.map((s) => s.text)));
+		check("每格结构：ariaText = 读屏版（结束方向带「还剩」，开始方向与 text 相同）",
+			slides[0].ariaText === "耀嘉音 · 还剩 3 小时"
+			&& slides[1].ariaText === "「养成奖励」碎片追加活动 · 今天开始",
+			JSON.stringify(slides.map((s) => s.ariaText)));
 		check("每格结构：还带 gameName 给悬停/读屏补「哪款游戏」（文字里不占宽度）",
 			slides[0].gameName === "绝区零" && slides[1].gameName === "星塔旅人");
 		check("每格结构：缺 gameIcon 时是空串（渲染层据此退化成首字方块），不是 undefined",

@@ -478,18 +478,17 @@
 		}
 
 		// 距离毫秒数 → 一句人话（只有数字 + 单位，标签由调用方加）。
-		// 口径：<1 小时说"分钟"、<1 天说"小时"、再往上"天 [小时]"。向下取整（宁可说"还剩 3 小时"
-		// 也不说"还剩 4 小时"）—— 提醒场景里**说少了**比说多了安全。
+		// 口径（2026-10-25 三次定稿，用户要求）：<1 小时说"分"、<1 天说"小时"、再往上**只说天数**
+		// —— ≥1 天不再拼小时段（"3 天 4 小时" → "3 天"，侧栏这一行总共只有 ~12 个汉字宽）。
+		// 向下取整（宁可说"3 小时"也不说"4 小时"）—— 提醒场景里**说少了**比说多了安全。
 		function remindSpanText(ms) {
 			const t = Number(ms);
-			if (!Number.isFinite(t) || t <= 0) return "1 分钟";
+			if (!Number.isFinite(t) || t <= 0) return "1 分";
 			const mins = Math.floor(t / 60000);
-			if (mins < 60) return Math.max(1, mins) + " 分钟";
+			if (mins < 60) return Math.max(1, mins) + " 分";
 			const hours = Math.floor(t / 3600000);
 			if (hours < 24) return hours + " 小时";
-			const days = Math.floor(t / 86400000);
-			const rest = Math.floor((t % 86400000) / 3600000);
-			return days + " 天" + (rest > 0 ? " " + rest + " 小时" : "");
+			return Math.floor(t / 86400000) + " 天";
 		}
 
 		// 开始时刻 → 「今天 / 明天 / N 天后」（只比**本机日历日**，与面板外显"今天到期"同一口径）。
@@ -516,7 +515,9 @@
 		//     （gameIcon，见 remindDueOf / remindSlidesOf），文字不再占宽度去写游戏名。
 		//     回退顺序：事项名 title → 游戏名 name → id → "某个游戏"（自定义条目可能没有 title，
 		//     绝不能显示 undefined）。
-		//   · 结束（kind=end）→ status = "还剩 X"（X 由 remindSpanText 给，两个方向都适用）；
+		//   · 结束（kind=end）→ status = "X"（X 由 remindSpanText 给，两个方向都适用）——
+		//     **按钮这一侧不带「还剩」**（2026-10-25 三次定稿，用户要求「· 还剩 8 小时」→「· 8 小时」）；
+		//     读屏/悬停要的是完整句子，那里由 statusFull（补回「还剩」）单独拼，见 statusFull 的注释；
 		//   · 开始（kind=start）→ status = "今天/明天/N 天后" + "开池"（卡池侧）/ "开始"（活动侧）。
 		function remindCaptionOf(item, nowTs) {
 			const it = item || {};
@@ -525,17 +526,23 @@
 			const isG = it.side === "gacha";
 			const status = isStart
 				? remindDayWord(Number(it.startTs), nowTs) + (isG ? "开池" : "开始")
-				: "还剩 " + remindSpanText(Number(it.endTs) - nowTs);
-			return { name, status, text: name + " · " + status };
+				: remindSpanText(Number(it.endTs) - nowTs);
+			// 读屏 / 悬停（aria-label / title）用的**完整句子**：结束方向补回「还剩」，
+			// 否则"耀嘉音 · 8 小时"念出来不通顺（用户 2026-10-25 明确要求这一处保留「还剩」）。
+			// 这是唯一一处单独拼接 —— 按钮那一侧（status / text）不再带「还剩」。
+			const statusFull = isStart ? status : "还剩 " + status;
+			return { name, status, statusFull, text: name + " · " + status, ariaText: name + " · " + statusFull };
 		}
 
 		// 轮播的**每一格**（C 方案，2026-10-25 二次定稿）：整行连同图标一起竖向翻页。
 		// 输入 = remindPickOf 的输出（remindDueOf 已给每条补上 gameIcon）。
-		// 输出一格一条：{ gameId, gameIcon, gameName, itemName, statusText, text, kind }
+		// 输出一格一条：{ gameId, gameIcon, gameName, itemName, statusText, text, ariaText, kind }
 		//   · gameId / gameIcon → 这一格左侧的图标（状态 i 用**该游戏自己的**图标）；
 		//   · itemName + statusText → 文字两段（名字可截断、状态永不截断，见 remindCaptionOf）；
 		//   · gameName 只给悬停/读屏补一句"这是哪款游戏"（图标认得出来，文字里不占宽度）；
-		//   · text = 完整一行（"名字 · 状态"），与悬停文案同源，两处不会说两套话。
+		//   · text = 完整一行（"名字 · 状态"，**按钮上显示的那一份**，不带「还剩」）；
+		//   · ariaText = 同一行的**读屏版**（结束方向带「还剩」，念出来才是完整句子）；
+		//     悬停/aria-label 用它，按钮渲染用 text —— 两处只有这一个词不同，其余同源。
 		// ⚠️ 状态 0（"原按钮外观"：日历图标 + 「二游日历」）**不**在这里 —— 那是渲染层的事；
 		//    本函数只负责"每格一条提醒"，所以无可提醒时返回 []（⇒ 只有状态 0、不滚动）。
 		function remindSlidesOf(items, nowTs) {
@@ -549,6 +556,7 @@
 					itemName: cap.name,
 					statusText: cap.status,
 					text: cap.text,
+					ariaText: cap.ariaText,
 					kind: String(it.kind || "")
 				};
 			});
