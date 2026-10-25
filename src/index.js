@@ -334,9 +334,17 @@ const Config = z.object({
 	// 判定是纯函数 remindKindOf（60-helpers.js），按钮轮播在 80-components.js 的 CalendarPanel 里。
 	remindHours: z.number().default(24).volatile(),
 	// 「强提醒」：参与侧栏轮播提醒的条目 id（设置页每行一个复选框）。
-	// **空数组 = 没特别设置 ⇒ 所有展示中的条目都参与**；非空 = 只提醒列表里的那些。
-	// 与「展示」（hidden/shown）完全独立：展示管面板，这里管提醒。判定见 60-helpers.js remindGameAllowed。
-	remindGames: z.array(z.string()).default([]).volatile(),
+	// **普通列表语义**（2026-10-25 二次定稿）：列表里有谁就提醒谁，**空数组 = 一个都不提醒**
+	// —— 不再有"空 = 全部参与"的哨兵（那个哨兵让"一个都不提醒"无法表达）。
+	// 出厂默认 = 出厂时**展示中**的条目（所有 defaultHidden !== true 的 id，默认隐藏的那几个不在里面）。
+	// ⚠️ 这份 default 必须与 src/client/10-config.js 的 DEFAULT_SETTINGS.remindGames 逐项一致，
+	//    并由 test/cases-remind.mjs 的守卫一起钉住（两边都是"出厂值"，漂了就是两套默认）。
+	remindGames: z.array(z.string()).default([
+		"genshin", "hsr", "zzz", "wuwa", "arknights", "endfield",
+		"ba-cn", "ba-global", "ba-jp", "bandori", "wuhuamixin", "zspms", "kedr",
+		"uma-cn", "uma-jp", "uma-global",
+		"p5x", "nte", "gf2", "fgo", "pjsk", "stellasora", "r1999"
+	]).volatile(),
 	// 实验特性：新「二游日历」面板视图。默认关 —— 关着时面板走原来的表格渲染（回退路径）。
 	newPanel: z.boolean().default(false).volatile(),
 	order: z.array(z.string()).default([]).volatile(),

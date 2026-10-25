@@ -442,13 +442,18 @@
 		}
 
 		// 某个条目是否参与提醒 —— 「强提醒」开关（设置页每行一个复选框）的**唯一语义来源**。
-		// 用户定的口径（必须简单可解释）：
-		//   · remindGames **空数组 / 没这个字段** ⇒ 没特别设置过 ⇒ **所有（展示中的）条目都参与**；
-		//   · remindGames **非空** ⇒ 只提醒列表里的那些（用户一动过就只认他勾的）。
-		// 为什么默认是"全参与"而不是"全不提醒"：开箱即用。默认全不提醒等于新用户永远看不到提醒，
-		// 还得先去设置页勾一遍才有意义 —— 那是把配置成本前置给了所有人。
+		// 口径（2026-10-25 **二次定稿**，用户原话「"空列表=全部展示中的参与"的副作用过大，改成正常的逻辑」）：
+		//   · 列表里**有**这个 id ⇒ 参与；
+		//   · 列表里**没有**（含空数组）⇒ 不参与 —— **空数组 = 一个都不提醒**，普通列表语义，
+		//     **不再有"空 = 全部参与"的哨兵**。
+		// 为什么去掉哨兵：哨兵让"一个都不提醒"表达不出来 ⇒ 设置页"取消最后一个勾"只能被拒绝
+		// （旧实现正是这么挡的，还得弹一句"要全关请改提前量"）。副作用大于收益，故废弃。
+		// 开箱即用不再靠哨兵，改靠**出厂默认值**：DEFAULT_SETTINGS.remindGames = 出厂时展示中的条目
+		// （守卫见 test/cases-remind.mjs，新增来源忘了同步会红）。
+		// 缺失 / 不是数组（老配置里根本没有这个键）⇒ 按**空列表**处理：这里不猜"没设置过"，
+		// 因为已经没有可猜的哨兵语义了；schema 的 default 会在读配置时补上出厂默认值。
 		function remindGameAllowed(gameId, remindGames) {
-			if (!Array.isArray(remindGames) || remindGames.length === 0) return true;
+			if (!Array.isArray(remindGames)) return false;
 			return remindGames.includes(gameId);
 		}
 
@@ -506,17 +511,47 @@
 		// 而这里最不能丢的恰恰是尾巴（"还剩 3 小时 / 明天开池"）。所以渲染层把 name 单独放进
 		// 可收缩 + 省略号的盒子、status 放进 flex:none 的盒子 —— 名字再长也只压名字。
 		// 口径：
+		//   · name = **事项名优先**（2026-10-25 二次定稿，用户 C 方案：「只有游戏名称没有角色/活动
+		//     名称，信息不足」）—— 卡池侧给那一期的角色名、活动侧给活动名；**游戏身份交给图标**
+		//     （gameIcon，见 remindDueOf / remindSlidesOf），文字不再占宽度去写游戏名。
+		//     回退顺序：事项名 title → 游戏名 name → id → "某个游戏"（自定义条目可能没有 title，
+		//     绝不能显示 undefined）。
 		//   · 结束（kind=end）→ status = "还剩 X"（X 由 remindSpanText 给，两个方向都适用）；
 		//   · 开始（kind=start）→ status = "今天/明天/N 天后" + "开池"（卡池侧）/ "开始"（活动侧）。
 		function remindCaptionOf(item, nowTs) {
 			const it = item || {};
-			const name = String(it.name || it.gameId || "").trim() || "某个游戏";
+			const name = String(it.title || it.name || it.gameId || "").trim() || "某个游戏";
 			const isStart = it.kind === "start";
 			const isG = it.side === "gacha";
 			const status = isStart
 				? remindDayWord(Number(it.startTs), nowTs) + (isG ? "开池" : "开始")
 				: "还剩 " + remindSpanText(Number(it.endTs) - nowTs);
 			return { name, status, text: name + " · " + status };
+		}
+
+		// 轮播的**每一格**（C 方案，2026-10-25 二次定稿）：整行连同图标一起竖向翻页。
+		// 输入 = remindPickOf 的输出（remindDueOf 已给每条补上 gameIcon）。
+		// 输出一格一条：{ gameId, gameIcon, gameName, itemName, statusText, text, kind }
+		//   · gameId / gameIcon → 这一格左侧的图标（状态 i 用**该游戏自己的**图标）；
+		//   · itemName + statusText → 文字两段（名字可截断、状态永不截断，见 remindCaptionOf）；
+		//   · gameName 只给悬停/读屏补一句"这是哪款游戏"（图标认得出来，文字里不占宽度）；
+		//   · text = 完整一行（"名字 · 状态"），与悬停文案同源，两处不会说两套话。
+		// ⚠️ 状态 0（"原按钮外观"：日历图标 + 「二游日历」）**不**在这里 —— 那是渲染层的事；
+		//    本函数只负责"每格一条提醒"，所以无可提醒时返回 []（⇒ 只有状态 0、不滚动）。
+		function remindSlidesOf(items, nowTs) {
+			if (!Array.isArray(items)) return [];
+			return items.filter(Boolean).map((it) => {
+				const cap = remindCaptionOf(it, nowTs);
+				return {
+					gameId: String(it.gameId || it.id || ""),
+					gameIcon: String(it.gameIcon || ""),
+					gameName: String(it.name || ""),
+					itemName: cap.name,
+					statusText: cap.status,
+					text: cap.text,
+					kind: String(it.kind || "")
+				};
+			});
 		}
 		//#endregion
 		//#endregion

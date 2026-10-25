@@ -389,12 +389,15 @@
 			isExpiringSoon,
 			expiringSoonOf,
 			// 双向判定（2026-10-25 晚）：即将结束 / 即将开始都算提醒。
-			// remindKindOf = 方向判定；remindGameAllowed = 「强提醒」筛选语义；remindPickOf = 选取 + 排序；
-			// remindCaptionOf = 按钮那一行的两段文案（名字 / 状态）。全是纯函数，固定时刻可测。
+			// remindKindOf = 方向判定；remindGameAllowed = 「强提醒」筛选语义（普通列表，空 = 都不提醒）；
+			// remindPickOf = 选取 + 排序；remindCaptionOf = 按钮那一行的两段文案（事项名 / 状态）；
+			// remindSlidesOf = 轮播**每格**的结构（C 方案：{gameId, gameIcon, itemName, statusText}）。
+			// 全是纯函数，固定时刻可测。
 			remindKindOf,
 			remindGameAllowed,
 			remindPickOf,
 			remindCaptionOf,
+			remindSlidesOf,
 			remindWindowOf,
 			remindDueOf,
 			sourceInstant,

@@ -15,9 +15,11 @@
 			   有事只能点个点）；宽侧栏一律走下面的单行轮播，不再出现红点。 */
 			.gacha-cal-btn{position:relative}
 			.gacha-cal-dot{position:absolute;top:50%;right:8px;width:7px;height:7px;margin-top:-3.5px;border-radius:50%;background:#E5484D;pointer-events:none}
-			/* 到期提醒·单行轮播（2026-10-25 晚）：有提醒时，「图标 + 二游日历」整行与"一条近期内容"
-			   竖向交叉滚动（旧的往上走、新的从下面进来），像交易所翻牌。
-			   **尺寸硬约束**：按钮的 min-height:42px / line-height:22px 一个数都不改 ——
+			/* 到期提醒·单行轮播（2026-10-25 晚；同日二次定稿成 **C 方案**）：有提醒时，
+			   「[图标] 二游日历」整行与「[游戏图标] 事项名 · 还剩 X」竖向交叉翻页（旧行往上走、新行从
+			   下面进来），像交易所翻牌。**图标跟着整行一起翻**（状态 0 = 日历图标，状态 i = 该游戏的图标），
+			   所以它落在 .gacha-cal-btn-line 内部，不属于按钮的固定布局。
+			   **尺寸硬约束**：按钮的 min-height:42px / line-height:22px / padding / gap 一个数都不改 ——
 			   .gacha-cal-btn-txt 是固定 22px 高的"窗口"（overflow:hidden），里面两行各 22px 叠成 44px；
 			   translateY 只发生在窗口**内部**那一层（.gacha-cal-btn-flip），所以按钮的 flex 高度永远是
 			   22px，既不撑开按钮、也不挤动图标/文字。
@@ -28,10 +30,19 @@
 			   transform/filter/contain/will-change。 */
 			.gacha-cal-btn-txt{display:block;flex:1 1 auto;min-width:0;height:22px;line-height:22px;overflow:hidden}
 			.gacha-cal-btn-flip{display:block;animation:gacha-cal-btn-flip .42s cubic-bezier(.2,.9,.25,1) backwards}
-			.gacha-cal-btn-line{display:flex;align-items:center;gap:6px;height:22px;line-height:22px;min-width:0;overflow:hidden}
-			/* 名字可截断、状态永不截断：窄宽度下必须留下"还剩 3 小时 / 明天开池"，被省略的只能是游戏名 */
+			.gacha-cal-btn-line{display:flex;align-items:center;height:22px;line-height:22px;min-width:0;overflow:hidden}
+			/* 图标（2026-10-25 二次定稿 **C 方案**）：日历图标与游戏图标都在**同一行**里，跟着整行一起翻页
+			   （不再有固定的日历图标）。尺寸 16px 与原日历图标一致；margin-right:8px 复刻原来按钮
+			   gap:8px 的"图标↔文字"间距 —— 所以 .gacha-cal-btn 的 min-height/line-height/padding/gap
+			   一个数都不用改，图标位置与原来逐像素对齐。 */
+			.gacha-cal-btn-ic{display:inline-flex;align-items:center;justify-content:center;flex:none;width:16px;height:16px;margin-right:8px}
+			/* 名字可截断、状态永不截断：窄宽度下必须留下「还剩 3 小时 / 明天开池」，被省略的只能是
+			   事项名（角色/活动名）。 */
 			.gacha-cal-btn-lbl,.gacha-cal-btn-nm{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-			.gacha-cal-btn-st{flex:none;white-space:nowrap}
+			/* 状态那一段的文字带**前导空格**（" · 还剩 X"），所以这里必须用 pre：nowrap 会把行首的
+			   空格折叠掉，渲染成「少女· 还剩」—— 少一个正是用户 2026-10-25 指出的问题。
+			   pre = nowrap + 保留空格：分隔符两侧各有一个真空格，且永不换行（flex:none 不参与收缩）。 */
+			.gacha-cal-btn-st{flex:none;white-space:pre}
 			@keyframes gacha-cal-btn-flip{from{transform:translateY(-50%)}to{transform:translateY(0)}}
 			/* reduce：完全不滚动（动画置 none）。JS 侧同时把轮播节拍停掉并静态钉在第一条（见 80 的
 			   usePrefersReducedMotion）—— 两处都要，缺一处就还能看见翻页。 */
