@@ -549,7 +549,7 @@ export default async function run() {
 			.filter((r) => !/animation:\s*none/.test(r));
 		check("两条方向规则都在（.gacha-cal-btn-flip.is-up / .is-down）", dirRules.length === 2, String(dirRules.length));
 		check("方向规则只换 keyframes 名：时长 .42s + cubic-bezier(.2,.9,.25,1) + backwards 一个不改",
-			dirRules.every((r) => /animation:gacha-cal-btn-flip(?:-down)? \.42s cubic-bezier\(\.2,\.9,\.25,1\) backwards/.test(r)),
+			dirRules.every((r) => /animation:gacha-cal-btn-flip(?:-down)? \.42s cubic-bezier\(\.2,\.9,\.25,1\) (?:1ms )?backwards/.test(r)),
 			dirRules.join(" | "));
 		check("方向规则里没有 transform / filter / contain / will-change（动画只在 keyframes 里）",
 			dirRules.every((r) => !/transform|will-change|filter|contain|perspective/.test(r)),

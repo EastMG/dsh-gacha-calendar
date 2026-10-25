@@ -29,7 +29,7 @@
 			   包含块，虽然按钮不在它的祖先链上，也**不要**给 .gacha-cal-btn 或更外层加
 			   transform/filter/contain/will-change。 */
 			.gacha-cal-btn-txt{display:block;flex:1 1 auto;min-width:0;height:22px;line-height:22px;overflow:hidden}
-			.gacha-cal-btn-flip{display:block;animation:gacha-cal-btn-flip .42s cubic-bezier(.2,.9,.25,1) backwards}
+			.gacha-cal-btn-flip{display:block;animation:gacha-cal-btn-flip .42s cubic-bezier(.2,.9,.25,1) 1ms backwards}
 			/* 翻页**方向**（2026-10-25 四次定稿，用户要求「类名 = 视觉方向」）：
 			   · .is-up   → keyframes gacha-cal-btn-flip（from 50%）：整层从**下方**滑回原位
 			                ⇒ 新内容从下面进、旧内容往上走（视觉向上）；
@@ -44,8 +44,8 @@
 			   reduce 时仍会播一次翻页。
 			   ⚠️ 这里只碰 .gacha-cal-btn-flip 这一层；按钮与祖先层仍然不许 transform/filter/
 			   contain/will-change（面板悬停浮层 .gacha-cal-sched-rest 依赖包含块）。 */
-			.gacha-cal-btn-flip.is-up{animation:gacha-cal-btn-flip .42s cubic-bezier(.2,.9,.25,1) backwards}
-			.gacha-cal-btn-flip.is-down{animation:gacha-cal-btn-flip-down .42s cubic-bezier(.2,.9,.25,1) backwards}
+			.gacha-cal-btn-flip.is-up{animation:gacha-cal-btn-flip .42s cubic-bezier(.2,.9,.25,1) 1ms backwards}
+			.gacha-cal-btn-flip.is-down{animation:gacha-cal-btn-flip-down .42s cubic-bezier(.2,.9,.25,1) 1ms backwards}
 			.gacha-cal-btn-line{display:flex;align-items:center;height:22px;line-height:22px;min-width:0;overflow:hidden}
 			/* 图标（2026-10-25 二次定稿 **C 方案**）：日历图标与游戏图标都在**同一行**里，跟着整行一起翻页
 			   （不再有固定的日历图标）。尺寸 16px 与原日历图标一致；margin-right:8px 复刻原来按钮
