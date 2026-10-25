@@ -1,19 +1,21 @@
-// test/cases-ticker.mjs —— 侧栏轮播（2026-10-25 晚：按钮单行翻页 + 每游戏「轮播」开关）
-//                        （同日二次定稿：「轮播」开关改**普通列表**语义 + 轮播改 **C 方案**）
-//                        （同日三次定稿：设置页拆成「开关 + 范围」；轮播交叉；翻页方向交替）
+// test/cases-ticker.mjs —— 侧栏轮播（2026-10-25 晚：按钮单行翻页；同日三次定稿：设置页拆成「开关 + 范围」）
+//                        （2026-10-25 定稿：轮播**只有全局开关 + 范围、不分游戏**；
+//                          游戏列表里那一列改回「提醒」，是给「到期提醒（送达）」预留的逐游戏钩子）
 //
-// 功能范围（用户定）：侧栏按钮「单行轮播」+「提前 N 小时」设置 + 每游戏「轮播」开关。
+// 功能范围（用户定）：侧栏按钮「单行轮播」+「提前 N 小时」设置。**不含逐游戏筛选**。
 // 不做系统通知、不做弹窗/声音、不动刷新链路、不动缓存载荷结构。
 //
-// 本文件守八件事：
+// 本文件守九件事：
 //   ① 判定口径（纯函数 `isExpiringSoon`，60-helpers.js）：
 //      某侧"即将到期" = 该侧**已开始**（startTs <= now）且 **endTs 落在 (now, now + N 小时]**。
 //   ② 双向判定（纯函数 `tickerKindOf`，2026-10-25 晚）：即将**开始**也算命中。
 //      ""（不算）/ "end"（即将结束）/ "start"（即将开始）三态，两个方向天然互斥。
-//   ③ 「轮播」筛选语义（纯函数 `tickerGameAllowed`）：**普通列表** —— 列表里有谁就轮播谁，
-//      **空数组 = 一个都不轮播**（2026-10-25 二次定稿，**废弃**"空 = 全部参与"的哨兵）。
-//      + **守卫**：`DEFAULT_SETTINGS.tickerGames`（及 src/index.js 的 schema default）
-//        必须恰好等于所有 `defaultHidden !== true` 的来源 id —— 新增来源/改默认隐藏时轮播列表要同步。
+//   ③ 「提醒」逐游戏白名单的语义（纯函数 `remindGameAllowed`）——⚠️ 这是**给未来的「到期提醒
+//      （送达）」预留的**，**轮播不读它**：**普通列表**，列表里有谁就提醒谁，**空数组 = 一个都不提醒**。
+//      + **守卫**：`DEFAULT_SETTINGS.remindGames`（及 src/index.js 的 schema default）
+//        必须恰好等于所有 `defaultHidden !== true` 的来源 id —— 新增来源/改默认隐藏时要同步。
+//      + **反向守卫**：轮播链路（`tickerItemsOf` / `tickerPickOf` / 渲染层 memo）**不得**读这份列表，
+//        也不得再接受"逐游戏筛选"参数 —— 用户 2026-10-25 明确纠正过这一点。
 //   ④ 轮播条目选取与**每格结构**（纯函数 `tickerPickOf` / `tickerCaptionOf` / `tickerSlidesOf`）：
 //      多条时顺序稳定（按"距离那一刻还有多远"升序，同刻保持输入顺序）、无可轮播条目时返回空
 //      （⇒ 按钮只有状态 0、不滚动）；C 方案每格 = { gameId, gameIcon, itemName, statusText }
@@ -28,15 +30,8 @@
 //      `tickerStepsOf` 展开成 [idle, 1, idle, 2, …]（长度 2n；n=0 只有 idle）；
 //      方向按**切换次数**四步一循环 up,down,down,up（idx 0 = 挂载兜底 down），
 //      且**类名 = 视觉方向**（.is-up = 新内容从下方进 / .is-down = 新内容从上方进）。
-//   ⑨ 翻页层的**两行顺序**（同日五次定稿）：up ⇒ [prev, cur]、down ⇒ [cur, prev]
-//      （纯函数 `tickerFlipLinesOf`）。行顺序必须与各自的 keyframes 成套 ——
-//      两种方向的**起点都必须让 prev 占满窗口**，否则"向上翻"一开场就是空白
-//      （用户报「还是不对，和向下翻的动画不一样」，探针实测空白 30~60ms）。
-//   ⑩ 翻页**落定**（同日六次定稿）：动画播完 ⇒ 只渲染 cur 一行 + `.is-settled`
-//      （animation:none; transform:none），抹平"up 用 forwards 留持久 transform、
-//      down 结束时 transform:none"的终点不对称。纯函数 `tickerFlipRenderLinesOf` 给出
-//      四种组合（settled × up/down）；`flipSettled` 是 key={shownStep} 子组件的本地 state，
-//      换格 ⇒ 重挂载 ⇒ 自动回到 false（不用 useEffect，见 80-components.js 的注释）。
+//   ⑨ 翻页层的**两行顺序** + **落定**（同日五次、六次定稿）：up ⇒ [prev, cur]、down ⇒ [cur, prev]
+//      （纯函数 `tickerFlipLinesOf`）；动画播完只渲染 cur 一行（`tickerFlipRenderLinesOf`）。
 //
 // ⚠️ 时刻全部显式传入（`now` 是参数，不是 Date.now()），所以本文件不随跑测那天漂移。
 // ⚠️ 「今天 / 明天 / N 天后」用的是**本机日历日**，所以这里挑的偏移量在 UTC 与 +08 下落在同一天
@@ -52,10 +47,10 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, "..");
 
 export default async function run() {
-	section("侧栏轮播（单行翻页 + 「提前 N 小时」+ 每游戏「轮播」）");
+	section("侧栏轮播（单行翻页 + 「提前 N 小时」）");
 	const {
 		isExpiringSoon, expiringSoonOf,
-		tickerKindOf, tickerGameAllowed, tickerOnOf, tickerRangeOf, tickerPickOf, tickerCaptionOf, tickerSlidesOf,
+		tickerKindOf, remindGameAllowed, tickerOnOf, tickerRangeOf, tickerPickOf, tickerCaptionOf, tickerSlidesOf,
 		tickerStepsOf, tickerDirAt, tickerFlipLinesOf, tickerFlipRenderLinesOf,
 		tickerWindowOf, tickerItemsOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
 	} = T;
@@ -164,58 +159,59 @@ export default async function run() {
 		check("列表版：非数组 → 空数组（不抛）", expiringSoonOf(null, NOW, 24).length === 0);
 	}
 
-	// ── ④ 「轮播」筛选语义（tickerGameAllowed）：**普通列表**，空 = 一个都不轮播 ──────
-	// 2026-10-25 二次定稿：废弃"空数组 = 全部参与"的哨兵（用户原话「副作用过大，改成正常的逻辑」），
-	// 并且"取消最后一个勾被拒绝"必须修掉 —— 空列表现在就是"一个都不轮播"，是**合法的终态**。
+	// ── ④ 「提醒」白名单语义（remindGameAllowed）：**给未来的到期送达预留**，轮播不读它 ─────
+	// 2026-10-25 定稿（用户纠正）：游戏列表里那一列 = 「提醒」，是**主动送达**的逐游戏钩子，
+	// **不是轮播的一部分**。送达功能尚未实现 ⇒ 现在只有设置页读写，轮播链路一律不碰它。
+	// 判定仍是普通列表（空 = 一个都不提醒），与原来的语义一字不差 —— 只是**归属改了**。
 	{
-		check("tickerGames 为空数组 → **一个都不轮播**（不再有「空 = 全部」的哨兵）",
-			tickerGameAllowed("g1", []) === false && tickerGameAllowed("随便什么", []) === false);
-		check("tickerGames 缺失 / 不是数组 → 也不轮播（纯函数不猜「没设置过」，默认值由 DEFAULT_SETTINGS/schema 给）",
-			tickerGameAllowed("g1", void 0) === false
-			&& tickerGameAllowed("g1", null) === false
-			&& tickerGameAllowed("g1", "g1") === false);
-		check("tickerGames 非空 → **只有列表里的参与**（[\"a\"] 只轮播 a）",
-			tickerGameAllowed("a", ["a"]) === true
-			&& tickerGameAllowed("b", ["a"]) === false
-			&& tickerGameAllowed("a", ["b", "c"]) === false);
+		check("remindGames 为空数组 → **一个都不提醒**（不再有「空 = 全部」的哨兵）",
+			remindGameAllowed("g1", []) === false && remindGameAllowed("随便什么", []) === false);
+		check("remindGames 缺失 / 不是数组 → 也不提醒（纯函数不猜「没设置过」，默认值由 DEFAULT_SETTINGS/schema 给）",
+			remindGameAllowed("g1", void 0) === false
+			&& remindGameAllowed("g1", null) === false
+			&& remindGameAllowed("g1", "g1") === false);
+		check("remindGames 非空 → **只有列表里的提醒**（[\"a\"] 只提醒 a）",
+			remindGameAllowed("a", ["a"]) === true
+			&& remindGameAllowed("b", ["a"]) === false
+			&& remindGameAllowed("a", ["b", "c"]) === false);
 
-		// ── 守卫：出厂默认轮播列表 == 出厂时「展示中」的来源（defaultHidden !== true）──────────
+		// ── 守卫：出厂默认提醒白名单 == 出厂时「展示中」的来源（defaultHidden !== true）──────────
 		// 它钉住两件事（这是"开箱即用"从哨兵手里接过来的保证）：
-		//   ① 新增来源时轮播列表必须同步（忘了改默认列表就红）；
-		//   ② 改某个条目的 defaultHidden 时轮播列表必须同步（否则默认隐藏的条目会偷偷参与轮播，反之亦然）。
+		//   ① 新增来源时白名单必须同步（忘了改默认列表就红）；
+		//   ② 改某个条目的 defaultHidden 时白名单必须同步。
 		// 比较口径：两边都去重 + 排序后整体相等（顺序无所谓，集合必须相同）。
 		const sortIds = (xs) => [...xs].sort();
 		const shownIds = sortIds(SOURCES.filter((s) => s.defaultHidden !== true).map((s) => s.id));
-		const defIds = sortIds(DEFAULT_SETTINGS.tickerGames);
-		check("默认 tickerGames（去重排序后）**恰好等于**所有 defaultHidden !== true 的来源 id（排序后）",
+		const defIds = sortIds(DEFAULT_SETTINGS.remindGames);
+		check("默认 remindGames（去重排序后）**恰好等于**所有 defaultHidden !== true 的来源 id（排序后）",
 			defIds.length === new Set(defIds).size && defIds.join(",") === shownIds.join(","),
 			"默认=" + defIds.join(",") + " ／ 展示中=" + shownIds.join(","));
-		check("默认 tickerGames **不含**出厂默认隐藏的条目（defaultHidden === true 的一个都不许进来）",
+		check("默认 remindGames **不含**出厂默认隐藏的条目（defaultHidden === true 的一个都不许进来）",
 			SOURCES.filter((s) => s.defaultHidden === true).every((s) => !defIds.includes(s.id)),
 			SOURCES.filter((s) => s.defaultHidden === true).map((s) => s.id).join(","));
-		check("默认 tickerGames 非空（否则开箱即用就没了）", defIds.length > 0, String(defIds.length));
+		check("默认 remindGames 非空（否则将来接上送达时开箱即用就是空的）", defIds.length > 0, String(defIds.length));
 
 		// schema 那一侧的 default 必须与 DEFAULT_SETTINGS 一致：两处都是"出厂值"，漂了就是两套默认
 		// （客户端 spread 用 DEFAULT_SETTINGS，宿主表单用 schema default，用户看到哪个取决于读哪一边）。
 		{
 			const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
-			const m = /tickerGames:\s*z\.array\(z\.string\(\)\)\.default\((\[[\s\S]*?\])\)/.exec(hostSrc);
+			const m = /remindGames:\s*z\.array\(z\.string\(\)\)\.default\((\[[\s\S]*?\])\)/.exec(hostSrc);
 			let hostDefault = null;
 			if (m) { try { hostDefault = JSON.parse(m[1]); } catch { hostDefault = null; } }
 			check("src/index.js 的 schema `.default(...)` 能解析出来（守卫自身没瞎）",
-				Array.isArray(hostDefault), m ? m[1].slice(0, 80) : "没匹配到 tickerGames 的 default");
-			check("src/index.js 的 schema default 与 DEFAULT_SETTINGS.tickerGames 逐项一致（排序后）",
+				Array.isArray(hostDefault), m ? m[1].slice(0, 80) : "没匹配到 remindGames 的 default");
+			check("src/index.js 的 schema default 与 DEFAULT_SETTINGS.remindGames 逐项一致（排序后）",
 				Array.isArray(hostDefault) && sortIds(hostDefault).join(",") === defIds.join(","),
 				Array.isArray(hostDefault) ? sortIds(hostDefault).join(",") : "null");
 		}
 	}
 
-	// ── ⑤ 轮播条目选取（tickerPickOf）：顺序稳定 + 无命中→空 ──────────────────
+	// ── ⑤ 轮播条目选取（tickerPickOf）：顺序稳定 + 无命中→空 + **不受逐游戏列表影响** ──────
 	// 候选契约与 80-components.js 的 tickerItemsOf 组装出来的完全一致
 	// （{ key, gameId, side, name, title, gameIcon, startTs, endTs }）；这里刻意**绕开**文本换算，
 	// 直接喂绝对时刻 —— 选取/排序/筛选这一层本身就是纯的。
-	// 第四个参数是「轮播」列表（普通列表语义）：空 = 一个都不轮播，所以在"要全都要"的用例里
-	// 必须把 id 显式写全 —— 这正是废弃哨兵后的代价，也正是用户要的"正常的逻辑"。
+	// ⚠️ 2026-10-25 定稿：签名**只有三个参数**（items, now, hours）—— 逐游戏列表那个参数已删除。
+	// 用户明确纠正过：轮播 = 全局开关 + 范围，**不分游戏**；逐游戏列表属于「到期提醒（送达）」。
 	{
 		const cand = [
 			{ key: "a:gacha", gameId: "a", side: "gacha", name: "甲", title: "池甲", startTs: NOW - 1 * H, endTs: NOW + 3 * H },   // end，3h 后
@@ -223,8 +219,9 @@ export default async function run() {
 			{ key: "c:event", gameId: "c", side: "event", name: "丙", title: "活动丙", startTs: NOW + 1 * H, endTs: NOW + 2 * H }, // start，1h 后
 			{ key: "d:event", gameId: "d", side: "event", name: "丁", title: "活动丁", startTs: NOW - 2 * H, endTs: NOW + 30 * H }  // end 30h > 24 → 不算
 		];
-		const ALL = ["a", "b", "c", "d"];
-		const pick = tickerPickOf(cand, NOW, 24, ALL);
+		// 用户在设置里可能这么勾「提醒」（只勾了 a）—— 轮播**看不见**这份列表。
+		const REMIND_ONLY_A = ["a"];
+		const pick = tickerPickOf(cand, NOW, 24);
 		check("选取：只留下 24 小时内的 3 条（两个方向混在一起，按紧迫度排）",
 			pick.map((x) => x.key).join(",") === "c:event,a:gacha,b:gacha", pick.map((x) => x.key).join(","));
 		check("选取：每条都带上方向 kind（c=start / a=end）与 dueMs",
@@ -232,8 +229,8 @@ export default async function run() {
 			&& pick[0].dueMs === 1 * H && pick[1].dueMs === 3 * H,
 			JSON.stringify(pick.map((x) => [x.key, x.kind, x.dueMs])));
 		check("选取：叫两遍结果完全一致（顺序稳定、无随机成分）",
-			tickerPickOf(cand, NOW, 24, ALL).map((x) => x.key).join(",")
-			=== tickerPickOf(cand, NOW, 24, ALL).map((x) => x.key).join(","));
+			tickerPickOf(cand, NOW, 24).map((x) => x.key).join(",")
+			=== tickerPickOf(cand, NOW, 24).map((x) => x.key).join(","));
 		// 同一毫秒的多条：保持**输入顺序**（不是按名字/按 id 再排一次）
 		{
 			const tie = [
@@ -241,29 +238,25 @@ export default async function run() {
 				{ key: "y", gameId: "y", side: "gacha", name: "Y", startTs: NOW - 1 * H, endTs: NOW + 2 * H }
 			];
 			check("选取：同一紧迫度时保持输入顺序（x 在 y 前）",
-				tickerPickOf(tie, NOW, 24, ["x", "y"]).map((x) => x.key).join(",") === "x,y",
-				tickerPickOf(tie, NOW, 24, ["x", "y"]).map((x) => x.key).join(","));
+				tickerPickOf(tie, NOW, 24).map((x) => x.key).join(",") === "x,y",
+				tickerPickOf(tie, NOW, 24).map((x) => x.key).join(","));
 		}
-		// 轮播筛选（普通列表语义）
-		check("选取：tickerGames 为空 → **0 条**（空列表 = 一个都不轮播）",
-			tickerPickOf(cand, NOW, 24, []).length === 0);
-		check("选取：非空列表 → 只有列表里的（[\"a\"] → 只剩 a:gacha）",
-			tickerPickOf(cand, NOW, 24, ["a"]).map((x) => x.key).join(",") === "a:gacha");
-		check("选取：列表里没命中的条目**全部**被筛掉（[\"c\"] 只剩 c:event）",
-			tickerPickOf(cand, NOW, 24, ["c"]).map((x) => x.key).join(",") === "c:event");
-		check("选取：列表写全 → 3 条都在（[\"a\",\"b\",\"c\"]）",
-			tickerPickOf(cand, NOW, 24, ["a", "b", "c"]).map((x) => x.key).join(",") === "c:event,a:gacha,b:gacha");
-		check("选取：列表里写了一个不存在的 id → 空数组（不会退回「全部」）",
-			tickerPickOf(cand, NOW, 24, ["nope"]).length === 0);
+		// ── 反向守卫：轮播**不读**逐游戏列表 ────────────────────────────────────────
+		// 行为级证据（不只靠源码正则）：把白名单当第 4 个实参硬塞进去 —— JS 会**静默忽略**
+		// 多余的实参，所以结果必须与"不传"时一字不差（a 与 b 都在，c 也在）。
+		check("选取签名只有 3 个参数（items, now, hours）——没有第 4 个「逐游戏列表」",
+			tickerPickOf.length === 3, String(tickerPickOf.length));
+		check("轮播**不受逐游戏列表影响**：白名单只含 a，硬塞第 4 个参数也照样轮到 b 与 c",
+			tickerPickOf(cand, NOW, 24, REMIND_ONLY_A).map((x) => x.key).join(",") === "c:event,a:gacha,b:gacha",
+			tickerPickOf(cand, NOW, 24, REMIND_ONLY_A).map((x) => x.key).join(","));
 		// 没有可轮播的条目 → 空（⇒ 按钮只有状态 0，不滚动）
 		check("选取：没有任何命中 → 空数组（⇒ 不滚动）",
-			tickerPickOf([], NOW, 24, ALL).length === 0
-			&& tickerPickOf(cand, NOW, 0, ALL).length === 0        // 关闭
-			&& tickerPickOf(cand, NOW, 24, ["nope"]).length === 0); // 全被筛掉
+			tickerPickOf([], NOW, 24).length === 0
+			&& tickerPickOf(cand, NOW, 0).length === 0);       // 关闭（N<=0 短路）
 		check("选取：脏输入不抛（null / 非数组 / 数组里夹 null / N=0）",
-			tickerPickOf(null, NOW, 24, ALL).length === 0
-			&& tickerPickOf(cand, NOW, 0, ALL).length === 0
-			&& tickerPickOf([null, void 0, 1], NOW, 24, ALL).length === 0);
+			tickerPickOf(null, NOW, 24).length === 0
+			&& tickerPickOf(cand, NOW, 0).length === 0
+			&& tickerPickOf([null, void 0, 1], NOW, 24).length === 0);
 	}
 
 	// ── ⑥ 轮播文案与**每格结构**（tickerCaptionOf / tickerSlidesOf，C 方案）──────────
@@ -424,10 +417,10 @@ export default async function run() {
 		//                  + g2 卡池（2h 后**开始**，双向后新进来的）
 		//                  + g4 卡池（2h 后结束）
 		//   g2 活动 25h 后才结束 → N=24 不算；g3/custom 读不出绝对档期 → 不参与
-		// ⚠️ 第四个参数现在是**普通列表**（空 = 一个都不轮播），所以"全都要"必须把 id 写全。
-		const ALL = ["g1", "g2", "g3", "g4", "custom-1"];
+		// ⚠️ 清单层**没有**逐游戏参数（2026-10-25 定稿）：内容 = 传进来的所有 games 的条目，
+		//    只按 N 小时范围筛。调用方（渲染层）保证 games 全是"展示中"的条目。
 		{
-			const due = tickerItemsOf(games, now, 24, ALL);
+			const due = tickerItemsOf(games, now, 24);
 			check("N=24 的轮播清单 = 4 条（双向：g1 两侧 + g2 卡池开始 + g4 卡池）",
 				due.length === 4, JSON.stringify(due.map((x) => x.key)));
 			check("清单按紧迫度升序（1h 的两条 → 2h 的两条；同刻保持输入顺序）",
@@ -447,31 +440,34 @@ export default async function run() {
 			check("即将开始的侧（g2 卡池）以 kind=start 进清单（双向判定的直接证据）",
 				due.some((x) => x.key === "g2:gacha" && x.kind === "start"));
 			check("25 小时后结束的侧（g2 活动）N=24 不在、N=48 才在",
-				!tickerItemsOf(games, now, 24, ALL).some((x) => x.key === "g2:event")
-				&& tickerItemsOf(games, now, 48, ALL).some((x) => x.key === "g2:event"));
+				!tickerItemsOf(games, now, 24).some((x) => x.key === "g2:event")
+				&& tickerItemsOf(games, now, 48).some((x) => x.key === "g2:event"));
 			check("N=48 → 5 条（g2 活动在 25h 后的 end 也进来了）",
-				tickerItemsOf(games, now, 48, ALL).length === 5);
+				tickerItemsOf(games, now, 48).length === 5);
 		}
 
-		// 「轮播」筛选接到清单层（普通列表语义）
-		check("tickerGames=[\"g1\"] → 清单只剩 g1 的两条（g2/g4 被筛掉）",
-			tickerItemsOf(games, now, 24, ["g1"]).map((x) => x.key).join(",") === "g1:gacha,g1:event");
-		check("tickerGames=[\"g4\"] → 只剩 g4 卡池",
-			tickerItemsOf(games, now, 24, ["g4"]).map((x) => x.key).join(",") === "g4:gacha");
-		check("tickerGames 为空 → **0 条**（新语义：空列表 = 一个都不轮播）",
-			tickerItemsOf(games, now, 24, []).length === 0);
-		check("tickerGames 写全 → 4 条都在（「全勾」的等价写法就是显式列出 id）",
-			tickerItemsOf(games, now, 24, ALL).length === 4);
+		// ── 反向守卫：清单层**不读**逐游戏列表（2026-10-25 定稿）────────────────────────
+		// 用户口径：轮播只按 tickerOn（调用方短路）+ tickerHours 筛，**内容 = 所有展示中游戏的条目**。
+		// 证据用"行为 + 签名"两条钉：
+		//   ① 签名只有 3 个参数；② 白名单硬塞成第 4 个实参（JS 静默忽略）结果必须一字不差。
+		check("清单层签名只有 3 个参数（games, now, hours）——没有第 4 个「逐游戏列表」",
+			tickerItemsOf.length === 3, String(tickerItemsOf.length));
+		check("清单层：白名单只含 g1，硬塞第 4 个参数也照样有 g2/g4 的条目（轮播不受它影响）",
+			tickerItemsOf(games, now, 24, ["g1"]).map((x) => x.key).join(",") === "g1:gacha,g1:event,g2:gacha,g4:gacha",
+			tickerItemsOf(games, now, 24, ["g1"]).map((x) => x.key).join(","));
+		check("清单层：传**空数组**当白名单也不影响（旧语义里「空 = 一条都不轮播」已被废除）",
+			tickerItemsOf(games, now, 24, []).length === 4,
+			String(tickerItemsOf(games, now, 24, []).length));
 
 		// 关闭 = 空清单（按钮不滚动），且不再换算
 		check("N=0（关闭）→ 空清单（按钮不滚动）",
-			tickerItemsOf(games, now, 0, ALL).length === 0
-			&& tickerItemsOf(games, now, -1, ALL).length === 0);
+			tickerItemsOf(games, now, 0).length === 0
+			&& tickerItemsOf(games, now, -1).length === 0);
 		check("N=12 → 4 条都在 12 小时内（1h/1h/2h/2h）",
-			tickerItemsOf(games, now, 12, ALL).length === 4);
+			tickerItemsOf(games, now, 12).length === 4);
 		check("脏输入不抛：games 非数组 / now 缺失 → 空清单",
-			tickerItemsOf(null, now, 24, ALL).length === 0
-			&& tickerItemsOf(games, null, 24, ALL).length === 0);
+			tickerItemsOf(null, now, 24).length === 0
+			&& tickerItemsOf(games, null, 24).length === 0);
 	}
 
 	// ── ⑧ 样式静态守卫：不许撑开按钮 / 动画不许留持久层 / 70-styles.js 模板字符串完整性 ──
@@ -645,13 +641,26 @@ export default async function run() {
 			(comp.match(/"gacha-cal-dot"/g) || []).length === 1
 			&& /wide === false[\s\S]{0,400}?gacha-cal-dot/.test(comp));
 
-		// ── 「轮播」设置页的两个静态事实（2026-10-25 二次定稿）──────────────
-		check("未展示的行：轮播复选框 disabled（置灰且不参与）",
+		// ── 「提醒」列（设置页游戏列表）的静态事实（2026-10-25 定稿：这一列**不是轮播**）──
+		check("未展示的行：提醒复选框 disabled（置灰）",
 			/disabled:\s*!shownNow\(g\)/.test(comp));
 		check("取消最后一个勾**不再**被拒绝（旧实现的那句提示已删掉）",
 			comp.indexOf("至少留一条") < 0 && comp.indexOf("要全部关掉请把") < 0);
-		check("「全部轮播」写的是**展示中的 id 列表**，不再是空数组（空 = 一个都不轮播了）",
+		check("「全部提醒」写的是**展示中的 id 列表**，不再是空数组（空 = 一个都不提醒了）",
 			/allEntries\.filter\(\(g\) => shownNow\(g\)\)\.map\(\(g\) => g\.id\)/.test(comp));
+		// 文案口径（用户 2026-10-25 明确要求）：列头叫「提醒」、批量按钮叫「全部提醒」，
+		// 且**不许**再把它描述成"控制侧栏轮播"。
+		// ⚠️ 列头在源码里是 `\u` 转义（`children: "\u63D0\u9192"`），所以这里要比对**转义文本**
+		//    （双反斜杠），不是比对那两个汉字本身。
+		check("列头文案是「提醒」（\\u63D0\\u9192），不再是「轮播」（\\u8F6E\\u64AD）",
+			comp.includes('children: "\\u63D0\\u9192"') && !comp.includes('children: "\\u8F6E\\u64AD"'));
+		check("批量按钮是「全部提醒」（不再叫「全部轮播」）",
+			comp.includes('children: "全部提醒"') && comp.indexOf("全部轮播") < 0);
+		check("批量按钮的 title 也是「提醒」口径（并说明尚未实现）",
+			comp.includes('把所有展示中的游戏都加入「提醒」白名单（到点主动通知，尚未实现）'));
+		check("该列说明写的是「到点主动通知（尚未实现，先做预留）」—— 不再写「控制侧栏轮播」",
+			comp.includes("提醒：到点主动通知（尚未实现，先做预留）")
+			&& comp.indexOf("控制侧栏轮播") < 0);
 	}
 
 	// ── ⑨ 设置页新控件：开关 tickerOn（默认开）+ 范围 tickerHours（默认 72）──────────
@@ -681,7 +690,7 @@ export default async function run() {
 		// 渲染层用的是同一个 tickerOnOf（静态守卫见下）。
 		const onGames = [{ id: "s1", name: "开关测试", banner: "池", startTs: NOW - H, endTs: NOW + 2 * H }];
 		const dueWhen = (on) => (tickerOnOf(on)
-			? tickerItemsOf(onGames, now, DEFAULT_SETTINGS.tickerHours, ["s1"])
+			? tickerItemsOf(onGames, now, DEFAULT_SETTINGS.tickerHours)
 			: []);
 		check("tickerOn=false ⇒ 轮播清单为空（⇒ 不轮播、也不出红点）", dueWhen(false).length === 0);
 		check("tickerOn=true ⇒ 清单照旧（同一组数据、默认 72 小时范围下有内容）",
@@ -693,9 +702,22 @@ export default async function run() {
 
 		// 渲染层真的接了开关（关掉时 memo 直接给空数组，不做任何换算）
 		const compAll = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
-		check("渲染层：开关关掉时直接把清单算成空（tickerOn ? tickerItemsOf(...) : []）",
-			/\(tickerOn\s*\n\s*\? tickerItemsOf\(games, now, tickerHours, Array\.isArray\(s\.tickerGames\) \? s\.tickerGames : \[\]\)\s*\n\s*: \[\]\)/.test(compAll),
+		check("渲染层：开关关掉时直接把清单算成空（tickerOn ? tickerItemsOf(games, now, tickerHours) : []）",
+			/\(tickerOn\s*\n\s*\? tickerItemsOf\(games, now, tickerHours\)\s*\n\s*: \[\]\)/.test(compAll),
 			"见 80-components.js 的 tickerItems memo");
+		// ── 反向守卫：轮播 memo **不读**逐游戏列表 ──────────────────────────────
+		// 2026-10-25 定稿（用户纠正）：轮播 = 全局开关 + 范围，**不分游戏**。
+		// 静态证据：memo 体与依赖数组里都不许出现 remindGames / remindGamesKey。
+		{
+			const memo = /const tickerItems = \(0, react\.useMemo\)\(([\s\S]*?)\);/.exec(compAll);
+			const memoText = memo ? memo[1] : "";
+			check("能定位到渲染层的 tickerItems memo（守卫自身没瞎）", !!memo && memoText.length > 0);
+			check("轮播 memo 里**不出现** remindGames / remindGamesKey（逐游戏列表不进轮播链路）",
+				!/remindGames/i.test(memoText), memoText.replace(/\s+/g, " ").slice(0, 160));
+			check("轮播 memo 的依赖里没有逐游戏列表（只有 games / now / tickerOn / tickerHours）",
+				/\[games, now, tickerOn, tickerHours\]/.test(memoText),
+				memoText.replace(/\s+/g, " ").slice(-90));
+		}
 		check("渲染层读开关也走 tickerOnOf（两处口径只有一处实现）",
 			(compAll.match(/tickerOnOf\(s\.tickerOn\)/g) || []).length === 2,
 			String((compAll.match(/tickerOnOf\(s\.tickerOn\)/g) || []).length));
@@ -707,9 +729,9 @@ export default async function run() {
 		check("设置页两个控件分别写 tickerOn / tickerHours",
 			compAll.includes('commit("tickerOn"') && compAll.includes('commit("tickerHours"'));
 		check("设置页文案：「轮播」开关 + 「轮播范围」下拉（旧的那个单行下拉已拆掉）",
-			/children: "轮播"/.test(compAll) && /children: "轮播范围"/.test(compAll)
-			// 这个功能是**展示**：渲染层的文案里不许再出现「提醒」二字
-			&& compAll.indexOf("\u63D0\u9192") < 0);
+			/children: "轮播"/.test(compAll) && /children: "轮播范围"/.test(compAll));
+		check("设置页「提醒」白名单写的是 remindGames（键名已从 tickerGames 改名）",
+			compAll.includes('commit("remindGames"') && compAll.indexOf('commit("tickerGames"') < 0);
 
 		// 键必须成套：DEFAULT_SETTINGS / schema / CONFIG_KEYS 三处都要有（漏了 = 设了不生效）
 		{
@@ -727,6 +749,10 @@ export default async function run() {
 			const ehSrc = readFileSync(path.join(REPO, "src", "client", "engine-head.js"), "utf8");
 			check("engine-head.js 的 CONFIG_KEYS 里含 tickerOn（漏了会让设置页写了引擎读不到）",
 				/"tickerOn"/.test(ehSrc));
+			// 改名的键同样要成套：DEFAULT_SETTINGS 有 remindGames ⇒ CONFIG_KEYS 必须也有
+			// （否则设置页写了、引擎读不到；见 test/cases-rule-lint.mjs 的"键必须都在 CONFIG_KEYS"守卫）。
+			check("engine-head.js 的 CONFIG_KEYS 里含 remindGames（改名后不能只改一半）",
+				/"remindGames"/.test(ehSrc) && !/"tickerGames"/.test(ehSrc));
 		}
 	}
 

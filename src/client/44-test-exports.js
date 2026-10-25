@@ -389,8 +389,10 @@
 			isExpiringSoon,
 			expiringSoonOf,
 			// 双向判定（2026-10-25 晚）：即将结束 / 即将开始都算"快到期"。
-			// tickerKindOf = 方向判定；tickerGameAllowed = 轮播的筛选语义（普通列表，空 = 都不轮播）；
-			// tickerPickOf = 选取 + 排序；tickerCaptionOf = 按钮那一行的两段文案（事项名 / 状态）；
+			// tickerKindOf = 方向判定；remindGameAllowed = **「到期提醒（送达）」逐游戏白名单**的判定
+			//   （普通列表，空 = 都不提醒）—— ⚠️ **轮播不调用它**（轮播只有全局开关 + 范围，不分游戏）；
+			// tickerPickOf = 选取 + 排序（**已删除逐游戏参数**：轮播不再按游戏过滤）；
+			// tickerCaptionOf = 按钮那一行的两段文案（事项名 / 状态）；
 			// tickerSlidesOf = 轮播**每格**的结构（C 方案：{gameId, gameIcon, itemName, statusText}）；
 			// tickerStepsOf = 轮播的**展开序列**（2026-10-25 三次定稿：[idle,1,idle,2,…]，每格带方向）。
 			// tickerDirAt = 方向规则本体（2026-10-25 四次定稿）：按**切换次数**四步一循环
@@ -399,7 +401,7 @@
 			//   函数声明 ⇒ 本文件执行时已提升，可以提前引用（const 表不行，别照抄）。
 			// 全是纯函数，固定时刻可测。
 			tickerKindOf,
-			tickerGameAllowed,
+			remindGameAllowed,
 			// 总开关的读取口径（2026-10-25 三次定稿）：只有明确的 false 才算关（缺失 = 开）。
 			tickerOnOf,
 			// 范围的读取口径：非正数 / 缺失一律回落到默认范围（72），供设置页与按钮共用。

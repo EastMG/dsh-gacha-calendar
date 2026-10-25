@@ -52,19 +52,21 @@
 			// 但设置页**不再提供这个档位** —— 要关请用上面的 `tickerOn`。
 			// ⚠️ 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 里（守卫见 test/cases-rule-lint.mjs）。
 			tickerHours: 72,
-			// 参与侧栏轮播的条目 id 列表（设置页每行一个复选框）。
-			// 语义（2026-10-25 **二次定稿**，用户要求"改成正常的逻辑"）：**普通列表** —— 列表里有谁
-			// 就轮播谁，**空数组 = 一个都不轮播**。**不再有"空 = 全部参与"的哨兵**。
-			// 为什么废弃哨兵：它让"一个都不轮播"根本表达不出来，于是"取消最后一个勾"只能被拒绝
-			// （旧实现正是这么挡的）、还得额外解释"要全关请去改提前量"—— 副作用远大于收益。
-			// 开箱即用改由**出厂默认值**保证：下面这份 = 出厂时**展示中**的条目
-			// （即所有 `defaultHidden !== true` 的来源 id；默认隐藏的那几个**不在**里面）。
+			// 【预留】「到期提醒（送达）」的**逐游戏白名单** —— **不属于轮播**（2026-10-25 定稿）。
+			// 用户的口径（必须按这个理解）：
+			//   · 侧栏轮播 = **展示**，只有**全局开关 + 范围**（tickerOn / tickerHours），**不分游戏**；
+			//   · 下面这份列表 = 给**未来的「到期提醒（主动送达）」**预留的逐游戏钩子 ——
+			//     到点主动通知时"只提醒列表里的这些游戏"。**该功能尚未实现**，
+			//     所以它现在**没有运行时消费者**：轮播**不读它**，只有设置页读写（每行一个复选框）。
+			// 语义 = 普通列表：列表里有谁就提醒谁，**空数组 = 一个都不提醒**（没有"空 = 全部"的哨兵）。
+			// 为什么保留哨兵以外的默认值：开箱即用的默认 = 出厂时**展示中**的条目
+			// （即所有 `defaultHidden !== true` 的来源 id；默认隐藏的那几个**不在**里面），
+			// 将来接上送达时不必再让用户先一个个勾。
 			// ⚠️ 这份列表由 test/cases-ticker.mjs 的守卫钉住：新增来源、或改某条目的 defaultHidden
 			//    都会让它变红，提示同步这里 **以及** src/index.js 的 schema `default(...)`。
-			// 与「展示」（hidden/shown）**完全独立**：展示管面板里出不出现，这里管侧栏要不要轮播；
-			// 未展示的条目面板里根本没有它，自然也不会参与轮播（设置页那一行的复选框因此置灰）。
-			// 判定唯一入口是 60-helpers.js 的纯函数 tickerGameAllowed。
-			tickerGames: [
+			// 与「展示」（hidden/shown）**完全独立**：展示管面板里出不出现，这里管将来要不要提醒。
+			// 判定唯一入口是 60-helpers.js 的纯函数 remindGameAllowed（**轮播不调用**它）。
+			remindGames: [
 				"genshin", "hsr", "zzz", "wuwa", "arknights", "endfield",
 				"ba-cn", "ba-global", "ba-jp", "bandori", "wuhuamixin", "zspms", "kedr",
 				"uma-cn", "uma-jp", "uma-global",
@@ -624,20 +626,20 @@
 			return endTs - nowTs <= horizon ? "end" : "";
 		}
 
-		// 某个条目是否参与轮播 —— 设置页那个复选框（每行一个）的**唯一语义来源**。
-		// 口径（2026-10-25 **二次定稿**，用户原话「"空列表=全部展示中的参与"的副作用过大，改成正常的逻辑」）：
-		//   · 列表里**有**这个 id ⇒ 参与；
-		//   · 列表里**没有**（含空数组）⇒ 不参与 —— **空数组 = 一个都不轮播**，普通列表语义，
-		//     **不再有"空 = 全部参与"的哨兵**。
-		// 为什么去掉哨兵：哨兵让"一个都不轮播"表达不出来 ⇒ 设置页"取消最后一个勾"只能被拒绝
-		// （旧实现正是这么挡的，还得弹一句"要全关请改提前量"）。副作用大于收益，故废弃。
-		// 开箱即用不再靠哨兵，改靠**出厂默认值**：DEFAULT_SETTINGS.tickerGames = 出厂时展示中的条目
-		// （守卫见 test/cases-ticker.mjs，新增来源忘了同步会红）。
+		// 某个条目是否在**「到期提醒（送达）」的逐游戏白名单**里 —— 设置页那个复选框（每行一个）的
+		// **唯一语义来源**。⚠️ **轮播不调用它**：轮播是"全局开关 + 范围"的展示，内容 = 所有展示中
+		// 游戏的条目，**不分游戏**（2026-10-25 定稿，用户明确纠正过这一点）。
+		// 保留它的理由：它是**给未来的主动送达用的通用筛选**（送达实现时按白名单决定提醒谁），
+		// 现在就由设置页读写（勾选状态 + 草稿对齐）消费，所以不是死代码。
+		// 口径（普通列表）：
+		//   · 列表里**有**这个 id ⇒ 提醒；
+		//   · 列表里**没有**（含空数组）⇒ 不提醒 —— **空数组 = 一个都不提醒**，
+		//     **不再有"空 = 全部参与"的哨兵**（哨兵让"一个都不提醒"表达不出来，故废弃）。
 		// 缺失 / 不是数组（老配置里根本没有这个键）⇒ 按**空列表**处理：这里不猜"没设置过"，
 		// 因为已经没有可猜的哨兵语义了；schema 的 default 会在读配置时补上出厂默认值。
-		function tickerGameAllowed(gameId, tickerGames) {
-			if (!Array.isArray(tickerGames)) return false;
-			return tickerGames.includes(gameId);
+		function remindGameAllowed(gameId, remindGames) {
+			if (!Array.isArray(remindGames)) return false;
+			return remindGames.includes(gameId);
 		}
 
 		// 「侧栏轮播总开关」的读取口径（纯函数，2026-10-25 三次定稿）：只有**明确的 false** 才算关。
@@ -665,13 +667,15 @@
 		//   { key, gameId, side, name, title, startTs, endTs }
 		// 返回的每一项多两个字段：kind（"end" / "start"）与 dueMs（距离结束/开始还剩多少毫秒）。
 		// 排序口径：**先到期的最靠前** —— "还剩 1 小时"永远压过"明天开池"（中间不夹"按方向分组"）。
-		function tickerPickOf(items, nowTs, tickerHours, tickerGames) {
+		// ⚠️ 2026-10-25 定稿：**不再按逐游戏列表筛选**（轮播不分游戏）。原来的 `remindGames` 白名单
+		// 参数已从签名里删掉 —— 它属于「到期提醒（送达）」，轮播只看调用方传入的 items
+		// （= 所有**展示中**游戏的条目）与 tickerHours 范围。
+		function tickerPickOf(items, nowTs, tickerHours) {
 			const hours = Number(tickerHours);
 			if (!(hours > 0) || !Array.isArray(items)) return [];
 			const out = [];
 			for (const it of items) {
 				if (!it) continue;
-				if (!tickerGameAllowed(it.gameId, tickerGames)) continue;
 				const kind = tickerKindOf(it.startTs, it.endTs, nowTs, hours);
 				if (!kind) continue;
 				out.push({ ...it, kind, dueMs: (kind === "end" ? it.endTs : it.startTs) - nowTs });
@@ -898,8 +902,10 @@ export function createEngine(env) {
 				// 引擎本身不判"到期"（判定在 helpers 的纯函数里），但这两个都是 DEFAULT_SETTINGS 的键
 				// ⇒ 必须在这里，否则上面那条守卫会红；顺带让未来的非 UI 宿主（扩展/CLI）也能经
 				// readSettings 读到这两个设置。
-				// tickerGames：参与轮播的条目列表（空 = 一个都不轮播），同上 —— 也是设置页写入、helpers 判定的键。
-				"autoRefresh", "refreshMinutes", "tickerOn", "tickerHours", "tickerGames", "newPanel", "lastData", "lastRefresh", "lastSource", "lastVersion"
+				// remindGames：给「到期提醒（送达）」**预留**的逐游戏白名单 —— **不属于轮播**
+				// （轮播只看 tickerOn + tickerHours，不分游戏）。送达功能尚未实现，目前只有设置页读写；
+				// 它与上面两个 ticker* 一样是 DEFAULT_SETTINGS 的键 ⇒ 必须在这里，否则守卫会红。
+				"autoRefresh", "refreshMinutes", "tickerOn", "tickerHours", "remindGames", "newPanel", "lastData", "lastRefresh", "lastSource", "lastVersion"
 			];
 
 			// 读取配置（缺失项回落到 10-config.js 的 DEFAULT_SETTINGS）

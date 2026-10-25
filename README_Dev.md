@@ -131,21 +131,18 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
      **范围** `tickerHours`（12 / 24 / 48 / 72 小时，默认 **72**；「关闭」不再是档位）。
      ⚠️ `tickerOn` / `tickerHours` 必须同时出现在 `DEFAULT_SETTINGS`、`src/index.js` schema
      与 `engine-head.js` 的 `CONFIG_KEYS` 三处（漏了就会"设了不生效"）。
+     ⚠️ **轮播不分游戏**（2026-10-25 定稿，用户明确纠正）：轮播**只有**「全局开关 + 范围」两个设置，
+     内容 = **所有展示中游戏的条目**，没有任何逐游戏筛选；`tickerItemsOf` / `tickerPickOf` 的签名里
+     也**没有**逐游戏参数（早期版本按列表过滤，已删除）。设置页游戏列表里那一列是**「提醒」**
+     （见下面第 2 项），**轮播不读它**。
    - ✅ 判定口径（**双向**）：即将结束 = 已开始（`startTs <= now`）且 `endTs ∈ (now, now + N 小时]`；
      即将开始 = `startTs ∈ (now, now + N 小时]`。纯函数 `tickerKindOf`（`60-helpers.js`，返回
      `"" / "end" / "start"`）+ 窗口换算 `tickerWindowOf` / `tickerItemsOf`（`80-components.js`，
      复用面板外显那条「源站文本 + tz → 本机墙钟」链，所以轮播与面板"还剩 X"永远同源）。
      老的 `isExpiringSoon`（只判结束）语义未动，仍由老用例守着。
-   - ✅ 每游戏「轮播」开关（2026-10-25 晚；同日**二次定稿**）：键名 `tickerGames`（`string[]`），
-     语义 = **普通列表**「这些游戏参与轮播」——**空数组 = 一个都不轮播**（**废弃**了旧版
-     "空 = 全部展示中的参与"的哨兵；那个哨兵让"一个都不轮播"表达不出来，只能拒绝最后一次取消）。
-     出厂默认 = 出厂时**展示中**的条目（所有 `defaultHidden !== true` 的 id；默认隐藏的
-     bh3 / ournotes / ournotes-global / czn / ddlezj **不在**里面），写进 `10-config.js` 的
-     `DEFAULT_SETTINGS.tickerGames` **与** `src/index.js` schema 的 `default(...)`，
-     由 `test/cases-ticker.mjs` 的守卫钉住（新增来源/改默认隐藏不同步就红）。
-     与「展示」（`hidden`/`shown`）完全独立；判定唯一入口是纯函数 `tickerGameAllowed`。
-     设置页每行一个复选框（未展示的行**置灰 disabled 且不参与**），顶部「全部轮播」= 把当前
-     **展示中**的 id 一次性写进列表（不再写回空数组）。
+    - ✅ 逐游戏钩子**不属于轮播**（2026-10-25 定稿，用户明确纠正）：轮播没有"按游戏勾选"，
+      只有上面那一个全局开关 + 一个范围；`tickerItemsOf` / `tickerPickOf` 的签名里也没有逐游戏参数。
+      游戏列表里那一列是**「提醒」**（给下面第 2 项的「到期提醒（送达）」预留），**轮播不读它**。
    - ✅ 轮播感知数据变化：按钮与面板同属 `CalendarPanel`，复用面板已有的 `scope.subscribe`
      （刷新写回 `lastData`/`lastRefresh` → 快照推送 → 重渲染）+ 已有的每分钟时钟，**没有新增订阅**。
    - 降级：窄侧栏（`wide === false`）**没有可滚动的那一行** ⇒ 仍用小红点（`.gacha-cal-dot`）。
@@ -162,6 +159,19 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
    - 现状：只做了**展示**（上面的侧栏轮播：在侧栏按钮上翻页显示"某条目 · 还剩多久"）；
      **送达（主动通知）尚未实现**。
    - 待做：**系统通知**（DSH 通知 API 还没接）、数字角标。
+    - ✅ **逐游戏钩子已预留**（2026-10-25 定稿；送达实现时要**消费它**）：
+      · 设置项 = `remindGames`（`string[]`）—— 设置页游戏列表的**「提醒」**列，每行一个复选框；
+        顶部批量按钮「全部提醒」= 把当前**展示中**的 id 一次性写进白名单；
+      · 默认值 = 出厂时**展示中**的 23 个条目 id（所有 `defaultHidden !== true` 的来源；默认隐藏的
+        bh3 / ournotes / ournotes-global / czn / ddlezj **不在**里面），同时写在 `10-config.js` 的
+        `DEFAULT_SETTINGS.remindGames` 与 `src/index.js` schema 的 `default(...)`，
+        由 `test/cases-ticker.mjs` 的守卫钉住；`engine-head.js` 的 `CONFIG_KEYS` 也含它；
+      · 语义 = **普通列表**：列表里有谁就提醒谁，**空数组 = 一个都不提醒**（没有"空 = 全部"的哨兵）；
+      · 判定唯一入口 = 纯函数 `remindGameAllowed`（`60-helpers.js`）；
+      · ⚠️ 目前**没有运行时消费者**（送达没实现）⇒ 勾了暂时没有实际效果；**轮播不读它**
+        （轮播只有 `tickerOn` + `tickerHours`，见第 1 项）。送达实现时**必须**消费这份列表。
+    - 守卫：`test/cases-ticker.mjs` ④ —— 白名单语义 + 默认值 == 展示中来源 + schema 一致
+      + **反向守卫**（轮播链路与函数签名里都不许出现逐游戏列表）。
 3. **解析器自检**（原「来源健康看板」的重构升级）：每源展示最近成功时间 / 连续失败次数 / 失败原因，
    并加"N 天连续 nomatch 即提示源可能改版或停更"（踩过的坑：异环公告改段落写法、雪松源页面停更）。
 4. **搜索与筛选**：设置页来源列表加"搜游戏名"+ 分组（国服/日服/国际服）+ 只看已启用；

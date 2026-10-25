@@ -39,8 +39,10 @@
 				// 引擎本身不判"到期"（判定在 helpers 的纯函数里），但这两个都是 DEFAULT_SETTINGS 的键
 				// ⇒ 必须在这里，否则上面那条守卫会红；顺带让未来的非 UI 宿主（扩展/CLI）也能经
 				// readSettings 读到这两个设置。
-				// tickerGames：参与轮播的条目列表（空 = 一个都不轮播），同上 —— 也是设置页写入、helpers 判定的键。
-				"autoRefresh", "refreshMinutes", "tickerOn", "tickerHours", "tickerGames", "newPanel", "lastData", "lastRefresh", "lastSource", "lastVersion"
+				// remindGames：给「到期提醒（送达）」**预留**的逐游戏白名单 —— **不属于轮播**
+				// （轮播只看 tickerOn + tickerHours，不分游戏）。送达功能尚未实现，目前只有设置页读写；
+				// 它与上面两个 ticker* 一样是 DEFAULT_SETTINGS 的键 ⇒ 必须在这里，否则守卫会红。
+				"autoRefresh", "refreshMinutes", "tickerOn", "tickerHours", "remindGames", "newPanel", "lastData", "lastRefresh", "lastSource", "lastVersion"
 			];
 
 			// 读取配置（缺失项回落到 10-config.js 的 DEFAULT_SETTINGS）

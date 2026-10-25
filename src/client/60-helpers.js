@@ -443,20 +443,20 @@
 			return endTs - nowTs <= horizon ? "end" : "";
 		}
 
-		// 某个条目是否参与轮播 —— 设置页那个复选框（每行一个）的**唯一语义来源**。
-		// 口径（2026-10-25 **二次定稿**，用户原话「"空列表=全部展示中的参与"的副作用过大，改成正常的逻辑」）：
-		//   · 列表里**有**这个 id ⇒ 参与；
-		//   · 列表里**没有**（含空数组）⇒ 不参与 —— **空数组 = 一个都不轮播**，普通列表语义，
-		//     **不再有"空 = 全部参与"的哨兵**。
-		// 为什么去掉哨兵：哨兵让"一个都不轮播"表达不出来 ⇒ 设置页"取消最后一个勾"只能被拒绝
-		// （旧实现正是这么挡的，还得弹一句"要全关请改提前量"）。副作用大于收益，故废弃。
-		// 开箱即用不再靠哨兵，改靠**出厂默认值**：DEFAULT_SETTINGS.tickerGames = 出厂时展示中的条目
-		// （守卫见 test/cases-ticker.mjs，新增来源忘了同步会红）。
+		// 某个条目是否在**「到期提醒（送达）」的逐游戏白名单**里 —— 设置页那个复选框（每行一个）的
+		// **唯一语义来源**。⚠️ **轮播不调用它**：轮播是"全局开关 + 范围"的展示，内容 = 所有展示中
+		// 游戏的条目，**不分游戏**（2026-10-25 定稿，用户明确纠正过这一点）。
+		// 保留它的理由：它是**给未来的主动送达用的通用筛选**（送达实现时按白名单决定提醒谁），
+		// 现在就由设置页读写（勾选状态 + 草稿对齐）消费，所以不是死代码。
+		// 口径（普通列表）：
+		//   · 列表里**有**这个 id ⇒ 提醒；
+		//   · 列表里**没有**（含空数组）⇒ 不提醒 —— **空数组 = 一个都不提醒**，
+		//     **不再有"空 = 全部参与"的哨兵**（哨兵让"一个都不提醒"表达不出来，故废弃）。
 		// 缺失 / 不是数组（老配置里根本没有这个键）⇒ 按**空列表**处理：这里不猜"没设置过"，
 		// 因为已经没有可猜的哨兵语义了；schema 的 default 会在读配置时补上出厂默认值。
-		function tickerGameAllowed(gameId, tickerGames) {
-			if (!Array.isArray(tickerGames)) return false;
-			return tickerGames.includes(gameId);
+		function remindGameAllowed(gameId, remindGames) {
+			if (!Array.isArray(remindGames)) return false;
+			return remindGames.includes(gameId);
 		}
 
 		// 「侧栏轮播总开关」的读取口径（纯函数，2026-10-25 三次定稿）：只有**明确的 false** 才算关。
@@ -484,13 +484,15 @@
 		//   { key, gameId, side, name, title, startTs, endTs }
 		// 返回的每一项多两个字段：kind（"end" / "start"）与 dueMs（距离结束/开始还剩多少毫秒）。
 		// 排序口径：**先到期的最靠前** —— "还剩 1 小时"永远压过"明天开池"（中间不夹"按方向分组"）。
-		function tickerPickOf(items, nowTs, tickerHours, tickerGames) {
+		// ⚠️ 2026-10-25 定稿：**不再按逐游戏列表筛选**（轮播不分游戏）。原来的 `remindGames` 白名单
+		// 参数已从签名里删掉 —— 它属于「到期提醒（送达）」，轮播只看调用方传入的 items
+		// （= 所有**展示中**游戏的条目）与 tickerHours 范围。
+		function tickerPickOf(items, nowTs, tickerHours) {
 			const hours = Number(tickerHours);
 			if (!(hours > 0) || !Array.isArray(items)) return [];
 			const out = [];
 			for (const it of items) {
 				if (!it) continue;
-				if (!tickerGameAllowed(it.gameId, tickerGames)) continue;
 				const kind = tickerKindOf(it.startTs, it.endTs, nowTs, hours);
 				if (!kind) continue;
 				out.push({ ...it, kind, dueMs: (kind === "end" ? it.endTs : it.startTs) - nowTs });
