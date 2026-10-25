@@ -90,7 +90,6 @@ dsh-gacha-calendar/
 └── LICENSE / README.md / README_Dev.md / AGENTS.md
 ```
 
-<<<<<<< HEAD
 ## 待办（2026-10-25 整理）
 
 ### 做（按优先级）
