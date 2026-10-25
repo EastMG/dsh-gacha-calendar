@@ -261,6 +261,54 @@
 			return localWinText(text, g.tz || null, now);
 		}
 
+		// ── 到期提醒：把落盘的文本档期还原成**绝对窗口**（2026-10-25）────────────────
+		// 判定本体是 60-helpers.js 的 isExpiringSoon（纯函数）；这里只负责"某一侧什么时候结束"。
+		// 走的**就是面板外显那条换算链**：localDatesOf（绝对档期优先 → 否则「源站墙钟文本 + tz」
+		// 换成本机墙钟文本）→ parseDisplayRange（把本机墙钟文本解释回绝对时刻）。
+		// ⇒ 红点与面板上那句"还剩 X"永远同源，不会出现"红点亮着、面板说还剩 3 天"。
+		// 读不出绝对档期（源站原文是"版本更新后 ~ …"/"长期"、自定义条目没填 tz）→ null，
+		// 该侧**不参与**提醒（不硬凑一个猜测的结束时刻）。
+		function remindWindowOf(g, isG, now) {
+			if (!g) return null;
+			const text = localDatesOf(g, isG, now);
+			if (!text) return null;
+			const r = parseDisplayRange(text, now);
+			return r || null;
+		}
+
+		// 即将到期的档期清单（侧栏红点用；带数量与名称，供按钮的悬停说明）。
+		// 输入 = CalendarPanel 已经算好的 `games`（可见条目 + 最近一轮抓取结果已覆盖），
+		// 所以"红点数的是用户真正看得见的那些行"，隐藏条目不会偷偷点亮红点。
+		// 返回按 endTs 升序（最近到期在前）；N <= 0（关闭）→ 空数组（**不做任何换算**）。
+		function remindDueOf(games, now, remindHours) {
+			const hours = Number(remindHours);
+			if (!(hours > 0) || !Array.isArray(games) || !now) return [];
+			const nowTs = now.getTime();
+			const out = [];
+			for (const g of games) {
+				if (!g) continue;
+				for (const side of ["gacha", "event"]) {
+					const isG = side === "gacha";
+					const title = (isG ? g.banner : g.event) || "";
+					if (!title) continue;
+					const w = remindWindowOf(g, isG, now);
+					if (!w) continue;
+					if (!isExpiringSoon(w.startTs, w.endTs, nowTs, hours)) continue;
+					const roles = isG ? (g.roles || "") : "";
+					out.push({
+						key: g.id + ":" + side,
+						id: g.id,
+						side,
+						name: g.name || g.id,
+						title: (isG && roles) ? (cleanRoleNames(roles, g.id) || title) : title,
+						startTs: w.startTs,
+						endTs: w.endTs
+					});
+				}
+			}
+			return out.sort((a, b) => a.endTs - b.endTs);
+		}
+
 		// 一条档期 = 某款游戏的卡池侧或活动侧。读不出绝对档期的（源站原文）按"长期"处理，
 		// **不**硬凑一个天数——这也是设计稿里"点线 + 长期"两字的来由。
 		function scheduleNormalize(g, side, now) {
@@ -1235,6 +1283,24 @@
 				};
 			}), [visible, orderKey, colorOverrides, scrapedById]);
 
+			// ── 到期提醒：侧栏按钮上的小红点（MVP，2026-10-25）─────────────────────────
+			// 设置 = 设置页的「到期提醒」（提前 N 小时，0 = 关闭）。
+			// **关闭时不显示红点、也不做任何计算**：下面 memo 在 hours<=0 时直接返回同一个空数组
+			// （remindDueOf 的第一行就短路），不会去解析任何档期文本。
+			//
+			// 红点怎么感知"数据变了"（这是本功能唯一需要想清楚的地方）：
+			//   不需要新机制 —— 侧栏按钮与面板是**同一个组件**（CalendarPanel），而这个组件早就
+			//   订阅了宿主配置表单（上面的 `scope.subscribe(() => setSnapshot(scope.getSnapshot()))`）。
+			//   刷新链路把结果写回设置（lastData / lastRefresh）后，宿主会经同一个 store 推送新快照
+			//   → setSnapshot → 重渲染 → `games` 变 → 这个 memo 重算 → 红点亮/灭。
+			//   时间和阈值那一条则靠组件已有的每分钟时钟 `now`（跨过 N 小时边界时自然翻面）。
+			//   ⇒ 一行订阅都不用加、也不用把状态提升到 apply() 层（那会多一个与面板生命周期
+			//   不同步的订阅，还得自己处理卸载）。这是本次能做到的最小改动。
+			const remindHours = Number(s.remindHours ?? DEFAULT_SETTINGS.remindHours) || 0;
+			const remindDue = (0, react.useMemo)(
+				() => remindDueOf(games, now, remindHours),
+				[games, now, remindHours]);
+
 			// 在途锁用 ref 而不是 state：state 更新是异步的，"自动刷新与手动点击落在同一 tick"时
 			// 两次调用可能都看到 refreshing=false 而并发跑两轮（请求翻倍，且慢的那轮会用更旧的数据盖掉新的）
 			const refreshLock = (0, react.useRef)(false);
@@ -1380,6 +1446,14 @@
 			const lastRefreshText = s.lastRefresh ? new Date(s.lastRefresh).toLocaleString() : "\u2014";
 			const dataStatus = s.lastSource === "web" ? "\u8054\u7F51\u6570\u636E" : "\u2014";
 			const label = SETTINGS_SECTION_LABEL;
+			// 红点的无障碍/悬停文案：既要能读出"有几项"，也不能只说一个数字（读屏用户看不见颜色）。
+			// 名称最多列 3 条 —— 侧栏这个悬停是个窄提示，不是面板。
+			const remindNames = remindDue.slice(0, 3).map((x) => x.title).filter(Boolean);
+			const remindDotTitle = remindDue.length
+				? remindHours + " \u5C0F\u65F6\u5185\u5230\u671F " + remindDue.length + " \u9879" +
+					(remindNames.length ? "\uFF1A" + remindNames.join("\u3001") +
+						(remindDue.length > remindNames.length ? " \u7B49" : "") : "")
+				: "";
 
 			return (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
 				children: [
@@ -1387,7 +1461,10 @@
 						ref: triggerRef,
 						type: "button",
 						className: "gacha-cal-btn",
-						"aria-label": label,
+						"aria-label": remindDue.length ? label + "\uFF08" + remindDotTitle + "\uFF09" : label,
+						// 悬停说明挂在**按钮**上而不是红点上：红点带 pointer-events:none（不参与命中测试），
+						// 把 title 放在它身上等于永远不显示。没有到期项时不加 title（保持按钮原样）。
+						title: remindDue.length ? remindDotTitle : void 0,
 						onClick: () => setOpen((v) => !v),
 						children: [
 							(0, react_jsx_runtime.jsx)("svg", { "aria-hidden": "true", width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
@@ -1398,7 +1475,16 @@
 									(0, react_jsx_runtime.jsx)("line", { x1: "3", y1: "10", x2: "21", y2: "10" })
 								]
 							}) }),
-							wide === false ? null : (0, react_jsx_runtime.jsx)("span", { children: label })
+							wide === false ? null : (0, react_jsx_runtime.jsx)("span", { children: label }),
+							// 小红点：**绝对定位**、不参与 flex 布局 ⇒ 按钮尺寸/文字位置一个字都不动
+							// （用户 2026-10-25 明确要求别再重演"按钮错位"）。关闭（N=0）时 remindDue 恒空。
+							// 说明文案在上面的 button title / aria-label 上（见那段注释）。
+							remindDue.length
+								? (0, react_jsx_runtime.jsx)("span", {
+									className: "gacha-cal-dot",
+									"aria-hidden": "true"
+								})
+								: null
 						]
 					}),
 					open && anchor !== void 0 ? (0, react_jsx_runtime.jsx)("div", {
@@ -1637,6 +1723,9 @@
 			const currentMinutes = Number(s.refreshMinutes ?? DEFAULT_SETTINGS.refreshMinutes);
 			// 旧配置可能存了分钟值（不在按天选项里），额外补一个"自定义"选项避免 select 空白
 			const inOptions = REFRESH_OPTIONS.some((o) => o.minutes === currentMinutes);
+			// 「到期提醒」的提前量（小时；0 = 关闭）。同样对"不在选项里的历史值"补一个自定义项。
+			const currentRemind = Number(s.remindHours ?? DEFAULT_SETTINGS.remindHours) || 0;
+			const remindInOptions = REMIND_OPTIONS.some((o) => o.hours === currentRemind);
 
 			// 保存失败必须可见：旧实现只 await 不 catch，写被宿主拒绝时控件弹回原值、
 			// 用户只会觉得"点了没反应"（「重置排序」写 null 被拒就是这种病的极端例子）
@@ -1916,6 +2005,16 @@
 							(0, react_jsx_runtime.jsxs)("select", { className: "gacha-cal-select", value: String(currentMinutes), onChange: (e) => commit("refreshMinutes", Number(e.target.value)), children: [
 								!inOptions ? (0, react_jsx_runtime.jsx)("option", { value: String(currentMinutes), children: "自定义（" + currentMinutes + " 分钟）" }) : null,
 								REFRESH_OPTIONS.map((o) => (0, react_jsx_runtime.jsx)("option", { value: String(o.minutes), children: o.label }, o.minutes))
+							] })
+						] }),
+						// 到期提醒（MVP）：有卡池/活动在 N 小时内结束时，侧栏「二游日历」按钮上亮一个小红点。
+						// 结构照「刷新频率」那一行；写入走同一条 commit → scope.set 链路（键 = remindHours）。
+						// 关闭（0）时面板/红点都不做任何计算（见 60-helpers.js 的 isExpiringSoon 第一行）。
+						(0, react_jsx_runtime.jsxs)("label", { style: { display: "flex", alignItems: "center", gap: 8 }, title: "有卡池或活动在 N 小时内结束时，侧栏按钮显示小红点", children: [
+							(0, react_jsx_runtime.jsx)("span", { style: { flex: "none" }, children: "到期提醒" }),
+							(0, react_jsx_runtime.jsxs)("select", { className: "gacha-cal-select", value: String(currentRemind), onChange: (e) => commit("remindHours", Number(e.target.value)), children: [
+								!remindInOptions ? (0, react_jsx_runtime.jsx)("option", { value: String(currentRemind), children: "自定义（" + currentRemind + " 小时）" }) : null,
+								REMIND_OPTIONS.map((o) => (0, react_jsx_runtime.jsx)("option", { value: String(o.hours), children: o.label }, o.hours))
 							] })
 						] })
 					] }),

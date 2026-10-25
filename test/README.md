@@ -7,7 +7,7 @@ node build.mjs        # 测试跑的是**构建产物** lib/client.js，改完 s
 node test/all.mjs     # 离线门禁（走夹具）——这是门禁
 ```
 
-`all.mjs` 会依次跑注册表守卫 + 夹具卫生 + **17 段**用例（P5X / B1 / B2 / B3 / P4 / P5 / P6 / P7 / P8 / P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora + 规则静态守卫 + 时区口径 + README 结构图守卫 + core 产物守卫）。
+`all.mjs` 会依次跑注册表守卫 + 夹具卫生 + **18 段**用例（P5X / B1 / B2 / B3 / P4 / P5 / P6 / P7 / P8 / P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora + 规则静态守卫 + 时区口径 + 到期提醒 + README 结构图守卫 + core 产物守卫）。
 
 ## 为什么测试改成跑构建产物（2026-10-03）
 
@@ -28,7 +28,7 @@ node test/all.mjs     # 离线门禁（走夹具）——这是门禁
 | `harness.mjs` | 夹具 fetch 注入、`check/section/summary`、契约与悬停断言 |
 | `registry-shim.mjs` | **注册表形态的测试侧快照**（见下） |
 | `all.mjs` | 统一门禁 |
-| `cases-*.mjs` | 各段用例（16 个：12 个批次 + `cases-rule-lint` 规则守卫 + `cases-tz` 时区口径 + `cases-readme` 结构图守卫 + `cases-core` core 守卫） |
+| `cases-*.mjs` | 各段用例（17 个：12 个批次 + `cases-rule-lint` 规则守卫 + `cases-tz` 时区口径 + `cases-remind` 到期提醒 + `cases-readme` 结构图守卫 + `cases-core` core 守卫） |
 | `capture.mjs` / `capture-p8.mjs` | 抓真实响应存夹具 |
 | `map.json` | URL → 夹具 的映射索引（**已入库**） |
 | `fixtures/` | 真实响应快照（**已入库**，约 12MB；重建/刷新见下） |

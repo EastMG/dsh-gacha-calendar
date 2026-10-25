@@ -383,6 +383,13 @@
 			localWin,
 			localWinText,
 			localDatesOf,
+			// 到期提醒（2026-10-25）：判定本体是 60-helpers.js 的**纯函数**（固定时刻可测）；
+			// remindWindowOf / remindDueOf 在 80-components.js，是"落盘文本 + tz → 绝对窗口"的那一层
+			// （与面板外显同一条换算链）。同属函数声明、同作用域提升 ⇒ 这里可提前引用。
+			isExpiringSoon,
+			expiringSoonOf,
+			remindWindowOf,
+			remindDueOf,
 			sourceInstant,
 			sourceWallParts,
 			sourceOffsetMinutes,

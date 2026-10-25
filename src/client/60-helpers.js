@@ -392,5 +392,32 @@
 			if (at + minutes * 60000 <= (Number(s.now) || 0)) return { due: true, force: false, reason: "\u5DF2\u5230\u5237\u65B0\u95F4\u9694" };
 			return { due: false, force: false, reason: "" };
 		}
+		// —— 「到期提醒」判定（纯函数，2026-10-25）——
+		// 口径（用户定，MVP 只做红点，不做系统通知/弹窗/声音）：
+		//   某侧"即将到期" = 该侧**已开始**（startTs <= now）且 **endTs 落在 (now, now + N 小时]**。
+		//   · 未开始的窗口**不算**：它的 endTs 也在未来，但那属于"还没开始"，不是"快到期"；
+		//   · 已结束（含 now == endTs 那一刻）**不算**；
+		//   · N <= 0（设置里的「关闭」）恒为 false —— 关闭时**连算都不算**，调用方也应该短路；
+		//   · startTs / endTs 任一缺失或不是有限数字 → 不算（落盘数据里这两端本来就可能是空的：
+		//     缓存只存文本，绝对档期靠 80-components.js 的 localDatesOf 现算）。
+		// 放在 helpers（而不是渲染层）的理由：它是纯判定、零宿主依赖，core 产物里也能直接用
+		// （CORE_ORDER 含本文件），单测可以直接喂固定时刻（test/cases-remind.mjs）。
+		function isExpiringSoon(startTs, endTs, nowTs, remindHours) {
+			const hours = Number(remindHours);
+			if (!(hours > 0)) return false;
+			if (typeof startTs !== "number" || typeof endTs !== "number") return false;
+			if (!Number.isFinite(startTs) || !Number.isFinite(endTs)) return false;
+			if (!(startTs <= nowTs)) return false;
+			if (!(endTs > nowTs)) return false;
+			return endTs - nowTs <= hours * 3600000;
+		}
+
+		// 从「{ startTs, endTs } 列表」里挑出即将到期的（顺序保持输入顺序）。
+		// 单独一个函数是为了让"关闭时不算"只有一处实现：N <= 0 → 直接空数组。
+		function expiringSoonOf(items, nowTs, remindHours) {
+			const hours = Number(remindHours);
+			if (!(hours > 0) || !Array.isArray(items)) return [];
+			return items.filter((it) => it && isExpiringSoon(it.startTs, it.endTs, nowTs, hours));
+		}
 		//#endregion
 		//#endregion

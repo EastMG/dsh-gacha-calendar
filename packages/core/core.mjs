@@ -27,9 +27,22 @@
 			{ label: "30 天", minutes: 30 * 24 * 60 },
 			{ label: "42 天", minutes: 42 * 24 * 60 }
 		];
+		// 「到期提醒」的提前量选项（存**小时**；0 = 关闭）。
+		// 口径：某侧的窗口**已开始**且 endTs 落在 (now, now + N 小时] 内 = 即将到期
+		// （判定是纯函数 `isExpiringSoon`，见 60-helpers.js；红点在 80-components.js 的侧栏按钮上）。
+		// 默认 24：够看完一个当期池/活动的收尾公告，又不至于一睁眼就常亮。
+		const REMIND_OPTIONS = [
+			{ label: "关闭", hours: 0 },
+			{ label: "12 小时", hours: 12 },
+			{ label: "24 小时", hours: 24 },
+			{ label: "48 小时", hours: 48 }
+		];
 		const DEFAULT_SETTINGS = {
 			autoRefresh: true,
 			refreshMinutes: 1 * 24 * 60,
+			// 到期提醒的提前量（小时）；0 = 关闭（关闭时**不做任何计算**，也不显示红点）。
+			// ⚠️ 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 里（守卫见 test/cases-rule-lint.mjs）。
+			remindHours: 24,
 			order: null,
 			lastRefresh: 0,
 			lastSource: "none",
@@ -533,6 +546,33 @@
 			if (at + minutes * 60000 <= (Number(s.now) || 0)) return { due: true, force: false, reason: "\u5DF2\u5230\u5237\u65B0\u95F4\u9694" };
 			return { due: false, force: false, reason: "" };
 		}
+		// —— 「到期提醒」判定（纯函数，2026-10-25）——
+		// 口径（用户定，MVP 只做红点，不做系统通知/弹窗/声音）：
+		//   某侧"即将到期" = 该侧**已开始**（startTs <= now）且 **endTs 落在 (now, now + N 小时]**。
+		//   · 未开始的窗口**不算**：它的 endTs 也在未来，但那属于"还没开始"，不是"快到期"；
+		//   · 已结束（含 now == endTs 那一刻）**不算**；
+		//   · N <= 0（设置里的「关闭」）恒为 false —— 关闭时**连算都不算**，调用方也应该短路；
+		//   · startTs / endTs 任一缺失或不是有限数字 → 不算（落盘数据里这两端本来就可能是空的：
+		//     缓存只存文本，绝对档期靠 80-components.js 的 localDatesOf 现算）。
+		// 放在 helpers（而不是渲染层）的理由：它是纯判定、零宿主依赖，core 产物里也能直接用
+		// （CORE_ORDER 含本文件），单测可以直接喂固定时刻（test/cases-remind.mjs）。
+		function isExpiringSoon(startTs, endTs, nowTs, remindHours) {
+			const hours = Number(remindHours);
+			if (!(hours > 0)) return false;
+			if (typeof startTs !== "number" || typeof endTs !== "number") return false;
+			if (!Number.isFinite(startTs) || !Number.isFinite(endTs)) return false;
+			if (!(startTs <= nowTs)) return false;
+			if (!(endTs > nowTs)) return false;
+			return endTs - nowTs <= hours * 3600000;
+		}
+
+		// 从「{ startTs, endTs } 列表」里挑出即将到期的（顺序保持输入顺序）。
+		// 单独一个函数是为了让"关闭时不算"只有一处实现：N <= 0 → 直接空数组。
+		function expiringSoonOf(items, nowTs, remindHours) {
+			const hours = Number(remindHours);
+			if (!(hours > 0) || !Array.isArray(items)) return [];
+			return items.filter((it) => it && isExpiringSoon(it.startTs, it.endTs, nowTs, hours));
+		}
 		//#endregion
 		//#endregion
 
@@ -572,7 +612,10 @@ export function createEngine(env) {
 				"order", "hidden", "shown", "removed", "customEntries", "customUrls", "customEventUrls", "gameColors",
 				// newPanel：实验特性「新日程面板」开关（默认 false）。**别漏**——漏了就是 2026-10-03 那个
 				// 「勾了不生效」的复刻：设置页写进表单、面板却读不到。守卫见 test/cases-rule-lint.mjs。
-				"autoRefresh", "refreshMinutes", "newPanel", "lastData", "lastRefresh", "lastSource", "lastVersion"
+				// remindHours：到期提醒的提前量（0 = 关闭）。引擎本身不判"到期"（判定在 helpers 的纯函数里），
+				// 但它是 DEFAULT_SETTINGS 的键 ⇒ 必须在这里，否则上面那条守卫会红；
+				// 顺带让未来的非 UI 宿主（扩展/CLI）也能经 readSettings 读到这个设置。
+				"autoRefresh", "refreshMinutes", "remindHours", "newPanel", "lastData", "lastRefresh", "lastSource", "lastVersion"
 			];
 
 			// 读取配置（缺失项回落到 10-config.js 的 DEFAULT_SETTINGS）

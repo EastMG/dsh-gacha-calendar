@@ -280,6 +280,9 @@ async function proxyHandler(req, res) {
 const Config = z.object({
 	autoRefresh: z.boolean().default(true).volatile(),
 	refreshMinutes: z.number().min(1).max(60480).default(1440).volatile(),
+	// 到期提醒的提前量（小时；0 = 关闭）。有卡池/活动在 N 小时内结束时，侧栏按钮亮小红点。
+	// 判定是纯函数 isExpiringSoon（60-helpers.js），红点在 80-components.js 的 CalendarPanel 里。
+	remindHours: z.number().default(24).volatile(),
 	// 实验特性：新「二游日历」面板视图。默认关 —— 关着时面板走原来的表格渲染（回退路径）。
 	newPanel: z.boolean().default(false).volatile(),
 	order: z.array(z.string()).default([]).volatile(),

@@ -74,8 +74,8 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 17 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora + 规则静态守卫 + 时区口径 + README 结构图守卫 + core 产物守卫）
-│   ├── cases-*.mjs  # 各段用例（17 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / rule-lint / tz / readme / core）
+│   ├── all.mjs      # 统一门禁：聚 18 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora + 规则静态守卫 + 时区口径 + 到期提醒 + README 结构图守卫 + core 产物守卫）
+│   ├── cases-*.mjs  # 各段用例（18 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / rule-lint / tz / remind / readme / core）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
 │   ├── registry-shim.mjs # 各批次注册表规格快照 + DRIFT 守卫（与运行时 SOURCES 核对 tz/name）
@@ -95,8 +95,16 @@ dsh-gacha-calendar/
 
 ### 做（按优先级）
 
-1. **到期提醒**：侧栏按钮红点/角标（有 ≤N 小时的到期项时）→ 可选系统通知 → 「提前 N 小时」可配。
-   数据侧已就绪（面板本来就算"还剩 X"），需要新增一个设置键 + 一个按刷新周期更新的角标状态。
+1. **到期提醒**（**MVP 已完成 2026-10-25，只剩系统通知**）：
+   - ✅ 侧栏按钮**小红点**：有卡池/活动在 N 小时内结束时亮（悬停/读屏能说出是哪几项）；
+     设置页「到期提醒」= 关闭 / 12 / 24 / 48 小时，默认 **24**，键名 `remindHours`（0 = 关闭）。
+   - ✅ 判定口径：某侧**已开始**（`startTs <= now`）且 `endTs ∈ (now, now + N 小时]`（未开始/已结束都不算）。
+     纯函数 `isExpiringSoon`（`60-helpers.js`）+ 窗口换算 `remindWindowOf` / `remindDueOf`（`80-components.js`，
+     复用面板外显那条「源站文本 + tz → 本机墙钟」链，所以红点与面板"还剩 X"永远同源）。
+   - ✅ 红点感知数据变化：按钮与面板同属 `CalendarPanel`，复用面板已有的 `scope.subscribe`
+     （刷新写回 `lastData`/`lastRefresh` → 快照推送 → 重渲染）+ 已有的每分钟时钟，**没有新增订阅**。
+   - ⬜ 待做：**系统通知**（DSH 通知 API 还没接）、数字角标（现在是纯红点，避免抢眼）。
+   - 守卫：`test/cases-remind.mjs`（①~⑥ 口径 + 文本/tz 换算 + 关闭短路）。
 2. **解析器自检**（原「来源健康看板」的重构升级）：每源展示最近成功时间 / 连续失败次数 / 失败原因，
    并加"N 天连续 nomatch 即提示源可能改版或停更"（踩过的坑：异环公告改段落写法、雪松源页面停更）。
 3. **搜索与筛选**：设置页来源列表加"搜游戏名"+ 分组（国服/日服/国际服）+ 只看已启用；

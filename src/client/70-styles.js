@@ -7,6 +7,12 @@
 			.gacha-cal-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}
 			.gacha-cal-btn:active{background:var(--dsw-alias-interactive-bg-hover)}
 			.gacha-cal-btn svg{flex:none;width:16px;height:16px}
+			/* 到期提醒的小红点（2026-10-25）。**绝对定位**是这里唯一的硬约束：
+			   它必须不参与按钮的 flex 布局，否则会挤动图标/文字 → 重演"按钮错位"。
+			   所以按钮自己只需要 position:relative（不影响布局），红点再绝对定位到右侧内边距里。
+			   尺寸固定 7px、不随角标数量变大；颜色用一个中性偏暖的红，避免在深色侧栏里刺眼。 */
+			.gacha-cal-btn{position:relative}
+			.gacha-cal-dot{position:absolute;top:50%;right:8px;width:7px;height:7px;margin-top:-3.5px;border-radius:50%;background:#E5484D;pointer-events:none}
 			/* 这里曾有一条指向宿主内部 CSS Modules 类名的覆盖：
 			 *   .hHd-Xa_footerActions{flex-wrap:wrap;align-content:flex-start;align-items:stretch}
 			 * 它来自 v0.9.1「源码恢复」（从手改过的 lib/client.js 回填 src/），**不属于我们的契约**。

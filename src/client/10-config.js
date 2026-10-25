@@ -18,9 +18,22 @@
 			{ label: "30 天", minutes: 30 * 24 * 60 },
 			{ label: "42 天", minutes: 42 * 24 * 60 }
 		];
+		// 「到期提醒」的提前量选项（存**小时**；0 = 关闭）。
+		// 口径：某侧的窗口**已开始**且 endTs 落在 (now, now + N 小时] 内 = 即将到期
+		// （判定是纯函数 `isExpiringSoon`，见 60-helpers.js；红点在 80-components.js 的侧栏按钮上）。
+		// 默认 24：够看完一个当期池/活动的收尾公告，又不至于一睁眼就常亮。
+		const REMIND_OPTIONS = [
+			{ label: "关闭", hours: 0 },
+			{ label: "12 小时", hours: 12 },
+			{ label: "24 小时", hours: 24 },
+			{ label: "48 小时", hours: 48 }
+		];
 		const DEFAULT_SETTINGS = {
 			autoRefresh: true,
 			refreshMinutes: 1 * 24 * 60,
+			// 到期提醒的提前量（小时）；0 = 关闭（关闭时**不做任何计算**，也不显示红点）。
+			// ⚠️ 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 里（守卫见 test/cases-rule-lint.mjs）。
+			remindHours: 24,
 			order: null,
 			lastRefresh: 0,
 			lastSource: "none",
