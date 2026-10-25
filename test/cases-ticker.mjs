@@ -1,40 +1,40 @@
-// test/cases-remind.mjs —— 到期提醒（2026-10-25 晚：侧栏单行轮播 + 每游戏「强提醒」开关）
-//                        （同日二次定稿：强提醒改**普通列表**语义 + 轮播改 **C 方案**）
+// test/cases-ticker.mjs —— 侧栏轮播（2026-10-25 晚：按钮单行翻页 + 每游戏「轮播」开关）
+//                        （同日二次定稿：「轮播」开关改**普通列表**语义 + 轮播改 **C 方案**）
 //                        （同日三次定稿：设置页拆成「开关 + 范围」；轮播交叉；翻页方向交替）
 //
-// 功能范围（用户定）：侧栏按钮「单行轮播」+「提前 N 小时」设置 + 每游戏「强提醒」开关。
+// 功能范围（用户定）：侧栏按钮「单行轮播」+「提前 N 小时」设置 + 每游戏「轮播」开关。
 // 不做系统通知、不做弹窗/声音、不动刷新链路、不动缓存载荷结构。
 //
 // 本文件守八件事：
 //   ① 判定口径（纯函数 `isExpiringSoon`，60-helpers.js）：
 //      某侧"即将到期" = 该侧**已开始**（startTs <= now）且 **endTs 落在 (now, now + N 小时]**。
-//   ② 双向判定（纯函数 `remindKindOf`，2026-10-25 晚）：即将**开始**也算提醒。
+//   ② 双向判定（纯函数 `tickerKindOf`，2026-10-25 晚）：即将**开始**也算命中。
 //      ""（不算）/ "end"（即将结束）/ "start"（即将开始）三态，两个方向天然互斥。
-//   ③ 「强提醒」筛选语义（纯函数 `remindGameAllowed`）：**普通列表** —— 列表里有谁就提醒谁，
-//      **空数组 = 一个都不提醒**（2026-10-25 二次定稿，**废弃**"空 = 全部参与"的哨兵）。
-//      + **守卫**：`DEFAULT_SETTINGS.remindGames`（及 src/index.js 的 schema default）
-//        必须恰好等于所有 `defaultHidden !== true` 的来源 id —— 新增来源/改默认隐藏时提醒同步。
-//   ④ 轮播条目选取与**每格结构**（纯函数 `remindPickOf` / `remindCaptionOf` / `remindSlidesOf`）：
-//      多条时顺序稳定（按"距离那一刻还有多远"升序，同刻保持输入顺序）、无可提醒条目时返回空
+//   ③ 「轮播」筛选语义（纯函数 `tickerGameAllowed`）：**普通列表** —— 列表里有谁就轮播谁，
+//      **空数组 = 一个都不轮播**（2026-10-25 二次定稿，**废弃**"空 = 全部参与"的哨兵）。
+//      + **守卫**：`DEFAULT_SETTINGS.tickerGames`（及 src/index.js 的 schema default）
+//        必须恰好等于所有 `defaultHidden !== true` 的来源 id —— 新增来源/改默认隐藏时轮播列表要同步。
+//   ④ 轮播条目选取与**每格结构**（纯函数 `tickerPickOf` / `tickerCaptionOf` / `tickerSlidesOf`）：
+//      多条时顺序稳定（按"距离那一刻还有多远"升序，同刻保持输入顺序）、无可轮播条目时返回空
 //      （⇒ 按钮只有状态 0、不滚动）；C 方案每格 = { gameId, gameIcon, itemName, statusText }
 //      （事项名优先、状态单独一段、**分隔符 " · " 两侧都有空格**）。
-//   ⑤ 清单层（`remindDueOf`，80-components.js）：落盘的「源站墙钟文本 + tz」要能换算出**绝对**窗口
+//   ⑤ 清单层（`tickerItemsOf`，80-components.js）：落盘的「源站墙钟文本 + tz」要能换算出**绝对**窗口
 //      —— 这一层必须与运行环境时区无关（CI 跑 UTC、开发机跑 +08，两边都要绿）。
-//      做法：断言 remindWindowOf 的 ts 等于 `sourceInstant(...)` 的独立算法结果，不写死本机偏移。
+//      做法：断言 tickerWindowOf 的 ts 等于 `sourceInstant(...)` 的独立算法结果，不写死本机偏移。
 //   ⑥ 样式静态守卫：按钮尺寸不许被撑开 / 动画只许一次性 backwards / 70-styles.js 模板字符串完整。
-//   ⑦ 设置页**两个控件**（2026-10-25 三次定稿）：开关 `remindOn`（默认 **开**）+ 范围
-//      `remindHours`（12/24/48/72，默认 **72**，**没有「关闭」档位**）；关掉开关 ⇒ 清单为空。
+//   ⑦ 设置页**两个控件**（2026-10-25 三次定稿）：开关 `tickerOn`（默认 **开**）+ 范围
+//      `tickerHours`（12/24/48/72，默认 **72**，**没有「关闭」档位**）；关掉开关 ⇒ 清单为空。
 //   ⑧ 轮播的**交叉序列**与**翻页方向**（同日三次定稿 + 四次定稿修正）：
-//      `remindStepsOf` 展开成 [idle, 1, idle, 2, …]（长度 2n；n=0 只有 idle）；
+//      `tickerStepsOf` 展开成 [idle, 1, idle, 2, …]（长度 2n；n=0 只有 idle）；
 //      方向按**切换次数**四步一循环 up,down,down,up（idx 0 = 挂载兜底 down），
 //      且**类名 = 视觉方向**（.is-up = 新内容从下方进 / .is-down = 新内容从上方进）。
 //   ⑨ 翻页层的**两行顺序**（同日五次定稿）：up ⇒ [prev, cur]、down ⇒ [cur, prev]
-//      （纯函数 `remindFlipLinesOf`）。行顺序必须与各自的 keyframes 成套 ——
+//      （纯函数 `tickerFlipLinesOf`）。行顺序必须与各自的 keyframes 成套 ——
 //      两种方向的**起点都必须让 prev 占满窗口**，否则"向上翻"一开场就是空白
 //      （用户报「还是不对，和向下翻的动画不一样」，探针实测空白 30~60ms）。
 //   ⑩ 翻页**落定**（同日六次定稿）：动画播完 ⇒ 只渲染 cur 一行 + `.is-settled`
 //      （animation:none; transform:none），抹平"up 用 forwards 留持久 transform、
-//      down 结束时 transform:none"的终点不对称。纯函数 `remindFlipRenderLinesOf` 给出
+//      down 结束时 transform:none"的终点不对称。纯函数 `tickerFlipRenderLinesOf` 给出
 //      四种组合（settled × up/down）；`flipSettled` 是 key={shownStep} 子组件的本地 state，
 //      换格 ⇒ 重挂载 ⇒ 自动回到 false（不用 useEffect，见 80-components.js 的注释）。
 //
@@ -52,12 +52,12 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, "..");
 
 export default async function run() {
-	section("到期提醒（侧栏单行轮播 + 「提前 N 小时」+ 每游戏「强提醒」）");
+	section("侧栏轮播（单行翻页 + 「提前 N 小时」+ 每游戏「轮播」）");
 	const {
 		isExpiringSoon, expiringSoonOf,
-		remindKindOf, remindGameAllowed, remindOnOf, remindRangeOf, remindPickOf, remindCaptionOf, remindSlidesOf,
-		remindStepsOf, remindDirAt, remindFlipLinesOf, remindFlipRenderLinesOf,
-		remindWindowOf, remindDueOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
+		tickerKindOf, tickerGameAllowed, tickerOnOf, tickerRangeOf, tickerPickOf, tickerCaptionOf, tickerSlidesOf,
+		tickerStepsOf, tickerDirAt, tickerFlipLinesOf, tickerFlipRenderLinesOf,
+		tickerWindowOf, tickerItemsOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
 	} = T;
 
 	const NOW = Date.UTC(2026, 9, 25, 4, 0);   // 2026-10-25 12:00 +08 / 13:00 +09 / 04:00 UTC
@@ -92,7 +92,7 @@ export default async function run() {
 			&& isExpiringSoon(NOW - 60000, NOW + 1 * H, NOW, void 0) === false);
 
 		// ⑥ 缺 startTs / endTs（或不是有限数字）→ 不算：落盘缓存只存文本，绝对档期是**现算**的，
-		//    算不出来就是算不出来 —— 绝不拿半个窗口凑一个到期提醒
+		//    算不出来就是算不出来 —— 绝不拿半个窗口凑一个"快到期"
 		check("⑥ 缺 startTs 或 endTs → 不算",
 			isExpiringSoon(void 0, NOW + 1 * H, NOW, 24) === false
 			&& isExpiringSoon(NOW - H, void 0, NOW, 24) === false
@@ -111,37 +111,37 @@ export default async function run() {
 			isExpiringSoon(NOW, NOW + 2 * H, NOW, 24) === true);
 	}
 
-	// ── ② 双向判定（remindKindOf，2026-10-25 晚）：即将开始也算 ────────────────
+	// ── ② 双向判定（tickerKindOf，2026-10-25 晚）：即将开始也算 ────────────────
 	{
 		// 结束方向
 		check("双向·结束：已开始 + 3 小时后结束 + N=24 → \"end\"",
-			remindKindOf(NOW - 1 * H, NOW + 3 * H, NOW, 24) === "end");
+			tickerKindOf(NOW - 1 * H, NOW + 3 * H, NOW, 24) === "end");
 		check("双向·结束：threshold 边界 endTs == now + N → \"end\"；再晚 1ms → \"\"",
-			remindKindOf(NOW - 1 * H, NOW + 24 * H, NOW, 24) === "end"
-			&& remindKindOf(NOW - 1 * H, NOW + 24 * H + 1, NOW, 24) === "");
+			tickerKindOf(NOW - 1 * H, NOW + 24 * H, NOW, 24) === "end"
+			&& tickerKindOf(NOW - 1 * H, NOW + 24 * H + 1, NOW, 24) === "");
 		// 开始方向
 		check("双向·开始：还没开始 + 5 小时后开始 + N=24 → \"start\"",
-			remindKindOf(NOW + 5 * H, NOW + 9 * H, NOW, 24) === "start");
+			tickerKindOf(NOW + 5 * H, NOW + 9 * H, NOW, 24) === "start");
 		check("双向·开始：25 小时后开始 N=24 → \"\"；同一窗口 N=48 → \"start\"（阈值在起作用）",
-			remindKindOf(NOW + 25 * H, NOW + 30 * H, NOW, 24) === ""
-			&& remindKindOf(NOW + 25 * H, NOW + 30 * H, NOW, 48) === "start");
+			tickerKindOf(NOW + 25 * H, NOW + 30 * H, NOW, 24) === ""
+			&& tickerKindOf(NOW + 25 * H, NOW + 30 * H, NOW, 48) === "start");
 		check("双向·开始：startTs == now + N → \"start\"（右端闭）",
-			remindKindOf(NOW + 24 * H, NOW + 30 * H, NOW, 24) === "start");
+			tickerKindOf(NOW + 24 * H, NOW + 30 * H, NOW, 24) === "start");
 		// 两个方向**互斥**：同一时刻只可能是其中一个（startTs 落在 now 的哪一侧决定的）
 		check("双向·互斥：已开始的窗口不会同时被判成 start，未开始的也不会被判成 end",
-			remindKindOf(NOW - H, NOW + 2 * H, NOW, 24) === "end"
-			&& remindKindOf(NOW + 1, NOW + 2 * H, NOW, 24) === "start"
-			&& remindKindOf(NOW, NOW + 2 * H, NOW, 24) === "end");   // startTs == now 属于"已开始"
+			tickerKindOf(NOW - H, NOW + 2 * H, NOW, 24) === "end"
+			&& tickerKindOf(NOW + 1, NOW + 2 * H, NOW, 24) === "start"
+			&& tickerKindOf(NOW, NOW + 2 * H, NOW, 24) === "end");   // startTs == now 属于"已开始"
 		// 不算的情况
 		check("双向·不算：已结束 / 还太远（开始和结束都在窗外）/ 关闭 / 脏数据 / 结束早于开始",
-			remindKindOf(NOW - 5 * H, NOW - 1 * H, NOW, 24) === ""
-			&& remindKindOf(NOW + 30 * H, NOW + 40 * H, NOW, 24) === ""
-			&& remindKindOf(NOW - 1 * H, NOW + 3 * H, NOW, 0) === ""
-			&& remindKindOf(NOW - 1 * H, NOW + 3 * H, NOW, null) === ""
-			&& remindKindOf(void 0, NOW + 3 * H, NOW, 24) === ""
-			&& remindKindOf(NOW - 1 * H, void 0, NOW, 24) === ""
-			&& remindKindOf(NaN, NaN, NOW, 24) === ""
-			&& remindKindOf(NOW + 3 * H, NOW + 1 * H, NOW, 24) === "");  // 脏数据：结束早于开始
+			tickerKindOf(NOW - 5 * H, NOW - 1 * H, NOW, 24) === ""
+			&& tickerKindOf(NOW + 30 * H, NOW + 40 * H, NOW, 24) === ""
+			&& tickerKindOf(NOW - 1 * H, NOW + 3 * H, NOW, 0) === ""
+			&& tickerKindOf(NOW - 1 * H, NOW + 3 * H, NOW, null) === ""
+			&& tickerKindOf(void 0, NOW + 3 * H, NOW, 24) === ""
+			&& tickerKindOf(NOW - 1 * H, void 0, NOW, 24) === ""
+			&& tickerKindOf(NaN, NaN, NOW, 24) === ""
+			&& tickerKindOf(NOW + 3 * H, NOW + 1 * H, NOW, 24) === "");  // 脏数据：结束早于开始
 	}
 
 	// ── ③ 列表版（expiringSoonOf）：关闭时短路 + 顺序保持 ──────────────────────
@@ -164,57 +164,57 @@ export default async function run() {
 		check("列表版：非数组 → 空数组（不抛）", expiringSoonOf(null, NOW, 24).length === 0);
 	}
 
-	// ── ④ 「强提醒」筛选语义（remindGameAllowed）：**普通列表**，空 = 一个都不提醒 ──────
+	// ── ④ 「轮播」筛选语义（tickerGameAllowed）：**普通列表**，空 = 一个都不轮播 ──────
 	// 2026-10-25 二次定稿：废弃"空数组 = 全部参与"的哨兵（用户原话「副作用过大，改成正常的逻辑」），
-	// 并且"取消最后一个勾被拒绝"必须修掉 —— 空列表现在就是"一个都不提醒"，是**合法的终态**。
+	// 并且"取消最后一个勾被拒绝"必须修掉 —— 空列表现在就是"一个都不轮播"，是**合法的终态**。
 	{
-		check("remindGames 为空数组 → **一个都不提醒**（不再有「空 = 全部」的哨兵）",
-			remindGameAllowed("g1", []) === false && remindGameAllowed("随便什么", []) === false);
-		check("remindGames 缺失 / 不是数组 → 也不提醒（纯函数不猜「没设置过」，默认值由 DEFAULT_SETTINGS/schema 给）",
-			remindGameAllowed("g1", void 0) === false
-			&& remindGameAllowed("g1", null) === false
-			&& remindGameAllowed("g1", "g1") === false);
-		check("remindGames 非空 → **只有列表里的参与**（[\"a\"] 只提醒 a）",
-			remindGameAllowed("a", ["a"]) === true
-			&& remindGameAllowed("b", ["a"]) === false
-			&& remindGameAllowed("a", ["b", "c"]) === false);
+		check("tickerGames 为空数组 → **一个都不轮播**（不再有「空 = 全部」的哨兵）",
+			tickerGameAllowed("g1", []) === false && tickerGameAllowed("随便什么", []) === false);
+		check("tickerGames 缺失 / 不是数组 → 也不轮播（纯函数不猜「没设置过」，默认值由 DEFAULT_SETTINGS/schema 给）",
+			tickerGameAllowed("g1", void 0) === false
+			&& tickerGameAllowed("g1", null) === false
+			&& tickerGameAllowed("g1", "g1") === false);
+		check("tickerGames 非空 → **只有列表里的参与**（[\"a\"] 只轮播 a）",
+			tickerGameAllowed("a", ["a"]) === true
+			&& tickerGameAllowed("b", ["a"]) === false
+			&& tickerGameAllowed("a", ["b", "c"]) === false);
 
-		// ── 守卫：出厂默认提醒列表 == 出厂时「展示中」的来源（defaultHidden !== true）──────────
+		// ── 守卫：出厂默认轮播列表 == 出厂时「展示中」的来源（defaultHidden !== true）──────────
 		// 它钉住两件事（这是"开箱即用"从哨兵手里接过来的保证）：
-		//   ① 新增来源时提醒必须同步（忘了改默认列表就红）；
-		//   ② 改某个条目的 defaultHidden 时提醒必须同步（否则默认隐藏的条目会偷偷提醒，反之亦然）。
+		//   ① 新增来源时轮播列表必须同步（忘了改默认列表就红）；
+		//   ② 改某个条目的 defaultHidden 时轮播列表必须同步（否则默认隐藏的条目会偷偷参与轮播，反之亦然）。
 		// 比较口径：两边都去重 + 排序后整体相等（顺序无所谓，集合必须相同）。
 		const sortIds = (xs) => [...xs].sort();
 		const shownIds = sortIds(SOURCES.filter((s) => s.defaultHidden !== true).map((s) => s.id));
-		const defIds = sortIds(DEFAULT_SETTINGS.remindGames);
-		check("默认 remindGames（去重排序后）**恰好等于**所有 defaultHidden !== true 的来源 id（排序后）",
+		const defIds = sortIds(DEFAULT_SETTINGS.tickerGames);
+		check("默认 tickerGames（去重排序后）**恰好等于**所有 defaultHidden !== true 的来源 id（排序后）",
 			defIds.length === new Set(defIds).size && defIds.join(",") === shownIds.join(","),
 			"默认=" + defIds.join(",") + " ／ 展示中=" + shownIds.join(","));
-		check("默认 remindGames **不含**出厂默认隐藏的条目（defaultHidden === true 的一个都不许进来）",
+		check("默认 tickerGames **不含**出厂默认隐藏的条目（defaultHidden === true 的一个都不许进来）",
 			SOURCES.filter((s) => s.defaultHidden === true).every((s) => !defIds.includes(s.id)),
 			SOURCES.filter((s) => s.defaultHidden === true).map((s) => s.id).join(","));
-		check("默认 remindGames 非空（否则开箱即用就没了）", defIds.length > 0, String(defIds.length));
+		check("默认 tickerGames 非空（否则开箱即用就没了）", defIds.length > 0, String(defIds.length));
 
 		// schema 那一侧的 default 必须与 DEFAULT_SETTINGS 一致：两处都是"出厂值"，漂了就是两套默认
 		// （客户端 spread 用 DEFAULT_SETTINGS，宿主表单用 schema default，用户看到哪个取决于读哪一边）。
 		{
 			const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
-			const m = /remindGames:\s*z\.array\(z\.string\(\)\)\.default\((\[[\s\S]*?\])\)/.exec(hostSrc);
+			const m = /tickerGames:\s*z\.array\(z\.string\(\)\)\.default\((\[[\s\S]*?\])\)/.exec(hostSrc);
 			let hostDefault = null;
 			if (m) { try { hostDefault = JSON.parse(m[1]); } catch { hostDefault = null; } }
 			check("src/index.js 的 schema `.default(...)` 能解析出来（守卫自身没瞎）",
-				Array.isArray(hostDefault), m ? m[1].slice(0, 80) : "没匹配到 remindGames 的 default");
-			check("src/index.js 的 schema default 与 DEFAULT_SETTINGS.remindGames 逐项一致（排序后）",
+				Array.isArray(hostDefault), m ? m[1].slice(0, 80) : "没匹配到 tickerGames 的 default");
+			check("src/index.js 的 schema default 与 DEFAULT_SETTINGS.tickerGames 逐项一致（排序后）",
 				Array.isArray(hostDefault) && sortIds(hostDefault).join(",") === defIds.join(","),
 				Array.isArray(hostDefault) ? sortIds(hostDefault).join(",") : "null");
 		}
 	}
 
-	// ── ⑤ 轮播条目选取（remindPickOf）：顺序稳定 + 无命中→空 ──────────────────
-	// 候选契约与 80-components.js 的 remindDueOf 组装出来的完全一致
+	// ── ⑤ 轮播条目选取（tickerPickOf）：顺序稳定 + 无命中→空 ──────────────────
+	// 候选契约与 80-components.js 的 tickerItemsOf 组装出来的完全一致
 	// （{ key, gameId, side, name, title, gameIcon, startTs, endTs }）；这里刻意**绕开**文本换算，
 	// 直接喂绝对时刻 —— 选取/排序/筛选这一层本身就是纯的。
-	// 第四个参数是「强提醒」列表（普通列表语义）：空 = 一个都不提醒，所以在"要全都要"的用例里
+	// 第四个参数是「轮播」列表（普通列表语义）：空 = 一个都不轮播，所以在"要全都要"的用例里
 	// 必须把 id 显式写全 —— 这正是废弃哨兵后的代价，也正是用户要的"正常的逻辑"。
 	{
 		const cand = [
@@ -224,7 +224,7 @@ export default async function run() {
 			{ key: "d:event", gameId: "d", side: "event", name: "丁", title: "活动丁", startTs: NOW - 2 * H, endTs: NOW + 30 * H }  // end 30h > 24 → 不算
 		];
 		const ALL = ["a", "b", "c", "d"];
-		const pick = remindPickOf(cand, NOW, 24, ALL);
+		const pick = tickerPickOf(cand, NOW, 24, ALL);
 		check("选取：只留下 24 小时内的 3 条（两个方向混在一起，按紧迫度排）",
 			pick.map((x) => x.key).join(",") === "c:event,a:gacha,b:gacha", pick.map((x) => x.key).join(","));
 		check("选取：每条都带上方向 kind（c=start / a=end）与 dueMs",
@@ -232,8 +232,8 @@ export default async function run() {
 			&& pick[0].dueMs === 1 * H && pick[1].dueMs === 3 * H,
 			JSON.stringify(pick.map((x) => [x.key, x.kind, x.dueMs])));
 		check("选取：叫两遍结果完全一致（顺序稳定、无随机成分）",
-			remindPickOf(cand, NOW, 24, ALL).map((x) => x.key).join(",")
-			=== remindPickOf(cand, NOW, 24, ALL).map((x) => x.key).join(","));
+			tickerPickOf(cand, NOW, 24, ALL).map((x) => x.key).join(",")
+			=== tickerPickOf(cand, NOW, 24, ALL).map((x) => x.key).join(","));
 		// 同一毫秒的多条：保持**输入顺序**（不是按名字/按 id 再排一次）
 		{
 			const tie = [
@@ -241,39 +241,39 @@ export default async function run() {
 				{ key: "y", gameId: "y", side: "gacha", name: "Y", startTs: NOW - 1 * H, endTs: NOW + 2 * H }
 			];
 			check("选取：同一紧迫度时保持输入顺序（x 在 y 前）",
-				remindPickOf(tie, NOW, 24, ["x", "y"]).map((x) => x.key).join(",") === "x,y",
-				remindPickOf(tie, NOW, 24, ["x", "y"]).map((x) => x.key).join(","));
+				tickerPickOf(tie, NOW, 24, ["x", "y"]).map((x) => x.key).join(",") === "x,y",
+				tickerPickOf(tie, NOW, 24, ["x", "y"]).map((x) => x.key).join(","));
 		}
-		// 强提醒筛选（普通列表语义）
-		check("选取：remindGames 为空 → **0 条**（空列表 = 一个都不提醒）",
-			remindPickOf(cand, NOW, 24, []).length === 0);
+		// 轮播筛选（普通列表语义）
+		check("选取：tickerGames 为空 → **0 条**（空列表 = 一个都不轮播）",
+			tickerPickOf(cand, NOW, 24, []).length === 0);
 		check("选取：非空列表 → 只有列表里的（[\"a\"] → 只剩 a:gacha）",
-			remindPickOf(cand, NOW, 24, ["a"]).map((x) => x.key).join(",") === "a:gacha");
+			tickerPickOf(cand, NOW, 24, ["a"]).map((x) => x.key).join(",") === "a:gacha");
 		check("选取：列表里没命中的条目**全部**被筛掉（[\"c\"] 只剩 c:event）",
-			remindPickOf(cand, NOW, 24, ["c"]).map((x) => x.key).join(",") === "c:event");
+			tickerPickOf(cand, NOW, 24, ["c"]).map((x) => x.key).join(",") === "c:event");
 		check("选取：列表写全 → 3 条都在（[\"a\",\"b\",\"c\"]）",
-			remindPickOf(cand, NOW, 24, ["a", "b", "c"]).map((x) => x.key).join(",") === "c:event,a:gacha,b:gacha");
+			tickerPickOf(cand, NOW, 24, ["a", "b", "c"]).map((x) => x.key).join(",") === "c:event,a:gacha,b:gacha");
 		check("选取：列表里写了一个不存在的 id → 空数组（不会退回「全部」）",
-			remindPickOf(cand, NOW, 24, ["nope"]).length === 0);
-		// 无可提醒 → 空（⇒ 按钮只有状态 0，不滚动）
+			tickerPickOf(cand, NOW, 24, ["nope"]).length === 0);
+		// 没有可轮播的条目 → 空（⇒ 按钮只有状态 0，不滚动）
 		check("选取：没有任何命中 → 空数组（⇒ 不滚动）",
-			remindPickOf([], NOW, 24, ALL).length === 0
-			&& remindPickOf(cand, NOW, 0, ALL).length === 0        // 关闭
-			&& remindPickOf(cand, NOW, 24, ["nope"]).length === 0); // 全被筛掉
+			tickerPickOf([], NOW, 24, ALL).length === 0
+			&& tickerPickOf(cand, NOW, 0, ALL).length === 0        // 关闭
+			&& tickerPickOf(cand, NOW, 24, ["nope"]).length === 0); // 全被筛掉
 		check("选取：脏输入不抛（null / 非数组 / 数组里夹 null / N=0）",
-			remindPickOf(null, NOW, 24, ALL).length === 0
-			&& remindPickOf(cand, NOW, 0, ALL).length === 0
-			&& remindPickOf([null, void 0, 1], NOW, 24, ALL).length === 0);
+			tickerPickOf(null, NOW, 24, ALL).length === 0
+			&& tickerPickOf(cand, NOW, 0, ALL).length === 0
+			&& tickerPickOf([null, void 0, 1], NOW, 24, ALL).length === 0);
 	}
 
-	// ── ⑥ 轮播文案与**每格结构**（remindCaptionOf / remindSlidesOf，C 方案）──────────
+	// ── ⑥ 轮播文案与**每格结构**（tickerCaptionOf / tickerSlidesOf，C 方案）──────────
 	// 2026-10-25 二次定稿（用户 C 方案）：
 	//   · 文字优先显示**事项名**（banner/event 名 = 那一期的角色/活动名）—— 只有游戏名时
 	//     "哪个池子/哪个活动"根本看不出来；游戏身份交给**图标**（gameIcon）。
 	//   · 再加一条硬要求：分隔符**前后都要有空格**（上一版渲染成「少女· 还剩」，少一个空格）。
 	{
 		const endItem = { key: "k", gameId: "k", side: "gacha", name: "绝区零", title: "耀嘉音", startTs: NOW - 2 * H, endTs: NOW + 3 * H, kind: "end" };
-		const capEnd = remindCaptionOf(endItem, NOW);
+		const capEnd = tickerCaptionOf(endItem, NOW);
 		check("文案·结束：**事项名优先**（name=耀嘉音，不是游戏名绝区零）",
 			capEnd.name === "耀嘉音", JSON.stringify(capEnd));
 		check("文案·结束：整行是 `耀嘉音 · 3 小时`（结束方向上 名字在前、状态在后；按钮这一侧**不带「还剩」**）",
@@ -286,48 +286,48 @@ export default async function run() {
 			JSON.stringify([capEnd.statusFull, capEnd.ariaText]));
 		check("分隔符：生成的文本里有 ` · `（**前后都有空格** —— 上一版少了前导空格）",
 			capEnd.text.indexOf(" · ") > 0
-			&& remindCaptionOf({ ...endItem, endTs: NOW + 45 * 60000 }, NOW).text.indexOf(" · ") > 0,
+			&& tickerCaptionOf({ ...endItem, endTs: NOW + 45 * 60000 }, NOW).text.indexOf(" · ") > 0,
 			JSON.stringify(capEnd.text));
 		check("文案·结束：没有事项名时回退到游戏名（自定义条目可能没有 title）",
-			remindCaptionOf({ ...endItem, title: "" }, NOW).name === "绝区零"
-			&& remindCaptionOf({ ...endItem, title: "", name: "" }, NOW).name === "k");
+			tickerCaptionOf({ ...endItem, title: "" }, NOW).name === "绝区零"
+			&& tickerCaptionOf({ ...endItem, title: "", name: "" }, NOW).name === "k");
 		check("文案·结束：不足 1 小时按分钟说（45 分）",
-			remindCaptionOf({ ...endItem, endTs: NOW + 45 * 60000 }, NOW).status === "45 分");
+			tickerCaptionOf({ ...endItem, endTs: NOW + 45 * 60000 }, NOW).status === "45 分");
 		check("文案·结束：≥1 天**只说天数**（30 小时 → 1 天，小时段丢掉）",
-			remindCaptionOf({ ...endItem, endTs: NOW + 30 * H }, NOW).status === "1 天");
+			tickerCaptionOf({ ...endItem, endTs: NOW + 30 * H }, NOW).status === "1 天");
 		check("文案·结束：1 天 17 时 → 1 天（丢掉 17 时，不四舍五入到 2 天）",
-			remindCaptionOf({ ...endItem, endTs: NOW + 41 * H }, NOW).status === "1 天");
+			tickerCaptionOf({ ...endItem, endTs: NOW + 41 * H }, NOW).status === "1 天");
 		check("文案·结束：24 天 10 时 → 24 天（天数不封顶、也不带小时）",
-			remindCaptionOf({ ...endItem, endTs: NOW + (24 * 24 + 10) * H }, NOW).status === "24 天");
+			tickerCaptionOf({ ...endItem, endTs: NOW + (24 * 24 + 10) * H }, NOW).status === "24 天");
 		check("文案·结束：向下取整（3 小时 59 分 → 3 小时，不虚报）",
-			remindCaptionOf({ ...endItem, endTs: NOW + 3 * H + 59 * 60000 }, NOW).status === "3 小时");
+			tickerCaptionOf({ ...endItem, endTs: NOW + 3 * H + 59 * 60000 }, NOW).status === "3 小时");
 
 		// 开始方向：今天 / 明天 / N 天后（偏移量在 UTC 与 +08 下同一天，见文件头注释）
 		const gachaStart = (startTs) => ({ key: "k", gameId: "k", side: "gacha", name: "星塔旅人", title: "限定寻访", startTs, endTs: startTs + 10 * H, kind: "start" });
 		check("文案·开始（卡池）：今天开工 → `限定寻访 · 今天开池`",
-			remindCaptionOf(gachaStart(NOW + 8 * H), NOW).text === "限定寻访 · 今天开池",
-			remindCaptionOf(gachaStart(NOW + 8 * H), NOW).text);
+			tickerCaptionOf(gachaStart(NOW + 8 * H), NOW).text === "限定寻访 · 今天开池",
+			tickerCaptionOf(gachaStart(NOW + 8 * H), NOW).text);
 		check("文案·开始（卡池）：明天 → `限定寻访 · 明天开池`",
-			remindCaptionOf(gachaStart(NOW + 30 * H), NOW).text === "限定寻访 · 明天开池",
-			remindCaptionOf(gachaStart(NOW + 30 * H), NOW).text);
+			tickerCaptionOf(gachaStart(NOW + 30 * H), NOW).text === "限定寻访 · 明天开池",
+			tickerCaptionOf(gachaStart(NOW + 30 * H), NOW).text);
 		check("文案·开始（卡池）：2 天后 → `限定寻访 · 2 天后开池`",
-			remindCaptionOf(gachaStart(NOW + 50 * H), NOW).text === "限定寻访 · 2 天后开池",
-			remindCaptionOf(gachaStart(NOW + 50 * H), NOW).text);
+			tickerCaptionOf(gachaStart(NOW + 50 * H), NOW).text === "限定寻访 · 2 天后开池",
+			tickerCaptionOf(gachaStart(NOW + 50 * H), NOW).text);
 		check("文案·开始（活动）：活动侧说「开始」而不是「开池」",
-			remindCaptionOf({ ...gachaStart(NOW + 30 * H), side: "event" }, NOW).status === "明天开始");
+			tickerCaptionOf({ ...gachaStart(NOW + 30 * H), side: "event" }, NOW).status === "明天开始");
 		check("文案：缺 name/title → 兜底「某个游戏」（不抛、也不显示 undefined）",
-			remindCaptionOf({ kind: "end", endTs: NOW + H }, NOW).name === "某个游戏"
-			&& remindCaptionOf(null, NOW).text.indexOf("undefined") < 0);
+			tickerCaptionOf({ kind: "end", endTs: NOW + H }, NOW).name === "某个游戏"
+			&& tickerCaptionOf(null, NOW).text.indexOf("undefined") < 0);
 
 		// —— C 方案的**每格结构**：{ gameId, gameIcon, itemName, statusText } ——
 		// 渲染层（80-components.js）只认这一种形状；状态 0（原按钮外观）**不在**这里 ——
-		// 所以"无可提醒 ⇒ 只有状态 0、不滚动"在数据层就是"slides 为空"。
+		// 所以"无可轮播 ⇒ 只有状态 0、不滚动"在数据层就是"slides 为空"。
 		const due = [
 			{ key: "a:gacha", id: "a", gameId: "a", side: "gacha", name: "绝区零", title: "耀嘉音", gameIcon: "https://cdn.example/a.png", startTs: NOW - 2 * H, endTs: NOW + 3 * H, kind: "end", dueMs: 3 * H },
 			{ key: "c:event", id: "c", gameId: "c", side: "event", name: "星塔旅人", title: "「养成奖励」碎片追加活动", gameIcon: "https://cdn.example/c.png", startTs: NOW + 1 * H, endTs: NOW + 2 * H, kind: "start", dueMs: 1 * H }
 		];
-		const slides = remindSlidesOf(due, NOW);
-		check("每格结构：一条提醒一格（2 条 → 2 格）", slides.length === 2, String(slides.length));
+		const slides = tickerSlidesOf(due, NOW);
+		check("每格结构：一条轮播条目一格（2 条 → 2 格）", slides.length === 2, String(slides.length));
 		check("每格结构：都带 gameId / gameIcon / itemName / statusText（C 方案的四件套）",
 			slides.every((s) => typeof s.gameId === "string" && typeof s.gameIcon === "string"
 				&& typeof s.itemName === "string" && typeof s.statusText === "string"),
@@ -352,9 +352,9 @@ export default async function run() {
 		check("每格结构：还带 gameName 给悬停/读屏补「哪款游戏」（文字里不占宽度）",
 			slides[0].gameName === "绝区零" && slides[1].gameName === "星塔旅人");
 		check("每格结构：缺 gameIcon 时是空串（渲染层据此退化成首字方块），不是 undefined",
-			remindSlidesOf([{ key: "z", gameId: "z", name: "某游", title: "某池", startTs: NOW - H, endTs: NOW + H, kind: "end" }], NOW)[0].gameIcon === "");
-		check("每格结构：无可提醒 → 空数组（⇒ 只有状态 0、不滚动）",
-			remindSlidesOf([], NOW).length === 0 && remindSlidesOf(null, NOW).length === 0);
+			tickerSlidesOf([{ key: "z", gameId: "z", name: "某游", title: "某池", startTs: NOW - H, endTs: NOW + H, kind: "end" }], NOW)[0].gameIcon === "");
+		check("每格结构：无可轮播 → 空数组（⇒ 只有状态 0、不滚动）",
+			tickerSlidesOf([], NOW).length === 0 && tickerSlidesOf(null, NOW).length === 0);
 	}
 
 	// ── ⑦ 清单层：落盘文本 + tz → 绝对窗口（与运行环境时区无关）──────────────
@@ -379,7 +379,7 @@ export default async function run() {
 			},
 			{
 				id: "g3", name: "游戏丙", tz,
-				// 源站原文读不出绝对档期（"版本更新后 ~ …"）→ 不参与提醒，不硬凑
+				// 源站原文读不出绝对档期（"版本更新后 ~ …"）→ 不参与轮播，不硬凑
 				banner: "池丙", bannerDates: "版本更新后 ~ 10-21 11:59",
 				event: "活动丙", eventDates: ""
 			},
@@ -401,7 +401,7 @@ export default async function run() {
 
 		// 窗口换算：与 sourceInstant 的独立算法对齐（不写死本机偏移）
 		{
-			const w = remindWindowOf(games[0], true, now);
+			const w = tickerWindowOf(games[0], true, now);
 			const start = sourceInstant(2026, 10, 24, 20, 0, tz);
 			const end = sourceInstant(2026, 10, 25, 14, 0, tz);
 			check("文本 + tz → 绝对窗口（与 sourceInstant 独立算法一致）",
@@ -410,25 +410,25 @@ export default async function run() {
 			check("绝对窗口确实落在 now 的两侧（前置条件：这条真的「已开始、1 小时后结束」）",
 				!!w && w.startTs < NOW && w.endTs === NOW + 1 * H);
 			// 卡池侧带 startTs/endTs 时优先用它们（不经过文本）
-			const w2 = remindWindowOf(games[4], true, now);
+			const w2 = tickerWindowOf(games[4], true, now);
 			check("卡池侧有 startTs/endTs → 直接采用（与文本换算同一条链，结果相等）",
 				!!w2 && w2.startTs === NOW - 1 * H && w2.endTs === NOW + 2 * H);
 			check("读不出绝对档期的一律 null（源站原文 / 缺 tz / 缺内容）",
-				remindWindowOf(games[2], true, now) === null
-				&& remindWindowOf(games[3], true, now) === null
-				&& remindWindowOf({ banner: "", bannerDates: "" }, true, now) === null
-				&& remindWindowOf(null, true, now) === null);
+				tickerWindowOf(games[2], true, now) === null
+				&& tickerWindowOf(games[3], true, now) === null
+				&& tickerWindowOf({ banner: "", bannerDates: "" }, true, now) === null
+				&& tickerWindowOf(null, true, now) === null);
 		}
 
 		// 清单（N=24，双向）：g1 卡池 + g1 活动（都在 1h 后结束）
 		//                  + g2 卡池（2h 后**开始**，双向后新进来的）
 		//                  + g4 卡池（2h 后结束）
 		//   g2 活动 25h 后才结束 → N=24 不算；g3/custom 读不出绝对档期 → 不参与
-		// ⚠️ 第四个参数现在是**普通列表**（空 = 一个都不提醒），所以"全都要"必须把 id 写全。
+		// ⚠️ 第四个参数现在是**普通列表**（空 = 一个都不轮播），所以"全都要"必须把 id 写全。
 		const ALL = ["g1", "g2", "g3", "g4", "custom-1"];
 		{
-			const due = remindDueOf(games, now, 24, ALL);
-			check("N=24 的提醒清单 = 4 条（双向：g1 两侧 + g2 卡池开始 + g4 卡池）",
+			const due = tickerItemsOf(games, now, 24, ALL);
+			check("N=24 的轮播清单 = 4 条（双向：g1 两侧 + g2 卡池开始 + g4 卡池）",
 				due.length === 4, JSON.stringify(due.map((x) => x.key)));
 			check("清单按紧迫度升序（1h 的两条 → 2h 的两条；同刻保持输入顺序）",
 				due.map((x) => x.key).join(",") === "g1:gacha,g1:event,g2:gacha,g4:gacha",
@@ -442,36 +442,36 @@ export default async function run() {
 				due.some((x) => x.key === "g4:gacha" && x.gameIcon === "https://cdn.example/g4.png")
 				&& due.filter((x) => x.key !== "g4:gacha").every((x) => x.gameIcon === ""),
 				JSON.stringify(due.map((x) => [x.key, x.gameIcon])));
-			check("清单带的图标能一路进到轮播那一格（remindSlidesOf 的 gameIcon）",
-				remindSlidesOf(due, now.getTime()).some((s) => s.gameId === "g4" && s.gameIcon === "https://cdn.example/g4.png"));
+			check("清单带的图标能一路进到轮播那一格（tickerSlidesOf 的 gameIcon）",
+				tickerSlidesOf(due, now.getTime()).some((s) => s.gameId === "g4" && s.gameIcon === "https://cdn.example/g4.png"));
 			check("即将开始的侧（g2 卡池）以 kind=start 进清单（双向判定的直接证据）",
 				due.some((x) => x.key === "g2:gacha" && x.kind === "start"));
 			check("25 小时后结束的侧（g2 活动）N=24 不在、N=48 才在",
-				!remindDueOf(games, now, 24, ALL).some((x) => x.key === "g2:event")
-				&& remindDueOf(games, now, 48, ALL).some((x) => x.key === "g2:event"));
+				!tickerItemsOf(games, now, 24, ALL).some((x) => x.key === "g2:event")
+				&& tickerItemsOf(games, now, 48, ALL).some((x) => x.key === "g2:event"));
 			check("N=48 → 5 条（g2 活动在 25h 后的 end 也进来了）",
-				remindDueOf(games, now, 48, ALL).length === 5);
+				tickerItemsOf(games, now, 48, ALL).length === 5);
 		}
 
-		// 「强提醒」筛选接到清单层（普通列表语义）
-		check("remindGames=[\"g1\"] → 清单只剩 g1 的两条（g2/g4 被筛掉）",
-			remindDueOf(games, now, 24, ["g1"]).map((x) => x.key).join(",") === "g1:gacha,g1:event");
-		check("remindGames=[\"g4\"] → 只剩 g4 卡池",
-			remindDueOf(games, now, 24, ["g4"]).map((x) => x.key).join(",") === "g4:gacha");
-		check("remindGames 为空 → **0 条**（新语义：空列表 = 一个都不提醒）",
-			remindDueOf(games, now, 24, []).length === 0);
-		check("remindGames 写全 → 4 条都在（「全勾」的等价写法就是显式列出 id）",
-			remindDueOf(games, now, 24, ALL).length === 4);
+		// 「轮播」筛选接到清单层（普通列表语义）
+		check("tickerGames=[\"g1\"] → 清单只剩 g1 的两条（g2/g4 被筛掉）",
+			tickerItemsOf(games, now, 24, ["g1"]).map((x) => x.key).join(",") === "g1:gacha,g1:event");
+		check("tickerGames=[\"g4\"] → 只剩 g4 卡池",
+			tickerItemsOf(games, now, 24, ["g4"]).map((x) => x.key).join(",") === "g4:gacha");
+		check("tickerGames 为空 → **0 条**（新语义：空列表 = 一个都不轮播）",
+			tickerItemsOf(games, now, 24, []).length === 0);
+		check("tickerGames 写全 → 4 条都在（「全勾」的等价写法就是显式列出 id）",
+			tickerItemsOf(games, now, 24, ALL).length === 4);
 
 		// 关闭 = 空清单（按钮不滚动），且不再换算
 		check("N=0（关闭）→ 空清单（按钮不滚动）",
-			remindDueOf(games, now, 0, ALL).length === 0
-			&& remindDueOf(games, now, -1, ALL).length === 0);
+			tickerItemsOf(games, now, 0, ALL).length === 0
+			&& tickerItemsOf(games, now, -1, ALL).length === 0);
 		check("N=12 → 4 条都在 12 小时内（1h/1h/2h/2h）",
-			remindDueOf(games, now, 12, ALL).length === 4);
+			tickerItemsOf(games, now, 12, ALL).length === 4);
 		check("脏输入不抛：games 非数组 / now 缺失 → 空清单",
-			remindDueOf(null, now, 24, ALL).length === 0
-			&& remindDueOf(games, null, 24, ALL).length === 0);
+			tickerItemsOf(null, now, 24, ALL).length === 0
+			&& tickerItemsOf(games, null, 24, ALL).length === 0);
 	}
 
 	// ── ⑧ 样式静态守卫：不许撑开按钮 / 动画不许留持久层 / 70-styles.js 模板字符串完整性 ──
@@ -518,7 +518,7 @@ export default async function run() {
 		check("状态那一段用 white-space:pre（保留分隔符前的空格，且永不换行）",
 			/white-space:\s*pre/.test(stRule), stRule);
 		check("渲染层给状态段带的是**带前导空格**的分隔符 ` · `（不是 `· `）",
-			comp.includes('" \\u00B7 " + slide.statusText'), "见 80-components.js 的 remindLine");
+			comp.includes('" \\u00B7 " + slide.statusText'), "见 80-components.js 的 tickerLine");
 		const nmRule = ruleOf("gacha-cal-btn-nm");
 		check("名字那一段可截断（min-width:0 + 省略号 ⇒ 只丢名字，不丢状态）",
 			/min-width:\s*0/.test(nmRule) && /text-overflow:\s*ellipsis/.test(nmRule), nmRule);
@@ -582,37 +582,37 @@ export default async function run() {
 		// .gacha-cal-btn-flip.is-down（两个类）会把 animation-name 抢回来 ⇒ reduce 时仍会翻页。
 		check("reduce 媒体查询覆盖了两个方向类（否则 .is-down 会盖掉 animation:none）",
 			/@media \(prefers-reduced-motion:reduce\)\{[^}]*\.gacha-cal-btn-flip\.is-down\{animation:none\}/.test(styles));
-		// 不可滚动的两种情形都在渲染层短路：没有提醒项 ⇒ 整段轮播都不渲染（只留状态 0）；
+		// 不可滚动的两种情形都在渲染层短路：没有轮播项 ⇒ 整段轮播都不渲染（只留状态 0）；
 		// reduce ⇒ 轮播节拍暂停且静态钉在第 1 格。这两条都是"改错了不报错、真机才发现"的病。
-		check("无可提醒时不渲染轮播（remindSlides.length 为 0 ⇒ 按钮回到「图标 + 二文字」原样）",
-			/remindSlides\.length\s*\?/.test(comp) && /\(wide === false \|\| remindSlides\.length === 0\) \? calIcon : null/.test(comp));
+		check("无可轮播时不渲染轮播（tickerSlides.length 为 0 ⇒ 按钮回到「图标 + 二文字」原样）",
+			/tickerSlides\.length\s*\?/.test(comp) && /\(wide === false \|\| tickerSlides\.length === 0\) \? calIcon : null/.test(comp));
 		check("轮播节拍：slides 为空 / reduce / 悬停 三种情况都暂停（useCycleSteps 的 paused）",
-			/useCycleSteps\(remindSteps\.length, REMIND_SLIDE_SECS,\s*\n?\s*remindSlides\.length === 0 \|\| reduceMotion \|\| btnHover\)/.test(comp));
-		check("轮播节拍数的是**展开后的格数**（remindSteps.length = 2n），不再是 slides+1",
-			remindStepsOf([1, 2]).length === 4);
-		check("渲染层用纯函数展开序列（remindStepsOf(remindSlides)），不自己拼交叉",
-			/const remindSteps = remindStepsOf\(remindSlides\);/.test(comp));
-		check("reduce 时静态钉在第一条提醒（still 能看出有事）",
-			/reduceMotion && remindSlides\.length > 0 \? 1 : slideStep/.test(comp));
+			/useCycleSteps\(tickerSteps\.length, TICKER_SLIDE_SECS,\s*\n?\s*tickerSlides\.length === 0 \|\| reduceMotion \|\| btnHover\)/.test(comp));
+		check("轮播节拍数的是**展开后的格数**（tickerSteps.length = 2n），不再是 slides+1",
+			tickerStepsOf([1, 2]).length === 4);
+		check("渲染层用纯函数展开序列（tickerStepsOf(tickerSlides)），不自己拼交叉",
+			/const tickerSteps = tickerStepsOf\(tickerSlides\);/.test(comp));
+		check("reduce 时静态钉在第一条轮播条目（still 能看出有事）",
+			/reduceMotion && tickerSlides\.length > 0 \? 1 : slideStep/.test(comp));
 		// 方向类必须真的接到 DOM 上，而且**方向来源必须是"单调切换序"**（2026-10-25 四次定稿）。
 		// 之前的实现是 `stepAt(shownStep).dir`：shownStep 是 useCycle 取模后的格号，回卷到格 0 时
-		// 取到的是 remindDirAt(0) 的挂载兜底 down ⇒ 四步循环每轮回卷丢一次相位，n=2 时第 4 次
+		// 取到的是 tickerDirAt(0) 的挂载兜底 down ⇒ 四步循环每轮回卷丢一次相位，n=2 时第 4 次
 		// 切换本该 up、实渲染 down（真机表现为"连着三次都往下"）。下面两条把新写法**和**旧写法
 		// 一起钉住：新写法必须在、旧写法必须不在。
-		check("渲染层按 **remindDirAt(单调切换序)** 切 class（类名 = 视觉方向）",
+		check("渲染层按 **tickerDirAt(单调切换序)** 切 class（类名 = 视觉方向）",
 			/className: "gacha-cal-btn-flip " \+ \(flipDir === "up" \? "is-up" : "is-down"\)/.test(comp));
 		check("渲染层的方向**不再**从 shownStep 反推（回卷到格 0 会丢相位 ⇒ 四步循环失效）",
 			!/className: "gacha-cal-btn-flip " \+ \(stepAt\(shownStep\)/.test(comp)
-			&& /const flipDir = remindDirAt\(/.test(comp));
+			&& /const flipDir = tickerDirAt\(/.test(comp));
 		// 行顺序（2026-10-25 五次定稿，**新增**）：渲染层必须**按方向交换两行**，不许再写死 [cur, prev]。
 		// 这是"向上翻开场空白"的根因 —— 只改 keyframes 不改顺序，up 的起点仍会两层都跑到窗口下方。
-		// 六次定稿：行数组改由纯函数 remindFlipRenderLinesOf 给（落定时只给 cur 一行），
-		// 方向交换的规则仍原样委托给 remindFlipLinesOf（本函数的非落定分支）。
-		check("渲染层行数组来自纯函数 remindFlipRenderLinesOf(方向, 格号, 上一格, 是否落定) → 逐行 renderLine",
-			/const flipLines = remindFlipRenderLinesOf\(reduceMotion \? "down" : flipDir, shownStep, prevStep, flipSettled\);/.test(comp)
+		// 六次定稿：行数组改由纯函数 tickerFlipRenderLinesOf 给（落定时只给 cur 一行），
+		// 方向交换的规则仍原样委托给 tickerFlipLinesOf（本函数的非落定分支）。
+		check("渲染层行数组来自纯函数 tickerFlipRenderLinesOf(方向, 格号, 上一格, 是否落定) → 逐行 renderLine",
+			/const flipLines = tickerFlipRenderLinesOf\(reduceMotion \? "down" : flipDir, shownStep, prevStep, flipSettled\);/.test(comp)
 			&& /children: flipLines\.map\(\(l\) => renderLine\(l\.step, l\.slot\)\)/.test(comp));
 		check("渲染层**不再**写死 [cur, prev]（旧写法：向上翻时两层都被推到窗口下方 ⇒ 开场空白）",
-			!/children: \[remindLine\(shownStep, "cur"\), remindLine\(prevStep, "prev"\)\]/.test(comp));
+			!/children: \[tickerLine\(shownStep, "cur"\), tickerLine\(prevStep, "prev"\)\]/.test(comp));
 		check("reduce（animation:none）时强制 down 顺序 —— 否则 up 顺序的第 1 行 prev 会常驻窗口",
 			/reduceMotion \? "down" : flipDir/.test(comp));
 		check("useCycleSteps 的 seq **单调递增不取模**（方向的分母），step 才是取模后的格号",
@@ -621,9 +621,9 @@ export default async function run() {
 		check("useCycle 退化成 useCycleSteps(...).step 的薄包装（留白卡 / 近期分页行为不变）",
 			/function useCycle\(count, seconds, paused\) \{\s*\n\s*return useCycleSteps\(count, seconds, paused\)\.step;\s*\n\s*\}/.test(comp));
 		check("取格子的 stepAt 有越界兜底（prevStep 可能已不在新序列里，不能抛）",
-			/const stepAt = \(step\) => remindSteps\[step\] \|\| \{ idx: 0, idle: true, slideIndex: -1, dir: "down" \};/.test(comp));
-		check("remindLine 按 slideIndex 取提醒（不再是 idx-1 的下标算术）",
-			/const at = stepAt\(idx\);/.test(comp) && /const slide = at\.slideIndex >= 0 \? remindSlides\[at\.slideIndex\] : null;/.test(comp));
+			/const stepAt = \(step\) => tickerSteps\[step\] \|\| \{ idx: 0, idle: true, slideIndex: -1, dir: "down" \};/.test(comp));
+		check("tickerLine 按 slideIndex 取轮播条目（不再是 idx-1 的下标算术）",
+			/const at = stepAt\(idx\);/.test(comp) && /const slide = at\.slideIndex >= 0 \? tickerSlides\[at\.slideIndex\] : null;/.test(comp));
 		// 祖先层**不许**出现 transform/filter/contain/will-change（浮层 .gacha-cal-sched-rest 依赖包含块）
 		const btnRules = [...styles.matchAll(/\.gacha-cal-btn[a-z-]*\{([^}]*)\}/g)].map((m) => m[1]);
 		check("能取到 .gacha-cal-btn* 的各条规则（守卫自身没瞎）", btnRules.length >= 5, String(btnRules.length));
@@ -645,102 +645,103 @@ export default async function run() {
 			(comp.match(/"gacha-cal-dot"/g) || []).length === 1
 			&& /wide === false[\s\S]{0,400}?gacha-cal-dot/.test(comp));
 
-		// ── 「强提醒」设置页的两个静态事实（2026-10-25 二次定稿）──────────────
-		check("未展示的行：强提醒复选框 disabled（置灰且不参与）",
+		// ── 「轮播」设置页的两个静态事实（2026-10-25 二次定稿）──────────────
+		check("未展示的行：轮播复选框 disabled（置灰且不参与）",
 			/disabled:\s*!shownNow\(g\)/.test(comp));
 		check("取消最后一个勾**不再**被拒绝（旧实现的那句提示已删掉）",
 			comp.indexOf("至少留一条") < 0 && comp.indexOf("要全部关掉请把") < 0);
-		check("「全部提醒」写的是**展示中的 id 列表**，不再是空数组（空 = 一个都不提醒了）",
+		check("「全部轮播」写的是**展示中的 id 列表**，不再是空数组（空 = 一个都不轮播了）",
 			/allEntries\.filter\(\(g\) => shownNow\(g\)\)\.map\(\(g\) => g\.id\)/.test(comp));
 	}
 
-	// ── ⑨ 设置页新控件：开关 remindOn（默认开）+ 范围 remindHours（默认 72）──────────
-	// 2026-10-25 三次定稿（用户要求）：原来只有一个 remindHours（关闭/12/24/48，0 = 关闭），
+	// ── ⑨ 设置页新控件：开关 tickerOn（默认开）+ 范围 tickerHours（默认 72）──────────
+	// 2026-10-25 三次定稿（用户要求）：原来只有一个 tickerHours（关闭/12/24/48，0 = 关闭），
 	// 现在拆成**两个控件** —— 开关（开不开）+ 范围（提前多久）。默认：开 / 72 小时。
 	{
-		check("默认 remindOn = true（开箱即用就是开的）", DEFAULT_SETTINGS.remindOn === true,
-			String(DEFAULT_SETTINGS.remindOn));
-		check("默认 remindHours = 72（范围默认改成 72 小时，不再是 24）", DEFAULT_SETTINGS.remindHours === 72,
-			String(DEFAULT_SETTINGS.remindHours));
+		check("默认 tickerOn = true（开箱即用就是开的）", DEFAULT_SETTINGS.tickerOn === true,
+			String(DEFAULT_SETTINGS.tickerOn));
+		check("默认 tickerHours = 72（范围默认改成 72 小时，不再是 24）", DEFAULT_SETTINGS.tickerHours === 72,
+			String(DEFAULT_SETTINGS.tickerHours));
 		// 总开关的读取口径：只有**明确的 false** 才算关（老配置里没有这个键 ⇒ 必须是开）。
-		check("remindOnOf：只有明确的 false 才算关（undefined / null / 0 / \"\" 都算开）",
-			remindOnOf(void 0) === true && remindOnOf(null) === true && remindOnOf(true) === true
-			&& remindOnOf(false) === false && remindOnOf(0) === true && remindOnOf("") === true);
+		check("tickerOnOf：只有明确的 false 才算关（undefined / null / 0 / \"\" 都算开）",
+			tickerOnOf(void 0) === true && tickerOnOf(null) === true && tickerOnOf(true) === true
+			&& tickerOnOf(false) === false && tickerOnOf(0) === true && tickerOnOf("") === true);
 		// 范围的读取口径：老配置里残留的 0（当年「关闭」）不能被当成"关" —— 关闭现在归开关。
 		// 若这里回落到 0，设置页会显示「范围 72 小时」而按钮一声不响（最难查的两套口径）。
-		check("remindRangeOf：只接受正数小时；缺失 / 0 / 负数 / 非数字一律回落默认 72",
-			remindRangeOf(void 0) === 72 && remindRangeOf(null) === 72 && remindRangeOf(0) === 72
-			&& remindRangeOf(-1) === 72 && remindRangeOf("") === 72 && remindRangeOf("abc") === 72
-			&& remindRangeOf(NaN) === 72 && remindRangeOf(12) === 12 && remindRangeOf(48) === 48
-			&& remindRangeOf("24") === 24);
-		check("remindRangeOf 的兜底就是 DEFAULT_SETTINGS.remindHours（不是写死另一个数）",
-			remindRangeOf(0) === DEFAULT_SETTINGS.remindHours);
+		check("tickerRangeOf：只接受正数小时；缺失 / 0 / 负数 / 非数字一律回落默认 72",
+			tickerRangeOf(void 0) === 72 && tickerRangeOf(null) === 72 && tickerRangeOf(0) === 72
+			&& tickerRangeOf(-1) === 72 && tickerRangeOf("") === 72 && tickerRangeOf("abc") === 72
+			&& tickerRangeOf(NaN) === 72 && tickerRangeOf(12) === 12 && tickerRangeOf(48) === 48
+			&& tickerRangeOf("24") === 24);
+		check("tickerRangeOf 的兜底就是 DEFAULT_SETTINGS.tickerHours（不是写死另一个数）",
+			tickerRangeOf(0) === DEFAULT_SETTINGS.tickerHours);
 
-		// 关掉开关 ⇒ 提醒清单为空 ⇒ 展开序列只有 idle（不轮播）、窄侧栏也不出红点。
-		// 这里把渲染层那条门（remindOn ? due : []）在数据层复刻一遍；
-		// 渲染层用的是同一个 remindOnOf（静态守卫见下）。
+		// 关掉开关 ⇒ 轮播清单为空 ⇒ 展开序列只有 idle（不轮播）、窄侧栏也不出红点。
+		// 这里把渲染层那条门（tickerOn ? due : []）在数据层复刻一遍；
+		// 渲染层用的是同一个 tickerOnOf（静态守卫见下）。
 		const onGames = [{ id: "s1", name: "开关测试", banner: "池", startTs: NOW - H, endTs: NOW + 2 * H }];
-		const dueWhen = (on) => (remindOnOf(on)
-			? remindDueOf(onGames, now, DEFAULT_SETTINGS.remindHours, ["s1"])
+		const dueWhen = (on) => (tickerOnOf(on)
+			? tickerItemsOf(onGames, now, DEFAULT_SETTINGS.tickerHours, ["s1"])
 			: []);
-		check("remindOn=false ⇒ 提醒清单为空（⇒ 不轮播、也不出红点）", dueWhen(false).length === 0);
-		check("remindOn=true ⇒ 清单照旧（同一组数据、默认 72 小时范围下有内容）",
+		check("tickerOn=false ⇒ 轮播清单为空（⇒ 不轮播、也不出红点）", dueWhen(false).length === 0);
+		check("tickerOn=true ⇒ 清单照旧（同一组数据、默认 72 小时范围下有内容）",
 			dueWhen(true).length === 1, String(dueWhen(true).length));
-		check("remindOn=false ⇒ 展开序列只有 1 格 idle（不滚动）",
-			remindStepsOf(remindSlidesOf(dueWhen(false), NOW)).length === 1);
-		check("remindOn=true ⇒ 展开序列是 2 格（idle + 那一条）",
-			remindStepsOf(remindSlidesOf(dueWhen(true), NOW)).length === 2);
+		check("tickerOn=false ⇒ 展开序列只有 1 格 idle（不滚动）",
+			tickerStepsOf(tickerSlidesOf(dueWhen(false), NOW)).length === 1);
+		check("tickerOn=true ⇒ 展开序列是 2 格（idle + 那一条）",
+			tickerStepsOf(tickerSlidesOf(dueWhen(true), NOW)).length === 2);
 
 		// 渲染层真的接了开关（关掉时 memo 直接给空数组，不做任何换算）
 		const compAll = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
-		check("渲染层：开关关掉时直接把清单算成空（remindOn ? remindDueOf(...) : []）",
-			/\(remindOn\s*\n\s*\? remindDueOf\(games, now, remindHours, Array\.isArray\(s\.remindGames\) \? s\.remindGames : \[\]\)\s*\n\s*: \[\]\)/.test(compAll),
-			"见 80-components.js 的 remindDue memo");
-		check("渲染层读开关也走 remindOnOf（两处口径只有一处实现）",
-			(compAll.match(/remindOnOf\(s\.remindOn\)/g) || []).length === 2,
-			String((compAll.match(/remindOnOf\(s\.remindOn\)/g) || []).length));
-		check("按钮与设置页读范围都走 remindRangeOf（老配置残留的 0 不会被当成「关闭」）",
-			(compAll.match(/remindRangeOf\(s\.remindHours\)/g) || []).length === 2,
-			String((compAll.match(/remindRangeOf\(s\.remindHours\)/g) || []).length));
+		check("渲染层：开关关掉时直接把清单算成空（tickerOn ? tickerItemsOf(...) : []）",
+			/\(tickerOn\s*\n\s*\? tickerItemsOf\(games, now, tickerHours, Array\.isArray\(s\.tickerGames\) \? s\.tickerGames : \[\]\)\s*\n\s*: \[\]\)/.test(compAll),
+			"见 80-components.js 的 tickerItems memo");
+		check("渲染层读开关也走 tickerOnOf（两处口径只有一处实现）",
+			(compAll.match(/tickerOnOf\(s\.tickerOn\)/g) || []).length === 2,
+			String((compAll.match(/tickerOnOf\(s\.tickerOn\)/g) || []).length));
+		check("按钮与设置页读范围都走 tickerRangeOf（老配置残留的 0 不会被当成「关闭」）",
+			(compAll.match(/tickerRangeOf\(s\.tickerHours\)/g) || []).length === 2,
+			String((compAll.match(/tickerRangeOf\(s\.tickerHours\)/g) || []).length));
 
-		// 设置页：两个控件各自 commit 各自的键；文案是「提醒」+「范围」（不再是一个「到期提醒」下拉）
-		check("设置页两个控件分别写 remindOn / remindHours",
-			compAll.includes('commit("remindOn"') && compAll.includes('commit("remindHours"'));
-		check("设置页文案：「提醒」开关 + 「范围」下拉（「到期提醒」这个单行下拉已拆掉）",
-			/children: "提醒"/.test(compAll) && /children: "范围"/.test(compAll)
-			&& !/children: "到期提醒"/.test(compAll));
+		// 设置页：两个控件各自 commit 各自的键；文案是「轮播」+「轮播范围」（不再是一个单行下拉）
+		check("设置页两个控件分别写 tickerOn / tickerHours",
+			compAll.includes('commit("tickerOn"') && compAll.includes('commit("tickerHours"'));
+		check("设置页文案：「轮播」开关 + 「轮播范围」下拉（旧的那个单行下拉已拆掉）",
+			/children: "轮播"/.test(compAll) && /children: "轮播范围"/.test(compAll)
+			// 这个功能是**展示**：渲染层的文案里不许再出现「提醒」二字
+			&& compAll.indexOf("\u63D0\u9192") < 0);
 
 		// 键必须成套：DEFAULT_SETTINGS / schema / CONFIG_KEYS 三处都要有（漏了 = 设了不生效）
 		{
 			const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
-			check("src/index.js schema：remindOn = z.boolean().default(true).volatile()",
-				/remindOn:\s*z\.boolean\(\)\.default\(true\)\.volatile\(\)/.test(hostSrc));
-			check("src/index.js schema：remindHours 的 default 是 72（不再是 24）",
-				/remindHours:\s*z\.number\(\)\.default\(72\)\.volatile\(\)/.test(hostSrc));
+			check("src/index.js schema：tickerOn = z.boolean().default(true).volatile()",
+				/tickerOn:\s*z\.boolean\(\)\.default\(true\)\.volatile\(\)/.test(hostSrc));
+			check("src/index.js schema：tickerHours 的 default 是 72（不再是 24）",
+				/tickerHours:\s*z\.number\(\)\.default\(72\)\.volatile\(\)/.test(hostSrc));
 			const cfgSrc = readFileSync(path.join(REPO, "src", "client", "10-config.js"), "utf8");
-			const opts = /const REMIND_OPTIONS = \[([\s\S]*?)\];/.exec(cfgSrc);
-			check("能解析出 REMIND_OPTIONS（守卫自身没瞎）", !!opts);
+			const opts = /const TICKER_OPTIONS = \[([\s\S]*?)\];/.exec(cfgSrc);
+			check("能解析出 TICKER_OPTIONS（守卫自身没瞎）", !!opts);
 			const hours = opts ? [...opts[1].matchAll(/hours:\s*(\d+)/g)].map((m) => Number(m[1])) : [];
 			check("范围选项 = 12 / 24 / 48 / 72（**没有 0**：关闭已由开关负责）",
 				hours.join(",") === "12,24,48,72", hours.join(","));
 			const ehSrc = readFileSync(path.join(REPO, "src", "client", "engine-head.js"), "utf8");
-			check("engine-head.js 的 CONFIG_KEYS 里含 remindOn（漏了会让设置页写了引擎读不到）",
-				/"remindOn"/.test(ehSrc));
+			check("engine-head.js 的 CONFIG_KEYS 里含 tickerOn（漏了会让设置页写了引擎读不到）",
+				/"tickerOn"/.test(ehSrc));
 		}
 	}
 
 	// ── ⑩ 轮播顺序「交叉」+ 翻页方向「四步循环」（2026-10-25 三次定稿 + 四次定稿修正）──
 	// 用户要求：
-	//   ① 每两条提醒之间插回一次原按钮 ⇒ 展开序列 [idle, 1, idle, 2, …]（长度 2n；n=0 只有 idle）；
+	//   ① 每两条轮播条目之间插回一次原按钮 ⇒ 展开序列 [idle, 1, idle, 2, …]（长度 2n；n=0 只有 idle）；
 	//   ② 方向按**切换次数**四步一循环 up,down,down,up（idx 0 = 挂载兜底 down），
 	//      与条目数无关 ⇒ n=2 与 n=4 走 8 拍必须给出同一串方向；
-	//   ③ 渲染层取方向用 remindDirAt(单调切换序)，**不能**用 `stepAt(shownStep).dir`（回卷丢相位）。
+	//   ③ 渲染层取方向用 tickerDirAt(单调切换序)，**不能**用 `stepAt(shownStep).dir`（回卷丢相位）。
 	{
-		const two = remindSlidesOf([
+		const two = tickerSlidesOf([
 			{ key: "a:gacha", gameId: "a", side: "gacha", name: "甲", title: "池甲", startTs: NOW - H, endTs: NOW + H, kind: "end" },
 			{ key: "b:event", gameId: "b", side: "event", name: "乙", title: "活动乙", startTs: NOW + H, endTs: NOW + 2 * H, kind: "start" }
 		], NOW);
-		const steps2 = remindStepsOf(two);
+		const steps2 = tickerStepsOf(two);
 		check("交叉·n=2：展开成 4 格（= 2n），不是 3 格（idle / 条目1 / idle / 条目2）",
 			steps2.length === 4, String(steps2.length));
 		check("交叉·n=2：顺序是 [idle, 条目1, idle, 条目2]（slideIndex = -1,0,-1,1）",
@@ -756,7 +757,7 @@ export default async function run() {
 		check("方向 4 步循环·n=2：第 1 格 up、第 2 格 down、第 3 格 down（不是「交替」）",
 			steps2[1].dir === "up" && steps2[2].dir === "down" && steps2[3].dir === "down",
 			steps2.map((s) => s.dir).join(","));
-		check("方向 4 步循环·n=2：**每一格**都满足 remindDirAt(格号)（四步循环，不再按 idle/条目分）",
+		check("方向 4 步循环·n=2：**每一格**都满足 tickerDirAt(格号)（四步循环，不再按 idle/条目分）",
 			steps2.every((s) => (s.idx === 0 ? s.dir === "down" : s.dir === ["up", "down", "down", "up"][(s.idx - 1) % 4])),
 			steps2.map((s) => (s.idle ? "idle:" : "item:") + s.dir).join(" "));
 		check("方向 4 步循环·n=2：4 格方向 = down,up,down,down",
@@ -766,21 +767,21 @@ export default async function run() {
 			steps2[0].dir === "down");
 
 		// n = 0：只有 idle、不滚动（长度 1）
-		const steps0 = remindStepsOf([]);
+		const steps0 = tickerStepsOf([]);
 		check("交叉·n=0：只有 1 格（idle），不滚动",
 			steps0.length === 1 && steps0[0].idle === true && steps0[0].slideIndex === -1,
 			JSON.stringify(steps0));
 		check("交叉·n=0：方向 down、脏输入（null / undefined / 非数组）也不抛",
 			steps0[0].dir === "down"
-			&& remindStepsOf(null).length === 1
-			&& remindStepsOf(void 0).length === 1
-			&& remindStepsOf("nope").length === 1);
+			&& tickerStepsOf(null).length === 1
+			&& tickerStepsOf(void 0).length === 1
+			&& tickerStepsOf("nope").length === 1);
 
 		// n = 1 / n = 3：长度 = 2n，条目下标 1 / 3 / 5
 		check("交叉·n=1：展开成 2 格（idle / 条目1）",
-			remindStepsOf([{}]).length === 2
-			&& remindStepsOf([{}]).map((s) => s.slideIndex).join(",") === "-1,0");
-		const steps3 = remindStepsOf([{}, {}, {}]);
+			tickerStepsOf([{}]).length === 2
+			&& tickerStepsOf([{}]).map((s) => s.slideIndex).join(",") === "-1,0");
+		const steps3 = tickerStepsOf([{}, {}, {}]);
 		check("交叉·n=3：展开成 6 格，条目下标 1 / 3 / 5、其余是 idle",
 			steps3.length === 6
 			&& steps3.map((s) => s.slideIndex).join(",") === "-1,0,-1,1,-1,2",
@@ -790,9 +791,9 @@ export default async function run() {
 			steps3.map((s) => s.dir).join(","));
 
 		// ── 8 拍推演（2026-10-25 四次定稿，用户要求"必须自证"）──────────────────
-		// 把 remindStepsOf 的输出按**渲染层的推进方式**走 8 拍：
+		// 把 tickerStepsOf 的输出按**渲染层的推进方式**走 8 拍：
 		//   step = seq % 展开长度（useCycleSteps 的 step：决定这一拍显示哪一格）
-		//   dir  = remindDirAt(seq)（同一拍的方向：按**切换次数**，不看回卷后的格号）
+		//   dir  = tickerDirAt(seq)（同一拍的方向：按**切换次数**，不看回卷后的格号）
 		// 期望：down,up,down,down,up,up,down,down（第 0 拍 down = 挂载兜底，没有"进入"动作）。
 		// n=2（真机最常见的 4 格回卷）与 n=4（8 格）必须给出**同一串方向** —— 这正是
 		// "方向与条目数无关"的含义，也是旧写法（按格号取方向）在 n=2 第 4 拍崩掉的地方。
@@ -800,7 +801,7 @@ export default async function run() {
 			const out = [];
 			for (let seq = 0; seq < beats; seq++) {
 				const step = steps.length > 0 ? seq % steps.length : 0;
-				const dir = remindDirAt(seq);
+				const dir = tickerDirAt(seq);
 				out.push({ seq, step, dir, cls: dir === "up" ? "is-up" : "is-down", slot: steps[step] });
 			}
 			return out;
@@ -809,25 +810,25 @@ export default async function run() {
 		const show = (w) => w.map((r) => `${r.seq}:(${r.step},${r.dir},${r.cls})`).join(" ");
 
 		// 方向规则本体：0 / 负数 / 非数字 = 挂载兜底 down；1..8 = up,down,down,up,up,down,down,up
-		check("remindDirAt：idx 0 / 负数 / 非数字 = down（挂载兜底）；1..8 = up,down,down,up,up,down,down,up",
-			remindDirAt(0) === "down" && remindDirAt(-3) === "down" && remindDirAt(NaN) === "down"
-			&& [1, 2, 3, 4, 5, 6, 7, 8].map((i) => remindDirAt(i)).join(",") === "up,down,down,up,up,down,down,up",
-			[1, 2, 3, 4, 5, 6, 7, 8].map((i) => remindDirAt(i)).join(","));
+		check("tickerDirAt：idx 0 / 负数 / 非数字 = down（挂载兜底）；1..8 = up,down,down,up,up,down,down,up",
+			tickerDirAt(0) === "down" && tickerDirAt(-3) === "down" && tickerDirAt(NaN) === "down"
+			&& [1, 2, 3, 4, 5, 6, 7, 8].map((i) => tickerDirAt(i)).join(",") === "up,down,down,up,up,down,down,up",
+			[1, 2, 3, 4, 5, 6, 7, 8].map((i) => tickerDirAt(i)).join(","));
 
 		const w2 = walkCycle(steps2, 8);
 		console.log("  推演 n=2（4 格回卷）seq:(step,dir,class) = " + show(w2));
 		check("推演·n=2 走 8 拍 = down,up,down,down,up,up,down,down（回卷不丢相位）",
 			dirsOf(w2) === "down,up,down,down,up,up,down,down", dirsOf(w2));
-		check("推演·n=2：第 4 拍（回卷后第 1 次切换）必须是 up —— 旧写法这里是 down（remindDirAt(0) 兜底）",
+		check("推演·n=2：第 4 拍（回卷后第 1 次切换）必须是 up —— 旧写法这里是 down（tickerDirAt(0) 兜底）",
 			w2[4].dir === "up" && w2[4].cls === "is-up" && w2[4].step === 0, show(w2));
 
-		const four = remindSlidesOf([
+		const four = tickerSlidesOf([
 			{ key: "a:gacha", gameId: "a", side: "gacha", name: "甲", title: "池甲", startTs: NOW - H, endTs: NOW + H, kind: "end" },
 			{ key: "b:event", gameId: "b", side: "event", name: "乙", title: "活动乙", startTs: NOW + H, endTs: NOW + 2 * H, kind: "start" },
 			{ key: "c:gacha", gameId: "c", side: "gacha", name: "丙", title: "池丙", startTs: NOW - H, endTs: NOW + 3 * H, kind: "end" },
 			{ key: "d:event", gameId: "d", side: "event", name: "丁", title: "活动丁", startTs: NOW + 2 * H, endTs: NOW + 4 * H, kind: "start" }
 		], NOW);
-		const steps4 = remindStepsOf(four);
+		const steps4 = tickerStepsOf(four);
 		check("交叉·n=4：展开成 8 格（= 2n）", steps4.length === 8, String(steps4.length));
 		const w4 = walkCycle(steps4, 8);
 		console.log("  推演 n=4（8 格，step 与 seq 一一对应）seq:(step,dir,class) = " + show(w4));
@@ -845,23 +846,23 @@ export default async function run() {
 	//            终点 ty=0 ⇒ cur 占满窗口。
 	// 两种方向的共同点 = **起点窗口里都有 prev（旧内容）** ⇒ 不存在空白帧，两个方向才像"同一种翻牌"。
 	{
-		const up = remindFlipLinesOf("up", 5, 3);
-		const down = remindFlipLinesOf("down", 5, 3);
-		check("remindFlipLinesOf(\"up\") 的 DOM 顺序 = [prev, cur]（第 1 行是旧内容，起点不空白）",
+		const up = tickerFlipLinesOf("up", 5, 3);
+		const down = tickerFlipLinesOf("down", 5, 3);
+		check("tickerFlipLinesOf(\"up\") 的 DOM 顺序 = [prev, cur]（第 1 行是旧内容，起点不空白）",
 			up.map((l) => l.slot).join(",") === "prev,cur" && up.map((l) => l.step).join(",") === "3,5",
 			JSON.stringify(up));
-		check("remindFlipLinesOf(\"down\") 的 DOM 顺序 = [cur, prev]（第 1 行是新内容；起点 -50% 时旧内容占窗口）",
+		check("tickerFlipLinesOf(\"down\") 的 DOM 顺序 = [cur, prev]（第 1 行是新内容；起点 -50% 时旧内容占窗口）",
 			down.map((l) => l.slot).join(",") === "cur,prev" && down.map((l) => l.step).join(",") === "5,3",
 			JSON.stringify(down));
 		check("两个方向都各保留 cur 与 prev 一行（只换顺序、内容不丢）",
 			[up, down].every((ls) => ls.length === 2
 				&& ls.map((l) => l.slot).sort().join(",") === "cur,prev"
 				&& ls.map((l) => l.step).sort().join(",") === "3,5"));
-		check("脏方向（空串 / null / undefined / 大小写不符 / 别的词）一律按 down —— 与 remindDirAt 的挂载兜底一致",
-			["", null, void 0, "UP", "up ", "down", "x"].every((d) => remindFlipLinesOf(d, 5, 3)[0].slot === "cur"));
+		check("脏方向（空串 / null / undefined / 大小写不符 / 别的词）一律按 down —— 与 tickerDirAt 的挂载兜底一致",
+			["", null, void 0, "UP", "up ", "down", "x"].every((d) => tickerFlipLinesOf(d, 5, 3)[0].slot === "cur"));
 		check("挂载首帧（prevStep === shownStep）两个方向都只渲染同一份内容（不会抖出旧格）",
-			remindFlipLinesOf("up", 2, 2).every((l) => l.step === 2)
-			&& remindFlipLinesOf("down", 2, 2).every((l) => l.step === 2));
+			tickerFlipLinesOf("up", 2, 2).every((l) => l.step === 2)
+			&& tickerFlipLinesOf("down", 2, 2).every((l) => l.step === 2));
 	}
 
 	// ── ⑪ 翻页落定（2026-10-25 六次定稿）：动画播完 ⇒ 静态单行 + transform:none ────────
@@ -877,7 +878,7 @@ export default async function run() {
 			{ settled: true, dir: "up", want: "cur" },
 			{ settled: true, dir: "down", want: "cur" }
 		];
-		const got = combo.map((c) => remindFlipRenderLinesOf(c.dir, 5, 3, c.settled));
+		const got = combo.map((c) => tickerFlipRenderLinesOf(c.dir, 5, 3, c.settled));
 		const slotsOf = (ls) => ls.map((l) => l.slot).join(",");
 		check("落定 × 方向 4 种组合：未落定按方向换序（up=[prev,cur] / down=[cur,prev]），落定后一律只有 [cur]",
 			got.map(slotsOf).join(" | ") === "prev,cur | cur,prev | cur | cur",
@@ -889,8 +890,8 @@ export default async function run() {
 		check("落定与方向无关（同一 cur/prev 下 up / down 的落定结果逐项相同）",
 			JSON.stringify(got[2]) === JSON.stringify(got[3]), JSON.stringify([got[2], got[3]]));
 		check("脏 settled（undefined / null / 0 / 空串 / false）按未落定处理，只有真值才收敛成单行",
-			[void 0, null, 0, "", false].every((v) => remindFlipRenderLinesOf("up", 5, 3, v).length === 2)
-			&& remindFlipRenderLinesOf("down", 5, 3, "yes").length === 1);
+			[void 0, null, 0, "", false].every((v) => tickerFlipRenderLinesOf("up", 5, 3, v).length === 2)
+			&& tickerFlipRenderLinesOf("down", 5, 3, "yes").length === 1);
 
 		// 静态守卫：CSS / 组件 / 纯函数三处必须成套（少一处就是"写了但没接上"）。
 		const styles2 = readFileSync(path.join(REPO, "src", "client", "70-styles.js"), "utf8");
@@ -916,22 +917,22 @@ export default async function run() {
 		check("落定是**本地 state**（flipSettled，初值 false）—— 组件一重挂载就回到未落定",
 			/const \[flipSettled, setFlipSettled\] = \(0, react\.useState\)\(false\);/.test(comp2));
 		check("落定后渲染的行数组来自纯函数（settled 为真 ⇒ 只有 cur 一行）",
-			/const flipLines = remindFlipRenderLinesOf\(reduceMotion \? "down" : flipDir, shownStep, prevStep, flipSettled\);/.test(comp2)
+			/const flipLines = tickerFlipRenderLinesOf\(reduceMotion \? "down" : flipDir, shownStep, prevStep, flipSettled\);/.test(comp2)
 			&& /children: flipLines\.map\(\(l\) => renderLine\(l\.step, l\.slot\)\)/.test(comp2));
 		check("落定类 .is-settled 只在 flipSettled 为真时拼上（未落定不带这个类）",
 			/className: "gacha-cal-btn-flip " \+ \(flipDir === "up" \? "is-up" : "is-down"\) \+ \(flipSettled \? " is-settled" : ""\)/.test(comp2));
 		check("每次换格重置：落定 state 所在子组件由父层 key={shownStep} 重挂载（等价于 key 重置）",
-			/function RemindFlipLines\(\{ flipDir, shownStep, prevStep, reduceMotion, renderLine \}\)/.test(comp2)
-			&& /react_jsx_runtime\.jsx\)\(RemindFlipLines, \{/.test(comp2)
+			/function TickerFlipLines\(\{ flipDir, shownStep, prevStep, reduceMotion, renderLine \}\)/.test(comp2)
+			&& /react_jsx_runtime\.jsx\)\(TickerFlipLines, \{/.test(comp2)
 			&& /key: shownStep,/.test(comp2));
 		check("纯函数本体在 60-helpers.js：settled 为真时直接返回单行 [cur]（没有夹带 prev）",
 			/if \(settled\) return \[\{ step: curStep, slot: "cur" \}\];/.test(helpers2)
-			&& /function remindFlipRenderLinesOf\(dir, curStep, prevStep, settled\)/.test(helpers2));
+			&& /function tickerFlipRenderLinesOf\(dir, curStep, prevStep, settled\)/.test(helpers2));
 		// 负向：不许用"两行照留、只把动画关掉"冒充落定（视觉上被窗口裁掉，真机上会露馅），
 		// 也不许在落定分支里再塞 prev 行。
 		check("负向：不存在「落定时仍渲染两行」的写法（flipSettled 附近没有 prevStep / \"prev\"）",
 			!/flipSettled[\s\S]{0,120}?(?:prevStep|"prev")/.test(comp2)
-			&& !/children: \[remindLine\(shownStep, "cur"\), remindLine\(prevStep, "prev"\)\]/.test(comp2));
+			&& !/children: \[tickerLine\(shownStep, "cur"\), tickerLine\(prevStep, "prev"\)\]/.test(comp2));
 		check("负向：落定**不靠 useEffect 重置**（effect 在渲染之后才跑 ⇒ 换格那一帧会先渲染成旧的 settled）",
 			!/useEffect\([\s\S]{0,160}?flipSettled/.test(comp2));
 		// reduce 回归（现有断言已在上面保留）：animation:none ⇒ 收不到 animationend ⇒ 永不落定；

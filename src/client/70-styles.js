@@ -7,7 +7,7 @@
 			.gacha-cal-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}
 			.gacha-cal-btn:active{background:var(--dsw-alias-interactive-bg-hover)}
 			.gacha-cal-btn svg{flex:none;width:16px;height:16px}
-			/* 到期提醒的小红点（2026-10-25）。**绝对定位**是这里唯一的硬约束：
+			/* 快到期的小红点（2026-10-25，窄侧栏降级用）。**绝对定位**是这里唯一的硬约束：
 			   它必须不参与按钮的 flex 布局，否则会挤动图标/文字 → 重演"按钮错位"。
 			   所以按钮自己只需要 position:relative（不影响布局），红点再绝对定位到右侧内边距里。
 			   尺寸固定 7px、不随角标数量变大；颜色用一个中性偏暖的红，避免在深色侧栏里刺眼。
@@ -15,7 +15,7 @@
 			   有事只能点个点）；宽侧栏一律走下面的单行轮播，不再出现红点。 */
 			.gacha-cal-btn{position:relative}
 			.gacha-cal-dot{position:absolute;top:50%;right:8px;width:7px;height:7px;margin-top:-3.5px;border-radius:50%;background:#E5484D;pointer-events:none}
-			/* 到期提醒·单行轮播（2026-10-25 晚；同日二次定稿成 **C 方案**）：有提醒时，
+			/* 侧栏轮播·单行翻页（2026-10-25 晚；同日二次定稿成 **C 方案**）：有轮播条目时，
 			   「[图标] 二游日历」整行与「[游戏图标] 事项名 · 还剩 X」竖向交叉翻页（旧行往上走、新行从
 			   下面进来），像交易所翻牌。**图标跟着整行一起翻**（状态 0 = 日历图标，状态 i = 该游戏的图标），
 			   所以它落在 .gacha-cal-btn-line 内部，不属于按钮的固定布局。
@@ -37,7 +37,7 @@
 			.gacha-cal-btn-txt{display:block;flex:1 1 auto;min-width:0;height:22px;line-height:22px;overflow:hidden}
 			.gacha-cal-btn-flip{display:block;animation:gacha-cal-btn-flip-down .42s cubic-bezier(.2,.9,.25,1) 1ms backwards}
 			/* 翻页**方向**（2026-10-25 五次定稿，用户要求「类名 = 视觉方向」+ 起点不许空白）：
-			   两行的**顺序随方向换**（纯函数 remindFlipLinesOf，见 60-helpers.js），keyframes 跟着换：
+			   两行的**顺序随方向换**（纯函数 tickerFlipLinesOf，见 60-helpers.js），keyframes 跟着换：
 			   · .is-up   → 层序 [prev, cur] + keyframes 0 → -50% + forwards：
 			                起点 ty=0 ⇒ prev 占满窗口（旧内容在窗口里）；终点 -22px ⇒ cur 占满窗口
 			                ⇒ 旧行往上滑出、新行从**下方**进入（视觉向上）；
@@ -78,7 +78,7 @@
 			   pre = nowrap + 保留空格：分隔符两侧各有一个真空格，且永不换行（flex:none 不参与收缩）。 */
 			.gacha-cal-btn-st{flex:none;white-space:pre}
 			/* 窗口 22px、翻页层 44px（两行各 22px）：translateY(±50%) = ±22px 正好一行。
-			   两条 keyframes 与两种**层序**一一对应（见 remindFlipLinesOf），
+			   两条 keyframes 与两种**层序**一一对应（见 tickerFlipLinesOf），
 			   共同点 = **起点时 prev 占满窗口**（所以永远不会开场空白）：
 			   · gacha-cal-btn-flip      = 向上翻：[prev, cur] 从 0 走到 -50%（prev 滑出、cur 占满）；
 			   · gacha-cal-btn-flip-down = 向下翻：[cur, prev] 从 -50% 走到 0（prev 占满、cur 进入）。

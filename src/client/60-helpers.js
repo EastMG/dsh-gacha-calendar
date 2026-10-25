@@ -392,20 +392,20 @@
 			if (at + minutes * 60000 <= (Number(s.now) || 0)) return { due: true, force: false, reason: "\u5DF2\u5230\u5237\u65B0\u95F4\u9694" };
 			return { due: false, force: false, reason: "" };
 		}
-		// —— 「到期提醒」判定（纯函数，2026-10-25）——
-		// 口径（用户定，MVP 只做红点，不做系统通知/弹窗/声音）：
+		// —— 「快到期」判定（纯函数，2026-10-25）——
+		// 口径（用户定，MVP 只做展示：侧栏轮播 / 窄侧栏小红点；不做系统通知/弹窗/声音）：
 		//   某侧"即将到期" = 该侧**已开始**（startTs <= now）且 **endTs 落在 (now, now + N 小时]**。
 		//   · 未开始的窗口**不算**：它的 endTs 也在未来，但那属于"还没开始"，不是"快到期"；
 		//   · 已结束（含 now == endTs 那一刻）**不算**；
 		//   · N <= 0 恒为 false（老配置里残留的 0 / 非 UI 宿主显式传 0）—— 连算都不算，调用方也应该短路；
-		//     ⚠️ 2026-10-25 三次定稿后设置页**不再有「关闭」档位**（关闭归 remindOn 总开关），
+		//     ⚠️ 2026-10-25 三次定稿后设置页**不再有「关闭」档位**（关闭归 tickerOn 总开关），
 		//     这条只是兼容旧数据与无 UI 宿主，不再是主要的"关"路径。
 		//   · startTs / endTs 任一缺失或不是有限数字 → 不算（落盘数据里这两端本来就可能是空的：
 		//     缓存只存文本，绝对档期靠 80-components.js 的 localDatesOf 现算）。
 		// 放在 helpers（而不是渲染层）的理由：它是纯判定、零宿主依赖，core 产物里也能直接用
-		// （CORE_ORDER 含本文件），单测可以直接喂固定时刻（test/cases-remind.mjs）。
-		function isExpiringSoon(startTs, endTs, nowTs, remindHours) {
-			const hours = Number(remindHours);
+		// （CORE_ORDER 含本文件），单测可以直接喂固定时刻（test/cases-ticker.mjs）。
+		function isExpiringSoon(startTs, endTs, nowTs, tickerHours) {
+			const hours = Number(tickerHours);
 			if (!(hours > 0)) return false;
 			if (typeof startTs !== "number" || typeof endTs !== "number") return false;
 			if (!Number.isFinite(startTs) || !Number.isFinite(endTs)) return false;
@@ -416,23 +416,23 @@
 
 		// 从「{ startTs, endTs } 列表」里挑出即将到期的（顺序保持输入顺序）。
 		// 单独一个函数是为了让"范围无效时不算"只有一处实现：N <= 0 → 直接空数组（同上，仅兼容）。
-		function expiringSoonOf(items, nowTs, remindHours) {
-			const hours = Number(remindHours);
+		function expiringSoonOf(items, nowTs, tickerHours) {
+			const hours = Number(tickerHours);
 			if (!(hours > 0) || !Array.isArray(items)) return [];
 			return items.filter((it) => it && isExpiringSoon(it.startTs, it.endTs, nowTs, hours));
 		}
 
-		// —— 双向「到期提醒」判定（2026-10-25 晚升级：侧栏按钮从红点改成单行轮播）——
-		// 用户口径（原话）：即将**结束**和即将**开始**都算提醒。所以判定从"只看 endTs"扩成双向，
+		// —— 双向「快到期」判定（2026-10-25 晚升级：侧栏按钮从红点改成单行轮播）——
+		// 用户口径（原话）：即将**结束**和即将**开始**都算"快到期"。所以判定从"只看 endTs"扩成双向，
 		// 但**没有改** isExpiringSoon（它仍然只管结束，语义一字未动，老用例继续守着）：
 		//   · "end"   = 这一侧**已开始**（startTs <= now）且 endTs 落在 (now, now + N 小时]；
 		//   · "start" = 这一侧**还没开始**（startTs > now）且 startTs 落在 (now, now + N 小时]；
 		//   · 其余（还早 / 已结束 / 缺 ts / 结束早于开始的脏数据）一律 ""。
 		// 两者天然互斥（startTs <= now 的走 end 分支，> now 的走 start 分支），不需要再排优先级。
 		// N <= 0（老配置残留 / 无 UI 宿主）恒为 "" —— 连算都不算，调用方也应短路。
-		// 纯函数、不读 Date.now / window：单测直接喂固定时刻（test/cases-remind.mjs）。
-		function remindKindOf(startTs, endTs, nowTs, remindHours) {
-			const hours = Number(remindHours);
+		// 纯函数、不读 Date.now / window：单测直接喂固定时刻（test/cases-ticker.mjs）。
+		function tickerKindOf(startTs, endTs, nowTs, tickerHours) {
+			const hours = Number(tickerHours);
 			if (!(hours > 0)) return "";
 			if (typeof startTs !== "number" || typeof endTs !== "number") return "";
 			if (!Number.isFinite(startTs) || !Number.isFinite(endTs) || !Number.isFinite(nowTs)) return "";
@@ -443,55 +443,55 @@
 			return endTs - nowTs <= horizon ? "end" : "";
 		}
 
-		// 某个条目是否参与提醒 —— 「强提醒」开关（设置页每行一个复选框）的**唯一语义来源**。
+		// 某个条目是否参与轮播 —— 设置页那个复选框（每行一个）的**唯一语义来源**。
 		// 口径（2026-10-25 **二次定稿**，用户原话「"空列表=全部展示中的参与"的副作用过大，改成正常的逻辑」）：
 		//   · 列表里**有**这个 id ⇒ 参与；
-		//   · 列表里**没有**（含空数组）⇒ 不参与 —— **空数组 = 一个都不提醒**，普通列表语义，
+		//   · 列表里**没有**（含空数组）⇒ 不参与 —— **空数组 = 一个都不轮播**，普通列表语义，
 		//     **不再有"空 = 全部参与"的哨兵**。
-		// 为什么去掉哨兵：哨兵让"一个都不提醒"表达不出来 ⇒ 设置页"取消最后一个勾"只能被拒绝
+		// 为什么去掉哨兵：哨兵让"一个都不轮播"表达不出来 ⇒ 设置页"取消最后一个勾"只能被拒绝
 		// （旧实现正是这么挡的，还得弹一句"要全关请改提前量"）。副作用大于收益，故废弃。
-		// 开箱即用不再靠哨兵，改靠**出厂默认值**：DEFAULT_SETTINGS.remindGames = 出厂时展示中的条目
-		// （守卫见 test/cases-remind.mjs，新增来源忘了同步会红）。
+		// 开箱即用不再靠哨兵，改靠**出厂默认值**：DEFAULT_SETTINGS.tickerGames = 出厂时展示中的条目
+		// （守卫见 test/cases-ticker.mjs，新增来源忘了同步会红）。
 		// 缺失 / 不是数组（老配置里根本没有这个键）⇒ 按**空列表**处理：这里不猜"没设置过"，
 		// 因为已经没有可猜的哨兵语义了；schema 的 default 会在读配置时补上出厂默认值。
-		function remindGameAllowed(gameId, remindGames) {
-			if (!Array.isArray(remindGames)) return false;
-			return remindGames.includes(gameId);
+		function tickerGameAllowed(gameId, tickerGames) {
+			if (!Array.isArray(tickerGames)) return false;
+			return tickerGames.includes(gameId);
 		}
 
 		// 「侧栏轮播总开关」的读取口径（纯函数，2026-10-25 三次定稿）：只有**明确的 false** 才算关。
 		// undefined / null / 0 / "" 都当"开" —— 老配置里根本没有这个键，默认必须是开，
-		// 与 DEFAULT_SETTINGS.remindOn 和 schema 的 default(true) 同口径。
+		// 与 DEFAULT_SETTINGS.tickerOn 和 schema 的 default(true) 同口径。
 		// 放在 helpers 的理由：设置页与侧栏按钮两处都要读它，判定只允许有一处实现
 		// （真机症状是"设置页显示开着、按钮却没反应"这类两套口径的病）。
-		function remindOnOf(v) {
+		function tickerOnOf(v) {
 			return v !== false;
 		}
 
-		// 「提醒范围」的读取口径（纯函数，2026-10-25 三次定稿）：只接受正数小时；
+		// 「轮播范围」的读取口径（纯函数，2026-10-25 三次定稿）：只接受正数小时；
 		// 缺失 / 0 / 负数 / 非数字都回落到**默认范围**（72 小时）。
-		// 为什么必须归一：设置页的「关闭」档位已经删了（关闭归 remindOn 开关），但**老配置里可能
+		// 为什么必须归一：设置页的「关闭」档位已经删了（关闭归 tickerOn 开关），但**老配置里可能
 		// 还留着 0**。若渲染层仍按 `|| 0` 读，就会出现最难查的两套口径 ——
-		// 设置页显示「范围 72 小时」、按钮却一声不响（0 让 remindKindOf 全部短路）。
-		// 归一之后"0 = 不提醒"只剩纯判定层的兼容行为（直接调用 remindDueOf 的宿主才会碰到）。
-		function remindRangeOf(v) {
+		// 设置页显示「范围 72 小时」、按钮却一声不响（0 让 tickerKindOf 全部短路）。
+		// 归一之后"0 = 不轮播"只剩纯判定层的兼容行为（直接调用 tickerItemsOf 的宿主才会碰到）。
+		function tickerRangeOf(v) {
 			const h = Number(v);
-			return h > 0 ? h : DEFAULT_SETTINGS.remindHours;
+			return h > 0 ? h : DEFAULT_SETTINGS.tickerHours;
 		}
 
-		// 从候选里挑出"该提醒的"（顺序稳定 = 按"距离那一刻还有多久"升序，同刻保持输入顺序）。
-		// items 契约（由 80-components.js 的 remindDueOf 组装，那里负责把落盘文本换算成绝对窗口）：
+		// 从候选里挑出"该轮播的"（顺序稳定 = 按"距离那一刻还有多久"升序，同刻保持输入顺序）。
+		// items 契约（由 80-components.js 的 tickerItemsOf 组装，那里负责把落盘文本换算成绝对窗口）：
 		//   { key, gameId, side, name, title, startTs, endTs }
 		// 返回的每一项多两个字段：kind（"end" / "start"）与 dueMs（距离结束/开始还剩多少毫秒）。
 		// 排序口径：**先到期的最靠前** —— "还剩 1 小时"永远压过"明天开池"（中间不夹"按方向分组"）。
-		function remindPickOf(items, nowTs, remindHours, remindGames) {
-			const hours = Number(remindHours);
+		function tickerPickOf(items, nowTs, tickerHours, tickerGames) {
+			const hours = Number(tickerHours);
 			if (!(hours > 0) || !Array.isArray(items)) return [];
 			const out = [];
 			for (const it of items) {
 				if (!it) continue;
-				if (!remindGameAllowed(it.gameId, remindGames)) continue;
-				const kind = remindKindOf(it.startTs, it.endTs, nowTs, hours);
+				if (!tickerGameAllowed(it.gameId, tickerGames)) continue;
+				const kind = tickerKindOf(it.startTs, it.endTs, nowTs, hours);
 				if (!kind) continue;
 				out.push({ ...it, kind, dueMs: (kind === "end" ? it.endTs : it.startTs) - nowTs });
 			}
@@ -502,8 +502,8 @@
 		// 距离毫秒数 → 一句人话（只有数字 + 单位，标签由调用方加）。
 		// 口径（2026-10-25 三次定稿，用户要求）：<1 小时说"分"、<1 天说"小时"、再往上**只说天数**
 		// —— ≥1 天不再拼小时段（"3 天 4 小时" → "3 天"，侧栏这一行总共只有 ~12 个汉字宽）。
-		// 向下取整（宁可说"3 小时"也不说"4 小时"）—— 提醒场景里**说少了**比说多了安全。
-		function remindSpanText(ms) {
+		// 向下取整（宁可说"3 小时"也不说"4 小时"）—— 侧栏这一行里**说少了**比说多了安全。
+		function tickerSpanText(ms) {
 			const t = Number(ms);
 			if (!Number.isFinite(t) || t <= 0) return "1 分";
 			const mins = Math.floor(t / 60000);
@@ -516,7 +516,7 @@
 		// 开始时刻 → 「今天 / 明天 / N 天后」（只比**本机日历日**，与面板外显"今天到期"同一口径）。
 		// 刻意**不带时刻**：侧栏这一行只有 ~12 个汉字宽，多写个 "18:00" 就把游戏名挤没了。
 		// 用 Math.round 而不是整除：跨 DST 的那一天是 23/25 小时，整除会差一天。
-		function remindDayWord(ts, nowTs) {
+		function tickerDayWord(ts, nowTs) {
 			const a = new Date(ts), b = new Date(nowTs);
 			if (!Number.isFinite(a.getTime()) || !Number.isFinite(b.getTime())) return "";
 			const dayA = new Date(a.getFullYear(), a.getMonth(), a.getDate()).getTime();
@@ -527,28 +527,28 @@
 			return diff + " 天后";
 		}
 
-		// 一条提醒 → 侧栏那一行的**两段文案**：{ name, status, text }。
+		// 一条轮播条目 → 侧栏那一行的**两段文案**：{ name, status, text }。
 		// 为什么拆两段而不是拼好一句交给 CSS 截断：`text-overflow:ellipsis` 截的是**尾巴**，
 		// 而这里最不能丢的恰恰是尾巴（"还剩 3 小时 / 明天开池"）。所以渲染层把 name 单独放进
 		// 可收缩 + 省略号的盒子、status 放进 flex:none 的盒子 —— 名字再长也只压名字。
 		// 口径：
 		//   · name = **事项名优先**（2026-10-25 二次定稿，用户 C 方案：「只有游戏名称没有角色/活动
 		//     名称，信息不足」）—— 卡池侧给那一期的角色名、活动侧给活动名；**游戏身份交给图标**
-		//     （gameIcon，见 remindDueOf / remindSlidesOf），文字不再占宽度去写游戏名。
+		//     （gameIcon，见 tickerItemsOf / tickerSlidesOf），文字不再占宽度去写游戏名。
 		//     回退顺序：事项名 title → 游戏名 name → id → "某个游戏"（自定义条目可能没有 title，
 		//     绝不能显示 undefined）。
-		//   · 结束（kind=end）→ status = "X"（X 由 remindSpanText 给，两个方向都适用）——
+		//   · 结束（kind=end）→ status = "X"（X 由 tickerSpanText 给，两个方向都适用）——
 		//     **按钮这一侧不带「还剩」**（2026-10-25 三次定稿，用户要求「· 还剩 8 小时」→「· 8 小时」）；
 		//     读屏/悬停要的是完整句子，那里由 statusFull（补回「还剩」）单独拼，见 statusFull 的注释；
 		//   · 开始（kind=start）→ status = "今天/明天/N 天后" + "开池"（卡池侧）/ "开始"（活动侧）。
-		function remindCaptionOf(item, nowTs) {
+		function tickerCaptionOf(item, nowTs) {
 			const it = item || {};
 			const name = String(it.title || it.name || it.gameId || "").trim() || "某个游戏";
 			const isStart = it.kind === "start";
 			const isG = it.side === "gacha";
 			const status = isStart
-				? remindDayWord(Number(it.startTs), nowTs) + (isG ? "开池" : "开始")
-				: remindSpanText(Number(it.endTs) - nowTs);
+				? tickerDayWord(Number(it.startTs), nowTs) + (isG ? "开池" : "开始")
+				: tickerSpanText(Number(it.endTs) - nowTs);
 			// 读屏 / 悬停（aria-label / title）用的**完整句子**：结束方向补回「还剩」，
 			// 否则"耀嘉音 · 8 小时"念出来不通顺（用户 2026-10-25 明确要求这一处保留「还剩」）。
 			// 这是唯一一处单独拼接 —— 按钮那一侧（status / text）不再带「还剩」。
@@ -557,20 +557,20 @@
 		}
 
 		// 轮播的**每一格**（C 方案，2026-10-25 二次定稿）：整行连同图标一起竖向翻页。
-		// 输入 = remindPickOf 的输出（remindDueOf 已给每条补上 gameIcon）。
+		// 输入 = tickerPickOf 的输出（tickerItemsOf 已给每条补上 gameIcon）。
 		// 输出一格一条：{ gameId, gameIcon, gameName, itemName, statusText, text, ariaText, kind }
 		//   · gameId / gameIcon → 这一格左侧的图标（状态 i 用**该游戏自己的**图标）；
-		//   · itemName + statusText → 文字两段（名字可截断、状态永不截断，见 remindCaptionOf）；
+		//   · itemName + statusText → 文字两段（名字可截断、状态永不截断，见 tickerCaptionOf）；
 		//   · gameName 只给悬停/读屏补一句"这是哪款游戏"（图标认得出来，文字里不占宽度）；
 		//   · text = 完整一行（"名字 · 状态"，**按钮上显示的那一份**，不带「还剩」）；
 		//   · ariaText = 同一行的**读屏版**（结束方向带「还剩」，念出来才是完整句子）；
 		//     悬停/aria-label 用它，按钮渲染用 text —— 两处只有这一个词不同，其余同源。
 		// ⚠️ 状态 0（"原按钮外观"：日历图标 + 「二游日历」）**不**在这里 —— 那是渲染层的事；
-		//    本函数只负责"每格一条提醒"，所以无可提醒时返回 []（⇒ 只有状态 0、不滚动）。
-		function remindSlidesOf(items, nowTs) {
+		//    本函数只负责"每格一条轮播条目"，所以没有可轮播的条目时返回 []（⇒ 只有状态 0、不滚动）。
+		function tickerSlidesOf(items, nowTs) {
 			if (!Array.isArray(items)) return [];
 			return items.filter(Boolean).map((it) => {
-				const cap = remindCaptionOf(it, nowTs);
+				const cap = tickerCaptionOf(it, nowTs);
 				return {
 					gameId: String(it.gameId || it.id || ""),
 					gameIcon: String(it.gameIcon || ""),
@@ -586,43 +586,43 @@
 
 		// —— 轮播的**展开序列**与翻页方向（2026-10-25 三次定稿，纯函数）——
 		// 用户要求（两条）：
-		//   ① **交叉**：每两条提醒之间插回一次原按钮 —— 序列从 `[idle, 1, 2, 3, …]` 改成
+		//   ① **交叉**：每两条轮播条目之间插回一次原按钮 —— 序列从 `[idle, 1, 2, 3, …]` 改成
 		//      `[idle, 1, idle, 2, idle, 3, …]`（长度 = 2n）。n = 0 时只剩 idle、不滚动。
 		//   ② **翻页方向**：四步一循环 上 → 下 → 下 → 上（不是"条目 up / 按钮 down"，所以相邻
 		//      两格方向可以相同）。方向按**切换次数**算，与条目数无关。
-		// 输入 = remindSlidesOf 的输出（n 格提醒）；输出 = 展开后的格序列，每格：
+		// 输入 = tickerSlidesOf 的输出（n 格轮播条目）；输出 = 展开后的格序列，每格：
 		//   { idx, idle, slideIndex, dir }
 		//     · idx        —— 展开后的格号（0 起）；渲染层拿它当 key / 记 prevStep；
-		//     · idle       —— true = 原按钮外观那一格；false = 一条提醒；
+		//     · idle       —— true = 原按钮外观那一格；false = 一条轮播条目；
 		//     · slideIndex —— idle 时 -1，否则是它在 slides 里的下标；
 		//     · dir        —— **第 idx 次切换**的翻页方向："up"（旧内容往上走、新内容从下方进）/
 		//                     "down"（旧内容往下走、新内容从上方进）。
 		//                     ⚠️ 这个字段是"把 idx 当切换序数"算出来的：格号每 2n 回卷一次，而方向规则
 		//                     按切换次数走 4 步一循环，两者**只在首轮一致**。所以渲染层**不能**用
-		//                     `stepAt(shownStep).dir` 取方向 —— 回卷到格 0 会拿到 remindDirAt(0) 的
+		//                     `stepAt(shownStep).dir` 取方向 —— 回卷到格 0 会拿到 tickerDirAt(0) 的
 		//                     挂载兜底 down，四步循环每轮回卷丢一次相位（n = 2 时真机上就是
-		//                     "连着三次都往下"）。渲染层取方向用 `remindDirAt(单调切换序)`
+		//                     "连着三次都往下"）。渲染层取方向用 `tickerDirAt(单调切换序)`
 		//                     （见 80-components.js 的 flipDir），本字段留给纯函数断言与推演。
 		// 为什么单独一个纯函数：n = 0 只有 1 格、2n 长度、四步循环都必须能被固定断言，
 		// 渲染层不自己算（算错了不报错，只在真机上看出来）。
 		// 翻页方向：**上下下上** 四步一循环，每轮都从"上"开始（与条目数无关）。
 		//   idx 0 = 首格（挂载时没有"进入"动作，用 down 兜底）
 		//   idx 1 进条目1 = up / idx 2 回按钮 = down / idx 3 进条目2 = down / idx 4 回按钮 = up / idx 5 进条目3 = up …
-		const REMIND_DIR_CYCLE = ["up", "down", "down", "up"];
-		function remindDirAt(idx) {
+		const TICKER_DIR_CYCLE = ["up", "down", "down", "up"];
+		function tickerDirAt(idx) {
 			if (!Number.isFinite(idx) || idx <= 0) return "down";
-			return REMIND_DIR_CYCLE[(idx - 1) % 4];
+			return TICKER_DIR_CYCLE[(idx - 1) % 4];
 		}
-		function remindStepsOf(slides) {
+		function tickerStepsOf(slides) {
 			const list = Array.isArray(slides) ? slides.filter(Boolean) : [];
 			// n = 0：只有"原按钮"这一格（长度 1），渲染层据此完全不滚动
 			if (list.length === 0) return [{ idx: 0, idle: true, slideIndex: -1, dir: "down" }];
 			const out = [];
 			for (let i = 0; i < list.length; i++) {
-				// idle / 条目两格的方向都由 remindDirAt(格号) 决定 —— 四步循环，
+				// idle / 条目两格的方向都由 tickerDirAt(格号) 决定 —— 四步循环，
 				// 不再固定成"idle 就 down、条目就 up"（那样永远只是交替）。
-				out.push({ idx: out.length, idle: true, slideIndex: -1, dir: remindDirAt(out.length) });
-				out.push({ idx: out.length, idle: false, slideIndex: i, dir: remindDirAt(out.length) });
+				out.push({ idx: out.length, idle: true, slideIndex: -1, dir: tickerDirAt(out.length) });
+				out.push({ idx: out.length, idle: false, slideIndex: i, dir: tickerDirAt(out.length) });
 			}
 			return out;
 		}
@@ -648,8 +648,8 @@
 		// 然后新行从上方滑进来 —— 于是"向上翻"和"向下翻"根本不是一个观感。这就是根因。
 		// 所以**行顺序必须跟着方向换**；本函数是这条规则的唯一出处，渲染层不自己写三元。
 		// 返回：DOM 顺序的两行 [{ step, slot }]；slot 只当 React 的 key（"cur"/"prev" 天然唯一）。
-		// 脏输入（dir 不是 "up"）一律按 down —— 与 remindDirAt 的挂载兜底同一个方向。
-		function remindFlipLinesOf(dir, curStep, prevStep) {
+		// 脏输入（dir 不是 "up"）一律按 down —— 与 tickerDirAt 的挂载兜底同一个方向。
+		function tickerFlipLinesOf(dir, curStep, prevStep) {
 			const curLine = { step: curStep, slot: "cur" };
 			const prevLine = { step: prevStep, slot: "prev" };
 			return dir === "up" ? [prevLine, curLine] : [curLine, prevLine];
@@ -669,9 +669,9 @@
 		//
 		// 返回：DOM 顺序的行数组 [{ step, slot }]；settled 为真时恒为 [cur]（与方向无关）。
 		// 脏输入（settled 是假值）一律按未落定处理 —— 与渲染层 `flipSettled === true` 的口径一致。
-		function remindFlipRenderLinesOf(dir, curStep, prevStep, settled) {
+		function tickerFlipRenderLinesOf(dir, curStep, prevStep, settled) {
 			if (settled) return [{ step: curStep, slot: "cur" }];
-			return remindFlipLinesOf(dir, curStep, prevStep);
+			return tickerFlipLinesOf(dir, curStep, prevStep);
 		}
 		//#endregion
 		//#endregion

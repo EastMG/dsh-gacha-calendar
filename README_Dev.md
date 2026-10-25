@@ -74,8 +74,8 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 18 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora + 规则静态守卫 + 时区口径 + 到期提醒 + README 结构图守卫 + core 产物守卫）
-│   ├── cases-*.mjs  # 各段用例（18 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / rule-lint / tz / remind / readme / core）
+│   ├── all.mjs      # 统一门禁：聚 18 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora + 规则静态守卫 + 时区口径 + 侧栏轮播 + README 结构图守卫 + core 产物守卫）
+│   ├── cases-*.mjs  # 各段用例（18 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / rule-lint / tz / ticker / readme / core）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
 │   ├── registry-shim.mjs # 各批次注册表规格快照 + DRIFT 守卫（与运行时 SOURCES 核对 tz/name）
@@ -111,60 +111,65 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
 
 ### 做（按优先级）
 
-1. **到期提醒**（**侧栏单行轮播 + 强提醒已完成 2026-10-25，只剩系统通知**）：
+1. **侧栏轮播（展示，✅ 已完成 2026-10-25）**：
    - ✅ 侧栏按钮**单行轮播**（替代原小红点）：有卡池/活动在 N 小时内**结束或开始**时，
      「[图标] 二游日历」与「[游戏图标] 事项名 · 3 小时」**整行连同图标**竖向翻页，
-     每 5 秒切一格；**交叉**序列（2026-10-25 三次定稿）= 每两条提醒之间插回一次原按钮
+     每 5 秒切一格；**交叉**序列（2026-10-25 三次定稿）= 每两条轮播条目之间插回一次原按钮
      （`[原按钮, 条目1, 原按钮, 条目2, …]`，长度 2n；n=0 时只有原按钮、不滚动）；
      **翻页方向**（四次定稿）= 按**切换次数**四步一循环 上 → 下 → 下 → 上（不是"条目/按钮"交替），
      第 0 拍（挂载）用 down 兜底；**类名 = 视觉方向**（`.is-up` = 新内容从下方进 /
      `.is-down` = 新内容从上方进，对应 keyframes `50%→0` / `-50%→0`）。
-     ⚠️ 方向必须从 `remindDirAt(单调切换序)` 取，不能用 `stepAt(shownStep).dir`：格号每 2n
-     回卷一次、方向按切换次数走 4 步，回卷时取到 `remindDirAt(0)` 的兜底 down 会丢相位
+     ⚠️ 方向必须从 `tickerDirAt(单调切换序)` 取，不能用 `stepAt(shownStep).dir`：格号每 2n
+     回卷一次、方向按切换次数走 4 步，回卷时取到 `tickerDirAt(0)` 的兜底 down 会丢相位
      （n=2 时真机就是"连着三次都往下"）。
      悬停暂停，`prefers-reduced-motion: reduce` 时完全不滚动、静态钉在第一条。
      **C 方案（2026-10-25 二次定稿）**：文字优先显示**事项名**（卡池=那一期的角色名 / 活动=活动名），
      游戏身份靠**图标**（idle 格 = 日历图标，条目格 = 该游戏 `icon`，16px，跟着整行一起翻）；
      分隔符是「 · 」（**前后都有空格**，`.gacha-cal-btn-st` 因此用 `white-space:pre`）。
-     设置页把原来的单个「到期提醒」下拉拆成**两个控件**（2026-10-25 三次定稿）：
-     **开关** `remindOn`（默认 **开**，关掉 = 完全不轮播、窄侧栏也不出红点）+
-     **范围** `remindHours`（12 / 24 / 48 / 72 小时，默认 **72**；「关闭」不再是档位）。
-     ⚠️ `remindOn` / `remindHours` 必须同时出现在 `DEFAULT_SETTINGS`、`src/index.js` schema
+     设置页把原来的那个单行下拉拆成**两个控件**（2026-10-25 三次定稿）：
+     **开关** `tickerOn`（默认 **开**，关掉 = 完全不轮播、窄侧栏也不出红点）+
+     **范围** `tickerHours`（12 / 24 / 48 / 72 小时，默认 **72**；「关闭」不再是档位）。
+     ⚠️ `tickerOn` / `tickerHours` 必须同时出现在 `DEFAULT_SETTINGS`、`src/index.js` schema
      与 `engine-head.js` 的 `CONFIG_KEYS` 三处（漏了就会"设了不生效"）。
    - ✅ 判定口径（**双向**）：即将结束 = 已开始（`startTs <= now`）且 `endTs ∈ (now, now + N 小时]`；
-     即将开始 = `startTs ∈ (now, now + N 小时]`。纯函数 `remindKindOf`（`60-helpers.js`，返回
-     `"" / "end" / "start"`）+ 窗口换算 `remindWindowOf` / `remindDueOf`（`80-components.js`，
+     即将开始 = `startTs ∈ (now, now + N 小时]`。纯函数 `tickerKindOf`（`60-helpers.js`，返回
+     `"" / "end" / "start"`）+ 窗口换算 `tickerWindowOf` / `tickerItemsOf`（`80-components.js`，
      复用面板外显那条「源站文本 + tz → 本机墙钟」链，所以轮播与面板"还剩 X"永远同源）。
      老的 `isExpiringSoon`（只判结束）语义未动，仍由老用例守着。
-   - ✅ 每游戏「强提醒」开关（2026-10-25 晚；同日**二次定稿**）：键名 `remindGames`（`string[]`），
-     语义 = **普通列表**「这些游戏参与强提醒」——**空数组 = 一个都不提醒**（**废弃**了旧版
-     "空 = 全部展示中的参与"的哨兵；那个哨兵让"一个都不提醒"表达不出来，只能拒绝最后一次取消）。
+   - ✅ 每游戏「轮播」开关（2026-10-25 晚；同日**二次定稿**）：键名 `tickerGames`（`string[]`），
+     语义 = **普通列表**「这些游戏参与轮播」——**空数组 = 一个都不轮播**（**废弃**了旧版
+     "空 = 全部展示中的参与"的哨兵；那个哨兵让"一个都不轮播"表达不出来，只能拒绝最后一次取消）。
      出厂默认 = 出厂时**展示中**的条目（所有 `defaultHidden !== true` 的 id；默认隐藏的
      bh3 / ournotes / ournotes-global / czn / ddlezj **不在**里面），写进 `10-config.js` 的
-     `DEFAULT_SETTINGS.remindGames` **与** `src/index.js` schema 的 `default(...)`，
-     由 `test/cases-remind.mjs` 的守卫钉住（新增来源/改默认隐藏不同步就红）。
-     与「展示」（`hidden`/`shown`）完全独立；判定唯一入口是纯函数 `remindGameAllowed`。
-     设置页每行一个复选框（未展示的行**置灰 disabled 且不参与**），顶部「全部提醒」= 把当前
+     `DEFAULT_SETTINGS.tickerGames` **与** `src/index.js` schema 的 `default(...)`，
+     由 `test/cases-ticker.mjs` 的守卫钉住（新增来源/改默认隐藏不同步就红）。
+     与「展示」（`hidden`/`shown`）完全独立；判定唯一入口是纯函数 `tickerGameAllowed`。
+     设置页每行一个复选框（未展示的行**置灰 disabled 且不参与**），顶部「全部轮播」= 把当前
      **展示中**的 id 一次性写进列表（不再写回空数组）。
    - ✅ 轮播感知数据变化：按钮与面板同属 `CalendarPanel`，复用面板已有的 `scope.subscribe`
      （刷新写回 `lastData`/`lastRefresh` → 快照推送 → 重渲染）+ 已有的每分钟时钟，**没有新增订阅**。
    - 降级：窄侧栏（`wide === false`）**没有可滚动的那一行** ⇒ 仍用小红点（`.gacha-cal-dot`）。
-   - ⬜ 待做：**系统通知**（DSH 通知 API 还没接）、数字角标。
-   - 守卫：`test/cases-remind.mjs`（双向口径 + 强提醒新语义/默认值守卫 + 轮播选取/每格结构 +
-     文本/tz 换算 + 设置页两控件与默认值（remindOn=true / remindHours=72）+ 交叉序列
-     （`remindStepsOf`：长度 2n、`[idle,1,idle,2,…]`、n=0 只有 idle）+ 方向四步循环（逐格 dir；
+   - ⚠️ 这只是**展示**：到点**不会主动通知**，不看 DSH 就不知道 —— 主动送达见下面第 2 项。
+   - 守卫：`test/cases-ticker.mjs`（双向口径 + 轮播开关新语义/默认值守卫 + 轮播选取/每格结构 +
+     文本/tz 换算 + 设置页两控件与默认值（tickerOn=true / tickerHours=72）+ 交叉序列
+     （`tickerStepsOf`：长度 2n、`[idle,1,idle,2,…]`、n=0 只有 idle）+ 方向四步循环（逐格 dir；
      类名 = 视觉方向，两组 keyframes `50%→0`（.is-up）/ `-50%→0`（.is-down）；
      外加 8 拍推演：n=2 与 n=4 都必须走出 down,up,down,down,up,up,down,down）
      + 轮播样式静态守卫：固定 22px 窗口 / 状态不截断 /
      分隔符带前导空格 / fill-mode 只用 backwards / reduce 置 none / 图标在行内且 16px）。
-2. **解析器自检**（原「来源健康看板」的重构升级）：每源展示最近成功时间 / 连续失败次数 / 失败原因，
+2. **到期提醒（送达，⬜ 未开始）**：
+   - 定义（用户 2026-10-25 明确区分）：**到点主动送达通知**，让你不看 DSH 也知道 —— 这才是「到期提醒」。
+   - 现状：只做了**展示**（上面的侧栏轮播：在侧栏按钮上翻页显示"某条目 · 还剩多久"）；
+     **送达（主动通知）尚未实现**。
+   - 待做：**系统通知**（DSH 通知 API 还没接）、数字角标。
+3. **解析器自检**（原「来源健康看板」的重构升级）：每源展示最近成功时间 / 连续失败次数 / 失败原因，
    并加"N 天连续 nomatch 即提示源可能改版或停更"（踩过的坑：异环公告改段落写法、雪松源页面停更）。
-3. **搜索与筛选**：设置页来源列表加"搜游戏名"+ 分组（国服/日服/国际服）+ 只看已启用；
+4. **搜索与筛选**：设置页来源列表加"搜游戏名"+ 分组（国服/日服/国际服）+ 只看已启用；
    面板内加按卡池/角色名搜索（现在的 28 个来源只能靠"展示"开关逐条关）。
-4. **排期导出 .ics**：把当期窗口导出成一次性快照（可导入手机日历）。
+5. **排期导出 .ics**：把当期窗口导出成一次性快照（可导入手机日历）。
    ⚠️ 只能是**快照**、不能是订阅：网游排期是"一次性数据"，没有稳定的公开 iCal 源。
-5. **抽卡计划 / 攒抽追踪**：目标角色 + 当前保底/预算 + 倒计时。属重功能，分阶段做（先"目标角色 + 倒计时"）。
-6. **架构重整（拆文件 + CSS 抽出）** —— 按「**一个文件一个职责**」拆，**不按行数硬切**：
+6. **抽卡计划 / 攒抽追踪**：目标角色 + 当前保底/预算 + 倒计时。属重功能，分阶段做（先"目标角色 + 倒计时"）。
+7. **架构重整（拆文件 + CSS 抽出）** —— 按「**一个文件一个职责**」拆，**不按行数硬切**：
    ① `80-components.js`(2096) → 按**界面**拆：新面板 / 旧表格 / 设置页 / 共用小组件；
    ② `70-styles.js`(439，CSS 全藏在一个模板字符串里) → 抽成真正的 `styles/*.css`，构建时拼接
       （这条最值：现在"反引号必须恰好 2 个、注释必须配平"，已经踩过两次）；
@@ -175,19 +180,19 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
    ⑥ **不按行数**把某个解析器切成"上半/下半"（会制造"半个解析器"这种坏边界）；
    ⑦ 约束：构建按 `build.mjs` 的 ORDER 拼接 ⇒ 拆完必须同步 ORDER；零依赖保持不变；
    ⑧ **不做** minify（本地加载、收益低，且要引 devDependency，破坏"零依赖 + CI 不装包"）。
-7. **分发/曝光**：`awesome-dsh-plugin` 提 PR；核对 `dshplugin.net` 条目；README 加一张动图；
+8. **分发/曝光**：`awesome-dsh-plugin` 提 PR；核对 `dshplugin.net` 条目；README 加一张动图；
    `package.json` 补 `keywords`；GitHub 仓库补 topics；npm 页面确认 README 已是最新。
-8. **日期格悬停补失败结论**：新面板**名字格**的悬停已带失败/沿用旧值结论，**日期格**还没有（小项）。
+9. **日期格悬停补失败结论**：新面板**名字格**的悬停已带失败/沿用旧值结论，**日期格**还没有（小项）。
 
 ### 待论证 / 待定
 
-9. **core 独立成仓库**：倾向**暂不**。core 由 `src/client/` 生成、与 UI 交织，拆开要先重构
+10. **core 独立成仓库**：倾向**暂不**。core 由 `src/client/` 生成、与 UI 交织，拆开要先重构
    （fetch/parse 与渲染分离）；而且 npm 上已有独立包 `gacha-calendar-core`，独立仓库的边际收益低。
    等浏览器扩展真正启动时再评估。
-10. **优化滚动手感**：探头 `position:fixed` 与"原生滚轮"的固有矛盾，属"选了体验优先"的已知取舍。
-11. **留白卡循环长度**：当前循环全部在期条目（约 38 条 ≈ 2.5 分钟一轮），是否限长待定。
+11. **优化滚动手感**：探头 `position:fixed` 与"原生滚轮"的固有矛盾，属"选了体验优先"的已知取舍。
+12. **留白卡循环长度**：当前循环全部在期条目（约 38 条 ≈ 2.5 分钟一轮），是否限长待定。
 
-12. **AI 协作署名（提交 trailer）** —— **已研究，存档不启用**。
+13. **AI 协作署名（提交 trailer）** —— **已研究，存档不启用**。
    结论：`Co-Authored-By` 是 GitHub/GitLab **认**的标准 git trailer（提交页显示协作者、计入贡献图；
    邮箱绑定账号才带头像，否则只是名字）。Claude Code 默认加 `Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>`、
    Copilot CLI 也加；**DSH 本体没有这套**，官方署名走 `powered_by_dsh` 徽章（文档/PR 正文）。
@@ -205,4 +210,4 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
 
 - ~~新面板也吃悬停 marquee~~：**已实现**——新面板长名类都包了 `.gacha-cal-inner`，
   `90-plugin.js` 的 marquee 是"面板 + 设置页共用"的全局机制。
-- ~~新版面板的悬停补失败结论~~（部分完成）：名字格已带 `sideFailText` 结论，只剩日期格（见第 8 项）。
+- ~~新版面板的悬停补失败结论~~（部分完成）：名字格已带 `sideFailText` 结论，只剩日期格（见第 9 项）。

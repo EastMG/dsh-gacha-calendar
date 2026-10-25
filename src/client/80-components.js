@@ -261,14 +261,14 @@
 			return localWinText(text, g.tz || null, now);
 		}
 
-		// ── 到期提醒：把落盘的文本档期还原成**绝对窗口**（2026-10-25）────────────────
+		// ── 侧栏轮播：把落盘的文本档期还原成**绝对窗口**（2026-10-25）────────────────
 		// 判定本体是 60-helpers.js 的 isExpiringSoon（纯函数）；这里只负责"某一侧什么时候结束"。
 		// 走的**就是面板外显那条换算链**：localDatesOf（绝对档期优先 → 否则「源站墙钟文本 + tz」
 		// 换成本机墙钟文本）→ parseDisplayRange（把本机墙钟文本解释回绝对时刻）。
 		// ⇒ 红点与面板上那句"还剩 X"永远同源，不会出现"红点亮着、面板说还剩 3 天"。
 		// 读不出绝对档期（源站原文是"版本更新后 ~ …"/"长期"、自定义条目没填 tz）→ null，
-		// 该侧**不参与**提醒（不硬凑一个猜测的结束时刻）。
-		function remindWindowOf(g, isG, now) {
+		// 该侧**不参与**轮播（不硬凑一个猜测的结束时刻）。
+		function tickerWindowOf(g, isG, now) {
 			if (!g) return null;
 			const text = localDatesOf(g, isG, now);
 			if (!text) return null;
@@ -276,21 +276,21 @@
 			return r || null;
 		}
 
-		// 该提醒的档期清单（侧栏按钮轮播用；带方向与名称，供文案/悬停说明）。
+		// 该轮播的档期清单（侧栏按钮轮播用；带方向与名称，供文案/悬停说明）。
 		// 输入 = CalendarPanel 已经算好的 `games`（可见条目 + 最近一轮抓取结果已覆盖），
-		// 所以"提醒的是用户真正看得见的那些行"，隐藏条目不会偷偷提醒。
+		// 所以"轮播的是用户真正看得见的那些行"，隐藏条目不会偷偷轮播。
 		//
 		// 2026-10-25 晚升级（用户要求）：**双向** —— 即将结束（end）+ 即将开始（start）都算。
-		// 判定本体在 60-helpers.js 的纯函数 remindKindOf（固定时刻可测）；本函数只做两件"离不开渲染层"的事：
-		//   ① 把落盘的文本档期换算成绝对窗口（remindWindowOf，与面板外显同一条链）；
-		//   ② 按「提醒」开关（remindGames）筛掉不参与的条目 —— 筛选/排序都在纯函数 remindPickOf 里，
-		//      这样"列表里有谁就提醒谁（空 = 一个都不提醒）"的口径只有一处实现。
+		// 判定本体在 60-helpers.js 的纯函数 tickerKindOf（固定时刻可测）；本函数只做两件"离不开渲染层"的事：
+		//   ① 把落盘的文本档期换算成绝对窗口（tickerWindowOf，与面板外显同一条链）；
+		//   ② 按「轮播」开关（tickerGames）筛掉不参与的条目 —— 筛选/排序都在纯函数 tickerPickOf 里，
+		//      这样"列表里有谁就轮播谁（空 = 一个都不轮播）"的口径只有一处实现。
 		// 返回按"距离那一刻还有多久"升序（最紧迫在前）；N <= 0（关闭）→ 空数组（**不做任何换算**）。
 		// 2026-10-25 二次定稿（用户 C 方案）：每条多带一个 `gameIcon`（该条目自己的图标，取自
 		// SOURCES/customEntries 的 `icon`）—— 轮播**整行连图标一起翻**，图标就是"这是哪款游戏"的
 		// 唯一线索（文字改成显示事项名，不再写游戏名）。
-		function remindDueOf(games, now, remindHours, remindGames) {
-			const hours = Number(remindHours);
+		function tickerItemsOf(games, now, tickerHours, tickerGames) {
+			const hours = Number(tickerHours);
 			if (!(hours > 0) || !Array.isArray(games) || !now) return [];
 			const out = [];
 			for (const g of games) {
@@ -299,13 +299,13 @@
 					const isG = side === "gacha";
 					const title = (isG ? g.banner : g.event) || "";
 					if (!title) continue;
-					const w = remindWindowOf(g, isG, now);
+					const w = tickerWindowOf(g, isG, now);
 					if (!w) continue;
 					const roles = isG ? (g.roles || "") : "";
 					out.push({
 						key: g.id + ":" + side,
 						id: g.id,
-						// 筛选键独立于 `id` 字段名，免得 remindPickOf 的调用方还要知道 id 是哪一层
+						// 筛选键独立于 `id` 字段名，免得 tickerPickOf 的调用方还要知道 id 是哪一层
 						gameId: g.id,
 						side,
 						name: g.name || g.id,
@@ -317,7 +317,7 @@
 					});
 				}
 			}
-			return remindPickOf(out, now.getTime(), hours, remindGames);
+			return tickerPickOf(out, now.getTime(), hours, tickerGames);
 		}
 
 		// 一条档期 = 某款游戏的卡池侧或活动侧。读不出绝对档期的（源站原文）按"长期"处理，
@@ -626,9 +626,9 @@
 		// 返回 `{ step, seq }`（2026-10-25 四次定稿）：
 		//   · step = 当前格号（0..count-1，**取模**）—— 决定"这一帧显示什么"；
 		//   · seq  = **单调递增的切换序**（不取模）—— 决定"这一帧往哪个方向翻"。
-		// 为什么必须把两者分开：翻页方向规则（remindDirAt）是按**切换次数**四步一循环
+		// 为什么必须把两者分开：翻页方向规则（tickerDirAt）是按**切换次数**四步一循环
 		// （第 1 次 up / 第 2 次 down / 第 3 次 down / 第 4 次 up …），与"回卷到第几格"无关。
-		// 若拿取模后的 step 去取方向，序列一回卷到格 0 就会取到 remindDirAt(0) 的"挂载兜底 down"
+		// 若拿取模后的 step 去取方向，序列一回卷到格 0 就会取到 tickerDirAt(0) 的"挂载兜底 down"
 		// ⇒ 四步循环在每次回卷处丢一次相位：n=2（最常见）时第 4 次切换本该 up、实渲染 down，
 		// 真机上看到的就是「连着三次都是往下」（用户 2026-10-25 报的 bug）。
 		function useCycleSteps(count, seconds, paused) {
@@ -646,7 +646,7 @@
 		}
 
 		// 侧栏按钮轮播的节拍（秒）。用户要求"每 4~6 秒切一条"；5 秒 = 能读完一条、又不至于像卡住。
-		const REMIND_SLIDE_SECS = 5;
+		const TICKER_SLIDE_SECS = 5;
 
 		// 「系统要求减少动效」开关（用户要求：prefers-reduced-motion: reduce 时**完全不滚动**，
 		// 只静态显示内容，仍要能看出"有事"）。
@@ -1192,7 +1192,7 @@
 		// 用户 2026-10-25 要求抹平：终点都必须是 transform:none。
 		//
 		// 做法：onAnimationEnd（只认两条翻页 keyframes）⇒ flipSettled=true ⇒
-		//   ① 只渲染 cur 一行（prev 行连 DOM 都不留，纯函数 remindFlipRenderLinesOf）；
+		//   ① 只渲染 cur 一行（prev 行连 DOM 都不留，纯函数 tickerFlipRenderLinesOf）；
 		//   ② 元素加类 .is-settled（CSS: animation:none + transform:none，见 70-styles.js）。
 		// 落定画面与动画终点**逐像素相同**（cur 都占满 22px 窗口），所以不存在跳动/闪烁/文字位移：
 		//   · up   终点 = 层 -22px、第 2 行 cur 落在窗口 [0,22]；落定 = 层 0、唯一一行 cur 在 [0,22]；
@@ -1208,7 +1208,7 @@
 		// ⚠️ reduce（CSS animation:none）时 animationend **不会**触发 ⇒ flipSettled 恒为 false；
 		//    那时渲染两行 + 父层强制的 down 顺序，第 1 行恒为 cur —— 静态路径自己就是对的，
 		//    **不依赖**落定生效。
-		function RemindFlipLines({ flipDir, shownStep, prevStep, reduceMotion, renderLine }) {
+		function TickerFlipLines({ flipDir, shownStep, prevStep, reduceMotion, renderLine }) {
 			const [flipSettled, setFlipSettled] = (0, react.useState)(false);
 			// 只处理翻页动画本身：按 animationName 过滤两条 keyframes。
 			// 将来这一层若再加别的 animation，它的 animationend 不许把翻页层误落定。
@@ -1220,7 +1220,7 @@
 			// reduce 时强制 down 顺序（为什么不许 up：那边 animation:none，没有动画把第 1 行推走，
 			// 而 up 顺序的第 1 行是 prev ⇒ 旧内容会常驻窗口）。down 顺序的第 1 行恒为 cur。
 			// 落定与否只影响"几行进 DOM"，不影响方向（settled 时方向类留在元素上无害）。
-			const flipLines = remindFlipRenderLinesOf(reduceMotion ? "down" : flipDir, shownStep, prevStep, flipSettled);
+			const flipLines = tickerFlipRenderLinesOf(reduceMotion ? "down" : flipDir, shownStep, prevStep, flipSettled);
 			return (0, react_jsx_runtime.jsx)("span", {
 				// 类名 = 基础类 + 方向类（视觉方向）+ 落定类；三条规则都在 70-styles.js。
 				// 落定类必须排在方向规则之后（同特异性，靠顺序胜出）。
@@ -1388,11 +1388,11 @@
 				};
 			}), [visible, orderKey, colorOverrides, scrapedById]);
 
-			// ── 到期提醒：侧栏按钮的**单行轮播**（2026-10-25 晚，替代原来的小红点）────────────
-			// 设置 = 设置页的**两个控件**：开关 `remindOn`（默认开）+ 范围 `remindHours`
-			// （12/24/48/72 小时，默认 72）+ 每行「提醒」开关（remindGames）。
+			// ── 侧栏轮播：按钮的**单行翻页**（2026-10-25 晚，替代原来的小红点）────────────
+			// 设置 = 设置页的**两个控件**：开关 `tickerOn`（默认开）+ 范围 `tickerHours`
+			// （12/24/48/72 小时，默认 72）+ 每行「轮播」开关（tickerGames）。
 			// **关掉开关时不滚动、也不做任何计算**：下面 memo 直接给空数组，不会去解析任何档期文本；
-			// 窄侧栏的红点同样跟着消失（它也看 remindDue）。
+			// 窄侧栏的红点同样跟着消失（它也看 tickerItems）。
 			//
 			// 轮播怎么感知"数据变了"（这是本功能唯一需要想清楚的地方）：
 			//   不需要新机制 —— 侧栏按钮与面板是**同一个组件**（CalendarPanel），而这个组件早就
@@ -1402,52 +1402,52 @@
 			//   时间和阈值那一条则靠组件已有的每分钟时钟 `now`（跨过 N 小时边界时自然翻面）。
 			//   ⇒ 一行订阅都不用加、也不用把状态提升到 apply() 层（那会多一个与面板生命周期
 			//   不同步的订阅，还得自己处理卸载）。这是本次能做到的最小改动。
-			// 总开关（2026-10-25 三次定稿，默认开）：false ⇒ 待提醒清单一律算成空 ——
-			// 按钮只有原样（不轮播）、窄侧栏也不显示红点。读取口径只有一处（helpers 的 remindOnOf）：
+			// 总开关（2026-10-25 三次定稿，默认开）：false ⇒ 待轮播清单一律算成空 ——
+			// 按钮只有原样（不轮播）、窄侧栏也不显示红点。读取口径只有一处（helpers 的 tickerOnOf）：
 			// 只有**明确的 false** 才算关，老配置里没有这个键（undefined）时是"开"。
-			const remindOn = remindOnOf(s.remindOn);
+			const tickerOn = tickerOnOf(s.tickerOn);
 			// 范围（小时）同样只有一处口径：老配置残留的 0 一律回落到默认 72（见 helpers 的
-			// remindRangeOf）—— 否则设置页显示 72、按钮却因为 0 而完全不提醒。
-			const remindHours = remindRangeOf(s.remindHours);
-			// remindGames 与 hidden/shown 一样按**值**派生依赖键：宿主每次写入都会换掉数组引用，
+			// tickerRangeOf）—— 否则设置页显示 72、按钮却因为 0 而完全不轮播。
+			const tickerHours = tickerRangeOf(s.tickerHours);
+			// tickerGames 与 hidden/shown 一样按**值**派生依赖键：宿主每次写入都会换掉数组引用，
 			// 按引用当依赖等于这个 memo 永不命中（理由见上面 *Key 那一段）。
-			const remindGamesKey = (Array.isArray(s.remindGames) ? s.remindGames : []).join("\u0000");
-			const remindDue = (0, react.useMemo)(
-				() => (remindOn
-					? remindDueOf(games, now, remindHours, Array.isArray(s.remindGames) ? s.remindGames : [])
+			const tickerGamesKey = (Array.isArray(s.tickerGames) ? s.tickerGames : []).join("\u0000");
+			const tickerItems = (0, react.useMemo)(
+				() => (tickerOn
+					? tickerItemsOf(games, now, tickerHours, Array.isArray(s.tickerGames) ? s.tickerGames : [])
 					: []),
-				[games, now, remindOn, remindHours, remindGamesKey]);
+				[games, now, tickerOn, tickerHours, tickerGamesKey]);
 			// 轮播的"一格"：**交叉序列**里的 idle = 原按钮外观（日历图标 + 「二游日历」），
-			// 其余 = 一条提醒。用户要求整行内容在原按钮与"一条近期内容"之间竖向翻页 ——
-			// 2026-10-25 三次定稿后，**每两条提醒之间都会插回一次原按钮**（见 remindStepsOf）；
+			// 其余 = 一条轮播条目。用户要求整行内容在原按钮与"一条近期内容"之间竖向翻页 ——
+			// 2026-10-25 三次定稿后，**每两条轮播条目之间都会插回一次原按钮**（见 tickerStepsOf）；
 			// 2026-10-25 二次定稿（用户选的 **C 方案**）：一格 = `[游戏图标] 事项名 · X`
 			//   （三次定稿又去掉了状态前的「还剩」：`· 还剩 8 小时` → `· 8 小时`，≥1 天只说 `3 天`；
-			//    悬停/读屏那一份仍带「还剩」，见下面 remindHintNames 用 ariaText）；
-			//   · 文案交给纯函数 remindSlidesOf（事项名优先、状态单独一段），本层只管排版；
+			//    悬停/读屏那一份仍带「还剩」，见下面 tickerHintNames 用 ariaText）；
+			//   · 文案交给纯函数 tickerSlidesOf（事项名优先、状态单独一段），本层只管排版；
 			//   · 图标**跟着整行翻**（状态 0 是日历图标、状态 i 是该游戏自己的图标），不再留固定的日历图标。
-			const remindSlides = remindSlidesOf(remindDue, now.getTime());
+			const tickerSlides = tickerSlidesOf(tickerItems, now.getTime());
 			// **交叉**序列（2026-10-25 三次定稿）：[idle, 条目1, idle, 条目2, …]（长度 2n；
 			// n = 0 时只有 1 格 idle）。每格自带翻页方向（条目 up / 原按钮 down），
-			// 全部由纯函数 remindStepsOf 算（见 60-helpers.js），渲染层不自己推导。
-			const remindSteps = remindStepsOf(remindSlides);
+			// 全部由纯函数 tickerStepsOf 算（见 60-helpers.js），渲染层不自己推导。
+			const tickerSteps = tickerStepsOf(tickerSlides);
 			const reduceMotion = usePrefersReducedMotion();
 			const [btnHover, setBtnHover] = (0, react.useState)(false);
 			// 悬停暂停 = 把 useCycle 的 paused 打开（不排下一拍），而不是暂停 CSS 动画：
 			// 翻页动画是一次性的 0.42s，暂停它只会把画面冻在半路；这里要停的是"切内容"的节拍。
 			// ⚠️ 翻页方向用的是 useCycleSteps 的 **seq（单调切换序）**，不是 shownStep：
 			//    方向规则按"第几次切换"四步一循环（up,down,down,up），与"回卷到第几格"无关。
-			//    这里若改用 `stepAt(shownStep).dir`，序列每回卷到格 0 就会取到 remindDirAt(0) 的
+			//    这里若改用 `stepAt(shownStep).dir`，序列每回卷到格 0 就会取到 tickerDirAt(0) 的
 			//    挂载兜底 down ⇒ 四步循环每轮回卷都丢一次相位（用户报的「一直是 is-down」就是这个：
 			//    n=2 时 4 格一轮，第 4 次切换本该 up、实际渲染 down，看起来像"连着三次都是往下"）。
-			const remindCycle = useCycleSteps(remindSteps.length, REMIND_SLIDE_SECS,
-				remindSlides.length === 0 || reduceMotion || btnHover);
-			const slideStep = remindCycle.step;
-			// reduce 时**不滚动**、但也不回到"看起来没事"的原样：静态钉在第一条提醒（展开后的第 1 格）
-			// （用户要求"仍要能看出有事"）。无提醒时自然是第 0 格 = 原按钮外观。
-			const shownStep = reduceMotion && remindSlides.length > 0 ? 1 : slideStep;
+			const tickerCycle = useCycleSteps(tickerSteps.length, TICKER_SLIDE_SECS,
+				tickerSlides.length === 0 || reduceMotion || btnHover);
+			const slideStep = tickerCycle.step;
+			// reduce 时**不滚动**、但也不回到"看起来没事"的原样：静态钉在第一条轮播条目（展开后的第 1 格）
+			// （用户要求"仍要能看出有事"）。没有轮播条目时自然是第 0 格 = 原按钮外观。
+			const shownStep = reduceMotion && tickerSlides.length > 0 ? 1 : slideStep;
 			// 这一帧的翻页方向（**类名 = 视觉方向**，见 70-styles.js 的 keyframes 注释）。
-			// reduce 时钉在第 1 格，方向取 remindDirAt(1)（反正 CSS 那边 animation:none，不会播）。
-			const flipDir = remindDirAt(reduceMotion && remindSlides.length > 0 ? 1 : remindCycle.seq);
+			// reduce 时钉在第 1 格，方向取 tickerDirAt(1)（反正 CSS 那边 animation:none，不会播）。
+			const flipDir = tickerDirAt(reduceMotion && tickerSlides.length > 0 ? 1 : tickerCycle.seq);
 			// 上一格的内容要**留在 DOM 里**才能做出"交叉滚动"（旧的往上走、新的从下面进来）。
 			// 用 ref 记上一次渲染的格号：格号变了的那一次渲染里 prevStep = 旧格号，effect 之后再对齐。
 			// （若改成"渲染时直接改 ref"，React 严格模式下可能被重复执行；effect 版本最稳。）
@@ -1455,7 +1455,7 @@
 			const prevStep = prevStepRef.current === shownStep ? shownStep : prevStepRef.current;
 			(0, react.useEffect)(() => { prevStepRef.current = shownStep; }, [shownStep]);
 			// 原按钮的日历图标（16px，与 .gacha-cal-btn svg 的规则一致）。C 方案里它只在
-			// **状态 0 那一格**出现（跟着翻页走），所以抽成变量给 remindLine 用。
+			// **状态 0 那一格**出现（跟着翻页走），所以抽成变量给 tickerLine 用。
 			const calIcon = (0, react_jsx_runtime.jsx)("svg", { "aria-hidden": "true", width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
 				children: [
 					(0, react_jsx_runtime.jsx)("rect", { x: "3", y: "4", width: "18", height: "18", rx: "2", ry: "2" }),
@@ -1466,17 +1466,17 @@
 			}) });
 			// 展开序列里第 step 格的内容（越界 / 条目数变了以后残留的旧格号一律按"原按钮"处理：
 			// prevStep 是**上一次渲染**的格号，节拍刚跳完那一拍它可能已经不在这份序列里，不能抛）。
-			const stepAt = (step) => remindSteps[step] || { idx: 0, idle: true, slideIndex: -1, dir: "down" };
-			// 一格的内容：idle = 原按钮外观（日历图标 + 「二游日历」），其余 = 一条提醒（游戏图标 + 事项名 + 状态）。
+			const stepAt = (step) => tickerSteps[step] || { idx: 0, idle: true, slideIndex: -1, dir: "down" };
+			// 一格的内容：idle = 原按钮外观（日历图标 + 「二游日历」），其余 = 一条轮播条目（游戏图标 + 事项名 + 状态）。
 			// **图标也在这一行里** —— 它跟整行一起翻（C 方案），所以不参与按钮的固定布局。
 			// 名字与状态**分开两个盒子**：名字可省略号截断、状态 flex:none 永不截断 ——
 			// 窄侧栏里必须留下「· 3 小时 / · 明天开池 / · 24 天」。
 			// 分隔符带**前导空格**（" · "）：上一版只写了 "· "，渲染出来是「少女· 3 小时」，少一个空格
 			// （用户 2026-10-25 指出）。.gacha-cal-btn-st 的 white-space:pre 保证这个空格不被折叠掉。
 			// slot 只用于 React 的 key（同一个 flip 层里两行：cur / prev）。
-			const remindLine = (idx, slot) => {
+			const tickerLine = (idx, slot) => {
 				const at = stepAt(idx);
-				const slide = at.slideIndex >= 0 ? remindSlides[at.slideIndex] : null;
+				const slide = at.slideIndex >= 0 ? tickerSlides[at.slideIndex] : null;
 				const icon = slide
 					? (0, react_jsx_runtime.jsx)(GameIcon, { icon: slide.gameIcon, name: slide.gameName || slide.itemName, size: 16 })
 					: calIcon;
@@ -1494,7 +1494,7 @@
 					]
 				});
 			};
-			// 翻页层的**两行顺序 / 落定**都交给 RemindFlipLines 组件（上面的注释块）：
+			// 翻页层的**两行顺序 / 落定**都交给 TickerFlipLines 组件（上面的注释块）：
 			//   行顺序随方向换（up ⇒ [prev, cur]、down ⇒ [cur, prev]），动画播完落定成只含 cur 的一行。
 			// 父层只负责把这一拍的方向 / 格号 / reduce 传下去 —— 纯函数在 60-helpers.js，
 			// 组件在 CalendarPanel 之前，落定 state 由 `key={shownStep}` 在换格时重置。
@@ -1645,20 +1645,20 @@
 			const dataStatus = s.lastSource === "web" ? "\u8054\u7F51\u6570\u636E" : "\u2014";
 			const label = SETTINGS_SECTION_LABEL;
 			// 按钮的悬停/读屏文案：既要能读出"有几项"，也不能只说一个数字（读屏用户看不见动画）。
-			// 2026-10-25 晚起提醒是**双向**的，所以措辞从"N 小时内到期"改成"N 小时内提醒"；
-			// 每条带上方向与剩余时间 —— 直接复用轮播那一份文案（remindSlidesOf 的 ariaText），
+			// 2026-10-25 晚起轮播是**双向**的，所以措辞从"N 小时内到期"改成"N 小时内 N 项日程"；
+			// 每条带上方向与剩余时间 —— 直接复用轮播那一份文案（tickerSlidesOf 的 ariaText），
 			// 保证两处不会说两套话。
 			// ⚠️ 这里用 ariaText 而**不是** text：按钮上为了省宽度去掉了「还剩」（"· 8 小时"），
 			//    但读屏/悬停是句子，必须有「还剩」才通顺（"…，还剩 8 小时"）—— 两处唯一的差别就是这个词。
 			// 名称最多列 3 条 —— 侧栏这个悬停是个窄提示，不是面板。
 			// C 方案起文字只写**事项名**（游戏名让位给图标），悬停这里补一句"哪款游戏"，
 			// 否则读屏用户听到一串活动名却不知道属于谁。
-			const remindHintNames = remindSlides.slice(0, 3).map((x) =>
+			const tickerHintNames = tickerSlides.slice(0, 3).map((x) =>
 				(x.gameName && x.gameName !== x.itemName ? x.gameName + "\uFF1A" : "") + x.ariaText);
-			const remindHint = remindDue.length
-				? remindHours + " \u5C0F\u65F6\u5185 " + remindDue.length + " \u9879\u63D0\u9192" +
-					(remindHintNames.length ? "\uFF1A" + remindHintNames.join("\u3001") +
-						(remindDue.length > remindHintNames.length ? " \u7B49" : "") : "")
+			const tickerHint = tickerItems.length
+				? tickerHours + " \u5C0F\u65F6\u5185 " + tickerItems.length + " \u9879\u65E5\u7A0B" +
+					(tickerHintNames.length ? "\uFF1A" + tickerHintNames.join("\u3001") +
+						(tickerItems.length > tickerHintNames.length ? " \u7B49" : "") : "")
 				: "";
 
 			return (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
@@ -1667,10 +1667,10 @@
 						ref: triggerRef,
 						type: "button",
 						className: "gacha-cal-btn",
-						"aria-label": remindDue.length ? label + "\uFF08" + remindHint + "\uFF09" : label,
+						"aria-label": tickerItems.length ? label + "\uFF08" + tickerHint + "\uFF09" : label,
 						// 悬停说明挂在**按钮**上：红点（窄侧栏降级）带 pointer-events:none 不参与命中测试，
-						// 把 title 放在它身上等于永远不显示。没有提醒项时不加 title（保持按钮原样）。
-						title: remindDue.length ? remindHint : void 0,
+						// 把 title 放在它身上等于永远不显示。没有轮播项时不加 title（保持按钮原样）。
+						title: tickerItems.length ? tickerHint : void 0,
 						// 悬停**暂停轮播**（用户要求）：只停"切内容"的节拍，不冻结正在播的翻页动画
 						// （那是一次性 0.42s，冻在半路更难看）。见上面 useCycle 的 paused 参数。
 						onMouseEnter: () => setBtnHover(true),
@@ -1678,23 +1678,23 @@
 						onClick: () => setOpen((v) => !v),
 						children: [
 							// 日历图标只在「没有轮播」时固定在按钮上（与历史外观一字不差）；
-							// 有轮播时图标属于轮播那一行（C 方案：图标跟着整行翻），由 remindLine 渲染。
-							(wide === false || remindSlides.length === 0) ? calIcon : null,
+							// 有轮播时图标属于轮播那一行（C 方案：图标跟着整行翻），由 tickerLine 渲染。
+							(wide === false || tickerSlides.length === 0) ? calIcon : null,
 							// 窄侧栏（收起状态）：**没有可滚动的那一行** ⇒ 用户允许的降级 = 小红点。
 							// 红点绝对定位、不参与 flex 布局 ⇒ 按钮尺寸/文字位置一个字都不动
-							// （用户 2026-10-25 明确要求别再重演"按钮错位"）。总开关关掉（remindOn=false）
-							// 时 remindDue 恒空 ⇒ 这里也不出红点。
+							// （用户 2026-10-25 明确要求别再重演"按钮错位"）。总开关关掉（tickerOn=false）
+							// 时 tickerItems 恒空 ⇒ 这里也不出红点。
 							wide === false
-								? (remindDue.length
+								? (tickerItems.length
 									? (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-dot", "aria-hidden": "true" })
 									: null)
-								// 宽侧栏：有提醒 → 单行轮播（展开序列 = [原按钮, 条目1, 原按钮, 条目2, …]，
-								// 「原按钮外观」每两条之间都会回来一次）；没提醒 → **一字未改的原样**
+								// 宽侧栏：有轮播条目 → 单行翻页（展开序列 = [原按钮, 条目1, 原按钮, 条目2, …]，
+								// 「原按钮外观」每两条之间都会回来一次）；没有 → **一字未改的原样**
 								// （图标 + 一个 span），零风险。
-								: (remindSlides.length
+								: (tickerSlides.length
 									? (0, react_jsx_runtime.jsx)("span", {
 										className: "gacha-cal-btn-txt",
-										children: (0, react_jsx_runtime.jsx)(RemindFlipLines, {
+										children: (0, react_jsx_runtime.jsx)(TickerFlipLines, {
 											// key = 格号：每换一格，翻页层**整体重挂载** ⇒
 											// `flipSettled` 回到 false（下一拍仍有完整两行 + 从头播的动画）。
 											// 这就是"每次换格重置"的实现 —— 不用 useEffect（理由见组件处注释）。
@@ -1702,15 +1702,15 @@
 											// 翻页方向（2026-10-25 四次定稿）：**类名 = 视觉方向** ——
 											// .is-up = 新内容从下方进（旧的往上走）；
 											// .is-down = 新内容从上方进（旧的往下走）。
-											// 方向来自纯函数 remindDirAt(单调切换序)，按"第几次切换"四步一循环
+											// 方向来自纯函数 tickerDirAt(单调切换序)，按"第几次切换"四步一循环
 											// （up,down,down,up），渲染层只做"类名映射"，不自己数奇偶；
 											// **不要**从 shownStep 反推（回卷到格 0 会丢相位，见 flipDir 处注释）。
 											flipDir,
 											shownStep,
 											prevStep,
 											reduceMotion,
-											// 每行的内容由父层的 remindLine 渲染（它闭包着本帧的 remindSlides / calIcon）。
-											renderLine: remindLine
+											// 每行的内容由父层的 tickerLine 渲染（它闭包着本帧的 tickerSlides / calIcon）。
+											renderLine: tickerLine
 										})
 									})
 									: (0, react_jsx_runtime.jsx)("span", { children: label }))
@@ -1897,10 +1897,10 @@
 			// 「展示」写入的**串行链**（见下面 setEntryShown）：连点时后一笔等前一笔落盘后再算，
 			// 保证终态 = 最后一次点击的目标状态，而不是两笔写入互相覆盖（宿主往返 1.4~3.6s）。
 			const showWriteChain = (0, react.useRef)(Promise.resolve());
-			// 「提醒」复选框的本地草稿与串行链（2026-10-25 晚）。理由与「展示」**完全相同**：
+			// 「轮播」复选框的本地草稿与串行链（2026-10-25 晚）。理由与「展示」**完全相同**：
 			// 受控 checked 读 `s`，而宿主写入往返 1.4~3.6s 期间 `s` 还是旧值 ⇒ 不垫草稿就会"点了弹回去"。
-			const [remindDraft, setRemindDraft] = (0, react.useState)({});
-			const remindWriteChain = (0, react.useRef)(Promise.resolve());
+			const [tickerDraft, setTickerDraft] = (0, react.useState)({});
+			const tickerWriteChain = (0, react.useRef)(Promise.resolve());
 			const [customInputs, setCustomInputs] = (0, react.useState)({});
 			const [eventCustomInputs, setEventCustomInputs] = (0, react.useState)({});
 			// 解析器自检（只读）：运行中标记 + 上一次的报告
@@ -1956,17 +1956,17 @@
 			const currentMinutes = Number(s.refreshMinutes ?? DEFAULT_SETTINGS.refreshMinutes);
 			// 旧配置可能存了分钟值（不在按天选项里），额外补一个"自定义"选项避免 select 空白
 			const inOptions = REFRESH_OPTIONS.some((o) => o.minutes === currentMinutes);
-			// 「到期提醒」的**范围**（小时；12/24/48/72，默认 72）。两个控件分开：
-			//   开关 remindOn（默认开）= 侧栏轮播功能总开关；
-			//   范围 remindHours      = 提前多久算"要来了"。
+			// 轮播的**范围**（小时；12/24/48/72，默认 72）。两个控件分开：
+			//   开关 tickerOn（默认开）= 侧栏轮播功能总开关；
+			//   范围 tickerHours      = 提前多久算"要来了"。
 			// 老配置里的 0（当年"关闭"那个档位）已不在选项里 —— 关闭现在归开关管，
-			// 读取口径与侧栏按钮同一处（helpers 的 remindRangeOf，非正数回落默认 72），
+			// 读取口径与侧栏按钮同一处（helpers 的 tickerRangeOf，非正数回落默认 72），
 			// 所以下拉里不会冒出一个孤儿档位「自定义（0 小时）」。
-			const currentRemind = remindRangeOf(s.remindHours);
-			const remindInOptions = REMIND_OPTIONS.some((o) => o.hours === currentRemind);
+			const currentTicker = tickerRangeOf(s.tickerHours);
+			const tickerInOptions = TICKER_OPTIONS.some((o) => o.hours === currentTicker);
 			// 总开关的当前值：缺省 = 开（与 DEFAULT_SETTINGS / schema 的 default(true) 同口径，
-			// 判定走 helpers 的 remindOnOf，与侧栏按钮那一侧共用同一处口径）
-			const remindOn = remindOnOf(s.remindOn);
+			// 判定走 helpers 的 tickerOnOf，与侧栏按钮那一侧共用同一处口径）
+			const tickerOn = tickerOnOf(s.tickerOn);
 
 			// 保存失败必须可见：旧实现只 await 不 catch，写被宿主拒绝时控件弹回原值、
 			// 用户只会觉得"点了没反应"（「重置排序」写 null 被拒就是这种病的极端例子）
@@ -2049,45 +2049,45 @@
 				showWriteChain.current = run.catch(() => {});
 				return run;
 			};
-			// ── 「提醒」开关（2026-10-25 晚；同日**二次定稿**为普通列表语义）────────────────
-			// 语义（用户定，必须简单可解释）：remindGames = **参与提醒的条目 id 列表**。
-			//   · 列表里有这个 id ⇒ 参与；没有 ⇒ 不参与；**空数组 = 一个都不提醒**。
-			//     没有"空 = 全部参与"的哨兵了 —— 那个哨兵让"一个都不提醒"表达不出来，
+			// ── 「轮播」开关（2026-10-25 晚；同日**二次定稿**为普通列表语义）────────────────
+			// 语义（用户定，必须简单可解释）：tickerGames = **参与轮播的条目 id 列表**。
+			//   · 列表里有这个 id ⇒ 参与；没有 ⇒ 不参与；**空数组 = 一个都不轮播**。
+			//     没有"空 = 全部参与"的哨兵了 —— 那个哨兵让"一个都不轮播"表达不出来，
 			//     于是"取消最后一个勾"只能被拒绝（旧实现如此，用户明确要求修掉）。
-			//   · 开箱即用靠**出厂默认值**（10-config.js 的 DEFAULT_SETTINGS.remindGames = 出厂时展示中的
-			//     条目，守卫见 test/cases-remind.mjs），不靠哨兵。
+			//   · 开箱即用靠**出厂默认值**（10-config.js 的 DEFAULT_SETTINGS.tickerGames = 出厂时展示中的
+			//     条目，守卫见 test/cases-ticker.mjs），不靠哨兵。
 			// 写入链路照抄「展示」那套（A1 的教训）：目标状态驱动 + 串行链 + 执行时读最新快照。
-			// 「展示」关掉的行**不参与**提醒（面板 games 里根本没有它 ⇒ remindDueOf 看不到），
+			// 「展示」关掉的行**不参与**轮播（面板 games 里根本没有它 ⇒ tickerItemsOf 看不到），
 			// 所以 UI 上那一行的复选框直接置灰，不让人在"看不见的条目"上白勾。
-			const remindIds = Array.isArray(s.remindGames) ? s.remindGames : [];
-			const remindedNow = (id) => (Object.prototype.hasOwnProperty.call(remindDraft, id)
-				? !!remindDraft[id]
-				: remindGameAllowed(id, remindIds));
-			const setEntryRemind = (id, shouldRemind) => {
-				const run = remindWriteChain.current.then(async () => {
+			const tickerIds = Array.isArray(s.tickerGames) ? s.tickerGames : [];
+			const tickerAllowedNow = (id) => (Object.prototype.hasOwnProperty.call(tickerDraft, id)
+				? !!tickerDraft[id]
+				: tickerGameAllowed(id, tickerIds));
+			const setEntryTicker = (id, shouldTicker) => {
+				const run = tickerWriteChain.current.then(async () => {
 					const snap = scope.getSnapshot();
 					const live = snap && snap.status === "ready" ? snap.value : null;
-					const cur = live && Array.isArray(live.remindGames) ? live.remindGames : remindIds;
-					// 普通列表语义：加 = 并入，减 = 摘掉。**减到空就写空**（= 一个都不提醒），
+					const cur = live && Array.isArray(live.tickerGames) ? live.tickerGames : tickerIds;
+					// 普通列表语义：加 = 并入，减 = 摘掉。**减到空就写空**（= 一个都不轮播），
 					// 不再有"空数组等于全部"的坑，所以这里没有任何"拒绝最后一个勾"的分支。
-					const next = shouldRemind
+					const next = shouldTicker
 						? (cur.includes(id) ? cur.slice() : [...cur, id])
 						: cur.filter((x) => x !== id);
-					await commit("remindGames", next);
+					await commit("tickerGames", next);
 				});
-				remindWriteChain.current = run.catch(() => {});
+				tickerWriteChain.current = run.catch(() => {});
 				return run;
 			};
-			// 「全部提醒」= 把**当前展示中**的条目 id 一次性写进列表（不是写回空数组 ——
-			// 空数组现在是"一个都不提醒"）。没展示的条目本来就不参与提醒，所以不给它们勾。
+			// 「全部轮播」= 把**当前展示中**的条目 id 一次性写进列表（不是写回空数组 ——
+			// 空数组现在是"一个都不轮播"）。没展示的条目本来就不参与轮播，所以不给它们勾。
 			// 与逐行勾选走**同一条串行链**，避免两笔写入互相覆盖（宿主往返 1.4~3.6s）。
-			const resetRemindAll = () => {
-				const run = remindWriteChain.current.then(async () => {
+			const resetTickerAll = () => {
+				const run = tickerWriteChain.current.then(async () => {
 					const next = allEntries.filter((g) => shownNow(g)).map((g) => g.id);
-					setRemindDraft({});
-					await commit("remindGames", next);
+					setTickerDraft({});
+					await commit("tickerGames", next);
 				});
-				remindWriteChain.current = run.catch(() => {});
+				tickerWriteChain.current = run.catch(() => {});
 				return run;
 			};
 
@@ -2100,7 +2100,7 @@
 			// 依赖键按**值**派生（宿主每次写入都换掉数组对象，按引用当依赖会白跑；理由同面板 A3）。
 			const hiddenKey = (Array.isArray(s.hidden) ? s.hidden : []).join("\u0000");
 			const shownKey = (Array.isArray(s.shown) ? s.shown : []).join("\u0000");
-			const remindGamesKey = (Array.isArray(s.remindGames) ? s.remindGames : []).join("\u0000");
+			const tickerGamesKey = (Array.isArray(s.tickerGames) ? s.tickerGames : []).join("\u0000");
 			const entriesById = {};
 			for (const x of allEntries) entriesById[x.id] = x;
 			(0, react.useEffect)(() => {
@@ -2126,18 +2126,18 @@
 				}
 				if (changed) setShowDraft(next);
 			}, [hiddenKey, shownKey, s.customEntries, showDraft]);
-			// 「提醒」草稿的同一套 A5 清理：store 现值已经等于草稿值（或条目被删）⇒ 丢掉草稿。
-			// 依赖按**值**（remindGamesKey）而不是数组引用 —— 宿主每次写入都会换掉数组对象。
+			// 「轮播」草稿的同一套 A5 清理：store 现值已经等于草稿值（或条目被删）⇒ 丢掉草稿。
+			// 依赖按**值**（tickerGamesKey）而不是数组引用 —— 宿主每次写入都会换掉数组对象。
 			(0, react.useEffect)(() => {
 				let changed = false;
 				const next = {};
-				for (const id of Object.keys(remindDraft)) {
+				for (const id of Object.keys(tickerDraft)) {
 					const g = entriesById[id];
-					if (!g || (remindGameAllowed(id, remindIds) === !!remindDraft[id])) { changed = true; continue; }
-					next[id] = remindDraft[id];
+					if (!g || (tickerGameAllowed(id, tickerIds) === !!tickerDraft[id])) { changed = true; continue; }
+					next[id] = tickerDraft[id];
 				}
-				if (changed) setRemindDraft(next);
-			}, [remindGamesKey, s.customEntries, remindDraft]);
+				if (changed) setTickerDraft(next);
+			}, [tickerGamesKey, s.customEntries, tickerDraft]);
 			// 删除条目：内置条目记入 removed；自定义条目从 customEntries 移除
 			const removeEntry = async (g) => {
 				if (g.custom) {
@@ -2303,22 +2303,22 @@
 								REFRESH_OPTIONS.map((o) => (0, react_jsx_runtime.jsx)("option", { value: String(o.minutes), children: o.label }, o.minutes))
 							] })
 						] }),
-						// 到期提醒（2026-10-25 三次定稿）：**两个控件** —— 开关 + 范围。
-						//   · 开关（remindOn，默认开）= 侧栏轮播功能总开关。关掉 = 按钮只有原样
+						// 侧栏轮播（2026-10-25 三次定稿）：**两个控件** —— 开关 + 范围。
+						//   · 开关（tickerOn，默认开）= 侧栏轮播功能总开关。关掉 = 按钮只有原样
 						//     （不轮播、窄侧栏也不出红点），且面板/轮播都不做任何计算；
-						//   · 范围（remindHours，12/24/48/72 小时，默认 72）= 提前多久算"要来了"。
-						// 「提醒」（下面游戏列表每行一个复选框，remindGames）决定哪些条目参与。
+						//   · 范围（tickerHours，12/24/48/72 小时，默认 72）= 提前多久算"要来了"。
+						// 「轮播」（下面游戏列表每行一个复选框，tickerGames）决定哪些条目参与。
 						// 两个控件分别 commit 各自的键，走同一条 commit → scope.set 链路。
-						(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }, title: "有卡池或活动在 N 小时内结束或开始时，侧栏按钮轮播提醒", children: [
+						(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }, title: "有卡池或活动在 N 小时内结束或开始时，侧栏按钮轮播显示", children: [
 							(0, react_jsx_runtime.jsxs)("label", { style: { display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }, children: [
-								(0, react_jsx_runtime.jsx)("input", { type: "checkbox", checked: remindOn, onChange: (e) => commit("remindOn", e.target.checked) }),
-								(0, react_jsx_runtime.jsx)("span", { style: { flex: "none" }, children: "提醒" })
+								(0, react_jsx_runtime.jsx)("input", { type: "checkbox", checked: tickerOn, onChange: (e) => commit("tickerOn", e.target.checked) }),
+								(0, react_jsx_runtime.jsx)("span", { style: { flex: "none" }, children: "轮播" })
 							] }),
 							(0, react_jsx_runtime.jsxs)("label", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
-								(0, react_jsx_runtime.jsx)("span", { style: { flex: "none" }, children: "范围" }),
-								(0, react_jsx_runtime.jsxs)("select", { className: "gacha-cal-select", value: String(currentRemind), onChange: (e) => commit("remindHours", Number(e.target.value)), children: [
-									!remindInOptions ? (0, react_jsx_runtime.jsx)("option", { value: String(currentRemind), children: "自定义（" + currentRemind + " 小时）" }) : null,
-									REMIND_OPTIONS.map((o) => (0, react_jsx_runtime.jsx)("option", { value: String(o.hours), children: o.label }, o.hours))
+								(0, react_jsx_runtime.jsx)("span", { style: { flex: "none" }, children: "轮播范围" }),
+								(0, react_jsx_runtime.jsxs)("select", { className: "gacha-cal-select", value: String(currentTicker), onChange: (e) => commit("tickerHours", Number(e.target.value)), children: [
+									!tickerInOptions ? (0, react_jsx_runtime.jsx)("option", { value: String(currentTicker), children: "自定义（" + currentTicker + " 小时）" }) : null,
+									TICKER_OPTIONS.map((o) => (0, react_jsx_runtime.jsx)("option", { value: String(o.hours), children: o.label }, o.hours))
 								] })
 							] })
 						] })
@@ -2339,23 +2339,23 @@
 						(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }, children: [
 							(0, react_jsx_runtime.jsx)("span", { style: { fontWeight: 600 }, children: "游戏列表" }),
 							(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 6 }, children: [
-								// 「全部提醒」：把**当前展示中**的条目 id 一次性写进「提醒」列表
-								// （remindGames = 这些 id ⇒ 它们都参与）。注意**不再写回空数组** ——
-								// 空数组现在的意思是"一个都不提醒"（2026-10-25 二次定稿，废弃了"空 = 全部"）。
-								// 没展示的条目不参与提醒，所以不给它们勾。
-								(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 }, title: "把所有展示中的游戏都加入「提醒」", onClick: resetRemindAll, children: "全部提醒" }),
+								// 「全部轮播」：把**当前展示中**的条目 id 一次性写进「轮播」列表
+								// （tickerGames = 这些 id ⇒ 它们都参与）。注意**不再写回空数组** ——
+								// 空数组现在的意思是"一个都不轮播"（2026-10-25 二次定稿，废弃了"空 = 全部"）。
+								// 没展示的条目不参与轮播，所以不给它们勾。
+								(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 }, title: "把所有展示中的游戏都加入「轮播」", onClick: resetTickerAll, children: "全部轮播" }),
 								(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 }, onClick: resetOrder, children: "重置排序" }),
 								(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 }, onClick: restoreAll, children: "恢复条目" })
 							] })
 						] }),
-						(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 11, marginBottom: 2 }, children: "「展示」控制显示；「提醒」控制侧栏轮播；「↑↓」调整顺序；「颜色」取色器换主题色。" }),
-						// 「提醒」的语义说明单独一行（上面那行已经到 48 字上限了，别把它撑爆）
-						(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 11, marginBottom: 2 }, children: "「提醒」勾上谁就提醒谁；全部不勾 = 都不提醒。未展示的条目不参与。" }),
+						(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 11, marginBottom: 2 }, children: "「展示」控制显示；「轮播」控制侧栏轮播内容；「↑↓」调整顺序；「颜色」取色器换主题色。" }),
+						// 「轮播」的语义说明单独一行（上面那行已经到 48 字上限了，别把它撑爆）
+						(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 11, marginBottom: 2 }, children: "「轮播」勾上谁就轮播谁；全部不勾 = 都不轮播。未展示的条目不参与。" }),
 						// 表头行（与数据行同 grid 列；全部居中，与下方各列边界对齐）
 						(0, react_jsx_runtime.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1.15fr) 28px 28px minmax(0,1fr) minmax(0,1fr) 34px 88px", gap: 12, alignItems: "center", padding: "3px 0", borderBottom: "1px solid var(--dsw-alias-border-l1)", color: "var(--dsw-alias-label-tertiary)", fontSize: 11 }, children: [
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u6E38\u620F" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u5C55\u793A" }),
-							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u5F3A\u63D0\u9192" }),
+							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u8F6E\u64AD" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u5361\u6C60\u6765\u6E90" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u6D3B\u52A8\u6765\u6E90" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u989C\u8272" }),
@@ -2389,23 +2389,23 @@
 													}
 												})
 											] }),
-											// 「提醒」：侧栏轮播要不要包含这一条（与「展示」**完全独立**）。
-											// 显示值 = "在不在这个列表里"（普通列表语义，空 = 谁都不提醒；
-											// 语义见 60-helpers.js 的 remindGameAllowed 与 10-config.js 的 remindGames 注释）。
+											// 轮播复选框：侧栏轮播要不要包含这一条（与「展示」**完全独立**）。
+											// 显示值 = "在不在这个列表里"（普通列表语义，空 = 谁都不轮播；
+											// 语义见 60-helpers.js 的 tickerGameAllowed 与 10-config.js 的 tickerGames 注释）。
 											// ⚠️ 未勾「展示」的行 ⇒ 复选框**置灰（disabled）且不参与**：面板里根本没有这一条，
-											//    提醒链路（remindDueOf 只吃展示中的 games）看不到它，勾了也不会生效 ——
+											//    轮播链路（tickerItemsOf 只吃展示中的 games）看不到它，勾了也不会生效 ——
 											//    与其让人白勾一下，不如直接禁掉（用户 2026-10-25 要求）。
-											// 取消最后一个勾是**合法**的（写盘就是空数组 = 一个都不提醒），不再弹错。
+											// 取消最后一个勾是**合法**的（写盘就是空数组 = 一个都不轮播），不再弹错。
 											(0, react_jsx_runtime.jsx)("label", {
 												style: { ...labelStyle, cursor: shownNow(g) ? "pointer" : "default", justifySelf: "center", opacity: shownNow(g) ? 1 : 0.45 },
 												children: (0, react_jsx_runtime.jsx)("input", {
 													type: "checkbox",
-													checked: remindedNow(g.id),
+													checked: tickerAllowedNow(g.id),
 													disabled: !shownNow(g),
 													onChange: () => {
-														const next = !remindedNow(g.id);
-														setRemindDraft((p) => ({ ...p, [g.id]: next }));
-														setEntryRemind(g.id, next);
+														const next = !tickerAllowedNow(g.id);
+														setTickerDraft((p) => ({ ...p, [g.id]: next }));
+														setEntryTicker(g.id, next);
 													}
 												})
 											}),

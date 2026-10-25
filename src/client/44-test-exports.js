@@ -383,44 +383,44 @@
 			localWin,
 			localWinText,
 			localDatesOf,
-			// 到期提醒（2026-10-25）：判定本体是 60-helpers.js 的**纯函数**（固定时刻可测）；
-			// remindWindowOf / remindDueOf 在 80-components.js，是"落盘文本 + tz → 绝对窗口"的那一层
+			// 侧栏轮播（2026-10-25）：判定本体是 60-helpers.js 的**纯函数**（固定时刻可测）；
+			// tickerWindowOf / tickerItemsOf 在 80-components.js，是"落盘文本 + tz → 绝对窗口"的那一层
 			// （与面板外显同一条换算链）。同属函数声明、同作用域提升 ⇒ 这里可提前引用。
 			isExpiringSoon,
 			expiringSoonOf,
-			// 双向判定（2026-10-25 晚）：即将结束 / 即将开始都算提醒。
-			// remindKindOf = 方向判定；remindGameAllowed = 「强提醒」筛选语义（普通列表，空 = 都不提醒）；
-			// remindPickOf = 选取 + 排序；remindCaptionOf = 按钮那一行的两段文案（事项名 / 状态）；
-			// remindSlidesOf = 轮播**每格**的结构（C 方案：{gameId, gameIcon, itemName, statusText}）；
-			// remindStepsOf = 轮播的**展开序列**（2026-10-25 三次定稿：[idle,1,idle,2,…]，每格带方向）。
-			// remindDirAt = 方向规则本体（2026-10-25 四次定稿）：按**切换次数**四步一循环
+			// 双向判定（2026-10-25 晚）：即将结束 / 即将开始都算"快到期"。
+			// tickerKindOf = 方向判定；tickerGameAllowed = 轮播的筛选语义（普通列表，空 = 都不轮播）；
+			// tickerPickOf = 选取 + 排序；tickerCaptionOf = 按钮那一行的两段文案（事项名 / 状态）；
+			// tickerSlidesOf = 轮播**每格**的结构（C 方案：{gameId, gameIcon, itemName, statusText}）；
+			// tickerStepsOf = 轮播的**展开序列**（2026-10-25 三次定稿：[idle,1,idle,2,…]，每格带方向）。
+			// tickerDirAt = 方向规则本体（2026-10-25 四次定稿）：按**切换次数**四步一循环
 			//   up,down,down,up（idx 0 = 挂载兜底 down）。渲染层用它取方向，测试用它做
 			//   "8 步推演"（把展开序列按 useCycle 的推进方式走一遍）。
 			//   函数声明 ⇒ 本文件执行时已提升，可以提前引用（const 表不行，别照抄）。
 			// 全是纯函数，固定时刻可测。
-			remindKindOf,
-			remindGameAllowed,
+			tickerKindOf,
+			tickerGameAllowed,
 			// 总开关的读取口径（2026-10-25 三次定稿）：只有明确的 false 才算关（缺失 = 开）。
-			remindOnOf,
+			tickerOnOf,
 			// 范围的读取口径：非正数 / 缺失一律回落到默认范围（72），供设置页与按钮共用。
-			remindRangeOf,
-			remindPickOf,
-			remindCaptionOf,
-			remindSlidesOf,
-			remindStepsOf,
-			remindDirAt,
-			// remindFlipLinesOf = 翻页层**两行的顺序**（2026-10-25 五次定稿）：up ⇒ [prev, cur]、
+			tickerRangeOf,
+			tickerPickOf,
+			tickerCaptionOf,
+			tickerSlidesOf,
+			tickerStepsOf,
+			tickerDirAt,
+			// tickerFlipLinesOf = 翻页层**两行的顺序**（2026-10-25 五次定稿）：up ⇒ [prev, cur]、
 			//   down ⇒ [cur, prev]。行顺序与 keyframes 必须成对出现 —— 向上翻若仍用 [cur, prev]，
 			//   起点 translateY(+50%) 会把两层都推到窗口下方（开场空白，用户报的"观感不一样"）。
 			//   提成纯函数是为了能对 up / down 各钉一条断言（渲染层只做 map）。
-			remindFlipLinesOf,
-			// remindFlipRenderLinesOf = **落定后进 DOM 的行**（2026-10-25 六次定稿）：
+			tickerFlipLinesOf,
+			// tickerFlipRenderLinesOf = **落定后进 DOM 的行**（2026-10-25 六次定稿）：
 			//   动画播完 ⇒ [cur]（只一行、transform 回 none，与向下翻终点一致）；未落定 ⇒
-			//   沿用 remindFlipLinesOf 的两行顺序。提成纯函数是为了把 settled × up/down
+			//   沿用 tickerFlipLinesOf 的两行顺序。提成纯函数是为了把 settled × up/down
 			//   四种组合都钉住（"落定时仍渲染两行"这种写法视觉上会被窗口裁掉、只在真机露馅）。
-			remindFlipRenderLinesOf,
-			remindWindowOf,
-			remindDueOf,
+			tickerFlipRenderLinesOf,
+			tickerWindowOf,
+			tickerItemsOf,
 			sourceInstant,
 			sourceWallParts,
 			sourceOffsetMinutes,

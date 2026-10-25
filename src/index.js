@@ -331,18 +331,18 @@ const Config = z.object({
 	autoRefresh: z.boolean().default(true).volatile(),
 	refreshMinutes: z.number().min(1).max(60480).default(1440).volatile(),
 	// 侧栏轮播的**总开关**（2026-10-25 三次定稿）：false = 不轮播、也不显示红点（按钮只有原样）。
-	// 与下面的 `remindHours`（提前多久）拆成两个控件：一个管开不开、一个管范围。
-	remindOn: z.boolean().default(true).volatile(),
-	// 提醒的**范围**（小时；12/24/48/72，默认 72）。有卡池/活动在 N 小时内结束或开始，侧栏按钮轮播提醒。
-	// 判定是纯函数 remindKindOf（60-helpers.js），按钮轮播在 80-components.js 的 CalendarPanel 里。
-	remindHours: z.number().default(72).volatile(),
-	// 「强提醒」：参与侧栏轮播提醒的条目 id（设置页每行一个复选框）。
-	// **普通列表语义**（2026-10-25 二次定稿）：列表里有谁就提醒谁，**空数组 = 一个都不提醒**
-	// —— 不再有"空 = 全部参与"的哨兵（那个哨兵让"一个都不提醒"无法表达）。
+	// 与下面的 `tickerHours`（提前多久）拆成两个控件：一个管开不开、一个管范围。
+	tickerOn: z.boolean().default(true).volatile(),
+	// 轮播的**范围**（小时；12/24/48/72，默认 72）。有卡池/活动在 N 小时内结束或开始，侧栏按钮轮播显示。
+	// 判定是纯函数 tickerKindOf（60-helpers.js），按钮轮播在 80-components.js 的 CalendarPanel 里。
+	tickerHours: z.number().default(72).volatile(),
+	// 参与侧栏轮播的条目 id（设置页每行一个复选框）。
+	// **普通列表语义**（2026-10-25 二次定稿）：列表里有谁就轮播谁，**空数组 = 一个都不轮播**
+	// —— 不再有"空 = 全部参与"的哨兵（那个哨兵让"一个都不轮播"无法表达）。
 	// 出厂默认 = 出厂时**展示中**的条目（所有 defaultHidden !== true 的 id，默认隐藏的那几个不在里面）。
-	// ⚠️ 这份 default 必须与 src/client/10-config.js 的 DEFAULT_SETTINGS.remindGames 逐项一致，
-	//    并由 test/cases-remind.mjs 的守卫一起钉住（两边都是"出厂值"，漂了就是两套默认）。
-	remindGames: z.array(z.string()).default([
+	// ⚠️ 这份 default 必须与 src/client/10-config.js 的 DEFAULT_SETTINGS.tickerGames 逐项一致，
+	//    并由 test/cases-ticker.mjs 的守卫一起钉住（两边都是"出厂值"，漂了就是两套默认）。
+	tickerGames: z.array(z.string()).default([
 		"genshin", "hsr", "zzz", "wuwa", "arknights", "endfield",
 		"ba-cn", "ba-global", "ba-jp", "bandori", "wuhuamixin", "zspms", "kedr",
 		"uma-cn", "uma-jp", "uma-global",
