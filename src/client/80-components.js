@@ -2307,12 +2307,12 @@
 							(0, react_jsx_runtime.jsx)("span", { style: { fontWeight: 600 }, children: "游戏列表" }),
 							(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 6 }, children: [
 								// 「全部提醒」= 把当前展示中的 id 写进白名单；空数组的意思是"一个都不提醒"。
-								(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 }, title: "把所有展示中的游戏都加入「提醒」白名单（到点主动通知，尚未实现）", onClick: resetRemindAll, children: "全部提醒" }),
+								(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 }, title: "把所有展示中的游戏都加入「提醒」白名单", onClick: resetRemindAll, children: "全部提醒" }),
 								(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 }, onClick: resetOrder, children: "重置排序" }),
 								(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 }, onClick: restoreAll, children: "恢复条目" })
 							] })
 						] }),
-						(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 11, marginBottom: 2 }, children: "「展示」控制显示；「提醒」到点通知（预留）；「↑↓」调整顺序；「颜色」取色器换主题色。" }),
+						(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 11, marginBottom: 2 }, children: "「展示」控制显示；「提醒」到点通知；「↑↓」调整顺序；「颜色」取色器换主题色。" }),
 						// 表头行（与数据行同 grid 列；全部居中，与下方各列边界对齐）
 						(0, react_jsx_runtime.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1.15fr) 28px 28px minmax(0,1fr) minmax(0,1fr) 34px 88px", gap: 12, alignItems: "center", padding: "3px 0", borderBottom: "1px solid var(--dsw-alias-border-l1)", color: "var(--dsw-alias-label-tertiary)", fontSize: 11 }, children: [
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u6E38\u620F" }),

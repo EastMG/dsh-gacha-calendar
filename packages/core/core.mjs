@@ -577,7 +577,7 @@
 
 		// 双向「快到期」：即将结束 = 已开始且 endTs 在窗口内；即将开始 = 未开始且 startTs 在窗口内。
 		// 两个方向天然互斥，返回 "" / "end" / "start"。到期提醒（送达）也复用这一处判定。
-		function dueKindOf(startTs, endTs, nowTs, tickerHours) {
+		function dueKindOf(startTs, endTs, nowTs, withinHours) {
 			const hours = Number(tickerHours);
 			if (!(hours > 0)) return "";
 			if (typeof startTs !== "number" || typeof endTs !== "number") return "";

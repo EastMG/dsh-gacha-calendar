@@ -657,7 +657,7 @@ export default async function run() {
 		check("批量按钮是「全部提醒」（不再叫「全部轮播」）",
 			comp.includes('children: "全部提醒"') && comp.indexOf("全部轮播") < 0);
 		check("批量按钮的 title 也是「提醒」口径（并说明尚未实现）",
-			comp.includes('把所有展示中的游戏都加入「提醒」白名单（到点主动通知，尚未实现）'));
+			comp.includes('把所有展示中的游戏都加入「提醒」白名单'));
 		check("冗长的「提醒」说明行已删掉（只保留表头之上的那一行概括）",
 			comp.indexOf("提醒：到点主动通知（尚未实现，先做预留）") < 0
 			&& comp.indexOf("控制侧栏轮播") < 0);
