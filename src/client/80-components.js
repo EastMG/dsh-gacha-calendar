@@ -1184,6 +1184,54 @@
 			] });
 		}
 
+		// 侧栏按钮的翻页层（2026-10-25 六次定稿）：两行交叉滚动，**动画播完落定成静态单行**。
+		//
+		// 为什么需要落定：向上翻用 fill-mode forwards 把终点 translateY(-50%) **保持住**
+		// （不保持的话动画一结束就弹回 0、露出 prev 行），于是那 5 秒里这一层带着一个持久的
+		// transform；向下翻结束时 transform 回到 none。两个方向的终点状态因此不对称 ——
+		// 用户 2026-10-25 要求抹平：终点都必须是 transform:none。
+		//
+		// 做法：onAnimationEnd（只认两条翻页 keyframes）⇒ flipSettled=true ⇒
+		//   ① 只渲染 cur 一行（prev 行连 DOM 都不留，纯函数 remindFlipRenderLinesOf）；
+		//   ② 元素加类 .is-settled（CSS: animation:none + transform:none，见 70-styles.js）。
+		// 落定画面与动画终点**逐像素相同**（cur 都占满 22px 窗口），所以不存在跳动/闪烁/文字位移：
+		//   · up   终点 = 层 -22px、第 2 行 cur 落在窗口 [0,22]；落定 = 层 0、唯一一行 cur 在 [0,22]；
+		//   · down 终点 = 层 0、第 1 行 cur 在窗口 [0,22]；落定 = 层 0、唯一一行 cur 在 [0,22]。
+		// 两种写法几何完全一样（且 -22px 是整数像素，不会出现半像素抗锯齿差）。
+		//
+		// ⚠️ state 放在**本组件**里，父层用 `key={shownStep}` 挂它：换格 ⇒ 整体重挂载 ⇒
+		//    flipSettled 天然回到 false。这比 `useEffect(..., [shownStep])` 重置更稳：effect 在
+		//    渲染**之后**才跑，换格那一帧会先带着上一拍的 settled=true 渲染（单行 + animation:none），
+		//    然后才被 effect 改回两行并重新起动画 —— 真机上就是"新的一拍先冻一下再翻"，甚至
+		//    可能把动画的起点帧吞掉。用 key 重挂载则在**同一帧**就拿到干净的两行 + 从头开始的动画。
+		//    （副作用：少一次只为重置而发的重渲染。）
+		// ⚠️ reduce（CSS animation:none）时 animationend **不会**触发 ⇒ flipSettled 恒为 false；
+		//    那时渲染两行 + 父层强制的 down 顺序，第 1 行恒为 cur —— 静态路径自己就是对的，
+		//    **不依赖**落定生效。
+		function RemindFlipLines({ flipDir, shownStep, prevStep, reduceMotion, renderLine }) {
+			const [flipSettled, setFlipSettled] = (0, react.useState)(false);
+			// 只处理翻页动画本身：按 animationName 过滤两条 keyframes。
+			// 将来这一层若再加别的 animation，它的 animationend 不许把翻页层误落定。
+			const onAnimationEnd = (e) => {
+				const name = e && e.animationName;
+				if (name !== "gacha-cal-btn-flip" && name !== "gacha-cal-btn-flip-down") return;
+				setFlipSettled(true);
+			};
+			// reduce 时强制 down 顺序（为什么不许 up：那边 animation:none，没有动画把第 1 行推走，
+			// 而 up 顺序的第 1 行是 prev ⇒ 旧内容会常驻窗口）。down 顺序的第 1 行恒为 cur。
+			// 落定与否只影响"几行进 DOM"，不影响方向（settled 时方向类留在元素上无害）。
+			const flipLines = remindFlipRenderLinesOf(reduceMotion ? "down" : flipDir, shownStep, prevStep, flipSettled);
+			return (0, react_jsx_runtime.jsx)("span", {
+				// 类名 = 基础类 + 方向类（视觉方向）+ 落定类；三条规则都在 70-styles.js。
+				// 落定类必须排在方向规则之后（同特异性，靠顺序胜出）。
+				className: "gacha-cal-btn-flip " + (flipDir === "up" ? "is-up" : "is-down") + (flipSettled ? " is-settled" : ""),
+				onAnimationEnd,
+				// 每一行 = 该格的内容，slot 只当 React 的 key（cur / prev 两个槽）。
+				// 落定时数组只剩 cur ⇒ React 按 key 保留 cur 那个节点、删掉 prev（不会重挂载 cur）。
+				children: flipLines.map((l) => renderLine(l.step, l.slot))
+			});
+		}
+
 		// engine：core 引擎（抓取/解析/缓存合并都在里面）。面板只读它返回的 Result JSON。
 		function CalendarPanel({ wide, scope, engine }) {
 			const [open, setOpen] = (0, react.useState)(false);
@@ -1446,16 +1494,10 @@
 					]
 				});
 			};
-			// 两行的**顺序随方向换**（2026-10-25 五次定稿）：up ⇒ [prev, cur]、down ⇒ [cur, prev]。
-			// 规则本体在纯函数 remindFlipLinesOf（60-helpers.js），渲染层只做一次 map —— 不写三元。
-			// 为什么必须换：窗口 22px 裁两层 22px；.is-up 的 keyframes 是 0 → -50%（forwards），
-			//   起点 ty=0 ⇒ **第 1 行**（prev）正好占满窗口 [0,22]，终点 -22px ⇒ 第 2 行（cur）占满。
-			//   若仍写死 [cur, prev]，向上翻的起点就要靠 translateY(+50%) 才能让 cur 在下方 ——
-			//   那会把两层都推到窗口**下方**，一开场窗口里什么都没有（用户报的"和向下翻不一样"）。
-			// ⚠️ reduce 时必须**强制走 down 顺序**：那边 animation:none，没有动画把第 1 行推走；
-			//   而 reduce 的 flipDir 恒为 remindDirAt(1) = "up" ⇒ 用 up 顺序会让**上一次**的旧内容
-			//   常驻窗口（up 顺序的第 1 行是 prev）。down 顺序的第 1 行恒为 cur，静态也是对的。
-			const flipLines = remindFlipLinesOf(reduceMotion ? "down" : flipDir, shownStep, prevStep);
+			// 翻页层的**两行顺序 / 落定**都交给 RemindFlipLines 组件（上面的注释块）：
+			//   行顺序随方向换（up ⇒ [prev, cur]、down ⇒ [cur, prev]），动画播完落定成只含 cur 的一行。
+			// 父层只负责把这一拍的方向 / 格号 / reduce 传下去 —— 纯函数在 60-helpers.js，
+			// 组件在 CalendarPanel 之前，落定 state 由 `key={shownStep}` 在换格时重置。
 
 			// 在途锁用 ref 而不是 state：state 更新是异步的，"自动刷新与手动点击落在同一 tick"时
 			// 两次调用可能都看到 refreshing=false 而并发跑两轮（请求翻倍，且慢的那轮会用更旧的数据盖掉新的）
@@ -1652,9 +1694,10 @@
 								: (remindSlides.length
 									? (0, react_jsx_runtime.jsx)("span", {
 										className: "gacha-cal-btn-txt",
-										children: (0, react_jsx_runtime.jsxs)("span", {
-											// key = 格号：格号一变，React 重挂载这一层 ⇒ CSS 翻页动画从头播一次
-											// （一次性 0.42s、fill-mode backwards；播完不留持久层）。
+										children: (0, react_jsx_runtime.jsx)(RemindFlipLines, {
+											// key = 格号：每换一格，翻页层**整体重挂载** ⇒
+											// `flipSettled` 回到 false（下一拍仍有完整两行 + 从头播的动画）。
+											// 这就是"每次换格重置"的实现 —— 不用 useEffect（理由见组件处注释）。
 											key: shownStep,
 											// 翻页方向（2026-10-25 四次定稿）：**类名 = 视觉方向** ——
 											// .is-up = 新内容从下方进（旧的往上走）；
@@ -1662,10 +1705,12 @@
 											// 方向来自纯函数 remindDirAt(单调切换序)，按"第几次切换"四步一循环
 											// （up,down,down,up），渲染层只做"类名映射"，不自己数奇偶；
 											// **不要**从 shownStep 反推（回卷到格 0 会丢相位，见 flipDir 处注释）。
-											className: "gacha-cal-btn-flip " + (flipDir === "up" ? "is-up" : "is-down"),
-											// 两行的顺序由 remindFlipLinesOf 按方向给出（up ⇒ [prev, cur]）：
-											// 每一行 = 该格的内容，slot 只当 React 的 key（"cur"/"prev"）。
-											children: flipLines.map((l) => remindLine(l.step, l.slot))
+											flipDir,
+											shownStep,
+											prevStep,
+											reduceMotion,
+											// 每行的内容由父层的 remindLine 渲染（它闭包着本帧的 remindSlides / calIcon）。
+											renderLine: remindLine
 										})
 									})
 									: (0, react_jsx_runtime.jsx)("span", { children: label }))

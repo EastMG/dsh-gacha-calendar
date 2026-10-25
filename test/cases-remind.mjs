@@ -32,6 +32,11 @@
 //      （纯函数 `remindFlipLinesOf`）。行顺序必须与各自的 keyframes 成套 ——
 //      两种方向的**起点都必须让 prev 占满窗口**，否则"向上翻"一开场就是空白
 //      （用户报「还是不对，和向下翻的动画不一样」，探针实测空白 30~60ms）。
+//   ⑩ 翻页**落定**（同日六次定稿）：动画播完 ⇒ 只渲染 cur 一行 + `.is-settled`
+//      （animation:none; transform:none），抹平"up 用 forwards 留持久 transform、
+//      down 结束时 transform:none"的终点不对称。纯函数 `remindFlipRenderLinesOf` 给出
+//      四种组合（settled × up/down）；`flipSettled` 是 key={shownStep} 子组件的本地 state，
+//      换格 ⇒ 重挂载 ⇒ 自动回到 false（不用 useEffect，见 80-components.js 的注释）。
 //
 // ⚠️ 时刻全部显式传入（`now` 是参数，不是 Date.now()），所以本文件不随跑测那天漂移。
 // ⚠️ 「今天 / 明天 / N 天后」用的是**本机日历日**，所以这里挑的偏移量在 UTC 与 +08 下落在同一天
@@ -51,7 +56,8 @@ export default async function run() {
 	const {
 		isExpiringSoon, expiringSoonOf,
 		remindKindOf, remindGameAllowed, remindOnOf, remindRangeOf, remindPickOf, remindCaptionOf, remindSlidesOf,
-		remindStepsOf, remindDirAt, remindFlipLinesOf, remindWindowOf, remindDueOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
+		remindStepsOf, remindDirAt, remindFlipLinesOf, remindFlipRenderLinesOf,
+		remindWindowOf, remindDueOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
 	} = T;
 
 	const NOW = Date.UTC(2026, 9, 25, 4, 0);   // 2026-10-25 12:00 +08 / 13:00 +09 / 04:00 UTC
@@ -600,9 +606,11 @@ export default async function run() {
 			&& /const flipDir = remindDirAt\(/.test(comp));
 		// 行顺序（2026-10-25 五次定稿，**新增**）：渲染层必须**按方向交换两行**，不许再写死 [cur, prev]。
 		// 这是"向上翻开场空白"的根因 —— 只改 keyframes 不改顺序，up 的起点仍会两层都跑到窗口下方。
-		check("渲染层按方向交换两行：remindFlipLinesOf(方向, shownStep, prevStep) → 逐行 remindLine(step, slot)",
-			/const flipLines = remindFlipLinesOf\(reduceMotion \? "down" : flipDir, shownStep, prevStep\);/.test(comp)
-			&& /children: flipLines\.map\(\(l\) => remindLine\(l\.step, l\.slot\)\)/.test(comp));
+		// 六次定稿：行数组改由纯函数 remindFlipRenderLinesOf 给（落定时只给 cur 一行），
+		// 方向交换的规则仍原样委托给 remindFlipLinesOf（本函数的非落定分支）。
+		check("渲染层行数组来自纯函数 remindFlipRenderLinesOf(方向, 格号, 上一格, 是否落定) → 逐行 renderLine",
+			/const flipLines = remindFlipRenderLinesOf\(reduceMotion \? "down" : flipDir, shownStep, prevStep, flipSettled\);/.test(comp)
+			&& /children: flipLines\.map\(\(l\) => renderLine\(l\.step, l\.slot\)\)/.test(comp));
 		check("渲染层**不再**写死 [cur, prev]（旧写法：向上翻时两层都被推到窗口下方 ⇒ 开场空白）",
 			!/children: \[remindLine\(shownStep, "cur"\), remindLine\(prevStep, "prev"\)\]/.test(comp));
 		check("reduce（animation:none）时强制 down 顺序 —— 否则 up 顺序的第 1 行 prev 会常驻窗口",
@@ -854,5 +862,83 @@ export default async function run() {
 		check("挂载首帧（prevStep === shownStep）两个方向都只渲染同一份内容（不会抖出旧格）",
 			remindFlipLinesOf("up", 2, 2).every((l) => l.step === 2)
 			&& remindFlipLinesOf("down", 2, 2).every((l) => l.step === 2));
+	}
+
+	// ── ⑪ 翻页落定（2026-10-25 六次定稿）：动画播完 ⇒ 静态单行 + transform:none ────────
+	// 用户要求：向上翻结束后不许再带着 translateY(-22px) 的持久 transform，两个方向的终点
+	// 状态必须一致。做法 = onAnimationEnd（只认两条翻页 keyframes）⇒ flipSettled=true ⇒
+	// 只渲染 cur 一行 + .is-settled{animation:none;transform:none}。
+	// ⚠️ 落定只是"把 forwards 保持住的终点画面换成等价的静态画面"：不许有跳动/闪烁/文字位移。
+	{
+		// 纯函数：settled × 方向 = 4 种组合（落定时方向被忽略，恒为 [cur]）。
+		const combo = [
+			{ settled: false, dir: "up", want: "prev,cur" },
+			{ settled: false, dir: "down", want: "cur,prev" },
+			{ settled: true, dir: "up", want: "cur" },
+			{ settled: true, dir: "down", want: "cur" }
+		];
+		const got = combo.map((c) => remindFlipRenderLinesOf(c.dir, 5, 3, c.settled));
+		const slotsOf = (ls) => ls.map((l) => l.slot).join(",");
+		check("落定 × 方向 4 种组合：未落定按方向换序（up=[prev,cur] / down=[cur,prev]），落定后一律只有 [cur]",
+			got.map(slotsOf).join(" | ") === "prev,cur | cur,prev | cur | cur",
+			got.map(slotsOf).join(" | "));
+		check("落定后只留 cur 一行：cur 的格号不变、prev 行**彻底消失**（不是只加个类、两行还留在 DOM 里）",
+			got[2].length === 1 && got[2][0].step === 5 && got[2][0].slot === "cur"
+			&& got[3].length === 1 && got[3][0].step === 5 && got[3][0].slot === "cur",
+			JSON.stringify(got.slice(2)));
+		check("落定与方向无关（同一 cur/prev 下 up / down 的落定结果逐项相同）",
+			JSON.stringify(got[2]) === JSON.stringify(got[3]), JSON.stringify([got[2], got[3]]));
+		check("脏 settled（undefined / null / 0 / 空串 / false）按未落定处理，只有真值才收敛成单行",
+			[void 0, null, 0, "", false].every((v) => remindFlipRenderLinesOf("up", 5, 3, v).length === 2)
+			&& remindFlipRenderLinesOf("down", 5, 3, "yes").length === 1);
+
+		// 静态守卫：CSS / 组件 / 纯函数三处必须成套（少一处就是"写了但没接上"）。
+		const styles2 = readFileSync(path.join(REPO, "src", "client", "70-styles.js"), "utf8");
+		const comp2 = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
+		const helpers2 = readFileSync(path.join(REPO, "src", "client", "60-helpers.js"), "utf8");
+
+		check(".is-settled 规则存在，且同时含 animation:none 与 transform:none（终点彻底回到静态）",
+			/\.gacha-cal-btn-flip\.is-settled\{animation:none;transform:none\}/.test(styles2));
+		const settleAt = styles2.indexOf(".gacha-cal-btn-flip.is-settled{animation:none;transform:none}");
+		check(".is-settled 排在 .is-up / .is-down 之后（三者特异性相同，必须靠顺序胜出）",
+			settleAt > styles2.indexOf(".gacha-cal-btn-flip.is-up{animation:gacha-cal-btn-flip ")
+			&& settleAt > styles2.indexOf(".gacha-cal-btn-flip.is-down{animation:gacha-cal-btn-flip-down"),
+			String(settleAt));
+
+		check("翻页层接了 React 合成事件 onAnimationEnd",
+			/const onAnimationEnd = \(e\) => \{/.test(comp2) && /onAnimationEnd,/.test(comp2));
+		const onEndBlock = /const onAnimationEnd = \(e\) => \{([\s\S]*?)\n\t\t\t\};/.exec(comp2);
+		check("onAnimationEnd 按 e.animationName 过滤两条翻页 keyframes（其它动画结束不落定）",
+			!!onEndBlock
+			&& /const name = e && e\.animationName;/.test(onEndBlock[1])
+			&& /if \(name !== "gacha-cal-btn-flip" && name !== "gacha-cal-btn-flip-down"\) return;/.test(onEndBlock[1]),
+			onEndBlock ? onEndBlock[1].trim() : "没取到 handler");
+		check("落定是**本地 state**（flipSettled，初值 false）—— 组件一重挂载就回到未落定",
+			/const \[flipSettled, setFlipSettled\] = \(0, react\.useState\)\(false\);/.test(comp2));
+		check("落定后渲染的行数组来自纯函数（settled 为真 ⇒ 只有 cur 一行）",
+			/const flipLines = remindFlipRenderLinesOf\(reduceMotion \? "down" : flipDir, shownStep, prevStep, flipSettled\);/.test(comp2)
+			&& /children: flipLines\.map\(\(l\) => renderLine\(l\.step, l\.slot\)\)/.test(comp2));
+		check("落定类 .is-settled 只在 flipSettled 为真时拼上（未落定不带这个类）",
+			/className: "gacha-cal-btn-flip " \+ \(flipDir === "up" \? "is-up" : "is-down"\) \+ \(flipSettled \? " is-settled" : ""\)/.test(comp2));
+		check("每次换格重置：落定 state 所在子组件由父层 key={shownStep} 重挂载（等价于 key 重置）",
+			/function RemindFlipLines\(\{ flipDir, shownStep, prevStep, reduceMotion, renderLine \}\)/.test(comp2)
+			&& /react_jsx_runtime\.jsx\)\(RemindFlipLines, \{/.test(comp2)
+			&& /key: shownStep,/.test(comp2));
+		check("纯函数本体在 60-helpers.js：settled 为真时直接返回单行 [cur]（没有夹带 prev）",
+			/if \(settled\) return \[\{ step: curStep, slot: "cur" \}\];/.test(helpers2)
+			&& /function remindFlipRenderLinesOf\(dir, curStep, prevStep, settled\)/.test(helpers2));
+		// 负向：不许用"两行照留、只把动画关掉"冒充落定（视觉上被窗口裁掉，真机上会露馅），
+		// 也不许在落定分支里再塞 prev 行。
+		check("负向：不存在「落定时仍渲染两行」的写法（flipSettled 附近没有 prevStep / \"prev\"）",
+			!/flipSettled[\s\S]{0,120}?(?:prevStep|"prev")/.test(comp2)
+			&& !/children: \[remindLine\(shownStep, "cur"\), remindLine\(prevStep, "prev"\)\]/.test(comp2));
+		check("负向：落定**不靠 useEffect 重置**（effect 在渲染之后才跑 ⇒ 换格那一帧会先渲染成旧的 settled）",
+			!/useEffect\([\s\S]{0,160}?flipSettled/.test(comp2));
+		// reduce 回归（现有断言已在上面保留）：animation:none ⇒ 收不到 animationend ⇒ 永不落定；
+		// 而静态路径（父层强制 down 顺序、第 1 行恒为 cur）自己就是对的。
+		check("reduce 分支不依赖落定：state 初值 false + 父层仍强制 down 顺序（第 1 行 cur）",
+			/const \[flipSettled, setFlipSettled\] = \(0, react\.useState\)\(false\);/.test(comp2)
+			&& /reduceMotion \? "down" : flipDir/.test(comp2)
+			&& /@media \(prefers-reduced-motion:reduce\)\{[^}]*animation:none\}/.test(styles2));
 	}
 }

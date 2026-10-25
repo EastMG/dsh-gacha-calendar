@@ -414,6 +414,11 @@
 			//   起点 translateY(+50%) 会把两层都推到窗口下方（开场空白，用户报的"观感不一样"）。
 			//   提成纯函数是为了能对 up / down 各钉一条断言（渲染层只做 map）。
 			remindFlipLinesOf,
+			// remindFlipRenderLinesOf = **落定后进 DOM 的行**（2026-10-25 六次定稿）：
+			//   动画播完 ⇒ [cur]（只一行、transform 回 none，与向下翻终点一致）；未落定 ⇒
+			//   沿用 remindFlipLinesOf 的两行顺序。提成纯函数是为了把 settled × up/down
+			//   四种组合都钉住（"落定时仍渲染两行"这种写法视觉上会被窗口裁掉、只在真机露馅）。
+			remindFlipRenderLinesOf,
 			remindWindowOf,
 			remindDueOf,
 			sourceInstant,

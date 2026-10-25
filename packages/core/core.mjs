@@ -835,6 +835,25 @@
 			const prevLine = { step: prevStep, slot: "prev" };
 			return dir === "up" ? [prevLine, curLine] : [curLine, prevLine];
 		}
+
+		// —— 落定后**进 DOM 的行**（2026-10-25 六次定稿，纯函数）——
+		// 为什么要有"落定"：向上翻用 fill-mode forwards 把终点 translateY(-50%) 保持住
+		// （不保持的话动画一结束就会弹回 0、露出 prev 行），于是那 5 秒里翻页层带着一个
+		// **持久的 transform**；向下翻结束时 transform 回到 none。两个方向的终点状态因此不对称
+		// （用户 2026-10-25 明确要求抹平）。落定的做法 = 动画播完后把"forwards 保持住的终点画面"
+		// 换成**等价的静态画面**：只渲染 cur 一行 + CSS 的 .is-settled{animation:none;transform:none}。
+		//
+		// 关键：落定时**必须只留 cur 一行**（prev 行连 DOM 都不该有）。只关动画、不删 prev 的话，
+		// 层上还挂着两行 44px 的高度 —— 视觉上虽被窗口裁掉，但"终点 = 单行"这个事实就成了隐含约定，
+		// 任何 padding/height 变动都会让它露出来。所以"哪些行进 DOM"提成本函数，四种组合
+		// （settled × up/down）都能被静态断言钉住。
+		//
+		// 返回：DOM 顺序的行数组 [{ step, slot }]；settled 为真时恒为 [cur]（与方向无关）。
+		// 脏输入（settled 是假值）一律按未落定处理 —— 与渲染层 `flipSettled === true` 的口径一致。
+		function remindFlipRenderLinesOf(dir, curStep, prevStep, settled) {
+			if (settled) return [{ step: curStep, slot: "cur" }];
+			return remindFlipLinesOf(dir, curStep, prevStep);
+		}
 		//#endregion
 		//#endregion
 

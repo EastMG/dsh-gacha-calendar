@@ -26,7 +26,11 @@
 			   动画是**一次性**的（每次换格由 React 重挂载这一层触发）；fill-mode 按方向各用一套
 			   （2026-10-25 五次定稿）：down 用 backwards + 1ms 延迟（起点状态首帧即生效，防重挂载
 			   闪跳）；up 用 forwards（终点必须停在 -50%，否则收尾会弹回 0 露出 prev）。
-			   forwards 只出现在**这一层**、且每次换格都整块重挂载 ⇒ 不留持久层到别处。
+			   **六次定稿（落定）**：forwards 的代价是 up 结束后那 5 秒里这一层仍带着 translateY(-22px)
+			   的持久 transform，而 down 结束时是 transform:none —— 两个方向的终点状态不对称。
+			   现在动画一播完，渲染层就只留 cur 一行并加 .is-settled（见下），
+			   把"forwards 保持住的终点画面"换成等价的静态画面 ⇒ 两个方向的终点都是 transform:none。
+			   transform 仍然只出现在这一层（keyframes 与 .is-settled），不扩散到按钮/祖先。
 			   ⚠️ transform 只给 .gacha-cal-btn-flip 这一层：面板的悬停浮层 .gacha-cal-sched-rest 依赖
 			   包含块，虽然按钮不在它的祖先链上，也**不要**给 .gacha-cal-btn 或更外层加
 			   transform/filter/contain/will-change。 */
@@ -51,6 +55,15 @@
 			   contain/will-change（面板悬停浮层 .gacha-cal-sched-rest 依赖包含块）。 */
 			.gacha-cal-btn-flip.is-up{animation:gacha-cal-btn-flip .42s cubic-bezier(.2,.9,.25,1) forwards}
 			.gacha-cal-btn-flip.is-down{animation:gacha-cal-btn-flip-down .42s cubic-bezier(.2,.9,.25,1) 1ms backwards}
+			/* 落定（2026-10-25 六次定稿）：动画播完 ⇒ React 只渲染 cur 一行（prev 行从 DOM 里删掉）
+			   并给这一层加 .is-settled ⇒ animation:none 结束 forwards 的保持、transform:none 把层归位。
+			   为什么不会跳动：落定后的画面与动画最后一帧**逐像素相同** ——
+			   · up   最后一帧 = 层 -22px、第 2 行 cur 落在窗口 [0,22]；落定 = 层 0、唯一一行 cur 在 [0,22]；
+			   · down 最后一帧 = 层 0、第 1 行 cur 在窗口 [0,22]；落定 = 层 0、唯一一行 cur 在 [0,22]。
+			   -22px 是整数像素（50% × 44px），不会出现半像素抗锯齿差；这一层也没有 transition。
+			   ⚠️ 必须排在 .is-up / .is-down **之后**：三者特异性相同（都是 .class.class），靠后者胜出。
+			   ⚠️ 只碰 .gacha-cal-btn-flip 这一层；按钮与祖先层仍然不许 transform/filter/contain/will-change。 */
+			.gacha-cal-btn-flip.is-settled{animation:none;transform:none}
 			.gacha-cal-btn-line{display:flex;align-items:center;height:22px;line-height:22px;min-width:0;overflow:hidden}
 			/* 图标（2026-10-25 二次定稿 **C 方案**）：日历图标与游戏图标都在**同一行**里，跟着整行一起翻页
 			   （不再有固定的日历图标）。尺寸 16px 与原日历图标一致；margin-right:8px 复刻原来按钮
