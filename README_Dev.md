@@ -151,6 +151,13 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
 10. **优化滚动手感**：探头 `position:fixed` 与"原生滚轮"的固有矛盾，属"选了体验优先"的已知取舍。
 11. **留白卡循环长度**：当前循环全部在期条目（约 38 条 ≈ 2.5 分钟一轮），是否限长待定。
 
+12. **AI 协作署名（提交 trailer）** —— **已研究，存档不启用**。
+   结论：`Co-Authored-By` 是 GitHub/GitLab **认**的标准 git trailer（提交页显示协作者、计入贡献图；
+   邮箱绑定账号才带头像，否则只是名字）。Claude Code 默认加 `Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>`、
+   Copilot CLI 也加；**DSH 本体没有这套**，官方署名走 `powered_by_dsh` 徽章（文档/PR 正文）。
+   现实效果一般（无头像、不显眼）⇒ 决定**不加 trailer、保持现状**；需要时再启用：
+   提交末尾 `Co-Authored-By: DeepSeek Harness <noreply@deepseek.com>`，PR 正文 `Generated with DeepSeek Harness`。
+
 ### 不做（已决定，不再讨论）
 
 - **主源失败自动回落备选**（含"人工确认的半自动换源"）：用户 2026-10-25 决定**保留现状**。
