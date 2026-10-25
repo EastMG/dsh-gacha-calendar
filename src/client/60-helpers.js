@@ -626,5 +626,33 @@
 			}
 			return out;
 		}
+
+		// —— 翻页层里**两行的顺序**（2026-10-25 五次定稿，纯函数）——
+		// 背景（用户 2026-10-25："还是不对，和向下翻的动画不一样"）：
+		//   窗口 .gacha-cal-btn-txt 固定 22px、overflow:hidden；里面 .gacha-cal-btn-flip 叠着
+		//   两行各 22px（共 44px），translateY(±50%) = ±22px 正好一行。
+		//   **两层谁在第 1 行（DOM 里的第一个）决定了动画起点窗口里看见什么** ——
+		//   而动画起点必须永远是"旧内容（prev）占满窗口"，否则一开场就是空白。
+		//   两种方向的 keyframes / fill-mode 各用一套（见 70-styles.js）：
+		//   · 向下翻 .is-down —— keyframes -50% → 0、fill-mode backwards（+1ms 延迟防重挂载闪跳）：
+		//       第 1 行必须是 **cur**。起点 ty=-22px ⇒ 第 1 行 cur 落在窗口上方（看不见）、
+		//       第 2 行 prev 占满窗口 [0,22]（旧内容在窗口里）；终点 ty=0 ⇒ cur 占满窗口。
+		//       观感：旧行往下滑出、新行从**上方**进来。
+		//   · 向上翻 .is-up —— keyframes 0 → -50%、fill-mode forwards：
+		//       第 1 行必须是 **prev**。起点 ty=0 ⇒ 第 1 行 prev 正好占满窗口 [0,22]
+		//       （旧内容在窗口里，**不是空白**）；终点 ty=-22px ⇒ prev 滑到窗口上方、
+		//       第 2 行 cur 占满窗口（forwards 把 -50% 保持住）。
+		//       观感：旧行往上滑出、新行从**下方**进来。
+		// 旧实现两种方向都写死 [cur, prev]：向上翻时起点 ty=+22px ⇒ **两层都落在窗口下方**
+		// ⇒ 一开场窗口里什么都没有（Playwright 探针实测到的空白 30~60ms），
+		// 然后新行从上方滑进来 —— 于是"向上翻"和"向下翻"根本不是一个观感。这就是根因。
+		// 所以**行顺序必须跟着方向换**；本函数是这条规则的唯一出处，渲染层不自己写三元。
+		// 返回：DOM 顺序的两行 [{ step, slot }]；slot 只当 React 的 key（"cur"/"prev" 天然唯一）。
+		// 脏输入（dir 不是 "up"）一律按 down —— 与 remindDirAt 的挂载兜底同一个方向。
+		function remindFlipLinesOf(dir, curStep, prevStep) {
+			const curLine = { step: curStep, slot: "cur" };
+			const prevLine = { step: prevStep, slot: "prev" };
+			return dir === "up" ? [prevLine, curLine] : [curLine, prevLine];
+		}
 		//#endregion
 		//#endregion

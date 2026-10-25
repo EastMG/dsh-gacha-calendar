@@ -1446,6 +1446,16 @@
 					]
 				});
 			};
+			// 两行的**顺序随方向换**（2026-10-25 五次定稿）：up ⇒ [prev, cur]、down ⇒ [cur, prev]。
+			// 规则本体在纯函数 remindFlipLinesOf（60-helpers.js），渲染层只做一次 map —— 不写三元。
+			// 为什么必须换：窗口 22px 裁两层 22px；.is-up 的 keyframes 是 0 → -50%（forwards），
+			//   起点 ty=0 ⇒ **第 1 行**（prev）正好占满窗口 [0,22]，终点 -22px ⇒ 第 2 行（cur）占满。
+			//   若仍写死 [cur, prev]，向上翻的起点就要靠 translateY(+50%) 才能让 cur 在下方 ——
+			//   那会把两层都推到窗口**下方**，一开场窗口里什么都没有（用户报的"和向下翻不一样"）。
+			// ⚠️ reduce 时必须**强制走 down 顺序**：那边 animation:none，没有动画把第 1 行推走；
+			//   而 reduce 的 flipDir 恒为 remindDirAt(1) = "up" ⇒ 用 up 顺序会让**上一次**的旧内容
+			//   常驻窗口（up 顺序的第 1 行是 prev）。down 顺序的第 1 行恒为 cur，静态也是对的。
+			const flipLines = remindFlipLinesOf(reduceMotion ? "down" : flipDir, shownStep, prevStep);
 
 			// 在途锁用 ref 而不是 state：state 更新是异步的，"自动刷新与手动点击落在同一 tick"时
 			// 两次调用可能都看到 refreshing=false 而并发跑两轮（请求翻倍，且慢的那轮会用更旧的数据盖掉新的）
@@ -1653,7 +1663,9 @@
 											// （up,down,down,up），渲染层只做"类名映射"，不自己数奇偶；
 											// **不要**从 shownStep 反推（回卷到格 0 会丢相位，见 flipDir 处注释）。
 											className: "gacha-cal-btn-flip " + (flipDir === "up" ? "is-up" : "is-down"),
-											children: [remindLine(shownStep, "cur"), remindLine(prevStep, "prev")]
+											// 两行的顺序由 remindFlipLinesOf 按方向给出（up ⇒ [prev, cur]）：
+											// 每一行 = 该格的内容，slot 只当 React 的 key（"cur"/"prev"）。
+											children: flipLines.map((l) => remindLine(l.step, l.slot))
 										})
 									})
 									: (0, react_jsx_runtime.jsx)("span", { children: label }))

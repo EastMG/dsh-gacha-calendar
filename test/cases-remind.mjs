@@ -28,6 +28,10 @@
 //      `remindStepsOf` 展开成 [idle, 1, idle, 2, …]（长度 2n；n=0 只有 idle）；
 //      方向按**切换次数**四步一循环 up,down,down,up（idx 0 = 挂载兜底 down），
 //      且**类名 = 视觉方向**（.is-up = 新内容从下方进 / .is-down = 新内容从上方进）。
+//   ⑨ 翻页层的**两行顺序**（同日五次定稿）：up ⇒ [prev, cur]、down ⇒ [cur, prev]
+//      （纯函数 `remindFlipLinesOf`）。行顺序必须与各自的 keyframes 成套 ——
+//      两种方向的**起点都必须让 prev 占满窗口**，否则"向上翻"一开场就是空白
+//      （用户报「还是不对，和向下翻的动画不一样」，探针实测空白 30~60ms）。
 //
 // ⚠️ 时刻全部显式传入（`now` 是参数，不是 Date.now()），所以本文件不随跑测那天漂移。
 // ⚠️ 「今天 / 明天 / N 天后」用的是**本机日历日**，所以这里挑的偏移量在 UTC 与 +08 下落在同一天
@@ -47,7 +51,7 @@ export default async function run() {
 	const {
 		isExpiringSoon, expiringSoonOf,
 		remindKindOf, remindGameAllowed, remindOnOf, remindRangeOf, remindPickOf, remindCaptionOf, remindSlidesOf,
-		remindStepsOf, remindDirAt, remindWindowOf, remindDueOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
+		remindStepsOf, remindDirAt, remindFlipLinesOf, remindWindowOf, remindDueOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
 	} = T;
 
 	const NOW = Date.UTC(2026, 9, 25, 4, 0);   // 2026-10-25 12:00 +08 / 13:00 +09 / 04:00 UTC
@@ -522,34 +526,46 @@ export default async function run() {
 		check("状态 0 那一格用日历图标、状态 i 用该游戏自己的图标（GameIcon + slide.gameIcon）",
 			/const icon = slide[\s\S]{0,200}?GameIcon[\s\S]{0,120}?slide\.gameIcon/.test(comp)
 			&& /: calIcon;/.test(comp));
-		// 动画：一次性、fill-mode 必须是 backwards（both/forwards 会留持久层）
-		check("存在翻页动画 .gacha-cal-btn-flip 且用 animation-fill-mode: backwards",
-			/\.gacha-cal-btn-flip\{[^}]*animation:[^;}]*\bbackwards\b/.test(styles));
-		check("翻页动画**没有**用 both / forwards（会留一个持久合成层，改变绘制顺序）",
+		// 动画：一次性；基础规则（没有方向类时的兜底）按 **down** 走 backwards。
+		// 2026-10-25 五次定稿后 fill-mode **按方向各用一套**：down = backwards(+1ms)、up = forwards
+		// （up 的终点必须停在 -50%，否则收尾弹回 0 会露出 prev）。所以下面两条只守**基础规则**，
+		// 每个方向的 fill-mode 由后面两条专门的断言钉死。
+		check("基础规则 .gacha-cal-btn-flip 用 animation-fill-mode: backwards（无方向类时的兜底 = down）",
+			/\.gacha-cal-btn-flip\{[^}]*animation:gacha-cal-btn-flip-down[^;}]*\bbackwards\b/.test(styles));
+		check("基础规则的 fill-mode **不是** both / forwards（兜底方向不留持久层）",
 			!/\.gacha-cal-btn-flip\{[^}]*animation:[^;}]*\b(?:both|forwards)\b/.test(styles));
-		// 方向语义（2026-10-25 四次定稿）：**类名 = 视觉方向**。
-		// 窗口 22px / 翻页层 44px（两行各 22px）⇒ translateY(±50%) = ±22px 正好一行；
-		// 层里第一行恒为当前内容（cur），动画终点恒为 0，所以**起点**决定新内容从哪边进：
-		//   · .is-up   ⇒ from 50%：起点时 cur 在窗口下方一行 ⇒ 新内容从**下方**进（视觉向上）；
-		//   · .is-down ⇒ from -50%：起点时 cur 在窗口上方一行 ⇒ 新内容从**上方**进（视觉向下）。
-		// 上一版两条 from 写反了（.is-up 用了 -50%、.is-down 用了 50%），类名与观感正好相反 ——
-		// 用户 2026-10-25 报的「动画方向不对」就是这一条。以下两条断言把归属钉死。
-		check("is-up 的 keyframes：from translateY(50%) → 0（新内容从下方进 = 视觉向上）",
-			/@keyframes gacha-cal-btn-flip\{from\{transform:translateY\(50%\)\}to\{transform:translateY\(0\)\}\}/.test(styles));
-		check("is-down 的 keyframes：from translateY(-50%) → 0（新内容从上方进 = 视觉向下）",
+		// 方向语义（2026-10-25 五次定稿）：**类名 = 视觉方向**，且**行顺序 + keyframes + fill-mode 成套**。
+		// 窗口 22px / 翻页层 44px（两行各 22px）⇒ translateY(±50%) = ±22px 正好一行。
+		// 两种方向的共同点：**起点时 prev 占满窗口**（旧内容先占住窗口 ⇒ 不空白）：
+		//   · .is-up   ⇒ 层序 [prev, cur] + keyframes 0 → -50% + forwards：起点 ty=0 ⇒ prev 占满 [0,22]，
+		//                终点 -22px ⇒ cur 占满窗口；
+		//   · .is-down ⇒ 层序 [cur, prev] + keyframes -50% → 0 + backwards：起点 ty=-22px ⇒
+		//                cur 在窗口上方、prev 占满窗口；终点 0 ⇒ cur 占满窗口。
+		// 旧版（四次定稿）两种方向都写死 [cur, prev]，向上翻的 from 是 +50% ⇒ 起点时**两层都在窗口
+		// 下方** ⇒ 一开场空白 30~60ms，再让新行从上方滑进来（用户 2026-10-25「还是不对，和向下翻的
+		// 动画不一样」的根因）。以下断言把新事实钉死：既钉 keyframes 的起止，也钉 fill-mode 的归属。
+		check(".is-up 的 keyframes 是 0 → -50%（整层往上走：prev 滑出、cur 从下方进）",
+			/@keyframes gacha-cal-btn-flip\{from\{transform:translateY\(0\)\}to\{transform:translateY\(-50%\)\}\}/.test(styles));
+		check(".is-down 的 keyframes 是 -50% → 0（整层往下走：prev 往下滑出、cur 从上方进）",
 			/@keyframes gacha-cal-btn-flip-down\{from\{transform:translateY\(-50%\)\}to\{transform:translateY\(0\)\}\}/.test(styles));
 		// 类名 → keyframes 的映射也必须钉死：只对 keyframes 断言的话，两条规则名互换仍能通过。
-		check("类名映射：.is-up 用 gacha-cal-btn-flip（+50%→0）、.is-down 用 gacha-cal-btn-flip-down（-50%→0）",
+		check("类名映射：.is-up 用 gacha-cal-btn-flip（0→-50%）、.is-down 用 gacha-cal-btn-flip-down（-50%→0）",
 			/\.gacha-cal-btn-flip\.is-up\{animation:gacha-cal-btn-flip /.test(styles)
 			&& /\.gacha-cal-btn-flip\.is-down\{animation:gacha-cal-btn-flip-down /.test(styles));
-		// 两条方向规则：时长 0.42s、同一条 easing、backwards 一字不差；且不许夹带 transform/filter/...
+		// fill-mode 的归属（新增，五次定稿）：up = forwards（终点必须停在 -50%）；down = backwards(+1ms)
+		check(".is-up 的 fill-mode 含 forwards（终点停在 -50%，让 cur 占满窗口；不带 1ms 延迟）",
+			/\.gacha-cal-btn-flip\.is-up\{animation:gacha-cal-btn-flip \.42s cubic-bezier\(\.2,\.9,\.25,1\) forwards\}/.test(styles));
+		check(".is-down 的 fill-mode 含 backwards + 1ms 延迟（起点状态首帧即生效，防重挂载闪跳）",
+			/\.gacha-cal-btn-flip\.is-down\{animation:gacha-cal-btn-flip-down \.42s cubic-bezier\(\.2,\.9,\.25,1\) 1ms backwards\}/.test(styles));
+		// 两条方向规则：时长 0.42s、同一条 easing 一字不差；fill-mode 各按方向（up=forwards / down=backwards）；
+		// 且不许夹带 transform/filter/...（动画只在 keyframes 里）。
 		// ⚠️ 取规则时把 reduce 媒体查询里那条 `.is-down{animation:none}` 排除掉（它也是同一个选择器）。
 		const dirRules = [...styles.matchAll(/\.gacha-cal-btn-flip\.is-(?:up|down)\{([^}]*)\}/g)]
 			.map((m) => m[1])
 			.filter((r) => !/animation:\s*none/.test(r));
 		check("两条方向规则都在（.gacha-cal-btn-flip.is-up / .is-down）", dirRules.length === 2, String(dirRules.length));
-		check("方向规则只换 keyframes 名：时长 .42s + cubic-bezier(.2,.9,.25,1) + backwards 一个不改",
-			dirRules.every((r) => /animation:gacha-cal-btn-flip(?:-down)? \.42s cubic-bezier\(\.2,\.9,\.25,1\) (?:1ms )?backwards/.test(r)),
+		check("方向规则只换 keyframes 名与 fill-mode：时长 .42s + cubic-bezier(.2,.9,.25,1) 一个不改",
+			dirRules.every((r) => /animation:gacha-cal-btn-flip(?:-down)? \.42s cubic-bezier\(\.2,\.9,\.25,1\) (?:1ms )?(?:backwards|forwards)/.test(r)),
 			dirRules.join(" | "));
 		check("方向规则里没有 transform / filter / contain / will-change（动画只在 keyframes 里）",
 			dirRules.every((r) => !/transform|will-change|filter|contain|perspective/.test(r)),
@@ -582,6 +598,15 @@ export default async function run() {
 		check("渲染层的方向**不再**从 shownStep 反推（回卷到格 0 会丢相位 ⇒ 四步循环失效）",
 			!/className: "gacha-cal-btn-flip " \+ \(stepAt\(shownStep\)/.test(comp)
 			&& /const flipDir = remindDirAt\(/.test(comp));
+		// 行顺序（2026-10-25 五次定稿，**新增**）：渲染层必须**按方向交换两行**，不许再写死 [cur, prev]。
+		// 这是"向上翻开场空白"的根因 —— 只改 keyframes 不改顺序，up 的起点仍会两层都跑到窗口下方。
+		check("渲染层按方向交换两行：remindFlipLinesOf(方向, shownStep, prevStep) → 逐行 remindLine(step, slot)",
+			/const flipLines = remindFlipLinesOf\(reduceMotion \? "down" : flipDir, shownStep, prevStep\);/.test(comp)
+			&& /children: flipLines\.map\(\(l\) => remindLine\(l\.step, l\.slot\)\)/.test(comp));
+		check("渲染层**不再**写死 [cur, prev]（旧写法：向上翻时两层都被推到窗口下方 ⇒ 开场空白）",
+			!/children: \[remindLine\(shownStep, "cur"\), remindLine\(prevStep, "prev"\)\]/.test(comp));
+		check("reduce（animation:none）时强制 down 顺序 —— 否则 up 顺序的第 1 行 prev 会常驻窗口",
+			/reduceMotion \? "down" : flipDir/.test(comp));
 		check("useCycleSteps 的 seq **单调递增不取模**（方向的分母），step 才是取模后的格号",
 			/setSeq\(\(v\) => v \+ 1\)/.test(comp)
 			&& /return \{ step: count > 0 \? seq % count : 0, seq \};/.test(comp));
@@ -802,5 +827,32 @@ export default async function run() {
 			dirsOf(w4) === "down,up,down,down,up,up,down,down", dirsOf(w4));
 		check("推演·n=4：每拍 dir 与展开序列自带的 dir 一致（首轮两种定义重合）",
 			w4.every((r) => r.slot && r.slot.dir === r.dir), dirsOf(w4));
+	}
+
+	// ── ⑨ 翻页层两行顺序（2026-10-25 五次定稿）─────────────────────────────────
+	// 消除"向上翻开场空白"的关键不是 easing，而是**行顺序**。窗口 22px 只露两层（各 22px）中的一层：
+	//   · up   → [prev, cur]：起点 ty=0（keyframes 的 from）⇒ 第 1 行 **prev 占满窗口**；
+	//            终点 ty=-50% = -22px ⇒ 第 2 行 cur 占满窗口（forwards 把终点保持住）；
+	//   · down → [cur, prev]：起点 ty=-50% ⇒ 第 1 行 cur 在窗口上方、第 2 行 **prev 占满窗口**；
+	//            终点 ty=0 ⇒ cur 占满窗口。
+	// 两种方向的共同点 = **起点窗口里都有 prev（旧内容）** ⇒ 不存在空白帧，两个方向才像"同一种翻牌"。
+	{
+		const up = remindFlipLinesOf("up", 5, 3);
+		const down = remindFlipLinesOf("down", 5, 3);
+		check("remindFlipLinesOf(\"up\") 的 DOM 顺序 = [prev, cur]（第 1 行是旧内容，起点不空白）",
+			up.map((l) => l.slot).join(",") === "prev,cur" && up.map((l) => l.step).join(",") === "3,5",
+			JSON.stringify(up));
+		check("remindFlipLinesOf(\"down\") 的 DOM 顺序 = [cur, prev]（第 1 行是新内容；起点 -50% 时旧内容占窗口）",
+			down.map((l) => l.slot).join(",") === "cur,prev" && down.map((l) => l.step).join(",") === "5,3",
+			JSON.stringify(down));
+		check("两个方向都各保留 cur 与 prev 一行（只换顺序、内容不丢）",
+			[up, down].every((ls) => ls.length === 2
+				&& ls.map((l) => l.slot).sort().join(",") === "cur,prev"
+				&& ls.map((l) => l.step).sort().join(",") === "3,5"));
+		check("脏方向（空串 / null / undefined / 大小写不符 / 别的词）一律按 down —— 与 remindDirAt 的挂载兜底一致",
+			["", null, void 0, "UP", "up ", "down", "x"].every((d) => remindFlipLinesOf(d, 5, 3)[0].slot === "cur"));
+		check("挂载首帧（prevStep === shownStep）两个方向都只渲染同一份内容（不会抖出旧格）",
+			remindFlipLinesOf("up", 2, 2).every((l) => l.step === 2)
+			&& remindFlipLinesOf("down", 2, 2).every((l) => l.step === 2));
 	}
 }

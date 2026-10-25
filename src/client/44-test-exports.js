@@ -409,6 +409,11 @@
 			remindSlidesOf,
 			remindStepsOf,
 			remindDirAt,
+			// remindFlipLinesOf = 翻页层**两行的顺序**（2026-10-25 五次定稿）：up ⇒ [prev, cur]、
+			//   down ⇒ [cur, prev]。行顺序与 keyframes 必须成对出现 —— 向上翻若仍用 [cur, prev]，
+			//   起点 translateY(+50%) 会把两层都推到窗口下方（开场空白，用户报的"观感不一样"）。
+			//   提成纯函数是为了能对 up / down 各钉一条断言（渲染层只做 map）。
+			remindFlipLinesOf,
 			remindWindowOf,
 			remindDueOf,
 			sourceInstant,

@@ -23,28 +23,33 @@
 			   .gacha-cal-btn-txt 是固定 22px 高的"窗口"（overflow:hidden），里面两行各 22px 叠成 44px；
 			   translateY 只发生在窗口**内部**那一层（.gacha-cal-btn-flip），所以按钮的 flex 高度永远是
 			   22px，既不撑开按钮、也不挤动图标/文字。
-			   动画是**一次性**的（每次换格由 React 重挂载这一层触发），fill-mode 用 backwards：
-			   播完不留持久层（绝不用 both/forwards —— 那会留一个合成层，改变绘制顺序）。
+			   动画是**一次性**的（每次换格由 React 重挂载这一层触发）；fill-mode 按方向各用一套
+			   （2026-10-25 五次定稿）：down 用 backwards + 1ms 延迟（起点状态首帧即生效，防重挂载
+			   闪跳）；up 用 forwards（终点必须停在 -50%，否则收尾会弹回 0 露出 prev）。
+			   forwards 只出现在**这一层**、且每次换格都整块重挂载 ⇒ 不留持久层到别处。
 			   ⚠️ transform 只给 .gacha-cal-btn-flip 这一层：面板的悬停浮层 .gacha-cal-sched-rest 依赖
 			   包含块，虽然按钮不在它的祖先链上，也**不要**给 .gacha-cal-btn 或更外层加
 			   transform/filter/contain/will-change。 */
 			.gacha-cal-btn-txt{display:block;flex:1 1 auto;min-width:0;height:22px;line-height:22px;overflow:hidden}
-			.gacha-cal-btn-flip{display:block;animation:gacha-cal-btn-flip .42s cubic-bezier(.2,.9,.25,1) 1ms backwards}
-			/* 翻页**方向**（2026-10-25 四次定稿，用户要求「类名 = 视觉方向」）：
-			   · .is-up   → keyframes gacha-cal-btn-flip（from 50%）：整层从**下方**滑回原位
-			                ⇒ 新内容从下面进、旧内容往上走（视觉向上）；
-			   · .is-down → keyframes gacha-cal-btn-flip-down（from -50%）：整层从**上方**滑回原位
-			                ⇒ 新内容从上面进、旧内容往下走（视觉向下）。
-			   两类只换 keyframes 名，时长 / easing / fill-mode 一个字不改。
-			   ⚠️ 上一版把两条 keyframes 的 from 写反了（.is-up 用 -50%、.is-down 用 50%），
-			   于是"类名说的方向"和"眼睛看到的方向"正好相反 —— 用户 2026-10-25 报的「方向不对」
-			   就是这一条。两条 from 的归属**不要**再换回去。
+			.gacha-cal-btn-flip{display:block;animation:gacha-cal-btn-flip-down .42s cubic-bezier(.2,.9,.25,1) 1ms backwards}
+			/* 翻页**方向**（2026-10-25 五次定稿，用户要求「类名 = 视觉方向」+ 起点不许空白）：
+			   两行的**顺序随方向换**（纯函数 remindFlipLinesOf，见 60-helpers.js），keyframes 跟着换：
+			   · .is-up   → 层序 [prev, cur] + keyframes 0 → -50% + forwards：
+			                起点 ty=0 ⇒ prev 占满窗口（旧内容在窗口里）；终点 -22px ⇒ cur 占满窗口
+			                ⇒ 旧行往上滑出、新行从**下方**进入（视觉向上）；
+			   · .is-down → 层序 [cur, prev] + keyframes -50% → 0 + backwards(+1ms)：
+			                起点 ty=-22px ⇒ cur 在窗口上方、prev 占满窗口；终点 0 ⇒ cur 占满窗口
+			                ⇒ 旧行往下滑出、新行从**上方**进入（视觉向下）。
+			   ⚠️ 上一版（四次定稿）两种方向都渲染 [cur, prev]，向上翻的 from 是 +50% ⇒ 起点时
+			   **两层都在窗口下方**，一开场窗口里什么都没有（探针实测空白 30~60ms），然后新行
+			   从上方滑进来 —— 用户 2026-10-25 报的「还是不对，和向下翻的动画不一样」就是这一条。
+			   行顺序 / keyframes / fill-mode 三者**必须成套**：单改任何一个都会回到空白起点。
 			   ⚠️ 下面的 reduce 媒体查询**必须**把这两个选择器也列进去：媒体查询不增加特异性，
 			   只写 .gacha-cal-btn-flip 的话，.is-down（两个类）会把 animation-name 抢回来 ⇒
 			   reduce 时仍会播一次翻页。
 			   ⚠️ 这里只碰 .gacha-cal-btn-flip 这一层；按钮与祖先层仍然不许 transform/filter/
 			   contain/will-change（面板悬停浮层 .gacha-cal-sched-rest 依赖包含块）。 */
-			.gacha-cal-btn-flip.is-up{animation:gacha-cal-btn-flip .42s cubic-bezier(.2,.9,.25,1) 1ms backwards}
+			.gacha-cal-btn-flip.is-up{animation:gacha-cal-btn-flip .42s cubic-bezier(.2,.9,.25,1) forwards}
 			.gacha-cal-btn-flip.is-down{animation:gacha-cal-btn-flip-down .42s cubic-bezier(.2,.9,.25,1) 1ms backwards}
 			.gacha-cal-btn-line{display:flex;align-items:center;height:22px;line-height:22px;min-width:0;overflow:hidden}
 			/* 图标（2026-10-25 二次定稿 **C 方案**）：日历图标与游戏图标都在**同一行**里，跟着整行一起翻页
@@ -60,11 +65,12 @@
 			   pre = nowrap + 保留空格：分隔符两侧各有一个真空格，且永不换行（flex:none 不参与收缩）。 */
 			.gacha-cal-btn-st{flex:none;white-space:pre}
 			/* 窗口 22px、翻页层 44px（两行各 22px）：translateY(±50%) = ±22px 正好一行。
-			   层里第一行恒为**当前内容**（cur）、第二行为上一次的内容（prev）——
-			   所以动画的终点永远是 translateY(0)（露出 cur），起点决定"从哪边进来"：
-			   from 50%  = 起点时 cur 在窗口**下方**一行 ⇒ 向上滑入；
-			   from -50% = 起点时 cur 在窗口**上方**一行 ⇒ 向下滑入。 */
-			@keyframes gacha-cal-btn-flip{from{transform:translateY(50%)}to{transform:translateY(0)}}
+			   两条 keyframes 与两种**层序**一一对应（见 remindFlipLinesOf），
+			   共同点 = **起点时 prev 占满窗口**（所以永远不会开场空白）：
+			   · gacha-cal-btn-flip      = 向上翻：[prev, cur] 从 0 走到 -50%（prev 滑出、cur 占满）；
+			   · gacha-cal-btn-flip-down = 向下翻：[cur, prev] 从 -50% 走到 0（prev 占满、cur 进入）。
+			   ⚠️ 百分比的基准是**本层高度 44px**（不是窗口的 22px）：50% = 22px = 正好一行。 */
+			@keyframes gacha-cal-btn-flip{from{transform:translateY(0)}to{transform:translateY(-50%)}}
 			@keyframes gacha-cal-btn-flip-down{from{transform:translateY(-50%)}to{transform:translateY(0)}}
 			/* reduce：完全不滚动（动画置 none）。JS 侧同时把轮播节拍停掉并静态钉在第一条（见 80 的
 			   usePrefersReducedMotion）—— 两处都要，缺一处就还能看见翻页。
