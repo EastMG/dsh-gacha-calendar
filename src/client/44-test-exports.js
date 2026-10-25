@@ -393,6 +393,10 @@
 			// remindPickOf = 选取 + 排序；remindCaptionOf = 按钮那一行的两段文案（事项名 / 状态）；
 			// remindSlidesOf = 轮播**每格**的结构（C 方案：{gameId, gameIcon, itemName, statusText}）；
 			// remindStepsOf = 轮播的**展开序列**（2026-10-25 三次定稿：[idle,1,idle,2,…]，每格带方向）。
+			// remindDirAt = 方向规则本体（2026-10-25 四次定稿）：按**切换次数**四步一循环
+			//   up,down,down,up（idx 0 = 挂载兜底 down）。渲染层用它取方向，测试用它做
+			//   "8 步推演"（把展开序列按 useCycle 的推进方式走一遍）。
+			//   函数声明 ⇒ 本文件执行时已提升，可以提前引用（const 表不行，别照抄）。
 			// 全是纯函数，固定时刻可测。
 			remindKindOf,
 			remindGameAllowed,
@@ -404,6 +408,7 @@
 			remindCaptionOf,
 			remindSlidesOf,
 			remindStepsOf,
+			remindDirAt,
 			remindWindowOf,
 			remindDueOf,
 			sourceInstant,

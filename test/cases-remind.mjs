@@ -24,8 +24,10 @@
 //   ⑥ 样式静态守卫：按钮尺寸不许被撑开 / 动画只许一次性 backwards / 70-styles.js 模板字符串完整。
 //   ⑦ 设置页**两个控件**（2026-10-25 三次定稿）：开关 `remindOn`（默认 **开**）+ 范围
 //      `remindHours`（12/24/48/72，默认 **72**，**没有「关闭」档位**）；关掉开关 ⇒ 清单为空。
-//   ⑧ 轮播的**交叉序列**与**翻页方向交替**（同日三次定稿）：`remindStepsOf` 展开成
-//      [idle, 1, idle, 2, …]（长度 2n；n=0 只有 idle），条目格 up / 原按钮格 down。
+//   ⑧ 轮播的**交叉序列**与**翻页方向**（同日三次定稿 + 四次定稿修正）：
+//      `remindStepsOf` 展开成 [idle, 1, idle, 2, …]（长度 2n；n=0 只有 idle）；
+//      方向按**切换次数**四步一循环 up,down,down,up（idx 0 = 挂载兜底 down），
+//      且**类名 = 视觉方向**（.is-up = 新内容从下方进 / .is-down = 新内容从上方进）。
 //
 // ⚠️ 时刻全部显式传入（`now` 是参数，不是 Date.now()），所以本文件不随跑测那天漂移。
 // ⚠️ 「今天 / 明天 / N 天后」用的是**本机日历日**，所以这里挑的偏移量在 UTC 与 +08 下落在同一天
@@ -45,7 +47,7 @@ export default async function run() {
 	const {
 		isExpiringSoon, expiringSoonOf,
 		remindKindOf, remindGameAllowed, remindOnOf, remindRangeOf, remindPickOf, remindCaptionOf, remindSlidesOf,
-		remindStepsOf, remindWindowOf, remindDueOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
+		remindStepsOf, remindDirAt, remindWindowOf, remindDueOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
 	} = T;
 
 	const NOW = Date.UTC(2026, 9, 25, 4, 0);   // 2026-10-25 12:00 +08 / 13:00 +09 / 04:00 UTC
@@ -525,12 +527,21 @@ export default async function run() {
 			/\.gacha-cal-btn-flip\{[^}]*animation:[^;}]*\bbackwards\b/.test(styles));
 		check("翻页动画**没有**用 both / forwards（会留一个持久合成层，改变绘制顺序）",
 			!/\.gacha-cal-btn-flip\{[^}]*animation:[^;}]*\b(?:both|forwards)\b/.test(styles));
-		check("翻页 keyframes：从 -50%（露出上一行）回到 0（当前行）",
-			/@keyframes gacha-cal-btn-flip\{from\{transform:translateY\(-50%\)\}to\{transform:translateY\(0\)\}\}/.test(styles));
-		// 2026-10-25 三次定稿：**方向交替** —— 进条目格沿用上面那组（从上方来），
-		// 回原按钮格用新的一组（从下方来）。两组必须同时在，少一组就变成"永远同一个方向"。
-		check("第二组 keyframes 存在（回按钮格用：translateY(50%) → 0）",
-			/@keyframes gacha-cal-btn-flip-down\{from\{transform:translateY\(50%\)\}to\{transform:translateY\(0\)\}\}/.test(styles));
+		// 方向语义（2026-10-25 四次定稿）：**类名 = 视觉方向**。
+		// 窗口 22px / 翻页层 44px（两行各 22px）⇒ translateY(±50%) = ±22px 正好一行；
+		// 层里第一行恒为当前内容（cur），动画终点恒为 0，所以**起点**决定新内容从哪边进：
+		//   · .is-up   ⇒ from 50%：起点时 cur 在窗口下方一行 ⇒ 新内容从**下方**进（视觉向上）；
+		//   · .is-down ⇒ from -50%：起点时 cur 在窗口上方一行 ⇒ 新内容从**上方**进（视觉向下）。
+		// 上一版两条 from 写反了（.is-up 用了 -50%、.is-down 用了 50%），类名与观感正好相反 ——
+		// 用户 2026-10-25 报的「动画方向不对」就是这一条。以下两条断言把归属钉死。
+		check("is-up 的 keyframes：from translateY(50%) → 0（新内容从下方进 = 视觉向上）",
+			/@keyframes gacha-cal-btn-flip\{from\{transform:translateY\(50%\)\}to\{transform:translateY\(0\)\}\}/.test(styles));
+		check("is-down 的 keyframes：from translateY(-50%) → 0（新内容从上方进 = 视觉向下）",
+			/@keyframes gacha-cal-btn-flip-down\{from\{transform:translateY\(-50%\)\}to\{transform:translateY\(0\)\}\}/.test(styles));
+		// 类名 → keyframes 的映射也必须钉死：只对 keyframes 断言的话，两条规则名互换仍能通过。
+		check("类名映射：.is-up 用 gacha-cal-btn-flip（+50%→0）、.is-down 用 gacha-cal-btn-flip-down（-50%→0）",
+			/\.gacha-cal-btn-flip\.is-up\{animation:gacha-cal-btn-flip /.test(styles)
+			&& /\.gacha-cal-btn-flip\.is-down\{animation:gacha-cal-btn-flip-down /.test(styles));
 		// 两条方向规则：时长 0.42s、同一条 easing、backwards 一字不差；且不许夹带 transform/filter/...
 		// ⚠️ 取规则时把 reduce 媒体查询里那条 `.is-down{animation:none}` 排除掉（它也是同一个选择器）。
 		const dirRules = [...styles.matchAll(/\.gacha-cal-btn-flip\.is-(?:up|down)\{([^}]*)\}/g)]
@@ -553,17 +564,29 @@ export default async function run() {
 		// reduce ⇒ 轮播节拍暂停且静态钉在第 1 格。这两条都是"改错了不报错、真机才发现"的病。
 		check("无可提醒时不渲染轮播（remindSlides.length 为 0 ⇒ 按钮回到「图标 + 二文字」原样）",
 			/remindSlides\.length\s*\?/.test(comp) && /\(wide === false \|\| remindSlides\.length === 0\) \? calIcon : null/.test(comp));
-		check("轮播节拍：slides 为空 / reduce / 悬停 三种情况都暂停（useCycle 的 paused）",
-			/useCycle\(remindSteps\.length, REMIND_SLIDE_SECS,\s*\n?\s*remindSlides\.length === 0 \|\| reduceMotion \|\| btnHover\)/.test(comp));
+		check("轮播节拍：slides 为空 / reduce / 悬停 三种情况都暂停（useCycleSteps 的 paused）",
+			/useCycleSteps\(remindSteps\.length, REMIND_SLIDE_SECS,\s*\n?\s*remindSlides\.length === 0 \|\| reduceMotion \|\| btnHover\)/.test(comp));
 		check("轮播节拍数的是**展开后的格数**（remindSteps.length = 2n），不再是 slides+1",
 			remindStepsOf([1, 2]).length === 4);
 		check("渲染层用纯函数展开序列（remindStepsOf(remindSlides)），不自己拼交叉",
 			/const remindSteps = remindStepsOf\(remindSlides\);/.test(comp));
 		check("reduce 时静态钉在第一条提醒（still 能看出有事）",
 			/reduceMotion && remindSlides\.length > 0 \? 1 : slideStep/.test(comp));
-		// 方向类必须真的接到 DOM 上（按展开后的格号奇偶切 is-up / is-down）
-		check("渲染层按格方向切 class（.is-up / .is-down 由 remindStepsOf 的 dir 决定）",
-			/className: "gacha-cal-btn-flip " \+ \(stepAt\(shownStep\)\.dir === "up" \? "is-up" : "is-down"\)/.test(comp));
+		// 方向类必须真的接到 DOM 上，而且**方向来源必须是"单调切换序"**（2026-10-25 四次定稿）。
+		// 之前的实现是 `stepAt(shownStep).dir`：shownStep 是 useCycle 取模后的格号，回卷到格 0 时
+		// 取到的是 remindDirAt(0) 的挂载兜底 down ⇒ 四步循环每轮回卷丢一次相位，n=2 时第 4 次
+		// 切换本该 up、实渲染 down（真机表现为"连着三次都往下"）。下面两条把新写法**和**旧写法
+		// 一起钉住：新写法必须在、旧写法必须不在。
+		check("渲染层按 **remindDirAt(单调切换序)** 切 class（类名 = 视觉方向）",
+			/className: "gacha-cal-btn-flip " \+ \(flipDir === "up" \? "is-up" : "is-down"\)/.test(comp));
+		check("渲染层的方向**不再**从 shownStep 反推（回卷到格 0 会丢相位 ⇒ 四步循环失效）",
+			!/className: "gacha-cal-btn-flip " \+ \(stepAt\(shownStep\)/.test(comp)
+			&& /const flipDir = remindDirAt\(/.test(comp));
+		check("useCycleSteps 的 seq **单调递增不取模**（方向的分母），step 才是取模后的格号",
+			/setSeq\(\(v\) => v \+ 1\)/.test(comp)
+			&& /return \{ step: count > 0 \? seq % count : 0, seq \};/.test(comp));
+		check("useCycle 退化成 useCycleSteps(...).step 的薄包装（留白卡 / 近期分页行为不变）",
+			/function useCycle\(count, seconds, paused\) \{\s*\n\s*return useCycleSteps\(count, seconds, paused\)\.step;\s*\n\s*\}/.test(comp));
 		check("取格子的 stepAt 有越界兜底（prevStep 可能已不在新序列里，不能抛）",
 			/const stepAt = \(step\) => remindSteps\[step\] \|\| \{ idx: 0, idle: true, slideIndex: -1, dir: "down" \};/.test(comp));
 		check("remindLine 按 slideIndex 取提醒（不再是 idx-1 的下标算术）",
@@ -673,10 +696,12 @@ export default async function run() {
 		}
 	}
 
-	// ── ⑩ 轮播顺序「交叉」+ 翻页方向交替（2026-10-25 三次定稿）──────────────────
+	// ── ⑩ 轮播顺序「交叉」+ 翻页方向「四步循环」（2026-10-25 三次定稿 + 四次定稿修正）──
 	// 用户要求：
 	//   ① 每两条提醒之间插回一次原按钮 ⇒ 展开序列 [idle, 1, idle, 2, …]（长度 2n；n=0 只有 idle）；
-	//   ② 进条目格向上翻、回按钮格向下翻 —— 对生成序列的**每一格**断言方向。
+	//   ② 方向按**切换次数**四步一循环 up,down,down,up（idx 0 = 挂载兜底 down），
+	//      与条目数无关 ⇒ n=2 与 n=4 走 8 拍必须给出同一串方向；
+	//   ③ 渲染层取方向用 remindDirAt(单调切换序)，**不能**用 `stepAt(shownStep).dir`（回卷丢相位）。
 	{
 		const two = remindSlidesOf([
 			{ key: "a:gacha", gameId: "a", side: "gacha", name: "甲", title: "池甲", startTs: NOW - H, endTs: NOW + H, kind: "end" },
@@ -694,17 +719,17 @@ export default async function run() {
 		check("交叉·n=2：格号连续 0..3（渲染层拿它当 key / prevStep）",
 			steps2.map((s) => s.idx).join(",") === "0,1,2,3", steps2.map((s) => s.idx).join(","));
 
-		// 方向交替：第 1 格（进条目）up、第 2 格（回按钮）down、第 3 格（进条目）up …
-		check("方向交替·n=2：第 1 格（进条目）up、第 2 格（回按钮）down、第 3 格 up",
+		// 方向 4 步循环：格 1 up / 格 2 down / 格 3 down（第 4 格在 n=2 时不存在，回卷由推演覆盖）
+		check("方向 4 步循环·n=2：第 1 格 up、第 2 格 down、第 3 格 down（不是「交替」）",
 			steps2[1].dir === "up" && steps2[2].dir === "down" && steps2[3].dir === "down",
 			steps2.map((s) => s.dir).join(","));
-		check("方向交替·n=2：**每一格**都满足「条目格 up / 原按钮格 down」",
+		check("方向 4 步循环·n=2：**每一格**都满足 remindDirAt(格号)（四步循环，不再按 idle/条目分）",
 			steps2.every((s) => (s.idx === 0 ? s.dir === "down" : s.dir === ["up", "down", "down", "up"][(s.idx - 1) % 4])),
 			steps2.map((s) => (s.idle ? "idle:" : "item:") + s.dir).join(" "));
-		check("方向 4 步循环·n=2：格 1..4 必须是 up,down,down,up",
+		check("方向 4 步循环·n=2：4 格方向 = down,up,down,down",
 			steps2.map((s) => s.dir).join(",") === "down,up,down,down",
 			steps2.map((s) => s.dir).join(","));
-		check("方向交替·n=2：第 0 格（初始 idle）也有方向 down（DOM 上永远是 is-up / is-down 之一）",
+		check("方向 4 步循环·n=2：第 0 格（初始 idle）也有方向 down（DOM 上永远是 is-up / is-down 之一）",
 			steps2[0].dir === "down");
 
 		// n = 0：只有 idle、不滚动（长度 1）
@@ -727,8 +752,55 @@ export default async function run() {
 			steps3.length === 6
 			&& steps3.map((s) => s.slideIndex).join(",") === "-1,0,-1,1,-1,2",
 			steps3.map((s) => s.slideIndex).join(","));
-		check("方向交替·n=3：6 格方向 = down,up,down,up,down,up",
+		check("方向 4 步循环·n=3：6 格方向 = down,up,down,down,up,up",
 			steps3.map((s) => s.dir).join(",") === "down,up,down,down,up,up",
 			steps3.map((s) => s.dir).join(","));
+
+		// ── 8 拍推演（2026-10-25 四次定稿，用户要求"必须自证"）──────────────────
+		// 把 remindStepsOf 的输出按**渲染层的推进方式**走 8 拍：
+		//   step = seq % 展开长度（useCycleSteps 的 step：决定这一拍显示哪一格）
+		//   dir  = remindDirAt(seq)（同一拍的方向：按**切换次数**，不看回卷后的格号）
+		// 期望：down,up,down,down,up,up,down,down（第 0 拍 down = 挂载兜底，没有"进入"动作）。
+		// n=2（真机最常见的 4 格回卷）与 n=4（8 格）必须给出**同一串方向** —— 这正是
+		// "方向与条目数无关"的含义，也是旧写法（按格号取方向）在 n=2 第 4 拍崩掉的地方。
+		const walkCycle = (steps, beats) => {
+			const out = [];
+			for (let seq = 0; seq < beats; seq++) {
+				const step = steps.length > 0 ? seq % steps.length : 0;
+				const dir = remindDirAt(seq);
+				out.push({ seq, step, dir, cls: dir === "up" ? "is-up" : "is-down", slot: steps[step] });
+			}
+			return out;
+		};
+		const dirsOf = (w) => w.map((r) => r.dir).join(",");
+		const show = (w) => w.map((r) => `${r.seq}:(${r.step},${r.dir},${r.cls})`).join(" ");
+
+		// 方向规则本体：0 / 负数 / 非数字 = 挂载兜底 down；1..8 = up,down,down,up,up,down,down,up
+		check("remindDirAt：idx 0 / 负数 / 非数字 = down（挂载兜底）；1..8 = up,down,down,up,up,down,down,up",
+			remindDirAt(0) === "down" && remindDirAt(-3) === "down" && remindDirAt(NaN) === "down"
+			&& [1, 2, 3, 4, 5, 6, 7, 8].map((i) => remindDirAt(i)).join(",") === "up,down,down,up,up,down,down,up",
+			[1, 2, 3, 4, 5, 6, 7, 8].map((i) => remindDirAt(i)).join(","));
+
+		const w2 = walkCycle(steps2, 8);
+		console.log("  推演 n=2（4 格回卷）seq:(step,dir,class) = " + show(w2));
+		check("推演·n=2 走 8 拍 = down,up,down,down,up,up,down,down（回卷不丢相位）",
+			dirsOf(w2) === "down,up,down,down,up,up,down,down", dirsOf(w2));
+		check("推演·n=2：第 4 拍（回卷后第 1 次切换）必须是 up —— 旧写法这里是 down（remindDirAt(0) 兜底）",
+			w2[4].dir === "up" && w2[4].cls === "is-up" && w2[4].step === 0, show(w2));
+
+		const four = remindSlidesOf([
+			{ key: "a:gacha", gameId: "a", side: "gacha", name: "甲", title: "池甲", startTs: NOW - H, endTs: NOW + H, kind: "end" },
+			{ key: "b:event", gameId: "b", side: "event", name: "乙", title: "活动乙", startTs: NOW + H, endTs: NOW + 2 * H, kind: "start" },
+			{ key: "c:gacha", gameId: "c", side: "gacha", name: "丙", title: "池丙", startTs: NOW - H, endTs: NOW + 3 * H, kind: "end" },
+			{ key: "d:event", gameId: "d", side: "event", name: "丁", title: "活动丁", startTs: NOW + 2 * H, endTs: NOW + 4 * H, kind: "start" }
+		], NOW);
+		const steps4 = remindStepsOf(four);
+		check("交叉·n=4：展开成 8 格（= 2n）", steps4.length === 8, String(steps4.length));
+		const w4 = walkCycle(steps4, 8);
+		console.log("  推演 n=4（8 格，step 与 seq 一一对应）seq:(step,dir,class) = " + show(w4));
+		check("推演·n=4 走 8 拍 = down,up,down,down,up,up,down,down",
+			dirsOf(w4) === "down,up,down,down,up,up,down,down", dirsOf(w4));
+		check("推演·n=4：每拍 dir 与展开序列自带的 dir 一致（首轮两种定义重合）",
+			w4.every((r) => r.slot && r.slot.dir === r.dir), dirsOf(w4));
 	}
 }

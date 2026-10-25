@@ -620,16 +620,29 @@
 
 		// 日程面板本体。props 全部来自 CalendarPanel（同一份渲染快照）；组件自身**没有** UI 状态 ——
 		// 设计稿要求"不折叠、不点开"，所以旧版的"展开更多"连同它的 useState 一起删了。
-		// 通用循环器：每 seconds 秒把 step 推一格（count 格一轮）；paused 时不排下一拍。
+		// 通用循环器：每 seconds 秒推一格（count 格一轮）；paused 时不排下一拍。
 		// 近期分页与留白卡共用；模块级 hook ⇒ 组件身份稳定，状态不会被父级重渲染重置。
-		function useCycle(count, seconds, paused) {
-			const [step, setStep] = (0, react.useState)(0);
+		//
+		// 返回 `{ step, seq }`（2026-10-25 四次定稿）：
+		//   · step = 当前格号（0..count-1，**取模**）—— 决定"这一帧显示什么"；
+		//   · seq  = **单调递增的切换序**（不取模）—— 决定"这一帧往哪个方向翻"。
+		// 为什么必须把两者分开：翻页方向规则（remindDirAt）是按**切换次数**四步一循环
+		// （第 1 次 up / 第 2 次 down / 第 3 次 down / 第 4 次 up …），与"回卷到第几格"无关。
+		// 若拿取模后的 step 去取方向，序列一回卷到格 0 就会取到 remindDirAt(0) 的"挂载兜底 down"
+		// ⇒ 四步循环在每次回卷处丢一次相位：n=2（最常见）时第 4 次切换本该 up、实渲染 down，
+		// 真机上看到的就是「连着三次都是往下」（用户 2026-10-25 报的 bug）。
+		function useCycleSteps(count, seconds, paused) {
+			const [seq, setSeq] = (0, react.useState)(0);
 			(0, react.useEffect)(() => {
 				if (paused || count <= 1) return;
-				const t = window.setInterval(() => setStep((v) => (v + 1) % count), seconds * 1000);
+				const t = window.setInterval(() => setSeq((v) => v + 1), seconds * 1000);
 				return () => window.clearInterval(t);
 			}, [count, seconds, paused]);
-			return count > 0 ? step % count : 0;
+			return { step: count > 0 ? seq % count : 0, seq };
+		}
+		// 老调用方（日程卡的留白卡 / 近期分页）只要格号：行为与改动前完全一致。
+		function useCycle(count, seconds, paused) {
+			return useCycleSteps(count, seconds, paused).step;
 		}
 
 		// 侧栏按钮轮播的节拍（秒）。用户要求"每 4~6 秒切一条"；5 秒 = 能读完一条、又不至于像卡住。
@@ -1373,11 +1386,20 @@
 			const [btnHover, setBtnHover] = (0, react.useState)(false);
 			// 悬停暂停 = 把 useCycle 的 paused 打开（不排下一拍），而不是暂停 CSS 动画：
 			// 翻页动画是一次性的 0.42s，暂停它只会把画面冻在半路；这里要停的是"切内容"的节拍。
-			const slideStep = useCycle(remindSteps.length, REMIND_SLIDE_SECS,
+			// ⚠️ 翻页方向用的是 useCycleSteps 的 **seq（单调切换序）**，不是 shownStep：
+			//    方向规则按"第几次切换"四步一循环（up,down,down,up），与"回卷到第几格"无关。
+			//    这里若改用 `stepAt(shownStep).dir`，序列每回卷到格 0 就会取到 remindDirAt(0) 的
+			//    挂载兜底 down ⇒ 四步循环每轮回卷都丢一次相位（用户报的「一直是 is-down」就是这个：
+			//    n=2 时 4 格一轮，第 4 次切换本该 up、实际渲染 down，看起来像"连着三次都是往下"）。
+			const remindCycle = useCycleSteps(remindSteps.length, REMIND_SLIDE_SECS,
 				remindSlides.length === 0 || reduceMotion || btnHover);
+			const slideStep = remindCycle.step;
 			// reduce 时**不滚动**、但也不回到"看起来没事"的原样：静态钉在第一条提醒（展开后的第 1 格）
 			// （用户要求"仍要能看出有事"）。无提醒时自然是第 0 格 = 原按钮外观。
 			const shownStep = reduceMotion && remindSlides.length > 0 ? 1 : slideStep;
+			// 这一帧的翻页方向（**类名 = 视觉方向**，见 70-styles.js 的 keyframes 注释）。
+			// reduce 时钉在第 1 格，方向取 remindDirAt(1)（反正 CSS 那边 animation:none，不会播）。
+			const flipDir = remindDirAt(reduceMotion && remindSlides.length > 0 ? 1 : remindCycle.seq);
 			// 上一格的内容要**留在 DOM 里**才能做出"交叉滚动"（旧的往上走、新的从下面进来）。
 			// 用 ref 记上一次渲染的格号：格号变了的那一次渲染里 prevStep = 旧格号，effect 之后再对齐。
 			// （若改成"渲染时直接改 ref"，React 严格模式下可能被重复执行；effect 版本最稳。）
@@ -1624,10 +1646,13 @@
 											// key = 格号：格号一变，React 重挂载这一层 ⇒ CSS 翻页动画从头播一次
 											// （一次性 0.42s、fill-mode backwards；播完不留持久层）。
 											key: shownStep,
-											// 方向交替（2026-10-25 三次定稿）：进条目格 .is-up（新内容从下方进），
-											// 回原按钮格 .is-down（新内容从上方进）。方向也来自 remindStepsOf，
-											// 渲染层只做"类名映射"，不自己数奇偶。
-											className: "gacha-cal-btn-flip " + (stepAt(shownStep).dir === "up" ? "is-up" : "is-down"),
+											// 翻页方向（2026-10-25 四次定稿）：**类名 = 视觉方向** ——
+											// .is-up = 新内容从下方进（旧的往上走）；
+											// .is-down = 新内容从上方进（旧的往下走）。
+											// 方向来自纯函数 remindDirAt(单调切换序)，按"第几次切换"四步一循环
+											// （up,down,down,up），渲染层只做"类名映射"，不自己数奇偶；
+											// **不要**从 shownStep 反推（回卷到格 0 会丢相位，见 flipDir 处注释）。
+											className: "gacha-cal-btn-flip " + (flipDir === "up" ? "is-up" : "is-down"),
 											children: [remindLine(shownStep, "cur"), remindLine(prevStep, "prev")]
 										})
 									})

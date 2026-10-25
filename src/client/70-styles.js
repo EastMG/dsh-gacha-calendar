@@ -30,9 +30,15 @@
 			   transform/filter/contain/will-change。 */
 			.gacha-cal-btn-txt{display:block;flex:1 1 auto;min-width:0;height:22px;line-height:22px;overflow:hidden}
 			.gacha-cal-btn-flip{display:block;animation:gacha-cal-btn-flip .42s cubic-bezier(.2,.9,.25,1) backwards}
-			/* 翻页**方向交替**（2026-10-25 三次定稿，用户要求）：进入条目格时向上翻（沿用下面的
-			   gacha-cal-btn-flip），回到原按钮格时向下翻（gacha-cal-btn-flip-down）—— 观感是
-			   "上去…下来…上去…"。两类只换 keyframes 名，时长 / easing / fill-mode 一个字不改。
+			/* 翻页**方向**（2026-10-25 四次定稿，用户要求「类名 = 视觉方向」）：
+			   · .is-up   → keyframes gacha-cal-btn-flip（from 50%）：整层从**下方**滑回原位
+			                ⇒ 新内容从下面进、旧内容往上走（视觉向上）；
+			   · .is-down → keyframes gacha-cal-btn-flip-down（from -50%）：整层从**上方**滑回原位
+			                ⇒ 新内容从上面进、旧内容往下走（视觉向下）。
+			   两类只换 keyframes 名，时长 / easing / fill-mode 一个字不改。
+			   ⚠️ 上一版把两条 keyframes 的 from 写反了（.is-up 用 -50%、.is-down 用 50%），
+			   于是"类名说的方向"和"眼睛看到的方向"正好相反 —— 用户 2026-10-25 报的「方向不对」
+			   就是这一条。两条 from 的归属**不要**再换回去。
 			   ⚠️ 下面的 reduce 媒体查询**必须**把这两个选择器也列进去：媒体查询不增加特异性，
 			   只写 .gacha-cal-btn-flip 的话，.is-down（两个类）会把 animation-name 抢回来 ⇒
 			   reduce 时仍会播一次翻页。
@@ -53,8 +59,13 @@
 			   空格折叠掉，渲染成「少女· 还剩」—— 少一个正是用户 2026-10-25 指出的问题。
 			   pre = nowrap + 保留空格：分隔符两侧各有一个真空格，且永不换行（flex:none 不参与收缩）。 */
 			.gacha-cal-btn-st{flex:none;white-space:pre}
-			@keyframes gacha-cal-btn-flip{from{transform:translateY(-50%)}to{transform:translateY(0)}}
-			@keyframes gacha-cal-btn-flip-down{from{transform:translateY(50%)}to{transform:translateY(0)}}
+			/* 窗口 22px、翻页层 44px（两行各 22px）：translateY(±50%) = ±22px 正好一行。
+			   层里第一行恒为**当前内容**（cur）、第二行为上一次的内容（prev）——
+			   所以动画的终点永远是 translateY(0)（露出 cur），起点决定"从哪边进来"：
+			   from 50%  = 起点时 cur 在窗口**下方**一行 ⇒ 向上滑入；
+			   from -50% = 起点时 cur 在窗口**上方**一行 ⇒ 向下滑入。 */
+			@keyframes gacha-cal-btn-flip{from{transform:translateY(50%)}to{transform:translateY(0)}}
+			@keyframes gacha-cal-btn-flip-down{from{transform:translateY(-50%)}to{transform:translateY(0)}}
 			/* reduce：完全不滚动（动画置 none）。JS 侧同时把轮播节拍停掉并静态钉在第一条（见 80 的
 			   usePrefersReducedMotion）—— 两处都要，缺一处就还能看见翻页。
 			   三个选择器缺一不可：前两个是基础规则与 .is-up，最后一个是 .is-down（后者的特异性更高，
