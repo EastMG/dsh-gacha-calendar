@@ -106,7 +106,7 @@ const batches = [
 	["赛马娘国际服卡池（GameTora 默认源）", runUmaGt],
 	["规则静态守卫（方案 A 悬停 + 选当期判定不许各写各的）", runRuleLint],
 	["时区口径（外显=本机时区 / 悬停=源站墙钟）", runTz],
-	["到期提醒（侧栏红点 + 「提前 N 小时」）", runRemind],
+	["到期提醒（侧栏单行轮播 + 「提前 N 小时」+ 每游戏「强提醒」）", runRemind],
 	["README 结构图与事实性", runReadme],
 	["core 产物（零宿主依赖 + 注册幂等）", runCore]
 ];

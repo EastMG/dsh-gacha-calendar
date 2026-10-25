@@ -40,9 +40,15 @@
 		const DEFAULT_SETTINGS = {
 			autoRefresh: true,
 			refreshMinutes: 1 * 24 * 60,
-			// 到期提醒的提前量（小时）；0 = 关闭（关闭时**不做任何计算**，也不显示红点）。
+			// 到期提醒的提前量（小时）；0 = 关闭（关闭时**不做任何计算**，侧栏也不滚动）。
 			// ⚠️ 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 里（守卫见 test/cases-rule-lint.mjs）。
 			remindHours: 24,
+			// 「强提醒」：**参与**侧栏轮播提醒的条目 id 列表（设置页每行一个复选框，2026-10-25 晚）。
+			// 语义（用户定，必须简单可解释）：**空数组 = 没特别设置 ⇒ 所有展示中的条目都参与**；
+			// 非空 = 只提醒列表里的那些。默认空 = 开箱即用，新用户不用先勾一遍才有提醒。
+			// 与「展示」（hidden/shown）**完全独立**：展示管面板里出不出现，这里管侧栏要不要提醒。
+			// 判定唯一入口是 60-helpers.js 的纯函数 remindGameAllowed。
+			remindGames: [],
 			order: null,
 			lastRefresh: 0,
 			lastSource: "none",
@@ -573,6 +579,105 @@
 			if (!(hours > 0) || !Array.isArray(items)) return [];
 			return items.filter((it) => it && isExpiringSoon(it.startTs, it.endTs, nowTs, hours));
 		}
+
+		// —— 双向「到期提醒」判定（2026-10-25 晚升级：侧栏按钮从红点改成单行轮播）——
+		// 用户口径（原话）：即将**结束**和即将**开始**都算提醒。所以判定从"只看 endTs"扩成双向，
+		// 但**没有改** isExpiringSoon（它仍然只管结束，语义一字未动，老用例继续守着）：
+		//   · "end"   = 这一侧**已开始**（startTs <= now）且 endTs 落在 (now, now + N 小时]；
+		//   · "start" = 这一侧**还没开始**（startTs > now）且 startTs 落在 (now, now + N 小时]；
+		//   · 其余（还早 / 已结束 / 缺 ts / 结束早于开始的脏数据）一律 ""。
+		// 两者天然互斥（startTs <= now 的走 end 分支，> now 的走 start 分支），不需要再排优先级。
+		// N <= 0（设置里的「关闭」）恒为 "" —— 关闭时**连算都不算**，调用方也应短路。
+		// 纯函数、不读 Date.now / window：单测直接喂固定时刻（test/cases-remind.mjs）。
+		function remindKindOf(startTs, endTs, nowTs, remindHours) {
+			const hours = Number(remindHours);
+			if (!(hours > 0)) return "";
+			if (typeof startTs !== "number" || typeof endTs !== "number") return "";
+			if (!Number.isFinite(startTs) || !Number.isFinite(endTs) || !Number.isFinite(nowTs)) return "";
+			if (!(endTs > startTs)) return "";
+			const horizon = hours * 3600000;
+			if (startTs > nowTs) return startTs - nowTs <= horizon ? "start" : "";
+			if (!(endTs > nowTs)) return "";
+			return endTs - nowTs <= horizon ? "end" : "";
+		}
+
+		// 某个条目是否参与提醒 —— 「强提醒」开关（设置页每行一个复选框）的**唯一语义来源**。
+		// 用户定的口径（必须简单可解释）：
+		//   · remindGames **空数组 / 没这个字段** ⇒ 没特别设置过 ⇒ **所有（展示中的）条目都参与**；
+		//   · remindGames **非空** ⇒ 只提醒列表里的那些（用户一动过就只认他勾的）。
+		// 为什么默认是"全参与"而不是"全不提醒"：开箱即用。默认全不提醒等于新用户永远看不到提醒，
+		// 还得先去设置页勾一遍才有意义 —— 那是把配置成本前置给了所有人。
+		function remindGameAllowed(gameId, remindGames) {
+			if (!Array.isArray(remindGames) || remindGames.length === 0) return true;
+			return remindGames.includes(gameId);
+		}
+
+		// 从候选里挑出"该提醒的"（顺序稳定 = 按"距离那一刻还有多久"升序，同刻保持输入顺序）。
+		// items 契约（由 80-components.js 的 remindDueOf 组装，那里负责把落盘文本换算成绝对窗口）：
+		//   { key, gameId, side, name, title, startTs, endTs }
+		// 返回的每一项多两个字段：kind（"end" / "start"）与 dueMs（距离结束/开始还剩多少毫秒）。
+		// 排序口径：**先到期的最靠前** —— "还剩 1 小时"永远压过"明天开池"（中间不夹"按方向分组"）。
+		function remindPickOf(items, nowTs, remindHours, remindGames) {
+			const hours = Number(remindHours);
+			if (!(hours > 0) || !Array.isArray(items)) return [];
+			const out = [];
+			for (const it of items) {
+				if (!it) continue;
+				if (!remindGameAllowed(it.gameId, remindGames)) continue;
+				const kind = remindKindOf(it.startTs, it.endTs, nowTs, hours);
+				if (!kind) continue;
+				out.push({ ...it, kind, dueMs: (kind === "end" ? it.endTs : it.startTs) - nowTs });
+			}
+			// Array.prototype.sort 自 ES2019 起保证稳定 ⇒ 同一毫秒的多条保持输入顺序（可复现）
+			return out.sort((a, b) => a.dueMs - b.dueMs);
+		}
+
+		// 距离毫秒数 → 一句人话（只有数字 + 单位，标签由调用方加）。
+		// 口径：<1 小时说"分钟"、<1 天说"小时"、再往上"天 [小时]"。向下取整（宁可说"还剩 3 小时"
+		// 也不说"还剩 4 小时"）—— 提醒场景里**说少了**比说多了安全。
+		function remindSpanText(ms) {
+			const t = Number(ms);
+			if (!Number.isFinite(t) || t <= 0) return "1 分钟";
+			const mins = Math.floor(t / 60000);
+			if (mins < 60) return Math.max(1, mins) + " 分钟";
+			const hours = Math.floor(t / 3600000);
+			if (hours < 24) return hours + " 小时";
+			const days = Math.floor(t / 86400000);
+			const rest = Math.floor((t % 86400000) / 3600000);
+			return days + " 天" + (rest > 0 ? " " + rest + " 小时" : "");
+		}
+
+		// 开始时刻 → 「今天 / 明天 / N 天后」（只比**本机日历日**，与面板外显"今天到期"同一口径）。
+		// 刻意**不带时刻**：侧栏这一行只有 ~12 个汉字宽，多写个 "18:00" 就把游戏名挤没了。
+		// 用 Math.round 而不是整除：跨 DST 的那一天是 23/25 小时，整除会差一天。
+		function remindDayWord(ts, nowTs) {
+			const a = new Date(ts), b = new Date(nowTs);
+			if (!Number.isFinite(a.getTime()) || !Number.isFinite(b.getTime())) return "";
+			const dayA = new Date(a.getFullYear(), a.getMonth(), a.getDate()).getTime();
+			const dayB = new Date(b.getFullYear(), b.getMonth(), b.getDate()).getTime();
+			const diff = Math.round((dayA - dayB) / 86400000);
+			if (diff <= 0) return "今天";
+			if (diff === 1) return "明天";
+			return diff + " 天后";
+		}
+
+		// 一条提醒 → 侧栏那一行的**两段文案**：{ name, status, text }。
+		// 为什么拆两段而不是拼好一句交给 CSS 截断：`text-overflow:ellipsis` 截的是**尾巴**，
+		// 而这里最不能丢的恰恰是尾巴（"还剩 3 小时 / 明天开池"）。所以渲染层把 name 单独放进
+		// 可收缩 + 省略号的盒子、status 放进 flex:none 的盒子 —— 名字再长也只压名字。
+		// 口径：
+		//   · 结束（kind=end）→ status = "还剩 X"（X 由 remindSpanText 给，两个方向都适用）；
+		//   · 开始（kind=start）→ status = "今天/明天/N 天后" + "开池"（卡池侧）/ "开始"（活动侧）。
+		function remindCaptionOf(item, nowTs) {
+			const it = item || {};
+			const name = String(it.name || it.gameId || "").trim() || "某个游戏";
+			const isStart = it.kind === "start";
+			const isG = it.side === "gacha";
+			const status = isStart
+				? remindDayWord(Number(it.startTs), nowTs) + (isG ? "开池" : "开始")
+				: "还剩 " + remindSpanText(Number(it.endTs) - nowTs);
+			return { name, status, text: name + " · " + status };
+		}
 		//#endregion
 		//#endregion
 
@@ -615,7 +720,8 @@ export function createEngine(env) {
 				// remindHours：到期提醒的提前量（0 = 关闭）。引擎本身不判"到期"（判定在 helpers 的纯函数里），
 				// 但它是 DEFAULT_SETTINGS 的键 ⇒ 必须在这里，否则上面那条守卫会红；
 				// 顺带让未来的非 UI 宿主（扩展/CLI）也能经 readSettings 读到这个设置。
-				"autoRefresh", "refreshMinutes", "remindHours", "newPanel", "lastData", "lastRefresh", "lastSource", "lastVersion"
+				// remindGames：「强提醒」参与列表（空 = 全部参与），同上 —— 也是设置页写入、helpers 判定的键。
+				"autoRefresh", "refreshMinutes", "remindHours", "remindGames", "newPanel", "lastData", "lastRefresh", "lastSource", "lastVersion"
 			];
 
 			// 读取配置（缺失项回落到 10-config.js 的 DEFAULT_SETTINGS）

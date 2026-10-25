@@ -10,9 +10,32 @@
 			/* 到期提醒的小红点（2026-10-25）。**绝对定位**是这里唯一的硬约束：
 			   它必须不参与按钮的 flex 布局，否则会挤动图标/文字 → 重演"按钮错位"。
 			   所以按钮自己只需要 position:relative（不影响布局），红点再绝对定位到右侧内边距里。
-			   尺寸固定 7px、不随角标数量变大；颜色用一个中性偏暖的红，避免在深色侧栏里刺眼。 */
+			   尺寸固定 7px、不随角标数量变大；颜色用一个中性偏暖的红，避免在深色侧栏里刺眼。
+			   ⚠️ 2026-10-25 晚升级后它**只剩窄侧栏的降级用法**（wide === false：没有可滚动的那一行，
+			   有事只能点个点）；宽侧栏一律走下面的单行轮播，不再出现红点。 */
 			.gacha-cal-btn{position:relative}
 			.gacha-cal-dot{position:absolute;top:50%;right:8px;width:7px;height:7px;margin-top:-3.5px;border-radius:50%;background:#E5484D;pointer-events:none}
+			/* 到期提醒·单行轮播（2026-10-25 晚）：有提醒时，「图标 + 二游日历」整行与"一条近期内容"
+			   竖向交叉滚动（旧的往上走、新的从下面进来），像交易所翻牌。
+			   **尺寸硬约束**：按钮的 min-height:42px / line-height:22px 一个数都不改 ——
+			   .gacha-cal-btn-txt 是固定 22px 高的"窗口"（overflow:hidden），里面两行各 22px 叠成 44px；
+			   translateY 只发生在窗口**内部**那一层（.gacha-cal-btn-flip），所以按钮的 flex 高度永远是
+			   22px，既不撑开按钮、也不挤动图标/文字。
+			   动画是**一次性**的（每次换格由 React 重挂载这一层触发），fill-mode 用 backwards：
+			   播完不留持久层（绝不用 both/forwards —— 那会留一个合成层，改变绘制顺序）。
+			   ⚠️ transform 只给 .gacha-cal-btn-flip 这一层：面板的悬停浮层 .gacha-cal-sched-rest 依赖
+			   包含块，虽然按钮不在它的祖先链上，也**不要**给 .gacha-cal-btn 或更外层加
+			   transform/filter/contain/will-change。 */
+			.gacha-cal-btn-txt{display:block;flex:1 1 auto;min-width:0;height:22px;line-height:22px;overflow:hidden}
+			.gacha-cal-btn-flip{display:block;animation:gacha-cal-btn-flip .42s cubic-bezier(.2,.9,.25,1) backwards}
+			.gacha-cal-btn-line{display:flex;align-items:center;gap:6px;height:22px;line-height:22px;min-width:0;overflow:hidden}
+			/* 名字可截断、状态永不截断：窄宽度下必须留下"还剩 3 小时 / 明天开池"，被省略的只能是游戏名 */
+			.gacha-cal-btn-lbl,.gacha-cal-btn-nm{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+			.gacha-cal-btn-st{flex:none;white-space:nowrap}
+			@keyframes gacha-cal-btn-flip{from{transform:translateY(-50%)}to{transform:translateY(0)}}
+			/* reduce：完全不滚动（动画置 none）。JS 侧同时把轮播节拍停掉并静态钉在第一条（见 80 的
+			   usePrefersReducedMotion）—— 两处都要，缺一处就还能看见翻页。 */
+			@media (prefers-reduced-motion:reduce){.gacha-cal-btn-flip{animation:none}}
 			/* 这里曾有一条指向宿主内部 CSS Modules 类名的覆盖：
 			 *   .hHd-Xa_footerActions{flex-wrap:wrap;align-content:flex-start;align-items:stretch}
 			 * 它来自 v0.9.1「源码恢复」（从手改过的 lib/client.js 回填 src/），**不属于我们的契约**。

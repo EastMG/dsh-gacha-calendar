@@ -31,9 +31,15 @@
 		const DEFAULT_SETTINGS = {
 			autoRefresh: true,
 			refreshMinutes: 1 * 24 * 60,
-			// 到期提醒的提前量（小时）；0 = 关闭（关闭时**不做任何计算**，也不显示红点）。
+			// 到期提醒的提前量（小时）；0 = 关闭（关闭时**不做任何计算**，侧栏也不滚动）。
 			// ⚠️ 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 里（守卫见 test/cases-rule-lint.mjs）。
 			remindHours: 24,
+			// 「强提醒」：**参与**侧栏轮播提醒的条目 id 列表（设置页每行一个复选框，2026-10-25 晚）。
+			// 语义（用户定，必须简单可解释）：**空数组 = 没特别设置 ⇒ 所有展示中的条目都参与**；
+			// 非空 = 只提醒列表里的那些。默认空 = 开箱即用，新用户不用先勾一遍才有提醒。
+			// 与「展示」（hidden/shown）**完全独立**：展示管面板里出不出现，这里管侧栏要不要提醒。
+			// 判定唯一入口是 60-helpers.js 的纯函数 remindGameAllowed。
+			remindGames: [],
 			order: null,
 			lastRefresh: 0,
 			lastSource: "none",

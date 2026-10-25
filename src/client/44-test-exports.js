@@ -388,6 +388,13 @@
 			// （与面板外显同一条换算链）。同属函数声明、同作用域提升 ⇒ 这里可提前引用。
 			isExpiringSoon,
 			expiringSoonOf,
+			// 双向判定（2026-10-25 晚）：即将结束 / 即将开始都算提醒。
+			// remindKindOf = 方向判定；remindGameAllowed = 「强提醒」筛选语义；remindPickOf = 选取 + 排序；
+			// remindCaptionOf = 按钮那一行的两段文案（名字 / 状态）。全是纯函数，固定时刻可测。
+			remindKindOf,
+			remindGameAllowed,
+			remindPickOf,
+			remindCaptionOf,
 			remindWindowOf,
 			remindDueOf,
 			sourceInstant,

@@ -37,7 +37,8 @@
 				// remindHours：到期提醒的提前量（0 = 关闭）。引擎本身不判"到期"（判定在 helpers 的纯函数里），
 				// 但它是 DEFAULT_SETTINGS 的键 ⇒ 必须在这里，否则上面那条守卫会红；
 				// 顺带让未来的非 UI 宿主（扩展/CLI）也能经 readSettings 读到这个设置。
-				"autoRefresh", "refreshMinutes", "remindHours", "newPanel", "lastData", "lastRefresh", "lastSource", "lastVersion"
+				// remindGames：「强提醒」参与列表（空 = 全部参与），同上 —— 也是设置页写入、helpers 判定的键。
+				"autoRefresh", "refreshMinutes", "remindHours", "remindGames", "newPanel", "lastData", "lastRefresh", "lastSource", "lastVersion"
 			];
 
 			// 读取配置（缺失项回落到 10-config.js 的 DEFAULT_SETTINGS）
