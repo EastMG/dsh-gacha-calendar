@@ -21,7 +21,7 @@ jobs:
       - name: 门禁 ①　产物一致性 / 语法 / 类型声明
         run: node build.mjs --check
 
-      # 夹具（test/fixtures/**/response.txt，约 12MB 抓包存档）已入库 ⇒ 干净检出即可跑全量套件。
+      # 夹具（test/fixtures/**/response.txt，约 14MB 抓包存档）已入库 ⇒ 干净检出即可跑全量套件。
       - name: 门禁 ②　测试套件（全绿）
         working-directory: test
         run: node all.mjs

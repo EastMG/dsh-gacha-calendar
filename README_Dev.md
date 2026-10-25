@@ -14,7 +14,7 @@ npm run check   # 只校验：src/ 拼出来的结果是否与产物一致（不
 | npm 包 | 内容 | 谁用 |
 |---|---|---|
 | `dsh-gacha-calendar` | DSH 桌面端插件（已内联同一份 core，运行时不依赖 npm 解析） | DSH Desktop |
-| [`gacha-calendar-core`](packages/core) | 平台中立的抓取核心：`createEngine({ transport, storage, now })`，零依赖、零宿主依赖 | 其它平台 浏览器插件［`gacha-calendar-extension`］(https://github.com/EastMG/gacha-calendar-extension) 等 开发中 |
+| [`gacha-calendar-core`](packages/core) | 平台中立的抓取核心：`createEngine({ transport, storage, now })`，零依赖、零宿主依赖 | 其它平台（浏览器插件 [`gacha-calendar-extension`](https://github.com/EastMG/gacha-calendar-extension)，开发中）等 |
 
 ```bash
 npm run publish:plugin   # 发布 DSH 插件包（dsh-gacha-calendar）
@@ -81,7 +81,7 @@ dsh-gacha-calendar/
 │   ├── registry-shim.mjs # 各批次注册表规格快照 + DRIFT 守卫（与运行时 SOURCES 核对 tz/name）
 │   ├── capture*.mjs # 抓真实响应生成夹具；run.mjs # 单段直跑
 │   ├── map.json     # 请求 URL → 夹具路径（**入库**）
-│   └── fixtures/    # 真实响应快照（**未入库**，重建方式见 test/README.md）
+│   └── fixtures/    # 真实响应快照（**已入库**（2026-10-18 起），重建方式见 test/README.md）
 ├── tools/           # 守卫脚本：require-publish-consent（发布闸门）/ check-host-allow（来源域名 vs 代理白名单）
 ├── assets/          # README 截图
 ├── .githooks/       # pre-commit：编码校验 + src/产物一致性
@@ -134,15 +134,17 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
      ⚠️ **轮播不分游戏**（2026-10-25 定稿，用户明确纠正）：轮播**只有**「全局开关 + 范围」两个设置，
      内容 = **所有展示中游戏的条目**，没有任何逐游戏筛选；`tickerItemsOf` / `tickerPickOf` 的签名里
      也**没有**逐游戏参数（早期版本按列表过滤，已删除）。设置页游戏列表里那一列是**「提醒」**
-     （见下面第 2 项），**轮播不读它**。
+     （见下面第 2 项；2026-10-26 起整列**暂时隐藏**），**轮播不读它**。
    - ✅ 判定口径（**双向**）：即将结束 = 已开始（`startTs <= now`）且 `endTs ∈ (now, now + N 小时]`；
      即将开始 = `startTs ∈ (now, now + N 小时]`。纯函数 `dueKindOf`（`60-helpers.js`，返回
      `"" / "end" / "start"`）+ 窗口换算 `dueWindowOf` / `tickerItemsOf`（`80-components.js`，
      复用面板外显那条「源站文本 + tz → 本机墙钟」链，所以轮播与面板"还剩 X"永远同源）。
-     老的 `isExpiringSoon`（只判结束）语义未动，仍由老用例守着。
+     老的 `isExpiringSoon`（只判结束）语义未动，仍由老用例守着
+     （⚠️ 它现在**没有运行时消费者**，只剩测试；轮播已改走双向的 `dueKindOf`）。
     - ✅ 逐游戏钩子**不属于轮播**（2026-10-25 定稿，用户明确纠正）：轮播没有"按游戏勾选"，
       只有上面那一个全局开关 + 一个范围；`tickerItemsOf` / `tickerPickOf` 的签名里也没有逐游戏参数。
-      游戏列表里那一列是**「提醒」**（给下面第 2 项的「到期提醒（送达）」预留），**轮播不读它**。
+      游戏列表里那一列是**「提醒」**（给下面第 2 项的「到期提醒（送达）」预留；2026-10-26 起整列
+      **暂时隐藏**，见第 2 项），**轮播不读它**。
    - ✅ 轮播感知数据变化：按钮与面板同属 `CalendarPanel`，复用面板已有的 `scope.subscribe`
      （刷新写回 `lastData`/`lastRefresh` → 快照推送 → 重渲染）+ 已有的每分钟时钟，**没有新增订阅**。
    - 降级：窄侧栏（`wide === false`）**没有可滚动的那一行** ⇒ 仍用小红点（`.gacha-cal-dot`）。
@@ -160,7 +162,11 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
      **送达（主动通知）尚未实现**。
    - 待做：**系统通知**（DSH 通知 API 还没接）、数字角标。
     - ✅ **逐游戏钩子已预留**（2026-10-25 定稿；送达实现时要**消费它**）：
-      · 设置项 = `remindGames`（`string[]`）—— 设置页游戏列表的**「提醒」**列，每行一个复选框；
+      · ⚠️ **2026-10-26 起整列暂时隐藏**（用户要求）：送达没实现，勾了没有效果 ⇒ 设置页用常量
+        `SHOW_REMIND_COLUMN = false`（`80-components.js`）把**表头 / 每行复选框 / 「全部提醒」按钮 /
+        表头上方概括 / 网格列宽**五处一起藏起来。**不是删除**：配置键、schema、`CONFIG_KEYS`、
+        纯函数 `remindGameAllowed` 与写入链路都保留，送达实现时把常量改回 `true` 即可整列恢复。
+      · 设置项 = `remindGames`（`string[]`）—— 恢复后是设置页游戏列表的**「提醒」**列，每行一个复选框；
         顶部批量按钮「全部提醒」= 把当前**展示中**的 id 一次性写进白名单；
       · 默认值 = 出厂时**展示中**的 23 个条目 id（所有 `defaultHidden !== true` 的来源；默认隐藏的
         bh3 / ournotes / ournotes-global / czn / ddlezj **不在**里面），同时写在 `10-config.js` 的
@@ -171,7 +177,8 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
       · ⚠️ 目前**没有运行时消费者**（送达没实现）⇒ 勾了暂时没有实际效果；**轮播不读它**
         （轮播只有 `tickerOn` + `tickerHours`，见第 1 项）。送达实现时**必须**消费这份列表。
     - 守卫：`test/cases-ticker.mjs` ④ —— 白名单语义 + 默认值 == 展示中来源 + schema 一致
-      + **反向守卫**（轮播链路与函数签名里都不许出现逐游戏列表）。
+      + **反向守卫**（轮播链路与函数签名里都不许出现逐游戏列表）；
+      另有静态守卫钉住"`SHOW_REMIND_COLUMN = false` 时五处入口全部不可见"（防有人只藏一半）。
 3. **解析器自检**（原「来源健康看板」的重构升级）：每源展示最近成功时间 / 连续失败次数 / 失败原因，
    并加"N 天连续 nomatch 即提示源可能改版或停更"（踩过的坑：异环公告改段落写法、雪松源页面停更）。
 4. **搜索与筛选**：设置页来源列表加"搜游戏名"+ 分组（国服/日服/国际服）+ 只看已启用；
@@ -180,12 +187,12 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
    ⚠️ 只能是**快照**、不能是订阅：网游排期是"一次性数据"，没有稳定的公开 iCal 源。
 6. **抽卡计划 / 攒抽追踪**：目标角色 + 当前保底/预算 + 倒计时。属重功能，分阶段做（先"目标角色 + 倒计时"）。
 7. **架构重整（拆文件 + CSS 抽出）** —— 按「**一个文件一个职责**」拆，**不按行数硬切**：
-   ① `80-components.js`(2096) → 按**界面**拆：新面板 / 旧表格 / 设置页 / 共用小组件；
-   ② `70-styles.js`(439，CSS 全藏在一个模板字符串里) → 抽成真正的 `styles/*.css`，构建时拼接
+   ① `80-components.js`(2503) → 按**界面**拆：新面板 / 旧表格 / 设置页 / 共用小组件；
+   ② `70-styles.js`(530，CSS 全藏在一个模板字符串里) → 抽成真正的 `styles/*.css`，构建时拼接
       （这条最值：现在"反引号必须恰好 2 个、注释必须配平"，已经踩过两次）；
-   ③ `30-game-bwiki.js`(1466) → 它其实是**多个游戏**的 bwiki 源，按文件里**已有的 `//#region` 分段**
+   ③ `30-game-bwiki.js`(1467) → 它其实是**多个游戏**的 bwiki 源，按文件里**已有的 `//#region` 分段**
       拆成"一游戏一文件"（分段是现成的，机械拆分、不重新分类）；
-   ④ `25-parser-shared.js`(915) → 按**职责**拆：时间解析 / 当期窗口判定 / 悬停构造 / 排序优先级；
+   ④ `25-parser-shared.js`(916) → 按**职责**拆：时间解析 / 当期窗口判定 / 悬停构造 / 排序优先级；
    ⑤ **不拆**单游戏文件（`30-game-aniplex` 等 ~1000 行 = 一个厂商/游戏的闭环，是有界的内聚单元）；
    ⑥ **不按行数**把某个解析器切成"上半/下半"（会制造"半个解析器"这种坏边界）；
    ⑦ 约束：构建按 `build.mjs` 的 ORDER 拼接 ⇒ 拆完必须同步 ORDER；零依赖保持不变；

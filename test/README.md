@@ -28,10 +28,10 @@ node test/all.mjs     # 离线门禁（走夹具）——这是门禁
 | `harness.mjs` | 夹具 fetch 注入、`check/section/summary`、契约与悬停断言 |
 | `registry-shim.mjs` | **注册表形态的测试侧快照**（见下） |
 | `all.mjs` | 统一门禁 |
-| `cases-*.mjs` | 各段用例（18 个：12 个批次 + `cases-rule-lint` 规则守卫 + `cases-tz` 时区口径 + `cases-ticker` 侧栏轮播 + `cases-readme` 结构图守卫 + `cases-core` core 守卫） |
+| `cases-*.mjs` | 各段用例（18 个：13 个批次 + `cases-rule-lint` 规则守卫 + `cases-tz` 时区口径 + `cases-ticker` 侧栏轮播 + `cases-readme` 结构图守卫 + `cases-core` core 守卫） |
 | `capture.mjs` / `capture-p8.mjs` | 抓真实响应存夹具 |
 | `map.json` | URL → 夹具 的映射索引（**已入库**） |
-| `fixtures/` | 真实响应快照（**已入库**，约 12MB；重建/刷新见下） |
+| `fixtures/` | 真实响应快照（**已入库**，约 14MB；重建/刷新见下） |
 
 ### 关于 `registry-shim.mjs`
 
@@ -52,7 +52,7 @@ node test/all.mjs     # 离线门禁（走夹具）——这是门禁
 
 ## 夹具怎么重建 / 刷新
 
-夹具是「抓包存档」（118 个目录（236 个文件）、合计约 14 MB，单文件最大约 4 MB）。它们是**某时点的快照、
+夹具是「抓包存档」（123 个目录（246 个文件）、合计约 14 MB，单文件最大约 4 MB）。它们是**某时点的快照、
 源站改版后本就该重抓**。**2026-10-18 起已入库**（见 `.gitignore`），这样 CI 与干净克隆都能跑全量门禁。
 换台机器或想刷新夹具时：
 

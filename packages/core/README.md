@@ -82,8 +82,10 @@ await engine.selfCheck();   // 解析器自检：哪个源解析出 0 条、哪�
 
 ### storage 用到的键
 
-配置（各平台照抄键名，或在没有时使用内置默认值）：`order`、`hidden`、`removed`、
-`customEntries`、`customUrls`、`customEventUrls`；缓存：`lastData`、`lastRefresh`、`lastSource`。
+配置（各平台照抄键名，或在没有时使用内置默认值）：`order`、`hidden`、`shown`、`removed`、
+`customEntries`、`customUrls`、`customEventUrls`、`gameColors`；缓存：`lastData`、`lastRefresh`、`lastSource`。
+（`shown` = 用户明确打开过的条目，用来覆盖条目的出厂 `defaultHidden`；漏读它会让默认隐藏项「勾了也不抓」。
+`tickerOn` / `tickerHours` / `remindGames` 也在读取清单里，但只属于 UI 侧设置，core 的刷新逻辑不消费它们。）
 
 ## 与其他平台的关系
 

@@ -7,6 +7,18 @@
 		// DSH 设置面板是"点了才挂载"，打开后要等导航渲染出来才能切页；预算给足但不无限等。
 		const SETTINGS_NAV_TIMEOUT_MS = 600;
 		const SETTINGS_NAV_POLL_MS = 30;
+		// 设置页游戏列表的「提醒」列：**暂时隐藏**（用户要求，不是删除）。
+		// 暂时隐藏：送达功能未实现 —— 这一列是「到期提醒（送达）」的逐游戏白名单（配置键 `remindGames`），
+		// 送达还没做，勾了没有任何效果，摆在那儿只会让人以为勾了就真会提醒。
+		// 恢复：改回 `true` 即可 —— 表头列标题 / 每行复选框 / 「全部提醒」按钮 / 表头上方概括 /
+		// 网格列宽五处全部由它 gate；`remindGames` 配置键、schema、CONFIG_KEYS、纯函数
+		// `remindGameAllowed` 与写入链路（setEntryRemind / resetRemindAll）都原样保留，不用重写逻辑。
+		const SHOW_REMIND_COLUMN = false;
+		// 游戏列表网格列宽 = 游戏 / 展示 / [提醒] / 卡池来源 / 活动来源 / 颜色 / 操作。
+		// 隐藏「提醒」时把对应那一格（28px）从模板里**去掉**：留空列会把后面各列整体错位。
+		const SETTINGS_GAME_GRID = SHOW_REMIND_COLUMN
+			? "minmax(0,1.15fr) 28px 28px minmax(0,1fr) minmax(0,1fr) 34px 88px"
+			: "minmax(0,1.15fr) 28px minmax(0,1fr) minmax(0,1fr) 34px 88px";
 
 		// 打开 DSH 设置面板并切到本插件的分区（面板上的「设置」按钮用，注释见按钮处）。
 		// DSH 没有给插件"跳转设置页"的官方 API：面板是 modal，open 与 activeId 都是组件私有 state，
@@ -2031,6 +2043,8 @@
 				return run;
 			};
 			// ── 「提醒」白名单（给将来的「到期提醒（送达）」，不属于轮播）────────────────
+			// ⚠️ 设置页这一列当前**暂时隐藏**（SHOW_REMIND_COLUMN = false，送达未实现）；
+			// 下面这套状态与写入链路原样保留，改回 true 即恢复，不用重写。
 			// remindGames = 要提醒的条目 id 列表；空数组 = 一个都不提醒（没有"空 = 全部"的哨兵）。
 			// 写入链路与「展示」相同：目标状态驱动 + 串行链 + 执行时读最新快照（避免连点互相覆盖）。
 			const remindIds = Array.isArray(s.remindGames) ? s.remindGames : [];
@@ -2307,17 +2321,21 @@
 							(0, react_jsx_runtime.jsx)("span", { style: { fontWeight: 600 }, children: "游戏列表" }),
 							(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 6 }, children: [
 								// 「全部提醒」= 把当前展示中的 id 写进白名单；空数组的意思是"一个都不提醒"。
-								(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 }, title: "把所有展示中的游戏都加入「提醒」白名单", onClick: resetRemindAll, children: "全部提醒" }),
+								// 暂时隐藏（SHOW_REMIND_COLUMN=false）：按钮与处理函数都保留，改回 true 即恢复。
+								SHOW_REMIND_COLUMN ? (0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 }, title: "把所有展示中的游戏都加入「提醒」白名单", onClick: resetRemindAll, children: "全部提醒" }) : null,
 								(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 }, onClick: resetOrder, children: "重置排序" }),
 								(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 }, onClick: restoreAll, children: "恢复条目" })
 							] })
 						] }),
-						(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 11, marginBottom: 2 }, children: "「展示」控制显示；「提醒」到点通知；「↑↓」调整顺序；「颜色」取色器换主题色。" }),
+						(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 11, marginBottom: 2 }, children: SHOW_REMIND_COLUMN
+							? "「展示」控制显示；「提醒」到点通知；「↑↓」调整顺序；「颜色」取色器换主题色。"
+							: "「展示」控制显示；「↑↓」调整顺序；「颜色」取色器换主题色。" }),
 						// 表头行（与数据行同 grid 列；全部居中，与下方各列边界对齐）
-						(0, react_jsx_runtime.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1.15fr) 28px 28px minmax(0,1fr) minmax(0,1fr) 34px 88px", gap: 12, alignItems: "center", padding: "3px 0", borderBottom: "1px solid var(--dsw-alias-border-l1)", color: "var(--dsw-alias-label-tertiary)", fontSize: 11 }, children: [
+						(0, react_jsx_runtime.jsxs)("div", { style: { display: "grid", gridTemplateColumns: SETTINGS_GAME_GRID, gap: 12, alignItems: "center", padding: "3px 0", borderBottom: "1px solid var(--dsw-alias-border-l1)", color: "var(--dsw-alias-label-tertiary)", fontSize: 11 }, children: [
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u6E38\u620F" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u5C55\u793A" }),
-							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u63D0\u9192" }),
+							// 「提醒」列暂时隐藏：false 时这一格不渲染（列宽模板也已少一格，不会留空列）
+							SHOW_REMIND_COLUMN ? (0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u63D0\u9192" }) : null,
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u5361\u6C60\u6765\u6E90" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u6D3B\u52A8\u6765\u6E90" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u989C\u8272" }),
@@ -2333,7 +2351,7 @@
 								style: { borderBottom: "1px solid var(--dsw-alias-border-l1)" },
 								children: [
 									(0, react_jsx_runtime.jsxs)("div", {
-										style: { display: "grid", gridTemplateColumns: "minmax(0,1.15fr) 28px 28px minmax(0,1fr) minmax(0,1fr) 34px 88px", gap: 12, alignItems: "center", padding: "8px 0" },
+										style: { display: "grid", gridTemplateColumns: SETTINGS_GAME_GRID, gap: 12, alignItems: "center", padding: "8px 0" },
 										children: [
 											(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6, minWidth: 0 }, children: [
 												(0, react_jsx_runtime.jsx)(GameIcon, { icon: g.icon, name: g.name, size: 22 }),
@@ -2353,7 +2371,8 @@
 											] }),
 											// 「提醒」与「展示」独立：它只决定将来的到期送达要不要包含这一条。
 											// 未展示的行面板里本来就没有，提醒也无从送达 ⇒ 复选框置灰。
-											(0, react_jsx_runtime.jsx)("label", {
+											// 暂时隐藏（SHOW_REMIND_COLUMN=false）：这一格不渲染，但 onChange 链路原样保留。
+											SHOW_REMIND_COLUMN ? (0, react_jsx_runtime.jsx)("label", {
 												style: { ...labelStyle, cursor: shownNow(g) ? "pointer" : "default", justifySelf: "center", opacity: shownNow(g) ? 1 : 0.45 },
 												children: (0, react_jsx_runtime.jsx)("input", {
 													type: "checkbox",
@@ -2365,7 +2384,7 @@
 														setEntryRemind(g.id, next);
 													}
 												})
-											}),
+											}) : null,
 											// 卡池来源选择器
 											(0, react_jsx_runtime.jsxs)("select", {
 												value: mode,
