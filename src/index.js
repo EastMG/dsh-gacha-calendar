@@ -376,6 +376,8 @@ export function apply(ctx, config = {}) {
 			for (const off of disposers) {
 				try { if (typeof off === "function") off(); } catch { /* ignore */ }
 			}
+			// 卸载时清空内存镜像：否则插件重载后会先读到上一轮的旧快照，还白占一份内存。
+			snapshot = null;
 		};
 	});
 }

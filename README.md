@@ -86,21 +86,6 @@ dsh plugin --profile desktop add dsh-gacha-calendar
 
 > 源码结构 / 构建与发布：[README_Dev.md](README_Dev.md)
 
-## 本机只读快照（给自动化脚本用）
-
-面板抓到/合并好的数据会顺带镜像到 DSH 宿主内存里，按 **`/api/gacha-calendar-snapshot.json`** 暴露出来，方便本机脚本（如定时任务、其它面板）直接读，不用解析 DSH 的设置库：
-
-```bash
-# 默认端口 7985，按你 DSH 的实际端口替换
-curl http://127.0.0.1:7985/api/gacha-calendar-snapshot.json
-```
-
-- 返回 `{ "at": <毫秒时间戳>, "data": { ... } }`；`data` 与设置里 `lastData` 是同一份 JSON（字段见 plugin 的 `lastData` 说明）。
-- 还没发布过数据时返回 `204 No Content`（此时可稍等面板刷新，或手动刷新一次）。
-- 只允许回环地址（`127.0.0.1` / `::1`）访问，并拒绝 `Sec-Fetch-Site: cross-site` 的跨站请求——快照里是游戏排期数据，不对外网/局域网开放。
-- 快照只存在于宿主内存中：DSH 重启或关闭插件后清空，等面板再次写入 `lastData` 时重新出现。
-- 只读：没有任何修改设置的接口；本机脚本只需要 `GET`。
-
 ## 致谢
 
 - [MAA1999/M9A](https://github.com/MAA1999/M9A)——对《重返未来：1999》逐期「征集时间」的获取手段受到**M9A**的启发。

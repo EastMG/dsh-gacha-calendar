@@ -90,6 +90,23 @@ dsh-gacha-calendar/
 └── LICENSE / README.md / README_Dev.md / AGENTS.md
 ```
 
+## 本机只读快照接口（给自动化脚本用）
+
+浏览器半每次把合并好的数据写入 `lastData` 设置后，会顺手 POST 一份镜像给**宿主内存**里的只读路由
+`/api/gacha-calendar-snapshot.json`（实现在 `src/index.js` 的 `snapshotHandler` / 客户端在 `src/client/92-dsh-env.js` 的 `publishSnapshot`）。
+这样本机脚本（定时任务、其它面板）直接用 HTTP 读合并后的排期数据，不必去解析 DSH 的设置库。
+
+```bash
+# 端口换成你 DSH 实际监听的端口
+curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
+```
+
+- `GET` 返回 `{ "at": <毫秒时间戳>, "data": { … } }`；`data` 与设置里的 `lastData` 是同一份 JSON。
+- 还没发布过数据时返回 `204 No Content`（等面板刷新一次即可）。
+- **只接受回环地址**（`127.0.0.1` / `::1` / `::ffff:127.*`），并拒绝 `Sec-Fetch-Site: cross-site` —— 快照不对外网/局域网开放。
+- 只读：没有任何写设置的接口；`POST` 只接收浏览器半回传的 `{ at, data }` 镜像。
+- 快照**只在宿主内存**里：DSH 重启或插件卸载即清空（卸载时会显式置空，避免重载后先读到旧数据）。
+- ⚠️ 客户端那一跳**不能用 `keepalive`**：keepalive 的请求体上限是 64KB，而 `lastData` 约 200KB，用了会被浏览器直接丢弃且静默失败。
 ## 待办（2026-10-25 整理）
 
 ### 做（按优先级）

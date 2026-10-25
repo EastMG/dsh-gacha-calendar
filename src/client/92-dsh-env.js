@@ -53,9 +53,9 @@
 				void fetch(DSH_SNAPSHOT_API, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ at: Date.now(), data }),
-					// keepalive：页面即将关闭/切走时也不至于被中途掐断
-					keepalive: true
+					body: JSON.stringify({ at: Date.now(), data })
+					// 注意：这里**不能**用 keepalive —— keepalive 的请求体上限是 64KB，
+					// 而 lastData 约 200KB，用了它浏览器会直接拒绝、且失败被静默吞掉（等于功能不生效）。
 				}).catch(() => {});
 			} catch {
 				/* 数据本身不合法：不同步 */
