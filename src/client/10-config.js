@@ -18,12 +18,8 @@
 			{ label: "30 天", minutes: 30 * 24 * 60 },
 			{ label: "42 天", minutes: 42 * 24 * 60 }
 		];
-		// 侧栏轮播的**范围**选项（存**小时**）。2026-10-25 三次定稿：档位从
-		// 「关闭 / 12 / 24 / 48」改成「12 / 24 / 48 / 72」—— 「关闭」**不再是一个档位**，
-		// 它由总开关 `tickerOn` 负责（两个控件各管一件事：开不开 / 提前多久）。
-		// 口径：某侧的窗口落在 (now, now + N 小时] 内（要结束 / 要开始）= 进入轮播
-		// （判定是纯函数 `tickerKindOf`，见 60-helpers.js；轮播/红点在 80-components.js 的侧栏按钮上）。
-		// 默认 72：覆盖"周末没盯、周一回来才发现池子昨晚已经关了"这种最常见的漏看场景。
+		// 按钮轮播的范围选项（小时）：12 / 24 / 48 / 72；“关闭”由 tickerOn 开关负责，不是一个档位。
+		// 默认 72 —— 周末没盯、周一回来才发现池子昨晚已经关了，是最常见的漏看场景。
 		const TICKER_OPTIONS = [
 			{ label: "12 小时", hours: 12 },
 			{ label: "24 小时", hours: 24 },
@@ -33,30 +29,15 @@
 		const DEFAULT_SETTINGS = {
 			autoRefresh: true,
 			refreshMinutes: 1 * 24 * 60,
-			// 侧栏轮播的**总开关**（2026-10-25 三次定稿）：false = 完全不做轮播 ——
-			// 按钮只有原样、不轮播，窄侧栏也不显示红点（渲染层把待轮播清单一律算成空）。
-			// 默认 true：开箱即用就能看出"有事要来了"。
-			// ⚠️ 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 里（守卫见 test/cases-rule-lint.mjs）。
+			// 按钮轮播总开关：false = 不轮播、窄侧栏也不出红点。默认开，开箱就能看出"有事要来了"。
+			// 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 里（守卫见 test/cases-rule-lint.mjs）。
 			tickerOn: true,
-			// 轮播的**范围**（小时）：只保留 12 / 24 / 48 / 72 四档，默认 72。
-			// 判定层仍把 N <= 0 当成"不轮播"（纯函数短路，老配置里残留的 0 不会出事），
-			// 但设置页**不再提供这个档位** —— 要关请用上面的 `tickerOn`。
-			// ⚠️ 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 里（守卫见 test/cases-rule-lint.mjs）。
+			// 按钮轮播的范围（小时）：12 / 24 / 48 / 72，默认 72。老配置残留的 0 由 tickerRangeOf 归一。
+			// 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 里（守卫见 test/cases-rule-lint.mjs）。
 			tickerHours: 72,
-			// 【预留】「到期提醒（送达）」的**逐游戏白名单** —— **不属于轮播**（2026-10-25 定稿）。
-			// 用户的口径（必须按这个理解）：
-			//   · 侧栏轮播 = **展示**，只有**全局开关 + 范围**（tickerOn / tickerHours），**不分游戏**；
-			//   · 下面这份列表 = 给**未来的「到期提醒（主动送达）」**预留的逐游戏钩子 ——
-			//     到点主动通知时"只提醒列表里的这些游戏"。**该功能尚未实现**，
-			//     所以它现在**没有运行时消费者**：轮播**不读它**，只有设置页读写（每行一个复选框）。
-			// 语义 = 普通列表：列表里有谁就提醒谁，**空数组 = 一个都不提醒**（没有"空 = 全部"的哨兵）。
-			// 为什么保留哨兵以外的默认值：开箱即用的默认 = 出厂时**展示中**的条目
-			// （即所有 `defaultHidden !== true` 的来源 id；默认隐藏的那几个**不在**里面），
-			// 将来接上送达时不必再让用户先一个个勾。
-			// ⚠️ 这份列表由 test/cases-ticker.mjs 的守卫钉住：新增来源、或改某条目的 defaultHidden
-			//    都会让它变红，提示同步这里 **以及** src/index.js 的 schema `default(...)`。
-			// 与「展示」（hidden/shown）**完全独立**：展示管面板里出不出现，这里管将来要不要提醒。
-			// 判定唯一入口是 60-helpers.js 的纯函数 remindGameAllowed（**轮播不调用**它）。
+			// 「到期提醒（送达）」的逐游戏白名单（不属于轮播）。语义 = 普通列表：列表里有谁就提醒谁，
+			// 空数组 = 一个都不提醒；默认值 = 出厂时展示中的条目（所有 defaultHidden !== true 的 id）。
+			// 守卫见 test/cases-ticker.mjs：新增来源或改 defaultHidden 时要同步这里与 src/index.js 的 schema。
 			remindGames: [
 				"genshin", "hsr", "zzz", "wuwa", "arknights", "endfield",
 				"ba-cn", "ba-global", "ba-jp", "bandori", "wuhuamixin", "zspms", "kedr",

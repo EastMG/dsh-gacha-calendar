@@ -330,18 +330,14 @@ async function proxyHandler(req, res) {
 const Config = z.object({
 	autoRefresh: z.boolean().default(true).volatile(),
 	refreshMinutes: z.number().min(1).max(60480).default(1440).volatile(),
-	// 侧栏轮播的**总开关**（2026-10-25 三次定稿）：false = 不轮播、也不显示红点（按钮只有原样）。
-	// 与下面的 `tickerHours`（提前多久）拆成两个控件：一个管开不开、一个管范围。
+	// 按钮轮播的总开关（默认开）。与下面的 tickerHours 是两个控件：一个管开不开、一个管范围。
 	tickerOn: z.boolean().default(true).volatile(),
-	// 轮播的**范围**（小时；12/24/48/72，默认 72）。有卡池/活动在 N 小时内结束或开始，侧栏按钮轮播显示。
-	// 判定是纯函数 tickerKindOf（60-helpers.js），按钮轮播在 80-components.js 的 CalendarPanel 里。
+	// 按钮轮播的范围（小时）：有卡池/活动在 N 小时内结束或开始，侧栏按钮就轮播。
+	// 判定是纯函数 dueKindOf（60-helpers.js），按钮轮播在 80-components.js 的 CalendarPanel 里。
 	tickerHours: z.number().default(72).volatile(),
-	// 【预留】「到期提醒（送达）」的**逐游戏白名单** —— **不属于轮播**（轮播只看 tickerOn + tickerHours）。
-	// 语义（普通列表）：列表里有谁就提醒谁，**空数组 = 一个都不提醒**（没有"空 = 全部"的哨兵）。
-	// 「到期提醒（主动送达）」功能**尚未实现**，所以这个键目前没有运行时消费者（只有设置页读写）；
-	// 送达实现时要消费它。出厂默认 = 出厂时**展示中**的条目（所有 defaultHidden !== true 的 id）。
-	// ⚠️ 这份 default 必须与 src/client/10-config.js 的 DEFAULT_SETTINGS.remindGames 逐项一致，
-	//    并由 test/cases-ticker.mjs 的守卫一起钉住（两边都是"出厂值"，漂了就是两套默认）。
+	// 「到期提醒（送达）」的逐游戏白名单（不属于轮播）。普通列表：列表里有谁就提醒谁，
+	// 空数组 = 一个都不提醒。出厂默认 = 出厂时展示中的条目（所有 defaultHidden !== true 的 id）。
+	// 必须与 src/client/10-config.js 的 DEFAULT_SETTINGS.remindGames 逐项一致（守卫见 test/cases-ticker.mjs）。
 	remindGames: z.array(z.string()).default([
 		"genshin", "hsr", "zzz", "wuwa", "arknights", "endfield",
 		"ba-cn", "ba-global", "ba-jp", "bandori", "wuhuamixin", "zspms", "kedr",

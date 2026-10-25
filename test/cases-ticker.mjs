@@ -8,7 +8,7 @@
 // 本文件守九件事：
 //   ① 判定口径（纯函数 `isExpiringSoon`，60-helpers.js）：
 //      某侧"即将到期" = 该侧**已开始**（startTs <= now）且 **endTs 落在 (now, now + N 小时]**。
-//   ② 双向判定（纯函数 `tickerKindOf`，2026-10-25 晚）：即将**开始**也算命中。
+//   ② 双向判定（纯函数 `dueKindOf`，2026-10-25 晚）：即将**开始**也算命中。
 //      ""（不算）/ "end"（即将结束）/ "start"（即将开始）三态，两个方向天然互斥。
 //   ③ 「提醒」逐游戏白名单的语义（纯函数 `remindGameAllowed`）——⚠️ 这是**给未来的「到期提醒
 //      （送达）」预留的**，**轮播不读它**：**普通列表**，列表里有谁就提醒谁，**空数组 = 一个都不提醒**。
@@ -22,7 +22,7 @@
 //      （事项名优先、状态单独一段、**分隔符 " · " 两侧都有空格**）。
 //   ⑤ 清单层（`tickerItemsOf`，80-components.js）：落盘的「源站墙钟文本 + tz」要能换算出**绝对**窗口
 //      —— 这一层必须与运行环境时区无关（CI 跑 UTC、开发机跑 +08，两边都要绿）。
-//      做法：断言 tickerWindowOf 的 ts 等于 `sourceInstant(...)` 的独立算法结果，不写死本机偏移。
+//      做法：断言 dueWindowOf 的 ts 等于 `sourceInstant(...)` 的独立算法结果，不写死本机偏移。
 //   ⑥ 样式静态守卫：按钮尺寸不许被撑开 / 动画只许一次性 backwards / 70-styles.js 模板字符串完整。
 //   ⑦ 设置页**两个控件**（2026-10-25 三次定稿）：开关 `tickerOn`（默认 **开**）+ 范围
 //      `tickerHours`（12/24/48/72，默认 **72**，**没有「关闭」档位**）；关掉开关 ⇒ 清单为空。
@@ -50,9 +50,9 @@ export default async function run() {
 	section("侧栏轮播（单行翻页 + 「提前 N 小时」）");
 	const {
 		isExpiringSoon, expiringSoonOf,
-		tickerKindOf, remindGameAllowed, tickerOnOf, tickerRangeOf, tickerPickOf, tickerCaptionOf, tickerSlidesOf,
+		dueKindOf, remindGameAllowed, tickerOnOf, tickerRangeOf, tickerPickOf, tickerCaptionOf, tickerSlidesOf,
 		tickerStepsOf, tickerDirAt, tickerFlipLinesOf, tickerFlipRenderLinesOf,
-		tickerWindowOf, tickerItemsOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
+		dueWindowOf, tickerItemsOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
 	} = T;
 
 	const NOW = Date.UTC(2026, 9, 25, 4, 0);   // 2026-10-25 12:00 +08 / 13:00 +09 / 04:00 UTC
@@ -106,37 +106,37 @@ export default async function run() {
 			isExpiringSoon(NOW, NOW + 2 * H, NOW, 24) === true);
 	}
 
-	// ── ② 双向判定（tickerKindOf，2026-10-25 晚）：即将开始也算 ────────────────
+	// ── ② 双向判定（dueKindOf，2026-10-25 晚）：即将开始也算 ────────────────
 	{
 		// 结束方向
 		check("双向·结束：已开始 + 3 小时后结束 + N=24 → \"end\"",
-			tickerKindOf(NOW - 1 * H, NOW + 3 * H, NOW, 24) === "end");
+			dueKindOf(NOW - 1 * H, NOW + 3 * H, NOW, 24) === "end");
 		check("双向·结束：threshold 边界 endTs == now + N → \"end\"；再晚 1ms → \"\"",
-			tickerKindOf(NOW - 1 * H, NOW + 24 * H, NOW, 24) === "end"
-			&& tickerKindOf(NOW - 1 * H, NOW + 24 * H + 1, NOW, 24) === "");
+			dueKindOf(NOW - 1 * H, NOW + 24 * H, NOW, 24) === "end"
+			&& dueKindOf(NOW - 1 * H, NOW + 24 * H + 1, NOW, 24) === "");
 		// 开始方向
 		check("双向·开始：还没开始 + 5 小时后开始 + N=24 → \"start\"",
-			tickerKindOf(NOW + 5 * H, NOW + 9 * H, NOW, 24) === "start");
+			dueKindOf(NOW + 5 * H, NOW + 9 * H, NOW, 24) === "start");
 		check("双向·开始：25 小时后开始 N=24 → \"\"；同一窗口 N=48 → \"start\"（阈值在起作用）",
-			tickerKindOf(NOW + 25 * H, NOW + 30 * H, NOW, 24) === ""
-			&& tickerKindOf(NOW + 25 * H, NOW + 30 * H, NOW, 48) === "start");
+			dueKindOf(NOW + 25 * H, NOW + 30 * H, NOW, 24) === ""
+			&& dueKindOf(NOW + 25 * H, NOW + 30 * H, NOW, 48) === "start");
 		check("双向·开始：startTs == now + N → \"start\"（右端闭）",
-			tickerKindOf(NOW + 24 * H, NOW + 30 * H, NOW, 24) === "start");
+			dueKindOf(NOW + 24 * H, NOW + 30 * H, NOW, 24) === "start");
 		// 两个方向**互斥**：同一时刻只可能是其中一个（startTs 落在 now 的哪一侧决定的）
 		check("双向·互斥：已开始的窗口不会同时被判成 start，未开始的也不会被判成 end",
-			tickerKindOf(NOW - H, NOW + 2 * H, NOW, 24) === "end"
-			&& tickerKindOf(NOW + 1, NOW + 2 * H, NOW, 24) === "start"
-			&& tickerKindOf(NOW, NOW + 2 * H, NOW, 24) === "end");   // startTs == now 属于"已开始"
+			dueKindOf(NOW - H, NOW + 2 * H, NOW, 24) === "end"
+			&& dueKindOf(NOW + 1, NOW + 2 * H, NOW, 24) === "start"
+			&& dueKindOf(NOW, NOW + 2 * H, NOW, 24) === "end");   // startTs == now 属于"已开始"
 		// 不算的情况
 		check("双向·不算：已结束 / 还太远（开始和结束都在窗外）/ 关闭 / 脏数据 / 结束早于开始",
-			tickerKindOf(NOW - 5 * H, NOW - 1 * H, NOW, 24) === ""
-			&& tickerKindOf(NOW + 30 * H, NOW + 40 * H, NOW, 24) === ""
-			&& tickerKindOf(NOW - 1 * H, NOW + 3 * H, NOW, 0) === ""
-			&& tickerKindOf(NOW - 1 * H, NOW + 3 * H, NOW, null) === ""
-			&& tickerKindOf(void 0, NOW + 3 * H, NOW, 24) === ""
-			&& tickerKindOf(NOW - 1 * H, void 0, NOW, 24) === ""
-			&& tickerKindOf(NaN, NaN, NOW, 24) === ""
-			&& tickerKindOf(NOW + 3 * H, NOW + 1 * H, NOW, 24) === "");  // 脏数据：结束早于开始
+			dueKindOf(NOW - 5 * H, NOW - 1 * H, NOW, 24) === ""
+			&& dueKindOf(NOW + 30 * H, NOW + 40 * H, NOW, 24) === ""
+			&& dueKindOf(NOW - 1 * H, NOW + 3 * H, NOW, 0) === ""
+			&& dueKindOf(NOW - 1 * H, NOW + 3 * H, NOW, null) === ""
+			&& dueKindOf(void 0, NOW + 3 * H, NOW, 24) === ""
+			&& dueKindOf(NOW - 1 * H, void 0, NOW, 24) === ""
+			&& dueKindOf(NaN, NaN, NOW, 24) === ""
+			&& dueKindOf(NOW + 3 * H, NOW + 1 * H, NOW, 24) === "");  // 脏数据：结束早于开始
 	}
 
 	// ── ③ 列表版（expiringSoonOf）：关闭时短路 + 顺序保持 ──────────────────────
@@ -394,7 +394,7 @@ export default async function run() {
 
 		// 窗口换算：与 sourceInstant 的独立算法对齐（不写死本机偏移）
 		{
-			const w = tickerWindowOf(games[0], true, now);
+			const w = dueWindowOf(games[0], true, now);
 			const start = sourceInstant(2026, 10, 24, 20, 0, tz);
 			const end = sourceInstant(2026, 10, 25, 14, 0, tz);
 			check("文本 + tz → 绝对窗口（与 sourceInstant 独立算法一致）",
@@ -403,14 +403,14 @@ export default async function run() {
 			check("绝对窗口确实落在 now 的两侧（前置条件：这条真的「已开始、1 小时后结束」）",
 				!!w && w.startTs < NOW && w.endTs === NOW + 1 * H);
 			// 卡池侧带 startTs/endTs 时优先用它们（不经过文本）
-			const w2 = tickerWindowOf(games[4], true, now);
+			const w2 = dueWindowOf(games[4], true, now);
 			check("卡池侧有 startTs/endTs → 直接采用（与文本换算同一条链，结果相等）",
 				!!w2 && w2.startTs === NOW - 1 * H && w2.endTs === NOW + 2 * H);
 			check("读不出绝对档期的一律 null（源站原文 / 缺 tz / 缺内容）",
-				tickerWindowOf(games[2], true, now) === null
-				&& tickerWindowOf(games[3], true, now) === null
-				&& tickerWindowOf({ banner: "", bannerDates: "" }, true, now) === null
-				&& tickerWindowOf(null, true, now) === null);
+				dueWindowOf(games[2], true, now) === null
+				&& dueWindowOf(games[3], true, now) === null
+				&& dueWindowOf({ banner: "", bannerDates: "" }, true, now) === null
+				&& dueWindowOf(null, true, now) === null);
 		}
 
 		// 清单（N=24，双向）：g1 卡池 + g1 活动（都在 1h 后结束）
@@ -658,8 +658,8 @@ export default async function run() {
 			comp.includes('children: "全部提醒"') && comp.indexOf("全部轮播") < 0);
 		check("批量按钮的 title 也是「提醒」口径（并说明尚未实现）",
 			comp.includes('把所有展示中的游戏都加入「提醒」白名单（到点主动通知，尚未实现）'));
-		check("该列说明写的是「到点主动通知（尚未实现，先做预留）」—— 不再写「控制侧栏轮播」",
-			comp.includes("提醒：到点主动通知（尚未实现，先做预留）")
+		check("冗长的「提醒」说明行已删掉（只保留表头之上的那一行概括）",
+			comp.indexOf("提醒：到点主动通知（尚未实现，先做预留）") < 0
 			&& comp.indexOf("控制侧栏轮播") < 0);
 	}
 
@@ -725,11 +725,11 @@ export default async function run() {
 			(compAll.match(/tickerRangeOf\(s\.tickerHours\)/g) || []).length === 2,
 			String((compAll.match(/tickerRangeOf\(s\.tickerHours\)/g) || []).length));
 
-		// 设置页：两个控件各自 commit 各自的键；文案是「轮播」+「轮播范围」（不再是一个单行下拉）
+		// 设置页：两个控件各自 commit 各自的键；文案是「按钮轮播」+「轮播范围」（不再是一个单行下拉）
 		check("设置页两个控件分别写 tickerOn / tickerHours",
 			compAll.includes('commit("tickerOn"') && compAll.includes('commit("tickerHours"'));
-		check("设置页文案：「轮播」开关 + 「轮播范围」下拉（旧的那个单行下拉已拆掉）",
-			/children: "轮播"/.test(compAll) && /children: "轮播范围"/.test(compAll));
+		check("设置页文案：「按钮轮播」开关 + 「轮播范围」下拉（旧的那个单行下拉已拆掉）",
+			/children: "按钮轮播"/.test(compAll) && /children: "轮播范围"/.test(compAll));
 		check("设置页「提醒」白名单写的是 remindGames（键名已从 tickerGames 改名）",
 			compAll.includes('commit("remindGames"') && compAll.indexOf('commit("tickerGames"') < 0);
 

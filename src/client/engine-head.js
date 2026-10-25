@@ -34,14 +34,9 @@
 				"order", "hidden", "shown", "removed", "customEntries", "customUrls", "customEventUrls", "gameColors",
 				// newPanel：实验特性「新日程面板」开关（默认 false）。**别漏**——漏了就是 2026-10-03 那个
 				// 「勾了不生效」的复刻：设置页写进表单、面板却读不到。守卫见 test/cases-rule-lint.mjs。
-				// tickerOn：侧栏轮播的**总开关**（默认 true）。false = 不轮播、不显示红点。
-				// tickerHours：轮播的**范围**（12/24/48/72 小时，默认 72；0 只剩判定层兼容，设置页不给）。
-				// 引擎本身不判"到期"（判定在 helpers 的纯函数里），但这两个都是 DEFAULT_SETTINGS 的键
-				// ⇒ 必须在这里，否则上面那条守卫会红；顺带让未来的非 UI 宿主（扩展/CLI）也能经
-				// readSettings 读到这两个设置。
-				// remindGames：给「到期提醒（送达）」**预留**的逐游戏白名单 —— **不属于轮播**
-				// （轮播只看 tickerOn + tickerHours，不分游戏）。送达功能尚未实现，目前只有设置页读写；
-				// 它与上面两个 ticker* 一样是 DEFAULT_SETTINGS 的键 ⇒ 必须在这里，否则守卫会红。
+				// tickerOn / tickerHours：按钮轮播的开关与范围。
+				// remindGames：「到期提醒（送达）」的逐游戏白名单（轮播不读它）。
+				// 三者都是 DEFAULT_SETTINGS 的键 ⇒ 必须在这里，否则上面的守卫会红。
 				"autoRefresh", "refreshMinutes", "tickerOn", "tickerHours", "remindGames", "newPanel", "lastData", "lastRefresh", "lastSource", "lastVersion"
 			];
 

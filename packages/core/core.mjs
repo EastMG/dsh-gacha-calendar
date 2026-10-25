@@ -27,12 +27,8 @@
 			{ label: "30 天", minutes: 30 * 24 * 60 },
 			{ label: "42 天", minutes: 42 * 24 * 60 }
 		];
-		// 侧栏轮播的**范围**选项（存**小时**）。2026-10-25 三次定稿：档位从
-		// 「关闭 / 12 / 24 / 48」改成「12 / 24 / 48 / 72」—— 「关闭」**不再是一个档位**，
-		// 它由总开关 `tickerOn` 负责（两个控件各管一件事：开不开 / 提前多久）。
-		// 口径：某侧的窗口落在 (now, now + N 小时] 内（要结束 / 要开始）= 进入轮播
-		// （判定是纯函数 `tickerKindOf`，见 60-helpers.js；轮播/红点在 80-components.js 的侧栏按钮上）。
-		// 默认 72：覆盖"周末没盯、周一回来才发现池子昨晚已经关了"这种最常见的漏看场景。
+		// 按钮轮播的范围选项（小时）：12 / 24 / 48 / 72；“关闭”由 tickerOn 开关负责，不是一个档位。
+		// 默认 72 —— 周末没盯、周一回来才发现池子昨晚已经关了，是最常见的漏看场景。
 		const TICKER_OPTIONS = [
 			{ label: "12 小时", hours: 12 },
 			{ label: "24 小时", hours: 24 },
@@ -42,30 +38,15 @@
 		const DEFAULT_SETTINGS = {
 			autoRefresh: true,
 			refreshMinutes: 1 * 24 * 60,
-			// 侧栏轮播的**总开关**（2026-10-25 三次定稿）：false = 完全不做轮播 ——
-			// 按钮只有原样、不轮播，窄侧栏也不显示红点（渲染层把待轮播清单一律算成空）。
-			// 默认 true：开箱即用就能看出"有事要来了"。
-			// ⚠️ 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 里（守卫见 test/cases-rule-lint.mjs）。
+			// 按钮轮播总开关：false = 不轮播、窄侧栏也不出红点。默认开，开箱就能看出"有事要来了"。
+			// 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 里（守卫见 test/cases-rule-lint.mjs）。
 			tickerOn: true,
-			// 轮播的**范围**（小时）：只保留 12 / 24 / 48 / 72 四档，默认 72。
-			// 判定层仍把 N <= 0 当成"不轮播"（纯函数短路，老配置里残留的 0 不会出事），
-			// 但设置页**不再提供这个档位** —— 要关请用上面的 `tickerOn`。
-			// ⚠️ 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 里（守卫见 test/cases-rule-lint.mjs）。
+			// 按钮轮播的范围（小时）：12 / 24 / 48 / 72，默认 72。老配置残留的 0 由 tickerRangeOf 归一。
+			// 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 里（守卫见 test/cases-rule-lint.mjs）。
 			tickerHours: 72,
-			// 【预留】「到期提醒（送达）」的**逐游戏白名单** —— **不属于轮播**（2026-10-25 定稿）。
-			// 用户的口径（必须按这个理解）：
-			//   · 侧栏轮播 = **展示**，只有**全局开关 + 范围**（tickerOn / tickerHours），**不分游戏**；
-			//   · 下面这份列表 = 给**未来的「到期提醒（主动送达）」**预留的逐游戏钩子 ——
-			//     到点主动通知时"只提醒列表里的这些游戏"。**该功能尚未实现**，
-			//     所以它现在**没有运行时消费者**：轮播**不读它**，只有设置页读写（每行一个复选框）。
-			// 语义 = 普通列表：列表里有谁就提醒谁，**空数组 = 一个都不提醒**（没有"空 = 全部"的哨兵）。
-			// 为什么保留哨兵以外的默认值：开箱即用的默认 = 出厂时**展示中**的条目
-			// （即所有 `defaultHidden !== true` 的来源 id；默认隐藏的那几个**不在**里面），
-			// 将来接上送达时不必再让用户先一个个勾。
-			// ⚠️ 这份列表由 test/cases-ticker.mjs 的守卫钉住：新增来源、或改某条目的 defaultHidden
-			//    都会让它变红，提示同步这里 **以及** src/index.js 的 schema `default(...)`。
-			// 与「展示」（hidden/shown）**完全独立**：展示管面板里出不出现，这里管将来要不要提醒。
-			// 判定唯一入口是 60-helpers.js 的纯函数 remindGameAllowed（**轮播不调用**它）。
+			// 「到期提醒（送达）」的逐游戏白名单（不属于轮播）。语义 = 普通列表：列表里有谁就提醒谁，
+			// 空数组 = 一个都不提醒；默认值 = 出厂时展示中的条目（所有 defaultHidden !== true 的 id）。
+			// 守卫见 test/cases-ticker.mjs：新增来源或改 defaultHidden 时要同步这里与 src/index.js 的 schema。
 			remindGames: [
 				"genshin", "hsr", "zzz", "wuwa", "arknights", "endfield",
 				"ba-cn", "ba-global", "ba-jp", "bandori", "wuhuamixin", "zspms", "kedr",
@@ -575,20 +556,10 @@
 			if (at + minutes * 60000 <= (Number(s.now) || 0)) return { due: true, force: false, reason: "\u5DF2\u5230\u5237\u65B0\u95F4\u9694" };
 			return { due: false, force: false, reason: "" };
 		}
-		// —— 「快到期」判定（纯函数，2026-10-25）——
-		// 口径（用户定，MVP 只做展示：侧栏轮播 / 窄侧栏小红点；不做系统通知/弹窗/声音）：
-		//   某侧"即将到期" = 该侧**已开始**（startTs <= now）且 **endTs 落在 (now, now + N 小时]**。
-		//   · 未开始的窗口**不算**：它的 endTs 也在未来，但那属于"还没开始"，不是"快到期"；
-		//   · 已结束（含 now == endTs 那一刻）**不算**；
-		//   · N <= 0 恒为 false（老配置里残留的 0 / 非 UI 宿主显式传 0）—— 连算都不算，调用方也应该短路；
-		//     ⚠️ 2026-10-25 三次定稿后设置页**不再有「关闭」档位**（关闭归 tickerOn 总开关），
-		//     这条只是兼容旧数据与无 UI 宿主，不再是主要的"关"路径。
-		//   · startTs / endTs 任一缺失或不是有限数字 → 不算（落盘数据里这两端本来就可能是空的：
-		//     缓存只存文本，绝对档期靠 80-components.js 的 localDatesOf 现算）。
-		// 放在 helpers（而不是渲染层）的理由：它是纯判定、零宿主依赖，core 产物里也能直接用
-		// （CORE_ORDER 含本文件），单测可以直接喂固定时刻（test/cases-ticker.mjs）。
-		function isExpiringSoon(startTs, endTs, nowTs, tickerHours) {
-			const hours = Number(tickerHours);
+		// 「快到期」判定：某一侧已开始，且结束落在 (now, now + withinHours]；N <= 0 / 缺 ts 一律不算。
+		// 纯函数、零宿主依赖（core 也用），单测可直接喂固定时刻。
+		function isExpiringSoon(startTs, endTs, nowTs, withinHours) {
+			const hours = Number(withinHours);
 			if (!(hours > 0)) return false;
 			if (typeof startTs !== "number" || typeof endTs !== "number") return false;
 			if (!Number.isFinite(startTs) || !Number.isFinite(endTs)) return false;
@@ -597,24 +568,16 @@
 			return endTs - nowTs <= hours * 3600000;
 		}
 
-		// 从「{ startTs, endTs } 列表」里挑出即将到期的（顺序保持输入顺序）。
-		// 单独一个函数是为了让"范围无效时不算"只有一处实现：N <= 0 → 直接空数组（同上，仅兼容）。
-		function expiringSoonOf(items, nowTs, tickerHours) {
-			const hours = Number(tickerHours);
+		// 列表版：顺序保持输入；范围无效时直接空数组（"不算"只有这一处实现）。
+		function expiringSoonOf(items, nowTs, withinHours) {
+			const hours = Number(withinHours);
 			if (!(hours > 0) || !Array.isArray(items)) return [];
 			return items.filter((it) => it && isExpiringSoon(it.startTs, it.endTs, nowTs, hours));
 		}
 
-		// —— 双向「快到期」判定（2026-10-25 晚升级：侧栏按钮从红点改成单行轮播）——
-		// 用户口径（原话）：即将**结束**和即将**开始**都算"快到期"。所以判定从"只看 endTs"扩成双向，
-		// 但**没有改** isExpiringSoon（它仍然只管结束，语义一字未动，老用例继续守着）：
-		//   · "end"   = 这一侧**已开始**（startTs <= now）且 endTs 落在 (now, now + N 小时]；
-		//   · "start" = 这一侧**还没开始**（startTs > now）且 startTs 落在 (now, now + N 小时]；
-		//   · 其余（还早 / 已结束 / 缺 ts / 结束早于开始的脏数据）一律 ""。
-		// 两者天然互斥（startTs <= now 的走 end 分支，> now 的走 start 分支），不需要再排优先级。
-		// N <= 0（老配置残留 / 无 UI 宿主）恒为 "" —— 连算都不算，调用方也应短路。
-		// 纯函数、不读 Date.now / window：单测直接喂固定时刻（test/cases-ticker.mjs）。
-		function tickerKindOf(startTs, endTs, nowTs, tickerHours) {
+		// 双向「快到期」：即将结束 = 已开始且 endTs 在窗口内；即将开始 = 未开始且 startTs 在窗口内。
+		// 两个方向天然互斥，返回 "" / "end" / "start"。到期提醒（送达）也复用这一处判定。
+		function dueKindOf(startTs, endTs, nowTs, tickerHours) {
 			const hours = Number(tickerHours);
 			if (!(hours > 0)) return "";
 			if (typeof startTs !== "number" || typeof endTs !== "number") return "";
@@ -626,57 +589,35 @@
 			return endTs - nowTs <= horizon ? "end" : "";
 		}
 
-		// 某个条目是否在**「到期提醒（送达）」的逐游戏白名单**里 —— 设置页那个复选框（每行一个）的
-		// **唯一语义来源**。⚠️ **轮播不调用它**：轮播是"全局开关 + 范围"的展示，内容 = 所有展示中
-		// 游戏的条目，**不分游戏**（2026-10-25 定稿，用户明确纠正过这一点）。
-		// 保留它的理由：它是**给未来的主动送达用的通用筛选**（送达实现时按白名单决定提醒谁），
-		// 现在就由设置页读写（勾选状态 + 草稿对齐）消费，所以不是死代码。
-		// 口径（普通列表）：
-		//   · 列表里**有**这个 id ⇒ 提醒；
-		//   · 列表里**没有**（含空数组）⇒ 不提醒 —— **空数组 = 一个都不提醒**，
-		//     **不再有"空 = 全部参与"的哨兵**（哨兵让"一个都不提醒"表达不出来，故废弃）。
-		// 缺失 / 不是数组（老配置里根本没有这个键）⇒ 按**空列表**处理：这里不猜"没设置过"，
-		// 因为已经没有可猜的哨兵语义了；schema 的 default 会在读配置时补上出厂默认值。
+		// 「提醒」白名单的判定（普通列表语义）：列表里有 ⇒ 提醒；缺失 / 空数组 ⇒ 一个都不提醒。
+		// 只给设置页与将来的到期送达用，轮播不调用它。
 		function remindGameAllowed(gameId, remindGames) {
 			if (!Array.isArray(remindGames)) return false;
 			return remindGames.includes(gameId);
 		}
 
-		// 「侧栏轮播总开关」的读取口径（纯函数，2026-10-25 三次定稿）：只有**明确的 false** 才算关。
-		// undefined / null / 0 / "" 都当"开" —— 老配置里根本没有这个键，默认必须是开，
-		// 与 DEFAULT_SETTINGS.tickerOn 和 schema 的 default(true) 同口径。
-		// 放在 helpers 的理由：设置页与侧栏按钮两处都要读它，判定只允许有一处实现
-		// （真机症状是"设置页显示开着、按钮却没反应"这类两套口径的病）。
+		// 按钮轮播总开关的读取口径：只有明确的 false 才算关（老配置没有这个键 ⇒ 默认开）。
+		// 设置页与按钮共用这一处，避免"设置页显示开着、按钮却没反应"。
 		function tickerOnOf(v) {
 			return v !== false;
 		}
 
-		// 「轮播范围」的读取口径（纯函数，2026-10-25 三次定稿）：只接受正数小时；
-		// 缺失 / 0 / 负数 / 非数字都回落到**默认范围**（72 小时）。
-		// 为什么必须归一：设置页的「关闭」档位已经删了（关闭归 tickerOn 开关），但**老配置里可能
-		// 还留着 0**。若渲染层仍按 `|| 0` 读，就会出现最难查的两套口径 ——
-		// 设置页显示「范围 72 小时」、按钮却一声不响（0 让 tickerKindOf 全部短路）。
-		// 归一之后"0 = 不轮播"只剩纯判定层的兼容行为（直接调用 tickerItemsOf 的宿主才会碰到）。
+		// 按钮轮播范围的读取口径：只接受正数小时，缺失 / 0 / 负数 / 非数字一律回落默认 72。
+		// 归一放在这里，老配置残留的 0 才不会变成"设置页显示 72、按钮却没反应"。
 		function tickerRangeOf(v) {
 			const h = Number(v);
 			return h > 0 ? h : DEFAULT_SETTINGS.tickerHours;
 		}
 
-		// 从候选里挑出"该轮播的"（顺序稳定 = 按"距离那一刻还有多久"升序，同刻保持输入顺序）。
-		// items 契约（由 80-components.js 的 tickerItemsOf 组装，那里负责把落盘文本换算成绝对窗口）：
-		//   { key, gameId, side, name, title, startTs, endTs }
-		// 返回的每一项多两个字段：kind（"end" / "start"）与 dueMs（距离结束/开始还剩多少毫秒）。
-		// 排序口径：**先到期的最靠前** —— "还剩 1 小时"永远压过"明天开池"（中间不夹"按方向分组"）。
-		// ⚠️ 2026-10-25 定稿：**不再按逐游戏列表筛选**（轮播不分游戏）。原来的 `remindGames` 白名单
-		// 参数已从签名里删掉 —— 它属于「到期提醒（送达）」，轮播只看调用方传入的 items
-		// （= 所有**展示中**游戏的条目）与 tickerHours 范围。
+		// 从候选里挑出该轮播的：按紧迫度升序（同刻保持输入顺序），每条补 kind 与 dueMs。
+		// 候选由 80-components.js 的 tickerItemsOf 组装（已把落盘文本换成绝对窗口）；轮播不分游戏。
 		function tickerPickOf(items, nowTs, tickerHours) {
 			const hours = Number(tickerHours);
 			if (!(hours > 0) || !Array.isArray(items)) return [];
 			const out = [];
 			for (const it of items) {
 				if (!it) continue;
-				const kind = tickerKindOf(it.startTs, it.endTs, nowTs, hours);
+				const kind = dueKindOf(it.startTs, it.endTs, nowTs, hours);
 				if (!kind) continue;
 				out.push({ ...it, kind, dueMs: (kind === "end" ? it.endTs : it.startTs) - nowTs });
 			}
@@ -897,14 +838,9 @@ export function createEngine(env) {
 				"order", "hidden", "shown", "removed", "customEntries", "customUrls", "customEventUrls", "gameColors",
 				// newPanel：实验特性「新日程面板」开关（默认 false）。**别漏**——漏了就是 2026-10-03 那个
 				// 「勾了不生效」的复刻：设置页写进表单、面板却读不到。守卫见 test/cases-rule-lint.mjs。
-				// tickerOn：侧栏轮播的**总开关**（默认 true）。false = 不轮播、不显示红点。
-				// tickerHours：轮播的**范围**（12/24/48/72 小时，默认 72；0 只剩判定层兼容，设置页不给）。
-				// 引擎本身不判"到期"（判定在 helpers 的纯函数里），但这两个都是 DEFAULT_SETTINGS 的键
-				// ⇒ 必须在这里，否则上面那条守卫会红；顺带让未来的非 UI 宿主（扩展/CLI）也能经
-				// readSettings 读到这两个设置。
-				// remindGames：给「到期提醒（送达）」**预留**的逐游戏白名单 —— **不属于轮播**
-				// （轮播只看 tickerOn + tickerHours，不分游戏）。送达功能尚未实现，目前只有设置页读写；
-				// 它与上面两个 ticker* 一样是 DEFAULT_SETTINGS 的键 ⇒ 必须在这里，否则守卫会红。
+				// tickerOn / tickerHours：按钮轮播的开关与范围。
+				// remindGames：「到期提醒（送达）」的逐游戏白名单（轮播不读它）。
+				// 三者都是 DEFAULT_SETTINGS 的键 ⇒ 必须在这里，否则上面的守卫会红。
 				"autoRefresh", "refreshMinutes", "tickerOn", "tickerHours", "remindGames", "newPanel", "lastData", "lastRefresh", "lastSource", "lastVersion"
 			];
 

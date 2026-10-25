@@ -136,8 +136,8 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
      也**没有**逐游戏参数（早期版本按列表过滤，已删除）。设置页游戏列表里那一列是**「提醒」**
      （见下面第 2 项），**轮播不读它**。
    - ✅ 判定口径（**双向**）：即将结束 = 已开始（`startTs <= now`）且 `endTs ∈ (now, now + N 小时]`；
-     即将开始 = `startTs ∈ (now, now + N 小时]`。纯函数 `tickerKindOf`（`60-helpers.js`，返回
-     `"" / "end" / "start"`）+ 窗口换算 `tickerWindowOf` / `tickerItemsOf`（`80-components.js`，
+     即将开始 = `startTs ∈ (now, now + N 小时]`。纯函数 `dueKindOf`（`60-helpers.js`，返回
+     `"" / "end" / "start"`）+ 窗口换算 `dueWindowOf` / `tickerItemsOf`（`80-components.js`，
      复用面板外显那条「源站文本 + tz → 本机墙钟」链，所以轮播与面板"还剩 X"永远同源）。
      老的 `isExpiringSoon`（只判结束）语义未动，仍由老用例守着。
     - ✅ 逐游戏钩子**不属于轮播**（2026-10-25 定稿，用户明确纠正）：轮播没有"按游戏勾选"，
