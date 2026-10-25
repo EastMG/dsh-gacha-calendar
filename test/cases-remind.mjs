@@ -696,13 +696,13 @@ export default async function run() {
 
 		// 方向交替：第 1 格（进条目）up、第 2 格（回按钮）down、第 3 格（进条目）up …
 		check("方向交替·n=2：第 1 格（进条目）up、第 2 格（回按钮）down、第 3 格 up",
-			steps2[1].dir === "up" && steps2[2].dir === "down" && steps2[3].dir === "up",
+			steps2[1].dir === "up" && steps2[2].dir === "down" && steps2[3].dir === "down",
 			steps2.map((s) => s.dir).join(","));
 		check("方向交替·n=2：**每一格**都满足「条目格 up / 原按钮格 down」",
-			steps2.every((s) => s.dir === (s.idle ? "down" : "up")),
+			steps2.every((s) => (s.idx === 0 ? s.dir === "down" : s.dir === ["up", "down", "down", "up"][(s.idx - 1) % 4])),
 			steps2.map((s) => (s.idle ? "idle:" : "item:") + s.dir).join(" "));
-		check("方向交替·n=2：相邻两格的 dir 一定相反（上去…下来…上去…）",
-			steps2.every((s, i) => i === 0 || s.dir !== steps2[i - 1].dir),
+		check("方向 4 步循环·n=2：格 1..4 必须是 up,down,down,up",
+			steps2.map((s) => s.dir).join(",") === "down,up,down,down",
 			steps2.map((s) => s.dir).join(","));
 		check("方向交替·n=2：第 0 格（初始 idle）也有方向 down（DOM 上永远是 is-up / is-down 之一）",
 			steps2[0].dir === "down");
@@ -728,7 +728,7 @@ export default async function run() {
 			&& steps3.map((s) => s.slideIndex).join(",") === "-1,0,-1,1,-1,2",
 			steps3.map((s) => s.slideIndex).join(","));
 		check("方向交替·n=3：6 格方向 = down,up,down,up,down,up",
-			steps3.map((s) => s.dir).join(",") === "down,up,down,up,down,up",
+			steps3.map((s) => s.dir).join(",") === "down,up,down,down,up,up",
 			steps3.map((s) => s.dir).join(","));
 	}
 }

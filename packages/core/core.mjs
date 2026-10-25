@@ -776,9 +776,19 @@
 		//     · idle       —— true = 原按钮外观那一格；false = 一条提醒；
 		//     · slideIndex —— idle 时 -1，否则是它在 slides 里的下标；
 		//     · dir        —— **进入这一格时**的翻页方向："up"（旧内容往上走、新内容从下方进）/
-		//                     "down"（旧内容往下走、新内容从上方进）。条目格 up、原按钮格 down。
+			//                     "down"（旧内容往下走、新内容从上方进）。
+			//                     方向按**格号 4 步一循环**：上 → 下 → 下 → 上（2026-10-25 22:1x 用户定稿，
+			//                     不是"条目 up / 按钮 down"那种死规则 —— 所以相邻两格方向可能相同）。
 		// 为什么单独一个纯函数：n = 0 只有 1 格、奇偶方向、2n 长度都必须能被固定断言，
 		// 渲染层不自己算（算错了不报错，只在真机上看出来）。
+		// 翻页方向：**上下下上** 四步一循环，每轮都从"上"开始（与条目数无关）。
+		//   idx 0 = 首格（挂载时没有"进入"动作，用 down 兜底）
+		//   idx 1 进条目1 = up / idx 2 回按钮 = down / idx 3 进条目2 = down / idx 4 回按钮 = up / idx 5 进条目3 = up …
+		const REMIND_DIR_CYCLE = ["up", "down", "down", "up"];
+		function remindDirAt(idx) {
+			if (!Number.isFinite(idx) || idx <= 0) return "down";
+			return REMIND_DIR_CYCLE[(idx - 1) % 4];
+		}
 		function remindStepsOf(slides) {
 			const list = Array.isArray(slides) ? slides.filter(Boolean) : [];
 			// n = 0：只有"原按钮"这一格（长度 1），渲染层据此完全不滚动
@@ -786,8 +796,8 @@
 			const out = [];
 			for (let i = 0; i < list.length; i++) {
 				// 每两条提醒之间插回一次原按钮；插回来的那一格是 "down"，条目那一格是 "up"
-				out.push({ idx: out.length, idle: true, slideIndex: -1, dir: "down" });
-				out.push({ idx: out.length, idle: false, slideIndex: i, dir: "up" });
+				out.push({ idx: out.length, idle: true, slideIndex: -1, dir: remindDirAt(out.length) });
+				out.push({ idx: out.length, idle: false, slideIndex: i, dir: remindDirAt(out.length) });
 			}
 			return out;
 		}
