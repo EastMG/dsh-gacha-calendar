@@ -16,7 +16,7 @@
 tools/remind/
 ├── remind.mjs          # 主程序：CLI + 配置 + 数据 + tick + 通知 + 日志（唯一入口）
 ├── remind-config.json  # 默认节点配置（示例；可复制到 %LOCALAPPDATA% 覆盖）
-├── install.ps1         # 注册 / 查看 / 卸载 Windows 计划任务（当前用户，免管理员）
+├── install.ps1         # 注册 / 查看 / 卸载 Windows 计划任务 + 开始菜单快捷方式（AUMID）
 ├── lib/
 │   ├── derive.mjs      # 缓存 → 条目列表 { gameId, side, kind, title, T }（时区 / 墙钟换算）
 │   ├── tick.mjs        # **纯函数** tick(now, items, config, state, options) → { toNotify, stateNext, stats }
@@ -218,9 +218,54 @@ powershell -ExecutionPolicy Bypass -File tools\remind\install.ps1 -Uninstall
   第二个参数 `0` = `SW_HIDE`，这是**唯一能保证不闪黑窗**的方式；node 的输出只进 `remind.log`。
   每次运行固定 `--limit=3`（防某轮大量条目同时到期时刷屏，想改就改启动器 / 重跑安装）。
 - 首次安装会把仓库里的 `remind-config.json` 复制到 `%LOCALAPPDATA%`（已存在则**不覆盖**）。
+- 在开始菜单建「二游日历.lnk」并写入 AUMID（见下一节「应用身份」）；`-Uninstall` 会一并删除。
 
 `-Status` 会打印任务状态、间隔、**下次运行时间**、上次运行 / 结果、启动器 / 脚本 / 日志路径，
-并做一次**路径漂移检查**（仓库被移动、node 升级换了路径时提示重跑安装）。
+并做一次**路径漂移检查**（仓库被移动、node 升级换了路径时提示重跑安装），
+外加**快捷方式是否存在、里面写的 AUMID 是什么**。
+
+## 应用身份（AUMID / 横幅顶部的应用名）
+
+通知横幅**顶部**那行应用名和图标，不是 toast XML 能决定的（XML 里没有这个字段），而是由
+**AUMID（AppUserModelID）** 决定的。Windows 对「非打包应用」的规则很死板：
+
+> 身份 = 开始菜单里的一条带 `System.AppUserModel.ID` 的快捷方式。
+
+所以 `install.ps1` 会建这条快捷方式：
+
+| 项 | 值 |
+|---|---|
+| AUMID | `DshGachaCalendar.Reminder`（`toast.ps1` 里是同一个常量，改一处必须同步改另一处） |
+| 快捷方式 | `%APPDATA%\Microsoft\Windows\Start Menu\Programs\二游日历.lnk` |
+| 目标 | `wscript.exe //B //NoLogo "<LOCALAPPDATA>\dsh-gacha-calendar\remind-run.vbs"`（与计划任务动作一致） |
+| 工作目录 | `%LOCALAPPDATA%\dsh-gacha-calendar` |
+| 图标 | `%SystemRoot%\System32\timedate.cpl,0`（系统「日期和时间」图标 = 日历 + 时钟） |
+
+AUMID **不是**快捷方式的普通字段（`TargetPath` / `Arguments` 那一层），只能通过 shell 的
+`IPropertyStore` 写：属性键 `PKEY_AppUserModel_ID` = `{9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3}, 5`，
+接口 `IID_IPropertyStore` = `{886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99}`，入口
+`SHGetPropertyStoreFromParsingName(路径, NULL, GPS_READWRITE, …)`。`install.ps1` 用内联 C#
+（`Add-Type`，约 45 行）做这件事，写完**立刻回读**核对；`-Status` 也会把读到的 AUMID 打出来。
+重复安装是原地覆盖（同一个路径、同一个文件名），不会出现第二条快捷方式。
+
+`toast.ps1` 的三级兜底（顺序固定，`stdout` 会写明这次用的是哪一级：`ok: … ｜ AppId 第N级…`）：
+
+1. **第1级** `DshGachaCalendar.Reminder` —— 快捷方式存在才试 ⇒ 横幅顶部显示「二游日历」+ 图标；
+2. **第2级** `{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe` ——
+   没装快捷方式 / 第1级抛异常 ⇒ 照样能弹，但横幅顶部显示「Windows PowerShell」；
+3. **第3级** `CreateToastNotifier()` 空参 —— 有包标识的宿主环境偶尔能用。
+
+三级都失败才非 0 退出。所以「没安装」不等于「弹不出来」，只等于「名字难看」。
+
+### 为什么图标是系统图标
+
+仓库 `assets/` 下只有面板截图（`screenshot-*.png`），**没有** `.ico` / 图标 png，所以先借系统的
+「日期和时间」图标（`timedate.cpl` 第 0 号 = 日历 + 时钟，Win10/11 都有）。要换成自己的图标：
+
+1. 把 `.ico` 拷到一个**固定路径**（例如 `%LOCALAPPDATA%\dsh-gacha-calendar\app.ico`，由安装脚本复制）；
+2. 改 `install.ps1` 里的 `$IconLocation`（`'<路径>,0'`），重跑安装即可。
+
+不要直接把图标路径指到仓库里的文件 —— 仓库一移动，快捷方式图标就变成白纸。
 
 ## 排错
 
@@ -234,6 +279,28 @@ powershell -ExecutionPolicy Bypass -File tools\remind\install.ps1 -Uninstall
    脚本只能如实报告"已提交给通知中心"，不能保证"你看见了"。
 4. 日志里出现 `✗ 当前平台不是 Windows` ⇒ 判定可以跑，送达没有实现（见「跨平台」）。
 5. `✗ 状态写入失败` ⇒ 检查 `%LOCALAPPDATA%\dsh-gacha-calendar` 的权限 / 磁盘。
+
+**横幅顶部还是「Windows PowerShell」？**
+
+按顺序查（三条都能自己验证，不用猜）：
+
+```powershell
+# 1) 快捷方式在不在（不在 ⇒ 必然回退到 PowerShell 身份）
+Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\二游日历.lnk"
+
+# 2) 快捷方式里写的 AUMID 对不对（-Status 会打印这一行）
+powershell -ExecutionPolicy Bypass -File tools\remind\install.ps1 -Status
+
+# 3) 最近一条通知记在哪个应用名下：读得到 = 新身份已生效
+[void][Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
+[Windows.UI.Notifications.ToastNotificationManager]::History.GetHistory('DshGachaCalendar.Reminder').Count
+```
+
+- 快捷方式缺失 / AUMID 为空 / AUMID 不对 ⇒ 重跑 `install.ps1`（幂等，会重建并回读核对）。
+- 三条都对但横幅外观没变 ⇒ 可能是 Explorer 缓存了旧的应用身份：注销重登（或重启 Explorer）再看。
+  **不要**去 toast XML 里塞应用名 —— 那个位置没有对应字段，塞了也不会显示。
+- 想确认「这次到底走的哪一级」：把 `toast.ps1` 直接跑一次，看它的 `stdout`；
+  或者查 PowerShell 那个 AUMID 的 history —— 里面出现新条目就说明走了第2级兜底。
 
 **计划任务没跑？**
 
@@ -276,9 +343,11 @@ Get-ScheduledTaskInfo -TaskName dsh-gacha-calendar-remind | Format-List *
    （core 面板同口径）。带年份的文本以源站为准。
 8. **读不出档期的文本不硬猜**：`长期`、`X版本更新后 ~ …` 这类会如实计数并跳过。
 9. **无 tz 的条目按本机时区解释**（与 core 面板兜底一致）。
-10. **横幅顶部的应用名是「Windows PowerShell」**：`toast.ps1` 用 PowerShell 自己的 AUMID
-    （不写注册表、零安装的代价）。`-AppName 二游日历` 只进底部的 attribution 行。长期产品应注册
-    自己的 AUMID（开始菜单快捷方式 + AppUserModelID）。
+10. **横幅顶部的应用名取决于「有没有装」**：装过 `install.ps1`（快捷方式 + AUMID 都在）⇒ 顶部应是
+    「二游日历」；没装 / 快捷方式被删 ⇒ `toast.ps1` 退回 PowerShell 的 AUMID，顶部显示「Windows PowerShell」。
+    **这条无法用 API 证明**：Windows 没有公开接口能读「横幅顶部将显示什么名字」。能机器验证的只有
+    ①通知记在哪个 AUMID 名下（`History.GetHistory(<AUMID>)`）②快捷方式里写的 AUMID 与文件名
+    （「二游日历.lnk」）。外观仍需肉眼确认一次；图标借的是系统日历图标（仓库里没有 ico，见上）。
 11. **没有并发锁**：两次运行理论上有机会互相覆盖状态（计划任务是串行的、命中缓存时单轮 < 1 秒，
     实际很难撞上）。要接多宿主（扩展 + 计划任务同时跑）时，得加锁或让宿主只保留一个 tick 源。
 12. **计划任务只在 Windows**：`notify.mjs` 与 `install.ps1` 是 Windows 实现；`tick` / `derive` /
@@ -317,6 +386,10 @@ node tools/remind/remind.mjs --dry-run                        # 第二次：已�
 node tools/remind/remind.mjs --all --dry-run                  # 忽略去重，强制列出
 powershell -ExecutionPolicy Bypass -File tools\remind\install.ps1 -Status
 Get-Content "$env:LOCALAPPDATA\dsh-gacha-calendar\state.json"
+
+# 应用身份是否生效（读得到 = 通知记在「二游日历」名下，而不是 PowerShell）
+[void][Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
+[Windows.UI.Notifications.ToastNotificationManager]::History.GetHistory('DshGachaCalendar.Reminder').Count
 ```
 
 ## 与历史 demo 的关系

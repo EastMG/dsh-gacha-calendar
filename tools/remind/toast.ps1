@@ -4,14 +4,18 @@
   WHY（为什么自己写）：BurntToast 之类要先装模块，而本 demo 的硬约束是「零依赖」。
   Windows 10/11 自带 Windows.UI.Notifications（WinRT），PowerShell 直接就能调。
 
-  AppId 兜底（这是本脚本唯一需要"猜"的地方）：
-    ToastNotificationManager.CreateToastNotifier(<某个 AppId>) 只接受**已注册的 AUMID**。
-    我们没装应用、也不该为了一个 demo 去写注册表，所以：
-      ① 先用 Windows PowerShell 自己的 AUMID：{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe
-      ② 它失败就回退 CreateToastNotifier() 空参（某些有包标识的环境反而能用）
-    两个都失败 → 往 stderr 打原因、非 0 退出。
-    副作用（如实说明）：系统横幅顶部的应用名显示的是「Windows PowerShell」而不是本 demo 的名字 ——
-    -AppName 只进 toast 底部的 attribution 行与日志。
+  AppId（AUMID）三级兜底 —— 决定横幅**顶部**显示的应用名与图标：
+    ToastNotificationManager.CreateToastNotifier(<某个 AppId>) 只认**已注册的 AUMID**。
+    非打包应用的身份 = 开始菜单里那条带 AppUserModelID 的快捷方式（install.ps1 会建）：
+      ① 本应用 AUMID：DshGachaCalendar.Reminder
+         （快捷方式 %APPDATA%\Microsoft\Windows\Start Menu\Programs\二游日历.lnk 存在才算注册）
+         ⇒ 横幅顶部显示「二游日历」+ 图标；
+      ② 没有快捷方式 / ①抛异常 ⇒ 退回 Windows PowerShell 自己的 AUMID
+         ⇒ 能弹，但横幅顶部显示「Windows PowerShell」；
+      ③ ②也失败 ⇒ CreateToastNotifier() 空参（某些有包标识的宿主环境反而能用）。
+    三级都失败才往 stderr 打原因、非 0 退出。脚本 stdout 会写明这次用的是哪一级
+    （`ok: … ｜ AppId 第1级…`），日志里能直接看到。
+    副作用（如实说明）：-AppName 只进 toast 底部的 attribution 行与日志，不影响横幅顶部的应用名。
 
   调用方式（Node 侧 child_process.execFile 直接调，脚本内不弹任何交互式窗口）：
     powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File toast.ps1 `
@@ -61,7 +65,7 @@ foreach ($line in ($Body -split "\\n|\r?\n")) { if ($line -ne "") { $BodyLines +
 
 $Texts = "<text>" + (& $Esc $Title) + "</text>"
 foreach ($line in $BodyLines) { $Texts += "<text>" + (& $Esc $line) + "</text>" }
-# 底部署名：让"这条通知是谁发的"在横幅里可见（系统顶部的应用名由 AppId 决定，改不了）
+# 底部署名：让"这条通知是谁发的"在横幅里可见（顶部的应用名由 AppId / AUMID 决定，改不了）
 $Texts += '<text placement="attribution">' + (& $Esc $AppName) + "</text>"
 
 if ([string]::IsNullOrWhiteSpace($ClickUrl)) {
@@ -86,35 +90,51 @@ try {
 	Exit-Fail ("构造 ToastNotification 失败：" + $_.Exception.Message)
 }
 
-# ── 3) 送达：AppId 兜底 ────────────────────────────────────────────────────────
-$PrimaryAppId = "{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe"
-$Attempts = @(
-	@{ Id = $PrimaryAppId; Label = "Windows PowerShell AUMID" },
-	@{ Id = "";             Label = "CreateToastNotifier() 空参" }
-)
+# ── 3) 送达：AppId 三级兜底（见文件头）──────────────────────────────────────────
+# ① 本应用 AUMID —— 只在 install.ps1 建过快捷方式时才成立。这是**唯一**能让横幅顶部
+#    显示「二游日历」的方式。
+$OwnAumid = 'DshGachaCalendar.Reminder'
+$ShortcutPath = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\二游日历.lnk'
+# ② Windows PowerShell 自己的 AUMID —— 免安装也能弹，代价是横幅顶部显示「Windows PowerShell」。
+$PowerShellAumid = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe'
+
+$Attempts = @()
+$Notes = @()
+if (Test-Path -LiteralPath $ShortcutPath) {
+	$Attempts += @{ Id = $OwnAumid; Level = '第1级：本应用 AUMID（DshGachaCalendar.Reminder）' }
+} else {
+	# 快捷方式不存在 ⇒ AUMID 没注册。此时 Show() 可能不抛异常、但通知根本不出现，
+	# 所以直接跳过这一级，把原因写进 note（而不是赌它"可能能用"）。
+	$Notes += '跳过第1级：开始菜单快捷方式不存在（' + $ShortcutPath + '）—— 先跑 install.ps1，横幅顶部才会显示「二游日历」'
+}
+$Attempts += @{ Id = $PowerShellAumid; Level = '第2级：Windows PowerShell AUMID（兜底）' }
+$Attempts += @{ Id = '';             Level = '第3级：CreateToastNotifier() 空参（最后兜底）' }
 
 $Shown = $false
+$UsedLevel = ''
 $Errors = @()
 foreach ($Attempt in $Attempts) {
 	try {
-		if ($Attempt.Id -ne "") {
+		if ($Attempt.Id -ne '') {
 			$Notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($Attempt.Id)
 		} else {
 			$Notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier()
 		}
 		$Notifier.Show($Toast)
 		$Shown = $true
+		$UsedLevel = $Attempt.Level
 		break
 	} catch {
-		$Errors += ($Attempt.Label + " → " + $_.Exception.Message)
+		$Errors += ($Attempt.Level + ' → ' + $_.Exception.Message)
 	}
 }
 
 if (-not $Shown) {
-	Exit-Fail ("两条 AppId 都失败（通知没送达）：" + ($Errors -join "  ｜  "))
+	Exit-Fail ("三级 AppId 都失败（通知没送达）：" + (@($Notes) + @($Errors) -join "  ｜  "))
 }
 
 # 注意：Show() 不抛异常 ≠ 用户一定看见 —— 专注助手 / 勿扰模式 / 通知总开关关闭时，
 # 系统会照收不误但静默吞掉。脚本无法区分这两种情况，只能如实报告"已提交给通知中心"。
-Write-Output ("ok: " + $AppName + " / " + $Title)
+foreach ($Note in $Notes) { Write-Output ("note: " + $Note) }
+Write-Output ("ok: " + $AppName + " / " + $Title + " ｜ AppId " + $UsedLevel)
 exit 0
