@@ -27,6 +27,7 @@ import runUmaGt from "./cases-uma-gt.mjs";
 import runRuleLint from "./cases-rule-lint.mjs";
 import runTz from "./cases-tz.mjs";
 import runTicker from "./cases-ticker.mjs";
+import runRemind from "./cases-remind.mjs";
 import runReadme from "./cases-readme.mjs";
 import runCore from "./cases-core.mjs";
 
@@ -107,6 +108,7 @@ const batches = [
 	["规则静态守卫（方案 A 悬停 + 选当期判定不许各写各的）", runRuleLint],
 	["时区口径（外显=本机时区 / 悬停=源站墙钟）", runTz],
 	["侧栏轮播（单行翻页 + 「提前 N 小时」；不分游戏）+ 「提醒」白名单预留", runTicker],
+	["到期提醒（送达）判定 + 设置键三处齐 + 宿主接线", runRemind],
 	["README 结构图与事实性", runReadme],
 	["core 产物（零宿主依赖 + 注册幂等）", runCore]
 ];

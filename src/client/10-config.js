@@ -35,6 +35,17 @@
 			// 按钮轮播的范围（小时）：12 / 24 / 48 / 72，默认 72。老配置残留的 0 由 tickerRangeOf 归一。
 			// 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 里（守卫见 test/cases-rule-lint.mjs）。
 			tickerHours: 72,
+			// 「到期提醒（送达）」总开关：**默认开**（用户 2026-10-27 认可"开箱即用"）。
+			// 真正的送达在宿主半边（src/index.js 的定时器 + 系统通知），面板只读写这个开关。
+			// 节点用**字符串**存（"72,24,6,2"），避开 array 值在设置表单里的兼容问题；
+			// 解析失败一律回落默认（见 65-remind.js 的 remindNodesOf），不会让提醒停摆。
+			// 三个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 与 src/index.js 的 schema 里
+			// （守卫见 test/cases-rule-lint.mjs 与 test/cases-remind.mjs）。
+			remindOn: true,
+			// 结束节点（小时）：结束后 3 天 / 1 天 / 6 小时 / 2 小时 —— 同一件事只发最紧急的那一档。
+			remindEndNodes: "72,24,6,2",
+			// 开始节点（小时）：开始前 1 天 / 2 小时。
+			remindStartNodes: "24,2",
 			// 「到期提醒（送达）」的逐游戏白名单（不属于轮播）。语义 = 普通列表：列表里有谁就提醒谁，
 			// 空数组 = 一个都不提醒；默认值 = 出厂时展示中的条目（所有 defaultHidden !== true 的 id）。
 			// 守卫见 test/cases-ticker.mjs：新增来源或改 defaultHidden 时要同步这里与 src/index.js 的 schema。

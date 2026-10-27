@@ -22,6 +22,7 @@
   "files": [
     "lib/index.js",
     "lib/client.js",
+    "lib/remind-core.mjs",
     "lib/types/**/*.d.ts",
     "cordis.patch.yml",
     "README.md",

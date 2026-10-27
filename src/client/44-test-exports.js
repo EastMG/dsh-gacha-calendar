@@ -412,6 +412,20 @@
 			tickerFlipRenderLinesOf,
 			dueWindowOf,
 			tickerItemsOf,
+			// 到期提醒（送达）的判定与文案（65-remind.js，纯函数；**与宿主 src/index.js 用的是同一份源码**，
+			// 见 build.mjs 的 lib/remind-core.mjs）。这里导出是为了能离线钉住判定规则：
+			// 只发最紧急 / 再跑不重发 / T 过作废 / 配置回退 / 开始方向。
+			// ⚠️ 只导出**函数**：65 段在本文件之后（ORDER），这里的 `const`（节点默认值 / 时区表）还在 TDZ 里，
+			//    提前引用会炸；那几个常量测试直接从 lib/remind-core.mjs 取（宿主看到的就是那份）。
+			remindOnOf,
+			remindNodesOf,
+			remindConfigOf,
+			remindKeyOf,
+			remindStateOf,
+			remindWindowOf,
+			remindItemsOf,
+			remindTickOf,
+			remindToastOf,
 			sourceInstant,
 			sourceWallParts,
 			sourceOffsetMinutes,

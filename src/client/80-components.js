@@ -1960,6 +1960,8 @@
 			// 总开关的当前值：缺省 = 开（与 DEFAULT_SETTINGS / schema 的 default(true) 同口径，
 			// 判定走 helpers 的 tickerOnOf，与侧栏按钮那一侧共用同一处口径）
 			const tickerOn = tickerOnOf(s.tickerOn);
+			// 「到期提醒（送达）」总开关：同样"只有明确 false 才算关"（65-remind.js 的 remindOnOf）。
+			const remindOn = remindOnOf(s.remindOn);
 
 			// 保存失败必须可见：旧实现只 await 不 catch，写被宿主拒绝时控件弹回原值、
 			// 用户只会觉得"点了没反应"（「重置排序」写 null 被拒就是这种病的极端例子）
@@ -2302,6 +2304,16 @@
 									TICKER_OPTIONS.map((o) => (0, react_jsx_runtime.jsx)("option", { value: String(o.hours), children: o.label }, o.hours))
 								] })
 							] })
+						] }),
+						// 「到期提醒（送达）」总开关（默认开）：到点时由**宿主半边**弹系统通知。
+						// 节点（结束前 72/24/6/2 小时、开始前 24/2 小时）这一轮不做 UI —— 只有两个字符串
+						// 配置键，要改就手改 profile 的 cordis.patch.yml（见 README）。
+						(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }, title: "到点时用系统通知提醒：结束前 72/24/6/2 小时、开始前 24/2 小时，同一件事只发最紧急的一档", children: [
+							(0, react_jsx_runtime.jsxs)("label", { style: { display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }, children: [
+								(0, react_jsx_runtime.jsx)("input", { type: "checkbox", checked: remindOn, onChange: (e) => commit("remindOn", e.target.checked) }),
+								(0, react_jsx_runtime.jsx)("span", { style: { flex: "none" }, children: "提醒" })
+							] }),
+							(0, react_jsx_runtime.jsx)("span", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 11 }, children: "到期时弹系统通知（仅 DSH 运行期间）" })
 						] })
 					] }),
 					// ── 实验特性开关：新「二游日历」面板视图（默认关）──

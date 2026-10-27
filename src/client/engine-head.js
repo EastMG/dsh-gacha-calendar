@@ -36,8 +36,11 @@
 				// 「勾了不生效」的复刻：设置页写进表单、面板却读不到。守卫见 test/cases-rule-lint.mjs。
 				// tickerOn / tickerHours：按钮轮播的开关与范围。
 				// remindGames：「到期提醒（送达）」的逐游戏白名单（轮播不读它；设置页那一列当前暂时隐藏，键保留）。
+				// remindOn / remindEndNodes / remindStartNodes：「到期提醒（送达）」的总开关与两套节点（字符串）。
 				// 三者都是 DEFAULT_SETTINGS 的键 ⇒ 必须在这里，否则上面的守卫会红。
-				"autoRefresh", "refreshMinutes", "tickerOn", "tickerHours", "remindGames", "newPanel", "lastData", "lastRefresh", "lastSource", "lastVersion"
+				"autoRefresh", "refreshMinutes", "tickerOn", "tickerHours", "remindGames",
+				"remindOn", "remindEndNodes", "remindStartNodes",
+				"newPanel", "lastData", "lastRefresh", "lastSource", "lastVersion"
 			];
 
 			// 读取配置（缺失项回落到 10-config.js 的 DEFAULT_SETTINGS）

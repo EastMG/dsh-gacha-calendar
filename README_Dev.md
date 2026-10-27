@@ -62,6 +62,7 @@ dsh-gacha-calendar/
 │       ├── 44-test-exports.js # 回归出口：解析器 + env 工具 + 来源表
 │       ├── 50-refresh.js     # 刷新编排、失败沿用旧值、提示归类
 │       ├── 60-helpers.js     # 顶部提示归类 / 显隐判定 / 排序 / 角色名与倒计时格式化 / 启动刷新判定
+│       ├── 65-remind.js      # 到期提醒（送达）判定 + 文案（**同时被单独拼成 lib/remind-core.mjs 给宿主**）
 │       ├── engine-head.js    # core 外壳：createEngine（storage / listGames / getCached）
 │       ├── engine-api.js     # 引擎 API：refresh / selfCheck / __test
 │       ├── 70-styles.js      # 样式
@@ -71,11 +72,12 @@ dsh-gacha-calendar/
 │       └── 99-tail.js        # exports.apply / exports.inject
 ├── lib/             # 构建产物
 │   ├── index.js / client.js
+│   ├── remind-core.mjs # 宿主复用的提醒判定（= src/client/65-remind.js 原样 + export）
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 18 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora + 规则静态守卫 + 时区口径 + 侧栏轮播 + README 结构图守卫 + core 产物守卫）
-│   ├── cases-*.mjs  # 各段用例（18 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / rule-lint / tz / ticker / readme / core）
+│   ├── all.mjs      # 统一门禁：聚 19 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora + 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + README 结构图守卫 + core 产物守卫）
+│   ├── cases-*.mjs  # 各段用例（19 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / rule-lint / tz / ticker / remind / readme / core）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
 │   ├── registry-shim.mjs # 各批次注册表规格快照 + DRIFT 守卫（与运行时 SOURCES 核对 tz/name）
@@ -107,6 +109,34 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
 - 只读：没有任何写设置的接口；`POST` 只接收浏览器半回传的 `{ at, data }` 镜像。
 - 快照**只在宿主内存**里：DSH 重启或插件卸载即清空（卸载时会显式置空，避免重载后先读到旧数据）。
 - ⚠️ 客户端那一跳**不能用 `keepalive`**：keepalive 的请求体上限是 64KB，而 `lastData` 约 200KB，用了会被浏览器直接丢弃且静默失败。
+
+## 到期提醒（送达）—— 一份判定，三条装载路径
+
+判定与文案只有一处实现：`src/client/65-remind.js`。`build.mjs` 把它**原样**拼进三个地方：
+
+| 产物 | 谁在用 | 说明 |
+|---|---|---|
+| `lib/client.js` | 面板（设置页开关的读取口径 `remindOnOf`） | 与其它 `src/client/*.js` 同一次拼接 |
+| `packages/core/core.mjs` | 扩展 / 原生平台 | 平台无关，判定可单测 |
+| `lib/remind-core.mjs` | **宿主半边** `src/index.js` | 尾部只多几行 `export`，前半段与源文件逐字节相同（`--check` 会校验） |
+
+为什么宿主不复用 `packages/core/core.mjs`：那个文件是 `createEngine` 的载体（28 个解析器全在里面），而发布包（`package.json` 的 `files`）只带 `lib/`；为了两百行判定去拉一份完整的 core，既慢又放大故障面。
+
+宿主每一轮（默认 30 分钟 + 启动后 5 秒先来一轮）：
+
+1. 读配置 → `remindOn === false` 或 `lastData` 为空就跳过；
+2. `lastData` 的档期文本 + **源站 tz** → 绝对档期 → 条目（tz 表是 `SOURCES[].tz` 的副本，因为宿主读不到 `SOURCES`；守卫见 `test/cases-remind.mjs`）；
+3. 拿去重状态判「这一轮该发哪几条」；
+4. 逐条 `powershell.exe -EncodedCommand` 弹 WinRT toast（脚本在 `src/index.js` 的 `toastScriptOf` 里生成，**不落地 .ps1、不引用 `tools/`**）；
+5. 状态原子写回 `%LOCALAPPDATA%\dsh-gacha-calendar\host-state.json`，日志追加到同目录 `remind.log`（超 256KB 自动只留后半段）。
+
+几个踩过的坑，改这块之前先看：
+
+- **`config.xxx` 不是裸值**。本插件所有设置字段都标了 `.volatile()`，DSH 交给 `apply` 的是 `{ get(), [Symbol.for("cosmokit.volatile.write")] }` 引用对象 —— 直接 `cfg.remindOn === false` / `typeof cfg.lastData === "string"` **永远不成立且不报错**，表现就是"提醒永远不发"。统一走 `configValueOf()` 解包。
+- **定时器必须挂在 `ctx.effect` 的 disposer 里清理**。设置页每写一次都会让插件整体重载；漏清就是每次改设置多叠一个看不见的定时器。
+- **横幅顶部的应用名只能是「Windows PowerShell」**。非打包应用要有正经身份，得往用户开始菜单里塞一条带 AppUserModelID 的快捷方式（`tools/remind/install.ps1` 的 demo 做过），npm 装的插件不做这件事。
+- **失败不记已发**：某条送达失败时它对应的档位会被回滚，下一轮重试，直到成功或条目过期作废。
+- ⚠️ **只在 DSH 运行期间生效**：宿主随 DSH 起停，DSH 关掉就没人盯着了（换来的好处是装插件零安装步骤，不碰系统计划任务/开始菜单）。
 ## 待办（2026-10-25 整理）
 
 ### 做（按优先级）
@@ -156,11 +186,15 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
      外加 8 拍推演：n=2 与 n=4 都必须走出 down,up,down,down,up,up,down,down）
      + 轮播样式静态守卫：固定 22px 窗口 / 状态不截断 /
      分隔符带前导空格 / fill-mode 只用 backwards / reduce 置 none / 图标在行内且 16px）。
-2. **到期提醒（送达，⬜ 未开始）**：
+2. **到期提醒（送达，✅ 已完成 2026-10-27）**：
    - 定义（用户 2026-10-25 明确区分）：**到点主动送达通知**，让你不看 DSH 也知道 —— 这才是「到期提醒」。
-   - 现状：只做了**展示**（上面的侧栏轮播：在侧栏按钮上翻页显示"某条目 · 还剩多久"）；
-     **送达（主动通知）尚未实现**。
-   - 待做：**系统通知**（DSH 通知 API 还没接）、数字角标。
+   - ✅ 已实现（2026-10-27）：**Windows 系统通知**（toast），结束前 **72/24/6/2** 小时、开始前 **24/2** 小时；
+     同一件事多个档位同时到期**只发最紧急那一档**，条目过期即作废。判定与文案在 `src/client/65-remind.js`
+     （core，纯函数可单测），送达在宿主 `src/index.js` 的 `registerRemindTimer`（默认 30 分钟一轮 +
+     启动后 5 秒先来一轮）。架构与踩过的坑见上面「到期提醒（送达）—— 一份判定，三条装载路径」一节。
+     设置项 = `remindOn`（默认开，设置页有开关）/ `remindEndNodes` / `remindStartNodes`（字符串，节点不做 UI）。
+     ⚠️ **只在 DSH 运行期间生效**（插件宿主随 DSH 起停）。
+   - 仍未做：数字角标（桌面/任务栏）；**逐游戏白名单的 UI**（见下，且见下面那条 ⚠️）。
     - ✅ **逐游戏钩子已预留**（2026-10-25 定稿；送达实现时要**消费它**）：
       · ⚠️ **2026-10-26 起整列暂时隐藏**（用户要求）：送达没实现，勾了没有效果 ⇒ 设置页用常量
         `SHOW_REMIND_COLUMN = false`（`80-components.js`）把**表头 / 每行复选框 / 「全部提醒」按钮 /
@@ -174,8 +208,11 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
         由 `test/cases-ticker.mjs` 的守卫钉住；`engine-head.js` 的 `CONFIG_KEYS` 也含它；
       · 语义 = **普通列表**：列表里有谁就提醒谁，**空数组 = 一个都不提醒**（没有"空 = 全部"的哨兵）；
       · 判定唯一入口 = 纯函数 `remindGameAllowed`（`60-helpers.js`）；
-      · ⚠️ 目前**没有运行时消费者**（送达没实现）⇒ 勾了暂时没有实际效果；**轮播不读它**
-        （轮播只有 `tickerOn` + `tickerHours`，见第 1 项）。送达实现时**必须**消费这份列表。
+      - ⚠️ 目前**没有运行时消费者**：2026-10-27 落地的送达按用户给的规格只认**三个键**
+        （`remindOn` / `remindEndNodes` / `remindStartNodes`），**没有**按这份逐游戏列表过滤 ——
+        所以勾了仍然没有效果。恢复这一列 UI 之前要先把"送达是否按它过滤"定下来（当时列还是隐藏的，
+        按它过滤会让默认被排除的 5 个来源（bh3 / ournotes / ournotes-global / czn / ddlezj）
+        静默不提醒，反而像 bug）。**轮播不读它**（轮播只有 `tickerOn` + `tickerHours`，见第 1 项）。
     - 守卫：`test/cases-ticker.mjs` ④ —— 白名单语义 + 默认值 == 展示中来源 + schema 一致
       + **反向守卫**（轮播链路与函数签名里都不许出现逐游戏列表）；
       另有静态守卫钉住"`SHOW_REMIND_COLUMN = false` 时五处入口全部不可见"（防有人只藏一半）。

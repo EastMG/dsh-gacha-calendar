@@ -27,6 +27,30 @@ const OUT_HOST = path.join(ROOT, "lib", "index.js");
 // core 包（中立名，供浏览器扩展 / Windows / 原生平台 import）；版本号跟随根 package.json
 const OUT_CORE = path.join(ROOT, "packages", "core", "core.mjs");
 const OUT_CORE_PKG = path.join(ROOT, "packages", "core", "package.json");
+// 第三个产物：lib/remind-core.mjs —— **宿主半边**（src/index.js）唯一能复用的 core 代码。
+// 为什么单独产出一份，而不是让宿主 import packages/core/core.mjs：
+//   ① 发布包（package.json 的 files）只带 lib/，packages/core 是**另一个 npm 包**的目录，不该混进插件包里；
+//   ② core.mjs 是 createEngine 的载体（28 个解析器全在里面），宿主只需要提醒判定那两百行 ——
+//      为了一个纯函数拉进整份 core 既慢又放大故障面；
+//   ③ 这里拼的是**同一个源文件**（src/client/65-remind.js）的原始文本，一字不改，只在尾部加 export
+//      ⇒ 「判定只有一处实现」这条不变量仍然成立，且 --check 能逐字节校验。
+const OUT_REMIND = path.join(ROOT, "lib", "remind-core.mjs");
+const REMIND_CHUNK = "65-remind.js";
+const REMIND_EXPORTS = [
+  "REMIND_HOUR_MS",
+  "REMIND_DEFAULT_END_NODES",
+  "REMIND_DEFAULT_START_NODES",
+  "REMIND_TZ_BY_ID",
+  "remindOnOf",
+  "remindNodesOf",
+  "remindConfigOf",
+  "remindKeyOf",
+  "remindStateOf",
+  "remindWindowOf",
+  "remindItemsOf",
+  "remindTickOf",
+  "remindToastOf"
+];
 
 // 拼接顺序（= 原产物的 //#region 顺序，改了这里就等于改了产物结构）
 const ORDER = [
@@ -62,6 +86,7 @@ const ORDER = [
   "44-test-exports.js",        // 回归出口：解析器 + env 工具 + 来源表（挂 exports.__regression，测试用）
   "50-refresh.js",             // 刷新编排、失败沿用旧值
   "60-helpers.js",             // 共用纯函数：状态归一 / 提示文案 / 显隐 / 格式化 / 排序 / 启动刷新判定
+  "65-remind.js",              // 到期提醒（送达）判定 + 文案（**同时被单独拼成 lib/remind-core.mjs**）
   "engine-head.js",            // core 引擎外壳：createEngine（面板只通过它拿 Result JSON）
   "engine-api.js",             // 引擎 API：refresh() / 测试出口 / return
   "70-styles.js",              // 样式
@@ -89,6 +114,7 @@ const CORE_ORDER = [
   "10-config.js",              // 默认配置（DEFAULT_SETTINGS / REFRESH_OPTIONS）
   "20-source-core.js",         // **模块顶层**容器：SOURCES / registerSource
   "60-helpers.js",             // 共用纯函数（core 与 UI 都要用）
+  "65-remind.js",              // 到期提醒判定（core 与宿主共用同一份源码 → lib/remind-core.mjs）
   "engine-head.js",            // createEngine 外壳：storage 读写 / listGames / getCached
   "21-fetcher-tables.js",      // **每引擎一份**的两张抓取器表
   "15-env.js",                 // core 环境注入缝
@@ -218,6 +244,24 @@ if (!coreChunks.some((t) => t.includes("export function createEngine(env) {"))) 
 }
 assertCorePurity();
 const coreBuilt = injectVersion(coreChunks.join("\n"), "packages/core/core.mjs");
+// lib/remind-core.mjs：**原样**取 src/client/65-remind.js 的文本 + 尾部 export（见 OUT_REMIND 处说明）。
+// 「原样」是关键：宿主 import 到的判定代码与面板/core 用的必须逐字节同一份。
+const remindChunk = read(path.join(SRC_CLIENT, REMIND_CHUNK));
+const missingRemindExports = REMIND_EXPORTS.filter(
+  (name) => !new RegExp("(?:function|const|let)\\s+" + name + "\\b").test(remindChunk)
+);
+if (missingRemindExports.length) {
+  fail(`${REMIND_CHUNK} 里找不到要 export 的符号：${missingRemindExports.join("、")}（改名了？同步 build.mjs 的 REMIND_EXPORTS）`);
+}
+const remindBuilt = remindChunk + [
+  "// ── 出口：上面的代码与 lib/client.js / packages/core/core.mjs 里的是**同一份源码**",
+  "// （" + REMIND_CHUNK + "，由 build.mjs 原样拼出，一字未改）。宿主 src/index.js 只 import 这里。",
+  "export {",
+  ...REMIND_EXPORTS.map((name, i) => "  " + name + (i === REMIND_EXPORTS.length - 1 ? "" : ",")),
+  "};",
+  ""
+].join("\n");
+validateText(OUT_REMIND, remindBuilt);
 // core 包的 package.json：**由本脚本生成**，版本号跟随根包，避免两处手改漂移。
 // （packages/core/README.md 是手写的，不在此生成；包名刻意中立，不含 dsh —— 扩展/原生平台要用它。）
 const corePkgBuilt = JSON.stringify({
@@ -342,9 +386,14 @@ if (checkOnly) {
   const okHost = same(hostBuilt, curHost);
   console.log(`lib/client.js              ${okClient ? "一致" : "不一致"}  ${sha(clientBuilt).slice(0, 16)}`);
   console.log(`lib/index.js               ${okHost ? "一致" : "不一致"}  ${sha(hostBuilt).slice(0, 16)}`);
-  // core 包两个文件由本脚本生成；**缺失即失败**（旧实现只打印"不存在"仍 exit 0 → 删掉产物也能过守卫）
+  // core 包两个文件 + 宿主复用模块由本脚本生成；**缺失即失败**
+  //（旧实现只打印"不存在"仍 exit 0 → 删掉产物也能过守卫）
   let okCore = true;
-  for (const [label, p, built] of [["packages/core/core.mjs", OUT_CORE, coreBuilt], ["packages/core/package.json", OUT_CORE_PKG, corePkgBuilt]]) {
+  for (const [label, p, built] of [
+    ["packages/core/core.mjs", OUT_CORE, coreBuilt],
+    ["packages/core/package.json", OUT_CORE_PKG, corePkgBuilt],
+    ["lib/remind-core.mjs", OUT_REMIND, remindBuilt]
+  ]) {
     if (fs.existsSync(p)) {
       const ok = same(built, read(p));
       okCore = okCore && ok;
@@ -363,7 +412,7 @@ if (checkOnly) {
   }
   // 语法自检
   let okSyntax = true;
-  for (const rel of ["lib/client.js", "lib/index.js", "packages/core/core.mjs"]) {
+  for (const rel of ["lib/client.js", "lib/index.js", "packages/core/core.mjs", "lib/remind-core.mjs"]) {
     const exists = fs.existsSync(path.join(ROOT, rel));
     const ok = exists && syntaxOk(path.join(ROOT, rel));
     okSyntax = okSyntax && ok;
@@ -399,7 +448,9 @@ fs.writeFileSync(OUT_HOST, hostBuilt, "utf8");
 fs.mkdirSync(path.dirname(OUT_CORE), { recursive: true });
 fs.writeFileSync(OUT_CORE, coreBuilt, "utf8");
 fs.writeFileSync(OUT_CORE_PKG, corePkgBuilt, "utf8");
+fs.writeFileSync(OUT_REMIND, remindBuilt, "utf8");
 console.log(`写出 lib/client.js               ${clientBuilt.length} 字符  sha256=${sha(clientBuilt).slice(0, 16)}`);
 console.log(`写出 lib/index.js                ${hostBuilt.length} 字符  sha256=${sha(hostBuilt).slice(0, 16)}`);
+console.log(`写出 lib/remind-core.mjs         ${remindBuilt.length} 字符  sha256=${sha(remindBuilt).slice(0, 16)}`);
 console.log(`写出 packages/core/core.mjs      ${coreBuilt.length} 字符  sha256=${sha(coreBuilt).slice(0, 16)}`);
 console.log(`写出 packages/core/package.json  ${corePkgBuilt.length} 字符  (gacha-calendar-core@${rootPkg.version})`);
