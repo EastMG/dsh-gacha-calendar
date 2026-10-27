@@ -1,235 +1,330 @@
-# 到期提醒（送达）demo
+# 到期提醒（送达）
 
-一个**独立可运行**的 demo，演示「到期提醒」的完整链路：
+把「某个卡池 / 活动还有多久结束 / 开始」做成**真的会响的系统通知**：
 
 ```
-core 引擎现场拉数据 → 判定「即将结束 / 即将开始」→ 状态文件去重 → 弹系统通知（toast）
+缓存数据（core 直连）→ 派生提醒条目 → tick 判定多档节点 → 去重 → toast.ps1 弹通知 → 日志 + 状态
 ```
 
-**它不接进插件本体**（`src/` 一行没改）、不改测试、不动版本号 —— 只是为了把「送达」这条链路
-先跑通、把坑记下来。真正的产品形态见下面「下一步」。
+这是 `demo.mjs` / `demo-simple.mjs` 的**产品版**：判定逻辑抽成了平台无关的纯函数
+（`lib/tick.mjs`），多档节点、去重状态、日志、计划任务安装都在这里；两个 demo 原样保留
+（只作历史对比，**新代码不要再复制它们**，公共逻辑都在 `lib/`）。
+
+## 目录
 
 ```
 tools/remind/
-├── demo.mjs     # 主流程：拉数据 → 判定 → 去重 → 送达（Node，ESM，零依赖）
-├── toast.ps1    # WinRT 系统通知（Windows 自带，零安装；不需要 BurntToast）
-└── README.md    # 本文件
+├── remind.mjs          # 主程序：CLI + 配置 + 数据 + tick + 通知 + 日志（唯一入口）
+├── remind-config.json  # 默认节点配置（示例；可复制到 %LOCALAPPDATA% 覆盖）
+├── install.ps1         # 注册 / 查看 / 卸载 Windows 计划任务（当前用户，免管理员）
+├── lib/
+│   ├── derive.mjs      # 缓存 → 条目列表 { gameId, side, kind, title, T }（时区 / 墙钟换算）
+│   ├── tick.mjs        # **纯函数** tick(now, items, config, state, options) → { toNotify, stateNext, stats }
+│   ├── state.mjs       # state.json 读写（原子写：tmp + rename）
+│   ├── data.mjs        # 缓存优先 / 过期或 --refresh 才让 core 抓一轮；所有路径都出自这里
+│   ├── notify.mjs      # 调 toast.ps1（execFile；Windows only）
+│   ├── config.mjs      # 节点配置：用户配置 → 仓库示例 → 内置默认 → CLI 覆盖
+│   └── format.mjs      # 时间 / 时长 / 节点的显示格式（纯函数）
+├── toast.ps1           # WinRT 系统通知（**不要改**：UTF-8 带 BOM，已验证能跑）
+├── demo.mjs            # 历史 demo（每轮现场抓数据），保留不动
+├── demo-simple.mjs     # 历史 demo（缓存优先），保留不动
+└── README.md           # 本文件
 ```
 
-## 怎么跑
+运行产物都在 `%LOCALAPPDATA%\dsh-gacha-calendar\`（不写系统目录）：
 
-先干跑（不发通知、不写状态文件，只看它判成什么）：
+| 文件 | 用途 |
+|---|---|
+| `cache.json` | 数据缓存 `{ at, source, data }`（`at` = 写盘毫秒时间戳） |
+| `state.json` | 去重状态（平表，键 = `gameId\|side\|kind\|T`） |
+| `remind.log` | 运行日志（追加；超过 1MB 轮转为 `remind.log.1`） |
+| `remind-config.json` | 节点配置（安装时自动生成；用户可改） |
+| `remind-run.vbs` | 计划任务用的零窗口启动器（安装时生成，卸载时删除） |
+
+## 快速开始
 
 ```powershell
-node tools/remind/demo.mjs --dry-run                    # 默认提前量 2 小时
-node tools/remind/demo.mjs --dry-run --hours=336        # 14 天窗口，能看到更多条目
+# 1) 干跑：只看它判成什么，不弹、不写状态
+node tools/remind/remind.mjs --dry-run
+
+# 2) 真弹一条（--limit=1 避免一次刷屏）
+node tools/remind/remind.mjs --limit=1
+
+# 3) 再跑一次：上一次发过的档位会被「去重跳过」
+node tools/remind/remind.mjs --dry-run
+
+# 4) 忽略去重、强制重发（调试用；同一轮里仍只发最紧急的那一档）
+node tools/remind/remind.mjs --all --dry-run
+
+# 5) 注册成计划任务（每 30 分钟，当前用户，无窗口）
+powershell -ExecutionPolicy Bypass -File tools\remind\install.ps1
+
+# 6) 查看 / 卸载
+powershell -ExecutionPolicy Bypass -File tools\remind\install.ps1 -Status
+powershell -ExecutionPolicy Bypass -File tools\remind\install.ps1 -Uninstall
 ```
 
-确认没问题，再真弹一条（`--limit=1` 避免一次刷屏）：
-
-```powershell
-node tools/remind/demo.mjs --hours=336 --limit=1
-```
-
-连跑两次，第二次会显示「已通知过，跳过」（去重生效）：
-
-```powershell
-node tools/remind/demo.mjs --hours=336 --limit=1
-```
-
-调试时想强制重弹（忽略去重）：
-
-```powershell
-node tools/remind/demo.mjs --hours=336 --limit=3 --all
-```
-
-### 参数
+## 参数
 
 | 参数 | 默认 | 说明 |
 |---|---|---|
-| `--hours=N` | `2` | 提前量（小时）。**双向**：结束落在 `(now, now+N]` 判「即将结束」，开始落在 `(now, now+N]` 判「即将开始」 |
-| `--dry-run` | 关 | 只打印：不弹通知、**也不写状态文件**（所以干跑不会污染去重） |
-| `--all` | 关 | 忽略去重、强制重弹（仍会记录本次通知） |
-| `--limit=N` | `3` | 最多弹几条。`0` = 只统计不弹 |
+| `--hours=N` | — | **单节点模式**（调试用）：结束与开始都只留 `T-Nh`；与 `--nodes` 互斥 |
+| `--nodes=a,b,c` | 配置 / 内置 | 结束方向的节点（小时），如 `--nodes=72,24,6,2` |
+| `--start-nodes=a,b` | 配置 / 内置 | 开始方向的节点（小时），如 `--start-nodes=24,2` |
+| `--ttl-hours=N` | `6` | 缓存有效期（小时）；超过就重抓 |
+| `--refresh` | 关 | 忽略缓存，强制让 core 抓一轮并写回 |
+| `--dry-run` | 关 | 只打印：**不弹通知、不写状态**（缓存仍会写） |
+| `--limit=N` | `3` | 本轮最多产生几条通知；`0` = 只统计不弹。**被截断的条目不记已发**（下一轮补） |
+| `--all` | 关 | 忽略状态强制重发；同一轮内仍只发最紧急的一档 |
+| `--json` | 关 | stdout 只输出机器可读 JSON（完整计划 / 统计 / 结果）；日志照常写文件 |
 | `--help` | — | 帮助 |
 
-退出码：`0` 正常；`2` 参数错误；`1` 送达失败或整轮抓取异常（demo 不会因单条通知失败而崩）。
+退出码：`0` 正常 ｜ `1` 失败（抓取异常 / 送达失败 / 状态写失败 / 非 Windows 真弹） ｜ `2` 参数错误。
 
-## 四步链路
+## 提醒规则（tick）
 
-### 1) 拉数据：core 直连（和插件 UI 同源）
+**节点**（每个「到期时刻 T」配多档提醒，两套都保留配置入口）：
 
-`demo.mjs` 直接 `import { createEngine } from "../../packages/core/core.mjs"`，注入三样东西后
-`refresh()` 一轮：
+- 结束：`T-72h`、`T-24h`、`T-6h`、`T-2h`
+- 开始：`T-24h`、`T-2h`
 
-- `transport.fetchRaw` → node 的 `fetch`（返回 WHATWG Response，core 自己看 `ok/status/text`）
-- `transport.fetchViaProxy` → 同样直连（node 没有 CORS；DSH 里这一步是宿主代发，见 `src/client/92-dsh-env.js`）
-- `storage` → 内存 `Map`（demo 不落盘，也不读插件的设置库）
+对每个条目、每个该方向的节点 `n`：`dueAt = T - n 小时`，`now >= dueAt` 且没发过 ⇒ 候选。
 
-实测：**约 8~14 秒 / 28 条记录**（core 里 5 个「出厂默认隐藏」条目在默认配置下不抓，所以实际
-是 23 个条目、44 个能还原出档期的「卡池侧 / 活动侧」）。
+**同一件事**（同一 `gameId|side|kind|T`）若多个节点同时到期（机器休眠 / 首次运行 / 节点配得很宽
+都会这样）⇒ **只发最紧急的**（`n` 最小的那一档），其余到期节点一并标记为已发 —— 不补发风暴、不刷屏。
 
-### 2) 判定：每个条目算「即将结束 / 即将开始」
-
-一条「条目」= 某款游戏的**卡池侧**或**活动侧**（`banner`/`bannerDates` 与 `event`/`eventDates`）。
+**T 已过**（条目已结束 / 已开始）⇒ 整条记录作废，不发，状态里的键一并清掉。
 
 ```
-结束：startTs <= now 且 endTs ∈ (now, now + 提前量]
-开始：startTs ∈ (now, now + 提前量]
+tick(now, items, config, state):
+  for 每个条目、每个该方向的节点 n:
+      dueAt = T - n 小时
+      if now >= dueAt && 该节点未发过:  候选
+  同一件事多个节点同时到期 ⇒ 只发 n 最小的，其余一并记为已发
+  T 已过 ⇒ 整条作废，不发
 ```
 
-两个方向天然互斥，输出里分别标 `[即将结束]` / `[即将开始]`。
+### 为什么"跟 tick 频率无关"
 
-这里有两个 **demo 自己要补** 的点（都是因为 core 没把对应能力放进公开接口）：
+`lib/tick.mjs` 是**纯函数**：不读时钟、不读文件、不发通知、不看进程环境。
+判定只取决于 `now` + 数据，所以同一时刻无论跑多少次、由谁跑（计划任务 / 扩展 alarms /
+打开 App 时补跑），结果都一样；差别只在"谁来送达"。
 
-- **档期文本 → 绝对时刻**：Result JSON 里只有文本（`bannerDates` 是**源站墙钟**），没有 `startTs/endTs`。
-  文本按源站时区 `tz` 换算成绝对时刻，才是"还剩多久"的真值。`tz` 也不在 Result JSON 里
-  （`CONTENT_FIELDS` 只有文本），demo 从 core 如实暴露的注册表 `engine.__test.SOURCES` 取同一份。
-  这一步的标准实现其实在 UI 层：`src/client/80-components.js` 的 `localDatesOf` / `localWinText`。
-- **判定函数**：`parseDisplayRange` / `dueKindOf` 都定义在 core 的闭包里、没导出，demo 照抄了同等实现
-  （`packages/core/core.mjs` 的 `parseDisplayRange` 与 `dueKindOf`），并**额外**接受带年份的
-  `YYYY-MM-DD HH:MM`（否则赛马娘日服 / 少前2 那种源站直出年份的条目会被当成「读不出档期」丢掉）。
+```js
+import { tick } from "./tools/remind/lib/tick.mjs";
 
-### 3) 去重：`%LOCALAPPDATA%\dsh-gacha-remind\demo-state.json`
+const { toNotify, stateNext, stats } = tick(now, items, config, state, { limit: 3 });
+// toNotify: 这一轮要发的（每条已合并成"只发最紧急"）
+// stateNext: 落盘用的下一份状态（含清理）
+// stats: 候选 / 合并 / 去重 / 清理 计数（只用于日志）
+```
+
+`items` 的每一条只需：
+
+```js
+{ gameId, side, kind: "end" | "start", title, T, startTs, endTs, key? }
+```
+
+`state` 就是 `state.json` 的内容，`config` 是 `{ endNodes, startNodes }`。
+宿主可以完全不 import `remind.mjs`（它带 CLI 与 Windows 送达），只接 tick + 自己的送达。
+
+### 状态里为什么要存"节点小时数"
+
+`fired: [72, 24]` 表示这一期已经打扰过 T-72h 和 T-24h 两档。下一轮补跑时才能判断
+"哪几档已经发过"；如果存时间戳，"节点改配置"后就无法解释历史。键里带 T ⇒ 新一期（时间戳变）
+天然是新键，会重新提醒。
+
+## 配置
+
+三层，后者覆盖前者：
+
+1. **内置默认**（`lib/tick.mjs` 的 `DEFAULT_CONFIG`）：结束 `[72,24,6,2]`，开始 `[24,2]`
+2. **配置文件**，按顺序找：
+   - `%LOCALAPPDATA%\dsh-gacha-calendar\remind-config.json`（用户可改；`install.ps1` 首次安装时复制一份）
+   - `tools/remind/remind-config.json`（仓库自带示例）
+   - 读不到 / 读坏了 ⇒ **回落到默认**（坏文件会在日志里 warning，不会让提醒停摆）
+3. **CLI 覆盖**：`--hours=N` / `--nodes=…` / `--start-nodes=…`
+
+配置文件形状（就这两个键）：
 
 ```json
 {
-  "version": 1,
-  "updatedAt": "2026-10-27T03:11:53.055Z",
-  "notified": {
-    "ba-jp|event|end|1793113200000": "2026-10-27T03:11:38.069Z"
-  }
+  "endNodes": [72, 24, 6, 2],
+  "startNodes": [24, 2]
 }
 ```
 
-- 键 = `gameId|side|kind|时间戳`（时间戳 = 该条目的 `endTs` 或 `startTs`）。
-  **比"gameId|kind|时间戳"多一段 `side`**：同一款游戏的卡池与活动**常常在同一刻结束**
-  （鸣潮 / 绝区零的卡池与当期活动就是同一秒），少这一段会让后一条被前一条静默压掉。
-- 每轮先**清理过期项**（键里的时间戳已经过去的记录不再需要，窗口不会回来）。
-- **只在真的送达成功时**才记状态：失败不记 ⇒ 下一轮会自动重试，不会静默漏掉。
-- 写盘用「同目录临时文件 + rename」替换，避免写一半留下坏文件。
+节点是**小时数**，必须 `> 0`；重复项会去重、内部按"宽松 → 紧急"排序（`72,24,6,2`）。
+每次运行都重新读配置 ⇒ 改完下一轮就生效，不用重启任何东西。日志头部会打印
+`配置来源：结束 ← … ｜ 开始 ← …`，一眼能看出当前生效的是哪一份。
 
-### 4) 送达：`toast.ps1`
+## 状态文件
 
-`demo.mjs` 用 `child_process.execFile` 调：
+`%LOCALAPPDATA%\dsh-gacha-calendar\state.json`：
 
-```
-powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File toast.ps1 `
-  -Title "即将结束 · 蔚蓝档案·日服" -Body "活动「…」\n10-20 23:00 → 10-27 23:00 结束\n还剩 11 小时 48 分" `
-  -AppName "二游日历"
+```json
+{
+  "ba-jp|event|end|1793113200000": { "fired": [72, 24] },
+  "ba-jp|gacha|end|1793152740000": { "fired": [72, 24] }
+}
 ```
 
-- `-NoProfile -NonInteractive` + `windowsHide: true`：不读用户配置、不弹交互式窗口、不闪黑窗。
-- **AppId 兜底**（`toast.ps1` 唯一需要"猜"的地方）：`CreateToastNotifier(<AppId>)` 只接受**已注册的 AUMID**。
-  先试 Windows PowerShell 自己的 `{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe`，
-  失败再回退 `CreateToastNotifier()` 空参；两个都失败 → stderr 打原因、非 0 退出（调用方记日志，不崩）。
-  副作用：横幅顶部的应用名是「Windows PowerShell」，`-AppName` 只进底部的 attribution 行与日志。
-- 失败路径实测：空标题 → `toast.ps1: 缺少 -Title（本脚本不弹交互式输入）` + 退出码 1。
-- XML 文本一律 `SecurityElement::Escape`（卡池名里 `&`、`<` 不罕见）。
+- 键 = `gameId|side|kind|T`（`T` = 该方向绝对毫秒时间戳）。**带 `side`** 是因为同一款游戏的
+  卡池与活动经常在同一刻结束，少这一段会让后一条被前一条静默压掉。
+- 值只有 `fired`（已发过的节点小时数）。没有版本壳子、没有元数据 —— 面板 / 其它宿主可以直接读。
+- **清理**：每轮 tick 会把"键里的 T 已过"的记录删掉；条目结束了，记录就没有保留价值。
+- **只在真的送达成功时**才记已发：失败不记 ⇒ 下一轮自动重试，不会静默漏掉。
+- 写盘用「同目录临时文件 + rename」原子替换，`%LOCALAPPDATA%` 下不会出现半截 JSON。
+- 文件损坏（非法 JSON / 顶层不是对象）⇒ 按空状态继续（最坏只是同一档再提醒一次），日志里会写明。
 
-**注意**：`Show()` 不抛异常 ≠ 用户一定看见。专注助手 / 勿扰模式 / 通知总开关关闭时系统照收不误、
-静默吞掉；脚本只能如实报告「已提交给通知中心」。
+## 日志
 
-## 验收时的实测输出
+`%LOCALAPPDATA%\dsh-gacha-calendar\remind.log`，每次运行追加一段：
 
-`node tools/remind/demo.mjs --dry-run`（当时 2026-10-27 11:10，Asia/Shanghai）：44 条候选，
-0 条命中 2 小时窗口（那个时刻确实没有条目在这 2 小时内到期），并给出窗口外最近的 5 条作参照。
+```
+===== 2026-10-27 12:44:12 UTC+08:00 ｜ node tools/remind/remind.mjs --limit=1 ｜ pid 12345 =====
+[2026-10-27 12:44:12] 二游日历 · 到期提醒（送达）
+[2026-10-27 12:44:12]   节点：结束 T-72h / T-24h / T-6h / T-2h ｜ 开始 T-24h / T-2h（共 6 档）
+...
+----- 退出码 0 · 用时 479 ms -----
+```
 
-`node tools/remind/demo.mjs --dry-run --hours=336`：**28 条命中**（最近的是蔚蓝档案·日服活动，
-11 小时 48 分后结束），证明 `--hours` 生效。
+- 同一轮的所有行共享同一个运行头，排查时按 `=====` 分段。
+- 只追加，不覆盖；**超过 1MB 轮转一次**：`remind.log` → `remind.log.1`（只保留一份历史）。
+- 计划任务跑的时候没有控制台，日志是唯一的事后证据；`--json` 也一样会写日志，只是 stdout 换成 JSON。
 
-`node tools/remind/demo.mjs --hours=336 --limit=1`：真弹出一条，内容为
-`即将结束 · 蔚蓝档案·日服 / 活动「特殊作战 寻找洛亚第三季」/ 10-20 23:00 → 10-27 23:00 结束 / 还剩 11 小时 48 分`；
-随后用 `ToastNotificationManager.History.GetHistory(<AppId>)` 读到同一条 toast 的 XML，确认真的进了通知中心。
+## 安装计划任务
 
-再跑一次：`↷ 已通知过，跳过 · [即将结束] 蔚蓝档案·日服 / 活动`（去重生效）。
+```powershell
+# 默认每 30 分钟
+powershell -ExecutionPolicy Bypass -File tools\remind\install.ps1
 
-## 已知问题
+# 改成每 15 分钟（重跑即覆盖，幂等）
+powershell -ExecutionPolicy Bypass -File tools\remind\install.ps1 -IntervalMinutes 15
 
-### 1) 快照接口 `/api/gacha-calendar-snapshot.json` 被挡（403）—— 本 demo 因此不走它
+powershell -ExecutionPolicy Bypass -File tools\remind\install.ps1 -Status
+powershell -ExecutionPolicy Bypass -File tools\remind\install.ps1 -Uninstall
+```
 
-这是本次要独立做 demo 的直接原因。产品形态里最省的一条路本来是：本机定时任务直接 GET 插件
-发布的内存快照。实测拿不到。
+`install.ps1` 做了什么：
 
-**实测方式与结果**（2026-10-27，本机 DSH 桌面端 GUI 在 `http://127.0.0.1:43120`）：
+- 任务名 `dsh-gacha-calendar-remind`，**当前用户**、`LogonType=Interactive`（只在该用户登录时运行）、
+  `RunLevel=Limited` —— 不需要管理员，也不弹 UAC。
+- 触发器：现在 +2 分钟第一次，之后每 `-IntervalMinutes` 分钟重复（默认 30，范围 5~1440）。
+- 设置：`StartWhenAvailable`（错过时尽快补跑）、`Hidden`、插电 / 电池都跑、
+  `MultipleInstances=IgnoreNew`、单次最长 30 分钟。
+- 动作：`wscript.exe //B //NoLogo remind-run.vbs`，工作目录 = `%LOCALAPPDATA%\dsh-gacha-calendar`。
+- 启动器 `remind-run.vbs`（UTF-16LE）用 `WScript.Shell.Run(cmd, 0, False)` 起 node：
+  第二个参数 `0` = `SW_HIDE`，这是**唯一能保证不闪黑窗**的方式；node 的输出只进 `remind.log`。
+  每次运行固定 `--limit=3`（防某轮大量条目同时到期时刷屏，想改就改启动器 / 重跑安装）。
+- 首次安装会把仓库里的 `remind-config.json` 复制到 `%LOCALAPPDATA%`（已存在则**不覆盖**）。
 
-| 请求 | 结果 |
-|---|---|
-| `GET /api/gacha-calendar-snapshot.json` | **403**，`text/plain`，body 就三个字 `forbidden` |
-| 同上 + `?token=x` | **403**，同上 |
-| 同上 + `Origin` / `Referer` 同源 | **403** |
-| 同上 + `Sec-Fetch-Site: same-origin` / `Sec-Fetch-Mode: cors` | **403** |
-| 同上 + `Authorization: Bearer x` / `x-dsh-token` / `x-api-key` | **403** |
-| `GET /`（根路径） | **403** —— 说明拦截在**宿主层**，不是插件的 `snapshotHandler` |
-| `GET /api/does-not-exist-xyz`（随便一个不存在的路径） | **403** —— 同上，宿主对所有路径都拦 |
-| 用真实 Chromium（Playwright）直接导航到该 URL | **403** |
+`-Status` 会打印任务状态、间隔、**下次运行时间**、上次运行 / 结果、启动器 / 脚本 / 日志路径，
+并做一次**路径漂移检查**（仓库被移动、node 升级换了路径时提示重跑安装）。
 
-判据：插件自己的 `snapshotHandler` 出错时回的是 JSON（如 `{"error":"loopback-only"}`）或 `204`，
-而这里拿到的是 `text/plain` 的 `forbidden`、`cache-control: no-store`、`x-content-type-options: nosniff`
-—— 请求根本没走到插件路由。连 `/` 也是 403，说明缺口在**宿主的 Web 服务鉴权**（多半要页面的会话凭证，
-本机裸 HTTP 客户端没有；`?token=` 这种形式宿主不认）。
+## 排错
 
-**所以 demo 改走 core 直连**：和插件 UI 同源、同样调 `createEngine().refresh()`，不依赖宿主的任何接口。
-代价是每次都要真发 28 个源的网络请求（见下「已知限制」）。
+**没弹通知？按顺序查：**
 
-**这件事本身仍待解决**（属于接口问题，不该由 demo 绕过就算完）：宿主需要给本机脚本一条可用的读取口
-（例如回环 + 一次性 token、或明确的本机 socket / 文件落点）。这条不解决，「计划任务读快照」的产品形态
-就立不住，只能像 demo 这样每次自己抓一轮。
+1. `--dry-run` 看有没有"本轮送达计划"。没有 ⇒ 要么数据里没有到期条目（`--refresh` 重抓），
+   要么这些档位已经发过（`--all --dry-run` 能强制列出，确认是不是去重）。
+2. 真弹一次：`node tools/remind/remind.mjs --limit=1`。看日志里有没有 `✓ 已送达`；
+   失败会带 toast.ps1 的 stderr 与退出码。
+3. **专注助手 / 勿扰模式 / 通知总开关**会把通知静默吞掉：`Show()` 不报错，但横幅不出现。
+   脚本只能如实报告"已提交给通知中心"，不能保证"你看见了"。
+4. 日志里出现 `✗ 当前平台不是 Windows` ⇒ 判定可以跑，送达没有实现（见「跨平台」）。
+5. `✗ 状态写入失败` ⇒ 检查 `%LOCALAPPDATA%\dsh-gacha-calendar` 的权限 / 磁盘。
 
-### 2) 专注助手 / 勿扰模式会吞掉通知
+**计划任务没跑？**
 
-`Show()` 只要系统通知服务在跑就返回成功，但专注助手（Focus Assist）、勿扰、通知总开关关闭时
-横幅不会出现 —— 脚本无法区分「用户看到了」和「被系统静默吞了」。产品化要在 UI/日志里写清
-「已提交」，不要把「弹了」当成「用户知道了」。
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\remind\install.ps1 -Status
+Get-ScheduledTaskInfo -TaskName dsh-gacha-calendar-remind | Format-List *
+```
 
-### 3) 休眠 / 关机期间会**错过**通知
+- `上次结果` 是 `0` 但日志没新增 ⇒ 看 `-Status` 里的"启动器 / 脚本"路径是否还存在（仓库移动了？）。
+- 登录前 / 锁屏时也能跑的前提是「用户已登录」；**关机或注销期间不会跑**，开机登录后
+  `StartWhenAvailable` 会补一次。
+- 企业策略可能禁用 Windows Script Host（启动器是 `.vbs`）⇒ 任务结果非 0、日志无新增。
+  这时的替代做法是把任务动作改成
+  `powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -File <你自己写的 .ps1>`
+  （可能闪一下窗口），或者把 `remind.mjs` 注册成开机自启项。
+- 改了 `-IntervalMinutes`/仓库位置/node 路径 ⇒ 重跑 `install.ps1`（幂等，会覆盖任务与启动器）。
 
-demo 是「跑一次判一次」，不补历史。笔记本合盖 4 小时再打开，这 4 小时里到期的条目没人提醒
-（去重键按时间戳算，过期项还会被清理）。产品化要用计划任务的
-「错过时尽快启动（StartWhenAvailable）」+ 唤醒后补跑，并明确「补发 / 不补发」的策略。
+**中文乱码？** 日志是 UTF-8 无 BOM；`install.ps1` 是 UTF-8 **带** BOM（含中文，Windows PowerShell
+5.1 需要 BOM 才不乱码）；`toast.ps1` 不要动。`remind.mjs` / `lib/*.mjs` 是 UTF-8 无 BOM。
 
-### 4) 其它已知限制（demo 这一层）
+**参数报错（退出码 2）？** `--hours` 与 `--nodes`/`--start-nodes` 互斥；节点必须是 `> 0` 的小时数；
+`--limit` 必须是整数。错误信息会直接说明收到的是什么。
 
-- **每次真发网络请求**：28 个源，实测 8~14 秒。慢、会耗流量；源站抖动时该轮提醒就少几条。
-- **只取每侧一条外显档期**：同一格里的「并行多池 / 多条活动」在 `bannerHover` / `eventHover`
-  的多行文本里（面板的日程视图会展开），demo **不展开**。所以「下一个池子什么时候开」这类
-  `即将开始` 提醒，实际只在源站已经把下一期写进外显档期时才会命中。
-- **年份补全都是"按当前年"**：`MM-DD HH:MM` 形态的文本没有年份，12 月看 `01-03` 这种跨年文本
-  可能补错一年（core 的面板口径同样如此）。带年份的文本以源站为准。
-- **未处理的档期原文**：`长期`、`X版本更新后 ~ …` 这类无法还原成绝对窗口的，demo 如实报
-  「档期读不出」并跳过，不硬猜一个时刻。
-- **自定义条目没有 tz**：`tz` 缺失时按本机时区解释，和 core 面板的兜底一致。
-- **不读插件配置**：demo 用自己的默认配置抓（所以那 5 个出厂隐藏条目不会抓）；和插件面板显示的
-  数据时刻也可能不同（一轮 8~14 秒）。
+## 已知限制
 
-## 产品形态的下一步
+1. **专注助手 / 勿扰会吞通知**：`Show()` 成功 ≠ 用户看见。日志写「已送达（已提交通知中心）」，
+   别把它当「用户已读」。
+2. **休眠 / 关机期间会错过**：用的是「错过时尽快补跑一次」。补跑策略是**只发最紧急的一档**
+   （例如合盖 3 天后打开，只发 T-24h 那条，不会把 72/24/6 三条一起补出来）—— 这是刻意的。
+3. **数据源仍在每轮真抓（TTL 过期时）**：缓存 6 小时，过期那一轮要让 core 直连抓 28 个源
+   （demo 实测 8~14 秒）。源站抖动时该轮提醒可能少几条。
+4. **快照接口仍被宿主挡 403**：产品形态本来最省的路是读插件的内存快照，实测拿不到
+   （宿主对所有路径回 `text/plain: forbidden`，连 `/` 都是）。所以数据依旧走 core 直连。
+   这条不解决，「零网络开销的定时提醒」就立不住。分析见 git 历史里的旧 README（`e8d848d`）。
+5. **只取每侧一条外显档期**：同一格里的「并行多池 / 多条活动」在 `bannerHover` / `eventHover`
+   的多行文本里，本工具**不展开**。所以开始提醒只在源站把下一期写进外显档期时才会命中。
+6. **开始提醒≈很少命中**：真实数据里每侧通常只给"当前这一期"的起止，开始时刻多半已经过去，
+   派生阶段就会跳过（日志里显示"已过 T 的跳过 N 个方向"）。这是数据形态，不是漏判。
+7. **年份补全按当前年**：`MM-DD HH:MM` 形态不带年份，12 月看 `01-03` 这类跨年文本可能补错一年
+   （core 面板同口径）。带年份的文本以源站为准。
+8. **读不出档期的文本不硬猜**：`长期`、`X版本更新后 ~ …` 这类会如实计数并跳过。
+9. **无 tz 的条目按本机时区解释**（与 core 面板兜底一致）。
+10. **横幅顶部的应用名是「Windows PowerShell」**：`toast.ps1` 用 PowerShell 自己的 AUMID
+    （不写注册表、零安装的代价）。`-AppName 二游日历` 只进底部的 attribution 行。长期产品应注册
+    自己的 AUMID（开始菜单快捷方式 + AppUserModelID）。
+11. **没有并发锁**：两次运行理论上有机会互相覆盖状态（计划任务是串行的、命中缓存时单轮 < 1 秒，
+    实际很难撞上）。要接多宿主（扩展 + 计划任务同时跑）时，得加锁或让宿主只保留一个 tick 源。
+12. **计划任务只在 Windows**：`notify.mjs` 与 `install.ps1` 是 Windows 实现；`tick` / `derive` /
+    `state` / `format` 平台无关（非 Windows 上 `--dry-run` 可跑，真弹会以退出码 1 明确失败）。
+13. **`--limit` 截断的条目下一轮才发**：被截断的条目不记已发，不会丢；但也意味着"一轮最多 N 条"。
+14. **日志只保留一份历史**：`remind.log` + `remind.log.1`，更早的丢弃（1MB 量级 ≈ 上百轮）。
 
-1. **定时**：装成计划任务，**每 30 分钟**跑一次（`--hours=0.5 --limit=3` 的口径），
-   「只在该用户登录时运行」、「错过时尽快启动」。数据源换成快照接口 —— **前提是上面那个 403 先解决**。
-2. **送达**：复用 `toast.ps1`（无窗口：`-NoProfile -NonInteractive` + `windowsHide`，不要在脚本里
-   起任何交互式窗口；计划任务也要勾「隐藏」）。
-3. **参考实现要点**（照抄就能少踩）：
-   - **无窗口运行**：`powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File …`，
-     Node 侧 `windowsHide: true`；计划任务用「不管用户是否登录都运行」时**没有桌面会话**，
-     WinRT toast 会失败 —— 必须选「只在该用户登录时运行」。
-   - **当前用户会话**：toast 是"给某个用户的通知"，它依赖当前登录会话 + 该用户的 AppId 注册；
-     SYSTEM 账户 / Session 0 下弹不出来（本 demo 的 `AppName` 兜底也绕不过这一点）。
-   - **专注助手会吞通知**：见「已知问题 2」。别把「已提交」当「用户已读」。
-   - **AppId**：长期产品应该注册自己的 AUMID（开始菜单快捷方式 + `AppUserModelID`），
-     否则横幅永远显示「Windows PowerShell」。
-4. **还差的基础设施**（本 demo 刻意没做，产品化必须有）：
-   - **配置项**：提前量 / 逐游戏白名单（插件里已有 `remindGames` 键）、上限、静音时段、
-     「补发 / 不补发」策略；来源要能覆盖 `--hours` 之类默认值。
-   - **日志**：每次运行的命中 / 跳过 / 送达结果落文件 + **日志轮转**（按天或按大小），
-     失败要能被诊断（现在的 stderr 只在交互式跑时看得到）。
-   - **计划任务安装脚本**：`schtasks` / `Register-ScheduledTask` 一键装、卸载、查看下次运行时间；
-     装在 `%LOCALAPPDATA%` 下、不需要管理员权限。
-   - **状态文件并发**：现在是「读 → 改 → 写回 + rename」，两次运行撞车仍可能互相覆盖；
-     产品化要么加锁，要么让计划任务串行（同一任务默认就是串行的）。
-   - **快照接口的鉴权方案**：见「已知问题 1」。
+## 面板接入预留
 
-## 为什么不直接改插件
+现在**没有任何面板入口**（`src/` 一行没改），但下面这些是给面板留好的接口：
 
-用户明确要求：这是 demo，**不要接进插件本体**（`src/` 一行都不改），不升版本号、不打 tag、不发布。
-所以 `core` 里那两个纯函数（`parseDisplayRange` / `dueKindOf`）没有为了 demo 去动导出 ——
-demo 自己照抄了一份，差别（多接受带年份的档期）在第二节写清楚了。
+- **配置项叫什么**：`endNodes` / `startNodes`（小时数组）。
+- **在哪读**：`lib/config.mjs` 的 `resolveNodeConfig({ userFile, bundledFile, overrides })`；
+  每次运行都读，路径固定为 `%LOCALAPPDATA%\dsh-gacha-calendar\remind-config.json`。
+- **面板怎么写**：把上面那个 JSON 写进同一路径即可（写 `tmp` + rename 更稳），下一轮运行自动生效；
+  不需要重启插件、不需要通知本工具。写坏了也不会停摆（回落到默认并 warning）。
+- **面板怎么展示"已提醒到哪一档"**：直接读 `state.json`（平表，键 `gameId|side|kind|T`，
+  值 `fired`）。`T` 与 `tick` 的入参同源，面板可以据此显示"已发 T-24h，下次 T-2h"。
+- **面板想预览/手动触发**：`node tools/remind/remind.mjs --dry-run --json`（机器可读、不弹不写状态），
+  或 `--limit=N` 手动弹；`--json` 的 `tick.toNotify` 就是"下一次会发什么"。
+- **面板想自己定时**（不装计划任务）：import `lib/tick.mjs`（零依赖、纯函数），自己拿 `now` 调；
+  扩展 alarms 每 30 分钟一次即可，与计划任务并存时建议只留一个 tick 源（见已知限制 11）。
+- **未来要加的维度**（逐游戏白名单 / 静音时段 / 补发策略）：加**独立配置键**，在 `derive` 之后、
+  `tick` 之前过滤 `items`，或作为 `tick` 的 options —— 不要塞进 `endNodes` / `startNodes`，
+  这两个数组只表示"小时数节点"。
+- **安装状态**：`install.ps1 -Status` 已能给出下次运行时间与路径漂移检查，面板可以解析它的输出，
+  或直接 `Get-ScheduledTask -TaskName dsh-gacha-calendar-remind`。
+
+## 验收命令清单
+
+```powershell
+node tools/remind/remind.mjs --dry-run                        # 候选 / 命中 / 状态里已发
+node tools/remind/remind.mjs --nodes=336,24 --dry-run         # 多节点同时到期 ⇒ 只发最紧急
+node tools/remind/remind.mjs --limit=1                        # 真弹一条
+node tools/remind/remind.mjs --dry-run                        # 第二次：已发档位被跳过
+node tools/remind/remind.mjs --all --dry-run                  # 忽略去重，强制列出
+powershell -ExecutionPolicy Bypass -File tools\remind\install.ps1 -Status
+Get-Content "$env:LOCALAPPDATA\dsh-gacha-calendar\state.json"
+```
+
+## 与历史 demo 的关系
+
+- `demo.mjs`（现场抓 / 判定 / 去重 / 送达）与 `demo-simple.mjs`（缓存优先）**保留不动**，
+  用来对照"从 demo 到产品版"的演进；它们的旧 README 内容（快照 403 的完整实测表等）见
+  git 历史（提交 `e8d848d`）。
+- demo 的状态文件在 `%LOCALAPPDATA%\dsh-gacha-remind\`，与产品版 `%LOCALAPPDATA%\dsh-gacha-calendar\`
+  **互不覆盖**，可以同时跑。
+- 新代码只从 `lib/` 拿公共逻辑：`derive.mjs` 的时区 / 墙钟换算是 demo-simple 里验证过的那段
+  （原样复用，行号注释在文件头），不要再复制第三份。
