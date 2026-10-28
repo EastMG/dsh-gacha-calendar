@@ -965,7 +965,8 @@ async function notifyToastTargetOf(name) {
 		enabled,
 		aumid: enabled ? NOTIFY_AUMID : POWERSHELL_AUMID,
 		identity: enabled ? "app" : "powershell",
-		name: appName
+		// 未启用时署名固定默认名：自定义名字只在身份启用后生效（否则改个名字就会影响还没启用的通知）
+		name: enabled ? appName : notifyNameOf("")
 	};
 }
 
