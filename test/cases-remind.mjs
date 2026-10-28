@@ -506,7 +506,7 @@ export default async function run() {
 			&& compSrc.includes('remindNodesDraft[which] === null ? String(savedText || "") : remindNodesDraft[which]'));
 		check("宿主追上后草稿会让位（比较解析后的档位，空串写法差异不留住草稿）",
 			compSrc.includes("const remindNodesKeyOf = (text, fallbackNodes) => remindNodesOf(text, fallbackNodes).join(\",\");"));
-		check("两行不挤：标签与胶囊 8px、胶囊之间 6px、字号 12px（都在 remindChipRow 里）",
+		check("一行胶囊不挤：标签与胶囊 8px、胶囊之间 6px、字号 12px（都在 remindChipRow 里）",
 			(() => {
 				const i = compSrc.indexOf("const remindChipRow = (");
 				const chipSrc = i < 0 ? "" : compSrc.slice(i, i + 1600);

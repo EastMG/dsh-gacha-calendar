@@ -1957,7 +1957,9 @@
 			// 「提醒」复选框的本地草稿与串行链（与「展示」同一套理由：写入往返期间受控值会读旧 `s`）。
 			const [remindDraft, setRemindDraft] = (0, react.useState)({});
 			const remindWriteChain = (0, react.useRef)(Promise.resolve());
-			// 「到期提醒」两行**胶囊**的本地草稿（{ end, start }，null = 跟随已保存的设置值）。
+			// 「到期提醒」档位**胶囊**的本地草稿（{ end, start }，null = 跟随已保存的设置值）。
+			// 实际只渲染「结束」一行（`remindChipRow("start", ...)` 于 2026-10-28 起注释掉），
+			// 但草稿结构与「全部取消」仍维护 start 那份 —— 恢复显示时不必再补状态。
 			// 受控值读草稿而不读 `s`：宿主一次写入往返 1.4~3.6s，`s` 不会即时推新 ——
 			// 直接读 `s` 会把用户刚点的那一下吞掉（与上面「展示」草稿同一个病）。
 			const [remindNodesDraft, setRemindNodesDraft] = (0, react.useState)({ end: null, start: null });
@@ -2498,7 +2500,8 @@
 			const inputStyle = { padding: "2px 6px", border: "1px solid var(--dsw-alias-border-l2)", background: "var(--dsw-alias-bg-base)", color: "var(--dsw-alias-label-primary)", borderRadius: 6, fontSize: 12, maxWidth: "100%", textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" };
 			const labelStyle = { display: "flex", alignItems: "center", gap: 6, fontSize: 12, flex: "none" };
 
-			// 「提醒」档位胶囊（结束 / 开始各一行）：受控值 = 草稿优先、否则已保存值；
+			// 「提醒」档位胶囊（实际只显示「结束」一行：「开始」那一行 2026-10-28 起已注释掉，
+			// 但 which="start" 那条分支与草稿仍在，恢复时取消注释即可）：受控值 = 草稿优先、否则已保存值；
 			// 选中态 = **判定侧真会用的档位**（remindNodesOf：显式空串 ⇒ 一颗都不选中）。
 			// 可选集合 = 该方向的**出厂档位**（REMIND_DEFAULT_*_NODES，直接拿常量当 choices，
 			// 不另抄一份）—— 不做自定义输入。
