@@ -83,12 +83,14 @@
 			customEventUrls: "{}",
 			// 自定义条目（JSON 数组，字段与 SOURCES 一致）
 			customEntries: "[]",
-			// 【实验特性】新「二游日历」面板视图，**默认关闭**。
+			// 【实验特性】新「二游日历」面板视图，**默认开启**（2026-10-28 用户定：默认值改成开）。
 			//   false / 未设置 → 面板完全走原来的六列表格渲染（与历史行为一字不差）；
 			//   true           → 换成按紧迫度排序的日程列表（四格摘要 + 筛选 + 分区）。
 			// 开关在设置页「自动刷新」那块下面；想回退关掉即可，原渲染路径一行未动。
+			// 老用户（存过 false 的）由宿主的**一次性迁移**改成开：见 src/index.js 的
+			// migrateNewPanelOnce —— 迁移后用 `newPanelMigrated` 记住，之后用户自己关掉不会再被覆写。
 			// ⚠️ 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 里，否则设置页勾了
 			//    面板读不到（历史上 `shown` 漏过它，见 test/cases-rule-lint.mjs 的守卫）。
-			newPanel: false
+			newPanel: true
 		};
 		//#endregion

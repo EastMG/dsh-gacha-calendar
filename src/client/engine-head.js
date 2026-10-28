@@ -32,8 +32,10 @@
 			//    防回归见 test/cases-rule-lint.mjs 的「DEFAULT_SETTINGS 的键必须都在 CONFIG_KEYS 里」。
 			const CONFIG_KEYS = [
 				"order", "hidden", "shown", "removed", "customEntries", "customUrls", "customEventUrls", "gameColors",
-				// newPanel：实验特性「新日程面板」开关（默认 false）。**别漏**——漏了就是 2026-10-03 那个
+				// newPanel：实验特性「新日程面板」开关（默认 true）。**别漏**——漏了就是 2026-10-03 那个
 				// 「勾了不生效」的复刻：设置页写进表单、面板却读不到。守卫见 test/cases-rule-lint.mjs。
+				// newPanelMigrated：宿主一次性迁移标记（默认 false），引擎不消费它，但按约定列在这里
+				// （配置键成套）。
 				// tickerOn / tickerHours：按钮轮播的开关与范围。
 				// remindGames：「到期提醒（送达）」的逐游戏白名单（轮播不读它；设置页那一列当前暂时隐藏，键保留）。
 				// remindOn / remindEndNodes / remindStartNodes：「到期提醒（送达）」的总开关与两套节点（字符串）。
@@ -43,7 +45,7 @@
 				// notifyName：通知身份名（应用名，默认「二游日历」）。设置页那一行窄输入框写它，
 				// 宿主拿它给开始菜单快捷方式起名 / 写 DisplayName。**别漏** —— 与上面每个键同理。
 				"notifyName",
-				"newPanel", "lastData", "lastRefresh", "lastSource", "lastVersion"
+				"newPanel", "newPanelMigrated", "lastData", "lastRefresh", "lastSource", "lastVersion"
 			];
 
 			// 读取配置（缺失项回落到 10-config.js 的 DEFAULT_SETTINGS）

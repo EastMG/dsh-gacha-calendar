@@ -666,8 +666,8 @@ export default async function run() {
 		check("「全部提醒」写的是**展示中的 id 列表**（空数组 = 一个都不提醒，语义没变）",
 			/allEntries\.filter\(\(g\) => shownNow\(g\)\)\.map\(\(g\) => g\.id\)/.test(comp));
 		check("表头上方概括：隐藏分支**不提「提醒」**，恢复分支仍提（false 时用户看不到「到点通知」）",
-			comp.includes('? "「展示」控制显示；「提醒」到点通知；「↑↓」调整顺序；「颜色」取色器换主题色。"')
-			&& comp.includes(': "「展示」控制显示；「↑↓」调整顺序；「颜色」取色器换主题色。"'));
+			comp.includes('? "「展示」控制显示；「提醒」到点通知；「↑↓」调整顺序；「颜色」取色器换主题色"')
+			&& comp.includes(': "「展示」控制显示；「↑↓」调整顺序；「颜色」取色器换主题色"'));
 		check("网格列宽走单一常量 SETTINGS_GAME_GRID（表头与数据行同源），隐藏分支**少一格 28px**",
 			(comp.match(/gridTemplateColumns: SETTINGS_GAME_GRID/g) || []).length === 2
 			&& comp.includes('"minmax(0,1.15fr) 28px 28px minmax(0,1fr) minmax(0,1fr) 34px 88px"')
