@@ -611,7 +611,10 @@
 			if (!Number.isFinite(startTs) || !Number.isFinite(endTs) || !Number.isFinite(nowTs)) return "";
 			if (!(endTs > startTs)) return "";
 			const horizon = hours * 3600000;
-			if (startTs > nowTs) return startTs - nowTs <= horizon ? "start" : "";
+			// 2026-10-28：开始方向暂时停用 —— 解析器只产出"覆盖当前时刻"的窗口，startTs 永远 <= now，
+			// 所以"即将开始"在真实数据里永远不命中。要恢复：把下一行改回
+			// `if (startTs > nowTs) return startTs - nowTs <= horizon ? "start" : "";`
+			if (startTs > nowTs) return "";
 			if (!(endTs > nowTs)) return "";
 			return endTs - nowTs <= horizon ? "end" : "";
 		}

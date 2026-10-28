@@ -8,8 +8,10 @@
 // 本文件守九件事：
 //   ① 判定口径（纯函数 `isExpiringSoon`，60-helpers.js）：
 //      某侧"即将到期" = 该侧**已开始**（startTs <= now）且 **endTs 落在 (now, now + N 小时]**。
-//   ② 双向判定（纯函数 `dueKindOf`，2026-10-25 晚）：即将**开始**也算命中。
-//      ""（不算）/ "end"（即将结束）/ "start"（即将开始）三态，两个方向天然互斥。
+//   ② 方向判定（纯函数 `dueKindOf`）：⚠️ 2026-10-28 起**开始方向暂时停用** —— 解析器只产出
+//      "覆盖当前时刻"的窗口（startTs 永远 <= now），所以"即将开始"在真实数据里永远不命中。
+//      现在只会返回 "" / "end"。"start" 的判定代码仍留在 60-helpers.js（注释写了怎么恢复），
+//      这里只守"还没开始 ⇒ \"\"" 这一条（label 里带「暂时停用」，恢复时按名字找得到）。
 //   ③ 「提醒」逐游戏白名单的语义（纯函数 `remindGameAllowed`）——⚠️ 这是**给未来的「到期提醒
 //      （送达）」预留的**，**轮播不读它**：**普通列表**，列表里有谁就提醒谁，**空数组 = 一个都不提醒**。
 //      ⚠️ 2026-10-26 起设置页那一列**暂时隐藏**（`SHOW_REMIND_COLUMN = false`，送达未实现）；
@@ -108,29 +110,29 @@ export default async function run() {
 			isExpiringSoon(NOW, NOW + 2 * H, NOW, 24) === true);
 	}
 
-	// ── ② 双向判定（dueKindOf，2026-10-25 晚）：即将开始也算 ────────────────
+	// ── ② 方向判定（dueKindOf）：**只剩结束方向** —— 开始方向 2026-10-28 起暂时停用 ──────────
+	// 新事实（见 60-helpers.js 里 dueKindOf 的注释）：解析器只产出"覆盖当前时刻"的窗口 ⇒ startTs
+	// 永远 <= now ⇒ "即将开始"永远不会命中。dueKindOf 现在只返回 "" / "end"。
+	// 原来"未来窗口 ⇒ start"的三条断言（还没开始 / 阈值右端 / startTs == now + N）已按新事实删除；
+	// 恢复开始方向时把它们加回来，并把下面的「暂时停用」守卫反过来写成"未来窗口 ⇒ start"。
 	{
 		// 结束方向
-		check("双向·结束：已开始 + 3 小时后结束 + N=24 → \"end\"",
+		check("结束方向：已开始 + 3 小时后结束 + N=24 → \"end\"",
 			dueKindOf(NOW - 1 * H, NOW + 3 * H, NOW, 24) === "end");
-		check("双向·结束：threshold 边界 endTs == now + N → \"end\"；再晚 1ms → \"\"",
+		check("结束方向：threshold 边界 endTs == now + N → \"end\"；再晚 1ms → \"\"",
 			dueKindOf(NOW - 1 * H, NOW + 24 * H, NOW, 24) === "end"
 			&& dueKindOf(NOW - 1 * H, NOW + 24 * H + 1, NOW, 24) === "");
-		// 开始方向
-		check("双向·开始：还没开始 + 5 小时后开始 + N=24 → \"start\"",
-			dueKindOf(NOW + 5 * H, NOW + 9 * H, NOW, 24) === "start");
-		check("双向·开始：25 小时后开始 N=24 → \"\"；同一窗口 N=48 → \"start\"（阈值在起作用）",
-			dueKindOf(NOW + 25 * H, NOW + 30 * H, NOW, 24) === ""
-			&& dueKindOf(NOW + 25 * H, NOW + 30 * H, NOW, 48) === "start");
-		check("双向·开始：startTs == now + N → \"start\"（右端闭）",
-			dueKindOf(NOW + 24 * H, NOW + 30 * H, NOW, 24) === "start");
-		// 两个方向**互斥**：同一时刻只可能是其中一个（startTs 落在 now 的哪一侧决定的）
-		check("双向·互斥：已开始的窗口不会同时被判成 start，未开始的也不会被判成 end",
-			dueKindOf(NOW - H, NOW + 2 * H, NOW, 24) === "end"
-			&& dueKindOf(NOW + 1, NOW + 2 * H, NOW, 24) === "start"
-			&& dueKindOf(NOW, NOW + 2 * H, NOW, 24) === "end");   // startTs == now 属于"已开始"
+		// startTs == now 属于"已开始"（left 端闭）—— 这条只守边界，与另一个方向无关。
+		check("结束方向：startTs == now（刚起步那一刻）仍算「已开始」⇒ \"end\"（左端闭）",
+			dueKindOf(NOW, NOW + 2 * H, NOW, 24) === "end");
+		// ⚠️ 开始方向**暂时停用**（数据源不提供未来档期）：还没开始就一律不算 —— 哪怕 1ms 后就开始。
+		// 这条是"停用"的守卫：旧实现下 NOW+1 那个窗口会命中 "start"，现在必须是 ""。
+		check("开始方向**暂时停用**（数据源不提供未来档期）：还没开始 + 3 小时后开始 N=24 → \"\"；startTs = now + 1ms（很接近开始）→ 也 \"\"；N=48 也一样",
+			dueKindOf(NOW + 3 * H, NOW + 7 * H, NOW, 24) === ""
+			&& dueKindOf(NOW + 1, NOW + 2 * H, NOW, 24) === ""
+			&& dueKindOf(NOW + 24 * H, NOW + 30 * H, NOW, 48) === "");
 		// 不算的情况
-		check("双向·不算：已结束 / 还太远（开始和结束都在窗外）/ 关闭 / 脏数据 / 结束早于开始",
+		check("不算：已结束 / 还太远（开始和结束都在窗外）/ 关闭 / 脏数据 / 结束早于开始",
 			dueKindOf(NOW - 5 * H, NOW - 1 * H, NOW, 24) === ""
 			&& dueKindOf(NOW + 30 * H, NOW + 40 * H, NOW, 24) === ""
 			&& dueKindOf(NOW - 1 * H, NOW + 3 * H, NOW, 0) === ""
@@ -216,28 +218,35 @@ export default async function run() {
 	// ⚠️ 2026-10-25 定稿：签名**只有三个参数**（items, now, hours）—— 逐游戏列表那个参数已删除。
 	// 用户明确纠正过：轮播 = 全局开关 + 范围，**不分游戏**；逐游戏列表属于「到期提醒（送达）」。
 	{
+		// ⚠️ 2026-10-28：候选全部改成**已开始**的窗口（开始方向暂时停用，未来窗口不再进清单）。
+		// 排序 / 同刻稳定 / 白名单无关这三类断言与方向无关，所以用 end 方向的窗口照样钉得住。
 		const cand = [
 			{ key: "a:gacha", gameId: "a", side: "gacha", name: "甲", title: "池甲", startTs: NOW - 1 * H, endTs: NOW + 3 * H },   // end，3h 后
-			{ key: "b:gacha", gameId: "b", side: "gacha", name: "乙", title: "池乙", startTs: NOW + 5 * H, endTs: NOW + 9 * H },   // start，5h 后
-			{ key: "c:event", gameId: "c", side: "event", name: "丙", title: "活动丙", startTs: NOW + 1 * H, endTs: NOW + 2 * H }, // start，1h 后
+			{ key: "b:gacha", gameId: "b", side: "gacha", name: "乙", title: "池乙", startTs: NOW - 1 * H, endTs: NOW + 5 * H },   // end，5h 后
+			{ key: "c:event", gameId: "c", side: "event", name: "丙", title: "活动丙", startTs: NOW - 2 * H, endTs: NOW + 1 * H }, // end，1h 后
 			{ key: "d:event", gameId: "d", side: "event", name: "丁", title: "活动丁", startTs: NOW - 2 * H, endTs: NOW + 30 * H }  // end 30h > 24 → 不算
 		];
 		// 用户在设置里可能这么勾「提醒」（只勾了 a）—— 轮播**看不见**这份列表。
 		const REMIND_ONLY_A = ["a"];
 		const pick = tickerPickOf(cand, NOW, 24);
-		check("选取：只留下 24 小时内的 3 条（两个方向混在一起，按紧迫度排）",
+		check("选取：只留下 24 小时内的 3 条（按紧迫度排）",
 			pick.map((x) => x.key).join(",") === "c:event,a:gacha,b:gacha", pick.map((x) => x.key).join(","));
-		check("选取：每条都带上方向 kind（c=start / a=end）与 dueMs",
-			pick[0].kind === "start" && pick[1].kind === "end"
-			&& pick[0].dueMs === 1 * H && pick[1].dueMs === 3 * H,
+		check("选取：每条都带上方向 kind（只剩 end 方向）与 dueMs",
+			pick.every((x) => x.kind === "end")
+			&& pick[0].dueMs === 1 * H && pick[1].dueMs === 3 * H && pick[2].dueMs === 5 * H,
 			JSON.stringify(pick.map((x) => [x.key, x.kind, x.dueMs])));
+		// ⚠️ 开始方向**暂时停用**（数据源不提供未来档期）：还没开始的候选一条都不进清单。
+		check("选取：**还没开始**的候选不进清单（开始方向暂时停用：数据源不提供未来档期）",
+			tickerPickOf([
+				{ key: "f:gacha", gameId: "f", side: "gacha", name: "己", title: "池己", startTs: NOW + 1 * H, endTs: NOW + 3 * H }
+			], NOW, 24).length === 0);
 		check("选取：叫两遍结果完全一致（顺序稳定、无随机成分）",
 			tickerPickOf(cand, NOW, 24).map((x) => x.key).join(",")
 			=== tickerPickOf(cand, NOW, 24).map((x) => x.key).join(","));
 		// 同一毫秒的多条：保持**输入顺序**（不是按名字/按 id 再排一次）
 		{
 			const tie = [
-				{ key: "x", gameId: "x", side: "gacha", name: "X", startTs: NOW + 2 * H, endTs: NOW + 3 * H },
+				{ key: "x", gameId: "x", side: "gacha", name: "X", startTs: NOW - 2 * H, endTs: NOW + 2 * H },
 				{ key: "y", gameId: "y", side: "gacha", name: "Y", startTs: NOW - 1 * H, endTs: NOW + 2 * H }
 			];
 			check("选取：同一紧迫度时保持输入顺序（x 在 y 前）",
@@ -368,7 +377,8 @@ export default async function run() {
 			},
 			{
 				id: "g2", name: "游戏乙", tz,
-				// 即将开始：源站 10-25 15:00（= 06:00Z = now + 2h）→ 双向判定里属于 "start"
+				// 还没开始：源站 10-25 15:00（= 06:00Z = now + 2h）→ 开始方向**暂时停用**后不进清单
+				//（原来是"双向"判定里那条 kind=start 的条目，现在只作为"未开始不进清单"的反例）
 				banner: "池乙", bannerDates: "10-25 15:00 ~ 10-25 20:00",
 				// 25 小时后结束：源站 10-26 14:00（= 10-26T05:00Z = now + 25h）→ N=24 不算、N=48 算
 				event: "活动乙", eventDates: "10-25 10:00 ~ 10-26 14:00"
@@ -416,21 +426,21 @@ export default async function run() {
 				&& dueWindowOf(null, true, now) === null);
 		}
 
-		// 清单（N=24，双向）：g1 卡池 + g1 活动（都在 1h 后结束）
-		//                  + g2 卡池（2h 后**开始**，双向后新进来的）
-		//                  + g4 卡池（2h 后结束）
+		// 清单（N=24，**只剩结束方向**）：g1 卡池 + g1 活动（都在 1h 后结束）+ g4 卡池（2h 后结束）
+		//   ⚠️ 2026-10-28：g2 卡池（2h 后**才开始**）不再进清单 —— 开始方向暂时停用（数据源不提供
+		//      未来档期），原来"双向"时它是以 kind=start 进来的那条。
 		//   g2 活动 25h 后才结束 → N=24 不算；g3/custom 读不出绝对档期 → 不参与
 		// ⚠️ 清单层**没有**逐游戏参数（2026-10-25 定稿）：内容 = 传进来的所有 games 的条目，
 		//    只按 N 小时范围筛。调用方（渲染层）保证 games 全是"展示中"的条目。
 		{
 			const due = tickerItemsOf(games, now, 24);
-			check("N=24 的轮播清单 = 4 条（双向：g1 两侧 + g2 卡池开始 + g4 卡池）",
-				due.length === 4, JSON.stringify(due.map((x) => x.key)));
-			check("清单按紧迫度升序（1h 的两条 → 2h 的两条；同刻保持输入顺序）",
-				due.map((x) => x.key).join(",") === "g1:gacha,g1:event,g2:gacha,g4:gacha",
+			check("N=24 的轮播清单 = 3 条（只剩 end 方向：g1 两侧 + g4 卡池）",
+				due.length === 3, JSON.stringify(due.map((x) => x.key)));
+			check("清单按紧迫度升序（1h 的两条 → 2h 的那条；同刻保持输入顺序）",
+				due.map((x) => x.key).join(",") === "g1:gacha,g1:event,g4:gacha",
 				due.map((x) => x.key).join(","));
-			check("清单带方向：g1 两侧是 end、g2 卡池是 start",
-				due[0].kind === "end" && due[1].kind === "end" && due[2].kind === "start",
+			check("清单带方向：全部是 end（g2 卡池没开始 ⇒ 不进清单）",
+				due.every((x) => x.kind === "end"),
 				JSON.stringify(due.map((x) => [x.key, x.kind])));
 			check("清单带游戏名与到期标题（按钮悬停用）",
 				due[0].name === "游戏甲" && due[0].title === "角色甲", JSON.stringify([due[0].name, due[0].title]));
@@ -440,13 +450,16 @@ export default async function run() {
 				JSON.stringify(due.map((x) => [x.key, x.gameIcon])));
 			check("清单带的图标能一路进到轮播那一格（tickerSlidesOf 的 gameIcon）",
 				tickerSlidesOf(due, now.getTime()).some((s) => s.gameId === "g4" && s.gameIcon === "https://cdn.example/g4.png"));
-			check("即将开始的侧（g2 卡池）以 kind=start 进清单（双向判定的直接证据）",
-				due.some((x) => x.key === "g2:gacha" && x.kind === "start"));
+			// ⚠️ 开始方向**暂时停用**（数据源不提供未来档期）：还没开始的侧一条都不进清单。
+			check("**还没开始**的侧（g2 卡池，2 小时后才开始）不进清单（开始方向暂时停用：数据源不提供未来档期）",
+				!due.some((x) => x.key === "g2:gacha"),
+				JSON.stringify(due.map((x) => x.key)));
 			check("25 小时后结束的侧（g2 活动）N=24 不在、N=48 才在",
 				!tickerItemsOf(games, now, 24).some((x) => x.key === "g2:event")
 				&& tickerItemsOf(games, now, 48).some((x) => x.key === "g2:event"));
-			check("N=48 → 5 条（g2 活动在 25h 后的 end 也进来了）",
-				tickerItemsOf(games, now, 48).length === 5);
+			check("N=48 → 4 条（g2 活动在 25h 后的 end 也进来了；g2 卡池仍不进）",
+				tickerItemsOf(games, now, 48).length === 4
+				&& !tickerItemsOf(games, now, 48).some((x) => x.key === "g2:gacha"));
 		}
 
 		// ── 反向守卫：清单层**不读**逐游戏列表（2026-10-25 定稿）────────────────────────
@@ -455,19 +468,19 @@ export default async function run() {
 		//   ① 签名只有 3 个参数；② 白名单硬塞成第 4 个实参（JS 静默忽略）结果必须一字不差。
 		check("清单层签名只有 3 个参数（games, now, hours）——没有第 4 个「逐游戏列表」",
 			tickerItemsOf.length === 3, String(tickerItemsOf.length));
-		check("清单层：白名单只含 g1，硬塞第 4 个参数也照样有 g2/g4 的条目（轮播不受它影响）",
-			tickerItemsOf(games, now, 24, ["g1"]).map((x) => x.key).join(",") === "g1:gacha,g1:event,g2:gacha,g4:gacha",
+		check("清单层：白名单只含 g1，硬塞第 4 个参数也照样有 g1 之外（g4）的条目（轮播不受它影响）",
+			tickerItemsOf(games, now, 24, ["g1"]).map((x) => x.key).join(",") === "g1:gacha,g1:event,g4:gacha",
 			tickerItemsOf(games, now, 24, ["g1"]).map((x) => x.key).join(","));
 		check("清单层：传**空数组**当白名单也不影响（旧语义里「空 = 一条都不轮播」已被废除）",
-			tickerItemsOf(games, now, 24, []).length === 4,
+			tickerItemsOf(games, now, 24, []).length === 3,
 			String(tickerItemsOf(games, now, 24, []).length));
 
 		// 关闭 = 空清单（按钮不滚动），且不再换算
 		check("N=0（关闭）→ 空清单（按钮不滚动）",
 			tickerItemsOf(games, now, 0).length === 0
 			&& tickerItemsOf(games, now, -1).length === 0);
-		check("N=12 → 4 条都在 12 小时内（1h/1h/2h/2h）",
-			tickerItemsOf(games, now, 12).length === 4);
+		check("N=12 → 3 条都在 12 小时内（1h/1h/2h）",
+			tickerItemsOf(games, now, 12).length === 3);
 		check("脏输入不抛：games 非数组 / now 缺失 → 空清单",
 			tickerItemsOf(null, now, 24).length === 0
 			&& tickerItemsOf(games, null, 24).length === 0);
