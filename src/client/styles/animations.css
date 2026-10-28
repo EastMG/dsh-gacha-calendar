@@ -1,0 +1,42 @@
+			/* ── 启动动画（纯 CSS：只加 keyframes，不动任何元素/DOM）────────────────────────
+			   面板每次打开都是重新挂载 ⇒ animation 自然只跑一次，不需要 JS。
+			   ⚠️ 安全边界：展开的探头是 position:fixed，**祖先带 transform 会把包含块换成那个祖先**
+			      ⇒ 悬停坐标会错。所以：
+			        · 只对确定不含探头的元素做位移（标题 / 总览 / 右侧卡 / 底栏）；
+			        · 「近期」区与表格行**只做 opacity 淡入**（opacity 不影响包含块）。
+			   层序：外壳 → 标题 → 总览 → 近期 → 表格行 → 右侧卡 → 底栏，错峰浮现。 */
+			@keyframes gacha-cal-rise-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+			@keyframes gacha-cal-fade-in{from{opacity:0}to{opacity:1}}
+			@keyframes gacha-cal-shell-in{from{opacity:0}to{opacity:1}}
+			/* ⚠️ 一律用 animation-fill-mode: **backwards**（不是 both/forwards）：
+			   动画跑完后元素必须**回归自然态**，不能一直挂着动画标记 —— 挂着会让 Chromium 给它
+			   独立合成层、改变绘制顺序，展开的探头就会被行盖住（用户 2026-10-16 反馈"可读性被改坏"）。
+			   ⚠️ 另：transform 与 clip-path **都会**让元素成为 position:fixed 后代的包含块 ⇒
+			   外壳（探头就在它里面）只能做 opacity，位移类只给确定不含探头的元素。 */
+			.gacha-cal-sched{animation:gacha-cal-shell-in .28s ease-out backwards}
+			.gacha-cal-sched-head,.gacha-cal-sched-glance,.gacha-cal-sched-slot,.gacha-cal-sched-foot{animation:gacha-cal-rise-in .4s cubic-bezier(.2,.9,.25,1.05) backwards}
+			.gacha-cal-sched-head{animation-delay:.04s}
+			.gacha-cal-sched-glance{animation-delay:.09s}
+			.gacha-cal-sched-recent{animation:gacha-cal-fade-in .36s ease-out backwards;animation-delay:.13s}
+			.gacha-cal-sched-slot{animation-delay:.17s}
+			.gacha-cal-sched-foot{animation-delay:.22s}
+			.gacha-cal-sched-trow{animation:gacha-cal-fade-in .32s ease-out backwards}
+			.gacha-cal-sched-trow:nth-child(1){animation-delay:.1s}
+			.gacha-cal-sched-trow:nth-child(2){animation-delay:.13s}
+			.gacha-cal-sched-trow:nth-child(3){animation-delay:.16s}
+			.gacha-cal-sched-trow:nth-child(4){animation-delay:.19s}
+			.gacha-cal-sched-trow:nth-child(5){animation-delay:.22s}
+			.gacha-cal-sched-trow:nth-child(6){animation-delay:.25s}
+			/* ⚠️ 阈值原来是 n+7：这组规则锚的是 **.gacha-cal-sched-body 的子元素序号**，不是"第几行"。
+			   2026-10-17 二次微调把原来的独立 glance 行并进 head ⇒ body 少了一个兄弟节点、后面所有
+			   子元素序号**整体前移 1**（首行 trow 由 nth-child(7) 变 nth-child(6)）。若不跟着把阈值
+			   7→6，首行的 delay 会从 .28s 掉到 .25s，动画值与改动前不再一致。改成 n+6 后，所有 trow
+			   仍然全部命中这一条（首行也 .28s），与改动前**逐值相同**。 */
+			.gacha-cal-sched-trow:nth-child(n+6){animation-delay:.28s}
+			@media (prefers-reduced-motion:reduce){
+				.gacha-cal-sched,.gacha-cal-sched-head,.gacha-cal-sched-glance,.gacha-cal-sched-recent,.gacha-cal-sched-slot,.gacha-cal-sched-foot,.gacha-cal-sched-trow{animation:none}
+			}
+			.gacha-cal-sort-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1));color:var(--dsw-alias-label-primary,#1f2329)}
+			.gacha-cal-sort-btn:disabled{opacity:.35;cursor:default}
+			.gacha-cal-del-btn{color:#e5484d}
+			.gacha-cal-del-btn:hover{background:rgba(229,72,77,.12)}

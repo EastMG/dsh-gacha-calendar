@@ -65,7 +65,7 @@ dsh-gacha-calendar/
 │       ├── 65-remind.js      # 到期提醒（送达）判定 + 文案（**同时被单独拼成 lib/remind-core.mjs 给宿主**）
 │       ├── engine-head.js    # core 外壳：createEngine（storage / listGames / getCached）
 │       ├── engine-api.js     # 引擎 API：refresh / selfCheck / __test
-│       ├── 70-styles.js      # 样式
+│       ├── styles/*.css      # 样式（按原段落注释一个文件；build.mjs 的 CSS_ORDER 拼成产物里的 const STYLE）
 │       ├── 80-components.js  # React 组件（面板 + 设置页）
 │       ├── 90-plugin.js      # apply(ctx)：slots / configForms / 悬停 marquee
 │       ├── 92-dsh-env.js     # DSH 环境适配（直连 + 宿主代理）
@@ -237,6 +237,9 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
    ① `80-components.js` → 按**界面**拆：新面板 / 旧表格 / 设置页 / 共用小组件；
    ② `70-styles.js`（CSS 全藏在一个模板字符串里） → 抽成真正的 `styles/*.css`，构建时拼接
       （这条最值：现在"反引号必须恰好 2 个、注释必须配平"，已经踩过两次）；
+      ✅ 2026-10-28 完成：拆成 `src/client/styles/*.css`（9 个文件，按原段落注释切、内容原样搬运），
+      `build.mjs` 用独立的 `CSS_ORDER` 拼回 `const STYLE = \`…\`;` —— **`lib/client.js` 逐字节不变**，
+      守卫见 `test/cases-ticker.mjs` ⑧（含 CSS_ORDER ↔ styles/ 一一对应）。
    ③ `30-game-bwiki.js` → 它其实是**多个游戏**的 bwiki 源，按文件里**已有的 `//#region` 分段**
       拆成"一游戏一文件"（分段是现成的，机械拆分、不重新分类）；
    ④ `25-parser-shared.js` → 按**职责**拆：时间解析 / 当期窗口判定 / 悬停构造 / 排序优先级；

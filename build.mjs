@@ -68,6 +68,16 @@ const REMIND_EXPORTS = [
   "remindToastOf"
 ];
 
+// 样式段的名字（2026-10-28：**它已经不是磁盘上的文件了**）。
+// 真正的 CSS 真源搬到了 src/client/styles/*.css（按段落注释一组一文件），由本脚本按 CSS_ORDER
+// 拼成下面这段，与搬迁前**逐字节相同**：
+//     //#region styles
+//     const STYLE = `…`;
+//     //#endregion
+// ORDER 里保留这个名字，是为了让"样式段夹在 engine-api.js 与 80-components.js 之间"这个产物结构
+// 继续一眼可见；readChunks 见到它就走生成分支（见 styleChunk）。
+const STYLE_CHUNK = "70-styles.js";
+
 // 拼接顺序（= 原产物的 //#region 顺序，改了这里就等于改了产物结构）
 const ORDER = [
   // ⚠️ 00-head.js **必须排第一**：它开出 `window.__ModuleLoader__.load({ factory })` 的工厂闭包，
@@ -105,11 +115,32 @@ const ORDER = [
   "65-remind.js",              // 到期提醒（送达）判定 + 文案（**同时被单独拼成 lib/remind-core.mjs**）
   "engine-head.js",            // core 引擎外壳：createEngine（面板只通过它拿 Result JSON）
   "engine-api.js",             // 引擎 API：refresh() / 测试出口 / return
-  "70-styles.js",              // 样式
+  STYLE_CHUNK,                 // 样式（不是磁盘文件：src/client/styles/*.css 生成，见 CSS_ORDER）
   "80-components.js",          // React 组件（面板 + 设置页）
   "90-plugin.js",              // apply(ctx)：slots / configForms / 悬停 marquee
   "92-dsh-env.js",             // DSH 环境适配：注入 transport（直连 + 宿主代理）
   "99-tail.js",                // exports.apply / exports.inject / return
+];
+
+// 样式文件清单（**独立一份，不混进上面的 ORDER**：ORDER 是 JS 段，这里是 CSS 段）。
+// 顺序 = 搬迁前 `70-styles.js` 里自上而下的顺序，**不许随意调换**：它是产物文本的一部分
+// （`node build.mjs --check` 比的是"src 拼出来的 vs 磁盘上的 lib"，顺序换了照样自洽，
+//  但 lib/client.js 会变 —— 那就不再是纯结构迁移了）。
+// 切分依据的是原文件里**已有的段落注释**，没有重新分类：一组注释 + 它带的规则 = 一个文件。
+// ⚠️ 文件里保留着原来那三个 Tab 的缩进：那些空白是模板字符串内容的一部分，
+//    改了缩进 = 改了产物 CSS 文本，所以别"顺手对齐"。
+//    同理 `schedule-foot.css` 里有一行**只有两个 Tab 的空白行**（原文就有），`git diff --check`
+//    会把它点成 trailing whitespace —— 别去删，删了 lib/client.js 就不再逐字节相同。
+const CSS_ORDER = [
+  "ticker.css",            // 侧栏入口按钮 + 单行翻页轮播（.gacha-cal-btn* / keyframes / reduce）
+  "panel.css",             // 旧面板：popover 壳 + 表格 + 截断文字 marquee
+  "settings.css",          // 设置页控件：排序按钮 / 取色器 / 来源选择器
+  "chip.css",              // 设置页「提醒」档位胶囊（.gacha-cal-chip*）
+  "settings-header.css",   // 设置页标题行：版本号 / Star 指引 / 关闭 ✕
+  "animations.css",        // 启动动画（面板每次打开重挂载 ⇒ 动画只跑一次）+ 删除键
+  "schedule.css",          // 新面板：骨架 / 头部 / 近期 / 游戏表 / 探头
+  "schedule-motion.css",   // 新面板：迷你条与进度环动画 + reduce
+  "schedule-foot.css"      // 新面板：刷新失败条 / 底栏 / 搜索 / 字体规范 / 留白卡
 ];
 
 // 第二个产物：dist/core.mjs —— 独立、零依赖的 ESM 模块，供浏览器扩展 / Windows / 原生平台 import。
@@ -163,8 +194,10 @@ function fail(msg) {
 }
 
 // —— 前置校验：src/client 的每个文件都必须被某个产物用到（防止加了文件忘了接线）——
+// STYLE_CHUNK 是**生成段**（见 CSS_ORDER），不占磁盘文件名 ⇒ 从"必须存在"的那一侧去掉；
+// 样式文件的缺失/孤儿由 checkStyleFiles 单独守（见下）。
 const present = fs.readdirSync(SRC_CLIENT).filter((f) => f.endsWith(".js")).sort();
-const used = new Set([...ORDER, ...CORE_ORDER]);
+const used = new Set([...ORDER, ...CORE_ORDER].filter((f) => f !== STYLE_CHUNK));
 const missing = [...used].filter((f) => !present.includes(f));
 const unused = present.filter((f) => !used.has(f));
 if (missing.length) fail(`src/client 缺少文件：${missing.join("、")}`);
@@ -191,6 +224,7 @@ function validateText(name, text, { requireTrailingNewline = true, forbidTrailin
 function readChunks(order) {
   const out = [];
   for (const name of order) {
+    if (name === STYLE_CHUNK) { out.push(styleChunk); continue; }
     const p = path.join(SRC_CLIENT, name);
     const text = read(p);
     validateText(name, text);
@@ -198,6 +232,47 @@ function readChunks(order) {
   }
   return out;
 }
+
+// —— 样式段：src/client/styles/*.css 按 CSS_ORDER 拼成原来的那个模板字符串 ——
+// 生成结果与搬迁前的 `70-styles.js` **逐字节相同**（这点靠 lib/client.js 的 hash 不变来验收）：
+//   "//#region styles\n" + "const STYLE = `" + "\n" + <各文件原文依次拼接> + "\n\n" + "`;\n" + "//#endregion\n"
+// 那两行尾巴的来历：搬迁前模板字符串最后三行是「注释行 / 空行 / 空行」，收在最后一个文件之后，
+// 所以留成生成侧的字面量（否则最后一个 .css 会以空行结尾，违反"源文件不留尾部空行"的约定）。
+const SRC_STYLES = path.join(SRC_CLIENT, "styles");
+function checkStyleFiles() {
+  // 正向：清单里的每个文件都得在（缺一个 ⇒ 产物少一段 CSS，绝不能静默）
+  const presentCss = fs.readdirSync(SRC_STYLES).filter((f) => f.endsWith(".css")).sort();
+  const missingCss = CSS_ORDER.filter((f) => !presentCss.includes(f));
+  if (missingCss.length) fail(`src/client/styles 缺少样式文件（CSS_ORDER 里有）：${missingCss.join("、")}`);
+  // 反向：目录里的每个 .css 都得在清单里（加了文件忘了接线 ⇒ 样式静默不生效，与 JS 的 unused 同等严格）
+  const orderSet = new Set(CSS_ORDER);
+  const unusedCss = presentCss.filter((f) => !orderSet.has(f));
+  if (unusedCss.length) fail(`src/client/styles 有样式文件未被 CSS_ORDER 使用：${unusedCss.join("、")}`);
+  if (orderSet.size !== CSS_ORDER.length) fail(`CSS_ORDER 里有重复条目：${CSS_ORDER.join("、")}`);
+}
+function readStyleFiles() {
+  checkStyleFiles();
+  const out = [];
+  for (const name of CSS_ORDER) {
+    const p = path.join(SRC_STYLES, name);
+    let text;
+    try {
+      text = read(p);
+    } catch (e) {
+      fail(`读取样式文件失败：src/client/styles/${name}（${e && e.code ? e.code : e}）`);
+    }
+    // 与 JS 段同一套编码约定（BOM / CR / 末尾换行 / 尾部空行）；出错时报上样式文件的相对路径
+    validateText(`src/client/styles/${name}`, text);
+    out.push(text);
+  }
+  return out;
+}
+const styleChunk = [
+  "\t\t//#region styles",
+  "\t\tconst STYLE = `" + "\n" + readStyleFiles().join("") + "\n\n`;",
+  "\t\t//#endregion",
+  ""
+].join("\n");
 const rootPkg = JSON.parse(read(path.join(ROOT, "package.json")));
 // 插件版本注入：把 src/client/05-version.js 的占位符替换成根 package.json 的 version。
 // 两个产物都注入（lib/client.js 与 packages/core/core.mjs），--check 走同一条路径 → 一致性校验照旧有效。

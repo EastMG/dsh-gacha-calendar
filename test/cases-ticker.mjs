@@ -27,7 +27,7 @@
 //   ⑤ 清单层（`tickerItemsOf`，80-components.js）：落盘的「源站墙钟文本 + tz」要能换算出**绝对**窗口
 //      —— 这一层必须与运行环境时区无关（CI 跑 UTC、开发机跑 +08，两边都要绿）。
 //      做法：断言 dueWindowOf 的 ts 等于 `sourceInstant(...)` 的独立算法结果，不写死本机偏移。
-//   ⑥ 样式静态守卫：按钮尺寸不许被撑开 / 动画只许一次性 backwards / 70-styles.js 模板字符串完整。
+//   ⑥ 样式静态守卫：按钮尺寸不许被撑开 / 动画只许一次性 backwards / 样式源（styles/*.css）完整。
 //   ⑦ 设置页**两个控件**（2026-10-25 三次定稿）：开关 `tickerOn`（默认 **开**）+ 范围
 //      `tickerHours`（12/24/48/72，默认 **72**，**没有「关闭」档位**）；关掉开关 ⇒ 清单为空。
 //   ⑧ 轮播的**交叉序列**与**翻页方向**（同日三次定稿 + 四次定稿修正）：
@@ -43,7 +43,7 @@
 //    UTC~+08 那段时区成立，TZ=America/Los_Angeles 下会假红（2026-10-28 修）。
 
 import { check, section } from "./harness.mjs";
-import { T } from "./load.mjs";
+import { T, readStylesSource, styleFileNames } from "./load.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -500,17 +500,34 @@ export default async function run() {
 			&& tickerItemsOf(games, null, 24).length === 0);
 	}
 
-	// ── ⑧ 样式静态守卫：不许撑开按钮 / 动画不许留持久层 / 70-styles.js 模板字符串完整性 ──
-	// 用户定下「不要改变按钮尺寸/布局（不能重演上次的按钮错位）」；而 70-styles.js 的 CSS 全藏在
-	// 一个模板字符串里（"反引号必须恰好 2 个、注释必须配平"已经踩过两次）。这两条都是
-	// **改错了不报错、只在真机上才发现**的病，所以用静态守卫钉住（读源码，不需要 DOM）。
+	// ── ⑧ 样式静态守卫：不许撑开按钮 / 动画不许留持久层 / 样式源（styles/*.css）完整性 ──
+	// 用户定下「不要改变按钮尺寸/布局（不能重演上次的按钮错位）」；而 CSS 原先全藏在
+	// `70-styles.js` 的一个模板字符串里（"反引号必须恰好 2 个、注释必须配平"已经踩过两次）。
+	// 2026-10-28 把 CSS 抽成了 `src/client/styles/*.css`（build.mjs 的 CSS_ORDER 拼回产物），
+	// 于是这一组断言**只换读取来源**（`readStylesSource()` = 各 .css 原文拼回来），断言内容原样保留；
+	// 顺手把"模板字符串完整性"换成两条现在真正该守的事：样式源里不许再有反引号、
+	// 以及 CSS_ORDER 必须与 styles/ 目录一一对应（多一个/少一个都会静默掉样式）。
+	// 这些病都是**改错了不报错、只在真机上才发现**的，所以用静态守卫钉住（读源码，不需要 DOM）。
 	{
-		const styles = readFileSync(path.join(REPO, "src", "client", "70-styles.js"), "utf8");
+		const styles = readStylesSource();
 		const comp = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
 		const count = (sub) => styles.split(sub).length - 1;
-		check("70-styles.js 的反引号恰好 2 个（模板字符串起止各一个）", count("`") === 2, String(count("`")));
-		check("70-styles.js 的 /* */ 配平", count("/*") === count("*/"), `${count("/*")} / ${count("*/")}`);
-		check("70-styles.js 的 { } 配平", count("{") === count("}"), `${count("{")} / ${count("}")}`);
+		// 反引号断言原来是"模板字符串起止各一个"（旧结构：CSS 藏在 `const STYLE = \`…\`;` 里）。
+		// 现在样式是真正的 .css 文件 ⇒ 该守的是**它别再被塞回模板字符串**：源里一个反引号都不许有。
+		check("样式源里没有反引号（CSS 已是真正的 .css 文件，不再是模板字符串）", count("`") === 0, String(count("`")));
+		check("样式源里的 /* */ 配平", count("/*") === count("*/"), `${count("/*")} / ${count("*/")}`);
+		check("样式源里的 { } 配平", count("{") === count("}"), `${count("{")} / ${count("}")}`);
+		// 接线守卫：CSS_ORDER 与 styles/ 目录一一对应（加了 .css 忘了进清单 ⇒ 样式静默不生效；
+		// 清单里点名了却没有文件 ⇒ build 直接失败，但这里先红，省得跑到构建那一步）
+		const buildSrc = readFileSync(path.join(REPO, "build.mjs"), "utf8");
+		const orderBlock = /const CSS_ORDER = \[([\s\S]*?)\n\];/.exec(buildSrc);
+		const orderNames = orderBlock ? [...orderBlock[1].matchAll(/"([^"]+\.css)"/g)].map((m) => m[1]) : [];
+		const cssFiles = styleFileNames();
+		check("build.mjs 的 CSS_ORDER 与 src/client/styles/*.css 一一对应（顺序无关，集合相等）",
+			orderNames.length === cssFiles.length
+			&& new Set(orderNames).size === orderNames.length
+			&& cssFiles.every((f) => orderNames.includes(f)),
+			`CSS_ORDER=${orderNames.length} 文件=${cssFiles.length}`);
 
 		const ruleOf = (sel) => {
 			const re = new RegExp("\\." + sel.replace(/[-]/g, "\\-") + "\\{([^}]*)\\}");
@@ -968,7 +985,7 @@ export default async function run() {
 			&& tickerFlipRenderLinesOf("down", 5, 3, "yes").length === 1);
 
 		// 静态守卫：CSS / 组件 / 纯函数三处必须成套（少一处就是"写了但没接上"）。
-		const styles2 = readFileSync(path.join(REPO, "src", "client", "70-styles.js"), "utf8");
+		const styles2 = readStylesSource();
 		const comp2 = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
 		const helpers2 = readFileSync(path.join(REPO, "src", "client", "60-helpers.js"), "utf8");
 

@@ -1,0 +1,90 @@
+			/* 宽度/外边距：以前是 width:calc(100% + 4px) + margin:4px -2px（左右各外扩 2px），
+			   那会让图标与文字比侧栏其它项**左移 2px**（用户 2026-10-18 拉直线量出来的）。
+			   两侧不外扩、宽度回到 100% 后，内容起点 = 容器左缘 + padding-left:8px，与其它项对齐。 */
+			.gacha-cal-btn{display:flex;align-items:center;gap:8px;width:100%;min-height:42px;padding:0 10px 0 8px;margin:4px 0;border:none;background:transparent;color:var(--dsw-alias-label-primary);border-radius:12px;font-size:14px;line-height:22px;font-weight:400;cursor:pointer;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-align:left}
+			.gacha-cal-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}
+			.gacha-cal-btn:active{background:var(--dsw-alias-interactive-bg-hover)}
+			.gacha-cal-btn svg{flex:none;width:16px;height:16px}
+			/* 快到期的小红点（2026-10-25，窄侧栏降级用）。**绝对定位**是这里唯一的硬约束：
+			   它必须不参与按钮的 flex 布局，否则会挤动图标/文字 → 重演"按钮错位"。
+			   所以按钮自己只需要 position:relative（不影响布局），红点再绝对定位到右侧内边距里。
+			   尺寸固定 7px、不随角标数量变大；颜色用一个中性偏暖的红，避免在深色侧栏里刺眼。
+			   ⚠️ 2026-10-25 晚升级后它**只剩窄侧栏的降级用法**（wide === false：没有可滚动的那一行，
+			   有事只能点个点）；宽侧栏一律走下面的单行轮播，不再出现红点。 */
+			.gacha-cal-btn{position:relative}
+			.gacha-cal-dot{position:absolute;top:50%;right:8px;width:7px;height:7px;margin-top:-3.5px;border-radius:50%;background:#E5484D;pointer-events:none}
+			/* 侧栏轮播·单行翻页（2026-10-25 晚；同日二次定稿成 **C 方案**）：有轮播条目时，
+			   「[图标] 二游日历」整行与「[游戏图标] 事项名 · 还剩 X」竖向交叉翻页（旧行往上走、新行从
+			   下面进来），像交易所翻牌。**图标跟着整行一起翻**（状态 0 = 日历图标，状态 i = 该游戏的图标），
+			   所以它落在 .gacha-cal-btn-line 内部，不属于按钮的固定布局。
+			   **尺寸硬约束**：按钮的 min-height:42px / line-height:22px / padding / gap 一个数都不改 ——
+			   .gacha-cal-btn-txt 是固定 22px 高的"窗口"（overflow:hidden），里面两行各 22px 叠成 44px；
+			   translateY 只发生在窗口**内部**那一层（.gacha-cal-btn-flip），所以按钮的 flex 高度永远是
+			   22px，既不撑开按钮、也不挤动图标/文字。
+			   动画是**一次性**的（每次换格由 React 重挂载这一层触发）；fill-mode 按方向各用一套
+			   （2026-10-25 五次定稿）：down 用 backwards + 1ms 延迟（起点状态首帧即生效，防重挂载
+			   闪跳）；up 用 forwards（终点必须停在 -50%，否则收尾会弹回 0 露出 prev）。
+			   **六次定稿（落定）**：forwards 的代价是 up 结束后那 5 秒里这一层仍带着 translateY(-22px)
+			   的持久 transform，而 down 结束时是 transform:none —— 两个方向的终点状态不对称。
+			   现在动画一播完，渲染层就只留 cur 一行并加 .is-settled（见下），
+			   把"forwards 保持住的终点画面"换成等价的静态画面 ⇒ 两个方向的终点都是 transform:none。
+			   transform 仍然只出现在这一层（keyframes 与 .is-settled），不扩散到按钮/祖先。
+			   ⚠️ transform 只给 .gacha-cal-btn-flip 这一层：面板的悬停浮层 .gacha-cal-sched-rest 依赖
+			   包含块，虽然按钮不在它的祖先链上，也**不要**给 .gacha-cal-btn 或更外层加
+			   transform/filter/contain/will-change。 */
+			.gacha-cal-btn-txt{display:block;flex:1 1 auto;min-width:0;height:22px;line-height:22px;overflow:hidden}
+			.gacha-cal-btn-flip{display:block;animation:gacha-cal-btn-flip-down .42s cubic-bezier(.2,.9,.25,1) 1ms backwards}
+			/* 翻页**方向**（2026-10-25 五次定稿，用户要求「类名 = 视觉方向」+ 起点不许空白）：
+			   两行的**顺序随方向换**（纯函数 tickerFlipLinesOf，见 60-helpers.js），keyframes 跟着换：
+			   · .is-up   → 层序 [prev, cur] + keyframes 0 → -50% + forwards：
+			                起点 ty=0 ⇒ prev 占满窗口（旧内容在窗口里）；终点 -22px ⇒ cur 占满窗口
+			                ⇒ 旧行往上滑出、新行从**下方**进入（视觉向上）；
+			   · .is-down → 层序 [cur, prev] + keyframes -50% → 0 + backwards(+1ms)：
+			                起点 ty=-22px ⇒ cur 在窗口上方、prev 占满窗口；终点 0 ⇒ cur 占满窗口
+			                ⇒ 旧行往下滑出、新行从**上方**进入（视觉向下）。
+			   ⚠️ 上一版（四次定稿）两种方向都渲染 [cur, prev]，向上翻的 from 是 +50% ⇒ 起点时
+			   **两层都在窗口下方**，一开场窗口里什么都没有（探针实测空白 30~60ms），然后新行
+			   从上方滑进来 —— 用户 2026-10-25 报的「还是不对，和向下翻的动画不一样」就是这一条。
+			   行顺序 / keyframes / fill-mode 三者**必须成套**：单改任何一个都会回到空白起点。
+			   ⚠️ 下面的 reduce 媒体查询**必须**把这两个选择器也列进去：媒体查询不增加特异性，
+			   只写 .gacha-cal-btn-flip 的话，.is-down（两个类）会把 animation-name 抢回来 ⇒
+			   reduce 时仍会播一次翻页。
+			   ⚠️ 这里只碰 .gacha-cal-btn-flip 这一层；按钮与祖先层仍然不许 transform/filter/
+			   contain/will-change（面板悬停浮层 .gacha-cal-sched-rest 依赖包含块）。 */
+			.gacha-cal-btn-flip.is-up{animation:gacha-cal-btn-flip .42s cubic-bezier(.2,.9,.25,1) forwards}
+			.gacha-cal-btn-flip.is-down{animation:gacha-cal-btn-flip-down .42s cubic-bezier(.2,.9,.25,1) 1ms backwards}
+			/* 落定（2026-10-25 六次定稿）：动画播完 ⇒ React 只渲染 cur 一行（prev 行从 DOM 里删掉）
+			   并给这一层加 .is-settled ⇒ animation:none 结束 forwards 的保持、transform:none 把层归位。
+			   为什么不会跳动：落定后的画面与动画最后一帧**逐像素相同** ——
+			   · up   最后一帧 = 层 -22px、第 2 行 cur 落在窗口 [0,22]；落定 = 层 0、唯一一行 cur 在 [0,22]；
+			   · down 最后一帧 = 层 0、第 1 行 cur 在窗口 [0,22]；落定 = 层 0、唯一一行 cur 在 [0,22]。
+			   -22px 是整数像素（50% × 44px），不会出现半像素抗锯齿差；这一层也没有 transition。
+			   ⚠️ 必须排在 .is-up / .is-down **之后**：三者特异性相同（都是 .class.class），靠后者胜出。
+			   ⚠️ 只碰 .gacha-cal-btn-flip 这一层；按钮与祖先层仍然不许 transform/filter/contain/will-change。 */
+			.gacha-cal-btn-flip.is-settled{animation:none;transform:none}
+			.gacha-cal-btn-line{display:flex;align-items:center;height:22px;line-height:22px;min-width:0;overflow:hidden}
+			/* 图标（2026-10-25 二次定稿 **C 方案**）：日历图标与游戏图标都在**同一行**里，跟着整行一起翻页
+			   （不再有固定的日历图标）。尺寸 16px 与原日历图标一致；margin-right:8px 复刻原来按钮
+			   gap:8px 的"图标↔文字"间距 —— 所以 .gacha-cal-btn 的 min-height/line-height/padding/gap
+			   一个数都不用改，图标位置与原来逐像素对齐。 */
+			.gacha-cal-btn-ic{display:inline-flex;align-items:center;justify-content:center;flex:none;width:16px;height:16px;margin-right:8px}
+			/* 名字可截断、状态永不截断：窄宽度下必须留下「还剩 3 小时 / 明天开池」，被省略的只能是
+			   事项名（角色/活动名）。 */
+			.gacha-cal-btn-lbl,.gacha-cal-btn-nm{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+			/* 状态那一段的文字带**前导空格**（" · 还剩 X"），所以这里必须用 pre：nowrap 会把行首的
+			   空格折叠掉，渲染成「少女· 还剩」—— 少一个正是用户 2026-10-25 指出的问题。
+			   pre = nowrap + 保留空格：分隔符两侧各有一个真空格，且永不换行（flex:none 不参与收缩）。 */
+			.gacha-cal-btn-st{flex:none;white-space:pre}
+			/* 窗口 22px、翻页层 44px（两行各 22px）：translateY(±50%) = ±22px 正好一行。
+			   两条 keyframes 与两种**层序**一一对应（见 tickerFlipLinesOf），
+			   共同点 = **起点时 prev 占满窗口**（所以永远不会开场空白）：
+			   · gacha-cal-btn-flip      = 向上翻：[prev, cur] 从 0 走到 -50%（prev 滑出、cur 占满）；
+			   · gacha-cal-btn-flip-down = 向下翻：[cur, prev] 从 -50% 走到 0（prev 占满、cur 进入）。
+			   ⚠️ 百分比的基准是**本层高度 44px**（不是窗口的 22px）：50% = 22px = 正好一行。 */
+			@keyframes gacha-cal-btn-flip{from{transform:translateY(0)}to{transform:translateY(-50%)}}
+			@keyframes gacha-cal-btn-flip-down{from{transform:translateY(-50%)}to{transform:translateY(0)}}
+			/* reduce：完全不滚动（动画置 none）。JS 侧同时把轮播节拍停掉并静态钉在第一条（见 80 的
+			   usePrefersReducedMotion）—— 两处都要，缺一处就还能看见翻页。
+			   三个选择器缺一不可：前两个是基础规则与 .is-up，最后一个是 .is-down（后者的特异性更高，
+			   不列进来就会盖掉这条 animation:none）。 */
+			@media (prefers-reduced-motion:reduce){.gacha-cal-btn-flip,.gacha-cal-btn-flip.is-up,.gacha-cal-btn-flip.is-down{animation:none}}

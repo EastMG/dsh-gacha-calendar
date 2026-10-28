@@ -22,7 +22,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { check, section } from "./harness.mjs";
-import { T } from "./load.mjs";
+import { T, readStylesSource } from "./load.mjs";
 import * as R from "../lib/remind-core.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -481,7 +481,7 @@ export default async function run() {
 
 		// ② 设置页接线（静态）
 		const compSrc = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
-		const styleSrc = readFileSync(path.join(REPO, "src", "client", "70-styles.js"), "utf8");
+		const styleSrc = readStylesSource();
 		check("胶囊行：结束提醒保留、开始提醒已注释（2026-10-28 搁置），可选集合直接取出厂常量（不另抄一份）",
 			compSrc.includes('remindChipRow("end", "结束提醒", remindEndSavedText, REMIND_DEFAULT_END_NODES, "remindEndNodes"')
 			&& compSrc.includes('remindChipRow("end", "结束提醒"') && /\/\/[^\n]*remindChipRow\([^\n]*开始提醒/.test(compSrc));

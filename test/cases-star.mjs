@@ -32,7 +32,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { check, section } from "./harness.mjs";
-import { T } from "./load.mjs";
+import { T, readStylesSource } from "./load.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, "..");
@@ -68,7 +68,7 @@ export default async function run() {
 	const ehSrc = readFileSync(path.join(SRC, "engine-head.js"), "utf8");
 	const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
 	const verSrc = readFileSync(path.join(SRC, "05-version.js"), "utf8");
-	const css = readFileSync(path.join(SRC, "70-styles.js"), "utf8");
+	const css = readStylesSource();
 	const lib = readFileSync(path.join(REPO, "lib", "client.js"), "utf8");
 	const core = readFileSync(path.join(REPO, "packages", "core", "core.mjs"), "utf8");
 	const pkg = JSON.parse(readFileSync(path.join(REPO, "package.json"), "utf8"));

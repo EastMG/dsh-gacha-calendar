@@ -11,7 +11,7 @@
 //
 // 注意：`T` 是模块级单例（只加载一次）；harness 的 useFixtures 会往同一实例上注入 transport。
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -19,6 +19,23 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const REPO = path.resolve(HERE, "..");
 export const FIXTURES_DIR = path.join(HERE, "fixtures");
 const CLIENT = path.join(REPO, "lib", "client.js");
+
+// ── 样式源（2026-10-28 起）──────────────────────────────────────────────────
+// 样式不再是 `src/client/70-styles.js` 里的一个模板字符串：真源 = `src/client/styles/*.css`，
+// 由 build.mjs 的 CSS_ORDER 拼成 `const STYLE = \`…\`;` 进产物。
+// 下面这批静态守卫原本是"在模板字符串里 grep 某条规则"，现在改为"在**拼回来的 CSS 文本**里 grep"
+// —— 断言内容一条没改，只换读取来源。
+// 拼接方式与 build.mjs 一致（各文件原文直接相连）：每个 .css 都以恰好一个换行结尾，
+// 所以 join("") 拼出来就是原来模板字符串里那段文本。
+// 文件名顺序**无关**：所有顺序敏感的断言（如 `.is-settled` 必须排在 `.is-up`/`.is-down` 之后）
+// 都落在同一个文件内部。
+export const STYLES_DIR = path.join(REPO, "src", "client", "styles");
+export function styleFileNames() {
+	return readdirSync(STYLES_DIR).filter((f) => f.endsWith(".css")).sort();
+}
+export function readStylesSource() {
+	return styleFileNames().map((f) => readFileSync(path.join(STYLES_DIR, f), "utf8")).join("");
+}
 
 // 最小 DOM / 模块加载器替身。插件运行时只需要：
 //   __ModuleLoader__.load({ factory })  ← 00-head.js 用它注册模块

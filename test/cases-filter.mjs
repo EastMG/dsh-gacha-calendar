@@ -26,7 +26,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { check, section } from "./harness.mjs";
-import { T, REPO } from "./load.mjs";
+import { T, REPO, readStylesSource } from "./load.mjs";
 
 const {
 	searchNorm, searchTokens, searchHit,
@@ -171,7 +171,7 @@ export default function runFilter() {
 	// ── ⑥ 接线（静态）：UI 真的接上纯函数；搜索不落盘；轮播仍读未过滤的 games ──
 	{
 		const comp = readSrc(path.join("src", "client", "80-components.js"));
-		const css = readSrc(path.join("src", "client", "70-styles.js"));
+		const css = readStylesSource();
 		const codes = stripLineComments(comp);
 		const cfg = readSrc(path.join("src", "client", "10-config.js"));
 		const head = readSrc(path.join("src", "client", "engine-head.js"));

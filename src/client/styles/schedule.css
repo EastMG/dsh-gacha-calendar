@@ -1,0 +1,160 @@
+			/* ══ 实验：新「二游日历」面板视图（settings.newPanel 打开时才渲染，见 80-components.js）══
+			 * 设计稿（**唯一真源**）：dsh-gacha-ui-lab/a-v6.html（效果图 a-v6.png）
+			 *
+			 * 三条**互不抢**的分工 —— 改这里的任何一条颜色/图案前先读它：
+			 *   · **颜色 = 游戏**：每行由 JS 内联一个 --g（该游戏代表色，来自 SOURCES 的 color）
+			 *     → 同一款游戏的**卡池=深色、活动=浅色**（浅色由 color-mix 与白混出）
+			 *   · **图案 = 状态**：实心=在期 / 斜纹=已结束 / 点线=长期 / 空心描边=还没开始 / 灰底=该来源无数据
+			 *   · **文字 = 紧迫度**：今天到期 / 还剩 X 天 X 时 / MM-DD HH:MM 开始
+			 *     —— 迷你条的**颜色不再表紧迫度**（颜色已让给"认游戏"）
+			 *
+			 * 颜色一律 --dsw-* 语义令牌 + fallback → 跟随 DSH 的浅/深色，**不写**深色专用色值；
+			 * 唯一的字面色是"游戏代表色"（那是数据，不是主题色）。
+			 * 尺寸与设计稿对齐：游戏列 158px / 表头刻度与迷你条共用 14 格 / 图标框 26 与 40（图 24 与 38 + 1px 描边）。
+			 */
+			.gacha-cal-sched{display:flex;flex-direction:column;font-size:12px;overflow-anchor:none;color:var(--dsw-alias-label-primary,#1f2329);--sched-hover-bg:color-mix(in srgb,var(--dsw-alias-bg-base,#fff) 90%,rgb(127,127,127) 10%);
+				/* 卡片外观从这里给（原来是 .gacha-cal-pop）。
+				   align-self:flex-start + flex:none：外层（DSH 侧栏）是 flex 容器、会把它 stretch 到面板高度；
+				   height:100% + max-height:none 则让卡片**铺满面板壳**（壳高由 JS 按"内容跨度 / 可用空间"写入）。
+				   两者配合：壳内不再留白，长内容在卡片内滚动。 */
+				align-self:flex-start;flex:none;box-sizing:border-box;height:100%;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:10px 12px 0;max-height:none;overflow:hidden}
+						/* 滚动层：面板本体不滚（overflow:hidden），滚动落在这里 —— 底栏因此在滚动区**之外**，
+			   内容在它上沿干净收住；底栏用 flex 自然常驻底部（不再需要 sticky/z-index/不透明底）。 */
+			.gacha-cal-sched-body{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:auto;scrollbar-width:none}
+			.gacha-cal-sched-body::-webkit-scrollbar{width:0;height:0}
+			.gacha-cal-sched-num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+			/* ① 头部**一行**（2026-10-17 二次微调）：左 = 总览 .gacha-cal-sched-glance，右 = 日期胶囊。
+			   （面板**内**的「二游日历」标题已删，侧栏入口按钮不动；**没有**总计数胶囊。）
+			   head 是 **nowrap** 的 flex（错峰浮现动画 .gacha-cal-sched-head 保留），胶囊靠 sp 的
+			   margin-left:auto + flex:0 0 auto 顶到右端且自身不缩 ⇒ 窄宽度下两者**始终同一行**。 */
+			/* 上下留白**配平**（用户 2026-10-18 三轮反馈后定稿）：
+			   上方 = 卡片 padding-top 10 + head 上 2 = **12**；
+			   下方 = head 下 2 + 近期区 margin-top 10 = **12**（近期区的上外边距回到 10）。
+			   ⚠️ 三个值互相牵连（卡片上内边距 / head 上下内边距 / 近期区上外边距），改一个要同步另外的。 */
+			.gacha-cal-sched-head{display:flex;align-items:center;gap:10px;flex-wrap:nowrap;padding:2px 0 2px}
+			.gacha-cal-sched-sp{margin-left:auto;display:flex;gap:6px;flex:0 0 auto}
+			.gacha-cal-sched-pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:999px;font-size:11px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));color:var(--dsw-alias-label-secondary,#4a5261)}
+			.gacha-cal-sched-pill--live{background:color-mix(in oklab,var(--dsw-alias-state-business-primary,#3b5bfd) 12%,transparent);border-color:transparent;color:var(--dsw-alias-link,#3b5bfd)}
+			/* ② 头部左侧的总览（K 版）：24 小时内 N 条 · 7 天内 M 条 —— **永远两段**（N/M 为 0 也照写，
+			   数字走 .gacha-cal-sched-glance b）。它已不再是独立一行 ⇒ 原来的 margin:0 0 6px、gap、flex-wrap:wrap
+			   三条随独立行一起死掉，已删；改成**单行内联**：nowrap + overflow:hidden + text-overflow:ellipsis
+			   ⇒ 宽度不够时总览自己省略，head 绝不折成两行。
+			   ⚠️ 入场动画（.09s 那一拍 + gacha-cal-rise-in）在上面的动画段里，**没动**。 */
+			.gacha-cal-sched-glance{display:block;min-width:0;flex:0 1 auto;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px;color:var(--dsw-alias-label-secondary,#4a5261)}
+			.gacha-cal-sched-glance b{color:var(--dsw-alias-label-primary,#1f2329);font-weight:500}
+			.gacha-cal-sched-sep{color:var(--dsw-alias-label-tertiary,#6b7280);margin:0 5px}
+			/* ③ 「近期」：跨游戏、按紧迫度、**全列出**（不折叠不点开），占左约 64% */
+			.gacha-cal-sched-recent{display:flex;gap:10px;margin:10px 0 10px;align-items:stretch}
+			.gacha-cal-sched-urgent{flex:0 0 64%;min-width:0}
+			/* 右侧虚线空框：用途未定，先留空（设计稿的 .slot） */
+			.gacha-cal-sched-slot{flex:1 1 auto;border:1px dashed var(--dsw-alias-border-l2,rgba(127,127,127,.4));border-radius:12px}
+			.gacha-cal-sched-u{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:12px}
+			.gacha-cal-sched-u:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1))}
+			.gacha-cal-sched-u + .gacha-cal-sched-u{margin-top:1px}
+			.gacha-cal-sched-uic{display:inline-flex;flex:0 0 auto;width:26px;height:26px;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));border-radius:7px;overflow:hidden;background:var(--dsw-alias-bg-layer-2,rgba(127,127,127,.08))}
+			.gacha-cal-sched-who{flex:0 0 auto;width:78px;font-size:12.5px;color:var(--dsw-alias-label-secondary,#4a5261);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+			/* 图标形状已可辨（星芒 vs 旗帜），收窄后不再显示「卡池/活动」二字（设计稿的取舍） */
+			.gacha-cal-sched-what{flex:1 1 auto;min-width:0;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+			/* 「卡池/活动」胶囊：与表头同一套配色（卡池=链接蓝底 / 活动=琥珀底）。
+			   ⚠️ 这三条曾被我误删：删图例时用的正则没加词边界，而 .gacha-cal-sched-kind 正好以
+			   图例那个 swatch 类的前缀开头 ⇒ 被连带删掉，胶囊外形与配色全丢。
+			   教训一：按类名批量删样式必须锚到花括号或方括号，不能用类名前缀。
+			   教训二：CSS 模板里绝不能出现反引号（它是模板分隔符，写进注释会直接弄坏 bundle）。 */
+			.gacha-cal-sched-kind{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:1px 5px;border-radius:999px;white-space:nowrap}
+			.gacha-cal-sched-kind[data-t="gacha"]{color:var(--dsw-alias-link,#3b5bfd);background:color-mix(in oklab,var(--dsw-alias-state-business-primary,#3b5bfd) 10%,transparent)}
+			.gacha-cal-sched-kind[data-t="event"]{color:var(--dsw-alias-state-warn-label,#9a4a06);background:color-mix(in oklab,var(--dsw-alias-state-warn-primary,#f5a524) 16%,transparent)}
+			/* 时间结论 = 紧迫度。全屏只有这几处用颜色表紧迫度（文字=紧迫度，颜色=游戏，各管一件事） */
+			.gacha-cal-sched-when{flex:0 0 auto;font-size:12px;font-weight:500;text-align:right}
+			.gacha-cal-sched-when small{font-size:10px;font-weight:500;color:var(--dsw-alias-label-tertiary,#6b7280);margin-left:1px}
+			.gacha-cal-sched-u[data-u="1"] .gacha-cal-sched-when{color:var(--dsw-alias-state-error-primary,#b3261e)}
+			.gacha-cal-sched-u[data-u="2"] .gacha-cal-sched-when{color:var(--dsw-alias-state-warn-label,#9a4a06)}
+			.gacha-cal-sched-u[data-u="wait"] .gacha-cal-sched-when{color:var(--dsw-alias-link,#3b5bfd);font-weight:500}
+			/* ④ 游戏表：**没有区块标题**，列表头直接跟在后面；列 = 游戏(158px) / 卡池 / 活动 */
+			.gacha-cal-sched-tcap{display:grid;grid-template-columns:158px 1fr 1fr;gap:0 12px;padding:2px 8px 0;font-size:10.5px;color:var(--dsw-alias-label-tertiary,#6b7280)}
+			.gacha-cal-sched-th{display:inline-flex;align-items:center;gap:5px;padding-left:9px}
+			.gacha-cal-sched-th[data-t="gacha"]{color:var(--dsw-alias-link,#3b5bfd)}
+			.gacha-cal-sched-th[data-t="event"]{color:var(--dsw-alias-state-warn-label,#9a4a06)}
+			.gacha-cal-sched-tic{width:12px;height:12px;flex:0 0 auto;display:inline-block;vertical-align:-1.5px}
+			.gacha-cal-sched-rulerrow{display:grid;grid-template-columns:158px 1fr 1fr;gap:0 12px;padding:0 8px}
+			.gacha-cal-sched-ruler{display:grid;grid-template-columns:repeat(14,1fr);gap:1px;margin-top:4px;font-size:8px;color:var(--dsw-alias-label-tertiary,#6b7280);text-align:center}
+			.gacha-cal-sched-ruler span[data-today]{color:var(--dsw-alias-label-primary,#1f2329);font-weight:600}
+			.gacha-cal-sched-theadline{height:1px;background:var(--dsw-alias-border-l1,rgba(127,127,127,.25));margin-top:3px}
+			/* 一行 = 一款游戏；--g 由 JS 内联（游戏代表色），这里只是拿不到内联值时的兜底 */
+			.gacha-cal-sched-trow{--g:var(--dsw-alias-state-business-primary,#3b5bfd);display:grid;grid-template-columns:158px 1fr 1fr;gap:0 12px;padding:9px 8px 10px;align-items:start;border-bottom:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25))}
+			/* 行悬停：**不再整行铺浅灰底** —— 悬停该格时底板会向下变长（不透明、面板同色），
+			   底板上再落一层灰就变成"外灰内白"的色块（用户 2026-10-15 反馈）。
+			   悬停反馈改由两件事承担：① 该格底板展开；② 下面这条只染**游戏名列**的圆角浅灰。 */
+			.gacha-cal-sched-trow:hover{background:var(--sched-hover-bg)}
+			.gacha-cal-sched-gm{display:flex;align-items:center;gap:11px;min-width:0;align-self:center}
+			.gacha-cal-sched-gic{display:inline-flex;flex:0 0 auto;width:40px;height:40px;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));border-radius:11px;overflow:hidden;background:var(--dsw-alias-bg-layer-2,rgba(127,127,127,.08))}
+			.gacha-cal-sched-gn{font-size:13px;font-weight:600;line-height:1.35;letter-spacing:0;white-space:normal;overflow-wrap:break-word;text-wrap:balance}
+			/* 一格 = 该游戏的卡池侧或活动侧：**第一条完整三行**（名称 / 档期·状态 / 迷你条），
+			   其余条目收在「探头」里（见下面 .gacha-cal-sched-rest）。
+			   ⚠️ 层级**不靠 :hover**（那是随时间变化的：向上移鼠标时，上一行刚进入、下一行还没退出，
+			   两格会抢层级，导致下一行未收回的字压住上一行正在展开的底板 —— 用户实测反馈）。
+			   改为由**行序**决定：行上内联 --z（上面的行更大），格子用它 → 上面永远压得住下面。
+			   ⚠️ 禁止：transform 作用于带文字的盒子（会重采样=重影）、max-height 等布局型动画（卡）、
+			   阴影/边框/浅灰底（用户要求"一体化"，悬停与收起必须同色）。 */
+			.gacha-cal-sched-cell{min-width:0;position:relative;z-index:var(--z,1);border-radius:8px;padding:0 0 4px;
+				transition:background .26s cubic-bezier(.4,0,.2,1)}
+			.gacha-cal-sched-cell:has(.gacha-cal-sched-rest){padding-bottom:16px}
+			/* 悬停底色由所在**行**统一给（同一个 --sched-hover-bg），格子自身不再上色 → 底板与行必然同色 */
+			.gacha-cal-sched-item{display:block}
+			.gacha-cal-sched-item+.gacha-cal-sched-item{margin-top:7px}
+			/* 探头：常驻绝对定位（永不参与文档流 → 格子高度恒定、下面的行一格不动）；
+			   收起只露顶部 12px；悬停用 clip-path 揭开并**覆盖**下面各行（合成层动画、不触发布局、不重排文字）。
+			   ⚠️ 收起态的盒子高度要压到 12px。意图（防回归的理由）：它是 absolute，盒子一旦高到顶出滚动区下界，
+			   就会把滚动容器的 scrollHeight 撑大 → 滚到底时内容被推上去、下面露出空白。
+			   历史与现状（2026-10-16 真机实测）：历史上出现过被撑大的情形（scrollHeight 3028 vs 内容 2698，
+			   **成因待确认**）；但**当前布局下不会** —— 把收起态盒子的上下 padding 之和由 14px 修平到 12px
+			   （padding-bottom 12px→10px）前后，.gacha-cal-sched-body 的 scrollHeight 都是 2404px（差 0px）；
+			   把面板里 27 个探头全部 display:none，scrollHeight 仍是 2404px（当前布局下探头对滚动下界
+			   没有贡献），多出的那 2px 完全被行内留白吸收。
+			   什么条件下才可能重新变成可见问题：**某一行的格子高度追上该行高度**，
+			   探头盒子底边落到行底之下、又压过滚动区下界时。 */
+			.gacha-cal-sched-rest{display:block;position:absolute;left:0;right:0;top:calc(100% - 12px);
+				box-sizing:border-box;margin:0;padding:2px 10px 10px;pointer-events:none;background:var(--dsw-alias-bg-base);
+				clip-path:inset(0 0 calc(100% - 12px) 0);height:12px;overflow:hidden;
+				transition:clip-path .42s cubic-bezier(.22,1.2,.28,1)}
+			.gacha-cal-sched-rest .gacha-cal-sched-item:first-child{margin-top:3px}
+			/* 列与列之间有 12px 网格间隙：底板只贴列的话，越过行之后那条间隙盖不到 → 露白缝。
+			   两侧各伸进 6px，并用内边距补回来，内容仍与列对齐；最右侧那一列右边没有间隙，故只伸左边。 */
+			.gacha-cal-sched-cell[data-t="gacha"] .gacha-cal-sched-rest{left:-6px;right:-6px;padding-left:6px;padding-right:6px}
+			.gacha-cal-sched-cell[data-t="event"] .gacha-cal-sched-rest{left:-6px;right:-8px;padding-left:6px;padding-right:8px}
+			/* 虚化只作用在**内容**上：浮层本体绝不能有 opacity（父级 opacity 会让那层底一起变半透明 → 下一行的字透出来） */
+			.gacha-cal-sched-rest .gacha-cal-sched-item{opacity:.62;transition:opacity .2s cubic-bezier(.4,0,.2,1)}
+			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest{clip-path:inset(0 0 0 0);height:auto;overflow:hidden;pointer-events:auto;z-index:2;
+				position:fixed !important;left:var(--rx,0) !important;right:auto !important;top:var(--ry,0) !important;width:var(--rw,auto) !important;margin:0 !important}
+			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest .gacha-cal-sched-item{opacity:1}
+			/* 底色与遮罩渐变的终点色都挂**行悬停**（不是格子悬停）：整行还灰时底板就必须还是灰，
+			   否则指针在同一行里左右移动（或刚离开该格、底板还在收回）时，底板会瞬间变成纯白 = 用户看到的"遮罩还是白的"。 */
+			.gacha-cal-sched-trow:hover .gacha-cal-sched-rest{background:var(--sched-hover-bg)}
+			.gacha-cal-sched-trow:hover .gacha-cal-sched-rest::after{background:linear-gradient(180deg,transparent,var(--sched-hover-bg))}
+			/* 渐隐遮罩：**跟着揭开边缘往下走**；且淡入**不能有延迟**（否则下面一行会被硬边露出来，用户反馈过） */
+			.gacha-cal-sched-rest::after{content:"";position:absolute;left:0;right:0;top:5px;height:9px;
+				background:linear-gradient(180deg,transparent,var(--dsw-alias-bg-base));
+				transition:top .42s cubic-bezier(.22,1.2,.28,1),opacity .18s cubic-bezier(.4,0,.2,1);pointer-events:none}
+			.gacha-cal-sched-cell:hover .gacha-cal-sched-rest::after{top:calc(100% - 9px);opacity:0}
+			/* 探头里的条目按**各自**的紧迫度着色（格子级 data-u 只管第一条） */
+			.gacha-cal-sched-item[data-u="1"] .gacha-cal-sched-cn{color:var(--dsw-alias-state-error-primary,#b3261e);font-weight:600}
+			.gacha-cal-sched-item[data-u="1"] .gacha-cal-sched-cm{color:var(--dsw-alias-state-error-primary,#b3261e)}
+			.gacha-cal-sched-item[data-u="2"] .gacha-cal-sched-cm{color:var(--dsw-alias-state-warn-label,#9a4a06)}
+			.gacha-cal-sched-cell[data-t="gacha"]{--gf:var(--g)}
+			.gacha-cal-sched-cell[data-t="event"]{--gf:color-mix(in oklab,var(--g) 42%,#fff)}
+			.gacha-cal-sched-cn{font-size:12px;font-weight:400;letter-spacing:.012em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+			.gacha-cal-sched-cm{margin-top:1px;font-size:11px;font-weight:400;letter-spacing:.02em;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-tertiary,#6b7280);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+			.gacha-cal-sched-more{color:var(--dsw-alias-label-secondary,#4a5261)}
+			.gacha-cal-sched-cell[data-u="1"] .gacha-cal-sched-cn{color:var(--dsw-alias-state-error-primary,#b3261e);font-weight:600}
+			.gacha-cal-sched-cell[data-u="1"] .gacha-cal-sched-cm{color:var(--dsw-alias-state-error-primary,#b3261e)}
+			.gacha-cal-sched-cell[data-u="2"] .gacha-cal-sched-cm{color:var(--dsw-alias-state-warn-label,#9a4a06)}
+			.gacha-cal-sched-cell--none .gacha-cal-sched-cn{color:var(--dsw-alias-label-tertiary,#6b7280);font-weight:400}
+			/* 14 天迷你条：所有行**共用同一根轴**（与表头刻度同列宽）；今天**只有一列** */
+			.gacha-cal-sched-tl{display:grid;grid-template-columns:repeat(14,1fr);gap:1px;height:9px;margin-top:5px;position:relative}
+			.gacha-cal-sched-tl i{background:color-mix(in oklab,var(--dsw-alias-label-primary,#1f2329) 7%,transparent);border-radius:1.5px}
+			.gacha-cal-sched-tl i[data-f]{background:var(--gf,var(--dsw-alias-state-business-primary,#3b5bfd))}
+			.gacha-cal-sched-tl i[data-f="done"]{background:repeating-linear-gradient(45deg,color-mix(in oklab,var(--gf,var(--dsw-alias-label-primary,#1f2329)) 45%,transparent) 0 2px,transparent 2px 4px)}
+			.gacha-cal-sched-tl i[data-f="long"]{background:repeating-linear-gradient(90deg,color-mix(in oklab,var(--gf,var(--dsw-alias-label-primary,#1f2329)) 55%,transparent) 0 3px,transparent 3px 6px)}
+			.gacha-cal-sched-tl[data-state="wait"] i[data-f]{background:transparent;box-shadow:inset 0 0 0 1.5px color-mix(in oklab,var(--dsw-alias-state-business-primary,#3b5bfd) 55%,transparent)}
+			/* 今天那一格：**不用竖线**（用户 2026-10-15 要求），改为格子本身上下各加高 3px，与刻度上的今天对齐。
+			   设计稿按**格**画（只贯穿迷你条上下各 3px），不跨过上面的事项名文字 —— 跨过去会压在字上。 */
+			.gacha-cal-sched-tl i[data-today]{margin-block:-2px;border-radius:2.5px}
