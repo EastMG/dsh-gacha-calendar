@@ -470,6 +470,15 @@
 			sourceHealthUpdateOf,
 			sourceHealthSameOf,
 			sourceHealthOf,
+			// 搜索与筛选（待办第 4 项，60-helpers.js 的纯函数）：归一（NFKC + 大小写 + 空白）/
+			// 分词（AND 语义）/ 命中 / 设置页「搜游戏名 + 只看已启用」/ 面板「游戏名·卡池·角色·活动」。
+			// 全是**函数声明** ⇒ 60 段虽排在本段之后，这里可提前引用（同上面 isExpiringSoon 的说明）。
+			searchNorm,
+			searchTokens,
+			searchHit,
+			settingsGamesFilter,
+			panelEntryHit,
+			panelGamesFilter,
 			sourceInstant,
 			sourceWallParts,
 			sourceOffsetMinutes,

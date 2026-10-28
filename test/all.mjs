@@ -32,6 +32,7 @@ import runHealth from "./cases-health.mjs";
 import runReadme from "./cases-readme.mjs";
 import runCore from "./cases-core.mjs";
 import runStar from "./cases-star.mjs";
+import runFilter from "./cases-filter.mjs";
 
 const LIVE = process.argv.includes("--live");
 
@@ -114,7 +115,8 @@ const batches = [
 	["来源健康（最近成功 / 连续失败 / 连续 nomatch ⇒ 疑似改版停更）", runHealth],
 	["README 结构图与事实性", runReadme],
 	["core 产物（零宿主依赖 + 注册幂等）", runCore],
-	["设置页标题行（标题 + 版本号 + Star 指引）", runStar]
+	["设置页标题行（标题 + 版本号 + Star 指引）", runStar],
+	["搜索与筛选（设置页「搜游戏名 + 只看已启用」/ 面板「按卡池·角色名过滤」）", runFilter]
 ];
 const before = counts();
 for (const [label, fn] of batches) {

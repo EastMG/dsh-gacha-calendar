@@ -731,6 +731,65 @@
 			return getAllEntries(s).filter((x) => !isEntryHidden(x, s));
 		}
 
+		//#region 搜索与筛选（待办第 4 项；**纯函数**，设置页与面板共用同一套匹配口径）
+		//
+		// 为什么单独抽一层、而不是在渲染层各写一份 includes：
+		//   · 设置页「搜游戏名」与面板「按卡池/角色名搜」的**归一规则必须一样**（大小写 / 全半角 /
+		//     前后空格 / 多关键词），否则同一个词在两处命中结果不同 —— 用户只会觉得"搜不到"；
+		//   · 全是纯函数 ⇒ 空查询 / 大小写 / 中英混输 / 全半角 / 前后空格 / 无匹配六种情况能离线钉住
+		//     （见 test/cases-filter.mjs）。
+		//
+		// ⚠️ 两条边界：
+		//   ① 过滤是**纯显示层**：不写设置、不改 `lastData`、不影响轮播与提醒
+		//      （面板的轮播 memo 仍读未过滤的 games，见 80-components.js）；
+		//   ② 空查询 = 不过滤（返回原数组 / 原引用的副本），所以"清空即恢复"不需要额外分支。
+
+		// 归一：全半角（NFKC：全角字母/数字/标点 → 半角）+ 大小写 + 连续空白压成一个空格 + 去首尾空白。
+		// 中文/日文汉字过 NFKC 不变 ⇒ 中英混输、全半角混输都能命中同一段文本（"Ｆａｔｅ" ≡ "fate"）。
+		function searchNorm(v) {
+			return String(v == null ? "" : v).normalize("NFKC").toLowerCase().replace(/[\s\u3000]+/g, " ").trim();
+		}
+		// 查询串 → 关键词数组：空格分隔、**全部命中**才算命中（AND 语义，与词序无关）。
+		// 空查询 ⇒ 空数组 = 不过滤（"清空即恢复"由这一条保证，调用方不另写 if）。
+		function searchTokens(query) {
+			const q = searchNorm(query);
+			return q === "" ? [] : q.split(" ").filter(Boolean);
+		}
+		// 命中判定：haystack 里出现**全部**关键词。haystack 可以是数组（多字段拼在一起，见 panelEntryHit）。
+		function searchHit(haystack, query) {
+			const tokens = searchTokens(query);
+			if (tokens.length === 0) return true;
+			const text = searchNorm(Array.isArray(haystack) ? haystack.filter(Boolean).join("\n") : haystack);
+			return tokens.every((t) => text.indexOf(t) >= 0);
+		}
+		// 设置页「游戏列表」过滤：搜游戏名 + 只看已启用，**组合生效**（两个条件同时满足才留）。
+		//   opts.query     —— 搜索词（按游戏名匹配）
+		//   opts.onlyShown —— true = 只留"展示中"的；"展示中"的判定由调用方给（opts.isShown），
+		//                     设置页传的是**草稿优先**的 shownNow ⇒ 勾/取消当拍就与筛选对齐，
+		//                     不用等宿主那一次 1.4~3.6s 的写入往返（也不另立第二套显隐判定）。
+		// 返回**新数组**（不改入参、不改顺序）。
+		function settingsGamesFilter(entries, opts) {
+			const list = Array.isArray(entries) ? entries : [];
+			const o = opts || {};
+			const onlyShown = o.onlyShown === true;
+			if (searchTokens(o.query).length === 0 && !onlyShown) return list.slice();
+			const isShown = typeof o.isShown === "function" ? o.isShown : () => true;
+			return list.filter((g) => (!onlyShown || isShown(g)) && searchHit(g && g.name, o.query));
+		}
+		// 面板搜索的命中面：游戏名 / 卡池名（banner）/ 角色名（roles）/ 活动名（event）—— 任一命中即算。
+		// ⚠️ 只读条目字段：过滤是**纯显示层**，lastData / 轮播 / 提醒都不经过这里。
+		function panelEntryHit(game, query) {
+			if (!game) return false;
+			return searchHit([game.name, game.banner, game.roles, game.event], query);
+		}
+		// 面板过滤：空查询 ⇒ **原样返回同一个数组**（上层 useMemo 不失效、零额外开销）。
+		function panelGamesFilter(games, query) {
+			const list = Array.isArray(games) ? games : [];
+			if (searchTokens(query).length === 0) return list;
+			return list.filter((g) => panelEntryHit(g, query));
+		}
+		//#endregion
+
 		// 某条目的实际爬取地址：自定义覆盖默认；urlField 区分卡池源(customUrls)/活动源(customEventUrls)
 		// 存储值约定：custom:<url>（用户自定义输入，剥前缀返回 url）；其它值经 normalizeSourceId 归一
 		// （备选源的标识就是它的 url 或 id，老配置的 proxy:/gk-*: 写法在这里翻译）

@@ -919,16 +919,26 @@
 			// T3：改由 CalendarPanel 把**已经解析好的表**传进来（colorMap），消除"同一份 JSON 在
 			//     两个组件各 parse 一次"；colorMap 缺席时才退回自己解析（保持组件可独立使用）。
 			const gameColorMap = colorMap || parseJsonStr(s.gameColors, {});
+			// ── 面板搜索（待办第 4 项）：按游戏名 / 卡池名 / 角色名 / 活动名过滤**显示** ──
+			// 纯临时 UI 状态（组件内 useState），**不写设置、不碰 lastData**；空串 = 不过滤。
+			// ⚠️ 只作用于下面这几块显示（表格 / 近期 / 留白卡）：
+			//    侧栏轮播在 CalendarPanel 里用**未过滤**的 games 算（tickerItems memo），
+			//    提醒更是另一条链路 —— 搜索词一个字节都到不了它们。
+			const [findQuery, setFindQuery] = (0, react.useState)("");
+			// 过滤后的游戏表：空查询时 panelGamesFilter **原样返回同一个数组** ⇒ 下面几个 memo 照旧命中。
+			const shownGames = (0, react.useMemo)(() => panelGamesFilter(games, findQuery), [games, findQuery]);
 			// 每一格（游戏 × 卡池/活动）的候选档期。已结束的**留在格子里**（这一侧没有在期内容时它就是
 			// 这格的代表，图案走斜纹），但不进「近期」—— 近期回答的是"现在该看哪几条"。
 			// ↓↓↓ 纯派生数据（与 CalendarPanel 同理）：4s 一次的「近期」翻页、每分钟时钟、以及任何
 			// 无关设置写入都会让本组件重渲染；这一段原本每次都要逐游戏跑 scheduleNormalize（28×2）
 			// ＋悬停文本解析＋失败归类。用 useMemo 按真正输入（games / now）缓存。
-			//   ⚠️ 依赖只写 games / now：本段不再读别的可变输入（主题色不参与，见 gameColorMap 只在下游用）。
+			//   ⚠️ 依赖只写 shownGames / now：本段不再读别的可变输入（主题色不参与，见 gameColorMap 只在下游用）。
 			const { cells, all, failed, failRows, soonCount } = (0, react.useMemo)(() => {
 			const cells = new Map();
 			const all = [];
-			for (const g of games) {
+			// ⚠️ 遍历的是**搜索过滤后**的 shownGames（空查询时它就是 games 本身）：
+			//    表格 / 近期 / 留白卡因此共用同一份过滤结果；轮播不读这里（见 CalendarPanel）。
+			for (const g of shownGames) {
 				for (const side of ["gacha", "event"]) {
 					const it = scheduleNormalize(g, side, now);
 					if (!it) continue;                       // 这一侧没有任何数据 → 格子里写"该来源无数据"
@@ -967,7 +977,7 @@
 				(x.endTs > nowMs && x.endTs <= nowMs + SCHEDULE_DUE_MS)
 			)).length;
 			return { cells, all, failed, failRows, soonCount };
-			}, [games, now]);
+			}, [shownGames, now]);
 			// ↑↑↑ useMemo 结束（cells / all / 失败归类 / 24 小时计数）
 			// 「近期」= **7 天内有事发生**（到期或开始）；更远的只出现在下方游戏表里
 			// （用户 2026-10-15：不能把 20 多天后的也算近期）。长期/已结束不进近期。
@@ -1121,16 +1131,20 @@
 			});
 
 			// 游戏表（28 行 × 每行两格 × 14 格迷你条 ≈ 2000~2600 个 <i>）：内容只由
-			// games / days / cells / 主题色 / now 决定，与「近期」的 4s 翻页、与无关的设置写入**无关**。
+			// shownGames / days / cells / 主题色 / now 决定，与「近期」的 4s 翻页、与无关的设置写入**无关**。
 			// 这里缓存**元素本身**：React 对同一 element 引用会直接跳过这棵子树的 render + reconcile
 			// （`oldProps === newProps` 的 bailout，与 React.memo 是同一机制）⇒ 4s 翻页不再重算这 2000+
 			// 个格子。**DOM、类名、内联变量（--g/--z）、动画标记与关键帧全部不变**（纯实现层缓存）。
-			// 依赖必须覆盖 rowOf/cellView 读到的全部输入：games（行序/数据）、days（14 天刻度）、
-			// cells（每格候选档期，含 now 结果）、gameColorMap（--g）、now（档期文本/紧迫度）。
-			const tableJsx = (0, react.useMemo)(() => (games.length
-				? games.map(rowOf)
-				: (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-empty", children: "还没有勾选任何游戏 · 去设置里挑几款" })),
-				[games, days, cells, gameColorMap, now]);
+			// 依赖必须覆盖 rowOf/cellView 读到的全部输入：shownGames（搜索过滤后的行序/数据，空查询时就是
+			// games）、days（14 天刻度）、cells（每格候选档期，含 now 结果）、gameColorMap（--g）、
+			// now（档期文本/紧迫度）、findQuery（无命中时要换空结果文案）。
+			const tableJsx = (0, react.useMemo)(() => (shownGames.length
+				? shownGames.map(rowOf)
+				// 搜索无命中：说清楚"是筛掉了"（否则会被当成"游戏都没了"）
+				: (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-empty", children: findQuery.trim()
+					? "没有匹配的游戏 · 清空搜索可恢复全部"
+					: "还没有勾选任何游戏 · 去设置里挑几款" })),
+				[shownGames, days, cells, gameColorMap, now, findQuery]);
 
 			// 「总览」两段的数字（纯函数 scheduleGlanceSegs 决定；**恒为两段**，N/M 是 0 也照写）。
 			// ⚠️ 「7 天内」那段的数字 = recent.length = **就是**「近期」底部按钮「展开全部 N 条」的 N
@@ -1205,6 +1219,33 @@
 				//    左：刷新成功/失败横幅（就是旧面板 .gacha-cal-scrape 那条，悬停给逐来源明细）；
 				//    右：上次更新 X 分钟前 + 刷新。
 				(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-foot", children: [
+					// 搜索框（待办第 4 项）：**放进已有的底栏工具行**（不新起一行 ⇒ 面板不变高）。
+					// 匹配游戏名 / 卡池名 / 角色名 / 活动名（panelGamesFilter：大小写 / 全半角不敏感，
+					// 空格分隔 = 多个词都要命中）；空串即恢复全部。×（或 Esc）一键清空。
+					// ⚠️ 它**只影响显示**：不改 lastData、不参与轮播（tickerItems 用未过滤的 games）、
+					//    也不碰提醒。窄侧栏下照样显示 —— 面板宽度恒为 690px（见 70-styles.js 的
+					//    `.gacha-cal-pop{width:690px}`），`wide === false` 只影响侧栏按钮本身，
+					//    藏起来只会白白少一个功能；展开/清空都是**瞬时**的，不引入任何动画
+					//    ⇒ prefers-reduced-motion 下无需额外分支。
+					(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-find", children: [
+						(0, react_jsx_runtime.jsx)("input", {
+							type: "text",
+							value: findQuery,
+							placeholder: "搜卡池/角色/活动",
+							"aria-label": "搜索游戏名、卡池名、角色名或活动名",
+							title: "匹配游戏名 / 卡池名 / 角色名 / 活动名（只影响显示，不影响轮播与提醒）",
+							onChange: (e) => setFindQuery(e.target.value),
+							onKeyDown: (e) => { if (e.key === "Escape") setFindQuery(""); }
+						}),
+						findQuery ? (0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							className: "gacha-cal-sched-find-x",
+							title: "清空搜索",
+							"aria-label": "清空搜索",
+							onClick: () => setFindQuery(""),
+							children: "×"
+						}) : null
+					] }),
 					scrapeInfo ? (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-scrape", title: (scrapeLines || []).join("\n"), children: scrapeInfo }) : null,
 					(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-when", title: [lastRefreshText, scrapeInfo].concat(scrapeLines || []).filter(Boolean).join("\n"), children: "上次更新 " + scheduleAgo(s.lastRefresh, now) }),
 					(0, react_jsx_runtime.jsx)("button", {
@@ -2007,6 +2048,12 @@
 			const [selfReport, setSelfReport] = (0, react.useState)(null);
 			// 「来源健康」的展开开关：默认**收起**（只列异常项；用户抱怨过设置页太长）。
 			const [healthAll, setHealthAll] = (0, react.useState)(false);
+			// 游戏列表的搜索词 + 「只看已启用」（待办第 4 项）：**临时 UI 状态、一律不落盘**。
+			// 理由：搜索词是"找一下就走"的东西，落盘会让下次打开设置页莫名其妙只剩几行；
+			// 「只看已启用」同理（它是当次翻找的辅助，不是偏好，也没有对应用户可解释的设置项）。
+			// 两者都只是 `settingsGamesFilter` 的入参 —— 不改排序、不改显隐、不写任何配置键。
+			const [gameQuery, setGameQuery] = (0, react.useState)("");
+			const [onlyShown, setOnlyShown] = (0, react.useState)(false);
 			// 逐个来源跑一遍，报告「解析出 0 条 / 抓取报错」；不改动设置与缓存
 			const runSelfCheck = async () => {
 				if (selfChecking) return;
@@ -2056,7 +2103,9 @@
 			const customs = parseJsonStr(s.customEntries, []);
 
 			const order = Array.isArray(s.order) && s.order.length > 0 ? s.order : allEntries.map((x) => x.id);
-			const sorted = applyOrder(allEntries, order);
+			// ordered = **全量**条目按用户排序（上移/下移的真实边界用它算）；
+			// sorted = 搜索/筛选后要渲染的行（见下面 shownNow 之后的 settingsGamesFilter）。
+			const ordered = applyOrder(allEntries, order);
 			// ── 来源健康（待办第 3 项「解析器自检」的升级）────────────────────────────────
 			// 数据 = 引擎每轮刷新写回的 `sourceHealth` 存档（与 lastData 并列但**独立**的一个键）。
 			// 这里只做"读存档 → 纯函数折算成每源状态"，**渲染路径不做任何 IO**（不 fetch、不读文件）。
@@ -2319,6 +2368,16 @@
 			//       与 2026-10-16「写后不再手写 setSnapshot」的根修不冲突）⇒ 不会拿旧列表
 			//       覆盖掉别的行刚写进去的改动。
 			const shownNow = (g) => (Object.prototype.hasOwnProperty.call(showDraft, g.id) ? !!showDraft[g.id] : !isEntryHidden(g, s));
+			// ── 游戏列表的搜索 / 筛选（待办第 4 项）────────────────────────────────────
+			// 要渲染的行 = 「搜游戏名」∩「只看已启用」，**组合生效**；顺序沿用 ordered（不改用户拖的排序）。
+			// 全走 60-helpers.js 的 settingsGamesFilter（纯函数，与面板那边共用同一套归一规则）。
+			// 「展示中」用**草稿优先**的 shownNow 判定：勾/取消后当拍筛选就跟着变，不落后一次写入往返。
+			// ⚠️ 只在**显示层**过滤：`ordered`（全量、用于上移/下移的真实边界）与任何设置写入都不动。
+			const sorted = settingsGamesFilter(ordered, {
+				query: gameQuery,
+				onlyShown,
+				isShown: (g) => shownNow(g)
+			});
 			const setEntryShown = (id, shouldShow) => {
 				const run = showWriteChain.current.then(async () => {
 					const snap = scope.getSnapshot();
@@ -2744,8 +2803,32 @@
 						] })
 					] }),
 					(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 6, border: "1px solid var(--dsw-alias-border-l1)", borderRadius: 10, padding: "12px 14px", background: "var(--dsw-alias-bg-layer-1)" }, children: [
-						(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }, children: [
-							(0, react_jsx_runtime.jsx)("span", { style: { fontWeight: 600 }, children: "游戏列表" }),
+						(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap", marginBottom: 4 }, children: [
+							// 左侧一组 = 标题 + 搜索框 + 「只看已启用」（待办第 4 项）。
+							// 三者**挤在同一行**（不新起一行 ⇒ 设置页不变长）：卡片宽 720px，
+							// 标题 ~60 + 搜索 128 + 复选框 ~88 + 右侧按钮组 ~180 仍放得下；
+							// 窄窗口靠外层 flexWrap 换行，不会把按钮挤丢。
+							(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexWrap: "wrap" }, children: [
+								(0, react_jsx_runtime.jsx)("span", { style: { fontWeight: 600 }, children: "游戏列表" }),
+								// 搜游戏名：大小写 / 全半角不敏感，空格分隔 = 多个关键词都要命中（与面板同一套归一）。
+								// **临时 UI 状态、不写设置**；清空（或按 Esc）即恢复全部行。
+								(0, react_jsx_runtime.jsx)("input", {
+									type: "text",
+									value: gameQuery,
+									placeholder: "搜游戏名",
+									"aria-label": "按游戏名搜索",
+									title: "按游戏名过滤（大小写 / 全半角不敏感；空格分隔 = 每个词都要命中）",
+									style: { ...inputStyle, flex: "0 1 128px", minWidth: 84, fontSize: 11, padding: "2px 6px" },
+									onChange: (e) => setGameQuery(e.target.value),
+									onKeyDown: (e) => { if (e.key === "Escape") setGameQuery(""); }
+								}),
+								// 只看已启用：只列当前**展示中**的条目。口径 = 上面那个 shownNow（草稿优先），
+								// 与「展示」列显示的值同一个来源 ⇒ 不会出现"勾已取消、行还在"。
+								(0, react_jsx_runtime.jsxs)("label", { title: "只列当前展示中的条目（不写设置）", style: { display: "flex", alignItems: "center", gap: 4, flex: "none", fontSize: 11, cursor: "pointer", color: "var(--dsw-alias-label-secondary)" }, children: [
+									(0, react_jsx_runtime.jsx)("input", { type: "checkbox", checked: onlyShown, onChange: (e) => setOnlyShown(e.target.checked) }),
+									(0, react_jsx_runtime.jsx)("span", { children: "只看已启用" })
+								] })
+							] }),
 							(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 6 }, children: [
 								// 「全部提醒」= 把当前展示中的 id 写进白名单；空数组的意思是"一个都不提醒"。
 								// 暂时隐藏（SHOW_REMIND_COLUMN=false）：按钮与处理函数都保留，改回 true 即恢复。
@@ -2768,7 +2851,14 @@
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u989C\u8272" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u64CD\u4F5C" })
 						] }),
-						sorted.map((g, i) => {
+						// 结果为空：**一行**「没有匹配的游戏」（不是空白表格，也不隐藏表头 —— 表头还在，
+						// 用户一眼知道"是筛掉了，不是坏了"）。
+						sorted.length === 0
+							? (0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 12, padding: "8px 0" }, children: "没有匹配的游戏" })
+							: null,
+						sorted.map((g) => {
+							// 上移/下移的**真实边界**按全量顺序（ordered）算：过滤只影响显示、不改变排位
+							const i = ordered.indexOf(g);
 							const mode = entryUrlMode(g.id, g);
 							const evMode = eventUrlMode(g.id);
 							const showGachaInput = mode === "custom";
@@ -2849,7 +2939,7 @@
 											}) }),
 											(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 4, justifySelf: "center" }, children: [
 												(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn gacha-cal-sort-btn--icon", title: "\u4E0A\u79FB", disabled: i === 0, onClick: () => move(g.id, -1), children: (0, react_jsx_runtime.jsx)("svg", { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", children: (0, react_jsx_runtime.jsx)("path", { d: "M6 14.5l6-6 6 6" }) }) }),
-												(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn gacha-cal-sort-btn--icon", title: "\u4E0B\u79FB", disabled: i === sorted.length - 1, onClick: () => move(g.id, 1), children: (0, react_jsx_runtime.jsx)("svg", { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", children: (0, react_jsx_runtime.jsx)("path", { d: "M6 9.5l6 6 6-6" }) }) }),
+												(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn gacha-cal-sort-btn--icon", title: "\u4E0B\u79FB", disabled: i === ordered.length - 1, onClick: () => move(g.id, 1), children: (0, react_jsx_runtime.jsx)("svg", { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", children: (0, react_jsx_runtime.jsx)("path", { d: "M6 9.5l6 6 6-6" }) }) }),
 												(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn gacha-cal-sort-btn--icon gacha-cal-del-btn", title: "\u5220\u9664", onClick: () => removeEntry(g), children: (0, react_jsx_runtime.jsx)("svg", {
 													width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true",
 													children: [

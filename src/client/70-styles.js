@@ -439,6 +439,17 @@
 			/* 刷新成功/失败横幅（旧面板 .gacha-cal-scrape 的同款）：文字一行 + 悬停给逐来源明细。
 			   常驻在底栏里，所以超宽时省略号截断，明细靠 tooltip。 */
 			.gacha-cal-sched-scrape{flex:1 1 auto;min-width:0;font-size:11px;color:var(--dsw-alias-label-tertiary,#6b7280);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:help}
+			/* 搜索框（待办第 4 项）：塞进底栏工具行，不新起一行。
+			   宽度固定 126px（不抢「上次更新」与刷新按钮的位置）；× 绝对定位在输入框右端，
+			   所以输入框右侧留 18px 内边距 —— 文字不会被 × 压住。
+			   ⚠️ 只在这一小块里用 transform（把 × 垂直居中），**不许**把 transform 加到按钮/卡片祖先上：
+			   .gacha-cal-btn* 的祖先带 transform 会改包含块，翻页层与探头定位都会错（见 cases-ticker ⑧）。 */
+			.gacha-cal-sched-find{position:relative;flex:0 0 auto;display:flex;align-items:center;gap:2px;min-width:0}
+			.gacha-cal-sched-find input{box-sizing:border-box;width:126px;height:20px;padding:1px 18px 1px 6px;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.35));border-radius:6px;background:var(--dsw-alias-bg-base,#fff);color:var(--dsw-alias-label-primary,#1f2329);font:inherit;font-size:11px;line-height:16px}
+			.gacha-cal-sched-find input::placeholder{color:var(--dsw-alias-label-tertiary,#6b7280)}
+			.gacha-cal-sched-find input:focus{outline:none;border-color:var(--dsw-alias-link,#3b5bfd)}
+			.gacha-cal-sched-find-x{position:absolute;right:2px;top:50%;transform:translateY(-50%);width:15px;height:15px;padding:0;border:none;border-radius:50%;background:transparent;color:var(--dsw-alias-label-tertiary,#6b7280);font:inherit;font-size:12px;line-height:1;cursor:pointer}
+			.gacha-cal-sched-find-x:hover{color:var(--dsw-alias-label-primary,#1f2329);background:var(--dsw-alias-bg-layer-1,#f3f4f6)}
 			.gacha-cal-sched-foot{position:relative;flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:3px 0 4px;border-top:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));font-size:10.5px;color:var(--dsw-alias-label-tertiary,#6b7280)}
 			/* 底栏**不要**给 z-index：展开的探头是 position:fixed + z-index:auto，与底栏同层，
 			   DOM 靠后的底栏会盖住它 ⇒ 遮罩会糊在展开内容上（用户 2026-10-16 反馈）。
