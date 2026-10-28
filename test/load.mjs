@@ -1,7 +1,7 @@
 // test/load.mjs —— 加载**构建产物** lib/client.js，取回 __regression（解析器 + env 工具）
 //
 // 为什么不再 import 源码：2026-10-03 用户要求「把 next-sources 合并进原 source，不留 next-source」，
-// 17 个解析器从 ESM 模块压平成了 `src/client/42-parsers-*.js`（**普通拼接段**，与 30-parsers.js 同性质）。
+// 17 个解析器从 ESM 模块压平成了 `src/client/42-parsers-*.js`（**普通拼接段**，与 30-parsers.js（压平后拆成 22-fetcher-core.js 与 23~28-parser-* 各段）同性质）。
 // 普通段没有 export，所以测试改为：先 `node build.mjs`，再加载 lib/client.js 取 `exports.__regression`
 // （由 src/client/44-test-exports.js 定义、99-tail.js 挂出）。这与仓库里另外 22 套门禁脚本的做法一致。
 //

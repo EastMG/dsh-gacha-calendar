@@ -2703,7 +2703,7 @@ export function createEngine(env) {
 				// 即空格），旧实现只认上面那几个硬编码 → 面板上直接显示成
 				// `阿蒂拉&#32; 罗摩&#32; 兰斯洛特(Saber)&#32; …`（2026-10-03 修）。
 				// 位置刻意放在硬编码白名单**之后**：已知实体优先，尽量不改变既有解析结果。
-				// 注：`next-sources/lib/env.js` 的 decodeEntities 本来就是通用实现，
+				// 注：`next-sources/lib/env.js` 的 decodeEntities（压平后见 27-parser-text.js）本来就是通用实现，
 				//     这次补齐后两者语义一致，不再有"测试对、插件错"的落差。
 				.replace(/&#(\d+);/g, (m, n) => {
 					try { return String.fromCodePoint(Number(n)); } catch { return m; }
@@ -3242,7 +3242,7 @@ export function createEngine(env) {
 
 // src/client/41-sources-shared.js —— 新增来源解析器共用的：抓取桥接 + 悬停排版工具
 //
-// 历史沿革：这些代码原本在 `next-sources/lib/env.js`（ESM 模块，由外部生成器内联进 45-next-sources.js）。
+// 历史沿革：这些代码原本在 `next-sources/lib/env.js`（ESM 模块，由外部生成器内联进 45-next-sources.js；压平后即本文件 27-parser-text.js）。
 // 2026-10-03 按用户要求「把 next-sources 合并进原 source，不留 next-source」压平成普通源码段，
 // `next-sources/` 目录与生成器均已删除 —— **这里就是唯一真源，直接改这里**。
 //
@@ -3250,9 +3250,9 @@ export function createEngine(env) {
 //   · 抓取：fetchText / fetchJson / fetchMediaWikiText（走宿主代理或直连）
 //   · 文本：pad2 / decodeEntities / textOf
 //   · 悬停排版：hoverPool / hoverEvent（与本体 buildPoolHover / buildEventHover 逐字一致）
-// 其余 env 名字（sourceInstant / sourceWallParts / fmtWindow / fmtMdHm / stripTags）由 30-parsers.js 与 15-env.js 提供。
+// 其余 env 名字（sourceInstant / sourceWallParts / fmtWindow / fmtMdHm / stripTags）原本由 30-parsers.js 与 15-env.js 提供 —— 压平后分别是 15-env.js（sourceInstant / sourceWallParts）、24-parser-window.js（fmtWindow / fmtMdHm）、23-parser-time.js（stripTags）。
 
-		// 解析器原本 import ./lib/env.js；这里用插件已有实现 + 少量补齐顶上（解析器代码不改）。
+		// 解析器原本 import ./lib/env.js（压平后并入本文件 27-parser-text.js）；这里用插件已有实现 + 少量补齐顶上（解析器代码不改）。
 		//   sourceInstant / sourceWallParts / fmtWindow / fmtMdHm / stripTags → 本体已有
 		//   pad2 / decodeEntities / textOf                                    → 本区补
 		//   fetchText / fetchJson / fetchMediaWikiText                        → 接宿主代理 / 直连
@@ -3348,7 +3348,7 @@ export function createEngine(env) {
 		//   ② 「档期在前、名称在后」（本体一律 `名称 + 3 空格 + 档期`）
 		//   ③ 档期用源站原文而非 fmtWindow 格式化
 		// 修法（方案 A）：把本体那两个函数的排版逻辑抽到这里做**唯一真源**，解析器一律调用。
-		// （落点原本是 next-sources/lib/env.js，压平后就是本文件；测试与运行时读的是同一份代码。）
+		// （落点原本是 next-sources/lib/env.js，压平后就是本文件 28-parser-hover-tools.js；测试与运行时读的是同一份代码。）
 // ── 与本体唯一的差别 ──
 // 本体的两个函数调 `fmtWindow(ts, endTs)` **漏传 tz**（`wallOf` 会退回本机时区）；
 // 这里 tz 是**显式参数**，非 UTC+8 的源（日服 JST / 国际服 UTC）才能排对时刻。
@@ -3358,7 +3358,7 @@ export function createEngine(env) {
 //   卡池 `池名：角色名` ⏎ `档期`；活动 `名称` ⏎ `档期`。
 // 所以调用方**不要**在返回值后面再拼任何东西；空串就让字段留空。
 
-// 长期/常驻判定：**直接用本体 30-parsers.js 的那一条**（阈值也只有那一处）。
+// 长期/常驻判定：**直接用本体 30-parsers.js 的那一条**（压平后见 24-parser-window.js 的 isLongTermWindow；阈值也只有那一处）。
 // ⚠️ 2026-10-03 收敛：这里曾有一份逐字重复的实现 + 第二个 `HOVER_MAX_WINDOW_DAYS = 120` 常量。
 //    同一条规则不该有第二份实现/第二个值 —— 已删，改为调用 `isLongTermWindow`。
 //    （函数声明会提升，所以 41 在本体的 30 之后拼接也不影响这里的调用。）
@@ -3371,7 +3371,7 @@ export function createEngine(env) {
 			const sb = b.startTs == null ? Infinity : b.startTs;
 			return sa - sb;
 		}
-		// 永久/常驻活动计数行 —— **直接用本体 `permanentLine`**（30-parsers.js）。
+		// 永久/常驻活动计数行 —— **直接用本体 `permanentLine`**（30-parsers.js；压平后见 25-parser-order.js）。
 		// ⚠️ 2026-10-03 收敛：这里曾有一份逐字相同的副本 `hoverPermanentLine`（措辞 `以及常驻活动 N 项`）。
 		//    本体注释写着"抽成函数是为了**措辞只有一处**"，副本正是打破了那句话，已删。
 
@@ -4020,7 +4020,7 @@ export function createEngine(env) {
 // ══════════════════════════════════════════════════════════════════════════════
 // 五、悬停排版（用户 2026-10-03：「元信息彻底删掉」）
 // ══════════════════════════════════════════════════════════════════════════════
-//  排版**不再本地实现**，一律调 `lib/env.js` 的 `hoverPool` / `hoverEvent`
+//  排版**不再本地实现**，一律调 `lib/env.js` 的 `hoverPool` / `hoverEvent`（压平后见 28-parser-hover-tools.js）
 //  （与本体 `buildPoolHover` / `buildEventHover` 逐字一致），本文件只负责：
 //    · 卡池侧：每池一项 `{ name: 公告标题, label: 「池名：角色」, startTs, endTs }` → hoverPool
 //      （角色名空 → label 退化成池名；与本体 `banner：roles` 同构）
@@ -4341,11 +4341,11 @@ function ns_miyoushe_rawOf(p, tz) {
 }
 
 // ── 悬停条目 ──────────────────────────────────────────────────────────────────
-// 排版交给 lib/env.js 的 `hoverPool` / `hoverEvent`（与本体 buildPoolHover / buildEventHover 逐字一致）。
+// 排版交给 lib/env.js 的 `hoverPool` / `hoverEvent`（压平后见 28-parser-hover-tools.js；与本体 buildPoolHover / buildEventHover 逐字一致）。
 // 用户 2026-10-03：「悬停里的元信息彻底删掉」→ 这里**只**产出名称与档期，别的一概不传。
 // 池名与本体 `banner：roles` 同构：有角色名 →「池名：角色」，没有 → 只写池名。
 const ns_miyoushe_hoverPoolName = (w) => (w.roles ? `${w.subject}：${w.roles}` : w.subject);
-// 活动悬停顺序：结束时间升序（无/未知结束排在最后），并列再按开始时间 —— 与 lib/env.js 内部规则一致
+// 活动悬停顺序：结束时间升序（无/未知结束排在最后），并列再按开始时间 —— 与 lib/env.js（压平后见 28-parser-hover-tools.js）内部规则一致
 function ns_miyoushe_byEndTs(a, b) {
 	const ea = a.endTs == null ? Infinity : a.endTs;
 	const eb = b.endTs == null ? Infinity : b.endTs;
@@ -5067,7 +5067,7 @@ EVENT_FETCHERS["zzz"] = {
 EVENT_FETCHERS["wuwa"] = {
 				default: (url, signal, tz) => fetchWuwaEventsOfficial(url, signal, tz),
 				// ⚠️ 回调**必须**声明第二个参数 `tz`：mkMediaWiki 的契约是 `parse(text, tz)`
-				//   （见 30-parsers.js 的 mkMediaWiki）。原来只写了 `(html)` 却在体内用 `tz`
+				//   （见 30-parsers.js 的 mkMediaWiki，压平后见 22-fetcher-core.js）。原来只写了 `(html)` 却在体内用 `tz`
 				//   → 运行时 `tz is not defined`：用户在设置页把鸣潮活动源切到「Bwiki 活动日历」就必然抓取失败。
 				//   2026-10-03 修正（同批还加了静态守卫 `test/cases-fetcher-args.mjs`）。
 				"wuwa-event-bwiki": mkMediaWiki((html, tz) => {
@@ -6011,7 +6011,7 @@ EVENT_FETCHERS["endfield"] = {
 			const list = await proxyFetchJson(logListUrl, ref);
 			const threads = Array.isArray(list?.threads) ? list.threads : [];
 			// 每篇日志的维护日取标题日期（"8/18(二) 更新日誌"）；日期跨年按当前年推断
-			// ⚠️ 这里是 `inferYear`（30-parsers.js）那条规则的**绝对值版本**：拿不到公告年、
+			// ⚠️ 这里是 `inferYear`（30-parsers.js；压平后见 25-parser-order.js）那条规则的**绝对值版本**：拿不到公告年、
 			//    只拿得到 now，于是用"按今年解释后若落在 now 之后 45 天以外 → 必是去年"代替月份比较。
 			//    之所以 45 天而非 6 个月：日志列表按时间倒序、且只取 `ts <= now` 的那篇，
 			//    正常日期一定紧贴 now；超出一个半月的"未来日期"只可能是把去年的 12/31 解释成了今年。
@@ -7486,7 +7486,7 @@ async function ns_bandori_eventsBandori(url, signal, tz = ns_bandori_BANDORI_TZ,
 	const a = await ns_bandori_loadAnnouncement(listUrl, signal, ns_bandori_pickBandoriEventSection);
 	if (!a) return null;
 	const w = a.picked.primary;
-	// 悬停格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover）：`名称` + 3 空格 + `档期`，
+	// 悬停格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover；压平后见 28-parser-hover-tools.js）：`名称` + 3 空格 + `档期`，
 	// **名称在前**（旧实现是「档期在前、名称在后」，与本体相反 —— 用户 2026-10-03 反馈的偏差②）。
 	// 只有 1 条当期 → hoverEvent 返回 "" → 不设 eventHover，由 UI 走默认两行式。
 	// ⚠️ 这里原来写死 `nowMs()`（2026-10-15 修）：外显按注入时刻、悬停按真实时刻 → 两者不同源。
@@ -7676,7 +7676,7 @@ async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES
 	if (!picked || !picked.win) return null;
 	const active = [];
 	for (const p of posts) for (const w of p.windows) if (coversNow(w, now)) active.push({ p, w });
-	// 悬停格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover）：`名称` + 3 空格 + `档期`，
+	// 悬停格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover；压平后见 28-parser-hover-tools.js）：`名称` + 3 空格 + `档期`，
 	// **名称在前**（旧实现「档期在前、名称在后」，与本体相反 —— 用户 2026-10-03 反馈的偏差②）。
 	// 名称用公告标题（这是该站的"活动名"来源）；行内不再附来源站名/URL/时区推定等元信息。
 	// ⚠️ 只有 1 条当期窗口时 hoverEvent 返回 "" → **不设 eventHover**，由 UI 走默认两行式
@@ -7744,7 +7744,7 @@ async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES
 //
 // ══ 合并器注意 ══
 //   与 biligame-activity.js 同理：本文件**不 import 其它解析器**（合并器按文件命名空间隔离、
-//   不会重命名跨文件 import 的名字），只 import lib/env.js。逻辑与 uma 的正文抽档期同源但自带一份。
+//   不会重命名跨文件 import 的名字），只 import lib/env.js（压平后见 28-parser-hover-tools.js）。逻辑与 uma 的正文抽档期同源但自带一份。
 
 
 const ns_ournotes_global_OURNOTES_GLOBAL_GAME_BASE_ID = 118241;
@@ -7881,7 +7881,7 @@ const ns_ournotes_global_TOK_RE = new RegExp([
 	"(?<perm>常驻|常駐|永久|常設|長期)"
 ].join("|"), "g");
 // ⚠️ 2026-10-03：此处原有本地 `yearOf`（补年份）—— 与 `biligame-activity.js` 那份**逐字相同**，
-//    已统一到 `30-parsers.js` 的共用 `inferYear(y, mo, hint)`。
+//    已统一到 `30-parsers.js` 的共用 `inferYear(y, mo, hint)`（压平后见 25-parser-order.js）。
 // 一段文本 → { norm, windows:[{ startTs, endTs, raw, glued }], skipped }
 function ns_ournotes_global_extractOurNotesGlobalWindows(text, tz = ns_ournotes_global_OURNOTES_GLOBAL_TZ, yearHint = null) {
 	const src = String(text == null ? "" : text);
@@ -8285,7 +8285,7 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 //     而不是硬凑一个过期档期。逐条都在这份注释与 registry-b2.js 里写明。
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// 「当期」判定沿用插件本体 `src/client/30-parsers.js` 的 bwiki 语义（bwikiGachaPayload /
+// 「当期」判定沿用插件本体 `src/client/30-parsers.js` 的 bwiki 语义（压平后分见 26-parser-hover.js / 22-fetcher-core.js：bwikiGachaPayload /
 // genericEventPayload）：**过滤出覆盖当前时刻的条目；一条都没有 → 返回 null（未公布）**。
 // 卡池外显取"结束最早"的池（越快结束越该盯住），roles 合并同期全部主池；活动外显优先
 // 剧情/挑战档，悬停按结束时间升序逐行。
@@ -8933,7 +8933,7 @@ async function ns_bwiki_wikitext_fetchWikitext(url, signal, referer = "") {
 // 用户反馈「新增游戏的面板外显/悬停的样式、格式、规则和原来的差别很大」。本文件此前各写各的悬停，
 // 三类偏差全中：① 首行塞元信息（来源站名/URL/SMW 时间/tz 推定/抓取条数/维护锚点）；
 // ② 「档期在前、名称在后」；③ 自拼档期文本而非 fmtWindow。
-// 修法：**排版一律交给 lib/env.js 的共用工具**（与本体 buildPoolHover / buildEventHover 逐字一致），
+// 修法：**排版一律交给 lib/env.js 的共用工具**（压平后见 28-parser-hover-tools.js；与本体 buildPoolHover / buildEventHover 逐字一致），
 // 本区域只负责把解析结果映射成入参；悬停里**只剩** 名称/角色/档期。
 // ⚠️ 元信息（来源站名、域名/URL、API/页面名、时区推定、抓取条数、内部 id、SMW 时间、起点锚点、
 //    「起点推断」注记、游戏名+区服前缀、任何「（…）」实现说明）**直接删掉**，不搬家、不进任何字段。
@@ -8944,7 +8944,7 @@ function ns_bwiki_wikitext_activeItems(items, now) {
 	return items.filter((it) => it.endTs != null && it.startTs != null && coversNow(it, now));
 }
 // 卡池条目 → `hoverPool` 入参。`name` = 池名原文（工具用它判空/兜底），`label` = 外显同构的「池名：角色」
-// （逐字照本体调用方：src/client/30-parsers.js 的 selectArknights`label: `${it.banner}：${it.roles}``）。
+// （逐字照本体调用方：src/client/30-parsers.js 的 selectArknights（压平后见 30-game-hypergryph.js）的 `label: `${it.banner}：${it.roles}``）。
 // ⚠️ 战双的池名形如「时崎狂三狙击 / 命运时崎狂三狙击」——**原样**当池名用，不自己编角色名。
 function ns_bwiki_wikitext_poolItem(x) {
 	const name = String(x.banner == null ? "" : x.banner).trim();
@@ -10068,7 +10068,7 @@ async function ns_biligame_announce_eventsDdlezj(url, signal, tz = ns_biligame_a
 //
 //   ══ 悬停（hover）规则 —— 用户 2026-10-03 反馈「新增游戏的面板外显/悬停的样式、格式、规则
 //      和原来的差别很大」，核实后确认三类偏差，本文件按「方案 A」全部修掉 ══
-//     · 排版唯一真源 = `lib/env.js` 的 `hoverPool` / `hoverEvent`（与本体 buildPoolHover /
+//     · 排版唯一真源 = `lib/env.js` 的 `hoverPool` / `hoverEvent`（压平后见 28-parser-hover-tools.js；与本体 buildPoolHover /
 //       buildEventHover **逐字一致**），本文件**不自己拼字符串**、不排序（工具不排序，调用方排）。
 //     · 活动侧 ≥2 条：每条一行「名称 + 3 空格 + 档期（fmtWindow）」，按结束时间升序；
 //       只有 1 条 → 工具返回 "" → **不设** `eventHover`，交回 UI 默认两行式（`event` ⏎ `eventDates`）。
@@ -10214,7 +10214,7 @@ function ns_biligame_activity_biligameParagraphs(html) {
 
 //#region 悬停排版（**只有名称与档期**，见文件头「悬停规则」）
 // 本区域只做两件事：① 从「覆盖 now 的档期」里取出名称；② 按结束时间升序排好交给共用工具。
-// 排版（3 空格 / 档期格式化 / 窗口全同只写一遍 / <2 条返回 ""）**全在 lib/env.js**，这里绝不自拼。
+// 排版（3 空格 / 档期格式化 / 窗口全同只写一遍 / <2 条返回 ""）**全在 lib/env.js**（压平后见 28-parser-hover-tools.js），这里绝不自拼。
 //
 // ⚠️ 为什么这里有注释而悬停里没有：来源/URL/tz 推定/抓取条数/内部 id 都是**排障信息**，
 //    用户明确要求「元信息彻底删掉」→ 只留在代码注释与 `parse*` 的返回字段（skipped / section /
@@ -10803,7 +10803,7 @@ async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_bil
 //   国际服：scout / recruit / gacha / spotlight / pickup / banner → 卡池；
 //            event / campaign / celebration / story → 活动；卡池优先。
 //
-// ── 传输：POST 只能自己封装（lib/env.js 的 fetchText/fetchJson 只支持 GET）────
+// ── 传输：POST 只能自己封装（lib/env.js 的 fetchText/fetchJson 只支持 GET；压平后见 22-fetcher-core.js）────
 //   走宿主同源代理 `/api/gacha-calendar-proxy`：代理读**请求体**并透传
 //   （src/index.js proxyHandler：`method = body !== "" ? "POST" : "GET"`），
 //   所以 POST 的最小形态是 `fetch(proxyUrl, { method:"POST", body: JSON.stringify(payload) })`。
@@ -11131,7 +11131,7 @@ function ns_umamusume_official_pickUmaWindow(entries, now) {
 }
 
 /**
- * 当期项（交给 `lib/env.js` 的 `hoverPool` / `hoverEvent` 排版）：**一条公告最多一项**。
+ * 当期项（交给 `lib/env.js` 的 `hoverPool` / `hoverEvent` 排版，压平后见 28-parser-hover-tools.js）：**一条公告最多一项**。
  *   · `name` = 公告标题（即卡池名 / 活动名）—— 与本体的 `banner：roles` / 活动名同构；
  *     ⚠️ 官方公告**只有标题、没有"角色"字段**，所以卡池悬停的 `name` 就是 `banner` 本身
  *     （本体是 `池名：角色`，这里退化成只有池名；**不**去正文猜角色，也不补任何前缀）。
@@ -11161,7 +11161,7 @@ function ns_umamusume_official_umaCurrentItems(entries, now) {
 	return out;
 }
 
-// ── 传输：POST 自己封装（lib/env.js 的 fetchText/fetchJson 只支持 GET）────────
+// ── 传输：POST 自己封装（lib/env.js 的 fetchText/fetchJson 只支持 GET；压平后见 22-fetcher-core.js）────────
 const ns_umamusume_official_PROXY_PREFIX = "/api/gacha-calendar-proxy";
 
 /** 代理 URL 形态（与 92-dsh-env.js 的 DSH 代理同前缀）。
@@ -12631,7 +12631,7 @@ async function ns_gf2_eventsGf2(url, signal, tz = ns_gf2_GF2_TZ, now = nowMs()) 
 		const w = ns_gf2_selectGf2Window(wins, now);
 		if (!w) return null;
 		// 悬停：只把**覆盖当前时刻**的窗口当作"当期"，其余（未来/已过）不列进 hover，避免误导。
-		// 格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover）：`名称` + 3 空格 + `档期`。
+		// 格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover；压平后见 28-parser-hover-tools.js）：`名称` + 3 空格 + `档期`。
 		// 名称 = 活动名 + 该窗口的源站标签（「玩法开启时间」/「奖励兑换时间」），这样一条公告里的
 		// 多个不同名窗口既**行首可读**（不再是纯档期打头），又能互相区分。
 		// 只有 1 条窗口 → hoverEvent 返回 "" → 不设 eventHover，由 UI 走默认两行式。
@@ -12734,7 +12734,7 @@ async function ns_gf2_eventsGf2(url, signal, tz = ns_gf2_GF2_TZ, now = nowMs()) 
 // ══ 缓存警告 ══
 //   两个页面顶部都有「该页面的信息或许并非最新 …刷新页面缓存」提示。任务书建议 `&action=purge`，
 //   实测 **purge 必须 POST**（`{"error":{"code":"mustbeposted"}}`），而本目录的传输层
-//   （lib/env.js `fetchText`/`fetchJson`）只有 GET —— 所以**不做 purge**。
+//   （lib/env.js `fetchText`/`fetchJson`，压平后见 22-fetcher-core.js）只有 GET —— 所以**不做 purge**。
 //   好在 `action=parse` 是按当前 revision 重新渲染的（夹具里页面自带的刷新链接时间戳
 //   `_=20261001172628` 正是抓取时刻），实测数据是新鲜的。
 
@@ -12807,7 +12807,7 @@ function ns_fgo_parseFgoWindow(cellText, tz = ns_fgo_FGO_TZ) {
 }
 
 // 选当期：覆盖 now 的里按 (类型档位, 结束时间, 开始时间) 取第一 —— 与插件
-// 30-parsers.js 的 sortEventItems/pickEventPrimary 同口径（越快结束越该被盯住）。
+// 30-parsers.js 的 sortEventItems/pickEventPrimary（压平后见 25-parser-order.js）同口径（越快结束越该被盯住）。
 // 没有覆盖的 → 取最近要开的；再没有 → null（未公布，不硬造）。
 function ns_fgo_pickRow(rows, now) {
 	if (!rows.length) return null;
@@ -12910,7 +12910,7 @@ function ns_fgo_parseFgoEventTable(html, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 	const best = ns_fgo_pickRow(rows, now);
 	if (!best) return { year: found.year, rows, skipped, event: null };
 	// 悬停：只列**覆盖当前时刻**的行（该年的表含全年 57 行，全列会淹没当期；按结束时间升序）。
-	// 格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover）：`名称` + 3 空格 + `档期`。
+	// 格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover；压平后见 28-parser-hover-tools.js）：`名称` + 3 空格 + `档期`。
 	// ⚠️ 表格第 4 列的**类型**（Event/Campaign）是源站的**分类词**，不是活动名 —— 旧实现把它塞在
 	//    「档期」和「名称」之间（`09-24 19:00 ~ 10-15 13:59   Event   幕末…`），既把档期放在了行首，
 	//    又把分类词冒充成名称的一部分。用户 2026-10-03 反馈后**彻底删掉**（分类只用于 `tier` 排序，
@@ -13443,7 +13443,7 @@ async function ns_stellasora_collectStellaSide(url, signal, tz, now, side) {
 }
 
 // ── 悬停 ──────────────────────────────────────────────────────────
-// 一律走 `lib/env.js` 的 hoverPool / hoverEvent（与本体 buildPoolHover / buildEventHover **逐字同格式**）。
+// 一律走 `lib/env.js` 的 hoverPool / hoverEvent（压平后见 28-parser-hover-tools.js；与本体 buildPoolHover / buildEventHover **逐字同格式**）。
 //
 // 为什么不再自己拼字符串（2026-10-03 修，用户点名「新增游戏的悬停样式/格式/规则和原来的差别很大」）：
 //   ① 旧实现把**元信息/实现说明**塞进了悬停 —— 主要是行尾的「（起点按公告发布时刻推断）」，
@@ -14240,7 +14240,7 @@ EVENT_FETCHERS["r1999"] = {
 
 		async function refreshAll(entries, s, timeoutMs) {
 			// 每轮清空 HTML 文本缓存：两侧同址的复用必须落在**同一轮内**，
-			// 跨轮复用会拿到过期页面（见 30-parsers.js 的 fetchHtmlText）
+			// 跨轮复用会拿到过期页面（见 30-parsers.js 的 fetchHtmlText，压平后见 22-fetcher-core.js）
 			resetHtmlTextCache();
 			// 自定义爬取地址覆盖默认；克隆避免污染原始对象（卡池源+活动源分别覆盖）
 			// allowGeneric*：只有"用户自己填的地址"（custom:<url>）或自定义条目才允许通用解析兜底

@@ -291,7 +291,7 @@ export default async function run() {
 			pickUmaWindow(gachaEntries, Date.UTC(2030, 0, 1)) === null
 			&& pickUmaWindow(eventEntries, Date.UTC(2030, 0, 1)) === null
 			&& pickUmaWindow(gachaEntries, Date.UTC(2019, 0, 1)) === null);
-		// ── 悬停（2026-10-03 改版：卡池/活动两侧一律交给 lib/env.js 的 hoverPool / hoverEvent 排版）──
+		// ── 悬停（2026-10-03 改版：卡池/活动两侧一律交给 lib/env.js 的 hoverPool / hoverEvent 排版，压平后见 28-parser-hover-tools.js）──
 		// 旧实现每条一行「档期 + 源站字段标签 + [公告id] + 标题」，首行还有「共扫描 N 条 / 取详情 M 条」——
 		// 元信息与本体格式都不对，已删。这里断言**新行为**（并保留"当期选择"的旧不变量）。
 		const gachaPools = umaCurrentItems(gachaEntries, SNAP);

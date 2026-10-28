@@ -53,7 +53,7 @@
 //     而不是硬凑一个过期档期。逐条都在这份注释与 registry-b2.js 里写明。
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// 「当期」判定沿用插件本体 `src/client/30-parsers.js` 的 bwiki 语义（bwikiGachaPayload /
+// 「当期」判定沿用插件本体 `src/client/30-parsers.js` 的 bwiki 语义（压平后分见 26-parser-hover.js / 22-fetcher-core.js：bwikiGachaPayload /
 // genericEventPayload）：**过滤出覆盖当前时刻的条目；一条都没有 → 返回 null（未公布）**。
 // 卡池外显取"结束最早"的池（越快结束越该盯住），roles 合并同期全部主池；活动外显优先
 // 剧情/挑战档，悬停按结束时间升序逐行。

@@ -329,7 +329,7 @@ async function ns_bandori_eventsBandori(url, signal, tz = ns_bandori_BANDORI_TZ,
 	const a = await ns_bandori_loadAnnouncement(listUrl, signal, ns_bandori_pickBandoriEventSection);
 	if (!a) return null;
 	const w = a.picked.primary;
-	// 悬停格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover）：`名称` + 3 空格 + `档期`，
+	// 悬停格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover；压平后见 28-parser-hover-tools.js）：`名称` + 3 空格 + `档期`，
 	// **名称在前**（旧实现是「档期在前、名称在后」，与本体相反 —— 用户 2026-10-03 反馈的偏差②）。
 	// 只有 1 条当期 → hoverEvent 返回 "" → 不设 eventHover，由 UI 走默认两行式。
 	// ⚠️ 这里原来写死 `nowMs()`（2026-10-15 修）：外显按注入时刻、悬停按真实时刻 → 两者不同源。
@@ -519,7 +519,7 @@ async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES
 	if (!picked || !picked.win) return null;
 	const active = [];
 	for (const p of posts) for (const w of p.windows) if (coversNow(w, now)) active.push({ p, w });
-	// 悬停格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover）：`名称` + 3 空格 + `档期`，
+	// 悬停格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover；压平后见 28-parser-hover-tools.js）：`名称` + 3 空格 + `档期`，
 	// **名称在前**（旧实现「档期在前、名称在后」，与本体相反 —— 用户 2026-10-03 反馈的偏差②）。
 	// 名称用公告标题（这是该站的"活动名"来源）；行内不再附来源站名/URL/时区推定等元信息。
 	// ⚠️ 只有 1 条当期窗口时 hoverEvent 返回 "" → **不设 eventHover**，由 UI 走默认两行式
@@ -587,7 +587,7 @@ async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES
 //
 // ══ 合并器注意 ══
 //   与 biligame-activity.js 同理：本文件**不 import 其它解析器**（合并器按文件命名空间隔离、
-//   不会重命名跨文件 import 的名字），只 import lib/env.js。逻辑与 uma 的正文抽档期同源但自带一份。
+//   不会重命名跨文件 import 的名字），只 import lib/env.js（压平后见 28-parser-hover-tools.js）。逻辑与 uma 的正文抽档期同源但自带一份。
 
 
 const ns_ournotes_global_OURNOTES_GLOBAL_GAME_BASE_ID = 118241;
@@ -724,7 +724,7 @@ const ns_ournotes_global_TOK_RE = new RegExp([
 	"(?<perm>常驻|常駐|永久|常設|長期)"
 ].join("|"), "g");
 // ⚠️ 2026-10-03：此处原有本地 `yearOf`（补年份）—— 与 `biligame-activity.js` 那份**逐字相同**，
-//    已统一到 `30-parsers.js` 的共用 `inferYear(y, mo, hint)`。
+//    已统一到 `30-parsers.js` 的共用 `inferYear(y, mo, hint)`（压平后见 25-parser-order.js）。
 // 一段文本 → { norm, windows:[{ startTs, endTs, raw, glued }], skipped }
 function ns_ournotes_global_extractOurNotesGlobalWindows(text, tz = ns_ournotes_global_OURNOTES_GLOBAL_TZ, yearHint = null) {
 	const src = String(text == null ? "" : text);

@@ -14,7 +14,7 @@ node test/all.mjs     # 离线门禁（走夹具）——这是门禁
 用户要求「把 next-sources 合并进原 source，不留 next-source」。原先新增来源的解析器是
 `next-sources/parsers/*.js`（ESM 模块，测试直接 `import` 源码，再由一个外部生成器内联进插件）。
 
-现在它们压平成了 `src/client/42-parsers-*.js` —— 与 `30-parsers.js` 同性质的**普通拼接段**
+现在它们压平成了 `src/client/42-parsers-*.js` —— 与 `30-parsers.js`（压平后拆成 22-fetcher-core.js 与 23~28-parser-* 各段）同性质的**普通拼接段**
 （`build.mjs` 按 ORDER 原样拼成一个 IIFE）。普通段没有 `export`，所以测试改为：
 
 1. `node build.mjs`

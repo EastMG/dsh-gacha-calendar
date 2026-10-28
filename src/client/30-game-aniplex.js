@@ -61,7 +61,7 @@
 // ══ 缓存警告 ══
 //   两个页面顶部都有「该页面的信息或许并非最新 …刷新页面缓存」提示。任务书建议 `&action=purge`，
 //   实测 **purge 必须 POST**（`{"error":{"code":"mustbeposted"}}`），而本目录的传输层
-//   （lib/env.js `fetchText`/`fetchJson`）只有 GET —— 所以**不做 purge**。
+//   （lib/env.js `fetchText`/`fetchJson`，压平后见 22-fetcher-core.js）只有 GET —— 所以**不做 purge**。
 //   好在 `action=parse` 是按当前 revision 重新渲染的（夹具里页面自带的刷新链接时间戳
 //   `_=20261001172628` 正是抓取时刻），实测数据是新鲜的。
 
@@ -134,7 +134,7 @@ function ns_fgo_parseFgoWindow(cellText, tz = ns_fgo_FGO_TZ) {
 }
 
 // 选当期：覆盖 now 的里按 (类型档位, 结束时间, 开始时间) 取第一 —— 与插件
-// 30-parsers.js 的 sortEventItems/pickEventPrimary 同口径（越快结束越该被盯住）。
+// 30-parsers.js 的 sortEventItems/pickEventPrimary（压平后见 25-parser-order.js）同口径（越快结束越该被盯住）。
 // 没有覆盖的 → 取最近要开的；再没有 → null（未公布，不硬造）。
 function ns_fgo_pickRow(rows, now) {
 	if (!rows.length) return null;
@@ -237,7 +237,7 @@ function ns_fgo_parseFgoEventTable(html, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 	const best = ns_fgo_pickRow(rows, now);
 	if (!best) return { year: found.year, rows, skipped, event: null };
 	// 悬停：只列**覆盖当前时刻**的行（该年的表含全年 57 行，全列会淹没当期；按结束时间升序）。
-	// 格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover）：`名称` + 3 空格 + `档期`。
+	// 格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover；压平后见 28-parser-hover-tools.js）：`名称` + 3 空格 + `档期`。
 	// ⚠️ 表格第 4 列的**类型**（Event/Campaign）是源站的**分类词**，不是活动名 —— 旧实现把它塞在
 	//    「档期」和「名称」之间（`09-24 19:00 ~ 10-15 13:59   Event   幕末…`），既把档期放在了行首，
 	//    又把分类词冒充成名称的一部分。用户 2026-10-03 反馈后**彻底删掉**（分类只用于 `tier` 排序，

@@ -28,7 +28,7 @@
 				// 即空格），旧实现只认上面那几个硬编码 → 面板上直接显示成
 				// `阿蒂拉&#32; 罗摩&#32; 兰斯洛特(Saber)&#32; …`（2026-10-03 修）。
 				// 位置刻意放在硬编码白名单**之后**：已知实体优先，尽量不改变既有解析结果。
-				// 注：`next-sources/lib/env.js` 的 decodeEntities 本来就是通用实现，
+				// 注：`next-sources/lib/env.js` 的 decodeEntities（压平后见 27-parser-text.js）本来就是通用实现，
 				//     这次补齐后两者语义一致，不再有"测试对、插件错"的落差。
 				.replace(/&#(\d+);/g, (m, n) => {
 					try { return String.fromCodePoint(Number(n)); } catch { return m; }

@@ -342,7 +342,7 @@
 				pickOurNotesGlobalWindow: ns_ournotes_global_pickOurNotesGlobalWindow,
 			},
 			},
-			// 共用工具 / env（测试原先从 next-sources/lib/env.js 取）
+			// 共用工具 / env（测试原先从 next-sources/lib/env.js 取；压平后分别见 23-parser-time.js / 24-parser-window.js / 27-parser-text.js / 28-parser-hover-tools.js）
 			fmtWindow,
 			fmtMdHm,
 			// 错误归一（`GameKee 内容接口失败（…）` 这类结构化来源的文案必须原样透出，见 60-helpers.js）

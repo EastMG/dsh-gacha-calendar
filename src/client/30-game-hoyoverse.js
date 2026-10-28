@@ -429,7 +429,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // 五、悬停排版（用户 2026-10-03：「元信息彻底删掉」）
 // ══════════════════════════════════════════════════════════════════════════════
-//  排版**不再本地实现**，一律调 `lib/env.js` 的 `hoverPool` / `hoverEvent`
+//  排版**不再本地实现**，一律调 `lib/env.js` 的 `hoverPool` / `hoverEvent`（压平后见 28-parser-hover-tools.js）
 //  （与本体 `buildPoolHover` / `buildEventHover` 逐字一致），本文件只负责：
 //    · 卡池侧：每池一项 `{ name: 公告标题, label: 「池名：角色」, startTs, endTs }` → hoverPool
 //      （角色名空 → label 退化成池名；与本体 `banner：roles` 同构）
@@ -750,11 +750,11 @@ function ns_miyoushe_rawOf(p, tz) {
 }
 
 // ── 悬停条目 ──────────────────────────────────────────────────────────────────
-// 排版交给 lib/env.js 的 `hoverPool` / `hoverEvent`（与本体 buildPoolHover / buildEventHover 逐字一致）。
+// 排版交给 lib/env.js 的 `hoverPool` / `hoverEvent`（压平后见 28-parser-hover-tools.js；与本体 buildPoolHover / buildEventHover 逐字一致）。
 // 用户 2026-10-03：「悬停里的元信息彻底删掉」→ 这里**只**产出名称与档期，别的一概不传。
 // 池名与本体 `banner：roles` 同构：有角色名 →「池名：角色」，没有 → 只写池名。
 const ns_miyoushe_hoverPoolName = (w) => (w.roles ? `${w.subject}：${w.roles}` : w.subject);
-// 活动悬停顺序：结束时间升序（无/未知结束排在最后），并列再按开始时间 —— 与 lib/env.js 内部规则一致
+// 活动悬停顺序：结束时间升序（无/未知结束排在最后），并列再按开始时间 —— 与 lib/env.js（压平后见 28-parser-hover-tools.js）内部规则一致
 function ns_miyoushe_byEndTs(a, b) {
 	const ea = a.endTs == null ? Infinity : a.endTs;
 	const eb = b.endTs == null ? Infinity : b.endTs;

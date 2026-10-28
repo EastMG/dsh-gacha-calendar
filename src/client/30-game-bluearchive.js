@@ -49,7 +49,7 @@
 			const list = await proxyFetchJson(logListUrl, ref);
 			const threads = Array.isArray(list?.threads) ? list.threads : [];
 			// 每篇日志的维护日取标题日期（"8/18(二) 更新日誌"）；日期跨年按当前年推断
-			// ⚠️ 这里是 `inferYear`（30-parsers.js）那条规则的**绝对值版本**：拿不到公告年、
+			// ⚠️ 这里是 `inferYear`（30-parsers.js；压平后见 25-parser-order.js）那条规则的**绝对值版本**：拿不到公告年、
 			//    只拿得到 now，于是用"按今年解释后若落在 now 之后 45 天以外 → 必是去年"代替月份比较。
 			//    之所以 45 天而非 6 个月：日志列表按时间倒序、且只取 `ts <= now` 的那篇，
 			//    正常日期一定紧贴 now；超出一个半月的"未来日期"只可能是把去年的 12/31 解释成了今年。

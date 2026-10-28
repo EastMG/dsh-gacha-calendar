@@ -80,7 +80,7 @@ async function ns_bwiki_wikitext_fetchWikitext(url, signal, referer = "") {
 // 用户反馈「新增游戏的面板外显/悬停的样式、格式、规则和原来的差别很大」。本文件此前各写各的悬停，
 // 三类偏差全中：① 首行塞元信息（来源站名/URL/SMW 时间/tz 推定/抓取条数/维护锚点）；
 // ② 「档期在前、名称在后」；③ 自拼档期文本而非 fmtWindow。
-// 修法：**排版一律交给 lib/env.js 的共用工具**（与本体 buildPoolHover / buildEventHover 逐字一致），
+// 修法：**排版一律交给 lib/env.js 的共用工具**（压平后见 28-parser-hover-tools.js；与本体 buildPoolHover / buildEventHover 逐字一致），
 // 本区域只负责把解析结果映射成入参；悬停里**只剩** 名称/角色/档期。
 // ⚠️ 元信息（来源站名、域名/URL、API/页面名、时区推定、抓取条数、内部 id、SMW 时间、起点锚点、
 //    「起点推断」注记、游戏名+区服前缀、任何「（…）」实现说明）**直接删掉**，不搬家、不进任何字段。
@@ -91,7 +91,7 @@ function ns_bwiki_wikitext_activeItems(items, now) {
 	return items.filter((it) => it.endTs != null && it.startTs != null && coversNow(it, now));
 }
 // 卡池条目 → `hoverPool` 入参。`name` = 池名原文（工具用它判空/兜底），`label` = 外显同构的「池名：角色」
-// （逐字照本体调用方：src/client/30-parsers.js 的 selectArknights`label: `${it.banner}：${it.roles}``）。
+// （逐字照本体调用方：src/client/30-parsers.js 的 selectArknights（压平后见 30-game-hypergryph.js）的 `label: `${it.banner}：${it.roles}``）。
 // ⚠️ 战双的池名形如「时崎狂三狙击 / 命运时崎狂三狙击」——**原样**当池名用，不自己编角色名。
 function ns_bwiki_wikitext_poolItem(x) {
 	const name = String(x.banner == null ? "" : x.banner).trim();

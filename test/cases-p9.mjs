@@ -15,7 +15,7 @@
 //      悬停里**只许有名称与档期**，且一律「名称在前 + 3 空格 + fmtWindow 档期」（卡池侧「池名：角色」）；
 //      元信息（来源站/URL/gameExtensionId/typeId/tz 推定/抓取条数/▶/「粘连」「常驻不产出」说明）
 //      **一条都不许出现**（用户原话「元信息彻底删掉」）→ 本文件用 HOVER_META_RE 做统一守卫。
-//      排版唯一真源 = lib/env.js 的 hoverPool / hoverEvent（与本体 buildPoolHover / buildEventHover
+//      排版唯一真源 = lib/env.js 的 hoverPool / hoverEvent（压平后见 28-parser-hover-tools.js；与本体 buildPoolHover / buildEventHover
 //      逐字一致）；<2 项返回 "" → 调用方**不设** bannerHover / eventHover，交回 UI 默认两行式。
 //
 // 本地直接跑：node test/cases-p9.mjs

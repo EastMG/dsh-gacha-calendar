@@ -216,7 +216,7 @@ export default async function runP7() {
 			check("单池当期 → **不设** bannerHover（交回 UI 默认两行式「池名：角色」⏎「档期」）",
 				!!g1 && g1.bannerHover === undefined, JSON.stringify(g1 && g1.bannerHover));
 			check("单池当期外显照常（=「空白的稚梦」）", !!g1 && g1.banner === "「空白的稚梦」", JSON.stringify(g1 && g1.banner));
-			// 解析器「<2 就不设字段」的依据本身也守一道（lib/env.js 的契约）
+			// 解析器「<2 就不设字段」的依据本身也守一道（lib/env.js 的契约，压平后见 28-parser-hover-tools.js）
 			check("契约：hoverPool/hoverEvent 在不足 2 条时返回空串",
 				hoverPool([{ name: "池", startTs: g.startTs, endTs: g.endTs }], STELLA_TZ) === ""
 				&& hoverEvent([{ name: "活动", startTs: g.startTs, endTs: g.endTs }], STELLA_TZ) === "");

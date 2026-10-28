@@ -7,7 +7,7 @@
 
 // src/client/41-sources-shared.js —— 新增来源解析器共用的：抓取桥接 + 悬停排版工具
 //
-// 历史沿革：这些代码原本在 `next-sources/lib/env.js`（ESM 模块，由外部生成器内联进 45-next-sources.js）。
+// 历史沿革：这些代码原本在 `next-sources/lib/env.js`（ESM 模块，由外部生成器内联进 45-next-sources.js；压平后即本文件 27-parser-text.js）。
 // 2026-10-03 按用户要求「把 next-sources 合并进原 source，不留 next-source」压平成普通源码段，
 // `next-sources/` 目录与生成器均已删除 —— **这里就是唯一真源，直接改这里**。
 //
@@ -15,9 +15,9 @@
 //   · 抓取：fetchText / fetchJson / fetchMediaWikiText（走宿主代理或直连）
 //   · 文本：pad2 / decodeEntities / textOf
 //   · 悬停排版：hoverPool / hoverEvent（与本体 buildPoolHover / buildEventHover 逐字一致）
-// 其余 env 名字（sourceInstant / sourceWallParts / fmtWindow / fmtMdHm / stripTags）由 30-parsers.js 与 15-env.js 提供。
+// 其余 env 名字（sourceInstant / sourceWallParts / fmtWindow / fmtMdHm / stripTags）原本由 30-parsers.js 与 15-env.js 提供 —— 压平后分别是 15-env.js（sourceInstant / sourceWallParts）、24-parser-window.js（fmtWindow / fmtMdHm）、23-parser-time.js（stripTags）。
 
-		// 解析器原本 import ./lib/env.js；这里用插件已有实现 + 少量补齐顶上（解析器代码不改）。
+		// 解析器原本 import ./lib/env.js（压平后并入本文件 27-parser-text.js）；这里用插件已有实现 + 少量补齐顶上（解析器代码不改）。
 		//   sourceInstant / sourceWallParts / fmtWindow / fmtMdHm / stripTags → 本体已有
 		//   pad2 / decodeEntities / textOf                                    → 本区补
 		//   fetchText / fetchJson / fetchMediaWikiText                        → 接宿主代理 / 直连

@@ -341,7 +341,7 @@ async function ns_gf2_eventsGf2(url, signal, tz = ns_gf2_GF2_TZ, now = nowMs()) 
 		const w = ns_gf2_selectGf2Window(wins, now);
 		if (!w) return null;
 		// 悬停：只把**覆盖当前时刻**的窗口当作"当期"，其余（未来/已过）不列进 hover，避免误导。
-		// 格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover）：`名称` + 3 空格 + `档期`。
+		// 格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover；压平后见 28-parser-hover-tools.js）：`名称` + 3 空格 + `档期`。
 		// 名称 = 活动名 + 该窗口的源站标签（「玩法开启时间」/「奖励兑换时间」），这样一条公告里的
 		// 多个不同名窗口既**行首可读**（不再是纯档期打头），又能互相区分。
 		// 只有 1 条窗口 → hoverEvent 返回 "" → 不设 eventHover，由 UI 走默认两行式。

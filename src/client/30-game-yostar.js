@@ -255,7 +255,7 @@ async function ns_stellasora_collectStellaSide(url, signal, tz, now, side) {
 }
 
 // ── 悬停 ──────────────────────────────────────────────────────────
-// 一律走 `lib/env.js` 的 hoverPool / hoverEvent（与本体 buildPoolHover / buildEventHover **逐字同格式**）。
+// 一律走 `lib/env.js` 的 hoverPool / hoverEvent（压平后见 28-parser-hover-tools.js；与本体 buildPoolHover / buildEventHover **逐字同格式**）。
 //
 // 为什么不再自己拼字符串（2026-10-03 修，用户点名「新增游戏的悬停样式/格式/规则和原来的差别很大」）：
 //   ① 旧实现把**元信息/实现说明**塞进了悬停 —— 主要是行尾的「（起点按公告发布时刻推断）」，

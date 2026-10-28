@@ -229,7 +229,7 @@
 
 		async function refreshAll(entries, s, timeoutMs) {
 			// 每轮清空 HTML 文本缓存：两侧同址的复用必须落在**同一轮内**，
-			// 跨轮复用会拿到过期页面（见 30-parsers.js 的 fetchHtmlText）
+			// 跨轮复用会拿到过期页面（见 30-parsers.js 的 fetchHtmlText，压平后见 22-fetcher-core.js）
 			resetHtmlTextCache();
 			// 自定义爬取地址覆盖默认；克隆避免污染原始对象（卡池源+活动源分别覆盖）
 			// allowGeneric*：只有"用户自己填的地址"（custom:<url>）或自定义条目才允许通用解析兜底

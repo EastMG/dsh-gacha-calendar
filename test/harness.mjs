@@ -9,7 +9,7 @@
 //
 // ── 与 2026-10-03 压平重构的关系 ──
 // 解析器从 ESM 模块压平进了 src/client/（测试跑构建产物 lib/client.js），
-// 所以这里不再 `setFetchImpl` 到 lib/env.js，而是往产物的 `setCoreEnv` 注入 transport。
+// 所以这里不再 `setFetchImpl` 到 lib/env.js（压平后见 15-env.js），而是往产物的 `setCoreEnv` 注入 transport。
 // 但为了**不惊动既有用例**，`setFetchImpl` / `useFixtures` 仍然保持**旧签名**：
 //   impl(url, opts) → Response 形态；代理路径以 `/api/gacha-calendar-proxy?url=…` 出现。
 // 本文件把旧式 impl 包成 transport：

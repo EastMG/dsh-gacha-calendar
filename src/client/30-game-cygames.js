@@ -79,7 +79,7 @@
 //   国际服：scout / recruit / gacha / spotlight / pickup / banner → 卡池；
 //            event / campaign / celebration / story → 活动；卡池优先。
 //
-// ── 传输：POST 只能自己封装（lib/env.js 的 fetchText/fetchJson 只支持 GET）────
+// ── 传输：POST 只能自己封装（lib/env.js 的 fetchText/fetchJson 只支持 GET；压平后见 22-fetcher-core.js）────
 //   走宿主同源代理 `/api/gacha-calendar-proxy`：代理读**请求体**并透传
 //   （src/index.js proxyHandler：`method = body !== "" ? "POST" : "GET"`），
 //   所以 POST 的最小形态是 `fetch(proxyUrl, { method:"POST", body: JSON.stringify(payload) })`。
@@ -407,7 +407,7 @@ function ns_umamusume_official_pickUmaWindow(entries, now) {
 }
 
 /**
- * 当期项（交给 `lib/env.js` 的 `hoverPool` / `hoverEvent` 排版）：**一条公告最多一项**。
+ * 当期项（交给 `lib/env.js` 的 `hoverPool` / `hoverEvent` 排版，压平后见 28-parser-hover-tools.js）：**一条公告最多一项**。
  *   · `name` = 公告标题（即卡池名 / 活动名）—— 与本体的 `banner：roles` / 活动名同构；
  *     ⚠️ 官方公告**只有标题、没有"角色"字段**，所以卡池悬停的 `name` 就是 `banner` 本身
  *     （本体是 `池名：角色`，这里退化成只有池名；**不**去正文猜角色，也不补任何前缀）。
@@ -437,7 +437,7 @@ function ns_umamusume_official_umaCurrentItems(entries, now) {
 	return out;
 }
 
-// ── 传输：POST 自己封装（lib/env.js 的 fetchText/fetchJson 只支持 GET）────────
+// ── 传输：POST 自己封装（lib/env.js 的 fetchText/fetchJson 只支持 GET；压平后见 22-fetcher-core.js）────────
 const ns_umamusume_official_PROXY_PREFIX = "/api/gacha-calendar-proxy";
 
 /** 代理 URL 形态（与 92-dsh-env.js 的 DSH 代理同前缀）。
