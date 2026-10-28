@@ -14,6 +14,7 @@ import z from "@deepseek-ai/schemastery";
 // src/client/65-remind.js 原样拼出）。宿主半边因此不需要（也拿不到）浏览器 bundle 里的任何东西。
 import {
 	remindConfigOf,
+	remindIdentityOf,
 	remindItemsOf,
 	remindOnOf,
 	remindStateOf,
@@ -39,6 +40,32 @@ const PROXY_PREFIX = "/api/gacha-calendar-proxy";
 const SNAPSHOT_PREFIX = "/api/gacha-calendar-snapshot.json";
 /** Snapshot body limit (chars). 真实数据约 200KB，4MB 留足余量。 */
 const SNAPSHOT_MAX_CHARS = 4 * 1024 * 1024;
+
+/**
+ * 通知身份（AppUserModelID）路由：设置页「通知身份」那一行按钮读 / 写它。
+ *  `GET  /api/gacha-calendar-notify-identity` → `{ enabled, aumid, shortcutPath, iconPath }`
+ *  `POST /api/gacha-calendar-notify-identity` body `{ enabled: true|false }`
+ *       → 建 / 删「当前用户开始菜单」里的快捷方式，返回 `{ ok, enabled, shortcutPath }` 或
+ *         `{ ok: false, error }`（结构化原因由设置页一行小字显示）。
+ * 为什么做成**可选**：这条快捷方式是**当前用户**开始菜单里的一个真实入口（不需要管理员），
+ * 换来的只是通知横幅顶部的应用名 —— 该由用户自己点，不该在装插件时偷偷做。
+ */
+const NOTIFY_IDENTITY_PREFIX = "/api/gacha-calendar-notify-identity";
+
+// ── 通知身份常量（改这里 = 改系统通知横幅顶部的应用名）──────────────────────────────
+/**
+ * 应用身份 AUMID。**宿主与通知脚本必须用同一个值**：宿主判断"身份是否已启用"就是拿 .lnk 里的
+ * `System.AppUserModel.ID` 与这个常量比对；两边一旦不同就永远判成未启用 ⇒ 静默回退 PowerShell。
+ * 本文件里只出现这一处字面量，toast 脚本的 `$Aumid` 是运行时由这里传进去的（不再写死第二份）。
+ */
+const NOTIFY_AUMID = "DshGachaCalendar.Reminder";
+/** 开始菜单里的快捷方式名（当前用户，`%APPDATA%\Microsoft\Windows\Start Menu\Programs`）。 */
+const NOTIFY_SHORTCUT_NAME = "二游日历.lnk";
+/** 快捷方式图标（**预留接口**）：现在用系统「日期和时间」的日历图标（timedate.cpl 的 0 号）。
+ *  项目有正式 .ico 后改这里即可（形如 `C:\…\gacha-calendar.ico,0`）；GET 路由会把它交给设置页。 */
+const NOTIFY_SHORTCUT_ICON = "%SystemRoot%\\System32\\timedate.cpl,0";
+/** POST body 上限（只传一个布尔值，4KB 足够；超限回 413）。 */
+const NOTIFY_MAX_BODY_CHARS = 4 * 1024;
 
 /** Last snapshot published by the browser half: `{ at, data }`（内存态）。
  *  故意不落盘：它的权威副本是 `lastData` 设置，这里只是给本机脚本一份方便读的镜像；
@@ -338,9 +365,10 @@ async function proxyHandler(req, res) {
 // 这也是"不往系统计划任务 / 开机自启里塞东西"的代价：装插件 = 零安装步骤，副作用是离不开宿主。
 //
 // 送达为什么用**系统通知**：用户的目标是「不看 DSH 也能知道」，红点/面板都做不到。
-// 为什么横幅顶部只能显示「Windows PowerShell」：非打包应用要有正经身份，就得往用户开始菜单里塞一条
-// 带 AppUserModelID 的快捷方式（tools/remind/install.ps1 的 demo 做过那套），npm 装的插件不该去改
-// 用户开始菜单 ⇒ 直接用 Windows PowerShell 自己的 AUMID，接受顶部显示「Windows PowerShell」。
+// 横幅顶部的应用名默认是「Windows PowerShell」（非打包应用没有正经身份）；
+// 用户想要「二游日历」时可以在设置页点「启用」—— 宿主会在**当前用户**的开始菜单里放一条带
+// AppUserModelID 的快捷方式（`notifyIdentityEnableScript`，不需要管理员），通知随后用那个 AUMID。
+// 该功能默认关、随时可移除；判断失败 / 未启用一律回退 PowerShell 自带的 AUMID。
 // **本文件不引用 tools/ 目录下的任何东西**（那是给将来独立跑的原型，不属于插件运行时）。
 //
 // 每一轮做的事（判定规则本身在 lib/remind-core.mjs，和面板/core 是同一份源码）：
@@ -434,6 +462,278 @@ function psArray(lines) {
 	return "@(" + (Array.isArray(lines) ? lines : []).map(psQuote).join(", ") + ")";
 }
 
+// ── 通知身份（AUMID）：开始菜单快捷方式的建 / 删 / 读 ─────────────────────────────────
+// 为什么必须落一条 .lnk：Windows 只认「开始菜单快捷方式里写的 AppUserModelID」= 非打包应用的身份；
+// 只在 `HKCU\Software\Classes\AppUserModelId\<AUMID>` 写 DisplayName **不够**（实测 toast 弹不出来）。
+// 三条脚本都是自包含的（宿主的 -EncodedCommand 方式，与 toast 同一套），不往用户机器上落 .ps1。
+// 任何失败都写进输出的 JSON 里 ⇒ 结构化错误能一路回到设置页，而不是只留一行 exit code。
+
+/**
+ * .lnk 的 System.AppUserModel.ID 读写：这个 shell 属性没有命令行 / PowerShell 原生写法，
+ * 必须走 IPropertyStore（内联 C#，与 tools/remind/install.ps1 里已跑通的那一版同一套 P/Invoke）。
+ * ⚠️ PROPVARIANT 必须显式 `Size = 24`：GetValue 会写满 24 字节，布局给少了会踩坏托管内存。
+ */
+const NOTIFY_INTEROP_SOURCE = `using System;
+using System.Runtime.InteropServices;
+
+public static class GachaNotifyShortcut {
+    [StructLayout(LayoutKind.Sequential, Pack = 4)] struct PropertyKey { public Guid fmtid; public uint pid; }
+    [StructLayout(LayoutKind.Explicit, Size = 24)] struct PropVariant {   // 24 = PROPVARIANT 的实际大小
+        [FieldOffset(0)] public ushort vt;                               // （x64；显式给足，否则 GetValue
+        [FieldOffset(8)] public IntPtr pointer;                          //   写 24 字节会踩坏托管内存）
+    }
+    [ComImport, Guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IPropertyStore {
+        int GetCount(out uint count); int GetAt(uint i, out PropertyKey key);
+        int GetValue(ref PropertyKey key, out PropVariant value);
+        int SetValue(ref PropertyKey key, ref PropVariant value); int Commit();
+    }
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    static extern int SHGetPropertyStoreFromParsingName(string path, IntPtr ctx, uint flags, ref Guid iid,
+        [MarshalAs(UnmanagedType.Interface)] out IPropertyStore store);
+    [DllImport("ole32.dll")] static extern int PropVariantClear(ref PropVariant value);
+
+    static PropertyKey Key() {   // {9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3}, pid 5 = PKEY_AppUserModel_ID
+        return new PropertyKey { fmtid = new Guid("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3"), pid = 5 };
+    }
+    static IPropertyStore Open(string lnk, uint flags) {
+        Guid iid = typeof(IPropertyStore).GUID; IPropertyStore store;
+        int hr = SHGetPropertyStoreFromParsingName(lnk, IntPtr.Zero, flags, ref iid, out store);
+        if (hr < 0) Marshal.ThrowExceptionForHR(hr);
+        return store;
+    }
+    public static void Set(string lnk, string aumid) {
+        IPropertyStore store = Open(lnk, 2);                          // 2 = GPS_READWRITE
+        try {
+            PropertyKey key = Key(); PropVariant v = new PropVariant();
+            v.vt = 31; v.pointer = Marshal.StringToCoTaskMemUni(aumid);   // 31 = VT_LPWSTR
+            try { Marshal.ThrowExceptionForHR(store.SetValue(ref key, ref v)); Marshal.ThrowExceptionForHR(store.Commit()); }
+            finally { Marshal.FreeCoTaskMem(v.pointer); }
+        } finally { Marshal.ReleaseComObject(store); }
+    }
+    public static string Get(string lnk) {
+        IPropertyStore store = Open(lnk, 0);                          // 0 = GPS_DEFAULT（只读）
+        try {
+            PropertyKey key = Key(); PropVariant v;
+            Marshal.ThrowExceptionForHR(store.GetValue(ref key, out v));
+            try { return v.vt == 31 && v.pointer != IntPtr.Zero ? Marshal.PtrToStringUni(v.pointer) : null; }
+            finally { PropVariantClear(ref v); }
+        } finally { Marshal.ReleaseComObject(store); }
+    }
+}
+`;
+
+/** 开始菜单目录（**当前用户**，不需要管理员）。 */
+function notifyShortcutDir() {
+	const appData = process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
+	return path.join(appData, "Microsoft", "Windows", "Start Menu", "Programs");
+}
+
+/** 快捷方式绝对路径（`…\Start Menu\Programs\二游日历.lnk`）。 */
+function notifyShortcutPath() {
+	return path.join(notifyShortcutDir(), NOTIFY_SHORTCUT_NAME);
+}
+
+/** 图标路径：把常量里的 `%SystemRoot%` 展开成绝对路径（只用于展示，不做其它解析）。 */
+function notifyIconPath() {
+	const sysRoot = process.env.SystemRoot || process.env.windir || "C:\\Windows";
+	return NOTIFY_SHORTCUT_ICON.replace(/%SystemRoot%/gi, sysRoot);
+}
+
+/** PowerShell 脚本的公共开头（错误即停 + 关进度流 + 管道按 UTF-8 输出，与 toast 同一套理由）。 */
+function notifyScriptHead() {
+	return [
+		"$ErrorActionPreference = 'Stop'",
+		"$ProgressPreference = 'SilentlyContinue'",
+		"try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }"
+	];
+}
+
+/** 只读探测脚本：输出 `{ exists, aumid, error }`，**不做任何写操作**。 */
+function notifyIdentityProbeScript() {
+	return notifyScriptHead().concat([
+		"$Lnk = " + psQuote(notifyShortcutPath()),
+		"$Interop = @'",
+		NOTIFY_INTEROP_SOURCE,
+		"'@",
+		"$Out = [ordered]@{ exists = $false; aumid = $null; error = $null }",
+		"try {",
+		"\tif (Test-Path -LiteralPath $Lnk) {",
+		"\t\t$Out.exists = $true",
+		"\t\tif (-not ('GachaNotifyShortcut' -as [type])) { Add-Type -TypeDefinition $Interop -ErrorAction Stop }",
+		"\t\t$Out.aumid = [GachaNotifyShortcut]::Get($Lnk)",
+		"\t}",
+		"} catch { $Out.error = $_.Exception.Message }",
+		"$Out | ConvertTo-Json -Compress",
+		"exit 0",
+		""
+	]).join("\n");
+}
+
+/**
+ * 启用脚本：建快捷方式（同名覆盖，不会多出第二条）→ 写 AUMID → 回读确认 → 写注册表的 DisplayName。
+ * 回读是**必须**的："Save() 成功"不代表 AUMID 写进去了，不确认就等于没验证。
+ */
+function notifyIdentityEnableScript() {
+	return notifyScriptHead().concat([
+		"$Lnk = " + psQuote(notifyShortcutPath()),
+		"$Aumid = " + psQuote(NOTIFY_AUMID),
+		"$Icon = " + psQuote(notifyIconPath()),
+		"$Interop = @'",
+		NOTIFY_INTEROP_SOURCE,
+		"'@",
+		"$Out = [ordered]@{ ok = $false; error = $null; aumid = $null }",
+		"try {",
+		"\t$Dir = Split-Path -Parent $Lnk",
+		"\tNew-Item -ItemType Directory -Force -Path $Dir | Out-Null",
+		// 身份载体：wscript.exe 本体 + **不带参数**（只是让 .lnk 有个合法目标，不会被真正启动）。
+		"\t$Target = Join-Path $env:SystemRoot 'System32\\wscript.exe'",
+		"\tif (-not (Test-Path -LiteralPath $Target)) { $Target = 'wscript.exe' }",
+		"\t$Shell = New-Object -ComObject WScript.Shell",
+		"\ttry {",
+		"\t\t$Sc = $Shell.CreateShortcut($Lnk)",
+		"\t\t$Sc.TargetPath = $Target",
+		"\t\t$Sc.Description = '二游日历 · 通知身份（只用来定应用名，不会被真正启动）'",
+		"\t\t$Sc.IconLocation = $Icon",
+		"\t\t$Sc.Save()",
+		"\t} finally {",
+		"\t\t[void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($Shell)",
+		"\t}",
+		"\tif (-not ('GachaNotifyShortcut' -as [type])) { Add-Type -TypeDefinition $Interop -ErrorAction Stop }",
+		"\t[GachaNotifyShortcut]::Set($Lnk, $Aumid)",
+		"\t$ReadBack = [GachaNotifyShortcut]::Get($Lnk)",
+		"\tif ($ReadBack -ne $Aumid) { throw ('快捷方式已建好，但 AUMID 回读不一致（读到「' + $ReadBack + '」）') }",
+		// 起名用：系统从这条注册表项取通知里的应用显示名（没有 .lnk 时它不会生效）。
+		"\t$Key = 'HKCU:\\Software\\Classes\\AppUserModelId\\' + $Aumid",
+		"\tNew-Item -Path $Key -Force | Out-Null",
+		"\tNew-ItemProperty -Path $Key -Name 'DisplayName' -Value '二游日历' -PropertyType String -Force | Out-Null",
+		"\t$Out.ok = $true",
+		"\t$Out.aumid = $ReadBack",
+		"} catch { $Out.error = $_.Exception.Message }",
+		"$Out | ConvertTo-Json -Compress",
+		"exit 0",
+		""
+	]).join("\n");
+}
+
+/**
+ * 停用脚本：只删开始菜单快捷方式。
+ * **注册表键 `HKCU\Software\Classes\AppUserModelId\<AUMID>` 保留**：没有快捷方式时系统根本不会用它
+ * （不启用就没有任何副作用），而留着它下次启用时不用再写一遍、也不用在这里多写一段删键逻辑。
+ */
+function notifyIdentityDisableScript() {
+	return notifyScriptHead().concat([
+		"$Lnk = " + psQuote(notifyShortcutPath()),
+		"$Out = [ordered]@{ ok = $false; error = $null; existed = $false }",
+		"try {",
+		"\tif (Test-Path -LiteralPath $Lnk) {",
+		"\t\tRemove-Item -LiteralPath $Lnk -Force",
+		"\t\t$Out.existed = $true",
+		"\t}",
+		"\t$Out.ok = $true",
+		"} catch { $Out.error = $_.Exception.Message }",
+		"$Out | ConvertTo-Json -Compress",
+		"exit 0",
+		""
+	]).join("\n");
+}
+
+/**
+ * 跑一段 PowerShell 并读它最后打印的 JSON。**永不 reject**（失败一律折成 `{ ok:false, error }`）。
+ * 脚本自己把原因塞进 JSON，所以这里不靠 exit code 猜（没权限 / C# 编译失败 / 路径被占都能回传）。
+ */
+function runNotifyPowerShell(script) {
+	const exe = powershellPath();
+	if (!exe) return Promise.resolve({ ok: false, error: "windows-only" });
+	return new Promise((resolve) => {
+		const encoded = Buffer.from(script, "utf16le").toString("base64");
+		execFile(
+			exe,
+			["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded],
+			{ windowsHide: true, timeout: 30000 },
+			(err, stdout, stderr) => {
+				const text = String(stdout === void 0 || stdout === null ? "" : stdout)
+					.replace(/#<\s*CLIXML[\s\S]*$/i, "")
+					.trim();
+				let parsed = null;
+				try { parsed = JSON.parse(text); } catch { parsed = null; }
+				if (parsed && typeof parsed === "object") {
+					if (parsed.error) resolve({ ok: false, error: String(parsed.error) });
+					else resolve(parsed);
+					return;
+				}
+				const detail = tidyPowerShellText(stderr) || tidyPowerShellText(stdout);
+				resolve({ ok: false, error: detail || (err ? String(err.message || "powershell-failed") : "powershell-no-output") });
+			}
+		);
+	});
+}
+
+/** 一次探测，返回 `{ exists, aumid, error }`。**永不抛** —— 身份判断失败必须能回退 PowerShell。 */
+async function notifyIdentityProbe() {
+	if (process.platform !== "win32") return { exists: false, aumid: null, error: null };
+	try {
+		const res = await runNotifyPowerShell(notifyIdentityProbeScript());
+		return {
+			exists: res.exists === true,
+			aumid: typeof res.aumid === "string" ? res.aumid : null,
+			error: res.error ? String(res.error) : null
+		};
+	} catch (err) {
+		return { exists: false, aumid: null, error: String((err && err.message) || err) };
+	}
+}
+
+/**
+ * 通知身份路由：`GET/POST /api/gacha-calendar-notify-identity`（鉴权口径与快照路由一致：
+ * 只服务本机、拒绝 cross-site）。
+ *  - GET：`{ enabled, aumid, shortcutPath, iconPath }` —— enabled 由「快捷方式存在 **且** AUMID 正确」判定；
+ *  - POST `{ enabled: true|false }`：true 建开始菜单快捷方式、false 删掉它；
+ *    返回 `{ ok: true, enabled, shortcutPath, aumid }` 或 `{ ok: false, error }`。
+ * 失败**不做异常抛出**：原因（无权限 / C# 编译失败 / 非 Windows …）原样放进 JSON，由设置页一行小字显示。
+ */
+async function notifyIdentityHandler(req, res) {
+	if (!isLoopback(req)) { sendJson(res, 403, { error: "loopback-only" }); return; }
+	if (String(req.headers?.["sec-fetch-site"] || "") === "cross-site") {
+		sendJson(res, 403, { error: "cross-site-not-allowed" });
+		return;
+	}
+	if (req.method === "GET" || req.method === "HEAD") {
+		const identity = remindIdentityOf(await notifyIdentityProbe(), NOTIFY_AUMID);
+		sendJson(res, 200, {
+			enabled: identity.enabled,
+			aumid: NOTIFY_AUMID,
+			shortcutPath: notifyShortcutPath(),
+			iconPath: notifyIconPath()
+		});
+		return;
+	}
+	if (req.method !== "POST") { sendJson(res, 405, { error: "method-not-allowed" }); return; }
+	const body = await readRequestBody(req, NOTIFY_MAX_BODY_CHARS);
+	if (body === null) { sendJson(res, 413, { error: "payload-too-large" }); return; }
+	let parsed;
+	try { parsed = JSON.parse(body); } catch { sendJson(res, 400, { error: "invalid-json" }); return; }
+	// 只认布尔：`"true"` / 1 / 缺失都拒绝（脏值不能被当成"启用"而悄悄改用户开始菜单）。
+	if (!parsed || typeof parsed.enabled !== "boolean") {
+		sendJson(res, 400, { error: "enabled-must-be-boolean" });
+		return;
+	}
+	if (process.platform !== "win32") {
+		sendJson(res, 200, { ok: false, error: "windows-only" });
+		return;
+	}
+	const r = parsed.enabled
+		? await runNotifyPowerShell(notifyIdentityEnableScript())
+		: await runNotifyPowerShell(notifyIdentityDisableScript());
+	if (r.ok !== true) {
+		sendJson(res, 200, { ok: false, error: String(r.error || "shortcut-failed") });
+		return;
+	}
+	// 以"再探一次"为唯一真相：建了但 AUMID 没写进去 ⇒ enabled 仍为 false（设置页会如实显示）。
+	const identity = remindIdentityOf(await notifyIdentityProbe(), NOTIFY_AUMID);
+	sendJson(res, 200, { ok: true, enabled: identity.enabled, shortcutPath: notifyShortcutPath(), aumid: NOTIFY_AUMID });
+}
+
 /**
  * 生成这一条通知的 PowerShell 脚本（自包含：标题/正文都是脚本里的字面量）。
  *
@@ -444,7 +744,7 @@ function psArray(lines) {
  *   ③ 不在用户机器上落一个会被执行的 .ps1（"写脚本再执行"是杀软最敏感的模式之一）。
  *   `-EncodedCommand` 只是把脚本文本安全地送进去（UTF-16LE → base64），不是混淆：脚本就在这个函数里。
  */
-function toastScriptOf(title, lines) {
+function toastScriptOf(title, lines, aumid) {
 	const bodyLines = (Array.isArray(lines) ? lines : []).filter((line) => typeof line === "string" && line !== "");
 	return [
 		"$ErrorActionPreference = 'Stop'",
@@ -456,7 +756,8 @@ function toastScriptOf(title, lines) {
 		"$Title = " + psQuote(title),
 		"$BodyLines = " + psArray(bodyLines),
 		"$AppName = " + psQuote(REMIND_APP_NAME),
-		"$Aumid = " + psQuote(POWERSHELL_AUMID),
+		// 应用身份由调用方决定：已启用「二游日历」⇒ 宿主传 NOTIFY_AUMID；否则回退 PowerShell 自带的那个。
+		"$Aumid = " + psQuote(aumid || POWERSHELL_AUMID),
 		"function Stop-Toast([string]$Message, [int]$Code) { try { [Console]::Error.WriteLine('toast: ' + $Message) } catch { }; exit $Code }",
 		// ── 1) 载入 WinRT 投影（Win10/11 自带；无桌面会话 / 通知服务不可用会在这就抛）──
 		"try {",
@@ -473,7 +774,8 @@ function toastScriptOf(title, lines) {
 		"$Doc = New-Object Windows.Data.Xml.Dom.XmlDocument",
 		"try { $Doc.LoadXml($Xml) } catch { Stop-Toast ('bad-xml: ' + $_.Exception.Message) 1 }",
 		"try { $Toast = New-Object Windows.UI.Notifications.ToastNotification $Doc } catch { Stop-Toast ('new-toast: ' + $_.Exception.Message) 1 }",
-		// ── 3) 送达：PowerShell 自己的 AUMID；个别有包标识的宿主反而不认外部 AUMID → 空参兜底 ──
+		// ── 3) 送达：用调用方选的 AUMID（已启用「二游日历」/ 回退 PowerShell）；个别有包标识的宿主
+		//      反而不认外部 AUMID → 空参兜底（空参 = 当前进程身份，仍然能弹）──
 		"try { [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($Aumid).Show($Toast) }",
 		"catch {",
 		"\ttry { [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier().Show($Toast) }",
@@ -630,10 +932,16 @@ async function runRemindRound(ctx, fallbackConfig, reason) {
 			"round(" + reason + ")：条目 " + items.length + "，本轮提醒 " + toNotify.length + " 条 → "
 			+ toNotify.map((notify) => notify.key).join(", ")
 		);
+		// 通知身份：**每轮只判定一次**（读 .lnk 要起一次 PowerShell，不该每条 toast 都查）。
+		// 已启用「二游日历」⇒ 用它；未启用 / 非 Windows / 探测失败 ⇒ 回退 PowerShell 自带的 AUMID。
+		// 探测本身永不抛，回退是兜底路径 ⇒ 身份问题绝不能让提醒发不出去。
+		const identity = remindIdentityOf(await notifyIdentityProbe(), NOTIFY_AUMID);
+		const toastAumid = identity.useAumid || POWERSHELL_AUMID;
+		logRemind("通知身份：" + (identity.enabled ? "二游日历（AUMID " + NOTIFY_AUMID + "）" : "PowerShell（默认）"));
 		const failed = [];
 		for (const notify of toNotify) {
 			const { title, lines } = remindToastOf(notify, now);
-			const res = await sendToastScript(toastScriptOf(title, lines));
+			const res = await sendToastScript(toastScriptOf(title, lines, toastAumid));
 			logRemind((res.ok ? "送达成功：" : "送达失败（下一轮重试）：") + title + " ｜ " + (res.detail || "(无输出)"));
 			if (!res.ok) failed.push(notify.key);
 		}
@@ -751,7 +1059,9 @@ export function apply(ctx, config = {}) {
 		const disposers = [
 			webServer.register({ kind: "prefixes", path: PROXY_PREFIX, handler: proxyHandler }),
 			// 只读快照：读 `lastData` 的镜像（本机脚本用），不提供任何写设置的能力。
-			webServer.register({ kind: "prefixes", path: SNAPSHOT_PREFIX, handler: snapshotHandler })
+			webServer.register({ kind: "prefixes", path: SNAPSHOT_PREFIX, handler: snapshotHandler }),
+			// 通知身份（可选）：GET 读状态 / POST 建删开始菜单快捷方式。见 notifyIdentityHandler。
+			webServer.register({ kind: "prefixes", path: NOTIFY_IDENTITY_PREFIX, handler: notifyIdentityHandler })
 		];
 		return () => {
 			for (const off of disposers) {

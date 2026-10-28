@@ -418,6 +418,9 @@
 			// ⚠️ 只导出**函数**：65 段在本文件之后（ORDER），这里的 `const`（节点默认值 / 时区表）还在 TDZ 里，
 			//    提前引用会炸；那几个常量测试直接从 lib/remind-core.mjs 取（宿主看到的就是那份）。
 			remindOnOf,
+			// remindIdentityOf = 通知身份判定（快捷方式存在 + AUMID 正确才算启用；否则回退 PowerShell）。
+			// 纯函数，测试覆盖 4 种组合（见 cases-remind.mjs ⑫）。
+			remindIdentityOf,
 			remindNodesOf,
 			// remindNodesToggleOf = 设置页胶囊点一下会写回的字符串（降序 / 逗号分隔 / 空格都没有；
 			// 全取消 ⇒ 空串）。与判定侧共用同一个 remindNodesOf，所以"写什么"和"读什么"不会分叉。

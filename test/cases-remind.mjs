@@ -36,7 +36,7 @@ export default async function run() {
 	section("到期提醒（送达）：判定纯函数 + 设置键三处齐 + 宿主接线");
 
 	const {
-		remindOnOf, remindNodesOf, remindNodesToggleOf, remindConfigOf, remindKeyOf, remindStateOf,
+		remindOnOf, remindIdentityOf, remindNodesOf, remindNodesToggleOf, remindConfigOf, remindKeyOf, remindStateOf,
 		remindWindowOf, remindItemsOf, remindTickOf, remindToastOf,
 		dueWindowOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
 	} = T;
@@ -390,8 +390,14 @@ export default async function run() {
 		// 注释里会解释"为什么不依赖 tools/"（那是好事），所以只扫上面那份**生产代码**。
 		check("**不引用 tools/ 目录**（那是原型，不属于插件运行时；注释里的说明不算）",
 			!/tools\//.test(hostCode) && !/install\.ps1/.test(hostCode) && !/toast\.ps1/.test(hostCode));
-		check("**不做自建 AUMID / 不改开始菜单**（应用名就用 Windows PowerShell）",
-			!/DshGachaCalendar\.Reminder/.test(hostCode) && !/Start Menu/.test(hostCode));
+		// 2026-10-28 需求变更：AUMID 从"绝不自建"改成**用户可选**（设置页一个按钮，见 ⑫）。
+		// 边界仍然要守：宿主里只在 POST 路由里建/删快捷方式，启动 / 安装时不偷偷改开始菜单。
+		check("开始菜单路径只有一处（notifyShortcutDir），不在各处散落",
+			(hostSrc.match(/"Start Menu"/g) || []).length === 1,
+			String((hostSrc.match(/"Start Menu"/g) || []).length));
+		check("建 / 删快捷方式只由 POST 路由触发（enable / disable 脚本各只有一处调用点）",
+			(hostSrc.match(/runNotifyPowerShell\(notifyIdentityEnableScript\(\)\)/g) || []).length === 1
+			&& (hostSrc.match(/runNotifyPowerShell\(notifyIdentityDisableScript\(\)\)/g) || []).length === 1);
 		check("去重状态落 %LOCALAPPDATA% 且原子写（.tmp → rename）",
 			/LOCALAPPDATA/.test(hostSrc) && /host-state\.json/.test(hostSrc) && /renameSync\(tmp, file\)/.test(hostSrc));
 		check("关掉开关就真的不干活（remindOnOf 判定在读 lastData 之前）",
@@ -516,5 +522,127 @@ export default async function run() {
 			&& /\.gacha-cal-chip--on:hover\{/.test(styleSrc));
 		check("逐游戏「提醒」列保持隐藏（SHOW_REMIND_COLUMN 仍为 false，本次不动）",
 			/const SHOW_REMIND_COLUMN = false;/.test(compSrc));
+	}
+
+	// ── ⑫ 通知身份（可选 AUMID）：判定纯函数 4 组合 + 宿主两条路由 + 设置页按钮 ─────────────
+	// 2026-10-28 需求：把"启用二游日历通知身份"做成**可选项**（设置页一个按钮）。
+	// 这里钉四件事：
+	//   ① 判定纯函数（remindIdentityOf）：只有「快捷方式存在 **且** AUMID 正确」才算启用，
+	//      其余三种组合 + 脏探测结果一律回退 —（身份问题绝不能让提醒发不出去）；
+	//   ② 宿主两条路由（GET 读状态 / POST 建删）+ 非 Windows 的 `windows-only` 分支；
+	//   ③ 快捷方式确实用 wscript.exe 当身份载体、无参数（不额外落文件）+ 内联 C# 写 AUMID + 注册表起名；
+	//   ④ 设置页那一行（启用/移除按钮、GET 读 / POST 写、失败原因小字）。
+	{
+		const expected = "DshGachaCalendar.Reminder";
+		const identityOf = (probe) => remindIdentityOf(probe, expected);
+		// 4 种组合：存在 × AUMID 正确 / 错误（期望值固定 = 宿主常量）
+		const combos = [
+			{ probe: { exists: true, aumid: expected }, enabled: true, label: "快捷方式存在 + AUMID 正确 ⇒ 启用" },
+			{ probe: { exists: true, aumid: "SomeoneElse.App" }, enabled: false, label: "快捷方式存在但 AUMID 是别的 ⇒ 不启用（回退）" },
+			{ probe: { exists: false, aumid: null }, enabled: false, label: "快捷方式缺失 ⇒ 不启用（回退）" },
+			// 这一条防"只看 AUMID、不看存在性"：残留的探测结果（系统里快捷方式已被删）不能算启用
+			{ probe: { exists: false, aumid: expected }, enabled: false, label: "快捷方式缺失但 AUMID 正确 ⇒ 仍不启用（必须真的存在）" }
+		];
+		for (const c of combos) {
+			const r = identityOf(c.probe);
+			check(c.label,
+				r.enabled === c.enabled && (c.enabled ? r.useAumid === expected : r.useAumid === null),
+				JSON.stringify(r));
+		}
+		check("探测结果读坏（null / 空对象 / aumid 非字符串）⇒ 一律回退、不抛",
+			identityOf(null).enabled === false && identityOf(null).useAumid === null
+			&& identityOf({}).enabled === false
+			&& identityOf({ exists: true, aumid: 123 }).enabled === false,
+			JSON.stringify([identityOf(null), identityOf({}), identityOf({ exists: true, aumid: 123 })]));
+		check("期望 AUMID 为空 / 非字符串 ⇒ 永远不启用（避免\"空 == 空\"误判）",
+			remindIdentityOf({ exists: true, aumid: "" }, "").enabled === false
+			&& remindIdentityOf({ exists: true, aumid: "x" }, null).enabled === false
+			&& remindIdentityOf({ exists: true, aumid: "x" }, void 0).enabled === false);
+		check("宿主那份 ESM（lib/remind-core.mjs）与客户端产物是**同一个判定**",
+			typeof R.remindIdentityOf === "function"
+			&& JSON.stringify(R.remindIdentityOf({ exists: true, aumid: expected }, expected)) === JSON.stringify(identityOf({ exists: true, aumid: expected }))
+			&& R.remindIdentityOf({ exists: true, aumid: "x" }, expected).enabled === false);
+
+		const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
+		const compSrc = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
+		const aumidHits = hostSrc.match(/DshGachaCalendar\.Reminder/g) || [];
+
+		check("AUMID 在宿主里**只写一份**（NOTIFY_AUMID），toast 脚本的 $Aumid 由运行时传进去（不写死第二份）",
+			/const NOTIFY_AUMID = "DshGachaCalendar\.Reminder";/.test(hostSrc)
+			&& aumidHits.length === 1
+			&& /\$Aumid = " \+ psQuote\(aumid \|\| POWERSHELL_AUMID\)/.test(hostSrc),
+			String(aumidHits.length));
+		// import 漏一项不会在静态检查里红，只会在真机上 ReferenceError（本轮实测踩过）——
+		// 所以这里显式核对宿主 import 列表里有判定函数。
+		check("宿主 import 列表里有 remindIdentityOf（漏了 = 运行时 ReferenceError）",
+			(() => {
+				const m = /import \{([\s\S]*?)\} from "\.\/remind-core\.mjs"/.exec(hostSrc);
+				return !!m && /\bremindIdentityOf\b/.test(m[1]);
+			})());
+
+		check("两条路由都注册在 webServer（同一 prefix、同一个 handler 按 method 分流）",
+			/const NOTIFY_IDENTITY_PREFIX = "\/api\/gacha-calendar-notify-identity";/.test(hostSrc)
+			&& /webServer\.register\(\{ kind: "prefixes", path: NOTIFY_IDENTITY_PREFIX, handler: notifyIdentityHandler \}\)/.test(hostSrc)
+			&& /if \(req\.method === "GET" \|\| req\.method === "HEAD"\)/.test(hostSrc)
+			&& /if \(req\.method !== "POST"\)/.test(hostSrc));
+		check("GET 返回 { enabled, aumid, shortcutPath, iconPath }（字段名与设置页/预留图标接口对齐）",
+			/enabled: identity\.enabled,\s*aumid: NOTIFY_AUMID,\s*shortcutPath: notifyShortcutPath\(\),\s*iconPath: notifyIconPath\(\)/.test(hostSrc));
+		check("GET 的 enabled 用「快捷方式存在 + AUMID 正确」判定（remindIdentityOf，不是只看文件在不在）",
+			/const identity = remindIdentityOf\(await notifyIdentityProbe\(\), NOTIFY_AUMID\);[\s\S]{0,200}?enabled: identity\.enabled/.test(hostSrc));
+		check("POST 只认布尔 enabled（脏值 400，不能被当成\"启用\"去改用户开始菜单）",
+			/typeof parsed\.enabled !== "boolean"/.test(hostSrc) && /error: "enabled-must-be-boolean"/.test(hostSrc));
+		check("非 Windows ⇒ { ok: false, error: \"windows-only\" }（同一句也用于 PowerShell 找不到时）",
+			/process\.platform !== "win32"/.test(hostSrc)
+			&& /error: "windows-only"/.test(hostSrc));
+		check("失败是**结构化错误**（{ ok:false, error } 交回设置页；没权限 / C# 编译失败都走这条）",
+			/ok: false, error: String\(r\.error \|\| "shortcut-failed"\)/.test(hostSrc));
+
+		check("建快捷方式：wscript.exe 当身份载体、**不带参数**（不额外落文件）",
+			/wscript\.exe/.test(hostSrc)
+			&& /\$Sc = \$Shell\.CreateShortcut\(\$Lnk\)/.test(hostSrc)
+			&& /\$Sc\.TargetPath = \$Target/.test(hostSrc)
+			&& !/\$Sc\.Arguments/.test(hostSrc)
+			&& !/remind-run\.vbs/.test(hostSrc));
+		check("AUMID 走内联 C# IPropertyStore（PROPVARIANT 显式 Size = 24）",
+			/IPropertyStore/.test(hostSrc) && /Size = 24/.test(hostSrc)
+			&& /9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3/.test(hostSrc));
+		check("写 HKCU\\Software\\Classes\\AppUserModelId\\<AUMID> 的 DisplayName（起名用）",
+			hostSrc.includes("HKCU:\\\\Software\\\\Classes\\\\AppUserModelId\\\\") && /DisplayName/.test(hostSrc));
+		check("启用后回读 AUMID 确认（Save() 成功 ≠ AUMID 写进去了）",
+			/\$ReadBack = \[GachaNotifyShortcut\]::Get\(\$Lnk\)/.test(hostSrc) && /\$ReadBack -ne \$Aumid/.test(hostSrc));
+		check("停用：删开始菜单快捷方式（Remove-Item $Lnk），注册表键保留并写明理由",
+			/\$Out = \[ordered\]@\{ ok = \$false; error = \$null; existed = \$false \}/.test(hostSrc)
+			&& /Remove-Item -LiteralPath \$Lnk -Force/.test(hostSrc)
+			&& /注册表键/.test(hostSrc) && /保留/.test(hostSrc));
+		check("图标是**预留接口**：NOTIFY_SHORTCUT_ICON + 「项目有正式 .ico 后改这里即可」注释在常量之前",
+			hostSrc.includes("const NOTIFY_SHORTCUT_ICON = \"%SystemRoot%\\\\System32\\\\timedate.cpl,0\";")
+			&& hostSrc.indexOf("项目有正式 .ico 后改这里即可") >= 0
+			&& hostSrc.indexOf("项目有正式 .ico 后改这里即可") < hostSrc.indexOf("const NOTIFY_SHORTCUT_ICON"));
+
+		check("toast 的 AUMID 有**启用 / 回退**两条路径，且每轮只探测一次",
+			/const identity = remindIdentityOf\(await notifyIdentityProbe\(\), NOTIFY_AUMID\);/.test(hostSrc)
+			&& /const toastAumid = identity\.useAumid \|\| POWERSHELL_AUMID;/.test(hostSrc)
+			&& /sendToastScript\(toastScriptOf\(title, lines, toastAumid\)\)/.test(hostSrc)
+			&& /function toastScriptOf\(title, lines, aumid\)/.test(hostSrc));
+		check("身份探测**永不抛**（探测失败 = 当未启用，回退 PowerShell）",
+			/async function notifyIdentityProbe\(\)[\s\S]{0,400}?catch \(err\) \{[\s\S]{0,200}?exists: false, aumid: null/.test(hostSrc)
+			&& /async function notifyIdentityProbe\(\)[\s\S]{0,200}?process\.platform !== "win32"/.test(hostSrc));
+
+		check("设置页有「通知身份」一行 + 启用/移除按钮（当前身份两种文案都在）",
+			compSrc.includes('children: "通知身份"')
+			&& /notifyIdentity\.enabled \? "移除" : "启用"/.test(compSrc)
+			&& compSrc.includes("当前：")
+			&& compSrc.includes("PowerShell（默认）"));
+		check("设置页状态读 GET（默认 GET；不在渲染里轮询）",
+			compSrc.includes('const NOTIFY_IDENTITY_API = "/api/gacha-calendar-notify-identity";')
+			&& /fetch\(NOTIFY_IDENTITY_API, \{ headers: \{ Accept: "application\/json" \} \}\)/.test(compSrc)
+			&& /react\.useEffect\)\(\(\) => \{\s*let alive = true;/.test(compSrc));
+		check("设置页按钮 POST { enabled }，失败原因写小字（不弹窗）",
+			/method: "POST"/.test(compSrc)
+			&& /body: JSON\.stringify\(\{ enabled: enabled === true \}\)/.test(compSrc)
+			&& compSrc.includes("启用失败：") && compSrc.includes("移除失败：")
+			&& !/alert\(/.test(compSrc));
+		check("设置页把宿主错误码翻成人话（windows-only ⇒ 「仅 Windows 可用」）",
+			/if \(text === "windows-only"\) return "仅 Windows 可用";/.test(compSrc));
 	}
 }

@@ -42,6 +42,7 @@ const REMIND_EXPORTS = [
   "REMIND_DEFAULT_START_NODES",
   "REMIND_TZ_BY_ID",
   "remindOnOf",
+  "remindIdentityOf",
   "remindNodesOf",
   "remindNodesToggleOf",
   "remindConfigOf",

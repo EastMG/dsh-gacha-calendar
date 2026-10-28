@@ -1877,6 +1877,42 @@
 			});
 		}
 
+		// ── 通知身份（可选）：宿主路由 /api/gacha-calendar-notify-identity ──────────────────────
+		// GET = 读状态（是否已启用 + 快捷方式路径 + 预留的图标路径）；POST { enabled } = 建 / 删开始菜单
+		// 快捷方式。⚠️ 每次调用宿主都要起一次 PowerShell 去读写 .lnk（0.3~1s），所以只在设置页挂载时读
+		// 一次、点完再读一次，不做轮询。失败原因原样显示在按钮下面那行小字里（不弹窗）。
+		const NOTIFY_IDENTITY_API = "/api/gacha-calendar-notify-identity";
+		// 宿主错误码 → 人话；认不出来就原样显示（不吞掉 —— 用户要能看出到底为什么失败）
+		const notifyIdentityErrorText = (code) => {
+			const text = String(code || "").trim();
+			if (text === "windows-only") return "仅 Windows 可用";
+			if (text === "loopback-only") return "只能在本机 DSH 里操作";
+			if (text === "cross-site-not-allowed") return "跨站请求被拒绝";
+			if (text === "payload-too-large") return "请求内容过大";
+			if (text === "invalid-json" || text === "enabled-must-be-boolean") return "请求格式不对";
+			return text || "未知错误";
+		};
+		async function readNotifyIdentity() {
+			const res = await fetch(NOTIFY_IDENTITY_API, { headers: { Accept: "application/json" } });
+			if (!res.ok) throw new Error("HTTP " + res.status);
+			const body = await res.json();
+			if (!body || typeof body.enabled !== "boolean") throw new Error("返回格式不对");
+			return body;
+		}
+		async function writeNotifyIdentity(enabled) {
+			const res = await fetch(NOTIFY_IDENTITY_API, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ enabled: enabled === true })
+			});
+			let body = null;
+			try { body = await res.json(); } catch { body = null; }
+			if (!body || body.ok !== true) {
+				throw new Error(notifyIdentityErrorText(body && body.error) || ("HTTP " + res.status));
+			}
+			return body;
+		}
+
 		// engine：core 引擎（设置页的「解析器自检」用它跑 selfCheck()）
 		function CalendarSettingsPage({ scope, engine }) {
 			// 设置表单服务本体（用于在写不进去时列出宿主真正 serve 的 namespace，见 formStateText）
@@ -1966,6 +2002,44 @@
 			const tickerOn = tickerOnOf(s.tickerOn);
 			// 「到期提醒（送达）」总开关：同样"只有明确 false 才算关"（65-remind.js 的 remindOnOf）。
 			const remindOn = remindOnOf(s.remindOn);
+			// 通知身份（可选）的本地状态：null = 还在读；{ enabled } = 宿主给的真相。
+			// 只影响通知横幅顶部的应用名，与「提醒」开关无关（关掉身份也照样弹，名字退回 PowerShell）。
+			const [notifyIdentity, setNotifyIdentity] = (0, react.useState)(null);
+			const [notifyIdentityBusy, setNotifyIdentityBusy] = (0, react.useState)(false);
+			const [notifyIdentityError, setNotifyIdentityError] = (0, react.useState)("");
+			// 挂载时读一次（不轮询：每次读都要起一次 PowerShell）。读失败按"未启用"显示 + 小字说明原因，
+			// 不挡住页面其它部分 —— 身份只是一个 App 名，坏了不该让设置页变红。
+			(0, react.useEffect)(() => {
+				let alive = true;
+				readNotifyIdentity()
+					.then((body) => { if (alive) setNotifyIdentity({ enabled: body.enabled === true }); })
+					.catch((err) => {
+						if (!alive) return;
+						setNotifyIdentity({ enabled: false });
+						setNotifyIdentityError("读取失败：" + notifyIdentityErrorText((err && err.message) || err));
+					});
+				return () => { alive = false; };
+			}, []);
+			// 点按钮：取反 → POST → 用宿主回读的 enabled 刷新显示（不是乐观假设"点成功了"）。
+			// 失败时把原因写进按钮下面那行小字，并再读一次真实状态（例如"启用成功但回读不一致"这类半成功）。
+			const toggleNotifyIdentity = async () => {
+				if (notifyIdentityBusy) return;
+				const target = !(notifyIdentity && notifyIdentity.enabled);
+				setNotifyIdentityBusy(true);
+				setNotifyIdentityError("");
+				try {
+					const body = await writeNotifyIdentity(target);
+					setNotifyIdentity({ enabled: body.enabled === true });
+				} catch (err) {
+					setNotifyIdentityError((target ? "启用失败：" : "移除失败：") + notifyIdentityErrorText((err && err.message) || err));
+					try {
+						const body = await readNotifyIdentity();
+						setNotifyIdentity({ enabled: body.enabled === true });
+					} catch { /* 读不到就维持原显示 */ }
+				} finally {
+					setNotifyIdentityBusy(false);
+				}
+			};
 
 			// 保存失败必须可见：旧实现只 await 不 catch，写被宿主拒绝时控件弹回原值、
 			// 用户只会觉得"点了没反应"（「重置排序」写 null 被拒就是这种病的极端例子）
@@ -2404,6 +2478,25 @@
 						remindChipRow("end", "结束提醒", remindEndSavedText, REMIND_DEFAULT_END_NODES, "remindEndNodes", "结束前多久提醒（可多选；全不选 = 结束不提醒）"),
 						// 2026-10-28：开始提醒已暂时置空（多数来源不提前提供档期），这一行先注释掉，恢复时取消注释即可。
 		 	// remindChipRow(\"start\, \"开始提醒\, remindStartSavedText, REMIND_DEFAULT_START_NODES, \"remindStartNodes\, \"开始前多久提醒（可多选；全不选 = 开始不提醒）\, \"多数来源不提前提供档期，已搁置\)
+						// ── 通知身份（可选）：一行按钮。「启用」= 当前用户开始菜单里建一条带 AUMID 的快捷方式，
+						// 通知横幅顶部才会显示「二游日历」；「移除」= 删掉它并退回 PowerShell。──────────────
+						(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 4 }, children: [
+							(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }, children: [
+								(0, react_jsx_runtime.jsx)("span", { style: { flex: "none", fontSize: 12, color: "var(--dsw-alias-label-secondary)" }, children: "通知身份" }),
+								(0, react_jsx_runtime.jsx)("button", {
+									type: "button",
+									className: "gacha-cal-sort-btn",
+									style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 },
+									disabled: notifyIdentityBusy || notifyIdentity === null,
+									title: "启用后系统通知的应用名显示为「二游日历」；会在开始菜单创建一个入口",
+									onClick: toggleNotifyIdentity,
+									children: notifyIdentityBusy ? "处理中…" : (notifyIdentity && notifyIdentity.enabled ? "移除" : "启用")
+								}),
+								(0, react_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: "var(--dsw-alias-label-secondary)" }, children: "当前：" + (notifyIdentity === null ? "读取中…" : notifyIdentity.enabled ? "二游日历" : "PowerShell（默认）") }),
+								(0, react_jsx_runtime.jsx)("span", { style: { flex: "1 1 240px", fontSize: 11, color: "var(--dsw-alias-label-tertiary)" }, children: "启用后系统通知的应用名显示为「二游日历」；会在开始菜单创建一个入口" })
+							] }),
+							notifyIdentityError ? (0, react_jsx_runtime.jsx)("div", { style: { fontSize: 11, color: "var(--dsw-alias-state-error-primary, #d4380d)" }, children: notifyIdentityError }) : null
+						] }),
 					] }),
 					// ── 实验特性开关：新「二游日历」面板视图（默认关）──
 					// 文案从简：只说"实验性新版UI，开发中"。默认值仍是 false（关着 = 原来的表格视图）。
