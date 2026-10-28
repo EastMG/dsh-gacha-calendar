@@ -942,7 +942,9 @@
 			const raw = input && typeof input === "object" ? input : {};
 			return {
 				endNodes: remindNodesOf(raw.remindEndNodes, REMIND_DEFAULT_END_NODES),
-				startNodes: remindNodesOf(raw.remindStartNodes, REMIND_DEFAULT_START_NODES)
+				// 2026-10-28：开始提醒基本不可用（多数来源只给"当前进行中"的窗口，没有未来档期），先关掉。
+				// 要恢复：删掉下面这行、改回 remindNodesOf(raw.remindStartNodes, REMIND_DEFAULT_START_NODES) 即可。
+				startNodes: []
 			};
 		}
 

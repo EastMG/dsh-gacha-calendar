@@ -82,7 +82,7 @@ export default async function run() {
 	{
 		const def = remindConfigOf({});
 		check("空配置 → 默认结束节点 72/24/6/2", JSON.stringify(def.endNodes) === JSON.stringify([72, 24, 6, 2]), JSON.stringify(def.endNodes));
-		check("空配置 → 默认开始节点 24/2", JSON.stringify(def.startNodes) === JSON.stringify([24, 2]), JSON.stringify(def.startNodes));
+		check("空配置 → 结束节点仍取默认；开始节点暂时置空（2026-10-28 起基本不可用）", JSON.stringify(def.endNodes) === JSON.stringify([72, 24, 6, 2]) && JSON.stringify(def.startNodes) === JSON.stringify([]), JSON.stringify(def));
 		check("空配置：null / 非对象 / 缺键 都不抛且回落默认",
 			JSON.stringify(remindConfigOf(null)) === JSON.stringify(def)
 			&& JSON.stringify(remindConfigOf(void 0)) === JSON.stringify(def)
@@ -117,7 +117,7 @@ export default async function run() {
 			JSON.stringify([remindNodesOf("坏的", [72]), remindNodesOf("0,-1", [72])]));
 		check("remindConfigOf：显式空串 ⇒ 该方向 []，另一个方向不受影响",
 			JSON.stringify(remindConfigOf({ remindEndNodes: "" }).endNodes) === JSON.stringify([])
-			&& JSON.stringify(remindConfigOf({ remindEndNodes: "" }).startNodes) === JSON.stringify([24, 2]),
+			&& JSON.stringify(remindConfigOf({ remindEndNodes: "" }).startNodes) === JSON.stringify([]),
 			JSON.stringify(remindConfigOf({ remindEndNodes: "" })));
 		{
 			// 空档真的进判定：结束方向关掉 ⇒ 一条都不发（不是"回落默认后照发"）
@@ -126,8 +126,10 @@ export default async function run() {
 			check("判定侧：结束方向空串 ⇒ **0 条**通知、也不留状态键",
 				endOff.toNotify.length === 0 && Object.keys(endOff.stateNext).length === 0,
 				JSON.stringify([endOff.toNotify.length, endOff.stateNext]));
-			check("判定侧：关掉结束方向不影响开始方向（各用各的键）",
-				remindTickOf(NOW, [{ ...offItem, gameId: "g9", kind: "start" }], { remindEndNodes: "" }, {}).toNotify[0].kind === "start");
+			// 2026-10-28 起开始档位暂时置空（多数来源不提供未来档期），所以传 start 条目也不该发
+			const startOff = remindTickOf(NOW, [{ ...offItem, gameId: "g9", kind: "start" }], { remindEndNodes: "" }, {});
+			check("判定侧：开始档位已暂时置空 ⇒ 传入 start 条目也不发通知",
+				startOff.toNotify.length === 0, JSON.stringify(startOff.toNotify.map((x) => x.key)));
 			check("判定侧：两个方向都空串 ⇒ 一条都不发（两个方向都关掉是合法状态）",
 				remindTickOf(NOW, [offItem, { ...offItem, kind: "start" }], { remindEndNodes: "", remindStartNodes: "" }, {}).toNotify.length === 0);
 		}
@@ -145,25 +147,9 @@ export default async function run() {
 			remindTickOf(NOW, [item], {}, {}).toNotify[0].node === 2);
 	}
 
-	// ── ③ 开始方向：用 startNodes 这一套节点，不跟结束方向混 ────────────────────────
-	{
-		const startItem = { gameId: "g3", side: "gacha", kind: "start", gameName: "游戏丙", T: NOW + 1 * H, startTs: NOW + 1 * H, endTs: NOW + 20 * H };
-		const a = remindTickOf(NOW, [startItem], {}, {});
-		check("开始方向：1 小时后开始 → 发 2 小时档（开始前 2 小时已过）",
-			a.toNotify.length === 1 && a.toNotify[0].kind === "start" && a.toNotify[0].node === 2,
-			JSON.stringify(a.toNotify.map((n) => [n.kind, n.node])));
-		check("开始方向的状态键带 `start`（键不同 ⇒ 与结束方向互不干扰）",
-			Object.keys(a.stateNext)[0] === "g3|gacha|start|" + (NOW + 1 * H), Object.keys(a.stateNext)[0]);
-		const b = remindTickOf(NOW, [{ ...startItem, T: NOW + 20 * H }], {}, {});
-		check("开始方向：20 小时后开始 → 只轮到 24 小时档（2 小时档还没到）",
-			b.toNotify.length === 1 && b.toNotify[0].node === 24, JSON.stringify(b.toNotify.map((n) => n.node)));
-		check("两套节点各自独立：把结束档写成空串（= 结束不提醒），开始方向照样工作",
-			remindTickOf(NOW, [startItem], { remindEndNodes: "" }, {}).toNotify[0].node === 2);
-		check("「读坏了」与「主动关掉」不同：结束档是 \"坏的\" ⇒ 回落默认后**照发**",
-			remindTickOf(NOW, [{ ...startItem, kind: "end" }], { remindEndNodes: "坏的" }, {}).toNotify.length === 1);
-	}
+					// ── ③ 开始方向已暂时置空（2026-10-28：多数来源不提供未来档期，用例随实现一起移除）
 
-	// ── ④ 脏输入 / 幂等 / 不改进参 ─────────────────────────────────────────────────
+// ── ④ 脏输入 / 幂等 / 不改进参 ─────────────────────────────────────────────────
 	{
 		check("now 不是有限数字 → 抛 TypeError（这是编程错误，不该静默）", (() => {
 			try { remindTickOf(NaN, [], {}, {}); return false; } catch (e) { return e instanceof TypeError; }
