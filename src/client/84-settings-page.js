@@ -187,7 +187,7 @@
 			// 范围 = **展示中**的条目（与刷新 / 自检同一口径）：隐藏条目这轮不抓，记录会僵在隐藏前
 			// 那一刻，把它们列出来只会误导。now 取渲染时刻 —— "X 前"不需要秒级精度，任意一次
 			// 设置写入 / 刷新推送都会重算这一块。
-			// ⚠️ 不再传 lastRefreshAt：解耦后刷新与健康无关，用刷新时间顶新「最近成功」会伪造
+			// ⚠️ 不再传面板刷新时间：解耦后刷新与健康无关，用刷新时间顶新「上次成功」会伪造
 			// "刚刚成功"（刷新跑得很勤、自检很久没做时最明显）。纯函数那边已删掉这个参数。
 			const healthNow = Date.now();
 			const healthRows = sourceHealthOf(
@@ -213,15 +213,14 @@
 			// ── 状态条（2026-10-28 整块重做）：三档计数 + 最差档色 + 右侧次要信息 ──────────────
 			// 全部由 healthKnown 派生，渲染层不碰存档；tone 只取 ok / warn / error 三档
 			// （down 优先于 stale：有明确失败原因的那一档最该被看见）。
-			// 全正常时右侧 = 「N 个来源 · X 分前刷新」；有异常时改成三档计数（0 的那档不写）。
-			// ⚠️ 这里的「X 前刷新」是 **lastData 的数据新鲜度**（与健康无关，解耦后它不再影响健康）；
-			// 健康数据新不新看标题行的「上次自检 X 前」—— 两个时间并排出现是有意的：一个说数据多新、
-			// 一个说上次核对来源是什么时候。
+			// 全正常时右侧 = 「N 个来源」；有异常时改成三档计数（0 的那档不写）。
+			// ⚠️ 健康卡**只有一个时间口径**：标题行的「上次自检 X 前」/「从未自检」。
+			// 这里再也不读面板刷新时间 —— 那是面板自己的事（用户 2026-10-28：健康卡里一出现
+			// 刷新时间就说明没真解耦）。汇总行只说"看过几个来源"。
 			const healthOkCount = healthKnown.length - healthBad.length;
 			const healthDownCount = healthBad.filter((h) => h.state === "down").length;
 			const healthStaleCount = healthBad.length - healthDownCount;
 			const healthTone = healthBad.length === 0 ? "ok" : (healthDownCount > 0 ? "error" : "warn");
-			const healthRefreshAt = Number(s.lastRefresh) || 0;
 			// 健康存档写不进去时（宿主拒绝 `sourceHealth` / `healthCheckedAt` 这两个键，例如宿主进程
 			// 还是旧 schema），引擎把失败吞在心里（见 engine-api.js 的 healthSaveError，**只有
 			// selfCheck 会设置它**）：这里读它，好让**空状态**说真话 —— 否则"写了但被拒"会被说成
@@ -229,7 +228,7 @@
 			const healthSaveErr = typeof engine.healthSaveError === "function" ? engine.healthSaveError() : "";
 			const healthMeta = healthBad.length > 0
 				? [healthOkCount + " 正常", healthStaleCount > 0 ? healthStaleCount + " 停更" : "", healthDownCount > 0 ? healthDownCount + " 失败" : ""].filter(Boolean).join(" · ")
-				: healthKnown.length + " 个来源" + (healthRefreshAt > 0 ? " · " + tickerSpanText(healthNow - healthRefreshAt) + "前刷新" : " · 尚未刷新");
+				: healthKnown.length + " 个来源";
 			// 自检报告一行结论要用的两个数：来源数（条目的两侧都算，未配置也算一个来源）、
 			// "没内容"的来源数（无匹配/未公布 + 失败；未配置是合法状态，不算）。summary 是
 			// core 的 selfCheck() 给的；error 那一支没有 summary，给 0 兜住。
@@ -1141,7 +1140,8 @@
 					//   · 卡片 = 标题行（解析器自检 + **上次自检时间** + 唯一按钮「立即检查」）
 					//     + 一条极淡分隔线 + 状态条；
 					//   · 状态条 = 6px 状态圆点（颜色编码）+ 主文案 + 右侧次要信息 + 展开按钮；
-					//   · 列表 = 四列网格（游戏名 / 状态胶囊 / 原因 / 最近成功），**默认只列异常**；
+					//   · 列表 = 四列网格（游戏名 / 状态胶囊 / 原因 / 上次成功），**默认只列异常**；
+					//     第四列 =「本次自检观察到的该源最近一次成功解析」（不是面板刷新时间）。
 					//   · 空状态 = 一行弱化提示（没存档时给一句；写了但被拒时改说"暂时无法保存"），**无条件下渲染**；
 					//   · 自检报告 = 一行小徽章 + 一句汇总（完整清单在 title 里），不再是大段落。
 					// 样式全部在 src/client/styles/health.css（样式段由 build.mjs 按 CSS_ORDER 拼）。
@@ -1185,7 +1185,9 @@
 							healthKnown.length > 0 && (healthAll ? healthKnown : healthBad).length > 0
 								? (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-health-list", children: (healthAll ? healthKnown : healthBad).map((h) => (0, react_jsx_runtime.jsxs)("div", {
 									className: "gacha-cal-health-row gacha-cal-health-row--" + h.tone,
-									title: h.name + " · " + h.text,
+									// 第四列语义写进 title：它是**自检时**观察到的该源最近一次成功解析，
+									// 不是面板刷新时间（2026-10-28 用户反馈：健康卡里不许出现刷新痕迹）。
+									title: h.name + " · " + h.text + "\n第四列「上次成功 X 前」= 自检时观察到的该源最近一次成功解析（由「立即检查」观察，不是面板刷新时间）",
 									children: [
 										(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-name", children: h.name }),
 										(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-tag gacha-cal-health-tag--" + h.tone, children: h.tag }),

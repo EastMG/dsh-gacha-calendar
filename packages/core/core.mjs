@@ -498,9 +498,9 @@
 		//   · 每条记录的 at    —— 同上，逐源版本
 		//   · 每条记录的 okAt  —— 成功的那一轮会被写成 now（sourceHealthNextOf），与 at 同性质。
 		//                          把它算进比较 ⇒ 只要有一个源正常，每次都"不同"，一次也跳不掉。
-		// ⚠️ 如实写明的代价：跳过的轮次不刷新存档里的时间戳，所以健康面板里的「最近成功 X 前」
+		// ⚠️ 如实写明的代价：跳过的轮次不刷新存档里的时间戳，所以健康面板里的「上次成功 X 前」
 		//    可能停在**上一次内容变化**（或上一次别的原因触发的写入）的那一轮 —— 健康的行会越走越旧，
-		//    某源转入失败的那一轮也可能把「最近成功」显旧。失败行另外两个数字不受影响：
+		//    某源转入失败的那一轮也可能把「上次成功」显旧。失败行另外两个数字不受影响：
 		//    down / nomatch 每次都会推进 failStreak / nomatchStreak（内容真的变了）⇒ 必写，
 		//    「连续失败 N 次 · 原因」始终新鲜。
 		// ✅ 2026-10-28 的解耦把「这份数据有多旧」这件事交给了**另一个数字**，不再做显示侧补偿：
@@ -539,21 +539,21 @@
 		// 给 UI 的每源状态（纯函数）：sources = 存档里的 sources 表，now = 毫秒时间戳，
 		// opts = { entries: [{ id, name }]（**展示中**的条目，决定范围与顺序）, nomatchDays }。
 		//
-		// ⚠️ 2026-10-28 起**不再有** `opts.lastRefreshAt`（旧版用它把 ok 行的最近成功时间顶到本机
+		// ⚠️ 2026-10-28 起**不再有** `opts.lastRefreshAt`（旧版用它把 ok 行的上次成功时间顶到本机
 		// 最近一轮刷新）：健康记录只由「立即检查」写、与面板刷新彻底解耦，刷新时间不再是"这些源
-		// 最近成功过"的任何证据。传了也会被忽略（不再有补偿逻辑）；「这份数据有多旧」由设置页
+		// 上次成功过"的任何证据。传了也会被忽略（不再有补偿逻辑）；「这份数据有多旧」由设置页
 		// 标题行的「上次自检 X 前」（读 `healthCheckedAt`）回答。
 		// 返回 [{ id, name, known, state, failStreak, nomatchDays, nomatchMs, lastOkAt, items, error,
 		//         text, tag, tone, reason, agoText }]
 		//   展示侧三段（2026-10-28 设置页改四列网格）：tag = 状态胶囊短标签（带灰点/警告/叉），
-		//   reason = 原因列（失败原因 / 连续 N 天没解析出内容 / 正常行的解析条数），agoText = 最近成功列；
+		//   reason = 原因列（失败原因 / 连续 N 天没解析出内容 / 正常行的解析条数），agoText = 上次成功列；
 		//   tone = 颜色档（ok / warn / error），渲染层不再从 state 二次映射 —— 措辞只在这里写一次。
 		//   state:
 		//     "ok"    —— 正常（最近一轮成功，或连击还没到 N 天 —— 没到阈值不打扰用户）
 		//     "down"  —— 连续失败 ≥ 1 次（原因在 error；从未成功也在这一档，因为"为什么失败"更有用）
 		//     "stale" —— 连续 nomatch 且**跨过 N 天**（曾经成功过）⇒ 疑似改版或停更
 		//     "never" —— 连续 nomatch 且跨过 N 天，而且**一次都没成功过** ⇒ 从装上就没抓到东西
-		// `text` 就是设置页那一行（"游戏名 · 连续失败 N 次 · 最近成功 X 前 · 原因"）。
+		// `text` 就是设置页那一行（"游戏名 · 连续失败 N 次 · 上次成功 X 前 · 原因"）。
 		function sourceHealthOf(sources, now, opts) {
 			const list = Array.isArray(opts && opts.entries) ? opts.entries : [];
 			const days = Number(opts && opts.nomatchDays) > 0 ? Number(opts.nomatchDays) : SOURCE_HEALTH_NOMATCH_DAYS;
@@ -575,10 +575,10 @@
 				let state = "ok";
 				if (failStreak > 0) state = "down";
 				else if (nomatchMs >= days * SOURCE_HEALTH_DAY_MS) state = okAt > 0 ? "stale" : "never";
-				// 显示用的「最近成功」= 存档里的真实 okAt（2026-10-28 解耦后不再用刷新时间补偿，
+				// 显示用的「上次成功」= 存档里的真实 okAt（2026-10-28 解耦后不再用刷新时间补偿，
 				// 理由见函数头注释；"数据多旧"由设置页的「上次自检 X 前」回答）。
 				const lastOkAt = okAt;
-				const agoText = lastOkAt > 0 && at > lastOkAt ? "最近成功 " + tickerSpanText(at - lastOkAt) + "前" : "从未成功";
+				const agoText = lastOkAt > 0 && at > lastOkAt ? "上次成功 " + tickerSpanText(at - lastOkAt) + "前" : "从未成功";
 				const parts = [];
 				if (state === "down") parts.push("连续失败 " + failStreak + " 次");
 				// "连续 N 天"：N 一律用**实际跨度**（向下取整），不用阈值字面量 —— 否则 9 天会说成 7 天。

@@ -113,7 +113,7 @@ const batches = [
 	["时区口径（外显=本机时区 / 悬停=源站墙钟）", runTz],
 	["侧栏轮播（单行翻页 + 「提前 N 小时」；不分游戏）+ 「提醒」白名单预留", runTicker],
 	["到期提醒（送达）判定 + 设置键三处齐 + 宿主接线", runRemind],
-	["来源健康（最近成功 / 连续失败 / 连续 nomatch ⇒ 疑似改版停更）", runHealth],
+	["来源健康（上次成功 / 连续失败 / 连续 nomatch ⇒ 疑似改版停更）", runHealth],
 	["README 结构图与事实性", runReadme],
 	["core 产物（零宿主依赖 + 注册幂等）", runCore],
 	["设置页标题行（标题 + 版本号 + Star 指引）", runStar],

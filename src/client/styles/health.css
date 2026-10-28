@@ -5,7 +5,7 @@
 			       ├ .gacha-cal-health                — 状态条 / 列表 / 报告都在这层
 			       │   ├ .gacha-cal-health-summary   圆点 + 主文案 + 次要信息 + 展开按钮
 			       │   ├ .gacha-cal-health-empty     空状态（还没做过自检）
-			       │   ├ .gacha-cal-health-list      四列网格行（游戏名 / 胶囊 / 原因 / 最近成功）
+			       │   ├ .gacha-cal-health-list      四列网格行（游戏名 / 胶囊 / 原因 / 上次成功）
 			       │   └ .gacha-cal-health-report    自检报告（一行弱化小字 + 小徽章）
 			   口径：
 			   · 字号一律 12px 级（标签 10px / 次要 11px），不放大 —— 设置页不能变长变肿；
@@ -37,9 +37,9 @@
 			.gacha-cal-health-empty{display:flex;align-items:center;gap:7px;padding:5px 2px;color:var(--dsw-alias-label-tertiary,#9aa1ab)}
 			.gacha-cal-health-empty-icon{flex:none;width:14px;height:14px;opacity:.85}
 			.gacha-cal-health-empty-text{min-width:0;font-size:12px;line-height:1.5;color:var(--dsw-alias-label-tertiary,#9aa1ab)}
-			/* 四列网格：游戏名 / 状态胶囊 / 原因 / 最近成功；行间只用 4px 行距，不画线。
+			/* 四列网格：游戏名 / 状态胶囊 / 原因 / 上次成功；行间只用 4px 行距，不画线。
 			   列宽口径（2026-10-28 微调）：名字列按内容撑开（max-content），胶囊紧贴名字右侧（gap 9px），
-			   原因列吃掉剩余空间（minmax(0,1fr)），最近成功列 max-content 贴右边。
+			   原因列吃掉剩余空间（minmax(0,1fr)），上次成功列 max-content 贴右边。
 			   旧写法名字列是 minmax(0,1fr)：2~5 字的名字也占满整列 ⇒ 名字与胶囊之间空出一大块，行看着"散"。 */
 			.gacha-cal-health-list{display:flex;flex-direction:column;gap:4px;margin-top:2px;padding-top:6px;border-top:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.28));border-top-color:color-mix(in srgb,var(--dsw-alias-border-l2,rgba(127,127,127,.4)) 45%,transparent)}
 			.gacha-cal-health-row{display:grid;grid-template-columns:max-content auto minmax(0,1fr) max-content;gap:9px;align-items:center;padding:6px 8px;overflow:hidden;border-radius:6px;color:var(--dsw-alias-label-secondary,#4a5261);transition:background .12s}

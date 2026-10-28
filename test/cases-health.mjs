@@ -92,7 +92,7 @@ function fgoTransport() {
 }
 
 export default async function runHealth() {
-	section("来源健康（最近成功 / 连续失败 / 连续 nomatch ⇒ 疑似改版停更）");
+	section("来源健康（上次成功 / 连续失败 / 连续 nomatch ⇒ 疑似改版停更）");
 
 	// ── ① 单轮结论：ok / nomatch / down / skip（口径与 buildScrapeInfo 同源）──────────
 	{
@@ -138,7 +138,7 @@ export default async function runHealth() {
 		check("只配了活动侧的条目：卡池字段不计入 items", onlyEvent.status === "ok" && onlyEvent.items === 1, JSON.stringify(onlyEvent));
 	}
 
-	// ── ② 单源累积：连击 / 起点 / 最近成功时间 ──────────────────────────────────────
+	// ── ② 单源累积：连击 / 起点 / 上次成功时间 ──────────────────────────────────────
 	{
 		const okRound = { id: "a", status: "ok", items: 2, error: "" };
 		const downRound = { id: "a", status: "down", items: 0, error: "卡池失败：网络不通" };
@@ -272,32 +272,32 @@ export default async function runHealth() {
 		check("连续 8 天 nomatch 且曾经成功过 ⇒ state=stale（疑似改版或停更）", byId.stale1.state === "stale", byId.stale1.state);
 		check("连续 7 天 nomatch 且**从未成功过** ⇒ state=never（从装上就没抓到东西）", byId.never1.state === "never", byId.never1.state);
 
-		// 文案 = 设置页那一行（游戏名 · 连续失败 N 次 · 最近成功 X 前 · 原因）
-		check("失败行的文案含「连续失败 N 次」+「最近成功 X 前」+ 原因",
-			byId.down1.text === "连续失败 3 次 · 最近成功 2 天前 · 卡池失败：网络不通", byId.down1.text);
+		// 文案 = 设置页那一行（游戏名 · 连续失败 N 次 · 上次成功 X 前 · 原因）
+		check("失败行的文案含「连续失败 N 次」+「上次成功 X 前」+ 原因",
+			byId.down1.text === "连续失败 3 次 · 上次成功 2 天前 · 卡池失败：网络不通", byId.down1.text);
 		check("疑似停更行的文案含「连续 N 天没解析出内容」+「疑似改版或停更」",
-			byId.stale1.text === "连续 8 天没解析出内容 · 最近成功 10 天前 · 疑似改版或停更", byId.stale1.text);
-		check("从未成功行的文案是「从未成功」而不是「最近成功 0 天前」",
+			byId.stale1.text === "连续 8 天没解析出内容 · 上次成功 10 天前 · 疑似改版或停更", byId.stale1.text);
+		check("从未成功行的文案是「从未成功」而不是「上次成功 0 天前」",
 			byId.never1.text === "连续 7 天没解析出内容 · 从未成功 · 疑似改版或停更", byId.never1.text);
-		check("正常行只报最近成功时间（健康的不占地方，也不编造结论）",
-			byId.ok1.text === "最近成功 1 小时前", byId.ok1.text);
+		check("正常行只报上次成功时间（健康的不占地方，也不编造结论）",
+			byId.ok1.text === "上次成功 1 小时前", byId.ok1.text);
 
-		// 2026-10-28 设置页四列网格：胶囊 / 原因 / 最近成功三段也由纯函数给（UI 不再自己拼措辞）
-		check("down 行四列字段：✕ 抓取失败 + error 原文 + 最近成功 2 天前",
+		// 2026-10-28 设置页四列网格：胶囊 / 原因 / 上次成功三段也由纯函数给（UI 不再自己拼措辞）
+		check("down 行四列字段：✕ 抓取失败 + error 原文 + 上次成功 2 天前",
 			byId.down1.tag === "✕ 抓取失败" && byId.down1.tone === "error"
-			&& byId.down1.reason === "卡池失败：网络不通" && byId.down1.agoText === "最近成功 2 天前",
+			&& byId.down1.reason === "卡池失败：网络不通" && byId.down1.agoText === "上次成功 2 天前",
 			JSON.stringify({ tag: byId.down1.tag, tone: byId.down1.tone, reason: byId.down1.reason, agoText: byId.down1.agoText }));
-		check("stale 行四列字段：⚠ 疑似停更 + 连续 8 天没解析出内容 + 最近成功 10 天前",
+		check("stale 行四列字段：⚠ 疑似停更 + 连续 8 天没解析出内容 + 上次成功 10 天前",
 			byId.stale1.tag === "⚠ 疑似停更" && byId.stale1.tone === "warn"
-			&& byId.stale1.reason === "连续 8 天没解析出内容" && byId.stale1.agoText === "最近成功 10 天前",
+			&& byId.stale1.reason === "连续 8 天没解析出内容" && byId.stale1.agoText === "上次成功 10 天前",
 			JSON.stringify({ tag: byId.stale1.tag, tone: byId.stale1.tone, reason: byId.stale1.reason, agoText: byId.stale1.agoText }));
-		check("never 行四列字段：⚠ 从未成功（不是「最近成功 0 天前」）",
+		check("never 行四列字段：⚠ 从未成功（不是「上次成功 0 天前」）",
 			byId.never1.tag === "⚠ 从未成功" && byId.never1.tone === "warn"
 			&& byId.never1.agoText === "从未成功" && /^连续 \d+ 天没解析出内容$/.test(byId.never1.reason),
 			JSON.stringify({ tag: byId.never1.tag, tone: byId.never1.tone, reason: byId.never1.reason, agoText: byId.never1.agoText }));
-		check("ok 行四列字段：● 正常 + 解析出 2 条 + 最近成功 1 小时前（灰点弱化交给 CSS）",
+		check("ok 行四列字段：● 正常 + 解析出 2 条 + 上次成功 1 小时前（灰点弱化交给 CSS）",
 			byId.ok1.tag === "● 正常" && byId.ok1.tone === "ok"
-			&& byId.ok1.reason === "解析出 2 条" && byId.ok1.agoText === "最近成功 1 小时前",
+			&& byId.ok1.reason === "解析出 2 条" && byId.ok1.agoText === "上次成功 1 小时前",
 			JSON.stringify({ tag: byId.ok1.tag, tone: byId.ok1.tone, reason: byId.ok1.reason, agoText: byId.ok1.agoText }));
 
 		// 阈值边界：**第 7 天整**才翻成疑似停更，差 1 秒都不行（否则"连续 6 天"就报警 ⇒ 用户学会无视）
@@ -318,13 +318,13 @@ export default async function runHealth() {
 		check("没有记录的条目：known=false 且不算异常（UI 据此不显示它）",
 			unknown.known === false && unknown.state === "ok", JSON.stringify(unknown));
 		const stale = T.sourceHealthOf({ a: recOf() }, NOW + 30 * DAY, { entries: [{ id: "a" }] })[0];
-		check("最近成功时间会随时间推移变旧（不是落盘时算好的死值）", stale.text === "最近成功 30 天前", stale.text);
+		check("上次成功时间会随时间推移变旧（不是落盘时算好的死值）", stale.text === "上次成功 30 天前", stale.text);
 	}
 
 	// ── ④b 显示侧补偿**已移除**：健康记录与面板刷新彻底解耦 ─────────────────────────────
 	// 背景：解耦前 refresh() 每轮顺手写健康存档，但"内容没变"的轮次会跳过那一笔 ⇒ 存档里的 okAt
-	// 停在最后一次真正写入的轮次，稳定 30 天就会显示"最近成功 30 天前"。当时的补丁在显示侧：
-	// `max(okAt, lastRefreshAt)` —— 把最近成功顶到本机最近一轮刷新时间。
+	// 停在最后一次真正写入的轮次，稳定 30 天就会显示"上次成功 30 天前"。当时的补丁在显示侧：
+	// `max(okAt, lastRefreshAt)` —— 把上次成功顶到本机最近一轮刷新时间。
 	// ⚠️ 2026-10-28 用户决策：健康只由「立即检查」写、与刷新彻底无关 ⇒ 那段补偿**必须删掉**：
 	// 刷新跑得很勤、自检却很久没做时，它正好会把"很久没核对来源"伪装成"刚刚成功"。
 	// 现在「这份数据有多旧」由设置页标题行的「上次自检 X 前」（healthCheckedAt）回答。
@@ -334,14 +334,14 @@ export default async function runHealth() {
 		const longAgo = { ok1: recOf({ at: NOW - 30 * DAY, okAt: NOW - 30 * DAY, items: 2 }) };
 
 		const base = T.sourceHealthOf(longAgo, NOW, { entries })[0];
-		check("ok 行显示存档里的真实「最近成功」（刷新过但没自检 ⇒ 仍是 30 天前）",
-			base.lastOkAt === NOW - 30 * DAY && base.text === "最近成功 30 天前",
+		check("ok 行显示存档里的真实「上次成功」（刷新过但没自检 ⇒ 仍是 30 天前）",
+			base.lastOkAt === NOW - 30 * DAY && base.text === "上次成功 30 天前",
 			JSON.stringify({ lastOkAt: base.lastOkAt, text: base.text }));
 
 		// 老调用方即使还传这个参数也不许再顶新（参数与逻辑都删了 ⇒ 传了就是被忽略）
 		const withOpt = T.sourceHealthOf(longAgo, NOW, { entries, lastRefreshAt: NOW - 60000 })[0];
-		check("传 lastRefreshAt 也不再顶新（删除生效：刷新时间不再是「最近成功」的证据）",
-			withOpt.lastOkAt === NOW - 30 * DAY && withOpt.text === "最近成功 30 天前",
+		check("传 lastRefreshAt 也不再顶新（删除生效：刷新时间不再是「上次成功」的证据）",
+			withOpt.lastOkAt === NOW - 30 * DAY && withOpt.text === "上次成功 30 天前",
 			JSON.stringify({ lastOkAt: withOpt.lastOkAt, text: withOpt.text }));
 		check("忽略 lastRefreshAt 时 state / items / known 都不受影响（判定只读真实 okAt）",
 			withOpt.state === "ok" && withOpt.items === 2 && withOpt.known === true,
@@ -361,11 +361,11 @@ export default async function runHealth() {
 		const rowsBad = Object.fromEntries(T.sourceHealthOf(bad, NOW, { entries: badEntries, lastRefreshAt: NOW - 60000 }).map((r) => [r.id, r]));
 		check("down 行 lastOkAt 与整行文案逐字不变（连续失败与上次成功不能自相矛盾）",
 			rowsBad.down1.lastOkAt === NOW - 2 * DAY
-			&& rowsBad.down1.text === "连续失败 3 次 · 最近成功 2 天前 · 卡池失败：网络不通",
+			&& rowsBad.down1.text === "连续失败 3 次 · 上次成功 2 天前 · 卡池失败：网络不通",
 			JSON.stringify({ lastOkAt: rowsBad.down1.lastOkAt, text: rowsBad.down1.text }));
 		check("stale 行 lastOkAt 与整行文案逐字不变（疑似停更的时间不许被抹新）",
 			rowsBad.stale1.lastOkAt === NOW - 10 * DAY
-			&& rowsBad.stale1.text === "连续 8 天没解析出内容 · 最近成功 10 天前 · 疑似改版或停更",
+			&& rowsBad.stale1.text === "连续 8 天没解析出内容 · 上次成功 10 天前 · 疑似改版或停更",
 			JSON.stringify({ lastOkAt: rowsBad.stale1.lastOkAt, text: rowsBad.stale1.text }));
 		check("never 行仍是「从未成功」（不许被编成「刚刚成功」）",
 			rowsBad.never1.lastOkAt === 0
@@ -375,13 +375,13 @@ export default async function runHealth() {
 		// 但那段确实没解析出内容 ⇒ 顶成"刚刚成功"就是显示谎言。
 		check("ok 档但 nomatch 连击未到阈值 ⇒ 仍显示真实 okAt（那一段并没有成功过）",
 			rowsBad.noma1.state === "ok" && rowsBad.noma1.lastOkAt === NOW - 4 * DAY
-			&& rowsBad.noma1.text === "最近成功 4 天前",
+			&& rowsBad.noma1.text === "上次成功 4 天前",
 			JSON.stringify({ state: rowsBad.noma1.state, lastOkAt: rowsBad.noma1.lastOkAt, text: rowsBad.noma1.text }));
 
 		// 时钟回拨 / 缺省：以前是两个专门的分支，现在连分支都没有（参数被完全忽略）
 		const future = T.sourceHealthOf(longAgo, NOW, { entries, lastRefreshAt: NOW + DAY })[0];
 		check("lastRefreshAt 在未来（时钟回拨/坏值）⇒ 同样被忽略（不会编「未来成功」）",
-			future.lastOkAt === NOW - 30 * DAY && future.text === "最近成功 30 天前",
+			future.lastOkAt === NOW - 30 * DAY && future.text === "上次成功 30 天前",
 			JSON.stringify({ lastOkAt: future.lastOkAt, text: future.text }));
 		const zero = T.sourceHealthOf(longAgo, NOW, { entries, lastRefreshAt: 0 })[0];
 		check("lastRefreshAt=0 / 缺省 ⇒ 与传了完全一致（这个参数已彻底不影响结果）",
@@ -452,7 +452,7 @@ export default async function runHealth() {
 			leaked.length === 0, leaked.map(([id]) => id).join(","));
 
 		// 抓取从一开始就失败的那一类（离线可跑）：自检也要把结论落盘 —— down / failStreak=1 /
-		// okAt 仍是 0（= 从未成功，UI 显示「从未成功」而不是「最近成功 0 天前」）。
+		// okAt 仍是 0（= 从未成功，UI 显示「从未成功」而不是「上次成功 0 天前」）。
 		const downStorage = makeStorage({ hidden: allIds.filter((id) => id !== "fgo") });
 		const downEngine = createEngine({
 			transport: {
@@ -762,16 +762,16 @@ export default async function runHealth() {
 			/className: "gacha-cal-health-meta", children: healthMeta/.test(card)
 			&& /"aria-expanded": healthAll, onClick: \(\) => setHealthAll\(\(v\) => !v\)/.test(card)
 			&& /children: healthAll \? "只看异常" : "查看全部"/.test(card));
-		check("次要信息口径：有异常 = 正常/停更/失败三档（0 的那档不写）；全正常 = N 个来源 · X 前刷新",
+		check("次要信息口径：有异常 = 正常/停更/失败三档（0 的那档不写）；全正常 =「N 个来源」（无刷新时间）",
 			/\[healthOkCount \+ " 正常"/.test(comp)
 			&& /healthStaleCount > 0 \? healthStaleCount \+ " 停更" : ""/.test(comp)
 			&& /healthDownCount > 0 \? healthDownCount \+ " 失败" : ""/.test(comp)
-			&& /tickerSpanText\(healthNow - healthRefreshAt\) \+ "前刷新"/.test(comp));
+			&& /: healthKnown\.length \+ " 个来源";/.test(comp));
 		check("状态条与列表之间是「1px 极淡分隔线 + 6px 上边距」（CSS 守卫，见 ⑧）",
 			/className: "gacha-cal-health-list"/.test(card) && /className: "gacha-cal-health"/.test(card));
 
-		// ── 列表：四列网格（游戏名 / 胶囊 / 原因 / 最近成功），默认只列异常 ──
-		check("列表行是四列网格的同一套四个单元格（名字 / 胶囊 / 原因 / 最近成功）",
+		// ── 列表：四列网格（游戏名 / 胶囊 / 原因 / 上次成功），默认只列异常 ──
+		check("列表行是四列网格的同一套四个单元格（名字 / 胶囊 / 原因 / 上次成功）",
 			/className: "gacha-cal-health-row gacha-cal-health-row--" \+ h\.tone/.test(card)
 			&& /className: "gacha-cal-health-name", children: h\.name/.test(card)
 			&& /className: "gacha-cal-health-tag gacha-cal-health-tag--" \+ h\.tone, children: h\.tag/.test(card)
@@ -850,8 +850,31 @@ export default async function runHealth() {
 			callAt >= 0 && /entries: applyOrder\(getVisibleEntries\(s\), order\)/.test(callSnippet)
 			&& callSnippet.indexOf("lastRefreshAt") < 0,
 			callSnippet.slice(0, 260));
-		check("健康卡自己的次要信息仍可显示「X 前刷新」（那是数据新鲜度，与上次自检并排不冲突）",
-			/tickerSpanText\(healthNow - healthRefreshAt\) \+ "前刷新"/.test(comp));
+		check("全正常时汇总行只有「N 个来源」（「尚未刷新」也已删除，健康卡不提刷新）",
+			/: healthKnown\.length \+ " 个来源";/.test(comp)
+			&& comp.indexOf("尚未刷新") < 0);
+		check("第四列 title 写明语义：自检时观察到的该源最近一次成功解析，不是面板刷新时间",
+			/title: h\.name \+ " · " \+ h\.text \+ "\\n第四列「上次成功 X 前」/.test(card)
+			&& /由「立即检查」观察，不是面板刷新时间/.test(card));
+
+		// ── 静态反向守卫（用户 2026-10-28 反馈：健康卡里还有"刷新"痕迹 = 没真解耦）──
+		// 切片 = 「来源健康」注释/变量区 + 整块健康卡 JSX。这段里**不许**出现 `lastRefresh`
+		// （面板刷新时间）或「前刷新」字样 —— 出现即视为解耦失败。
+		const varAt = comp.indexOf("// ── 来源健康");
+		const varEnd = comp.indexOf("// 自检报告一行结论要用的两个数");
+		const hcardAt = comp.indexOf('className: "gacha-cal-health-card"');
+		const hcardEnd = comp.indexOf("数据来自各游戏官方公告");
+		const healthVars = varAt >= 0 && varEnd > varAt ? comp.slice(varAt, varEnd) : "";
+		const healthJsx = hcardAt >= 0 && hcardEnd > hcardAt ? comp.slice(hcardAt, hcardEnd) : "";
+		const healthBlock = healthVars + healthJsx;
+		check("健康卡切片已定位（注释/变量区 + 整块 JSX）",
+			healthVars.length > 1500 && healthJsx.length > 3000,
+			JSON.stringify({ vars: healthVars.length, jsx: healthJsx.length, hcardAt, hcardEnd }));
+		check("健康卡切片里没有任何 lastRefresh（面板刷新时间不许进健康卡）",
+			healthBlock.indexOf("lastRefresh") < 0,
+			String(healthBlock.indexOf("lastRefresh")));
+		check("健康卡切片里没有「前刷新」字样（全卡只剩标题行一个时间口径）",
+			healthBlock.indexOf("前刷新") < 0);
 	}
 
 	// ── ⑧ 构建产物里也有（src/ 是唯一真源，产物必须同源）─────────────────────────────
@@ -867,7 +890,7 @@ export default async function runHealth() {
 		const healthCss = readFileSync(path.join(REPO, "src", "client", "styles", "health.css"), "utf8");
 		check("health.css 已进 build.mjs 的 CSS_ORDER（样式文件必须真的进产物，而不是只躺着）",
 			/"health\.css"/.test(readFileSync(path.join(REPO, "build.mjs"), "utf8")));
-		// 2026-10-28 微调：名字列改 max-content（按内容撑开），原因列吃剩余，胶囊/最近成功各自 max-content / auto。
+		// 2026-10-28 微调：名字列改 max-content（按内容撑开），原因列吃剩余，胶囊/上次成功各自 max-content / auto。
 		// 旧值 minmax(0,1fr) auto minmax(0,1.6fr) auto 会让 2~5 字的名字占满整列，名字与胶囊之间空一大块。
 		check("四列网格参数：max-content auto minmax(0,1fr) max-content / gap 9px / padding 6px 8px",
 			/grid-template-columns:max-content auto minmax\(0,1fr\) max-content/.test(healthCss)
