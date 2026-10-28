@@ -2810,7 +2810,19 @@
 									] })
 							] })) : null
 					] }),
-					(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 12 }, children: "数据来自各游戏官方公告、官方 Wiki 与第三方站；无数据时对应列留空" })
+					(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 12 }, children: "数据来自各游戏官方公告、官方 Wiki 与第三方站；无数据时对应列留空" }),
+					// 底部 Star 指引（2026-10-28）：整个设置页的**最后一行**（游戏列表、自检、来源说明之后）。
+					// 就是一个 <a>：不做按钮、不加底色块、不改主题，只是把「去 GitHub 点 Star」放在手边。
+					// 外观全在 .gacha-cal-star-link（70-styles.js）：12px + 三级字色 + 默认无下划线，
+					// hover 才升到次级字色并出下划线（低调，但仍是可点的文字）。
+					// marginTop: 10 = 用户要的 8~12px 上方留白（额外叠在容器 gap 14 之上，不与上面挤在一起）。
+					(0, react_jsx_runtime.jsx)("a", {
+						className: "gacha-cal-star-link",
+						href: "https://github.com/EastMG/dsh-gacha-calendar",
+						target: "_blank",
+						rel: "noreferrer noopener",
+						children: "⭐ 觉得好用？去 GitHub 点个 Star"
+					})
 				]
 			});
 		}

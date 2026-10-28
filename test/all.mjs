@@ -30,6 +30,7 @@ import runTicker from "./cases-ticker.mjs";
 import runRemind from "./cases-remind.mjs";
 import runReadme from "./cases-readme.mjs";
 import runCore from "./cases-core.mjs";
+import runStar from "./cases-star.mjs";
 
 const LIVE = process.argv.includes("--live");
 
@@ -110,7 +111,8 @@ const batches = [
 	["侧栏轮播（单行翻页 + 「提前 N 小时」；不分游戏）+ 「提醒」白名单预留", runTicker],
 	["到期提醒（送达）判定 + 设置键三处齐 + 宿主接线", runRemind],
 	["README 结构图与事实性", runReadme],
-	["core 产物（零宿主依赖 + 注册幂等）", runCore]
+	["core 产物（零宿主依赖 + 注册幂等）", runCore],
+	["设置页底部 Star 指引（静态）", runStar]
 ];
 const before = counts();
 for (const [label, fn] of batches) {

@@ -173,6 +173,13 @@
 			.gacha-cal-chip:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary,#3d5afe);outline-offset:1px}
 			.gacha-cal-chip--on{background:var(--dsw-alias-state-business-primary,#3d5afe);border-color:transparent;color:#fff;font-weight:600}
 			.gacha-cal-chip--on:hover{background:var(--dsw-alias-state-business-primary-hover,#3350e6);border-color:transparent;color:#fff}
+			/* 设置页底部 Star 指引（2026-10-28）：一行**文字链接**，不是按钮、没有底色块。
+			   · 默认 = 12px + 三级字色 + 无下划线（低调，不抢设置页的视线）；
+			   · hover 才升到次级字色并出下划线（仍是"可点的文字"，不是控件）；
+			   · marginTop 10 = 与上方「数据来源」说明行的额外留白，避免挤在一起。 */
+			.gacha-cal-star-link{align-self:flex-start;margin-top:10px;font-size:12px;line-height:1.6;color:var(--dsw-alias-label-tertiary,#9aa1ab);text-decoration:none;cursor:pointer;transition:color .12s}
+			.gacha-cal-star-link:hover{color:var(--dsw-alias-label-secondary,#4a5261);text-decoration:underline}
+			.gacha-cal-star-link:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary,#3d5afe);outline-offset:2px;border-radius:3px}
 			/* ── 启动动画（纯 CSS：只加 keyframes，不动任何元素/DOM）────────────────────────
 			   面板每次打开都是重新挂载 ⇒ animation 自然只跑一次，不需要 JS。
 			   ⚠️ 安全边界：展开的探头是 position:fixed，**祖先带 transform 会把包含块换成那个祖先**
