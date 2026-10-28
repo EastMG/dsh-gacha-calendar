@@ -50,6 +50,9 @@ const REMIND_EXPORTS = [
   // 宿主与 core 共用这一处（见 cases-remind.mjs ⑮）。
   "NOTIFY_IDENTITY_MAX_AGE_MS",
   "notifyIdentityCacheOf",
+  // 没有 identity.json 时 GET **立刻**回的保守值（{ enabled:false, name:<配置名>, aumid, shortcutPath:"" }）：
+  // GET 不许等探测 ⇒ 先回它、后台探测写回文件，下一次 GET 才是准确值（见 cases-remind.mjs ⑯）。
+  "notifyIdentityFallbackOf",
   // 通知身份名（`notifyName`）的清洗：宿主要用它给快捷方式起名 / 写 DisplayName，
   // core 与设置页也用同一个（同一个字面量只有一个实现，见 65-remind.js）。
   "notifyNameOf",

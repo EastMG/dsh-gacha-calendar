@@ -2035,9 +2035,12 @@
 			const [notifyNameDraft, setNotifyNameDraft] = (0, react.useState)(null);
 			const notifyNameSaved = notifyNameOf(s.notifyName);
 			const notifyNameShown = notifyNameDraft === null ? notifyNameSaved : notifyNameDraft;
-			// 挂载时读一次（不轮询）。宿主的 GET 先读 identity.json（毫秒级），只有首次 / 没有缓存时
-			// 才走一次 PowerShell 探测（~1 秒，这时才会短暂显示「读取中…」）。读失败按"未启用"显示 +
-			// 小字说明原因，不挡住页面其它部分 —— 身份只是一个 App 名，坏了不该让设置页变红。
+			// 挂载时读一次（不轮询）。宿主的 GET **先读 identity.json（毫秒级）**：有缓存就直接回，
+			// 没有缓存也会**立刻**回一个保守值（未启用 + 配置名），同时在后台探一次并写回
+			// ⇒ 设置页不会卡「读取中…」，也不会等 PowerShell。拿到保守值时显示「PowerShell（默认）」，
+			// 那对"真的没启用"是正确文案；用户在后台探测写完之后的下一次 GET（点「发送测试通知」/重新挂载）
+			// 就会看到准确值（见下面 refreshNotifyIdentity）。
+			// 读失败按"未启用"显示 + 小字说明原因，不挡住页面其它部分 —— 身份只是一个 App 名，坏了不该让设置页变红。
 			(0, react.useEffect)(() => {
 				let alive = true;
 				readNotifyIdentity()
@@ -2049,6 +2052,19 @@
 					});
 				return () => { alive = false; };
 			}, []);
+			// 重新读一次身份并更新显示（GET 毫秒级；失败就保持原显示，不打扰用户）。
+			// 为什么需要它：第一次 GET 可能拿到的是**保守值**（宿主当时还没有 identity.json，探测在后台跑）。
+			// 用户点「发送测试通知」时顺手再读一次 ⇒ 后台探测早已写回 ⇒ 那一行从「PowerShell（默认）」
+			// 自动变成准确值（例如「二游日历」），不会出现"读到保守值就一直不更新"。
+			const refreshNotifyIdentity = async () => {
+				try {
+					const body = await readNotifyIdentity();
+					setNotifyIdentity(notifyIdentityOfBody(body));
+					return true;
+				} catch {
+					return false;
+				}
+			};
 			// 点按钮：取反 → POST（带上当前名字）→ 用宿主回读的 enabled 刷新显示（不是乐观假设"点成功了"）。
 			// 失败时把原因写进行尾那行小字，并再读一次真实状态（例如"启用成功但回读不一致"这类半成功）。
 			const toggleNotifyIdentity = async () => {
@@ -2071,6 +2087,8 @@
 			};
 			// 「发送测试通知」：点了立刻 POST 一次；成功 = 显示发送者（与正文同一套身份名），
 			// 失败 = 原因。不弹窗、不轮询、不落任何状态（测试通知与真实提醒完全隔离）。
+			// 发完之后**顺手再 GET 一次身份**（refreshNotifyIdentity）：这条 POST 在"没有 identity.json"时
+			// 会真探测一次并写回缓存 ⇒ 紧接着的 GET 就拿到准确值，把「PowerShell（默认）」换成真实身份。
 			const [notifyTest, setNotifyTest] = (0, react.useState)(null);
 			const [notifyTestBusy, setNotifyTestBusy] = (0, react.useState)(false);
 			const sendTestNotify = async () => {
@@ -2080,6 +2098,7 @@
 				try {
 					const body = await sendNotifyTest();
 					setNotifyTest({ ok: true, text: "" });
+					await refreshNotifyIdentity();
 				} catch (err) {
 					setNotifyTest({ ok: false, text: "发送失败：" + notifyIdentityErrorText((err && err.message) || err) });
 				} finally {

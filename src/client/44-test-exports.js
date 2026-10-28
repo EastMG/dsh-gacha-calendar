@@ -430,6 +430,10 @@
 			// 常量 NOTIFY_IDENTITY_MAX_AGE_MS 在本文件之后声明（TDZ），测试从 lib/remind-core.mjs 取
 			// （见 cases-remind.mjs ⑮）。
 			notifyIdentityCacheOf,
+			// notifyIdentityFallbackOf = 没有 identity.json 时 GET **立刻**回的保守值
+			// （{ enabled:false, name:<配置名>, aumid, shortcutPath:"" }）：GET 永不阻塞在探测上，
+			// 后台探测写回文件后下一次 GET 才是准确值（见 cases-remind.mjs ⑯）。
+			notifyIdentityFallbackOf,
 			// notifyNameOf = 通知身份名（应用名）的清洗函数：非法文件名字符换空格、首尾点/空白去掉、
 			// 空 ⇒ 默认「二游日历」、超长截到 40 字、Windows 保留设备名 ⇒ 默认。
 			// 宿主拿它给快捷方式起名 / 写 DisplayName，设置页拿它给输入框兜底（见 cases-remind.mjs ⑭）。

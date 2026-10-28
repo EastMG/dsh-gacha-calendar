@@ -36,7 +36,7 @@ export default async function run() {
 	section("到期提醒（送达）：判定纯函数 + 设置键三处齐 + 宿主接线");
 
 	const {
-		remindOnOf, remindIdentityOf, notifyShortcutPickOf, notifyIdentityCacheOf, remindNodesOf, remindNodesToggleOf, remindConfigOf, remindKeyOf, remindStateOf,
+		remindOnOf, remindIdentityOf, notifyShortcutPickOf, notifyIdentityCacheOf, notifyIdentityFallbackOf, remindNodesOf, remindNodesToggleOf, remindConfigOf, remindKeyOf, remindStateOf,
 		remindTestToastOf, remindWindowOf, remindItemsOf, remindTickOf, remindToastOf,
 		dueWindowOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
 	} = T;
@@ -1135,22 +1135,28 @@ export default async function run() {
 			&& /name: detected === "" \? notifyNameOf\(cfgName\) : notifyNameOf\(detected\),/.test(stateBody)
 			&& /checkedAt: Date\.now\(\)/.test(stateBody));
 
+		// GET 分支 = 从 `if (req.method === "GET" …)` 到 `if (req.method !== "POST")` 之前。
+		// 2026-10-28 第二次修复后这条分支**一个 await 都没有**：没有缓存也立刻回保守值（见 ⑯）。
 		const getStart = handlerBody.indexOf('if (req.method === "GET" || req.method === "HEAD") {');
-		const slowMark = getStart >= 0 ? handlerBody.indexOf("// ③ 慢路径", getStart) : -1;
-		const fastBranch = getStart >= 0 && slowMark > getStart ? handlerBody.slice(getStart, slowMark) : "";
+		const getEnd = getStart >= 0 ? handlerBody.indexOf('if (req.method !== "POST")', getStart) : -1;
+		const getBranch = getStart >= 0 && getEnd > getStart ? handlerBody.slice(getStart, getEnd) : "";
+		check("守卫自身没瞎：GET 分支定位到了", getBranch.length > 0, String(getBranch.length));
+		// 注释里写着"这里不允许 await probe…"（说明文字本身带这些词），断言前先把整行注释剥掉，
+		// 否则守卫会被自己的说明绊倒 —— 被测的是**代码**。
+		const getCode = getBranch.replace(/\/\/[^\n]*/g, "");
 		check("GET **先读 identity.json**（readIdentityState），命中就立刻 sendJson + return",
-			/const cached = readIdentityState\(\);/.test(fastBranch)
-			&& /if \(cached\) \{/.test(fastBranch)
-			&& /sendJson\(res, 200, identityBodyOf\(cached\.state, cfgName\)\);\s*return;/.test(fastBranch));
-		check("**GET 毫秒路径上没有同步等待探测**（分支里没有 await / notifyIdentityProbe / PowerShell）",
-			fastBranch.length > 0 && !/\bawait\b/.test(fastBranch)
-			&& !/notifyIdentityProbe|runNotifyPowerShell|execFile/.test(fastBranch),
-			fastBranch.slice(0, 200));
-		check("过期 / 快捷方式被删只**排后台刷新**、不阻塞（`if (cached.stale) refreshIdentityState(cfgName);`）",
-			/if \(cached\.stale\) refreshIdentityState\(cfgName\);/.test(fastBranch)
+			/const cached = readIdentityState\(\);/.test(getCode)
+			&& /if \(cached\) \{/.test(getCode)
+			&& /sendJson\(res, 200, identityBodyOf\(cached\.state, cfgName\)\);\s*return;/.test(getCode));
+		check("**整条 GET 分支里没有任何同步等待**（没有 await / notifyIdentityProbe / runNotifyPowerShell / execFile）",
+			getCode.length > 0 && !/\bawait\b/.test(getCode)
+			&& !/notifyIdentityProbe|runNotifyPowerShell|execFile/.test(getCode),
+			getCode.slice(0, 200));
+		check("过期 / 快捷方式被删只**排后台刷新**、不阻塞（`if (cached.stale) void refreshIdentityState(cfgName);`）",
+			/if \(cached\.stale\) void refreshIdentityState\(cfgName\);/.test(getCode)
 			&& !/await refreshIdentityState/.test(hostSrc));
-		check("慢路径只在没有缓存时走：GET 的探测在 `if (cached)` 之后（`await probeIdentityState(cfgName)`）",
-			slowMark > getStart && /await probeIdentityState\(cfgName\)/.test(handlerBody.slice(slowMark)));
+		check("没有缓存 ⇒ 立刻回**保守值** + `void` 后台探测（先排探测，再 sendJson，没有 await）",
+			/void refreshIdentityState\(cfgName\);\s*sendJson\(res, 200, identityFallbackBodyOf\(cfgName\)\);\s*return;/.test(getCode));
 		const postStart = handlerBody.indexOf('if (req.method !== "POST")');
 		const postText = postStart >= 0 ? handlerBody.slice(postStart) : "";
 		check("POST：**成功之后**才写缓存（`if (r.ok !== true) { … return; }` 在前，`probeIdentityState(name)` 在后）",
@@ -1176,5 +1182,103 @@ export default async function run() {
 			compSrc.includes('notifyIdentity === null ? "读取中…"')
 			&& !/if \(notifyIdentity === null\) return/.test(compSrc)
 			&& /const \[notifyIdentity, setNotifyIdentity\] = \(0, react\.useState\)\(null\)/.test(compSrc));
+	}
+
+	// ── ⑯ GET **永不阻塞在 PowerShell 上** + 启动预热（2026-10-28 第二次性能修复）────────────
+	// 用户第二次反馈「通知身份那行的状态读取还是慢」。根因：`identity.json` 只有"探测过一次"之后才存在，
+	// **从没启用过身份的用户没有这个文件** ⇒ 每次 GET 都走冷路径，真跑一次 PowerShell 扫开始菜单
+	// （实测 0.87 秒）。这里把新契约钉死：
+	//   ① GET handler 里**绝不允许出现任何 `await probe…`**（一旦 await 就回到 0.87 秒）；
+	//   ② 没有缓存 ⇒ 立刻回**保守值**（纯函数 notifyIdentityFallbackOf）+ `void` 后台探测（单飞共享）；
+	//   ③ `apply()` 里有**启动预热**且是 `void`（不 await、不拖慢插件加载；失败只记日志）；
+	//   ④ 设置页拿到保守值后还能更新：点「发送测试通知」会再 GET 一次并刷新那一行。
+	{
+		const expected = "DshGachaCalendar.Reminder";
+		const fb = (cfgName, aumid) => notifyIdentityFallbackOf(cfgName, aumid === void 0 ? expected : aumid);
+
+		// ① 纯函数：无缓存时回什么（保守值）
+		const plain = fb("二游日历");
+		check("保守值：enabled=false / name=配置名 / aumid=期望值 / shortcutPath=空串（**不声称**知道哪条 .lnk）",
+			plain.enabled === false && plain.name === "二游日历"
+			&& plain.aumid === expected && plain.shortcutPath === "",
+			JSON.stringify(plain));
+		check("保守值字段与宿主正常响应同形（只有 enabled / name / aumid / shortcutPath，iconPath 由宿主补）",
+			Object.keys(plain).sort().join(",") === "aumid,enabled,name,shortcutPath",
+			Object.keys(plain).join(","));
+		check("保守值的 name 过 notifyNameOf（空 / 非法 / 保留设备名 / 超长都按同一处规则兜底）",
+			fb("").name === "二游日历" && fb("   ").name === "二游日历"
+			&& fb("a/b:c").name === "a b c" && fb("CON").name === "二游日历"
+			&& fb("名".repeat(60)).name.length === 40,
+			JSON.stringify([fb("").name, fb("a/b:c").name, fb("CON").name, fb("名".repeat(60)).name.length]));
+		check("保守值的 aumid：字符串原样 / 非字符串 ⇒ 空串（拿不准就不声称是哪个身份）",
+			fb("x", "Other.App").aumid === "Other.App"
+			&& notifyIdentityFallbackOf("x", 123).aumid === ""
+			&& notifyIdentityFallbackOf("x", null).aumid === ""
+			&& notifyIdentityFallbackOf("x", void 0).aumid === "");
+		check("宿主那份 ESM（lib/remind-core.mjs）与客户端是**同一个保守值**",
+			typeof R.notifyIdentityFallbackOf === "function"
+			&& JSON.stringify(R.notifyIdentityFallbackOf("a/b:c", expected)) === JSON.stringify(fb("a/b:c"))
+			&& JSON.stringify(R.notifyIdentityFallbackOf("", 123)) === JSON.stringify(fb("", 123)));
+
+		// ② 宿主静态：GET 不许等探测
+		const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
+		const bodyOfFn = (name) => {
+			const i = hostSrc.indexOf("function " + name + "(");
+			const j = i < 0 ? -1 : hostSrc.indexOf("\n}", i);
+			return i < 0 ? "" : hostSrc.slice(i, j < 0 ? hostSrc.length : j);
+		};
+		const handlerBody = bodyOfFn("notifyIdentityHandler");
+		const getStart = handlerBody.indexOf('if (req.method === "GET" || req.method === "HEAD") {');
+		const getEnd = getStart >= 0 ? handlerBody.indexOf('if (req.method !== "POST")', getStart) : -1;
+		const getBranch = getStart >= 0 && getEnd > getStart ? handlerBody.slice(getStart, getEnd) : "";
+		check("守卫自身没瞎：GET 分支定位到了", getBranch.length > 0, String(getBranch.length));
+		// 同理先剥注释（说明文字里就有「await probe…」这几个字，别让守卫绊在自己的注释上）。
+		const getCode = getBranch.replace(/\/\/[^\n]*/g, "");
+		check("GET handler 里**没有 `await probe…`**（钉死这条：GET 一旦等探测就回到 0.87 秒）",
+			!/\bawait\b/.test(getCode)
+			&& !/probeIdentityState|notifyIdentityProbe/.test(getCode),
+			getCode.slice(0, 200));
+		check("无缓存分支：先 `void` 后台探测、再 sendJson 保守值、return（顺序与\"不阻塞\"都在）",
+			/void refreshIdentityState\(cfgName\);\s*sendJson\(res, 200, identityFallbackBodyOf\(cfgName\)\);\s*return;/.test(getCode));
+		check("保守值由 core 纯函数生成、宿主只补 iconPath（形状与正常响应一致）",
+			/\.\.\.notifyIdentityFallbackOf\(cfgName, NOTIFY_AUMID\)/.test(bodyOfFn("identityFallbackBodyOf"))
+			&& /iconPath: notifyIconPath\(\)/.test(bodyOfFn("identityFallbackBodyOf")));
+		check("POST 仍然**真探测**（建 / 删之后要回读系统真相，写回缓存）",
+			/const state = await probeIdentityState\(name\);/.test(handlerBody));
+
+		// ③ 启动预热
+		const applyAt = hostSrc.indexOf("export function apply(ctx, config = {}) {");
+		const applyEnd = applyAt < 0 ? -1 : hostSrc.indexOf("\n}", applyAt);
+		const applyBody = applyAt < 0 ? "" : hostSrc.slice(applyAt, applyEnd < 0 ? hostSrc.length : applyEnd);
+		const warmBody = bodyOfFn("warmIdentityState");
+		check("`apply()` 里有**启动预热**、且是 `void` 调用（不 await ⇒ 不拖慢插件加载）",
+			applyBody.length > 0
+			&& /void warmIdentityState\(configValueOf\(liveConfigOf\(ctx, config\), "notifyName"\)\);/.test(applyBody)
+			&& !/await warmIdentityState/.test(hostSrc),
+			applyBody.slice(0, 160));
+		check("预热只在**没有缓存 / 已 stale** 时才探测（新鲜缓存直接跳过，不白起 PowerShell）",
+			/const cached = readIdentityState\(\);/.test(warmBody)
+			&& /if \(cached && !cached\.stale\) return false;/.test(warmBody)
+			&& /refreshIdentityState\(cfgName\);/.test(warmBody));
+		check("预热**永不抛**：整段 try/catch + 失败只记日志（之后 GET 的兜底探测会再试），自己也不 await",
+			/function warmIdentityState\(cfgName\) \{\s*try \{/.test(warmBody)
+			&& /catch \(err\)/.test(warmBody) && /logRemind\(/.test(warmBody)
+			&& !/\bawait\b/.test(warmBody));
+		check("启动预热 / GET 兜底 / stale 刷新**共用同一个单飞函数**（refreshIdentityState 的守卫仍在）",
+			/if \(identityRefreshRunning\) return;/.test(bodyOfFn("refreshIdentityState"))
+			&& (hostSrc.match(/refreshIdentityState\(cfgName\)/g) || []).length >= 3,
+			String((hostSrc.match(/refreshIdentityState\(cfgName\)/g) || []).length));
+		// 探针实测（2026-10-28）：`notifyIdentityProbe` 的同步前缀是一次 readdirSync 扫开始菜单顶层
+		// （80~120ms），它发生在第一个 await 之前 ⇒ 直接在 GET / apply 的栈里跑，GET 会从 0.5ms 变成 81ms、
+		// apply 从 0.2ms 变成 115ms。所以后台探测必须**下一拍**再真跑（setTimeout(0)）。
+		check("后台探测**推迟到下一拍**（setTimeout(0)）：probe 的同步前缀不落在 GET / apply 的调用栈里",
+			/identityRefreshRunning = true;[\s\S]{0,600}?setTimeout\(\(\) => \{[\s\S]{0,80}?void \(async \(\) => \{/.test(bodyOfFn("refreshIdentityState")));
+
+		// ④ 设置页：拿到保守值后要能更新（点「发送测试通知」顺手再 GET 一次）
+		const compSrc = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
+		check("设置页有 refreshNotifyIdentity（GET 一次 + setNotifyIdentity，失败保持原显示）",
+			/const refreshNotifyIdentity = async \(\) => \{[\s\S]{0,400}?setNotifyIdentity\(notifyIdentityOfBody\(body\)\)/.test(compSrc));
+		check("点「发送测试通知」成功后**再 GET 一次身份**并刷新那一行（保守值不会一直挂着）",
+			/await sendNotifyTest\(\);[\s\S]{0,300}?await refreshNotifyIdentity\(\);/.test(compSrc));
 	}
 }
