@@ -383,6 +383,10 @@
 			localWin,
 			localWinText,
 			localDatesOf,
+			// scheduleDateHover = 新面板**日期格**的悬停（80-components.js）：正常只给源站原文；
+			//   失败 ⇒ sideFailText 的既有文案（+「日期为沿用旧值」）；沿用旧值 ⇒「数据来自上次成功抓取 X 前」；
+			//   该侧没有数据 ⇒「（无数据）」。导出后四种情况都能用固定 now 逐字断言（见 cases-tz.mjs ⑤）。
+			scheduleDateHover,
 			// 到期判定的纯函数（固定时刻可测）。dueWindowOf / tickerItemsOf 在 80-components.js，
 			// 负责"落盘文本 + tz → 绝对窗口"；同属函数声明、同作用域提升 ⇒ 这里可提前引用。
 			isExpiringSoon,

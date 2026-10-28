@@ -245,7 +245,7 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
    ⑧ **不做** minify（本地加载、收益低，且要引 devDependency，破坏"零依赖 + CI 不装包"）。
 8. **分发/曝光**：`awesome-dsh-plugin` 提 PR；核对 `dshplugin.net` 条目；README 加一张动图；
    `package.json` 补 `keywords`；GitHub 仓库补 topics；npm 页面确认 README 已是最新。
-9. **日期格悬停补失败结论**：新面板**名字格**的悬停已带失败/沿用旧值结论，**日期格**还没有（小项）。
+9. **日期格悬停补失败结论**：新面板**名字格**的悬停已带失败/沿用旧值结论，**日期格**已补上同口径结论（2026-10-28 完成：失败 / 沿用旧值 / 无数据三种情况，正常态不补提示）。
 
 ### 待论证 / 待定
 

@@ -18,7 +18,7 @@ import { T } from "./load.mjs";
 
 export default async function run() {
 	section("时区口径（外显=本机时区换算 / 悬停=源站墙钟原文）");
-	const { fmtWindow, sourceInstant, buildEventHover, buildPoolHover, localWin, localWinText, localDatesOf } = T;
+	const { fmtWindow, sourceInstant, buildEventHover, buildPoolHover, localWin, localWinText, localDatesOf, scheduleDateHover } = T;
 
 	// 固定绝对时刻：A = 2026-09-27T23:00Z（+08 的 09-28 07:00、+09 的 09-28 08:00）
 	const A = Date.UTC(2026, 8, 27, 23, 0);
@@ -117,5 +117,37 @@ export default async function run() {
 		check("连 tz 都没有 → null（渲染层回落 bannerDates / eventDates 原文）",
 			localDatesOf({ bannerDates: "09-28 07:00 ~ 10-21 12:59", tz: null }, true, now) === null
 			&& localDatesOf(null, true, now) === null);
+	}
+
+	// ── ⑤ 新面板**日期格**悬停（待办第 9 项）：失败 / 沿用旧值 / 无数据 / 正常 ────────────
+	// 与名称格（hoverTextOf）同口径：失败复用 sideFailText 的文案；正常态**不补任何提示**。
+	// 全部用固定 now 与相对 _okAt，不依赖运行环境时区。
+	{
+		const now5 = new Date(Date.UTC(2026, 9, 21, 4, 0));
+		const base = "09-28 07:00 ~ 10-21 12:59";                  // 源站墙钟原文（悬停用）
+		const it = (g, extra) => ({ g, isG: true, side: "gacha", rawSrc: base, raw: base, ...extra });
+
+		const normal = scheduleDateHover(it({}), now5);
+		check("日期格·正常：只有源站原文，不补「（）」结论（反向断言：没有失败/沿用/无数据字样）",
+			normal === base && !normal.includes("（") && !/失败|沿用|上次成功|无数据/.test(normal), JSON.stringify(normal));
+
+		const failed = scheduleDateHover(it({ gachaFail: { kind: "down", reason: "网络不通" }, gachaStale: true, _okAt: now5.getTime() - 3 * 864e5 }), now5);
+		check("日期格·本轮卡池抓取失败 + 沿用旧值：逐字「卡池失败：网络不通，日期为沿用旧值」+「数据来自上次成功抓取 3 天前」",
+			failed === base + "\n（卡池失败：网络不通，日期为沿用旧值；数据来自上次成功抓取 3 天前）", JSON.stringify(failed));
+
+		const stale = scheduleDateHover(it({ gachaStale: true, _okAt: now5.getTime() - 2 * 3600e3 }), now5);
+		check("日期格·仅沿用旧值（本轮无报错）：说明「数据来自上次成功抓取 2 小时前」",
+			stale === base + "\n（数据来自上次成功抓取 2 小时前）", JSON.stringify(stale));
+
+		const ev = scheduleDateHover({ g: { eventFail: { kind: "down", reason: "超时" } }, isG: false, side: "event", rawSrc: base }, now5);
+		check("日期格·活动侧失败用活动文案（「活动失败：超时」，不串成卡池）",
+			ev === base + "\n（活动失败：超时）", JSON.stringify(ev));
+
+		const nomatch = scheduleDateHover(it({ gachaFail: { kind: "nomatch" }, gachaStale: true, _okAt: now5.getTime() - 4 * 864e5 }), now5);
+		check("日期格·未命中 + 沿用旧值：复用「新卡池未公布」，仍标明日期是旧值",
+			nomatch === base + "\n（新卡池未公布，日期为沿用旧值；数据来自上次成功抓取 4 天前）", JSON.stringify(nomatch));
+
+		check("日期格·该侧根本没有数据：说明「无数据」",
+			scheduleDateHover(null, now5) === "（无数据）" && scheduleDateHover(void 0, now5) === "（无数据）");
 	}
 }

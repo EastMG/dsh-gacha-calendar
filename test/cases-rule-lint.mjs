@@ -413,7 +413,27 @@ export default async function run() {
 		check("悬停保持源站原文：两列 title 仍用 bannerDatesRaw / eventDatesRaw（没换成换算值）",
 			/title: withFailNote\(g\.bannerDatesRaw \|\| g\.bannerDates/.test(comp)
 			&& /title: withFailNote\(g\.eventDatesRaw \|\| g\.eventDates/.test(comp));
-		check("悬停/探头不显示换算后的 raw（两处悬停文本一律 rawSrc 优先）",
-			!/\[x\.title, x\.raw\]/.test(comp) && (comp.match(/x\.rawSrc \|\| x\.raw/g) || []).length === 2);
+		check("悬停/探头不显示换算后的 raw（三处悬停文本一律 rawSrc 优先：名称格 / 日期格 / 探头原文本）",
+			!/\[x\.title, x\.raw\]/.test(comp) && (comp.match(/x\.rawSrc \|\| x\.raw/g) || []).length === 3);
+	}
+
+	// ── 新面板**日期格**悬停（待办第 9 项）：格子上真的接了新纯函数；正常态不补提示 ──
+	// 反向断言的是"渲染层没有另拼提示"与"备注只在失败/沿用两个分支 push"：
+	// 只要正常态被拼上任何一行（如硬编码「（）」），这里会红。
+	{
+		const raw = readFileSync(path.join(SRC, "80-components.js"), "utf8");
+		const comp = codeOnly(raw);
+		check("日期格悬停已接线：有数据 / 无数据两处 .gacha-cal-sched-cm 的 title 都是 scheduleDateHover",
+			/className: "gacha-cal-sched-cm gacha-cal-sched-num", title: scheduleDateHover\(x, now\)/.test(raw)
+			&& /className: "gacha-cal-sched-cm gacha-cal-sched-num", title: scheduleDateHover\(null, now\)/.test(raw));
+		const from = comp.indexOf("function scheduleDateHover(");
+		const to = comp.indexOf("function scheduleRank(", from);
+		const body = from >= 0 && to > from ? comp.slice(from, to) : "";
+		check("日期格正常态不补提示：备注只在 fail / stale 两个分支 push，返回式在 notes 为空时只给原文",
+			((body.match(/notes\.push\(/g) || []).length === 2
+			&& /if \(failText\)/.test(body)
+			&& /if \(stale\) \{/.test(body)
+			&& /return dates \? dates \+ \(notes\.length/.test(body)),
+			`from=${from} to=${to} pushes=${(body.match(/notes\.push\(/g) || []).length}`);
 	}
 }
