@@ -20,7 +20,9 @@
 		//   fired 存的是**节点小时数**（不是时间戳）：同一条目补跑时能判断"哪几档已经打扰过"。
 		const REMIND_HOUR_MS = 3600000;
 		// 出厂节点：结束后 3 天 / 1 天 / 6 小时 / 2 小时，开始前 1 天 / 2 小时。
-		// 设置项 `remindEndNodes` / `remindStartNodes` 是**字符串**（"72,24,6,2"），解析失败回落这两份。
+		// 设置项 `remindEndNodes` / `remindStartNodes` 是**字符串**（"72,24,6,2"）。
+		// 这两份常量同时是**设置页胶囊的可选集合**（2026-10-28：文本框换成 chips）：可选档位 = 出厂档位，
+		// 不另抄一份、也不做自定义输入，于是「能选什么」和「默认是什么」永远是一件事。
 		const REMIND_DEFAULT_END_NODES = [72, 24, 6, 2];
 		const REMIND_DEFAULT_START_NODES = [24, 2];
 		// 一条档期 = 某款游戏的卡池侧或活动侧；字段名与 Result JSON 里的记录一致。
@@ -70,9 +72,18 @@
 			return v !== false;
 		}
 
+		// 显式空串的形态："" / 只有空白 / 只有分隔符（" , " / "，，"）—— 都算"这方向不提醒"。
+		const REMIND_NODES_EMPTY_RE = /^[,，\s]*$/;
+
 		// 节点配置解析："72,24,6,2" → [72,24,6,2]（降序、去重、只留正数）。
-		// 也接受数组 / 数字（宿主设置库里历史值可能是数组）。解析不出任何有效节点 ⇒ 用 fallback 的副本。
+		// 也接受数组 / 数字（宿主设置库里历史值可能是数组）。
 		// **不抛**：配置被手改坏了不该让提醒整个停摆。
+		//
+		// ⚠️ 两种"没有档位"必须分开（2026-10-28 定，设置页胶囊"全部取消"就靠它）：
+		//   ① **显式空串 ⇒ 空数组 `[]`** —— 用户主动关掉这个方向（"结束不提醒"），判定侧就不发，
+		//      但**不回落默认**。把这条读成"配置坏了"会让关掉的方向又偷偷开始提醒。
+		//   ② 字段缺失（undefined / null / 非字符串真值）或内容非法（"坏的" / "0" / "-1" / 空数组）
+		//      ⇒ 回落 fallback 的副本 —— 那是"配置读坏了"，不该让提醒整个停摆。
 		function remindNodesOf(value, fallback) {
 			const out = [];
 			const push = (raw) => {
@@ -81,31 +92,35 @@
 				if (!out.includes(n)) out.push(n);
 			};
 			if (Array.isArray(value)) value.forEach(push);
-			else if (typeof value === "string") value.split(/[,，\s]+/).forEach(push);
+			else if (typeof value === "string") {
+				// ① 显式空串：这就是"该方向不提醒"本身，必须原样返回空档（**不能**走到下面的 fallback）。
+				if (REMIND_NODES_EMPTY_RE.test(value)) return [];
+				value.split(/[,，\s]+/).forEach(push);
+			}
 			else if (typeof value === "number") push(value);
 			if (!out.length) return fallback.slice();
 			out.sort((a, b) => b - a);
 			return out;
 		}
 
-		// 节点配置的**编辑视图**（设置页那两个文本框用；纯函数，与判定侧同一口径）。
-		// 入参：value = 用户框里的原文（"6 ， 2 ,abc" / "" / "0,-1" …）；
-		//       fallback = 解析不出任何有效档时要写回的出厂档位（REMIND_DEFAULT_*_NODES）。
-		// 返回 { text, nodes, invalid }：
-		//   text    = 该写回配置的字符串 —— **永远不是空串**（空/全非法 ⇒ fallback 的归一化形式）；
-		//   nodes   = 实际会生效的档位（非法时就是 fallback）—— 预览与写回同源，不各自再解析一遍；
-		//   invalid = 输入里一个有效小时数都没有（设置页据此标红 + 提示，但**不阻止输入**）。
-		// 为什么先按"无 fallback"解析一次：remindNodesOf 的 fallback 参数会把"解析不出来"与
-		// "解析成功"变成同一个返回值，那样就看不出非法了。
-		function remindNodesEditOf(value, fallback) {
-			const parsed = remindNodesOf(value, []);
-			if (parsed.length) return { text: parsed.join(","), nodes: parsed, invalid: false };
-			// fallback 本身也坏 ⇒ 落到出厂结束档（仍然不返回空串；两个调用点传的都是常量，不会走到这里）。
-			const nodes = remindNodesOf(fallback, REMIND_DEFAULT_END_NODES);
-			return { text: nodes.join(","), nodes, invalid: true };
+		// 设置页胶囊（chips）点一下 ⇒ 该写回的字符串（纯函数，与判定侧同一套解析）。
+		// 归一化口径与判定侧完全一致：**降序、去重、逗号分隔、不带空格**（"72,24,6,2"）。
+		// 把最后一档也点掉 ⇒ 返回**空串**（= 该方向不提醒），不是默认值 ——
+		// 空串的语义由 remindNodesOf 的 ① 号分支兜住，所以"写空串"与"读空串"是同一件事。
+		// value 读坏了（缺失 / 非法）时以 fallback 为基准 —— 与用户眼前那几颗胶囊的选中态一致。
+		// node 非法（不是正数）⇒ 原样归一化，不做切换（防脏参数把档位写坏）。
+		function remindNodesToggleOf(value, node, fallback) {
+			const cur = remindNodesOf(value, fallback);
+			const n = Number(node);
+			const next = Number.isFinite(n) && n > 0
+				? (cur.includes(n) ? cur.filter((x) => x !== n) : [...cur, n])
+				: cur.slice();
+			next.sort((a, b) => b - a);
+			return next.join(",");
 		}
 
 		// 设置项 → 两套节点。键名与插件设置项同名（宿主把 config 原样递进来即可）。
+		// 显式空串进 ⇒ 该方向 `[]`（不提醒）；键缺失 / 内容非法 ⇒ 出厂档位（见 remindNodesOf 的 ①②）。
 		function remindConfigOf(input) {
 			const raw = input && typeof input === "object" ? input : {};
 			return {

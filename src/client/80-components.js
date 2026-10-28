@@ -1898,9 +1898,9 @@
 			// 「提醒」复选框的本地草稿与串行链（与「展示」同一套理由：写入往返期间受控值会读旧 `s`）。
 			const [remindDraft, setRemindDraft] = (0, react.useState)({});
 			const remindWriteChain = (0, react.useRef)(Promise.resolve());
-			// 「到期提醒」两行节点输入的本地草稿（{ end, start }，null = 跟随已保存的设置值）。
+			// 「到期提醒」两行**胶囊**的本地草稿（{ end, start }，null = 跟随已保存的设置值）。
 			// 受控值读草稿而不读 `s`：宿主一次写入往返 1.4~3.6s，`s` 不会即时推新 ——
-			// 直接读 `s` 会把用户刚打的字吞掉（与上面「展示」草稿同一个病）。
+			// 直接读 `s` 会把用户刚点的那一下吞掉（与上面「展示」草稿同一个病）。
 			const [remindNodesDraft, setRemindNodesDraft] = (0, react.useState)({ end: null, start: null });
 			const [customInputs, setCustomInputs] = (0, react.useState)({});
 			const [eventCustomInputs, setEventCustomInputs] = (0, react.useState)({});
@@ -1991,33 +1991,44 @@
 				}
 			};
 
-			// 「提醒」节点档位：失焦（或回车 ⇒ 立刻失焦，写入只走 onBlur 一处）时把输入**归一化**后写回。
-			// 归一化 / 合法性判定全走 65-remind.js 的 remindNodesEditOf（它内部就是判定侧的
-			// remindNodesOf，同一口径，不在这边另写一份解析）。
-			// 空 / 全非法 ⇒ 写回出厂档位，**绝不写空字符串**（配置里留一份看不懂的值毫无意义）。
-			const commitRemindEndNodes = () => {
-				if (remindNodesDraft.end === null) return;   // 没改过（TAB 经过）就不写
-				const edit = remindNodesEditOf(remindNodesDraft.end, REMIND_DEFAULT_END_NODES);
-				setRemindNodesDraft((p) => ({ ...p, end: edit.text }));   // 立刻显示归一化结果
-				commit("remindEndNodes", edit.text);
+			// 「提醒」节点档位**胶囊**（2026-10-28：文本框 / "解析为" 预览 / 红框提示全部删掉）。
+			// 点一下 = 立刻把**归一化后的整串**写回（降序、逗号分隔、无空格）。
+			// 切换与归一化全走 65-remind.js 的 remindNodesToggleOf（内部就是判定侧的 remindNodesOf，
+			// 同一口径，不在这边另写一份解析）。
+			// 全部点掉 ⇒ 写**空串**（= 该方向不提醒）；判定侧把显式空串读成空档、**不**回落默认。
+			//
+			// 为什么要草稿 + 串行链（与上面「展示」的 setEntryShown 同一套理由）：
+			//   · 宿主一次写入往返 1.4~3.6s，`s` 不会即时推新 ⇒ 受控值读草稿，点击立刻反映在胶囊上；
+			//   · 连点两下时两笔写入排成一条链，保证"最后一次点击"最后落盘，
+			//     不会因为两次 set 快慢颠倒而回退。
+			//   ⚠️ 目标文本在**点击时**就算好再入链（不是入链后读快照重算）：胶囊是"切换"语义，
+			//      若等落盘后拿旧快照重算，往返窗口内的第二下会以旧值为基准 ⇒ 第一下被吞掉。
+			const remindNodesWriteChain = (0, react.useRef)(Promise.resolve());
+			const toggleRemindNode = (which, keyName, savedText, fallbackNodes, node) => {
+				const base = remindNodesDraft[which] === null ? String(savedText || "") : remindNodesDraft[which];
+				const text = remindNodesToggleOf(base, node, fallbackNodes);
+				setRemindNodesDraft((p) => ({ ...p, [which]: text }));   // 立刻显示新的选中态
+				const run = remindNodesWriteChain.current.then(async () => {
+					const ok = await commit(keyName, text);
+					// 宿主没接受 ⇒ 撤掉草稿，胶囊回到真实值（saveError 横幅已经在说明原因）。
+					// 只撤"还是这一笔文本"的草稿：后面还排着更新的点击时，别把那个意图也抹掉。
+					if (!ok) setRemindNodesDraft((p) => (p[which] === text ? { ...p, [which]: null } : p));
+				});
+				remindNodesWriteChain.current = run.catch(() => {});
+				return run;
 			};
-			const commitRemindStartNodes = () => {
-				if (remindNodesDraft.start === null) return;
-				const edit = remindNodesEditOf(remindNodesDraft.start, REMIND_DEFAULT_START_NODES);
-				setRemindNodesDraft((p) => ({ ...p, start: edit.text }));
-				commit("remindStartNodes", edit.text);
-			};
-			// 草稿只在输入期间存在：一旦"已保存值"与"草稿"（都归一化后）等价，就撤掉草稿，
-			// 输入框回到跟随设置 —— 否则外部（另一页面 / RPC）改了配置，本页会一直停在旧文本
-			// （与「展示」草稿的 A5 修复同一条理由）。
+			// 草稿只在"宿主还没追上"的窗口里存在：一旦已保存值与草稿是**同一组档位**，就撤掉草稿
+			// （理由同上面「展示」草稿的 A5 修复：外部改了配置，本页不能永久停在旧值）。
+			// 比较的是**解析后的档位**而不是原文：空串 / "6，2" 这类写法差异不该把草稿留住。
 			const remindEndSavedText = String(s.remindEndNodes || "");
 			const remindStartSavedText = String(s.remindStartNodes || "");
+			const remindNodesKeyOf = (text, fallbackNodes) => remindNodesOf(text, fallbackNodes).join(",");
 			(0, react.useEffect)(() => {
 				setRemindNodesDraft((prev) => {
 					let next = prev;
 					const drop = (which, savedText, fallbackNodes) => {
 						if (next[which] === null) return;
-						if (remindNodesEditOf(next[which], fallbackNodes).text !== remindNodesEditOf(savedText, fallbackNodes).text) return;
+						if (remindNodesKeyOf(next[which], fallbackNodes) !== remindNodesKeyOf(savedText, fallbackNodes)) return;
 						if (next === prev) next = { ...prev };
 						next[which] = null;
 					};
@@ -2305,41 +2316,39 @@
 			const inputStyle = { padding: "2px 6px", border: "1px solid var(--dsw-alias-border-l2)", background: "var(--dsw-alias-bg-base)", color: "var(--dsw-alias-label-primary)", borderRadius: 6, fontSize: 12, maxWidth: "100%", textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" };
 			const labelStyle = { display: "flex", alignItems: "center", gap: 6, fontSize: 12, flex: "none" };
 
-			// 「提醒」节点档位（结束 / 开始各一行）：受控值 = 草稿优先、否则已保存值；解析一律走
-			// 65-remind.js 的 remindNodesEditOf（内部就是判定侧的 remindNodesOf）——
-			// 于是"解析为：…"的预览、红框提示、失焦写回的字符串全是同一口径。
-			const remindNodeInputValue = (which, saved) => (remindNodesDraft[which] === null ? String(saved || "") : remindNodesDraft[which]);
-			const remindEndText = remindNodeInputValue("end", s.remindEndNodes);
-			const remindStartText = remindNodeInputValue("start", s.remindStartNodes);
-			const remindEndEdit = remindNodesEditOf(remindEndText, REMIND_DEFAULT_END_NODES);
-			const remindStartEdit = remindNodesEditOf(remindStartText, REMIND_DEFAULT_START_NODES);
-			const remindErrorColor = "var(--dsw-alias-state-error-primary, #d4380d)";
-			// 一行 = 「标签 + 文本框」+（右侧 / 窄屏换行后）解析预览。非法时预览位置换成提示、边框变红，
-			// 但只是**提示**：不 disabled、不限制长度、不拦输入（用户要能把输错的文本改回来）。
-			// 回车 = 立刻失焦（写回统一走 onBlur 一处，避免回车 + 失焦各写一笔）。
-			const remindNodeRow = (which, labelText, text, edit, onCommit, titleText) => (0, react_jsx_runtime.jsxs)("div", {
-				key: which,
-				style: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" },
-				children: [
-					(0, react_jsx_runtime.jsxs)("label", { style: { display: "flex", alignItems: "center", gap: 8 }, title: titleText, children: [
-						(0, react_jsx_runtime.jsx)("span", { style: { flex: "none" }, children: labelText }),
-						(0, react_jsx_runtime.jsx)("input", {
-							type: "text",
-							value: text,
-							placeholder: edit.text,
-							"aria-invalid": edit.invalid ? "true" : "false",
-							title: titleText,
-							onChange: (e) => setRemindNodesDraft((p) => ({ ...p, [which]: e.target.value })),
-							onBlur: onCommit,
-							onKeyDown: (e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } },
-							style: { ...inputStyle, width: 110, flex: "none", borderColor: edit.invalid ? remindErrorColor : void 0 }
+			// 「提醒」档位胶囊（结束 / 开始各一行）：受控值 = 草稿优先、否则已保存值；
+			// 选中态 = **判定侧真会用的档位**（remindNodesOf：显式空串 ⇒ 一颗都不选中）。
+			// 可选集合 = 该方向的**出厂档位**（REMIND_DEFAULT_*_NODES，直接拿常量当 choices，
+			// 不另抄一份）—— 不做自定义输入。
+			const remindNodesValue = (which, saved) => (remindNodesDraft[which] === null ? String(saved || "") : remindNodesDraft[which]);
+			// 一行 = 「标签 + 一排胶囊」：标签与胶囊之间 8px、胶囊之间 6px（视觉不挤）。
+			// 胶囊是真的 <button>（可 Tab / 可回车 / aria-pressed 报告选中态），
+			// 选中态走 .gacha-cal-chip--on（主题浅色底 + 深色字；未选中 = 灰描边 + 次级字色；
+			// 两者的 hover 都在 70-styles.js 里，各有轻微变化）。
+			const remindChipRow = (which, labelText, savedText, fallbackNodes, keyName, titleText) => {
+				const nodes = remindNodesOf(remindNodesValue(which, savedText), fallbackNodes);
+				return (0, react_jsx_runtime.jsxs)("div", {
+					key: which,
+					style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
+					children: [
+						(0, react_jsx_runtime.jsx)("span", { style: { flex: "none", fontSize: 12, color: "var(--dsw-alias-label-secondary)" }, title: titleText, children: labelText }),
+						(0, react_jsx_runtime.jsxs)("div", {
+							style: { display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" },
+							children: fallbackNodes.map((n) => {
+								const on = nodes.includes(n);
+								return (0, react_jsx_runtime.jsx)("button", {
+									type: "button",
+									"aria-pressed": on ? "true" : "false",
+									className: "gacha-cal-chip" + (on ? " gacha-cal-chip--on" : ""),
+									title: (on ? "取消这档提醒：" : "选上这档提醒：") + remindNodeText(n),
+									onClick: () => toggleRemindNode(which, keyName, savedText, fallbackNodes, n),
+									children: remindNodeText(n)
+								}, n);
+							})
 						})
-					] }),
-					(0, react_jsx_runtime.jsx)("span", { style: { color: edit.invalid ? remindErrorColor : "var(--dsw-alias-label-tertiary)", fontSize: 11 }, children: edit.invalid
-						? "没识别出有效小时数，保存后会用默认值"
-						: "解析为：" + edit.nodes.map(remindNodeText).join(" / ") })
-				]
-			});
+					]
+				});
+			};
 
 			return (0, react_jsx_runtime.jsxs)("div", {
 				style: { display: "flex", flexDirection: "column", gap: 14, maxWidth: 720, fontSize: 13, padding: "2px 0 8px" },
@@ -2382,8 +2391,8 @@
 							] })
 						] }),
 						// 「到期提醒（送达）」总开关（默认开）：到点时由**宿主半边**弹系统通知。
-						// 下面两行是节点档位（字符串配置，"72,24,6,2" / "24,2"）：解析、归一化、非法判定
-						// 全走 65-remind.js，与判定侧同一份口径（预览 = 实际会生效的档位）。
+						// 下面两行是节点档位胶囊（字符串配置，"72,24,6,2" / "24,2"）：解析、归一化、
+						// 全部取消（空串 = 该方向不提醒）全走 65-remind.js，与判定侧同一份口径。
 						(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }, title: "到点时用系统通知提醒：结束/开始前若干小时，同一件事只发最紧急的一档", children: [
 							(0, react_jsx_runtime.jsxs)("label", { style: { display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }, children: [
 								(0, react_jsx_runtime.jsx)("input", { type: "checkbox", checked: remindOn, onChange: (e) => commit("remindOn", e.target.checked) }),
@@ -2391,8 +2400,8 @@
 							] }),
 							(0, react_jsx_runtime.jsx)("span", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 11 }, children: "到期时弹系统通知（仅 DSH 运行期间）" })
 						] }),
-						remindNodeRow("end", "结束节点", remindEndText, remindEndEdit, commitRemindEndNodes, "结束前多久提醒（小时，逗号分隔）"),
-						remindNodeRow("start", "开始节点", remindStartText, remindStartEdit, commitRemindStartNodes, "开始前多久提醒（小时，逗号分隔）")
+						remindChipRow("end", "结束提醒", remindEndSavedText, REMIND_DEFAULT_END_NODES, "remindEndNodes", "结束前多久提醒（可多选；全不选 = 结束不提醒）"),
+						remindChipRow("start", "开始提醒", remindStartSavedText, REMIND_DEFAULT_START_NODES, "remindStartNodes", "开始前多久提醒（可多选；全不选 = 开始不提醒）")
 					] }),
 					// ── 实验特性开关：新「二游日历」面板视图（默认关）──
 					// 文案从简：只说"实验性新版UI，开发中"。默认值仍是 false（关着 = 原来的表格视图）。

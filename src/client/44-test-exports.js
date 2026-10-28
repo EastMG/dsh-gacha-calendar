@@ -419,9 +419,9 @@
 			//    提前引用会炸；那几个常量测试直接从 lib/remind-core.mjs 取（宿主看到的就是那份）。
 			remindOnOf,
 			remindNodesOf,
-			// remindNodesEditOf = 设置页两个节点文本框的解析视图（输入字符串 → {text, nodes, invalid}）：
-			// 预览 / 红框提示 / 归一化写回都走它，与判定侧同一个 remindNodesOf。
-			remindNodesEditOf,
+			// remindNodesToggleOf = 设置页胶囊点一下会写回的字符串（降序 / 逗号分隔 / 空格都没有；
+			// 全取消 ⇒ 空串）。与判定侧共用同一个 remindNodesOf，所以"写什么"和"读什么"不会分叉。
+			remindNodesToggleOf,
 			remindConfigOf,
 			remindKeyOf,
 			remindStateOf,

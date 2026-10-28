@@ -38,7 +38,9 @@
 			// 「到期提醒（送达）」总开关：**默认开**（用户 2026-10-27 认可"开箱即用"）。
 			// 真正的送达在宿主半边（src/index.js 的定时器 + 系统通知），面板只读写这个开关。
 			// 节点用**字符串**存（"72,24,6,2"），避开 array 值在设置表单里的兼容问题；
-			// 解析失败一律回落默认（见 65-remind.js 的 remindNodesOf），不会让提醒停摆。
+			// 设置页是两行**胶囊**（可多选，点一下写回归一化后的串）。
+			// 判定：显式空串 ⇒ 该方向不提醒（用户把胶囊全点掉）；键缺失 / 内容非法 ⇒ 回落默认
+			// （见 65-remind.js 的 remindNodesOf ①②），两种"没有档位"不混。
 			// 三个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 与 src/index.js 的 schema 里
 			// （守卫见 test/cases-rule-lint.mjs 与 test/cases-remind.mjs）。
 			remindOn: true,

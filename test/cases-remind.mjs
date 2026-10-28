@@ -8,8 +8,11 @@
 //      T 过作废并清状态、配置读坏回落默认、开始方向用另一套节点；
 //   ② 接线（静态）：三个设置键必须同时出现在 DEFAULT_SETTINGS / CONFIG_KEYS / 宿主的 schema 里；
 //      宿主要真有定时器、真在 disposer 里清理、真的**不依赖 tools/ 目录**（那是原型，不进插件）。
-//   ③ 设置页的节点档位输入（文本 → 归一化 / 预览 / 非法回落）：预览与写回必须走判定侧同一个
-//      remindNodesOf（`remindNodesEditOf`），否则会出现"设置页说 2 小时、判定按 6 小时发"。
+//   ③ 设置页的节点档位**胶囊**（chips，2026-10-28 改版）：可选集合固定 = 出厂档位，点一下写回
+//      归一化串（降序、逗号分隔），全部取消 ⇒ 写**空串** ⇒ 判定侧空档（该方向不提醒）。
+//      "显式空串（用户主动关）"与"缺失 / 非法（配置读坏）"必须分开 —— 这条语义在本文件钉死，
+//      两边的实现是同一个 remindNodesOf（`remindNodesToggleOf` 也用它），否则会出现
+//      "设置页说 2 小时、判定按 6 小时发"或"关了还在提醒"。
 //
 // ⚠️ 时刻全部显式传入（`now` 是参数），与本机时区无关 —— CI 跑 UTC、开发机跑 +08 都必须绿。
 // ⚠️ 判定代码与宿主用的是**同一份源码**（build.mjs 把 65-remind.js 原样拼成 lib/remind-core.mjs），
@@ -33,7 +36,7 @@ export default async function run() {
 	section("到期提醒（送达）：判定纯函数 + 设置键三处齐 + 宿主接线");
 
 	const {
-		remindOnOf, remindNodesOf, remindNodesEditOf, remindConfigOf, remindKeyOf, remindStateOf,
+		remindOnOf, remindNodesOf, remindNodesToggleOf, remindConfigOf, remindKeyOf, remindStateOf,
 		remindWindowOf, remindItemsOf, remindTickOf, remindToastOf,
 		dueWindowOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
 	} = T;
@@ -93,6 +96,41 @@ export default async function run() {
 			JSON.stringify(remindNodesOf("全部坏掉", [72, 24])) === JSON.stringify([72, 24])
 			&& JSON.stringify(remindNodesOf(null, [72])) === JSON.stringify([72])
 			&& JSON.stringify(remindNodesOf([], [72])) === JSON.stringify([72]));
+
+		// ⚠️ 2026-10-28 定的语义（设置页胶囊"全部取消"就是靠它）：
+		//   **显式空串 ⇒ 空档 = 该方向不提醒**（不回落默认）；
+		//   **字段缺失 / 内容非法 ⇒ 回落默认**（配置读坏了，不该让提醒停摆）。
+		// 两者混成一个返回值，就会出现"用户明明关掉了，到点还是弹"或"配置坏了不再提醒"。
+		check("显式空串 ⇒ 空档（[]），**不**回落默认（\"\" / 全空白 / 只有逗号都算）",
+			remindNodesOf("", [72, 24]).length === 0
+			&& remindNodesOf("   ", [72]).length === 0
+			&& remindNodesOf(" , ，", [72]).length === 0,
+			JSON.stringify([remindNodesOf("", [72]), remindNodesOf("   ", [72]), remindNodesOf(" , ，", [72])]));
+		check("字段缺失（undefined / null / 空数组）⇒ 仍回落默认（不是空档）",
+			JSON.stringify(remindNodesOf(void 0, [72])) === JSON.stringify([72])
+			&& JSON.stringify(remindNodesOf(null, [72])) === JSON.stringify([72])
+			&& JSON.stringify(remindNodesOf([], [72])) === JSON.stringify([72]),
+			JSON.stringify([remindNodesOf(void 0, [72]), remindNodesOf(null, [72]), remindNodesOf([], [72])]));
+		check("内容非法（非数字 / 0 / 负数）⇒ 仍回落默认（不是空档）",
+			JSON.stringify(remindNodesOf("坏的", [72])) === JSON.stringify([72])
+			&& JSON.stringify(remindNodesOf("0,-1", [72])) === JSON.stringify([72]),
+			JSON.stringify([remindNodesOf("坏的", [72]), remindNodesOf("0,-1", [72])]));
+		check("remindConfigOf：显式空串 ⇒ 该方向 []，另一个方向不受影响",
+			JSON.stringify(remindConfigOf({ remindEndNodes: "" }).endNodes) === JSON.stringify([])
+			&& JSON.stringify(remindConfigOf({ remindEndNodes: "" }).startNodes) === JSON.stringify([24, 2]),
+			JSON.stringify(remindConfigOf({ remindEndNodes: "" })));
+		{
+			// 空档真的进判定：结束方向关掉 ⇒ 一条都不发（不是"回落默认后照发"）
+			const offItem = { gameId: "g8", side: "gacha", kind: "end", gameName: "游戏辛", T: NOW + 1 * H, startTs: NOW - 9 * H, endTs: NOW + 1 * H };
+			const endOff = remindTickOf(NOW, [offItem], { remindEndNodes: "" }, {});
+			check("判定侧：结束方向空串 ⇒ **0 条**通知、也不留状态键",
+				endOff.toNotify.length === 0 && Object.keys(endOff.stateNext).length === 0,
+				JSON.stringify([endOff.toNotify.length, endOff.stateNext]));
+			check("判定侧：关掉结束方向不影响开始方向（各用各的键）",
+				remindTickOf(NOW, [{ ...offItem, gameId: "g9", kind: "start" }], { remindEndNodes: "" }, {}).toNotify[0].kind === "start");
+			check("判定侧：两个方向都空串 ⇒ 一条都不发（两个方向都关掉是合法状态）",
+				remindTickOf(NOW, [offItem, { ...offItem, kind: "start" }], { remindEndNodes: "", remindStartNodes: "" }, {}).toNotify.length === 0);
+		}
 		check("也接受数组 / 单个数字（历史配置可能是数组）",
 			JSON.stringify(remindNodesOf(["72", "24"], [1])) === JSON.stringify([72, 24])
 			&& JSON.stringify(remindNodesOf(12, [1])) === JSON.stringify([12]));
@@ -119,8 +157,10 @@ export default async function run() {
 		const b = remindTickOf(NOW, [{ ...startItem, T: NOW + 20 * H }], {}, {});
 		check("开始方向：20 小时后开始 → 只轮到 24 小时档（2 小时档还没到）",
 			b.toNotify.length === 1 && b.toNotify[0].node === 24, JSON.stringify(b.toNotify.map((n) => n.node)));
-		check("两套节点各自独立：把结束档改成空、开始档保持默认，开始方向照样工作",
-			remindTickOf(NOW, [startItem], { remindEndNodes: "坏的" }, {}).toNotify[0].node === 2);
+		check("两套节点各自独立：把结束档写成空串（= 结束不提醒），开始方向照样工作",
+			remindTickOf(NOW, [startItem], { remindEndNodes: "" }, {}).toNotify[0].node === 2);
+		check("「读坏了」与「主动关掉」不同：结束档是 \"坏的\" ⇒ 回落默认后**照发**",
+			remindTickOf(NOW, [{ ...startItem, kind: "end" }], { remindEndNodes: "坏的" }, {}).toNotify.length === 1);
 	}
 
 	// ── ④ 脏输入 / 幂等 / 不改进参 ─────────────────────────────────────────────────
@@ -403,108 +443,91 @@ export default async function run() {
 			/const remindOn = remindOnOf\(s\.remindOn\);/.test(compSrc));
 	}
 
-	// ── ⑪ 设置页「提醒」节点档位（2026-10-28）：两个文本框 + 实时预览 + 归一化写回 ────────
-	// 需求：文本输入（不是 chips）、预览与判定侧同口径、非法只提示不拦输入、
-	// 失焦/回车归一化写回、空或全非法写回默认值（**绝不写空串**）。
-	// 这里分两层钉：①纯函数 remindNodesEditOf（65-remind.js，判定侧同一个 remindNodesOf）；
-	// ②设置页接线（静态：两个输入框 / 键名 / 预览来源 / 非法提示 / 不拦输入）。
+	// ── ⑪ 设置页「提醒」档位 = 胶囊（chips，2026-10-28 改版）────────────────────────
+	// 需求（用户 2026-10-28）：文本框 / "解析为：…" 预览 / 红框提示**全部删掉**，换成两排圆角小按钮；
+	// 可选集合固定 = 出厂档位（结束 72/24/6/2、开始 24/2），**不做自定义输入**；
+	// 点一下立即写回归一化串（降序、逗号分隔、无空格）；**全部取消 ⇒ 写空串** ⇒ 判定侧空档。
+	// 这里分两层钉：①纯函数 remindNodesToggleOf（65-remind.js，用的就是判定侧同一个 remindNodesOf）；
+	// ②设置页接线（静态：两行胶囊 / 可选集合 / 键名 / 没有输入框与预览 / 点击不被往返吞掉）。
 	{
 		const D_END = [72, 24, 6, 2];
 		const D_START = [24, 2];
-		const editOf = (v, fb) => remindNodesEditOf(v, fb);
+		const toggle = (v, n, fb) => remindNodesToggleOf(v, n, fb);
 
-		// ① 纯函数：输入字符串 → { text（该写回什么）, nodes（实际生效档位）, invalid（要不要标红）}
-		{
-			const e = editOf("8,12", D_END);
-			check("节点编辑视图：正常输入 \"8,12\" → 归一化 \"12,8\"、档位降序、不算非法",
-				e.text === "12,8" && JSON.stringify(e.nodes) === JSON.stringify([12, 8]) && e.invalid === false,
-				JSON.stringify(e));
-		}
-		{
-			const e = editOf("6 ， 2", D_END);
-			check("节点编辑视图：中文逗号 / 空白 → \"6,2\"（与判定侧同一套分隔符）",
-				e.text === "6,2" && e.invalid === false, JSON.stringify(e));
-		}
-		{
-			const e = editOf("6 ， 2 ,abc", D_END);
-			check("节点编辑视图：夹非法项 → 只丢非法项写 \"6,2\"，**不**算非法（不回落默认）",
-				e.text === "6,2" && JSON.stringify(e.nodes) === JSON.stringify([6, 2]) && e.invalid === false,
-				JSON.stringify(e));
-		}
-		{
-			const e = editOf("", D_END);
-			check("节点编辑视图：空串 → 非法，写回默认 \"72,24,6,2\"（不是空字符串）",
-				e.invalid === true && e.text === "72,24,6,2" && JSON.stringify(e.nodes) === JSON.stringify(D_END),
-				JSON.stringify(e));
-		}
-		{
-			const e = editOf("全部坏掉", D_START);
-			check("节点编辑视图：全非法 → 非法 + 写回**该方向**的默认 \"24,2\"",
-				e.invalid === true && e.text === "24,2" && JSON.stringify(e.nodes) === JSON.stringify(D_START),
-				JSON.stringify(e));
-		}
-		{
-			const zero = editOf("0", D_END);
-			const neg = editOf("-1,-2", D_END);
-			const mixed = editOf("0,-1,3", D_END);
-			check("节点编辑视图：0 / 负数一律不算有效档（0 档 = 每一轮都发，负数更没意义），按非法回落默认",
-				zero.invalid === true && neg.invalid === true
-				&& zero.text === "72,24,6,2" && neg.text === "72,24,6,2",
-				JSON.stringify([zero, neg]));
-			check("节点编辑视图：0/负数与有效档混写 → 只留有效档（不因为夹了 0 就回落默认）",
-				mixed.text === "3" && mixed.invalid === false, JSON.stringify(mixed));
-		}
-		{
-			const e = editOf("2,2,2", D_END);
-			check("节点编辑视图：去重（\"2,2,2\" → \"2\"）", e.text === "2" && e.nodes.length === 1, JSON.stringify(e));
-		}
-		{
-			// 关键不变量：写回的字符串再解析一次 == 实际生效的档位（设置页写回与判定不会分叉）
-			const samples = ["8,12", "6 ， 2 ,abc", "", "全部坏掉", "0,-1,3", "2,2,2"];
-			check("节点编辑视图：写回的字符串再解析 == 实际生效档位（写回与判定同一口径）",
-				samples.every((v) => {
-					const e = editOf(v, D_END);
-					return JSON.stringify(remindNodesOf(e.text, [])) === JSON.stringify(e.nodes);
-				}),
-				samples.map((v) => JSON.stringify(editOf(v, D_END).text)).join(" / "));
-			check("节点编辑视图：与判定侧读同一份配置的结果一致（remindConfigOf，含非法值）",
-				JSON.stringify(remindConfigOf({ remindEndNodes: "6 ， 2 ,abc" }).endNodes) === JSON.stringify(editOf("6 ， 2 ,abc", D_END).nodes)
-				&& JSON.stringify(remindConfigOf({ remindEndNodes: "" }).endNodes) === JSON.stringify(editOf("", D_END).nodes));
-		}
-		{
-			const bad = editOf("", ["坏的", 0, -1]);
-			check("节点编辑视图：fallback 本身也坏 → 仍是出厂结束档（永不返回空串）",
-				bad.invalid === true && bad.text === "72,24,6,2", JSON.stringify(bad));
-		}
+		// ① 纯函数：点一下某档 → 该写回的字符串（格式 = 判定侧归一化后的那一份）
+		check("胶囊可选集合 = 出厂档位（结束 [72,24,6,2] / 开始 [24,2]，常量同一处）",
+			JSON.stringify(R.REMIND_DEFAULT_END_NODES) === JSON.stringify(D_END)
+			&& JSON.stringify(R.REMIND_DEFAULT_START_NODES) === JSON.stringify(D_START),
+			JSON.stringify([R.REMIND_DEFAULT_END_NODES, R.REMIND_DEFAULT_START_NODES]));
+		check("点掉一档 → 降序、逗号分隔、无空格（\"72,24,6,2\" 点掉 6 → \"72,24,2\"）",
+			toggle("72,24,6,2", 6, D_END) === "72,24,2", toggle("72,24,6,2", 6, D_END));
+		check("点上一档 → 按降序插进去（\"72,2\" 点 6 → \"72,6,2\"）",
+			toggle("72,2", 6, D_END) === "72,6,2", toggle("72,2", 6, D_END));
+		check("**全部取消 ⇒ 空串**（不是默认值）：开始方向 24/2 依次点掉",
+			toggle("24,2", 24, D_START) === "2" && toggle("2", 2, D_START) === "",
+			JSON.stringify([toggle("24,2", 24, D_START), toggle("2", 2, D_START)]));
+		check("从空串（该方向关着）点回一档 → 只有那一档（不是默认全集）",
+			toggle("", 24, D_START) === "24", toggle("", 24, D_START));
+		check("写回格式永远归一：没有空格 / 中文逗号 / 重复档",
+			["", "72,2", " 6 ， 2 ", "2,2,2", "坏的"].every((v) => /^$|^\d+(,\d+)*$/.test(toggle(v, 24, D_END)))
+			&& toggle(" 6 ， 2 ", 24, D_END) === "24,6,2"
+			&& toggle("2,2,2", 6, D_END) === "6,2",
+			toggle(" 6 ， 2 ", 24, D_END));
+		check("value 读坏了（\"坏的\"）时以默认档为基准再切换（与用户眼前那几颗胶囊一致）",
+			toggle("坏的", 2, D_END) === "72,24,6", toggle("坏的", 2, D_END));
+		check("node 不是正数 → 只归一化、不切换（脏参数不写坏档位）",
+			toggle("72,24", 0, D_END) === "72,24" && toggle("72,24", "x", D_END) === "72,24",
+			JSON.stringify([toggle("72,24", 0, D_END), toggle("72,24", "x", D_END)]));
+		check("写回的串再解析 ⇒ 正好是点完之后该生效的档位（写回与判定不分叉；空串 ⇒ 空档）",
+			remindNodesOf(toggle("72,24,6,2", 6, D_END), D_END).join(",") === "72,24,2"
+			&& remindNodesOf(toggle("24,2", 24, D_START), D_START).join(",") === "2"
+			&& remindNodesOf(toggle("2", 2, D_START), D_START).length === 0);
+		check("宿主那份 ESM（lib/remind-core.mjs）里的胶囊函数与客户端产物**同一份源码**",
+			typeof R.remindNodesToggleOf === "function"
+			&& R.remindNodesToggleOf("72,24,6,2", 6, D_END) === toggle("72,24,6,2", 6, D_END)
+			&& R.remindNodesToggleOf("2", 2, D_START) === "");
 
 		// ② 设置页接线（静态）
 		const compSrc = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
-		check("设置页有两行节点输入（「结束节点」/「开始节点」），各写回各自的键",
-			compSrc.includes('remindNodeRow("end", "结束节点"') && compSrc.includes('remindNodeRow("start", "开始节点"'));
-		check("commit 的两个键名正确：remindEndNodes / remindStartNodes（写的是归一化后的 edit.text）",
-			compSrc.includes('commit("remindEndNodes", edit.text)') && compSrc.includes('commit("remindStartNodes", edit.text)'));
-		check("预览用的是 remindNodesEditOf（内部即判定侧 remindNodesOf；设置页没有另写一份解析）",
-			/remindEndEdit = remindNodesEditOf\(remindEndText, REMIND_DEFAULT_END_NODES\)/.test(compSrc)
-			&& /remindStartEdit = remindNodesEditOf\(remindStartText, REMIND_DEFAULT_START_NODES\)/.test(compSrc)
-			&& compSrc.includes('"解析为：" + edit.nodes.map(remindNodeText).join(" / ")')
-			&& !/remindEndNodes[\s\S]{0,40}?\.split\(/.test(compSrc)
-			&& !/remindStartNodes[\s\S]{0,40}?\.split\(/.test(compSrc));
-		check("非法时边框变红 + 一行提示（提示说明保存后会回落默认值）",
-			compSrc.includes("borderColor: edit.invalid ? remindErrorColor : void 0")
-			&& compSrc.includes("没识别出有效小时数，保存后会用默认值"));
-		check("非法**不阻止输入**：节点输入框没有 disabled / maxLength / pattern",
-			!/maxLength/.test(compSrc) && !/pattern:/.test(compSrc)
-			&& /onChange: \(e\) => setRemindNodesDraft\(\(p\) => \(\{ \.\.\.p, \[which\]: e\.target\.value \}\)\)/.test(compSrc));
-		check("失焦写回 + 回车写回（回车 = 立刻失焦，写入只走 onBlur 一处、不会写两笔）",
-			/onBlur: onCommit/.test(compSrc)
-			&& /if \(e\.key === "Enter"\) \{ e\.preventDefault\(\); e\.currentTarget\.blur\(\); \}/.test(compSrc));
-		check("空/非法写回默认值的分支在 65-remind.js（设置页不硬编码那两个默认字符串）",
-			/const nodes = remindNodesOf\(fallback, REMIND_DEFAULT_END_NODES\);/.test(
-				readFileSync(path.join(REPO, "src", "client", "65-remind.js"), "utf8"))
-			&& !/commit\("remindEndNodes", "/.test(compSrc) && !/commit\("remindStartNodes", "/.test(compSrc));
-		check("没改过输入（TAB 经过）不写盘：草稿为 null 时直接返回",
-			compSrc.includes("if (remindNodesDraft.end === null) return;")
-			&& compSrc.includes("if (remindNodesDraft.start === null) return;"));
+		const styleSrc = readFileSync(path.join(REPO, "src", "client", "70-styles.js"), "utf8");
+		check("两行胶囊：标签「结束提醒」/「开始提醒」，可选集合直接取出厂常量（不另抄一份）",
+			compSrc.includes('remindChipRow("end", "结束提醒", remindEndSavedText, REMIND_DEFAULT_END_NODES, "remindEndNodes"')
+			&& compSrc.includes('remindChipRow("start", "开始提醒", remindStartSavedText, REMIND_DEFAULT_START_NODES, "remindStartNodes"'));
+		check("文本框 / 预览 / 红框提示**全部删掉**（没有 remindNodeRow、没有\"解析为：\"、没有 aria-invalid）",
+			!/remindNodeRow/.test(compSrc) && !/remindNodesEditOf/.test(compSrc)
+			&& !compSrc.includes("解析为：") && !compSrc.includes("没识别出有效小时数")
+			&& !/remindErrorColor/.test(compSrc) && !/aria-invalid/.test(compSrc)
+			&& !/onBlur: onCommit/.test(compSrc) && !/maxLength/.test(compSrc));
+		check("胶囊是 <button>：aria-pressed 报选中态、点击走 toggleRemindNode",
+			compSrc.includes('"aria-pressed": on ? "true" : "false"')
+			&& compSrc.includes('className: "gacha-cal-chip" + (on ? " gacha-cal-chip--on" : "")')
+			&& compSrc.includes("onClick: () => toggleRemindNode(which, keyName, savedText, fallbackNodes, n)"));
+		check("选中态直接来自判定侧口径（remindNodesOf；显式空串 ⇒ 一颗都不选中）",
+			compSrc.includes("const nodes = remindNodesOf(remindNodesValue(which, savedText), fallbackNodes);"));
+		check("点击写回走 remindNodesToggleOf（设置页不另写一份解析 / 归一化），键名按方向各写各的",
+			compSrc.includes("const text = remindNodesToggleOf(base, node, fallbackNodes);")
+			&& compSrc.includes("await commit(keyName, text);")
+			&& !/commit\("remindEndNodes"/.test(compSrc) && !/commit\("remindStartNodes"/.test(compSrc));
+		check("点击不被宿主往返吞掉：草稿优先显示 + 写入排成一条串行链（目标文本在点击时算好）",
+			compSrc.includes("const remindNodesWriteChain = (0, react.useRef)(Promise.resolve());")
+			&& compSrc.includes("remindNodesWriteChain.current = run.catch(() => {});")
+			&& compSrc.includes('remindNodesDraft[which] === null ? String(savedText || "") : remindNodesDraft[which]'));
+		check("宿主追上后草稿会让位（比较解析后的档位，空串写法差异不留住草稿）",
+			compSrc.includes("const remindNodesKeyOf = (text, fallbackNodes) => remindNodesOf(text, fallbackNodes).join(\",\");"));
+		check("两行不挤：标签与胶囊 8px、胶囊之间 6px、字号 12px（都在 remindChipRow 里）",
+			(() => {
+				const i = compSrc.indexOf("const remindChipRow = (");
+				const chipSrc = i < 0 ? "" : compSrc.slice(i, i + 1600);
+				return /gap: 8, flexWrap: "wrap"/.test(chipSrc)
+					&& /gap: 6, flexWrap: "wrap"/.test(chipSrc)
+					&& /fontSize: 12/.test(chipSrc);
+			})());
+		check("胶囊样式：圆角 999/小高度 + 选中=主题浅色底配深色字 / 未选中=灰描边配次级字色 + 两档 hover + cursor:pointer",
+			/\.gacha-cal-chip\{[^}]*height:24px[^}]*border-radius:999px[^}]*color:var\(--dsw-alias-label-secondary[^}]*cursor:pointer/.test(styleSrc)
+			&& /\.gacha-cal-chip\{[^}]*border:1px solid var\(--dsw-alias-border-l2/.test(styleSrc)
+			&& /\.gacha-cal-chip--on\{[^}]*background:var\(--dsw-alias-interactive-bg-hover-accent[^}]*color:var\(--dsw-alias-label-primary/.test(styleSrc)
+			&& /\.gacha-cal-chip:hover\{/.test(styleSrc)
+			&& /\.gacha-cal-chip--on:hover\{/.test(styleSrc));
 		check("逐游戏「提醒」列保持隐藏（SHOW_REMIND_COLUMN 仍为 false，本次不动）",
 			/const SHOW_REMIND_COLUMN = false;/.test(compSrc));
 	}

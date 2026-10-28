@@ -162,6 +162,17 @@
 			   改成 appearance:none + 自绘 chevron（右侧固定 8px 处），文字左对齐、高度与方形/长方形按钮一致（28）。 */
 			.gacha-cal-select{appearance:none;-webkit-appearance:none;height:28px;box-sizing:border-box;padding:0 26px 0 10px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));border-radius:7px;background-color:var(--dsw-alias-bg-base);background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aa1ab' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 8px center;background-size:12px;color:var(--dsw-alias-label-primary,#1f2329);font:inherit;font-size:12px;line-height:26px;text-align:left;text-overflow:ellipsis;white-space:nowrap;overflow:hidden;cursor:pointer;transition:border-color .12s}
 			.gacha-cal-select:hover{border-color:var(--dsw-alias-label-tertiary,#9aa1ab)}
+			/* 设置页「提醒」档位胶囊（2026-10-28：文本框换成 chips，见 80-components.js 的 remindChipRow）。
+			   · 未选中 = 灰描边 + 次级字色 + 透明底（与普通按钮同一套边框色）；
+			   · 选中   = **主题浅色底**（interactive-bg-hover-accent：浅色模式下是 #263148 的 14% 透明，
+			             叠在卡片底色上就是一层很淡的主题蓝灰）+ 深色主字（label-primary），描边透明保持尺寸；
+			   · 两者都 cursor:pointer，hover 各有一点变化（未选中：浅灰底 + 描边加深；选中：底色加深一档）。
+			   height 24 + font-size 12：比 28px 的按钮矮一档，两行胶囊排在设置页里不抢视线。 */
+			.gacha-cal-chip{height:24px;padding:0 10px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));border-radius:999px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary,#4a5261);font:inherit;font-size:12px;line-height:1;white-space:nowrap;cursor:pointer;transition:background .12s,border-color .12s,color .12s}
+			.gacha-cal-chip:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1));border-color:var(--dsw-alias-label-tertiary,#9aa1ab);color:var(--dsw-alias-label-primary,#1f2329)}
+			.gacha-cal-chip:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary,#3d5afe);outline-offset:1px}
+			.gacha-cal-chip--on{background:var(--dsw-alias-interactive-bg-hover-accent,rgba(38,49,72,.14));border-color:transparent;color:var(--dsw-alias-label-primary,#1f2329)}
+			.gacha-cal-chip--on:hover{background:var(--dsw-alias-button-ghost-active-fill,rgba(38,49,72,.2));border-color:var(--dsw-alias-button-ghost-active-border,rgba(38,49,72,.35))}
 			/* ── 启动动画（纯 CSS：只加 keyframes，不动任何元素/DOM）────────────────────────
 			   面板每次打开都是重新挂载 ⇒ animation 自然只跑一次，不需要 JS。
 			   ⚠️ 安全边界：展开的探头是 position:fixed，**祖先带 transform 会把包含块换成那个祖先**
