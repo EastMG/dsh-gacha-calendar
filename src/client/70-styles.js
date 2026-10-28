@@ -173,16 +173,21 @@
 			.gacha-cal-chip:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary,#3d5afe);outline-offset:1px}
 			.gacha-cal-chip--on{background:var(--dsw-alias-state-business-primary,#3d5afe);border-color:transparent;color:#fff;font-weight:600}
 			.gacha-cal-chip--on:hover{background:var(--dsw-alias-state-business-primary-hover,#3350e6);border-color:transparent;color:#fff}
-			/* 设置页标题行（2026-10-28 改）：标题 + 版本号 + Star 指引**同一行**（布局在 80-components.js）。
+			/* 设置页标题行（2026-10-28 二次改）：左 = 标题 + 版本号，右 = Star 指引 + 关闭 ✕
+			   （布局在 80-components.js；Star 组用 marginLeft:"auto" 推到最右）。
 			   · 版本号 = 12px + 三级字色，紧跟标题右边（"v" + 构建期注入的 PLUGIN_VERSION）；
 			   · Star 链接 = 一行**文字链接**，不是按钮、没有底色块：默认 12px + 三级字色 + 无下划线，
 			     hover 才升到次级字色并出下划线（仍是"可点的文字"，不是控件）；
-			   · 三者靠标题行容器的 align-items:center **垂直居中** ⇒ 这两条规则里**不许**再写
-			     align-self / margin —— 那会把某个子项顶出中线（cases-star.mjs 有守卫）。 */
+			   · 关闭 ✕ = 12px 小文字按钮，无底色无边框，hover 才加深；点击区 16×16（字小，不收一下点不中）。
+			   · 三者靠标题行容器的 align-items:center **垂直居中** ⇒ 这三条规则里**不许**写 align-self /
+			     margin —— 右推在 Star 组容器上（80-components.js 的 marginLeft:"auto"），不在子项上。 */
 			.gacha-cal-version{flex:none;font-size:12px;line-height:1.6;color:var(--dsw-alias-label-tertiary,#9aa1ab);white-space:nowrap}
 			.gacha-cal-star-link{flex:none;font-size:12px;line-height:1.6;color:var(--dsw-alias-label-tertiary,#9aa1ab);text-decoration:none;cursor:pointer;transition:color .12s;white-space:nowrap}
 			.gacha-cal-star-link:hover{color:var(--dsw-alias-label-secondary,#4a5261);text-decoration:underline}
 			.gacha-cal-star-link:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary,#3d5afe);outline-offset:2px;border-radius:3px}
+			.gacha-cal-star-close{flex:none;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;padding:0;border:none;background:none;color:var(--dsw-alias-label-tertiary,#9aa1ab);font:inherit;font-size:12px;line-height:1;cursor:pointer;transition:color .12s}
+			.gacha-cal-star-close:hover{color:var(--dsw-alias-label-secondary,#4a5261)}
+			.gacha-cal-star-close:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary,#3d5afe);outline-offset:2px;border-radius:3px}
 			/* ── 启动动画（纯 CSS：只加 keyframes，不动任何元素/DOM）────────────────────────
 			   面板每次打开都是重新挂载 ⇒ animation 自然只跑一次，不需要 JS。
 			   ⚠️ 安全边界：展开的探头是 position:fixed，**祖先带 transform 会把包含块换成那个祖先**

@@ -100,7 +100,14 @@
 			// migrateNewPanelOnce —— 迁移后用 `newPanelMigrated` 记住，之后用户自己关掉不会再被覆写。
 			// ⚠️ 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 里，否则设置页勾了
 			//    面板读不到（历史上 `shown` 漏过它，见 test/cases-rule-lint.mjs 的守卫）。
-			newPanel: true
+			newPanel: true,
+			// 设置页标题行 Star 指引的「已关闭」标记：默认 false = 显示。
+			// 用户点标题行右侧那个小 ✕ ⇒ 写 true ⇒ 整块（Star 链接 + ✕）永久消失
+			// （配置持久化，重启后也不再出现）。读取一律走 configValueOf 解包（volatile 字段是引用对象），
+			// 只有解包后**明确是 true** 才隐藏；缺失 / 脏值一律显示（见 60-helpers.js 的 starHintShownOf）。
+			// 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 与 src/index.js 的 schema 里
+			// （三处齐的守卫见 test/cases-star.mjs 与 test/cases-rule-lint.mjs）。
+			starHintDismissed: false
 		};
 		//#endregion
 
@@ -620,6 +627,30 @@
 		// 设置页与按钮共用这一处，避免"设置页显示开着、按钮却没反应"。
 		function tickerOnOf(v) {
 			return v !== false;
+		}
+
+		// 配置值的**解包**口径（客户端镜像宿主 src/index.js 的 configValueOf，语义完全一致）。
+		// 本插件的设置字段都标了 `.volatile()`：宿主交给 apply 的 `config.xxx` 不是裸值，而是
+		// `{ get(), [Symbol.for("cosmokit.volatile.write")] }` 这样的**引用对象**。
+		// 直接按裸值比较永远不成立（对象恒 truthy）而且**不报错** —— 设置页读配置也必须走这一处，
+		// 否则换一个 DSH 版本就会静默把"显示 / 隐藏"判反。
+		const VOLATILE_WRITE = Symbol.for("cosmokit.volatile.write");
+		function configValueOf(raw) {
+			if (raw && typeof raw === "object" && typeof raw.get === "function" && VOLATILE_WRITE in raw) {
+				try {
+					return raw.get();
+				} catch {
+					return void 0;
+				}
+			}
+			return raw;
+		}
+
+		// 设置页标题行的 Star 指引是否显示：只有**解包后明确是 true** 才隐藏（用户点过 ✕）。
+		// 缺失 / false / 脏值（"false"、0、null、{}…）一律显示 —— 与 DEFAULT_SETTINGS.starHintDismissed=false
+		// 同口径。渲染层不自己写 `s.starHintDismissed === true`，否则 volatile 引用对象会被误判成"已关闭"。
+		function starHintShownOf(raw) {
+			return configValueOf(raw) !== true;
 		}
 
 		// 按钮轮播范围的读取口径：只接受正数小时，缺失 / 0 / 负数 / 非数字一律回落默认 72。
@@ -1446,6 +1477,9 @@ export function createEngine(env) {
 				// notifyName：通知身份名（应用名，默认「二游日历」）。设置页那一行窄输入框写它，
 				// 宿主拿它给开始菜单快捷方式起名 / 写 DisplayName。**别漏** —— 与上面每个键同理。
 				"notifyName",
+				// starHintDismissed：设置页标题行 Star 指引的「已关闭」标记（默认 false = 显示）。
+				// 设置页点 ✕ 写它；面板侧按同一份配置决定还显不显示。**别漏** —— 与上面每个键同理。
+				"starHintDismissed",
 				"newPanel", "newPanelMigrated", "lastData", "lastRefresh", "lastSource", "lastVersion"
 			];
 

@@ -1960,6 +1960,10 @@
 			// 受控值读草稿而不读 `s`：宿主一次写入往返 1.4~3.6s，`s` 不会即时推新 ——
 			// 直接读 `s` 会把用户刚点的那一下吞掉（与上面「展示」草稿同一个病）。
 			const [remindNodesDraft, setRemindNodesDraft] = (0, react.useState)({ end: null, start: null });
+			// 标题行 Star 指引的本地「已关闭」标记：点 ✕ 的**当拍**就隐藏（宿主一次写入往返
+			// 1.4~3.6s，直接等 `s.starHintDismissed` 推新会有一段时间"点了没反应"）。
+			// 持久化仍走 commit("starHintDismissed", true)，重启后由已保存的配置继续隐藏。
+			const [starHintDismissedDraft, setStarHintDismissedDraft] = (0, react.useState)(false);
 			const [customInputs, setCustomInputs] = (0, react.useState)({});
 			const [eventCustomInputs, setEventCustomInputs] = (0, react.useState)({});
 			// 解析器自检（只读）：运行中标记 + 上一次的报告
@@ -1992,6 +1996,9 @@
 				return scope.subscribe(() => setSnapshot(scope.getSnapshot()));
 			}, [scope]);
 			const s = { ...DEFAULT_SETTINGS, ...(snapshot.value ?? {}) };
+			// 标题行 Star 指引是否显示：已保存的配置（经 60-helpers.js 的 starHintShownOf 解包
+			// volatile 引用）+ 当拍草稿。只认"明确 true = 已关闭"；缺失 / 脏值一律显示。
+			const starHintShown = starHintShownOf(s.starHintDismissed) && !starHintDismissedDraft;
 			// 表单可用性（写不进去时在页面上如实说明，见下面渲染处）。
 			// 文案与 formRejectHint 同源：只解释"为什么写不了"，不猜。
 			const formReady = snapshot.status === "ready" && snapshot.mode !== "memory";
@@ -2128,6 +2135,13 @@
 					setSaveError("\u4FDD\u5B58\u5931\u8D25\uFF1A" + String((err && err.message) || err || "未知错误"));
 					return false;
 				}
+			};
+
+			// 点标题行右侧的 ✕：先当拍隐藏（同一个渲染周期里整块消失），再落盘 `starHintDismissed: true`。
+			// 落盘失败时下面会显示 saveError；本会话**不再**弹回来 —— 用户意图明确，不跟写入延迟打架。
+			const dismissStarHint = () => {
+				setStarHintDismissedDraft(true);
+				void commit("starHintDismissed", true);
 			};
 
 			// 应用名提交（失焦 / 回车）：空 ⇒ 默认「二游日历」；非法文件名字符与超长由 notifyNameOf 收干净
@@ -2521,29 +2535,46 @@
 			return (0, react_jsx_runtime.jsxs)("div", {
 				style: { display: "flex", flexDirection: "column", gap: 14, maxWidth: 720, fontSize: 13, padding: "2px 0 8px" },
 				children: [
-					// 标题行（2026-10-28 改）：**标题 + 版本号 + Star 指引同一行**。
-					// 原来标题独占一行、Star 指引领在页面最底部 —— 想点 Star 得滚到最后，想知道跑的是哪一版
-					// 得去翻缓存。合到一行后三件事在同一处：
+					// 标题行（2026-10-28 二次改）：**左侧** = 标题 + 版本号，**右侧** = Star 指引 + 关闭 ✕。
+					// 用户要的形态：
+					//     二游日历   v0.12.6                         ⭐ 觉得好用？去 GitHub 点个 Star  ✕
+					// 布局：整行仍是 flex / alignItems:center / flexWrap:wrap；Star 组（链接 + ✕）
+					// 用 marginLeft:"auto" 推到最右（不放链接自己身上，好让两者一起换行、一起消失）。
 					//   · 标题：沿用 SETTINGS_SECTION_LABEL，fontSize 16 / fontWeight 600 不变；
 					//   · 版本号：`v` + PLUGIN_VERSION（12px 三级字色，见 70-styles.js 的 .gacha-cal-version）。
 					//     ⚠️ **不许手写 "v0.12.6"**：PLUGIN_VERSION 由 build.mjs 用根 package.json 的 version
 					//     注入（05-version.js 的占位符 → build.mjs 的 VERSION_TOKEN），cases-star.mjs 有防漂移守卫；
-					//   · Star 链接：仍是 <a> + target="_blank" + rel，样式复用 .gacha-cal-star-link（文字链接，不是按钮）。
-					// 三者靠 align-items:center 垂直居中；gap 10 = 用户要的 8~10px；窄窗口 flexWrap 换行。
+					//   · Star 链接：仍是 <a> + target="_blank" + rel，文案是用户要的原句（不加标点），
+					//     样式复用 .gacha-cal-star-link（文字链接，不是按钮）；
+					//   · 关闭 ✕：小 button（aria-label="不再显示"），点一下写 `starHintDismissed: true`，
+					//     整组当拍消失、且持久化（重启也不再显示）。判定走 starHintShownOf（configValueOf 解包）。
 					(0, react_jsx_runtime.jsxs)("div", {
 						className: "gacha-cal-settings-title",
 						style: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" },
 						children: [
 							(0, react_jsx_runtime.jsx)("div", { style: { fontSize: 16, fontWeight: 600 }, children: SETTINGS_SECTION_LABEL }),
 							(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-version", title: "插件版本（与 package.json 的 version 一致）", children: "v" + PLUGIN_VERSION }),
-							(0, react_jsx_runtime.jsx)("a", {
-								className: "gacha-cal-star-link",
-								href: "https://github.com/EastMG/dsh-gacha-calendar",
-								target: "_blank",
-								rel: "noreferrer noopener",
-								title: "去 GitHub 给这个插件点个 Star",
-								children: "⭐ Star"
-							})
+							starHintShown ? (0, react_jsx_runtime.jsxs)("div", {
+								style: { marginLeft: "auto", display: "flex", alignItems: "center", gap: 4, flex: "none" },
+								children: [
+									(0, react_jsx_runtime.jsx)("a", {
+										className: "gacha-cal-star-link",
+										href: "https://github.com/EastMG/dsh-gacha-calendar",
+										target: "_blank",
+										rel: "noreferrer noopener",
+										title: "去 GitHub 给这个插件点个 Star",
+										children: "⭐ 觉得好用？去 GitHub 点个 Star"
+									}),
+									(0, react_jsx_runtime.jsx)("button", {
+										type: "button",
+										className: "gacha-cal-star-close",
+										"aria-label": "不再显示",
+										title: "不再显示这个提示",
+										onClick: dismissStarHint,
+										children: "✕"
+									})
+								]
+							}) : null
 						] }),
 					saveError ? (0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-state-error-primary, #d4380d)", fontSize: 12 }, children: saveError }) : null,
 					// 配置表单本身的状态：只在"写不进去"时才出现，平时不占位。

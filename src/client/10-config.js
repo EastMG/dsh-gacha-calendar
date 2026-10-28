@@ -91,6 +91,13 @@
 			// migrateNewPanelOnce —— 迁移后用 `newPanelMigrated` 记住，之后用户自己关掉不会再被覆写。
 			// ⚠️ 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 里，否则设置页勾了
 			//    面板读不到（历史上 `shown` 漏过它，见 test/cases-rule-lint.mjs 的守卫）。
-			newPanel: true
+			newPanel: true,
+			// 设置页标题行 Star 指引的「已关闭」标记：默认 false = 显示。
+			// 用户点标题行右侧那个小 ✕ ⇒ 写 true ⇒ 整块（Star 链接 + ✕）永久消失
+			// （配置持久化，重启后也不再出现）。读取一律走 configValueOf 解包（volatile 字段是引用对象），
+			// 只有解包后**明确是 true** 才隐藏；缺失 / 脏值一律显示（见 60-helpers.js 的 starHintShownOf）。
+			// 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 与 src/index.js 的 schema 里
+			// （三处齐的守卫见 test/cases-star.mjs 与 test/cases-rule-lint.mjs）。
+			starHintDismissed: false
 		};
 		//#endregion

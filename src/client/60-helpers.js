@@ -438,6 +438,30 @@
 			return v !== false;
 		}
 
+		// 配置值的**解包**口径（客户端镜像宿主 src/index.js 的 configValueOf，语义完全一致）。
+		// 本插件的设置字段都标了 `.volatile()`：宿主交给 apply 的 `config.xxx` 不是裸值，而是
+		// `{ get(), [Symbol.for("cosmokit.volatile.write")] }` 这样的**引用对象**。
+		// 直接按裸值比较永远不成立（对象恒 truthy）而且**不报错** —— 设置页读配置也必须走这一处，
+		// 否则换一个 DSH 版本就会静默把"显示 / 隐藏"判反。
+		const VOLATILE_WRITE = Symbol.for("cosmokit.volatile.write");
+		function configValueOf(raw) {
+			if (raw && typeof raw === "object" && typeof raw.get === "function" && VOLATILE_WRITE in raw) {
+				try {
+					return raw.get();
+				} catch {
+					return void 0;
+				}
+			}
+			return raw;
+		}
+
+		// 设置页标题行的 Star 指引是否显示：只有**解包后明确是 true** 才隐藏（用户点过 ✕）。
+		// 缺失 / false / 脏值（"false"、0、null、{}…）一律显示 —— 与 DEFAULT_SETTINGS.starHintDismissed=false
+		// 同口径。渲染层不自己写 `s.starHintDismissed === true`，否则 volatile 引用对象会被误判成"已关闭"。
+		function starHintShownOf(raw) {
+			return configValueOf(raw) !== true;
+		}
+
 		// 按钮轮播范围的读取口径：只接受正数小时，缺失 / 0 / 负数 / 非数字一律回落默认 72。
 		// 归一放在这里，老配置残留的 0 才不会变成"设置页显示 72、按钮却没反应"。
 		function tickerRangeOf(v) {

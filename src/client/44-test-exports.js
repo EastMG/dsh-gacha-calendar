@@ -395,6 +395,10 @@
 			// 总开关与范围的读取口径（设置页与按钮共用）。
 			tickerOnOf,
 			tickerRangeOf,
+			// starHintShownOf = 设置页标题行 Star 指引「显示 / 隐藏」的读取口径（60-helpers.js）：
+			// 经 configValueOf 解包 volatile 引用后，只有明确 true 才隐藏；缺失 / 脏值一律显示。
+			// 导出是为了能用真布尔 / volatile 引用对象 / 脏值各钉一条（见 cases-star.mjs）。
+			starHintShownOf,
 			tickerPickOf,
 			tickerCaptionOf,
 			tickerSlidesOf,

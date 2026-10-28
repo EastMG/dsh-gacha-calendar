@@ -45,6 +45,9 @@
 				// notifyName：通知身份名（应用名，默认「二游日历」）。设置页那一行窄输入框写它，
 				// 宿主拿它给开始菜单快捷方式起名 / 写 DisplayName。**别漏** —— 与上面每个键同理。
 				"notifyName",
+				// starHintDismissed：设置页标题行 Star 指引的「已关闭」标记（默认 false = 显示）。
+				// 设置页点 ✕ 写它；面板侧按同一份配置决定还显不显示。**别漏** —— 与上面每个键同理。
+				"starHintDismissed",
 				"newPanel", "newPanelMigrated", "lastData", "lastRefresh", "lastSource", "lastVersion"
 			];
 
