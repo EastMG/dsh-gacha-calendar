@@ -625,8 +625,10 @@ export default async function run() {
 			&& /sendToastScript\(toastScriptOf\(title, lines, toastAumid\)\)/.test(hostSrc)
 			&& /function toastScriptOf\(title, lines, aumid\)/.test(hostSrc));
 		check("身份探测**永不抛**（探测失败 = 当未启用，回退 PowerShell）",
-			/async function notifyIdentityProbe\(\)[\s\S]{0,400}?catch \(err\) \{[\s\S]{0,200}?exists: false, aumid: null/.test(hostSrc)
+			/async function notifyIdentityProbe\(\)[\s\S]{0,800}?catch \(err\) \{[\s\S]{0,200}?exists: false, aumid: null/.test(hostSrc)
 			&& /async function notifyIdentityProbe\(\)[\s\S]{0,200}?process\.platform !== "win32"/.test(hostSrc));
+		check("快捷方式不存在时**短路**（默认路径不启动 PowerShell；设置页打开不卡）",
+			/if \(!existsSync\(notifyShortcutPath\(\)\)\) return \{ exists: false, aumid: null, error: null \};/.test(hostSrc));
 
 		check("设置页有「通知身份」一行 + 启用/移除按钮（当前身份两种文案都在）",
 			compSrc.includes('children: "通知身份"')
