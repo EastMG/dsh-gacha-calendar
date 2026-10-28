@@ -479,6 +479,20 @@
 			settingsGamesFilter,
 			panelEntryHit,
 			panelGamesFilter,
+			// 排期导出 .ics（待办第 5 项，60-helpers.js 的纯函数）：
+			//   icsEventsOf —— 条目 + 上一轮抓取结果 + now ⇒ { events, skipped }（"在期"只有这一处判定）；
+			//   icsOf       —— 事件清单 + 生成时刻 ⇒ **逐字节确定**的 iCalendar 文本（CRLF / 75 octets 折行 /
+			//                  文本转义 / VCALENDAR 骨架）。两者都在 core 段里，所以双时区门禁逐字节比同一份产物。
+			// 其余几个（icsWindowOf / icsUtcStamp / icsUtcHuman / icsEscapeText / icsFoldLine / icsFileNameOf）
+			// 是它们的可单独断言的零件：源站墙钟 → 绝对时刻的换算、`YYYYMMDDTHHMMSSZ`、转义、折行。
+			icsEventsOf,
+			icsOf,
+			icsWindowOf,
+			icsUtcStamp,
+			icsUtcHuman,
+			icsEscapeText,
+			icsFoldLine,
+			icsFileNameOf,
 			sourceInstant,
 			sourceWallParts,
 			sourceOffsetMinutes,

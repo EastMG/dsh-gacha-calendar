@@ -76,8 +76,8 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 22 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora + 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选）
-│   ├── cases-*.mjs  # 各段用例（22 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / rule-lint / tz / ticker / remind / health / readme / core / star / filter）
+│   ├── all.mjs      # 统一门禁：聚 23 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora + 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics）
+│   ├── cases-*.mjs  # 各段用例（23 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
 │   ├── registry-shim.mjs # 各批次注册表规格快照 + DRIFT 守卫（与运行时 SOURCES 核对 tz/name）
@@ -229,8 +229,9 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
      （全正常时只占一行），守卫见 `test/cases-health.mjs`。
 4. **搜索与筛选（✅ 已完成 2026-10-28；「分组」跳过 —— `SOURCES` 里没有地区字段，不硬造）**：设置页来源列表加"搜游戏名"+ 分组（国服/日服/国际服）+ 只看已启用；
    面板内加按卡池/角色名搜索（现在的 28 个来源只能靠"展示"开关逐条关）。
-5. **排期导出 .ics**：把当期窗口导出成一次性快照（可导入手机日历）。
+5. **排期导出 .ics（✅ 已完成 2026-10-28）**：把当期窗口导出成一次性快照（可导入手机日历）。
    ⚠️ 只能是**快照**、不能是订阅：网游排期是"一次性数据"，没有稳定的公开 iCal 源。
+   - ✅ 实现：纯函数 `icsEventsOf` / `icsOf`（`60-helpers.js`）判定在期并产出确定性 iCalendar（CRLF / 75 octets 折行 / 转义），时间 = 源站墙钟 + `tz` → UTC，设置页「游戏列表」按钮组里的「导出 .ics」走 Blob 下载、不新增宿主路由；守卫见 `test/cases-ics.mjs`。
 6. **抽卡计划 / 攒抽追踪**：目标角色 + 当前保底/预算 + 倒计时。属重功能，分阶段做（先"目标角色 + 倒计时"）。
 7. **架构重整（拆文件 + CSS 抽出）** —— 按「**一个文件一个职责**」拆，**不按行数硬切**（各文件当前行数以文件为准，不列举）：
    ① `80-components.js` → 按**界面**拆：新面板 / 旧表格 / 设置页 / 共用小组件；

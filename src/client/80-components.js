@@ -70,6 +70,31 @@
 			window.setTimeout(tick, 0);
 		}
 
+		// ── 浏览器侧"下载一段文本"（排期导出 .ics 用，待办第 5 项）──
+		// 为什么走 Blob + a[download] 而不是新增宿主路由：`.ics` 只是**一次性快照**，
+		// 走一条 HTTP 路由等于平白多一处要鉴权、要防 SSRF/目录穿越的公开面（本项目已有 4 条路由），
+		// 而浏览器原生就能存文件 —— 少一条面就少一处将来会被忘记审查的代码。
+		// 返回 true = 已经触发下载；false = 环境不支持（非浏览器 / Blob 被禁用）。
+		function downloadTextFile(fileName, text, mime) {
+			try {
+				const blob = new Blob([text], { type: (mime || "text/plain") + ";charset=utf-8" });
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement("a");
+				a.href = url;
+				a.download = fileName;
+				a.rel = "noopener";
+				a.style.display = "none";
+				document.body.appendChild(a);
+				a.click();
+				if (a.parentNode) a.parentNode.removeChild(a);
+				// 立刻 revoke 在个别浏览器里会让下载拿到空文件 ⇒ 延后释放（1s 足够，不影响观感）。
+				window.setTimeout(() => { try { URL.revokeObjectURL(url); } catch { /* ignore */ } }, 1000);
+				return true;
+			} catch (e) {
+				return false;
+			}
+		}
+
 		// ── 游戏图标（含**降级兜底**）──
 		// 为什么需要：图标全是**外链**（README 承诺"不存储任何游戏资源"，故不打包进仓库）。
 		// 外链随时可能挂掉、改路径、或对第三方来源防盗链 —— 没有这一层，面板上就是一排裂图。
@@ -2054,6 +2079,9 @@
 			// 两者都只是 `settingsGamesFilter` 的入参 —— 不改排序、不改显隐、不写任何配置键。
 			const [gameQuery, setGameQuery] = (0, react.useState)("");
 			const [onlyShown, setOnlyShown] = (0, react.useState)(false);
+			// 排期导出 .ics（待办第 5 项）的一行结果：`已导出 N 条（跳过 M 条）` / 失败原因。
+			// 只在本页存活，不落盘（导出结果没有可解释的设置项）。
+			const [icsNote, setIcsNote] = (0, react.useState)("");
 			// 逐个来源跑一遍，报告「解析出 0 条 / 抓取报错」；不改动设置与缓存
 			const runSelfCheck = async () => {
 				if (selfChecking) return;
@@ -2066,6 +2094,27 @@
 					setSelfReport({ error: String((err && err.message) || err) });
 				} finally {
 					setSelfChecking(false);
+				}
+			};
+			// ── 排期导出 .ics（待办第 5 项）：一次性**快照**，不是订阅 ──────────────────
+			// 数据 = 与面板同一条链：**展示中**条目（getVisibleEntries + 用户排序）+
+			// lastData 里那一轮的 banner / roles / bannerDates / event / eventDates。
+			// 「哪些算在期、哪些跳过」全在纯函数 icsEventsOf；文本格式（CRLF / 折行 / 转义）全在 icsOf；
+			// 这里只做三件事：取数据 → 拼文本 → Blob 下载（不新增宿主路由）。
+			const exportIcs = () => {
+				const now = new Date();
+				try {
+					const scraped = parseJsonStr(s.lastData, {});
+					const result = icsEventsOf(applyOrder(getVisibleEntries(s), s.order), scraped, now);
+					const text = icsOf(result.events, now.getTime(), { calName: "二游日历" });
+					const saved = downloadTextFile(icsFileNameOf(now), text, "text/calendar");
+					if (!saved) { setIcsNote("导出失败：浏览器不允许下载"); return; }
+					const skippedNote = result.skipped.length ? "（跳过 " + result.skipped.length + " 条）" : "";
+					setIcsNote(result.events.length
+						? "已导出 " + result.events.length + " 条" + skippedNote
+						: "当前没有在期条目" + skippedNote);
+				} catch (err) {
+					setIcsNote("导出失败：" + String((err && err.message) || err));
 				}
 			};
 			// 数据源 = 宿主 configForms 表单的**订阅**（T1）。scope 就是 dsh-client-ui-settings 的
@@ -2830,6 +2879,20 @@
 								] })
 							] }),
 							(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 6 }, children: [
+								// 「导出 .ics」（待办第 5 项）：把**当前在期**的卡池与活动导出成一次性快照，
+								// 导入手机/电脑日历。塞进这一组已有按钮里（不新起一行）：设置页已经很长，
+								// 而这三个都是"对整张游戏列表做的动作"，放一起语义也顺。
+								// 文案「导出 .ics」是用户点名的四个字，别再改。
+								(0, react_jsx_runtime.jsx)("button", {
+									type: "button",
+									className: "gacha-cal-sort-btn",
+									style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 },
+									title: "导出当前在期的卡池与活动（.ics 快照，可导入手机/电脑日历）",
+									onClick: exportIcs,
+									children: "导出 .ics"
+								}),
+								// 导出结果一行小字（只在点过之后出现，不占常驻版面）
+								icsNote ? (0, react_jsx_runtime.jsx)("span", { style: { alignSelf: "center", fontSize: 11, color: "var(--dsw-alias-label-tertiary)", whiteSpace: "nowrap" }, title: icsNote, children: icsNote }) : null,
 								// 「全部提醒」= 把当前展示中的 id 写进白名单；空数组的意思是"一个都不提醒"。
 								// 暂时隐藏（SHOW_REMIND_COLUMN=false）：按钮与处理函数都保留，改回 true 即恢复。
 								SHOW_REMIND_COLUMN ? (0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 }, title: "把所有展示中的游戏都加入「提醒」白名单", onClick: resetRemindAll, children: "全部提醒" }) : null,
