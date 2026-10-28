@@ -1643,7 +1643,8 @@
 			const dataStatus = s.lastSource === "web" ? "\u8054\u7F51\u6570\u636E" : "\u2014";
 			const label = SETTINGS_SECTION_LABEL;
 			// 按钮的悬停/读屏文案：既要能读出"有几项"，也不能只说一个数字（读屏用户看不见动画）。
-			// 2026-10-25 晚起轮播是**双向**的，所以措辞从"N 小时内到期"改成"N 小时内 N 项"；
+			// 措辞从"N 小时内到期"改成"N 小时内 N 项"（2026-10-25 晚起轮播那会儿是双向的，
+			// 2026-10-28 起只判结束 —— 这个措辞对单方向同样成立，不用再改）；
 			// 每条带上方向与剩余时间 —— 直接复用轮播那一份文案（tickerSlidesOf 的 ariaText），
 			// 保证两处不会说两套话。
 			// ⚠️ 这里用 ariaText 而**不是** text：按钮上为了省宽度去掉了「还剩」（"· 8 小时"），
@@ -2611,9 +2612,10 @@
 							] })
 						] }),
 						// 「到期提醒（送达）」总开关（默认开）：到点时由**宿主半边**弹系统通知。
-						// 下面两行是节点档位胶囊（字符串配置，"72,24,6,2" / "24,2"）：解析、归一化、
+						// 下面一行是节点档位胶囊（字符串配置 "72,24,6,2"；开始那一行 2026-10-28 起已注释掉，
+						// 原因见 65-remind.js 的 remindConfigOf 把 startNodes 置空）：解析、归一化、
 						// 全部取消（空串 = 该方向不提醒）全走 65-remind.js，与判定侧同一份口径。
-						(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }, title: "到点时用系统通知提醒：结束/开始前若干小时，同一件事只发最紧急的一档", children: [
+						(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }, title: "到点时用系统通知提醒：结束前若干小时，同一件事只发最紧急的一档", children: [
 							(0, react_jsx_runtime.jsxs)("label", { style: { display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }, children: [
 								(0, react_jsx_runtime.jsx)("input", { type: "checkbox", checked: remindOn, onChange: (e) => commit("remindOn", e.target.checked) }),
 								(0, react_jsx_runtime.jsx)("span", { style: { flex: "none" }, children: "提醒" })
@@ -2621,8 +2623,9 @@
 							(0, react_jsx_runtime.jsx)("span", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 11 }, children: "到期前弹系统通知（仅 DSH 运行期间）" })
 						] }),
 						remindChipRow("end", "结束提醒", remindEndSavedText, REMIND_DEFAULT_END_NODES, "remindEndNodes", "结束前多久提醒（可多选；全不选 = 结束不提醒）"),
-						// 2026-10-28：开始提醒已暂时置空（多数来源不提前提供档期），这一行先注释掉，恢复时取消注释即可。
-		 	// remindChipRow(\"start\, \"开始提醒\, remindStartSavedText, REMIND_DEFAULT_START_NODES, \"remindStartNodes\, \"开始前多久提醒（可多选；全不选 = 开始不提醒）\, \"多数来源不提前提供档期，已搁置\)
+						// 2026-10-28：开始提醒已暂时停用（多数来源不提前提供档期；宿主侧 remindConfigOf 也把
+						// startNodes 置空），恢复时把下面这一行取消注释即可：
+						// remindChipRow("start", "开始提醒", remindStartSavedText, REMIND_DEFAULT_START_NODES, "remindStartNodes", "开始前多久提醒（可多选；全不选 = 开始不提醒）", "多数来源不提前提供档期，已搁置"),
 						// ── 通知身份（可选）：**一行**。「启用」= 当前用户开始菜单里建一条带 AUMID 的快捷方式，
 						// 通知横幅顶部才会显示下面那个名字；「移除」= 删掉它并退回 PowerShell。
 						// 2026-10-28：三行压成一行 —— 原来那两行说明文字挪进按钮的 title（信息不丢、不再占行）；

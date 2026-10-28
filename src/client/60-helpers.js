@@ -411,7 +411,8 @@
 			return items.filter((it) => it && isExpiringSoon(it.startTs, it.endTs, nowTs, hours));
 		}
 
-		// 双向「快到期」：即将结束 = 已开始且 endTs 在窗口内；即将开始 = 未开始且 startTs 在窗口内。
+		// 「快到期」判定（2026-10-28 起**只判结束**）：即将结束 = 已开始且 endTs 在窗口内；
+		// 即将开始 = 未开始且 startTs 在窗口内（**该方向已停用**，原行留在下面的实现里，恢复时改回）。
 		// 两个方向天然互斥，返回 "" / "end" / "start"。到期提醒（送达）也复用这一处判定。
 		function dueKindOf(startTs, endTs, nowTs, withinHours) {
 			const hours = Number(withinHours);
