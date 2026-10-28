@@ -8,6 +8,8 @@
 //      T 过作废并清状态、配置读坏回落默认、开始方向用另一套节点；
 //   ② 接线（静态）：三个设置键必须同时出现在 DEFAULT_SETTINGS / CONFIG_KEYS / 宿主的 schema 里；
 //      宿主要真有定时器、真在 disposer 里清理、真的**不依赖 tools/ 目录**（那是原型，不进插件）。
+//   ③ 设置页的节点档位输入（文本 → 归一化 / 预览 / 非法回落）：预览与写回必须走判定侧同一个
+//      remindNodesOf（`remindNodesEditOf`），否则会出现"设置页说 2 小时、判定按 6 小时发"。
 //
 // ⚠️ 时刻全部显式传入（`now` 是参数），与本机时区无关 —— CI 跑 UTC、开发机跑 +08 都必须绿。
 // ⚠️ 判定代码与宿主用的是**同一份源码**（build.mjs 把 65-remind.js 原样拼成 lib/remind-core.mjs），
@@ -31,7 +33,7 @@ export default async function run() {
 	section("到期提醒（送达）：判定纯函数 + 设置键三处齐 + 宿主接线");
 
 	const {
-		remindOnOf, remindNodesOf, remindConfigOf, remindKeyOf, remindStateOf,
+		remindOnOf, remindNodesOf, remindNodesEditOf, remindConfigOf, remindKeyOf, remindStateOf,
 		remindWindowOf, remindItemsOf, remindTickOf, remindToastOf,
 		dueWindowOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
 	} = T;
@@ -399,5 +401,111 @@ export default async function run() {
 			/commit\("remindOn", e\.target\.checked\)/.test(compSrc) && /children: "提醒"/.test(compSrc));
 		check("设置页的开关状态走 remindOnOf（与宿主同口径，缺省 = 开）",
 			/const remindOn = remindOnOf\(s\.remindOn\);/.test(compSrc));
+	}
+
+	// ── ⑪ 设置页「提醒」节点档位（2026-10-28）：两个文本框 + 实时预览 + 归一化写回 ────────
+	// 需求：文本输入（不是 chips）、预览与判定侧同口径、非法只提示不拦输入、
+	// 失焦/回车归一化写回、空或全非法写回默认值（**绝不写空串**）。
+	// 这里分两层钉：①纯函数 remindNodesEditOf（65-remind.js，判定侧同一个 remindNodesOf）；
+	// ②设置页接线（静态：两个输入框 / 键名 / 预览来源 / 非法提示 / 不拦输入）。
+	{
+		const D_END = [72, 24, 6, 2];
+		const D_START = [24, 2];
+		const editOf = (v, fb) => remindNodesEditOf(v, fb);
+
+		// ① 纯函数：输入字符串 → { text（该写回什么）, nodes（实际生效档位）, invalid（要不要标红）}
+		{
+			const e = editOf("8,12", D_END);
+			check("节点编辑视图：正常输入 \"8,12\" → 归一化 \"12,8\"、档位降序、不算非法",
+				e.text === "12,8" && JSON.stringify(e.nodes) === JSON.stringify([12, 8]) && e.invalid === false,
+				JSON.stringify(e));
+		}
+		{
+			const e = editOf("6 ， 2", D_END);
+			check("节点编辑视图：中文逗号 / 空白 → \"6,2\"（与判定侧同一套分隔符）",
+				e.text === "6,2" && e.invalid === false, JSON.stringify(e));
+		}
+		{
+			const e = editOf("6 ， 2 ,abc", D_END);
+			check("节点编辑视图：夹非法项 → 只丢非法项写 \"6,2\"，**不**算非法（不回落默认）",
+				e.text === "6,2" && JSON.stringify(e.nodes) === JSON.stringify([6, 2]) && e.invalid === false,
+				JSON.stringify(e));
+		}
+		{
+			const e = editOf("", D_END);
+			check("节点编辑视图：空串 → 非法，写回默认 \"72,24,6,2\"（不是空字符串）",
+				e.invalid === true && e.text === "72,24,6,2" && JSON.stringify(e.nodes) === JSON.stringify(D_END),
+				JSON.stringify(e));
+		}
+		{
+			const e = editOf("全部坏掉", D_START);
+			check("节点编辑视图：全非法 → 非法 + 写回**该方向**的默认 \"24,2\"",
+				e.invalid === true && e.text === "24,2" && JSON.stringify(e.nodes) === JSON.stringify(D_START),
+				JSON.stringify(e));
+		}
+		{
+			const zero = editOf("0", D_END);
+			const neg = editOf("-1,-2", D_END);
+			const mixed = editOf("0,-1,3", D_END);
+			check("节点编辑视图：0 / 负数一律不算有效档（0 档 = 每一轮都发，负数更没意义），按非法回落默认",
+				zero.invalid === true && neg.invalid === true
+				&& zero.text === "72,24,6,2" && neg.text === "72,24,6,2",
+				JSON.stringify([zero, neg]));
+			check("节点编辑视图：0/负数与有效档混写 → 只留有效档（不因为夹了 0 就回落默认）",
+				mixed.text === "3" && mixed.invalid === false, JSON.stringify(mixed));
+		}
+		{
+			const e = editOf("2,2,2", D_END);
+			check("节点编辑视图：去重（\"2,2,2\" → \"2\"）", e.text === "2" && e.nodes.length === 1, JSON.stringify(e));
+		}
+		{
+			// 关键不变量：写回的字符串再解析一次 == 实际生效的档位（设置页写回与判定不会分叉）
+			const samples = ["8,12", "6 ， 2 ,abc", "", "全部坏掉", "0,-1,3", "2,2,2"];
+			check("节点编辑视图：写回的字符串再解析 == 实际生效档位（写回与判定同一口径）",
+				samples.every((v) => {
+					const e = editOf(v, D_END);
+					return JSON.stringify(remindNodesOf(e.text, [])) === JSON.stringify(e.nodes);
+				}),
+				samples.map((v) => JSON.stringify(editOf(v, D_END).text)).join(" / "));
+			check("节点编辑视图：与判定侧读同一份配置的结果一致（remindConfigOf，含非法值）",
+				JSON.stringify(remindConfigOf({ remindEndNodes: "6 ， 2 ,abc" }).endNodes) === JSON.stringify(editOf("6 ， 2 ,abc", D_END).nodes)
+				&& JSON.stringify(remindConfigOf({ remindEndNodes: "" }).endNodes) === JSON.stringify(editOf("", D_END).nodes));
+		}
+		{
+			const bad = editOf("", ["坏的", 0, -1]);
+			check("节点编辑视图：fallback 本身也坏 → 仍是出厂结束档（永不返回空串）",
+				bad.invalid === true && bad.text === "72,24,6,2", JSON.stringify(bad));
+		}
+
+		// ② 设置页接线（静态）
+		const compSrc = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
+		check("设置页有两行节点输入（「结束节点」/「开始节点」），各写回各自的键",
+			compSrc.includes('remindNodeRow("end", "结束节点"') && compSrc.includes('remindNodeRow("start", "开始节点"'));
+		check("commit 的两个键名正确：remindEndNodes / remindStartNodes（写的是归一化后的 edit.text）",
+			compSrc.includes('commit("remindEndNodes", edit.text)') && compSrc.includes('commit("remindStartNodes", edit.text)'));
+		check("预览用的是 remindNodesEditOf（内部即判定侧 remindNodesOf；设置页没有另写一份解析）",
+			/remindEndEdit = remindNodesEditOf\(remindEndText, REMIND_DEFAULT_END_NODES\)/.test(compSrc)
+			&& /remindStartEdit = remindNodesEditOf\(remindStartText, REMIND_DEFAULT_START_NODES\)/.test(compSrc)
+			&& compSrc.includes('"解析为：" + edit.nodes.map(remindNodeText).join(" / ")')
+			&& !/remindEndNodes[\s\S]{0,40}?\.split\(/.test(compSrc)
+			&& !/remindStartNodes[\s\S]{0,40}?\.split\(/.test(compSrc));
+		check("非法时边框变红 + 一行提示（提示说明保存后会回落默认值）",
+			compSrc.includes("borderColor: edit.invalid ? remindErrorColor : void 0")
+			&& compSrc.includes("没识别出有效小时数，保存后会用默认值"));
+		check("非法**不阻止输入**：节点输入框没有 disabled / maxLength / pattern",
+			!/maxLength/.test(compSrc) && !/pattern:/.test(compSrc)
+			&& /onChange: \(e\) => setRemindNodesDraft\(\(p\) => \(\{ \.\.\.p, \[which\]: e\.target\.value \}\)\)/.test(compSrc));
+		check("失焦写回 + 回车写回（回车 = 立刻失焦，写入只走 onBlur 一处、不会写两笔）",
+			/onBlur: onCommit/.test(compSrc)
+			&& /if \(e\.key === "Enter"\) \{ e\.preventDefault\(\); e\.currentTarget\.blur\(\); \}/.test(compSrc));
+		check("空/非法写回默认值的分支在 65-remind.js（设置页不硬编码那两个默认字符串）",
+			/const nodes = remindNodesOf\(fallback, REMIND_DEFAULT_END_NODES\);/.test(
+				readFileSync(path.join(REPO, "src", "client", "65-remind.js"), "utf8"))
+			&& !/commit\("remindEndNodes", "/.test(compSrc) && !/commit\("remindStartNodes", "/.test(compSrc));
+		check("没改过输入（TAB 经过）不写盘：草稿为 null 时直接返回",
+			compSrc.includes("if (remindNodesDraft.end === null) return;")
+			&& compSrc.includes("if (remindNodesDraft.start === null) return;"));
+		check("逐游戏「提醒」列保持隐藏（SHOW_REMIND_COLUMN 仍为 false，本次不动）",
+			/const SHOW_REMIND_COLUMN = false;/.test(compSrc));
 	}
 }

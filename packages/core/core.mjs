@@ -903,6 +903,23 @@
 			return out;
 		}
 
+		// 节点配置的**编辑视图**（设置页那两个文本框用；纯函数，与判定侧同一口径）。
+		// 入参：value = 用户框里的原文（"6 ， 2 ,abc" / "" / "0,-1" …）；
+		//       fallback = 解析不出任何有效档时要写回的出厂档位（REMIND_DEFAULT_*_NODES）。
+		// 返回 { text, nodes, invalid }：
+		//   text    = 该写回配置的字符串 —— **永远不是空串**（空/全非法 ⇒ fallback 的归一化形式）；
+		//   nodes   = 实际会生效的档位（非法时就是 fallback）—— 预览与写回同源，不各自再解析一遍；
+		//   invalid = 输入里一个有效小时数都没有（设置页据此标红 + 提示，但**不阻止输入**）。
+		// 为什么先按"无 fallback"解析一次：remindNodesOf 的 fallback 参数会把"解析不出来"与
+		// "解析成功"变成同一个返回值，那样就看不出非法了。
+		function remindNodesEditOf(value, fallback) {
+			const parsed = remindNodesOf(value, []);
+			if (parsed.length) return { text: parsed.join(","), nodes: parsed, invalid: false };
+			// fallback 本身也坏 ⇒ 落到出厂结束档（仍然不返回空串；两个调用点传的都是常量，不会走到这里）。
+			const nodes = remindNodesOf(fallback, REMIND_DEFAULT_END_NODES);
+			return { text: nodes.join(","), nodes, invalid: true };
+		}
+
 		// 设置项 → 两套节点。键名与插件设置项同名（宿主把 config 原样递进来即可）。
 		function remindConfigOf(input) {
 			const raw = input && typeof input === "object" ? input : {};
