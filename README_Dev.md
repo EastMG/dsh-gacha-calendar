@@ -21,7 +21,7 @@ npm run publish:plugin   # 发布 DSH 插件包（dsh-gacha-calendar）
 npm run publish:core     # 发布中立核心包（gacha-calendar-core，版本号跟随根包）
 ```
 
-**源站改版时只需改一处**：改 `src/client/25-parser-shared.js` 或对应的 `src/client/30-game-*.js` → `npm run build` → 两个包一起发版，各平台重新构建即可。
+**源站改版时只需改一处**：改 `src/client/23-parser-*.js`～`29-parser-*.js`（解析器共用工具，按职责分段）或对应的 `src/client/30-game-*.js` → `npm run build` → 两个包一起发版，各平台重新构建即可。
 
 - `src/` 是唯一真源，`lib/` 与 `packages/core/` 都是**构建产物，不要手改**。
 - `build.mjs` 做三件事：按 `ORDER` 原样拼接 `src/client/*.js` → `lib/client.js`（DSH 的 `__ModuleLoader__` 工厂形态）；复制 `src/index.js` → `lib/index.js`；把 core 主体包成 `packages/core/core.mjs`（ESM 导出 `createEngine`）。拼接逐字节确定，所以 `check` 能给出"一致/不一致"的确定结论；同时会把根 `package.json` 的版本号注入两个产物。
@@ -44,7 +44,13 @@ dsh-gacha-calendar/
 │       ├── 20-source-core.js  # 来源容器 SOURCES + registerSource（模块顶层）
 │       ├── 21-fetcher-tables.js # GACHA_FETCHERS / EVENT_FETCHERS（与游戏文件同层：每引擎一份）
 │       ├── 22-fetcher-core.js # 抓取公共设施：抓取桥接 / 通用载荷 / 备选源解析
-│       ├── 25-parser-shared.js # 共用判定（当期 / 长期 / 年份）+ 悬停排版 + 实体解码 + 时间 + 选择
+│       ├── 23-parser-time.js   # 时间解析：stripTags + parseTime/parseRange + bwiki 时间表扫描
+│       ├── 24-parser-window.js # 当期窗口判定：补全起点 / 选当期 / 窗口文案 / 长期与覆盖判定
+│       ├── 25-parser-order.js  # 排序优先级：年份与跨年规则 / 永久判定 / 类别档位
+│       ├── 26-parser-hover.js  # 悬停构造：buildEventHover / buildPoolHover + bwiki 卡池载荷
+│       ├── 27-parser-text.js   # 实体解码与文本工具：decodeEntities / decodeExtra / numOrNull / byNewestStart
+│       ├── 28-parser-hover-tools.js # 悬停排版共用工具（新增来源那套）：hoverPool / hoverEvent
+│       ├── 29-parser-register.js # 中文/繁体时间解析 + 来源抓取器登记（bh3 米游社备选源）
 │       ├── 30-game-hoyoverse.js   # 米哈游：原神 / 星穹铁道 / 绝区零（含米游社备选源与崩坏3）
 │       ├── 30-game-kuro.js        # 库洛：鸣潮
 │       ├── 30-game-hypergryph.js  # 鹰角：明日方舟 / 终末地
@@ -266,7 +272,11 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
    ③ ✅ 2026-10-28 完成：`30-game-bwiki.js`（多个游戏的 bwiki 源合集）按文件里**已有的 `//#region` 分段**
       机械拆成 15 个 `30-game-bwiki-*.js`（一游戏/一段一文件，不重新分类、不合并；拆点全落在原文件的
       空行上 ⇒ `lib/client.js` **逐字节不变**），`build.mjs` 的 ORDER/CORE_ORDER 原位换成这 15 行；
-   ④ `25-parser-shared.js` → 按**职责**拆：时间解析 / 当期窗口判定 / 悬停构造 / 排序优先级；
+   ④ ✅ 2026-10-28 完成：`25-parser-shared.js` 按**职责**拆成 7 个 `2x-parser-*.js` —— 时间解析 `23-parser-time.js` /
+      当期窗口判定 `24-parser-window.js` / 排序优先级 `25-parser-order.js` / 悬停构造 `26-parser-hover.js` /
+      实体与文本工具 `27-parser-text.js` / 悬停排版共用工具 `28-parser-hover-tools.js` /
+      中文时间与来源登记 `29-parser-register.js`。拆点全落在原文件的空行上 ⇒ `lib/client.js` **逐字节不变**；
+      静态守卫改读 `test/load.mjs` 的 `readParserSharedSource()`（拼回原文，断言一条没改）；
    ⑤ **不拆**单游戏文件（一个厂商/游戏的闭环 = 有界的内聚单元，行数多少都不成为拆的理由）；
    ⑥ **不按行数**把某个解析器切成"上半/下半"（会制造"半个解析器"这种坏边界）；
    ⑦ 约束：构建按 `build.mjs` 的 ORDER 拼接 ⇒ 拆完必须同步 ORDER；零依赖保持不变；

@@ -54,6 +54,25 @@ export function readComponentsSource() {
 	return COMPONENT_FILES.map((f) => readFileSync(path.join(REPO, "src", "client", f), "utf8")).join("\n");
 }
 
+// ── 解析器共用段（2026-10-28 起）────────────────────────────────────────────
+// `src/client/25-parser-shared.js` 按**职责**拆成了下面 7 段（顺序 = build.mjs 的 ORDER）。
+// 静态守卫原本是"在 25-parser-shared.js 里 grep 某段代码"，现在改为
+// "在**拼回来的解析器共用源**里 grep" —— 断言内容一条没改，只换读取来源。
+// 拼接方式与 build.mjs 一致（段间一个 "\n"）：拆点全落在原文件的空行上，
+// 所以这里拼出来与拆分前的那份文本**逐字节相同**。
+export const PARSER_FILES = [
+	"23-parser-time.js",
+	"24-parser-window.js",
+	"25-parser-order.js",
+	"26-parser-hover.js",
+	"27-parser-text.js",
+	"28-parser-hover-tools.js",
+	"29-parser-register.js"
+];
+export function readParserSharedSource() {
+	return PARSER_FILES.map((f) => readFileSync(path.join(REPO, "src", "client", f), "utf8")).join("\n");
+}
+
 // 最小 DOM / 模块加载器替身。插件运行时只需要：
 //   __ModuleLoader__.load({ factory })  ← 00-head.js 用它注册模块
 //   localStorage / matchMedia / document（面板与设置页在**加载期**就会读到的那些）

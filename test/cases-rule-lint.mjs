@@ -18,7 +18,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { check, section } from "./harness.mjs";
-import { readComponentsSource } from "./load.mjs";
+import { readComponentsSource, readParserSharedSource, PARSER_FILES } from "./load.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.resolve(HERE, "..", "src", "client");
@@ -196,11 +196,12 @@ export default async function run() {
 	check("没有本地自制的悬停排版实现（只允许共用 hoverPool / hoverEvent）", localHover.length === 0, localHover.join(" / "));
 
 	// ── 「覆盖 now / 选当期」也要只有一处实现（2026-10-03 普查：曾散成 92 处 / 25 种写法）──
-	// 允许的出现位置：唯一真源 `25-parser-shared.js` 的三个函数体内（coversNow / coversNowBounded / pickCovering）。
+	// 允许的出现位置：解析器共用段（`PARSER_FILES`，原 `25-parser-shared.js`）的三个函数体内
+	// （coversNow / coversNowBounded / pickCovering）。
 	{
 		const INLINE = /[A-Za-z_$][\w$.]*\.startTs\s*<=\s*now\s*&&\s*[A-Za-z_$][\w$.]*\.endTs\s*>=\s*now/;
 		const hits = [];
-		for (const f of readdirSync(SRC).filter((x) => /^(?:20-source-core|22-fetcher-core|25-parser-shared|30-game-.*)\.js$/.test(x))) {
+		for (const f of readdirSync(SRC).filter((x) => /^(?:20-source-core|22-fetcher-core|2[3-9]-parser-|30-game-.*)\.js$/.test(x))) {
 			const src = readFileSync(path.join(SRC, f), "utf8");
 			// 把唯一真源那段挖掉（挖法同迁移脚本：从标记到 pickCovering 的返回行）
 			const ia = src.indexOf("// ── 「覆盖 now」与「选当期」（**唯一真源**）");
@@ -215,14 +216,14 @@ export default async function run() {
 		}
 		check("没有内联的「覆盖 now」判定（一律走 coversNow / coversNowBounded / pickCovering）", hits.length === 0, hits.slice(0, 4).join(" / "));
 		// 反证：三个共用判定必须真的在
-		const p30 = readFileSync(path.join(SRC, "25-parser-shared.js"), "utf8");
+		const p30 = readParserSharedSource();
 		check("共用判定 coversNow / coversNowBounded / pickCovering 存在",
 			/function coversNow\(/.test(p30) && /function coversNowBounded\(/.test(p30) && /function pickCovering\(/.test(p30));
 	}
 
 	// ── 无年份日期的两条规则：补年份 / 跨年（2026-10-03 收敛，此前 12+ 处 4 种写法）──
 	{
-		const p30 = readFileSync(path.join(SRC, "25-parser-shared.js"), "utf8");
+		const p30 = readParserSharedSource();
 		check("共用 inferYear / endsNextYear / YEAR_HINT_MONTH_GAP 存在",
 			/function inferYear\(/.test(p30) && /function endsNextYear\(/.test(p30) && /const YEAR_HINT_MONTH_GAP = \d+;/.test(p30));
 		const bad = [];
@@ -234,8 +235,9 @@ export default async function run() {
 			// 又出现本地 yearOf 副本
 			if (/function\s+\S*yearOf\s*\(/.test(code)) bad.push(`${f}: 本地 yearOf 副本`);
 		}
-		// 白名单：bwiki 的**滚动列表版**（比的是"上一条的月"，语义不同，已改用共用常量）
-		const allow = new Set(["42-parsers-bwiki.js", "25-parser-shared.js"]);
+		// 白名单：bwiki 的**滚动列表版**（比的是"上一条的月"，语义不同，已改用共用常量）；
+		// 解析器共用段（原 `25-parser-shared.js`，现 `PARSER_FILES`）本身就是那些共用实现的所在。
+		const allow = new Set(["42-parsers-bwiki.js", ...PARSER_FILES]);
 		const real = bad.filter((b) => !allow.has(b.split(":")[0]));
 		check("没有内联的跨年判定 / 本地 yearOf 副本（一律走 endsNextYear / inferYear）", real.length === 0, real.slice(0, 4).join(" / "));
 	}
@@ -252,13 +254,13 @@ export default async function run() {
 			if (/(?:const|let|var)\s+\S*toTs\s*=\s*(?:\(|function\b|async\b)/.test(code)) dup.push(`${f}: 本地 toTs`);
 			if (/(?:const|let|var)\s+\S*byNewestStart\s*=\s*(?:\(|function\b|async\b)/.test(code)) dup.push(`${f}: 本地 byNewestStart`);
 		}
-		check("没有本地自制的实体表/解码/时间戳/排序工具（只允许 25-parser-shared.js 那一份）", dup.length === 0, dup.slice(0, 5).join(" / "));
-		const shCode = codeOnly(readFileSync(path.join(SRC, "25-parser-shared.js"), "utf8"));   // 查代码，别被解释性注释误报
+		check("没有本地自制的实体表/解码/时间戳/排序工具（只允许解析器共用段 PARSER_FILES 那一份）", dup.length === 0, dup.slice(0, 5).join(" / "));
+		const shCode = codeOnly(readParserSharedSource());   // 查代码，别被解释性注释误报
 		check("共用 ENTITIES_EXTRA / decodeExtra / htmlText / htmlTextTight 存在",
 			/const ENTITIES_EXTRA = \{/.test(shCode) && /function decodeExtra\(/.test(shCode) && /function htmlText\(/.test(shCode) && /function htmlTextTight\(/.test(shCode));
 		check("共用 numOrNull / byNewestStart 存在", /function numOrNull\(/.test(shCode) && /function byNewestStart\(/.test(shCode));
 		check("常驻计数行只有本体那一份措辞（41 直接调 permanentLine，不再自带副本）",
-			!/function hoverPermanentLine/.test(shCode) && /function permanentLine\(/.test(readFileSync(path.join(SRC, "25-parser-shared.js"), "utf8")));
+			!/function hoverPermanentLine/.test(shCode) && /function permanentLine\(/.test(readParserSharedSource()));
 		// 反证：并集表必须真的覆盖原来 5 张表里出现过的实体（抽查几个"只有个别表有"的）
 		for (const e of ["middot", "yen", "hearts", "star", "trade", "thinsp", "laquo", "copy"]) {
 			check(`并集表含 &${e};`, new RegExp(`\\b${e}:`).test(shCode));
@@ -350,17 +352,17 @@ export default async function run() {
 	}
 
 	// 反证：共用工具必须真的在（否则上面的守卫会因为"没实现"而假通过）
-	// ⚠️ 2026-10-03：`41-sources-shared.js` 已内联进 `25-parser-shared.js`（用户要求按厂商合并文件），
-	//    所以下面查的都是本体那个文件。
-	const shared = codeOnly(readFileSync(path.join(SRC, "25-parser-shared.js"), "utf8"));
+	// ⚠️ 2026-10-03：`41-sources-shared.js` 已内联进 `25-parser-shared.js`（用户要求按厂商合并文件）；
+	//    2026-10-28 又按职责拆成 `PARSER_FILES` 那 7 段 —— 所以下面查的是**拼回来的**那份共用源。
+	const shared = codeOnly(readParserSharedSource());
 	check("共用工具 hoverPool / hoverEvent 存在", /function hoverPool\(/.test(shared) && /function hoverEvent\(/.test(shared));
 	check("长期/常驻阈值只有一处（本体 LONG_TERM_MAX_WINDOW_DAYS）",
-		["25-parser-shared.js", "30-game-bandori.js", "30-game-sega.js"]
+		["24-parser-window.js", "30-game-bandori.js", "30-game-sega.js"]
 			.every((f) => {
 				const t = codeOnly(readFileSync(path.join(SRC, f), "utf8"));
-				if (f === "25-parser-shared.js") {
+				if (f === "24-parser-window.js") {
 					return /const LONG_TERM_MAX_WINDOW_DAYS = \d+;/.test(t)
-						&& /isLongTermWindow/.test(t)            // 共用判定在本体
+						&& /isLongTermWindow/.test(t)            // 共用判定在本体（现住 24-parser-window.js）
 						&& !/HOVER_MAX_WINDOW_DAYS/.test(t);     // 旧的重复常量已删
 				}
 				// bestdori 的解析器已并入 bandori 文件 → 这两个文件都必须用共用常量

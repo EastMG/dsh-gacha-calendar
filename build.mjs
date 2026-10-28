@@ -94,7 +94,19 @@ const ORDER = [
   "20-source-core.js",         // **模块顶层**：SOURCES 容器 + registerSource（44-test-exports 与 60-helpers 都要能看见）
   "21-fetcher-tables.js",      // 两张抓取器表（与游戏文件同层：每引擎一份）
   "22-fetcher-core.js",        // 抓取公共设施（抓取桥接 / 通用载荷 / 备选源解析）——与游戏文件同层
-  "25-parser-shared.js",       // 共用判定（当期/长期/年份）+ 悬停排版 + 解码 + 时间 + 选择
+  // 2026-10-28（待办 7④）：原 `25-parser-shared.js`（各解析器共用的「工具橱」）按**职责**拆成下面 7 段。
+  // 拆点全落在原文件的空行上 ⇒ `chunks.join("\n")` 与原文件逐字节相同，
+  // 所以 lib/client.js / packages/core/core.mjs **一个字都没变**。
+  // ⚠️ 这 7 行**不要重排、不要合并**：顺序 = 原文件里各块出现的顺序。
+  // ⚠️ 24 / 26 两个文件的**首行是空行**：拆点落在原文件的**双空行**处，join 会补回一个，
+  //    剩下那个只能留在下一段开头 —— 删掉它 `node build.mjs --check` 就会报不一致。
+  "23-parser-time.js",         // 时间解析：stripTags + parseTime/parseRange + bwiki 时间表扫描
+  "24-parser-window.js",       // 当期窗口判定：补全起点 / 选当期 / 窗口文案 / 长期与覆盖判定
+  "25-parser-order.js",        // 排序优先级：年份与跨年规则 / 永久判定 / 类别档位
+  "26-parser-hover.js",        // 悬停构造：buildEventHover / buildPoolHover + bwiki 卡池载荷
+  "27-parser-text.js",         // 实体解码与文本工具：decodeEntities / decodeExtra / numOrNull / byNewestStart
+  "28-parser-hover-tools.js",  // 悬停排版共用工具（新增来源那套）：hoverPool / hoverEvent
+  "29-parser-register.js",     // 中文/繁体时间解析 + 来源抓取器登记（bh3 米游社备选源）
   "30-game-hoyoverse.js",
   "30-game-kuro.js",
   "30-game-hypergryph.js",
@@ -191,7 +203,14 @@ const CORE_ORDER = [
   "21-fetcher-tables.js",      // **每引擎一份**的两张抓取器表
   "15-env.js",                 // core 环境注入缝
   "22-fetcher-core.js",        // 抓取公共设施
-  "25-parser-shared.js",       // 共用判定与工具
+  // 同 ORDER：原 `25-parser-shared.js` 按职责拆成的 7 段，顺序不可换
+  "23-parser-time.js",         // 时间解析
+  "24-parser-window.js",       // 当期窗口判定
+  "25-parser-order.js",        // 排序优先级
+  "26-parser-hover.js",        // 悬停构造
+  "27-parser-text.js",         // 实体解码与文本工具
+  "28-parser-hover-tools.js",  // 悬停排版共用工具
+  "29-parser-register.js",     // 中文时间解析 + 来源登记
   "30-game-hoyoverse.js",
   "30-game-kuro.js",
   "30-game-hypergryph.js",
