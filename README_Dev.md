@@ -165,12 +165,13 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
      内容 = **所有展示中游戏的条目**，没有任何逐游戏筛选；`tickerItemsOf` / `tickerPickOf` 的签名里
      也**没有**逐游戏参数（早期版本按列表过滤，已删除）。设置页游戏列表里那一列是**「提醒」**
      （见下面第 2 项；2026-10-26 起整列**暂时隐藏**），**轮播不读它**。
-   - ✅ 判定口径（**双向**）：即将结束 = 已开始（`startTs <= now`）且 `endTs ∈ (now, now + N 小时]`；
+   - ✅ 判定口径（**只判结束**；开始方向已暂时停用，原因见下）：即将结束 = 已开始（`startTs <= now`）且 `endTs ∈ (now, now + N 小时]`；
      即将开始 = `startTs ∈ (now, now + N 小时]`。纯函数 `dueKindOf`（`60-helpers.js`，返回
+  ⚠️ 2026-10-28：**开始方向暂时停用** —— 解析器只产出「覆盖当前时刻」的窗口，startTs 永远 <= now，真实数据里不会命中；代码保留、注释写明恢复方法。
      `"" / "end" / "start"`）+ 窗口换算 `dueWindowOf` / `tickerItemsOf`（`80-components.js`，
      复用面板外显那条「源站文本 + tz → 本机墙钟」链，所以轮播与面板"还剩 X"永远同源）。
      老的 `isExpiringSoon`（只判结束）语义未动，仍由老用例守着
-     （⚠️ 它现在**没有运行时消费者**，只剩测试；轮播已改走双向的 `dueKindOf`）。
+     （⚠️ 它现在**没有运行时消费者**，只剩测试；轮播已改走 `dueKindOf`，现在只判结束）。
     - ✅ 逐游戏钩子**不属于轮播**（2026-10-25 定稿，用户明确纠正）：轮播没有"按游戏勾选"，
       只有上面那一个全局开关 + 一个范围；`tickerItemsOf` / `tickerPickOf` 的签名里也没有逐游戏参数。
       游戏列表里那一列是**「提醒」**（给下面第 2 项的「到期提醒（送达）」预留；2026-10-26 起整列
@@ -179,7 +180,7 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
      （刷新写回 `lastData`/`lastRefresh` → 快照推送 → 重渲染）+ 已有的每分钟时钟，**没有新增订阅**。
    - 降级：窄侧栏（`wide === false`）**没有可滚动的那一行** ⇒ 仍用小红点（`.gacha-cal-dot`）。
    - ⚠️ 这只是**展示**：到点**不会主动通知**，不看 DSH 就不知道 —— 主动送达见下面第 2 项。
-   - 守卫：`test/cases-ticker.mjs`（双向口径 + 轮播开关新语义/默认值守卫 + 轮播选取/每格结构 +
+   - 守卫：`test/cases-ticker.mjs`（结束方向口径 + 轮播开关新语义/默认值守卫 + 轮播选取/每格结构 +
      文本/tz 换算 + 设置页两控件与默认值（tickerOn=true / tickerHours=72）+ 交叉序列
      （`tickerStepsOf`：长度 2n、`[idle,1,idle,2,…]`、n=0 只有 idle）+ 方向四步循环（逐格 dir；
      类名 = 视觉方向，两组 keyframes `50%→0`（.is-up）/ `-50%→0`（.is-down）；
