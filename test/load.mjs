@@ -21,7 +21,7 @@ export const FIXTURES_DIR = path.join(HERE, "fixtures");
 const CLIENT = path.join(REPO, "lib", "client.js");
 
 // ── 样式源（2026-10-28 起）──────────────────────────────────────────────────
-// 样式不再是 `src/client/70-styles.js` 里的一个模板字符串：真源 = `src/client/styles/*.css`，
+// 样式不再是一个 JS 模板字符串：真源 = `src/client/styles/*.css`，
 // 由 build.mjs 的 CSS_ORDER 拼成 `const STYLE = \`…\`;` 进产物。
 // 下面这批静态守卫原本是"在模板字符串里 grep 某条规则"，现在改为"在**拼回来的 CSS 文本**里 grep"
 // —— 断言内容一条没改，只换读取来源。

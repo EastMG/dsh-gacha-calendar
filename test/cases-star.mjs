@@ -324,6 +324,6 @@ export default async function run() {
 		core.includes("starHintDismissed") && core.includes("starHintShownOf"));
 	check("产物的版本号是 package.json 那个字面量（注入 + build 都真的跑过）",
 		lib.includes('const PLUGIN_VERSION = "' + pkg.version + '";') && lib.includes('"v" + PLUGIN_VERSION'));
-	check("产物的样式表里也有这三条规则（70-styles.js 的类没被漏掉）",
+	check("产物的样式表里也有这三条规则（styles/settings-header.css 的类没被漏掉）",
 		lib.includes(".gacha-cal-version{") && lib.includes(".gacha-cal-star-link{") && lib.includes(".gacha-cal-star-close{"));
 }

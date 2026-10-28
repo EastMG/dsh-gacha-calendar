@@ -921,7 +921,7 @@
 		//   两行各 22px（共 44px），translateY(±50%) = ±22px 正好一行。
 		//   **两层谁在第 1 行（DOM 里的第一个）决定了动画起点窗口里看见什么** ——
 		//   而动画起点必须永远是"旧内容（prev）占满窗口"，否则一开场就是空白。
-		//   两种方向的 keyframes / fill-mode 各用一套（见 70-styles.js）：
+		//   两种方向的 keyframes / fill-mode 各用一套（见 styles/ticker.css）：
 		//   · 向下翻 .is-down —— keyframes -50% → 0、fill-mode backwards（+1ms 延迟防重挂载闪跳）：
 		//       第 1 行必须是 **cur**。起点 ty=-22px ⇒ 第 1 行 cur 落在窗口上方（看不见）、
 		//       第 2 行 prev 占满窗口 [0,22]（旧内容在窗口里）；终点 ty=0 ⇒ cur 占满窗口。

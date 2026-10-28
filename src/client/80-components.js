@@ -113,7 +113,7 @@
 			(0, react.useEffect)(() => { setFailed(false); }, [icon]);
 			const box = { width: px, height: px, borderRadius: 5, flex: "none" };
 			if (!icon || failed) {
-				// B3：这里原先多挂了一个 className:"gacha-cal-icon-fb" —— 70-styles.js 里**没有**这条规则
+				// B3：这里原先多挂了一个 className:"gacha-cal-icon-fb" —— 9 个 styles/*.css 里都**没有**这条规则
 				// （该元素的造型全在下面的 inline style 上），删掉它视觉零变化（真机 computed 样式逐项相同）。
 				return (0, react_jsx_runtime.jsx)("span", {
 					"aria-label": name,
@@ -210,7 +210,7 @@
 		// ══ 实验特性：新「二游日历」面板视图（`settings.newPanel === true` 时才渲染）══
 		// 设计稿（**唯一真源**）：dsh-gacha-ui-lab/a-v6.html（效果图 a-v6.png）
 		//
-		// 结构自上而下，与设计稿一一对应（类名统一 `gacha-cal-sched-*`，样式见 70-styles.js）：
+		// 结构自上而下，与设计稿一一对应（类名统一 `gacha-cal-sched-*`，样式见 styles/schedule.css 与 styles/schedule-foot.css）：
 		//   ① 日期胶囊（2026-10-17 起面板**内**不再写标题「二游日历」那四个字；**没有**总计数胶囊。
 		//      侧栏那个入口按钮的「二游日历」是插件入口，照旧保留 —— 两处别混）
 		//   ② 一行总览（K 版）：24 小时内 N 条 · 7 天内 M 条（为 0 的段不显示；都为 0 只留一句短兜底）
@@ -221,7 +221,7 @@
 		//
 		// 三条**互不抢**的视觉分工（改这个组件前先读这一条）：
 		//   · **颜色 = 游戏**：每行内联一个 `--g`（`g.color`；自定义条目没有 color → 游戏名哈希取固定色盘）
-		//     同一款游戏的**卡池 = 深色、活动 = 浅色**（浅色由 `color-mix` 与白混出，见 70-styles.js）
+		//     同一款游戏的**卡池 = 深色、活动 = 浅色**（浅色由 `color-mix` 与白混出，见 styles/schedule.css）
 		//   · **图案 = 状态**：实心=在期 / 斜纹=已结束 / 点线=长期 / 空心描边=还没开始 / 灰底=该来源无数据
 		//   · **文字 = 紧迫度**：今天到期 / 还剩 X 天 X 时 / MM-DD HH:MM 开始 —— 迷你条**不再**用颜色表紧迫度
 		//
@@ -578,7 +578,7 @@
 		}
 
 		// 类型图标：**内联 SVG**（卡池 = 菱形星芒 / 活动 = 旗帜）。两者**形状不同** → 不靠颜色也能分辨，
-		// 也不用 emoji（用户明确说 emoji 丑）。旁边的文字标签由 CSS 隐藏，见 70-styles.js。
+		// 也不用 emoji（用户明确说 emoji 丑）。旁边的文字标签样式见 styles/schedule.css 的 .gacha-cal-sched-kind。
 		// 悬停明细：**原面板那套**（引擎的 bannerHover / eventHover —— 当期 ≥2 条时每条一行，
 // 形如「池名：角色 ⏎ 档期」或「活动名 + 3 空格 + 档期」）。没有并列条目时给空串 →
 // 退化成「外显 ⏎ 档期」，与原面板单条时的观感一致。
@@ -625,7 +625,7 @@
 			});
 		}
 		// 14 天迷你条：**所有行共用同一根轴**（与表头刻度同列宽），所以今天只有一列 ——
-		// 第 3 格画一道深色竖线，与刻度上的今天对齐。图案只表状态，颜色来自该行的 `--gf`（见 70-styles.js）。
+		// 第 3 格画一道深色竖线，与刻度上的今天对齐。图案只表状态，颜色来自该行的 `--gf`（见 styles/schedule.css）。
 		//
 		// ⚠️ 两种状态**不在这根轴上**，整条做成"图案状态块"（设计稿对"长期"就是这么画的）：
 		//   · 长期（无结束时间）→ 整条点线
@@ -709,7 +709,7 @@
 		//   · 老浏览器的 addListener/removeListener 兜底（Safari < 14）；
 		//   · 拿不到 matchMedia（测试桩/极老环境）时按 false 处理 —— 与默认观感一致。
 		// ⚠️ 这只是**JS 侧**那一半（停掉轮播、固定显示第一条）。CSS 侧还有一条
-		//    `@media (prefers-reduced-motion:reduce){.gacha-cal-btn-flip{animation:none}}`（70-styles.js），
+		//    `@media (prefers-reduced-motion:reduce){.gacha-cal-btn-flip{animation:none}}`（styles/ticker.css），
 		//    两处都要有：只停 JS 会在"系统还没来得及通知"的那一帧里仍然播一次翻页。
 		function usePrefersReducedMotion() {
 			const [reduce, setReduce] = (0, react.useState)(false);
@@ -1248,7 +1248,7 @@
 					// 匹配游戏名 / 卡池名 / 角色名 / 活动名（panelGamesFilter：大小写 / 全半角不敏感，
 					// 空格分隔 = 多个词都要命中）；空串即恢复全部。×（或 Esc）一键清空。
 					// ⚠️ 它**只影响显示**：不改 lastData、不参与轮播（tickerItems 用未过滤的 games）、
-					//    也不碰提醒。窄侧栏下照样显示 —— 面板宽度恒为 690px（见 70-styles.js 的
+					//    也不碰提醒。窄侧栏下照样显示 —— 面板宽度恒为 690px（见 styles/panel.css 的
 					//    `.gacha-cal-pop{width:690px}`），`wide === false` 只影响侧栏按钮本身，
 					//    藏起来只会白白少一个功能；展开/清空都是**瞬时**的，不引入任何动画
 					//    ⇒ prefers-reduced-motion 下无需额外分支。
@@ -1291,7 +1291,7 @@
 		//
 		// 做法：onAnimationEnd（只认两条翻页 keyframes）⇒ flipSettled=true ⇒
 		//   ① 只渲染 cur 一行（prev 行连 DOM 都不留，纯函数 tickerFlipRenderLinesOf）；
-		//   ② 元素加类 .is-settled（CSS: animation:none + transform:none，见 70-styles.js）。
+		//   ② 元素加类 .is-settled（CSS: animation:none + transform:none，见 styles/ticker.css）。
 		// 落定画面与动画终点**逐像素相同**（cur 都占满 22px 窗口），所以不存在跳动/闪烁/文字位移：
 		//   · up   终点 = 层 -22px、第 2 行 cur 落在窗口 [0,22]；落定 = 层 0、唯一一行 cur 在 [0,22]；
 		//   · down 终点 = 层 0、第 1 行 cur 在窗口 [0,22]；落定 = 层 0、唯一一行 cur 在 [0,22]。
@@ -1320,7 +1320,7 @@
 			// 落定与否只影响"几行进 DOM"，不影响方向（settled 时方向类留在元素上无害）。
 			const flipLines = tickerFlipRenderLinesOf(reduceMotion ? "down" : flipDir, shownStep, prevStep, flipSettled);
 			return (0, react_jsx_runtime.jsx)("span", {
-				// 类名 = 基础类 + 方向类（视觉方向）+ 落定类；三条规则都在 70-styles.js。
+				// 类名 = 基础类 + 方向类（视觉方向）+ 落定类；三条规则都在 styles/ticker.css。
 				// 落定类必须排在方向规则之后（同特异性，靠顺序胜出）。
 				className: "gacha-cal-btn-flip " + (flipDir === "up" ? "is-up" : "is-down") + (flipSettled ? " is-settled" : ""),
 				onAnimationEnd,
@@ -1542,7 +1542,7 @@
 			// reduce 时**不滚动**、但也不回到"看起来没事"的原样：静态钉在第一条轮播条目（展开后的第 1 格）
 			// （用户要求"仍要能看出有事"）。没有轮播条目时自然是第 0 格 = 原按钮外观。
 			const shownStep = reduceMotion && tickerSlides.length > 0 ? 1 : slideStep;
-			// 这一帧的翻页方向（**类名 = 视觉方向**，见 70-styles.js 的 keyframes 注释）。
+			// 这一帧的翻页方向（**类名 = 视觉方向**，见 styles/ticker.css 的 keyframes 注释）。
 			// reduce 时钉在第 1 格，方向取 tickerDirAt(1)（反正 CSS 那边 animation:none，不会播）。
 			const flipDir = tickerDirAt(reduceMotion && tickerSlides.length > 0 ? 1 : tickerCycle.seq);
 			// 上一格的内容要**留在 DOM 里**才能做出"交叉滚动"（旧的往上走、新的从下面进来）。
@@ -1843,7 +1843,7 @@
 							window.requestAnimationFrame(fit);
 							window.setTimeout(fit, 300);
 						},
-						// 新版要"撑满 + 不裁切"，旧版要"限高 + 滚动" —— 靠这个修饰类分开（见 70-styles.js）
+						// 新版要"撑满 + 不裁切"，旧版要"限高 + 滚动" —— 靠这个修饰类分开（见 styles/panel.css）
 						className: s.newPanel === true ? "gacha-cal-pop gacha-cal-pop--sched" : "gacha-cal-pop",
 						style: { left: anchor.left, bottom: anchor.bottom },
 						// ⚙️ 实验特性分支 —— **唯一**的切换点。
@@ -2673,7 +2673,7 @@
 			// 一行 = 「标签 + 一排胶囊」：标签与胶囊之间 8px、胶囊之间 6px（视觉不挤）。
 			// 胶囊是真的 <button>（可 Tab / 可回车 / aria-pressed 报告选中态），
 			// 选中态走 .gacha-cal-chip--on（主题浅色底 + 深色字；未选中 = 灰描边 + 次级字色；
-			// 两者的 hover 都在 70-styles.js 里，各有轻微变化）。
+			// 两者的 hover 都在 styles/chip.css 里，各有轻微变化）。
 			const remindChipRow = (which, labelText, savedText, fallbackNodes, keyName, titleText, noteText) => {
 				const nodes = remindNodesOf(remindNodesValue(which, savedText), fallbackNodes);
 				return (0, react_jsx_runtime.jsxs)("div", {
@@ -2709,7 +2709,7 @@
 					// 布局：整行仍是 flex / alignItems:center / flexWrap:wrap；Star 组（链接 + ✕）
 					// 用 marginLeft:"auto" 推到最右（不放链接自己身上，好让两者一起换行、一起消失）。
 					//   · 标题：沿用 SETTINGS_SECTION_LABEL，fontSize 16 / fontWeight 600 不变；
-					//   · 版本号：`v` + PLUGIN_VERSION（12px 三级字色，见 70-styles.js 的 .gacha-cal-version）。
+					//   · 版本号：`v` + PLUGIN_VERSION（12px 三级字色，见 styles/settings-header.css 的 .gacha-cal-version）。
 					//     ⚠️ **不许手写 "v0.12.6"**：PLUGIN_VERSION 由 build.mjs 用根 package.json 的 version
 					//     注入（05-version.js 的占位符 → build.mjs 的 VERSION_TOKEN），cases-star.mjs 有防漂移守卫；
 					//   · Star 链接：仍是 <a> + target="_blank" + rel，文案是用户要的原句（不加标点），
