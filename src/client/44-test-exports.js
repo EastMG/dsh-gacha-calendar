@@ -428,6 +428,9 @@
 			remindConfigOf,
 			remindKeyOf,
 			remindStateOf,
+			// remindTestToastOf = 设置页「发送测试通知」那条的标题/正文（标题固定、正文三行：
+			// 发送者 / 时间 / 说明）。与真实提醒隔离的纯函数，正文内容见 cases-remind.mjs ⑬。
+			remindTestToastOf,
 			remindWindowOf,
 			remindItemsOf,
 			remindTickOf,

@@ -48,6 +48,7 @@ const REMIND_EXPORTS = [
   "remindConfigOf",
   "remindKeyOf",
   "remindStateOf",
+  "remindTestToastOf",
   "remindWindowOf",
   "remindItemsOf",
   "remindTickOf",

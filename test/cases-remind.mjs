@@ -37,7 +37,7 @@ export default async function run() {
 
 	const {
 		remindOnOf, remindIdentityOf, remindNodesOf, remindNodesToggleOf, remindConfigOf, remindKeyOf, remindStateOf,
-		remindWindowOf, remindItemsOf, remindTickOf, remindToastOf,
+		remindTestToastOf, remindWindowOf, remindItemsOf, remindTickOf, remindToastOf,
 		dueWindowOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
 	} = T;
 
@@ -620,9 +620,9 @@ export default async function run() {
 			&& hostSrc.indexOf("项目有正式 .ico 后改这里即可") < hostSrc.indexOf("const NOTIFY_SHORTCUT_ICON"));
 
 		check("toast 的 AUMID 有**启用 / 回退**两条路径，且每轮只探测一次",
-			/const identity = remindIdentityOf\(await notifyIdentityProbe\(\), NOTIFY_AUMID\);/.test(hostSrc)
-			&& /const toastAumid = identity\.useAumid \|\| POWERSHELL_AUMID;/.test(hostSrc)
-			&& /sendToastScript\(toastScriptOf\(title, lines, toastAumid\)\)/.test(hostSrc)
+			/async function notifyToastTargetOf\(\)[\s\S]{0,300}?remindIdentityOf\(await notifyIdentityProbe\(\), NOTIFY_AUMID\)[\s\S]{0,300}?aumid: enabled \? NOTIFY_AUMID : POWERSHELL_AUMID/.test(hostSrc)
+			&& /const target = await notifyToastTargetOf\(\);/.test(hostSrc)
+			&& /sendToastScript\(toastScriptOf\(title, lines, target\.aumid\)\)/.test(hostSrc)
 			&& /function toastScriptOf\(title, lines, aumid\)/.test(hostSrc));
 		check("身份探测**永不抛**（探测失败 = 当未启用，回退 PowerShell）",
 			/async function notifyIdentityProbe\(\)[\s\S]{0,800}?catch \(err\) \{[\s\S]{0,200}?exists: false, aumid: null/.test(hostSrc)
@@ -646,5 +646,131 @@ export default async function run() {
 			&& !/alert\(/.test(compSrc));
 		check("设置页把宿主错误码翻成人话（windows-only ⇒ 「仅 Windows 可用」）",
 			/if \(text === "windows-only"\) return "仅 Windows 可用";/.test(compSrc));
+	}
+
+	// ── ⑬ 发送测试通知：正文纯函数 + 宿主 POST 路由（同口径守卫、不写状态）+ 设置页按钮 ──────
+	// 2026-10-28 需求：设置页「通知身份」旁加「发送测试通知」，点了立刻弹一条系统通知。
+	// 这里钉住六件事（任何一条悄悄坏掉，用户看到的是"点了没反应"或"提醒不响了"）：
+	//   ① 正文纯函数（remindTestToastOf）：标题固定、正文三行、发送者随身份、时间到秒（本机时区）；
+	//   ② 宿主路由存在且注册（前缀常量 + handler 挂到 webServer）；
+	//   ③ 守卫与 /api/gacha-calendar-notify-identity **同口径**（isLoopback + 拒绝 cross-site + 只 POST）；
+	//   ④ 与真实提醒**隔离**：路由里没有任何状态文件读写，也不读 lastData / 不跑判定；
+	//   ⑤ 复用而不是复制：身份走 notifyIdentityProbe + remindIdentityOf（收敛在 notifyToastTargetOf），
+	//      发送走现有的 toastScriptOf + sendToastScript；
+	//   ⑥ 设置页：POST 同一个路径字面量、busy 文案、成功/失败两行小字、不弹窗不轮询。
+	{
+		// ① 纯函数：时刻显式传入；"时间"按**本机时区**格式化 ⇒ 断言用同一个 Date 现算，
+		//    CI 跑 UTC、开发机跑 +08 都必须绿（与文件开头的时间口径一致）。
+		const pad2 = (n) => (n < 10 ? "0" : "") + n;
+		const localClock = (ts) => {
+			const d = new Date(ts);
+			return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate())
+				+ " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes()) + ":" + pad2(d.getSeconds());
+		};
+		const appToast = remindTestToastOf(NOW, "app");
+		const psToast = remindTestToastOf(NOW, "powershell");
+		check("测试通知标题 = 「二游日历 · 通知测试」", appToast.title === "二游日历 · 通知测试", appToast.title);
+		check("正文**三行**（发送者 / 时间 / 说明）",
+			Array.isArray(appToast.lines) && appToast.lines.length === 3, JSON.stringify(appToast.lines));
+		check("发送者行：identity \"app\" ⇒ 「二游日历」/ 其它 ⇒ 「Windows PowerShell」",
+			appToast.lines[0] === "发送者：二游日历"
+			&& psToast.lines[0] === "发送者：Windows PowerShell"
+			&& remindTestToastOf(NOW, void 0).lines[0] === "发送者：Windows PowerShell",
+			JSON.stringify([appToast.lines[0], psToast.lines[0], remindTestToastOf(NOW, void 0).lines[0]]));
+		check("时间行 = yyyy-MM-dd HH:mm:ss（本机时区，与 Date 现算逐字一致）",
+			appToast.lines[1] === "时间：" + localClock(NOW), appToast.lines[1]);
+		check("第三行是「看到这条说明系统通知链路是通的」",
+			appToast.lines[2] === "看到这条说明系统通知链路是通的", appToast.lines[2]);
+		check("时刻非法 ⇒ 不抛、时间行留空（坏在时间上也不该拖垮设置页）",
+			(() => {
+				const t = remindTestToastOf(Number.NaN, "app");
+				return t.lines.length === 3 && t.lines[1] === "时间：";
+			})());
+		check("宿主那份 ESM（lib/remind-core.mjs）与客户端是**同一个文案函数**",
+			typeof R.remindTestToastOf === "function"
+			&& JSON.stringify(R.remindTestToastOf(NOW, "app")) === JSON.stringify(appToast));
+
+		// ②-⑤ 宿主静态
+		const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
+		const compSrc = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
+		const bodyOf = (name) => {
+			const i = hostSrc.indexOf("async function " + name + "(");
+			const j = i < 0 ? -1 : hostSrc.indexOf("\n}", i);
+			return i < 0 ? "" : (j < 0 ? hostSrc.slice(i) : hostSrc.slice(i, j));
+		};
+		const testBody = bodyOf("notifyTestHandler");
+		const identityBody = bodyOf("notifyIdentityHandler");
+		check("守卫自身没瞎：两个 handler 都定位到了",
+			testBody.length > 0 && identityBody.length > 0, `test=${testBody.length} identity=${identityBody.length}`);
+		check("路由常量存在 + 已注册到 webServer",
+			/const NOTIFY_TEST_PREFIX = "\/api\/gacha-calendar-notify-test";/.test(hostSrc)
+			&& /webServer\.register\(\{ kind: "prefixes", path: NOTIFY_TEST_PREFIX, handler: notifyTestHandler \}\)/.test(hostSrc));
+		// 逐字比对两条守卫：不是"看起来相似"，而是与 identity 路由同一行文本（同口径）
+		const GUARD_LOOPBACK = 'if (!isLoopback(req)) { sendJson(res, 403, { error: "loopback-only" }); return; }';
+		const GUARD_CROSS = 'if (String(req.headers?.["sec-fetch-site"] || "") === "cross-site") {';
+		check("守卫与 /api/gacha-calendar-notify-identity **同口径**（isLoopback + 拒绝 cross-site，逐字相同）",
+			testBody.includes(GUARD_LOOPBACK) && identityBody.includes(GUARD_LOOPBACK)
+			&& testBody.includes(GUARD_CROSS) && identityBody.includes(GUARD_CROSS)
+			&& testBody.includes('sendJson(res, 403, { error: "cross-site-not-allowed" });'));
+		check("只接受 POST（其它方法 405），**不提供**读状态的能力",
+			testBody.includes('if (req.method !== "POST") { sendJson(res, 405, { error: "method-not-allowed" }); return; }')
+			&& !/req\.method === "GET"/.test(testBody));
+		check("非 Windows ⇒ { ok: false, error: \"windows-only\" }（与 identity 路由同一句）",
+			/process\.platform !== "win32"[\s\S]{0,120}?ok: false, error: "windows-only"/.test(testBody));
+		check("**不写状态**：路由里没有状态文件读写（writeRemindState / readRemindState / host-state.json / appendFileSync）",
+			!/writeRemindState|readRemindState|remindStatePath|host-state\.json|appendFileSync|writeFileSync/.test(testBody)
+			&& !/lastData/.test(testBody)
+			&& !/remindTickOf|remindStateOf|remindItemsOf/.test(testBody),
+			testBody.slice(0, 120));
+		check("身份选择**复用**现有判定（notifyIdentityProbe + remindIdentityOf，收敛在 notifyToastTargetOf 一处）",
+			/async function notifyToastTargetOf\(\)[\s\S]{0,200}?remindIdentityOf\(await notifyIdentityProbe\(\), NOTIFY_AUMID\)/.test(hostSrc)
+			&& /const target = await notifyToastTargetOf\(\);/.test(testBody)
+			// 真实提醒那一轮走的也是同一个出口（判定只有一处，没有第二套 AUMID 逻辑）
+			&& /const target = await notifyToastTargetOf\(\);[\s\S]{0,400}?sendToastScript\(toastScriptOf\(title, lines, target\.aumid\)\)/.test(hostSrc));
+		check("发送复用**现有的** toast 发送器（toastScriptOf + sendToastScript），不另写一套",
+			/function toastScriptOf\(title, lines, aumid\)/.test(hostSrc)
+			&& /function sendToastScript\(script\)/.test(hostSrc)
+			&& /const sent = await sendToastScript\(toastScriptOf\(title, lines, target\.aumid\)\);/.test(testBody));
+		check("正文来自 core 的纯函数 remindTestToastOf（宿主不自己拼三行）",
+			/\{ title, lines \} = remindTestToastOf\(Date\.now\(\), target\.identity\)/.test(testBody)
+			&& (() => {
+				const m = /import \{([\s\S]*?)\} from "\.\/remind-core\.mjs"/.exec(hostSrc);
+				return !!m && /\bremindTestToastOf\b/.test(m[1]);
+			})());
+		check("响应形状：成功 { ok:true, aumid, identity, detail } / 失败 { ok:false, error }",
+			/ok: true, aumid: target\.aumid, identity: target\.identity, detail: String\(sent\.detail \|\| ""\)/.test(testBody)
+			&& /ok: false, error: String\(sent\.detail \|\| "send-failed"\)/.test(testBody));
+		check("identity 字段只可能是 \"app\" / \"powershell\"（设置页文案用同一套字面量）",
+			/identity: enabled \? "app" : "powershell"/.test(hostSrc)
+			&& /body\.identity === "app" \? "二游日历" : "Windows PowerShell"/.test(compSrc));
+
+		// ⑥ 设置页
+		const hostPath = (/const NOTIFY_TEST_PREFIX = "([^"]+)";/.exec(hostSrc) || [])[1];
+		const clientPath = (/const NOTIFY_TEST_API = "([^"]+)";/.exec(compSrc) || [])[1];
+		check("前后端 POST 路径字面量**一致**（改一处忘另一处 = 按钮永远 404）",
+			hostPath === "/api/gacha-calendar-notify-test" && clientPath === hostPath,
+			String(hostPath) + " / " + String(clientPath));
+		const sendFnAt = compSrc.indexOf("async function sendNotifyTest() {");
+		const sendFnEnd = sendFnAt < 0 ? -1 : compSrc.indexOf("\n\t\t}", sendFnAt);
+		const sendFn = sendFnAt < 0 ? "" : (sendFnEnd < 0 ? compSrc.slice(sendFnAt) : compSrc.slice(sendFnAt, sendFnEnd));
+		check("发送函数只 POST（不带 body、不轮询、不弹窗）",
+			/fetch\(NOTIFY_TEST_API, \{ method: "POST" \}\)/.test(sendFn)
+			&& !/setInterval|setTimeout/.test(sendFn)
+			&& !/alert\(/.test(sendFn),
+			String(sendFn.length));
+		const identityRowAt = compSrc.indexOf('children: "通知身份"');
+		const testBtnAt = compSrc.indexOf('children: notifyTestBusy ? "发送中…" : "发送测试通知"');
+		check("按钮「发送测试通知」就在「通知身份」那一行（同一行按钮组里，不用翻页找）",
+			identityRowAt >= 0 && testBtnAt > identityRowAt && testBtnAt - identityRowAt < 1600,
+			`identityRow=${identityRowAt} testBtn=${testBtnAt}`);
+		check("busy 期间按钮禁用 + 文字变「发送中…」",
+			/disabled: notifyTestBusy,/.test(compSrc)
+			&& /children: notifyTestBusy \? "发送中…" : "发送测试通知"/.test(compSrc));
+		check("成功文案「已发送（发送者：…）」按宿主回传的 identity 选名字（不猜）",
+			compSrc.includes('"已发送（发送者：" + (body.identity === "app" ? "二游日历" : "Windows PowerShell") + "）"'));
+		check("失败文案「发送失败：<原因>」（宿主错误码翻人话，不弹窗）",
+			compSrc.includes('"发送失败：" + notifyIdentityErrorText'));
+		check("按钮点击走 sendTestNotify（POST 一次就结束，不轮询）",
+			/onClick: sendTestNotify,/.test(compSrc));
 	}
 }

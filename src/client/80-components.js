@@ -1913,6 +1913,18 @@
 			return body;
 		}
 
+		// ── 「发送测试通知」：宿主路由 /api/gacha-calendar-notify-test ─────────────────────────
+		// 点一下立刻弹一条系统通知（发送者 = 上面那一行当前身份），用来确认通知链路通不通。
+		// 只发一次、不轮询；失败原因复用上面那份错误码 → 人话的映射（同一套宿主错误码）。
+		const NOTIFY_TEST_API = "/api/gacha-calendar-notify-test";
+		async function sendNotifyTest() {
+			const res = await fetch(NOTIFY_TEST_API, { method: "POST" });
+			let body = null;
+			try { body = await res.json(); } catch { body = null; }
+			if (!body || body.ok !== true) throw new Error(String((body && body.error) || ("HTTP " + res.status)));
+			return body;
+		}
+
 		// engine：core 引擎（设置页的「解析器自检」用它跑 selfCheck()）
 		function CalendarSettingsPage({ scope, engine }) {
 			// 设置表单服务本体（用于在写不进去时列出宿主真正 serve 的 namespace，见 formStateText）
@@ -2038,6 +2050,23 @@
 					} catch { /* 读不到就维持原显示 */ }
 				} finally {
 					setNotifyIdentityBusy(false);
+				}
+			};
+			// 「发送测试通知」：点了立刻 POST 一次；成功 = 显示发送者（与正文同一套身份名），
+			// 失败 = 原因。不弹窗、不轮询、不落任何状态（测试通知与真实提醒完全隔离）。
+			const [notifyTest, setNotifyTest] = (0, react.useState)(null);
+			const [notifyTestBusy, setNotifyTestBusy] = (0, react.useState)(false);
+			const sendTestNotify = async () => {
+				if (notifyTestBusy) return;
+				setNotifyTestBusy(true);
+				setNotifyTest(null);
+				try {
+					const body = await sendNotifyTest();
+					setNotifyTest({ ok: true, text: "已发送（发送者：" + (body.identity === "app" ? "二游日历" : "Windows PowerShell") + "）" });
+				} catch (err) {
+					setNotifyTest({ ok: false, text: "发送失败：" + notifyIdentityErrorText((err && err.message) || err) });
+				} finally {
+					setNotifyTestBusy(false);
 				}
 			};
 
@@ -2492,6 +2521,17 @@
 									onClick: toggleNotifyIdentity,
 									children: notifyIdentityBusy ? "处理中…" : (notifyIdentity && notifyIdentity.enabled ? "移除" : "启用")
 								}),
+								// 「发送测试通知」：立刻弹一条，验证通知链路（不影响到期提醒的去重状态）
+								(0, react_jsx_runtime.jsx)("button", {
+									type: "button",
+									className: "gacha-cal-sort-btn",
+									style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 },
+									disabled: notifyTestBusy,
+									title: "立刻弹一条系统通知，确认通知链路通不通",
+									onClick: sendTestNotify,
+									children: notifyTestBusy ? "发送中…" : "发送测试通知"
+								}),
+								notifyTest ? (0, react_jsx_runtime.jsx)("span", { style: { fontSize: 11, color: notifyTest.ok ? "var(--dsw-alias-label-secondary)" : "var(--dsw-alias-state-error-primary, #d4380d)" }, children: notifyTest.text }) : null,
 								(0, react_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: "var(--dsw-alias-label-secondary)" }, children: "当前：" + (notifyIdentity === null ? "读取中…" : notifyIdentity.enabled ? "二游日历" : "PowerShell（默认）") }),
 								(0, react_jsx_runtime.jsx)("span", { style: { flex: "1 1 240px", fontSize: 11, color: "var(--dsw-alias-label-tertiary)" }, children: ["更改系统通知的发送者为「二游日历」", (0, react_jsx_runtime.jsx)("br", {}), "需要在开始菜单创建无害的快捷方式文件"] })
 							] }),
