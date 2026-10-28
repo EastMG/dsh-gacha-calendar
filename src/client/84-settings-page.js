@@ -209,6 +209,11 @@
 			const healthStaleCount = healthBad.length - healthDownCount;
 			const healthTone = healthBad.length === 0 ? "ok" : (healthDownCount > 0 ? "error" : "warn");
 			const healthRefreshAt = Number(s.lastRefresh) || 0;
+			// 健康存档写不进去时（宿主拒绝 `sourceHealth` 这个键，例如宿主进程还是旧 schema），引擎把
+			// 失败吞在心里（见 engine-api.js 的 healthSaveError）：这里读它，好让**空状态**说真话 ——
+			// 否则"写了但被拒"会被说成"从没刷过数据"，而用户其实刚刷过（2026-10-28 真机截图就是这种，
+			// 面板底栏报「刷新失败：settings-write-rejected:sourceHealth」）。纯内存读，不做任何 IO。
+			const healthSaveErr = typeof engine.healthSaveError === "function" ? engine.healthSaveError() : "";
 			const healthMeta = healthBad.length > 0
 				? [healthOkCount + " 正常", healthStaleCount > 0 ? healthStaleCount + " 停更" : "", healthDownCount > 0 ? healthDownCount + " 失败" : ""].filter(Boolean).join(" · ")
 				: healthKnown.length + " 个来源" + (healthRefreshAt > 0 ? " · " + tickerSpanText(healthNow - healthRefreshAt) + "前刷新" : " · 尚未刷新");
@@ -1123,7 +1128,7 @@
 					//   · 卡片 = 标题行（解析器自检 + 唯一按钮「立即检查」）+ 一条极淡分隔线 + 状态条；
 					//   · 状态条 = 6px 状态圆点（颜色编码）+ 主文案 + 右侧次要信息 + 展开按钮；
 					//   · 列表 = 四列网格（游戏名 / 状态胶囊 / 原因 / 最近成功），**默认只列异常**；
-					//   · 空状态 = 一行弱化提示（还没刷新过数据），**无条件下渲染**；
+					//   · 空状态 = 一行弱化提示（没存档时给一句；写了但被拒时改说"暂时无法保存"），**无条件下渲染**；
 					//   · 自检报告 = 一行小徽章 + 一句汇总（完整清单在 title 里），不再是大段落。
 					// 样式全部在 src/client/styles/health.css（样式段由 build.mjs 按 CSS_ORDER 拼）。
 					(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-health-card", children: [
@@ -1139,7 +1144,11 @@
 										(0, react_jsx_runtime.jsx)("path", { d: "M20 11a8 8 0 1 0-2.3 5.7" }),
 										(0, react_jsx_runtime.jsx)("path", { d: "M20 4v7h-7" })
 									] }),
-									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-empty-text", children: "还没刷新过数据 —— 刷新一次后这里会显示每个来源的体检结果" })
+									// 两种原因分开说："写了但被宿主拒绝" ≠ "从没刷过"。前者必须点明**不影响刷新**，
+									// 否则用户会以为刷新坏了 —— 那正是本次要修的那个现象的另一半。
+									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-empty-text", children: healthSaveErr
+										? "健康数据暂时无法保存（宿主拒绝写入），不影响刷新"
+										: "还没有来源健康数据（刷新一次数据后产生）" })
 								] })
 								: (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-health-summary", children: [
 									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-dot gacha-cal-health-dot--" + healthTone, "aria-hidden": "true" }),

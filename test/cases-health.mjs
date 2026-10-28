@@ -18,7 +18,7 @@
 //   ④ 内容没变就**不写**那一笔设置（每轮白写 = 白付一次宿主往返）、变了（如 ok → down）必须写 ——
 //      用真实夹具跑完整 refresh，按假存储的写入记账断言。
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { check, section, useFixtures } from "./harness.mjs";
@@ -474,6 +474,74 @@ export default async function runHealth() {
 			JSON.stringify(parsed3 && parsed3.sources.fgo));
 		check("真的写的时候 at 是本轮最新时间（不是被跳过的旧时间）",
 			!!parsed3 && parsed3.at === clock, JSON.stringify({ at: parsed3 && parsed3.at, clock }));
+
+		// ── ⑤c 健康存档被宿主拒绝 ⇒ **不许**把一次成功的刷新判成失败 ──────────────────────
+		// 真机现象（2026-10-28 用户截图）：面板底栏「刷新失败：settings-write-rejected:sourceHealth」，
+		// 而那一轮抓取其实是**成功**的 —— 根因是宿主进程还是旧 schema（没有 sourceHealth 这个键），
+		// `dshStorage.set` 因此抛错，而 refresh() 里那一笔是裸 await ⇒ 整轮刷新被当失败。
+		// 这里用同一形态的假存储：只让 `set("sourceHealth")` 抛错，其余键照常落盘。
+		netDown = false;                 // 抓取本身恢复正常（本段要证明的是"抓取成功不被附属产物拖累"）
+		clock += 600000;
+		let rejectHealth = true;
+		const fmap = new Map(Object.entries({ hidden: allIds.filter((id) => id !== "fgo") }));
+		const fkeys = [];
+		const rejected = [];
+		const rejectingStorage = {
+			async get(k) { return fmap.get(k); },
+			async set(k, v) {
+				// 宿主拒写：与 92-dsh-env.js 的 dshStorage.set 同一种失败（抛错，不是静默）
+				if (rejectHealth && k === "sourceHealth") {
+					rejected.push(v);
+					throw new Error("settings-write-rejected:sourceHealth");
+				}
+				fkeys.push(k);
+				fmap.set(k, v);
+			}
+		};
+		const engine2 = createEngine({ transport, storage: rejectingStorage, now: () => clock, timer: { setTimeout, clearTimeout } });
+		let result2 = null;
+		let threw2 = null;
+		try { result2 = await engine2.refresh(); } catch (e) { threw2 = e; }
+		check("健康存档被宿主拒绝时 refresh() **不抛**（附属产物写不进不该污染刷新状态）",
+			threw2 === null, threw2 && threw2.message);
+		check("健康存档被拒时仍返回完整 Result JSON（schemaVersion / refreshedAt / parserVersions / games）",
+			!!result2 && result2.schemaVersion === 1 && result2.refreshedAt === clock
+			&& !!result2.games && !!result2.parserVersions,
+			JSON.stringify(result2 && Object.keys(result2)));
+		check("健康存档被拒时抓取结果照旧（fgo 两侧内容都在 —— 这一轮其实是成功的）",
+			!!result2 && !!result2.games && !!result2.games.fgo
+			&& !!result2.games.fgo.banner && !!result2.games.fgo.event,
+			JSON.stringify(result2 && result2.games && result2.games.fgo && Object.keys(result2.games.fgo)));
+		check("健康存档被拒时核心键照写：lastData / lastRefresh / lastSource / lastVersion（这些失败才算真的坏）",
+			fkeys.indexOf("lastData") >= 0 && fkeys.indexOf("lastRefresh") >= 0
+			&& fkeys.indexOf("lastSource") >= 0 && fkeys.indexOf("lastVersion") >= 0,
+			fkeys.join(","));
+		check("健康存档被拒：确实尝试写过（不是压根没算 / 没走到那一笔就被当成正常）",
+			rejected.length === 1 && typeof rejected[0] === "string" && rejected[0].length > 2,
+			String(rejected.length));
+		check("健康存档被拒：没写进去（存储里没有 sourceHealth，不许谎报已存）",
+			(await rejectingStorage.get("sourceHealth")) === undefined);
+		check("健康存档被拒留下内存标记，且带出宿主原因（设置页空状态靠它说真话）",
+			typeof engine2.healthSaveError === "function"
+			&& /settings-write-rejected:sourceHealth/.test(engine2.healthSaveError()),
+			typeof engine2.healthSaveError === "function" ? engine2.healthSaveError() : "无 healthSaveError 接口");
+
+		// 宿主修好（写入被接受）⇒ 下一轮要真的落盘，并且把失败标记清掉（否则空状态会一直报警）
+		rejectHealth = false;
+		mark = fkeys.length;
+		clock += 600000;
+		await engine2.refresh();
+		check("宿主修好后同一引擎再刷一轮：健康存档真的落盘了（v=1 且有本轮时间）",
+			(() => {
+				let p = null;
+				try { p = JSON.parse(fmap.get("sourceHealth")); } catch (e) { p = null; }
+				return !!p && p.v === 1 && p.at === clock;
+			})(), String(fmap.get("sourceHealth")).slice(0, 120));
+		check("宿主修好后：失败标记必须清空（下次写成功就复位）",
+			engine2.healthSaveError() === "", String(engine2.healthSaveError()));
+		check("宿主修好后核心键照常写（lastData / lastRefresh）",
+			fkeys.slice(mark).indexOf("lastData") >= 0 && fkeys.slice(mark).indexOf("lastRefresh") >= 0,
+			fkeys.slice(mark).join(","));
 	}
 
 	// ── ⑥ 设置键三处齐 + 阈值常量（漏一处就是"设了不生效"/"写入被拒"）────────────────
@@ -491,6 +559,27 @@ export default async function runHealth() {
 		const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
 		check("宿主 schema 有 sourceHealth: z.string().default(\"\").volatile()（漏了 = 引擎写入被拒 ⇒ 刷新整轮失败）",
 			/sourceHealth:\s*z\.string\(\)\.default\(""\)\.volatile\(\)/.test(hostSrc));
+
+		// ── 「健康存档失败不致命」的接线守卫（2026-10-28 用户真机截图：面板底栏
+		//    「刷新失败：settings-write-rejected:sourceHealth」，而那一轮抓取其实是成功的）──
+		// ① 那一笔 storage.set 必须包在 try/catch 里，catch 里**只记标记、不许 rethrow**；
+		// ② 全 src/client 只许 engine-api.js 写这个键（别处散写一笔 = 又出现一条裸 await 的拒写路径）。
+		const api = readFileSync(path.join(SRC, "engine-api.js"), "utf8");
+		const setAt = api.indexOf('await storage.set("sourceHealth"');
+		const catchAt = setAt < 0 ? -1 : api.indexOf("} catch (err) {", setAt);
+		const catchBlock = catchAt < 0 ? "" : api.slice(catchAt, catchAt + 700);
+		check("引擎写 sourceHealth 的那一笔包在 try/catch 里",
+			setAt >= 0 && catchAt > setAt && /healthSaveError = String\(/.test(catchBlock),
+			api.slice(Math.max(0, setAt - 120), setAt + 80));
+		check("catch 里只记内存标记 + console.warn，**不许 rethrow**（吞掉才不影响 refresh 的返回值）",
+			catchBlock.length > 0 && !/\bthrow\b/.test(catchBlock) && /console\.warn\("\[gacha-calendar\] 来源健康存档/.test(catchBlock),
+			catchBlock.slice(0, 200));
+		check("引擎对外暴露 healthSaveError()（设置页只读内存值，不新增存储键、不做 IO）",
+			/healthSaveError\(\) \{ return healthSaveError; \}/.test(api));
+		const clientFiles = readdirSync(SRC).filter((f) => f.endsWith(".js"));
+		const writers = clientFiles.filter((f) => readFileSync(path.join(SRC, f), "utf8").indexOf('set("sourceHealth"') >= 0);
+		check("src/client 里只有 engine-api.js 写 sourceHealth（没有第二条裸 await 的写入路径）",
+			writers.join(",") === "engine-api.js", writers.join(","));
 
 		const helpers = readFileSync(path.join(SRC, "60-helpers.js"), "utf8");
 		check("N 天阈值只有一处字面量（SOURCE_HEALTH_NOMATCH_DAYS = 7）",
@@ -564,8 +653,16 @@ export default async function runHealth() {
 		// ── 空状态：一行弱化提示 + 图标（不要感叹号），**无条件下渲染** ──
 		check("没有任何记录时不再整块不渲染（旧的 healthKnown.length === 0 ? null : 短路已删）",
 			comp.indexOf("healthKnown.length === 0 ? null :") < 0);
-		check("空状态文案逐字：还没刷新过数据 —— 刷新一次后这里会显示每个来源的体检结果",
-			comp.indexOf('"还没刷新过数据 —— 刷新一次后这里会显示每个来源的体检结果"') >= 0);
+		check("空状态不再断言「还没刷新过数据」（那会把「写了但被宿主拒绝」说成「从没刷过」）",
+			comp.indexOf("还没刷新过数据") < 0);
+		check("空状态兜底文案对两种原因都成立：还没有来源健康数据（刷新一次数据后产生）",
+			comp.indexOf('"还没有来源健康数据（刷新一次数据后产生）"') >= 0);
+		check("空状态按引擎的内存标记分岔：写被拒时改说「健康数据暂时无法保存（宿主拒绝写入），不影响刷新」",
+			/const healthSaveErr = typeof engine\.healthSaveError === "function" \? engine\.healthSaveError\(\) : ""/.test(comp)
+			&& comp.indexOf('"健康数据暂时无法保存（宿主拒绝写入），不影响刷新"') >= 0
+			&& comp.indexOf("children: healthSaveErr") >= 0);
+		check("引擎没有 healthSaveError 接口的宿主（其它平台）也照常渲染（typeof 兜底成空串）",
+			/\? engine\.healthSaveError\(\) : ""/.test(comp));
 		check("空状态带图标（refresh svg、弱化色），不用感叹号凑数",
 			/className: "gacha-cal-health-empty"/.test(card)
 			&& /className: "gacha-cal-health-empty-icon"/.test(card)

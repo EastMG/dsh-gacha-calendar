@@ -23,6 +23,12 @@
 			// 在途保护：同一引擎并发调用时复用同一轮（否则两轮各自无条件写缓存，慢的那轮会用更旧的数据
 			// 盖掉快的那轮，而 lastRefresh 却是更晚的时间戳 = "旧内容配新时间"）。
 			let refreshInFlight = null;
+			// 来源健康存档的"最近一次写/读是否失败"（内存值：不落盘、不弹 UI、不影响返回值）。
+			// 用户真机截图（2026-10-28）：面板底栏「刷新失败：settings-write-rejected:sourceHealth」，
+			// 而那一轮抓取其实是**成功**的 —— 健康数据只是附属产物，宿主拒绝写这个键（例如宿主进程
+			// 还是旧 schema、没有 `sourceHealth`）不该污染刷新状态。失败原因留在这里，只供设置页
+			// 健康卡的空状态说清"写了但被拒"（见 84-settings-page.js），不参与任何判定。
+			let healthSaveError = "";
 			function refresh() {
 				useEnv();
 				if (refreshInFlight) return refreshInFlight;
@@ -92,23 +98,37 @@
 					},
 					result.results[i] || { reason: "skipped" }
 				));
-				// 读旧存档只读一次：既交给 sourceHealthUpdateOf 折算，也交给 sourceHealthSameOf 比较
-				const prevHealthRaw = await storage.get("sourceHealth");
-				const health = sourceHealthUpdateOf(
-					prevHealthRaw,
-					healthRounds,
-					result.at,
-					allEntries.map((e) => e.id)
-				);
-				// 只有**内容真的变了**才写这一笔设置（比较见 60-helpers.js 的 sourceHealthSameOf：
-				// 忽略顶层 at / 记录 at / okAt 这三处"本轮时间戳"，否则每轮都不同 = 等于没优化）。
-				// 设置写入是宿主往返（一次 1.4~3.6s），"什么都没变"的轮次不该为它再付一次。
-				//
-				// 跳过时**不会漏写 lastData**：lastData 是上面那笔独立的 storage.set（每轮都写），
-				// 与这里互不牵连；lastRefresh / lastSource 同理。
-				// 真的写的时候，写进去的仍是本轮算出的完整存档（at 是本轮时间）。
-				if (!sourceHealthSameOf(prevHealthRaw, health)) {
-					await storage.set("sourceHealth", JSON.stringify(health));
+				// ⚠️ 下面整段是**尽力而为**（2026-10-28 用户真机截图：面板底栏「刷新失败：
+				// settings-write-rejected:sourceHealth」，而那一轮抓取其实是**成功**的）：健康数据是
+				// 附属产物，读不到旧存档 / 写不进新存档都**不许**让 refresh() 抛错、不许改返回值、
+				// 不许影响面板状态。失败只留一个内存标记（healthSaveError），供设置页空状态说清原因。
+				try {
+					// 读旧存档只读一次：既交给 sourceHealthUpdateOf 折算，也交给 sourceHealthSameOf 比较
+					const prevHealthRaw = await storage.get("sourceHealth");
+					const health = sourceHealthUpdateOf(
+						prevHealthRaw,
+						healthRounds,
+						result.at,
+						allEntries.map((e) => e.id)
+					);
+					// 只有**内容真的变了**才写这一笔设置（比较见 60-helpers.js 的 sourceHealthSameOf：
+					// 忽略顶层 at / 记录 at / okAt 这三处"本轮时间戳"，否则每轮都不同 = 等于没优化）。
+					// 设置写入是宿主往返（一次 1.4~3.6s），"什么都没变"的轮次不该为它再付一次。
+					//
+					// 跳过时**不会漏写 lastData**：lastData 是上面那笔独立的 storage.set（每轮都写），
+					// 与这里互不牵连；lastRefresh / lastSource 同理。
+					// 真的写的时候，写进去的仍是本轮算出的完整存档（at 是本轮时间）。
+					if (!sourceHealthSameOf(prevHealthRaw, health)) {
+						await storage.set("sourceHealth", JSON.stringify(health));
+					}
+					// 走到这里 = 存档已与本轮结论一致（写成功，或本来就不用写）⇒ 清掉上一次的失败标记。
+					// 必须清：否则宿主修好之后空状态会一直说"暂时无法保存"。
+					healthSaveError = "";
+				} catch (err) {
+					// 吞掉：不 rethrow、不改返回值、不动下面那几笔核心键（它们真坏了才该失败）。
+					// 诊断只进内存 + 控制台，不弹 UI —— 面板底栏不许因此出现「刷新失败」。
+					healthSaveError = String((err && err.message) || err);
+					try { console.warn("[gacha-calendar] 来源健康存档读取/写入失败（不影响刷新）", healthSaveError); } catch { /* ignore */ }
 				}
 				await storage.set("lastRefresh", result.at);
 				await storage.set("lastSource", result.status === "ok" ? "web" : "none");
@@ -234,6 +254,10 @@
 				getCached,
 				refresh,
 				selfCheck,
+				// 来源健康存档最近一次读取/写入是否失败（"" = 正常）。**只读内存值**：不落盘、
+				// 不产生 IO、不参与任何判定 —— 设置页健康卡的空状态用它区分「从没刷过」与
+				// 「写了但被宿主拒绝」，见 84-settings-page.js。别的平台宿主可以不实现。
+				healthSaveError() { return healthSaveError; },
 				__test
 			};
 		}
