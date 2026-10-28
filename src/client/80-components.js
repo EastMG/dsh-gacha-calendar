@@ -2030,10 +2030,17 @@
 			// 范围 = **展示中**的条目（与刷新 / 自检同一口径）：隐藏条目本轮不抓，记录会僵在隐藏前
 			// 那一刻，把它们列出来只会误导。now 取渲染时刻 —— "X 前"不需要秒级精度，任意一次
 			// 设置写入 / 刷新推送都会重算这一块。
+			// lastRefreshAt = 本机最近一轮刷新时间（引擎每轮必写的那笔 lastRefresh，与 sourceHealth
+			// 是否被跳过无关 ⇒ 它是"最近一次真的刷过"的可靠下界）。交给纯函数做显示侧补偿：健康存档
+			// 在"状态没变"的轮次被跳过写入（见 60-helpers.js 的 sourceHealthSameOf），
+			// 不补偿的话全部源稳定时这里会显示"最近成功 30 天前"。
 			const healthRows = sourceHealthOf(
 				parseSourceHealth(s.sourceHealth).sources,
 				Date.now(),
-				{ entries: applyOrder(getVisibleEntries(s), order).map((g) => ({ id: g.id, name: g.name || g.id })) }
+				{
+					entries: applyOrder(getVisibleEntries(s), order).map((g) => ({ id: g.id, name: g.name || g.id })),
+					lastRefreshAt: Number(s.lastRefresh) || 0
+				}
 			);
 			// known = 有过记录（从没刷过 / 旧版本升上来的老存档没有记录，那种情况整块不渲染）
 			const healthKnown = healthRows.filter((h) => h.known);

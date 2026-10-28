@@ -296,6 +296,9 @@
 		//    某源转入失败的那一轮也可能把「最近成功」显旧。失败行另外两个数字不受影响：
 		//    down / nomatch 每轮都会推进 failStreak / nomatchStreak（内容真的变了）⇒ 每轮必写，
 		//    「连续失败 N 次 · 原因」始终新鲜。
+		// ✅ 这个"偏旧"在**显示侧**补掉，存储口径一个字没动（跳过写入的收益原样保留）：
+		//    sourceHealthOf 收 `opts.lastRefreshAt`（本机最近一轮刷新时间），对"当前持续成功"的源
+		//    用 max(okAt, lastRefreshAt) 当最近成功时间。语义见下面的 sourceHealthOf。
 		//
 		// 为什么按字段比而不按 JSON 文本比：旧存档可能来自手改/老版本（数字是字符串、字段缺失），
 		// 文本比较会因为键序/空白/类型差异假报"变了"；这里逐字段 Number()/String() 归一。
@@ -322,7 +325,21 @@
 		}
 
 		// 给 UI 的每源状态（纯函数）：sources = 存档里的 sources 表，now = 毫秒时间戳，
-		// opts = { entries: [{ id, name }]（**展示中**的条目，决定范围与顺序）, nomatchDays }。
+		// opts = { entries: [{ id, name }]（**展示中**的条目，决定范围与顺序）, nomatchDays,
+		//          lastRefreshAt }（本机最近一轮刷新时间，可选）。
+		//
+		// `lastRefreshAt` 只用来**修显示**，不碰存档（见 sourceHealthSameOf 上面那段代价说明）：
+		// 健康状况没变时那一笔设置被跳过 ⇒ 存档里的 okAt 停在最后一次真正写入的轮次，稳定 30 天
+		// 就会显示"最近成功 30 天前"。而"该源当前是 ok（failStreak / nomatchStreak 都是 0）"
+		// 在语义上等价于"此后每一轮都成功"，所以把最近成功时间顶到 lastRefreshAt 是等价换算，
+		// 不是编造。三处限定，缺一不可：
+		//   · 只看 **ok**：down / stale / never 恰恰意味着"此后并非每轮都成功"，用 lastRefresh
+		//     覆盖等于把他们真实的上次成功时间抹成"刚刚"（会与同一行的「连续失败 N 次」自相矛盾）；
+		//   · 要求 nomatchStreak === 0：state 的 ok 档**包含**"nomatch 还没到 7 天阈值"那段
+		//     （没到阈值不打扰用户），那段时间并没有成功解析出内容 —— 顶成"刚刚成功"就变成
+		//     显示谎言，而且这类行本来每轮都在推进 nomatchStreak（内容变了）⇒ 存档是新鲜的，
+		//     根本不需要补偿；
+		//   · 要求 lastRefreshAt <= now 且 okAt > 0：时钟回拨/坏值时不倒着编一个"最近成功"。
 		// 返回 [{ id, name, known, state, failStreak, nomatchDays, nomatchMs, lastOkAt, items, error, text }]
 		//   state:
 		//     "ok"    —— 正常（最近一轮成功，或连击还没到 N 天 —— 没到阈值不打扰用户）
@@ -334,6 +351,8 @@
 			const list = Array.isArray(opts && opts.entries) ? opts.entries : [];
 			const days = Number(opts && opts.nomatchDays) > 0 ? Number(opts.nomatchDays) : SOURCE_HEALTH_NOMATCH_DAYS;
 			const at = Number(now) || 0;
+			// 本机最近一轮刷新时间（设置里的 lastRefresh；0 / 缺省 = 不知道 ⇒ 不做任何补偿）
+			const lastRefreshAt = Math.max(0, Number(opts && opts.lastRefreshAt) || 0);
 			const map = sources && typeof sources === "object" ? sources : {};
 			return list.map((g) => {
 				const id = String((g && g.id) || "");
@@ -351,7 +370,13 @@
 				let state = "ok";
 				if (failStreak > 0) state = "down";
 				else if (nomatchMs >= days * SOURCE_HEALTH_DAY_MS) state = okAt > 0 ? "stale" : "never";
-				const agoText = okAt > 0 && at > okAt ? "最近成功 " + tickerSpanText(at - okAt) + "前" : "从未成功";
+				// 显示用的「最近成功」：只对"当前持续成功"的源把 okAt 顶到本机最近一轮刷新
+				//（跳过写入导致的显示偏旧，口径与理由见函数头注释）。判定 state 仍只看真实 okAt。
+				const lastOkAt = state === "ok" && rec && okAt > 0 && nomatchStreak === 0
+					&& lastRefreshAt > 0 && lastRefreshAt <= at && lastRefreshAt > okAt
+					? lastRefreshAt
+					: okAt;
+				const agoText = lastOkAt > 0 && at > lastOkAt ? "最近成功 " + tickerSpanText(at - lastOkAt) + "前" : "从未成功";
 				const parts = [];
 				if (state === "down") parts.push("连续失败 " + failStreak + " 次");
 				// "连续 N 天"：N 一律用**实际跨度**（向下取整），不用阈值字面量 —— 否则 9 天会说成 7 天。
@@ -367,7 +392,7 @@
 					failStreak,
 					nomatchDays,
 					nomatchMs,
-					lastOkAt: okAt,
+					lastOkAt,
 					items,
 					error: rec && rec.error ? String(rec.error) : "",
 					text: parts.join(" · ")

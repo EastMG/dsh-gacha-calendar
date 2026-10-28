@@ -258,6 +258,82 @@ export default async function runHealth() {
 		check("最近成功时间会随时间推移变旧（不是落盘时算好的死值）", stale.text === "最近成功 30 天前", stale.text);
 	}
 
+	// ── ④b 显示侧补偿：ok 状态的「最近成功」取 max(okAt, lastRefreshAt) ────────────────
+	// 背景（6d674db 的副作用）：状态没变的轮次**跳过** sourceHealth 写入（省一次 1.4~3.6s 的宿主
+	// 往返），代价是存档里的 okAt 停在最后一次真正写入的轮次 ⇒ 全部源稳定 30 天，面板会显示
+	// "最近成功 30 天前"，越走越旧。补偿只在**显示时**做：ok 状态语义上等价于"此后每轮都成功"，
+	// 把最近成功顶到本机最近一轮刷新时间不改变事实。**存档口径一个字没动**（sourceHealthSameOf
+	// 与跳过写入的逻辑没有改，收益原样保留）。
+	{
+		const entries = [{ id: "ok1", name: "原神" }];
+		// 最后一笔健康存档写在 30 天前，但本机刚刚刷过一轮（且此后每轮都成功）
+		const longAgo = { ok1: recOf({ at: NOW - 30 * DAY, okAt: NOW - 30 * DAY, items: 2 }) };
+
+		const withoutOpt = T.sourceHealthOf(longAgo, NOW, { entries })[0];
+		check("不传 lastRefreshAt ⇒ 与旧行为逐字相同（老调用方一个字不用改）",
+			withoutOpt.lastOkAt === NOW - 30 * DAY && withoutOpt.text === "最近成功 30 天前",
+			JSON.stringify({ lastOkAt: withoutOpt.lastOkAt, text: withoutOpt.text }));
+
+		const fresh = T.sourceHealthOf(longAgo, NOW, { entries, lastRefreshAt: NOW - 60000 })[0];
+		check("ok 状态 + lastRefreshAt ⇒ lastOkAt = max(okAt, lastRefreshAt)（okAt 更旧时顶到最近刷新）",
+			fresh.lastOkAt === NOW - 60000, String(fresh.lastOkAt));
+		check("ok 状态 + lastRefreshAt ⇒ 文案跟着变新（不再显示「30 天前」）",
+			fresh.text === "最近成功 1 分前", fresh.text);
+		check("补偿只动 lastOkAt / text：state / items / known 都不受影响（判定仍只看真实 okAt）",
+			fresh.state === "ok" && fresh.items === 2 && fresh.known === true,
+			JSON.stringify({ state: fresh.state, items: fresh.items, known: fresh.known }));
+
+		// lastRefreshAt 比 okAt 还旧（刚写过一笔存档、刷新时间戳反而更早）：不许倒退
+		const keep = T.sourceHealthOf({ ok1: recOf({ okAt: NOW - DAY }) }, NOW, { entries, lastRefreshAt: NOW - 5 * DAY })[0];
+		check("lastRefreshAt 更旧 ⇒ 不倒退（max 仍取 okAt）",
+			keep.lastOkAt === NOW - DAY && keep.text === "最近成功 1 天前",
+			JSON.stringify({ lastOkAt: keep.lastOkAt, text: keep.text }));
+
+		// 三种异常状态 + 「ok 但 nomatch 连击未到阈值」：真实 okAt 一个字节都不许被覆盖
+		const bad = {
+			down1: recOf({ okAt: NOW - 2 * DAY, failStreak: 3, error: "卡池失败：网络不通" }),
+			stale1: recOf({ okAt: NOW - 10 * DAY, nomatchStreak: 8, nomatchSince: NOW - 8 * DAY }),
+			never1: recOf({ okAt: 0, nomatchStreak: 7, nomatchSince: NOW - 7 * DAY }),
+			noma1: recOf({ okAt: NOW - 4 * DAY, nomatchStreak: 2, nomatchSince: NOW - 2 * DAY })
+		};
+		const badEntries = [
+			{ id: "down1", name: "鸣潮" }, { id: "stale1", name: "异环" },
+			{ id: "never1", name: "雪松" }, { id: "noma1", name: "蔚蓝" }
+		];
+		const rowsBad = Object.fromEntries(T.sourceHealthOf(bad, NOW, { entries: badEntries, lastRefreshAt: NOW - 60000 }).map((r) => [r.id, r]));
+		check("down 不参与 max：lastOkAt 与整行文案逐字不变（连续失败与上次成功不能自相矛盾）",
+			rowsBad.down1.lastOkAt === NOW - 2 * DAY
+			&& rowsBad.down1.text === "连续失败 3 次 · 最近成功 2 天前 · 卡池失败：网络不通",
+			JSON.stringify({ lastOkAt: rowsBad.down1.lastOkAt, text: rowsBad.down1.text }));
+		check("stale 不参与 max：lastOkAt 与整行文案逐字不变（疑似停更的时间不许被抹新）",
+			rowsBad.stale1.lastOkAt === NOW - 10 * DAY
+			&& rowsBad.stale1.text === "连续 8 天没解析出内容 · 最近成功 10 天前 · 疑似改版或停更",
+			JSON.stringify({ lastOkAt: rowsBad.stale1.lastOkAt, text: rowsBad.stale1.text }));
+		check("never 不参与 max：仍是「从未成功」（不许被编成「刚刚成功」）",
+			rowsBad.never1.lastOkAt === 0
+			&& rowsBad.never1.text === "连续 7 天没解析出内容 · 从未成功 · 疑似改版或停更",
+			JSON.stringify({ lastOkAt: rowsBad.never1.lastOkAt, text: rowsBad.never1.text }));
+		// ok 档**并不**等于"此后每轮都成功"：nomatch 没到 7 天阈值时 state 也是 ok，
+		// 但那段确实没解析出内容 ⇒ 顶成"刚刚成功"就是显示谎言（这类行本来每轮都在推进
+		// nomatchStreak = 内容变了 ⇒ 存档是新鲜的，根本不需要补偿）。
+		check("ok 档但 nomatch 连击未到阈值 ⇒ 也不参与 max（那一段并没有成功过）",
+			rowsBad.noma1.state === "ok" && rowsBad.noma1.lastOkAt === NOW - 4 * DAY
+			&& rowsBad.noma1.text === "最近成功 4 天前",
+			JSON.stringify({ state: rowsBad.noma1.state, lastOkAt: rowsBad.noma1.lastOkAt, text: rowsBad.noma1.text }));
+
+		// lastRefreshAt = 0 / 从未刷过 ⇒ 等价于不传（设置里的默认值就是 0）
+		const zero = T.sourceHealthOf(longAgo, NOW, { entries, lastRefreshAt: 0 })[0];
+		check("lastRefreshAt=0（从未刷过 / 老调用）⇒ 与不传完全一致",
+			zero.lastOkAt === withoutOpt.lastOkAt && zero.text === withoutOpt.text,
+			JSON.stringify({ lastOkAt: zero.lastOkAt, text: zero.text }));
+
+		// 时钟回拨：lastRefreshAt 在未来 ⇒ 不顶（否则 at - lastOkAt 为负，文案会退化成「从未成功」）
+		const future = T.sourceHealthOf(longAgo, NOW, { entries, lastRefreshAt: NOW + DAY })[0];
+		check("lastRefreshAt 在未来（时钟回拨/坏值）⇒ 不参与 max（不编「未来成功」）",
+			future.lastOkAt === NOW - 30 * DAY && future.text === "最近成功 30 天前",
+			JSON.stringify({ lastOkAt: future.lastOkAt, text: future.text }));
+	}
+
 	// ── ⑤ 持久化路径：引擎刷新后**真的**把 sourceHealth 写进存储 ────────────────────
 	{
 		// 只留一个条目可见（其余全部隐藏）⇒ 本轮只发 1 个请求；transport 直接失败 ⇒ down（离线可跑）
@@ -426,6 +502,16 @@ export default async function runHealth() {
 			block.slice(0, 120));
 		// 文案由 core 给（UI 只拼「· 名字 · text」），不是渲染层现写一套
 		check("行文案来自纯函数的 text（渲染层不另写一套措辞）", /"· " \+ h\.name \+ " · " \+ h\.text/.test(comp));
+
+		// 显示侧补偿必须**接上线**：纯函数支持 lastRefreshAt 却没传 ⇒ 稳定源照样越走越旧
+		// （功能"看起来做了"但用户看到的还是「最近成功 30 天前」）。
+		check("设置页把 lastRefresh 作为 lastRefreshAt 传进纯函数（显示侧补偿的接线）",
+			/lastRefreshAt:\s*Number\(s\.lastRefresh\)\s*\|\|\s*0/.test(comp));
+		const callAt = comp.indexOf("const healthRows = sourceHealthOf(");
+		const callSnippet = callAt < 0 ? "" : comp.slice(callAt, callAt + 1200);
+		check("lastRefreshAt 传在 sourceHealthOf 的 opts 里（不是传到别处去了）",
+			callAt >= 0 && /lastRefreshAt:\s*Number\(s\.lastRefresh\)\s*\|\|\s*0/.test(callSnippet),
+			callSnippet.slice(0, 200));
 	}
 
 	// ── ⑧ 构建产物里也有（src/ 是唯一真源，产物必须同源）─────────────────────────────
