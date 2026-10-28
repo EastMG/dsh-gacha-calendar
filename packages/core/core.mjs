@@ -77,13 +77,20 @@
 			// 最近一次联网抓取的解析结果（JSON：{ [gameId]: {banner,bannerDates,roles,event,eventDates} }）
 			lastData: "",
 			// 来源健康存档（JSON：{ v, at, sources: { [id]: { at, okAt, items, error,
-			// failStreak, nomatchStreak, nomatchSince } } }）：每轮刷新后由引擎累积写回，
+			// failStreak, nomatchStreak, nomatchSince } } }）：**由「立即检查」（selfCheck）累积写回**，
+			// 与面板刷新**彻底无关**（刷新只写 lastData / lastRefresh …，2026-10-28 用户决策）。
 			// 设置页的「来源健康」只读它（纯函数 sourceHealthOf，60-helpers.js）。
 			// **刻意与 lastData 分开**：lastData 是渲染的唯一数据源（形状是冻结契约），
 			// 健康是跨轮累积的历史状态 —— 混进去会同时污染渲染与对外 Result JSON。
 			// 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 与 src/index.js 的 schema 里
 			// （三处齐的守卫见 test/cases-health.mjs）。
 			sourceHealth: "",
+			// 最近一次「立即检查」跑完的时间（毫秒时间戳；0 = 从未自检）。
+			// **每次自检都写**（不管 sourceHealth 的内容变没变）—— 内容存档只在变化时写，
+			// 所以它不能拿来当"上次自检"；设置页标题行显示的「上次自检 X 前」只读这个键，
+			// 而这份数据有多旧正是解耦后必须让人看见的东西。
+			// 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 与 src/index.js 的 schema 里。
+			healthCheckedAt: 0,
 			// 每游戏主题色覆盖：{ id: "#rrggbb" }（空 = 用出厂色 / 名字哈希），由设置页的取色器写入
 			gameColors: "{}",
 			// 不展示的条目 id 列表（设置页开关）；出厂默认隐藏见条目的 `defaultHidden` 字段
@@ -449,7 +456,8 @@
 			return { ...base, okAt: at, items: Number(round.items) || 0 };
 		}
 
-		// 一轮刷新后的整体更新（纯函数）：rounds = 逐条结论，keepIds = 现存条目 id（含隐藏的）。
+		// 一次**自检**后的整体更新（纯函数）：rounds = 逐条结论，keepIds = 现存条目 id（含隐藏的）。
+		// （2026-10-28 解耦前这里是"一轮刷新后"，写入口从 refresh() 挪到 selfCheck()，口径一字未改。）
 		// · 旧记录只搬"条目还在"的那些（删掉的条目不再占存档；隐藏条目本轮没抓 ⇒ 原样保留）；
 		// · 本轮 skip 的条目（两侧都没配来源 / 被跳过）：**记录一并丢掉** —— 不把"没抓"写成
 		//   "失败"，也不留一条再也不会更新的历史（那会僵成一条假「疑似停更」）。
@@ -481,23 +489,28 @@
 		}
 
 		// 语义比较：新算出的存档 next 与存储里的旧值 prevRaw 是否**内容相同**。
-		// 用途：引擎刷新时决定「要不要再写一笔设置」—— 设置写入是一次宿主往返（实测一次 1.4~3.6s），
-		// 每轮无脑写等于给"什么都没变"的健康状态白付一次往返（来源健康上线后刷新总时长 +~20%）。
+		// 用途：**自检**时决定「要不要再写一笔 sourceHealth」—— 设置写入是一次宿主往返
+		// （实测一次 1.4~3.6s），"什么都没变"的那次自检没必要为它白付一次（自检是手动动作，
+		// 省下来的是用户盯着转圈的时间）。
 		//
 		// 比较口径：v + sources 逐 id 逐字段，但**忽略三处本轮时间戳**：
 		//   · 顶层 at          —— 存档时间戳（UI 不读它，只作"上次记录时间"）
 		//   · 每条记录的 at    —— 同上，逐源版本
 		//   · 每条记录的 okAt  —— 成功的那一轮会被写成 now（sourceHealthNextOf），与 at 同性质。
-		//                          把它算进比较 ⇒ 只要有一个源正常，逐轮都会"不同"，一次也跳不掉
-		//                          （实测：忽略前每轮必写，等于没优化）。
+		//                          把它算进比较 ⇒ 只要有一个源正常，每次都"不同"，一次也跳不掉。
 		// ⚠️ 如实写明的代价：跳过的轮次不刷新存档里的时间戳，所以健康面板里的「最近成功 X 前」
 		//    可能停在**上一次内容变化**（或上一次别的原因触发的写入）的那一轮 —— 健康的行会越走越旧，
 		//    某源转入失败的那一轮也可能把「最近成功」显旧。失败行另外两个数字不受影响：
-		//    down / nomatch 每轮都会推进 failStreak / nomatchStreak（内容真的变了）⇒ 每轮必写，
+		//    down / nomatch 每次都会推进 failStreak / nomatchStreak（内容真的变了）⇒ 必写，
 		//    「连续失败 N 次 · 原因」始终新鲜。
-		// ✅ 这个"偏旧"在**显示侧**补掉，存储口径一个字没动（跳过写入的收益原样保留）：
-		//    sourceHealthOf 收 `opts.lastRefreshAt`（本机最近一轮刷新时间），对"当前持续成功"的源
-		//    用 max(okAt, lastRefreshAt) 当最近成功时间。语义见下面的 sourceHealthOf。
+		// ✅ 2026-10-28 的解耦把「这份数据有多旧」这件事交给了**另一个数字**，不再做显示侧补偿：
+		//    · 健康记录现在只由「立即检查」（`selfCheck()`）写，写入口唯一 ⇒ 存档的"旧"只可能是
+		//      "上次自检以来内容没变"，不再是"刷新跑过但没检查"；
+		//    · 卡片标题行显示 `healthCheckedAt` 换算出的「上次自检 X 前」/「从未自检」——
+		//      那是**自检时刻**，每次自检必写，所以它永远新鲜，不会被跳过写入影响；
+		//    · 早先那套 `opts.lastRefreshAt`（用 max(okAt, 最近刷新时间) 顶新显示）**已删除**：
+		//      解耦后刷新与健康无关，再拿刷新时间当证据就会伪造出"刚刚成功"的假象
+		//      （刷新跑得很勤、自检很久没做时最明显）。查最后成功时间请看行里的真实 okAt。
 		//
 		// 为什么按字段比而不按 JSON 文本比：旧存档可能来自手改/老版本（数字是字符串、字段缺失），
 		// 文本比较会因为键序/空白/类型差异假报"变了"；这里逐字段 Number()/String() 归一。
@@ -524,21 +537,12 @@
 		}
 
 		// 给 UI 的每源状态（纯函数）：sources = 存档里的 sources 表，now = 毫秒时间戳，
-		// opts = { entries: [{ id, name }]（**展示中**的条目，决定范围与顺序）, nomatchDays,
-		//          lastRefreshAt }（本机最近一轮刷新时间，可选）。
+		// opts = { entries: [{ id, name }]（**展示中**的条目，决定范围与顺序）, nomatchDays }。
 		//
-		// `lastRefreshAt` 只用来**修显示**，不碰存档（见 sourceHealthSameOf 上面那段代价说明）：
-		// 健康状况没变时那一笔设置被跳过 ⇒ 存档里的 okAt 停在最后一次真正写入的轮次，稳定 30 天
-		// 就会显示"最近成功 30 天前"。而"该源当前是 ok（failStreak / nomatchStreak 都是 0）"
-		// 在语义上等价于"此后每一轮都成功"，所以把最近成功时间顶到 lastRefreshAt 是等价换算，
-		// 不是编造。三处限定，缺一不可：
-		//   · 只看 **ok**：down / stale / never 恰恰意味着"此后并非每轮都成功"，用 lastRefresh
-		//     覆盖等于把他们真实的上次成功时间抹成"刚刚"（会与同一行的「连续失败 N 次」自相矛盾）；
-		//   · 要求 nomatchStreak === 0：state 的 ok 档**包含**"nomatch 还没到 7 天阈值"那段
-		//     （没到阈值不打扰用户），那段时间并没有成功解析出内容 —— 顶成"刚刚成功"就变成
-		//     显示谎言，而且这类行本来每轮都在推进 nomatchStreak（内容变了）⇒ 存档是新鲜的，
-		//     根本不需要补偿；
-		//   · 要求 lastRefreshAt <= now 且 okAt > 0：时钟回拨/坏值时不倒着编一个"最近成功"。
+		// ⚠️ 2026-10-28 起**不再有** `opts.lastRefreshAt`（旧版用它把 ok 行的最近成功时间顶到本机
+		// 最近一轮刷新）：健康记录只由「立即检查」写、与面板刷新彻底解耦，刷新时间不再是"这些源
+		// 最近成功过"的任何证据。传了也会被忽略（不再有补偿逻辑）；「这份数据有多旧」由设置页
+		// 标题行的「上次自检 X 前」（读 `healthCheckedAt`）回答。
 		// 返回 [{ id, name, known, state, failStreak, nomatchDays, nomatchMs, lastOkAt, items, error,
 		//         text, tag, tone, reason, agoText }]
 		//   展示侧三段（2026-10-28 设置页改四列网格）：tag = 状态胶囊短标签（带灰点/警告/叉），
@@ -554,8 +558,6 @@
 			const list = Array.isArray(opts && opts.entries) ? opts.entries : [];
 			const days = Number(opts && opts.nomatchDays) > 0 ? Number(opts.nomatchDays) : SOURCE_HEALTH_NOMATCH_DAYS;
 			const at = Number(now) || 0;
-			// 本机最近一轮刷新时间（设置里的 lastRefresh；0 / 缺省 = 不知道 ⇒ 不做任何补偿）
-			const lastRefreshAt = Math.max(0, Number(opts && opts.lastRefreshAt) || 0);
 			const map = sources && typeof sources === "object" ? sources : {};
 			return list.map((g) => {
 				const id = String((g && g.id) || "");
@@ -573,12 +575,9 @@
 				let state = "ok";
 				if (failStreak > 0) state = "down";
 				else if (nomatchMs >= days * SOURCE_HEALTH_DAY_MS) state = okAt > 0 ? "stale" : "never";
-				// 显示用的「最近成功」：只对"当前持续成功"的源把 okAt 顶到本机最近一轮刷新
-				//（跳过写入导致的显示偏旧，口径与理由见函数头注释）。判定 state 仍只看真实 okAt。
-				const lastOkAt = state === "ok" && rec && okAt > 0 && nomatchStreak === 0
-					&& lastRefreshAt > 0 && lastRefreshAt <= at && lastRefreshAt > okAt
-					? lastRefreshAt
-					: okAt;
+				// 显示用的「最近成功」= 存档里的真实 okAt（2026-10-28 解耦后不再用刷新时间补偿，
+				// 理由见函数头注释；"数据多旧"由设置页的「上次自检 X 前」回答）。
+				const lastOkAt = okAt;
 				const agoText = lastOkAt > 0 && at > lastOkAt ? "最近成功 " + tickerSpanText(at - lastOkAt) + "前" : "从未成功";
 				const parts = [];
 				if (state === "down") parts.push("连续失败 " + failStreak + " 次");
@@ -2051,7 +2050,10 @@ export function createEngine(env) {
 			// engine 会读取的存储键（宿主按自己的方式实现即可；读不到就用 DEFAULT_SETTINGS 的默认值）
 			//   order / hidden / shown / removed / customEntries / customUrls / customEventUrls —— 配置
 			//   lastData / lastRefresh / lastSource / lastVersion                            —— 缓存
+			//   sourceHealth / healthCheckedAt                                               —— 自检产物
 			//   （lastVersion = 产出该缓存的插件版本，用于"更新插件后首次启动强制刷新"，见 autoRefreshPlan）
+			//   （自检产物**只由 selfCheck() 写**，与 refresh() 无关：前者是"逐个来源核对一遍"，
+			//     后者是"数据轮转"。两者解耦后，健康数据不会因为刷新而显得更新。）
 			//
 			// ⚠️ 2026-10-03 修：这里**漏了 `shown`**，后果是「出厂默认隐藏的条目，勾上也不抓」。
 			//    链路：设置页勾选 → 写入 `shown`（宿主表单）→ 面板直接读表单快照 `snapshot.value`，
@@ -2081,9 +2083,11 @@ export function createEngine(env) {
 				// 设置页点 ✕ 写它；面板侧按同一份配置决定还显不显示。**别漏** —— 与上面每个键同理。
 				"starHintDismissed",
 				"newPanel", "newPanelMigrated", "lastData", "lastRefresh", "lastSource", "lastVersion",
-				// sourceHealth：来源健康存档（引擎每轮刷新写、设置页「来源健康」读）。
+				// sourceHealth：来源健康存档（**只有 selfCheck 写**、设置页「来源健康」读）。
 				// 别漏 —— 与上面每个缓存键同理（漏了就是「写了却读不到」，见 test/cases-health.mjs）。
-				"sourceHealth"
+				// healthCheckedAt：最近一次自检的时间（毫秒；0 = 从未自检），设置页标题行拿它显示
+				// 「上次自检 X 前」。与 sourceHealth 成对 —— 一个存内容、一个存"这份内容多旧"。
+				"sourceHealth", "healthCheckedAt"
 			];
 
 			// 读取配置（缺失项回落到 10-config.js 的 DEFAULT_SETTINGS）
@@ -14282,13 +14286,20 @@ EVENT_FETCHERS["r1999"] = {
 
 			// 抓取一轮：读配置 → 逐条抓取（卡池/活动各自独立）→ 与上次缓存按列合并 →
 			// 写回缓存 → 返回 Result JSON（这就是"产品接口"，各平台 UI 只读它）。
+			// ⚠️ 它**只管数据轮转**：只写 lastData / lastRefresh / lastSource / lastVersion。
+			// 来源健康（sourceHealth / healthCheckedAt）与它**彻底无关** —— 那是「立即检查」
+			// （selfCheck）的产物，写入口只有那一个（见下面 selfCheck 那段的说明）。
 			// 在途保护：同一引擎并发调用时复用同一轮（否则两轮各自无条件写缓存，慢的那轮会用更旧的数据
 			// 盖掉快的那轮，而 lastRefresh 却是更晚的时间戳 = "旧内容配新时间"）。
 			let refreshInFlight = null;
-			// 来源健康存档的"最近一次写/读是否失败"（内存值：不落盘、不弹 UI、不影响返回值）。
-			// 用户真机截图（2026-10-28）：面板底栏「刷新失败：settings-write-rejected:sourceHealth」，
-			// 而那一轮抓取其实是**成功**的 —— 健康数据只是附属产物，宿主拒绝写这个键（例如宿主进程
-			// 还是旧 schema、没有 `sourceHealth`）不该污染刷新状态。失败原因留在这里，只供设置页
+			// 来源健康存档的"最近一次读/写是否失败"（内存值：不落盘、不弹 UI、不影响返回值）。
+			// ⚠️ 2026-10-28 用户决策：健康记录**只由「立即检查」（selfCheck）写**，面板刷新完全不碰它 ——
+			// 刷新做的是"数据轮转"（lastData），它不检查来源；把健康挂在自动刷新上，会让一份很久
+			// 没检查过的健康数据被每轮刷新"顺带"写成刚更新过的样子。
+			// 所以这个标记也**只有 selfCheck 设置/清除**（refresh 的函数体里连这个键的名字都不出现）。
+			// 历史背景（保留）：用户真机截图（2026-10-28）面板底栏「刷新失败：
+			// settings-write-rejected:sourceHealth」，而那一轮抓取其实是**成功**的 —— 宿主拒绝写这个
+			// 键（例如宿主进程还是旧 schema）不该让一次抓取/自检整次失败。失败原因留在这里，只供设置页
 			// 健康卡的空状态说清"写了但被拒"（见 84-settings-page.js），不参与任何判定。
 			let healthSaveError = "";
 			function refresh() {
@@ -14342,56 +14353,6 @@ EVENT_FETCHERS["r1999"] = {
 					games[e.id] = normalizeRecord(rec, e.name);
 				});
 				await storage.set("lastData", JSON.stringify(games));
-				// ── 来源健康（待办第 3 项「解析器自检」）：逐源累积状态 ─────────────────────
-				// 只写**独立键** `sourceHealth`：lastData 的字段与口径一个字都不动（它是渲染的唯一
-				// 数据源，也是对外冻结的 Result JSON 契约）。判定全在 60-helpers.js 的纯函数里，
-				// 这里只做"读旧存档 → 折算本轮结论 → 写回"三步；存档坏了 parseSourceHealth 会当空表。
-				// 隐藏条目本轮没抓（results 里没有它）⇒ 旧记录原样保留；已删除的条目从存档里丢掉。
-				// 为什么放在引擎而不是宿主：刷新的**唯一产出点**就在这里 —— 宿主读不到 gachaFail /
-				// eventFail 这一轮的原始结果，另起一条链路只会算出第二套结论。
-				const healthRounds = entries.map((e, i) => sourceHealthRoundOf(
-					// 用**生效的**地址（含用户在设置页填的 customUrls / customEventUrls），
-					// 与 refreshAll 里构造 targets 的口径完全一致 —— 否则"用户给没有活动侧的条目
-					// 补了一条活动地址"会被算成"没配活动侧"，进而低估 items / 误判成 nomatch。
-					{
-						id: e.id,
-						url: getEntryUrl(s, e.id, e.url),
-						eventUrl: getEntryUrl(s, e.id, e.eventUrl, "eventUrl")
-					},
-					result.results[i] || { reason: "skipped" }
-				));
-				// ⚠️ 下面整段是**尽力而为**（2026-10-28 用户真机截图：面板底栏「刷新失败：
-				// settings-write-rejected:sourceHealth」，而那一轮抓取其实是**成功**的）：健康数据是
-				// 附属产物，读不到旧存档 / 写不进新存档都**不许**让 refresh() 抛错、不许改返回值、
-				// 不许影响面板状态。失败只留一个内存标记（healthSaveError），供设置页空状态说清原因。
-				try {
-					// 读旧存档只读一次：既交给 sourceHealthUpdateOf 折算，也交给 sourceHealthSameOf 比较
-					const prevHealthRaw = await storage.get("sourceHealth");
-					const health = sourceHealthUpdateOf(
-						prevHealthRaw,
-						healthRounds,
-						result.at,
-						allEntries.map((e) => e.id)
-					);
-					// 只有**内容真的变了**才写这一笔设置（比较见 60-helpers.js 的 sourceHealthSameOf：
-					// 忽略顶层 at / 记录 at / okAt 这三处"本轮时间戳"，否则每轮都不同 = 等于没优化）。
-					// 设置写入是宿主往返（一次 1.4~3.6s），"什么都没变"的轮次不该为它再付一次。
-					//
-					// 跳过时**不会漏写 lastData**：lastData 是上面那笔独立的 storage.set（每轮都写），
-					// 与这里互不牵连；lastRefresh / lastSource 同理。
-					// 真的写的时候，写进去的仍是本轮算出的完整存档（at 是本轮时间）。
-					if (!sourceHealthSameOf(prevHealthRaw, health)) {
-						await storage.set("sourceHealth", JSON.stringify(health));
-					}
-					// 走到这里 = 存档已与本轮结论一致（写成功，或本来就不用写）⇒ 清掉上一次的失败标记。
-					// 必须清：否则宿主修好之后空状态会一直说"暂时无法保存"。
-					healthSaveError = "";
-				} catch (err) {
-					// 吞掉：不 rethrow、不改返回值、不动下面那几笔核心键（它们真坏了才该失败）。
-					// 诊断只进内存 + 控制台，不弹 UI —— 面板底栏不许因此出现「刷新失败」。
-					healthSaveError = String((err && err.message) || err);
-					try { console.warn("[gacha-calendar] 来源健康存档读取/写入失败（不影响刷新）", healthSaveError); } catch { /* ignore */ }
-				}
 				await storage.set("lastRefresh", result.at);
 				await storage.set("lastSource", result.status === "ok" ? "web" : "none");
 				// 版本哨兵：只要这一轮**真的抓到了东西**（okCount > 0）就记当前插件版本。
@@ -14411,11 +14372,17 @@ EVENT_FETCHERS["r1999"] = {
 
 			// 解析器自检（交接文档 §13.4）：对每个条目的两侧来源各跑一次，报告「解析出什么 / 报错原因」。
 			// 用途：源站改版时快速定位「哪个源解析出 0 条、哪个源 403/超时」——各平台都能调用
-			// （将来扩展里做「自检」按钮、CLI、CI 都行）。**只读**：不写缓存、不动设置。
+			// （将来扩展里做「自检」按钮、CLI、CI 都行）。
+			//
+			// **自检是来源健康的唯一写入口**（2026-10-28 用户决策）：它只写两笔设置 ——
+			// `sourceHealth`（逐源累积存档，内容真的变了才写）与 `healthCheckedAt`（本次自检时间，
+			// 每次都写）。**缓存与配置一个字不动**：不写 lastData / lastRefresh / lastSource /
+			// lastVersion，也不改任何用户设置。
 			//
 			// 口径与刷新一致：**只自检"选中展示"的条目**（同 getVisibleEntries）。
 			// 理由：自检的用途是"定位当前实际在用的源"，而隐藏条目既不在面板显示、也不参与刷新；
 			// 把它们一起报出来只会让结论里混进与当前无关的失败（如已隐藏的自定义条目 404）。
+			// 隐藏条目的**旧健康记录**则原样保留（keepIds 用全量条目，见下面那段）。
 			async function selfCheck(options) {
 				useEnv();
 				const timeoutMs = (options && options.timeoutMs) || REFRESH_TIMEOUT_MS;
@@ -14465,7 +14432,60 @@ EVENT_FETCHERS["r1999"] = {
 					// 内部 id 只对自定义条目有意义（用户要靠它区分自己加的条目）；内置条目写游戏名即可
 					if (bad.length) problems.push(`${v.name}${v.custom ? `(${id})` : ""}: ${bad.join("；")}`);
 				}
-				return { at: nowMs(), total: entries.length, summary, problems, games };
+				const at = nowMs();
+				// ── 来源健康（待办第 3 项）：**唯一写入口**就在这里 ──────────────────────────
+				// 解耦前这段在 refresh() 里（每轮自动刷新顺手写一笔），后果是：手动自检抓了却不留痕，
+				// 而健康数据反过来只随自动刷新更新 ⇒ "界面显示刚刚成功、其实很久没自检过"。
+				// 现在只写**两个独立键**，lastData 的字段与口径一个字都不动（它是渲染的唯一数据源，
+				// 也是对外冻结的 Result JSON 契约）：
+				//   · `sourceHealth`     —— 逐源累积存档，**内容真的变了才写**（省一次 1.4~3.6s 宿主往返）；
+				//   · `healthCheckedAt`  —— 本次自检时间，**每次都写**（内容没变的轮次也得留下"刚检查过"
+				//     的痕迹；它同时保证设置页的表单订阅收到推送 ⇒ 卡片在自检跑完立刻刷新）。
+				// 判定全在 60-helpers.js 的纯函数里，这里只做"读旧存档 → 折算本轮结论 → 写回"三步；
+				// 存档坏了 parseSourceHealth 会当空表。折算口径与解耦前 refresh() 里那段**逐字相同**：
+				//   · rounds 用**生效的**地址（含用户在设置页填的 customUrls / customEventUrls），
+				//     与上面 targets 的构造口径完全一致 —— 否则"用户给没有活动侧的条目补了一条活动
+				//     地址"会被算成"没配活动侧"，进而低估 items / 误判成 nomatch；
+				//   · keepIds 用**全量**条目（含隐藏的）：隐藏条目这轮没抓 ⇒ 旧记录原样保留，
+				//     已删除的条目从存档里丢掉。
+				const healthRounds = entries.map((e, i) => sourceHealthRoundOf(
+					{
+						id: e.id,
+						url: getEntryUrl(s, e.id, e.url),
+						eventUrl: getEntryUrl(s, e.id, e.eventUrl, "eventUrl")
+					},
+					results[i] || { reason: "skipped" }
+				));
+				// ⚠️ 整段是**尽力而为**：读不到旧存档 / 写不进新存档都**不许**让自检抛错、
+				// 不许吞掉报告（报告是这次操作的主产物）。失败只留内存标记 healthSaveError，
+				// 供设置页空状态说清"写了但被拒"。
+				try {
+					// 读旧存档只读一次：既交给 sourceHealthUpdateOf 折算，也交给 sourceHealthSameOf 比较
+					const prevHealthRaw = await storage.get("sourceHealth");
+					const health = sourceHealthUpdateOf(
+						prevHealthRaw,
+						healthRounds,
+						at,
+						getAllEntries(s).map((e) => e.id)
+					);
+					// 只有**内容真的变了**才写这一笔（比较见 60-helpers.js 的 sourceHealthSameOf：
+					// 忽略顶层 at / 记录 at / okAt 这三处"本轮时间戳"，否则每次自检都不同 = 等于没优化）。
+					if (!sourceHealthSameOf(prevHealthRaw, health)) {
+						await storage.set("sourceHealth", JSON.stringify(health));
+					}
+					// 自检时间**每次都写**（理由见上面那段）—— 它也是这次自检在"内容没变"时
+					// 唯一会落盘的键。
+					await storage.set("healthCheckedAt", at);
+					// 走到这里 = 存档已与本次结论一致（写成功，或本来就不用写）⇒ 清掉上一次的失败标记。
+					// 必须清：否则宿主修好之后空状态会一直说"暂时无法保存"。
+					healthSaveError = "";
+				} catch (err) {
+					// 吞掉：不 rethrow、不改报告、不动缓存与配置（它们这次**根本没写**）。
+					// 诊断只进内存 + 控制台，不弹 UI —— 自检报告不许因此变成失败。
+					healthSaveError = String((err && err.message) || err);
+					try { console.warn("[gacha-calendar] 来源健康存档读取/写入失败（不影响自检报告）", healthSaveError); } catch { /* ignore */ }
+				}
+				return { at, total: entries.length, summary, problems, games };
 			}
 
 			// 测试出口：给回归脚本用。**如实暴露**（不做隐藏门控/环境变量开关）：

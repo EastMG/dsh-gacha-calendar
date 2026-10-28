@@ -19,7 +19,10 @@
 			// engine 会读取的存储键（宿主按自己的方式实现即可；读不到就用 DEFAULT_SETTINGS 的默认值）
 			//   order / hidden / shown / removed / customEntries / customUrls / customEventUrls —— 配置
 			//   lastData / lastRefresh / lastSource / lastVersion                            —— 缓存
+			//   sourceHealth / healthCheckedAt                                               —— 自检产物
 			//   （lastVersion = 产出该缓存的插件版本，用于"更新插件后首次启动强制刷新"，见 autoRefreshPlan）
+			//   （自检产物**只由 selfCheck() 写**，与 refresh() 无关：前者是"逐个来源核对一遍"，
+			//     后者是"数据轮转"。两者解耦后，健康数据不会因为刷新而显得更新。）
 			//
 			// ⚠️ 2026-10-03 修：这里**漏了 `shown`**，后果是「出厂默认隐藏的条目，勾上也不抓」。
 			//    链路：设置页勾选 → 写入 `shown`（宿主表单）→ 面板直接读表单快照 `snapshot.value`，
@@ -49,9 +52,11 @@
 				// 设置页点 ✕ 写它；面板侧按同一份配置决定还显不显示。**别漏** —— 与上面每个键同理。
 				"starHintDismissed",
 				"newPanel", "newPanelMigrated", "lastData", "lastRefresh", "lastSource", "lastVersion",
-				// sourceHealth：来源健康存档（引擎每轮刷新写、设置页「来源健康」读）。
+				// sourceHealth：来源健康存档（**只有 selfCheck 写**、设置页「来源健康」读）。
 				// 别漏 —— 与上面每个缓存键同理（漏了就是「写了却读不到」，见 test/cases-health.mjs）。
-				"sourceHealth"
+				// healthCheckedAt：最近一次自检的时间（毫秒；0 = 从未自检），设置页标题行拿它显示
+				// 「上次自检 X 前」。与 sourceHealth 成对 —— 一个存内容、一个存"这份内容多旧"。
+				"sourceHealth", "healthCheckedAt"
 			];
 
 			// 读取配置（缺失项回落到 10-config.js 的 DEFAULT_SETTINGS）

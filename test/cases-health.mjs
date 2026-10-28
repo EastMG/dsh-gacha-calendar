@@ -11,12 +11,14 @@
 // 另守四件"改一半就静默失效"的接线：
 //   ① 设置键三处齐（10-config.js 的 DEFAULT_SETTINGS / engine-head.js 的 CONFIG_KEYS /
 //      src/index.js 的 schema 且 .volatile()）—— 漏一处的症状分别是"读不到"与"写入被拒"；
-//   ② 引擎刷新后**真的把 sourceHealth 写进存储**（不是只算了没存）——用 core 引擎实跑一轮；
+//   ② 引擎**「立即检查」（selfCheck）之后真的把 sourceHealth 写进存储**（不是只算了没存），
+//      用 core 引擎 + 真夹具实跑一次 —— 并且**刷新不再写健康**（2026-10-28 解耦，反向守卫）；
 //   ③ 设置页**一张卡**装完（标题「解析器自检」+ 按钮「立即检查」+ 来源健康列表），健康块
 //      任何情况下都渲染一行状态（用户抱怨过"整块不渲染 ⇒ 看不到功能"，也抱怨过设置页太长），
-//      且渲染路径不做任何 IO。
-//   ④ 内容没变就**不写**那一笔设置（每轮白写 = 白付一次宿主往返）、变了（如 ok → down）必须写 ——
-//      用真实夹具跑完整 refresh，按假存储的写入记账断言。
+//      且渲染路径不做任何 IO；解耦后卡片还必须显示「上次自检 X 前」（数据不再自动更新）；
+//   ④ 内容没变就**不写**那一笔存档（自检也是低频动作，但没必要为"什么都没变"付宿主往返）、
+//      变了（如 ok → down）必须写 —— 用真实夹具跑完整 selfCheck，按假存储的写入记账断言。
+//      ⚠️ 但「上次自检」的时间戳（healthCheckedAt）**每次都写**，否则内容没变的检查不留痕。
 
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -45,6 +47,47 @@ function makeStorage(seed) {
 		sets: [],
 		async get(k) { return m.get(k); },
 		async set(k, v) { this.sets.push([k, v]); m.set(k, v); }
+	};
+}
+
+// fgo 夹具的 transport（真夹具：两侧都解析出内容 = ok）。用 fgo 而不是 nte 的理由：
+// 它的卡池与活动两侧都在夹具里，且活动侧走宿主代理路径 —— 与真实链路一致。
+// 返回 { transport, down, up }：down() 之后所有请求 503（ok → down 的实跑就靠它）。
+function fgoTransport() {
+	const { FGO_GACHA_URL, FGO_EVENT_URL } = T.parsers["fgo"];
+	const fixtureImpl = useFixtures({
+		[FGO_GACHA_URL]: "fgo-gacha-parse/response.txt",
+		[FGO_EVENT_URL]: "fgo-event-parse/response.txt"
+	});
+	let netDown = false;
+	const impl = async (url, opts) => (netDown
+		? { ok: false, status: 503, headers: { get: () => null }, text: async () => "", json: async () => ({}) }
+		: fixtureImpl(url, opts));
+	const transport = {
+		async fetchRaw(url, opts) { return impl(url, opts); },
+		// fgo 的抓取器走宿主代理（mode:"proxy"）⇒ 与 harness 的 setFetchImpl 同一套包装：
+		// 拼出 `/api/gacha-calendar-proxy?url=…` 交给夹具 impl，再把 {status, body} 拆开。
+		async fetchViaProxy(url, opts) {
+			const o = opts || {};
+			let api = "/api/gacha-calendar-proxy?url=" + encodeURIComponent(String(url));
+			api += "&referer=" + encodeURIComponent(o.referer || "");
+			if (o.headers) api += "&headers=" + encodeURIComponent(JSON.stringify(o.headers));
+			let payload;
+			if (o.body !== void 0) {
+				api += "&contentType=" + encodeURIComponent(o.contentType || "application/json; charset=utf-8");
+				payload = typeof o.body === "string" ? o.body : JSON.stringify(o.body);
+			}
+			const res = await impl(api, payload !== void 0 ? { method: "POST", body: payload } : undefined);
+			if (!res || !res.ok) throw new Error("proxy-http-" + ((res && res.status) || 0));
+			const wrapped = JSON.parse(await res.text());
+			if (wrapped.status !== 200) throw new Error("proxy-bad:" + wrapped.status);
+			return wrapped.body;
+		}
+	};
+	return {
+		transport,
+		down() { netDown = true; },
+		up() { netDown = false; }
 	};
 }
 
@@ -278,38 +321,33 @@ export default async function runHealth() {
 		check("最近成功时间会随时间推移变旧（不是落盘时算好的死值）", stale.text === "最近成功 30 天前", stale.text);
 	}
 
-	// ── ④b 显示侧补偿：ok 状态的「最近成功」取 max(okAt, lastRefreshAt) ────────────────
-	// 背景（6d674db 的副作用）：状态没变的轮次**跳过** sourceHealth 写入（省一次 1.4~3.6s 的宿主
-	// 往返），代价是存档里的 okAt 停在最后一次真正写入的轮次 ⇒ 全部源稳定 30 天，面板会显示
-	// "最近成功 30 天前"，越走越旧。补偿只在**显示时**做：ok 状态语义上等价于"此后每轮都成功"，
-	// 把最近成功顶到本机最近一轮刷新时间不改变事实。**存档口径一个字没动**（sourceHealthSameOf
-	// 与跳过写入的逻辑没有改，收益原样保留）。
+	// ── ④b 显示侧补偿**已移除**：健康记录与面板刷新彻底解耦 ─────────────────────────────
+	// 背景：解耦前 refresh() 每轮顺手写健康存档，但"内容没变"的轮次会跳过那一笔 ⇒ 存档里的 okAt
+	// 停在最后一次真正写入的轮次，稳定 30 天就会显示"最近成功 30 天前"。当时的补丁在显示侧：
+	// `max(okAt, lastRefreshAt)` —— 把最近成功顶到本机最近一轮刷新时间。
+	// ⚠️ 2026-10-28 用户决策：健康只由「立即检查」写、与刷新彻底无关 ⇒ 那段补偿**必须删掉**：
+	// 刷新跑得很勤、自检却很久没做时，它正好会把"很久没核对来源"伪装成"刚刚成功"。
+	// 现在「这份数据有多旧」由设置页标题行的「上次自检 X 前」（healthCheckedAt）回答。
 	{
 		const entries = [{ id: "ok1", name: "原神" }];
-		// 最后一笔健康存档写在 30 天前，但本机刚刚刷过一轮（且此后每轮都成功）
+		// 最后一笔健康存档写在 30 天前，而本机刚刚刷过很多轮（刷新与健康已经无关）
 		const longAgo = { ok1: recOf({ at: NOW - 30 * DAY, okAt: NOW - 30 * DAY, items: 2 }) };
 
-		const withoutOpt = T.sourceHealthOf(longAgo, NOW, { entries })[0];
-		check("不传 lastRefreshAt ⇒ 与旧行为逐字相同（老调用方一个字不用改）",
-			withoutOpt.lastOkAt === NOW - 30 * DAY && withoutOpt.text === "最近成功 30 天前",
-			JSON.stringify({ lastOkAt: withoutOpt.lastOkAt, text: withoutOpt.text }));
+		const base = T.sourceHealthOf(longAgo, NOW, { entries })[0];
+		check("ok 行显示存档里的真实「最近成功」（刷新过但没自检 ⇒ 仍是 30 天前）",
+			base.lastOkAt === NOW - 30 * DAY && base.text === "最近成功 30 天前",
+			JSON.stringify({ lastOkAt: base.lastOkAt, text: base.text }));
 
-		const fresh = T.sourceHealthOf(longAgo, NOW, { entries, lastRefreshAt: NOW - 60000 })[0];
-		check("ok 状态 + lastRefreshAt ⇒ lastOkAt = max(okAt, lastRefreshAt)（okAt 更旧时顶到最近刷新）",
-			fresh.lastOkAt === NOW - 60000, String(fresh.lastOkAt));
-		check("ok 状态 + lastRefreshAt ⇒ 文案跟着变新（不再显示「30 天前」）",
-			fresh.text === "最近成功 1 分前", fresh.text);
-		check("补偿只动 lastOkAt / text：state / items / known 都不受影响（判定仍只看真实 okAt）",
-			fresh.state === "ok" && fresh.items === 2 && fresh.known === true,
-			JSON.stringify({ state: fresh.state, items: fresh.items, known: fresh.known }));
+		// 老调用方即使还传这个参数也不许再顶新（参数与逻辑都删了 ⇒ 传了就是被忽略）
+		const withOpt = T.sourceHealthOf(longAgo, NOW, { entries, lastRefreshAt: NOW - 60000 })[0];
+		check("传 lastRefreshAt 也不再顶新（删除生效：刷新时间不再是「最近成功」的证据）",
+			withOpt.lastOkAt === NOW - 30 * DAY && withOpt.text === "最近成功 30 天前",
+			JSON.stringify({ lastOkAt: withOpt.lastOkAt, text: withOpt.text }));
+		check("忽略 lastRefreshAt 时 state / items / known 都不受影响（判定只读真实 okAt）",
+			withOpt.state === "ok" && withOpt.items === 2 && withOpt.known === true,
+			JSON.stringify({ state: withOpt.state, items: withOpt.items, known: withOpt.known }));
 
-		// lastRefreshAt 比 okAt 还旧（刚写过一笔存档、刷新时间戳反而更早）：不许倒退
-		const keep = T.sourceHealthOf({ ok1: recOf({ okAt: NOW - DAY }) }, NOW, { entries, lastRefreshAt: NOW - 5 * DAY })[0];
-		check("lastRefreshAt 更旧 ⇒ 不倒退（max 仍取 okAt）",
-			keep.lastOkAt === NOW - DAY && keep.text === "最近成功 1 天前",
-			JSON.stringify({ lastOkAt: keep.lastOkAt, text: keep.text }));
-
-		// 三种异常状态 + 「ok 但 nomatch 连击未到阈值」：真实 okAt 一个字节都不许被覆盖
+		// 三种异常状态 + 「ok 但 nomatch 连击未到阈值」：去掉补偿后必须逐字不变（证明没误伤）
 		const bad = {
 			down1: recOf({ okAt: NOW - 2 * DAY, failStreak: 3, error: "卡池失败：网络不通" }),
 			stale1: recOf({ okAt: NOW - 10 * DAY, nomatchStreak: 8, nomatchSince: NOW - 8 * DAY }),
@@ -321,166 +359,220 @@ export default async function runHealth() {
 			{ id: "never1", name: "雪松" }, { id: "noma1", name: "蔚蓝" }
 		];
 		const rowsBad = Object.fromEntries(T.sourceHealthOf(bad, NOW, { entries: badEntries, lastRefreshAt: NOW - 60000 }).map((r) => [r.id, r]));
-		check("down 不参与 max：lastOkAt 与整行文案逐字不变（连续失败与上次成功不能自相矛盾）",
+		check("down 行 lastOkAt 与整行文案逐字不变（连续失败与上次成功不能自相矛盾）",
 			rowsBad.down1.lastOkAt === NOW - 2 * DAY
 			&& rowsBad.down1.text === "连续失败 3 次 · 最近成功 2 天前 · 卡池失败：网络不通",
 			JSON.stringify({ lastOkAt: rowsBad.down1.lastOkAt, text: rowsBad.down1.text }));
-		check("stale 不参与 max：lastOkAt 与整行文案逐字不变（疑似停更的时间不许被抹新）",
+		check("stale 行 lastOkAt 与整行文案逐字不变（疑似停更的时间不许被抹新）",
 			rowsBad.stale1.lastOkAt === NOW - 10 * DAY
 			&& rowsBad.stale1.text === "连续 8 天没解析出内容 · 最近成功 10 天前 · 疑似改版或停更",
 			JSON.stringify({ lastOkAt: rowsBad.stale1.lastOkAt, text: rowsBad.stale1.text }));
-		check("never 不参与 max：仍是「从未成功」（不许被编成「刚刚成功」）",
+		check("never 行仍是「从未成功」（不许被编成「刚刚成功」）",
 			rowsBad.never1.lastOkAt === 0
 			&& rowsBad.never1.text === "连续 7 天没解析出内容 · 从未成功 · 疑似改版或停更",
 			JSON.stringify({ lastOkAt: rowsBad.never1.lastOkAt, text: rowsBad.never1.text }));
 		// ok 档**并不**等于"此后每轮都成功"：nomatch 没到 7 天阈值时 state 也是 ok，
-		// 但那段确实没解析出内容 ⇒ 顶成"刚刚成功"就是显示谎言（这类行本来每轮都在推进
-		// nomatchStreak = 内容变了 ⇒ 存档是新鲜的，根本不需要补偿）。
-		check("ok 档但 nomatch 连击未到阈值 ⇒ 也不参与 max（那一段并没有成功过）",
+		// 但那段确实没解析出内容 ⇒ 顶成"刚刚成功"就是显示谎言。
+		check("ok 档但 nomatch 连击未到阈值 ⇒ 仍显示真实 okAt（那一段并没有成功过）",
 			rowsBad.noma1.state === "ok" && rowsBad.noma1.lastOkAt === NOW - 4 * DAY
 			&& rowsBad.noma1.text === "最近成功 4 天前",
 			JSON.stringify({ state: rowsBad.noma1.state, lastOkAt: rowsBad.noma1.lastOkAt, text: rowsBad.noma1.text }));
 
-		// lastRefreshAt = 0 / 从未刷过 ⇒ 等价于不传（设置里的默认值就是 0）
-		const zero = T.sourceHealthOf(longAgo, NOW, { entries, lastRefreshAt: 0 })[0];
-		check("lastRefreshAt=0（从未刷过 / 老调用）⇒ 与不传完全一致",
-			zero.lastOkAt === withoutOpt.lastOkAt && zero.text === withoutOpt.text,
-			JSON.stringify({ lastOkAt: zero.lastOkAt, text: zero.text }));
-
-		// 时钟回拨：lastRefreshAt 在未来 ⇒ 不顶（否则 at - lastOkAt 为负，文案会退化成「从未成功」）
+		// 时钟回拨 / 缺省：以前是两个专门的分支，现在连分支都没有（参数被完全忽略）
 		const future = T.sourceHealthOf(longAgo, NOW, { entries, lastRefreshAt: NOW + DAY })[0];
-		check("lastRefreshAt 在未来（时钟回拨/坏值）⇒ 不参与 max（不编「未来成功」）",
+		check("lastRefreshAt 在未来（时钟回拨/坏值）⇒ 同样被忽略（不会编「未来成功」）",
 			future.lastOkAt === NOW - 30 * DAY && future.text === "最近成功 30 天前",
 			JSON.stringify({ lastOkAt: future.lastOkAt, text: future.text }));
+		const zero = T.sourceHealthOf(longAgo, NOW, { entries, lastRefreshAt: 0 })[0];
+		check("lastRefreshAt=0 / 缺省 ⇒ 与传了完全一致（这个参数已彻底不影响结果）",
+			zero.lastOkAt === withOpt.lastOkAt && zero.text === withOpt.text,
+			JSON.stringify({ lastOkAt: zero.lastOkAt, text: zero.text }));
+
+		// 静态：补偿必须真的从代码里消失，而不是"只是设置页没传"。
+		// 判之前先把注释剥掉 —— 解释"为什么废弃"的注释里会**提到**这个参数名，那是说明不是逻辑。
+		const stripComments = (t) => t.replace(/^\s*\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
+		const helpersText = readFileSync(path.join(SRC, "60-helpers.js"), "utf8");
+		check("60-helpers.js 的**代码**里已经没有任何 lastRefreshAt（参数 + 补偿逻辑都删了，不是停用）",
+			stripComments(helpersText).indexOf("lastRefreshAt") < 0);
+		const compText = readComponentsSource();
+		check("设置页的**代码**里也没有 lastRefreshAt（健康卡不再拿刷新时间当证据）",
+			stripComments(compText).indexOf("lastRefreshAt") < 0);
 	}
 
-	// ── ⑤ 持久化路径：引擎刷新后**真的**把 sourceHealth 写进存储 ────────────────────
+	// ── ⑤ 持久化路径：**「立即检查」（selfCheck）** 之后真的把 sourceHealth 写进存储 ──────
+	// 2026-10-28 解耦后的事实：refresh() 完全不碰 sourceHealth；唯一的写入口是 selfCheck。
+	// 这一段的形态因此整体换掉：假 storage + **真夹具**跑一次 selfCheck（fgo 两侧都有内容 ⇒ ok），
+	// 然后检查存档内容、**并断言 lastData 没有被写**（自检不许污染渲染数据源）。
 	{
-		// 只留一个条目可见（其余全部隐藏）⇒ 本轮只发 1 个请求；transport 直接失败 ⇒ down（离线可跑）
-		const allIds = createEngine({ transport: { async fetchRaw() { throw new Error("no-network"); }, async fetchViaProxy() { throw new Error("no-network"); } }, storage: makeStorage(), now: () => NOW }).__test.SOURCES.map((s) => s.id);
-		const visibleId = "nte";
+		const fx = fgoTransport();
+		// 夹具抓取时刻（与 cases-b3 同一时刻：当期卡池/活动都覆盖它）
+		const clock = Date.UTC(2026, 9, 1, 17, 27);
+		const allIds = createEngine({ transport: fx.transport, storage: makeStorage(), now: () => clock }).__test.SOURCES.map((s) => s.id);
 		const storage = makeStorage({
-			hidden: allIds.filter((id) => id !== visibleId),
-			// 旧存档里有一个"当前隐藏"的条目记录：本路刷新不该动它
-			sourceHealth: JSON.stringify({ v: 1, at: NOW - DAY, sources: { genshin: recOf({ okAt: NOW - DAY }) } })
+			hidden: allIds.filter((id) => id !== "fgo"),
+			// 旧存档里有一个"当前隐藏"的条目记录：自检不该动它
+			sourceHealth: JSON.stringify({ v: 1, at: clock - DAY, sources: { genshin: recOf({ okAt: clock - DAY }) } })
 		});
-		const engine = createEngine({
+		const engine = createEngine({ transport: fx.transport, storage, now: () => clock, timer: { setTimeout, clearTimeout } });
+		const report = await engine.selfCheck();
+		const raw = await storage.get("sourceHealth");
+		check("自检后存储里出现了 sourceHealth（引擎真的写了，不是只算了）",
+			typeof raw === "string" && raw.length > 2, String(raw).slice(0, 80));
+		let parsed = null;
+		try { parsed = JSON.parse(raw); } catch (e) { parsed = null; }
+		check("sourceHealth 是合法 JSON 且带 { v, at, sources }",
+			!!parsed && parsed.v === 1 && typeof parsed.at === "number" && !!parsed.sources, String(raw).slice(0, 120));
+		check("本轮抓到的条目有记录（ok ⇒ items=2 / okAt=本次自检时间 / 无失败连击）",
+			!!parsed && !!parsed.sources.fgo && parsed.sources.fgo.items === 2
+			&& parsed.sources.fgo.okAt === clock && parsed.sources.fgo.failStreak === 0,
+			JSON.stringify(parsed && parsed.sources.fgo));
+		check("隐藏条目的旧记录原样保留（本轮没抓它，不许编造结论）",
+			!!parsed && !!parsed.sources.genshin && parsed.sources.genshin.okAt === clock - DAY,
+			JSON.stringify(parsed && parsed.sources.genshin));
+		// 解耦的两个核心断言：自检写健康，但**不碰**渲染数据源与刷新状态
+		const wroteKeys = storage.sets.map(([k]) => k);
+		check("自检**不写 lastData**（健康与渲染数据源彻底分开）",
+			wroteKeys.indexOf("lastData") < 0, wroteKeys.join(","));
+		check("自检不写 lastRefresh / lastSource / lastVersion（它不冒充一次刷新）",
+			["lastRefresh", "lastSource", "lastVersion"].every((k) => wroteKeys.indexOf(k) < 0), wroteKeys.join(","));
+		check("自检只写两笔：sourceHealth + healthCheckedAt",
+			wroteKeys.length === 2 && wroteKeys[0] === "sourceHealth" && wroteKeys[1] === "healthCheckedAt",
+			wroteKeys.join(","));
+		check("healthCheckedAt = 本次自检时间（「上次自检 X 前」的数据源）",
+			(await storage.get("healthCheckedAt")) === clock, String(await storage.get("healthCheckedAt")));
+		check("自检报告本身照旧返回（at / total / summary / problems / games）",
+			!!report && report.at === clock && report.total === 1
+			&& !!report.summary && !!report.games.fgo && Array.isArray(report.problems),
+			JSON.stringify(report && Object.keys(report)));
+		// 存档里只放健康字段，不许混进内容字段（渲染字段属于 lastData）
+		const contentFields = ["banner", "roles", "bannerDates", "event", "eventDates"];
+		const leaked = Object.entries((parsed && parsed.sources) || {})
+			.filter(([, v]) => v && contentFields.some((k) => k in v));
+		check("sourceHealth 的每条记录只有健康字段（内容字段仍只进 lastData）",
+			leaked.length === 0, leaked.map(([id]) => id).join(","));
+
+		// 抓取从一开始就失败的那一类（离线可跑）：自检也要把结论落盘 —— down / failStreak=1 /
+		// okAt 仍是 0（= 从未成功，UI 显示「从未成功」而不是「最近成功 0 天前」）。
+		const downStorage = makeStorage({ hidden: allIds.filter((id) => id !== "fgo") });
+		const downEngine = createEngine({
 			transport: {
 				async fetchRaw() { throw new Error("no-network"); },
 				async fetchViaProxy() { throw new Error("no-network"); }
 			},
-			storage,
-			now: () => NOW,
-			// 缩短到点收尾的预算：本轮 transport 立刻失败，不该等 20 秒
+			storage: downStorage,
+			now: () => clock,
 			timer: { setTimeout, clearTimeout }
 		});
-		await engine.refresh();
-		const raw = await storage.get("sourceHealth");
-		check("刷新后存储里出现了 sourceHealth（引擎真的写了，不是只算了）", typeof raw === "string" && raw.length > 2, String(raw).slice(0, 80));
-		let parsed = null;
-		try { parsed = JSON.parse(raw); } catch (e) { parsed = null; }
-		check("sourceHealth 是合法 JSON 且带 { v, at, sources }", !!parsed && parsed.v === 1 && typeof parsed.at === "number" && !!parsed.sources, String(raw).slice(0, 120));
-		check("本轮抓到的条目有记录（down ⇒ failStreak=1，okAt 仍是 0 = 从未成功）",
-			!!parsed && !!parsed.sources[visibleId] && parsed.sources[visibleId].failStreak === 1 && parsed.sources[visibleId].okAt === 0,
-			JSON.stringify(parsed && parsed.sources[visibleId]));
-		check("隐藏条目的旧记录原样保留（本轮没抓它，不许编造结论）",
-			!!parsed && !!parsed.sources.genshin && parsed.sources.genshin.okAt === NOW - DAY,
-			JSON.stringify(parsed && parsed.sources.genshin));
-		// 不污染渲染的唯一数据源：lastData 里不许出现健康字段
-		const lastData = JSON.parse(await storage.get("lastData"));
-		const polluted = Object.entries(lastData).filter(([, v]) => v && ["failStreak", "nomatchStreak", "nomatchSince", "health"].some((k) => k in v));
-		check("lastData 的形状没被污染（健康状态只进 sourceHealth）", polluted.length === 0, polluted.map(([id]) => id).join(","));
+		await downEngine.selfCheck();
+		let parsedDown = null;
+		try { parsedDown = JSON.parse(await downStorage.get("sourceHealth")); } catch (e) { parsedDown = null; }
+		check("抓取失败的自检也落盘（down ⇒ failStreak=1，okAt 仍是 0 = 从未成功）",
+			!!parsedDown && !!parsedDown.sources.fgo && parsedDown.sources.fgo.failStreak === 1
+			&& parsedDown.sources.fgo.okAt === 0,
+			JSON.stringify(parsedDown && parsedDown.sources.fgo));
+		check("抓取失败的自检也不写 lastData（失败的那次也不许污染渲染数据源）",
+			downStorage.sets.map(([k]) => k).indexOf("lastData") < 0,
+			downStorage.sets.map(([k]) => k).join(","));
 	}
 
-	// ── ⑤b 「内容没变就不写」的实跑：状态未变 ⇒ 第二轮零写入；状态变了（ok → down）⇒ 必写 ────
-	// 用 fgo 的真实夹具跑**完整 refresh**（两侧都解析出内容 = ok），时间由 let 时钟推进 ——
-	// 这是最常见的场景：源都正常、每轮结论一样，旧的实现每轮都要为它付一次设置往返。
+	// ── ⑤a 反向守卫：**refresh() 完全不碰来源健康** ──────────────────────────────────────
+	// 解耦的硬要求：刷新只写 lastData / lastRefresh / lastSource / lastVersion。
+	// 这里实跑一轮 refresh（真夹具 ⇒ 成功），按写入记账断言那四个缓存键之外一笔都不写 ——
+	// 尤其不许出现 sourceHealth / healthCheckedAt。
 	{
-		const { FGO_GACHA_URL, FGO_EVENT_URL } = T.parsers["fgo"];
-		const fixtureImpl = useFixtures({
-			[FGO_GACHA_URL]: "fgo-gacha-parse/response.txt",
-			[FGO_EVENT_URL]: "fgo-event-parse/response.txt"
-		});
-		let netDown = false;
-		const impl = async (url, opts) => (netDown
-			? { ok: false, status: 503, headers: { get: () => null }, text: async () => "", json: async () => ({}) }
-			: fixtureImpl(url, opts));
-		const transport = {
-			async fetchRaw(url, opts) { return impl(url, opts); },
-			// fgo 的抓取器走宿主代理（mode:"proxy"）⇒ 与 harness 的 setFetchImpl 同一套包装：
-			// 拼出 `/api/gacha-calendar-proxy?url=…` 交给夹具 impl，再把 {status, body} 拆开。
-			async fetchViaProxy(url, opts) {
-				const o = opts || {};
-				let api = "/api/gacha-calendar-proxy?url=" + encodeURIComponent(String(url));
-				api += "&referer=" + encodeURIComponent(o.referer || "");
-				if (o.headers) api += "&headers=" + encodeURIComponent(JSON.stringify(o.headers));
-				let payload;
-				if (o.body !== void 0) {
-					api += "&contentType=" + encodeURIComponent(o.contentType || "application/json; charset=utf-8");
-					payload = typeof o.body === "string" ? o.body : JSON.stringify(o.body);
-				}
-				const res = await impl(api, payload !== void 0 ? { method: "POST", body: payload } : undefined);
-				if (!res || !res.ok) throw new Error("proxy-http-" + ((res && res.status) || 0));
-				const wrapped = JSON.parse(await res.text());
-				if (wrapped.status !== 200) throw new Error("proxy-bad:" + wrapped.status);
-				return wrapped.body;
-			}
-		};
+		const fx = fgoTransport();
+		const clock = Date.UTC(2026, 9, 1, 17, 27);
+		const allIds = createEngine({ transport: fx.transport, storage: makeStorage(), now: () => clock }).__test.SOURCES.map((s) => s.id);
+		const storage = makeStorage({ hidden: allIds.filter((id) => id !== "fgo") });
+		const engine = createEngine({ transport: fx.transport, storage, now: () => clock, timer: { setTimeout, clearTimeout } });
+		const result = await engine.refresh();
+		const keys = storage.sets.map(([k]) => k);
+		check("refresh() 实跑：健康存档一个字节都不写（sourceHealth 不在写入账上）",
+			keys.indexOf("sourceHealth") < 0, keys.join(","));
+		check("refresh() 实跑：也不写 healthCheckedAt（自检时间只属于自检）",
+			keys.indexOf("healthCheckedAt") < 0, keys.join(","));
+		check("refresh() 实跑：写的就是那四个缓存键（lastData / lastRefresh / lastSource / lastVersion）",
+			keys.length === 4 && ["lastData", "lastRefresh", "lastSource", "lastVersion"].every((k) => keys.indexOf(k) >= 0),
+			keys.join(","));
+		check("refresh() 的返回值仍是冻结的 Result JSON（解耦没有改动契约）",
+			!!result && result.schemaVersion === 1 && result.refreshedAt === clock && !!result.games.fgo,
+			JSON.stringify(result && Object.keys(result)));
+	}
+
+	// ── ⑤b 「内容没变就不写」的实跑（现在是**自检**轮次）：结论未变 ⇒ 不写存档（但写自检时间）；
+	//    结论变了（ok → down）⇒ 必写 ─────────────────────────────────────────────────────
+	// 用 fgo 的真实夹具跑**完整 selfCheck**（两侧都解析出内容 = ok），时间由 let 时钟推进 ——
+	// 自检是低频手动动作，"什么都没变"的那次仍然不该为存档付一次宿主往返；但**自检时间每次必写**，
+	// 否则用户刚点完「立即检查」却看到「上次自检 3 天前」。
+	{
+		const fx = fgoTransport();
 		// 夹具抓取时刻（与 cases-b3 同一时刻：当期卡池/活动都覆盖它）
 		let clock = Date.UTC(2026, 9, 1, 17, 27);
-		const allIds = createEngine({ transport, storage: makeStorage(), now: () => clock }).__test.SOURCES.map((s) => s.id);
+		const allIds = createEngine({ transport: fx.transport, storage: makeStorage(), now: () => clock }).__test.SOURCES.map((s) => s.id);
 		const storage = makeStorage({ hidden: allIds.filter((id) => id !== "fgo") });
-		const engine = createEngine({ transport, storage, now: () => clock, timer: { setTimeout, clearTimeout } });
-		const wroteSince = (from) => storage.sets.slice(from);
-		const keysSince = (from) => wroteSince(from).map(([k]) => k);
+		const engine = createEngine({ transport: fx.transport, storage, now: () => clock, timer: { setTimeout, clearTimeout } });
+		const keysSince = (from) => storage.sets.slice(from).map(([k]) => k);
 
-		await engine.refresh();
+		const firstClock = clock;
+		await engine.selfCheck();
 		const afterFirst = await storage.get("sourceHealth");
-		check("第一轮：健康存档写了一次（这一点是本测试的对照，不是优化目标）",
+		check("第一次自检：健康存档写了一次（这一点是本测试的对照，不是优化目标）",
 			keysSince(0).filter((k) => k === "sourceHealth").length === 1, keysSince(0).join(","));
+		check("第一次自检同时写下自检时间（否则「上次自检」永远显示从未自检）",
+			keysSince(0).indexOf("healthCheckedAt") >= 0 && (await storage.get("healthCheckedAt")) === clock,
+			keysSince(0).join(","));
 		let parsed1 = null;
 		try { parsed1 = JSON.parse(afterFirst); } catch (e) { parsed1 = null; }
-		check("第一轮 fgo 两侧都解析出内容 ⇒ ok / items=2 / 无失败连击",
+		check("第一次自检 fgo 两侧都解析出内容 ⇒ ok / items=2 / 无失败连击",
 			!!parsed1 && !!parsed1.sources.fgo && parsed1.sources.fgo.items === 2
 			&& parsed1.sources.fgo.failStreak === 0 && parsed1.sources.fgo.nomatchStreak === 0,
 			JSON.stringify(parsed1 && parsed1.sources.fgo));
 
-		// ── 第二轮：隔 10 分钟再刷，结论完全一样 ⇒ 不该写 sourceHealth ──
+		// ── 第二次：隔 10 分钟再自检，结论完全一样 ⇒ 不该写 sourceHealth（但自检时间必须推进）──
 		let mark = storage.sets.length;
 		clock += 600000;
-		await engine.refresh();
+		await engine.selfCheck();
 		const secondKeys = keysSince(mark);
-		check("状态完全没变的第二轮：**一笔都不写** sourceHealth（省掉的就是这次宿主往返）",
+		check("状态完全没变的第二次自检：**不写** sourceHealth（省掉的就是这次宿主往返）",
 			secondKeys.indexOf("sourceHealth") < 0, secondKeys.join(","));
-		check("跳过健康存档时 lastData 照旧写（它在上面的独立一笔里，不许被一起漏掉）",
-			secondKeys.indexOf("lastData") >= 0, secondKeys.join(","));
-		check("第二轮存储里的 sourceHealth 字符串与第一轮**逐字节相同**（不只是没写，内容也没漂）",
+		check("内容没变也必须写自检时间（healthCheckedAt 每次都写，否则「刚检查过」不留痕）",
+			secondKeys.indexOf("healthCheckedAt") >= 0 && (await storage.get("healthCheckedAt")) === clock,
+			secondKeys.join(","));
+		check("第二次自检也不写 lastData（健康与数据轮转彻底分开）",
+			secondKeys.indexOf("lastData") < 0, secondKeys.join(","));
+		check("第二次自检后存储里的 sourceHealth 字符串与第一次**逐字节相同**（不只是没写，内容也没漂）",
 			(await storage.get("sourceHealth")) === afterFirst);
 
-		// ── 第三轮：网络全挂 ⇒ ok → down，状态真的变了 ⇒ 必须写 ──
+		// ── 第三次：网络全挂 ⇒ ok → down，状态真的变了 ⇒ 必须写 ──
 		mark = storage.sets.length;
-		netDown = true;
+		fx.down();
 		clock += 600000;
-		await engine.refresh();
+		await engine.selfCheck();
 		const thirdKeys = keysSince(mark);
 		check("状态变了（ok → down）：必须写 sourceHealth（否则看板永远停在「正常」）",
 			thirdKeys.indexOf("sourceHealth") >= 0, thirdKeys.join(","));
-		check("状态变了这一轮 lastData 也照旧写", thirdKeys.indexOf("lastData") >= 0, thirdKeys.join(","));
+		check("状态变了这一次自检也照旧写自检时间", thirdKeys.indexOf("healthCheckedAt") >= 0, thirdKeys.join(","));
+		check("状态变了也不写 lastData（自检永远不动数据轮转）",
+			thirdKeys.indexOf("lastData") < 0, thirdKeys.join(","));
 		let parsed3 = null;
 		try { parsed3 = JSON.parse(await storage.get("sourceHealth")); } catch (e) { parsed3 = null; }
 		check("down 落盘：failStreak=1 / items=0 / 原因写进存档",
 			!!parsed3 && !!parsed3.sources.fgo && parsed3.sources.fgo.failStreak === 1
 			&& parsed3.sources.fgo.items === 0 && /503/.test(parsed3.sources.fgo.error),
 			JSON.stringify(parsed3 && parsed3.sources.fgo));
-		check("真的写的时候 at 是本轮最新时间（不是被跳过的旧时间）",
+		check("真的写的时候 at 是本次自检时间（不是被跳过的旧时间）",
 			!!parsed3 && parsed3.at === clock, JSON.stringify({ at: parsed3 && parsed3.at, clock }));
+		check("down 只推进 failStreak：okAt 停在最后一次成功的那次自检（失败不许抹掉上次成功）",
+			!!parsed3 && parsed3.sources.fgo.okAt === firstClock,
+			JSON.stringify({ okAt: parsed3 && parsed3.sources.fgo.okAt, firstClock }));
+		fx.up();
 
-		// ── ⑤c 健康存档被宿主拒绝 ⇒ **不许**把一次成功的刷新判成失败 ──────────────────────
+		// ── ⑤c 健康存档被宿主拒绝 ⇒ **不许**把一次成功的自检判成失败 ────────────────────────
 		// 真机现象（2026-10-28 用户截图）：面板底栏「刷新失败：settings-write-rejected:sourceHealth」，
 		// 而那一轮抓取其实是**成功**的 —— 根因是宿主进程还是旧 schema（没有 sourceHealth 这个键），
-		// `dshStorage.set` 因此抛错，而 refresh() 里那一笔是裸 await ⇒ 整轮刷新被当失败。
+		// `dshStorage.set` 因此抛错。解耦后这条写入链路只活在自检里 ⇒ 要求变成：报告照出、
+		// 缓存与配置一个字不动、失败只留一个内存标记（供设置页空状态说真话）。
 		// 这里用同一形态的假存储：只让 `set("sourceHealth")` 抛错，其余键照常落盘。
-		netDown = false;                 // 抓取本身恢复正常（本段要证明的是"抓取成功不被附属产物拖累"）
 		clock += 600000;
 		let rejectHealth = true;
 		const fmap = new Map(Object.entries({ hidden: allIds.filter((id) => id !== "fgo") }));
@@ -498,40 +590,41 @@ export default async function runHealth() {
 				fmap.set(k, v);
 			}
 		};
-		const engine2 = createEngine({ transport, storage: rejectingStorage, now: () => clock, timer: { setTimeout, clearTimeout } });
-		let result2 = null;
+		const engine2 = createEngine({ transport: fx.transport, storage: rejectingStorage, now: () => clock, timer: { setTimeout, clearTimeout } });
+		let report2 = null;
 		let threw2 = null;
-		try { result2 = await engine2.refresh(); } catch (e) { threw2 = e; }
-		check("健康存档被宿主拒绝时 refresh() **不抛**（附属产物写不进不该污染刷新状态）",
+		try { report2 = await engine2.selfCheck(); } catch (e) { threw2 = e; }
+		check("健康存档被宿主拒绝时 selfCheck() **不抛**（附属产物写不进不该让自检失败）",
 			threw2 === null, threw2 && threw2.message);
-		check("健康存档被拒时仍返回完整 Result JSON（schemaVersion / refreshedAt / parserVersions / games）",
-			!!result2 && result2.schemaVersion === 1 && result2.refreshedAt === clock
-			&& !!result2.games && !!result2.parserVersions,
-			JSON.stringify(result2 && Object.keys(result2)));
-		check("健康存档被拒时抓取结果照旧（fgo 两侧内容都在 —— 这一轮其实是成功的）",
-			!!result2 && !!result2.games && !!result2.games.fgo
-			&& !!result2.games.fgo.banner && !!result2.games.fgo.event,
-			JSON.stringify(result2 && result2.games && result2.games.fgo && Object.keys(result2.games.fgo)));
-		check("健康存档被拒时核心键照写：lastData / lastRefresh / lastSource / lastVersion（这些失败才算真的坏）",
-			fkeys.indexOf("lastData") >= 0 && fkeys.indexOf("lastRefresh") >= 0
-			&& fkeys.indexOf("lastSource") >= 0 && fkeys.indexOf("lastVersion") >= 0,
+		check("健康存档被拒时仍返回完整报告（at / total / summary / problems / games）",
+			!!report2 && report2.at === clock && typeof report2.total === "number"
+			&& !!report2.summary && !!report2.games && Array.isArray(report2.problems),
+			JSON.stringify(report2 && Object.keys(report2)));
+		check("健康存档被拒时自检结论照旧（fgo 两侧都成功 —— 这次自检其实是成功的）",
+			!!report2 && !!report2.games && !!report2.games.fgo
+			&& report2.games.fgo.gacha.state === "ok" && report2.games.fgo.event.state === "ok",
+			JSON.stringify(report2 && report2.games && report2.games.fgo));
+		check("健康存档被拒时缓存键一笔都没写（自检本来就不写它们，坏也不许连坐）",
+			["lastData", "lastRefresh", "lastSource", "lastVersion"].every((k) => fkeys.indexOf(k) < 0),
 			fkeys.join(","));
 		check("健康存档被拒：确实尝试写过（不是压根没算 / 没走到那一笔就被当成正常）",
 			rejected.length === 1 && typeof rejected[0] === "string" && rejected[0].length > 2,
 			String(rejected.length));
 		check("健康存档被拒：没写进去（存储里没有 sourceHealth，不许谎报已存）",
 			(await rejectingStorage.get("sourceHealth")) === undefined);
+		check("健康存档被拒：自检时间也没落盘（同一段里被截断，不留「检查过了」的半边假象）",
+			(await rejectingStorage.get("healthCheckedAt")) === undefined);
 		check("健康存档被拒留下内存标记，且带出宿主原因（设置页空状态靠它说真话）",
 			typeof engine2.healthSaveError === "function"
 			&& /settings-write-rejected:sourceHealth/.test(engine2.healthSaveError()),
 			typeof engine2.healthSaveError === "function" ? engine2.healthSaveError() : "无 healthSaveError 接口");
 
-		// 宿主修好（写入被接受）⇒ 下一轮要真的落盘，并且把失败标记清掉（否则空状态会一直报警）
+		// 宿主修好（写入被接受）⇒ 下一次自检要真的落盘，并且把失败标记清掉（否则空状态会一直报警）
 		rejectHealth = false;
 		mark = fkeys.length;
 		clock += 600000;
-		await engine2.refresh();
-		check("宿主修好后同一引擎再刷一轮：健康存档真的落盘了（v=1 且有本轮时间）",
+		await engine2.selfCheck();
+		check("宿主修好后同一引擎再自检：健康存档真的落盘了（v=1 且有本次自检时间）",
 			(() => {
 				let p = null;
 				try { p = JSON.parse(fmap.get("sourceHealth")); } catch (e) { p = null; }
@@ -539,15 +632,19 @@ export default async function runHealth() {
 			})(), String(fmap.get("sourceHealth")).slice(0, 120));
 		check("宿主修好后：失败标记必须清空（下次写成功就复位）",
 			engine2.healthSaveError() === "", String(engine2.healthSaveError()));
-		check("宿主修好后核心键照常写（lastData / lastRefresh）",
-			fkeys.slice(mark).indexOf("lastData") >= 0 && fkeys.slice(mark).indexOf("lastRefresh") >= 0,
+		check("宿主修好后：自检时间也落盘（卡片能显示新的「上次自检」）",
+			fmap.get("healthCheckedAt") === clock, String(fmap.get("healthCheckedAt")));
+		check("宿主修好后仍然不动缓存键（自检永远只写健康那两笔）",
+			["lastData", "lastRefresh", "lastSource", "lastVersion"].every((k) => fkeys.slice(mark).indexOf(k) < 0),
 			fkeys.slice(mark).join(","));
 	}
 
-	// ── ⑥ 设置键三处齐 + 阈值常量（漏一处就是"设了不生效"/"写入被拒"）────────────────
+	// ── ⑥ 设置键三处齐 + 阈值常量 + 「只有一个写入口」的静态守卫 ────────────────────────
 	{
 		check("DEFAULT_SETTINGS.sourceHealth 存在且是空串（10-config.js）",
 			T.DEFAULT_SETTINGS.sourceHealth === "", String(T.DEFAULT_SETTINGS.sourceHealth));
+		check("DEFAULT_SETTINGS.healthCheckedAt 存在且是 0 = 从未自检（10-config.js）",
+			T.DEFAULT_SETTINGS.healthCheckedAt === 0, String(T.DEFAULT_SETTINGS.healthCheckedAt));
 
 		const ehText = readFileSync(path.join(SRC, "engine-head.js"), "utf8");
 		const j = ehText.indexOf("const CONFIG_KEYS = [");
@@ -555,31 +652,67 @@ export default async function runHealth() {
 		const cfgKeys = [...cfgBlock.matchAll(/"([A-Za-z_$][\w$]*)"/g)].map((m) => m[1]);
 		check("引擎 CONFIG_KEYS 含 sourceHealth（漏了 = 设置页/健康面板读不到自己写的存档）",
 			cfgKeys.includes("sourceHealth"), cfgKeys.join(","));
+		check("引擎 CONFIG_KEYS 含 healthCheckedAt（漏了 = 设置页读不到「上次自检」）",
+			cfgKeys.includes("healthCheckedAt"), cfgKeys.join(","));
 
 		const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
-		check("宿主 schema 有 sourceHealth: z.string().default(\"\").volatile()（漏了 = 引擎写入被拒 ⇒ 刷新整轮失败）",
+		check("宿主 schema 有 sourceHealth: z.string().default(\"\").volatile()（漏了 = 引擎写入被拒）",
 			/sourceHealth:\s*z\.string\(\)\.default\(""\)\.volatile\(\)/.test(hostSrc));
+		check("宿主 schema 有 healthCheckedAt: z.number().default(0).volatile()（漏了 = 自检时间写不进去）",
+			/healthCheckedAt:\s*z\.number\(\)\.default\(0\)\.volatile\(\)/.test(hostSrc));
 
-		// ── 「健康存档失败不致命」的接线守卫（2026-10-28 用户真机截图：面板底栏
-		//    「刷新失败：settings-write-rejected:sourceHealth」，而那一轮抓取其实是成功的）──
+		// ── 「健康存档失败不致命」+「只有一个写入口」的接线守卫（2026-10-28 用户真机截图：
+		//    面板底栏「刷新失败：settings-write-rejected:sourceHealth」，而那一轮抓取其实是成功的）──
 		// ① 那一笔 storage.set 必须包在 try/catch 里，catch 里**只记标记、不许 rethrow**；
-		// ② 全 src/client 只许 engine-api.js 写这个键（别处散写一笔 = 又出现一条裸 await 的拒写路径）。
+		// ② 全 src/client 只许 engine-api.js 写这两个键（别处散写一笔 = 又出现一条裸 await 的拒写路径）；
+		// ③ 而且必须落在 **selfCheck 的函数体**里 —— refresh 的函数体切片内一个都不许出现。
 		const api = readFileSync(path.join(SRC, "engine-api.js"), "utf8");
-		const setAt = api.indexOf('await storage.set("sourceHealth"');
-		const catchAt = setAt < 0 ? -1 : api.indexOf("} catch (err) {", setAt);
-		const catchBlock = catchAt < 0 ? "" : api.slice(catchAt, catchAt + 700);
+		const refreshAt = api.indexOf("function refresh()");
+		const selfCheckAt = api.indexOf("async function selfCheck(");
+		// refresh() 的函数体切片**截止到 selfCheck 的文档注释之前**（那段注释讲的是自检，
+		// 会正当提到 sourceHealth —— 把它算进 refresh 会误报）。
+		const selfDocAt = refreshAt < 0 ? -1 : api.indexOf("// 解析器自检", refreshAt);
+		check("能切出 refresh() 与 selfCheck() 的函数体（守卫自身没瞎）",
+			refreshAt >= 0 && selfCheckAt > refreshAt && selfDocAt > refreshAt,
+			JSON.stringify({ refreshAt, selfCheckAt, selfDocAt }));
+		const refreshBody = refreshAt < 0 ? "" : api.slice(refreshAt, selfDocAt > refreshAt ? selfDocAt : selfCheckAt);
+		const selfCheckBody = selfCheckAt < 0 ? "" : api.slice(selfCheckAt, api.indexOf("const __test = {", selfCheckAt));
+		check("**refresh() 函数体里不许出现 sourceHealth**（解耦的硬要求：刷新完全不碰健康）",
+			refreshBody.length > 0 && refreshBody.indexOf("sourceHealth") < 0,
+			refreshBody.slice(Math.max(0, refreshBody.indexOf("sourceHealth") - 80), refreshBody.indexOf("sourceHealth") + 80));
+		check("refresh() 函数体里也不许出现 healthCheckedAt / healthSaveError（自检时间只属于自检）",
+			refreshBody.indexOf("healthCheckedAt") < 0 && refreshBody.indexOf("healthSaveError") < 0);
+		const setAt = selfCheckBody.indexOf('await storage.set("sourceHealth"');
+		const catchAt = setAt < 0 ? -1 : selfCheckBody.indexOf("} catch (err) {", setAt);
+		const catchBlock = catchAt < 0 ? "" : selfCheckBody.slice(catchAt, catchAt + 700);
+		check("engine-api.js 里唯一那笔 sourceHealth 写入在 selfCheck() 函数体内",
+			setAt >= 0);
 		check("引擎写 sourceHealth 的那一笔包在 try/catch 里",
 			setAt >= 0 && catchAt > setAt && /healthSaveError = String\(/.test(catchBlock),
-			api.slice(Math.max(0, setAt - 120), setAt + 80));
-		check("catch 里只记内存标记 + console.warn，**不许 rethrow**（吞掉才不影响 refresh 的返回值）",
+			selfCheckBody.slice(Math.max(0, setAt - 120), setAt + 80));
+		check("catch 里只记内存标记 + console.warn，**不许 rethrow**（吞掉才不影响自检报告）",
 			catchBlock.length > 0 && !/\bthrow\b/.test(catchBlock) && /console\.warn\("\[gacha-calendar\] 来源健康存档/.test(catchBlock),
 			catchBlock.slice(0, 200));
+		check("自检时间那笔写入也在 selfCheck() 里（与存档同一段尽力而为）",
+			selfCheckBody.indexOf('await storage.set("healthCheckedAt"') >= 0
+			&& refreshBody.indexOf('storage.set("healthCheckedAt"') < 0);
+		check("healthSaveError 的赋值全在 selfCheck() 里（let 声明 1 处 + 清空/失败各 1 处；refresh 一处都没有）",
+			(api.match(/healthSaveError = /g) || []).length === 3
+			&& (selfCheckBody.match(/healthSaveError = /g) || []).length === 2
+			&& refreshBody.indexOf("healthSaveError") < 0,
+			JSON.stringify({ all: (api.match(/healthSaveError = /g) || []).length, inSelfCheck: (selfCheckBody.match(/healthSaveError = /g) || []).length }));
 		check("引擎对外暴露 healthSaveError()（设置页只读内存值，不新增存储键、不做 IO）",
 			/healthSaveError\(\) \{ return healthSaveError; \}/.test(api));
 		const clientFiles = readdirSync(SRC).filter((f) => f.endsWith(".js"));
-		const writers = clientFiles.filter((f) => readFileSync(path.join(SRC, f), "utf8").indexOf('set("sourceHealth"') >= 0);
-		check("src/client 里只有 engine-api.js 写 sourceHealth（没有第二条裸 await 的写入路径）",
-			writers.join(",") === "engine-api.js", writers.join(","));
+		const healthWriters = clientFiles.filter((f) => {
+			const t = readFileSync(path.join(SRC, f), "utf8");
+			return t.indexOf('set("sourceHealth"') >= 0 || t.indexOf('set("healthCheckedAt"') >= 0;
+		});
+		check("src/client 里只有 engine-api.js 写 sourceHealth / healthCheckedAt（没有第二条写入路径）",
+			healthWriters.join(",") === "engine-api.js", healthWriters.join(","));
+		check("全 src/client 里 `set(\"sourceHealth\"` 只有一处（唯一写入口，不是两套并行）",
+			clientFiles.reduce((n, f) => n + (readFileSync(path.join(SRC, f), "utf8").split('set("sourceHealth"').length - 1), 0) === 1,
+			String(clientFiles.reduce((n, f) => n + (readFileSync(path.join(SRC, f), "utf8").split('set("sourceHealth"').length - 1), 0)));
 
 		const helpers = readFileSync(path.join(SRC, "60-helpers.js"), "utf8");
 		check("N 天阈值只有一处字面量（SOURCE_HEALTH_NOMATCH_DAYS = 7）",
@@ -655,8 +788,11 @@ export default async function runHealth() {
 			comp.indexOf("healthKnown.length === 0 ? null :") < 0);
 		check("空状态不再断言「还没刷新过数据」（那会把「写了但被宿主拒绝」说成「从没刷过」）",
 			comp.indexOf("还没刷新过数据") < 0);
-		check("空状态兜底文案对两种原因都成立：还没有来源健康数据（刷新一次数据后产生）",
-			comp.indexOf('"还没有来源健康数据（刷新一次数据后产生）"') >= 0);
+		// 解耦后「刷新会产生健康数据」这句话已经是错的 ⇒ 空状态改成指路「立即检查」
+		check("空状态文案改成「还没有做过来源自检 —— 点「立即检查」开始」（刷新不再产生健康数据）",
+			comp.indexOf('"还没有做过来源自检 —— 点「立即检查」开始"') >= 0);
+		check("旧的「还没有来源健康数据（刷新一次数据后产生）」已经删掉（那句话现在是假话）",
+			comp.indexOf("还没有来源健康数据（刷新一次数据后产生）") < 0);
 		check("空状态按引擎的内存标记分岔：写被拒时改说「健康数据暂时无法保存（宿主拒绝写入），不影响刷新」",
 			/const healthSaveErr = typeof engine\.healthSaveError === "function" \? engine\.healthSaveError\(\) : ""/.test(comp)
 			&& comp.indexOf('"健康数据暂时无法保存（宿主拒绝写入），不影响刷新"') >= 0
@@ -667,6 +803,23 @@ export default async function runHealth() {
 			/className: "gacha-cal-health-empty"/.test(card)
 			&& /className: "gacha-cal-health-empty-icon"/.test(card)
 			&& card.indexOf("！") < 0);
+
+		// ── 「上次自检 X 前」：解耦后健康数据不再自动更新 ⇒ 新鲜度必须摆在标题行 ──
+		check("标题行显示「上次自检 X 前」（读 healthCheckedAt，不是 sourceHealth 的 at）",
+			/const healthCheckedAt = Number\(s\.healthCheckedAt\) \|\| 0/.test(comp)
+			&& /"上次自检 " \+ tickerSpanText\(healthNow - healthCheckedAt\) \+ "前"/.test(comp));
+		check("没有自检过时显示「从未自检」（不是「上次自检 0 分前」这种假新鲜）",
+			comp.indexOf('"从未自检"') >= 0);
+		check("「上次自检」渲染在标题行（跟标题同一个 head 里、按钮右边留给「立即检查」）",
+			/className: "gacha-cal-health-head"/.test(card)
+			&& card.indexOf("gacha-cal-health-checked") > card.indexOf("gacha-cal-health-title")
+			&& card.indexOf("gacha-cal-health-checked") < card.indexOf('gacha-cal-health-check"'),
+			JSON.stringify({ checked: card.indexOf("gacha-cal-health-checked"), btn: card.indexOf('gacha-cal-health-check"') }));
+		check("「上次自检」在**空状态**下也照常显示（head 不属于 healthKnown 那一支）",
+			card.indexOf("gacha-cal-health-checked") < card.indexOf("healthKnown.length === 0"));
+		check("「上次自检」的时间戳来自设置快照（自检写完 ⇒ 宿主推新快照 ⇒ 卡片自己就刷新）",
+			/const healthCheckedText = healthCheckedAt > 0/.test(comp)
+			&& /children: healthCheckedText/.test(card));
 
 		// ── 自检报告：一行小徽章 + 汇总（完整清单进 title），不再是大段落 ──
 		check("自检报告贴在列表下方（同一块的最底部，不再单开一块）",
@@ -681,6 +834,8 @@ export default async function runHealth() {
 			/const selfReportTitle =/.test(comp)
 			&& /selfReport\.problems\.join\("\\n"\)/.test(comp)
 			&& /title: selfReportTitle/.test(comp));
+		check("自检跑完立刻更新报告：await engine.selfCheck() 之后才 setSelfReport（不是乐观预设）",
+			/const report = await engine\.selfCheck\(\);[\s\S]{0,80}setSelfReport\(/.test(comp));
 
 		// 渲染路径不许 IO：卡片那块 JSX 里不许出现 fetch / localStorage / 读文件
 		const block = card;
@@ -688,15 +843,15 @@ export default async function runHealth() {
 			block.length > 0 && !/\bfetch\s*\(|localStorage|readFileSync|XMLHttpRequest/.test(block),
 			block.slice(0, 120));
 
-		// 显示侧补偿必须**接上线**：纯函数支持 lastRefreshAt 却没传 ⇒ 稳定源照样越走越旧
-		// （功能"看起来做了"但用户看到的还是「最近成功 30 天前」）。
-		check("设置页把 lastRefresh 作为 lastRefreshAt 传进纯函数（显示侧补偿的接线）",
-			/lastRefreshAt:\s*Number\(s\.lastRefresh\)\s*\|\|\s*0/.test(comp));
+		// 显示侧补偿**已废弃**：设置页不许再把 lastRefresh 传给纯函数（健康与刷新无关）
 		const callAt = comp.indexOf("const healthRows = sourceHealthOf(");
 		const callSnippet = callAt < 0 ? "" : comp.slice(callAt, callAt + 1200);
-		check("lastRefreshAt 传在 sourceHealthOf 的 opts 里（不是传到别处去了）",
-			callAt >= 0 && /lastRefreshAt:\s*Number\(s\.lastRefresh\)\s*\|\|\s*0/.test(callSnippet),
-			callSnippet.slice(0, 200));
+		check("sourceHealthOf 的 opts 里只剩 entries：不再传 lastRefreshAt（刷新时间不是健康证据）",
+			callAt >= 0 && /entries: applyOrder\(getVisibleEntries\(s\), order\)/.test(callSnippet)
+			&& callSnippet.indexOf("lastRefreshAt") < 0,
+			callSnippet.slice(0, 260));
+		check("健康卡自己的次要信息仍可显示「X 前刷新」（那是数据新鲜度，与上次自检并排不冲突）",
+			/tickerSpanText\(healthNow - healthRefreshAt\) \+ "前刷新"/.test(comp));
 	}
 
 	// ── ⑧ 构建产物里也有（src/ 是唯一真源，产物必须同源）─────────────────────────────

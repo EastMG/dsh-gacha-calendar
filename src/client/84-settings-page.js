@@ -103,7 +103,9 @@
 			// 排期导出 .ics（待办第 5 项）的一行结果：`已导出 N 条（跳过 M 条）` / 失败原因。
 			// 只在本页存活，不落盘（导出结果没有可解释的设置项）。
 			const [icsNote, setIcsNote] = (0, react.useState)("");
-			// 逐个来源跑一遍，报告「解析出 0 条 / 抓取报错」；不改动设置与缓存
+			// 逐个来源跑一遍，报告「解析出 0 条 / 抓取报错」；**不改动缓存与用户配置**。
+			// 它是来源健康的**唯一写入口**（引擎那边写 sourceHealth / healthCheckedAt）—— 写完
+			// 宿主表单会推一次新快照（scope.subscribe），所以卡片上的「上次自检」与列表会跟着刷新。
 			const runSelfCheck = async () => {
 				if (selfChecking) return;
 				setSelfChecking(true);
@@ -177,24 +179,32 @@
 			// sorted = 搜索/筛选后要渲染的行（见下面 shownNow 之后的 settingsGamesFilter）。
 			const ordered = applyOrder(allEntries, order);
 			// ── 来源健康（待办第 3 项「解析器自检」卡片的内容，不是并列的第二块）──────────────
-			// 数据 = 引擎每轮刷新写回的 `sourceHealth` 存档（与 lastData 并列但**独立**的一个键）。
+			// 数据 = 引擎 **selfCheck()** 写回的 `sourceHealth` 存档（与 lastData 并列但**独立**的一个键）。
+			// ⚠️ 2026-10-28 用户决策：健康记录与**面板刷新彻底解耦** —— 刷新只做数据轮转，不再写健康；
+			// 只有点「立即检查」才逐源抓一遍并留痕。所以这一块的数据**不会**随自动刷新变新，
+			// 卡片标题行必须并排显示「上次自检 X 前」（见下面的 healthCheckedText）。
 			// 这里只做"读存档 → 纯函数折算成每源状态"，**渲染路径不做任何 IO**（不 fetch、不读文件）。
-			// 范围 = **展示中**的条目（与刷新 / 自检同一口径）：隐藏条目本轮不抓，记录会僵在隐藏前
+			// 范围 = **展示中**的条目（与刷新 / 自检同一口径）：隐藏条目这轮不抓，记录会僵在隐藏前
 			// 那一刻，把它们列出来只会误导。now 取渲染时刻 —— "X 前"不需要秒级精度，任意一次
 			// 设置写入 / 刷新推送都会重算这一块。
-			// lastRefreshAt = 本机最近一轮刷新时间（引擎每轮必写的那笔 lastRefresh，与 sourceHealth
-			// 是否被跳过无关 ⇒ 它是"最近一次真的刷过"的可靠下界）。交给纯函数做显示侧补偿：健康存档
-			// 在"状态没变"的轮次被跳过写入（见 60-helpers.js 的 sourceHealthSameOf），
-			// 不补偿的话全部源稳定时这里会显示"最近成功 30 天前"。
+			// ⚠️ 不再传 lastRefreshAt：解耦后刷新与健康无关，用刷新时间顶新「最近成功」会伪造
+			// "刚刚成功"（刷新跑得很勤、自检很久没做时最明显）。纯函数那边已删掉这个参数。
 			const healthNow = Date.now();
 			const healthRows = sourceHealthOf(
 				parseSourceHealth(s.sourceHealth).sources,
 				healthNow,
 				{
-					entries: applyOrder(getVisibleEntries(s), order).map((g) => ({ id: g.id, name: g.name || g.id })),
-					lastRefreshAt: Number(s.lastRefresh) || 0
+					entries: applyOrder(getVisibleEntries(s), order).map((g) => ({ id: g.id, name: g.name || g.id }))
 				}
 			);
+			// 「上次自检」：`healthCheckedAt` 由引擎的 selfCheck() **每次**都写（不管健康存档内容
+			// 变没变）—— 它才是"这份健康数据有多旧"的唯一可靠口径。解耦后刷新不再产生/更新健康数据，
+			// 所以这个时间必须摆在标题行让用户一眼看见（否则「全部正常」可能是一个月前的结论）。
+			// 0 / 缺省 = 从未自检（老存档升级上来也是这个状态）。
+			const healthCheckedAt = Number(s.healthCheckedAt) || 0;
+			const healthCheckedText = healthCheckedAt > 0
+				? "上次自检 " + tickerSpanText(healthNow - healthCheckedAt) + "前"
+				: "从未自检";
 			// known = 有过记录（从没刷过 / 旧版本升上来的老存档没有记录）。**注意**：没有记录
 			// 不再等于"整块不渲染"（那正是用户看不到这个功能的原因）—— 卡片改由一句空状态兜住，
 			// 见下面 JSX 里 healthKnown.length === 0 那一支。
@@ -204,15 +214,18 @@
 			// 全部由 healthKnown 派生，渲染层不碰存档；tone 只取 ok / warn / error 三档
 			// （down 优先于 stale：有明确失败原因的那一档最该被看见）。
 			// 全正常时右侧 = 「N 个来源 · X 分前刷新」；有异常时改成三档计数（0 的那档不写）。
+			// ⚠️ 这里的「X 前刷新」是 **lastData 的数据新鲜度**（与健康无关，解耦后它不再影响健康）；
+			// 健康数据新不新看标题行的「上次自检 X 前」—— 两个时间并排出现是有意的：一个说数据多新、
+			// 一个说上次核对来源是什么时候。
 			const healthOkCount = healthKnown.length - healthBad.length;
 			const healthDownCount = healthBad.filter((h) => h.state === "down").length;
 			const healthStaleCount = healthBad.length - healthDownCount;
 			const healthTone = healthBad.length === 0 ? "ok" : (healthDownCount > 0 ? "error" : "warn");
 			const healthRefreshAt = Number(s.lastRefresh) || 0;
-			// 健康存档写不进去时（宿主拒绝 `sourceHealth` 这个键，例如宿主进程还是旧 schema），引擎把
-			// 失败吞在心里（见 engine-api.js 的 healthSaveError）：这里读它，好让**空状态**说真话 ——
-			// 否则"写了但被拒"会被说成"从没刷过数据"，而用户其实刚刷过（2026-10-28 真机截图就是这种，
-			// 面板底栏报「刷新失败：settings-write-rejected:sourceHealth」）。纯内存读，不做任何 IO。
+			// 健康存档写不进去时（宿主拒绝 `sourceHealth` / `healthCheckedAt` 这两个键，例如宿主进程
+			// 还是旧 schema），引擎把失败吞在心里（见 engine-api.js 的 healthSaveError，**只有
+			// selfCheck 会设置它**）：这里读它，好让**空状态**说真话 —— 否则"写了但被拒"会被说成
+			// "还没做过自检"，而用户其实刚点过「立即检查」。纯内存读，不做任何 IO。
 			const healthSaveErr = typeof engine.healthSaveError === "function" ? engine.healthSaveError() : "";
 			const healthMeta = healthBad.length > 0
 				? [healthOkCount + " 正常", healthStaleCount > 0 ? healthStaleCount + " 停更" : "", healthDownCount > 0 ? healthDownCount + " 失败" : ""].filter(Boolean).join(" · ")
@@ -1125,7 +1138,8 @@
 					// 用户 2026-10-28 明确：「来源健康」是原来那套手动自检的**升级替代**，同一张卡里并存两套
 					// 就是重复（旧卡是两块：一块手动跑自检、一块列健康，中间还夹一句重复说明）。
 					// 2026-10-28 二次重做（用户原话「很简陋，整个重做，做好看点」）：
-					//   · 卡片 = 标题行（解析器自检 + 唯一按钮「立即检查」）+ 一条极淡分隔线 + 状态条；
+					//   · 卡片 = 标题行（解析器自检 + **上次自检时间** + 唯一按钮「立即检查」）
+					//     + 一条极淡分隔线 + 状态条；
 					//   · 状态条 = 6px 状态圆点（颜色编码）+ 主文案 + 右侧次要信息 + 展开按钮；
 					//   · 列表 = 四列网格（游戏名 / 状态胶囊 / 原因 / 最近成功），**默认只列异常**；
 					//   · 空状态 = 一行弱化提示（没存档时给一句；写了但被拒时改说"暂时无法保存"），**无条件下渲染**；
@@ -1134,6 +1148,14 @@
 					(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-health-card", children: [
 						(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-health-head", children: [
 							(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-title", children: "解析器自检" }),
+							// 「上次自检 X 前」/「从未自检」：解耦后健康数据**只由自检更新**，不显示这个
+							// 时间就等于让一份一个月前的结论冒充"现在全部正常"。读 healthCheckedAt
+							// （每次自检必写），不读 sourceHealth 的 at（那个只在内容变化时推进）。
+							(0, react_jsx_runtime.jsx)("span", {
+								className: "gacha-cal-health-checked",
+								title: healthCheckedAt > 0 ? "上次「立即检查」的时间（与面板刷新的时间无关）" : "还没有跑过「立即检查」",
+								children: healthCheckedText
+							}),
 							(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-refresh gacha-cal-sort-btn gacha-cal-health-check", disabled: selfChecking, onClick: runSelfCheck, children: selfChecking ? "检查中…" : "立即检查" })
 						] }),
 						(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-health", children: [
@@ -1144,11 +1166,13 @@
 										(0, react_jsx_runtime.jsx)("path", { d: "M20 11a8 8 0 1 0-2.3 5.7" }),
 										(0, react_jsx_runtime.jsx)("path", { d: "M20 4v7h-7" })
 									] }),
-									// 两种原因分开说："写了但被宿主拒绝" ≠ "从没刷过"。前者必须点明**不影响刷新**，
-									// 否则用户会以为刷新坏了 —— 那正是本次要修的那个现象的另一半。
+									// 两种原因分开说："写了但被宿主拒绝" ≠ "还没做过自检"。前者必须点明
+									// **不影响刷新**，否则用户会以为刷新坏了 —— 那正是本次要修的那个现象的另一半。
+									// 空状态文案 2026-10-28 改口径：解耦后**刷新不再产生健康数据**，
+									// 所以说"刷新一次数据后产生"是错的 —— 只有「立即检查」会产生。
 									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-empty-text", children: healthSaveErr
 										? "健康数据暂时无法保存（宿主拒绝写入），不影响刷新"
-										: "还没有来源健康数据（刷新一次数据后产生）" })
+										: "还没有做过来源自检 —— 点「立即检查」开始" })
 								] })
 								: (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-health-summary", children: [
 									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-dot gacha-cal-health-dot--" + healthTone, "aria-hidden": "true" }),

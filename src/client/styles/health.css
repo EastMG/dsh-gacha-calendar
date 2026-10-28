@@ -1,10 +1,10 @@
 			/* 设置页「解析器自检 / 来源健康」卡（2026-10-28 整块重做：状态条 + 四列网格 + 状态胶囊）。
 			   结构（80-components.js 之外的 84-settings-page.js）：
 			     .gacha-cal-health-card
-			       ├ .gacha-cal-health-head          标题 + 「立即检查」
+			       ├ .gacha-cal-health-head          标题 + 「上次自检 X 前」 + 「立即检查」
 			       ├ .gacha-cal-health                — 状态条 / 列表 / 报告都在这层
 			       │   ├ .gacha-cal-health-summary   圆点 + 主文案 + 次要信息 + 展开按钮
-			       │   ├ .gacha-cal-health-empty     空状态（未刷新过）
+			       │   ├ .gacha-cal-health-empty     空状态（还没做过自检）
 			       │   ├ .gacha-cal-health-list      四列网格行（游戏名 / 胶囊 / 原因 / 最近成功）
 			       │   └ .gacha-cal-health-report    自检报告（一行弱化小字 + 小徽章）
 			   口径：
@@ -16,6 +16,10 @@
 			.gacha-cal-health-card{display:flex;flex-direction:column;box-sizing:border-box;padding:10px 12px;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.28));border-radius:10px;background:var(--dsw-alias-bg-layer-1,#f7f8fa)}
 			.gacha-cal-health-head{display:flex;align-items:center;gap:10px;min-height:22px;padding:0 2px 7px;border-bottom:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));border-bottom-color:color-mix(in srgb,var(--dsw-alias-border-l2,rgba(127,127,127,.4)) 32%,transparent)}
 			.gacha-cal-health-title{font-size:12px;font-weight:600;line-height:1.4;color:var(--dsw-alias-label-primary,#1f2329)}
+			/* 「上次自检 X 前」/「从未自检」：标题行里的弱化时间。解耦后健康数据不再随刷新更新，
+			   新鲜度必须一眼可见 —— 所以它跟标题并排，而不是塞进右侧次要信息（那一处是"数据多新"）。
+			   11px / 三级灰 / 等宽数字；过长时省略（不换行、不把按钮挤走）。 */
+			.gacha-cal-health-checked{flex:none;min-width:0;max-width:50%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;line-height:1.4;color:var(--dsw-alias-label-tertiary,#9aa1ab);font-variant-numeric:tabular-nums}
 			.gacha-cal-health-check{margin-left:auto}
 			.gacha-cal-health{display:flex;flex-direction:column;gap:4px;padding-top:7px;font-size:12px;line-height:1.5}
 			/* 状态条：圆点（6px + 1px ring）+ 主文案 + 右侧次要信息 + 展开按钮 */

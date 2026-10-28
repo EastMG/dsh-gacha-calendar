@@ -1418,11 +1418,16 @@ const Config = z.object({
 	lastRefresh: z.number().default(0).volatile(),
 	lastSource: z.string().default("builtin").volatile(),
 	lastData: z.string().default("").volatile(),
-	// 来源健康存档（`{ v, at, sources: { [id]: {…} } }` 的 JSON）：引擎每轮刷新后累积写回，
+	// 来源健康存档（`{ v, at, sources: { [id]: {…} } }` 的 JSON）：**由「立即检查」（selfCheck）
+	// 逐源累积写回**，与面板刷新**彻底无关**（2026-10-28 用户决策：刷新只做数据轮转）。
 	// 设置页的「来源健康」只读它（纯函数 sourceHealthOf，core 的 60-helpers.js）。
-	// 必须 .volatile()（设置文档只投影 volatile 字段），否则引擎写入会被拒 ⇒ 刷新整轮失败。
+	// 必须 .volatile()（设置文档只投影 volatile 字段），否则引擎写入会被拒。
 	// 与 lastData 刻意分开：健康是跨轮累积状态，混进 lastData 会污染渲染与对外 Result JSON。
 	sourceHealth: z.string().default("").volatile(),
+	// 最近一次「立即检查」的时间（毫秒；0 = 从未自检）：**每次自检都写**（sourceHealth 只在内容
+	// 变化时写，所以它不能当"上次自检"）。设置页标题行据此显示「上次自检 X 前」/「从未自检」。
+	// 必须 .volatile()，否则写入被拒 ⇒ 自检只留下一次被吞掉的失败（见 engine.healthSaveError()）。
+	healthCheckedAt: z.number().default(0).volatile(),
 	// 产出上面那份缓存的插件版本（空 = 首次安装 / 装了本功能之前的旧缓存）。
 	// 更新插件后首次启动据此**强制**刷新一次（不看自动刷新开关），判定见 60-helpers.js 的 autoRefreshPlan
 	lastVersion: z.string().default("").volatile(),

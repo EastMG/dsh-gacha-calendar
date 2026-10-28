@@ -250,7 +250,8 @@
 			return { ...base, okAt: at, items: Number(round.items) || 0 };
 		}
 
-		// 一轮刷新后的整体更新（纯函数）：rounds = 逐条结论，keepIds = 现存条目 id（含隐藏的）。
+		// 一次**自检**后的整体更新（纯函数）：rounds = 逐条结论，keepIds = 现存条目 id（含隐藏的）。
+		// （2026-10-28 解耦前这里是"一轮刷新后"，写入口从 refresh() 挪到 selfCheck()，口径一字未改。）
 		// · 旧记录只搬"条目还在"的那些（删掉的条目不再占存档；隐藏条目本轮没抓 ⇒ 原样保留）；
 		// · 本轮 skip 的条目（两侧都没配来源 / 被跳过）：**记录一并丢掉** —— 不把"没抓"写成
 		//   "失败"，也不留一条再也不会更新的历史（那会僵成一条假「疑似停更」）。
@@ -282,23 +283,28 @@
 		}
 
 		// 语义比较：新算出的存档 next 与存储里的旧值 prevRaw 是否**内容相同**。
-		// 用途：引擎刷新时决定「要不要再写一笔设置」—— 设置写入是一次宿主往返（实测一次 1.4~3.6s），
-		// 每轮无脑写等于给"什么都没变"的健康状态白付一次往返（来源健康上线后刷新总时长 +~20%）。
+		// 用途：**自检**时决定「要不要再写一笔 sourceHealth」—— 设置写入是一次宿主往返
+		// （实测一次 1.4~3.6s），"什么都没变"的那次自检没必要为它白付一次（自检是手动动作，
+		// 省下来的是用户盯着转圈的时间）。
 		//
 		// 比较口径：v + sources 逐 id 逐字段，但**忽略三处本轮时间戳**：
 		//   · 顶层 at          —— 存档时间戳（UI 不读它，只作"上次记录时间"）
 		//   · 每条记录的 at    —— 同上，逐源版本
 		//   · 每条记录的 okAt  —— 成功的那一轮会被写成 now（sourceHealthNextOf），与 at 同性质。
-		//                          把它算进比较 ⇒ 只要有一个源正常，逐轮都会"不同"，一次也跳不掉
-		//                          （实测：忽略前每轮必写，等于没优化）。
+		//                          把它算进比较 ⇒ 只要有一个源正常，每次都"不同"，一次也跳不掉。
 		// ⚠️ 如实写明的代价：跳过的轮次不刷新存档里的时间戳，所以健康面板里的「最近成功 X 前」
 		//    可能停在**上一次内容变化**（或上一次别的原因触发的写入）的那一轮 —— 健康的行会越走越旧，
 		//    某源转入失败的那一轮也可能把「最近成功」显旧。失败行另外两个数字不受影响：
-		//    down / nomatch 每轮都会推进 failStreak / nomatchStreak（内容真的变了）⇒ 每轮必写，
+		//    down / nomatch 每次都会推进 failStreak / nomatchStreak（内容真的变了）⇒ 必写，
 		//    「连续失败 N 次 · 原因」始终新鲜。
-		// ✅ 这个"偏旧"在**显示侧**补掉，存储口径一个字没动（跳过写入的收益原样保留）：
-		//    sourceHealthOf 收 `opts.lastRefreshAt`（本机最近一轮刷新时间），对"当前持续成功"的源
-		//    用 max(okAt, lastRefreshAt) 当最近成功时间。语义见下面的 sourceHealthOf。
+		// ✅ 2026-10-28 的解耦把「这份数据有多旧」这件事交给了**另一个数字**，不再做显示侧补偿：
+		//    · 健康记录现在只由「立即检查」（`selfCheck()`）写，写入口唯一 ⇒ 存档的"旧"只可能是
+		//      "上次自检以来内容没变"，不再是"刷新跑过但没检查"；
+		//    · 卡片标题行显示 `healthCheckedAt` 换算出的「上次自检 X 前」/「从未自检」——
+		//      那是**自检时刻**，每次自检必写，所以它永远新鲜，不会被跳过写入影响；
+		//    · 早先那套 `opts.lastRefreshAt`（用 max(okAt, 最近刷新时间) 顶新显示）**已删除**：
+		//      解耦后刷新与健康无关，再拿刷新时间当证据就会伪造出"刚刚成功"的假象
+		//      （刷新跑得很勤、自检很久没做时最明显）。查最后成功时间请看行里的真实 okAt。
 		//
 		// 为什么按字段比而不按 JSON 文本比：旧存档可能来自手改/老版本（数字是字符串、字段缺失），
 		// 文本比较会因为键序/空白/类型差异假报"变了"；这里逐字段 Number()/String() 归一。
@@ -325,21 +331,12 @@
 		}
 
 		// 给 UI 的每源状态（纯函数）：sources = 存档里的 sources 表，now = 毫秒时间戳，
-		// opts = { entries: [{ id, name }]（**展示中**的条目，决定范围与顺序）, nomatchDays,
-		//          lastRefreshAt }（本机最近一轮刷新时间，可选）。
+		// opts = { entries: [{ id, name }]（**展示中**的条目，决定范围与顺序）, nomatchDays }。
 		//
-		// `lastRefreshAt` 只用来**修显示**，不碰存档（见 sourceHealthSameOf 上面那段代价说明）：
-		// 健康状况没变时那一笔设置被跳过 ⇒ 存档里的 okAt 停在最后一次真正写入的轮次，稳定 30 天
-		// 就会显示"最近成功 30 天前"。而"该源当前是 ok（failStreak / nomatchStreak 都是 0）"
-		// 在语义上等价于"此后每一轮都成功"，所以把最近成功时间顶到 lastRefreshAt 是等价换算，
-		// 不是编造。三处限定，缺一不可：
-		//   · 只看 **ok**：down / stale / never 恰恰意味着"此后并非每轮都成功"，用 lastRefresh
-		//     覆盖等于把他们真实的上次成功时间抹成"刚刚"（会与同一行的「连续失败 N 次」自相矛盾）；
-		//   · 要求 nomatchStreak === 0：state 的 ok 档**包含**"nomatch 还没到 7 天阈值"那段
-		//     （没到阈值不打扰用户），那段时间并没有成功解析出内容 —— 顶成"刚刚成功"就变成
-		//     显示谎言，而且这类行本来每轮都在推进 nomatchStreak（内容变了）⇒ 存档是新鲜的，
-		//     根本不需要补偿；
-		//   · 要求 lastRefreshAt <= now 且 okAt > 0：时钟回拨/坏值时不倒着编一个"最近成功"。
+		// ⚠️ 2026-10-28 起**不再有** `opts.lastRefreshAt`（旧版用它把 ok 行的最近成功时间顶到本机
+		// 最近一轮刷新）：健康记录只由「立即检查」写、与面板刷新彻底解耦，刷新时间不再是"这些源
+		// 最近成功过"的任何证据。传了也会被忽略（不再有补偿逻辑）；「这份数据有多旧」由设置页
+		// 标题行的「上次自检 X 前」（读 `healthCheckedAt`）回答。
 		// 返回 [{ id, name, known, state, failStreak, nomatchDays, nomatchMs, lastOkAt, items, error,
 		//         text, tag, tone, reason, agoText }]
 		//   展示侧三段（2026-10-28 设置页改四列网格）：tag = 状态胶囊短标签（带灰点/警告/叉），
@@ -355,8 +352,6 @@
 			const list = Array.isArray(opts && opts.entries) ? opts.entries : [];
 			const days = Number(opts && opts.nomatchDays) > 0 ? Number(opts.nomatchDays) : SOURCE_HEALTH_NOMATCH_DAYS;
 			const at = Number(now) || 0;
-			// 本机最近一轮刷新时间（设置里的 lastRefresh；0 / 缺省 = 不知道 ⇒ 不做任何补偿）
-			const lastRefreshAt = Math.max(0, Number(opts && opts.lastRefreshAt) || 0);
 			const map = sources && typeof sources === "object" ? sources : {};
 			return list.map((g) => {
 				const id = String((g && g.id) || "");
@@ -374,12 +369,9 @@
 				let state = "ok";
 				if (failStreak > 0) state = "down";
 				else if (nomatchMs >= days * SOURCE_HEALTH_DAY_MS) state = okAt > 0 ? "stale" : "never";
-				// 显示用的「最近成功」：只对"当前持续成功"的源把 okAt 顶到本机最近一轮刷新
-				//（跳过写入导致的显示偏旧，口径与理由见函数头注释）。判定 state 仍只看真实 okAt。
-				const lastOkAt = state === "ok" && rec && okAt > 0 && nomatchStreak === 0
-					&& lastRefreshAt > 0 && lastRefreshAt <= at && lastRefreshAt > okAt
-					? lastRefreshAt
-					: okAt;
+				// 显示用的「最近成功」= 存档里的真实 okAt（2026-10-28 解耦后不再用刷新时间补偿，
+				// 理由见函数头注释；"数据多旧"由设置页的「上次自检 X 前」回答）。
+				const lastOkAt = okAt;
 				const agoText = lastOkAt > 0 && at > lastOkAt ? "最近成功 " + tickerSpanText(at - lastOkAt) + "前" : "从未成功";
 				const parts = [];
 				if (state === "down") parts.push("连续失败 " + failStreak + " 次");
