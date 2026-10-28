@@ -27,6 +27,83 @@ import { T, FIXTURES_DIR } from "./load.mjs";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const MAP_FILE = path.join(HERE, "map.json");
 
+// ── 夹具查找（useFixtures 与 fixtureBody 共用同一套）─────────────────────────
+// 为什么抽出来：原先这套"精确 → 前缀 → 去掉 origin=* 再匹配"的逻辑只活在 useFixtures 的 impl 里，
+// 于是**绕过 transport 直接 `fetch(url)` 的用例**只能自己重新发明（结果就是真联网，见下）。
+function loadFixtureMap(overrides) {
+	return Object.assign({}, JSON.parse(readFileSync(MAP_FILE, "utf8")), overrides || {});
+}
+
+/** url → 夹具相对路径（"<source>/<name>"）；无映射返回 null。顺序语义与旧 impl 完全一致。 */
+function resolveFixtureFile(map, url) {
+	const u = String(url);
+	// 代理前缀 → 取被代理的真实 url
+	let target = u;
+	if (u.startsWith("/api/gacha-calendar-proxy")) {
+		try { target = new URL("http://x" + u).searchParams.get("url") || u; } catch { /* keep */ }
+	}
+	// 精确 → 前缀 → 带 origin=* 去掉后 再匹配
+	const candidates = [target, target.replace(/[?&]origin=\*/, ""), u];
+	for (const c of candidates) {
+		if (map[c] != null) return map[c];
+		const key = Object.keys(map).find((k) => c.startsWith(k));
+		if (key) return map[key];
+	}
+	return null;
+}
+
+// ── 全局 fetch 兜底（2026-10-28）──────────────────────────────────────────────
+// 为什么需要：`useFixtures()` 只把夹具装进产物的 transport，**从不覆盖 globalThis.fetch**。
+// 于是任何直接写 `fetch(url)` 的"离线用例"其实在打真网络 —— GitHub runner（非中国出口）
+// 连不上 ⇒ `TypeError: fetch failed` ⇒ 整批 0 断言（CI 红灯就是这么来的）。
+// 这里把全局 fetch 换成"默认拒绝"的兜底：调用即抛明确错误（带 URL 与修复提示）。
+// 放行：`--live`（抽检夹具是否过期，不是门禁）或显式 `allowRealNetwork(true)`。
+const REAL_FETCH = typeof globalThis.fetch === "function" ? globalThis.fetch.bind(globalThis) : null;
+let REAL_NET_ALLOWED = process.argv.includes("--live");
+let GUARD_INSTALLED = false;
+
+/** 放行/关闭真网络（`--live` 抽检用）。默认关闭。 */
+export function allowRealNetwork(on = true) { REAL_NET_ALLOWED = !!on; return REAL_NET_ALLOWED; }
+
+/** 还原全局 fetch（本进程内一般不必调用；导出给需要"临时绕过"的脚本）。 */
+export function restoreGlobalFetch() {
+	if (REAL_FETCH) globalThis.fetch = REAL_FETCH;
+	GUARD_INSTALLED = false;
+}
+
+function installFetchGuard() {
+	if (GUARD_INSTALLED) return;   // ⚠️ 一次进程只装一次：各批都调 useFixtures()，别互相覆盖
+	GUARD_INSTALLED = true;
+	const guarded = function guardedFetch(url, opts) {
+		if (REAL_NET_ALLOWED) {
+			if (!REAL_FETCH) throw new Error("当前 Node 没有内置 fetch，无法打真网络：" + String(url));
+			return REAL_FETCH(url, opts);
+		}
+		throw new Error(`测试里不许走真网络：${String(url)}（本链路应走夹具；若确需联网用例，请显式标注并从该兜底放行）`);
+	};
+	globalThis.fetch = guarded;
+	// 进程结束时还原（让"装夹具"不粘在宿主上）
+	process.once("exit", () => { if (globalThis.fetch === guarded && REAL_FETCH) globalThis.fetch = REAL_FETCH; });
+}
+
+/**
+ * 直接从夹具读响应体（同步返回字符串）—— 给"不走 transport、只要那段 HTML/JSON 文本"的用例。
+ * 与 useFixtures 共用 map.json 查找 + 文件读取逻辑；找不到映射/文件时**抛明确错误**，
+ * 绝不返回空串（空串会让解析器返回空数组，测试变成"假绿"）。
+ */
+export function fixtureBody(url, overrides = {}) {
+	const map = loadFixtureMap(overrides);
+	const hit = resolveFixtureFile(map, url);
+	if (!hit) {
+		throw new Error(`测试里找不到夹具映射：${url} —— 请补 test/map.json（{"<url 或 url 前缀>": "<source>/<name>"}）或改用例`);
+	}
+	const file = path.join(FIXTURES_DIR, hit);
+	if (!existsSync(file)) {
+		throw new Error(`夹具映射指向的文件不存在：${url} → test/fixtures/${hit} —— 请补抓该夹具（node test/capture.mjs <名> <url>）或改用例`);
+	}
+	return readFileSync(file, "utf8");
+}
+
 let pass = 0, fail = 0;
 const failures = [];
 
@@ -67,23 +144,13 @@ export function setFetchImpl(impl) {
 
 // 建立一个"夹具模式的 fetch"（旧式 impl：url → Response 形态）
 export function useFixtures(overrides = {}) {
-	const map = Object.assign({}, JSON.parse(readFileSync(MAP_FILE, "utf8")), overrides);
+	// 同时装全局 fetch 兜底：夹具只进 transport，**兜底**这条才是"再也不许偷偷联网"的那道闸。
+	installFetchGuard();
+	const map = loadFixtureMap(overrides);
 	const notFound = () => ({ ok: false, status: 404, headers: { get: () => null }, text: async () => "", json: async () => ({}) });
 	const impl = async (url) => {
 		const u = String(url);
-		// 代理前缀 → 取被代理的真实 url
-		let target = u;
-		if (u.startsWith("/api/gacha-calendar-proxy")) {
-			try { target = new URL("http://x" + u).searchParams.get("url") || u; } catch { /* keep */ }
-		}
-		// 精确 → 前缀 → 带 origin=* 去掉后 再匹配
-		const candidates = [target, target.replace(/[?&]origin=\*/, ""), u];
-		let hit = null;
-		for (const c of candidates) {
-			if (map[c] != null) { hit = map[c]; break; }
-			const key = Object.keys(map).find((k) => c.startsWith(k));
-			if (key) { hit = map[key]; break; }
-		}
+		const hit = resolveFixtureFile(map, u);
 		if (!hit) return notFound();
 		const file = path.join(FIXTURES_DIR, hit);
 		if (!existsSync(file)) return notFound();

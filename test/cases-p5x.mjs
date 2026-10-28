@@ -1,6 +1,6 @@
 // next-sources/test/cases-p5x.mjs —— P5X 国服（Lead 参考实现）的离线用例
 // 从 run.mjs 抽出，便于被 test/all.mjs 统一组合。
-import { useFixtures, check, section, assertContract } from "./harness.mjs";
+import { useFixtures, fixtureBody, check, section, assertContract } from "./harness.mjs";
 import { findSource } from "./registry-shim.mjs";
 import { T } from "./load.mjs";
 const { parseP5xList, parseP5xWindows } = T.parsers["p5x"];
@@ -16,7 +16,10 @@ export default async function run() {
 
 	section("P5X 国服 —— 列表解析");
 	{
-		const t = await (await fetch("https://p5x.wanmei.com/news/gamenews/index.html")).text();
+		// ⚠️ 必须走夹具（fixtureBody，同步返回文本），**不许** `fetch(url)`：
+		//    useFixtures() 只装 transport，不覆盖 globalThis.fetch —— 这里写 fetch 就是真联网，
+		//    CI（非中国出口）连不上 p5x.wanmei.com ⇒ fetch failed ⇒ 整批 0 断言（2026-10-28 红过）。
+		const t = fixtureBody("https://p5x.wanmei.com/news/gamenews/index.html");
 		const list = parseP5xList(t);
 		check("列表解析出条目", list.length > 0, String(list.length));
 		check("条目带 href/title", list.every((x) => x.href && x.title), JSON.stringify(list[0] || null));
@@ -25,6 +28,23 @@ export default async function run() {
 		check("dateKey 是 8 位日期", list.every((x) => /^\d{8}$/.test(x.dateKey)), JSON.stringify(list.map((x) => x.dateKey).slice(0, 3)));
 		check("标题已去掉站点尾巴（不含「手游官网」）", list.every((x) => !/手游官网/.test(x.title)), JSON.stringify(list[0] && list[0].title));
 		check("无重复 href（去重生效）", new Set(list.map((x) => x.href)).size === list.length);
+
+		// ── 兜底自检（2026-10-28）：挡住"再用全局 fetch 打真网络"的回潮 ──────────────
+		// ① 全局 fetch 兜底必须**拒绝**（离线门禁里它就是闸门）；`--live` 抽检时放行，故跳过。
+		if (!process.argv.includes("--live")) {
+			let guardErr = null;
+			try { await fetch("https://p5x.wanmei.com/news/gamenews/index.html"); } catch (e) { guardErr = e; }
+			const msg = String((guardErr && guardErr.message) || "");
+			check("全局 fetch 兜底：离线时拒绝真网络", !!guardErr && msg.includes("测试里不许走真网络"), msg || "没有抛错（真的联网了）");
+			check("全局 fetch 兜底的错误带 URL", msg.includes("p5x.wanmei.com"), msg);
+		}
+		// ② fixtureBody 找不到映射时必须抛明确错误，不许返回空串（空串会让解析器空数组 → 假绿）
+		let fxErr = null;
+		try { fixtureBody("https://example.invalid/not-in-map.html"); } catch (e) { fxErr = e; }
+		const fxMsg = String((fxErr && fxErr.message) || "");
+		check("fixtureBody：无映射 → 抛错且带 URL 与修复提示",
+			!!fxErr && fxMsg.includes("https://example.invalid/not-in-map.html") && fxMsg.includes("map.json") && fxMsg.includes("改用例"),
+			fxMsg || "没有抛错");
 	}
 
 	section("P5X 国服 —— 档期窗口解析（含跨年 / 双年份）");

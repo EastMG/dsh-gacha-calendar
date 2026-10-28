@@ -3,7 +3,7 @@
 // 用法：node test/run.mjs            （离线，走夹具）
 //       node test/run.mjs --live     （打真实网络，抽检夹具是否过期）
 
-import { useFixtures, check, section, summary, listFixtures, assertContract } from "./harness.mjs";
+import { useFixtures, fixtureBody, check, section, summary, listFixtures, assertContract } from "./harness.mjs";
 import { NEXT_SOURCES, findSource, EXTRA_GACHA_FETCHERS, EXTRA_EVENT_FETCHERS } from "./registry-shim.mjs";
 import { T } from "./load.mjs";
 const { gachaP5x, eventsP5x, parseP5xList, parseP5xWindows } = T.parsers["p5x"];
@@ -39,7 +39,9 @@ section("① 注册表结构（契约字段齐备）");
 //#region ② P5X（Lead 参考实现）
 section("② P5X 国服 —— 列表解析");
 {
-	const html = (await (await fetch("https://p5x.wanmei.com/news/gamenews/index.html")).text());
+	const P5X_LIST_URL = "https://p5x.wanmei.com/news/gamenews/index.html";
+	// 离线读夹具（同步）；`--live` 抽检才打真网络（那个分支由 harness 的全局 fetch 兜底放行）。
+	const html = LIVE ? await (await fetch(P5X_LIST_URL)).text() : fixtureBody(P5X_LIST_URL);
 	const list = parseP5xList(html);
 	check("列表解析出条目", list.length > 0, String(list.length));
 	check("条目带 href/title", list.every((x) => x.href && x.title), JSON.stringify(list[0] || null));

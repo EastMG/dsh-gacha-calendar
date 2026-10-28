@@ -4,7 +4,7 @@
 // 时间断言全部用**固定 now**（夹具抓取时刻 2026-10-02 01:41 +08）→ 测试永久可复现，
 // 不会因为"今天超过了夹具档期"而假失败。真实 now 的路径另用一遍契约守卫覆盖（null 亦合法）。
 
-import { useFixtures, check, section, assertContract, setFetchImpl } from "./harness.mjs";
+import { useFixtures, allowRealNetwork, check, section, assertContract, setFetchImpl } from "./harness.mjs";
 
 import { SOURCES_B2, findSourceB2 } from "./registry-shim.mjs";
 import { T } from "./load.mjs";
@@ -21,6 +21,9 @@ const SH = (ts) => new Date(ts).toISOString();
 //    （与 run.mjs 一致，仅用于抽检夹具是否过期，不作为门禁）。
 // ⚠️ `--live` 时**不能在模块顶层装夹具**，否则会污染 run.mjs 里其它批次的在线抽检。
 const LIVE = process.argv.includes("--live");
+// `--live` 是本仓库**唯一**故意联网的用例：必须显式从 harness 的全局 fetch 兜底放行
+// （离线门禁里那道闸会直接抛"测试里不许走真网络"）。
+if (LIVE) allowRealNetwork(true);
 const fixtureFetch = LIVE ? null : useFixtures();
 const liveOrFixture = (u, o) => (LIVE ? fetch(u, o) : fixtureFetch(u, o));
 async function fixtureText(url) {
