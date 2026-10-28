@@ -2488,12 +2488,12 @@
 									className: "gacha-cal-sort-btn",
 									style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 },
 									disabled: notifyIdentityBusy || notifyIdentity === null,
-									title: "启用后系统通知的应用名显示为「二游日历」；会在开始菜单创建一个入口",
+									title: "更改系统通知的发送者为「二游日历」；需要在开始菜单创建无害的快捷方式文件",
 									onClick: toggleNotifyIdentity,
 									children: notifyIdentityBusy ? "处理中…" : (notifyIdentity && notifyIdentity.enabled ? "移除" : "启用")
 								}),
 								(0, react_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: "var(--dsw-alias-label-secondary)" }, children: "当前：" + (notifyIdentity === null ? "读取中…" : notifyIdentity.enabled ? "二游日历" : "PowerShell（默认）") }),
-								(0, react_jsx_runtime.jsx)("span", { style: { flex: "1 1 240px", fontSize: 11, color: "var(--dsw-alias-label-tertiary)" }, children: "启用后系统通知的应用名显示为「二游日历」；会在开始菜单创建一个入口" })
+								(0, react_jsx_runtime.jsx)("span", { style: { flex: "1 1 240px", fontSize: 11, color: "var(--dsw-alias-label-tertiary)" }, children: ["更改系统通知的发送者为「二游日历」", (0, react_jsx_runtime.jsx)("br", {}), "需要在开始菜单创建无害的快捷方式文件"] })
 							] }),
 							notifyIdentityError ? (0, react_jsx_runtime.jsx)("div", { style: { fontSize: 11, color: "var(--dsw-alias-state-error-primary, #d4380d)" }, children: notifyIdentityError }) : null
 						] }),
