@@ -615,21 +615,26 @@ export default async function runHealth() {
 		const healthCss = readFileSync(path.join(REPO, "src", "client", "styles", "health.css"), "utf8");
 		check("health.css 已进 build.mjs 的 CSS_ORDER（样式文件必须真的进产物，而不是只躺着）",
 			/"health\.css"/.test(readFileSync(path.join(REPO, "build.mjs"), "utf8")));
-		check("四列网格参数：minmax(0,1fr) auto minmax(0,1.6fr) auto / gap 9px / padding 6px 8px",
-			/grid-template-columns:minmax\(0,1fr\) auto minmax\(0,1\.6fr\) auto/.test(healthCss)
+		// 2026-10-28 微调：名字列改 max-content（按内容撑开），原因列吃剩余，胶囊/最近成功各自 max-content / auto。
+		// 旧值 minmax(0,1fr) auto minmax(0,1.6fr) auto 会让 2~5 字的名字占满整列，名字与胶囊之间空一大块。
+		check("四列网格参数：max-content auto minmax(0,1fr) max-content / gap 9px / padding 6px 8px",
+			/grid-template-columns:max-content auto minmax\(0,1fr\) max-content/.test(healthCss)
 			&& /gap:9px/.test(healthCss) && /padding:6px 8px/.test(healthCss));
+		check("行 overflow:hidden（名字超长也不撑破卡片）+ 名字 max-width:100% 配 ellipsis",
+			/\.gacha-cal-health-row\{[^}]*overflow:hidden/.test(healthCss)
+			&& /\.gacha-cal-health-name\{[^}]*max-width:100%[^}]*text-overflow:ellipsis/.test(healthCss));
 		check("状态圆点 6px + 1px ring；状态胶囊 10px / 细边框 / 同色 9% 底",
 			/\.gacha-cal-health-dot\{[^}]*width:6px;height:6px[^}]*box-shadow:0 0 0 1px/.test(healthCss)
 			&& /\.gacha-cal-health-tag\{[^}]*font-size:10px/.test(healthCss)
 			&& /gacha-cal-health-tag--warn\{[^}]*9%,transparent/.test(healthCss));
-		check("汇总行与列表之间的分隔线 = border-l2 的 30%（不引入新颜色字面量）",
-			/border-top-color:color-mix\(in srgb,var\(--dsw-alias-border-l2[\s\S]*?\) 30%,transparent\)/.test(healthCss));
+		check("汇总行与列表之间的分隔线 = border-l2 的 45%（极淡但看得见，不引入新颜色字面量）",
+			/border-top-color:color-mix\(in srgb,var\(--dsw-alias-border-l2[\s\S]*?\) 45%,transparent\)/.test(healthCss));
 		check("health.css 的颜色全部走 var(--dsw-alias-*)（没有裸 color:#… 规则）",
 			!/[^-]color:#[0-9a-f]{3,8}/i.test(healthCss));
 		check("lib/client.js 真的有 .gacha-cal-health-row 网格规则（样式段已拼进产物）",
 			client.includes(".gacha-cal-health-row{display:grid"));
 		check("lib/client.js 里有四列网格参数（顺序与 health.css 一致）",
-			client.includes("grid-template-columns:minmax(0,1fr) auto minmax(0,1.6fr) auto"));
+			client.includes("grid-template-columns:max-content auto minmax(0,1fr) max-content"));
 	}
 	// ── ⑧ 构建产物里也有（src/ 是唯一真源，产物必须同源）─────────────────────────────
 	{

@@ -33,11 +33,14 @@
 			.gacha-cal-health-empty{display:flex;align-items:center;gap:7px;padding:5px 2px;color:var(--dsw-alias-label-tertiary,#9aa1ab)}
 			.gacha-cal-health-empty-icon{flex:none;width:14px;height:14px;opacity:.85}
 			.gacha-cal-health-empty-text{min-width:0;font-size:12px;line-height:1.5;color:var(--dsw-alias-label-tertiary,#9aa1ab)}
-			/* 四列网格：游戏名 / 状态胶囊 / 原因 / 最近成功；行间只用 4px 行距，不画线 */
-			.gacha-cal-health-list{display:flex;flex-direction:column;gap:4px;margin-top:2px;padding-top:6px;border-top:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.28));border-top-color:color-mix(in srgb,var(--dsw-alias-border-l2,rgba(127,127,127,.4)) 30%,transparent)}
-			.gacha-cal-health-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1.6fr) auto;gap:9px;align-items:center;padding:6px 8px;border-radius:6px;color:var(--dsw-alias-label-secondary,#4a5261);transition:background .12s}
+			/* 四列网格：游戏名 / 状态胶囊 / 原因 / 最近成功；行间只用 4px 行距，不画线。
+			   列宽口径（2026-10-28 微调）：名字列按内容撑开（max-content），胶囊紧贴名字右侧（gap 9px），
+			   原因列吃掉剩余空间（minmax(0,1fr)），最近成功列 max-content 贴右边。
+			   旧写法名字列是 minmax(0,1fr)：2~5 字的名字也占满整列 ⇒ 名字与胶囊之间空出一大块，行看着"散"。 */
+			.gacha-cal-health-list{display:flex;flex-direction:column;gap:4px;margin-top:2px;padding-top:6px;border-top:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.28));border-top-color:color-mix(in srgb,var(--dsw-alias-border-l2,rgba(127,127,127,.4)) 45%,transparent)}
+			.gacha-cal-health-row{display:grid;grid-template-columns:max-content auto minmax(0,1fr) max-content;gap:9px;align-items:center;padding:6px 8px;overflow:hidden;border-radius:6px;color:var(--dsw-alias-label-secondary,#4a5261);transition:background .12s}
 			.gacha-cal-health-row:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1))}
-			.gacha-cal-health-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:500;line-height:1.4;color:var(--dsw-alias-label-primary,#1f2329)}
+			.gacha-cal-health-name{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:500;line-height:1.4;color:var(--dsw-alias-label-primary,#1f2329)}
 			.gacha-cal-health-tag{justify-self:start;display:inline-flex;align-items:center;box-sizing:border-box;height:16px;padding:0 6px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));border-radius:999px;background:transparent;color:var(--dsw-alias-label-tertiary,#9aa1ab);font-size:10px;line-height:1;white-space:nowrap}
 			.gacha-cal-health-tag--ok{color:var(--dsw-alias-label-tertiary,#9aa1ab);border-color:color-mix(in srgb,var(--dsw-alias-label-tertiary,#9aa1ab) 25%,transparent);background:color-mix(in srgb,var(--dsw-alias-label-tertiary,#9aa1ab) 8%,transparent)}
 			.gacha-cal-health-tag--warn{color:var(--dsw-alias-state-warn-primary,#b26a00);border-color:color-mix(in srgb,var(--dsw-alias-state-warn-primary,#b26a00) 28%,transparent);background:color-mix(in srgb,var(--dsw-alias-state-warn-primary,#b26a00) 9%,transparent)}
