@@ -476,9 +476,9 @@ export default async function run() {
 		// ② 设置页接线（静态）
 		const compSrc = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
 		const styleSrc = readFileSync(path.join(REPO, "src", "client", "70-styles.js"), "utf8");
-		check("两行胶囊：标签「结束提醒」/「开始提醒」，可选集合直接取出厂常量（不另抄一份）",
+		check("胶囊行：结束提醒保留、开始提醒已注释（2026-10-28 搁置），可选集合直接取出厂常量（不另抄一份）",
 			compSrc.includes('remindChipRow("end", "结束提醒", remindEndSavedText, REMIND_DEFAULT_END_NODES, "remindEndNodes"')
-			&& compSrc.includes('remindChipRow("start", "开始提醒", remindStartSavedText, REMIND_DEFAULT_START_NODES, "remindStartNodes"'));
+			&& compSrc.includes('remindChipRow("end", "结束提醒"') && /\/\/[^\n]*remindChipRow\([^\n]*开始提醒/.test(compSrc));
 		check("文本框 / 预览 / 红框提示**全部删掉**（没有 remindNodeRow、没有\"解析为：\"、没有 aria-invalid）",
 			!/remindNodeRow/.test(compSrc) && !/remindNodesEditOf/.test(compSrc)
 			&& !compSrc.includes("解析为：") && !compSrc.includes("没识别出有效小时数")
