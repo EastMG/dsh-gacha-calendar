@@ -2402,7 +2402,7 @@
 							(0, react_jsx_runtime.jsx)("span", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 11 }, children: "到期时弹系统通知（仅 DSH 运行期间）" })
 						] }),
 						remindChipRow("end", "结束提醒", remindEndSavedText, REMIND_DEFAULT_END_NODES, "remindEndNodes", "结束前多久提醒（可多选；全不选 = 结束不提醒）"),
-						remindChipRow("start", "开始提醒", remindStartSavedText, REMIND_DEFAULT_START_NODES, "remindStartNodes", "开始前多久提醒（可多选；全不选 = 开始不提醒）", "多数来源不提供档期，基本不生效")
+						remindChipRow("start", "开始提醒", remindStartSavedText, REMIND_DEFAULT_START_NODES, "remindStartNodes", "开始前多久提醒（可多选；全不选 = 开始不提醒）", "多数来源不提前提供档期，已搁置")
 					] }),
 					// ── 实验特性开关：新「二游日历」面板视图（默认关）──
 					// 文案从简：只说"实验性新版UI，开发中"。默认值仍是 false（关着 = 原来的表格视图）。
