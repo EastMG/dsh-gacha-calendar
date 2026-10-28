@@ -21,7 +21,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { check, section } from "./harness.mjs";
-import { T, REPO } from "./load.mjs";
+import { T, REPO, readComponentsSource } from "./load.mjs";
 
 const {
 	icsOf, icsEventsOf, icsWindowOf, icsUtcStamp, icsUtcHuman,
@@ -339,7 +339,7 @@ export default function runIcs() {
 
 	// ── ⑧ 静态接线：设置页按钮 + Blob 下载 + **没有新路由** + core 里也有这段 ──
 	{
-		const comp = readSrc(path.join("src", "client", "80-components.js"));
+		const comp = readComponentsSource();
 		const helpers = readSrc(path.join("src", "client", "60-helpers.js"));
 		const host = readSrc(path.join("src", "index.js"));
 		const core = readSrc(path.join("packages", "core", "core.mjs"));

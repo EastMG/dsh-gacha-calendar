@@ -18,6 +18,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { check, section } from "./harness.mjs";
+import { readComponentsSource } from "./load.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.resolve(HERE, "..", "src", "client");
@@ -265,7 +266,7 @@ export default async function run() {
 	//   挂载后才勾选的条目会被**整个漏出报告**（不计入分母、失败也不进明细）。
 	// 之所以要机器守：这个 bug 完全不影响抓取、不报错，只让顶部那行数字差 1 —— 靠人看代码很难发现。
 	{
-		const comp = readFileSync(path.join(SRC, "80-components.js"), "utf8");
+		const comp = readComponentsSource();
 		const i = comp.indexOf("const doRefresh = ");
 		const j = i >= 0 ? comp.indexOf("}, [scope, engine]);", i) : -1;
 		check("能定位 doRefresh 函数体（守卫自身没瞎）", i >= 0 && j > i, `i=${i} j=${j}`);
@@ -405,7 +406,7 @@ export default async function run() {
 	// 光有 localWin/localWinText 这两个纯函数不算数 —— 得确认渲染层**确实用了**它们，
 	// 且悬停的 title 没有被顺手换成换算后的文本（那正是本次最容易搞反的一处）。
 	{
-		const comp = codeOnly(readFileSync(path.join(SRC, "80-components.js"), "utf8"));
+		const comp = codeOnly(readComponentsSource());
 		check("新面板外显：scheduleNormalize 的 raw 走 localDatesOf（拿不到才回落源站原文）",
 			/function scheduleNormalize\([\s\S]{0,900}?localDatesOf\(g, isG, now\) \|\| rawSrc/.test(comp));
 		check("旧面板外显：卡池/活动两列的时间格都走 localDatesOf",
@@ -421,7 +422,7 @@ export default async function run() {
 	// 反向断言的是"渲染层没有另拼提示"与"备注只在失败/沿用两个分支 push"：
 	// 只要正常态被拼上任何一行（如硬编码「（）」），这里会红。
 	{
-		const raw = readFileSync(path.join(SRC, "80-components.js"), "utf8");
+		const raw = readComponentsSource();
 		const comp = codeOnly(raw);
 		check("日期格悬停已接线：有数据 / 无数据两处 .gacha-cal-sched-cm 的 title 都是 scheduleDateHover",
 			/className: "gacha-cal-sched-cm gacha-cal-sched-num", title: scheduleDateHover\(x, now\)/.test(raw)

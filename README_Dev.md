@@ -66,7 +66,11 @@ dsh-gacha-calendar/
 │       ├── engine-head.js    # core 外壳：createEngine（storage / listGames / getCached）
 │       ├── engine-api.js     # 引擎 API：refresh / selfCheck / __test
 │       ├── styles/*.css      # 样式（按原段落注释一个文件；build.mjs 的 CSS_ORDER 拼成产物里的 const STYLE）
-│       ├── 80-components.js  # React 组件（面板 + 设置页）
+│       ├── 80-shared-ui.js   # 共用小件：设置分区常量 / 打开设置面板 / 下载文本 / 游戏图标 + 预热
+│       ├── 81-schedule-model.js # 新面板排期模型（纯函数）：取色 / 档期窗口 / 悬停文本 / 格式化 / 节拍 hook
+│       ├── 82-schedule-view.js  # 新面板渲染层：轮播节拍 / 探头定位 / 留白卡 / ScheduleView / TickerFlipLines
+│       ├── 83-panel-shell.js  # 面板外壳 CalendarPanel：订阅 / 刷新 / ticker 接线（旧表格是它内部的分支）
+│       ├── 84-settings-page.js # 设置页 CalendarSettingsPage + 通知身份 / 测试通知的宿主路由封装
 │       ├── 90-plugin.js      # apply(ctx)：slots / configForms / 悬停 marquee
 │       ├── 92-dsh-env.js     # DSH 环境适配（直连 + 宿主代理）
 │       └── 99-tail.js        # exports.apply / exports.inject
@@ -167,7 +171,7 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
      （见下面第 2 项；2026-10-26 起整列**暂时隐藏**），**轮播不读它**。
    - ✅ 判定口径（**只判结束**；开始方向已暂时停用，原因见下）：即将结束 = 已开始（`startTs <= now`）且 `endTs ∈ (now, now + N 小时]`；
      即将开始 = `startTs ∈ (now, now + N 小时]`（公式留档，该方向已停用）。纯函数 `dueKindOf`（`60-helpers.js`，返回
-     `"" / "end" / "start"`；当前只会返回 `"" / "end"`）+ 窗口换算 `dueWindowOf` / `tickerItemsOf`（`80-components.js`，
+     `"" / "end" / "start"`；当前只会返回 `"" / "end"`）+ 窗口换算 `dueWindowOf` / `tickerItemsOf`（`81-schedule-model.js`，
      复用面板外显那条「源站文本 + tz → 本机墙钟」链，所以轮播与面板"还剩 X"永远同源）。
      ⚠️ 2026-10-28：**开始方向暂时停用** —— 解析器只产出「覆盖当前时刻」的窗口，startTs 永远 <= now，真实数据里不会命中；代码保留、注释写明恢复方法。
      老的 `isExpiringSoon`（只判结束）语义未动，仍由老用例守着
@@ -201,7 +205,7 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
    - 仍未做：数字角标（桌面/任务栏）；**逐游戏白名单的 UI**（见下，且见下面那条 ⚠️）。
     - ✅ **逐游戏钩子已预留**（2026-10-25 定稿；送达实现时要**消费它**）：
       · ⚠️ **2026-10-26 起整列暂时隐藏**（用户要求）：送达没实现，勾了没有效果 ⇒ 设置页用常量
-        `SHOW_REMIND_COLUMN = false`（`80-components.js`）把**表头 / 每行复选框 / 「全部提醒」按钮 /
+        `SHOW_REMIND_COLUMN = false`（`80-shared-ui.js`）把**表头 / 每行复选框 / 「全部提醒」按钮 /
         表头上方概括 / 网格列宽**五处一起藏起来。**不是删除**：配置键、schema、`CONFIG_KEYS`、
         纯函数 `remindGameAllowed` 与写入链路都保留，送达实现时把常量改回 `true` 即可整列恢复。
       · 设置项 = `remindGames`（`string[]`）—— 恢复后是设置页游戏列表的**「提醒」**列，每行一个复选框；
@@ -234,7 +238,11 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
    - ✅ 实现：纯函数 `icsEventsOf` / `icsOf`（`60-helpers.js`）判定在期并产出确定性 iCalendar（CRLF / 75 octets 折行 / 转义），时间 = 源站墙钟 + `tz` → UTC，设置页「游戏列表」按钮组里的「导出 .ics」走 Blob 下载、不新增宿主路由；守卫见 `test/cases-ics.mjs`。
 6. ⏸ **搁置（2026-10-28 用户决定，本次不做）** **抽卡计划 / 攒抽追踪**：目标角色 + 当前保底/预算 + 倒计时。属重功能，分阶段做（先"目标角色 + 倒计时"）。
 7. **架构重整（拆文件 + CSS 抽出）** —— 按「**一个文件一个职责**」拆，**不按行数硬切**（各文件当前行数以文件为准，不列举）：
-   ① `80-components.js` → 按**界面**拆：新面板 / 旧表格 / 设置页 / 共用小组件；
+   ① ✅ 2026-10-28 完成：`80-components.js` 按**界面**拆成 5 段 —— `80-shared-ui.js`（共用小组件）/
+      `81-schedule-model.js` + `82-schedule-view.js`（新面板的模型与渲染层）/
+      `83-panel-shell.js`（面板外壳，旧表格是它内部的条件分支，没有独立文件）/
+      `84-settings-page.js`（设置页）。拆点全落在原文件的空行上，`lib/client.js` **逐字节不变**；
+      静态守卫改读 `test/load.mjs` 的 `readComponentsSource()`（拼回原文，断言一条没改）；
    ② `70-styles.js`（CSS 全藏在一个模板字符串里） → 抽成真正的 `styles/*.css`，构建时拼接
       （这条最值：现在"反引号必须恰好 2 个、注释必须配平"，已经踩过两次）；
       ✅ 2026-10-28 完成：拆成 `src/client/styles/*.css`（9 个文件，按原段落注释切、内容原样搬运），

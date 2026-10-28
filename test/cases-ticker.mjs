@@ -24,7 +24,7 @@
 //      多条时顺序稳定（按"距离那一刻还有多远"升序，同刻保持输入顺序）、无可轮播条目时返回空
 //      （⇒ 按钮只有状态 0、不滚动）；C 方案每格 = { gameId, gameIcon, itemName, statusText }
 //      （事项名优先、状态单独一段、**分隔符 " · " 两侧都有空格**）。
-//   ⑤ 清单层（`tickerItemsOf`，80-components.js）：落盘的「源站墙钟文本 + tz」要能换算出**绝对**窗口
+//   ⑤ 清单层（`tickerItemsOf`，81-schedule-model.js）：落盘的「源站墙钟文本 + tz」要能换算出**绝对**窗口
 //      —— 这一层必须与运行环境时区无关（CI 跑 UTC、开发机跑 +08，两边都要绿）。
 //      做法：断言 dueWindowOf 的 ts 等于 `sourceInstant(...)` 的独立算法结果，不写死本机偏移。
 //   ⑥ 样式静态守卫：按钮尺寸不许被撑开 / 动画只许一次性 backwards / 样式源（styles/*.css）完整。
@@ -43,7 +43,7 @@
 //    UTC~+08 那段时区成立，TZ=America/Los_Angeles 下会假红（2026-10-28 修）。
 
 import { check, section } from "./harness.mjs";
-import { T, readStylesSource, styleFileNames } from "./load.mjs";
+import { T, readStylesSource, styleFileNames, readComponentsSource } from "./load.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -213,7 +213,7 @@ export default async function run() {
 	}
 
 	// ── ⑤ 轮播条目选取（tickerPickOf）：顺序稳定 + 无命中→空 + **不受逐游戏列表影响** ──────
-	// 候选契约与 80-components.js 的 tickerItemsOf 组装出来的完全一致
+	// 候选契约与 81-schedule-model.js 的 tickerItemsOf 组装出来的完全一致
 	// （{ key, gameId, side, name, title, gameIcon, startTs, endTs }）；这里刻意**绕开**文本换算，
 	// 直接喂绝对时刻 —— 选取/排序/筛选这一层本身就是纯的。
 	// ⚠️ 2026-10-25 定稿：签名**只有三个参数**（items, now, hours）—— 逐游戏列表那个参数已删除。
@@ -336,7 +336,7 @@ export default async function run() {
 			&& tickerCaptionOf(null, NOW).text.indexOf("undefined") < 0);
 
 		// —— C 方案的**每格结构**：{ gameId, gameIcon, itemName, statusText } ——
-		// 渲染层（80-components.js）只认这一种形状；状态 0（原按钮外观）**不在**这里 ——
+		// 渲染层（83-panel-shell.js）只认这一种形状；状态 0（原按钮外观）**不在**这里 ——
 		// 所以"无可轮播 ⇒ 只有状态 0、不滚动"在数据层就是"slides 为空"。
 		const due = [
 			{ key: "a:gacha", id: "a", gameId: "a", side: "gacha", name: "绝区零", title: "耀嘉音", gameIcon: "https://cdn.example/a.png", startTs: NOW - 2 * H, endTs: NOW + 3 * H, kind: "end", dueMs: 3 * H },
@@ -510,7 +510,7 @@ export default async function run() {
 	// 这些病都是**改错了不报错、只在真机上才发现**的，所以用静态守卫钉住（读源码，不需要 DOM）。
 	{
 		const styles = readStylesSource();
-		const comp = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
+		const comp = readComponentsSource();
 		const count = (sub) => styles.split(sub).length - 1;
 		// 反引号断言原来是"模板字符串起止各一个"（旧结构：CSS 藏在 `const STYLE = \`…\`;` 里）。
 		// 现在样式是真正的 .css 文件 ⇒ 该守的是**它别再被塞回模板字符串**：源里一个反引号都不许有。
@@ -561,7 +561,7 @@ export default async function run() {
 		check("状态那一段用 white-space:pre（保留分隔符前的空格，且永不换行）",
 			/white-space:\s*pre/.test(stRule), stRule);
 		check("渲染层给状态段带的是**带前导空格**的分隔符 ` · `（不是 `· `）",
-			comp.includes('" \\u00B7 " + slide.statusText'), "见 80-components.js 的 tickerLine");
+			comp.includes('" \\u00B7 " + slide.statusText'), "见 83-panel-shell.js 的 tickerLine");
 		const nmRule = ruleOf("gacha-cal-btn-nm");
 		check("名字那一段可截断（min-width:0 + 省略号 ⇒ 只丢名字，不丢状态）",
 			/min-width:\s*0/.test(nmRule) && /text-overflow:\s*ellipsis/.test(nmRule), nmRule);
@@ -766,10 +766,10 @@ export default async function run() {
 			tickerStepsOf(tickerSlidesOf(dueWhen(true), NOW)).length === 2);
 
 		// 渲染层真的接了开关（关掉时 memo 直接给空数组，不做任何换算）
-		const compAll = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
+		const compAll = readComponentsSource();
 		check("渲染层：开关关掉时直接把清单算成空（tickerOn ? tickerItemsOf(games, now, tickerHours) : []）",
 			/\(tickerOn\s*\n\s*\? tickerItemsOf\(games, now, tickerHours\)\s*\n\s*: \[\]\)/.test(compAll),
-			"见 80-components.js 的 tickerItems memo");
+			"见 83-panel-shell.js 的 tickerItems memo");
 		// ── 反向守卫：轮播 memo **不读**逐游戏列表 ──────────────────────────────
 		// 2026-10-25 定稿（用户纠正）：轮播 = 全局开关 + 范围，**不分游戏**。
 		// 静态证据：memo 体与依赖数组里都不许出现 remindGames / remindGamesKey。
@@ -986,7 +986,7 @@ export default async function run() {
 
 		// 静态守卫：CSS / 组件 / 纯函数三处必须成套（少一处就是"写了但没接上"）。
 		const styles2 = readStylesSource();
-		const comp2 = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
+		const comp2 = readComponentsSource();
 		const helpers2 = readFileSync(path.join(REPO, "src", "client", "60-helpers.js"), "utf8");
 
 		check(".is-settled 规则存在，且同时含 animation:none 与 transform:none（终点彻底回到静态）",

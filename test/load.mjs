@@ -37,6 +37,23 @@ export function readStylesSource() {
 	return styleFileNames().map((f) => readFileSync(path.join(STYLES_DIR, f), "utf8")).join("");
 }
 
+// ── 组件源（2026-10-28 起）──────────────────────────────────────────────────
+// `src/client/80-components.js` 按**界面**拆成了下面 5 段（顺序 = build.mjs 的 ORDER）。
+// 静态守卫原本是"在 80-components.js 里 grep 某段代码/文案"，现在改为
+// "在**拼回来的组件源**里 grep" —— 断言内容一条没改，只换读取来源。
+// 拼接方式与 build.mjs 一致（段间一个 "\n"）：拆点全落在原文件的空行上，
+// 所以这里拼出来与拆分前的那份文本**逐字节相同**。
+export const COMPONENT_FILES = [
+	"80-shared-ui.js",
+	"81-schedule-model.js",
+	"82-schedule-view.js",
+	"83-panel-shell.js",
+	"84-settings-page.js"
+];
+export function readComponentsSource() {
+	return COMPONENT_FILES.map((f) => readFileSync(path.join(REPO, "src", "client", f), "utf8")).join("\n");
+}
+
 // 最小 DOM / 模块加载器替身。插件运行时只需要：
 //   __ModuleLoader__.load({ factory })  ← 00-head.js 用它注册模块
 //   localStorage / matchMedia / document（面板与设置页在**加载期**就会读到的那些）

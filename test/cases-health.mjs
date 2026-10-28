@@ -20,7 +20,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { check, section, useFixtures } from "./harness.mjs";
-import { T, REPO } from "./load.mjs";
+import { T, REPO, readComponentsSource } from "./load.mjs";
 import { createEngine } from "../packages/core/core.mjs";
 
 const SRC = path.join(REPO, "src", "client");
@@ -481,7 +481,7 @@ export default async function runHealth() {
 
 	// ── ⑦ 设置页接线（静态）：只在有异常时占地方 + 渲染路径无 IO ─────────────────────
 	{
-		const comp = readFileSync(path.join(SRC, "80-components.js"), "utf8");
+		const comp = readComponentsSource();
 		check("设置页读的是 sourceHealth 存档（不是 lastData 里另起一份）",
 			/parseSourceHealth\(s\.sourceHealth\)/.test(comp));
 		check("设置页用纯函数折算每源状态（判定不在渲染层重写）",

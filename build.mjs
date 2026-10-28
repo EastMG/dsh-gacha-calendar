@@ -74,7 +74,7 @@ const REMIND_EXPORTS = [
 //     //#region styles
 //     const STYLE = `…`;
 //     //#endregion
-// ORDER 里保留这个名字，是为了让"样式段夹在 engine-api.js 与 80-components.js 之间"这个产物结构
+// ORDER 里保留这个名字，是为了让"样式段夹在 engine-api.js 与 80-shared-ui.js 之间"这个产物结构
 // 继续一眼可见；readChunks 见到它就走生成分支（见 styleChunk）。
 const STYLE_CHUNK = "70-styles.js";
 
@@ -116,7 +116,14 @@ const ORDER = [
   "engine-head.js",            // core 引擎外壳：createEngine（面板只通过它拿 Result JSON）
   "engine-api.js",             // 引擎 API：refresh() / 测试出口 / return
   STYLE_CHUNK,                 // 样式（不是磁盘文件：src/client/styles/*.css 生成，见 CSS_ORDER）
-  "80-components.js",          // React 组件（面板 + 设置页）
+  // 原 80-components.js（2026-10-28 按**界面**拆成 5 段，拼接结果与拆分前逐字节相同）：
+  // 拆点全部落在原文件的空行上 —— readChunks 用 "\n" 连接各段，等价于原文件里那个空行。
+  // 所以这五行**不要重排**，也不要在这几段之间插新文件。
+  "80-shared-ui.js",           // 共用小件：设置分区名等常量 / 打开设置面板 / 下载文本 / 游戏图标 + 图标预热
+  "81-schedule-model.js",      // 新面板的排期模型（纯函数）：取色 / 档期窗口 / 悬停文本 / 格式化 / 节拍 hook
+  "82-schedule-view.js",       // 新面板渲染层：轮播节拍 / 探头定位 / 留白卡 / ScheduleView / TickerFlipLines
+  "83-panel-shell.js",         // 面板外壳 CalendarPanel：订阅 / 刷新 / ticker 接线（含旧表格分支，见 README_Dev）
+  "84-settings-page.js",       // 设置页 CalendarSettingsPage + 通知身份 / 测试通知的宿主路由封装
   "90-plugin.js",              // apply(ctx)：slots / configForms / 悬停 marquee
   "92-dsh-env.js",             // DSH 环境适配：注入 transport（直连 + 宿主代理）
   "99-tail.js",                // exports.apply / exports.inject / return

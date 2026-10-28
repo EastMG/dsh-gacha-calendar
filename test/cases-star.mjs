@@ -32,7 +32,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { check, section } from "./harness.mjs";
-import { T, readStylesSource } from "./load.mjs";
+import { T, readStylesSource, readComponentsSource } from "./load.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, "..");
@@ -62,7 +62,7 @@ export default async function run() {
 	section("设置页标题行（标题/版本靠左 + Star 指引/关闭 ✕ 靠右）");
 
 	const { starHintShownOf, DEFAULT_SETTINGS } = T;
-	const comp = readFileSync(path.join(SRC, "80-components.js"), "utf8");
+	const comp = readComponentsSource();
 	const helpers = readFileSync(path.join(SRC, "60-helpers.js"), "utf8");
 	const cfgSrc = readFileSync(path.join(SRC, "10-config.js"), "utf8");
 	const ehSrc = readFileSync(path.join(SRC, "engine-head.js"), "utf8");

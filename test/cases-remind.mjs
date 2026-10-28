@@ -22,7 +22,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { check, section } from "./harness.mjs";
-import { T, readStylesSource } from "./load.mjs";
+import { T, readStylesSource, readComponentsSource } from "./load.mjs";
 import * as R from "../lib/remind-core.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -373,7 +373,7 @@ export default async function run() {
 		const hostCode = hostSrc.replace(/\/\*[\s\S]*?\*\//g, "").split("\n").filter((line) => !line.trim().startsWith("//")).join("\n");
 		const pkg = JSON.parse(readFileSync(path.join(REPO, "package.json"), "utf8"));
 		const buildSrc = readFileSync(path.join(REPO, "build.mjs"), "utf8");
-		const compSrc = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
+		const compSrc = readComponentsSource();
 
 		check("宿主从 lib/remind-core.mjs 复用判定（不是自己再写一套）",
 			/from "\.\/remind-core\.mjs"/.test(hostSrc) && /\bremindTickOf\b/.test(hostSrc) && /\bremindItemsOf\b/.test(hostSrc));
@@ -480,7 +480,7 @@ export default async function run() {
 			&& R.remindNodesToggleOf("2", 2, D_START) === "");
 
 		// ② 设置页接线（静态）
-		const compSrc = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
+		const compSrc = readComponentsSource();
 		const styleSrc = readStylesSource();
 		check("胶囊行：结束提醒保留、开始提醒已注释（2026-10-28 搁置），可选集合直接取出厂常量（不另抄一份）",
 			compSrc.includes('remindChipRow("end", "结束提醒", remindEndSavedText, REMIND_DEFAULT_END_NODES, "remindEndNodes"')
@@ -592,7 +592,7 @@ export default async function run() {
 			&& notifyShortcutPickOf({}, expected) === R.notifyShortcutPickOf({}, expected));
 
 		const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
-		const compSrc = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
+		const compSrc = readComponentsSource();
 		const aumidHits = hostSrc.match(/DshGachaCalendar\.Reminder/g) || [];
 
 		check("AUMID 在宿主里**只写一份**（NOTIFY_AUMID），toast 脚本的 $Aumid 由运行时传进去（不写死第二份）",
@@ -750,7 +750,7 @@ export default async function run() {
 
 		// ②-⑤ 宿主静态
 		const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
-		const compSrc = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
+		const compSrc = readComponentsSource();
 		const bodyOf = (name) => {
 			const i = hostSrc.indexOf("async function " + name + "(");
 			const j = i < 0 ? -1 : hostSrc.indexOf("\n}", i);
@@ -944,7 +944,7 @@ export default async function run() {
 			JSON.stringify([remindTestToastOf(NOW, "app", "我的日历").lines[0], remindTestToastOf(NOW, "app").lines[0]]));
 
 		// ⑤ 设置页那一行
-		const compSrc = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
+		const compSrc = readComponentsSource();
 		const rowAt = compSrc.indexOf("// ── 通知身份（可选）：**一行**");
 		const rowEnd = compSrc.indexOf("// ── 实验特性开关", rowAt);
 		const row = rowAt < 0 || rowEnd < 0 ? "" : compSrc.slice(rowAt, rowEnd);
@@ -1177,7 +1177,7 @@ export default async function run() {
 			&& /const target = await notifyToastTargetOf\(plain\.notifyName\);/.test(hostSrc));
 
 		// 设置页：GET 毫秒级之后「读取中…」只在首次 / 无缓存时短暂出现，且不挡住其它行
-		const compSrc = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
+		const compSrc = readComponentsSource();
 		check("设置页只在**那一行**显示「读取中…」，不挡住其它行（没有整页 early return）",
 			compSrc.includes('notifyIdentity === null ? "读取中…"')
 			&& !/if \(notifyIdentity === null\) return/.test(compSrc)
@@ -1275,7 +1275,7 @@ export default async function run() {
 			/identityRefreshRunning = true;[\s\S]{0,600}?setTimeout\(\(\) => \{[\s\S]{0,80}?void \(async \(\) => \{/.test(bodyOfFn("refreshIdentityState")));
 
 		// ④ 设置页：拿到保守值后要能更新（点「发送测试通知」顺手再 GET 一次）
-		const compSrc = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
+		const compSrc = readComponentsSource();
 		check("设置页有 refreshNotifyIdentity（GET 一次 + setNotifyIdentity，失败保持原显示）",
 			/const refreshNotifyIdentity = async \(\) => \{[\s\S]{0,400}?setNotifyIdentity\(notifyIdentityOfBody\(body\)\)/.test(compSrc));
 		check("点「发送测试通知」成功后**再 GET 一次身份**并刷新那一行（保守值不会一直挂着）",
