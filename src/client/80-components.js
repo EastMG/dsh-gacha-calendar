@@ -1972,6 +1972,8 @@
 			// 解析器自检（只读）：运行中标记 + 上一次的报告
 			const [selfChecking, setSelfChecking] = (0, react.useState)(false);
 			const [selfReport, setSelfReport] = (0, react.useState)(null);
+			// 「来源健康」的展开开关：默认**收起**（只列异常项；用户抱怨过设置页太长）。
+			const [healthAll, setHealthAll] = (0, react.useState)(false);
 			// 逐个来源跑一遍，报告「解析出 0 条 / 抓取报错」；不改动设置与缓存
 			const runSelfCheck = async () => {
 				if (selfChecking) return;
@@ -2022,6 +2024,20 @@
 
 			const order = Array.isArray(s.order) && s.order.length > 0 ? s.order : allEntries.map((x) => x.id);
 			const sorted = applyOrder(allEntries, order);
+			// ── 来源健康（待办第 3 项「解析器自检」的升级）────────────────────────────────
+			// 数据 = 引擎每轮刷新写回的 `sourceHealth` 存档（与 lastData 并列但**独立**的一个键）。
+			// 这里只做"读存档 → 纯函数折算成每源状态"，**渲染路径不做任何 IO**（不 fetch、不读文件）。
+			// 范围 = **展示中**的条目（与刷新 / 自检同一口径）：隐藏条目本轮不抓，记录会僵在隐藏前
+			// 那一刻，把它们列出来只会误导。now 取渲染时刻 —— "X 前"不需要秒级精度，任意一次
+			// 设置写入 / 刷新推送都会重算这一块。
+			const healthRows = sourceHealthOf(
+				parseSourceHealth(s.sourceHealth).sources,
+				Date.now(),
+				{ entries: applyOrder(getVisibleEntries(s), order).map((g) => ({ id: g.id, name: g.name || g.id })) }
+			);
+			// known = 有过记录（从没刷过 / 旧版本升上来的老存档没有记录，那种情况整块不渲染）
+			const healthKnown = healthRows.filter((h) => h.known);
+			const healthBad = healthKnown.filter((h) => h.state !== "ok");
 			const currentMinutes = Number(s.refreshMinutes ?? DEFAULT_SETTINGS.refreshMinutes);
 			// 旧配置可能存了分钟值（不在按天选项里），额外补一个"自定义"选项避免 select 空白
 			const inOptions = REFRESH_OPTIONS.some((o) => o.minutes === currentMinutes);
@@ -2854,6 +2870,41 @@
 						(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 10 }, children: [
 							(0, react_jsx_runtime.jsx)("span", { style: { fontWeight: 600 }, children: "解析器自检" }),
 							(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-refresh gacha-cal-sort-btn", disabled: selfChecking, onClick: runSelfCheck, children: selfChecking ? "自检中…" : (selfReport ? "重新自检" : "开始自检") })
+						] }),
+						// ── 来源健康（待办第 3 项）──────────────────────────────────────────
+						// 形态与「低调」约束（用户抱怨过设置页太长）：
+						//   · 一条记录都没有（没刷过 / 从旧版本升上来）⇒ 整块不渲染；
+						//   · 有记录且全部正常 ⇒ 只剩下面那一行汇总（0 个异常，不列任何来源）；
+						//   · 有异常 ⇒ 汇总写"N 个来源需要关注"，并逐条列出（游戏名 · 连续失败 N 次 ·
+						//     最近成功 X 前 · 原因）——**健康的来源不占地方**；
+						//   · 「显示全部」默认收起：展开后才列全部展示中来源的最近成功时间。
+						healthKnown.length === 0 ? null : (0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 3, fontSize: 12 }, children: [
+							(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
+								(0, react_jsx_runtime.jsx)("span", {
+									style: { color: healthBad.length ? "var(--dsw-alias-state-warn-label)" : "var(--dsw-alias-label-tertiary)" },
+									children: healthBad.length
+										? "来源健康：" + healthBad.length + " 个来源需要关注"
+										: "来源健康：全部正常（" + healthKnown.length + " 个来源）"
+								}),
+								(0, react_jsx_runtime.jsx)("button", {
+									type: "button",
+									className: "gacha-cal-sort-btn",
+									style: { width: "auto", height: "auto", padding: "1px 8px", borderRadius: 6, fontSize: 11 },
+									onClick: () => setHealthAll((v) => !v),
+									children: healthAll ? "只看异常" : "显示全部 " + healthKnown.length + " 个"
+								})
+							] }),
+							// 文案与色阶都由纯函数 sourceHealthOf 给定（text 就是「名字 · 连续失败 N 次 · …」那句）；
+							// down = 失败红、stale/never = 疑似停更黄、ok = 三级灰。
+							(healthAll ? healthKnown : healthBad).map((h) => (0, react_jsx_runtime.jsx)("div", {
+								title: h.name + " · " + h.text,
+								style: {
+									color: h.state === "down"
+										? "var(--dsw-alias-state-error-primary, #d4380d)"
+										: (h.state === "ok" ? "var(--dsw-alias-label-tertiary)" : "var(--dsw-alias-state-warn-label)")
+								},
+								children: "· " + h.name + " · " + h.text
+							}, h.id))
 						] }),
 						(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 12 }, children: "逐个来源检查，区分「无匹配/未公布」与「失败」" }),
 						selfReport ? (selfReport.error

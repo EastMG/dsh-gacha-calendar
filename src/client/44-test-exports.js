@@ -456,6 +456,15 @@
 			remindItemsOf,
 			remindTickOf,
 			remindToastOf,
+			// 来源健康（待办第 3 项，60-helpers.js 的纯函数）：读存档 / 单轮结论 / 单源累积 /
+			// 一轮更新 / 给 UI 的每源状态（正常 / 连续失败 / 疑似改版停更 / 从未成功）。
+			// 常量 SOURCE_HEALTH_* 在本文件之后（TDZ），测试按**行为**钉阈值（第 7 天整才翻成疑似停更），
+			// 再用静态断言钉住 `SOURCE_HEALTH_NOMATCH_DAYS = 7` 这一处字面量（见 cases-health.mjs）。
+			parseSourceHealth,
+			sourceHealthRoundOf,
+			sourceHealthNextOf,
+			sourceHealthUpdateOf,
+			sourceHealthOf,
 			sourceInstant,
 			sourceWallParts,
 			sourceOffsetMinutes,

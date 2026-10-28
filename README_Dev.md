@@ -76,8 +76,8 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 20 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora + 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引））
-│   ├── cases-*.mjs  # 各段用例（20 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / rule-lint / tz / ticker / remind / readme / core / star）
+│   ├── all.mjs      # 统一门禁：聚 21 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora + 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引））
+│   ├── cases-*.mjs  # 各段用例（21 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / rule-lint / tz / ticker / remind / health / readme / core / star）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
 │   ├── registry-shim.mjs # 各批次注册表规格快照 + DRIFT 守卫（与运行时 SOURCES 核对 tz/name）
@@ -220,8 +220,13 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
     - 守卫：`test/cases-ticker.mjs` ④ —— 白名单语义 + 默认值 == 展示中来源 + schema 一致
       + **反向守卫**（轮播链路与函数签名里都不许出现逐游戏列表）；
       另有静态守卫钉住"`SHOW_REMIND_COLUMN = false` 时五处入口全部不可见"（防有人只藏一半）。
-3. **解析器自检**（原「来源健康看板」的重构升级）：每源展示最近成功时间 / 连续失败次数 / 失败原因，
+3. **解析器自检（✅ 已完成 2026-10-28）**（原「来源健康看板」的重构升级）：每源展示最近成功时间 / 连续失败次数 / 失败原因，
    并加"N 天连续 nomatch 即提示源可能改版或停更"（踩过的坑：异环公告改段落写法、雪松源页面停更）。
+   - ✅ 实现：引擎每轮刷新后逐源累积，写进**独立**设置键 `sourceHealth`（不污染 `lastData`）；判定是 core 的
+     纯函数 `sourceHealthRoundOf` / `sourceHealthNextOf` / `sourceHealthOf`（`60-helpers.js`），
+     状态 = 正常 / 连续失败 / 疑似改版停更 / 从未成功；N = `SOURCE_HEALTH_NOMATCH_DAYS = 7`
+     （连续 nomatch 的**跨度**满 7 天才提示，不是"连抓 7 次"）。设置页「来源健康」只列**不健康**的来源
+     （全正常时只占一行），守卫见 `test/cases-health.mjs`。
 4. **搜索与筛选**：设置页来源列表加"搜游戏名"+ 分组（国服/日服/国际服）+ 只看已启用；
    面板内加按卡池/角色名搜索（现在的 28 个来源只能靠"展示"开关逐条关）。
 5. **排期导出 .ics**：把当期窗口导出成一次性快照（可导入手机日历）。

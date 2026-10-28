@@ -67,6 +67,14 @@
 			lastSource: "none",
 			// 最近一次联网抓取的解析结果（JSON：{ [gameId]: {banner,bannerDates,roles,event,eventDates} }）
 			lastData: "",
+			// 来源健康存档（JSON：{ v, at, sources: { [id]: { at, okAt, items, error,
+			// failStreak, nomatchStreak, nomatchSince } } }）：每轮刷新后由引擎累积写回，
+			// 设置页的「来源健康」只读它（纯函数 sourceHealthOf，60-helpers.js）。
+			// **刻意与 lastData 分开**：lastData 是渲染的唯一数据源（形状是冻结契约），
+			// 健康是跨轮累积的历史状态 —— 混进去会同时污染渲染与对外 Result JSON。
+			// 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 与 src/index.js 的 schema 里
+			// （三处齐的守卫见 test/cases-health.mjs）。
+			sourceHealth: "",
 			// 每游戏主题色覆盖：{ id: "#rrggbb" }（空 = 用出厂色 / 名字哈希），由设置页的取色器写入
 			gameColors: "{}",
 			// 不展示的条目 id 列表（设置页开关）；出厂默认隐藏见条目的 `defaultHidden` 字段

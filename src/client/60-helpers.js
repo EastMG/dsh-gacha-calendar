@@ -162,6 +162,180 @@
 			return { info, lines };
 		}
 
+		//#region 来源健康（解析器自检 / 待办第 3 项）
+		// 目的：让"**能抓但抓不到东西**"这类故障自己浮出来，不必等用户发现面板空了。
+		// 踩过的两个坑都是这一种（不是 HTTP 失败）：
+		//   · 异环公告改成按段落锚点写 → 请求 200、页面结构不认识 → 解析出 0 条；
+		//   · 雪松源页面停更 → 请求 200、页面上就是没有当期内容 → 解析出 0 条。
+		// 与 `buildScrapeInfo` 的分工：那个只算**本轮**的顶部横幅（成功 N/M + 五类归类），一次性的、
+		// 不落盘、刷新完就丢；这里是**跨轮累积**的每源状态（最近成功时间 / 连续失败次数 / 连续 nomatch
+		// 起点），写进独立键 `sourceHealth` —— **不污染 lastData**（后者是渲染的唯一数据源，形状是冻结契约）。
+		//
+		// 每轮逐源折算成三种结论 + 跳过：
+		//   ok       —— 至少一侧解析出了内容（items ≥ 1）
+		//   nomatch  —— 每一侧都"请求成功但解析出 0 条"（上面那两个坑就是这个形态）
+		//   down     —— 任一侧抓取/解析报错（网络 / CORS 被拦 / HTTP 非 2xx / 超时 / 解析崩）
+		//   skip     —— 这一轮**根本没抓**（条目两侧都没配来源 / 被跳过）⇒ 不编造结论；
+		//               整轮更新时这条例目**连记录都不留**（"没有可抓来源"没有健康可言，见 updateOf）
+		// 说明：items 是"**有内容的侧数**"（0~2），不是条目条数 —— 解析结果是一段成品文本，
+		// 不重新解析数不出条数，而"最近成功"这个用途只需要这个粒度。
+		const SOURCE_HEALTH_VERSION = 1;
+		// N 天连续 nomatch ⇒ 提示"源可能改版或停更"。
+		// 取 7 天的理由：更短会把"这个池子刚好空档"误报成改版（卡池之间有天然空窗）；
+		// 更长则用户早就看见面板空了。做成常量（不要在判定/文案里散写 7），口径与报告都引这一处。
+		const SOURCE_HEALTH_NOMATCH_DAYS = 7;
+		const SOURCE_HEALTH_DAY_MS = 86400000;
+
+		// 读存档：坏值 / 缺失 / 空串一律当成"没有记录"（**永不抛** —— 它只是辅助信息，
+		// 存坏了不该让设置页或刷新链路跟着炸）。返回 { v, at, sources }。
+		function parseSourceHealth(raw) {
+			const obj = typeof raw === "string"
+				? parseJsonStr(raw, null)
+				: (raw && typeof raw === "object" ? raw : null);
+			const sources = obj && obj.sources && typeof obj.sources === "object" ? obj.sources : {};
+			return { v: SOURCE_HEALTH_VERSION, at: Number(obj && obj.at) || 0, sources };
+		}
+
+		// 本轮结论（纯函数）：source = 条目元信息（要 url / eventUrl 才知道"这一侧配了没有"），
+		// r = fetchEntry 的返回（{ data, gachaFail, eventFail, reason }）。
+		function sourceHealthRoundOf(source, r) {
+			const id = String((source && source.id) || "");
+			if (!id) return { id: "", status: "skip", items: 0, error: "" };
+			const hasGacha = !!source.url;
+			const hasEvent = !!source.eventUrl;
+			if ((!hasGacha && !hasEvent) || (r && r.reason === "skipped")) {
+				return { id, status: "skip", items: 0, error: "" };
+			}
+			const data = (r && r.data) || {};
+			// 与面板 / 顶部横幅同一口径：卡池看 banner、活动看 event，空串 = 这一侧没有内容。
+			const items = (hasGacha && data.banner ? 1 : 0) + (hasEvent && data.event ? 1 : 0);
+			// down 优先于"没内容"：报错有可行动的原因，不能被笼统说成"未公布"。
+			const gF = normalizeFail(r && r.gachaFail);
+			const eF = normalizeFail(r && r.eventFail);
+			const downSide = hasGacha && isDown(gF) ? "gacha" : (hasEvent && isDown(eF) ? "event" : "");
+			if (downSide) {
+				return { id, status: "down", items, error: sideFailText(downSide, downSide === "gacha" ? gF : eF) };
+			}
+			if (items === 0) return { id, status: "nomatch", items: 0, error: "" };
+			return { id, status: "ok", items, error: "" };
+		}
+
+		// 单源累积（纯函数）：prev = 上一条记录（可无），round = 本轮结论，now = 毫秒时间戳。
+		// · down     ⇒ failStreak+1，nomatch 连击清掉（中间失败过一次就不再算"连续 nomatch"）
+		// · nomatch  ⇒ nomatchStreak+1，起点只在连击里保留（中途成功/失败过就重新起算）
+		// · ok       ⇒ 两条连击都清零，okAt = 本轮时间
+		// · skip     ⇒ 返回 prev 原样（"没抓"不是结论，绝不能写成成功或失败）
+		//              ⚠️ 整轮更新（sourceHealthUpdateOf）对 skip 更狠：记录直接丢掉 —— 见那里的注释。
+		function sourceHealthNextOf(prev, round, now) {
+			const p = prev && typeof prev === "object" ? prev : null;
+			if (!round || round.status === "skip") return p;
+			const at = Number(now) || 0;
+			const okAt = p ? Number(p.okAt) || 0 : 0;
+			const base = { at, okAt, items: 0, error: "", failStreak: 0, nomatchStreak: 0, nomatchSince: 0 };
+			if (round.status === "down") {
+				return {
+					...base,
+					error: String(round.error || "") || "抓取异常",
+					failStreak: (p ? Number(p.failStreak) || 0 : 0) + 1
+				};
+			}
+			if (round.status === "nomatch") {
+				const prevStreak = p ? Number(p.nomatchStreak) || 0 : 0;
+				return {
+					...base,
+					nomatchStreak: prevStreak + 1,
+					nomatchSince: prevStreak > 0 && Number(p.nomatchSince) > 0 ? Number(p.nomatchSince) : at
+				};
+			}
+			return { ...base, okAt: at, items: Number(round.items) || 0 };
+		}
+
+		// 一轮刷新后的整体更新（纯函数）：rounds = 逐条结论，keepIds = 现存条目 id（含隐藏的）。
+		// · 旧记录只搬"条目还在"的那些（删掉的条目不再占存档；隐藏条目本轮没抓 ⇒ 原样保留）；
+		// · 本轮 skip 的条目（两侧都没配来源 / 被跳过）：**记录一并丢掉** —— 不把"没抓"写成
+		//   "失败"，也不留一条再也不会更新的历史（那会僵成一条假「疑似停更」）。
+		function sourceHealthUpdateOf(prevRaw, rounds, now, keepIds) {
+			const prev = parseSourceHealth(prevRaw);
+			const keep = Array.isArray(keepIds) ? keepIds.filter((x) => typeof x === "string") : null;
+			const sources = {};
+			for (const [id, rec] of Object.entries(prev.sources)) {
+				if (keep && keep.indexOf(id) < 0) continue;
+				if (!rec || typeof rec !== "object") continue;
+				sources[id] = rec;
+			}
+			for (const round of Array.isArray(rounds) ? rounds : []) {
+				if (!round || !round.id) continue;
+				// 只收"现存条目"的结论：与上面搬运同一条不变量（存档里不出现已删除的 id）
+				if (keep && keep.indexOf(round.id) < 0) continue;
+				// 这一轮**没抓**（条目两侧都没配来源 / 被跳过）⇒ 不算结论，而且记录一并丢弃：
+				// 一个"没有可抓来源"的条目没有健康可言，留着旧记录只会僵在那里，
+				// 几天后正好伪造出我们要防的那条"疑似停更"。
+				// （隐藏条目根本不在 rounds 里，走上面的搬运 ⇒ 原样保留，不会被这里清掉。）
+				if (round.status === "skip") {
+					delete sources[round.id];
+					continue;
+				}
+				const next = sourceHealthNextOf(sources[round.id], round, now);
+				if (next) sources[round.id] = next;
+			}
+			return { v: SOURCE_HEALTH_VERSION, at: Number(now) || 0, sources };
+		}
+
+		// 给 UI 的每源状态（纯函数）：sources = 存档里的 sources 表，now = 毫秒时间戳，
+		// opts = { entries: [{ id, name }]（**展示中**的条目，决定范围与顺序）, nomatchDays }。
+		// 返回 [{ id, name, known, state, failStreak, nomatchDays, nomatchMs, lastOkAt, items, error, text }]
+		//   state:
+		//     "ok"    —— 正常（最近一轮成功，或连击还没到 N 天 —— 没到阈值不打扰用户）
+		//     "down"  —— 连续失败 ≥ 1 次（原因在 error；从未成功也在这一档，因为"为什么失败"更有用）
+		//     "stale" —— 连续 nomatch 且**跨过 N 天**（曾经成功过）⇒ 疑似改版或停更
+		//     "never" —— 连续 nomatch 且跨过 N 天，而且**一次都没成功过** ⇒ 从装上就没抓到东西
+		// `text` 就是设置页那一行（"游戏名 · 连续失败 N 次 · 最近成功 X 前 · 原因"）。
+		function sourceHealthOf(sources, now, opts) {
+			const list = Array.isArray(opts && opts.entries) ? opts.entries : [];
+			const days = Number(opts && opts.nomatchDays) > 0 ? Number(opts.nomatchDays) : SOURCE_HEALTH_NOMATCH_DAYS;
+			const at = Number(now) || 0;
+			const map = sources && typeof sources === "object" ? sources : {};
+			return list.map((g) => {
+				const id = String((g && g.id) || "");
+				const name = String((g && g.name) || id);
+				const rec = map[id] && typeof map[id] === "object" ? map[id] : null;
+				const okAt = rec ? Number(rec.okAt) || 0 : 0;
+				const items = rec ? Number(rec.items) || 0 : 0;
+				const failStreak = rec ? Number(rec.failStreak) || 0 : 0;
+				const nomatchStreak = rec ? Number(rec.nomatchStreak) || 0 : 0;
+				const since = rec ? Number(rec.nomatchSince) || 0 : 0;
+				// 连击跨度：只认"当前这一段连击"的起点（成功/失败过就归零，见 sourceHealthNextOf）
+				const nomatchMs = nomatchStreak > 0 && since > 0 && at > since ? at - since : 0;
+				const nomatchDays = Math.floor(nomatchMs / SOURCE_HEALTH_DAY_MS);
+				// 判定顺序：连续失败 > 疑似停更 > 正常。失败优先 —— 那是有明确原因、能动手修的。
+				let state = "ok";
+				if (failStreak > 0) state = "down";
+				else if (nomatchMs >= days * SOURCE_HEALTH_DAY_MS) state = okAt > 0 ? "stale" : "never";
+				const agoText = okAt > 0 && at > okAt ? "最近成功 " + tickerSpanText(at - okAt) + "前" : "从未成功";
+				const parts = [];
+				if (state === "down") parts.push("连续失败 " + failStreak + " 次");
+				// "连续 N 天"：N 一律用**实际跨度**（向下取整），不用阈值字面量 —— 否则 9 天会说成 7 天。
+				if (state === "stale" || state === "never") parts.push("连续 " + (nomatchDays || days) + " 天没解析出内容");
+				parts.push(agoText);
+				if (state === "down" && rec && rec.error) parts.push(String(rec.error));
+				if (state === "stale" || state === "never") parts.push("疑似改版或停更");
+				return {
+					id,
+					name,
+					known: !!rec,
+					state,
+					failStreak,
+					nomatchDays,
+					nomatchMs,
+					lastOkAt: okAt,
+					items,
+					error: rec && rec.error ? String(rec.error) : "",
+					text: parts.join(" · ")
+				};
+			});
+		}
+		//#endregion
+
 		// 按设置中的排序（order: id 数组）重排；未设置时保持 SOURCES 顺序
 		function applyOrder(sources, order) {
 			if (!Array.isArray(order) || order.length === 0) return sources;

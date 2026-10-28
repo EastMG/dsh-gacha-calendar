@@ -48,7 +48,10 @@
 				// starHintDismissed：设置页标题行 Star 指引的「已关闭」标记（默认 false = 显示）。
 				// 设置页点 ✕ 写它；面板侧按同一份配置决定还显不显示。**别漏** —— 与上面每个键同理。
 				"starHintDismissed",
-				"newPanel", "newPanelMigrated", "lastData", "lastRefresh", "lastSource", "lastVersion"
+				"newPanel", "newPanelMigrated", "lastData", "lastRefresh", "lastSource", "lastVersion",
+				// sourceHealth：来源健康存档（引擎每轮刷新写、设置页「来源健康」读）。
+				// 别漏 —— 与上面每个缓存键同理（漏了就是「写了却读不到」，见 test/cases-health.mjs）。
+				"sourceHealth"
 			];
 
 			// 读取配置（缺失项回落到 10-config.js 的 DEFAULT_SETTINGS）

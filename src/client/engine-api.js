@@ -74,6 +74,31 @@
 					games[e.id] = normalizeRecord(rec, e.name);
 				});
 				await storage.set("lastData", JSON.stringify(games));
+				// ── 来源健康（待办第 3 项「解析器自检」）：逐源累积状态 ─────────────────────
+				// 只写**独立键** `sourceHealth`：lastData 的字段与口径一个字都不动（它是渲染的唯一
+				// 数据源，也是对外冻结的 Result JSON 契约）。判定全在 60-helpers.js 的纯函数里，
+				// 这里只做"读旧存档 → 折算本轮结论 → 写回"三步；存档坏了 parseSourceHealth 会当空表。
+				// 隐藏条目本轮没抓（results 里没有它）⇒ 旧记录原样保留；已删除的条目从存档里丢掉。
+				// 为什么放在引擎而不是宿主：刷新的**唯一产出点**就在这里 —— 宿主读不到 gachaFail /
+				// eventFail 这一轮的原始结果，另起一条链路只会算出第二套结论。
+				const healthRounds = entries.map((e, i) => sourceHealthRoundOf(
+					// 用**生效的**地址（含用户在设置页填的 customUrls / customEventUrls），
+					// 与 refreshAll 里构造 targets 的口径完全一致 —— 否则"用户给没有活动侧的条目
+					// 补了一条活动地址"会被算成"没配活动侧"，进而低估 items / 误判成 nomatch。
+					{
+						id: e.id,
+						url: getEntryUrl(s, e.id, e.url),
+						eventUrl: getEntryUrl(s, e.id, e.eventUrl, "eventUrl")
+					},
+					result.results[i] || { reason: "skipped" }
+				));
+				const health = sourceHealthUpdateOf(
+					await storage.get("sourceHealth"),
+					healthRounds,
+					result.at,
+					allEntries.map((e) => e.id)
+				);
+				await storage.set("sourceHealth", JSON.stringify(health));
 				await storage.set("lastRefresh", result.at);
 				await storage.set("lastSource", result.status === "ok" ? "web" : "none");
 				// 版本哨兵：只要这一轮**真的抓到了东西**（okCount > 0）就记当前插件版本。
@@ -169,6 +194,12 @@
 				eventFetcherFor,
 				normalizeSourceId,
 				altSourceId,
+				// 来源健康（待办第 3 项）：读存档 / 单轮结论 / 单源累积 / 一轮更新 / 给 UI 的每源状态
+				parseSourceHealth,
+				sourceHealthRoundOf,
+				sourceHealthNextOf,
+				sourceHealthUpdateOf,
+				sourceHealthOf,
 				getEntryUrl,
 				isCustomSource,
 				readSettings,
