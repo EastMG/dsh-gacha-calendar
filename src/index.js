@@ -13,6 +13,8 @@ import z from "@deepseek-ai/schemastery";
 // 到期提醒（送达）：判定与文案来自 core 的**同一份源码**（lib/remind-core.mjs 由 build.mjs 从
 // src/client/65-remind.js 原样拼出）。宿主半边因此不需要（也拿不到）浏览器 bundle 里的任何东西。
 import {
+	NOTIFY_IDENTITY_MAX_AGE_MS,
+	notifyIdentityCacheOf,
 	notifyNameOf,
 	notifyShortcutPickOf,
 	remindConfigOf,
@@ -56,6 +58,14 @@ const SNAPSHOT_MAX_CHARS = 4 * 1024 * 1024;
  *  （只删 AUMID 等于我们的那条，见 notifyIdentityEnableScript）。
  * 为什么做成**可选**：这条快捷方式是**当前用户**开始菜单里的一个真实入口（不需要管理员），
  * 换来的只是通知横幅顶部的应用名 —— 该由用户自己点，不该在装插件时偷偷做。
+ *
+ * 性能（2026-10-28）：探测本身要起一次 PowerShell 批量读开始菜单所有 .lnk 的 AUMID（29 个 ≈1 秒），
+ * 以前每次 GET / 每轮提醒都付这个钱 ⇒ 设置页一打开就卡「读取中…」。现在探测结果缓存到
+ * `%LOCALAPPDATA%\dsh-gacha-calendar\identity.json`，GET 与提醒轮次先读文件（毫秒级）：
+ *   ① 没有文件 / 字段不全 / 读坏 ⇒ 探测一次（慢路径）并写回；
+ *   ② 有文件 ⇒ 立刻返回；超过 24h 或缓存说启用而 .lnk 已被手工删掉，则**后台**补探一次纠正，
+ *      本次仍回文件内容（绝不阻塞在 PowerShell 上）。
+ * 写点只有三处：GET 慢路径探测之后、POST 成功之后、后台刷新探测之后。
  */
 const NOTIFY_IDENTITY_PREFIX = "/api/gacha-calendar-notify-identity";
 
@@ -407,6 +417,12 @@ function remindStatePath() {
 }
 function remindLogPath() {
 	return path.join(remindDir(), "remind.log");
+}
+
+/** 通知身份状态缓存：`%LOCALAPPDATA%\dsh-gacha-calendar\identity.json`（与去重状态 / 日志同目录）。
+ *  它只是**探测结果的缓存**，不是设置：删掉 = 下一次 GET 走一次探测慢路径（~1 秒），之后恢复毫秒级。 */
+function notifyIdentityPath() {
+	return path.join(remindDir(), "identity.json");
 }
 
 /** 记一行日志：宿主 console 之外再落一份文件 —— 定时任务出问题是"事后才想知道"，没人盯着 console。 */
@@ -784,13 +800,132 @@ async function notifyIdentityProbe() {
 }
 
 /**
+ * 一次探测结果 → 落盘记录（`identity.json` 的形状，也是 GET / 提醒轮次唯一信任的"上一次真相"）。
+ *   enabled       只由「快捷方式存在 **且** AUMID 正确」决定（remindIdentityOf，判据只有这一处）；
+ *   aumid         恒为 NOTIFY_AUMID（缓存只描述"我们这个身份"；常量变了旧文件会被判作废）；
+ *   shortcutPath  启用时 = 探测到的真实 .lnk（可能不是按当前配置名拼出来的那条）；未启用时空串；
+ *   name          启用时优先取探测到的**文件名**（改名重建失败时那才是实际生效的名字），否则配置名；
+ *   checkedAt     这次探测的时刻 —— GET 的 TTL 与后台刷新都按它算。
+ */
+function identityStateOf(probe, cfgName) {
+	const enabled = remindIdentityOf(probe, NOTIFY_AUMID).enabled === true;
+	const detected = enabled && probe && typeof probe.name === "string" ? probe.name.trim() : "";
+	return {
+		enabled,
+		aumid: NOTIFY_AUMID,
+		shortcutPath: enabled && probe && typeof probe.shortcutPath === "string" ? probe.shortcutPath : "",
+		name: detected === "" ? notifyNameOf(cfgName) : notifyNameOf(detected),
+		checkedAt: Date.now()
+	};
+}
+
+/** 记录 → remindIdentityOf 吃的"探测结果"形状。
+ *  身份判定**仍然只有 remindIdentityOf 一处**（缓存只是把探测结果保存下来，不另写一套"enabled 就算启用"）。 */
+function identityProbeOfState(state) {
+	return state && state.enabled === true
+		? { exists: true, aumid: state.aumid, shortcutPath: state.shortcutPath, name: state.name }
+		: { exists: false, aumid: null, error: null };
+}
+
+/**
+ * 记录 → GET 响应体（字段名与设置页 / 预留图标接口对齐，见 NOTIFY_IDENTITY_PREFIX 的注释）。
+ * 名字与路径都**以记录里的真实快捷方式为准**：改名重建失败时（配置是 6666、文件还是旧名字），
+ * 界面必须显示"实际生效的那个"，否则用户看到的和横幅上的又对不上。
+ */
+function identityBodyOf(state, cfgName) {
+	const enabled = state && state.enabled === true;
+	const detected = enabled && typeof state.name === "string" ? state.name.trim() : "";
+	const shownName = detected === "" ? cfgName : notifyNameOf(detected);
+	// 路径同理：启用时回真实文件（可能不是按当前配置名拼出来的那个）；未启用时回"将要建的那个"。
+	const shortcutPath = enabled && typeof state.shortcutPath === "string" && state.shortcutPath !== ""
+		? state.shortcutPath
+		: notifyShortcutPath(cfgName);
+	return { enabled, name: shownName, aumid: NOTIFY_AUMID, shortcutPath, iconPath: notifyIconPath() };
+}
+
+/**
+ * 读身份状态缓存（`identity.json`）。**毫秒级、不探测、永不抛**。
+ * 返回 `{ state, stale }` 或 null（= 没有文件 / 读坏 / 字段不全 ⇒ 调用方走探测慢路径）。
+ * stale=true 表示"还能用，但该在后台补探一次"：超过 24h（NOTIFY_IDENTITY_MAX_AGE_MS），或者
+ * 缓存说启用了、而那条 .lnk 已经被用户手工删掉（一次 existsSync，微秒级，不是探测）。
+ * ⚠️ GET 的毫秒路径就是它：这里**绝不起 PowerShell**，否则设置页又会卡 1 秒。
+ */
+function readIdentityState() {
+	let text;
+	try {
+		text = readFileSync(notifyIdentityPath(), "utf8");
+	} catch (err) {
+		if (err && err.code !== "ENOENT") logRemind("读取身份缓存失败（按没有缓存处理）：" + String((err && err.message) || err));
+		return null;
+	}
+	const decision = notifyIdentityCacheOf(text, Date.now(), NOTIFY_IDENTITY_MAX_AGE_MS, NOTIFY_AUMID);
+	if (!decision.useCached || !decision.state) return null;
+	const state = decision.state;
+	const vanished = state.enabled === true && state.shortcutPath !== "" && !existsSync(state.shortcutPath);
+	return { state, stale: decision.shouldRefresh === true || vanished };
+}
+
+/** 原子写身份状态缓存：同目录 .tmp → rename（与去重状态同一套，宿主被强杀时不会留下半截 JSON）。 */
+function writeIdentityState(state) {
+	const file = notifyIdentityPath();
+	mkdirSync(path.dirname(file), { recursive: true });
+	const tmp = file + ".tmp";
+	writeFileSync(tmp, JSON.stringify(state, null, 2) + "\n", "utf8");
+	renameSync(tmp, file);   // 同目录 rename：原子替换
+}
+
+/**
+ * 慢路径：真探测一次并**写回**缓存（identity.json 的写点之一）。
+ * 只有"没有文件 / 字段不全 / 读坏"与"POST 成功之后"才走到这里 —— 正常 GET 与每轮提醒都不碰 PowerShell。
+ * 写不进去（文件被占 / 没权限）只记日志：本次仍按探测结果返回，下一次再探测一次就是了。
+ */
+async function probeIdentityState(cfgName) {
+	const state = identityStateOf(await notifyIdentityProbe(), cfgName);
+	try {
+		writeIdentityState(state);
+	} catch (err) {
+		logRemind("写身份缓存失败（本次仍按探测结果）：" + String((err && err.message) || err));
+	}
+	return state;
+}
+
+/** 同一时刻只允许一次后台刷新：多个 GET / 提醒轮次撞在一起时不该起多个 PowerShell。 */
+let identityRefreshRunning = false;
+
+/**
+ * 后台刷新身份缓存：调用方**不等待它**（GET 仍按文件内容立刻返回）。
+ * 单飞 + 永不抛；探测完就写回（checkedAt 随之前进，否则下一个请求又会排一次刷新）。
+ * "用户手工删了开始菜单快捷方式"就是靠这里纠正的：本次请求仍回旧内容，下一次起生效。
+ */
+function refreshIdentityState(cfgName) {
+	if (identityRefreshRunning) return;
+	identityRefreshRunning = true;
+	void (async () => {
+		try {
+			const next = identityStateOf(await notifyIdentityProbe(), cfgName);
+			const prev = readIdentityState();
+			writeIdentityState(next);
+			if (prev && prev.state.enabled !== next.enabled) {
+				logRemind("通知身份：后台探测纠正了缓存（" + (prev.state.enabled ? "已启用 → 未启用" : "未启用 → 已启用") + "）");
+			}
+		} catch (err) {
+			logRemind("后台刷新身份缓存失败（保留旧文件）：" + String((err && err.message) || err));
+		} finally {
+			identityRefreshRunning = false;
+		}
+	})();
+}
+
+/**
  * 通知身份路由：`GET/POST /api/gacha-calendar-notify-identity`（鉴权口径与快照路由一致：
  * 只服务本机、拒绝 cross-site）。
  *  - `name` = 设置项 `notifyName` 清洗后的应用名（POST 带 `name` 时以 body 为准，
  *    这样设置页改完名字可以立刻按新名字重建，不必等宿主重载把配置投影过来）；
- *  - GET：`{ enabled, name, aumid, shortcutPath, iconPath }` —— enabled 由「探测到的快捷方式
- *    AUMID 正确」判定；**name 优先取探测到的快捷方式名**（改名重建失败时配置名与真实文件不一致，
- *    界面必须显示真实生效的那个），没有才用配置名；
+ *  - GET：`{ enabled, name, aumid, shortcutPath, iconPath }` —— **先读 identity.json（毫秒级）**；
+ *    没有文件 / 字段不全 / 读坏才探测一次并写回（慢路径，首次安装约 1 秒）；文件超过 24h 或缓存说
+ *    启用而快捷方式已被手工删掉时，**本次仍回文件内容**、只在后台补探一次纠正。
+ *    enabled 由记录里「快捷方式存在且 AUMID 正确」判定（remindIdentityOf）；**name 优先取记录里的
+ *    快捷方式名**（改名重建失败时配置名与真实文件不一致，界面必须显示真实生效的那个），没有才用配置名；
  *  - POST `{ enabled: true|false, name? }`：true 建开始菜单快捷方式（改名 = 先按 AUMID 删旧的、
  *    再按新名字建）、false 按 AUMID 删掉它；返回 `{ ok: true, enabled, name, shortcutPath, aumid }`
  *    或 `{ ok: false, error }`。
@@ -807,23 +942,19 @@ async function notifyIdentityHandler(req, res, ctx, fallbackConfig) {
 	}
 	const cfgName = notifyNameOf(configValueOf(liveConfigOf(ctx, fallbackConfig), "notifyName"));
 	if (req.method === "GET" || req.method === "HEAD") {
-		const probe = await notifyIdentityProbe();
-		const identity = remindIdentityOf(probe, NOTIFY_AUMID);
-		// 名字以**探测到的真实快捷方式文件名**为准：改名重建失败时（配置是 6666、文件还是旧名字），
-		// 界面要显示"实际生效的那个名字"，否则用户看到的和横幅上的又对不上。
-		const detected = identity.enabled && typeof probe.name === "string" ? probe.name.trim() : "";
-		const shownName = detected === "" ? cfgName : notifyNameOf(detected);
-		// 路径同理：启用时回真实文件（可能不是按当前配置名拼出来的那个）；未启用时回"将要建的那个"。
-		const shortcutPath = identity.enabled && typeof probe.shortcutPath === "string" && probe.shortcutPath !== ""
-			? probe.shortcutPath
-			: notifyShortcutPath(cfgName);
-		sendJson(res, 200, {
-			enabled: identity.enabled,
-			name: shownName,
-			aumid: NOTIFY_AUMID,
-			shortcutPath,
-			iconPath: notifyIconPath()
-		});
+		// ① 先读 identity.json（毫秒级，绝不起 PowerShell）。命中就立刻回 —— 这是设置页 /
+		//    每轮提醒的正常路径：打开设置页不该为了一次探测卡 ~1 秒。
+		const cached = readIdentityState();
+		if (cached) {
+			// ② 过期 / 缓存说启用但快捷方式已被手工删掉 ⇒ 只**排一次后台刷新**（单飞、不阻塞调用方），
+			//    本次仍回文件内容 —— "先到先得，纠正交给后台那一次探测"。
+			if (cached.stale) refreshIdentityState(cfgName);
+			sendJson(res, 200, identityBodyOf(cached.state, cfgName));
+			return;
+		}
+		// ③ 慢路径（首次安装 / 文件被删 / 字段不全 / 读坏）：只有这里同步探测一次，并写回文件。
+		//    下一次 GET 起走上面那条毫秒路径。
+		sendJson(res, 200, identityBodyOf(await probeIdentityState(cfgName), cfgName));
 		return;
 	}
 	if (req.method !== "POST") { sendJson(res, 405, { error: "method-not-allowed" }); return; }
@@ -850,8 +981,10 @@ async function notifyIdentityHandler(req, res, ctx, fallbackConfig) {
 		return;
 	}
 	// 以"再探一次"为唯一真相：建了但 AUMID 没写进去 ⇒ enabled 仍为 false（设置页会如实显示）。
-	const identity = remindIdentityOf(await notifyIdentityProbe(), NOTIFY_AUMID);
-	sendJson(res, 200, { ok: true, enabled: identity.enabled, name, shortcutPath: notifyShortcutPath(name), aumid: NOTIFY_AUMID });
+	// 这次探测的结果**落盘**（identity.json 的另一个写点：POST 成功之后）⇒ 之后 GET / 每轮提醒
+	// 都走毫秒路径，不必再为同一个状态付一次 ~1 秒的 PowerShell。
+	const state = await probeIdentityState(name);
+	sendJson(res, 200, { ok: true, enabled: state.enabled, name, shortcutPath: notifyShortcutPath(name), aumid: NOTIFY_AUMID });
 }
 
 /**
@@ -951,7 +1084,9 @@ function sendToastScript(script) {
 /**
  * 当前通知该用哪个 AUMID + 哪个应用名 —— **身份选择的唯一出口**。
  * 真实提醒（runRemindRound）与设置页的「发送测试通知」都调它：判定仍然只有一处
- * （`remindIdentityOf` 吃一次 `notifyIdentityProbe` 的探测结果），不另写第二套。
+ * （`remindIdentityOf` 吃 `identityProbeOfState` 的"探测结果"形状），不另写第二套。
+ * 2026-10-28 起身份状态**先读 identity.json**（毫秒级）：缓存命中就直接用，没有 / 读坏才探测一次并写回，
+ * 过期 / 快捷方式被删则只在后台补探 ⇒ 提醒轮次从"每轮 ~1 秒"降到毫秒级。
  * 已启用「二游日历」⇒ 用 NOTIFY_AUMID；未启用 / 非 Windows / 探测失败 ⇒ 回退 PowerShell 自带的
  * （身份问题绝不能让通知发不出去）。`name` 已过 notifyNameOf（默认「二游日历」），
  * 调用方拿它去拼 toast 的署名行与测试通知的发送者行。
@@ -959,7 +1094,17 @@ function sendToastScript(script) {
  */
 async function notifyToastTargetOf(name) {
 	const appName = notifyNameOf(name);
-	const identity = remindIdentityOf(await notifyIdentityProbe(), NOTIFY_AUMID);
+	const cached = readIdentityState();
+	let state;
+	if (cached) {
+		// 缓存命中：这一轮就用文件里的（至少是上一次探测的真相），过期只排后台刷新、不阻塞送达。
+		if (cached.stale) refreshIdentityState(appName);
+		state = cached.state;
+	} else {
+		// 慢路径（首次 / 文件被删 / 读坏）：探测一次并写回，之后每轮都是毫秒级。
+		state = await probeIdentityState(appName);
+	}
+	const identity = remindIdentityOf(identityProbeOfState(state), NOTIFY_AUMID);
 	const enabled = identity.enabled === true;
 	return {
 		enabled,
@@ -1112,7 +1257,7 @@ async function runRemindRound(ctx, fallbackConfig, reason) {
 			"round(" + reason + ")：条目 " + items.length + "，本轮提醒 " + toNotify.length + " 条 → "
 			+ toNotify.map((notify) => notify.key).join(", ")
 		);
-		// 通知身份：**每轮只判定一次**（读 .lnk 要起一次 PowerShell，不该每条 toast 都查）。
+		// 通知身份：**每轮只判定一次**（身份状态读 identity.json，毫秒级；只有没缓存时才探测一次）。
 		// 身份选择收敛在 notifyToastTargetOf 一处（与设置页「发送测试通知」共用同一个出口），
 		// 探测本身永不抛，回退是兜底路径 ⇒ 身份问题绝不能让提醒发不出去。
 		const target = await notifyToastTargetOf(plain.notifyName);

@@ -2035,8 +2035,9 @@
 			const [notifyNameDraft, setNotifyNameDraft] = (0, react.useState)(null);
 			const notifyNameSaved = notifyNameOf(s.notifyName);
 			const notifyNameShown = notifyNameDraft === null ? notifyNameSaved : notifyNameDraft;
-			// 挂载时读一次（不轮询：每次读都要起一次 PowerShell）。读失败按"未启用"显示 + 小字说明原因，
-			// 不挡住页面其它部分 —— 身份只是一个 App 名，坏了不该让设置页变红。
+			// 挂载时读一次（不轮询）。宿主的 GET 先读 identity.json（毫秒级），只有首次 / 没有缓存时
+			// 才走一次 PowerShell 探测（~1 秒，这时才会短暂显示「读取中…」）。读失败按"未启用"显示 +
+			// 小字说明原因，不挡住页面其它部分 —— 身份只是一个 App 名，坏了不该让设置页变红。
 			(0, react.useEffect)(() => {
 				let alive = true;
 				readNotifyIdentity()

@@ -127,8 +127,8 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
 1. 读配置 → `remindOn === false` 或 `lastData` 为空就跳过；
 2. `lastData` 的档期文本 + **源站 tz** → 绝对档期 → 条目（tz 表是 `SOURCES[].tz` 的副本，因为宿主读不到 `SOURCES`；守卫见 `test/cases-remind.mjs`）；
 3. 拿去重状态判「这一轮该发哪几条」；
-4. 逐条 `powershell.exe -EncodedCommand` 弹 WinRT toast（脚本在 `src/index.js` 的 `toastScriptOf` 里生成，**不落地 .ps1、不引用 `tools/`**）。发之前**每轮只判定一次**通知身份：设置页启用过「二游日历」⇒ 用 `NOTIFY_AUMID`；否则 / 探测失败 ⇒ 回退 Windows PowerShell 自带的 AUMID（身份问题绝不能让提醒发不出去）；
-5. 状态原子写回 `%LOCALAPPDATA%\dsh-gacha-calendar\host-state.json`，日志追加到同目录 `remind.log`（超 256KB 自动只留后半段）。
+4. 逐条 `powershell.exe -EncodedCommand` 弹 WinRT toast（脚本在 `src/index.js` 的 `toastScriptOf` 里生成，**不落地 .ps1、不引用 `tools/`**）。发之前**每轮只判定一次**通知身份：设置页启用过「二游日历」⇒ 用 `NOTIFY_AUMID`；否则 / 探测失败 ⇒ 回退 Windows PowerShell 自带的 AUMID（身份问题绝不能让提醒发不出去）。身份状态**先读 `%LOCALAPPDATA%\dsh-gacha-calendar\identity.json`**（毫秒级；探测一次 ≈1 秒，缓存在这里就不必每轮再付），没有缓存 / 缓存读坏才探测一次并写回；
+5. 状态原子写回 `%LOCALAPPDATA%\dsh-gacha-calendar\host-state.json`；身份缓存 `identity.json` 同样原子写（`.tmp` → rename），超过 24h 只在后台补探一次纠正（GET 仍先回文件内容）；日志追加到同目录 `remind.log`（超 256KB 自动只留后半段）。
 
 几个踩过的坑，改这块之前先看：
 

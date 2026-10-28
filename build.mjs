@@ -45,6 +45,11 @@ const REMIND_EXPORTS = [
   "remindIdentityOf",
   // 探测「开始菜单里哪条 .lnk 是我们的」的纯判定：按 AUMID 挑，不按文件名（改名失败时文件名是旧的）。
   "notifyShortcutPickOf",
+  // 通知身份状态缓存（identity.json）的判定：给定文件内容 + now + 最大年龄 + 期望 AUMID
+  // ⇒ { useCached, shouldRefresh, state }。GET / 每轮提醒都先读文件（毫秒级），没有 / 太旧才探测；
+  // 宿主与 core 共用这一处（见 cases-remind.mjs ⑮）。
+  "NOTIFY_IDENTITY_MAX_AGE_MS",
+  "notifyIdentityCacheOf",
   // 通知身份名（`notifyName`）的清洗：宿主要用它给快捷方式起名 / 写 DisplayName，
   // core 与设置页也用同一个（同一个字面量只有一个实现，见 65-remind.js）。
   "notifyNameOf",

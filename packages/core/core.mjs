@@ -938,6 +938,56 @@
 			return null;
 		}
 
+		// ── 通知身份**状态缓存**（identity.json）的判定（纯函数）────────────────────────────
+		// 2026-10-28 性能修复：`GET /api/gacha-calendar-notify-identity` 以前每次都要起一次 PowerShell
+		// 批量读开始菜单里所有 .lnk 的 AUMID（29 个 lnk 实测 ≈1 秒），设置页一打开就卡在「读取中…」；
+		// 提醒轮次也每 30 分钟白付一次这个 1 秒。宿主改为把探测结果落盘成 identity.json，读文件只需毫秒。
+		//
+		// 本函数只回答三件事（文件 IO 是宿主的活，这里不做 —— 于是各条边界都能离线钉住）：
+		//   useCached     —— 文件内容能不能直接拿去用（false = 必须探测一次并写回）
+		//   shouldRefresh —— 能用、但还该在后台补探一次（超过 maxAge / 时钟异常）；
+		//                    调用方**先回文件内容**，刷新是异步的，绝不阻塞请求
+		//   state         —— 归一化后的记录（useCached=false 时为 null）
+		//
+		// 「没有文件 / 读坏 / 字段不全 / 脏值」一律同一处理（useCached=false）：探测一次并写回。
+		// 判据缺一不可 —— 少查一条就会拿半截记录当"已启用"，然后静默回退 PowerShell：
+		//   enabled 必须是**布尔**（"true" / 1 都不算）；aumid 必须等于调用方期望的 AUMID
+		//   （身份常量改了，旧文件立刻作废）；name 必须是非空字符串；shortcutPath 必须是字符串
+		//   （未启用时可以是空串，已启用时必须知道是哪条 .lnk）；checkedAt 必须是**正的有限毫秒数**。
+		const NOTIFY_IDENTITY_MAX_AGE_MS = 24 * 3600000;
+		function notifyIdentityCacheOf(raw, now, maxAgeMs = NOTIFY_IDENTITY_MAX_AGE_MS, expectedAumid) {
+			const miss = { useCached: false, shouldRefresh: true, state: null };
+			const text = typeof raw === "string" ? raw.trim() : "";
+			if (text === "") return miss;                       // 没有文件（宿主读不到时传空串）
+			let parsed;
+			try {
+				parsed = JSON.parse(text);
+			} catch {
+				return miss;                                    // 读坏了：当"没有文件"
+			}
+			if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return miss;
+			const expected = typeof expectedAumid === "string" ? expectedAumid.trim() : "";
+			const aumid = typeof parsed.aumid === "string" ? parsed.aumid.trim() : "";
+			const name = typeof parsed.name === "string" ? parsed.name.trim() : "";
+			const shortcutPath = typeof parsed.shortcutPath === "string" ? parsed.shortcutPath.trim() : null;
+			if (typeof parsed.enabled !== "boolean") return miss;
+			if (expected === "" || aumid !== expected) return miss;
+			if (name === "") return miss;
+			if (shortcutPath === null) return miss;
+			if (typeof parsed.checkedAt !== "number" || !Number.isFinite(parsed.checkedAt) || parsed.checkedAt <= 0) return miss;
+			const enabled = parsed.enabled === true;
+			if (enabled && shortcutPath === "") return miss;    // 启用却不知道是哪条 .lnk ⇒ 没法核对
+			// 年龄：时钟被往回调（checkedAt 在未来）时按 0 岁算 —— 不因此判"过期"、每个请求都去探测。
+			const age = Math.max(0, Number(now) - parsed.checkedAt);
+			const maxAge = Number(maxAgeMs);
+			const fresh = Number.isFinite(age) && Number.isFinite(maxAge) && maxAge > 0 && age <= maxAge;
+			return {
+				useCached: true,
+				shouldRefresh: !fresh,
+				state: { enabled, aumid, shortcutPath, name, checkedAt: parsed.checkedAt }
+			};
+		}
+
 		// ── 通知身份名（横幅顶部的应用名 / toast 正文的署名行）──────────────────────────────
 		// 2026-10-28 需求：应用名要能自定义（设置项 `notifyName`，默认「二游日历」）。
 		// 这个名字会同时落进三处**系统身份**：开始菜单快捷方式的文件名（`<name>.lnk`）、

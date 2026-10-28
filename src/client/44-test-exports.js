@@ -425,6 +425,11 @@
 			// 文件名找快捷方式的纯判定部分）。覆盖：命中 / 多个命中取第一个 / 都不匹配 / 空数组
 			// （见 cases-remind.mjs ⑫）。
 			notifyShortcutPickOf,
+			// notifyIdentityCacheOf = 身份状态缓存（identity.json）的判定：给定文件内容 + now + 最大年龄 +
+			// 期望 AUMID ⇒ { useCached, shouldRefresh, state }。宿主拿它决定"读文件就回"还是"探测并写回"；
+			// 常量 NOTIFY_IDENTITY_MAX_AGE_MS 在本文件之后声明（TDZ），测试从 lib/remind-core.mjs 取
+			// （见 cases-remind.mjs ⑮）。
+			notifyIdentityCacheOf,
 			// notifyNameOf = 通知身份名（应用名）的清洗函数：非法文件名字符换空格、首尾点/空白去掉、
 			// 空 ⇒ 默认「二游日历」、超长截到 40 字、Windows 保留设备名 ⇒ 默认。
 			// 宿主拿它给快捷方式起名 / 写 DisplayName，设置页拿它给输入框兜底（见 cases-remind.mjs ⑭）。

@@ -36,7 +36,7 @@ export default async function run() {
 	section("到期提醒（送达）：判定纯函数 + 设置键三处齐 + 宿主接线");
 
 	const {
-		remindOnOf, remindIdentityOf, notifyShortcutPickOf, remindNodesOf, remindNodesToggleOf, remindConfigOf, remindKeyOf, remindStateOf,
+		remindOnOf, remindIdentityOf, notifyShortcutPickOf, notifyIdentityCacheOf, remindNodesOf, remindNodesToggleOf, remindConfigOf, remindKeyOf, remindStateOf,
 		remindTestToastOf, remindWindowOf, remindItemsOf, remindTickOf, remindToastOf,
 		dueWindowOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
 	} = T;
@@ -614,13 +614,14 @@ export default async function run() {
 			&& /if \(req\.method === "GET" \|\| req\.method === "HEAD"\)/.test(hostSrc)
 			&& /if \(req\.method !== "POST"\)/.test(hostSrc));
 		check("GET 返回 { enabled, name, aumid, shortcutPath, iconPath }（字段名与设置页/预留图标接口对齐）",
-			/enabled: identity\.enabled,\s*name: shownName,\s*aumid: NOTIFY_AUMID,\s*shortcutPath,\s*iconPath: notifyIconPath\(\)/.test(hostSrc));
-		check("GET 的 enabled 用「开始菜单里 AUMID 正确的那条存在」判定（按 AUMID 探测 + remindIdentityOf）",
-			/const probe = await notifyIdentityProbe\(\);\s*const identity = remindIdentityOf\(probe, NOTIFY_AUMID\);[\s\S]{0,600}?enabled: identity\.enabled/.test(hostSrc));
-		check("GET 的 name **优先用探测到的快捷方式名**，没有才用配置名（改名重建失败时显示真实生效的名字）",
-			/const detected = identity\.enabled && typeof probe\.name === "string" \? probe\.name\.trim\(\) : "";/.test(hostSrc)
+			/enabled,\s*name: shownName,\s*aumid: NOTIFY_AUMID,\s*shortcutPath,\s*iconPath: notifyIconPath\(\)/.test(hostSrc));
+		check("GET 的 enabled 用「开始菜单里 AUMID 正确的那条存在」判定（探测 → remindIdentityOf → 落盘记录）",
+			/function identityStateOf\(probe, cfgName\) \{[\s\S]{0,300}?remindIdentityOf\(probe, NOTIFY_AUMID\)\.enabled === true/.test(hostSrc)
+			&& /sendJson\(res, 200, identityBodyOf\(cached\.state, cfgName\)\)/.test(hostSrc));
+		check("GET 的 name **优先用记录里的快捷方式名**，没有才用配置名（改名重建失败时显示真实生效的名字）",
+			/const detected = enabled && typeof state\.name === "string" \? state\.name\.trim\(\) : "";/.test(hostSrc)
 			&& /const shownName = detected === "" \? cfgName : notifyNameOf\(detected\);/.test(hostSrc)
-			&& /shortcutPath = identity\.enabled && typeof probe\.shortcutPath === "string"/.test(hostSrc));
+			&& /shortcutPath = enabled && typeof state\.shortcutPath === "string"/.test(hostSrc));
 		check("POST 只认布尔 enabled（脏值 400，不能被当成\"启用\"去改用户开始菜单）",
 			/typeof parsed\.enabled !== "boolean"/.test(hostSrc) && /error: "enabled-must-be-boolean"/.test(hostSrc));
 		check("非 Windows ⇒ { ok: false, error: \"windows-only\" }（同一句也用于 PowerShell 找不到时）",
@@ -656,8 +657,8 @@ export default async function run() {
 			&& hostSrc.indexOf("项目有正式 .ico 后改这里即可") >= 0
 			&& hostSrc.indexOf("项目有正式 .ico 后改这里即可") < hostSrc.indexOf("const NOTIFY_SHORTCUT_ICON"));
 
-		check("toast 的 AUMID 有**启用 / 回退**两条路径，且每轮只探测一次（name 同一处解析）",
-			/async function notifyToastTargetOf\(name\)[\s\S]{0,300}?remindIdentityOf\(await notifyIdentityProbe\(\), NOTIFY_AUMID\)[\s\S]{0,300}?aumid: enabled \? NOTIFY_AUMID : POWERSHELL_AUMID/.test(hostSrc)
+		check("toast 的 AUMID 有**启用 / 回退**两条路径，且每轮只读一次缓存（没有缓存才探测一次；name 同一处解析）",
+			/async function notifyToastTargetOf\(name\)[\s\S]{0,1200}?const cached = readIdentityState\(\);[\s\S]{0,600}?remindIdentityOf\(identityProbeOfState\(state\), NOTIFY_AUMID\)[\s\S]{0,300}?aumid: enabled \? NOTIFY_AUMID : POWERSHELL_AUMID/.test(hostSrc)
 			&& /const target = await notifyToastTargetOf\(plain\.notifyName\);/.test(hostSrc)
 			&& /sendToastScript\(toastScriptOf\(title, lines, target\.aumid, target\.name\)\)/.test(hostSrc)
 			&& /function toastScriptOf\(title, lines, aumid, appName\)/.test(hostSrc));
@@ -779,8 +780,8 @@ export default async function run() {
 			&& !/lastData/.test(testBody)
 			&& !/remindTickOf|remindStateOf|remindItemsOf/.test(testBody),
 			testBody.slice(0, 120));
-		check("身份选择**复用**现有判定（notifyIdentityProbe + remindIdentityOf，收敛在 notifyToastTargetOf 一处）",
-			/async function notifyToastTargetOf\(name\)[\s\S]{0,300}?remindIdentityOf\(await notifyIdentityProbe\(\), NOTIFY_AUMID\)/.test(hostSrc)
+		check("身份选择**复用**现有判定（缓存 → identityProbeOfState → remindIdentityOf，收敛在 notifyToastTargetOf 一处）",
+			/async function notifyToastTargetOf\(name\)[\s\S]{0,1200}?remindIdentityOf\(identityProbeOfState\(state\), NOTIFY_AUMID\)/.test(hostSrc)
 			&& /const target = await notifyToastTargetOf\(appName\);/.test(testBody)
 			// 真实提醒那一轮走的也是同一个出口（判定只有一处，没有第二套 AUMID 逻辑）
 			&& /const target = await notifyToastTargetOf\(plain\.notifyName\);[\s\S]{0,400}?sendToastScript\(toastScriptOf\(title, lines, target\.aumid, target\.name\)\)/.test(hostSrc));
@@ -889,8 +890,8 @@ export default async function run() {
 				return !!m && /\bnotifyNameOf\b/.test(m[1]);
 			})());
 
-		// ③ 路由带 name：GET 先探测（name 优先用真实快捷方式名）/ POST 的 name 决定文件名、Description、DisplayName
-		check("GET 的 name 从配置读并清洗（空 / 非法 ⇒ 默认「二游日历」），但**探测到的快捷方式名优先**",
+		// ③ 路由带 name：GET 读记录（name 优先用真实快捷方式名）/ POST 的 name 决定文件名、Description、DisplayName
+		check("GET 的 name 从配置读并清洗（空 / 非法 ⇒ 默认「二游日历」），但**记录里的快捷方式名优先**",
 			/const cfgName = notifyNameOf\(configValueOf\(liveConfigOf\(ctx, fallbackConfig\), "notifyName"\)\);/.test(hostSrc)
 			&& /const shownName = detected === "" \? cfgName : notifyNameOf\(detected\);/.test(hostSrc)
 			&& /name: shownName,/.test(hostSrc));
@@ -970,5 +971,210 @@ export default async function run() {
 			&& compSrc.includes("title: \"立刻弹一条系统通知，确认通知链路通不通\""));
 		check("状态文字保留（「当前：…」两种文案都在），且显示的是 GET 回来的名字（探测到的真实名字，缺省配置名）",
 			row.includes("当前：") && row.includes("PowerShell（默认）") && /notifyIdentity\.enabled \? notifyIdentity\.name/.test(row));
+	}
+
+	// ── ⑮ 通知身份状态缓存（identity.json）：设置页 / 提醒轮次的 1 秒瓶颈修复 ────────────────
+	// 2026-10-28 用户报「设置页加载慢（约 1 秒）」：`GET /api/gacha-calendar-notify-identity` 每次都要
+	// 起一次 PowerShell 批量读开始菜单所有 .lnk 的 AUMID（实测 29 个 lnk ≈1 秒），设置页挂载就卡在
+	// 「读取中…」；提醒轮次也每 30 分钟白付一次。修法：探测结果落盘 identity.json，GET / 提醒轮次
+	// 先读文件（毫秒级）；只有"没有文件 / 字段不全 / 读坏"才探测一次并写回；超过 24h 或缓存说启用而
+	// 快捷方式已被手工删掉时，**本次仍回文件内容**、只在后台补探一次纠正。这里钉四件事：
+	//   ① 纯函数 notifyIdentityCacheOf：没有文件 / 新鲜 / 过期 / 字段不全 / 脏值；
+	//   ② identity.json 的**原子写**（tmp → rename）与三个写点（GET 慢路径 / POST 成功 / 后台刷新）；
+	//   ③ **GET 毫秒路径上没有同步等待探测**（先 readIdentityState()，命中就 return）；
+	//   ④ 提醒轮次复用同一条缓存路径（不再每轮探测）。
+	{
+		const expected = "DshGachaCalendar.Reminder";
+		const MAX_AGE = R.NOTIFY_IDENTITY_MAX_AGE_MS;
+		const REC_PATH = "C:\\…\\二游日历.lnk";
+		const rec = (over) => JSON.stringify(Object.assign({
+			enabled: true,
+			aumid: expected,
+			shortcutPath: REC_PATH,
+			name: "二游日历",
+			checkedAt: NOW - 1000
+		}, over || {}));
+		const cacheOf = (raw, now, maxAge) => notifyIdentityCacheOf(
+			raw,
+			now === void 0 ? NOW : now,
+			maxAge === void 0 ? MAX_AGE : maxAge,
+			expected
+		);
+
+		// ① 纯函数
+		check("缓存有效期常量 = 24h（只在 core 里写一份，宿主 import 同一个）",
+			MAX_AGE === 24 * H, String(MAX_AGE));
+		const fresh = cacheOf(rec());
+		check("新鲜记录（checkedAt 在 24h 内）⇒ useCached / 不刷新 / 字段原样",
+			fresh.useCached === true && fresh.shouldRefresh === false && !!fresh.state
+			&& fresh.state.enabled === true && fresh.state.aumid === expected
+			&& fresh.state.shortcutPath === REC_PATH && fresh.state.name === "二游日历"
+			&& fresh.state.checkedAt === NOW - 1000,
+			JSON.stringify(fresh));
+		const edgeFresh = cacheOf(rec({ checkedAt: NOW - MAX_AGE }));
+		check("边界：正好 24h ⇒ 仍算新鲜（没越过 TTL 就不刷新）",
+			edgeFresh.useCached === true && edgeFresh.shouldRefresh === false, JSON.stringify(edgeFresh));
+		const stale = cacheOf(rec({ checkedAt: NOW - MAX_AGE - 1 }));
+		check("过期（>24h）⇒ **仍 useCached=true**（先回文件内容）+ shouldRefresh=true（后台补探）",
+			stale.useCached === true && stale.shouldRefresh === true && !!stale.state,
+			JSON.stringify(stale));
+		const future = cacheOf(rec({ checkedAt: NOW + 5 * H }));
+		check("时钟往回调（checkedAt 在未来）⇒ 按 0 岁算、不刷新（否则未来时间戳会钉住它反复探测）",
+			future.useCached === true && future.shouldRefresh === false, JSON.stringify(future));
+
+		const misses = {
+			"空串（没有文件）": "",
+			"纯空白": "   ",
+			"非字符串 null": null,
+			"非字符串 数字": 123,
+			"非字符串 对象": {},
+			"不是合法 JSON": "{\"enabled\":true,",
+			"JSON 是数组": "[1,2]",
+			"JSON 是 null": "null",
+			"JSON 是数字": "123",
+			"缺 enabled": rec({ enabled: void 0 }),
+			"缺 aumid": rec({ aumid: void 0 }),
+			"缺 name": rec({ name: void 0 }),
+			"缺 shortcutPath": rec({ shortcutPath: void 0 }),
+			"缺 checkedAt": rec({ checkedAt: void 0 })
+		};
+		const missHits = Object.entries(misses)
+			.filter(([, raw]) => {
+				const r = cacheOf(raw);
+				return r.useCached !== false || r.shouldRefresh !== true || r.state !== null;
+			})
+			.map(([label]) => label);
+		check("没有文件 / 读坏 / 字段不全 ⇒ useCached=false + shouldRefresh=true + state=null（走探测慢路径）",
+			missHits.length === 0, missHits.join("、"));
+		check("脏值：enabled 不是布尔（\"true\" / 1 / null）、aumid 不等于期望、name 空、shortcutPath 非字符串 ⇒ 作废",
+			cacheOf(rec({ enabled: JSON.parse("\"true\"") })).useCached === false
+			&& cacheOf(rec({ enabled: 1 })).useCached === false
+			&& cacheOf(rec({ enabled: null })).useCached === false
+			&& cacheOf(rec({ aumid: "SomeoneElse.App" })).useCached === false
+			&& cacheOf(rec({ aumid: 123 })).useCached === false
+			&& cacheOf(rec({ name: 123 })).useCached === false
+			&& cacheOf(rec({ name: "   " })).useCached === false
+			&& cacheOf(rec({ shortcutPath: 123 })).useCached === false,
+			JSON.stringify([cacheOf(rec({ aumid: "SomeoneElse.App" })), cacheOf(rec({ name: "   " }))]));
+		check("checkedAt 脏值（0 / 负数 / 字符串 / null）⇒ 作废（不能把\"从没检查过\"当新鲜）",
+			cacheOf(rec({ checkedAt: 0 })).useCached === false
+			&& cacheOf(rec({ checkedAt: -1 })).useCached === false
+			&& cacheOf(rec({ checkedAt: "1793000000000" })).useCached === false
+			&& cacheOf(rec({ checkedAt: null })).useCached === false);
+		check("启用却记了空 shortcutPath ⇒ 字段不全（没法核对是哪条 .lnk）",
+			cacheOf(rec({ shortcutPath: "" })).useCached === false);
+		const off = cacheOf(rec({ enabled: false, shortcutPath: "", checkedAt: NOW }));
+		check("未启用记录（enabled=false + 空路径）⇒ **可以直接用**（身份关着时 GET 也必须是毫秒级）",
+			off.useCached === true && off.shouldRefresh === false && !!off.state && off.state.enabled === false,
+			JSON.stringify(off));
+		check("期望 AUMID 为空 / 与记录不符 ⇒ 作废（身份常量改了，旧文件不能被信）",
+			notifyIdentityCacheOf(rec(), NOW, MAX_AGE, "").useCached === false
+			&& notifyIdentityCacheOf(rec(), NOW, MAX_AGE, void 0).useCached === false
+			&& notifyIdentityCacheOf(rec(), NOW, MAX_AGE, "Other.App").useCached === false
+			&& cacheOf(rec()).useCached === true);
+		check("maxAge 脏值（0 / 负数 / NaN）⇒ 仍 useCached、但要求后台刷新（不确定新鲜就别当新鲜）",
+			[0, -1, Number.NaN].every((v) => {
+				const r = cacheOf(rec(), NOW, v);
+				return r.useCached === true && r.shouldRefresh === true;
+			}));
+		const nowBad = cacheOf(rec(), Number.NaN);
+		check("now 脏值（NaN）⇒ 不抛、不当新鲜（useCached=true / shouldRefresh=true）",
+			nowBad.useCached === true && nowBad.shouldRefresh === true, JSON.stringify(nowBad));
+		check("宿主那份 ESM（lib/remind-core.mjs）与客户端是**同一个判定**",
+			typeof R.notifyIdentityCacheOf === "function"
+			&& JSON.stringify(R.notifyIdentityCacheOf(rec(), NOW, MAX_AGE, expected)) === JSON.stringify(fresh)
+			&& R.notifyIdentityCacheOf(rec({ checkedAt: NOW - MAX_AGE - 1 }), NOW, MAX_AGE, expected).shouldRefresh === true
+			&& R.notifyIdentityCacheOf("", NOW, MAX_AGE, expected).useCached === false
+			&& R.NOTIFY_IDENTITY_MAX_AGE_MS === MAX_AGE);
+		check("最大年龄可以省略（默认就是 24h 常量，宿主显式传同一个值，不各写一份）",
+			notifyIdentityCacheOf(rec(), NOW, void 0, expected).shouldRefresh === false
+			&& notifyIdentityCacheOf(rec({ checkedAt: NOW - MAX_AGE - 1 }), NOW, void 0, expected).shouldRefresh === true);
+
+		// ②③④ 宿主静态
+		const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
+		const bodyOfFn = (name) => {
+			const i = hostSrc.indexOf("function " + name + "(");
+			const j = i < 0 ? -1 : hostSrc.indexOf("\n}", i);
+			return i < 0 ? "" : hostSrc.slice(i, j < 0 ? hostSrc.length : j);
+		};
+		const readBody = bodyOfFn("readIdentityState");
+		const writeBody = bodyOfFn("writeIdentityState");
+		const probeBody = bodyOfFn("probeIdentityState");
+		const refreshBody = bodyOfFn("refreshIdentityState");
+		const stateBody = bodyOfFn("identityStateOf");
+		const targetBody = bodyOfFn("notifyToastTargetOf");
+		const handlerBody = bodyOfFn("notifyIdentityHandler");
+
+		check("守卫自身没瞎：缓存相关的函数都定位到了",
+			[readBody, writeBody, probeBody, refreshBody, stateBody, targetBody, handlerBody].every((b) => b.length > 0),
+			[readBody, writeBody, probeBody, refreshBody, stateBody, targetBody, handlerBody].map((b) => b.length).join(","));
+		check("缓存文件 = %LOCALAPPDATA%\\dsh-gacha-calendar\\identity.json（与 host-state.json / remind.log 同目录）",
+			/function notifyIdentityPath\(\) \{\s*return path\.join\(remindDir\(\), "identity\.json"\);/.test(hostSrc));
+		check("identity.json **原子写**（同目录 .tmp → rename，与去重状态同一套）",
+			writeBody.includes('const tmp = file + ".tmp"')
+			&& /renameSync\(tmp, file\)/.test(writeBody)
+			&& /writeFileSync\(tmp, JSON\.stringify\(state, null, 2\)/.test(writeBody));
+		check("读缓存只读文件 + 一次 existsSync，**绝不起 PowerShell**（GET 的毫秒路径就是它）",
+			/readFileSync\(notifyIdentityPath\(\), "utf8"\)/.test(readBody)
+			&& /existsSync\(state\.shortcutPath\)/.test(readBody)
+			&& !/notifyIdentityProbe|runNotifyPowerShell|execFile/.test(readBody));
+		check("读不到 / 读坏 ⇒ 返回 null（= 慢路径），不在这里猜\"未启用\"",
+			/if \(!decision\.useCached \|\| !decision\.state\) return null;/.test(readBody)
+			&& /return null;/.test(readBody));
+		check("慢路径：探测一次并**写回** identity.json（写失败只记日志，不影响本次返回）",
+			/const state = identityStateOf\(await notifyIdentityProbe\(\), cfgName\);/.test(probeBody)
+			&& /writeIdentityState\(state\)/.test(probeBody) && /catch \(err\)/.test(probeBody));
+		check("后台刷新：**不阻塞调用方**（void async）+ 单飞 + 永不抛（探测失败保留旧文件）",
+			/if \(identityRefreshRunning\) return;/.test(refreshBody)
+			&& /void \(async \(\) => \{/.test(refreshBody)
+			&& /writeIdentityState\(next\)/.test(refreshBody)
+			&& /catch \(err\)/.test(refreshBody) && /finally/.test(refreshBody));
+		check("记录形状：enabled / aumid / shortcutPath / name / checkedAt（enabled 由 remindIdentityOf 判定）",
+			/\benabled,/.test(stateBody) && /aumid: NOTIFY_AUMID,/.test(stateBody)
+			&& /shortcutPath:/.test(stateBody)
+			&& /name: detected === "" \? notifyNameOf\(cfgName\) : notifyNameOf\(detected\),/.test(stateBody)
+			&& /checkedAt: Date\.now\(\)/.test(stateBody));
+
+		const getStart = handlerBody.indexOf('if (req.method === "GET" || req.method === "HEAD") {');
+		const slowMark = getStart >= 0 ? handlerBody.indexOf("// ③ 慢路径", getStart) : -1;
+		const fastBranch = getStart >= 0 && slowMark > getStart ? handlerBody.slice(getStart, slowMark) : "";
+		check("GET **先读 identity.json**（readIdentityState），命中就立刻 sendJson + return",
+			/const cached = readIdentityState\(\);/.test(fastBranch)
+			&& /if \(cached\) \{/.test(fastBranch)
+			&& /sendJson\(res, 200, identityBodyOf\(cached\.state, cfgName\)\);\s*return;/.test(fastBranch));
+		check("**GET 毫秒路径上没有同步等待探测**（分支里没有 await / notifyIdentityProbe / PowerShell）",
+			fastBranch.length > 0 && !/\bawait\b/.test(fastBranch)
+			&& !/notifyIdentityProbe|runNotifyPowerShell|execFile/.test(fastBranch),
+			fastBranch.slice(0, 200));
+		check("过期 / 快捷方式被删只**排后台刷新**、不阻塞（`if (cached.stale) refreshIdentityState(cfgName);`）",
+			/if \(cached\.stale\) refreshIdentityState\(cfgName\);/.test(fastBranch)
+			&& !/await refreshIdentityState/.test(hostSrc));
+		check("慢路径只在没有缓存时走：GET 的探测在 `if (cached)` 之后（`await probeIdentityState(cfgName)`）",
+			slowMark > getStart && /await probeIdentityState\(cfgName\)/.test(handlerBody.slice(slowMark)));
+		const postStart = handlerBody.indexOf('if (req.method !== "POST")');
+		const postText = postStart >= 0 ? handlerBody.slice(postStart) : "";
+		check("POST：**成功之后**才写缓存（`if (r.ok !== true) { … return; }` 在前，`probeIdentityState(name)` 在后）",
+			(() => {
+				const failAt = postText.indexOf("if (r.ok !== true) {");
+				const probeAt = postText.indexOf("const state = await probeIdentityState(name);");
+				return failAt >= 0 && probeAt > failAt;
+			})());
+		check("POST 的探测结果写回缓存（probeIdentityState 内含 writeIdentityState），之后 GET 不必再从零探测",
+			/probeIdentityState\(name\)/.test(postText) && /writeIdentityState\(state\)/.test(probeBody));
+		check("提醒轮次复用同一条缓存路径（notifyToastTargetOf 先 readIdentityState，没缓存才 probeIdentityState）",
+			/const cached = readIdentityState\(\);/.test(targetBody)
+			&& /probeIdentityState\(appName\)/.test(targetBody)
+			&& !/notifyIdentityProbe/.test(targetBody),
+			targetBody.slice(0, 160));
+		check("提醒轮次的身份判定仍然只有一处（identityProbeOfState → remindIdentityOf，没有第二套 AUMID 逻辑）",
+			/remindIdentityOf\(identityProbeOfState\(state\), NOTIFY_AUMID\)/.test(targetBody)
+			&& /const target = await notifyToastTargetOf\(plain\.notifyName\);/.test(hostSrc));
+
+		// 设置页：GET 毫秒级之后「读取中…」只在首次 / 无缓存时短暂出现，且不挡住其它行
+		const compSrc = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
+		check("设置页只在**那一行**显示「读取中…」，不挡住其它行（没有整页 early return）",
+			compSrc.includes('notifyIdentity === null ? "读取中…"')
+			&& !/if \(notifyIdentity === null\) return/.test(compSrc)
+			&& /const \[notifyIdentity, setNotifyIdentity\] = \(0, react\.useState\)\(null\)/.test(compSrc));
 	}
 }
