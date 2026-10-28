@@ -186,9 +186,10 @@
 			// 是否被跳过无关 ⇒ 它是"最近一次真的刷过"的可靠下界）。交给纯函数做显示侧补偿：健康存档
 			// 在"状态没变"的轮次被跳过写入（见 60-helpers.js 的 sourceHealthSameOf），
 			// 不补偿的话全部源稳定时这里会显示"最近成功 30 天前"。
+			const healthNow = Date.now();
 			const healthRows = sourceHealthOf(
 				parseSourceHealth(s.sourceHealth).sources,
-				Date.now(),
+				healthNow,
 				{
 					entries: applyOrder(getVisibleEntries(s), order).map((g) => ({ id: g.id, name: g.name || g.id })),
 					lastRefreshAt: Number(s.lastRefresh) || 0
@@ -199,6 +200,18 @@
 			// 见下面 JSX 里 healthKnown.length === 0 那一支。
 			const healthKnown = healthRows.filter((h) => h.known);
 			const healthBad = healthKnown.filter((h) => h.state !== "ok");
+			// ── 状态条（2026-10-28 整块重做）：三档计数 + 最差档色 + 右侧次要信息 ──────────────
+			// 全部由 healthKnown 派生，渲染层不碰存档；tone 只取 ok / warn / error 三档
+			// （down 优先于 stale：有明确失败原因的那一档最该被看见）。
+			// 全正常时右侧 = 「N 个来源 · X 分前刷新」；有异常时改成三档计数（0 的那档不写）。
+			const healthOkCount = healthKnown.length - healthBad.length;
+			const healthDownCount = healthBad.filter((h) => h.state === "down").length;
+			const healthStaleCount = healthBad.length - healthDownCount;
+			const healthTone = healthBad.length === 0 ? "ok" : (healthDownCount > 0 ? "error" : "warn");
+			const healthRefreshAt = Number(s.lastRefresh) || 0;
+			const healthMeta = healthBad.length > 0
+				? [healthOkCount + " 正常", healthStaleCount > 0 ? healthStaleCount + " 停更" : "", healthDownCount > 0 ? healthDownCount + " 失败" : ""].filter(Boolean).join(" · ")
+				: healthKnown.length + " 个来源" + (healthRefreshAt > 0 ? " · " + tickerSpanText(healthNow - healthRefreshAt) + "前刷新" : " · 尚未刷新");
 			// 自检报告一行结论要用的两个数：来源数（条目的两侧都算，未配置也算一个来源）、
 			// "没内容"的来源数（无匹配/未公布 + 失败；未配置是合法状态，不算）。summary 是
 			// core 的 selfCheck() 给的；error 那一支没有 summary，给 0 兜住。
@@ -208,6 +221,22 @@
 			const selfBad = selfReport && selfReport.summary
 				? selfReport.summary.nomatch + selfReport.summary.down
 				: 0;
+			// 自检报告收成**一行**（用户 2026-10-28：不要大段落）：小徽章 + 一句汇总；
+			// 游戏数、三档明细与逐条 problems 全部收进 title（悬停可看），不占版面。
+			const selfReportText = selfReport && selfReport.summary
+				? selfSources + " 个来源 · " + selfBad + " 个没内容（成功 " + selfReport.summary.ok
+					+ " / 无匹配/未公布 " + selfReport.summary.nomatch
+					+ " / 未配置 " + selfReport.summary.unconfigured
+					+ " / 失败 " + selfReport.summary.down + "）· 用时 " + (selfReport.elapsedMs / 1000).toFixed(1) + "s"
+				: "";
+			const selfReportTitle = selfReport && selfReport.summary
+				? selfReport.total + " 款游戏的 " + selfSources + " 个来源 · " + selfBad + " 个没内容\n"
+					+ "成功 " + selfReport.summary.ok + " / 无匹配/未公布 " + selfReport.summary.nomatch
+					+ " / 未配置 " + selfReport.summary.unconfigured + " / 失败 " + selfReport.summary.down
+					+ "\n" + (selfReport.problems.length > 0
+						? "需要关注：\n" + selfReport.problems.join("\n")
+						: "✓ 所有来源都正常")
+				: "";
 			const currentMinutes = Number(s.refreshMinutes ?? DEFAULT_SETTINGS.refreshMinutes);
 			// 旧配置可能存了分钟值（不在按天选项里），额外补一个"自定义"选项避免 select 空白
 			const inOptions = REFRESH_OPTIONS.some((o) => o.minutes === currentMinutes);
@@ -1090,65 +1119,59 @@
 					// 解析器自检（待办第 3 项）——**一套卡片**，不是两块并列。
 					// 用户 2026-10-28 明确：「来源健康」是原来那套手动自检的**升级替代**，同一张卡里并存两套
 					// 就是重复（旧卡是两块：一块手动跑自检、一块列健康，中间还夹一句重复说明）。
-					// 现在的形态（只有一种）：
-					//   · 标题「解析器自检」+ 唯一按钮「立即检查」= 按需把所有源抓一遍（engine.selfCheck()，
-					//     只读），busy 时按钮禁用并写「检查中…」；
-					//   · 卡片内容 = 来源健康列表，**永远可见**：一条记录都没有时也给一行状态
-					//     （"整块不渲染"正是用户看不到这个功能的原因）；
-					//   · 默认只列异常（健康的来源不占地方），「显示全部」才展开 —— 不把卡片撑长；
-					//   · 自检报告并入这块列表的**下方**（原来是下面单独一块），不再单列。
-					(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 8, border: "1px solid var(--dsw-alias-border-l1)", borderRadius: 10, padding: "12px 14px", background: "var(--dsw-alias-bg-layer-1)" }, children: [
-						(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 10 }, children: [
-							(0, react_jsx_runtime.jsx)("span", { style: { fontWeight: 600 }, children: "解析器自检" }),
-							(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-refresh gacha-cal-sort-btn", disabled: selfChecking, onClick: runSelfCheck, children: selfChecking ? "检查中…" : "立即检查" })
+					// 2026-10-28 二次重做（用户原话「很简陋，整个重做，做好看点」）：
+					//   · 卡片 = 标题行（解析器自检 + 唯一按钮「立即检查」）+ 一条极淡分隔线 + 状态条；
+					//   · 状态条 = 6px 状态圆点（颜色编码）+ 主文案 + 右侧次要信息 + 展开按钮；
+					//   · 列表 = 四列网格（游戏名 / 状态胶囊 / 原因 / 最近成功），**默认只列异常**；
+					//   · 空状态 = 一行弱化提示（还没刷新过数据），**无条件下渲染**；
+					//   · 自检报告 = 一行小徽章 + 一句汇总（完整清单在 title 里），不再是大段落。
+					// 样式全部在 src/client/styles/health.css（样式段由 build.mjs 按 CSS_ORDER 拼）。
+					(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-health-card", children: [
+						(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-health-head", children: [
+							(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-title", children: "解析器自检" }),
+							(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-refresh gacha-cal-sort-btn gacha-cal-health-check", disabled: selfChecking, onClick: runSelfCheck, children: selfChecking ? "检查中…" : "立即检查" })
 						] }),
-						// ── 来源健康（待办第 3 项）：**无条件下渲染** ─────────────────────────
-						// 三档状态都在这一块里（空 / 全正常 / 有异常），卡片不会有"什么都不显示"的情况：
-						//   · 没有任何记录（没刷过 / 从旧版本升上来）⇒ 一行空状态（还顺手带一句口径说明）；
-						//   · 全部正常 ⇒ 一行汇总「全部正常（N 个来源）」，不列任何来源；
-						//   · 有异常 ⇒ 汇总写"N 个来源需要关注"，逐条列出（游戏名 · 连续失败 N 次 ·
-						//     最近成功 X 前 · 原因）——健康的来源仍然不占地方。
-						(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 3, fontSize: 12 }, children: [
-							(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }, children: [
-								(0, react_jsx_runtime.jsx)("span", {
-									style: { color: healthBad.length ? "var(--dsw-alias-state-warn-label)" : "var(--dsw-alias-label-tertiary)" },
-									children: healthKnown.length === 0
-										? "来源健康：还没有刷新记录（刷新一次数据后这里会显示每个来源的情况；无匹配/未公布 与 抓取失败 会分开标）"
-										: healthBad.length
-											? "来源健康：" + healthBad.length + " 个来源需要关注"
-											: "来源健康：全部正常（" + healthKnown.length + " 个来源）"
-								}),
-								healthKnown.length > 0 ? (0, react_jsx_runtime.jsx)("button", {
-									type: "button",
-									className: "gacha-cal-sort-btn",
-									style: { width: "auto", height: "auto", padding: "1px 8px", borderRadius: 6, fontSize: 11 },
-									onClick: () => setHealthAll((v) => !v),
-									children: healthAll ? "只看异常" : "显示全部 " + healthKnown.length + " 个"
-								}) : null
-							] }),
-							// 文案与色阶都由纯函数 sourceHealthOf 给定（text 就是「名字 · 连续失败 N 次 · …」那句）；
-							// down = 失败红、stale/never = 疑似停更黄、ok = 三级灰。
-							(healthAll ? healthKnown : healthBad).map((h) => (0, react_jsx_runtime.jsx)("div", {
-								title: h.name + " · " + h.text,
-								style: {
-									color: h.state === "down"
-										? "var(--dsw-alias-state-error-primary, #d4380d)"
-										: (h.state === "ok" ? "var(--dsw-alias-label-tertiary)" : "var(--dsw-alias-state-warn-label)")
-								},
-								children: "· " + h.name + " · " + h.text
-							}, h.id)),
-							// 自检报告（只有点过「立即检查」才有）：贴在列表**下方**，与健康列表同一块。
+						(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-health", children: [
+							// 三档状态（空 / 全正常 / 有异常）互斥，卡片不会有"什么都不显示"的情况。
+							healthKnown.length === 0
+								? (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-health-empty", children: [
+									(0, react_jsx_runtime.jsx)("svg", { className: "gacha-cal-health-empty-icon", width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", children: [
+										(0, react_jsx_runtime.jsx)("path", { d: "M20 11a8 8 0 1 0-2.3 5.7" }),
+										(0, react_jsx_runtime.jsx)("path", { d: "M20 4v7h-7" })
+									] }),
+									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-empty-text", children: "还没刷新过数据 —— 刷新一次后这里会显示每个来源的体检结果" })
+								] })
+								: (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-health-summary", children: [
+									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-dot gacha-cal-health-dot--" + healthTone, "aria-hidden": "true" }),
+									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-status", children: healthBad.length > 0 ? healthBad.length + " 个来源需要关注" : "全部正常" }),
+									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-meta", children: healthMeta }),
+									(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-health-toggle", "aria-expanded": healthAll, onClick: () => setHealthAll((v) => !v), children: healthAll ? "只看异常" : "查看全部" })
+								] }),
+							// 列表：默认只列异常；点「查看全部」后同网格列出全部（健康行 = 灰点 + 弱化文字）。
+							// 行文案（tag / reason / agoText）全部来自 core 的 sourceHealthOf，text 只进 title。
+							healthKnown.length > 0 && (healthAll ? healthKnown : healthBad).length > 0
+								? (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-health-list", children: (healthAll ? healthKnown : healthBad).map((h) => (0, react_jsx_runtime.jsxs)("div", {
+									className: "gacha-cal-health-row gacha-cal-health-row--" + h.tone,
+									title: h.name + " · " + h.text,
+									children: [
+										(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-name", children: h.name }),
+										(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-tag gacha-cal-health-tag--" + h.tone, children: h.tag }),
+										(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-reason", children: h.reason }),
+										(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-ago", children: h.agoText })
+									]
+								}, h.id)) })
+								: null,
+							// 自检报告（只有点过「立即检查」才有）：一行弱化小字 + 小徽章，贴在整块最下方。
 							selfReport ? (selfReport.error
-								? (0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-state-error-primary, #d4380d)", paddingTop: 2 }, children: "自检失败：" + selfReport.error })
-								: (0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 4, paddingTop: 2 }, children: [
-									(0, react_jsx_runtime.jsx)("div", { children: "刚检查完：" + selfReport.total + " 款游戏的 " + selfSources + " 个来源里 " + selfBad + " 个没内容（成功 " + selfReport.summary.ok + " / 无匹配/未公布 " + selfReport.summary.nomatch + " / 未配置 " + selfReport.summary.unconfigured + " / 失败 " + selfReport.summary.down + "）· 用时 " + (selfReport.elapsedMs / 1000).toFixed(1) + "s" }),
-									selfReport.problems.length === 0
-										? (0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-state-business-primary)" }, children: "✓ 所有来源都正常" })
-										: (0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 2 }, children: [
-											(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)" }, children: "需要关注：" }),
-											selfReport.problems.map((p, i) => (0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-primary)" }, children: "· " + p }, i))
-										] })
-								] })) : null
+								? (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-health-report", children: [
+									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-report-badge gacha-cal-health-report-badge--error", children: "自检失败" }),
+									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-report-text", title: String(selfReport.error), children: String(selfReport.error) })
+								] })
+								: (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-health-report", children: [
+									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-report-badge", children: "自检完成" }),
+									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-report-text", title: selfReportTitle, children: selfReportText })
+								] }))
+								: null
 						] })
 					] }),
 					(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 12 }, children: "数据来自各游戏官方公告、官方 Wiki 与第三方站；无数据时对应列留空" })

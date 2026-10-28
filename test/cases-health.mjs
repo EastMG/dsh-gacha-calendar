@@ -239,6 +239,24 @@ export default async function runHealth() {
 		check("正常行只报最近成功时间（健康的不占地方，也不编造结论）",
 			byId.ok1.text === "最近成功 1 小时前", byId.ok1.text);
 
+		// 2026-10-28 设置页四列网格：胶囊 / 原因 / 最近成功三段也由纯函数给（UI 不再自己拼措辞）
+		check("down 行四列字段：✕ 抓取失败 + error 原文 + 最近成功 2 天前",
+			byId.down1.tag === "✕ 抓取失败" && byId.down1.tone === "error"
+			&& byId.down1.reason === "卡池失败：网络不通" && byId.down1.agoText === "最近成功 2 天前",
+			JSON.stringify({ tag: byId.down1.tag, tone: byId.down1.tone, reason: byId.down1.reason, agoText: byId.down1.agoText }));
+		check("stale 行四列字段：⚠ 疑似停更 + 连续 8 天没解析出内容 + 最近成功 10 天前",
+			byId.stale1.tag === "⚠ 疑似停更" && byId.stale1.tone === "warn"
+			&& byId.stale1.reason === "连续 8 天没解析出内容" && byId.stale1.agoText === "最近成功 10 天前",
+			JSON.stringify({ tag: byId.stale1.tag, tone: byId.stale1.tone, reason: byId.stale1.reason, agoText: byId.stale1.agoText }));
+		check("never 行四列字段：⚠ 从未成功（不是「最近成功 0 天前」）",
+			byId.never1.tag === "⚠ 从未成功" && byId.never1.tone === "warn"
+			&& byId.never1.agoText === "从未成功" && /^连续 \d+ 天没解析出内容$/.test(byId.never1.reason),
+			JSON.stringify({ tag: byId.never1.tag, tone: byId.never1.tone, reason: byId.never1.reason, agoText: byId.never1.agoText }));
+		check("ok 行四列字段：● 正常 + 解析出 2 条 + 最近成功 1 小时前（灰点弱化交给 CSS）",
+			byId.ok1.tag === "● 正常" && byId.ok1.tone === "ok"
+			&& byId.ok1.reason === "解析出 2 条" && byId.ok1.agoText === "最近成功 1 小时前",
+			JSON.stringify({ tag: byId.ok1.tag, tone: byId.ok1.tone, reason: byId.ok1.reason, agoText: byId.ok1.agoText }));
+
 		// 阈值边界：**第 7 天整**才翻成疑似停更，差 1 秒都不行（否则"连续 6 天"就报警 ⇒ 用户学会无视）
 		const at6d = T.sourceHealthOf({ a: recOf({ okAt: NOW - 8 * DAY, nomatchStreak: 6, nomatchSince: NOW - 6 * DAY }) }, NOW, { entries: [{ id: "a" }] })[0];
 		check("连续 6 天 nomatch ⇒ 仍是 ok（阈值是 7 天，不能提前报警）", at6d.state === "ok", at6d.state);
@@ -481,9 +499,11 @@ export default async function runHealth() {
 			!/nomatchSince[^\n]*7\s*\*\s*86400000/.test(helpers.replace(/const SOURCE_HEALTH_NOMATCH_DAYS = 7;/, "")));
 	}
 
-	// ── ⑦ 设置页接线（静态）：一张卡两套合并成一套 + 渲染路径无 IO ────────────────────
+	// ── ⑦ 设置页接线（静态）：一张卡 + 状态条 + 四列网格 + 渲染路径无 IO ──────────────
 	// 用户 2026-10-28 明确：「来源健康」是「解析器自检」的**升级替代**，同一张卡里不许并存两套
-	// （旧卡 = 解析器自检 + [开始自检] + 一句说明 + 来源健康 + 自检报告）。下面钉住合并后的事实：
+	// （旧卡 = 解析器自检 + [开始自检] + 一句说明 + 来源健康 + 自检报告）。同日二次重做
+	// （原话「很简陋，整个重做，做好看点」）后的形态 = 标题行 + 状态条（圆点 / 主文案 / 次要信息 /
+	// 展开按钮）+ 四列网格列表 + 一行空状态 + 一行自检报告。下面钉住重做后的事实：
 	// 标题仍叫「解析器自检」、只有一个按钮且文案「立即检查」、旧说明句已删、健康块**无条件下渲染**。
 	{
 		const comp = readComponentsSource();
@@ -498,39 +518,76 @@ export default async function runHealth() {
 		check("异常项过滤 = known && state !== ok（没记录的条目不冒充异常）",
 			/healthKnown\.filter\(\(h\) => h\.state !== "ok"\)/.test(comp) && /healthRows\.filter\(\(h\) => h\.known\)/.test(comp));
 
-		// ── 合并后的卡片形态（三件事：标题还在、只有一个按钮、旧说明句已删）──
+		// ── 卡片形态（标题还在、只有一个按钮、旧说明句已删）──
 		const cardAt = comp.lastIndexOf("解析器自检");
-		const card = cardAt < 0 ? "" : comp.slice(Math.max(0, cardAt - 240), cardAt + 4000);
+		const card = cardAt < 0 ? "" : comp.slice(Math.max(0, cardAt - 240), cardAt + 6000);
 		check("卡片标题仍是「解析器自检」（不是被改成「来源健康」）",
 			cardAt >= 0 && /children: "解析器自检"/.test(card), card.slice(0, 120));
 		check("旧说明句「逐个来源检查，区分「无匹配/未公布」与「失败」」已删除（内容已被健康列表覆盖）",
 			comp.indexOf("逐个来源检查") < 0);
-		check("卡片里只有一个主操作按钮（[立即检查]；「显示全部 N 个」是列表展开开关，不是第二个动作），文案「立即检查」",
+		check("卡片里只有一个主操作按钮（[立即检查]；「查看全部」是列表展开开关，不是第二个动作），文案「立即检查」",
 			(card.match(/gacha-cal-refresh gacha-cal-sort-btn/g) || []).length === 1
 			&& /children: selfChecking \? "检查中…" : "立即检查"/.test(card)
 			&& comp.indexOf("开始自检") < 0 && comp.indexOf("重新自检") < 0);
 		check("「立即检查」仍是原来的 runSelfCheck，busy 时禁用（disabled: selfChecking）",
 			/disabled: selfChecking, onClick: runSelfCheck/.test(card) && /await engine\.selfCheck\(\)/.test(comp));
 
-		// ── 健康块**无条件下渲染**：没有任何记录时也有一行状态（用户看不到功能的根因）──
+		// ── 状态条：圆点（颜色编码）+ 主文案（左）+ 次要信息（右，弱化）+ 展开按钮 ──
+		check("状态条有状态圆点（类名带 tone、颜色档来自 core）+ 主文案三选一",
+			/gacha-cal-health-dot gacha-cal-health-dot--" \+ healthTone/.test(card)
+			&& /children: healthBad\.length > 0 \? healthBad\.length \+ " 个来源需要关注" : "全部正常"/.test(card));
+		check("状态条右侧 = 弱化次要信息 + 展开按钮（aria-expanded 跟着 healthAll，展开后写「只看异常」）",
+			/className: "gacha-cal-health-meta", children: healthMeta/.test(card)
+			&& /"aria-expanded": healthAll, onClick: \(\) => setHealthAll\(\(v\) => !v\)/.test(card)
+			&& /children: healthAll \? "只看异常" : "查看全部"/.test(card));
+		check("次要信息口径：有异常 = 正常/停更/失败三档（0 的那档不写）；全正常 = N 个来源 · X 前刷新",
+			/\[healthOkCount \+ " 正常"/.test(comp)
+			&& /healthStaleCount > 0 \? healthStaleCount \+ " 停更" : ""/.test(comp)
+			&& /healthDownCount > 0 \? healthDownCount \+ " 失败" : ""/.test(comp)
+			&& /tickerSpanText\(healthNow - healthRefreshAt\) \+ "前刷新"/.test(comp));
+		check("状态条与列表之间是「1px 极淡分隔线 + 6px 上边距」（CSS 守卫，见 ⑧）",
+			/className: "gacha-cal-health-list"/.test(card) && /className: "gacha-cal-health"/.test(card));
+
+		// ── 列表：四列网格（游戏名 / 胶囊 / 原因 / 最近成功），默认只列异常 ──
+		check("列表行是四列网格的同一套四个单元格（名字 / 胶囊 / 原因 / 最近成功）",
+			/className: "gacha-cal-health-row gacha-cal-health-row--" \+ h\.tone/.test(card)
+			&& /className: "gacha-cal-health-name", children: h\.name/.test(card)
+			&& /className: "gacha-cal-health-tag gacha-cal-health-tag--" \+ h\.tone, children: h\.tag/.test(card)
+			&& /className: "gacha-cal-health-reason", children: h\.reason/.test(card)
+			&& /className: "gacha-cal-health-ago", children: h\.agoText/.test(card));
+		check("行 tooltip 用 core 给的完整 text（渲染层不另写一套原因措辞）",
+			/title: h\.name \+ " · " \+ h\.text/.test(card));
+		check("默认只列异常：列表取 healthAll ? healthKnown : healthBad，展开后同网格换全部",
+			/healthAll \? healthKnown : healthBad\)\.length > 0/.test(comp)
+			&& (comp.match(/healthAll \? healthKnown : healthBad/g) || []).length >= 2);
+
+		// ── 空状态：一行弱化提示 + 图标（不要感叹号），**无条件下渲染** ──
 		check("没有任何记录时不再整块不渲染（旧的 healthKnown.length === 0 ? null : 短路已删）",
 			comp.indexOf("healthKnown.length === 0 ? null :") < 0);
-		check("空状态文案存在（来源健康：还没有刷新记录…）",
-			comp.indexOf("来源健康：还没有刷新记录（刷新一次数据后这里会显示每个来源的情况") >= 0);
-		check("全正常 / 有异常两档汇总文案也都在（同一行状态里三选一）",
-			comp.indexOf('"来源健康：全部正常（" + healthKnown.length + " 个来源）"') >= 0
-			&& comp.indexOf('"来源健康：" + healthBad.length + " 个来源需要关注"') >= 0);
-		// 自检报告并入健康块内部（列表下方），不再是卡片里另起一块
-		check("自检报告并入健康列表区域（「刚检查完：」贴在列表下方）",
-			card.indexOf("刚检查完：") > card.indexOf("healthAll ? healthKnown : healthBad")
-			&& /"刚检查完：" \+ selfReport\.total \+ " 款游戏的 " \+ selfSources \+ " 个来源里 " \+ selfBad \+ " 个没内容/.test(card));
+		check("空状态文案逐字：还没刷新过数据 —— 刷新一次后这里会显示每个来源的体检结果",
+			comp.indexOf('"还没刷新过数据 —— 刷新一次后这里会显示每个来源的体检结果"') >= 0);
+		check("空状态带图标（refresh svg、弱化色），不用感叹号凑数",
+			/className: "gacha-cal-health-empty"/.test(card)
+			&& /className: "gacha-cal-health-empty-icon"/.test(card)
+			&& card.indexOf("！") < 0);
+
+		// ── 自检报告：一行小徽章 + 汇总（完整清单进 title），不再是大段落 ──
+		check("自检报告收成一行：小徽章（自检完成 / 自检失败）+ 汇总，贴在列表下方",
+			/gacha-cal-health-report-badge", children: "自检完成"/.test(card)
+			&& /gacha-cal-health-report-badge--error", children: "自检失败"/.test(card)
+			&& /children: selfReportText/.test(card));
+		check("逐条 problems 不再渲成大段落（只进 title），旧的「刚检查完：」长句已删除",
+			comp.indexOf("selfReport.problems.map") < 0 && comp.indexOf("刚检查完：") < 0);
+		check("报告完整明细（游戏数 / 三档 / 逐条 problems）收进 title",
+			/const selfReportTitle =/.test(comp)
+			&& /selfReport\.problems\.join\("\\n"\)/.test(comp)
+			&& /title: selfReportTitle/.test(comp));
+
 		// 渲染路径不许 IO：卡片那块 JSX 里不许出现 fetch / localStorage / 读文件
 		const block = card;
 		check("健康面板不发起请求、不读写本地存储、不读文件（渲染路径零 IO）",
 			block.length > 0 && !/\bfetch\s*\(|localStorage|readFileSync|XMLHttpRequest/.test(block),
 			block.slice(0, 120));
-		// 文案由 core 给（UI 只拼「· 名字 · text」），不是渲染层现写一套
-		check("行文案来自纯函数的 text（渲染层不另写一套措辞）", /"· " \+ h\.name \+ " · " \+ h\.text/.test(comp));
 
 		// 显示侧补偿必须**接上线**：纯函数支持 lastRefreshAt 却没传 ⇒ 稳定源照样越走越旧
 		// （功能"看起来做了"但用户看到的还是「最近成功 30 天前」）。
@@ -543,6 +600,35 @@ export default async function runHealth() {
 			callSnippet.slice(0, 200));
 	}
 
+	// ── ⑧ 构建产物里也有（src/ 是唯一真源，产物必须同源）─────────────────────────────
+	{
+		const client = readFileSync(path.join(REPO, "lib", "client.js"), "utf8");
+		check("lib/client.js（客户端产物）里有 sourceHealth 判定",
+			client.includes("function sourceHealthOf(") && client.includes("SOURCE_HEALTH_NOMATCH_DAYS"));
+		const core = readFileSync(path.join(REPO, "packages", "core", "core.mjs"), "utf8");
+		check("packages/core/core.mjs（中立核心产物）里有同一份判定",
+			core.includes("function sourceHealthOf(") && core.includes("SOURCE_HEALTH_NOMATCH_DAYS"));
+
+		// ── 四列网格 / 圆点 / 胶囊样式：必须真的进产物，且只用语义变量 ──
+		const healthCss = readFileSync(path.join(REPO, "src", "client", "styles", "health.css"), "utf8");
+		check("health.css 已进 build.mjs 的 CSS_ORDER（样式文件必须真的进产物，而不是只躺着）",
+			/"health\.css"/.test(readFileSync(path.join(REPO, "build.mjs"), "utf8")));
+		check("四列网格参数：minmax(0,1fr) auto minmax(0,1.6fr) auto / gap 9px / padding 6px 8px",
+			/grid-template-columns:minmax\(0,1fr\) auto minmax\(0,1\.6fr\) auto/.test(healthCss)
+			&& /gap:9px/.test(healthCss) && /padding:6px 8px/.test(healthCss));
+		check("状态圆点 6px + 1px ring；状态胶囊 10px / 细边框 / 同色 9% 底",
+			/\.gacha-cal-health-dot\{[^}]*width:6px;height:6px[^}]*box-shadow:0 0 0 1px/.test(healthCss)
+			&& /\.gacha-cal-health-tag\{[^}]*font-size:10px/.test(healthCss)
+			&& /gacha-cal-health-tag--warn\{[^}]*9%,transparent/.test(healthCss));
+		check("汇总行与列表之间的分隔线 = border-l2 的 30%（不引入新颜色字面量）",
+			/border-top-color:color-mix\(in srgb,var\(--dsw-alias-border-l2[\s\S]*?\) 30%,transparent\)/.test(healthCss));
+		check("health.css 的颜色全部走 var(--dsw-alias-*)（没有裸 color:#… 规则）",
+			!/[^-]color:#[0-9a-f]{3,8}/i.test(healthCss));
+		check("lib/client.js 真的有 .gacha-cal-health-row 网格规则（样式段已拼进产物）",
+			client.includes(".gacha-cal-health-row{display:grid"));
+		check("lib/client.js 里有四列网格参数（顺序与 health.css 一致）",
+			client.includes("grid-template-columns:minmax(0,1fr) auto minmax(0,1.6fr) auto"));
+	}
 	// ── ⑧ 构建产物里也有（src/ 是唯一真源，产物必须同源）─────────────────────────────
 	{
 		const client = readFileSync(path.join(REPO, "lib", "client.js"), "utf8");

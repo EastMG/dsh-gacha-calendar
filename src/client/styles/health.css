@@ -1,0 +1,55 @@
+			/* 设置页「解析器自检 / 来源健康」卡（2026-10-28 整块重做：状态条 + 四列网格 + 状态胶囊）。
+			   结构（80-components.js 之外的 84-settings-page.js）：
+			     .gacha-cal-health-card
+			       ├ .gacha-cal-health-head          标题 + 「立即检查」
+			       ├ .gacha-cal-health                — 状态条 / 列表 / 报告都在这层
+			       │   ├ .gacha-cal-health-summary   圆点 + 主文案 + 次要信息 + 展开按钮
+			       │   ├ .gacha-cal-health-empty     空状态（未刷新过）
+			       │   ├ .gacha-cal-health-list      四列网格行（游戏名 / 胶囊 / 原因 / 最近成功）
+			       │   └ .gacha-cal-health-report    自检报告（一行弱化小字 + 小徽章）
+			   口径：
+			   · 字号一律 12px 级（标签 10px / 次要 11px），不放大 —— 设置页不能变长变肿；
+			   · 颜色只用 var(--dsw-alias-*) + fallback，明暗主题都走语义变量；
+			   · 「正常」在状态条里是成功绿，但展开后**健康行**用三级灰（灰点 + 弱化文字），
+			     避免一整列绿点抢走异常行的注意力；
+			   · 行与行之间只用 4px 行距，不画硬线；汇总行与列表之间才有一条 1px 极淡分隔线。 */
+			.gacha-cal-health-card{display:flex;flex-direction:column;box-sizing:border-box;padding:10px 12px;border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.28));border-radius:10px;background:var(--dsw-alias-bg-layer-1,#f7f8fa)}
+			.gacha-cal-health-head{display:flex;align-items:center;gap:10px;min-height:22px;padding:0 2px 7px;border-bottom:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));border-bottom-color:color-mix(in srgb,var(--dsw-alias-border-l2,rgba(127,127,127,.4)) 32%,transparent)}
+			.gacha-cal-health-title{font-size:12px;font-weight:600;line-height:1.4;color:var(--dsw-alias-label-primary,#1f2329)}
+			.gacha-cal-health-check{margin-left:auto}
+			.gacha-cal-health{display:flex;flex-direction:column;gap:4px;padding-top:7px;font-size:12px;line-height:1.5}
+			/* 状态条：圆点（6px + 1px ring）+ 主文案 + 右侧次要信息 + 展开按钮 */
+			.gacha-cal-health-summary{display:flex;align-items:center;gap:8px;min-height:22px;padding:0 2px}
+			.gacha-cal-health-dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--dsw-alias-label-tertiary,#9aa1ab);box-shadow:0 0 0 1px color-mix(in srgb,var(--dsw-alias-label-tertiary,#9aa1ab) 35%,transparent)}
+			.gacha-cal-health-dot--ok{background:var(--dsw-alias-state-success-primary,#2f9e44);box-shadow:0 0 0 1px color-mix(in srgb,var(--dsw-alias-state-success-primary,#2f9e44) 35%,transparent)}
+			.gacha-cal-health-dot--warn{background:var(--dsw-alias-state-warn-primary,#b26a00);box-shadow:0 0 0 1px color-mix(in srgb,var(--dsw-alias-state-warn-primary,#b26a00) 35%,transparent)}
+			.gacha-cal-health-dot--error{background:var(--dsw-alias-state-error-primary,#d4380d);box-shadow:0 0 0 1px color-mix(in srgb,var(--dsw-alias-state-error-primary,#d4380d) 35%,transparent)}
+			.gacha-cal-health-status{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600;line-height:1.4;color:var(--dsw-alias-label-primary,#1f2329)}
+			.gacha-cal-health-meta{flex:none;margin-left:auto;font-size:11px;line-height:1.4;color:var(--dsw-alias-label-tertiary,#9aa1ab);white-space:nowrap;font-variant-numeric:tabular-nums}
+			.gacha-cal-health-toggle{flex:none;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;height:22px;padding:0 8px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary,#4a5261);font:inherit;font-size:11px;line-height:1;white-space:nowrap;cursor:pointer;transition:background .12s,color .12s}
+			.gacha-cal-health-toggle:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1));color:var(--dsw-alias-label-primary,#1f2329)}
+			.gacha-cal-health-toggle:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary,#3d5afe);outline-offset:1px}
+			/* 空状态：一行弱化提示 + 刷新图标（不要感叹号） */
+			.gacha-cal-health-empty{display:flex;align-items:center;gap:7px;padding:5px 2px;color:var(--dsw-alias-label-tertiary,#9aa1ab)}
+			.gacha-cal-health-empty-icon{flex:none;width:14px;height:14px;opacity:.85}
+			.gacha-cal-health-empty-text{min-width:0;font-size:12px;line-height:1.5;color:var(--dsw-alias-label-tertiary,#9aa1ab)}
+			/* 四列网格：游戏名 / 状态胶囊 / 原因 / 最近成功；行间只用 4px 行距，不画线 */
+			.gacha-cal-health-list{display:flex;flex-direction:column;gap:4px;margin-top:2px;padding-top:6px;border-top:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.28));border-top-color:color-mix(in srgb,var(--dsw-alias-border-l2,rgba(127,127,127,.4)) 30%,transparent)}
+			.gacha-cal-health-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1.6fr) auto;gap:9px;align-items:center;padding:6px 8px;border-radius:6px;color:var(--dsw-alias-label-secondary,#4a5261);transition:background .12s}
+			.gacha-cal-health-row:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1))}
+			.gacha-cal-health-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:500;line-height:1.4;color:var(--dsw-alias-label-primary,#1f2329)}
+			.gacha-cal-health-tag{justify-self:start;display:inline-flex;align-items:center;box-sizing:border-box;height:16px;padding:0 6px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));border-radius:999px;background:transparent;color:var(--dsw-alias-label-tertiary,#9aa1ab);font-size:10px;line-height:1;white-space:nowrap}
+			.gacha-cal-health-tag--ok{color:var(--dsw-alias-label-tertiary,#9aa1ab);border-color:color-mix(in srgb,var(--dsw-alias-label-tertiary,#9aa1ab) 25%,transparent);background:color-mix(in srgb,var(--dsw-alias-label-tertiary,#9aa1ab) 8%,transparent)}
+			.gacha-cal-health-tag--warn{color:var(--dsw-alias-state-warn-primary,#b26a00);border-color:color-mix(in srgb,var(--dsw-alias-state-warn-primary,#b26a00) 28%,transparent);background:color-mix(in srgb,var(--dsw-alias-state-warn-primary,#b26a00) 9%,transparent)}
+			.gacha-cal-health-tag--error{color:var(--dsw-alias-state-error-primary,#d4380d);border-color:color-mix(in srgb,var(--dsw-alias-state-error-primary,#d4380d) 28%,transparent);background:color-mix(in srgb,var(--dsw-alias-state-error-primary,#d4380d) 9%,transparent)}
+			.gacha-cal-health-reason{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;line-height:1.4;color:var(--dsw-alias-label-tertiary,#9aa1ab)}
+			.gacha-cal-health-row--error .gacha-cal-health-reason{color:var(--dsw-alias-label-secondary,#4a5261)}
+			.gacha-cal-health-ago{flex:none;font-size:11px;line-height:1.4;color:var(--dsw-alias-label-tertiary,#9aa1ab);white-space:nowrap;font-variant-numeric:tabular-nums}
+			/* 展开后健康行：灰点 + 弱化文字（正常色只留在状态条的圆点上） */
+			.gacha-cal-health-row--ok .gacha-cal-health-name{font-weight:400;color:var(--dsw-alias-label-secondary,#4a5261)}
+			.gacha-cal-health-row--ok .gacha-cal-health-reason,.gacha-cal-health-row--ok .gacha-cal-health-ago{color:var(--dsw-alias-label-tertiary,#9aa1ab);opacity:.9}
+			/* 自检报告：一行弱化小字 + 小徽章（完整清单在 title 里，不占版面） */
+			.gacha-cal-health-report{display:flex;align-items:center;gap:6px;min-width:0;margin-top:2px;padding-top:6px;border-top:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.28));border-top-color:color-mix(in srgb,var(--dsw-alias-border-l2,rgba(127,127,127,.4)) 26%,transparent)}
+			.gacha-cal-health-report-badge{flex:none;display:inline-flex;align-items:center;box-sizing:border-box;height:16px;padding:0 6px;border:1px solid color-mix(in srgb,var(--dsw-alias-state-success-primary,#2f9e44) 26%,transparent);border-radius:999px;background:color-mix(in srgb,var(--dsw-alias-state-success-primary,#2f9e44) 9%,transparent);color:var(--dsw-alias-state-success-primary,#2f9e44);font-size:10px;line-height:1;white-space:nowrap;font-weight:500}
+			.gacha-cal-health-report-badge--error{border-color:color-mix(in srgb,var(--dsw-alias-state-error-primary,#d4380d) 26%,transparent);background:color-mix(in srgb,var(--dsw-alias-state-error-primary,#d4380d) 9%,transparent);color:var(--dsw-alias-state-error-primary,#d4380d)}
+			.gacha-cal-health-report-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;line-height:1.4;color:var(--dsw-alias-label-tertiary,#9aa1ab);font-variant-numeric:tabular-nums}

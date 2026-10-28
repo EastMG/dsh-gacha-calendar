@@ -539,7 +539,11 @@
 		//     显示谎言，而且这类行本来每轮都在推进 nomatchStreak（内容变了）⇒ 存档是新鲜的，
 		//     根本不需要补偿；
 		//   · 要求 lastRefreshAt <= now 且 okAt > 0：时钟回拨/坏值时不倒着编一个"最近成功"。
-		// 返回 [{ id, name, known, state, failStreak, nomatchDays, nomatchMs, lastOkAt, items, error, text }]
+		// 返回 [{ id, name, known, state, failStreak, nomatchDays, nomatchMs, lastOkAt, items, error,
+		//         text, tag, tone, reason, agoText }]
+		//   展示侧三段（2026-10-28 设置页改四列网格）：tag = 状态胶囊短标签（带灰点/警告/叉），
+		//   reason = 原因列（失败原因 / 连续 N 天没解析出内容 / 正常行的解析条数），agoText = 最近成功列；
+		//   tone = 颜色档（ok / warn / error），渲染层不再从 state 二次映射 —— 措辞只在这里写一次。
 		//   state:
 		//     "ok"    —— 正常（最近一轮成功，或连击还没到 N 天 —— 没到阈值不打扰用户）
 		//     "down"  —— 连续失败 ≥ 1 次（原因在 error；从未成功也在这一档，因为"为什么失败"更有用）
@@ -583,6 +587,23 @@
 				parts.push(agoText);
 				if (state === "down" && rec && rec.error) parts.push(String(rec.error));
 				if (state === "stale" || state === "never") parts.push("疑似改版或停更");
+				// 设置页四列网格要的三段展示文案（与 text 同源）：
+				//   · tag = 状态胶囊：灰点 = 正常、警告 = 停更/从未成功、叉 = 抓取失败；
+				//   · reason = 原因列：失败原因（没有就退化成连击次数）/ 连续 N 天没解析出内容 /
+				//     正常行的「解析出 N 条」；
+				//   · tone = 颜色档（ok / warn / error），供圆点与胶囊选色，渲染层不再从 state 二次映射。
+				const tag = state === "down"
+					? "✕ 抓取失败"
+					: state === "stale"
+						? "⚠ 疑似停更"
+						: state === "never"
+							? "⚠ 从未成功"
+							: "● 正常";
+				const tone = state === "down" ? "error" : (state === "ok" ? "ok" : "warn");
+				let reason = "";
+				if (state === "down") reason = rec && rec.error ? String(rec.error) : "连续失败 " + failStreak + " 次";
+				else if (state === "stale" || state === "never") reason = "连续 " + (nomatchDays || days) + " 天没解析出内容";
+				else if (items > 0) reason = "解析出 " + items + " 条";
 				return {
 					id,
 					name,
@@ -594,7 +615,11 @@
 					lastOkAt,
 					items,
 					error: rec && rec.error ? String(rec.error) : "",
-					text: parts.join(" · ")
+					text: parts.join(" · "),
+					tag,
+					tone,
+					reason,
+					agoText
 				};
 			});
 		}

@@ -174,6 +174,7 @@ const CSS_ORDER = [
   "settings.css",          // 设置页控件：排序按钮 / 取色器 / 来源选择器
   "chip.css",              // 设置页「提醒」档位胶囊（.gacha-cal-chip*）
   "settings-header.css",   // 设置页标题行：版本号 / Star 指引 / 关闭 ✕
+  "health.css",            // 设置页「解析器自检 / 来源健康」：状态条 + 四列网格 + 状态胶囊
   "animations.css",        // 启动动画（面板每次打开重挂载 ⇒ 动画只跑一次）+ 删除键
   "schedule.css",          // 新面板：骨架 / 头部 / 近期 / 游戏表 / 探头
   "schedule-motion.css",   // 新面板：迷你条与进度环动画 + reduce
