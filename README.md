@@ -51,7 +51,7 @@ DeepSeek Harness 桌面端侧边栏插件：一键查看主流二游的**当期�
 
 ## 新版面板（实验）
 
-新版面板从[v0.12.7]开始**默认开启**：设置 → 二游日历 → 取消勾选「**实验：新「二游日历」面板视图**」即可回到旧表格视图。
+新版面板从 v0.12.7 开始**默认开启**：设置 → 二游日历 → 取消勾选「**实验：新「二游日历」面板视图**」即可回到旧表格视图。
 
 <p align="center">
   <img src="https://cdn.jsdelivr.net/gh/EastMG/dsh-gacha-calendar@main/assets/screenshot-4.png" width="50%" alt="新版面板">
