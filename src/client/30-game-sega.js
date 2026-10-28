@@ -8,7 +8,7 @@
 //    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
 
 
-		// ══ 以下为原 42-parsers-sekai.js 的内容（原样保留）══
+		// ══ 以下为原 42-parsers-sekai.js 的内容（原样保留；压平后见 30-game-sega.js）══
 // src/client/35-parsers-sekai.js
 //
 // 由 next-sources/parsers/sekai.js 压平而来（2026-10-03「不留 next-source」）。

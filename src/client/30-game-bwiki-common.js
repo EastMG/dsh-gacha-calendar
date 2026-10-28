@@ -8,8 +8,8 @@
 //    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
 
 
-		// ══ 以下为原 42-parsers-bwiki.js 的内容（原样保留）══
-// src/client/42-parsers-bwiki.js —— bwiki wiki 页系（物华弥新 / 战双 / 卡厄斯 / 雪松 + 4 个备选源）
+		// ══ 以下为原 42-parsers-bwiki.js 的内容（原样保留；压平后见 30-game-bwiki-common.js）══
+// src/client/42-parsers-bwiki.js —— bwiki wiki 页系（物华弥新 / 战双 / 卡厄斯 / 雪松 + 4 个备选源）（压平后见 30-game-bwiki-common.js）
 //
 // ⚠️ 2026-10-03 按**游戏厂商 / 来源平台**合并（用户要求）：原先一款游戏一个文件（17 个），
 //    现按厂商/系列归并成 10 个。合并只改**文件边界**，符号名（`ns_<域>_` 前缀）**一个都没动** ——
@@ -17,12 +17,12 @@
 //    以及所有用例都不受影响（它们认的是符号名，不是文件名）。
 //
 //    本文件由以下文件**原样**拼接而成（各自的原文件头整体保留，前面加了分隔标记）：
-//      · 42-parsers-bwiki.js                物华弥新 + 4 个 bwiki 备选源（kedr-kaxi / uma-cn-bwiki / uma-jp-bwiki / stellasora-bwiki）
-//      · 42-parsers-bwiki-wikitext.js       战双（SMW ask + 公告）/ 卡厄斯（Lua 模块）/ 雪松（模板）
-//      · 42-parsers-kedr-wiki.js            雪松 wiki 页解析工具（生产已改走 bwiki-wikitext；本文件供回归测试）
+//      · 42-parsers-bwiki.js                物华弥新 + 4 个 bwiki 备选源（kedr-kaxi / uma-cn-bwiki / uma-jp-bwiki / stellasora-bwiki）（压平后见 30-game-bwiki-common.js）
+//      · 42-parsers-bwiki-wikitext.js       战双（SMW ask + 公告）/ 卡厄斯（Lua 模块）/ 雪松（模板）（压平后见 30-game-bwiki-wikitext-common.js）
+//      · 42-parsers-kedr-wiki.js            雪松 wiki 页解析工具（生产已改走 bwiki-wikitext；本文件供回归测试）（压平后见 30-game-bwiki-kedr-wiki.js）
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ── 原 42-parsers-bwiki.js
+// ── 原 42-parsers-bwiki.js（压平后见 30-game-bwiki-common.js）
 // ─────────────────────────────────────────────────────────────────────────────
 // src/client/35-parsers-bwiki.js
 //

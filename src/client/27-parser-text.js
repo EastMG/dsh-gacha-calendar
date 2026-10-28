@@ -7,20 +7,24 @@
 
 // src/client/41-sources-shared.js —— 新增来源解析器共用的：抓取桥接 + 悬停排版工具
 //
-// 历史沿革：这些代码原本在 `next-sources/lib/env.js`（ESM 模块，由外部生成器内联进 45-next-sources.js；压平后即本文件 27-parser-text.js）。
+// 历史沿革：这些代码原本在 `next-sources/lib/env.js`（ESM 模块，由外部生成器内联进 45-next-sources.js；压平后即本文件 27-parser-text.js ——
+// 2026-10-28 又按职责拆段，其中「文本/实体/时间戳」这几件留在这里，抓取与悬停排版已各自成文件）。
 // 2026-10-03 按用户要求「把 next-sources 合并进原 source，不留 next-source」压平成普通源码段，
 // `next-sources/` 目录与生成器均已删除 —— **这里就是唯一真源，直接改这里**。
 //
 // 本段提供（解析器直接引用这些名字，不再有 import）：
-//   · 抓取：fetchText / fetchJson / fetchMediaWikiText（走宿主代理或直连）
-//   · 文本：pad2 / decodeEntities / textOf
-//   · 悬停排版：hoverPool / hoverEvent（与本体 buildPoolHover / buildEventHover 逐字一致）
+//   · 文本：pad2 / decodeEntities / textOf（命名实体表 ENTITIES_NS 随 decodeEntities 走）
+//   · 实体与 HTML：decodeExtra / htmlText / htmlTextTight（扩展实体表 ENTITIES_EXTRA）
+//   · 时间戳与排序：numOrNull / byNewestStart（宽容版，见下方注释）
+// 原本也在本段、2026-10-28 拆段后已迁走的（解析器照旧直接引用，不用 import）：
+//   · 抓取：fetchText / fetchJson / fetchMediaWikiText → 现在在 22-fetcher-core.js（走宿主代理或直连）
+//   · 悬停排版：hoverPool / hoverEvent（与本体 buildPoolHover / buildEventHover 逐字一致）→ 现在在 28-parser-hover-tools.js
 // 其余 env 名字（sourceInstant / sourceWallParts / fmtWindow / fmtMdHm / stripTags）原本由 30-parsers.js 与 15-env.js 提供 —— 压平后分别是 15-env.js（sourceInstant / sourceWallParts）、24-parser-window.js（fmtWindow / fmtMdHm）、23-parser-time.js（stripTags）。
 
-		// 解析器原本 import ./lib/env.js（压平后并入本文件 27-parser-text.js）；这里用插件已有实现 + 少量补齐顶上（解析器代码不改）。
-		//   sourceInstant / sourceWallParts / fmtWindow / fmtMdHm / stripTags → 本体已有
+		// 解析器原本 import ./lib/env.js（压平后分散到 15-env.js / 22-fetcher-core.js / 23~28 各段，本文件只承接其中的文本工具）；这里用插件已有实现 + 少量补齐顶上（解析器代码不改）。
+		//   sourceInstant / sourceWallParts / fmtWindow / fmtMdHm / stripTags → 本体已有（15-env.js / 24-parser-window.js / 23-parser-time.js）
 		//   pad2 / decodeEntities / textOf                                    → 本区补
-		//   fetchText / fetchJson / fetchMediaWikiText                        → 接宿主代理 / 直连
+		//   fetchText / fetchJson / fetchMediaWikiText                        → 22-fetcher-core.js（接宿主代理 / 直连）
 		const ENTITIES_NS = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
 
 		// ⚠️ pad2 本体**没有**（第一版误以为有 → 7 个 bwiki 来源全报 "pad2 is not defined"）

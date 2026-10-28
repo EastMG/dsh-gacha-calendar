@@ -8,8 +8,8 @@
 //    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
 
 
-		// ══ 以下为原 42-parsers-biligame.js 的内容（原样保留）══
-// src/client/42-parsers-biligame.js —— biligame 官方公告系（物华弥新 / 闪耀优俊少女 / 嘟嘟脸恶作剧）
+		// ══ 以下为原 42-parsers-biligame.js 的内容（原样保留；压平后见 30-game-biligame.js）══
+// src/client/42-parsers-biligame.js —— biligame 官方公告系（物华弥新 / 闪耀优俊少女 / 嘟嘟脸恶作剧）（压平后见 30-game-biligame.js）
 //
 // ⚠️ 2026-10-03 按**游戏厂商 / 来源平台**合并（用户要求）：原先一款游戏一个文件（17 个），
 //    现按厂商/系列归并成 10 个。合并只改**文件边界**，符号名（`ns_<域>_` 前缀）**一个都没动** ——
@@ -17,11 +17,11 @@
 //    以及所有用例都不受影响（它们认的是符号名，不是文件名）。
 //
 //    本文件由以下文件**原样**拼接而成（各自的原文件头整体保留，前面加了分隔标记）：
-//      · 42-parsers-biligame-announce.js    嘟嘟脸恶作剧（biligame 官方公告）
-//      · 42-parsers-biligame-activity.js    物华弥新 / 闪耀优俊少女（biligame 官方公告）
+//      · 42-parsers-biligame-announce.js    嘟嘟脸恶作剧（biligame 官方公告）（压平后见 30-game-biligame.js）
+//      · 42-parsers-biligame-activity.js    物华弥新 / 闪耀优俊少女（biligame 官方公告）（压平后见 30-game-biligame.js）
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ── 原 42-parsers-biligame-announce.js
+// ── 原 42-parsers-biligame-announce.js（压平后见 30-game-biligame.js）
 // ─────────────────────────────────────────────────────────────────────────────
 // src/client/35-parsers-biligame-announce.js
 //
@@ -350,7 +350,7 @@ async function ns_biligame_announce_eventsDdlezj(url, signal, tz = ns_biligame_a
 //#endregion
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ── 原 42-parsers-biligame-activity.js
+// ── 原 42-parsers-biligame-activity.js（压平后见 30-game-biligame.js）
 // ─────────────────────────────────────────────────────────────────────────────
 // src/client/35-parsers-biligame-activity.js
 //

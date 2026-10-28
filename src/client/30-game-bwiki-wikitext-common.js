@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// ── 原 42-parsers-bwiki-wikitext.js
+// ── 原 42-parsers-bwiki-wikitext.js（压平后见 30-game-bwiki-wikitext-common.js）
 // ─────────────────────────────────────────────────────────────────────────────
 // src/client/35-parsers-bwiki-wikitext.js
 //

@@ -8,8 +8,8 @@
 //    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
 
 
-		// ══ 以下为原 42-parsers-bandori.js 的内容（原样保留）══
-// src/client/42-parsers-bandori.js —— BanG Dream 全系（国服手游 / OurNotes 日服 / OurNotes 国际服 / Bestdori 备选源）
+		// ══ 以下为原 42-parsers-bandori.js 的内容（原样保留；压平后见 30-game-bandori.js）══
+// src/client/42-parsers-bandori.js —— BanG Dream 全系（国服手游 / OurNotes 日服 / OurNotes 国际服 / Bestdori 备选源）（压平后见 30-game-bandori.js）
 //
 // ⚠️ 2026-10-03 按**游戏厂商 / 来源平台**合并（用户要求）：原先一款游戏一个文件（17 个），
 //    现按厂商/系列归并成 10 个。合并只改**文件边界**，符号名（`ns_<域>_` 前缀）**一个都没动** ——
@@ -17,13 +17,13 @@
 //    以及所有用例都不受影响（它们认的是符号名，不是文件名）。
 //
 //    本文件由以下文件**原样**拼接而成（各自的原文件头整体保留，前面加了分隔标记）：
-//      · 42-parsers-bandori.js              BanG Dream！少女乐团派对·国服（biligame 官方公告）
-//      · 42-parsers-ournotes.js             BanG Dream！OurNotes·日服（WP REST）
-//      · 42-parsers-ournotes-global.js      BanG Dream！OurNotes·国际服（BHK 官方公告）
-//      · 42-parsers-bestdori.js             BanG Dream（Bestdori 社区库，备选源）
+//      · 42-parsers-bandori.js              BanG Dream！少女乐团派对·国服（biligame 官方公告）（压平后见 30-game-bandori.js）
+//      · 42-parsers-ournotes.js             BanG Dream！OurNotes·日服（WP REST）（压平后见 30-game-bandori.js）
+//      · 42-parsers-ournotes-global.js      BanG Dream！OurNotes·国际服（BHK 官方公告）（压平后见 30-game-bandori.js）
+//      · 42-parsers-bestdori.js             BanG Dream（Bestdori 社区库，备选源）（压平后见 30-game-bandori.js）
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ── 原 42-parsers-bandori.js
+// ── 原 42-parsers-bandori.js（压平后见 30-game-bandori.js）
 // ─────────────────────────────────────────────────────────────────────────────
 // src/client/35-parsers-bandori.js
 //
@@ -344,7 +344,7 @@ async function ns_bandori_eventsBandori(url, signal, tz = ns_bandori_BANDORI_TZ,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ── 原 42-parsers-ournotes.js
+// ── 原 42-parsers-ournotes.js（压平后见 30-game-bandori.js）
 // ─────────────────────────────────────────────────────────────────────────────
 // src/client/35-parsers-ournotes.js
 //
@@ -540,7 +540,7 @@ async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ── 原 42-parsers-ournotes-global.js
+// ── 原 42-parsers-ournotes-global.js（压平后见 30-game-bandori.js）
 // ─────────────────────────────────────────────────────────────────────────────
 // src/client/35-parsers-ournotes-global.js
 //
@@ -880,7 +880,7 @@ async function ns_ournotes_global_eventsOurNotesGlobal(url, signal, tz = ns_ourn
 //#endregion
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ── 原 42-parsers-bestdori.js
+// ── 原 42-parsers-bestdori.js（压平后见 30-game-bandori.js）
 // ─────────────────────────────────────────────────────────────────────────────
 // src/client/35-parsers-bestdori.js
 //

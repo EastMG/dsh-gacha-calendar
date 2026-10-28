@@ -8,8 +8,8 @@
 //    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
 
 
-		// ══ 以下为原 42-parsers-cygames.js 的内容（原样保留）══
-// src/client/42-parsers-cygames.js —— Cygames 系（赛马娘 日服 / 国际服）
+		// ══ 以下为原 42-parsers-cygames.js 的内容（原样保留；压平后见 30-game-cygames.js）══
+// src/client/42-parsers-cygames.js —— Cygames 系（赛马娘 日服 / 国际服）（压平后见 30-game-cygames.js）
 //
 // ⚠️ 2026-10-03 按**游戏厂商 / 来源平台**合并（用户要求）：原先一款游戏一个文件（17 个），
 //    现按厂商/系列归并成 10 个。合并只改**文件边界**，符号名（`ns_<域>_` 前缀）**一个都没动** ——
@@ -17,11 +17,11 @@
 //    以及所有用例都不受影响（它们认的是符号名，不是文件名）。
 //
 //    本文件由以下文件**原样**拼接而成（各自的原文件头整体保留，前面加了分隔标记）：
-//      · 42-parsers-umamusume-official.js   赛马娘 日服 / 国际服 官网公告
-//      · 42-parsers-umapyoi.js              赛马场日服 umapyoi 第三方库（备选源）
+//      · 42-parsers-umamusume-official.js   赛马娘 日服 / 国际服 官网公告（压平后见 30-game-cygames.js）
+//      · 42-parsers-umapyoi.js              赛马场日服 umapyoi 第三方库（备选源）（压平后见 30-game-cygames.js）
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ── 原 42-parsers-umamusume-official.js
+// ── 原 42-parsers-umamusume-official.js（压平后见 30-game-cygames.js）
 // ─────────────────────────────────────────────────────────────────────────────
 // src/client/35-parsers-umamusume-official.js
 //
@@ -653,7 +653,7 @@ async function ns_umamusume_official_eventsUmaGlobal(url, signal, tz = ns_umamus
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ── 原 42-parsers-umapyoi.js
+// ── 原 42-parsers-umapyoi.js（压平后见 30-game-cygames.js）
 // ─────────────────────────────────────────────────────────────────────────────
 // src/client/35-parsers-umapyoi.js
 //

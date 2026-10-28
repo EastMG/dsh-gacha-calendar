@@ -293,7 +293,7 @@
 		const ZZZ_BWIKI_URL = "https://wiki.biligame.com/zzz/api.php?action=parse&page=%E5%BE%80%E6%9C%9F%E8%B0%83%E9%A2%91&prop=text&format=json&formatversion=2";
 
 
-		// ══ 以下为原 42-parsers-miyoushe.js 的内容（原样保留）══
+		// ══ 以下为原 42-parsers-miyoushe.js 的内容（原样保留；压平后见 30-game-hoyoverse.js）══
 // src/client/35-parsers-miyoushe.js
 //
 // 由 next-sources/parsers/miyoushe.js 压平而来（2026-10-03「不留 next-source」）。

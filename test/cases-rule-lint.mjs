@@ -7,7 +7,7 @@
 // 悬停样式不一致」。教训是：**规则只靠人工审计守不住**，得让机器天天查。
 //
 // 本守卫做两件事（都是静态的，不需要网络）：
-//   ① 扫 `src/client/42-parsers-*.js` 的**字符串/模板字面量**（跳过注释，免得解释性注释误报），
+//   ① 扫 `src/client/42-parsers-*.js`（压平后见 `src/client/30-game-*.js`；本守卫的文件过滤就是 `^30-game-`）的**字符串/模板字面量**（跳过注释，免得解释性注释误报），
 //      命中已知的元信息写法就失败；
 //   ② 扫是否又出现了"本地自制悬停排版"（`buildPoolHover` / `buildEventHover` / `permanentLine`
 //      这类函数名）—— 排版只允许有 hoverPool / hoverEvent 一处实现。
@@ -237,7 +237,7 @@ export default async function run() {
 		}
 		// 白名单：bwiki 的**滚动列表版**（比的是"上一条的月"，语义不同，已改用共用常量）；
 		// 解析器共用段（原 `25-parser-shared.js`，现 `PARSER_FILES`）本身就是那些共用实现的所在。
-		const allow = new Set(["42-parsers-bwiki.js", ...PARSER_FILES]);
+		const allow = new Set(["42-parsers-bwiki.js", ...PARSER_FILES]);   // 首项是旧名（压平后见 30-game-bwiki-common.js）；字符串原样保留，不改代码
 		const real = bad.filter((b) => !allow.has(b.split(":")[0]));
 		check("没有内联的跨年判定 / 本地 yearOf 副本（一律走 endsNextYear / inferYear）", real.length === 0, real.slice(0, 4).join(" / "));
 	}

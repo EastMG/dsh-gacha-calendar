@@ -244,7 +244,7 @@
 			return data;
 		}
 
-		// ══ 以下为原 42-parsers-p5x.js 的内容（原样保留）══
+		// ══ 以下为原 42-parsers-p5x.js 的内容（原样保留；压平后见 30-game-perfectworld.js）══
 // src/client/35-parsers-p5x.js
 //
 // 由 next-sources/parsers/p5x.js 压平而来（2026-10-03「不留 next-source」）。

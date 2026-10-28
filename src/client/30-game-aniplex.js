@@ -8,7 +8,7 @@
 //    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
 
 
-		// ══ 以下为原 42-parsers-fgo.js 的内容（原样保留）══
+		// ══ 以下为原 42-parsers-fgo.js 的内容（原样保留；压平后见 30-game-aniplex.js）══
 // src/client/35-parsers-fgo.js
 //
 // 由 next-sources/parsers/fgo.js 压平而来（2026-10-03「不留 next-source」）。
