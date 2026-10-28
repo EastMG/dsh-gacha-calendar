@@ -522,10 +522,10 @@ export default async function run() {
 					&& /gap: 6, flexWrap: "wrap"/.test(chipSrc)
 					&& /fontSize: 12/.test(chipSrc);
 			})());
-		check("胶囊样式：圆角 999/小高度 + 选中=主题浅色底配深色字 / 未选中=灰描边配次级字色 + 两档 hover + cursor:pointer",
+		check("胶囊样式：圆角 999/小高度 + 选中=实色主题底配白字 / 未选中=灰描边配次级字色 + 两档 hover + cursor:pointer",
 			/\.gacha-cal-chip\{[^}]*height:24px[^}]*border-radius:999px[^}]*color:var\(--dsw-alias-label-secondary[^}]*cursor:pointer/.test(styleSrc)
 			&& /\.gacha-cal-chip\{[^}]*border:1px solid var\(--dsw-alias-border-l2/.test(styleSrc)
-			&& /\.gacha-cal-chip--on\{[^}]*background:var\(--dsw-alias-interactive-bg-hover-accent[^}]*color:var\(--dsw-alias-label-primary/.test(styleSrc)
+			&& /\.gacha-cal-chip--on\{[^}]*background:var\(--dsw-alias-state-business-primary[^}]*color:#fff/.test(styleSrc)
 			&& /\.gacha-cal-chip:hover\{/.test(styleSrc)
 			&& /\.gacha-cal-chip--on:hover\{/.test(styleSrc));
 		check("逐游戏「提醒」列保持隐藏（SHOW_REMIND_COLUMN 仍为 false，本次不动）",
