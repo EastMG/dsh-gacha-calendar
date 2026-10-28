@@ -740,9 +740,6 @@ export default async function run() {
 		check("响应形状：成功 { ok:true, aumid, identity, detail } / 失败 { ok:false, error }",
 			/ok: true, aumid: target\.aumid, identity: target\.identity, detail: String\(sent\.detail \|\| ""\)/.test(testBody)
 			&& /ok: false, error: String\(sent\.detail \|\| "send-failed"\)/.test(testBody));
-		check("identity 字段只可能是 \"app\" / \"powershell\"（设置页文案用同一套字面量）",
-			/identity: enabled \? "app" : "powershell"/.test(hostSrc)
-			&& /body\.identity === "app" \? "二游日历" : "Windows PowerShell"/.test(compSrc));
 
 		// ⑥ 设置页
 		const hostPath = (/const NOTIFY_TEST_PREFIX = "([^"]+)";/.exec(hostSrc) || [])[1];
@@ -766,8 +763,8 @@ export default async function run() {
 		check("busy 期间按钮禁用 + 文字变「发送中…」",
 			/disabled: notifyTestBusy,/.test(compSrc)
 			&& /children: notifyTestBusy \? "发送中…" : "发送测试通知"/.test(compSrc));
-		check("成功文案「已发送（发送者：…）」按宿主回传的 identity 选名字（不猜）",
-			compSrc.includes('"已发送（发送者：" + (body.identity === "app" ? "二游日历" : "Windows PowerShell") + "）"'));
+		check("成功时不显示任何提示文字（只有失败才显示原因）",
+			compSrc.includes('notifyTest && !notifyTest.ok ?'));
 		check("失败文案「发送失败：<原因>」（宿主错误码翻人话，不弹窗）",
 			compSrc.includes('"发送失败：" + notifyIdentityErrorText'));
 		check("按钮点击走 sendTestNotify（POST 一次就结束，不轮询）",
