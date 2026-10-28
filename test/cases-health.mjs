@@ -572,6 +572,8 @@ export default async function runHealth() {
 			&& card.indexOf("！") < 0);
 
 		// ── 自检报告：一行小徽章 + 汇总（完整清单进 title），不再是大段落 ──
+		check("自检报告贴在列表下方（同一块的最底部，不再单开一块）",
+			card.indexOf("gacha-cal-health-report") > card.indexOf("gacha-cal-health-list"));
 		check("自检报告收成一行：小徽章（自检完成 / 自检失败）+ 汇总，贴在列表下方",
 			/gacha-cal-health-report-badge", children: "自检完成"/.test(card)
 			&& /gacha-cal-health-report-badge--error", children: "自检失败"/.test(card)
