@@ -50,7 +50,21 @@ dsh-gacha-calendar/
 │       ├── 30-game-hypergryph.js  # 鹰角：明日方舟 / 终末地
 │       ├── 30-game-bluearchive.js # 蔚蓝档案：国服 / 国际服 / 日服
 │       ├── 30-game-bandori.js     # BanG Dream：国服手游 / OurNotes 日服 / 国际服（Bestdori 备选）
-│       ├── 30-game-bwiki.js       # bwiki 系：物华弥新 / 战双 / 卡厄斯 / 雪松
+│       ├── 30-game-bwiki-common.js      # bwiki 公共段：文件头 + HTML 工具 / 日期解析 / 当期挑选（3 个 region）
+│       ├── 30-game-bwiki-wuhuamixin.js  # bwiki ① 物华弥新（whmx）：卡池 + 活动解析
+│       ├── 30-game-bwiki-uma-cn.js      # bwiki ② 闪耀优俊少女 国服（umamusume / 简中卡池）
+│       ├── 30-game-bwiki-uma-jp.js      # bwiki ③ 赛马娘 日服（umamusume / 活动，Asia/Tokyo）
+│       ├── 30-game-bwiki-zspms-html.js  # bwiki ④ 战双帕弥什（zspms / 研发记录，prop=text 形态）
+│       ├── 30-game-bwiki-kedr-html.js   # bwiki ⑤ 雪松（kedrgame / 卡池信息，台架测试占位页）
+│       ├── 30-game-bwiki-czn-html.js    # bwiki ⑥ 卡厄斯梦境（czn / 卡池记录，实测空页）
+│       ├── 30-game-bwiki-stellasora.js  # bwiki ⑦ 星塔旅人（stellasora / 首页活动日历）
+│       ├── 30-game-bwiki-html-fetchers.js # 上面 7 个 HTML 形态来源的抓取器
+│       ├── 30-game-bwiki-wikitext-common.js # wikitext 形态公共段：取正文（parse.wikitext）/ 当期挑选 / 悬停
+│       ├── 30-game-bwiki-zspms-wikitext.js # 战双（wikitext）：SMW ask 索引 + 版本更新公告正文 → 档期
+│       ├── 30-game-bwiki-czn-wikitext.js # 卡厄斯梦境（wikitext）：Module:Gacha/data 的 Lua 表
+│       ├── 30-game-bwiki-kedr-wikitext.js # 雪松（wikitext）：Template:首页游戏版本内容 的模板调用
+│       ├── 30-game-bwiki-kedr-wiki.js   # 雪松社区归档页（往期动员，prop=text）+ 其抓取器
+│       ├── 30-game-bwiki-register.js    # 本组 4 条 registerSource + GACHA/EVENT_FETCHERS 接线
 │       ├── 30-game-biligame.js    # biligame 系：嘟嘟脸恶作剧 / 闪耀优俊少女
 │       ├── 30-game-cygames.js     # Cygames：赛马娘 日服 / 国际服（umapyoi 备选）
 │       ├── 30-game-perfectworld.js # 完美世界：女神异闻录：夜幕魅影 / 异环
@@ -248,8 +262,9 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
       ✅ 2026-10-28 完成：拆成 `src/client/styles/*.css`（9 个文件，按原段落注释切、内容原样搬运），
       `build.mjs` 用独立的 `CSS_ORDER` 拼回 `const STYLE = \`…\`;` —— **`lib/client.js` 逐字节不变**，
       守卫见 `test/cases-ticker.mjs` ⑧（含 CSS_ORDER ↔ styles/ 一一对应）。
-   ③ `30-game-bwiki.js` → 它其实是**多个游戏**的 bwiki 源，按文件里**已有的 `//#region` 分段**
-      拆成"一游戏一文件"（分段是现成的，机械拆分、不重新分类）；
+   ③ ✅ 2026-10-28 完成：`30-game-bwiki.js`（多个游戏的 bwiki 源合集）按文件里**已有的 `//#region` 分段**
+      机械拆成 15 个 `30-game-bwiki-*.js`（一游戏/一段一文件，不重新分类、不合并；拆点全落在原文件的
+      空行上 ⇒ `lib/client.js` **逐字节不变**），`build.mjs` 的 ORDER/CORE_ORDER 原位换成这 15 行；
    ④ `25-parser-shared.js` → 按**职责**拆：时间解析 / 当期窗口判定 / 悬停构造 / 排序优先级；
    ⑤ **不拆**单游戏文件（一个厂商/游戏的闭环 = 有界的内聚单元，行数多少都不成为拆的理由）；
    ⑥ **不按行数**把某个解析器切成"上半/下半"（会制造"半个解析器"这种坏边界）；

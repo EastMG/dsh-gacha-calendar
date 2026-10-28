@@ -145,7 +145,14 @@ const FORBIDDEN = [
 export default async function run() {
 	section("规则静态守卫（方案 A 悬停：只有名称与档期；选当期：只有一处判定）");
 	const files = readdirSync(SRC).filter((f) => /^30-game-.*\.js$/.test(f)).sort();
-	check("游戏文件齐备（一厂商/系列一个文件，共 14 个）", files.length === 14, String(files.length));
+	// 2026-10-28（待办 7③）：bwiki 系一个文件装多个游戏，按文件里**已有的 `//#region`** 拆成了
+	// 15 个 `30-game-bwiki-*.js`（一游戏/一段一文件，见 README_Dev 结构树）。所以这条守卫的口径改成：
+	// 「厂商/系列级文件仍是 13 个」+「bwiki 家族正好 15 段」= 28 ——少一个 = 漏接线，多一个 = 忘了登记。
+	const bwikiFiles = files.filter((f) => f.startsWith("30-game-bwiki"));
+	const vendorFiles = files.filter((f) => !f.startsWith("30-game-bwiki"));
+	check("游戏文件齐备（13 个厂商/系列文件 + bwiki 系 15 段 = 28 个）",
+		vendorFiles.length === 13 && bwikiFiles.length === 15,
+		`厂商=${vendorFiles.length} bwiki=${bwikiFiles.length}`);
 
 	const hit = [];
 	// ⚠️ 重组后**条目声明也住在游戏文件里**（`registerSource({ … })`），而条目里的

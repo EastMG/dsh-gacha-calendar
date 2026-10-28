@@ -100,7 +100,25 @@ const ORDER = [
   "30-game-hypergryph.js",
   "30-game-bluearchive.js",
   "30-game-bandori.js",
-  "30-game-bwiki.js",
+  // 2026-10-28（待办 7③）：原 `30-game-bwiki.js`（多游戏合集）按文件里**已有的 `//#region`**
+  // 机械拆成下面 15 段。拆点全落在原文件的空行上 ⇒ `chunks.join("\n")` 与原文件逐字节相同，
+  // 所以 lib/client.js / packages/core/core.mjs **一个字都没变**。
+  // ⚠️ 这 15 行**不要重排、不要合并**：顺序 = 原文件里 region 出现的顺序。
+  "30-game-bwiki-common.js",          // 文件头 + 共用 helper：HTML 工具 / 日期解析 / 当期挑选（3 个 region）
+  "30-game-bwiki-wuhuamixin.js",      // ① 物华弥新（whmx）
+  "30-game-bwiki-uma-cn.js",          // ② 闪耀优俊少女 国服（umamusume / 简中卡池）
+  "30-game-bwiki-uma-jp.js",          // ③ 赛马娘 日服（umamusume / 活动，Asia/Tokyo）
+  "30-game-bwiki-zspms-html.js",      // ④ 战双帕弥什（zspms / 研发记录，prop=text 形态）
+  "30-game-bwiki-kedr-html.js",       // ⑤ 雪松（kedrgame / 卡池信息，占位页）
+  "30-game-bwiki-czn-html.js",        // ⑥ 卡厄斯梦境（czn / 卡池记录，空页）
+  "30-game-bwiki-stellasora.js",      // ⑦ 星塔旅人（stellasora / 首页活动日历）
+  "30-game-bwiki-html-fetchers.js",   // 上面 7 个来源的抓取器（同一 region）
+  "30-game-bwiki-wikitext-common.js", // wikitext 形态的公共段（取正文 / 当期挑选 / 悬停）
+  "30-game-bwiki-zspms-wikitext.js",  // 战双：SMW ask 索引 + 公告正文 → 档期
+  "30-game-bwiki-czn-wikitext.js",    // 卡厄斯：Module:Gacha/data 的 Lua 表
+  "30-game-bwiki-kedr-wikitext.js",   // 雪松：Template:首页游戏版本内容 的模板调用
+  "30-game-bwiki-kedr-wiki.js",       // 雪松社区归档页（往期动员，prop=text）
+  "30-game-bwiki-register.js",        // 本组 4 条 registerSource + GACHA/EVENT_FETCHERS 接线
   "30-game-biligame.js",
   "30-game-cygames.js",
   "30-game-perfectworld.js",
@@ -179,7 +197,25 @@ const CORE_ORDER = [
   "30-game-hypergryph.js",
   "30-game-bluearchive.js",
   "30-game-bandori.js",
-  "30-game-bwiki.js",
+  // 2026-10-28（待办 7③）：原 `30-game-bwiki.js`（多游戏合集）按文件里**已有的 `//#region`**
+  // 机械拆成下面 15 段。拆点全落在原文件的空行上 ⇒ `chunks.join("\n")` 与原文件逐字节相同，
+  // 所以 lib/client.js / packages/core/core.mjs **一个字都没变**。
+  // ⚠️ 这 15 行**不要重排、不要合并**：顺序 = 原文件里 region 出现的顺序。
+  "30-game-bwiki-common.js",          // 文件头 + 共用 helper：HTML 工具 / 日期解析 / 当期挑选（3 个 region）
+  "30-game-bwiki-wuhuamixin.js",      // ① 物华弥新（whmx）
+  "30-game-bwiki-uma-cn.js",          // ② 闪耀优俊少女 国服（umamusume / 简中卡池）
+  "30-game-bwiki-uma-jp.js",          // ③ 赛马娘 日服（umamusume / 活动，Asia/Tokyo）
+  "30-game-bwiki-zspms-html.js",      // ④ 战双帕弥什（zspms / 研发记录，prop=text 形态）
+  "30-game-bwiki-kedr-html.js",       // ⑤ 雪松（kedrgame / 卡池信息，占位页）
+  "30-game-bwiki-czn-html.js",        // ⑥ 卡厄斯梦境（czn / 卡池记录，空页）
+  "30-game-bwiki-stellasora.js",      // ⑦ 星塔旅人（stellasora / 首页活动日历）
+  "30-game-bwiki-html-fetchers.js",   // 上面 7 个来源的抓取器（同一 region）
+  "30-game-bwiki-wikitext-common.js", // wikitext 形态的公共段（取正文 / 当期挑选 / 悬停）
+  "30-game-bwiki-zspms-wikitext.js",  // 战双：SMW ask 索引 + 公告正文 → 档期
+  "30-game-bwiki-czn-wikitext.js",    // 卡厄斯：Module:Gacha/data 的 Lua 表
+  "30-game-bwiki-kedr-wikitext.js",   // 雪松：Template:首页游戏版本内容 的模板调用
+  "30-game-bwiki-kedr-wiki.js",       // 雪松社区归档页（往期动员，prop=text）
+  "30-game-bwiki-register.js",        // 本组 4 条 registerSource + GACHA/EVENT_FETCHERS 接线
   "30-game-biligame.js",
   "30-game-cygames.js",
   "30-game-perfectworld.js",
