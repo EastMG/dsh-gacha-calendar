@@ -692,9 +692,12 @@ export default async function run() {
 			&& comp.indexOf("全部轮播") < 0);
 		check("「全部提醒」写的是**展示中的 id 列表**（空数组 = 一个都不提醒，语义没变）",
 			/allEntries\.filter\(\(g\) => shownNow\(g\)\)\.map\(\(g\) => g\.id\)/.test(comp));
-		check("表头上方概括：隐藏分支**不提「提醒」**，恢复分支仍提（false 时用户看不到「到点通知」）",
-			comp.includes('? "「展示」控制显示；「提醒」到点通知；「↑↓」调整顺序；「颜色」取色器换主题色"')
-			&& comp.includes(': "「展示」控制显示；「↑↓」调整顺序；「颜色」取色器换主题色"'));
+		// 2026-10-28（用户要求）：表头上方那行操作提示**整行删掉**，两个分支都不再渲染。
+		// 反向断言：源码里这句话彻底不存在（不是"改成空串 / 藏起来"，是真删）。
+		check("表头上方那行操作提示已删（「展示」控制显示… 两个分支都不再出现）",
+			comp.indexOf("「展示」控制显示") < 0
+			&& comp.indexOf("取色器换主题色") < 0
+			&& comp.indexOf("「提醒」到点通知") < 0);
 		check("网格列宽走单一常量 SETTINGS_GAME_GRID（表头与数据行同源），隐藏分支**少一格 28px**",
 			(comp.match(/gridTemplateColumns: SETTINGS_GAME_GRID/g) || []).length === 2
 			&& comp.includes('"minmax(0,1.15fr) 28px 28px minmax(0,1fr) minmax(0,1fr) 34px 88px"')
