@@ -12,7 +12,9 @@
 //   ① 设置键三处齐（10-config.js 的 DEFAULT_SETTINGS / engine-head.js 的 CONFIG_KEYS /
 //      src/index.js 的 schema 且 .volatile()）—— 漏一处的症状分别是"读不到"与"写入被拒"；
 //   ② 引擎刷新后**真的把 sourceHealth 写进存储**（不是只算了没存）——用 core 引擎实跑一轮；
-//   ③ 设置页只在**有异常**时占地方（用户抱怨过设置页太长），且渲染路径不做任何 IO。
+//   ③ 设置页**一张卡**装完（标题「解析器自检」+ 按钮「立即检查」+ 来源健康列表），健康块
+//      任何情况下都渲染一行状态（用户抱怨过"整块不渲染 ⇒ 看不到功能"，也抱怨过设置页太长），
+//      且渲染路径不做任何 IO。
 //   ④ 内容没变就**不写**那一笔设置（每轮白写 = 白付一次宿主往返）、变了（如 ok → down）必须写 ——
 //      用真实夹具跑完整 refresh，按假存储的写入记账断言。
 
@@ -479,7 +481,10 @@ export default async function runHealth() {
 			!/nomatchSince[^\n]*7\s*\*\s*86400000/.test(helpers.replace(/const SOURCE_HEALTH_NOMATCH_DAYS = 7;/, "")));
 	}
 
-	// ── ⑦ 设置页接线（静态）：只在有异常时占地方 + 渲染路径无 IO ─────────────────────
+	// ── ⑦ 设置页接线（静态）：一张卡两套合并成一套 + 渲染路径无 IO ────────────────────
+	// 用户 2026-10-28 明确：「来源健康」是「解析器自检」的**升级替代**，同一张卡里不许并存两套
+	// （旧卡 = 解析器自检 + [开始自检] + 一句说明 + 来源健康 + 自检报告）。下面钉住合并后的事实：
+	// 标题仍叫「解析器自检」、只有一个按钮且文案「立即检查」、旧说明句已删、健康块**无条件下渲染**。
 	{
 		const comp = readComponentsSource();
 		check("设置页读的是 sourceHealth 存档（不是 lastData 里另起一份）",
@@ -492,13 +497,37 @@ export default async function runHealth() {
 			/const \[healthAll, setHealthAll\] = \(0, react\.useState\)\(false\)/.test(comp));
 		check("异常项过滤 = known && state !== ok（没记录的条目不冒充异常）",
 			/healthKnown\.filter\(\(h\) => h\.state !== "ok"\)/.test(comp) && /healthRows\.filter\(\(h\) => h\.known\)/.test(comp));
-		check("一条记录都没有时整块不渲染（旧版本升上来不该多一块空卡）",
-			/healthKnown\.length === 0 \? null :/.test(comp));
-		// 渲染路径不许 IO：健康面板那块 JSX 里不许出现 fetch / localStorage / 读文件
-		const k = comp.indexOf("healthKnown.length === 0 ? null :");
-		const block = k < 0 ? "" : comp.slice(k, k + 2200);
+
+		// ── 合并后的卡片形态（三件事：标题还在、只有一个按钮、旧说明句已删）──
+		const cardAt = comp.lastIndexOf("解析器自检");
+		const card = cardAt < 0 ? "" : comp.slice(Math.max(0, cardAt - 240), cardAt + 4000);
+		check("卡片标题仍是「解析器自检」（不是被改成「来源健康」）",
+			cardAt >= 0 && /children: "解析器自检"/.test(card), card.slice(0, 120));
+		check("旧说明句「逐个来源检查，区分「无匹配/未公布」与「失败」」已删除（内容已被健康列表覆盖）",
+			comp.indexOf("逐个来源检查") < 0);
+		check("卡片里只有一个主操作按钮（[立即检查]；「显示全部 N 个」是列表展开开关，不是第二个动作），文案「立即检查」",
+			(card.match(/gacha-cal-refresh gacha-cal-sort-btn/g) || []).length === 1
+			&& /children: selfChecking \? "检查中…" : "立即检查"/.test(card)
+			&& comp.indexOf("开始自检") < 0 && comp.indexOf("重新自检") < 0);
+		check("「立即检查」仍是原来的 runSelfCheck，busy 时禁用（disabled: selfChecking）",
+			/disabled: selfChecking, onClick: runSelfCheck/.test(card) && /await engine\.selfCheck\(\)/.test(comp));
+
+		// ── 健康块**无条件下渲染**：没有任何记录时也有一行状态（用户看不到功能的根因）──
+		check("没有任何记录时不再整块不渲染（旧的 healthKnown.length === 0 ? null : 短路已删）",
+			comp.indexOf("healthKnown.length === 0 ? null :") < 0);
+		check("空状态文案存在（来源健康：还没有刷新记录…）",
+			comp.indexOf("来源健康：还没有刷新记录（刷新一次数据后这里会显示每个来源的情况") >= 0);
+		check("全正常 / 有异常两档汇总文案也都在（同一行状态里三选一）",
+			comp.indexOf('"来源健康：全部正常（" + healthKnown.length + " 个来源）"') >= 0
+			&& comp.indexOf('"来源健康：" + healthBad.length + " 个来源需要关注"') >= 0);
+		// 自检报告并入健康块内部（列表下方），不再是卡片里另起一块
+		check("自检报告并入健康列表区域（「刚检查完：」贴在列表下方）",
+			card.indexOf("刚检查完：") > card.indexOf("healthAll ? healthKnown : healthBad")
+			&& /"刚检查完：" \+ selfReport\.total \+ " 款游戏的 " \+ selfSources \+ " 个来源里 " \+ selfBad \+ " 个没内容/.test(card));
+		// 渲染路径不许 IO：卡片那块 JSX 里不许出现 fetch / localStorage / 读文件
+		const block = card;
 		check("健康面板不发起请求、不读写本地存储、不读文件（渲染路径零 IO）",
-			k >= 0 && !/\bfetch\s*\(|localStorage|readFileSync|XMLHttpRequest/.test(block),
+			block.length > 0 && !/\bfetch\s*\(|localStorage|readFileSync|XMLHttpRequest/.test(block),
 			block.slice(0, 120));
 		// 文案由 core 给（UI 只拼「· 名字 · text」），不是渲染层现写一套
 		check("行文案来自纯函数的 text（渲染层不另写一套措辞）", /"· " \+ h\.name \+ " · " \+ h\.text/.test(comp));
