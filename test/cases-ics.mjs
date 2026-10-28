@@ -321,10 +321,18 @@ export default function runIcs() {
 			&& icsOf([], NOW, { calName: "测试名" }).includes("\r\nX-WR-CALNAME:测试名\r\n"));
 	}
 
-	// ── ⑦ 文件名：带日期 ─────────────────────────────────────────────────────
+	// ── ⑦ 文件名：带日期（**本机**日历日 —— 与面板上"今天"同一口径）─────────────────
 	{
-		check("icsFileNameOf：`二游日历-2026-10-28.ics`（2026-10-28 04:40Z 在 +08 也是 10-28）",
-			icsFileNameOf(NOW) === "二游日历-2026-10-28.ics", icsFileNameOf(NOW));
+		// ⚠️ 2026-10-28 修（"只在某些时区红"）：原来期望写死 `二游日历-2026-10-28.ics`，
+		// 理由是"2026-10-28 04:40Z 在 +08 也是 10-28" —— 只有 UTC~+08 那段时区成立。
+		// TZ=America/Los_Angeles 下同一个时刻是本地 10-27 21:40，产品按本机日历日给出
+		// `二游日历-2026-10-27.ics`（这是**对的**：用户看到的就是 10-27），红的是期望值。
+		// 所以期望也从同一个 Date 现算本机日历日，不在期望里写死某个时区的日期。
+		const d = new Date(NOW);
+		const localDay = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+		check("icsFileNameOf：`二游日历-<本机日历日>.ics`（年月日 = 那一时刻在**本机时区**的日历日）",
+			icsFileNameOf(NOW) === "二游日历-" + localDay + ".ics",
+			icsFileNameOf(NOW) + " / 本机日历日 " + localDay);
 		check("坏值 ⇒ 不带日期的兜底文件名（不产出 `-NaN-NaN-NaN`）",
 			icsFileNameOf(NaN) === "二游日历.ics", icsFileNameOf(NaN));
 	}

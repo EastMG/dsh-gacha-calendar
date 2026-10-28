@@ -38,8 +38,9 @@
 //      （纯函数 `tickerFlipLinesOf`）；动画播完只渲染 cur 一行（`tickerFlipRenderLinesOf`）。
 //
 // ⚠️ 时刻全部显式传入（`now` 是参数，不是 Date.now()），所以本文件不随跑测那天漂移。
-// ⚠️ 「今天 / 明天 / N 天后」用的是**本机日历日**，所以这里挑的偏移量在 UTC 与 +08 下落在同一天
-//    （+8h / +30h / +50h：两边都是 今天 / 明天 / 后天）。
+// ⚠️ 「今天 / 明天 / N 天后」用的是**本机日历日**（tickerDayWord），所以期望值也必须按本机日历日现造
+//    （`localNoonPlusDays`：本机"今天 + k 天"的正午）—— 写死小时偏移（+8h/+30h/+50h）只在
+//    UTC~+08 那段时区成立，TZ=America/Los_Angeles 下会假红（2026-10-28 修）。
 
 import { check, section } from "./harness.mjs";
 import { T } from "./load.mjs";
@@ -307,19 +308,29 @@ export default async function run() {
 		check("文案·结束：向下取整（3 小时 59 分 → 3 小时，不虚报）",
 			tickerCaptionOf({ ...endItem, endTs: NOW + 3 * H + 59 * 60000 }, NOW).status === "3 小时");
 
-		// 开始方向：今天 / 明天 / N 天后（偏移量在 UTC 与 +08 下同一天，见文件头注释）
+		// 开始方向：今天 / 明天 / N 天后。
+		// ⚠️ 2026-10-28 修（三处"只在某些时区红"）：原来用固定的 +8h / +30h / +50h 偏移，
+		// 只有本机时区落在 UTC~+08 那段时才恰好是 今天 / 明天 / 2 天后 —— TZ=America/Los_Angeles
+		// 下 NOW 是本地 10-24 21:00，NOW+8h 已是本地 10-25 05:00 ⇒ 期望「今天」实得「明天」。
+		// 产品口径本来就是**本机日历日**（tickerDayWord），所以期望值也按本机日历日造：
+		// startTs = 本机"今天 + k 天"的正午，期望值就是 k 的读数，任何时区同一串。
+		// 取正午不取 00:00 —— DST 在半夜跳变的那一天，本地 00:00 可能不存在/出现两次。
+		const localNoonPlusDays = (baseTs, k) => {
+			const d = new Date(baseTs);
+			return new Date(d.getFullYear(), d.getMonth(), d.getDate() + k, 12, 0, 0, 0).getTime();
+		};
 		const gachaStart = (startTs) => ({ key: "k", gameId: "k", side: "gacha", name: "星塔旅人", title: "限定寻访", startTs, endTs: startTs + 10 * H, kind: "start" });
 		check("文案·开始（卡池）：今天开工 → `限定寻访 · 今天开池`",
-			tickerCaptionOf(gachaStart(NOW + 8 * H), NOW).text === "限定寻访 · 今天开池",
-			tickerCaptionOf(gachaStart(NOW + 8 * H), NOW).text);
+			tickerCaptionOf(gachaStart(localNoonPlusDays(NOW, 0)), NOW).text === "限定寻访 · 今天开池",
+			tickerCaptionOf(gachaStart(localNoonPlusDays(NOW, 0)), NOW).text);
 		check("文案·开始（卡池）：明天 → `限定寻访 · 明天开池`",
-			tickerCaptionOf(gachaStart(NOW + 30 * H), NOW).text === "限定寻访 · 明天开池",
-			tickerCaptionOf(gachaStart(NOW + 30 * H), NOW).text);
+			tickerCaptionOf(gachaStart(localNoonPlusDays(NOW, 1)), NOW).text === "限定寻访 · 明天开池",
+			tickerCaptionOf(gachaStart(localNoonPlusDays(NOW, 1)), NOW).text);
 		check("文案·开始（卡池）：2 天后 → `限定寻访 · 2 天后开池`",
-			tickerCaptionOf(gachaStart(NOW + 50 * H), NOW).text === "限定寻访 · 2 天后开池",
-			tickerCaptionOf(gachaStart(NOW + 50 * H), NOW).text);
+			tickerCaptionOf(gachaStart(localNoonPlusDays(NOW, 2)), NOW).text === "限定寻访 · 2 天后开池",
+			tickerCaptionOf(gachaStart(localNoonPlusDays(NOW, 2)), NOW).text);
 		check("文案·开始（活动）：活动侧说「开始」而不是「开池」",
-			tickerCaptionOf({ ...gachaStart(NOW + 30 * H), side: "event" }, NOW).status === "明天开始");
+			tickerCaptionOf({ ...gachaStart(localNoonPlusDays(NOW, 1)), side: "event" }, NOW).status === "明天开始");
 		check("文案：缺 name/title → 兜底「某个游戏」（不抛、也不显示 undefined）",
 			tickerCaptionOf({ kind: "end", endTs: NOW + H }, NOW).name === "某个游戏"
 			&& tickerCaptionOf(null, NOW).text.indexOf("undefined") < 0);
@@ -329,7 +340,10 @@ export default async function run() {
 		// 所以"无可轮播 ⇒ 只有状态 0、不滚动"在数据层就是"slides 为空"。
 		const due = [
 			{ key: "a:gacha", id: "a", gameId: "a", side: "gacha", name: "绝区零", title: "耀嘉音", gameIcon: "https://cdn.example/a.png", startTs: NOW - 2 * H, endTs: NOW + 3 * H, kind: "end", dueMs: 3 * H },
-			{ key: "c:event", id: "c", gameId: "c", side: "event", name: "星塔旅人", title: "「养成奖励」碎片追加活动", gameIcon: "https://cdn.example/c.png", startTs: NOW + 1 * H, endTs: NOW + 2 * H, kind: "start", dueMs: 1 * H }
+			// ⚠️ 同一类假红的邻居：这里原来写 `startTs: NOW + 1 * H`（期望「今天」）—— 只在
+			// 本地时间不在 23 点那一格时成立（TZ=America/Chicago 下 NOW 是本地 23:00，+1h 就跨日）。
+			// 同上改成"本机今天正午"，与 ⑥ 的日词口径一致。
+			{ key: "c:event", id: "c", gameId: "c", side: "event", name: "星塔旅人", title: "「养成奖励」碎片追加活动", gameIcon: "https://cdn.example/c.png", startTs: localNoonPlusDays(NOW, 0), endTs: localNoonPlusDays(NOW, 0) + 2 * H, kind: "start", dueMs: 1 * H }
 		];
 		const slides = tickerSlidesOf(due, NOW);
 		check("每格结构：一条轮播条目一格（2 条 → 2 格）", slides.length === 2, String(slides.length));
