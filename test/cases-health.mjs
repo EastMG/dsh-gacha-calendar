@@ -19,9 +19,16 @@
 //   ④ 内容没变就**不写**那一笔存档（自检也是低频动作，但没必要为"什么都没变"付宿主往返）、
 //      变了（如 ok → down）必须写 —— 用真实夹具跑完整 selfCheck，按假存储的写入记账断言。
 //      ⚠️ 但「上次自检」的时间戳（healthCheckedAt）**每次都写**，否则内容没变的检查不留痕。
+//
+// ⑨ 另在这段里挂一条**与健康无关**的用例：新版面板开关的一次性迁移（newPanel → newPanelMigrated，
+//    宿主 apply 里 void 触发）。它是本轮唯一零覆盖的新功能，而挂在这里是因为「段数」有机器守卫
+//    （cases-readme ④）—— 新开 cases-*.mjs 就得同时改 README.md / README_Dev.md / test/README.md
+//    三处文档，为一个 27 条断言的用例不值当。用例自身见文件末尾 ⑨。
 
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { check, section, useFixtures } from "./harness.mjs";
 import { T, REPO, readComponentsSource } from "./load.mjs";
 import { createEngine } from "../packages/core/core.mjs";
@@ -918,5 +925,246 @@ export default async function runHealth() {
 		const core = readFileSync(path.join(REPO, "packages", "core", "core.mjs"), "utf8");
 		check("packages/core/core.mjs（中立核心产物）里有同一份判定",
 			core.includes("function sourceHealthOf(") && core.includes("SOURCE_HEALTH_NOMATCH_DAYS"));
+	}
+
+	// ── ⑨ 新版面板开关的一次性迁移（newPanel → newPanelMigrated）─────────────────────
+	// 为什么必须补：newPanel 的默认值从 false 改成 true，但**已经存过显式 false 的老用户**
+	// 光改默认值无效 —— 只能靠启动时那一笔一次性迁移。它坏掉的两个方向都不报错：
+	//   · 漏迁 ⇒ 老用户永远看不到新面板（以为功能没做）；
+	//   · 反复迁 ⇒ 用户在设置页关掉，下次启动又被打开展示（以为开关坏了）。
+	// 做法 = **真机式桩跑**（与 cases-remind 直接 import lib/remind-core.mjs 同一思路）：
+	//   把 src/index.js **原文**搬到临时目录，只把两处 import 指向本地桩
+	//   （@deepseek-ai/schemastery 与 ./remind-core.mjs —— 仓库没有 node_modules，这两个是真的
+	//   外部依赖；桩只负责"让宿主代码能被 import 起来"，迁移逻辑一行不抄），
+	//   再用假 ctx 真调 apply() 与真实导出的 migrateNewPanelOnce()。
+	// ⚠️ 迁移函数没有导出（宿主内部实现，不该为测试改导出面）⇒ 只在这份**临时副本**末尾补一行
+	//    export；src/index.js 一个字都不动。
+	// ⚠️ LOCALAPPDATA 指向临时目录：迁移日志 / identity.json 不写进真实用户目录。
+	// ⚠️ 假 ctx.effect 只记账不执行 ⇒ registerRemindTimer 的 setInterval 不会起来，门禁不挂住。
+	{
+		const prevLocalAppData = process.env.LOCALAPPDATA;
+		const box = mkdtempSync(path.join(os.tmpdir(), "dsh-migrate-" + process.pid + "-"));
+		try {
+			const modDir = path.join(box, "mod");
+			const runDir = path.join(box, "run");       // = 假的 %LOCALAPPDATA%
+			const stateDir = path.join(runDir, "dsh-gacha-calendar");
+			mkdirSync(modDir, { recursive: true });
+			mkdirSync(stateDir, { recursive: true });
+			process.env.LOCALAPPDATA = runDir;
+			const logFile = path.join(stateDir, "remind.log");
+			// identity.json 先放一份：apply 的启动预热看到"有缓存"就走毫秒路径、**不排后台探测**
+			// （桩里的 notifyIdentityCacheOf 恒回 useCached ⇒ 不会起 PowerShell、不碰真实开始菜单）。
+			writeFileSync(path.join(stateDir, "identity.json"), "{}\n", "utf8");
+
+			// 桩 1：schemastery —— 只用链式 DSL 构造 schema，所以"每个方法都返回自己"就够。
+			writeFileSync(path.join(modDir, "z-stub.mjs"), `function chain() {
+	const o = {
+		default: () => o, min: () => o, max: () => o, volatile: () => o,
+		object: () => o, array: () => o, string: () => o, boolean: () => o, number: () => o
+	};
+	return o;
+}
+const z = { object: () => chain(), boolean: () => chain(), number: () => chain(), string: () => chain(), array: () => chain() };
+export default z;
+`, "utf8");
+			// 桩 2：remind-core —— 迁移完全不碰提醒；具名导出的名字必须齐（缺一个 ESM 导入直接报错）。
+			writeFileSync(path.join(modDir, "remind-core-stub.mjs"), `export const NOTIFY_IDENTITY_MAX_AGE_MS = 86400000;
+export function notifyIdentityCacheOf() {
+	return { useCached: true, shouldRefresh: false, state: { enabled: false, name: "stub", aumid: "stub", shortcutPath: "" } };
+}
+const empty = () => ({});
+export const notifyIdentityFallbackOf = empty;
+export const notifyNameOf = () => "stub";
+export const notifyShortcutPickOf = empty;
+export const remindConfigOf = empty;
+export const remindIdentityOf = empty;
+export const remindItemsOf = () => [];
+export const remindOnOf = () => false;
+export const remindStateOf = empty;
+export const remindTestToastOf = empty;
+export const remindTickOf = () => ({ toNotify: [], stateNext: {} });
+export const remindToastOf = () => ({ title: "stub", lines: [] });
+`, "utf8");
+
+			const srcText = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
+			check("桩跑前置：src/index.js 里仍有可替换的 schemastery 导入行（漂移了就重写这条用例）",
+				srcText.includes('import z from "@deepseek-ai/schemastery";'));
+			const stubbed = srcText
+				.replace('import z from "@deepseek-ai/schemastery";', 'import z from "./z-stub.mjs";')
+				.replace('} from "./remind-core.mjs";', '} from "./remind-core-stub.mjs";');
+			check("桩跑前置：两处 import 都替换成功（否则测的不是真实代码路径）",
+				stubbed.includes('"./z-stub.mjs"') && stubbed.includes('"./remind-core-stub.mjs"')
+				&& !stubbed.includes("@deepseek-ai/schemastery") && !stubbed.includes('"./remind-core.mjs"'));
+			const moduleFile = path.join(modDir, "index.mjs");
+			writeFileSync(moduleFile, stubbed + "\nexport { migrateNewPanelOnce };\n", "utf8");
+			const mod = await import(pathToFileURL(moduleFile).href);
+			check("桩跑能加载真实宿主代码：导出 apply / Config / migrateNewPanelOnce",
+				typeof mod.apply === "function" && typeof mod.migrateNewPanelOnce === "function" && !!mod.Config);
+
+			const VOLATILE_WRITE = Symbol.for("cosmokit.volatile.write");
+			const volatileOf = (value) => ({ get: () => value, [VOLATILE_WRITE]: () => {} });
+			// 假 settings：update 的**每一笔**都记账（迁移只许写一笔、且键集合固定）。
+			const settingsOf = (mode) => {
+				const updates = [];
+				return {
+					updates,
+					configure() { /* apply 会调，无副作用 */ },
+					async update(ns, patch) {
+						updates.push({ ns, patch, keys: Object.keys(patch).sort().join(",") });
+						if (mode === "throw") throw new Error("boom-from-settings");
+					}
+				};
+			};
+			// 假 ctx：inject("settings") 同步回调（真机是异步，但迁移做的事与时序无关）；
+			// effect 只记账不执行 —— 定时器一旦真起来会挂住门禁。
+			const ctxOf = (config, settings) => {
+				const trace = [];
+				const fiber = { config };
+				const effect = () => { trace.push("effect"); return () => {}; };
+				const ctx = {
+					fiber,
+					root: { loader: {
+						await: async () => { trace.push("loader.await"); },
+						locate: (f) => { trace.push(f === fiber ? "locate(fiber)" : "locate(other)"); return "gacha-calendar"; }
+					} },
+					effect,
+					inject(deps, cb) {
+						trace.push("inject:" + deps.join("+"));
+						if (deps.includes("settings")) cb({ effect, settings });
+					}
+				};
+				return { ctx, trace };
+			};
+			const settle = async (n = 8) => { for (let i = 0; i < n; i++) await new Promise((r) => setImmediate(r)); };
+			const logText = () => (existsSync(logFile) ? readFileSync(logFile, "utf8") : "");
+			const migLogged = () => (logText().match(/新面板迁移/g) || []).length;
+
+			// ① 首次迁移（标记缺失）：走 apply() 的真实接线 —— 一笔写入、patch 恰好两个键
+			{
+				const config = { newPanel: false };
+				const settings = settingsOf();
+				const { ctx, trace } = ctxOf(config, settings);
+				let threw = null;
+				try { mod.apply(ctx, config); await settle(); } catch (err) { threw = err; }
+				check("① apply() 不被迁移拖住、两处注入都正常走完（settings + webServer）",
+					threw === null && trace.includes("inject:settings") && trace.includes("inject:webServer"),
+					threw ? String(threw.message) : trace.join("|"));
+				check("① 标记缺失 ⇒ settings.update 恰好被调 1 次",
+					settings.updates.length === 1, String(settings.updates.length));
+				const u = settings.updates[0] || { ns: "", patch: {}, keys: "" };
+				check("① 写入的条目 id = loader.locate(ctx.fiber) 的结果（不写死 id：用户改名也迁得动）",
+					u.ns === "gacha-calendar" && trace.includes("locate(fiber)"), u.ns + " / " + trace.join("|"));
+				check("① patch 恰好是 { newPanel: true, newPanelMigrated: true }（值 + 键集合都对）",
+					!!u.patch && u.patch.newPanel === true && u.patch.newPanelMigrated === true
+					&& u.keys === "newPanel,newPanelMigrated", JSON.stringify(u.patch));
+				check("① patch 只有那 2 个键（多一个键都不行）",
+					!!u.patch && Object.keys(u.patch).length === 2, String(u.patch && Object.keys(u.patch).length));
+				check("① 先等 loader.await() 再 locate/写（加载中途写会撞 configuration entry is no longer available）",
+					trace.indexOf("loader.await") >= 0 && trace.indexOf("loader.await") < trace.indexOf("locate(fiber)"),
+					trace.join("|"));
+				check("① 迁移成功留了日志（含条目 id）",
+					logText().includes("新面板迁移：条目 gacha-calendar 的 newPanel 已一次性写成 true"));
+			}
+
+			// ①b 标记**显式 false**，且配置是 DSH 真实的 volatile 引用形态（不是裸值）
+			{
+				const config = { newPanel: volatileOf(false), newPanelMigrated: volatileOf(false) };
+				const settings = settingsOf();
+				const { ctx } = ctxOf(config, settings);
+				await mod.migrateNewPanelOnce(ctx, config, settings);
+				check("①b newPanelMigrated 裸值为 false（volatile 引用形态）⇒ 仍然迁，且只写 1 笔",
+					settings.updates.length === 1, String(settings.updates.length));
+				check("①b volatile 形态下 patch 还是那两个键（解包没把写入写歪）",
+					!!settings.updates[0] && settings.updates[0].keys === "newPanel,newPanelMigrated",
+					JSON.stringify(settings.updates[0] && settings.updates[0].patch));
+			}
+
+			// ② 已迁移（标记 true）：零动作 —— 用户关掉后不许被反复打开
+			{
+				const config = { newPanel: false, newPanelMigrated: true };
+				const settings = settingsOf();
+				const { ctx } = ctxOf(config, settings);
+				const before = migLogged();
+				await mod.migrateNewPanelOnce(ctx, config, settings);
+				check("② 标记已是 true ⇒ settings.update 零次调用",
+					settings.updates.length === 0, String(settings.updates.length));
+				check("② 已迁移时连日志都不写（不是「迁了但没变」）",
+					migLogged() === before, String(migLogged() - before));
+			}
+
+			// ③ 失败不崩：update 抛错 ⇒ 函数不抛、只记日志；apply() 本身仍完成
+			{
+				const settings = settingsOf("throw");
+				const { ctx } = ctxOf({}, settings);
+				let threw = null;
+				try { await mod.migrateNewPanelOnce(ctx, {}, settings); } catch (err) { threw = err; }
+				check("③ update 抛错时 migrateNewPanelOnce 不抛（整段 try/catch）",
+					threw === null, String(threw && threw.message));
+				check("③ 抛错时也只尝试 1 笔（没有重试循环，不会每启动刷日志）",
+					settings.updates.length === 1, String(settings.updates.length));
+
+				const settings2 = settingsOf("throw");
+				const { ctx: ctx2, trace } = ctxOf({}, settings2);
+				let threw2 = null;
+				try { mod.apply(ctx2, {}); await settle(); } catch (err) { threw2 = err; }
+				check("③ apply() 本身仍然完成（不因迁移失败而抛/中断）",
+					threw2 === null && trace.includes("inject:settings") && trace.includes("inject:webServer"),
+					String(threw2 && threw2.message));
+				check("③ 失败被记进日志（异常原文 + 下次启动重试），不是静默吞掉",
+					logText().includes("新面板迁移失败（不影响插件加载，下次启动重试）")
+					&& logText().includes("boom-from-settings"));
+			}
+
+			// ④ 只迁一次：第二次（假配置里的标记已变 true，模拟 settings 写入后重载）零调用
+			{
+				const config = {};
+				const settings = settingsOf();
+				mod.apply(ctxOf(config, settings).ctx, config);
+				await settle();
+				check("④ 第一次（标记缺失）：1 笔写入", settings.updates.length === 1, String(settings.updates.length));
+				config.newPanelMigrated = true;          // 模拟这笔写入真的落进了配置
+				mod.apply(ctxOf(config, settings).ctx, config);
+				await settle();
+				check("④ 第二次（标记已 true）：零新增调用 —— 用户自己关掉后永不再被覆写",
+					settings.updates.length === 1, String(settings.updates.length));
+			}
+
+			// ⑤ 静态度量：void 触发（不 await）、整段 try/catch、只许写 true
+			{
+				const applyText = srcText.slice(srcText.indexOf("export function apply("));
+				check("⑤ apply() 里是 void 触发迁移（不 await：一次配置写入不许拖慢插件加载）",
+					/void migrateNewPanelOnce\(ctx, config, settingsCtx\.settings\);/.test(applyText)
+					&& !/await migrateNewPanelOnce\(/.test(srcText));
+				const fnAt = srcText.indexOf("async function migrateNewPanelOnce(");
+				const fnEnd = fnAt >= 0 ? srcText.indexOf("\n}\n", fnAt) : -1;
+				const fnText = fnAt >= 0 && fnEnd > fnAt ? srcText.slice(fnAt, fnEnd) : "";
+				check("⑤ 迁移函数切片已定位（静态断言没瞎）", fnText.length > 800, String(fnText.length));
+				check("⑤ 整段包在 try/catch 里（失败只记日志，绝不让插件加载失败）",
+					/try \{/.test(fnText) && /\} catch \(err\) \{/.test(fnText));
+				check("⑤ 只有一笔写入，字面就是 { newPanel: true, newPanelMigrated: true }（不留半状态）",
+					(fnText.match(/settings\.update\(/g) || []).length === 1
+					&& /await settings\.update\(ns, \{ newPanel: true, newPanelMigrated: true \}\);/.test(fnText));
+				check("⑤ 标记判定读**裸值**且严格 === true（volatile 引用不解包会永远读到 undefined）",
+					/if \(configValueOf\(cfg, "newPanelMigrated"\) === true\) return;/.test(fnText));
+				// ⚠️ 必须滤掉注释行再扫：本函数的 JSDoc 里就写着「老用户存过 newPanel: false」这句背景，
+				//    直接全文扫会把它当违规（假失败）。所以只看"非 // / * / /* 开头"的代码行。
+				const srcFiles = ["src", path.join("src", "client")]
+					.flatMap((d) => readdirSync(path.join(REPO, d)).filter((f) => f.endsWith(".js")).map((f) => path.join(d, f)));
+				const writers = srcFiles.filter((f) => /["']?newPanel["']?\s*:\s*false/.test(
+					readFileSync(path.join(REPO, f), "utf8").split("\n")
+						.filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n")));
+				check("⑤ src/ 全库没有任何地方把 newPanel 写成 false（迁移只许写 true）",
+					writers.length === 0, writers.join(","));
+				check("⑤ schema 默认值：newPanel=true / newPanelMigrated=false，且两者都 .volatile()（否则写入被拒）",
+					/newPanel: z\.boolean\(\)\.default\(true\)\.volatile\(\)/.test(srcText)
+					&& /newPanelMigrated: z\.boolean\(\)\.default\(false\)\.volatile\(\)/.test(srcText));
+			}
+		} catch (err) {
+			check("⑨ 迁移用例整套能跑完（抛异常即视为失败，见 detail）", false, String((err && err.stack) || err));
+		} finally {
+			if (prevLocalAppData === undefined) delete process.env.LOCALAPPDATA;
+			else process.env.LOCALAPPDATA = prevLocalAppData;
+			try { rmSync(box, { recursive: true, force: true }); } catch { /* 临时目录清不掉不影响门禁 */ }
+		}
 	}
 }
