@@ -133,7 +133,7 @@
 				inject: () => ({ scope, engine })
 			}, CalendarSettingsPage));
 
-			// 图标空闲预热：把各游戏外链图标提前打进浏览器缓存（实现与约束见 80-components.js 的
+			// 图标空闲预热：把各游戏外链图标提前打进浏览器缓存（实现与约束见 80-shared-ui.js 的
 			// prewarmGameIcons / scheduleIconPrewarm）。放在 slots 注册**之后** —— 先把面板/设置页交给宿主，
 			// 再去做这件"可晚不可早"的杂活；它不阻塞渲染，也不产生白名单之外的请求。
 			ctx.effect(() => scheduleIconPrewarm(), "dsh-gacha-calendar: icon prewarm");

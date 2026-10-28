@@ -18,7 +18,6 @@
 //      **没有新增宿主路由**、纯函数在 core 段里（core 产物可单独 import）。
 
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { check, section } from "./harness.mjs";
 import { T, REPO, readComponentsSource } from "./load.mjs";

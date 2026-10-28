@@ -917,8 +917,8 @@
 							notifyIdentityError ? (0, react_jsx_runtime.jsx)("span", { style: { fontSize: 11, color: "var(--dsw-alias-state-error-primary, #d4380d)" }, children: notifyIdentityError }) : null
 						] }),
 					] }),
-					// ── 实验特性开关：新「二游日历」面板视图（默认关）──
-					// 文案从简：只说"实验性新版UI，开发中"。默认值仍是 false（关着 = 原来的表格视图）。
+					// ── 实验特性开关：新「二游日历」面板视图（默认开，2026-10-28 用户定）──
+					// 文案从简：只说"实验性新版UI，开发中"。默认值是 true（关掉 = 回到原来的表格视图）。
 					(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 6, border: "1px dashed var(--dsw-alias-border-l2)", borderRadius: 10, padding: "12px 14px", background: "var(--dsw-alias-bg-layer-1)" }, children: [
 						(0, react_jsx_runtime.jsxs)("label", { style: { display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }, children: [
 							(0, react_jsx_runtime.jsx)("input", { type: "checkbox", checked: s.newPanel === true, onChange: (e) => commit("newPanel", e.target.checked) }),

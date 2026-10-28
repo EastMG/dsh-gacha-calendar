@@ -375,7 +375,7 @@
 			//     由 test/cases-rule-lint.mjs 的静态守卫兜住）；导出后测试可直接断言"同一份 ts 在不同
 			//     tz 下渲染出不同文本"。
 			//   · localWin / localWinText / localDatesOf —— 渲染层外显 = **本机时区换算**（纯函数，可测）。
-			//     ⚠️ 它们在 80-components.js 里是**函数声明**，同作用域提升 ⇒ 这里可以提前引用；
+			//     ⚠️ 它们在 81-schedule-model.js 里是**函数声明**，同作用域提升 ⇒ 这里可以提前引用；
 			//        但函数体里只能用同样提升的函数（fmtWindow / parseDisplayRange / sourceOffsetMinutes），
 			//        不许依赖 80 顶层的 const（那些在本文件执行时还在 TDZ）。
 			buildEventHover,
@@ -383,11 +383,11 @@
 			localWin,
 			localWinText,
 			localDatesOf,
-			// scheduleDateHover = 新面板**日期格**的悬停（80-components.js）：正常只给源站原文；
+			// scheduleDateHover = 新面板**日期格**的悬停（81-schedule-model.js）：正常只给源站原文；
 			//   失败 ⇒ sideFailText 的既有文案（+「日期为沿用旧值」）；沿用旧值 ⇒「数据来自上次成功抓取 X 前」；
 			//   该侧没有数据 ⇒「（无数据）」。导出后四种情况都能用固定 now 逐字断言（见 cases-tz.mjs ⑤）。
 			scheduleDateHover,
-			// 到期判定的纯函数（固定时刻可测）。dueWindowOf / tickerItemsOf 在 80-components.js，
+			// 到期判定的纯函数（固定时刻可测）。dueWindowOf / tickerItemsOf 在 81-schedule-model.js，
 			// 负责"落盘文本 + tz → 绝对窗口"；同属函数声明、同作用域提升 ⇒ 这里可提前引用。
 			isExpiringSoon,
 			expiringSoonOf,

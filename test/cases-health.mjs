@@ -21,7 +21,6 @@
 //      ⚠️ 但「上次自检」的时间戳（healthCheckedAt）**每次都写**，否则内容没变的检查不留痕。
 
 import { readFileSync, readdirSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { check, section, useFixtures } from "./harness.mjs";
 import { T, REPO, readComponentsSource } from "./load.mjs";

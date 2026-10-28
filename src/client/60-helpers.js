@@ -559,7 +559,7 @@
 		//
 		// ⚠️ 两条边界：
 		//   ① 过滤是**纯显示层**：不写设置、不改 `lastData`、不影响轮播与提醒
-		//      （面板的轮播 memo 仍读未过滤的 games，见 80-components.js）；
+		//      （面板的轮播 memo 仍读未过滤的 games，见 83-panel-shell.js）；
 		//   ② 空查询 = 不过滤（返回原数组 / 原引用的副本），所以"清空即恢复"不需要额外分支。
 
 		// 归一：全半角（NFKC：全角字母/数字/标点 → 半角）+ 大小写 + 连续空白压成一个空格 + 去首尾空白。
@@ -789,7 +789,7 @@
 		}
 
 		// 从候选里挑出该轮播的：按紧迫度升序（同刻保持输入顺序），每条补 kind 与 dueMs。
-		// 候选由 80-components.js 的 tickerItemsOf 组装（已把落盘文本换成绝对窗口）；轮播不分游戏。
+		// 候选由 81-schedule-model.js 的 tickerItemsOf 组装（已把落盘文本换成绝对窗口）；轮播不分游戏。
 		function tickerPickOf(items, nowTs, tickerHours) {
 			const hours = Number(tickerHours);
 			if (!(hours > 0) || !Array.isArray(items)) return [];
@@ -907,7 +907,7 @@
 		//                     `stepAt(shownStep).dir` 取方向 —— 回卷到格 0 会拿到 tickerDirAt(0) 的
 		//                     挂载兜底 down，四步循环每轮回卷丢一次相位（n = 2 时真机上就是
 		//                     "连着三次都往下"）。渲染层取方向用 `tickerDirAt(单调切换序)`
-		//                     （见 80-components.js 的 flipDir），本字段留给纯函数断言与推演。
+		//                     （见 83-panel-shell.js 的 flipDir），本字段留给纯函数断言与推演。
 		// 为什么单独一个纯函数：n = 0 只有 1 格、2n 长度、四步循环都必须能被固定断言，
 		// 渲染层不自己算（算错了不报错，只在真机上看出来）。
 		// 翻页方向：**上下下上** 四步一循环，每轮都从"上"开始（与条目数无关）。
@@ -990,7 +990,7 @@
 		//      （uid / 标题 / 绝对起止）。"哪些条目算在期、哪些跳过"只在这一处判定。
 		//   ② `icsOf` —— 纯函数：事件清单 + 生成时刻 ⇒ **逐字节确定**的 iCalendar 文本
 		//      （RFC 5545：CRLF / 75 octets 折行 / 文本转义 / VCALENDAR 骨架）。
-		//   ③ 渲染层（80-components.js）只负责 Blob + a[download]，**不新增宿主路由**
+		//   ③ 渲染层（84-settings-page.js）只负责 Blob + a[download]，**不新增宿主路由**
 		//      （每多一条 HTTP 面就多一处鉴权/SSRF 要照顾，不值）。
 		//
 		// ── 时间口径（用户 2026-10-28 定的方向：源站墙钟 → 本机时区 → 输出 UTC）──
@@ -1092,7 +1092,7 @@
 		// 源站墙钟文本 + 源站 tz → 绝对窗口 { startTs, endTs }；读不出（"版本更新后 ~ …" / "长期" /
 		// "MM-DD ~ MM-DD, MM-DD ~ MM-DD" 这种一段话）⇒ null，不硬凑一个猜测的时刻。
 		// 兼容两种形态：`MM-DD HH:MM`（年份按 now 用共用 `inferYear` 补）与 `YYYY-MM-DD HH:MM`（照原文）。
-		// ⚠️ 补年份 / 跨年判定**一律走 25-parser-shared.js 的共用实现**（`inferYear` / `endsNextYear`）：
+		// ⚠️ 补年份 / 跨年判定**一律走 25-parser-order.js 的共用实现**（`inferYear` / `endsNextYear`）：
 		//    `test/cases-rule-lint.mjs` 有硬门禁，不许在这里再写一份内联的"结束早于开始 ⇒ 次年"。
 		function icsWindowOf(text, tz, now) {
 			const parts = String(text == null ? "" : text).split("~").map((x) => x.trim());

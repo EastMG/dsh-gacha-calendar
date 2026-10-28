@@ -1,4 +1,4 @@
-			/* 设置页「提醒」档位胶囊（2026-10-28：文本框换成 chips，见 80-components.js 的 remindChipRow）。
+			/* 设置页「提醒」档位胶囊（2026-10-28：文本框换成 chips，见 84-settings-page.js 的 remindChipRow）。
 			   · 未选中 = 灰描边 + 次级字色 + 透明底（与普通按钮同一套边框色）；
 			   · 选中   = **主题浅色底**（interactive-bg-hover-accent：浅色模式下是 #263148 的 14% 透明，
 			             叠在卡片底色上就是一层很淡的主题蓝灰）+ 深色主字（label-primary），描边透明保持尺寸；

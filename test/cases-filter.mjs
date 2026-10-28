@@ -23,7 +23,6 @@
 //    按任务书"数据里没有可靠的地区字段就不要硬造"⇒ 跳过，等有字段再补。
 
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { check, section } from "./harness.mjs";
 import { T, REPO, readStylesSource, readComponentsSource } from "./load.mjs";

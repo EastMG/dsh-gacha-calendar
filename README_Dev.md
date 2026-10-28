@@ -280,7 +280,7 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
       静态守卫改读 `test/load.mjs` 的 `readComponentsSource()`（拼回原文，断言一条没改）；
    ② `70-styles.js`（CSS 全藏在一个模板字符串里） → 抽成真正的 `styles/*.css`，构建时拼接
       （这条最值：现在"反引号必须恰好 2 个、注释必须配平"，已经踩过两次）；
-      ✅ 2026-10-28 完成：拆成 `src/client/styles/*.css`（9 个文件，按原段落注释切、内容原样搬运），
+      ✅ 2026-10-28 完成：拆成 `src/client/styles/*.css`（先 9 个文件，随后设置页重做又加了 `health.css`，现共 10 个；按原段落注释切、内容原样搬运），
       `build.mjs` 用独立的 `CSS_ORDER` 拼回 `const STYLE = \`…\`;` —— **`lib/client.js` 逐字节不变**，
       守卫见 `test/cases-ticker.mjs` ⑧（含 CSS_ORDER ↔ styles/ 一一对应）。
    ③ ✅ 2026-10-28 完成：`30-game-bwiki.js`（多个游戏的 bwiki 源合集）按文件里**已有的 `//#region` 分段**

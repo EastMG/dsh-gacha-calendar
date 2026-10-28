@@ -1,5 +1,5 @@
 			/* 设置页「解析器自检 / 来源健康」卡（2026-10-28 整块重做：状态条 + 四列网格 + 状态胶囊）。
-			   结构（80-components.js 之外的 84-settings-page.js）：
+			   结构（84-settings-page.js）：
 			     .gacha-cal-health-card
 			       ├ .gacha-cal-health-head          标题 + 「上次自检 X 前」 + 「立即检查」
 			       ├ .gacha-cal-health                — 状态条 / 列表 / 报告都在这层

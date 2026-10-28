@@ -169,7 +169,7 @@
 
 		// ── 同格并列条目：从悬停文本解析出来 ─────────────────────────────────────────
 		// 引擎只给**一条外显条目** + 一段供悬停用的多行文本（bannerHover / eventHover），**没有**并列数组。
-		// 契约（25-parser-shared.js 的 hoverPool / hoverEvent / buildPoolHover / buildEventHover）：
+		// 契约（26-parser-hover.js 的 buildPoolHover / buildEventHover；28-parser-hover-tools.js 的 hoverPool / hoverEvent）：
 		// 当期 ≥2 条时每条一行、不足 2 条时给空串，且三种排版：
 		//   · 活动式 —— 每条自带档期：`名称   MM-DD HH:MM ~ MM-DD HH:MM`
 		//   · 卡池式 —— 档期另起一行：`池名：角色` ⏎ `MM-DD HH:MM ~ MM-DD HH:MM`

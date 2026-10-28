@@ -1,11 +1,11 @@
 			/* 设置页标题行（2026-10-28 二次改）：左 = 标题 + 版本号，右 = Star 指引 + 关闭 ✕
-			   （布局在 80-components.js；Star 组用 marginLeft:"auto" 推到最右）。
+			   （布局在 84-settings-page.js；Star 组用 marginLeft:"auto" 推到最右）。
 			   · 版本号 = 12px + 三级字色，紧跟标题右边（"v" + 构建期注入的 PLUGIN_VERSION）；
 			   · Star 链接 = 一行**文字链接**，不是按钮、没有底色块：默认 12px + 三级字色 + 无下划线，
 			     hover 才升到次级字色并出下划线（仍是"可点的文字"，不是控件）；
 			   · 关闭 ✕ = 12px 小文字按钮，无底色无边框，hover 才加深；点击区 16×16（字小，不收一下点不中）。
 			   · 三者靠标题行容器的 align-items:center **垂直居中** ⇒ 这三条规则里**不许**写 align-self /
-			     margin —— 右推在 Star 组容器上（80-components.js 的 marginLeft:"auto"），不在子项上。 */
+			     margin —— 右推在 Star 组容器上（84-settings-page.js 的 marginLeft:"auto"），不在子项上。 */
 			.gacha-cal-version{flex:none;font-size:12px;line-height:1.6;color:var(--dsw-alias-label-tertiary,#9aa1ab);white-space:nowrap}
 			.gacha-cal-star-link{flex:none;font-size:12px;line-height:1.6;color:var(--dsw-alias-label-tertiary,#9aa1ab);text-decoration:none;cursor:pointer;transition:color .12s;white-space:nowrap}
 			.gacha-cal-star-link:hover{color:var(--dsw-alias-label-secondary,#4a5261);text-decoration:underline}

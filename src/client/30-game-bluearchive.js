@@ -301,7 +301,7 @@
 		//     数据行 ["…图标…", "旬( 泳装)", "10月13日～10月27日"] / ["…", "妃姬(泳装)", ""]（合并单元格 → 时间留空）
 		//   ⚠️ 表里**没有「池名」列**，页面标题也只是「国际服往期卡池一览」（2026-10-21 实测，别再假设有池名）——
 		//      所以 `banner` 不再是「岚过天晴」那类真实池名，改用国际服卡池的**类型标签**（见 GK_BA_POOL_BANNER）。
-		//      面板外显本来就是 roles（80-components.js: `gachaVisible = g.roles ? cleanRoleNames(...) : g.banner`），
+		//      面板外显本来就是 roles（83-panel-shell.js: `gachaVisible = g.roles ? cleanRoleNames(...) : g.banner`），
 		//      banner 只在悬停/标题里作 `banner：roles` 的前缀 → 现状仍是「招募类型＋角色名」，与改造前的口径一致。
 		//
 		// 交叉验证（2026-10-21，本机真实网络）：Nexon 官方更新日誌（`ba-global-nexon` 备选源）同一时刻给出

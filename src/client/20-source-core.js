@@ -11,7 +11,7 @@
 		const SOURCES = [];
 
 		// ── 游戏代表色（唯一一张表）──
-		// 用途：实验「日程」面板视图的"**颜色 = 游戏**"（见 80-components.js 的 ScheduleView /
+		// 用途：实验「日程」面板视图的"**颜色 = 游戏**"（见 82-schedule-view.js 的 ScheduleView /
 		// styles/schedule.css 的 `.gacha-cal-sched-*`）。每款一个**中间调**，浅色底与深色底上都看得清；
 		// 同一款游戏只用一个色，各服的色只有明度差（便于仍能认出"是同一款"）。
 		//

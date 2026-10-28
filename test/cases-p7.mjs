@@ -5,7 +5,7 @@
 //   ② 确定性：所有"当期"断言都用**夹具抓取时刻**（meta.capturedAt）当 now，不随运行日期漂移
 //   ③ 不拖垮共享 runner：抓取器调用都包 try/catch，失败只记 ✗，不抛出去中断别的批次
 import { readFileSync } from "node:fs";
-import { useFixtures, check, section, assertContract, summary } from "./harness.mjs";
+import { useFixtures, check, section, assertContract } from "./harness.mjs";
 const { sourceWallParts, hoverPool, hoverEvent } = T;
 import { SOURCES_P7 } from "./registry-shim.mjs";
 import { T } from "./load.mjs";
