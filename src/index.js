@@ -14,6 +14,7 @@ import z from "@deepseek-ai/schemastery";
 // src/client/65-remind.js 原样拼出）。宿主半边因此不需要（也拿不到）浏览器 bundle 里的任何东西。
 import {
 	notifyNameOf,
+	notifyShortcutPickOf,
 	remindConfigOf,
 	remindIdentityOf,
 	remindItemsOf,
@@ -24,7 +25,7 @@ import {
 	remindToastOf
 } from "./remind-core.mjs";
 import { execFile } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -540,9 +541,23 @@ function notifyShortcutDir() {
 
 /** 快捷方式绝对路径（`…\Start Menu\Programs\<name>.lnk`）。
  *  `name` 先过 core 的 notifyNameOf（非法文件名字符 / 空 / 超长 / 保留设备名都会在这一层被收干净），
- *  所以调用方可以把配置原文直接递进来。 */
+ *  所以调用方可以把配置原文直接递进来。
+ *  ⚠️ 这个路径**只用于建**（启用时按当前名字落文件）；**探测身份一律按 AUMID 扫目录**，
+ *  不能再拿它去判断"有没有启用"—— 改名重建失败时文件名还是旧的（见 notifyIdentityProbe）。 */
 function notifyShortcutPath(name) {
 	return path.join(notifyShortcutDir(), notifyNameOf(name) + ".lnk");
+}
+
+/** 开始菜单**顶层**的 `.lnk` 绝对路径（按文件名排序，探测结果稳定）。**永不抛**：
+ *  目录不存在 / 没权限 ⇒ 空数组（调用方据此短路，连 PowerShell 都不起）。 */
+function notifyShortcutFiles() {
+	const dir = notifyShortcutDir();
+	let names;
+	try { names = readdirSync(dir); } catch { return []; }
+	return names
+		.filter((name) => typeof name === "string" && /\.lnk$/i.test(name))
+		.sort()
+		.map((name) => path.join(dir, name));
 }
 
 /** 图标路径：把常量里的 `%SystemRoot%` 展开成绝对路径（只用于展示，不做其它解析）。 */
@@ -560,25 +575,50 @@ function notifyScriptHead() {
 	];
 }
 
-/** 只读探测脚本：输出 `{ exists, aumid, error }`，**不做任何写操作**。 */
-function notifyIdentityProbeScript(name) {
+/** 只读探测脚本：把候选 `.lnk` 的 AUMID **一次批量读完**（一个 PowerShell 进程，不是每个文件一个），
+ *  输出 `{ shortcuts: [{ path, aumid }], error }`，**不做任何写操作**。
+ *  读不出 AUMID 的条目（没有该属性 / 不是快捷方式 / 被占用）逐条吞掉 —— 单条坏掉不该毁掉整次探测。 */
+function notifyIdentityProbeScript(lnkPaths) {
 	return notifyScriptHead().concat([
-		"$Lnk = " + psQuote(notifyShortcutPath(name)),
+		"$Paths = " + psArray(lnkPaths),
 		"$Interop = @'",
 		NOTIFY_INTEROP_SOURCE,
 		"'@",
-		"$Out = [ordered]@{ exists = $false; aumid = $null; error = $null }",
+		"$Out = [ordered]@{ shortcuts = @(); error = $null }",
 		"try {",
-		"\tif (Test-Path -LiteralPath $Lnk) {",
-		"\t\t$Out.exists = $true",
+		"\tif ($Paths.Count -gt 0) {",
 		"\t\tif (-not ('GachaNotifyShortcut' -as [type])) { Add-Type -TypeDefinition $Interop -ErrorAction Stop }",
-		"\t\t$Out.aumid = [GachaNotifyShortcut]::Get($Lnk)",
+		"\t\t$List = @()",
+		"\t\tforeach ($P in $Paths) {",
+		"\t\t\t$Id = $null",
+		"\t\t\ttry { $Id = [GachaNotifyShortcut]::Get($P) } catch { $Id = $null }",
+		"\t\t\tif ($Id) { $List += [ordered]@{ path = $P; aumid = $Id } }",
+		"\t\t}",
+		"\t\t$Out.shortcuts = $List",
 		"\t}",
 		"} catch { $Out.error = $_.Exception.Message }",
 		"$Out | ConvertTo-Json -Compress",
 		"exit 0",
 		""
 	]).join("\n");
+}
+
+/**
+ * 「只认 AUMID 删掉自己的 .lnk」的 PowerShell 片段：启用（改名重建 ②）与停用共用**同一段判据**，
+ * 免得两处各写一遍、日后悄悄漂移。依赖调用方脚本里已有的 `$Dir` / `$Aumid` / `$Out.removed`。
+ * 为什么不按文件名删：改名重建失败时（配置叫新名字、文件还是旧名字），按名字删只是
+ * "删了个不存在的文件"却照样回 ok —— 用户点「移除」删不掉、横幅还是旧身份。
+ */
+function notifyAumidCleanupLines() {
+	return [
+		"\tif (Test-Path -LiteralPath $Dir) {",
+		"\t\tforeach ($Old in @(Get-ChildItem -LiteralPath $Dir -Filter '*.lnk' -File -ErrorAction SilentlyContinue)) {",
+		"\t\t\t$OldId = $null",
+		"\t\t\ttry { $OldId = [GachaNotifyShortcut]::Get($Old.FullName) } catch { $OldId = $null }",
+		"\t\t\tif ($OldId -eq $Aumid) { Remove-Item -LiteralPath $Old.FullName -Force; $Out.removed += $Old.FullName }",
+		"\t\t}",
+		"\t}",
+	];
 }
 
 /**
@@ -614,14 +654,7 @@ function notifyIdentityEnableScript(name) {
 		"\t}",
 		// ② 清掉「我们自己的」旧快捷方式（改名重建 / 同名残留）：
 		//    **只认 AUMID**，不认文件名 ⇒ 别人的 .lnk 一律不碰（这是"别误删别的"的实现）。
-		"\tforeach ($Old in @(Get-ChildItem -LiteralPath $Dir -Filter '*.lnk' -File -ErrorAction SilentlyContinue)) {",
-		"\t\t$OldId = $null",
-		"\t\ttry { $OldId = [GachaNotifyShortcut]::Get($Old.FullName) } catch { $OldId = $null }",
-		"\t\tif ($OldId -eq $Aumid) {",
-		"\t\t\tRemove-Item -LiteralPath $Old.FullName -Force",
-		"\t\t\t$Out.removed += $Old.FullName",
-		"\t\t}",
-		"\t}",
+		...notifyAumidCleanupLines(),
 		// ③ 按新名字重建（此时同目录已没有我们的 .lnk）。
 		// 身份载体：wscript.exe 本体 + **不带参数**（只是让 .lnk 有个合法目标，不会被真正启动）。
 		"\t$Target = Join-Path $env:SystemRoot 'System32\\wscript.exe'",
@@ -653,19 +686,24 @@ function notifyIdentityEnableScript(name) {
 }
 
 /**
- * 停用脚本：删**当前名字**的开始菜单快捷方式。
+ * 停用脚本：删掉**所有 AUMID 等于我们**的开始菜单 .lnk（不看文件名）。
+ * 为什么按 AUMID：改名重建失败时（配置叫新名字、文件还是旧名字）按名字删删不到东西，
+ * 却照样回 ok —— 用户点「移除」没反应、横幅还是旧身份。与启用脚本 ② 共用同一段判据。
  * **注册表键 `HKCU\Software\Classes\AppUserModelId\<AUMID>` 保留**：没有快捷方式时系统根本不会用它
  * （不启用就没有任何副作用），而留着它下次启用时不用再写一遍、也不用在这里多写一段删键逻辑。
  */
-function notifyIdentityDisableScript(name) {
+function notifyIdentityDisableScript() {
 	return notifyScriptHead().concat([
-		"$Lnk = " + psQuote(notifyShortcutPath(name)),
-		"$Out = [ordered]@{ ok = $false; error = $null; existed = $false }",
+		"$Dir = " + psQuote(notifyShortcutDir()),
+		"$Aumid = " + psQuote(NOTIFY_AUMID),
+		"$Interop = @'",
+		NOTIFY_INTEROP_SOURCE,
+		"'@",
+		"$Out = [ordered]@{ ok = $false; error = $null; existed = $false; removed = @() }",
 		"try {",
-		"\tif (Test-Path -LiteralPath $Lnk) {",
-		"\t\tRemove-Item -LiteralPath $Lnk -Force",
-		"\t\t$Out.existed = $true",
-		"\t}",
+		"\tif (-not ('GachaNotifyShortcut' -as [type])) { Add-Type -TypeDefinition $Interop -ErrorAction Stop }",
+		...notifyAumidCleanupLines(),
+		"\t$Out.existed = @($Out.removed).Count -gt 0",
 		"\t$Out.ok = $true",
 		"} catch { $Out.error = $_.Exception.Message }",
 		"$Out | ConvertTo-Json -Compress",
@@ -705,19 +743,40 @@ function runNotifyPowerShell(script) {
 	});
 }
 
-/** 一次探测，返回 `{ exists, aumid, error }`。**永不抛** —— 身份判断失败必须能回退 PowerShell。 */
-async function notifyIdentityProbe(name) {
+/**
+ * 一次探测：扫描开始菜单**顶层** `.lnk`，按 **AUMID** 找出我们那条。**永不抛** ——
+ * 身份判断失败必须能回退 PowerShell。
+ * 返回 `{ exists: true, aumid, shortcutPath, name }` 或 `{ exists: false, aumid: null, error: null }`。
+ *
+ * 为什么不再按 `<当前名字>.lnk` 拼路径（2026-10-28 真机踩到）：
+ *   用户在设置页把名字改成「二游日历6666」，但改名重建那一步没成功（宿主没重启、配置写入被拒）
+ *   ⇒ 开始菜单里仍是 `二游日历.lnk`（AUMID 正确），配置里却是新名字。按名字拼路径 ⇒ 找不到
+ *   ⇒ 静默回退 PowerShell ⇒ 横幅仍显示「Windows PowerShell」。文件名只是"建的时候叫什么"，
+ *   身份的唯一判据是 `System.AppUserModel.ID`。
+ */
+async function notifyIdentityProbe() {
 	if (process.platform !== "win32") return { exists: false, aumid: null, error: null };
-	// 快捷方式不存在 ⇒ 身份必然未启用。**这条短路很重要**：它是默认路径（设置页每次打开、每轮提醒），
-	// 不短路的话每次都要起一个 PowerShell 去读一个不存在的 .lnk（几百毫秒，纯浪费）。
-	const lnk = notifyShortcutPath(name);
-	if (!existsSync(lnk)) return { exists: false, aumid: null, error: null };
+	// ① 先在 Node 侧列一次目录（readdirSync，微秒级）：一个 .lnk 都没有 ⇒ 直接短路，
+	//    连 PowerShell 都不起。这是默认路径（没启用身份 / 设置页每次打开 / 每轮提醒）的常态，
+	//    不短路的话每次都要白等一个进程（几百毫秒）。
+	const lnks = notifyShortcutFiles();
+	if (lnks.length === 0) return { exists: false, aumid: null, error: null };
 	try {
-		const res = await runNotifyPowerShell(notifyIdentityProbeScript(name));
+		// ② 一次 PowerShell 批量读完所有候选的 AUMID（不是每个文件起一个进程 —— 目录里几十个 .lnk
+		//    时那是几十次进程启动 + 几十次 C# 编译，会从毫秒级变成几十秒级）。
+		const res = await runNotifyPowerShell(notifyIdentityProbeScript(lnks));
+		if (res && res.ok === false) return { exists: false, aumid: null, error: String(res.error || "probe-failed") };
+		const entries = res && Array.isArray(res.shortcuts) ? res.shortcuts : [];
+		const hit = notifyShortcutPickOf(entries, NOTIFY_AUMID);
+		const hitPath = hit && typeof hit.path === "string" ? hit.path : "";
+		if (!hit || hitPath === "") return { exists: false, aumid: null, error: null };
 		return {
-			exists: res.exists === true,
-			aumid: typeof res.aumid === "string" ? res.aumid : null,
-			error: res.error ? String(res.error) : null
+			exists: true,
+			aumid: typeof hit.aumid === "string" ? hit.aumid : NOTIFY_AUMID,
+			shortcutPath: hitPath,
+			// 文件名去掉 .lnk = 这条身份**实际生效**的应用名（可能与配置里的名字不同，见上面那段）
+			name: path.basename(hitPath).replace(/\.lnk$/i, ""),
+			error: null
 		};
 	} catch (err) {
 		return { exists: false, aumid: null, error: String((err && err.message) || err) };
@@ -727,11 +786,14 @@ async function notifyIdentityProbe(name) {
 /**
  * 通知身份路由：`GET/POST /api/gacha-calendar-notify-identity`（鉴权口径与快照路由一致：
  * 只服务本机、拒绝 cross-site）。
- *  - `name` = 设置项 `notifyName` 清洗后的应用名（GET 读配置；POST 带 `name` 时以 body 为准，
+ *  - `name` = 设置项 `notifyName` 清洗后的应用名（POST 带 `name` 时以 body 为准，
  *    这样设置页改完名字可以立刻按新名字重建，不必等宿主重载把配置投影过来）；
- *  - GET：`{ enabled, name, aumid, shortcutPath, iconPath }` —— enabled 由「快捷方式存在 **且** AUMID 正确」判定；
- *  - POST `{ enabled: true|false, name? }`：true 建开始菜单快捷方式（改名 = 先删旧的再按新名字建）、
- *    false 删掉它；返回 `{ ok: true, enabled, name, shortcutPath, aumid }` 或 `{ ok: false, error }`。
+ *  - GET：`{ enabled, name, aumid, shortcutPath, iconPath }` —— enabled 由「探测到的快捷方式
+ *    AUMID 正确」判定；**name 优先取探测到的快捷方式名**（改名重建失败时配置名与真实文件不一致，
+ *    界面必须显示真实生效的那个），没有才用配置名；
+ *  - POST `{ enabled: true|false, name? }`：true 建开始菜单快捷方式（改名 = 先按 AUMID 删旧的、
+ *    再按新名字建）、false 按 AUMID 删掉它；返回 `{ ok: true, enabled, name, shortcutPath, aumid }`
+ *    或 `{ ok: false, error }`。
  * 失败**不做异常抛出**：原因（无权限 / C# 编译失败 / 非 Windows / 名字被占 …）原样放进 JSON，
  * 由设置页一行小字显示。
  * `ctx` / `fallbackConfig` 由注册处（apply 的闭包）传进来 —— 这条路由要读配置，而 webServer
@@ -745,12 +807,21 @@ async function notifyIdentityHandler(req, res, ctx, fallbackConfig) {
 	}
 	const cfgName = notifyNameOf(configValueOf(liveConfigOf(ctx, fallbackConfig), "notifyName"));
 	if (req.method === "GET" || req.method === "HEAD") {
-		const identity = remindIdentityOf(await notifyIdentityProbe(cfgName), NOTIFY_AUMID);
+		const probe = await notifyIdentityProbe();
+		const identity = remindIdentityOf(probe, NOTIFY_AUMID);
+		// 名字以**探测到的真实快捷方式文件名**为准：改名重建失败时（配置是 6666、文件还是旧名字），
+		// 界面要显示"实际生效的那个名字"，否则用户看到的和横幅上的又对不上。
+		const detected = identity.enabled && typeof probe.name === "string" ? probe.name.trim() : "";
+		const shownName = detected === "" ? cfgName : notifyNameOf(detected);
+		// 路径同理：启用时回真实文件（可能不是按当前配置名拼出来的那个）；未启用时回"将要建的那个"。
+		const shortcutPath = identity.enabled && typeof probe.shortcutPath === "string" && probe.shortcutPath !== ""
+			? probe.shortcutPath
+			: notifyShortcutPath(cfgName);
 		sendJson(res, 200, {
 			enabled: identity.enabled,
-			name: cfgName,
+			name: shownName,
 			aumid: NOTIFY_AUMID,
-			shortcutPath: notifyShortcutPath(cfgName),
+			shortcutPath,
 			iconPath: notifyIconPath()
 		});
 		return;
@@ -773,13 +844,13 @@ async function notifyIdentityHandler(req, res, ctx, fallbackConfig) {
 	}
 	const r = parsed.enabled
 		? await runNotifyPowerShell(notifyIdentityEnableScript(name))
-		: await runNotifyPowerShell(notifyIdentityDisableScript(name));
+		: await runNotifyPowerShell(notifyIdentityDisableScript());
 	if (r.ok !== true) {
 		sendJson(res, 200, { ok: false, error: String(r.error || "shortcut-failed") });
 		return;
 	}
 	// 以"再探一次"为唯一真相：建了但 AUMID 没写进去 ⇒ enabled 仍为 false（设置页会如实显示）。
-	const identity = remindIdentityOf(await notifyIdentityProbe(name), NOTIFY_AUMID);
+	const identity = remindIdentityOf(await notifyIdentityProbe(), NOTIFY_AUMID);
 	sendJson(res, 200, { ok: true, enabled: identity.enabled, name, shortcutPath: notifyShortcutPath(name), aumid: NOTIFY_AUMID });
 }
 
@@ -888,7 +959,7 @@ function sendToastScript(script) {
  */
 async function notifyToastTargetOf(name) {
 	const appName = notifyNameOf(name);
-	const identity = remindIdentityOf(await notifyIdentityProbe(appName), NOTIFY_AUMID);
+	const identity = remindIdentityOf(await notifyIdentityProbe(), NOTIFY_AUMID);
 	const enabled = identity.enabled === true;
 	return {
 		enabled,

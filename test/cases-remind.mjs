@@ -36,7 +36,7 @@ export default async function run() {
 	section("到期提醒（送达）：判定纯函数 + 设置键三处齐 + 宿主接线");
 
 	const {
-		remindOnOf, remindIdentityOf, remindNodesOf, remindNodesToggleOf, remindConfigOf, remindKeyOf, remindStateOf,
+		remindOnOf, remindIdentityOf, notifyShortcutPickOf, remindNodesOf, remindNodesToggleOf, remindConfigOf, remindKeyOf, remindStateOf,
 		remindTestToastOf, remindWindowOf, remindItemsOf, remindTickOf, remindToastOf,
 		dueWindowOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
 	} = T;
@@ -526,9 +526,11 @@ export default async function run() {
 
 	// ── ⑫ 通知身份（可选 AUMID）：判定纯函数 4 组合 + 宿主两条路由 + 设置页按钮 ─────────────
 	// 2026-10-28 需求：把"启用二游日历通知身份"做成**可选项**（设置页一个按钮）。
-	// 这里钉四件事：
+	// 这里钉五件事：
 	//   ① 判定纯函数（remindIdentityOf）：只有「快捷方式存在 **且** AUMID 正确」才算启用，
 	//      其余三种组合 + 脏探测结果一律回退 —（身份问题绝不能让提醒发不出去）；
+	//   ①b 探测**按 AUMID 扫描开始菜单顶层 .lnk**（真机事故：改名重建失败后文件名还是旧的，
+	//      按 `<当前名字>.lnk` 拼路径会找不到自己的身份 ⇒ 横幅退回「Windows PowerShell」）；
 	//   ② 宿主两条路由（GET 读状态 / POST 建删）+ 非 Windows 的 `windows-only` 分支；
 	//   ③ 快捷方式确实用 wscript.exe 当身份载体、无参数（不额外落文件）+ 内联 C# 写 AUMID + 注册表起名；
 	//   ④ 设置页那一行（启用/移除按钮、GET 读 / POST 写、失败原因小字）。
@@ -563,6 +565,32 @@ export default async function run() {
 			&& JSON.stringify(R.remindIdentityOf({ exists: true, aumid: expected }, expected)) === JSON.stringify(identityOf({ exists: true, aumid: expected }))
 			&& R.remindIdentityOf({ exists: true, aumid: "x" }, expected).enabled === false);
 
+		// ①b 按 AUMID 挑快捷方式（纯函数 notifyShortcutPickOf）—— 2026-10-28 真机教训的直接产物：
+		//    用户改名后重建失败 ⇒ 文件还叫旧名字、配置是新名字。按 `<名字>.lnk` 找会漏掉自己的身份，
+		//    所以只认 AUMID（名字只是文件名）。四条边界都在这里钉住。
+		const candidates = [
+			{ path: "C:\\…\\二游日历.lnk", aumid: "SomeoneElse.App" },
+			{ path: "C:\\…\\旧名字.lnk", aumid: expected },
+			{ path: "C:\\…\\另一个.lnk", aumid: expected }
+		];
+		check("notifyShortcutPickOf：命中（按 AUMID 认，旧名字的 .lnk 也能认出是我们那条）",
+			typeof notifyShortcutPickOf === "function" && notifyShortcutPickOf(candidates, expected) === candidates[1],
+			JSON.stringify(notifyShortcutPickOf(candidates, expected)));
+		check("notifyShortcutPickOf：多个命中取**第一个**（多条我们自己的 .lnk 时行为确定）",
+			notifyShortcutPickOf(candidates, expected).path === "C:\\…\\旧名字.lnk",
+			notifyShortcutPickOf(candidates, expected).path);
+		check("notifyShortcutPickOf：都不匹配 / 空数组 / 脏入参 ⇒ null（不抛）",
+			notifyShortcutPickOf([{ path: "x.lnk", aumid: "SomeoneElse.App" }], expected) === null
+			&& notifyShortcutPickOf([], expected) === null
+			&& notifyShortcutPickOf([{ path: "x.lnk", aumid: "" }], expected) === null
+			&& notifyShortcutPickOf(null, expected) === null
+			&& notifyShortcutPickOf(candidates, "") === null
+			&& notifyShortcutPickOf(candidates, void 0) === null);
+		check("宿主那份 ESM（lib/remind-core.mjs）导出并复用**同一个**挑选函数",
+			typeof R.notifyShortcutPickOf === "function"
+			&& R.notifyShortcutPickOf(candidates, expected) === candidates[1]
+			&& notifyShortcutPickOf({}, expected) === R.notifyShortcutPickOf({}, expected));
+
 		const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
 		const compSrc = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
 		const aumidHits = hostSrc.match(/DshGachaCalendar\.Reminder/g) || [];
@@ -586,9 +614,13 @@ export default async function run() {
 			&& /if \(req\.method === "GET" \|\| req\.method === "HEAD"\)/.test(hostSrc)
 			&& /if \(req\.method !== "POST"\)/.test(hostSrc));
 		check("GET 返回 { enabled, name, aumid, shortcutPath, iconPath }（字段名与设置页/预留图标接口对齐）",
-			/enabled: identity\.enabled,\s*name: cfgName,\s*aumid: NOTIFY_AUMID,\s*shortcutPath: notifyShortcutPath\(cfgName\),\s*iconPath: notifyIconPath\(\)/.test(hostSrc));
-		check("GET 的 enabled 用「快捷方式存在 + AUMID 正确」判定（remindIdentityOf，不是只看文件在不在）",
-			/const identity = remindIdentityOf\(await notifyIdentityProbe\(cfgName\), NOTIFY_AUMID\);[\s\S]{0,200}?enabled: identity\.enabled/.test(hostSrc));
+			/enabled: identity\.enabled,\s*name: shownName,\s*aumid: NOTIFY_AUMID,\s*shortcutPath,\s*iconPath: notifyIconPath\(\)/.test(hostSrc));
+		check("GET 的 enabled 用「开始菜单里 AUMID 正确的那条存在」判定（按 AUMID 探测 + remindIdentityOf）",
+			/const probe = await notifyIdentityProbe\(\);\s*const identity = remindIdentityOf\(probe, NOTIFY_AUMID\);[\s\S]{0,600}?enabled: identity\.enabled/.test(hostSrc));
+		check("GET 的 name **优先用探测到的快捷方式名**，没有才用配置名（改名重建失败时显示真实生效的名字）",
+			/const detected = identity\.enabled && typeof probe\.name === "string" \? probe\.name\.trim\(\) : "";/.test(hostSrc)
+			&& /const shownName = detected === "" \? cfgName : notifyNameOf\(detected\);/.test(hostSrc)
+			&& /shortcutPath = identity\.enabled && typeof probe\.shortcutPath === "string"/.test(hostSrc));
 		check("POST 只认布尔 enabled（脏值 400，不能被当成\"启用\"去改用户开始菜单）",
 			/typeof parsed\.enabled !== "boolean"/.test(hostSrc) && /error: "enabled-must-be-boolean"/.test(hostSrc));
 		check("非 Windows ⇒ { ok: false, error: \"windows-only\" }（同一句也用于 PowerShell 找不到时）",
@@ -610,9 +642,14 @@ export default async function run() {
 			hostSrc.includes("HKCU:\\\\Software\\\\Classes\\\\AppUserModelId\\\\") && /DisplayName/.test(hostSrc));
 		check("启用后回读 AUMID 确认（Save() 成功 ≠ AUMID 写进去了）",
 			/\$ReadBack = \[GachaNotifyShortcut\]::Get\(\$Lnk\)/.test(hostSrc) && /\$ReadBack -ne \$Aumid/.test(hostSrc));
-		check("停用：删开始菜单快捷方式（Remove-Item $Lnk），注册表键保留并写明理由",
-			/\$Out = \[ordered\]@\{ ok = \$false; error = \$null; existed = \$false \}/.test(hostSrc)
-			&& /Remove-Item -LiteralPath \$Lnk -Force/.test(hostSrc)
+		check("停用：**按 AUMID** 删开始菜单快捷方式（不按文件名 —— 改名失败时按名字删不掉），注册表键保留并写明理由",
+			/function notifyIdentityDisableScript\(\)[\s\S]{0,600}?notifyAumidCleanupLines\(\)/.test(hostSrc)
+			&& (() => {
+				const i = hostSrc.indexOf("function notifyIdentityDisableScript(");
+				const body = i < 0 ? "" : hostSrc.slice(i, hostSrc.indexOf("\n}", i));
+				// 停用脚本里**不许**再出现按名字拼路径 / 删名字：判据只有 AUMID
+				return body.length > 0 && !body.includes("notifyShortcutPath") && !/Remove-Item -LiteralPath \$Lnk/.test(body);
+			})()
 			&& /注册表键/.test(hostSrc) && /保留/.test(hostSrc));
 		check("图标是**预留接口**：NOTIFY_SHORTCUT_ICON + 「项目有正式 .ico 后改这里即可」注释在常量之前",
 			hostSrc.includes("const NOTIFY_SHORTCUT_ICON = \"%SystemRoot%\\\\System32\\\\timedate.cpl,0\";")
@@ -620,15 +657,35 @@ export default async function run() {
 			&& hostSrc.indexOf("项目有正式 .ico 后改这里即可") < hostSrc.indexOf("const NOTIFY_SHORTCUT_ICON"));
 
 		check("toast 的 AUMID 有**启用 / 回退**两条路径，且每轮只探测一次（name 同一处解析）",
-			/async function notifyToastTargetOf\(name\)[\s\S]{0,300}?remindIdentityOf\(await notifyIdentityProbe\(appName\), NOTIFY_AUMID\)[\s\S]{0,300}?aumid: enabled \? NOTIFY_AUMID : POWERSHELL_AUMID/.test(hostSrc)
+			/async function notifyToastTargetOf\(name\)[\s\S]{0,300}?remindIdentityOf\(await notifyIdentityProbe\(\), NOTIFY_AUMID\)[\s\S]{0,300}?aumid: enabled \? NOTIFY_AUMID : POWERSHELL_AUMID/.test(hostSrc)
 			&& /const target = await notifyToastTargetOf\(plain\.notifyName\);/.test(hostSrc)
 			&& /sendToastScript\(toastScriptOf\(title, lines, target\.aumid, target\.name\)\)/.test(hostSrc)
 			&& /function toastScriptOf\(title, lines, aumid, appName\)/.test(hostSrc));
 		check("身份探测**永不抛**（探测失败 = 当未启用，回退 PowerShell）",
-			/async function notifyIdentityProbe\(name\)[\s\S]{0,900}?catch \(err\) \{[\s\S]{0,200}?exists: false, aumid: null/.test(hostSrc)
-			&& /async function notifyIdentityProbe\(name\)[\s\S]{0,200}?process\.platform !== "win32"/.test(hostSrc));
-		check("快捷方式不存在时**短路**（默认路径不启动 PowerShell；设置页打开不卡）",
-			/const lnk = notifyShortcutPath\(name\);\s*if \(!existsSync\(lnk\)\) return \{ exists: false, aumid: null, error: null \};/.test(hostSrc));
+			/async function notifyIdentityProbe\(\)[\s\S]{0,4000}?catch \(err\) \{[\s\S]{0,200}?exists: false, aumid: null/.test(hostSrc)
+			&& /async function notifyIdentityProbe\(\)[\s\S]{0,200}?process\.platform !== "win32"/.test(hostSrc));
+		// 2026-10-28 真机修复：探测**按 AUMID 扫描开始菜单顶层 .lnk**，不再拿 `<当前名字>.lnk` 拼路径
+		// （改名重建失败时文件名还是旧的 ⇒ 按名字找不到自己的身份 ⇒ 静默回退 PowerShell）。
+		check("探测按 **AUMID 扫描开始菜单顶层** .lnk（`notifyShortcutFiles` + 一次批量读 + 按 AUMID 挑）",
+			/function notifyShortcutFiles\(\)[\s\S]{0,400}?readdirSync\(dir\)/.test(hostSrc)
+			&& hostSrc.includes("/\\.lnk$/i")
+			&& /function notifyIdentityProbeScript\(lnkPaths\)/.test(hostSrc)
+			&& /notifyShortcutPickOf\(entries, NOTIFY_AUMID\)/.test(hostSrc)
+			&& (() => {
+				const i = hostSrc.indexOf("async function notifyIdentityProbe(");
+				const body = i < 0 ? "" : hostSrc.slice(i, hostSrc.indexOf("\n}", i));
+				// 探测函数里**一个** notifyShortcutPath 都不许有：路径只用于"建"，不用于"认"
+				return body.length > 0 && !body.includes("notifyShortcutPath");
+			})(),
+			"探测里仍按文件名找，或没走 notifyShortcutPickOf");
+		check("探测先过滤：目录里没有 .lnk 就**短路**（默认路径不启动 PowerShell；设置页打开不卡）",
+			/const lnks = notifyShortcutFiles\(\);\s*if \(lnks\.length === 0\) return \{ exists: false, aumid: null, error: null \};/.test(hostSrc));
+		check("AUMID 读取是**一次 PowerShell 批量读完**（候选路径一次性传进去，不是每个文件起一个进程）",
+			(hostSrc.match(/notifyIdentityProbeScript\(lnks\)/g) || []).length === 1
+			&& /function notifyIdentityProbeScript\(lnkPaths\)/.test(hostSrc)
+			&& /"\$Paths = " \+ psArray\(lnkPaths\)/.test(hostSrc)
+			&& /foreach \(\$P in \$Paths\)/.test(hostSrc),
+			String((hostSrc.match(/notifyIdentityProbeScript\(lnks\)/g) || []).length));
 
 		check("设置页有「通知身份」一行 + 启用/移除按钮（当前身份两种文案都在）",
 			compSrc.includes('children: "通知身份"')
@@ -723,7 +780,7 @@ export default async function run() {
 			&& !/remindTickOf|remindStateOf|remindItemsOf/.test(testBody),
 			testBody.slice(0, 120));
 		check("身份选择**复用**现有判定（notifyIdentityProbe + remindIdentityOf，收敛在 notifyToastTargetOf 一处）",
-			/async function notifyToastTargetOf\(name\)[\s\S]{0,300}?remindIdentityOf\(await notifyIdentityProbe\(appName\), NOTIFY_AUMID\)/.test(hostSrc)
+			/async function notifyToastTargetOf\(name\)[\s\S]{0,300}?remindIdentityOf\(await notifyIdentityProbe\(\), NOTIFY_AUMID\)/.test(hostSrc)
 			&& /const target = await notifyToastTargetOf\(appName\);/.test(testBody)
 			// 真实提醒那一轮走的也是同一个出口（判定只有一处，没有第二套 AUMID 逻辑）
 			&& /const target = await notifyToastTargetOf\(plain\.notifyName\);[\s\S]{0,400}?sendToastScript\(toastScriptOf\(title, lines, target\.aumid, target\.name\)\)/.test(hostSrc));
@@ -832,10 +889,11 @@ export default async function run() {
 				return !!m && /\bnotifyNameOf\b/.test(m[1]);
 			})());
 
-		// ③ 路由带 name：GET 读配置里的名字 / POST 的 name 决定文件名、Description、DisplayName
-		check("GET 的 name 从配置读并清洗（空 / 非法 ⇒ 默认「二游日历」）",
+		// ③ 路由带 name：GET 先探测（name 优先用真实快捷方式名）/ POST 的 name 决定文件名、Description、DisplayName
+		check("GET 的 name 从配置读并清洗（空 / 非法 ⇒ 默认「二游日历」），但**探测到的快捷方式名优先**",
 			/const cfgName = notifyNameOf\(configValueOf\(liveConfigOf\(ctx, fallbackConfig\), "notifyName"\)\);/.test(hostSrc)
-			&& /name: cfgName,/.test(hostSrc));
+			&& /const shownName = detected === "" \? cfgName : notifyNameOf\(detected\);/.test(hostSrc)
+			&& /name: shownName,/.test(hostSrc));
 		check("POST 的 name：body 里有就用 body（设置页改完名字可立刻重建），否则用配置",
 			/const name = notifyNameOf\(typeof parsed\.name === "string" \? parsed\.name : cfgName\);/.test(hostSrc));
 		check("快捷方式文件名 = `<清洗后的 name>.lnk`（notifyShortcutPath 只按 name 拼路径）",
@@ -847,7 +905,7 @@ export default async function run() {
 			(() => {
 				const i = hostSrc.indexOf("function notifyIdentityEnableScript(");
 				const body = i < 0 ? "" : hostSrc.slice(i, hostSrc.indexOf("\n}", i));
-				const atRemove = body.indexOf("Remove-Item -LiteralPath $Old.FullName -Force");
+				const atRemove = body.indexOf("notifyAumidCleanupLines()");
 				const atCreate = body.indexOf("$Shell.CreateShortcut($Lnk)");
 				return atRemove >= 0 && atCreate > atRemove;
 			})(),
@@ -859,7 +917,7 @@ export default async function run() {
 				const i = hostSrc.indexOf("function notifyIdentityEnableScript(");
 				const body = i < 0 ? "" : hostSrc.slice(i, hostSrc.indexOf("\n}", i));
 				const atTaken = body.indexOf("if ($Taken -ne $Aumid) { throw 'shortcut-name-taken' }");
-				const atRemove = body.indexOf("Remove-Item -LiteralPath $Old.FullName -Force");
+				const atRemove = body.indexOf("notifyAumidCleanupLines()");
 				// 占用检查必须在删除循环**之前**：否则"旧名字已删、新名字又建不出来"⇒ 用户两头空
 				return atTaken >= 0 && atRemove > atTaken;
 			})(),
@@ -910,7 +968,7 @@ export default async function run() {
 			!compSrc.includes("更改系统通知的发送者为") && !compSrc.includes("需要在开始菜单创建无害的快捷方式文件")
 			&& compSrc.includes("title: \"更改系统通知的发送者：会在开始菜单建一条无害的快捷方式（可随时移除）\"")
 			&& compSrc.includes("title: \"立刻弹一条系统通知，确认通知链路通不通\""));
-		check("状态文字保留（「当前：…」两种文案都在），且显示的是配置里的名字",
+		check("状态文字保留（「当前：…」两种文案都在），且显示的是 GET 回来的名字（探测到的真实名字，缺省配置名）",
 			row.includes("当前：") && row.includes("PowerShell（默认）") && /notifyIdentity\.enabled \? notifyIdentity\.name/.test(row));
 	}
 }

@@ -421,6 +421,10 @@
 			// remindIdentityOf = 通知身份判定（快捷方式存在 + AUMID 正确才算启用；否则回退 PowerShell）。
 			// 纯函数，测试覆盖 4 种组合（见 cases-remind.mjs ⑫）。
 			remindIdentityOf,
+			// notifyShortcutPickOf = 从 [{ path, aumid }] 里挑出第一个 AUMID 匹配项（探测按 **AUMID** 而不是
+			// 文件名找快捷方式的纯判定部分）。覆盖：命中 / 多个命中取第一个 / 都不匹配 / 空数组
+			// （见 cases-remind.mjs ⑫）。
+			notifyShortcutPickOf,
 			// notifyNameOf = 通知身份名（应用名）的清洗函数：非法文件名字符换空格、首尾点/空白去掉、
 			// 空 ⇒ 默认「二游日历」、超长截到 40 字、Windows 保留设备名 ⇒ 默认。
 			// 宿主拿它给快捷方式起名 / 写 DisplayName，设置页拿它给输入框兜底（见 cases-remind.mjs ⑭）。

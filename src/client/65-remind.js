@@ -94,6 +94,28 @@
 			return { enabled, useAumid: enabled ? expected : null };
 		}
 
+		// ── 从「开始菜单里的候选快捷方式」里挑出我们那条（纯函数）──────────────────────────
+		// 2026-10-28 真机教训：用户把名字改成「二游日历6666」，但改名重建那一步没成功（配置写入被拒）
+		// ⇒ 开始菜单里仍是 `二游日历.lnk`（AUMID 正确），配置里却是新名字。按 `<当前名字>.lnk`
+		// 去拼路径的探测于是**找不到自己的快捷方式** ⇒ 静默回退 PowerShell ⇒ 横幅仍显示 Windows PowerShell。
+		//
+		// 正确的判据只有 AUMID：把目录里每个顶层 .lnk 的 System.AppUserModel.ID 读出来，挑第一个等于
+		// 期望值的 —— 名字只是**文件名**，不是身份。这里就是那一步纯判定（读 .lnk 是宿主的活），
+		// 于是四条边界都能离线钉住：命中 / 多个命中取第一个 / 都不匹配 / 空数组。
+		// 任何拿不准的入参（非数组 / 期望 AUMID 为空或非字符串 / 条目缺 aumid）一律 null，
+		// 与 remindIdentityOf 的口径一致：身份出问题最多退回 PowerShell，**绝不抛**。
+		function notifyShortcutPickOf(entries, expectedAumid) {
+			const expected = typeof expectedAumid === "string" ? expectedAumid.trim() : "";
+			if (expected === "" || !Array.isArray(entries)) return null;
+			for (const entry of entries) {
+				if (!entry || typeof entry !== "object") continue;
+				const aumid = typeof entry.aumid === "string" ? entry.aumid.trim() : "";
+				// 逐项 trim：C# 读回来的字符串理论上是干净的，但空串 / 纯空白不能当成"空 == 空"
+				if (aumid !== "" && aumid === expected) return entry;
+			}
+			return null;
+		}
+
 		// ── 通知身份名（横幅顶部的应用名 / toast 正文的署名行）──────────────────────────────
 		// 2026-10-28 需求：应用名要能自定义（设置项 `notifyName`，默认「二游日历」）。
 		// 这个名字会同时落进三处**系统身份**：开始菜单快捷方式的文件名（`<name>.lnk`）、
