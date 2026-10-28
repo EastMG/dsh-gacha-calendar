@@ -2910,7 +2910,7 @@ export function createEngine(env) {
 		//
 		// ⚠️ 2026-10-03 收敛：这条规则此前有 **3 套实现 / 2 个值** ——
 		//   · 本文件 `EVENT_MAX_WINDOW_DAYS = 120` + `isLongTermEvent`（事件侧）
-		//   · `41-sources-shared.js` `HOVER_MAX_WINDOW_DAYS = 120` + `hoverIsLongTerm`（**逐字重复**）
+		//   · 原 `41-sources-shared.js` 的 `HOVER_MAX_WINDOW_DAYS = 120` + `hoverIsLongTerm`（**逐字重复**，2026-10-03 收敛时已删）
 		//   · `42-parsers-bestdori.js` `LONG_MS = 400 天`（压平后见 30-game-bandori.js 的 `ns_bestdori_LONG_MS`）← **值不同**（sekai 是 120）
 		//   实测：bestdori 历史上有 22 个窗口落在 (120, 400] 天之间（全是「新手限定/回归纪念/
 		//   每日免费/少女们的回忆/开服纪念」这类长期池）→ 在 400 天下会被误判成"当期"。
@@ -2995,7 +2995,7 @@ export function createEngine(env) {
 		 * 补年份。`hint` = `{ y, mo }`（本地墙钟字段，通常来自公告发布时刻）。
 		 * · 已有年份 → 原样返回
 		 * · **没有线索 → 返回 null（不猜当前年）** —— 宁可这条档期不产出，也不编一个年份出来
-		 *   （猜错会把整条档期挪到错误的时间，比"未公布"更糟；`40-fetchers.js` 里那条 45 天规则
+		 *   （猜错会把整条档期挪到错误的时间，比"未公布"更糟；`30-game-bluearchive.js` 里那条 45 天规则
 		 *     属于"能拿到 now 但拿不到公告年"的少数源，单独保留并注明）
 		 */
 
@@ -3240,7 +3240,7 @@ export function createEngine(env) {
 		//    原文件头保留在下面，信息不丢。
 		// ═══════════════════════════════════════════════════════════════════════════
 
-// src/client/41-sources-shared.js —— 新增来源解析器共用的：抓取桥接 + 悬停排版工具
+// 原 src/client/41-sources-shared.js —— 新增来源解析器共用的：抓取桥接 + 悬停排版工具（原文件头，压平后见 27-parser-text.js）
 //
 // 历史沿革：这些代码原本在 `next-sources/lib/env.js`（ESM 模块，由外部生成器内联进 45-next-sources.js；压平后即本文件 27-parser-text.js ——
 // 2026-10-28 又按职责拆段，其中「文本/实体/时间戳」这几件留在这里，抓取与悬停排版已各自成文件）。
@@ -3456,8 +3456,8 @@ export function createEngine(env) {
 		}
 
 
-		// 经 host 代理抓取文本 / JSON 两个函数的**实现**已移到外壳（92-dsh-env.js），
-		// core 侧只在 15-env.js 保留同名薄封装（转调 coreEnv.transport）——这是 core 零宿主依赖的接缝之一。
+		// 经 host 代理抓取文本 / JSON 两个函数的**实现**已移到外壳（92-dsh-env.js 的 transport.fetchViaProxy），
+		// core 侧只在 15-env.js 保留 `proxyFetchText` / `proxyFetchJson` 两个薄封装（转调 coreEnv.transport）——这是 core 零宿主依赖的接缝之一。
 
 		// 解析繁体时间段："8月18日(二)維護後 ~ 9月1日(二)上午9點59分"
 		// 跨年（如 12月30日 ~ 1月5日）：结束月份小于开始月份 → 结束端按"下一年"解析；
@@ -3523,7 +3523,7 @@ export function createEngine(env) {
 		//    符号名与实现**一律未改**，原文件头保留在下面。
 		// ═══════════════════════════════════════════════════════════════════════════
 
-// src/client/43-sources-register.js —— 新增来源的「条目声明 + 抓取器登记」
+// 原 src/client/43-sources-register.js —— 新增来源的「条目声明 + 抓取器登记」（原文件头，压平后见 29-parser-register.js）
 //
 // 三件事：
 //   ① 把 **17 条**新增来源追加进 `SOURCES`（16 条在 `NS_SOURCES` + 1 条 `bh3` 单独 push）
@@ -3531,13 +3531,13 @@ export function createEngine(env) {
 //   ③ 登记备选源抓取器，并把「米游社公告」挂成既有条目（原神/星铁/绝区零）的备选源 + 新建 `bh3`
 //
 // ⚠️ 数字口径（2026-10-03 核实，原文写的是「20 条」—— 不对）：
-//   `20-sources.js` 内置 **11** 条 + 本文件 **17** 条 = 最终 `SOURCES` **28** 条。
+//   `20-source-core.js` 内置 **11** 条 + 本文件 **17** 条 = 最终 `SOURCES` **28** 条。
 //   合并规则见下方 `for (const s of NS_SOURCES)`：**按 id 找，命中就 `Object.assign` 覆盖、否则 push**。
 //   那条"覆盖"分支当前**不会触发**（现存 17 条与内置 11 条无一重名），它是留给
 //   "新增来源要接管某条内置条目"的升级路径 —— 历史上 `wuhuamixin` / `uma-cn` 的默认源
 //   就从 bwiki 换成了 biligame 官方公告，靠的正是它。**别因为"跑不到"就删掉。**
 //
-// 位置说明：本文件排在 `40-fetchers.js` **之后**（ORDER），因为它要往那两张表里登记、往 SOURCES 里追加。
+// 位置说明：本文件排在 `22-fetcher-core.js` **之后**（ORDER），因为它要往那两张表里登记、往 SOURCES 里追加。
 //
 // 历史沿革：内容原为生成物 `src/client/45-next-sources.js` 的尾部（由 `next-sources/registry*.js` 生成）。
 // 2026-10-03 用户要求「把 next-sources 合并进原 source，不留 next-source」后压平为普通源码，
@@ -3583,7 +3583,7 @@ export function createEngine(env) {
 			// ⚠️ 幂等（2026-10-03 为「43 并入 40 进 core」而补）：
 			//    这一段在 core 产物里位于 `createEngine` **内部**，每次新建引擎都会重跑；
 			//    而 `SOURCES` 是**模块级**共享的 → 直接 push 会让 bh3 越堆越多
-			//    （`_core_engine_test.mjs` 就建了两个引擎，会立刻暴露）。
+			//    （`test/cases-core.mjs` 就建了两个引擎，会立刻暴露）。
 			//    本文件其余写操作本来就是幂等的：上面 `NS_SOURCES` 是"按 id 找到就覆盖"、
 			//    备选源挂接是"按 fetcher 去重"，只有这处 push 不是。
 
@@ -3889,13 +3889,13 @@ export function createEngine(env) {
 
 
 		// ══ 以下为原 42-parsers-miyoushe.js 的内容（原样保留；压平后见 30-game-hoyoverse.js）══
-// src/client/35-parsers-miyoushe.js
+// 原 src/client/35-parsers-miyoushe.js（压平后见 30-game-hoyoverse.js）
 //
 // 由 next-sources/parsers/miyoushe.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_miyoushe__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-miyoushe.js —— 米哈游系官方公告（米游社 BBS API）
+// 原 src/client/35-parsers-miyoushe.js（压平后见 30-game-hoyoverse.js） —— 米哈游系官方公告（米游社 BBS API）
 //
 // 覆盖 4 个游戏（gids 实测四个都 200 且返回对应游戏的正确公告）：
 //   1 = 崩坏3 / 2 = 原神 / 6 = 崩坏：星穹铁道 / 8 = 绝区零
@@ -3928,7 +3928,7 @@ export function createEngine(env) {
 //      `text_summary` / `brief_structured_content` 全为空，`news_meta` 恒为 **null**
 //      （夹具 p4-{bh3,genshin,hsr,zzz}-news：0/20 条 post.content，news_meta 全 null）。
 //      → **卡池侧必须再抓详情正文**才能拿到档期。这是本解析器"抓列表 → 抓详情 → 从正文抽档期"
-//        两步形态的原因（与 ournotes.js 同形）。
+//        两步形态的原因（与 `30-game-bandori.js` 的 OurNotes 侧同形）。
 //
 //  ✅ **但 type=2（活动）列表有一层被低估的显式字段**（实测发现，任务书原话"该 API 没有显式
 //      档期字段"**只对 type=1 成立**）：每条的 `news_meta` 都带
@@ -4062,7 +4062,7 @@ const ns_miyoushe_MIYOUSHE_TYPES = { GACHA: 1, EVENT: 2, INFO: 3 };
 const ns_miyoushe_MIYOUSHE_MAX_DETAILS = 5;        // 每侧最多抓几篇正文
 const ns_miyoushe_MIYOUSHE_DETAIL_DELAY_MS = 200;  // 篇间隔（顺序抓，避免把源站打急）
 
-// ⚠️ registry-p4.js 里声明的 url 必须由这两个函数生成，否则离线夹具（map.json 按整串匹配）命中不到。
+// ⚠️ 原 registry-p4.js 里声明的 url 必须由这两个函数生成，否则离线夹具（map.json 按整串匹配）命中不到。
 function ns_miyoushe_miyousheListUrl(gids, type, pageSize = 20) {
 	return `${ns_miyoushe_LIST_BASE}?gids=${gids}&type=${type}&page_size=${pageSize}`;
 }
@@ -5073,7 +5073,7 @@ EVENT_FETCHERS["wuwa"] = {
 				// ⚠️ 回调**必须**声明第二个参数 `tz`：mkMediaWiki 的契约是 `parse(text, tz)`
 				//   （见 30-parsers.js 的 mkMediaWiki，压平后见 22-fetcher-core.js）。原来只写了 `(html)` 却在体内用 `tz`
 				//   → 运行时 `tz is not defined`：用户在设置页把鸣潮活动源切到「Bwiki 活动日历」就必然抓取失败。
-				//   2026-10-03 修正（同批还加了静态守卫 `test/cases-fetcher-args.mjs`）。
+				//   2026-10-03 修正（同批还加了静态守卫；那个探针脚本没入库）。
 				"wuwa-event-bwiki": mkMediaWiki((html, tz) => {
 					const d = parseWuwaCalendar(html, tz);
 					return d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "", eventHover: d.eventHover || "" } : null;
@@ -7186,13 +7186,13 @@ EVENT_FETCHERS["ba-jp"] = {
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-bandori.js（压平后见 30-game-bandori.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-bandori.js
+// 原 src/client/35-parsers-bandori.js（压平后见 30-game-bandori.js）
 //
 // 由 next-sources/parsers/bandori.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_bandori__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-bandori.js —— BanG Dream! 少女乐团派对 国服（biligame 官方公告 API）
+// 原 src/client/35-parsers-bandori.js（压平后见 30-game-bandori.js） —— BanG Dream! 少女乐团派对 国服（biligame 官方公告 API）
 //
 // 契约：async (url, signal, tz) → 数据对象 | null（null = 未公布）
 //
@@ -7507,13 +7507,13 @@ async function ns_bandori_eventsBandori(url, signal, tz = ns_bandori_BANDORI_TZ,
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-ournotes.js（压平后见 30-game-bandori.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-ournotes.js
+// 原 src/client/35-parsers-ournotes.js（压平后见 30-game-bandori.js）
 //
 // 由 next-sources/parsers/ournotes.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_ournotes__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-ournotes.js —— BanG Dream! OurNotes 日服（bushimo 官方 WordPress REST）
+// 原 src/client/35-parsers-ournotes.js（压平后见 30-game-bandori.js） —— BanG Dream! OurNotes 日服（bushimo 官方 WordPress REST）
 //
 // 契约：async (url, signal, tz) → { event, eventDates, eventDatesRaw?, eventHover? } | null
 //   本来源**只有活动/公告侧单侧**（没有卡池专用源）——按任务书只写 event 侧。
@@ -7703,13 +7703,13 @@ async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-ournotes-global.js（压平后见 30-game-bandori.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-ournotes-global.js
+// 原 src/client/35-parsers-ournotes-global.js（压平后见 30-game-bandori.js）
 //
 // 由 next-sources/parsers/ournotes-global.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_ournotes-global__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-ournotes-global.js —— BanG Dream！OurNotes **国际服**（BHK 发行）
+// 原 src/client/35-parsers-ournotes-global.js（压平后见 30-game-bandori.js） —— BanG Dream！OurNotes **国际服**（BHK 发行）
 //
 // 契约：async (url, signal, tz, now = nowMs()) → 数据对象 | null（null = 未公布）
 //   · 活动侧：{ event, eventDates, eventDatesRaw, eventHover }
@@ -7717,7 +7717,7 @@ async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES
 //   两侧读**同一份公告 feed**（与国际服一致：一份公告里既有招募也有活动），靠标题分流。
 //
 // ══ 条目形态：**默认未配置**（只挂备选源，不给 url/eventUrl）════════════════
-//   本条目在 registry-p9.js 里**没有** `url` / `eventUrl`，只有 `altSources` / `eventAltSources`。
+//   本条目在原 registry-p9.js 里**没有** `url` / `eventUrl`，只有 `altSources` / `eventAltSources`。
 //   插件 50-refresh.js 的语义是 `if (!source.url && !source.eventUrl) → skipped`：
 //   不抓取、不计成功也不计失败，UI 显示「未配置（不抓取卡池/活动）」；用户在设置页选「BHK官方公告」
 //   才会真正抓取。与米游社那套「崩坏3 新建条目、默认未配置」完全同型（见 45-next-sources.js）。
@@ -7747,7 +7747,7 @@ async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES
 //   绝对时刻走 `sourceInstant(...)`，文本走 `fmtWindow(...)`。
 //
 // ══ 合并器注意 ══
-//   与 biligame-activity.js 同理：本文件**不 import 其它解析器**（合并器按文件命名空间隔离、
+//   与 `30-game-biligame.js` 的活动侧同理：本文件**不 import 其它解析器**（合并器按文件命名空间隔离、
 //   不会重命名跨文件 import 的名字），只 import lib/env.js（压平后见 28-parser-hover-tools.js）。逻辑与 uma 的正文抽档期同源但自带一份。
 
 
@@ -7884,7 +7884,7 @@ const ns_ournotes_global_TOK_RE = new RegExp([
 	"(?<sep>[~\uff5e\u301c\u223c至到]|\\s[-\\u2013\\u2014\\uff0d]\\s|[-\\u2013\\u2014\\uff0d])",
 	"(?<perm>常驻|常駐|永久|常設|長期)"
 ].join("|"), "g");
-// ⚠️ 2026-10-03：此处原有本地 `yearOf`（补年份）—— 与 `biligame-activity.js` 那份**逐字相同**，
+// ⚠️ 2026-10-03：此处原有本地 `yearOf`（补年份）—— 与 `30-game-biligame.js` 的活动侧那份**逐字相同**，
 //    已统一到 `30-parsers.js` 的共用 `inferYear(y, mo, hint)`（压平后见 25-parser-order.js）。
 // 一段文本 → { norm, windows:[{ startTs, endTs, raw, glued }], skipped }
 function ns_ournotes_global_extractOurNotesGlobalWindows(text, tz = ns_ournotes_global_OURNOTES_GLOBAL_TZ, yearHint = null) {
@@ -8043,13 +8043,13 @@ async function ns_ournotes_global_eventsOurNotesGlobal(url, signal, tz = ns_ourn
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-bestdori.js（压平后见 30-game-bandori.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-bestdori.js
+// 原 src/client/35-parsers-bestdori.js（压平后见 30-game-bandori.js）
 //
 // 由 next-sources/parsers/bestdori.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_bestdori__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-bestdori.js —— BanG Dream!（Bestdori 社区数据库，取**简中服**时间段）
+// 原 src/client/35-parsers-bestdori.js（压平后见 30-game-bandori.js） —— BanG Dream!（Bestdori 社区数据库，取**简中服**时间段）
 //
 // 契约：async (url, signal, tz) → 卡池侧 { banner, roles?, bannerDates, bannerDatesRaw?, startTs?, endTs?, bannerHover? }
 //                              活动侧 { event, eventDates, eventDatesRaw?, eventHover? }    （两侧都可为 null = 未公布）
@@ -8084,7 +8084,7 @@ const ns_bestdori_LONG_MS = LONG_TERM_MAX_WINDOW_DAYS * 864e5;
 
 // ⚠️ 2026-10-03 收敛：本文件原有 `toTs`（宽容版）与 `byNewestStart` —— 前者与 sekai 那份**语义不同**、
 //    后者与 sekai 那份逐字相同（差别只在 `Number(a.id)` 与 `a.id`）。均已统一到
-//    `41-sources-shared.js` 的 `numOrNull` / `byNewestStart`。
+//    `27-parser-text.js` 的 `numOrNull` / `byNewestStart`。
 
 // ── 卡池侧 ──
 // 覆盖当前时刻的**有界**（≤400 天）简中池里取 startTs 最新的一期当"当期卡池"；
@@ -8260,13 +8260,13 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-bwiki.js（压平后见 30-game-bwiki-common.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-bwiki.js
+// 原 src/client/35-parsers-bwiki.js（压平后见 30-game-bwiki-common.js）
 //
 // 由 next-sources/parsers/bwiki.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_bwiki__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-bwiki.js —— 批次 B2：bwiki（MediaWiki api.php）来源
+// 原 src/client/35-parsers-bwiki.js（压平后见 30-game-bwiki-common.js） —— 批次 B2：bwiki（MediaWiki api.php）来源
 //
 // 统一抓取形态（**全部 mode:"proxy"**，2026-10-02 实测 bwiki 全系 ACAO 为空）：
 //   https://wiki.biligame.com/<wiki>/api.php?action=parse&page=<页面名URL编码>&prop=text&format=json&formatversion=2
@@ -8286,7 +8286,7 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 //   czn 卡厄斯梦境   卡池记录         只有「模板:Gacha」链接，空页   —                    ❌ 无内容
 //   stellasora 星塔  首页             活动日历 2 项（JS 计算剩余时间） 2026-04-07 止     ❌ 停更 + 无名
 //   ⇒ 另外 6 侧在"当期"判定下**如实返回 null**（源站抓到页面但当期没有内容），
-//     而不是硬凑一个过期档期。逐条都在这份注释与 registry-b2.js 里写明。
+//     而不是硬凑一个过期档期。逐条都在这份注释与原 `registry-b2.js` 里写明。
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // 「当期」判定沿用插件本体 `src/client/30-parsers.js` 的 bwiki 语义（压平后分见 26-parser-hover.js / 22-fetcher-core.js：bwikiGachaPayload /
@@ -8858,20 +8858,20 @@ async function ns_bwiki_eventsStellasora(url, signal, tz = "Asia/Shanghai", now)
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-bwiki-wikitext.js（压平后见 30-game-bwiki-wikitext-common.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-bwiki-wikitext.js
+// 原 src/client/35-parsers-bwiki-wikitext.js（压平后见 30-game-bwiki-wikitext-common.js）
 //
 // 由 next-sources/parsers/bwiki-wikitext.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_bwiki-wikitext__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-bwiki-wikitext.js —— 批次 P8：三个 bwiki 来源的**wikitext 形态**解析器
+// 原 src/client/35-parsers-bwiki-wikitext.js（压平后见 30-game-bwiki-wikitext-common.js） —— 批次 P8：三个 bwiki 来源的**wikitext 形态**解析器
 //
-// 本文件只装 P8 的三个来源（**不动** parsers/bwiki.js —— 那是 B2 的 `prop=text` HTML 形态）：
+// 本文件只装 P8 的三个来源（**不动** `30-game-bwiki-common.js` —— 那是 B2 的 `prop=text` HTML 形态）：
 //   ① 战双帕弥什 zspms   —— 两步：SMW `action=ask` 索引 → 取最新「版本更新公告」→ `prop=wikitext` 正文
 //   ② 卡厄斯梦境 czn     —— 一步：`Module:Gacha/data` 的 **Lua 表**（`prop=wikitext`）
 //   ③ 雪松 kedrgame      —— 一步：`Template:首页游戏版本内容` 的 **模板调用**（`prop=wikitext`）
 //
-// 契约（与 CONVENTIONS.md / 插件 40-fetchers.js 完全一致）：
+// 契约（与合并前的 CONVENTIONS.md / 插件 `22-fetcher-core.js` 完全一致）：
 //   async (url, signal, tz, now = nowMs()) → 数据对象 | null
 //     · 卡池侧 { banner, roles, bannerDates, bannerDatesRaw, startTs, endTs, bannerHover }
 //     · 活动侧 { event, eventDates, eventDatesRaw, eventHover }
@@ -8897,7 +8897,7 @@ async function ns_bwiki_eventsStellasora(url, signal, tz = "Asia/Shanghai", now)
 //   故记"推测"，注册表注释里同样标注。
 //
 // ══ 「版本更新后」这类**相对起点**的锚点策略（重要，与任务书略有出入，理由在此）══
-//   stellasora.js 的先例：相对起点没有绝对时刻 → 用**该公告的发布时间**当锚点 + 标 `startInferred: true`。
+//   `30-game-yostar.js` 的先例：相对起点没有绝对时刻 → 用**该公告的发布时间**当锚点 + 标 `startInferred: true`。
 //   本文件沿用该精神（相对起点必须有据可依的锚点、必须标 inferred、绝不假造时刻），但锚点优先级更细：
 //     ① 源站**自己写明的停服维护窗口**的结束时刻（`…将于2026年9月24日05:00 - 11:00进行"远信回响"版本更新的停服维护`）
 //        —— "版本更新后"就是维护结束之后，这是**源站原文给的绝对锚点**，比公告发布日期精确 2 天；
@@ -8965,7 +8965,7 @@ function ns_bwiki_wikitext_poolItem(x) {
 function ns_bwiki_wikitext_eventItem(x, nameOf) {
 	return { name: nameOf(x), startTs: x.startTs, endTs: x.endTs, raw: x.raw || "" };
 }
-// 卡池侧载荷。cmp 决定"外显"优先序；默认 = 结束最早优先（越快结束越该盯住，与 bwiki.js 同口径）。
+// 卡池侧载荷。cmp 决定"外显"优先序；默认 = 结束最早优先（越快结束越该盯住，与 `30-game-bwiki-common.js` 同口径）。
 // 悬停一律走共用 `hoverPool`：≥2 池 → 每池「池名：角色」行 + 档期行（窗口全同则只写一次档期）；
 // **<2 池 → 不设 bannerHover**（交回 UI 的「banner：roles」⏎「档期」两行式兜底，与本体约定一致）。
 function ns_bwiki_wikitext_gachaPayload(items, tz, now, opts = {}) {
@@ -9463,13 +9463,13 @@ async function ns_bwiki_wikitext_eventsKedrTemplate(url, signal, tz = ns_bwiki_w
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-kedr-wiki.js（压平后见 30-game-bwiki-kedr-wiki.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-kedr-wiki.js
+// 原 src/client/35-parsers-kedr-wiki.js（压平后见 30-game-bwiki-kedr-wiki.js）
 //
 // 由 next-sources/parsers/kedr-wiki.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_kedr-wiki__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-kedr-wiki.js —— 雪松（bwiki 社区结构化页 `往期动员【常驻】—1.0.0—`）
+// 原 src/client/35-parsers-kedr-wiki.js（压平后见 30-game-bwiki-kedr-wiki.js） —— 雪松（bwiki 社区结构化页 `往期动员【常驻】—1.0.0—`）
 //
 // 契约：async (url, signal, tz, now = nowMs()) → { banner, roles, bannerDates, bannerDatesRaw, startTs, endTs, bannerHover } | null
 //
@@ -9520,8 +9520,8 @@ const ns_kedr_wiki_KEDR_ARCHIVE_PAGE = "往期动员【常驻】—1.0.0—";
 // 推测：国服 UTC+8（源站未标注；旁证见文件头）
 const ns_kedr_wiki_KEDR_TZ = "Asia/Shanghai";
 
-// ⚠️ 页名必须 encodeURIComponent 后再拼（与 fgo.js 的 fgoParseUrl 同做法）：
-//    registry-p6.js 里的 URL 必须用这同一个函数构造，否则离线夹具（test/map.json 的整串键）命中不到。
+// ⚠️ 页名必须 encodeURIComponent 后再拼（与 `30-game-aniplex.js` 的 `fgoParseUrl` 同做法）：
+//    原 registry-p6.js 里的 URL 必须用这同一个函数构造，否则离线夹具（test/map.json 的整串键）命中不到。
 function ns_kedr_wiki_kedrParseUrl(page) {
 	return `${ns_kedr_wiki_KEDR_API}?action=parse&page=${encodeURIComponent(page)}&prop=text&format=json&formatversion=2`;
 }
@@ -9583,7 +9583,7 @@ function ns_kedr_wiki_kedrRoles(sectionHtml) {
 }
 
 // 页面 HTML → { sectionTitles, items:[{section,pools,roles,startTs,endTs,raw}], skipped }
-//   结构性损坏（没有任何小节）→ 抛错（该侧算抓取失败），与 bwiki.js 的 no-table 同口径。
+//   结构性损坏（没有任何小节）→ 抛错（该侧算抓取失败），与 `30-game-bwiki-common.js` 的 no-table 同口径。
 function ns_kedr_wiki_parseKedrArchive(html, tz = ns_kedr_wiki_KEDR_TZ) {
 	const sections = ns_kedr_wiki_kedrSections(html);
 	if (sections.length === 0) throw new Error("kedr-wiki:no-section");
@@ -9726,18 +9726,18 @@ async function ns_kedr_wiki_gachaKedrWiki(url, signal, tz = ns_kedr_wiki_KEDR_TZ
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-biligame-announce.js（压平后见 30-game-biligame.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-biligame-announce.js
+// 原 src/client/35-parsers-biligame-announce.js（压平后见 30-game-biligame.js）
 //
 // 由 next-sources/parsers/biligame-announce.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_biligame-announce__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-biligame-announce.js —— 嘟嘟脸恶作剧 国服（biligame 官方公告 API）
+// 原 src/client/35-parsers-biligame-announce.js（压平后见 30-game-biligame.js） —— 嘟嘟脸恶作剧 国服（biligame 官方公告 API）
 //
 // 契约：async (url, signal, tz, now = nowMs()) → 数据对象 | null（null = 未公布）
 //   · 卡池侧：{ banner, roles, bannerDates, bannerDatesRaw, startTs, endTs, bannerHover }
 //   · 活动侧：{ event, eventDates, eventDatesRaw, eventHover }
-//   两侧都读**同一份官方公告**（同 bandori.js：一份公告里既有活动档期也有招募档期）。
+//   两侧都读**同一份官方公告**（同 `30-game-bandori.js`：一份公告里既有活动档期也有招募档期）。
 //
 // ══ 实测形态（2026-10-02 抓夹具：fixtures/p6-ddlezj-list、fixtures/p6-ddlezj-detail）══
 // 列表：GET https://api.biligame.com/news/list?gameExtensionId=1282&positionId=2&typeId=1&pageNum=1&pageSize=50
@@ -9896,7 +9896,7 @@ function ns_biligame_announce_pickTitle(prefix, fallback) {
 	}
 	return String(fallback || "").trim();
 }
-// 招募/扭蛋 = 卡池侧；其余 = 活动侧（与 bandori.js 的 GACHA_SEC_RE 同口径）
+// 招募/扭蛋 = 卡池侧；其余 = 活动侧（与 `30-game-bandori.js` 的 `GACHA_SEC_RE` 同口径）
 const ns_biligame_announce_GACHA_RE = /招募|扭蛋|卡池|精选/;
 
 // 正文 HTML → { items:[{name,label,startTs,endTs,suffix,raw,kind}], skippedNoTime:[…] }
@@ -10055,13 +10055,13 @@ async function ns_biligame_announce_eventsDdlezj(url, signal, tz = ns_biligame_a
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-biligame-activity.js（压平后见 30-game-biligame.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-biligame-activity.js
+// 原 src/client/35-parsers-biligame-activity.js（压平后见 30-game-biligame.js）
 //
 // 由 next-sources/parsers/biligame-activity.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_biligame-activity__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-biligame-activity.js —— biligame 官方公告（活动/卡池档期）
+// 原 src/client/35-parsers-biligame-activity.js（压平后见 30-game-biligame.js） —— biligame 官方公告（活动/卡池档期）
 //
 // 契约：async (url, signal, tz, now = nowMs()) → 数据对象 | null（null = 未公布）
 //   · 活动侧：{ event, eventDates, eventDatesRaw, eventHover? }        （eventHover 缺省 = 当期只有 1 条）
@@ -10084,14 +10084,14 @@ async function ns_biligame_announce_eventsDdlezj(url, signal, tz = ns_biligame_a
 //       `parse*` 的返回字段里（供测试与排障），**不搬到别处、不写进别的字段**。
 //       ⚠️ 例外：`bannerDatesRaw` / `eventDatesRaw` 照既有约定**保留源站原文**（本体也有条目这么做）。
 //
-// ── 为什么不再 import `biligame-announce.js`（P6 嘟嘟脸，同形态）─────────────
+// ── 为什么不再 import `biligame-announce.js`（原 next-sources 的嘟嘟脸解析器，已并入本文件；P6 嘟嘟脸，同形态）─────────────
 //   思路/函数确实同源（列表 → 逐条详情 → 正文抽档期 → 挑覆盖 now 的窗口 → 抽不到就 null），
 //   但历史上跨解析器 import 会被合并器的命名空间隔离打断（它给本文件的**声明**加 `ns_<file>_`
 //   前缀，却不重命名"从别的解析器 import 进来的名字"）→ 生成物里会变成 `… is not defined`。
 //   所以当时两个文件各自抄了一份 `decodeExtra` + 实体表。
 //   ⚠️ 2026-10-03 更新：压平成 `src/client/` 普通源码段后**不再有命名空间合并器**，
 //   而那两份 `ENT_EXTRA` / `decodeExtra` / `plain` **函数体逐字节相同、表互为子集** ——
-//   已统一到 `41-sources-shared.js` 的 `decodeExtra` / `htmlText` / `htmlTextTight`（并集表）。
+//   已统一到 `27-parser-text.js` 的 `decodeExtra` / `htmlText` / `htmlTextTight`（并集表）。
 //   本条历史记录保留，因为"跨文件同名/同源"这个坑值得记住。
 //
 // ══ 接口实测形态（2026-10-02 抓夹具）════════════════════════════════════════
@@ -10751,13 +10751,13 @@ async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_bil
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-umamusume-official.js（压平后见 30-game-cygames.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-umamusume-official.js
+// 原 src/client/35-parsers-umamusume-official.js（压平后见 30-game-cygames.js）
 //
 // 由 next-sources/parsers/umamusume-official.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_umamusume-official__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-umamusume-official.js —— 赛马娘 **官方公告**（日服 umamusume.jp + 国际服 umamusume.com）
+// 原 src/client/35-parsers-umamusume-official.js（压平后见 30-game-cygames.js） —— 赛马娘 **官方公告**（日服 umamusume.jp + 国际服 umamusume.com）
 //
 // 契约：async (url, signal, tz, now = nowMs()) → 数据对象 | null
 //   卡池侧 { banner, bannerDates, bannerDatesRaw?, startTs?, endTs?, bannerHover? }
@@ -10767,9 +10767,9 @@ async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_bil
 //   否则交回 UI 的默认单条两行式；内容只有「名称 + 档期」，**不含任何元信息**（见 `ns_umamusume_official_umaCurrentItems` 的说明）。
 //
 // ── 与既有源的关系（**并存，不替换**）────────────────────────────────────────
-//   · 日服：既有 `parsers/umapyoi.js`（第三方 api.umapyoi.net，只有"卡级获取窗口"、无卡池名）
+//   · 日服：既有 `30-game-cygames.js` 的 umapyoi 侧（第三方 api.umapyoi.net，只有"卡级获取窗口"、无卡池名）
 //     与本文件的 `uma-jp-official`（官网公告，有卡池名 + 完整活动/卡池文案）**并存**。
-//   · 国际服：既有 `parsers/bwiki.js` 的 `eventsUmaJp` / `gachaUmaCn`（bwiki 表格，简中服）
+//   · 国际服：既有 `30-game-bwiki-common.js` 的 `eventsUmaJp` / `gachaUmaCn`（bwiki 表格，简中服）
 //     与本文件的 `uma-global`（**国际服官方公告**）**并存**。谁是主源由 Lead 决定，本文件不擅自替换。
 //
 // ── 实测形态（2026-10-02 夹具，见 fixtures/p5-uma-*）─────────────────────────
@@ -11383,13 +11383,13 @@ async function ns_umamusume_official_eventsUmaGlobal(url, signal, tz = ns_umamus
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-umapyoi.js（压平后见 30-game-cygames.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-umapyoi.js
+// 原 src/client/35-parsers-umapyoi.js（压平后见 30-game-cygames.js）
 //
 // 由 next-sources/parsers/umapyoi.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_umapyoi__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-umapyoi.js —— 赛马娘 日服（第三方 API：api.umapyoi.net）
+// 原 src/client/35-parsers-umapyoi.js（压平后见 30-game-cygames.js） —— 赛马娘 日服（第三方 API：api.umapyoi.net）
 //
 // 契约：async (url, signal, tz) → { banner, roles?, bannerDates, bannerDatesRaw?, startTs?, endTs?, bannerHover? } | null
 //
@@ -11427,7 +11427,7 @@ const ns_umapyoi_toNum = (v) => {
 };
 // ⚠️ 2026-10-03 收敛：本文件原有 `byNewestStart`，与 bestdori/sekai 那两份**是同一概念的第 3 种写法** ——
 //    而且它 `(a.endTs - b.endTs)` **没有 null 守卫**，任一 endTs 为 null 就整条得 NaN、排序未定义。
-//    已统一到 `41-sources-shared.js` 的 `byNewestStart`（带 Infinity 兜底），潜在 bug 一并修掉。
+//    已统一到 `27-parser-text.js` 的 `byNewestStart`（带 Infinity 兜底），潜在 bug 一并修掉。
 
 // 纯函数：夹具/单测可直接喂 JSON（不联网）
 function ns_umapyoi_parseUmapyoiGacha(json, now = nowMs(), tz = "Asia/Tokyo") {
@@ -11992,13 +11992,13 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 		}
 
 		// ══ 以下为原 42-parsers-p5x.js 的内容（原样保留；压平后见 30-game-perfectworld.js）══
-// src/client/35-parsers-p5x.js
+// 原 src/client/35-parsers-p5x.js（压平后见 30-game-perfectworld.js）
 //
 // 由 next-sources/parsers/p5x.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_p5x__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-p5x.js —— P5X 国服（完美世界官方站）
+// 原 src/client/35-parsers-p5x.js（压平后见 30-game-perfectworld.js） —— P5X 国服（完美世界官方站）
 //
 // ⚠️ 调研结论（2026-10-02 / 2026-10-03 实测）
 //   官方站的**卡池/活动专栏已停更两年**：
@@ -12303,13 +12303,13 @@ EVENT_FETCHERS["nte"] = {
 
 
 		// ══ 以下为原 42-parsers-gf2.js 的内容（原样保留；压平后见 30-game-sunborn.js）══
-// src/client/35-parsers-gf2.js
+// 原 src/client/35-parsers-gf2.js（压平后见 30-game-sunborn.js）
 //
 // 由 next-sources/parsers/gf2.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_gf2__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-gf2.js —— 少女前线2：追放 国服（sunborngame 官方 API）
+// 原 src/client/35-parsers-gf2.js（压平后见 30-game-sunborn.js） —— 少女前线2：追放 国服（sunborngame 官方 API）
 //
 // 契约：async (url, signal, tz) → 数据对象 | null（null = 未公布）
 //
@@ -12686,13 +12686,13 @@ async function ns_gf2_eventsGf2(url, signal, tz = ns_gf2_GF2_TZ, now = nowMs()) 
 
 
 		// ══ 以下为原 42-parsers-fgo.js 的内容（原样保留；压平后见 30-game-aniplex.js）══
-// src/client/35-parsers-fgo.js
+// 原 src/client/35-parsers-fgo.js（压平后见 30-game-aniplex.js）
 //
 // 由 next-sources/parsers/fgo.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_fgo__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-fgo.js —— FGO 国服 · fgo.wiki（MediaWiki 1.43.9 + SemanticMediaWiki）
+// 原 src/client/35-parsers-fgo.js（压平后见 30-game-aniplex.js） —— FGO 国服 · fgo.wiki（MediaWiki 1.43.9 + SemanticMediaWiki）
 //
 // 契约：async (url, signal, tz) → 数据对象 | null（null = 未公布）
 //
@@ -12937,7 +12937,7 @@ function ns_fgo_parseFgoEventTable(html, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 }
 
 // ── 抓取器 ──
-// ⚠️ mode 必须与 registry-b3.js 里声明的 "proxy" 一致（fgo.wiki 的 ACAO 为空，不能直连）
+// ⚠️ mode 必须与原 registry-b3.js 里声明的 "proxy" 一致（fgo.wiki 的 ACAO 为空，不能直连）
 async function ns_fgo_fetchPageText(url, signal) {
 	if (!/^https?:\/\//.test(String(url || ""))) throw new Error("fgo-bad-url");
 	return fetchMediaWikiText(url, { referer: ns_fgo_FGO_REFERER, signal, mode: "proxy" });
@@ -13005,13 +13005,13 @@ async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ, now = nowMs()) 
 
 
 		// ══ 以下为原 42-parsers-sekai.js 的内容（原样保留；压平后见 30-game-sega.js）══
-// src/client/35-parsers-sekai.js
+// 原 src/client/35-parsers-sekai.js（压平后见 30-game-sega.js）
 //
 // 由 next-sources/parsers/sekai.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_sekai__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-sekai.js —— PJSK 缤纷舞台（sekai-master-db cn-diff，GitHub Pages 静态 JSON）
+// 原 src/client/35-parsers-sekai.js（压平后见 30-game-sega.js） —— PJSK 缤纷舞台（sekai-master-db cn-diff，GitHub Pages 静态 JSON）
 //
 // 契约：async (url, signal, tz) → 卡池侧 { banner, roles?, bannerDates, bannerDatesRaw?, startTs?, endTs?, bannerHover? }
 //                              活动侧 { event, eventDates, eventDatesRaw?, eventHover? }    （两侧都可为 null = 未公布）
@@ -13061,7 +13061,7 @@ const ns_sekai_DEFAULT_EVENT = "https://gh-proxy.com/https://raw.githubuserconte
 const ns_sekai_LONG_MS = LONG_TERM_MAX_WINDOW_DAYS * 864e5;
 
 // ⚠️ 2026-10-03 收敛：本文件原有 `toTs`（**严格版**：只接受 number，数字字符串返回 null）
-//    与 `byNewestStart`（与 bestdori 那份逐字相同）。均已统一到 `41-sources-shared.js` 的
+//    与 `byNewestStart`（与 bestdori 那份逐字相同）。均已统一到 `27-parser-text.js` 的
 //    `numOrNull` / `byNewestStart`。取宽容版对本源无影响（`gachas.json`/`events.json` 里都是数字），
 //    但若源站哪天改成字符串就能直接吃下，不必再改代码。
 
@@ -13201,13 +13201,13 @@ async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = now
 
 
 		// ══ 以下为原 42-parsers-stellasora.js 的内容（原样保留；压平后见 30-game-yostar.js）══
-// src/client/35-parsers-stellasora.js
+// 原 src/client/35-parsers-stellasora.js（压平后见 30-game-yostar.js）
 //
 // 由 next-sources/parsers/stellasora.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_stellasora__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-stellasora.js —— 星塔旅人 国服（悠星官方 CMS API）
+// 原 src/client/35-parsers-stellasora.js（压平后见 30-game-yostar.js） —— 星塔旅人 国服（悠星官方 CMS API）
 //
 // 来源（2026-10-02 实测「已验证可达」）：
 //   类型目录  GET /api/resource/news-type

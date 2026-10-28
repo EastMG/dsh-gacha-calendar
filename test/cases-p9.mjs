@@ -3,7 +3,7 @@
 //   ② 闪耀优俊少女 国服（biligame 官方公告 API，单一 feed 靠标题分流；卡池 + 活动）
 //   ③ BanG Dream！OurNotes 国际服（BHK 官方公告 API；**默认未配置**，只挂备选源）
 //
-// 四个原则（照 CONVENTIONS.md 与 cases-b1/b3/p6）：
+// 四个原则（照合并前的 CONVENTIONS.md 与 cases-b1/b3/p6）：
 //   ① 全程离线：useFixtures(OVERRIDES) 注入夹具 fetch；纯函数测试直接读 fixtures/*/response.txt。
 //   ② 确定性：「当前时刻」一律用**夹具抓取时刻**（meta.capturedAt）或**显式注入**的 now，
 //      绝不用 Date.now() —— 否则一个月后"当期"变了会假失败。
@@ -159,7 +159,7 @@ export default async function run() {
 			on.altSources[0].url === ournotesGlobalListUrl("zh-tw")
 			&& on.altSources[0].url.includes(`game_base_id=${OURNOTES_GLOBAL_GAME_BASE_ID}`)
 			&& on.altSources[0].url.includes("lang=zh-tw"));
-		// 备选源抓取器登记：本文件导出两张表（registry-extras.js 属别批次文件，Lead 合并）
+		// 备选源抓取器登记：本文件导出两张表（原 registry-extras.js 属别批次文件，Lead 合并）
 		check("EXTRA_GACHA_FETCHERS_P9 登记了 uma-cn-bwiki / ournotes-global-gacha",
 			typeof EXTRA_GACHA_FETCHERS_P9["uma-cn-bwiki"] === "function"
 			&& typeof EXTRA_GACHA_FETCHERS_P9["ournotes-global-gacha"] === "function",

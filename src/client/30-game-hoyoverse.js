@@ -294,13 +294,13 @@
 
 
 		// ══ 以下为原 42-parsers-miyoushe.js 的内容（原样保留；压平后见 30-game-hoyoverse.js）══
-// src/client/35-parsers-miyoushe.js
+// 原 src/client/35-parsers-miyoushe.js（压平后见 30-game-hoyoverse.js）
 //
 // 由 next-sources/parsers/miyoushe.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_miyoushe__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-miyoushe.js —— 米哈游系官方公告（米游社 BBS API）
+// 原 src/client/35-parsers-miyoushe.js（压平后见 30-game-hoyoverse.js） —— 米哈游系官方公告（米游社 BBS API）
 //
 // 覆盖 4 个游戏（gids 实测四个都 200 且返回对应游戏的正确公告）：
 //   1 = 崩坏3 / 2 = 原神 / 6 = 崩坏：星穹铁道 / 8 = 绝区零
@@ -333,7 +333,7 @@
 //      `text_summary` / `brief_structured_content` 全为空，`news_meta` 恒为 **null**
 //      （夹具 p4-{bh3,genshin,hsr,zzz}-news：0/20 条 post.content，news_meta 全 null）。
 //      → **卡池侧必须再抓详情正文**才能拿到档期。这是本解析器"抓列表 → 抓详情 → 从正文抽档期"
-//        两步形态的原因（与 ournotes.js 同形）。
+//        两步形态的原因（与 `30-game-bandori.js` 的 OurNotes 侧同形）。
 //
 //  ✅ **但 type=2（活动）列表有一层被低估的显式字段**（实测发现，任务书原话"该 API 没有显式
 //      档期字段"**只对 type=1 成立**）：每条的 `news_meta` 都带
@@ -467,7 +467,7 @@ const ns_miyoushe_MIYOUSHE_TYPES = { GACHA: 1, EVENT: 2, INFO: 3 };
 const ns_miyoushe_MIYOUSHE_MAX_DETAILS = 5;        // 每侧最多抓几篇正文
 const ns_miyoushe_MIYOUSHE_DETAIL_DELAY_MS = 200;  // 篇间隔（顺序抓，避免把源站打急）
 
-// ⚠️ registry-p4.js 里声明的 url 必须由这两个函数生成，否则离线夹具（map.json 按整串匹配）命中不到。
+// ⚠️ 原 registry-p4.js 里声明的 url 必须由这两个函数生成，否则离线夹具（map.json 按整串匹配）命中不到。
 function ns_miyoushe_miyousheListUrl(gids, type, pageSize = 20) {
 	return `${ns_miyoushe_LIST_BASE}?gids=${gids}&type=${type}&page_size=${pageSize}`;
 }

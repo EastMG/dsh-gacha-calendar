@@ -61,10 +61,10 @@ export default async function run() {
 		}
 		check("闪耀优俊少女国服（uma-cn）只注册卡池侧", !!findSourceB2("uma-cn").gacha && !findSourceB2("uma-cn").event);
 		// ⚠️ uma-jp-bwiki / kedrgame / stellasora-bwiki 三条已**吸收为备选源**（不再独立成条目）：
-		//    uma-jp-bwiki     → registry-p5.js 的 uma-jp.eventAltSources（tz=Asia/Tokyo 硬标注随条目）
-		//    kedrgame         → registry-p6.js 的 kedr.altSources
-		//    stellasora-bwiki → registry-p7.js 的 stellasora.eventAltSources
-		//    备选源的登记与 URL 命中由 all.mjs 的「备选源登记」守卫 + registry-extras.js 统一校验。
+		//    uma-jp-bwiki     → 原 registry-p5.js 的 uma-jp.eventAltSources（tz=Asia/Tokyo 硬标注随条目）
+		//    kedrgame         → 原 registry-p6.js 的 kedr.altSources
+		//    stellasora-bwiki → 原 registry-p7.js 的 stellasora.eventAltSources
+		//    备选源的登记与 URL 命中由 all.mjs 的「备选源登记」守卫 + 原 registry-extras.js 统一校验。
 		check("B2 里不再有已吸收的 3 条（一游戏一条目）",
 			!SOURCES_B2.some((s) => ["uma-jp-bwiki", "kedrgame", "stellasora-bwiki"].includes(s.id)),
 			SOURCES_B2.map((s) => s.id).join(","));
@@ -184,7 +184,7 @@ export default async function run() {
 	//#region ⑤ 赛马娘 日服（bwiki 活动页；已吸收为 uma-jp 的活动备选源）
 	section("⑤ 赛马娘 日服 bwiki 活动页 —— tz=Asia/Tokyo 硬标注");
 	{
-		// ⚠️ 该页已作为 `uma-jp`（registry-p5.js）的 eventAltSources 备选源，不再是 B2 独立条目。
+		// ⚠️ 该页已作为 `uma-jp`（原 registry-p5.js）的 eventAltSources 备选源，不再是 B2 独立条目。
 		//    这里直接用解析器 + 原始 URL 测，等价于原来的经 registry 测试。
 		const UMA_EVENT_URL = "https://wiki.biligame.com/umamusume/api.php?action=parse&page=活动&prop=text&format=json&formatversion=2";
 		const html = await fixtureText(UMA_EVENT_URL);

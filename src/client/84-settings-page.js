@@ -924,7 +924,7 @@
 							(0, react_jsx_runtime.jsx)("input", { type: "checkbox", checked: s.newPanel === true, onChange: (e) => commit("newPanel", e.target.checked) }),
 							(0, react_jsx_runtime.jsx)("span", { style: { fontWeight: 600 }, children: "实验：新「二游日历」面板视图" }),
 						] }),
-						// 每行都 ≤48 字（_copy_verify.mjs 有「设置页每条文案 ≤ 48 字」的硬门禁）
+						// 每行都 ≤48 字（设置页文案的统一约束）
 						(0, react_jsx_runtime.jsxs)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 11, lineHeight: 1.6 }, children: [
 							(0, react_jsx_runtime.jsx)("div", { children: "实验性新版UI，开发中" })
 						] })

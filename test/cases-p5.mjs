@@ -1,6 +1,6 @@
 // next-sources/test/cases-p5.mjs —— 批次 P5 离线夹具测试（赛马娘官方公告：日服 / 国际服）
 //
-// 三个原则（照 CONVENTIONS.md）：
+// 三个原则（照合并前的 CONVENTIONS.md）：
 //   ① 全程离线：`useFixtures({...})` 注入夹具 fetch；纯函数测试直接读 fixtures/*/response.txt。
 //   ② 确定性：「当前时刻」一律用**夹具抓取时刻**（response.txt.meta.json 的 capturedAt）当 now，
 //      不随运行日期漂移（否则一个月后"当期卡池"就变了 → 假失败）。
@@ -513,7 +513,7 @@ export default async function run() {
 			JSON.stringify(rNow.ok && rNow.data && Object.keys(rNow.data)));
 	}
 
-	// run.mjs/all.mjs 会调用 summary()；直接 `node test/cases-p5.mjs` 时也自报结果
+	// `test/run.mjs` / `test/all.mjs` 会调用 summary()；直接 `node test/cases-p5.mjs` 时也自报结果
 	if (process.argv[1] && process.argv[1].endsWith("cases-p5.mjs")) summary();
 }
 

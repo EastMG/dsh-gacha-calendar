@@ -181,18 +181,18 @@ const CSS_ORDER = [
   "schedule-foot.css"      // 新面板：刷新失败条 / 底栏 / 搜索 / 字体规范 / 留白卡
 ];
 
-// 第二个产物：dist/core.mjs —— 独立、零依赖的 ESM 模块，供浏览器扩展 / Windows / 原生平台 import。
+// 第二个产物：packages/core/core.mjs —— 独立、零依赖的 ESM 模块，供浏览器扩展 / Windows / 原生平台 import。
 // 组装方式：共用部分（配置 / 来源表 / helpers）放模块顶层；core 主体（15/30/40/50 + 引擎外壳）
 // 包进 `export function createEngine(env) { … }` —— 同一个函数体，与 DSH 产物同源。
 // 注：engine-head.js 里那一行 `function createEngine(env) {` 会被加上 `export ` 前缀（见下）。
 //
-// ⚠️ 2026-10-03（用户选方案 C2）：把 10 个 `42-parsers-*.js` 也纳入 core，**core 因此从
-//   「内置 11 款」变成「全部 28 款」**，`43-sources-register.js` 也并进了 `40-fetchers.js`
+// ⚠️ 2026-10-03（用户选方案 C2）：把当时 10 个 `42-parsers-*.js`（压平后为 28 个 `30-game-*.js`）纳入 core，**core 因此从
+//   「内置 11 款」变成「全部 28 款」**，`43-sources-register.js` 的内容并进了 `29-parser-register.js`
 //   （它本来就得在两张表声明之后跑）。
-//   这带来一条**必须记住的约束**：`20-sources.js`（含 `SOURCES` 数组）在 core 里位于**模块顶层**，
-//   而 `40-fetchers.js` 在 **`createEngine` 内** → 后者每建一个引擎就重跑一次。
-//   因此 `40` 里对 `SOURCES` 的写操作**必须全部幂等**（现状：按 id 找到就覆盖 / 按 fetcher 去重 /
-//   bh3 那处有 `some()` 守卫）。往 `40` 里再加"push 一条来源"时务必同样处理，否则多建几个引擎就会堆叠。
+//   这带来一条**必须记住的约束**：`20-source-core.js`（含 `SOURCES` 数组）在 core 里位于**模块顶层**，
+//   而 `22-fetcher-core.js` 在 **`createEngine` 内** → 后者每建一个引擎就重跑一次。
+//   因此 `22-fetcher-core.js` 里对 `SOURCES` 的写操作**必须全部幂等**（现状：按 id 找到就覆盖 / 按 fetcher 去重 /
+//   bh3 那处有 `some()` 守卫）。往这里再加"push 一条来源"时务必同样处理，否则多建几个引擎就会堆叠。
 //   回归守卫：`test/cases-core.mjs`（建两次引擎，断言 SOURCES 不增长）。
 const CORE_ORDER = [
   "05-version.js",             // 插件版本号（占位符，由本脚本注入）

@@ -1,13 +1,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-kedr-wiki.js（压平后见 30-game-bwiki-kedr-wiki.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-kedr-wiki.js
+// 原 src/client/35-parsers-kedr-wiki.js（压平后见 30-game-bwiki-kedr-wiki.js）
 //
 // 由 next-sources/parsers/kedr-wiki.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_kedr-wiki__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-kedr-wiki.js —— 雪松（bwiki 社区结构化页 `往期动员【常驻】—1.0.0—`）
+// 原 src/client/35-parsers-kedr-wiki.js（压平后见 30-game-bwiki-kedr-wiki.js） —— 雪松（bwiki 社区结构化页 `往期动员【常驻】—1.0.0—`）
 //
 // 契约：async (url, signal, tz, now = nowMs()) → { banner, roles, bannerDates, bannerDatesRaw, startTs, endTs, bannerHover } | null
 //
@@ -58,8 +58,8 @@ const ns_kedr_wiki_KEDR_ARCHIVE_PAGE = "往期动员【常驻】—1.0.0—";
 // 推测：国服 UTC+8（源站未标注；旁证见文件头）
 const ns_kedr_wiki_KEDR_TZ = "Asia/Shanghai";
 
-// ⚠️ 页名必须 encodeURIComponent 后再拼（与 fgo.js 的 fgoParseUrl 同做法）：
-//    registry-p6.js 里的 URL 必须用这同一个函数构造，否则离线夹具（test/map.json 的整串键）命中不到。
+// ⚠️ 页名必须 encodeURIComponent 后再拼（与 `30-game-aniplex.js` 的 `fgoParseUrl` 同做法）：
+//    原 registry-p6.js 里的 URL 必须用这同一个函数构造，否则离线夹具（test/map.json 的整串键）命中不到。
 function ns_kedr_wiki_kedrParseUrl(page) {
 	return `${ns_kedr_wiki_KEDR_API}?action=parse&page=${encodeURIComponent(page)}&prop=text&format=json&formatversion=2`;
 }
@@ -121,7 +121,7 @@ function ns_kedr_wiki_kedrRoles(sectionHtml) {
 }
 
 // 页面 HTML → { sectionTitles, items:[{section,pools,roles,startTs,endTs,raw}], skipped }
-//   结构性损坏（没有任何小节）→ 抛错（该侧算抓取失败），与 bwiki.js 的 no-table 同口径。
+//   结构性损坏（没有任何小节）→ 抛错（该侧算抓取失败），与 `30-game-bwiki-common.js` 的 no-table 同口径。
 function ns_kedr_wiki_parseKedrArchive(html, tz = ns_kedr_wiki_KEDR_TZ) {
 	const sections = ns_kedr_wiki_kedrSections(html);
 	if (sections.length === 0) throw new Error("kedr-wiki:no-section");

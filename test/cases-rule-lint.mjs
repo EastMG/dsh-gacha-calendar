@@ -1,4 +1,4 @@
-// test/cases-hover-lint.mjs —— 悬停规则静态守卫（方案 A）
+// test/cases-rule-lint.mjs —— 悬停规则静态守卫（方案 A）
 //
 // ── 为什么需要它 ──
 // 2026-10-03 的方案 A（悬停统一走 hoverPool/hoverEvent、元信息彻底删掉）只审计了**主源**，

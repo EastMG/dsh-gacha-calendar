@@ -2,7 +2,7 @@
 //   ① 嘟嘟脸恶作剧 国服（biligame 官方公告 API：列表 + 详情正文抽档期，源站自标 (UTC+9)）
 //   ② 雪松（bwiki 社区结构化页 `往期动员【常驻】—1.0.0—`）
 //
-// 四个原则（照 CONVENTIONS.md 与 cases-b1/b3）：
+// 四个原则（照合并前的 CONVENTIONS.md 与 cases-b1/b3）：
 //   ① 全程离线：useFixtures(OVERRIDES) 注入夹具 fetch；纯函数测试直接读 fixtures/*.txt。
 //   ② 确定性：「当前时刻」一律用**夹具抓取时刻**（meta.capturedAt）或**显式注入的 now**，
 //      绝不用 Date.now() —— 否则一个月后"当期"变了会**假失败**。
@@ -69,7 +69,7 @@ export default async function run() {
 		check("SOURCES_P6 有 2 条", SOURCES_P6.length === 2, String(SOURCES_P6.length));
 		check("id = [ddlezj, kedr]（kedr 吸收原 bwiki 卡池信息为备选源）",
 			JSON.stringify(listIdsP6()) === JSON.stringify(["ddlezj", "kedr"]), listIdsP6().join(","));
-		// ⚠️ B2 已占用 id `kedrgame`（registry.js 对重复 id 直接抛错）→ 本批必须用别的 id
+		// ⚠️ B2 已占用 id `kedrgame`（原 registry.js 对重复 id 直接抛错）→ 本批必须用别的 id
 		check("id 不叫 kedrgame（避免与 B2 的雪松卡池来源撞 id）", !listIdsP6().includes("kedrgame"), listIdsP6().join(","));
 		for (const s of SOURCES_P6) {
 			check(`P6 ${s.id} 声明 tz`, typeof s.tz === "string" && s.tz.length > 0, String(s.tz));

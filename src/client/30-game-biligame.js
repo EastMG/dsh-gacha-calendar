@@ -23,18 +23,18 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-biligame-announce.js（压平后见 30-game-biligame.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-biligame-announce.js
+// 原 src/client/35-parsers-biligame-announce.js（压平后见 30-game-biligame.js）
 //
 // 由 next-sources/parsers/biligame-announce.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_biligame-announce__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-biligame-announce.js —— 嘟嘟脸恶作剧 国服（biligame 官方公告 API）
+// 原 src/client/35-parsers-biligame-announce.js（压平后见 30-game-biligame.js） —— 嘟嘟脸恶作剧 国服（biligame 官方公告 API）
 //
 // 契约：async (url, signal, tz, now = nowMs()) → 数据对象 | null（null = 未公布）
 //   · 卡池侧：{ banner, roles, bannerDates, bannerDatesRaw, startTs, endTs, bannerHover }
 //   · 活动侧：{ event, eventDates, eventDatesRaw, eventHover }
-//   两侧都读**同一份官方公告**（同 bandori.js：一份公告里既有活动档期也有招募档期）。
+//   两侧都读**同一份官方公告**（同 `30-game-bandori.js`：一份公告里既有活动档期也有招募档期）。
 //
 // ══ 实测形态（2026-10-02 抓夹具：fixtures/p6-ddlezj-list、fixtures/p6-ddlezj-detail）══
 // 列表：GET https://api.biligame.com/news/list?gameExtensionId=1282&positionId=2&typeId=1&pageNum=1&pageSize=50
@@ -193,7 +193,7 @@ function ns_biligame_announce_pickTitle(prefix, fallback) {
 	}
 	return String(fallback || "").trim();
 }
-// 招募/扭蛋 = 卡池侧；其余 = 活动侧（与 bandori.js 的 GACHA_SEC_RE 同口径）
+// 招募/扭蛋 = 卡池侧；其余 = 活动侧（与 `30-game-bandori.js` 的 `GACHA_SEC_RE` 同口径）
 const ns_biligame_announce_GACHA_RE = /招募|扭蛋|卡池|精选/;
 
 // 正文 HTML → { items:[{name,label,startTs,endTs,suffix,raw,kind}], skippedNoTime:[…] }
@@ -352,13 +352,13 @@ async function ns_biligame_announce_eventsDdlezj(url, signal, tz = ns_biligame_a
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-biligame-activity.js（压平后见 30-game-biligame.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-biligame-activity.js
+// 原 src/client/35-parsers-biligame-activity.js（压平后见 30-game-biligame.js）
 //
 // 由 next-sources/parsers/biligame-activity.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_biligame-activity__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-biligame-activity.js —— biligame 官方公告（活动/卡池档期）
+// 原 src/client/35-parsers-biligame-activity.js（压平后见 30-game-biligame.js） —— biligame 官方公告（活动/卡池档期）
 //
 // 契约：async (url, signal, tz, now = nowMs()) → 数据对象 | null（null = 未公布）
 //   · 活动侧：{ event, eventDates, eventDatesRaw, eventHover? }        （eventHover 缺省 = 当期只有 1 条）
@@ -381,14 +381,14 @@ async function ns_biligame_announce_eventsDdlezj(url, signal, tz = ns_biligame_a
 //       `parse*` 的返回字段里（供测试与排障），**不搬到别处、不写进别的字段**。
 //       ⚠️ 例外：`bannerDatesRaw` / `eventDatesRaw` 照既有约定**保留源站原文**（本体也有条目这么做）。
 //
-// ── 为什么不再 import `biligame-announce.js`（P6 嘟嘟脸，同形态）─────────────
+// ── 为什么不再 import `biligame-announce.js`（原 next-sources 的嘟嘟脸解析器，已并入本文件；P6 嘟嘟脸，同形态）─────────────
 //   思路/函数确实同源（列表 → 逐条详情 → 正文抽档期 → 挑覆盖 now 的窗口 → 抽不到就 null），
 //   但历史上跨解析器 import 会被合并器的命名空间隔离打断（它给本文件的**声明**加 `ns_<file>_`
 //   前缀，却不重命名"从别的解析器 import 进来的名字"）→ 生成物里会变成 `… is not defined`。
 //   所以当时两个文件各自抄了一份 `decodeExtra` + 实体表。
 //   ⚠️ 2026-10-03 更新：压平成 `src/client/` 普通源码段后**不再有命名空间合并器**，
 //   而那两份 `ENT_EXTRA` / `decodeExtra` / `plain` **函数体逐字节相同、表互为子集** ——
-//   已统一到 `41-sources-shared.js` 的 `decodeExtra` / `htmlText` / `htmlTextTight`（并集表）。
+//   已统一到 `27-parser-text.js` 的 `decodeExtra` / `htmlText` / `htmlTextTight`（并集表）。
 //   本条历史记录保留，因为"跨文件同名/同源"这个坑值得记住。
 //
 // ══ 接口实测形态（2026-10-02 抓夹具）════════════════════════════════════════

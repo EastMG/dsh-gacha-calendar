@@ -9,13 +9,13 @@
 
 
 		// ══ 以下为原 42-parsers-sekai.js 的内容（原样保留；压平后见 30-game-sega.js）══
-// src/client/35-parsers-sekai.js
+// 原 src/client/35-parsers-sekai.js（压平后见 30-game-sega.js）
 //
 // 由 next-sources/parsers/sekai.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_sekai__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-sekai.js —— PJSK 缤纷舞台（sekai-master-db cn-diff，GitHub Pages 静态 JSON）
+// 原 src/client/35-parsers-sekai.js（压平后见 30-game-sega.js） —— PJSK 缤纷舞台（sekai-master-db cn-diff，GitHub Pages 静态 JSON）
 //
 // 契约：async (url, signal, tz) → 卡池侧 { banner, roles?, bannerDates, bannerDatesRaw?, startTs?, endTs?, bannerHover? }
 //                              活动侧 { event, eventDates, eventDatesRaw?, eventHover? }    （两侧都可为 null = 未公布）
@@ -65,7 +65,7 @@ const ns_sekai_DEFAULT_EVENT = "https://gh-proxy.com/https://raw.githubuserconte
 const ns_sekai_LONG_MS = LONG_TERM_MAX_WINDOW_DAYS * 864e5;
 
 // ⚠️ 2026-10-03 收敛：本文件原有 `toTs`（**严格版**：只接受 number，数字字符串返回 null）
-//    与 `byNewestStart`（与 bestdori 那份逐字相同）。均已统一到 `41-sources-shared.js` 的
+//    与 `byNewestStart`（与 bestdori 那份逐字相同）。均已统一到 `27-parser-text.js` 的
 //    `numOrNull` / `byNewestStart`。取宽容版对本源无影响（`gachas.json`/`events.json` 里都是数字），
 //    但若源站哪天改成字符串就能直接吃下，不必再改代码。
 

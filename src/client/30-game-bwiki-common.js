@@ -24,13 +24,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-bwiki.js（压平后见 30-game-bwiki-common.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-bwiki.js
+// 原 src/client/35-parsers-bwiki.js（压平后见 30-game-bwiki-common.js）
 //
 // 由 next-sources/parsers/bwiki.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_bwiki__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-bwiki.js —— 批次 B2：bwiki（MediaWiki api.php）来源
+// 原 src/client/35-parsers-bwiki.js（压平后见 30-game-bwiki-common.js） —— 批次 B2：bwiki（MediaWiki api.php）来源
 //
 // 统一抓取形态（**全部 mode:"proxy"**，2026-10-02 实测 bwiki 全系 ACAO 为空）：
 //   https://wiki.biligame.com/<wiki>/api.php?action=parse&page=<页面名URL编码>&prop=text&format=json&formatversion=2
@@ -50,7 +50,7 @@
 //   czn 卡厄斯梦境   卡池记录         只有「模板:Gacha」链接，空页   —                    ❌ 无内容
 //   stellasora 星塔  首页             活动日历 2 项（JS 计算剩余时间） 2026-04-07 止     ❌ 停更 + 无名
 //   ⇒ 另外 6 侧在"当期"判定下**如实返回 null**（源站抓到页面但当期没有内容），
-//     而不是硬凑一个过期档期。逐条都在这份注释与 registry-b2.js 里写明。
+//     而不是硬凑一个过期档期。逐条都在这份注释与原 `registry-b2.js` 里写明。
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // 「当期」判定沿用插件本体 `src/client/30-parsers.js` 的 bwiki 语义（压平后分见 26-parser-hover.js / 22-fetcher-core.js：bwikiGachaPayload /

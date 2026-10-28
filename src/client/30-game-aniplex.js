@@ -9,13 +9,13 @@
 
 
 		// ══ 以下为原 42-parsers-fgo.js 的内容（原样保留；压平后见 30-game-aniplex.js）══
-// src/client/35-parsers-fgo.js
+// 原 src/client/35-parsers-fgo.js（压平后见 30-game-aniplex.js）
 //
 // 由 next-sources/parsers/fgo.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_fgo__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-fgo.js —— FGO 国服 · fgo.wiki（MediaWiki 1.43.9 + SemanticMediaWiki）
+// 原 src/client/35-parsers-fgo.js（压平后见 30-game-aniplex.js） —— FGO 国服 · fgo.wiki（MediaWiki 1.43.9 + SemanticMediaWiki）
 //
 // 契约：async (url, signal, tz) → 数据对象 | null（null = 未公布）
 //
@@ -260,7 +260,7 @@ function ns_fgo_parseFgoEventTable(html, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 }
 
 // ── 抓取器 ──
-// ⚠️ mode 必须与 registry-b3.js 里声明的 "proxy" 一致（fgo.wiki 的 ACAO 为空，不能直连）
+// ⚠️ mode 必须与原 registry-b3.js 里声明的 "proxy" 一致（fgo.wiki 的 ACAO 为空，不能直连）
 async function ns_fgo_fetchPageText(url, signal) {
 	if (!/^https?:\/\//.test(String(url || ""))) throw new Error("fgo-bad-url");
 	return fetchMediaWikiText(url, { referer: ns_fgo_FGO_REFERER, signal, mode: "proxy" });

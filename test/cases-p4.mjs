@@ -1,6 +1,6 @@
 // next-sources/test/cases-p4.mjs —— 批次 P4 离线夹具测试（米哈游系官方公告 / 米游社 BBS API）
 //
-// 三个原则（照 CONVENTIONS.md）：
+// 三个原则（照合并前的 CONVENTIONS.md）：
 //   ① 全程离线：`useFixtures()` 注入夹具 fetch；纯函数测试直接读 fixtures/p4-*/response.txt。
 //   ② 确定性：「当前时刻」一律用**夹具抓取时刻**（response.txt.meta.json 的 capturedAt）当 now，
 //      不随运行日期漂移（否则一个月后"当期"变了会假失败）。抓取器的 now 是**第 4 个参数**。

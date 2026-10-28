@@ -1,20 +1,20 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-bwiki-wikitext.js（压平后见 30-game-bwiki-wikitext-common.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-bwiki-wikitext.js
+// 原 src/client/35-parsers-bwiki-wikitext.js（压平后见 30-game-bwiki-wikitext-common.js）
 //
 // 由 next-sources/parsers/bwiki-wikitext.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_bwiki-wikitext__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-bwiki-wikitext.js —— 批次 P8：三个 bwiki 来源的**wikitext 形态**解析器
+// 原 src/client/35-parsers-bwiki-wikitext.js（压平后见 30-game-bwiki-wikitext-common.js） —— 批次 P8：三个 bwiki 来源的**wikitext 形态**解析器
 //
-// 本文件只装 P8 的三个来源（**不动** parsers/bwiki.js —— 那是 B2 的 `prop=text` HTML 形态）：
+// 本文件只装 P8 的三个来源（**不动** `30-game-bwiki-common.js` —— 那是 B2 的 `prop=text` HTML 形态）：
 //   ① 战双帕弥什 zspms   —— 两步：SMW `action=ask` 索引 → 取最新「版本更新公告」→ `prop=wikitext` 正文
 //   ② 卡厄斯梦境 czn     —— 一步：`Module:Gacha/data` 的 **Lua 表**（`prop=wikitext`）
 //   ③ 雪松 kedrgame      —— 一步：`Template:首页游戏版本内容` 的 **模板调用**（`prop=wikitext`）
 //
-// 契约（与 CONVENTIONS.md / 插件 40-fetchers.js 完全一致）：
+// 契约（与合并前的 CONVENTIONS.md / 插件 `22-fetcher-core.js` 完全一致）：
 //   async (url, signal, tz, now = nowMs()) → 数据对象 | null
 //     · 卡池侧 { banner, roles, bannerDates, bannerDatesRaw, startTs, endTs, bannerHover }
 //     · 活动侧 { event, eventDates, eventDatesRaw, eventHover }
@@ -40,7 +40,7 @@
 //   故记"推测"，注册表注释里同样标注。
 //
 // ══ 「版本更新后」这类**相对起点**的锚点策略（重要，与任务书略有出入，理由在此）══
-//   stellasora.js 的先例：相对起点没有绝对时刻 → 用**该公告的发布时间**当锚点 + 标 `startInferred: true`。
+//   `30-game-yostar.js` 的先例：相对起点没有绝对时刻 → 用**该公告的发布时间**当锚点 + 标 `startInferred: true`。
 //   本文件沿用该精神（相对起点必须有据可依的锚点、必须标 inferred、绝不假造时刻），但锚点优先级更细：
 //     ① 源站**自己写明的停服维护窗口**的结束时刻（`…将于2026年9月24日05:00 - 11:00进行"远信回响"版本更新的停服维护`）
 //        —— "版本更新后"就是维护结束之后，这是**源站原文给的绝对锚点**，比公告发布日期精确 2 天；
@@ -108,7 +108,7 @@ function ns_bwiki_wikitext_poolItem(x) {
 function ns_bwiki_wikitext_eventItem(x, nameOf) {
 	return { name: nameOf(x), startTs: x.startTs, endTs: x.endTs, raw: x.raw || "" };
 }
-// 卡池侧载荷。cmp 决定"外显"优先序；默认 = 结束最早优先（越快结束越该盯住，与 bwiki.js 同口径）。
+// 卡池侧载荷。cmp 决定"外显"优先序；默认 = 结束最早优先（越快结束越该盯住，与 `30-game-bwiki-common.js` 同口径）。
 // 悬停一律走共用 `hoverPool`：≥2 池 → 每池「池名：角色」行 + 档期行（窗口全同则只写一次档期）；
 // **<2 池 → 不设 bannerHover**（交回 UI 的「banner：roles」⏎「档期」两行式兜底，与本体约定一致）。
 function ns_bwiki_wikitext_gachaPayload(items, tz, now, opts = {}) {

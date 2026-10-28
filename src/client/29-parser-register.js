@@ -22,8 +22,8 @@
 		}
 
 
-		// 经 host 代理抓取文本 / JSON 两个函数的**实现**已移到外壳（92-dsh-env.js），
-		// core 侧只在 15-env.js 保留同名薄封装（转调 coreEnv.transport）——这是 core 零宿主依赖的接缝之一。
+		// 经 host 代理抓取文本 / JSON 两个函数的**实现**已移到外壳（92-dsh-env.js 的 transport.fetchViaProxy），
+		// core 侧只在 15-env.js 保留 `proxyFetchText` / `proxyFetchJson` 两个薄封装（转调 coreEnv.transport）——这是 core 零宿主依赖的接缝之一。
 
 		// 解析繁体时间段："8月18日(二)維護後 ~ 9月1日(二)上午9點59分"
 		// 跨年（如 12月30日 ~ 1月5日）：结束月份小于开始月份 → 结束端按"下一年"解析；
@@ -89,7 +89,7 @@
 		//    符号名与实现**一律未改**，原文件头保留在下面。
 		// ═══════════════════════════════════════════════════════════════════════════
 
-// src/client/43-sources-register.js —— 新增来源的「条目声明 + 抓取器登记」
+// 原 src/client/43-sources-register.js —— 新增来源的「条目声明 + 抓取器登记」（原文件头，压平后见 29-parser-register.js）
 //
 // 三件事：
 //   ① 把 **17 条**新增来源追加进 `SOURCES`（16 条在 `NS_SOURCES` + 1 条 `bh3` 单独 push）
@@ -97,13 +97,13 @@
 //   ③ 登记备选源抓取器，并把「米游社公告」挂成既有条目（原神/星铁/绝区零）的备选源 + 新建 `bh3`
 //
 // ⚠️ 数字口径（2026-10-03 核实，原文写的是「20 条」—— 不对）：
-//   `20-sources.js` 内置 **11** 条 + 本文件 **17** 条 = 最终 `SOURCES` **28** 条。
+//   `20-source-core.js` 内置 **11** 条 + 本文件 **17** 条 = 最终 `SOURCES` **28** 条。
 //   合并规则见下方 `for (const s of NS_SOURCES)`：**按 id 找，命中就 `Object.assign` 覆盖、否则 push**。
 //   那条"覆盖"分支当前**不会触发**（现存 17 条与内置 11 条无一重名），它是留给
 //   "新增来源要接管某条内置条目"的升级路径 —— 历史上 `wuhuamixin` / `uma-cn` 的默认源
 //   就从 bwiki 换成了 biligame 官方公告，靠的正是它。**别因为"跑不到"就删掉。**
 //
-// 位置说明：本文件排在 `40-fetchers.js` **之后**（ORDER），因为它要往那两张表里登记、往 SOURCES 里追加。
+// 位置说明：本文件排在 `22-fetcher-core.js` **之后**（ORDER），因为它要往那两张表里登记、往 SOURCES 里追加。
 //
 // 历史沿革：内容原为生成物 `src/client/45-next-sources.js` 的尾部（由 `next-sources/registry*.js` 生成）。
 // 2026-10-03 用户要求「把 next-sources 合并进原 source，不留 next-source」后压平为普通源码，
@@ -149,7 +149,7 @@
 			// ⚠️ 幂等（2026-10-03 为「43 并入 40 进 core」而补）：
 			//    这一段在 core 产物里位于 `createEngine` **内部**，每次新建引擎都会重跑；
 			//    而 `SOURCES` 是**模块级**共享的 → 直接 push 会让 bh3 越堆越多
-			//    （`_core_engine_test.mjs` 就建了两个引擎，会立刻暴露）。
+			//    （`test/cases-core.mjs` 就建了两个引擎，会立刻暴露）。
 			//    本文件其余写操作本来就是幂等的：上面 `NS_SOURCES` 是"按 id 找到就覆盖"、
 			//    备选源挂接是"按 fetcher 去重"，只有这处 push 不是。
 

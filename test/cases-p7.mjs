@@ -1,6 +1,6 @@
 // next-sources/test/cases-p7.mjs —— 批次 P7 离线夹具测试（星塔旅人 国服）
 //
-// 三个原则（照 CONVENTIONS.md）：
+// 三个原则（照合并前的 CONVENTIONS.md）：
 //   ① 全程离线：用 `useFixtures()` 注入夹具 fetch；纯函数测试直接读 fixtures/*.txt
 //   ② 确定性：所有"当期"断言都用**夹具抓取时刻**（meta.capturedAt）当 now，不随运行日期漂移
 //   ③ 不拖垮共享 runner：抓取器调用都包 try/catch，失败只记 ✗，不抛出去中断别的批次

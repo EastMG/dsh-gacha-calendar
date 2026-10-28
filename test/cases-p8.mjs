@@ -3,7 +3,7 @@
 //   ② 卡厄斯梦境（`Module:Gacha/data` 的 Lua 表）
 //   ③ 雪松（`Template:首页游戏版本内容` 的 `{{时间进度条}}` 模板调用）
 //
-// 六条原则（照 CONVENTIONS.md 与 cases-b1/b3/p6）：
+// 六条原则（照合并前的 CONVENTIONS.md 与 cases-b1/b3/p6）：
 //   ① 全程离线：`useFixtures(OVERRIDES)` 注入夹具 fetch；纯函数测试直接读 fixtures/*/response.txt。
 //   ② 确定性：「当前时刻」一律用**夹具抓取时刻**（meta.capturedAt）或**显式注入的 now**，
 //      绝不用 Date.now() —— 否则一个月后"当期"变了会**假失败**。

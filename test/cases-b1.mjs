@@ -1,6 +1,6 @@
 // next-sources/test/cases-b1.mjs —— 批次 B1 离线夹具测试（umapyoi / Bestdori / sekai）
 //
-// 三个原则（照 CONVENTIONS.md）：
+// 三个原则（照合并前的 CONVENTIONS.md）：
 //   ① 全程离线：用 `useFixtures()` 注入夹具 fetch；纯函数测试直接读 fixtures/*.txt，连 fetch 都不碰。
 //   ② 确定性：所有"当期"断言都用**夹具抓取时刻**（meta.capturedAt）当 now，不随运行日期漂移
 //      （否则一个月后"当期卡池"变了，测试会假失败）。抓取器把 now 作为第 4 个参数传入。
@@ -66,12 +66,12 @@ export default async function run() {
 			}
 		}
 		// 调研实测：只有 api.umapyoi.net / sekai-world.github.io 可直连，bestdori 必须走代理
-		// ⚠️ uma-jp-umapyoi / bandori-bestdori 已**吸收为备选源**（分别为 registry-p5.js 的 uma-jp.altSources
-		//    与 registry-b3.js 的 bandori.altSources/eventAltSources）；它们的 direct/proxy 取值
+		// ⚠️ uma-jp-umapyoi / bandori-bestdori 已**吸收为备选源**（分别为原 registry-p5.js 的 uma-jp.altSources
+		//    与原 registry-b3.js 的 bandori.altSources/eventAltSources）；它们的 direct/proxy 取值
 		//    改由 all.mjs 的「备选源登记」守卫与各条目自己的 registry 校验。
 		check("sekai 用 direct（GitHub Pages 静态资源）",
 			findSource("pjsk").gacha.mode === "direct" && findSource("pjsk").event.mode === "direct");
-		// umapyoi 已作为 uma-jp 的**卡池备选源**；它本身仍只有卡池侧（由 registry-extras.js 单侧登记）
+		// umapyoi 已作为 uma-jp 的**卡池备选源**；它本身仍只有卡池侧（由原 registry-extras.js 单侧登记）
 		// 共享 test/map.json 必须能查到本批次 5 个 URL（否则合并进 run.mjs 后 useFixtures() 会 404）
 		const map = JSON.parse(readFileSync(new URL("./map.json", import.meta.url), "utf8"));
 		for (const url of Object.keys(B1_FIXTURE_URLS)) {

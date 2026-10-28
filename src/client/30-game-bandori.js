@@ -25,13 +25,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-bandori.js（压平后见 30-game-bandori.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-bandori.js
+// 原 src/client/35-parsers-bandori.js（压平后见 30-game-bandori.js）
 //
 // 由 next-sources/parsers/bandori.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_bandori__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-bandori.js —— BanG Dream! 少女乐团派对 国服（biligame 官方公告 API）
+// 原 src/client/35-parsers-bandori.js（压平后见 30-game-bandori.js） —— BanG Dream! 少女乐团派对 国服（biligame 官方公告 API）
 //
 // 契约：async (url, signal, tz) → 数据对象 | null（null = 未公布）
 //
@@ -346,13 +346,13 @@ async function ns_bandori_eventsBandori(url, signal, tz = ns_bandori_BANDORI_TZ,
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-ournotes.js（压平后见 30-game-bandori.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-ournotes.js
+// 原 src/client/35-parsers-ournotes.js（压平后见 30-game-bandori.js）
 //
 // 由 next-sources/parsers/ournotes.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_ournotes__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-ournotes.js —— BanG Dream! OurNotes 日服（bushimo 官方 WordPress REST）
+// 原 src/client/35-parsers-ournotes.js（压平后见 30-game-bandori.js） —— BanG Dream! OurNotes 日服（bushimo 官方 WordPress REST）
 //
 // 契约：async (url, signal, tz) → { event, eventDates, eventDatesRaw?, eventHover? } | null
 //   本来源**只有活动/公告侧单侧**（没有卡池专用源）——按任务书只写 event 侧。
@@ -542,13 +542,13 @@ async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-ournotes-global.js（压平后见 30-game-bandori.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-ournotes-global.js
+// 原 src/client/35-parsers-ournotes-global.js（压平后见 30-game-bandori.js）
 //
 // 由 next-sources/parsers/ournotes-global.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_ournotes-global__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-ournotes-global.js —— BanG Dream！OurNotes **国际服**（BHK 发行）
+// 原 src/client/35-parsers-ournotes-global.js（压平后见 30-game-bandori.js） —— BanG Dream！OurNotes **国际服**（BHK 发行）
 //
 // 契约：async (url, signal, tz, now = nowMs()) → 数据对象 | null（null = 未公布）
 //   · 活动侧：{ event, eventDates, eventDatesRaw, eventHover }
@@ -556,7 +556,7 @@ async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES
 //   两侧读**同一份公告 feed**（与国际服一致：一份公告里既有招募也有活动），靠标题分流。
 //
 // ══ 条目形态：**默认未配置**（只挂备选源，不给 url/eventUrl）════════════════
-//   本条目在 registry-p9.js 里**没有** `url` / `eventUrl`，只有 `altSources` / `eventAltSources`。
+//   本条目在原 registry-p9.js 里**没有** `url` / `eventUrl`，只有 `altSources` / `eventAltSources`。
 //   插件 50-refresh.js 的语义是 `if (!source.url && !source.eventUrl) → skipped`：
 //   不抓取、不计成功也不计失败，UI 显示「未配置（不抓取卡池/活动）」；用户在设置页选「BHK官方公告」
 //   才会真正抓取。与米游社那套「崩坏3 新建条目、默认未配置」完全同型（见 45-next-sources.js）。
@@ -586,7 +586,7 @@ async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES
 //   绝对时刻走 `sourceInstant(...)`，文本走 `fmtWindow(...)`。
 //
 // ══ 合并器注意 ══
-//   与 biligame-activity.js 同理：本文件**不 import 其它解析器**（合并器按文件命名空间隔离、
+//   与 `30-game-biligame.js` 的活动侧同理：本文件**不 import 其它解析器**（合并器按文件命名空间隔离、
 //   不会重命名跨文件 import 的名字），只 import lib/env.js（压平后见 28-parser-hover-tools.js）。逻辑与 uma 的正文抽档期同源但自带一份。
 
 
@@ -723,7 +723,7 @@ const ns_ournotes_global_TOK_RE = new RegExp([
 	"(?<sep>[~\uff5e\u301c\u223c至到]|\\s[-\\u2013\\u2014\\uff0d]\\s|[-\\u2013\\u2014\\uff0d])",
 	"(?<perm>常驻|常駐|永久|常設|長期)"
 ].join("|"), "g");
-// ⚠️ 2026-10-03：此处原有本地 `yearOf`（补年份）—— 与 `biligame-activity.js` 那份**逐字相同**，
+// ⚠️ 2026-10-03：此处原有本地 `yearOf`（补年份）—— 与 `30-game-biligame.js` 的活动侧那份**逐字相同**，
 //    已统一到 `30-parsers.js` 的共用 `inferYear(y, mo, hint)`（压平后见 25-parser-order.js）。
 // 一段文本 → { norm, windows:[{ startTs, endTs, raw, glued }], skipped }
 function ns_ournotes_global_extractOurNotesGlobalWindows(text, tz = ns_ournotes_global_OURNOTES_GLOBAL_TZ, yearHint = null) {
@@ -882,13 +882,13 @@ async function ns_ournotes_global_eventsOurNotesGlobal(url, signal, tz = ns_ourn
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-bestdori.js（压平后见 30-game-bandori.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-bestdori.js
+// 原 src/client/35-parsers-bestdori.js（压平后见 30-game-bandori.js）
 //
 // 由 next-sources/parsers/bestdori.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_bestdori__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-bestdori.js —— BanG Dream!（Bestdori 社区数据库，取**简中服**时间段）
+// 原 src/client/35-parsers-bestdori.js（压平后见 30-game-bandori.js） —— BanG Dream!（Bestdori 社区数据库，取**简中服**时间段）
 //
 // 契约：async (url, signal, tz) → 卡池侧 { banner, roles?, bannerDates, bannerDatesRaw?, startTs?, endTs?, bannerHover? }
 //                              活动侧 { event, eventDates, eventDatesRaw?, eventHover? }    （两侧都可为 null = 未公布）
@@ -923,7 +923,7 @@ const ns_bestdori_LONG_MS = LONG_TERM_MAX_WINDOW_DAYS * 864e5;
 
 // ⚠️ 2026-10-03 收敛：本文件原有 `toTs`（宽容版）与 `byNewestStart` —— 前者与 sekai 那份**语义不同**、
 //    后者与 sekai 那份逐字相同（差别只在 `Number(a.id)` 与 `a.id`）。均已统一到
-//    `41-sources-shared.js` 的 `numOrNull` / `byNewestStart`。
+//    `27-parser-text.js` 的 `numOrNull` / `byNewestStart`。
 
 // ── 卡池侧 ──
 // 覆盖当前时刻的**有界**（≤400 天）简中池里取 startTs 最新的一期当"当期卡池"；

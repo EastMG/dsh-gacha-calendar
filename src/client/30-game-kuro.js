@@ -413,7 +413,7 @@ EVENT_FETCHERS["wuwa"] = {
 				// ⚠️ 回调**必须**声明第二个参数 `tz`：mkMediaWiki 的契约是 `parse(text, tz)`
 				//   （见 30-parsers.js 的 mkMediaWiki，压平后见 22-fetcher-core.js）。原来只写了 `(html)` 却在体内用 `tz`
 				//   → 运行时 `tz is not defined`：用户在设置页把鸣潮活动源切到「Bwiki 活动日历」就必然抓取失败。
-				//   2026-10-03 修正（同批还加了静态守卫 `test/cases-fetcher-args.mjs`）。
+				//   2026-10-03 修正（同批还加了静态守卫；那个探针脚本没入库）。
 				"wuwa-event-bwiki": mkMediaWiki((html, tz) => {
 					const d = parseWuwaCalendar(html, tz);
 					return d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "", eventHover: d.eventHover || "" } : null;

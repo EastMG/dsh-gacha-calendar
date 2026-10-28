@@ -9,13 +9,13 @@
 
 
 		// ══ 以下为原 42-parsers-stellasora.js 的内容（原样保留；压平后见 30-game-yostar.js）══
-// src/client/35-parsers-stellasora.js
+// 原 src/client/35-parsers-stellasora.js（压平后见 30-game-yostar.js）
 //
 // 由 next-sources/parsers/stellasora.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_stellasora__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-stellasora.js —— 星塔旅人 国服（悠星官方 CMS API）
+// 原 src/client/35-parsers-stellasora.js（压平后见 30-game-yostar.js） —— 星塔旅人 国服（悠星官方 CMS API）
 //
 // 来源（2026-10-02 实测「已验证可达」）：
 //   类型目录  GET /api/resource/news-type

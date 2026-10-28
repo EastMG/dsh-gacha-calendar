@@ -23,13 +23,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-umamusume-official.js（压平后见 30-game-cygames.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-umamusume-official.js
+// 原 src/client/35-parsers-umamusume-official.js（压平后见 30-game-cygames.js）
 //
 // 由 next-sources/parsers/umamusume-official.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_umamusume-official__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-umamusume-official.js —— 赛马娘 **官方公告**（日服 umamusume.jp + 国际服 umamusume.com）
+// 原 src/client/35-parsers-umamusume-official.js（压平后见 30-game-cygames.js） —— 赛马娘 **官方公告**（日服 umamusume.jp + 国际服 umamusume.com）
 //
 // 契约：async (url, signal, tz, now = nowMs()) → 数据对象 | null
 //   卡池侧 { banner, bannerDates, bannerDatesRaw?, startTs?, endTs?, bannerHover? }
@@ -39,9 +39,9 @@
 //   否则交回 UI 的默认单条两行式；内容只有「名称 + 档期」，**不含任何元信息**（见 `ns_umamusume_official_umaCurrentItems` 的说明）。
 //
 // ── 与既有源的关系（**并存，不替换**）────────────────────────────────────────
-//   · 日服：既有 `parsers/umapyoi.js`（第三方 api.umapyoi.net，只有"卡级获取窗口"、无卡池名）
+//   · 日服：既有 `30-game-cygames.js` 的 umapyoi 侧（第三方 api.umapyoi.net，只有"卡级获取窗口"、无卡池名）
 //     与本文件的 `uma-jp-official`（官网公告，有卡池名 + 完整活动/卡池文案）**并存**。
-//   · 国际服：既有 `parsers/bwiki.js` 的 `eventsUmaJp` / `gachaUmaCn`（bwiki 表格，简中服）
+//   · 国际服：既有 `30-game-bwiki-common.js` 的 `eventsUmaJp` / `gachaUmaCn`（bwiki 表格，简中服）
 //     与本文件的 `uma-global`（**国际服官方公告**）**并存**。谁是主源由 Lead 决定，本文件不擅自替换。
 //
 // ── 实测形态（2026-10-02 夹具，见 fixtures/p5-uma-*）─────────────────────────
@@ -655,13 +655,13 @@ async function ns_umamusume_official_eventsUmaGlobal(url, signal, tz = ns_umamus
 // ─────────────────────────────────────────────────────────────────────────────
 // ── 原 42-parsers-umapyoi.js（压平后见 30-game-cygames.js）
 // ─────────────────────────────────────────────────────────────────────────────
-// src/client/35-parsers-umapyoi.js
+// 原 src/client/35-parsers-umapyoi.js（压平后见 30-game-cygames.js）
 //
 // 由 next-sources/parsers/umapyoi.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_umapyoi__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-umapyoi.js —— 赛马娘 日服（第三方 API：api.umapyoi.net）
+// 原 src/client/35-parsers-umapyoi.js（压平后见 30-game-cygames.js） —— 赛马娘 日服（第三方 API：api.umapyoi.net）
 //
 // 契约：async (url, signal, tz) → { banner, roles?, bannerDates, bannerDatesRaw?, startTs?, endTs?, bannerHover? } | null
 //
@@ -699,7 +699,7 @@ const ns_umapyoi_toNum = (v) => {
 };
 // ⚠️ 2026-10-03 收敛：本文件原有 `byNewestStart`，与 bestdori/sekai 那两份**是同一概念的第 3 种写法** ——
 //    而且它 `(a.endTs - b.endTs)` **没有 null 守卫**，任一 endTs 为 null 就整条得 NaN、排序未定义。
-//    已统一到 `41-sources-shared.js` 的 `byNewestStart`（带 Infinity 兜底），潜在 bug 一并修掉。
+//    已统一到 `27-parser-text.js` 的 `byNewestStart`（带 Infinity 兜底），潜在 bug 一并修掉。
 
 // 纯函数：夹具/单测可直接喂 JSON（不联网）
 function ns_umapyoi_parseUmapyoiGacha(json, now = nowMs(), tz = "Asia/Tokyo") {

@@ -9,13 +9,13 @@
 
 
 		// ══ 以下为原 42-parsers-gf2.js 的内容（原样保留；压平后见 30-game-sunborn.js）══
-// src/client/35-parsers-gf2.js
+// 原 src/client/35-parsers-gf2.js（压平后见 30-game-sunborn.js）
 //
 // 由 next-sources/parsers/gf2.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_gf2__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-gf2.js —— 少女前线2：追放 国服（sunborngame 官方 API）
+// 原 src/client/35-parsers-gf2.js（压平后见 30-game-sunborn.js） —— 少女前线2：追放 国服（sunborngame 官方 API）
 //
 // 契约：async (url, signal, tz) → 数据对象 | null（null = 未公布）
 //

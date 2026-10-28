@@ -245,13 +245,13 @@
 		}
 
 		// ══ 以下为原 42-parsers-p5x.js 的内容（原样保留；压平后见 30-game-perfectworld.js）══
-// src/client/35-parsers-p5x.js
+// 原 src/client/35-parsers-p5x.js（压平后见 30-game-perfectworld.js）
 //
 // 由 next-sources/parsers/p5x.js 压平而来（2026-10-03「不留 next-source」）。
 // 模块级标识符仍带 ns_p5x__ 前缀 —— 17 个解析器之间有 28 处同名（如 plain / ENT_EXTRA / decodeExtra），
 // 压平后同处一个作用域，靠前缀隔离；**改名会伤及大量调用点，故保留**。
 
-// src/client/35-parsers-p5x.js —— P5X 国服（完美世界官方站）
+// 原 src/client/35-parsers-p5x.js（压平后见 30-game-perfectworld.js） —— P5X 国服（完美世界官方站）
 //
 // ⚠️ 调研结论（2026-10-02 / 2026-10-03 实测）
 //   官方站的**卡池/活动专栏已停更两年**：
