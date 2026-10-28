@@ -464,6 +464,7 @@
 			sourceHealthRoundOf,
 			sourceHealthNextOf,
 			sourceHealthUpdateOf,
+			sourceHealthSameOf,
 			sourceHealthOf,
 			sourceInstant,
 			sourceWallParts,

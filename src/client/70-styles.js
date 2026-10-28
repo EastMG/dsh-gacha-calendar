@@ -167,7 +167,8 @@
 			   · 选中   = **主题浅色底**（interactive-bg-hover-accent：浅色模式下是 #263148 的 14% 透明，
 			             叠在卡片底色上就是一层很淡的主题蓝灰）+ 深色主字（label-primary），描边透明保持尺寸；
 			   · 两者都 cursor:pointer，hover 各有一点变化（未选中：浅灰底 + 描边加深；选中：底色加深一档）。
-			   height 24 + font-size 12：比 28px 的按钮矮一档，两行胶囊排在设置页里不抢视线。 */
+			   height 24 + font-size 12：比 28px 的按钮矮一档，胶囊排在设置页里不抢视线
+			   （实际只显示结束一行，开始那行已注释）。 */
 			.gacha-cal-chip{height:24px;padding:0 10px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.55));border-radius:999px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary,#4a5261);font:inherit;font-size:12px;line-height:1;white-space:nowrap;cursor:pointer;transition:background .12s,border-color .12s,color .12s}
 			.gacha-cal-chip:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1));border-color:var(--dsw-alias-label-tertiary,#9aa1ab);color:var(--dsw-alias-label-primary,#1f2329)}
 			.gacha-cal-chip:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary,#3d5afe);outline-offset:1px}

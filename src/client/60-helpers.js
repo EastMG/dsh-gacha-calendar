@@ -281,6 +281,46 @@
 			return { v: SOURCE_HEALTH_VERSION, at: Number(now) || 0, sources };
 		}
 
+		// 语义比较：新算出的存档 next 与存储里的旧值 prevRaw 是否**内容相同**。
+		// 用途：引擎刷新时决定「要不要再写一笔设置」—— 设置写入是一次宿主往返（实测一次 1.4~3.6s），
+		// 每轮无脑写等于给"什么都没变"的健康状态白付一次往返（来源健康上线后刷新总时长 +~20%）。
+		//
+		// 比较口径：v + sources 逐 id 逐字段，但**忽略三处本轮时间戳**：
+		//   · 顶层 at          —— 存档时间戳（UI 不读它，只作"上次记录时间"）
+		//   · 每条记录的 at    —— 同上，逐源版本
+		//   · 每条记录的 okAt  —— 成功的那一轮会被写成 now（sourceHealthNextOf），与 at 同性质。
+		//                          把它算进比较 ⇒ 只要有一个源正常，逐轮都会"不同"，一次也跳不掉
+		//                          （实测：忽略前每轮必写，等于没优化）。
+		// ⚠️ 如实写明的代价：跳过的轮次不刷新存档里的时间戳，所以健康面板里的「最近成功 X 前」
+		//    可能停在**上一次内容变化**（或上一次别的原因触发的写入）的那一轮 —— 健康的行会越走越旧，
+		//    某源转入失败的那一轮也可能把「最近成功」显旧。失败行另外两个数字不受影响：
+		//    down / nomatch 每轮都会推进 failStreak / nomatchStreak（内容真的变了）⇒ 每轮必写，
+		//    「连续失败 N 次 · 原因」始终新鲜。
+		//
+		// 为什么按字段比而不按 JSON 文本比：旧存档可能来自手改/老版本（数字是字符串、字段缺失），
+		// 文本比较会因为键序/空白/类型差异假报"变了"；这里逐字段 Number()/String() 归一。
+		function sourceHealthSameOf(prevRaw, next) {
+			const prev = parseSourceHealth(prevRaw);
+			const n = next && typeof next === "object" ? next : {};
+			const a = prev.sources;
+			const b = n.sources && typeof n.sources === "object" ? n.sources : {};
+			if (prev.v !== SOURCE_HEALTH_VERSION || Number(n.v) !== SOURCE_HEALTH_VERSION) return false;
+			const aIds = Object.keys(a);
+			const bIds = Object.keys(b);
+			if (aIds.length !== bIds.length) return false;
+			for (const id of bIds) {
+				if (!Object.prototype.hasOwnProperty.call(a, id)) return false;
+				const x = a[id], y = b[id];
+				if (!x || typeof x !== "object" || !y || typeof y !== "object") return false;
+				if ((Number(x.items) || 0) !== (Number(y.items) || 0)) return false;
+				if ((Number(x.failStreak) || 0) !== (Number(y.failStreak) || 0)) return false;
+				if ((Number(x.nomatchStreak) || 0) !== (Number(y.nomatchStreak) || 0)) return false;
+				if ((Number(x.nomatchSince) || 0) !== (Number(y.nomatchSince) || 0)) return false;
+				if ((String(x.error) || "") !== (String(y.error) || "")) return false;
+			}
+			return true;
+		}
+
 		// 给 UI 的每源状态（纯函数）：sources = 存档里的 sources 表，now = 毫秒时间戳，
 		// opts = { entries: [{ id, name }]（**展示中**的条目，决定范围与顺序）, nomatchDays }。
 		// 返回 [{ id, name, known, state, failStreak, nomatchDays, nomatchMs, lastOkAt, items, error, text }]

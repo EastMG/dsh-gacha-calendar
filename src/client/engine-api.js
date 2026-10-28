@@ -92,13 +92,24 @@
 					},
 					result.results[i] || { reason: "skipped" }
 				));
+				// 读旧存档只读一次：既交给 sourceHealthUpdateOf 折算，也交给 sourceHealthSameOf 比较
+				const prevHealthRaw = await storage.get("sourceHealth");
 				const health = sourceHealthUpdateOf(
-					await storage.get("sourceHealth"),
+					prevHealthRaw,
 					healthRounds,
 					result.at,
 					allEntries.map((e) => e.id)
 				);
-				await storage.set("sourceHealth", JSON.stringify(health));
+				// 只有**内容真的变了**才写这一笔设置（比较见 60-helpers.js 的 sourceHealthSameOf：
+				// 忽略顶层 at / 记录 at / okAt 这三处"本轮时间戳"，否则每轮都不同 = 等于没优化）。
+				// 设置写入是宿主往返（一次 1.4~3.6s），"什么都没变"的轮次不该为它再付一次。
+				//
+				// 跳过时**不会漏写 lastData**：lastData 是上面那笔独立的 storage.set（每轮都写），
+				// 与这里互不牵连；lastRefresh / lastSource 同理。
+				// 真的写的时候，写进去的仍是本轮算出的完整存档（at 是本轮时间）。
+				if (!sourceHealthSameOf(prevHealthRaw, health)) {
+					await storage.set("sourceHealth", JSON.stringify(health));
+				}
 				await storage.set("lastRefresh", result.at);
 				await storage.set("lastSource", result.status === "ok" ? "web" : "none");
 				// 版本哨兵：只要这一轮**真的抓到了东西**（okCount > 0）就记当前插件版本。
@@ -194,11 +205,13 @@
 				eventFetcherFor,
 				normalizeSourceId,
 				altSourceId,
-				// 来源健康（待办第 3 项）：读存档 / 单轮结论 / 单源累积 / 一轮更新 / 给 UI 的每源状态
+				// 来源健康（待办第 3 项）：读存档 / 单轮结论 / 单源累积 / 一轮更新 / 给 UI 的每源状态 /
+				// 语义比较（决定要不要写那一笔设置）
 				parseSourceHealth,
 				sourceHealthRoundOf,
 				sourceHealthNextOf,
 				sourceHealthUpdateOf,
+				sourceHealthSameOf,
 				sourceHealthOf,
 				getEntryUrl,
 				isCustomSource,

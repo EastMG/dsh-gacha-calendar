@@ -8,16 +8,18 @@
 //   · 阈值差一天 ⇒ "连续 6 天"就提示"源可能改版或停更"，用户学会无视它。
 // 所以这里把四种状态（正常 / 连续失败 / 疑似改版停更 / 从未成功）+ **第 7 天整**这个边界都钉住。
 //
-// 另守三件"改一半就静默失效"的接线：
+// 另守四件"改一半就静默失效"的接线：
 //   ① 设置键三处齐（10-config.js 的 DEFAULT_SETTINGS / engine-head.js 的 CONFIG_KEYS /
 //      src/index.js 的 schema 且 .volatile()）—— 漏一处的症状分别是"读不到"与"写入被拒"；
 //   ② 引擎刷新后**真的把 sourceHealth 写进存储**（不是只算了没存）——用 core 引擎实跑一轮；
 //   ③ 设置页只在**有异常**时占地方（用户抱怨过设置页太长），且渲染路径不做任何 IO。
+//   ④ 内容没变就**不写**那一笔设置（每轮白写 = 白付一次宿主往返）、变了（如 ok → down）必须写 ——
+//      用真实夹具跑完整 refresh，按假存储的写入记账断言。
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { check, section } from "./harness.mjs";
+import { check, section, useFixtures } from "./harness.mjs";
 import { T, REPO } from "./load.mjs";
 import { createEngine } from "../packages/core/core.mjs";
 
@@ -33,12 +35,14 @@ const recOf = (over) => ({
 });
 
 // 只跑一个 id 的引擎（其余全部隐藏 ⇒ 本轮只发 1 个请求，离线也是毫秒级）
+// sets 记流水账（[键, 值]）：持久化那一段靠它数"这一轮到底写了几笔、写了哪些键"。
 function makeStorage(seed) {
 	const m = new Map(Object.entries(seed || {}));
 	return {
 		map: m,
+		sets: [],
 		async get(k) { return m.get(k); },
-		async set(k, v) { m.set(k, v); }
+		async set(k, v) { this.sets.push([k, v]); m.set(k, v); }
 	};
 }
 
@@ -158,6 +162,48 @@ export default async function runHealth() {
 			!!fromGarbage.sources.a && fromGarbage.sources.a.okAt === NOW, JSON.stringify(fromGarbage));
 	}
 
+	// ── ③b 语义比较：这一轮到底要不要再写一笔设置 ──────────────────────────────────
+	// 写入是宿主往返（一次 1.4~3.6s）。"内容没变"必须判相同 ⇒ 跳过；只要有一处实质变化
+	// （某源 ok→down / items 变 / 多删一个 id）就必须判不同 ⇒ 照旧写，否则健康看板永远停在昨天。
+	// 三处时间戳（顶层 at / 记录 at / okAt）**不参与比较**：它们就是本轮 now，比了等于没优化。
+	{
+		const prevRaw = JSON.stringify({
+			v: 1, at: NOW,
+			sources: { a: recOf({ okAt: NOW }), b: recOf({ okAt: NOW - DAY, items: 1 }) }
+		});
+		// 时间戳全部推进（跨 5 天）、其余字段不变
+		const advanced = {
+			v: 1, at: NOW + 5 * DAY,
+			sources: {
+				a: recOf({ at: NOW + 5 * DAY, okAt: NOW + 5 * DAY }),
+				b: recOf({ at: NOW + 5 * DAY, okAt: NOW + 4 * DAY, items: 1 })
+			}
+		};
+		check("只有时间戳推进（顶层 at / 记录 at / okAt）⇒ 判「内容相同」（否则每轮都写，等于没优化）",
+			T.sourceHealthSameOf(prevRaw, advanced) === true);
+		check("空存档（默认空串）vs 空 sources ⇒ 也算相同（一条记录都没有时不该为空气写一笔）",
+			T.sourceHealthSameOf("", { v: 1, at: NOW, sources: {} }) === true);
+
+		const downOne = JSON.parse(JSON.stringify(advanced));
+		downOne.sources.a = recOf({ at: NOW + 5 * DAY, okAt: NOW, items: 0, failStreak: 1, error: "卡池失败：HTTP 503" });
+		check("某源从 ok 变 down（items / failStreak / error 都变了）⇒ 判「内容不同」",
+			T.sourceHealthSameOf(prevRaw, downOne) === false);
+		check("只是 items 变（示例：另一侧的活动下架）⇒ 判「内容不同」",
+			T.sourceHealthSameOf(prevRaw, { v: 1, at: NOW, sources: { a: recOf({ items: 1 }), b: recOf({ okAt: NOW - DAY, items: 1 }) } }) === false);
+		check("nomatch 连击 / 起点变了 ⇒ 判「内容不同」",
+			T.sourceHealthSameOf(prevRaw, { v: 1, at: NOW, sources: { a: recOf({ nomatchStreak: 2, nomatchSince: NOW - DAY }), b: recOf({ okAt: NOW - DAY, items: 1 }) } }) === false);
+		check("多一个 id / 少一个 id ⇒ 判「内容不同」（删掉条目要落盘，不能僵在存档里）",
+			T.sourceHealthSameOf(prevRaw, { v: 1, at: NOW, sources: { a: recOf() } }) === false
+			&& T.sourceHealthSameOf(prevRaw, { v: 1, at: NOW, sources: { a: recOf(), b: recOf({ okAt: NOW - DAY, items: 1 }), c: recOf() } }) === false);
+		check("老存档里数字存成字符串也按值比（字符串 2 与数字 2 视为相同，不要假报「变了」）",
+			T.sourceHealthSameOf(
+				JSON.stringify({ v: 1, at: NOW, sources: { a: { at: NOW, okAt: NOW, items: "2", error: "", failStreak: "0", nomatchStreak: "0", nomatchSince: "0" } } }),
+				{ v: 1, at: NOW + DAY, sources: { a: recOf() } }
+			) === true);
+		check("坏存档 vs 有内容的存档 ⇒ 判「内容不同」（借这一笔把坏存档重写掉）",
+			T.sourceHealthSameOf("{不是 JSON", { v: 1, at: NOW, sources: { a: recOf() } }) === false);
+	}
+
 	// ── ④ 给 UI 的每源状态：四种状态 + 第 7 天整的边界 + 文案 ────────────────────────
 	{
 		const entries = [
@@ -248,6 +294,90 @@ export default async function runHealth() {
 		const lastData = JSON.parse(await storage.get("lastData"));
 		const polluted = Object.entries(lastData).filter(([, v]) => v && ["failStreak", "nomatchStreak", "nomatchSince", "health"].some((k) => k in v));
 		check("lastData 的形状没被污染（健康状态只进 sourceHealth）", polluted.length === 0, polluted.map(([id]) => id).join(","));
+	}
+
+	// ── ⑤b 「内容没变就不写」的实跑：状态未变 ⇒ 第二轮零写入；状态变了（ok → down）⇒ 必写 ────
+	// 用 fgo 的真实夹具跑**完整 refresh**（两侧都解析出内容 = ok），时间由 let 时钟推进 ——
+	// 这是最常见的场景：源都正常、每轮结论一样，旧的实现每轮都要为它付一次设置往返。
+	{
+		const { FGO_GACHA_URL, FGO_EVENT_URL } = T.parsers["fgo"];
+		const fixtureImpl = useFixtures({
+			[FGO_GACHA_URL]: "fgo-gacha-parse/response.txt",
+			[FGO_EVENT_URL]: "fgo-event-parse/response.txt"
+		});
+		let netDown = false;
+		const impl = async (url, opts) => (netDown
+			? { ok: false, status: 503, headers: { get: () => null }, text: async () => "", json: async () => ({}) }
+			: fixtureImpl(url, opts));
+		const transport = {
+			async fetchRaw(url, opts) { return impl(url, opts); },
+			// fgo 的抓取器走宿主代理（mode:"proxy"）⇒ 与 harness 的 setFetchImpl 同一套包装：
+			// 拼出 `/api/gacha-calendar-proxy?url=…` 交给夹具 impl，再把 {status, body} 拆开。
+			async fetchViaProxy(url, opts) {
+				const o = opts || {};
+				let api = "/api/gacha-calendar-proxy?url=" + encodeURIComponent(String(url));
+				api += "&referer=" + encodeURIComponent(o.referer || "");
+				if (o.headers) api += "&headers=" + encodeURIComponent(JSON.stringify(o.headers));
+				let payload;
+				if (o.body !== void 0) {
+					api += "&contentType=" + encodeURIComponent(o.contentType || "application/json; charset=utf-8");
+					payload = typeof o.body === "string" ? o.body : JSON.stringify(o.body);
+				}
+				const res = await impl(api, payload !== void 0 ? { method: "POST", body: payload } : undefined);
+				if (!res || !res.ok) throw new Error("proxy-http-" + ((res && res.status) || 0));
+				const wrapped = JSON.parse(await res.text());
+				if (wrapped.status !== 200) throw new Error("proxy-bad:" + wrapped.status);
+				return wrapped.body;
+			}
+		};
+		// 夹具抓取时刻（与 cases-b3 同一时刻：当期卡池/活动都覆盖它）
+		let clock = Date.UTC(2026, 9, 1, 17, 27);
+		const allIds = createEngine({ transport, storage: makeStorage(), now: () => clock }).__test.SOURCES.map((s) => s.id);
+		const storage = makeStorage({ hidden: allIds.filter((id) => id !== "fgo") });
+		const engine = createEngine({ transport, storage, now: () => clock, timer: { setTimeout, clearTimeout } });
+		const wroteSince = (from) => storage.sets.slice(from);
+		const keysSince = (from) => wroteSince(from).map(([k]) => k);
+
+		await engine.refresh();
+		const afterFirst = await storage.get("sourceHealth");
+		check("第一轮：健康存档写了一次（这一点是本测试的对照，不是优化目标）",
+			keysSince(0).filter((k) => k === "sourceHealth").length === 1, keysSince(0).join(","));
+		let parsed1 = null;
+		try { parsed1 = JSON.parse(afterFirst); } catch (e) { parsed1 = null; }
+		check("第一轮 fgo 两侧都解析出内容 ⇒ ok / items=2 / 无失败连击",
+			!!parsed1 && !!parsed1.sources.fgo && parsed1.sources.fgo.items === 2
+			&& parsed1.sources.fgo.failStreak === 0 && parsed1.sources.fgo.nomatchStreak === 0,
+			JSON.stringify(parsed1 && parsed1.sources.fgo));
+
+		// ── 第二轮：隔 10 分钟再刷，结论完全一样 ⇒ 不该写 sourceHealth ──
+		let mark = storage.sets.length;
+		clock += 600000;
+		await engine.refresh();
+		const secondKeys = keysSince(mark);
+		check("状态完全没变的第二轮：**一笔都不写** sourceHealth（省掉的就是这次宿主往返）",
+			secondKeys.indexOf("sourceHealth") < 0, secondKeys.join(","));
+		check("跳过健康存档时 lastData 照旧写（它在上面的独立一笔里，不许被一起漏掉）",
+			secondKeys.indexOf("lastData") >= 0, secondKeys.join(","));
+		check("第二轮存储里的 sourceHealth 字符串与第一轮**逐字节相同**（不只是没写，内容也没漂）",
+			(await storage.get("sourceHealth")) === afterFirst);
+
+		// ── 第三轮：网络全挂 ⇒ ok → down，状态真的变了 ⇒ 必须写 ──
+		mark = storage.sets.length;
+		netDown = true;
+		clock += 600000;
+		await engine.refresh();
+		const thirdKeys = keysSince(mark);
+		check("状态变了（ok → down）：必须写 sourceHealth（否则看板永远停在「正常」）",
+			thirdKeys.indexOf("sourceHealth") >= 0, thirdKeys.join(","));
+		check("状态变了这一轮 lastData 也照旧写", thirdKeys.indexOf("lastData") >= 0, thirdKeys.join(","));
+		let parsed3 = null;
+		try { parsed3 = JSON.parse(await storage.get("sourceHealth")); } catch (e) { parsed3 = null; }
+		check("down 落盘：failStreak=1 / items=0 / 原因写进存档",
+			!!parsed3 && !!parsed3.sources.fgo && parsed3.sources.fgo.failStreak === 1
+			&& parsed3.sources.fgo.items === 0 && /503/.test(parsed3.sources.fgo.error),
+			JSON.stringify(parsed3 && parsed3.sources.fgo));
+		check("真的写的时候 at 是本轮最新时间（不是被跳过的旧时间）",
+			!!parsed3 && parsed3.at === clock, JSON.stringify({ at: parsed3 && parsed3.at, clock }));
 	}
 
 	// ── ⑥ 设置键三处齐 + 阈值常量（漏一处就是"设了不生效"/"写入被拒"）────────────────
