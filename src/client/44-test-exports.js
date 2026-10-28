@@ -421,6 +421,10 @@
 			// remindIdentityOf = 通知身份判定（快捷方式存在 + AUMID 正确才算启用；否则回退 PowerShell）。
 			// 纯函数，测试覆盖 4 种组合（见 cases-remind.mjs ⑫）。
 			remindIdentityOf,
+			// notifyNameOf = 通知身份名（应用名）的清洗函数：非法文件名字符换空格、首尾点/空白去掉、
+			// 空 ⇒ 默认「二游日历」、超长截到 40 字、Windows 保留设备名 ⇒ 默认。
+			// 宿主拿它给快捷方式起名 / 写 DisplayName，设置页拿它给输入框兜底（见 cases-remind.mjs ⑭）。
+			notifyNameOf,
 			remindNodesOf,
 			// remindNodesToggleOf = 设置页胶囊点一下会写回的字符串（降序 / 逗号分隔 / 空格都没有；
 			// 全取消 ⇒ 空串）。与判定侧共用同一个 remindNodesOf，所以"写什么"和"读什么"不会分叉。

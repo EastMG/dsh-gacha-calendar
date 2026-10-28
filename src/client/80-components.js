@@ -1890,6 +1890,8 @@
 			if (text === "cross-site-not-allowed") return "跨站请求被拒绝";
 			if (text === "payload-too-large") return "请求内容过大";
 			if (text === "invalid-json" || text === "enabled-must-be-boolean") return "请求格式不对";
+			// 改名时目标位置已经有一条**不属于本插件**的同名快捷方式：宿主拒绝覆盖（见启用脚本 ①）
+			if (text === "shortcut-name-taken") return "这个名字已被开始菜单里另一条快捷方式占用，换个名字";
 			return text || "未知错误";
 		};
 		async function readNotifyIdentity() {
@@ -1899,11 +1901,19 @@
 			if (!body || typeof body.enabled !== "boolean") throw new Error("返回格式不对");
 			return body;
 		}
-		async function writeNotifyIdentity(enabled) {
+		// 宿主回的 { enabled, name } → 设置页本地状态。name 一律再过一遍 notifyNameOf（默认「二游日历」）：
+		// 宿主已经清洗过，这里只是防御 —— 名字会显示给用户，不能出现空串 / undefined。
+		const notifyIdentityOfBody = (body) => ({
+			enabled: !!(body && body.enabled === true),
+			name: notifyNameOf(body && body.name)
+		});
+		async function writeNotifyIdentity(enabled, name) {
 			const res = await fetch(NOTIFY_IDENTITY_API, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ enabled: enabled === true })
+				// name 每次都带：启用时宿主要拿它给快捷方式起名 / 写 DisplayName；
+				// 已启用状态下改名（enabled=true + 新 name）时宿主会**先删旧 .lnk 再按新名字重建**。
+				body: JSON.stringify({ enabled: enabled === true, name: notifyNameOf(name) })
 			});
 			let body = null;
 			try { body = await res.json(); } catch { body = null; }
@@ -2014,39 +2024,45 @@
 			const tickerOn = tickerOnOf(s.tickerOn);
 			// 「到期提醒（送达）」总开关：同样"只有明确 false 才算关"（65-remind.js 的 remindOnOf）。
 			const remindOn = remindOnOf(s.remindOn);
-			// 通知身份（可选）的本地状态：null = 还在读；{ enabled } = 宿主给的真相。
+			// 通知身份（可选）的本地状态：null = 还在读；{ enabled, name } = 宿主给的真相。
 			// 只影响通知横幅顶部的应用名，与「提醒」开关无关（关掉身份也照样弹，名字退回 PowerShell）。
 			const [notifyIdentity, setNotifyIdentity] = (0, react.useState)(null);
 			const [notifyIdentityBusy, setNotifyIdentityBusy] = (0, react.useState)(false);
 			const [notifyIdentityError, setNotifyIdentityError] = (0, react.useState)("");
+			// 应用名（`notifyName`）输入框的**本地草稿**：null = 跟随已保存的设置值。
+			// 受控值读草稿而不是读 `s`：宿主一次写入往返 1.4~3.6s，`s` 不会即时推新 —— 直接读 `s`
+			// 会在用户打字期间把内容顶回去（与上面「展示」「提醒」的草稿同一个病）。
+			const [notifyNameDraft, setNotifyNameDraft] = (0, react.useState)(null);
+			const notifyNameSaved = notifyNameOf(s.notifyName);
+			const notifyNameShown = notifyNameDraft === null ? notifyNameSaved : notifyNameDraft;
 			// 挂载时读一次（不轮询：每次读都要起一次 PowerShell）。读失败按"未启用"显示 + 小字说明原因，
 			// 不挡住页面其它部分 —— 身份只是一个 App 名，坏了不该让设置页变红。
 			(0, react.useEffect)(() => {
 				let alive = true;
 				readNotifyIdentity()
-					.then((body) => { if (alive) setNotifyIdentity({ enabled: body.enabled === true }); })
+					.then((body) => { if (alive) setNotifyIdentity(notifyIdentityOfBody(body)); })
 					.catch((err) => {
 						if (!alive) return;
-						setNotifyIdentity({ enabled: false });
+						setNotifyIdentity({ enabled: false, name: notifyNameSaved });
 						setNotifyIdentityError("读取失败：" + notifyIdentityErrorText((err && err.message) || err));
 					});
 				return () => { alive = false; };
 			}, []);
-			// 点按钮：取反 → POST → 用宿主回读的 enabled 刷新显示（不是乐观假设"点成功了"）。
-			// 失败时把原因写进按钮下面那行小字，并再读一次真实状态（例如"启用成功但回读不一致"这类半成功）。
+			// 点按钮：取反 → POST（带上当前名字）→ 用宿主回读的 enabled 刷新显示（不是乐观假设"点成功了"）。
+			// 失败时把原因写进行尾那行小字，并再读一次真实状态（例如"启用成功但回读不一致"这类半成功）。
 			const toggleNotifyIdentity = async () => {
 				if (notifyIdentityBusy) return;
 				const target = !(notifyIdentity && notifyIdentity.enabled);
 				setNotifyIdentityBusy(true);
 				setNotifyIdentityError("");
 				try {
-					const body = await writeNotifyIdentity(target);
-					setNotifyIdentity({ enabled: body.enabled === true });
+					const body = await writeNotifyIdentity(target, notifyNameShown);
+					setNotifyIdentity(notifyIdentityOfBody(body));
 				} catch (err) {
 					setNotifyIdentityError((target ? "启用失败：" : "移除失败：") + notifyIdentityErrorText((err && err.message) || err));
 					try {
 						const body = await readNotifyIdentity();
-						setNotifyIdentity({ enabled: body.enabled === true });
+						setNotifyIdentity(notifyIdentityOfBody(body));
 					} catch { /* 读不到就维持原显示 */ }
 				} finally {
 					setNotifyIdentityBusy(false);
@@ -2092,6 +2108,34 @@
 					setSaveError("\u4FDD\u5B58\u5931\u8D25\uFF1A" + String((err && err.message) || err || "未知错误"));
 					return false;
 				}
+			};
+
+			// 应用名提交（失焦 / 回车）：空 ⇒ 默认「二游日历」；非法文件名字符与超长由 notifyNameOf 收干净
+			// （与宿主同一个函数，所以"设置页看到的"和"落到系统里的"不会分叉）。
+			//
+			// 顺序是**先重建、后写配置**：已启用身份时宿主的 POST 会先删掉旧名字的 .lnk 再按新名字建，
+			// 建成功才写 `notifyName`。反过来（先写配置）在"名字被别人的快捷方式占用"时会留下
+			// 「配置叫新名字、系统里却没有对应快捷方式」的坏状态，用户只看到名字改了、通知还是 PowerShell。
+			const commitNotifyName = async () => {
+				if (notifyIdentityBusy) return;
+				const next = notifyNameOf(notifyNameDraft === null ? notifyNameSaved : notifyNameDraft);
+				setNotifyNameDraft(null);
+				if (next === notifyNameSaved) return;                 // 没变：不写设置、不重建快捷方式
+				if (notifyIdentity && notifyIdentity.enabled) {
+					setNotifyIdentityBusy(true);
+					setNotifyIdentityError("");
+					try {
+						const body = await writeNotifyIdentity(true, next);
+						setNotifyIdentity(notifyIdentityOfBody(body));
+					} catch (err) {
+						setNotifyIdentityError("改名失败：" + notifyIdentityErrorText((err && err.message) || err));
+						setNotifyNameDraft(next);                     // 保留用户输入：可以重试 / 换个名字
+						return;
+					} finally {
+						setNotifyIdentityBusy(false);
+					}
+				}
+				await commit("notifyName", next);
 			};
 
 			// 「提醒」节点档位**胶囊**（2026-10-28：文本框 / "解析为" 预览 / 红框提示全部删掉）。
@@ -2507,35 +2551,50 @@
 						remindChipRow("end", "结束提醒", remindEndSavedText, REMIND_DEFAULT_END_NODES, "remindEndNodes", "结束前多久提醒（可多选；全不选 = 结束不提醒）"),
 						// 2026-10-28：开始提醒已暂时置空（多数来源不提前提供档期），这一行先注释掉，恢复时取消注释即可。
 		 	// remindChipRow(\"start\, \"开始提醒\, remindStartSavedText, REMIND_DEFAULT_START_NODES, \"remindStartNodes\, \"开始前多久提醒（可多选；全不选 = 开始不提醒）\, \"多数来源不提前提供档期，已搁置\)
-						// ── 通知身份（可选）：一行按钮。「启用」= 当前用户开始菜单里建一条带 AUMID 的快捷方式，
-						// 通知横幅顶部才会显示「二游日历」；「移除」= 删掉它并退回 PowerShell。──────────────
-						(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 4 }, children: [
-							(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }, children: [
-								(0, react_jsx_runtime.jsx)("span", { style: { flex: "none", fontSize: 12, color: "var(--dsw-alias-label-secondary)" }, children: "通知身份" }),
-								(0, react_jsx_runtime.jsx)("button", {
-									type: "button",
-									className: "gacha-cal-sort-btn",
-									
-									disabled: notifyIdentityBusy || notifyIdentity === null,
-									title: "更改系统通知的发送者为「二游日历」；需要在开始菜单创建无害的快捷方式文件",
-									onClick: toggleNotifyIdentity,
-									children: notifyIdentityBusy ? "处理中…" : (notifyIdentity && notifyIdentity.enabled ? "移除" : "启用")
-								}),
-								// 「发送测试通知」：立刻弹一条，验证通知链路（不影响到期提醒的去重状态）
-								(0, react_jsx_runtime.jsx)("button", {
-									type: "button",
-									className: "gacha-cal-sort-btn",
-									
-									disabled: notifyTestBusy,
-									title: "立刻弹一条系统通知，确认通知链路通不通",
-									onClick: sendTestNotify,
-									children: notifyTestBusy ? "发送中…" : "发送测试通知"
-								}),
-								notifyTest && !notifyTest.ok ? (0, react_jsx_runtime.jsx)("span", { style: { fontSize: 11, color: "var(--dsw-alias-state-error-primary, #d4380d)" }, children: notifyTest.text }) : null,
-								(0, react_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: "var(--dsw-alias-label-secondary)" }, children: "当前：" + (notifyIdentity === null ? "读取中…" : notifyIdentity.enabled ? "二游日历" : "PowerShell（默认）") }),
-								(0, react_jsx_runtime.jsx)("span", { style: { flex: "1 1 240px", fontSize: 11, color: "var(--dsw-alias-label-tertiary)" }, children: ["更改系统通知的发送者为「二游日历」", (0, react_jsx_runtime.jsx)("br", {}), "需要在开始菜单创建无害的快捷方式文件"] })
+						// ── 通知身份（可选）：**一行**。「启用」= 当前用户开始菜单里建一条带 AUMID 的快捷方式，
+						// 通知横幅顶部才会显示下面那个名字；「移除」= 删掉它并退回 PowerShell。
+						// 2026-10-28：三行压成一行 —— 原来那两行说明文字挪进按钮的 title（信息不丢、不再占行）；
+						// 名称是 110px 的窄输入框，空 ⇒ 写回默认「二游日历」；窄窗口允许换行（flexWrap）。
+						(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }, children: [
+							(0, react_jsx_runtime.jsx)("span", { style: { flex: "none", fontSize: 12, color: "var(--dsw-alias-label-secondary)" }, children: "通知身份" }),
+							(0, react_jsx_runtime.jsx)("button", {
+								type: "button",
+								className: "gacha-cal-sort-btn",
+								disabled: notifyIdentityBusy || notifyIdentity === null,
+								title: "更改系统通知的发送者：会在开始菜单建一条无害的快捷方式（可随时移除）",
+								onClick: toggleNotifyIdentity,
+								children: notifyIdentityBusy ? "处理中…" : (notifyIdentity && notifyIdentity.enabled ? "移除" : "启用")
+							}),
+							// 「发送测试通知」：立刻弹一条，验证通知链路（不影响到期提醒的去重状态）
+							(0, react_jsx_runtime.jsx)("button", {
+								type: "button",
+								className: "gacha-cal-sort-btn",
+								disabled: notifyTestBusy,
+								title: "立刻弹一条系统通知，确认通知链路通不通",
+								onClick: sendTestNotify,
+								children: notifyTestBusy ? "发送中…" : "发送测试通知"
+							}),
+							// 应用名：**窄输入框**（110px）。失焦或回车提交；空 ⇒ 写回默认「二游日历」；
+							// 非法文件名字符 / 超长由 notifyNameOf 清洗（与宿主同一处口径）。
+							// 已启用身份时改名会顺便重建快捷方式（见 commitNotifyName）。
+							(0, react_jsx_runtime.jsxs)("label", { style: { display: "flex", alignItems: "center", gap: 6, flex: "none" }, title: "通知横幅顶部的应用名（最多 40 字；文件名非法字符会被去掉）", children: [
+								(0, react_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: "var(--dsw-alias-label-secondary)" }, children: "名称" }),
+								(0, react_jsx_runtime.jsx)("input", {
+									type: "text",
+									value: notifyNameShown,
+									placeholder: DEFAULT_SETTINGS.notifyName,
+									"aria-label": "通知身份名称",
+									style: { width: 110, padding: "2px 6px", border: "1px solid var(--dsw-alias-border-l2)", background: "var(--dsw-alias-bg-base)", color: "var(--dsw-alias-label-primary)", borderRadius: 6, fontSize: 12 },
+									onChange: (e) => setNotifyNameDraft(e.target.value),
+									onBlur: () => { void commitNotifyName(); },
+									onKeyDown: (e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }
+								})
 							] }),
-							notifyIdentityError ? (0, react_jsx_runtime.jsx)("div", { style: { fontSize: 11, color: "var(--dsw-alias-state-error-primary, #d4380d)" }, children: notifyIdentityError }) : null
+							// 状态：`当前：…`。名字最长 40 字，直接铺开会把整行挤到第二行 ⇒ 截断到 240px
+							// 配 title 显示全文（720px 卡片里整行仍然放得下，窄窗口才换行）。
+							(0, react_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: "var(--dsw-alias-label-secondary)", maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, title: "系统通知横幅顶部当前显示的应用名", children: "当前：" + (notifyIdentity === null ? "读取中…" : notifyIdentity.enabled ? notifyIdentity.name : "PowerShell（默认）") }),
+							notifyTest && !notifyTest.ok ? (0, react_jsx_runtime.jsx)("span", { style: { fontSize: 11, color: "var(--dsw-alias-state-error-primary, #d4380d)" }, children: notifyTest.text }) : null,
+							notifyIdentityError ? (0, react_jsx_runtime.jsx)("span", { style: { fontSize: 11, color: "var(--dsw-alias-state-error-primary, #d4380d)" }, children: notifyIdentityError }) : null
 						] }),
 					] }),
 					// ── 实验特性开关：新「二游日历」面板视图（默认关）──

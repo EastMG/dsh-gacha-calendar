@@ -57,6 +57,11 @@
 			remindEndNodes: "72,24,6,2",
 			// 开始节点（小时）：开始前 1 天 / 2 小时。
 			remindStartNodes: "24,2",
+			// 通知身份名（应用名）：默认「二游日历」。空 / 非法 ⇒ 回落这个默认值，
+			// 清洗规则在 65-remind.js 的 notifyNameOf（宿主 / core / 设置页共用那一处）。
+			// 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 与 src/index.js 的 schema 里
+			// （三处齐的守卫见 test/cases-remind.mjs ⑭）。
+			notifyName: "二游日历",
 			// 「到期提醒（送达）」的逐游戏白名单（不属于轮播）。语义 = 普通列表：列表里有谁就提醒谁，
 			// 空数组 = 一个都不提醒；默认值 = 出厂时展示中的条目（所有 defaultHidden !== true 的 id）。
 			// 守卫见 test/cases-ticker.mjs：新增来源或改 defaultHidden 时要同步这里与 src/index.js 的 schema。
@@ -911,6 +916,44 @@
 			return { enabled, useAumid: enabled ? expected : null };
 		}
 
+		// ── 通知身份名（横幅顶部的应用名 / toast 正文的署名行）──────────────────────────────
+		// 2026-10-28 需求：应用名要能自定义（设置项 `notifyName`，默认「二游日历」）。
+		// 这个名字会同时落进三处**系统身份**：开始菜单快捷方式的文件名（`<name>.lnk`）、
+		// 快捷方式的 Description、`HKCU\Software\Classes\AppUserModelId\<AUMID>` 的 DisplayName；
+		// 所以不能把用户输入原样拿去用 —— Windows 文件名不允许 `\ / : * ? " < > |`，控制字符更不行。
+		//
+		// 规则（纯函数；宿主、core 与设置页共用这一处，不许各写一份）：
+		//   ① 非字符串（缺失 / 数字 / null）⇒ 默认名（配置读坏了不该让通知发不出去）；
+		//   ② 非法字符与控制字符 ⇒ 换成空格；连续空白压成一个；首尾空白与**首尾的点**去掉
+		//      （Windows 文件名不许以点 / 空格结尾，`名字..lnk` 的形态用户看着也怪）；
+		//   ③ 洗完为空（全是非法字符 / 全是空白）⇒ 默认名；
+		//   ④ 超长按**字符**（码点）截断到 40 个 —— 不按 UTF-16 单元切，否则 emoji 会被切成半个代理对；
+		//   ⑤ Windows 保留设备名（CON / PRN / AUX / NUL / COM1-9 / LPT1-9）⇒ 默认名：
+		//      `CON.lnk` 同样是保留名，真去建只会失败，不如在纯函数里就拦掉。
+		// 边界：这里只回答"能不能安全地当一个文件名"，**不做**防注入 ——
+		//      名字进 PowerShell 一律经宿主 psQuote（单引号字面量）转义，那不是本函数的职责。
+		const NOTIFY_NAME_DEFAULT = "二游日历";
+		const NOTIFY_NAME_MAX_CHARS = 40;
+		// 非法文件名符 + 控制字符（C0 + DEL）。中文全角符号（：／？等）合法，不动它们。
+		const NOTIFY_NAME_ILLEGAL_RE = /[\\/:*?"<>|\u0000-\u001f\u007f]/g;
+		const NOTIFY_NAME_RESERVED_RE = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+		function notifyNameOf(value) {
+			if (typeof value !== "string") return NOTIFY_NAME_DEFAULT;
+			let name = value
+				.replace(NOTIFY_NAME_ILLEGAL_RE, " ")
+				.replace(/\s+/g, " ")
+				.replace(/^[\s.]+/, "")
+				.replace(/[\s.]+$/, "");
+			if (!name) return NOTIFY_NAME_DEFAULT;
+			const chars = Array.from(name);
+			if (chars.length > NOTIFY_NAME_MAX_CHARS) {
+				name = chars.slice(0, NOTIFY_NAME_MAX_CHARS).join("").replace(/[\s.]+$/, "");
+			}
+			if (!name) return NOTIFY_NAME_DEFAULT;
+			if (NOTIFY_NAME_RESERVED_RE.test(name)) return NOTIFY_NAME_DEFAULT;
+			return name;
+		}
+
 		// 显式空串的形态："" / 只有空白 / 只有分隔符（" , " / "，，"）—— 都算"这方向不提醒"。
 		const REMIND_NODES_EMPTY_RE = /^[,，\s]*$/;
 
@@ -1187,6 +1230,8 @@
 
 		// ── 通知文案（纯函数：只吃 notify + now，产出 { title, lines }）────────────────
 		// 时间一律按**本机时区**显示（玩家要回答的是"我这边几点"），与面板外显同口径。
+		// 第三个参数 appName = 设置项 `notifyName` 清洗后的应用名（默认「二游日历」）：
+		// 正文/标题里出现的应用名必须跟着它走（用户改了名字，通知里就该是新名字）。
 		function remindPad2(n) {
 			return (n < 10 ? "0" : "") + n;
 		}
@@ -1212,9 +1257,12 @@
 			if (!Number.isFinite(n) || n <= 0) return "";
 			return n + " 小时";   // 统一按小时说：24 小时比"1 天"更不容易和"还剩 1 天"混淆
 		}
-		function remindToastOf(notify, now) {
+		function remindToastOf(notify, now, appName) {
 			const n = notify || {};
-			const gameName = String(n.gameName || n.gameId || "二游日历");
+			// 兜底应用名：条目连 gameName / gameId 都没有时，标题里显示的就是应用名本身
+			// （极罕见，但"某个来源解析出半条记录"在真机上出现过）。默认值保持「二游日历」。
+			const fallbackName = typeof appName === "string" && appName.trim() !== "" ? appName.trim() : NOTIFY_NAME_DEFAULT;
+			const gameName = String(n.gameName || n.gameId || fallbackName);
 			const title = (n.kind === "start" ? "即将开始 · " : "即将结束 · ") + gameName;
 			const head = String(n.sideLabel || "") + "「" + String(n.title || gameName) + "」";
 			const span = remindSpanText(Number(n.T) - Number(now));
@@ -1235,9 +1283,12 @@
 		// 与真实提醒**完全隔离**：没有 notify 对象、不读也不改去重状态，只回答"通知到底能不能弹"。
 		// identity 与宿主回传的字段同字面量："app" = 已启用「二游日历」/ 其它 = 回退 Windows PowerShell；
 		// 正文里的发送者名字只由这一处决定，设置页不另拼一份。
+		// appName = 设置项 `notifyName` 清洗后的应用名（默认「二游日历」）：启用身份时发送者就是它，
+		// 回退 PowerShell 时**不跟着改**（那时候横幅顶部的应用名真的是 Windows PowerShell）。
 		// 时间按**本机时区**精确到秒（用户点完立刻对表，不需要猜是哪一分钟）。
-		function remindTestToastOf(now, identity) {
-			const sender = identity === "app" ? "二游日历" : "Windows PowerShell";
+		function remindTestToastOf(now, identity, appName) {
+			const app = typeof appName === "string" && appName.trim() !== "" ? appName.trim() : NOTIFY_NAME_DEFAULT;
+			const sender = identity === "app" ? app : "Windows PowerShell";
 			const d = new Date(Number(now));
 			const clock = Number.isFinite(d.getTime())
 				? d.getFullYear() + "-" + remindPad2(d.getMonth() + 1) + "-" + remindPad2(d.getDate())
@@ -1296,6 +1347,9 @@ export function createEngine(env) {
 				// 三者都是 DEFAULT_SETTINGS 的键 ⇒ 必须在这里，否则上面的守卫会红。
 				"autoRefresh", "refreshMinutes", "tickerOn", "tickerHours", "remindGames",
 				"remindOn", "remindEndNodes", "remindStartNodes",
+				// notifyName：通知身份名（应用名，默认「二游日历」）。设置页那一行窄输入框写它，
+				// 宿主拿它给开始菜单快捷方式起名 / 写 DisplayName。**别漏** —— 与上面每个键同理。
+				"notifyName",
 				"newPanel", "lastData", "lastRefresh", "lastSource", "lastVersion"
 			];
 

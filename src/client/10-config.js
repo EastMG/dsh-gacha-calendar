@@ -48,6 +48,11 @@
 			remindEndNodes: "72,24,6,2",
 			// 开始节点（小时）：开始前 1 天 / 2 小时。
 			remindStartNodes: "24,2",
+			// 通知身份名（应用名）：默认「二游日历」。空 / 非法 ⇒ 回落这个默认值，
+			// 清洗规则在 65-remind.js 的 notifyNameOf（宿主 / core / 设置页共用那一处）。
+			// 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 与 src/index.js 的 schema 里
+			// （三处齐的守卫见 test/cases-remind.mjs ⑭）。
+			notifyName: "二游日历",
 			// 「到期提醒（送达）」的逐游戏白名单（不属于轮播）。语义 = 普通列表：列表里有谁就提醒谁，
 			// 空数组 = 一个都不提醒；默认值 = 出厂时展示中的条目（所有 defaultHidden !== true 的 id）。
 			// 守卫见 test/cases-ticker.mjs：新增来源或改 defaultHidden 时要同步这里与 src/index.js 的 schema。

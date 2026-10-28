@@ -40,6 +40,9 @@
 				// 三者都是 DEFAULT_SETTINGS 的键 ⇒ 必须在这里，否则上面的守卫会红。
 				"autoRefresh", "refreshMinutes", "tickerOn", "tickerHours", "remindGames",
 				"remindOn", "remindEndNodes", "remindStartNodes",
+				// notifyName：通知身份名（应用名，默认「二游日历」）。设置页那一行窄输入框写它，
+				// 宿主拿它给开始菜单快捷方式起名 / 写 DisplayName。**别漏** —— 与上面每个键同理。
+				"notifyName",
 				"newPanel", "lastData", "lastRefresh", "lastSource", "lastVersion"
 			];
 

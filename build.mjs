@@ -43,6 +43,9 @@ const REMIND_EXPORTS = [
   "REMIND_TZ_BY_ID",
   "remindOnOf",
   "remindIdentityOf",
+  // 通知身份名（`notifyName`）的清洗：宿主要用它给快捷方式起名 / 写 DisplayName，
+  // core 与设置页也用同一个（同一个字面量只有一个实现，见 65-remind.js）。
+  "notifyNameOf",
   "remindNodesOf",
   "remindNodesToggleOf",
   "remindConfigOf",

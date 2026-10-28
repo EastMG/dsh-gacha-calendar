@@ -396,8 +396,8 @@ export default async function run() {
 			(hostSrc.match(/"Start Menu"/g) || []).length === 1,
 			String((hostSrc.match(/"Start Menu"/g) || []).length));
 		check("建 / 删快捷方式只由 POST 路由触发（enable / disable 脚本各只有一处调用点）",
-			(hostSrc.match(/runNotifyPowerShell\(notifyIdentityEnableScript\(\)\)/g) || []).length === 1
-			&& (hostSrc.match(/runNotifyPowerShell\(notifyIdentityDisableScript\(\)\)/g) || []).length === 1);
+			(hostSrc.match(/runNotifyPowerShell\(notifyIdentityEnableScript\(/g) || []).length === 1
+			&& (hostSrc.match(/runNotifyPowerShell\(notifyIdentityDisableScript\(/g) || []).length === 1);
 		check("去重状态落 %LOCALAPPDATA% 且原子写（.tmp → rename）",
 			/LOCALAPPDATA/.test(hostSrc) && /host-state\.json/.test(hostSrc) && /renameSync\(tmp, file\)/.test(hostSrc));
 		check("关掉开关就真的不干活（remindOnOf 判定在读 lastData 之前）",
@@ -582,13 +582,13 @@ export default async function run() {
 
 		check("两条路由都注册在 webServer（同一 prefix、同一个 handler 按 method 分流）",
 			/const NOTIFY_IDENTITY_PREFIX = "\/api\/gacha-calendar-notify-identity";/.test(hostSrc)
-			&& /webServer\.register\(\{ kind: "prefixes", path: NOTIFY_IDENTITY_PREFIX, handler: notifyIdentityHandler \}\)/.test(hostSrc)
+			&& /path: NOTIFY_IDENTITY_PREFIX,\s*handler: \(req, res\) => notifyIdentityHandler\(req, res, ctx, config\)/.test(hostSrc)
 			&& /if \(req\.method === "GET" \|\| req\.method === "HEAD"\)/.test(hostSrc)
 			&& /if \(req\.method !== "POST"\)/.test(hostSrc));
-		check("GET 返回 { enabled, aumid, shortcutPath, iconPath }（字段名与设置页/预留图标接口对齐）",
-			/enabled: identity\.enabled,\s*aumid: NOTIFY_AUMID,\s*shortcutPath: notifyShortcutPath\(\),\s*iconPath: notifyIconPath\(\)/.test(hostSrc));
+		check("GET 返回 { enabled, name, aumid, shortcutPath, iconPath }（字段名与设置页/预留图标接口对齐）",
+			/enabled: identity\.enabled,\s*name: cfgName,\s*aumid: NOTIFY_AUMID,\s*shortcutPath: notifyShortcutPath\(cfgName\),\s*iconPath: notifyIconPath\(\)/.test(hostSrc));
 		check("GET 的 enabled 用「快捷方式存在 + AUMID 正确」判定（remindIdentityOf，不是只看文件在不在）",
-			/const identity = remindIdentityOf\(await notifyIdentityProbe\(\), NOTIFY_AUMID\);[\s\S]{0,200}?enabled: identity\.enabled/.test(hostSrc));
+			/const identity = remindIdentityOf\(await notifyIdentityProbe\(cfgName\), NOTIFY_AUMID\);[\s\S]{0,200}?enabled: identity\.enabled/.test(hostSrc));
 		check("POST 只认布尔 enabled（脏值 400，不能被当成\"启用\"去改用户开始菜单）",
 			/typeof parsed\.enabled !== "boolean"/.test(hostSrc) && /error: "enabled-must-be-boolean"/.test(hostSrc));
 		check("非 Windows ⇒ { ok: false, error: \"windows-only\" }（同一句也用于 PowerShell 找不到时）",
@@ -619,16 +619,16 @@ export default async function run() {
 			&& hostSrc.indexOf("项目有正式 .ico 后改这里即可") >= 0
 			&& hostSrc.indexOf("项目有正式 .ico 后改这里即可") < hostSrc.indexOf("const NOTIFY_SHORTCUT_ICON"));
 
-		check("toast 的 AUMID 有**启用 / 回退**两条路径，且每轮只探测一次",
-			/async function notifyToastTargetOf\(\)[\s\S]{0,300}?remindIdentityOf\(await notifyIdentityProbe\(\), NOTIFY_AUMID\)[\s\S]{0,300}?aumid: enabled \? NOTIFY_AUMID : POWERSHELL_AUMID/.test(hostSrc)
-			&& /const target = await notifyToastTargetOf\(\);/.test(hostSrc)
-			&& /sendToastScript\(toastScriptOf\(title, lines, target\.aumid\)\)/.test(hostSrc)
-			&& /function toastScriptOf\(title, lines, aumid\)/.test(hostSrc));
+		check("toast 的 AUMID 有**启用 / 回退**两条路径，且每轮只探测一次（name 同一处解析）",
+			/async function notifyToastTargetOf\(name\)[\s\S]{0,300}?remindIdentityOf\(await notifyIdentityProbe\(appName\), NOTIFY_AUMID\)[\s\S]{0,300}?aumid: enabled \? NOTIFY_AUMID : POWERSHELL_AUMID/.test(hostSrc)
+			&& /const target = await notifyToastTargetOf\(plain\.notifyName\);/.test(hostSrc)
+			&& /sendToastScript\(toastScriptOf\(title, lines, target\.aumid, target\.name\)\)/.test(hostSrc)
+			&& /function toastScriptOf\(title, lines, aumid, appName\)/.test(hostSrc));
 		check("身份探测**永不抛**（探测失败 = 当未启用，回退 PowerShell）",
-			/async function notifyIdentityProbe\(\)[\s\S]{0,800}?catch \(err\) \{[\s\S]{0,200}?exists: false, aumid: null/.test(hostSrc)
-			&& /async function notifyIdentityProbe\(\)[\s\S]{0,200}?process\.platform !== "win32"/.test(hostSrc));
+			/async function notifyIdentityProbe\(name\)[\s\S]{0,900}?catch \(err\) \{[\s\S]{0,200}?exists: false, aumid: null/.test(hostSrc)
+			&& /async function notifyIdentityProbe\(name\)[\s\S]{0,200}?process\.platform !== "win32"/.test(hostSrc));
 		check("快捷方式不存在时**短路**（默认路径不启动 PowerShell；设置页打开不卡）",
-			/if \(!existsSync\(notifyShortcutPath\(\)\)\) return \{ exists: false, aumid: null, error: null \};/.test(hostSrc));
+			/const lnk = notifyShortcutPath\(name\);\s*if \(!existsSync\(lnk\)\) return \{ exists: false, aumid: null, error: null \};/.test(hostSrc));
 
 		check("设置页有「通知身份」一行 + 启用/移除按钮（当前身份两种文案都在）",
 			compSrc.includes('children: "通知身份"')
@@ -639,9 +639,9 @@ export default async function run() {
 			compSrc.includes('const NOTIFY_IDENTITY_API = "/api/gacha-calendar-notify-identity";')
 			&& /fetch\(NOTIFY_IDENTITY_API, \{ headers: \{ Accept: "application\/json" \} \}\)/.test(compSrc)
 			&& /react\.useEffect\)\(\(\) => \{\s*let alive = true;/.test(compSrc));
-		check("设置页按钮 POST { enabled }，失败原因写小字（不弹窗）",
+		check("设置页按钮 POST { enabled, name }（name 每次都带；失败原因写小字、不弹窗）",
 			/method: "POST"/.test(compSrc)
-			&& /body: JSON\.stringify\(\{ enabled: enabled === true \}\)/.test(compSrc)
+			&& /body: JSON\.stringify\(\{ enabled: enabled === true, name: notifyNameOf\(name\) \}\)/.test(compSrc)
 			&& compSrc.includes("启用失败：") && compSrc.includes("移除失败：")
 			&& !/alert\(/.test(compSrc));
 		check("设置页把宿主错误码翻成人话（windows-only ⇒ 「仅 Windows 可用」）",
@@ -704,7 +704,7 @@ export default async function run() {
 			testBody.length > 0 && identityBody.length > 0, `test=${testBody.length} identity=${identityBody.length}`);
 		check("路由常量存在 + 已注册到 webServer",
 			/const NOTIFY_TEST_PREFIX = "\/api\/gacha-calendar-notify-test";/.test(hostSrc)
-			&& /webServer\.register\(\{ kind: "prefixes", path: NOTIFY_TEST_PREFIX, handler: notifyTestHandler \}\)/.test(hostSrc));
+			&& /path: NOTIFY_TEST_PREFIX,\s*handler: \(req, res\) => notifyTestHandler\(req, res, ctx, config\)/.test(hostSrc));
 		// 逐字比对两条守卫：不是"看起来相似"，而是与 identity 路由同一行文本（同口径）
 		const GUARD_LOOPBACK = 'if (!isLoopback(req)) { sendJson(res, 403, { error: "loopback-only" }); return; }';
 		const GUARD_CROSS = 'if (String(req.headers?.["sec-fetch-site"] || "") === "cross-site") {';
@@ -723,22 +723,22 @@ export default async function run() {
 			&& !/remindTickOf|remindStateOf|remindItemsOf/.test(testBody),
 			testBody.slice(0, 120));
 		check("身份选择**复用**现有判定（notifyIdentityProbe + remindIdentityOf，收敛在 notifyToastTargetOf 一处）",
-			/async function notifyToastTargetOf\(\)[\s\S]{0,200}?remindIdentityOf\(await notifyIdentityProbe\(\), NOTIFY_AUMID\)/.test(hostSrc)
-			&& /const target = await notifyToastTargetOf\(\);/.test(testBody)
+			/async function notifyToastTargetOf\(name\)[\s\S]{0,300}?remindIdentityOf\(await notifyIdentityProbe\(appName\), NOTIFY_AUMID\)/.test(hostSrc)
+			&& /const target = await notifyToastTargetOf\(appName\);/.test(testBody)
 			// 真实提醒那一轮走的也是同一个出口（判定只有一处，没有第二套 AUMID 逻辑）
-			&& /const target = await notifyToastTargetOf\(\);[\s\S]{0,400}?sendToastScript\(toastScriptOf\(title, lines, target\.aumid\)\)/.test(hostSrc));
+			&& /const target = await notifyToastTargetOf\(plain\.notifyName\);[\s\S]{0,400}?sendToastScript\(toastScriptOf\(title, lines, target\.aumid, target\.name\)\)/.test(hostSrc));
 		check("发送复用**现有的** toast 发送器（toastScriptOf + sendToastScript），不另写一套",
-			/function toastScriptOf\(title, lines, aumid\)/.test(hostSrc)
+			/function toastScriptOf\(title, lines, aumid, appName\)/.test(hostSrc)
 			&& /function sendToastScript\(script\)/.test(hostSrc)
-			&& /const sent = await sendToastScript\(toastScriptOf\(title, lines, target\.aumid\)\);/.test(testBody));
-		check("正文来自 core 的纯函数 remindTestToastOf（宿主不自己拼三行）",
-			/\{ title, lines \} = remindTestToastOf\(Date\.now\(\), target\.identity\)/.test(testBody)
+			&& /const sent = await sendToastScript\(toastScriptOf\(title, lines, target\.aumid, target\.name\)\);/.test(testBody));
+		check("正文来自 core 的纯函数 remindTestToastOf（宿主不自己拼三行；应用名也一起传进去）",
+			/\{ title, lines \} = remindTestToastOf\(Date\.now\(\), target\.identity, target\.name\)/.test(testBody)
 			&& (() => {
 				const m = /import \{([\s\S]*?)\} from "\.\/remind-core\.mjs"/.exec(hostSrc);
 				return !!m && /\bremindTestToastOf\b/.test(m[1]);
 			})());
-		check("响应形状：成功 { ok:true, aumid, identity, detail } / 失败 { ok:false, error }",
-			/ok: true, aumid: target\.aumid, identity: target\.identity, detail: String\(sent\.detail \|\| ""\)/.test(testBody)
+		check("响应形状：成功 { ok:true, aumid, identity, name, detail } / 失败 { ok:false, error }",
+			/ok: true, aumid: target\.aumid, identity: target\.identity, name: target\.name, detail: String\(sent\.detail \|\| ""\)/.test(testBody)
 			&& /ok: false, error: String\(sent\.detail \|\| "send-failed"\)/.test(testBody));
 
 		// ⑥ 设置页
@@ -769,5 +769,148 @@ export default async function run() {
 			compSrc.includes('"发送失败：" + notifyIdentityErrorText'));
 		check("按钮点击走 sendTestNotify（POST 一次就结束，不轮询）",
 			/onClick: sendTestNotify,/.test(compSrc));
+	}
+
+	// ── ⑭ 通知身份**名**可自定义（`notifyName`）：清洗纯函数 + 三处齐 + 路由带 name + 设置页一行 ──
+	// 2026-10-28 需求：应用名不再写死「二游日历」，改成设置项 `notifyName`（默认仍是「二游日历」）。
+	// 这里钉五件事：
+	//   ① 清洗（notifyNameOf，纯函数）：非法文件名字符换空格、首尾点/空白去掉、空 ⇒ 默认、
+	//      超长按码点截到 40 字、Windows 保留设备名 ⇒ 默认；宿主 / core / 设置页共用这一处；
+	//   ② 配置键**三处齐**（DEFAULT_SETTINGS / 引擎 CONFIG_KEYS / 宿主 schema 且 .volatile()）；
+	//   ③ 路由：GET 带 name；POST 的 name 决定快捷方式**文件名** + Description + DisplayName，
+	//      启用时**先删旧再建**，且只删 AUMID 等于我们的那条 .lnk（不误删别人的）；
+	//   ④ toast 的 attribution 行 / 测试通知的发送者行都吃传进来的 name（缺省仍「二游日历」）；
+	//   ⑤ 设置页那一行：只有一个输入框、绑定 notifyName、失焦/回车提交**清洗后**的值、没有那两句说明文字。
+	{
+		const { notifyNameOf } = T;
+		check("notifyNameOf 在客户端产物里（设置页与宿主共用同一份源码）", typeof notifyNameOf === "function");
+		check("宿主那份 ESM（lib/remind-core.mjs）也导出同一个清洗函数，行为逐项一致",
+			typeof R.notifyNameOf === "function"
+			&& ["", "  ", "a/b", "名字", "x".repeat(100), "CON", void 0].every((v) => R.notifyNameOf(v) === notifyNameOf(v)),
+			JSON.stringify(["a/b", "x".repeat(100), "CON"].map((v) => R.notifyNameOf(v))));
+		check("默认名 = 「二游日历」（非字符串 / 空 / 全空白 / 全是非法字符都回落它）",
+			notifyNameOf(void 0) === "二游日历" && notifyNameOf(null) === "二游日历" && notifyNameOf(123) === "二游日历"
+			&& notifyNameOf("") === "二游日历" && notifyNameOf("   ") === "二游日历"
+			&& notifyNameOf("\\/:*?\"<>|") === "二游日历",
+			JSON.stringify([notifyNameOf(void 0), notifyNameOf(null), notifyNameOf(123), notifyNameOf(""), notifyNameOf("   "), notifyNameOf('\\/:*?"<>|')]));
+		check("合法名字原样保留（中文 / 半角空格 / 全角标点都不动）",
+			notifyNameOf("二游日历") === "二游日历" && notifyNameOf("我的 日历") === "我的 日历" && notifyNameOf("A：B") === "A：B",
+			JSON.stringify([notifyNameOf("二游日历"), notifyNameOf("我的 日历"), notifyNameOf("A：B")]));
+		check("非法文件名字符与控制字符 ⇒ 换成空格，再压空白、去首尾（\\ / : * ? \" < > | + 换行 / 制表）",
+			notifyNameOf("a/b:c*d?e\"f<g>h|i") === "a b c d e f g h i"
+			&& notifyNameOf("二游/日历") === "二游 日历"
+			&& notifyNameOf("  a\nb\tc  ") === "a b c",
+			JSON.stringify([notifyNameOf('a/b:c*d?e"f<g>h|i'), notifyNameOf("二游/日历"), notifyNameOf("  a\nb\tc  ")]));
+		check("首尾的点也去掉（Windows 文件名不许以点结尾，`名字..lnk` 也难看）",
+			notifyNameOf("...名字...") === "名字" && notifyNameOf(" 名字 ") === "名字",
+			JSON.stringify([notifyNameOf("...名字..."), notifyNameOf(" 名字 ")]));
+		check("超长截断到 40 字（按**码点**切，emoji 不会被切成半个代理对）",
+			notifyNameOf("字".repeat(80)) === "字".repeat(40)
+			&& Array.from(notifyNameOf("🎮".repeat(60))).length === 40
+			&& !/[\uD800-\uDBFF]$/.test(notifyNameOf("🎮".repeat(60))),
+			String(Array.from(notifyNameOf("🎮".repeat(60))).length));
+		check("Windows 保留设备名（CON / NUL / COM1 …）⇒ 默认名（`CON.lnk` 根本建不出来）",
+			notifyNameOf("CON") === "二游日历" && notifyNameOf("nul") === "二游日历"
+			&& notifyNameOf("COM1") === "二游日历" && notifyNameOf("CONSOLE") === "CONSOLE",
+			JSON.stringify([notifyNameOf("CON"), notifyNameOf("nul"), notifyNameOf("COM1"), notifyNameOf("CONSOLE")]));
+
+		// ② 配置键三处齐
+		check("DEFAULT_SETTINGS.notifyName = 「二游日历」（10-config.js）", DEFAULT_SETTINGS.notifyName === "二游日历", String(DEFAULT_SETTINGS.notifyName));
+		{
+			const ehText = readFileSync(path.join(REPO, "src", "client", "engine-head.js"), "utf8");
+			const ci = ehText.indexOf("const CONFIG_KEYS = [");
+			const cfgBlock = ci >= 0 ? ehText.slice(ci, ehText.indexOf("];", ci)) : "";
+			const cfgKeys = [...cfgBlock.matchAll(/"([A-Za-z_$][\w$]*)"/g)].map((m) => m[1]);
+			check("引擎 CONFIG_KEYS 含 notifyName（漏了 = 设置页写了、面板与宿主读不到）", cfgKeys.includes("notifyName"), cfgKeys.join(","));
+		}
+		const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
+		check("宿主 schema 有 notifyName: z.string().default(\"二游日历\").volatile()",
+			/notifyName: z\.string\(\)\.default\("二游日历"\)\.volatile\(\)/.test(hostSrc));
+		check("宿主 import 列表里有 notifyNameOf（漏了 = 运行时 ReferenceError）",
+			(() => {
+				const m = /import \{([\s\S]*?)\} from "\.\/remind-core\.mjs"/.exec(hostSrc);
+				return !!m && /\bnotifyNameOf\b/.test(m[1]);
+			})());
+
+		// ③ 路由带 name：GET 读配置里的名字 / POST 的 name 决定文件名、Description、DisplayName
+		check("GET 的 name 从配置读并清洗（空 / 非法 ⇒ 默认「二游日历」）",
+			/const cfgName = notifyNameOf\(configValueOf\(liveConfigOf\(ctx, fallbackConfig\), "notifyName"\)\);/.test(hostSrc)
+			&& /name: cfgName,/.test(hostSrc));
+		check("POST 的 name：body 里有就用 body（设置页改完名字可立刻重建），否则用配置",
+			/const name = notifyNameOf\(typeof parsed\.name === "string" \? parsed\.name : cfgName\);/.test(hostSrc));
+		check("快捷方式文件名 = `<清洗后的 name>.lnk`（notifyShortcutPath 只按 name 拼路径）",
+			/function notifyShortcutPath\(name\) \{\s*return path\.join\(notifyShortcutDir\(\), notifyNameOf\(name\) \+ "\.lnk"\);/.test(hostSrc));
+		check("Description 与注册表 DisplayName 都用传进来的 $Name（不再写死「二游日历」）",
+			/\$Sc\.Description = \$Name \+ /.test(hostSrc)
+			&& /New-ItemProperty -Path \$Key -Name 'DisplayName' -Value \$Name -PropertyType String -Force/.test(hostSrc));
+		check("启用时**先删旧的、再建新的**（删的动作出现在 CreateShortcut 之前）",
+			(() => {
+				const i = hostSrc.indexOf("function notifyIdentityEnableScript(");
+				const body = i < 0 ? "" : hostSrc.slice(i, hostSrc.indexOf("\n}", i));
+				const atRemove = body.indexOf("Remove-Item -LiteralPath $Old.FullName -Force");
+				const atCreate = body.indexOf("$Shell.CreateShortcut($Lnk)");
+				return atRemove >= 0 && atCreate > atRemove;
+			})(),
+			"没找到删除 / 创建语句");
+		check("只删**我们自己**那条：判据是 AUMID 相等（不是文件名）⇒ 别人的 .lnk 一律不碰",
+			/\$OldId = \$null[\s\S]{0,200}?if \(\$OldId -eq \$Aumid\)[\s\S]{0,120}?Remove-Item -LiteralPath \$Old\.FullName -Force/.test(hostSrc));
+		check("名字被别人的快捷方式占了 ⇒ **不覆盖**、**一个文件都不动**，回结构化错误 shortcut-name-taken",
+			(() => {
+				const i = hostSrc.indexOf("function notifyIdentityEnableScript(");
+				const body = i < 0 ? "" : hostSrc.slice(i, hostSrc.indexOf("\n}", i));
+				const atTaken = body.indexOf("if ($Taken -ne $Aumid) { throw 'shortcut-name-taken' }");
+				const atRemove = body.indexOf("Remove-Item -LiteralPath $Old.FullName -Force");
+				// 占用检查必须在删除循环**之前**：否则"旧名字已删、新名字又建不出来"⇒ 用户两头空
+				return atTaken >= 0 && atRemove > atTaken;
+			})(),
+			"没找到占用检查 / 顺序不对");
+
+		// ④ 署名行 / 发送者行都吃传进来的 name（缺省值仍是「二游日历」）
+		check("toast 的 attribution 用传入的 name：$AppName = psQuote(app)，app = notifyNameOf(appName)",
+			/function toastScriptOf\(title, lines, aumid, appName\) \{[\s\S]{0,300}?const app = notifyNameOf\(appName\);/.test(hostSrc)
+			&& /\$AppName = " \+ psQuote\(app\)/.test(hostSrc)
+			&& /'<text placement=\\"attribution\\">' \+ \(& \$Esc \$AppName\)/.test(hostSrc));
+		check("真实提醒的文案函数收 name（宿主传 target.name；缺省仍是「二游日历」）",
+			/remindToastOf\(notify, now, target\.name\)/.test(hostSrc)
+			&& remindToastOf({ side: "gacha", kind: "end", T: NOW + H }, NOW, "我的日历").title === "即将结束 · 我的日历"
+			&& remindToastOf({ side: "gacha", kind: "end", T: NOW + H }, NOW).title === "即将结束 · 二游日历"
+			&& JSON.stringify(remindToastOf({ gameId: "g1", gameName: "游戏甲", side: "gacha", kind: "end", T: NOW + H }, NOW)) ===
+				JSON.stringify(remindToastOf({ gameId: "g1", gameName: "游戏甲", side: "gacha", kind: "end", T: NOW + H }, NOW, "别的名字")),
+			remindToastOf({ side: "gacha", kind: "end", T: NOW + H }, NOW, "我的日历").title);
+		check("测试通知的发送者行跟着 name 走（identity=app ⇒ 传入名；回退 PowerShell 时不变）",
+			remindTestToastOf(NOW, "app", "我的日历").lines[0] === "发送者：我的日历"
+			&& remindTestToastOf(NOW, "app").lines[0] === "发送者：二游日历"
+			&& remindTestToastOf(NOW, "powershell", "我的日历").lines[0] === "发送者：Windows PowerShell"
+			&& R.remindTestToastOf(NOW, "app", "我的日历").lines[0] === "发送者：我的日历",
+			JSON.stringify([remindTestToastOf(NOW, "app", "我的日历").lines[0], remindTestToastOf(NOW, "app").lines[0]]));
+
+		// ⑤ 设置页那一行
+		const compSrc = readFileSync(path.join(REPO, "src", "client", "80-components.js"), "utf8");
+		const rowAt = compSrc.indexOf("// ── 通知身份（可选）：**一行**");
+		const rowEnd = compSrc.indexOf("// ── 实验特性开关", rowAt);
+		const row = rowAt < 0 || rowEnd < 0 ? "" : compSrc.slice(rowAt, rowEnd);
+		check("设置页「通知身份」那一行能定位到（守卫自身没瞎）", row.length > 0, String(row.length));
+		{
+			const inputs = row.match(/\("input", \{/g) || [];
+			check("整行**只有一个**输入框（不拆成两个、不额外加行）", inputs.length === 1, String(inputs.length));
+		}
+		check("输入框绑定 notifyName：受控值是清洗后的已保存值 + 本地草稿（value: notifyNameShown）",
+			/value: notifyNameShown,/.test(row) && /onChange: \(e\) => setNotifyNameDraft\(e\.target\.value\)/.test(row));
+		check("失焦提交、回车也提交（回车 = 先 blur，走同一条 commitNotifyName，不会提交两次）",
+			/onBlur: \(\) => \{ void commitNotifyName\(\); \}/.test(row)
+			&& /onKeyDown: \(e\) => \{ if \(e\.key === "Enter"\) \{ e\.preventDefault\(\); e\.currentTarget\.blur\(\); \} \}/.test(row));
+		check("提交的是**清洗后的值**（先过 notifyNameOf 再 commit(\"notifyName\", …)；空 ⇒ 由它兜默认）",
+			/const next = notifyNameOf\(notifyNameDraft === null \? notifyNameSaved : notifyNameDraft\);/.test(compSrc)
+			&& /await commit\("notifyName", next\);/.test(compSrc));
+		check("已启用时改名**顺便重建**快捷方式（POST { enabled:true, name }，先删旧再建）",
+			/if \(notifyIdentity && notifyIdentity\.enabled\) \{[\s\S]{0,400}?await writeNotifyIdentity\(true, next\)/.test(compSrc));
+		check("窄输入框约 110px + 整行 flexWrap（720px 卡片放得下，窄窗口允许换行）",
+			/width: 110/.test(row) && /flexWrap: "wrap"/.test(row));
+		check("那两句说明文字**已删掉**、信息挪进按钮 title",
+			!compSrc.includes("更改系统通知的发送者为") && !compSrc.includes("需要在开始菜单创建无害的快捷方式文件")
+			&& compSrc.includes("title: \"更改系统通知的发送者：会在开始菜单建一条无害的快捷方式（可随时移除）\"")
+			&& compSrc.includes("title: \"立刻弹一条系统通知，确认通知链路通不通\""));
+		check("状态文字保留（「当前：…」两种文案都在），且显示的是配置里的名字",
+			row.includes("当前：") && row.includes("PowerShell（默认）") && /notifyIdentity\.enabled \? notifyIdentity\.name/.test(row));
 	}
 }
