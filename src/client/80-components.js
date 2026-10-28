@@ -2521,9 +2521,30 @@
 			return (0, react_jsx_runtime.jsxs)("div", {
 				style: { display: "flex", flexDirection: "column", gap: 14, maxWidth: 720, fontSize: 13, padding: "2px 0 8px" },
 				children: [
-					(0, react_jsx_runtime.jsx)("div", { children: [
-						(0, react_jsx_runtime.jsx)("div", { style: { fontSize: 16, fontWeight: 600 }, children: SETTINGS_SECTION_LABEL })
-					] }),
+					// 标题行（2026-10-28 改）：**标题 + 版本号 + Star 指引同一行**。
+					// 原来标题独占一行、Star 指引领在页面最底部 —— 想点 Star 得滚到最后，想知道跑的是哪一版
+					// 得去翻缓存。合到一行后三件事在同一处：
+					//   · 标题：沿用 SETTINGS_SECTION_LABEL，fontSize 16 / fontWeight 600 不变；
+					//   · 版本号：`v` + PLUGIN_VERSION（12px 三级字色，见 70-styles.js 的 .gacha-cal-version）。
+					//     ⚠️ **不许手写 "v0.12.6"**：PLUGIN_VERSION 由 build.mjs 用根 package.json 的 version
+					//     注入（05-version.js 的占位符 → build.mjs 的 VERSION_TOKEN），cases-star.mjs 有防漂移守卫；
+					//   · Star 链接：仍是 <a> + target="_blank" + rel，样式复用 .gacha-cal-star-link（文字链接，不是按钮）。
+					// 三者靠 align-items:center 垂直居中；gap 10 = 用户要的 8~10px；窄窗口 flexWrap 换行。
+					(0, react_jsx_runtime.jsxs)("div", {
+						className: "gacha-cal-settings-title",
+						style: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" },
+						children: [
+							(0, react_jsx_runtime.jsx)("div", { style: { fontSize: 16, fontWeight: 600 }, children: SETTINGS_SECTION_LABEL }),
+							(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-version", title: "插件版本（与 package.json 的 version 一致）", children: "v" + PLUGIN_VERSION }),
+							(0, react_jsx_runtime.jsx)("a", {
+								className: "gacha-cal-star-link",
+								href: "https://github.com/EastMG/dsh-gacha-calendar",
+								target: "_blank",
+								rel: "noreferrer noopener",
+								title: "去 GitHub 给这个插件点个 Star",
+								children: "⭐ Star"
+							})
+						] }),
 					saveError ? (0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-state-error-primary, #d4380d)", fontSize: 12 }, children: saveError }) : null,
 					// 配置表单本身的状态：只在"写不进去"时才出现，平时不占位。
 					// 这一行是给"控件点了弹回原值、却没有任何提示"这类问题留的现场：
@@ -2810,19 +2831,7 @@
 									] })
 							] })) : null
 					] }),
-					(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 12 }, children: "数据来自各游戏官方公告、官方 Wiki 与第三方站；无数据时对应列留空" }),
-					// 底部 Star 指引（2026-10-28）：整个设置页的**最后一行**（游戏列表、自检、来源说明之后）。
-					// 就是一个 <a>：不做按钮、不加底色块、不改主题，只是把「去 GitHub 点 Star」放在手边。
-					// 外观全在 .gacha-cal-star-link（70-styles.js）：12px + 三级字色 + 默认无下划线，
-					// hover 才升到次级字色并出下划线（低调，但仍是可点的文字）。
-					// marginTop: 10 = 用户要的 8~12px 上方留白（额外叠在容器 gap 14 之上，不与上面挤在一起）。
-					(0, react_jsx_runtime.jsx)("a", {
-						className: "gacha-cal-star-link",
-						href: "https://github.com/EastMG/dsh-gacha-calendar",
-						target: "_blank",
-						rel: "noreferrer noopener",
-						children: "⭐ 觉得好用？去 GitHub 点个 Star"
-					})
+					(0, react_jsx_runtime.jsx)("div", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 12 }, children: "数据来自各游戏官方公告、官方 Wiki 与第三方站；无数据时对应列留空" })
 				]
 			});
 		}

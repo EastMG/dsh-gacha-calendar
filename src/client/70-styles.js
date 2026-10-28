@@ -173,11 +173,14 @@
 			.gacha-cal-chip:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary,#3d5afe);outline-offset:1px}
 			.gacha-cal-chip--on{background:var(--dsw-alias-state-business-primary,#3d5afe);border-color:transparent;color:#fff;font-weight:600}
 			.gacha-cal-chip--on:hover{background:var(--dsw-alias-state-business-primary-hover,#3350e6);border-color:transparent;color:#fff}
-			/* 设置页底部 Star 指引（2026-10-28）：一行**文字链接**，不是按钮、没有底色块。
-			   · 默认 = 12px + 三级字色 + 无下划线（低调，不抢设置页的视线）；
-			   · hover 才升到次级字色并出下划线（仍是"可点的文字"，不是控件）；
-			   · marginTop 10 = 与上方「数据来源」说明行的额外留白，避免挤在一起。 */
-			.gacha-cal-star-link{align-self:flex-start;margin-top:10px;font-size:12px;line-height:1.6;color:var(--dsw-alias-label-tertiary,#9aa1ab);text-decoration:none;cursor:pointer;transition:color .12s}
+			/* 设置页标题行（2026-10-28 改）：标题 + 版本号 + Star 指引**同一行**（布局在 80-components.js）。
+			   · 版本号 = 12px + 三级字色，紧跟标题右边（"v" + 构建期注入的 PLUGIN_VERSION）；
+			   · Star 链接 = 一行**文字链接**，不是按钮、没有底色块：默认 12px + 三级字色 + 无下划线，
+			     hover 才升到次级字色并出下划线（仍是"可点的文字"，不是控件）；
+			   · 三者靠标题行容器的 align-items:center **垂直居中** ⇒ 这两条规则里**不许**再写
+			     align-self / margin —— 那会把某个子项顶出中线（cases-star.mjs 有守卫）。 */
+			.gacha-cal-version{flex:none;font-size:12px;line-height:1.6;color:var(--dsw-alias-label-tertiary,#9aa1ab);white-space:nowrap}
+			.gacha-cal-star-link{flex:none;font-size:12px;line-height:1.6;color:var(--dsw-alias-label-tertiary,#9aa1ab);text-decoration:none;cursor:pointer;transition:color .12s;white-space:nowrap}
 			.gacha-cal-star-link:hover{color:var(--dsw-alias-label-secondary,#4a5261);text-decoration:underline}
 			.gacha-cal-star-link:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary,#3d5afe);outline-offset:2px;border-radius:3px}
 			/* ── 启动动画（纯 CSS：只加 keyframes，不动任何元素/DOM）────────────────────────

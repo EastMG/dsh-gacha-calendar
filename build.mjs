@@ -402,6 +402,19 @@ if (checkOnly) {
   const okHost = same(hostBuilt, curHost);
   console.log(`lib/client.js              ${okClient ? "一致" : "不一致"}  ${sha(clientBuilt).slice(0, 16)}`);
   console.log(`lib/index.js               ${okHost ? "一致" : "不一致"}  ${sha(hostBuilt).slice(0, 16)}`);
+  // —— 版本号单列一行（与上面"逐字节一致"重复，但重复是**故意**的）——
+  // 上面那两行只报"不一致"，而"不一致"最常见的成因就是**版本号变了但没重新 build**。
+  // 版本号是产物里唯一来自文件外部的字面量（package.json → 占位符替换），值得单列。
+  // ⚠️ 查的是**盘上的产物**（curClient / 盘上 core.mjs），不是 built 字符串 —— 后者永远正确，
+  //    那样这一行就成了"永远 ✓ 的摆设"，测不出"有人手改了产物 / 忘了 build"。
+  //   · 盘上产物里必须是 `const PLUGIN_VERSION = "<package.json 的 version>";`；
+  //   · 且占位符必须已经被替换掉（残留 = 注入没跑，客户端会显示 "__PLUGIN_VERSION__"）。
+  // 不一致 ⇒ 下面的 exit 1 照旧拉红（这条不是"仅供参考"的日志）。
+  const versionDecl = 'const PLUGIN_VERSION = "' + rootPkg.version + '";';
+  const curCore = fs.existsSync(OUT_CORE) ? read(OUT_CORE) : "";
+  const okVersion = curClient.includes(versionDecl) && curCore.includes(versionDecl)
+    && !curClient.includes(VERSION_TOKEN) && !curCore.includes(VERSION_TOKEN);
+  console.log(`版本号注入                 ${okVersion ? "✓ " + rootPkg.version : "✗ 盘上产物不是 " + rootPkg.version + "（package.json 改了没重新 build？）"}`);
   // core 包两个文件 + 宿主复用模块由本脚本生成；**缺失即失败**
   //（旧实现只打印"不存在"仍 exit 0 → 删掉产物也能过守卫）
   let okCore = true;
@@ -438,7 +451,7 @@ if (checkOnly) {
   const nsProblems = topLevelCollisionProblems(ORDER);
   console.log(`跨文件重名${" ".repeat(10)} ${nsProblems.length === 0 ? "✓ 无" : `✗ ${nsProblems.length} 处`}`);
   for (const p of nsProblems.slice(0, 8)) console.log(`  - ${p}`);
-  if (!okClient || !okHost || !okCore || !okTypes || !okSyntax || nsProblems.length > 0) {
+  if (!okClient || !okHost || !okCore || !okTypes || !okSyntax || !okVersion || nsProblems.length > 0) {
     console.error("\n✗ 产物校验未通过 —— 要么忘了跑 build，要么有人直接改了产物（请改 src/ 后重新 build）");
     process.exit(1);
   }
@@ -470,3 +483,5 @@ console.log(`写出 lib/index.js                ${hostBuilt.length} 字符  sha2
 console.log(`写出 lib/remind-core.mjs         ${remindBuilt.length} 字符  sha256=${sha(remindBuilt).slice(0, 16)}`);
 console.log(`写出 packages/core/core.mjs      ${coreBuilt.length} 字符  sha256=${sha(coreBuilt).slice(0, 16)}`);
 console.log(`写出 packages/core/package.json  ${corePkgBuilt.length} 字符  (gacha-calendar-core@${rootPkg.version})`);
+// 版本号是"从文件外部注入"的唯一字面量（设置页标题行会显示它），写盘时单列一行，便于对账。
+console.log(`插件版本                         ${rootPkg.version}（已注入 lib/client.js 与 packages/core/core.mjs）`);

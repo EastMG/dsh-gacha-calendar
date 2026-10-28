@@ -112,7 +112,7 @@ const batches = [
 	["到期提醒（送达）判定 + 设置键三处齐 + 宿主接线", runRemind],
 	["README 结构图与事实性", runReadme],
 	["core 产物（零宿主依赖 + 注册幂等）", runCore],
-	["设置页底部 Star 指引（静态）", runStar]
+	["设置页标题行（标题 + 版本号 + Star 指引）", runStar]
 ];
 const before = counts();
 for (const [label, fn] of batches) {
