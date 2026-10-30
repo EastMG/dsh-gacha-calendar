@@ -5,7 +5,7 @@
 // 功能范围（用户定）：侧栏按钮「单行轮播」+「提前 N 小时」设置。**不含逐游戏筛选**。
 // 不做系统通知、不做弹窗/声音、不动刷新链路、不动缓存载荷结构。
 //
-// 本文件守九件事：
+// 本文件守十件事：
 //   ① 判定口径（纯函数 `isExpiringSoon`，60-helpers.js）：
 //      某侧"即将到期" = 该侧**已开始**（startTs <= now）且 **endTs 落在 (now, now + N 小时]**。
 //   ② 方向判定（纯函数 `dueKindOf`）：⚠️ 2026-10-28 起**开始方向暂时停用** —— 解析器只产出
@@ -36,6 +36,10 @@
 //      且**类名 = 视觉方向**（.is-up = 新内容从下方进 / .is-down = 新内容从上方进）。
 //   ⑨ 翻页层的**两行顺序** + **落定**（同日五次、六次定稿）：up ⇒ [prev, cur]、down ⇒ [cur, prev]
 //      （纯函数 `tickerFlipLinesOf`）；动画播完只渲染 cur 一行（`tickerFlipRenderLinesOf`）。
+//   ⑩ 侧栏槽位布局（2026-10-30）：`styles/sidebar-footer.css` 把宿主的 `sidebar.footer.action`
+//      从"一行"改成"上下两行"，但**每条规则都必须带** `html:not([data-dsh-sidebar-footer-balanced])`
+//      `:not([data-dsh-sidebar-footer-compat])` 门槛（桌面壳自己接管这套布局，不能被我们盖掉）；
+//      同时守 90-plugin.js 的注册项用 `order` / `label`（宿主契约里没有 `priority`）。
 //
 // ⚠️ 时刻全部显式传入（`now` 是参数，不是 Date.now()），所以本文件不随跑测那天漂移。
 // ⚠️ 「今天 / 明天 / N 天后」用的是**本机日历日**（tickerDayWord），所以期望值也必须按本机日历日现造
@@ -1032,5 +1036,74 @@ export default async function run() {
 			/const \[flipSettled, setFlipSettled\] = \(0, react\.useState\)\(false\);/.test(comp2)
 			&& /reduceMotion \? "down" : flipDir/.test(comp2)
 			&& /@media \(prefers-reduced-motion:reduce\)\{[^}]*animation:none\}/.test(styles2));
+	}
+
+	// ── ⑩ 侧栏槽位布局（2026-10-30）：网页端把 `sidebar.footer.action` 从「一行」改成「上下两行」──
+	// 实测背景（证据与选择器依据见 README_Dev「为什么插件要改宿主的槽位布局」）：
+	//   ① 宿主把该槽位渲染成 `<div data-slot="sidebar.footer.action" style="display:contents">`，
+	//      父容器 `.footerActions` 是 `display:flex; flex-wrap:nowrap; flex-direction:row` 的**一行**
+	//      ⇒ 同槽位多个插件入口会互相挤压；
+	//   ② 桌面壳（旧壳 flex column / NEXT grid）自己注入 CSS 接管这件事，并在 <html> 上挂
+	//      `data-dsh-sidebar-footer-balanced` / `-compat` 属性；
+	//   ③ 两边都用 `!important` ⇒ 靠**特异性**分胜负，我们的选择器更长，**没有门槛就会盖掉桌面壳**。
+	// 所以这一组的核心守卫是门槛：三条规则一条都不许裸写。
+	{
+		const footerCssPath = path.join(REPO, "src", "client", "styles", "sidebar-footer.css");
+		let footerCss = "";
+		try {
+			footerCss = readFileSync(footerCssPath, "utf8");
+		} catch { /* 下面第一条断言会红，这里只保证不抛 */ }
+		const buildSrc2 = readFileSync(path.join(REPO, "build.mjs"), "utf8");
+		const orderBlock2 = /const CSS_ORDER = \[([\s\S]*?)\n\];/.exec(buildSrc2);
+		const orderNames2 = orderBlock2 ? [...orderBlock2[1].matchAll(/"([^"]+\.css)"/g)].map((m) => m[1]) : [];
+		check("styles/sidebar-footer.css 存在，且进了 build.mjs 的 CSS_ORDER（样式不会只躺着）",
+			footerCss.length > 0 && orderNames2.includes("sidebar-footer.css"));
+
+		const GATE = 'html:not([data-dsh-sidebar-footer-balanced]):not([data-dsh-sidebar-footer-compat]) body ';
+		const cssNoComments = footerCss.replace(/\/\*[\s\S]*?\*\//g, "");
+		const footerRules = [...cssNoComments.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+			.map((m) => ({ sel: m[1].trim(), body: m[2] }));
+		check("覆盖只有 3 条规则（槽位 / 槽位子项 / 收起态），且每条都命中 sidebar.footer.action",
+			footerRules.length === 3
+			&& footerRules.every((r) => /\[data-slot="sidebar\.footer\.action"\]/.test(r.sel)),
+			String(footerRules.length));
+		// 🔑 关键守卫：门槛必须**逐条**带上 balanced 与 compat **两个** :not。
+		// 少一个 ⇒ 桌面壳某一档（默认 balanced / 兼容开关）下我们的 column 会盖掉它的 grid/column。
+		check("每条覆盖规则都带「桌面壳未接管」门槛（balanced + compat 两个 :not 都在，且逐条完整）",
+			footerRules.length === 3 && footerRules.every((r) => r.sel.startsWith(GATE))
+			&& (footerCss.match(/html:not\(\[data-dsh-sidebar-footer-balanced\]\):not\(\[data-dsh-sidebar-footer-compat\]\)/g) || []).length === 3,
+			footerRules.map((r) => r.sel).join(" | "));
+		check("门槛选择器里没有裸的 `html body` 变体（少了 :not 那两条就等于没门槛）",
+			!/html\s+body\s+\[data-slot/.test(cssNoComments));
+		const slotRule = footerRules.find((r) => /display:\s*flex\s*!important/.test(r.body)) || { sel: "", body: "" };
+		check("槽位本身：display:flex !important（**不是** grid —— NEXT 用 grid，我们不能抢）",
+			/display:\s*flex\s*!important/.test(slotRule.body) && !/display:\s*grid/.test(footerCss),
+			slotRule.body);
+		check("槽位本身：flex-direction: column（网页端改成上下两行）",
+			/flex-direction:\s*column/.test(slotRule.body), slotRule.body);
+		check("槽位本身：max-height + overflow-y:auto + overscroll-behavior:contain（入口多了能滚，不顶穿侧栏）",
+			/max-height:\s*min\(40vh,\s*240px\)/.test(slotRule.body)
+			&& /overflow-y:\s*auto/.test(slotRule.body)
+			&& /overscroll-behavior:\s*contain/.test(slotRule.body), slotRule.body);
+		const childRule = footerRules.find((r) => />\s*\*$/.test(r.sel)) || { body: "" };
+		check("槽位子项：flex:none + min-width:0（按钮不被压扁，与桌面壳同一套做法）",
+			/flex:\s*none/.test(childRule.body) && /min-width:\s*0/.test(childRule.body), childRule.body);
+		const collapsedRule = footerRules.find((r) => /\[class\*="collapsed"\]/.test(r.sel)) || { body: "" };
+		check("收起成图标栏时居中（[class*=\"collapsed\"] 命中宿主的 GgXflG_collapsed，保持原有视觉）",
+			/align-items:\s*center/.test(collapsedRule.body), collapsedRule.body);
+		// 反向守卫：产物里必须能看到这段 CSS（改了 src 忘了 build ⇒ 真机上样式根本不生效）。
+		const clientJs = readFileSync(path.join(REPO, "lib", "client.js"), "utf8");
+		check("产物 lib/client.js 里有这段覆盖（门槛串 + column + 滚动上限都进了 STYLE）",
+			clientJs.includes(GATE + '[data-slot="sidebar.footer.action"]')
+			&& clientJs.includes("flex-direction: column")
+			&& clientJs.includes("max-height: min(40vh, 240px)"));
+		// 注册项：宿主对这个槽位的契约只有 id / order / label（`priority` 不是可选项）。
+		const pluginSrc = readFileSync(path.join(REPO, "src", "client", "90-plugin.js"), "utf8");
+		const footerReg = /ctx\.slots\.inject\("sidebar\.footer\.action"[\s\S]*?CalendarPanel\)\)/.exec(pluginSrc);
+		const reg = footerReg ? footerReg[0] : "";
+		check("注册对象带 label thunk：label: () => SETTINGS_SECTION_LABEL（图标栏提示用，跟得住语言切换）",
+			/label:\s*\(\)\s*=>\s*SETTINGS_SECTION_LABEL/.test(reg), reg);
+		check("注册对象用 order: -10（升序 ⇒ 仍在最上），且不再写宿主不认的 priority",
+			/order:\s*-10\b/.test(reg) && !/\bpriority\s*:/.test(reg), reg);
 	}
 }

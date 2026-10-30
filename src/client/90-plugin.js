@@ -114,10 +114,15 @@
 			// 存储适配（settings scope）与传输适配（直连 + 宿主代理）见 92-dsh-env.js。
 			const engine = createDshEngine(scope);
 
+			// 侧栏底部入口。注册项的三个可选项以宿主槽位契约为准（见 README_Dev）：
+			//   · `order`：**升序**排位（宿主默认 0）⇒ -10 仍在最上；
+			//   · `label`：侧栏收起成图标栏时宿主用它做提示（thunk 每帧重读，跟得住语言切换）；
+			//   · `priority`：**不是**这个槽位的可选项（宿主契约只列 id / order / label），旧写法已换成 order。
 			ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
 				name: "sidebar.footer.action",
 				id: "dsh-gacha-calendar",
-				priority: -10,
+				order: -10,
+				label: () => SETTINGS_SECTION_LABEL,
 				locale: NS,
 				inject: () => ({ scope, engine })
 			}, CalendarPanel));

@@ -178,7 +178,14 @@ const CSS_ORDER = [
   "animations.css",        // 启动动画（面板每次打开重挂载 ⇒ 动画只跑一次）+ 删除键
   "schedule.css",          // 新面板：骨架 / 头部 / 近期 / 游戏表 / 探头
   "schedule-motion.css",   // 新面板：迷你条与进度环动画 + reduce
-  "schedule-foot.css"      // 新面板：刷新失败条 / 底栏 / 搜索 / 字体规范 / 留白卡
+  "schedule-foot.css",     // 新面板：刷新失败条 / 底栏 / 搜索 / 字体规范 / 留白卡
+  // 2026-10-30：宿主的侧栏槽位布局覆盖（**不是**我们自己的组件样式）。
+  // 宿主把 `sidebar.footer.action` 渲染成 `display:contents` 锚点，父容器 `.footerActions` 是
+  // `flex-wrap:nowrap` 的一行 ⇒ 同槽位多个插件入口互相挤压。桌面壳已自己注入 CSS 接管（旧壳
+  // flex column / NEXT 用 grid）并给 <html> 挂 `data-dsh-sidebar-footer-*` 属性；我们只补网页端，
+  // 所以每条规则都带「桌面壳未接管」的门槛（两边都 !important，靠特异性分胜负）。
+  // 放最后：它是**覆盖宿主布局**的补丁层，排在组件样式之后语义最清楚（对 CSS 层叠也只会更安全）。
+  "sidebar-footer.css"     // 槽位布局：网页端把 footer 动作排成上下两行（桌面端由桌面壳接管）
 ];
 
 // 第二个产物：packages/core/core.mjs —— 独立、零依赖的 ESM 模块，供浏览器扩展 / Windows / 原生平台 import。

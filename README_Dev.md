@@ -116,6 +116,14 @@ dsh-gacha-calendar/
 └── LICENSE / README.md / README_Dev.md / AGENTS.md
 ```
 
+### 为什么插件要改宿主的槽位布局
+
+- **事实**：宿主把 `sidebar.footer.action` 渲染成 `<div data-slot="sidebar.footer.action" style="display:contents">`，它的父容器是 `display:flex; flex-wrap:nowrap` 的**一行**。同一槽位上多个插件的整宽入口会变成同一行的 flex 兄弟、互相挤压（DSH Desktop 源码注释的原话是 "crush each other"）。
+- **做法**：`src/client/styles/sidebar-footer.css`（在 `build.mjs` 的 `CSS_ORDER` 末尾）把该槽位改成 `flex-direction:column`，子项 `flex:none`，并加 `max-height:min(40vh,240px)` + `overflow-y:auto`（入口多了能滚、不顶穿侧栏）；侧栏收起成图标栏时 `align-items:center`。
+- **门槛（关键）**：桌面壳已经自己注入 CSS 接管同一槽位（旧壳 `flex-direction:column`，Desktop NEXT 用 `display:grid` + `grid-column:1/-1`），并在 `<html>` 上挂 `data-dsh-sidebar-footer-balanced` / `data-dsh-sidebar-footer-compat`。两边都是 `!important` ⇒ 靠**特异性**分胜负，而我们的选择器更长，**没有门槛就会盖掉桌面壳**。所以每条规则都写成 `html:not([data-dsh-sidebar-footer-balanced]):not([data-dsh-sidebar-footer-compat]) body …`，只在**桌面壳未接管**（网页端）时生效。
+- **选择器依据**（实测，不是猜）：`data-slot` 属性确实存在于宿主 DOM —— DSH NEXT 的 slots 渲染器给每个槽位挂这个属性（`<html>` 上没有任何 `data-dsh-sidebar-footer-*`）；收起态用的 `[class*="collapsed"]` 命中宿主侧栏根节点的 `GgXflG_collapsed` 一类类名（模块哈希前缀 + `collapsed`）。
+- **注册项**：该槽位的宿主契约只列 `id` / `order` / `label`（`order` 升序、默认 0），**没有 `priority`** —— 旧写法 `priority:-10` 根本不被读，已换成 `order:-10`（仍在最上）；`label` 用 thunk（`() => SETTINGS_SECTION_LABEL`），图标栏提示跟得住语言切换。
+
 ## 本机只读快照接口（给自动化脚本用）
 
 浏览器半每次把合并好的数据写入 `lastData` 设置后，会顺手 POST 一份镜像给**宿主内存**里的只读路由
