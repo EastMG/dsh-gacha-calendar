@@ -18,8 +18,10 @@
 // ⚠️ 判定代码与宿主用的是**同一份源码**（build.mjs 把 65-remind.js 原样拼成 lib/remind-core.mjs），
 //    这里有两类断言分别走两条路：`T.remindXxx`（客户端产物）与 `R.remindXxx`（宿主那份 ESM）。
 
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { EventEmitter } from "node:events";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import os from "node:os";
 import path from "node:path";
 import { check, section } from "./harness.mjs";
 import { T, readStylesSource, readComponentsSource } from "./load.mjs";
@@ -38,6 +40,8 @@ export default async function run() {
 	const {
 		remindOnOf, remindIdentityOf, notifyShortcutPickOf, notifyIdentityCacheOf, notifyIdentityFallbackOf, remindNodesOf, remindNodesToggleOf, remindConfigOf, remindKeyOf, remindStateOf,
 		remindTestToastOf, remindWindowOf, remindItemsOf, remindTickOf, remindToastOf,
+		// 跨平台（2026-10-30）：状态目录解析 / 通知通道 / macOS 通知脚本（纯函数，宿主直接复用）
+		hostStateDirOf, notifyChannelOf, notifyAppleScriptTextOf, remindAppleScriptOf,
 		dueWindowOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
 	} = T;
 
@@ -773,8 +777,9 @@ export default async function run() {
 		check("只接受 POST（其它方法 405），**不提供**读状态的能力",
 			testBody.includes('if (req.method !== "POST") { sendJson(res, 405, { error: "method-not-allowed" }); return; }')
 			&& !/req\.method === "GET"/.test(testBody));
-		check("非 Windows ⇒ { ok: false, error: \"windows-only\" }（与 identity 路由同一句）",
-			/process\.platform !== "win32"[\s\S]{0,120}?ok: false, error: "windows-only"/.test(testBody));
+		check("平台没有通知通道（Linux 等）⇒ { ok: false, error: \"notify-unsupported\" }（结构化、不抛）",
+			/notifyChannelOf\(process\.platform\) === NOTIFY_CHANNEL_NONE[\s\S]{0,160}?ok: false, error: "notify-unsupported"/.test(testBody),
+			testBody.slice(0, 160));
 		check("**不写状态**：路由里没有状态文件读写（writeRemindState / readRemindState / host-state.json / appendFileSync）",
 			!/writeRemindState|readRemindState|remindStatePath|host-state\.json|appendFileSync|writeFileSync/.test(testBody)
 			&& !/lastData/.test(testBody)
@@ -784,13 +789,14 @@ export default async function run() {
 			/async function notifyToastTargetOf\(name\)[\s\S]{0,1200}?remindIdentityOf\(identityProbeOfState\(state\), NOTIFY_AUMID\)/.test(hostSrc)
 			&& /const target = await notifyToastTargetOf\(appName\);/.test(testBody)
 			// 真实提醒那一轮走的也是同一个出口（判定只有一处，没有第二套 AUMID 逻辑）
-			&& /const target = await notifyToastTargetOf\(plain\.notifyName\);[\s\S]{0,400}?sendToastScript\(toastScriptOf\(title, lines, target\.aumid, target\.name\)\)/.test(hostSrc));
-		check("发送复用**现有的** toast 发送器（toastScriptOf + sendToastScript），不另写一套",
+			&& /const target = await notifyToastTargetOf\(plain\.notifyName\);[\s\S]{0,600}?deliverToast\(title, lines, target\)/.test(hostSrc));
+		check("发送复用**同一个送达出口**（deliverToast → Windows 用 toastScriptOf + sendToastScript），不另写一套",
 			/function toastScriptOf\(title, lines, aumid, appName\)/.test(hostSrc)
 			&& /function sendToastScript\(script\)/.test(hostSrc)
-			&& /const sent = await sendToastScript\(toastScriptOf\(title, lines, target\.aumid, target\.name\)\);/.test(testBody));
-		check("正文来自 core 的纯函数 remindTestToastOf（宿主不自己拼三行；应用名也一起传进去）",
-			/\{ title, lines \} = remindTestToastOf\(Date\.now\(\), target\.identity, target\.name\)/.test(testBody)
+			&& /function deliverToast\(title, lines, target\)/.test(hostSrc)
+			&& /const sent = await deliverToast\(title, lines, target\);/.test(testBody));
+		check("正文来自 core 的纯函数 remindTestToastOf（宿主不自己拼三行；应用名 + 平台兜底发送者也一起传进去）",
+			/\{ title, lines \} = remindTestToastOf\(Date\.now\(\), target\.identity, target\.name, fallbackSenderLabel\(\)\)/.test(testBody)
 			&& (() => {
 				const m = /import \{([\s\S]*?)\} from "\.\/remind-core\.mjs"/.exec(hostSrc);
 				return !!m && /\bremindTestToastOf\b/.test(m[1]);
@@ -897,8 +903,8 @@ export default async function run() {
 			&& /name: shownName,/.test(hostSrc));
 		check("POST 的 name：body 里有就用 body（设置页改完名字可立刻重建），否则用配置",
 			/const name = notifyNameOf\(typeof parsed\.name === "string" \? parsed\.name : cfgName\);/.test(hostSrc));
-		check("快捷方式文件名 = `<清洗后的 name>.lnk`（notifyShortcutPath 只按 name 拼路径）",
-			/function notifyShortcutPath\(name\) \{\s*return path\.join\(notifyShortcutDir\(\), notifyNameOf\(name\) \+ "\.lnk"\);/.test(hostSrc));
+		check("快捷方式文件名 = `<清洗后的 name>.lnk`（notifyShortcutPath 只按 name 拼路径；非 Windows 目录为空 ⇒ 空串）",
+			/function notifyShortcutPath\(name\) \{\s*const dir = notifyShortcutDir\(\);\s*if \(dir === ""\) return "";\s*return path\.join\(dir, notifyNameOf\(name\) \+ "\.lnk"\);/.test(hostSrc));
 		check("Description 与注册表 DisplayName 都用传进来的 $Name（不再写死「二游日历」）",
 			/\$Sc\.Description = \$Name \+ /.test(hostSrc)
 			&& /New-ItemProperty -Path \$Key -Name 'DisplayName' -Value \$Name -PropertyType String -Force/.test(hostSrc));
@@ -1280,5 +1286,291 @@ export default async function run() {
 			/const refreshNotifyIdentity = async \(\) => \{[\s\S]{0,400}?setNotifyIdentity\(notifyIdentityOfBody\(body\)\)/.test(compSrc));
 		check("点「发送测试通知」成功后**再 GET 一次身份**并刷新那一行（保守值不会一直挂着）",
 			/await sendNotifyTest\(\);[\s\S]{0,300}?await refreshNotifyIdentity\(\);/.test(compSrc));
+	}
+
+	// ── ⑰ 跨平台（Windows / macOS / Linux）：状态目录 + 平台闸门 + macOS 通知 ─────────────────
+	// 背景（2026-10-30 审计）：DSH 官方 README 只承诺 Windows + macOS（Linux 有产物、不作硬要求），
+	// 所以「插件必须在 macOS 上不崩、核心功能可用」是硬要求。这一节把三件事钉死：
+	//   ① 宿主状态目录**按平台解析**（Windows %LOCALAPPDATA% / macOS Application Support /
+	//      Linux XDG_DATA_HOME 或 ~/.local/share），LOCALAPPDATA 缺失 / 空串 / 相对路径都有明确规则
+	//      —— 绝不允许出现 `undefined/...` 或相对路径（相对路径会落到宿主 cwd，写进去等于写丢）；
+	//   ② 每一处 Windows 专有调用点都有 `process.platform === "win32"` 判断，非 Windows 走明确的
+	//      降级分支（空串 / 空数组 / 结构化结果），**不抛异常**；
+	//   ③ macOS 用系统自带的 osascript 发通知（零额外依赖），失败不致命，与 Windows 走同一条送达逻辑。
+	{
+		const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
+		const hostBodyOf = (name) => {
+			const i = hostSrc.indexOf("function " + name + "(");
+			const j = i < 0 ? -1 : hostSrc.indexOf("\n}", i);
+			return i < 0 ? "" : (j < 0 ? hostSrc.slice(i) : hostSrc.slice(i, j));
+		};
+
+		// ① 纯函数：hostStateDirOf（三平台 + env 缺失 / 空串 / 相对路径）
+		const WIN_HOME = "C:\\Users\\u";
+		const WIN_ENV = { LOCALAPPDATA: "C:\\Users\\u\\AppData\\Local", USERPROFILE: WIN_HOME };
+		check("Windows：%LOCALAPPDATA%\\dsh-gacha-calendar",
+			hostStateDirOf(WIN_ENV, "win32", WIN_HOME) === "C:\\Users\\u\\AppData\\Local\\dsh-gacha-calendar",
+			hostStateDirOf(WIN_ENV, "win32", WIN_HOME));
+		check("Windows：LOCALAPPDATA **缺失** ⇒ 退 os.homedir()（%USERPROFILE%\\AppData\\Local\\…）",
+			hostStateDirOf({ USERPROFILE: WIN_HOME }, "win32", WIN_HOME) === "C:\\Users\\u\\AppData\\Local\\dsh-gacha-calendar",
+			hostStateDirOf({ USERPROFILE: WIN_HOME }, "win32", WIN_HOME));
+		check("Windows：LOCALAPPDATA **空串 / 纯空白 / 相对路径** ⇒ 一律当没有（退 home，不产生相对路径）",
+			["", "   ", "AppData/Local", "AppData\\Local", "./local"].every((bad) =>
+				hostStateDirOf({ LOCALAPPDATA: bad, USERPROFILE: WIN_HOME }, "win32", WIN_HOME) === "C:\\Users\\u\\AppData\\Local\\dsh-gacha-calendar"),
+			JSON.stringify(["", "AppData/Local"].map((bad) => hostStateDirOf({ LOCALAPPDATA: bad, USERPROFILE: WIN_HOME }, "win32", WIN_HOME))));
+		check("macOS：~/Library/Application Support/dsh-gacha-calendar",
+			hostStateDirOf({}, "darwin", "/Users/u") === "/Users/u/Library/Application Support/dsh-gacha-calendar",
+			hostStateDirOf({}, "darwin", "/Users/u"));
+		check("macOS：**不读 LOCALAPPDATA / XDG_DATA_HOME**（别的平台的约定不许串台）",
+			hostStateDirOf({ LOCALAPPDATA: "C:\\Users\\u\\AppData\\Local", XDG_DATA_HOME: "/data" }, "darwin", "/Users/u")
+				=== "/Users/u/Library/Application Support/dsh-gacha-calendar",
+			hostStateDirOf({ LOCALAPPDATA: "C:\\Users\\u\\AppData\\Local" }, "darwin", "/Users/u"));
+		check("Linux：默认 ~/.local/share/dsh-gacha-calendar",
+			hostStateDirOf({}, "linux", "/home/u") === "/home/u/.local/share/dsh-gacha-calendar",
+			hostStateDirOf({}, "linux", "/home/u"));
+		check("Linux：$XDG_DATA_HOME 优先（只认绝对路径；相对路径当没有 ⇒ 退 ~/.local/share）",
+			hostStateDirOf({ XDG_DATA_HOME: "/data" }, "linux", "/home/u") === "/data/dsh-gacha-calendar"
+			&& hostStateDirOf({ XDG_DATA_HOME: "data" }, "linux", "/home/u") === "/home/u/.local/share/dsh-gacha-calendar",
+			JSON.stringify([hostStateDirOf({ XDG_DATA_HOME: "/data" }, "linux", "/home/u"), hostStateDirOf({ XDG_DATA_HOME: "data" }, "linux", "/home/u")]));
+		check("拿不到 home 也没有 env ⇒ 返回空串（调用方兜底到临时目录），不抛、不猜",
+			hostStateDirOf({}, "darwin", "") === "" && hostStateDirOf({}, "linux", "") === ""
+			&& hostStateDirOf({}, "win32", "") === "",
+			JSON.stringify([hostStateDirOf({}, "darwin", ""), hostStateDirOf({}, "win32", "")]));
+		check("**任何**输入都不会拼出 undefined / null / NaN，也不会返回相对路径（相对路径会落进宿主 cwd）",
+			[["win32", { LOCALAPPDATA: null }, null], ["darwin", {}, void 0], ["linux", { XDG_DATA_HOME: 3 }, ""], ["", void 0, void 0]]
+				.every(([plat, env, home]) => {
+					const out = hostStateDirOf(env, plat, home);
+					if (typeof out !== "string" || /undefined|null|NaN/.test(out)) return false;
+					if (out === "") return true;                       // 空串 = 调用方兜底，合法
+					return plat === "win32" ? /^[A-Za-z]:[\\/]/.test(out) : out.startsWith("/");
+				}),
+			JSON.stringify(hostStateDirOf({ LOCALAPPDATA: null }, "win32", null)));
+		check("客户端产物（T）与宿主那份 ESM（R）是**同一个路径函数、同一份结果**",
+			typeof R.hostStateDirOf === "function"
+			&& JSON.stringify(R.hostStateDirOf(WIN_ENV, "win32", WIN_HOME)) === JSON.stringify(hostStateDirOf(WIN_ENV, "win32", WIN_HOME))
+			&& R.hostStateDirOf({}, "darwin", "/Users/u") === hostStateDirOf({}, "darwin", "/Users/u"));
+
+		// ② 纯函数：通知通道 + macOS 通知脚本
+		check("通知通道：win32 ⇒ winrt-toast / darwin ⇒ osascript / 其它 ⇒ none（常量在宿主那份 ESM 里）",
+			notifyChannelOf("win32") === "winrt-toast" && notifyChannelOf("darwin") === "osascript"
+			&& notifyChannelOf("linux") === "none" && notifyChannelOf(void 0) === "none"
+			&& R.NOTIFY_CHANNEL_WINRT === "winrt-toast" && R.NOTIFY_CHANNEL_OSASCRIPT === "osascript" && R.NOTIFY_CHANNEL_NONE === "none",
+			JSON.stringify([notifyChannelOf("win32"), notifyChannelOf("darwin"), notifyChannelOf("freebsd")]));
+		check("状态目录名常量 = dsh-gacha-calendar（宿主兜底临时目录时用的就是它）",
+			R.HOST_STATE_DIR_NAME === "dsh-gacha-calendar", String(R.HOST_STATE_DIR_NAME));
+		const macScript = remindAppleScriptOf("即将结束 · 原神", ["卡池「限定」", "还剩 2 小时"], "二游日历");
+		check("macOS 通知 = 原生 display notification（系统自带，不需要任何额外依赖）",
+			macScript.startsWith('display notification "') && macScript.includes(' with title "二游日历"')
+			&& macScript.includes("即将结束 · 原神") && macScript.includes("还剩 2 小时"),
+			macScript);
+		const quoted = notifyAppleScriptTextOf('a\\b"c\nd\te');
+		check("AppleScript 字面量转义：反斜杠 / 双引号都转义，换行制表压成空格（坏字符不许把脚本弄断）",
+			quoted.startsWith('"') && quoted.endsWith('"')
+			&& quoted.includes("\\\\") && quoted.includes('\\"')
+			&& !quoted.includes("\n") && !quoted.includes("\t"),
+			quoted);
+		check("空标题 / 空行 / 非数组：不抛，仍生成合法脚本",
+			remindAppleScriptOf("", [null, "", void 0], "") === 'display notification "" with title "二游日历"'
+			&& remindAppleScriptOf("t", void 0, "x") === 'display notification "t" with title "x"',
+			remindAppleScriptOf("", [null, "", void 0], ""));
+		check("客户端产物（T）与宿主那份 ESM（R）的 macOS 脚本逐字相同",
+			R.remindAppleScriptOf("t", ["a", "b"], "n") === remindAppleScriptOf("t", ["a", "b"], "n"));
+
+		// ③ 宿主静态：每一处 Windows 专有调用点都有平台闸门
+		check("宿主状态目录走 hostStateDirOf（传本机快照），解析不出来才退临时目录 —— 源码里不再直接读 LOCALAPPDATA",
+			/hostStateDirOf\(process\.env, process\.platform, os\.homedir\(\)\)/.test(hostBodyOf("remindDir"))
+			&& /os\.tmpdir\(\)/.test(hostBodyOf("remindDir")) && /HOST_STATE_DIR_NAME/.test(hostBodyOf("remindDir"))
+			&& !/process\.env\.LOCALAPPDATA/.test(hostSrc),
+			hostBodyOf("remindDir"));
+		check("powershellPath：非 Windows 返回 null（所有 PowerShell 调用都先过它，不会 ENOENT 抛错）",
+			/if \(process\.platform !== "win32"\) return null;/.test(hostBodyOf("powershellPath")));
+		check("开始菜单目录 / .lnk 扫描 / 图标路径：非 Windows 一律空串或空数组，**不拼出假路径**",
+			/if \(process\.platform !== "win32"\) return "";/.test(hostBodyOf("notifyShortcutDir"))
+			&& /if \(dir === ""\) return \[\];/.test(hostBodyOf("notifyShortcutFiles"))
+			&& /if \(process\.platform !== "win32"\) return "";/.test(hostBodyOf("notifyIconPath")));
+		check("notifyShortcutPath：目录为空 ⇒ 空串（绝不 path.join(空) 出 `二游日历.lnk` 这种相对路径）",
+			/const dir = notifyShortcutDir\(\);\s*if \(dir === ""\) return "";/.test(hostBodyOf("notifyShortcutPath")));
+		check("身份缓存的四个入口都有平台闸门（非 Windows 不读、不探测、不排程、不写 identity.json）",
+			["readIdentityState", "probeIdentityState", "refreshIdentityState", "warmIdentityState"]
+				.every((name) => /process\.platform !== "win32"/.test(hostBodyOf(name))),
+			["readIdentityState", "probeIdentityState", "refreshIdentityState", "warmIdentityState"]
+				.filter((name) => !/process\.platform !== "win32"/.test(hostBodyOf(name))).join(","));
+		check("GET 通知身份：非 Windows 回 supported:false + 空 shortcutPath / iconPath（不假装有开始菜单）",
+			/identityUnsupportedBodyOf\(cfgName\)/.test(hostBodyOf("notifyIdentityHandler"))
+			&& /supported: false/.test(hostBodyOf("identityUnsupportedBodyOf"))
+			&& /iconPath: ""/.test(hostBodyOf("identityUnsupportedBodyOf")));
+		check("POST 通知身份：非 Windows ⇒ { ok:false, error:\"windows-only\" }（结构化结果、不抛）",
+			/process\.platform !== "win32"[\s\S]{0,120}?ok: false, error: "windows-only"/.test(hostBodyOf("notifyIdentityHandler")));
+
+		// ④ 宿主静态：送达出口 + macOS 通知 + 无通道降级
+		check("送达出口 deliverToast：三平台分支齐、没有任何 throw",
+			/notifyChannelOf\(process\.platform\)/.test(hostBodyOf("deliverToast"))
+			&& /sendToastScript\(toastScriptOf\(title, lines, target\.aumid, target\.name\)\)/.test(hostBodyOf("deliverToast"))
+			&& /sendOsascriptToast\(title, lines, target\.name\)/.test(hostBodyOf("deliverToast"))
+			&& /ok: false/.test(hostBodyOf("deliverToast")) && !/\bthrow\b/.test(hostBodyOf("deliverToast")));
+		check("macOS 送达：/usr/bin/osascript -e '<脚本>'，失败折成结构化结果（Promise 永不 reject）",
+			hostSrc.includes('const OSASCRIPT_PATH = "/usr/bin/osascript";')
+			&& /execFile\(OSASCRIPT_PATH, \["-e", script\]/.test(hostBodyOf("sendOsascriptToast"))
+			&& /if \(process\.platform !== "darwin"\) \{[\s\S]{0,200}?ok: false/.test(hostBodyOf("sendOsascriptToast"))
+			&& !/\bthrow\b/.test(hostBodyOf("sendOsascriptToast")) && !/reject\(/.test(hostBodyOf("sendOsascriptToast")));
+		check("真实提醒：没有通知通道的平台**发送前就短路**（记日志 + 状态按已发落盘 + return，不逐条重试）",
+			/if \(notifyChannelOf\(process\.platform\) === NOTIFY_CHANNEL_NONE\) \{[\s\S]{0,400}?writeRemindState\(stateFile, stateNext\);[\s\S]{0,400}?logRemind\([\s\S]{0,300}?return;/.test(hostBodyOf("runRemindRound"))
+			&& /deliverToast\(title, lines, target\)/.test(hostBodyOf("runRemindRound")));
+		check("测试通知正文的发送者行走平台兜底文案（macOS 不再写「Windows PowerShell」）",
+			/remindTestToastOf\(Date\.now\(\), target\.identity, target\.name, fallbackSenderLabel\(\)\)/.test(hostBodyOf("notifyTestHandler"))
+			&& /return "Windows PowerShell";/.test(hostBodyOf("fallbackSenderLabel"))
+			&& /return "macOS 系统通知";/.test(hostBodyOf("fallbackSenderLabel")));
+		check("core：remindTestToastOf 的兜底发送者缺省仍是「Windows PowerShell」（老调用点行为不变）",
+			remindTestToastOf(NOW, "powershell").lines[0] === "发送者：Windows PowerShell"
+			&& remindTestToastOf(NOW, "powershell", "", "macOS 系统通知").lines[0] === "发送者：macOS 系统通知"
+			&& remindTestToastOf(NOW, "app", "我的手历", "macOS 系统通知").lines[0] === "发送者：我的手历"
+			&& R.remindTestToastOf(NOW, "powershell").lines[0] === "发送者：Windows PowerShell");
+
+		// ⑤ 设置页：平台不适用时**看得见**（不是点了才报错）
+		const compSrc = readComponentsSource();
+		check("设置页把 notify-unsupported 翻成人话（Linux 等没有通知通道的平台）",
+			/if \(text === "notify-unsupported"\) return "当前平台不支持系统通知（仅 Windows \/ macOS）";/.test(compSrc));
+		check("设置页：supported=false ⇒ 「启用」按钮灰掉 + 状态显示「系统通知（无需身份）」+ 明写仅 Windows",
+			/supported: !\(body && body\.supported === false\)/.test(compSrc)
+			&& compSrc.includes('"系统通知（无需身份）"')
+			&& compSrc.includes("通知身份仅 Windows 可用；macOS / Linux 由系统直接派发")
+			&& /!\s*\(notifyIdentity && notifyIdentity\.supported !== false\)/.test(compSrc));
+
+		// ⑥ **桩跑**：把 process.platform 伪造成 darwin / linux，真跑一遍宿主 apply + 两条路由。
+		// 目的：不是"读代码觉得不崩"，而是**实际执行**非 Windows 分支（Windows 开发机与 Linux CI 都能跑）。
+		// 做法与 cases-health 的迁移用例同一套：把 src/index.js 原文搬到临时目录、只替换 schemastery
+		// 这一个外部依赖（remind-core.mjs 用**真实产物**，不改行为），再在末尾补几行 export（src 不动）。
+		// ⚠️ 这是**平台模拟**，不是真机 macOS：能覆盖"路径怎么算 / 走哪条分支 / 会不会抛"，
+		//    覆盖不了"osascript 在真机上到底弹不弹"（README_Dev 里写明了未真机验证）。
+		{
+			const REAL_WIN = process.platform === "win32";
+			const prevPlatform = process.platform;
+			const savedEnv = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE, LOCALAPPDATA: process.env.LOCALAPPDATA, APPDATA: process.env.APPDATA };
+			const box = mkdtempSync(path.join(os.tmpdir(), "dsh-platform-" + process.pid + "-"));
+			const setPlatform = (value) => Object.defineProperty(process, "platform", { value, configurable: true });
+			try {
+				const modDir = path.join(box, "mod");
+				mkdirSync(modDir, { recursive: true });
+				writeFileSync(path.join(modDir, "z-stub.mjs"), `function chain() {
+	const o = {
+		default: () => o, min: () => o, max: () => o, volatile: () => o,
+		object: () => o, array: () => o, string: () => o, boolean: () => o, number: () => o
+	};
+	return o;
+}
+const z = { object: () => chain(), boolean: () => chain(), number: () => chain(), string: () => chain(), array: () => chain() };
+export default z;
+`, "utf8");
+				// 真实 core（不是桩）：路径解析 / 通道判定 / AppleScript 生成都走生产代码
+				copyFileSync(path.join(REPO, "lib", "remind-core.mjs"), path.join(modDir, "remind-core.mjs"));
+				const srcText = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
+				writeFileSync(path.join(modDir, "index.mjs"), srcText
+					.replace('import z from "@deepseek-ai/schemastery";', 'import z from "./z-stub.mjs";')
+					+ "\nexport { notifyIdentityHandler, notifyTestHandler, remindDir, deliverToast };\n", "utf8");
+				const mod = await import(pathToFileURL(path.join(modDir, "index.mjs")).href);
+				check("桩跑前置：宿主模块能被加载（真 core + 假 schemastery）",
+					typeof mod.apply === "function" && typeof mod.notifyIdentityHandler === "function"
+					&& typeof mod.notifyTestHandler === "function" && typeof mod.remindDir === "function",
+					typeof mod.apply);
+
+				// 假 ctx / 假 req / 假 res（effect 只记账不执行 ⇒ 定时器不会起来，门禁不挂住）
+				const fakeCtx = {
+					fiber: { config: { remindOn: false } },
+					root: { loader: { await: async () => {}, locate: () => "gacha-calendar" } },
+					effect: () => () => {},
+					inject(deps, cb) {
+						if (deps.includes("settings")) cb({ effect: () => () => {}, settings: { configure() {}, update: async () => {} } });
+						if (deps.includes("webServer")) cb({ get: () => ({ register: () => () => {} }) });
+					}
+				};
+				const reqOf = (method, body) => {
+					const req = new EventEmitter();
+					req.method = method;
+					req.url = "/";
+					req.headers = {};
+					req.socket = { remoteAddress: "127.0.0.1" };
+					if (body !== void 0) setTimeout(() => { req.emit("data", body); req.emit("end"); }, 0);
+					return req;
+				};
+				const resOf = () => {
+					const out = { status: 0, body: "" };
+					return {
+						out,
+						res: { writeHead(status) { out.status = status; }, end(payload) { out.body = payload || ""; } }
+					};
+				};
+				const callIdentity = async (method, bodyText) => {
+					const { res, out } = resOf();
+					await mod.notifyIdentityHandler(reqOf(method, bodyText), res, fakeCtx, {});
+					return { status: out.status, body: out.body ? JSON.parse(out.body) : null };
+				};
+				const callTest = async () => {
+					const { res, out } = resOf();
+					await mod.notifyTestHandler(reqOf("POST"), res, fakeCtx, {});
+					return { status: out.status, body: out.body ? JSON.parse(out.body) : null };
+				};
+
+				// —— darwin：apply 不抛 / 目录是绝对路径 / GET 明确"不支持身份" / 文件不落地 ——
+				setPlatform("darwin");
+				process.env.HOME = path.join(box, "home");
+				if (!REAL_WIN) delete process.env.LOCALAPPDATA;
+				let threw = null;
+				try { mod.apply(fakeCtx, { remindOn: false }); } catch (err) { threw = err; }
+				await new Promise((resolve) => setTimeout(resolve, 20));   // 让 apply 里的 void migrate/warm 跑完
+				check("桩跑(darwin)：apply() 不抛（非 Windows 上插件必须能加载）", threw === null, String(threw && threw.message));
+				const macDir = mod.remindDir();
+				check("桩跑(darwin)：状态目录是**绝对路径**、不含 undefined；macOS 上落 ~/Library/Application Support/…",
+					path.isAbsolute(macDir) && !/undefined|null|NaN/.test(macDir)
+					&& (REAL_WIN || macDir.endsWith("/Library/Application Support/dsh-gacha-calendar")),
+					macDir);
+				const macGet = await callIdentity("GET");
+				check("桩跑(darwin)：GET 通知身份 ⇒ { enabled:false, supported:false, shortcutPath:\"\", iconPath:\"\" }（不假装有开始菜单）",
+					macGet.status === 200 && macGet.body && macGet.body.enabled === false && macGet.body.supported === false
+					&& macGet.body.shortcutPath === "" && macGet.body.iconPath === "",
+					JSON.stringify(macGet.body));
+				const macPost = await callIdentity("POST", JSON.stringify({ enabled: true }));
+				check("桩跑(darwin)：POST 通知身份 ⇒ { ok:false, error:\"windows-only\" }（结构化、不抛）",
+					macPost.status === 200 && macPost.body && macPost.body.ok === false && macPost.body.error === "windows-only",
+					JSON.stringify(macPost.body));
+				const macToast = await callTest();
+				check("桩跑(darwin)：测试通知走 osascript 分支 —— 没有 osascript 也只是结构化失败（不抛）",
+					macToast.status === 200 && macToast.body && macToast.body.ok === false
+					&& typeof macToast.body.error === "string" && macToast.body.error.length > 0,
+					JSON.stringify(macToast.body));
+				check("桩跑(darwin)：整轮跑完**没有写 identity.json**（非 Windows 不落身份缓存）",
+					!existsSync(path.join(macDir, "identity.json")), path.join(macDir, "identity.json"));
+
+				// —— linux：明确降级（测试通知结构化报不支持、deliverToast 回结构化失败）——
+				setPlatform("linux");
+				if (!REAL_WIN) process.env.HOME = path.join(box, "home-linux");
+				const linuxGet = await callIdentity("GET");
+				check("桩跑(linux)：GET 通知身份同样 supported:false（不是\"未启用\"，是\"不适用\"）",
+					linuxGet.status === 200 && linuxGet.body && linuxGet.body.supported === false,
+					JSON.stringify(linuxGet.body));
+				const linuxToast = await callTest();
+				check("桩跑(linux)：测试通知 ⇒ { ok:false, error:\"notify-unsupported\" }（明确降级，不是静默坏）",
+					linuxToast.status === 200 && linuxToast.body && linuxToast.body.ok === false
+					&& linuxToast.body.error === "notify-unsupported",
+					JSON.stringify(linuxToast.body));
+				const linuxDeliver = await mod.deliverToast("标题", ["正文"], { aumid: "x", name: "n" });
+				check("桩跑(linux)：deliverToast 回结构化失败（ok:false + 原因），**不抛**",
+					linuxDeliver && linuxDeliver.ok === false && /没有可用的系统通知通道/.test(String(linuxDeliver.detail)),
+					JSON.stringify(linuxDeliver));
+				const linuxDir = mod.remindDir();
+				check("桩跑(linux)：状态目录是绝对路径且不含 undefined（Linux 上落 XDG / ~/.local/share）",
+					path.isAbsolute(linuxDir) && !/undefined|null|NaN/.test(linuxDir)
+					&& (REAL_WIN || linuxDir.endsWith("/.local/share/dsh-gacha-calendar")),
+					linuxDir);
+			} catch (err) {
+				check("⑰ 桩跑用例整套能跑完（抛异常即视为失败，见 detail）", false, String((err && err.stack) || err));
+			} finally {
+				setPlatform(prevPlatform);
+				for (const [key, value] of Object.entries(savedEnv)) {
+					if (value === void 0) delete process.env[key];
+					else process.env[key] = value;
+				}
+				try { rmSync(box, { recursive: true, force: true }); } catch { /* 临时目录清不掉不影响门禁 */ }
+			}
+		}
 	}
 }

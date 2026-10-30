@@ -556,9 +556,13 @@
 		// appName = 设置项 `notifyName` 清洗后的应用名（默认「二游日历」）：启用身份时发送者就是它，
 		// 回退 PowerShell 时**不跟着改**（那时候横幅顶部的应用名真的是 Windows PowerShell）。
 		// 时间按**本机时区**精确到秒（用户点完立刻对表，不需要猜是哪一分钟）。
-		function remindTestToastOf(now, identity, appName) {
+		// 第四个参数 = 回退发送者的**平台文案**（缺省仍是「Windows PowerShell」）：
+		// macOS 上宿主发通知用的是系统通知（osascript），横幅顶部不是 PowerShell，
+		// 再写「发送者：Windows PowerShell」就是谎话。宿主按自己的平台传进来，core 不认识平台。
+		function remindTestToastOf(now, identity, appName, fallbackSender) {
 			const app = typeof appName === "string" && appName.trim() !== "" ? appName.trim() : NOTIFY_NAME_DEFAULT;
-			const sender = identity === "app" ? app : "Windows PowerShell";
+			const fallback = typeof fallbackSender === "string" && fallbackSender.trim() !== "" ? fallbackSender.trim() : "Windows PowerShell";
+			const sender = identity === "app" ? app : fallback;
 			const d = new Date(Number(now));
 			const clock = Number.isFinite(d.getTime())
 				? d.getFullYear() + "-" + remindPad2(d.getMonth() + 1) + "-" + remindPad2(d.getDate())
@@ -572,5 +576,104 @@
 					"看到这条说明系统通知链路是通的"
 				]
 			};
+		}
+
+		// ── 跨平台：宿主状态目录 / 系统通知通道（纯函数，宿主 src/index.js 直接复用）──────────────
+		// 这一段是给**宿主半边**用的，但仍然必须放在本文件：宿主拿不到浏览器 bundle，它唯一能复用的
+		// core 代码就是 lib/remind-core.mjs（build.mjs 从本文件原样拼出）。放这里的实际收益是
+		// **可以离线单测**（三平台 × env 缺失 / 空串 / 相对路径），而不是只能靠人肉在 Windows 上跑一遍。
+		//
+		// 目录策略（对齐 DSH 官方支持范围：Windows + macOS 必须可用，Linux 尽量可用）：
+		//   Windows  : %LOCALAPPDATA%\dsh-gacha-calendar
+		//              缺失 / 空串 / 相对路径 ⇒ %USERPROFILE%\AppData\Local\dsh-gacha-calendar
+		//   macOS    : ~/Library/Application Support/dsh-gacha-calendar
+		//   Linux 等 : $XDG_DATA_HOME/dsh-gacha-calendar，没有就 ~/.local/share/dsh-gacha-calendar
+		// 硬规则：**只接受绝对路径**的 env 值。相对路径（如 "AppData/Local"）当没有 ⇒ 退到 home，
+		// 绝不拼出 "undefined/..." 或相对路径 —— 相对路径会落到进程 cwd（宿主 cwd 是 DSH 的安装目录，
+		// 写进去等于写丢，而且用户永远找不到）。
+		const HOST_STATE_DIR_NAME = "dsh-gacha-calendar";
+
+		function hostPathTextOf(value) {
+			return typeof value === "string" ? value.trim() : "";
+		}
+		/** 只认绝对路径：Windows 盘符（C:\ / C:/）或 UNC（\\server），POSIX 以 "/" 开头；其它一律当没有。 */
+		function hostAbsolutePathOf(value, platform) {
+			const text = hostPathTextOf(value);
+			if (text === "") return "";
+			if (platform === "win32") {
+				return /^[A-Za-z]:[\\/]/.test(text) || /^\\\\[^\\]/.test(text) ? text : "";
+			}
+			return text.charAt(0) === "/" ? text : "";
+		}
+		/** 按平台分隔符拼路径：第一段原样保留（盘符 / UNC 前缀 / 根），其余去掉多余的首尾分隔符。 */
+		function hostPathJoinOf(platform, parts) {
+			const sep = platform === "win32" ? "\\" : "/";
+			const out = [];
+			(Array.isArray(parts) ? parts : []).forEach((part, index) => {
+				let text = String(part === void 0 || part === null ? "" : part);
+				if (index > 0) text = text.replace(/^[\\/]+/, "");
+				text = text.replace(/[\\/]+$/, "");
+				if (text !== "") out.push(text);
+			});
+			return out.join(sep);
+		}
+		/**
+		 * 宿主状态目录（去重状态 host-state.json / 日志 remind.log / 身份缓存 identity.json 都落这里）。
+		 * @param {object} env 环境变量快照（宿主直接传 process.env）
+		 * @param {string} platform process.platform
+		 * @param {string} homeDir os.homedir()
+		 * @returns {string} 绝对路径；连 home 都拿不到时返回 ""（调用方必须显式兜底，不许拿空串拼路径）
+		 */
+		function hostStateDirOf(env, platform, homeDir) {
+			const vars = env && typeof env === "object" ? env : {};
+			const plat = typeof platform === "string" ? platform : "";
+			const home = hostAbsolutePathOf(homeDir, plat);
+			if (plat === "win32") {
+				const localAppData = hostAbsolutePathOf(vars.LOCALAPPDATA, plat);
+				if (localAppData) return hostPathJoinOf(plat, [localAppData, HOST_STATE_DIR_NAME]);
+				const profile = hostAbsolutePathOf(vars.USERPROFILE, plat) || home;
+				return profile ? hostPathJoinOf(plat, [profile, "AppData", "Local", HOST_STATE_DIR_NAME]) : "";
+			}
+			// 非 Windows **一律不读 LOCALAPPDATA**：macOS / Linux 上它即使有值也不是本地约定的那个目录。
+			if (plat === "darwin") {
+				return home ? hostPathJoinOf(plat, [home, "Library", "Application Support", HOST_STATE_DIR_NAME]) : "";
+			}
+			const xdgDataHome = hostAbsolutePathOf(vars.XDG_DATA_HOME, plat);
+			if (xdgDataHome) return hostPathJoinOf(plat, [xdgDataHome, HOST_STATE_DIR_NAME]);
+			return home ? hostPathJoinOf(plat, [home, ".local", "share", HOST_STATE_DIR_NAME]) : "";
+		}
+
+		// 系统通知通道（宿主「送达」的唯一分发依据）：
+		//   Windows  → WinRT toast（内联 PowerShell 5.1 + AUMID；身份功能也只有这条链路上有意义）
+		//   macOS    → osascript `display notification`（系统自带，零额外依赖）
+		//   其它     → none：**明确降级**（不发送、记一条日志、状态按已发落盘，绝不每轮重试刷日志）
+		const NOTIFY_CHANNEL_WINRT = "winrt-toast";
+		const NOTIFY_CHANNEL_OSASCRIPT = "osascript";
+		const NOTIFY_CHANNEL_NONE = "none";
+		function notifyChannelOf(platform) {
+			if (platform === "win32") return NOTIFY_CHANNEL_WINRT;
+			if (platform === "darwin") return NOTIFY_CHANNEL_OSASCRIPT;
+			return NOTIFY_CHANNEL_NONE;
+		}
+
+		/** AppleScript 双引号字符串字面量：只需转义 `\` 与 `"`；控制字符（换行 / 制表）压成空格。 */
+		function notifyAppleScriptTextOf(value) {
+			const text = String(value === void 0 || value === null ? "" : value).replace(/[\u0000-\u001f\u007f]+/g, " ");
+			return '"' + text.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
+		}
+		/**
+		 * macOS 通知脚本（宿主用 `osascript -e <这段>` 直接执行，不落地文件）：
+		 *   display notification "<标题｜正文…>" with title "<应用名>"
+		 * `display notification` 没有多行正文（第二行起会被系统折叠），所以正文用 `｜` 串成一行；
+		 * 应用名放 title（横幅顶部），与 Windows 那边 attribution 行的语义对齐。
+		 */
+		function remindAppleScriptOf(title, lines, appName) {
+			const app = typeof appName === "string" && appName.trim() !== "" ? appName.trim() : NOTIFY_NAME_DEFAULT;
+			const head = typeof title === "string" ? title.trim() : "";
+			const parts = [head];
+			for (const line of Array.isArray(lines) ? lines : []) {
+				if (typeof line === "string" && line.trim() !== "") parts.push(line);
+			}
+			return "display notification " + notifyAppleScriptTextOf(parts.join("｜")) + " with title " + notifyAppleScriptTextOf(app);
 		}
 		//#endregion

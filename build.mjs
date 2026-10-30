@@ -65,7 +65,17 @@ const REMIND_EXPORTS = [
   "remindWindowOf",
   "remindItemsOf",
   "remindTickOf",
-  "remindToastOf"
+  "remindToastOf",
+  // 跨平台：宿主状态目录解析 + 通知通道判定 + macOS 通知脚本（宿主 src/index.js 的
+  // 平台判断全部收敛到这几个纯函数，三平台的路径与降级行为有离线单测，见 cases-remind.mjs）。
+  "HOST_STATE_DIR_NAME",
+  "hostStateDirOf",
+  "notifyChannelOf",
+  "notifyAppleScriptTextOf",
+  "remindAppleScriptOf",
+  "NOTIFY_CHANNEL_WINRT",
+  "NOTIFY_CHANNEL_OSASCRIPT",
+  "NOTIFY_CHANNEL_NONE"
 ];
 
 // 样式段的名字（2026-10-28：**它已经不是磁盘上的文件了**）。

@@ -968,7 +968,21 @@ const z = { object: () => chain(), boolean: () => chain(), number: () => chain()
 export default z;
 `, "utf8");
 			// 桩 2：remind-core —— 迁移完全不碰提醒；具名导出的名字必须齐（缺一个 ESM 导入直接报错）。
+			// 2026-10-30 跨平台改造后宿主新增了 HOST_STATE_DIR_NAME / hostStateDirOf / notifyChannelOf /
+			// NOTIFY_CHANNEL_* / remindAppleScriptOf 的导入 ⇒ 桩必须一起导出。桩的 hostStateDirOf 只是
+			// "能被 import 起来"：固定回假 LOCALAPPDATA 下的 dsh-gacha-calendar（真实的三平台解析规则
+			// 由 cases-remind.mjs 的「跨平台」一节按纯函数逐项钉住），这样迁移日志仍然落在临时目录里。
 			writeFileSync(path.join(modDir, "remind-core-stub.mjs"), `export const NOTIFY_IDENTITY_MAX_AGE_MS = 86400000;
+export const HOST_STATE_DIR_NAME = "dsh-gacha-calendar";
+export const NOTIFY_CHANNEL_WINRT = "winrt-toast";
+export const NOTIFY_CHANNEL_OSASCRIPT = "osascript";
+export const NOTIFY_CHANNEL_NONE = "none";
+export function hostStateDirOf(env) {
+	const base = env && typeof env.LOCALAPPDATA === "string" ? env.LOCALAPPDATA.trim() : "";
+	return base === "" ? "" : base + "/" + HOST_STATE_DIR_NAME;
+}
+export function notifyChannelOf() { return NOTIFY_CHANNEL_WINRT; }
+export function remindAppleScriptOf() { return ""; }
 export function notifyIdentityCacheOf() {
 	return { useCached: true, shouldRefresh: false, state: { enabled: false, name: "stub", aumid: "stub", shortcutPath: "" } };
 }

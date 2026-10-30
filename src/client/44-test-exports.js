@@ -460,6 +460,17 @@
 			remindItemsOf,
 			remindTickOf,
 			remindToastOf,
+			// 跨平台（65-remind.js 尾部的纯函数，宿主直接 import 这几个）：
+			//   hostStateDirOf   = 三平台的宿主状态目录（env 快照 → 绝对路径；缺失 / 空 / 相对路径都有规则）
+			//   notifyChannelOf  = 平台 → 通知通道（winrt-toast / osascript / none）
+			//   remindAppleScriptOf = macOS 通知脚本（AppleScript 字面量转义，零额外依赖）
+			// 见 cases-remind.mjs 的「跨平台」一节。
+			// ⚠️ 常量（HOST_STATE_DIR_NAME / NOTIFY_CHANNEL_*）**不能在这里导出**：const 在本段之后声明
+			// （TDZ），导出对象构建时就会炸；要读常量从宿主那份 lib/remind-core.mjs 取（同上面那条说明）。
+			hostStateDirOf,
+			notifyChannelOf,
+			notifyAppleScriptTextOf,
+			remindAppleScriptOf,
 			// 来源健康（待办第 3 项，60-helpers.js 的纯函数）：读存档 / 单轮结论 / 单源累积 /
 			// 一轮更新 / 给 UI 的每源状态（正常 / 连续失败 / 疑似改版停更 / 从未成功）。
 			// 常量 SOURCE_HEALTH_* 在本文件之后（TDZ），测试按**行为**钉阈值（第 7 天整才翻成疑似停更），

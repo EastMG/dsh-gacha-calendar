@@ -160,8 +160,8 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
 1. 读配置 → `remindOn === false` 或 `lastData` 为空就跳过；
 2. `lastData` 的档期文本 + **源站 tz** → 绝对档期 → 条目（tz 表是 `SOURCES[].tz` 的副本，因为宿主读不到 `SOURCES`；守卫见 `test/cases-remind.mjs`）；
 3. 拿去重状态判「这一轮该发哪几条」；
-4. 逐条 `powershell.exe -EncodedCommand` 弹 WinRT toast（脚本在 `src/index.js` 的 `toastScriptOf` 里生成，**不落地 .ps1、不引用 `tools/`**）。发之前**每轮只判定一次**通知身份：设置页启用过「二游日历」⇒ 用 `NOTIFY_AUMID`；否则 / 探测失败 ⇒ 回退 Windows PowerShell 自带的 AUMID（身份问题绝不能让提醒发不出去）。身份状态**先读 `%LOCALAPPDATA%\dsh-gacha-calendar\identity.json`**（毫秒级；探测一次 ≈0.9 秒，缓存在这里就不必每轮再付）；**没有缓存 / 缓存读坏也不等探测**：GET 先回保守值（未启用 + 配置名）再把探测丢到后台，`apply()` 里还有一次启动预热（`void`，不 await）⇒ 读取路径永不卡在 PowerShell 上，探到后下一次读取自动纠正；
-5. 状态原子写回 `%LOCALAPPDATA%\dsh-gacha-calendar\host-state.json`；身份缓存 `identity.json` 同样原子写（`.tmp` → rename），超过 24h 只在后台补探一次纠正（GET 仍先回文件内容）；后台探测单飞且**推迟到下一拍**（`setTimeout(0)`：探测的同步前缀是一次扫开始菜单的 `readdirSync`，直接在 GET / apply 的调用栈里跑会把 0.5ms 变成 80~120ms）；日志追加到同目录 `remind.log`（超 256KB 自动只留后半段）。
+4. 逐条送达：Windows 用 `powershell.exe -EncodedCommand` 弹 WinRT toast（脚本在 `src/index.js` 的 `toastScriptOf` 里生成，**不落地 .ps1、不引用 `tools/`**），macOS 用系统自带的 `osascript -e 'display notification …'`（脚本在 core 的 `remindAppleScriptOf` 里生成）。两者在宿主里收敛成**同一个出口** `deliverToast`（平台 → 通道的判定是 core 的 `notifyChannelOf`；Windows / macOS 之外没有通道 ⇒ 只记日志、状态按已发落盘）。发之前**每轮只判定一次**通知身份（**仅 Windows 有**）：设置页启用过「二游日历」⇒ 用 `NOTIFY_AUMID`；否则 / 探测失败 ⇒ 回退 Windows PowerShell 自带的 AUMID（身份问题绝不能让提醒发不出去）。身份状态**先读 `<状态目录>\identity.json`**（毫秒级；探测一次 ≈0.9 秒，缓存在这里就不必每轮再付）；**没有缓存 / 缓存读坏也不等探测**：GET 先回保守值（未启用 + 配置名）再把探测丢到后台，`apply()` 里还有一次启动预热（`void`，不 await）⇒ 读取路径永不卡在 PowerShell 上，探到后下一次读取自动纠正；
+5. 状态原子写回 `<状态目录>\host-state.json`（Windows `%LOCALAPPDATA%\dsh-gacha-calendar`、macOS `~/Library/Application Support/dsh-gacha-calendar`、Linux `$XDG_DATA_HOME/dsh-gacha-calendar` 或 `~/.local/share/dsh-gacha-calendar`，解析规则见下面的「跨平台」）；身份缓存 `identity.json`（仅 Windows 会写）同样原子写（`.tmp` → rename），超过 24h 只在后台补探一次纠正（GET 仍先回文件内容）；后台探测单飞且**推迟到下一拍**（`setTimeout(0)`：探测的同步前缀是一次扫开始菜单的 `readdirSync`，直接在 GET / apply 的调用栈里跑会把 0.5ms 变成 80~120ms）；日志追加到同目录 `remind.log`（超 256KB 自动只留后半段）。
 
 几个踩过的坑，改这块之前先看：
 
@@ -170,6 +170,26 @@ curl http://127.0.0.1:<DSH端口>/api/gacha-calendar-snapshot.json
 - **通知身份（AUMID）是可选功能，不是安装步骤**。默认用 Windows PowerShell 自带的 AUMID，横幅顶部就显示「Windows PowerShell」；用户在设置页点「启用」后，宿主才会往**当前用户**开始菜单写 `<notifyName>.lnk`（默认 `二游日历.lnk`，名字可在同一行的窄输入框里改；文件名先过 core 的 `notifyNameOf` 清洗：非法文件名字符换空格、空 ⇒ 默认、超长截 40 字、Windows 保留设备名 ⇒ 默认）并绑定 `System.AppUserModel.ID = DshGachaCalendar.Reminder`（`notifyIdentityEnableScript`，内联 C# `IPropertyStore`；**只在 `HKCU\Software\Classes\AppUserModelId\<AUMID>` 写 DisplayName 不够** —— 实测 toast 弹不出来）。**改名 = 先删旧的再按新名字重建**：删除只认「AUMID 等于我们的」那条 .lnk（与文件名无关 ⇒ 绝不碰用户自己的快捷方式），且目标名字已被别人的快捷方式占用时回 `shortcut-name-taken`、**一个文件都不动**。「移除」只删快捷方式、保留注册表键（没有快捷方式时它不会被用到）。判断走 `remindIdentityOf`（纯函数，4 种组合有测试），失败一律回退。
 - **失败不记已发**：某条送达失败时它对应的档位会被回滚，下一轮重试，直到成功或条目过期作废。
 - ⚠️ **只在 DSH 运行期间生效**：宿主随 DSH 起停，DSH 关掉就没人盯着了（换来的好处是装插件零安装步骤，不碰系统计划任务；开始菜单那条是可选、可随时移除的）。
+
+### 跨平台（Windows / macOS / Linux）
+
+DSH 官方只承诺 **Windows + macOS**（Linux 有安装产物，但不作硬要求）。插件按这个前提做过一次审计，能力边界如下：
+
+| 能力 | Windows | macOS | Linux |
+|---|---|---|---|
+| 面板 / 刷新 / 设置 / 快照接口 | ✅ | ✅ | ✅（浏览器侧 + 同源 HTTP，与平台无关） |
+| 到期提醒送达 | WinRT toast（内联 PowerShell 5.1 + AUMID） | 系统通知：`osascript -e 'display notification …'`（系统自带，零额外依赖） | ❌ 只记日志（状态按已发落盘，不会每轮重试刷日志） |
+| 通知身份（自定义横幅应用名） | ✅ 开始菜单 `.lnk` + `AppUserModelID` | ❌ 不需要（设置页显示「系统通知（无需身份）」并灰掉按钮） | ❌ 同 macOS |
+| 状态 / 日志目录 | `%LOCALAPPDATA%\dsh-gacha-calendar` | `~/Library/Application Support/dsh-gacha-calendar` | `$XDG_DATA_HOME/dsh-gacha-calendar` 或 `~/.local/share/dsh-gacha-calendar` |
+
+几条实现约定（改这块之前先看）：
+
+- 平台判断只有一处出口：core 的 `notifyChannelOf(process.platform)` → `winrt-toast` / `osascript` / `none`，送达统一走 `deliverToast`；宿主里**没有**"先试 PowerShell、失败再说"这种路径。
+- 目录解析是 core 的纯函数 `hostStateDirOf(env, platform, home)`：只认**绝对路径**的 env 值（`LOCALAPPDATA` 缺失 / 空串 / 相对路径一律当没有 ⇒ 退 `os.homedir()`），连 home 都拿不到时由宿主退到系统临时目录 —— 不会出现 `undefined/...`，也不会把状态写进宿主进程的 cwd。
+- 通知身份（开始菜单 / AUMID / `IPropertyStore` / `HKCU\Software\Classes\AppUserModelId`）是 **Windows 专有**：非 Windows 上探测、预热、缓存读写全部短路，GET 回 `supported:false`，POST 回 `{ ok:false, error:"windows-only" }`（结构化结果，不抛）。
+- macOS 通知失败**不致命**：`osascript` 起不来 / 返回非 0 ⇒ 与 Windows 同一条"送达失败、下一轮重试"状态机；AppleScript 字面量转义在 `remindAppleScriptOf`（有单测）。系统通知权限 / 勿扰模式关掉时横幅可能不显示，与 Windows 的专注助手同类。
+- ⚠️ **macOS 未真机验证**：开发机是 Windows，macOS 分支只有纯函数单测 + 静态守卫，门禁在 Windows 与 Linux（WSL，同 CI 的 ubuntu-latest）上跑绿。真机首次跑时先看 `~/Library/Application Support/dsh-gacha-calendar/remind.log`。
+
 ## 待办（2026-10-25 整理）
 
 ### 做（按优先级）

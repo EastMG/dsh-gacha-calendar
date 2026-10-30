@@ -7,6 +7,8 @@
 		const notifyIdentityErrorText = (code) => {
 			const text = String(code || "").trim();
 			if (text === "windows-only") return "仅 Windows 可用";
+			// 平台根本没有通知通道（Linux 等）：Windows / macOS 之外不做系统通知，宿主明确返回这个码
+			if (text === "notify-unsupported") return "当前平台不支持系统通知（仅 Windows / macOS）";
 			if (text === "loopback-only") return "只能在本机 DSH 里操作";
 			if (text === "cross-site-not-allowed") return "跨站请求被拒绝";
 			if (text === "payload-too-large") return "请求内容过大";
@@ -22,11 +24,15 @@
 			if (!body || typeof body.enabled !== "boolean") throw new Error("返回格式不对");
 			return body;
 		}
-		// 宿主回的 { enabled, name } → 设置页本地状态。name 一律再过一遍 notifyNameOf（默认「二游日历」）：
+		// 宿主回的 { enabled, name, supported } → 设置页本地状态。name 一律再过一遍 notifyNameOf（默认「二游日历」）：
 		// 宿主已经清洗过，这里只是防御 —— 名字会显示给用户，不能出现空串 / undefined。
+		// supported = 本平台有没有「通知身份」这回事（开始菜单 .lnk + AUMID 是 Windows 专有）：
+		//   非 Windows 的宿主回 supported:false ⇒ 这一行显示"系统通知（无需身份）"、按钮灰掉。
+		//   老宿主 / 没这个字段 ⇒ 当支持（向后兼容，行为与之前完全一致）。
 		const notifyIdentityOfBody = (body) => ({
 			enabled: !!(body && body.enabled === true),
-			name: notifyNameOf(body && body.name)
+			name: notifyNameOf(body && body.name),
+			supported: !(body && body.supported === false)
 		});
 		async function writeNotifyIdentity(enabled, name) {
 			const res = await fetch(NOTIFY_IDENTITY_API, {
@@ -880,7 +886,8 @@
 							(0, react_jsx_runtime.jsx)("button", {
 								type: "button",
 								className: "gacha-cal-sort-btn",
-								disabled: notifyIdentityBusy || notifyIdentity === null,
+								// 非 Windows（macOS / Linux）没有开始菜单 / AUMID 这回事 ⇒ 禁用而不是点了才报错
+								disabled: notifyIdentityBusy || notifyIdentity === null || !(notifyIdentity && notifyIdentity.supported !== false),
 								title: "更改系统通知的发送者：会在开始菜单建一条无害的快捷方式（可随时移除）",
 								onClick: toggleNotifyIdentity,
 								children: notifyIdentityBusy ? "处理中…" : (notifyIdentity && notifyIdentity.enabled ? "移除" : "启用")
@@ -912,7 +919,9 @@
 							] }),
 							// 状态：`当前：…`。名字最长 40 字，直接铺开会把整行挤到第二行 ⇒ 截断到 240px
 							// 配 title 显示全文（720px 卡片里整行仍然放得下，窄窗口才换行）。
-							(0, react_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: "var(--dsw-alias-label-secondary)", maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, title: "系统通知横幅顶部当前显示的应用名", children: "当前：" + (notifyIdentity === null ? "读取中…" : notifyIdentity.enabled ? notifyIdentity.name : "PowerShell（默认）") }),
+							(0, react_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: "var(--dsw-alias-label-secondary)", maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, title: "系统通知横幅顶部当前显示的应用名", children: "当前：" + (notifyIdentity === null ? "读取中…" : notifyIdentity.enabled ? notifyIdentity.name : (notifyIdentity.supported === false ? "系统通知（无需身份）" : "PowerShell（默认）")) }),
+							// 非 Windows：明确写"这一行只跟 Windows 有关"，而不是留一个点了必然失败的按钮
+							notifyIdentity && notifyIdentity.supported === false ? (0, react_jsx_runtime.jsx)("span", { style: { fontSize: 11, color: "var(--dsw-alias-label-tertiary)" }, children: "通知身份仅 Windows 可用；macOS / Linux 由系统直接派发" }) : null,
 							notifyTest && !notifyTest.ok ? (0, react_jsx_runtime.jsx)("span", { style: { fontSize: 11, color: "var(--dsw-alias-state-error-primary, #d4380d)" }, children: notifyTest.text }) : null,
 							notifyIdentityError ? (0, react_jsx_runtime.jsx)("span", { style: { fontSize: 11, color: "var(--dsw-alias-state-error-primary, #d4380d)" }, children: notifyIdentityError }) : null
 						] }),
