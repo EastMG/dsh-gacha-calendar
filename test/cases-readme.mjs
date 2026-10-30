@@ -74,4 +74,16 @@ export default function runReadme() {
 		check("README_Dev.md 的段数与 all.mjs 实际段数一致", a === actual, `README=${a} 实际=${actual}`);
 		check("test/README.md 的段数与 all.mjs 实际段数一致", b === actual, `test/README=${b} 实际=${actual}`);
 	}
+
+	// ⑤ 「自动刷新」那一条必须写清新频率口径（2026-10-31 用户批准的唯一一行改动）
+	// 为什么守：出厂默认从「1~42 天」改成「启动时 / 1~42 天」，用户版 README 若还写着旧的
+	// 「按设置间隔（1~42 天）」，新用户会以为没有「启动时」这一档 —— 而且这行是**用户看的那份**
+	// 文档里唯一说明刷新周期的地方（AGENTS.md：README.md 的改动必须经用户审批，所以文案要钉死）。
+	{
+		const NEW_LINE = "- **自动刷新**：按设置频率（启动时 / 1~42 天）进行自动刷新，间隔从**上次成功刷新**起算";
+		const OLD_LINE = "按设置间隔（1~42 天）";
+		check("README.md 里有「自动刷新」那一行（逐字，含粗体与标点）", readme.includes(NEW_LINE),
+			readme.split("\n").filter((l) => l.includes("自动刷新")).slice(0, 2).join(" ⏎ ").slice(0, 200));
+		check("README.md 里不再出现旧说法「" + OLD_LINE + "」", !readme.includes(OLD_LINE));
+	}
 }

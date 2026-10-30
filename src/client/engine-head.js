@@ -43,7 +43,9 @@
 				// remindGames：「到期提醒（送达）」的逐游戏白名单（轮播不读它；宿主送达侧按它过滤）。
 				// remindOn / remindEndNodes / remindStartNodes：「到期提醒（送达）」的总开关与两套节点（字符串）。
 				// 三者都是 DEFAULT_SETTINGS 的键 ⇒ 必须在这里，否则上面的守卫会红。
-				"autoRefresh", "refreshMinutes", "tickerOn", "tickerHours", "remindGames",
+				// refreshMigrated：刷新频率一次性迁移的标记（默认 false），引擎不消费它，但按约定列在这里
+				// （配置键成套，同 newPanelMigrated）。
+				"autoRefresh", "refreshMinutes", "refreshMigrated", "tickerOn", "tickerHours", "remindGames",
 				"remindOn", "remindEndNodes", "remindStartNodes",
 				// notifyName：通知身份名（应用名，默认「二游日历」）。设置页那一行窄输入框写它，
 				// 宿主拿它给开始菜单快捷方式起名 / 写 DisplayName。**别漏** —— 与上面每个键同理。

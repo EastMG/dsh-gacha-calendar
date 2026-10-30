@@ -28,7 +28,7 @@ node test/all.mjs     # 离线门禁（走夹具）——这是门禁
 | `harness.mjs` | 夹具 fetch 注入、`check/section/summary`、契约与悬停断言 |
 | `registry-shim.mjs` | **注册表形态的测试侧快照**（见下） |
 | `all.mjs` | 统一门禁 |
-| `cases-*.mjs` | 各段用例（24 个：13 个批次 + `cases-rule-lint` 规则守卫 + `cases-tz` 时区口径 + `cases-ticker` 侧栏轮播 + `cases-remind` 到期提醒 + `cases-health` 来源健康 + `cases-readme` 结构图守卫 + `cases-core` core 守卫 + `cases-star` 设置页标题行（版本号 + Star 指引）+ `cases-filter` 搜索与筛选（设置页搜游戏名/只看已启用 + 面板按卡池·角色名过滤）+ `cases-ics` 排期导出 .ics（快照 / 折行 / 转义 / 在期判定）+ `cases-refresh` 刷新频率「启动时」档（`refreshMinutes=0` 的判定 / 定时器 / 设置页 / schema）） |
+| `cases-*.mjs` | 各段用例（24 个：13 个批次 + `cases-rule-lint` 规则守卫 + `cases-tz` 时区口径 + `cases-ticker` 侧栏轮播 + `cases-remind` 到期提醒 + `cases-health` 来源健康 + `cases-readme` 结构图守卫 + `cases-core` core 守卫 + `cases-star` 设置页标题行（版本号 + Star 指引）+ `cases-filter` 搜索与筛选（设置页搜游戏名/只看已启用 + 面板按卡池·角色名过滤）+ `cases-ics` 排期导出 .ics（快照 / 折行 / 转义 / 在期判定）+ `cases-refresh` 刷新频率「启动时」档（`refreshMinutes=0` 的判定 / 定时器 / 设置页 / schema / 老用户 1440 → 0 的一次性迁移）） |
 | `capture.mjs` / `capture-p8.mjs` | 抓真实响应存夹具 |
 | `map.json` | URL → 夹具 的映射索引（**已入库**） |
 | `fixtures/` | 真实响应快照（**已入库**，约 14MB；重建/刷新见下） |

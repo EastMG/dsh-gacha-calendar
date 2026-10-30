@@ -42,8 +42,14 @@
 		const DEFAULT_SETTINGS = {
 			autoRefresh: true,
 			// 出厂默认 = 0（「启动时」）：每次 DSH 启动 / 页面加载刷一轮，运行期不排定时器。
-			// **只改出厂默认，不做老用户迁移**：已经存过 1440 的配置保持 1 天（用户没要求迁移）。
+			// 老用户存过 1440（旧默认 = 1 天）的由宿主一次性迁到 0，迁移标记见下面的 refreshMigrated
+			// （实现见 src/index.js 的 migrateRefreshOnce）。
 			refreshMinutes: 0,
+			// 刷新频率一次性迁移的标记（默认 false = 还没迁）。宿主只在这个标记不是 true 时动手一次：
+			// 当前值仍是 1440 ⇒ 连 refreshMinutes 一起写 0；用户自己选过别的档 ⇒ 只补这个标记。
+			// 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 与 src/index.js 的 schema 里
+			// （三处齐的守卫见 test/cases-refresh.mjs 与 test/cases-rule-lint.mjs）。
+			refreshMigrated: false,
 			// 按钮轮播总开关：false = 不轮播、窄侧栏也不出红点。默认开，开箱就能看出"有事要来了"。
 			// 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 里（守卫见 test/cases-rule-lint.mjs）。
 			tickerOn: true,
@@ -2249,7 +2255,9 @@ export function createEngine(env) {
 				// remindGames：「到期提醒（送达）」的逐游戏白名单（轮播不读它；宿主送达侧按它过滤）。
 				// remindOn / remindEndNodes / remindStartNodes：「到期提醒（送达）」的总开关与两套节点（字符串）。
 				// 三者都是 DEFAULT_SETTINGS 的键 ⇒ 必须在这里，否则上面的守卫会红。
-				"autoRefresh", "refreshMinutes", "tickerOn", "tickerHours", "remindGames",
+				// refreshMigrated：刷新频率一次性迁移的标记（默认 false），引擎不消费它，但按约定列在这里
+				// （配置键成套，同 newPanelMigrated）。
+				"autoRefresh", "refreshMinutes", "refreshMigrated", "tickerOn", "tickerHours", "remindGames",
 				"remindOn", "remindEndNodes", "remindStartNodes",
 				// notifyName：通知身份名（应用名，默认「二游日历」）。设置页那一行窄输入框写它，
 				// 宿主拿它给开始菜单快捷方式起名 / 写 DisplayName。**别漏** —— 与上面每个键同理。

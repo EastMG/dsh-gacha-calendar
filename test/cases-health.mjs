@@ -1056,8 +1056,11 @@ export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value 
 			const migLogged = () => (logText().match(/新面板迁移/g) || []).length;
 
 			// ① 首次迁移（标记缺失）：走 apply() 的真实接线 —— 一笔写入、patch 恰好两个键
+			// ⚠️ 配置里带 `refreshMigrated: true`：宿主 apply 里还有**另一条**一次性迁移（刷新频率
+			//    1440 → 启动时，见 src/index.js 的 migrateRefreshOnce，用例在 cases-refresh ⑭）。
+			//    让它直接 return，这里测的 newPanel 那一笔才不会被第二笔写入混进来。
 			{
-				const config = { newPanel: false };
+				const config = { newPanel: false, refreshMigrated: true };
 				const settings = settingsOf();
 				const { ctx, trace } = ctxOf(config, settings);
 				let threw = null;
@@ -1132,8 +1135,9 @@ export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value 
 			}
 
 			// ④ 只迁一次：第二次（假配置里的标记已变 true，模拟 settings 写入后重载）零调用
+			// （同样先关掉刷新频率那条迁移：`refreshMigrated: true`，见 ① 的说明）
 			{
-				const config = {};
+				const config = { refreshMigrated: true };
 				const settings = settingsOf();
 				mod.apply(ctxOf(config, settings).ctx, config);
 				await settle();

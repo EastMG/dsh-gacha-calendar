@@ -1557,9 +1557,13 @@ const Config = z.object({
 	autoRefresh: z.boolean().default(true).volatile(),
 	// 刷新频率（分钟）：0 = 「启动时」（仅面板挂载时刷一次，运行期不排定时器，见 autoRefreshPlan）；
 	// 其余为间隔分钟数。**出厂默认 = 0（启动时）**（2026-10-31 定，必须与 src/client/10-config.js
-	// 的 DEFAULT_SETTINGS.refreshMinutes 一致）。只改出厂默认，**不做老用户迁移** ——
-	// 已经存过 1440 的配置保持 1 天不变。
+	// 的 DEFAULT_SETTINGS.refreshMinutes 一致）。老用户存过的旧默认 1440（1 天）由
+	// migrateRefreshOnce 一次性迁到 0，迁移标记见下面的 refreshMigrated。
 	refreshMinutes: z.number().min(0).max(60480).default(0).volatile(),
+	// 刷新频率迁移的**一次性标记**（默认 false ⇒ 未迁移）。宿主 apply 里若它不是 true，
+	// 就按当前值补一笔：值仍是 1440（旧默认）⇒ 与标记一起写成 0 / true；用户自己选过别的档
+	// （2 天 / 启动时 / 其它）⇒ **只写标记**，不碰用户的选择。必须 .volatile()，否则写入被拒。
+	refreshMigrated: z.boolean().default(false).volatile(),
 	// 按钮轮播的总开关（默认开）。与下面的 tickerHours 是两个控件：一个管开不开、一个管范围。
 	tickerOn: z.boolean().default(true).volatile(),
 	// 按钮轮播的范围（小时）：有卡池/活动在 N 小时内结束或开始，侧栏按钮就轮播。
@@ -1662,6 +1666,52 @@ async function migrateNewPanelOnce(ctx, config, settings) {
 	}
 }
 
+/**
+ * 刷新频率的**一次性迁移**：老用户 → 「启动时」（2026-10-31，用户要求）。
+ *
+ * 背景：`refreshMinutes` 的出厂默认从 1440（1 天）改成 0（启动时）。光改默认值对**已经存过
+ * 1440 的老用户**无效 —— 配置里是显式的 1440。所以启动时做一次迁移，口径**只看当前值**：
+ *   ① `refreshMigrated === true` ⇒ 直接返回（已迁过，永不再碰）；
+ *   ② 当前值仍是 `1440`（= 旧默认，说明用户从没动过这一项）⇒ 把 `refreshMinutes: 0` 与
+ *      `refreshMigrated: true` **放在同一笔 settings.update 里**（同一笔 ⇒ 不会出现
+ *      "标记写了、值没写"的半状态，否则下次启动会以为迁完了、永远停不下旧值）；
+ *   ③ 当前值是别的（用户自己选过 2 天 / 启动时 / 其它）⇒ **只写 `refreshMigrated: true`**，
+ *      一个字都不动用户的选择 —— 迁移只负责"把没选过的人带到新默认"，不覆盖明确选择。
+ *
+ * 条目 id 同样不写死：`ctx.root.loader.locate(ctx.fiber)`（与 migrateNewPanelOnce 同一套）。
+ * 失败处理：整段 try/catch —— 迁移失败只是"频率没变"，**绝不能让插件加载失败**；
+ * 失败时记一行日志，下次启动会重试（因为标记还没写进去）。
+ */
+async function migrateRefreshOnce(ctx, config, settings) {
+	try {
+		const cfg = liveConfigOf(ctx, config);
+		if (configValueOf(cfg, "refreshMigrated") === true) return;   // 已迁过：永不再碰
+		const loader = ctx.root ? ctx.root.loader : void 0;
+		// 等 loader 把所有条目装完再写：settings.update 会走 configEditor 的 profile 补丁写入，
+		// 加载中途写容易撞上 "Configuration entry is no longer available"（与新面板迁移同理）。
+		if (loader && typeof loader.await === "function") {
+			try { await loader.await(); } catch { /* 等不到就按当前状态继续（写入自己还会校验） */ }
+		}
+		const ns = loader && typeof loader.locate === "function" ? loader.locate(ctx.fiber) : void 0;
+		if (!ns || !settings || typeof settings.update !== "function") {
+			logRemind("刷新频率迁移：定位不到配置条目（id=" + String(ns) + "），跳过（refreshMinutes 保持原值）");
+			return;
+		}
+		// 只看**当前值**（解包 volatile 引用）：1440 = 旧默认，用户没改过 ⇒ 迁；其余 ⇒ 只补标记。
+		const current = configValueOf(cfg, "refreshMinutes");
+		if (current === 1440) {
+			await settings.update(ns, { refreshMinutes: 0, refreshMigrated: true });
+			logRemind("刷新频率迁移：条目 " + ns + " 的 refreshMinutes 仍是旧默认 1440（1 天），已一次性迁到 0（启动时）");
+		} else {
+			await settings.update(ns, { refreshMigrated: true });
+			logRemind("刷新频率迁移：条目 " + ns + " 的 refreshMinutes = " + String(current)
+				+ "（用户自己选过），只写标记 refreshMigrated=true，不动这个值");
+		}
+	} catch (err) {
+		logRemind("刷新频率迁移失败（不影响插件加载，下次启动重试）：" + String((err && err.stack) || err));
+	}
+}
+
 /** Required services (host side). */
 const inject = ["webServer"];
 
@@ -1682,6 +1732,8 @@ export function apply(ctx, config = {}) {
 		// 新版面板开关的一次性迁移（见 migrateNewPanelOnce）。**不 await**：apply 不能被
 		// 一次配置写入拖慢；内部已 try/catch，失败只记日志。
 		void migrateNewPanelOnce(ctx, config, settingsCtx.settings);
+		// 刷新频率的一次性迁移（老用户 1440 → 启动时，见 migrateRefreshOnce）。同样**不 await**。
+		void migrateRefreshOnce(ctx, config, settingsCtx.settings);
 	});
 	ctx.inject(["webServer"], (injected) => {
 		const webServer = injected.get("webServer");
