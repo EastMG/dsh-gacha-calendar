@@ -39,6 +39,8 @@
 //   ⑩ 侧栏槽位布局（2026-10-30）：`styles/sidebar-footer.css` 把宿主的 `sidebar.footer.action`
 //      从"一行"改成"上下两行"，但**每条规则都必须带** `html:not([data-dsh-sidebar-footer-balanced])`
 //      `:not([data-dsh-sidebar-footer-compat])` 门槛（桌面壳自己接管这套布局，不能被我们盖掉）；
+//      几何照桌面壳（槽位 100% + 8px / margin-inline: -4px / padding: 0 4px），且横向必须
+//      **显式 overflow-x: hidden** —— 只写 overflow-y 会把另一方向自动带成 auto，真机冒横向滚动条；
 //      同时守 90-plugin.js 的注册项用 `order` / `label`（宿主契约里没有 `priority`）。
 //
 // ⚠️ 时刻全部显式传入（`now` 是参数，不是 Date.now()），所以本文件不随跑测那天漂移。
@@ -1085,18 +1087,39 @@ export default async function run() {
 			/max-height:\s*min\(40vh,\s*240px\)/.test(slotRule.body)
 			&& /overflow-y:\s*auto/.test(slotRule.body)
 			&& /overscroll-behavior:\s*contain/.test(slotRule.body), slotRule.body);
+		// 🔑 2026-10-30 真机回归：只写 overflow-y:auto 时，按 CSS 规则**另一方向会自动变 auto**
+		//   ⇒ 横向也成了滚动容器；叠加宿主入口自带的外溢几何（子项 100% + 8px / -4px），
+		//   真机（1272px 宽）就冒出横向滚动条。所以横向必须**显式 hidden**。
+		check("槽位本身：overflow-x: hidden（横向永不滚动；防 overflow-y 把另一方向带成 auto 的回归）",
+			/overflow-x:\s*hidden/.test(slotRule.body), slotRule.body);
+		check("每条带 overflow-y 的规则都同时写了 overflow-x: hidden（不许只写一个方向）",
+			footerRules.every((r) => !/overflow-y:/.test(r.body) || /overflow-x:\s*hidden/.test(r.body)),
+			footerRules.map((r) => r.body).join(" | "));
+		// 几何照桌面壳：槽位按 100% + 8px / margin-inline: -4px 外溢，再用 4px 内边距收回内容盒。
+		// 写 width: 100% + padding: 0 会让子项比内容盒宽 4~8px（真机实测溢出源之一）。
+		check("槽位本身：几何与桌面壳一致（width: calc(100% + 8px) / margin-inline: -4px / padding: 0 4px / border-box）",
+			/width:\s*calc\(100%\s*\+\s*8px\)/.test(slotRule.body)
+			&& /margin-inline:\s*-4px/.test(slotRule.body)
+			&& /padding:\s*0\s+4px/.test(slotRule.body)
+			&& /box-sizing:\s*border-box/.test(slotRule.body), slotRule.body);
+		check("负向：槽位不再写死 width: 100%（那正是横向溢出的来源）",
+			!/width:\s*100%\s*;/.test(slotRule.body), slotRule.body);
 		const childRule = footerRules.find((r) => />\s*\*$/.test(r.sel)) || { body: "" };
-		check("槽位子项：flex:none + min-width:0（按钮不被压扁，与桌面壳同一套做法）",
-			/flex:\s*none/.test(childRule.body) && /min-width:\s*0/.test(childRule.body), childRule.body);
+		check("槽位子项：flex:none + min-width:0 + max-width:100%（按钮不被压扁、也不许外溢，与桌面壳同一套做法）",
+			/flex:\s*none/.test(childRule.body) && /min-width:\s*0/.test(childRule.body)
+			&& /max-width:\s*100%/.test(childRule.body), childRule.body);
 		const collapsedRule = footerRules.find((r) => /\[class\*="collapsed"\]/.test(r.sel)) || { body: "" };
 		check("收起成图标栏时居中（[class*=\"collapsed\"] 命中宿主的 GgXflG_collapsed，保持原有视觉）",
 			/align-items:\s*center/.test(collapsedRule.body), collapsedRule.body);
+		check("收起态同样 overflow-x: hidden（折叠后也不许出横向滚动条）",
+			/overflow-x:\s*hidden/.test(collapsedRule.body), collapsedRule.body);
 		// 反向守卫：产物里必须能看到这段 CSS（改了 src 忘了 build ⇒ 真机上样式根本不生效）。
 		const clientJs = readFileSync(path.join(REPO, "lib", "client.js"), "utf8");
-		check("产物 lib/client.js 里有这段覆盖（门槛串 + column + 滚动上限都进了 STYLE）",
+		check("产物 lib/client.js 里有这段覆盖（门槛串 + column + 滚动上限 + overflow-x:hidden 都进了 STYLE）",
 			clientJs.includes(GATE + '[data-slot="sidebar.footer.action"]')
 			&& clientJs.includes("flex-direction: column")
-			&& clientJs.includes("max-height: min(40vh, 240px)"));
+			&& clientJs.includes("max-height: min(40vh, 240px)")
+			&& clientJs.includes("overflow-x: hidden"));
 		// 注册项：宿主对这个槽位的契约只有 id / order / label（`priority` 不是可选项）。
 		const pluginSrc = readFileSync(path.join(REPO, "src", "client", "90-plugin.js"), "utf8");
 		const footerReg = /ctx\.slots\.inject\("sidebar\.footer\.action"[\s\S]*?CalendarPanel\)\)/.exec(pluginSrc);
