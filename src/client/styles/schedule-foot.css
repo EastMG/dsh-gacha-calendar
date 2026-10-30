@@ -101,6 +101,13 @@
 			.gacha-cal-sched-btn{flex:0 0 auto;margin-left:auto;padding:1px 9px;line-height:1.35;border-radius:999px;background:var(--dsw-alias-bg-layer-1,rgba(127,127,127,.08));border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));color:var(--dsw-alias-label-secondary,#4a5261);font:inherit;font-size:10.5px;cursor:pointer}
 			.gacha-cal-sched-btn:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1))}
 			.gacha-cal-sched-btn:disabled{opacity:.5;cursor:default}
+			/* 底栏最右侧的「设置」齿轮（2026-10-31）：16px 图标按钮，与 .sched-btn 同一行。
+			   不写 margin-left:auto（那是「刷新」的，用来把它自己推到右边）—— 它排在刷新右边，
+			   天然就在最外侧；给它 margin-left:auto 会把两组分开、刷新居中，破坏现有排布。 */
+			.gacha-cal-sched-gear{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;
+				border:1px solid transparent;border-radius:6px;background:transparent;color:var(--dsw-alias-label-tertiary,#6b7280);cursor:pointer}
+			.gacha-cal-sched-gear:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1));color:var(--dsw-alias-label-primary,#1f2329)}
+			.gacha-cal-sched-gear:focus-visible{outline:none;border-color:var(--dsw-alias-link,#3b5bfd)}
 			.gacha-cal-sched-empty{padding:12px 8px;text-align:center;font-size:11.5px;color:var(--dsw-alias-label-tertiary,#6b7280)}
 			/* ── 「近期」每 4 秒循环换一批（每批 10 条）+「展开全部」──
 			   状态与定时都在组件里（useCycle）；这里只负责外观。换页时整批淡入（key 变化触发重挂载）。

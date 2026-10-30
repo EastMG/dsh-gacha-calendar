@@ -530,7 +530,13 @@
 						children: s.newPanel === true
 							? (0, react_jsx_runtime.jsx)(ScheduleView, {
 								games, now, s, colorMap: colorOverrides, refreshing, onRefresh: doRefresh,
-								lastRefreshText, scrapeInfo: bannerInfo, scrapeLines: bannerLines
+								lastRefreshText, scrapeInfo: bannerInfo, scrapeLines: bannerLines,
+								// 底栏那枚齿轮（新面板）：与旧面板同一个动作 —— 先关本面板，
+								// 再走三步跳到 DSH 设置页的本插件分区（失败只 console.warn）。
+								onOpenSettings: () => {
+									setOpen(false);
+									openPluginSettingsSection();
+								}
 							})
 							: [
 							(0, react_jsx_runtime.jsx)("p", { className: "gacha-cal-title", children: SETTINGS_SECTION_LABEL }),
@@ -564,14 +570,14 @@
 									})
 								}),
 								// 设置按钮：打开 DSH 设置面板并切到本插件的设置页，同时关闭本面板。
-								// **当前按用户要求临时隐藏**（SETTINGS_BUTTON_VISIBLE = false）；
-								// 下面这段逻辑与说明全部保留，改回 true 即可恢复。
-								// 为什么这么绕：DSH 没给插件"跳转设置页"的官方 API——面板是 modal，open/activeId 都是组件
-								// 私有 state（dsh-client-ui-settings-general 的 SettingsRoot），打开后按 rows[0] 兜底，也就是停在
-								// 导航第一项「通用」；插件拿不到 openSection。只能点侧边栏那个设置触发器（aria-haspopup="dialog"
-								// 是它的契约属性：全客户端带这个属性的有 6 个 dialog 类 + 12 个 menu/listbox/tree，所以按
-								// "可见 + 无障碍名匹配 设置/Settings" 挑，挑不到才退回第一个），再交给 openPluginSettingsSection
-								// 等面板挂载后按导航名切到本插件那一节。
+								// 2026-10-31 恢复显示（SETTINGS_BUTTON_VISIBLE = true）：跳转链已按
+								// 新三步重写（见 80-shared-ui.js 的 openPluginSettingsSection）——
+								// ① 账号菜单 ② 菜单里的「设置」项 ③ 设置 dialog 导航里的「二游日历」。
+								// 为什么这么绕：DSH 没有"打开设置到指定节"的官方 API（面板是 modal，
+								// open/activeId 都是组件私有 state，按 rows[0] 兜底停在导航第一项），
+								// `Ctrl+Alt+,` 又是 Electron 应用级加速键、合成键盘事件无效。只能合成点击。
+								// 先 setOpen(false)：本面板要先退场，别挡在设置 dialog 上面。
+								// 失败由 openPluginSettingsSection 自己 console.warn（不弹窗、不炸树）。
 								SETTINGS_BUTTON_VISIBLE && (0, react_jsx_runtime.jsx)("button", {
 									type: "button",
 									className: "gacha-cal-refresh",

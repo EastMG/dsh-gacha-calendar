@@ -7,7 +7,7 @@ node build.mjs        # 测试跑的是**构建产物** lib/client.js，改完 s
 node test/all.mjs     # 离线门禁（走夹具）——这是门禁
 ```
 
-`all.mjs` 会依次跑注册表守卫 + 夹具卫生 + **24 段**用例（P5X / B1 / B2 / B3 / P4 / P5 / P6 / P7 / P8 / P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora + 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档）。
+`all.mjs` 会依次跑注册表守卫 + 夹具卫生 + **25 段**用例（P5X / B1 / B2 / B3 / P4 / P5 / P6 / P7 / P8 / P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora + 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页））。
 
 ## 为什么测试改成跑构建产物（2026-10-03）
 
@@ -28,7 +28,7 @@ node test/all.mjs     # 离线门禁（走夹具）——这是门禁
 | `harness.mjs` | 夹具 fetch 注入、`check/section/summary`、契约与悬停断言 |
 | `registry-shim.mjs` | **注册表形态的测试侧快照**（见下） |
 | `all.mjs` | 统一门禁 |
-| `cases-*.mjs` | 各段用例（24 个：13 个批次 + `cases-rule-lint` 规则守卫 + `cases-tz` 时区口径 + `cases-ticker` 侧栏轮播 + `cases-remind` 到期提醒 + `cases-health` 来源健康 + `cases-readme` 结构图守卫 + `cases-core` core 守卫 + `cases-star` 设置页标题行（版本号 + Star 指引）+ `cases-filter` 搜索与筛选（设置页搜游戏名/只看已启用 + 面板按卡池·角色名过滤）+ `cases-ics` 排期导出 .ics（快照 / 折行 / 转义 / 在期判定）+ `cases-refresh` 刷新频率「启动时」档（`refreshMinutes=0` 的判定 / 定时器 / 设置页 / schema / 一次性迁移（**无条件**迁到 0）+ 待废弃标记守卫）） |
+| `cases-*.mjs` | 各段用例（25 个：13 个批次 + `cases-rule-lint` 规则守卫 + `cases-tz` 时区口径 + `cases-ticker` 侧栏轮播 + `cases-remind` 到期提醒 + `cases-health` 来源健康 + `cases-readme` 结构图守卫 + `cases-core` core 守卫 + `cases-star` 设置页标题行（版本号 + Star 指引）+ `cases-filter` 搜索与筛选（设置页搜游戏名/只看已启用 + 面板按卡池·角色名过滤）+ `cases-ics` 排期导出 .ics（快照 / 折行 / 转义 / 在期判定）+ `cases-refresh` 刷新频率「启动时」档（`refreshMinutes=0` 的判定 / 定时器 / 设置页 / schema / 一次性迁移（**无条件**迁到 0）+ 待废弃标记守卫）+ `cases-settings-jump` 设置入口（三步跳转的纯判定 + 两个面板的齿轮静态守卫）） |
 | `capture.mjs` / `capture-p8.mjs` | 抓真实响应存夹具 |
 | `map.json` | URL → 夹具 的映射索引（**已入库**） |
 | `fixtures/` | 真实响应快照（**已入库**，约 14MB；重建/刷新见下） |

@@ -1,9 +1,9 @@
 		//#region components
 		// 本插件在 DSH 设置面板里的导航名；面板按钮与弹层标题也用它（唯一事实来源，90-plugin.js 注册分区时共用）。
 		const SETTINGS_SECTION_LABEL = "\u4E8C\u6E38\u65E5\u5386";
-		// 面板上那个「设置」按钮：**临时隐藏**（用户要求）。函数与样式都保留，
-		// 改回 true 即可恢复，不用重写逻辑。
-		const SETTINGS_BUTTON_VISIBLE = false;
+		// 面板上那个「设置」按钮：**已恢复显示**（2026-10-31）—— 跳转链已按新三步重写（见
+		// openPluginSettingsSection）。仍保留这个常量 gate：万一又要临时藏起来，改回 false 即可。
+		const SETTINGS_BUTTON_VISIBLE = true;
 		// DSH 设置面板是"点了才挂载"，打开后要等导航渲染出来才能切页；预算给足但不无限等。
 		const SETTINGS_NAV_TIMEOUT_MS = 600;
 		const SETTINGS_NAV_POLL_MS = 30;
@@ -20,54 +20,192 @@
 			? "minmax(0,1.15fr) 28px 28px minmax(0,1fr) minmax(0,1fr) 34px 88px"
 			: "minmax(0,1.15fr) 28px minmax(0,1fr) minmax(0,1fr) 34px 88px";
 
-		// 打开 DSH 设置面板并切到本插件的分区（面板上的「设置」按钮用，注释见按钮处）。
-		// DSH 没有给插件"跳转设置页"的官方 API：面板是 modal，open 与 activeId 都是组件私有 state，
-		// 且 activeId 每次打开都重置为 undefined，面板按 rows[0] 兜底（= 导航第一项）。所以只能：
-		// ① 点侧边栏那个设置触发器；② 等面板挂载出来，按导航名点本插件那一项。
-		function openPluginSettingsSection() {
-			const all = [...document.querySelectorAll('[aria-haspopup="dialog"]')];
-			const visible = all.filter((el) => typeof el.getClientRects === "function" && el.getClientRects().length > 0);
-			const named = visible.find((el) => {
-				const label = (el.getAttribute("aria-label") || el.getAttribute("title") || el.textContent || "").trim();
-				return /\u8BBE\u7F6E|\u8A2D\u5B9A|Settings/i.test(label);
-			});
-			const trigger = named || visible[0] || all[0];
-			if (!trigger || typeof trigger.click !== "function") return;
-			trigger.click();
-			const deadline = Date.now() + SETTINGS_NAV_TIMEOUT_MS;
-			// 在给定根节点里找「二游排期」那一项：先按 aria-label，再按自身文本。
-			// 不写死 `nav button` 结构 —— 设置外壳换布局时（0.1.7 把插件配置挪到了
-			// 「插件」页）这种硬结构选择器会静默失效，表现为"点设置跳错页"。
-			//
-			// 必须排除本插件自己的面板：面板的开关按钮 aria-label 就是同一个标签，
-			// 文档级兜底会先命中它 → 点下去变成"自己开自己"（典型症状：点设置没反应/跳错）。
-			const inOwnPanel = (el) => {
-				for (let n = el; n; n = n.parent) if (n.classList && n.classList.contains("gacha-cal-pop")) return true;
-				return false;
+		// 打开 DSH 设置面板并切到本插件的分区（两个面板上的「设置」齿轮都用它）。
+		//
+		// ⚠️ 为什么是"合成点击"而不是 API：DSH **没有**"打开设置到指定节"的官方 API
+		//    （`settings.openSettingsDocument` 是给 AI 打开配置文档的，不是 UI 跳转）；`Ctrl+Alt+,`
+		//    是 Electron **应用级**加速键，合成键盘事件无效。2026-10-31 在活的 DSH NEXT 上实测，
+		//    唯一可用路径是点这三步（旧实现找"aria-haspopup=dialog 且名字像设置"的触发器，而那个
+		//    触发器早已不存在 —— 侧栏底部只剩账号菜单，整条链因此失效，按钮也是那时被藏起来的）：
+		//      ① `[data-slot="sidebar.settings"] button[aria-label*="账号"]`
+		//         （兜底：侧栏底部 `[class*="settingsArea"]` 里**唯一**带 aria-haspopup 的 button）
+		//      ② 等 `[role="menu"]` 出现 ⇒ 点文本以「设置」开头的项（实际文本「设置Ctrl+Alt+,」）
+		//      ③ 等 `[role="dialog"]` 出现 ⇒ 点 `dialog nav` 里文本**全等**「二游日历」的按钮
+		//         （兜底 aria-label 全等）
+		//    每一步都轮询到 deadline（复用 SETTINGS_NAV_POLL_MS / SETTINGS_NAV_TIMEOUT_MS，
+		//    不写死 sleep），失败返回 `{ ok:false, step, reason }` 并 console.warn —— 绝不静默。
+		//    判定与 DOM 解耦成纯函数 settingsJumpPickOf / settingsJumpPlanOf（下面），
+		//    离线用例见 test/cases-settings-jump.mjs；本函数只负责取元素、点、等。
+		const SETTINGS_JUMP_STEP_ACCOUNT = "account-menu";
+		const SETTINGS_JUMP_STEP_MENU = "settings-item";
+		const SETTINGS_JUMP_STEP_NAV = "plugin-section";
+		const SETTINGS_JUMP_REASON_ACCOUNT = "account-menu-missing";
+		const SETTINGS_JUMP_REASON_MENU = "settings-item-missing";
+		const SETTINGS_JUMP_REASON_DIALOG = "settings-dialog-missing";
+		const SETTINGS_JUMP_REASON_NAV = "plugin-section-missing";
+
+		// 一步的失败原因（步骤名 → reason；collector 抛错时也要给出正确的那一种）。
+		function settingsJumpReasonOf(step) {
+			if (step === SETTINGS_JUMP_STEP_MENU) return SETTINGS_JUMP_REASON_MENU;
+			if (step === SETTINGS_JUMP_STEP_NAV) return SETTINGS_JUMP_REASON_NAV;
+			return SETTINGS_JUMP_REASON_ACCOUNT;
+		}
+
+		// record = { el?, text, ariaLabel, title, visible, inOwnPanel, lane }
+		//   · 纯数据、不带 DOM 方法 ⇒ 用例可以直接手写假列表；
+		//   · visible === false / inOwnPanel === true 一律不认（缺省 = 可用）。
+		function settingsJumpUsable(r) {
+			return !!r && r.visible !== false && r.inOwnPanel !== true;
+		}
+		function settingsJumpHasPrefix(r, prefix) {
+			return [r.text, r.ariaLabel, r.title].some((v) => typeof v === "string" && v.trim().startsWith(prefix));
+		}
+
+		// 纯判定（单步）：给定某一步的候选 record 列表 ⇒ `{ ok, step, hit }` 或 `{ ok:false, step, reason }`。
+		function settingsJumpPickOf(step, records, label) {
+			const list = Array.isArray(records) ? records.filter(settingsJumpUsable) : [];
+			const want = typeof label === "string" && label ? label : SETTINGS_SECTION_LABEL;
+			if (step === SETTINGS_JUMP_STEP_ACCOUNT) {
+				// 先认主选择器（lane 缺省即主选择器）；兜底只接受**唯一**候选 —— 侧栏底部别处也出现
+				// menu 类 button 时宁可不点，绝不猜。
+				const primary = list.filter((r) => r.lane !== "fallback");
+				if (primary.length) return { ok: true, step: step, hit: primary[0] };
+				const fallback = list.filter((r) => r.lane === "fallback");
+				if (fallback.length === 1) return { ok: true, step: step, hit: fallback[0] };
+				return { ok: false, step: step, reason: SETTINGS_JUMP_REASON_ACCOUNT };
+			}
+			if (step === SETTINGS_JUMP_STEP_MENU) {
+				const hit = list.find((r) => settingsJumpHasPrefix(r, "\u8BBE\u7F6E"));
+				return hit ? { ok: true, step: step, hit: hit } : { ok: false, step: step, reason: SETTINGS_JUMP_REASON_MENU };
+			}
+			if (step === SETTINGS_JUMP_STEP_NAV) {
+				// 文本全等优先（导航按钮 = svg + <span>二游日历</span>，textContent 正好是全名）；
+				// 退到 aria-label 全等（外壳将来若把可见文本拆碎）。**不**做前缀/包含匹配。
+				const hit = list.find((r) => r.text === want) || list.find((r) => r.ariaLabel === want);
+				return hit ? { ok: true, step: step, hit: hit } : { ok: false, step: step, reason: SETTINGS_JUMP_REASON_NAV };
+			}
+			return { ok: false, step: step, reason: settingsJumpReasonOf(step) };
+		}
+
+		// 纯判定（整条链）：在"假 DOM 快照"上走完三步。正常 ⇒ { ok:true, account, menuItem, navItem }；
+		// 三种失败各有不同 reason（缺账号菜单 / 菜单里没有设置项 / 设置开了但导航里没有本插件节）；
+		// `dialogCount: 0` 另外区分出"设置面板根本没打开"。
+		function settingsJumpPlanOf(snapshot) {
+			const snap = snapshot || {};
+			const account = settingsJumpPickOf(SETTINGS_JUMP_STEP_ACCOUNT, snap.accountMenus, snap.label);
+			if (!account.ok) return account;
+			const menu = settingsJumpPickOf(SETTINGS_JUMP_STEP_MENU, snap.menuItems, snap.label);
+			if (!menu.ok) return menu;
+			if (snap.dialogCount === 0) return { ok: false, step: SETTINGS_JUMP_STEP_NAV, reason: SETTINGS_JUMP_REASON_DIALOG };
+			const nav = settingsJumpPickOf(SETTINGS_JUMP_STEP_NAV, snap.navItems, snap.label);
+			if (!nav.ok) return nav;
+			return { ok: true, step: SETTINGS_JUMP_STEP_NAV, account: account.hit, menuItem: menu.hit, navItem: nav.hit };
+		}
+
+		// 本插件自己的面板（.gacha-cal-pop）里的元素统统不认：面板的开关按钮 aria-label 就是同一个
+		// 「二游日历」，文档级兜底会先命中它 ⇒ 点下去变成"自己开自己"（历史 bug，别退回去）。
+		function isInOwnPanel(el) {
+			for (let n = el; n; n = n.parentNode) if (n.classList && n.classList.contains("gacha-cal-pop")) return true;
+			return false;
+		}
+		// 把 DOM 元素转成上面那种纯数据 record（唯一碰 DOM 的地方）。
+		function settingsJumpRecordOf(el, lane) {
+			const attrOf = (name) => {
+				try { const v = el && el.getAttribute && el.getAttribute(name); return typeof v === "string" ? v.trim() : ""; } catch (e) { return ""; }
 			};
-			const findItem = (root) => {
-				if (!root || typeof root.querySelectorAll !== "function") return null;
-				const items = [...root.querySelectorAll("button, a")]
-					.filter((el) => el !== trigger && !inOwnPanel(el));
-				const byAttr = items.find((el) => {
-					const l = (el.getAttribute("aria-label") || el.getAttribute("title") || "").trim();
-					return l === SETTINGS_SECTION_LABEL;
-				});
-				if (byAttr) return byAttr;
-				return items.find((el) => (el.textContent || "").trim() === SETTINGS_SECTION_LABEL) || null;
+			let visible = false;
+			try { visible = !!(el && typeof el.getClientRects === "function" && el.getClientRects().length > 0); } catch (e) { visible = false; }
+			return {
+				el: el,
+				lane: lane || "",
+				text: el && typeof el.textContent === "string" ? el.textContent.trim() : "",
+				ariaLabel: attrOf("aria-label"),
+				title: attrOf("title"),
+				visible: visible,
+				inOwnPanel: isInOwnPanel(el)
 			};
-			const tick = () => {
-				// 只在设置面板（dialog）里找，**不做整篇文档的兜底搜索**：
-				// 本插件面板的开关按钮 aria-label 就是同一个标签，文档级搜索会先命中它，
-				// 一点就变成"自己把自己打开"（实测就是这样：点设置只弹本插件面板、不跳页）。
-				const dialogs = [...document.querySelectorAll('[role="dialog"]')];
-				for (const d of dialogs) {
-					const hit = findItem(d);
-					if (hit) { hit.click(); return; }
+		}
+		function settingsJumpQueryAll(root, selector) {
+			if (!root || typeof root.querySelectorAll !== "function") return [];
+			try { return Array.prototype.slice.call(root.querySelectorAll(selector)); } catch (e) { return []; }
+		}
+		// ① 账号菜单触发器：主选择器命中过的元素不再进兜底（同一元素只算一条）。
+		function settingsAccountMenuRecords() {
+			const out = [];
+			const seen = [];
+			for (const el of settingsJumpQueryAll(document, '[data-slot="sidebar.settings"] button[aria-label*="\u8D26\u53F7"]')) {
+				seen.push(el);
+				out.push(settingsJumpRecordOf(el, "primary"));
+			}
+			for (const area of settingsJumpQueryAll(document, '[class*="settingsArea"]')) {
+				for (const el of settingsJumpQueryAll(area, "button[aria-haspopup]")) {
+					if (seen.indexOf(el) >= 0) continue;
+					out.push(settingsJumpRecordOf(el, "fallback"));
 				}
-				if (Date.now() < deadline) window.setTimeout(tick, SETTINGS_NAV_POLL_MS);
+			}
+			return out;
+		}
+		// ② 账号菜单里的「设置」项。菜单是 body 级 portal ⇒ 只在 [role="menu"] 里找。
+		function settingsMenuItemRecords() {
+			return settingsJumpQueryAll(document, '[role="menu"] [role="menuitem"], [role="menu"] button, [role="menu"] a')
+				.map((el) => settingsJumpRecordOf(el));
+		}
+		// ③ 设置 dialog 导航。只在 `dialog nav` 里找，**不做**整篇文档的兜底搜索。
+		function settingsNavItemRecords() {
+			const out = [];
+			for (const dialog of settingsJumpQueryAll(document, '[role="dialog"]')) {
+				for (const el of settingsJumpQueryAll(dialog, "nav button, nav a")) out.push(settingsJumpRecordOf(el));
+			}
+			return out;
+		}
+		// 轮询某一步直到 deadline（快的时候一步都不等）。
+		function settingsJumpWaitFor(step, collect, label) {
+			return new Promise((resolve) => {
+				const deadline = Date.now() + SETTINGS_NAV_TIMEOUT_MS;
+				const tick = () => {
+					let res;
+					try { res = settingsJumpPickOf(step, collect(), label); }
+					catch (e) { res = { ok: false, step: step, reason: settingsJumpReasonOf(step) }; }
+					if (res.ok || Date.now() >= deadline) { resolve(res); return; }
+					window.setTimeout(tick, SETTINGS_NAV_POLL_MS);
+				};
+				tick();
+			});
+		}
+
+		// 返回值：Promise<{ ok, step, reason? }> —— 失败**不抛**（面板上点一下不该炸整棵树），
+		// 但会 console.warn 出卡在哪一步、为什么；调用方不需要处理异常。
+		function openPluginSettingsSection() {
+			const clickHit = (res) => {
+				const el = res && res.ok && res.hit && res.hit.el;
+				if (!el || typeof el.click !== "function") return false;
+				try { el.click(); return true; } catch (e) { return false; }
 			};
-			window.setTimeout(tick, 0);
+			const fail = (step, reason) => {
+				const res = { ok: false, step: step, reason: reason };
+				try { console.warn("[gacha-calendar] \u6253\u5F00\u63D2\u4EF6\u8BBE\u7F6E\u9875\u5931\u8D25\uFF1A", step, reason); } catch (e) { /* ignore */ }
+				return res;
+			};
+			return Promise.resolve()
+				.then(() => settingsJumpWaitFor(SETTINGS_JUMP_STEP_ACCOUNT, settingsAccountMenuRecords))
+				.then((account) => {
+					if (!account.ok) return fail(account.step, account.reason);
+					if (!clickHit(account)) return fail(SETTINGS_JUMP_STEP_ACCOUNT, SETTINGS_JUMP_REASON_ACCOUNT);
+					return settingsJumpWaitFor(SETTINGS_JUMP_STEP_MENU, settingsMenuItemRecords).then((menu) => {
+						if (!menu.ok) return fail(menu.step, menu.reason);
+						if (!clickHit(menu)) return fail(SETTINGS_JUMP_STEP_MENU, SETTINGS_JUMP_REASON_MENU);
+						return settingsJumpWaitFor(SETTINGS_JUMP_STEP_NAV, settingsNavItemRecords).then((nav) => {
+							if (!nav.ok) {
+								// 区分"设置面板根本没开"与"开了但导航里没有本插件那一节"。
+								const opened = settingsJumpQueryAll(document, '[role="dialog"]').length > 0;
+								return fail(SETTINGS_JUMP_STEP_NAV, opened ? SETTINGS_JUMP_REASON_NAV : SETTINGS_JUMP_REASON_DIALOG);
+							}
+							if (!clickHit(nav)) return fail(SETTINGS_JUMP_STEP_NAV, SETTINGS_JUMP_REASON_NAV);
+							return { ok: true, step: SETTINGS_JUMP_STEP_NAV };
+						});
+					});
+				})
+				.catch(() => fail(SETTINGS_JUMP_STEP_ACCOUNT, SETTINGS_JUMP_REASON_ACCOUNT));
 		}
 
 		// ── 浏览器侧"下载一段文本"（排期导出 .ics 用，待办第 5 项）──

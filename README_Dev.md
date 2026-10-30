@@ -100,8 +100,8 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 24 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora + 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档）
-│   ├── cases-*.mjs  # 各段用例（24 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh）
+│   ├── all.mjs      # 统一门禁：聚 25 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora + 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页））
+│   ├── cases-*.mjs  # 各段用例（25 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh / settings-jump）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
 │   ├── registry-shim.mjs # 各批次注册表规格快照 + DRIFT 守卫（与运行时 SOURCES 核对 tz/name）
@@ -128,6 +128,22 @@ dsh-gacha-calendar/
 - **第二道门槛（2026-10-30）**：三条规则的选择器末尾都追加了 `:has(> * + *)` —— 槽位里**至少两个直系子项**（至少两个入口）才匹配。槽位里只有本插件一个入口时整段规则完全不生效（等于没装），这样"只有我们一个入口"的环境里宿主布局保持原样，影响面最小；`:has()` 是额外一层，双 `:not()` 门槛仍在。
 - **选择器依据**（实测，不是猜）：`data-slot` 属性确实存在于宿主 DOM —— DSH NEXT 的 slots 渲染器给每个槽位挂这个属性（`<html>` 上没有任何 `data-dsh-sidebar-footer-*`）；收起态用的 `[class*="collapsed"]` 命中宿主侧栏根节点的 `GgXflG_collapsed` 一类类名（模块哈希前缀 + `collapsed`）。
 - **注册项**：该槽位的宿主契约只列 `id` / `order` / `label`（`order` 升序、默认 0），**没有 `priority`** —— 旧写法 `priority:-10` 根本不被读，已换成 `order:-10`（仍在最上）；`label` 用 thunk（`() => SETTINGS_SECTION_LABEL`），图标栏提示跟得住语言切换。
+
+### 跳到本插件设置页（两个面板的「设置」齿轮）
+
+**结论：DSH 没有"打开设置到指定节"的 API**。`settings.openSettingsDocument` 是给 AI 打开**配置文档**的，不是 UI 跳转；`Ctrl+Alt+,` 是 Electron **应用级**加速键，合成的键盘事件无效（都不触发宿主动作）。设置面板是 modal，`open` / `activeId` 都是组件私有 state，打开后按 `rows[0]` 兜底、停在导航第一项。
+
+**旧方案已失效**：旧实现找"`aria-haspopup="dialog"` 且无障碍名像设置"的侧栏触发器，再在下拉里挑本插件那一节。2026-10-31 在活的 DSH NEXT GUI 上核实：侧栏底部**只剩账号菜单**（`aria-haspopup="menu"`），那个 dialog 触发器已不存在 ⇒ 整条链静默失效。旧面板的设置按钮当时就是因此被 `SETTINGS_BUTTON_VISIBLE = false` 藏起来的（现在已恢复 `true`）。
+
+**现在的实现**（`80-shared-ui.js` 的 `openPluginSettingsSection`，两个面板共用）是**合成点击**三步，每步都轮询到 deadline（`SETTINGS_NAV_TIMEOUT_MS` / `SETTINGS_NAV_POLL_MS`，不写死 sleep）：
+
+1. 点 `[data-slot="sidebar.settings"] button[aria-label*="账号"]`（实测命中 `button[aria-label="账号菜单"]`）。兜底：侧栏底部 `[class*="settingsArea"]` 里**唯一**带 `aria-haspopup` 的 button —— 多个候选就放弃，绝不猜。
+2. 等 `[role="menu"]` 出现（菜单是 body 级 portal）⇒ 点文本**以「设置」开头**的项（实际文本形如「设置Ctrl+Alt+,」）。
+3. 等 `[role="dialog"]` 出现 ⇒ 在 `dialog nav` 里找文本**全等**「二游日历」的按钮并点；退到 `aria-label` 全等。只在 `dialog nav` 里找，不做整篇文档兜底，并且排除本插件自己的面板（`.gacha-cal-pop`，否则面板触发器同名会把"点设置"变成"自己开自己"）。
+
+失败**不抛异常、不弹窗**：返回 `{ ok, step, reason }` 并 `console.warn`，三种情况分别可辨 —— `account-menu-missing`（找不到账号菜单）/ `settings-item-missing`（菜单里没有设置项）/ `plugin-section-missing`（设置开了但导航里没有本插件那一节）；另外 `settings-dialog-missing` 表示点完菜单项后设置面板根本没打开。三步判定抽成纯函数 `settingsJumpPickOf` / `settingsJumpPlanOf`（假 DOM 快照即可离线复跑，见 `test/cases-settings-jump.mjs`），`openPluginSettingsSection` 只负责取元素、点、等。
+
+**入口**：旧面板 = 刷新按钮右边的 `gacha-cal-refresh` 齿轮（13px / 24 viewBox）；新面板 = 底栏「刷新」右侧最外侧的 `gacha-cal-sched-gear`（16 viewBox / `strokeWidth: 1.5`，经 props `onOpenSettings` 传入，**没传就不渲染**）。两边都是先 `setOpen(false)` 关掉本面板再跳转。
 
 ## 本机只读快照接口（给自动化脚本用）
 

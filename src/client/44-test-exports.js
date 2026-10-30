@@ -500,6 +500,12 @@
 			settingsGamesFilter,
 			panelEntryHit,
 			panelGamesFilter,
+			// 「跳到本插件设置页」的三步查找（80-shared-ui.js 的纯判定）：给定候选 record 列表 ⇒
+			// 该点哪个 / 卡在哪一步。覆盖正常三步 / 缺账号菜单 / 菜单里没有设置项 /
+			// 设置开了但导航里没有本插件节 / 本插件面板里的元素必须排除（见 cases-settings-jump.mjs）。
+			// ⚠️ 它们是**函数声明**（80 段排在本段之后，靠提升可见）；理由同上面 isExpiringSoon。
+			settingsJumpPickOf,
+			settingsJumpPlanOf,
 			// 排期导出 .ics（待办第 5 项，60-helpers.js 的纯函数）：
 			//   icsEventsOf —— 条目 + 上一轮抓取结果 + now ⇒ { events, skipped }（"在期"只有这一处判定）；
 			//   icsOf       —— 事件清单 + 生成时刻 ⇒ **逐字节确定**的 iCalendar 文本（CRLF / 75 octets 折行 /
