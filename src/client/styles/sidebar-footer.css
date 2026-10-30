@@ -2,7 +2,13 @@
 /* 几何照 DSH Desktop 自己的写法：槽位按 100% + 8px / margin-inline: -4px 外溢，再用 4px 内边距收回。
    宿主入口自带同样的外溢几何（子项按 100% + 8px 落位），我们若写 width: 100% + padding: 0，
    子项就会比内容盒宽 4~8px ⇒ 横向溢出。 */
-html:not([data-dsh-sidebar-footer-balanced]):not([data-dsh-sidebar-footer-compat]) body [data-slot="sidebar.footer.action"] {
+/* 第二道门槛 :has(> * + *) = 槽位里**至少两个直系子项**（两个入口）才匹配。
+   "> * + *" 是"有兄弟的子项"，即第 2 个及以后的子项存在 ⇒ 子项数 ≥ 2。
+   只有一个入口时（例如"这个槽位里只有本插件"的环境）整段规则不生效，等于没装：
+   不碰宿主的 flex 方向、不碰几何，把影响面压到最小。
+   注意 :has() 是**额外**加的一层，原来的双 :not() 门槛必须同时保留。
+   （本文件会被拼进 JS 模板字符串，注释里不许出现反引号与美元花括号） */
+html:not([data-dsh-sidebar-footer-balanced]):not([data-dsh-sidebar-footer-compat]) body [data-slot="sidebar.footer.action"]:has(> * + *) {
   display: flex !important;
   box-sizing: border-box;
   flex-direction: column;
@@ -22,13 +28,13 @@ html:not([data-dsh-sidebar-footer-balanced]):not([data-dsh-sidebar-footer-compat
   overflow-y: auto;
   overscroll-behavior: contain;
 }
-html:not([data-dsh-sidebar-footer-balanced]):not([data-dsh-sidebar-footer-compat]) body [data-slot="sidebar.footer.action"] > * {
+html:not([data-dsh-sidebar-footer-balanced]):not([data-dsh-sidebar-footer-compat]) body [data-slot="sidebar.footer.action"]:has(> * + *) > * {
   flex: none;
   min-width: 0;
   max-width: 100%;
 }
-/* 侧栏收起成图标栏时居中，保持原有视觉 */
-html:not([data-dsh-sidebar-footer-balanced]):not([data-dsh-sidebar-footer-compat]) body [class*="collapsed"] [data-slot="sidebar.footer.action"] {
+/* 侧栏收起成图标栏时居中，保持原有视觉；同样只在至少两个入口时生效 */
+html:not([data-dsh-sidebar-footer-balanced]):not([data-dsh-sidebar-footer-compat]) body [class*="collapsed"] [data-slot="sidebar.footer.action"]:has(> * + *) {
   align-items: center;
   overflow-x: hidden;
 }

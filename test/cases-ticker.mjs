@@ -1048,7 +1048,8 @@ export default async function run() {
 	//   ② 桌面壳（旧壳 flex column / NEXT grid）自己注入 CSS 接管这件事，并在 <html> 上挂
 	//      `data-dsh-sidebar-footer-balanced` / `-compat` 属性；
 	//   ③ 两边都用 `!important` ⇒ 靠**特异性**分胜负，我们的选择器更长，**没有门槛就会盖掉桌面壳**。
-	// 所以这一组的核心守卫是门槛：三条规则一条都不许裸写。
+	// 所以这一组的核心守卫是门槛：三条规则一条都不许裸写；2026-10-30 又追加了第二道
+	// 「至少两个入口才生效」的门槛 `:has(> * + *)`（单入口环境等于没装，见下面注释）。
 	{
 		const footerCssPath = path.join(REPO, "src", "client", "styles", "sidebar-footer.css");
 		let footerCss = "";
@@ -1062,6 +1063,8 @@ export default async function run() {
 			footerCss.length > 0 && orderNames2.includes("sidebar-footer.css"));
 
 		const GATE = 'html:not([data-dsh-sidebar-footer-balanced]):not([data-dsh-sidebar-footer-compat]) body ';
+		const SLOT_SEL = '[data-slot="sidebar.footer.action"]';
+		const HAS2 = ":has(> * + *)";
 		const cssNoComments = footerCss.replace(/\/\*[\s\S]*?\*\//g, "");
 		const footerRules = [...cssNoComments.matchAll(/([^{}]+)\{([^}]*)\}/g)]
 			.map((m) => ({ sel: m[1].trim(), body: m[2] }));
@@ -1077,6 +1080,28 @@ export default async function run() {
 			footerRules.map((r) => r.sel).join(" | "));
 		check("门槛选择器里没有裸的 `html body` 变体（少了 :not 那两条就等于没门槛）",
 			!/html\s+body\s+\[data-slot/.test(cssNoComments));
+		// 🔑 2026-10-30 第二道门槛：`:has(> * + *)` = 槽位里**至少两个直系子项**（两个入口）才匹配。
+		//   `> * + *` = 第 2 个及以后的子项存在 ⇒ 子项数 ≥ 2。只有本插件一个入口时整段规则不生效，
+		//   等于没装（不碰宿主 flex 方向 / 几何），把影响面压到最小。
+		check("三条规则都追加了「至少两个入口」门槛 :has(> * + *)（漏一条 ⇒ 单入口环境里照样改宿主布局）",
+			footerRules.length === 3 && footerRules.every((r) => r.sel.includes(SLOT_SEL + HAS2)),
+			footerRules.map((r) => r.sel).join(" | "));
+		check(":has() 门槛是**追加**的：双 :not() 在每条规则里仍各自完整（balanced + compat 都没被挤掉）",
+			footerRules.length === 3
+			&& footerRules.every((r) => r.sel.includes(":not([data-dsh-sidebar-footer-balanced])")
+				&& r.sel.includes(":not([data-dsh-sidebar-footer-compat])"))
+			&& footerRules.every((r) => r.sel.indexOf(":has(") > r.sel.indexOf(":not([data-dsh-sidebar-footer-compat])")),
+			footerRules.map((r) => r.sel).join(" | "));
+		check(":has() 里写的就是 `> * + *`（至少两个直系子项），不是 `:has(*)` —— 后者一个入口也命中，门槛等于没有",
+			footerRules.length === 3 && footerRules.every((r) => /:has\(>\s*\*\s*\+\s*\*\)/.test(r.sel)),
+			footerRules.map((r) => r.sel).join(" | "));
+		check("子项规则把 :has() 加在槽位选择器上、`> *` 留在外面（`:has(> * + *) > *`，别写成 `:has(... > *)`）",
+			footerRules.some((r) => r.sel.endsWith(SLOT_SEL + HAS2 + " > *")),
+			footerRules.map((r) => r.sel).join(" | "));
+		check("负向：文件里不存在没带 :has() 门槛的 data-slot 选择器（3 处必须全带）",
+			(cssNoComments.match(/\[data-slot="sidebar\.footer\.action"\](?!:has\(> \* \+ \*\))/g) || []).length === 0
+			&& (cssNoComments.match(/\[data-slot="sidebar\.footer\.action"\]/g) || []).length === 3,
+			String((cssNoComments.match(/\[data-slot="sidebar\.footer\.action"\]/g) || []).length));
 		const slotRule = footerRules.find((r) => /display:\s*flex\s*!important/.test(r.body)) || { sel: "", body: "" };
 		check("槽位本身：display:flex !important（**不是** grid —— NEXT 用 grid，我们不能抢）",
 			/display:\s*flex\s*!important/.test(slotRule.body) && !/display:\s*grid/.test(footerCss),
@@ -1126,13 +1151,13 @@ export default async function run() {
 			/overflow-x:\s*hidden/.test(collapsedRule.body), collapsedRule.body);
 		// 反向守卫：产物里必须能看到这段 CSS（改了 src 忘了 build ⇒ 真机上样式根本不生效）。
 		const clientJs = readFileSync(path.join(REPO, "lib", "client.js"), "utf8");
-		check("产物 lib/client.js 里有这段覆盖（门槛串 + column + 滚动上限 + overflow-x:hidden 都进了 STYLE）",
-			clientJs.includes(GATE + '[data-slot="sidebar.footer.action"]')
+		check("产物 lib/client.js 里有这段覆盖（双门槛 + :has(> * + *) + column + 滚动上限 + overflow-x:hidden 都进了 STYLE）",
+			clientJs.includes(GATE + SLOT_SEL + HAS2 + " {")
 			&& clientJs.includes("flex-direction: column")
 			&& clientJs.includes("max-height: min(40vh, 240px)")
 			&& clientJs.includes("overflow-x: hidden"));
 		// 产物级守卫：槽位规则里必须是 `gap: 0;`（src 改了忘 build ⇒ 真机上还是 14px）。
-		const slotAt = clientJs.indexOf(GATE + '[data-slot="sidebar.footer.action"] {');
+		const slotAt = clientJs.indexOf(GATE + SLOT_SEL + HAS2 + " {");
 		const slotBlock = slotAt >= 0 ? clientJs.slice(slotAt, slotAt + 1200) : "";
 		check("产物 lib/client.js 的槽位规则是 gap: 0（不许是 6px：那正是 14px 间距的来源）",
 			/gap:\s*0(?:px)?\s*;/.test(slotBlock) && !/^\s*gap:\s*6px\s*;/m.test(slotBlock),
