@@ -261,7 +261,9 @@
 						: "✓ 所有来源都正常")
 				: "";
 			const currentMinutes = Number(s.refreshMinutes ?? DEFAULT_SETTINGS.refreshMinutes);
-			// 旧配置可能存了分钟值（不在按天选项里），额外补一个"自定义"选项避免 select 空白
+			// 旧配置可能存了分钟值（不在按天选项里），额外补一个"自定义"选项避免 select 空白。
+			// ⚠️ 0 现在是**正常档位**（「启动时」在 REFRESH_OPTIONS 第一项）⇒ 不能把 0 当"没选/自定义"：
+			// 判定只认选项表里的 minutes（`0 === 0` 命中），所以「启动时」不会变成「自定义（0 分钟）」。
 			const inOptions = REFRESH_OPTIONS.some((o) => o.minutes === currentMinutes);
 			// 按钮轮播的两个控件：开关 tickerOn（默认开）+ 范围 tickerHours（提前多久算"要来了"）。
 			// 老配置残留的 0 由 tickerRangeOf 归一到 72，下拉里不会冒出「自定义（0 小时）」。

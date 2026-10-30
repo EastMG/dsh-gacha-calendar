@@ -690,9 +690,12 @@
 		//   ① 版本哨兵对不上 → **强制**刷一次，**不看自动刷新开关**：
 		//      · lastVersion 为空 = 首次安装（或装了本功能之前的旧缓存、上次刷新没成功）
 		//      · 否则 = 插件已更新（悬停格式、来源地址、解析器、样式等改动不刷新就看不到效果）
-		//   ② 到点（lastRefresh + refreshMinutes 已过） → 仅当自动刷新开关为开时刷
+		//   ② 「启动时」档（refreshMinutes === 0）→ 每次挂载都 due，但不 force（开关仍要开）
+		//   ③ 到点（lastRefresh + refreshMinutes 已过） → 仅当自动刷新开关为开时刷
 		// 为什么必须有它：定时器只按"本次运行时长"计时（重启即归零，谁也不会一直不关电脑），
 		// 所以"启动时判一次"才是间隔设置真正生效的地方。UI 只负责照做与提示。
+		// ⚠️ 0 是「启动时」这一档的**值**，不是"关闭"：负数 / 非有限值 / 空串才是脏配置 ⇒ 永不 due
+		//（别把脏数据当成启动时，否则清空过的配置会每开一次页面就偷偷刷一轮）。
 		function autoRefreshPlan(input) {
 			const s = input || {};
 			const pluginVersion = String(s.pluginVersion || "");
@@ -701,9 +704,14 @@
 				return { due: true, force: true, reason: cachedVersion ? "\u63D2\u4EF6\u5DF2\u66F4\u65B0" : "\u9996\u6B21\u542F\u52A8" };
 			}
 			if (!s.autoRefresh) return { due: false, force: false, reason: "" };
-			const minutes = Number(s.refreshMinutes);
+			const raw = s.refreshMinutes;
+			const minutes = Number(raw);
+			// 空串 / 纯空白 Number() 会变成 0 —— 必须单独挡掉，否则"清空过的配置"会被当成「启动时」
+			const blank = raw === null || raw === undefined || (typeof raw === "string" && raw.trim() === "");
+			if (blank || !Number.isFinite(minutes) || minutes < 0) return { due: false, force: false, reason: "" };
+			if (minutes === 0) return { due: true, force: false, reason: "\u542F\u52A8\u65F6\u5237\u65B0" };
 			const at = Number(s.lastRefresh) || 0;
-			if (!Number.isFinite(minutes) || minutes <= 0 || at <= 0) return { due: false, force: false, reason: "" };
+			if (at <= 0) return { due: false, force: false, reason: "" };
 			if (at + minutes * 60000 <= (Number(s.now) || 0)) return { due: true, force: false, reason: "\u5DF2\u5230\u5237\u65B0\u95F4\u9694" };
 			return { due: false, force: false, reason: "" };
 		}

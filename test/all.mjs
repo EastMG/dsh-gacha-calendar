@@ -34,6 +34,7 @@ import runCore from "./cases-core.mjs";
 import runStar from "./cases-star.mjs";
 import runFilter from "./cases-filter.mjs";
 import runIcs from "./cases-ics.mjs";
+import runRefresh from "./cases-refresh.mjs";
 
 const LIVE = process.argv.includes("--live");
 
@@ -118,7 +119,8 @@ const batches = [
 	["core 产物（零宿主依赖 + 注册幂等）", runCore],
 	["设置页标题行（标题 + 版本号 + Star 指引）", runStar],
 	["搜索与筛选（设置页「搜游戏名 + 只看已启用」/ 面板「按卡池·角色名过滤」）", runFilter],
-	["排期导出 .ics（快照：源站墙钟 → UTC / CRLF / 75 octets 折行 / 转义 / 在期判定）", runIcs]
+	["排期导出 .ics（快照：源站墙钟 → UTC / CRLF / 75 octets 折行 / 转义 / 在期判定）", runIcs],
+	["刷新频率「启动时」档（refreshMinutes = 0 的判定 / 定时器 / 设置页 / schema）", runRefresh]
 ];
 const before = counts();
 for (const [label, fn] of batches) {

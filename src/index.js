@@ -1528,7 +1528,9 @@ function registerRemindTimer(ctx, config) {
  */
 const Config = z.object({
 	autoRefresh: z.boolean().default(true).volatile(),
-	refreshMinutes: z.number().min(1).max(60480).default(1440).volatile(),
+	// 刷新频率（分钟）：0 = 「启动时」（仅面板挂载时刷一次，运行期不排定时器，见 autoRefreshPlan）；
+	// 其余为间隔分钟数。默认 1440（1 天）**不变** —— 0 是新档位，不是新的默认值。
+	refreshMinutes: z.number().min(0).max(60480).default(1440).volatile(),
 	// 按钮轮播的总开关（默认开）。与下面的 tickerHours 是两个控件：一个管开不开、一个管范围。
 	tickerOn: z.boolean().default(true).volatile(),
 	// 按钮轮播的范围（小时）：有卡池/活动在 N 小时内结束或开始，侧栏按钮就轮播。

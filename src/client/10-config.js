@@ -9,7 +9,11 @@
 		// 刷新频率选项：按天（存分钟），与 host 端 Config.refreshMinutes 对应。
 		// 档位对齐常见版本周期：14/21/28/35/42 天 —— 15≈蔚蓝档案的 14 天轮换、21=1999 半版本/3.6 整版本
 		// 与异环当期、30≈方舟月度、42=米系与 1999 的整版本
+		// ⚠️ `minutes: 0` = 「启动时」：只在面板挂载（DSH 启动 / 页面加载）时刷一次，运行期**不排**定时器
+		//（判定见 60-helpers.js 的 autoRefreshPlan；0 不再是「关闭」，脏值/负数才是）。
+		// 放最前是因为它最省流量；默认值仍是 1 天（见 DEFAULT_SETTINGS，别跟着改）。
 		const REFRESH_OPTIONS = [
+			{ label: "启动时", minutes: 0 },
 			{ label: "1 天", minutes: 1 * 24 * 60 },
 			{ label: "5 天", minutes: 5 * 24 * 60 },
 			{ label: "7 天", minutes: 7 * 24 * 60 },

@@ -391,6 +391,10 @@
 			// 负责"落盘文本 + tz → 绝对窗口"；同属函数声明、同作用域提升 ⇒ 这里可提前引用。
 			isExpiringSoon,
 			expiringSoonOf,
+			// autoRefreshPlan = 「这次启动要不要刷」的纯判定（60-helpers.js）：版本哨兵优先（force）/
+			// 「启动时」（refreshMinutes === 0）每次挂载 due 但不 force / 按间隔 due / 脏值永不 due。
+			// 导出后可以逐字断言 reason 并覆盖 0、负数、NaN 三种边界（见 test/cases-refresh.mjs）。
+			autoRefreshPlan,
 			// dueKindOf = 方向判定（到期提醒也会复用）；remindGameAllowed = 「提醒」白名单判定（轮播不调用）；
 			// tickerPickOf / tickerCaptionOf / tickerSlidesOf / tickerStepsOf / tickerDirAt = 轮播的
 			// 选取排序 / 文案 / 每格结构 / 展开序列 / 方向规则，全是纯函数。

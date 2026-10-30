@@ -100,8 +100,8 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 23 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora + 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics）
-│   ├── cases-*.mjs  # 各段用例（23 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics）
+│   ├── all.mjs      # 统一门禁：聚 24 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora + 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档）
+│   ├── cases-*.mjs  # 各段用例（24 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
 │   ├── registry-shim.mjs # 各批次注册表规格快照 + DRIFT 守卫（与运行时 SOURCES 核对 tz/name）
@@ -115,6 +115,10 @@ dsh-gacha-calendar/
 ├── cordis.patch.yml # bundle patch
 └── LICENSE / README.md / README_Dev.md / AGENTS.md
 ```
+
+### 刷新频率（`refreshMinutes`）
+
+`refreshMinutes = 0` = **仅启动时刷新一次**：只在面板挂载（DSH 启动 / 页面加载）时刷一轮，运行期不排定时器；负数 / 非有限值才是脏配置（永不刷）。默认值仍是 `1440`（1 天）。
 
 ### 为什么插件要改宿主的槽位布局
 

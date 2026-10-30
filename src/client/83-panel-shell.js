@@ -331,7 +331,10 @@
 			(0, react.useEffect)(() => {
 				if (!(s.autoRefresh ?? DEFAULT_SETTINGS.autoRefresh)) return;
 				const minutes = Number(s.refreshMinutes ?? DEFAULT_SETTINGS.refreshMinutes);
-				if (!Number.isFinite(minutes) || minutes <= 0) return;
+				if (!Number.isFinite(minutes) || minutes < 0) return;
+				// 「启动时」（minutes === 0）**不排下一拍**：这一档只在挂载时由下面的 autoRefreshPlan
+				// 刷一次；若这里继续排，间隔就是 0 ⇒ 每 1 秒一轮，变成"疯狂刷新"（比 42 天溢出更糟）。
+				if (minutes === 0) return;
 				const MAX_DELAY = 2147483647;
 				const intervalMs = minutes * 60 * 1000;
 				let disposed = false;
@@ -375,7 +378,13 @@
 					now: Date.now()
 				});
 				if (!plan.due) return;
-				const key = `${PLUGIN_VERSION}|${plan.reason}`;
+				// 「启动时」（minutes === 0）在同一次挂载里**只刷一次**：
+				// 这一档每次判定都 due（这正是它的语义），而刷新成功会写回 lastVersion / lastRefresh
+				// → 依赖变化让 effect 重跑 → 若 key 里还带着 plan.reason，升级那一轮会先走
+				// 「插件已更新」(force)、紧接着再命中「启动时刷新」→ **同一挂载连刷两轮**。
+				// 所以 0 档把 key 收敛成"本次挂载一次"，与原因无关（其他档位仍按 (版本|原因) 记）。
+				const zeroInterval = Number(s.refreshMinutes) === 0;
+				const key = zeroInterval ? `${PLUGIN_VERSION}|启动时` : `${PLUGIN_VERSION}|${plan.reason}`;
 				if (startupGuardRef.current === key) return;
 				startupGuardRef.current = key;
 				autoNoteRef.current = plan.reason;
