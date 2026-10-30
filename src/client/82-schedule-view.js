@@ -571,10 +571,31 @@
 					] }),
 					scrapeInfo ? (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-scrape", title: (scrapeLines || []).join("\n"), children: scrapeInfo }) : null,
 					(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-when", title: [lastRefreshText, scrapeInfo].concat(scrapeLines || []).filter(Boolean).join("\n"), children: "上次更新 " + scheduleAgo(s.lastRefresh, now) }),
+					// 刷新按钮（2026-10-31 统一规格）：图标与右侧齿轮**同一套** ——
+					//   16×16 / viewBox 0 0 16 16 / strokeWidth 1.5 / stroke 圆头圆角。
+					// 图形仍是原来那枚环形箭头（旧面板 24 网格：`M21 12a9 9 0 1 1-2.64-6.36L21 8`
+					// + 箭头折线 `21 3 21 8 16 8`），这里等比 ×2/3 缩到 16 网格 ⇒ 形状不变、只是规格对齐。
+					// 文字「刷新」保留：按钮仍是文字 pill，只多一枚同套图标（不是纯图标按钮）。
+					// ⚠️ 两边规格由 test/cases-settings-jump.mjs 逐字比对守着，改一边忘了另一边会红。
 					(0, react_jsx_runtime.jsx)("button", {
 						type: "button", className: "gacha-cal-sched-btn", disabled: refreshing,
 						title: refreshing ? "刷新中..." : "刷新", "aria-label": refreshing ? "刷新中..." : "刷新",
-						onClick: onRefresh, children: "刷新"
+						onClick: onRefresh,
+						children: (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
+							children: [
+								(0, react_jsx_runtime.jsx)("svg", {
+									width: "16", height: "16", viewBox: "0 0 16 16", fill: "none",
+									stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round",
+									children: (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
+										children: [
+											(0, react_jsx_runtime.jsx)("path", { d: "M14 8a6 6 0 1 1-1.76-4.24L14 5.333" }),
+											(0, react_jsx_runtime.jsx)("polyline", { points: "14 2 14 5.333 10.667 5.333" })
+										]
+									})
+								}),
+								"刷新"
+							]
+						})
 					}),
 					// 设置齿轮：放在「刷新」**右侧**（最外侧，沿底栏现有 flex 排布，不新起一行）。
 					// **没传 onOpenSettings 就不渲染** —— 组件可脱离 CalendarPanel 复用（离线/预览），

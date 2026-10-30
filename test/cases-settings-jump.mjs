@@ -189,17 +189,50 @@ export default async function run() {
 		check("新面板：能定位底栏（守卫自身没瞎）", foot.length > 0);
 		const iRefresh = foot.indexOf('className: "gacha-cal-sched-btn"');
 		const iGear = foot.indexOf('className: "gacha-cal-sched-gear"');
+		// 两个按钮各自的 JSX 片段（齿轮在最右 ⇒ 刷新的片段到齿轮开标签为止）。
+		// 下面所有"规格"检查都在这两段上做：拿整条底栏做正则的话，两枚图标会互相冒充
+		// （改坏其中一枚，另一枚照样让检查通过）。
+		const refreshBtn = iRefresh >= 0 && iGear > iRefresh ? foot.slice(iRefresh, iGear) : "";
+		const gearBtn = iGear >= 0 ? foot.slice(iGear) : "";
 		check("新面板：齿轮在「刷新」按钮**右侧**（最外侧）", iRefresh >= 0 && iGear > iRefresh, `refresh=${iRefresh} gear=${iGear}`);
+		check("新面板：能切出「刷新」/齿轮两个按钮的片段（守卫自身没瞎）",
+			refreshBtn.length > 0 && gearBtn.length > 0, `refresh=${refreshBtn.length} gear=${gearBtn.length}`);
 		check("新面板：没传 onOpenSettings ⇒ 不渲染（三元 + : null）",
 			/onOpenSettings \? \(0, react_jsx_runtime\.jsx\)\("button", \{\s*type: "button", className: "gacha-cal-sched-gear",[\s\S]*?\}\) : null/.test(foot));
 		check("新面板：齿轮 title/aria-label 都是「设置」",
 			/title: "设置", "aria-label": "设置"/.test(foot));
 		check("新面板：齿轮是 16px / 16 viewBox / strokeWidth 1.5（与底栏图标同一套）",
-			/width: "16", height: "16", viewBox: "0 0 16 16"/.test(foot) && /strokeWidth: "1\.5"/.test(foot));
+			/width: "16", height: "16", viewBox: "0 0 16 16"/.test(gearBtn) && /strokeWidth: "1\.5"/.test(gearBtn));
 		check("新面板：齿轮样式类在 CSS 里有定义（20×20 图标按钮）",
 			/\.gacha-cal-sched-gear\{[^}]*width:20px[^}]*height:20px/.test(css));
 		check("新面板：齿轮不抢「刷新」的 margin-left:auto（不破坏底栏排布）",
 			!/\.gacha-cal-sched-gear\{[^}]*margin-left:auto/.test(css));
+
+		// ── 底栏图标统一：刷新图标必须与齿轮**同一套**（2026-10-31 用户要求）────────────
+		// 用户要的是"看起来是一套"：viewBox / strokeWidth / 渲染尺寸 / 圆头圆角 只要有一项不一致，
+		// 两枚图标在 20px 的一行里就会粗细或大小不一样。所以这里**逐字比对**两段 svg 的属性串，
+		// 不是各查各的 —— 只改一半（比如换了 viewBox 忘改 strokeWidth）当场就红。
+		const svgSpecOf = (t) => {
+			const box = /width: "([^"]+)", height: "([^"]+)", viewBox: "([^"]+)", fill: "([^"]+)"/.exec(t);
+			const pen = /stroke: "([^"]+)", strokeWidth: "([^"]+)", strokeLinecap: "([^"]+)", strokeLinejoin: "([^"]+)"/.exec(t);
+			return box && pen
+				? { width: box[1], height: box[2], viewBox: box[3], fill: box[4], stroke: pen[1], strokeWidth: pen[2], strokeLinecap: pen[3], strokeLinejoin: pen[4] }
+				: null;
+		};
+		const rSpec = svgSpecOf(refreshBtn);
+		const gSpec = svgSpecOf(gearBtn);
+		check("新面板：能从两段片段里各取到 svg 规格（守卫自身没瞎）", !!rSpec && !!gSpec,
+			`refresh=${JSON.stringify(rSpec)} gear=${JSON.stringify(gSpec)}`);
+		check("新面板：刷新图标与齿轮**逐字相同**（viewBox / strokeWidth / 渲染尺寸 / stroke / 圆头圆角）",
+			!!rSpec && !!gSpec && JSON.stringify(rSpec) === JSON.stringify(gSpec),
+			`refresh=${JSON.stringify(rSpec)} gear=${JSON.stringify(gSpec)}`);
+		// 只换 viewBox 不重算路径 ⇒ 24 网格的坐标塞进 16 网格，图标被裁掉一半（最容易漏的一步）。
+		const rCoords = (refreshBtn.match(/(?:d|points): "([^"]+)"/g) || []).join(" ").match(/-?\d+(?:\.\d+)?/g) || [];
+		check("新面板：刷新图标的坐标在**16 网格**内（没有 24 网格残留）",
+			rCoords.length > 0 && rCoords.every((n) => Number(n) <= 16), rCoords.join(","));
+		check("新面板：「刷新」按钮把图标与文字排成一行（inline-flex + gap，图标不被压扁）",
+			/\.gacha-cal-sched-btn\{[^}]*display:inline-flex[^}]*align-items:center/.test(css) &&
+			/\.gacha-cal-sched-btn svg\{[^}]*flex:0 0 auto/.test(css));
 
 		// 父层把动作传进来：先关面板，再走新实现
 		const iProp = shell.indexOf("onOpenSettings: () => {");

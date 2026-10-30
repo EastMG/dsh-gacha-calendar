@@ -98,9 +98,13 @@
 				.gacha-cal-slot-slide{transition:none}
 			}
 			.gacha-cal-sched-foot > span{flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-			.gacha-cal-sched-btn{flex:0 0 auto;margin-left:auto;padding:1px 9px;line-height:1.35;border-radius:999px;background:var(--dsw-alias-bg-layer-1,rgba(127,127,127,.08));border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));color:var(--dsw-alias-label-secondary,#4a5261);font:inherit;font-size:10.5px;cursor:pointer}
+			.gacha-cal-sched-btn{flex:0 0 auto;margin-left:auto;display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:1px 9px;line-height:1.35;border-radius:999px;background:var(--dsw-alias-bg-layer-1,rgba(127,127,127,.08));border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));color:var(--dsw-alias-label-secondary,#4a5261);font:inherit;font-size:10.5px;cursor:pointer}
 			.gacha-cal-sched-btn:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.1))}
 			.gacha-cal-sched-btn:disabled{opacity:.5;cursor:default}
+			/* 刷新按钮里的图标（2026-10-31）：与右侧齿轮**同一套** 16×16 / viewBox 0 0 16 16 / strokeWidth 1.5。
+			   按钮高度 = 16(icon) + 2(上下 padding 1px) + 2(border 1px) = 20px，正好与 20×20 的
+			   .gacha-cal-sched-gear 齐平；图标不参与压缩（flex:0 0 auto），窄面板下压的只会是文字那一侧。 */
+			.gacha-cal-sched-btn svg{flex:0 0 auto;display:block}
 			/* 底栏最右侧的「设置」齿轮（2026-10-31）：16px 图标按钮，与 .sched-btn 同一行。
 			   不写 margin-left:auto（那是「刷新」的，用来把它自己推到右边）—— 它排在刷新右边，
 			   天然就在最外侧；给它 margin-left:auto 会把两组分开、刷新居中，破坏现有排布。 */
