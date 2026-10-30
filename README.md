@@ -69,9 +69,7 @@ dsh plugin --profile desktop add dsh-gacha-calendar
 
 或将仓库复制到 profile 的 `node_modules` 后重启 DSH Desktop。
 
-> 适用于 DSH Desktop：`@deepseek-ai/dsh*` 的 peer 范围为 `>=0.1.1-rc.2 <0.3.0`
-> （覆盖 0.1.x 与 0.2.x 两条运行时线；`cordis ^4.0.1`、`schemastery >=3.18.0 <4`）；
-> 插件本身零运行时依赖。
+> 当 DSH 侧栏底部有多个插件"sidebar.footer.action"按钮时会自动注入 CSS 优化布局，使按钮竖向排列；卸载即移除注入，若宿主已处理该布局则自动让位。
 
 > 源码结构 / 构建与发布：[README_Dev.md](README_Dev.md)
 
