@@ -42,11 +42,11 @@
 		const DEFAULT_SETTINGS = {
 			autoRefresh: true,
 			// 出厂默认 = 0（「启动时」）：每次 DSH 启动 / 页面加载刷一轮，运行期不排定时器。
-			// 老用户存过 1440（旧默认 = 1 天）的由宿主一次性迁到 0，迁移标记见下面的 refreshMigrated
-			// （实现见 src/index.js 的 migrateRefreshOnce）。
+			// 老配置（含旧默认 1440 = 1 天）由宿主**无条件**迁到 0，迁移标记见下面的 refreshMigrated
+			// （实现见 src/index.js 的 migrateRefreshOnce：不看旧值）。
 			refreshMinutes: 0,
 			// 刷新频率一次性迁移的标记（默认 false = 还没迁）。宿主只在这个标记不是 true 时动手一次：
-			// 当前值仍是 1440 ⇒ 连 refreshMinutes 一起写 0；用户自己选过别的档 ⇒ 只补这个标记。
+			// 同一笔写入 { refreshMinutes: 0, refreshMigrated: true }（不看旧值，用户选过的档也改成启动时）。
 			// 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 与 src/index.js 的 schema 里
 			// （三处齐的守卫见 test/cases-refresh.mjs 与 test/cases-rule-lint.mjs）。
 			refreshMigrated: false,

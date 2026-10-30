@@ -1057,7 +1057,8 @@ export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value 
 
 			// ① 首次迁移（标记缺失）：走 apply() 的真实接线 —— 一笔写入、patch 恰好两个键
 			// ⚠️ 配置里带 `refreshMigrated: true`：宿主 apply 里还有**另一条**一次性迁移（刷新频率
-			//    1440 → 启动时，见 src/index.js 的 migrateRefreshOnce，用例在 cases-refresh ⑭）。
+			//    迁到「启动时」，见 src/index.js 的 migrateRefreshOnce，用例在 cases-refresh ⑭；
+			//    它是**无条件**写 0 的，这里只靠标记让它 return）。
 			//    让它直接 return，这里测的 newPanel 那一笔才不会被第二笔写入混进来。
 			{
 				const config = { newPanel: false, refreshMigrated: true };

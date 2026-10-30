@@ -118,7 +118,7 @@ dsh-gacha-calendar/
 
 ### 刷新频率（`refreshMinutes`）
 
-`refreshMinutes = 0` = **仅启动时刷新一次**：只在面板挂载（DSH 启动 / 页面加载）时刷一轮，运行期不排定时器；负数 / 非有限值才是脏配置（永不刷）。**出厂默认 = `0`（启动时）**；已经存过 `1440`（旧默认 = 1 天）的老用户由宿主一次性迁到 `0`（`migrateRefreshOnce`，标记 `refreshMigrated`；用户自己选过其它档位的不动）。
+`refreshMinutes = 0` = **仅启动时刷新一次**：只在面板挂载（DSH 启动 / 页面加载）时刷一轮，运行期不排定时器；负数 / 非有限值才是脏配置（永不刷）。**出厂默认 = `0`（启动时）**；老配置由宿主**无条件**迁到 `0`（`migrateRefreshOnce`，标记 `refreshMigrated`；**不看旧值**，用户自己选过的档位也会被改成「启动时」—— 2026-10-31 用户要求）。
 
 ### 为什么插件要改宿主的槽位布局
 
@@ -193,6 +193,31 @@ DSH 官方只承诺 **Windows + macOS**（Linux 有安装产物，但不作硬�
 - 通知身份（开始菜单 / AUMID / `IPropertyStore` / `HKCU\Software\Classes\AppUserModelId`）是 **Windows 专有**：非 Windows 上探测、预热、缓存读写全部短路，GET 回 `supported:false`，POST 回 `{ ok:false, error:"windows-only" }`（结构化结果，不抛）。
 - macOS 通知失败**不致命**：`osascript` 起不来 / 返回非 0 ⇒ 与 Windows 同一条"送达失败、下一轮重试"状态机；AppleScript 字面量转义在 `remindAppleScriptOf`（有单测）。系统通知权限 / 勿扰模式关掉时横幅可能不显示，与 Windows 的专注助手同类。
 - ⚠️ **macOS 未真机验证**：开发机是 Windows，macOS 分支只有纯函数单测 + 静态守卫，门禁在 Windows 与 Linux（WSL，同 CI 的 ubuntu-latest）上跑绿。真机首次跑时先看 `~/Library/Application Support/dsh-gacha-calendar/remind.log`。
+
+## 待废弃的一次性迁移（目标移除：2027-01-31 之后）
+
+「启动时补一笔配置」这类迁移**过期就没意义了**（用户原话：过一段时间之后要求把这种迁移逻辑彻底移除）。
+保留期的唯一用途是覆盖"很久没启动过 DSH 的老用户"：老配置被迁过一轮后，新装用户根本走不到迁移代码。
+
+目标移除时间统一写成**字面日期 `2027-01-31`**（2026-10-31 定，之后即可整体删除），**不要**改成"3 个月后"这类相对表述。
+两个迁移函数上方各有一个 `⏳ 待废弃的一次性迁移` 注释块（含删除方法与涉及键），`apply()` 里的 `void …` 调用处各有一行指向它的短注释；注释块、调用处短注释与本表由 `test/cases-refresh.mjs` ⑭⑧ 守着。
+
+| 迁移 | 涉及配置键 | 代码位置（函数） | 目标移除时间 | 删除步骤 |
+|---|---|---|---|---|
+| 新面板默认值迁移（2026-10-28） | `newPanelMigrated`；`newPanel` 的旧默认 `false` | `src/index.js` 的 `migrateNewPanelOnce`（含上方注释块） | 2027-01-31 之后 | ① 删函数；② 删 `apply()` 里的 `void migrateNewPanelOnce(ctx, config, settingsCtx.settings);`；③ 删 `newPanelMigrated` 键（`src/index.js` 的 schema + `src/client/engine-head.js` 的 `CONFIG_KEYS`，并同步 `src/client/10-config.js` / `src/client/*` 里的说明注释）；④ 删测试（`test/cases-health.mjs` ⑨、`test/cases-refresh.mjs` ⑭ 里对它的引用）与本表这一行；⑤ `node build.mjs` |
+| 刷新频率迁移（2026-10-31） | `refreshMigrated`；`refreshMinutes` 的旧默认 `1440` | `src/index.js` 的 `migrateRefreshOnce`（含上方注释块） | 2027-01-31 之后 | ① 删函数；② 删 `apply()` 里的 `void migrateRefreshOnce(ctx, config, settingsCtx.settings);`；③ 删 `refreshMigrated` 键（`src/index.js` 的 schema + `src/client/10-config.js` 的 `DEFAULT_SETTINGS` + `src/client/engine-head.js` 的 `CONFIG_KEYS`）；④ 删测试（`test/cases-refresh.mjs` ⑭）与本表这一行；⑤ `node build.mjs` |
+
+### 排查过、但**不**属于一次性迁移的兼容代码
+
+`grep -n "Migrated\|migrate\|一次性迁移\|兼容"` 还会命中一批**常驻**兼容逻辑。它们不是"老配置迁一轮就作废"，
+而是解析器 / 读取路径**永远**要吃的多种输入形状 —— **不设移除期**，别照上表删：
+
+| 位置 | 是什么 | 为什么不删 |
+|---|---|---|
+| `src/client/60-helpers.js` 的 `eventFail` 兜底 | 旧 `lastData` 里 `eventFail` 是**字符串**（`"event-down"` / `"no-match"` / 错误原文） | `lastData` 是**用户数据**，升级后缓存里永远是上一版写下的旧形状 |
+| `src/client/30-game-hypergryph.js` 的「限时寻访」表、活动三种历史结构 | 源站 wikitext 的历史表格 / 段结构 | 输入来自**源站页面**，不是本地配置；源站历史段落一直在 |
+| `src/client/30-game-bwiki-*.js` / `15-env.js` / `50-refresh.js` / `84-settings-page.js` | `{timestamp}` / 裸字符串 / 缺字段、`tz` 未声明、老宿主少字段 | 外部输入的**形态差异**（源站 / 老宿主），不是一次性配置迁移 |
+| `src/client/10-config.js` 的 `DEFAULT_SETTINGS` | 各配置键的缺省值 | 缺省值长期有效 |
 
 ## 待办（2026-10-25 整理）
 

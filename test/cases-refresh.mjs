@@ -12,9 +12,11 @@
 // 另外守一条容易回归的地方：版本哨兵**优先于**「启动时」（插件更新时仍走 force），以及 0 档在同一次
 // 挂载里只刷一次（否则升级那一轮会先 force、再命中「启动时刷新」→ 连刷两轮）。
 //
-// 2026-10-31：**出厂默认改成 0（启动时）**（schema 同步改 `default(0)`）。同时在同一天按用户要求
-// 补了**老用户一次性迁移**（已存 1440 = 旧默认的迁到 0，标记 `refreshMigrated`；用户自己选过别的档
-// 一律不动）—— 迁移的三种分支与失败重试见 ⑭，那是本文件唯一需要"真调宿主代码"的一段。
+// 2026-10-31：**出厂默认改成 0（启动时）**（schema 同步改 `default(0)`）。同一天按用户要求补了
+// **一次性迁移**（标记 `refreshMigrated`），并在当天晚些时候按用户第二次要求改成**无条件**：
+// **不看旧值**，已有的配置（1440 / 用户自己选过的 2 天 / 0）一律写成 `{ refreshMinutes: 0,
+// refreshMigrated: true }` —— 迁移的写法与失败重试见 ⑭，那是本文件唯一需要"真调宿主代码"的一段。
+// ⑭⑧ 另守「⏳ 待废弃的一次性迁移」标记块 / 调用处短注释 / README_Dev 那一节（目标移除 2027-01-31）。
 // 选项表里「1 天 = 1440」这一档必须保留 —— 用户仍可手选回 1 天，所以 ⑥ 会同时断言
 // "默认是 0"与"选项里还有 1440 这档"。
 // 版本哨兵（首次安装 force）不能被 0 档掩盖 —— 见 ⑬ 的出厂组合用例。
@@ -229,11 +231,12 @@ export default async function runRefresh() {
 			firstOff.due === true && firstOff.force === true, JSON.stringify(firstOff));
 	}
 
-	// ── ⑭ 老用户一次性迁移：1440（旧默认 = 1 天）→ 0（启动时）────────────────────────
-	// 为什么必须补：出厂默认改成 0 对**已经存过 1440 的老用户**完全无效 —— 配置里是显式的 1440。
-	// 这条迁移坏掉的三个方向都不报错，只让用户觉得"设置自己变了 / 功能没生效"：
-	//   · 漏迁 ⇒ 老用户永远停在 1 天（以为「启动时」没做出来）；
-	//   · 误迁 ⇒ 用户自己选的 2 天被悄悄改成 0（设置页看起来"自己变了"）；
+	// ── ⑭ 一次性迁移：**无条件**一律改成 0（启动时）────────────────────────────────
+	// 为什么必须补：出厂默认改成 0 对**已经存过配置的老用户**完全无效 —— 配置里有的是显式的 1440，
+	// 有的甚至被用户自己选成了 2 天（2880）。用户 2026-10-31 定的口径是**无条件**（照
+	// migrateNewPanelOnce 的写法）：不看旧值、不做分支，一律写 { refreshMinutes: 0, refreshMigrated: true }。
+	// 这条迁移坏掉的两个方向都不报错，只让用户觉得"设置自己变了 / 功能没生效"：
+	//   · 漏迁 ⇒ 老用户永远停在 1 天 / 2 天（以为「启动时」没做出来）；
 	//   · 反复迁 ⇒ 用户改回去，下次启动又被改（开关像坏了）。
 	// 做法 = 与 cases-health ⑨ 同一套**真机式桩跑**：把 src/index.js 原文搬进临时目录，只把两处
 	// 外部依赖 import 指向本地桩（桩只负责"让宿主代码能被 import 起来"，迁移逻辑一行不抄），
@@ -379,39 +382,45 @@ export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value 
 				check("⑭① 先等 loader.await() 再 locate/写（加载中途写会撞 entry is no longer available）",
 					trace.indexOf("loader.await") >= 0 && trace.indexOf("loader.await") < trace.indexOf("locate(fiber)"),
 					trace.join("|"));
-				check("⑭① 迁移成功留了日志（含条目 id）",
-					logText().includes("刷新频率迁移：条目 gacha-calendar 的 refreshMinutes 仍是旧默认 1440（1 天），已一次性迁到 0（启动时）"));
+				check("⑭① 迁移成功留了日志（含条目 id + 「无条件」口径）",
+					logText().includes("刷新频率迁移：条目 gacha-calendar 的 refreshMinutes 已一次性无条件迁到 0")
+					&& logText().includes("不看旧值"));
 			}
 
-			// ② 用户自己选过 2 天（2880）⇒ **只写标记**，不碰用户的选择
+			// ② 用户自己选过 2 天（2880）⇒ **也照样改成 0**（无条件、不看旧值；2026-10-31 用户要求）
 			{
 				const config = { refreshMinutes: 2880, newPanelMigrated: true };
 				const settings = settingsOf();
 				await mod.migrateRefreshOnce(ctxOf(config, settings).ctx, config, settings);
 				check("⑭② 值=2880（用户选过 2 天）⇒ 仍只调 1 次 update", settings.updates.length === 1, String(settings.updates.length));
 				const u = settings.updates[0] || { patch: {}, keys: "" };
-				check("⑭② patch 只有 refreshMigrated: true（既没有 refreshMinutes，也没多写别的键）",
-					!!u.patch && u.patch.refreshMigrated === true && u.keys === "refreshMigrated", JSON.stringify(u.patch));
-				check("⑭② …… refreshMinutes 一个字节都没动（用户的选择不被覆盖）",
-					!!u.patch && !Object.prototype.hasOwnProperty.call(u.patch, "refreshMinutes"), JSON.stringify(u.patch));
+				check("⑭② 2880 也被无条件写成 0：patch 恰好 { refreshMinutes: 0, refreshMigrated: true }",
+					!!u.patch && u.patch.refreshMinutes === 0 && u.patch.refreshMigrated === true
+					&& u.keys === "refreshMigrated,refreshMinutes", JSON.stringify(u.patch));
+				check("⑭② …… 不再是「只补标记」：refreshMinutes 真被写成 0、且键集合仍只有 2 个",
+					!!u.patch && u.patch.refreshMinutes === 0 && Object.keys(u.patch).length === 2, JSON.stringify(u.patch));
 			}
 
-			// ②b 键缺失（= 从没存过，新用户 / 已清空的配置）⇒ 也只补标记（现在就是 0，无需写值）
+			// ②b 键缺失（= 从没存过，新用户 / 已清空的配置）⇒ 同样一笔写 0 + 标记（代码里没有"键在不在"分支）
 			{
 				const config = { newPanelMigrated: true };
 				const settings = settingsOf();
 				await mod.migrateRefreshOnce(ctxOf(config, settings).ctx, config, settings);
-				check("⑭②b refreshMinutes 键缺失 ⇒ 只写 refreshMigrated: true（不凭空写值）",
-					settings.updates.length === 1 && settings.updates[0].keys === "refreshMigrated", JSON.stringify(settings.updates));
+				check("⑭②b refreshMinutes 键缺失 ⇒ 也是一笔 { refreshMinutes: 0, refreshMigrated: true }",
+					settings.updates.length === 1
+					&& settings.updates[0].keys === "refreshMigrated,refreshMinutes"
+					&& settings.updates[0].patch.refreshMinutes === 0, JSON.stringify(settings.updates));
 			}
 
-			// ②c 已经是「启动时」（0）⇒ 同样只补标记
+			// ②c 已经是「启动时」（0）⇒ 仍然整笔写一遍（0 是幂等的；代码里没有分支，不特殊照顾）
 			{
 				const config = { refreshMinutes: 0, newPanelMigrated: true };
 				const settings = settingsOf();
 				await mod.migrateRefreshOnce(ctxOf(config, settings).ctx, config, settings);
-				check("⑭②c 值已经是 0（启动时）⇒ 只写标记，不重复写 0",
-					settings.updates.length === 1 && settings.updates[0].keys === "refreshMigrated", JSON.stringify(settings.updates));
+				check("⑭②c 值已经是 0 ⇒ 照样写 { refreshMinutes: 0, refreshMigrated: true }（无分支、幂等）",
+					settings.updates.length === 1
+					&& settings.updates[0].keys === "refreshMigrated,refreshMinutes"
+					&& settings.updates[0].patch.refreshMinutes === 0, JSON.stringify(settings.updates));
 			}
 
 			// ③ 已迁移（标记 true）：零动作 —— 用户改回去不许被反复覆写
@@ -472,7 +481,7 @@ export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value 
 					&& ok.updates[0].patch.refreshMinutes === 0, JSON.stringify(ok.updates));
 			}
 
-			// ⑥ 静态度量：void 触发（不 await）、整段 try/catch、两笔各自一次 update、都读裸值
+			// ⑥ 静态度量：void 触发（不 await）、整段 try/catch、**只有一笔无条件写入**、不看旧值
 			{
 				const applyText = srcText.slice(srcText.indexOf("export function apply("));
 				check("⑭⑥ apply() 里是 void 触发（不 await：一次配置写入不许拖慢插件加载）",
@@ -481,21 +490,19 @@ export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value 
 				const fnAt = srcText.indexOf("async function migrateRefreshOnce(");
 				const fnEnd = fnAt >= 0 ? srcText.indexOf("\n}\n", fnAt) : -1;
 				const fnText = fnAt >= 0 && fnEnd > fnAt ? srcText.slice(fnAt, fnEnd) : "";
-				check("⑭⑥ 迁移函数切片已定位（静态断言没瞎）", fnText.length > 800, String(fnText.length));
+				check("⑭⑥ 迁移函数切片已定位（静态断言没瞎）", fnText.length > 600, String(fnText.length));
 				check("⑭⑥ 整段包在 try/catch 里（失败只记日志，绝不让插件加载失败）",
 					/try \{/.test(fnText) && /\} catch \(err\) \{/.test(fnText));
-				check("⑭⑥ 两条分支各一次 settings.update（共 2 处，没有第三笔 = 不留半状态）",
-					(fnText.match(/settings\.update\(/g) || []).length === 2,
+				check("⑭⑥ **只有一笔** settings.update（无条件写入，没有第二个分支 / 第三笔）",
+					(fnText.match(/settings\.update\(/g) || []).length === 1,
 					String((fnText.match(/settings\.update\(/g) || []).length));
-				check("⑭⑥ 1440 分支：值与标记在**同一次** update 里（不是两次写）",
+				check("⑭⑥ 那一笔就是 { refreshMinutes: 0, refreshMigrated: true }（值与标记同笔，不留半状态）",
 					/await settings\.update\(ns, \{ refreshMinutes: 0, refreshMigrated: true \}\);/.test(fnText));
-				check("⑭⑥ 其它值分支：只写标记 { refreshMigrated: true }",
-					/await settings\.update\(ns, \{ refreshMigrated: true \}\);/.test(fnText));
+				check("⑭⑥ 不看旧值：函数体里没有 `configValueOf(cfg, \"refreshMinutes\")`，也没有 `=== 1440` 分支",
+					!/configValueOf\(cfg, "refreshMinutes"\)/.test(fnText)
+					&& !/===\s*1440/.test(fnText));
 				check("⑭⑥ 标记判定读**裸值**且严格 === true（volatile 引用不解包会永远读到 undefined）",
 					/if \(configValueOf\(cfg, "refreshMigrated"\) === true\) return;/.test(fnText));
-				check("⑭⑥ 只看当前值：解包后 `=== 1440` 才走迁移值那条分支",
-					/const current = configValueOf\(cfg, "refreshMinutes"\);/.test(fnText)
-					&& /if \(current === 1440\) \{/.test(fnText));
 			}
 
 			// ⑦ 三处齐 + 产物同源
@@ -515,6 +522,47 @@ export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value 
 					hostLib.includes("async function migrateRefreshOnce(")
 					&& hostLib.includes("void migrateRefreshOnce(ctx, config, settingsCtx.settings);")
 					&& clientLib.includes("refreshMigrated"));
+			}
+
+			// ⑧ 待废弃标记守卫（2026-10-31 用户要求：这类迁移到期要**彻底删除**）
+			// 为什么守：标记被删掉 / 日期被改成"3 个月后"这种相对表述，将来就再没人找得到这段代码该删；
+			// 反之只删标记不删逻辑 = 一份没人认领的兼容层。所以标记块、调用处短注释、README_Dev 那一节
+			// 三处必须同时存在，且日期是**字面日期 2027-01-31**。
+			{
+				const markerOf = (name) => {
+					const at = srcText.indexOf("async function " + name + "(");
+					if (at < 0) return "";
+					const blockAt = srcText.lastIndexOf("/**", at);
+					return blockAt >= 0 ? srcText.slice(blockAt, at) : "";
+				};
+				const applyText = srcText.slice(srcText.indexOf("export function apply("));
+				for (const [label, name, keys] of [
+					["新面板迁移", "migrateNewPanelOnce", "newPanelMigrated / newPanel 的旧默认 false"],
+					["刷新频率迁移", "migrateRefreshOnce", "refreshMigrated / refreshMinutes 的旧默认 1440"]
+				]) {
+					const block = markerOf(name);
+					check(`⑭⑧ ${label}（${name}）上方有统一的「⏳ 待废弃的一次性迁移」标记块，标题含字面日期 2027-01-31`,
+						block.includes("⏳ 待废弃的一次性迁移") && block.includes("目标移除：2027-01-31 之后"),
+						block.slice(0, 80));
+					check(`⑭⑧ ${label} 标记块写明删除方法 / 涉及键（${keys}）/ 用户指令`,
+						block.includes("删除方法：") && block.includes(keys) && block.includes("用户指令：2026-10-31"),
+						block.slice(0, 200));
+					check(`⑭⑧ ${label} 的 void 调用处有指向标记块的短注释（⏳ 待废弃 + 2027-01-31）`,
+						applyText.includes("⏳ 待废弃（目标移除：2027-01-31 之后）—— 说明见 " + name + " 上方的注释块"));
+				}
+				check("⑭⑧ 日期用**字面值**：src/index.js 里没有「3 个月后」这类相对表述",
+					!/\d\s*个月后/.test(srcText));
+				const devText = readFileSync(path.join(REPO, "README_Dev.md"), "utf8");
+				check("⑭⑧ README_Dev.md 有「待废弃的一次性迁移」一节（目标移除：2027-01-31 之后）",
+					devText.includes("## 待废弃的一次性迁移（目标移除：2027-01-31 之后）"));
+				const NEEDLES = [
+					"| 迁移 | 涉及配置键 | 代码位置（函数） | 目标移除时间 | 删除步骤 |",
+					"migrateNewPanelOnce", "migrateRefreshOnce",
+					"newPanelMigrated", "refreshMigrated", "2027-01-31"
+				];
+				const missing = NEEDLES.filter((s) => !devText.includes(s));
+				check("⑭⑧ README_Dev.md 那一节是「迁移 / 键 / 函数 / 目标移除时间 / 删除步骤」表格，两个迁移都列了",
+					missing.length === 0, "缺：" + missing.join(" / "));
 			}
 		} catch (err) {
 			check("⑭ 迁移用例整套能跑完（抛异常即视为失败，见 detail）", false, String((err && err.stack) || err));
