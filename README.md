@@ -51,7 +51,7 @@ DeepSeek Harness 桌面端侧边栏插件：一键查看主流二游的**当期�
 
 ## 新版面板（实验）
 
-新版面板从 v0.12.7 开始**默认开启**：设置 → 二游日历 → 取消勾选「**实验：新「二游日历」面板视图**」即可回到旧表格视图。
+从 v0.12.7 开始**默认开启**新版面板：设置 → 二游日历 → 取消勾选「**实验：新「二游日历」面板视图**」即可回到旧版表格视图
 
 <p align="center">
   <img src="https://cdn.jsdelivr.net/gh/EastMG/dsh-gacha-calendar@main/assets/screenshot-4.png" width="50%" alt="新版面板">
@@ -69,17 +69,17 @@ dsh plugin --profile desktop add dsh-gacha-calendar
 
 或将仓库复制到 profile 的 `node_modules` 后重启 DSH Desktop。
 
-> 当 DSH 侧栏底部有多个插件"sidebar.footer.action"按钮时会自动注入 CSS 优化布局，使按钮竖向排列；卸载即移除注入，若宿主已处理该布局则自动让位。
+> 当 DSH 侧栏底部有多个插件 `sidebar.footer.action` 按钮时会自动注入 CSS 优化布局，使按钮竖向排列；卸载即移除注入，若宿主已处理该布局则自动让位。
 
 > 源码结构 / 构建与发布：[README_Dev.md](README_Dev.md)
 
 ## 致谢
 
-- [MAA1999/M9A](https://github.com/MAA1999/M9A)——对《重返未来：1999》逐期「征集时间」的获取手段受到**M9A**的启发。
-- [yoimiya-kokomi/miao-plugin](https://github.com/yoimiya-kokomi/miao-plugin)——对 miHoYo/HoYoverse 公告接口的获取手段受到**miao-plugin**的启发。
-- [jacket-sikaha/game-schedule](https://github.com/jacket-sikaha/game-schedule)——对 miHoYo/HoYoverse 公告接口的获取手段受到**game-schedule**的启发。
-- [BTMuli/ShufflePlay](https://github.com/BTMuli/ShufflePlay)——对 miHoYo/HoYoverse 公告接口的获取手段受到**ShufflePlay**的启发。
-- [UIGF-org/mihoyo-api-collect](https://github.com/UIGF-org/mihoyo-api-collect)——对 miHoYo/HoYoverse 的 `appId` 与公告接口的查证受到**mihoyo-api-collect**的启发。
+- [MAA1999/M9A](https://github.com/MAA1999/M9A)——对《重返未来：1999》逐期「征集时间」的获取手段受到 **M9A** 的启发。
+- [yoimiya-kokomi/miao-plugin](https://github.com/yoimiya-kokomi/miao-plugin)——对 miHoYo/HoYoverse 公告接口的获取手段受到 **miao-plugin** 的启发。
+- [jacket-sikaha/game-schedule](https://github.com/jacket-sikaha/game-schedule)——对 miHoYo/HoYoverse 公告接口的获取手段受到 **game-schedule** 的启发。
+- [BTMuli/ShufflePlay](https://github.com/BTMuli/ShufflePlay)——对 miHoYo/HoYoverse 公告接口的获取手段受到 **ShufflePlay** 的启发。
+- [UIGF-org/mihoyo-api-collect](https://github.com/UIGF-org/mihoyo-api-collect)——对 miHoYo/HoYoverse 的 `appId` 与公告接口的查证受到 **mihoyo-api-collect** 的启发。
 - [Sekai-World/sekai-master-db-cn-diff](https://github.com/Sekai-World/sekai-master-db-cn-diff)——《初音未来：缤纷舞台》国服卡池与活动排期的**数据来源**。
 
 ## 免责声明
