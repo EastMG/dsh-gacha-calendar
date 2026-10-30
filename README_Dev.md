@@ -258,10 +258,10 @@ DSH 官方只承诺 **Windows + macOS**（Linux 有安装产物，但不作硬�
    - 仍未做：数字角标（桌面/任务栏）。
     - ✅ **逐游戏白名单（设置页「提醒」列）已完成 2026-10-30**：
       · ⚠️ **2026-10-26 曾整列隐藏、2026-10-30 已恢复**：送达没实现时勾了没有效果 ⇒ 用常量
-        `SHOW_REMIND_COLUMN`（`80-shared-ui.js`）把**表头 / 每行复选框 / 「全部提醒」按钮 /
-        空列表提示 / 网格列宽**五处一起藏起来；送达开始真的按它过滤后，常量改回 `true`，整列恢复。
+        `SHOW_REMIND_COLUMN`（`80-shared-ui.js`）把**表头 / 每行复选框 / 空列表提示 /
+        网格列宽**四处一起藏起来；送达开始真的按它过滤后，常量改回 `true`，整列恢复。
       · 设置项 = `remindGames`（`string[]`）—— 设置页游戏列表的**「提醒」**列，每行一个复选框；
-        顶部批量按钮「全部提醒」= 把当前**展示中**的 id 一次性写进白名单；
+        写入只走逐行的复选框（批量「全部提醒」按钮 2026-10-30 按用户要求删掉了，不恢复）；
       · 默认值 = 出厂时**展示中**的 23 个条目 id（所有 `defaultHidden !== true` 的来源；默认隐藏的
         bh3 / ournotes / ournotes-global / czn / ddlezj **不在**里面）：`10-config.js` 的
         `DEFAULT_SETTINGS.remindGames` 与宿主 `src/index.js` 的 `REMIND_GAMES_DEFAULT`（schema 默认值

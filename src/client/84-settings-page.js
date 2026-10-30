@@ -555,17 +555,6 @@
 				remindWriteChain.current = run.catch(() => {});
 				return run;
 			};
-			// 「全部提醒」写的是当前展示中的 id；与逐行勾选共用串行链，避免两笔写入互相覆盖。
-			const resetRemindAll = () => {
-				const run = remindWriteChain.current.then(async () => {
-					const next = allEntries.filter((g) => shownNow(g)).map((g) => g.id);
-					setRemindDraft({});
-					await commit("remindGames", next);
-				});
-				remindWriteChain.current = run.catch(() => {});
-				return run;
-			};
-
 			// ── A5（低）：两个草稿一旦写入就**永不清除** ⇒ 会话内长期遮蔽 store 值 ──────────────
 			// 症状：别的页面实例 / 外部 RPC（settings/mutate）改了同一个 id 之后，本页控件还停在
 			// 旧草稿上，只有刷新（重新挂载、草稿清空）才对齐。
@@ -954,7 +943,7 @@
 								// 「空数组 = 一个都不提醒」在界面上不直观（全不勾看起来像"还没设置"）⇒ **只在真的空**时
 								// 补一句极短提示；勾上任何一条它就消失（不常驻，2026-10-28 删掉的那行操作提示不重开）。
 								SHOW_REMIND_COLUMN && remindIds.length === 0
-									? (0, react_jsx_runtime.jsx)("span", { style: { fontSize: 11, color: "var(--dsw-alias-label-tertiary)" }, title: "「提醒」列一个都没勾 ⇒ 到期提醒不会弹任何通知；点「全部提醒」可一键把展示中的游戏都勾上", children: "未勾选任何游戏 ⇒ 不提醒" })
+									? (0, react_jsx_runtime.jsx)("span", { style: { fontSize: 11, color: "var(--dsw-alias-label-tertiary)" }, title: "「提醒」列一个都没勾 ⇒ 到期提醒不会弹任何通知；在每行的「提醒」列勾上才提醒", children: "未勾选任何游戏 ⇒ 不提醒" })
 									: null,
 								// 搜游戏名：大小写 / 全半角不敏感，空格分隔 = 多个关键词都要命中（与面板同一套归一）。
 								// **临时 UI 状态、不写设置**；清空（或按 Esc）即恢复全部行。
@@ -990,8 +979,6 @@
 								}),
 								// 导出结果一行小字（只在点过之后出现，不占常驻版面）
 								icsNote ? (0, react_jsx_runtime.jsx)("span", { style: { alignSelf: "center", fontSize: 11, color: "var(--dsw-alias-label-tertiary)", whiteSpace: "nowrap" }, title: icsNote, children: icsNote }) : null,
-								// 「全部提醒」= 把当前展示中的 id 写进白名单；空数组的意思是"一个都不提醒"。
-								SHOW_REMIND_COLUMN ? (0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 }, title: "把所有展示中的游戏都加入「提醒」白名单", onClick: resetRemindAll, children: "全部提醒" }) : null,
 								(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 }, onClick: resetOrder, children: "重置排序" }),
 								(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 }, onClick: restoreAll, children: "恢复条目" })
 							] })

@@ -713,13 +713,18 @@ export default async function run() {
 		check("每行「提醒」复选框也在开关之后（disabled 语义原样保留）",
 			comp.includes('SHOW_REMIND_COLUMN ? (0, react_jsx_runtime.jsx)("label", {')
 			&& /disabled:\s*!shownNow\(g\)/.test(comp));
-		check("「全部提醒」按钮也在开关之后（文案 / title / onClick 原样保留）",
-			comp.includes('SHOW_REMIND_COLUMN ? (0, react_jsx_runtime.jsx)("button", {')
-			&& comp.includes('children: "全部提醒"')
-			&& comp.includes("把所有展示中的游戏都加入「提醒」白名单")
-			&& comp.indexOf("全部轮播") < 0);
-		check("「全部提醒」写的是**展示中的 id 列表**（空数组 = 一个都不提醒，语义没变）",
-			/allEntries\.filter\(\(g\) => shownNow\(g\)\)\.map\(\(g\) => g\.id\)/.test(comp));
+		// 2026-10-30 用户要求删掉批量「全部提醒」按钮（只留逐行复选框）：反向守卫 + 顺序守卫。
+		// 按钮组要回到"没有它"的历史原貌 —— 2026-10-25 的 0062116 把它插在组首（重置排序之前），
+		// 删掉后就是 导出 .ics / 重置排序 / 恢复条目（导出是 2026-10-25 晚些的 7f197ca 插在组首的）。
+		check("「全部提醒」按钮已删：文案在源码与产物 lib/client.js 里都不再出现",
+			!comp.includes("全部提醒")
+			&& !readFileSync(path.join(REPO, "lib", "client.js"), "utf8").includes("全部提醒"));
+		check("批量处理器 resetRemindAll 一并删掉（不留没人调用的死函数）",
+			!comp.includes("resetRemindAll"));
+		check("按钮组回到历史顺序：导出 .ics → 重置排序 → 恢复条目（indexOf 比较，组内同序）",
+			comp.indexOf('children: "导出 .ics"') > -1
+			&& comp.indexOf('children: "导出 .ics"') < comp.indexOf('children: "重置排序"')
+			&& comp.indexOf('children: "重置排序"') < comp.indexOf('children: "恢复条目"'));
 		// 「概括」这一处：2026-10-28 用户要求删掉的那行常驻操作提示**不许回来**，
 		// 取而代之的是"只在白名单为空时"出现的一句极短提示（空数组语义在界面上不直观）。
 		check("表头上方那行常驻操作提示仍然不存在（「展示」控制显示… 两个分支都没回来）",
@@ -733,9 +738,13 @@ export default async function run() {
 			(comp.match(/gridTemplateColumns: SETTINGS_GAME_GRID/g) || []).length === 2
 			&& comp.includes('"minmax(0,1.15fr) 28px 28px minmax(0,1fr) minmax(0,1fr) 34px 88px"')
 			&& comp.includes('"minmax(0,1.15fr) 28px minmax(0,1fr) minmax(0,1fr) 34px 88px"'));
-		check("恢复后写入链路没重写：配置键与写入函数都还是原来那几个（remindGames / setEntryRemind / resetRemindAll / remindGameAllowed）",
+		check("恢复后写入链路没重写：配置键与写入函数都还是原来那几个（remindGames / setEntryRemind / remindGameAllowed）",
 			comp.includes('commit("remindGames"') && comp.includes("setEntryRemind")
-			&& comp.includes("resetRemindAll") && comp.includes("remindGameAllowed("));
+			&& comp.includes("remindGameAllowed("));
+		// 每行复选框的写入链路必须仍然闭合（批量按钮删了，这条路是唯一入口 ⇒ 断了就整列失效）。
+		check("每行复选框的写入链路仍在：setEntryRemind → commit(\"remindGames\")",
+			/const setEntryRemind = \(id, shouldRemind\) =>[\s\S]{0,900}?commit\("remindGames", next\)/.test(comp)
+			&& /const next = !remindAllowedNow\(g\.id\);[\s\S]{0,200}?setEntryRemind\(g\.id, next\)/.test(comp));
 		check("旧提示语没有回来（「至少留一条」那套拒绝逻辑仍不存在）",
 			comp.indexOf("至少留一条") < 0 && comp.indexOf("要全部关掉请把") < 0
 			&& comp.indexOf("提醒：到点主动通知（尚未实现，先做预留）") < 0
