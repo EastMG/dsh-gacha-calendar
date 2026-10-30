@@ -400,6 +400,12 @@
 			// 选取排序 / 文案 / 每格结构 / 展开序列 / 方向规则，全是纯函数。
 			dueKindOf,
 			remindGameAllowed,
+			// remindGamesOf / remindAllowedTickOf = 白名单的**脏值归一**与**按白名单跑一轮**
+			// （65-remind.js，与宿主 runRemindRound 同一份源码）。导出后可以拿假条目 + 假 settings
+			// 跑真判定，钉住"不在白名单 ⇒ 不提醒且不写已发状态 / 空白名单 ⇒ 一条都不提醒 /
+			// 后来勾上 ⇒ 下一轮照常提醒"（见 cases-remind.mjs ⑰）。
+			remindGamesOf,
+			remindAllowedTickOf,
 			// 总开关与范围的读取口径（设置页与按钮共用）。
 			tickerOnOf,
 			tickerRangeOf,

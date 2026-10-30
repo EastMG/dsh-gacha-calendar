@@ -998,6 +998,8 @@ export const remindStateOf = empty;
 export const remindTestToastOf = empty;
 export const remindTickOf = () => ({ toNotify: [], stateNext: {} });
 export const remindToastOf = () => ({ title: "stub", lines: [] });
+export const remindAllowedTickOf = () => ({ toNotify: [], stateNext: {}, allowed: 0, skipped: 0 });
+export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value : (Array.isArray(fallback) ? fallback : []));
 `, "utf8");
 
 			const srcText = readFileSync(path.join(REPO, "src", "index.js"), "utf8");

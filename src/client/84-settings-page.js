@@ -529,12 +529,15 @@
 				showWriteChain.current = run.catch(() => {});
 				return run;
 			};
-			// ── 「提醒」白名单（给将来的「到期提醒（送达）」，不属于轮播）────────────────
-			// ⚠️ 设置页这一列当前**暂时隐藏**（SHOW_REMIND_COLUMN = false，送达未实现）；
-			// 下面这套状态与写入链路原样保留，改回 true 即恢复，不用重写。
+			// ── 「提醒」白名单（到期提醒（送达）的逐游戏钩子，不属于轮播）────────────────
+			// 2026-10-30 起送达侧**真的消费它**（宿主 runRemindRound → 65-remind.js 的
+			// remindAllowedTickOf），这一列已恢复显示（SHOW_REMIND_COLUMN = true）。
 			// remindGames = 要提醒的条目 id 列表；空数组 = 一个都不提醒（没有"空 = 全部"的哨兵）。
+			// 读取走 remindGamesOf（与送达侧同一处归一）：数组 ⇒ 忽略非字符串元素；不是数组 / 缺失
+			// ⇒ 回落出厂默认（DEFAULT_SETTINGS.remindGames）—— 否则"配置读坏"会表现为"全都不勾"，
+			// 与送达侧的回退口径就对不上了。
 			// 写入链路与「展示」相同：目标状态驱动 + 串行链 + 执行时读最新快照（避免连点互相覆盖）。
-			const remindIds = Array.isArray(s.remindGames) ? s.remindGames : [];
+			const remindIds = remindGamesOf(s.remindGames, DEFAULT_SETTINGS.remindGames);
 			const remindAllowedNow = (id) => (Object.prototype.hasOwnProperty.call(remindDraft, id)
 				? !!remindDraft[id]
 				: remindGameAllowed(id, remindIds));
@@ -542,7 +545,7 @@
 				const run = remindWriteChain.current.then(async () => {
 					const snap = scope.getSnapshot();
 					const live = snap && snap.status === "ready" ? snap.value : null;
-					const cur = live && Array.isArray(live.remindGames) ? live.remindGames : remindIds;
+					const cur = live ? remindGamesOf(live.remindGames, DEFAULT_SETTINGS.remindGames) : remindIds;
 					// 普通列表：加 = 并入，减 = 摘掉；减到空就写空（= 一个都不提醒）。
 					const next = shouldRemind
 						? (cur.includes(id) ? cur.slice() : [...cur, id])
@@ -572,7 +575,7 @@
 			// 依赖键按**值**派生（宿主每次写入都换掉数组对象，按引用当依赖会白跑；理由同面板 A3）。
 			const hiddenKey = (Array.isArray(s.hidden) ? s.hidden : []).join("\u0000");
 			const shownKey = (Array.isArray(s.shown) ? s.shown : []).join("\u0000");
-			const remindGamesKey = (Array.isArray(s.remindGames) ? s.remindGames : []).join("\u0000");
+			const remindGamesKey = remindGamesOf(s.remindGames, DEFAULT_SETTINGS.remindGames).join("\u0000");
 			const entriesById = {};
 			for (const x of allEntries) entriesById[x.id] = x;
 			(0, react.useEffect)(() => {
@@ -948,6 +951,11 @@
 							// 窄窗口靠外层 flexWrap 换行，不会把按钮挤丢。
 							(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexWrap: "wrap" }, children: [
 								(0, react_jsx_runtime.jsx)("span", { style: { fontWeight: 600 }, children: "游戏列表" }),
+								// 「空数组 = 一个都不提醒」在界面上不直观（全不勾看起来像"还没设置"）⇒ **只在真的空**时
+								// 补一句极短提示；勾上任何一条它就消失（不常驻，2026-10-28 删掉的那行操作提示不重开）。
+								SHOW_REMIND_COLUMN && remindIds.length === 0
+									? (0, react_jsx_runtime.jsx)("span", { style: { fontSize: 11, color: "var(--dsw-alias-label-tertiary)" }, title: "「提醒」列一个都没勾 ⇒ 到期提醒不会弹任何通知；点「全部提醒」可一键把展示中的游戏都勾上", children: "未勾选任何游戏 ⇒ 不提醒" })
+									: null,
 								// 搜游戏名：大小写 / 全半角不敏感，空格分隔 = 多个关键词都要命中（与面板同一套归一）。
 								// **临时 UI 状态、不写设置**；清空（或按 Esc）即恢复全部行。
 								(0, react_jsx_runtime.jsx)("input", {
@@ -983,7 +991,6 @@
 								// 导出结果一行小字（只在点过之后出现，不占常驻版面）
 								icsNote ? (0, react_jsx_runtime.jsx)("span", { style: { alignSelf: "center", fontSize: 11, color: "var(--dsw-alias-label-tertiary)", whiteSpace: "nowrap" }, title: icsNote, children: icsNote }) : null,
 								// 「全部提醒」= 把当前展示中的 id 写进白名单；空数组的意思是"一个都不提醒"。
-								// 暂时隐藏（SHOW_REMIND_COLUMN=false）：按钮与处理函数都保留，改回 true 即恢复。
 								SHOW_REMIND_COLUMN ? (0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 }, title: "把所有展示中的游戏都加入「提醒」白名单", onClick: resetRemindAll, children: "全部提醒" }) : null,
 								(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 }, onClick: resetOrder, children: "重置排序" }),
 								(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn", style: { width: "auto", height: "auto", padding: "3px 10px", borderRadius: 6 }, onClick: restoreAll, children: "恢复条目" })
@@ -993,7 +1000,7 @@
 						(0, react_jsx_runtime.jsxs)("div", { style: { display: "grid", gridTemplateColumns: SETTINGS_GAME_GRID, gap: 12, alignItems: "center", padding: "3px 0", borderBottom: "1px solid var(--dsw-alias-border-l1)", color: "var(--dsw-alias-label-tertiary)", fontSize: 11 }, children: [
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u6E38\u620F" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u5C55\u793A" }),
-							// 「提醒」列暂时隐藏：false 时这一格不渲染（列宽模板也已少一格，不会留空列）
+							// 「提醒」列：由 SHOW_REMIND_COLUMN 统一 gate（false 时这一格不渲染，列宽模板也少一格）
 							SHOW_REMIND_COLUMN ? (0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u63D0\u9192" }) : null,
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u5361\u6C60\u6765\u6E90" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u6D3B\u52A8\u6765\u6E90" }),
@@ -1035,9 +1042,8 @@
 													}
 												})
 											] }),
-											// 「提醒」与「展示」独立：它只决定将来的到期送达要不要包含这一条。
+											// 「提醒」与「展示」独立：它只决定到期送达要不要包含这一条（送达侧按它过滤）。
 											// 未展示的行面板里本来就没有，提醒也无从送达 ⇒ 复选框置灰。
-											// 暂时隐藏（SHOW_REMIND_COLUMN=false）：这一格不渲染，但 onChange 链路原样保留。
 											SHOW_REMIND_COLUMN ? (0, react_jsx_runtime.jsx)("label", {
 												style: { ...labelStyle, cursor: shownNow(g) ? "pointer" : "default", justifySelf: "center", opacity: shownNow(g) ? 1 : 0.45 },
 												children: (0, react_jsx_runtime.jsx)("input", {

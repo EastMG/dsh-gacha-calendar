@@ -1,6 +1,7 @@
 // test/cases-ticker.mjs —— 侧栏轮播（2026-10-25 晚：按钮单行翻页；同日三次定稿：设置页拆成「开关 + 范围」）
 //                        （2026-10-25 定稿：轮播**只有全局开关 + 范围、不分游戏**；
-//                          游戏列表里那一列是「提醒」，给「到期提醒（送达）」预留；2026-10-26 起整列暂时隐藏）
+//                          游戏列表里那一列是「提醒」，属于「到期提醒（送达）」；2026-10-26 曾整列隐藏，
+//                          2026-10-30 送达开始按它过滤 ⇒ 已恢复显示）
 //
 // 功能范围（用户定）：侧栏按钮「单行轮播」+「提前 N 小时」设置。**不含逐游戏筛选**。
 // 不做系统通知、不做弹窗/声音、不动刷新链路、不动缓存载荷结构。
@@ -12,11 +13,11 @@
 //      "覆盖当前时刻"的窗口（startTs 永远 <= now），所以"即将开始"在真实数据里永远不命中。
 //      现在只会返回 "" / "end"。"start" 的判定代码仍留在 60-helpers.js（注释写了怎么恢复），
 //      这里只守"还没开始 ⇒ \"\"" 这一条（label 里带「暂时停用」，恢复时按名字找得到）。
-//   ③ 「提醒」逐游戏白名单的语义（纯函数 `remindGameAllowed`）——⚠️ 这是**给未来的「到期提醒
-//      （送达）」预留的**，**轮播不读它**：**普通列表**，列表里有谁就提醒谁，**空数组 = 一个都不提醒**。
-//      ⚠️ 2026-10-26 起设置页那一列**暂时隐藏**（`SHOW_REMIND_COLUMN = false`，送达未实现）；
-//        配置键 / schema / CONFIG_KEYS / 纯函数都保留，这里同步守"隐藏时五处入口全部不可见"。
-//      + **守卫**：`DEFAULT_SETTINGS.remindGames`（及 src/index.js 的 schema default）
+//   ③ 「提醒」逐游戏白名单的语义（纯函数 `remindGameAllowed`）—— 这是「到期提醒（送达）」的钩子，
+//      **轮播不读它**：**普通列表**，列表里有谁就提醒谁，**空数组 = 一个都不提醒**。
+//      ⚠️ 2026-10-30 起送达侧真的按它过滤（宿主 runRemindRound → remindAllowedTickOf），
+//        设置页那一列也随之恢复显示（`SHOW_REMIND_COLUMN = true`）；这里守"五处入口都在"。
+//      + **守卫**：`DEFAULT_SETTINGS.remindGames`（及 src/index.js 的 REMIND_GAMES_DEFAULT）
 //        必须恰好等于所有 `defaultHidden !== true` 的来源 id —— 新增来源/改默认隐藏时要同步。
 //      + **反向守卫**：轮播链路（`tickerItemsOf` / `tickerPickOf` / 渲染层 memo）**不得**读这份列表，
 //        也不得再接受"逐游戏筛选"参数 —— 用户 2026-10-25 明确纠正过这一点。
@@ -170,10 +171,10 @@ export default async function run() {
 		check("列表版：非数组 → 空数组（不抛）", expiringSoonOf(null, NOW, 24).length === 0);
 	}
 
-	// ── ④ 「提醒」白名单语义（remindGameAllowed）：**给未来的到期送达预留**，轮播不读它 ─────
+	// ── ④ 「提醒」白名单语义（remindGameAllowed）：属于「到期提醒（送达）」，轮播不读它 ─────
 	// 2026-10-25 定稿（用户纠正）：游戏列表里那一列 = 「提醒」，是**主动送达**的逐游戏钩子，
-	// **不是轮播的一部分**。送达功能尚未实现 ⇒ 现在只有设置页读写（2026-10-26 起那一列**暂时隐藏**，
-	// 见 ⑧ 之前的静态守卫），轮播链路一律不碰它。
+	// **不是轮播的一部分**。2026-10-30 起送达侧真的消费它（见 cases-remind.mjs ⑰ 的行为用例），
+	// 轮播链路仍然一律不碰它。
 	// 判定仍是普通列表（空 = 一个都不提醒），与原来的语义一字不差 —— 只是**归属改了**。
 	{
 		check("remindGames 为空数组 → **一个都不提醒**（不再有「空 = 全部」的哨兵）",
@@ -205,13 +206,17 @@ export default async function run() {
 
 		// schema 那一侧的 default 必须与 DEFAULT_SETTINGS 一致：两处都是"出厂值"，漂了就是两套默认
 		// （客户端 spread 用 DEFAULT_SETTINGS，宿主表单用 schema default，用户看到哪个取决于读哪一边）。
+		// 2026-10-30：宿主里的那份列表提成了常量 `REMIND_GAMES_DEFAULT`（schema 与「配置读坏」的兜底
+		// 共用它，同一个文件里不再抄两遍 23 个 id）⇒ 守卫改成"先解析那个常量，再看 schema 用没用它"。
 		{
 			const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
-			const m = /remindGames:\s*z\.array\(z\.string\(\)\)\.default\((\[[\s\S]*?\])\)/.exec(hostSrc);
+			const m = /const REMIND_GAMES_DEFAULT = \[([\s\S]*?)\];/.exec(hostSrc);
 			let hostDefault = null;
-			if (m) { try { hostDefault = JSON.parse(m[1]); } catch { hostDefault = null; } }
-			check("src/index.js 的 schema `.default(...)` 能解析出来（守卫自身没瞎）",
-				Array.isArray(hostDefault), m ? m[1].slice(0, 80) : "没匹配到 remindGames 的 default");
+			if (m) { try { hostDefault = JSON.parse("[" + m[1] + "]"); } catch { hostDefault = null; } }
+			check("src/index.js 的 REMIND_GAMES_DEFAULT 能解析出来（守卫自身没瞎）",
+				Array.isArray(hostDefault), m ? m[1].trim().slice(0, 80) : "没匹配到 REMIND_GAMES_DEFAULT");
+			check("schema 的 remindGames 默认值**引用的就是这个常量**（不是又抄一份字面量）",
+				/remindGames:\s*z\.array\(z\.string\(\)\)\.default\(REMIND_GAMES_DEFAULT\.slice\(\)\)\.volatile\(\)/.test(hostSrc));
 			check("src/index.js 的 schema default 与 DEFAULT_SETTINGS.remindGames 逐项一致（排序后）",
 				Array.isArray(hostDefault) && sortIds(hostDefault).join(",") === defIds.join(","),
 				Array.isArray(hostDefault) ? sortIds(hostDefault).join(",") : "null");
@@ -694,18 +699,18 @@ export default async function run() {
 			(comp.match(/"gacha-cal-dot"/g) || []).length === 1
 			&& /wide === false[\s\S]{0,400}?gacha-cal-dot/.test(comp));
 
-		// ── 「提醒」列（设置页游戏列表）：2026-10-26 起**暂时隐藏**（送达功能未实现）──────────
-		// 这一列是给「到期提醒（送达）」预留的逐游戏白名单（`remindGames`）。送达还没做 ⇒ 勾了没有效果，
-		// 所以用常量 `SHOW_REMIND_COLUMN = false` 把整列藏起来（**不是删除**：配置键 / schema /
-		// CONFIG_KEYS / 纯函数 remindGameAllowed / 写入链路都保留，送达实现时改回 true 就能直接接上）。
-		// 静态守卫因此从"列头文案必须叫「提醒」"改成"**false 时五处入口全部不可见**"。
-		check("常量开关 SHOW_REMIND_COLUMN = false（注释写明「暂时隐藏：送达功能未实现」）",
-			/const SHOW_REMIND_COLUMN = false;/.test(comp) && comp.includes("暂时隐藏：送达功能未实现"));
+		// ── 「提醒」列（设置页游戏列表）：2026-10-30 起**恢复显示** ────────────────────────
+		// 这一列是「到期提醒（送达）」的逐游戏白名单（`remindGames`）。2026-10-26 曾因为"送达未实现、
+		// 勾了没效果"整列隐藏（`SHOW_REMIND_COLUMN = false`）；2026-10-30 送达开始真的按它过滤
+		// （宿主 runRemindRound → core 的 remindAllowedTickOf），常量改回 true ⇒ 五处入口一起回来。
+		// 静态守卫因此改成"**true，且五处入口都在**"（防有人只恢复一半 / 只留常量不接线）。
+		check("常量开关 SHOW_REMIND_COLUMN = true（送达已消费这份白名单，列已恢复）",
+			/const SHOW_REMIND_COLUMN = true;/.test(comp) && !/const SHOW_REMIND_COLUMN = false;/.test(comp));
 		// 列头在源码里是 `\u` 转义（`children: "\u63D0\u9192"`），比对**转义文本**（双反斜杠）。
-		check("表头「提醒」列标题在 SHOW_REMIND_COLUMN 之后（false ⇒ 这一格不渲染）",
+		check("表头「提醒」列标题在 SHOW_REMIND_COLUMN 之后（true ⇒ 这一格渲染）",
 			comp.includes('SHOW_REMIND_COLUMN ? (0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\\u63D0\\u9192" }) : null')
 			&& !comp.includes('(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\\u63D0\\u9192" }),'));
-		check("每行「提醒」复选框也在开关之后（disabled 语义原样保留，恢复后即生效）",
+		check("每行「提醒」复选框也在开关之后（disabled 语义原样保留）",
 			comp.includes('SHOW_REMIND_COLUMN ? (0, react_jsx_runtime.jsx)("label", {')
 			&& /disabled:\s*!shownNow\(g\)/.test(comp));
 		check("「全部提醒」按钮也在开关之后（文案 / title / onClick 原样保留）",
@@ -715,17 +720,20 @@ export default async function run() {
 			&& comp.indexOf("全部轮播") < 0);
 		check("「全部提醒」写的是**展示中的 id 列表**（空数组 = 一个都不提醒，语义没变）",
 			/allEntries\.filter\(\(g\) => shownNow\(g\)\)\.map\(\(g\) => g\.id\)/.test(comp));
-		// 2026-10-28（用户要求）：表头上方那行操作提示**整行删掉**，两个分支都不再渲染。
-		// 反向断言：源码里这句话彻底不存在（不是"改成空串 / 藏起来"，是真删）。
-		check("表头上方那行操作提示已删（「展示」控制显示… 两个分支都不再出现）",
+		// 「概括」这一处：2026-10-28 用户要求删掉的那行常驻操作提示**不许回来**，
+		// 取而代之的是"只在白名单为空时"出现的一句极短提示（空数组语义在界面上不直观）。
+		check("表头上方那行常驻操作提示仍然不存在（「展示」控制显示… 两个分支都没回来）",
 			comp.indexOf("「展示」控制显示") < 0
 			&& comp.indexOf("取色器换主题色") < 0
 			&& comp.indexOf("「提醒」到点通知") < 0);
-		check("网格列宽走单一常量 SETTINGS_GAME_GRID（表头与数据行同源），隐藏分支**少一格 28px**",
+		check("空列表提示：白名单为空时显示「未勾选任何游戏 ⇒ 不提醒」（唯一的第五处入口）",
+			comp.includes('SHOW_REMIND_COLUMN && remindIds.length === 0')
+			&& comp.includes("未勾选任何游戏 ⇒ 不提醒"));
+		check("网格列宽走单一常量 SETTINGS_GAME_GRID（表头与数据行同源），显示分支**带 28px 那一格**",
 			(comp.match(/gridTemplateColumns: SETTINGS_GAME_GRID/g) || []).length === 2
 			&& comp.includes('"minmax(0,1.15fr) 28px 28px minmax(0,1fr) minmax(0,1fr) 34px 88px"')
 			&& comp.includes('"minmax(0,1.15fr) 28px minmax(0,1fr) minmax(0,1fr) 34px 88px"'));
-		check("一键恢复不用重写逻辑：配置键与写入链路都还在（remindGames / setEntryRemind / resetRemindAll / remindGameAllowed）",
+		check("恢复后写入链路没重写：配置键与写入函数都还是原来那几个（remindGames / setEntryRemind / resetRemindAll / remindGameAllowed）",
 			comp.includes('commit("remindGames"') && comp.includes("setEntryRemind")
 			&& comp.includes("resetRemindAll") && comp.includes("remindGameAllowed("));
 		check("旧提示语没有回来（「至少留一条」那套拒绝逻辑仍不存在）",

@@ -68,7 +68,10 @@
 			notifyName: "二游日历",
 			// 「到期提醒（送达）」的逐游戏白名单（不属于轮播）。语义 = 普通列表：列表里有谁就提醒谁，
 			// 空数组 = 一个都不提醒；默认值 = 出厂时展示中的条目（所有 defaultHidden !== true 的 id）。
-			// 守卫见 test/cases-ticker.mjs：新增来源或改 defaultHidden 时要同步这里与 src/index.js 的 schema。
+			// 送达侧按它过滤（65-remind.js 的 remindAllowedTickOf）⇒ 默认**不含**出厂隐藏的
+			// bh3 / ournotes / ournotes-global / czn / ddlezj，这 5 个开箱即用时静默不提醒。
+			// 守卫见 test/cases-ticker.mjs：新增来源或改 defaultHidden 时要同步这里与 src/index.js 的
+			// REMIND_GAMES_DEFAULT。
 			remindGames: [
 				"genshin", "hsr", "zzz", "wuwa", "arknights", "endfield",
 				"ba-cn", "ba-global", "ba-jp", "bandori", "wuhuamixin", "zspms", "kedr",
@@ -962,12 +965,10 @@
 			return endTs - nowTs <= horizon ? "end" : "";
 		}
 
-		// 「提醒」白名单的判定（普通列表语义）：列表里有 ⇒ 提醒；缺失 / 空数组 ⇒ 一个都不提醒。
-		// 只给设置页与将来的到期送达用，轮播不调用它。
-		function remindGameAllowed(gameId, remindGames) {
-			if (!Array.isArray(remindGames)) return false;
-			return remindGames.includes(gameId);
-		}
+		// 「提醒」白名单（`remindGames`）的判定与归一化**已搬进 65-remind.js**（remindGameAllowed /
+		// remindGamesOf / remindAllowedTickOf）：2026-10-30 送达开始消费这份白名单，而宿主半边只装
+		// 65-remind.js（lib/remind-core.mjs），放在本文件里宿主就调不到 ⇒ 只能抄第二份实现。
+		// 语义没变：普通列表，列表里有谁就提醒谁，空数组 = 一个都不提醒；轮播不读它。
 
 		// 按钮轮播总开关的读取口径：只有明确的 false 才算关（老配置没有这个键 ⇒ 默认开）。
 		// 设置页与按钮共用这一处，避免"设置页显示开着、按钮却没反应"。
@@ -1749,10 +1750,40 @@
 			};
 		}
 
+		// ── 「提醒」逐游戏白名单（`remindGames`）──────────────────────────────────────────
+		// 语义 = **普通列表**：列表里有谁就提醒谁；**空数组 = 一个都不提醒**（没有"空 = 全部"的哨兵）。
+		// 判定只有这一处实现（2026-10-30 从 60-helpers.js 搬进来，**语义一字未改**）：
+		// 宿主半边只装本文件（build.mjs 把 65-remind.js 原样拼成 lib/remind-core.mjs），而送达侧必须按
+		// 同一份判定过滤 —— 放在别的拼接段里就只能让宿主抄第二份，或者干脆不生效（那正是本次要修的 bug）。
+		// 入参顺序沿用原有调用点：remindGameAllowed(gameId, remindGames)。
+		function remindGameAllowed(gameId, remindGames) {
+			if (!Array.isArray(remindGames)) return false;
+			return remindGames.includes(gameId);
+		}
+
+		// 配置值 → 白名单数组（把脏值挡在判定之前）。两条分支的取舍是**刻意**的：
+		//   · 是数组 ⇒ 只留**非空字符串**元素（数字 / null / 对象 / 空串当脏元素忽略），
+		//     **空数组原样返回** —— 它是用户的主动选择（"一个都不提醒"），不是脏值；
+		//   · 不是数组（键缺失 / 读坏 / 老配置）⇒ 用 fallback（= 出厂默认的 23 个展示中 id）。
+		// 为什么不把非数组也当"空列表"：那等于"配置一读坏，提醒就悄悄消失"，而且**没有任何界面会报错**；
+		// 回落默认至少还是出厂行为（用户能通过设置页看出来、改回来）。
+		function remindGamesOf(value, fallback) {
+			const sanitize = (list) => list.filter((v) => typeof v === "string" && v !== "");
+			if (Array.isArray(value)) return sanitize(value);
+			return Array.isArray(fallback) ? sanitize(fallback) : [];
+		}
+
 		// 条目的去重键：条目自带 key 优先（派生时就编码了方向与 T），否则按同一规则现拼。
 		function remindKeyOf(item) {
 			if (item && typeof item.key === "string" && item.key) return item.key;
 			return String(item.gameId) + "|" + String(item.side) + "|" + String(item.kind) + "|" + String(item.T);
+		}
+
+		// 状态键 → 它属于哪个 gameId。键形态 `gameId|side|kind|T`，且 gameId 里不含 "|"
+		// （REMIND_KEY_RE 已经这么约定）；形态不对 ⇒ 空串（**不属于任何白名单成员**，宁可不留）。
+		function remindGameIdOfKey(key) {
+			const parts = String(key).split("|");
+			return parts.length >= 4 ? parts[0] : "";
 		}
 
 		// 从键的末段取回 T（毫秒）。取不到 → NaN。
@@ -1962,6 +1993,33 @@
 			// ③ 排序：最早截止的排前面（同一时刻先发档位更紧急的那条）。
 			toNotify.sort((a, b) => a.T - b.T || a.node - b.node || a.key.localeCompare(b.key));
 			return { toNotify, stateNext: next };
+		}
+
+		// 按「提醒」白名单跑一轮 —— **送达侧的唯一入口**（宿主 runRemindRound 只调它，不自己过滤）。
+		// 与 remindTickOf 只差两件事，两条的顺序都是刻意的：
+		//   ① 过滤发生在**判定节点之前**：不在白名单的条目根本不进 remindTickOf（不白算一遍节点）；
+		//   ② 状态里**不留痕**：stateNext 中不属于白名单的键一律删掉（含上一轮遗留下来的）——
+		//      否则用户后来把某条勾上时，会被"已发过"的旧记录挡住 ⇒ 该响不响。
+		// ⚠️ ② 不能靠 ① 顺带解决：remindTickOf 会把 state 里所有**未过期**的键原样带进下一轮
+		//    （哪怕这一轮数据里根本没出现它，见它第 ① 步），所以必须再按 gameId 过滤一次状态。
+		// 返回 { toNotify, stateNext, allowed, skipped }：
+		//   skipped = 本轮**因为不在提醒列表而被跳过**的候选条目数（日志要报这个数，便于排查"为什么没提醒"）。
+		function remindAllowedTickOf(now, items, config, state, remindGames) {
+			const list = Array.isArray(items) ? items : [];
+			const allowed = [];
+			let skipped = 0;
+			for (const item of list) {
+				if (!item || typeof item !== "object") continue;   // 脏条目交给 remindTickOf 自己忽略
+				if (remindGameAllowed(item.gameId, remindGames)) allowed.push(item);
+				else skipped += 1;
+			}
+			const ticked = remindTickOf(now, allowed, config, state);
+			const stateNext = {};
+			for (const [key, rec] of Object.entries(ticked.stateNext)) {
+				const gameId = remindGameIdOfKey(key);
+				if (gameId !== "" && remindGameAllowed(gameId, remindGames)) stateNext[key] = rec;
+			}
+			return { toNotify: ticked.toNotify, stateNext, allowed: allowed.length, skipped };
 		}
 
 		// ── 通知文案（纯函数：只吃 notify + now，产出 { title, lines }）────────────────
@@ -2186,7 +2244,7 @@ export function createEngine(env) {
 				// newPanelMigrated：宿主一次性迁移标记（默认 false），引擎不消费它，但按约定列在这里
 				// （配置键成套）。
 				// tickerOn / tickerHours：按钮轮播的开关与范围。
-				// remindGames：「到期提醒（送达）」的逐游戏白名单（轮播不读它；设置页那一列当前暂时隐藏，键保留）。
+				// remindGames：「到期提醒（送达）」的逐游戏白名单（轮播不读它；宿主送达侧按它过滤）。
 				// remindOn / remindEndNodes / remindStartNodes：「到期提醒（送达）」的总开关与两套节点（字符串）。
 				// 三者都是 DEFAULT_SETTINGS 的键 ⇒ 必须在这里，否则上面的守卫会红。
 				"autoRefresh", "refreshMinutes", "tickerOn", "tickerHours", "remindGames",

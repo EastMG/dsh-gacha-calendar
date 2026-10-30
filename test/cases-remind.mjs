@@ -40,6 +40,8 @@ export default async function run() {
 	const {
 		remindOnOf, remindIdentityOf, notifyShortcutPickOf, notifyIdentityCacheOf, notifyIdentityFallbackOf, remindNodesOf, remindNodesToggleOf, remindConfigOf, remindKeyOf, remindStateOf,
 		remindTestToastOf, remindWindowOf, remindItemsOf, remindTickOf, remindToastOf,
+		// 「提醒」逐游戏白名单（2026-10-30 起送达侧真的消费它）：判定 / 脏值归一 / 按白名单跑一轮
+		remindGameAllowed, remindGamesOf, remindAllowedTickOf,
 		// 跨平台（2026-10-30）：状态目录解析 / 通知通道 / macOS 通知脚本（纯函数，宿主直接复用）
 		hostStateDirOf, notifyChannelOf, notifyAppleScriptTextOf, remindAppleScriptOf,
 		dueWindowOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
@@ -380,7 +382,7 @@ export default async function run() {
 		const compSrc = readComponentsSource();
 
 		check("宿主从 lib/remind-core.mjs 复用判定（不是自己再写一套）",
-			/from "\.\/remind-core\.mjs"/.test(hostSrc) && /\bremindTickOf\b/.test(hostSrc) && /\bremindItemsOf\b/.test(hostSrc));
+			/from "\.\/remind-core\.mjs"/.test(hostSrc) && /\bremindAllowedTickOf\b/.test(hostSrc) && /\bremindItemsOf\b/.test(hostSrc));
 		check("宿主注册了**定时器**（setInterval + 启动后先来一轮的 setTimeout）",
 			/\bsetInterval\(/.test(hostSrc) && /\bsetTimeout\(/.test(hostSrc));
 		check("定时器挂在 ctx.effect 里（卸载 / 改设置重载才会走到清理）",
@@ -524,8 +526,8 @@ export default async function run() {
 			&& /\.gacha-cal-chip--on\{[^}]*background:var\(--dsw-alias-state-business-primary[^}]*color:#fff/.test(styleSrc)
 			&& /\.gacha-cal-chip:hover\{/.test(styleSrc)
 			&& /\.gacha-cal-chip--on:hover\{/.test(styleSrc));
-		check("逐游戏「提醒」列保持隐藏（SHOW_REMIND_COLUMN 仍为 false，本次不动）",
-			/const SHOW_REMIND_COLUMN = false;/.test(compSrc));
+		check("逐游戏「提醒」列已恢复显示（SHOW_REMIND_COLUMN = true；送达现在真的按它过滤）",
+			/const SHOW_REMIND_COLUMN = true;/.test(compSrc));
 	}
 
 	// ── ⑫ 通知身份（可选 AUMID）：判定纯函数 4 组合 + 宿主两条路由 + 设置页按钮 ─────────────
@@ -1572,5 +1574,126 @@ export default z;
 				try { rmSync(box, { recursive: true, force: true }); } catch { /* 临时目录清不掉不影响门禁 */ }
 			}
 		}
+	}
+
+	// ── ⑱ 「提醒」逐游戏白名单**真的**在送达侧生效（2026-10-30，行为用例）───────────────────
+	// 之前 `remindGames` 只是"设置页写了个数组"，送达侧（runRemindRound）根本没读它 ⇒ 勾了没效果。
+	// 现在过滤 + 判定都收在 core 的 remindAllowedTickOf 一处，宿主只调它。这一节**不用静态断言代替行为**：
+	// 用假条目 + 假 settings 跑与宿主完全相同的两条函数（remindGamesOf → remindAllowedTickOf），钉住四件事：
+	//   ① 在白名单的条目 ⇒ 照常提醒；
+	//   ② 不在白名单的条目 ⇒ **不提醒**，且**状态里不留痕**（否则以后勾上会被当成"已发过"⇒ 该响不响）；
+	//   ③ 空白名单 ⇒ 一条都不提醒（空数组 = 全不提醒，不是"全提醒"的哨兵）；
+	//   ④ 事后把某条加进白名单 ⇒ 下一轮照常提醒（这就是 ② 没留痕的证据）。
+	// ⚠️ 时刻与状态全部显式传入（NOW + 手写 state），与本机时区无关。
+	{
+		const cfg = {};   // 空配置 = 默认节点 72/24/6/2（两条条目的 4 档此刻都已到期）
+		const D = DEFAULT_SETTINGS.remindGames;
+		// 宿主 runRemindRound 的两步：先归一配置值（脏值兜底），再按白名单跑一轮判定。
+		const round = (rawGames, items, state) =>
+			remindAllowedTickOf(NOW, items, cfg, state, remindGamesOf(rawGames, D));
+		const mkItem = (gameId, side, name) => ({
+			gameId, side, kind: "end", title: "池" + name, gameName: name,
+			T: NOW + 1 * H, startTs: NOW - 10 * H, endTs: NOW + 1 * H
+		});
+		const itemA = mkItem("genshin", "gacha", "原神");
+		const itemB = mkItem("bh3", "event", "崩坏3");   // bh3 = 出厂默认**不在**白名单里的来源（defaultHidden）
+		const keyA = remindKeyOf(itemA);
+		const keyB = remindKeyOf(itemB);
+
+		// ① 纯函数边界：remindGameAllowed（判定唯一入口）
+		check("remindGameAllowed：在列表里 ⇒ true；不在 ⇒ false",
+			remindGameAllowed("genshin", ["genshin", "hsr"]) === true
+			&& remindGameAllowed("bh3", ["genshin", "hsr"]) === false);
+		check("remindGameAllowed：空数组 / 缺失 / 非数组 ⇒ 一律 false（不猜「没设置过」）",
+			remindGameAllowed("genshin", []) === false
+			&& remindGameAllowed("genshin", void 0) === false
+			&& remindGameAllowed("genshin", null) === false
+			&& remindGameAllowed("genshin", "genshin") === false);
+		check("宿主那份 ESM（lib/remind-core.mjs）里的白名单判定与客户端产物**同一份源码**",
+			typeof R.remindGameAllowed === "function"
+			&& R.remindGameAllowed("genshin", ["genshin"]) === true
+			&& R.remindGameAllowed("bh3", ["genshin"]) === false);
+
+		// ② 脏值策略：**非数组 ⇒ 回落出厂默认**；数组里的非法元素忽略；空数组**原样保留**
+		check("remindGamesOf：非数组（undefined / null / 字符串 / 对象）⇒ 回落出厂默认（配置读坏不等于「全都不提醒」）",
+			[void 0, null, "genshin", 42, { a: 1 }].every((bad) => {
+				const out = remindGamesOf(bad, D);
+				return Array.isArray(out) && out.join(",") === D.join(",");
+			}),
+			JSON.stringify(remindGamesOf(void 0, D)));
+		check("remindGamesOf：数组里的非字符串 / 空串元素被忽略（只留字符串 id）",
+			JSON.stringify(remindGamesOf(["genshin", 1, null, "", { id: "x" }, "hsr"], D)) === JSON.stringify(["genshin", "hsr"]),
+			JSON.stringify(remindGamesOf(["genshin", 1, null, "", { id: "x" }, "hsr"], D)));
+		check("remindGamesOf：**空数组原样返回空**（用户的主动选择，不是脏值）",
+			remindGamesOf([], D).length === 0 && remindGamesOf([], D).join(",") === "");
+		check("remindGamesOf：fallback 本身不是数组 ⇒ 空列表（不抛）",
+			remindGamesOf("坏的", "也坏的").length === 0 && remindGamesOf(null, null).length === 0);
+		check("remindGamesOf 不会改动入参（返回新数组）",
+			(() => {
+				const input = ["genshin"];
+				const out = remindGamesOf(input, D);
+				out.push("hsr");
+				return input.length === 1 && out.length === 2;
+			})());
+
+		// ③ 行为：只提醒白名单里的条目
+		const onlyA = round(["genshin"], [itemA, itemB], {});
+		check("行为：白名单 [genshin] ⇒ 只提醒 genshin 那一条（bh3 不在列表 ⇒ 不提醒）",
+			onlyA.toNotify.length === 1 && onlyA.toNotify[0].key === keyA,
+			JSON.stringify(onlyA.toNotify.map((n) => n.key)));
+		check("行为：跳过的条数被统计出来（日志要报它）—— skipped = 1 / allowed = 1",
+			onlyA.skipped === 1 && onlyA.allowed === 1,
+			"skipped=" + onlyA.skipped + " allowed=" + onlyA.allowed);
+		check("行为：**不在白名单的条目在状态里不留痕**（stateNext 里没有 bh3 的键）",
+			Object.keys(onlyA.stateNext).every((k) => !k.includes("bh3"))
+			&& Object.keys(onlyA.stateNext).length === 1 && !!onlyA.stateNext[keyA],
+			JSON.stringify(onlyA.stateNext));
+
+		// ④ 空白名单 ⇒ 一条都不提醒（空数组不是"全提醒"）
+		const none = round([], [itemA, itemB], {});
+		check("行为：白名单 = [] ⇒ **一条都不提醒**（toNotify 为空、skipped = 2、状态为空）",
+			none.toNotify.length === 0 && none.skipped === 2 && none.allowed === 0
+			&& Object.keys(none.stateNext).length === 0,
+			JSON.stringify({ n: none.toNotify.length, skipped: none.skipped, state: Object.keys(none.stateNext) }));
+		check("行为：白名单 = [] 时**连已发状态都不写**（以后勾上不会被当成「已发过」）",
+			JSON.stringify(none.stateNext) === "{}");
+
+		// ⑤ **关键回归**：事后把 bh3 加进白名单 ⇒ 下一轮照常提醒（证明上一轮没把它标成已发）
+		const later = round(["genshin", "bh3"], [itemA, itemB], onlyA.stateNext);
+		check("行为：后来把 bh3 加进白名单 ⇒ 下一轮**提醒 bh3 那一条**（没被上一轮误标已发）",
+			later.toNotify.length === 1 && later.toNotify[0].key === keyB,
+			JSON.stringify(later.toNotify.map((n) => n.key)));
+		check("行为：genshin 上一轮已经发过 ⇒ 这一轮不重复打扰（去重状态仍然有效）",
+			later.toNotify.every((n) => n.key !== keyA));
+		check("行为：这一轮的 skipped 回到 0（两条都在白名单里）", later.skipped === 0, String(later.skipped));
+
+		// ⑥ 状态清理：**上一轮遗留**的、属于非白名单条目的键也要被删掉
+		// （remindTickOf 会把 state 里所有未过期的键原样带到下一轮 —— 哪怕这一轮数据里没有它，
+		//  所以光靠"过滤条目"清不掉它，必须再按 gameId 过滤一次状态。）
+		const legacy = round(["genshin"], [], { [keyB]: { fired: [72, 24] } });
+		check("行为：**不在白名单的旧状态键被删掉**（即使这一轮数据里没有那条条目）",
+			Object.keys(legacy.stateNext).length === 0, JSON.stringify(legacy.stateNext));
+		const kept = round(["genshin"], [], { [keyA]: { fired: [72, 24] } });
+		check("对照：在白名单的旧状态键**原样保留**（清理只针对白名单之外）",
+			!!kept.stateNext[keyA] && JSON.stringify(kept.stateNext[keyA].fired) === JSON.stringify([72, 24]),
+			JSON.stringify(kept.stateNext));
+
+		// ⑦ 宿主接线（静态）：送达侧读的是同一个函数 + 日志里带跳过计数
+		const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
+		const i = hostSrc.indexOf("async function runRemindRound(");
+		const j = i < 0 ? -1 : hostSrc.indexOf("\n}", i);
+		const roundBody = i < 0 ? "" : (j < 0 ? hostSrc.slice(i) : hostSrc.slice(i, j));
+		check("宿主 runRemindRound：白名单走 configValueOf 解包（直接读 cfg.remindGames 永远拿不到数组）",
+			/remindGames:\s*configValueOf\(cfg, "remindGames"\)/.test(roundBody),
+			roundBody.slice(0, 60));
+		check("宿主 runRemindRound：归一 + 过滤都交给 core（remindGamesOf → remindAllowedTickOf），不自己写一遍",
+			/remindGamesOf\(plain\.remindGames, REMIND_GAMES_DEFAULT\)/.test(roundBody)
+			&& /remindAllowedTickOf\(now, items, remindConfigOf\(plain\), statePrev, remindGames\)/.test(roundBody));
+		check("宿主 runRemindRound：日志里能看出「本轮有 N 条因为不在提醒列表而被跳过」",
+			/const skipNote = "，不在「提醒」列表跳过 " \+ skipped \+ " 条";/.test(roundBody)
+			&& (roundBody.match(/skipNote/g) || []).length >= 4,
+			String((roundBody.match(/skipNote/g) || []).length));
+		check("宿主 runRemindRound：**不再直接调 remindTickOf**（否则白名单会被绕过）",
+			!/\bremindTickOf\(/.test(roundBody));
 	}
 }

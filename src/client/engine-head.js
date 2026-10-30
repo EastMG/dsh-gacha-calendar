@@ -40,7 +40,7 @@
 				// newPanelMigrated：宿主一次性迁移标记（默认 false），引擎不消费它，但按约定列在这里
 				// （配置键成套）。
 				// tickerOn / tickerHours：按钮轮播的开关与范围。
-				// remindGames：「到期提醒（送达）」的逐游戏白名单（轮播不读它；设置页那一列当前暂时隐藏，键保留）。
+				// remindGames：「到期提醒（送达）」的逐游戏白名单（轮播不读它；宿主送达侧按它过滤）。
 				// remindOn / remindEndNodes / remindStartNodes：「到期提醒（送达）」的总开关与两套节点（字符串）。
 				// 三者都是 DEFAULT_SETTINGS 的键 ⇒ 必须在这里，否则上面的守卫会红。
 				"autoRefresh", "refreshMinutes", "tickerOn", "tickerHours", "remindGames",

@@ -752,12 +752,10 @@
 			return endTs - nowTs <= horizon ? "end" : "";
 		}
 
-		// 「提醒」白名单的判定（普通列表语义）：列表里有 ⇒ 提醒；缺失 / 空数组 ⇒ 一个都不提醒。
-		// 只给设置页与将来的到期送达用，轮播不调用它。
-		function remindGameAllowed(gameId, remindGames) {
-			if (!Array.isArray(remindGames)) return false;
-			return remindGames.includes(gameId);
-		}
+		// 「提醒」白名单（`remindGames`）的判定与归一化**已搬进 65-remind.js**（remindGameAllowed /
+		// remindGamesOf / remindAllowedTickOf）：2026-10-30 送达开始消费这份白名单，而宿主半边只装
+		// 65-remind.js（lib/remind-core.mjs），放在本文件里宿主就调不到 ⇒ 只能抄第二份实现。
+		// 语义没变：普通列表，列表里有谁就提醒谁，空数组 = 一个都不提醒；轮播不读它。
 
 		// 按钮轮播总开关的读取口径：只有明确的 false 才算关（老配置没有这个键 ⇒ 默认开）。
 		// 设置页与按钮共用这一处，避免"设置页显示开着、按钮却没反应"。

@@ -59,6 +59,11 @@ const REMIND_EXPORTS = [
   "remindNodesOf",
   "remindNodesToggleOf",
   "remindConfigOf",
+  // 「提醒」逐游戏白名单（2026-10-30 从 60-helpers.js 搬进 65-remind.js）：判定 / 脏值归一 /
+  // 按白名单跑一轮。宿主 runRemindRound 只调 remindAllowedTickOf，不自己过滤一遍。
+  "remindGameAllowed",
+  "remindGamesOf",
+  "remindAllowedTickOf",
   "remindKeyOf",
   "remindStateOf",
   "remindTestToastOf",

@@ -59,7 +59,10 @@
 			notifyName: "二游日历",
 			// 「到期提醒（送达）」的逐游戏白名单（不属于轮播）。语义 = 普通列表：列表里有谁就提醒谁，
 			// 空数组 = 一个都不提醒；默认值 = 出厂时展示中的条目（所有 defaultHidden !== true 的 id）。
-			// 守卫见 test/cases-ticker.mjs：新增来源或改 defaultHidden 时要同步这里与 src/index.js 的 schema。
+			// 送达侧按它过滤（65-remind.js 的 remindAllowedTickOf）⇒ 默认**不含**出厂隐藏的
+			// bh3 / ournotes / ournotes-global / czn / ddlezj，这 5 个开箱即用时静默不提醒。
+			// 守卫见 test/cases-ticker.mjs：新增来源或改 defaultHidden 时要同步这里与 src/index.js 的
+			// REMIND_GAMES_DEFAULT。
 			remindGames: [
 				"genshin", "hsr", "zzz", "wuwa", "arknights", "endfield",
 				"ba-cn", "ba-global", "ba-jp", "bandori", "wuhuamixin", "zspms", "kedr",

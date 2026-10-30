@@ -25,14 +25,15 @@ import {
 	notifyIdentityFallbackOf,
 	notifyNameOf,
 	notifyShortcutPickOf,
+	remindAllowedTickOf,
 	remindAppleScriptOf,
 	remindConfigOf,
+	remindGamesOf,
 	remindIdentityOf,
 	remindItemsOf,
 	remindOnOf,
 	remindStateOf,
 	remindTestToastOf,
-	remindTickOf,
 	remindToastOf
 } from "./remind-core.mjs";
 import { execFile } from "node:child_process";
@@ -424,7 +425,8 @@ async function proxyHandler(req, res) {
 // 每一轮做的事（判定规则本身在 lib/remind-core.mjs，和面板/core 是同一份源码）：
 //   ① 读配置：remindOn === false 或还没有 lastData ⇒ 直接跳过（不算、不读状态）
 //   ② lastData 的档期文本 + 源站 tz → 绝对档期 → 条目
-//   ③ 拿去重状态判「这一轮该发哪几条」（同一条目只发最紧急那档，T 已过就作废）
+//   ③ 按「提醒」逐游戏白名单（`remindGames`）过滤条目 + 状态，再拿去重状态判「这一轮该发哪几条」
+//      （同一条目只发最紧急那档，T 已过就作废）——过滤与判定都在 core 的 remindAllowedTickOf 里
 //   ④ 逐条弹通知（deliverToast）；**失败的档位不记已发**，下一轮会重试（直到成功或 T 过作废）；
 //      没有通知通道的平台在这一步之前短路（只记日志、状态按已发落盘）
 //   ⑤ 状态原子写回 %LOCALAPPDATA%\dsh-gacha-calendar\host-state.json（macOS / Linux 见上表），
@@ -432,6 +434,22 @@ async function proxyHandler(req, res) {
 const REMIND_INTERVAL_MS = 30 * 60 * 1000;   // 默认每 30 分钟一轮（判定只取决于 now，与频率无关）
 const REMIND_STARTUP_DELAY_MS = 5000;        // 启动后先来一轮，但别跟 DSH 开机抢那几秒
 const REMIND_LOG_MAX_BYTES = 256 * 1024;     // 日志只留最近一段，长期开着的宿主不该让它无限长
+
+/**
+ * 「提醒」逐游戏白名单的**出厂默认** = 出厂时展示中的 23 个条目 id。
+ * 两处必须逐项一致（守卫见 test/cases-ticker.mjs ④）：
+ *   ① 这里是宿主 schema 的 default（也当 configValueOf 读到脏值时的兜底，见 runRemindRound）；
+ *   ② src/client/10-config.js 的 DEFAULT_SETTINGS.remindGames —— 浏览器 bundle 里的那一份，
+ *      设置页拿它当"没读过配置时的默认值"。宿主读不到那份，所以只能各存一份。
+ * 默认**不含**出厂默认隐藏的 5 个来源（bh3 / ournotes / ournotes-global / czn / ddlezj）⇒
+ * 开箱即用时这 5 个**静默不提醒**（用户 2026-10-30 明确要的行为，见 README_Dev）。
+ */
+const REMIND_GAMES_DEFAULT = [
+	"genshin", "hsr", "zzz", "wuwa", "arknights", "endfield",
+	"ba-cn", "ba-global", "ba-jp", "bandori", "wuhuamixin", "zspms", "kedr",
+	"uma-cn", "uma-jp", "uma-global",
+	"p5x", "nte", "gf2", "fgo", "pjsk", "stellasora", "r1999"
+];
 
 /** Windows PowerShell 5.1 自带的 AUMID —— 免安装也能弹。 */
 const POWERSHELL_AUMID = "{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe";
@@ -1414,6 +1432,9 @@ async function runRemindRound(ctx, fallbackConfig, reason) {
 			remindOn: configValueOf(cfg, "remindOn"),
 			remindEndNodes: configValueOf(cfg, "remindEndNodes"),
 			remindStartNodes: configValueOf(cfg, "remindStartNodes"),
+			// 逐游戏白名单（string[]）：只有列表里的条目才会被提醒；**空数组 = 一个都不提醒**。
+			// 脏值兜底在 core 的 remindGamesOf 里（非数组 ⇒ 出厂默认，数组里的非法元素忽略）。
+			remindGames: configValueOf(cfg, "remindGames"),
 			// 应用名（默认「二游日历」）：通知署名行 / 快捷方式名字都用它，清洗在 notifyNameOf。
 			notifyName: configValueOf(cfg, "notifyName"),
 			lastData: configValueOf(cfg, "lastData"),
@@ -1432,25 +1453,31 @@ async function runRemindRound(ctx, fallbackConfig, reason) {
 		if (!games || typeof games !== "object" || Array.isArray(games)) return;
 		const now = Date.now();
 		const items = remindItemsOf(games, now, customTzByIdOf(plain.customEntries));
+		// 逐游戏白名单：**先归一**（配置读坏 ⇒ 出厂默认，见 core 的 remindGamesOf）再交给
+		// remindAllowedTickOf —— 它在**判定节点之前**过滤条目，并把状态里不属于白名单的键一并清掉
+		// （未勾选的条目「不提醒」且「不在状态里留痕」，所以后来勾上时下一轮照常会响）。
+		const remindGames = remindGamesOf(plain.remindGames, REMIND_GAMES_DEFAULT);
 		const stateFile = remindStatePath();
 		const firstRun = !existsSync(stateFile);
 		const statePrev = readRemindState(stateFile);
-		const { toNotify, stateNext } = remindTickOf(now, items, remindConfigOf(plain), statePrev);
+		const { toNotify, stateNext, skipped } = remindAllowedTickOf(now, items, remindConfigOf(plain), statePrev, remindGames);
+		// 每一条 round 日志都带这个数：排查"为什么没提醒"时先看它（0 = 全都放行，非 0 = 被白名单拦下）。
+		const skipNote = "，不在「提醒」列表跳过 " + skipped + " 条";
 		// 首次运行（还没有状态文件）：只把当前已到档的位置记下来当基线，**不发任何通知**。
 		// 否则刚装好就会把积压的所有档位一次性弹出来（用户 2026-10-27 定：不补发首次积压）。
 		if (firstRun) {
 			writeRemindState(stateFile, stateNext);
-			logRemind("round(" + reason + ")：首次运行，建立基线（跳过 " + toNotify.length + " 条已到档条目）");
+			logRemind("round(" + reason + ")：首次运行，建立基线（跳过 " + toNotify.length + " 条已到档条目" + skipNote + "）");
 			return;
 		}
 		if (!toNotify.length) {
 			// 过期键被清掉时才落盘（没变化就别每 30 分钟重写一次文件）
 			if (JSON.stringify(statePrev) !== JSON.stringify(stateNext)) writeRemindState(stateFile, stateNext);
-			logRemind("round(" + reason + ")：条目 " + items.length + "，本轮无需提醒（状态保留 " + Object.keys(stateNext).length + " 条）");
+			logRemind("round(" + reason + ")：条目 " + items.length + skipNote + "，本轮无需提醒（状态保留 " + Object.keys(stateNext).length + " 条）");
 			return;
 		}
 		logRemind(
-			"round(" + reason + ")：条目 " + items.length + "，本轮提醒 " + toNotify.length + " 条 → "
+			"round(" + reason + ")：条目 " + items.length + skipNote + "，本轮提醒 " + toNotify.length + " 条 → "
 			+ toNotify.map((notify) => notify.key).join(", ")
 		);
 		// 平台闸门（送达前）：Linux 等没有通知通道的平台**明确降级**——只记一条日志、按"已发"落状态，
@@ -1549,14 +1576,12 @@ const Config = z.object({
 	// 默认值必须与 src/client/10-config.js 的 DEFAULT_SETTINGS.notifyName 一致，守卫见 cases-remind.mjs ⑭）。
 	notifyName: z.string().default("二游日历").volatile(),
 	// 「到期提醒（送达）」的逐游戏白名单（不属于轮播）。普通列表：列表里有谁就提醒谁，
-	// 空数组 = 一个都不提醒。出厂默认 = 出厂时展示中的条目（所有 defaultHidden !== true 的 id）。
-	// 必须与 src/client/10-config.js 的 DEFAULT_SETTINGS.remindGames 逐项一致（守卫见 test/cases-ticker.mjs）。
-	remindGames: z.array(z.string()).default([
-		"genshin", "hsr", "zzz", "wuwa", "arknights", "endfield",
-		"ba-cn", "ba-global", "ba-jp", "bandori", "wuhuamixin", "zspms", "kedr",
-		"uma-cn", "uma-jp", "uma-global",
-		"p5x", "nte", "gf2", "fgo", "pjsk", "stellasora", "r1999"
-	]).volatile(),
+	// 空数组 = 一个都不提醒。出厂默认 = 出厂时展示中的条目（所有 defaultHidden !== true 的 id），
+	// 那个列表只有**一处**（文件上方的 REMIND_GAMES_DEFAULT）—— schema 与脏值兜底共用它，
+	// 避免同一份 23 个 id 在宿主里写两遍、迟早漂。必须与 src/client/10-config.js 的
+	// DEFAULT_SETTINGS.remindGames 逐项一致（守卫见 test/cases-ticker.mjs ④）。
+	// `.slice()` 是刻意的：schema 的默认值会被多少个配置实例共享不好控制，别让谁改到常量本身。
+	remindGames: z.array(z.string()).default(REMIND_GAMES_DEFAULT.slice()).volatile(),
 	// 实验特性：新「二游日历」面板视图。**默认开**（2026-10-28 用户定）。
 	// 老用户存过 false 的由 migrateNewPanelOnce 一次性迁成 true（迁移标记见下）。
 	newPanel: z.boolean().default(true).volatile(),

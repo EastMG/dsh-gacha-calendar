@@ -7,13 +7,13 @@
 		// DSH 设置面板是"点了才挂载"，打开后要等导航渲染出来才能切页；预算给足但不无限等。
 		const SETTINGS_NAV_TIMEOUT_MS = 600;
 		const SETTINGS_NAV_POLL_MS = 30;
-		// 设置页游戏列表的「提醒」列：**暂时隐藏**（用户要求，不是删除）。
-		// 暂时隐藏：送达功能未实现 —— 这一列是「到期提醒（送达）」的逐游戏白名单（配置键 `remindGames`），
-		// 送达还没做，勾了没有任何效果，摆在那儿只会让人以为勾了就真会提醒。
-		// 恢复：改回 `true` 即可 —— 表头列标题 / 每行复选框 / 「全部提醒」按钮 / 表头上方概括 /
-		// 网格列宽五处全部由它 gate；`remindGames` 配置键、schema、CONFIG_KEYS、纯函数
-		// `remindGameAllowed` 与写入链路（setEntryRemind / resetRemindAll）都原样保留，不用重写逻辑。
-		const SHOW_REMIND_COLUMN = false;
+		// 设置页游戏列表的「提醒」列：**已恢复显示**（2026-10-30）。
+		// 它是「到期提醒（送达）」的逐游戏白名单（配置键 `remindGames`）：勾上 = 这一条到期时弹系统通知。
+		// 2026-10-26 曾因为"送达未实现、勾了没效果"整列隐藏；送达侧现在真的按它过滤了
+		// （宿主 runRemindRound → core 的 remindAllowedTickOf，见 65-remind.js），所以整列恢复。
+		// 仍是**一个常量 gate 五处**（表头列标题 / 每行复选框 / 「全部提醒」按钮 / 空列表提示 / 网格列宽）：
+		// 万一又要临时藏起来，改回 false 即可，不用删代码。
+		const SHOW_REMIND_COLUMN = true;
 		// 游戏列表网格列宽 = 游戏 / 展示 / [提醒] / 卡池来源 / 活动来源 / 颜色 / 操作。
 		// 隐藏「提醒」时把对应那一格（28px）从模板里**去掉**：留空列会把后面各列整体错位。
 		const SETTINGS_GAME_GRID = SHOW_REMIND_COLUMN
