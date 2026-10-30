@@ -1628,7 +1628,7 @@ const Config = z.object({
 });
 
 /**
- * ⏳ 待废弃的一次性迁移（目标移除：2027-01-31 之后）
+ * ⏳ 待废弃的一次性迁移（目标移除：2026-11-30 之后）
  *
  * 为什么迟早能删：老配置被迁过一轮后，新装用户根本走不到这里；
  * 保留期只为覆盖"很久没启动过 DSH 的老用户"。
@@ -1678,7 +1678,7 @@ async function migrateNewPanelOnce(ctx, config, settings) {
 }
 
 /**
- * ⏳ 待废弃的一次性迁移（目标移除：2027-01-31 之后）
+ * ⏳ 待废弃的一次性迁移（目标移除：2026-11-30 之后）
  *
  * 为什么迟早能删：老配置被迁过一轮后，新装用户根本走不到这里（他们出厂就是
  * `refreshMinutes: 0` = 「启动时」）；保留期只为覆盖"很久没启动过 DSH 的老用户"。
@@ -1746,10 +1746,10 @@ export function apply(ctx, config = {}) {
 		settingsCtx.effect(() => settingsCtx.settings.configure({ auto: false }, ctx.fiber));
 		// 新版面板开关的一次性迁移（见 migrateNewPanelOnce）。**不 await**：apply 不能被
 		// 一次配置写入拖慢；内部已 try/catch，失败只记日志。
-		// ⏳ 待废弃（目标移除：2027-01-31 之后）—— 说明见 migrateNewPanelOnce 上方的注释块。
+		// ⏳ 待废弃（目标移除：2026-11-30 之后）—— 说明见 migrateNewPanelOnce 上方的注释块。
 		void migrateNewPanelOnce(ctx, config, settingsCtx.settings);
 		// 刷新频率的一次性迁移（无条件迁到「启动时」，见 migrateRefreshOnce）。同样**不 await**。
-		// ⏳ 待废弃（目标移除：2027-01-31 之后）—— 说明见 migrateRefreshOnce 上方的注释块。
+		// ⏳ 待废弃（目标移除：2026-11-30 之后）—— 说明见 migrateRefreshOnce 上方的注释块。
 		void migrateRefreshOnce(ctx, config, settingsCtx.settings);
 	});
 	ctx.inject(["webServer"], (injected) => {

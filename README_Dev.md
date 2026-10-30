@@ -194,18 +194,18 @@ DSH 官方只承诺 **Windows + macOS**（Linux 有安装产物，但不作硬�
 - macOS 通知失败**不致命**：`osascript` 起不来 / 返回非 0 ⇒ 与 Windows 同一条"送达失败、下一轮重试"状态机；AppleScript 字面量转义在 `remindAppleScriptOf`（有单测）。系统通知权限 / 勿扰模式关掉时横幅可能不显示，与 Windows 的专注助手同类。
 - ⚠️ **macOS 未真机验证**：开发机是 Windows，macOS 分支只有纯函数单测 + 静态守卫，门禁在 Windows 与 Linux（WSL，同 CI 的 ubuntu-latest）上跑绿。真机首次跑时先看 `~/Library/Application Support/dsh-gacha-calendar/remind.log`。
 
-## 待废弃的一次性迁移（目标移除：2027-01-31 之后）
+## 待废弃的一次性迁移（目标移除：2026-11-30 之后）
 
 「启动时补一笔配置」这类迁移**过期就没意义了**（用户原话：过一段时间之后要求把这种迁移逻辑彻底移除）。
 保留期的唯一用途是覆盖"很久没启动过 DSH 的老用户"：老配置被迁过一轮后，新装用户根本走不到迁移代码。
 
-目标移除时间统一写成**字面日期 `2027-01-31`**（2026-10-31 定，之后即可整体删除），**不要**改成"3 个月后"这类相对表述。
+目标移除时间统一写成**字面日期 `2026-11-30`**（2026-10-31 定，之后即可整体删除），**不要**改成"3 个月后"这类相对表述。
 两个迁移函数上方各有一个 `⏳ 待废弃的一次性迁移` 注释块（含删除方法与涉及键），`apply()` 里的 `void …` 调用处各有一行指向它的短注释；注释块、调用处短注释与本表由 `test/cases-refresh.mjs` ⑭⑧ 守着。
 
 | 迁移 | 涉及配置键 | 代码位置（函数） | 目标移除时间 | 删除步骤 |
 |---|---|---|---|---|
-| 新面板默认值迁移（2026-10-28） | `newPanelMigrated`；`newPanel` 的旧默认 `false` | `src/index.js` 的 `migrateNewPanelOnce`（含上方注释块） | 2027-01-31 之后 | ① 删函数；② 删 `apply()` 里的 `void migrateNewPanelOnce(ctx, config, settingsCtx.settings);`；③ 删 `newPanelMigrated` 键（`src/index.js` 的 schema + `src/client/engine-head.js` 的 `CONFIG_KEYS`，并同步 `src/client/10-config.js` / `src/client/*` 里的说明注释）；④ 删测试（`test/cases-health.mjs` ⑨、`test/cases-refresh.mjs` ⑭ 里对它的引用）与本表这一行；⑤ `node build.mjs` |
-| 刷新频率迁移（2026-10-31） | `refreshMigrated`；`refreshMinutes` 的旧默认 `1440` | `src/index.js` 的 `migrateRefreshOnce`（含上方注释块） | 2027-01-31 之后 | ① 删函数；② 删 `apply()` 里的 `void migrateRefreshOnce(ctx, config, settingsCtx.settings);`；③ 删 `refreshMigrated` 键（`src/index.js` 的 schema + `src/client/10-config.js` 的 `DEFAULT_SETTINGS` + `src/client/engine-head.js` 的 `CONFIG_KEYS`）；④ 删测试（`test/cases-refresh.mjs` ⑭）与本表这一行；⑤ `node build.mjs` |
+| 新面板默认值迁移（2026-10-28） | `newPanelMigrated`；`newPanel` 的旧默认 `false` | `src/index.js` 的 `migrateNewPanelOnce`（含上方注释块） | 2026-11-30 之后 | ① 删函数；② 删 `apply()` 里的 `void migrateNewPanelOnce(ctx, config, settingsCtx.settings);`；③ 删 `newPanelMigrated` 键（`src/index.js` 的 schema + `src/client/engine-head.js` 的 `CONFIG_KEYS`，并同步 `src/client/10-config.js` / `src/client/*` 里的说明注释）；④ 删测试（`test/cases-health.mjs` ⑨、`test/cases-refresh.mjs` ⑭ 里对它的引用）与本表这一行；⑤ `node build.mjs` |
+| 刷新频率迁移（2026-10-31） | `refreshMigrated`；`refreshMinutes` 的旧默认 `1440` | `src/index.js` 的 `migrateRefreshOnce`（含上方注释块） | 2026-11-30 之后 | ① 删函数；② 删 `apply()` 里的 `void migrateRefreshOnce(ctx, config, settingsCtx.settings);`；③ 删 `refreshMigrated` 键（`src/index.js` 的 schema + `src/client/10-config.js` 的 `DEFAULT_SETTINGS` + `src/client/engine-head.js` 的 `CONFIG_KEYS`）；④ 删测试（`test/cases-refresh.mjs` ⑭）与本表这一行；⑤ `node build.mjs` |
 
 ### 排查过、但**不**属于一次性迁移的兼容代码
 

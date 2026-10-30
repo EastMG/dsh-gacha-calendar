@@ -16,7 +16,7 @@
 // **一次性迁移**（标记 `refreshMigrated`），并在当天晚些时候按用户第二次要求改成**无条件**：
 // **不看旧值**，已有的配置（1440 / 用户自己选过的 2 天 / 0）一律写成 `{ refreshMinutes: 0,
 // refreshMigrated: true }` —— 迁移的写法与失败重试见 ⑭，那是本文件唯一需要"真调宿主代码"的一段。
-// ⑭⑧ 另守「⏳ 待废弃的一次性迁移」标记块 / 调用处短注释 / README_Dev 那一节（目标移除 2027-01-31）。
+// ⑭⑧ 另守「⏳ 待废弃的一次性迁移」标记块 / 调用处短注释 / README_Dev 那一节（目标移除 2026-11-30）。
 // 选项表里「1 天 = 1440」这一档必须保留 —— 用户仍可手选回 1 天，所以 ⑥ 会同时断言
 // "默认是 0"与"选项里还有 1440 这档"。
 // 版本哨兵（首次安装 force）不能被 0 档掩盖 —— 见 ⑬ 的出厂组合用例。
@@ -527,7 +527,7 @@ export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value 
 			// ⑧ 待废弃标记守卫（2026-10-31 用户要求：这类迁移到期要**彻底删除**）
 			// 为什么守：标记被删掉 / 日期被改成"3 个月后"这种相对表述，将来就再没人找得到这段代码该删；
 			// 反之只删标记不删逻辑 = 一份没人认领的兼容层。所以标记块、调用处短注释、README_Dev 那一节
-			// 三处必须同时存在，且日期是**字面日期 2027-01-31**。
+			// 三处必须同时存在，且日期是**字面日期 2026-11-30**。
 			{
 				const markerOf = (name) => {
 					const at = srcText.indexOf("async function " + name + "(");
@@ -541,28 +541,39 @@ export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value 
 					["刷新频率迁移", "migrateRefreshOnce", "refreshMigrated / refreshMinutes 的旧默认 1440"]
 				]) {
 					const block = markerOf(name);
-					check(`⑭⑧ ${label}（${name}）上方有统一的「⏳ 待废弃的一次性迁移」标记块，标题含字面日期 2027-01-31`,
-						block.includes("⏳ 待废弃的一次性迁移") && block.includes("目标移除：2027-01-31 之后"),
+					check(`⑭⑧ ${label}（${name}）上方有统一的「⏳ 待废弃的一次性迁移」标记块，标题含字面日期 2026-11-30`,
+						block.includes("⏳ 待废弃的一次性迁移") && block.includes("目标移除：2026-11-30 之后"),
 						block.slice(0, 80));
 					check(`⑭⑧ ${label} 标记块写明删除方法 / 涉及键（${keys}）/ 用户指令`,
 						block.includes("删除方法：") && block.includes(keys) && block.includes("用户指令：2026-10-31"),
 						block.slice(0, 200));
-					check(`⑭⑧ ${label} 的 void 调用处有指向标记块的短注释（⏳ 待废弃 + 2027-01-31）`,
-						applyText.includes("⏳ 待废弃（目标移除：2027-01-31 之后）—— 说明见 " + name + " 上方的注释块"));
+					check(`⑭⑧ ${label} 的 void 调用处有指向标记块的短注释（⏳ 待废弃 + 2026-11-30）`,
+						applyText.includes("⏳ 待废弃（目标移除：2026-11-30 之后）—— 说明见 " + name + " 上方的注释块"));
 				}
 				check("⑭⑧ 日期用**字面值**：src/index.js 里没有「3 个月后」这类相对表述",
 					!/\d\s*个月后/.test(srcText));
 				const devText = readFileSync(path.join(REPO, "README_Dev.md"), "utf8");
-				check("⑭⑧ README_Dev.md 有「待废弃的一次性迁移」一节（目标移除：2027-01-31 之后）",
-					devText.includes("## 待废弃的一次性迁移（目标移除：2027-01-31 之后）"));
+				check("⑭⑧ README_Dev.md 有「待废弃的一次性迁移」一节（目标移除：2026-11-30 之后）",
+					devText.includes("## 待废弃的一次性迁移（目标移除：2026-11-30 之后）"));
 				const NEEDLES = [
 					"| 迁移 | 涉及配置键 | 代码位置（函数） | 目标移除时间 | 删除步骤 |",
 					"migrateNewPanelOnce", "migrateRefreshOnce",
-					"newPanelMigrated", "refreshMigrated", "2027-01-31"
+					"newPanelMigrated", "refreshMigrated", "2026-11-30"
 				];
 				const missing = NEEDLES.filter((s) => !devText.includes(s));
 				check("⑭⑧ README_Dev.md 那一节是「迁移 / 键 / 函数 / 目标移除时间 / 删除步骤」表格，两个迁移都列了",
 					missing.length === 0, "缺：" + missing.join(" / "));
+				// ⑧ 反向守卫（2026-10-31 用户把目标移除日从 2027-01-31 提前到 2026-11-30）：
+				// 旧日期不许再有任何残留 —— 否则"改了一半"，将来照旧日期删不掉 / 或按两套日期各删一次。
+				// 只守**迁移标记这一层**（src/index.js 与 README_Dev.md）：`2027-01-31` 在
+				// test/fixtures（日服 3470/3477 的 to_date）与 src/client/30-game-cygames.js 的说明里
+				// 是**真实档期数据**，跟迁移无关，永远不跟着改。
+				check("⑭⑧ 反向：迁移标记不再残留旧日期（src/index.js 里 2027-01-31 出现 0 处）",
+					!srcText.includes("2027-01-31"),
+					"仍含 2027-01-31：" + String((srcText.match(/2027-01-31/g) || []).length) + " 处");
+				check("⑭⑧ 反向：README_Dev.md 不再残留旧日期（2027-01-31 出现 0 处）",
+					!devText.includes("2027-01-31"),
+					"仍含 2027-01-31：" + String((devText.match(/2027-01-31/g) || []).length) + " 处");
 			}
 		} catch (err) {
 			check("⑭ 迁移用例整套能跑完（抛异常即视为失败，见 detail）", false, String((err && err.stack) || err));
