@@ -1104,6 +1104,17 @@ export default async function run() {
 			&& /box-sizing:\s*border-box/.test(slotRule.body), slotRule.body);
 		check("负向：槽位不再写死 width: 100%（那正是横向溢出的来源）",
 			!/width:\s*100%\s*;/.test(slotRule.body), slotRule.body);
+		// 🔑 2026-10-30 真机（1272px 宽，网页端）：间距**不是**我们造的，是宿主每个 footer 入口自带的
+		//   `margin: 4px`（上下各 4px）⇒ 相邻两行 = 4 + 4 = 8px（实测 远程控制 838 → 账号 846 = 8px）。
+		//   槽位原先写了 `gap: 6px`，于是 我们的按钮 → 远程控制 变成 782 → 796 = 14px，
+		//   而 远程控制 → 账号 仍是 8px ⇒ 三行间距不匀（14 vs 8），用户一眼看出来。
+		//   ⇒ 槽位必须是 gap: 0，让间距完全交给宿主的 margin；
+		//   **不许**改成"给子项统一加 margin"——那会改动其它插件的入口。
+		check("槽位本身：gap: 0（间距由宿主入口自带的 margin: 4px 决定：4 + 4 = 8px，再叠 gap 就是 14px）",
+			/gap:\s*0(?:px)?\s*;/.test(slotRule.body), slotRule.body);
+		check("负向：本文件不出现任何非 0 的 gap（三条规则都不许留 gap: 6px 残余）",
+			!/gap:\s*(?!0(?:px)?\s*[;!])\d/.test(cssNoComments),
+			String(cssNoComments.match(/gap:[^;\n]*/g)));
 		const childRule = footerRules.find((r) => />\s*\*$/.test(r.sel)) || { body: "" };
 		check("槽位子项：flex:none + min-width:0 + max-width:100%（按钮不被压扁、也不许外溢，与桌面壳同一套做法）",
 			/flex:\s*none/.test(childRule.body) && /min-width:\s*0/.test(childRule.body)
@@ -1120,6 +1131,12 @@ export default async function run() {
 			&& clientJs.includes("flex-direction: column")
 			&& clientJs.includes("max-height: min(40vh, 240px)")
 			&& clientJs.includes("overflow-x: hidden"));
+		// 产物级守卫：槽位规则里必须是 `gap: 0;`（src 改了忘 build ⇒ 真机上还是 14px）。
+		const slotAt = clientJs.indexOf(GATE + '[data-slot="sidebar.footer.action"] {');
+		const slotBlock = slotAt >= 0 ? clientJs.slice(slotAt, slotAt + 1200) : "";
+		check("产物 lib/client.js 的槽位规则是 gap: 0（不许是 6px：那正是 14px 间距的来源）",
+			/gap:\s*0(?:px)?\s*;/.test(slotBlock) && !/^\s*gap:\s*6px\s*;/m.test(slotBlock),
+			String(slotBlock.match(/gap:[^;\n]*/g)));
 		// 注册项：宿主对这个槽位的契约只有 id / order / label（`priority` 不是可选项）。
 		const pluginSrc = readFileSync(path.join(REPO, "src", "client", "90-plugin.js"), "utf8");
 		const footerReg = /ctx\.slots\.inject\("sidebar\.footer\.action"[\s\S]*?CalendarPanel\)\)/.exec(pluginSrc);
