@@ -20,7 +20,7 @@
 		// 与异环当期、30≈方舟月度、42=米系与 1999 的整版本
 		// ⚠️ `minutes: 0` = 「启动时」：只在面板挂载（DSH 启动 / 页面加载）时刷一次，运行期**不排**定时器
 		//（判定见 60-helpers.js 的 autoRefreshPlan；0 不再是「关闭」，脏值/负数才是）。
-		// 放最前是因为它最省流量；默认值仍是 1 天（见 DEFAULT_SETTINGS，别跟着改）。
+		// 放最前是因为它最省流量，而且**出厂默认就是这一档**（2026-10-31 起，见 DEFAULT_SETTINGS.refreshMinutes = 0）。
 		const REFRESH_OPTIONS = [
 			{ label: "启动时", minutes: 0 },
 			{ label: "1 天", minutes: 1 * 24 * 60 },
@@ -41,7 +41,9 @@
 		];
 		const DEFAULT_SETTINGS = {
 			autoRefresh: true,
-			refreshMinutes: 1 * 24 * 60,
+			// 出厂默认 = 0（「启动时」）：每次 DSH 启动 / 页面加载刷一轮，运行期不排定时器。
+			// **只改出厂默认，不做老用户迁移**：已经存过 1440 的配置保持 1 天（用户没要求迁移）。
+			refreshMinutes: 0,
 			// 按钮轮播总开关：false = 不轮播、窄侧栏也不出红点。默认开，开箱就能看出"有事要来了"。
 			// 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 里（守卫见 test/cases-rule-lint.mjs）。
 			tickerOn: true,

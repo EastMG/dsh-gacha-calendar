@@ -12,6 +12,11 @@
 // 另外守一条容易回归的地方：版本哨兵**优先于**「启动时」（插件更新时仍走 force），以及 0 档在同一次
 // 挂载里只刷一次（否则升级那一轮会先 force、再命中「启动时刷新」→ 连刷两轮）。
 //
+// 2026-10-31：**出厂默认改成 0（启动时）**（schema 同步改 `default(0)`）。只改出厂默认，
+// **不做老用户迁移**（已存 1440 的保持 1 天）。选项表里「1 天 = 1440」这一档必须保留 ——
+// 用户仍可手选回 1 天，所以 ⑥ 会同时断言"默认是 0"与"选项里还有 1440 这档"。
+// 版本哨兵（首次安装 force）不能被 0 档掩盖 —— 见 ⑬ 的出厂组合用例。
+//
 // 纯函数部分吃固定时刻，不依赖跑测的日期；静态部分读 `src/` 与构建产物（跑前先 `node build.mjs`）。
 
 import { readFileSync } from "node:fs";
@@ -98,7 +103,7 @@ export default function runRefresh() {
 		check("间隔档但 lastRefresh = 0 ⇒ 不 due（交给版本哨兵/首次启动判）", dirtyAt.due === false, JSON.stringify(dirtyAt));
 	}
 
-	// ── ⑥ 静态：REFRESH_OPTIONS 第一项就是「启动时」= 0（逐字），默认值不变 ──
+	// ── ⑥ 静态：REFRESH_OPTIONS 第一项就是「启动时」= 0（逐字），且出厂默认也是 0 ──
 	const cfgSrc = readFileSync(path.join(REPO, "src", "client", "10-config.js"), "utf8");
 	{
 		const m = /const REFRESH_OPTIONS = \[\s*\{\s*label:\s*"([^"]+)",\s*minutes:\s*([^}]+?)\s*\}/.exec(cfgSrc);
@@ -112,17 +117,25 @@ export default function runRefresh() {
 		check("「启动时」排在选项表最前（最省流量的一档）", labels[0] === "启动时", labels.join(","));
 		check("选项表没有重复的 0 档（只有一个「启动时」）",
 			block ? ([...block[1].matchAll(/minutes:\s*0\s*[,}]/g)].length === 1) : false);
-		check("DEFAULT_SETTINGS.refreshMinutes 仍是 1440（1 天，默认值不跟着改）",
-			DEFAULT_SETTINGS.refreshMinutes === 1 * 24 * 60, String(DEFAULT_SETTINGS.refreshMinutes));
+		check("DEFAULT_SETTINGS.refreshMinutes = 0（出厂默认「启动时」，2026-10-31 改）",
+			DEFAULT_SETTINGS.refreshMinutes === 0, String(DEFAULT_SETTINGS.refreshMinutes));
+		// 选项表**不能**跟着删：用户仍可手选回 1 天（1 档 = 1440 分钟），老用户也存着 1440。
+		const optionMinutes = block ? [...block[1].matchAll(/minutes:\s*([^,}]+?)\s*[,}]/g)].map((x) => new Function(`return (${x[1]});`)()) : [];
+		check("选项表里仍保留「1 天」这一档（label 逐字）", labels.includes("1 天"), labels.join(","));
+		check("…… 且它的分钟数仍是 1440（1 * 24 * 60）", optionMinutes.includes(1440), optionMinutes.join(","));
 	}
 
-	// ── ⑦ 静态：宿主 schema 允许 0，且默认仍是 1440 ──
+	// ── ⑦ 静态：宿主 schema 允许 0，且默认已改成 0 ──
 	{
 		const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
-		check("src/index.js schema：refreshMinutes 允许 0（.min(0)）",
-			/refreshMinutes:\s*z\.number\(\)\.min\(0\)\.max\(60480\)\.default\(1440\)\.volatile\(\)/.test(hostSrc));
+		check("src/index.js schema：refreshMinutes 允许 0（.min(0).max(60480)）",
+			/refreshMinutes:\s*z\.number\(\)\.min\(0\)\.max\(60480\)\.default\(0\)\.volatile\(\)/.test(hostSrc));
+		check("…… 默认值是 0（与 DEFAULT_SETTINGS 同口径，两处都是出厂值）",
+			!/refreshMinutes:[^\n]*\.default\(1440\)/.test(hostSrc));
 		check("…… 没有残留 .min(1)（否则设置页写入 0 会被 schema 拒）",
 			!/refreshMinutes:\s*z\.number\(\)\.min\(1\)/.test(hostSrc));
+		check("…… 默认值 0 与 DEFAULT_SETTINGS.refreshMinutes 一致",
+			/default\(0\)\.volatile\(\)/.test(hostSrc) && DEFAULT_SETTINGS.refreshMinutes === 0);
 	}
 
 	// ── ⑧ 静态：设置页「自定义」兜底不会把 0 当自定义 ──
@@ -179,5 +192,35 @@ export default function runRefresh() {
 		const sched = readFileSync(path.join(REPO, "src", "client", "82-schedule-view.js"), "utf8");
 		check("面板底部是「上次更新 X 前」（不写「每 N 天刷新」这类依赖档位的文案）",
 			/"上次更新 " \+ scheduleAgo\(s\.lastRefresh, now\)/.test(sched));
+		// 「启动时」档下这一行照常显示：lastRefresh = 0 走「尚未更新」分支（不假设有固定周期）。
+		const model = readFileSync(path.join(REPO, "src", "client", "81-schedule-model.js"), "utf8");
+		check("…… scheduleAgo 对 lastRefresh = 0 有中性分支（「尚未更新」，不写出固定周期）",
+			/function scheduleAgo\(ts, now\)[\s\S]{0,300}if \(t <= 0\) return "尚未更新";/.test(model));
+	}
+
+	// ── ⑬ 出厂组合：autoRefresh 默认开 + refreshMinutes 默认 0 的首轮行为 ──
+	// 这条守的是"0 档不能把首次安装的 force 掩盖掉"：0 档每次挂载都 due，但**不 force**；
+	// 首次安装（lastVersion 空）/ 插件更新仍然必须先走版本哨兵的 force 分支。
+	{
+		check("出厂组合：DEFAULT_SETTINGS.autoRefresh = true（开）", DEFAULT_SETTINGS.autoRefresh === true, String(DEFAULT_SETTINGS.autoRefresh));
+		check("出厂组合：DEFAULT_SETTINGS.refreshMinutes = 0（启动时）", DEFAULT_SETTINGS.refreshMinutes === 0, String(DEFAULT_SETTINGS.refreshMinutes));
+		// 用默认值**原样**喂给纯判定，不手写 0/true（改默认值时这条会跟着动）
+		const factory = {
+			autoRefresh: DEFAULT_SETTINGS.autoRefresh,
+			refreshMinutes: DEFAULT_SETTINGS.refreshMinutes,
+			now: NOW
+		};
+		// ① lastVersion 为空 = 首次安装 ⇒ force（必须刷新，不能被 0 档"只是启动时"糊过去）
+		const first = autoRefreshPlan({ ...factory, lastVersion: "", lastRefresh: 0, pluginVersion: VERSION });
+		check("出厂组合 + 首次安装（lastVersion 空）⇒ force = true、reason「首次启动」",
+			first.due === true && first.force === true && first.reason === "首次启动", JSON.stringify(first));
+		// ② lastVersion 非空且版本一致 ⇒ 走「启动时刷新」，**不** force
+		const started = autoRefreshPlan({ ...factory, lastVersion: VERSION, lastRefresh: NOW, pluginVersion: VERSION });
+		check("出厂组合 + 版本一致 ⇒ 走「启动时刷新」、不 force",
+			started.due === true && started.force === false && started.reason === "启动时刷新", JSON.stringify(started));
+		// ③ 首次安装时连自动刷新关都不影响 force（哨兵优先）——出厂默认虽然是开，但语义必须独立
+		const firstOff = autoRefreshPlan({ ...factory, autoRefresh: false, lastVersion: "", lastRefresh: 0, pluginVersion: VERSION });
+		check("出厂组合 + 首次安装 + 自动刷新关 ⇒ 仍 force（哨兵不看开关）",
+			firstOff.due === true && firstOff.force === true, JSON.stringify(firstOff));
 	}
 }
