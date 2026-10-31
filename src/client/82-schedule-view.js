@@ -571,30 +571,34 @@
 					] }),
 					scrapeInfo ? (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-scrape", title: (scrapeLines || []).join("\n"), children: scrapeInfo }) : null,
 					(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-when", title: [lastRefreshText, scrapeInfo].concat(scrapeLines || []).filter(Boolean).join("\n"), children: "上次更新 " + scheduleAgo(s.lastRefresh, now) }),
-					// 刷新按钮（2026-10-31 统一规格）：图标与右侧齿轮**同一套** ——
-					//   16×16 / viewBox 0 0 16 16 / strokeWidth 1.5 / stroke 圆头圆角。
+					// 刷新按钮（2026-10-31 二改：**纯图标圆按钮**，与右侧齿轮同一形态）：
+					//   图标仍是齿轮那一套 —— 16×16 / viewBox 0 0 16 16 / strokeWidth 1.5 / stroke 圆头圆角；
+					//   按钮本体 20×20 / 圆形 / 透明底 / hover 淡淡底色，内外边距与居中方式照抄齿轮
+					//   （padding:0 + inline-flex 居中那枚 16px 图标，见 styles/schedule-foot.css）⇒
+					//   点击区就是 20×20（不因去掉文字而变小，也不会比齿轮大）。
 					// 图形仍是原来那枚环形箭头（旧面板 24 网格：`M21 12a9 9 0 1 1-2.64-6.36L21 8`
 					// + 箭头折线 `21 3 21 8 16 8`），这里等比 ×2/3 缩到 16 网格 ⇒ 形状不变、只是规格对齐。
-					// 文字「刷新」保留：按钮仍是文字 pill，只多一枚同套图标（不是纯图标按钮）。
-					// ⚠️ 两边规格由 test/cases-settings-jump.mjs 逐字比对守着，改一边忘了另一边会红。
+					// **不再有「刷新」文字**（用户 2026-10-31：「既有图标又有文字很丑，去掉文字改成一样的圆形图标」）
+					//   ⇒ 名字只能靠 title / aria-label，两者都必须随状态切换（少一个 = 去文字后没名字了）。
+					// 刷新中：没有文字可写「刷新中…」⇒ disabled + aria-busy="true" + 图标旋转
+					//   （`.is-busy` 的 animation 在 styles/schedule-foot.css，keyframes 在 animations.css；
+					//   prefers-reduced-motion: reduce 时只关动画，disabled + aria-busy 照旧表达状态）。
+					// ⚠️ 两边 svg 规格由 test/cases-settings-jump.mjs 逐字比对守着，改一边忘了另一边会红。
 					(0, react_jsx_runtime.jsx)("button", {
-						type: "button", className: "gacha-cal-sched-btn", disabled: refreshing,
-						title: refreshing ? "刷新中..." : "刷新", "aria-label": refreshing ? "刷新中..." : "刷新",
+						type: "button", className: "gacha-cal-sched-btn" + (refreshing ? " is-busy" : ""),
+						disabled: refreshing,
+						title: refreshing ? "刷新中" : "刷新", "aria-label": refreshing ? "刷新中" : "刷新",
+						"aria-busy": refreshing ? "true" : "false",
 						onClick: onRefresh,
-						children: (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
-							children: [
-								(0, react_jsx_runtime.jsx)("svg", {
-									width: "16", height: "16", viewBox: "0 0 16 16", fill: "none",
-									stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round",
-									children: (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
-										children: [
-											(0, react_jsx_runtime.jsx)("path", { d: "M14 8a6 6 0 1 1-1.76-4.24L14 5.333" }),
-											(0, react_jsx_runtime.jsx)("polyline", { points: "14 2 14 5.333 10.667 5.333" })
-										]
-									})
-								}),
-								"刷新"
-							]
+						children: (0, react_jsx_runtime.jsx)("svg", {
+							width: "16", height: "16", viewBox: "0 0 16 16", fill: "none",
+							stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round",
+							children: (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
+								children: [
+									(0, react_jsx_runtime.jsx)("path", { d: "M14 8a6 6 0 1 1-1.76-4.24L14 5.333" }),
+									(0, react_jsx_runtime.jsx)("polyline", { points: "14 2 14 5.333 10.667 5.333" })
+								]
+							})
 						})
 					}),
 					// 设置齿轮：放在「刷新」**右侧**（最外侧，沿底栏现有 flex 排布，不新起一行）。

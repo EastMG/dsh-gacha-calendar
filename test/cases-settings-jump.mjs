@@ -230,9 +230,39 @@ export default async function run() {
 		const rCoords = (refreshBtn.match(/(?:d|points): "([^"]+)"/g) || []).join(" ").match(/-?\d+(?:\.\d+)?/g) || [];
 		check("新面板：刷新图标的坐标在**16 网格**内（没有 24 网格残留）",
 			rCoords.length > 0 && rCoords.every((n) => Number(n) <= 16), rCoords.join(","));
-		check("新面板：「刷新」按钮把图标与文字排成一行（inline-flex + gap，图标不被压扁）",
-			/\.gacha-cal-sched-btn\{[^}]*display:inline-flex[^}]*align-items:center/.test(css) &&
-			/\.gacha-cal-sched-btn svg\{[^}]*flex:0 0 auto/.test(css));
+
+		// ── 纯图标圆按钮（2026-10-31 二改）：去掉「刷新」二字，形态与齿轮一致 ────────────
+		// 用户原话：「既有图标又有文字很丑，去掉文字改成一样的圆形图标」。所以先来一条**反向**
+		// 守卫：按钮片段里只要还留着那 2 个字的 children，下面所有"形态一致"都是白搭 ——
+		// 文字会把 20×20 撑回 pill，齿轮那套尺寸/圆角/居中当场失真。
+		check("新面板：刷新按钮里**不再有**「刷新」文字（children 只剩 svg）",
+			!/children:\s*"刷新"/.test(refreshBtn)
+			&& !/"刷新中\.\.\."/.test(refreshBtn)
+			&& /children: \(0, react_jsx_runtime\.jsx\)\("svg", \{/.test(refreshBtn));
+		// 去掉文字 ⇒ 名字与状态全压在无障碍属性上：title + aria-label 都必须随 refreshing 切换。
+		check("新面板：刷新按钮保留 title（「刷新」/ 忙碌态「刷新中」）",
+			/title: refreshing \? "刷新中" : "刷新"/.test(refreshBtn));
+		check("新面板：刷新按钮保留 aria-label（「刷新」/ 忙碌态「刷新中」）",
+			/"aria-label": refreshing \? "刷新中" : "刷新"/.test(refreshBtn));
+		check("新面板：刷新中 disabled + aria-busy=\"true\"（文字没了也要能读出忙碌）",
+			/disabled: refreshing/.test(refreshBtn) && /"aria-busy": refreshing \? "true" : "false"/.test(refreshBtn));
+		check("新面板：刷新中给按钮挂 is-busy（动画开关，不能只改 title）",
+			/className: "gacha-cal-sched-btn" \+ \(refreshing \? " is-busy" : ""\)/.test(refreshBtn));
+		check("新面板：刷新按钮 20×20 / 圆形 / 透明底 / padding:0（与齿轮同一形态，点击区不缩小）",
+			/\.gacha-cal-sched-btn\{[^}]*width:20px[^}]*height:20px/.test(css)
+			&& /\.gacha-cal-sched-btn\{[^}]*border-radius:999px/.test(css)
+			&& /\.gacha-cal-sched-btn\{[^}]*padding:0/.test(css)
+			&& /\.gacha-cal-sched-btn\{[^}]*background:transparent/.test(css));
+		check("新面板：刷新按钮居中方式与齿轮一致（inline-flex + 居中 + 图标不被压扁）",
+			/\.gacha-cal-sched-btn\{[^}]*display:inline-flex[^}]*align-items:center[^}]*justify-content:center/.test(css)
+			&& /\.gacha-cal-sched-btn svg\{[^}]*flex:0 0 auto/.test(css));
+		check("新面板：hover 仍有淡淡底色（只对可点的按钮给反馈）",
+			/\.gacha-cal-sched-btn:hover:not\(:disabled\)\{[^}]*background:var\(--dsw-alias-interactive-bg-hover/.test(css));
+		check("新面板：忙碌态图标旋转（规则与 keyframes 同名，两条都在）",
+			/\.gacha-cal-sched-btn\.is-busy svg\{animation:gacha-cal-sched-btn-spin 1s linear infinite\}/.test(css)
+			&& /@keyframes gacha-cal-sched-btn-spin\{from\{transform:rotate\(0\)\}to\{transform:rotate\(360deg\)\}\}/.test(css));
+		check("新面板：reduce 下不转（disabled + aria-busy 仍表达状态）",
+			/@media \(prefers-reduced-motion:reduce\)\{[^}]*\.gacha-cal-sched-btn\.is-busy svg\{animation:none\}/.test(css));
 
 		// 父层把动作传进来：先关面板，再走新实现
 		const iProp = shell.indexOf("onOpenSettings: () => {");

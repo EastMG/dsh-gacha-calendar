@@ -8,6 +8,12 @@
 			@keyframes gacha-cal-rise-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 			@keyframes gacha-cal-fade-in{from{opacity:0}to{opacity:1}}
 			@keyframes gacha-cal-shell-in{from{opacity:0}to{opacity:1}}
+			/* 底栏「刷新」按钮的忙碌态旋转（2026-10-31 二改：按钮改成纯图标圆按钮，没有文字可写
+			   「刷新中…」⇒ 由这枚环形箭头自转表达进度；规则在 styles/schedule-foot.css 的
+			   .gacha-cal-sched-btn.is-busy svg）。1s 一圈、linear、无限循环 = 无加速度的匀速转，
+			   与旧面板 .gacha-cal-spin（.8s）同一个观感家族，只是名字按 gacha-cal-* 前缀另起。
+			   ⚠️ 无限循环 ⇒ reduce 时必须 animation:none，见 schedule-foot.css 末尾那段 @media。 */
+			@keyframes gacha-cal-sched-btn-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 			/* ⚠️ 一律用 animation-fill-mode: **backwards**（不是 both/forwards）：
 			   动画跑完后元素必须**回归自然态**，不能一直挂着动画标记 —— 挂着会让 Chromium 给它
 			   独立合成层、改变绘制顺序，展开的探头就会被行盖住（用户 2026-10-16 反馈"可读性被改坏"）。
