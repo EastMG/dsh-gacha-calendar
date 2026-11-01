@@ -211,6 +211,42 @@ export default function runFilter() {
 		check("面板搜索框样式类在 CSS 里（不是死代码）",
 			css.includes(".gacha-cal-sched-find{") && css.includes(".gacha-cal-sched-find-x{"));
 
+		// ── 搜索框前面的放大镜（2026-11-01 用户：「给搜索框前面加个图标」）─────────────────
+		// 实现选的是**方案①**（position:relative 容器 + 绝对定位图标）：.gacha-cal-sched-find
+		// 本来就是 position:relative，所以**连容器都不用新增**，图标绝对定位在输入框内左侧
+		// ⇒ 不参与底栏 flex、底栏高度不变。方案②（flex 兄弟排成一体）要么额外包一层，要么
+		// 让图标变成 flex item —— 两者都会挤掉输入框宽度或改底栏布局，所以不选。
+		// 截出「find 容器开标签 → input 开标签」这段：图标只能出现在这里（= 输入框**前面**）。
+		const iFind = comp.indexOf('className: "gacha-cal-sched-find"');
+		const iFindInput = comp.indexOf('(0, react_jsx_runtime.jsx)("input", {', iFind);
+		const findHead = iFind >= 0 && iFindInput > iFind ? comp.slice(iFind, iFindInput) : "";
+		check("面板：能截出「find 容器 → input」这段（守卫自身没瞎）", findHead.length > 0);
+		check("面板：搜索框前面有放大镜图标（在 .gacha-cal-sched-find 内、input **之前**）",
+			/className: "gacha-cal-sched-find-ic"/.test(findHead));
+		check("面板：搜索图标规格 = 16 viewBox / strokeWidth 1.5 / stroke 圆头圆角 / fill none",
+			/width: "12", height: "12", viewBox: "0 0 16 16", fill: "none"/.test(findHead)
+			&& /stroke: "currentColor", strokeWidth: "1\.5", strokeLinecap: "round", strokeLinejoin: "round"/.test(findHead));
+		check("面板：搜索图标渲染 12×12（比刷新/齿轮的 14 小一档，装饰性量级）",
+			/width: "12", height: "12"/.test(findHead) && !/width: "14"|width: "16"/.test(findHead));
+		check("面板：搜索图标是**装饰**（aria-hidden + focusable=false，不重复朗读）",
+			/"aria-hidden": "true"/.test(findHead) && /focusable: "false"/.test(findHead));
+		check("面板：搜索图标绝对定位在输入框内左侧（不新增容器、不占底栏高度）",
+			/\.gacha-cal-sched-find-ic\{[^}]*position:absolute[^}]*left:6px/.test(css)
+			&& /\.gacha-cal-sched-find-ic\{[^}]*width:12px[^}]*height:12px/.test(css));
+		check("面板：搜索图标用弱化色 var(--dsw-alias-label-tertiary, #9aa1ab)",
+			/\.gacha-cal-sched-find-ic\{[^}]*color:var\(--dsw-alias-label-tertiary,#9aa1ab\)/.test(css));
+		// 点图标能聚焦输入框：图标 pointer-events:none ⇒ 指针**穿过**图标落到下面的 input 上
+		// （原生聚焦）。改成 onClick 聚焦的话这条要一起改成断言接线，别只删这一行。
+		check("面板：点图标能聚焦输入框（图标 pointer-events:none，指针穿透到 input）",
+			/\.gacha-cal-sched-find-ic\{[^}]*pointer-events:none/.test(css));
+		// padding-left 必须把图标让过去：图标占 x∈[6,18]，文字从 1(border)+20=21 起 ⇒ 3px 间隙。
+		check("面板：搜索框 padding-left = 20px（> 图标右沿 18px，文字不被图标压住）",
+			/\.gacha-cal-sched-find input\{[^}]*padding:1px 18px 1px 20px/.test(css));
+		// 加宽 8px 是为了不被 padding-left 吃掉占位文字的空间：
+		// 「搜卡池/角色/活动」11px 字号实测 85.6px，134−2(边框)−20−18 = 94 ⇒ 余量 9.1px。
+		check("面板：搜索框宽 134px（内容宽 94px > 占位文字 85.6px，占位文字不会被切）",
+			/\.gacha-cal-sched-find input\{[^}]*width:134px/.test(css));
+
 		// 只影响显示：轮播仍读**未过滤**的 games
 		check("轮播 memo 仍读未过滤的 games（tickerItemsOf(games, now, tickerHours) 原样）",
 			/\(tickerOn\s*\n\s*\? tickerItemsOf\(games, now, tickerHours\)\s*\n\s*: \[\]\)/.test(comp));

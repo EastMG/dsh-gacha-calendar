@@ -551,6 +551,28 @@
 					//    藏起来只会白白少一个功能；展开/清空都是**瞬时**的，不引入任何动画
 					//    ⇒ prefers-reduced-motion 下无需额外分支。
 					(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-find", children: [
+						// 放大镜（2026-11-01 用户：「给搜索框前面加个图标」）：**leading icon** ——
+						// 绝对定位在输入框**内部**左侧（.gacha-cal-sched-find 本来就是 position:relative），
+						// 所以既没另起容器、也没参与底栏 flex：绝对定位的元素不是 flex item ⇒
+						// 底栏高度一分没涨，输入框宽度也不用为它让位。
+						// 规格与底栏另两枚（刷新 / 齿轮）**同一套**：16 viewBox / strokeWidth 1.5 /
+						// stroke=currentColor / 圆头圆角 / fill:none；只把**渲染尺寸**降到 12×12 ——
+						// 它是输入框里的装饰性提示（不是可点按钮），比刷新/齿轮那两枚再小一档才不抢戏。
+						// 颜色走弱化色 label-tertiary（见 styles/schedule-foot.css 的 .gacha-cal-sched-find-ic）。
+						// 点它 = 点输入框：那条 CSS 给了 pointer-events:none，指针**穿过**图标落到下面的
+						// input 上（原生聚焦、caret 落在点击处）—— 不需要 ref/onClick，也就少一处接线。
+						(0, react_jsx_runtime.jsx)("svg", {
+							className: "gacha-cal-sched-find-ic",
+							width: "12", height: "12", viewBox: "0 0 16 16", fill: "none",
+							stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round",
+							"aria-hidden": "true", focusable: "false",
+							children: (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
+								children: [
+									(0, react_jsx_runtime.jsx)("circle", { cx: "7", cy: "7", r: "4.5" }),
+									(0, react_jsx_runtime.jsx)("path", { d: "M10.4 10.4 13.5 13.5" })
+								]
+							})
+						}),
 						(0, react_jsx_runtime.jsx)("input", {
 							type: "text",
 							value: findQuery,
@@ -572,12 +594,15 @@
 					scrapeInfo ? (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-scrape", title: (scrapeLines || []).join("\n"), children: scrapeInfo }) : null,
 					(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-when", title: [lastRefreshText, scrapeInfo].concat(scrapeLines || []).filter(Boolean).join("\n"), children: "上次更新 " + scheduleAgo(s.lastRefresh, now) }),
 					// 刷新按钮（2026-10-31 二改：**纯图标圆按钮**，与右侧齿轮同一形态）：
-					//   图标仍是齿轮那一套 —— 16×16 / viewBox 0 0 16 16 / strokeWidth 1.5 / stroke 圆头圆角；
-					//   按钮本体 20×20 / 圆形 / 透明底 / hover 淡淡底色，内外边距与居中方式照抄齿轮
-					//   （padding:0 + inline-flex 居中那枚 16px 图标，见 styles/schedule-foot.css）⇒
-					//   点击区就是 20×20（不因去掉文字而变小，也不会比齿轮大）。
+					//   图标仍是齿轮那一套 —— **14×14** / viewBox 0 0 16 16 / strokeWidth 1.5 / stroke 圆头圆角；
+					//   按钮本体 **18×18** / 圆形 / 透明底 / hover 淡淡底色，内外边距与居中方式照抄齿轮
+					//   （padding:0 + inline-flex 居中那枚 14px 图标，见 styles/schedule-foot.css）⇒
+					//   点击区就是 18×18（不因去掉文字而变小，也不会比齿轮大）。
+					// 2026-11-01 用户：「新面板的刷新按钮感觉稍微有一点大」⇒ 20×20 / 16px 整体缩一档到
+					//   18×18 / 14px（**刷新与齿轮一起缩**，两枚逐字相同这条不变量不破）。
 					// 图形仍是原来那枚环形箭头（旧面板 24 网格：`M21 12a9 9 0 1 1-2.64-6.36L21 8`
 					// + 箭头折线 `21 3 21 8 16 8`），这里等比 ×2/3 缩到 16 网格 ⇒ 形状不变、只是规格对齐。
+					//   （渲染尺寸从 16 降到 14 只改显示大小：viewBox 与坐标仍是 16 网格，路径一个字没动。）
 					// **不再有「刷新」文字**（用户 2026-10-31：「既有图标又有文字很丑，去掉文字改成一样的圆形图标」）
 					//   ⇒ 名字只能靠 title / aria-label，两者都必须随状态切换（少一个 = 去文字后没名字了）。
 					// 刷新中：没有文字可写「刷新中…」⇒ disabled + aria-busy="true" + 图标旋转
@@ -591,7 +616,7 @@
 						"aria-busy": refreshing ? "true" : "false",
 						onClick: onRefresh,
 						children: (0, react_jsx_runtime.jsx)("svg", {
-							width: "16", height: "16", viewBox: "0 0 16 16", fill: "none",
+							width: "14", height: "14", viewBox: "0 0 16 16", fill: "none",
 							stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round",
 							children: (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
 								children: [
@@ -605,13 +630,15 @@
 					// **没传 onOpenSettings 就不渲染** —— 组件可脱离 CalendarPanel 复用（离线/预览），
 					// 那里没有"设置页"这个概念，凭空给个点了没反应的按钮更糟。
 					// 图标用 DSH 原生那套 16 viewBox / strokeWidth 1.5 的齿轮（与设置导航同一枚），
+					// 2026-11-01 起**渲染 14×14**（按钮 18×18）—— 与左侧刷新按钮严格同规格、一起缩，
+					// 见上面刷新那段注释；逐字相同这条由 test/cases-settings-jump.mjs 守着。
 					// 点下去 = 80-shared-ui.js 的三步跳转；关闭本面板由父层传进来的动作负责。
 					onOpenSettings ? (0, react_jsx_runtime.jsx)("button", {
 						type: "button", className: "gacha-cal-sched-gear",
 						title: "设置", "aria-label": "设置",
 						onClick: onOpenSettings,
 						children: (0, react_jsx_runtime.jsxs)("svg", {
-							width: "16", height: "16", viewBox: "0 0 16 16", fill: "none",
+							width: "14", height: "14", viewBox: "0 0 16 16", fill: "none",
 							stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round",
 							children: (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
 								children: [

@@ -201,10 +201,10 @@ export default async function run() {
 			/onOpenSettings \? \(0, react_jsx_runtime\.jsx\)\("button", \{\s*type: "button", className: "gacha-cal-sched-gear",[\s\S]*?\}\) : null/.test(foot));
 		check("新面板：齿轮 title/aria-label 都是「设置」",
 			/title: "设置", "aria-label": "设置"/.test(foot));
-		check("新面板：齿轮是 16px / 16 viewBox / strokeWidth 1.5（与底栏图标同一套）",
-			/width: "16", height: "16", viewBox: "0 0 16 16"/.test(gearBtn) && /strokeWidth: "1\.5"/.test(gearBtn));
-		check("新面板：齿轮样式类在 CSS 里有定义（20×20 图标按钮）",
-			/\.gacha-cal-sched-gear\{[^}]*width:20px[^}]*height:20px/.test(css));
+		check("新面板：齿轮是 14px / 16 viewBox / strokeWidth 1.5（与底栏图标同一套）",
+			/width: "14", height: "14", viewBox: "0 0 16 16"/.test(gearBtn) && /strokeWidth: "1\.5"/.test(gearBtn));
+		check("新面板：齿轮样式类在 CSS 里有定义（18×18 图标按钮）",
+			/\.gacha-cal-sched-gear\{[^}]*width:18px[^}]*height:18px/.test(css));
 		check("新面板：齿轮不抢「刷新」的 margin-left:auto（不破坏底栏排布）",
 			!/\.gacha-cal-sched-gear\{[^}]*margin-left:auto/.test(css));
 
@@ -226,6 +226,22 @@ export default async function run() {
 		check("新面板：刷新图标与齿轮**逐字相同**（viewBox / strokeWidth / 渲染尺寸 / stroke / 圆头圆角）",
 			!!rSpec && !!gSpec && JSON.stringify(rSpec) === JSON.stringify(gSpec),
 			`refresh=${JSON.stringify(rSpec)} gear=${JSON.stringify(gSpec)}`);
+		// 2026-11-01：用户觉得刷新按钮"稍微有一点大" ⇒ 这一对**一起**缩一档：
+		//   按钮 20×20 → 18×18，图标 16×16 → 14×14（viewBox 仍是 16 网格、strokeWidth 1.5 不变）。
+		// 下面的断言刻意写成"两段都要命中"，专防"只改了一个"。也顺手钉住 viewBox / strokeWidth
+		// 没被顺手改掉 —— 渲染尺寸变小**不许**去动 16 网格的坐标（动了就是另一枚图标了）。
+		check("新面板：刷新/齿轮的图标都渲染 14×14（两枚逐字相同，2026-11-01 从 16 缩一档）",
+			/width: "14", height: "14"/.test(refreshBtn) && /width: "14", height: "14"/.test(gearBtn)
+			&& !/width: "16", height: "16"/.test(refreshBtn) && !/width: "16", height: "16"/.test(gearBtn));
+		check("新面板：缩尺寸没动网格（两枚 viewBox 仍是 0 0 16 16、strokeWidth 仍是 1.5）",
+			/viewBox: "0 0 16 16"/.test(refreshBtn) && /viewBox: "0 0 16 16"/.test(gearBtn)
+			&& /strokeWidth: "1\.5"/.test(refreshBtn) && /strokeWidth: "1\.5"/.test(gearBtn));
+		check("新面板：两枚按钮都是 18×18（逐字相同，2026-11-01 从 20 缩一档）",
+			/\.gacha-cal-sched-btn\{[^}]*width:18px[^}]*height:18px/.test(css)
+			&& /\.gacha-cal-sched-gear\{[^}]*width:18px[^}]*height:18px/.test(css)
+			&& !/\.gacha-cal-sched-(?:btn|gear)\{[^}]*width:20px/.test(css)
+			&& !/\.gacha-cal-sched-(?:btn|gear)\{[^}]*height:20px/.test(css));
+
 		// 只换 viewBox 不重算路径 ⇒ 24 网格的坐标塞进 16 网格，图标被裁掉一半（最容易漏的一步）。
 		const rCoords = (refreshBtn.match(/(?:d|points): "([^"]+)"/g) || []).join(" ").match(/-?\d+(?:\.\d+)?/g) || [];
 		check("新面板：刷新图标的坐标在**16 网格**内（没有 24 网格残留）",
@@ -248,8 +264,8 @@ export default async function run() {
 			/disabled: refreshing/.test(refreshBtn) && /"aria-busy": refreshing \? "true" : "false"/.test(refreshBtn));
 		check("新面板：刷新中给按钮挂 is-busy（动画开关，不能只改 title）",
 			/className: "gacha-cal-sched-btn" \+ \(refreshing \? " is-busy" : ""\)/.test(refreshBtn));
-		check("新面板：刷新按钮 20×20 / 圆形 / 透明底 / padding:0（与齿轮同一形态，点击区不缩小）",
-			/\.gacha-cal-sched-btn\{[^}]*width:20px[^}]*height:20px/.test(css)
+		check("新面板：刷新按钮 18×18 / 圆形 / 透明底 / padding:0（与齿轮同一形态，点击区不缩小）",
+			/\.gacha-cal-sched-btn\{[^}]*width:18px[^}]*height:18px/.test(css)
 			&& /\.gacha-cal-sched-btn\{[^}]*border-radius:999px/.test(css)
 			&& /\.gacha-cal-sched-btn\{[^}]*padding:0/.test(css)
 			&& /\.gacha-cal-sched-btn\{[^}]*background:transparent/.test(css));
