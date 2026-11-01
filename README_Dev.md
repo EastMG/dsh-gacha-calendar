@@ -109,6 +109,7 @@ dsh-gacha-calendar/
 │   ├── map.json     # 请求 URL → 夹具路径（**入库**）
 │   └── fixtures/    # 真实响应快照（**已入库**（2026-10-18 起），重建方式见 test/README.md）
 ├── tools/           # 守卫脚本：require-publish-consent（发布闸门）/ check-host-allow（来源域名 vs 代理白名单）
+├── archive/         # 历史原型，**不参与构建/运行**（remind = 到期提醒的早期 CLI 原型，见 archive/README.md）
 ├── assets/          # README 截图
 ├── .githooks/       # pre-commit：编码校验 + src/产物一致性
 ├── package.json     # dsh.bundle.patch + dsh.client.inject（DSH 加载规范）
@@ -361,7 +362,7 @@ DSH 官方只承诺 **Windows + macOS**（Linux 有安装产物，但不作硬�
       静态守卫改读 `test/load.mjs` 的 `readComponentsSource()`（拼回原文，断言一条没改）；
    ② 原 `70-styles.js`（CSS 全藏在一个模板字符串里） → 抽成真正的 `styles/*.css`，构建时拼接
       （这条最值：现在"反引号必须恰好 2 个、注释必须配平"，已经踩过两次）；
-      ✅ 2026-10-28 完成：拆成 `src/client/styles/*.css`（先 9 个文件，随后设置页重做又加了 `health.css`，现共 10 个；按原段落注释切、内容原样搬运），
+      ✅ 2026-10-28 完成：拆成 `src/client/styles/*.css`（先 9 个文件；之后 2026-10-28 设置页重做加 `health.css`、2026-10-30 加 `sidebar-footer.css`，现共 **11 个** —— 个数以 `build.mjs` 的 `CSS_ORDER` 为准；按原段落注释切、内容原样搬运），
       `build.mjs` 用独立的 `CSS_ORDER` 拼回 `const STYLE = \`…\`;` —— **`lib/client.js` 逐字节不变**，
       守卫见 `test/cases-ticker.mjs` ⑧（含 CSS_ORDER ↔ styles/ 一一对应）。
    ③ ✅ 2026-10-28 完成：原 `30-game-bwiki.js`（多个游戏的 bwiki 源合集）按文件里**已有的 `//#region` 分段**
@@ -378,17 +379,16 @@ DSH 官方只承诺 **Windows + macOS**（Linux 有安装产物，但不作硬�
    ⑧ **不做** minify（本地加载、收益低，且要引 devDependency，破坏"零依赖 + CI 不装包"）。
 8. **分发/曝光**：`awesome-dsh-plugin` 提 PR；核对 `dshplugin.net` 条目；README 加一张动图；
    `package.json` 补 `keywords`；GitHub 仓库补 topics；npm 页面确认 README 已是最新。
-9. **日期格悬停补失败结论**：新面板**名字格**的悬停已带失败/沿用旧值结论，**日期格**已补上同口径结论（2026-10-28 完成：失败 / 沿用旧值 / 无数据三种情况，正常态不补提示）。
 
 ### 待论证 / 待定
 
-10. **core 独立成仓库**：倾向**暂不**。core 由 `src/client/` 生成、与 UI 交织，拆开要先重构
+9. **core 独立成仓库**：倾向**暂不**。core 由 `src/client/` 生成、与 UI 交织，拆开要先重构
    （fetch/parse 与渲染分离）；而且 npm 上已有独立包 `gacha-calendar-core`，独立仓库的边际收益低。
    等浏览器扩展真正启动时再评估。
-11. **优化滚动手感**：探头 `position:fixed` 与"原生滚轮"的固有矛盾，属"选了体验优先"的已知取舍。
-12. **留白卡循环长度**：当前循环全部在期条目（约 38 条 ≈ 2.5 分钟一轮），是否限长待定。
+10. **优化滚动手感**：探头 `position:fixed` 与"原生滚轮"的固有矛盾，属"选了体验优先"的已知取舍。
+11. **留白卡循环长度**：当前循环全部在期条目（约 38 条 ≈ 2.5 分钟一轮），是否限长待定。
 
-13. **AI 协作署名（提交 trailer）** —— **已研究，存档不启用**。
+12. **AI 协作署名（提交 trailer）** —— **已研究，存档不启用**。
    结论：`Co-Authored-By` 是 GitHub/GitLab **认**的标准 git trailer（提交页显示协作者、计入贡献图；
    邮箱绑定账号才带头像，否则只是名字）。Claude Code 默认加 `Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>`、
    Copilot CLI 也加；**DSH 本体没有这套**，官方署名走 `powered_by_dsh` 徽章（文档/PR 正文）。
@@ -406,4 +406,7 @@ DSH 官方只承诺 **Windows + macOS**（Linux 有安装产物，但不作硬�
 
 - ~~新面板也吃悬停 marquee~~：**已实现**——新面板长名类都包了 `.gacha-cal-inner`，
   `90-plugin.js` 的 marquee 是"面板 + 设置页共用"的全局机制。
-- ~~新版面板的悬停补失败结论~~（部分完成）：名字格已带 `sideFailText` 结论，只剩日期格（见第 9 项）。
+- ~~新版面板的悬停补失败结论~~：**已全部完成**（2026-10-28，日期格见 `scheduleDateHover`）——
+  名字格带 `sideFailText`，日期格补同口径结论（失败 / 沿用旧值 / 无数据三种情况，正常态不补提示）。
+- ✅ **日期格悬停补失败结论**（2026-10-28 完成，commit `b4d680c`；`scheduleDateHover` 在 `81-schedule-model.js`）——
+  原「做（按优先级）」第 9 项，做完后移到本节。

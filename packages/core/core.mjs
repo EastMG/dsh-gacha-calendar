@@ -1482,7 +1482,7 @@
 		// 也不得出现 window / document / fetch / localStorage / 裸 new Date() / 裸 Date.now()
 		// —— build.mjs 的 core 纯净度守卫会查。
 		//
-		// 规则（沿用 tools/remind 的原型，2026-10-27 定稿，别改）：
+		// 规则（沿用 archive/remind 的原型，2026-10-27 定稿，别改）：
 		//   ① 条目分方向：kind=end（结束）/ start（开始），T = 该方向的绝对时刻（毫秒）。
 		//   ② 节点 n ∈ endNodes / startNodes；节点 n 的到期时刻 = T − n 小时。
 		//   ③ now ≥ T − n 且 n 还没发过 ⇒ 候选。
