@@ -13,13 +13,18 @@
 //   ⑦ 版本号 span                 ：**整条 title 删掉**（`.gacha-cal-version` 只显示 vX.Y.Z）
 //   ⑧ 「上次自检 X 前」span       ：三元两个分支都去掉括号里那句「（与面板刷新的时间无关）」
 //
-// 为什么单独成段：这 8 条文案散在「通知身份 / 轮播 / 搜索 / 版本号 / 健康」五个特性里，
+// 2026-11-01 第二轮（同一份合同，用户逐条再删 3 处）：
+//   ⑨ 提醒列空态提示 span         ：**整条 title 删掉**（可见文字「未勾选任何游戏 ⇒ 不提醒」保留）
+//   ⑩ 「只看已启用」label         ：**整条 title 删掉**（label 文字「只看已启用」保留）
+//   ⑪ 健康行 title                ：**删掉第二行**（`\n第四列「上次成功 X 前」= …`），只留 `h.name + " · " + h.text`
+//
+// 为什么单独成段：这 11 条文案散在「通知身份 / 轮播 / 搜索 / 版本号 / 健康」五个特性里，
 // 但它们是**同一份产品文案合同**；改回去、或者删 title 时手一抖留下 `title: ""`，都该在这里红。
 //
 // 三条铁律：
-//   ① **反向守卫**：8 条旧字符串在**生产代码**（`src/` 全部 .js）与**产物**（`lib/client.js`）里都不许再出现；
+//   ① **反向守卫**：11 条旧字符串在**生产代码**（`src/` 全部 .js）与**产物**（`lib/client.js`）里都不许再出现；
 //   ② **正向守卫**：5 条新字符串**逐字**存在，而且确实挂在**对应的那个控件**上（只查"文件里有这句话"太弱）；
-//   ③ **删除型守卫**：②⑥⑦ 的 title 是从**该控件附近的源码切片**里消失的 —— 不是从别处挪走的。
+//   ③ **删除型守卫**：②⑥⑦⑨⑩ 的 title 是从**该控件附近的源码切片**里消失的 —— 不是从别处挪走的。
 //
 // ⚠️ 段数守卫：本文件是 `test/all.mjs` 的第 26 段（README_Dev.md / test/README.md 的「N 段」跟着它走）。
 
@@ -65,7 +70,7 @@ const NEW_COPY = [
 const TITLE_PROP = /\btitle\s*:/;
 
 export default function runSettingsCopy() {
-	section("设置页 title 文案（8 处定稿：5 条改写 + 3 条删除）");
+	section("设置页 title 文案（11 处定稿：5 条改写 + 6 条删除）");
 
 	const comp = readComponentsSource();
 	const lib = readFileSync(LIB_CLIENT, "utf8");
@@ -156,6 +161,50 @@ export default function runSettingsCopy() {
 			slice.length > 0 && !TITLE_PROP.test(slice), slice.slice(0, 120));
 		check("⑦ 版本号仍然由 PLUGIN_VERSION 拼（`children: \"v\" + PLUGIN_VERSION`）",
 			slice.includes('className: "gacha-cal-version"') && slice.includes('children: "v" + PLUGIN_VERSION'));
+	}
+
+	// ── 4b) 第二轮（2026-11-01）：⑨ 提醒列空态 / ⑩ 只看已启用 / ⑪ 健康行 title ──────
+	// 三处都是**删**：⑨⑩ 整条 title 删掉，⑪ 只删 title 的拼接尾巴（第二行）。
+	const ROUND2 = [
+		["⑨ 提醒列空态提示 span", "「提醒」列一个都没勾 ⇒ 到期提醒不会弹任何通知；在每行的「提醒」列勾上才提醒"],
+		["⑩ 只看已启用 label", "只列当前展示中的条目（不写设置）"],
+		["⑪ 健康行 title 第二行", "第四列「上次成功 X 前」= 自检时观察到的该源最近一次成功解析（由「立即检查」观察，不是面板刷新时间）"]
+	];
+	for (const [label, old] of ROUND2) {
+		const inSrc = sources.filter(([, text]) => text.includes(old)).map(([f]) => f);
+		const inLib = lib.includes(old);
+		check(`${label}：旧文案不在生产代码里（src/ 与 lib/client.js）`,
+			inSrc.length === 0 && !inLib,
+			JSON.stringify({ src: inSrc, lib: inLib }));
+	}
+	{
+		// ⑨ 切片 = 「白名单为空」判定 → 空态 span 的可见文字。删的是 title，文字必须还在。
+		const m = /SHOW_REMIND_COLUMN && remindIds\.length === 0[\s\S]{0,300}?children: "未勾选任何游戏 ⇒ 不提醒"/.exec(comp);
+		const slice = m ? m[0] : "";
+		check("⑨ 提醒列空态 span 能定位到源码切片（守卫自身没瞎）", slice.length > 0);
+		check("⑨ 空态 span 的 title 整条删掉（切片里没有 title:）", slice.length > 0 && !TITLE_PROP.test(slice));
+		check("⑨ 可见文字保留：仍是「未勾选任何游戏 ⇒ 不提醒」，且只在 SHOW_REMIND_COLUMN + 空数组时渲染",
+			slice.includes('children: "未勾选任何游戏 ⇒ 不提醒"')
+			&& slice.includes("SHOW_REMIND_COLUMN && remindIds.length === 0"));
+	}
+	{
+		// ⑩ 切片 = 「只看已启用」那个 label 对象字面量（从 ("label", { 到 label 里的 span 文字）。
+		const m = /\(0, react_jsx_runtime\.jsxs\)\("label", \{[\s\S]{0,700}?children: "只看已启用"/.exec(comp);
+		const slice = m ? m[0] : "";
+		check("⑩「只看已启用」label 能定位到源码切片（守卫自身没瞎）", slice.length > 0);
+		check("⑩ label 的 title 整条删掉（切片里没有 title:）", slice.length > 0 && !TITLE_PROP.test(slice));
+		check("⑩ label 文字与行为保留：children「只看已启用」+ 受控 onlyShown",
+			slice.includes('children: "只看已启用"') && slice.includes("checked: onlyShown")
+			&& slice.includes("setOnlyShown(e.target.checked)"));
+	}
+	{
+		// ⑪ 健康行 title：只剩 `h.name + " · " + h.text`，第二行（\n第四列…）不许再出现。
+		const TITLE_EXPR = 'title: h.name + " · " + h.text,';
+		check("⑪ 健康行 title 逐字是 `title: h.name + \" · \" + h.text,`（src + 产物）",
+			comp.includes(TITLE_EXPR) && lib.includes(TITLE_EXPR));
+		check("⑪ title 里不再有 `\\n第四列` 那段拼接（src 与 lib/client.js 都没有）",
+			comp.indexOf('"\\n第四列') < 0 && lib.indexOf('"\\n第四列') < 0
+			&& comp.indexOf('h.text + "') < 0);
 	}
 
 	// ── 5) 格式守卫：删属性不许留下空壳 / 连续逗号，产物必须还能解析 ──────────────

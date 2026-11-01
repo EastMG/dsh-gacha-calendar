@@ -859,9 +859,9 @@ export default async function runHealth() {
 		check("全正常时汇总行只有「N 个来源」（「尚未刷新」也已删除，健康卡不提刷新）",
 			/: healthKnown\.length \+ " 个来源";/.test(comp)
 			&& comp.indexOf("尚未刷新") < 0);
-		check("第四列 title 写明语义：自检时观察到的该源最近一次成功解析，不是面板刷新时间",
-			/title: h\.name \+ " · " \+ h\.text \+ "\\n第四列「上次成功 X 前」/.test(card)
-			&& /由「立即检查」观察，不是面板刷新时间/.test(card));
+		check("第四列 title 只剩「名字 · 说明」（2026-11-01 用户定稿：`\\n第四列…` 那段第二行已删）",
+			/title: h\.name \+ " · " \+ h\.text,/.test(card)
+			&& card.indexOf("第四列「上次成功 X 前」") < 0);
 
 		// ── 静态反向守卫（用户 2026-10-28 反馈：健康卡里还有"刷新"痕迹 = 没真解耦）──
 		// 切片 = 「来源健康」注释/变量区 + 整块健康卡 JSX。这段里**不许**出现 `lastRefresh`
