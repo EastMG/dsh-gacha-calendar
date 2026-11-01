@@ -208,6 +208,21 @@
 				.catch(() => fail(SETTINGS_JUMP_STEP_ACCOUNT, SETTINGS_JUMP_REASON_ACCOUNT));
 		}
 
+		// ── 搜索框外壳「点哪儿都聚焦输入框」（设置页「游戏列表」搜索框，2026-11-01 真机修版）──
+		// 为什么需要：放大镜与 input 现在是**并排**的两个 flex 子项（图标不再压在 input 上方），
+		//   图标上的 pointer-events:none 只会把点击交给**外壳**，穿透不到 input ⇒ 光靠它点图标不再聚焦
+		//   （旧版图标绝对定位在 input 上面，穿透才成立；改并排后这条前提没了）。
+		//   也不把图标做成按钮：它是装饰（aria-hidden），点它 = 点输入框，不该多出一个 tab 停靠点。
+		// 做法：外壳的 onMouseDown 把焦点转给内部 input；点在 input 自己身上时**不抢**
+		//   （否则 preventDefault 会吃掉光标定位）。返回值 = 是否真的转交了焦点，方便用例断言。
+		function focusInputOnShellMouseDown(e) {
+			if (!e || !e.currentTarget || typeof e.currentTarget.querySelector !== "function") return false;
+			const el = e.currentTarget.querySelector("input");
+			if (!el || e.target === el || typeof el.focus !== "function") return false;
+			if (typeof e.preventDefault === "function") e.preventDefault();
+			try { el.focus(); return true; } catch (err) { return false; }
+		}
+
 		// ── 浏览器侧"下载一段文本"（排期导出 .ics 用，待办第 5 项）──
 		// 为什么走 Blob + a[download] 而不是新增宿主路由：`.ics` 只是**一次性快照**，
 		// 走一条 HTTP 路由等于平白多一处要鉴权、要防 SSRF/目录穿越的公开面（本项目已有 4 条路由），

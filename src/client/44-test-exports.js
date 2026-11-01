@@ -506,6 +506,9 @@
 			// ⚠️ 它们是**函数声明**（80 段排在本段之后，靠提升可见）；理由同上面 isExpiringSoon。
 			settingsJumpPickOf,
 			settingsJumpPlanOf,
+			// 设置页搜索框「点外壳 = 聚焦内部 input」（80-shared-ui.js）：并排结构下 pointer-events:none
+			// 只把点击交给外壳，穿透不到 input ⇒ 靠这个 onMouseDown 转交焦点（见 cases-filter.mjs）。
+			focusInputOnShellMouseDown,
 			// 排期导出 .ics（待办第 5 项，60-helpers.js 的纯函数）：
 			//   icsEventsOf —— 条目 + 上一轮抓取结果 + now ⇒ { events, skipped }（"在期"只有这一处判定）；
 			//   icsOf       —— 事件清单 + 生成时刻 ⇒ **逐字节确定**的 iCalendar 文本（CRLF / 75 octets 折行 /

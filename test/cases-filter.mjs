@@ -14,7 +14,8 @@
 //   ⑥ 接线（静态）：两个搜索框都真的绑了状态、空结果文案在、**搜索不落盘**；
 //      轮播 memo 仍读**未过滤**的 games（过滤只影响显示）；
 //      两个搜索框的放大镜（2026-11-01：底栏 + 设置页，**同一套** 16 viewBox / 1.5 / 12×12 规格；
-//      设置页那行原本没有包裹层 ⇒ 新包一层，行高逐像素不变）;
+//      设置页那颗 2026-11-01 真机修版改成「外壳 + 图标 + 无边框 input」并排，物理上不可能与文字重叠，
+//      外壳仍是 128×20 ⇒ 行高与换行点逐像素不变）;
 //   ⑦ 数据事实：`SOURCES` 里没有可靠的地区字段 ⇒ 本次**跳过分组**（加字段时要回来补这一条）。
 //
 // ⚠️ 「分组（国服/日服/国际服）」刻意**没做**：`registerSource` 的字段只有
@@ -32,6 +33,7 @@ import { T, REPO, readStylesSource, readComponentsSource } from "./load.mjs";
 const {
 	searchNorm, searchTokens, searchHit,
 	settingsGamesFilter, panelEntryHit, panelGamesFilter,
+	focusInputOnShellMouseDown,
 	SOURCES
 } = T;
 
@@ -249,25 +251,35 @@ export default function runFilter() {
 		check("面板：搜索框宽 134px（内容宽 94px > 占位文字 85.6px，占位文字不会被切）",
 			/\.gacha-cal-sched-find input\{[^}]*width:134px/.test(css));
 
-		// ── 设置页「游戏列表」搜索框的放大镜（2026-11-01，与底栏那颗**同一套**）───────────
-		// 与底栏那次的差别只在**容器**：底栏的 .gacha-cal-sched-find 早就在（position:relative），
-		// 设置页这一行原本**没有包裹层**（input 直接是 flex 子项）⇒ 新包一层 .gacha-cal-set-find，
-		// 并把原来挂在 input 上的 flex:0 1 128px / min-width:84px **原样搬到包裹层**；
-		// input 改成 width:100% + box-sizing:border-box 填满它。两边都靠「绝对定位的图标不是
-		// flex item」+「包裹层 display:flex ⇒ 没有行盒」保证这一行高度一分不涨 —— 设置页已经很长，
-		// "别变长"是硬要求。
-		// 静态预览实测（产物 CSS + 同款 DOM + 宿主 preflight，Playwright/Chromium）：
-		//   改动前 行高 20 / input 128×20 / 组宽 264；改动后 **完全相同**；12×12 图标占输入框
-		//   x∈[6,18]、文字从 20.67 起（3px 级间隙）、垂直居中偏差 0、图标中心 elementFromPoint
-		//   拿到的是 INPUT（pointer-events:none 真的穿透）。
-		// 占位文字「搜游戏名」11px 实测 44.0px，内容宽 128−2−20−6 = 100.67 ⇒ 余量 56.67px ≫ 5px，
-		// 所以宽度**保持 128px 不加宽**（底栏那次只差 0.4px 才必须加宽）。
+		// ── 设置页「游戏列表」搜索框的放大镜（2026-11-01 **真机修版**：图标与 input **并排**）──────────
+		// 旧版（96f5db0）是「图标绝对定位 + input 的 padding-left:20px 把文字挤开」。真机上文字仍被放大镜压住，
+		//   根因**不在宿主**：input 上挂了行内 `{ ...inputStyle, fontSize: 11 }`，而 inputStyle 自带
+		//   padding:"2px 6px" ⇒ 行内优先级压过类规则里的 `padding:2px 6px 2px 20px`，文字实际从 6px 起，
+		//   图标却占 x∈[6,18] ⇒ 必然叠住。行内样式宿主管不到 ⇒「靠 input 的 padding 避让」这条路本身就是错的。
+		// 现在改成**并排**：外壳接边框/圆角/背景/128×20，图标与 input 都是外壳的 flex 子项 ⇒ 各占各的盒子，
+		//   padding 只会在自己的盒子内挪字，**物理上不可能**再叠到图标底下（宿主给 input 加 padding 也一样）。
+		// 真机式静态预览（宿主真实 frontend index/vendor CSS + 主题 token CSS + 本插件 CSS，Playwright/Chromium，
+		//   DPR 4）实测：
+		//     旧结构 图标右沿 120.67 / 文字起始 109.33 ⇒ gap = **−11.33px**（压住）；
+		//     新结构 图标右沿 121.33 / 文字起始 124.33 ⇒ gap = **+3.00px**；
+		//   外壳仍是 128×20（旧 input 同为 128×20）、左组高 21.33 与行高 22 / 420px 下 51.33 **两项完全相同**
+		//   ⇒ 换行点与改动前一模一样。
 		const iSetFind = comp.indexOf('className: "gacha-cal-set-find"');
-		const iSetInput = comp.indexOf('(0, react_jsx_runtime.jsx)("input", {', iSetFind);
+		const iSetInput = comp.indexOf('className: "gacha-cal-set-find-in"', iSetFind);
+		const iSetOnChange = comp.indexOf('onChange: (e) => setGameQuery(e.target.value)', iSetInput);
 		const setHead = iSetFind >= 0 && iSetInput > iSetFind ? comp.slice(iSetFind, iSetInput) : "";
-		check("设置页：能截出「包裹层 → input」这段（守卫自身没瞎）", setHead.length > 0, `i=${iSetFind} end=${iSetInput}`);
-		check("设置页：搜索框前面有放大镜（在 .gacha-cal-set-find 内、input **之前**）",
-			/className: "gacha-cal-set-find-ic"/.test(setHead));
+		const setInputAttrs = iSetInput >= 0 && iSetOnChange > iSetInput ? comp.slice(iSetInput, iSetOnChange) : "";
+		check("设置页：能截出「外壳 → input」这段（守卫自身没瞎）", setHead.length > 0, `i=${iSetFind} end=${iSetInput}`);
+		check("设置页：能截出 input 的属性块（守卫自身没瞎）", setInputAttrs.length > 0, `len=${setInputAttrs.length}`);
+		// 结构：外壳是 <span>（并排容器，不再是"绝对定位的定位上下文"），挂 onMouseDown 把点击转成聚焦。
+		check("设置页：外壳 = <span class=\"gacha-cal-set-find\"> + onMouseDown 焦点转交",
+			/jsxs\)\("span", \{[^}]*className: "gacha-cal-set-find"[^}]*onMouseDown: focusInputOnShellMouseDown/.test(comp));
+		check("设置页：外壳里是 svg + input 两个子元素（放大镜在 input **之前**）",
+			/className: "gacha-cal-set-find-ic"/.test(setHead) && iSetInput > iSetFind
+			&& /className: "gacha-cal-set-find-in"/.test(setInputAttrs));
+		// input 上**不挂 style**：旧版就是被行内 inputStyle 的 padding 盖掉类规则（这也是真机 bug 的根因）。
+		check("设置页：input 行内**完全不挂 style**（边框/内边距/字号全靠类规则 + font:inherit）",
+			!/\bstyle:/.test(setInputAttrs), setInputAttrs.replace(/\s+/g, " ").slice(0, 160));
 		const setIcon = setHead.slice(Math.max(0, setHead.indexOf('className: "gacha-cal-set-find-ic"')));
 		check("设置页：放大镜规格 = 12×12 / viewBox 0 0 16 16 / fill none / stroke currentColor + 1.5 圆头圆角",
 			/width: "12", height: "12", viewBox: "0 0 16 16", fill: "none"/.test(setIcon)
@@ -289,51 +301,78 @@ export default function runFilter() {
 			`set=${JSON.stringify(setSpec)} panel=${JSON.stringify(pnlSpec)}`);
 		check("设置页：放大镜的图形也照抄底栏那枚（circle 7,7 r4.5 + 斜柄 M10.4 10.4 13.5 13.5）",
 			/cx: "7", cy: "7", r: "4\.5"/.test(setIcon) && /d: "M10\.4 10\.4 13\.5 13\.5"/.test(setIcon));
-		check("设置页：放大镜绝对定位在输入框内左侧（position:absolute / left:6px / 12×12）",
-			/\.gacha-cal-set-find-ic\{[^}]*position:absolute[^}]*left:6px[^}]*width:12px[^}]*height:12px/.test(css));
+		// ── 外壳：接管旧 input 的外观与 128×20 约束 ─────────────────────────────────────────
+		check("设置页：外壳是 flex 容器（display:flex + align-items:center ⇒ 图标与 input 并排、垂直居中）",
+			/\.gacha-cal-set-find\{[^}]*display:flex[^}]*align-items:center/.test(css));
+		check("设置页：外壳扛着原 input 的宽度约束（flex:0 1 128px + min-width:84px + box-sizing:border-box）",
+			/\.gacha-cal-set-find\{[^}]*flex:0 1 128px/.test(css)
+			&& /\.gacha-cal-set-find\{[^}]*min-width:84px/.test(css)
+			&& /\.gacha-cal-set-find\{[^}]*box-sizing:border-box/.test(css));
+		check("设置页：外壳高 20px（与旧 input 真机实测 20.00 同值，这一行不会变高）",
+			/\.gacha-cal-set-find\{[^}]*height:20px/.test(css));
+		check("设置页：外壳接管旧 input 的外观（边框 label-l2 / 圆角 6 / 背景 bg-base / 左内边距 6）",
+			/\.gacha-cal-set-find\{[^}]*border:1px solid var\(--dsw-alias-border-l2/.test(css)
+			&& /\.gacha-cal-set-find\{[^}]*border-radius:6px/.test(css)
+			&& /\.gacha-cal-set-find\{[^}]*background:var\(--dsw-alias-bg-base/.test(css)
+			&& /\.gacha-cal-set-find\{[^}]*padding-left:6px/.test(css));
+		check("设置页：外壳获得焦点时有反馈（:focus-within 改边框色，用宿主 input 同款 state-business-primary）",
+			/\.gacha-cal-set-find:focus-within\{[^}]*border-color:var\(--dsw-alias-state-business-primary/.test(css));
+		check("设置页：焦点环跟随 --dsw-* 变量（--dsw-focus-ring-* 宿主没定义 ⇒ 2px 兜底，不给空值就失效）",
+			/\.gacha-cal-set-find:focus-within\{[^}]*outline:var\(--dsw-focus-ring-width,2px\) solid var\(--dsw-focus-ring-color/.test(css));
+		// ── 图标：在流里（不是绝对定位）⇒ 不参与重叠 ────────────────────────────────────────
+		check("设置页：放大镜**在流里**（flex:none，不再是 position:absolute）",
+			/\.gacha-cal-set-find-ic\{[^}]*flex:none/.test(css)
+			&& !/\.gacha-cal-set-find-ic\{[^}]*position:absolute/.test(css));
+		check("设置页：放大镜 12×12 + margin-right:3px（3px 就是旧版「图标右沿 18 → 文字 21」那个间隙）",
+			/\.gacha-cal-set-find-ic\{[^}]*width:12px/.test(css)
+			&& /\.gacha-cal-set-find-ic\{[^}]*height:12px/.test(css)
+			&& /\.gacha-cal-set-find-ic\{[^}]*margin-right:3px/.test(css));
 		check("设置页：放大镜用弱化色 var(--dsw-alias-label-tertiary,#9aa1ab)（与底栏同色）",
 			/\.gacha-cal-set-find-ic\{[^}]*color:var\(--dsw-alias-label-tertiary,#9aa1ab\)/.test(css));
-		// 点图标能聚焦输入框：图标 pointer-events:none ⇒ 指针**穿过**图标落到下面的 input 上。
-		// 改成 onClick 聚焦的话这条要一起改成断言接线，别只删这一行。
-		check("设置页：点图标 = 点输入框（图标 pointer-events:none，指针穿透到 input，原生聚焦）",
+		check("设置页：点图标能聚焦输入框（图标 pointer-events:none，指针交给外壳 ⇒ 外壳 onMouseDown 转交）",
 			/\.gacha-cal-set-find-ic\{[^}]*pointer-events:none/.test(css));
-		// 包裹层必须**接管**原来 input 的宽度约束，否则外层那行 flex 的换行点会变。
-		check("设置页：包裹层接管原 input 的宽度约束（flex:0 1 128px + min-width:84px）",
-			/\.gacha-cal-set-find\{[^}]*flex:0 1 128px/.test(css)
-			&& /\.gacha-cal-set-find\{[^}]*min-width:84px/.test(css));
-		check("设置页：input 改成 width:100% + box-sizing:border-box（填满包裹层，兼容旧行内 max-width:100%）",
-			/\.gacha-cal-set-find input\{[^}]*box-sizing:border-box[^}]*width:100%/.test(css));
-		// padding-left 20px：图标占 x∈[6,18]，文字从 1(border)+20=21 起 ⇒ 3px 间隙（与底栏同一组数）。
-		check("设置页：input padding-left = 20px（> 图标右沿 18px，文字不被图标压住）",
-			/\.gacha-cal-set-find input\{[^}]*padding:2px 6px 2px 20px/.test(css));
-		// ⚠️ 反向守卫：padding / flex / width 一旦回到 input 的行内 style，会**盖掉**上面那条类规则
-		// （行内优先级更高，inputStyle 自带 padding:"2px 6px"）⇒ padding-left:20px 直接失效。
-		const iSetOnChange = comp.indexOf('onChange: (e) => setGameQuery(e.target.value)', iSetInput);
-		const setInputAttrs = iSetInput >= 0 && iSetOnChange > iSetInput ? comp.slice(iSetInput, iSetOnChange) : "";
-		check("设置页：能截出 input 的属性块（守卫自身没瞎）", setInputAttrs.length > 0, `len=${setInputAttrs.length}`);
-		check("设置页：input 行内不再写 padding / flex / width（否则盖掉类规则，padding-left:20px 失效）",
-			/\bpadding:/.test(setInputAttrs) === false && /\bflex:/.test(setInputAttrs) === false && /\bwidth:/.test(setInputAttrs) === false,
-			setInputAttrs.replace(/\s+/g, " ").slice(0, 160));
-		// 行高不变（"别变长"）：①包裹层 display:flex + align-items:center ⇒ 没有行盒
-		// （inline-block 的 input 当 flex 子项时才可能多出基线以下的余量）②包裹层自己不设
-		// height / min-height / padding ③图标绝对定位、不是 flex item ④input 竖直内边距仍是 2px
-		// （高度 = 16 行高 + 4 + 2 边框 = 22px，与改动前逐像素相同）。
-		check("设置页：包裹层 display:flex + align-items:center（没有行盒 ⇒ 高度 = input 高度）",
-			/\.gacha-cal-set-find\{[^}]*display:flex[^}]*align-items:center/.test(css));
-		check("设置页：包裹层不给自己加 height / min-height / padding（这一行高度只能由 input 决定）",
-			!/\.gacha-cal-set-find\{[^}]*\bheight:/.test(css)
-			&& !/\.gacha-cal-set-find\{[^}]*min-height:/.test(css)
-			&& !/\.gacha-cal-set-find\{[^}]*padding:/.test(css));
-		check("设置页：图标用绝对定位 + top:50%（不是 flex item ⇒ 不占输入框宽度、不改行高）",
-			/\.gacha-cal-set-find-ic\{[^}]*position:absolute/.test(css)
-			&& /\.gacha-cal-set-find-ic\{[^}]*top:50%/.test(css));
-		check("设置页：input 竖直内边距仍是 2px 且没另设 line-height（22px 行高逐像素不变）",
-			/\.gacha-cal-set-find input\{[^}]*padding:2px 6px 2px 20px/.test(css)
-			&& !/\.gacha-cal-set-find input\{[^}]*line-height:/.test(css));
-		// 这一行**没有**「× 清空」按钮（有× 的是底栏 .gacha-cal-sched-find-x）⇒ 不存在与放大镜抢位置。
+		check("设置页：图标上不再有 transform（旧的 translateY 垂直居中 hack 删除，flex 直接居中）",
+			!/\.gacha-cal-set-find-ic\{[^}]*transform/.test(css));
+		// ── input：只当"纯文字层"，不再承担任何布局 ────────────────────────────────────────
+		check("设置页：input 是 flex 子项（flex:1 1 auto + min-width:0，文字层不会被挤成负宽）",
+			/\.gacha-cal-set-find-in\{[^}]*flex:1 1 auto/.test(css)
+			&& /\.gacha-cal-set-find-in\{[^}]*min-width:0/.test(css));
+		check("设置页：input 无边框/无背景/padding:0（不再靠 input 的 padding 避让）",
+			/\.gacha-cal-set-find-in\{[^}]*border:none/.test(css)
+			&& /\.gacha-cal-set-find-in\{[^}]*background:transparent/.test(css)
+			&& /\.gacha-cal-set-find-in\{[^}]*padding:0[;}]/.test(css));
+		check("设置页：input 高度撑满外壳且字号/字色跟随宿主（height:100% + font:inherit + color:inherit）",
+			/\.gacha-cal-set-find-in\{[^}]*height:100%/.test(css)
+			&& /\.gacha-cal-set-find-in\{[^}]*font:inherit/.test(css)
+			&& /\.gacha-cal-set-find-in\{[^}]*color:inherit/.test(css));
+		check("设置页：input 自己 :focus 不再画 outline（否则外壳里又多一个框）",
+			/\.gacha-cal-set-find-in:focus\{[^}]*outline:none/.test(css));
+		// ── 反向守卫：不许退回旧结构 / 旧避让 ──────────────────────────────────────────────
+		check("设置页：不再有「图标 absolute + input padding-left:20px」那套旧组合",
+			!/position:absolute/.test(css.slice(css.indexOf(".gacha-cal-set-find"), css.indexOf(".gacha-cal-set-find-in:focus")))
+			&& !/padding:2px 6px 2px 20px/.test(css));
+		check("设置页：不再有旧选择器 `.gacha-cal-set-find input{...}`（input 的新规则只认 -in 类）",
+			!/\.gacha-cal-set-find input\{/.test(css));
 		check("设置页：这一行没有「× 清空」按钮 ⇒ 与放大镜不冲突（清空走 Esc）",
 			comp.includes('onKeyDown: (e) => { if (e.key === "Escape") setGameQuery(""); }')
 			&& !/gacha-cal-set-find-x/.test(comp));
+		// ── 行为：外壳 onMouseDown ⇒ 焦点转给内部 input ─────────────────────────────────────
+		{
+			let focused = 0, prevented = 0;
+			const input = { focus: () => { focused++; } };
+			const shell = { querySelector: (sel) => (sel === "input" ? input : null) };
+			const evShellClick = { currentTarget: shell, target: shell, preventDefault: () => { prevented++; } };
+			const evInputClick = { currentTarget: shell, target: input, preventDefault: () => { prevented++; } };
+			const evNoInput = { currentTarget: { querySelector: () => null }, target: {}, preventDefault: () => {} };
+			check("点外壳/图标 ⇒ 把焦点转给内部 input（preventDefault + focus 各一次）",
+				focusInputOnShellMouseDown(evShellClick) === true && focused === 1 && prevented === 1);
+			check("点在 input 自己身上**不抢**（不 preventDefault，光标定位不受影响）",
+				focusInputOnShellMouseDown(evInputClick) === false && focused === 1 && prevented === 1);
+			check("找不到 input / 事件残缺时安全返回 false（不抛）",
+				focusInputOnShellMouseDown(evNoInput) === false
+				&& focusInputOnShellMouseDown(null) === false
+				&& focusInputOnShellMouseDown({}) === false);
+		}
 
 		// 只影响显示：轮播仍读**未过滤**的 games
 		check("轮播 memo 仍读未过滤的 games（tickerItemsOf(games, now, tickerHours) 原样）",
