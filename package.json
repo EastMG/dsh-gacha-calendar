@@ -45,7 +45,7 @@
   "scripts": {
     "build": "node build.mjs",
     "check": "node build.mjs --check",
-    "prepare": "git config core.hooksPath .githooks || true",
+    "setup:hooks": "git config core.hooksPath .githooks || true",
     "prepublishOnly": "node build.mjs --check",
     "guard:publish": "node tools/require-publish-consent.mjs",
     "publish:core": "node tools/require-publish-consent.mjs && node build.mjs && npm publish ./packages/core",

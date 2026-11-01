@@ -11,7 +11,7 @@
 # (EF BB BF). It protects .json (plugin manifests) plus other text types.
 #
 # Activation (one time per clone, repo-local):
-#   git config core.hooksPath .githooks
+#   npm run setup:hooks        # 等价于 git config core.hooksPath .githooks
 # Skip for a single commit if ever needed:
 #   DSH_SKIP_BOM_CHECK=1 git commit ...      # 只跳过 BOM 检查
 #   DSH_SKIP_BUILD_CHECK=1 git commit ...    # 只跳过 src/lib 一致性检查
