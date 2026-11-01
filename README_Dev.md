@@ -201,7 +201,7 @@ DSH 官方只承诺 **Windows + macOS**（Linux 有安装产物，但不作硬�
 |---|---|---|---|
 | 面板 / 刷新 / 设置 / 快照接口 | ✅ | ✅ | ✅（浏览器侧 + 同源 HTTP，与平台无关） |
 | 到期提醒送达 | WinRT toast（内联 PowerShell 5.1 + AUMID） | 系统通知：`osascript -e 'display notification …'`（系统自带，零额外依赖） | ❌ 只记日志（状态按已发落盘，不会每轮重试刷日志） |
-| 通知身份（自定义横幅应用名） | ✅ 开始菜单 `.lnk` + `AppUserModelID` | ❌ 不需要（设置页显示「系统通知」并灰掉按钮） | ❌ 同 macOS |
+| 通知身份（自定义横幅应用名） | ✅ 开始菜单 `.lnk` + `AppUserModelID` | ❌ 不需要（设置页显示「系统通知」并灰掉按钮） | ❌ 无此概念 —— **且整条送达链路不存在**（`notifyChannelOf` 返回 `none`，只记日志） |
 | 状态 / 日志目录 | `%LOCALAPPDATA%\dsh-gacha-calendar` | `~/Library/Application Support/dsh-gacha-calendar` | `$XDG_DATA_HOME/dsh-gacha-calendar` 或 `~/.local/share/dsh-gacha-calendar` |
 
 几条实现约定（改这块之前先看）：
