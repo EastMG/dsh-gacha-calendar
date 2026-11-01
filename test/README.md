@@ -30,6 +30,7 @@ node test/all.mjs     # 离线门禁（走夹具）——这是门禁
 | `all.mjs` | 统一门禁 |
 | `cases-*.mjs` | 各段用例（25 个：13 个批次 + `cases-rule-lint` 规则守卫 + `cases-tz` 时区口径 + `cases-ticker` 侧栏轮播 + `cases-remind` 到期提醒 + `cases-health` 来源健康 + `cases-readme` 结构图守卫 + `cases-core` core 守卫 + `cases-star` 设置页标题行（版本号 + Star 指引）+ `cases-filter` 搜索与筛选（设置页搜游戏名/只看已启用 + 面板按卡池·角色名过滤）+ `cases-ics` 排期导出 .ics（快照 / 折行 / 转义 / 在期判定）+ `cases-refresh` 刷新频率「启动时」档（`refreshMinutes=0` 的判定 / 定时器 / 设置页 / schema / 一次性迁移（**无条件**迁到 0）+ 待废弃标记守卫）+ `cases-settings-jump` 设置入口（三步跳转的纯判定 + 两个面板的齿轮静态守卫）） |
 | `capture.mjs` / `capture-p8.mjs` | 抓真实响应存夹具 |
+| `ui/` | **UI 渲染验证 harness**（`npm run test:ui`）：真 Chromium 里按真实产物 CSS 做几何断言。**不在默认门禁里**，见文末那节 |
 | `map.json` | URL → 夹具 的映射索引（**已入库**） |
 | `fixtures/` | 真实响应快照（**已入库**，约 14MB；重建/刷新见下） |
 
@@ -105,3 +106,40 @@ node test/capture.mjs <夹具名> <真实url> [referer]
    → 起止补 `04:00 / 03:59`，属**推算**。
 3. **「无当期内容」不是 bug**：抓取器能正常抓到页面，但页面里没有覆盖当前时刻的档期
    → 按插件语义**如实返回 `null`（未公布）**，**不硬凑过期档期**。
+
+## UI 渲染验证 harness（`test/ui/`）—— **不在默认门禁里**
+
+```bash
+npm run test:ui     # = node test/ui/harness.mjs
+```
+
+前面那些用例都是"在构建产物里 grep 文本"，抓不到**几何**问题 —— 最近几个 bug 全是这类：
+侧栏底栏三行间距不匀（14px vs 8px）＋横向滚动条、设置页搜索框的放大镜与占位文字**重叠**
+（行内 style 的 padding 压过类规则）、新面板刷新图标偏大。于是有了这一套：把上面这些问题变成
+一条命令能跑的断言。
+
+它怎么工作（关键：量的是**真实 CSS 布局结果**，不是 CSS 文本）：
+
+1. 按 `build.mjs` 的 `CSS_ORDER` 拼出 `src/client/styles/*.css` 的**真实产物 CSS**（顺序即层叠顺序）；
+2. `page.setContent()` 一个静态页面：真实 CSS + `test/ui/fixtures.mjs` 里**照抄组件渲染结果**的 DOM 片段；
+3. 对 `getBoundingClientRect` / `getComputedStyle` / `getBBox` 做断言：A 底栏槽位（两个入口竖排 / 单入口不生效 /
+   无横向滚动）、B 底栏间距（相邻间隙两两相等且 = 8px）、C 搜索框（放大镜右边界 < 文字起点、外壳高 20）、
+   D 图标规格（刷新 vs 齿轮、两处放大镜）、E 近期行（行高 = 图标 26 + 上下 padding）、F 通用溢出扫描；
+4. 同一批断言跑**两遍**：干净宿主 / 宿主强制 `input{padding:0 14px}`，两遍都必须过。
+
+**需要 Playwright（Chromium）**。没装不报错：打印装法 + `结果：0 通过 / 0 失败（已跳过）` + exit 0。
+
+```bash
+npm install --no-save --no-package-lock playwright@1   # 不写进 devDependencies
+npx playwright install chromium
+```
+
+**为什么不进 `test/all.mjs`、也不进 CI**：CI 是 ubuntu 且没有浏览器，为一个本地视觉门禁用每次 CI
+都拖一份浏览器依赖不划算；它也比夹具门禁慢（要起浏览器）。所以它是**按需手动跑的一道门**，
+红灯退出码非 0（可直接接进任何脚本）。
+
+已知盲区（别指望它）：颜色/对比度与主题令牌是否好看、字体渲染与字重观感、动画**过程**
+（`prefers-reduced-motion: reduce` 下量的都是落定态）、"看起来挤不挤"这类主观判断；
+宿主用 `!important` 强压 `input` 内边距时，面板底栏那枚放大镜仍会与文字重叠（它靠 input 的
+左内边距避让）—— harness 会打印诊断行说明这一点，但**不计分**（设置页那套并排结构不受影响）。
+

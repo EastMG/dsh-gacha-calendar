@@ -107,6 +107,7 @@ dsh-gacha-calendar/
 │   ├── registry-shim.mjs # 各批次注册表规格快照 + DRIFT 守卫（与运行时 SOURCES 核对 tz/name）
 │   ├── capture*.mjs # 抓真实响应生成夹具；run.mjs # 单段直跑
 │   ├── map.json     # 请求 URL → 夹具路径（**入库**）
+│   ├── ui/          # UI 渲染验证 harness（`npm run test:ui`：真 Chromium 里按真实产物 CSS 做**几何**断言；**不在默认门禁里**，无浏览器时优雅 skip）
 │   └── fixtures/    # 真实响应快照（**已入库**（2026-10-18 起），重建方式见 test/README.md）
 ├── tools/           # 守卫脚本：require-publish-consent（发布闸门）/ check-host-allow（来源域名 vs 代理白名单）
 ├── archive/         # 历史原型，**不参与构建/运行**（remind = 到期提醒的早期 CLI 原型，见 archive/README.md）

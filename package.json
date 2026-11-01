@@ -46,6 +46,7 @@
     "build": "node build.mjs",
     "check": "node build.mjs --check",
     "setup:hooks": "git config core.hooksPath .githooks || true",
+    "test:ui": "node test/ui/harness.mjs",
     "prepublishOnly": "node build.mjs --check",
     "guard:publish": "node tools/require-publish-consent.mjs",
     "publish:core": "node tools/require-publish-consent.mjs && node build.mjs && npm publish ./packages/core",
