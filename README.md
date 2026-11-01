@@ -55,8 +55,8 @@ DeepSeek Harness 桌面端侧边栏插件：一键查看主流二游的**当期�
 从 v0.12.7 开始**默认开启**新版面板：设置 → 二游日历 → 取消勾选「**实验：新「二游日历」面板视图**」即可回到旧版表格视图
 
 <p align="center">
-  <img src="https://cdn.jsdelivr.net/gh/EastMG/dsh-gacha-calendar@main/assets/screenshot-4.png" width="42%" alt="新版面板">
-  <img src="https://cdn.jsdelivr.net/gh/EastMG/dsh-gacha-calendar@78e661380e09128a6d0dc50eaf8ffd2b4ccb2cd9/assets/panel-demo.webp" width="49%" alt="新版面板演示">
+  <img src="https://cdn.jsdelivr.net/gh/EastMG/dsh-gacha-calendar@main/assets/screenshot-4.png" width="44%" alt="新版面板">
+  <img src="https://cdn.jsdelivr.net/gh/EastMG/dsh-gacha-calendar@main/assets/panel-demo.webp" width="48%" alt="新版面板演示">
 </p>
 
 ## 数据来源
