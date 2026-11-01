@@ -1431,12 +1431,48 @@ export default async function run() {
 		// ⑤ 设置页：平台不适用时**看得见**（不是点了才报错）
 		const compSrc = readComponentsSource();
 		check("设置页把 notify-unsupported 翻成人话（Linux 等没有通知通道的平台）",
-			/if \(text === "notify-unsupported"\) return "当前平台不支持系统通知（仅 Windows \/ macOS）";/.test(compSrc));
-		check("设置页：supported=false ⇒ 「启用」按钮灰掉 + 状态显示「系统通知（无需身份）」+ 明写仅 Windows",
+			/if \(text === "notify-unsupported"\) return "当前平台不支持系统通知（仅 Windows \/ macOS 支持）";/.test(compSrc));
+		check("设置页：supported=false ⇒ 「启用」按钮灰掉 + 状态显示「系统通知」+ 明写仅 Windows",
 			/supported: !\(body && body\.supported === false\)/.test(compSrc)
-			&& compSrc.includes('"系统通知（无需身份）"')
-			&& compSrc.includes("通知身份仅 Windows 可用；macOS / Linux 由系统直接派发")
+			&& compSrc.includes('? "系统通知" : "PowerShell（默认）"')
+			&& compSrc.includes("通知身份仅 Windows 可用；macOS 由系统直接派发")
 			&& /!\s*\(notifyIdentity && notifyIdentity\.supported !== false\)/.test(compSrc));
+
+		// ⑤b 设置页通知区块 5 处文案（2026-11-01 用户逐条定稿）：旧串在生产代码与产物里都不许再出现，
+		//     新串必须逐字存在。为什么正反都钉：只测"新串在"挡不住评论 / 兜底分支里残留旧说法；
+		//     只测"旧串没了"挡不住随手换成第三种说法。旧串里「仅 Windows / macOS」那条必须是**完整**
+		//     旧串（带右括号），否则会误伤新串「仅 Windows / macOS 支持」。
+		{
+			const OLD_TEXT = [
+				"当前平台不支持系统通知（仅 Windows / macOS）",
+				"请求格式不对",
+				"这个名字已被开始菜单里另一条快捷方式占用，换个名字",
+				"系统通知（无需身份）",
+				"通知身份仅 Windows 可用；macOS / Linux 由系统直接派发"
+			];
+			const NEW_TEXT = [
+				"当前平台不支持系统通知（仅 Windows / macOS 支持）",
+				"请求格式错误",
+				"已被开始菜单已有快捷方式占用冲突",
+				"系统通知",
+				"通知身份仅 Windows 可用；macOS 由系统直接派发"
+			];
+			const pagePath = path.join(REPO, "src", "client", "84-settings-page.js");
+			const pageSrc = readFileSync(pagePath, "utf8");
+			const libSrc = readFileSync(path.join(REPO, "lib", "client.js"), "utf8");
+			const leftOld = (src) => OLD_TEXT.filter((t) => src.includes(t));
+			check("设置页通知区块：5 个旧文案在源码与 lib/client.js 里**都不再出现**",
+				leftOld(pageSrc).length === 0 && leftOld(libSrc).length === 0,
+				"src=" + leftOld(pageSrc).join(" | ") + " lib=" + leftOld(libSrc).join(" | "));
+			check("设置页通知区块：5 个新文案在源码与 lib/client.js 里逐字存在（改了 src 忘了 build 会红）",
+				NEW_TEXT.every((t) => pageSrc.includes(t)) && NEW_TEXT.every((t) => libSrc.includes(t)),
+				NEW_TEXT.filter((t) => !pageSrc.includes(t) || !libSrc.includes(t)).join(" | "));
+			// 「系统通知」是「系统通知（无需身份）」的前缀 ⇒ 上面那条正向断言对它天然成立；
+			// 真正要钉的是它出现在**那两个三元分支**里，不能是别处的「系统通知」凑数。
+			check("「当前：」行的 supported=false 分支就是裸「系统通知」（去掉括号说明、且没有残留后缀）",
+				pageSrc.includes('notifyIdentity.supported === false ? "系统通知" : "PowerShell（默认）"')
+				&& libSrc.includes('notifyIdentity.supported === false ? "系统通知" : "PowerShell（默认）"'));
+		}
 
 		// ⑥ **桩跑**：把 process.platform 伪造成 darwin / linux，真跑一遍宿主 apply + 两条路由。
 		// 目的：不是"读代码觉得不崩"，而是**实际执行**非 Windows 分支（Windows 开发机与 Linux CI 都能跑）。
