@@ -13,6 +13,8 @@
 //      空查询原样返回（同一数组引用）；
 //   ⑥ 接线（静态）：两个搜索框都真的绑了状态、空结果文案在、**搜索不落盘**；
 //      轮播 memo 仍读**未过滤**的 games（过滤只影响显示）；
+//      两个搜索框的放大镜（2026-11-01：底栏 + 设置页，**同一套** 16 viewBox / 1.5 / 12×12 规格；
+//      设置页那行原本没有包裹层 ⇒ 新包一层，行高逐像素不变）;
 //   ⑦ 数据事实：`SOURCES` 里没有可靠的地区字段 ⇒ 本次**跳过分组**（加字段时要回来补这一条）。
 //
 // ⚠️ 「分组（国服/日服/国际服）」刻意**没做**：`registerSource` 的字段只有
@@ -246,6 +248,92 @@ export default function runFilter() {
 		// 「搜卡池/角色/活动」11px 字号实测 85.6px，134−2(边框)−20−18 = 94 ⇒ 余量 9.1px。
 		check("面板：搜索框宽 134px（内容宽 94px > 占位文字 85.6px，占位文字不会被切）",
 			/\.gacha-cal-sched-find input\{[^}]*width:134px/.test(css));
+
+		// ── 设置页「游戏列表」搜索框的放大镜（2026-11-01，与底栏那颗**同一套**）───────────
+		// 与底栏那次的差别只在**容器**：底栏的 .gacha-cal-sched-find 早就在（position:relative），
+		// 设置页这一行原本**没有包裹层**（input 直接是 flex 子项）⇒ 新包一层 .gacha-cal-set-find，
+		// 并把原来挂在 input 上的 flex:0 1 128px / min-width:84px **原样搬到包裹层**；
+		// input 改成 width:100% + box-sizing:border-box 填满它。两边都靠「绝对定位的图标不是
+		// flex item」+「包裹层 display:flex ⇒ 没有行盒」保证这一行高度一分不涨 —— 设置页已经很长，
+		// "别变长"是硬要求。
+		// 静态预览实测（产物 CSS + 同款 DOM + 宿主 preflight，Playwright/Chromium）：
+		//   改动前 行高 20 / input 128×20 / 组宽 264；改动后 **完全相同**；12×12 图标占输入框
+		//   x∈[6,18]、文字从 20.67 起（3px 级间隙）、垂直居中偏差 0、图标中心 elementFromPoint
+		//   拿到的是 INPUT（pointer-events:none 真的穿透）。
+		// 占位文字「搜游戏名」11px 实测 44.0px，内容宽 128−2−20−6 = 100.67 ⇒ 余量 56.67px ≫ 5px，
+		// 所以宽度**保持 128px 不加宽**（底栏那次只差 0.4px 才必须加宽）。
+		const iSetFind = comp.indexOf('className: "gacha-cal-set-find"');
+		const iSetInput = comp.indexOf('(0, react_jsx_runtime.jsx)("input", {', iSetFind);
+		const setHead = iSetFind >= 0 && iSetInput > iSetFind ? comp.slice(iSetFind, iSetInput) : "";
+		check("设置页：能截出「包裹层 → input」这段（守卫自身没瞎）", setHead.length > 0, `i=${iSetFind} end=${iSetInput}`);
+		check("设置页：搜索框前面有放大镜（在 .gacha-cal-set-find 内、input **之前**）",
+			/className: "gacha-cal-set-find-ic"/.test(setHead));
+		const setIcon = setHead.slice(Math.max(0, setHead.indexOf('className: "gacha-cal-set-find-ic"')));
+		check("设置页：放大镜规格 = 12×12 / viewBox 0 0 16 16 / fill none / stroke currentColor + 1.5 圆头圆角",
+			/width: "12", height: "12", viewBox: "0 0 16 16", fill: "none"/.test(setIcon)
+			&& /stroke: "currentColor", strokeWidth: "1\.5", strokeLinecap: "round", strokeLinejoin: "round"/.test(setIcon));
+		check("设置页：放大镜是**装饰**（aria-hidden + focusable=false，不重复朗读）",
+			/"aria-hidden": "true"/.test(setIcon) && /focusable: "false"/.test(setIcon));
+		// 「同一套」不是"看着差不多"：与底栏那颗**逐字比对** svg 属性串，只改一半当场红。
+		const iconSpecOf = (t) => {
+			const box = /width: "([^"]+)", height: "([^"]+)", viewBox: "([^"]+)", fill: "([^"]+)"/.exec(t);
+			const pen = /stroke: "([^"]+)", strokeWidth: "([^"]+)", strokeLinecap: "([^"]+)", strokeLinejoin: "([^"]+)"/.exec(t);
+			return box && pen
+				? { width: box[1], height: box[2], viewBox: box[3], fill: box[4], stroke: pen[1], strokeWidth: pen[2], strokeLinecap: pen[3], strokeLinejoin: pen[4] }
+				: null;
+		};
+		const pnlIcon = comp.slice(Math.max(0, comp.indexOf('className: "gacha-cal-sched-find-ic"')));
+		const setSpec = iconSpecOf(setIcon), pnlSpec = iconSpecOf(pnlIcon);
+		check("设置页：放大镜与底栏那颗**逐字相同**（viewBox / strokeWidth / 渲染尺寸 / stroke / 圆头圆角 / fill）",
+			!!setSpec && !!pnlSpec && JSON.stringify(setSpec) === JSON.stringify(pnlSpec),
+			`set=${JSON.stringify(setSpec)} panel=${JSON.stringify(pnlSpec)}`);
+		check("设置页：放大镜的图形也照抄底栏那枚（circle 7,7 r4.5 + 斜柄 M10.4 10.4 13.5 13.5）",
+			/cx: "7", cy: "7", r: "4\.5"/.test(setIcon) && /d: "M10\.4 10\.4 13\.5 13\.5"/.test(setIcon));
+		check("设置页：放大镜绝对定位在输入框内左侧（position:absolute / left:6px / 12×12）",
+			/\.gacha-cal-set-find-ic\{[^}]*position:absolute[^}]*left:6px[^}]*width:12px[^}]*height:12px/.test(css));
+		check("设置页：放大镜用弱化色 var(--dsw-alias-label-tertiary,#9aa1ab)（与底栏同色）",
+			/\.gacha-cal-set-find-ic\{[^}]*color:var\(--dsw-alias-label-tertiary,#9aa1ab\)/.test(css));
+		// 点图标能聚焦输入框：图标 pointer-events:none ⇒ 指针**穿过**图标落到下面的 input 上。
+		// 改成 onClick 聚焦的话这条要一起改成断言接线，别只删这一行。
+		check("设置页：点图标 = 点输入框（图标 pointer-events:none，指针穿透到 input，原生聚焦）",
+			/\.gacha-cal-set-find-ic\{[^}]*pointer-events:none/.test(css));
+		// 包裹层必须**接管**原来 input 的宽度约束，否则外层那行 flex 的换行点会变。
+		check("设置页：包裹层接管原 input 的宽度约束（flex:0 1 128px + min-width:84px）",
+			/\.gacha-cal-set-find\{[^}]*flex:0 1 128px/.test(css)
+			&& /\.gacha-cal-set-find\{[^}]*min-width:84px/.test(css));
+		check("设置页：input 改成 width:100% + box-sizing:border-box（填满包裹层，兼容旧行内 max-width:100%）",
+			/\.gacha-cal-set-find input\{[^}]*box-sizing:border-box[^}]*width:100%/.test(css));
+		// padding-left 20px：图标占 x∈[6,18]，文字从 1(border)+20=21 起 ⇒ 3px 间隙（与底栏同一组数）。
+		check("设置页：input padding-left = 20px（> 图标右沿 18px，文字不被图标压住）",
+			/\.gacha-cal-set-find input\{[^}]*padding:2px 6px 2px 20px/.test(css));
+		// ⚠️ 反向守卫：padding / flex / width 一旦回到 input 的行内 style，会**盖掉**上面那条类规则
+		// （行内优先级更高，inputStyle 自带 padding:"2px 6px"）⇒ padding-left:20px 直接失效。
+		const iSetOnChange = comp.indexOf('onChange: (e) => setGameQuery(e.target.value)', iSetInput);
+		const setInputAttrs = iSetInput >= 0 && iSetOnChange > iSetInput ? comp.slice(iSetInput, iSetOnChange) : "";
+		check("设置页：能截出 input 的属性块（守卫自身没瞎）", setInputAttrs.length > 0, `len=${setInputAttrs.length}`);
+		check("设置页：input 行内不再写 padding / flex / width（否则盖掉类规则，padding-left:20px 失效）",
+			/\bpadding:/.test(setInputAttrs) === false && /\bflex:/.test(setInputAttrs) === false && /\bwidth:/.test(setInputAttrs) === false,
+			setInputAttrs.replace(/\s+/g, " ").slice(0, 160));
+		// 行高不变（"别变长"）：①包裹层 display:flex + align-items:center ⇒ 没有行盒
+		// （inline-block 的 input 当 flex 子项时才可能多出基线以下的余量）②包裹层自己不设
+		// height / min-height / padding ③图标绝对定位、不是 flex item ④input 竖直内边距仍是 2px
+		// （高度 = 16 行高 + 4 + 2 边框 = 22px，与改动前逐像素相同）。
+		check("设置页：包裹层 display:flex + align-items:center（没有行盒 ⇒ 高度 = input 高度）",
+			/\.gacha-cal-set-find\{[^}]*display:flex[^}]*align-items:center/.test(css));
+		check("设置页：包裹层不给自己加 height / min-height / padding（这一行高度只能由 input 决定）",
+			!/\.gacha-cal-set-find\{[^}]*\bheight:/.test(css)
+			&& !/\.gacha-cal-set-find\{[^}]*min-height:/.test(css)
+			&& !/\.gacha-cal-set-find\{[^}]*padding:/.test(css));
+		check("设置页：图标用绝对定位 + top:50%（不是 flex item ⇒ 不占输入框宽度、不改行高）",
+			/\.gacha-cal-set-find-ic\{[^}]*position:absolute/.test(css)
+			&& /\.gacha-cal-set-find-ic\{[^}]*top:50%/.test(css));
+		check("设置页：input 竖直内边距仍是 2px 且没另设 line-height（22px 行高逐像素不变）",
+			/\.gacha-cal-set-find input\{[^}]*padding:2px 6px 2px 20px/.test(css)
+			&& !/\.gacha-cal-set-find input\{[^}]*line-height:/.test(css));
+		// 这一行**没有**「× 清空」按钮（有× 的是底栏 .gacha-cal-sched-find-x）⇒ 不存在与放大镜抢位置。
+		check("设置页：这一行没有「× 清空」按钮 ⇒ 与放大镜不冲突（清空走 Esc）",
+			comp.includes('onKeyDown: (e) => { if (e.key === "Escape") setGameQuery(""); }')
+			&& !/gacha-cal-set-find-x/.test(comp));
 
 		// 只影响显示：轮播仍读**未过滤**的 games
 		check("轮播 memo 仍读未过滤的 games（tickerItemsOf(games, now, tickerHours) 原样）",

@@ -16,3 +16,31 @@
 			   改成 appearance:none + 自绘 chevron（右侧固定 8px 处），文字左对齐、高度与方形/长方形按钮一致（28）。 */
 			.gacha-cal-select{appearance:none;-webkit-appearance:none;height:28px;box-sizing:border-box;padding:0 26px 0 10px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));border-radius:7px;background-color:var(--dsw-alias-bg-base);background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aa1ab' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 8px center;background-size:12px;color:var(--dsw-alias-label-primary,#1f2329);font:inherit;font-size:12px;line-height:26px;text-align:left;text-overflow:ellipsis;white-space:nowrap;overflow:hidden;cursor:pointer;transition:border-color .12s}
 			.gacha-cal-select:hover{border-color:var(--dsw-alias-label-tertiary,#9aa1ab)}
+			/* 设置页「游戏列表」标题行的搜索框（2026-11-01）：放大镜与新面板底栏那颗
+			   （schedule-foot.css 的 .gacha-cal-sched-find-ic）**逐字同一套** ——
+			   16 viewBox / strokeWidth 1.5 / stroke=currentColor / 圆头圆角 / fill:none，
+			   渲染 **12×12**、颜色 label-tertiary；规格写在 JSX 里（要与底栏那枚对得上），这里只管摆放。
+			   · 包裹层：设置页这行原本**没有包裹层**（input 直接是 flex 子项）⇒ 新包一层，并把原来挂在
+			     input 上的 flex:0 1 128px / min-width:84px **原样搬过来**：外层那行 flex（含
+			     flexWrap:wrap）看到的还是同一个宽度约束 ⇒ 换行点与改动前一致；input 改成
+			     width:100% + box-sizing:border-box 填满包裹层 ⇒ 外宽仍是 128px、一像素没变。
+			     （真机是 DSH GUI，自带 Tailwind preflight 的「*{box-sizing:border-box}」（见
+			     native-ui/assets/button-*.css）⇒ 旧 input 那个 flex-basis **本来就是外宽** 128px，
+			     所以"搬到包裹层 + border-box"是等价变换，不是收缩；换成 content-box 才会窄 14px。）
+			   · 高度**一分没涨**：包裹层是 display:flex + align-items:center ⇒ **没有行盒**（inline-block
+			     的 input 直接当 flex 子项时才可能多出基线以下的余量），高度 = input 高度 = 22px
+			     （11px 字号 ⇒ 16px 行高 + 上下各 2px 内边距 + 上下各 1px 边框），与改动前逐像素相同；
+			     图标绝对定位 ⇒ 不是 flex item ⇒ 不参与这一行的高度计算。设置页已经很长，"别变长"是硬要求。
+			   · padding-left:20px 与底栏那颗同一组数值：图标占 x∈[6,18]，文字从 1(border)+20=21 起
+			     ⇒ 3px 间隙，两处视觉一致（用户要求"同一套"）。占位文字「搜游戏名」11px 实测 44.0px，
+			     内容宽 128−2(边框)−20(左)−6(右) = 100.67px ⇒ 余量 56.67px（≫ 5px）⇒ 宽度**不加宽**。
+			     （底栏那次占位文字 85.6px、余量只剩 0.4px 才必须从 126 加到 134；这里不用。）
+			   · ⚠️ 这两条必须写在**类**里，不能留在 input 的行内 style：行内优先级高于类选择器，
+			     inputStyle 自带 padding:"2px 6px"，留在行内会把这里的 padding-left 盖掉。
+			   · ⚠️ 只在这一小块里用 transform（图标垂直居中），**不许**把 transform 加到按钮/卡片祖先上
+			     （祖先带 transform 会改包含块，翻页层/探头定位会错 —— 与 schedule-foot.css 同一条）。
+			   · 本行**没有**「× 清空」按钮（清空走 Esc / 手动删字），所以不存在与放大镜抢位置的冲突
+			     （底栏那个 × 是 .gacha-cal-sched-find-x，设置页没有对应按钮）。 */
+			.gacha-cal-set-find{position:relative;display:flex;align-items:center;flex:0 1 128px;min-width:84px}
+			.gacha-cal-set-find input{box-sizing:border-box;width:100%;padding:2px 6px 2px 20px}
+			.gacha-cal-set-find-ic{position:absolute;left:6px;top:50%;transform:translateY(-50%);width:12px;height:12px;color:var(--dsw-alias-label-tertiary,#9aa1ab);pointer-events:none}

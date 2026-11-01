@@ -947,16 +947,45 @@
 									: null,
 								// 搜游戏名：大小写 / 全半角不敏感，空格分隔 = 多个关键词都要命中（与面板同一套归一）。
 								// **临时 UI 状态、不写设置**；清空（或按 Esc）即恢复全部行。
-								(0, react_jsx_runtime.jsx)("input", {
-									type: "text",
-									value: gameQuery,
-									placeholder: "搜游戏名",
-									"aria-label": "按游戏名搜索",
-									title: "按游戏名过滤（大小写 / 全半角不敏感；空格分隔 = 每个词都要命中）",
-									style: { ...inputStyle, flex: "0 1 128px", minWidth: 84, fontSize: 11, padding: "2px 6px" },
-									onChange: (e) => setGameQuery(e.target.value),
-									onKeyDown: (e) => { if (e.key === "Escape") setGameQuery(""); }
-								}),
+								// 2026-11-01：输入框前面加一枚放大镜（与新面板底栏那颗**逐字同一套**规格）。
+								//   实现照抄底栏那套：**包裹层 position:relative + 图标绝对定位在输入框内左侧**。
+								//   与底栏的唯一区别：底栏的 .gacha-cal-sched-find 早就在，这里是**新包一层**
+								//   ⇒ 原来挂在 input 上的 `flex:0 1 128px` / `minWidth:84` **原样搬到包裹层**
+								//   （见 styles/settings.css 的 .gacha-cal-set-find），input 改成
+								//   width:100% + box-sizing:border-box 填满它 ⇒ 外层 flex 看到的是同一个
+								//   128px 宽度约束，换行行为与改动前一致。
+								//   高度**一分没涨**：包裹层 display:flex + align-items:center ⇒ 没有行盒的
+								//   基线余量，高度就等于 input 的高度（22px，与改动前逐像素相同）；绝对定位的
+								//   图标不是 flex item ⇒ 也不参与这一行的高度计算。用绝对定位而不是 flex 兄弟，
+								//   就是这个原因（配置页已经很长，"别变长"是硬要求）。
+								//   点图标 = 点输入框：图标 pointer-events:none（指针穿过它落到下面的 input 上，
+								//   原生聚焦，不用 ref/onClick）；aria-hidden 是因为它是**装饰**不是按钮。
+								(0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-set-find", children: [
+									(0, react_jsx_runtime.jsx)("svg", {
+										className: "gacha-cal-set-find-ic",
+										width: "12", height: "12", viewBox: "0 0 16 16", fill: "none",
+										stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round",
+										"aria-hidden": "true", focusable: "false",
+										children: (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
+											children: [
+												(0, react_jsx_runtime.jsx)("circle", { cx: "7", cy: "7", r: "4.5" }),
+												(0, react_jsx_runtime.jsx)("path", { d: "M10.4 10.4 13.5 13.5" })
+											]
+										})
+									}),
+									// 输入的**内边距/宽度全在 styles/settings.css 的 .gacha-cal-set-find input 里**：
+									// inputStyle 自带 padding:"2px 6px"，行内会盖掉类选择器 ⇒ padding-left:20px 写这里没用。
+									(0, react_jsx_runtime.jsx)("input", {
+										type: "text",
+										value: gameQuery,
+										placeholder: "搜游戏名",
+										"aria-label": "按游戏名搜索",
+										title: "按游戏名过滤（大小写 / 全半角不敏感；空格分隔 = 每个词都要命中）",
+										style: { ...inputStyle, fontSize: 11 },
+										onChange: (e) => setGameQuery(e.target.value),
+										onKeyDown: (e) => { if (e.key === "Escape") setGameQuery(""); }
+									})
+								]}),
 								// 只看已启用：只列当前**展示中**的条目。口径 = 上面那个 shownNow（草稿优先），
 								// 与「展示」列显示的值同一个来源 ⇒ 不会出现"勾已取消、行还在"。
 								(0, react_jsx_runtime.jsxs)("label", { title: "只列当前展示中的条目（不写设置）", style: { display: "flex", alignItems: "center", gap: 4, flex: "none", fontSize: 11, cursor: "pointer", color: "var(--dsw-alias-label-secondary)" }, children: [
