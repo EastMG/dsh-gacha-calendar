@@ -278,7 +278,7 @@ export default function runFilter() {
 			/className: "gacha-cal-set-find-ic"/.test(setHead) && iSetInput > iSetFind
 			&& /className: "gacha-cal-set-find-in"/.test(setInputAttrs));
 		// input 上**不挂 style**：旧版就是被行内 inputStyle 的 padding 盖掉类规则（这也是真机 bug 的根因）。
-		check("设置页：input 行内**完全不挂 style**（边框/内边距/字号全靠类规则 + font:inherit）",
+		check("设置页：input 行内**完全不挂 style**（边框/内边距/字号全靠类规则）",
 			!/\bstyle:/.test(setInputAttrs), setInputAttrs.replace(/\s+/g, " ").slice(0, 160));
 		const setIcon = setHead.slice(Math.max(0, setHead.indexOf('className: "gacha-cal-set-find-ic"')));
 		check("设置页：放大镜规格 = 12×12 / viewBox 0 0 16 16 / fill none / stroke currentColor + 1.5 圆头圆角",
@@ -341,10 +341,28 @@ export default function runFilter() {
 			/\.gacha-cal-set-find-in\{[^}]*border:none/.test(css)
 			&& /\.gacha-cal-set-find-in\{[^}]*background:transparent/.test(css)
 			&& /\.gacha-cal-set-find-in\{[^}]*padding:0[;}]/.test(css));
-		check("设置页：input 高度撑满外壳且字号/字色跟随宿主（height:100% + font:inherit + color:inherit）",
+		check("设置页：input 高度撑满外壳、字体族/字色跟随宿主（height:100% + font-family:inherit + color:inherit）",
 			/\.gacha-cal-set-find-in\{[^}]*height:100%/.test(css)
-			&& /\.gacha-cal-set-find-in\{[^}]*font:inherit/.test(css)
+			&& /\.gacha-cal-set-find-in\{[^}]*font-family:inherit/.test(css)
 			&& /\.gacha-cal-set-find-in\{[^}]*color:inherit/.test(css));
+		// 2026-11-01 真机反馈：上一版 `font:inherit` 在真机继承到 **13px**，占位文字「搜游戏名」
+		// 被用户说"有点大、撑到边缘"（原话）。改成显式 11px（= 改动前那版的值，与设置页其它小控件
+		// 如「只看已启用」一致）+ 显式 line-height:20px（与外壳外高同值，垂直居中自己兜住，不靠宿主
+		// 继承的 normal 行高）。真机式静态预览实测（宿主真实 CSS + DPR 4 像素扫描）：
+		//   13px：墨迹宽 50.25px / 内容区 105.67px ⇒ 余量 55.09px；
+		//   11px：墨迹宽 42.50px / 内容区 105.67px ⇒ 余量 **62.84px**（要求 ≥20）。
+		//   高度仍是 20.00（外壳固定），墨迹垂直中点 10.88 对 20px 中线 10.00（13px 时为 10.75，
+		//   即字体本身让 CJK 墨迹偏下 <1px，与改前同量级，未裁切）。
+		const setFindInRule = (() => {
+			const m = /\.gacha-cal-set-find-in\{([^}]*)\}/.exec(css);
+			return m ? m[1] : "";
+		})();
+		check("设置页：能截出 .gacha-cal-set-find-in 的声明块（守卫自身没瞎）", setFindInRule.length > 0);
+		check("设置页：input 字号/行高**显式写死 11px / 20px**（不再靠 font:inherit 继承宿主的 13px）",
+			/font-size:11px/.test(setFindInRule) && /line-height:20px/.test(setFindInRule));
+		check("设置页：input 不再有 font 简写 `font:inherit`（它会把字号重新带成宿主的 13px）",
+			!/(^|;)font:inherit/.test(setFindInRule) && !/font-size:1[23]px/.test(setFindInRule),
+			setFindInRule);
 		check("设置页：input 自己 :focus 不再画 outline（否则外壳里又多一个框）",
 			/\.gacha-cal-set-find-in:focus\{[^}]*outline:none/.test(css));
 		// ── 反向守卫：不许退回旧结构 / 旧避让 ──────────────────────────────────────────────

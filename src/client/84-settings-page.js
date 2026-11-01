@@ -975,9 +975,11 @@
 											]
 										})
 									}),
-									// input 的边框/背景/内边距/宽度**全在 styles/settings.css 的 .gacha-cal-set-find-in 里**，
-									// 这里**不挂 style**（旧版就是被行内 inputStyle 的 padding 盖掉了类规则）；
-									// 字号/字色靠 font:inherit 跟随宿主。
+									// input 的边框/背景/内边距/宽度/**字号（11px）与行高（20px）**全在
+									// styles/settings.css 的 .gacha-cal-set-find-in 里，这里**不挂 style**
+									// （旧版就是被行内 inputStyle 的 padding 盖掉了类规则）；
+									// 字色/字体族靠 inherit 跟随宿主。字号显式 11px 是因为上一版 font:inherit
+									// 在真机继承到 13px，占位文字「搜游戏名」被用户说"有点大、撑到边缘"。
 									(0, react_jsx_runtime.jsx)("input", {
 										className: "gacha-cal-set-find-in",
 										type: "text",

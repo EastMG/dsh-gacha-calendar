@@ -35,8 +35,13 @@
 			   · 图标：12×12 / flex:none / margin-right:3px —— 3px 就是旧版「图标右沿 18 → 文字 21」那个间隙，
 			     视觉与改动前一致；color label-tertiary；pointer-events:none（装饰，aria-hidden）。
 			   · input：flex:1 1 auto + min-width:0 + border:none + background:transparent + padding:0 +
-			     height:100% + font:inherit ⇒ **字号/字色跟随宿主**（不写死：宿主换主题/换字号会自动同步；
-			     旧版把 fontSize:11 写死，正是"宿主改了它也不跟"的那类问题）。
+			     height:100% + font-family:inherit + color:inherit ⇒ 字体族/字色跟随宿主。
+			     **字号与行高显式写死 11px / 20px**（2026-11-01 真机反馈修版）：上一版写 font:inherit
+			     ⇒ 真机实际 13px，占位文字「搜游戏名」视觉上"撑到边缘"（用户原话："那四个字确实是有点大了"）。
+			     11px 是改动前那一版的值，与设置页其它小控件（「只看已启用」等）一致；20px 与外壳外高同值，
+			     flex align-items:center + 显式行高一起兜住垂直居中（不靠宿主继承的 normal 行高）。
+			     内容区 = 128−2(边框)−6(左内边距)−12(图标)−3(图标右间隙) = 105px，11px 下占位文字墨迹约 43px，
+			     余量约 62px ⇒ 离"撑到边缘"还很远。
 			   · 焦点反馈：外壳 :focus-within —— 边框换成宿主管 input 焦点时用的那枚 token
 			     （state-business-primary；宿主自己也是用 ._wrap_*:focus-within 改边框色），外面再叠一圈
 			     跟随 --dsw-* 的 outline（宿主没有定义 --dsw-focus-ring-width，所以给 2px 兜底，
@@ -53,5 +58,5 @@
 			.gacha-cal-set-find{display:flex;align-items:center;box-sizing:border-box;flex:0 1 128px;min-width:84px;height:20px;padding-left:6px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));border-radius:6px;background:var(--dsw-alias-bg-base,#fff);color:var(--dsw-alias-label-primary,#1f2329);cursor:text}
 			.gacha-cal-set-find:focus-within{border-color:var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary,#536dfe));outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary,#536dfe)));outline-offset:0}
 			.gacha-cal-set-find-ic{flex:none;margin-right:3px;width:12px;height:12px;color:var(--dsw-alias-label-tertiary,#9aa1ab);pointer-events:none}
-			.gacha-cal-set-find-in{box-sizing:border-box;flex:1 1 auto;min-width:0;height:100%;margin:0;padding:0;border:none;background:transparent;color:inherit;font:inherit}
+			.gacha-cal-set-find-in{box-sizing:border-box;flex:1 1 auto;min-width:0;height:100%;margin:0;padding:0;border:none;background:transparent;color:inherit;font-family:inherit;font-size:11px;line-height:20px}
 			.gacha-cal-set-find-in:focus{outline:none}
