@@ -973,10 +973,15 @@ export default async function run() {
 			/if \(notifyIdentity && notifyIdentity\.enabled\) \{[\s\S]{0,400}?await writeNotifyIdentity\(true, next\)/.test(compSrc));
 		check("窄输入框约 110px + 整行 flexWrap（720px 卡片放得下，窄窗口允许换行）",
 			/width: 110/.test(row) && /flexWrap: "wrap"/.test(row));
-		check("那两句说明文字**已删掉**、信息挪进按钮 title",
+		// 2026-11-01 用户逐条定稿：这两条 title 改了 —— ① 启用/移除按钮缩成「需要在开始菜单新建快捷方式」；
+		// ② 「发送测试通知」按钮**整条 title 删掉**（按钮文案自己就说清了，不再挂一句解释）。
+		check("那两句说明文字**已删掉**、启用/移除按钮的 title 缩成「需要在开始菜单新建快捷方式」",
 			!compSrc.includes("更改系统通知的发送者为") && !compSrc.includes("需要在开始菜单创建无害的快捷方式文件")
-			&& compSrc.includes("title: \"更改系统通知的发送者：会在开始菜单建一条无害的快捷方式（可随时移除）\"")
-			&& compSrc.includes("title: \"立刻弹一条系统通知，确认通知链路通不通\""));
+			&& compSrc.includes("title: \"更改系统通知的发送者：需要在开始菜单新建快捷方式\""));
+		check("「发送测试通知」按钮没有 title（整条删掉、不留空属性）；这一行只剩 3 个 title（启用/移除、名称、当前）",
+			!row.includes("立刻弹一条系统通知，确认通知链路通不通")
+			&& !/title:\s*""/.test(row) && (row.match(/\btitle:/g) || []).length === 3,
+			String((row.match(/\btitle:/g) || []).length));
 		check("状态文字保留（「当前：…」两种文案都在），且显示的是 GET 回来的名字（探测到的真实名字，缺省配置名）",
 			row.includes("当前：") && row.includes("PowerShell（默认）") && /notifyIdentity\.enabled \? notifyIdentity\.name/.test(row));
 	}

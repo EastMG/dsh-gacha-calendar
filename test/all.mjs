@@ -36,6 +36,7 @@ import runFilter from "./cases-filter.mjs";
 import runIcs from "./cases-ics.mjs";
 import runRefresh from "./cases-refresh.mjs";
 import runSettingsJump from "./cases-settings-jump.mjs";
+import runSettingsCopy from "./cases-settings-copy.mjs";
 
 const LIVE = process.argv.includes("--live");
 
@@ -122,7 +123,8 @@ const batches = [
 	["搜索与筛选（设置页「搜游戏名 + 只看已启用」/ 面板「按卡池·角色名过滤」）", runFilter],
 	["排期导出 .ics（快照：源站墙钟 → UTC / CRLF / 75 octets 折行 / 转义 / 在期判定）", runIcs],
 	["刷新频率「启动时」档（refreshMinutes = 0 的判定 / 定时器 / 设置页 / schema）", runRefresh],
-	["设置入口（两个面板的齿轮 + 三步跳转设置页）", runSettingsJump]
+	["设置入口（两个面板的齿轮 + 三步跳转设置页）", runSettingsJump],
+	["设置页 title 文案（8 处定稿：5 条改写 + 3 条删除）", runSettingsCopy]
 ];
 const before = counts();
 for (const [label, fn] of batches) {
