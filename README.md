@@ -56,7 +56,7 @@ DeepSeek Harness 桌面端侧边栏插件：一键查看主流二游的**当期�
 
 <p align="center">
   <img src="https://cdn.jsdelivr.net/gh/EastMG/dsh-gacha-calendar@main/assets/screenshot-4.png" width="44%" alt="新版面板">
-  <img src="https://cdn.jsdelivr.net/gh/EastMG/dsh-gacha-calendar@54a839b42599c623aedbcf705ee3d580b59d3188/assets/panel-demo.webp" width="48%" alt="新版面板演示">
+  <img src="https://cdn.jsdelivr.net/gh/EastMG/dsh-gacha-calendar@04e1679ac3cae55b5b60f5cbaf38261e5703c7fb/assets/panel-demo.webp" width="48%" alt="新版面板演示">
 </p>
 
 ## 数据来源
