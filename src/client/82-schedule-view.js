@@ -117,12 +117,15 @@
 				] });
 			}
 			// 「再往后两件」一行：小环 + 游戏名一行 / 事项名一行 + 剩余天数
+			// ⚠️ 事项名与表格同一口径：取 `show`（卡池侧 = 去修饰的角色名；活动侧 = 活动名），
+			//    `title` 是源站原文（池名），只用于悬停 —— 留白卡若用 title，就会出现"表格显角色名、
+			//    留白卡显池名"（与「近期」那处是同一个毛病，2026-11-01 一并统一）。
 			function slotLine(it, now) {
 				return (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-slot-row", key: it.key, children: [
 					slotRing(slotFrac(it, now), slotAccent(it), 22, 3.4),
 					(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-slot-nm", children: [
 						(0, react_jsx_runtime.jsx)("b", { children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: it.g.name }) }),
-						(0, react_jsx_runtime.jsx)("i", { children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: it.title }) })
+						(0, react_jsx_runtime.jsx)("i", { children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: it.show || it.title || "" }) })
 					] }),
 					(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-slot-dd", children: [
 						(0, react_jsx_runtime.jsx)("em", { children: String(slotLeftDays(it, now)) }), " 天后结束"
@@ -184,7 +187,7 @@
 										(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-slot-n", children: String(slotLeftDays(it, now)) }),
 										(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-slot-u", children: "天后结束" })
 									] }),
-									(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-ttl", children: it.title }),
+									(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-ttl", children: it.show || it.title || "" }),
 									(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-sub", children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: slotSub(it, frac) }) })
 								]
 							});
@@ -354,7 +357,13 @@
 							scheduleKindIcon(x.isG ? "gacha" : "event", "gacha-cal-sched-tic"),
 							(0, react_jsx_runtime.jsx)("span", { children: x.isG ? "卡池" : "活动" })
 						] }),
-						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-what", title: scheduleHoverText(x), children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: x.title || x.raw || "—" }) }),
+						// 事项名取 `show`（**与表格外显口径统一**）：同一口卡池在游戏表里显示的是去修饰的
+						// 角色名（`show`，见 81-schedule-model.js 的 scheduleNormalize），「近期」原来取 `title`（源站原文 =
+						// 池名）⇒ 同一个卡池"表格显角色名、近期显池名"。`title` 是**源站原文**，只给悬停用
+						// （上一行的 title 属性走 scheduleHoverText，那里仍是 title + 源站墙钟原文，不要动）。
+						// 兜底顺序：show → title → raw → 「—」（show 在 scheduleNormalize 里已有 title 兜底，
+						// 但探头那些由悬停文本解析出来的条目可能没有 show，所以这里仍逐级回落）。
+						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-what", title: scheduleHoverText(x), children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: x.show || x.title || x.raw || "—" }) }),
 						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-when gacha-cal-sched-num", children: w.parts
 							? ["还剩 ", ...w.parts.map((p) => (0, react_jsx_runtime.jsxs)("span", { children: [p[0], (0, react_jsx_runtime.jsx)("small", { children: p[1] })] }, p[1]))]
 							: w.text })

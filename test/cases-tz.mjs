@@ -18,7 +18,7 @@ import { T } from "./load.mjs";
 
 export default async function run() {
 	section("时区口径（外显=本机时区换算 / 悬停=源站墙钟原文）");
-	const { fmtWindow, sourceInstant, buildEventHover, buildPoolHover, localWin, localWinText, localDatesOf, scheduleDateHover } = T;
+	const { fmtWindow, sourceInstant, buildEventHover, buildPoolHover, localWin, localWinText, localDatesOf, scheduleDateHover, scheduleNormalize, tickerItemsOf } = T;
 
 	// 固定绝对时刻：A = 2026-09-27T23:00Z（+08 的 09-28 07:00、+09 的 09-28 08:00）
 	const A = Date.UTC(2026, 8, 27, 23, 0);
@@ -149,5 +149,44 @@ export default async function run() {
 
 		check("日期格·该侧根本没有数据：说明「无数据」",
 			scheduleDateHover(null, now5) === "（无数据）" && scheduleDateHover(void 0, now5) === "（无数据）");
+	}
+
+	// ── ⑥ 外显文本 `show` 的口径（2026-11-01）：表格格子 / 「近期」/ 留白卡必须**同文** ────────────
+	// 表格格子里外显的是 scheduleNormalize 的 `show`（卡池侧有 roles ⇒ 去修饰的角色名，否则池名；
+	// 活动侧 = 活动名）；`title` 是**源站原文**（卡池侧 = 池名），只给悬停用。
+	// 「近期」与留白卡原来读 `title` ⇒ 同一口卡池"表格显角色名、近期显池名"（用户 2026-11-01 指出）。
+	// 这里把 `show` 的语义本体钉住，三处入口（+ 侧栏轮播）才有共同的基准。
+	{
+		const now6 = new Date(Date.UTC(2026, 9, 21, 4, 0));      // +09 10-21 13:00 / UTC 10-21 04:00
+		const g = {
+			id: "genshin", name: "原神", tz: "Asia/Tokyo",
+			banner: "「轰隆雷鸣波·伊涅芙」",
+			roles: "「轰隆雷鸣波·伊涅芙」（风）",
+			bannerDates: "10-21 09:00 ~ 10-22 09:00",                // 源站（+09）墙钟 ⇒ 20 小时后结束
+			bannerDatesRaw: "2026-10-21 09:00 ~ 2026-10-22 09:00"    // 悬停用的原始原文（带年份）
+		};
+		const pool = scheduleNormalize(g, "gacha", now6);
+		check("卡池侧有 roles：show = 去修饰的角色名（表格格子的外显），title 仍是源站池名",
+			pool.show === "伊涅芙" && pool.title === g.banner, JSON.stringify([pool.show, pool.title]));
+		check("这条数据确实是「两套文本」（show ≠ title，上一条断言才有意义）", pool.show !== pool.title);
+		check("卡池侧无 roles：show 退回 title（池名），不外显空串",
+			scheduleNormalize({ ...g, roles: "" }, "gacha", now6).show === g.banner);
+		const ev = scheduleNormalize({ id: "genshin", tz: "Asia/Tokyo", event: "「绮星盛会」", eventDates: g.bannerDates }, "event", now6);
+		check("活动侧：show = title = 活动名（活动侧没有角色名这一层）",
+			ev.show === "「绮星盛会」" && ev.title === "「绮星盛会」");
+
+		// 悬停侧**不受牵连**：orig 仍是「源站标题 + 源站墙钟原文」，rawSrc 仍是源站原文（外显才走本机时区）
+		check("悬停文本仍是源站原文：orig = 池名 + bannerDatesRaw（没被 show 波及）",
+			pool.orig === g.banner + "\n" + g.bannerDatesRaw, JSON.stringify(pool.orig));
+		check("rawSrc 仍是源站墙钟原文；raw（外显档期）才是本机时区换算值",
+			pool.rawSrc === g.bannerDates && pool.raw === localDatesOf(g, true, now6) && pool.raw !== pool.rawSrc,
+			JSON.stringify([pool.rawSrc, pool.raw, localDatesOf(g, true, now6)]));
+
+		// 侧栏轮播那一行的事项名（tickerItemsOf 的 `title` 字段）本来就按同一公式算 —— 钉住它，
+		// 免得将来只改一处、表格与轮播又分叉（轮播读不到 show，字段名叫 title 但装的是外显文本）。
+		const tick = tickerItemsOf([g], now6, 24);
+		check("轮播那一行的事项名与表格同口径（tickerItemsOf.title === scheduleNormalize.show）",
+			tick.length === 1 && tick[0].title === pool.show && tick[0].title !== g.banner,
+			JSON.stringify(tick.map((x) => [x.key, x.title])));
 	}
 }

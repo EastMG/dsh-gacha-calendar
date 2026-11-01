@@ -427,6 +427,35 @@ export default async function run() {
 			!/\[x\.title, x\.raw\]/.test(comp) && (comp.match(/x\.rawSrc \|\| x\.raw/g) || []).length === 3);
 	}
 
+	// ── 外显口径统一（2026-11-01）：「近期」/ 留白卡的事项名与表格格子读**同一份** `show` ────────────
+	// 表格格子里外显的是 `x.show`（卡池侧角色名）；「近期」与留白卡原来读 `x.title`（源站原文 = 池名）
+	// ⇒ 同一口卡池"表格显角色名、近期显池名"（用户 2026-11-01 指出）。`title` 是**悬停用的源站原文**，
+	// 不许拿去当可见文本 —— 所以下面既正向断言 `show`，也反向断言"没有退回 title 开头"。
+	// ⚠️ 这几条要匹配**字符串字面量**（类名与「—」），`codeOnly` 会把字符串挖空 ⇒ 用未去注释的 raw。
+	{
+		const raw = readComponentsSource();
+		const comp = codeOnly(raw);
+		check("「近期」行的事项名取 show（show → title → raw 逐级兜底）",
+			/className: "gacha-cal-sched-what", title: scheduleHoverText\(x\), children: [\s\S]{0,200}?children: x\.show \|\| x\.title \|\| x\.raw \|\| "—"/.test(raw));
+		check("「近期」行不再以 title 开头（反向：.gacha-cal-sched-what 里没有 children: x.title ||）",
+			!/gacha-cal-sched-what"[\s\S]{0,200}?children: x\.title \|\|/.test(raw));
+		check("「近期」行的悬停仍是 scheduleHoverText(x)（源站原文，没被换成 show）",
+			/className: "gacha-cal-sched-what", title: scheduleHoverText\(x\)/.test(raw));
+		check("表格格子 + 探头行仍是同一份表达式（两处 x.show || x.title || x.raw）",
+			(raw.match(/children: x\.show \|\| x\.title \|\| x\.raw \|\| "—"/g) || []).length === 2,
+			String((raw.match(/children: x\.show \|\| x\.title \|\| x\.raw \|\| "—"/g) || []).length));
+		check("留白卡两处事项名（大标题 + 「再往后两件」那一行）也取 show",
+			(raw.match(/children: it\.show \|\| it\.title \|\| ""/g) || []).length === 2,
+			String((raw.match(/children: it\.show \|\| it\.title \|\| ""/g) || []).length));
+		check("show 的语义本体未变：卡池侧有 roles ⇒ cleanRoleNames，否则 title；活动侧 ⇒ title",
+			/const show = \(isG && roles\) \? \(cleanRoleNames\(roles, g\.id\) \|\| title\) : title;/.test(comp));
+		check("title 仍只作源站原文（悬停侧的 orig 构造没被 show 牵连）",
+			/const orig = title \+ \(datesRaw \? "\\n" \+ datesRaw : ""\);/.test(raw));
+		// 侧栏轮播读不到 show：它的 `title` 字段装的就是外显文本（同一公式）—— 一并钉住，免得只改一处。
+		check("轮播清单元件的事项名仍是同一个外显公式（tickerItemsOf 的 title）",
+			/title: \(isG && roles\) \? \(cleanRoleNames\(roles, g\.id\) \|\| title\) : title,/.test(comp));
+	}
+
 	// ── 新面板**日期格**悬停（原待办第 9 项，2026-10-28 已完成）：格子上真的接了新纯函数；正常态不补提示 ──
 	// 反向断言的是"渲染层没有另拼提示"与"备注只在失败/沿用两个分支 push"：
 	// 只要正常态被拼上任何一行（如硬编码「（）」），这里会红。
