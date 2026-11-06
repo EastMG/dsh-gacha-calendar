@@ -36,11 +36,61 @@
 			return coreEnv.transport;
 		}
 
-		// 直连抓取（不需要代理的源：bwiki / PRTS 等 CORS 放行的站，调用方自行加 origin=* 等参数）。
+		//#region bwiki 的 CORS 收口点（**全仓唯一**一处给 bwiki 补 origin=*）
+		//
+		// 为什么需要：bwiki（wiki.biligame.com）的 MediaWiki 接口只有带 `origin=*` 才回
+		// `Access-Control-Allow-Origin`。不带它时浏览器**直连**必定被 CORS 拦
+		// （`TypeError: Failed to fetch`，上层只能归成「网络不通」这种看不出根因的泛化失败）；
+		// 同一 URL 带上 `origin=*` 实测 HTTP 200。此前只有一部分调用点（22-fetcher-core.js 的
+		// fetchHtmlText / mkMediaWiki / mkRaw / fetchMediaWikiText）各自临时拼了这一参数，
+		// 而仓里 22 处 bwiki 地址常量**本身都没有** —— 于是任何新写的 bwiki 直连都会静默踩坑，
+		// 平时只是靠宿主代理（不受 CORS 限制）把问题盖住了。
+		//
+		// 收口**位置**：本文件下面两个出口 —— `transportFetchRaw`（直连）与 `proxyFetchText`（宿主代理）。
+		// 全仓的联网只有这两条路（92-dsh-env.js 只是它们的实现，没人绕过这里），所以只在这一处补一次，
+		// 22 处常量与将来新增的 bwiki 来源都不必再关心这个参数。
+		// 代理路径也一视同仁：代理本身不受 CORS 限制，但 `origin=*` 对 MediaWiki 只是「匿名 CORS 请求」
+		// 标记（无害），两条路径发出同一个 URL 才不会出现「直连能跑、代理却是另一串地址」的分叉。
+
+		// 主机名是否属于 biligame（`wiki.biligame.com` 或 `*.biligame.com`）。
+		// URL 解析已把主机名小写、端口也已剥掉，这里只需再去掉末尾点（FQDN 写法 `wiki.biligame.com.`）。
+		// 用「等于 | 以 `.` 开头的前缀结尾」而不是裸 `endsWith("biligame.com")`：
+		// 后者会把 `evilbiligame.com` 也当成自家域名。
+		function isBwikiHost(host) {
+			const h = String(host == null ? "" : host).trim().toLowerCase().replace(/\.$/, "");
+			return h === "biligame.com" || h.endsWith(".biligame.com");
+		}
+
+		// bwiki 请求统一补 `origin=*`（幂等）：
+		//   · 主机不属于 biligame ⇒ 原样返回（其它站点的 URL 一个字节都不改）
+		//   · query 里已有 `origin` 参数（不管值是什么，如 `origin=*` / `origin=https://…`）⇒ 原样返回
+		//   · 没有 query（如 `https://wiki.biligame.com/czn/`）⇒ 用 `?`；已有 query ⇒ 用 `&`
+		//   · 有 `#hash` ⇒ 补在 hash **之前**（追加到 hash 后面就是纯字符串、根本不进 query）
+		//
+		// ⚠️ 刻意**不**做 `new URL(...).toString()` 重序列化：那会把中文路径/参数 percent-encode
+		//    （`page=限时招集档案` → `page=%E9%99%90…`），而 test/map.json 的夹具键、控制台日志、
+		//    来源健康里存的地址都是**原始串**。只解析取主机名，拼接仍在原串上做。
+		function withBwikiCors(url) {
+			const s = String(url == null ? "" : url);
+			let parsed;
+			try { parsed = new URL(s); } catch { return url; }   // 相对地址（代理前缀等）/ 非法串 ⇒ 不动
+			if (!isBwikiHost(parsed.hostname)) return url;
+			if (parsed.searchParams.has("origin")) return url;
+			const at = s.indexOf("#");
+			const head = at < 0 ? s : s.slice(0, at);
+			const tail = at < 0 ? "" : s.slice(at);
+			// `...?` / `...&` 结尾时不重复分隔符，避免拼出 `?&origin=*`
+			const sep = /[?&]$/.test(head) ? "" : (head.indexOf("?") >= 0 ? "&" : "?");
+			return head + sep + "origin=*" + tail;
+		}
+		//#endregion
+
+		// 直连抓取（不需要代理的源：bwiki / PRTS 等 CORS 放行的站）。
+		// bwiki 的 `origin=*` 由 withBwikiCors 统一补（见上），调用点不必再自己拼。
 		// 返回 WHATWG Response 形态的对象（有 ok / status / headers / text() / json()），
 		// 各平台据此包装自己的 HTTP 实现即可，调用点无需改动。
 		function transportFetchRaw(url, opts) {
-			return requireTransport().fetchRaw(url, opts);
+			return requireTransport().fetchRaw(withBwikiCors(url), opts);
 		}
 
 		// 直连抓取的统一请求头：Accept + Referer=<目标站>/。
@@ -154,8 +204,10 @@
 
 		// 经代理抓取文本（需要绕过 CORS / Referer 反爬的源）。语义与原 host 代理调用完全一致：
 		// referer / headers（可选对象）/ body（可选，提供时以 POST + JSON 发出）→ 原始 body 字符串
+		// ⚠️ 参数名沿用 `proxyUrl` 是历史命名：它其实是**目标站地址**（宿主代理前缀由 transport 自己拼）。
+		//    与 transportFetchRaw 同一个收口点：bwiki 的目标地址在这里补 `origin=*`（见上方 withBwikiCors）。
 		async function proxyFetchText(proxyUrl, referer, extraHeaders, body) {
-			return requireTransport().fetchViaProxy(proxyUrl, { referer, headers: extraHeaders, body });
+			return requireTransport().fetchViaProxy(withBwikiCors(proxyUrl), { referer, headers: extraHeaders, body });
 		}
 
 		// 经代理抓取 JSON。解析失败统一抛 "bad-json"（normErr 会显示成"响应格式异常"），

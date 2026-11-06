@@ -575,6 +575,11 @@
 			sourceOffsetMinutes,
 			tzOffsetMinutesAt,
 			setCoreEnv,
+			// withBwikiCors = bwiki 请求统一补 `origin=*` 的**唯一**收口（15-env.js）：直连
+			// （transportFetchRaw）与宿主代理（proxyFetchText）两条出口都过它。导出后可以离线钉住
+			// 「无 query ⇒ 用 ? / 已有 query ⇒ 用 & / 已有 origin ⇒ 不动 / 其它主机逐字不变 /
+			// 大小写·端口·hash / 幂等」这些边界（见 test/cases-bwiki-cors.mjs）。
+			withBwikiCors,
 			// 来源表与抓取器表（测试直接用它们核对条目/登记，不再需要 registry 模块）
 			SOURCES,
 			GACHA_FETCHERS,

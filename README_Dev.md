@@ -40,7 +40,7 @@ dsh-gacha-calendar/
 │       ├── 05-version.js     # 插件版本号
 │       ├── 00-head.js        # DSH 模块加载壳 + react require
 │       ├── 10-config.js      # 默认配置 / 刷新频率选项
-│       ├── 15-env.js         # core 环境缝：transport / 时钟 / 计时器
+│       ├── 15-env.js         # core 环境缝：transport（含 bwiki 的 origin=* 收口）/ 时钟 / 计时器
 │       ├── 20-source-core.js  # 来源容器 SOURCES + registerSource（模块顶层）
 │       ├── 21-fetcher-tables.js # GACHA_FETCHERS / EVENT_FETCHERS（与游戏文件同层：每引擎一份）
 │       ├── 22-fetcher-core.js # 抓取公共设施：抓取桥接 / 通用载荷 / 备选源解析
@@ -100,8 +100,8 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 29 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（11 处定稿）+ 来源策略（默认源无自动兜底））
-│   ├── cases-*.mjs  # 各段用例（29 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / cases-arknights-claim / cases-arknights-timeline / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh / settings-jump / settings-copy / sources）
+│   ├── all.mjs      # 统一门禁：聚 30 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（11 处定稿）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=*）
+│   ├── cases-*.mjs  # 各段用例（30 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / cases-arknights-claim / cases-arknights-timeline / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh / settings-jump / settings-copy / sources / bwiki-cors）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
 │   ├── lib-text.mjs # 悬停文本的共用判定（去重 / 相邻重复 / 「名称 ⏎ 只有区间」/ 分类前缀双写）
@@ -123,6 +123,12 @@ dsh-gacha-calendar/
 ### 刷新频率（`refreshMinutes`）
 
 `refreshMinutes = 0` = **仅启动时刷新一次**：只在面板挂载（DSH 启动 / 页面加载）时刷一轮，运行期不排定时器；负数 / 非有限值才是脏配置（永不刷）。**出厂默认 = `0`（启动时）**；老配置由宿主**无条件**迁到 `0`（`migrateRefreshOnce`，标记 `refreshMigrated`；**不看旧值**，用户自己选过的档位也会被改成「启动时」—— 2026-10-31 用户要求）。
+
+### bwiki 的 `origin=*`（CORS 收口点）
+
+**事实**（2026-11-07 真机实测）：`wiki.biligame.com` 的 MediaWiki 接口只有带 `origin=*` 才回 `Access-Control-Allow-Origin`。不带时浏览器**直连**必定 `TypeError: Failed to fetch`（被上层归成「网络不通」），同一 URL 带 `&origin=*` 才 200；此前只是靠宿主代理（不受 CORS 限制）把问题盖住了 —— 所以仓里 22 处 bwiki 地址常量一直没带这个参数也没暴露。
+
+**收口位置**：`src/client/15-env.js` 的两个 transport 出口 —— `transportFetchRaw`（直连）与 `proxyFetchText`（宿主代理）都先过纯函数 `withBwikiCors(url)`：主机是 `wiki.biligame.com` 或 `*.biligame.com` 且 query 里没有 `origin` ⇒ 追加 `origin=*`（无 query 用 `?`，有 query 用 `&`，有 `#hash` 补在 hash 前），其余原样返回（**不重序列化**：中文参数不会被 percent-encode）。因此**新增 bwiki 来源不必自己拼这个参数**，也**不要**再写第二份「拼 origin」的实现（回归在 `test/cases-bwiki-cors.mjs`：纯函数边界 + 两条出口的接线守卫 + 请求记账 + 其它站点逐字不变）。
 
 ### 明日方舟两阶段（举行 / 奖励领取）
 

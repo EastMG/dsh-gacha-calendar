@@ -40,6 +40,7 @@ import runRefresh from "./cases-refresh.mjs";
 import runSettingsJump from "./cases-settings-jump.mjs";
 import runSettingsCopy from "./cases-settings-copy.mjs";
 import runSources from "./cases-sources.mjs";
+import runBwikiCors from "./cases-bwiki-cors.mjs";
 
 const LIVE = process.argv.includes("--live");
 
@@ -130,7 +131,8 @@ const batches = [
 	["刷新频率「启动时」档（refreshMinutes = 0 的判定 / 定时器 / 设置页 / schema）", runRefresh],
 	["设置入口（两个面板的齿轮 + 三步跳转设置页）", runSettingsJump],
 	["设置页 title 文案（11 处定稿：5 条改写 + 6 条删除）", runSettingsCopy],
-	["来源策略（默认源无自动兜底：5 处「不请求第二个站点」+ 手动切源仍取数）", runSources]
+	["来源策略（默认源无自动兜底：5 处「不请求第二个站点」+ 手动切源仍取数）", runSources],
+	["bwiki 请求统一带 origin=*（CORS 收口点：纯函数边界 + 两条 transport 出口接线 + 请求记账 + 别的站点逐字不变）", runBwikiCors]
 ];
 const before = counts();
 for (const [label, fn] of batches) {
