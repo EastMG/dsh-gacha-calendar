@@ -100,10 +100,12 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 27 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（11 处定稿））
-│   ├── cases-*.mjs  # 各段用例（27 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / cases-arknights-claim / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh / settings-jump / settings-copy）
+│   ├── all.mjs      # 统一门禁：聚 28 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（11 处定稿））
+│   ├── cases-*.mjs  # 各段用例（28 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / cases-arknights-claim / cases-arknights-timeline / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh / settings-jump / settings-copy）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
+│   ├── lib-text.mjs # 悬停文本的共用判定（去重 / 相邻重复 / 「名称 ⏎ 只有区间」/ 分类前缀双写）
+│   │                # 用法：cases-arknights-claim（真机逐字基线）与 cases-arknights-timeline（整周期）都调它
 │   ├── registry-shim.mjs # 各批次注册表规格快照 + DRIFT 守卫（与运行时 SOURCES 核对 tz/name）
 │   ├── capture*.mjs # 抓真实响应生成夹具；run.mjs # 单段直跑
 │   ├── map.json     # 请求 URL → 夹具路径（**入库**）
@@ -163,7 +165,43 @@ dsh-gacha-calendar/
 - 因此**「活动期」的输出与改造前逐字节一致**（`test/cases-arknights-claim.mjs` ③用整段悬停做回归基线，④是「提示行不进 `eventHover`」的真机 bug 回归）。
 - **两个 deadline 各自提醒**（2026-11-06）：`eventDates` 只负责**显示**（三态表，语义没变）；提醒侧要的是两条独立 deadline，所以活动期就额外带一个**只给提醒用**的 `eventClaimDates`（有兑换期才有，形如 `11-07 03:59 ~ 11-10 03:59`，没有就不写这个键）。`remindItemsOf` 据此在活动侧**多派生一条** `kind:"end"` 条目：key 的 side 段是 `event-claim`、`sideLabel = "奖励领取"`、`side` 仍是 `event`（不新增 `REMIND_SIDES`），与「活动结束」那条各按自己的 T 走 72/24/6/2 档位、去重状态也各自独立 ⇒ **只要刷新过一次拿到两个窗口，之后中途不再刷新，两个 deadline 也都会按时响**。两个 T 相同（刷新时已在兑换期，`eventDates` 本身就是兑换区间）⇒ 去重只留一条。该字段随 `lastData` 持久化（`50-refresh.js` 的 `EVENT_FIELDS` 与 `engine-head.js` 的 `CONTENT_FIELDS` 都已登记；否则序列化时会被过滤掉）。
 - 奖励领取那条的通知文案与「活动结束」区分：事项行是 `奖励领取「<活动名>」`、正文时间段那行以 `奖励领取截止` 结尾（标题仍是「即将结束」）；其它侧的文案一个字没改。
-- 夹具 `test/fixtures/arknights-events-{list,pages}/` 与 `test/fixtures/arknights-events-{list,pages}-1107/` 都是**手工构造**的：本机出口对 `prts.wiki` 返回 403（Tengine，浏览器与 curl 一致），抓不到真实响应，行结构照解析契约写（见每份 `response.txt.meta.json` 的 `note`）。`-1107` 那两份是真机 2026-11-07 那三条活动的等价数据（视相博物馆：演化 / 感谢庆典2026限时签到 / 时间啊，向前！），只由 `cases-arknights-claim.mjs` ⑥ 用 `fixtureBody(url, overrides)` 指定，**不改 `test/map.json`** 里既有的两条映射。
+- 夹具 `test/fixtures/arknights-events-{list,pages}/` 与 `test/fixtures/arknights-events-{list,pages}-1107/` 都是**手工构造**的：本机出口对 `prts.wiki` 返回 403（Tengine，浏览器与 curl 一致），抓不到真实响应，行结构照解析契约写（见每份 `response.txt.meta.json` 的 `note`）。`-1107` 那两份是真机 2026-11-07 那三条活动的等价数据（视相博物馆：演化 / 感谢庆典2026限时签到 / 时间啊，向前！），只由 `cases-arknights-claim.mjs` ⑥ 与 `cases-arknights-timeline.mjs` 用 `fixtureBody(url, overrides)` 指定，**不改 `test/map.json`** 里既有的两条映射。
+
+### 明日方舟时间轴不变量（新增字段/阶段时先看这里）
+
+**为什么有这一节**：2026-11-01 ~ 11-07 这一周里这套两阶段被连着改了 5 次，毛病全是"**时间走过去之后**才暴露"的（进兑换期整条消失、分类前缀拼两遍、提示框同一区间出现两遍、急的兑换期被不急的活动挤掉）。所以护栏不是"几个点"，而是**沿整条活动周期逐时刻跑完整链路**：`test/cases-arknights-timeline.mjs`（门禁第 15 段）用真机 2026-11-07 那三条活动的夹具，对下表每个时刻都跑 `EVENT_FETCHERS["arknights"]` → payload → `scheduleNormalize` → 悬停（表格格子 + 「近期」行两条路径）→ `remindItemsOf`/`remindTickOf` → `createEngine().getCached()`。
+
+| 时刻（+08） | 断言要点 |
+|---|---|
+| 2026-10-23 16:00（开始前 1 天） | 三条都还没开 ⇒ 载荷 `null`，连半截字段都没有 |
+| 2026-10-24 17:00（开场后 1 小时） | 活动期：无 `eventShow`，`eventDates` = 活动区间；单条活动 ⇒ 悬停走兜底两行式 |
+| 2026-11-06 21:59（活动结束前 6 小时） | 三条都在活动期；外显按类别档位仍是「支线故事：时间啊，向前！」 |
+| 2026-11-07 04:00（活动结束后 1 分钟） | 兑换期：外显切到视相，`eventShow` =「视相博物馆：演化 兑换截止」，`eventDates` = 兑换区间 |
+| 2026-11-08 12:00（兑换期中间） | 同上（兑换期三态一致，不会"过一天又变一个样"） |
+| 2026-11-10 02:59（兑换结束前 1 小时） | 同上（最后一个还能领的时刻） |
+| 2026-11-10 04:59（兑换结束后 1 小时） | 视相**整条消失**（事件名、悬停、提示行里都不许再出现），只剩别的活动 |
+| 2026-11-30 12:00（整周期结束） | 载荷 `null`；没有"相关"条目时批量那次请求都不发（只发一览 1 次） |
+| 跨年（12-30 开始 / 次年 01-05 结束，payload 纯函数） | `fmtWindow` 两端带年份；次年字段按 `tz` 解析不错年；兑换窗口自己跨年时 `eventClaimDates` 两端带年份 |
+| 无「兑换结束时间」字段（夹具里那条登录活动） | 载荷键集合 = 改造前那四个（`event/eventDates/eventDatesRaw/eventHover`），**不多** `eventShow`/`eventClaimDates`/`eventHoverExtra` |
+| 批量 query 失败（`failBatch`） | 同上；活动期与"批量成功"的 `event/eventDates/eventHover` **逐字相同**（退化只丢兑换期，不动活动期） |
+
+每个时刻都查的六条不变量（改动前先确认这六条还成立）：
+
+1. **悬停文本**：任意一行不重复、相邻两行不相同、不出现「名称单独一行 ⏎ 只有区间」的两行形态。谓词与断言在 `test/lib-text.mjs` 的 `assertHoverTextInvariants` —— 与 `cases-arknights-claim.mjs` ⑥ 共用**同一份实现**，不许再写第二份。⚠️ 当期只有 1 条活动时 `buildEventHover` 按契约返回空串、UI 退回默认两行式「名称 ⏎ 档期」，那是**合法兜底**（判据自动切成"纯档期行 ≤ 1 条"），不是 bug。
+2. **阶段**：活动期没有 `eventShow`、`eventDates` = 活动区间；兑换期 `eventShow` = `<去重后的活动名> 兑换截止`、`eventDates` = 兑换区间；结束后该活动不再作为外显（悬停/提示行也不许再提）。
+3. **名称不重复**：`event` / `eventShow` / 悬停行标签 / 提示行锚点都不许带两层分类前缀。两条判据一起用：`labelOf(cat, label) === label`（幂等）+ `doubledCatPrefixOf`（真的没拼第二下）—— 只靠幂等**抓不到**"多加了一层"（`labelOf` 对已带前缀的串是原样返回的）。
+4. **提醒**：`remindItemsOf` + `remindTickOf` 在「活动结束前 72h」与「兑换截止前 72h」各发一次、key 不同（`arknights|event|end|…` vs `arknights|event-claim|end|…`），且**同一份 `lastData` 不刷新**也各发一次；兑换期载荷两个 T 相同 ⇒ 去重只留一条。
+5. **不崩**：任何时刻抓取器都不抛；退化路径返回**改造前**那个数据形状（键集合逐一比对，不是"看着差不多"）。
+6. **持久化**：载荷喂给 `createEngine().getCached()` 后，现有 4 个字符串字段 + 两阶段新增 3 个字段（`eventClaimDates` / `eventShow` / `eventHoverExtra`）一个不丢；活动列沿用旧值时这三者也一起沿回；没有兑换期的来源归一成空串（形状固定）。
+
+**加新东西时改哪里**（照抄这段就够）：
+
+- **payload 新增字段**（如以后的多活动数组 `events`、或第三种阶段）⇒ 四处同步：`src/client/50-refresh.js` 的 `EVENT_FIELDS`、`src/client/engine-head.js` 的 `CONTENT_FIELDS`（产物见 `packages/core/core.mjs`）、本节、**以及 `cases-arknights-timeline.mjs` 的 `PERSIST_BASE` / `PERSIST_NEW` 清单**（少了它测试不会红，只会悄悄少一个字段）。该文件 §五 会把清单里每个字段各喂一个互不相同的值走一遍真引擎归一 —— 白名单漏登记一个就必红。
+- **时间轴上新增一种边界**（例如"开始前 2 小时"、更长的兑换期）⇒ 往该文件的 `MOMENTS` 数据表加一行（纯 payload 的边界，如跨年，加进 §二/§三 那几段小表），**不要**在下面写新的 `if` 分支；每行只描述"这一刻该看到什么"。
+- **悬停排版变了** ⇒ 改 `test/lib-text.mjs` 的 `assertHoverTextInvariants` 与 `test/harness.mjs` 的 `assertHoverConvention`，两个用例文件都不用动。
+- **别的来源也要两阶段** ⇒ 不要往 arknights 的用例里塞它的夹具；各来源自己的 `cases-*.mjs` 承担，但悬停结构判定继续调 `test/lib-text.mjs`。
+
+**已知缺口（2026-11-07 实测，如实记下，未修）**：批量取 wikitext 的候选筛选是「一览结束 ≥ now−3 天」（`PRTS_CLAIM_LOOKBACK_MS`），但兑换期可以**长于 3 天**（真机「时间啊，向前！」= 11-22 03:59 结束、11-29 03:59 兑换截止 = 7 天）。于是**兑换期第 4 天起**该活动不再进入候选、批量请求都不发 ⇒ 载荷变 `null`、面板上整条消失（用 -1107 夹具复现：now = 2026-11-24 12:00 有外显，now = 2026-11-25 12:00 起变 `null`，而兑换截止是 11-29 03:59）。要修的话：把回看窗口放大到"最长兑换期"以上（如 14 天），并同步 `cases-arknights-claim.mjs` ② 里那两条钉住 3 天窗口的断言（2026-11-06 时刻 titles 恰好 3 条、且不含「龙门夏日签到」）—— 那是**行为变更**，按 AGENTS.md 需要先拿用户指令再动。
 
 ### 为什么插件要改宿主的槽位布局
 

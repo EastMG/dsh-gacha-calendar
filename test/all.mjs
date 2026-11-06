@@ -25,6 +25,7 @@ import runBa from "./cases-ba.mjs";
 import runPw from "./cases-pw.mjs";
 import runUmaGt from "./cases-uma-gt.mjs";
 import runArknightsClaim from "./cases-arknights-claim.mjs";
+import runArknightsTimeline from "./cases-arknights-timeline.mjs";
 import runRuleLint from "./cases-rule-lint.mjs";
 import runTz from "./cases-tz.mjs";
 import runTicker from "./cases-ticker.mjs";
@@ -114,6 +115,7 @@ const batches = [
 	["完美世界·异环（官网公告：段落锚点 + 翻页深度）", runPw],
 	["赛马娘国际服卡池（GameTora 默认源）", runUmaGt],
 	["明日方舟两阶段（PRTS 一览 + 批量 wikitext：实际举行 / 奖励领取）", runArknightsClaim],
+	["明日方舟时间轴（一整个活动周期逐时刻扫描 + 跨年 / 退化 / 双 deadline / 持久化）", runArknightsTimeline],
 	["规则静态守卫（方案 A 悬停 + 选当期判定不许各写各的）", runRuleLint],
 	["时区口径（外显=本机时区 / 悬停=源站墙钟）", runTz],
 	["侧栏轮播（单行翻页 + 「提前 N 小时」；不分游戏）+ 「提醒」白名单预留", runTicker],

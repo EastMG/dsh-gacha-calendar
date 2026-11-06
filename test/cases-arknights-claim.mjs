@@ -40,6 +40,12 @@
 import { check, section, useFixtures, setFetchImpl, fixtureBody } from "./harness.mjs";
 import { T, readComponentsSource } from "./load.mjs";
 import { createEngine } from "../packages/core/core.mjs";
+// 悬停文本的判定**只有一份实现**（在 `test/lib-text.mjs`）：本段（真机 bug 的逐字基线）与
+// `cases-arknights-timeline.mjs`（整周期时间轴扫描）都调它 —— 两处不许各写一套谓词。
+import {
+	assertHoverTextInvariants, bareTwoLineFormOf,
+	dupLinesOf, linesOf, NOTE_LINE, SHARED_EVENT_LINE
+} from "./lib-text.mjs";
 
 const TZ_CN = "Asia/Shanghai";
 
@@ -55,9 +61,8 @@ const BATCH_PREFIX = "https://prts.wiki/api.php?action=query&prop=revisions";
 // 提示行**只有一种合法形态**（与该活动自己那行**同一排版**：`名称` + **3 空格** + `内容`）：
 //   · 活动期（有兑换期） ⇒ `<标签> 兑换截止   11-10 03:59`
 //   · 兑换期            ⇒ **一行都不生成**（主行已经是兑换区间，2026-11-07 真机 bug 的①）
-const NOTE_EVENT_RE = /^(\S.*) 兑换截止   \d{2}-\d{2} \d{2}:\d{2}$/;
-// 悬停 = 共用排版：`名称 + 3 空格 + 档期`。
-const SHARED_LINE_RE = /^\S.*   (\d{4}-)?\d{2}-\d{2} \d{2}:\d{2} ~ (\d{4}-)?\d{2}-\d{2} \d{2}:\d{2}$/;
+// 正则与三条结构不变量都在 `test/lib-text.mjs`（NOTE_LINE / SHARED_EVENT_LINE / assertHoverTextInvariants）：
+// 本文件不再自带一份，否则 timeline 那段一定会与这里判得不一样。
 // 「泄漏」判据：**单条截止日**形态的提示行（`… 兑换截止   MM-DD HH:MM`）出现在 eventHover 里，
 // 才说明提示行又跑进去了。注意兑换期那条**主行**（`… 兑换截止   MM-DD HH:MM ~ MM-DD HH:MM`）
 // 是合法的——它本身就是兑换区间（2026-11-07 起），所以判据只认"单条截止日"那种。
@@ -95,27 +100,9 @@ const HOVER_REAL_CLAIM = "视相博物馆：演化 兑换截止   11-07 03:59 ~ 
 	+ "登录活动：感谢庆典2026限时签到   11-01 12:00 ~ 11-15 03:59\n"
 	+ "支线故事：时间啊，向前！   11-01 12:00 ~ 11-22 03:59\n"
 	+ "支线故事：时间啊，向前！ 兑换截止   11-29 03:59";
-// 一行"只有区间"（活动侧不许出现「活动名单独一行 ⏎ 只有区间」这种两行形态）
-const PURE_WINDOW_LINE = /^(?:\d{4}-)?\d{2}-\d{2} \d{2}:\d{2} ~ (?:\d{4}-)?\d{2}-\d{2} \d{2}:\d{2}$/;
-const linesOf = (t) => String(t == null ? "" : t).split("\n").filter((l) => l !== "");
-// 去重断言：整段文本里**任何一行不得出现两次**
-const dupLinesOf = (t) => {
-	const seen = new Set(), dup = [];
-	for (const l of linesOf(t)) { if (seen.has(l)) dup.push(l); seen.add(l); }
-	return dup;
-};
-// 不得出现**连续两行完全相同**
-const consecutiveDupOf = (t) => {
-	const L = linesOf(t), out = [];
-	for (let i = 1; i < L.length; i++) if (L[i] === L[i - 1]) out.push(L[i]);
-	return out;
-};
-// 「活动名单独一行 ⏎ 只有区间」这种两行形态（= 旧实现追加 title + rawSrc 的形状）
-const bareTwoLineFormOf = (t) => {
-	const L = linesOf(t), out = [];
-	for (let i = 0; i + 1 < L.length; i++) if (PURE_WINDOW_LINE.test(L[i + 1])) out.push(L[i] + " ⏎ " + L[i + 1]);
-	return out;
-};
+// ⚠️ 下面是本段**专有**的常量（真机那三条活动的逐字基线）；文本结构判定的 helper
+// （linesOf / dupLinesOf / consecutiveDupOf / bareTwoLineFormOf / 三条不变量断言）一律来自
+// `test/lib-text.mjs` —— 与 `cases-arknights-timeline.mjs` 共用同一份实现。
 
 const okBody = (body) => ({
 	ok: true, status: 200, headers: { get: () => "application/json" },
@@ -416,7 +403,7 @@ export default async function run() {
 			!!a.data && (() => {
 				const L = String(a.data.eventHoverExtra || "").split("\n");
 				const notes = L.filter((_, i) => i % 2 === 1).filter(Boolean);
-				return notes.length === 2 && notes.every((l) => NOTE_EVENT_RE.test(l))
+				return notes.length === 2 && notes.every((l) => NOTE_LINE.test(l))
 					&& !notes.some((l) => /11-15/.test(l));
 			})(),
 			JSON.stringify(a.data && a.data.eventHoverExtra));
@@ -516,8 +503,8 @@ export default async function run() {
 		const bLines = String((b.data && b.data.eventHover) || "").split("\n").filter(Boolean);
 		check("悬停排版：活动期 / 兑换期的 eventHover 全部是共用排版的「名称 + 3 空格 + 档期」（没有单条截止日的提示行）",
 			aLines.length === 3 && bLines.length === 3
-			&& aLines.concat(bLines).every((l) => SHARED_LINE_RE.test(l))
-			&& aLines.concat(bLines).every((l) => !NOTE_EVENT_RE.test(l)),
+			&& aLines.concat(bLines).every((l) => SHARED_EVENT_LINE.test(l))
+			&& aLines.concat(bLines).every((l) => !NOTE_LINE.test(l)),
 			JSON.stringify([aLines, bLines]));
 
 		// ② 探头条目数 = 当期活动条数（活动期 / 兑换期都是 3）—— 与改造前一致，不因提示行多出条目
@@ -528,8 +515,8 @@ export default async function run() {
 		check("格子探头：兑换期也还是 3 条（墟 的兑换期没有顶掉任何一条，也不多出提示行）",
 			bItems.length === 3, JSON.stringify(bItems.map((x) => x.title)));
 		check("格子探头：每条都是「名称 + 3 空格 + 档期」，没有一条是单条截止日的提示行（格子里不会多出那段文字）",
-			aItems.concat(bItems).every((x) => SHARED_LINE_RE.test(`${x.title}   ${x.win}`))
-			&& aItems.concat(bItems).every((x) => !NOTE_EVENT_RE.test(`${x.title}   ${x.win}`))
+			aItems.concat(bItems).every((x) => SHARED_EVENT_LINE.test(`${x.title}   ${x.win}`))
+			&& aItems.concat(bItems).every((x) => !NOTE_LINE.test(`${x.title}   ${x.win}`))
 			&& aItems.concat(bItems).every((x) => !/奖励领取期/.test(x.title)),
 			JSON.stringify(aItems.concat(bItems).map((x) => x.title)));
 		// ③ 提示行**不参与解析**：把提示行拼进提示框（正确路径）之后，探头仍只解析 eventHover —— 条目数不变
@@ -772,19 +759,15 @@ export default async function run() {
 			!!b.data && linesOf(cellHoverOf(b.data))[0].indexOf(b.data.eventShow + "   ") === 0,
 			JSON.stringify([b.data && b.data.eventShow, linesOf(cellHoverOf(b.data))[0]]));
 
-		// ④ 反向守卫：去重 / 连续重复 / 两行形态 —— 两段 × 两条路径，一共 12 条
+		// ④ 反向守卫：去重 / 连续重复 / 两行形态 —— 两段 × 两条路径，一共 12 条。
+		// 三条结构不变量走 `test/lib-text.mjs` 的同一份实现（timeline 那一段也调它）。
 		for (const [label, txt] of [
 			["活动期（表格格子）", cellHoverOf(a.data)],
 			["兑换期（表格格子）", cellHoverOf(b.data)],
 			["活动期（「近期」行）", rowHoverOf(a.data, NOW_EVENT)],
 			["兑换期（「近期」行）", rowHoverOf(b.data, NOW_CLAIM)]
 		]) {
-			check(`${label}：悬停全文里**任何一行都不出现两次**（去重断言）`,
-				linesOf(txt).length > 0 && dupLinesOf(txt).length === 0, JSON.stringify(dupLinesOf(txt)));
-			check(`${label}：不得出现**连续两行完全相同**`,
-				consecutiveDupOf(txt).length === 0, JSON.stringify(consecutiveDupOf(txt)));
-			check(`${label}：不出现「活动名单独一行 ⏎ 下一行只有区间」的两行形态`,
-				bareTwoLineFormOf(txt).length === 0, JSON.stringify(bareTwoLineFormOf(txt)));
+			assertHoverTextInvariants(label, txt);
 		}
 
 		// ⑤ 反向证明（守卫不是空的）：把真机那两处毛病**造回去**，守卫必须报红
