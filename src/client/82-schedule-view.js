@@ -413,7 +413,9 @@
 					const note = sideFailText(x.side, fail, { userSupplied: false });
 					if (note) text = stale && text ? text + "\n（" + note + "）" : "（" + note + "）";
 				}
-				return text || "—";
+				// 「只给提示框」的提示行（如明日方舟的「兑换截止：11-10 03:59」）**只在末尾**追加一行：
+				// 它**不进 eventHover**（进了就会被格子的并列条目解析成一行可见文字，2026-11-06 真机 bug）。
+				return scheduleHoverNote(text, g, x.isG) || "—";
 			};
 				const itemOf = (x, key) => (0, react_jsx_runtime.jsxs)("div", {
 					key, className: "gacha-cal-sched-item", "data-u": scheduleUrgency(x),

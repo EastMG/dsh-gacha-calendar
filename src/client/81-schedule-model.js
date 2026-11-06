@@ -375,11 +375,22 @@
 		// 悬停明细：**原面板那套**（引擎的 bannerHover / eventHover —— 当期 ≥2 条时每条一行，
 // 形如「池名：角色 ⏎ 档期」或「活动名 + 3 空格 + 档期」）。没有并列条目时给空串 →
 // 退化成「外显 ⏎ 档期」，与原面板单条时的观感一致。
+		// 提示框（原生 title）**末尾**追加「只给提示框」的提示行（如明日方舟的「兑换截止：11-10 03:59」）。
+		// 为什么单独一个函数：提示行**绝不能进 eventHover**（表格格子会把 eventHover 解析成并列条目，
+		// 那一行就会变成格子里的一行可见文字 —— 2026-11-06 真机 bug）。这里只做"拼在提示框末尾"这一件事，
+		// 表格格子的 hoverTextOf（82）与「近期」行的 scheduleHoverText（下面）都调它 ⇒ 两处口径一致。
+		// 只在**活动侧**生效（`eventHoverNote` 是活动列字段），没有 / 空串 ⇒ 原样返回，不补任何东西。
+		function scheduleHoverNote(text, g, isG) {
+			if (isG || !g) return text;
+			const note = typeof g.eventHoverNote === "string" ? g.eventHoverNote : "";
+			if (!note) return text;
+			return text ? text + "\n" + note : note;
+		}
 			function scheduleHoverText(x) {
 				const hv = (x.isG ? x.g.bannerHover : x.g.eventHover) || "";
 				// 悬停一律给**源站墙钟原文**（rawSrc）；换算后的本机时区文本只用于外显
 				const head = [x.title, x.rawSrc || x.raw].filter(Boolean).join("\n");
-				return [hv, head].filter(Boolean).join("\n") || "—";
+				return scheduleHoverNote([hv, head].filter(Boolean).join("\n"), x.g, x.isG) || "—";
 			}
 			function scheduleKindIcon(kind, cls) {
 			const box = { className: cls, viewBox: "0 0 12 12", "aria-hidden": "true", focusable: "false" };

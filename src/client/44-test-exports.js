@@ -399,6 +399,14 @@
 			//   失败 ⇒ sideFailText 的既有文案（+「日期为沿用旧值」）；沿用旧值 ⇒「数据来自上次成功抓取 X 前」；
 			//   该侧没有数据 ⇒「（无数据）」。导出后四种情况都能用固定 now 逐字断言（见 cases-tz.mjs ⑤）。
 			scheduleDateHover,
+			// scheduleHoverItems = 表格格子「探头」里并列条目的**解析器**（81-schedule-model.js）：
+			//   `eventHover` 的多行原文 → [{ title, win }]。导出后可以钉住"提示行**不再进 eventHover**"
+			//   这条真机 bug 的回归：同一份提示行塞进 eventHover 会多解析出一个条目（那颗"看得见的一段文字"）。
+			scheduleHoverItems,
+			// scheduleHoverNote = 提示框（原生 title）末尾追加「只给提示框」的提示行（`eventHoverNote`）：
+			//   表格格子的 hoverTextOf（82-schedule-view.js）与「近期」行的 scheduleHoverText（81）共用它。
+			//   导出后能行为断言"拼在末尾、另起一行、没有就不动"。
+			scheduleHoverNote,
 			// scheduleNormalize = 新面板**一条档期**的归一（81-schedule-model.js）：`title` 是源站原文
 			//   （卡池 = 池名 / 活动 = 活动名，只给悬停用），`show` 是**外显文本**（卡池侧有 roles 时 =
 			//   去修饰的角色名，否则退回 title；活动侧 = title）。导出后可以钉住"外显口径"本身，

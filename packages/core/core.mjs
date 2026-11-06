@@ -2340,9 +2340,11 @@ export function createEngine(env) {
 			// 一个 deadline（"刷新过一次之后两个都会响"就不成立了）。
 			// `eventShow` = **只给显示**的事项名（兑换期 ⇒「<分类>：兑换截止」；活动期没有这个键）。
 			// 同样要登记，否则持久化时被过滤 ⇒ 面板那一行退回活动名（`event` 本身不动）。
+			// `eventHoverNote` = **只进提示框**的提示行（「兑换截止 / 奖励领取期」；没有兑换期就没有这个键，
+			// 归一后是空串）。不登记就会被静默丢掉 ⇒ 沿用旧值时提示框少一行。
 			const CONTENT_FIELDS = [
 				"banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover",
-				"event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventShow", "eventHover"
+				"event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventShow", "eventHoverNote", "eventHover"
 			];
 			function normalizeRecord(rec, name) {
 				const src = rec || {};
@@ -5817,10 +5819,11 @@ EVENT_FETCHERS["wuwa"] = {
 		// ⇒ 抓取链路是**两次**请求：① 一览（1 次）② 相关活动页 wikitext（**一次**批量 query，≤12 页）。
 		//   ② 失败 / 解析不出 ⇒ 退化为「只有活动期」（与改造前逐字节相同），绝不让主链路跟着失败。
 		//
-		// ⚠️ 显示用的数据模型不动：仍是 event / eventDates / eventDatesRaw / eventHover 四个字段，
+		// ⚠️ 显示用的数据模型：event / eventDates / eventDatesRaw / eventHover 四个字段，
 		//    「阶段」只体现在按 now 动态选出来的文本里（见 prtsEventPayload 的三态说明）。
-		//    另有**只给提醒侧**的 `eventClaimDates`（有兑换期才出现）与**只给显示**的 `eventShow`
-		//    （只在兑换期出现，形如「支线故事：兑换截止」）：都见 prtsEventPayload 的说明。
+		//    另有**只给提醒侧**的 `eventClaimDates`（有兑换期才出现）、**只给显示**的 `eventShow`
+		//    （只在兑换期出现，形如「支线故事：兑换截止」）、以及**只进提示框**的 `eventHoverNote`
+		//    （「兑换截止 / 兑换期」提示行，可多行；**绝不进 eventHover**）：都见 prtsEventPayload 的说明。
 
 		// 页名：`/w/<URL 编码页名>` → 解码后的页名（下划线归空格，与 MediaWiki 标题语义一致）。
 		// 只解析 href 字符串，**不**去抓详情页 HTML（那会是 N 次请求）。
@@ -5943,19 +5946,20 @@ EVENT_FETCHERS["wuwa"] = {
 		}
 
 
-		// 悬停追加提示行：**排版仍只由共用 buildEventHover 产生**，这里只把「兑换截止 / 领取期」那一行
-		// 插到对应活动行之后（既有行的文本一个字都不改）。
-		// hover 为空（0/1 条 —— 共用约定是交回 UI 单条展示）⇒ 原样返回 ""，不擅自造悬停文本。
-		function prtsHoverWithNotes(hover, active, notes) {
-			if (!hover || !notes || notes.size === 0) return hover;
-			const names = (active || []).map((x) => x.name).filter(Boolean).sort((a, b) => b.length - a.length);
-			const out = [];
-			for (const line of String(hover).split("\n")) {
-				out.push(line);
-				const hit = names.find((n) => line === n || line.indexOf(n + "   ") === 0);
-				if (hit && notes.has(hit)) out.push(notes.get(hit));
+		// 「兑换截止 / 奖励领取期」提示行 → **只进提示框**的独立字段 `eventHoverNote`（可多行）。
+		// ⚠️ 绝不插进 `eventHover`：表格格子会把 `eventHover` 交给 `scheduleHoverItems` 解析成**并列条目**
+		//    （`82-schedule-view.js` 的 `cells`），不匹配「名称 + 3 空格 + 档期」的提示行会被当成并列条目
+		//    渲染进格子里 —— 用户真机截图里「兑换截止：11-10 03:59」就是**可见的一行文字**（2026-11-06 bug）。
+		//    所以 `eventHover` 仍**只由共用 buildEventHover 产生**（与改造前逐字一致）。
+		// 两种合法形态（与 prtsEventPayload 的三态一一对应）：
+		//   · 活动期（有兑换期）    ⇒ `兑换截止：MM-DD HH:mm`
+		//   · 兑换期               ⇒ `活动已于 MM-DD HH:mm 结束，当前为奖励领取期（兑换截止 MM-DD HH:mm）`
+		//   · 没有兑换期 / 批量失败 ⇒ 返回空串，调用方**不写这个键**
+		function prtsHoverNoteOf(x, tz) {
+			if (x.phase === "claim") {
+				return `活动已于 ${fmtMdHm(x.startTs, tz)} 结束，当前为奖励领取期（兑换截止 ${fmtMdHm(x.endTs, tz)}）`;
 			}
-			return out.join("\n");
+			return x.claimEndTs != null ? `兑换截止：${fmtMdHm(x.claimEndTs, tz)}` : "";
 		}
 
 
@@ -5974,11 +5978,13 @@ EVENT_FETCHERS["wuwa"] = {
 
 		// 活动列载荷（**三态**，按 now 动态选文本；显示模型不变）：
 		//   ① 活动期（now ≤ 活动结束）：eventDates = 活动开始 ~ 活动结束 —— 与改造前**完全一致**；
-		//      有兑换期时悬停每条追加一行 `兑换截止：MM-DD HH:mm`，并额外给 `eventClaimDates`（提醒侧用）。
+		//      有兑换期时另给 `eventHoverNote` = `兑换截止：MM-DD HH:mm`（只进提示框），
+		//      并额外给 `eventClaimDates`（提醒侧用）。
 		//   ② 兑换期（活动结束 < now ≤ 兑换结束）：该活动**仍然出现**（改造前会消失），
 		//      eventDates = 活动结束 ~ 兑换结束（外显的「还剩 X」= 到兑换截止，正是此刻要盯的 deadline）；
-		//      悬停追加 `活动已于 … 结束，当前为奖励领取期（兑换截止 …）`。
+		//      `eventHoverNote` = `活动已于 … 结束，当前为奖励领取期（兑换截止 …）`（只进提示框）。
 		//   ③ 没有「兑换结束时间」字段（或批量失败/解析不出）：行为与改造前**逐字节一致**（不补猜 7 天之类）。
+		// ⚠️ `eventHover` **只由 buildEventHover 产出**，任何提示行都不许插进去（否则会漏进格子的并列条目）。
 		// 外显仍按类别优先、同级结束时间升序（pickEventPrimary）；悬停按结束时间升序全量（sortEventItems）。
 		function prtsEventPayload(snapshot, tz, now = nowMs(), pageTimes = null) {
 			const items = Array.isArray(snapshot) ? snapshot : [];
@@ -6000,13 +6006,12 @@ EVENT_FETCHERS["wuwa"] = {
 			}
 			const active = sortEventItems(candidates.filter((it) => coversNow(it, now)));
 			if (active.length === 0) return null;
-			const notes = new Map();
+			// 提示行（**只进提示框**）：按悬停同样的顺序（结束时间升序）收集，可多行。
+			// ⚠️ 不往 `eventHover` 里插 —— 见 prtsHoverNoteOf 上面那段注释（真机 bug：漏进格子的并列条目）。
+			const noteLines = [];
 			for (const x of active) {
-				if (x.phase === "claim") {
-					notes.set(x.name, `活动已于 ${fmtMdHm(x.startTs, tz)} 结束，当前为奖励领取期（兑换截止 ${fmtMdHm(x.endTs, tz)}）`);
-				} else if (x.claimEndTs != null) {
-					notes.set(x.name, `兑换截止：${fmtMdHm(x.claimEndTs, tz)}`);
-				}
+				const line = prtsHoverNoteOf(x, tz);
+				if (line) noteLines.push(line);
 			}
 			// 外显：类别优先（支线故事/危机合约等 vs 登录活动），同级内结束时间升序
 			const primary = pickEventPrimary(active) || active[0];
@@ -6037,11 +6042,15 @@ EVENT_FETCHERS["wuwa"] = {
 				eventDates: windowText,
 				...(claimDates ? { eventClaimDates: claimDates } : {}),
 				...(eventShow ? { eventShow } : {}),
+				// 提示行只进**提示框**（`hoverTextOf` / `scheduleHoverText` 追加在末尾），没有就不写这个键。
+				...(noteLines.length ? { eventHoverNote: noteLines.join("\n") } : {}),
 				// 兑换期的日期格悬停也用**兑换区间**（与格子里显示的那份同一个区间），
 				// 否则"格子=兑换期、悬停=活动期"会互相打脸；活动期仍是一览原文（改造前行为）。
 				// 活动真正的起止仍完整出现在 eventHover 的说明里，信息没有丢。
 				eventDatesRaw: primary.phase === "claim" ? windowText : (primary.raw || ""),
-				eventHover: prtsHoverWithNotes(buildEventHover(active, 0, tz), active, notes)
+				// ⚠️ **只由共用 buildEventHover 产生**（与改造前逐字一致）：格子的并列条目由它解析出来，
+				//    多一行提示就会在格子里多出一行**可见文字**（2026-11-06 真机 bug）。
+				eventHover: buildEventHover(active, 0, tz)
 			};
 		}
 
@@ -14503,7 +14512,9 @@ EVENT_FETCHERS["r1999"] = {
 		// 否则「刷新过一次、中途不再刷新」就只剩一个 deadline 会响（见 65-remind.js 的 remindItemsOf）。
 		// `eventShow` = **只给显示**的事项名（明日方舟兑换期 ⇒「<分类>：兑换截止」；活动期没有这个键）。
 		// 它同样必须原样进 lastData，否则兑换期那一行会退回活动名（`event` 本身不动）。
-		const EVENT_FIELDS = ["event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventShow", "eventHover"];
+		// `eventHoverNote` = **只进提示框**的提示行（「兑换截止 / 奖励领取期」；没有兑换期就没有这个键）。
+		// 同样要随 lastData 走，否则"沿用旧值时"提示框会少掉那一行（与 `eventShow` 同口径）。
+		const EVENT_FIELDS = ["event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventShow", "eventHoverNote", "eventHover"];
 		function pickFields(src, fields) {
 			const out = {};
 			if (!src) return out;
@@ -14684,6 +14695,8 @@ EVENT_FETCHERS["r1999"] = {
 					if (!rec.eventClaimDates) rec.eventClaimDates = prevRec.eventClaimDates || "";
 					// 事项名同口径沿用：否则兑换期那一行会从「<分类>：兑换截止」退回活动名（与格子里的兑换区间打脸）
 					if (!rec.eventShow) rec.eventShow = prevRec.eventShow || "";
+					// 提示行同口径沿用：否则活动侧整列是旧值时，提示框会少掉「兑换截止」那一行
+					if (!rec.eventHoverNote) rec.eventHoverNote = prevRec.eventHoverNote || "";
 					if (!rec.eventHover) rec.eventHover = prevRec.eventHover || "";
 					rec.eventStale = true;
 				}

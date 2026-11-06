@@ -88,9 +88,11 @@
 			// 一个 deadline（"刷新过一次之后两个都会响"就不成立了）。
 			// `eventShow` = **只给显示**的事项名（兑换期 ⇒「<分类>：兑换截止」；活动期没有这个键）。
 			// 同样要登记，否则持久化时被过滤 ⇒ 面板那一行退回活动名（`event` 本身不动）。
+			// `eventHoverNote` = **只进提示框**的提示行（「兑换截止 / 奖励领取期」；没有兑换期就没有这个键，
+			// 归一后是空串）。不登记就会被静默丢掉 ⇒ 沿用旧值时提示框少一行。
 			const CONTENT_FIELDS = [
 				"banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover",
-				"event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventShow", "eventHover"
+				"event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventShow", "eventHoverNote", "eventHover"
 			];
 			function normalizeRecord(rec, name) {
 				const src = rec || {};
