@@ -419,6 +419,11 @@
 			//   表格格子的 hoverTextOf（82-schedule-view.js）与「近期」行的 scheduleHoverText（81）共用它。
 			//   导出后能行为断言"插到对应活动那一行**之后**、另起一行、没有就不动"。
 			scheduleHoverNote,
+			// scheduleHoverText = 「近期」行（列表）的悬停文本（81-schedule-model.js）：
+			//   卡池侧 = 悬停原文 + `池名 ⏎ 档期`；活动侧 = **只用** `eventHover`（不追加 title + 原文，
+			//   否则同一区间出现两次 —— 2026-11-07 真机 bug），`eventHover` 为空才用 title + 原文兜底。
+			//   导出后可以逐字断言"表格格子与「近期」行两处口径一致"。
+			scheduleHoverText,
 			// scheduleNormalize = 新面板**一条档期**的归一（81-schedule-model.js）：`title` 是源站原文
 			//   （卡池 = 池名 / 活动 = 活动名，只给悬停用），`show` 是**外显文本**（卡池侧有 roles 时 =
 			//   去修饰的角色名，否则退回 title；活动侧 = title）。导出后可以钉住"外显口径"本身，

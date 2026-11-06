@@ -25,6 +25,15 @@
 //       删掉「活动已于 … 结束，当前为奖励领取期（…）」解释句；
 //    ④ 提示框里出现的标签与面板显示的那一串**同一串**。
 //
+// ⚠️ 2026-11-07 真机 bug（用户读到的 title，now = 2026-11-07 05:16，视相已进兑换期）：
+//    ① 兑换期那条活动**多出一行「… 兑换截止   与主行逐字同区间」**（主行本身已经是兑换区间）；
+//    ② 提示框**末尾又追加了 `title` ⏎ `rawSrc`** 两行（「视相博物馆：演化」⏎「11-07 03:59 ~ 11-10 03:59」）。
+//    修法：① `prtsHoverNoteOf` 在 `phase === "claim"` 时**一行都不生成**；该活动的主行改由
+//          `prtsEventPayload` 的 `hoverActive` 给成「<活动标签> 兑换截止」（与 `eventShow` 同一串）；
+//          ② 活动侧（`hoverTextOf` / `scheduleHoverText`）**不再追加** `title + rawSrc`
+//          （`eventHover` 已经是"每活动一行"的完整信息），只有 `eventHover` 为空才兜底。
+//    本文件第⑥节就是这条的回归：两段**逐字**基线 + 去重/两行形态的反向守卫。
+//
 // ⚠️ 夹具是**手工构造**的（不是抓的）：本机出口对 prts.wiki 返回 403（Tengine，浏览器/curl 一致），
 //    无法像其它批次那样 capture。行结构照 collectPrtsEvents 的解析契约写（见两份 meta.json 的 note）。
 
@@ -43,23 +52,70 @@ const BATCH_LOOKUP = "https://prts.wiki/api.php?action=query&prop=revisions&rvsl
 const BATCH_PREFIX = "https://prts.wiki/api.php?action=query&prop=revisions";
 
 // `eventHoverExtra`（**只进提示框**）：每两条一组 —— ① 该活动的**标签** ② 提示行本身。
-// 提示行的两种合法形态（与该活动自己那行**同一排版**：`名称` + **3 空格** + `内容`）：
+// 提示行**只有一种合法形态**（与该活动自己那行**同一排版**：`名称` + **3 空格** + `内容`）：
 //   · 活动期（有兑换期） ⇒ `<标签> 兑换截止   11-10 03:59`
-//   · 兑换期            ⇒ `<标签> 兑换截止   11-07 03:59 ~ 11-10 03:59`
+//   · 兑换期            ⇒ **一行都不生成**（主行已经是兑换区间，2026-11-07 真机 bug 的①）
 const NOTE_EVENT_RE = /^(\S.*) 兑换截止   \d{2}-\d{2} \d{2}:\d{2}$/;
-const NOTE_CLAIM_RE = /^(\S.*) 兑换截止   \d{2}-\d{2} \d{2}:\d{2} ~ \d{2}-\d{2} \d{2}:\d{2}$/;
 // 悬停 = 共用排版：`名称 + 3 空格 + 档期`。
 const SHARED_LINE_RE = /^\S.*   (\d{4}-)?\d{2}-\d{2} \d{2}:\d{2} ~ (\d{4}-)?\d{2}-\d{2} \d{2}:\d{2}$/;
-// 「泄漏」判据：eventHover 里出现这两类字样就说明提示行又跑进去了。
-const LEAK_RE = /兑换截止|奖励领取期/;
+// 「泄漏」判据：**单条截止日**形态的提示行（`… 兑换截止   MM-DD HH:MM`）出现在 eventHover 里，
+// 才说明提示行又跑进去了。注意兑换期那条**主行**（`… 兑换截止   MM-DD HH:MM ~ MM-DD HH:MM`）
+// 是合法的——它本身就是兑换区间（2026-11-07 起），所以判据只认"单条截止日"那种。
+const LEAK_RE = /兑换截止   \d{2}-\d{2} \d{2}:\d{2}$|奖励领取期/m;
 // 解释句（用户 2026-11-06 点名删掉）：载荷里任何一处都不许再出现。
 const EXPLAIN_RE = /活动已于|当前为奖励领取期/;
 // 活动期 / 兑换期的 `eventHover` **逐字**基线（= 只由 buildEventHover 产出；与改造前一致）。
+//   活动期：三条都是活动期 ⇒ 名字就是活动标签；
+//   兑换期：墟 已进兑换期 ⇒ 它那条主行是「支线故事：墟 兑换截止   11-07 03:59 ~ 11-10 03:59」
+//           （2026-11-07 起；兑换区间就是这一行，不再另补提示行）。
 const HOVER_ACTIVITY = "支线故事：墟   10-24 16:00 ~ 11-07 03:59\n危机合约：尖灭测试作战   11-01 04:00 ~ 11-15 03:59\n支线故事：火山旅梦   11-05 04:00 ~ 11-19 03:59";
-const HOVER_CLAIM = "支线故事：墟   11-07 03:59 ~ 11-10 03:59\n危机合约：尖灭测试作战   11-01 04:00 ~ 11-15 03:59\n支线故事：火山旅梦   11-05 04:00 ~ 11-19 03:59";
-// 提示行数据的**逐字**基线（活动期 / 兑换期）：每组两行（标签 ⏎ 提示行），顺序 = 悬停顺序（结束时间升序）。
+const HOVER_CLAIM = "支线故事：墟 兑换截止   11-07 03:59 ~ 11-10 03:59\n危机合约：尖灭测试作战   11-01 04:00 ~ 11-15 03:59\n支线故事：火山旅梦   11-05 04:00 ~ 11-19 03:59";
+// 提示行数据的**逐字**基线（每两条一组：标签 ⏎ 提示行），顺序 = 悬停顺序（结束时间升序）。
+//   活动期：墟（11-10）/ 火山（11-22）各一条；
+//   兑换期：**墟 那条一行都不生成**（主行已是兑换区间，2026-11-07 真机 bug 的①）⇒ 只剩火山一条。
 const EXTRA_ACTIVITY = "支线故事：墟\n支线故事：墟 兑换截止   11-10 03:59\n支线故事：火山旅梦\n支线故事：火山旅梦 兑换截止   11-22 03:59";
-const EXTRA_CLAIM = "支线故事：墟\n支线故事：墟 兑换截止   11-07 03:59 ~ 11-10 03:59\n支线故事：火山旅梦\n支线故事：火山旅梦 兑换截止   11-22 03:59";
+const EXTRA_CLAIM = "支线故事：火山旅梦\n支线故事：火山旅梦 兑换截止   11-22 03:59";
+
+// ── 真机 2026-11-07 的等价夹具（用户机器上那三条活动）───────────────────────────────
+// 与 arknights-events-list 同一套解析契约，只是换成真机那三条：
+//   视相博物馆：演化（10-24 16:00 ~ 11-07 03:59，兑换到 11-10 03:59）
+//   登录活动：感谢庆典2026限时签到（11-01 12:00 ~ 11-15 03:59，没有兑换期）
+//   支线故事：时间啊，向前！（11-01 12:00 ~ 11-22 03:59，兑换到 11-29 03:59）
+// 走 fixtureBody 的 overrides 指定（**不动** test/map.json 里既有的那两条映射）。
+const REAL_LIST = "arknights-events-list-1107/response.txt";
+const REAL_PAGES = "arknights-events-pages-1107/response.txt";
+const REAL_OVERRIDES = { [LIST_URL]: REAL_LIST, [BATCH_PREFIX]: REAL_PAGES };
+// 悬停最终全文（**逐字** = 用户 2026-11-07 给的期望文本）。
+const HOVER_REAL_EVENT = "视相博物馆：演化   10-24 16:00 ~ 11-07 03:59\n"
+	+ "视相博物馆：演化 兑换截止   11-10 03:59\n"
+	+ "登录活动：感谢庆典2026限时签到   11-01 12:00 ~ 11-15 03:59\n"
+	+ "支线故事：时间啊，向前！   11-01 12:00 ~ 11-22 03:59\n"
+	+ "支线故事：时间啊，向前！ 兑换截止   11-29 03:59";
+const HOVER_REAL_CLAIM = "视相博物馆：演化 兑换截止   11-07 03:59 ~ 11-10 03:59\n"
+	+ "登录活动：感谢庆典2026限时签到   11-01 12:00 ~ 11-15 03:59\n"
+	+ "支线故事：时间啊，向前！   11-01 12:00 ~ 11-22 03:59\n"
+	+ "支线故事：时间啊，向前！ 兑换截止   11-29 03:59";
+// 一行"只有区间"（活动侧不许出现「活动名单独一行 ⏎ 只有区间」这种两行形态）
+const PURE_WINDOW_LINE = /^(?:\d{4}-)?\d{2}-\d{2} \d{2}:\d{2} ~ (?:\d{4}-)?\d{2}-\d{2} \d{2}:\d{2}$/;
+const linesOf = (t) => String(t == null ? "" : t).split("\n").filter((l) => l !== "");
+// 去重断言：整段文本里**任何一行不得出现两次**
+const dupLinesOf = (t) => {
+	const seen = new Set(), dup = [];
+	for (const l of linesOf(t)) { if (seen.has(l)) dup.push(l); seen.add(l); }
+	return dup;
+};
+// 不得出现**连续两行完全相同**
+const consecutiveDupOf = (t) => {
+	const L = linesOf(t), out = [];
+	for (let i = 1; i < L.length; i++) if (L[i] === L[i - 1]) out.push(L[i]);
+	return out;
+};
+// 「活动名单独一行 ⏎ 只有区间」这种两行形态（= 旧实现追加 title + rawSrc 的形状）
+const bareTwoLineFormOf = (t) => {
+	const L = linesOf(t), out = [];
+	for (let i = 0; i + 1 < L.length; i++) if (PURE_WINDOW_LINE.test(L[i + 1])) out.push(L[i] + " ⏎ " + L[i + 1]);
+	return out;
+};
 
 const okBody = (body) => ({
 	ok: true, status: 200, headers: { get: () => "application/json" },
@@ -99,6 +155,38 @@ async function runFetcher(nowIso, { failBatch = false } = {}) {
 		console.warn = orig;
 	}
 	return { data, err, seen, warns };
+}
+
+// 跑一次真实抓取器，但换成**真机 2026-11-07** 那三条活动的夹具（overrides，不动 map.json）。
+async function runRealFetcher(nowIso) {
+	setFetchImpl(async (url) => {
+		const u = String(url);
+		if (u.startsWith(LIST_URL)) return okBody(fixtureBody(LIST_URL, REAL_OVERRIDES));
+		if (u.includes("action=query&prop=revisions")) return okBody(fixtureBody(BATCH_PREFIX, REAL_OVERRIDES));
+		throw new Error("unexpected-url:" + u);
+	});
+	T.setCoreEnv({ now: () => Date.parse(nowIso) });
+	const warns = [];
+	const orig = console.warn;
+	console.warn = (...a) => { warns.push(a.map(String).join(" ")); };
+	try {
+		const data = await T.EVENT_FETCHERS["arknights"].default(LIST_URL, undefined, TZ_CN);
+		return { data, warns };
+	} finally {
+		console.warn = orig;
+	}
+}
+
+// 提示框最终全文 = 载荷 + **表格格子**那条路径（base = eventHover ⇒ scheduleHoverNote 插提示行）。
+// 格子里的 title 就是这个字符串（82-schedule-view.js 的 hoverTextOf）。
+function cellHoverOf(pl) {
+	return T.scheduleHoverNote(pl.eventHover || "", Object.assign({ name: "明日方舟" }, pl), false);
+}
+// 提示框最终全文 = **「近期」行**那条路径（scheduleHoverText：hv / title / rawSrc / 提示行）。
+function rowHoverOf(pl, nowIso) {
+	const it = T.scheduleNormalize(Object.assign({ id: "arknights", name: "明日方舟" }, pl), "event",
+		new Date(Date.parse(nowIso)));
+	return T.scheduleHoverText(it);
 }
 
 export default async function run() {
@@ -212,19 +300,24 @@ export default async function run() {
 		}];
 		const pages = new Map([["p", { actEndTs: at("2026-11-07T03:59:00+08:00"), claimEndTs: at("2026-11-10T03:59:00+08:00") }]]);
 		const claimPl = prtsEventPayload(snap, TZ_CN, at("2026-11-08T12:00:00+08:00"), pages);
-		check("去重端到端：兑换期 `event` / `eventShow` / 提示行前缀是**同一串**（「视相博物馆：演化」）",
+		check("去重端到端：兑换期 `event` / `eventShow` / 面板显示是**同一串**（「视相博物馆：演化」）",
 			!!claimPl && claimPl.event === "视相博物馆：演化"
-			&& claimPl.eventShow === "视相博物馆：演化 兑换截止"
-			&& claimPl.eventHoverExtra.split("\n")[0] === "视相博物馆：演化",
-			JSON.stringify(claimPl && [claimPl.event, claimPl.eventShow, claimPl.eventHoverExtra]));
-		check("去重端到端：兑换期提示行 = `<标签> 兑换截止   <活动结束> ~ <兑换结束>`（逐字，3 空格）",
-			!!claimPl && claimPl.eventHoverExtra.split("\n")[1] === "视相博物馆：演化 兑换截止   11-07 03:59 ~ 11-10 03:59",
-			JSON.stringify(claimPl && claimPl.eventHoverExtra));
-		// 单条活动时 buildEventHover 返回 ""（UI 退回「名称 ⏎ 档期」两行式）⇒ 提示行仍要插到活动名后面
+			&& claimPl.eventShow === "视相博物馆：演化 兑换截止",
+			JSON.stringify(claimPl && [claimPl.event, claimPl.eventShow]));
+		// 2026-11-07：兑换期那条活动**不再生成提示行** —— 它的主行本身就是兑换区间
+		// （单条活动时 buildEventHover 给空串，主行由「名称 ⏎ 档期」兜底显示，区间仍是兑换区间）。
+		check("去重端到端：兑换期**不写** `eventHoverExtra`（主行已是兑换区间，不再补一行同区间的提示）",
+			!!claimPl && !("eventHoverExtra" in claimPl),
+			JSON.stringify(claimPl && Object.keys(claimPl)));
+		check("去重端到端：兑换期的 `eventDates` 与 `eventClaimDates` 都是兑换区间（逐字）",
+			!!claimPl && claimPl.eventDates === "11-07 03:59 ~ 11-10 03:59"
+			&& claimPl.eventClaimDates === "11-07 03:59 ~ 11-10 03:59",
+			JSON.stringify(claimPl && [claimPl.eventDates, claimPl.eventClaimDates]));
+		// 单条活动时 buildEventHover 返回 ""（UI 退回「名称 ⏎ 档期」两行式）⇒ 提示行既然不生成，
+		// 这段悬停就该**原样不动**（不补空行、不凭空另起一段）。
 		const singleHover = "视相博物馆：演化\n11-07 03:59 ~ 11-10 03:59";
-		check("去重端到端：单条活动（eventHover 为空）时提示行插在活动名那行之后，不是凭空另起一段",
-			T.scheduleHoverNote(singleHover, claimPl, false)
-				=== "视相博物馆：演化\n视相博物馆：演化 兑换截止   11-07 03:59 ~ 11-10 03:59\n11-07 03:59 ~ 11-10 03:59",
+		check("去重端到端：单条活动（eventHover 为空）+ 兑换期 ⇒ 悬停原样不动（没有提示行可插）",
+			T.scheduleHoverNote(singleHover, claimPl, false) === singleHover,
 			JSON.stringify(T.scheduleHoverNote(singleHover, claimPl, false)));
 	}
 
@@ -323,7 +416,7 @@ export default async function run() {
 			!!a.data && (() => {
 				const L = String(a.data.eventHoverExtra || "").split("\n");
 				const notes = L.filter((_, i) => i % 2 === 1).filter(Boolean);
-				return notes.length === 2 && notes.every((l) => NOTE_EVENT_RE.test(l) && !NOTE_CLAIM_RE.test(l))
+				return notes.length === 2 && notes.every((l) => NOTE_EVENT_RE.test(l))
 					&& !notes.some((l) => /11-15/.test(l));
 			})(),
 			JSON.stringify(a.data && a.data.eventHoverExtra));
@@ -342,13 +435,17 @@ export default async function run() {
 			!!b.data && b.data.eventDates === "11-07 03:59 ~ 11-10 03:59"
 			&& /^(\d{2}-\d{2} \d{2}:\d{2}) ~ (\d{2}-\d{2} \d{2}:\d{2})$/.test(b.data.eventDates),
 			JSON.stringify(b.data && b.data.eventDates));
-		check("兑换期：`eventHoverExtra` = 每组「<标签> ⏎ <标签> 兑换截止   活动结束 ~ 兑换结束」（逐字）",
+		// 2026-11-07 起：兑换期那条活动**不再生成提示行** ⇒ 这一组只剩"活动期 + 有兑换期"的火山（11-22）。
+		check("兑换期：`eventHoverExtra` 只剩活动期那组「<标签> ⏎ <标签> 兑换截止   MM-DD HH:mm」（逐字）",
 			!!b.data && b.data.eventHoverExtra === EXTRA_CLAIM,
+			JSON.stringify(b.data && b.data.eventHoverExtra));
+		check("兑换期：墟（已在兑换期）**不再贡献任何提示行**（主行本身就是兑换区间）",
+			!!b.data && !String(b.data.eventHoverExtra || "").includes("支线故事：墟"),
 			JSON.stringify(b.data && b.data.eventHoverExtra));
 		check("兑换期：**不再有**解释句「活动已于 … 结束，当前为奖励领取期（…）」（用户点名删掉）",
 			!!b.data && !EXPLAIN_RE.test(JSON.stringify(b.data)),
 			JSON.stringify(b.data && b.data.eventHoverExtra));
-		check("兑换期：`eventHover` 里**没有任何**「兑换截止 / 奖励领取期」字样（与活动期同一个判据）",
+		check("兑换期：`eventHover` 里没有**单条截止日**的提示行（与活动期同一个判据），且与逐字基线一致",
 			!!b.data && !LEAK_RE.test(b.data.eventHover) && b.data.eventHover === HOVER_CLAIM,
 			JSON.stringify(b.data && b.data.eventHover));
 		check("兑换期：日期格悬停（eventDatesRaw）与格子里显示的区间是同一份",
@@ -417,10 +514,10 @@ export default async function run() {
 		// ① 悬停原文每一行都是共用排版（提示行一条都没有）—— 活动期 / 兑换期都查
 		const aLines = String((a.data && a.data.eventHover) || "").split("\n").filter(Boolean);
 		const bLines = String((b.data && b.data.eventHover) || "").split("\n").filter(Boolean);
-		check("悬停排版：活动期 / 兑换期的 eventHover 全部是共用排版的「名称 + 3 空格 + 档期」",
+		check("悬停排版：活动期 / 兑换期的 eventHover 全部是共用排版的「名称 + 3 空格 + 档期」（没有单条截止日的提示行）",
 			aLines.length === 3 && bLines.length === 3
 			&& aLines.concat(bLines).every((l) => SHARED_LINE_RE.test(l))
-			&& aLines.concat(bLines).every((l) => !NOTE_EVENT_RE.test(l) && !NOTE_CLAIM_RE.test(l)),
+			&& aLines.concat(bLines).every((l) => !NOTE_EVENT_RE.test(l)),
 			JSON.stringify([aLines, bLines]));
 
 		// ② 探头条目数 = 当期活动条数（活动期 / 兑换期都是 3）—— 与改造前一致，不因提示行多出条目
@@ -430,17 +527,19 @@ export default async function run() {
 			aItems.length === 3, JSON.stringify(aItems.map((x) => x.title)));
 		check("格子探头：兑换期也还是 3 条（墟 的兑换期没有顶掉任何一条，也不多出提示行）",
 			bItems.length === 3, JSON.stringify(bItems.map((x) => x.title)));
-		check("格子探头：解析出的条目里没有任何「兑换截止 / 奖励领取期」标题（= 格子里不会出现那段文字）",
-			aItems.concat(bItems).every((x) => !LEAK_RE.test(x.title))
-			&& aItems.concat(bItems).every((x) => SHARED_LINE_RE.test(`${x.title}   ${x.win}`)),
+		check("格子探头：每条都是「名称 + 3 空格 + 档期」，没有一条是单条截止日的提示行（格子里不会多出那段文字）",
+			aItems.concat(bItems).every((x) => SHARED_LINE_RE.test(`${x.title}   ${x.win}`))
+			&& aItems.concat(bItems).every((x) => !NOTE_EVENT_RE.test(`${x.title}   ${x.win}`))
+			&& aItems.concat(bItems).every((x) => !/奖励领取期/.test(x.title)),
 			JSON.stringify(aItems.concat(bItems).map((x) => x.title)));
 		// ③ 提示行**不参与解析**：把提示行拼进提示框（正确路径）之后，探头仍只解析 eventHover —— 条目数不变
-		check("格子探头：提示行只在提示框里（不参与解析）⇒ 条目数仍是 3，且没有一条以「兑换截止」结尾",
+		check("格子探头：提示行只在提示框里（不参与解析）⇒ 条目数仍是 3；兑换期那条的标题 =「<活动名> 兑换截止」（唯一一条）",
 			scheduleHoverItems(a.data.eventHover, "支线故事：墟", false).length === 3
 			&& scheduleHoverNote(a.data.eventHover, a.data, false).split("\n")
-				.filter((l) => / 兑换截止   /.test(l)).length === 2
-			&& aItems.concat(bItems).every((x) => !/兑换截止$/.test(x.title)),
-			JSON.stringify(scheduleHoverNote(a.data.eventHover, a.data, false)));
+				.filter((l) => / 兑换截止   \d{2}-\d{2} \d{2}:\d{2}$/.test(l)).length === 2
+			&& bItems.filter((x) => / 兑换截止$/.test(x.title)).length === 1
+			&& bItems.filter((x) => / 兑换截止$/.test(x.title))[0].title === "支线故事：墟 兑换截止",
+			JSON.stringify([scheduleHoverNote(a.data.eventHover, a.data, false), bItems.map((x) => x.title)]));
 
 		// ④ 反向回归（证明上面那条断言**真能**抓到这次泄漏）：按旧实现把提示行插回 eventHover
 		const oldHover = String(a.data.eventHover).split("\n")
@@ -458,10 +557,20 @@ export default async function run() {
 		check("静态：表格格子 hoverTextOf 用 scheduleHoverNote(text, g, x.isG) 插提示行（不是手写 \\n 拼接）",
 			hoverBody.length > 0 && /return scheduleHoverNote\(text, g, x\.isG\) \|\| "—";/.test(hoverBody),
 			hoverBody.slice(-160));
+		// 2026-11-07 真机 bug 的②：活动侧**不再追加** title + 原文（卡池侧仍按"池名不在悬停里"才补）
+		check("静态：hoverTextOf 的追加分支带 `x.isG` 守卫（活动侧只在 eventHover 为空时用 own 兜底）",
+			hoverBody.length > 0
+			&& /if \(!base\) text = own;/.test(hoverBody)
+			&& /else if \(x\.isG && x\.title && base\.indexOf\(x\.title\) < 0\) text = base \+ "\\n" \+ own;/.test(hoverBody)
+			&& /else text = base;/.test(hoverBody),
+			hoverBody.slice(0, 240));
 		const iRecent = compSrc.indexOf("function scheduleHoverText(x)");
 		const recentBody = iRecent >= 0 ? compSrc.slice(iRecent, compSrc.indexOf("function scheduleKindIcon", iRecent)) : "";
-		check("静态：「近期」行的 scheduleHoverText 也走同一个插入函数（两处口径一致）",
-			recentBody.length > 0 && /scheduleHoverNote\(\[hv, head\]/.test(recentBody), recentBody);
+		check("静态：「近期」行的 scheduleHoverText 也走同一个插入函数（两处口径一致），且活动侧不追加 title + 原文",
+			recentBody.length > 0
+			&& /scheduleHoverNote\(text, x\.g, x\.isG\)/.test(recentBody)
+			&& /: \(hv \|\| head\)/.test(recentBody),
+			recentBody);
 		// 渲染层真的把 `eventHoverExtra` 透传进面板（否则 refetch 之后提示行整段消失）
 		const rawAll = compSrc;
 		check("静态：面板把 `eventHoverExtra` 从抓取结果透传给面板条目（与 eventShow 同口径）",
@@ -613,6 +722,124 @@ export default async function run() {
 		check("反向守卫：没有 `phase` 的候选（= 其它游戏的数据形状）与显式 `phase:\"event\"` **24 种排列逐一相同**",
 			perms.length === 24 && shapeOk,
 			JSON.stringify(perms.filter((p) => pickEventPrimary(p).name !== pickEventPrimary(withEvent(p)).name).map((p) => p.map((x) => x.name))));
+	}
+
+	// ── ⑥ 真机 bug 回归（2026-11-07）：悬停提示「重复三次」─────────────────────────────
+	// 用户机器上读到的 title（now = 2026-11-07 05:16，视相已进兑换期）：
+	//   ① 兑换期那条活动**多出一行与主行逐字同区间**的「… 兑换截止」；
+	//   ② 末尾又追加了 `title` ⏎ `rawSrc` 两行（「视相博物馆：演化」⏎「11-07 03:59 ~ 11-10 03:59」）。
+	// 这里把两段**期望文本逐字**钉住，并加三条反向守卫：
+	//   · 整段里任何一行不得出现两次；不得出现连续两行完全相同；
+	//   · 活动侧不得出现「活动名单独一行 ⏎ 下一行只有区间」这种两行形态。
+	// 两条渲染路径都查：表格格子（hoverTextOf：base = eventHover ⇒ scheduleHoverNote）
+	// 与「近期」行（scheduleHoverText）—— 用户 2026-11-06 定的口径是"两处必须一致"。
+	{
+		const { scheduleHoverItems, scheduleNormalize, scheduleHoverText } = T;
+		const NOW_EVENT = "2026-11-06T15:54:00+08:00";   // 活动期（视相 11-07 03:59 才结束）
+		const NOW_CLAIM = "2026-11-08T12:00:00+08:00";   // 兑换期（视相 11-10 03:59 才截止）
+		const a = await runRealFetcher(NOW_EVENT);
+		const b = await runRealFetcher(NOW_CLAIM);
+
+		// ① 先钉住夹具确实被解析成真机上那三条活动（否则下面的逐字断言可能是"空对空"）
+		check("真机夹具：活动期 `eventHover` = 那三条活动，逐字",
+			!!a.data && a.data.eventHover === "视相博物馆：演化   10-24 16:00 ~ 11-07 03:59\n"
+				+ "登录活动：感谢庆典2026限时签到   11-01 12:00 ~ 11-15 03:59\n"
+				+ "支线故事：时间啊，向前！   11-01 12:00 ~ 11-22 03:59",
+			JSON.stringify(a.data && a.data.eventHover));
+		check("真机夹具：活动期的提示行恰两条（视相 11-10 / 时间啊 11-29；登录活动没有兑换期不补）",
+			!!a.data && a.data.eventHoverExtra === "视相博物馆：演化\n视相博物馆：演化 兑换截止   11-10 03:59\n"
+				+ "支线故事：时间啊，向前！\n支线故事：时间啊，向前！ 兑换截止   11-29 03:59",
+			JSON.stringify(a.data && a.data.eventHoverExtra));
+
+		// ② 活动期：两段路径的悬停最终全文 **逐字** = 用户给的期望
+		check("活动期：表格格子的悬停全文**逐字** = 期望（5 行，兑换截止插在自己那行之后）",
+			!!a.data && cellHoverOf(a.data) === HOVER_REAL_EVENT, JSON.stringify(cellHoverOf(a.data)));
+		check("活动期：「近期」行的悬停全文与格子**同一份**（逐字）",
+			!!a.data && rowHoverOf(a.data, NOW_EVENT) === HOVER_REAL_EVENT, JSON.stringify(rowHoverOf(a.data, NOW_EVENT)));
+
+		// ③ 兑换期：视相的主行**就是兑换区间** ⇒ 不再生成提示行、也不再追加 title + rawSrc
+		check("兑换期：`eventHoverExtra` 里**没有**视相那一组（已进兑换期，一行提示都不生成）",
+			!!b.data && b.data.eventHoverExtra === "支线故事：时间啊，向前！\n支线故事：时间啊，向前！ 兑换截止   11-29 03:59",
+			JSON.stringify(b.data && b.data.eventHoverExtra));
+		check("兑换期：表格格子的悬停全文**逐字** = 期望（4 行，主行 =「视相博物馆：演化 兑换截止   11-07 03:59 ~ 11-10 03:59」）",
+			!!b.data && cellHoverOf(b.data) === HOVER_REAL_CLAIM, JSON.stringify(cellHoverOf(b.data)));
+		check("兑换期：「近期」行的悬停全文与格子**同一份**（逐字）",
+			!!b.data && rowHoverOf(b.data, NOW_CLAIM) === HOVER_REAL_CLAIM, JSON.stringify(rowHoverOf(b.data, NOW_CLAIM)));
+		check("兑换期：旧主行「视相博物馆：演化   11-07 03:59 ~ 11-10 03:59」（不带「兑换截止」）**不再出现**",
+			!!b.data && !linesOf(cellHoverOf(b.data)).includes("视相博物馆：演化   11-07 03:59 ~ 11-10 03:59"),
+			JSON.stringify(linesOf(cellHoverOf(b.data))));
+		check("兑换期：`eventShow` = 悬停主行的名字（面板那一行与悬停那一行是同一串）",
+			!!b.data && linesOf(cellHoverOf(b.data))[0].indexOf(b.data.eventShow + "   ") === 0,
+			JSON.stringify([b.data && b.data.eventShow, linesOf(cellHoverOf(b.data))[0]]));
+
+		// ④ 反向守卫：去重 / 连续重复 / 两行形态 —— 两段 × 两条路径，一共 12 条
+		for (const [label, txt] of [
+			["活动期（表格格子）", cellHoverOf(a.data)],
+			["兑换期（表格格子）", cellHoverOf(b.data)],
+			["活动期（「近期」行）", rowHoverOf(a.data, NOW_EVENT)],
+			["兑换期（「近期」行）", rowHoverOf(b.data, NOW_CLAIM)]
+		]) {
+			check(`${label}：悬停全文里**任何一行都不出现两次**（去重断言）`,
+				linesOf(txt).length > 0 && dupLinesOf(txt).length === 0, JSON.stringify(dupLinesOf(txt)));
+			check(`${label}：不得出现**连续两行完全相同**`,
+				consecutiveDupOf(txt).length === 0, JSON.stringify(consecutiveDupOf(txt)));
+			check(`${label}：不出现「活动名单独一行 ⏎ 下一行只有区间」的两行形态`,
+				bareTwoLineFormOf(txt).length === 0, JSON.stringify(bareTwoLineFormOf(txt)));
+		}
+
+		// ⑤ 反向证明（守卫不是空的）：把真机那两处毛病**造回去**，守卫必须报红
+		const withOwn = HOVER_REAL_CLAIM + "\n视相博物馆：演化\n11-07 03:59 ~ 11-10 03:59";   // 旧 bug ② 的形状
+		check("反向证明：末尾追加 `title` ⏎ `rawSrc`（旧 bug ②）会被「两行形态」守卫抓到（期望文本则一条都没有）",
+			bareTwoLineFormOf(withOwn).length === 1 && bareTwoLineFormOf(HOVER_REAL_CLAIM).length === 0,
+			JSON.stringify(bareTwoLineFormOf(withOwn)));
+		const dupText = HOVER_REAL_CLAIM + "\n" + linesOf(HOVER_REAL_CLAIM)[0];                 // 旧 bug ① 的形状
+		check("反向证明：同一个区间那一行出现两次（旧 bug ①）会被去重断言抓到",
+			dupLinesOf(dupText).length === 1 && dupLinesOf(dupText)[0] === "视相博物馆：演化 兑换截止   11-07 03:59 ~ 11-10 03:59",
+			JSON.stringify(dupLinesOf(dupText)));
+		const oldPair = "视相博物馆：演化   11-07 03:59 ~ 11-10 03:59\n视相博物馆：演化 兑换截止   11-07 03:59 ~ 11-10 03:59";
+		check("反向证明：旧实现「主行（不带兑换截止）+ 同区间提示行」两行只差 5 个字，所以必须靠**逐字**基线兜住",
+			oldPair !== HOVER_REAL_CLAIM && linesOf(oldPair).length === 2
+			&& linesOf(oldPair)[0].replace("   ", " 兑换截止   ") === linesOf(oldPair)[1],
+			oldPair);
+
+		// ⑥ 探头：兑换期那条主行的名字 = 面板事项名（`eventShow`）⇒ 不该被当成"另一条并列活动"
+		const bItems = scheduleHoverItems(b.data.eventHover, "视相博物馆：演化", false);
+		check("格子探头：兑换期仍是 3 条活动（主行带着「兑换截止」也照旧解析成一条）",
+			bItems.length === 3 && bItems[0].title === "视相博物馆：演化 兑换截止"
+			&& bItems[0].win === "11-07 03:59 ~ 11-10 03:59",
+			JSON.stringify(bItems.map((x) => [x.title, x.win])));
+		check("静态：scheduleHoverOnes 跳过与外显事项名（`show`）同名的那条（兑换期主行不会在探头里重复一条）",
+			/if \(it\.show && x\.title === it\.show\) continue;/.test(readComponentsSource()),
+			(readComponentsSource().match(/if \(it\.show && x\.title === it\.show\) continue;/) || [""])[0]);
+
+		// ⑦ 卡池侧**行为不变** / 活动侧只有 eventHover 为空才兜底
+		const gachaX = {
+			isG: true, title: "寻访：视相", show: "寻访：视相",
+			rawSrc: "10-24 16:00 ~ 11-07 03:59", raw: "10-24 16:00 ~ 11-07 03:59",
+			g: { bannerHover: "寻访：视相：角色A   10-24 16:00 ~ 11-07 03:59", eventHover: "" }
+		};
+		check("卡池侧不变：「近期」行的悬停仍是「悬停原文 ⏎ 池名 ⏎ 档期」",
+			scheduleHoverText(gachaX) === "寻访：视相：角色A   10-24 16:00 ~ 11-07 03:59\n寻访：视相\n10-24 16:00 ~ 11-07 03:59",
+			JSON.stringify(scheduleHoverText(gachaX)));
+		const evEmpty = {
+			isG: false, title: "视相博物馆：演化", show: "视相博物馆：演化 兑换截止",
+			rawSrc: "11-07 03:59 ~ 11-10 03:59", g: { eventHover: "", eventHoverExtra: "" }
+		};
+		check("活动侧兜底：`eventHover` 为空（当期只有 1 条）⇒ 仍给「标题 ⏎ 原文」两行，不返回空",
+			scheduleHoverText(evEmpty) === "视相博物馆：演化\n11-07 03:59 ~ 11-10 03:59",
+			JSON.stringify(scheduleHoverText(evEmpty)));
+		const evMulti = {
+			isG: false, title: "视相博物馆：演化", show: "视相博物馆：演化 兑换截止",
+			rawSrc: "11-07 03:59 ~ 11-10 03:59", g: { eventHover: "以及常驻活动 3 项" }
+		};
+		check("活动侧：只要 `eventHover` 非空就**不追加**（追加就是同一区间出现两次的入口）",
+			scheduleHoverText(evMulti) === "以及常驻活动 3 项", JSON.stringify(scheduleHoverText(evMulti)));
+		// scheduleNormalize 只用来造「近期」行的条目；这里确认它给的 title / rawSrc 就是上面那两个值
+		const bNorm = scheduleNormalize(Object.assign({ id: "arknights" }, b.data), "event", new Date(Date.parse(NOW_CLAIM)));
+		check("「近期」行条目：title = 活动名、show =「… 兑换截止」、rawSrc = 兑换区间（悬停读的就是这几个字段）",
+			bNorm.title === "视相博物馆：演化" && bNorm.show === "视相博物馆：演化 兑换截止"
+			&& bNorm.rawSrc === "11-07 03:59 ~ 11-10 03:59",
+			JSON.stringify([bNorm.title, bNorm.show, bNorm.rawSrc]));
 	}
 }
 

@@ -665,17 +665,19 @@
 		//    所以 `eventHover` 仍**只由共用 buildEventHover 产生**（与改造前逐字一致）。
 		// 格式（2026-11-06 用户定，与该活动自己那行**同一排版**：`名称` + **3 空格** + `内容`）：
 		//   · 活动期（有兑换期）    ⇒ `<活动标签> 兑换截止   11-10 03:59`
-		//   · 兑换期               ⇒ `<活动标签> 兑换截止   11-07 03:59 ~ 11-10 03:59`
+		//   · 兑换期               ⇒ **一行都不生成**（空串）——
+		//       2026-11-07 真机 bug：兑换期那条活动的主行**本身就是兑换区间**
+		//       （`<活动标签> 兑换截止   <活动结束> ~ <兑换结束>`，见 prtsEventPayload 的 hoverActive），
+		//       再补一行「… 兑换截止   <活动结束> ~ <兑换结束>」就是与主行**逐字同区间**的重复
+		//       （用户真机读到的提示框里同一个区间出现两遍）。
 		//   · 没有兑换期 / 批量失败 ⇒ 返回空串，调用方**不写这个键**
 		// ⚠️ 不再写「活动已于 … 结束，当前为奖励领取期（…）」这类解释句（用户 2026-11-06：纯话痨浪费钱）。
 		function prtsHoverNoteOf(x, tz) {
 			if (x.claimEndTs == null) return "";
+			// 兑换期：主行已经是兑换区间 ⇒ 不再生成任何提示行（否则同一区间出现两次）。
+			if (x.phase === "claim") return "";
 			// 标签一律过 labelOf（幂等）：与 `event` / `eventShow` / 悬停里那一行是**同一串**。
-			const head = `${labelOf(x.cat, x.name)} 兑换截止`;
-			if (x.phase === "claim") {
-				return `${head}   ${fmtMdHm(x.startTs, tz)} ~ ${fmtMdHm(x.endTs, tz)}`;
-			}
-			return `${head}   ${fmtMdHm(x.claimEndTs, tz)}`;
+			return `${labelOf(x.cat, x.name)} 兑换截止   ${fmtMdHm(x.claimEndTs, tz)}`;
 		}
 
 
@@ -698,9 +700,11 @@
 		//      插在该活动那一行之后），并额外给 `eventClaimDates`（提醒侧用）。
 		//   ② 兑换期（活动结束 < now ≤ 兑换结束）：该活动**仍然出现**（改造前会消失），
 		//      eventDates = 活动结束 ~ 兑换结束（外显的「还剩 X」= 到兑换截止，正是此刻要盯的 deadline）；
-		//      `eventHoverExtra` = `<活动标签> 兑换截止   活动结束 ~ 兑换结束`（只进提示框）。
+		//      悬停里它的那条主行 = `<活动标签> 兑换截止   活动结束 ~ 兑换结束`（与面板/近期显示的事项名同一串），
+		//      ⇒ **不再给 `eventHoverExtra` 那一行**（2026-11-07 真机 bug：主行已是兑换区间，补的那行与它逐字重复）。
 		//   ③ 没有「兑换结束时间」字段（或批量失败/解析不出）：行为与改造前**逐字节一致**（不补猜 7 天之类）。
-		// ⚠️ `eventHover` **只由 buildEventHover 产出**，任何提示行都不许插进去（否则会漏进格子的并列条目）。
+		// ⚠️ `eventHover` **只由 buildEventHover 产出**（喂给它的活动名见 hoverActive），任何提示行都不许插进去
+		//    （否则会漏进格子的并列条目）。
 		// 外显仍按类别优先、同级结束时间升序（pickEventPrimary）；悬停按结束时间升序全量（sortEventItems）。
 		function prtsEventPayload(snapshot, tz, now = nowMs(), pageTimes = null) {
 			const items = Array.isArray(snapshot) ? snapshot : [];
@@ -722,6 +726,15 @@
 			}
 			const active = sortEventItems(candidates.filter((it) => coversNow(it, now)));
 			if (active.length === 0) return null;
+			// 悬停里的活动名：**兑换期那条用「<活动标签> 兑换截止」**（= 面板/「近期」那一行的事项名，
+			// 与 `eventShow` 逐字同一串）。这样它贡献的**只有一行**，且这一行就是兑换区间本身 ——
+			// 2026-11-07 用户给的期望文本：兑换期悬停的首行是
+			// 「视相博物馆：演化 兑换截止   11-07 03:59 ~ 11-10 03:59」，而不是
+			// 「视相博物馆：演化   11-07 03:59 ~ 11-10 03:59」+ 一行重复的兑换截止提示。
+			// 活动期两条/更多条时行为不变（名字仍是一览里的活动标签）。
+			const hoverActive = active.map((x) => (x.phase === "claim"
+				? { ...x, name: `${labelOf(x.cat, x.name)} 兑换截止` }
+				: x));
 			// 提示行（**只进提示框**）：按悬停同样的顺序（结束时间升序）收集。
 			// 每两条一组：① 该活动的**标签**（= 悬停里那一行的开头，渲染层据此定位）② 提示行本身。
 			// ⚠️ 不往 `eventHover` 里插 —— 见 prtsHoverNoteOf 上面那段注释（真机 bug：漏进格子的并列条目）。
@@ -768,7 +781,8 @@
 				eventDatesRaw: primary.phase === "claim" ? windowText : (primary.raw || ""),
 				// ⚠️ **只由共用 buildEventHover 产生**（与改造前逐字一致）：格子的并列条目由它解析出来，
 				//    多一行提示就会在格子里多出一行**可见文字**（2026-11-06 真机 bug）。
-				eventHover: buildEventHover(active, 0, tz)
+				//    兑换期那条的活动名走 hoverActive（带「 兑换截止」），仍是一条「名称 + 3 空格 + 档期」。
+				eventHover: buildEventHover(hoverActive, 0, tz)
 			};
 		}
 

@@ -241,6 +241,10 @@
 			const out = [];
 			for (const x of items) {
 				if (x.title === it.title) continue;                  // 外显那条已经有了，不重复列
+				// 活动侧兑换期：悬停里那一行的名字是「<活动名> 兑换截止」= 面板显示的事项名（`show`），
+				// 它和 `title`（活动名）不同串，但**就是外显那一条**（2026-11-07 起兑换期主行改带
+				// 「兑换截止」）⇒ 也要跳过，否则格子里会多出一条一模一样的并列条目。
+				if (it.show && x.title === it.show) continue;
 				// ⚠️ 外显那条（引擎 roles → 通常只有角色名，如「克莱门莎」）与这里的「池名：角色」
 				//    （如「海渊巡游：克莱门莎」）常常是同一口池 ⇒ 按用户口径"只显示角色名那条"，
 				//    外显已经占了角色名，这里就不再把同一口池列一遍（用户 2026-10-16）。
@@ -407,7 +411,16 @@
 				const hv = (x.isG ? x.g.bannerHover : x.g.eventHover) || "";
 				// 悬停一律给**源站墙钟原文**（rawSrc）；换算后的本机时区文本只用于外显
 				const head = [x.title, x.rawSrc || x.raw].filter(Boolean).join("\n");
-				return scheduleHoverNote([hv, head].filter(Boolean).join("\n"), x.g, x.isG) || "—";
+				// 与表格格子的 hoverTextOf 同一口径（两处必须一致）：
+				//   · 卡池侧：照旧把 `池名 ⏎ 档期` 接在悬停原文后面（每口池两行式，逐字不变）；
+				//   · 活动侧：**不接** `title + rawSrc` —— `eventHover` 已经是「每个活动一行」的完整信息，
+				//     再接一遍就是同一段区间出现两次（2026-11-07 真机 bug：提示框末尾多出
+				//     「视相博物馆：演化」⏎「11-07 03:59 ~ 11-10 03:59」这两行）。
+				//     活动侧只有 `eventHover` 为空（极端情况：当期只有 1 条活动）时才用它兜底。
+				const text = x.isG
+					? [hv, head].filter(Boolean).join("\n")
+					: (hv || head);
+				return scheduleHoverNote(text, x.g, x.isG) || "—";
 			}
 			function scheduleKindIcon(kind, cls) {
 			const box = { className: cls, viewBox: "0 0 12 12", "aria-hidden": "true", focusable: "false" };

@@ -406,7 +406,16 @@
 				const base = (x.isG ? g.bannerHover : g.eventHover) || "";
 				// 悬停（探头展开行同样）用**源站墙钟原文** rawSrc；raw 是本机时区换算后的外显文本
 				const own = [x.title, x.rawSrc || x.raw].filter(Boolean).join("\n");
-				let text = base ? (base + (x.title && base.indexOf(x.title) < 0 ? "\n" + own : "")) : own;
+				// 要不要在悬停原文后面补一行「名称 ⏎ 档期」：
+				//   · 卡池侧：照旧 —— 悬停原文里没有**这条池名**时才补（老行为，逐字不变）；
+				//   · 活动侧：**永不补**。`eventHover` 已经是「每个活动一行」的完整信息，再补一行
+				//     就是同一段区间出现两次（2026-11-07 真机 bug：提示框末尾多出
+				//     「视相博物馆：演化」⏎「11-07 03:59 ~ 11-10 03:59」这两行）。
+				//     只有当 `eventHover` 为空（极端情况：当期只有 1 条活动）时才用它兜底 = `own`。
+				let text;
+				if (!base) text = own;
+				else if (x.isG && x.title && base.indexOf(x.title) < 0) text = base + "\n" + own;
+				else text = base;
 				if (withFail) {
 					const fail = x.isG ? g.gachaFail : g.eventFail;
 					const stale = x.isG ? g.gachaStale : g.eventStale;
