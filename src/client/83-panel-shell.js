@@ -154,7 +154,14 @@
 					// 只进提示框的提示行（每两条一组：活动标签 ⏎ 提示行；没有就不传）
 					eventHoverExtra: sc.eventHoverExtra || "",
 					// 活动列逐条悬停文本（并行活动：每条一行；仅 1 条时为空 → UI 退回单条展示）
-					eventHover: sc.eventHover || ""
+					eventHover: sc.eventHover || "",
+					// 数据层数组（P1，2026-11-07）：`gacha` / `events` = 数据核心里的**事实**
+					// （每口池/每条活动一条，自然顺序）。**本阶段显示层还不读它们**（表格与探头仍走
+					// 上面的字符串字段 ⇒ 行为逐字不变），但必须在这里逐字段带上：这一层是"抓取结果 →
+					// 渲染用条目"的显式拷贝，漏一个字段就是静默截断——P2 让表格/探头改读数组时，
+					// 少了这两行就会以"数组永远是空的"的形式失效，而没人会想到是这里。
+					gacha: Array.isArray(sc.gacha) ? sc.gacha : [],
+					events: Array.isArray(sc.events) ? sc.events : []
 				};
 			}), [visible, orderKey, colorOverrides, scrapedById]);
 

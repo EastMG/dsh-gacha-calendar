@@ -411,6 +411,54 @@ export default async function run() {
 			bad.length === 0, bad.slice(0, 6).join(" / "));
 	}
 
+	// ── 源站墙钟原文守卫：`fmtWindow` / `fmtMdHm` / `fmtYmdHm` / `range2` 的调用**必须**显式传 tz ──
+	// （2026-11-07 用户实测：`range2` 的起点是源站原文、终点却按**本机时区**渲染 ⇒ `TZ=UTC` 下
+	//   明日方舟活动区间 `11-15 03:59` 变成 `11-14 19:59`，同一条区间两端差 8 小时。）
+	// 为什么必须静态扫：+08 机器上源站时区恰好等于本机 ⇒ 这个 bug 本地永远看不出来；
+	//   门禁虽然跑 UTC，但只有"断言了具体字面量"才抓得住（见 cases-tz ⑦ 的两游戏用例）。
+	// 允许"不传 tz"的只有下面 4 处（每条都在源码注释里写明原因）：
+	//   · 2 处**显示层**（81-schedule-model.js 的 localWin / localWinText：外显 = 用户本机时区）；
+	//   · 2 处**本机墙钟同源解析**（30-game-bluearchive.js：ts 由本机墙钟 `new Date(...)` 合成，
+	//     解析/渲染同口径 ⇒ 文本 roundtrip 稳定；改传 tz 必须同时改解析方向，属另一类问题）。
+	{
+		const argsOf = (code, open) => {
+			let depth = 1, i = open;
+			while (i < code.length && depth > 0) {
+				const c = code[i];
+				if (c === "(" || c === "[" || c === "{") depth++;
+				else if (c === ")" || c === "]" || c === "}") depth--;
+				i++;
+			}
+			return code.slice(open, i - 1);
+		};
+		const lineAt = (code, idx) => code.slice(0, idx).split("\n").length;
+		// 按「函数名 + 实参原文（空白归一）」精确匹配，**不用行号**（行号会随改动漂）。
+		const normArgs = (s) => s.replace(/\s+/g, " ").trim();
+		const ALLOW = new Set([
+			"fmtWindow|startTs, endTs",                        // 81-schedule-model.js localWin（显示层）
+			"fmtWindow|r.startTs + sa, r.endTs + sb",          // 81-schedule-model.js localWinText（显示层）
+			"fmtWindow|eventRow.startTs, eventRow.endTs",      // 30-game-bluearchive.js（本机墙钟同源解析）
+			"fmtWindow|pool.win.startTs, pool.win.endDayTs"    // 30-game-bluearchive.js（同上）
+		]);
+		const bad = [];
+		let calls = 0;
+		for (const f of readdirSync(SRC).filter((x) => x.endsWith(".js"))) {
+			const code = codeOnly(readFileSync(path.join(SRC, f), "utf8"));
+			for (const m of code.matchAll(/\b(fmtWindow|fmtMdHm|fmtYmdHm|range2)\s*\(/g)) {
+				if (/function\s+$/.test(code.slice(0, m.index))) continue;   // 定义处（形参里有 tz，不是调用）
+				const args = argsOf(code, m.index + m[0].length);
+				calls++;
+				if (/\btz\b/.test(args)) continue;
+				if (!ALLOW.has(`${m[1]}|${normArgs(args)}`)) {
+					bad.push(`${f}:${lineAt(code, m.index)} ${m[1]}(${normArgs(args).slice(0, 70)}) 未传 tz`);
+				}
+			}
+		}
+		check("守卫自身没瞎：四个源站墙钟格式化函数共扫到 ≥60 个调用点", calls >= 60, `calls=${calls}`);
+		check("每个 fmtWindow / fmtMdHm / fmtYmdHm / range2 调用都显式传了源站 tz（漏传会退回本机时区）",
+			bad.length === 0, bad.slice(0, 8).join(" / "));
+	}
+
 	// ── 时区口径的**接线**守卫（2026-10-21）：外显=本机时区、悬停=源站原文，两边必须真接上 ──
 	// 光有 localWin/localWinText 这两个纯函数不算数 —— 得确认渲染层**确实用了**它们，
 	// 且悬停的 title 没有被顺手换成换算后的文本（那正是本次最容易搞反的一处）。

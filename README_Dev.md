@@ -203,6 +203,81 @@ dsh-gacha-calendar/
 
 **已知缺口（2026-11-07 实测，如实记下，未修）**：批量取 wikitext 的候选筛选是「一览结束 ≥ now−3 天」（`PRTS_CLAIM_LOOKBACK_MS`），但兑换期可以**长于 3 天**（真机「时间啊，向前！」= 11-22 03:59 结束、11-29 03:59 兑换截止 = 7 天）。于是**兑换期第 4 天起**该活动不再进入候选、批量请求都不发 ⇒ 载荷变 `null`、面板上整条消失（用 -1107 夹具复现：now = 2026-11-24 12:00 有外显，now = 2026-11-25 12:00 起变 `null`，而兑换截止是 11-29 03:59）。要修的话：把回看窗口放大到"最长兑换期"以上（如 14 天），并同步 `cases-arknights-claim.mjs` ② 里那两条钉住 3 天窗口的断言（2026-11-06 时刻 titles 恰好 3 条、且不含「龙门夏日签到」）—— 那是**行为变更**，按 AGENTS.md 需要先拿用户指令再动。
 
+### 时区约定（显示 vs 源站原文）
+
+两条口径，**别混**：
+
+- **显示（倒计时 / 外显 / 换算后的时间）** = **用户本机时区**。入口是 `81-schedule-model.js` 的 `localWin` / `localWinText` / `localDatesOf`；它们调 `fmtWindow(ts)` **不传 tz**（= 本机时区）是**故意的**。
+- **源站墙钟原文**（`bannerDatesRaw` / `eventDatesRaw` / 悬停 / 解析器产出的 `bannerDates`、`eventDates`）= **源站时区**（`SOURCES[].tz`）。凡是从 epoch 秒/毫秒生成这类文本，**必须**把 tz 传进去。
+
+为什么抠这一条：2026-11-07 用户实测 `range2`（PRTS 一览）—— 起点取源站文本列、终点取 `data-time` 的 Unix 秒，旧代码终点用 `new Date(ts)`（**本机时区**）取字段 ⇒ `TZ=UTC` 机器上明日方舟活动区间 `11-15 03:59` 显示成 `11-14 19:59`（早 8 小时）。+08 机器上源站时区恰好等于本机，本地永远看不出来。
+
+**护栏三条**：
+
+1. **源码侧**：`test/cases-rule-lint.mjs` 静态扫描 `fmtWindow` / `fmtMdHm` / `fmtYmdHm` / `range2` 的每个调用点，必须带 `tz`；只有 4 处白名单（2 处显示层 + 2 处本机墙钟同源解析，源码注释逐条写了原因）。
+2. **行为侧**：`test/cases-tz.mjs` ⑦ 对**两个游戏**（明日方舟 PRTS 一览 / 重返未来 1999 并列征集池）断言 `*Raw` 的**字面量**。期望值是写死的字符串、不是用当前进程 `Date` 现算 —— 门禁在 `TZ=UTC` 与 `TZ=Asia/Shanghai` 下各跑一遍，两边都过才叫"跨时区逐字相同"（外加 `cases-arknights-timeline.mjs` 的 `eventDatesRaw` 字面量断言）。
+3. **API 侧**：`range2` 漏传 tz **直接抛错**（不再静默退回本机时区）；`fmtWindow` 的"无 tz = 本机"只允许显示层用（`24-parser-window.js` 的注释）。
+
+> 唯一例外（已核实、本轮不改）：`30-game-bluearchive.js` 的两处 `fmtWindow(ts)`。它们的 ts 是 `new Date(y, mo-1, …)`（本机墙钟）**合成**的，解析与渲染同口径 ⇒ 文本在两种机器上都 roundtrip 成源站原文；真正的缺陷在**解析方向**（绝对时刻随机器变），只改渲染一侧反而会让文本偏 8 小时。
+
+### 数据层数组（P1，2026-11-07）
+
+**方向**（用户原话）：数据核心只放"事实"；"谁排第一"是**纯展示决策**，下移到显示层；表格与探头**共用同一份数组**（探头只是会动的 UI 组件，零数据语义）；面板对用户的行为保持等效。
+
+**本阶段只做数据层，一个字的显示行为都不改。** 具体做法：**不动任何解析器**，在数据流入 `lastData` 前的那一层（`50-refresh.js` 的 `mergeEntryRecord`）从**现有字符串字段合成**两个数组；旧字符串字段一个都不删、值一字不改（显示层读的仍是它们）⇒ 面板逐字不变。
+
+#### 字段形状（每个游戏都有）
+
+```js
+gacha:  [{ key, title, show, roles: string[], startTs, endTs, tz, raw, longTerm? }]
+events: [{ key, title, show, startTs, endTs, tz, raw,
+           phase?: { kind: "claim", startTs, endTs, show } }]
+```
+
+| 字段 | 含义 |
+|---|---|
+| `title` | **数据名** = 源站原文名（卡池名 / 活动名） |
+| `show` | **显示名** = 外显时真正显示的那串（卡池侧 = `cleanRoleNames(roles)`，活动侧 = `eventShow`） |
+| `key` | `<gameId>:gacha:<index>` / `<gameId>:event:<index>`（index = **排序后的位置** ⇒ 跨刷新稳定） |
+| `roles` | `string[]`，**原始**角色名（不做去修饰 —— 那是显示名的事）；并列池那条为空数组 |
+| `startTs` / `endTs` | 毫秒；读不出档期 ⇒ `null`（不硬凑）。**P1 的口径 = 本机时刻**（`parseDisplayRange` 按运行环境时区解释源站墙钟）—— 见下面"已知不等价" |
+| `tz` | 条目声明的源站时区（让下游知道那串时间按哪个墙钟读） |
+| `raw` | 源站原文（`bannerDatesRaw` / `eventDatesRaw`；并列池那条 = 悬停里那行档期） |
+| `phase` | 活动的**第二阶段**（明日方舟「奖励领取/兑换截止」）：只有来源给了 `eventClaimDates` 才有这个键。它是**一条独立的截止窗口**，不是第二个活动条目 |
+| `longTerm` | P1 **不合成**（可选字段，留给结构化来源；归一函数会原样透传） |
+
+**顺序 = 自然顺序（结束时间升序，与现有悬停一致），数据层不挑选"第一条"。** 面板显示哪条仍是显示层自己决定 —— `test/cases-core.mjs` ④-4 用赛马娘国服夹具钉住反证：外显那条（10-07 结束）在数组里排第 3，第 1 条是结束最早的「第1轮」。
+
+#### 谁生成（`src/client/50-refresh.js`）
+
+- `mergeEntryRecord(r, prevRec, nowTs, meta)` 末尾两行：来源若已给结构化数组（P3 的解析器会开始给）就原样用，否则 `dataArrayGachaOf` / `dataArrayEventsOf` 合成。`meta = { id, tz }` 由 `engine-api.js` 的 `refresh()` 从条目上带进来（只用来生成 key 与 `tz` 字段）。
+- **并列池怎么展开**：复用**显示层同一个** `scheduleHoverItems`（`bannerHover`/`eventHover` 的多行文本 → `[{ title, win }]`），再用 `dataArrayHoverPoolsOf` 里那三条"这口池已经在数组里了"的判据（与外显同名 / 与**显示名**同名 / 「池名：外显名」这种整段包裹写法）—— 与 `81-schedule-model.js` 的 `scheduleHoverOnes` **逐字对应**，所以"数组条数 = 今天探头里的行数"。
+  - ⚠️ `scheduleHoverItems` + 它的两条区间正则 + `scheduleNoYear` 已在 2026-11-07 **从 81 搬进 26-parser-hover.js**（逐字搬迁）：`50-refresh.js` 也在 core 产物里（`CORE_ORDER`），而 81 只属于渲染层。不搬就会变成"core 里调用一个不存在的函数"。
+  - 解析不出并列池（`bannerHover` 为空 / 只有 1 条）⇒ 就 1 条，与今天显示等价。
+- **归一**：`dataArray*ItemOf` 只做最少校验 —— 非对象元素**丢弃**、`startTs`/`endTs` **必须是 number 否则 `null`**（`"123"` / `NaN` / `Infinity` 全变 `null`）、文本字段缺了填空串、`roles` 不是数组就 `[]`。缺数组（改造前的老缓存）⇒ **空数组**，形状固定。
+
+#### 持久化白名单（六处点名的地方，漏一处就静默丢字段）
+
+| # | 位置 | P1 的处理 |
+|---|---|---|
+| ① | `50-refresh.js` 的 `GACHA_FIELDS` | 加 `"gacha"`（否则解析器将来直出的结构化数组会被 `pickFields` 削掉） |
+| ② | `50-refresh.js` 的 `EVENT_FIELDS` | 加 `"events"`（同上） |
+| ③ | `engine-head.js` 的 `CONTENT_FIELDS` / `normalizeRecord` | `CONTENT_FIELDS` **只收字符串**（数组会被削成空串）⇒ 在 `normalizeRecord` 里加了**单独的数组分支**（`dataArrayGachaListOf` / `dataArrayEventListOf`） |
+| ④ | `83-panel-shell.js` 的渲染层逐字段拷贝 | 加 `gacha` / `events`（这一层是"抓取结果 → 渲染用条目"的显式拷贝；漏了 P2 只会看到"数组永远为空"） |
+| ⑤ | `engine-head.js` 的 `listGames().defaults` | 登记 `gacha: []` / `events: []`（条目的出厂值里没有池/活动 ⇒ 恒空；登记是为了形状成套） |
+| ⑥ | `60-helpers.js` 的 `customEntries` 白名单 | **刻意不登记**：那张表重建的是**条目定义**（抓什么 / 按哪个时区读），数组是**抓取结果**（住在 `lastData` 里，按 id 索引）。`84-settings-page.js` 的写入点枚举过：没有"把抓取结果写进 customEntries"的路径。 |
+
+#### 回归（`test/cases-core.mjs` ④，44 条）
+
+真实夹具四条线：**原神**（米游社；卡池侧正文无日期 ⇒ `gacha = []`，活动侧 1 条）、**明日方舟**（PRTS；`events` 3 条 + `phase`，悬停里那条「墟 兑换截止」不另算一条）、**FGO**（并列卡池真的展开成 4 条）、**赛马娘国服**（"数组第 1 条不是外显那条"的反证）。另守：12 个旧字符串字段与改造前（HEAD 39d41a5）**逐字相同**、`getCached()` 往返数组仍在（含 `phase`）、归一的最少校验、以及上面六处白名单的静态断言。
+
+#### 已知不等价（如实记，留给 P2 / P3）
+
+1. **`startTs` / `endTs` 用的是"本机时刻"**：P1 直接 `parseDisplayRange(源站原文)`，**没做**"源站 tz → 本机"换算。于是在 `TZ≠+08` 的机器上，数组里的 ts 会比显示层换算后的小时**差一个时区差**（+08 机器上一致）。P2 换成**结构化来源**（解析器直出绝对时刻）后自动消失。
+2. **并列池的 `show` = 标题本身**：悬停行只给"池名：角色"，没有结构化角色表 ⇒ 并列池那条 `show === title`、`roles = []`（主条的 `show`/`roles` 是完整的）。P3 让解析器直出每口池的角色表后可补。
+3. **卡池侧"跨池合并的角色表"没有拆开**：主条的 `roles` 仍是引擎给的那串合并角色（FGO 那种 13 个角色一行），不是"每口池自己的角色"。同样是 P3 的结构化来源才能拆。
+4. **同名两行只留一条**：星铁那种"同一池名两行（不同窗口）"，`scheduleHoverItems` 按**完全同名只留第一条** ⇒ 数组也只有一条（与今天探头一致，不是本次新丢的）。真要两条得等 P3 给结构化多池。
+
 ### 为什么插件要改宿主的槽位布局
 
 - **事实**：宿主把 `sidebar.footer.action` 渲染成 `<div data-slot="sidebar.footer.action" style="display:contents">`，它的父容器是 `display:flex; flex-wrap:nowrap` 的**一行**。同一槽位上多个插件的整宽入口会变成同一行的 flex 兄弟、互相挤压（DSH Desktop 源码注释的原话是 "crush each other"）。

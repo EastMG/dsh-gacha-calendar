@@ -427,17 +427,24 @@
 
 
 		// 中文明期间 → startTs/endTs/bannerDates（如 "8月19日－9月9日"；跨年自动+1年）
-		function parseLdshopRange(raw, now) {
+		// `tz`（可选）= 源站墙钟时区：墙钟 → 绝对时刻、以及渲染回文本都必须按它算。
+		// 旧实现两端都用 `new Date(...)` / `getHours()`（本机时区）—— 文本在本机恰好 roundtrip 稳定，
+		// 但绝对时刻在 UTC 机器上整体偏 8 小时；传 tz 后两者都正确（文本仍是源站墙钟）。
+		function parseLdshopRange(raw, now, tz) {
 			const s = String(raw).trim();
 			const m = s.match(/(\d{1,2})月(\d{1,2})日\s*[－\-]\s*(\d{1,2})月(\d{1,2})日/);
 			if (!m) return null;
 			const base = now || new Date(nowMs());   // 缺省走注入时钟（core 不得直接读宿主时钟）
-			const y = base.getFullYear();
-			const a = new Date(y, Number(m[1]) - 1, Number(m[2]), 0, 0);
-			let b = new Date(y, Number(m[3]) - 1, Number(m[4]), 23, 59);
-			if (b < a) b = new Date(y + 1, Number(m[3]) - 1, Number(m[4]), 23, 59);
-			const fmt = (d) => `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-			return { startTs: a.getTime(), endTs: b.getTime(), startText: fmt(a), endText: fmt(b), raw: `${fmt(a)} ~ ${fmt(b)}` };
+			const y = typeof sourceWallParts === "function" ? sourceWallParts(base.getTime(), tz).y : base.getFullYear();
+			const mk = (yy, mo, d, h, mi) => (typeof sourceInstant === "function"
+				? sourceInstant(yy, mo, d, h, mi, tz)
+				: new Date(yy, mo - 1, d, h, mi).getTime());
+			const a = mk(y, Number(m[1]), Number(m[2]), 0, 0);
+			let b = mk(y, Number(m[3]), Number(m[4]), 23, 59);
+			if (b < a) b = mk(y + 1, Number(m[3]), Number(m[4]), 23, 59);
+			const startText = fmtMdHm(a, tz);
+			const endText = fmtMdHm(b, tz);
+			return { startTs: a, endTs: b, startText, endText, raw: `${startText} ~ ${endText}` };
 		}
 
 
@@ -513,7 +520,7 @@
 						banner: label,
 						cat: coreCat,
 						page,
-						...range2(st, endTs),
+						...range2(st, endTs, tz),
 						isMain: true
 					});
 				}
@@ -821,14 +828,18 @@
 				const mm = period.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})\s*-\s*(\d{1,2})\/(\d{1,2})\/(\d{2})/);
 				if (!mm) continue;
 				const y = 2000 + Number(mm[3]);
-				const a = new Date(y, Number(mm[1]) - 1, Number(mm[2]), 0, 0);
-				let b = new Date(y, Number(mm[4]) - 1, Number(mm[5]), 23, 59);
-				if (b < a) b = new Date(y + 1, Number(mm[4]) - 1, Number(mm[5]), 23, 59);
+				// 源站墙钟（日粒度）→ 绝对时刻：必须按源站 tz 换算，否则 UTC 机器上偏 8 小时。
+				const mk = (yy, mo, d, h, mi) => (typeof sourceInstant === "function"
+					? sourceInstant(yy, mo, d, h, mi, tz)
+					: new Date(yy, mo - 1, d, h, mi).getTime());
+				const a = mk(y, Number(mm[1]), Number(mm[2]), 0, 0);
+				let b = mk(y, Number(mm[4]), Number(mm[5]), 23, 59);
+				if (b < a) b = mk(y + 1, Number(mm[4]), Number(mm[5]), 23, 59);
 				items.push({
 					banner: m[1].trim(),
 					roles: "",
-					startTs: a.getTime(),
-					endTs: b.getTime(),
+					startTs: a,
+					endTs: b,
 					isMain: true
 				});
 			}
@@ -839,15 +850,13 @@
 				.filter((it) => coversNow(it, now))
 				.sort((x, y) => y.endTs - x.endTs)[0];
 			if (!cur) return null;
-			const fmt = (ts) => {
-				const d = new Date(ts);
-				return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-			};
+			// 文本 = 源站墙钟原文（按源站 tz 渲染）；日期来自源站 MM/DD/YY ⇒ 跨机器逐字相同。
+			const dates = fmtWindow(cur.startTs, cur.endTs, tz);
 			return {
 				banner: cur.banner,
 				roles: "",
-				bannerDates: `${fmt(cur.startTs)} ~ ${fmt(cur.endTs)}`,
-				bannerDatesRaw: `${fmt(cur.startTs)} ~ ${fmt(cur.endTs)}`
+				bannerDates: dates,
+				bannerDatesRaw: dates
 			};
 		}
 
@@ -860,24 +869,25 @@
 				const mm = period.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s*-\s*(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
 				if (!mm) continue;
 				const y = mm[3].length === 2 ? 2000 + Number(mm[3]) : Number(mm[3]);
-				const a = new Date(y, Number(mm[1]) - 1, Number(mm[2]), 0, 0);
-				let b = new Date(y, Number(mm[4]) - 1, Number(mm[5]), 23, 59);
-				if (b < a) b = new Date(y + 1, Number(mm[4]) - 1, Number(mm[5]), 23, 59);
-				items.push({ banner: m[1].trim(), roles: "", startTs: a.getTime(), endTs: b.getTime(), isMain: true });
+				// 同 parseGame8Events：墙钟 → 绝对时刻按源站 tz。
+				const mk = (yy, mo, d, h, mi) => (typeof sourceInstant === "function"
+					? sourceInstant(yy, mo, d, h, mi, tz)
+					: new Date(yy, mo - 1, d, h, mi).getTime());
+				const a = mk(y, Number(mm[1]), Number(mm[2]), 0, 0);
+				let b = mk(y, Number(mm[4]), Number(mm[5]), 23, 59);
+				if (b < a) b = mk(y + 1, Number(mm[4]), Number(mm[5]), 23, 59);
+				items.push({ banner: m[1].trim(), roles: "", startTs: a, endTs: b, isMain: true });
 			}
 			if (items.length === 0) return null;
 			const now = nowMs();
 			const cur = items.filter((it) => coversNow(it, now)).sort((x, y) => y.endTs - x.endTs)[0];
 			if (!cur) return null;
-			const fmt = (ts) => {
-				const d = new Date(ts);
-				return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-			};
+			const dates = fmtWindow(cur.startTs, cur.endTs, tz);
 			return {
 				banner: cur.banner,
 				roles: "",
-				bannerDates: `${fmt(cur.startTs)} ~ ${fmt(cur.endTs)}`,
-				bannerDatesRaw: `${fmt(cur.startTs)} ~ ${fmt(cur.endTs)}`
+				bannerDates: dates,
+				bannerDatesRaw: dates
 			};
 		}
 

@@ -88,6 +88,79 @@
 		}
 
 
+		// ── 悬停文本 → 并列条目（**逆运算**；与上面的 buildPoolHover / buildEventHover 同一契约）──
+		// 引擎只给**一条外显条目** + 一段供悬停用的多行文本（bannerHover / eventHover），**没有**并列数组。
+		// 契约（本文件的 buildPoolHover / buildEventHover；28-parser-hover-tools.js 的 hoverPool / hoverEvent）：
+		//   当期 ≥2 条时每条一行、不足 2 条时给空串，且三种排版：
+		//     · 活动式 —— 每条自带档期：`名称   MM-DD HH:MM ~ MM-DD HH:MM`
+		//     · 卡池式 —— 档期另起一行：`池名：角色` ⏎ `MM-DD HH:MM ~ MM-DD HH:MM`
+		//     · 两者在"窗口完全相同"时都只在**末尾**写一遍档期
+		// ⚠️ 鸣潮的卡池悬停（30-game-kuro.js）首行还多带一个"卡池类型"，它就等于外显标题 → 丢掉那一行。
+		// 解析不出（或结果少于 1 条）一律返回空，调用方回退到外显那一条 —— 宁可少列，绝不列错。
+		//
+		// ⚠️ 2026-11-07（P1 数据层数组）**从 81-schedule-model.js 搬到这里**：数据层
+		// （50-refresh.js 的 mergeEntryRecord）要按同一份判据把并列池展开成 `gacha` / `events` 数组，
+		// 而 50-refresh.js 也在 core 产物里（`CORE_ORDER`）—— 81 是**只属于渲染层**的段（不出 core）。
+		// 搬动是**逐字搬迁**（只想搬一个实现，不想有两份"谁算并列条目"的真理）。
+		const SCHEDULE_WINDOW_LINE = /^(?:\d{4}-)?\d{1,2}-\d{1,2} \d{1,2}:\d{2} ~ (?:\d{4}-)?\d{1,2}-\d{1,2} \d{1,2}:\d{2}$/;
+		const SCHEDULE_INLINE_WINDOW = / (?:\d{4}-)?\d{1,2}-\d{1,2} \d{1,2}:\d{2} ~ (?:\d{4}-)?\d{1,2}-\d{1,2} \d{1,2}:\d{2}$/;
+		const scheduleNoYear = (x) => String(x).replace(/(\d{4})-(\d{1,2}-\d{1,2})/g, "$2");
+		function scheduleHoverItems(hover, shownTitle, isG) {
+			const lines = String(hover || "").split("\n").map((x) => x.trim()).filter(Boolean);
+			if (lines.length < 2) return [];                        // 契约：只有 1 条时给的是空串
+			// ⚠️ 这里**不要**再去丢"首行等于外显标题"的那一行（我曾这么写，结果把终末地的真池子丢了：
+			// 「终末地」常驻寻访 正好既是外显标题、又是悬停里的第 1 个池子）。
+			// 重复项（含鸣潮那个"卡池类型"首行，它等于外显标题）由 scheduleHoverOnes 按标题去重处理。
+			const rest = lines.filter((x) => !/^以及常驻活动/.test(x));
+			const out = [];
+			let pending = [];                                       // 卡池式：先攒名称，等下一行（或后面某行）的档期
+			for (const line of rest) {
+				const inline = line.match(SCHEDULE_INLINE_WINDOW);
+				if (inline && inline.index > 0) {                   // 活动式：名称 + 自己的档期
+					const win = inline[0].trim();
+					for (const t of pending.concat([line.slice(0, inline.index).trim()])) out.push({ title: t, win });
+					pending = [];
+					continue;
+				}
+				if (SCHEDULE_WINDOW_LINE.test(line)) {              // 纯档期行
+					if (pending.length) for (const t of pending) out.push({ title: t, win: line });
+					else if (out.length) out[out.length - 1].win = line;   // 窗口完全相同：给上一条补上档期
+					pending = [];
+					continue;
+				}
+				pending.push(line);
+			}
+			// ⚠️ 同一口池在数据里有两种写法，一起摆进探头就是"看起来重复"（用户 2026-10-16）：
+			//    · 引擎的 roles 只给角色名 ——「克莱门莎」
+			//    · 悬停原文给「池名：角色」——「海渊巡游：克莱门莎」「「微醺茶香，藤花幽梦」：仙踪良梦」
+			//    用户定的口径：**只显示角色名那条** ⇒ 谁被另一条整个包住，就留谁、把带池名的那条丢掉。
+			//    另外：完全同名（战双帕弥什「新增涂装」×6、原神「绮星盛会」×2）只留第一条。
+			//    ⚠️ 只认「：」两侧的整段（不做任意子串）——否则「夏日活动」会被当成「夏日活动·特别篇」的重复。
+			const normTitle = (s) => String(s || "").replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, "");
+			// A 是不是「池名：B」或「B：其余」这种把 B 整个包住的写法（B 通常就是那条只有角色名的）
+			const wraps = (A, B) => {
+				const la = normTitle(A), lb = normTitle(B);
+				if (lb === "" || la === lb) return false;
+				if (la.indexOf(lb + "\uFF1A") === 0) return true;
+				const tail = la.lastIndexOf("\uFF1A" + lb);
+				return tail >= 0 && tail === la.length - lb.length - 1;
+			};
+			const kept = [];
+			const seenTitle = new Set();
+			for (const a of out) {
+				const la = normTitle(a.title);
+				if (la && seenTitle.has(la)) continue;              // 完全同名 ⇒ 只留第一条
+				if (out.some((b) => b !== a && wraps(a.title, b.title))) continue;   // a 包着别人 ⇒ 丢 a，留被包住的那条
+				if (la) seenTitle.add(la);
+				kept.push(a);
+			}
+			// ⚠️ 这里**只**在一条都不剩时收手。老写法是"少于 2 条就当没有"，那是为
+			//    "外显与探头会重复"的旧模型准备的；现在外显固定为列表第 0 条、且同池已去重，
+			//    只剩 1 条并列池时必须照常列出来（否则那口池在面板上彻底看不见，用户 2026-10-16）。
+			if (kept.length < 1) return [];
+			return kept;
+		}
+
 		// 解 HTML 数字实体（wiki.gg 的区间分隔符写成 &#8211; = en dash、&#8722; = 减号）+
 		// 常见具名实体。stripTags 不解实体，所以需要它才能把时间串拆干净。
 		function decodeHtmlEntities(s) {
@@ -122,19 +195,26 @@
 			return { ...cur, bannerHover: buildPoolHover(pools, tz) };
 		}
 
-		// 起止时间戳 → 统一文本 `MM-DD HH:MM ~ MM-DD HH:MM`
-		function range2(st, endTs) {
-			const fmt = (ts) => {
-				const d = new Date(ts);
-				return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-			};
+		// 起止时间戳 → 统一文本 `MM-DD HH:MM ~ MM-DD HH:MM`（**源站墙钟**）
+		//
+		// ⚠️ `tz`（源站时区）**必传**：这里的两端来源不对称 —— 起点是**源站原文**（如 PRTS 一览第一列
+		//    的 "2026-08-22 04:00"，已经是源站墙钟），终点却只有 `data-time` 的 Unix 秒（绝对值）⇒
+		//    只能由我们渲染回文本。旧实现用 `new Date(ts)` 取字段（= **运行机器本机时区**）：
+		//    · +08 机器上恰好对（源站也是 +08），所以本地开发看不出来；
+		//    · `TZ=UTC` 机器上结束时刻比源站早 8 小时（`11-15 03:59` → `11-14 19:59`），
+		//      同一条区间里起点是源站时区、终点是本机时区，两个口径打架（2026-11-07 用户实测）。
+		// 所以这里**不给默认值**：漏传直接抛错。静默退回本机时区正是这个 bug 的成因 ——
+		// 宁可当场炸掉让门禁/日志看见，也不要在海外用户的机器上悄悄显示错的钟点。
+		function range2(st, endTs, tz) {
+			if (tz == null || tz === "") throw new Error("range2 需要源站 tz（源站墙钟原文不能按本机时区渲染）");
 			const startTs = st && st.ts != null ? st.ts : null;
+			const endText = fmtMdHm(endTs, tz);
 			return {
 				startTs,
 				endTs,
 				startText: st && st.text ? st.text : "",
-				endText: fmt(endTs),
-				raw: `${st && st.text ? st.text : ""} ~ ${fmt(endTs)}`.trim()
+				endText,
+				raw: `${st && st.text ? st.text : ""} ~ ${endText}`.trim()
 			};
 		}
 

@@ -13,7 +13,7 @@
 //
 // 三类断言都**不依赖运行环境时区**：本文件在 `$env:TZ=UTC` 与默认 +08 下都必须全绿。
 
-import { check, section } from "./harness.mjs";
+import { check, section, setFetchImpl, useFixtures } from "./harness.mjs";
 import { T } from "./load.mjs";
 
 export default async function run() {
@@ -203,5 +203,84 @@ export default async function run() {
 		check("轮播那一行的事项名与表格同口径（tickerItemsOf.title === scheduleNormalize.show）",
 			tick.length === 1 && tick[0].title === pool.show && tick[0].title !== g.banner,
 			JSON.stringify(tick.map((x) => [x.key, x.title])));
+	}
+
+	// ── ⑦ 源站墙钟原文（`*Raw`）跨时区逐字相同（2026-11-07 修：`range2` / `fmtWindow` 漏传 tz）──────
+	//
+	// 为什么单独一条：这类字段的期望值**必须是字面量**，不能跟着当前进程的 Date 现算 ——
+	// 本文件在 `TZ=UTC` 与 `TZ=Asia/Shanghai` 两道门禁下都会跑，"同一串字面量在两边都过"
+	// 才是"跨时区相等"的真正含义（用本机 Date 现算的期望值会把 bug 一起算进去，永远绿）。
+	//
+	//   ① 明日方舟（PRTS 一览）：起点取自**文本列**（源站墙钟），终点只有 `data-time` 的 Unix 秒。
+	//      修复前终点按**本机时区**渲染 ⇒ UTC 门禁下 `11-15 03:59` 变成 `11-14 19:59`（早 8 小时）。
+	//   ② 重返未来 1999（前置有并列征集池）：正文 `M/D HH:MM` 是源站墙钟，解析与 `eventDatesRaw`
+	//      的渲染都必须按源站 tz（Asia/Shanghai）；修复前两者都吃本机时区。
+	section("源站墙钟原文（*Raw）跨时区逐字相同 —— 明日方舟 / 重返未来 1999");
+	{
+		const TZ_CN = "Asia/Shanghai";
+
+		// ① 明日方舟：一行 PRTS 一览（表头含「时间」+ 三列 + data-time="开始秒,结束秒"）
+		const END_TS = Date.UTC(2026, 10, 14, 19, 59);            // = 2026-11-15 03:59 +08
+		const html = "<table><tr><th>活动开始时间</th><th>名称</th><th>分类</th></tr>"
+			+ "<tr><td>2026-11-01 12:00</td>"
+			+ "<td><a href=\"/w/%E6%B5%8B%E8%AF%95%E6%B4%BB%E5%8A%A8\">测试活动</a></td>"
+			+ "<td><a title=\"分类:支线故事\">支线故事</a></td>"
+			+ `<td data-time="${Date.UTC(2026, 9, 31, 16, 0) / 1000},${END_TS / 1000}"></td></tr></table>`;
+		const ark = T.parsers["arknights"].collectPrtsEvents(html, TZ_CN);
+		check("明日方舟：一览 raw =「11-01 12:00 ~ 11-15 03:59」（两端都是源站墙钟；TZ=UTC 与 +08 同串）",
+			ark.length === 1 && ark[0].raw === "11-01 12:00 ~ 11-15 03:59",
+			JSON.stringify(ark.map((x) => x.raw)));
+		check("明日方舟：endTs 仍是正确绝对时刻（源站墙钟 +08 换算，渲染口径的修复没动时刻本身）",
+			ark.length === 1 && ark[0].endTs === END_TS, String(ark[0] && ark[0].endTs));
+
+		// ② 重返未来 1999：官方游戏内公告（noticecp）—— 两个并列征集池（同窗口）+ 一条活动 + 一条独立轮换池
+		// ⚠️ 接口正文是"块数组"，`r99NoticeLines` 每块 stripping 后得**一行**（块内换行会被 `stripTags`
+		//    压成空格）⇒ 段落标题必须**单独一块**，否则 `^「名称」类型$` 的段头判据匹配不到。
+		const blocks = [
+			{ content: "「夜歌与黎明」限定征集" },
+			{ content: "6★角色「露西」" },
+			{ content: "5★角色「米兰妮」" },
+			{ content: "【征集时间】10/08 14:00 - 10/22 13:59" },
+			{ content: "「夜歌与黎明」活动征集" },
+			{ content: "6★角色「卡卡尼亚」" },
+			{ content: "【征集时间】10/08 14:00 - 10/22 13:59" },
+			{ content: "「夜歌与黎明」活动正篇" },
+			{ content: "【活动时间】10/08 14:00 - 10/30 04:59" },
+			{ content: "【商店兑换时间】10/08 14:00 - 11/02 04:59" }
+		];
+		const NOW_R99 = Date.UTC(2026, 9, 15, 4, 0);             // 2026-10-15 12:00 +08：两池与活动都覆盖
+		const payload = {
+			data: [
+				{ beginTime: Date.UTC(2026, 9, 8, 6, 0), contentMap: { "zh-CN": { title: "2.0「夜歌与黎明」版本活动一览", content: JSON.stringify(blocks) } } },
+				{ beginTime: Date.UTC(2026, 9, 14, 21, 0), endTime: Date.UTC(2026, 9, 28, 21, 0), contentMap: { "zh-CN": { title: "「星辉轮换」轮换征集开启！", content: "[]" } } }
+			]
+		};
+		const prevImpl = useFixtures();
+		// 代理通道的约定：transport.fetchViaProxy 期望 `{ status, body }` 包体（harness 会先 JSON.parse 再拆 body）。
+		const proxyText = JSON.stringify({ status: 200, body: JSON.stringify(payload) });
+		setFetchImpl(async () => ({ ok: true, status: 200, headers: { get: () => "application/json" }, text: async () => proxyText, json: async () => JSON.parse(proxyText) }));
+		T.setCoreEnv({ now: () => NOW_R99 });
+		let r99 = null, r99err = null;
+		try { r99 = await T.GACHA_FETCHERS["r1999"]("https://noticecp.example/api/notice", undefined, TZ_CN); }
+		catch (e) { r99err = String((e && e.message) || e); }
+		finally { setFetchImpl(prevImpl); T.setCoreEnv({ now: () => Date.now() }); }
+
+		check("重返未来 1999：抓取器没抛（夹具载荷可解析）", r99err === null, String(r99err));
+		check("1999 并列池：bannerDates = 源站墙钟「10-08 14:00 ~ 10-22 13:59」（TZ=UTC 与 +08 同串）",
+			!!r99 && r99.bannerDates === "10-08 14:00 ~ 10-22 13:59", JSON.stringify(r99 && r99.bannerDates));
+		check("1999 并列池：bannerDatesRaw 保留正文原文（`10/08 14:00 - 10/22 13:59`，不被重排）",
+			!!r99 && r99.bannerDatesRaw === "10/08 14:00 - 10/22 13:59", JSON.stringify(r99 && r99.bannerDatesRaw));
+		check("1999 活动：eventDates = eventDatesRaw = 源站墙钟「10-08 14:00 ~ 11-02 04:59」（跨 TZ 同串）",
+			!!r99 && r99.eventDates === "10-08 14:00 ~ 11-02 04:59"
+			&& r99.eventDatesRaw === "10-08 14:00 ~ 11-02 04:59",
+			JSON.stringify(r99 && [r99.eventDates, r99.eventDatesRaw]));
+		// 独立轮换池（正文只有图，`display` 是唯一档期文本，也是 `bannerDatesRaw` 的来源）也按源站 tz 渲染
+		check("1999 独立轮换池：悬停里的档期 =「10-15 05:00 ~ 10-29 04:59」（源站 tz）",
+			!!r99 && typeof r99.bannerHover === "string" && r99.bannerHover.includes("10-15 05:00 ~ 10-29 04:59"),
+			JSON.stringify(r99 && r99.bannerHover));
+		check("1999 并列池：悬停里两个征集池都在（同一窗口各自一行）",
+			!!r99 && typeof r99.bannerHover === "string"
+			&& r99.bannerHover.includes("「夜歌与黎明」限定征集") && r99.bannerHover.includes("「夜歌与黎明」活动征集"),
+			JSON.stringify(r99 && r99.bannerHover));
 	}
 }

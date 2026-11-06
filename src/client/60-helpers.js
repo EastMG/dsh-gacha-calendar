@@ -437,6 +437,13 @@
 		// ⚠️ 这里是**白名单重建**：每加一个内置条目支持的新字段，都必须同步加到这里，
 		// 否则自定义条目上写了也会被静默丢掉（2026-10-01 踩到：`tz` 不在列表里，
 		// 用户给自定义条目配的源站时区被丢弃，永远退回本机时区）。
+		// ⚠️ 唯一**不**登记的例外：数据层数组 `gacha` / `events`（P1，2026-11-07）。
+		//    它们是**抓取结果**（住在 lastData 的记录里，按 id 索引），不是**条目定义**——
+		//    这张表重建的是"某来源抓什么、按哪个时区读"，自定义条目的表单也只存
+		//    id/name/icon/url/eventUrl/color 这些声明字段。所以这里没有、也不该有数组字段：
+		//    枚举过一遍全部写入点（84-settings-page.js 的 addEntry / 删除 / 迁移）确认没有
+		//    "把抓取结果写进 customEntries" 的路径。（另两处白名单 `engine-head.js` 的
+		//    CONTENT_FIELDS 与 `83-panel-shell.js` 的渲染拷贝是记录侧，那两处必须登记。）
 		function getAllEntries(s) {
 			const removed = Array.isArray(s.removed) ? s.removed : [];
 			const base = SOURCES.filter((x) => !removed.includes(x.id));

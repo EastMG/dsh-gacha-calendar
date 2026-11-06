@@ -89,14 +89,20 @@
 
 
 		// "8/13 10:00 - 9/3 4:59" → 时间戳；年份用公告自身的 beginTime 锚定（避免跨年误判）
-		function r99ParseWindow(text, year) {
+		// `tz`（可选）= 源站墙钟时区（国服 +08）：墙钟 → 绝对时刻按它换算。
+		// ⚠️ 旧实现用 `new Date(year, mo-1, …)`（本机时区）：本地 +08 机器上恰好对，
+		//    `TZ=UTC` 机器上所有窗口整体偏 8 小时 —— 于是后面按源站 tz 渲染的文本也跟着错。
+		function r99ParseWindow(text, year, tz) {
 			const m = String(text).match(/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})\s*[-\u2014~]\s*(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})/);
 			if (!m) return null;
 			const sm = Number(m[1]), sd = Number(m[2]), sh = Number(m[3]), smi = Number(m[4]);
 			const em = Number(m[5]), ed = Number(m[6]), eh = Number(m[7]), emi = Number(m[8]);
-			const startTs = new Date(year, sm - 1, sd, sh, smi).getTime();
+			const mk = (yy, mo, d, h, mi) => (typeof sourceInstant === "function"
+				? sourceInstant(yy, mo, d, h, mi, tz)
+				: new Date(yy, mo - 1, d, h, mi).getTime());
+			const startTs = mk(year, sm, sd, sh, smi);
 			const endYear = endsNextYear(sm, sd, em, ed) ? year + 1 : year;   // 跨年（如 12/28 - 1/5）
-			return { startTs, endTs: new Date(endYear, em - 1, ed, eh, emi).getTime() };
+			return { startTs, endTs: mk(endYear, em, ed, eh, emi) };
 		}
 
 
@@ -124,7 +130,7 @@
 		// 所以轮换征集只能靠它——一览里那三行日期不带时间，过期后连日期行也会随版本一起消失。
 		const R99_SOLO_POOL = /^\u300c([^\u300d]{1,40})\u300d([^\u300c\u300d]{1,12})\u5f00\u542f\uff01$/;
 
-		function r99SoloPools(items) {
+		function r99SoloPools(items, tz) {
 			const out = [];
 			for (const it of items) {
 				const title = String((it.contentMap && it.contentMap["zh-CN"] && it.contentMap["zh-CN"].title) || "").trim();
@@ -135,9 +141,11 @@
 				const startTs = Number(it.beginTime);
 				const endTs = Number(it.endTime) - 6e4;           // 接口边界是排他的（…05:00），面板统一显示末分钟 04:59
 				if (!startTs || !endTs) continue;
+				// ⚠️ 独立公告没有源站时间原文（正文只有图）⇒ `display` 是**唯一**的档期文本；
+				//    它必须按源站 tz 渲染（否则 UTC 机器上偏 8 小时），并原样进 `bannerDatesRaw`。
 				out.push({
 					name: `\u300c${m[1]}\u300d${kind}`, kind, roles: "", startTs, endTs, raw: "",
-					display: fmtWindow(startTs, endTs)
+					display: fmtWindow(startTs, endTs, tz)
 				});
 			}
 			return out;
@@ -145,10 +153,14 @@
 
 
 		// 解析一篇「版本活动一览」→ { pools, events, rotRows }
-		function parseR99Overview(item, now = nowMs()) {
+		// `tz` = 源站墙钟时区（国服 +08）：正文里的 `M/D HH:MM` 全是源站墙钟，
+		// 换算成绝对时刻、渲染回文本都必须按它（不传 = 本机时区，旧行为）。
+		function parseR99Overview(item, now = nowMs(), tz) {
 			const lines = r99NoticeLines(item);
 			if (!lines) return null;
-			const year = new Date(Number(item.beginTime) || now).getFullYear();
+			const year = (typeof sourceWallParts === "function"
+				? sourceWallParts(Number(item.beginTime) || now, tz).y
+				: new Date(Number(item.beginTime) || now).getFullYear());
 			// 段：`「名称」类型` 开一段，其后各行归该段（直至下一个段标题）
 			const sections = [];
 			let cur = null;
@@ -172,13 +184,13 @@
 				if (/\u5f81\u96c6/.test(sec.kind)) {
 					// 征集段：只认【征集时间】（活动段才有【活动时间】）
 					const line = sec.lines.find((l) => /^\u3010\u5f81\u96c6\u65f6\u95f4\u3011/.test(l));
-					const w = line ? r99ParseWindow(line, year) : null;
+					const w = line ? r99ParseWindow(line, year, tz) : null;
 					if (!w) continue;   // 该段没有可解析的征集时间 → 跳过（整篇都没有则由上层按结构异常处理）
 					pools.push({
 						name: `\u300c${sec.name}\u300d${sec.kind}`, kind: sec.kind, roles,
 						startTs: w.startTs, endTs: w.endTs,
 						raw: (line.match(/\u3010\u5f81\u96c6\u65f6\u95f4\u3011\s*(.+)$/) || [])[1] || "",
-						display: fmtWindow(w.startTs, w.endTs)
+						display: fmtWindow(w.startTs, w.endTs, tz)
 					});
 					continue;
 				}
@@ -187,7 +199,7 @@
 				const wins = [];
 				for (const l of sec.lines) {
 					if (!/^\u3010[^\u3011]{1,12}\u3011/.test(l)) continue;
-					const w = r99ParseWindow(l, year);
+					const w = r99ParseWindow(l, year, tz);
 					if (w) wins.push(w);
 				}
 				if (wins.length === 0) continue;
@@ -197,7 +209,9 @@
 				const key = `${sec.name}|${startTs}|${endTs}`;
 				if (seenEvent.has(key)) continue;
 				seenEvent.add(key);
-				events.push({ name: sec.name, cat: sec.kind, startTs, endTs, raw: fmtWindow(startTs, endTs) });
+				// `raw` 是**跨多个时间块合并出来的跨度**，源站没有这一串原文 ⇒ 由绝对时刻渲染成
+				// **源站墙钟**（必须传 tz：旧实现按本机时区，UTC 机器上 `eventDatesRaw` 整体偏 8 小时）。
+				events.push({ name: sec.name, cat: sec.kind, startTs, endTs, raw: fmtWindow(startTs, endTs, tz) });
 			}
 			// 轮换征集在一览里**只有日期行**（「N月N日更新：角色」，不带起止时间）→ 这里只当"角色字典"。
 			// 时间不再用"+14 天"推算：每期轮换都有自己的独立公告（见 r99SoloPools），接口给的就是真实起止。
@@ -206,7 +220,10 @@
 				const m = line.match(/^(\d{1,2})\u6708(\d{1,2})\u65e5\u66f4\u65b0[\uff1a:]\s*(.+)$/);
 				if (!m) continue;
 				// 只用"更新日"当匹配键（与同一期独立公告的 startTs 同一天），不作为时间来源
-				rotRows.push({ startTs: new Date(year, Number(m[1]) - 1, Number(m[2]), 5, 0).getTime(), roles: cleanRoles(m[3]) });
+				const dayTs = typeof sourceInstant === "function"
+					? sourceInstant(year, Number(m[1]), Number(m[2]), 5, 0, tz)
+					: new Date(year, Number(m[1]) - 1, Number(m[2]), 5, 0).getTime();
+				rotRows.push({ startTs: dayTs, roles: cleanRoles(m[3]) });
 			}
 			return { pools, events, rotRows };
 		}
@@ -225,7 +242,7 @@
 			const pools = [], events = [], rotRows = [];
 			let parsed = 0;
 			for (const it of overviews) {
-				const o = parseR99Overview(it, now);
+				const o = parseR99Overview(it, now, tz);
 				if (!o) continue;
 				parsed++;
 				pools.push.apply(pools, o.pools);
@@ -235,9 +252,15 @@
 			if (parsed === 0) throw new Error("r1999-notice-no-dates");
 			// 用独立公告补齐一览没有的池（当前就是轮换征集）。同名池**以一览为准**——它有正文【征集时间】
 			// 与 UP 名单；独立公告正文只有图，只能补"池名 + 真实起止"，角色另从日期行字典里按同一天取。
-			const dayKey = (ts) => { const d = new Date(ts); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+			// ⚠️ dayKey 也按**源站墙钟**取日历日（旧实现取本机时区的年月日 → UTC 机器上跨 0 点的池对不上）。
+			const dayKey = (ts) => {
+				const w = typeof sourceWallParts === "function"
+					? sourceWallParts(ts, tz)
+					: { y: new Date(ts).getFullYear(), mo: new Date(ts).getMonth() + 1, d: new Date(ts).getDate() };
+				return `${w.y}-${w.mo}-${w.d}`;
+			};
 			const rolesByDay = new Map(rotRows.map((r) => [dayKey(r.startTs), r.roles]));
-			for (const p of r99SoloPools(items)) {
+			for (const p of r99SoloPools(items, tz)) {
 				if (pools.some((x) => x.name === p.name)) continue;
 				p.roles = rolesByDay.get(dayKey(p.startTs)) || "";
 				pools.push(p);
@@ -272,7 +295,8 @@
 			const primary = pickEventPrimary(activeEvents);
 			if (primary) {
 				data.event = primary.name;
-				data.eventDates = fmtWindow(primary.startTs, primary.endTs);
+				// 文本 = 源站墙钟（按源站 tz 渲染）；`eventDatesRaw` 取 `primary.raw`（同一份合并跨度）。
+				data.eventDates = fmtWindow(primary.startTs, primary.endTs, tz);
 				data.eventDatesRaw = primary.raw || data.eventDates;
 				const hover = buildEventHover(activeEvents, 0, tz);
 				if (hover) data.eventHover = hover;
@@ -284,7 +308,7 @@
 		// 重返未来：1999 入口：默认源＝官方游戏内公告（逐期征集时间）；
 		// 来源被切到官网公告（备选源）或自定义地址时直接走官网解析（旧行为）。
 		async function fetchR99(url, signal, tz, now = nowMs()) {
-			if (!/noticecp/.test(String(url || ""))) return fetchR99Official(url, signal, now);
+			if (!/noticecp/.test(String(url || ""))) return fetchR99Official(url, signal, tz, now);
 			try {
 				return await fetchR99Notice(now, tz);
 			} catch {

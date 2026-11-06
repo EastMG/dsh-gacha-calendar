@@ -97,6 +97,10 @@
 
 
 		// 窗口起止文本：两端同一年 → MM-DD；跨年 → 两端都带年份
+		// ⚠️ 不传 tz = **本机时区**，这只允许**显示层**用（`81-schedule-model.js` 的 localWin /
+		//    localWinText：外显按用户本机时区）。凡是要产出「源站墙钟原文」的地方（`*Raw` / 悬停 /
+		//    解析器的 bannerDates / eventDates）都**必须**传源站 tz —— 否则 UTC 机器上整体偏 8 小时。
+		//    静态守卫见 `test/cases-rule-lint.mjs` 的「fmtWindow 调用必须带 tz」。
 		function fmtWindow(startTs, endTs, tz) {
 			const sameYear = wallOf(startTs, tz).y === wallOf(endTs, tz).y;
 			return sameYear ? `${fmtMdHm(startTs, tz)} ~ ${fmtMdHm(endTs, tz)}` : `${fmtYmdHm(startTs, tz)} ~ ${fmtYmdHm(endTs, tz)}`;

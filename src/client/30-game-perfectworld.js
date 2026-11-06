@@ -12,7 +12,8 @@
 
 		// 异环（ldshop 繁体）：解析「項目/資訊」卡池表（含 期間/角色/棋盤 行），返回全部卡池
 		// 表格行结构：<td><p>期間</p></td><td><p>8月19日－9月9日</p></td>
-		function parseLdshopPools(html) {
+		// `tz`（可选）= 源站墙钟时区：期间是**源站墙钟**（只有月日），换算与渲染都按它。
+		function parseLdshopPools(html, tz) {
 			const out = [];
 			const tables = [...html.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/gi)];
 			for (const tb of tables) {
@@ -24,7 +25,7 @@
 					if (tds.length >= 2 && tds[0] && tds[0] !== "項目") info[tds[0]] = tds[1];
 				}
 				if (!info["期間"]) continue;
-				const range = parseLdshopRange(info["期間"]);
+				const range = parseLdshopRange(info["期間"], nowMs(), tz);
 				if (!range) continue;
 				const chars = [info["全新S級角色"], info["復刻S級角色"]].filter(Boolean).join("/");
 				out.push({
@@ -41,7 +42,7 @@
 		// 异环（ldshop 经 host 代理）：抓页面 → 解析卡池表 → 选当期
 		async function fetchLdshopNte(pageUrl, _signal, tz) {
 			const html = await proxyFetchText(pageUrl, "https://www.ldshop.gg/");
-			const pools = parseLdshopPools(html);
+			const pools = parseLdshopPools(html, tz);
 			if (pools.length === 0) return null;
 			return selectCurrent(pools, nowMs());
 		}
@@ -156,7 +157,7 @@
 			return { start, end: end < 0 ? lines.length : end };
 		}
 
-		function parseNteBoards(text, nowYear) {
+		function parseNteBoards(text, nowYear, tz) {
 			const lines = text.split("\n").map((l) => l.trim());
 			// 「一、 全新角色&弧盘」/「【更新内容】」这一段的边界（只在这里找，避免匹配到别处的"开放时间"）
 			const bounds = nteContentBounds(lines);
@@ -185,14 +186,19 @@
 				}
 				// **有棋盘说明才是角色卡池**（弧盘那条走研募说明，会在这里被排除）
 				if (!range || !board) continue;
+				// 源站墙钟（月日 + 钟点）→ 绝对时刻：按源站 tz 换算（旧实现 `new Date(...)` = 本机时区，
+				// UTC 机器上整窗偏 8 小时；文本在本机恰好 roundtrip 所以本地看不出来）。
+				const mk = (yy, mo, d, h, mi) => (typeof sourceInstant === "function"
+					? sourceInstant(yy, mo, d, h, mi, tz)
+					: new Date(yy, mo - 1, d, h, mi).getTime());
 				pools.push({
 					name: board,
 					// 类型：`全新限定S级角色` → 限定棋盘；`限定S级角色…返场` → 返场限定棋盘。
 					// 注意 `限定` 属于**类型的一部分**，不是动词/修饰（与国服"更新限时限定招募"同理）。
 					type: `${m[3] ? "返场" : ""}限定棋盘`,
 					roles: baRoleName(m[2]),
-					startTs: new Date(nowYear, range.sMo - 1, range.sD, range.sH, range.sMi).getTime(),
-					endTs: new Date(nowYear, range.eMo - 1, range.eD, range.eH, range.eMi).getTime()
+					startTs: mk(nowYear, range.sMo, range.sD, range.sH, range.sMi),
+					endTs: mk(nowYear, range.eMo, range.eD, range.eH, range.eMi)
 				});
 			}
 			return pools;
@@ -220,15 +226,17 @@
 			// 卡片/悬停都走 banner + roles（与其它游戏一致）：类型进 `banner`，
 			// 悬停由面板兜底显示 `类型：角色` + 日期。**不构造 bannerHover**（同国服，见 §48.3d）。
 			const nowYear = new Date(now).getFullYear();
-			const active = parseNteBoards(text, nowYear)
+			const active = parseNteBoards(text, nowYear, tz)
 				.filter((p) => p.endTs >= now && p.startTs <= now)
 				.sort((a, b) => a.endTs - b.endTs);
 			if (active.length > 0) {
 				data.banner = [...new Set(active.map((p) => p.type))].join(" & ");
 				data.roles = [...new Set(active.map((p) => p.roles).filter(Boolean))].join("、");
-				// 窗口取结束最早的那个（与 selectCurrent 的 `first` 同口径）
+				// 窗口取结束最早的那个（与 selectCurrent 的 `first` 同口径）。
+				// ⚠️ 文本 = **源站墙钟**（按源站 tz 渲染）：旧实现取 `new Date(ts)` 的本机字段，
+				//    而 ts 也是按本机解析的 ⇒ 本地 roundtrip 稳定、UTC 机器上整窗偏 8 小时。
 				const first = active[0];
-				data.bannerDates = `${fmt(new Date(first.startTs).getMonth() + 1, new Date(first.startTs).getDate(), new Date(first.startTs).getHours(), new Date(first.startTs).getMinutes())} ~ ${fmt(new Date(first.endTs).getMonth() + 1, new Date(first.endTs).getDate(), new Date(first.endTs).getHours(), new Date(first.endTs).getMinutes())}`;
+				data.bannerDates = fmtWindow(first.startTs, first.endTs, tz);
 				data.bannerDatesRaw = data.bannerDates;
 			}
 			// 当期活动：「X」限时活动 活动时间：M月D日(维护|版本)更新后|hh:mm-M月D日hh:mm

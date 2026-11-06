@@ -81,7 +81,10 @@
 						return;
 					}
 					const r = result.results[i] || { reason: "skipped" };
-					const rec = mergeEntryRecord(r, prev.games[e.id], nowMs());
+					// meta = 归一时要用的**条目元信息**（不是抓取结果）：`id` 生成数组元素的稳定 key
+					// （`<id>:gacha:<i>`）、`tz` 记进元素让下游知道那串时间按哪个墙钟读（见 50-refresh.js
+					// 的「数据层数组」region）。`e` 就是本轮这个条目的声明，id/tz 都在它身上。
+					const rec = mergeEntryRecord(r, prev.games[e.id], nowMs(), { id: e.id, tz: e.tz || "" });
 					if (r.reason === "skipped") rec.skipped = true;
 					// 统一成固定形状（内容字段缺失填空串）——见 engine-head.js 的 normalizeRecord
 					games[e.id] = normalizeRecord(rec, e.name);

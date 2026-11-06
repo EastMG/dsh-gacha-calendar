@@ -124,6 +124,11 @@
 			})));
 			// 外显：类别优先（活動劇情/總力戰/大決戰 优先于 迷你活動/常駐类），同级内结束时间升序
 			const eventRow = pickEventPrimary(evOrdered) || null;
+			// ⚠️ 这里**故意**不传 tz（`fmtWindow(ts)` = 本机时区）：`eventRow.startTs/endTs` 是
+			//    `parseBaLogRows` 用 `new Date(y, mo-1, …)`（本机墙钟）造出来的**合成时刻**，
+			//    解析与渲染同一口径 ⇒ 文本在 UTC 与 +08 下都等于源站原文（roundtrip 稳定）。
+			//    它真正的缺陷在**解析方向**（合成时刻的绝对值随机器变），属另一类问题；只把这里
+			//    改成传 tz 而不改解析会立刻让文本在 UTC 机器上偏 8 小时 —— 所以本轮不动。
 			const evDates = eventRow
 				? (eventRow.startTs != null && eventRow.endTs != null ? fmtWindow(eventRow.startTs, eventRow.endTs) : (eventRow.raw || ""))
 				: "";
@@ -250,7 +255,8 @@
 				const endTs = jpDate(b);
 				if (startTs == null || endTs == null || startTs > now || endTs < now) continue;
 				data.event = m[1] ? `${m[2]}（復刻）` : m[2];
-				data.eventDates = fmtWindow(startTs, endTs);
+				// 文本按**源站墙钟**渲染（日服源 = JST；startTs/endTs 已由 jstTs 换算成正确绝对时刻）。
+				data.eventDates = fmtWindow(startTs, endTs, tz);
 				data.eventDatesRaw = `${afterMaint(a) ? "メンテナンス後" : a} ~ ${b}`;
 				break;
 			}
@@ -598,6 +604,8 @@
 			data.banner = GK_BA_POOL_BANNER;
 			data.roles = pool.roles;
 			// 显示用 `endDayTs`（日粒度，两端都落在 00:00）：与上一轮标题口径的读数一致（10-13 00:00 ~ 10-27 00:00）
+			// ⚠️ 不传 tz 的理由同上面 `evDates`：`pool.win` 的 ts 由 `gkBaTableWindow` 的本机墙钟合成，
+			//    解析与渲染同口径 ⇒ 文本 roundtrip 稳定；改成传 tz 必须同时改解析方向，否则反而出错。
 			data.bannerDates = fmtWindow(pool.win.startTs, pool.win.endDayTs);
 			return data;
 		}

@@ -94,10 +94,20 @@
 				"banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover",
 				"event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventShow", "eventHoverExtra", "eventHover"
 			];
+			// ⚠️ `gacha` / `events`（数据层数组，P1）**不在这张表里**：这张表只收字符串，数组走
+			// normalizeRecord 里单独的数组分支（见那里的说明）。两张表必须成套 —— 数组漏了就是静默丢字段。
 			function normalizeRecord(rec, name) {
 				const src = rec || {};
 				const out = { name: name || src.name || "" };
 				for (const f of CONTENT_FIELDS) out[f] = typeof src[f] === "string" ? src[f] : "";
+				// ── 数据层数组（P1，2026-11-07）：**必须单独一个分支** ────────────────────
+				// 上面那行只收字符串，数组会被削成空串（`typeof [] === "object"` ⇒ 走 else）。
+				// 这正是任务书点名的坑：漏了它，`gacha` / `events` 在 getCached() 往返、隐藏条目
+				// 搬运、以及宿主重读缓存这三条路径上全部静默丢失 —— 而面板看不出来（P1 显示层还不读它们）。
+				// 归一只做最少校验：非对象元素丢弃、ts 必须是 number 否则 null（见 50-refresh.js 的
+				// `dataArray*ItemOf`）；缺字段（没有这个数组）⇒ 空数组，形状固定。
+				out.gacha = dataArrayGachaListOf(src.gacha);
+				out.events = dataArrayEventListOf(src.events);
 				// 老缓存的 fail 是**字符串**（"event-down" / "no-match" / 错误原文）：必须在这里就归一成
 				// { kind, reason }，否则按契约实现的其它消费者（扩展/CLI）用 isDown() 会把字符串判成成功
 				// （"失败被错显成未公布"）。键名与值域不变，不需要升 schemaVersion。
@@ -148,7 +158,12 @@
 						roles: g.roles || "",
 						bannerDates: g.bannerDates || "",
 						event: g.event || "",
-						eventDates: g.eventDates || ""
+						eventDates: g.eventDates || "",
+						// 数据层数组（P1）：条目的**出厂默认值**里没有"池/活动"这回事 ⇒ 恒为空数组。
+						// 登记在这里是为了让 "defaults 里有哪些内容字段" 与 Result JSON 的
+						// normalizeRecord 口径成套（漏一处 = 消费方拿到的形状不一致）。
+						gacha: [],
+						events: []
 					}
 				}));
 			}

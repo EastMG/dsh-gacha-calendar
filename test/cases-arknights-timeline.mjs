@@ -498,12 +498,17 @@ export default async function run() {
 		check("无兑换期：载荷键集合 = 改造前那四个（不多 eventShow / eventClaimDates / eventHoverExtra）",
 			!!noClaimPl && Object.keys(noClaimPl).sort().join(",") === PRE_CHANGE_KEYS,
 			`不变量=退化形状｜期望=${PRE_CHANGE_KEYS}｜实测=${Object.keys(noClaimPl || {}).sort().join(",")}`);
-		// ⚠️ 活动期（有 `raw`）时 `eventDatesRaw` = 一览那条 `raw`（**不**等于 `eventDates`：
-		// `range2` 的 raw 是"源站开始文本 + 本机时区渲染的结束时刻"，CI 跑 UTC 时两者会差 8 小时）。
-		// 这里只钉"取值来源"这个不变量；渲染口径那条在 §一 按各自形态判（claim 才要求逐字相等）。
-		check("无兑换期：eventDates = 活动区间（按源站 tz 渲染），eventDatesRaw = 一览那条 raw",
-			!!noClaimPl && noClaimPl.eventDates === "11-01 12:00 ~ 11-15 03:59"
-			&& noClaimPl.eventDatesRaw === only[0].raw,
+		// ⚠️ 活动期（有 `raw`）时 `eventDatesRaw` = 一览那条 `raw`。2026-11-07 起这条**可以真钉**了：
+		// 修复前 `range2` 拿 `new Date(ts)`（**本机时区**）渲染结束时刻、起点却是源站原文，
+		// `TZ=UTC` 门禁下同一串会变成 `11-01 12:00 ~ 11-14 19:59`（结束早 8 小时）——
+		// 所以那时只能钉"取值来源"（`s === only[0].raw`，自证式）。现在 `range2` 必传源站 tz，
+		// raw 两端都是**源站墙钟** ⇒ 期望值写成字面量：本文件在 `TZ=UTC` 与 `TZ=Asia/Shanghai`
+		// 两道门禁下都必须逐字等于这一串（这才是"跨时区相等"的断言，而不是跟着环境现算）。
+		const NO_CLAIM_RAW = "11-01 12:00 ~ 11-15 03:59";
+		check("无兑换期：eventDates 与 eventDatesRaw 都是源站墙钟原文（跨 TZ 逐字相同）",
+			!!noClaimPl && noClaimPl.eventDates === NO_CLAIM_RAW
+			&& noClaimPl.eventDatesRaw === NO_CLAIM_RAW
+			&& only[0].raw === NO_CLAIM_RAW,
 			JSON.stringify([noClaimPl && noClaimPl.eventDates, noClaimPl && noClaimPl.eventDatesRaw, only[0].raw]));
 		check("无兑换期：**没有** eventShow（不补猜「兑换截止」）", !!noClaimPl && !("eventShow" in noClaimPl),
 			JSON.stringify(noClaimPl && Object.keys(noClaimPl)));

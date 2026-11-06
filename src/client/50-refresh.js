@@ -1,7 +1,10 @@
 		//#region refresh
 		// 两侧各自只允许写自己的字段：某些来源的载荷同时含卡池与活动字段（如 GameKee），
 		// 若把整对象直接合并，活动源的数据会污染卡池列（反之亦然）——解耦契约的一部分。
-		const GACHA_FIELDS = ["banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover"];
+		// `gacha` = **数据层数组**（P1，2026-11-07）：每口池一条（见下面「数据层数组」region）。
+		// 它必须在这里登记，否则解析器将来直出的结构化数组会在这一层被 `pickFields` 静默削掉
+		// （P1 的来源都不给这个字段 ⇒ 由 mergeEntryRecord 从字符串合成；P3 才由解析器直出）。
+		const GACHA_FIELDS = ["banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover", "gacha"];
 		// `eventClaimDates` = 明日方舟「奖励领取（兑换）截止」窗口（只有**有兑换期**的来源才带；
 		// 没有就没有这个键）。它是**提醒侧**的第二个 deadline，不参与任何显示逻辑 ⇒ 必须原样进 lastData，
 		// 否则「刷新过一次、中途不再刷新」就只剩一个 deadline 会响（见 65-remind.js 的 remindItemsOf）。
@@ -9,7 +12,9 @@
 		// 它同样必须原样进 lastData，否则兑换期那一行会退回活动名（`event` 本身不动）。
 		// `eventHoverExtra` = **只进提示框**的提示行（`活动标签` ⏎ `… 兑换截止   档期` 每两条一组；没有兑换期就没有这个键）。
 		// 同样要随 lastData 走，否则"沿用旧值时"提示框会少掉那一行（与 `eventShow` 同口径）。
-		const EVENT_FIELDS = ["event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventShow", "eventHoverExtra", "eventHover"];
+		// `events` = **数据层数组**（P1，2026-11-07）：每条活动一条、兑换期放在 `phase` 里
+		// （见下面「数据层数组」region）。与 `gacha` 同理必须登记，否则结构化来源会被静默削掉。
+		const EVENT_FIELDS = ["event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventShow", "eventHoverExtra", "eventHover", "events"];
 		function pickFields(src, fields) {
 			const out = {};
 			if (!src) return out;
@@ -169,7 +174,7 @@
 		// - 展示字段按列兜底：本次某列没拿到就沿回旧值，并标记该列"显示的是旧值"（gachaStale/eventStale）
 		// - 抓取状态（gachaFail/eventFail）永远来自本轮，既不继承也不删除
 		// - okAt = 最近一次"两侧都拿到新数据"的时间；有任一侧没拿到就不刷新
-		function mergeEntryRecord(r, prevRec, nowTs) {
+		function mergeEntryRecord(r, prevRec, nowTs, meta) {
 			const gachaFail = (r && r.gachaFail) || null;
 			const eventFail = (r && r.eventFail) || null;
 			const rec = { ...((r && r.data) || {}), gachaFail, eventFail };
@@ -199,8 +204,215 @@
 			// "两侧都拿到新数据"才算 okAt；被跳过的条目（两侧都没配来源）本轮根本没抓，不能算新数据
 			const skipped = !!(r && r.reason === "skipped");
 			rec.okAt = (!skipped && !gachaFail && !eventFail) ? nowTs : (prevRec && prevRec.okAt) || 0;
+			// 数据层数组（P1，见下面「数据层数组」region）：
+			// 来源若已给结构化数组（P3 的解析器会开始给）就原样用；否则从**上面合并后的**字符串字段合成。
+			// 合成发生在**沿回旧值之后**，所以"这一列显示的是沿用值"时数组内容与沿回的那串文本一致，
+			// 不会出现"字符串是新的、数组还是上一轮"这种两套事实。
+			rec.gacha = Array.isArray(rec.gacha) ? rec.gacha : dataArrayGachaOf(rec, meta, new Date(nowTs));
+			rec.events = Array.isArray(rec.events) ? rec.events : dataArrayEventsOf(rec, meta, new Date(nowTs));
 			return rec;
 		}
+
+		//#region 数据层数组（P1，2026-11-07）
+		// ── 为什么有这一段 ──────────────────────────────────────────────────────────
+		// 用户定的方向：数据核心只放**事实**；"谁排第一"是**纯展示决策**，要下移到显示层；
+		// 表格与探头必须**共用同一份数组**（探头只是会动的 UI，零数据语义）。
+		//
+		// P1（本阶段）**只做数据层、不碰显示层行为**：
+		//   · 新增两个数组字段（每个游戏都有）：`gacha` / `events`（形状见下）
+		//   · 它们**不从解析器改**（那是 P3），而是在"数据流入 lastData 前"这一层（就是这里）
+		//     从**现有字符串字段合成** —— 旧字段一个都不删、值一字不改，所以面板行为逐字不变。
+		//   · 顺序 = **自然顺序**（结束时间升序，与现有悬停同一口径）；这里**不挑选**"第一条"。
+		//     外显哪一条是显示层的决定（现在它仍在 81/82 里自己选，P2 再改成读数组）。
+		//
+		// 形状（每个元素都是一条"事实"）：
+		//   gacha:  [{ key, title, show, roles: string[], startTs, endTs, tz, raw, longTerm? }]
+		//   events: [{ key, title, show, startTs, endTs, tz, raw, phase?: { kind:"claim", startTs, endTs, show } }]
+		//   · title = 源站原文名（卡池名 / 活动名）；show = **显示名**（外显时真正显示的那串）
+		//   · key   = `<gameId>:gacha:<index>` / `<gameId>:event:<index>`，同一次归一里唯一
+		//   · startTs/endTs = **本机时刻**（`parseDisplayRange` 按运行环境时区解释源站墙钟）。
+		//     ⚠️ 这是 P1 的**临时口径**（任务书明说可以先这样）：它没做"源站 tz → 本机"的换算，
+		//     所以在非 +08 的机器上会与显示层换算后的小时不符。P2 会换成**结构化来源**
+		//     （解析器直出 startTs/endTs），届时两端都按绝对时刻，这个偏差自动消失。
+		//   · tz = 条目声明的源站时区（让下游能自己判断"这串时间按哪个墙钟读"）
+		//   · raw = 源站原文（`bannerDatesRaw` / `eventDatesRaw`；并列池那条 = 悬停里那行档期）
+		//   · phase = 活动的第二阶段（明日方舟「奖励领取（兑换）截止」）：只有来源给了
+		//     `eventClaimDates` 才有这个键 —— 它是一条**独立的**截止窗口，不是另一个活动条目。
+		//   · longTerm = P1 **不合成**（可选字段，留给 P2/P3 的结构化来源；归一函数会原样透传）。
+		//
+		// 并列池怎么展开：复用**显示层同一个** `scheduleHoverItems`（2026-11-07 搬进 26-parser-hover.js，
+		// 因为它要同时进 core 产物），再用下面 dataArrayHoverPoolsOf 里那三条"这口池已经在数组里了"
+		// 的判据 —— 与 81-schedule-model.js 的 scheduleHoverOnes **逐字对应**。P2 让显示层直接读数组后，
+		// 那段显示层解析会删掉，这里就成为唯一实现。
+		const DATA_ARRAY_LABEL = (s) => String(s || "").replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, "");
+		// 字符串字段归一（数组元素用）：非字符串一律空串（与 CONTENT_FIELDS 的口径一致）
+		function dataArrayTextOf(v) {
+			return typeof v === "string" ? v : "";
+		}
+		// 时间戳归一（数组元素用）：**必须是 number**，否则 null（0 是合法值：长期档期的哨兵）
+		function dataArrayTsOf(v) {
+			return typeof v === "number" && isFinite(v) ? v : null;
+		}
+		// 角色名 → string[]（**原始文本**，不做 cleanRoleNames 的去修饰 —— 那是显示名的事）
+		function dataArrayRolesOf(roles) {
+			return String(roles || "").split(/[、,，]/).map((x) => x.trim()).filter(Boolean);
+		}
+		// 一段档期文本 → { startTs, endTs }；读不出（"长期"/"版本更新后 ~ …"/空）⇒ 两端 null，不硬凑
+		function dataArrayWindowOf(text, now) {
+			const r = parseDisplayRange(dataArrayTextOf(text), now);
+			return r ? { startTs: dataArrayTsOf(r.startTs), endTs: dataArrayTsOf(r.endTs) } : { startTs: null, endTs: null };
+		}
+		// 自然顺序：结束时间升序 → 起点升序 → 无结束时间的排最后（与 buildPoolHover 同一口径）
+		function dataArraySortOf(a, b) {
+			const ea = a.endTs == null ? Infinity : a.endTs;
+			const eb = b.endTs == null ? Infinity : b.endTs;
+			if (ea !== eb) return ea - eb;
+			const sa = a.startTs == null ? Infinity : a.startTs;
+			const sb = b.startTs == null ? Infinity : b.startTs;
+			if (sa !== sb) return sa - sb;
+			return 0;   // 相等 ⇒ 保持插入顺序（Array#sort 自 ES2019 起是稳定排序）
+		}
+		// 排好序 + 按最终下标发 key（下标即"自然顺序里的位置"，跨刷新稳定）
+		function dataArrayOrderedOf(list, prefix) {
+			return list.slice().sort(dataArraySortOf).map((x, i) => Object.assign({ key: prefix + ":" + i }, x));
+		}
+		// 悬停文本 → 可进数组的**并列条目**（这口池/这条活动在上面主条目之外，还是独立一条）
+		// ⚠️ 三条判据与 81-schedule-model.js 的 scheduleHoverOnes 逐字对应：
+		//   ① 与外显同名（那条已经在数组里了）
+		//   ② 与**显示名**同名（明日方舟兑换期的主行 = `eventShow`「<活动名> 兑换截止」⇒ 同一条）
+		//   ③ 「池名：外显名」/「外显名：其余」= 同一口池的两种写法（只认「：」两侧整段）
+		function dataArrayHoverPoolsOf(hover, main, now) {
+			const list = scheduleHoverItems(dataArrayTextOf(hover), main ? main.title : "", true);
+			const shown = DATA_ARRAY_LABEL(main && (main.show || main.title));
+			const out = [];
+			for (const x of list) {
+				if (main) {
+					if (x.title === main.title) continue;
+					if (main.show && x.title === main.show) continue;
+					const t = DATA_ARRAY_LABEL(x.title);
+					if (shown && t && t !== shown) {
+						const tail = t.lastIndexOf("\uFF1A" + shown);
+						if (t.indexOf(shown + "\uFF1A") === 0 || (tail >= 0 && tail === t.length - shown.length - 1)) continue;
+					}
+				}
+				const w = dataArrayWindowOf(scheduleNoYear(x.win), now);
+				out.push({ title: x.title, show: x.title, startTs: w.startTs, endTs: w.endTs, raw: x.win });
+			}
+			return out;
+		}
+		// 卡池侧数组：主条目（banner / roles / bannerDates）+ 并列池（bannerHover 能解析出来时）
+		function dataArrayGachaOf(rec, meta, now) {
+			const id = (meta && meta.id) || "";
+			const tz = (meta && meta.tz) || "";
+			const banner = dataArrayTextOf(rec && rec.banner);
+			if (!banner) return [];   // 这一侧没有卡池数据（未公布 / 失败）⇒ 空数组，不硬造
+			const roles = dataArrayTextOf(rec.roles);
+			const w = dataArrayWindowOf(rec.bannerDates, now);
+			const main = {
+				title: banner,
+				// 外显口径与 81 的 scheduleNormalize 一致：有角色名就显示**去修饰**的角色名，否则池名
+				show: cleanRoleNames(roles, id) || banner,
+				roles: dataArrayRolesOf(roles),
+				startTs: w.startTs,
+				endTs: w.endTs,
+				tz,
+				raw: dataArrayTextOf(rec.bannerDatesRaw)
+			};
+			const list = [main].concat(dataArrayHoverPoolsOf(rec.bannerHover, main, now));
+			return dataArrayOrderedOf(list.map((x) => ({
+				title: x.title,
+				show: x.show,
+				roles: x.roles || [],
+				startTs: x.startTs,
+				endTs: x.endTs,
+				tz,
+				raw: x.raw
+			})), id + ":gacha");
+		}
+		// 活动侧数组：主条目（event / eventShow / eventDates，带 phase）+ 并列活动（eventHover）
+		function dataArrayEventsOf(rec, meta, now) {
+			const id = (meta && meta.id) || "";
+			const tz = (meta && meta.tz) || "";
+			const event = dataArrayTextOf(rec && rec.event);
+			if (!event) return [];
+			const eventShow = dataArrayTextOf(rec.eventShow);
+			const w = dataArrayWindowOf(rec.eventDates, now);
+			const main = {
+				title: event,
+				// 与 scheduleNormalize 一致：活动侧优先用**只给显示**的 `eventShow`，没有就退回活动名
+				show: eventShow || event,
+				startTs: w.startTs,
+				endTs: w.endTs,
+				tz,
+				raw: dataArrayTextOf(rec.eventDatesRaw)
+			};
+			// 第二阶段（奖励领取/兑换截止）：独立窗口，不是第二个活动条目
+			const claim = dataArrayTextOf(rec.eventClaimDates);
+			if (claim) {
+				const cw = dataArrayWindowOf(claim, now);
+				main.phase = {
+					kind: "claim",
+					startTs: cw.startTs,
+					endTs: cw.endTs,
+					show: eventShow || (event + " 兑换截止")
+				};
+			}
+			const extras = dataArrayHoverPoolsOf(rec.eventHover, main, now).map((x) => ({
+				title: x.title,
+				show: x.show,
+				startTs: x.startTs,
+				endTs: x.endTs,
+				tz,
+				raw: x.raw
+			}));
+			return dataArrayOrderedOf([main].concat(extras), id + ":event");
+		}
+		// ── 归一（持久化白名单的数组分支用；engine-head.js 的 normalizeRecord 调它们）──
+		// 只做**最少校验**：非对象丢弃、ts 必须是 number 否则 null、其余字符串字段缺了填空串。
+		function dataArrayGachaItemOf(raw) {
+			if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+			const out = {
+				key: dataArrayTextOf(raw.key),
+				title: dataArrayTextOf(raw.title),
+				show: dataArrayTextOf(raw.show),
+				roles: Array.isArray(raw.roles) ? raw.roles.map(dataArrayTextOf).filter(Boolean) : [],
+				startTs: dataArrayTsOf(raw.startTs),
+				endTs: dataArrayTsOf(raw.endTs),
+				tz: dataArrayTextOf(raw.tz),
+				raw: dataArrayTextOf(raw.raw)
+			};
+			if (raw.longTerm === true) out.longTerm = true;   // 可选字段：P1 不合成，只透传
+			return out;
+		}
+		function dataArrayEventItemOf(raw) {
+			if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+			const out = {
+				key: dataArrayTextOf(raw.key),
+				title: dataArrayTextOf(raw.title),
+				show: dataArrayTextOf(raw.show),
+				startTs: dataArrayTsOf(raw.startTs),
+				endTs: dataArrayTsOf(raw.endTs),
+				tz: dataArrayTextOf(raw.tz),
+				raw: dataArrayTextOf(raw.raw)
+			};
+			const ph = raw.phase;
+			if (ph && typeof ph === "object" && !Array.isArray(ph)) {
+				out.phase = {
+					kind: dataArrayTextOf(ph.kind),
+					startTs: dataArrayTsOf(ph.startTs),
+					endTs: dataArrayTsOf(ph.endTs),
+					show: dataArrayTextOf(ph.show)
+				};
+			}
+			return out;
+		}
+		function dataArrayGachaListOf(v) {
+			return Array.isArray(v) ? v.map(dataArrayGachaItemOf).filter(Boolean) : [];
+		}
+		function dataArrayEventListOf(v) {
+			return Array.isArray(v) ? v.map(dataArrayEventItemOf).filter(Boolean) : [];
+		}
+		//#endregion
 
 		// 一轮刷新的总预算（毫秒）。注意：这只是"到点收尾"的兜底——被掐断的前提是 transport 理会 signal；
 		// 宿主代理等不理会 signal 的实现靠 runEntriesWithDeadline 的兜底收尾，不会让调用方永远等下去。

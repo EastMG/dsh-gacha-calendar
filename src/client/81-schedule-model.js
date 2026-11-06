@@ -170,72 +170,11 @@
 		}
 
 		// ── 同格并列条目：从悬停文本解析出来 ─────────────────────────────────────────
-		// 引擎只给**一条外显条目** + 一段供悬停用的多行文本（bannerHover / eventHover），**没有**并列数组。
-		// 契约（26-parser-hover.js 的 buildPoolHover / buildEventHover；28-parser-hover-tools.js 的 hoverPool / hoverEvent）：
-		// 当期 ≥2 条时每条一行、不足 2 条时给空串，且三种排版：
-		//   · 活动式 —— 每条自带档期：`名称   MM-DD HH:MM ~ MM-DD HH:MM`
-		//   · 卡池式 —— 档期另起一行：`池名：角色` ⏎ `MM-DD HH:MM ~ MM-DD HH:MM`
-		//   · 两者在"窗口完全相同"时都只在**末尾**写一遍档期
-		// ⚠️ 鸣潮的卡池悬停（30-game-kuro.js）首行还多带一个"卡池类型"，它就等于外显标题 → 丢掉那一行。
-		// 解析不出（或结果少于 2 条）一律返回空，调用方回退到外显那一条 —— 宁可少列，绝不列错。
-		const SCHEDULE_WINDOW_LINE = /^(?:\d{4}-)?\d{1,2}-\d{1,2} \d{1,2}:\d{2} ~ (?:\d{4}-)?\d{1,2}-\d{1,2} \d{1,2}:\d{2}$/;
-		const SCHEDULE_INLINE_WINDOW = / (?:\d{4}-)?\d{1,2}-\d{1,2} \d{1,2}:\d{2} ~ (?:\d{4}-)?\d{1,2}-\d{1,2} \d{1,2}:\d{2}$/;
-		const scheduleNoYear = (x) => String(x).replace(/(\d{4})-(\d{1,2}-\d{1,2})/g, "$2");
-		function scheduleHoverItems(hover, shownTitle, isG) {
-			const lines = String(hover || "").split("\n").map((x) => x.trim()).filter(Boolean);
-			if (lines.length < 2) return [];                        // 契约：只有 1 条时给的是空串
-			// ⚠️ 这里**不要**再去丢"首行等于外显标题"的那一行（我曾这么写，结果把终末地的真池子丢了：
-			// 「终末地」常驻寻访 正好既是外显标题、又是悬停里的第 1 个池子）。
-			// 重复项（含鸣潮那个"卡池类型"首行，它等于外显标题）由 scheduleHoverOnes 按标题去重处理。
-			const rest = lines.filter((x) => !/^以及常驻活动/.test(x));
-			const out = [];
-			let pending = [];                                       // 卡池式：先攒名称，等下一行（或后面某行）的档期
-			for (const line of rest) {
-				const inline = line.match(SCHEDULE_INLINE_WINDOW);
-				if (inline && inline.index > 0) {                   // 活动式：名称 + 自己的档期
-					const win = inline[0].trim();
-					for (const t of pending.concat([line.slice(0, inline.index).trim()])) out.push({ title: t, win });
-					pending = [];
-					continue;
-				}
-				if (SCHEDULE_WINDOW_LINE.test(line)) {              // 纯档期行
-					if (pending.length) for (const t of pending) out.push({ title: t, win: line });
-					else if (out.length) out[out.length - 1].win = line;   // 窗口完全相同：给上一条补上档期
-					pending = [];
-					continue;
-				}
-				pending.push(line);
-			}
-			// ⚠️ 同一口池在数据里有两种写法，一起摆进探头就是"看起来重复"（用户 2026-10-16）：
-			//    · 引擎的 roles 只给角色名 ——「克莱门莎」
-			//    · 悬停原文给「池名：角色」——「海渊巡游：克莱门莎」「「微醺茶香，藤花幽梦」：仙踪良梦」
-			//    用户定的口径：**只显示角色名那条** ⇒ 谁被另一条整个包住，就留谁、把带池名的那条丢掉。
-			//    另外：完全同名（战双帕弥什「新增涂装」×6、原神「绮星盛会」×2）只留第一条。
-			//    ⚠️ 只认「：」两侧的整段（不做任意子串）——否则「夏日活动」会被当成「夏日活动·特别篇」的重复。
-			const normTitle = (s) => String(s || "").replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, "");
-			// A 是不是「池名：B」或「B：其余」这种把 B 整个包住的写法（B 通常就是那条只有角色名的）
-			const wraps = (A, B) => {
-				const la = normTitle(A), lb = normTitle(B);
-				if (lb === "" || la === lb) return false;
-				if (la.indexOf(lb + "\uFF1A") === 0) return true;
-				const tail = la.lastIndexOf("\uFF1A" + lb);
-				return tail >= 0 && tail === la.length - lb.length - 1;
-			};
-			const kept = [];
-			const seenTitle = new Set();
-			for (const a of out) {
-				const la = normTitle(a.title);
-				if (la && seenTitle.has(la)) continue;              // 完全同名 ⇒ 只留第一条
-				if (out.some((b) => b !== a && wraps(a.title, b.title))) continue;   // a 包着别人 ⇒ 丢 a，留被包住的那条
-				if (la) seenTitle.add(la);
-				kept.push(a);
-			}
-			// ⚠️ 这里**只**在一条都不剩时收手。老写法是"少于 2 条就当没有"，那是为
-			//    "外显与探头会重复"的旧模型准备的；现在外显固定为列表第 0 条、且同池已去重，
-			//    只剩 1 条并列池时必须照常列出来（否则那口池在面板上彻底看不见，用户 2026-10-16）。
-			if (kept.length < 1) return [];
-			return kept;
-		}
+		// `scheduleHoverItems`（悬停多行文本 → [{ title, win }]）+ 它用到的两条区间正则 /
+		// `scheduleNoYear` 已搬到 **26-parser-hover.js**（2026-11-07，P1 数据层数组）：
+		// 数据层（50-refresh.js）也要按同一份判据展开并列池，而 50-refresh.js 在 core 产物里，
+		// 本文件（81）只属于渲染层。搬动是逐字搬迁，行为不变。
+		// 下面 `scheduleHoverOnes` 仍是**显示层**的"补成与 scheduleNormalize 同形"那一步。
 		// 把 { title, win } 补成与 scheduleNormalize **同形**的条目（渲染层只认这一种形状）
 		function scheduleHoverOnes(items, it, now) {
 			const out = [];
