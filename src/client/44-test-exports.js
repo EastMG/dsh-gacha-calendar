@@ -362,6 +362,13 @@
 			// 共用工具 / env（测试原先从 next-sources/lib/env.js 取；压平后分别见 23-parser-time.js / 24-parser-window.js / 27-parser-text.js / 28-parser-hover-tools.js）
 			fmtWindow,
 			fmtMdHm,
+			// pickEventPrimary / eventTier / sortEventItems = 外显挑选与悬停排序的**本体**（25-parser-order.js）：
+			//   导出后可以直接断言"奖励领取期的候选排最前（压过类别档位）"，以及**反向守卫**
+			//   —— 两个都是 `phase: "event"`（或都没有 `phase`，= 其它游戏的数据形状）时，
+			//   挑选结果与改造前逐条一致（类别档位仍然生效）。
+			pickEventPrimary,
+			eventTier,
+			sortEventItems,
 			// 错误归一（`GameKee 内容接口失败（…）` 这类结构化来源的文案必须原样透出，见 60-helpers.js）
 			normErr,
 			pad2,

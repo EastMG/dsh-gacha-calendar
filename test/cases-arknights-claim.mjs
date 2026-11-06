@@ -501,4 +501,118 @@ export default async function run() {
 			!EXPLAIN_RE.test(scheduleHoverNote(a.data.eventHover, rec, false))
 			&& !EXPLAIN_RE.test(scheduleHoverNote(b.data.eventHover, b.data, false)));
 	}
+
+	// ── ⑤ 真机 bug 回归（2026-11-07 lastData）：兑换期的活动被别的活动**挤掉** ───────────────
+	// 现场：now ≈ 2026-11-07，lastData 里 `event` 是「支线故事：时间啊，向前！」（11-22 结束，还剩 15 天），
+	// 而「视相博物馆：演化」11-07 03:59 已结束 ⇒ 正处于**奖励领取期**（兑换截止 11-10 03:59），
+	// 本该作为「视相博物馆：演化 兑换截止」出现在面板与「近期」，却在 `eventHover` 里排第一、
+	// 外显被 tier 档位更高的支线故事抢走（它还剩 15 天 ⇒ 也不进「近期」）⇒ 两条都看不到。
+	// 根因：`pickEventPrimary` 的第一排序键是类别档位（「支线故事」含「故事」⇒ tier 1，
+	// 「视相博物馆」⇒ tier 2），**紧迫的兑换期**因此永远排在后面。
+	// 修法：`phase === "claim"` 的候选**排最前**（压过档位）；其它游戏没有 `phase` ⇒ 行为不变。
+	{
+		const { pickEventPrimary, eventTier, sortEventItems } = T;
+		// 真机 lastData 等价的候选（两个窗口首尾相接，与 prtsEventPayload 生成的一致）
+		const claimCand = {
+			name: "视相博物馆：演化", cat: "视相博物馆", phase: "claim",
+			startTs: at("2026-11-07T03:59:00+08:00"), endTs: at("2026-11-10T03:59:00+08:00")
+		};
+		const runCand = {
+			name: "支线故事：时间啊，向前！", cat: "支线故事", phase: "event",
+			startTs: at("2026-11-01T12:00:00+08:00"), endTs: at("2026-11-22T03:59:00+08:00")
+		};
+		// 先证明"档位确实相反"——否则下面那条断言可能因为别的原因通过
+		check("先决：类别档位把兑换期那条判在第二档、把还剩 15 天的那条判在第一档（= 旧行为会选后者）",
+			eventTier(claimCand) === 2 && eventTier(runCand) === 1,
+			JSON.stringify([eventTier(claimCand), eventTier(runCand)]));
+		check("挑选：奖励领取期的候选排最前（与输入顺序无关，压过类别档位）",
+			pickEventPrimary([claimCand, runCand]) === claimCand
+			&& pickEventPrimary([runCand, claimCand]) === claimCand,
+			JSON.stringify([[claimCand, runCand].map((x) => x.name), [runCand, claimCand].map((x) => x.name)]));
+
+		// 端到端（payload）：同一份输入 → 外显必须是兑换期那一条
+		const snapshot = [
+			{
+				name: "视相博物馆：演化", cat: "视相博物馆", page: "p1",
+				startTs: at("2026-10-24T16:00:00+08:00"), endTs: at("2026-11-07T03:59:00+08:00"),
+				raw: "10-24 16:00 ~ 11-07 03:59"
+			},
+			{
+				name: "时间啊，向前！", cat: "支线故事", page: "p2",
+				startTs: at("2026-11-01T12:00:00+08:00"), endTs: at("2026-11-22T03:59:00+08:00"),
+				raw: "11-01 12:00 ~ 11-22 03:59"
+			}
+		];
+		const pageTimes = new Map([
+			["p1", { actEndTs: at("2026-11-07T03:59:00+08:00"), claimEndTs: at("2026-11-10T03:59:00+08:00") }],
+			["p2", { actEndTs: at("2026-11-22T03:59:00+08:00"), claimEndTs: null }]
+		]);
+		const now = at("2026-11-07T12:00:00+08:00");   // 视相已结束 8 小时，兑换期还剩 3 天
+		const pl = prtsEventPayload(snapshot, TZ_CN, now, pageTimes);
+		check("端到端（真机等价输入）：外显 `event` = 兑换期那一条（视相博物馆：演化），不再被还剩 15 天的那条挤掉",
+			!!pl && pl.event === "视相博物馆：演化", JSON.stringify(pl && pl.event));
+		check("端到端：`eventShow` = 「视相博物馆：演化 兑换截止」（面板/近期那一行的事项名）",
+			!!pl && pl.eventShow === "视相博物馆：演化 兑换截止", JSON.stringify(pl && pl.eventShow));
+		check("端到端：`eventDates` = 兑换区间（11-07 03:59 ~ 11-10 03:59 ⇒「还剩」指向兑换截止）",
+			!!pl && pl.eventDates === "11-07 03:59 ~ 11-10 03:59", JSON.stringify(pl && pl.eventDates));
+		// 悬停**不动**：仍按结束时间升序全量（兑换期那条 11-10 本来就最早，这里换成"兑换期最晚"再验一次）
+		const hoverOrder = sortEventItems([
+			{ name: "晚截止：兑换期", cat: "视相博物馆", phase: "claim", startTs: at("2026-11-07T03:59:00+08:00"), endTs: at("2026-11-20T03:59:00+08:00") },
+			{ name: "早结束：进行中", cat: "支线故事", phase: "event", startTs: at("2026-11-01T12:00:00+08:00"), endTs: at("2026-11-12T03:59:00+08:00") }
+		]);
+		check("悬停排序（sortEventItems）**不动**：仍按结束时间升序（兑换期最晚 ⇒ 排在悬停最后）",
+			hoverOrder.length === 2 && hoverOrder[0].name === "早结束：进行中" && hoverOrder[1].name === "晚截止：兑换期",
+			JSON.stringify(hoverOrder.map((x) => x.name)));
+		check("外显与悬停**各有各的口径**：同一组里外显选领取期那条、悬停第一条是更早结束的那条",
+			pickEventPrimary(hoverOrder).name === "晚截止：兑换期" && hoverOrder[0].name === "早结束：进行中",
+			JSON.stringify([pickEventPrimary(hoverOrder).name, hoverOrder[0].name]));
+
+		// 反向守卫 ①：两个都是 `phase: "event"` ⇒ 与改动前**完全一致**（类别档位仍然生效）
+		const runOnly = [
+			Object.assign({}, claimCand, { phase: "event" }),
+			runCand
+		];
+		check("反向守卫：两条都是活动期 ⇒ 仍选类别档位更高的那条（支线故事）。兑换期结束更早也不再影响",
+			pickEventPrimary(runOnly) === runOnly[1] && pickEventPrimary([runOnly[1], runOnly[0]]) === runOnly[1],
+			JSON.stringify(runOnly.map((x) => x.name)));
+		// 同档位时仍按结束时间升序（旧规则的第二、三键没被挤掉）
+		const sameTier = [
+			{ name: "A", cat: "支线故事", phase: "event", startTs: 10, endTs: 300 },
+			{ name: "B", cat: "支线故事", phase: "event", startTs: 20, endTs: 200 },
+			{ name: "C", cat: "支线故事", phase: "event", startTs: 30, endTs: 200 }
+		];
+		check("反向守卫：同档位内仍按 endTs 升序、再按 startTs 升序（旧排序键一个没丢）",
+			pickEventPrimary(sameTier).name === "B" && pickEventPrimary([sameTier[2], sameTier[0], sameTier[1]]).name === "B",
+			pickEventPrimary(sameTier).name);
+		// 两个都是 claim（同一时刻两条都在兑换期）⇒ 档位规则在领取期内部照旧生效
+		const twoClaims = [
+			Object.assign({}, claimCand),
+			{ name: "危机合约：兑换期", cat: "危机合约", phase: "claim", startTs: 10, endTs: 400 }
+		];
+		check("反向守卫：两条都在领取期 ⇒ 领取期**内部**仍按类别档位/结束时间挑（不是随便选一条）",
+			pickEventPrimary(twoClaims) === twoClaims[1] && pickEventPrimary([twoClaims[1], twoClaims[0]]) === twoClaims[1],
+			JSON.stringify(twoClaims.map((x) => x.name)));
+
+		// 反向守卫 ②：**其它游戏的数据形状没有 `phase`** ⇒ 与显式 `"event"` 逐排列同解。
+		// 4 条候选（档位 × 结束时间都不同）取 24 种排列：去掉 phase / 标成 "event" 两种形状的挑选结果必须一致。
+		const base = [
+			{ name: "t1-早", cat: "支线故事", startTs: 100, endTs: 200 },   // tier 1
+			{ name: "t1-晚", cat: "危机合约", startTs: 100, endTs: 900 },   // tier 1
+			{ name: "t2-早", cat: "登录活动", startTs: 50, endTs: 150 },    // tier 2
+			{ name: "t2-晚", cat: "签到活动", startTs: 50, endTs: 800 }     // tier 2
+		];
+		const permute = (arr) => arr.length <= 1 ? [arr] : arr.flatMap((x, i) =>
+			permute(arr.slice(0, i).concat(arr.slice(i + 1))).map((rest) => [x].concat(rest)));
+		const withEvent = (arr) => arr.map((x) => Object.assign({}, x, { phase: "event" }));
+		const perms = permute(base);
+		const shapeOk = perms.every((p) => {
+			const noPhase = pickEventPrimary(p).name;
+			const asEvent = pickEventPrimary(withEvent(p)).name;
+			return noPhase === asEvent && noPhase === "t1-早";   // tier 1 → 结束最早的 t1-早
+		});
+		check("反向守卫：没有 `phase` 的候选（= 其它游戏的数据形状）与显式 `phase:\"event\"` **24 种排列逐一相同**",
+			perms.length === 24 && shapeOk,
+			JSON.stringify(perms.filter((p) => pickEventPrimary(p).name !== pickEventPrimary(withEvent(p)).name).map((p) => p.map((x) => x.name))));
+	}
 }
+

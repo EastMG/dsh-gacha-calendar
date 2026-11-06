@@ -3295,10 +3295,21 @@ export function createEngine(env) {
 		}
 
 
-		// 外显挑选：先按类别档位（第一档优先），同档内按结束时间升序（③ 越快结束越靠前，
-		// 结束时间未知排最后）；悬停仍按 endTs 升序全量展示，不受类别影响。
+		// 外显挑选：**奖励领取期最前** → 再按类别档位（第一档优先），同档内按结束时间升序
+		// （③ 越快结束越靠前，结束时间未知排最后）；悬停仍按 endTs 升序全量展示，不受这两条影响。
+		//
+		// 为什么「领取期」要**压过类别档位**（2026-11-07 真机 bug）：
+		//   明日方舟的兑换期候选是**同一条活动的第二个窗口**（活动结束 ~ 兑换结束，见 prtsEventPayload），
+		//   而兑换期恰恰是最该被盯住的 deadline（活动本体已经结束、奖励还没领）。
+		//   旧顺序里类别档位在前 ⇒ 一条「支线故事：时间啊，向前！」（tier 1，还剩 15 天）会把
+		//   「视相博物馆：演化」的兑换期（tier 2，还剩 3 天）挤掉：面板外显成了前者，
+		//   后者既不外显、又因为外显那条还早而不进「近期」⇒ 用户两条都看不到。
+		//   `phase` 只有明日方舟的两阶段候选会设置；其它游戏没有该字段 ⇒ 这个键恒为 1，
+		//   排序结果与改造前**完全一致**。
 		function pickEventPrimary(items) {
 			return (Array.isArray(items) ? items : []).slice().sort((a, b) => {
+				const c = (a?.phase === "claim" ? 0 : 1) - (b?.phase === "claim" ? 0 : 1);
+				if (c !== 0) return c;
 				const t = eventTier(a) - eventTier(b);
 				if (t !== 0) return t;
 				const ea = a.endTs == null ? Infinity : a.endTs;
