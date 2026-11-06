@@ -175,20 +175,20 @@ export default async function run() {
 		check("活动侧：show = title = 活动名（活动侧没有角色名这一层）",
 			ev.show === "「绮星盛会」" && ev.title === "「绮星盛会」");
 
-		// 活动侧「只给显示」的事项名（2026-11-06）：明日方舟兑换期 ⇒「<分类>：兑换截止」。
+		// 活动侧「只给显示」的事项名（2026-11-06）：明日方舟兑换期 ⇒「<去重后的活动名> 兑换截止」。
 		// `eventShow` 只换 `show` —— `title`（= 活动名）仍是源站原文，提醒标题 / 侧栏轮播 / 搜索读的是它。
 		const evClaim = scheduleNormalize({
 			id: "arknights", tz: "Asia/Shanghai", event: "支线故事：墟",
-			eventDates: "11-07 03:59 ~ 11-10 03:59", eventShow: "支线故事：兑换截止"
+			eventDates: "11-07 03:59 ~ 11-10 03:59", eventShow: "支线故事：墟 兑换截止"
 		}, "event", now6);
 		check("活动侧有 `eventShow`（兑换期）：show = eventShow，title 仍是活动名",
-			evClaim.show === "支线故事：兑换截止" && evClaim.title === "支线故事：墟",
+			evClaim.show === "支线故事：墟 兑换截止" && evClaim.title === "支线故事：墟",
 			JSON.stringify([evClaim.show, evClaim.title]));
 		check("活动侧没有 `eventShow`（活动期 / 没有兑换期）：show 逐字退回活动名",
 			scheduleNormalize({ id: "arknights", event: "支线故事：墟", eventDates: "10-24 16:00 ~ 11-07 03:59" }, "event", now6).show === "支线故事：墟");
 		check("卡池侧不受 `eventShow` 影响：有 roles 仍显去修饰的角色名（活动字段串不到卡池列）",
-			scheduleNormalize({ ...g, eventShow: "支线故事：兑换截止" }, "gacha", now6).show === "伊涅芙",
-			JSON.stringify(scheduleNormalize({ ...g, eventShow: "支线故事：兑换截止" }, "gacha", now6).show));
+			scheduleNormalize({ ...g, eventShow: "支线故事：墟 兑换截止" }, "gacha", now6).show === "伊涅芙",
+			JSON.stringify(scheduleNormalize({ ...g, eventShow: "支线故事：墟 兑换截止" }, "gacha", now6).show));
 
 		// 悬停侧**不受牵连**：orig 仍是「源站标题 + 源站墙钟原文」，rawSrc 仍是源站原文（外显才走本机时区）
 		check("悬停文本仍是源站原文：orig = 池名 + bannerDatesRaw（没被 show 波及）",

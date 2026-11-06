@@ -441,11 +441,35 @@
 		}
 
 
+		// ── 分类前缀去重（**纯函数**，2026-11-06 用户要求）────────────────────────────
+		// 问题：活动名 `name` 本身可能已经带分类前缀（PRTS 的页名「视相博物馆：演化」），
+		// 而标签是 `${cat}：${name}` ⇒ 变成「视相博物馆：视相博物馆：演化」。
+		// 用户口径「分类前缀重复问题做个判定如果完全一致就合并」：
+		//   · `name` 已经以 `<cat>：` / `<cat>:` / `<cat> ` 开头 ⇒ **原样返回 name**（不重复加前缀）；
+		//   · `name` 与 `cat` 完全一致 ⇒ 原样返回 name；
+		//   · 否则有 `cat` ⇒ `${cat}：${name}`；没有 `cat`（空串）⇒ 返回 name。
+		// 前缀比较**大小写不敏感**（中英混排的分类不该因为大小写再拼一遍），全角/半角冒号与空格都认；
+		// 返回值永远保留 `name` 的原始大小写（显示跟源站走，函数不擅自改字）。
+		// ⚠️ 幂等：`labelOf(cat, labelOf(cat, name))` === `labelOf(cat, name)` —— 所以「显示用标签」与
+		//    「悬停行里的标签」都调它也不会多拼一次（④「悬停与实际显示同一串」靠这条）。
+		function labelOf(cat, name) {
+			const c = String(cat == null ? "" : cat).trim();
+			const n = String(name == null ? "" : name).trim();
+			if (!c || !n) return n;
+			const cl = c.toLowerCase(), nl = n.toLowerCase();
+			if (nl === cl) return n;                                   // 名称本身就是分类
+			if (nl.slice(0, cl.length) === cl && /^[：:\s]/.test(nl.slice(cl.length))) return n;   // 已带前缀
+			return c + "\uFF1A" + n;
+		}
+
+
 		// 明日方舟（PRTS 活动一览）：表格含「活动开始时间」列 + 隐藏 data-time="开始秒,结束秒"（Unix 秒）。
 		// 开始时间用第一列文本（"2026-08-22 04:00"），结束时间用 data-time 第二个值（UTC 秒 → +08）。
 		// 注意 data-time 第一个值是页面缓存时刻（非开始时间），故开始以文本列为准。
 		// 活动名带核心分类前缀（"支线故事：墟·复刻"）：分类取第三列 <a title="分类:XXX"> 链接，
 		// 核心分类 = 排除"复刻活动"（修饰词）后的第一个。
+		// ⚠️ 2026-11-06 用户要求：活动名**本身**可能已经带分类前缀（PRTS 有「视相博物馆：演化」这种页名），
+		//    再无条件拼一次就成了「视相博物馆：视相博物馆：演化」⇒ 一律走 labelOf（见下）判重。
 		//
 		// 2026-11-06 补：**顺带取每条活动的页名**（第二列 `<a href="/w/<URL 编码页名>">`）——
 		// 一览表里**没有**兑换/领取期，那两个字段只在单活动页的 `{{活动信息}}` 里，
@@ -482,7 +506,7 @@
 					} else {
 						coreCat = stripTags(tds[2]).replace(/\s+/g, " ").trim();
 					}
-					const label = coreCat ? `${coreCat}\uFF1A${name}` : name;
+					const label = labelOf(coreCat, name);
 					// 开始：第一列文本（"2026-08-22 04:00"）
 					const st = parseTime(stripTags(tds[0]).trim(), tz);
 					items.push({
@@ -510,8 +534,8 @@
 		// ⚠️ 显示用的数据模型：event / eventDates / eventDatesRaw / eventHover 四个字段，
 		//    「阶段」只体现在按 now 动态选出来的文本里（见 prtsEventPayload 的三态说明）。
 		//    另有**只给提醒侧**的 `eventClaimDates`（有兑换期才出现）、**只给显示**的 `eventShow`
-		//    （只在兑换期出现，形如「支线故事：兑换截止」）、以及**只进提示框**的 `eventHoverNote`
-		//    （「兑换截止 / 兑换期」提示行，可多行；**绝不进 eventHover**）：都见 prtsEventPayload 的说明。
+		//    （只在兑换期出现，形如「视相博物馆：演化 兑换截止」）、以及**只进提示框**的 `eventHoverExtra`
+		//    （`活动标签` ⏎ `… 兑换截止   档期`，每两条一组；**绝不进 eventHover**）：都见 prtsEventPayload 的说明。
 
 		// 页名：`/w/<URL 编码页名>` → 解码后的页名（下划线归空格，与 MediaWiki 标题语义一致）。
 		// 只解析 href 字符串，**不**去抓详情页 HTML（那会是 N 次请求）。
@@ -634,20 +658,24 @@
 		}
 
 
-		// 「兑换截止 / 奖励领取期」提示行 → **只进提示框**的独立字段 `eventHoverNote`（可多行）。
+		// 「兑换截止」提示行 → **只进提示框**的独立字段 `eventHoverExtra`（每两条一组：活动标签 ⏎ 提示行）。
 		// ⚠️ 绝不插进 `eventHover`：表格格子会把 `eventHover` 交给 `scheduleHoverItems` 解析成**并列条目**
 		//    （`82-schedule-view.js` 的 `cells`），不匹配「名称 + 3 空格 + 档期」的提示行会被当成并列条目
 		//    渲染进格子里 —— 用户真机截图里「兑换截止：11-10 03:59」就是**可见的一行文字**（2026-11-06 bug）。
 		//    所以 `eventHover` 仍**只由共用 buildEventHover 产生**（与改造前逐字一致）。
-		// 两种合法形态（与 prtsEventPayload 的三态一一对应）：
-		//   · 活动期（有兑换期）    ⇒ `兑换截止：MM-DD HH:mm`
-		//   · 兑换期               ⇒ `活动已于 MM-DD HH:mm 结束，当前为奖励领取期（兑换截止 MM-DD HH:mm）`
+		// 格式（2026-11-06 用户定，与该活动自己那行**同一排版**：`名称` + **3 空格** + `内容`）：
+		//   · 活动期（有兑换期）    ⇒ `<活动标签> 兑换截止   11-10 03:59`
+		//   · 兑换期               ⇒ `<活动标签> 兑换截止   11-07 03:59 ~ 11-10 03:59`
 		//   · 没有兑换期 / 批量失败 ⇒ 返回空串，调用方**不写这个键**
+		// ⚠️ 不再写「活动已于 … 结束，当前为奖励领取期（…）」这类解释句（用户 2026-11-06：纯话痨浪费钱）。
 		function prtsHoverNoteOf(x, tz) {
+			if (x.claimEndTs == null) return "";
+			// 标签一律过 labelOf（幂等）：与 `event` / `eventShow` / 悬停里那一行是**同一串**。
+			const head = `${labelOf(x.cat, x.name)} 兑换截止`;
 			if (x.phase === "claim") {
-				return `活动已于 ${fmtMdHm(x.startTs, tz)} 结束，当前为奖励领取期（兑换截止 ${fmtMdHm(x.endTs, tz)}）`;
+				return `${head}   ${fmtMdHm(x.startTs, tz)} ~ ${fmtMdHm(x.endTs, tz)}`;
 			}
-			return x.claimEndTs != null ? `兑换截止：${fmtMdHm(x.claimEndTs, tz)}` : "";
+			return `${head}   ${fmtMdHm(x.claimEndTs, tz)}`;
 		}
 
 
@@ -666,11 +694,11 @@
 
 		// 活动列载荷（**三态**，按 now 动态选文本；显示模型不变）：
 		//   ① 活动期（now ≤ 活动结束）：eventDates = 活动开始 ~ 活动结束 —— 与改造前**完全一致**；
-		//      有兑换期时另给 `eventHoverNote` = `兑换截止：MM-DD HH:mm`（只进提示框），
-		//      并额外给 `eventClaimDates`（提醒侧用）。
+		//      有兑换期时另给 `eventHoverExtra` = `<活动标签> 兑换截止   MM-DD HH:mm`（只进提示框，
+		//      插在该活动那一行之后），并额外给 `eventClaimDates`（提醒侧用）。
 		//   ② 兑换期（活动结束 < now ≤ 兑换结束）：该活动**仍然出现**（改造前会消失），
 		//      eventDates = 活动结束 ~ 兑换结束（外显的「还剩 X」= 到兑换截止，正是此刻要盯的 deadline）；
-		//      `eventHoverNote` = `活动已于 … 结束，当前为奖励领取期（兑换截止 …）`（只进提示框）。
+		//      `eventHoverExtra` = `<活动标签> 兑换截止   活动结束 ~ 兑换结束`（只进提示框）。
 		//   ③ 没有「兑换结束时间」字段（或批量失败/解析不出）：行为与改造前**逐字节一致**（不补猜 7 天之类）。
 		// ⚠️ `eventHover` **只由 buildEventHover 产出**，任何提示行都不许插进去（否则会漏进格子的并列条目）。
 		// 外显仍按类别优先、同级结束时间升序（pickEventPrimary）；悬停按结束时间升序全量（sortEventItems）。
@@ -694,12 +722,13 @@
 			}
 			const active = sortEventItems(candidates.filter((it) => coversNow(it, now)));
 			if (active.length === 0) return null;
-			// 提示行（**只进提示框**）：按悬停同样的顺序（结束时间升序）收集，可多行。
+			// 提示行（**只进提示框**）：按悬停同样的顺序（结束时间升序）收集。
+			// 每两条一组：① 该活动的**标签**（= 悬停里那一行的开头，渲染层据此定位）② 提示行本身。
 			// ⚠️ 不往 `eventHover` 里插 —— 见 prtsHoverNoteOf 上面那段注释（真机 bug：漏进格子的并列条目）。
-			const noteLines = [];
+			const extraLines = [];
 			for (const x of active) {
 				const line = prtsHoverNoteOf(x, tz);
-				if (line) noteLines.push(line);
+				if (line) extraLines.push(x.name, line);
 			}
 			// 外显：类别优先（支线故事/危机合约等 vs 登录活动），同级内结束时间升序
 			const primary = pickEventPrimary(active) || active[0];
@@ -716,22 +745,23 @@
 			const claimDates = primary.claimEndTs != null && claimStartTs != null && primary.claimEndTs > claimStartTs
 				? fmtWindow(claimStartTs, primary.claimEndTs, tz)
 				: "";
-			// 兑换期的**事项名**（2026-11-06 用户确认，**只给显示**）：
-			//   新面板那一行显示 `<分类>：兑换截止`（有分类用分类，如「视相博物馆：兑换截止」；
-			//   没有分类就用活动名，如「墟：兑换截止」）。
-			//   · `event` 一个字都不动 —— 提醒标题、侧栏轮播、搜索匹配都读它；
+			// 兑换期的**事项名**（2026-11-06 用户定，**只给显示**）：
+			//   `<去重后的活动名> 兑换截止` —— 中间是**一个空格**，不是冒号。
+			//   例：活动标签 =「视相博物馆：演化」⇒ `视相博物馆：演化 兑换截止`。
+			//   · 活动标签一律由 labelOf 产出（与面板/悬停里那一串**完全相同**，分类前缀不会重复）；
+			//   · `event` 仍是这条活动名本身（提醒标题、侧栏轮播、搜索匹配都读它）；
 			//   · 只在**兑换期**出现这个键（活动期 / 没有兑换期 ⇒ 载荷里没有 `eventShow`，
 			//     显示于是退回 `event`，与改造前逐字一致）；
 			//   · 消费方：81-schedule-model.js 的 scheduleNormalize（活动侧 show = g.eventShow || title）。
-			const showCat = primary.phase === "claim" ? String(primary.cat || "").trim() : "";
-			const eventShow = primary.phase === "claim" ? (showCat || primary.name) + "：兑换截止" : "";
+			const eventLabel = labelOf(primary.cat, primary.name);
+			const eventShow = primary.phase === "claim" ? eventLabel + " 兑换截止" : "";
 			return {
-				event: primary.name,
+				event: eventLabel,
 				eventDates: windowText,
 				...(claimDates ? { eventClaimDates: claimDates } : {}),
 				...(eventShow ? { eventShow } : {}),
-				// 提示行只进**提示框**（`hoverTextOf` / `scheduleHoverText` 追加在末尾），没有就不写这个键。
-				...(noteLines.length ? { eventHoverNote: noteLines.join("\n") } : {}),
+				// 提示行只进**提示框**（`scheduleHoverNote` 把它插到对应活动那一行之后），没有就不写这个键。
+				...(extraLines.length ? { eventHoverExtra: extraLines.join("\n") } : {}),
 				// 兑换期的日期格悬停也用**兑换区间**（与格子里显示的那份同一个区间），
 				// 否则"格子=兑换期、悬停=活动期"会互相打脸；活动期仍是一览原文（改造前行为）。
 				// 活动真正的起止仍完整出现在 eventHover 的说明里，信息没有丢。

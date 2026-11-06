@@ -347,6 +347,11 @@
 			"arknights": {
 				PRTS_CLAIM_MAX_TITLES,
 				PRTS_PAGES_API,
+				// labelOf = 分类前缀去重（纯函数）：`name` 已带 `<cat>：` 前缀 ⇒ 原样返回，否则拼一次。
+				// collectPrtsEvents = 活动一览 HTML → 条目（banner 就是喂给 labelOf 的结果）——
+				// 导出后可以拿一行「名称本身已带分类前缀」的真结构钉住"不会变成 X：X：名称"。
+				collectPrtsEvents,
+				labelOf,
 				parsePrtsPageEndTimes,
 				prtsClaimTitles,
 				prtsEventPayload,
@@ -403,9 +408,9 @@
 			//   `eventHover` 的多行原文 → [{ title, win }]。导出后可以钉住"提示行**不再进 eventHover**"
 			//   这条真机 bug 的回归：同一份提示行塞进 eventHover 会多解析出一个条目（那颗"看得见的一段文字"）。
 			scheduleHoverItems,
-			// scheduleHoverNote = 提示框（原生 title）末尾追加「只给提示框」的提示行（`eventHoverNote`）：
+			// scheduleHoverNote = 提示框（原生 title）里插入「只给提示框」的提示行（`eventHoverExtra`）：
 			//   表格格子的 hoverTextOf（82-schedule-view.js）与「近期」行的 scheduleHoverText（81）共用它。
-			//   导出后能行为断言"拼在末尾、另起一行、没有就不动"。
+			//   导出后能行为断言"插到对应活动那一行**之后**、另起一行、没有就不动"。
 			scheduleHoverNote,
 			// scheduleNormalize = 新面板**一条档期**的归一（81-schedule-model.js）：`title` 是源站原文
 			//   （卡池 = 池名 / 活动 = 活动名，只给悬停用），`show` 是**外显文本**（卡池侧有 roles 时 =

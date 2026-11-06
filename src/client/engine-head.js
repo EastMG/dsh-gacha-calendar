@@ -86,13 +86,13 @@
 			// `eventClaimDates` = 明日方舟「奖励领取（兑换）截止」窗口（只给提醒侧，显示不读它）。
 			// 它必须在这里登记，否则 normalizeRecord 会把这个键**丢掉** ⇒ lastData 里只剩「活动结束」
 			// 一个 deadline（"刷新过一次之后两个都会响"就不成立了）。
-			// `eventShow` = **只给显示**的事项名（兑换期 ⇒「<分类>：兑换截止」；活动期没有这个键）。
+			// `eventShow` = **只给显示**的事项名（兑换期 ⇒「<去重后的活动名> 兑换截止」；活动期没有这个键）。
 			// 同样要登记，否则持久化时被过滤 ⇒ 面板那一行退回活动名（`event` 本身不动）。
-			// `eventHoverNote` = **只进提示框**的提示行（「兑换截止 / 奖励领取期」；没有兑换期就没有这个键，
-			// 归一后是空串）。不登记就会被静默丢掉 ⇒ 沿用旧值时提示框少一行。
+			// `eventHoverExtra` = **只进提示框**的提示行（`活动标签` ⏎ `… 兑换截止   档期` 每两条一组；
+			// 没有兑换期就没有这个键，归一后是空串）。不登记就会被静默丢掉 ⇒ 沿用旧值时提示框少一行。
 			const CONTENT_FIELDS = [
 				"banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover",
-				"event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventShow", "eventHoverNote", "eventHover"
+				"event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventShow", "eventHoverExtra", "eventHover"
 			];
 			function normalizeRecord(rec, name) {
 				const src = rec || {};

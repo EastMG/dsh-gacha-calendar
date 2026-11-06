@@ -159,7 +159,7 @@
 			}
 			const remain = state === "live" ? Math.max(0, endTs - now.getTime()) : 0;
 			// 外显文本：卡池侧优先显示**去修饰的角色名**（旧面板一直这么显示），没有角色名就退回卡池标题。
-			// 活动侧优先用**只给显示**的 `eventShow`（明日方舟兑换期 ⇒「<分类>：兑换截止」），
+			// 活动侧优先用**只给显示**的 `eventShow`（明日方舟兑换期 ⇒「<去重后的活动名> 兑换截止」），
 			// 没有这个键就退回活动名 —— `title`/`event` 仍是源站原文（提醒标题、侧栏轮播、搜索读的是它）。
 			const roles = isG ? (g.roles || "") : "";
 			const show = (isG && roles) ? (cleanRoleNames(roles, g.id) || title) : (isG ? title : (g.eventShow || title));
@@ -375,16 +375,33 @@
 		// 悬停明细：**原面板那套**（引擎的 bannerHover / eventHover —— 当期 ≥2 条时每条一行，
 // 形如「池名：角色 ⏎ 档期」或「活动名 + 3 空格 + 档期」）。没有并列条目时给空串 →
 // 退化成「外显 ⏎ 档期」，与原面板单条时的观感一致。
-		// 提示框（原生 title）**末尾**追加「只给提示框」的提示行（如明日方舟的「兑换截止：11-10 03:59」）。
+		// 提示框（原生 title）里插入「只给提示框」的提示行（如明日方舟的「<活动> 兑换截止   11-10 03:59」）。
 		// 为什么单独一个函数：提示行**绝不能进 eventHover**（表格格子会把 eventHover 解析成并列条目，
-		// 那一行就会变成格子里的一行可见文字 —— 2026-11-06 真机 bug）。这里只做"拼在提示框末尾"这一件事，
+		// 那一行就会变成格子里的一行可见文字 —— 2026-11-06 真机 bug）。这里只做"插到正确位置"这一件事，
 		// 表格格子的 hoverTextOf（82）与「近期」行的 scheduleHoverText（下面）都调它 ⇒ 两处口径一致。
-		// 只在**活动侧**生效（`eventHoverNote` 是活动列字段），没有 / 空串 ⇒ 原样返回，不补任何东西。
+		//
+		// 字段 = `eventHoverExtra`（**每两条一组**：① 该活动的**标签** ② 提示行本身，组间用 "\n" 隔开）。
+		//   · 用标签当锚点：悬停原文里该活动那一行**以它开头**（`<名称>   <档期>`），找到就插在它**后面** ——
+		//     用户要求"紧跟对应活动那一行"（不许统一堆到末尾，否则看不出是哪个活动的兑换截止）；
+		//   · 锚点精确判据：整行等于标签，或整行以 `标签 + 3 空格` 开头 —— 避免「墟」吃掉「墟·复刻」那行的位置；
+		//   · 找不到锚点（悬停为空 / 外显那条不在悬停里）⇒ 追加到末尾（宁可位置不完美，也不能丢掉这个 deadline）。
+		// 只在**活动侧**生效（`eventHoverExtra` 是活动列字段），没有 / 空串 ⇒ 原样返回，不补任何东西。
 		function scheduleHoverNote(text, g, isG) {
 			if (isG || !g) return text;
-			const note = typeof g.eventHoverNote === "string" ? g.eventHoverNote : "";
-			if (!note) return text;
-			return text ? text + "\n" + note : note;
+			const extra = typeof g.eventHoverExtra === "string" ? g.eventHoverExtra : "";
+			if (!extra) return text;
+			const lines = extra.split("\n");
+			const out = text ? String(text).split("\n") : [];
+			for (let i = 0; i + 1 < lines.length; i += 2) {
+				const anchor = lines[i], note = lines[i + 1];
+				if (!note) continue;
+				const at = anchor
+					? out.findIndex((l) => l === anchor || l.indexOf(anchor + "   ") === 0)
+					: -1;
+				if (at >= 0) out.splice(at + 1, 0, note);
+				else out.push(note);
+			}
+			return out.join("\n");
 		}
 			function scheduleHoverText(x) {
 				const hv = (x.isG ? x.g.bannerHover : x.g.eventHover) || "";

@@ -142,19 +142,21 @@ dsh-gacha-calendar/
 
 **退化策略**（硬要求）：批量请求失败 / `json.parse.text` 形状不对 / 页内解析不出时间 ⇒ `pageTimes = null`，载荷按**改造前行为**出（只有活动期），这一侧的 `fail` 不往上报，主链路不受影响。
 
-**三态**（只改 arknights 的 payload 与提示框末尾那一行，即 `81-schedule-model.js` 的 `scheduleHoverNote` / `82-schedule-view.js` 的 `hoverTextOf`；探头的解析逻辑 `scheduleHoverItems` 一个字没动）：
+**三态**（只改 arknights 的 payload 与提示框里的那一行，即 `81-schedule-model.js` 的 `scheduleHoverNote` / `82-schedule-view.js` 的 `hoverTextOf`；探头的解析逻辑 `scheduleHoverItems` 一个字没动）：
 
-| 时刻 | 外显 `eventDates` | 独立提示字段 `eventHoverNote`（只进提示框，不进探头） |
+| 时刻 | 外显 `eventDates` | 独立提示字段 `eventHoverExtra`（只进提示框，插在该活动那一行**之后**） |
 |---|---|---|
-| now ≤ 活动结束（活动期） | `活动开始 ~ 活动结束`（与改造前逐字相同） | `兑换截止：MM-DD HH:mm`（有兑换期时） |
-| 活动结束 < now ≤ 兑换结束（兑换期） | `活动结束 ~ 兑换结束`（外显「还剩 X」因此指向兑换截止） | `活动已于 MM-DD HH:mm 结束，当前为奖励领取期（兑换截止 MM-DD HH:mm）` |
+| now ≤ 活动结束（活动期） | `活动开始 ~ 活动结束`（与改造前逐字相同） | `<活动标签> 兑换截止   MM-DD HH:mm`（有兑换期时） |
+| 活动结束 < now ≤ 兑换结束（兑换期） | `活动结束 ~ 兑换结束`（外显「还剩 X」因此指向兑换截止） | `<活动标签> 兑换截止   MM-DD HH:mm ~ MM-DD HH:mm` |
 | 没有「兑换结束时间」字段 / 批量失败 | 与改造前完全一致 | 不写这个键（不补猜 7 天） |
 
 - 兑换期内的活动**仍然出现**（改造前会整条消失 —— 那正是奖励没领的时候）。
-- 兑换期那一行的**事项名**（表格格子 / 「近期」/ 留白卡读的 `scheduleNormalize.show`）显示为 `<分类>：兑换截止`（有分类用分类，如 `视相博物馆：兑换截止`；没有分类就用活动名，如 `墟：兑换截止`）：payload 因此多带一个**只给显示**的 `eventShow`（只在兑换期出现，活动期没有这个键；随 `lastData` 持久化，`EVENT_FIELDS` / `CONTENT_FIELDS` 都已登记），`scheduleNormalize` 活动侧改成 `show = g.eventShow || title`。`event` 与悬停文本都不动（提醒标题、侧栏轮播、搜索匹配仍读 `event`），类型格仍是「活动」。
+- **分类前缀去重**（`labelOf(cat, name)`，纯函数）：活动名本身可能已经带分类前缀（PRTS 的 `视相博物馆：演化`）⇒ 不再拼成 `视相博物馆：视相博物馆：演化`。规则：`name` 以 `<cat>：` / `<cat>:` / `<cat> ` 开头、或与 `cat` 完全一致 ⇒ 原样返回 `name`，否则 `<cat>：<name>`，没有 `cat` ⇒ `name`（前缀比较大小写不敏感，幂等）。`collectPrtsEvents` 的 label、payload 的 `event`、`eventShow`、提示行全部走它 ⇒ 面板显示的那一串与提示框里出现的**同一串**。
+- 兑换期那一行的**事项名**（表格格子 / 「近期」/ 留白卡读的 `scheduleNormalize.show`）显示为 `<去重后的活动名> 兑换截止`（中间是**一个空格**，如 `视相博物馆：演化 兑换截止`）：payload 因此多带一个**只给显示**的 `eventShow`（只在兑换期出现，活动期没有这个键；随 `lastData` 持久化，`EVENT_FIELDS` / `CONTENT_FIELDS` 都已登记），`scheduleNormalize` 活动侧改成 `show = g.eventShow || title`。`event` 与悬停文本都不动（提醒标题、侧栏轮播、搜索匹配仍读 `event`），类型格仍是「活动」。
 - 一览 `data-time` 的结束 与页内「活动结束时间」不一致时**以页内为准**，并 `console.warn` 一条（含两边的时间，便于排查）。
-- 提示行走**独立提示字段 `eventHoverNote`**（只进提示框，不进探头）：`eventHover` 仍**只由共用 `buildEventHover` 产出**、与改造前逐字一致，`eventHoverNote` 由 `hoverTextOf`（表格格子）/ `scheduleHoverText`（「近期」行）拼在**提示框末尾**。不这么分开的话，表格格子会把 `eventHover` 解析成并列条目，`兑换截止：…` 那行就会变成格子里的一行**可见文字**（2026-11-06 真机 bug）。没有兑换期时**不写这个键**。
-- `eventHoverNote` 随 `lastData` 持久化（`50-refresh.js` 的 `EVENT_FIELDS` 与 `engine-head.js` 的 `CONTENT_FIELDS` 都已登记；活动列沿用旧值时 `mergeEntryRecord` 也一起沿回，否则刷新失败一次提示框就少一行）。
+- 提示行走**独立提示字段 `eventHoverExtra`**（只进提示框，不进探头）：`eventHover` 仍**只由共用 `buildEventHover` 产出**、与改造前逐字一致。`eventHoverExtra` 每两条一组（① 该活动的**标签** ② 提示行本身），`hoverTextOf`（表格格子）/ `scheduleHoverText`（「近期」行）都调 `scheduleHoverNote`，由它按标签把提示行**插在该活动那一行之后**（不再统一堆到末尾 —— 那样看不出是哪个活动的兑换截止）。不这么分开的话，表格格子会把 `eventHover` 解析成并列条目，`兑换截止` 那行就会变成格子里的一行**可见文字**（2026-11-06 真机 bug）。没有兑换期时**不写这个键**。
+- 提示行与该活动自己那行**同一排版**：`名称` + **3 个空格** + `内容`；**不再写**「活动已于 … 结束，当前为奖励领取期（…）」这类解释句（2026-11-06 用户要求删掉）。
+- `eventHoverExtra` 随 `lastData` 持久化（`50-refresh.js` 的 `EVENT_FIELDS` 与 `engine-head.js` 的 `CONTENT_FIELDS` 都已登记；活动列沿用旧值时 `mergeEntryRecord` 也一起沿回，否则刷新失败一次提示框就少一行）。
 - 兑换期的 `eventDatesRaw` 用**同一份兑换区间**（日期格的 tooltip 与格子显示的区间不能互相打脸）；活动真正的起止仍完整写在 `eventHover` 的说明里。
 - 因此**「活动期」的输出与改造前逐字节一致**（`test/cases-arknights-claim.mjs` ③用整段悬停做回归基线，④是「提示行不进 `eventHover`」的真机 bug 回归）。
 - **两个 deadline 各自提醒**（2026-11-06）：`eventDates` 只负责**显示**（三态表，语义没变）；提醒侧要的是两条独立 deadline，所以活动期就额外带一个**只给提醒用**的 `eventClaimDates`（有兑换期才有，形如 `11-07 03:59 ~ 11-10 03:59`，没有就不写这个键）。`remindItemsOf` 据此在活动侧**多派生一条** `kind:"end"` 条目：key 的 side 段是 `event-claim`、`sideLabel = "奖励领取"`、`side` 仍是 `event`（不新增 `REMIND_SIDES`），与「活动结束」那条各按自己的 T 走 72/24/6/2 档位、去重状态也各自独立 ⇒ **只要刷新过一次拿到两个窗口，之后中途不再刷新，两个 deadline 也都会按时响**。两个 T 相同（刷新时已在兑换期，`eventDates` 本身就是兑换区间）⇒ 去重只留一条。该字段随 `lastData` 持久化（`50-refresh.js` 的 `EVENT_FIELDS` 与 `engine-head.js` 的 `CONTENT_FIELDS` 都已登记；否则序列化时会被过滤掉）。

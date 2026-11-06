@@ -413,7 +413,8 @@
 					const note = sideFailText(x.side, fail, { userSupplied: false });
 					if (note) text = stale && text ? text + "\n（" + note + "）" : "（" + note + "）";
 				}
-				// 「只给提示框」的提示行（如明日方舟的「兑换截止：11-10 03:59」）**只在末尾**追加一行：
+				// 「只给提示框」的提示行（如明日方舟的「视相博物馆：演化 兑换截止   11-10 03:59」）
+				// **插在该活动那一行之后**（`eventHoverExtra` 每两条一组：锚点标签 ⏎ 提示行）：
 				// 它**不进 eventHover**（进了就会被格子的并列条目解析成一行可见文字，2026-11-06 真机 bug）。
 				return scheduleHoverNote(text, g, x.isG) || "—";
 			};

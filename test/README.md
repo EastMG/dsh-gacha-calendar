@@ -28,7 +28,7 @@ node test/all.mjs     # 离线门禁（走夹具）——这是门禁
 | `harness.mjs` | 夹具 fetch 注入、`check/section/summary`、契约与悬停断言 |
 | `registry-shim.mjs` | **注册表形态的测试侧快照**（见下） |
 | `all.mjs` | 统一门禁 |
-| `cases-*.mjs` | 各段用例（27 个：14 个批次 + `cases-rule-lint` 规则守卫 + `cases-tz` 时区口径 + `cases-ticker` 侧栏轮播 + `cases-remind` 到期提醒 + `cases-health` 来源健康 + `cases-readme` 结构图守卫 + `cases-core` core 守卫 + `cases-star` 设置页标题行（版本号 + Star 指引）+ `cases-filter` 搜索与筛选（设置页搜游戏名/只看已启用 + 面板按卡池·角色名过滤）+ `cases-ics` 排期导出 .ics（快照 / 折行 / 转义 / 在期判定）+ `cases-refresh` 刷新频率「启动时」档（`refreshMinutes=0` 的判定 / 定时器 / 设置页 / schema / 一次性迁移（**无条件**迁到 0）+ 待废弃标记守卫）+ `cases-settings-jump` 设置入口（三步跳转的纯判定 + 两个面板的齿轮静态守卫）+ `cases-settings-copy` 设置页 title 文案（11 处定稿：5 条改写 + 6 条删除；旧文案反向守卫）+ `cases-arknights-claim` 明日方舟两阶段（PRTS 一览 + **一次**批量 wikitext 取兑换期；三态 + 批量失败退化 + 纯函数四输入）） |
+| `cases-*.mjs` | 各段用例（27 个：14 个批次 + `cases-rule-lint` 规则守卫 + `cases-tz` 时区口径 + `cases-ticker` 侧栏轮播 + `cases-remind` 到期提醒 + `cases-health` 来源健康 + `cases-readme` 结构图守卫 + `cases-core` core 守卫 + `cases-star` 设置页标题行（版本号 + Star 指引）+ `cases-filter` 搜索与筛选（设置页搜游戏名/只看已启用 + 面板按卡池·角色名过滤）+ `cases-ics` 排期导出 .ics（快照 / 折行 / 转义 / 在期判定）+ `cases-refresh` 刷新频率「启动时」档（`refreshMinutes=0` 的判定 / 定时器 / 设置页 / schema / 一次性迁移（**无条件**迁到 0）+ 待废弃标记守卫）+ `cases-settings-jump` 设置入口（三步跳转的纯判定 + 两个面板的齿轮静态守卫）+ `cases-settings-copy` 设置页 title 文案（11 处定稿：5 条改写 + 6 条删除；旧文案反向守卫）+ `cases-arknights-claim` 明日方舟两阶段（PRTS 一览 + **一次**批量 wikitext 取兑换期；三态 + 批量失败退化 + 纯函数四输入 + 分类前缀去重 `labelOf` / 提示行插入位置）） |
 | `capture.mjs` / `capture-p8.mjs` | 抓真实响应存夹具 |
 | `ui/` | **UI 渲染验证 harness**（`npm run test:ui`）：真 Chromium 里按真实产物 CSS 做几何断言。**不在默认门禁里**，见文末那节 |
 | `map.json` | URL → 夹具 的映射索引（**已入库**） |
