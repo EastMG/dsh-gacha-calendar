@@ -41,6 +41,10 @@ const REMIND_EXPORTS = [
   "REMIND_DEFAULT_END_NODES",
   "REMIND_DEFAULT_START_NODES",
   "REMIND_TZ_BY_ID",
+  // 明日方舟「奖励领取（兑换）截止」这个第二条 deadline 的标签 / 状态键 side 段：
+  // 提醒文案与测试都读这两处，别在别处硬编码（见 65-remind.js 的 remindItemsOf / remindToastOf）。
+  "REMIND_EVENT_CLAIM_SIDE",
+  "REMIND_EVENT_CLAIM_LABEL",
   "remindOnOf",
   "remindIdentityOf",
   // 探测「开始菜单里哪条 .lnk 是我们的」的纯判定：按 AUMID 挑，不按文件名（改名失败时文件名是旧的）。

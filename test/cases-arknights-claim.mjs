@@ -172,6 +172,10 @@ export default async function run() {
 			!!a.data && a.data.eventHover.split("\n").includes("兑换截止：11-10 03:59")
 			&& a.data.eventHover.split("\n").includes("兑换截止：11-22 03:59"),
 			JSON.stringify(a.data && a.data.eventHover));
+		// 提醒侧的第二个 deadline：活动期就得把「奖励领取截止」窗口一起带出去（不是等进了兑换期才给）。
+		check("活动期：载荷带 `eventClaimDates` = 活动结束 ~ 兑换结束（提醒侧据此建第二条 deadline）",
+			!!a.data && a.data.eventClaimDates === "11-07 03:59 ~ 11-10 03:59",
+			JSON.stringify(a.data && a.data.eventClaimDates));
 		check("活动期：没有兑换期的活动（尖灭）不补提示行 —— 提示行恰好 2 条（墟 / 火山）",
 			!!a.data && (() => {
 				const L = a.data.eventHover.split("\n");
@@ -199,6 +203,9 @@ export default async function run() {
 			JSON.stringify(b.data && b.data.eventHover));
 		check("兑换期：日期格悬停（eventDatesRaw）与格子里显示的区间是同一份",
 			!!b.data && b.data.eventDatesRaw === b.data.eventDates, JSON.stringify(b.data && b.data.eventDatesRaw));
+		// 兑换期里 eventDates 本身就是兑换区间 ⇒ eventClaimDates 与它**同值**；提醒侧按「T 相同只留一条」去重。
+		check("兑换期：`eventClaimDates` 与 `eventDates` 同值（提醒侧去重后只留一条，不会弹两次）",
+			!!b.data && b.data.eventClaimDates === b.data.eventDates, JSON.stringify(b.data && b.data.eventClaimDates));
 
 		// ③ 批量失败（同一时刻）—— 退化为改造前行为：墟消失、尖灭用的是**一览**的 11-14
 		const c = await runFetcher("2026-11-08T12:00:00+08:00", { failBatch: true });
@@ -209,6 +216,8 @@ export default async function run() {
 		check("batch 失败：没有任何「兑换截止 / 领取期」提示行、也不打日志（不留半截元信息）",
 			!!c.data && !c.data.eventHover.split("\n").some((l) => NOTE_CLAIM_RE.test(l) || NOTE_PHASE_RE.test(l))
 			&& c.warns.length === 0, JSON.stringify([c.data && c.data.eventHover, c.warns]));
+		check("batch 失败：**不写** `eventClaimDates` 这个键（不是给空串，下游不必多问一遍）",
+			!!c.data && !("eventClaimDates" in c.data), JSON.stringify(c.data && Object.keys(c.data)));
 
 		// ④ 活动期 + batch 失败：与改造前**逐字节一致**（回归基线）
 		const d = await runFetcher("2026-11-06T15:54:00+08:00", { failBatch: true });

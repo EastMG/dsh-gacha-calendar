@@ -2,7 +2,10 @@
 		// 两侧各自只允许写自己的字段：某些来源的载荷同时含卡池与活动字段（如 GameKee），
 		// 若把整对象直接合并，活动源的数据会污染卡池列（反之亦然）——解耦契约的一部分。
 		const GACHA_FIELDS = ["banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover"];
-		const EVENT_FIELDS = ["event", "eventDates", "eventDatesRaw", "eventHover"];
+		// `eventClaimDates` = 明日方舟「奖励领取（兑换）截止」窗口（只有**有兑换期**的来源才带；
+		// 没有就没有这个键）。它是**提醒侧**的第二个 deadline，不参与任何显示逻辑 ⇒ 必须原样进 lastData，
+		// 否则「刷新过一次、中途不再刷新」就只剩一个 deadline 会响（见 65-remind.js 的 remindItemsOf）。
+		const EVENT_FIELDS = ["event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventHover"];
 		function pickFields(src, fields) {
 			const out = {};
 			if (!src) return out;
@@ -179,6 +182,8 @@
 					rec.event = prevRec.event;
 					if (!rec.eventDates) rec.eventDates = prevRec.eventDates || "";
 					if (!rec.eventDatesRaw) rec.eventDatesRaw = prevRec.eventDatesRaw || prevRec.eventDates || "";
+					// 活动侧整列是旧值时，奖励领取窗口也一起沿用（否则一次抓取失败就会**少一个 deadline**）
+					if (!rec.eventClaimDates) rec.eventClaimDates = prevRec.eventClaimDates || "";
 					if (!rec.eventHover) rec.eventHover = prevRec.eventHover || "";
 					rec.eventStale = true;
 				}

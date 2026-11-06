@@ -83,9 +83,12 @@
 			// 内容字段无论抓没抓到都存在（缺就是空串），消费方不必到处 `?? ""`；
 			// 状态字段永远在（gachaFail / eventFail / okAt，可选 gachaStale / eventStale / skipped）。
 			// 判断"是没抓到还是源站没内容"要把内容字段与 gachaFail/gachaStale 一起看。
+			// `eventClaimDates` = 明日方舟「奖励领取（兑换）截止」窗口（只给提醒侧，显示不读它）。
+			// 它必须在这里登记，否则 normalizeRecord 会把这个键**丢掉** ⇒ lastData 里只剩「活动结束」
+			// 一个 deadline（"刷新过一次之后两个都会响"就不成立了）。
 			const CONTENT_FIELDS = [
 				"banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover",
-				"event", "eventDates", "eventDatesRaw", "eventHover"
+				"event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventHover"
 			];
 			function normalizeRecord(rec, name) {
 				const src = rec || {};

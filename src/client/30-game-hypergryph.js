@@ -507,8 +507,9 @@
 		// ⇒ 抓取链路是**两次**请求：① 一览（1 次）② 相关活动页 wikitext（**一次**批量 query，≤12 页）。
 		//   ② 失败 / 解析不出 ⇒ 退化为「只有活动期」（与改造前逐字节相同），绝不让主链路跟着失败。
 		//
-		// ⚠️ 数据模型**不动**：仍是 event / eventDates / eventDatesRaw / eventHover 四个字段，
+		// ⚠️ 显示用的数据模型不动：仍是 event / eventDates / eventDatesRaw / eventHover 四个字段，
 		//    「阶段」只体现在按 now 动态选出来的文本里（见 prtsEventPayload 的三态说明）。
+		//    另有一个**只给提醒侧**的 `eventClaimDates`（有兑换期才出现）：见 prtsEventPayload 的说明。
 
 		// 页名：`/w/<URL 编码页名>` → 解码后的页名（下划线归空格，与 MediaWiki 标题语义一致）。
 		// 只解析 href 字符串，**不**去抓详情页 HTML（那会是 N 次请求）。
@@ -660,9 +661,9 @@
 		}
 
 
-		// 活动列载荷（**三态**，按 now 动态选文本；数据模型不变）：
+		// 活动列载荷（**三态**，按 now 动态选文本；显示模型不变）：
 		//   ① 活动期（now ≤ 活动结束）：eventDates = 活动开始 ~ 活动结束 —— 与改造前**完全一致**；
-		//      有兑换期时悬停每条追加一行 `兑换截止：MM-DD HH:mm`。
+		//      有兑换期时悬停每条追加一行 `兑换截止：MM-DD HH:mm`，并额外给 `eventClaimDates`（提醒侧用）。
 		//   ② 兑换期（活动结束 < now ≤ 兑换结束）：该活动**仍然出现**（改造前会消失），
 		//      eventDates = 活动结束 ~ 兑换结束（外显的「还剩 X」= 到兑换截止，正是此刻要盯的 deadline）；
 		//      悬停追加 `活动已于 … 结束，当前为奖励领取期（兑换截止 …）`。
@@ -701,9 +702,20 @@
 			const windowText = primary.startTs != null && primary.endTs != null
 				? fmtWindow(primary.startTs, primary.endTs, tz)
 				: (primary.raw || "");
+			// 奖励领取（兑换）截止 —— **给提醒侧**的第二条 deadline，与显示完全无关：
+			//   · 主条目在活动期时 `eventDates` 只到「活动结束」，提醒于是只知道第一个 deadline；
+			//   · 这里额外给一段**同样可解析**的窗口 `活动结束 ~ 兑换结束`（`remindWindowOf` 认的格式），
+			//     提醒侧（65-remind.js 的 remindItemsOf）据此派生「奖励领取截止」那条 end 条目 ⇒
+			//     刷新过一次之后，即便中途不再刷新，两个 deadline 也都会各自按时响。
+			//   · 没有「兑换结束时间」（或批量失败 / 解析不出）⇒ **不写这个键**（不给空串，别让下游多问一遍）。
+			const claimStartTs = primary.phase === "claim" ? primary.startTs : primary.endTs;
+			const claimDates = primary.claimEndTs != null && claimStartTs != null && primary.claimEndTs > claimStartTs
+				? fmtWindow(claimStartTs, primary.claimEndTs, tz)
+				: "";
 			return {
 				event: primary.name,
 				eventDates: windowText,
+				...(claimDates ? { eventClaimDates: claimDates } : {}),
 				// 兑换期的日期格悬停也用**兑换区间**（与格子里显示的那份同一个区间），
 				// 否则"格子=兑换期、悬停=活动期"会互相打脸；活动期仍是一览原文（改造前行为）。
 				// 活动真正的起止仍完整出现在 eventHover 的说明里，信息没有丢。

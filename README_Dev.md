@@ -155,7 +155,8 @@ dsh-gacha-calendar/
 - 悬停排版**仍只由共用 `buildEventHover` 产生**，`prtsHoverWithNotes` 只把提示行插到对应活动行之后；`hover` 为空（0/1 条当期）时不擅自造悬停文本。
 - 兑换期的 `eventDatesRaw` 用**同一份兑换区间**（日期格的 tooltip 与格子显示的区间不能互相打脸）；活动真正的起止仍完整写在 `eventHover` 的说明里。
 - 因此**「活动期」的输出与改造前逐字节一致**（`test/cases-arknights-claim.mjs` 的④用整段悬停做回归基线）。
-- 已知影响（**未改提醒逻辑**）：到期提醒用的是落盘的档期文本 → 绝对窗口，所以兑换期内的「结束提醒」会落在**兑换截止**那天，而不是活动结束那天。这是有意的（那时才是真 deadline），但文案仍是「即将结束」口径。
+- **两个 deadline 各自提醒**（2026-11-06）：`eventDates` 只负责**显示**（三态表，语义没变）；提醒侧要的是两条独立 deadline，所以活动期就额外带一个**只给提醒用**的 `eventClaimDates`（有兑换期才有，形如 `11-07 03:59 ~ 11-10 03:59`，没有就不写这个键）。`remindItemsOf` 据此在活动侧**多派生一条** `kind:"end"` 条目：key 的 side 段是 `event-claim`、`sideLabel = "奖励领取"`、`side` 仍是 `event`（不新增 `REMIND_SIDES`），与「活动结束」那条各按自己的 T 走 72/24/6/2 档位、去重状态也各自独立 ⇒ **只要刷新过一次拿到两个窗口，之后中途不再刷新，两个 deadline 也都会按时响**。两个 T 相同（刷新时已在兑换期，`eventDates` 本身就是兑换区间）⇒ 去重只留一条。该字段随 `lastData` 持久化（`50-refresh.js` 的 `EVENT_FIELDS` 与 `engine-head.js` 的 `CONTENT_FIELDS` 都已登记；否则序列化时会被过滤掉）。
+- 奖励领取那条的通知文案与「活动结束」区分：事项行是 `奖励领取「<活动名>」`、正文时间段那行以 `奖励领取截止` 结尾（标题仍是「即将结束」）；其它侧的文案一个字没改。
 - 夹具 `test/fixtures/arknights-events-{list,pages}/` 是**手工构造**的：本机出口对 `prts.wiki` 返回 403（Tengine，浏览器与 curl 一致），抓不到真实响应，行结构照解析契约写（见两份 `response.txt.meta.json` 的 `note`）。
 
 ### 为什么插件要改宿主的槽位布局

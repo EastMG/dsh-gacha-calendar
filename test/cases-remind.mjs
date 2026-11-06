@@ -303,6 +303,108 @@ export default async function run() {
 			remindItemsOf(null, NOW).length === 0 && remindItemsOf("x", NOW).length === 0 && remindItemsOf(games, NaN).length === 0);
 	}
 
+	// ── ⑥b 两个 deadline：明日方舟「活动结束」与「奖励领取（兑换）截止」各自独立提醒 ────
+	// 背景（2026-11-06 用户点名）：arknights 的 payload 在活动期只把 `eventDates` 给到「活动结束」，
+	// 兑换截止另存 `eventClaimDates`（见 30-game-hypergryph.js）。提醒侧必须**额外派生**一条 end 条目，
+	// 否则"两次刷新之间跨过活动结束"时就只能提醒到其中一个 —— 而用户不应该被迫中途再刷一次。
+	{
+		const tz = "Asia/Shanghai";
+		const actEnd = sourceInstant(2026, 11, 7, 3, 59, tz);
+		const claimEnd = sourceInstant(2026, 11, 10, 3, 59, tz);
+		const evGame = {
+			name: "明日方舟",
+			event: "支线故事：墟",
+			eventDates: "10-24 16:00 ~ 11-07 03:59",
+			eventClaimDates: "11-07 03:59 ~ 11-10 03:59"
+		};
+		const gamesOf = (over) => ({ arknights: { ...evGame, ...over } });
+		const endItems = (games, now) => remindItemsOf(games, now, null)
+			.filter((it) => it.gameId === "arknights" && it.side === "event" && it.kind === "end");
+		// 活动期内（两个 deadline 都还没到）
+		const nowIn = actEnd - 200 * H;
+
+		// ① 有 eventClaimDates ⇒ event 侧**两条** end；key 可区分、label 是「奖励领取」、T = 兑换截止
+		{
+			const ends = endItems(gamesOf({}), nowIn);
+			const main = ends.find((it) => it.key === "arknights|event|end|" + actEnd);
+			const claim = ends.find((it) => it.key === "arknights|event-claim|end|" + claimEnd);
+			check("有 `eventClaimDates` ⇒ 活动侧派生**两条** end（活动结束 + 奖励领取截止）",
+				ends.length === 2 && !!main && !!claim, JSON.stringify(ends.map((it) => it.key)));
+			check("奖励领取条目的 key 与主条目**可区分**（side 段是 event-claim，T = 兑换截止）",
+				!!claim && claim.T === claimEnd && claim.key !== (main && main.key)
+				&& /^[^|]+\|[^|]+\|(?:end|start)\|\d+$/.test(claim.key),
+				claim && claim.key);
+			check("奖励领取条目的 side 仍是 `event`、sideLabel = 常量「奖励领取」、title 与主条目一致",
+				!!claim && claim.side === "event" && claim.sideLabel === R.REMIND_EVENT_CLAIM_LABEL
+				&& claim.sideLabel === "奖励领取" && claim.title === "支线故事：墟",
+				JSON.stringify(claim && [claim.side, claim.sideLabel, claim.title]));
+			check("主条目一个字没变（sideLabel 仍是「活动」、T 仍是活动结束）",
+				!!main && main.sideLabel === "活动" && main.T === actEnd, JSON.stringify(main && [main.sideLabel, main.T]));
+		}
+		// ② 没有该字段 / 空串 / 读不出 / 已过期 ⇒ 只保留主条目（不补猜、不多弹）
+		{
+			const noClaim = endItems(gamesOf({ eventClaimDates: void 0 }), nowIn);
+			const emptyClaim = endItems(gamesOf({ eventClaimDates: "  " }), nowIn);
+			const badClaim = endItems(gamesOf({ eventClaimDates: "版本更新后 ~ 11-10 03:59" }), nowIn);
+			// 活动期还没结束、但奖励领取窗口已经过期（合成的更早窗口）
+			const pastAt = sourceInstant(2026, 11, 6, 12, 0, tz);
+			const pastClaim = endItems(gamesOf({ eventClaimDates: "11-05 00:00 ~ 11-06 00:00" }), pastAt);
+			check("没有 `eventClaimDates`（缺失 / 空串）⇒ 只有主条目一条",
+				noClaim.length === 1 && emptyClaim.length === 1
+				&& noClaim[0].key === "arknights|event|end|" + actEnd, JSON.stringify([noClaim, emptyClaim].map((a) => a.length)));
+			check("`eventClaimDates` 读不出窗口 ⇒ 不派生（绝不拿主窗口去猜）",
+				badClaim.length === 1 && badClaim[0].key === "arknights|event|end|" + actEnd, JSON.stringify(badClaim.map((it) => it.key)));
+			check("奖励领取窗口已过 ⇒ 不派生（主条目照常）", pastClaim.length === 1, JSON.stringify(pastClaim.map((it) => it.key)));
+		}
+		// ③ 两个 T 相同（刷新时已在兑换期：eventDates 本身就是兑换区间）⇒ 去重，只留主条目
+		{
+			const same = endItems(gamesOf({ eventDates: "11-07 03:59 ~ 11-10 03:59" }), nowIn);
+			check("两个 T 相同 ⇒ 去重只留**一条**（同一时刻不弹两条）",
+				same.length === 1 && same[0].key === "arknights|event|end|" + claimEnd, JSON.stringify(same.map((it) => it.key)));
+		}
+		// ④ 行为：活动结束前 72h 发一次，兑换截止前 72h 再发一次；两次的 key 互不影响
+		{
+			const tEvent = actEnd - 72 * H;        // 活动结束前 72h
+			const tClaim = claimEnd - 72 * H;      // 兑换截止前 72h（此时活动已结束）
+			const r1 = remindTickOf(tEvent, remindItemsOf(gamesOf({}), tEvent, null), {}, {});
+			const kEvent = "arknights|event|end|" + actEnd;
+			const kClaim = "arknights|event-claim|end|" + claimEnd;
+			check("活动结束前 72h ⇒ 发**活动结束**那一条（key 是主条目、档位 72）",
+				r1.toNotify.length === 1 && r1.toNotify[0].key === kEvent && r1.toNotify[0].node === 72,
+				JSON.stringify(r1.toNotify.map((n) => [n.key, n.node])));
+			const r2 = remindTickOf(tClaim, remindItemsOf(gamesOf({}), tClaim, null), {}, r1.stateNext);
+			const claimNote = r2.toNotify[0] || {};
+			const toast = remindToastOf(claimNote, tClaim);
+			check("兑换截止前 72h ⇒ **同一套状态**下仍会发第二条（key 是 event-claim、档位 72）",
+				r2.toNotify.length === 1 && claimNote.key === kClaim && claimNote.node === 72,
+				JSON.stringify(r2.toNotify.map((n) => [n.key, n.node])));
+			check("两条 deadline 的去重状态**各自独立**（第一轮的键不挡第二条；第二轮的键是新键）",
+				Object.keys(r1.stateNext).join(",") === kEvent && Object.keys(r2.stateNext).join(",") === kClaim
+				&& !(kClaim in r1.stateNext), JSON.stringify([Object.keys(r1.stateNext), Object.keys(r2.stateNext)]));
+			check("奖励领取那条的通知正文写「奖励领取截止」，与「活动结束」区分（标题仍是「即将结束」）",
+				toast.title === "即将结束 · 明日方舟" && toast.lines[0] === "奖励领取「支线故事：墟」"
+				&& toast.lines[1].indexOf("奖励领取截止") > 0 && toast.lines[2].indexOf("还剩 3 天") === 0,
+				JSON.stringify(toast));
+		}
+		// ⑤ 两条同一轮都到档 ⇒ 各发一条（不折叠），状态里两个键都在
+		{
+			const close = {
+				name: "测试游戏", event: "活动甲",
+				eventDates: "11-01 00:00 ~ 11-02 00:00",
+				eventClaimDates: "11-02 00:00 ~ 11-02 00:30"
+			};
+			const nowClose = sourceInstant(2026, 11, 1, 23, 0, tz);   // 两个 T 都还没过、且都已在 2 小时档内
+			// 合成的 gameId 不在 REMIND_TZ_BY_ID 里 ⇒ 必须走 extraTzById，否则会按**本机时区**解释（CI 跑 UTC 就偏 8 小时）
+			const ticked = remindTickOf(nowClose, remindItemsOf({ x: close }, nowClose, { x: tz }), {}, {});
+			check("两条 deadline 同一轮都到档 ⇒ **各发一条**（不互相折叠），状态里两个键都在",
+				ticked.toNotify.length === 2
+				&& ticked.toNotify.every((n) => n.node === 2)
+				&& Object.keys(ticked.stateNext).length === 2
+				&& ticked.toNotify.some((n) => n.sideLabel === "奖励领取") && ticked.toNotify.some((n) => n.sideLabel === "活动"),
+				JSON.stringify([ticked.toNotify.map((n) => n.key), Object.keys(ticked.stateNext)]));
+		}
+	}
+
 	// ── ⑦ 时区表：必须是 SOURCES[].tz 的**完整副本**（宿主读不到 SOURCES，只能带一份）────
 	{
 		const table = R.REMIND_TZ_BY_ID;
