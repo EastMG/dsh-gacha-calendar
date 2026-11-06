@@ -275,6 +275,29 @@ https://prts.wiki/api.php?action=ask&format=json
 
 **加新来源时**：默认源失败就抛错，别写"再试另一个站"；要多个站点就给 `altSources` 加一条（`label` 写清它是什么站），并记得 `GACHA_FETCHERS` / `EVENT_FETCHERS` 登记（`test/all.mjs` 的聚合守卫会核对）。
 
+### ⏸ 高危主机：dsh-app 源下可能被 CORS 拦（**暂时搁置**，2026-11-07 记录）
+
+DSH 渲染进程的页面源是 `dsh-app://app`（自定义 scheme）。**有些站点不回 `Access-Control-Allow-Origin`**，
+直连会被浏览器拦掉，症状是抓取被归为「网络不通」（时好时坏）。
+
+已修：`wiki.biligame.com` / `*.biligame.com` ⇒ `transportFetchRaw` 强制走宿主代理（见上一节）。
+
+**仍走直连、有同类风险（本次不修，先记档）**：
+
+| 主机 | 用在哪 | 现状 / 风险 |
+|---|---|---|
+| `prts.wiki` | 明日方舟卡池备选、活动（SMW + 一览备选） | 目前正常（prts 会回 `ACAO: *`）；`origin=*` 仍由 8 处调用点各自手拼，未进收口点 |
+| `gachatracker.app` | 终末地卡池备选 | 未验 |
+| `gametora.com` | 赛马娘国际服卡池 | 目前正常（真机在跑） |
+| `sekai-world.github.io` | 初音未来缤纷舞台卡池/活动 | 目前正常 |
+| `gh-proxy.com` | 初音未来缤纷舞台默认源（第三方镜像） | ACAO 未知，镜像服务可能随时变 |
+| `bang-dream-on.bushimo.jp` | BanG Dream! OurNotes | ACAO 是**回显 Origin**（不是 `*`）⇒ 对 `dsh-app://` 有风险 |
+| `api.umapyoi.net` | 赛马娘 | 未验 |
+| 用户自定义地址 | 设置页可填任意 URL | 目标站若不回 ACAO ⇒ 同样「网络不通」 |
+
+处理方向（将来一次做完，不要逐个打补丁）：把这套判定做成**主机表**（`需要代理的 MediaWiki / 拒发 ACAO 的主机`），
+在 `transportFetchRaw` 同一个收口点按表改道代理；并把 `origin=*` 也统一由收口点补（现在 prts 是 8 处手拼）。
+另注意：改道代理后必须同步 `PROXY_ALLOW_HOSTS`（`src/index.js` 的白名单），否则会 403 `host-not-allowed`。
 ### 时区约定（显示 vs 源站原文）
 
 两条口径，**别混**：
