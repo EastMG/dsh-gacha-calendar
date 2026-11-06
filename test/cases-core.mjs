@@ -141,15 +141,18 @@ export default async function runCore() {
 			"banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover",
 			"event", "eventDates", "eventDatesRaw", "eventShow", "eventClaimDates", "eventHover", "eventHoverExtra"
 		];
+		// ⚠️ 2026-11-07：活动侧夹具换成 PRTS SMW 真实响应（`arknights-smw-events`，原来那份手造的
+		// 「一览 HTML + 批量 wikitext」夹具已随链路删除）⇒ 下面这 12 个字段的**基线值**跟着换了，
+		// 但这几条断言的性质没变：合成数组时旧字符串字段**一个都不许被顺手改写**。
 		const BASE_ARK = {
 			banner: "", roles: "", bannerDates: "", bannerDatesRaw: "", bannerHover: "",
-			event: "支线故事：墟",
+			event: "视相博物馆：演化",
 			eventDates: "11-07 03:59 ~ 11-10 03:59",
 			eventDatesRaw: "11-07 03:59 ~ 11-10 03:59",
-			eventShow: "支线故事：墟 兑换截止",
+			eventShow: "视相博物馆：演化 兑换截止",
 			eventClaimDates: "11-07 03:59 ~ 11-10 03:59",
-			eventHover: "支线故事：墟 兑换截止   11-07 03:59 ~ 11-10 03:59\n危机合约：尖灭测试作战   11-01 04:00 ~ 11-15 03:59\n支线故事：火山旅梦   11-05 04:00 ~ 11-19 03:59",
-			eventHoverExtra: "支线故事：火山旅梦\n支线故事：火山旅梦 兑换截止   11-22 03:59"
+			eventHover: "视相博物馆：演化 兑换截止   11-07 03:59 ~ 11-10 03:59\n登录活动：感谢庆典2026限时签到   11-01 12:00 ~ 11-15 03:59\n支线故事：时间啊，向前！   11-01 12:00 ~ 11-22 03:59",
+			eventHoverExtra: "支线故事：时间啊，向前！\n支线故事：时间啊，向前！ 兑换截止   11-29 03:59"
 		};
 		const BASE_FGO = {
 			banner: "「OVER THE SAME SKY-SEPTEMBER-」推荐召唤",
@@ -208,15 +211,15 @@ export default async function runCore() {
 		const ark = await runGame("arknights", NOW_ARK);
 		{
 			const ev = ark.rec.events || [];
-			check("明日方舟：`events` = 3 条（墟 / 危机合约 / 火山旅梦；悬停里那条「墟 兑换截止」不另算一条）",
+			check("明日方舟：`events` = 3 条（视相博物馆 / 登录活动 / 支线故事；悬停里那条「视相博物馆：演化 兑换截止」不另算一条）",
 				Array.isArray(ev) && ev.length === 3, JSON.stringify(ev.map((x) => x.title)));
 			check("明日方舟：兑换期在 `phase` 里（kind = claim，show = 面板事项名），且两端是 number",
 				!!ev[0] && !!ev[0].phase && ev[0].phase.kind === "claim"
-				&& ev[0].phase.show === "支线故事：墟 兑换截止"
+				&& ev[0].phase.show === "视相博物馆：演化 兑换截止"
 				&& isNum(ev[0].phase.startTs) && isNum(ev[0].phase.endTs),
 				JSON.stringify(ev[0] && ev[0].phase));
 			check("明日方舟：兑换期的主条目 show = `eventShow`（与显示层同一串），且 startTs/endTs 与 phase 一致",
-				!!ev[0] && ev[0].show === "支线故事：墟 兑换截止"
+				!!ev[0] && ev[0].show === "视相博物馆：演化 兑换截止"
 				&& ev[0].startTs === ev[0].phase.startTs && ev[0].endTs === ev[0].phase.endTs,
 				JSON.stringify(ev[0] && [ev[0].show, ev[0].startTs, ev[0].endTs]));
 			check("明日方舟：顺序 = 结束时间升序（自然顺序，不按「谁更重要」挑）", ascending(ev),

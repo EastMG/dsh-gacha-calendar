@@ -206,32 +206,43 @@ export default async function run() {
 	}
 
 	// ── ⑦ 源站墙钟原文（`*Raw`）跨时区逐字相同（2026-11-07 修：`range2` / `fmtWindow` 漏传 tz）──────
-	//
 	// 为什么单独一条：这类字段的期望值**必须是字面量**，不能跟着当前进程的 Date 现算 ——
 	// 本文件在 `TZ=UTC` 与 `TZ=Asia/Shanghai` 两道门禁下都会跑，"同一串字面量在两边都过"
 	// 才是"跨时区相等"的真正含义（用本机 Date 现算的期望值会把 bug 一起算进去，永远绿）。
 	//
-	//   ① 明日方舟（PRTS 一览）：起点取自**文本列**（源站墙钟），终点只有 `data-time` 的 Unix 秒。
-	//      修复前终点按**本机时区**渲染 ⇒ UTC 门禁下 `11-15 03:59` 变成 `11-14 19:59`（早 8 小时）。
+	//   ① 明日方舟（PRTS SMW `action=ask`）：三列时间都是 `timestamp` 的 **Unix 秒（UTC）**，
+	//      展示文本一律由 `tz` 渲染。修复前/口径错时 UTC 门禁下 `11-15 03:59` 会变成 `11-14 19:59`（早 8 小时）。
 	//   ② 重返未来 1999（前置有并列征集池）：正文 `M/D HH:MM` 是源站墙钟，解析与 `eventDatesRaw`
 	//      的渲染都必须按源站 tz（Asia/Shanghai）；修复前两者都吃本机时区。
 	section("源站墙钟原文（*Raw）跨时区逐字相同 —— 明日方舟 / 重返未来 1999");
 	{
 		const TZ_CN = "Asia/Shanghai";
 
-		// ① 明日方舟：一行 PRTS 一览（表头含「时间」+ 三列 + data-time="开始秒,结束秒"）
+		// ① 明日方舟：一条 SMW 结果（`timestamp` 是 **Unix 秒（UTC 绝对值）**，raw 是 UTC 墙钟）
+		const START_TS = Date.UTC(2026, 10, 1, 4, 0);             // = 2026-11-01 12:00 +08
 		const END_TS = Date.UTC(2026, 10, 14, 19, 59);            // = 2026-11-15 03:59 +08
-		const html = "<table><tr><th>活动开始时间</th><th>名称</th><th>分类</th></tr>"
-			+ "<tr><td>2026-11-01 12:00</td>"
-			+ "<td><a href=\"/w/%E6%B5%8B%E8%AF%95%E6%B4%BB%E5%8A%A8\">测试活动</a></td>"
-			+ "<td><a title=\"分类:支线故事\">支线故事</a></td>"
-			+ `<td data-time="${Date.UTC(2026, 9, 31, 16, 0) / 1000},${END_TS / 1000}"></td></tr></table>`;
-		const ark = T.parsers["arknights"].collectPrtsEvents(html, TZ_CN);
-		check("明日方舟：一览 raw =「11-01 12:00 ~ 11-15 03:59」（两端都是源站墙钟；TZ=UTC 与 +08 同串）",
+		const smwJson = {
+			query: {
+				results: {
+					"测试活动": {
+						printouts: {
+							"活动类型": ["支线故事"],
+							"活动开始时间": [{ timestamp: String(START_TS / 1000), raw: "1/2026/11/1/4/0/0/0" }],
+							"活动结束时间": [{ timestamp: String(END_TS / 1000), raw: "1/2026/11/14/19/59/0/0" }],
+							"兑换结束时间": []
+						},
+						fulltext: "测试活动"
+					}
+				}
+			}
+		};
+		const ark = T.parsers["arknights"].parseArknightsSmwEvents(smwJson, TZ_CN);
+		check("明日方舟：SMW raw =「11-01 12:00 ~ 11-15 03:59」（两端都按源站 tz 渲染；TZ=UTC 与 +08 同串）",
 			ark.length === 1 && ark[0].raw === "11-01 12:00 ~ 11-15 03:59",
 			JSON.stringify(ark.map((x) => x.raw)));
-		check("明日方舟：endTs 仍是正确绝对时刻（源站墙钟 +08 换算，渲染口径的修复没动时刻本身）",
-			ark.length === 1 && ark[0].endTs === END_TS, String(ark[0] && ark[0].endTs));
+		check("明日方舟：stageEndTs = timestamp×1000（**直接**用 Unix 秒，不拿 raw 按源站墙钟重算）",
+			ark.length === 1 && ark[0].stageEndTs === END_TS && ark[0].startTs === START_TS,
+			String(ark[0] && ark[0].stageEndTs));
 
 		// ② 重返未来 1999：官方游戏内公告（noticecp）—— 两个并列征集池（同窗口）+ 一条活动 + 一条独立轮换池
 		// ⚠️ 接口正文是"块数组"，`r99NoticeLines` 每块 stripping 后得**一行**（块内换行会被 `stripTags`

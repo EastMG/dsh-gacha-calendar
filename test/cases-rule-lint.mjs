@@ -411,9 +411,10 @@ export default async function run() {
 			bad.length === 0, bad.slice(0, 6).join(" / "));
 	}
 
-	// ── 源站墙钟原文守卫：`fmtWindow` / `fmtMdHm` / `fmtYmdHm` / `range2` 的调用**必须**显式传 tz ──
-	// （2026-11-07 用户实测：`range2` 的起点是源站原文、终点却按**本机时区**渲染 ⇒ `TZ=UTC` 下
-	//   明日方舟活动区间 `11-15 03:59` 变成 `11-14 19:59`，同一条区间两端差 8 小时。）
+	// ── 源站墙钟原文守卫：`fmtWindow` / `fmtMdHm` / `fmtYmdHm` 的调用**必须**显式传 tz ──
+	// （2026-11-07 用户实测：旧 helper `range2` 的起点是源站原文、终点却按**本机时区**渲染 ⇒ `TZ=UTC` 下
+	//   明日方舟活动区间 `11-15 03:59` 变成 `11-14 19:59`，同一条区间两端差 8 小时。
+	//   `range2` 已随 PRTS 一览 HTML 链路删除，这里只剩三个格式化函数。）
 	// 为什么必须静态扫：+08 机器上源站时区恰好等于本机 ⇒ 这个 bug 本地永远看不出来；
 	//   门禁虽然跑 UTC，但只有"断言了具体字面量"才抓得住（见 cases-tz ⑦ 的两游戏用例）。
 	// 允许"不传 tz"的只有下面 4 处（每条都在源码注释里写明原因）：
@@ -444,7 +445,7 @@ export default async function run() {
 		let calls = 0;
 		for (const f of readdirSync(SRC).filter((x) => x.endsWith(".js"))) {
 			const code = codeOnly(readFileSync(path.join(SRC, f), "utf8"));
-			for (const m of code.matchAll(/\b(fmtWindow|fmtMdHm|fmtYmdHm|range2)\s*\(/g)) {
+			for (const m of code.matchAll(/\b(fmtWindow|fmtMdHm|fmtYmdHm)\s*\(/g)) {
 				if (/function\s+$/.test(code.slice(0, m.index))) continue;   // 定义处（形参里有 tz，不是调用）
 				const args = argsOf(code, m.index + m[0].length);
 				calls++;
@@ -454,8 +455,8 @@ export default async function run() {
 				}
 			}
 		}
-		check("守卫自身没瞎：四个源站墙钟格式化函数共扫到 ≥60 个调用点", calls >= 60, `calls=${calls}`);
-		check("每个 fmtWindow / fmtMdHm / fmtYmdHm / range2 调用都显式传了源站 tz（漏传会退回本机时区）",
+		check("守卫自身没瞎：三个源站墙钟格式化函数共扫到 ≥60 个调用点", calls >= 60, `calls=${calls}`);
+		check("每个 fmtWindow / fmtMdHm / fmtYmdHm 调用都显式传了源站 tz（漏传会退回本机时区）",
 			bad.length === 0, bad.slice(0, 8).join(" / "));
 	}
 

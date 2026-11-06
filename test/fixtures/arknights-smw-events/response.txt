@@ -1,0 +1,134 @@
+{
+  "query": {
+    "printrequests": [
+      {
+        "label": "",
+        "key": "",
+        "redi": "",
+        "typeid": "_wpg",
+        "mode": 2
+      },
+      {
+        "label": "活动类型",
+        "key": "活动类型",
+        "redi": "",
+        "typeid": "_txt",
+        "mode": 1,
+        "format": ""
+      },
+      {
+        "label": "活动开始时间",
+        "key": "活动开始时间",
+        "redi": "",
+        "typeid": "_dat",
+        "mode": 1,
+        "format": ""
+      },
+      {
+        "label": "活动结束时间",
+        "key": "活动结束时间",
+        "redi": "",
+        "typeid": "_dat",
+        "mode": 1,
+        "format": ""
+      },
+      {
+        "label": "兑换结束时间",
+        "key": "兑换结束时间",
+        "redi": "",
+        "typeid": "_dat",
+        "mode": 1,
+        "format": ""
+      }
+    ],
+    "results": {
+      "视相博物馆：演化": {
+        "printouts": {
+          "活动类型": [
+            "视相博物馆"
+          ],
+          "活动开始时间": [
+            {
+              "timestamp": "1792828800",
+              "raw": "1/2026/10/24/8/0/0/0"
+            }
+          ],
+          "活动结束时间": [
+            {
+              "timestamp": "1793995140",
+              "raw": "1/2026/11/6/19/59/0/0"
+            }
+          ],
+          "兑换结束时间": [
+            {
+              "timestamp": "1794254340",
+              "raw": "1/2026/11/9/19/59/0/0"
+            }
+          ]
+        },
+        "fulltext": "视相博物馆：演化",
+        "fullurl": "//prts.wiki/w/%E8%A7%86%E7%9B%B8%E5%8D%9A%E7%89%A9%E9%A6%86%EF%BC%9A%E6%BC%94%E5%8C%96",
+        "namespace": 0,
+        "exists": "1",
+        "displaytitle": ""
+      },
+      "感谢庆典2026限时签到": {
+        "printouts": {
+          "活动类型": [
+            "登录活动"
+          ],
+          "活动开始时间": [
+            {
+              "timestamp": "1793505600",
+              "raw": "1/2026/11/1/4/0/0/0"
+            }
+          ],
+          "活动结束时间": [
+            {
+              "timestamp": "1794686340",
+              "raw": "1/2026/11/14/19/59/0/0"
+            }
+          ],
+          "兑换结束时间": []
+        },
+        "fulltext": "感谢庆典2026限时签到",
+        "fullurl": "//prts.wiki/w/%E6%84%9F%E8%B0%A2%E5%BA%86%E5%85%B82026%E9%99%90%E6%97%B6%E7%AD%BE%E5%88%B0",
+        "namespace": 0,
+        "exists": "1",
+        "displaytitle": ""
+      },
+      "时间啊，向前！": {
+        "printouts": {
+          "活动类型": [
+            "支线故事"
+          ],
+          "活动开始时间": [
+            {
+              "timestamp": "1793505600",
+              "raw": "1/2026/11/1/4/0/0/0"
+            }
+          ],
+          "活动结束时间": [
+            {
+              "timestamp": "1795291140",
+              "raw": "1/2026/11/21/19/59/0/0"
+            }
+          ],
+          "兑换结束时间": [
+            {
+              "timestamp": "1795895940",
+              "raw": "1/2026/11/28/19/59/0/0"
+            }
+          ]
+        },
+        "fulltext": "时间啊，向前！",
+        "fullurl": "//prts.wiki/w/%E6%97%B6%E9%97%B4%E5%95%8A%EF%BC%8C%E5%90%91%E5%89%8D%EF%BC%81",
+        "namespace": 0,
+        "exists": "1",
+        "displaytitle": ""
+      }
+    },
+    "serializer": "SMW\\Serializers\\QueryResultSerializer",
+    "version": 2
+  }
+}

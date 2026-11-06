@@ -115,7 +115,7 @@ const batches = [
 	["蔚蓝档案（国服公告时间块 / 国际服 GameKee 当期卡池表）", runBa],
 	["完美世界·异环（官网公告：段落锚点 + 翻页深度）", runPw],
 	["赛马娘国际服卡池（GameTora 默认源）", runUmaGt],
-	["明日方舟两阶段（PRTS 一览 + 批量 wikitext：实际举行 / 奖励领取）", runArknightsClaim],
+	["明日方舟两阶段（PRTS SMW 单请求：实际举行 / 奖励领取）", runArknightsClaim],
 	["明日方舟时间轴（一整个活动周期逐时刻扫描 + 跨年 / 退化 / 双 deadline / 持久化）", runArknightsTimeline],
 	["规则静态守卫（方案 A 悬停 + 选当期判定不许各写各的）", runRuleLint],
 	["时区口径（外显=本机时区 / 悬停=源站墙钟）", runTz],

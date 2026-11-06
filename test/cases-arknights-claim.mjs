@@ -1,41 +1,31 @@
-// test/cases-arknights-claim.mjs —— 明日方舟「两阶段」（实际举行 / 奖励领取）
+// test/cases-arknights-claim.mjs —— 明日方舟「两阶段」（实际举行 / 奖励领取），SMW 单请求版
 //
 // ── 为什么需要这一段 ──
 // 2026-11-06 用户要求：活动区分「实际举行」与「奖励领取」。改造前 PRTS 活动一览只给
 // 「活动开始时间 + data-time="开始秒,结束秒"」，**没有**兑换/领取期 ⇒ 活动一结束、整条就从面板消失，
-// 而那时恰恰是最该盯的（奖励还没领）。现在补一条链路：
-//   ① 一览（1 次，行为不变）→ ② **一次**批量 query 取相关活动页的 wikitext（≤12 页）→
-//   解析每页 `{{活动信息}}` 的 `活动结束时间` / `兑换结束时间`。
+// 而那时恰恰是最该盯的（奖励还没领）。
+//
+// ── 2026-11-07 起：链路换成 **SMW 单请求** ──
+// PRTS 已装 SemanticMediaWiki 7.3.1，`action=ask` 一次就把四列全给出来：
+//   「活动类型」→ cat、「活动开始时间」→ startTs、「活动结束时间」→ stageEndTs（关卡关闭）、
+//   「兑换结束时间」→ claimEndTs（可缺；**与活动结束同值 = 没有兑换期**）。
+// 于是原来那两条链路（① 活动一览 HTML 解析 + ② 一次批量 query 取活动页 wikitext）**整段删除**：
+// `collectPrtsEvents` / `prtsEventSnapshot` / `fetchPrtsPagesWikitext` / `prtsPageTimesFromBatch` /
+// `prtsClaimTitles` / `parsePrtsPageEndTimes` / `warnOnPrtsEndMismatch` 都不存在了。
+// 本文件现在守的是**新链路**：纯函数解析（8 种边界）+ 一次请求 + 三态 + 分类前缀去重 + 真机逐字基线。
 //
 // 这一段的重点是**边界**，不是"正常能跑"：
-//   · 页里有「兑换结束时间」→ 活动结束后仍出现，外显区间改成 兑换期（还剩 X = 到兑换截止）；
-//   · 页里**没有**该字段（有的活动就是没有）→ 与改造前逐字节一致（不补猜 7 天）；
-//   · 批量请求失败 / 解析不出 → **整条链路退化**成改造前行为，绝不让主链路跟着失败；
-//   · 一览 data-time 与页内「活动结束时间」冲突 → **以页内为准**，并留一条 console.warn。
+//   · 有「兑换结束时间」→ 活动结束后仍出现，外显区间改成兑换期（还剩 X = 到兑换截止）；
+//   · **没有**该字段（或与活动结束同值）→ 与改造前逐字节一致（不补猜 7 天）；
+//   · 「活动类型」缺失 → cat 留空 ⇒ `eventTier` 按名称关键词回退（实测 8 条里 1 条为空）；
+//   · 请求失败 / 坏响应 → **抛错**（这一侧记 down）；空结果 → 载荷 null（未公布）；
+//   · 分页游标（`query-continue-offset`）→ **不追页**（一次刷新只有 1 条请求）。
 //
-// ⚠️ 2026-11-06 真机 bug（用户截图）：提示行（`兑换截止：…` / `奖励领取期…`）曾被塞进 `eventHover`，
-//    而表格格子会把 `eventHover` 交给 `scheduleHoverItems` 解析成**并列条目** ⇒ 格子里多出一行
-//    **可见文字**「兑换截止：11-10 03:59」。现在提示行只走独立字段 `eventHoverExtra`（只进提示框），
-//    `eventHover` 恢复成**只由 buildEventHover 产出**。本文件的第④节就是这条的回归（含"旧实现会多一条"的反向证明）。
+// ⚠️ 2026-11-06 / 11-07 那几条真机 bug（提示行漏进 `eventHover`、兑换期同一区间出现两遍、
+//    分类前缀拼两遍、兑换期被别的活动挤掉）的回归**都还在**：本文件 §④ 与 §⑥ 逐字钉着。
 //
-// ⚠️ 2026-11-06 第二轮（用户四条要求）：
-//    ① 分类前缀去重 `labelOf(cat, name)`（名称本身已带 `视相博物馆：` 前缀时不再拼第二遍）；
-//    ② 兑换期的事项名 = `<去重后的活动名> 兑换截止`（**一个空格**，不是冒号）；
-//    ③ 提示行与该活动自己那行**同一排版**（`名称` + **3 空格** + `内容`），且**插在该活动那一行之后**；
-//       删掉「活动已于 … 结束，当前为奖励领取期（…）」解释句；
-//    ④ 提示框里出现的标签与面板显示的那一串**同一串**。
-//
-// ⚠️ 2026-11-07 真机 bug（用户读到的 title，now = 2026-11-07 05:16，视相已进兑换期）：
-//    ① 兑换期那条活动**多出一行「… 兑换截止   与主行逐字同区间」**（主行本身已经是兑换区间）；
-//    ② 提示框**末尾又追加了 `title` ⏎ `rawSrc`** 两行（「视相博物馆：演化」⏎「11-07 03:59 ~ 11-10 03:59」）。
-//    修法：① `prtsHoverNoteOf` 在 `phase === "claim"` 时**一行都不生成**；该活动的主行改由
-//          `prtsEventPayload` 的 `hoverActive` 给成「<活动标签> 兑换截止」（与 `eventShow` 同一串）；
-//          ② 活动侧（`hoverTextOf` / `scheduleHoverText`）**不再追加** `title + rawSrc`
-//          （`eventHover` 已经是"每活动一行"的完整信息），只有 `eventHover` 为空才兜底。
-//    本文件第⑥节就是这条的回归：两段**逐字**基线 + 去重/两行形态的反向守卫。
-//
-// ⚠️ 夹具是**手工构造**的（不是抓的）：本机出口对 prts.wiki 返回 403（Tengine，浏览器/curl 一致），
-//    无法像其它批次那样 capture。行结构照 collectPrtsEvents 的解析契约写（见两份 meta.json 的 note）。
+// ⚠️ 夹具 `test/fixtures/arknights-smw-events/` 是**真实 SMW 响应**（本机出口 403，经宿主侧
+//    web_fetch 取得，逐字保存；只保留 2026-11-07 那三条活动的 results，见 meta.json 的 note）。
 
 import { check, section, useFixtures, setFetchImpl, fixtureBody } from "./harness.mjs";
 import { T, readComponentsSource } from "./load.mjs";
@@ -49,13 +39,16 @@ import {
 
 const TZ_CN = "Asia/Shanghai";
 
-// 活动一览（eventUrl 去掉 origin=*；抓取器会自己补）
-const LIST_URL = "https://prts.wiki/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2";
-// 批量 query 的**查找用** URL（只为了走 map.json 的前缀映射；真实请求的 titles 由抓取器拼）
-const BATCH_LOOKUP = "https://prts.wiki/api.php?action=query&prop=revisions&rvslots=main&rvprop=content&format=json&formatversion=2&origin=*&titles="
-	+ encodeURIComponent("墟");
-// 抓取器里的批量接口前缀（断言用：必须**一次** query，不是 N 次）
-const BATCH_PREFIX = "https://prts.wiki/api.php?action=query&prop=revisions";
+// 活动侧唯一的一条请求（`eventUrl` 去掉 origin=*；抓取器会自己补）。
+// 直接读源码导出的常量（与 registerSource 里那个 URL 是**同一个**，不抄第二份）。
+const SMW_URL = T.parsers["arknights"].ARKNIGHTS_SMW_URL;
+const SMW_QUERY = T.parsers["arknights"].ARKNIGHTS_SMW_QUERY;
+
+// 夹具里那三条活动（2026-11-07 真机）：
+//   视相博物馆：演化            10-24 16:00 ~ 11-07 03:59（兑换到 11-10 03:59）
+//   登录活动：感谢庆典2026限时签到  11-01 12:00 ~ 11-15 03:59（**没有**兑换期 ⇒ 退化路径）
+//   支线故事：时间啊，向前！      11-01 12:00 ~ 11-22 03:59（兑换到 11-29 03:59）
+const FIXTURE_JSON = JSON.parse(fixtureBody(SMW_URL));
 
 // `eventHoverExtra`（**只进提示框**）：每两条一组 —— ① 该活动的**标签** ② 提示行本身。
 // 提示行**只有一种合法形态**（与该活动自己那行**同一排版**：`名称` + **3 空格** + `内容`）：
@@ -69,28 +62,19 @@ const BATCH_PREFIX = "https://prts.wiki/api.php?action=query&prop=revisions";
 const LEAK_RE = /兑换截止   \d{2}-\d{2} \d{2}:\d{2}$|奖励领取期/m;
 // 解释句（用户 2026-11-06 点名删掉）：载荷里任何一处都不许再出现。
 const EXPLAIN_RE = /活动已于|当前为奖励领取期/;
-// 活动期 / 兑换期的 `eventHover` **逐字**基线（= 只由 buildEventHover 产出；与改造前一致）。
-//   活动期：三条都是活动期 ⇒ 名字就是活动标签；
-//   兑换期：墟 已进兑换期 ⇒ 它那条主行是「支线故事：墟 兑换截止   11-07 03:59 ~ 11-10 03:59」
-//           （2026-11-07 起；兑换区间就是这一行，不再另补提示行）。
-const HOVER_ACTIVITY = "支线故事：墟   10-24 16:00 ~ 11-07 03:59\n危机合约：尖灭测试作战   11-01 04:00 ~ 11-15 03:59\n支线故事：火山旅梦   11-05 04:00 ~ 11-19 03:59";
-const HOVER_CLAIM = "支线故事：墟 兑换截止   11-07 03:59 ~ 11-10 03:59\n危机合约：尖灭测试作战   11-01 04:00 ~ 11-15 03:59\n支线故事：火山旅梦   11-05 04:00 ~ 11-19 03:59";
-// 提示行数据的**逐字**基线（每两条一组：标签 ⏎ 提示行），顺序 = 悬停顺序（结束时间升序）。
-//   活动期：墟（11-10）/ 火山（11-22）各一条；
-//   兑换期：**墟 那条一行都不生成**（主行已是兑换区间，2026-11-07 真机 bug 的①）⇒ 只剩火山一条。
-const EXTRA_ACTIVITY = "支线故事：墟\n支线故事：墟 兑换截止   11-10 03:59\n支线故事：火山旅梦\n支线故事：火山旅梦 兑换截止   11-22 03:59";
-const EXTRA_CLAIM = "支线故事：火山旅梦\n支线故事：火山旅梦 兑换截止   11-22 03:59";
 
-// ── 真机 2026-11-07 的等价夹具（用户机器上那三条活动）───────────────────────────────
-// 与 arknights-events-list 同一套解析契约，只是换成真机那三条：
-//   视相博物馆：演化（10-24 16:00 ~ 11-07 03:59，兑换到 11-10 03:59）
-//   登录活动：感谢庆典2026限时签到（11-01 12:00 ~ 11-15 03:59，没有兑换期）
-//   支线故事：时间啊，向前！（11-01 12:00 ~ 11-22 03:59，兑换到 11-29 03:59）
-// 走 fixtureBody 的 overrides 指定（**不动** test/map.json 里既有的那两条映射）。
-const REAL_LIST = "arknights-events-list-1107/response.txt";
-const REAL_PAGES = "arknights-events-pages-1107/response.txt";
-const REAL_OVERRIDES = { [LIST_URL]: REAL_LIST, [BATCH_PREFIX]: REAL_PAGES };
-// 悬停最终全文（**逐字** = 用户 2026-11-07 给的期望文本）。
+// 悬停逐字基线（= 只由 buildEventHover 产出；与时间轴那段同一组文本）。
+const HOVER_EVENT_3 = "视相博物馆：演化   10-24 16:00 ~ 11-07 03:59\n"
+	+ "登录活动：感谢庆典2026限时签到   11-01 12:00 ~ 11-15 03:59\n"
+	+ "支线故事：时间啊，向前！   11-01 12:00 ~ 11-22 03:59";
+const HOVER_CLAIM = "视相博物馆：演化 兑换截止   11-07 03:59 ~ 11-10 03:59\n"
+	+ "登录活动：感谢庆典2026限时签到   11-01 12:00 ~ 11-15 03:59\n"
+	+ "支线故事：时间啊，向前！   11-01 12:00 ~ 11-22 03:59";
+// 提示行数据（每两条一组：标签 ⏎ 提示行），顺序 = 悬停顺序（结束时间升序）。
+const EXTRA_EVENT_3 = "视相博物馆：演化\n视相博物馆：演化 兑换截止   11-10 03:59\n"
+	+ "支线故事：时间啊，向前！\n支线故事：时间啊，向前！ 兑换截止   11-29 03:59";
+const EXTRA_CLAIM = "支线故事：时间啊，向前！\n支线故事：时间啊，向前！ 兑换截止   11-29 03:59";
+// 悬停最终全文（**逐字** = 用户 2026-11-07 给的期望文本：提示行插在自己那行之后）。
 const HOVER_REAL_EVENT = "视相博物馆：演化   10-24 16:00 ~ 11-07 03:59\n"
 	+ "视相博物馆：演化 兑换截止   11-10 03:59\n"
 	+ "登录活动：感谢庆典2026限时签到   11-01 12:00 ~ 11-15 03:59\n"
@@ -100,68 +84,40 @@ const HOVER_REAL_CLAIM = "视相博物馆：演化 兑换截止   11-07 03:59 ~ 
 	+ "登录活动：感谢庆典2026限时签到   11-01 12:00 ~ 11-15 03:59\n"
 	+ "支线故事：时间啊，向前！   11-01 12:00 ~ 11-22 03:59\n"
 	+ "支线故事：时间啊，向前！ 兑换截止   11-29 03:59";
-// ⚠️ 下面是本段**专有**的常量（真机那三条活动的逐字基线）；文本结构判定的 helper
-// （linesOf / dupLinesOf / consecutiveDupOf / bareTwoLineFormOf / 三条不变量断言）一律来自
-// `test/lib-text.mjs` —— 与 `cases-arknights-timeline.mjs` 共用同一份实现。
 
 const okBody = (body) => ({
 	ok: true, status: 200, headers: { get: () => "application/json" },
 	text: async () => body, json: async () => JSON.parse(body)
 });
+// 坏响应：JSON 合法但没有 `query`（SMW 查询语法错/被限流时就是这个形状）
+const BAD_BODY = JSON.stringify({ error: { code: "smw-error", info: "query failed" } });
 
 // 装一层"记账 + 可失败"的 transport：走 map.json 的夹具（fixtureBody），并记录每次真实请求。
 // （useFixtures() 先装全局 fetch 兜底，保证这一段万一漏网也不会打真网络。）
-function installTransport({ failBatch = false } = {}) {
+// mode: "ok" | "http"（HTTP 503） | "bad"（没有 query 的 JSON）
+function installTransport({ mode = "ok" } = {}) {
 	const seen = [];
 	setFetchImpl(async (url) => {
 		const u = String(url);
 		seen.push(u);
-		if (u.startsWith(LIST_URL)) return okBody(fixtureBody(LIST_URL));
-		if (u.includes("action=query&prop=revisions")) {
-			if (failBatch) return { ok: false, status: 503, headers: { get: () => null }, text: async () => "", json: async () => ({}) };
-			return okBody(fixtureBody(BATCH_LOOKUP));
-		}
-		throw new Error("unexpected-url:" + u);
+		if (mode === "http") return { ok: false, status: 503, headers: { get: () => null }, text: async () => "", json: async () => ({}) };
+		if (mode === "bad") return okBody(BAD_BODY);
+		return okBody(fixtureBody(SMW_URL));
 	});
 	return seen;
 }
 
-// 跑一次真实抓取器（固定 now + 指定失败模式），顺带收集 console.warn
-async function runFetcher(nowIso, { failBatch = false } = {}) {
-	const seen = installTransport({ failBatch });
+// 跑一次真实抓取器（固定 now + 指定失败模式）。
+async function runFetcher(nowIso, { mode = "ok" } = {}) {
+	const seen = installTransport({ mode });
 	T.setCoreEnv({ now: () => Date.parse(nowIso) });
-	const warns = [];
-	const orig = console.warn;
-	console.warn = (...a) => { warns.push(a.map(String).join(" ")); };
 	let data = null, err = null;
 	try {
-		data = await T.EVENT_FETCHERS["arknights"].default(LIST_URL, undefined, TZ_CN);
+		data = await T.EVENT_FETCHERS["arknights"].default(SMW_URL, undefined, TZ_CN);
 	} catch (e) {
 		err = String((e && e.message) || e);
-	} finally {
-		console.warn = orig;
 	}
-	return { data, err, seen, warns };
-}
-
-// 跑一次真实抓取器，但换成**真机 2026-11-07** 那三条活动的夹具（overrides，不动 map.json）。
-async function runRealFetcher(nowIso) {
-	setFetchImpl(async (url) => {
-		const u = String(url);
-		if (u.startsWith(LIST_URL)) return okBody(fixtureBody(LIST_URL, REAL_OVERRIDES));
-		if (u.includes("action=query&prop=revisions")) return okBody(fixtureBody(BATCH_PREFIX, REAL_OVERRIDES));
-		throw new Error("unexpected-url:" + u);
-	});
-	T.setCoreEnv({ now: () => Date.parse(nowIso) });
-	const warns = [];
-	const orig = console.warn;
-	console.warn = (...a) => { warns.push(a.map(String).join(" ")); };
-	try {
-		const data = await T.EVENT_FETCHERS["arknights"].default(LIST_URL, undefined, TZ_CN);
-		return { data, warns };
-	} finally {
-		console.warn = orig;
-	}
+	return { data, err, seen };
 }
 
 // 提示框最终全文 = 载荷 + **表格格子**那条路径（base = eventHover ⇒ scheduleHoverNote 插提示行）。
@@ -176,75 +132,142 @@ function rowHoverOf(pl, nowIso) {
 	return T.scheduleHoverText(it);
 }
 
+// 一条最小的 SMW 结果（造边界用）：只给需要的 printouts
+function smwOne(printouts, title) {
+	return { query: { results: { [title || "测试活动"]: { printouts, fulltext: title || "测试活动" } } } };
+}
+const smwTime = (ts, raw) => [{ timestamp: String(ts / 1000), raw: raw || "" }];
+
 export default async function run() {
-	section("明日方舟两阶段（实际举行 / 奖励领取：一览 + 批量 wikitext）");
+	section("明日方舟两阶段（实际举行 / 奖励领取：PRTS SMW **单请求**）");
 	useFixtures();   // 装全局 fetch 兜底（本段自己再包一层记账/可失败的 impl）
-	const { parsePrtsPageEndTimes, prtsClaimTitles, prtsPageTimesFromBatch, prtsPageNameFromHref, PRTS_CLAIM_MAX_TITLES,
-		labelOf, collectPrtsEvents, prtsEventPayload } =
-		T.parsers["arknights"];
+	const { parseArknightsSmwEvents, prtsEventPayload, labelOf } = T.parsers["arknights"];
+	const eventTier = T.eventTier;
 	const at = (iso) => Date.parse(iso);
 
-	// ── ① 纯函数：wikitext → 时间戳（四种输入）────────────────────────────────
+	// ── ① 纯函数：SMW 响应 → 三态条目（八种输入）────────────────────────────────
 	{
-		const both = parsePrtsPageEndTimes("{{活动信息\n|活动结束时间=2026-11-07 03:59\n|兑换结束时间=2026-11-10 03:59\n}}", TZ_CN);
-		check("纯函数：有兑换期 → 两个时间戳（按 +08 解析）",
-			both.actEndTs === at("2026-11-07T03:59:00+08:00") && both.claimEndTs === at("2026-11-10T03:59:00+08:00"),
-			JSON.stringify(both));
+		const items = parseArknightsSmwEvents(FIXTURE_JSON, TZ_CN);
+		check("纯函数：真实响应 → 3 条活动（键 / fulltext 都在、页名 = fulltext）",
+			items.length === 3 && items.every((x) => x.name === x.page && x.name.length > 0),
+			JSON.stringify(items.map((x) => x.name)));
 
-		const noClaim = parsePrtsPageEndTimes("{{活动信息\n|活动结束时间=2026-11-07 03:59\n}}", TZ_CN);
-		check("纯函数：无「兑换结束时间」字段 → claimEndTs = null（不补猜）",
-			noClaim.actEndTs === at("2026-11-07T03:59:00+08:00") && noClaim.claimEndTs === null, JSON.stringify(noClaim));
+		// 三态时间戳：**直接**用 timestamp×1000，绝不拿 raw 按源站 tz 重算
+		const sx = items.find((x) => x.name === "视相博物馆：演化") || {};
+		check("纯函数：时间戳 = timestamp×1000（Unix 秒 → 毫秒，不按 +08 重算）",
+			sx.startTs === at("2026-10-24T16:00:00+08:00")
+			&& sx.stageEndTs === at("2026-11-07T03:59:00+08:00")
+			&& sx.claimEndTs === at("2026-11-10T03:59:00+08:00"),
+			JSON.stringify([sx.startTs, sx.stageEndTs, sx.claimEndTs]));
+		check("纯函数：raw = 按源站 tz 渲染的活动区间（与改造前一览 data-time 那串逐字相同）",
+			sx.raw === "10-24 16:00 ~ 11-07 03:59", JSON.stringify(sx.raw));
 
-		const bad = parsePrtsPageEndTimes("{{活动信息\n|活动结束时间=2026-13-45 99:99\n|兑换结束时间=2026年11月10日 03:59\n}}", TZ_CN);
-		check("纯函数：日期格式异常/越界 → 两个都给 null（宁缺勿错）",
-			bad.actEndTs === null && bad.claimEndTs === null, JSON.stringify(bad));
+		// 兑换结束时间缺失 ⇒ claimEndTs = null（不补猜）
+		const noClaim = items.find((x) => x.name === "感谢庆典2026限时签到") || {};
+		check("纯函数：没有「兑换结束时间」（空数组）⇒ claimEndTs = null（不补猜 7 天）",
+			noClaim.stageEndTs === at("2026-11-15T03:59:00+08:00") && noClaim.claimEndTs === null,
+			JSON.stringify(noClaim));
 
-		const reversed = parsePrtsPageEndTimes("{{活动信息\n|活动结束时间=2026-11-10 03:59\n|兑换结束时间=2026-11-07 03:59\n}}", TZ_CN);
-		check("纯函数：开始/结束顺序颠倒（兑换结束不晚于活动结束）→ 丢弃兑换期，只留活动结束",
-			reversed.actEndTs === at("2026-11-10T03:59:00+08:00") && reversed.claimEndTs === null, JSON.stringify(reversed));
+		// 兑换结束时间 **与活动结束同值** ⇒ 也没有兑换期（实测 30 条里有 6 条是这种）
+		const sameTs = parseArknightsSmwEvents(smwOne({
+			"活动类型": ["其他活动"],
+			"活动开始时间": smwTime(at("2026-10-01T04:00:00+08:00")),
+			"活动结束时间": smwTime(at("2026-10-10T03:59:00+08:00")),
+			"兑换结束时间": smwTime(at("2026-10-10T03:59:00+08:00"))
+		}), TZ_CN);
+		check("纯函数：兑换结束**等于**活动结束 ⇒ claimEndTs = null（那条活动本来就不设兑换商店）",
+			sameTs.length === 1 && sameTs[0].claimEndTs === null, JSON.stringify(sameTs));
 
-		const empty = parsePrtsPageEndTimes("", TZ_CN);
-		check("纯函数：空 wikitext → 两个都 null（不抛错）", empty.actEndTs === null && empty.claimEndTs === null);
+		// 兑换结束 **早于** 活动结束（脏数据）⇒ 丢掉兑换期，活动期照旧
+		const reversed = parseArknightsSmwEvents(smwOne({
+			"活动类型": ["支线故事"],
+			"活动开始时间": smwTime(at("2026-10-01T04:00:00+08:00")),
+			"活动结束时间": smwTime(at("2026-10-10T03:59:00+08:00")),
+			"兑换结束时间": smwTime(at("2026-10-05T03:59:00+08:00"))
+		}), TZ_CN);
+		check("纯函数：兑换结束早于活动结束（顺序颠倒）⇒ 丢弃兑换期，只留活动期",
+			reversed.length === 1 && reversed[0].claimEndTs === null
+			&& reversed[0].stageEndTs === at("2026-10-10T03:59:00+08:00"),
+			JSON.stringify(reversed));
 
-		// tz 口径：同一条 wikitext 在 UTC 下解析，应恰好晚 8 小时（同一墙钟按 UTC 解释 = 更晚的绝对时刻）
-		const utc = parsePrtsPageEndTimes("{{活动信息\n|活动结束时间=2026-11-07 03:59\n}}", "UTC");
-		check("纯函数：tz 参与换算（同一墙钟在 UTC 下比 +08 晚 8 小时）",
-			utc.actEndTs === noClaim.actEndTs + 8 * 3600e3, `${utc.actEndTs} vs ${noClaim.actEndTs}`);
+		// 「活动类型」缺失 ⇒ cat 留空，交给 eventTier 按名字回退
+		const noType = parseArknightsSmwEvents(smwOne({
+			"活动类型": [],
+			"活动开始时间": smwTime(at("2026-10-01T04:00:00+08:00")),
+			"活动结束时间": smwTime(at("2026-10-10T03:59:00+08:00")),
+			"兑换结束时间": []
+		}, "危机合约：尖灭测试作战"), TZ_CN);
+		check("纯函数：「活动类型」缺失 ⇒ cat = 空串（不编分类、不抛错）",
+			noType.length === 1 && noType[0].cat === "", JSON.stringify(noType));
+		check("「活动类型」缺失时的档位回退：`eventTier` 按**名称**判（尖灭 → 第一档，登录名 → 第二档）",
+			eventTier(noType[0]) === 1
+			&& eventTier({ name: "感谢庆典2026限时签到", cat: "" }) === 2
+			&& eventTier({ name: "感谢庆典2026限时签到", cat: "登录活动" }) === 2,
+			JSON.stringify([eventTier(noType[0]), eventTier({ name: "感谢庆典2026限时签到", cat: "" })]));
+		check("有「活动类型」时按分类判档（同一名字「尖灭测试作战」：分类=登录活动 ⇒ 第二档）",
+			eventTier({ name: "尖灭测试作战", cat: "登录活动" }) === 2
+			&& eventTier({ name: "尖灭测试作战", cat: "危机合约" }) === 1,
+			JSON.stringify([eventTier({ name: "尖灭测试作战", cat: "登录活动" }), eventTier({ name: "尖灭测试作战", cat: "危机合约" })]));
 
-		check("页名解码：`/w/<URL 编码页名>` → 页名（全角冒号也在内）",
-			prtsPageNameFromHref("/w/%E5%8D%B1%E6%9C%BA%E5%90%88%E7%BA%A6%EF%BC%9A%E5%B0%96%E7%81%AD%E6%B5%8B%E8%AF%95%E4%BD%9C%E6%88%98") === "危机合约：尖灭测试作战");
-		check("页名解码：`index.php?title=` / 非法编码 → 空串（不猜）",
-			prtsPageNameFromHref("/w/index.php?title=X") === "" && prtsPageNameFromHref("/w/%ZZ") === "" &&
-			prtsPageNameFromHref("") === "" && prtsPageNameFromHref(undefined) === "");
-
-		// 批量响应 → Map（含 query.normalized 的"请求名 ↔ 返回名"两个键）
-		const norm = prtsPageTimesFromBatch({
+		// 缺时间 / 时间坏掉 ⇒ 跳过该条（算不出窗口就别硬凑）
+		const halfBaked = parseArknightsSmwEvents({
 			query: {
-				normalized: [{ from: "火山旅梦_旧", to: "火山旅梦" }],
-				pages: [{ title: "火山旅梦", revisions: [{ slots: { main: { content: "{{活动信息\n|活动结束时间=2026-11-19 03:59\n|兑换结束时间=2026-11-22 03:59\n}}" } } }] },
-					{ title: "没有正文的页" }]
+				results: {
+					"只有开始": { printouts: { "活动开始时间": smwTime(at("2026-10-01T04:00:00+08:00")), "活动结束时间": [] }, fulltext: "只有开始" },
+					"时间坏掉": { printouts: { "活动开始时间": [{ timestamp: "not-a-number" }], "活动结束时间": smwTime(at("2026-10-10T03:59:00+08:00")) }, fulltext: "时间坏掉" },
+					"空对象": {},
+					"好的": { printouts: { "活动开始时间": smwTime(at("2026-10-01T04:00:00+08:00")), "活动结束时间": smwTime(at("2026-10-10T03:59:00+08:00")) }, fulltext: "好的" }
+				}
 			}
 		}, TZ_CN);
-		check("批量响应 → Map：按返回名与请求名都能取到（normalized 归一）；无正文的页跳过",
-			!!norm.get("火山旅梦") && !!norm.get("火山旅梦_旧") &&
-			norm.get("火山旅梦").claimEndTs === at("2026-11-22T03:59:00+08:00") &&
-			norm.get("火山旅梦_旧") === norm.get("火山旅梦") && !norm.has("没有正文的页"),
-			JSON.stringify([...norm.keys()]));
+		check("纯函数：缺活动结束 / timestamp 非数字 / 空条目 ⇒ 跳过（只留算得出窗口的那条）",
+			halfBaked.length === 1 && halfBaked[0].name === "好的", JSON.stringify(halfBaked.map((x) => x.name)));
 
-		// 「相关」筛选：只取 now-3天 ~ now+45天，且**最多 12 个**
-		const now0 = at("2026-11-06T15:54:00+08:00");
-		const many = Array.from({ length: 20 }, (_, i) => ({ name: "e" + i, page: "p" + i, startTs: now0 - 864e5, endTs: now0 + 864e5 }));
-		check("相关筛选：去重后上限 = 12（一次批量请求的体量上限）",
-			PRTS_CLAIM_MAX_TITLES === 12 && prtsClaimTitles(many, now0).length === 12, String(prtsClaimTitles(many, now0).length));
-		check("相关筛选：结束早于 now-3天 / 开始晚于 now+45天 的条目被排除（连请求都不发）",
-			prtsClaimTitles([
-				{ name: "太早", page: "old", startTs: now0 - 30 * 864e5, endTs: now0 - 4 * 864e5 },
-				{ name: "太远", page: "far", startTs: now0 + 60 * 864e5, endTs: now0 + 70 * 864e5 },
-				{ name: "刚好", page: "ok", startTs: now0 - 864e5, endTs: now0 + 864e5 }
-			], now0).join(",") === "ok");
+		// fulltext 缺失 ⇒ 用结果键（页名）当名字
+		const noFulltext = parseArknightsSmwEvents({
+			query: {
+				results: {
+					"页名兜底": { printouts: { "活动开始时间": smwTime(at("2026-10-01T04:00:00+08:00")), "活动结束时间": smwTime(at("2026-10-10T03:59:00+08:00")) } }
+				}
+			}
+		}, TZ_CN);
+		check("纯函数：fulltext 缺失 ⇒ 用结果键（页名）当名字", noFulltext.length === 1 && noFulltext[0].name === "页名兜底",
+			JSON.stringify(noFulltext.map((x) => x.name)));
+
+		// 空结果 / 坏响应
+		check("纯函数：`query.results` 是空对象 ⇒ []（源站没有活动，不是故障）",
+			parseArknightsSmwEvents({ query: { results: {} } }, TZ_CN).length === 0);
+		let badErr = null;
+		try { parseArknightsSmwEvents(JSON.parse(BAD_BODY), TZ_CN); } catch (e) { badErr = String((e && e.message) || e); }
+		check("纯函数：没有 `query.results`（SMW 报错响应）⇒ **抛错**（不伪装成「没有活动」）", badErr === "smw-bad-json", String(badErr));
+		let emptyErr = null;
+		try { parseArknightsSmwEvents(null, TZ_CN); } catch (e) { emptyErr = String((e && e.message) || e); }
+		check("纯函数：null 响应 ⇒ 同样抛错（不静默返回空数组）", emptyErr === "smw-bad-json", String(emptyErr));
+
+		// tz 只影响**渲染**，不影响绝对时刻（TZ=UTC 与 +08 两道门禁下 ts 同一个数；raw 跟着渲染口径变）
+		const asUtc = parseArknightsSmwEvents(smwOne({
+			"活动开始时间": smwTime(Date.UTC(2026, 10, 1, 4, 0)),
+			"活动结束时间": smwTime(Date.UTC(2026, 10, 14, 19, 59))
+		}), "UTC");
+		check("纯函数：tz 只参与渲染 —— 两个 tz 下 ts 一个字不变，raw 按该 tz 渲染（UTC 下 = 11-01 04:00 ~ 11-14 19:59）",
+			asUtc.length === 1
+			&& asUtc[0].startTs === at("2026-11-01T12:00:00+08:00")
+			&& asUtc[0].stageEndTs === at("2026-11-15T03:59:00+08:00")
+			&& asUtc[0].raw === "11-01 04:00 ~ 11-14 19:59",
+			JSON.stringify(asUtc));
+
+		// 查询串形态：属性名与排序/上限都必须在 URL 里（少一个属性就少一列，静默退化）
+		check("查询串：四个属性 + 倒序 + limit=30 都在（`action=ask` 与 `format=json` 在 URL 上）",
+			SMW_QUERY.includes("[[活动开始时间::+]]")
+			&& SMW_QUERY.includes("?活动类型") && SMW_QUERY.includes("?活动开始时间")
+			&& SMW_QUERY.includes("?活动结束时间") && SMW_QUERY.includes("?兑换结束时间")
+			&& SMW_QUERY.includes("sort=活动开始时间") && SMW_QUERY.includes("order=desc")
+			&& SMW_QUERY.includes("limit=30")
+			&& SMW_URL.startsWith("https://prts.wiki/api.php?action=ask&format=json&query="),
+			JSON.stringify([SMW_QUERY, SMW_URL.slice(0, 60)]));
 	}
 
-	// ── ①b 分类前缀去重 `labelOf`（纯函数）/ `collectPrtsEvents` 的 label ────────────
+	// ── ①b 分类前缀去重 `labelOf`（纯函数）+ 快照里的 label ────────────────────────
 	// 起因（用户 2026-11-06）：「分类前缀重复问题做个判定如果完全一致就合并」——
 	// PRTS 的活动名本身可能就带分类前缀（页名「视相博物馆：演化」），再无条件拼 `${cat}：${name}`
 	// 就成了「视相博物馆：视相博物馆：演化」。
@@ -269,24 +292,23 @@ export default async function run() {
 			labelOf("视相博物馆", labelOf("视相博物馆", "演化")) === "视相博物馆：演化"
 			&& labelOf("视相博物馆", labelOf("视相博物馆", "视相博物馆：演化")) === "视相博物馆：演化");
 
-		// 真实结构：一览第二列那个 <a> 的**文本本身就带前缀**（PRTS 页名「视相博物馆：演化」）
-		const dupHtml = '<table><tr><th>活动开始时间</th><th>活动</th><th>分类</th></tr>'
-			+ '<tr><td data-time="1792828800,1793995140">2026-10-24 16:00</td>'
-			+ '<td><a href="/w/%E8%A7%86%E7%9B%B8%E5%8D%9A%E7%89%A9%E9%A6%86%EF%BC%9A%E6%BC%94%E5%8C%96" title="视相博物馆：演化">视相博物馆：演化</a></td>'
-			+ '<td><a title="分类:视相博物馆">视相博物馆</a></td></tr></table>';
-		const dupItems = collectPrtsEvents(dupHtml, TZ_CN);
-		check("collectPrtsEvents：名称本身带分类前缀时**不重复**（banner 逐字 =「视相博物馆：演化」）",
-			dupItems.length === 1 && dupItems[0].banner === "视相博物馆：演化" && dupItems[0].cat === "视相博物馆",
-			JSON.stringify(dupItems.map((x) => [x.banner, x.cat])));
+		// 真实结构：SMW 结果里 `fulltext` 本身就带前缀，`活动类型` 也是同一个词
+		const dup = parseArknightsSmwEvents(smwOne({
+			"活动类型": ["视相博物馆"],
+			"活动开始时间": smwTime(Date.UTC(2026, 9, 24, 8, 0)),
+			"活动结束时间": smwTime(Date.UTC(2026, 10, 6, 19, 59))
+		}, "视相博物馆：演化"), TZ_CN);
+		check("SMW 快照：名称本身带分类前缀时**不重复**（labelOf(name) 逐字 =「视相博物馆：演化」）",
+			dup.length === 1 && labelOf(dup[0].cat, dup[0].name) === "视相博物馆：演化" && dup[0].cat === "视相博物馆",
+			JSON.stringify(dup.map((x) => [x.name, x.cat])));
 
-		// 用户举的那个例子端到端跑一遍 payload：活动期 → 兑换期（页内给「兑换结束时间」）
+		// 用户举的那个例子端到端跑一遍 payload：活动期 → 兑换期
 		const snap = [{
-			name: "视相博物馆：演化", cat: "视相博物馆", page: "p",
-			startTs: at("2026-10-24T16:00:00+08:00"), endTs: at("2026-11-07T03:59:00+08:00"),
-			raw: "10-24 16:00 ~ 11-07 03:59"
+			name: "视相博物馆：演化", cat: "视相博物馆", page: "视相博物馆：演化",
+			startTs: at("2026-10-24T16:00:00+08:00"), stageEndTs: at("2026-11-07T03:59:00+08:00"),
+			claimEndTs: at("2026-11-10T03:59:00+08:00"), raw: "10-24 16:00 ~ 11-07 03:59"
 		}];
-		const pages = new Map([["p", { actEndTs: at("2026-11-07T03:59:00+08:00"), claimEndTs: at("2026-11-10T03:59:00+08:00") }]]);
-		const claimPl = prtsEventPayload(snap, TZ_CN, at("2026-11-08T12:00:00+08:00"), pages);
+		const claimPl = prtsEventPayload(snap, TZ_CN, at("2026-11-08T12:00:00+08:00"));
 		check("去重端到端：兑换期 `event` / `eventShow` / 面板显示是**同一串**（「视相博物馆：演化」）",
 			!!claimPl && claimPl.event === "视相博物馆：演化"
 			&& claimPl.eventShow === "视相博物馆：演化 兑换截止",
@@ -308,24 +330,43 @@ export default async function run() {
 			JSON.stringify(T.scheduleHoverNote(singleHover, claimPl, false)));
 	}
 
-	// ── ② 抓取链路：两次请求（1 次一览 + **一次**批量），上限 12 页 ─────────────
+	// ── ② 抓取链路：**恰好 1 次**请求（SMW），分页不追 ───────────────────────────
 	{
 		const { data, seen, err } = await runFetcher("2026-11-06T15:54:00+08:00");
-		check("抓取链路：① 一览 + ② 批量 —— 恰好 2 次请求（兑换期不是 N 次详情）", seen.length === 2, JSON.stringify(seen.map((u) => u.slice(0, 60))));
-		check("抓取链路：第 1 次仍是活动一览（带 origin=*，与改造前同一条通道）",
-			seen[0] === LIST_URL + "&origin=*", seen[0]);
-		check("抓取链路：第 2 次是 action=query&prop=revisions 的**批量**接口", seen[1].startsWith(BATCH_PREFIX), seen[1]);
-		const titles = decodeURIComponent(String(seen[1] || "").split("titles=")[1] || "").split("|");
-		check("抓取链路：批量 titles = 3 条相关活动页（已结束>3天的那条不在内）",
-			titles.length === 3 && titles.includes("墟") && titles.includes("火山旅梦") && titles.includes("危机合约：尖灭测试作战")
-			&& !titles.includes("龙门夏日签到"), JSON.stringify(titles));
+		check("抓取链路：活动侧一次刷新只发 **1 条** prts 请求（不是「一览 + 批量」两条）",
+			seen.length === 1, JSON.stringify(seen.map((u) => u.slice(0, 60))));
+		check("抓取链路：那一条就是 `action=ask`（带 origin=*，与卡池侧同一条通道）",
+			seen[0] === SMW_URL + "&origin=*", seen[0]);
+		check("抓取链路：**不再**有 `action=query&prop=revisions`（批量 wikitext 已删）",
+			!seen.some((u) => u.includes("action=query&prop=revisions")), JSON.stringify(seen));
 		check("抓取链路：抓取器不抛错、事件侧契约成立（event + eventDates）",
 			!err && !!data && typeof data.event === "string" && typeof data.eventDates === "string", err || JSON.stringify(data && data.event));
 
-		// 没有相关条目时**一次批量请求都不发**（不是"发了但空"）
-		const idle = await runFetcher("2027-01-01T00:00:00+08:00");
-		check("抓取链路：一览里没有相关条目 → 只发 1 次请求、载荷为 null（未公布）",
-			idle.seen.length === 1 && idle.data === null, `reqs=${idle.seen.length} data=${JSON.stringify(idle.data)}`);
+		// 响应里带 `query-continue-offset`（真实响应就有）⇒ **不追页**：还是 1 条请求。
+		// 这条夹具是 3 条的**子集**所以没有游标，这里显式造一个带游标的响应来钉住"不追页"。
+		const paged = JSON.stringify(Object.assign({ "query-continue-offset": 30 }, JSON.parse(fixtureBody(SMW_URL))));
+		const seen2 = [];
+		setFetchImpl(async (url) => { seen2.push(String(url)); return okBody(paged); });
+		T.setCoreEnv({ now: () => at("2026-11-06T15:54:00+08:00") });
+		const pagedData = await T.EVENT_FETCHERS["arknights"].default(SMW_URL, undefined, TZ_CN);
+		check("分页：响应带 query-continue-offset ⇒ **不追页**（仍然只有 1 条请求，载荷照旧）",
+			seen2.length === 1 && !!pagedData && pagedData.event === "支线故事：时间啊，向前！",
+			`reqs=${seen2.length} event=${JSON.stringify(pagedData && pagedData.event)}`);
+
+		// 空结果 ⇒ 1 条请求 + 载荷 null（未公布）
+		const seen3 = [];
+		setFetchImpl(async (url) => { seen3.push(String(url)); return okBody(JSON.stringify({ query: { results: {} } })); });
+		T.setCoreEnv({ now: () => at("2026-11-06T15:54:00+08:00") });
+		const empty = await T.EVENT_FETCHERS["arknights"].default(SMW_URL, undefined, TZ_CN);
+		check("空结果：`query.results` 为空 ⇒ 载荷 null（未公布），仍然只有 1 条请求",
+			seen3.length === 1 && empty === null, `reqs=${seen3.length} data=${JSON.stringify(empty)}`);
+
+		// 请求失败 / 坏响应 ⇒ 抛错（这一侧记 down），不返回半截载荷
+		for (const [label, mode, wantErr] of [["HTTP 503", "http", "http-503"], ["没有 query 的 JSON", "bad", "smw-bad-json"]]) {
+			const r = await runFetcher("2026-11-06T15:54:00+08:00", { mode });
+			check(`请求失败（${label}）⇒ **抛错**（error = ${wantErr}），不伪装成"没有活动"`,
+				r.err === wantErr && r.data === null, JSON.stringify([r.err, r.data]));
+		}
 	}
 
 	// ── ②b 持久化：`eventClaimDates` / `eventShow` / `eventHoverExtra` 必须能随 lastData 出去 ──────
@@ -376,30 +417,31 @@ export default async function run() {
 			&& merged.eventHover === "视相博物馆：演化   10-24 16:00 ~ 11-07 03:59", JSON.stringify(merged));
 	}
 
-	// ── ③ 三态：活动期 / 兑换期 / batch 失败退化 ────────────────────────────────
+	// ── ③ 三态：活动期 / 兑换期 / 无兑换期 ──────────────────────────────────────
 	{
-		// ① 活动期（now = 2026-11-06 15:54，墟 11-07 03:59 结束）—— 外显与改造前**完全一致**
+		// ① 活动期（now = 2026-11-06 15:54，视相 11-07 03:59 结束）
+		// 外显按类别档位：这一组里只有「支线故事：时间啊，向前！」是第一档
 		const a = await runFetcher("2026-11-06T15:54:00+08:00");
-		check("活动期：外显是活动区间（10-24 16:00 ~ 11-07 03:59，逐字）",
-			!!a.data && a.data.event === "支线故事：墟" && a.data.eventDates === "10-24 16:00 ~ 11-07 03:59",
+		check("活动期：外显是**第一档**那条（支线故事：时间啊，向前！）的活动区间（逐字）",
+			!!a.data && a.data.event === "支线故事：时间啊，向前！" && a.data.eventDates === "11-01 12:00 ~ 11-22 03:59",
 			JSON.stringify(a.data && [a.data.event, a.data.eventDates]));
 		// ⚠️ 提示行**只进 `eventHoverExtra`**（提示框），绝不进 `eventHover`（格子会把它解析成并列条目）。
 		// 形态与该活动自己那行同一排版：`名称` + **3 空格** + `内容`；每组两行（标签 ⏎ 提示行）。
-		check("活动期：`eventHoverExtra` = 每条有兑换期的活动一组「<标签> ⏎ <标签> 兑换截止   MM-DD HH:mm」（墟 11-10 / 火山 11-22）",
-			!!a.data && a.data.eventHoverExtra === EXTRA_ACTIVITY,
+		check("活动期：`eventHoverExtra` = 每条有兑换期的活动一组「<标签> ⏎ <标签> 兑换截止   MM-DD HH:mm」（视相 11-10 / 时间啊 11-29）",
+			!!a.data && a.data.eventHoverExtra === EXTRA_EVENT_3,
 			JSON.stringify(a.data && a.data.eventHoverExtra));
 		check("活动期：`eventHover` 里**没有任何**「兑换截止 / 奖励领取期」字样（提示行不再泄漏进悬停原文）",
 			!!a.data && !LEAK_RE.test(a.data.eventHover), JSON.stringify(a.data && a.data.eventHover));
-		check("活动期：`eventHover` 与改造前**逐字一致**（只由 buildEventHover 产出）",
-			!!a.data && a.data.eventHover === HOVER_ACTIVITY, JSON.stringify(a.data && a.data.eventHover));
+		check("活动期：`eventHover` 与改造前**逐字一致**（只由 buildEventHover 产出；三条活动一行一条）",
+			!!a.data && a.data.eventHover === HOVER_EVENT_3, JSON.stringify(a.data && a.data.eventHover));
 		// 提醒侧的第二个 deadline：活动期就得把「奖励领取截止」窗口一起带出去（不是等进了兑换期才给）。
 		check("活动期：载荷带 `eventClaimDates` = 活动结束 ~ 兑换结束（提醒侧据此建第二条 deadline）",
-			!!a.data && a.data.eventClaimDates === "11-07 03:59 ~ 11-10 03:59",
+			!!a.data && a.data.eventClaimDates === "11-22 03:59 ~ 11-29 03:59",
 			JSON.stringify(a.data && a.data.eventClaimDates));
 		// 事项名（只给显示）：活动期**不能**有 `eventShow` 这个键 —— 否则面板那一行会提前变成「兑换截止」。
 		check("活动期：**没有** `eventShow` 键（事项名仍是活动名，显示与改造前一致）",
 			!!a.data && !("eventShow" in a.data), JSON.stringify(a.data && Object.keys(a.data)));
-		check("活动期：没有兑换期的活动（尖灭）不补提示行 —— 提示行恰好 2 行、都是活动期形态、不含 11-15",
+		check("活动期：没有兑换期的那条（登录活动）不补提示行 —— 提示行恰好 4 行、成对、不含 11-15",
 			!!a.data && (() => {
 				const L = String(a.data.eventHoverExtra || "").split("\n");
 				const notes = L.filter((_, i) => i % 2 === 1).filter(Boolean);
@@ -407,27 +449,24 @@ export default async function run() {
 					&& !notes.some((l) => /11-15/.test(l));
 			})(),
 			JSON.stringify(a.data && a.data.eventHoverExtra));
-		check("活动期：页内「活动结束时间」压过一览 data-time（尖灭 11-15 vs 一览 11-14）",
-			!!a.data && a.data.eventHover.includes("危机合约：尖灭测试作战   11-01 04:00 ~ 11-15 03:59"),
-			JSON.stringify(a.data && a.data.eventHover));
-		check("活动期：一览与页内结束时间不一致时留一条 console.warn（便于排查）",
-			a.warns.length === 1 && a.warns[0].includes("尖灭") && a.warns[0].includes("一览=11-14 03:59") && a.warns[0].includes("页内=11-15 03:59"),
-			JSON.stringify(a.warns));
+		// 数据源唯一：不再有"一览 data-time 与页内活动结束时间不一致"这回事，也就不该再打日志
+		check("活动期：没有「结束时间不一致」的 console.warn（SMW 是唯一数据源，两套口径已删）",
+			!a.data || !String(a.data.eventHover).includes("11-14"), JSON.stringify(a.data && a.data.eventHover));
 
-		// ② 兑换期（now = 2026-11-08 12:00：墟 11-07 03:59 已结束，兑换到 11-10 03:59）
+		// ② 兑换期（now = 2026-11-08 12:00：视相 11-07 03:59 已结束，兑换到 11-10 03:59）
 		const b = await runFetcher("2026-11-08T12:00:00+08:00");
-		check("兑换期：活动**仍然出现**（外显仍是墟，没像改造前那样消失）",
-			!!b.data && b.data.event === "支线故事：墟", JSON.stringify(b.data && b.data.event));
+		check("兑换期：活动**仍然出现**（外显切到视相，没像改造前那样消失）",
+			!!b.data && b.data.event === "视相博物馆：演化", JSON.stringify(b.data && b.data.event));
 		check("兑换期：eventDates = 可解析的兑换区间（11-07 03:59 ~ 11-10 03:59 ⇒ 外显「还剩 X」指向兑换截止）",
 			!!b.data && b.data.eventDates === "11-07 03:59 ~ 11-10 03:59"
 			&& /^(\d{2}-\d{2} \d{2}:\d{2}) ~ (\d{2}-\d{2} \d{2}:\d{2})$/.test(b.data.eventDates),
 			JSON.stringify(b.data && b.data.eventDates));
-		// 2026-11-07 起：兑换期那条活动**不再生成提示行** ⇒ 这一组只剩"活动期 + 有兑换期"的火山（11-22）。
+		// 2026-11-07 起：兑换期那条活动**不再生成提示行** ⇒ 这一组只剩"活动期 + 有兑换期"的时间啊（11-29）。
 		check("兑换期：`eventHoverExtra` 只剩活动期那组「<标签> ⏎ <标签> 兑换截止   MM-DD HH:mm」（逐字）",
 			!!b.data && b.data.eventHoverExtra === EXTRA_CLAIM,
 			JSON.stringify(b.data && b.data.eventHoverExtra));
-		check("兑换期：墟（已在兑换期）**不再贡献任何提示行**（主行本身就是兑换区间）",
-			!!b.data && !String(b.data.eventHoverExtra || "").includes("支线故事：墟"),
+		check("兑换期：视相（已在兑换期）**不再贡献任何提示行**（主行本身就是兑换区间）",
+			!!b.data && !String(b.data.eventHoverExtra || "").includes("视相博物馆：演化"),
 			JSON.stringify(b.data && b.data.eventHoverExtra));
 		check("兑换期：**不再有**解释句「活动已于 … 结束，当前为奖励领取期（…）」（用户点名删掉）",
 			!!b.data && !EXPLAIN_RE.test(JSON.stringify(b.data)),
@@ -437,15 +476,13 @@ export default async function run() {
 			JSON.stringify(b.data && b.data.eventHover));
 		check("兑换期：日期格悬停（eventDatesRaw）与格子里显示的区间是同一份",
 			!!b.data && b.data.eventDatesRaw === b.data.eventDates, JSON.stringify(b.data && b.data.eventDatesRaw));
-		// 兑换期里 eventDates 本身就是兑换区间 ⇒ eventClaimDates 与它**同值**；提醒侧按「T 相同只留一条」去重。
 		check("兑换期：`eventClaimDates` 与 `eventDates` 同值（提醒侧去重后只留一条，不会弹两次）",
 			!!b.data && b.data.eventClaimDates === b.data.eventDates, JSON.stringify(b.data && b.data.eventClaimDates));
-		// 事项名（只给显示）：`<去重后的活动名> 兑换截止`（墟 的标签 = 支线故事：墟）；`event` 一字不动。
-		check("兑换期：`eventShow` = 「<去重后的活动名> 兑换截止」（一个空格，逐字 =「支线故事：墟 兑换截止」）",
-			!!b.data && b.data.eventShow === "支线故事：墟 兑换截止", JSON.stringify(b.data && b.data.eventShow));
+		check("兑换期：`eventShow` = 「<去重后的活动名> 兑换截止」（一个空格，逐字 =「视相博物馆：演化 兑换截止」）",
+			!!b.data && b.data.eventShow === "视相博物馆：演化 兑换截止", JSON.stringify(b.data && b.data.eventShow));
 		check("一致性：`eventShow` 就是 `event` + 「 兑换截止」（同一串，不是又一次拼分类前缀）",
 			!!b.data && b.data.eventShow === b.data.event + " 兑换截止"
-			&& !/支线故事：支线故事/.test(b.data.eventShow), JSON.stringify(b.data && [b.data.event, b.data.eventShow]));
+			&& !/视相博物馆：视相博物馆/.test(b.data.eventShow), JSON.stringify(b.data && [b.data.event, b.data.eventShow]));
 		check("一致性：提示行里每组的前缀 = 悬停原文里某一行的标签（同一串，逐组对得上）",
 			!!b.data && (() => {
 				const pairLines = b.data.eventHoverExtra.split("\n");
@@ -458,35 +495,29 @@ export default async function run() {
 				return true;
 			})(), JSON.stringify([b.data && b.data.eventHoverExtra, b.data && b.data.eventHover]));
 		check("兑换期：`event` 仍是活动名（提醒标题 / 侧栏轮播 / 搜索匹配读它，不被显示名改写）",
-			!!b.data && b.data.event === "支线故事：墟", JSON.stringify(b.data && b.data.event));
+			!!b.data && b.data.event === "视相博物馆：演化", JSON.stringify(b.data && b.data.event));
 
-		// ③ 批量失败（同一时刻）—— 退化为改造前行为：墟消失、尖灭用的是**一览**的 11-14
-		const c = await runFetcher("2026-11-08T12:00:00+08:00", { failBatch: true });
-		check("batch 失败：退化为「只有活动期」—— 兑换期内的墟**消失**（= 改造前行为）",
-			!!c.data && c.data.event === "危机合约：尖灭测试作战", JSON.stringify(c.data && c.data.event));
-		check("batch 失败：结束时间回落**一览**的 data-time（11-14，不是页内的 11-15）",
-			!!c.data && c.data.eventDates === "11-01 04:00 ~ 11-14 03:59", JSON.stringify(c.data && c.data.eventDates));
-		check("batch 失败：没有任何「兑换截止 / 领取期」提示行、也不打日志（不留半截元信息）",
-			!!c.data && !LEAK_RE.test(c.data.eventHover) && !("eventHoverExtra" in c.data)
-			&& c.warns.length === 0, JSON.stringify([c.data && c.data.eventHover, c.warns]));
-		check("batch 失败：**不写** `eventClaimDates` 这个键（不是给空串，下游不必多问一遍）",
-			!!c.data && !("eventClaimDates" in c.data), JSON.stringify(c.data && Object.keys(c.data)));
-		check("batch 失败：也**不写** `eventShow` / `eventHoverExtra` 这两个键（没有兑换期就没有提示行）",
-			!!c.data && !("eventShow" in c.data) && !("eventHoverExtra" in c.data), JSON.stringify(c.data && Object.keys(c.data)));
+		// ③ 无兑换期（纯函数）：只留那一条登录活动 ⇒ 载荷键集合 = 改造前那四个
+		const only = parseArknightsSmwEvents(FIXTURE_JSON, TZ_CN).filter((x) => x.name === "感谢庆典2026限时签到");
+		const noClaimPl = prtsEventPayload(only, TZ_CN, at("2026-11-08T12:00:00+08:00"));
+		const PRE_CHANGE_KEYS = "event,eventDates,eventDatesRaw,eventHover";
+		check("无兑换期：载荷键集合 = 改造前那四个（不多 eventShow / eventClaimDates / eventHoverExtra）",
+			!!noClaimPl && Object.keys(noClaimPl).sort().join(",") === PRE_CHANGE_KEYS,
+			`不变量=退化形状｜期望=${PRE_CHANGE_KEYS}｜实测=${Object.keys(noClaimPl || {}).sort().join(",")}`);
+		const NO_CLAIM_RAW = "11-01 12:00 ~ 11-15 03:59";
+		check("无兑换期：eventDates 与 eventDatesRaw 都是源站墙钟原文（跨 TZ 逐字相同）",
+			!!noClaimPl && noClaimPl.eventDates === NO_CLAIM_RAW
+			&& noClaimPl.eventDatesRaw === NO_CLAIM_RAW
+			&& only[0].raw === NO_CLAIM_RAW,
+			JSON.stringify([noClaimPl && noClaimPl.eventDates, noClaimPl && noClaimPl.eventDatesRaw, only[0] && only[0].raw]));
+		check("无兑换期：**没有** eventShow（不补猜「兑换截止」）", !!noClaimPl && !("eventShow" in noClaimPl),
+			JSON.stringify(noClaimPl && Object.keys(noClaimPl)));
 
-		// ④ 活动期 + batch 失败：与改造前**逐字节一致**（回归基线）
-		const d = await runFetcher("2026-11-06T15:54:00+08:00", { failBatch: true });
-		check("batch 失败（活动期）：event / eventDates / 悬停 与改造前逐字节一致",
-			!!d.data && d.data.event === "支线故事：墟" && d.data.eventDates === "10-24 16:00 ~ 11-07 03:59"
-			&& d.data.eventHover === "支线故事：墟   10-24 16:00 ~ 11-07 03:59\n危机合约：尖灭测试作战   11-01 04:00 ~ 11-14 03:59\n支线故事：火山旅梦   11-05 04:00 ~ 11-19 03:59"
-			&& !("eventShow" in d.data) && !("eventHoverExtra" in d.data),
-			JSON.stringify(d.data));
-
-		// ⑤ 未开始的活动：与改造前一致（不在当期里，不出现）
-		const e = await runFetcher("2026-10-25T12:00:00+08:00");
-		check("待开始的活动不出现（火山 11-05 才开；外显仍是墟）",
-			!!e.data && e.data.event === "支线故事：墟" && !e.data.eventHover.includes("火山旅梦"),
-			JSON.stringify(e.data));
+		// ④ 待开始的活动不出现（视相 10-24 才开 ⇒ 2026-10-23 那一刻整侧未公布）
+		const before = await runFetcher("2026-10-23T16:00:00+08:00");
+		check("待开始的活动不出现（三条都还没开 ⇒ 载荷 null，仍然只发 1 条请求）",
+			before.data === null && before.seen.length === 1,
+			`reqs=${before.seen.length} data=${JSON.stringify(before.data)}`);
 	}
 
 	// ── ④ 真机 bug 回归：提示行**不再进 `eventHover`** ⇒ 格子不会多出可见的一行 ─────────────
@@ -508,11 +539,11 @@ export default async function run() {
 			JSON.stringify([aLines, bLines]));
 
 		// ② 探头条目数 = 当期活动条数（活动期 / 兑换期都是 3）—— 与改造前一致，不因提示行多出条目
-		const aItems = scheduleHoverItems(a.data && a.data.eventHover, "支线故事：墟", false);
-		const bItems = scheduleHoverItems(b.data && b.data.eventHover, "支线故事：墟", false);
+		const aItems = scheduleHoverItems(a.data && a.data.eventHover, "支线故事：时间啊，向前！", false);
+		const bItems = scheduleHoverItems(b.data && b.data.eventHover, "视相博物馆：演化", false);
 		check("格子探头：eventHover 解析出的并列条目数 = 当期活动条数（活动期 3 条，与改造前一致）",
 			aItems.length === 3, JSON.stringify(aItems.map((x) => x.title)));
-		check("格子探头：兑换期也还是 3 条（墟 的兑换期没有顶掉任何一条，也不多出提示行）",
+		check("格子探头：兑换期也还是 3 条（视相的兑换期没有顶掉任何一条，也不多出提示行）",
 			bItems.length === 3, JSON.stringify(bItems.map((x) => x.title)));
 		check("格子探头：每条都是「名称 + 3 空格 + 档期」，没有一条是单条截止日的提示行（格子里不会多出那段文字）",
 			aItems.concat(bItems).every((x) => SHARED_EVENT_LINE.test(`${x.title}   ${x.win}`))
@@ -521,20 +552,20 @@ export default async function run() {
 			JSON.stringify(aItems.concat(bItems).map((x) => x.title)));
 		// ③ 提示行**不参与解析**：把提示行拼进提示框（正确路径）之后，探头仍只解析 eventHover —— 条目数不变
 		check("格子探头：提示行只在提示框里（不参与解析）⇒ 条目数仍是 3；兑换期那条的标题 =「<活动名> 兑换截止」（唯一一条）",
-			scheduleHoverItems(a.data.eventHover, "支线故事：墟", false).length === 3
+			scheduleHoverItems(a.data.eventHover, "支线故事：时间啊，向前！", false).length === 3
 			&& scheduleHoverNote(a.data.eventHover, a.data, false).split("\n")
 				.filter((l) => / 兑换截止   \d{2}-\d{2} \d{2}:\d{2}$/.test(l)).length === 2
 			&& bItems.filter((x) => / 兑换截止$/.test(x.title)).length === 1
-			&& bItems.filter((x) => / 兑换截止$/.test(x.title))[0].title === "支线故事：墟 兑换截止",
+			&& bItems.filter((x) => / 兑换截止$/.test(x.title))[0].title === "视相博物馆：演化 兑换截止",
 			JSON.stringify([scheduleHoverNote(a.data.eventHover, a.data, false), bItems.map((x) => x.title)]));
 
 		// ④ 反向回归（证明上面那条断言**真能**抓到这次泄漏）：按旧实现把提示行插回 eventHover
 		const oldHover = String(a.data.eventHover).split("\n")
-			.flatMap((l) => (l === "支线故事：墟   10-24 16:00 ~ 11-07 03:59" ? [l, "支线故事：墟 兑换截止   11-10 03:59"] : [l]))
+			.flatMap((l) => (l === "视相博物馆：演化   10-24 16:00 ~ 11-07 03:59" ? [l, "视相博物馆：演化 兑换截止   11-10 03:59"] : [l]))
 			.join("\n");
-		const oldItems = scheduleHoverItems(oldHover, "支线故事：墟", false);
-		check("反向回归：提示行若进了 eventHover ⇒ 探头**多出一条**「支线故事：墟 兑换截止   11-10 03:59」（用户截图那一行）",
-			oldItems.length === 4 && oldItems.some((x) => x.title === "支线故事：墟 兑换截止   11-10 03:59"),
+		const oldItems = scheduleHoverItems(oldHover, "支线故事：时间啊，向前！", false);
+		check("反向回归：提示行若进了 eventHover ⇒ 探头**多出一条**「视相博物馆：演化 兑换截止   11-10 03:59」（用户截图那一行）",
+			oldItems.length === 4 && oldItems.some((x) => x.title === "视相博物馆：演化 兑换截止   11-10 03:59"),
 			JSON.stringify(oldItems.map((x) => x.title)));
 
 		// ⑤ 提示框：表格格子 hoverTextOf / 「近期」行 scheduleHoverText 都调同一个插入函数
@@ -565,12 +596,12 @@ export default async function run() {
 
 		// ⑥ 插入位置：**紧跟该活动那一行之后**，不是统一堆到末尾
 		const gNote = {
-			eventHover: "视相博物馆：演化   10-24 16:00 ~ 11-07 03:59\n危机合约：尖灭测试作战   11-01 04:00 ~ 11-15 03:59",
+			eventHover: "视相博物馆：演化   10-24 16:00 ~ 11-07 03:59\n感谢庆典2026限时签到   11-01 12:00 ~ 11-15 03:59",
 			eventHoverExtra: "视相博物馆：演化\n视相博物馆：演化 兑换截止   11-10 03:59"
 		};
 		check("提示框拼接：提示行插在**该活动那一行之后**（第 2 行，不是堆到末尾）",
 			scheduleHoverNote(gNote.eventHover, gNote, false)
-				=== "视相博物馆：演化   10-24 16:00 ~ 11-07 03:59\n视相博物馆：演化 兑换截止   11-10 03:59\n危机合约：尖灭测试作战   11-01 04:00 ~ 11-15 03:59",
+				=== "视相博物馆：演化   10-24 16:00 ~ 11-07 03:59\n视相博物馆：演化 兑换截止   11-10 03:59\n感谢庆典2026限时签到   11-01 12:00 ~ 11-15 03:59",
 			JSON.stringify(scheduleHoverNote(gNote.eventHover, gNote, false)));
 		// 锚点要精确：「墟」不能把提示行插到「墟·复刻」那一行后面
 		const gPrefix = { eventHoverExtra: "支线故事：墟\n支线故事：墟 兑换截止   11-10 03:59" };
@@ -585,13 +616,13 @@ export default async function run() {
 		check("提示框拼接：悬停为空时至少把提示行给出来（不丢 deadline）",
 			scheduleHoverNote("", gNote, false) === "视相博物馆：演化 兑换截止   11-10 03:59",
 			JSON.stringify(scheduleHoverNote("", gNote, false)));
-		// 端到端：真抓取的载荷 + 真档案 ⇒ 两条提示行分别紧跟在自己那条活动之后（火山是最后一条 ⇒ 末尾）
+		// 端到端：真抓取的载荷 + 真档案 ⇒ 两条提示行分别紧跟在自己那条活动之后
 		const rec = Object.assign({}, a.data, { name: "明日方舟" });
 		check("提示框拼接（端到端）：活动期实际提示框逐行 = 原 hover 三行 + 两条提示行各插在其活动之后",
 			scheduleHoverNote(a.data.eventHover, rec, false)
-				=== "支线故事：墟   10-24 16:00 ~ 11-07 03:59\n支线故事：墟 兑换截止   11-10 03:59\n"
-				+ "危机合约：尖灭测试作战   11-01 04:00 ~ 11-15 03:59\n"
-				+ "支线故事：火山旅梦   11-05 04:00 ~ 11-19 03:59\n支线故事：火山旅梦 兑换截止   11-22 03:59",
+				=== "视相博物馆：演化   10-24 16:00 ~ 11-07 03:59\n视相博物馆：演化 兑换截止   11-10 03:59\n"
+				+ "登录活动：感谢庆典2026限时签到   11-01 12:00 ~ 11-15 03:59\n"
+				+ "支线故事：时间啊，向前！   11-01 12:00 ~ 11-22 03:59\n支线故事：时间啊，向前！ 兑换截止   11-29 03:59",
 			JSON.stringify(scheduleHoverNote(a.data.eventHover, rec, false)));
 		check("提示框拼接（端到端）：不出现解释句（「活动已于 / 当前为奖励领取期」）",
 			!EXPLAIN_RE.test(scheduleHoverNote(a.data.eventHover, rec, false))
@@ -607,7 +638,7 @@ export default async function run() {
 	// 「视相博物馆」⇒ tier 2），**紧迫的兑换期**因此永远排在后面。
 	// 修法：`phase === "claim"` 的候选**排最前**（压过档位）；其它游戏没有 `phase` ⇒ 行为不变。
 	{
-		const { pickEventPrimary, eventTier, sortEventItems } = T;
+		const { pickEventPrimary, sortEventItems } = T;
 		// 真机 lastData 等价的候选（两个窗口首尾相接，与 prtsEventPayload 生成的一致）
 		const claimCand = {
 			name: "视相博物馆：演化", cat: "视相博物馆", phase: "claim",
@@ -629,22 +660,18 @@ export default async function run() {
 		// 端到端（payload）：同一份输入 → 外显必须是兑换期那一条
 		const snapshot = [
 			{
-				name: "视相博物馆：演化", cat: "视相博物馆", page: "p1",
-				startTs: at("2026-10-24T16:00:00+08:00"), endTs: at("2026-11-07T03:59:00+08:00"),
-				raw: "10-24 16:00 ~ 11-07 03:59"
+				name: "视相博物馆：演化", cat: "视相博物馆", page: "视相博物馆：演化",
+				startTs: at("2026-10-24T16:00:00+08:00"), stageEndTs: at("2026-11-07T03:59:00+08:00"),
+				claimEndTs: at("2026-11-10T03:59:00+08:00"), raw: "10-24 16:00 ~ 11-07 03:59"
 			},
 			{
-				name: "时间啊，向前！", cat: "支线故事", page: "p2",
-				startTs: at("2026-11-01T12:00:00+08:00"), endTs: at("2026-11-22T03:59:00+08:00"),
-				raw: "11-01 12:00 ~ 11-22 03:59"
+				name: "时间啊，向前！", cat: "支线故事", page: "时间啊，向前！",
+				startTs: at("2026-11-01T12:00:00+08:00"), stageEndTs: at("2026-11-22T03:59:00+08:00"),
+				claimEndTs: null, raw: "11-01 12:00 ~ 11-22 03:59"
 			}
 		];
-		const pageTimes = new Map([
-			["p1", { actEndTs: at("2026-11-07T03:59:00+08:00"), claimEndTs: at("2026-11-10T03:59:00+08:00") }],
-			["p2", { actEndTs: at("2026-11-22T03:59:00+08:00"), claimEndTs: null }]
-		]);
 		const now = at("2026-11-07T12:00:00+08:00");   // 视相已结束 8 小时，兑换期还剩 3 天
-		const pl = prtsEventPayload(snapshot, TZ_CN, now, pageTimes);
+		const pl = prtsEventPayload(snapshot, TZ_CN, now);
 		check("端到端（真机等价输入）：外显 `event` = 兑换期那一条（视相博物馆：演化），不再被还剩 15 天的那条挤掉",
 			!!pl && pl.event === "视相博物馆：演化", JSON.stringify(pl && pl.event));
 		check("端到端：`eventShow` = 「视相博物馆：演化 兑换截止」（面板/近期那一行的事项名）",
@@ -724,8 +751,8 @@ export default async function run() {
 		const { scheduleHoverItems, scheduleNormalize, scheduleHoverText } = T;
 		const NOW_EVENT = "2026-11-06T15:54:00+08:00";   // 活动期（视相 11-07 03:59 才结束）
 		const NOW_CLAIM = "2026-11-08T12:00:00+08:00";   // 兑换期（视相 11-10 03:59 才截止）
-		const a = await runRealFetcher(NOW_EVENT);
-		const b = await runRealFetcher(NOW_CLAIM);
+		const a = await runFetcher(NOW_EVENT);
+		const b = await runFetcher(NOW_CLAIM);
 
 		// ① 先钉住夹具确实被解析成真机上那三条活动（否则下面的逐字断言可能是"空对空"）
 		check("真机夹具：活动期 `eventHover` = 那三条活动，逐字",
@@ -759,7 +786,7 @@ export default async function run() {
 			!!b.data && linesOf(cellHoverOf(b.data))[0].indexOf(b.data.eventShow + "   ") === 0,
 			JSON.stringify([b.data && b.data.eventShow, linesOf(cellHoverOf(b.data))[0]]));
 
-		// ④ 反向守卫：去重 / 连续重复 / 两行形态 —— 两段 × 两条路径，一共 12 条。
+		// ④ 反向守卫：去重 / 连续重复 / 两行形态 —— 两段 × 两条路径
 		// 三条结构不变量走 `test/lib-text.mjs` 的同一份实现（timeline 那一段也调它）。
 		for (const [label, txt] of [
 			["活动期（表格格子）", cellHoverOf(a.data)],
@@ -825,4 +852,3 @@ export default async function run() {
 			JSON.stringify([bNorm.title, bNorm.show, bNorm.rawSrc]));
 	}
 }
-

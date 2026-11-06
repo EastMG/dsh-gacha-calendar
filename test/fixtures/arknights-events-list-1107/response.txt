@@ -1,7 +1,0 @@
-{
- "parse": {
-  "title": "活动一览",
-  "pageid": 17331,
-  "text": "<div class=\"mw-parser-output\"><table class=\"wikitable sortable\"><tbody><tr><th>活动开始时间</th><th>活动</th><th>分类</th><th>状态</th></tr><tr><td data-time=\"1792828800,1793995140\">2026-10-24 16:00</td><td><a href=\"/w/%E8%A7%86%E7%9B%B8%E5%8D%9A%E7%89%A9%E9%A6%86%EF%BC%9A%E6%BC%94%E5%8C%96\" title=\"视相博物馆：演化\">视相博物馆：演化</a></td><td><a href=\"/w/%E5%88%86%E7%B1%BB%3A%E8%A7%86%E7%9B%B8%E5%8D%9A%E7%89%A9%E9%A6%86\" title=\"分类:视相博物馆\">视相博物馆</a></td><td>已结束</td></tr>\n<tr><td data-time=\"1793505600,1794686340\">2026-11-01 12:00</td><td><a href=\"/w/%E6%84%9F%E8%B0%A2%E5%BA%86%E5%85%B82026%E9%99%90%E6%97%B6%E7%AD%BE%E5%88%B0\" title=\"感谢庆典2026限时签到\">感谢庆典2026限时签到</a></td><td><a href=\"/w/%E5%88%86%E7%B1%BB%3A%E7%99%BB%E5%BD%95%E6%B4%BB%E5%8A%A8\" title=\"分类:登录活动\">登录活动</a></td><td>进行中</td></tr>\n<tr><td data-time=\"1793505600,1795291140\">2026-11-01 12:00</td><td><a href=\"/w/%E6%97%B6%E9%97%B4%E5%95%8A%EF%BC%8C%E5%90%91%E5%89%8D%EF%BC%81\" title=\"时间啊，向前！\">时间啊，向前！</a></td><td><a href=\"/w/%E5%88%86%E7%B1%BB%3A%E6%94%AF%E7%BA%BF%E6%95%85%E4%BA%8B\" title=\"分类:支线故事\">支线故事</a></td><td>进行中</td></tr></tbody></table></div>"
- }
-}

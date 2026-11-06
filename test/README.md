@@ -7,7 +7,7 @@ node build.mjs        # 测试跑的是**构建产物** lib/client.js，改完 s
 node test/all.mjs     # 离线门禁（走夹具）——这是门禁
 ```
 
-`all.mjs` 会依次跑注册表守卫 + 夹具卫生 + **29 段**用例（P5X / B1 / B2 / B3 / P4 / P5 / P6 / P7 / P8 / P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（11 处定稿）+ 来源策略（默认源无自动兜底））。
+`all.mjs` 会依次跑注册表守卫 + 夹具卫生 + **29 段**用例（P5X / B1 / B2 / B3 / P4 / P5 / P6 / P7 / P8 / P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取，SMW 单请求）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（11 处定稿）+ 来源策略（默认源无自动兜底））。
 
 ## 为什么测试改成跑构建产物（2026-10-03）
 
@@ -29,7 +29,7 @@ node test/all.mjs     # 离线门禁（走夹具）——这是门禁
 | `lib-text.mjs` | **悬停文本的共用判定**（`linesOf` / `dupLinesOf` / `consecutiveDupOf` / `bareTwoLineFormOf` / `eventRowsOf` / `noteRowsOf` / `doubledCatPrefixOf` / `assertHoverTextInvariants`）：`cases-arknights-claim.mjs` 与 `cases-arknights-timeline.mjs` 都 import 这一份，不许各写一套 |
 | `registry-shim.mjs` | **注册表形态的测试侧快照**（见下） |
 | `all.mjs` | 统一门禁 |
-| `cases-*.mjs` | 各段用例（29 个：14 个批次 + `cases-rule-lint` 规则守卫 + `cases-tz` 时区口径 + `cases-ticker` 侧栏轮播 + `cases-remind` 到期提醒 + `cases-health` 来源健康 + `cases-readme` 结构图守卫 + `cases-core` core 守卫 + `cases-star` 设置页标题行（版本号 + Star 指引）+ `cases-filter` 搜索与筛选（设置页搜游戏名/只看已启用 + 面板按卡池·角色名过滤）+ `cases-ics` 排期导出 .ics（快照 / 折行 / 转义 / 在期判定）+ `cases-refresh` 刷新频率「启动时」档（`refreshMinutes=0` 的判定 / 定时器 / 设置页 / schema / 一次性迁移（**无条件**迁到 0）+ 待废弃标记守卫）+ `cases-settings-jump` 设置入口（三步跳转的纯判定 + 两个面板的齿轮静态守卫）+ `cases-settings-copy` 设置页 title 文案（11 处定稿：5 条改写 + 6 条删除；旧文案反向守卫）+ `cases-sources` **来源策略**（5 个默认抓取器主源失败/无数据时**不请求第二个站点**：断言 `calls` 里没有备选站 host + 失败抛错 / 无当期返回 null + 手动切源 altSources 仍取数）+ `cases-arknights-claim` 明日方舟两阶段（PRTS 一览 + **一次**批量 wikitext 取兑换期；三态 + 批量失败退化 + 纯函数四输入 + 分类前缀去重 `labelOf` / 提示行插入位置）+ `cases-arknights-timeline` 明日方舟**时间轴**（用真机 2026-11-07 三条活动，对「开始前 1 天 / 开场后 1h / 活动结束前 6h / 进兑换期 / 兑换期中 / 兑换结束前 1h / 兑换结束后 1h / 整周期结束」逐时刻跑完整链路：悬停三条结构不变量 + 阶段 + 名称去重 + 双 deadline 提醒 + 不崩 + 持久化；另有跨年、无兑换期字段、批量失败三条退化路径与提醒/沿用旧值深挖） |
+| `cases-*.mjs` | 各段用例（29 个：14 个批次 + `cases-rule-lint` 规则守卫 + `cases-tz` 时区口径 + `cases-ticker` 侧栏轮播 + `cases-remind` 到期提醒 + `cases-health` 来源健康 + `cases-readme` 结构图守卫 + `cases-core` core 守卫 + `cases-star` 设置页标题行（版本号 + Star 指引）+ `cases-filter` 搜索与筛选（设置页搜游戏名/只看已启用 + 面板按卡池·角色名过滤）+ `cases-ics` 排期导出 .ics（快照 / 折行 / 转义 / 在期判定）+ `cases-refresh` 刷新频率「启动时」档（`refreshMinutes=0` 的判定 / 定时器 / 设置页 / schema / 一次性迁移（**无条件**迁到 0）+ 待废弃标记守卫）+ `cases-settings-jump` 设置入口（三步跳转的纯判定 + 两个面板的齿轮静态守卫）+ `cases-settings-copy` 设置页 title 文案（11 处定稿：5 条改写 + 6 条删除；旧文案反向守卫）+ `cases-sources` **来源策略**（5 个默认抓取器主源失败/无数据时**不请求第二个站点**：断言 `calls` 里没有备选站 host + 失败抛错 / 无当期返回 null + 手动切源 altSources 仍取数）+ `cases-arknights-claim` 明日方舟两阶段（PRTS **SMW 单请求** `action=ask` 一次取「活动类型 / 开始 / 活动结束 / 兑换结束」；三态 + 空结果/请求失败/坏响应三条退化 + 解析纯函数八种边界 + 分类前缀去重 `labelOf` / 提示行插入位置 / 一条请求的记账断言 + 分页不追页）+ `cases-arknights-timeline` 明日方舟**时间轴**（用真机 2026-11-07 三条活动，对「开始前 1 天 / 开场后 1h / 活动结束前 6h / 进兑换期 / 兑换期中 / 兑换结束前 1h / 兑换结束后 1h / 整周期结束」逐时刻跑完整链路：悬停三条结构不变量 + 阶段 + 名称去重 + 双 deadline 提醒 + 不崩 + 持久化；另有跨年、无兑换期字段、空结果/请求失败两条退化路径、兑换期长于 3 天不消失（M9/M10）与提醒/沿用旧值深挖） |
 | `capture.mjs` / `capture-p8.mjs` | 抓真实响应存夹具 |
 | `ui/` | **UI 渲染验证 harness**（`npm run test:ui`）：真 Chromium 里按真实产物 CSS 做几何断言。**不在默认门禁里**，见文末那节 |
 | `map.json` | URL → 夹具 的映射索引（**已入库**） |

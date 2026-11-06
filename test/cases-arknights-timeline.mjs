@@ -13,12 +13,13 @@
 // 把"任何时刻都不许乱"变成门禁里的常规用例，而不是临时探针。
 //
 // ── 时刻从哪来 ──
-// 用真机 2026-11-07 那三条活动的等价夹具（`test/fixtures/arknights-events-{list,pages}-1107/`，
-// 与 `cases-arknights-claim.mjs` ⑥ 同一组）。三条活动的窗口首尾相接，天然覆盖两阶段的全部边界
+// 用真机 2026-11-07 那三条活动的**真实 SMW 响应**当作夹具（`test/fixtures/arknights-smw-events/`，
+// 与 `cases-arknights-claim.mjs` 同一份；活动侧现在只有这一条数据链路：一次 `action=ask`）。
+// 三条活动的窗口首尾相接，天然覆盖两阶段的全部边界
 // （开场 / 活动结束 / 兑换期 / 兑换结束 / 只剩别的活动），所以 `MOMENTS` 表就是"活动周期"的形状：
 //   视相博物馆：演化            10-24 16:00 ~ 11-07 03:59（兑换到 11-10 03:59）
 //   登录活动：感谢庆典2026限时签到  11-01 12:00 ~ 11-15 03:59（**没有**兑换期 ⇒ 退化路径）
-//   支线故事：时间啊，向前！      11-01 12:00 ~ 11-22 03:59（兑换到 11-29 03:59）
+//   支线故事：时间啊，向前！      11-01 12:00 ~ 11-22 03:59（兑换到 11-29 03:59 ⇒ 兑换期 **7 天**）
 // 期望值**不另抄一份手写表**：活动标签 / 分类都从夹具解析结果里取（`SNAPSHOT` / `CATS` / `CAT_BY_LABEL`），
 // 每个时刻只写"这一刻该看到什么"（阶段 / 外显区间 / 悬停逐字 / 提示行）。
 //
@@ -60,25 +61,20 @@ import {
 const TZ_CN = "Asia/Shanghai";
 const AT = (iso) => Date.parse(iso);
 
-// 夹具：真机 2026-11-07 那三条活动（与 cases-arknights-claim.mjs ⑥ 同一组）。
-// 走 `fixtureBody(url, overrides)` 指定，**不动** `test/map.json`（那里登记的是另一组活动）。
-const LIST_URL = "https://prts.wiki/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2";
-const BATCH_PREFIX = "https://prts.wiki/api.php?action=query&prop=revisions";
-const OVERRIDES = {
-	[LIST_URL]: "arknights-events-list-1107/response.txt",
-	[BATCH_PREFIX]: "arknights-events-pages-1107/response.txt"
-};
+// 夹具：真机 2026-11-07 那三条活动（真实 SMW 响应子集，与 cases-arknights-claim.mjs 同一份）。
+// 活动侧只剩这一条数据链路 ⇒ 走 map.json 的登记，不需要任何 overrides。
+const SMW_URL = T.parsers["arknights"].ARKNIGHTS_SMW_URL;
+const P = T.parsers["arknights"];
 
 // 夹具解析出来的"事实"（不手抄第二份：条目增删时这里自动跟着走）
-const LIST_HTML = JSON.parse(fixtureBody(LIST_URL, OVERRIDES)).parse.text;
-const SNAPSHOT = T.parsers["arknights"].collectPrtsEvents(LIST_HTML, TZ_CN);
+const SNAPSHOT = P.parseArknightsSmwEvents(JSON.parse(fixtureBody(SMW_URL)), TZ_CN);
 const CATS = [...new Set(SNAPSHOT.map((x) => x.cat))];
-const CAT_BY_LABEL = new Map(SNAPSHOT.map((x) => [x.banner, x.cat]));
+const CAT_BY_LABEL = new Map(SNAPSHOT.map((x) => [P.labelOf(x.cat, x.name), x.cat]));
 // 夹具里那条**没有**「兑换结束时间」的活动（退化路径的代表）。
-// ⚠️ 批量 response 的 `query.pages[].title` 是**页名**（"感谢庆典2026限时签到"），
-//    不是面板标签（"登录活动：感谢庆典2026限时签到"）—— 两者差一个分类前缀，别拿标签去查 Map。
+// ⚠️ SMW 给的 `name` 是**页名**（"感谢庆典2026限时签到"），面板标签才带分类前缀
+//    （"登录活动：感谢庆典2026限时签到"）—— 两者差一个前缀，别拿标签去查 name。
+const NO_CLAIM_NAME = "感谢庆典2026限时签到";
 const NO_CLAIM_LABEL = "登录活动：感谢庆典2026限时签到";
-const NO_CLAIM_PAGE = (SNAPSHOT.find((x) => x.banner === NO_CLAIM_LABEL) || {}).page || "";
 
 const okBody = (body) => ({
 	ok: true, status: 200, headers: { get: () => "application/json" },
@@ -87,28 +83,28 @@ const okBody = (body) => ({
 
 // 装一层"记账 + 可失败"的 transport（走夹具），并记录每次真实请求。
 // useFixtures() 先装全局 fetch 兜底，保证这一段万一漏网也不会打真网络。
-function installTransport({ failBatch = false } = {}) {
+// mode: "ok"（夹具）| "http"（HTTP 503）| "bad"（没有 query 的 JSON）
+function installTransport({ mode = "ok" } = {}) {
 	const seen = [];
 	setFetchImpl(async (url) => {
 		const u = String(url);
 		seen.push(u);
-		if (u.startsWith(LIST_URL)) return okBody(fixtureBody(LIST_URL, OVERRIDES));
-		if (u.includes("action=query&prop=revisions")) {
-			if (failBatch) return { ok: false, status: 503, headers: { get: () => null }, text: async () => "", json: async () => ({}) };
-			return okBody(fixtureBody(BATCH_PREFIX, OVERRIDES));
-		}
-		throw new Error("unexpected-url:" + u);
+		if (mode === "http") return { ok: false, status: 503, headers: { get: () => null }, text: async () => "", json: async () => ({}) };
+		if (mode === "bad") return okBody(JSON.stringify({ error: { code: "smw-error", info: "query failed" } }));
+		if (mode === "empty") return okBody(JSON.stringify({ query: { results: {} } }));
+		if (!u.startsWith(SMW_URL)) throw new Error("unexpected-url:" + u);
+		return okBody(fixtureBody(SMW_URL));
 	});
 	return seen;
 }
 
 // 固定 now，跑一遍**真实抓取器**；返回 { data, err, seen }（err 非 null = 抓取器抛了 ⇒ ⑤ 不崩那条红）
-async function fetchAt(nowIso, { failBatch = false } = {}) {
-	const seen = installTransport({ failBatch });
+async function fetchAt(nowIso, { mode = "ok" } = {}) {
+	const seen = installTransport({ mode });
 	T.setCoreEnv({ now: () => AT(nowIso) });
 	let data = null, err = null;
 	try {
-		data = await T.EVENT_FETCHERS["arknights"].default(LIST_URL, undefined, TZ_CN);
+		data = await T.EVENT_FETCHERS["arknights"].default(SMW_URL, undefined, TZ_CN);
 	} catch (e) {
 		err = String((e && e.message) || e);
 	}
@@ -202,9 +198,25 @@ const MOMENTS = [
 		absent: ["视相博物馆：演化"]
 	},
 	{
-		key: "M8-all-over", now: "2026-11-30T12:00:00+08:00",
-		desc: "整个周期结束（兑换也过了 ⇒ 未公布；没有相关条目 ⇒ 批量那次请求都不发）",
-		expectNull: true, requests: 1
+		key: "M9-long-claim-day4", now: "2026-11-25T12:00:00+08:00",
+		desc: "**兑换期第 4 天**（时间啊：11-22 03:59 结束、11-29 03:59 才截止 = 兑换期 **7 天** ⇒ 长于 3 天也不许消失）",
+		phase: "claim", event: "支线故事：时间啊，向前！",
+		eventDates: "11-22 03:59 ~ 11-29 03:59", show: "支线故事：时间啊，向前！ 兑换截止",
+		claimDates: "11-22 03:59 ~ 11-29 03:59",
+		hover: "", notes: null
+	},
+	{
+		key: "M10-long-claim-last-hour", now: "2026-11-29T02:59:00+08:00",
+		desc: "兑换期第 7 天（**最后一个还能领的时刻**；兑换期长于 3 天也不能提前消失）",
+		phase: "claim", event: "支线故事：时间啊，向前！",
+		eventDates: "11-22 03:59 ~ 11-29 03:59", show: "支线故事：时间啊，向前！ 兑换截止",
+		claimDates: "11-22 03:59 ~ 11-29 03:59",
+		hover: "", notes: null
+	},
+	{
+		key: "M11-all-over", now: "2026-11-30T12:00:00+08:00",
+		desc: "整个周期结束（兑换也过了 ⇒ 未公布；一次刷新仍然只有 1 条请求）",
+		expectNull: true
 	}
 ];
 
@@ -221,13 +233,10 @@ async function runMoment(m) {
 	// ⑤ 不崩
 	check(`${label}｜不崩：抓取器不抛异常`, r.err === null,
 		`不变量=不崩｜期望=无异常｜实测=${r.err}`);
-	// 链路：一览（1 次）+ 批量 wikitext（**一次**，不是 N 次详情）。
-	// 没有"相关"条目时批量那次请求都不发（`fetchPrtsPagesWikitext` 的 list 为空 ⇒ return null）⇒ 1 次。
-	const wantReqs = m.requests == null ? 2 : m.requests;
-	check(`${label}｜链路：${wantReqs === 2 ? "一览 + 一次批量 = 恰好 2" : "没有相关条目 ⇒ 只发一览 1"} 次请求`,
-		r.seen.length === wantReqs && r.seen[0] === LIST_URL + "&origin=*"
-		&& (wantReqs === 1 || r.seen[1].startsWith(BATCH_PREFIX)),
-		`不变量=请求量｜期望=${wantReqs} 次${wantReqs === 2 ? "（一览 + 批量）" : "（一览）"}｜实测=${JSON.stringify(r.seen.map((u) => u.slice(0, 56)))}`);
+	// 链路：活动侧**只有一条** `action=ask`（原来的一览 + 批量 wikitext 两次已整段删除）。
+	check(`${label}｜链路：活动侧只有 **1 条** prts 请求（SMW 单请求）`,
+		r.seen.length === 1 && r.seen[0] === SMW_URL + "&origin=*",
+		`不变量=请求量｜期望=1 次（action=ask）｜实测=${JSON.stringify(r.seen.map((u) => u.slice(0, 56)))}`);
 
 	if (m.expectNull) {
 		check(`${label}｜阶段：没有覆盖 now 的条目 ⇒ 载荷为 null（未公布，不硬凑过期档期）`,
@@ -370,8 +379,9 @@ export default async function run() {
 		CATS.length === 3 && CATS.includes("视相博物馆") && CATS.includes("登录活动") && CATS.includes("支线故事"),
 		JSON.stringify(CATS));
 	check("先决：夹具里有一条**没有**「兑换结束时间」的活动（退化路径的代表）",
-		SNAPSHOT.some((x) => x.banner === NO_CLAIM_LABEL) && CAT_BY_LABEL.get(NO_CLAIM_LABEL) === "登录活动",
-		JSON.stringify(SNAPSHOT.map((x) => x.banner)));
+		SNAPSHOT.some((x) => x.name === NO_CLAIM_NAME && x.claimEndTs === null)
+		&& CAT_BY_LABEL.get(NO_CLAIM_LABEL) === "登录活动",
+		JSON.stringify(SNAPSHOT.map((x) => [x.name, x.cat])));
 
 	for (const m of MOMENTS) await runMoment(m);
 
@@ -392,25 +402,34 @@ export default async function run() {
 	// 不是抓取链路 —— 链路已被上面 8 个时刻覆盖。夹具还要能重抓才有意义，这里没有新数据可抓。
 	section("跨年（12-30 开始 / 次年 01-05 结束：活动期 · 兑换期 · 结束后）");
 	{
-		const p = T.parsers["arknights"];
+		const p = P;
 		const NEW_YEAR = "支线故事：跨年活动";
 		const snap = [{
 			name: NEW_YEAR, cat: "支线故事", page: "跨年活动",
-			startTs: AT("2026-12-30T16:00:00+08:00"), endTs: AT("2027-01-05T03:59:00+08:00"),
+			startTs: AT("2026-12-30T16:00:00+08:00"), stageEndTs: AT("2027-01-05T03:59:00+08:00"),
+			claimEndTs: AT("2027-01-08T03:59:00+08:00"),
 			raw: "12-30 16:00 ~ 01-05 03:59"
 		}];
-		const pages = new Map([["跨年活动", {
-			actEndTs: AT("2027-01-05T03:59:00+08:00"), claimEndTs: AT("2027-01-08T03:59:00+08:00")
-		}]]);
-		const ev = p.prtsEventPayload(snap, TZ_CN, AT("2027-01-02T12:00:00+08:00"), pages);
-		const cl = p.prtsEventPayload(snap, TZ_CN, AT("2027-01-06T12:00:00+08:00"), pages);
-		const after = p.prtsEventPayload(snap, TZ_CN, AT("2027-01-09T12:00:00+08:00"), pages);
+		const ev = p.prtsEventPayload(snap, TZ_CN, AT("2027-01-02T12:00:00+08:00"));
+		const cl = p.prtsEventPayload(snap, TZ_CN, AT("2027-01-06T12:00:00+08:00"));
+		const after = p.prtsEventPayload(snap, TZ_CN, AT("2027-01-09T12:00:00+08:00"));
 
-		// ① 页内字段的次年日期按 +08 解析（不跨错年）
-		const parsed = p.parsePrtsPageEndTimes("{{活动信息\n|活动结束时间=2027-01-05 03:59\n|兑换结束时间=2027-01-08 03:59\n}}", TZ_CN);
-		check("跨年｜换算：页内「2027-01-05 03:59」按 +08 解析成正确的绝对时刻",
-			parsed.actEndTs === AT("2027-01-05T03:59:00+08:00") && parsed.claimEndTs === AT("2027-01-08T03:59:00+08:00"),
+		// ① 次年日期：SMW 的 timestamp 是**绝对** Unix 秒 ⇒ 本来就不会"跨错年"；
+		//    这里喂一条真实的跨年响应，钉住两端都按源站 tz 渲染成**带年份**的文本（不会被读成"结束早于开始"）。
+		const nyJson = { query: { results: { "跨年活动": { printouts: {
+			"活动类型": ["支线故事"],
+			"活动开始时间": [{ timestamp: String(AT("2026-12-30T16:00:00+08:00") / 1000) }],
+			"活动结束时间": [{ timestamp: String(AT("2027-01-05T03:59:00+08:00") / 1000) }],
+			"兑换结束时间": [{ timestamp: String(AT("2027-01-08T03:59:00+08:00") / 1000) }]
+		}, fulltext: "跨年活动" } } } };
+		const parsed = p.parseArknightsSmwEvents(nyJson, TZ_CN);
+		check("跨年｜换算：SMW timestamp 跨年也精确（次年 01-05 / 01-08 各就各位）",
+			parsed.length === 1 && parsed[0].stageEndTs === AT("2027-01-05T03:59:00+08:00")
+			&& parsed[0].claimEndTs === AT("2027-01-08T03:59:00+08:00"),
 			`不变量=跨年换算｜期望=${AT("2027-01-05T03:59:00+08:00")} / ${AT("2027-01-08T03:59:00+08:00")}｜实测=${JSON.stringify(parsed)}`);
+		check("跨年｜换算：跨年窗口的 raw 两端都带年份（2026-12-30 16:00 ~ 2027-01-05 03:59）",
+			parsed.length === 1 && parsed[0].raw === "2026-12-30 16:00 ~ 2027-01-05 03:59",
+			JSON.stringify(parsed[0] && parsed[0].raw));
 		// ② 活动期：跨年窗口两端都带年份（否则「12-30 ~ 01-05」会被读成"结束早于开始"）
 		check("跨年｜活动期：eventDates 两端带年份（2026-12-30 16:00 ~ 2027-01-05 03:59）",
 			!!ev && ev.eventDates === "2026-12-30 16:00 ~ 2027-01-05 03:59",
@@ -450,14 +469,12 @@ export default async function run() {
 		// ⑦ 变体：兑换窗口自己跨年（活动 12-30 ~ 12-31，兑换到次年 01-03）——两端都得带年份
 		const snap2 = [{
 			name: "支线故事：跨年兑换", cat: "支线故事", page: "跨年兑换",
-			startTs: AT("2026-12-30T16:00:00+08:00"), endTs: AT("2026-12-31T03:59:00+08:00"),
+			startTs: AT("2026-12-30T16:00:00+08:00"), stageEndTs: AT("2026-12-31T03:59:00+08:00"),
+			claimEndTs: AT("2027-01-03T03:59:00+08:00"),
 			raw: "12-30 16:00 ~ 12-31 03:59"
 		}];
-		const pages2 = new Map([["跨年兑换", {
-			actEndTs: AT("2026-12-31T03:59:00+08:00"), claimEndTs: AT("2027-01-03T03:59:00+08:00")
-		}]]);
-		const ev2 = p.prtsEventPayload(snap2, TZ_CN, AT("2026-12-30T20:00:00+08:00"), pages2);
-		const cl2 = p.prtsEventPayload(snap2, TZ_CN, AT("2027-01-01T12:00:00+08:00"), pages2);
+		const ev2 = p.prtsEventPayload(snap2, TZ_CN, AT("2026-12-30T20:00:00+08:00"));
+		const cl2 = p.prtsEventPayload(snap2, TZ_CN, AT("2027-01-01T12:00:00+08:00"));
 		check("跨年｜兑换窗口自己跨年：eventClaimDates 两端带年份（2026-12-31 03:59 ~ 2027-01-03 03:59）",
 			!!ev2 && ev2.eventClaimDates === "2026-12-31 03:59 ~ 2027-01-03 03:59",
 			JSON.stringify(ev2 && ev2.eventClaimDates));
@@ -472,76 +489,64 @@ export default async function run() {
 	}
 
 	// ── §三 退化路径（= 改造前的数据形状，一个键都不许多）────────────────────────────
-	section("退化路径（无「兑换结束时间」字段 / 批量 query 失败）");
+	section("退化路径（无「兑换结束时间」/ 空结果 / 请求失败 / 坏响应）");
 	{
-		const p = T.parsers["arknights"];
+		const p = P;
 		const PRE_CHANGE_KEYS = "event,eventDates,eventDatesRaw,eventHover";
 
-		// ① 夹具本来就有一条没有该字段的活动 ⇒ 批量解析给 claimEndTs = null
-		const batchMap = p.prtsPageTimesFromBatch(JSON.parse(fixtureBody(BATCH_PREFIX, OVERRIDES)), TZ_CN);
-		const noClaimTimes = batchMap.get(NO_CLAIM_PAGE);
+		// ① 夹具本来就有一条没有该字段的活动 ⇒ 解析给 claimEndTs = null
+		const noClaimItem = SNAPSHOT.find((x) => x.name === NO_CLAIM_NAME);
 		check("退化前提：夹具里「" + NO_CLAIM_LABEL + "」没有「兑换结束时间」⇒ claimEndTs = null",
-			!!noClaimTimes && noClaimTimes.actEndTs === AT("2026-11-15T03:59:00+08:00") && noClaimTimes.claimEndTs === null,
-			`批量返回的页名=${JSON.stringify([...batchMap.keys()])}｜该页=${JSON.stringify(noClaimTimes)}`);
-		const claimPageOf = (label) => (SNAPSHOT.find((x) => x.banner === label) || {}).page || "";
+			!!noClaimItem && noClaimItem.stageEndTs === AT("2026-11-15T03:59:00+08:00") && noClaimItem.claimEndTs === null,
+			JSON.stringify(noClaimItem));
+		const claimOf = (label) => (SNAPSHOT.find((x) => P.labelOf(x.cat, x.name) === label) || {}).claimEndTs;
 		check("退化前提：另两条活动（视相 / 时间啊）有兑换期",
-			!!batchMap.get(claimPageOf("视相博物馆：演化"))
-			&& batchMap.get(claimPageOf("视相博物馆：演化")).claimEndTs === AT("2026-11-10T03:59:00+08:00")
-			&& !!batchMap.get(claimPageOf("支线故事：时间啊，向前！"))
-			&& batchMap.get(claimPageOf("支线故事：时间啊，向前！")).claimEndTs === AT("2026-11-29T03:59:00+08:00"),
-			JSON.stringify([...batchMap.entries()].map(([k, v]) => [k, v.claimEndTs])));
+			claimOf("视相博物馆：演化") === AT("2026-11-10T03:59:00+08:00")
+			&& claimOf("支线故事：时间啊，向前！") === AT("2026-11-29T03:59:00+08:00"),
+			JSON.stringify([claimOf("视相博物馆：演化"), claimOf("支线故事：时间啊，向前！")]));
 
-		// ② 只有这条活动时（页面里确实没有兑换期）⇒ 载荷与改造前逐键相同
-		const only = SNAPSHOT.filter((x) => x.banner === NO_CLAIM_LABEL)
-			.map((x) => ({ name: x.banner, cat: x.cat, page: x.page, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
-		const noClaimPl = p.prtsEventPayload(only, TZ_CN, AT("2026-11-08T12:00:00+08:00"), batchMap);
+		// ② 只有这条活动时（确实没有兑换期）⇒ 载荷与改造前逐键相同
+		const only = SNAPSHOT.filter((x) => x.name === NO_CLAIM_NAME);
+		const noClaimPl = p.prtsEventPayload(only, TZ_CN, AT("2026-11-08T12:00:00+08:00"));
 		check("无兑换期：载荷键集合 = 改造前那四个（不多 eventShow / eventClaimDates / eventHoverExtra）",
 			!!noClaimPl && Object.keys(noClaimPl).sort().join(",") === PRE_CHANGE_KEYS,
 			`不变量=退化形状｜期望=${PRE_CHANGE_KEYS}｜实测=${Object.keys(noClaimPl || {}).sort().join(",")}`);
-		// ⚠️ 活动期（有 `raw`）时 `eventDatesRaw` = 一览那条 `raw`。2026-11-07 起这条**可以真钉**了：
-		// 修复前 `range2` 拿 `new Date(ts)`（**本机时区**）渲染结束时刻、起点却是源站原文，
-		// `TZ=UTC` 门禁下同一串会变成 `11-01 12:00 ~ 11-14 19:59`（结束早 8 小时）——
-		// 所以那时只能钉"取值来源"（`s === only[0].raw`，自证式）。现在 `range2` 必传源站 tz，
-		// raw 两端都是**源站墙钟** ⇒ 期望值写成字面量：本文件在 `TZ=UTC` 与 `TZ=Asia/Shanghai`
-		// 两道门禁下都必须逐字等于这一串（这才是"跨时区相等"的断言，而不是跟着环境现算）。
+		// ⚠️ 活动期 `eventDatesRaw` = SMW 那条 `raw`（两端都按源站 tz 渲染）。
+		// 期望值写成**字面量**：本文件在 `TZ=UTC` 与 `TZ=Asia/Shanghai` 两道门禁下都必须逐字等于这一串
+		// （这才是"跨时区相等"的断言，而不是跟着环境现算）。
 		const NO_CLAIM_RAW = "11-01 12:00 ~ 11-15 03:59";
 		check("无兑换期：eventDates 与 eventDatesRaw 都是源站墙钟原文（跨 TZ 逐字相同）",
 			!!noClaimPl && noClaimPl.eventDates === NO_CLAIM_RAW
 			&& noClaimPl.eventDatesRaw === NO_CLAIM_RAW
 			&& only[0].raw === NO_CLAIM_RAW,
-			JSON.stringify([noClaimPl && noClaimPl.eventDates, noClaimPl && noClaimPl.eventDatesRaw, only[0].raw]));
+			JSON.stringify([noClaimPl && noClaimPl.eventDates, noClaimPl && noClaimPl.eventDatesRaw, only[0] && only[0].raw]));
 		check("无兑换期：**没有** eventShow（不补猜「兑换截止」）", !!noClaimPl && !("eventShow" in noClaimPl),
 			JSON.stringify(noClaimPl && Object.keys(noClaimPl)));
 
-		// ③ 批量请求失败（真实抓取器）：活动期 / 兑换期都退化成改造前行为
-		const failClaim = await fetchAt("2026-11-08T12:00:00+08:00", { failBatch: true });
-		check("批量失败：载荷键集合 = 改造前那四个（不留半截元信息）",
-			!!failClaim.data && Object.keys(failClaim.data).sort().join(",") === PRE_CHANGE_KEYS,
-			`不变量=退化形状｜期望=${PRE_CHANGE_KEYS}｜实测=${Object.keys(failClaim.data || {}).sort().join(",")}`);
-		check("批量失败：兑换期内的视相**整条消失**（= 改造前行为），外显退回别的活动",
-			!!failClaim.data && failClaim.data.event === "支线故事：时间啊，向前！"
-			&& failClaim.data.eventDates === "11-01 12:00 ~ 11-22 03:59",
-			JSON.stringify(failClaim.data && [failClaim.data.event, failClaim.data.eventDates]));
-		check("批量失败：悬停里没有「兑换截止」提示行，也没有 eventHoverExtra",
-			!!failClaim.data && !/兑换截止/.test(failClaim.data.eventHover)
-			&& !("eventHoverExtra" in failClaim.data) && !("eventClaimDates" in failClaim.data),
-			JSON.stringify(failClaim.data));
+		// ③ 空结果（`query.results` 为空对象）⇒ 载荷 null（未公布），**不是**"退化成只有活动期"
+		const emptyR = await fetchAt("2026-11-08T12:00:00+08:00", { mode: "empty" });
+		check("空结果：`query.results` 为空 ⇒ 载荷 null（未公布），抓取器不抛、仍然只发 1 条请求",
+			emptyR.err === null && emptyR.data === null && emptyR.seen.length === 1,
+			`不变量=空结果｜err=${emptyR.err}｜data=${JSON.stringify(emptyR.data)}｜reqs=${emptyR.seen.length}`);
 
-		// ④ 活动期：批量成功 vs 失败，外显与悬停**逐字相同**（退化不改变活动期的形状）
+		// ④ 请求失败（HTTP 503）⇒ **抛错**（这一侧记 down）。
+		//    ⚠️ 这里**没有**"回退解析活动一览 HTML"的备用路径：那条链路（collectPrtsEvents / 批量 wikitext）
+		//    已整段删除 —— 留着只会让两套时间口径长期并存（见 fetchArknightsEvents 的注释）。
+		const failHttp = await fetchAt("2026-11-08T12:00:00+08:00", { mode: "http" });
+		check("请求失败：抓取器**抛错**（http-503），不返回半截载荷、也不静默给 null",
+			failHttp.err === "http-503" && failHttp.data === null, JSON.stringify([failHttp.err, failHttp.data]));
+
+		// ⑤ 坏响应（没有 query.results 的 JSON）⇒ 同样抛错（不伪装成"没有活动"）
+		const failBad = await fetchAt("2026-11-08T12:00:00+08:00", { mode: "bad" });
+		check("坏响应：SMW 报错响应（没有 query.results）⇒ 抛错 smw-bad-json",
+			failBad.err === "smw-bad-json" && failBad.data === null, JSON.stringify([failBad.err, failBad.data]));
+
+		// ⑥ 失败路径不污染成功路径：同一时刻独立再跑一遍，载荷照旧三条悬停
 		const okEvent = await fetchAt("2026-11-06T21:59:00+08:00");
-		const badEvent = await fetchAt("2026-11-06T21:59:00+08:00", { failBatch: true });
-		check("活动期：批量成功与失败的 event / eventDates / eventHover 逐字相同（退化只丢兑换期，不动活动期）",
-			!!okEvent.data && !!badEvent.data
-			&& okEvent.data.event === badEvent.data.event
-			&& okEvent.data.eventDates === badEvent.data.eventDates
-			&& okEvent.data.eventHover === badEvent.data.eventHover,
-			JSON.stringify([
-				[okEvent.data && okEvent.data.eventDates, badEvent.data && badEvent.data.eventDates],
-				[okEvent.data && okEvent.data.eventHover, badEvent.data && badEvent.data.eventHover]
-			]));
-
-		// ⑤ 退化路径也不许崩、也不许悄悄联网（夹具通道之外一律抛）
-		check("批量失败：抓取器不抛（这一侧的失败不往上报）", failClaim.err === null, String(failClaim.err));
+		check("活动期：成功抓取的载荷带 event + eventDates，悬停仍是三条（三条活动都在活动期）",
+			!!okEvent.data && typeof okEvent.data.event === "string"
+			&& String(okEvent.data.eventHover).split("\n").length === 3,
+			JSON.stringify(okEvent.data && [okEvent.data.event, okEvent.data.eventHover]));
 	}
 
 	// ── §四 提醒：两个 deadline 在时间轴上各发一次（同一份 lastData 不刷新）──────────────

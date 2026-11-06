@@ -466,199 +466,100 @@
 		}
 
 
-		// 明日方舟（PRTS 活动一览）：表格含「活动开始时间」列 + 隐藏 data-time="开始秒,结束秒"（Unix 秒）。
-		// 开始时间用第一列文本（"2026-08-22 04:00"），结束时间用 data-time 第二个值（UTC 秒 → +08）。
-		// 注意 data-time 第一个值是页面缓存时刻（非开始时间），故开始以文本列为准。
-		// 活动名带核心分类前缀（"支线故事：墟·复刻"）：分类取第三列 <a title="分类:XXX"> 链接，
-		// 核心分类 = 排除"复刻活动"（修饰词）后的第一个。
-		// ⚠️ 2026-11-06 用户要求：活动名**本身**可能已经带分类前缀（PRTS 有「视相博物馆：演化」这种页名），
-		//    再无条件拼一次就成了「视相博物馆：视相博物馆：演化」⇒ 一律走 labelOf（见下）判重。
+		// ── 明日方舟活动（PRTS SemanticMediaWiki **单请求**）──────────────────────────
+		// 2026-11-07（用户实测）：PRTS 已装 SemanticMediaWiki 7.3.1，action=ask **一次**就能把
+		// 「活动类型 / 活动开始时间 / 活动结束时间 / 兑换结束时间」四列全拿出来 ——
+		// 原来那两条链路（① 活动一览 HTML 解析起止 + ② 一次批量 query 取活动页 wikitext 里的兑换期）
+		// 整段删除：现在一次刷新只有**一条**请求，也就不存在"两份结束时间打架"。
 		//
-		// 2026-11-06 补：**顺带取每条活动的页名**（第二列 `<a href="/w/<URL 编码页名>">`）——
-		// 一览表里**没有**兑换/领取期，那两个字段只在单活动页的 `{{活动信息}}` 里，
-		// 所以页名是「批量取 wikitext」的唯一入口（只读 href，不抓详情页 HTML）。
-		function collectPrtsEvents(html, tz) {
-			const items = [];
-			const tables = [...html.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/g)];
-			for (const t of tables) {
-				const body = t[1];
-				if (!/<th[^>]*>[^<]*时间[^<]*<\/th>/i.test(body)) continue;
-				for (const rm of body.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)) {
-					const row = rm[1];
-					if (!/data-time="(\d+),(\d+)"/.test(row)) continue;
-					const tm = row.match(/data-time="(\d+),(\d+)"/);
-					if (!tm) continue;
-					const endTs = Number(tm[2]) * 1000; // 结束（UTC 秒 → ms）
-					if (!endTs) continue;
-					const tds = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) => m[1]);
-					if (tds.length < 3) continue;
-					// 名称：第二列第一个 <a> 的文本（"墟·复刻"），避开状态徽章与 <script> 内容
-					const aM = tds[1].match(/<a[^>]*>([\s\S]*?)<\/a>/);
-					const name = aM ? stripTags(aM[1]).trim() : "";
-					if (!name) continue;
-					// 页名：**同一个** <a> 的 href（`/w/…`），供批量取活动页 wikitext
-					// （没有 href / 不是 /w/ 形式 ⇒ 空串，照旧只出活动期，不影响任何既有输出）
-					const aTagM = tds[1].match(/<a[^>]*>/i);
-					const hrefM = aTagM ? aTagM[0].match(/href\s*=\s*"([^"]*)"/i) : null;
-					const page = hrefM ? prtsPageNameFromHref(hrefM[1]) : "";
-					// 分类：第三列所有 <a title="分类:XXX">；核心分类排除"复刻活动"修饰后取第一个
-					const catLinks = [...tds[2].matchAll(/title="分类:([^"]+)"/g)].map((m) => m[1]);
-					let coreCat = "";
-					if (catLinks.length > 0) {
-						coreCat = catLinks.find((c) => c !== "\u590D\u523B\u6D3B\u52A8") || catLinks[0];
-					} else {
-						coreCat = stripTags(tds[2]).replace(/\s+/g, " ").trim();
-					}
-					const label = labelOf(coreCat, name);
-					// 开始：第一列文本（"2026-08-22 04:00"）
-					const st = parseTime(stripTags(tds[0]).trim(), tz);
-					items.push({
-						banner: label,
-						cat: coreCat,
-						page,
-						...range2(st, endTs, tz),
-						isMain: true
-					});
-				}
+		// 字段口径（**别再猜**，见 test/fixtures/arknights-smw-events/response.txt 的真实响应）：
+		//   「活动开始时间」   → startTs     （活动开场）
+		//   「活动结束时间」   → stageEndTs  （**关卡关闭** = 实际举行结束）
+		//   「兑换结束时间」   → claimEndTs  （**兑换/奖励领取关闭**；可缺，也可能与活动结束**同值** ⇒ 那时没有兑换期）
+		//   「活动类型」       → cat         （≈ 我们原来的分类：支线故事 / 登录活动 / 危机合约 …；
+		//                                  **不是每页都有**，实测 8 条里 1 条为空 ⇒ 缺失时 cat 留空，
+		//                                  由 eventTier 按名称关键词回退，见 25-parser-order.js）
+		//   结果键 / fulltext（页名）→ name（+ page）
+		//
+		// timestamp 是 **Unix 秒（UTC 绝对值）** ⇒ 乘 1000 就是绝对时刻，**直接**用它渲染。
+		// ⚠️ 不要照原神 SMW（30-game-hoyoverse.js 的 parseSmwActivity）那样拿 raw
+		//    （"1/2026/11/6/19/59/0/0"）再按源站 tz 重算 —— 那里的 raw 是**源站墙钟**，
+		//    而 PRTS 这条查询的 raw 是 **UTC 墙钟**：按 +08 解释会整体**偏 8 小时**
+		//    （实测「视相博物馆：演化」11-07 03:59 会被算成 11-06 19:59）。
+		//    源站 tz（+08）只参与**渲染**（fmtWindow / fmtMdHm），**不参与换算**。
+
+		// 查询串：只取有「活动开始时间」的页（::+），按开始时间**倒序**，一次 30 条。
+		// 30 条 = 近一年的排期（实测 30 条覆盖 2026-06 ~ 2026-11），够算"当期 + 兑换期"。
+		const ARKNIGHTS_SMW_QUERY = "[[活动开始时间::+]]"
+			+ "|?活动类型|?活动开始时间|?活动结束时间|?兑换结束时间"
+			+ "|sort=活动开始时间|order=desc|limit=30";
+		const ARKNIGHTS_SMW_URL = "https://prts.wiki/api.php?action=ask&format=json&query="
+			+ encodeURIComponent(ARKNIGHTS_SMW_QUERY);
+
+
+		// SMW 时间属性 → 绝对毫秒。属性值是**数组**（一个属性可多值）；取第一个带 timestamp 的。
+		// 缺失 / 非数字 / 非正数 ⇒ null（宁缺勿错，调用方据此跳过该条，不猜时刻）。
+		function smwTimeTs(v) {
+			const arr = Array.isArray(v) ? v : (v == null ? [] : [v]);
+			for (const it of arr) {
+				const n = it && it.timestamp != null ? Number(it.timestamp) : NaN;
+				if (Number.isFinite(n) && n > 0) return n * 1000;
 			}
-			return items;
+			return null;
+		}
+
+
+		// SMW 文本属性 → 字符串（取第一个非空值）；缺失 ⇒ 空串（「活动类型」本来就允许缺失）。
+		function smwText(v) {
+			const arr = Array.isArray(v) ? v : (v == null ? [] : [v]);
+			for (const x of arr) {
+				if (x != null && String(x).trim() !== "") return String(x).trim();
+			}
+			return "";
+		}
+
+
+		// SMW action=ask 响应 → 活动条目（**纯函数**：给 JSON + tz → 数组，不碰网络/时钟）。
+		// 三态数据（startTs / stageEndTs / claimEndTs）在这里**一次**定齐，payload 不再需要第二个来源：
+		//   · 缺「活动开始时间」或「活动结束时间」⇒ **跳过该条**（算不出窗口就别硬凑）；
+		//   · 「兑换结束时间」缺失、或**不晚于**活动结束 ⇒ claimEndTs = null（= 没有兑换期，不补猜 7 天之类）；
+		//   · raw = 按源站 tz 渲染的活动区间（与改造前「一览 data-time」那串逐字相同）；
+		//   · page = 页名（= 结果键 / fulltext），只供排查与日志，不再用于第二次请求。
+		function parseArknightsSmwEvents(json, tz) {
+			const results = json && json.query ? json.query.results : null;
+			if (!results || typeof results !== "object") throw new Error("smw-bad-json");
+			const out = [];
+			for (const [title, r] of Object.entries(results)) {
+				const p = (r && r.printouts) || {};
+				const name = String((r && r.fulltext) || title || "").trim();
+				const startTs = smwTimeTs(p["活动开始时间"]);
+				const stageEndTs = smwTimeTs(p["活动结束时间"]);
+				if (!name || startTs == null || stageEndTs == null) continue;
+				const claimTs = smwTimeTs(p["兑换结束时间"]);
+				out.push({
+					name,
+					cat: smwText(p["活动类型"]),
+					startTs,
+					stageEndTs,
+					claimEndTs: claimTs != null && claimTs > stageEndTs ? claimTs : null,
+					page: name,
+					raw: fmtWindow(startTs, stageEndTs, tz)
+				});
+			}
+			return out;
 		}
 
 
 		// ── 明日方舟「两阶段」（实际举行 / 奖励领取）────────────────────────────────
-		// 事实（2026-11-06 核实，**别再猜**）：
-		//   · PRTS 活动一览表只有「活动开始时间 + data-time="开始秒,结束秒"」，**没有**兑换/领取期；
-		//   · 单活动页开头的 `{{活动信息}}` 才有：
-		//       |活动结束时间=2026-11-07 03:59   ← 实际举行结束
-		//       |兑换结束时间=2026-11-10 03:59   ← 奖励领取结束（**有的活动没有这个字段**）
-		// ⇒ 抓取链路是**两次**请求：① 一览（1 次）② 相关活动页 wikitext（**一次**批量 query，≤12 页）。
-		//   ② 失败 / 解析不出 ⇒ 退化为「只有活动期」（与改造前逐字节相同），绝不让主链路跟着失败。
+		// 数据来源就是上面那条 SMW 查询的三个时间字段（**没有第二条链路了**）：
+		//   · 「活动结束时间」 = 实际举行结束（关卡关闭）；
+		//   · 「兑换结束时间」 = 奖励领取结束（有的活动没有这个字段；有的与活动结束**同值** ⇒ 都没有兑换期）。
 		//
 		// ⚠️ 显示用的数据模型：event / eventDates / eventDatesRaw / eventHover 四个字段，
 		//    「阶段」只体现在按 now 动态选出来的文本里（见 prtsEventPayload 的三态说明）。
-		//    另有**只给提醒侧**的 `eventClaimDates`（有兑换期才出现）、**只给显示**的 `eventShow`
-		//    （只在兑换期出现，形如「视相博物馆：演化 兑换截止」）、以及**只进提示框**的 `eventHoverExtra`
-		//    （`活动标签` ⏎ `… 兑换截止   档期`，每两条一组；**绝不进 eventHover**）：都见 prtsEventPayload 的说明。
-
-		// 页名：`/w/<URL 编码页名>` → 解码后的页名（下划线归空格，与 MediaWiki 标题语义一致）。
-		// 只解析 href 字符串，**不**去抓详情页 HTML（那会是 N 次请求）。
-		function prtsPageNameFromHref(href) {
-			const m = String(href == null ? "" : href).match(/\/w\/([^"']+)/);
-			if (!m) return "";
-			let name = m[1].split("#")[0].split("?")[0];
-			if (name === "" || name === "index.php") return "";
-			try { name = decodeURIComponent(name); } catch { return ""; }
-			return name.replace(/_/g, " ").trim();
-		}
-
-
-		// wikitext 字段里的墙钟（源站 `YYYY-MM-DD HH:mm`，容一个 `:ss`）→ 绝对毫秒。
-		// **严格**：格式不认 / 越界（13 月、99:99）⇒ null —— 宁缺勿错，调用方据此退化，不猜时刻。
-		const PRTS_FIELD_TIME_RE = /^(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{2})(?::\d{2})?$/;
-		function prtsFieldTimeTs(raw, tz) {
-			const s = String(raw == null ? "" : raw)
-				.replace(/<!--[\s\S]*?-->/g, "")
-				.replace(/<br\s*\/?>/gi, " ")
-				.trim();
-			const m = s.match(PRTS_FIELD_TIME_RE);
-			if (!m) return null;
-			const y = Number(m[1]), mo = Number(m[2]), d = Number(m[3]), h = Number(m[4]), mi = Number(m[5]);
-			if (mo < 1 || mo > 12 || d < 1 || d > 31 || h > 23 || mi > 59) return null;
-			const ts = typeof sourceInstant === "function"
-				? sourceInstant(y, mo, d, h, mi, tz)
-				: new Date(y, mo - 1, d, h, mi).getTime();
-			return Number.isFinite(ts) ? ts : null;
-		}
-
-
-		// 活动页 wikitext → `{ actEndTs, claimEndTs }`（**纯函数**：给字符串 + tz → 时间戳）。
-		// 规则：
-		//   · 只认 `{{活动信息}}` 里那两个字段（活动结束时间 / 兑换结束时间），字段名不做模糊匹配；
-		//   · 兑换结束 **不晚于** 活动结束 = 顺序颠倒/脏数据 ⇒ claimEndTs 作废（只保留活动期）；
-		//   · 活动结束时间缺失/格式异常 ⇒ 两个都给 null（调用方沿用一览的 data-time，= 改造前行为）。
-		function parsePrtsPageEndTimes(wikitext, tz) {
-			const text = String(wikitext == null ? "" : wikitext);
-			const field = (name) => {
-				const m = text.match(new RegExp("\\|\\s*" + name + "\\s*=\\s*([^\\n|}]*)"));
-				return m ? m[1] : "";
-			};
-			const actEndTs = prtsFieldTimeTs(field("活动结束时间"), tz);
-			if (actEndTs == null) return { actEndTs: null, claimEndTs: null };
-			const claimTs = prtsFieldTimeTs(field("兑换结束时间"), tz);
-			return { actEndTs, claimEndTs: claimTs != null && claimTs > actEndTs ? claimTs : null };
-		}
-
-
-		// 批量 query 响应 → Map<页名, { actEndTs, claimEndTs }>。
-		// 版式：`query.pages[]` 每项 `{ title, revisions[0].slots.main.content }`（formatversion=2 是数组）；
-		// `query.normalized[]` 把「请求名」映射回「返回名」（首字母/下划线归一）——两边都登记，
-		// 这样调用方按自己手里的页名取必定命中。
-		function prtsPageTimesFromBatch(json, tz) {
-			const out = new Map();
-			const q = json && json.query ? json.query : null;
-			const back = new Map();
-			for (const n of (q && Array.isArray(q.normalized) ? q.normalized : [])) {
-				if (n && n.from != null && n.to != null) back.set(String(n.to), String(n.from));
-			}
-			for (const p of (q && Array.isArray(q.pages) ? q.pages : [])) {
-				if (!p || typeof p.title !== "string") continue;
-				const rev = Array.isArray(p.revisions) ? p.revisions[0] : null;
-				const content = rev && rev.slots && rev.slots.main ? rev.slots.main.content : null;
-				if (typeof content !== "string") continue;
-				const times = parsePrtsPageEndTimes(content, tz);
-				out.set(p.title, times);
-				const asked = back.get(p.title);
-				if (asked != null) out.set(asked, times);
-			}
-			return out;
-		}
-
-
-		// 「相关」活动 → 要批量取的页名（去重、最多 12 个）：
-		//   一览结束 ≥ now-3 天（可能正处兑换期/刚结束）且开始 ≤ now+45 天（不把半年后的排期也拉一遍）。
-		// 上限 12 = 一次 query 请求的体量与 URL 长度之间的折中（MediaWiki 本身允许 50）。
-		const PRTS_CLAIM_LOOKBACK_MS = 3 * 864e5;
-		const PRTS_CLAIM_LOOKAHEAD_MS = 45 * 864e5;
-		const PRTS_CLAIM_MAX_TITLES = 12;
-		function prtsClaimTitles(items, now) {
-			const out = [];
-			for (const it of (Array.isArray(items) ? items : [])) {
-				if (!it || !it.page) continue;
-				if (it.endTs == null || it.endTs < now - PRTS_CLAIM_LOOKBACK_MS) continue;
-				if (it.startTs != null && it.startTs > now + PRTS_CLAIM_LOOKAHEAD_MS) continue;
-				if (!out.includes(it.page)) out.push(it.page);
-				if (out.length >= PRTS_CLAIM_MAX_TITLES) break;
-			}
-			return out;
-		}
-
-
-		// 一次请求取多页 wikitext（MediaWiki `action=query&prop=revisions` 的 titles 多值）：
-		// 与活动一览**同一条**直连通道（transportFetchRaw + rawHeaders，同样带 `origin=*` ——
-		// PRTS 只有带这个参数才回 CORS 头，浏览器端才拿得到响应；见 22-fetcher-core.js 的 mkMediaWiki）。
-		const PRTS_PAGES_API = "https://prts.wiki/api.php?action=query&prop=revisions&rvslots=main&rvprop=content&format=json&formatversion=2&origin=*&titles=";
-		async function fetchPrtsPagesWikitext(titles, signal) {
-			const list = (Array.isArray(titles) ? titles : []).filter((t) => typeof t === "string" && t.trim() !== "");
-			if (list.length === 0) return null;                 // 没有相关条目 ⇒ 一次请求都不发
-			const apiUrl = PRTS_PAGES_API + encodeURIComponent(list.join("|"));
-			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
-			if (!res.ok) throw new Error("http-" + res.status);
-			return res.json();
-		}
-
-
-		// 一览 data-time 的结束 与 页内「活动结束时间」不一致 ⇒ **以页内为准**，并留一条日志便于排查。
-		// 只在真有差异时打（正常情况一行都不打）；没有 console 的环境（原生壳）静默跳过。
-		function warnOnPrtsEndMismatch(items, pageTimes, tz) {
-			for (const it of (Array.isArray(items) ? items : [])) {
-				const t = it && it.page ? pageTimes.get(it.page) : null;
-				if (!t || t.actEndTs == null || it.endTs == null || t.actEndTs === it.endTs) continue;
-				try {
-					console.warn("[gacha-calendar] PRTS 活动结束时间不一致（以页内为准）：" + it.name
-						+ " 一览=" + fmtMdHm(it.endTs, tz) + " 页内=" + fmtMdHm(t.actEndTs, tz));
-				} catch { /* 忽略：日志不能影响抓取 */ }
-			}
-		}
+		//    另有**只给提醒侧**的 eventClaimDates（有兑换期才出现）、**只给显示**的 eventShow
+		//    （只在兑换期出现，形如「视相博物馆：演化 兑换截止」）、以及**只进提示框**的 eventHoverExtra
+		//    （活动标签 ⏎ 「… 兑换截止   档期」，每两条一组；**绝不进 eventHover**）：都见 prtsEventPayload 的说明。
 
 
 		// 「兑换截止」提示行 → **只进提示框**的独立字段 `eventHoverExtra`（每两条一组：活动标签 ⏎ 提示行）。
@@ -673,7 +574,7 @@
 		//       （`<活动标签> 兑换截止   <活动结束> ~ <兑换结束>`，见 prtsEventPayload 的 hoverActive），
 		//       再补一行「… 兑换截止   <活动结束> ~ <兑换结束>」就是与主行**逐字同区间**的重复
 		//       （用户真机读到的提示框里同一个区间出现两遍）。
-		//   · 没有兑换期 / 批量失败 ⇒ 返回空串，调用方**不写这个键**
+		//   · 没有兑换期 ⇒ 返回空串，调用方**不写这个键**
 		// ⚠️ 不再写「活动已于 … 结束，当前为奖励领取期（…）」这类解释句（用户 2026-11-06：纯话痨浪费钱）。
 		function prtsHoverNoteOf(x, tz) {
 			if (x.claimEndTs == null) return "";
@@ -681,19 +582,6 @@
 			if (x.phase === "claim") return "";
 			// 标签一律过 labelOf（幂等）：与 `event` / `eventShow` / 悬停里那一行是**同一串**。
 			return `${labelOf(x.cat, x.name)} 兑换截止   ${fmtMdHm(x.claimEndTs, tz)}`;
-		}
-
-
-		// 活动一览 HTML → 快照（name/cat/起止/原文/页名）。抽出来是为了让"选页名"与"出载荷"用**同一份**解析结果。
-		function prtsEventSnapshot(html, tz) {
-			return collectPrtsEvents(html, tz).map((it) => ({
-				name: it.banner,
-				cat: it.cat || "",
-				startTs: it.startTs,
-				endTs: it.endTs,
-				raw: it.raw,
-				page: it.page || ""
-			}));
 		}
 
 
@@ -705,23 +593,22 @@
 		//      eventDates = 活动结束 ~ 兑换结束（外显的「还剩 X」= 到兑换截止，正是此刻要盯的 deadline）；
 		//      悬停里它的那条主行 = `<活动标签> 兑换截止   活动结束 ~ 兑换结束`（与面板/近期显示的事项名同一串），
 		//      ⇒ **不再给 `eventHoverExtra` 那一行**（2026-11-07 真机 bug：主行已是兑换区间，补的那行与它逐字重复）。
-		//   ③ 没有「兑换结束时间」字段（或批量失败/解析不出）：行为与改造前**逐字节一致**（不补猜 7 天之类）。
+		//   ③ 没有「兑换结束时间」字段（或与活动结束同值）：行为与改造前**逐字节一致**（不补猜 7 天之类）。
 		// ⚠️ `eventHover` **只由 buildEventHover 产出**（喂给它的活动名见 hoverActive），任何提示行都不许插进去
 		//    （否则会漏进格子的并列条目）。
 		// 外显仍按类别优先、同级结束时间升序（pickEventPrimary）；悬停按结束时间升序全量（sortEventItems）。
-		function prtsEventPayload(snapshot, tz, now = nowMs(), pageTimes = null) {
+		function prtsEventPayload(snapshot, tz, now = nowMs()) {
 			const items = Array.isArray(snapshot) ? snapshot : [];
 			// 每个活动按阶段生成**候选窗口**，再统一走 coversNow 过滤（不另写"覆盖 now"判定）：
 			//   活动期候选 = [开始, 活动结束]；兑换期候选 = [活动结束, 兑换结束]。
 			// 两个窗口首尾相接、不重叠 ⇒ 同一活动最多命中一个候选。
 			const candidates = [];
 			for (const it of items) {
-				const page = pageTimes && it.page ? pageTimes.get(it.page) : null;
-				// 页内更权威：页里有「活动结束时间」就覆盖一览 data-time 的结束
-				const actEndTs = page && page.actEndTs != null ? page.actEndTs : it.endTs;
-				const claimEndTs = page && page.claimEndTs != null && actEndTs != null && page.claimEndTs > actEndTs
-					? page.claimEndTs
-					: null;
+				// stageEndTs = 关卡关闭（SMW 的「活动结束时间」）；兼容手工构造的旧形状（只有 endTs）
+				const actEndTs = it.stageEndTs != null ? it.stageEndTs : it.endTs;
+				if (actEndTs == null) continue;
+				// 兑换结束**不晚于**活动结束 ⇒ 没有兑换期（同值是常态：那条活动本来就不设兑换商店）
+				const claimEndTs = it.claimEndTs != null && it.claimEndTs > actEndTs ? it.claimEndTs : null;
 				candidates.push({ ...it, endTs: actEndTs, phase: "event", claimEndTs });
 				if (claimEndTs != null) {
 					candidates.push({ ...it, startTs: actEndTs, endTs: claimEndTs, phase: "claim", claimEndTs });
@@ -729,22 +616,26 @@
 			}
 			const active = sortEventItems(candidates.filter((it) => coversNow(it, now)));
 			if (active.length === 0) return null;
-			// 悬停里的活动名：**兑换期那条用「<活动标签> 兑换截止」**（= 面板/「近期」那一行的事项名，
-			// 与 `eventShow` 逐字同一串）。这样它贡献的**只有一行**，且这一行就是兑换区间本身 ——
+			// 悬停里的活动名：**一律过 `labelOf`**（与 `event` / `eventShow` / 提示行锚点是**同一串**）——
+			// 快照里的 `name` 是 SMW 的页名（如「感谢庆典2026限时签到」），分类前缀由 labelOf 补（或去重）。
+			// 兑换期那条再追加「 兑换截止」（= 面板/「近期」那一行的事项名，与 `eventShow` 逐字同一串）：
+			// 这样它贡献的**只有一行**，且这一行就是兑换区间本身 ——
 			// 2026-11-07 用户给的期望文本：兑换期悬停的首行是
 			// 「视相博物馆：演化 兑换截止   11-07 03:59 ~ 11-10 03:59」，而不是
 			// 「视相博物馆：演化   11-07 03:59 ~ 11-10 03:59」+ 一行重复的兑换截止提示。
-			// 活动期两条/更多条时行为不变（名字仍是一览里的活动标签）。
-			const hoverActive = active.map((x) => (x.phase === "claim"
-				? { ...x, name: `${labelOf(x.cat, x.name)} 兑换截止` }
-				: x));
+			const hoverActive = active.map((x) => {
+				const label = labelOf(x.cat, x.name);
+				return x.phase === "claim" ? { ...x, name: `${label} 兑换截止` } : { ...x, name: label };
+			});
 			// 提示行（**只进提示框**）：按悬停同样的顺序（结束时间升序）收集。
 			// 每两条一组：① 该活动的**标签**（= 悬停里那一行的开头，渲染层据此定位）② 提示行本身。
 			// ⚠️ 不往 `eventHover` 里插 —— 见 prtsHoverNoteOf 上面那段注释（真机 bug：漏进格子的并列条目）。
 			const extraLines = [];
 			for (const x of active) {
 				const line = prtsHoverNoteOf(x, tz);
-				if (line) extraLines.push(x.name, line);
+				// 锚点用**去重后的活动标签**（不是快照里的原始页名）：渲染层按「标签 + 3 空格」定位悬停里那一行，
+				// 少了分类前缀就定位不到 ⇒ 提示行会被堆到末尾（看不出是哪个活动的截止）。
+				if (line) extraLines.push(labelOf(x.cat, x.name), line);
 			}
 			// 外显：类别优先（支线故事/危机合约等 vs 登录活动），同级内结束时间升序
 			const primary = pickEventPrimary(active) || active[0];
@@ -756,7 +647,7 @@
 			//   · 这里额外给一段**同样可解析**的窗口 `活动结束 ~ 兑换结束`（`remindWindowOf` 认的格式），
 			//     提醒侧（65-remind.js 的 remindItemsOf）据此派生「奖励领取截止」那条 end 条目 ⇒
 			//     刷新过一次之后，即便中途不再刷新，两个 deadline 也都会各自按时响。
-			//   · 没有「兑换结束时间」（或批量失败 / 解析不出）⇒ **不写这个键**（不给空串，别让下游多问一遍）。
+			//   · 没有「兑换结束时间」（或与活动结束同值）⇒ **不写这个键**（不给空串，别让下游多问一遍）。
 			const claimStartTs = primary.phase === "claim" ? primary.startTs : primary.endTs;
 			const claimDates = primary.claimEndTs != null && claimStartTs != null && primary.claimEndTs > claimStartTs
 				? fmtWindow(claimStartTs, primary.claimEndTs, tz)
@@ -790,25 +681,23 @@
 		}
 
 
-		// 明日方舟活动抓取器（替换原来的 mkMediaWiki(prtsEventPayload)）：两次请求 + 全链路退化。
+		// 明日方舟活动抓取器（SMW **单请求**；替换原来的「① 一览 + ② 批量 wikitext」两次请求）：
+		//   ① 一次 action=ask（与卡池侧同一条直连通道：transportFetchRaw + rawHeaders + origin=*）；
+		//   ② parseArknightsSmwEvents → 三态条目 → prtsEventPayload。
+		//
+		// 三条退化路径（语义各不相同，别混成一种）：
+		//   · **空结果**（query.results 是空对象）= 源站没有活动 ⇒ 载荷 null（未公布，不硬凑过期档期）；
+		//   · **分页**（响应带 query-continue-offset）⇒ **不追页**：前 30 条按开始时间倒序已覆盖近一年，
+		//     追页只会让一次刷新变成 N 条请求（请求数断言见 test/cases-arknights-claim.mjs ②）；
+		//   · **请求失败 / 响应不是 JSON / 没有 query.results** ⇒ **抛错**（这一侧记 down，面板显示「活动失败」）。
+		//     ⚠️ 这里**没有**"SMW 失败就回退解析活动一览 HTML"的备用路径：那条链路
+		//     （collectPrtsEvents / 批量 wikitext）已整段删除，留着只会让两套时间口径长期并存。
 		async function fetchArknightsEvents(url, signal, tz) {
 			const apiUrl = url + (url.includes("?") ? "&" : "?") + "origin=*";
 			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
-			if (!res.ok) throw new Error("http-" + res.status);           // 一览失败 = 这一侧失败（与改造前一致）
+			if (!res.ok) throw new Error("http-" + res.status);
 			const json = await res.json();
-			const html = json && json.parse ? json.parse.text : null;
-			if (typeof html !== "string") throw new Error("bad-json");
-			const now = nowMs();
-			const snapshot = prtsEventSnapshot(html, tz);
-			let pageTimes = null;
-			try {
-				const batch = await fetchPrtsPagesWikitext(prtsClaimTitles(snapshot, now), signal);
-				pageTimes = batch ? prtsPageTimesFromBatch(batch, tz) : null;
-			} catch {
-				pageTimes = null;   // 退化：只有活动期（与改造前逐字节相同），这一侧的失败不往上报
-			}
-			if (pageTimes && pageTimes.size > 0) warnOnPrtsEndMismatch(snapshot, pageTimes, tz);
-			return prtsEventPayload(snapshot, tz, now, pageTimes);
+			return prtsEventPayload(parseArknightsSmwEvents(json, tz), tz, nowMs());
 		}
 
 
@@ -1124,8 +1013,9 @@
 				altSources: [
 					{ label: "PRTS 卡池一览", url: ARKNIGHTS_PRTS_URL, fetcher: "arknights-prts" }
 				],
-				// 独立活动源：PRTS 活动一览（「活动开始时间」表 + data-time 起止时间戳）
-				eventUrl: "https://prts.wiki/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
+				// 独立活动源：PRTS SemanticMediaWiki 查询（**一次** action=ask 拿全四列，见 fetchArknightsEvents；
+				// 原来指向「活动一览」的 action=parse 地址，已随 HTML 解析链路一起删除）
+				eventUrl: ARKNIGHTS_SMW_URL,
 				eventSource: "PRTS \u6D3B\u52A8\u4E00\u89C8"
 		});
 
@@ -1177,9 +1067,8 @@ GACHA_FETCHERS["endfield"] = (url, signal, tz) => fetchCanmoeEndfield(url, signa
 					// 终末地备选：GachaTracker（英文，浏览器直连）/ wiki.gg（英文，经 host 代理）
 GACHA_FETCHERS["endfield-gachatracker"] = mkRaw(parseGachaTracker);
 		GACHA_FETCHERS["endfield-wiki-gg"] = (url, signal, tz) => fetchEndfieldWikiGg(url, signal, tz);
-					// 明日方舟：PRTS 活动一览（「活动开始时间」表 + data-time 起止时间戳）
-					// + 相关活动页 wikitext（**一次**批量 query，取「兑换结束时间」）→ 两阶段载荷。
-					// 第二条请求失败/解析不出时自动退化为"只有活动期"（= 改造前行为），不影响主链路。
+					// 明日方舟：PRTS SMW **单请求**（活动类型 / 活动开始 / 活动结束 / 兑换结束）→ 两阶段载荷。
+					// 一次刷新只发 1 条请求；分页不追、空结果 ⇒ null、请求失败 ⇒ 抛错（见 fetchArknightsEvents）。
 EVENT_FETCHERS["arknights"] = {
 				default: (url, signal, tz) => fetchArknightsEvents(url, signal, tz)
 			};

@@ -1,0 +1,6 @@
+{
+ "url": "https://prts.wiki/api.php?action=ask&format=json&query=%5B%5B%E6%B4%BB%E5%8A%A8%E5%BC%80%E5%A7%8B%E6%97%B6%E9%97%B4%3A%3A%2B%5D%5D%7C%3F%E6%B4%BB%E5%8A%A8%E7%B1%BB%E5%9E%8B%7C%3F%E6%B4%BB%E5%8A%A8%E5%BC%80%E5%A7%8B%E6%97%B6%E9%97%B4%7C%3F%E6%B4%BB%E5%8A%A8%E7%BB%93%E6%9D%9F%E6%97%B6%E9%97%B4%7C%3F%E5%85%91%E6%8D%A2%E7%BB%93%E6%9D%9F%E6%97%B6%E9%97%B4%7Csort%3D%E6%B4%BB%E5%8A%A8%E5%BC%80%E5%A7%8B%E6%97%B6%E9%97%B4%7Corder%3Ddesc%7Climit%3D30",
+ "status": 200,
+ "capturedAt": "2026-11-06T22:31:00.000Z",
+ "note": "**真实 SMW 响应**（PRTS 已装 SemanticMediaWiki 7.3.1）。本机出口对 prts.wiki 直连返回 403（Tengine），抓取经宿主侧 web_fetch 通道完成；正文按 JSON 语义**逐字**保存 —— printouts / timestamp / raw / fulltext / fullurl 全部是源站原样，没有一个数字或字被改写。为钉住 `cases-arknights-claim.mjs` / `cases-arknights-timeline.mjs` 的逐字基线（2026-11-07 真机那三条活动），只保留了 `results` 里对应的 3 条；真实响应的 `limit=30` 一共 30 条（覆盖 2026-06-08 ~ 2026-11-11），另 27 条与本链路无关，未收录。同时省略真实响应里的 `query-continue-offset`（=30，分页游标）与 `query.meta`（hash/count/offset/time）—— 省略本身也是断言的一部分：解析器**不许**依赖这两个字段（分页不追页，见 fetchArknightsEvents 的注释）。"
+}

@@ -126,23 +126,38 @@ dsh-gacha-calendar/
 
 ### 明日方舟两阶段（举行 / 奖励领取）
 
-**事实**（2026-11-06 核实，改这块之前先看这条）：
+**事实**（2026-11-07 核实，改这块之前先看这条）：PRTS 装了 **SemanticMediaWiki 7.3.1**，`action=ask` **一次**就能把活动需要的四列全查出来 —— 原来那两条链路（「活动一览 HTML 解析起止」+「一次批量 query 取活动页 `{{活动信息}}` 的兑换期」）已**整段删除**：
 
-- **PRTS 活动一览**（`arknights` 的 `eventUrl`）表格只有「活动开始时间 + 隐藏的 `data-time="开始秒,结束秒"`」，**没有**兑换/领取期；
-- **PRTS 单个活动页**的 wikitext 开头有 `{{活动信息}}`，才有这两个字段：
-  ```
-  |活动开始时间=2026-10-24 16:00
-  |活动结束时间=2026-11-07 03:59      ← 实际举行结束
-  |兑换结束时间=2026-11-10 03:59      ← 奖励领取结束（**有的活动没有这个字段**）
-  ```
-- 页名来源：一览第二列 `<a href="/w/<URL 编码页名>">` 的 **href**（`decodeURIComponent`；只读 href，不抓详情页 HTML）。
+```
+https://prts.wiki/api.php?action=ask&format=json
+  &query=[[活动开始时间::+]]|?活动类型|?活动开始时间|?活动结束时间|?兑换结束时间
+  &sort=活动开始时间|order=desc|limit=30
+```
 
-**抓取链路**（`src/client/30-game-hypergryph.js` 的 `fetchArknightsEvents`）**两次**请求，不是 N 次：
+**字段映射**（`src/client/30-game-hypergryph.js` 的 `parseArknightsSmwEvents`）：
 
-1. 活动一览（1 次，与改造前同一条直连通道 `transportFetchRaw` + `rawHeaders`，自动补 `origin=*`）；
-2. `https://prts.wiki/api.php?action=query&prop=revisions&rvslots=main&rvprop=content&format=json&formatversion=2&origin=*&titles=<页名1>|<页名2>|…` —— **一次**批量取 wikitext，只取「相关」条目（一览结束 ≥ now−3 天 且 开始 ≤ now+45 天），**最多 12 页**（`PRTS_CLAIM_MAX_TITLES`）；没有相关条目时这一次请求都不发。
+| SMW 属性 / 字段 | 我们这边的字段 | 口径与注意事项 |
+|---|---|---|
+| `活动开始时间` | `startTs` | 活动开场 |
+| `活动结束时间` | `stageEndTs` | **关卡关闭** = 实际举行结束（= 原「一览 `data-time` 的第二个值」） |
+| `兑换结束时间` | `claimEndTs` | **兑换 / 奖励领取关闭**；**可缺**（实测 30 条里 6 条是空数组），也可能**与活动结束同值** ⇒ 那时 `claimEndTs = null`（= 没有兑换期） |
+| `活动类型` | `cat` | ≈ 我们的分类（`支线故事` / `登录活动` / `危机合约` / …）；**不是每页都有**（实测 8 条里 1 条为空）⇒ 缺失时 `cat` 留空，由 `eventTier` 按**名称关键词**回退 |
+| 结果键 / `fulltext`（页名） | `name`（+ `page`） | 页名本身可能就是「视相博物馆：演化」，分类前缀由 `labelOf(cat, name)` 去重（不会拼成「视相博物馆：视相博物馆：演化」） |
+| 渲染值 `fmtWindow(startTs, stageEndTs, tz)` | `raw` | `timestamp` 是 **Unix 秒（UTC 绝对值）** ⇒ **直接 ×1000**；源站 tz 只参与**渲染**。⚠️ 不要照原神 SMW（`parseSmwActivity`）拿 `raw`（`"1/2026/11/6/19/59/0/0"`）再按 +08 重算 —— PRTS 的 `raw` 是 **UTC 墙钟**，那样会整体偏 8 小时 |
 
-**退化策略**（硬要求）：批量请求失败 / `json.parse.text` 形状不对 / 页内解析不出时间 ⇒ `pageTimes = null`，载荷按**改造前行为**出（只有活动期），这一侧的 `fail` 不往上报，主链路不受影响。
+**抓取链路**（`fetchArknightsEvents`）**一条**请求：
+
+`transportFetchRaw(eventUrl + "&origin=*", { headers: rawHeaders(apiUrl) })`（与卡池侧同一条直连通道）→ `parseArknightsSmwEvents(json, tz)` → `prtsEventPayload(items, tz, now)`。
+`eventUrl` 就是上面那条 `action=ask` 的 URL（`ARKNIGHTS_SMW_URL`，由 `ARKNIGHTS_SMW_QUERY` 编码而来）。
+
+**退化路径**（三条，语义各不相同，别混成一种）：
+
+| 情形 | 行为 |
+|---|---|
+| 空结果（`query.results` 是空对象） | 载荷 `null`（未公布），**不**硬凑过期档期 |
+| 响应带 `query-continue-offset`（分页游标） | **不追页**：前 30 条按开始时间倒序已覆盖近一年；一次刷新始终只有 **1 条**请求（请求数断言见 `cases-arknights-claim.mjs` ②） |
+| 请求失败 / 响应不是 JSON / 没有 `query.results` | **抛错**（这一侧记 down、面板显示「活动失败」）。**没有**"SMW 失败就回退解析活动一览 HTML"的备用路径 —— 那条链路（`collectPrtsEvents` / 批量 wikitext）已整段删除，留着只会让两套时间口径长期并存 |
+
 
 **三态**（只改 arknights 的 payload 与提示框里的那几行，即 `30-game-hypergryph.js` 的 `prtsHoverNoteOf` / `prtsEventPayload`、`81-schedule-model.js` 的 `scheduleHoverNote` / `scheduleHoverText`、`82-schedule-view.js` 的 `hoverTextOf`；探头的解析逻辑 `scheduleHoverItems` 一个字没动）：
 
@@ -150,14 +165,13 @@ dsh-gacha-calendar/
 |---|---|---|
 | now ≤ 活动结束（活动期） | `活动开始 ~ 活动结束`（与改造前逐字相同） | `<活动标签> 兑换截止   MM-DD HH:mm`（有兑换期时） |
 | 活动结束 < now ≤ 兑换结束（兑换期） | `活动结束 ~ 兑换结束`（外显「还剩 X」因此指向兑换截止） | **不写这个键**（该活动的主行本身就是兑换区间，见下） |
-| 没有「兑换结束时间」字段 / 批量失败 | 与改造前完全一致 | 不写这个键（不补猜 7 天） |
+| 没有「兑换结束时间」字段（或与活动结束同值） | 与改造前完全一致 | 不写这个键（不补猜 7 天） |
 
 - 兑换期内的活动**仍然出现**（改造前会整条消失 —— 那正是奖励没领的时候）。
 - **奖励领取期的候选在外显挑选中排最前**（`pickEventPrimary` 的第一个排序键，压过类别档位；见 2026-11-07 真机 bug：一条还剩 15 天的「支线故事」把兑换期只剩 3 天的活动挤出面板与「近期」）。判定只看 `phase === "claim"` —— 该字段只有本来源的两阶段候选会设置，其它游戏没有 ⇒ 行为不变；悬停排序 `sortEventItems`（结束时间升序全量）**不动**。
-- **分类前缀去重**（`labelOf(cat, name)`，纯函数）：活动名本身可能已经带分类前缀（PRTS 的 `视相博物馆：演化`）⇒ 不再拼成 `视相博物馆：视相博物馆：演化`。规则：`name` 以 `<cat>：` / `<cat>:` / `<cat> ` 开头、或与 `cat` 完全一致 ⇒ 原样返回 `name`，否则 `<cat>：<name>`，没有 `cat` ⇒ `name`（前缀比较大小写不敏感，幂等）。`collectPrtsEvents` 的 label、payload 的 `event`、`eventShow`、提示行全部走它 ⇒ 面板显示的那一串与提示框里出现的**同一串**。
+- **分类前缀去重**（`labelOf(cat, name)`，纯函数）：活动名本身可能已经带分类前缀（PRTS 的 `视相博物馆：演化`）⇒ 不再拼成 `视相博物馆：视相博物馆：演化`。规则：`name` 以 `<cat>：` / `<cat>:` / `<cat> ` 开头、或与 `cat` 完全一致 ⇒ 原样返回 `name`，否则 `<cat>：<name>`，没有 `cat` ⇒ `name`（前缀比较大小写不敏感，幂等）。SMW 给的 `name` 是**页名**（不带分类前缀）⇒ 悬停行、payload 的 `event`、`eventShow`、提示行锚点**全部**走它 ⇒ 面板显示的那一串与提示框里出现的**同一串**。
 - 兑换期那一行的**事项名**（表格格子 / 「近期」/ 留白卡读的 `scheduleNormalize.show`）显示为 `<去重后的活动名> 兑换截止`（中间是**一个空格**，如 `视相博物馆：演化 兑换截止`）：payload 因此多带一个**只给显示**的 `eventShow`（只在兑换期出现，活动期没有这个键；随 `lastData` 持久化，`EVENT_FIELDS` / `CONTENT_FIELDS` 都已登记），`scheduleNormalize` 活动侧改成 `show = g.eventShow || title`。悬停里那条主行也用**同一串**（`prtsEventPayload` 的 `hoverActive`：兑换期的候选把 `name` 改成 `<活动标签> 兑换截止` 再交给 `buildEventHover`），所以它贡献的**只有一行**且就是兑换区间；`event` 一字不动（提醒标题、侧栏轮播、搜索匹配仍读 `event`），类型格仍是「活动」。
 - **悬停里同一个区间只出现一次**（2026-11-07 真机 bug）：① 兑换期那条活动**不再生成提示行**（主行已经是兑换区间，再补一行就是逐字重复）；② 活动侧（`hoverTextOf` 表格格子 / `scheduleHoverText`「近期」行）**不再追加** `title ⏎ rawSrc` —— `eventHover` 已经是"每个活动一行"的完整信息，只有 `eventHover` 为空（当期只有 1 条活动）时才用 `title + 原文` 兜底；卡池侧维持原行为（悬停原文里没有这条池名时才补）。`scheduleHoverOnes` 同步跳过与外显事项名（`show`）同名的那条，兑换期的主行不会在探头里重复出现一条。
-- 一览 `data-time` 的结束 与页内「活动结束时间」不一致时**以页内为准**，并 `console.warn` 一条（含两边的时间，便于排查）。
 - 提示行走**独立提示字段 `eventHoverExtra`**（只进提示框，不进探头）：`eventHover` 仍**只由共用 `buildEventHover` 产出**（活动期的行与改造前逐字一致；兑换期那一行带「兑换截止」，见上一条）。`eventHoverExtra` 每两条一组（① 该活动的**标签** ② 提示行本身），`hoverTextOf`（表格格子）/ `scheduleHoverText`（「近期」行）都调 `scheduleHoverNote`，由它按标签把提示行**插在该活动那一行之后**（不再统一堆到末尾 —— 那样看不出是哪个活动的兑换截止）。不这么分开的话，表格格子会把 `eventHover` 解析成并列条目，`兑换截止` 那行就会变成格子里的一行**可见文字**（2026-11-06 真机 bug）。没有兑换期时**不写这个键**。
 - 提示行与该活动自己那行**同一排版**：`名称` + **3 个空格** + `内容`；**不再写**「活动已于 … 结束，当前为奖励领取期（…）」这类解释句（2026-11-06 用户要求删掉）。
 - `eventHoverExtra` 随 `lastData` 持久化（`50-refresh.js` 的 `EVENT_FIELDS` 与 `engine-head.js` 的 `CONTENT_FIELDS` 都已登记；活动列沿用旧值时 `mergeEntryRecord` 也一起沿回，否则刷新失败一次提示框就少一行）。
@@ -165,7 +179,7 @@ dsh-gacha-calendar/
 - 因此**「活动期」的输出与改造前逐字节一致**（`test/cases-arknights-claim.mjs` ③用整段悬停做回归基线，④是「提示行不进 `eventHover`」的真机 bug 回归）。
 - **两个 deadline 各自提醒**（2026-11-06）：`eventDates` 只负责**显示**（三态表，语义没变）；提醒侧要的是两条独立 deadline，所以活动期就额外带一个**只给提醒用**的 `eventClaimDates`（有兑换期才有，形如 `11-07 03:59 ~ 11-10 03:59`，没有就不写这个键）。`remindItemsOf` 据此在活动侧**多派生一条** `kind:"end"` 条目：key 的 side 段是 `event-claim`、`sideLabel = "奖励领取"`、`side` 仍是 `event`（不新增 `REMIND_SIDES`），与「活动结束」那条各按自己的 T 走 72/24/6/2 档位、去重状态也各自独立 ⇒ **只要刷新过一次拿到两个窗口，之后中途不再刷新，两个 deadline 也都会按时响**。两个 T 相同（刷新时已在兑换期，`eventDates` 本身就是兑换区间）⇒ 去重只留一条。该字段随 `lastData` 持久化（`50-refresh.js` 的 `EVENT_FIELDS` 与 `engine-head.js` 的 `CONTENT_FIELDS` 都已登记；否则序列化时会被过滤掉）。
 - 奖励领取那条的通知文案与「活动结束」区分：事项行是 `奖励领取「<活动名>」`、正文时间段那行以 `奖励领取截止` 结尾（标题仍是「即将结束」）；其它侧的文案一个字没改。
-- 夹具 `test/fixtures/arknights-events-{list,pages}/` 与 `test/fixtures/arknights-events-{list,pages}-1107/` 都是**手工构造**的：本机出口对 `prts.wiki` 返回 403（Tengine，浏览器与 curl 一致），抓不到真实响应，行结构照解析契约写（见每份 `response.txt.meta.json` 的 `note`）。`-1107` 那两份是真机 2026-11-07 那三条活动的等价数据（视相博物馆：演化 / 感谢庆典2026限时签到 / 时间啊，向前！），只由 `cases-arknights-claim.mjs` ⑥ 与 `cases-arknights-timeline.mjs` 用 `fixtureBody(url, overrides)` 指定，**不改 `test/map.json`** 里既有的两条映射。
+- 夹具 `test/fixtures/arknights-smw-events/` 是**真实 SMW 响应**：本机出口对 `prts.wiki` 直连返回 403（Tengine，浏览器与 curl 一致），抓取经宿主侧 `web_fetch` 通道完成，正文按 JSON 语义**逐字**保存（`printouts` / `timestamp` / `raw` / `fulltext` / `fullurl` 全是源站原样）。为钉住逐字基线，只保留了 2026-11-07 那三条活动（视相博物馆：演化 / 感谢庆典2026限时签到 / 时间啊，向前！）的 `results`，并省略了真实响应里的 `query-continue-offset` 与 `query.meta`（解析器不许依赖它们，见上表"退化路径"）。它登记在 `test/map.json`，`cases-arknights-claim.mjs` 与 `cases-arknights-timeline.mjs` 都用**这一份**（不再有 overrides）。
 
 ### 明日方舟时间轴不变量（新增字段/阶段时先看这里）
 
@@ -180,10 +194,13 @@ dsh-gacha-calendar/
 | 2026-11-08 12:00（兑换期中间） | 同上（兑换期三态一致，不会"过一天又变一个样"） |
 | 2026-11-10 02:59（兑换结束前 1 小时） | 同上（最后一个还能领的时刻） |
 | 2026-11-10 04:59（兑换结束后 1 小时） | 视相**整条消失**（事件名、悬停、提示行里都不许再出现），只剩别的活动 |
-| 2026-11-30 12:00（整周期结束） | 载荷 `null`；没有"相关"条目时批量那次请求都不发（只发一览 1 次） |
+| 2026-11-30 12:00（整周期结束） | 载荷 `null`；一次刷新仍然只有 1 条请求（SMW 单请求，没有"第二次批量请求"可省） |
+| 2026-11-25 12:00（**兑换期第 4 天**） | 兑换期可以**长于 3 天**（「时间啊，向前！」= 11-22 03:59 ~ 11-29 03:59，共 7 天）⇒ 第 4 天照样有外显、`eventShow` =「支线故事：时间啊，向前！ 兑换截止」 |
+| 2026-11-29 02:59（兑换期第 7 天，最后一个还能领的时刻） | 同上；**不许**在兑换期中途提前消失 |
 | 跨年（12-30 开始 / 次年 01-05 结束，payload 纯函数） | `fmtWindow` 两端带年份；次年字段按 `tz` 解析不错年；兑换窗口自己跨年时 `eventClaimDates` 两端带年份 |
 | 无「兑换结束时间」字段（夹具里那条登录活动） | 载荷键集合 = 改造前那四个（`event/eventDates/eventDatesRaw/eventHover`），**不多** `eventShow`/`eventClaimDates`/`eventHoverExtra` |
-| 批量 query 失败（`failBatch`） | 同上；活动期与"批量成功"的 `event/eventDates/eventHover` **逐字相同**（退化只丢兑换期，不动活动期） |
+| 空结果（`query.results` 空对象） | 载荷 `null`（未公布）；抓取器不抛，仍然只发 1 条请求 |
+| 请求失败（HTTP 503）/ 坏响应（没有 `query.results`） | **抛错**（`http-503` / `smw-bad-json`），不返回半截载荷；没有「回退解析一览 HTML」的备用路径 |
 
 每个时刻都查的六条不变量（改动前先确认这六条还成立）：
 
@@ -201,7 +218,7 @@ dsh-gacha-calendar/
 - **悬停排版变了** ⇒ 改 `test/lib-text.mjs` 的 `assertHoverTextInvariants` 与 `test/harness.mjs` 的 `assertHoverConvention`，两个用例文件都不用动。
 - **别的来源也要两阶段** ⇒ 不要往 arknights 的用例里塞它的夹具；各来源自己的 `cases-*.mjs` 承担，但悬停结构判定继续调 `test/lib-text.mjs`。
 
-**已知缺口（2026-11-07 实测，如实记下，未修）**：批量取 wikitext 的候选筛选是「一览结束 ≥ now−3 天」（`PRTS_CLAIM_LOOKBACK_MS`），但兑换期可以**长于 3 天**（真机「时间啊，向前！」= 11-22 03:59 结束、11-29 03:59 兑换截止 = 7 天）。于是**兑换期第 4 天起**该活动不再进入候选、批量请求都不发 ⇒ 载荷变 `null`、面板上整条消失（用 -1107 夹具复现：now = 2026-11-24 12:00 有外显，now = 2026-11-25 12:00 起变 `null`，而兑换截止是 11-29 03:59）。要修的话：把回看窗口放大到"最长兑换期"以上（如 14 天），并同步 `cases-arknights-claim.mjs` ② 里那两条钉住 3 天窗口的断言（2026-11-06 时刻 titles 恰好 3 条、且不含「龙门夏日签到」）—— 那是**行为变更**，按 AGENTS.md 需要先拿用户指令再动。
+**曾经的已知缺口（2026-11-07 已随 SMW 改造消失，留档）**：批量取 wikitext 时代的候选筛选是「一览结束 ≥ now−3 天」（`PRTS_CLAIM_LOOKBACK_MS`），而兑换期可以**长于 3 天**（真机「时间啊，向前！」= 11-22 03:59 结束、11-29 03:59 兑换截止 = 7 天）⇒ **兑换期第 4 天起**该活动不再进入候选、载荷变 `null`、面板上整条消失。换成 SMW 单请求后**没有"候选筛选"这一步**（四列一次查全）⇒ 这个缺口不再存在；`cases-arknights-timeline.mjs` 的 `M9`/`M10` 两个时刻就是这条的回归（兑换期第 4 天 / 第 7 天都必须还在）。
 
 ### 来源策略：无自动兜底（2026-11-07）
 

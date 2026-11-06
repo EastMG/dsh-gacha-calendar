@@ -1,6 +1,0 @@
-{
- "url": "https://prts.wiki/api.php?action=query&prop=revisions&rvslots=main&rvprop=content&format=json&formatversion=2",
- "status": 200,
- "capturedAt": "2026-11-06T07:59:51.055Z",
- "note": "手工构造（本机出口对 prts.wiki 返回 403）：版式照 MediaWiki action=query&prop=revisions&formatversion=2（query.pages[] + revisions[0].slots.main.content），三页分别覆盖「有兑换期 / 有兑换期 / 无兑换期字段」。"
-}

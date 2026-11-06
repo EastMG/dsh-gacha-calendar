@@ -195,28 +195,12 @@
 			return { ...cur, bannerHover: buildPoolHover(pools, tz) };
 		}
 
-		// 起止时间戳 → 统一文本 `MM-DD HH:MM ~ MM-DD HH:MM`（**源站墙钟**）
-		//
-		// ⚠️ `tz`（源站时区）**必传**：这里的两端来源不对称 —— 起点是**源站原文**（如 PRTS 一览第一列
-		//    的 "2026-08-22 04:00"，已经是源站墙钟），终点却只有 `data-time` 的 Unix 秒（绝对值）⇒
-		//    只能由我们渲染回文本。旧实现用 `new Date(ts)` 取字段（= **运行机器本机时区**）：
-		//    · +08 机器上恰好对（源站也是 +08），所以本地开发看不出来；
-		//    · `TZ=UTC` 机器上结束时刻比源站早 8 小时（`11-15 03:59` → `11-14 19:59`），
-		//      同一条区间里起点是源站时区、终点是本机时区，两个口径打架（2026-11-07 用户实测）。
-		// 所以这里**不给默认值**：漏传直接抛错。静默退回本机时区正是这个 bug 的成因 ——
-		// 宁可当场炸掉让门禁/日志看见，也不要在海外用户的机器上悄悄显示错的钟点。
-		function range2(st, endTs, tz) {
-			if (tz == null || tz === "") throw new Error("range2 需要源站 tz（源站墙钟原文不能按本机时区渲染）");
-			const startTs = st && st.ts != null ? st.ts : null;
-			const endText = fmtMdHm(endTs, tz);
-			return {
-				startTs,
-				endTs,
-				startText: st && st.text ? st.text : "",
-				endText,
-				raw: `${st && st.text ? st.text : ""} ~ ${endText}`.trim()
-			};
-		}
+		// 起止时间戳 → 统一文本 `MM-DD HH:MM ~ MM-DD HH:MM`（**源站墙钟**）的旧 helper `range2` 已于
+		// 2026-11-07 删除：它唯一的调用点是 PRTS 活动一览 HTML 解析（`collectPrtsEvents`），
+		// 而那条链路已整段换成 SMW 单请求（时间戳两端都来自 `timestamp`，直接走 `fmtWindow`）。
+		// 它留下的那条教训仍然有效，也已由 cases-tz ⑦ / cases-rule-lint 的源站墙钟守卫继续盯着：
+		// 凡是要产出「源站墙钟原文」的地方（`*Raw` / 悬停 / bannerDates / eventDates）**必须**显式传源站 tz ——
+		// 漏传就会按本机时区渲染，`TZ=UTC` 机器上整体偏 8 小时，而 +08 机器上永远看不出来。
 
 		// bwiki 通用"选当期"包装（原神/星铁/绝区零/方舟）
 		const pickCurrent = (parse) => (html) => selectCurrent(parse(html), nowMs());
