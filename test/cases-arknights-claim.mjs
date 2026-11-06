@@ -18,6 +18,7 @@
 
 import { check, section, useFixtures, setFetchImpl, fixtureBody } from "./harness.mjs";
 import { T } from "./load.mjs";
+import { createEngine } from "../packages/core/core.mjs";
 
 const TZ_CN = "Asia/Shanghai";
 
@@ -159,6 +160,25 @@ export default async function run() {
 		const idle = await runFetcher("2027-01-01T00:00:00+08:00");
 		check("抓取链路：一览里没有相关条目 → 只发 1 次请求、载荷为 null（未公布）",
 			idle.seen.length === 1 && idle.data === null, `reqs=${idle.seen.length} data=${JSON.stringify(idle.data)}`);
+	}
+
+	// ── ②b 持久化：`eventClaimDates` 必须能随 lastData 出去（否则刷新一次也只剩一个 deadline）──
+	// `lastData` 是 JSON 字符串，但引擎写回前会过一遍 normalizeRecord（**只留白名单字段**）——
+	// 忘了登记就会被**静默丢掉**：面板照常、提醒却少一条。这里用 getCached 真跑一遍那条归一。
+	{
+		const data = {
+			arknights: {
+				name: "明日方舟", event: "支线故事：墟",
+				eventDates: "10-24 16:00 ~ 11-07 03:59",
+				eventClaimDates: "11-07 03:59 ~ 11-10 03:59",
+				notAField: "x"   // 没登记的白名单外字段必须被丢掉（证明断言不是"什么都留着"）
+			}
+		};
+		const storage = { async get(k) { return k === "lastData" ? JSON.stringify(data) : void 0; }, async set() {} };
+		const got = await createEngine({ storage }).getCached();
+		check("lastData 里的 `eventClaimDates` 原样读回（normalizeRecord 白名单已登记该字段）",
+			got.games.arknights.eventClaimDates === "11-07 03:59 ~ 11-10 03:59"
+			&& !("notAField" in got.games.arknights), JSON.stringify(got.games.arknights));
 	}
 
 	// ── ③ 三态：活动期 / 兑换期 / batch 失败退化 ────────────────────────────────
