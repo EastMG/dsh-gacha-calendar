@@ -159,30 +159,29 @@
 		}
 
 
-		// 绝区零卡池默认抓取器：官网公告优先；无当期频段公告 / 抓取失败 → 自动回退 Bwiki 往期调频
+		// 绝区零卡池默认抓取器：**只**读官网公告（api-takumi-static content_v2_user，iChanId=279）。
+		//
+		// ⚠️ 2026-11-07（用户要求，与全站 28 款游戏同一口径）：**摘掉自动兜底** ——
+		//    官网接口失败 / 结构异常 ⇒ 抛错；结构正常但没有覆盖当前的「限时频段」⇒ 返回 null。
+		//    **绝不再**转身去抓 Bwiki 往期调频：要看 Bwiki 口径请在设置里把卡池来源切到
+		//    「Bwiki 往期调频」备选源（走 GACHA_FETCHERS["zzz-bwiki"]）。活动侧同理，只在用户选 Bwiki 备选源时才用。
 		async function fetchZzzGacha(listUrl, signal, tz, now = nowMs()) {
-			try {
-				const payload = await proxyFetchJson(listUrl, "https://zzz.mihoyo.com/");
-				// **同一份 payload 里活动数据也在**（该接口同时含频段公告与「活动说明」公告）→ 顺带返回活动字段。
-				// 这是"统一来源注册表"里写明的复用契约：卡池载荷带 event 字段时，refresh 不再为活动侧
-				// 另抓一次。绝区零两侧是**同一条 URL**（同一 iChanId=279），所以此前每轮会向它发 2 次请求：
-				// 一次 parseZzzFreq 取频段、一次 parseZzzEventsOfficial 取活动 —— 纯重复（2026-10-01 实测）。
-				// 活动侧**仍保留**自己的抓取器（fetchZzzEventsOfficial 与 `zzz-event-bwiki` 备选）：
-				// 卡池侧失败、或用户在设置里单独选活动来源时，活动侧要能自己抓、自己报错（解耦不变）。
-				const ev = parseZzzEventsOfficial(payload, now, tz);
-				const evFields = ev
-					? { event: ev.event, eventDates: ev.eventDates || "", eventDatesRaw: ev.eventDatesRaw || "", eventHover: ev.eventHover || "" }
-					: {};
-				const d = parseZzzFreq(payload, now, tz);
-				if (d) return { ...d, ...evFields };
-			} catch { /* 官方失败 → Bwiki 备选 */ }
-			const apiUrl = ZZZ_BWIKI_URL + (ZZZ_BWIKI_URL.includes("?") ? "&" : "?") + "origin=*";
-			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
-			if (!res.ok) throw new Error("http-" + res.status);
-			const json = await res.json();
-			const html = json?.parse?.text;
-			if (typeof html !== "string") throw new Error("bad-json");
-			return selectCurrent(parseAllBwiki(html), now);
+			const payload = await proxyFetchJson(listUrl, "https://zzz.mihoyo.com/");
+			// 结构变了必须抛错（不是"未公布"），否则接口改版会长期伪装成「新卡池未公布」
+			if (!Array.isArray(payload?.data?.list)) throw new Error("zzz-official-no-section");
+			// **同一份 payload 里活动数据也在**（该接口同时含频段公告与「活动说明」公告）→ 顺带返回活动字段。
+			// 这是"统一来源注册表"里写明的复用契约：卡池载荷带 event 字段时，refresh 不再为活动侧
+			// 另抓一次。绝区零两侧是**同一条 URL**（同一 iChanId=279），所以此前每轮会向它发 2 次请求：
+			// 一次 parseZzzFreq 取频段、一次 parseZzzEventsOfficial 取活动 —— 纯重复（2026-10-01 实测）。
+			// 活动侧**仍保留**自己的抓取器（fetchZzzEventsOfficial 与 `zzz-event-bwiki` 备选）：
+			// 卡池侧失败、或用户在设置里单独选活动来源时，活动侧要能自己抓、自己报错（解耦不变）。
+			const ev = parseZzzEventsOfficial(payload, now, tz);
+			const evFields = ev
+				? { event: ev.event, eventDates: ev.eventDates || "", eventDatesRaw: ev.eventDatesRaw || "", eventHover: ev.eventHover || "" }
+				: {};
+			const d = parseZzzFreq(payload, now, tz);
+			if (!d) return null;
+			return { ...d, ...evFields };
 		}
 
 
@@ -921,7 +920,8 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 				source: "官方公告",
 				// 默认卡池源=官网公告（api-takumi-static content_v2_user，经 host 代理，无 CORS、无需登录）：
 				// 「X.Y版本限时频段（上/下期）」公告含该期精确起止与限定 S 级代理人/音擎；
-				// 无当期频段公告或抓取失败时由抓取器自动回退 Bwiki 往期调频；也可在设置中手动切 Bwiki（备选）
+				// 无当期频段公告 ⇒ 如实「未公布」，**不自动回退 Bwiki**（2026-11-07 摘除）；
+				// 也可在设置中手动切 Bwiki（备选）
 				url: ZZZ_NEWS_LIST_URL,
 				altSources: [
 					{ label: "Bwiki 往期调频", url: ZZZ_BWIKI_URL, fetcher: "zzz-bwiki" }

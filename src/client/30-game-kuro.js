@@ -143,37 +143,36 @@
 		}
 
 
-		// 鸣潮卡池默认抓取器：官方公告（entrypoint → 目录 → zh-Hans.json 全量）优先；
-		// 无当期公告 / 抓取失败 → 自动回退 Bwiki 角色轮换池（逻辑同 parseWuwaPool）
+		// 鸣潮卡池默认抓取器：**只**读官方公告（aki-gm-resources-back：entrypoint → 目录 → zh-Hans.json）。
+		//
+		// ⚠️ 2026-11-07（用户要求，与全站 28 款游戏同一口径）：**摘掉自动兜底** ——
+		//    官方接口失败 / 结构异常 ⇒ 抛错；结构正常但没有覆盖当前的「角色/武器活动唤取」⇒ 返回 null。
+		//    **绝不再**转身去抓 Bwiki 角色轮换池：要看 Bwiki 口径请在设置里把卡池来源切到
+		//    「Bwiki 角色轮换池」备选源（走 GACHA_FETCHERS["wuwa-bwiki"]）。
+		//    保留的**同源**容错只有两处（不是换站点）：zh-Hans.json 读不到 → 同目录 notice.json；
+		//    contentUrl 缺省 → 由 entryUrl 推导目录。
 		async function fetchWuwaGacha(entryUrl, signal, tz, now = nowMs()) {
-			try {
-				const ref = "https://aki-gm-resources.aki-game.com/";
-				const ej = await proxyFetchJson(entryUrl, ref);
-				const contentUrl = Array.isArray(ej?.contentUrl) ? ej.contentUrl[0] : "";
-				const dir = contentUrl ? contentUrl.replace(/[^/]*$/, "") : String(entryUrl).replace(/[^/]*$/, "");
-				let list = null;
-				try { list = await proxyFetchJson(dir + "zh-Hans.json", ref); } catch { list = null; }
-				if (!list || typeof list !== "object") list = await proxyFetchJson(dir + "notice.json", ref);
-				// **同一份 JSON 里卡池（tag=7）与活动（tag=5）都在** → 顺带把活动字段也返回。
-				// 这是"统一来源注册表"里写明的复用契约：**两侧是同一条 URL** 且卡池载荷带 event 字段时，
-				// refresh 不再为活动侧另抓一次（否则每轮会向同一条 URL 重复发一次请求）。
-				// ⚠️ 我重写解析时一度只返回卡池字段，导致鸣潮每轮请求从 1 次变成 2 次 —— 已补回。
-				// 活动侧仍保留自己的抓取器（fetchWuwaEventsOfficial）：卡池侧失败、或用户在设置里
-				// 单独选活动来源时，活动侧要能自己抓、自己报错（解耦不变）。
-				const ev = parseWuwaRecommendEvents(list, now, tz);
-				const evFields = ev
-					? { event: ev.banner, eventDates: ev.bannerDates || "", eventDatesRaw: ev.bannerDatesRaw || ev.bannerDates || "", eventHover: ev.eventHover || "" }
-					: {};
-				const d = parseWuwaNotice(list, now, tz);
-				if (d) return { ...d, ...evFields };
-			} catch { /* 官方失败 → Bwiki 备选 */ }
-			const apiUrl = WUWA_BWIKI_URL + (WUWA_BWIKI_URL.includes("?") ? "&" : "?") + "origin=*";
-			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
-			if (!res.ok) throw new Error("http-" + res.status);
-			const json = await res.json();
-			const html = json?.parse?.text;
-			if (typeof html !== "string") throw new Error("bad-json");
-			return parseWuwaPool(html, nowMs(), tz);
+			const ref = "https://aki-gm-resources.aki-game.com/";
+			const ej = await proxyFetchJson(entryUrl, ref);
+			const contentUrl = Array.isArray(ej?.contentUrl) ? ej.contentUrl[0] : "";
+			const dir = contentUrl ? contentUrl.replace(/[^/]*$/, "") : String(entryUrl).replace(/[^/]*$/, "");
+			let list = null;
+			try { list = await proxyFetchJson(dir + "zh-Hans.json", ref); } catch { list = null; }
+			if (!list || typeof list !== "object") list = await proxyFetchJson(dir + "notice.json", ref);
+			if (!list || typeof list !== "object") throw new Error("wuwa-notice-bad-json");
+			// **同一份 JSON 里卡池（tag=7）与活动（tag=5）都在** → 顺带把活动字段也返回。
+			// 这是"统一来源注册表"里写明的复用契约：**两侧是同一条 URL** 且卡池载荷带 event 字段时，
+			// refresh 不再为活动侧另抓一次（否则每轮会向同一条 URL 重复发一次请求）。
+			// ⚠️ 我重写解析时一度只返回卡池字段，导致鸣潮每轮请求从 1 次变成 2 次 —— 已补回。
+			// 活动侧仍保留自己的抓取器（fetchWuwaEventsOfficial）：卡池侧失败、或用户在设置里
+			// 单独选活动来源时，活动侧要能自己抓、自己报错（解耦不变）。
+			const ev = parseWuwaRecommendEvents(list, now, tz);
+			const evFields = ev
+				? { event: ev.banner, eventDates: ev.bannerDates || "", eventDatesRaw: ev.bannerDatesRaw || ev.bannerDates || "", eventHover: ev.eventHover || "" }
+				: {};
+			const d = parseWuwaNotice(list, now, tz);
+			if (!d) return null;
+			return { ...d, ...evFields };
 		}
 
 
@@ -385,7 +384,8 @@
 				// 默认卡池源=官方公告（aki-gm-resources-back，经 host 代理）：
 				// entrypoint.json → <dir>/zh-Hans.json，其 `recommend` 组里 tag=7 为逐期「角色/武器活动唤取」，
 				// 条目自带 `startTimeMs`/`endTimeMs` 绝对时间戳（不再解析正文，见 parseWuwaNotice）。
-				// 无当期公告或抓取失败时由抓取器自动回退 Bwiki 角色轮换池；也可在设置中手动切 Bwiki（备选）
+				// 无当期公告 ⇒ 如实「未公布」，**不自动回退 Bwiki**（2026-11-07 摘除）；
+				// 也可在设置中手动切 Bwiki（备选）
 				url: WUWA_NOTICE_ENTRY,
 				altSources: [
 					{ label: "Bwiki 角色轮换池", url: WUWA_BWIKI_URL, fetcher: "wuwa-bwiki" }

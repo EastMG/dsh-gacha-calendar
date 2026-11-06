@@ -264,20 +264,23 @@
 		}
 
 
-		// 日服卡池默认抓取器：官网新闻接口优先；失败或无当期募集 → 回退 GameKee 当期卡池（仅池名+档期）。
-		// 只返回卡池字段：活动字段由活动源单独负责（卡池/活动解耦，避免活动源失败时静默混入官方活动）
+		// 日服卡池默认抓取器：**只**读官网新闻接口（api-web.bluearchive.jp，经 host 代理）。
+		//
+		// ⚠️ 2026-11-07（用户要求，与全站 28 款游戏同一口径）：**摘掉自动兜底** ——
+		//    官网接口失败 / 结构异常 ⇒ 抛错；结构正常但没有当期「ピックアップ募集」⇒ 返回 null。
+		//    **绝不再**转身去抓 GameKee：要看 GameKee 口径请在设置里把卡池来源切到
+		//    「GameKee 当期卡池」备选源（走 GACHA_FETCHERS["ba-jp-gamekee"]，只有池名+档期、无角色名）。
+		//    只返回卡池字段：活动字段由活动源单独负责（卡池/活动解耦，避免活动源失败时静默混入官方活动）
 		async function fetchBaJpGacha(url, signal, tz, now = nowMs()) {
-			try {
-				const json = await proxyFetchJson(url, "https://bluearchive.jp/");
-				const d = parseBaJpNews(json, now, tz);
-				if (d) {
-					delete d.event;
-					delete d.eventDates;
-					delete d.eventDatesRaw;
-					return d;
-				}
-			} catch { /* 官方失败 → GameKee 兜底 */ }
-			return fetchGameKeeBa("jp");
+			const json = await proxyFetchJson(url, "https://bluearchive.jp/");
+			// 结构变了必须抛错（不是"未公布"），否则接口改版会长期伪装成「新卡池未公布」
+			if (!Array.isArray(json?.data?.rows)) throw new Error("ba-jp-news-no-section");
+			const d = parseBaJpNews(json, now, tz);
+			if (!d) return null;
+			delete d.event;
+			delete d.eventDates;
+			delete d.eventDatesRaw;
+			return d;
 		}
 
 

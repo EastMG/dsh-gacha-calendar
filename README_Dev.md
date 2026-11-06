@@ -100,8 +100,8 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 28 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（11 处定稿））
-│   ├── cases-*.mjs  # 各段用例（28 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / cases-arknights-claim / cases-arknights-timeline / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh / settings-jump / settings-copy）
+│   ├── all.mjs      # 统一门禁：聚 29 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（11 处定稿）+ 来源策略（默认源无自动兜底））
+│   ├── cases-*.mjs  # 各段用例（29 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / cases-arknights-claim / cases-arknights-timeline / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh / settings-jump / settings-copy / sources）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
 │   ├── lib-text.mjs # 悬停文本的共用判定（去重 / 相邻重复 / 「名称 ⏎ 只有区间」/ 分类前缀双写）
@@ -202,6 +202,42 @@ dsh-gacha-calendar/
 - **别的来源也要两阶段** ⇒ 不要往 arknights 的用例里塞它的夹具；各来源自己的 `cases-*.mjs` 承担，但悬停结构判定继续调 `test/lib-text.mjs`。
 
 **已知缺口（2026-11-07 实测，如实记下，未修）**：批量取 wikitext 的候选筛选是「一览结束 ≥ now−3 天」（`PRTS_CLAIM_LOOKBACK_MS`），但兑换期可以**长于 3 天**（真机「时间啊，向前！」= 11-22 03:59 结束、11-29 03:59 兑换截止 = 7 天）。于是**兑换期第 4 天起**该活动不再进入候选、批量请求都不发 ⇒ 载荷变 `null`、面板上整条消失（用 -1107 夹具复现：now = 2026-11-24 12:00 有外显，now = 2026-11-25 12:00 起变 `null`，而兑换截止是 11-29 03:59）。要修的话：把回看窗口放大到"最长兑换期"以上（如 14 天），并同步 `cases-arknights-claim.mjs` ② 里那两条钉住 3 天窗口的断言（2026-11-06 时刻 titles 恰好 3 条、且不含「龙门夏日签到」）—— 那是**行为变更**，按 AGENTS.md 需要先拿用户指令再动。
+
+### 来源策略：无自动兜底（2026-11-07）
+
+**规则（用户拍板）**：一个**默认源**只抓它自己声明的那一个站点。主源失败 / 没数据时，**绝不在抓取器内部转身去抓第二个站点**；要看另一个站点的口径，由用户在设置页把来源切到对应**备选源**（`altSources` / `eventAltSources`）。理由：抓到的数据"来自哪个站"必须是用户选的那个 —— 悄悄换站会让面板显示一个用户没选过的来源，出错时也无从判断该关掉哪一边。
+
+两种结局，**不许混**：
+
+| 情形 | 返回 | 后果 |
+|---|---|---|
+| 主源**失败**（网络错 / 非 200 / 代理拒绝）或**结构异常**（接口改版） | **抛错** | 该侧记「失败」、沿用上次成功数据、来源健康里看得到原因 |
+| 主源**结构正常但没有当期内容** | **`null`** | 该侧如实显示「新卡池未公布 / 活动未公布」 |
+
+> 结构异常必须**抛**而不是 `null`：`null` 会把"源站改版"伪装成"官方还没公布"，面板上看不出问题（历史上终末地就这样静默失灵过）。各抓取器的哨兵错误名带 `-no-section` / `-no-dates` 后缀，`normErr` 会翻成「页面结构变了（解析出 0 条）」。
+
+**已摘掉的 5 处**（全部是「默认源内部换站点」）：
+
+| 默认源（fetcher） | 摘掉的行为 | 现在怎么拿备选口径 |
+|---|---|---|
+| 明日方舟 卡池 `fetchArknightsGacha` | 官方 CMS 无当期/失败 → PRTS 卡池一览 | 设置页切「PRTS 卡池一览」（`arknights-prts`） |
+| 蔚蓝档案·日服 卡池 `fetchBaJpGacha` | 官网新闻 → GameKee 当期卡池 | 切「GameKee 当期卡池」（`ba-jp-gamekee`） |
+| 绝区零 卡池 `fetchZzzGacha` | 官方公告 → Bwiki 往期调频 | 切「Bwiki 往期调频」（`zzz-bwiki`） |
+| 鸣潮 卡池 `fetchWuwaGacha` | 官方公告 → Bwiki 角色轮换池 | 切「Bwiki 角色轮换池」（`wuwa-bwiki`） |
+| 重返未来 1999 卡池 `fetchR99` | 游戏内公告（noticecp）→ 官网公告解析 | 切「官网公告+小米」（`r1999-official`） |
+
+**保留的是"同源容错"（同一站点内的退化，不是换站）**，别一起删：
+
+- 鸣潮 `fetchWuwaGacha`：`zh-Hans.json` 读不到 → **同目录**的 `notice.json`；`contentUrl` 缺省 → 由 entrypoint 的 URL 推导目录。
+- 明日方舟 `fetchArknightsOfficialPools`：列表拿到后逐池取详情，**单个详情失败保留 brief 里解析到的角色**。
+- 各源"同一页面换解析器 / 同一表多形态"（如 `parseArknights` 的标准 + 中坚 + 限时表、`parseBaJpNews` 的三种公告形态）都不受影响。
+- 自定义来源（用户在设置里填的 URL）：`fetchR99` 对**非 noticecp** 地址走官网解析器 —— 那是用户明确填的地址，不是自动换站。
+
+**备选源内部若确实要读第二个站点**（目前只有 `r1999-official` = 「官网公告+小米」）：备选源的 `label` 必须把这件事写出来（用户在设置页看到的就是这个 label），不能让它听起来只碰一个站点。
+
+**护栏**：`test/cases-sources.mjs`（门禁最后一段）。它对上面 5 个默认源各跑「主源失败」与「主源无当期」两种场景，断言 `calls` 里**没有任何一条请求落在第二个站点**（代理调用会先解出 `url=` 参数再记账），并故意给第二个站点路由一份**能解析出当期池**的响应 —— 只断言"结果为 null"挡不住回归，"换站成功"恰恰会返回有数据的对象。同时它验证手动切源（`GACHA_FETCHERS[alt.fetcher]`）仍能取到数据。
+
+**加新来源时**：默认源失败就抛错，别写"再试另一个站"；要多个站点就给 `altSources` 加一条（`label` 写清它是什么站），并记得 `GACHA_FETCHERS` / `EVENT_FETCHERS` 登记（`test/all.mjs` 的聚合守卫会核对）。
 
 ### 时区约定（显示 vs 源站原文）
 

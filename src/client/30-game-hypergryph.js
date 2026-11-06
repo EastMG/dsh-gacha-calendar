@@ -156,7 +156,10 @@
 			const ref = "https://ak.hypergryph.com/";
 			const listUrl = AK_OFFICIAL_BULLETIN + "?lang=zh-cn&code=arknights&page=1&pageSize=30";
 			const json = await proxyFetchJson(listUrl, ref);
-			const list = Array.isArray(json?.data?.list) ? json.data.list : [];
+			// 结构变了必须**抛错**（不是"未公布"）：否则接口改版会长期伪装成「新卡池未公布」。
+			// 只认官方这一个站点：这里**不做**任何换站兜底（2026-11-07 摘除 PRTS 自动回退）。
+			if (!Array.isArray(json?.data?.list)) throw new Error("arknights-official-no-section");
+			const list = json.data.list;
 			const pools = parseAkOfficialPools(list, now);
 			await Promise.all(pools.map(async (p) => {
 				try {
@@ -172,41 +175,34 @@
 		}
 
 
-		// 方舟卡池默认抓取器：官方公告 CMS 优先（当期限时/联动寻访），
-		// 官方无当期寻访公告（常规轮换周）或官方失败时自动回退 PRTS 卡池一览（逻辑同 selectArknights）。
-		// 设置页手动切到 PRTS 备选源时则走 GACHA_FETCHERS["arknights-prts"]，不经本函数。
+		// 方舟卡池默认抓取器：**只**读官方公告 CMS（当期限时/联动寻访）。
+		//
+		// ⚠️ 2026-11-07（用户要求，与全站 28 款游戏同一口径）：**摘掉自动兜底** ——
+		//    官方无当期寻访公告（常规轮换周）⇒ 返回 null（如实「新卡池未公布」）；
+		//    官方接口失败 / 结构异常 ⇒ 抛错（refresh 侧沿用上次成功数据 + 来源健康记失败）。
+		//    **绝不再**转身去抓 PRTS 卡池一览：来源是用户选的，站点就该由用户自己切。
+		//    要看 PRTS 口径请在设置页把卡池来源切到「PRTS 卡池一览」→ 走 GACHA_FETCHERS["arknights-prts"]。
 		async function fetchArknightsGacha(url, signal, tz, now = nowMs()) {
-			try {
-				const official = await fetchArknightsOfficialPools(signal, now);
-				if (official.length > 0) {
-					// 外显与悬停同源同序：先结束者优先（与 PRTS 路径、其它游戏一致），不再取列表首条
-					const sorted = official.slice().sort((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs));
-					const p = sorted[0];
-					// 悬停：与其它游戏统一为「池名：角色」+ 时间（多池时逐池一行、同窗口合并时间、结束时间升序）
-					const pools = sorted.map((x) => ({
-						name: x.banner,
-						label: `${x.banner}${x.roles ? `\uFF1A${x.roles}` : (x.family ? `\uFF1A${x.family}` : "")}`,
-						startTs: x.startTs,
-						endTs: x.endTs,
-						raw: x.raw || x.bannerDatesRaw || x.bannerDates
-					}));
-					return {
-						banner: p.banner,
-						roles: p.roles,
-						bannerDates: p.bannerDates,
-						bannerDatesRaw: p.bannerDatesRaw,
-						bannerHover: buildPoolHover(pools, tz)
-					};
-				}
-			} catch { /* 官方失败 → 回退 PRTS */ }
-			const apiUrl = ARKNIGHTS_PRTS_URL + (ARKNIGHTS_PRTS_URL.includes("?") ? "&" : "?") + "origin=*";
-			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
-			if (!res.ok) throw new Error("http-" + res.status);
-			const json = await res.json();
-			const html = json?.parse?.text;
-			if (typeof html !== "string") throw new Error("bad-json");
-			const d = selectArknights(html, now, tz);
-			return d ? { ...d } : null;
+			const official = await fetchArknightsOfficialPools(signal, now);
+			if (official.length === 0) return null;
+			// 外显与悬停同源同序：先结束者优先（与 PRTS 路径、其它游戏一致），不再取列表首条
+			const sorted = official.slice().sort((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs));
+			const p = sorted[0];
+			// 悬停：与其它游戏统一为「池名：角色」+ 时间（多池时逐池一行、同窗口合并时间、结束时间升序）
+			const pools = sorted.map((x) => ({
+				name: x.banner,
+				label: `${x.banner}${x.roles ? `\uFF1A${x.roles}` : (x.family ? `\uFF1A${x.family}` : "")}`,
+				startTs: x.startTs,
+				endTs: x.endTs,
+				raw: x.raw || x.bannerDatesRaw || x.bannerDates
+			}));
+			return {
+				banner: p.banner,
+				roles: p.roles,
+				bannerDates: p.bannerDates,
+				bannerDatesRaw: p.bannerDatesRaw,
+				bannerHover: buildPoolHover(pools, tz)
+			};
 		}
 
 
@@ -1120,9 +1116,10 @@
 				parserVersion: 2,
 				name: "明日方舟",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/4/41/ArknightsAppIcon.png!/fw/512",
-				source: "官方公告+PRTS",
+				source: "官方公告",
 				// 默认卡池源=官方公告 CMS（经 host 代理）：官方只对限时/联动类寻访发公告，
-				// 无当期寻访公告（常规轮换周）时由抓取器自动回退 PRTS；也可在设置中手动切 PRTS 卡池一览（备选）
+				// 无当期寻访公告（常规轮换周）⇒ 如实「未公布」，**不自动回退 PRTS**（2026-11-07 摘除）；
+				// 想看 PRTS 口径请在设置里手动切「PRTS 卡池一览」（备选源）。
 				url: ARKNIGHTS_OFFICIAL_LIST_URL,
 				altSources: [
 					{ label: "PRTS 卡池一览", url: ARKNIGHTS_PRTS_URL, fetcher: "arknights-prts" }
