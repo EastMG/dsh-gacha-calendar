@@ -126,7 +126,7 @@ dsh-gacha-calendar/
 
 ### 明日方舟两阶段（举行 / 奖励领取）
 
-**事实**（2026-11-07 核实，改这块之前先看这条）：PRTS 装了 **SemanticMediaWiki 7.3.1**，`action=ask` **一次**就能把活动需要的四列全查出来 —— 原来那两条链路（「活动一览 HTML 解析起止」+「一次批量 query 取活动页 `{{活动信息}}` 的兑换期」）已**整段删除**：
+**事实**（2026-11-07 核实，改这块之前先看这条）：PRTS 装了 **SemanticMediaWiki 7.3.1**，`action=ask` **一次**就能把活动需要的四列全查出来 —— 所以活动侧的**默认来源**（设置页「活动来源」里的 **`PRTS 活动解析`**）就是这条单请求。原来的两条链路（「活动一览 HTML 解析起止」+「一次批量 query 取活动页 `{{活动信息}}` 的兑换期」）**降级成手动备选源**（**`PRTS 活动一览`**，见下面「来源策略」一节），不再自动参与默认路径：
 
 ```
 https://prts.wiki/api.php?action=ask&format=json
@@ -145,7 +145,7 @@ https://prts.wiki/api.php?action=ask&format=json
 | 结果键 / `fulltext`（页名） | `name`（+ `page`） | 页名本身可能就是「视相博物馆：演化」，分类前缀由 `labelOf(cat, name)` 去重（不会拼成「视相博物馆：视相博物馆：演化」） |
 | 渲染值 `fmtWindow(startTs, stageEndTs, tz)` | `raw` | `timestamp` 是 **Unix 秒（UTC 绝对值）** ⇒ **直接 ×1000**；源站 tz 只参与**渲染**。⚠️ 不要照原神 SMW（`parseSmwActivity`）拿 `raw`（`"1/2026/11/6/19/59/0/0"`）再按 +08 重算 —— PRTS 的 `raw` 是 **UTC 墙钟**，那样会整体偏 8 小时 |
 
-**抓取链路**（`fetchArknightsEvents`）**一条**请求：
+**抓取链路**（默认来源 `PRTS 活动解析` = `fetchArknightsEvents`）**一条**请求：
 
 `transportFetchRaw(eventUrl + "&origin=*", { headers: rawHeaders(apiUrl) })`（与卡池侧同一条直连通道）→ `parseArknightsSmwEvents(json, tz)` → `prtsEventPayload(items, tz, now)`。
 `eventUrl` 就是上面那条 `action=ask` 的 URL（`ARKNIGHTS_SMW_URL`，由 `ARKNIGHTS_SMW_QUERY` 编码而来）。
@@ -156,7 +156,7 @@ https://prts.wiki/api.php?action=ask&format=json
 |---|---|
 | 空结果（`query.results` 是空对象） | 载荷 `null`（未公布），**不**硬凑过期档期 |
 | 响应带 `query-continue-offset`（分页游标） | **不追页**：前 30 条按开始时间倒序已覆盖近一年；一次刷新始终只有 **1 条**请求（请求数断言见 `cases-arknights-claim.mjs` ②） |
-| 请求失败 / 响应不是 JSON / 没有 `query.results` | **抛错**（这一侧记 down、面板显示「活动失败」）。**没有**"SMW 失败就回退解析活动一览 HTML"的备用路径 —— 那条链路（`collectPrtsEvents` / 批量 wikitext）已整段删除，留着只会让两套时间口径长期并存 |
+| 请求失败 / 响应不是 JSON / 没有 `query.results` | **抛错**（这一侧记 down、面板显示「活动失败」）。**没有**"SMW 失败就回退解析活动一览 HTML"的自动路径：失败就是失败，绝不换站 —— 要用一览口径请在设置页把「活动来源」手动切成 `PRTS 活动一览`（备选源，见「来源策略」一节） |
 
 
 **三态**（只改 arknights 的 payload 与提示框里的那几行，即 `30-game-hypergryph.js` 的 `prtsHoverNoteOf` / `prtsEventPayload`、`81-schedule-model.js` 的 `scheduleHoverNote` / `scheduleHoverText`、`82-schedule-view.js` 的 `hoverTextOf`；探头的解析逻辑 `scheduleHoverItems` 一个字没动）：
@@ -200,7 +200,7 @@ https://prts.wiki/api.php?action=ask&format=json
 | 跨年（12-30 开始 / 次年 01-05 结束，payload 纯函数） | `fmtWindow` 两端带年份；次年字段按 `tz` 解析不错年；兑换窗口自己跨年时 `eventClaimDates` 两端带年份 |
 | 无「兑换结束时间」字段（夹具里那条登录活动） | 载荷键集合 = 改造前那四个（`event/eventDates/eventDatesRaw/eventHover`），**不多** `eventShow`/`eventClaimDates`/`eventHoverExtra` |
 | 空结果（`query.results` 空对象） | 载荷 `null`（未公布）；抓取器不抛，仍然只发 1 条请求 |
-| 请求失败（HTTP 503）/ 坏响应（没有 `query.results`） | **抛错**（`http-503` / `smw-bad-json`），不返回半截载荷；没有「回退解析一览 HTML」的备用路径 |
+| 请求失败（HTTP 503）/ 坏响应（没有 `query.results`） | **抛错**（`http-503` / `smw-bad-json`），不返回半截载荷；**没有**「自动回退解析一览 HTML」的路径（备选源只能手动切） |
 
 每个时刻都查的六条不变量（改动前先确认这六条还成立）：
 
@@ -218,7 +218,7 @@ https://prts.wiki/api.php?action=ask&format=json
 - **悬停排版变了** ⇒ 改 `test/lib-text.mjs` 的 `assertHoverTextInvariants` 与 `test/harness.mjs` 的 `assertHoverConvention`，两个用例文件都不用动。
 - **别的来源也要两阶段** ⇒ 不要往 arknights 的用例里塞它的夹具；各来源自己的 `cases-*.mjs` 承担，但悬停结构判定继续调 `test/lib-text.mjs`。
 
-**曾经的已知缺口（2026-11-07 已随 SMW 改造消失，留档）**：批量取 wikitext 时代的候选筛选是「一览结束 ≥ now−3 天」（`PRTS_CLAIM_LOOKBACK_MS`），而兑换期可以**长于 3 天**（真机「时间啊，向前！」= 11-22 03:59 结束、11-29 03:59 兑换截止 = 7 天）⇒ **兑换期第 4 天起**该活动不再进入候选、载荷变 `null`、面板上整条消失。换成 SMW 单请求后**没有"候选筛选"这一步**（四列一次查全）⇒ 这个缺口不再存在；`cases-arknights-timeline.mjs` 的 `M9`/`M10` 两个时刻就是这条的回归（兑换期第 4 天 / 第 7 天都必须还在）。
+**曾经的已知缺口（默认来源已随 SMW 改造消失；备选源 `PRTS 活动一览` 仍有）**：批量取 wikitext 时代的候选筛选是「一览结束 ≥ now−3 天」（`PRTS_CLAIM_LOOKBACK_MS`），而兑换期可以**长于 3 天**（真机「时间啊，向前！」= 11-22 03:59 结束、11-29 03:59 兑换截止 = 7 天）⇒ **兑换期第 4 天起**该活动不再进入候选、载荷变 `null`、面板上整条消失。默认的 SMW 口径**没有"候选筛选"这一步**（四列一次查全）⇒ 这个缺口在默认路径上不存在，`cases-arknights-timeline.mjs` 的 `M9`/`M10` 两个时刻就是这条的回归（兑换期第 4 天 / 第 7 天都必须还在）；**手动切到备选源时该缺口仍在**（那是备选链路的已知代价，不是 bug）。
 
 ### 来源策略：无自动兜底（2026-11-07）
 
@@ -252,7 +252,18 @@ https://prts.wiki/api.php?action=ask&format=json
 
 **备选源内部若确实要读第二个站点**（目前只有 `r1999-official` = 「官网公告+小米」）：备选源的 `label` 必须把这件事写出来（用户在设置页看到的就是这个 label），不能让它听起来只碰一个站点。
 
-**护栏**：`test/cases-sources.mjs`（门禁最后一段）。它对上面 5 个默认源各跑「主源失败」与「主源无当期」两种场景，断言 `calls` 里**没有任何一条请求落在第二个站点**（代理调用会先解出 `url=` 参数再记账），并故意给第二个站点路由一份**能解析出当期池**的响应 —— 只断言"结果为 null"挡不住回归，"换站成功"恰恰会返回有数据的对象。同时它验证手动切源（`GACHA_FETCHERS[alt.fetcher]`）仍能取到数据。
+**活动侧的两个来源（明日方舟，2026-11-07 用户定名：「原来的还叫一览只是降级备选 新的SMW才叫解析」）**：
+
+| 角色 | 来源名（= 设置页「活动来源」下拉里逐字显示的 label） | 实现 | 一次刷新请求数 | 抓取器键 |
+|---|---|---|---|---|
+| **默认** | **`PRTS 活动解析`**（`eventSource`） | PRTS SemanticMediaWiki：`action=ask` 一次取回「活动类型 / 开始 / 活动结束 / 兑换结束」四列（`fetchArknightsEvents`） | 1 | `EVENT_FETCHERS["arknights"].default` |
+| **备选** | **`PRTS 活动一览`**（`eventAltSources[0].label`） | 旧的活动一览 HTML 解析（`collectPrtsEvents`）+ **一次**批量 wikitext 取 `{{活动信息}}` 的兑换结束时间（`fetchArknightsEventList`），从 `8de869d` 恢复 | 2 | `arknights-event-list` |
+
+- **没有自动切换**（两个方向都没有）：默认源失败就**抛错**（这一侧记 down、沿用上次成功数据），绝不转身去抓一览；选了备选源时也不会回头试 SMW。要另一条口径，只能由用户在设置页把「活动来源」手动切过去；选择写进既有键 `customEventUrls`（与卡池来源 `customUrls` 同一套机制，没有新增键）。
+- 两条链路都归一到**同一份三态载荷**（`prtsEventPayload` 的可选第 4 参 `pageTimes` 只由一览那条传，SMW 那条不传）：同一时刻、同一批活动，两条来源产出的 `event / eventDates / eventDatesRaw / eventHover / eventHoverExtra / eventClaimDates / eventShow` **逐字相同**（`cases-arknights-claim.mjs` ⑦ 的两条断言），下游显示 / 提醒 / 持久化都不看来源。
+- 一览那条仍带批量时代的候选筛选（`PRTS_CLAIM_LOOKBACK_MS` = 3 天）：兑换期**长于 3 天**时第 4 天起该活动会从一览口径消失（默认 SMW 口径没有这一步，见上面「曾经的已知缺口」）。这是选备选源的已知代价，不是 bug。
+
+**护栏**：`test/cases-sources.mjs`（门禁最后一段）。它对上面 5 个默认源各跑「主源失败」与「主源无当期」两种场景，断言 `calls` 里**没有任何一条请求落在第二个站点**（代理调用会先解出 `url=` 参数再记账），并故意给第二个站点路由一份**能解析出当期池**的响应 —— 只断言"结果为 null"挡不住回归，"换站成功"恰恰会返回有数据的对象。同时它验证手动切源（`GACHA_FETCHERS[alt.fetcher]`）仍能取到数据。活动侧的同款断言在 `test/cases-arknights-claim.mjs` ⑦（SMW 失败 ⇒ `calls` 里没有一览请求，备选侧同样给了能解析出数据的夹具）。
 
 **加新来源时**：默认源失败就抛错，别写"再试另一个站"；要多个站点就给 `altSources` 加一条（`label` 写清它是什么站），并记得 `GACHA_FETCHERS` / `EVENT_FETCHERS` 登记（`test/all.mjs` 的聚合守卫会核对）。
 

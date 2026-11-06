@@ -341,16 +341,27 @@
 				parseOurNotesGlobalStamp: ns_ournotes_global_parseOurNotesGlobalStamp,
 				pickOurNotesGlobalWindow: ns_ournotes_global_pickOurNotesGlobalWindow,
 			},
-			// 明日方舟（PRTS）：活动侧走 **SMW 单请求**（action=ask），三态数据（活动开始 / 活动结束 /
-			// 兑换结束）一次定齐。这里导出的是**纯函数**（SMW 响应 → 条目 → 载荷），离线就能钉住
-			// "有兑换期 / 无兑换期 / 兑换结束不晚于活动结束 / 活动类型缺失 / 缺时间 / 空结果 / 坏响应" 等边界。
+			// 明日方舟（PRTS）：活动侧有**两个**来源，都导出成纯函数，离线就能钉住两边：
+			//   · 默认「PRTS 活动解析」= SMW 单请求（action=ask）：三态数据（活动开始 / 活动结束 /
+			//     兑换结束）一次定齐 ⇒ parseArknightsSmwEvents；
+			//   · 备选「PRTS 活动一览」= 旧 HTML 解析链路（从 8de869d 恢复，手动切换才走）⇒
+			//     collectPrtsEvents / prtsEventSnapshot / 批量 wikitext 那几个（见 cases-arknights-claim ⑦）。
 			"arknights": {
+				ARKNIGHTS_EVENTS_LIST_URL,
 				ARKNIGHTS_SMW_QUERY,
 				ARKNIGHTS_SMW_URL,
+				PRTS_CLAIM_MAX_TITLES,
+				PRTS_PAGES_API,
 				// labelOf = 分类前缀去重（纯函数）：name 已带 <cat>： 前缀 ⇒ 原样返回，否则拼一次。
 				labelOf,
+				collectPrtsEvents,
 				parseArknightsSmwEvents,
+				parsePrtsPageEndTimes,
+				prtsClaimTitles,
 				prtsEventPayload,
+				prtsEventSnapshot,
+				prtsPageNameFromHref,
+				prtsPageTimesFromBatch,
 			},
 			},
 			// 共用工具 / env（测试原先从 next-sources/lib/env.js 取；压平后分别见 23-parser-time.js / 24-parser-window.js / 27-parser-text.js / 28-parser-hover-tools.js）
@@ -568,5 +579,16 @@
 			SOURCES,
 			GACHA_FETCHERS,
 			EVENT_FETCHERS,
+			// 来源选择的三件套（设置页「卡池来源 / 活动来源」下拉 + 刷新侧路由都用它们）：
+			//   getDefaultSourceName = 下拉默认项显示名（活动侧读 eventSource，逐字）；
+			//   getEntryUrl          = 把存进 customUrls / customEventUrls 的选择值还原成实际地址；
+			//   eventFetcherFor      = 地址 → EVENT_FETCHERS 里的抓取器（备选源优先，否则默认）。
+			// 三者都是**函数声明**（60-helpers / 22-fetcher-core），提升可见（同上面 searchNorm 的说明）。
+			// 导出后可以离线钉住「选活动备选源 → 读回仍是备选 → 路由到备选抓取器」整条链路。
+			getDefaultSourceName,
+			getEntryUrl,
+			eventFetcherFor,
+			// 来源标识归一（老配置的 proxy:/gk-*: 写法 → 真实地址 / 内部来源 id，见 60-helpers.js）
+			normalizeSourceId,
 			DEFAULT_SETTINGS,
 		};

@@ -851,4 +851,241 @@ export default async function run() {
 			&& bNorm.rawSrc === "11-07 03:59 ~ 11-10 03:59",
 			JSON.stringify([bNorm.title, bNorm.show, bNorm.rawSrc]));
 	}
+
+	// ── ⑦ 活动来源（用户 2026-11-07 定名）：「PRTS 活动解析」= 默认 SMW / 「PRTS 活动一览」= 手动备选 ──
+	// 用户原话：「原来的还叫一览只是降级备选 新的SMW才叫解析」。
+	//   · 默认（`eventUrl` + `eventSource`，设置页「活动来源」下拉的默认项）= **PRTS 活动解析**（SMW action=ask）；
+	//   · 备选（`eventAltSources` 第一项）= **PRTS 活动一览**（旧 HTML 链路，从 8de869d 恢复，抓取器键
+	//     `arknights-event-list`）。
+	// 这一段守四件事，缺一条就是回归：
+	//   ① 两个名字**逐字**（注册表里的字段 + 设置页下拉实际会渲染出的选项）；
+	//   ② **没有自动兜底**：SMW 失败 ⇒ 抛错，`calls` 里**不许**出现活动一览的请求 —— 哪怕备选侧给了
+	//      一份"能解析出当期活动"的夹具（只断言"结果为 null"挡不住回归，"偷偷换站成功"恰恰会返回数据）；
+	//   ③ **手动可切**：切到备选 ⇒ 用真机夹具端到端取到数据（外显区间 + 悬停行 + 提示行），且与 SMW
+	//      同一时刻的载荷**逐字相同**（两种来源归一到同一份三态，下游不看来源）；
+	//   ④ **可持久化**：切到备选后读回仍是备选（沿用既有活动侧键 `customEventUrls`，没有新增键）。
+	{
+		const { getDefaultSourceName, getEntryUrl, eventFetcherFor } = T;
+		const ARK = T.SOURCES.find((s) => s.id === "arknights");
+		const LIST_URL = T.parsers["arknights"].ARKNIGHTS_EVENTS_LIST_URL;
+		const PAGES_PREFIX = T.parsers["arknights"].PRTS_PAGES_API;
+		const SMW = T.parsers["arknights"].ARKNIGHTS_SMW_URL;
+		const at7 = (iso) => Date.parse(iso);
+		const NOW_EVENT = "2026-11-06T15:54:00+08:00";   // 活动期
+		const NOW_CLAIM = "2026-11-08T12:00:00+08:00";   // 兑换期
+		// 真机 2026-11-07 那三条活动的**一览**夹具（与 SMW 夹具同一个时刻、同一批活动）：
+		// `fixtureBody` 的 overrides 只在"确实请求了这两个地址"时才生效 —— 所以 SMW 失败时
+		// 这些夹具的存在本身就是"备选侧本来能取到数据"的反证。
+		const LIST_OV = {
+			[LIST_URL]: "arknights-events-list-1107/response.txt",
+			[PAGES_PREFIX]: "arknights-events-pages-1107/response.txt"
+		};
+		const comp = readComponentsSource();
+
+		// ① 命名（逐字）
+		check("命名：默认活动来源逐字 = 「PRTS 活动解析」（`eventSource`）",
+			ARK.eventSource === "PRTS 活动解析", JSON.stringify(ARK.eventSource));
+		check("命名：默认活动源仍指向 SMW `action=ask`（不是一览的 `action=parse`）",
+			ARK.eventUrl === SMW && /action=ask/.test(ARK.eventUrl) && !/action=parse/.test(ARK.eventUrl), ARK.eventUrl);
+		check("命名：备选活动来源只有一条、label 逐字 = 「PRTS 活动一览」",
+			Array.isArray(ARK.eventAltSources) && ARK.eventAltSources.length === 1
+			&& ARK.eventAltSources[0].label === "PRTS 活动一览",
+			JSON.stringify(ARK.eventAltSources));
+		check("命名：备选指向活动一览的 `action=parse` 地址，抓取器键 = `arknights-event-list`",
+			ARK.eventAltSources[0].url === LIST_URL && /action=parse/.test(LIST_URL)
+			&& ARK.eventAltSources[0].fetcher === "arknights-event-list",
+			JSON.stringify([ARK.eventAltSources[0].url, ARK.eventAltSources[0].fetcher]));
+		check("注册：`EVENT_FETCHERS[\"arknights\"]` 有 default（SMW）与 arknights-event-list（一览）两个抓取器",
+			!!T.EVENT_FETCHERS["arknights"] && typeof T.EVENT_FETCHERS["arknights"].default === "function"
+			&& typeof T.EVENT_FETCHERS["arknights"]["arknights-event-list"] === "function",
+			JSON.stringify(Object.keys(T.EVENT_FETCHERS["arknights"] || {})));
+
+		// ② 设置页「活动来源」下拉（**既有机制**：列头 + 下拉 + 持久化都在，本轮只补了条目的备选源）
+		check("设置页：表头本来就有「活动来源」一列（不是本轮新加的控件）",
+			/children: "\\u6D3B\\u52A8\\u6765\\u6E90"/.test(comp));
+		check("设置页：活动来源下拉的默认项取 `getDefaultSourceName(g, \"eventUrl\")`（= eventSource）",
+			/children: getDefaultSourceName\(g, "eventUrl"\)/.test(comp));
+		check("设置页：备选项由 `g.eventAltSources` 的 label 渲染（不写死名字）",
+			/\(g\.eventAltSources \|\| \[\]\)\.map\(\(a\) => \(0, react_jsx_runtime\.jsx\)\("option", \{ value: altSourceId\(a\), children: a\.label \}/.test(comp));
+		check("设置页渲染：活动来源下拉的三项逐字 = [PRTS 活动解析, PRTS 活动一览, 自定义]",
+			JSON.stringify([
+				getDefaultSourceName(ARK, "eventUrl"),
+				...(ARK.eventAltSources || []).map((a) => a.label),
+				"自定义"
+			]) === JSON.stringify(["PRTS 活动解析", "PRTS 活动一览", "自定义"]),
+			JSON.stringify([getDefaultSourceName(ARK, "eventUrl"), (ARK.eventAltSources || []).map((a) => a.label)]));
+
+		// ③ **没有自动兜底**：SMW 失败 / 坏响应 ⇒ 抛错，且一次都不去抓一览
+		//    transport 故意让**备选侧**返回一份能解析出当期活动的夹具（若发生换站，载荷就会非空）。
+		for (const [label, mode, wantErr] of [["HTTP 503", "http", "http-503"], ["没有 query 的 JSON", "bad", "smw-bad-json"]]) {
+			const seen = [];
+			setFetchImpl(async (url) => {
+				const u = String(url);
+				seen.push(u);
+				if (u.startsWith(LIST_URL)) return okBody(fixtureBody(LIST_URL, LIST_OV));       // 备选"本来能取到数据"
+				if (u.startsWith(PAGES_PREFIX)) return okBody(fixtureBody(PAGES_PREFIX, LIST_OV));
+				if (mode === "http") return { ok: false, status: 503, headers: { get: () => null }, text: async () => "", json: async () => ({}) };
+				return okBody(BAD_BODY);
+			});
+			T.setCoreEnv({ now: () => at7(NOW_EVENT) });
+			let data = null, err = null;
+			try {
+				data = await T.EVENT_FETCHERS["arknights"].default(SMW, undefined, TZ_CN);
+			} catch (e) {
+				err = String((e && e.message) || e);
+			}
+			check(`无自动兜底（${label}）：默认源**抛错**（${wantErr}）、载荷 null（不是「未公布」）`,
+				err === wantErr && data === null, JSON.stringify([err, data]));
+			check(`无自动兜底（${label}）：calls 里**没有任何**活动一览 / 批量 wikitext 请求（备选侧有可用夹具也没被碰）`,
+				seen.length === 1 && !seen.some((u) => u.startsWith(LIST_URL) || u.includes("action=parse") || u.includes("action=query&prop=revisions")),
+				JSON.stringify(seen.map((u) => u.slice(0, 70))));
+		}
+
+		// ④ **手动切到「PRTS 活动一览」** ⇒ 端到端取到数据（外显区间 / 悬停行 / 提示行全都要有）
+		const runList = async (nowIso) => {
+			const seen = [];
+			setFetchImpl(async (url) => {
+				const u = String(url);
+				seen.push(u);
+				if (u.startsWith(LIST_URL)) return okBody(fixtureBody(LIST_URL, LIST_OV));
+				if (u.startsWith(PAGES_PREFIX)) return okBody(fixtureBody(PAGES_PREFIX, LIST_OV));
+				return { ok: false, status: 404, headers: { get: () => null }, text: async () => "", json: async () => ({}) };
+			});
+			T.setCoreEnv({ now: () => at7(nowIso) });
+			return { data: await T.EVENT_FETCHERS["arknights"]["arknights-event-list"](LIST_URL, undefined, TZ_CN), seen };
+		};
+		const listEvent = await runList(NOW_EVENT);
+		check("手动切换（一览）：恰好 2 条请求 —— ① 活动一览 + ② **一次**批量 wikitext（不是 N 次详情页）",
+			listEvent.seen.length === 2
+			&& listEvent.seen[0] === LIST_URL + "&origin=*"
+			&& listEvent.seen[1].startsWith(PAGES_PREFIX),
+			JSON.stringify(listEvent.seen.map((u) => u.slice(0, 70))));
+		check("手动切换（一览）：批量 titles = 3 条相关活动页（一览里只有这 3 条在窗口内）",
+			decodeURIComponent(String(listEvent.seen[1] || "").split("titles=")[1] || "").split("|").length === 3,
+			decodeURIComponent(String(listEvent.seen[1] || "").split("titles=")[1] || ""));
+		check("手动切换（一览）端到端：外显事项名 =「支线故事：时间啊，向前！」，外显区间逐字 = 11-01 12:00 ~ 11-22 03:59",
+			!!listEvent.data && listEvent.data.event === "支线故事：时间啊，向前！"
+			&& listEvent.data.eventDates === "11-01 12:00 ~ 11-22 03:59",
+			JSON.stringify(listEvent.data && [listEvent.data.event, listEvent.data.eventDates]));
+		check("手动切换（一览）端到端：悬停 3 行逐字（三条当期活动，名称 + 3 空格 + 档期）",
+			!!listEvent.data && listEvent.data.eventHover === HOVER_EVENT_3, JSON.stringify(listEvent.data && listEvent.data.eventHover));
+		check("手动切换（一览）端到端：提示行逐字（视相 11-10 / 时间啊 11-29）",
+			!!listEvent.data && listEvent.data.eventHoverExtra === EXTRA_EVENT_3,
+			JSON.stringify(listEvent.data && listEvent.data.eventHoverExtra));
+		check("手动切换（一览）端到端：提醒侧的第二条 deadline 也在（`eventClaimDates` = 活动结束 ~ 兑换结束）",
+			!!listEvent.data && listEvent.data.eventClaimDates === "11-22 03:59 ~ 11-29 03:59",
+			JSON.stringify(listEvent.data && listEvent.data.eventClaimDates));
+
+		// 两种来源归一到**同一份三态**：同一时刻的载荷逐字相同（下游显示/提醒/持久化不看来源）
+		const runSmw = async (nowIso) => {
+			setFetchImpl(async () => okBody(fixtureBody(SMW)));
+			T.setCoreEnv({ now: () => at7(nowIso) });
+			return T.EVENT_FETCHERS["arknights"].default(SMW, undefined, TZ_CN);
+		};
+		const FIELDS = ["event", "eventDates", "eventDatesRaw", "eventHover", "eventHoverExtra", "eventClaimDates", "eventShow"];
+		const pick = (o) => FIELDS.map((k) => (o && Object.prototype.hasOwnProperty.call(o, k) ? o[k] : null));
+		const smwEvent = await runSmw(NOW_EVENT);
+		const listClaim = (await runList(NOW_CLAIM)).data;
+		const smwClaim = await runSmw(NOW_CLAIM);
+		check("两来源同一份三态（活动期）：SMW 与一览的 7 个字段**逐字相同**",
+			JSON.stringify(pick(smwEvent)) === JSON.stringify(pick(listEvent.data)),
+			JSON.stringify([pick(smwEvent), pick(listEvent.data)]));
+		check("两来源同一份三态（兑换期）：SMW 与一览的 7 个字段**逐字相同**（含 `eventShow` / 兑换区间）",
+			JSON.stringify(pick(smwClaim)) === JSON.stringify(pick(listClaim)),
+			JSON.stringify([pick(smwClaim), pick(listClaim)]));
+		check("手动切换（一览）兑换期：外显切到兑换区间、事项名带「兑换截止」（与 SMW 同口径）",
+			!!listClaim && listClaim.event === "视相博物馆：演化"
+			&& listClaim.eventDates === "11-07 03:59 ~ 11-10 03:59"
+			&& listClaim.eventShow === "视相博物馆：演化 兑换截止",
+			JSON.stringify(listClaim && [listClaim.event, listClaim.eventDates, listClaim.eventShow]));
+
+		// ⑤ 持久化 / 路由：切到备选后**读回仍是备选**（键沿用既有 `customEventUrls`，没有新增键）
+		check("持久化：默认设置里本来就有活动侧键 `customEventUrls`（沿用，不新增键）",
+			T.DEFAULT_SETTINGS.customEventUrls === "{}", JSON.stringify(T.DEFAULT_SETTINGS.customEventUrls));
+		check("持久化：设置页两种活动来源选择都写这个键（选备选源不再是「删掉 key 弹回默认」）",
+			/(else if \(mode === "default"\) delete next\[id\];\s*\n\s*else next\[id\] = mode;)/.test(comp)
+			&& /const next = \{ \.\.\.\(eventUrls \|\| \{\}\) \};/.test(comp));
+		const stored = { customEventUrls: JSON.stringify({ arknights: LIST_URL }) };
+		check("持久化：切到备选后读回仍是备选（getEntryUrl 读回 = 一览地址，不是回落到 SMW）",
+			getEntryUrl(stored, "arknights", SMW, "eventUrl") === LIST_URL,
+			getEntryUrl(stored, "arknights", SMW, "eventUrl"));
+		check("持久化：没存过 ⇒ 读回仍是默认 SMW 地址（默认项就是「PRTS 活动解析」）",
+			getEntryUrl({}, "arknights", SMW, "eventUrl") === SMW,
+			getEntryUrl({}, "arknights", SMW, "eventUrl"));
+		check("路由：切到备选 ⇒ `eventFetcherFor` 选中 arknights-event-list（不是 default）",
+			eventFetcherFor(ARK, LIST_URL) === T.EVENT_FETCHERS["arknights"]["arknights-event-list"],
+			String(eventFetcherFor(ARK, LIST_URL) === T.EVENT_FETCHERS["arknights"]["arknights-event-list"]));
+		check("路由：默认 ⇒ `eventFetcherFor` 选中 default（SMW）",
+			eventFetcherFor(ARK, SMW) === T.EVENT_FETCHERS["arknights"]["default"],
+			String(eventFetcherFor(ARK, SMW) === T.EVENT_FETCHERS["arknights"]["default"]));
+		check("路由：备选地址归一后原样（不会被当成「未知来源」而回落到默认）",
+			T.normalizeSourceId(LIST_URL) === LIST_URL);
+
+		// ⑥ 从 8de869d 恢复的纯函数（旧用例一并恢复：它们本来全绿）
+		const { parsePrtsPageEndTimes, prtsPageNameFromHref, prtsPageTimesFromBatch, prtsClaimTitles,
+			PRTS_CLAIM_MAX_TITLES, collectPrtsEvents, prtsEventSnapshot, labelOf } = T.parsers["arknights"];
+		const both = parsePrtsPageEndTimes("{{活动信息\n|活动结束时间=2026-11-07 03:59\n|兑换结束时间=2026-11-10 03:59\n}}", TZ_CN);
+		check("恢复·纯函数：有兑换期 → 两个时间戳（按 +08 解析）",
+			both.actEndTs === at7("2026-11-07T03:59:00+08:00") && both.claimEndTs === at7("2026-11-10T03:59:00+08:00"),
+			JSON.stringify(both));
+		const noClaim = parsePrtsPageEndTimes("{{活动信息\n|活动结束时间=2026-11-07 03:59\n}}", TZ_CN);
+		check("恢复·纯函数：无「兑换结束时间」字段 → claimEndTs = null（不补猜）",
+			noClaim.actEndTs === at7("2026-11-07T03:59:00+08:00") && noClaim.claimEndTs === null, JSON.stringify(noClaim));
+		const badTime = parsePrtsPageEndTimes("{{活动信息\n|活动结束时间=2026-13-45 99:99\n|兑换结束时间=2026年11月10日 03:59\n}}", TZ_CN);
+		check("恢复·纯函数：日期格式异常/越界 → 两个都给 null（宁缺勿错）",
+			badTime.actEndTs === null && badTime.claimEndTs === null, JSON.stringify(badTime));
+		const reversed = parsePrtsPageEndTimes("{{活动信息\n|活动结束时间=2026-11-10 03:59\n|兑换结束时间=2026-11-07 03:59\n}}", TZ_CN);
+		check("恢复·纯函数：兑换结束不晚于活动结束 → 丢弃兑换期，只留活动结束",
+			reversed.actEndTs === at7("2026-11-10T03:59:00+08:00") && reversed.claimEndTs === null, JSON.stringify(reversed));
+		check("恢复·纯函数：tz 参与换算（同一墙钟在 UTC 下比 +08 晚 8 小时）",
+			parsePrtsPageEndTimes("{{活动信息\n|活动结束时间=2026-11-07 03:59\n}}", "UTC").actEndTs === noClaim.actEndTs + 8 * 3600e3);
+		check("恢复·页名解码：`/w/<URL 编码页名>` → 页名（全角冒号也在内）",
+			prtsPageNameFromHref("/w/%E5%8D%B1%E6%9C%BA%E5%90%88%E7%BA%A6%EF%BC%9A%E5%B0%96%E7%81%AD%E6%B5%8B%E8%AF%95%E4%BD%9C%E6%88%98") === "危机合约：尖灭测试作战");
+		check("恢复·页名解码：`index.php?title=` / 非法编码 / 空 → 空串（不猜）",
+			prtsPageNameFromHref("/w/index.php?title=X") === "" && prtsPageNameFromHref("/w/%ZZ") === ""
+			&& prtsPageNameFromHref("") === "" && prtsPageNameFromHref(undefined) === "");
+		const norm = prtsPageTimesFromBatch({
+			query: {
+				normalized: [{ from: "火山旅梦_旧", to: "火山旅梦" }],
+				pages: [
+					{ title: "火山旅梦", revisions: [{ slots: { main: { content: "{{活动信息\n|活动结束时间=2026-11-19 03:59\n|兑换结束时间=2026-11-22 03:59\n}}" } } }] },
+					{ title: "没有正文的页" }
+				]
+			}
+		}, TZ_CN);
+		check("恢复·批量响应 → Map：返回名与请求名（normalized）都能取到；无正文的页跳过",
+			!!norm.get("火山旅梦") && !!norm.get("火山旅梦_旧")
+			&& norm.get("火山旅梦").claimEndTs === at7("2026-11-22T03:59:00+08:00")
+			&& norm.get("火山旅梦_旧") === norm.get("火山旅梦") && !norm.has("没有正文的页"),
+			JSON.stringify([...norm.keys()]));
+		const now7 = at7("2026-11-06T15:54:00+08:00");
+		const many = Array.from({ length: 20 }, (_, i) => ({ name: "e" + i, page: "p" + i, startTs: now7 - 864e5, endTs: now7 + 864e5 }));
+		check("恢复·相关筛选：去重后上限 = 12（一次批量请求的体量上限）",
+			PRTS_CLAIM_MAX_TITLES === 12 && prtsClaimTitles(many, now7).length === 12, String(prtsClaimTitles(many, now7).length));
+		check("恢复·相关筛选：结束早于 now-3天 / 开始晚于 now+45天 的条目被排除（连请求都不发）",
+			prtsClaimTitles([
+				{ name: "太早", page: "old", startTs: now7 - 30 * 864e5, endTs: now7 - 4 * 864e5 },
+				{ name: "太远", page: "far", startTs: now7 + 60 * 864e5, endTs: now7 + 70 * 864e5 },
+				{ name: "刚好", page: "ok", startTs: now7 - 864e5, endTs: now7 + 864e5 }
+			], now7).join(",") === "ok");
+		// 一览的 `labelOf` 去重（名称本身已带分类前缀的真实结构）
+		const dupHtml = '<table><tr><th>活动开始时间</th><th>活动</th><th>分类</th></tr>'
+			+ '<tr><td data-time="1792828800,1793995140">2026-10-24 16:00</td>'
+			+ '<td><a href="/w/%E8%A7%86%E7%9B%B8%E5%8D%9A%E7%89%A9%E9%A6%86%EF%BC%9A%E6%BC%94%E5%8C%96" title="视相博物馆：演化">视相博物馆：演化</a></td>'
+			+ '<td><a title="分类:视相博物馆">视相博物馆</a></td></tr></table>';
+		const dupItems = collectPrtsEvents(dupHtml, TZ_CN);
+		check("恢复·collectPrtsEvents：名称本身带分类前缀时**不重复**（banner 逐字 =「视相博物馆：演化」）",
+			dupItems.length === 1 && dupItems[0].banner === "视相博物馆：演化" && dupItems[0].cat === "视相博物馆",
+			JSON.stringify(dupItems.map((x) => [x.banner, x.cat])));
+		// 快照形状：与 SMW 那份**同一组字段名**（startTs / endTs / raw / page / name / cat）
+		const LIST_TEXT7 = JSON.parse(fixtureBody(LIST_URL, LIST_OV)).parse.text;
+		const snap7 = prtsEventSnapshot(LIST_TEXT7, TZ_CN);
+		check("恢复·prtsEventSnapshot：一览 HTML → 3 条快照（name/cat/startTs/endTs/raw/page 齐备，页名解出来了）",
+			snap7.length === 3 && snap7.every((x) => typeof x.name === "string" && x.name.length > 0
+				&& typeof x.cat === "string" && typeof x.raw === "string" && typeof x.page === "string" && x.page.length > 0
+				&& typeof x.startTs === "number" && typeof x.endTs === "number"),
+			JSON.stringify(snap7.map((x) => [x.name, x.cat, x.page])));
+		check("恢复·labelOf 幂等（一览与 SMW 用的都是这一份去重）",
+			labelOf("视相博物馆", labelOf("视相博物馆", "演化")) === "视相博物馆：演化");
+	}
 }

@@ -105,5 +105,7 @@
   "https://yh.wanmei.com/news/gamebroad/": "pw-nte-list/response.txt",
   "https://yh.wanmei.com/news/gamebroad/index1.html": "pw-nte-index1/response.txt",
   "https://yh.wanmei.com/news/gamebroad/20261014/264537.html": "pw-nte-detail-264537/response.txt",
-  "https://prts.wiki/api.php?action=ask&format=json&query=%5B%5B%E6%B4%BB%E5%8A%A8%E5%BC%80%E5%A7%8B%E6%97%B6%E9%97%B4%3A%3A%2B%5D%5D%7C%3F%E6%B4%BB%E5%8A%A8%E7%B1%BB%E5%9E%8B%7C%3F%E6%B4%BB%E5%8A%A8%E5%BC%80%E5%A7%8B%E6%97%B6%E9%97%B4%7C%3F%E6%B4%BB%E5%8A%A8%E7%BB%93%E6%9D%9F%E6%97%B6%E9%97%B4%7C%3F%E5%85%91%E6%8D%A2%E7%BB%93%E6%9D%9F%E6%97%B6%E9%97%B4%7Csort%3D%E6%B4%BB%E5%8A%A8%E5%BC%80%E5%A7%8B%E6%97%B6%E9%97%B4%7Corder%3Ddesc%7Climit%3D30": "arknights-smw-events/response.txt"
+  "https://prts.wiki/api.php?action=ask&format=json&query=%5B%5B%E6%B4%BB%E5%8A%A8%E5%BC%80%E5%A7%8B%E6%97%B6%E9%97%B4%3A%3A%2B%5D%5D%7C%3F%E6%B4%BB%E5%8A%A8%E7%B1%BB%E5%9E%8B%7C%3F%E6%B4%BB%E5%8A%A8%E5%BC%80%E5%A7%8B%E6%97%B6%E9%97%B4%7C%3F%E6%B4%BB%E5%8A%A8%E7%BB%93%E6%9D%9F%E6%97%B6%E9%97%B4%7C%3F%E5%85%91%E6%8D%A2%E7%BB%93%E6%9D%9F%E6%97%B6%E9%97%B4%7Csort%3D%E6%B4%BB%E5%8A%A8%E5%BC%80%E5%A7%8B%E6%97%B6%E9%97%B4%7Corder%3Ddesc%7Climit%3D30": "arknights-smw-events/response.txt",
+  "https://prts.wiki/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2": "arknights-events-list/response.txt",
+  "https://prts.wiki/api.php?action=query&prop=revisions": "arknights-events-pages/response.txt"
 }

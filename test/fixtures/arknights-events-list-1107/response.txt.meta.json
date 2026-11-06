@@ -1,0 +1,6 @@
+{
+ "url": "https://prts.wiki/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
+ "status": 200,
+ "capturedAt": "2026-11-07T05:17:00.000Z",
+ "note": "手工构造（真机 2026-11-07 05:16 的活动一览等价数据；本机出口对 prts.wiki 返回 403，无法直接抓取真实响应）：三行 = 视相博物馆：演化（10-24 16:00 ~ 11-07 03:59）/ 感谢庆典2026限时签到（11-01 12:00 ~ 11-15 03:59）/ 时间啊，向前！（11-01 12:00 ~ 11-22 03:59）。行结构照 collectPrtsEvents 的解析契约（第一列开始时间文本 + 行内 data-time=\"开始秒,结束秒\"、第二列 <a href=/w/页名>、第三列 title=分类:XXX）。"
+}
