@@ -1,25 +1,38 @@
-// test/cases-bwiki-cors.mjs —— bwiki 请求统一带 `origin=*`（CORS 收口点）的回归
+// test/cases-bwiki-cors.mjs —— bwiki 请求的统一口径：
+//   ① 一律补 `origin=*`（CORS 收口点，2026-11-07 上一轮）
+//   ② 一律**走宿主代理**，不再直连（2026-11-07 本轮，真因见下）
 //
-// 为什么单开一段（2026-11-07 用户实测）：
+// 为什么单开一段：
 //   · 浏览器直连 bwiki 且**不带** `origin=*` ⇒ `TypeError: Failed to fetch`（CORS 拒绝），
 //     上层只能把它归成「网络不通」这种看不出根因的泛化失败；
 //   · 同一 URL 带 `&origin=*` ⇒ HTTP 200。
 //   而仓里 22 处 `https://wiki.biligame.com/…` 地址常量**全部没有**这个参数 —— 平时靠宿主代理
 //   （不受 CORS 限制）盖住，任何走直连的路径都会静默失败。
 //
-// 修法**不是**逐个改那 22 个常量，而是在 transport 的**两条出口**上收口（`src/client/15-env.js`）：
-//   `transportFetchRaw`（直连）与 `proxyFetchText`（宿主代理）都先过 `withBwikiCors`。
-// 本段从三个角度钉住它：
+// 但**只补 origin=* 还不够**（本轮由宿主日志确认）：
+//   DSH 渲染进程的页面源是自定义 scheme `dsh-app://app`（不是 http/https），bwiki 对它**不回**
+//   `Access-Control-Allow-Origin` ⇒ 直连必被 CORS 拦。日志原文：
+//     [error] Access to fetch at 'https://wiki.biligame.com/sr/api.php?…&origin=*'
+//             from origin 'dsh-app://app' has been blocked by CORS policy:
+//             No 'Access-Control-Allow-Origin' header is present on the requested resource. [renderer]
+//   注意那条被拦的请求**本来就带着 origin=*** —— 所以本轮把 bwiki 系主机在 `transportFetchRaw`
+//   里**强制改走宿主代理**（请求由宿主 Node 侧发出，压根没有 CORS）。
+//
+// 本段从五个角度钉住它：
 //   ① **纯函数**：`withBwikiCors` 的全部边界（无 query 用 `?` / 已有 query 用 `&` / 已有 origin 不动 /
 //      大小写·端口·hash / `*.biligame.com` / 非法与相对地址 / 幂等）；
-//   ② **接线**：两条出口确实调了它，且全仓**只有一处**实现（收口点不许长出第二份）；
+//   ② **接线**：两条出口确实调了它、bwiki 判定接到了代理、且全仓**只有一处**实现（收口点不许长出第二份）；
 //   ③ **行为**：真抓一个 bwiki 来源（战双 wikitext —— 改造前它的 ask 索引与公告正文两条请求
 //      **都没有** origin=*），用 fetch 记账断言实际发出的目标 URL 带上了；同时断言非 bwiki 站点的
 //      请求 URL **逐字不变**（这是"收口点不会误伤别的站点"的反向守卫）。
+//   ④ **反向守卫**：非 bwiki 站点的请求 URL 逐字不变；
+//   ⑤ **bwiki 不再直连**：抓星铁卡池（就是日志里被拦的那条 `/sr/api.php`）时**直连计数 = 0**、
+//      代理计数 = 1、目标地址含 `origin=*` 且 Referer 仍在；三个非 bwiki 来源照旧走直连。
+//      反向证明：把"bwiki 走代理"还原成直连 ⇒ 本段 ⑤ 立刻红（本轮已实测，见提交说明）。
 
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
-import { check, section, useFixtures, setFetchImpl } from "./harness.mjs";
+import { check, section, useFixtures, setFetchImpl, makeFetchTransport } from "./harness.mjs";
 import { T, REPO } from "./load.mjs";
 
 const CLIENT_DIR = path.join(REPO, "src", "client");
@@ -41,6 +54,37 @@ function isBiligameHost(host) {
 	return h === "biligame.com" || h.endsWith(".biligame.com");
 }
 const hostOf = (url) => { try { return new URL(url).hostname; } catch { return ""; } };
+
+// 从源码里按函数名抠出函数体（大括号配平）。静态守卫用它断言"某个函数体里没有某种调用"。
+function fnBody(src, name) {
+	const at = src.indexOf("function " + name);
+	if (at < 0) return "";
+	const open = src.indexOf("{", at);
+	if (open < 0) return "";
+	let depth = 0;
+	for (let i = open; i < src.length; i++) {
+		const c = src[i];
+		if (c === "{") depth++;
+		else if (c === "}") { depth--; if (depth === 0) return src.slice(open, i + 1); }
+	}
+	return "";
+}
+
+// 装一个"两条出口分别记账"的 transport（夹具仍由 makeFetchTransport 提供），返回记账本。
+// 为什么需要：要证明"bwiki 不再直连"，光看最终数据是看不出来的 —— 数据经代理也能拿到。
+// 必须在 **transport 出口**上数次数：直连 0 次 / 代理 1 次。
+function installCountingTransport(overrides) {
+	const impl = useFixtures(overrides || {});
+	const base = makeFetchTransport(impl);
+	const rec = { raw: 0, proxy: 0, rawTargets: [], proxyTargets: [], proxyOpts: [] };
+	T.setCoreEnv({
+		transport: {
+			async fetchRaw(u, o) { rec.raw++; rec.rawTargets.push(String(u)); return base.fetchRaw(u, o); },
+			async fetchViaProxy(u, o) { rec.proxy++; rec.proxyTargets.push(String(u)); rec.proxyOpts.push(o || {}); return base.fetchViaProxy(u, o); }
+		}
+	});
+	return rec;
+}
 
 // 物华弥新卡池页 = 夹具 bwiki-whmx-gacha 的来源地址（抓取器**自己**也拼了 origin=* → 幂等守卫）
 const WHMX_GACHA = "https://wiki.biligame.com/whmx/api.php?action=parse&page=限时招集档案&prop=text&format=json&formatversion=2";
@@ -119,10 +163,29 @@ export default async function run() {
 	section("bwiki CORS 收口点：transport 的两条出口都过它（静态接线守卫）");
 	{
 		const envSrc = readFileSync(path.join(CLIENT_DIR, "15-env.js"), "utf8");
-		check("直连出口 transportFetchRaw 过收口（fetchRaw(withBwikiCors(url))）",
-			/fetchRaw\(withBwikiCors\(url\)/.test(envSrc));
+		check("直连出口 transportFetchRaw 仍过收口（const target = withBwikiCors(url)）",
+			/const\s+target\s*=\s*withBwikiCors\(url\)/.test(envSrc));
+		check("直连出口：**非 bwiki** 才真的直连（transport.fetchRaw(target, opts)）",
+			/return\s+transport\.fetchRaw\(target,\s*opts\)/.test(envSrc));
 		check("代理出口 proxyFetchText 过收口（fetchViaProxy(withBwikiCors(proxyUrl))）",
 			/fetchViaProxy\(withBwikiCors\(proxyUrl\)/.test(envSrc));
+
+		// ★ 本轮核心接线：bwiki 判定 → 改走宿主代理
+		const rawBody = fnBody(envSrc, "transportFetchRaw");
+		check("bwiki 判定已接到代理：transportFetchRaw 里 isBwikiUrl(target) ⇒ bwikiViaProxy(transport, target, opts)",
+			/isBwikiUrl\(target\)/.test(rawBody) && /bwikiViaProxy\(transport,\s*target,\s*opts\)/.test(rawBody),
+			rawBody.replace(/\s+/g, " ").slice(0, 200));
+		check("特性探测守卫生效：只有 transport.fetchViaProxy 是函数时才改道（非 DSH 环境保持直连、不抛错）",
+			/typeof\s+transport\.fetchViaProxy\s*===\s*"function"/.test(rawBody));
+		// 代理**没有**"失败回退直连"的降落伞：bwikiViaProxy 里不许出现 fetchRaw
+		const proxyBody = fnBody(envSrc, "bwikiViaProxy");
+		check("bwikiViaProxy 只走 fetchViaProxy，**没有**回退直连的降落伞（不许出现 fetchRaw）",
+			proxyBody.length > 0 && !/fetchRaw/.test(proxyBody) && /transport\.fetchViaProxy\(/.test(proxyBody),
+			proxyBody.replace(/\s+/g, " ").slice(0, 200));
+		// 幂等：已经走代理的出口（proxyFetchText）不经过 transportFetchRaw，不会被套成"代理套代理"
+		check("proxyFetchText 不经过 transportFetchRaw / bwikiViaProxy（幂等，不会套两层）",
+			!rawBody.includes("proxyFetchText") && !/transportFetchRaw/.test(fnBody(envSrc, "proxyFetchText")),
+			fnBody(envSrc, "proxyFetchText").replace(/\s+/g, " ").slice(0, 160));
 
 		// 收口点必须是**唯一**一份：再多一份「自己拼 origin」的实现就又会分叉
 		const declFiles = readdirSync(CLIENT_DIR)
@@ -130,6 +193,12 @@ export default async function run() {
 			.filter((f) => /function\s+withBwikiCors\s*\(/.test(readFileSync(path.join(CLIENT_DIR, f), "utf8")));
 		check("全仓只有一个 withBwikiCors 定义（收口点不许多长出第二份）",
 			declFiles.length === 1 && declFiles[0] === "15-env.js", declFiles.join(",") || "(没有)");
+		// 同理：bwiki 改道也必须只有一处（分散在多处就又会出现"某条路忘了改"）
+		const routeFiles = readdirSync(CLIENT_DIR)
+			.filter((f) => f.endsWith(".js"))
+			.filter((f) => /bwikiViaProxy\s*\(/.test(readFileSync(path.join(CLIENT_DIR, f), "utf8")));
+		check("全仓只有一处把 bwiki 改道到代理（15-env.js 的 bwikiViaProxy）",
+			routeFiles.length === 1 && routeFiles[0] === "15-env.js", routeFiles.join(",") || "(没有)");
 	}
 	//#endregion
 
@@ -208,6 +277,94 @@ export default async function run() {
 			seen.map((u) => targetOf(u)).join(" | ").slice(0, 200));
 
 		// 还原成夹具模式，别把记账壳留给后续批次（各批次都会自己 useFixtures，这道只是礼貌）
+		useFixtures();
+	}
+	//#endregion
+
+	//#region ⑤ bwiki **不再直连**（本轮修复的判定点：直连 0 次 / 代理 1 次）
+	section("bwiki 一律走宿主代理：直连计数 = 0、代理计数 = 1、Referer 仍在（fetch 记账）");
+	{
+		// 星铁卡池默认源 —— 就是宿主日志里被 CORS 拦的那条 `https://wiki.biligame.com/sr/api.php?…&origin=*`。
+		// 它走 mkMediaWiki → transportFetchRaw（**改造前 = 直连**），所以拿它当"红/绿"的判定点最贴证据。
+		const hsr = T.SOURCES.find((s) => s.id === "hsr");
+		const HSR_URL = hsr && hsr.url;
+		check("前置：星铁卡池来源地址是 bwiki（/sr/api.php）",
+			!!HSR_URL && isBiligameHost(hostOf(HSR_URL)) && HSR_URL.includes("/sr/api.php"), HSR_URL);
+
+		// 夹具覆盖：map.json 里没有星铁的默认地址（那是 P4 批次的夹具），这里按 URL 精确注入一条。
+		const rec = installCountingTransport({ [HSR_URL]: "p4-hsr-bwiki-warp-1107/response.txt" });
+		let err = null, data = null;
+		try { data = await T.GACHA_FETCHERS["hsr"](HSR_URL, undefined, hsr.tz); } catch (e) { err = e; }
+		check("前置：星铁卡池抓取器能跑通（夹具齐备 / 解析未坏）", err === null, err && err.message);
+		check("前置：确实拿到了数据（不是空壳）", !!data && typeof data === "object" && typeof data.banner === "string",
+			JSON.stringify(data).slice(0, 80));
+
+		// ★★ 核心断言：**一次直连都没发生** ★★
+		check("★ bwiki 来源**没有**发生直连 fetch（直连计数 = 0）",
+			rec.raw === 0, (rec.raw + " 次：" + rec.rawTargets.join(" | ")).slice(0, 200));
+		check("★ bwiki 来源的代理调用次数 = 1", rec.proxy === 1, String(rec.proxy));
+		check("代理收到的目标地址含 origin=*（沿用上一轮的收口，且只补一个）",
+			rec.proxy === 1 && /[?&]origin=\*/.test(rec.proxyTargets[0]) && originCount(rec.proxyTargets[0]) === 1,
+			rec.proxyTargets[0] && rec.proxyTargets[0].slice(-90));
+		check("代理收到的目标地址 = withBwikiCors(声明地址)（主机/路径/参数逐字不变，只多 origin=*）",
+			rec.proxy === 1 && rec.proxyTargets[0] === W(HSR_URL), rec.proxyTargets[0]);
+		// Referer 必须还在：bwiki 对**无 Referer 的裸请求**回 567（见 15-env.js 的 rawHeaders 注释）
+		check("改走代理后仍带 Referer（= 目标站 origin + `/`，bwiki 无 Referer 会回 567）",
+			rec.proxy === 1 && rec.proxyOpts[0].referer === "https://wiki.biligame.com/",
+			rec.proxy === 1 ? JSON.stringify(rec.proxyOpts[0]) : "(没发出)");
+
+		// 幂等：已经走代理的出口（proxyFetchText）不许被这一层再包一次
+		// 物华弥新卡池走的就是 fetchMediaWikiText → fetchJson(mode:proxy) → proxyFetchText。
+		const rec2 = installCountingTransport();
+		let err2 = null;
+		try { await T.GACHA_FETCHERS["wuhuamixin"](WHMX_GACHA, undefined, "Asia/Shanghai"); } catch (e) { err2 = e; }
+		check("前置：物华弥新（本来就走代理的来源）能跑通", err2 === null, err2 && err2.message);
+		check("幂等：本来就走代理的来源仍然只发 1 次代理、0 次直连（没有被套成两层）",
+			rec2.proxy === 1 && rec2.raw === 0, `proxy=${rec2.proxy} raw=${rec2.raw}`);
+		check("幂等：代理目标地址里没有出现「代理套代理」（不含 /api/gacha-calendar-proxy）",
+			rec2.proxy === 1 && !rec2.proxyTargets[0].includes(PROXY_PREFIX), rec2.proxyTargets[0]);
+	}
+	//#endregion
+
+	//#region ⑥ 反向守卫：非 bwiki 来源**照旧走直连**（改道没有扩大化）
+	section("非 bwiki 来源：依旧走直连、目标地址逐字不变（改道没有扩大化）");
+	{
+		// 三个"实测 ACAO 放行 / 宿主不代理"的直连来源，各自走 transportFetchRaw：
+		//   pjsk 卡池/活动 → fetchJson(url, {mode:"direct"}) → sekai 静态资源（GitHub Pages，带 ACAO）
+		//   uma-global 卡池 → fetchJson(url, {mode:"direct"}) → GameTora 数据文件（多请求）
+		// pjsk 用 sekai-world 那条地址（= test/all.mjs 的 DIRECT_OK 白名单地址、且夹具 b1-sekai-* 覆盖它）；
+		// 条目默认地址走的是 gh-proxy 镜像（同一份内容的另一个 CDN 前缀），两者都是直连。
+		const cases = [
+			["pjsk", "gacha", "https://sekai-world.github.io/sekai-master-db-cn-diff/gachas.json"],
+			["pjsk", "event", "https://sekai-world.github.io/sekai-master-db-cn-diff/events.json"],
+			["uma-global", "gacha", null]   // null ⇒ 用条目声明地址（gametora）
+		];
+		for (const [id, side, fixedUrl] of cases) {
+			const s = T.SOURCES.find((x) => x.id === id);
+			// 运行时 SOURCES 是**扁平**形态：卡池地址 = s.url，活动地址 = s.eventUrl
+			const declUrl = fixedUrl || (s ? (side === "gacha" ? s.url : s.eventUrl) : "");
+			check(`前置：${id}.${side} 有声明地址且不是 bwiki`,
+				!!declUrl && !isBiligameHost(hostOf(declUrl)), declUrl);
+			if (!declUrl) continue;
+
+			const rec = installCountingTransport();
+			let err = null;
+			try {
+				const fetcher = side === "gacha" ? T.GACHA_FETCHERS[id] : T.EVENT_FETCHERS[id].default;
+				await fetcher(declUrl, undefined, s.tz);
+			} catch (e) { err = e; }
+			check(`前置：${id}.${side} 抓取器能跑通（夹具齐备）`, err === null, err && err.message);
+
+			check(`${id}.${side} 仍然走**直连**（直连 ≥ 1 次、代理 0 次）`,
+				rec.raw >= 1 && rec.proxy === 0, `raw=${rec.raw} proxy=${rec.proxy}`);
+			check(`${id}.${side} 的**第一条**直连地址与声明地址逐字相同（没被补 origin、没被改道、没被重序列化）`,
+				rec.rawTargets.length > 0 && rec.rawTargets[0] === declUrl, rec.rawTargets[0]);
+			check(`${id}.${side} 的直连地址都不含 origin 参数（bwiki 的补参没有漏过来）`,
+				rec.rawTargets.every((t) => originCount(t) === 0),
+				rec.rawTargets.map((t) => t.slice(0, 80)).join(" | ").slice(0, 240));
+		}
+
+		// 还原成夹具模式，别把记账壳留给后续批次
 		useFixtures();
 	}
 	//#endregion

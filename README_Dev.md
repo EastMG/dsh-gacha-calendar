@@ -130,6 +130,8 @@ dsh-gacha-calendar/
 
 **收口位置**：`src/client/15-env.js` 的两个 transport 出口 —— `transportFetchRaw`（直连）与 `proxyFetchText`（宿主代理）都先过纯函数 `withBwikiCors(url)`：主机是 `wiki.biligame.com` 或 `*.biligame.com` 且 query 里没有 `origin` ⇒ 追加 `origin=*`（无 query 用 `?`，有 query 用 `&`，有 `#hash` 补在 hash 前），其余原样返回（**不重序列化**：中文参数不会被 percent-encode）。因此**新增 bwiki 来源不必自己拼这个参数**，也**不要**再写第二份「拼 origin」的实现（回归在 `test/cases-bwiki-cors.mjs`：纯函数边界 + 两条出口的接线守卫 + 请求记账 + 其它站点逐字不变）。
 
+**bwiki 还必须走代理**：dsh-app:// 源下 bwiki 不回 ACAO，直连会被 CORS 拦；代理在 Node 侧发请求不受限。
+
 ### 明日方舟两阶段（举行 / 奖励领取）
 
 **事实**（2026-11-07 核实，改这块之前先看这条）：PRTS 装了 **SemanticMediaWiki 7.3.1**，`action=ask` **一次**就能把活动需要的四列全查出来 —— 所以活动侧的**默认来源**（设置页「活动来源」里的 **`PRTS 活动解析`**）就是这条单请求。原来的两条链路（「活动一览 HTML 解析起止」+「一次批量 query 取活动页 `{{活动信息}}` 的兑换期」）**降级成手动备选源**（**`PRTS 活动一览`**，见下面「来源策略」一节），不再自动参与默认路径：

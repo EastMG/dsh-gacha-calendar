@@ -2489,7 +2489,8 @@ export function createEngine(env) {
 		// 而仓里 22 处 bwiki 地址常量**本身都没有** —— 于是任何新写的 bwiki 直连都会静默踩坑，
 		// 平时只是靠宿主代理（不受 CORS 限制）把问题盖住了。
 		//
-		// 收口**位置**：本文件下面两个出口 —— `transportFetchRaw`（直连）与 `proxyFetchText`（宿主代理）。
+		// 收口**位置**：本文件下面两个出口 —— `transportFetchRaw`（bwiki 系主机已改走代理，其余直连）
+		// 与 `proxyFetchText`（宿主代理）。
 		// 全仓的联网只有这两条路（92-dsh-env.js 只是它们的实现，没人绕过这里），所以只在这一处补一次，
 		// 22 处常量与将来新增的 bwiki 来源都不必再关心这个参数。
 		// 代理路径也一视同仁：代理本身不受 CORS 限制，但 `origin=*` 对 MediaWiki 只是「匿名 CORS 请求」
@@ -2528,12 +2529,89 @@ export function createEngine(env) {
 		}
 		//#endregion
 
-		// 直连抓取（不需要代理的源：bwiki / PRTS 等 CORS 放行的站）。
-		// bwiki 的 `origin=*` 由 withBwikiCors 统一补（见上），调用点不必再自己拼。
+		//#region bwiki **必须走宿主代理**（2026-11-07 宿主日志确认的真因）
+		//
+		// 日志证据（DSH 渲染进程，大量重复）：
+		//   [error] Access to fetch at 'https://wiki.biligame.com/sr/api.php?…&origin=*'
+		//           from origin 'dsh-app://app' has been blocked by CORS policy:
+		//           No 'Access-Control-Allow-Origin' header is present on the requested resource. [renderer]
+		//
+		// 根因：DSH 页面的源是**自定义 scheme `dsh-app://app`**（不是 http/https）。bwiki（腾讯 EdgeOne 后面）
+		// 只对 http(s) 来源回 `Access-Control-Allow-Origin`，对 `dsh-app://app` 这个 Origin **一律不回**
+		// → 渲染进程直连必被浏览器 CORS 拦掉；上层只能把它归成「网络不通」，于是表现为"时好时坏"
+		// （直连/重试/缓存的抖动，看起来像网络问题，其实一次都没成功过）。
+		//
+		// ⇒ 上一轮补的 `origin=*`（withBwikiCors）是**必要但不充分**：日志里那条请求本来就带着它，照样被拦。
+		//   同一台机器实测对照（2026-11-07）：
+		//     · `http://127.0.0.1:49995`（http 源）直连 bwiki + origin=* ⇒ 200 ✓
+		//     · 宿主代理 `/api/gacha-calendar-proxy?url=…` ⇒ 200 ✓（星铁卡池 913KB/1.7s、活动 345KB/0.7s）
+		//     · `dsh-app://app`（DSH 真实页面源）直连 ⇒ CORS 拦截 ✗
+		//
+		// 所以：**凡是 biligame 系主机的请求，本出口不再直连，一律改走宿主代理**
+		// （`transport.fetchViaProxy` → 请求由宿主 Node 侧发出，压根没有 CORS 这回事；目标站白名单
+		//  与 15s 超时由宿主 `src/index.js` 的 proxyHandler 负责）。
+		// 刻意**没有**"代理失败就回退直连"的降落伞 —— 那等于把上面这条 CORS 拦路重新接回来。
+		// 幂等：`proxyFetchText`（本就走代理）不经过这里，不会被套成"代理套代理"。
+
+		// URL 是否属于 bwiki 系主机（相对地址 / 解析失败 ⇒ 否，交给后续按原样处理）
+		function isBwikiUrl(url) {
+			try { return isBwikiHost(new URL(String(url)).hostname); } catch { return false; }
+		}
+
+		// 把"经代理取回的正文"包成与直连一致的 WHATWG Response 形态（ok / status / headers / text() / json()），
+		// 这样 mkMediaWiki / mkRaw / fetchHtmlText / fetchText 这些调用点**一行都不用改**。
+		// 只包成功响应：代理层对"目标站非 200"会抛 `proxy-bad:<状态码>`（92-dsh-env.js），
+		// normErr 把它归成与直连 `http-<状态码>` **完全相同**的文案（`HTTP 567`），用户看不出通道差异。
+		// 同理 json() 保持原生 JSON.parse（解析失败仍是 SyntaxError）—— 与直连路径逐字一致。
+		function proxyTextAsResponse(text, url) {
+			return {
+				ok: true,
+				status: 200,
+				url,
+				headers: { get: () => null },
+				text: async () => text,
+				json: async () => JSON.parse(text)
+			};
+		}
+
+		// bwiki 走代理：保留直连时那份 headers（尤其 Referer —— bwiki 对**无 Referer 的裸请求**回 567，
+		// 见下面 rawHeaders 的注释）。`Referer` 拆出来单独作为代理的 `referer` 参数（宿主据此设出站
+		// Referer，语义与直连一致），其余头（如 `game-alias`）原样透传。
+		// `signal` **不转发**：宿主代理本来就不理会 signal（见 50-refresh.js 的 runEntriesWithDeadline，
+		// 它自己有"到点即收尾"的兜底），假装支持只会让调用方误判取消语义。
+		async function bwikiViaProxy(transport, target, opts) {
+			const o = opts || {};
+			const src = o.headers || null;
+			let referer = "";
+			const extra = {};
+			let hasExtra = false;
+			if (src) {
+				for (const k of Object.keys(src)) {
+					const v = src[k];
+					if (/^referer$/i.test(k)) { if (!referer && typeof v === "string") referer = v; continue; }
+					extra[k] = v;
+					hasExtra = true;
+				}
+			}
+			const text = await transport.fetchViaProxy(target, { referer, headers: hasExtra ? extra : void 0, body: o.body });
+			return proxyTextAsResponse(text, target);
+		}
+		//#endregion
+
+		// 直连抓取（**非 bwiki** 的源：PRTS / sekai / gametora 等 CORS 放行或宿主不代理的站）。
+		// bwiki 的 `origin=*` 由 withBwikiCors 统一补（见上）；**bwiki 系主机改走代理**（见上）。
 		// 返回 WHATWG Response 形态的对象（有 ok / status / headers / text() / json()），
 		// 各平台据此包装自己的 HTTP 实现即可，调用点无需改动。
 		function transportFetchRaw(url, opts) {
-			return requireTransport().fetchRaw(withBwikiCors(url), opts);
+			const target = withBwikiCors(url);
+			const transport = requireTransport();
+			if (isBwikiUrl(target) && typeof transport.fetchViaProxy === "function") {
+				// 特性探测而不是 try/catch：非 DSH 环境（core 单测 / 尚未注入代理的原生平台）没有
+				// fetchViaProxy 时**保持旧行为（直连）且不抛错**；但代理真的报错时**绝不**回退直连
+				// （否则 CORS 拦路又会静默回来，等于这次修复白做）。
+				return bwikiViaProxy(transport, target, opts);
+			}
+			return transport.fetchRaw(target, opts);
 		}
 
 		// 直连抓取的统一请求头：Accept + Referer=<目标站>/。

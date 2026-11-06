@@ -113,30 +113,35 @@ export function check(name, ok, detail) {
 }
 export function section(title) { console.log(`\n--- ${title} ---`); }
 
-// 旧式 impl → transport 包装。
+// 旧式 impl → transport 包装（抽成工厂：需要「分别给直连 / 代理记账」的用例可以拿它再包一层，
+// 见 test/cases-bwiki-cors.mjs 的「bwiki 不再直连」段）。不改旧签名。
 // ⚠️ 代理路径必须按**旧式**拼出 `/api/gacha-calendar-proxy?url=…`：既有用例靠"URL 前缀"
 //    断言"确实走了宿主代理"。同时旧 impl 对代理请求返回的是 `{status, body}` 包体，
 //    这里拆开 —— 成功返回 body 字符串，失败 throw（调用方据此判"抓取失败"）。
+export function makeFetchTransport(impl) {
+	return {
+		async fetchRaw(url, opts) { return impl(url, opts); },
+		async fetchViaProxy(url, opts) {
+			// ⚠️ 必须把 referer / headers / body 一并带进合成的代理 URL：既有用例靠看这个 URL
+			//    断言"确实走了宿主代理"以及"详情请求带了 referer=www.miyoushe.com"（实测的 Referer 门）。
+			const o = opts || {};
+			let api = "/api/gacha-calendar-proxy?url=" + encodeURIComponent(String(url));
+			api += "&referer=" + encodeURIComponent(o.referer || "");
+			if (o.headers) api += "&headers=" + encodeURIComponent(JSON.stringify(o.headers));
+			let payload;
+			if (o.body !== void 0) { api += "&contentType=" + encodeURIComponent(o.contentType || "application/json; charset=utf-8"); payload = typeof o.body === "string" ? o.body : JSON.stringify(o.body); }
+			const res = await impl(api, payload !== void 0 ? { method: "POST", body: payload } : undefined);
+			if (!res || !res.ok) throw new Error("proxy-http-" + ((res && res.status) || 0));
+			const wrapped = JSON.parse(await res.text());
+			if (wrapped.status !== 200) throw new Error("proxy-bad:" + wrapped.status);
+			return wrapped.body;
+		}
+	};
+}
+
 export function setFetchImpl(impl) {
 	T.setCoreEnv({
-		transport: {
-			async fetchRaw(url, opts) { return impl(url, opts); },
-			async fetchViaProxy(url, opts) {
-				// ⚠️ 必须把 referer / headers / body 一并带进合成的代理 URL：既有用例靠看这个 URL
-				//    断言"确实走了宿主代理"以及"详情请求带了 referer=www.miyoushe.com"（实测的 Referer 门）。
-				const o = opts || {};
-				let api = "/api/gacha-calendar-proxy?url=" + encodeURIComponent(String(url));
-				api += "&referer=" + encodeURIComponent(o.referer || "");
-				if (o.headers) api += "&headers=" + encodeURIComponent(JSON.stringify(o.headers));
-				let payload;
-				if (o.body !== void 0) { api += "&contentType=" + encodeURIComponent(o.contentType || "application/json; charset=utf-8"); payload = typeof o.body === "string" ? o.body : JSON.stringify(o.body); }
-				const res = await impl(api, payload !== void 0 ? { method: "POST", body: payload } : undefined);
-				if (!res || !res.ok) throw new Error("proxy-http-" + ((res && res.status) || 0));
-				const wrapped = JSON.parse(await res.text());
-				if (wrapped.status !== 200) throw new Error("proxy-bad:" + wrapped.status);
-				return wrapped.body;
-			}
-		},
+		transport: makeFetchTransport(impl),
 		timer: { setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (id) => clearTimeout(id) }
 	});
 	return impl;

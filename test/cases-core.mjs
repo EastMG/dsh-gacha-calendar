@@ -390,10 +390,13 @@ export default async function runCore() {
 			const warpBody = FIX("p4-hsr-bwiki-warp-1107");
 			const eventsBody = FIX("p4-hsr-bwiki-events-1107");
 			let hsrHtml = "";
-			// 只为这两个夹具服务的 transport：fetcher 拿到的永远是当前 hsrHtml
+			// 只为这两个夹具服务的 transport：fetcher 拿到的永远是当前 hsrHtml。
+			// ⚠️ 2026-11-07 起 bwiki 在 transportFetchRaw 里被**强制改走宿主代理**（DSH 页面源是
+			//    `dsh-app://app`，bwiki 对它不回 ACAO，直连必被 CORS 拦；见 src/client/15-env.js），
+			//    所以两条出口都必须能供同一份 body —— 否则这里的 hsr 抓取会直接打空。
 			const hsrTransport = {
 				async fetchRaw() { const t = hsrHtml; return { ok: true, status: 200, headers: { get: () => null }, text: async () => t, json: async () => JSON.parse(t) }; },
-				async fetchViaProxy() { throw new Error("no-proxy"); }
+				async fetchViaProxy() { return hsrHtml; }   // 代理出口的契约 = 直接返回 body 字符串
 			};
 			const NOW_HSR = Date.parse("2026-11-07T00:00:00.000Z");
 			const probe = createEngine({ transport: hsrTransport, storage: makeStore(), now: () => NOW_HSR, timer: { setTimeout, clearTimeout } });
