@@ -1,0 +1,56 @@
+{
+ "batchcomplete": true,
+ "query": {
+  "normalized": [],
+  "pages": [
+   {
+    "pageid": 92401,
+    "ns": 0,
+    "title": "墟",
+    "revisions": [
+     {
+      "slots": {
+       "main": {
+        "contentmodel": "wikitext",
+        "contentmodel_ok": true,
+        "content": "{{活动信息\n|活动名称=墟\n|活动开始时间=2026-10-24 16:00\n|活动结束时间=2026-11-07 03:59\n|兑换结束时间=2026-11-10 03:59\n|类型=支线故事\n|活动序号=1\n}}\n\n'''墟'''是2026年秋季的支线故事活动。"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "pageid": 92542,
+    "ns": 0,
+    "title": "火山旅梦",
+    "revisions": [
+     {
+      "slots": {
+       "main": {
+        "contentmodel": "wikitext",
+        "contentmodel_ok": true,
+        "content": "{{活动信息\n|活动名称=火山旅梦\n|活动开始时间=2026-11-05 04:00\n|活动结束时间=2026-11-19 03:59\n|兑换结束时间=2026-11-22 03:59\n|类型=支线故事\n}}\n\n'''火山旅梦'''是2026年秋季的支线故事活动。"
+       }
+      }
+     }
+    ]
+   },
+   {
+    "pageid": 92666,
+    "ns": 0,
+    "title": "危机合约：尖灭测试作战",
+    "revisions": [
+     {
+      "slots": {
+       "main": {
+        "contentmodel": "wikitext",
+        "contentmodel_ok": true,
+        "content": "{{活动信息\n|活动名称=尖灭测试作战\n|活动开始时间=2026-11-01 04:00\n|活动结束时间=2026-11-15 03:59\n|类型=危机合约\n|兑换说明=本次作战不设兑换商店\n}}\n\n'''尖灭测试作战'''是危机合约#13 的测试作战。"
+       }
+      }
+     }
+    ]
+   }
+  ]
+ }
+}

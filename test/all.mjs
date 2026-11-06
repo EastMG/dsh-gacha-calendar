@@ -24,6 +24,7 @@ import runP9 from "./cases-p9.mjs";
 import runBa from "./cases-ba.mjs";
 import runPw from "./cases-pw.mjs";
 import runUmaGt from "./cases-uma-gt.mjs";
+import runArknightsClaim from "./cases-arknights-claim.mjs";
 import runRuleLint from "./cases-rule-lint.mjs";
 import runTz from "./cases-tz.mjs";
 import runTicker from "./cases-ticker.mjs";
@@ -93,7 +94,7 @@ section("夹具卫生");
 	check("夹具非空", fx.length > 0, String(fx.length));
 	check("夹具数量 ≥ 20（各批都抓了真实响应）", fx.length >= 20, String(fx.length));
 	check("夹具命名带批次前缀（便于溯源）",
-		fx.every((f) => /^(p5x|p4|p5|p6|p7|p8|p9|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba)/.test(f)), fx.slice(0, 5).join(","));
+		fx.every((f) => /^(p5x|p4|p5|p6|p7|p8|p9|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights)/.test(f)), fx.slice(0, 5).join(","));
 }
 //#endregion
 
@@ -112,6 +113,7 @@ const batches = [
 	["蔚蓝档案（国服公告时间块 / 国际服 GameKee 当期卡池表）", runBa],
 	["完美世界·异环（官网公告：段落锚点 + 翻页深度）", runPw],
 	["赛马娘国际服卡池（GameTora 默认源）", runUmaGt],
+	["明日方舟两阶段（PRTS 一览 + 批量 wikitext：实际举行 / 奖励领取）", runArknightsClaim],
 	["规则静态守卫（方案 A 悬停 + 选当期判定不许各写各的）", runRuleLint],
 	["时区口径（外显=本机时区 / 悬停=源站墙钟）", runTz],
 	["侧栏轮播（单行翻页 + 「提前 N 小时」；不分游戏）+ 「提醒」白名单预留", runTicker],

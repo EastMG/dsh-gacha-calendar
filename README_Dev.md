@@ -100,8 +100,8 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 26 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora + 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（11 处定稿））
-│   ├── cases-*.mjs  # 各段用例（26 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh / settings-jump / settings-copy）
+│   ├── all.mjs      # 统一门禁：聚 27 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（11 处定稿））
+│   ├── cases-*.mjs  # 各段用例（27 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / cases-arknights-claim / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh / settings-jump / settings-copy）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
 │   ├── registry-shim.mjs # 各批次注册表规格快照 + DRIFT 守卫（与运行时 SOURCES 核对 tz/name）
@@ -121,6 +121,42 @@ dsh-gacha-calendar/
 ### 刷新频率（`refreshMinutes`）
 
 `refreshMinutes = 0` = **仅启动时刷新一次**：只在面板挂载（DSH 启动 / 页面加载）时刷一轮，运行期不排定时器；负数 / 非有限值才是脏配置（永不刷）。**出厂默认 = `0`（启动时）**；老配置由宿主**无条件**迁到 `0`（`migrateRefreshOnce`，标记 `refreshMigrated`；**不看旧值**，用户自己选过的档位也会被改成「启动时」—— 2026-10-31 用户要求）。
+
+### 明日方舟两阶段（举行 / 奖励领取）
+
+**事实**（2026-11-06 核实，改这块之前先看这条）：
+
+- **PRTS 活动一览**（`arknights` 的 `eventUrl`）表格只有「活动开始时间 + 隐藏的 `data-time="开始秒,结束秒"`」，**没有**兑换/领取期；
+- **PRTS 单个活动页**的 wikitext 开头有 `{{活动信息}}`，才有这两个字段：
+  ```
+  |活动开始时间=2026-10-24 16:00
+  |活动结束时间=2026-11-07 03:59      ← 实际举行结束
+  |兑换结束时间=2026-11-10 03:59      ← 奖励领取结束（**有的活动没有这个字段**）
+  ```
+- 页名来源：一览第二列 `<a href="/w/<URL 编码页名>">` 的 **href**（`decodeURIComponent`；只读 href，不抓详情页 HTML）。
+
+**抓取链路**（`src/client/30-game-hypergryph.js` 的 `fetchArknightsEvents`）**两次**请求，不是 N 次：
+
+1. 活动一览（1 次，与改造前同一条直连通道 `transportFetchRaw` + `rawHeaders`，自动补 `origin=*`）；
+2. `https://prts.wiki/api.php?action=query&prop=revisions&rvslots=main&rvprop=content&format=json&formatversion=2&origin=*&titles=<页名1>|<页名2>|…` —— **一次**批量取 wikitext，只取「相关」条目（一览结束 ≥ now−3 天 且 开始 ≤ now+45 天），**最多 12 页**（`PRTS_CLAIM_MAX_TITLES`）；没有相关条目时这一次请求都不发。
+
+**退化策略**（硬要求）：批量请求失败 / `json.parse.text` 形状不对 / 页内解析不出时间 ⇒ `pageTimes = null`，载荷按**改造前行为**出（只有活动期），这一侧的 `fail` 不往上报，主链路不受影响。
+
+**三态**（只改 arknights 的 payload，`81-schedule-model.js` / `82-schedule-view.js` 的通用逻辑一个字没动）：
+
+| 时刻 | 外显 `eventDates` | 悬停追加行 |
+|---|---|---|
+| now ≤ 活动结束（活动期） | `活动开始 ~ 活动结束`（与改造前逐字相同） | `兑换截止：MM-DD HH:mm`（有兑换期时） |
+| 活动结束 < now ≤ 兑换结束（兑换期） | `活动结束 ~ 兑换结束`（外显「还剩 X」因此指向兑换截止） | `活动已于 MM-DD HH:mm 结束，当前为奖励领取期（兑换截止 MM-DD HH:mm）` |
+| 没有「兑换结束时间」字段 / 批量失败 | 与改造前完全一致 | 不追加（不补猜 7 天） |
+
+- 兑换期内的活动**仍然出现**（改造前会整条消失 —— 那正是奖励没领的时候）。
+- 一览 `data-time` 的结束 与页内「活动结束时间」不一致时**以页内为准**，并 `console.warn` 一条（含两边的时间，便于排查）。
+- 悬停排版**仍只由共用 `buildEventHover` 产生**，`prtsHoverWithNotes` 只把提示行插到对应活动行之后；`hover` 为空（0/1 条当期）时不擅自造悬停文本。
+- 兑换期的 `eventDatesRaw` 用**同一份兑换区间**（日期格的 tooltip 与格子显示的区间不能互相打脸）；活动真正的起止仍完整写在 `eventHover` 的说明里。
+- 因此**「活动期」的输出与改造前逐字节一致**（`test/cases-arknights-claim.mjs` 的④用整段悬停做回归基线）。
+- 已知影响（**未改提醒逻辑**）：到期提醒用的是落盘的档期文本 → 绝对窗口，所以兑换期内的「结束提醒」会落在**兑换截止**那天，而不是活动结束那天。这是有意的（那时才是真 deadline），但文案仍是「即将结束」口径。
+- 夹具 `test/fixtures/arknights-events-{list,pages}/` 是**手工构造**的：本机出口对 `prts.wiki` 返回 403（Tengine，浏览器与 curl 一致），抓不到真实响应，行结构照解析契约写（见两份 `response.txt.meta.json` 的 `note`）。
 
 ### 为什么插件要改宿主的槽位布局
 

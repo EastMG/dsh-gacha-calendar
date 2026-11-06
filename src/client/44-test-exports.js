@@ -341,6 +341,18 @@
 				parseOurNotesGlobalStamp: ns_ournotes_global_parseOurNotesGlobalStamp,
 				pickOurNotesGlobalWindow: ns_ournotes_global_pickOurNotesGlobalWindow,
 			},
+			// 明日方舟（PRTS）：一览只给「活动期」，兑换/领取期只在单活动页的 `{{活动信息}}` 里。
+			// 这里导出的是**纯函数**（wikitext / 批量响应 / 一览快照 → 时间戳或载荷），
+			// 离线就能钉住"有兑换期 / 无兑换期 / 格式异常 / 顺序颠倒 / 批量失败退化"（见 test/cases-arknights-claim.mjs）。
+			"arknights": {
+				PRTS_CLAIM_MAX_TITLES,
+				PRTS_PAGES_API,
+				parsePrtsPageEndTimes,
+				prtsClaimTitles,
+				prtsEventPayload,
+				prtsPageNameFromHref,
+				prtsPageTimesFromBatch,
+			},
 			},
 			// 共用工具 / env（测试原先从 next-sources/lib/env.js 取；压平后分别见 23-parser-time.js / 24-parser-window.js / 27-parser-text.js / 28-parser-hover-tools.js）
 			fmtWindow,
