@@ -509,7 +509,8 @@
 		//
 		// ⚠️ 显示用的数据模型不动：仍是 event / eventDates / eventDatesRaw / eventHover 四个字段，
 		//    「阶段」只体现在按 now 动态选出来的文本里（见 prtsEventPayload 的三态说明）。
-		//    另有一个**只给提醒侧**的 `eventClaimDates`（有兑换期才出现）：见 prtsEventPayload 的说明。
+		//    另有**只给提醒侧**的 `eventClaimDates`（有兑换期才出现）与**只给显示**的 `eventShow`
+		//    （只在兑换期出现，形如「支线故事：兑换截止」）：都见 prtsEventPayload 的说明。
 
 		// 页名：`/w/<URL 编码页名>` → 解码后的页名（下划线归空格，与 MediaWiki 标题语义一致）。
 		// 只解析 href 字符串，**不**去抓详情页 HTML（那会是 N 次请求）。
@@ -712,10 +713,20 @@
 			const claimDates = primary.claimEndTs != null && claimStartTs != null && primary.claimEndTs > claimStartTs
 				? fmtWindow(claimStartTs, primary.claimEndTs, tz)
 				: "";
+			// 兑换期的**事项名**（2026-11-06 用户确认，**只给显示**）：
+			//   新面板那一行显示 `<分类>：兑换截止`（有分类用分类，如「视相博物馆：兑换截止」；
+			//   没有分类就用活动名，如「墟：兑换截止」）。
+			//   · `event` 一个字都不动 —— 提醒标题、侧栏轮播、搜索匹配都读它；
+			//   · 只在**兑换期**出现这个键（活动期 / 没有兑换期 ⇒ 载荷里没有 `eventShow`，
+			//     显示于是退回 `event`，与改造前逐字一致）；
+			//   · 消费方：81-schedule-model.js 的 scheduleNormalize（活动侧 show = g.eventShow || title）。
+			const showCat = primary.phase === "claim" ? String(primary.cat || "").trim() : "";
+			const eventShow = primary.phase === "claim" ? (showCat || primary.name) + "：兑换截止" : "";
 			return {
 				event: primary.name,
 				eventDates: windowText,
 				...(claimDates ? { eventClaimDates: claimDates } : {}),
+				...(eventShow ? { eventShow } : {}),
 				// 兑换期的日期格悬停也用**兑换区间**（与格子里显示的那份同一个区间），
 				// 否则"格子=兑换期、悬停=活动期"会互相打脸；活动期仍是一览原文（改造前行为）。
 				// 活动真正的起止仍完整出现在 eventHover 的说明里，信息没有丢。

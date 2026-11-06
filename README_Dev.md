@@ -151,6 +151,7 @@ dsh-gacha-calendar/
 | 没有「兑换结束时间」字段 / 批量失败 | 与改造前完全一致 | 不追加（不补猜 7 天） |
 
 - 兑换期内的活动**仍然出现**（改造前会整条消失 —— 那正是奖励没领的时候）。
+- 兑换期那一行的**事项名**（表格格子 / 「近期」/ 留白卡读的 `scheduleNormalize.show`）显示为 `<分类>：兑换截止`（有分类用分类，如 `视相博物馆：兑换截止`；没有分类就用活动名，如 `墟：兑换截止`）：payload 因此多带一个**只给显示**的 `eventShow`（只在兑换期出现，活动期没有这个键；随 `lastData` 持久化，`EVENT_FIELDS` / `CONTENT_FIELDS` 都已登记），`scheduleNormalize` 活动侧改成 `show = g.eventShow || title`。`event` 与悬停文本都不动（提醒标题、侧栏轮播、搜索匹配仍读 `event`），类型格仍是「活动」。
 - 一览 `data-time` 的结束 与页内「活动结束时间」不一致时**以页内为准**，并 `console.warn` 一条（含两边的时间，便于排查）。
 - 悬停排版**仍只由共用 `buildEventHover` 产生**，`prtsHoverWithNotes` 只把提示行插到对应活动行之后；`hover` 为空（0/1 条当期）时不擅自造悬停文本。
 - 兑换期的 `eventDatesRaw` 用**同一份兑换区间**（日期格的 tooltip 与格子显示的区间不能互相打脸）；活动真正的起止仍完整写在 `eventHover` 的说明里。

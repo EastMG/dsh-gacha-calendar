@@ -162,15 +162,17 @@ export default async function run() {
 			idle.seen.length === 1 && idle.data === null, `reqs=${idle.seen.length} data=${JSON.stringify(idle.data)}`);
 	}
 
-	// ── ②b 持久化：`eventClaimDates` 必须能随 lastData 出去（否则刷新一次也只剩一个 deadline）──
+	// ── ②b 持久化：`eventClaimDates` / `eventShow` 必须能随 lastData 出去 ──────────
 	// `lastData` 是 JSON 字符串，但引擎写回前会过一遍 normalizeRecord（**只留白名单字段**）——
-	// 忘了登记就会被**静默丢掉**：面板照常、提醒却少一条。这里用 getCached 真跑一遍那条归一。
+	// 忘了登记就会被**静默丢掉**：面板照常、提醒却少一条（或兑换期的事项名退回活动名）。
+	// 这里用 getCached 真跑一遍那条归一。
 	{
 		const data = {
 			arknights: {
 				name: "明日方舟", event: "支线故事：墟",
 				eventDates: "10-24 16:00 ~ 11-07 03:59",
 				eventClaimDates: "11-07 03:59 ~ 11-10 03:59",
+				eventShow: "支线故事：兑换截止",
 				notAField: "x"   // 没登记的白名单外字段必须被丢掉（证明断言不是"什么都留着"）
 			}
 		};
@@ -179,6 +181,8 @@ export default async function run() {
 		check("lastData 里的 `eventClaimDates` 原样读回（normalizeRecord 白名单已登记该字段）",
 			got.games.arknights.eventClaimDates === "11-07 03:59 ~ 11-10 03:59"
 			&& !("notAField" in got.games.arknights), JSON.stringify(got.games.arknights));
+		check("lastData 里的 `eventShow` 原样读回（只给显示的事项名也要登记，否则持久化后丢掉）",
+			got.games.arknights.eventShow === "支线故事：兑换截止", JSON.stringify(got.games.arknights));
 	}
 
 	// ── ③ 三态：活动期 / 兑换期 / batch 失败退化 ────────────────────────────────
@@ -196,6 +200,9 @@ export default async function run() {
 		check("活动期：载荷带 `eventClaimDates` = 活动结束 ~ 兑换结束（提醒侧据此建第二条 deadline）",
 			!!a.data && a.data.eventClaimDates === "11-07 03:59 ~ 11-10 03:59",
 			JSON.stringify(a.data && a.data.eventClaimDates));
+		// 事项名（只给显示）：活动期**不能**有 `eventShow` 这个键 —— 否则面板那一行会提前变成「兑换截止」。
+		check("活动期：**没有** `eventShow` 键（事项名仍是活动名，显示与改造前一致）",
+			!!a.data && !("eventShow" in a.data), JSON.stringify(a.data && Object.keys(a.data)));
 		check("活动期：没有兑换期的活动（尖灭）不补提示行 —— 提示行恰好 2 条（墟 / 火山）",
 			!!a.data && (() => {
 				const L = a.data.eventHover.split("\n");
@@ -226,6 +233,11 @@ export default async function run() {
 		// 兑换期里 eventDates 本身就是兑换区间 ⇒ eventClaimDates 与它**同值**；提醒侧按「T 相同只留一条」去重。
 		check("兑换期：`eventClaimDates` 与 `eventDates` 同值（提醒侧去重后只留一条，不会弹两次）",
 			!!b.data && b.data.eventClaimDates === b.data.eventDates, JSON.stringify(b.data && b.data.eventClaimDates));
+		// 事项名（只给显示）：兑换期显示 `<分类>：兑换截止`（墟 的分类 = 支线故事）；`event` 一个字不动。
+		check("兑换期：`eventShow` = 「<分类>：兑换截止」（支线故事 ⇒ 「支线故事：兑换截止」）",
+			!!b.data && b.data.eventShow === "支线故事：兑换截止", JSON.stringify(b.data && b.data.eventShow));
+		check("兑换期：`event` 仍是活动名（提醒标题 / 侧栏轮播 / 搜索匹配读它，不被显示名改写）",
+			!!b.data && b.data.event === "支线故事：墟", JSON.stringify(b.data && b.data.event));
 
 		// ③ 批量失败（同一时刻）—— 退化为改造前行为：墟消失、尖灭用的是**一览**的 11-14
 		const c = await runFetcher("2026-11-08T12:00:00+08:00", { failBatch: true });
@@ -238,12 +250,15 @@ export default async function run() {
 			&& c.warns.length === 0, JSON.stringify([c.data && c.data.eventHover, c.warns]));
 		check("batch 失败：**不写** `eventClaimDates` 这个键（不是给空串，下游不必多问一遍）",
 			!!c.data && !("eventClaimDates" in c.data), JSON.stringify(c.data && Object.keys(c.data)));
+		check("batch 失败：也**不写** `eventShow` 这个键（没有兑换期就没有「兑换截止」的事项名）",
+			!!c.data && !("eventShow" in c.data), JSON.stringify(c.data && Object.keys(c.data)));
 
 		// ④ 活动期 + batch 失败：与改造前**逐字节一致**（回归基线）
 		const d = await runFetcher("2026-11-06T15:54:00+08:00", { failBatch: true });
 		check("batch 失败（活动期）：event / eventDates / 悬停 与改造前逐字节一致",
 			!!d.data && d.data.event === "支线故事：墟" && d.data.eventDates === "10-24 16:00 ~ 11-07 03:59"
-			&& d.data.eventHover === "支线故事：墟   10-24 16:00 ~ 11-07 03:59\n危机合约：尖灭测试作战   11-01 04:00 ~ 11-14 03:59\n支线故事：火山旅梦   11-05 04:00 ~ 11-19 03:59",
+			&& d.data.eventHover === "支线故事：墟   10-24 16:00 ~ 11-07 03:59\n危机合约：尖灭测试作战   11-01 04:00 ~ 11-14 03:59\n支线故事：火山旅梦   11-05 04:00 ~ 11-19 03:59"
+			&& !("eventShow" in d.data),
 			JSON.stringify(d.data));
 
 		// ⑤ 未开始的活动：与改造前一致（不在当期里，不出现）

@@ -2338,9 +2338,11 @@ export function createEngine(env) {
 			// `eventClaimDates` = 明日方舟「奖励领取（兑换）截止」窗口（只给提醒侧，显示不读它）。
 			// 它必须在这里登记，否则 normalizeRecord 会把这个键**丢掉** ⇒ lastData 里只剩「活动结束」
 			// 一个 deadline（"刷新过一次之后两个都会响"就不成立了）。
+			// `eventShow` = **只给显示**的事项名（兑换期 ⇒「<分类>：兑换截止」；活动期没有这个键）。
+			// 同样要登记，否则持久化时被过滤 ⇒ 面板那一行退回活动名（`event` 本身不动）。
 			const CONTENT_FIELDS = [
 				"banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover",
-				"event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventHover"
+				"event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventShow", "eventHover"
 			];
 			function normalizeRecord(rec, name) {
 				const src = rec || {};
@@ -5817,7 +5819,8 @@ EVENT_FETCHERS["wuwa"] = {
 		//
 		// ⚠️ 显示用的数据模型不动：仍是 event / eventDates / eventDatesRaw / eventHover 四个字段，
 		//    「阶段」只体现在按 now 动态选出来的文本里（见 prtsEventPayload 的三态说明）。
-		//    另有一个**只给提醒侧**的 `eventClaimDates`（有兑换期才出现）：见 prtsEventPayload 的说明。
+		//    另有**只给提醒侧**的 `eventClaimDates`（有兑换期才出现）与**只给显示**的 `eventShow`
+		//    （只在兑换期出现，形如「支线故事：兑换截止」）：都见 prtsEventPayload 的说明。
 
 		// 页名：`/w/<URL 编码页名>` → 解码后的页名（下划线归空格，与 MediaWiki 标题语义一致）。
 		// 只解析 href 字符串，**不**去抓详情页 HTML（那会是 N 次请求）。
@@ -6020,10 +6023,20 @@ EVENT_FETCHERS["wuwa"] = {
 			const claimDates = primary.claimEndTs != null && claimStartTs != null && primary.claimEndTs > claimStartTs
 				? fmtWindow(claimStartTs, primary.claimEndTs, tz)
 				: "";
+			// 兑换期的**事项名**（2026-11-06 用户确认，**只给显示**）：
+			//   新面板那一行显示 `<分类>：兑换截止`（有分类用分类，如「视相博物馆：兑换截止」；
+			//   没有分类就用活动名，如「墟：兑换截止」）。
+			//   · `event` 一个字都不动 —— 提醒标题、侧栏轮播、搜索匹配都读它；
+			//   · 只在**兑换期**出现这个键（活动期 / 没有兑换期 ⇒ 载荷里没有 `eventShow`，
+			//     显示于是退回 `event`，与改造前逐字一致）；
+			//   · 消费方：81-schedule-model.js 的 scheduleNormalize（活动侧 show = g.eventShow || title）。
+			const showCat = primary.phase === "claim" ? String(primary.cat || "").trim() : "";
+			const eventShow = primary.phase === "claim" ? (showCat || primary.name) + "：兑换截止" : "";
 			return {
 				event: primary.name,
 				eventDates: windowText,
 				...(claimDates ? { eventClaimDates: claimDates } : {}),
+				...(eventShow ? { eventShow } : {}),
 				// 兑换期的日期格悬停也用**兑换区间**（与格子里显示的那份同一个区间），
 				// 否则"格子=兑换期、悬停=活动期"会互相打脸；活动期仍是一览原文（改造前行为）。
 				// 活动真正的起止仍完整出现在 eventHover 的说明里，信息没有丢。
@@ -14488,7 +14501,9 @@ EVENT_FETCHERS["r1999"] = {
 		// `eventClaimDates` = 明日方舟「奖励领取（兑换）截止」窗口（只有**有兑换期**的来源才带；
 		// 没有就没有这个键）。它是**提醒侧**的第二个 deadline，不参与任何显示逻辑 ⇒ 必须原样进 lastData，
 		// 否则「刷新过一次、中途不再刷新」就只剩一个 deadline 会响（见 65-remind.js 的 remindItemsOf）。
-		const EVENT_FIELDS = ["event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventHover"];
+		// `eventShow` = **只给显示**的事项名（明日方舟兑换期 ⇒「<分类>：兑换截止」；活动期没有这个键）。
+		// 它同样必须原样进 lastData，否则兑换期那一行会退回活动名（`event` 本身不动）。
+		const EVENT_FIELDS = ["event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventShow", "eventHover"];
 		function pickFields(src, fields) {
 			const out = {};
 			if (!src) return out;
@@ -14667,6 +14682,8 @@ EVENT_FETCHERS["r1999"] = {
 					if (!rec.eventDatesRaw) rec.eventDatesRaw = prevRec.eventDatesRaw || prevRec.eventDates || "";
 					// 活动侧整列是旧值时，奖励领取窗口也一起沿用（否则一次抓取失败就会**少一个 deadline**）
 					if (!rec.eventClaimDates) rec.eventClaimDates = prevRec.eventClaimDates || "";
+					// 事项名同口径沿用：否则兑换期那一行会从「<分类>：兑换截止」退回活动名（与格子里的兑换区间打脸）
+					if (!rec.eventShow) rec.eventShow = prevRec.eventShow || "";
 					if (!rec.eventHover) rec.eventHover = prevRec.eventHover || "";
 					rec.eventStale = true;
 				}

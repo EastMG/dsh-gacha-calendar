@@ -447,8 +447,13 @@ export default async function run() {
 		check("留白卡两处事项名（大标题 + 「再往后两件」那一行）也取 show",
 			(raw.match(/children: it\.show \|\| it\.title \|\| ""/g) || []).length === 2,
 			String((raw.match(/children: it\.show \|\| it\.title \|\| ""/g) || []).length));
-		check("show 的语义本体未变：卡池侧有 roles ⇒ cleanRoleNames，否则 title；活动侧 ⇒ title",
-			/const show = \(isG && roles\) \? \(cleanRoleNames\(roles, g\.id\) \|\| title\) : title;/.test(comp));
+		check("show 的语义本体：卡池侧有 roles ⇒ cleanRoleNames，否则 title；活动侧 ⇒ g.eventShow || title",
+			/const show = \(isG && roles\) \? \(cleanRoleNames\(roles, g\.id\) \|\| title\) : \(isG \? title : \(g\.eventShow \|\| title\)\);/.test(comp));
+		// 活动侧那个只给显示的事项名（`eventShow`）必须**真从抓取结果透传进面板** ——
+		// 少这一行，scheduleNormalize 永远读不到它，兑换期那行就退回活动名（静默失效，测试看不出来）。
+		// ⚠️ 断言里有字符串字面量（`""`）⇒ 用 codeOnly 挖空后的 comp 匹配不到，必须用 raw。
+		check("面板把 `eventShow` 从抓取结果透传给 scheduleNormalize（只给显示，没有就不传）",
+			/event: sc\.event \|\| g\.event,[\s\S]{0,500}?eventShow: sc\.eventShow \|\| ""/.test(raw));
 		check("title 仍只作源站原文（悬停侧的 orig 构造没被 show 牵连）",
 			/const orig = title \+ \(datesRaw \? "\\n" \+ datesRaw : ""\);/.test(raw));
 		// 侧栏轮播读不到 show：它的 `title` 字段装的就是外显文本（同一公式）—— 一并钉住，免得只改一处。

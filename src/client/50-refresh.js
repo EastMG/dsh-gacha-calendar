@@ -5,7 +5,9 @@
 		// `eventClaimDates` = 明日方舟「奖励领取（兑换）截止」窗口（只有**有兑换期**的来源才带；
 		// 没有就没有这个键）。它是**提醒侧**的第二个 deadline，不参与任何显示逻辑 ⇒ 必须原样进 lastData，
 		// 否则「刷新过一次、中途不再刷新」就只剩一个 deadline 会响（见 65-remind.js 的 remindItemsOf）。
-		const EVENT_FIELDS = ["event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventHover"];
+		// `eventShow` = **只给显示**的事项名（明日方舟兑换期 ⇒「<分类>：兑换截止」；活动期没有这个键）。
+		// 它同样必须原样进 lastData，否则兑换期那一行会退回活动名（`event` 本身不动）。
+		const EVENT_FIELDS = ["event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventShow", "eventHover"];
 		function pickFields(src, fields) {
 			const out = {};
 			if (!src) return out;
@@ -184,6 +186,8 @@
 					if (!rec.eventDatesRaw) rec.eventDatesRaw = prevRec.eventDatesRaw || prevRec.eventDates || "";
 					// 活动侧整列是旧值时，奖励领取窗口也一起沿用（否则一次抓取失败就会**少一个 deadline**）
 					if (!rec.eventClaimDates) rec.eventClaimDates = prevRec.eventClaimDates || "";
+					// 事项名同口径沿用：否则兑换期那一行会从「<分类>：兑换截止」退回活动名（与格子里的兑换区间打脸）
+					if (!rec.eventShow) rec.eventShow = prevRec.eventShow || "";
 					if (!rec.eventHover) rec.eventHover = prevRec.eventHover || "";
 					rec.eventStale = true;
 				}

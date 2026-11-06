@@ -158,9 +158,11 @@
 				else state = "live";
 			}
 			const remain = state === "live" ? Math.max(0, endTs - now.getTime()) : 0;
-			// 外显文本：卡池侧优先显示**去修饰的角色名**（旧面板一直这么显示），没有角色名就退回卡池标题；活动侧仍是活动名
+			// 外显文本：卡池侧优先显示**去修饰的角色名**（旧面板一直这么显示），没有角色名就退回卡池标题。
+			// 活动侧优先用**只给显示**的 `eventShow`（明日方舟兑换期 ⇒「<分类>：兑换截止」），
+			// 没有这个键就退回活动名 —— `title`/`event` 仍是源站原文（提醒标题、侧栏轮播、搜索读的是它）。
 			const roles = isG ? (g.roles || "") : "";
-			const show = (isG && roles) ? (cleanRoleNames(roles, g.id) || title) : title;
+			const show = (isG && roles) ? (cleanRoleNames(roles, g.id) || title) : (isG ? title : (g.eventShow || title));
 			// 悬停文本：**原始文本** = 标题 + 源站原文（优先 Raw），与旧面板 gachaTitle/eventTitle 的写法一致
 			const datesRaw = (isG ? g.bannerDatesRaw : g.eventDatesRaw) || rawSrc;
 			const orig = title + (datesRaw ? "\n" + datesRaw : "");

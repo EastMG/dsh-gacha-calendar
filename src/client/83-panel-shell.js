@@ -149,6 +149,8 @@
 					event: sc.event || g.event,
 					eventDates: sc.eventDates || g.eventDates,
 					eventDatesRaw: sc.eventDatesRaw || "",
+					// 只给显示的**事项名**（明日方舟兑换期 ⇒「<分类>：兑换截止」；没有就不传，显示退回 event）
+					eventShow: sc.eventShow || "",
 					// 活动列逐条悬停文本（并行活动：每条一行；仅 1 条时为空 → UI 退回单条展示）
 					eventHover: sc.eventHover || ""
 				};
