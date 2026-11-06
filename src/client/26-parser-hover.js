@@ -102,8 +102,20 @@
 		// （50-refresh.js 的 mergeEntryRecord）要按同一份判据把并列池展开成 `gacha` / `events` 数组，
 		// 而 50-refresh.js 也在 core 产物里（`CORE_ORDER`）—— 81 是**只属于渲染层**的段（不出 core）。
 		// 搬动是**逐字搬迁**（只想搬一个实现，不想有两份"谁算并列条目"的真理）。
-		const SCHEDULE_WINDOW_LINE = /^(?:\d{4}-)?\d{1,2}-\d{1,2} \d{1,2}:\d{2} ~ (?:\d{4}-)?\d{1,2}-\d{1,2} \d{1,2}:\d{2}$/;
-		const SCHEDULE_INLINE_WINDOW = / (?:\d{4}-)?\d{1,2}-\d{1,2} \d{1,2}:\d{2} ~ (?:\d{4}-)?\d{1,2}-\d{1,2} \d{1,2}:\d{2}$/;
+		// 悬停行的「档期」有两种起端写法（**两者都是档期，不是名称的一部分**）：
+		//   ① 两端都是日期 —— `MM-DD HH:MM ~ MM-DD HH:MM`（绝大多数游戏）
+		//   ② 起点是版本标签 —— `X.Y版本更新后 ~ MM-DD HH:MM`（源站只给"版本更新后"、不折算成日期；
+		//      任务书明确「不要动"版本更新后"的换算，那是另案」）
+		// ② 的真机来源**只有星铁 bwiki**（2026-11-07）：`历史跃迁` 的并列池行与 `活动一览` 的活动行
+		// 都会把这种原文写进悬停。其它 27 款普查结论：悬停档期要么两端都是绝对时刻（绝区零/鸣潮/
+		// 赛马娘等在各自解析器里已把「X.Y版本更新后」折算掉），要么根本不把 raw 写进悬停 ⇒ 不会出现这种行
+		// （针对性断言见 test/cases-core.mjs 的「只有星铁会产出带版本标签的悬停档期」）。
+		// 不认 ② 的后果：逆解析把整行当成"名称" ⇒ 事件标题被拼上档期
+		// （真机：`「巡星之礼」第二十七期   4.6版本更新后 ~ 11-11 03:59`）。
+		const SCHEDULE_WIN_START = "(?:(?:\\d{4}-)?\\d{1,2}-\\d{1,2} \\d{1,2}:\\d{2}|\\d{1,2}\\.\\d{1,2}\\s*版本更新后)";
+		const SCHEDULE_WIN_END = "(?:\\d{4}-)?\\d{1,2}-\\d{1,2} \\d{1,2}:\\d{2}";
+		const SCHEDULE_WINDOW_LINE = new RegExp("^" + SCHEDULE_WIN_START + " ~ " + SCHEDULE_WIN_END + "$");
+		const SCHEDULE_INLINE_WINDOW = new RegExp(" " + SCHEDULE_WIN_START + " ~ " + SCHEDULE_WIN_END + "$");
 		const scheduleNoYear = (x) => String(x).replace(/(\d{4})-(\d{1,2}-\d{1,2})/g, "$2");
 		function scheduleHoverItems(hover, shownTitle, isG) {
 			const lines = String(hover || "").split("\n").map((x) => x.trim()).filter(Boolean);
@@ -171,17 +183,50 @@
 		}
 
 
+		// 角色名判重（**按角色名 = 去掉括号属性后缀**；保留第一次出现的形式）。
+		// 为什么需要（2026-11-07 星铁真机：「历史跃迁」页）：同一角色在「5星角色」格子里会出现两次 ——
+		//   `<a class="new" title="文件:星神★阿哈.png">星神★阿哈</a>`（缺图红链，文本只有名字）
+		// + `<a title="星神★阿哈">&#160;星神★阿哈（欢愉•量子）</a>`（正常链接，带属性后缀）
+		// ⇒ stripTags 后同一格拼成 `星神★阿哈 星神★阿哈（欢愉•量子）`，外显（show）与 roles 就都重复了。
+		// 口径：**「、」分组与组内空白分隔符原样保留**，只丢掉重复的那个名字（例如上面剩下
+		// `星神★阿哈`）；判重键去掉 `（…）/(…)` 属性后缀，所以「有属性 / 无属性」两种写法算同一人。
+		// ⚠️ 这是**载荷级**、按需开启的清洗（目前只有星铁调用，见 30-game-hoyoverse.js）；
+		//    **不改**全局 `cleanRoleNames`（那是"外显去修饰"的语义，其它游戏不跟着变）。
+		function dedupeRoleNames(roles) {
+			const seen = new Set();
+			const groups = [];
+			for (const group of String(roles || "").split("\u3001")) {
+				const kept = [];
+				for (const name of group.split(/\s+/)) {
+					if (!name) continue;
+					const key = name.replace(/[（(][^）)]*[）)]/g, "").trim();
+					if (!key || seen.has(key)) continue;
+					seen.add(key);
+					kept.push(name);
+				}
+				if (kept.length) groups.push(kept.join(" "));
+			}
+			return groups.join("\u3001");
+		}
+
+
 		// Bwiki 卡池列载荷（原神/星铁）：外显沿用 selectCurrent（同窗口主池角色合并、武器/光锥池不入选）；
 		// bannerHover 列出同期全部主池（每池"池名：角色"+时间；窗口相同则合并时间；结束时间升序）
-		function bwikiGachaPayload(html, tz) {
+		// `opts.dedupeRoleNames === true` ⇒ 每个池的 roles 与合并后的 roles 都按「角色名」判重（星铁用）。
+		function bwikiGachaPayload(html, tz, opts) {
 			const items = parseAllBwiki(html, tz);
 			// 页面拿到了却连一行候选都没有 → wiki 表结构变了（抛错，面板显示"卡池失败"）；
 			// 有候选但都不覆盖当前时刻 → 下面返回 null（未公布）。这两件事必须分开。
 			if (items.length === 0) throw new Error("bwiki-gacha-no-table");
+			const dedupe = !!(opts && opts.dedupeRoleNames === true);
+			// 先按池判重（悬停的「池名：角色」也用这份 roles），再交给 selectCurrent 合并
+			if (dedupe) for (const it of items) it.roles = dedupeRoleNames(it.roles);
 			// selectCurrent 会就地补全缺失起点（fillMissingStarts），故先取快照
 			const snapshot = items.map((it) => ({ banner: it.banner, roles: it.roles, startTs: it.startTs, endTs: it.endTs, raw: it.rawOriginal || it.raw, isMain: it.isMain }));
 			const cur = selectCurrent(items, nowMs());
 			if (!cur) return null;
+			// 合并后（多条当期池用「、」拼接）再判重一次：同一角色可能同时出现在两口池里
+			if (dedupe) cur.roles = dedupeRoleNames(cur.roles);
 			const now = nowMs();
 			const pools = snapshot
 				.filter((it) => it.isMain && coversNow(it, now))

@@ -315,8 +315,10 @@ events: [{ key, title, show, startTs, endTs, tz, raw,
 #### 谁生成（`src/client/50-refresh.js`）
 
 - `mergeEntryRecord(r, prevRec, nowTs, meta)` 末尾两行：来源若已给结构化数组（P3 的解析器会开始给）就原样用，否则 `dataArrayGachaOf` / `dataArrayEventsOf` 合成。`meta = { id, tz }` 由 `engine-api.js` 的 `refresh()` 从条目上带进来（只用来生成 key 与 `tz` 字段）。
-- **并列池怎么展开**：复用**显示层同一个** `scheduleHoverItems`（`bannerHover`/`eventHover` 的多行文本 → `[{ title, win }]`），再用 `dataArrayHoverPoolsOf` 里那三条"这口池已经在数组里了"的判据（与外显同名 / 与**显示名**同名 / 「池名：外显名」这种整段包裹写法）—— 与 `81-schedule-model.js` 的 `scheduleHoverOnes` **逐字对应**，所以"数组条数 = 今天探头里的行数"。
+- **并列池怎么展开**：复用**显示层同一个** `scheduleHoverItems`（`bannerHover`/`eventHover` 的多行文本 → `[{ title, win }]`），再用 `dataArrayHoverPoolsOf` 里的判据（与外显同名 / 与**显示名**同名 / 「池名：外显名」这种整段包裹写法 / **判重键 = 起止时间 + 池名**）—— 前三条与 `81-schedule-model.js` 的 `scheduleHoverOnes` **逐字对应**，所以"数组条数 = 今天探头里的行数"。
+  - ⚠️ 判重键用「池名」而不是「角色集合」：主条目的 `roles` 是**同期多池合并**（`selectCurrent` 的既有语义），它的角色集合 ≠ 悬停里任何单池的角色集合；池名（悬停标题里「：」之前那段）才是稳定的池标识。这条是 2026-11-07 星铁真机修（同一口池的「合并角色」条与「池名：角色」条曾并列成两条）。
   - ⚠️ `scheduleHoverItems` + 它的两条区间正则 + `scheduleNoYear` 已在 2026-11-07 **从 81 搬进 26-parser-hover.js**（逐字搬迁）：`50-refresh.js` 也在 core 产物里（`CORE_ORDER`），而 81 只属于渲染层。不搬就会变成"core 里调用一个不存在的函数"。
+  - 两条区间正则的**起端也认「X.Y版本更新后」**（不是只有两端日期）：星铁 bwiki 把这种原文直接写进悬停（`「巡星之礼」第二十七期   4.6版本更新后 ~ 11-11 03:59`），不认就会把档期拼进**事件标题**。普查结论：其它 27 款的「版本更新后」已在各自解析器里折算成绝对时刻、悬停原文不含版本标签 ⇒ 只影响星铁（`test/cases-core.mjs` ④-9 有针对性断言）。注意这只影响**悬停逆解析**，`fillMissingStarts` / 「版本更新后」的换算一个字没动。
   - 解析不出并列池（`bannerHover` 为空 / 只有 1 条）⇒ 就 1 条，与今天显示等价。
 - **归一**：`dataArray*ItemOf` 只做最少校验 —— 非对象元素**丢弃**、`startTs`/`endTs` **必须是 number 否则 `null`**（`"123"` / `NaN` / `Infinity` 全变 `null`）、文本字段缺了填空串、`roles` 不是数组就 `[]`。缺数组（改造前的老缓存）⇒ **空数组**，形状固定。
 
@@ -331,16 +333,18 @@ events: [{ key, title, show, startTs, endTs, tz, raw,
 | ⑤ | `engine-head.js` 的 `listGames().defaults` | 登记 `gacha: []` / `events: []`（条目的出厂值里没有池/活动 ⇒ 恒空；登记是为了形状成套） |
 | ⑥ | `60-helpers.js` 的 `customEntries` 白名单 | **刻意不登记**：那张表重建的是**条目定义**（抓什么 / 按哪个时区读），数组是**抓取结果**（住在 `lastData` 里，按 id 索引）。`84-settings-page.js` 的写入点枚举过：没有"把抓取结果写进 customEntries"的路径。 |
 
-#### 回归（`test/cases-core.mjs` ④，44 条）
+#### 回归（`test/cases-core.mjs` ④，60 条）
 
 真实夹具四条线：**原神**（米游社；卡池侧正文无日期 ⇒ `gacha = []`，活动侧 1 条）、**明日方舟**（PRTS；`events` 3 条 + `phase`，悬停里那条「墟 兑换截止」不另算一条）、**FGO**（并列卡池真的展开成 4 条）、**赛马娘国服**（"数组第 1 条不是外显那条"的反证）。另守：12 个旧字符串字段与改造前（HEAD 39d41a5）**逐字相同**、`getCached()` 往返数组仍在（含 `phase`）、归一的最少校验、以及上面六处白名单的静态断言。
+
+2026-11-07 再加一段**星铁真机**（夹具 `p4-hsr-bwiki-{warp,events}-1107`，按线上页面结构裁剪）：② `roles`/`show` 里同一角色不再出现两次（判重键 = 去掉括号属性后的角色名，载荷级、只在星铁开启）；③ `gacha` 里同一口池只有一条（判重键 = 起止时间 + 池名）；④ 事件标题不再被拼上档期（`「巡星之礼」第二十七期   4.6版本更新后 ~ 11-11 03:59` ⇒ 标题只有前半）。另有一条"只有星铁会产出带版本标签的悬停档期"的普查断言，以及 FGO / BanG Dream / 绝区零三家 `gacha` 数组**整段 JSON 逐字不变**（`startTs`/`endTs` 只比类型，理由见已知不等价①）。
 
 #### 已知不等价（如实记，留给 P2 / P3）
 
 1. **`startTs` / `endTs` 用的是"本机时刻"**：P1 直接 `parseDisplayRange(源站原文)`，**没做**"源站 tz → 本机"换算。于是在 `TZ≠+08` 的机器上，数组里的 ts 会比显示层换算后的小时**差一个时区差**（+08 机器上一致）。P2 换成**结构化来源**（解析器直出绝对时刻）后自动消失。
 2. **并列池的 `show` = 标题本身**：悬停行只给"池名：角色"，没有结构化角色表 ⇒ 并列池那条 `show === title`、`roles = []`（主条的 `show`/`roles` 是完整的）。P3 让解析器直出每口池的角色表后可补。
 3. **卡池侧"跨池合并的角色表"没有拆开**：主条的 `roles` 仍是引擎给的那串合并角色（FGO 那种 13 个角色一行），不是"每口池自己的角色"。同样是 P3 的结构化来源才能拆。
-4. **同名两行只留一条**：星铁那种"同一池名两行（不同窗口）"，`scheduleHoverItems` 按**完全同名只留第一条** ⇒ 数组也只有一条（与今天探头一致，不是本次新丢的）。真要两条得等 P3 给结构化多池。
+4. **同名两行只留一条**：`scheduleHoverItems` 对**完全同名**的行只留第一条；"同一口池的两种写法"（合并角色的主条 vs 悬停里的 `池名：角色`）则由 `dataArrayHoverPoolsOf` 的（起止时间 + 池名）判重键合并成一条。真要"同池两个不同窗口各留一条"得等 P3 给结构化多池。
 
 ### 为什么插件要改宿主的槽位布局
 

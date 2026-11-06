@@ -276,14 +276,39 @@
 		function dataArrayOrderedOf(list, prefix) {
 			return list.slice().sort(dataArraySortOf).map((x, i) => Object.assign({ key: prefix + ":" + i }, x));
 		}
+		// 同一池/同一条活动的判重键 =（起止时间 + 池名）。
+		// 为什么用「池名」而不是「角色集合」：
+		//   · 主条目是**同期多池角色合并**（selectCurrent 的既有语义：`roles` = 全部当期池角色用「、」拼），
+		//     它的角色集合 ≠ 悬停里任何单池的角色集合 ⇒ 按角色集合判重会把同一口池当成两条；
+		//   · 池名是稳定的：悬停写法是 `池名：角色`（星铁真机：`「我身即刃」角色活动跃迁：千冶•刃（虚无•火）`
+		//     与主条目 `「我身即刃」角色活动跃迁` 是同一口池）⇒ 取「：」之前那段就归一到同一个池名。
+		//   真机（2026-11-07）：`gacha:0`（合并角色）与 `gacha:1`（「我身即刃」…：千冶•刃）是同一池，
+		//   因为悬停那条的 title 带了「：角色」，既不同于 title、也不等于 show，三条旧判据都没拦住。
+		// 池名先归一（去掉括号属性后缀/空白）再比：同池的不同写法归到一起。
+		// 起点是**未折算原文**（源站只写「X.Y版本更新后」）时，**起止时间整段不参与判重**：主条目的
+		// startTs 会被 fillMissingStarts 补出来（`bannerDates` 用它倒计时），而悬停里仍是原文、
+		// `parseDisplayRange` 两端都解不出 ⇒ 同一口池会在"有 ts / 无 ts"两边各留一条。
+		// 这类窗口本来就拿不到绝对时刻（任务书：不动「版本更新后」换算），只能按池名判重。
+		function dataArrayPoolKeyOf(title, startTs, endTs, raw) {
+			const t = dataArrayTextOf(title);
+			const cut = t.indexOf("\uFF1A");
+			const pool = DATA_ARRAY_LABEL(cut > 0 ? t.slice(0, cut) : t);
+			const openStart = startTs == null || /版本更新后/.test(dataArrayTextOf(raw));
+			return openStart ? `|${pool}` : `${startTs}|${endTs}|${pool}`;
+		}
 		// 悬停文本 → 可进数组的**并列条目**（这口池/这条活动在上面主条目之外，还是独立一条）
 		// ⚠️ 三条判据与 81-schedule-model.js 的 scheduleHoverOnes 逐字对应：
 		//   ① 与外显同名（那条已经在数组里了）
 		//   ② 与**显示名**同名（明日方舟兑换期的主行 = `eventShow`「<活动名> 兑换截止」⇒ 同一条）
 		//   ③ 「池名：外显名」/「外显名：其余」= 同一口池的两种写法（只认「：」两侧整段）
+		// ④（2026-11-07 加）判重键 = 起止时间 + 池名：同一池只能有一条。三条旧判据都要求
+		//    「整串同名」或「：两侧整段包含」，而悬停那条是 `池名：角色`、主条目的 show 是**所有池合并的
+		//    角色名**（既不是池名、也不被它包住）⇒ 拦不住。判重键与「谁排第几」无关，只去重。
 		function dataArrayHoverPoolsOf(hover, main, now) {
 			const list = scheduleHoverItems(dataArrayTextOf(hover), main ? main.title : "", true);
 			const shown = DATA_ARRAY_LABEL(main && (main.show || main.title));
+			const seen = new Set();
+			if (main) seen.add(dataArrayPoolKeyOf(main.title, main.startTs, main.endTs, main.raw));
 			const out = [];
 			for (const x of list) {
 				if (main) {
@@ -296,6 +321,9 @@
 					}
 				}
 				const w = dataArrayWindowOf(scheduleNoYear(x.win), now);
+				const poolKey = dataArrayPoolKeyOf(x.title, w.startTs, w.endTs, x.win);
+				if (seen.has(poolKey)) continue;
+				seen.add(poolKey);
 				out.push({ title: x.title, show: x.title, startTs: w.startTs, endTs: w.endTs, raw: x.win });
 			}
 			return out;

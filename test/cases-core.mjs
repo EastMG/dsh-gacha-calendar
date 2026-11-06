@@ -18,7 +18,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { createEngine } from "../packages/core/core.mjs";
-import { check, section, useFixtures } from "./harness.mjs";
+import { check, section, useFixtures, fixtureBody } from "./harness.mjs";
 import { T, REPO } from "./load.mjs";
 
 export default async function runCore() {
@@ -377,6 +377,139 @@ export default async function runCore() {
 			check("白名单⑥：60-helpers.js 的 customEntries 白名单**不含**数组字段（它是条目定义，不是抓取结果）",
 				!/\bgacha:/.test(helpersSrc.slice(helpersSrc.indexOf("function getAllEntries"), helpersSrc.indexOf("function baRoleName")))
 			);
+		}
+
+		// ── ④-9 星穹铁道真机（2026-11-07）：② 角色名重复 / ③ 同池两条 / ④ 事件标题拼档期 ──
+		//
+		// 输入 = 用户机器快照里的 hsr 记录（bwiki「历史跃迁」+「活动一览」按线上结构裁剪的夹具）。
+		// 三个 bug 都**只在数据层可见**：面板显示层会把读不出窗口的并列条目丢掉，所以真机上
+		// 只看面板不会发现，只有 `gacha` / `events` 数组留着半截错误（这正是 P1 要修的）。
+		{
+			// 夹具按"名字"取（不写进 map.json：那会改变其它批次对 hsr 默认源的期望）
+			const FIX = (dir) => fixtureBody("fixture:" + dir, { ["fixture:" + dir]: dir + "/response.txt" });
+			const warpBody = FIX("p4-hsr-bwiki-warp-1107");
+			const eventsBody = FIX("p4-hsr-bwiki-events-1107");
+			let hsrHtml = "";
+			// 只为这两个夹具服务的 transport：fetcher 拿到的永远是当前 hsrHtml
+			const hsrTransport = {
+				async fetchRaw() { const t = hsrHtml; return { ok: true, status: 200, headers: { get: () => null }, text: async () => t, json: async () => JSON.parse(t) }; },
+				async fetchViaProxy() { throw new Error("no-proxy"); }
+			};
+			const NOW_HSR = Date.parse("2026-11-07T00:00:00.000Z");
+			const probe = createEngine({ transport: hsrTransport, storage: makeStore(), now: () => NOW_HSR, timer: { setTimeout, clearTimeout } });
+			const metaHsr = { id: "hsr", tz: "Asia/Shanghai" };
+			hsrHtml = warpBody;
+			const hsrGachaPayload = await probe.__test.GACHA_FETCHERS["hsr"]("https://wiki.biligame.com/sr/api.php?action=parse&page=warp", undefined, "Asia/Shanghai");
+			const hsrGacha = probe.__test.mergeEntryRecord({ data: hsrGachaPayload || {} }, null, NOW_HSR, metaHsr).gacha || [];
+			hsrHtml = eventsBody;
+			const hsrEventPayload = await probe.__test.EVENT_FETCHERS["hsr"].default("https://wiki.biligame.com/sr/api.php?action=parse&page=events", undefined, "Asia/Shanghai");
+			const hsrEvents = probe.__test.mergeEntryRecord({ data: hsrEventPayload || {} }, null, NOW_HSR, metaHsr).events || [];
+
+			// ② 角色名重复：`roles` / `show` 里同一角色出现两次（真机 `星神★阿哈 星神★阿哈（欢愉•量子）`）
+			// 判重口径 = **去掉括号属性后缀后的角色名**（与修复实现的规则一致）。
+			const roleBase = (s) => String(s).replace(/[（(][^）)]*[）)]/g, "").trim();
+			const roleTokens = (roles) => String(roles || "").split(/[、,，]/).flatMap((g) => g.split(/\s+/)).filter(Boolean);
+			const hsrRoles = (hsrGachaPayload && hsrGachaPayload.roles) || "";
+			const tokens = roleTokens(hsrRoles);
+			check("星铁②：roles 里不存在重复角色名（去括号属性后判重，保留第一次出现的形式）",
+				tokens.length > 0 && new Set(tokens.map(roleBase)).size === tokens.length,
+				JSON.stringify(tokens));
+			check("星铁②：roles 逐字（同一角色只出现一次，分组/空白分隔符保持源站写法）",
+				hsrRoles === "星神★阿哈、银狼LV.999（欢愉•虚数） 火花（欢愉•火） 爻光（欢愉•物理）、千冶•刃（虚无•火）、真珠（欢愉•冰）",
+				JSON.stringify(hsrRoles));
+			const hsrMain = hsrGacha[0] || {};
+			const showTokens = roleTokens(hsrMain.show);
+			check("星铁②：show（外显）里同样没有重复角色名",
+				showTokens.length > 0 && new Set(showTokens.map(roleBase)).size === showTokens.length,
+				JSON.stringify(hsrMain.show));
+			check("星铁②：悬停的「池名：角色」也一起去重（同一份 roles 出来的，不另写一套规则）",
+				!!hsrGachaPayload && hsrGachaPayload.bannerHover.split("\n").some((l) => l === "「愚戏众星」角色活动跃迁：星神★阿哈"),
+				JSON.stringify(hsrGachaPayload && hsrGachaPayload.bannerHover));
+
+			// ③ 同池两条：`gacha:0`（合并角色）与悬停展开的 `「我身即刃」…：千冶•刃（虚无•火）` 是同一口池。
+			// 判重键 = **起止时间 + 池名**（池名 = 标题里「：」之前那段；理由见 50-refresh.js 的注释）。
+			const poolKeyOf = (x) => {
+				const t = String(x.title || "");
+				const cut = t.indexOf("\uFF1A");
+				const pool = (cut > 0 ? t.slice(0, cut) : t).replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, "");
+				return `${x.startTs}|${x.endTs}|${pool}`;
+			};
+			check("星铁③：gacha 数组里没有「同池两条」（判重键 = 起止时间 + 池名，逐个唯一）",
+				hsrGacha.length > 0 && new Set(hsrGacha.map(poolKeyOf)).size === hsrGacha.length,
+				JSON.stringify(hsrGacha.map((x) => [x.title, x.startTs, x.endTs])));
+			check("星铁③：主条目「我身即刃」只留一条（合并角色那条 vs 悬停『池名：角色』那条不再并列）",
+				hsrGacha.filter((x) => x.title === "「我身即刃」角色活动跃迁" || x.title.indexOf("「我身即刃」角色活动跃迁：") === 0).length === 1,
+				JSON.stringify(hsrGacha.map((x) => x.title)));
+			check("星铁③：四口当期池各一条（并没有把判重做成『只留外显那一条』）",
+				hsrGacha.length === 4
+				&& ["我身即刃", "沧海萃珠", "铭心之萃", "愚戏众星"].every((n) => hsrGacha.some((x) => x.title.indexOf(`「${n}」角色活动跃迁`) === 0)),
+				JSON.stringify(hsrGacha.map((x) => x.title)));
+			// 补：主条**自己**就是「版本更新后」池时（startTs 被 fillMissingStarts 补过、悬停里解析不出 ts），
+			// 判重键必须靠该行原生 raw 认出"起点未折算"，否则同一口池仍会留两条。
+			const openStartRec = probe.__test.mergeEntryRecord({ data: {
+				banner: "「甲」角色活动跃迁",
+				roles: "甲角色（火）",
+				bannerDates: "11-10 15:00 ~ 12-02 11:59",
+				bannerDatesRaw: "4.7版本更新后 ~ 12-02 11:59",
+				bannerHover: "「甲」角色活动跃迁：甲角色（火）\n4.7版本更新后 ~ 12-02 11:59\n「乙」角色活动跃迁：乙角色（冰）\n4.7版本更新后 ~ 12-22 15:00"
+			} }, null, NOW_HSR, metaHsr);
+			check("星铁③：主条自己就是「版本更新后」池（ts 被补过）时，悬停里同一池仍判成同一条",
+				(openStartRec.gacha || []).length === 2,
+				JSON.stringify((openStartRec.gacha || []).map((x) => [x.title, x.startTs, x.endTs, x.raw])));
+
+			// ④ 事件标题被拼上档期：`「巡星之礼」第二十七期   4.6版本更新后 ~ 11-11 03:59`
+			const SCHEDULE_TAIL_RE = [/版本更新后/, /~ \d{2}-\d{2}/, /\d{2}-\d{2} \d{2}:\d{2}/];
+			check("星铁④：事件标题不含档期文本（无『版本更新后』/『~ MM-DD』/『MM-DD HH:MM』）",
+				hsrEvents.length > 0 && hsrEvents.every((e) => SCHEDULE_TAIL_RE.every((re) => !re.test(e.title))),
+				JSON.stringify(hsrEvents.map((e) => e.title)));
+			check("星铁④：标题逐字 = 「巡星之礼」第二十七期（档期原文留在 raw 里，没有丢）",
+				hsrEvents.some((e) => e.title === "「巡星之礼」第二十七期" && e.raw === "4.6版本更新后 ~ 11-11 03:59"),
+				JSON.stringify(hsrEvents.map((e) => [e.title, e.raw])));
+			// 针对性断言：修复落在**悬停逆解析**（唯一真源），所以直接钉住那条规则本身。
+			// （悬停契约：<2 行返回 ""，所以这里给两行；第一行就是真机里被拼脏的那一行。）
+			const split = T.scheduleHoverItems("「巡星之礼」第二十七期   4.6版本更新后 ~ 11-11 03:59\n「爱，幽灵与机器人」   10-21 12:00 ~ 12-02 11:59", "", false);
+			check("星铁④：悬停行「名称 + 3 空格 + 版本标签起端的档期」能拆成 名称 / 档期",
+				split.length === 2 && split[0].title === "「巡星之礼」第二十七期" && split[0].win === "4.6版本更新后 ~ 11-11 03:59"
+				&& split[1].title === "「爱，幽灵与机器人」" && split[1].win === "10-21 12:00 ~ 12-02 11:59",
+				JSON.stringify(split));
+			// 证据：**只有星铁**会产出这种悬停行。其它游戏的「X.Y版本更新后」都在各自解析器里
+			// 折算成绝对时刻了，悬停原文里不会出现版本标签（否则下面这条会红）。
+			const others = [
+				["FGO", fgo.rec], ["明日方舟", ark.rec], ["赛马娘国服", uma.rec]
+			];
+			check("星铁④：只有星铁会产出带版本标签的悬停档期（其它游戏悬停原文不含『版本更新后』）",
+				others.every(([, rec2]) => !/版本更新后/.test((rec2.bannerHover || "") + "\n" + (rec2.eventHover || ""))),
+				JSON.stringify(others.map(([n, rec2]) => [n, /版本更新后/.test((rec2.bannerHover || "") + (rec2.eventHover || ""))])));
+		}
+
+		// ── ④-10 其它游戏的 `gacha` 数组 / roles / show 逐字不变 ────────────────────
+		// 本次三处修改（角色名判重、并列条目判重、悬停逆解析认版本标签）都只有星铁会踩到；
+		// 下面把改造前（HEAD）跑同一批夹具的数组**整段 JSON** 钉住，任何"顺手也改了别家"的行为都会红。
+		// ⚠️ `startTs`/`endTs` 只比**类型**（number）：P1 的口径是"本机时刻"（见 README_Dev 的已知不等价①），
+		//    同一份夹具在 `TZ=UTC` 下比 +08 少 8 小时 —— 把数字钉死会让门禁在 UTC 下假红（2026-11-07 实测过）。
+		{
+			const NOW_BD = Date.parse("2026-10-01T17:26:29.000Z");
+			const bandori = await runGame("bandori", NOW_BD);
+			const zzz = await runGame("zzz", NOW_GEN);
+			const sansTs = (arr) => JSON.stringify((arr || []).map((x) => Object.assign({}, x, {
+				startTs: x.startTs == null ? "null" : typeof x.startTs,
+				endTs: x.endTs == null ? "null" : typeof x.endTs
+			})));
+			const GOLDEN = {
+				fgo: '[{"key":"fgo:gacha:0","title":"「OVER THE SAME SKY-SEPTEMBER-」推荐召唤","show":"阿蒂拉 罗摩 兰斯洛特 魁札尔·科亚特尔 反抗军的Rider 弗兰肯斯坦 谜之女主角X〔Alter〕 阿尔托莉雅·潘德拉贡 芦屋道满 妖精骑士兰斯洛特 库库尔坎 大和武尊 堤丰·厄斐墨洛斯","roles":["阿蒂拉 罗摩 兰斯洛特(Saber) 魁札尔·科亚特尔 反抗军的Rider 弗兰肯斯坦 谜之女主角X〔Alter〕 阿尔托莉雅·潘德拉贡(Ruler) 芦屋道满 妖精骑士兰斯洛特 库库尔坎 大和武尊 堤丰·厄斐墨洛斯"],"startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"2026年9月22日(周二) 19:00 ~ 2026年10月6日(周二) 13:59"},{"key":"fgo:gacha:1","title":"唠唠叨叨新选组 THE END推荐召唤2：土方岁三、冲田总司、斋藤一、山南敬助、永仓新八","show":"唠唠叨叨新选组 THE END推荐召唤2：土方岁三、冲田总司、斋藤一、山南敬助、永仓新八","roles":[],"startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"09-26 19:00 ~ 10-15 13:59"},{"key":"fgo:gacha:2","title":"唠唠叨叨新选组 THE END 近藤勇推荐召唤：藤堂平助、近藤勇","show":"唠唠叨叨新选组 THE END 近藤勇推荐召唤：藤堂平助、近藤勇","roles":[],"startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"09-30 19:00 ~ 10-15 13:59"},{"key":"fgo:gacha:3","title":"唠唠叨叨新选组 THE END 河上彦斋推荐召唤：河上彦斋、藤堂平助","show":"唠唠叨叨新选组 THE END 河上彦斋推荐召唤：河上彦斋、藤堂平助","roles":[],"startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"09-24 19:00 ~ 10-22 13:59"}]',
+				bandori: '[{"key":"bandori:gacha:0","title":"黄金周纪念·前篇Dream＆KIRAMEKI Festival招募","show":"丸山彩、CHU²、二叶筑紫、山吹沙绫、宇田川巴、大和麻弥","roles":["丸山彩","CHU²","二叶筑紫","山吹沙绫","宇田川巴","大和麻弥"],"startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"9月29日维护后~10月11日12:59"}]',
+				zzz: '[{"key":"zzz:gacha:0","title":"「烬夜安眠」频段","show":"洛克茜、普罗米娅","roles":["洛克茜（击破·风）","普罗米娅（异常·冰）"],"startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"09-30 12:00 ~ 10-20 14:59"}]'
+			};
+			check("FGO：`gacha` 数组逐字不变（4 条并列池，没有被新判重键折掉）",
+				sansTs(fgo.rec.gacha) === GOLDEN.fgo, sansTs(fgo.rec.gacha));
+			check("FGO：`roles` / 主条 `show` 逐字不变",
+				fgo.rec.roles === "阿蒂拉 罗摩 兰斯洛特(Saber) 魁札尔·科亚特尔 反抗军的Rider 弗兰肯斯坦 谜之女主角X〔Alter〕 阿尔托莉雅·潘德拉贡(Ruler) 芦屋道满 妖精骑士兰斯洛特 库库尔坎 大和武尊 堤丰·厄斐墨洛斯"
+				&& ((fgo.rec.gacha || [])[0] || {}).show === "阿蒂拉 罗摩 兰斯洛特 魁札尔·科亚特尔 反抗军的Rider 弗兰肯斯坦 谜之女主角X〔Alter〕 阿尔托莉雅·潘德拉贡 芦屋道满 妖精骑士兰斯洛特 库库尔坎 大和武尊 堤丰·厄斐墨洛斯",
+				JSON.stringify([fgo.rec.roles, ((fgo.rec.gacha || [])[0] || {}).show]));
+			check("BanG Dream：`gacha` 数组逐字不变（1 条，roles/show 一字不差）",
+				sansTs(bandori.rec.gacha) === GOLDEN.bandori, sansTs(bandori.rec.gacha));
+			check("绝区零：`gacha` 数组逐字不变（1 条，roles 带（属性）后缀也不被当成重复清掉）",
+				sansTs(zzz.rec.gacha) === GOLDEN.zzz, sansTs(zzz.rec.gacha));
 		}
 	}
 }

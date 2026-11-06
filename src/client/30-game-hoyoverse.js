@@ -956,7 +956,11 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 
 		// ── 抓取器登记 ──
 		GACHA_FETCHERS["genshin"] = mkMediaWiki(bwikiGachaPayload);
-		GACHA_FETCHERS["hsr"] = mkMediaWiki(bwikiGachaPayload);
+		// 星铁：bwiki「历史跃迁」的「5星角色」格子会把同一角色写两遍（缺图红链的名字 + 正常链接的
+		// 「名字（属性）」）⇒ 载荷按**角色名（去掉括号属性后缀）**判重，保留第一次出现的形式。
+		// 规则与理由见 26-parser-hover.js 的 dedupeRoleNames；**只在星铁这里开启**，
+		// 原神/绝区零的 bwiki 载荷（以及全局 cleanRoleNames）语义一字不改。
+		GACHA_FETCHERS["hsr"] = mkMediaWiki((html, tz) => bwikiGachaPayload(html, tz, { dedupeRoleNames: true }));
 		GACHA_FETCHERS["zzz"] = (url, signal, tz) => fetchZzzGacha(url, signal, tz);
 		GACHA_FETCHERS["zzz-bwiki"] = mkMediaWiki(pickCurrent(parseAllBwiki));
 					// 原神：活动一览为 JS 动态加载（Dquery+SMW），走 SMW ask 查询（fetchYsActivity 忽略 URL 参数）
