@@ -487,7 +487,12 @@
 			const s = String(raw).trim();
 			const m = s.match(/(\d{1,2})月(\d{1,2})日\s*[－\-]\s*(\d{1,2})月(\d{1,2})日/);
 			if (!m) return null;
-			const base = now || new Date(nowMs());   // 缺省走注入时钟（core 不得直接读宿主时钟）
+			// `now` **两种都收**（Date / 毫秒数），缺省走注入时钟（core 不得直接读宿主时钟）。
+			// ⚠️ P3e（2026-11-07）真因：本函数唯一的调用方 `parseLdshopPools` 传的是 `nowMs()`（数字），
+			//    而这里直接 `base.getTime()` ⇒ 手动把异环卡池源切到「LDSHOP」时必抛
+			//    「base.getTime is not a function」。修法只做类型归一，**时间口径一个字不动**
+			//    （墙钟 → 绝对时刻仍走 sourceWallParts / sourceInstant，tz 仍必传）。
+			const base = now == null ? new Date(nowMs()) : (now instanceof Date ? now : new Date(now));
 			const y = typeof sourceWallParts === "function" ? sourceWallParts(base.getTime(), tz).y : base.getFullYear();
 			const mk = (yy, mo, d, h, mi) => (typeof sourceInstant === "function"
 				? sourceInstant(yy, mo, d, h, mi, tz)
