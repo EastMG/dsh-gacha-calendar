@@ -477,6 +477,28 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 
 **反向证明**：把生成器的分隔符从 3 个空格改成 2 个 ⇒ `test/cases-p3.mjs` ①（`名称   + 3 空格`）与 ②（原神/明日方舟活动 golden）同时红；把 `dataArrayExtrasFromEntriesOf` 的三条判据去掉一条 ⇒ ② 的数组 golden 红。这是"悬停/数组同源"真的承重的证据。
 
+#### P3b 收尾状态（2026-11-07）
+
+**已切 22 / 25 款**（41 条路径，全部有 golden）：星铁 / 绝区零 / 崩坏3 / 物华弥新 / 战双帕弥什 / 卡厄斯梦境 /
+雪松 / 嘟嘟脸恶作剧 / 闪耀优俊少女国服 / 赛马娘日服 / 赛马娘国际服 / BanG Dream! / PJSK / OurNotes /
+OurNotes 国际服 / FGO / 少女前线2 / P5X / 异环 / 星塔旅人 / 蔚蓝档案国服 / 重返未来1999。
+
+**未切 3 款（如实记录，不是抽样）**：`ba-global`（默认源 GameKee：现存夹具是"同一 body 应答所有请求"的合成夹具，
+线上是 SPA + `content_cdn` 两段请求）、`ba-jp`（默认源日服官网新闻接口，仓库里**没有**夹具）、`endfield`
+（canmoe Next.js chunk，**没有**夹具）。这三款的 `bannerHover` / `eventHover` 仍走改造前的手拼路径，
+因此 **`scheduleCellOf` 的兼容分支与 `50-refresh` 的合成函数（`dataArrayGachaOf` / `dataArrayEventsOf` /
+`dataArrayHoverPoolsOf`）本批保留**（任务书规定的删除条件 = 全款切完，未满足）。它们的数组仍由合成路径产出，
+`test/cases-core.mjs` ⑤-5 的 34 侧等价性继续覆盖。
+
+**反向证明（本批实测，红字见提交说明/会话记录）**：
+① 把生成器活动侧分隔符从 **3 个空格改成 2 个** ⇒ `test/cases-p3.mjs` ①（3 空格 / 缺起止 / 长期过滤 /
+与 `buildEventHover` 逐字节相同）、P3 golden（原神 / 明日方舟活动）与 **P3b golden（hsrEvent / zzzEvent 等）**
+同时红；② 把 `bwikiGachaPayload` 直出分支里的 `extras` 去掉（只留主条）⇒ P3 golden（genshinGacha）、
+P3b golden（hsrGacha）与"数组与改造前合成结果逐条相等"断言同时红。改回后 4292 通过 / 0 失败。
+
+**回归规模**：`test/cases-p3.mjs` 的 P3b 段 41 条路径（每款每侧一条）× ① golden（12 字符串 + 数组非时间字段）
+/ ② 与合成结果逐条相等（含 ts）/ ③ 同源（悬停 == `hoverTextFromItems(条目事实)`）三层断言；
+`P3B_SWITCHED_EXPECT = 41` 让"切了没登记 / 登记了没切"都会红。
 #### P3b 待办清单（本批**没做**的，按现成路径排好）
 
 1. **其余 25 款切解析器直出**：`bwikiGachaPayload` 的星铁分支（`dedupeRoleNames`）、`selectArknights`（PRTS 卡池备选）、`pickCurrent(parseAllBwiki)`（绝区零 bwiki 备选）、`zspms` / `whmx` / `kedr` / `czn` / `stellasora` / `fgo` / `gf2` / `bandori` / `pjsk` / `p5x` / `nte` / `r1999` / `ba-*` / `uma-*` / `endfield` / `ddlezj` / `ournotes` 等 —— 统一按本批的三段式改：**条目事实 → `hoverTextFromItems` → `dataArrayProducedListOf`**。
