@@ -1,0 +1,6 @@
+{
+  "url": "https://www.gamekee.com/v1/content/detail/609133",
+  "status": 200,
+  "capturedAt": "2026-11-07T01:19:55.965Z",
+  "note": "GameKee「国际服往期卡池一览」(content 609133) 的 detail（真抓，逐字）：data.title + data.content_cdn（带 ?v= 版本戳，抓取器靠它拿当期 CDN 版本）"
+}

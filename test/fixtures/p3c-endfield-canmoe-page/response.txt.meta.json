@@ -1,0 +1,6 @@
+{
+  "url": "https://end.canmoe.com/zh-CN/banner-calendar",
+  "status": 200,
+  "capturedAt": "2026-11-07T01:19:55.965Z",
+  "note": "终末地 canmoe 卡池日历页（真抓，逐字）：纯 Next.js App Router 外壳，排期数据只在 BannerCalendar 引用的 chunk 里（同目录 6 份 p3c-endfield-canmoe-chunk-* 就是抓取器第一轮并发的那 6 份）"
+}

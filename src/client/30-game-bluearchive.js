@@ -244,15 +244,21 @@
 				endTs: cur[0].endTs
 			};
 			// 卡池列悬停：每池「池名：生徒」一行 + 时间（同窗口合并，结束时间升序）
-			const hover = buildPoolHover(cur.map((p) => ({
+			// ── P3c（2026-11-07）：条目事实 → 悬停 + `gacha` / `events` 数组 ──────────────
+			// 与 ba-cn 同一套三段式：先有**条目事实**（每口当期池一条），悬停文本由这份事实
+			// 反生成（`poolHoverKept` 先做与 `buildPoolHover` 同一份去重/排序），数组再由
+			// `dataArrayProduced*` 收口 —— 悬停与数组因此不可能各说各话。
+			const poolItems = poolHoverKept(cur.map((p) => ({
 				name: p.name,
 				label: `${p.name}\uFF1A${p.student}`,
 				startTs: p.startTs,
 				endTs: p.endTs,
 				raw: p.raw
-			})), tz);
+			}))).map((p) => ({ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw }));
+			const hover = hoverTextFromItems(poolItems, "gacha", tz);
 			if (hover) data.bannerHover = hover;
 			// 活动：同期「イベント」条目的開催期間
+			let evWin = null;      // P3c：活动那一行的窗口（条目事实要它；与 eventDates 同一对 ts）
 			for (const it of rows) {
 				const sum = clean(it.summary);
 				const text = clean(it.content);
@@ -268,7 +274,16 @@
 				// 文本按**源站墙钟**渲染（日服源 = JST；startTs/endTs 已由 jstTs 换算成正确绝对时刻）。
 				data.eventDates = fmtWindow(startTs, endTs, tz);
 				data.eventDatesRaw = `${afterMaint(a) ? "メンテナンス後" : a} ~ ${b}`;
+				evWin = { startTs, endTs };
 				break;
+			}
+			// 数组收口（主条来自上面已定稿的字符串字段；并列条 = 同一份条目事实）
+			data.gacha = dataArrayProducedGachaOf(data, poolItems, { tz }, now);
+			data.gachaHoverItems = poolItems;
+			if (data.event) {
+				const eventItems = [{ title: data.event, startTs: evWin ? evWin.startTs : null, endTs: evWin ? evWin.endTs : null, raw: data.eventDatesRaw }];
+				data.events = dataArrayProducedEventsOf(data, eventItems, { tz }, now);
+				data.eventHoverItems = eventItems;
 			}
 			return data;
 		}
@@ -290,6 +305,10 @@
 			delete d.event;
 			delete d.eventDates;
 			delete d.eventDatesRaw;
+			// P3c：活动侧的三件（数组 + 条目事实）也跟着删掉 —— 卡池源只负责卡池，否则会把活动
+			// 数组经 `mergeEntryRecord` 塞进活动列（两侧解耦，见上面那段注释）。
+			delete d.events;
+			delete d.eventHoverItems;
 			return d;
 		}
 
@@ -299,7 +318,14 @@
 			const json = await proxyFetchJson(url, "https://bluearchive.jp/");
 			const d = parseBaJpNews(json, now, tz);
 			if (!d || !d.event) return null;
-			return { event: d.event, eventDates: d.eventDates || "", eventDatesRaw: d.eventDatesRaw || d.eventDates || "" };
+			// P3c：活动数组 / 条目事实直接沿用 `parseBaJpNews` 那一份（主条由下面这串字符串字段重算，
+			// 与 `dataArrayEventMainOf` 同一句 ⇒ 与改造前的合成结果逐条相同）。
+			return {
+				event: d.event,
+				eventDates: d.eventDates || "",
+				eventDatesRaw: d.eventDatesRaw || d.eventDates || "",
+				...(d.events ? { events: d.events, eventHoverItems: d.eventHoverItems } : {})
+			};
 		}
 
 
@@ -566,6 +592,35 @@
 			};
 			const nowYear = new Date(now).getFullYear();   // 走注入时钟（core 不得直接读宿主时钟）
 			const data = { banner: "", roles: "", bannerDates: "", event: "", eventDates: "" };
+			// P3c（2026-11-07）：两侧各一条的**条目事实** → 悬停 + 数组。这里先攒事实，最后统一收口。
+			//   · `bannerWin`：日服 = 标题里那个区间（`parseGkRange`）；国际服 = 609133 表里那一组
+			//   · `tz`：**必须显式给** —— `fetchGameKeeBa` 的签名里没有 tz（注册表不传参），
+			//     而数组条目的 `tz` 字段要与记录的 `meta.tz` 一致（ba-global = UTC / ba-jp = Asia/Tokyo）。
+			//   · 两侧都只有**一条**（GameKee 只给当期那一个标题 / 那一组表行）⇒ 生成器对 <2 条给空串，
+			//     `bannerHover` / `eventHover` 与改造前一样**不会被写**。
+			let bannerWin = null;
+			const tz = isJp ? TZ_JP : TZ_UTC;
+			const emitGameKeeArrays = (d) => {
+				if (d.banner && bannerWin) {
+					const gItems = [{ title: d.banner, startTs: bannerWin.startTs, endTs: bannerWin.endTs, raw: d.bannerDates }];
+					const gHover = hoverTextFromItems(gItems, "gacha", tz);
+					if (gHover) d.bannerHover = gHover;
+					d.gacha = dataArrayProducedGachaOf(d, gItems, { tz: tz }, now);
+					d.gachaHoverItems = gItems;
+				} else {
+					d.gacha = [];      // 这一侧没数据 ⇒ 固定形状的空数组（与合成路径同一个下限）
+				}
+				if (d.event && eventWindow) {
+					const eItems = [{ title: d.event, startTs: eventWindow.startTs, endTs: eventWindow.endTs, raw: d.eventDates }];
+					const eHover = hoverTextFromItems(eItems, "event", tz);
+					if (eHover) d.eventHover = eHover;
+					d.events = dataArrayProducedEventsOf(d, eItems, { tz: tz }, now);
+					d.eventHoverItems = eItems;
+				} else {
+					d.events = [];
+				}
+				return d;
+			};
 			// 3. 日服卡池侧：标题就是池名+档期（现状不变；GameKee 只是日服的兜底源，不补角色名）
 			if (isJp) {
 				const bannerTitle = bannerEntry ? await getTitle(bannerEntry) : "";
@@ -579,6 +634,7 @@
 							.replace(/【[^】]*\d[^】]*】/g, "")
 							.trim();
 						data.bannerDates = rng.raw;
+						bannerWin = { startTs: rng.startTs, endTs: rng.endTs };
 					}
 				}
 			}
@@ -607,7 +663,7 @@
 			}
 			if (isJp) {
 				if (!data.banner || !data.bannerDates) return null;
-				return data;
+				return emitGameKeeArrays(data);
 			}
 			// 5. 国际服卡池侧：**唯一来源** = 609133 这条链（detail + CDN）。
 			//    任何一步失败/结构变化 → 抛（`GameKee 内容接口失败（…）`），不再有"只有池名"的半成品；
@@ -620,7 +676,8 @@
 			// ⚠️ 不传 tz 的理由同上面 `evDates`：`pool.win` 的 ts 由 `gkBaTableWindow` 的本机墙钟合成，
 			//    解析与渲染同口径 ⇒ 文本 roundtrip 稳定；改成传 tz 必须同时改解析方向，否则反而出错。
 			data.bannerDates = fmtWindow(pool.win.startTs, pool.win.endDayTs);
-			return data;
+			bannerWin = { startTs: pool.win.startTs, endTs: pool.win.endDayTs };
+			return emitGameKeeArrays(data);
 		}
 
 

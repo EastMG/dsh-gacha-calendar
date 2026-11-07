@@ -1,0 +1,6 @@
+{
+  "url": "https://api.fz.wiki/api/v1/articles/by-title?ns=0&title=%E6%B4%BB%E5%8A%A8&withRevision=1",
+  "status": 200,
+  "capturedAt": "2026-11-07T01:19:55.965Z",
+  "note": "终末地 FZ Wiki「活动」页的 REST 数据（真抓，逐字）：revision.contentJson 里是 wikiCardItem.attrs.data（name/tags/timeRanges）。页面地址 https://fz.wiki/wiki/活动 只是给人看的，抓取器由它推出这条 API 地址"
+}

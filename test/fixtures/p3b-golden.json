@@ -695,5 +695,107 @@
 			"eventHoverExtra": ""
 		},
 		"array": "[{\"key\":\"r1999:event:0\",\"title\":\"佩施塔·雪红与玫瑰白\",\"show\":\"佩施塔·雪红与玫瑰白\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 11-26 04:59\",\"source\":\"primary\"},{\"key\":\"r1999:event:1\",\"title\":\"亚特兰蒂斯谋杀案·上篇\",\"show\":\"亚特兰蒂斯谋杀案·上篇\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 11-26 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:2\",\"title\":\"推理演绎\",\"show\":\"推理演绎\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-07 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:3\",\"title\":\"烟斗客指津\",\"show\":\"烟斗客指津\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-07 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:4\",\"title\":\"吼吼点唱机：余下的真相\",\"show\":\"吼吼点唱机：余下的真相\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-09 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:5\",\"title\":\"亚特兰蒂斯谋杀案\",\"show\":\"亚特兰蒂斯谋杀案\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-10 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:6\",\"title\":\"红鲱鱼推理爱好社\",\"show\":\"红鲱鱼推理爱好社\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-10 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:7\",\"title\":\"幸存者游戏\",\"show\":\"幸存者游戏\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-10 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:8\",\"title\":\"狂想与解构\",\"show\":\"狂想与解构\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-10 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:9\",\"title\":\"鬃毛邮报\",\"show\":\"鬃毛邮报\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-10 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:10\",\"title\":\"星光礼赠\",\"show\":\"星光礼赠\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-10 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:11\",\"title\":\"衣着风尚\",\"show\":\"衣着风尚\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-10 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:12\",\"title\":\"注定之城\",\"show\":\"注定之城\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-10 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:13\",\"title\":\"焦点闪回\",\"show\":\"焦点闪回\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-07 05:00 ~ 12-10 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:14\",\"title\":\"书页与小憩\",\"show\":\"书页与小憩\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-31 04:59\",\"source\":\"hover\"}]"
+	},
+	"baGlobalGacha": {
+		"rec": {
+			"banner": "特选招募",
+			"roles": "真琴、亚子(礼服)、皐月、千秋、环奈(泳装)",
+			"bannerDates": "11-03 00:00 ~ 11-10 00:00",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "海兰德铁道暴走事件～于是列车消失了~ 复刻",
+			"eventDates": "10-27 00:00 ~ 11-10 00:00",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"ba-global:gacha:0\",\"title\":\"特选招募\",\"show\":\"真琴、亚子(礼服)、皐月、千秋、环奈(泳装)\",\"roles\":[\"真琴\",\"亚子(礼服)\",\"皐月\",\"千秋\",\"环奈(泳装)\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"UTC\",\"raw\":\"\",\"source\":\"primary\"}]"
+	},
+	"baGlobalEvent": {
+		"rec": {
+			"banner": "特选招募",
+			"roles": "真琴、亚子(礼服)、皐月、千秋、环奈(泳装)",
+			"bannerDates": "11-03 00:00 ~ 11-10 00:00",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "海兰德铁道暴走事件～于是列车消失了~ 复刻",
+			"eventDates": "10-27 00:00 ~ 11-10 00:00",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"ba-global:event:0\",\"title\":\"海兰德铁道暴走事件～于是列车消失了~ 复刻\",\"show\":\"海兰德铁道暴走事件～于是列车消失了~ 复刻\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"UTC\",\"raw\":\"\",\"source\":\"primary\"}]"
+	},
+	"baJpGacha": {
+		"rec": {
+			"banner": "無限の軌道は希望なりや！",
+			"roles": "ヒフミ(レーシング)、アズサ(レーシング)",
+			"bannerDates": "10-28 19:00 ~ 11-11 10:59",
+			"bannerDatesRaw": "メンテナンス後 ~ 2026年11月11日(水) 10:59",
+			"bannerHover": "無限の軌道は希望なりや！：ヒフミ(レーシング)\n夢幻の機動は奇謀なりや？：アズサ(レーシング)\n10-28 19:00 ~ 11-11 10:59",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"ba-jp:gacha:0\",\"title\":\"無限の軌道は希望なりや！\",\"show\":\"ヒフミ(レーシング)、アズサ(レーシング)\",\"roles\":[\"ヒフミ(レーシング)\",\"アズサ(レーシング)\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Tokyo\",\"raw\":\"メンテナンス後 ~ 2026年11月11日(水) 10:59\",\"source\":\"primary\"},{\"key\":\"ba-jp:gacha:1\",\"title\":\"無限の軌道は希望なりや！：ヒフミ(レーシング)\",\"show\":\"無限の軌道は希望なりや！：ヒフミ(レーシング)\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Tokyo\",\"raw\":\"10-28 19:00 ~ 11-11 10:59\",\"source\":\"hover\"},{\"key\":\"ba-jp:gacha:2\",\"title\":\"夢幻の機動は奇謀なりや？：アズサ(レーシング)\",\"show\":\"夢幻の機動は奇謀なりや？：アズサ(レーシング)\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Tokyo\",\"raw\":\"10-28 19:00 ~ 11-11 10:59\",\"source\":\"hover\"}]"
+	},
+	"baJpEvent": {
+		"rec": {
+			"banner": "Start Your Engines！ ～永远的183号班～",
+			"roles": "",
+			"bannerDates": "10-28 00:00 ~ 11-11 00:00",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "Start Your Engines!",
+			"eventDates": "10-28 00:00 ~ 11-11 00:00",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"ba-jp:event:0\",\"title\":\"Start Your Engines!\",\"show\":\"Start Your Engines!\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Tokyo\",\"raw\":\"\",\"source\":\"primary\"}]"
+	},
+	"endfieldGacha": {
+		"rec": {
+			"banner": "「祖泉的新流」重构寻访",
+			"roles": "明河、汤汤",
+			"bannerDates": "10-29 12:00 ~ 11-19 12:00",
+			"bannerDatesRaw": "10-29 12:00 ~ 11-19 12:00",
+			"bannerHover": "「祖泉的新流」重构寻访：汤汤\n10-29 12:00 ~ 11-19 12:00\n「烟火邀星河」特许寻访：明河\n2026-11-05 12:00 ~ 2099-12-31 11:59",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"endfield:gacha:0\",\"title\":\"「祖泉的新流」重构寻访\",\"show\":\"明河、汤汤\",\"roles\":[\"明河\",\"汤汤\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-29 12:00 ~ 11-19 12:00\",\"source\":\"primary\"},{\"key\":\"endfield:gacha:1\",\"title\":\"「祖泉的新流」重构寻访：汤汤\",\"show\":\"「祖泉的新流」重构寻访：汤汤\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-29 12:00 ~ 11-19 12:00\",\"source\":\"hover\"},{\"key\":\"endfield:gacha:2\",\"title\":\"「烟火邀星河」特许寻访：明河\",\"show\":\"「烟火邀星河」特许寻访：明河\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"2026-11-05 12:00 ~ 2099-12-31 11:59\",\"source\":\"hover\"}]"
+	},
+	"endfieldEvent": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "百趣演武",
+			"eventDates": "10-29 12:00 ~ 11-19 04:00",
+			"eventDatesRaw": "10-29 12:00 ~ 11-19 04:00",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "予众魂的新光影   10-31 12:00 ~ 11-14 04:00\n百趣演武   10-29 12:00 ~ 11-19 04:00\n烟火生缘   10-15 07:00 ~ 11-25 06:00\n星河共我签到   11-05 12:00 ~ 11-25 06:00\n作战演练   11-05 12:00 ~ 11-25 06:00\n归野   11-05 12:00 ~ 11-25 06:00",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"endfield:event:0\",\"title\":\"予众魂的新光影\",\"show\":\"予众魂的新光影\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-31 12:00 ~ 11-14 04:00\",\"source\":\"hover\"},{\"key\":\"endfield:event:1\",\"title\":\"百趣演武\",\"show\":\"百趣演武\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-29 12:00 ~ 11-19 04:00\",\"source\":\"primary\"},{\"key\":\"endfield:event:2\",\"title\":\"烟火生缘\",\"show\":\"烟火生缘\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-15 07:00 ~ 11-25 06:00\",\"source\":\"hover\"},{\"key\":\"endfield:event:3\",\"title\":\"星河共我签到\",\"show\":\"星河共我签到\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 12:00 ~ 11-25 06:00\",\"source\":\"hover\"},{\"key\":\"endfield:event:4\",\"title\":\"作战演练\",\"show\":\"作战演练\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 12:00 ~ 11-25 06:00\",\"source\":\"hover\"},{\"key\":\"endfield:event:5\",\"title\":\"归野\",\"show\":\"归野\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 12:00 ~ 11-25 06:00\",\"source\":\"hover\"}]"
 	}
 }

@@ -384,7 +384,8 @@
 		//
 		// b) 早停：**只要本轮有 chunk 解析出当期数据，就不再发下一轮**。
 		//    「数据完整」的判据：本函数需要的**全部**字段（当期池名 / 角色 / 起止 / 悬停池列表）都来自
-		//    同一个 chunk —— `currentFromCanmoe` 读 `d={…}` 与期次数组，`canmoePoolHover` 读同一份期次数组。
+		//    同一个 chunk —— `currentFromCanmoe` 读 `d={…}` 与期次数组，`canmoePoolItems`（P3c 之前叫
+		//    `canmoePoolHover`）读同一份期次数组。
 		//    所以"currentFromCanmoe 返回非空对象"就是"所需数据已齐"的充要条件：该 chunk 命中后，其余 chunk
 		//    不会再提供任何本函数用到的字段。逐 chunk 实测（2026-10-21，19 个 chunk 逐个单独喂给抓取器）：
 		//    只有 1 个能返回非空（其余 `undefined` = 没有该结构，或 `null` = 结构在但无当期）。
@@ -435,8 +436,16 @@
 					// 同轮多命中 → 取原始下标最小者（= 原串行实现会选中的那份）；早停：不再发下一轮
 					hits.sort((a, b) => a.i - b.i);
 					const { d, js } = hits[0];
-					const hover = canmoePoolHover(js, now, tz);
+					// ── P3c（2026-11-07）：条目事实 → 悬停 + `gacha` 数组 ────────────────────
+					// `canmoePoolItems` 只给事实（改造前它是 `canmoePoolHover` = `buildPoolHover` 一步拼串）；
+					// 这里先过 `poolHoverKept`（与 `buildPoolHover` 同一份去重/排序），再让生成器拼悬停、
+					// `dataArrayProducedGachaOf` 收口数组 —— 悬停与数组同源，不可能各说各话。
+					const poolItems = poolHoverKept(canmoePoolItems(js, now))
+						.map((p) => ({ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw }));
+					const hover = hoverTextFromItems(poolItems, "gacha", tz);
 					if (hover) d.bannerHover = hover;
+					d.gacha = dataArrayProducedGachaOf(d, poolItems, { tz }, now);
+					d.gachaHoverItems = poolItems;
 					return d;
 				}
 			}
@@ -1178,12 +1187,20 @@
 			if (activeActs.length === 0) return null;
 			const primary = pickEventPrimary(activeActs) || activeActs[0]; // 叙事活动/挑战活动优先于签到类
 			const win = fmtWindow(primary.startTs, primary.endTs, tz);
-			return {
-				banner: primary.name,
-				bannerDatesRaw: win,
-				bannerDates: win,
-				eventHover: buildEventHover(activeActs, 0, tz)
-			};
+			// ── P3c（2026-11-07）：条目事实 → 悬停 + `events` 数组 ────────────────────────
+			// 改造前这里直接 `buildEventHover(activeActs, 0, tz)` 拼串；现在**条目**是事实：
+			// 悬停由 `hoverTextFromItems` 反生成（排版与 `buildEventHover` 逐字一致），数组由
+			// `dataArrayProducedEventsOf` 收口。顺序仍是 `sortEventItems` 那一份（生成器不排序）。
+			// 返回形状也一并改成**最终载荷**（`event` / `eventDates` / `eventDatesRaw`）——
+			// 原来那层 `{ banner, bannerDates }` → `{ event, ... }` 的映射在 EVENT_FETCHERS 里，
+			// 现在映射与数组都收在这个函数里，少一处"两套字符串"的接缝。
+			const out = { event: primary.name, eventDates: win, eventDatesRaw: win };
+			const eventItems = activeActs.map((a) => ({ title: a.name, startTs: a.startTs, endTs: a.endTs, raw: "" }));
+			const hover = hoverTextFromItems(eventItems, "event", tz);
+			if (hover) out.eventHover = hover;
+			out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
+			out.eventHoverItems = eventItems;
+			return out;
 		}
 
 
@@ -1406,10 +1423,11 @@ EVENT_FETCHERS["arknights"] = {
 				"arknights-event-list": (url, signal, tz) => fetchArknightsEventList(url, signal, tz)
 			};
 					// 终末地：FZ Wiki（中文，经 host 代理、抓 RSC 数据；外显当期=结束最晚，悬停列出全部并行）
+					// ⚠️ P3c（2026-11-07）：`parseFzWikiActivities` 现在直接返回**最终载荷**（`event` /
+					//    `eventDates` / `eventDatesRaw` / `eventHover` + `events` 数组与条目事实），
+					//    所以这里不再做 `banner → event` 的映射（那层映射就是"两套字符串"的接缝）。
 EVENT_FETCHERS["endfield"] = {
-				default: (url, signal, tz) => fetchFzWikiEndfield(url, signal, tz).then((d) =>
-					d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "", eventHover: d.eventHover || "" } : null
-				),
+				default: (url, signal, tz) => fetchFzWikiEndfield(url, signal, tz),
 				"endfield-game8": (url, signal, tz) => fetchGame8Endfield(url, signal, tz).then((d) =>
 					d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "" } : null
 				)

@@ -397,12 +397,16 @@
 		}
 
 
-		// 终末地卡池列悬停：canmoe 卡池日历 chunk 内同期全部卡池条目（特许寻访 / 重构寻访 等），
-		// 每池"卡池名：角色"一行 + 时间；窗口相同则合并时间；结束时间升序（0/1 池返回 "" 走单条兜底）
-		// `tz` = 源站时区（必传，悬停 = 源站墙钟原文；调用方 fetchCanmoeEndfield 手里就有）。
-		function canmoePoolHover(js, now, tz) {
+		// 终末地卡池列：canmoe 卡池日历 chunk 内同期全部卡池条目（特许寻访 / 重构寻访 等）的**条目事实**。
+		// ── P3c（2026-11-07）：本函数从"直接拼悬停文本"改成"只给条目"─────────────────────
+		// 改造前它是 `canmoePoolHover(js, now, tz)` = `buildPoolHover(pools, tz)`（一步拼成字符串）。
+		// P3c 让**条目**成为事实：这里只返回 `{ name, label, startTs, endTs, raw }`，悬停文本由调用方
+		// （`fetchCanmoeEndfield`）用 `hoverTextFromItems` 反生成、数组由 `dataArrayProducedGachaOf` 收口。
+		// ⚠️ 调用方必须先过 `poolHoverKept(...)`：`buildPoolHover` 内部的去重/排序（结束时间升序）就在那份，
+		//    少这一步行序会变。`raw` 恒空串（两端口都在 ⇒ 档期由 fmtWindow 渲染，与改造前同一条路径）。
+		function canmoePoolItems(js, now) {
 			const arr = extractCanmoePeriods(js);
-			if (!arr) return "";
+			if (!arr) return [];
 			const pools = [];
 			for (const e of arr) {
 				const ps = (e.match(/periodStart\s*:\s*"([^"]*)"/) || [])[1];
@@ -417,10 +421,11 @@
 					name: title || subtitle,
 					label: title && subtitle ? `${title}\uFF1A${subtitle}` : (title || subtitle),
 					startTs: a,
-					endTs: b
+					endTs: b,
+					raw: ""
 				});
 			}
-			return buildPoolHover(pools, tz);
+			return pools;
 		}
 
 		const WUWA_NOTICE_ENTRY = "https://aki-gm-resources-back.aki-game.com/gamenotice/G152/76402e5b20be2c39f095a152090afddc/entrypoint.json";

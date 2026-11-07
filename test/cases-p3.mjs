@@ -351,7 +351,7 @@ const p3bFixtureMapOf = (overrides) => {
 // `call(t, src)` 收 `engine.__test` 与来源声明（用它自己的 url / eventUrl / tz）；
 // `urlsOf(src)` 就地补 map 覆盖（个别夹具没进 map.json）；
 // `switched: true` = 该路径已改成"解析器直出数组 + 悬停由条目反生成"。
-const P3B_SWITCHED_EXPECT = 41;   // 已切路径数（每批提交时 +N，最终 = P3B_PATHS.length）
+const P3B_SWITCHED_EXPECT = 47;   // 已切路径数（每批提交时 +N，最终 = P3B_PATHS.length）
 const P3B_PATHS = [
 	// ── 第 1 批：星铁（bwiki）/ 绝区零（官方公告）/ 崩坏3（米游社备选）/ 米游社卡池 ──
 	{
@@ -546,6 +546,72 @@ const P3B_PATHS = [
 	{
 		key: "r1999Event", switched: true, id: "r1999", side: "event", field: "events", now: Date.parse("2026-11-07T01:08:25.105Z"),
 		urlsOf: (s) => ({ [s.eventUrl]: "p3b-r1999-notice" }),
+		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
+	},
+	// ── 第 7 批（P3c）：最后 3 款 —— 蔚蓝档案国际服 / 蔚蓝档案日服 / 终末地 ──────────
+	// 夹具全是**本批真抓**（2026-11-07T01:19:55.965Z，`p3c-*`，不进 map.json）；now = 抓取时刻。
+	// GameKee 一侧的抓取器自带三条地址（目录树 + 两个 detail + CDN），所以 `urlsOf` 给的是**字面量**
+	// 映射而不是 `[s.url]`：`s.url` 只是设置页展示用的页面地址，抓取器根本不读它。
+	{
+		key: "baGlobalGacha", switched: true, id: "ba-global", side: "gacha", field: "gacha", now: Date.parse("2026-11-07T01:19:55.965Z"),
+		urlsOf: () => ({
+			"https://www.gamekee.com/v1/wiki/entry?id=15": "p3c-ba-gamekee-tree",
+			"https://www.gamekee.com/v1/content/detail/725935": "p3c-ba-gamekee-detail-725935",
+			"https://www.gamekee.com/v1/content/detail/609133": "p3c-ba-gamekee-detail-609133",
+			"https://api-cdn.gamekee.com/wiki2.0/pro/829/content/609133.json": "p3c-ba-gamekee-cdn-609133"
+		}),
+		call: (t) => t.GACHA_FETCHERS["ba-global"]()
+	},
+	{
+		key: "baGlobalEvent", switched: true, id: "ba-global", side: "event", field: "events", now: Date.parse("2026-11-07T01:19:55.965Z"),
+		// ⚠️ `fetchGameKeeBa` 一次返回**两侧**（卡池 + 活动），所以活动路径也会走完卡池那条 609133 链
+		// （detail + CDN 两次请求）—— 这里必须把两条地址一起映射，否则会命中 map.json 里那份**裁剪过**的
+		// 旧 CDN 夹具（`ba-gamekee-pool-blocks` 是 block 数组本体、没有 `content` 外壳）。
+		urlsOf: () => ({
+			"https://www.gamekee.com/v1/wiki/entry?id=15": "p3c-ba-gamekee-tree",
+			"https://www.gamekee.com/v1/content/detail/725935": "p3c-ba-gamekee-detail-725935",
+			"https://www.gamekee.com/v1/content/detail/609133": "p3c-ba-gamekee-detail-609133",
+			"https://api-cdn.gamekee.com/wiki2.0/pro/829/content/609133.json": "p3c-ba-gamekee-cdn-609133"
+		}),
+		call: (t) => t.EVENT_FETCHERS["ba-global"].default()
+	},
+	{
+		// 日服卡池 = 官网新闻接口（多池同公告 ⇒ 悬停多行）；日服活动 = GameKee「日服当期活动」+「日服当期卡池评测」
+		// 两个 detail（活动路径要读卡池标题那条目录项，因为 `fetchGameKeeBa("jp")` 会顺带读它）。
+		key: "baJpGacha", switched: true, id: "ba-jp", side: "gacha", field: "gacha", now: Date.parse("2026-11-07T01:19:55.965Z"),
+		urlsOf: (s) => ({ [s.url]: "p3c-ba-jp-news" }),
+		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
+	},
+	{
+		key: "baJpEvent", switched: true, id: "ba-jp", side: "event", field: "events", now: Date.parse("2026-11-07T01:19:55.965Z"),
+		urlsOf: () => ({
+			"https://www.gamekee.com/v1/wiki/entry?id=15": "p3c-ba-gamekee-tree",
+			"https://www.gamekee.com/v1/content/detail/726227": "p3c-ba-gamekee-detail-726227",
+			"https://www.gamekee.com/v1/content/detail/718684": "p3c-ba-gamekee-detail-718684"
+		}),
+		call: (t) => t.EVENT_FETCHERS["ba-jp"].default()
+	},
+	{
+		// 终末地卡池 = canmoe：页面 HTML → BannerCalendar 的 chunk → 期次数组。抓取器**倒序 + 每轮 6 路并发**
+		// ⇒ 夹具只放它第一轮真的抓到的那 6 份 chunk（数据 chunk 在其中，命中即早停，与真实请求数一致）。
+		key: "endfieldGacha", switched: true, id: "endfield", side: "gacha", field: "gacha", now: Date.parse("2026-11-07T01:19:55.965Z"),
+		urlsOf: () => ({
+			"https://end.canmoe.com/zh-CN/banner-calendar": "p3c-endfield-canmoe-page",
+			"https://end.canmoe.com/_next/static/chunks/07m_6mk9s-9qb.js": "p3c-endfield-canmoe-chunk-07m_6mk9s-9qb",
+			"https://end.canmoe.com/_next/static/chunks/0lnuph-ewk8dj.js": "p3c-endfield-canmoe-chunk-0lnuph-ewk8dj",
+			"https://end.canmoe.com/_next/static/chunks/13kxy1q0s7d.n.js": "p3c-endfield-canmoe-chunk-13kxy1q0s7d_n",
+			"https://end.canmoe.com/_next/static/chunks/04~5p.89x0d79.js": "p3c-endfield-canmoe-chunk-04_5p_89x0d79",
+			"https://end.canmoe.com/_next/static/chunks/0oh.dd.dcudno.js": "p3c-endfield-canmoe-chunk-0oh_dd_dcudno",
+			"https://end.canmoe.com/_next/static/chunks/0g5.ugx67tnlm.js": "p3c-endfield-canmoe-chunk-0g5_ugx67tnlm"
+		}),
+		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
+	},
+	{
+		// 终末地活动 = FZ Wiki：`eventUrl` 是给人看的页面地址，抓取器由它推出 api.fz.wiki 那条 REST 地址。
+		key: "endfieldEvent", switched: true, id: "endfield", side: "event", field: "events", now: Date.parse("2026-11-07T01:19:55.965Z"),
+		urlsOf: () => ({
+			"https://api.fz.wiki/api/v1/articles/by-title?ns=0&title=%E6%B4%BB%E5%8A%A8&withRevision=1": "p3c-endfield-fz-activity"
+		}),
 		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
 	}];
 

@@ -5735,12 +5735,16 @@ EVENT_FETCHERS["zzz"] = {
 		}
 
 
-		// 终末地卡池列悬停：canmoe 卡池日历 chunk 内同期全部卡池条目（特许寻访 / 重构寻访 等），
-		// 每池"卡池名：角色"一行 + 时间；窗口相同则合并时间；结束时间升序（0/1 池返回 "" 走单条兜底）
-		// `tz` = 源站时区（必传，悬停 = 源站墙钟原文；调用方 fetchCanmoeEndfield 手里就有）。
-		function canmoePoolHover(js, now, tz) {
+		// 终末地卡池列：canmoe 卡池日历 chunk 内同期全部卡池条目（特许寻访 / 重构寻访 等）的**条目事实**。
+		// ── P3c（2026-11-07）：本函数从"直接拼悬停文本"改成"只给条目"─────────────────────
+		// 改造前它是 `canmoePoolHover(js, now, tz)` = `buildPoolHover(pools, tz)`（一步拼成字符串）。
+		// P3c 让**条目**成为事实：这里只返回 `{ name, label, startTs, endTs, raw }`，悬停文本由调用方
+		// （`fetchCanmoeEndfield`）用 `hoverTextFromItems` 反生成、数组由 `dataArrayProducedGachaOf` 收口。
+		// ⚠️ 调用方必须先过 `poolHoverKept(...)`：`buildPoolHover` 内部的去重/排序（结束时间升序）就在那份，
+		//    少这一步行序会变。`raw` 恒空串（两端口都在 ⇒ 档期由 fmtWindow 渲染，与改造前同一条路径）。
+		function canmoePoolItems(js, now) {
 			const arr = extractCanmoePeriods(js);
-			if (!arr) return "";
+			if (!arr) return [];
 			const pools = [];
 			for (const e of arr) {
 				const ps = (e.match(/periodStart\s*:\s*"([^"]*)"/) || [])[1];
@@ -5755,10 +5759,11 @@ EVENT_FETCHERS["zzz"] = {
 					name: title || subtitle,
 					label: title && subtitle ? `${title}\uFF1A${subtitle}` : (title || subtitle),
 					startTs: a,
-					endTs: b
+					endTs: b,
+					raw: ""
 				});
 			}
-			return buildPoolHover(pools, tz);
+			return pools;
 		}
 
 		const WUWA_NOTICE_ENTRY = "https://aki-gm-resources-back.aki-game.com/gamenotice/G152/76402e5b20be2c39f095a152090afddc/entrypoint.json";
@@ -6204,7 +6209,8 @@ EVENT_FETCHERS["wuwa"] = {
 		//
 		// b) 早停：**只要本轮有 chunk 解析出当期数据，就不再发下一轮**。
 		//    「数据完整」的判据：本函数需要的**全部**字段（当期池名 / 角色 / 起止 / 悬停池列表）都来自
-		//    同一个 chunk —— `currentFromCanmoe` 读 `d={…}` 与期次数组，`canmoePoolHover` 读同一份期次数组。
+		//    同一个 chunk —— `currentFromCanmoe` 读 `d={…}` 与期次数组，`canmoePoolItems`（P3c 之前叫
+		//    `canmoePoolHover`）读同一份期次数组。
 		//    所以"currentFromCanmoe 返回非空对象"就是"所需数据已齐"的充要条件：该 chunk 命中后，其余 chunk
 		//    不会再提供任何本函数用到的字段。逐 chunk 实测（2026-10-21，19 个 chunk 逐个单独喂给抓取器）：
 		//    只有 1 个能返回非空（其余 `undefined` = 没有该结构，或 `null` = 结构在但无当期）。
@@ -6255,8 +6261,16 @@ EVENT_FETCHERS["wuwa"] = {
 					// 同轮多命中 → 取原始下标最小者（= 原串行实现会选中的那份）；早停：不再发下一轮
 					hits.sort((a, b) => a.i - b.i);
 					const { d, js } = hits[0];
-					const hover = canmoePoolHover(js, now, tz);
+					// ── P3c（2026-11-07）：条目事实 → 悬停 + `gacha` 数组 ────────────────────
+					// `canmoePoolItems` 只给事实（改造前它是 `canmoePoolHover` = `buildPoolHover` 一步拼串）；
+					// 这里先过 `poolHoverKept`（与 `buildPoolHover` 同一份去重/排序），再让生成器拼悬停、
+					// `dataArrayProducedGachaOf` 收口数组 —— 悬停与数组同源，不可能各说各话。
+					const poolItems = poolHoverKept(canmoePoolItems(js, now))
+						.map((p) => ({ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw }));
+					const hover = hoverTextFromItems(poolItems, "gacha", tz);
 					if (hover) d.bannerHover = hover;
+					d.gacha = dataArrayProducedGachaOf(d, poolItems, { tz }, now);
+					d.gachaHoverItems = poolItems;
 					return d;
 				}
 			}
@@ -6998,12 +7012,20 @@ EVENT_FETCHERS["wuwa"] = {
 			if (activeActs.length === 0) return null;
 			const primary = pickEventPrimary(activeActs) || activeActs[0]; // 叙事活动/挑战活动优先于签到类
 			const win = fmtWindow(primary.startTs, primary.endTs, tz);
-			return {
-				banner: primary.name,
-				bannerDatesRaw: win,
-				bannerDates: win,
-				eventHover: buildEventHover(activeActs, 0, tz)
-			};
+			// ── P3c（2026-11-07）：条目事实 → 悬停 + `events` 数组 ────────────────────────
+			// 改造前这里直接 `buildEventHover(activeActs, 0, tz)` 拼串；现在**条目**是事实：
+			// 悬停由 `hoverTextFromItems` 反生成（排版与 `buildEventHover` 逐字一致），数组由
+			// `dataArrayProducedEventsOf` 收口。顺序仍是 `sortEventItems` 那一份（生成器不排序）。
+			// 返回形状也一并改成**最终载荷**（`event` / `eventDates` / `eventDatesRaw`）——
+			// 原来那层 `{ banner, bannerDates }` → `{ event, ... }` 的映射在 EVENT_FETCHERS 里，
+			// 现在映射与数组都收在这个函数里，少一处"两套字符串"的接缝。
+			const out = { event: primary.name, eventDates: win, eventDatesRaw: win };
+			const eventItems = activeActs.map((a) => ({ title: a.name, startTs: a.startTs, endTs: a.endTs, raw: "" }));
+			const hover = hoverTextFromItems(eventItems, "event", tz);
+			if (hover) out.eventHover = hover;
+			out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
+			out.eventHoverItems = eventItems;
+			return out;
 		}
 
 
@@ -7226,10 +7248,11 @@ EVENT_FETCHERS["arknights"] = {
 				"arknights-event-list": (url, signal, tz) => fetchArknightsEventList(url, signal, tz)
 			};
 					// 终末地：FZ Wiki（中文，经 host 代理、抓 RSC 数据；外显当期=结束最晚，悬停列出全部并行）
+					// ⚠️ P3c（2026-11-07）：`parseFzWikiActivities` 现在直接返回**最终载荷**（`event` /
+					//    `eventDates` / `eventDatesRaw` / `eventHover` + `events` 数组与条目事实），
+					//    所以这里不再做 `banner → event` 的映射（那层映射就是"两套字符串"的接缝）。
 EVENT_FETCHERS["endfield"] = {
-				default: (url, signal, tz) => fetchFzWikiEndfield(url, signal, tz).then((d) =>
-					d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "", eventHover: d.eventHover || "" } : null
-				),
+				default: (url, signal, tz) => fetchFzWikiEndfield(url, signal, tz),
 				"endfield-game8": (url, signal, tz) => fetchGame8Endfield(url, signal, tz).then((d) =>
 					d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "" } : null
 				)
@@ -7481,15 +7504,21 @@ EVENT_FETCHERS["endfield"] = {
 				endTs: cur[0].endTs
 			};
 			// 卡池列悬停：每池「池名：生徒」一行 + 时间（同窗口合并，结束时间升序）
-			const hover = buildPoolHover(cur.map((p) => ({
+			// ── P3c（2026-11-07）：条目事实 → 悬停 + `gacha` / `events` 数组 ──────────────
+			// 与 ba-cn 同一套三段式：先有**条目事实**（每口当期池一条），悬停文本由这份事实
+			// 反生成（`poolHoverKept` 先做与 `buildPoolHover` 同一份去重/排序），数组再由
+			// `dataArrayProduced*` 收口 —— 悬停与数组因此不可能各说各话。
+			const poolItems = poolHoverKept(cur.map((p) => ({
 				name: p.name,
 				label: `${p.name}\uFF1A${p.student}`,
 				startTs: p.startTs,
 				endTs: p.endTs,
 				raw: p.raw
-			})), tz);
+			}))).map((p) => ({ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw }));
+			const hover = hoverTextFromItems(poolItems, "gacha", tz);
 			if (hover) data.bannerHover = hover;
 			// 活动：同期「イベント」条目的開催期間
+			let evWin = null;      // P3c：活动那一行的窗口（条目事实要它；与 eventDates 同一对 ts）
 			for (const it of rows) {
 				const sum = clean(it.summary);
 				const text = clean(it.content);
@@ -7505,7 +7534,16 @@ EVENT_FETCHERS["endfield"] = {
 				// 文本按**源站墙钟**渲染（日服源 = JST；startTs/endTs 已由 jstTs 换算成正确绝对时刻）。
 				data.eventDates = fmtWindow(startTs, endTs, tz);
 				data.eventDatesRaw = `${afterMaint(a) ? "メンテナンス後" : a} ~ ${b}`;
+				evWin = { startTs, endTs };
 				break;
+			}
+			// 数组收口（主条来自上面已定稿的字符串字段；并列条 = 同一份条目事实）
+			data.gacha = dataArrayProducedGachaOf(data, poolItems, { tz }, now);
+			data.gachaHoverItems = poolItems;
+			if (data.event) {
+				const eventItems = [{ title: data.event, startTs: evWin ? evWin.startTs : null, endTs: evWin ? evWin.endTs : null, raw: data.eventDatesRaw }];
+				data.events = dataArrayProducedEventsOf(data, eventItems, { tz }, now);
+				data.eventHoverItems = eventItems;
 			}
 			return data;
 		}
@@ -7527,6 +7565,10 @@ EVENT_FETCHERS["endfield"] = {
 			delete d.event;
 			delete d.eventDates;
 			delete d.eventDatesRaw;
+			// P3c：活动侧的三件（数组 + 条目事实）也跟着删掉 —— 卡池源只负责卡池，否则会把活动
+			// 数组经 `mergeEntryRecord` 塞进活动列（两侧解耦，见上面那段注释）。
+			delete d.events;
+			delete d.eventHoverItems;
 			return d;
 		}
 
@@ -7536,7 +7578,14 @@ EVENT_FETCHERS["endfield"] = {
 			const json = await proxyFetchJson(url, "https://bluearchive.jp/");
 			const d = parseBaJpNews(json, now, tz);
 			if (!d || !d.event) return null;
-			return { event: d.event, eventDates: d.eventDates || "", eventDatesRaw: d.eventDatesRaw || d.eventDates || "" };
+			// P3c：活动数组 / 条目事实直接沿用 `parseBaJpNews` 那一份（主条由下面这串字符串字段重算，
+			// 与 `dataArrayEventMainOf` 同一句 ⇒ 与改造前的合成结果逐条相同）。
+			return {
+				event: d.event,
+				eventDates: d.eventDates || "",
+				eventDatesRaw: d.eventDatesRaw || d.eventDates || "",
+				...(d.events ? { events: d.events, eventHoverItems: d.eventHoverItems } : {})
+			};
 		}
 
 
@@ -7803,6 +7852,35 @@ EVENT_FETCHERS["endfield"] = {
 			};
 			const nowYear = new Date(now).getFullYear();   // 走注入时钟（core 不得直接读宿主时钟）
 			const data = { banner: "", roles: "", bannerDates: "", event: "", eventDates: "" };
+			// P3c（2026-11-07）：两侧各一条的**条目事实** → 悬停 + 数组。这里先攒事实，最后统一收口。
+			//   · `bannerWin`：日服 = 标题里那个区间（`parseGkRange`）；国际服 = 609133 表里那一组
+			//   · `tz`：**必须显式给** —— `fetchGameKeeBa` 的签名里没有 tz（注册表不传参），
+			//     而数组条目的 `tz` 字段要与记录的 `meta.tz` 一致（ba-global = UTC / ba-jp = Asia/Tokyo）。
+			//   · 两侧都只有**一条**（GameKee 只给当期那一个标题 / 那一组表行）⇒ 生成器对 <2 条给空串，
+			//     `bannerHover` / `eventHover` 与改造前一样**不会被写**。
+			let bannerWin = null;
+			const tz = isJp ? TZ_JP : TZ_UTC;
+			const emitGameKeeArrays = (d) => {
+				if (d.banner && bannerWin) {
+					const gItems = [{ title: d.banner, startTs: bannerWin.startTs, endTs: bannerWin.endTs, raw: d.bannerDates }];
+					const gHover = hoverTextFromItems(gItems, "gacha", tz);
+					if (gHover) d.bannerHover = gHover;
+					d.gacha = dataArrayProducedGachaOf(d, gItems, { tz: tz }, now);
+					d.gachaHoverItems = gItems;
+				} else {
+					d.gacha = [];      // 这一侧没数据 ⇒ 固定形状的空数组（与合成路径同一个下限）
+				}
+				if (d.event && eventWindow) {
+					const eItems = [{ title: d.event, startTs: eventWindow.startTs, endTs: eventWindow.endTs, raw: d.eventDates }];
+					const eHover = hoverTextFromItems(eItems, "event", tz);
+					if (eHover) d.eventHover = eHover;
+					d.events = dataArrayProducedEventsOf(d, eItems, { tz: tz }, now);
+					d.eventHoverItems = eItems;
+				} else {
+					d.events = [];
+				}
+				return d;
+			};
 			// 3. 日服卡池侧：标题就是池名+档期（现状不变；GameKee 只是日服的兜底源，不补角色名）
 			if (isJp) {
 				const bannerTitle = bannerEntry ? await getTitle(bannerEntry) : "";
@@ -7816,6 +7894,7 @@ EVENT_FETCHERS["endfield"] = {
 							.replace(/【[^】]*\d[^】]*】/g, "")
 							.trim();
 						data.bannerDates = rng.raw;
+						bannerWin = { startTs: rng.startTs, endTs: rng.endTs };
 					}
 				}
 			}
@@ -7844,7 +7923,7 @@ EVENT_FETCHERS["endfield"] = {
 			}
 			if (isJp) {
 				if (!data.banner || !data.bannerDates) return null;
-				return data;
+				return emitGameKeeArrays(data);
 			}
 			// 5. 国际服卡池侧：**唯一来源** = 609133 这条链（detail + CDN）。
 			//    任何一步失败/结构变化 → 抛（`GameKee 内容接口失败（…）`），不再有"只有池名"的半成品；
@@ -7857,7 +7936,8 @@ EVENT_FETCHERS["endfield"] = {
 			// ⚠️ 不传 tz 的理由同上面 `evDates`：`pool.win` 的 ts 由 `gkBaTableWindow` 的本机墙钟合成，
 			//    解析与渲染同口径 ⇒ 文本 roundtrip 稳定；改成传 tz 必须同时改解析方向，否则反而出错。
 			data.bannerDates = fmtWindow(pool.win.startTs, pool.win.endDayTs);
-			return data;
+			bannerWin = { startTs: pool.win.startTs, endTs: pool.win.endDayTs };
+			return emitGameKeeArrays(data);
 		}
 
 

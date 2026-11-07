@@ -1,0 +1,6 @@
+{
+  "url": "https://www.gamekee.com/v1/wiki/entry?id=15",
+  "status": 200,
+  "capturedAt": "2026-11-07T01:19:55.965Z",
+  "note": "GameKee 蔚蓝档案目录树（真抓，逐字）。P3c 夹具，不进 map.json —— 免得改变其它批次对「ba-global 默认源」的期望。抓取时带 game-alias: ba + Referer https://www.gamekee.com/ba/huodong/15"
+}
