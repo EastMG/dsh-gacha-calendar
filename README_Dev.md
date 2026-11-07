@@ -454,12 +454,13 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 |---|---|---|---|---|
 | P3b-1 | 星铁 `hsr`（卡池 / 活动）、绝区零 `zzz`（卡池 / 活动）、崩坏3 `bh3`（活动；米游社备选）、米游社卡池（4 个 gids 共用） | `bwikiGachaPayload`（hsr 叠 `dedupeRoleNames`）、`genericEventPayload`（生成器补 `permanentCount`）、`fetchZzzGacha` / `parseZzzEventsOfficial`、`ns_miyoushe_{gacha,events}Miyoushe` | 5 / 3；1 / 3；1；1 | ✅ 已切 |
 | P3b-2 | 物华弥新 `wuhuamixin`（卡池 / 活动）、战双帕弥什 `zspms`（卡池 / 活动）、卡厄斯梦境 `czn`（卡池）、雪松 `kedr`（卡池 / 活动） | `30-game-bwiki-wikitext-common.js` 的两个载荷（`ns_bwiki_wikitext_{gacha,event}Payload`）、`30-game-bwiki-common.js` 的两个载荷、`ns_biligame_activity_eventsWhmxOfficial` | 6 / 8；4 / 9；4；2 / 3 | ✅ 已切 |
-| 待切 | 其余 18 款（同生产者的备选源随该生产者一起切，不单独算一款） | `pickCurrent(parseAllBwiki)` / `selectArknights` / bwiki-wikitext 族 / biligame 族 / cygames 族 / bluearchive 族 / bluepoch / bandori 族 / aniplex(FGO) / perfectworld / sega / sunborn / yostar / hypergryph(终末地) | — | ⬜ |
+| P3b-3 | 嘟嘟脸恶作剧 `ddlezj`（卡池 / 活动）、闪耀优俊少女国服 `uma-cn`（卡池 / 活动）、赛马娘日服 `uma-jp`（卡池 / 活动）、赛马娘国际服 `uma-global`（卡池 / 活动；活动侧夹具里无当期数据 ⇒ 只守空载荷） | `ns_biligame_announce_{gacha,events}Ddlezj`、`ns_biligame_activity_{gacha,events}UmaCnOfficial`、`ns_umamusume_official_{gacha,events}UmaJpOfficial` / `...UmaGlobal`、`ns_cygames_gachaGameToraUma` | 2 / 3；1 / 1；2 / 3；1 / 0 | ✅ 已切 |
+| 待切 | 其余 14 款（同生产者的备选源随该生产者一起切，不单独算一款） | `pickCurrent(parseAllBwiki)` / `selectArknights` / bwiki-wikitext 族 / biligame 族 / cygames 族 / bluearchive 族 / bluepoch / bandori 族 / aniplex(FGO) / perfectworld / sega / sunborn / yostar / hypergryph(终末地) | — | ⬜ |
 
 **收口的两点补充（P3b）**：① 生成器 `hoverLinesFromItems(items, kind, tz, { permanentCount })` —— 活动侧
 末尾补 `以及常驻活动 N 项`（与 `buildEventHover` 同一句 `permanentLine`，不足 2 条时也带上）；
 ② `mergeEntryRecord` 收到解析器数组后**统一归一 + 按记录 id 重发 key**（`dataArrayProducedListOf`）——
-解析器不必知道 `meta.id`（通用源 / 自定义条目拿不到），key 前缀由数据层裁成 `<id>:gacha:i`。
+解析器不必知道 `meta.id`（通用源 / 自定义条目拿不到），key 前缀由数据层裁成 `<id>:gacha:i`；③ `dataArrayExtrasFromEntriesOf` 补齐**悬停逆解析的两步口径**（不足 2 条 ⇒ 无并列条目；归一后同名只留第一条）—— 否则「解析器直出的数组」会与「从同一份悬停文本反解的数组」不一致（ddlezj 的「…（商店兑换时间）」、uma-cn 只有 1 条期间，就是这两条判据）。
 **数据层收口**（`src/client/50-refresh.js`，P3 只加函数、不改语义）：
 
 - `dataArrayProducedItemOf(raw, kind)` —— 解析器条目 → 记录条目（**复用**持久化白名单那份 `dataArray*ItemOf`，键顺序因此与 `getCached()` 往返一致；并按合成路径同一判据补 `preview`）。

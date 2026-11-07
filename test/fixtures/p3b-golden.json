@@ -219,5 +219,141 @@
 			"eventHoverExtra": ""
 		},
 		"array": "[{\"key\":\"kedr:event:0\",\"title\":\"战令通行证赛季\",\"show\":\"战令通行证赛季\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"08-31 05:00 ~ 10-04 05:00\",\"source\":\"hover\"},{\"key\":\"kedr:event:1\",\"title\":\"第三期边境防卫活动\",\"show\":\"第三期边境防卫活动\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"08-31 05:00 ~ 10-04 05:00\",\"source\":\"hover\"},{\"key\":\"kedr:event:2\",\"title\":\"个人剧情活动第1期：【新机动队故事】\",\"show\":\"个人剧情活动第1期：【新机动队故事】\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"2026/9/25 05:00 ~ 2026/10/09 05:00\",\"source\":\"primary\"}]"
+	},
+	"ddlezjGacha": {
+		"rec": {
+			"banner": "精选使徒招募【万年住院医生】希尔德",
+			"roles": "",
+			"bannerDates": "04-30 03:00 ~ 05-07 09:59",
+			"bannerDatesRaw": "2026/04/30 03:00 ~ 2026/05/07 09:59 (UTC+9)",
+			"bannerHover": "精选使徒招募【万年住院医生】希尔德\n精选卡片扭蛋【艾达之灯】\n04-30 03:00 ~ 05-07 09:59",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"ddlezj:gacha:0\",\"title\":\"精选使徒招募【万年住院医生】希尔德\",\"show\":\"精选使徒招募【万年住院医生】希尔德\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"+540\",\"raw\":\"2026/04/30 03:00 ~ 2026/05/07 09:59 (UTC+9)\",\"source\":\"primary\"},{\"key\":\"ddlezj:gacha:1\",\"title\":\"精选卡片扭蛋【艾达之灯】\",\"show\":\"精选卡片扭蛋【艾达之灯】\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"+540\",\"raw\":\"04-30 03:00 ~ 05-07 09:59\",\"source\":\"hover\"}]"
+	},
+	"ddlezjEvent": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "梦境之地",
+			"eventDates": "04-30 10:00 ~ 05-07 09:59",
+			"eventDatesRaw": "2026/04/30 10:00 ~ 2026/05/07 09:59 (UTC+9)",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "梦境之地   04-30 10:00 ~ 05-07 09:59\n像素异世界   04-30 10:00 ~ 05-07 09:59\n七、艾利亚斯边境   04-30 10:00 ~ 05-07 10:59\n七、艾利亚斯边境（商店兑换时间）   04-30 10:00 ~ 06-11 09:59",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"ddlezj:event:0\",\"title\":\"梦境之地\",\"show\":\"梦境之地\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"+540\",\"raw\":\"2026/04/30 10:00 ~ 2026/05/07 09:59 (UTC+9)\",\"source\":\"primary\"},{\"key\":\"ddlezj:event:1\",\"title\":\"像素异世界\",\"show\":\"像素异世界\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"+540\",\"raw\":\"04-30 10:00 ~ 05-07 09:59\",\"source\":\"hover\"},{\"key\":\"ddlezj:event:2\",\"title\":\"七、艾利亚斯边境\",\"show\":\"七、艾利亚斯边境\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"+540\",\"raw\":\"04-30 10:00 ~ 05-07 10:59\",\"source\":\"hover\"}]"
+	},
+	"umaCnGacha": {
+		"rec": {
+			"banner": "养成优俊少女&协助卡新登场！精选招募",
+			"roles": "目白拉莫娜",
+			"bannerDates": "10-02 12:00 ~ 10-13 11:59",
+			"bannerDatesRaw": "10/2 12:00 ～ 10/13 11:59",
+			"bannerHover": "精选招募开放期间：目白拉莫娜\n角色剧情开放期间：目白拉莫娜\n10-02 12:00 ~ 10-13 11:59",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"uma-cn:gacha:0\",\"title\":\"养成优俊少女&协助卡新登场！精选招募\",\"show\":\"目白拉莫娜\",\"roles\":[\"目白拉莫娜\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10/2 12:00 ～ 10/13 11:59\",\"source\":\"primary\"}]"
+	},
+	"umaCnEvent": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "活动“爱丽速子的因子研究”",
+			"eventDates": "10-02 12:00 ~ 10-13 11:59",
+			"eventDatesRaw": "10/2 12:00 ～ 10/13 11:59",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"uma-cn:event:0\",\"title\":\"活动“爱丽速子的因子研究”\",\"show\":\"活动“爱丽速子的因子研究”\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10/2 12:00 ～ 10/13 11:59\",\"source\":\"primary\"}]"
+	},
+	"umaJpGacha": {
+		"rec": {
+			"banner": "【予告】トゥインクルコレクション プリティーダービーガチャとSSR確定スピードガチャ開催決定！",
+			"roles": "",
+			"bannerDates": "10-01 12:00 ~ 11-02 11:59",
+			"bannerDatesRaw": "10/1 12:00 ～ 11/2 11:59",
+			"bannerHover": "育成ウマ娘&サポートカード新登場！ピックアップガチャ開催！\n09-30 12:00 ~ 10-13 11:59\n【予告】トゥインクルコレクション プリティーダービーガチャとSSR確定スピードガチャ開催決定！\n10-01 12:00 ~ 11-02 11:59",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"uma-jp:gacha:0\",\"title\":\"育成ウマ娘&サポートカード新登場！ピックアップガチャ開催！\",\"show\":\"育成ウマ娘&サポートカード新登場！ピックアップガチャ開催！\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Tokyo\",\"raw\":\"09-30 12:00 ~ 10-13 11:59\",\"source\":\"hover\"},{\"key\":\"uma-jp:gacha:1\",\"title\":\"【予告】トゥインクルコレクション プリティーダービーガチャとSSR確定スピードガチャ開催決定！\",\"show\":\"【予告】トゥインクルコレクション プリティーダービーガチャとSSR確定スピードガチャ開催決定！\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Tokyo\",\"raw\":\"10/1 12:00 ～ 11/2 11:59\",\"source\":\"primary\",\"preview\":true}]"
+	},
+	"umaJpEvent": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "「覚醒Lv6/7追加記念キャンペーン」開催！",
+			"eventDates": "10-01 05:00 ~ 10-13 04:59",
+			"eventDatesRaw": "10/1 5:00 ～ 10/13 4:59",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "「覚醒Lv6/7追加記念キャンペーン」開催！   10-01 05:00 ~ 10-13 04:59\nストーリーイベント「Banquet of Shadows」開催！   09-30 12:00 ~ 10-13 11:59\n10月～3月対戦レースイベント   09-30 12:00 ~ 12-31 23:59",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"uma-jp:event:0\",\"title\":\"「覚醒Lv6/7追加記念キャンペーン」開催！\",\"show\":\"「覚醒Lv6/7追加記念キャンペーン」開催！\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Tokyo\",\"raw\":\"10/1 5:00 ～ 10/13 4:59\",\"source\":\"primary\"},{\"key\":\"uma-jp:event:1\",\"title\":\"ストーリーイベント「Banquet of Shadows」開催！\",\"show\":\"ストーリーイベント「Banquet of Shadows」開催！\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Tokyo\",\"raw\":\"09-30 12:00 ~ 10-13 11:59\",\"source\":\"hover\"},{\"key\":\"uma-jp:event:2\",\"title\":\"10月～3月対戦レースイベント\",\"show\":\"10月～3月対戦レースイベント\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Tokyo\",\"raw\":\"09-30 12:00 ~ 12-31 23:59\",\"source\":\"hover\"}]"
+	},
+	"umaGlobalGacha": {
+		"rec": {
+			"banner": "赛马娘国际服卡池（角色）",
+			"roles": "Vodka、Daiwa Scarlet",
+			"bannerDates": "09-28 22:00 ~ 10-12 21:59",
+			"bannerDatesRaw": "09-28 22:00 ~ 10-12 21:59",
+			"bannerHover": "",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"uma-global:gacha:0\",\"title\":\"赛马娘国际服卡池（角色）\",\"show\":\"Vodka、Daiwa Scarlet\",\"roles\":[\"Vodka\",\"Daiwa Scarlet\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"UTC\",\"raw\":\"09-28 22:00 ~ 10-12 21:59\",\"source\":\"primary\"}]"
+	},
+	"umaGlobalEvent": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[]"
 	}
 }

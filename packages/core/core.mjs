@@ -11316,6 +11316,13 @@ async function ns_biligame_announce_loadDdlezj(listUrl, signal, tz) {
 	return { seen };
 }
 // 卡池侧
+// 覆盖 now 的档期 → 悬停行（P3b：`title` 给条目反生成/数组收口；顺序 = hoverPool 的结束时间升序）
+function ns_biligame_announce_hoverRows(items) {
+	return (items || [])
+		.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: "" }))
+		.filter((x) => String(x.title || "").trim() !== "")
+		.sort(poolHoverOrderOf);
+}
 async function ns_biligame_announce_gachaDdlezj(url, signal, tz = ns_biligame_announce_DDLEZJ_TZ, now = nowMs()) {
 	const ctx = await ns_biligame_announce_loadDdlezj(url || ns_biligame_announce_DDLEZJ_LIST_URL, signal, tz);
 	if (!ctx) return null;
@@ -11323,9 +11330,11 @@ async function ns_biligame_announce_gachaDdlezj(url, signal, tz = ns_biligame_an
 		const best = ns_biligame_announce_pickDdlezjGacha(parsed.items, now);
 		if (!best) continue;
 		const act = ns_biligame_announce_covering(parsed.items, now, "gacha");
-		// 悬停 = 共用 hoverPool（池名 ⏎ 档期）；元信息（来源/公告标题/时区说明/维护后统计）一律不进
-		const hover = hoverPool(act.map((x) => ({ name: x.name, startTs: x.startTs, endTs: x.endTs })), tz);
-		return {
+		// 悬停 = 条目反生成（池名 ⏎ 档期）；元信息（来源/公告标题/时区说明/维护后统计）一律不进
+		// ── P3b：条目事实 → 悬停 + `gacha` 数组 ──────────────────────────────
+		const poolItems = ns_biligame_announce_hoverRows(act);
+		const hover = hoverTextFromItems(poolItems, "gacha", tz);
+		const out = {
 			banner: best.name,
 			roles: "",                                  // 源站为公告正文，无结构化角色名单（池名里已带角色）
 			bannerDates: fmtWindow(best.startTs, best.endTs, tz),
@@ -11334,6 +11343,9 @@ async function ns_biligame_announce_gachaDdlezj(url, signal, tz = ns_biligame_an
 			endTs: best.endTs,
 			...(hover ? { bannerHover: hover } : {})
 		};
+		out.gacha = dataArrayProducedGachaOf(out, poolItems, { tz }, now);
+		out.gachaHoverItems = poolItems;
+		return out;
 	}
 	return null;                                       // 抓到公告但当期无覆盖 → 未公布
 }
@@ -11346,17 +11358,22 @@ async function ns_biligame_announce_eventsDdlezj(url, signal, tz = ns_biligame_a
 		if (!best) continue;
 		const act = ns_biligame_announce_covering(parsed.items, now, "event");
 		// 非「活动时间」标签的档期在**名称**里标注它是什么窗口（内容，不是元信息）
-		const hover = hoverEvent(act.map((x) => ({
-			name: `${x.name}${x.label === "活动时间" ? "" : `（${x.label}）`}`,
-			startTs: x.startTs,
-			endTs: x.endTs
-		})), tz);
-		return {
+		// ── P3b：条目事实 → 悬停 + `events` 数组 ──────────────────────────────
+		const eventItems = (act || [])
+			.map((x) => ({
+				title: `${x.name}${x.label === "活动时间" ? "" : `（${x.label}）`}`,
+				startTs: x.startTs, endTs: x.endTs, raw: ""
+			}))
+			.filter((x) => x.title);   // 顺序 = covering 的 endTs 升序（与原 hoverEvent 收到的一致，不另排）
+		const hover = hoverTextFromItems(eventItems, "event", tz);		const out = {
 			event: best.name,
 			eventDates: fmtWindow(best.startTs, best.endTs, tz),
 			eventDatesRaw: best.raw,
 			...(hover ? { eventHover: hover } : {})
 		};
+		out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
+		out.eventHoverItems = eventItems;
+		return out;
 	}
 	return null;
 }
@@ -11981,8 +11998,10 @@ async function ns_biligame_activity_gachaUmaCnOfficial(url, signal, tz = ns_bili
 	const rolesText = roles.join("、");
 	// 悬停 = 全部当期池（每池「池名：角色」+ 档期）；只有 1 个当期池 → "" → **不设** bannerHover，
 	// 交回 UI 默认两行式（`banner：roles` ⏎ `bannerDates`）。
-	const bannerHover = ns_biligame_activity_umaCnPoolHover(active, tz, rolesText, banner);
-	return {
+	// ── P3b：条目事实 → 悬停 + `gacha` 数组 ──────────────────────────────────
+	const poolItems = ns_biligame_activity_hoverRows(active, (x) => `${x.label || banner}${rolesText ? `：${rolesText}` : ""}`);
+	const bannerHover = hoverTextFromItems(poolItems, "gacha", tz);
+	const out = {
 		banner,
 		roles: rolesText,
 		bannerDates: fmtWindow(best.startTs, best.endTs, tz),
@@ -11991,6 +12010,9 @@ async function ns_biligame_activity_gachaUmaCnOfficial(url, signal, tz = ns_bili
 		endTs: best.endTs,
 		...(bannerHover ? { bannerHover } : {})
 	};
+	out.gacha = dataArrayProducedGachaOf(out, poolItems, { tz }, now);
+	out.gachaHoverItems = poolItems;
+	return out;
 }
 // 活动侧
 async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_biligame_activity_BILIGAME_ACTIVITY_TZ, now = nowMs()) {
@@ -12000,13 +12022,18 @@ async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_bil
 	const event = ns_biligame_activity_cleanTitle(title) || best.label;
 	// 悬停 = 全部当期期间，逐行「期间名 + 3 空格 + 档期」（档期由 fmtWindow 格式化：源站粘连笔误
 	// `10/711:59` 在这里如实显示为 `10-07 11:59`）；只有 1 条 → "" → **不设** eventHover。
-	const eventHover = ns_biligame_activity_umaCnEventHover(active, tz, event);
-	return {
+	// ── P3b：条目事实 → 悬停 + `events` 数组 ──────────────────────────────────
+	const eventItems = ns_biligame_activity_hoverRows(active, (x) => x.label || event);
+	const eventHover = hoverTextFromItems(eventItems, "event", tz);
+	const out = {
 		event,
 		eventDates: fmtWindow(best.startTs, best.endTs, tz),
 		eventDatesRaw: best.raw,
 		...(eventHover ? { eventHover } : {})
 	};
+	out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
+	out.eventHoverItems = eventItems;
+	return out;
 }
 //#endregion
 
@@ -12477,7 +12504,8 @@ function ns_umamusume_official_umaCurrentItems(entries, now) {
 		const key = e.id != null ? "id:" + e.id : e;      // 同一条公告只留第一段（见上）
 		if (seen.has(key)) continue;
 		seen.add(key);
-		out.push({ name: e.title, startTs: w.startTs, endTs: w.endTs, raw: w.raw });
+		// `title` = P3b 的条目事实（反生成器与数组收口读它）；`name` 保留给 hoverPool/hoverEvent 的老调用。
+		out.push({ name: e.title, title: e.title, startTs: w.startTs, endTs: w.endTs, raw: w.raw });
 	}
 	return out;
 }
@@ -12621,8 +12649,10 @@ async function ns_umamusume_official_gachaUmaJpOfficial(url, signal, tz = ns_uma
 	const picked = ns_umamusume_official_pickUmaWindow(r.details, now);
 	if (!picked) return null;                       // 抓到公告但当期没有覆盖 now 的卡池期 = 未公布
 	// ≥2 个当期池才给悬停；只有 1 个 → **不设** bannerHover，交回 UI 默认两行式（`池名：角色` ⏎ 档期）
-	const bannerHover = hoverPool(ns_umamusume_official_umaCurrentItems(r.details, now), tz);
-	return {
+	// ── P3b：条目事实 → 悬停 + `gacha` 数组（排序与 hoverPool 同一份：结束时间升序）──
+	const pools = ns_umamusume_official_umaCurrentItems(r.details, now).slice().sort(poolHoverOrderOf);
+	const bannerHover = hoverTextFromItems(pools, "gacha", tz);
+	const out = {
 		banner: picked.e.title,
 		bannerDates: fmtWindow(picked.w.startTs, picked.w.endTs, tz),
 		bannerDatesRaw: picked.w.raw,
@@ -12630,6 +12660,9 @@ async function ns_umamusume_official_gachaUmaJpOfficial(url, signal, tz = ns_uma
 		endTs: picked.w.endTs,
 		...(bannerHover ? { bannerHover } : {})
 	};
+	out.gacha = dataArrayProducedGachaOf(out, pools, { tz }, now);
+	out.gachaHoverItems = pools;
+	return out;
 }
 
 /** 赛马娘 日服 官方公告 活动侧（イベント / キャンペーン）。now 是第 4 参。 */
@@ -12644,15 +12677,19 @@ async function ns_umamusume_official_eventsUmaJpOfficial(url, signal, tz = ns_um
 	const picked = ns_umamusume_official_pickUmaWindow(r.details, now);
 	if (!picked) return null;
 	// ≥2 条当期活动才给悬停；只有 1 条 → **不设** eventHover，交回 UI 默认两行式（`名称` ⏎ 档期）
-	const eventHover = hoverEvent(ns_umamusume_official_umaCurrentItems(r.details, now), tz);
-	return {
+	// ── P3b：条目事实 → 悬停 + `events` 数组（**不排序**：原 hoverEvent 收到的就是 umaCurrentItems 原序）──
+	const eventItems = ns_umamusume_official_umaCurrentItems(r.details, now);
+	const eventHover = hoverTextFromItems(eventItems, "event", tz);
+	const out = {
 		event: picked.e.title,
 		eventDates: fmtWindow(picked.w.startTs, picked.w.endTs, tz),
 		eventDatesRaw: picked.w.raw,
 		...(eventHover ? { eventHover } : {})
 	};
+	out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
+	out.eventHoverItems = eventItems;
+	return out;
 }
-
 // ── 国际服（POST；时区 UTC）─────────────────────────────────────────────────
 async function ns_umamusume_official_collectGlobal(side, url, tz, now, signal, opts) {
 	const indexUrl = url || ns_umamusume_official_UMA_GLOBAL_INDEX_URL;
@@ -12671,8 +12708,10 @@ async function ns_umamusume_official_gachaUmaGlobal(url, signal, tz = ns_umamusu
 	const picked = ns_umamusume_official_pickUmaWindow(r.details, now);
 	if (!picked) return null;
 	// 同卡池侧：≥2 个当期池才给悬停，否则交回 UI 默认两行式
-	const bannerHover = hoverPool(ns_umamusume_official_umaCurrentItems(r.details, now), tz);
-	return {
+	// ── P3b：条目事实 → 悬停 + `gacha` 数组 ──────────────────────────────────
+	const pools = ns_umamusume_official_umaCurrentItems(r.details, now).slice().sort(poolHoverOrderOf);
+	const bannerHover = hoverTextFromItems(pools, "gacha", tz);
+	const out = {
 		banner: picked.e.title,
 		bannerDates: fmtWindow(picked.w.startTs, picked.w.endTs, tz),
 		bannerDatesRaw: picked.w.raw,
@@ -12680,6 +12719,9 @@ async function ns_umamusume_official_gachaUmaGlobal(url, signal, tz = ns_umamusu
 		endTs: picked.w.endTs,
 		...(bannerHover ? { bannerHover } : {})
 	};
+	out.gacha = dataArrayProducedGachaOf(out, pools, { tz }, now);
+	out.gachaHoverItems = pools;
+	return out;
 }
 
 /** 赛马娘 国际服（Global）官方公告 活动侧。now 是第 4 参。 */
@@ -12688,13 +12730,18 @@ async function ns_umamusume_official_eventsUmaGlobal(url, signal, tz = ns_umamus
 	const picked = ns_umamusume_official_pickUmaWindow(r.details, now);
 	if (!picked) return null;
 	// 同活动侧：≥2 条当期活动才给悬停，否则交回 UI 默认两行式
-	const eventHover = hoverEvent(ns_umamusume_official_umaCurrentItems(r.details, now), tz);
-	return {
+	// ── P3b：条目事实 → 悬停 + `events` 数组（不排序，与 hoverEvent 的输入同序）──
+	const eventItems = ns_umamusume_official_umaCurrentItems(r.details, now);
+	const eventHover = hoverTextFromItems(eventItems, "event", tz);
+	const out = {
 		event: picked.e.title,
 		eventDates: fmtWindow(picked.w.startTs, picked.w.endTs, tz),
 		eventDatesRaw: picked.w.raw,
 		...(eventHover ? { eventHover } : {})
 	};
+	out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
+	out.eventHoverItems = eventItems;
+	return out;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -13034,7 +13081,7 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 				: gtUmaRoleNames(cur.pickups, table, "support_id", "char_name");
 			if (!roles) throw gtUmaFail(isChar ? "当期角色池的角色名解析出 0 条" : "当期支援卡池的角色名解析出 0 条");
 			const dates = fmtWindow(cur.startTs, cur.endTs, tz);
-			return {
+			const out = {
 				// 该站没有池名 → 用"赛马娘国际服卡池（角色/支援卡）"，与 umapyoi 那支「赛马娘日服卡池（类型）」同构。
 				// 面板外显是 roles，banner 只在悬停/标题里作前缀。
 				banner: isChar ? "赛马娘国际服卡池（角色）" : "赛马娘国际服卡池（支援卡）",
@@ -13042,6 +13089,11 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 				bannerDates: dates,
 				bannerDatesRaw: dates
 			};
+			// ── P3b：条目事实 → `gacha` 数组（该源一次只有一口当期池 ⇒ 悬停生成器给 ""，与改造前一致）──
+			const pools = [{ title: out.banner, startTs: cur.startTs, endTs: cur.endTs, raw: dates }];
+			out.gacha = dataArrayProducedGachaOf(out, pools, { tz }, now);
+			out.gachaHoverItems = pools;
+			return out;
 		}
 
 		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
@@ -15745,15 +15797,26 @@ EVENT_FETCHERS["r1999"] = {
 			const o = opts || {};
 			const isEvent = o.kind === "event";
 			const shown = DATA_ARRAY_LABEL(main && (main.show || main.title));
+			// 先按"会不会出现在悬停里"过滤一遍（标题非空 + 活动侧的长期窗口过滤）。
+			// ⚠️ 2026-11-07（P3b）：后面两步是**悬停逆解析的既有口径**，结构化条目也必须照做，否则
+			//    "解析器直出的数组"与"从同一份悬停文本反解的数组"会不一致（真机两例：
+			//    ddlezj「七、艾利亚斯边境」与「…（商店兑换时间）」归一后同名、umaCn 只有 1 条期间）：
+			//    ① **不足 2 条 ⇒ 没有并列条目**（`hoverTextFromItems` 对 <2 条给空串，
+			//       文本路径因此拿到 []）；② **归一后完全同名只留第一条**（`scheduleHoverItems` 的
+			//       `normTitle` 判重：去掉 `（…）/(…)` 与空白 —— 探头上不会出现两行同名，数组也不该）。
+			const eligible = (Array.isArray(entries) ? entries : [])
+				.filter((x) => x && dataArrayTextOf(x.title || x.label))
+				.filter((x) => !(isEvent && isLongTermEvent(x)));
+			if (eligible.length < 2) return [];
+			const normTitle = (s) => String(s || "").replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, "");
 			const seen = new Set();
+			const seenTitle = new Set();
 			if (main) seen.add(dataArrayIdentityOf(main.title, main.startTs, main.endTs));
 			const out = [];
-			for (const x of (Array.isArray(entries) ? entries : [])) {
-				if (!x) continue;
+			for (const x of eligible) {
 				const title = dataArrayTextOf(x.title || x.label);
-				if (!title) continue;
-				// 活动侧与 buildEventHover 同一条长期窗口过滤（文本路径的条目没有 ts ⇒ 恒不命中）
-				if (isEvent && isLongTermEvent(x)) continue;
+				const nt = normTitle(title);
+				if (nt && seenTitle.has(nt)) continue;          // 归一后同名 ⇒ 只留第一条（与显示层同一判据）
 				if (main) {
 					if (title === main.title) continue;
 					if (main.show && title === main.show) continue;
@@ -15768,6 +15831,7 @@ EVENT_FETCHERS["r1999"] = {
 				const identity = dataArrayIdentityOf(title, w.startTs, w.endTs);
 				if (seen.has(identity)) continue;
 				seen.add(identity);
+				if (nt) seenTitle.add(nt);
 				out.push({ title, show: title, startTs: w.startTs, endTs: w.endTs, tz: dataArrayTextOf(o.tz), raw: win, source: "hover" });
 			}
 			return out;

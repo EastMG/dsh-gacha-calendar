@@ -367,15 +367,26 @@
 			const o = opts || {};
 			const isEvent = o.kind === "event";
 			const shown = DATA_ARRAY_LABEL(main && (main.show || main.title));
+			// 先按"会不会出现在悬停里"过滤一遍（标题非空 + 活动侧的长期窗口过滤）。
+			// ⚠️ 2026-11-07（P3b）：后面两步是**悬停逆解析的既有口径**，结构化条目也必须照做，否则
+			//    "解析器直出的数组"与"从同一份悬停文本反解的数组"会不一致（真机两例：
+			//    ddlezj「七、艾利亚斯边境」与「…（商店兑换时间）」归一后同名、umaCn 只有 1 条期间）：
+			//    ① **不足 2 条 ⇒ 没有并列条目**（`hoverTextFromItems` 对 <2 条给空串，
+			//       文本路径因此拿到 []）；② **归一后完全同名只留第一条**（`scheduleHoverItems` 的
+			//       `normTitle` 判重：去掉 `（…）/(…)` 与空白 —— 探头上不会出现两行同名，数组也不该）。
+			const eligible = (Array.isArray(entries) ? entries : [])
+				.filter((x) => x && dataArrayTextOf(x.title || x.label))
+				.filter((x) => !(isEvent && isLongTermEvent(x)));
+			if (eligible.length < 2) return [];
+			const normTitle = (s) => String(s || "").replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, "");
 			const seen = new Set();
+			const seenTitle = new Set();
 			if (main) seen.add(dataArrayIdentityOf(main.title, main.startTs, main.endTs));
 			const out = [];
-			for (const x of (Array.isArray(entries) ? entries : [])) {
-				if (!x) continue;
+			for (const x of eligible) {
 				const title = dataArrayTextOf(x.title || x.label);
-				if (!title) continue;
-				// 活动侧与 buildEventHover 同一条长期窗口过滤（文本路径的条目没有 ts ⇒ 恒不命中）
-				if (isEvent && isLongTermEvent(x)) continue;
+				const nt = normTitle(title);
+				if (nt && seenTitle.has(nt)) continue;          // 归一后同名 ⇒ 只留第一条（与显示层同一判据）
 				if (main) {
 					if (title === main.title) continue;
 					if (main.show && title === main.show) continue;
@@ -390,6 +401,7 @@
 				const identity = dataArrayIdentityOf(title, w.startTs, w.endTs);
 				if (seen.has(identity)) continue;
 				seen.add(identity);
+				if (nt) seenTitle.add(nt);
 				out.push({ title, show: title, startTs: w.startTs, endTs: w.endTs, tz: dataArrayTextOf(o.tz), raw: win, source: "hover" });
 			}
 			return out;

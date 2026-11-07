@@ -432,7 +432,8 @@ function ns_umamusume_official_umaCurrentItems(entries, now) {
 		const key = e.id != null ? "id:" + e.id : e;      // 同一条公告只留第一段（见上）
 		if (seen.has(key)) continue;
 		seen.add(key);
-		out.push({ name: e.title, startTs: w.startTs, endTs: w.endTs, raw: w.raw });
+		// `title` = P3b 的条目事实（反生成器与数组收口读它）；`name` 保留给 hoverPool/hoverEvent 的老调用。
+		out.push({ name: e.title, title: e.title, startTs: w.startTs, endTs: w.endTs, raw: w.raw });
 	}
 	return out;
 }
@@ -576,8 +577,10 @@ async function ns_umamusume_official_gachaUmaJpOfficial(url, signal, tz = ns_uma
 	const picked = ns_umamusume_official_pickUmaWindow(r.details, now);
 	if (!picked) return null;                       // 抓到公告但当期没有覆盖 now 的卡池期 = 未公布
 	// ≥2 个当期池才给悬停；只有 1 个 → **不设** bannerHover，交回 UI 默认两行式（`池名：角色` ⏎ 档期）
-	const bannerHover = hoverPool(ns_umamusume_official_umaCurrentItems(r.details, now), tz);
-	return {
+	// ── P3b：条目事实 → 悬停 + `gacha` 数组（排序与 hoverPool 同一份：结束时间升序）──
+	const pools = ns_umamusume_official_umaCurrentItems(r.details, now).slice().sort(poolHoverOrderOf);
+	const bannerHover = hoverTextFromItems(pools, "gacha", tz);
+	const out = {
 		banner: picked.e.title,
 		bannerDates: fmtWindow(picked.w.startTs, picked.w.endTs, tz),
 		bannerDatesRaw: picked.w.raw,
@@ -585,6 +588,9 @@ async function ns_umamusume_official_gachaUmaJpOfficial(url, signal, tz = ns_uma
 		endTs: picked.w.endTs,
 		...(bannerHover ? { bannerHover } : {})
 	};
+	out.gacha = dataArrayProducedGachaOf(out, pools, { tz }, now);
+	out.gachaHoverItems = pools;
+	return out;
 }
 
 /** 赛马娘 日服 官方公告 活动侧（イベント / キャンペーン）。now 是第 4 参。 */
@@ -599,15 +605,19 @@ async function ns_umamusume_official_eventsUmaJpOfficial(url, signal, tz = ns_um
 	const picked = ns_umamusume_official_pickUmaWindow(r.details, now);
 	if (!picked) return null;
 	// ≥2 条当期活动才给悬停；只有 1 条 → **不设** eventHover，交回 UI 默认两行式（`名称` ⏎ 档期）
-	const eventHover = hoverEvent(ns_umamusume_official_umaCurrentItems(r.details, now), tz);
-	return {
+	// ── P3b：条目事实 → 悬停 + `events` 数组（**不排序**：原 hoverEvent 收到的就是 umaCurrentItems 原序）──
+	const eventItems = ns_umamusume_official_umaCurrentItems(r.details, now);
+	const eventHover = hoverTextFromItems(eventItems, "event", tz);
+	const out = {
 		event: picked.e.title,
 		eventDates: fmtWindow(picked.w.startTs, picked.w.endTs, tz),
 		eventDatesRaw: picked.w.raw,
 		...(eventHover ? { eventHover } : {})
 	};
+	out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
+	out.eventHoverItems = eventItems;
+	return out;
 }
-
 // ── 国际服（POST；时区 UTC）─────────────────────────────────────────────────
 async function ns_umamusume_official_collectGlobal(side, url, tz, now, signal, opts) {
 	const indexUrl = url || ns_umamusume_official_UMA_GLOBAL_INDEX_URL;
@@ -626,8 +636,10 @@ async function ns_umamusume_official_gachaUmaGlobal(url, signal, tz = ns_umamusu
 	const picked = ns_umamusume_official_pickUmaWindow(r.details, now);
 	if (!picked) return null;
 	// 同卡池侧：≥2 个当期池才给悬停，否则交回 UI 默认两行式
-	const bannerHover = hoverPool(ns_umamusume_official_umaCurrentItems(r.details, now), tz);
-	return {
+	// ── P3b：条目事实 → 悬停 + `gacha` 数组 ──────────────────────────────────
+	const pools = ns_umamusume_official_umaCurrentItems(r.details, now).slice().sort(poolHoverOrderOf);
+	const bannerHover = hoverTextFromItems(pools, "gacha", tz);
+	const out = {
 		banner: picked.e.title,
 		bannerDates: fmtWindow(picked.w.startTs, picked.w.endTs, tz),
 		bannerDatesRaw: picked.w.raw,
@@ -635,6 +647,9 @@ async function ns_umamusume_official_gachaUmaGlobal(url, signal, tz = ns_umamusu
 		endTs: picked.w.endTs,
 		...(bannerHover ? { bannerHover } : {})
 	};
+	out.gacha = dataArrayProducedGachaOf(out, pools, { tz }, now);
+	out.gachaHoverItems = pools;
+	return out;
 }
 
 /** 赛马娘 国际服（Global）官方公告 活动侧。now 是第 4 参。 */
@@ -643,13 +658,18 @@ async function ns_umamusume_official_eventsUmaGlobal(url, signal, tz = ns_umamus
 	const picked = ns_umamusume_official_pickUmaWindow(r.details, now);
 	if (!picked) return null;
 	// 同活动侧：≥2 条当期活动才给悬停，否则交回 UI 默认两行式
-	const eventHover = hoverEvent(ns_umamusume_official_umaCurrentItems(r.details, now), tz);
-	return {
+	// ── P3b：条目事实 → 悬停 + `events` 数组（不排序，与 hoverEvent 的输入同序）──
+	const eventItems = ns_umamusume_official_umaCurrentItems(r.details, now);
+	const eventHover = hoverTextFromItems(eventItems, "event", tz);
+	const out = {
 		event: picked.e.title,
 		eventDates: fmtWindow(picked.w.startTs, picked.w.endTs, tz),
 		eventDatesRaw: picked.w.raw,
 		...(eventHover ? { eventHover } : {})
 	};
+	out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
+	out.eventHoverItems = eventItems;
+	return out;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -989,7 +1009,7 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 				: gtUmaRoleNames(cur.pickups, table, "support_id", "char_name");
 			if (!roles) throw gtUmaFail(isChar ? "当期角色池的角色名解析出 0 条" : "当期支援卡池的角色名解析出 0 条");
 			const dates = fmtWindow(cur.startTs, cur.endTs, tz);
-			return {
+			const out = {
 				// 该站没有池名 → 用"赛马娘国际服卡池（角色/支援卡）"，与 umapyoi 那支「赛马娘日服卡池（类型）」同构。
 				// 面板外显是 roles，banner 只在悬停/标题里作前缀。
 				banner: isChar ? "赛马娘国际服卡池（角色）" : "赛马娘国际服卡池（支援卡）",
@@ -997,6 +1017,11 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 				bannerDates: dates,
 				bannerDatesRaw: dates
 			};
+			// ── P3b：条目事实 → `gacha` 数组（该源一次只有一口当期池 ⇒ 悬停生成器给 ""，与改造前一致）──
+			const pools = [{ title: out.banner, startTs: cur.startTs, endTs: cur.endTs, raw: dates }];
+			out.gacha = dataArrayProducedGachaOf(out, pools, { tz }, now);
+			out.gachaHoverItems = pools;
+			return out;
 		}
 
 		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══

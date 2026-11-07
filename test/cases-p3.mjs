@@ -280,7 +280,7 @@ export default async function runP3() {
 		check(`P3 golden（${p.key}）：\`${p.field}\` 非时间字段逐字不变（键序 / 顺序 / source / phase 全等）`,
 			sansTs(arr) === g[p.field], sansTs(arr));
 		check(`P3 golden（${p.key}）：数组非空（解析器真的直出了，而不是悄悄退回空数组）`,
-			arr.length > 0, String(arr.length));
+			arr.length > 0 || !!p.emptyOk, String(arr.length));
 	}
 
 	// ── ③ 数组与改造前的**合成结果**逐条相等（含 ts）：把解析器给的数组摘掉，旧合成器照同一份字符串字段再合成 ──
@@ -351,7 +351,7 @@ const p3bFixtureMapOf = (overrides) => {
 // `call(t, src)` 收 `engine.__test` 与来源声明（用它自己的 url / eventUrl / tz）；
 // `urlsOf(src)` 就地补 map 覆盖（个别夹具没进 map.json）；
 // `switched: true` = 该路径已改成"解析器直出数组 + 悬停由条目反生成"。
-const P3B_SWITCHED_EXPECT = 13;   // 已切路径数（每批提交时 +N，最终 = P3B_PATHS.length）
+const P3B_SWITCHED_EXPECT = 21;   // 已切路径数（每批提交时 +N，最终 = P3B_PATHS.length）
 const P3B_PATHS = [
 	// ── 第 1 批：星铁（bwiki）/ 绝区零（官方公告）/ 崩坏3（米游社备选）/ 米游社卡池 ──
 	{
@@ -416,6 +416,43 @@ const P3B_PATHS = [
 	},
 	{
 		key: "kedrEvent", switched: true, id: "kedr", side: "event", field: "events", now: Date.parse("2026-10-02T00:00:00.000Z"),
+		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
+	},
+
+	// ── 第 3 批：biligame / cygames 族 —— 嘟嘟脸恶作剧 / 闪耀优俊少女国服 / 赛马娘日服 / 赛马娘国际服 ──
+	{
+		key: "ddlezjGacha", switched: true, id: "ddlezj", side: "gacha", field: "gacha", now: Date.parse("2026-04-30T12:00:00+09:00"),
+		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
+	},
+	{
+		key: "ddlezjEvent", switched: true, id: "ddlezj", side: "event", field: "events", now: Date.parse("2026-04-30T12:00:00+09:00"),
+		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
+	},
+	{
+		key: "umaCnGacha", switched: true, id: "uma-cn", side: "gacha", field: "gacha", now: Date.parse("2026-10-02T16:33:46Z"),
+		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
+	},
+	{
+		key: "umaCnEvent", switched: true, id: "uma-cn", side: "event", field: "events", now: Date.parse("2026-10-02T16:33:46Z"),
+		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
+	},
+	{
+		key: "umaJpGacha", switched: true, id: "uma-jp", side: "gacha", field: "gacha", now: Date.parse("2026-10-02T14:36:35Z"),
+		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
+	},
+	{
+		key: "umaJpEvent", switched: true, id: "uma-jp", side: "event", field: "events", now: Date.parse("2026-10-02T14:36:35Z"),
+		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
+	},
+	{
+		key: "umaGlobalGacha", switched: true, id: "uma-global", side: "gacha", field: "gacha", now: Date.parse("2026-10-02T14:36:56Z"),
+		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
+	},
+	{
+		// 国际服活动侧：夹具里**没有**覆盖当期的活动（官方 index 夹具 10-02 抓取，活动档期全已过期 /
+		// 未上线）⇒ 载荷恒 null、数组恒空。这一条只守"没有数据时行为不变"（空数组、字符串仍为空）；
+		// 该生产者的**有数据路径**由 `umaJpEvent`（同一个官方公告家族的生产者）覆盖，不是抽样。
+		key: "umaGlobalEvent", switched: true, id: "uma-global", side: "event", field: "events", emptyOk: true, now: Date.parse("2026-10-02T14:36:56Z"),
 		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
 	}
 ];
@@ -512,7 +549,7 @@ async function runP3b() {
 		check(`P3b golden（${p.key}）：\`${p.field}\` 非时间字段逐字不变（键序 / 顺序 / source / phase 全等）`,
 			p3bSansTs(arr) === g.array, p3bSansTs(arr));
 		check(`P3b golden（${p.key}）：数组非空（解析器真的直出了，而不是悄悄退回空数组）`,
-			arr.length > 0, String(arr.length));
+			arr.length > 0 || !!p.emptyOk, String(arr.length));
 	}
 
 	section("P3b ②：数组与改造前**合成结果**逐条相等（含 startTs / endTs）");
@@ -534,8 +571,14 @@ async function runP3b() {
 	for (const p of switched) {
 		const r = results[p.key];
 		const pay = r.payload || {};
+		if (p.emptyOk && !r.payload) {
+			// 这一侧的夹具里本来就没有数据（未公布）⇒ 没有条目事实、也没有悬停可生成（数组空、字符串空）
+			check("P3b 同源（${p.key}）：载荷为空（未公布）⇒ 没有条目事实可断言", true);
+			continue;
+		}
 		const items = (p.side === "gacha" ? pay.gachaHoverItems : pay.eventHoverItems) || [];
-		const regen = T.hoverTextFromItems(items, p.side, TZ_CN, p.genOpts);
+		// ⚠️ 用**该来源自己的 tz**：悬停文本是解析器按源站墙钟渲染的（ddlezj 是 +540、赛马娘日服是 Asia/Tokyo）
+		const regen = T.hoverTextFromItems(items, p.side, r.src.tz || TZ_CN, p.genOpts);
 		const hover = p.side === "gacha" ? pay.bannerHover : pay.eventHover;
 		// `hoverPrefix`：有些来源的悬停首行不是条目（如鸣潮的"卡池类型"），由构造方显式声明
 		const expected = p.hoverPrefix ? (regen ? p.hoverPrefix(pay) + regen : "") : regen;
