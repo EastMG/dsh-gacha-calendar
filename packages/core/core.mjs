@@ -13397,6 +13397,17 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 				data.eventDatesRaw = data.eventDates;
 			}
 			if (!data.banner) return null;
+			// ── P3b：条目事实 → `gacha` / `events` 数组 ────────────────────────────
+			// 该源一次只产出一条卡池行（多处棋盘合并进 banner/roles）与一条活动行；
+			// 悬停一直是空（不构造 *Hover），生成器对 1 条也给 "" ⇒ 用户可见输出不变。
+			const gachaItems = active.map((p) => ({ title: p.type, startTs: p.startTs, endTs: p.endTs, raw: "" }));
+			data.gacha = dataArrayProducedGachaOf(data, gachaItems, { tz }, now);
+			data.gachaHoverItems = gachaItems;
+			if (data.event) {
+				const evItems = [{ title: data.event, startTs: dataArrayWindowOf(data.eventDates, now).startTs, endTs: dataArrayWindowOf(data.eventDates, now).endTs, raw: data.eventDatesRaw }];
+				data.events = dataArrayProducedEventsOf(data, evItems, { tz }, now);
+				data.eventHoverItems = evItems;
+			}
 			return data;
 		}
 
@@ -13608,7 +13619,7 @@ async function ns_p5x_gachaP5x(url, signal, tz = "Asia/Shanghai", now = nowMs())
 		//    效果（与本体同构）：外显 = 角色名（本体对"有角色名的卡池"就是这么外显的），
 		//    UI 默认两行式 = `缘结之契开启：汐见琴音` ⏎ `09-24 04:00 ~ 10-22 03:59`。
 		//    只有 1 个当期池 → 不设 bannerHover（hoverPool 的契约就是 <2 条交回 UI）。
-		return {
+		const out = {
 			banner: hit.block.title,
 			roles: up.join("、"),
 			bannerDates: fmtWindow(hit.win.startTs, hit.win.endTs, tz),
@@ -13616,6 +13627,11 @@ async function ns_p5x_gachaP5x(url, signal, tz = "Asia/Shanghai", now = nowMs())
 			startTs: hit.win.startTs,
 			endTs: hit.win.endTs
 		};
+		// ── P3b：这条公告就只有这一口当期池（源站无多池并列）⇒ 数组只有主条 ──
+		const items = [{ title: out.banner, startTs: hit.win.startTs, endTs: hit.win.endTs, raw: hit.block.windowRaw }];
+		out.gacha = dataArrayProducedGachaOf(out, items, { tz }, now);
+		out.gachaHoverItems = items;
+		return out;
 	}
 	return null;
 }
@@ -13639,14 +13655,19 @@ async function ns_p5x_eventsP5x(url, signal, tz = "Asia/Shanghai", now = nowMs()
 		// 稳定排序：先按结束时间升序（越紧迫越前），同结束时间保持原文顺序
 		active.sort((a, b) => a.win.endTs - b.win.endTs);
 		const primary = active[0];
-		// ⚠️ 2026-10-03 改：原本手搓 `名称  + 档期`（**2 个空格**），本体一律 **3 个空格** → 改用共用 hoverEvent。
-		const hover = hoverEvent(active.map((x) => ({ name: x.block.title, startTs: x.win.startTs, endTs: x.win.endTs })), tz);
-		return {
+		// ⚠️ 2026-10-03 改：原本手搓 `名称  + 档期`（**2 个空格**），本体一律 **3 个空格** → 改用生成器。
+		// ── P3b：条目事实 → 悬停 + `events` 数组 ──────────────────────────────
+		const eventItems = active.map((x) => ({ title: x.block.title, startTs: x.win.startTs, endTs: x.win.endTs, raw: "" }));
+		const hover = hoverTextFromItems(eventItems, "event", tz);
+		const out = {
 			event: primary.block.title,
 			eventDates: fmtWindow(primary.win.startTs, primary.win.endTs, tz),
 			eventDatesRaw: primary.block.windowRaw,
 			...(hover ? { eventHover: hover } : {})
 		};
+		out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
+		out.eventHoverItems = eventItems;
+		return out;
 	}
 	return null;
 }
@@ -14002,7 +14023,7 @@ async function ns_gf2_gachaGf2(url, signal, tz = ns_gf2_GF2_TZ, now = nowMs()) {
 		const wins = ns_gf2_parseGf2Windows(textOf(d.Content || ""), tz, hint);
 		const w = ns_gf2_selectGf2Window(wins, now);
 		if (!w) return null;
-		return {
+		const out = {
 			banner: ns_gf2_cleanTitle(it.title),
 			roles: ns_gf2_parseGf2Roles(d.Content || ""),
 			bannerDates: fmtWindow(w.startTs, w.endTs, tz),
@@ -14010,6 +14031,11 @@ async function ns_gf2_gachaGf2(url, signal, tz = ns_gf2_GF2_TZ, now = nowMs()) {
 			startTs: w.startTs,
 			endTs: w.endTs
 		};
+		// ── P3b：这条公告就是当期唯一一口池（源站无多池并列）⇒ 数组只有主条 ──
+		const items = [{ title: out.banner, startTs: w.startTs, endTs: w.endTs, raw: w.raw }];
+		out.gacha = dataArrayProducedGachaOf(out, items, { tz }, now);
+		out.gachaHoverItems = items;
+		return out;
 	});
 }
 
@@ -14052,18 +14078,23 @@ async function ns_gf2_eventsGf2(url, signal, tz = ns_gf2_GF2_TZ, now = nowMs()) 
 		const active = wins
 			.filter((x) => coversNow(x, now))
 			.sort((a, b) => a.endTs - b.endTs);
-		const eventHover = hoverEvent(active.map((x) => ({
-			name: ns_gf2_gf2WindowName(baseName, x),
+		const eventItems = active.map((x) => ({
+			title: ns_gf2_gf2WindowName(baseName, x),
 			startTs: x.startTs,
 			endTs: x.endTs,
 			raw: x.raw
-		})), tz);
-		return {
+		}));
+		const eventHover = hoverTextFromItems(eventItems, "event", tz);
+		const out = {
 			event: ns_gf2_cleanTitle(it.title),
 			eventDates: fmtWindow(w.startTs, w.endTs, tz),
 			eventDatesRaw: w.raw,
 			...(eventHover ? { eventHover } : {})
 		};
+		// ── P3b：条目事实 → `events` 数组 ──────────────────────────────────────
+		out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
+		out.eventHoverItems = eventItems;
+		return out;
 	});
 }
 
@@ -14280,10 +14311,14 @@ function ns_fgo_parseFgoBannerTable(html, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 				raw: r.raw
 			};
 		});
-	const bannerHover = hoverPool(pools, tz);
+	const bannerHover = hoverTextFromItems(
+		pools.map((p) => ({ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw })),
+		"gacha", tz);
 	return {
 		...best,
 		openCount: rows.length,
+		// ── P3b：条目事实（悬停行）= 同一份 pools；数组由抓取器用它们收口 ──
+		hoverItems: pools.map((p) => ({ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw })),
 		...(bannerHover ? { bannerHover } : {})
 	};
 }
@@ -14331,8 +14366,10 @@ function ns_fgo_parseFgoEventTable(html, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 	const active = rows
 		.filter((x) => coversNow(x, now))
 		.sort((a, b) => (a.endTs === b.endTs ? a.startTs - b.startTs : a.endTs - b.endTs));
-	// <2 条时 hoverEvent 返回 "" → 不设 eventHover，由 UI 走默认两行式
-	const eventHover = hoverEvent(active, tz);
+	// <2 条时生成器返回 "" → 不设 eventHover，由 UI 走默认两行式
+	// ── P3b：条目事实 → 悬停（数组由抓取器收口）──
+	const hoverItems = active.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
+	const eventHover = hoverTextFromItems(hoverItems, "event", tz);
 	// 类别事实通道（P2 收尾，2026-11-07）：源站第 4 列的「类型」（Event / Campaign）是**源站给的
 	// 分类**，上面第 241-244 行的注释说明了它为什么不能进悬停文本。数据层要把这个事实带进
 	// `events` 数组（显示层按 cat 分档，见 81-schedule-model.js 的 sideViewOf 规则表），
@@ -14349,6 +14386,7 @@ function ns_fgo_parseFgoEventTable(html, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 		eventDates: fmtWindow(best.startTs, best.endTs, tz),
 		eventDatesRaw: best.raw,
 		itemFacts,
+		hoverItems,
 		...(eventHover ? { eventHover } : {})
 	};
 }
@@ -14368,7 +14406,7 @@ async function ns_fgo_gachaFgo(url, signal, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 	const html = await ns_fgo_fetchPageText(url || ns_fgo_fgoParseUrl(ns_fgo_FGO_GACHA_PAGE), signal);
 	const r = ns_fgo_parseFgoBannerTable(html, tz, now);
 	if (!r) return null;
-	return {
+	const out = {
 		banner: r.banner,
 		roles: r.roles || "",
 		bannerDates: fmtWindow(r.startTs, r.endTs, tz),
@@ -14378,6 +14416,10 @@ async function ns_fgo_gachaFgo(url, signal, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 		// 有 ≥2 个当期池才有值；1 个池时 ns_fgo_parseFgoBannerTable 不设该字段（UI 走默认两行式）
 		...(r.bannerHover ? { bannerHover: r.bannerHover } : {})
 	};
+	// ── P3b：条目事实 → `gacha` 数组（主条 + 并列池）──
+	out.gacha = dataArrayProducedGachaOf(out, r.hoverItems || [], { tz }, now);
+	out.gachaHoverItems = r.hoverItems || [];
+	return out;
 }
 
 // 同上：收 `now` 注入时刻（2026-10-17 修，测试专用契约，默认 nowMs() 保生产行为）
@@ -14385,7 +14427,7 @@ async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ, now = nowMs()) 
 	const html = await ns_fgo_fetchPageText(url || ns_fgo_fgoParseUrl(ns_fgo_FGO_EVENT_PAGE), signal);
 	const r = ns_fgo_parseFgoEventTable(html, tz, now);
 	if (!r || !r.event) return null;
-	return {
+	const out = {
 		event: r.event,
 		eventDates: r.eventDates,
 		eventDatesRaw: r.eventDatesRaw,
@@ -14396,6 +14438,10 @@ async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ, now = nowMs()) 
 		// 漏一行就等于这条事实在数据层之前就没了（实测：数组 entries 的 cat 全是 null）。
 		...(r.itemFacts ? { itemFacts: r.itemFacts } : {})
 	};
+	// ── P3b：条目事实 → `events` 数组（cat 事实经 itemFacts 贴上，与合成路径同一份）──
+	out.events = dataArrayProducedEventsOf(out, r.hoverItems || [], { tz }, now);
+	out.eventHoverItems = r.hoverItems || [];
+	return out;
 }
 
 		// ── 条目 ──
@@ -14924,7 +14970,12 @@ async function ns_stellasora_gachaStellasora(url, signal, tz = ns_stellasora_STE
 	// ⚠️ 卡池列的悬停字段是 **bannerHover**（面板 `title: g.bannerHover || gachaTitle`；
 	//    50-refresh 的 `pickFields(g.data, GACHA_FIELDS)` 也只留 bannerHover）——
 	//    旧实现写的是 `eventHover`，运行时被丢弃 = 卡池悬停**根本没生效**。
-	const hover = hoverPool(ns_stellasora_stellaPoolItems(covering), tz);
+	// ── P3b：条目事实 → 悬停 + `gacha` 数组（排序与 hoverPool 同一份：结束时间升序）──
+	const gachaItems = ns_stellasora_stellaPoolItems(covering)
+		.filter((p) => p.name)
+		.sort(poolHoverOrderOf)
+		.map((p) => ({ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw }));
+	const hover = hoverTextFromItems(gachaItems, "gacha", tz);
 	const out = {
 		banner: ns_stellasora_stellaGachaName(picked.row.title),
 		bannerDates: fmtWindow(picked.win.startTs, picked.win.endTs, tz),
@@ -14934,9 +14985,11 @@ async function ns_stellasora_gachaStellasora(url, signal, tz = ns_stellasora_STE
 		event: "",
 		eventDates: ""
 	};
-	// hoverPool 在「当期池 < 2」时返回 ""：此时**不设** bannerHover，交回 UI 的默认两行式
+	// 生成器在「当期池 < 2」时返回 ""：此时**不设** bannerHover，交回 UI 的默认两行式
 	// 「池名：角色」⏎「档期」—— 不要自己再补一行，那正是与本体不一致的来源。
 	if (hover) out.bannerHover = hover;
+	out.gacha = dataArrayProducedGachaOf(out, gachaItems, { tz }, now);
+	out.gachaHoverItems = gachaItems;
 	return out;
 }
 
@@ -14945,7 +14998,9 @@ async function ns_stellasora_eventsStellasora(url, signal, tz = ns_stellasora_ST
 	const got = await ns_stellasora_collectStellaSide(url, signal, tz, now, "event");
 	if (!got) return null;
 	const { picked, covering } = got;
-	const hover = hoverEvent(ns_stellasora_stellaEventItems(covering), tz);
+	// ── P3b：条目事实 → 悬停 + `events` 数组 ─────────────────────────────────
+	const eventItems = ns_stellasora_stellaEventItems(covering).map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
+	const hover = hoverTextFromItems(eventItems, "event", tz);
 	const out = {
 		// 外显 = 该公告标题（源站的活动名写法；本次**不改**外显与档期字段的内容）。
 		// 悬停里的名称与它同源同字，故「外显能看到的活动名」在悬停里也一定看得到。
@@ -14953,9 +15008,11 @@ async function ns_stellasora_eventsStellasora(url, signal, tz = ns_stellasora_ST
 		eventDates: fmtWindow(picked.win.startTs, picked.win.endTs, tz),
 		eventDatesRaw: picked.win.raw
 	};
-	// hoverEvent 在「当期活动 < 2」时返回 ""：此时**不设** eventHover，
+	// 生成器在「当期活动 < 2」时返回 ""：此时**不设** eventHover，
 	// 交回 UI 的默认两行式「活动名」⏎「档期|原文」。
 	if (hover) out.eventHover = hover;
+	out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
+	out.eventHoverItems = eventItems;
 	return out;
 }
 

@@ -299,7 +299,7 @@ async function ns_gf2_gachaGf2(url, signal, tz = ns_gf2_GF2_TZ, now = nowMs()) {
 		const wins = ns_gf2_parseGf2Windows(textOf(d.Content || ""), tz, hint);
 		const w = ns_gf2_selectGf2Window(wins, now);
 		if (!w) return null;
-		return {
+		const out = {
 			banner: ns_gf2_cleanTitle(it.title),
 			roles: ns_gf2_parseGf2Roles(d.Content || ""),
 			bannerDates: fmtWindow(w.startTs, w.endTs, tz),
@@ -307,6 +307,11 @@ async function ns_gf2_gachaGf2(url, signal, tz = ns_gf2_GF2_TZ, now = nowMs()) {
 			startTs: w.startTs,
 			endTs: w.endTs
 		};
+		// ── P3b：这条公告就是当期唯一一口池（源站无多池并列）⇒ 数组只有主条 ──
+		const items = [{ title: out.banner, startTs: w.startTs, endTs: w.endTs, raw: w.raw }];
+		out.gacha = dataArrayProducedGachaOf(out, items, { tz }, now);
+		out.gachaHoverItems = items;
+		return out;
 	});
 }
 
@@ -349,18 +354,23 @@ async function ns_gf2_eventsGf2(url, signal, tz = ns_gf2_GF2_TZ, now = nowMs()) 
 		const active = wins
 			.filter((x) => coversNow(x, now))
 			.sort((a, b) => a.endTs - b.endTs);
-		const eventHover = hoverEvent(active.map((x) => ({
-			name: ns_gf2_gf2WindowName(baseName, x),
+		const eventItems = active.map((x) => ({
+			title: ns_gf2_gf2WindowName(baseName, x),
 			startTs: x.startTs,
 			endTs: x.endTs,
 			raw: x.raw
-		})), tz);
-		return {
+		}));
+		const eventHover = hoverTextFromItems(eventItems, "event", tz);
+		const out = {
 			event: ns_gf2_cleanTitle(it.title),
 			eventDates: fmtWindow(w.startTs, w.endTs, tz),
 			eventDatesRaw: w.raw,
 			...(eventHover ? { eventHover } : {})
 		};
+		// ── P3b：条目事实 → `events` 数组 ──────────────────────────────────────
+		out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
+		out.eventHoverItems = eventItems;
+		return out;
 	});
 }
 

@@ -194,10 +194,14 @@ function ns_fgo_parseFgoBannerTable(html, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 				raw: r.raw
 			};
 		});
-	const bannerHover = hoverPool(pools, tz);
+	const bannerHover = hoverTextFromItems(
+		pools.map((p) => ({ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw })),
+		"gacha", tz);
 	return {
 		...best,
 		openCount: rows.length,
+		// ── P3b：条目事实（悬停行）= 同一份 pools；数组由抓取器用它们收口 ──
+		hoverItems: pools.map((p) => ({ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw })),
 		...(bannerHover ? { bannerHover } : {})
 	};
 }
@@ -245,8 +249,10 @@ function ns_fgo_parseFgoEventTable(html, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 	const active = rows
 		.filter((x) => coversNow(x, now))
 		.sort((a, b) => (a.endTs === b.endTs ? a.startTs - b.startTs : a.endTs - b.endTs));
-	// <2 条时 hoverEvent 返回 "" → 不设 eventHover，由 UI 走默认两行式
-	const eventHover = hoverEvent(active, tz);
+	// <2 条时生成器返回 "" → 不设 eventHover，由 UI 走默认两行式
+	// ── P3b：条目事实 → 悬停（数组由抓取器收口）──
+	const hoverItems = active.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
+	const eventHover = hoverTextFromItems(hoverItems, "event", tz);
 	// 类别事实通道（P2 收尾，2026-11-07）：源站第 4 列的「类型」（Event / Campaign）是**源站给的
 	// 分类**，上面第 241-244 行的注释说明了它为什么不能进悬停文本。数据层要把这个事实带进
 	// `events` 数组（显示层按 cat 分档，见 81-schedule-model.js 的 sideViewOf 规则表），
@@ -263,6 +269,7 @@ function ns_fgo_parseFgoEventTable(html, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 		eventDates: fmtWindow(best.startTs, best.endTs, tz),
 		eventDatesRaw: best.raw,
 		itemFacts,
+		hoverItems,
 		...(eventHover ? { eventHover } : {})
 	};
 }
@@ -282,7 +289,7 @@ async function ns_fgo_gachaFgo(url, signal, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 	const html = await ns_fgo_fetchPageText(url || ns_fgo_fgoParseUrl(ns_fgo_FGO_GACHA_PAGE), signal);
 	const r = ns_fgo_parseFgoBannerTable(html, tz, now);
 	if (!r) return null;
-	return {
+	const out = {
 		banner: r.banner,
 		roles: r.roles || "",
 		bannerDates: fmtWindow(r.startTs, r.endTs, tz),
@@ -292,6 +299,10 @@ async function ns_fgo_gachaFgo(url, signal, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 		// 有 ≥2 个当期池才有值；1 个池时 ns_fgo_parseFgoBannerTable 不设该字段（UI 走默认两行式）
 		...(r.bannerHover ? { bannerHover: r.bannerHover } : {})
 	};
+	// ── P3b：条目事实 → `gacha` 数组（主条 + 并列池）──
+	out.gacha = dataArrayProducedGachaOf(out, r.hoverItems || [], { tz }, now);
+	out.gachaHoverItems = r.hoverItems || [];
+	return out;
 }
 
 // 同上：收 `now` 注入时刻（2026-10-17 修，测试专用契约，默认 nowMs() 保生产行为）
@@ -299,7 +310,7 @@ async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ, now = nowMs()) 
 	const html = await ns_fgo_fetchPageText(url || ns_fgo_fgoParseUrl(ns_fgo_FGO_EVENT_PAGE), signal);
 	const r = ns_fgo_parseFgoEventTable(html, tz, now);
 	if (!r || !r.event) return null;
-	return {
+	const out = {
 		event: r.event,
 		eventDates: r.eventDates,
 		eventDatesRaw: r.eventDatesRaw,
@@ -310,6 +321,10 @@ async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ, now = nowMs()) 
 		// 漏一行就等于这条事实在数据层之前就没了（实测：数组 entries 的 cat 全是 null）。
 		...(r.itemFacts ? { itemFacts: r.itemFacts } : {})
 	};
+	// ── P3b：条目事实 → `events` 数组（cat 事实经 itemFacts 贴上，与合成路径同一份）──
+	out.events = dataArrayProducedEventsOf(out, r.hoverItems || [], { tz }, now);
+	out.eventHoverItems = r.hoverItems || [];
+	return out;
 }
 
 		// ── 条目 ──

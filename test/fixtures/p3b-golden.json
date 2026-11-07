@@ -457,5 +457,175 @@
 			"eventHoverExtra": ""
 		},
 		"array": "[{\"key\":\"ournotes-global:event:0\",\"title\":\"【活動】夏日慶典\",\"show\":\"【活動】夏日慶典\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"2026/09/30 12:00 - 2026/10/14 11:59\",\"source\":\"primary\"}]"
+	},
+	"fgoGacha": {
+		"rec": {
+			"banner": "「OVER THE SAME SKY-SEPTEMBER-」推荐召唤",
+			"roles": "阿蒂拉 罗摩 兰斯洛特(Saber) 魁札尔·科亚特尔 反抗军的Rider 弗兰肯斯坦 谜之女主角X〔Alter〕 阿尔托莉雅·潘德拉贡(Ruler) 芦屋道满 妖精骑士兰斯洛特 库库尔坎 大和武尊 堤丰·厄斐墨洛斯",
+			"bannerDates": "09-22 19:00 ~ 10-06 13:59",
+			"bannerDatesRaw": "2026年9月22日(周二) 19:00 ~ 2026年10月6日(周二) 13:59",
+			"bannerHover": "「OVER THE SAME SKY-SEPTEMBER-」推荐召唤\n09-22 19:00 ~ 10-06 13:59\n唠唠叨叨新选组 THE END推荐召唤2：土方岁三、冲田总司、斋藤一、山南敬助、永仓新八\n09-26 19:00 ~ 10-15 13:59\n唠唠叨叨新选组 THE END 近藤勇推荐召唤：藤堂平助、近藤勇\n09-30 19:00 ~ 10-15 13:59\n唠唠叨叨新选组 THE END 河上彦斋推荐召唤：河上彦斋、藤堂平助\n09-24 19:00 ~ 10-22 13:59",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"fgo:gacha:0\",\"title\":\"「OVER THE SAME SKY-SEPTEMBER-」推荐召唤\",\"show\":\"阿蒂拉 罗摩 兰斯洛特 魁札尔·科亚特尔 反抗军的Rider 弗兰肯斯坦 谜之女主角X〔Alter〕 阿尔托莉雅·潘德拉贡 芦屋道满 妖精骑士兰斯洛特 库库尔坎 大和武尊 堤丰·厄斐墨洛斯\",\"roles\":[\"阿蒂拉 罗摩 兰斯洛特(Saber) 魁札尔·科亚特尔 反抗军的Rider 弗兰肯斯坦 谜之女主角X〔Alter〕 阿尔托莉雅·潘德拉贡(Ruler) 芦屋道满 妖精骑士兰斯洛特 库库尔坎 大和武尊 堤丰·厄斐墨洛斯\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"2026年9月22日(周二) 19:00 ~ 2026年10月6日(周二) 13:59\",\"source\":\"primary\"},{\"key\":\"fgo:gacha:1\",\"title\":\"唠唠叨叨新选组 THE END推荐召唤2：土方岁三、冲田总司、斋藤一、山南敬助、永仓新八\",\"show\":\"唠唠叨叨新选组 THE END推荐召唤2：土方岁三、冲田总司、斋藤一、山南敬助、永仓新八\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-26 19:00 ~ 10-15 13:59\",\"source\":\"hover\"},{\"key\":\"fgo:gacha:2\",\"title\":\"唠唠叨叨新选组 THE END 近藤勇推荐召唤：藤堂平助、近藤勇\",\"show\":\"唠唠叨叨新选组 THE END 近藤勇推荐召唤：藤堂平助、近藤勇\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-30 19:00 ~ 10-15 13:59\",\"source\":\"hover\"},{\"key\":\"fgo:gacha:3\",\"title\":\"唠唠叨叨新选组 THE END 河上彦斋推荐召唤：河上彦斋、藤堂平助\",\"show\":\"唠唠叨叨新选组 THE END 河上彦斋推荐召唤：河上彦斋、藤堂平助\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-24 19:00 ~ 10-22 13:59\",\"source\":\"hover\"}]"
+	},
+	"fgoEvent": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "迦勒底·U－夏日岛 ～总统会梦见夏日吗？～",
+			"eventDates": "08-08 15:00 ~ 08-29 13:59",
+			"eventDatesRaw": "2026年8月8日(周六)15:00 ~ 2026年8月29日(周六)13:59",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "迦勒底·U－夏日岛 ～总统会梦见夏日吗？～   08-08 15:00 ~ 08-29 13:59\n「总统特异点」通关应援纪念活动 第2弹   07-24 15:00 ~ 09-02 13:59\n「冠位戴冠战：Extra」开幕前夕纪念活动   07-29 12:00 ~ 09-03 13:59\nFinal Order Project [Lostbelt No.1]通关应援纪念活动   08-11 19:00 ~ 10-31 13:59\nFinal Order Project [Lostbelt No.2]通关应援纪念活动   08-18 19:00 ~ 10-31 13:59",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"fgo:event:0\",\"title\":\"迦勒底·U－夏日岛 ～总统会梦见夏日吗？～\",\"show\":\"迦勒底·U－夏日岛 ～总统会梦见夏日吗？～\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"2026年8月8日(周六)15:00 ~ 2026年8月29日(周六)13:59\",\"source\":\"primary\",\"cat\":\"Event\"},{\"key\":\"fgo:event:1\",\"title\":\"「总统特异点」通关应援纪念活动 第2弹\",\"show\":\"「总统特异点」通关应援纪念活动 第2弹\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"07-24 15:00 ~ 09-02 13:59\",\"source\":\"hover\",\"cat\":\"Campaign\"},{\"key\":\"fgo:event:2\",\"title\":\"「冠位戴冠战：Extra」开幕前夕纪念活动\",\"show\":\"「冠位戴冠战：Extra」开幕前夕纪念活动\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"07-29 12:00 ~ 09-03 13:59\",\"source\":\"hover\",\"cat\":\"Campaign\"},{\"key\":\"fgo:event:3\",\"title\":\"Final Order Project [Lostbelt No.1]通关应援纪念活动\",\"show\":\"Final Order Project [Lostbelt No.1]通关应援纪念活动\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"08-11 19:00 ~ 10-31 13:59\",\"source\":\"hover\",\"cat\":\"Campaign\"},{\"key\":\"fgo:event:4\",\"title\":\"Final Order Project [Lostbelt No.2]通关应援纪念活动\",\"show\":\"Final Order Project [Lostbelt No.2]通关应援纪念活动\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"08-18 19:00 ~ 10-31 13:59\",\"source\":\"hover\",\"cat\":\"Campaign\"}]"
+	},
+	"gf2Gacha": {
+		"rec": {
+			"banner": "代理人、莉塔拉、科谢尼娅限时概率UP活动现已开启！",
+			"roles": "代理人、莉塔拉、科谢尼娅",
+			"bannerDates": "09-22 12:00 ~ 10-13 08:59",
+			"bannerDatesRaw": "2026年9月22日 版本更新后~2026年10月13日 08:59",
+			"bannerHover": "",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"gf2:gacha:0\",\"title\":\"代理人、莉塔拉、科谢尼娅限时概率UP活动现已开启！\",\"show\":\"代理人、莉塔拉、科谢尼娅\",\"roles\":[\"代理人\",\"莉塔拉\",\"科谢尼娅\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"2026年9月22日 版本更新后~2026年10月13日 08:59\",\"source\":\"primary\"}]"
+	},
+	"gf2Event": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "【静默突触】现已开启",
+			"eventDates": "09-22 12:00 ~ 11-03 08:59",
+			"eventDatesRaw": "2026年9月22日 版本更新后~2026年11月3日 08:59",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"gf2:event:0\",\"title\":\"【静默突触】现已开启\",\"show\":\"【静默突触】现已开启\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"2026年9月22日 版本更新后~2026年11月3日 08:59\",\"source\":\"primary\"}]"
+	},
+	"p5xGacha": {
+		"rec": {
+			"banner": "缘结之契开启",
+			"roles": "汐见琴音",
+			"bannerDates": "09-24 04:00 ~ 10-22 03:59",
+			"bannerDatesRaw": "2026年9月24日—2026年10月22日",
+			"bannerHover": "",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"p5x:gacha:0\",\"title\":\"缘结之契开启\",\"show\":\"汐见琴音\",\"roles\":[\"汐见琴音\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"2026年9月24日—2026年10月22日\",\"source\":\"primary\"}]"
+	},
+	"p5xEvent": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "2.5周年时光庆典",
+			"eventDates": "09-24 04:00 ~ 10-22 03:59",
+			"eventDatesRaw": "2026年9月24日—10月22日更新前",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "2.5周年时光庆典   09-24 04:00 ~ 10-22 03:59\n怪盗团团长的特训日程   09-24 04:00 ~ 10-22 03:59\n2.5周年庆典特别福利   09-24 04:00 ~ 10-22 03:59\n2.5周年特别礼包   09-24 04:00 ~ 10-22 03:59\n2.5周年特别回馈   09-24 04:00 ~ 10-22 03:59\n2.5周年魅影通行证   09-24 04:00 ~ 11-19 03:59",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"p5x:event:0\",\"title\":\"2.5周年时光庆典\",\"show\":\"2.5周年时光庆典\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"2026年9月24日—10月22日更新前\",\"source\":\"primary\"},{\"key\":\"p5x:event:1\",\"title\":\"怪盗团团长的特训日程\",\"show\":\"怪盗团团长的特训日程\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-24 04:00 ~ 10-22 03:59\",\"source\":\"hover\"},{\"key\":\"p5x:event:2\",\"title\":\"2.5周年庆典特别福利\",\"show\":\"2.5周年庆典特别福利\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-24 04:00 ~ 10-22 03:59\",\"source\":\"hover\"},{\"key\":\"p5x:event:3\",\"title\":\"2.5周年特别礼包\",\"show\":\"2.5周年特别礼包\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-24 04:00 ~ 10-22 03:59\",\"source\":\"hover\"},{\"key\":\"p5x:event:4\",\"title\":\"2.5周年特别回馈\",\"show\":\"2.5周年特别回馈\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-24 04:00 ~ 10-22 03:59\",\"source\":\"hover\"},{\"key\":\"p5x:event:5\",\"title\":\"2.5周年魅影通行证\",\"show\":\"2.5周年魅影通行证\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-24 04:00 ~ 11-19 03:59\",\"source\":\"hover\"}]"
+	},
+	"nteGacha": {
+		"rec": {
+			"banner": "限定棋盘",
+			"roles": "明音凛",
+			"bannerDates": "10-15 11:00 ~ 11-05 05:59",
+			"bannerDatesRaw": "10-15 11:00 ~ 11-05 05:59",
+			"bannerHover": "",
+			"event": "咔滋！黄金双脆",
+			"eventDates": "10-15 11:00 ~ 11-05 05:59",
+			"eventDatesRaw": "10-15 11:00 ~ 11-05 05:59",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"nte:gacha:0\",\"title\":\"限定棋盘\",\"show\":\"明音凛\",\"roles\":[\"明音凛\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-15 11:00 ~ 11-05 05:59\",\"source\":\"primary\"}]"
+	},
+	"nteEvent": {
+		"rec": {
+			"banner": "限定棋盘",
+			"roles": "明音凛",
+			"bannerDates": "10-15 11:00 ~ 11-05 05:59",
+			"bannerDatesRaw": "10-15 11:00 ~ 11-05 05:59",
+			"bannerHover": "",
+			"event": "咔滋！黄金双脆",
+			"eventDates": "10-15 11:00 ~ 11-05 05:59",
+			"eventDatesRaw": "10-15 11:00 ~ 11-05 05:59",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"nte:event:0\",\"title\":\"咔滋！黄金双脆\",\"show\":\"咔滋！黄金双脆\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-15 11:00 ~ 11-05 05:59\",\"source\":\"primary\"}]"
+	},
+	"stellasoraGacha": {
+		"rec": {
+			"banner": "「沐于温情笑意中」",
+			"roles": "",
+			"bannerDates": "09-29 17:00 ~ 10-20 10:59",
+			"bannerDatesRaw": "2026/09/29 维护结束后 ~ 2026/10/20 10:59",
+			"bannerHover": "「空白的稚梦」：睡前童话\n09-29 17:00 ~ 10-20 10:59\n「沐于温情笑意中」：艾蕾\n09-29 17:00 ~ 10-20 10:59",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"stellasora:gacha:0\",\"title\":\"「沐于温情笑意中」\",\"show\":\"「沐于温情笑意中」\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"2026/09/29 维护结束后 ~ 2026/10/20 10:59\",\"source\":\"primary\"},{\"key\":\"stellasora:gacha:1\",\"title\":\"「空白的稚梦」：睡前童话\",\"show\":\"「空白的稚梦」：睡前童话\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-29 17:00 ~ 10-20 10:59\",\"source\":\"hover\"}]"
+	},
+	"stellasoraEvent": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "「联合讨伐」活动说明",
+			"eventDates": "10-01 04:00 ~ 10-30 22:59",
+			"eventDatesRaw": "活动时间：2026/10/01 04:00 ~ 2026/10/30 22:59",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "「灾变防线」活动说明   09-27 11:30 ~ 10-20 10:59\n「联合讨伐」活动说明   10-01 04:00 ~ 10-30 22:59",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"stellasora:event:0\",\"title\":\"「灾变防线」活动说明\",\"show\":\"「灾变防线」活动说明\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-27 11:30 ~ 10-20 10:59\",\"source\":\"hover\"},{\"key\":\"stellasora:event:1\",\"title\":\"「联合讨伐」活动说明\",\"show\":\"「联合讨伐」活动说明\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"活动时间：2026/10/01 04:00 ~ 2026/10/30 22:59\",\"source\":\"primary\"}]"
 	}
 }

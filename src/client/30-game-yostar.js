@@ -297,7 +297,12 @@ async function ns_stellasora_gachaStellasora(url, signal, tz = ns_stellasora_STE
 	// ⚠️ 卡池列的悬停字段是 **bannerHover**（面板 `title: g.bannerHover || gachaTitle`；
 	//    50-refresh 的 `pickFields(g.data, GACHA_FIELDS)` 也只留 bannerHover）——
 	//    旧实现写的是 `eventHover`，运行时被丢弃 = 卡池悬停**根本没生效**。
-	const hover = hoverPool(ns_stellasora_stellaPoolItems(covering), tz);
+	// ── P3b：条目事实 → 悬停 + `gacha` 数组（排序与 hoverPool 同一份：结束时间升序）──
+	const gachaItems = ns_stellasora_stellaPoolItems(covering)
+		.filter((p) => p.name)
+		.sort(poolHoverOrderOf)
+		.map((p) => ({ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw }));
+	const hover = hoverTextFromItems(gachaItems, "gacha", tz);
 	const out = {
 		banner: ns_stellasora_stellaGachaName(picked.row.title),
 		bannerDates: fmtWindow(picked.win.startTs, picked.win.endTs, tz),
@@ -307,9 +312,11 @@ async function ns_stellasora_gachaStellasora(url, signal, tz = ns_stellasora_STE
 		event: "",
 		eventDates: ""
 	};
-	// hoverPool 在「当期池 < 2」时返回 ""：此时**不设** bannerHover，交回 UI 的默认两行式
+	// 生成器在「当期池 < 2」时返回 ""：此时**不设** bannerHover，交回 UI 的默认两行式
 	// 「池名：角色」⏎「档期」—— 不要自己再补一行，那正是与本体不一致的来源。
 	if (hover) out.bannerHover = hover;
+	out.gacha = dataArrayProducedGachaOf(out, gachaItems, { tz }, now);
+	out.gachaHoverItems = gachaItems;
 	return out;
 }
 
@@ -318,7 +325,9 @@ async function ns_stellasora_eventsStellasora(url, signal, tz = ns_stellasora_ST
 	const got = await ns_stellasora_collectStellaSide(url, signal, tz, now, "event");
 	if (!got) return null;
 	const { picked, covering } = got;
-	const hover = hoverEvent(ns_stellasora_stellaEventItems(covering), tz);
+	// ── P3b：条目事实 → 悬停 + `events` 数组 ─────────────────────────────────
+	const eventItems = ns_stellasora_stellaEventItems(covering).map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
+	const hover = hoverTextFromItems(eventItems, "event", tz);
 	const out = {
 		// 外显 = 该公告标题（源站的活动名写法；本次**不改**外显与档期字段的内容）。
 		// 悬停里的名称与它同源同字，故「外显能看到的活动名」在悬停里也一定看得到。
@@ -326,9 +335,11 @@ async function ns_stellasora_eventsStellasora(url, signal, tz = ns_stellasora_ST
 		eventDates: fmtWindow(picked.win.startTs, picked.win.endTs, tz),
 		eventDatesRaw: picked.win.raw
 	};
-	// hoverEvent 在「当期活动 < 2」时返回 ""：此时**不设** eventHover，
+	// 生成器在「当期活动 < 2」时返回 ""：此时**不设** eventHover，
 	// 交回 UI 的默认两行式「活动名」⏎「档期|原文」。
 	if (hover) out.eventHover = hover;
+	out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
+	out.eventHoverItems = eventItems;
 	return out;
 }
 

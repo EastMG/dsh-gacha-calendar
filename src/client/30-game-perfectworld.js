@@ -249,6 +249,17 @@
 				data.eventDatesRaw = data.eventDates;
 			}
 			if (!data.banner) return null;
+			// ── P3b：条目事实 → `gacha` / `events` 数组 ────────────────────────────
+			// 该源一次只产出一条卡池行（多处棋盘合并进 banner/roles）与一条活动行；
+			// 悬停一直是空（不构造 *Hover），生成器对 1 条也给 "" ⇒ 用户可见输出不变。
+			const gachaItems = active.map((p) => ({ title: p.type, startTs: p.startTs, endTs: p.endTs, raw: "" }));
+			data.gacha = dataArrayProducedGachaOf(data, gachaItems, { tz }, now);
+			data.gachaHoverItems = gachaItems;
+			if (data.event) {
+				const evItems = [{ title: data.event, startTs: dataArrayWindowOf(data.eventDates, now).startTs, endTs: dataArrayWindowOf(data.eventDates, now).endTs, raw: data.eventDatesRaw }];
+				data.events = dataArrayProducedEventsOf(data, evItems, { tz }, now);
+				data.eventHoverItems = evItems;
+			}
 			return data;
 		}
 
@@ -460,7 +471,7 @@ async function ns_p5x_gachaP5x(url, signal, tz = "Asia/Shanghai", now = nowMs())
 		//    效果（与本体同构）：外显 = 角色名（本体对"有角色名的卡池"就是这么外显的），
 		//    UI 默认两行式 = `缘结之契开启：汐见琴音` ⏎ `09-24 04:00 ~ 10-22 03:59`。
 		//    只有 1 个当期池 → 不设 bannerHover（hoverPool 的契约就是 <2 条交回 UI）。
-		return {
+		const out = {
 			banner: hit.block.title,
 			roles: up.join("、"),
 			bannerDates: fmtWindow(hit.win.startTs, hit.win.endTs, tz),
@@ -468,6 +479,11 @@ async function ns_p5x_gachaP5x(url, signal, tz = "Asia/Shanghai", now = nowMs())
 			startTs: hit.win.startTs,
 			endTs: hit.win.endTs
 		};
+		// ── P3b：这条公告就只有这一口当期池（源站无多池并列）⇒ 数组只有主条 ──
+		const items = [{ title: out.banner, startTs: hit.win.startTs, endTs: hit.win.endTs, raw: hit.block.windowRaw }];
+		out.gacha = dataArrayProducedGachaOf(out, items, { tz }, now);
+		out.gachaHoverItems = items;
+		return out;
 	}
 	return null;
 }
@@ -491,14 +507,19 @@ async function ns_p5x_eventsP5x(url, signal, tz = "Asia/Shanghai", now = nowMs()
 		// 稳定排序：先按结束时间升序（越紧迫越前），同结束时间保持原文顺序
 		active.sort((a, b) => a.win.endTs - b.win.endTs);
 		const primary = active[0];
-		// ⚠️ 2026-10-03 改：原本手搓 `名称  + 档期`（**2 个空格**），本体一律 **3 个空格** → 改用共用 hoverEvent。
-		const hover = hoverEvent(active.map((x) => ({ name: x.block.title, startTs: x.win.startTs, endTs: x.win.endTs })), tz);
-		return {
+		// ⚠️ 2026-10-03 改：原本手搓 `名称  + 档期`（**2 个空格**），本体一律 **3 个空格** → 改用生成器。
+		// ── P3b：条目事实 → 悬停 + `events` 数组 ──────────────────────────────
+		const eventItems = active.map((x) => ({ title: x.block.title, startTs: x.win.startTs, endTs: x.win.endTs, raw: "" }));
+		const hover = hoverTextFromItems(eventItems, "event", tz);
+		const out = {
 			event: primary.block.title,
 			eventDates: fmtWindow(primary.win.startTs, primary.win.endTs, tz),
 			eventDatesRaw: primary.block.windowRaw,
 			...(hover ? { eventHover: hover } : {})
 		};
+		out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
+		out.eventHoverItems = eventItems;
+		return out;
 	}
 	return null;
 }

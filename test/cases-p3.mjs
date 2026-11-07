@@ -351,7 +351,7 @@ const p3bFixtureMapOf = (overrides) => {
 // `call(t, src)` 收 `engine.__test` 与来源声明（用它自己的 url / eventUrl / tz）；
 // `urlsOf(src)` 就地补 map 覆盖（个别夹具没进 map.json）；
 // `switched: true` = 该路径已改成"解析器直出数组 + 悬停由条目反生成"。
-const P3B_SWITCHED_EXPECT = 27;   // 已切路径数（每批提交时 +N，最终 = P3B_PATHS.length）
+const P3B_SWITCHED_EXPECT = 37;   // 已切路径数（每批提交时 +N，最终 = P3B_PATHS.length）
 const P3B_PATHS = [
 	// ── 第 1 批：星铁（bwiki）/ 绝区零（官方公告）/ 崩坏3（米游社备选）/ 米游社卡池 ──
 	{
@@ -484,6 +484,48 @@ const P3B_PATHS = [
 		urlsOf: () => ({ "https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw": "p9-ournotes-global-list" }),
 		call: (t) => t.EVENT_FETCHERS["ournotes-global"]["ournotes-global-event"].default("https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw", undefined, TZ_CN)
 	}
+,
+	// ── 第 5 批：各厂自家解析 —— FGO / 少女前线2 / 女神异闻录5X / 异环 / 星塔旅人 ──
+	{
+		key: "fgoGacha", switched: true, id: "fgo", side: "gacha", field: "gacha", now: Date.parse("2026-08-25T00:00:00.000Z"),
+		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
+	},
+	{
+		key: "fgoEvent", switched: true, id: "fgo", side: "event", field: "events", now: Date.parse("2026-08-25T00:00:00.000Z"),
+		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
+	},
+	{
+		key: "gf2Gacha", switched: true, id: "gf2", side: "gacha", field: "gacha", now: Date.parse("2026-08-25T00:00:00.000Z"),
+		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
+	},
+	{
+		key: "gf2Event", switched: true, id: "gf2", side: "event", field: "events", now: Date.parse("2026-08-25T00:00:00.000Z"),
+		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
+	},
+	{
+		key: "p5xGacha", switched: true, id: "p5x", side: "gacha", field: "gacha", now: Date.parse("2026-09-25T00:00:00.000Z"),
+		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
+	},
+	{
+		key: "p5xEvent", switched: true, id: "p5x", side: "event", field: "events", now: Date.parse("2026-09-25T00:00:00.000Z"),
+		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
+	},
+	{
+		key: "nteGacha", switched: true, id: "nte", side: "gacha", field: "gacha", now: Date.parse("2026-10-20T00:00:00.000Z"),
+		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
+	},
+	{
+		key: "nteEvent", switched: true, id: "nte", side: "event", field: "events", now: Date.parse("2026-10-20T00:00:00.000Z"),
+		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
+	},
+	{
+		key: "stellasoraGacha", switched: true, id: "stellasora", side: "gacha", field: "gacha", now: Date.parse("2026-10-02T00:00:00.000Z"),
+		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
+	},
+	{
+		key: "stellasoraEvent", switched: true, id: "stellasora", side: "event", field: "events", now: Date.parse("2026-10-02T00:00:00.000Z"),
+		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
+	}
 ];
 
 // 12 个用户可见字符串字段（与 P3a 同一份口径）
@@ -613,8 +655,10 @@ async function runP3b() {
 		const expected = p.hoverPrefix ? (regen ? p.hoverPrefix(pay) + regen : "") : regen;
 		check(`P3b 同源（${p.key}）：悬停 == hoverTextFromItems(条目事实) 逐字相等`,
 			expected === (hover || ""), JSON.stringify([expected, hover || ""]));
-		check(`P3b 同源（${p.key}）：条目事实非空，且每条都带 startTs/endTs/raw 三种事实`,
-			items.length > 0 && items.every((x) => "startTs" in x && "endTs" in x && "raw" in x), String(items.length));
+		// 悬停为空时允许条目为 0（生成器对 0/1 条给空串；gf2 活动侧会出现"选中的窗口不覆盖 now"的既有时序）
+		const hoverEmpty = !(p.side === "gacha" ? pay.bannerHover : pay.eventHover);
+		check(`P3b 同源（${p.key}）：条目事实齐备（每条带 startTs/endTs/raw；悬停非空时至少 1 条）`,
+			items.every((x) => "startTs" in x && "endTs" in x && "raw" in x) && (items.length > 0 || hoverEmpty), String(items.length));
 		check(`P3b 通道（${p.key}）：记录里没有 \`gachaHoverItems\` / \`eventHoverItems\``,
 			!("gachaHoverItems" in r.rec) && !("eventHoverItems" in r.rec), JSON.stringify(Object.keys(r.rec)));
 	}
