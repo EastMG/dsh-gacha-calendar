@@ -219,12 +219,10 @@
 		//   · `rest`    = 数组里其余条目，**保持数组原顺序**（那是数据层的自然顺序；
 		//                 探头内部怎么排是渲染层的事，见 82 的 schedulePickItem）
 		//
-		// 两侧的规则都是**今天外显规则的原样搬运**，不新发明口径：
+		// 两侧的**通用**规则都是"今天外显规则的原样搬运"，不新发明口径：
 		//   · event：25-parser-order.js 的 `pickEventPrimary`（各解析器挑外显时调的就是它）
-		//     —— 奖励领取期（`phase.kind === "claim"`）优先 → 类别档位 → 结束时间升序 → 开始时间升序。
-		//     ⚠️ 数组条目**没有** `cat` / `tags`（P1 的字段表里没这两个），所以档位判定会退化成
-		//        按活动名匹配 EVENT_TIER1_RE。对少数来源（赛马娘 / 雪松 / FGO 等）这就是已知不等价，
-		//        见 README_Dev 的「P2 已知不等价」—— 结构化来源（P3）把类别带进数组后才能消掉。
+		//     —— 奖励领取期（`phase.kind === "claim"`）优先 → 类别档位（`cat`/`tags` 能读到就用，
+		//     读不到才按活动名匹配 EVENT_TIER1_RE）→ 结束时间升序 → 开始时间升序。
 		//   · gacha：24-parser-window.js 的 `selectCurrent`（卡池外显的本体；各内置解析器内部的
 		//     `selectGacha*` / `pickMergedGachaWindow` 都注明"与 selectCurrent 同口径"）：
 		//       ① 只在**在期**的池里挑：`endTs >= now` 且（起点缺失 ⇒ 源站写「X.Y 版本更新后」，
@@ -236,13 +234,20 @@
 		//          endTs → startTs 排好 ⇒ 等价于"数组里第一条在期的"）。
 		//       ④ 一条都不在期（沿用旧值 / 已结束）⇒ 取数组首条 = 结束最早的那条。
 		//          老实现的外显那条本来就是结束最早的那条，不凭 now 另造一条。
-		function sideViewOf(items, now, side) {
+		//
+		// ⚠️ 但**通用规则**只对大多数来源成立。下面几款的老实现各有一套排序键（赛马娘按
+		//    "覆盖 now + startTs 最新"、FGO 按源站类型列、战双按自己的类别词表……），
+		//    要"零可见变化"就必须逐字对齐它们 ⇒ 见 `schedulePickOf` 的分派表。
+		function sideViewOf(items, now, side, gameId) {
 			const list = Array.isArray(items) ? items : [];
 			const at = now && typeof now.getTime === "function" ? now.getTime() : Number(now) || 0;
 			const startOf = (x) => (x.startTs == null ? Infinity : x.startTs);
 			if (!list.length) return { primary: null, rest: [] };
 			let primary = null;
-			if (side === "event") {
+			const specialized = schedulePickOf(gameId, side);
+			if (specialized) {
+				primary = specialized(list, at);
+			} else if (side === "event") {
 				// `pickEventPrimary` 吃的条目来自解析器：`name` / `cat` / `tags` / `startTs` / `endTs` / `phase`。
 				// 数据层数组把名称叫 `title`（见 50-refresh.js 的字段表）⇒ 这里做一层**只读适配**再调用它：
 				// 规则本体一个字不改，只是把它认的字段喂进去（否则 eventTier 读不到名字，档位永远退化成第二档）。
@@ -269,6 +274,135 @@
 			}
 			if (!primary) return { primary: null, rest: list.slice() };
 			return { primary, rest: list.filter((x) => x !== primary) };
+		}
+
+		// ── 按游戏分派的挑选规则表（P2 收尾，2026-11-07）─────────────────────────────
+		// **规则仍属显示层**：数据层只放事实（`startTs`/`endTs`/`cat`/`source`/`preview`…），
+		// "哪一条是外显"由这里决定。每条都注明它对齐的是哪个老实现（文件:行），以及为什么
+		// 通用规则复现不了它 —— 反过来也说明：把某条特化规则换回通用规则，对应那一侧必然变红
+		// （`test/cases-core.mjs` ⑤-5 的"反向证明"就钉这一点）。
+		//
+		// 时间比较一律走下面的小工具（null 排序规则与数据层 dataArraySortOf 同一口径）：
+		//   无 endTs ⇒ 视为"最晚"（排最后）；无 startTs ⇒ 视为"最早"（负无穷）。
+		const SCHEDULE_TS_MAX = (x, k) => (x && x[k] != null ? x[k] : Infinity);
+		const SCHEDULE_TS_MIN = (x, k) => (x && x[k] != null ? x[k] : -Infinity);
+		function scheduleEndAsc(a, b) {
+			const ea = SCHEDULE_TS_MAX(a, "endTs"), eb = SCHEDULE_TS_MAX(b, "endTs");
+			return ea === eb ? 0 : ea - eb;
+		}
+		function scheduleStartAsc(a, b) {
+			const sa = SCHEDULE_TS_MAX(a, "startTs"), sb = SCHEDULE_TS_MAX(b, "startTs");
+			return sa === sb ? 0 : sa - sb;
+		}
+		function scheduleStartDesc(a, b) {
+			const sa = SCHEDULE_TS_MIN(a, "startTs"), sb = SCHEDULE_TS_MIN(b, "startTs");
+			return sa === sb ? 0 : sb - sa;
+		}
+		// 覆盖 now 的那几条（与 24-parser-window.js 的 coversNow 同判据：终点必须有且未过，起点可缺）
+		function scheduleCoveringOf(list, at) {
+			const pool = list.filter((x) => coversNow(x, at));
+			return pool.length ? pool : null;
+		}
+		// 引擎给的外显那条（数据层的 `source:"primary"`）。取不到（P1 之前的老缓存）⇒ null，
+		// 调用方退回到时间规则 —— **不猜**谁是主行。
+		function schedulePrimaryOf(list) {
+			for (const x of list) if (x && x.source === "primary") return x;
+			return null;
+		}
+		// 预告稿标记：优先读数据层的事实（`preview`），老缓存没有这个键时退回同一判据的文本匹配
+		// （= `ns_umamusume_official_umaCurrentWindows` 的 previewRank，30-game-cygames.js:392）。
+		const SCHEDULE_PREVIEW_RE = /予告|coming soon/i;
+		function scheduleIsPreview(x) {
+			if (x && typeof x.preview === "boolean") return x.preview;
+			return SCHEDULE_PREVIEW_RE.test(String((x && x.title) || ""));
+		}
+		// 赛马娘（日服 / 国际服 / 无后缀 id）：对齐 `ns_umamusume_official_umaCurrentWindows`
+		// （30-game-cygames.js:388-399，`pickUmaWindow` = 它取第 0 项，:405-407）：
+		//   覆盖 now 优先 → ① `startTs` **最新** → ② 并列时**预告稿排后**（同一档期常有
+		//   `【予告】…開催決定！` 与正式 `…開催！` 两篇，否则外显会显示预告稿）→ ③ endTs 更早
+		//   → ④ 公告 id（数组里没有这个事实 ⇒ 稳定排序保留数组顺序）。
+		// 通用规则（在期里结束最早）**复现不了**它：日服 10-02 那侧外显是 11-02 结束的预告稿，
+		// 而"结束最早"会选 10-13 结束的那条（④ uma-jp/gacha 的已知差异就是这么来的）。
+		function schedulePickUmaCurrent(list, at) {
+			const pool = scheduleCoveringOf(list, at);
+			if (!pool) return schedulePrimaryOf(list) || list[0] || null;
+			return pool.slice().sort((a, b) =>
+				scheduleStartDesc(a, b)
+				|| ((scheduleIsPreview(a) ? 1 : 0) - (scheduleIsPreview(b) ? 1 : 0))
+				|| scheduleEndAsc(a, b)
+			)[0] || null;
+		}
+		// 闪耀优俊少女国服：是对齐 `ns_biligame_activity_eventsUmaCnOfficial` /
+		// `ns_biligame_activity_gachaUmaCnOfficial`（30-game-biligame.js:976 / :956）的**外显那一行**：
+		// 这两个抓取器的 `event` / `banner` = `cleanTitle(公告标题)`，而悬停里那几行是**公告正文里的
+		// 「活动期间 / 第1轮 / 联赛报名期间」标签**（`pickUmaWindow` 只负责挑出给档期的那一段）。
+		// ⇒ 两者不是同一维度的候选：能复现老外显的只有"引擎主行"这个事实（`source:"primary"`）。
+		// 取不到主行（老缓存）⇒ 退回赛马娘的时间规则。
+		function schedulePickUmaCn(list, at) {
+			return schedulePrimaryOf(list) || schedulePickUmaCurrent(list, at);
+		}
+		// 物华弥新：对齐 `ns_biligame_activity_pickWhmxEvent`（30-game-biligame.js:836-846）。
+		// 同一个理由：外显 = `cleanTitle(公告标题)`（主行），悬停里那几行是公告正文的小节
+		// （「旅程将启-寂夜长生」「职员考评-演算」…）。`pickWhmxEvent` 的 rank（小节名 vs 标题引号名）
+		// 在数组里没有对应字段 ⇒ 主行优先是唯一能逐字复现的判据；
+		// 兜底（老缓存没有 `source` 时）按用户定的口径：endTs 升序 → **同 endTs 取 startTs 更晚**那条。
+		function schedulePickWhmx(list, at) {
+			const p = schedulePrimaryOf(list);
+			if (p) return p;
+			const pool = scheduleCoveringOf(list, at) || list;
+			return pool.slice().sort((a, b) => scheduleEndAsc(a, b) || scheduleStartDesc(a, b))[0] || null;
+		}
+		// 战双帕弥什（event）：对齐 `ns_bwiki_wikitext_zspmsEventCmp`
+		// （30-game-bwiki-zspms-wikitext.js:242-246）：类别档位 → endTs 升序 → startTs 升序 → 文档顺序。
+		// 档位词表**是该来源自己的**（含「演算」），通用 `EVENT_TIER1_RE` 没有这个词 ⇒ 09-25 那侧
+		// 通用规则会选「主线剧情-远信回响」，老实现选「回路演算」（两者都是第一档，再按 endTs 决出）。
+		// 数组条目没有结构化类别，只能按活动名判档 —— 解析器自己也是按名字判档（同一份词表）。
+		const SCHEDULE_ZSPMS_TIER1_RE = /剧情|主线|故事|叙事|挑战|BOSS|Boss|试玩|玩法|关卡|演算|行动|作战|防卫|巡防|赛季|联合/;
+		function scheduleZspmsTier(x) {
+			return SCHEDULE_ZSPMS_TIER1_RE.test(String((x && x.title) || "")) ? 1 : 2;
+		}
+		function schedulePickZspmsEvent(list, at) {
+			const pool = scheduleCoveringOf(list, at) || list;
+			return pool.slice().sort((a, b) =>
+				(scheduleZspmsTier(a) - scheduleZspmsTier(b))
+				|| scheduleEndAsc(a, b)
+				|| scheduleStartAsc(a, b)
+			)[0] || null;
+		}
+		// FGO（event）：对齐 `ns_fgo_pickRow`（30-game-aniplex.js:139-150）：
+		//   覆盖 now 优先 → 类型档位（源站第 4 列 `Event` 压过 `Campaign`）→ endTs 升序 → startTs 升序。
+		// 档位来自**源站类型列**，不是活动名：`Event` 这个词不在 EVENT_TIER1_RE 里，按名字判档会把
+		// 09-05 的「失落的创世（Event）」判成第二档，从而选中「3200万下载突破纪念活动（Campaign）」。
+		// 类型由解析器通过 `itemFacts` 带进数组条目的 `cat`（见 30-game-aniplex.js 的 itemFacts 注释）；
+		// 老缓存没有 cat ⇒ 全落第二档（退化成"结束最早"，与通用规则一致，不凭空猜类别）。
+		function scheduleFgoTier(x) {
+			return /^Event/i.test(String((x && x.cat) || "")) ? 0 : 1;
+		}
+		function schedulePickFgoEvent(list, at) {
+			const pool = scheduleCoveringOf(list, at) || list;
+			return pool.slice().sort((a, b) =>
+				(scheduleFgoTier(a) - scheduleFgoTier(b))
+				|| scheduleEndAsc(a, b)
+				|| scheduleStartAsc(a, b)
+			)[0] || null;
+		}
+		// 分派表：游戏 id → 规则；`side` 限定只在某一侧生效（其余侧仍走通用规则）。
+		const SCHEDULE_SIDE_RULES = {
+			// 赛马娘三服共用 cygames 的 umaCurrentWindows（uma 是无后缀的历史 id，一并留着）
+			uma: schedulePickUmaCurrent,
+			"uma-jp": schedulePickUmaCurrent,
+			"uma-global": schedulePickUmaCurrent,
+			// 国服外显 = 公告标题（另一套抓取器），见 schedulePickUmaCn
+			"uma-cn": schedulePickUmaCn,
+			wuhuamixin: schedulePickWhmx,
+			// 只有活动侧有档位规则（卡池侧的通用规则已与老实现一致）
+			"zspms:event": schedulePickZspmsEvent,
+			"fgo:event": schedulePickFgoEvent
+		};
+		function schedulePickOf(gameId, side) {
+			const id = String(gameId || "");
+			if (!id) return null;
+			return SCHEDULE_SIDE_RULES[id] || SCHEDULE_SIDE_RULES[id + ":" + side] || null;
 		}
 
 		// 数组条目 → 与 `scheduleNormalize` **同形**的渲染条目（表格那一行 / 探头的一行）。
@@ -316,7 +450,7 @@
 			const items = isG ? g.gacha : g.events;
 			const sideItems = Array.isArray(items) && items.length ? items : null;
 			if (sideItems) {
-				const derived = sideViewOf(sideItems, now, side);
+				const derived = sideViewOf(sideItems, now, side, g.id);
 				const primary = scheduleItemOf(g, side, derived.primary, now);
 				if (primary) {
 					const rest = [];

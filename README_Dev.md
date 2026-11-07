@@ -323,12 +323,15 @@ DSH 渲染进程的页面源是 `dsh-app://app`（自定义 scheme）。**有些
 
 **P2（派生层，已完成）**：显示层改读这两个数组 —— 表格那一行 = `sideViewOf(...).primary`、探头 = `.rest`，两处共用同一份数组；**不再解析悬停文本**（悬停 tooltip 仍读 `bannerHover` / `eventHover`，那是 P3 的事）。派生规则与兼容退化见下面「派生层（P2）」一节。
 
+**P2 收尾（2026-11-07，方案 C「补事实、不藏差异」）**：数据层补了 `source` / `cat` / `tags` / `preview` 四个事实字段，判重改为"引擎主行 + 悬停并列行各一条"；显示层加了**按游戏分派的规则表**；FGO 解析器额外给一份 `itemFacts`（类别通道）。结果是 34 个侧与改造前**逐字相等**（已知差异清零）。
+
 #### 字段形状（每个游戏都有）
 
 ```js
-gacha:  [{ key, title, show, roles: string[], startTs, endTs, tz, raw, longTerm? }]
-events: [{ key, title, show, startTs, endTs, tz, raw,
-           phase?: { kind: "claim", startTs, endTs, show } }]
+gacha:  [{ key, title, show, roles: string[], startTs, endTs, tz, raw, source,
+           cat?, tags?, preview?, longTerm? }]
+events: [{ key, title, show, startTs, endTs, tz, raw, source,
+           cat?, tags?, preview?, phase?: { kind: "claim", startTs, endTs, show } }]
 ```
 
 | 字段 | 含义 |
@@ -340,6 +343,9 @@ events: [{ key, title, show, startTs, endTs, tz, raw,
 | `startTs` / `endTs` | 毫秒；读不出档期 ⇒ `null`（不硬凑）。**P1 的口径 = 本机时刻**（`parseDisplayRange` 按运行环境时区解释源站墙钟）—— 见下面"已知不等价" |
 | `tz` | 条目声明的源站时区（让下游知道那串时间按哪个墙钟读） |
 | `raw` | 源站原文（`bannerDatesRaw` / `eventDatesRaw`；并列池那条 = 悬停里那行档期） |
+| `source` | **这条是谁**（P2 收尾新增，恒有）：`"primary"` = 引擎给的外显那条；`"hover"` = 从悬停文本解析出的并列条目。旧探头**两者都显示** ⇒ 数组也两者都留，用 `source` 区分（不再按「同池」并掉，见下） |
+| `cat` / `tags` | **类别事实**（可缺）：解析器知道类别时经 `itemFacts` 通道带进来（目前只有 FGO 活动表第 4 列的 `Event` / `Campaign` 填 `cat`）；**取不到就没有这个键**（不猜、不写空值）。`tags` 目前没有来源提供（字段与归一已就位，留给后续结构化来源） |
+| `preview` | **预告稿标记**（可缺）：标题命中 `/予告|coming soon/i` 时为 `true`（与赛马娘老实现 `previewRank` 同一判据，见 `30-game-cygames.js:392`） |
 | `phase` | 活动的**第二阶段**（明日方舟「奖励领取/兑换截止」）：只有来源给了 `eventClaimDates` 才有这个键。它是**一条独立的截止窗口**，不是第二个活动条目 |
 | `longTerm` | P1 **不合成**（可选字段，留给结构化来源；归一函数会原样透传） |
 
@@ -348,29 +354,29 @@ events: [{ key, title, show, startTs, endTs, tz, raw,
 #### 谁生成（`src/client/50-refresh.js`）
 
 - `mergeEntryRecord(r, prevRec, nowTs, meta)` 末尾两行：来源若已给结构化数组（P3 的解析器会开始给）就原样用，否则 `dataArrayGachaOf` / `dataArrayEventsOf` 合成。`meta = { id, tz }` 由 `engine-api.js` 的 `refresh()` 从条目上带进来（只用来生成 key 与 `tz` 字段）。
-- **并列池怎么展开**：复用**显示层同一个** `scheduleHoverItems`（`bannerHover`/`eventHover` 的多行文本 → `[{ title, win }]`），再用 `dataArrayHoverPoolsOf` 里的判据（与外显同名 / 与**显示名**同名 / 「池名：外显名」这种整段包裹写法 / **判重键 = 起止时间 + 池名**）—— 前三条与 `81-schedule-model.js` 的 `scheduleHoverOnes` **逐字对应**；第四条是 P1 **额外**加的判重（同一口池只留一条），所以"数组条数"不一定等于旧探头的行数（旧探头会把同一口池列两遍），差异见「P2 已知不等价⑤」。
-  - ⚠️ 判重键用「池名」而不是「角色集合」：主条目的 `roles` 是**同期多池合并**（`selectCurrent` 的既有语义），它的角色集合 ≠ 悬停里任何单池的角色集合；池名（悬停标题里「：」之前那段）才是稳定的池标识。这条是 2026-11-07 星铁真机修（同一口池的「合并角色」条与「池名：角色」条曾并列成两条）。
+- **并列池怎么展开**（P2 收尾改了判重口径）：复用**显示层同一个** `scheduleHoverItems`（`bannerHover`/`eventHover` 的多行文本 → `[{ title, win }]`），再用 `dataArrayHoverPoolsOf` 里那三条判据（与外显同名 / 与**显示名**同名 / 「池名：外显名」这种整段包裹写法）—— 与 `81-schedule-model.js` 的 `scheduleHoverOnes` **逐字对应**。
+  - ⚠️ **判重口径（2026-11-07 用户定，方案 C）**：不再按「起止时间 + 池名」把同一口池并成一条 —— 那是 P1 自己发明的判据，旧探头从来没有，它一直把「合并角色的主行」和「`池名：角色`」并列显示（物华弥新「繁霜春落：李小孩项链」、星铁「「我身即刃」…：千冶•刃」就是这么被丢掉的）。现在**引擎主行一条 + 悬停并列行各一条**，`source` 区分；只有"内容完全一样"（同标题 **且** 同起止）才去掉一条，并且**优先保留 `source:"primary"`** 那条。
   - ⚠️ `scheduleHoverItems` + 它的两条区间正则 + `scheduleNoYear` 已在 2026-11-07 **从 81 搬进 26-parser-hover.js**（逐字搬迁）：`50-refresh.js` 也在 core 产物里（`CORE_ORDER`），而 81 只属于渲染层。不搬就会变成"core 里调用一个不存在的函数"。
   - 两条区间正则的**起端也认「X.Y版本更新后」**（不是只有两端日期）：星铁 bwiki 把这种原文直接写进悬停（`「巡星之礼」第二十七期   4.6版本更新后 ~ 11-11 03:59`），不认就会把档期拼进**事件标题**。普查结论：其它 27 款的「版本更新后」已在各自解析器里折算成绝对时刻、悬停原文不含版本标签 ⇒ 只影响星铁（`test/cases-core.mjs` ④-9 有针对性断言）。注意这只影响**悬停逆解析**，`fillMissingStarts` / 「版本更新后」的换算一个字没动。
   - 解析不出并列池（`bannerHover` 为空 / 只有 1 条）⇒ 就 1 条，与今天显示等价。
-- **归一**：`dataArray*ItemOf` 只做最少校验 —— 非对象元素**丢弃**、`startTs`/`endTs` **必须是 number 否则 `null`**（`"123"` / `NaN` / `Infinity` 全变 `null`）、文本字段缺了填空串、`roles` 不是数组就 `[]`。缺数组（改造前的老缓存）⇒ **空数组**，形状固定。
+- **归一**：`dataArray*ItemOf` 只做最少校验 —— 非对象元素**丢弃**、`startTs`/`endTs` **必须是 number 否则 `null`**（`"123"` / `NaN` / `Infinity` 全变 `null`）、文本字段缺了填空串、`roles` 不是数组就 `[]`、`source` 缺了填空串。**可选事实**（`cat` / `tags` / `preview`）**有就原样保留、没有就不写这个键**（`preview` 只认 `true`，`tags` 空数组/`cat` 空串都不产生键）⇒ `getCached()` 往返后事实不丢、也不会多出空值。缺数组（改造前的老缓存）⇒ **空数组**，形状固定。
 
 #### 持久化白名单（六处点名的地方，漏一处就静默丢字段）
 
 | # | 位置 | P1 的处理 |
 |---|---|---|
-| ① | `50-refresh.js` 的 `GACHA_FIELDS` | 加 `"gacha"`（否则解析器将来直出的结构化数组会被 `pickFields` 削掉） |
-| ② | `50-refresh.js` 的 `EVENT_FIELDS` | 加 `"events"`（同上） |
+| ① | `50-refresh.js` 的 `GACHA_FIELDS` | 加 `"gacha"`（否则解析器将来直出的结构化数组会被 `pickFields` 削掉）+ `"itemFacts"`（类别事实通道，见下） |
+| ② | `50-refresh.js` 的 `EVENT_FIELDS` | 加 `"events"`（同上）+ `"itemFacts"`（FGO 活动表用它带 `Event`/`Campaign`） |
 | ③ | `engine-head.js` 的 `CONTENT_FIELDS` / `normalizeRecord` | `CONTENT_FIELDS` **只收字符串**（数组会被削成空串）⇒ 在 `normalizeRecord` 里加了**单独的数组分支**（`dataArrayGachaListOf` / `dataArrayEventListOf`） |
 | ④ | `83-panel-shell.js` 的渲染层逐字段拷贝 | 加 `gacha` / `events`（这一层是"抓取结果 → 渲染用条目"的显式拷贝；漏了 P2 只会看到"数组永远为空"） |
 | ⑤ | `engine-head.js` 的 `listGames().defaults` | 登记 `gacha: []` / `events: []`（条目的出厂值里没有池/活动 ⇒ 恒空；登记是为了形状成套） |
 | ⑥ | `60-helpers.js` 的 `customEntries` 白名单 | **刻意不登记**：那张表重建的是**条目定义**（抓什么 / 按哪个时区读），数组是**抓取结果**（住在 `lastData` 里，按 id 索引）。`84-settings-page.js` 的写入点枚举过：没有"把抓取结果写进 customEntries"的路径。 |
 
-#### 回归（`test/cases-core.mjs` ④，60 条）
+#### 回归（`test/cases-core.mjs` ④，65 条）
 
-真实夹具四条线：**原神**（米游社；卡池侧正文无日期 ⇒ `gacha = []`，活动侧 1 条）、**明日方舟**（PRTS；`events` 3 条 + `phase`，悬停里那条「墟 兑换截止」不另算一条）、**FGO**（并列卡池真的展开成 4 条）、**赛马娘国服**（"数组第 1 条不是外显那条"的反证）。另守：12 个旧字符串字段与改造前（HEAD 39d41a5）**逐字相同**、`getCached()` 往返数组仍在（含 `phase`）、归一的最少校验、以及上面六处白名单的静态断言。
+真实夹具四条线：**原神**（米游社；卡池侧正文无日期 ⇒ `gacha = []`，活动侧 1 条）、**明日方舟**（PRTS；`events` 3 条 + `phase`，悬停里那条「墟 兑换截止」不另算一条）、**FGO**（并列卡池真的展开成 4 条）、**赛马娘国服**（"数组第 1 条不是外显那条"的反证）。另守：12 个旧字符串字段与改造前（HEAD 39d41a5）**逐字相同**、`getCached()` 往返数组仍在（含 `phase` / 事实字段）、归一的最少校验、以及上面六处白名单的静态断言。
 
-2026-11-07 再加一段**星铁真机**（夹具 `p4-hsr-bwiki-{warp,events}-1107`，按线上页面结构裁剪）：② `roles`/`show` 里同一角色不再出现两次（判重键 = 去掉括号属性后的角色名，载荷级、只在星铁开启）；③ `gacha` 里同一口池只有一条（判重键 = 起止时间 + 池名）；④ 事件标题不再被拼上档期（`「巡星之礼」第二十七期   4.6版本更新后 ~ 11-11 03:59` ⇒ 标题只有前半）。另有一条"只有星铁会产出带版本标签的悬停档期"的普查断言，以及 FGO / BanG Dream / 绝区零三家 `gacha` 数组**整段 JSON 逐字不变**（`startTs`/`endTs` 只比类型，理由见已知不等价①）。
+2026-11-07 再加一段**星铁真机**（夹具 `p4-hsr-bwiki-{warp,events}-1107`，按线上页面结构裁剪）：② `roles`/`show` 里同一角色不再出现两次（判重键 = 去掉括号属性后的角色名，载荷级、只在星铁开启）；③ `gacha` = **5 条**（引擎主行 1 + 悬停并列行 4，`source` 区分；同一口池的那两行都在，内容完全相同的行才去重且优先保 primary）；④ 事件标题不再被拼上档期（`「巡星之礼」第二十七期   4.6版本更新后 ~ 11-11 03:59` ⇒ 标题只有前半）。另有一条"只有星铁会产出带版本标签的悬停档期"的普查断言，以及 FGO / BanG Dream / 绝区零三家 `gacha` 数组**整段 JSON 逐字不变**（`startTs`/`endTs` 只比类型，理由见已知不等价①；`source` 是新增的必填事实，已写进 golden）。
 
 #### 派生层（P2）：`sideViewOf` / `scheduleItemOf` / `scheduleCellOf`
 
@@ -378,27 +384,40 @@ events: [{ key, title, show, startTs, endTs, tz, raw,
 
 | 函数 | 做什么 | 规则来源 |
 |---|---|---|
-| `sideViewOf(items, now, side)` | 数组 → `{ primary, rest }`（`primary` = 这一格外显的那条，`rest` = 其余、**保持数组原顺序**；数组空 ⇒ `primary = null`） | **event**：`25-parser-order.js` 的 `pickEventPrimary`（claim 优先 → 类别档位 → endTs → startTs）。数组条目叫 `title`、`phase` 是对象 ⇒ 调用前做一层**只读适配**（`name = title`、`phase = phase.kind`），规则本体一个字不改。<br>**gacha**：`24-parser-window.js` 的 `selectCurrent` —— ① 只在**在期**的池里挑（`endTs >= now` 且起点缺失或 `<= now`，起点缺失 = 源站写「X.Y 版本更新后」⇒ 视为已开始）；② 在期的里取**结束最早**；③ 并列按起点升序；④ 一条都不在期 ⇒ 取数组首条（= 结束最早的那条，不凭 now 另造） |
+| `sideViewOf(items, now, side, gameId?)` | 数组 → `{ primary, rest }`（`primary` = 这一格外显的那条，`rest` = 其余、**保持数组原顺序**；数组空 ⇒ `primary = null`） | 第 4 个参数命中**按游戏分派表**（见下）⇒ 走特化规则；**不传 gameId = 通用规则**：<br>**event**：`25-parser-order.js` 的 `pickEventPrimary`（claim 优先 → 类别档位（`cat`/`tags` 读得到就用）→ endTs → startTs）。数组条目叫 `title`、`phase` 是对象 ⇒ 调用前做一层**只读适配**（`name = title`、`phase = phase.kind`），规则本体一个字不改。<br>**gacha**：`24-parser-window.js` 的 `selectCurrent` —— ① 只在**在期**的池里挑（`endTs >= now` 且起点缺失或 `<= now`，起点缺失 = 源站写「X.Y 版本更新后」⇒ 视为已开始）；② 在期的里取**结束最早**；③ 并列按起点升序；④ 一条都不在期 ⇒ 取数组首条（= 结束最早的那条，不凭 now 另造） |
 | `scheduleItemOf(g, side, item, now)` | 数组条目 → 与 `scheduleNormalize` **同形**的渲染条目 | 记录自己那条外显（`item.title` == 记录的 `banner`/`event`）**直接走 `scheduleNormalize`** —— 卡池侧档期优先用记录里的绝对 `startTs/endTs`、活动侧走「源站原文 + tz」换算，数组里没有这两样（P1 只存 `raw` 与本机时刻），从数组重算会在 `TZ≠+08` 的机器上差一个时区。并列条目按 `startTs/endTs/raw` 组装（与今天 `scheduleHoverOnes` 同形）；两端都读不出 ⇒ `null`（与 `if (!r) continue` 一致） |
-| `scheduleCellOf(g, side, now)` | 一格的**全部**条目 `{ primary, rest, fromArray }`；`null` = 这一侧没数据 | 有数组 ⇒ 上面两步（`fromArray = true`）；**数组不可用 ⇒ 兼容分支**（`fromArray = false`）：今天的老路（`scheduleNormalize` + 解析悬停文本），代码逐字搬自 P2 之前的 `82-schedule-view.js`。什么时候走到：老 `lastData`（P1 之前的缓存，归一后是空数组）/ 这一侧本来没数据 / 数组非空但派生不出主条（极端）|
+| `scheduleCellOf(g, side, now)` | 一格的**全部**条目 `{ primary, rest, fromArray }`；`null` = 这一侧没数据 | 有数组 ⇒ 上面两步（`fromArray = true`），并把 `g.id` 传给 `sideViewOf` 以命中的规则表；**数组不可用 ⇒ 兼容分支**（`fromArray = false`）：今天的老路（`scheduleNormalize` + 解析悬停文本），代码逐字搬自 P2 之前的 `82-schedule-view.js`。什么时候走到：老 `lastData`（P1 之前的缓存，归一后是空数组）/ 这一侧本来没数据 / 数组非空但派生不出主条（极端）|
+
+#### 规则分派表（`schedulePickOf`，游戏 → 规则 → 对应老实现）
+
+通用规则只对大多数来源成立；下面几款的老实现各有排序键，"零可见变化"要求逐字对齐 ⇒ 按游戏分派（**规则仍属显示层**，数据层只放事实）：
+
+| 游戏 id | 生效侧 | 规则（`81-schedule-model.js`） | 对齐的老实现（文件:行） | 为什么通用规则复现不了 |
+|---|---|---|---|---|
+| `uma` / `uma-jp` / `uma-global` | 两侧 | `schedulePickUmaCurrent`：覆盖 now → `startTs` **最新** → **预告稿排后**（`preview` 事实，回退同一判据的标题匹配）→ `endTs` 更早 → 数组顺序（= 公告 id 的稳定替身） | `ns_umamusume_official_umaCurrentWindows`（`30-game-cygames.js:388-399`）；`pickUmaWindow` 取第 0 项（`:405-407`） | 日服 10-02 那侧外显是 **11-02 结束**的预告稿，通用"在期里结束最早"会选 10-13 结束的那条 |
+| `uma-cn` | 两侧 | `schedulePickUmaCn`：**引擎主行优先**（`source:"primary"`）；老缓存没有该事实时退回上面的赛马娘规则 | `ns_biligame_activity_eventsUmaCnOfficial` / `gachaUmaCnOfficial`（`30-game-biligame.js:976` / `:956`） | 国服外显名 = `cleanTitle(公告标题)`（主行），悬停里那几行是**公告正文的「活动期间 / 第1轮 / 联赛报名期间」标签**；`pickUmaWindow` 只负责给档期，不是同一维度的候选 |
+| `wuhuamixin` | 两侧 | `schedulePickWhmx`：**引擎主行优先**；老缓存兜底按 `endTs` 升序 → 同 `endTs` 取 `startTs` **更晚**那条 | `ns_biligame_activity_pickWhmxEvent`（`30-game-biligame.js:836-846`） | 同一理由（外显 = 公告标题），且它的 `rank`（小节名 vs 标题引号名）在数组里没有对应字段 |
+| `zspms` | event | `schedulePickZspmsEvent`：覆盖 now → **该来源自己的类别词表**（含「演算」）→ `endTs` → `startTs` | `ns_bwiki_wikitext_zspmsEventCmp`（`30-game-bwiki-zspms-wikitext.js:242-246`） | 通用 `EVENT_TIER1_RE` 没有「演算」⇒ 09-25 那侧会选「主线剧情-远信回响」，老实现选「回路演算」 |
+| `fgo` | event | `schedulePickFgoEvent`：覆盖 now → 类型档位（`cat` = `Event` 压过 `Campaign`）→ `endTs` → `startTs` | `ns_fgo_pickRow`（`30-game-aniplex.js:139-150`） | 档位来自**源站第 4 列类型**（`Event` 不在 `EVENT_TIER1_RE` 里）⇒ 09-05 那侧会选 Campaign 的「3200万下载突破纪念活动」而不是 Event 的「失落的创世…」 |
+
+`cat` / `tags` 的来路：解析器若知道类别，额外返回 `itemFacts = { "<条目标题>": { cat?, tags? } }`，数据层按标题贴到数组条目上（**目前只有 FGO 活动表提供 `cat`**；`tags` 暂无来源 ⇒ 字段与归一就位但不产生）。取不到就**没有这个键**，显示层相应规则按"无类别事实"退化（不猜）。`preview` 由数据层按标题判据生成（`予告`/`coming soon`）。
+
+**已知差异已清零**：`test/cases-core.mjs` ⑤-5 的等价性普查（17 款 / 34 个侧）现在 `diffs = 0` —— 原来 6 处（物华 gacha 少一行、星铁 gacha 少一行、物华/战双/赛马娘国服外显换位、赛马娘日服 gacha 换位）全部逐侧钉成**严格相等**；另有**反向证明**：把任一特化规则换回通用规则（`sideViewOf` 不传 gameId）⇒ 对应侧必红（实测把 `uma-jp` 与 `zspms:event` 两行从分派表拿掉时，⑤-5 立刻红在这两个侧；FGO 用 09-05 那侧单独钉住）。
 
 **显示层（`src/client/82-schedule-view.js`）**：`cells` 存**数组本身**（`cells.set(key, g.gacha / g.events)`，与探头共用同一份）；`cellViews` 存派生结果；表格那一行 = `primary` 经 `scheduleNormalize` 渲染（主条直接走它 ⇒ 档期文本与今天**逐字一致**），探头 = `sideViewOf(...).rest`（内部先后仍是今天的 `schedulePickItem`）。失败横条改按**侧**判定（数组条目没有 `fail`），口径与改造前一致。
 
 **兼容退化**：`scheduleCellOf` 的 `fromArray === false` 分支 —— **P3 可删**（等解析器直出结构化数组、老缓存彻底淘汰后）。
 
-**回归（`test/cases-core.mjs` ⑤，27 条）**：纯函数（空 / 单条 / 在期里结束最早 / 起点未知 / 并列起点 / claim 优先 / 类别档位 / 顺序稳定 / 不改输入）+ `scheduleItemOf` 同形 + 兼容分支输出与老路逐字相同 + **等价性普查**：17 款游戏（15 款端到端刷新 + 星铁 / 原神 两条 payload 级）共 34 个侧，比较「名称 / 档期文本（含倒计时）/ 探头行数 / 行顺序」，**12 款完全逐字相等**，其余 6 个侧的差异逐条钉住（见下「P2 已知不等价」）。
+**回归（`test/cases-core.mjs` ⑤，35 条）**：纯函数（空 / 单条 / 在期里结束最早 / 起点未知 / 并列起点 / claim 优先 / 类别档位 / 顺序稳定 / 不改输入）+ `scheduleItemOf` 同形 + 兼容分支输出与老路逐字相同 + **等价性普查**（34 个侧全部逐字相等）+ 原来 6 处已知差异的严格相等 + **反向证明**（通用规则与特化规则必须选出不同的那条）+ FGO 09-05 那侧（`cat` 事实 + 特化规则缺一不可）。
 
 #### 已知不等价（如实记，留给 P3 / P4）
 
 1. **`startTs` / `endTs` 用的是"本机时刻"**：P1 直接 `parseDisplayRange(源站原文)`，**没做**"源站 tz → 本机"换算。于是在 `TZ≠+08` 的机器上，数组里的 ts 会比显示层换算后的小时**差一个时区差**（+08 机器上一致）。P2 用「主条直接走 `scheduleNormalize`」把**显示文本**这一面避开了（等价性用例在 UTC / +08 都逐字相等）；要彻底消掉得等 P3 换成**结构化来源**（解析器直出绝对时刻）。
 2. **并列池的 `show` = 标题本身**：悬停行只给"池名：角色"，没有结构化角色表 ⇒ 并列池那条 `show === title`、`roles = []`（主条的 `show`/`roles` 是完整的）。P3 让解析器直出每口池的角色表后可补。
 3. **卡池侧"跨池合并的角色表"没有拆开**：主条的 `roles` 仍是引擎给的那串合并角色（FGO 那种 13 个角色一行），不是"每口池自己的角色"。同样是 P3 的结构化来源才能拆。
-4. **同名两行只留一条**：`scheduleHoverItems` 对**完全同名**的行只留第一条；"同一口池的两种写法"（合并角色的主条 vs 悬停里的 `池名：角色`）则由 `dataArrayHoverPoolsOf` 的（起止时间 + 池名）判重键合并成一条。真要"同池两个不同窗口各留一条"得等 P3 给结构化多池。
+4. **完全同名的悬停行只留一条**：`scheduleHoverItems` 对**完全同名**（归一后同串）的行只留第一条 —— 这是悬停逆解析的既有口径（与 `buildPoolHover` 的去重同源），不是 P1 发明的；数组沿用。**同一口池的两种写法**（合并角色的主条 vs 悬停里的 `池名：角色`）现在**都留着**（`source` 区分），只有内容完全一样（同标题 + 同区间）才去重并优先保 `primary`。
 
-**P2 已知不等价（显示层已改读数组，这 6 处与改造前不同 —— 不是规则写错，是 P1 数组丢的信息）**：
-
-5. **探头的"重复行"被 P1 的判重键并掉了**（旧 3 行 / 2 行 → 新 2 行 / 1 行）：物华弥新卡池少了「繁霜春落：李小孩项链」、星铁卡池少了「我身即刃…：千冶•刃」。旧探头把「同一口池」列了两遍（主条 + `池名：角色`），P1 用（起止时间 + 池名）判重键合成了一条。**这是 P1 有意的数据层修复**，P2 改读数组后自然生效；要保留旧观感得在显示层再拼一遍（用户 P4 才允许改变输出，这里如实记）。
-6. **外显那条换了 4 款（成员 / 档期文本 / 行数都不变，只是两行换位）**：`wuhuamixin/event`、`zspms/event`、`uma-cn/event`、`uma-jp/gacha`。根因：数组条目**没有 `cat` / `tags`**（event 侧档位只能按活动名匹配），且部分来源的老实现另有规则（赛马娘 = 覆盖 now 且 `startTs` **最新**、物华 = 同类取 `startTs` 更晚）。P3 把类别 / 每口池的结构化字段带进数组后才能逐字对齐。
+**P2 已知差异：已全部清零（2026-11-07 收尾，方案 C）**——原来的 6 处（探头的两行被并掉 + 4 款外显换位）靠"数据层补事实（`source` / `cat` / `preview`）+ 显示层按游戏分派规则"消掉了；`test/cases-core.mjs` ⑤-5 的 34 个侧现在 `diffs = 0`，且每条特化规则都有反向证明（换回通用规则 ⇒ 对应侧必红）。各游戏缺什么事实：**只有 FGO 有 `cat`**（源站类型列）、**只有赛马娘日服的预告稿有 `preview`**（标题判据）、`tags` **暂无来源**；这些"没有"都是**如实留空**（没有这个键），显示层按无事实退化，不猜。
 
 ### 为什么插件要改宿主的槽位布局
 

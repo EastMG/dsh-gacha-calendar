@@ -321,7 +321,15 @@ export default async function runCore() {
 					gacha: [null, "x", 7, { title: 5, startTs: "123", endTs: Infinity, roles: "a、b", key: 1 }],
 					events: [{ title: "活动", startTs: 5, endTs: 6, phase: { kind: "claim", startTs: NaN, endTs: "9" } }, []]
 				},
-				old: { name: "老缓存", banner: "旧池", event: "旧活动" }
+				old: { name: "老缓存", banner: "旧池", event: "旧活动" },
+				// P2 收尾新增的**事实字段**：cat / tags / preview / source —— 归一必须原样保留
+				// （数组是持久化白名单里唯一"不是字符串"的东西，漏登记就是静默丢字段）。
+				facts: {
+					name: "事实字段",
+					gacha: [{ title: "池", show: "池", roles: [], startTs: 1, endTs: 2, tz: "Asia/Shanghai", raw: "", source: "primary", cat: "Event", tags: ["限定", "联动"], preview: true },
+						{ title: "无事实", show: "无事实", startTs: 3, endTs: 4, tz: "Asia/Shanghai", raw: "", source: "hover", cat: "", tags: [], preview: false }],
+					events: [{ title: "予告活动", show: "予告活动", startTs: 3, endTs: 4, tz: "Asia/Tokyo", raw: "", source: "hover", preview: true }]
+				}
 			}) });
 			const games = (await createEngine({ storage, now: () => 0 }).getCached()).games;
 			const dirty = games.dirty || {}, old = games.old || {};
@@ -342,6 +350,25 @@ export default async function runCore() {
 				JSON.stringify([old.gacha, old.events]));
 			check("归一：老缓存的旧字段照旧读回（数组分支没有牵连字符串字段）",
 				old.banner === "旧池" && old.event === "旧活动", JSON.stringify([old.banner, old.event]));
+
+			// ── 事实字段往返（P2 收尾）：cat / tags / preview / source 归一后**一个不少** ──
+			const facts = games.facts || {};
+			const fg = (facts.gacha || [])[0] || {}, fe = (facts.events || [])[0] || {};
+			check("事实字段往返：`source` / `cat` / `tags` / `preview` 在 getCached() 归一后原样读回",
+				fg.source === "primary" && fg.cat === "Event"
+				&& JSON.stringify(fg.tags) === JSON.stringify(["限定", "联动"]) && fg.preview === true
+				&& fe.source === "hover" && fe.preview === true,
+				JSON.stringify([fg, fe]));
+			check("事实字段：没给的事实**没有这个键**（不写空串/空数组/false；`source` 恒为字符串）",
+				!("cat" in (dirty.gacha || [])[0]) && !("tags" in (dirty.gacha || [])[0])
+				&& !("preview" in (dirty.gacha || [])[0]) && typeof (dirty.gacha || [])[0].source === "string"
+				&& !("cat" in fe) && !("tags" in fe) && (dirty.gacha || [])[0].source === "",
+				JSON.stringify([dirty.gacha && dirty.gacha[0], fe]));
+			check("事实字段：`preview:false` / `cat:\"\"` / `tags:[]` 都**不产生这个键**（可选事实的\"留空\"口径）",
+				(facts.gacha || []).length === 2
+				&& !("cat" in (facts.gacha || [])[1]) && !("tags" in (facts.gacha || [])[1])
+				&& !("preview" in (facts.gacha || [])[1]) && (facts.gacha || [])[1].source === "hover",
+				JSON.stringify(facts.gacha));
 		}
 
 		// ── ④-7 布局：listGames().defaults 里登记了这两个字段 ──────────────────────
@@ -429,24 +456,37 @@ export default async function runCore() {
 				!!hsrGachaPayload && hsrGachaPayload.bannerHover.split("\n").some((l) => l === "「愚戏众星」角色活动跃迁：星神★阿哈"),
 				JSON.stringify(hsrGachaPayload && hsrGachaPayload.bannerHover));
 
-			// ③ 同池两条：`gacha:0`（合并角色）与悬停展开的 `「我身即刃」…：千冶•刃（虚无•火）` 是同一口池。
-			// 判重键 = **起止时间 + 池名**（池名 = 标题里「：」之前那段；理由见 50-refresh.js 的注释）。
-			const poolKeyOf = (x) => {
-				const t = String(x.title || "");
-				const cut = t.indexOf("\uFF1A");
-				const pool = (cut > 0 ? t.slice(0, cut) : t).replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, "");
-				return `${x.startTs}|${x.endTs}|${pool}`;
-			};
-			check("星铁③：gacha 数组里没有「同池两条」（判重键 = 起止时间 + 池名，逐个唯一）",
-				hsrGacha.length > 0 && new Set(hsrGacha.map(poolKeyOf)).size === hsrGacha.length,
-				JSON.stringify(hsrGacha.map((x) => [x.title, x.startTs, x.endTs])));
-			check("星铁③：主条目「我身即刃」只留一条（合并角色那条 vs 悬停『池名：角色』那条不再并列）",
-				hsrGacha.filter((x) => x.title === "「我身即刃」角色活动跃迁" || x.title.indexOf("「我身即刃」角色活动跃迁：") === 0).length === 1,
+			// ③ 同池两条（**P2 收尾改了判重口径，2026-11-07**）：不再按「起止时间 + 池名」把同一口池
+			//    并成一条 —— 旧探头本来就同时显示「合并角色的主行」与「池名：角色」，数据层只该放事实。
+			//    新口径：**引擎主行一条 + 悬停并列行各一条**，用 `source` 区分（"primary" / "hover"）；
+			//    只有内容完全一样（同标题 + 同区间）才去掉一条，且**优先保 `source:"primary"`** 那条。
+			check("星铁③：gacha 数组 = 5 条（引擎主行 1 + 悬停并列行 4，同一口池不再被并掉）",
+				hsrGacha.length === 5, JSON.stringify(hsrGacha.map((x) => [x.title, x.source])));
+			check("星铁③：`source` 恰好一条 primary（外显那条），其余全是 hover",
+				hsrGacha.filter((x) => x.source === "primary").length === 1
+				&& hsrGacha.filter((x) => x.source === "hover").length === 4
+				&& (hsrGacha.find((x) => x.source === "primary") || {}).title === "「我身即刃」角色活动跃迁",
+				JSON.stringify(hsrGacha.map((x) => [x.title, x.source])));
+			check("星铁③：主行「我身即刃」与悬停行「「我身即刃」…：千冶•刃」**都在**（P1 并掉的那行回来了）",
+				hsrGacha.filter((x) => x.title === "「我身即刃」角色活动跃迁" || x.title.indexOf("「我身即刃」角色活动跃迁：") === 0).length === 2,
 				JSON.stringify(hsrGacha.map((x) => x.title)));
-			check("星铁③：四口当期池各一条（并没有把判重做成『只留外显那一条』）",
-				hsrGacha.length === 4
-				&& ["我身即刃", "沧海萃珠", "铭心之萃", "愚戏众星"].every((n) => hsrGacha.some((x) => x.title.indexOf(`「${n}」角色活动跃迁`) === 0)),
+			check("星铁③：四口当期池的悬停行都在（并没有把判重做成『只留外显那一条』）",
+				["我身即刃", "沧海萃珠", "铭心之萃", "愚戏众星"].every((n) => hsrGacha.some((x) => x.title.indexOf(`「${n}」角色活动跃迁`) === 0)),
 				JSON.stringify(hsrGacha.map((x) => x.title)));
+			// ③-bis 判重口径的边界：**内容完全一样**（同标题 + 同区间）才去掉一条，且优先保 primary。
+			// 这里悬停第一条与主行同名 ⇒ 不重复成两条；第二条是另一口池 ⇒ 照常保留（source = hover）。
+			const sameRec = probe.__test.mergeEntryRecord({ data: {
+				banner: "同名池",
+				roles: "",
+				bannerDates: "10-21 12:00 ~ 11-10 15:00",
+				bannerDatesRaw: "10-21 12:00 ~ 11-10 15:00",
+				bannerHover: "同名池\n10-21 12:00 ~ 11-10 15:00\n另一池\n10-30 12:00 ~ 12-01 15:00"
+			} }, null, NOW_HSR, metaHsr);
+			check("星铁③：内容完全相同的行只留一条（同名同区间 ⇒ 只剩 source=primary 的主行）",
+				(sameRec.gacha || []).length === 2
+				&& (sameRec.gacha || [])[0].source === "primary" && (sameRec.gacha || [])[0].title === "同名池"
+				&& (sameRec.gacha || [])[1].source === "hover" && (sameRec.gacha || [])[1].title === "另一池",
+				JSON.stringify((sameRec.gacha || []).map((x) => [x.title, x.source])));
 			// 补：主条**自己**就是「版本更新后」池时（startTs 被 fillMissingStarts 补过、悬停里解析不出 ts），
 			// 判重键必须靠该行原生 raw 认出"起点未折算"，否则同一口池仍会留两条。
 			const openStartRec = probe.__test.mergeEntryRecord({ data: {
@@ -486,8 +526,9 @@ export default async function runCore() {
 		}
 
 		// ── ④-10 其它游戏的 `gacha` 数组 / roles / show 逐字不变 ────────────────────
-		// 本次三处修改（角色名判重、并列条目判重、悬停逆解析认版本标签）都只有星铁会踩到；
-		// 下面把改造前（HEAD）跑同一批夹具的数组**整段 JSON** 钉住，任何"顺手也改了别家"的行为都会红。
+		// 数据层的其它修改（角色名判重、悬停逆解析认版本标签、P2 收尾的事实字段）都只有个别游戏
+		// 会踩到；下面把改造前（HEAD + 新事实字段）跑同一批夹具的数组**整段 JSON** 钉住，
+		// 任何"顺手也改了别家"的行为都会红（`source` 是 P2 收尾新增的必填事实：primary / hover）。
 		// ⚠️ `startTs`/`endTs` 只比**类型**（number）：P1 的口径是"本机时刻"（见 README_Dev 的已知不等价①），
 		//    同一份夹具在 `TZ=UTC` 下比 +08 少 8 小时 —— 把数字钉死会让门禁在 UTC 下假红（2026-11-07 实测过）。
 		{
@@ -499,11 +540,11 @@ export default async function runCore() {
 				endTs: x.endTs == null ? "null" : typeof x.endTs
 			})));
 			const GOLDEN = {
-				fgo: '[{"key":"fgo:gacha:0","title":"「OVER THE SAME SKY-SEPTEMBER-」推荐召唤","show":"阿蒂拉 罗摩 兰斯洛特 魁札尔·科亚特尔 反抗军的Rider 弗兰肯斯坦 谜之女主角X〔Alter〕 阿尔托莉雅·潘德拉贡 芦屋道满 妖精骑士兰斯洛特 库库尔坎 大和武尊 堤丰·厄斐墨洛斯","roles":["阿蒂拉 罗摩 兰斯洛特(Saber) 魁札尔·科亚特尔 反抗军的Rider 弗兰肯斯坦 谜之女主角X〔Alter〕 阿尔托莉雅·潘德拉贡(Ruler) 芦屋道满 妖精骑士兰斯洛特 库库尔坎 大和武尊 堤丰·厄斐墨洛斯"],"startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"2026年9月22日(周二) 19:00 ~ 2026年10月6日(周二) 13:59"},{"key":"fgo:gacha:1","title":"唠唠叨叨新选组 THE END推荐召唤2：土方岁三、冲田总司、斋藤一、山南敬助、永仓新八","show":"唠唠叨叨新选组 THE END推荐召唤2：土方岁三、冲田总司、斋藤一、山南敬助、永仓新八","roles":[],"startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"09-26 19:00 ~ 10-15 13:59"},{"key":"fgo:gacha:2","title":"唠唠叨叨新选组 THE END 近藤勇推荐召唤：藤堂平助、近藤勇","show":"唠唠叨叨新选组 THE END 近藤勇推荐召唤：藤堂平助、近藤勇","roles":[],"startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"09-30 19:00 ~ 10-15 13:59"},{"key":"fgo:gacha:3","title":"唠唠叨叨新选组 THE END 河上彦斋推荐召唤：河上彦斋、藤堂平助","show":"唠唠叨叨新选组 THE END 河上彦斋推荐召唤：河上彦斋、藤堂平助","roles":[],"startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"09-24 19:00 ~ 10-22 13:59"}]',
-				bandori: '[{"key":"bandori:gacha:0","title":"黄金周纪念·前篇Dream＆KIRAMEKI Festival招募","show":"丸山彩、CHU²、二叶筑紫、山吹沙绫、宇田川巴、大和麻弥","roles":["丸山彩","CHU²","二叶筑紫","山吹沙绫","宇田川巴","大和麻弥"],"startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"9月29日维护后~10月11日12:59"}]',
-				zzz: '[{"key":"zzz:gacha:0","title":"「烬夜安眠」频段","show":"洛克茜、普罗米娅","roles":["洛克茜（击破·风）","普罗米娅（异常·冰）"],"startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"09-30 12:00 ~ 10-20 14:59"}]'
+				fgo: '[{"key":"fgo:gacha:0","title":"「OVER THE SAME SKY-SEPTEMBER-」推荐召唤","show":"阿蒂拉 罗摩 兰斯洛特 魁札尔·科亚特尔 反抗军的Rider 弗兰肯斯坦 谜之女主角X〔Alter〕 阿尔托莉雅·潘德拉贡 芦屋道满 妖精骑士兰斯洛特 库库尔坎 大和武尊 堤丰·厄斐墨洛斯","roles":["阿蒂拉 罗摩 兰斯洛特(Saber) 魁札尔·科亚特尔 反抗军的Rider 弗兰肯斯坦 谜之女主角X〔Alter〕 阿尔托莉雅·潘德拉贡(Ruler) 芦屋道满 妖精骑士兰斯洛特 库库尔坎 大和武尊 堤丰·厄斐墨洛斯"],"startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"2026年9月22日(周二) 19:00 ~ 2026年10月6日(周二) 13:59","source":"primary"},{"key":"fgo:gacha:1","title":"唠唠叨叨新选组 THE END推荐召唤2：土方岁三、冲田总司、斋藤一、山南敬助、永仓新八","show":"唠唠叨叨新选组 THE END推荐召唤2：土方岁三、冲田总司、斋藤一、山南敬助、永仓新八","roles":[],"startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"09-26 19:00 ~ 10-15 13:59","source":"hover"},{"key":"fgo:gacha:2","title":"唠唠叨叨新选组 THE END 近藤勇推荐召唤：藤堂平助、近藤勇","show":"唠唠叨叨新选组 THE END 近藤勇推荐召唤：藤堂平助、近藤勇","roles":[],"startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"09-30 19:00 ~ 10-15 13:59","source":"hover"},{"key":"fgo:gacha:3","title":"唠唠叨叨新选组 THE END 河上彦斋推荐召唤：河上彦斋、藤堂平助","show":"唠唠叨叨新选组 THE END 河上彦斋推荐召唤：河上彦斋、藤堂平助","roles":[],"startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"09-24 19:00 ~ 10-22 13:59","source":"hover"}]',
+				bandori: '[{"key":"bandori:gacha:0","title":"黄金周纪念·前篇Dream＆KIRAMEKI Festival招募","show":"丸山彩、CHU²、二叶筑紫、山吹沙绫、宇田川巴、大和麻弥","roles":["丸山彩","CHU²","二叶筑紫","山吹沙绫","宇田川巴","大和麻弥"],"startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"9月29日维护后~10月11日12:59","source":"primary"}]',
+				zzz: '[{"key":"zzz:gacha:0","title":"「烬夜安眠」频段","show":"洛克茜、普罗米娅","roles":["洛克茜（击破·风）","普罗米娅（异常·冰）"],"startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"09-30 12:00 ~ 10-20 14:59","source":"primary"}]'
 			};
-			check("FGO：`gacha` 数组逐字不变（4 条并列池，没有被新判重键折掉）",
+			check("FGO：`gacha` 数组逐字不变（4 条并列池 + `source` 事实：主条 primary、其余 hover）",
 				sansTs(fgo.rec.gacha) === GOLDEN.fgo, sansTs(fgo.rec.gacha));
 			check("FGO：`roles` / 主条 `show` 逐字不变",
 				fgo.rec.roles === "阿蒂拉 罗摩 兰斯洛特(Saber) 魁札尔·科亚特尔 反抗军的Rider 弗兰肯斯坦 谜之女主角X〔Alter〕 阿尔托莉雅·潘德拉贡(Ruler) 芦屋道满 妖精骑士兰斯洛特 库库尔坎 大和武尊 堤丰·厄斐墨洛斯"
@@ -529,9 +570,10 @@ export default async function runCore() {
 	//      所以这里不需要 `git show HEAD:` 的副本：**老路在产品里就还在**（数组不可用时走它）。
 	//   ③ 兼容退化：老 lastData（没有 `gacha` / `events`）⇒ 走老路，输出与今天相同。
 	//
-	// ⚠️ 已知不等价（逐条钉在最后）：P1 数组丢了两类信息 —— ① 条目没有 `cat` / `tags`（event 侧
-	//   档位只能按名字匹配）；② "同池两条"判重键会并掉老探头里重复的那一行。这是**数据层**的损失，
-	//   不是 ① 的挑选规则写错；要等 P3（解析器直出结构化数组）或 P4（允许改变输出）才消掉。
+	// ⚠️ 2026-11-07（P2 收尾）：原来这里钉着 6 处「已知差异」（数组没有 cat/tags、判重键并掉
+	//    "同池"那一行）。现在数据层补了事实（`cat` / `tags` / `preview` / `source`）并按
+	//    "引擎主行 + 悬停并列行各一条"改判重，显示层加了**按游戏分派的规则表** ⇒ 34 个侧
+	//    **全部逐字相等**（⑤-5 硬断言 diffs = 0），并且有"还原成通用规则 ⇒ 对应侧必红"的反向证明。
 	{
 		const NOW = new Date(Date.parse("2026-10-02T00:00:00.000Z"));
 		const at = (s) => Date.parse(s + "T00:00:00.000Z");
@@ -626,7 +668,8 @@ export default async function runCore() {
 
 	// ⑤-5 等价性（硬验收）：同一份夹具，**老路 vs 数组派生**逐字比对
 	//       覆盖 17 款（15 款端到端刷新 + 星铁 / 原神 两条 payload 级），比较「名称 / 档期文本 /
-	//       探头行数 / 行顺序」。12 款完全相等；5 款有 6 个侧不等，逐条钉在下面（已知的数据层损失）。
+	//       探头行数 / 行顺序」。**34 个侧全部逐字相等**（diffs = 0）—— P2 收尾把原来那 6 处
+	//       已知差异靠"补事实 + 按游戏分派规则"消掉了，断言不再留任何"允许不等"的口子。
 	{
 		const fixture = useFixtures();
 		const transport = {
@@ -715,7 +758,6 @@ export default async function runCore() {
 		const rowOf = (x, now) => ({ name: x.show || x.title || x.raw || "—", meta: T.scheduleMeta(x, now) });
 		const rowsOf = (cell, now) => (cell ? [cell.primary].concat(cell.rest.slice().sort(T.schedulePickItem)).map((x) => rowOf(x, now)) : null);
 		const text = (rows) => (rows ? rows.map((r) => r.name + " ⏎ " + r.meta) : rows);
-		const sortedText = (rows) => (rows ? rows.map((r) => r.name + " ⏎ " + r.meta).sort() : rows);
 
 		const got = new Map();          // "id:side" → { old, next }
 		const fallback = [];            // 有数组却退化成老路的一侧（不该出现）
@@ -737,14 +779,10 @@ export default async function runCore() {
 		}
 		check("等价性前置：有数组的一侧都走**主路径**（fromArray = true，没有偷偷退化到老路）",
 			fallback.length === 0, JSON.stringify(fallback));
-		check("等价性：17 款游戏（34 个侧）里只有 **6 个侧**与改造前不等 —— 其余全部逐字相等",
-			diffs.length === 6, JSON.stringify(diffs));
-		const notInList = diffs.filter((k) => ["wuhuamixin:gacha", "wuhuamixin:event", "zspms:event", "uma-cn:event", "uma-jp:gacha", "hsr:gacha"].indexOf(k) < 0);
-		check("等价性：逐字相等的是「名称 / 档期文本（含倒计时）/ 探头行数 / 行顺序」，不等的那 6 处就是下面钉住的已知差异",
-			notInList.length === 0, JSON.stringify(notInList));
-
-		// 12 款完全相等（逐一侧比对，含"这一侧没有数据"的那些）
-		const STRICT = ["zzz", "arknights", "ba-cn", "bandori", "kedr", "uma-global", "p5x", "nte", "gf2", "fgo", "stellasora", "genshin"];
+		// 硬验收（P2 收尾）：34 个侧**一个不差**地逐字相等 —— 不再有"允许不等"的白名单
+		check("等价性：17 款游戏（34 个侧）**全部逐字相等**（diffs = 0；名称 / 档期文本 / 探头行数 / 行顺序）",
+			diffs.length === 0, JSON.stringify(diffs));
+		const STRICT = ["zzz", "arknights", "ba-cn", "bandori", "wuhuamixin", "zspms", "kedr", "uma-cn", "uma-jp", "uma-global", "p5x", "nte", "gf2", "fgo", "stellasora", "hsr", "genshin"];
 		const strictBad = [];
 		for (const id of STRICT) {
 			for (const side of ["gacha", "event"]) {
@@ -752,38 +790,79 @@ export default async function runCore() {
 				if (!d || JSON.stringify(d.old) !== JSON.stringify(d.next)) strictBad.push(id + ":" + side);
 			}
 		}
-		check("等价性：12 款游戏（24 个侧）与改造前**逐字相等**（名称 / 档期文本 / 探头行数 / 行顺序）",
+		check("等价性：17 款游戏（34 个侧）逐侧再钉一遍同一条不变量（含「这一侧没有数据」的那些）",
 			strictBad.length === 0, JSON.stringify(strictBad));
 
-		// ── 已知不等价（逐条钉住；谁也不许悄悄变多 / 变少）───────────────────────
-		// ① P1 的「同池两条」判重键并掉了老探头里重复的那一行：
-		//    · 物华弥新 gacha：旧 3 行（主行 + 「繁霜春落：李小孩项链」+ 常驻）⇒ 新 2 行
-		//    · 星铁 gacha：旧 2 行（合并角色主行 + 「我身即刃…：千冶•刃」）⇒ 新 1 行
-		const wm = got.get("wuhuamixin:gacha");
-		check("已知差异①（物华弥新·卡池）：老路 3 行、数组派生 2 行 —— 少的是「繁霜春落：李小孩项链」（P1 同池判重键并掉的重复行）",
-			!!wm && wm.old.length === 3 && wm.next.length === 2
-			&& wm.next[0].name === wm.old[0].name && wm.next[1].name === wm.old[2].name
-			&& wm.old[1].name === "繁霜春落：李小孩项链",
-			JSON.stringify([wm && text(wm.old), wm && text(wm.next)]));
-		const hsr = got.get("hsr:gacha");
-		check("已知差异①（星铁·卡池）：老路 2 行、数组派生 1 行 —— 少的是同一口池的「池名：角色」重复行",
-			!!hsr && hsr.old.length === 2 && hsr.next.length === 1
-			&& hsr.next[0].name === hsr.old[0].name
-			&& hsr.old[1].name.indexOf("「我身即刃」角色活动跃迁：") === 0,
-			JSON.stringify([hsr && text(hsr.old), hsr && text(hsr.next)]));
-
-		// ② 数组没有 cat / tags、老实现另有规则（赛马娘 = 覆盖 now 且 startTs 最新；雪松 / FGO 走类别档位；
-		//    物华按"同类取 startTs 更晚"）⇒ **外显那条换了**，但成员与档期文本一字不差（只是那两行换位）。
-		const swap = (key, oldFirst, newFirst) => {
+		// ── 原来那 6 处「已知差异」：现在是**严格相等** ─────────────────────────────
+		// 断言从"老路 N 行 / 新路 M 行"改成"两侧逐字相等 + 行数 + 外显名"，并额外钉住
+		// "回来的是哪一行" —— 特化规则或判重口径被改坏时这里会直接红，而不是"反正还是 34 侧"。
+		const strictSide = (key, first, rows) => {
 			const d = got.get(key);
-			check(`已知差异②（${key}）：外显由「${oldFirst}」换成「${newFirst}」；成员 / 档期文本 / 行数不变（只是换位）`,
-				!!d && !!d.old && d.old[0].name === oldFirst && d.next[0].name === newFirst
-				&& JSON.stringify(sortedText(d.old)) === JSON.stringify(sortedText(d.next)),
+			check(`已知差异已清零（${key}）：老路与数组派生**逐字相等**（${rows} 行，外显「${first}」）`,
+				!!d && !!d.old && !!d.next && d.old.length === rows && d.next.length === rows
+				&& d.old[0].name === first && d.next[0].name === first
+				&& JSON.stringify(d.old) === JSON.stringify(d.next),
 				JSON.stringify([d && text(d.old), d && text(d.next)]));
+			return d;
 		};
-		swap("wuhuamixin:event", "「寂夜长生」限时活动", "旅程将启-寂夜长生");
-		swap("zspms:event", "回路演算", "主线剧情-远信回响");
-		swap("uma-cn:event", "赛事活动“群英联赛 中距离”", "第1轮");
-		swap("uma-jp:gacha", "【予告】トゥインクルコレクション プリティーダービーガチャとSSR確定スピードガチャ開催決定！", "育成ウマ娘&サポートカード新登場！ピックアップガチャ開催！");
+		const wmG = strictSide("wuhuamixin:gacha", "李小孩项链、王氏书翰卷", 3);
+		check("判重口径：物华弥新卡池「繁霜春落：李小孩项链」回来了（引擎主行之外多一条，source = hover）",
+			!!wmG && wmG.next[1].name === "繁霜春落：李小孩项链",
+			JSON.stringify(wmG && wmG.next.map((r) => r.name)));
+		const hsrG = strictSide("hsr:gacha", "星神★阿哈、银狼LV.999 火花 爻光、千冶•刃、真珠", 2);
+		check("判重口径：星铁卡池「「我身即刃」…：千冶•刃」回来了（同一口池不再被并成一条）",
+			!!hsrG && hsrG.next[1].name.indexOf("「我身即刃」角色活动跃迁：") === 0,
+			JSON.stringify(hsrG && hsrG.next.map((r) => r.name)));
+		strictSide("wuhuamixin:event", "「寂夜长生」限时活动", 6);
+		strictSide("zspms:event", "回路演算", 9);
+		strictSide("uma-cn:event", "赛事活动“群英联赛 中距离”", 4);
+		strictSide("uma-jp:gacha", "【予告】トゥインクルコレクション プリティーダービーガチャとSSR確定スピードガチャ開催決定！", 2);
+
+		// ── 反向证明：把特化规则还原成通用规则 ⇒ 对应侧必须变（"零可见变化"靠的是规则表）──
+		// 入口就是 `sideViewOf` 的 **gameId 省略**（= 通用规则）：同一份数组、同一个 now，
+		// 通用规则选出来的外显与老实现不一致 ⇒ 说明那条特化规则是**承重的**，删不得。
+		const recOf = (id) => records.find((r) => r.id === id);
+		const genericNameOf = (id, side) => {
+			const r = recOf(id);
+			const g = Object.assign({ id, name: id }, r.rec);
+			const p = T.sideViewOf(side === "gacha" ? g.gacha : g.events, r.now, side);
+			return p.primary ? (p.primary.show || p.primary.title) : null;
+		};
+		for (const [key, oldFirst] of [
+			["uma-jp:gacha", "【予告】トゥインクルコレクション プリティーダービーガチャとSSR確定スピードガチャ開催決定！"],
+			["zspms:event", "回路演算"],
+			["uma-cn:event", "赛事活动“群英联赛 中距离”"],
+			["wuhuamixin:event", "「寂夜长生」限时活动"]
+		]) {
+			const [id, side] = key.split(":");
+			const generic = genericNameOf(id, side);
+			check(`反向证明（${key}）：特化规则换回通用规则 ⇒ 外显变成「${generic}」，不再等于老实现「${oldFirst}」`,
+				generic !== oldFirst, JSON.stringify([generic, oldFirst]));
+		}
+
+		// ── FGO 的**另一侧**（2026-09-05）：档位来自源站「类型」列（Event 压过 Campaign）──
+		// 这一侧 08-25 时恰好通用规则也对，所以上面那条 34/34 覆盖不到真正的差异；这里用
+		// 09-05 复跑：通用规则会选「3200万下载突破纪念活动（Campaign，结束最早）」，老实现选
+		// 「失落的创世…（Event）」⇒ `cat` 事实 + 特化规则**缺一不可**（反向证明也钉在这里）。
+		{
+			const now = new Date(Date.parse("2026-09-05T00:00:00.000Z"));
+			const rec = await runGame("fgo", now.getTime());
+			const g = Object.assign({ id: "fgo", name: "fgo" }, rec);
+			const nextCell = T.scheduleCellOf(g, "event", now);
+			const oldCell = T.scheduleCellOf(Object.assign({}, g, { gacha: [], events: [] }), "event", now);
+			const old = rowsOf(oldCell, now), next = rowsOf(nextCell, now);
+			check("等价性（FGO 09-05）：老路与数组派生逐字相等（外显 = 「失落的创世(Vanished Beginning) 来自未来的方舟」）",
+				JSON.stringify(old) === JSON.stringify(next)
+				&& !!old && old[0].name === "失落的创世(Vanished Beginning) 来自未来的方舟",
+				JSON.stringify([text(old), text(next)]));
+			const ev = g.events || [];
+			check("事实（FGO 09-05）：`events` 每条都带 `cat`（源站类型列 Event / Campaign，取不到才留空）",
+				ev.length > 0 && ev.every((x) => typeof x.cat === "string" && x.cat.length > 0),
+				JSON.stringify(ev.map((x) => [x.title, x.cat])));
+			const generic = T.sideViewOf(ev, now, "event");
+			check("反向证明（fgo:event @09-05）：通用规则（无 gameId）会选成「3200万下载突破纪念活动」",
+				!!generic.primary && generic.primary.title === "3200万下载突破纪念活动",
+				JSON.stringify(generic.primary && generic.primary.title));
+		}
 	}
 }

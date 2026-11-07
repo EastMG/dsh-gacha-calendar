@@ -435,10 +435,11 @@
 			//   并断言表格 / 近期 / 留白卡 / 轮播读的是同一份（见 cases-tz.mjs ⑥）。
 			scheduleNormalize,
 			// sideViewOf = 派生层（P2，81-schedule-model.js）：`gacha` / `events` 数组 → `{ primary, rest }`，
-			//   即"这一格表格露哪一条 / 探头列哪些"。规则是今天外显规则的原样搬运（event = pickEventPrimary，
-			//   gacha = selectCurrent 的"在期里结束最早"），数据层只放事实、不挑选。导出后可以离线钉住
-			//   空数组 / 单条 / 多条 / 并列 / 顺序稳定性，以及"表格与探头共用同一份数组"这条不变量
-			//   （见 test/cases-core.mjs ⑤）。
+			//   即"这一格表格露哪一条 / 探头列哪些"。**通用规则**是今天外显规则的原样搬运
+			//   （event = pickEventPrimary，gacha = selectCurrent 的"在期里结束最早"），数据层只放事实、
+			//   不挑选；第 4 个参数 `gameId` 会命中 `schedulePickOf` 的**按游戏分派表**（赛马娘 / 物华 /
+			//   战双 / FGO 的老实现各有排序键，见该表注释）。**不传 gameId = 通用规则**，所以纯函数用例
+			//   与"把特化规则还原成通用规则"的反向证明可以共用同一个入口（见 test/cases-core.mjs ⑤）。
 			sideViewOf,
 			// scheduleItemOf = 数组条目 → 与 scheduleNormalize 同形的渲染条目（81-schedule-model.js）：
 			//   记录自己那条外显直接走 scheduleNormalize（档期文本与今天逐字一致），并列条目按

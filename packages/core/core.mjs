@@ -13928,6 +13928,13 @@ function ns_fgo_parseFgoEventTable(html, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 		.sort((a, b) => (a.endTs === b.endTs ? a.startTs - b.startTs : a.endTs - b.endTs));
 	// <2 条时 hoverEvent 返回 "" → 不设 eventHover，由 UI 走默认两行式
 	const eventHover = hoverEvent(active, tz);
+	// 类别事实通道（P2 收尾，2026-11-07）：源站第 4 列的「类型」（Event / Campaign）是**源站给的
+	// 分类**，上面第 241-244 行的注释说明了它为什么不能进悬停文本。数据层要把这个事实带进
+	// `events` 数组（显示层按 cat 分档，见 81-schedule-model.js 的 sideViewOf 规则表），
+	// 所以另给一份 `itemFacts`：`{ "<活动名>": { cat: "<类型>" } }`，只覆盖**当期**那些行
+	// （数组里只有这些行）。`pickFields` 已登记该字段，见 50-refresh.js 的 GACHA_FIELDS 说明。
+	const itemFacts = {};
+	for (const x of active) itemFacts[x.name] = { cat: x.type };
 	return {
 		year: found.year,
 		rows,
@@ -13936,6 +13943,7 @@ function ns_fgo_parseFgoEventTable(html, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 		event: best.name,
 		eventDates: fmtWindow(best.startTs, best.endTs, tz),
 		eventDatesRaw: best.raw,
+		itemFacts,
 		...(eventHover ? { eventHover } : {})
 	};
 }
@@ -13977,7 +13985,11 @@ async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ, now = nowMs()) 
 		eventDates: r.eventDates,
 		eventDatesRaw: r.eventDatesRaw,
 		// ≥2 条当期活动才有值；只有 1 条时不设该字段（UI 走默认两行式「名称 ⏎ 档期」）
-		...(r.eventHover ? { eventHover: r.eventHover } : {})
+		...(r.eventHover ? { eventHover: r.eventHover } : {}),
+		// 类别事实通道：源站「类型」列（Event / Campaign）交给数据层贴到 events 数组条目的 `cat` 上。
+		// 必须在这里显式透传 —— 这个抓取器是**重新组装**返回对象（不是原样返回解析结果），
+		// 漏一行就等于这条事实在数据层之前就没了（实测：数组 entries 的 cat 全是 null）。
+		...(r.itemFacts ? { itemFacts: r.itemFacts } : {})
 	};
 }
 
@@ -15049,7 +15061,13 @@ EVENT_FETCHERS["r1999"] = {
 		// `gacha` = **数据层数组**（P1，2026-11-07）：每口池一条（见下面「数据层数组」region）。
 		// 它必须在这里登记，否则解析器将来直出的结构化数组会在这一层被 `pickFields` 静默削掉
 		// （P1 的来源都不给这个字段 ⇒ 由 mergeEntryRecord 从字符串合成；P3 才由解析器直出）。
-		const GACHA_FIELDS = ["banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover", "gacha"];
+		// `itemFacts` = **类别/标签的事实通道**（P2 收尾，2026-11-07）：解析器知道"这一条属于哪个类别"
+		// （如 FGO 活动表第 4 列的 `Event` / `Campaign`），但悬停文本里**只允许**名称与档期 ⇒ 没有
+		// 别的地方能把它带进数组。所以由解析器额外给一份 `{ "<条目标题>": { cat?, tags? } }`，
+		// 数据层在合成数组时按标题贴到条目上（见 dataArrayAttachFactsOf），**随后就从记录里删掉**
+		// （它不是展示字段，也不进 lastData；留在数组条目上的 `cat`/`tags` 才是事实）。
+		// 两边的字段表都要登记，否则 `pickFields` 会把这条通道静默削掉。
+		const GACHA_FIELDS = ["banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover", "gacha", "itemFacts"];
 		// `eventClaimDates` = 明日方舟「奖励领取（兑换）截止」窗口（只有**有兑换期**的来源才带；
 		// 没有就没有这个键）。它是**提醒侧**的第二个 deadline，不参与任何显示逻辑 ⇒ 必须原样进 lastData，
 		// 否则「刷新过一次、中途不再刷新」就只剩一个 deadline 会响（见 65-remind.js 的 remindItemsOf）。
@@ -15059,7 +15077,7 @@ EVENT_FETCHERS["r1999"] = {
 		// 同样要随 lastData 走，否则"沿用旧值时"提示框会少掉那一行（与 `eventShow` 同口径）。
 		// `events` = **数据层数组**（P1，2026-11-07）：每条活动一条、兑换期放在 `phase` 里
 		// （见下面「数据层数组」region）。与 `gacha` 同理必须登记，否则结构化来源会被静默削掉。
-		const EVENT_FIELDS = ["event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventShow", "eventHoverExtra", "eventHover", "events"];
+		const EVENT_FIELDS = ["event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventShow", "eventHoverExtra", "eventHover", "events", "itemFacts"];
 		function pickFields(src, fields) {
 			const out = {};
 			if (!src) return out;
@@ -15230,6 +15248,12 @@ EVENT_FETCHERS["r1999"] = {
 					if (!rec.bannerDates) rec.bannerDates = prevRec.bannerDates || "";
 					if (!rec.bannerDatesRaw) rec.bannerDatesRaw = prevRec.bannerDatesRaw || prevRec.bannerDates || "";
 					if (!rec.bannerHover) rec.bannerHover = prevRec.bannerHover || "";
+					// 数组里的**可选事实**（cat / tags / preview / source）不在字符串字段里 ⇒ 从字符串
+					// 重算这一侧会把它们丢掉（FGO 的 Event/Campaign 档位就是这么来的）。整列是沿用值时
+					// 连数组一起沿用，事实才与显示的那行保持同一份。
+					// 只沿用"每条都带 `source`"的数组：P2 收尾之前写进 lastData 的老数组没有这个事实，
+					// 沿用会让显示层的规则退化 ⇒ 那种情况宁可按字符串重算（重算会补回 source）。
+					if (!Array.isArray(rec.gacha) && dataArrayInheritableOf(prevRec.gacha)) rec.gacha = dataArrayGachaListOf(prevRec.gacha);
 					rec.gachaStale = true;
 				}
 				if (!rec.event && prevRec.event) {
@@ -15243,6 +15267,7 @@ EVENT_FETCHERS["r1999"] = {
 					// 提示行同口径沿用：否则活动侧整列是旧值时，提示框会少掉「兑换截止」那一行
 					if (!rec.eventHoverExtra) rec.eventHoverExtra = prevRec.eventHoverExtra || "";
 					if (!rec.eventHover) rec.eventHover = prevRec.eventHover || "";
+					if (!Array.isArray(rec.events) && dataArrayInheritableOf(prevRec.events)) rec.events = dataArrayEventListOf(prevRec.events);
 					rec.eventStale = true;
 				}
 			}
@@ -15255,6 +15280,8 @@ EVENT_FETCHERS["r1999"] = {
 			// 不会出现"字符串是新的、数组还是上一轮"这种两套事实。
 			rec.gacha = Array.isArray(rec.gacha) ? rec.gacha : dataArrayGachaOf(rec, meta, new Date(nowTs));
 			rec.events = Array.isArray(rec.events) ? rec.events : dataArrayEventsOf(rec, meta, new Date(nowTs));
+			// `itemFacts` 只是"解析器 → 数组"的**通道**：类别已经贴到数组条目上了，不进记录/缓存。
+			delete rec.itemFacts;
 			return rec;
 		}
 
@@ -15271,8 +15298,10 @@ EVENT_FETCHERS["r1999"] = {
 		//     外显哪一条是显示层的决定（现在它仍在 81/82 里自己选，P2 再改成读数组）。
 		//
 		// 形状（每个元素都是一条"事实"）：
-		//   gacha:  [{ key, title, show, roles: string[], startTs, endTs, tz, raw, longTerm? }]
-		//   events: [{ key, title, show, startTs, endTs, tz, raw, phase?: { kind:"claim", startTs, endTs, show } }]
+		//   gacha:  [{ key, title, show, roles: string[], startTs, endTs, tz, raw,
+		//              source, cat?, tags?, preview?, longTerm? }]
+		//   events: [{ key, title, show, startTs, endTs, tz, raw, source,
+		//              cat?, tags?, preview?, phase?: { kind:"claim", startTs, endTs, show } }]
 		//   · title = 源站原文名（卡池名 / 活动名）；show = **显示名**（外显时真正显示的那串）
 		//   · key   = `<gameId>:gacha:<index>` / `<gameId>:event:<index>`，同一次归一里唯一
 		//   · startTs/endTs = **本机时刻**（`parseDisplayRange` 按运行环境时区解释源站墙钟）。
@@ -15281,12 +15310,20 @@ EVENT_FETCHERS["r1999"] = {
 		//     （解析器直出 startTs/endTs），届时两端都按绝对时刻，这个偏差自动消失。
 		//   · tz = 条目声明的源站时区（让下游能自己判断"这串时间按哪个墙钟读"）
 		//   · raw = 源站原文（`bannerDatesRaw` / `eventDatesRaw`；并列池那条 = 悬停里那行档期）
+		//   · source = **这条是谁**（P2 收尾，2026-11-07）：`"primary"` = 引擎给的外显那条；
+		//     `"hover"` = 从悬停文本解析出来的并列条目。两侧都要在数组里（旧探头一直这么显示），
+		//     显示层按 `source` 分辨"主行 / 并列行"，不再靠判重键把同一口池并成一条。
+		//   · cat / tags = **类别事实**（可缺）：取不到就**留空**（不猜）。`cat` 如 FGO 活动表第 4 列
+		//     的 `Event` / `Campaign`；`tags` 预留给带标签的来源。解析器若知道类别，通过 `itemFacts`
+		//     通道给（见 GACHA_FIELDS 的说明），数据层按标题贴到条目上。
+		//   · preview = **预告稿标记**（可缺）：标题里带「予告」/coming soon 时为 `true`
+		//     （与赛马娘老实现 `ns_umamusume_official_umaCurrentWindows` 的 previewRank 同一判据）。
 		//   · phase = 活动的第二阶段（明日方舟「奖励领取（兑换）截止」）：只有来源给了
 		//     `eventClaimDates` 才有这个键 —— 它是一条**独立的**截止窗口，不是另一个活动条目。
 		//   · longTerm = P1 **不合成**（可选字段，留给 P2/P3 的结构化来源；归一函数会原样透传）。
 		//
 		// 并列池怎么展开：复用**显示层同一个** `scheduleHoverItems`（2026-11-07 搬进 26-parser-hover.js，
-		// 因为它要同时进 core 产物），再用下面 dataArrayHoverPoolsOf 里那三条"这口池已经在数组里了"
+		// 因为它要同时进 core 产物），再按下面 dataArrayHoverPoolsOf 里那三条"这条已经在数组里了"
 		// 的判据 —— 与 81-schedule-model.js 的 scheduleHoverOnes **逐字对应**。P2 让显示层直接读数组后，
 		// 那段显示层解析会删掉，这里就成为唯一实现。
 		const DATA_ARRAY_LABEL = (s) => String(s || "").replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, "");
@@ -15321,39 +15358,34 @@ EVENT_FETCHERS["r1999"] = {
 		function dataArrayOrderedOf(list, prefix) {
 			return list.slice().sort(dataArraySortOf).map((x, i) => Object.assign({ key: prefix + ":" + i }, x));
 		}
-		// 同一池/同一条活动的判重键 =（起止时间 + 池名）。
-		// 为什么用「池名」而不是「角色集合」：
-		//   · 主条目是**同期多池角色合并**（selectCurrent 的既有语义：`roles` = 全部当期池角色用「、」拼），
-		//     它的角色集合 ≠ 悬停里任何单池的角色集合 ⇒ 按角色集合判重会把同一口池当成两条；
-		//   · 池名是稳定的：悬停写法是 `池名：角色`（星铁真机：`「我身即刃」角色活动跃迁：千冶•刃（虚无•火）`
-		//     与主条目 `「我身即刃」角色活动跃迁` 是同一口池）⇒ 取「：」之前那段就归一到同一个池名。
-		//   真机（2026-11-07）：`gacha:0`（合并角色）与 `gacha:1`（「我身即刃」…：千冶•刃）是同一池，
-		//   因为悬停那条的 title 带了「：角色」，既不同于 title、也不等于 show，三条旧判据都没拦住。
-		// 池名先归一（去掉括号属性后缀/空白）再比：同池的不同写法归到一起。
-		// 起点是**未折算原文**（源站只写「X.Y版本更新后」）时，**起止时间整段不参与判重**：主条目的
-		// startTs 会被 fillMissingStarts 补出来（`bannerDates` 用它倒计时），而悬停里仍是原文、
-		// `parseDisplayRange` 两端都解不出 ⇒ 同一口池会在"有 ts / 无 ts"两边各留一条。
-		// 这类窗口本来就拿不到绝对时刻（任务书：不动「版本更新后」换算），只能按池名判重。
-		function dataArrayPoolKeyOf(title, startTs, endTs, raw) {
-			const t = dataArrayTextOf(title);
-			const cut = t.indexOf("\uFF1A");
-			const pool = DATA_ARRAY_LABEL(cut > 0 ? t.slice(0, cut) : t);
-			const openStart = startTs == null || /版本更新后/.test(dataArrayTextOf(raw));
-			return openStart ? `|${pool}` : `${startTs}|${endTs}|${pool}`;
+		// ── 判重口径（P2 收尾，2026-11-07：**不再按「同池」并掉行**）────────────────────
+		// P1 曾用「起止时间 + 池名」当判重键，把"同一口池的另一种写法"合并成一条。那是**数据层
+		// 自己发明的**判据：旧探头（81 的 scheduleHoverOnes）从来没有这一条，它一直把
+		// 「合并角色的主行」和「池名：角色」并列显示 —— 物华弥新卡池少的那行「繁霜春落：李小孩项链」、
+		// 星铁卡池少的「我身即刃…：千冶•刃」就是这么丢的（用户 2026-11-07 点名要回来）。
+		// 现在的口径：**引擎主行一条 + 悬停并列行各一条**，用 `source` 区分；只有"内容完全一样"
+		// （同标题 + 同起止）才去掉一条，并且**优先保留 `source:"primary"` 那条**。
+		function dataArrayIdentityOf(title, startTs, endTs) {
+			return `${dataArrayTextOf(title)}|${startTs == null ? "" : startTs}|${endTs == null ? "" : endTs}`;
 		}
-		// 悬停文本 → 可进数组的**并列条目**（这口池/这条活动在上面主条目之外，还是独立一条）
+		// 能不能把上一轮的数组原样沿用（"这一列显示的是旧值"时）：
+		// 只有**每条都带 `source`** 的数组才算同一代事实（P2 收尾之后写的）；老数组没有这个键，
+		// 沿用会让显示层的规则退化 ⇒ 不沿用，按字符串重算（重算会补回 source / preview）。
+		function dataArrayInheritableOf(list) {
+			return Array.isArray(list) && list.length > 0
+				&& list.every((x) => x && typeof x.source === "string" && x.source);
+		}
+		// 悬停文本 → 可进数组的**并列条目**（这条活动/这口池在主条目之外，还是独立一条）
 		// ⚠️ 三条判据与 81-schedule-model.js 的 scheduleHoverOnes 逐字对应：
 		//   ① 与外显同名（那条已经在数组里了）
 		//   ② 与**显示名**同名（明日方舟兑换期的主行 = `eventShow`「<活动名> 兑换截止」⇒ 同一条）
 		//   ③ 「池名：外显名」/「外显名：其余」= 同一口池的两种写法（只认「：」两侧整段）
-		// ④（2026-11-07 加）判重键 = 起止时间 + 池名：同一池只能有一条。三条旧判据都要求
-		//    「整串同名」或「：两侧整段包含」，而悬停那条是 `池名：角色`、主条目的 show 是**所有池合并的
-		//    角色名**（既不是池名、也不被它包住）⇒ 拦不住。判重键与「谁排第几」无关，只去重。
+		// 在此之上只补一条"完全相同"判重（同标题+同区间）—— 这是任务书允许的、且**优先保主行**。
 		function dataArrayHoverPoolsOf(hover, main, now) {
 			const list = scheduleHoverItems(dataArrayTextOf(hover), main ? main.title : "", true);
 			const shown = DATA_ARRAY_LABEL(main && (main.show || main.title));
 			const seen = new Set();
-			if (main) seen.add(dataArrayPoolKeyOf(main.title, main.startTs, main.endTs, main.raw));
+			if (main) seen.add(dataArrayIdentityOf(main.title, main.startTs, main.endTs));
 			const out = [];
 			for (const x of list) {
 				if (main) {
@@ -15366,14 +15398,41 @@ EVENT_FETCHERS["r1999"] = {
 					}
 				}
 				const w = dataArrayWindowOf(scheduleNoYear(x.win), now);
-				const poolKey = dataArrayPoolKeyOf(x.title, w.startTs, w.endTs, x.win);
-				if (seen.has(poolKey)) continue;
-				seen.add(poolKey);
-				out.push({ title: x.title, show: x.title, startTs: w.startTs, endTs: w.endTs, raw: x.win });
+				const identity = dataArrayIdentityOf(x.title, w.startTs, w.endTs);
+				if (seen.has(identity)) continue;
+				seen.add(identity);
+				out.push({ title: x.title, show: x.title, startTs: w.startTs, endTs: w.endTs, raw: x.win, source: "hover" });
 			}
 			return out;
 		}
-		// 卡池侧数组：主条目（banner / roles / bannerDates）+ 并列池（bannerHover 能解析出来时）
+		// ── 事实字段（cat / tags / preview）────────────────────────────────────────────
+		// `itemFacts` = 解析器给的 `{ "<条目标题>": { cat?, tags? } }`（通道说明见 GACHA_FIELDS）。
+		// 取不到就**不写这个键**（"留空"= 没有这个事实，不是空串）；绝不按标题去猜类别。
+		function dataArrayFactsOf(rec) {
+			const f = rec && rec.itemFacts;
+			return f && typeof f === "object" && !Array.isArray(f) ? f : null;
+		}
+		// 预告稿标记：与 `ns_umamusume_official_umaCurrentWindows` 的 previewRank 同一判据
+		// （30-game-cygames.js:392）。只有命中才写 `preview:true`（可选字段，false 不写）。
+		const DATA_ARRAY_PREVIEW_RE = /予告|coming soon/i;
+		function dataArrayIsPreview(title) {
+			return DATA_ARRAY_PREVIEW_RE.test(dataArrayTextOf(title));
+		}
+		// 把事实贴到条目上（键顺序固定：cat → tags → preview，与归一函数一致，往返才逐字相同）
+		function dataArrayAttachFactsOf(item, facts) {
+			const f = facts && typeof facts === "object" ? facts[item.title] : null;
+			if (f && typeof f === "object" && !Array.isArray(f)) {
+				if (typeof f.cat === "string" && f.cat) item.cat = f.cat;
+				if (Array.isArray(f.tags)) {
+					const tags = f.tags.map(dataArrayTextOf).filter(Boolean);
+					if (tags.length) item.tags = tags;
+				}
+			}
+			if (dataArrayIsPreview(item.title)) item.preview = true;
+			return item;
+		}
+		// 卡池侧数组：主条目（banner / roles / bannerDates，`source:"primary"`）
+		// + 并列池（bannerHover 能解析出来时，`source:"hover"`）
 		function dataArrayGachaOf(rec, meta, now) {
 			const id = (meta && meta.id) || "";
 			const tz = (meta && meta.tz) || "";
@@ -15389,20 +15448,24 @@ EVENT_FETCHERS["r1999"] = {
 				startTs: w.startTs,
 				endTs: w.endTs,
 				tz,
-				raw: dataArrayTextOf(rec.bannerDatesRaw)
+				raw: dataArrayTextOf(rec.bannerDatesRaw),
+				source: "primary"
 			};
+			const facts = dataArrayFactsOf(rec);
 			const list = [main].concat(dataArrayHoverPoolsOf(rec.bannerHover, main, now));
-			return dataArrayOrderedOf(list.map((x) => ({
+			return dataArrayOrderedOf(list.map((x) => dataArrayAttachFactsOf({
 				title: x.title,
 				show: x.show,
 				roles: x.roles || [],
 				startTs: x.startTs,
 				endTs: x.endTs,
 				tz,
-				raw: x.raw
-			})), id + ":gacha");
+				raw: x.raw,
+				source: x.source
+			}, facts)), id + ":gacha");
 		}
-		// 活动侧数组：主条目（event / eventShow / eventDates，带 phase）+ 并列活动（eventHover）
+		// 活动侧数组：主条目（event / eventShow / eventDates，带 phase，`source:"primary"`）
+		// + 并列活动（eventHover，`source:"hover"`）
 		function dataArrayEventsOf(rec, meta, now) {
 			const id = (meta && meta.id) || "";
 			const tz = (meta && meta.tz) || "";
@@ -15417,7 +15480,8 @@ EVENT_FETCHERS["r1999"] = {
 				startTs: w.startTs,
 				endTs: w.endTs,
 				tz,
-				raw: dataArrayTextOf(rec.eventDatesRaw)
+				raw: dataArrayTextOf(rec.eventDatesRaw),
+				source: "primary"
 			};
 			// 第二阶段（奖励领取/兑换截止）：独立窗口，不是第二个活动条目
 			const claim = dataArrayTextOf(rec.eventClaimDates);
@@ -15436,12 +15500,40 @@ EVENT_FETCHERS["r1999"] = {
 				startTs: x.startTs,
 				endTs: x.endTs,
 				tz,
-				raw: x.raw
+				raw: x.raw,
+				source: x.source
 			}));
-			return dataArrayOrderedOf([main].concat(extras), id + ":event");
+			const facts = dataArrayFactsOf(rec);
+			// 键顺序 = 归一函数（dataArrayEventItemOf）那一份：source 紧跟 raw，cat/tags/preview 在后，
+			// phase 最后 —— 否则 getCached() 往返的 JSON 会对不上（④-5 有逐字断言）。
+			return dataArrayOrderedOf([main].concat(extras).map((x) => {
+				const out = {
+					title: x.title,
+					show: x.show,
+					startTs: x.startTs,
+					endTs: x.endTs,
+					tz: x.tz,
+					raw: x.raw,
+					source: x.source
+				};
+				dataArrayAttachFactsOf(out, facts);
+				if (x.phase) out.phase = x.phase;
+				return out;
+			}), id + ":event");
 		}
 		// ── 归一（持久化白名单的数组分支用；engine-head.js 的 normalizeRecord 调它们）──
 		// 只做**最少校验**：非对象丢弃、ts 必须是 number 否则 null、其余字符串字段缺了填空串。
+		// `source` 与合成侧同口径（字符串，缺了空串）；`cat` / `tags` / `preview` 是**可选事实** ——
+		// 有就原样保留（顺序固定在 source 之后），没有就**不写这个键**（"留空"= 没有这个事实）。
+		function dataArrayOptionalFactsOf(raw, out) {
+			if (typeof raw.cat === "string" && raw.cat) out.cat = raw.cat;
+			if (Array.isArray(raw.tags)) {
+				const tags = raw.tags.map(dataArrayTextOf).filter(Boolean);
+				if (tags.length) out.tags = tags;
+			}
+			if (raw.preview === true) out.preview = true;
+			return out;
+		}
 		function dataArrayGachaItemOf(raw) {
 			if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
 			const out = {
@@ -15452,8 +15544,10 @@ EVENT_FETCHERS["r1999"] = {
 				startTs: dataArrayTsOf(raw.startTs),
 				endTs: dataArrayTsOf(raw.endTs),
 				tz: dataArrayTextOf(raw.tz),
-				raw: dataArrayTextOf(raw.raw)
+				raw: dataArrayTextOf(raw.raw),
+				source: dataArrayTextOf(raw.source)
 			};
+			dataArrayOptionalFactsOf(raw, out);
 			if (raw.longTerm === true) out.longTerm = true;   // 可选字段：P1 不合成，只透传
 			return out;
 		}
@@ -15466,8 +15560,10 @@ EVENT_FETCHERS["r1999"] = {
 				startTs: dataArrayTsOf(raw.startTs),
 				endTs: dataArrayTsOf(raw.endTs),
 				tz: dataArrayTextOf(raw.tz),
-				raw: dataArrayTextOf(raw.raw)
+				raw: dataArrayTextOf(raw.raw),
+				source: dataArrayTextOf(raw.source)
 			};
+			dataArrayOptionalFactsOf(raw, out);
 			const ph = raw.phase;
 			if (ph && typeof ph === "object" && !Array.isArray(ph)) {
 				out.phase = {
