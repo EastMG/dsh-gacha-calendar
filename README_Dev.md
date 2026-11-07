@@ -298,6 +298,36 @@ DSH 渲染进程的页面源是 `dsh-app://app`（自定义 scheme）。**有些
 处理方向（将来一次做完，不要逐个打补丁）：把这套判定做成**主机表**（`需要代理的 MediaWiki / 拒发 ACAO 的主机`），
 在 `transportFetchRaw` 同一个收口点按表改道代理；并把 `origin=*` 也统一由收口点补（现在 prts 是 8 处手拼）。
 另注意：改道代理后必须同步 `PROXY_ALLOW_HOSTS`（`src/index.js` 的白名单），否则会 403 `host-not-allowed`。
+### P5 兼容层评估结论（2026-11-07，只审计未删）
+
+P1~P4 之后数据真源是 `gacha[]` / `events[]`；`bannerHover` / `eventHover` 等已降级为**由条目反生成的兼容产物**。
+逐字段普查（生产者已无人手拼；下表只列**仍在读**的地方）：
+
+| 字段 | 仍在读的地方（生产） | 结论 |
+|---|---|---|
+| `bannerHover` | 新面板 tooltip `81-schedule-model.js:655` / `82-schedule-view.js:404`；**旧面板** `83-panel-shell.js:660`（渲染 title）+ `:148`（字段拷贝）；快照路由 / Result JSON；130+ 测试断言 | **保留** |
+| `eventHover` | 同上 + `83:157` | **保留** |
+| `eventHoverExtra` | tooltip 提示行插入 `81:639`（经 `scheduleHoverNote`）、`82:424`；旧面板拷贝 `83:155` | **保留，标废弃** |
+| `eventShow` | `81:197` 的 `show` 计算（兑换期事项名）；`50-refresh.js:524` 数组构建的 compat 分支 | **保留，标废弃** |
+| `eventClaimDates` | `65-remind.js:475` 双 deadline 的**兜底**（数组 `phase` 缺失时才用）；`50-refresh.js:537` 同上 | **保留，标废弃** |
+| `bannerDatesRaw` / `eventDatesRaw` | 悬停原文（"补全文本 vs 源站原文"双文本是**刻意设计**，不是冗余） | **保留（设计）** |
+
+#### 为什么现在不能删
+1. **旧面板还在读**：`83-panel-shell.js` 的表格视图仍用 `bannerHover` / `eventHover` 作 `title`，`eventShow` / `eventHoverExtra` 也各自拷贝一份。旧面板退役是删字段的前置条件。
+2. **对外契约**：`/api/gacha-calendar-snapshot.json` 与 Result JSON 直接透传整份 `lastData`，字段存在即被外部脚本可见；`ENGINE_SCHEMA_VERSION` 仍是 1，删字段属于破坏性变更，需要版本升级策略。
+3. **老缓存容错**：`50-refresh.js:201-220` 对缺失字段做"沿用上一轮"，删字段后老缓存的退化为"该侧无数据"，需先确认用户可接受。
+
+#### 标废弃的字段：可删的前提（三条同时满足才动）
+- 旧面板退役（或旧面板改为读 `gacha[]` / `events[]`）
+- 提醒改为只读 `events[].phase`（`65-remind.js` 删掉 `eventClaimDates` 兜底）
+- `50-refresh.js` 的 `dataArrayEventMainOf` compat 分支删除（只保留解析器直出路径）
+建议在 README 的"待废弃"表里登记，给出最早删除版本（例如再两个 minor 版本后）。
+
+#### 仍存在的死代码（待另起一轮清理，不在 P5 范围）
+- `26-parser-hover.js`：`bwikiGachaPayload` / `parseSmwActivity` 的 `emit=false` 分支（走旧 `buildPoolHover` / `buildEventHover`），仅测试 oracle 使用
+- `ns_biligame_activity_*Hover`（仅测试导出）、`ns_kedr_wiki_gachaKedrWiki`（旧抓取器，未注册进活引擎）
+- `scheduleHoverItems` 与 `dataArrayExtrasFromEntriesOf` 的 `win` 分支（只服务 `legacySynthArrOf` 这类冻结 oracle）
+⇒ 清理前提：把测试 oracle 改成 golden 字面量后可一并删除。
 ### 时区约定（显示 vs 源站原文）
 
 两条口径，**别混**：
