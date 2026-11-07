@@ -279,11 +279,12 @@
 		//              cat?, tags?, preview?, phase?: { kind:"claim", startTs, endTs, show } }]
 		//   · title = 源站原文名（卡池名 / 活动名）；show = **显示名**（外显时真正显示的那串）
 		//   · key   = `<gameId>:gacha:<index>` / `<gameId>:event:<index>`，同一次归一里唯一
-		//   · startTs/endTs = **本机时刻**（`parseDisplayRange` 按运行环境时区解释源站墙钟）。
-		//     ⚠️ 这是 P1 的**临时口径**（任务书明说可以先这样）：它没做"源站 tz → 本机"的换算，
-		//     所以在非 +08 的机器上会与显示层换算后的小时不符。P2 会换成**结构化来源**
-		//     （解析器直出 startTs/endTs），届时两端都按绝对时刻，这个偏差自动消失。
-		//   · tz = 条目声明的源站时区（让下游能自己判断"这串时间按哪个墙钟读"）
+		//   · startTs/endTs = **绝对时刻**（epoch 毫秒）。
+		//     ⚠️ 口径沿革（P4，2026-11-07）：P1~P3 是"源站墙钟按**本机**时区解释"的临时口径
+		//     （同一份数据在 UTC 机器上比 +08 少 8 小时）；现在 `dataArrayWindowOf(文本, now, tz)`
+		//     按**条目自己的 tz** 解析源站墙钟 → 两端都是同一个绝对时刻。所以数组 ts 逐字节
+		//     跨时区相同，显示层也据此按条目 tz 渲染源站墙钟文本（见 81 的 scheduleMeta）。
+		//   · tz = 条目声明的源站时区（既是"这串时间按哪个墙钟读"，也是显示层渲染的时区）
 		//   · raw = 源站原文（`bannerDatesRaw` / `eventDatesRaw`；并列池那条 = 悬停里那行档期）
 		//   · source = **这条是谁**（P2 收尾，2026-11-07）：`"primary"` = 引擎给的外显那条；
 		//     `"hover"` = 从悬停文本解析出来的并列条目。两侧都要在数组里（旧探头一直这么显示），
@@ -315,10 +316,75 @@
 		}
 		// 一段档期文本 → { startTs, endTs }；读不出（"长期"/"版本更新后 ~ …"/空）⇒ 两端 null，不硬凑
 		// `now` 两种都收：数据层合成器手里是 `Date`，解析器（P3 直出数组）手里是毫秒数。
-		function dataArrayWindowOf(text, now) {
+		//
+		// ── 时间口径（P4，2026-11-07）：数组条目的 ts = **绝对时刻** ─────────────────────
+		// `tz` = 条目声明的**源站墙钟**时区。同一段 `MM-DD HH:MM` 在 UTC 与 +08 的机器上必须读出
+		// **同一个绝对毫秒**（P1~P3 的"本机墙钟"口径已废，见下面的实现说明）。做法只有三步、全是既有工具：
+		//   ① 把 `now` 换成"**源站墙钟字段**构成的本机 Date"（`sourceWallParts`）——
+		//      于是 `parseDisplayRange` 补年份 / 判跨年时用的是**源站那一年**（跨年那半天不会错位）；
+		//   ② 让 `parseDisplayRange` 照常把文本当本机墙钟解释（它只会这一种），得到"墙钟时刻"；
+		//   ③ 把每个时刻按 `sourceInstant(墙钟字段, tz)` 平移成真正的绝对时刻 ——
+		//      与解析器造 ts、ics 导出用的是**同一个函数**，换算只有一处实现。
+		// ⚠️ 为什么不在 `parseDisplayRange` 里加 tz 参数：60-helpers 在 core 产物里位于**模块顶层**，
+		//    而 15-env 的 `sourceInstant` 在 `createEngine` 内部 ⇒ 在 core 里那句 `typeof sourceInstant`
+		//    会静默退化成本机时区（2026-11-07 实测：core 产物的数组 ts 全体偏 8 小时、lib 却是对的，
+		//    最后 P3 等价性在 +08 机器上红了一大片）。本函数在 createEngine 内 ⇒ 这里引用才是安全的。
+		// 没有 tz（自定义条目 / 老调用）⇒ 沿用本机墙钟（与改造前一致，不猜时区）。
+		function dataArrayWindowOf(text, now, tz) {
 			const at = now instanceof Date ? now : new Date(now);
-			const r = parseDisplayRange(dataArrayTextOf(text), at);
-			return r ? { startTs: dataArrayTsOf(r.startTs), endTs: dataArrayTsOf(r.endTs) } : { startTs: null, endTs: null };
+			const textOf = dataArrayTextOf(text);
+			const srcTz = tz == null || tz === "" ? "" : String(tz).trim();
+			// ① 源站墙钟字段 → 一个"本机字段恰好等于源站墙钟"的 Date（只用于补年份 / 判跨年）
+			const wp = srcTz ? sourceWallParts(at.getTime(), srcTz) : null;
+			const atSrc = wp ? new Date(wp.y, wp.mo - 1, wp.d, wp.h, wp.mi) : at;
+			// ② 两种文本形态：`MM-DD HH:MM ~ MM-DD HH:MM`（年份给 `parseDisplayRange` 按 atSrc 补）
+			//    与 `YYYY-MM-DD HH:MM ~ YYYY-MM-DD HH:MM`（跨年窗口的原文，`fmtWindow` 的另一种输出）。
+			//    后者不带进 `parseDisplayRange` 是因为它只认两位月份（ics 那边也刻意另写了一份）；
+			//    这里按**墙钟字段**直接构造，再把两端按同一个 toSrc 平移。
+			const parts = textOf.split("~").map((s) => s.trim());
+			const parseYmd = (s) => {
+				const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?$/);
+				if (!m) return null;
+				const mo = Number(m[2]), d = Number(m[3]);
+				if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+				return { y: Number(m[1]), mo, d, h: m[4] ? Number(m[4]) : 0, mi: m[5] ? Number(m[5]) : 0 };
+			};
+			let r = null;
+			if (parts.length >= 2) {
+				const a = parseYmd(parts[0]), b = parseYmd(parts[1]);
+				if (a && b) {
+					r = {
+						startTs: new Date(a.y, a.mo - 1, a.d, a.h, a.mi).getTime(),
+						endTs: new Date(b.y, b.mo - 1, b.d, b.h, b.mi).getTime()
+					};
+				}
+			}
+			// ③ 其余形态照常交给 `parseDisplayRange`（年份 / 跨年规则只有那一处实现）
+			if (!r) r = parseDisplayRange(textOf, atSrc);
+			// ④ **单边窗口**（P4，2026-11-07）：星铁那类「4.6版本更新后 ~ 11-10 15:00」——
+			//    起点读不出、终点是明确日期。以前整条两端都判 null ⇒ 数组里留着这条事实、面板却
+			//    永远看不到它（"同一游戏的多个在期条目各占一行"就少一条）。现在两端**各自独立解析**：
+			//    唯一可解析的那一端照常给绝对时刻，另一端 null（调用方按"起点未知 = 已开始 / 终点未知 = 长期"
+			//    退化，绝不编一个开始时刻）。年份仍按 atSrc 那一年补（单边跨年的极端情形与两端都写年份的
+			//    形态另有分支，见上面 ②）。
+			if (!r && parts.length >= 2) {
+				const selfOf = (s) => {
+					if (!s) return null;
+					const one = parseDisplayRange(s + " ~ " + s, atSrc);
+					return one ? one.startTs : null;
+				};
+				const sa = selfOf(parts[0]), sb = selfOf(parts[1]);
+				if (sa != null || sb != null) r = { startTs: sa, endTs: sb };
+			}
+			if (!r) return { startTs: null, endTs: null };
+			if (!srcTz) return { startTs: dataArrayTsOf(r.startTs), endTs: dataArrayTsOf(r.endTs) };
+			// ⑤ 墙钟时刻 → 源站时区下的绝对时刻（`sourceInstant` 对 IANA 名做两遍法，跨 DST 也对）
+			const toSrc = (ts) => {
+				if (ts == null) return null;
+				const d = new Date(ts);
+				return sourceInstant(d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes(), srcTz);
+			};
+			return { startTs: dataArrayTsOf(toSrc(r.startTs)), endTs: dataArrayTsOf(toSrc(r.endTs)) };
 		}
 		// 自然顺序：结束时间升序 → 起点升序 → 无结束时间的排最后（与 buildPoolHover 同一口径）
 		function dataArraySortOf(a, b) {
@@ -357,9 +423,9 @@
 		//  `dataArrayHoverPoolsOf` 已在 P3c 删除；这里的 `win` 分支只为回归 oracle 保留，见 test/cases-p3.mjs）。
 		// `opts.tz`：条目没有现成的窗口文本时，按**源站时区**渲染出同一串
 		// （悬停里那一行就是它 —— 两边必须同一份，否则数组里的 raw/ts 与悬停对不上）。
-		// 时间戳口径**沿用 P1**：把窗口文本按本机时区读回（与改造前的合成结果逐字相同）。
-		// ⚠️ 本批**不**改成绝对时刻：显示层探头的档期文本是"本机时刻按本机时区渲染"，
-		//    换成绝对时刻会让 34 个侧的等价性在 `TZ=UTC` 下变红（README_Dev「已知不等价①」留 P4）。
+		// 时间戳口径（P4，2026-11-07）：窗口文本按**条目 tz** 读成**绝对时刻**（`dataArrayWindowOf`），
+		// 于是"同一段 `MM-DD HH:MM`"在 UTC 与 +08 的机器上得到同一个 ts；显示层再按条目 tz 渲染回
+		// 源站墙钟 —— 渲染文本因此跨时区逐字相同（P1 的"本机时刻"口径已废）。
 		function dataArrayExtrasFromEntriesOf(entries, main, now, opts) {
 			const o = opts || {};
 			const isEvent = o.kind === "event";
@@ -394,7 +460,7 @@
 					}
 				}
 				const win = dataArrayTextOf(x.win) || hoverWindowTextOf(x, o.tz);
-				const w = dataArrayWindowOf(scheduleNoYear(win), now);
+				const w = dataArrayWindowOf(scheduleNoYear(win), now, o.tz);
 				const identity = dataArrayIdentityOf(title, w.startTs, w.endTs);
 				if (seen.has(identity)) continue;
 				seen.add(identity);
@@ -438,7 +504,7 @@
 			const banner = dataArrayTextOf(rec && rec.banner);
 			if (!banner) return null;   // 这一侧没有卡池数据（未公布 / 失败）⇒ 空数组，不硬造
 			const roles = dataArrayTextOf(rec.roles);
-			const w = dataArrayWindowOf(rec.bannerDates, now);
+			const w = dataArrayWindowOf(rec.bannerDates, now, tz);
 			return {
 				title: banner,
 				// 外显口径与 81 的 scheduleNormalize 一致：有角色名就显示**去修饰**的角色名，否则池名
@@ -456,7 +522,7 @@
 			const event = dataArrayTextOf(rec && rec.event);
 			if (!event) return null;
 			const eventShow = dataArrayTextOf(rec.eventShow);
-			const w = dataArrayWindowOf(rec.eventDates, now);
+			const w = dataArrayWindowOf(rec.eventDates, now, tz);
 			const main = {
 				title: event,
 				// 与 scheduleNormalize 一致：活动侧优先用**只给显示**的 `eventShow`，没有就退回活动名
@@ -470,7 +536,7 @@
 			// 第二阶段（奖励领取/兑换截止）：独立窗口，不是第二个活动条目
 			const claim = dataArrayTextOf(rec.eventClaimDates);
 			if (claim) {
-				const cw = dataArrayWindowOf(claim, now);
+				const cw = dataArrayWindowOf(claim, now, tz);
 				main.phase = {
 					kind: "claim",
 					startTs: cw.startTs,
@@ -545,9 +611,10 @@
 		//   `{ title, show, roles?, startTs, endTs, tz, raw, source, cat?, tags?, preview?, phase? }`
 		// 这里做**唯一一次**归一（复用持久化白名单那份 `dataArray*ItemOf`，键顺序因此天然与
 		// getCached 往返一致），并按与合成路径**同一判据**补 `preview` 事实（标题命中 予告/coming soon）。
-		// ⚠️ 时间戳口径**沿用 P1**（本机时刻，由窗口文本回算）：解析器与这里都**不**改成绝对时刻 ——
-		//    显示层探头按"本机时刻"渲染档期文本，换成绝对时刻会让 34 个侧的等价性在 UTC 下变红。
-		//    改成绝对时刻要连显示层的渲染口径一起改（README_Dev「已知不等价①」，留 P4）。
+		// ⚠️ 时间戳口径（P4，2026-11-07）：解析器给的是**绝对时刻**，这里原样归一、**不重算**。
+		//    从窗口文本反算 ts 的那几个入口（`dataArray*MainOf` / `dataArrayExtrasFromEntriesOf`）
+		//    一律经 `dataArrayWindowOf(文本, now, tz)` 按条目 tz 解析源站墙钟 ⇒ 同一份数据在
+		//    UTC 与 +08 的机器上得到同一个 ts（P1 的"本机时刻"临时口径已废）。
 		function dataArrayProducedItemOf(raw, kind) {
 			if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
 			const src = Object.assign({}, raw);

@@ -259,31 +259,22 @@
 			// 无关设置写入都会让本组件重渲染；这一段原本每次都要逐游戏跑 scheduleNormalize（28×2）
 			// ＋悬停文本解析＋失败归类。用 useMemo 按真正输入（games / now）缓存。
 			//   ⚠️ 依赖只写 shownGames / now：本段不再读别的可变输入（主题色不参与，见 gameColorMap 只在下游用）。
-			const { cells, cellViews, all, failed, failRows, soonCount } = (0, react.useMemo)(() => {
+			const { cells, cellViews, all } = (0, react.useMemo)(() => {
 			// ── P2（2026-11-07）：表格与探头改读**数据层数组**（`g.gacha` / `g.events`）──
 			// `cells`   = 每格的**数组本身**（与探头共用同一份：探头只是会动的 UI，零数据语义）
 			// `cellViews` = 从数组**派生**出来的渲染条目：`sideViewOf`（谁排第一）+ `scheduleItemOf`
 			//              （数组条目 → 与 scheduleNormalize 同形的条目）。两条都是 81 的纯函数。
 			// 顺序 = 数据层的自然顺序（结束时间升序）；这一格"露哪一条"由 sideViewOf 决定。
-			const cells = new Map();
-			const cellViews = new Map();
-			const all = [];
-			// ⚠️ 遍历的是**搜索过滤后**的 shownGames（空查询时它就是 games 本身）：
-			//    表格 / 近期 / 留白卡因此共用同一份过滤结果；轮播不读这里（见 CalendarPanel）。
-			for (const g of shownGames) {
-				for (const side of ["gacha", "event"]) {
-					const key = g.id + ":" + side;
-					// 一格的全部条目 = 81 的 `scheduleCellOf`：**只读数据层数组**（P3c 起没有老路）。
-					// 表格那一行 = `primary`，探头 = `rest`。
-					const view = scheduleCellOf(g, side, now);
-					if (!view) continue;                     // 这一侧没有任何数据 → 格子里写"该来源无数据"
-					// `cells` 存**数组本身**（与探头共用同一份，用户口径）。
-					cells.set(key, side === "gacha" ? g.gacha : g.events);
-					cellViews.set(key, view);
-					// 「近期」只收外显那一条（all 的语义不变）—— 探头里的并列条目不进「近期」。
-					if (view.primary.state !== "ended") all.push(view.primary);
-				}
-			}
+			//
+			// ── P4（2026-11-07）：`all` 改成**展平**（每侧全部数组条目）──
+			// 以前这里写的是"只把外显那一条塞进 all" —— 「近期」因此只收每侧外显那一条，同一期
+			// 多口池 / 多条活动只剩一条（P1 之前的老限制）。现在整段搬进 81 的纯函数
+			// `scheduleFlattenOf`（primary + rest 逐条进 all），渲染层只拿结果；这样「近期」行数 /
+			// 24 小时计数都能在测试里直接钉住。遍历的仍是**搜索过滤后**的 shownGames（空查询时就是 games）。
+			return scheduleFlattenOf(shownGames, now);
+			}, [shownGames, now]);
+			// 失败横条 / 24 小时计数：另一段纯派生（与上面共用同一份 `all`）。
+			const { failed, failRows, soonCount } = (0, react.useMemo)(() => {
 			const sourceNameOf = (x) => (x.isG ? x.g.source : x.g.eventSource) || "";
 			// 刷新失败是**来源级**问题（某个网站抓不到），不属于任何一格 → 底部横条 + 重试。
 			// 数组条目没有 `fail`（fail 是"这一侧本轮抓取结论"，住在记录上）⇒ 按**侧**判定。
@@ -301,18 +292,17 @@
 				const reason = (normalizeFail(x.fail) || {}).reason || "";
 				return x.g.name + " · " + sourceNameOf(x) + (reason ? " " + reason : "") + " —— 该条沿用上次成功数据";
 			});
-			// 「24 小时内」= 未来 24 小时内有**开始或结束**的外显条目：startTs 或 endTs 落在 (now, now+24h]。
-			// 与旧的「今天到期」不同：这里**开始也算**（原来"即将开始"是另一段，现已并进这一格）。
-			// ⚠️ 只数 all（= 每格外显那一条，与「近期」同一份候选）；探头里的并列 extras 不计。
+			// 「24 小时内」= 未来 24 小时内有**开始或结束**的条目：startTs 或 endTs 落在 (now, now+24h]。
+			// ⚠️ P4：数的是 `all` 里的**每一条**（已展平），不再是"每格外显那一条" ⇒ 计数按条。
 			// ⚠️ 0 值/哨兵不动手：长期档期（endTs=0 或 2099 那种）自然落在窗口外，不需要额外特判。
 			const nowMs = now.getTime();
 			const soonCount = all.filter((x) => (
 				(x.startTs > nowMs && x.startTs <= nowMs + SCHEDULE_DUE_MS) ||
 				(x.endTs > nowMs && x.endTs <= nowMs + SCHEDULE_DUE_MS)
 			)).length;
-			return { cells, cellViews, all, failed, failRows, soonCount };
-			}, [shownGames, now]);
-			// ↑↑↑ useMemo 结束（cells / cellViews / all / 失败归类 / 24 小时计数）
+			return { failed, failRows, soonCount };
+			}, [shownGames, all, now]);
+			// ↑↑↑ useMemo 结束（失败归类 / 24 小时计数）
 			// 「近期」= **7 天内有事发生**（到期或开始）；更远的只出现在下方游戏表里
 			// （用户 2026-10-15：不能把 20 多天后的也算近期）。长期/已结束不进近期。
 			const SCHEDULE_NEAR_MS = SCHEDULE_AMBER_MS;
@@ -353,7 +343,9 @@
 			});
 			// 「近期」一行：图标 / 游戏名 / 类型 / 事项名 / 时间结论
 			const recentRow = (x) => {
-				const w = scheduleWhen(x, now);
+				// P4：档期文本按**条目自己的源站时区**渲染（`x.tz`；老缓存没有 ⇒ 本机时区）。
+				// 这样同一份数据在 UTC 与 +08 的机器上「近期」行的文字逐字相同。
+				const w = scheduleWhen(x, now, x.tz);
 				return (0, react_jsx_runtime.jsxs)("div", {
 					className: "gacha-cal-sched-u",
 					key: x.key,
@@ -438,7 +430,8 @@
 					children: [
 						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cn", title: hoverTextOf(x, key === "first"), children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: x.show || x.title || x.raw || "—" }) }),
 						// 日期格悬停：失败 / 沿用旧值 / 无数据结论（正常态只有源站原文）
-						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cm gacha-cal-sched-num", title: scheduleDateHover(x, now), children: scheduleMeta(x, now) }),
+						// P4：外显文本按条目 tz 渲染（源站墙钟），与探头 / 「近期」/ 留白卡同一口径。
+						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cm gacha-cal-sched-num", title: scheduleDateHover(x, now), children: scheduleMeta(x, now, x.tz) }),
 						scheduleBars(x, days)
 					]
 				});

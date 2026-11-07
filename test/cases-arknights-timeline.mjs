@@ -330,9 +330,16 @@ async function runMoment(m) {
 	let items = null, itemsErr = null;
 	try { items = T.remindItemsOf(games, nowTs, null); } catch (e) { itemsErr = String((e && e.message) || e); }
 	const ends = (items || []).filter((it) => it.side === "event" && it.kind === "end");
-	check(`${label}｜提醒：条目可派生（活动侧 end ≤ 2 条：主条目 + 奖励领取）`,
-		itemsErr === null && Array.isArray(items) && ends.length <= 2,
-		`不变量=提醒派生｜期望=≤2 条 end｜实测=${itemsErr || JSON.stringify((items || []).map((it) => it.key))}`);
+	// ⚠️ 2026-11-07（P4 展平）：提醒**按条目**派生（每条活动一条 end），不再是"每侧最多两条"。
+	// 所以期望值 = 这一侧仍有效（endTs > now）的条目数 + 与主窗口不同的兑换截止（phase）条数 ——
+	// 由载荷的 `events` 数组算出来，不写死数字（夹具里活动条数会随时刻变）。
+	const liveItems = ((pl && pl.events) || []).filter((x) => x && typeof x.endTs === "number" && x.endTs > nowTs);
+	const claimExtra = liveItems.filter((x) => x.phase && x.phase.kind === "claim"
+		&& typeof x.phase.endTs === "number" && x.phase.endTs > nowTs && x.phase.endTs !== x.endTs).length;
+	const expectEnds = liveItems.length + claimExtra;
+	check(`${label}｜提醒：条目可派生（活动侧 end = 在期条目 ${liveItems.length} + 兑换截止 ${claimExtra} 条）`,
+		itemsErr === null && Array.isArray(items) && ends.length === expectEnds,
+		`不变量=提醒派生｜期望=${expectEnds} 条 end｜实测=${itemsErr || JSON.stringify((items || []).map((it) => it.key))}`);
 	check(`${label}｜提醒：key 互不相同（两个 deadline 各走各的去重状态）`,
 		!!items && new Set(items.map((it) => it.key)).size === items.length,
 		`不变量=提醒去重键｜期望=全不相同｜实测=${JSON.stringify((items || []).map((it) => it.key))}`);
@@ -593,13 +600,18 @@ export default async function run() {
 		check("提醒｜两次都用同一份 lastData（对象没被改成「已刷新」）：时间轴上不必中途再刷一次",
 			JSON.stringify(lastData) === snapshotBefore,
 			`不变量=不刷新也能各发一次｜期望=对象逐字不变｜实测=${JSON.stringify(lastData).slice(0, 120)}`);
-		// 兑换期那次载荷（eventDates 本身就是兑换区间）⇒ 两个 T 相同，去重只留一条（不弹两遍）
+		// 兑换期那次载荷（eventDates 本身就是兑换区间）⇒ 主窗口与 phase 的 T 相同，去重只留一条（不弹两遍）
+		// ⚠️ 2026-11-07（P4 展平）：这一份载荷里**三条活动都在期**，所以「按条目派生」有 3 条 end；
+		// 这条断言守的仍是原来那件事 —— 视相（主条目）的**兑换截止**与它自己的窗口同 T ⇒ 不另派生
+		// `event-claim` 条目（同一时刻不弹两条），所以下面只看"T = 兑换截止"的那几条。
 		const rClaim = await fetchAt("2026-11-08T12:00:00+08:00");
-		const claimKeys = T.remindItemsOf({ arknights: Object.assign({ name: "明日方舟" }, rClaim.data) }, AT("2026-11-08T12:00:00+08:00"), null)
-			.filter((it) => it.side === "event" && it.kind === "end").map((it) => it.key);
-		check("提醒｜兑换期载荷：两个 T 相同 ⇒ 去重只留一条（同一时刻不弹两条）",
-			claimKeys.length === 1 && claimKeys[0] === "arknights|event|end|" + AT("2026-11-10T03:59:00+08:00"),
-			JSON.stringify(claimKeys));
+		const claimItems = T.remindItemsOf({ arknights: Object.assign({ name: "明日方舟" }, rClaim.data) }, AT("2026-11-08T12:00:00+08:00"), null)
+			.filter((it) => it.side === "event" && it.kind === "end");
+		const claimAt = claimItems.filter((it) => it.T === AT("2026-11-10T03:59:00+08:00"));
+		check("提醒｜兑换期载荷：主窗口与兑换截止同 T ⇒ 去重只留一条（同一时刻不弹两条）",
+			claimAt.length === 1 && claimAt[0].key === "arknights|event|end|" + AT("2026-11-10T03:59:00+08:00")
+			&& claimItems.every((it) => it.key.indexOf("|event-claim|") < 0),
+			JSON.stringify(claimItems.map((it) => it.key)));
 	}
 
 	// ── §五 持久化 / 沿用旧值：时间轴上任何一刻的字段都不能在路上丢 ─────────────────────

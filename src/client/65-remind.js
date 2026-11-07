@@ -432,67 +432,103 @@
 			return { startTs, endTs };
 		}
 
-		// lastData 里的 games（{ id: { banner, bannerDates, event, eventDates, eventClaimDates, … } }）→ 提醒条目。
-		// 每个游戏侧最多两条：结束（T=endTs）/ 开始（T=startTs）；已经过去的方向直接不派生。
-		// **活动侧例外**：`eventClaimDates`（明日方舟的「奖励领取截止」，与「活动结束」是两个独立 deadline）
-		// 存在且读得出窗口时，再**额外**派生一条 end 条目 —— 于是「活动结束」和「兑换截止」各按自己的 T
-		// 走 72/24/6/2 档位，互不吞掉；两个 T 相同时只留主条目（同一时刻不弹两条）。
+		// lastData 里的 games（{ id: { banner, bannerDates, event, eventDates, eventClaimDates, gacha?, events?, … } }）
+		// → 提醒条目。
+		//
+		// ── P4（2026-11-07）：有数据层数组 ⇒ **逐条派生** ───────────────────────────────
+		// 旧实现每侧只看记录里的那一个窗口（bannerDates / eventDates）⇒ 同一期多口池 / 多条活动
+		// 只有一条会响。现在：
+		//   · 数组非空 ⇒ 每一条**都**派生自己的 end / start（`T` = 条目自己的绝对 ts，`title` = 条目名），
+		//     key 仍是 `游戏|侧|方向|T`（`REMIND_KEY_RE` 的口径不变）⇒ 多个 deadline 各走各的去重状态；
+		//   · 活动条目的 `phase`（奖励领取截止）再**额外**派生一条 `event-claim` 的 end（与「活动结束」
+		//     那条各按自己的 T 走 72/24/6/2 档位）；
+		//   · 数组为空（老 lastData）⇒ 走原来的记录字符串路径，行为逐字不变。
+		// ⚠️ 同一个 `T` 的多条（比如同一期 16 个活动的结束时间完全相同）在末尾**按 key 去重**成一条：
+		//    既有口径就是"同一时刻不弹两条"，逐条派生不该把这一点改掉（否则一次弹十几个 toast）。
+		// ⚠️ 数组条目两端必须是 number（源站写「版本更新后」的那种读不出窗口 ⇒ 不派生，与旧口径一致）。
 		// extraTzById 用来覆盖时区（自定义条目自己填的 tz 不在 REMIND_TZ_BY_ID 里）。
 		function remindItemsOf(games, now, extraTzById) {
 			const nowTs = Number(now);
 			const out = [];
 			if (!Number.isFinite(nowTs) || !games || typeof games !== "object") return out;
 			const extra = extraTzById && typeof extraTzById === "object" ? extraTzById : {};
+			const numOf = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 			for (const [gameId, game] of Object.entries(games)) {
 				if (!game || typeof game !== "object") continue;
 				const gameName = String(game.name || gameId);
 				const tz = extra[gameId] || REMIND_TZ_BY_ID[gameId] || null;
 				for (const s of REMIND_SIDES) {
+					// 派生一条 end / start（唯一的两处 key 拼法都在这里，主条目与兑换期共用）
+					const pushEnd = (T, startTs, endTs, title, keySide, claim) => {
+						if (!(T > nowTs)) return;
+						const base = { gameId, gameName, side: s.side, title, startTs, endTs, kind: "end", T };
+						out.push(claim
+							? { ...base, sideLabel: REMIND_EVENT_CLAIM_LABEL, claim: true, key: gameId + "|" + keySide + "|end|" + T }
+							: { ...base, sideLabel: s.label, key: gameId + "|" + keySide + "|end|" + T });
+					};
+					const pushStart = (T, startTs, endTs, title) => {
+						if (!(T > nowTs)) return;
+						out.push({ gameId, gameName, side: s.side, sideLabel: s.label, title, startTs, endTs, kind: "start", T, key: gameId + "|" + s.side + "|start|" + T });
+					};
+					// 记录级的兑换窗口（有就兜底：数组里万一没带 phase 也不丢第二个 deadline；
+					// 同 T 的键会在末尾去重，所以不会与 phase 那条重复弹）
+					const claimRaw = s.side === "event" ? String(game.eventClaimDates || "").trim() : "";
+					const claimTitle = String(game.event || "").trim() || gameName;
+					// `sameT` = 已经派生的那些 end 的时刻（主窗口 / 数组条目的 end）：
+					// 兑换截止与它们相同时不另派生（"同一时刻不弹两条"的既有口径）。
+					const pushClaimFromRecord = (sameT) => {
+						if (!claimRaw) return;
+						const w = remindWindowOf(claimRaw, nowTs, tz);
+						if (!w) return;
+						if (Array.isArray(sameT) && sameT.indexOf(w.endTs) >= 0) return;
+						pushEnd(w.endTs, w.startTs, w.endTs, claimTitle, REMIND_EVENT_CLAIM_SIDE, true);
+					};
+
+					// ── ① 数组分支（P4）：每条目各派生一条 ─────────────────────────────
+					const list = s.side === "gacha" ? game.gacha : game.events;
+					const items = Array.isArray(list) ? list.filter((x) => x && typeof x === "object") : [];
+					if (items.length) {
+						const itemEnds = [];
+						for (const item of items) {
+							const startTs = numOf(item.startTs);
+							const endTs = numOf(item.endTs);
+							if (startTs == null || endTs == null) continue;   // 读不出窗口 ⇒ 不硬凑
+							const title = String(item.title || item.show || "").trim() || gameName;
+							itemEnds.push(endTs);
+							pushEnd(endTs, startTs, endTs, title, s.side, false);
+							pushStart(startTs, startTs, endTs, title);
+							if (s.side !== "event") continue;
+							const ph = item.phase && typeof item.phase === "object" ? item.phase : null;
+							if (!ph || ph.kind !== "claim") continue;
+							const cs = numOf(ph.startTs), ce = numOf(ph.endTs);
+							if (cs == null || ce == null) continue;
+							// T 相同（刷新时已进入兑换期，eventDates 本身就是兑换区间）⇒ 主条目已经代表
+							// 这个时刻，不再加一条（避免同一时刻弹两条）——与旧实现的判据一致。
+							if (ce === endTs) continue;
+							pushEnd(ce, cs, ce, title, REMIND_EVENT_CLAIM_SIDE, true);
+						}
+						pushClaimFromRecord(itemEnds);
+						continue;
+					}
+
+					// ── ② 记录字符串分支（老 lastData / 没切直出的来源）：行为逐字不变 ──────
 					const raw = String(game[s.dateKey] || "").trim();
-					if (!raw) continue;
+					if (!raw) continue;   // 与旧实现一致：这一侧连档期文本都没有 ⇒ 不派生（含兑换窗口）
 					const win = remindWindowOf(raw, nowTs, tz);
 					if (!win) continue;
-					const base = {
-						gameId,
-						gameName,
-						side: s.side,
-						sideLabel: s.label,
-						title: String(game[s.titleKey] || "").trim() || gameName,
-						startTs: win.startTs,
-						endTs: win.endTs
-					};
-					if (win.endTs > nowTs) {
-						out.push({ ...base, kind: "end", T: win.endTs, key: gameId + "|" + s.side + "|end|" + win.endTs });
-					}
-					if (win.startTs > nowTs) {
-						out.push({ ...base, kind: "start", T: win.startTs, key: gameId + "|" + s.side + "|start|" + win.startTs });
-					}
-					if (s.side !== "event") continue;
-					// 奖励领取截止：只有**真正有兑换期**的游戏才带这个字段（其它来源根本没有 ⇒ 空串/缺失）。
-					const claimRaw = String(game.eventClaimDates || "").trim();
-					if (!claimRaw) continue;
-					const claimWin = remindWindowOf(claimRaw, nowTs, tz);
-					// 读不出（源站文本变了 / 半截）⇒ 不派生，绝不用主条目的窗口去猜。
-					// T 相同（刷新时已进入兑换期，eventDates 本身就是兑换区间）⇒ 主条目已经代表这个时刻，
-					// 不再加一条（避免同一时刻弹两条）。
-					if (!claimWin || claimWin.endTs <= nowTs || claimWin.endTs === win.endTs) continue;
-					out.push({
-						gameId,
-						gameName,
-						side: s.side,
-						sideLabel: REMIND_EVENT_CLAIM_LABEL,
-						title: base.title,
-						kind: "end",
-						T: claimWin.endTs,
-						startTs: claimWin.startTs,
-						endTs: claimWin.endTs,
-						// 文案侧据此把正文写成「奖励领取截止」（见 remindToastOf），不改其它侧的文案。
-						claim: true,
-						key: gameId + "|" + REMIND_EVENT_CLAIM_SIDE + "|end|" + claimWin.endTs
-					});
+					const title = String(game[s.titleKey] || "").trim() || gameName;
+					pushEnd(win.endTs, win.startTs, win.endTs, title, s.side, false);
+					pushStart(win.startTs, win.startTs, win.endTs, title);
+					if (s.side === "event") pushClaimFromRecord([win.endTs]);
 				}
 			}
-			return out;
+			// 按 key 去重（同一个 deadline 的多条只留第一条）：数组里多条同 T / phase 与记录级兜底同 T。
+			const seen = new Set();
+			return out.filter((it) => {
+				if (seen.has(it.key)) return false;
+				seen.add(it.key);
+				return true;
+			});
 		}
 
 		// 一轮判定。**纯函数**：同样的 (now, items, config, state) ⇒ 同样的返回值；入参一概不改。

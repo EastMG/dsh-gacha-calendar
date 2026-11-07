@@ -127,7 +127,7 @@
 			// 角色是多池合并的，若外显挂"但愿长圆如此夜"，卡片就成了"标题只说一个池、角色却是三个池的合成"。
 			// 与用户 2026-09-30 定的统一口径一致（国服显示 `限时限定招募`、异环显示 `限定棋盘`）。
 			// 具体池名在悬停里逐条列出，不丢信息。
-			const w = dataArrayWindowOf(raw, now);
+			const w = dataArrayWindowOf(raw, now, tz);
 			const main = {
 				title: first.type,
 				show: cleanRoleNames(roles, "wuwa") || first.type,
@@ -181,7 +181,7 @@
 			const dates = fmtWindow(primary.startTs, primary.endTs, tz);
 			// ── P3（2026-11-07）：条目事实 → 悬停 + `events` 数组（顺序 = sortEventItems）──
 			const hoverItems = sorted.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: "" }));
-			const w = dataArrayWindowOf(dates, now);
+			const w = dataArrayWindowOf(dates, now, tz);
 			const main = {
 				title: primary.name,
 				show: primary.name,

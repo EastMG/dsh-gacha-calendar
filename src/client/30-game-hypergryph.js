@@ -220,7 +220,7 @@
 				endTs: x.endTs,
 				raw: x.raw
 			}));
-			const w = dataArrayWindowOf(p.bannerDates, now);
+			const w = dataArrayWindowOf(p.bannerDates, now, tz);
 			const main = {
 				title: p.banner,
 				show: cleanRoleNames(p.roles, "arknights") || p.banner,
@@ -745,7 +745,7 @@
 			// 提示行锚点**同一串**；数组的并列条目也从这一份去生成（不再从悬停文本反解）。
 			const hoverItems = hoverActive.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
 			const eventHover = hoverTextFromItems(hoverItems, "event", tz);
-			const w = dataArrayWindowOf(windowText, now);
+			const w = dataArrayWindowOf(windowText, now, tz);
 			const main = {
 				title: eventLabel,
 				show: eventShow || eventLabel,
@@ -757,7 +757,7 @@
 			};
 			// 第二阶段（兑换截止）：独立窗口，**不是**第二个活动条目（数组里放在 `phase`）
 			if (claimDates) {
-				const cw = dataArrayWindowOf(claimDates, now);
+				const cw = dataArrayWindowOf(claimDates, now, tz);
 				main.phase = {
 					kind: "claim",
 					startTs: cw.startTs,
@@ -1318,7 +1318,7 @@
 			// ⚠️ 不写 `cat`：改造前的合成数组里没有这条事实（SMW 的「类型」只参与外显挑选），
 			//    本批加进去会让数组与显示层规则同时变 —— 那是 P3b 的事。
 			const hoverItems = ordered.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: "" }));
-			const w = dataArrayWindowOf(win, now);
+			const w = dataArrayWindowOf(win, now, tz);
 			const main = {
 				title: best.name,
 				show: best.name,          // 活动侧没有只为显示的事项名（`eventShow`）= 活动名本身

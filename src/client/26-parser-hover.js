@@ -325,7 +325,8 @@
 			}));
 			const bannerHover = hoverTextFromItems(hoverItems, "gacha", tz);
 			// 主条：外显沿用 selectCurrent 的 banner/roles（显示名 = cleanRoleNames，与合成路径同一句）
-			const w = dataArrayWindowOf(cur.bannerDates, now);
+			// `tz` 必传（P4）：数组条目的 ts 是**绝对时刻**，按条目 tz 解析源站墙钟。
+			const w = dataArrayWindowOf(cur.bannerDates, now, tz);
 			const main = {
 				title: cur.banner,
 				show: cleanRoleNames(cur.roles, opts.id) || cur.banner,

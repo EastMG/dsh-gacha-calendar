@@ -100,8 +100,8 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 31 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（11 处定稿）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成））
-│   ├── cases-*.mjs  # 各段用例（31 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / cases-arknights-claim / cases-arknights-timeline / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh / settings-jump / settings-copy / sources / bwiki-cors / p3）
+│   ├── all.mjs      # 统一门禁：聚 32 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（11 处定稿）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致））
+│   ├── cases-*.mjs  # 各段用例（32 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / cases-arknights-claim / cases-arknights-timeline / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh / settings-jump / settings-copy / sources / bwiki-cors / p3 / p4flat）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
 │   ├── lib-text.mjs # 悬停文本的共用判定（去重 / 相邻重复 / 「名称 ⏎ 只有区间」/ 分类前缀双写）
@@ -492,7 +492,7 @@ canmoe 页面 + 它第一轮真的并发抓的 6 份 chunk、FZ Wiki 活动 REST
 - `dataArrayExtrasFromEntriesOf(entries, main, now, { kind, tz })` —— 并列条目的**唯一实现**（三条判据 + "同标题同区间"去重）；解析器直出路径调它（P3c 之前还有一条"把悬停文本拆成 `{ title, win }` 再喂进来"的 `dataArrayHoverPoolsOf`，已删）⇒ 不会出现"文本里丢了两行、数组里还留着"。
 - `mergeEntryRecord` 现在**只有一条路**：归一 + 按记录 id 重发 key（P3c 删掉了 `Array.isArray(rec.gacha) ? … : dataArrayGachaOf(…)` 那半个分支），末尾把 `gachaHoverItems` / `eventHoverItems` 两条**通道** `delete` 掉（与 `itemFacts` 同一性质：不进记录、不落盘）。
 
-**时间戳口径不变（重要）**：`startTs` / `endTs` **仍是 P1 的本机时刻**（`dataArrayWindowOf`：把窗口文本按运行环境时区读回）。改成绝对时刻要连显示层探头一起改（`scheduleMeta` 用 `new Date(ts)` 渲染），否则 34 个侧在 `TZ=UTC` 下会变红 —— 那是 P4（见「已知不等价①」）。
+**时间戳口径（P4 已改，见「P4 展平」一节）**：`startTs` / `endTs` 现在是**绝对时刻**（`dataArrayWindowOf` 按**条目自己的 tz** 解析源站墙钟）。P3 阶段这里是 P1 的"本机时刻"，换绝对时刻必须**同时**改显示层渲染（`scheduleMeta` 按 `x.tz` 渲染），否则 34 个侧在 `TZ=UTC` 下会变红 —— 那是 P4 的活，已做（见「已知不等价①」的收尾说明）。
 
 **回归（`test/cases-p3.mjs`，P3e 后 685 条）**：① 生成器排版规则逐条（3 空格 / 同窗口折叠 / <2 条 / 缺起止写原文 / 长期过滤 / `label` 优先 / 去重 / **与老 `buildPoolHover`·`buildEventHover` 逐字节相同**）；② 54 条路径（P3a 6 + P3b 41 + P3c 7）的 **12 个字符串字段 + 数组 golden**（`sansTs`）；③ 数组与**改造前的合成结果逐条相等**（含 `startTs`/`endTs`，UTC / +08 都成立）；④ **同源**：`hoverTextFromItems(条目事实)` 逐字等于载荷里的悬停文本；⑤ 通道不外泄。P3 新夹具 6 份 + P3c 15 份，**都不进 `map.json`**（免得改变其它批次对"默认源 404"的期望）。
 ⚠️ P3c 删掉合成器后，③ 的对照 oracle 挪进测试文件（`legacySynthArrOf`：拿**记录字符串 + 悬停文本**过 `dataArray*MainOf` + `scheduleHoverItems` + `dataArrayExtrasFromEntriesOf` 重算一遍）—— 它只读改造前的三样输入（字符串 / 悬停 / `itemFacts`），不读解析器直出的数组，所以"直出被削"仍会红（P3c 实测：把 endfield 卡池的并列条去掉 ⇒ ② 数组 golden + ③ 同时红）。
@@ -560,8 +560,8 @@ canmoe 页面 + 它第一轮真的并发抓的 6 份 chunk、FZ Wiki 活动 REST
   夹具级回归；⑤ 全部备选源路由可解出函数）。**"数组与改造前合成结果逐条相等"的口径不变**：对照 oracle 仍是
   测试文件里的 `legacySynthArrOf`（只读改造前的字符串 + 悬停，不读直出数组）。
 
-**P3 待办清单（P3e 后仍然没做的）**：只剩下面这些：
-1. **时间戳换绝对时刻（P4）**：见「已知不等价①」。
+**P3 待办清单（P3e 后仍然没做的）**：
+1. ~~**时间戳换绝对时刻（P4）**~~ ⇒ **P4 已完成**（见「P4 展平」一节）。
 2. **`cat` / `tags` / 逐池角色表**：P3 只搬结构、不扩事实。
 
 **P3 完成状态（P3e）**：**28 款默认源 / 48 条路径 + 全部备选源（20 条卡池 / 16 条活动）+ 用户自定义地址
@@ -601,12 +601,89 @@ golden + 等价（两侧都红）；
 ② **把悬停改成不再由条目生成**（`selectArknights` 的 `bannerHover` 直接给 `""`）⇒ `arknightsPrtsGacha`
 的 golden（`bannerHover`）/ 等价（数组少了并列条）/ 同源（悬停 != 生成结果）三条同时红。
 
-#### 已知不等价（如实记，留给 P4）
+#### 已知不等价（P4 已清掉第 1 条；其余留着）
 
-1. **`startTs` / `endTs` 用的是"本机时刻"**：P1 直接 `parseDisplayRange(源站原文)`，**没做**"源站 tz → 本机"换算。于是在 `TZ≠+08` 的机器上，数组里的 ts 会比显示层换算后的小时**差一个时区差**（+08 机器上一致）。P2 用「主条直接走 `scheduleNormalize`」把**显示文本**这一面避开了（等价性用例在 UTC / +08 都逐字相等）；**P3 第一批也刻意沿用这个口径**（解析器直出的数组同样由窗口文本回算 —— 换成绝对时刻会让探头档期文本在 UTC 下变 8 小时，34 侧等价性立刻变红）；要彻底消掉得**同时**改「数据层口径 + 显示层探头渲染」，留 P4。
+1. ~~**`startTs` / `endTs` 用的是"本机时刻"**~~ ⇒ **P4 已改成绝对时刻**：数组条目的 ts 由
+   `dataArrayWindowOf(文本, now, 条目.tz)` 解析（源站墙钟 → epoch 毫秒），显示层按 `x.tz` 渲染回源站墙钟。
+   所以同一份数据在 `TZ=UTC` / `+08` 下 **ts 逐字节相同、渲染文本也逐字相同**（不再是"差一个时区差"）。
+   收尾代价（如实记）：① `test/cases-core.mjs` ⑤-5 的 34/34 等价性 oracle 同步改成"源站绝对时刻 +
+   按源站 tz 渲染"（否则比的是旧缺陷与新行为）；② 星铁那 3 条「版本更新后 ~ …」的单边窗口现在也出条目
+   （见 P4 一节的"单边窗口"）；③ 48 条路径的数组 golden 只动了 `hsrGacha` / `hsrEvent` 两条的
+   `endTs: null → number`（单边窗口的直接结果）。
 2. **并列池的 `show` = 标题本身**：悬停行只给"池名：角色"，没有结构化角色表 ⇒ 并列池那条 `show === title`、`roles = []`（主条的 `show`/`roles` 是完整的）。解析器直出每口池的角色表后可补（P3b）。
 3. **卡池侧"跨池合并的角色表"没有拆开**：主条的 `roles` 仍是引擎给的那串合并角色（FGO 那种 13 个角色一行），不是"每口池自己的角色"。同样是 P3 的结构化来源才能拆。
-4. **完全同名的悬停行只留一条**：`scheduleHoverItems` 对**完全同名**（归一后同串）的行只留第一条 —— 这是悬停逆解析的既有口径（与 `buildPoolHover` 的去重同源），不是 P1 发明的；数组沿用。**同一口池的两种写法**（合并角色的主条 vs 悬停里的 `池名：角色`）现在**都留着**（`source` 区分），只有内容完全一样（同标题 + 同区间）才去重并优先保 `primary`。
+4. **完全同名的悬停行只留一条**：`scheduleHoverItems` 对**完全同名**（归一后同串）的行只留第一条 —— 这是悬停解析的既有口径（与 `buildPoolHover` 的去重同源），不是 P1 发明的；数组沿用。**同一口池的两种写法**（合并角色的主条 vs 悬停里的 `池名：角色`）现在**都留着**（`source` 区分），只有内容完全一样（同标题 + 同区间）才去重并优先保 `primary`。
+
+#### P4 展平（2026-11-07 完成）
+
+**P4 与前 3 步的性质不同：这一步允许改变可见输出**（同一游戏的多个在期条目在「近期」里各占一行）。四件事：
+
+**① 数组 ts 换绝对时刻（口径修正）**
+- 改前（P1~P3）：`dataArrayWindowOf` 把窗口文本按**运行环境时区**读回 —— 同一份数据在 `TZ=UTC` 的机器上比 `+08`
+  少 8 小时（README 的「已知不等价①」）。
+- 改后：`dataArrayWindowOf(文本, now, 条目.tz)` 三步（都在 `50-refresh.js`，全是既有工具）：
+  ① 用 `sourceWallParts(now, tz)` 把 `now` 换成"源站墙钟字段构成的本机 Date"（补年份/判跨年用**源站年**）；
+  ② 让 `parseDisplayRange` 照常按本机墙钟解释（它只会有这一个口径）；③ 每个时刻按
+  `sourceInstant(墙钟字段, tz)` 平移成**绝对毫秒**（与解析器造 ts、ics 导出同一个函数）。
+  ⇒ 数组 ts 跨时区逐字节相同（`cases-p4flat` ① 把同一份 bandori 夹具在 UTC / +08 各跑一遍 refresh 逐字节比）。
+- **单边窗口**：源站写「4.6版本更新后 ~ 11-10 15:00」时两端**各自独立解析** —— 起点 `null`（不编造）、终点是
+  绝对时刻。星铁 5 条卡池因此 2 条 → 5 条可见（`scheduleMeta` 对起点未知的行只写「至 <终点>」，14 天迷你条只标终点那天）。
+- **显示层渲染**：`scheduleMeta / scheduleWhen / scheduleMDHM / scheduleSameDay` 多了可选的 `tz` 参数；
+  表格格子 / 探头 / 「近期」/ 留白卡一律传 `x.tz` ⇒ 渲染文本只由 `(ts, 条目 tz)` 决定，**与运行机器时区无关**
+  （`cases-p4flat` ⑦ 在进程时区 UTC / +08 / +09 各渲染一遍逐行比对，并钉死两条字面量）。
+- ⚠️ **不要**在 `parseDisplayRange` 里加 `tz` 参数：60-helpers 在 core 产物里位于**模块顶层**、15-env 的
+  `sourceInstant` 在 `createEngine` 内部 ⇒ 那里 `typeof sourceInstant === "function"` 会静默退化成本机时区
+  （2026-11-07 实测：core 产物的数组 ts 全体偏 8 小时，而 lib 是对的，P3 等价性在 +08 机器上红了一大片）。
+  换算只能放在 `createEngine` 内的 `dataArrayWindowOf`。
+
+**② 「近期」收全部条目（展平）**
+- `81-schedule-model.js` 新增纯函数 `scheduleFlattenOf(games, now)` → `{ cells, cellViews, all }`：
+  每侧 `scheduleCellOf` 的 **primary + rest 全部**逐条进 `all`（已结束的除外）；`82` 的 memo 只调它
+  （原来那行"只 push 外显那一条"已删）。表格 / 探头仍用 `cellViews`（`sideViewOf` 决定露哪一条）。
+- 行数（`cases-p4flat` ②，逐款钉住）：明日方舟 3（活动；兑换期在 `phase` 里不另算）、bandori 1 + 16、
+  pjsk 17（卡池）、星铁 5 + 3。7 天窗口不变（`scheduleNear`），变的是"**按条**"而不是"按格"。
+- **计数按条**：24 小时 / 7 天两段数字都是对 `all` 数条目（bandori 10-25 那一刻：**2 格却 13 条**在 24 小时内；
+  pjsk 10-11：1 格 9 条 / 7 天 10 条）—— 若退回按格，数字会立刻掉到 2 / 1。
+- **分页 / 轮播**：「近期」仍是每页 10 条、每 4 秒翻一页（`SCHEDULE_NEAR_LIMIT` / `SCHEDULE_SLOT_SECS` 未变）；
+  条数变多只会让 `nearPages` 变大（`ceil(recent.length / 10)`），底部按钮写「展开全部 N 条」的 N 跟着变。
+  留白卡（`SlotCard`）的 `list` 也是展平后的 `all`，所以它的 4 秒循环里条目变多（同样是"按条"的直接结果）。
+
+**③ 提醒 / 轮播 / 导出 遍历 N 条**
+- `65-remind.js` 的 `remindItemsOf`：**数组非空 ⇒ 逐条派生**（每条活动/每口池各一个 `end`；活动的
+  `phase.kind === "claim"` 再额外派生一条 `event-claim` 的 `end`）。数组为空（老 `lastData`）仍走记录字符串路径
+  （行为逐字不变）。同一 `T` 的多条在末尾**按 key 去重**（既有口径"同一时刻不弹两条"：bandori 一期 12 个活动
+  结束时刻相同 ⇒ 只弹一条）。实测：pjsk 17 条卡池 → 8 条不同 deadline（清空数组只剩 1 条）。
+- `81` 的 `tickerItemsOf`：数组非空 ⇒ 每条目一条轮播（`key` 用数组 key，文案用条目的 `show`）。
+  **起点未知的条目不进轮播**（`dueKindOf` 要求两端都是 number；不编造开始时刻）—— 星铁 5+3 条里进 4 条。
+- `60-helpers.js` 的 `icsEventsOf`：数组非空 ⇒ **每条目一个 VEVENT**（绝对 ts 直接用，不再二次换算）；
+  活动条目若带**不同于主窗口**的 `phase` 且兑换截止还没过，再**额外**导出一个「… 兑换截止」事件
+  （这是同一活动的第二阶段，不是未来活动）。数组条目 UID 由 `icsFallbackUidOf(摘要, 起, 止)` 生成
+  （bandori 同起止的多条靠标题区分，否则会被日历当成同一个事件）；老路径 UID 形态不变。
+  起点未知的条目不导出（日历必须两端都有），`skipped` 记 `bad-window`。
+
+**④ 这一阶段改到的既有断言（逐条理由，不是放宽）**
+1. `test/cases-core.mjs` ⑤-5 的 oracle：`legacyHoverOnes` 把悬停文本按**本机墙钟**读出的时刻改成
+   `sourceInstant(…, 来源 tz)`，并给 oracle 行补 `tz`；行渲染改成 `scheduleMeta(x, now, x.tz)`。
+   理由：P4 的 ts 口径是"源站绝对时刻"，老 oracle 继续用本机墙钟 = 要求保留被修掉的 8/1 小时偏差。
+2. `test/cases-core.mjs` ⑤-5 星铁卡池行数 **2 → 5**，并新增"3 条单边窗口行文本以「至 」开头"的断言。
+   理由：单边窗口（起止各自解析）是本阶段的口径修正，行数变化正是它带来的。
+3. `test/arknights-timeline` 的「活动侧 end ≤ 2 条」→"= 在期条目数 + 兑换截止数"（数据驱动），
+   「兑换期载荷两个 T 相同 ⇒ 只留一条」→ 在该时刻**仍然**只有一条 `T = 兑换截止` 且没有 `event-claim` 键
+   （该载荷里三条活动都在期 ⇒ 总 end 从 1 条变 3 条）。理由：提醒改成按条派生。
+4. 数组 golden 只动 `hsrGacha` / `hsrEvent` 两条：`endTs: null → number`（单边窗口），且 `hsrEvent` 顺序按
+   `endTs` 重排（`巡星之礼` 11-11 从末位移到第二位）。理由：同上。
+5. 其余既有断言一条没改；新用例 42 条（`cases-p4flat`）⇒ 总门禁 4554 → **4596 通过 / 0 失败**（UTC 与 +08 各跑一遍）。
+
+**⑤ P5 待评估项（本阶段**没有**做、也不该顺手做）**
+1. **每条活动自己的兑换截止**：`phase` 目前只有**主条目**带（`prtsEventPayload` 只给选中那条活动写
+   `eventClaimDates`）⇒ 其余活动的 claim 窗口在数组里没有事实，提醒/ics 自然拿不到。要补得让解析器**逐条**给
+   `phase`，并同步数组 golden 与显示层（表格/探头多一行还是仍只显示一条）。
+2. **起点未知的条目进轮播 / 导出**：`dueKindOf` 与 ics 都要求两端都是 number。要支持就得改 `dueKindOf`
+   （cases-ticker 有"null 起点 ⇒ ''"的旧断言）并决定"日历里 DTSTART 写什么"（拿终点当起点是编造）。
+3. **单边窗口的跨年**：`11-10 15:00` 这类终点按 `now` 的源站年份补；真跨年（12 月看 01-05）时单边终点会落到
+   过去。要修得给"只有终点"的文本一条与 `endsNextYear` 同级的规则（现在规则只在"两端都在"时成立）。
+4. **「近期」页容量**：展平后 7 天窗口内最多可能 20+ 条（每页 10），是否改成 12/15 条或按高度自适应，等真机观感。
+
 
 **P2 已知差异：已全部清零（2026-11-07 收尾，方案 C）**——原来的 6 处（探头的两行被并掉 + 4 款外显换位）靠"数据层补事实（`source` / `cat` / `preview`）+ 显示层按游戏分派规则"消掉了；`test/cases-core.mjs` ⑤-5 的 34 个侧现在 `diffs = 0`，且每条特化规则都有反向证明（换回通用规则 ⇒ 对应侧必红）。各游戏缺什么事实：**只有 FGO 有 `cat`**（源站类型列）、**只有赛马娘日服的预告稿有 `preview`**（标题判据）、`tags` **暂无来源**；这些"没有"都是**如实留空**（没有这个键），显示层按无事实退化，不猜。
 

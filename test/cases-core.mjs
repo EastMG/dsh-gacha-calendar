@@ -28,9 +28,21 @@ import { T, REPO } from "./load.mjs";
 // 相同"，所以把老路**原样搬进测试**当对照 oracle。
 // ⚠️ `SCHEDULE_LONG_MS` 按当时的常量（366 天）**冻结**在这里：oracle 必须不随产品漂移，
 //    否则"等价性"就成了拿产品和自己比。`scheduleNoYear` 同理（26 里那份是 const，未导出）。
+// ⚠️ 2026-11-07（P4）**口径修正**：老路把悬停里的 `MM-DD HH:MM` 当**本机墙钟**读（`parseDisplayRange`
+//    只有一个口径），而 P4 起数组条目的 ts 是"按**源站**墙钟解析的绝对时刻"。海外源（赛马娘日服
+//    Asia/Tokyo、闪耀国服 +540、国际服 UTC…）在 +08 机器上会差 1~8 小时 —— **那不是回归，是原先就错的
+//    那 1~8 小时被修掉了**。所以 oracle 同步走**同一个换算**（`sourceInstant`，tz 取来源声明的那个）：
+//    这样比较的仍是"两条数据路径的派生结果"，只是把 ts 口径对齐到修正后的绝对时刻
+//    （反之若让 oracle 继续用本机墙钟，比的就是"错的旧时刻"与"对的新时刻"，等于要求 bug 保留）。
 const LEGACY_LONG_MS = 366 * 864e5;
 const legacyNoYear = (x) => String(x).replace(/(\d{4})-(\d{1,2}-\d{1,2})/g, "$2");
-const legacyHoverOnes = (items, it, now) => {
+// 本机墙钟时刻 → 源站时区绝对时刻（与 50-refresh.js 的 `dataArrayWindowOf` 第 ③ 步同一个函数）
+const legacyToSourceTs = (ts, tz) => {
+	if (!tz) return ts;
+	const d = new Date(ts);
+	return T.sourceInstant(d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes(), tz);
+};
+const legacyHoverOnes = (items, it, now, tz) => {
 	const out = [];
 	for (const x of items) {
 		if (x.title === it.title) continue;                  // 外显那条已经有了，不重复列
@@ -43,23 +55,43 @@ const legacyHoverOnes = (items, it, now) => {
 			const tailAt = titleText.lastIndexOf("\uFF1A" + shownText);
 			if (titleText.indexOf(shownText + "\uFF1A") === 0 || (tailAt >= 0 && tailAt === titleText.length - shownText.length - 1)) continue;
 		}
-		const r = T.parseDisplayRange(legacyNoYear(x.win), now);
-		if (!r) continue;                                    // 读不出绝对档期 → 不硬凑天数
-		const span = Math.max(1, r.endTs - r.startTs);
+		const winText = legacyNoYear(x.win);
+		let r0 = T.parseDisplayRange(winText, now);
+		// P4 口径修正 ②：**单边窗口**（星铁「4.6版本更新后 ~ 11-10 15:00」）—— 老路整条判 null
+		// 就丢掉了这一行；现在产品两端各自解析，oracle 同步（否则比的是"旧缺陷"与"新行为"）。
+		if (!r0) {
+			const ps = winText.split("~").map((s) => s.trim());
+			if (ps.length >= 2) {
+				const selfOf = (s) => {
+					const one = s ? T.parseDisplayRange(s + " ~ " + s, now) : null;
+					return one ? one.startTs : null;
+				};
+				const sa = selfOf(ps[0]), sb = selfOf(ps[1]);
+				if (sa == null && sb == null) continue;      // 两端都读不出 → 仍然不列
+				r0 = { startTs: sa, endTs: sb };
+			}
+		}
+		if (!r0) continue;                                   // 读不出绝对档期 → 不硬凑天数
+		// P4 口径修正：本机墙钟 → 源站绝对时刻（见上面那段 ⚠️）
+		const r = { startTs: r0.startTs == null ? null : legacyToSourceTs(r0.startTs, tz), endTs: r0.endTs == null ? null : legacyToSourceTs(r0.endTs, tz) };
+		const span = r.startTs == null ? 0 : Math.max(1, r.endTs - r.startTs);
 		let state = "long", remain = 0;
-		if (span > LEGACY_LONG_MS) state = "long";
-		else if (now.getTime() < r.startTs) state = "wait";
-		else if (now.getTime() > r.endTs) state = "ended";
-		else { state = "live"; remain = Math.max(0, r.endTs - now.getTime()); }
-		out.push({ key: it.key, g: it.g, side: it.side, isG: it.isG, title: x.title, raw: x.win, fail: null, state, startTs: r.startTs, endTs: r.endTs, remain });
+		if (r.endTs > 0) {
+			if (span > LEGACY_LONG_MS) state = "long";
+			else if (r.startTs != null && now.getTime() < r.startTs) state = "wait";
+			else if (now.getTime() > r.endTs) state = "ended";
+			else { state = "live"; remain = Math.max(0, r.endTs - now.getTime()); }
+		}
+		out.push({ key: it.key, g: it.g, side: it.side, isG: it.isG, title: x.title, raw: x.win, fail: null, state, startTs: r.startTs, endTs: r.endTs, remain, tz: tz || null });
 	}
 	return out;
 };
 // 老路的 `scheduleCellOf`：**没有数组也能出条目**（这正是 P3c 删掉的那条路）
-const legacyCellOf = (g, side, now) => {
+// `tz` = 该来源声明的源站时区（老路当时没有这个参数；P4 只把它用于上面那次口径修正与渲染）
+const legacyCellOf = (g, side, now, tz) => {
 	const it = T.scheduleNormalize(g, side, now);
 	if (!it) return null;
-	const extras = legacyHoverOnes(T.scheduleHoverItems(side === "gacha" ? g.bannerHover : g.eventHover, it.title, it.isG), it, now);
+	const extras = legacyHoverOnes(T.scheduleHoverItems(side === "gacha" ? g.bannerHover : g.eventHover, it.title, it.isG), it, now, tz);
 	return { primary: it, rest: extras };
 };
 export default async function runCore() {
@@ -627,7 +659,11 @@ export default async function runCore() {
 		const NOW = new Date(Date.parse("2026-10-02T00:00:00.000Z"));
 		const at = (s) => Date.parse(s + "T00:00:00.000Z");
 		const mk = (o) => Object.assign({ key: "k", title: "", show: "", roles: [], startTs: null, endTs: null, raw: "" }, o);
-		const rowOf = (x, now) => ({ name: x.show || x.title || x.raw || "—", meta: T.scheduleMeta(x, now) });
+		// ⚠️ 2026-11-07（P4）`scheduleMeta` 多了第 3 参 `tz`：显示层按**条目自己的源站时区**渲染
+		// 档期文本（数组条目的 ts 现在是绝对时刻，按本机渲染会把海外源显示错 1~9 小时）。
+		// 这里的 oracle 行也必须用**同一个渲染口径**（`x.tz`），否则比的是"两种渲染"而不是"两条数据路径"；
+		// 老路（oracle）的行没有 `tz` 键 ⇒ 退回本机时区 ⇒ 文本仍是同一串源站原文（本地解析 + 本地渲染）。
+		const rowOf = (x, now) => ({ name: x.show || x.title || x.raw || "—", meta: T.scheduleMeta(x, now, x.tz) });
 		const rowsOf = (cell, now) => (cell ? [cell.primary].concat(cell.rest.slice().sort(T.schedulePickItem)).map((x) => rowOf(x, now)) : null);
 		const rowText = (rows) => (rows ? rows.map((r) => r.name + " ⏎ " + r.meta) : rows);
 		const sortedRowText = (rows) => (rows ? rows.map((r) => r.name + " ⏎ " + r.meta).sort() : rows);
@@ -717,7 +753,7 @@ export default async function runCore() {
 		const cellArray = T.scheduleCellOf(Object.assign({}, recEv, { events: [mainItem] }), "event", NOW);
 		check("有数组 ⇒ 正常派生出主条（primary 来自数组，不再解析悬停文本）",
 			!!cellArray && cellArray.primary.title === "剧情活动" && !("fromArray" in cellArray));
-		const cellOld = legacyCellOf(recEv, "event", NOW);
+		const cellOld = legacyCellOf(recEv, "event", NOW, recEv.tz);
 		check("老路（oracle）的输出 = 数组派生的输出（同一条记录、数组只有主条 ⇒ 逐字相同）",
 			JSON.stringify(rowText(rowsOf(cellOld, NOW))) === JSON.stringify(rowText(rowsOf(cellArray, NOW))),
 			JSON.stringify([rowText(rowsOf(cellOld, NOW)), rowText(rowsOf(cellArray, NOW))]));
@@ -752,6 +788,12 @@ export default async function runCore() {
 		};
 		const ids = createEngine({ transport, storage: makeStore(), now: () => 0 }).__test.SOURCES.map((s) => s.id);
 		const only = (id) => ({ hidden: ids.filter((x) => x !== id) });
+		// 来源声明的源站时区（P4 的 oracle 口径修正要用：把老路读出的"本机墙钟"换成绝对时刻、
+		// 并把行文本按源站墙钟渲染 —— 与显示层 `x.tz` 同一口径）。
+		const tzOfSource = (id) => {
+			const s = T.SOURCES.find((x) => x.id === id);
+			return (s && s.tz) || null;
+		};
 		const runGame = async (id, nowMs) => {
 			const engine = createEngine({ transport, storage: makeStore(only(id)), now: () => nowMs, timer: { setTimeout, clearTimeout } });
 			const r = await engine.refresh();
@@ -812,7 +854,11 @@ export default async function runCore() {
 			records.push({ id: "genshin", now, rec });
 		}
 
-		const rowOf = (x, now) => ({ name: x.show || x.title || x.raw || "—", meta: T.scheduleMeta(x, now) });
+		// ⚠️ 2026-11-07（P4）`scheduleMeta` 多了第 3 参 `tz`：显示层按**条目自己的源站时区**渲染
+		// 档期文本（数组条目的 ts 现在是绝对时刻，按本机渲染会把海外源显示错 1~9 小时）。
+		// 这里的 oracle 行也必须用**同一个渲染口径**（`x.tz`），否则比的是"两种渲染"而不是"两条数据路径"；
+		// 老路（oracle）的行没有 `tz` 键 ⇒ 退回本机时区 ⇒ 文本仍是同一串源站原文（本地解析 + 本地渲染）。
+		const rowOf = (x, now) => ({ name: x.show || x.title || x.raw || "—", meta: T.scheduleMeta(x, now, x.tz) });
 		const rowsOf = (cell, now) => (cell ? [cell.primary].concat(cell.rest.slice().sort(T.schedulePickItem)).map((x) => rowOf(x, now)) : null);
 		const text = (rows) => (rows ? rows.map((r) => r.name + " ⏎ " + r.meta) : rows);
 
@@ -820,7 +866,9 @@ export default async function runCore() {
 		const fallback = [];            // 有数组却派生不出条目（或又长出一条 fromArray 分支）的一侧
 		const diffs = [];
 		for (const { id, now, rec } of records) {
-			const g = Object.assign({ id, name: id }, rec);
+			// `tz` = 来源声明的源站时区（与 CalendarPanel 传给 `scheduleNormalize` 的对象同形）——
+			// 显示层按它渲染源站墙钟，等价性两边都用同一口径。
+			const g = Object.assign({ id, name: id, tz: tzOfSource(id) }, rec);
 			for (const side of ["gacha", "event"]) {
 				const key = id + ":" + side;
 				const hasArray = ((side === "gacha" ? g.gacha : g.events) || []).length > 0;
@@ -830,7 +878,7 @@ export default async function runCore() {
 				if (hasArray && (!nextCell || "fromArray" in nextCell)) fallback.push(key);
 				// 老路 = 改造前的兼容分支（P3c 从产品删除，oracle 冻结在本文件顶部）：
 				// 记录字符串 → scheduleNormalize 出外显 + 悬停文本逆解析补并列条目。
-				const oldCell = legacyCellOf(g, side, now);
+				const oldCell = legacyCellOf(g, side, now, tzOfSource(id));
 				const old = rowsOf(oldCell, now);
 				const next = rowsOf(nextCell, now);
 				got.set(key, { old, next });
@@ -869,10 +917,17 @@ export default async function runCore() {
 		check("判重口径：物华弥新卡池「繁霜春落：李小孩项链」回来了（引擎主行之外多一条，source = hover）",
 			!!wmG && wmG.next[1].name === "繁霜春落：李小孩项链",
 			JSON.stringify(wmG && wmG.next.map((r) => r.name)));
-		const hsrG = strictSide("hsr:gacha", "星神★阿哈、银狼LV.999 火花 爻光、千冶•刃、真珠", 2);
+		// ⚠️ 2026-11-07（P4 单边窗口）：星铁这一格里 3 口池的源站原文是「4.6/4.7版本更新后 ~ …」——
+		// 起点读不出、终点明确。以前两端一起判 null ⇒ 这 3 行**数组里有、探头与「近期」里没有**；
+		// P4 起两端各自解析 ⇒ 行数 2 → 5（"同一游戏的多个在期条目各占一行"正是本阶段的目标）。
+		const hsrG = strictSide("hsr:gacha", "星神★阿哈、银狼LV.999 火花 爻光、千冶•刃、真珠", 5);
 		check("判重口径：星铁卡池「「我身即刃」…：千冶•刃」回来了（同一口池不再被并成一条）",
 			!!hsrG && hsrG.next[1].name.indexOf("「我身即刃」角色活动跃迁：") === 0,
 			JSON.stringify(hsrG && hsrG.next.map((r) => r.name)));
+		check("单边窗口：星铁那 3 口「版本更新后」的池也列出来了 —— 行文本写「至 <终点>」，不编造开始时刻",
+			!!hsrG && hsrG.next.slice(2).length === 3
+			&& hsrG.next.slice(2).every((r) => r.meta.indexOf("至 ") === 0),
+			JSON.stringify(hsrG && hsrG.next.slice(2).map((r) => r.meta)));
 		strictSide("wuhuamixin:event", "「寂夜长生」限时活动", 6);
 		strictSide("zspms:event", "回路演算", 9);
 		strictSide("uma-cn:event", "赛事活动“群英联赛 中距离”", 4);
@@ -907,9 +962,9 @@ export default async function runCore() {
 		{
 			const now = new Date(Date.parse("2026-09-05T00:00:00.000Z"));
 			const rec = await runGame("fgo", now.getTime());
-			const g = Object.assign({ id: "fgo", name: "fgo" }, rec);
+			const g = Object.assign({ id: "fgo", name: "fgo", tz: tzOfSource("fgo") }, rec);
 			const nextCell = T.scheduleCellOf(g, "event", now);
-			const oldCell = legacyCellOf(g, "event", now);   // P3c：老路已从产品删除，用顶部冻结的 oracle
+			const oldCell = legacyCellOf(g, "event", now, tzOfSource("fgo"));   // P3c：老路已从产品删除，用顶部冻结的 oracle
 			const old = rowsOf(oldCell, now), next = rowsOf(nextCell, now);
 			check("等价性（FGO 09-05）：老路与数组派生逐字相等（外显 = 「失落的创世(Vanished Beginning) 来自未来的方舟」）",
 				JSON.stringify(old) === JSON.stringify(next)

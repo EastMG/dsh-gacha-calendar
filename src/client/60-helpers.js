@@ -639,6 +639,13 @@
 
 		// 解析面板展示的时间段（mm-dd hh:mm ~ mm-dd hh:mm，无年份，如 "08-12 06:00 ~ 09-01 17:59"）
 		// → { startTs, endTs }；无法解析返回 null。年份按当前年补全，跨年（end 月份 < start 月份）自动 +1 年。
+		//
+		// ⚠️ 口径：本函数把文本当作**本机时区**的墙钟来读（`new Date(y, mo-1, d, h, mi)`）。
+		//    数据层数组条目的 ts 要的是"按**源站**墙钟读"的绝对时刻 —— 那一步在 `50-refresh.js` 的
+		//    `dataArrayWindowOf` 里做（先把它换成"源站墙钟字段构成的本机 Date"，再调本函数，最后按
+		//    `sourceInstant` 平移）。**不要**在这里加 tz 参数：60-helpers 在本仓库的两个产物里位置不同
+		//    （core 里在模块顶层、15-env 在 createEngine 内），在这里引用 `sourceInstant` 会静默退化成
+		//    本机时区（2026-11-07 实测过：core 产物里数组 ts 全体偏 8 小时，而 lib 里是对的）。
 		function parseDisplayRange(str, now) {
 			if (typeof str !== "string") return null;
 			const parts = str.split(/~/).map((x) => x.trim());
@@ -1139,7 +1146,7 @@
 
 		// 条目 + 最近一轮抓取结果 + 当前时刻 ⇒ { events, skipped }（全是纯数据，可逐字断言）。
 		//   entries —— 与面板同形的条目（`getAllEntries` / `getVisibleEntries` 的输出：内置条目 + 自定义条目）
-		//   scraped —— lastData 解析出来的 { id: { banner, roles, bannerDates, event, eventDates, skipped… } }
+		//   scraped —— lastData 解析出来的 { id: { banner, roles, bannerDates, event, eventDates, gacha, events, skipped… } }
 		//   now     —— Date 或毫秒
 		// 规则（"在期"只有这一处判定）：
 		//   · 卡池侧标题 = 角色名（`cleanRoleNames`，与面板/轮播同口径）→ 没有角色名就退回卡池名；
@@ -1149,11 +1156,38 @@
 		//     "还没开始"同理不属于"当前在期"，写进日历只会多一堆未来事件）。
 		//   · `skipped`（条目两侧都没配来源 / 本轮被跳过）⇒ 跳过：它压根没有档期可写。
 		//     不导出，也**不**当成"已结束"（那是两件不同的事，skipped 另记原因）。
+		//
+		// ── P4（2026-11-07）：有数据层数组 ⇒ **每条目一个事件**（含兑换截止）──────────────
+		//   · 数组条目自带绝对 `startTs`/`endTs`（按条目 tz 解析源站墙钟）⇒ 不再二次换算，
+		//     直接把绝对时刻写进 VEVENT；"在期"判定仍是同一条（已经绝对，判定与 tz 无关）。
+		//   · 活动条目的 `phase`（明日方舟「奖励领取截止」）：它与"活动结束"是**两个独立 deadline**，
+		//     所以**额外**导出一个 VEVENT（只有当活动此刻在期、且兑换截止还在未来、且与主窗口不同时）。
+		//     这不算"导出未来活动"——它是同一个活动的第二阶段，用户要把它放进日历。
+		//   · 数组为空（老 lastData）⇒ 走回原来的记录字符串路径，行为逐字不变（老缓存不报错、不少事件）。
 		function icsEventsOf(entries, scraped, now) {
 			const at = icsNowMsOf(now);
 			const rec = scraped && typeof scraped === "object" ? scraped : {};
 			const events = [];
 			const skipped = [];
+			// `titled` = 这条来自**数据层数组**（P4）：同一侧可能有多条同起止、只有名称不同的事件
+			// （bandori 一期十来个活动结束时刻完全相同）⇒ UID 必须把标题也算进去，否则日历里会被当成
+			// 同一个事件去重/覆盖。老路径（记录字符串，每侧最多一条）仍用原来的 `id:侧:起-止` 形态
+			// （既有用例逐字钉着它）。
+			const push = (id, side, source, title, name, startTs, endTs, titled) => {
+				events.push({
+					// 稳定且唯一：同一份数据重复导入 ⇒ 同一个 UID，日历不会重复
+					uid: titled
+						? icsFallbackUidOf({ summary: name + " · " + title }, startTs, endTs)
+						: id + ":" + side + ":" + startTs + "-" + endTs + ICS_UID_DOMAIN,
+					summary: name + " · " + title,
+					side,
+					gameId: id,
+					// 来源站名（卡池看 source / 活动看 eventSource）→ DESCRIPTION 那句来源说明用
+					source,
+					startTs,
+					endTs
+				});
+			};
 			for (const g of Array.isArray(entries) ? entries : []) {
 				if (!g || typeof g !== "object") continue;
 				const id = String(g.id || "");
@@ -1167,6 +1201,34 @@
 				};
 				for (const side of ["gacha", "event"]) {
 					const isG = side === "gacha";
+					const site = isG ? val("source") : val("eventSource");
+					// ── P4：数组分支（每条目一个事件）──────────────────────────────────
+					const list = sc && (isG ? sc.gacha : sc.events);
+					if (Array.isArray(list) && list.length) {
+						for (const item of list) {
+							if (!item || typeof item !== "object") continue;
+							const title = String(item.show || item.title || "").trim();
+							if (!title) { skip(side, "no-title"); continue; }
+							// 绝对时刻必须是 number（null = 源站只写「长期 / 版本更新后」⇒ 硬凑一个时刻只会错）
+							const startTs = typeof item.startTs === "number" && Number.isFinite(item.startTs) ? item.startTs : null;
+							const endTs = typeof item.endTs === "number" && Number.isFinite(item.endTs) ? item.endTs : null;
+							if (startTs == null || endTs == null) { skip(side, item.raw ? "bad-window" : "no-dates"); continue; }
+							if (!(endTs > startTs)) { skip(side, "bad-window"); continue; }
+							if (at > endTs) { skip(side, "ended"); continue; }
+							if (at < startTs) { skip(side, "not-started"); continue; }
+							push(id, side, site, title, name, startTs, endTs, true);
+							// 兑换截止：同一活动、第二个窗口、仍在未来 ⇒ 也导出（不是"未来活动"，是同一活动的第二阶段）
+							const ph = !isG && item.phase && typeof item.phase === "object" ? item.phase : null;
+							const cs = ph && typeof ph.startTs === "number" && Number.isFinite(ph.startTs) ? ph.startTs : null;
+							const ce = ph && typeof ph.endTs === "number" && Number.isFinite(ph.endTs) ? ph.endTs : null;
+							if (ph && ph.kind === "claim" && cs != null && ce != null && ce > cs && ce > at && ce !== endTs) {
+								const cTitle = String(ph.show || "").trim() || (title + " 兑换截止");
+								push(id, side, site, cTitle, name, cs, ce, true);
+							}
+						}
+						continue;
+					}
+					// ── 老缓存：记录字符串（行为逐字不变）──────────────────────────────
 					const title = isG
 						? (cleanRoleNames(val("roles"), id) || val("banner"))
 						: val("event");
@@ -1177,17 +1239,7 @@
 					if (!w || !(w.endTs > w.startTs)) { skip(side, "bad-window"); continue; }
 					if (at > w.endTs) { skip(side, "ended"); continue; }
 					if (at < w.startTs) { skip(side, "not-started"); continue; }
-					events.push({
-						// 稳定且唯一：条目 id + 侧 + 起止时间戳（同一份数据重复导入 ⇒ 同一个 UID，日历不会重复）
-						uid: id + ":" + side + ":" + w.startTs + "-" + w.endTs + ICS_UID_DOMAIN,
-						summary: name + " · " + title,
-						side,
-						gameId: id,
-						// 来源站名（卡池看 source / 活动看 eventSource）→ DESCRIPTION 那句来源说明用
-						source: isG ? val("source") : val("eventSource"),
-						startTs: w.startTs,
-						endTs: w.endTs
-					});
+					push(id, side, site, title, name, w.startTs, w.endTs, false);
 				}
 			}
 			return { events, skipped };

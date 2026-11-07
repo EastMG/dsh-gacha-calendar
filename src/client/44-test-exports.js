@@ -471,6 +471,10 @@
 			//   **只读数据层数组**（P3c 起唯一路径）：没有数组（老缓存 / 没数据）⇒ null，不抛错。
 			//   P3c 删掉了 `fromArray` 字段与那条"解析悬停文本"的兼容分支。
 			scheduleCellOf,
+			// scheduleFlattenOf = 展平（P4，81-schedule-model.js）：每侧 **primary + rest 全部** →
+			//   `{ cells, cellViews, all }`。渲染层（82）的「近期」/ 24 小时计数 / 留白卡都读 `all`；
+			//   导出后可以离线钉住"同一游戏的多个在期条目各占一行"（见 cases-p4flat.mjs）。
+			scheduleFlattenOf,
 			// parseDisplayRange = 窗口文本 → { startTs, endTs }（24-parser-window.js）。
 			//   导出给回归的**改造前 oracle** 用：P3c 删掉了 81 的 `scheduleHoverOnes`（把悬停行补成
 			//   渲染条目），test/cases-core.mjs ⑤-5 要在测试里**逐字复刻**它才能继续比"数组派生 vs 老路"。

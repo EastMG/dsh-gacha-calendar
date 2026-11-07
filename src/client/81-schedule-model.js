@@ -104,6 +104,12 @@
 		// 方向判定走 60-helpers.js 的 dueKindOf；本函数只把落盘档期换成绝对窗口（dueWindowOf），
 		// 再组装候选交给 tickerPickOf 筛选排序。每条带自己的 gameIcon，整行连图标一起翻。
 		// 轮播不分游戏（逐游戏「提醒」属于到期送达），只按 tickerOn + tickerHours 筛。
+		//
+		// ── P4（2026-11-07）：有数据层数组 ⇒ **每条目一条轮播** ─────────────────────────
+		// 旧实现每侧只取记录的那一条（banner/event），同一期多口池 / 多条活动只轮播一条。
+		// 现在数组非空就逐条展开：`key` 用数组条目的 key（`<id>:gacha:i`，同一记录里唯一），
+		// `title` 用条目的 `show`（卡池 = 去修饰的角色名；兑换期 = 「… 兑换截止」），与表格同口径。
+		// 数组为空（老 lastData）⇒ 原样走记录字符串那条路（行为逐字不变）。
 		function tickerItemsOf(games, now, tickerHours) {
 			const hours = Number(tickerHours);
 			if (!(hours > 0) || !Array.isArray(games) || !now) return [];
@@ -112,6 +118,32 @@
 				if (!g) continue;
 				for (const side of ["gacha", "event"]) {
 					const isG = side === "gacha";
+					const list = isG ? g.gacha : g.events;
+					if (Array.isArray(list) && list.length) {
+						for (const item of list) {
+							if (!item || typeof item !== "object") continue;
+							// 两端都必须是 number：读不出起点/终点的条目（源站写「版本更新后」）本来也不该轮播
+							const startTs = typeof item.startTs === "number" && isFinite(item.startTs) ? item.startTs : null;
+							const endTs = typeof item.endTs === "number" && isFinite(item.endTs) ? item.endTs : null;
+							if (startTs == null || endTs == null || !(endTs > startTs)) continue;
+							const title = item.show || item.title || "";
+							if (!title) continue;
+							out.push({
+								key: item.key || (g.id + ":" + side),
+								id: g.id,
+								// 筛选键独立于 `id` 字段名，免得 tickerPickOf 的调用方还要知道 id 是哪一层
+								gameId: g.id,
+								side,
+								name: g.name || g.id,
+								title,
+								// 该游戏自己的图标（外链，可能为空 ⇒ 渲染层退化成"游戏名首字"小方块）
+								gameIcon: g.icon || "",
+								startTs,
+								endTs
+							});
+						}
+						continue;
+					}
 					const title = (isG ? g.banner : g.event) || "";
 					if (!title) continue;
 					const w = dueWindowOf(g, isG, now);
@@ -166,7 +198,10 @@
 			// 悬停文本：**原始文本** = 标题 + 源站原文（优先 Raw），与旧面板 gachaTitle/eventTitle 的写法一致
 			const datesRaw = (isG ? g.bannerDatesRaw : g.eventDatesRaw) || rawSrc;
 			const orig = title + (datesRaw ? "\n" + datesRaw : "");
-			return { key: g.id + ":" + side, g, side, isG, title, show, orig, raw, rawSrc, fail, state, startTs, endTs, remain };
+			// `tz` = 显示层渲染档期文本用的时区（P4）：记录来自哪个源站就按哪个墙钟显示 ——
+			// 与数组条目同口径（`scheduleItemOf` 并列条目取 `item.tz`），表格/探头/「近期」才不会
+			// 一半本机时区、一半源站墙钟。老调用（测试里手搓的 g）没有这个键 ⇒ null ⇒ 本机时区。
+			return { key: g.id + ":" + side, g, side, isG, title, show, orig, raw, rawSrc, fail, state, startTs, endTs, remain, tz: g.tz || null };
 		}
 
 		// ── 同格并列条目：**只**来自数据层数组（P3c，2026-11-07 删掉"解析悬停文本"那条老路）──
@@ -390,18 +425,26 @@
 			// 读不出绝对档期（源站只写「长期」/「版本更新后 ~ …」且条目里也没有 ts）⇒ 不硬凑。
 			// 这类条目**没有可算的状态**，探头里不列（数据层仍留着这条事实）。
 			if (item.startTs == null && item.endTs == null) return null;
-			const startTs = item.startTs == null ? 0 : item.startTs;
+			// P4（2026-11-07）：两端各自独立（`dataArrayWindowOf` 的"单边窗口"）——
+			//   · 起点未知（源站写「X.Y 版本更新后」）⇒ 视为**已开始**（不编一个开始时刻）；
+			//   · 终点未知 ⇒ 长期（与原 `endTs = 0` 的退化一致）。
+			const startTs = item.startTs == null ? null : item.startTs;
 			const endTs = item.endTs == null ? 0 : item.endTs;
-			const span = Math.max(1, endTs - startTs);
+			const span = startTs == null ? 0 : Math.max(1, endTs - startTs);
 			let state = "long", remain = 0;
-			if (span > SCHEDULE_LONG_MS) state = "long";
-			else if (now.getTime() < startTs) state = "wait";
-			else if (now.getTime() > endTs) state = "ended";
-			else { state = "live"; remain = Math.max(0, endTs - now.getTime()); }
+			if (endTs > 0) {
+				if (span > SCHEDULE_LONG_MS) state = "long";
+				else if (startTs != null && now.getTime() < startTs) state = "wait";
+				else if (now.getTime() > endTs) state = "ended";
+				else { state = "live"; remain = Math.max(0, endTs - now.getTime()); }
+			}
+			// `tz` = **显示时区**（P4，2026-11-07）：数组条目自带源站 tz，档期文本按它渲染成
+			// **源站墙钟**（玩家对着游戏内公告核对的那串时间），于是同一份数据在 UTC 与 +08 的机器上
+			// 渲染文本逐字相同。不传 / null ⇒ 本机时区（老调用与老缓存的行为一字未改）。
 			return {
 				key: item.key || (g.id + ":" + side), g, side, isG,
 				title, show: item.show || title, orig: title + (rawSrc ? "\n" + rawSrc : ""),
-				raw: rawSrc, rawSrc, fail: null, state, startTs, endTs, remain
+				raw: rawSrc, rawSrc, fail: null, state, startTs, endTs, remain, tz: item.tz || null
 			};
 		}
 
@@ -425,6 +468,38 @@
 			return { primary, rest };
 		}
 
+		// ── 展平（P4，2026-11-07）：每侧**全部**数组条目 → 一格的全部渲染条目 + 跨游戏的平铺清单 ──
+		// 为什么要有它：「近期」原来是"每侧只收外显那一条"，同一期多口池 / 多条活动在近期里只剩一条。
+		// 用户要求同一游戏的多个在期条目**各占一行**。所以这段把 `scheduleCellOf` 的结果摊平：
+		//   · `cells`     = 每格的数组本身（与探头共用同一份，原语义不变）
+		//   · `cellViews` = 每格的 `{ primary, rest }`（表格 / 探头仍各取所需）
+		//   · `all`       = 每格 **primary + rest 全部**（已结束的除外），保持数据层顺序
+		// 纯函数（不碰 React / DOM）⇒ 「近期」的条数、24 小时/7 天计数都能离线钉住；
+		// 渲染层（82）只负责排序 / 分页 / 画行，不再自己 push。
+		//
+		// ⚠️ `all` 里包含**已结束以外**的全部条目（含 `wait` / `long`）：7 天窗口由 `scheduleNear`
+		//    判，24 小时计数由调用方判 —— 这里**只**做展平，不替调用方筛时间窗。
+		function scheduleFlattenOf(games, now) {
+			const cells = new Map();
+			const cellViews = new Map();
+			const all = [];
+			for (const g of Array.isArray(games) ? games : []) {
+				if (!g) continue;
+				for (const side of ["gacha", "event"]) {
+					const key = g.id + ":" + side;
+					const view = scheduleCellOf(g, side, now);
+					if (!view) continue;                     // 这一侧没有任何数据 → 格子里写"该来源无数据"
+					cells.set(key, side === "gacha" ? g.gacha : g.events);
+					cellViews.set(key, view);
+					// ★ 展平：primary + rest **每一条**都进平铺清单（不再是"只收外显那一条"）
+					for (const x of [view.primary].concat(view.rest)) {
+						if (x && x.state !== "ended") all.push(x);
+					}
+				}
+			}
+			return { cells, cellViews, all };
+		}
+
 
 		// 倒计时只给"数字 + 单位"，标签（还剩 / 之后开始）由渲染层写 —— 同一个位置不会一会儿"还剩"
 		// 一会儿"距开始"。
@@ -446,33 +521,46 @@
 		}
 
 		const schedule2 = (n) => (n < 10 ? "0" + n : String(n));
-		function scheduleMD(ts) { const d = new Date(ts); return schedule2(d.getMonth() + 1) + "-" + schedule2(d.getDate()); }
-		function scheduleHHMM(ts) { const d = new Date(ts); return schedule2(d.getHours()) + ":" + schedule2(d.getMinutes()); }
+		// 墙钟字段：`tz` 传了就按**该时区**渲染（数组条目 = 源站墙钟），不传 = 本机时区。
+		// 唯一入口是 15-env.js 的 `sourceWallParts(ts, tz)`（源站墙钟与 IANA 名/固定偏移两套都认）。
+		// ⚠️ P4（2026-11-07）：档期文本**只由 (ts, tz) 决定**，不看运行机器时区 —— 这是
+		// 「同一份数据在 UTC 与 +08 下渲染文本逐字相同」的实现面，别再在这里写 `new Date(ts).getHours()`。
+		function scheduleWall(ts, tz) {
+			return sourceWallParts(ts, tz);
+		}
+		function scheduleMD(ts, tz) { const w = scheduleWall(ts, tz); return schedule2(w.mo) + "-" + schedule2(w.d); }
+		function scheduleHHMM(ts, tz) { const w = scheduleWall(ts, tz); return schedule2(w.h) + ":" + schedule2(w.mi); }
 		// 源站常常只给日期：没有具体时刻就不写时刻（写 00:00 是假精度）
-		function scheduleMDHM(ts) { const d = new Date(ts); return scheduleMD(ts) + (d.getHours() || d.getMinutes() ? " " + scheduleHHMM(ts) : ""); }
-		function scheduleSameDay(ts, now) {
-			const d = new Date(ts);
-			return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+		function scheduleMDHM(ts, tz) {
+			const w = scheduleWall(ts, tz);
+			return scheduleMD(ts, tz) + (w.h || w.mi ? " " + scheduleHHMM(ts, tz) : "");
+		}
+		function scheduleSameDay(ts, now, tz) {
+			const a = scheduleWall(ts, tz), b = scheduleWall(now.getTime(), tz);
+			return a.y === b.y && a.mo === b.mo && a.d === b.d;
 		}
 
 		// 「时间结论」只用**文字**表达紧迫度（颜色已让给"认游戏"）。parts 非空时渲染成"数字 + 小号单位"。
-		function scheduleWhen(it, now) {
-			if (it.state === "wait") return { text: scheduleMDHM(it.startTs) + " 开始", parts: null };
+		function scheduleWhen(it, now, tz) {
+			if (it.state === "wait") return { text: scheduleMDHM(it.startTs, tz) + " 开始", parts: null };
 			if (it.state === "long") return { text: "长期", parts: null };
 			if (it.state === "ended") return { text: "已结束", parts: null };
-			if (it.remain <= SCHEDULE_DUE_MS && scheduleSameDay(it.endTs, now)) {
-				return { text: "今天 " + scheduleHHMM(it.endTs) + " 到期", parts: null };
+			if (it.remain <= SCHEDULE_DUE_MS && scheduleSameDay(it.endTs, now, tz)) {
+				return { text: "今天 " + scheduleHHMM(it.endTs, tz) + " 到期", parts: null };
 			}
 			const parts = scheduleCountdown(it.remain);
 			return { text: "还剩 " + parts.map((p) => p[0] + p[1]).join(""), parts };
 		}
 
 		// 表格单元格的副标题 = 「档期 · 状态」（设计稿的 `.cm`）
-		function scheduleMeta(it, now) {
-			const w = scheduleWhen(it, now);
+		// P4：起点未知（单边窗口，源站写「X.Y 版本更新后」）时只写终点 —— 不编造开始时刻，
+		// 否则会显示一个 `01-01 00:00 → …` 的假起点。
+		function scheduleMeta(it, now, tz) {
+			const w = scheduleWhen(it, now, tz);
 			if (it.state === "long" && !it.endTs) return "无结束时间 · 长期";
-			if (it.state === "wait") return w.text + " · 至 " + scheduleMDHM(it.endTs);
-			return scheduleMDHM(it.startTs) + " → " + scheduleMDHM(it.endTs) + " · " + w.text;
+			if (typeof it.startTs !== "number") return "至 " + scheduleMDHM(it.endTs, tz) + " · " + w.text;
+			if (it.state === "wait") return w.text + " · 至 " + scheduleMDHM(it.endTs, tz);
+			return scheduleMDHM(it.startTs, tz) + " → " + scheduleMDHM(it.endTs, tz) + " · " + w.text;
 		}
 
 		// 日期格（表格里的「档期 · 状态」，.gacha-cal-sched-cm）的悬停。
@@ -627,11 +715,14 @@
 		function scheduleBars(it, days) {
 			const state = !it ? "none" : it.state === "ended" ? "done" : it.state;
 			const marker = !it ? "" : it.state === "ended" ? "done" : it.state === "long" ? "long" : "1";
+			// P4：起点未知（单边窗口）时把"这一格是否落在窗口内"退化成**只看终点那一天** ——
+			// 绝不能拿 null 去比（`null < to` 恒真 ⇒ 整根轴都被涂满，等于谎称它在期 14 天）。
+			const startOf = (x) => (typeof x.startTs === "number" ? x.startTs : x.endTs);
 			let onAxis = false;
 			for (let i = 0; i < days.length && !onAxis; i++) {
 				const from = days[i].getTime();
 				const to = i + 1 < days.length ? days[i + 1].getTime() : from + 864e5;
-				onAxis = !!it && it.endTs > from && it.startTs < to;
+				onAxis = !!it && it.endTs > from && startOf(it) < to;
 			}
 			const whole = !!it && (it.state === "long" || (it.state === "ended" && !onAxis));
 			const cells = [];
@@ -639,7 +730,7 @@
 				const from = days[i].getTime();
 				const to = i + 1 < days.length ? days[i + 1].getTime() : from + 864e5;
 				const attrs = { key: i };
-				if (it && (whole || (it.endTs > from && it.startTs < to))) attrs["data-f"] = marker;
+				if (it && (whole || (it.endTs > from && startOf(it) < to))) attrs["data-f"] = marker;
 				if (i === SCHEDULE_TODAY_INDEX) attrs["data-today"] = "true";
 				cells.push((0, react_jsx_runtime.jsx)("i", attrs));
 			}

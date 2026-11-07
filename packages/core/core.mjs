@@ -860,6 +860,13 @@
 
 		// 解析面板展示的时间段（mm-dd hh:mm ~ mm-dd hh:mm，无年份，如 "08-12 06:00 ~ 09-01 17:59"）
 		// → { startTs, endTs }；无法解析返回 null。年份按当前年补全，跨年（end 月份 < start 月份）自动 +1 年。
+		//
+		// ⚠️ 口径：本函数把文本当作**本机时区**的墙钟来读（`new Date(y, mo-1, d, h, mi)`）。
+		//    数据层数组条目的 ts 要的是"按**源站**墙钟读"的绝对时刻 —— 那一步在 `50-refresh.js` 的
+		//    `dataArrayWindowOf` 里做（先把它换成"源站墙钟字段构成的本机 Date"，再调本函数，最后按
+		//    `sourceInstant` 平移）。**不要**在这里加 tz 参数：60-helpers 在本仓库的两个产物里位置不同
+		//    （core 里在模块顶层、15-env 在 createEngine 内），在这里引用 `sourceInstant` 会静默退化成
+		//    本机时区（2026-11-07 实测过：core 产物里数组 ts 全体偏 8 小时，而 lib 里是对的）。
 		function parseDisplayRange(str, now) {
 			if (typeof str !== "string") return null;
 			const parts = str.split(/~/).map((x) => x.trim());
@@ -1360,7 +1367,7 @@
 
 		// 条目 + 最近一轮抓取结果 + 当前时刻 ⇒ { events, skipped }（全是纯数据，可逐字断言）。
 		//   entries —— 与面板同形的条目（`getAllEntries` / `getVisibleEntries` 的输出：内置条目 + 自定义条目）
-		//   scraped —— lastData 解析出来的 { id: { banner, roles, bannerDates, event, eventDates, skipped… } }
+		//   scraped —— lastData 解析出来的 { id: { banner, roles, bannerDates, event, eventDates, gacha, events, skipped… } }
 		//   now     —— Date 或毫秒
 		// 规则（"在期"只有这一处判定）：
 		//   · 卡池侧标题 = 角色名（`cleanRoleNames`，与面板/轮播同口径）→ 没有角色名就退回卡池名；
@@ -1370,11 +1377,38 @@
 		//     "还没开始"同理不属于"当前在期"，写进日历只会多一堆未来事件）。
 		//   · `skipped`（条目两侧都没配来源 / 本轮被跳过）⇒ 跳过：它压根没有档期可写。
 		//     不导出，也**不**当成"已结束"（那是两件不同的事，skipped 另记原因）。
+		//
+		// ── P4（2026-11-07）：有数据层数组 ⇒ **每条目一个事件**（含兑换截止）──────────────
+		//   · 数组条目自带绝对 `startTs`/`endTs`（按条目 tz 解析源站墙钟）⇒ 不再二次换算，
+		//     直接把绝对时刻写进 VEVENT；"在期"判定仍是同一条（已经绝对，判定与 tz 无关）。
+		//   · 活动条目的 `phase`（明日方舟「奖励领取截止」）：它与"活动结束"是**两个独立 deadline**，
+		//     所以**额外**导出一个 VEVENT（只有当活动此刻在期、且兑换截止还在未来、且与主窗口不同时）。
+		//     这不算"导出未来活动"——它是同一个活动的第二阶段，用户要把它放进日历。
+		//   · 数组为空（老 lastData）⇒ 走回原来的记录字符串路径，行为逐字不变（老缓存不报错、不少事件）。
 		function icsEventsOf(entries, scraped, now) {
 			const at = icsNowMsOf(now);
 			const rec = scraped && typeof scraped === "object" ? scraped : {};
 			const events = [];
 			const skipped = [];
+			// `titled` = 这条来自**数据层数组**（P4）：同一侧可能有多条同起止、只有名称不同的事件
+			// （bandori 一期十来个活动结束时刻完全相同）⇒ UID 必须把标题也算进去，否则日历里会被当成
+			// 同一个事件去重/覆盖。老路径（记录字符串，每侧最多一条）仍用原来的 `id:侧:起-止` 形态
+			// （既有用例逐字钉着它）。
+			const push = (id, side, source, title, name, startTs, endTs, titled) => {
+				events.push({
+					// 稳定且唯一：同一份数据重复导入 ⇒ 同一个 UID，日历不会重复
+					uid: titled
+						? icsFallbackUidOf({ summary: name + " · " + title }, startTs, endTs)
+						: id + ":" + side + ":" + startTs + "-" + endTs + ICS_UID_DOMAIN,
+					summary: name + " · " + title,
+					side,
+					gameId: id,
+					// 来源站名（卡池看 source / 活动看 eventSource）→ DESCRIPTION 那句来源说明用
+					source,
+					startTs,
+					endTs
+				});
+			};
 			for (const g of Array.isArray(entries) ? entries : []) {
 				if (!g || typeof g !== "object") continue;
 				const id = String(g.id || "");
@@ -1388,6 +1422,34 @@
 				};
 				for (const side of ["gacha", "event"]) {
 					const isG = side === "gacha";
+					const site = isG ? val("source") : val("eventSource");
+					// ── P4：数组分支（每条目一个事件）──────────────────────────────────
+					const list = sc && (isG ? sc.gacha : sc.events);
+					if (Array.isArray(list) && list.length) {
+						for (const item of list) {
+							if (!item || typeof item !== "object") continue;
+							const title = String(item.show || item.title || "").trim();
+							if (!title) { skip(side, "no-title"); continue; }
+							// 绝对时刻必须是 number（null = 源站只写「长期 / 版本更新后」⇒ 硬凑一个时刻只会错）
+							const startTs = typeof item.startTs === "number" && Number.isFinite(item.startTs) ? item.startTs : null;
+							const endTs = typeof item.endTs === "number" && Number.isFinite(item.endTs) ? item.endTs : null;
+							if (startTs == null || endTs == null) { skip(side, item.raw ? "bad-window" : "no-dates"); continue; }
+							if (!(endTs > startTs)) { skip(side, "bad-window"); continue; }
+							if (at > endTs) { skip(side, "ended"); continue; }
+							if (at < startTs) { skip(side, "not-started"); continue; }
+							push(id, side, site, title, name, startTs, endTs, true);
+							// 兑换截止：同一活动、第二个窗口、仍在未来 ⇒ 也导出（不是"未来活动"，是同一活动的第二阶段）
+							const ph = !isG && item.phase && typeof item.phase === "object" ? item.phase : null;
+							const cs = ph && typeof ph.startTs === "number" && Number.isFinite(ph.startTs) ? ph.startTs : null;
+							const ce = ph && typeof ph.endTs === "number" && Number.isFinite(ph.endTs) ? ph.endTs : null;
+							if (ph && ph.kind === "claim" && cs != null && ce != null && ce > cs && ce > at && ce !== endTs) {
+								const cTitle = String(ph.show || "").trim() || (title + " 兑换截止");
+								push(id, side, site, cTitle, name, cs, ce, true);
+							}
+						}
+						continue;
+					}
+					// ── 老缓存：记录字符串（行为逐字不变）──────────────────────────────
 					const title = isG
 						? (cleanRoleNames(val("roles"), id) || val("banner"))
 						: val("event");
@@ -1398,17 +1460,7 @@
 					if (!w || !(w.endTs > w.startTs)) { skip(side, "bad-window"); continue; }
 					if (at > w.endTs) { skip(side, "ended"); continue; }
 					if (at < w.startTs) { skip(side, "not-started"); continue; }
-					events.push({
-						// 稳定且唯一：条目 id + 侧 + 起止时间戳（同一份数据重复导入 ⇒ 同一个 UID，日历不会重复）
-						uid: id + ":" + side + ":" + w.startTs + "-" + w.endTs + ICS_UID_DOMAIN,
-						summary: name + " · " + title,
-						side,
-						gameId: id,
-						// 来源站名（卡池看 source / 活动看 eventSource）→ DESCRIPTION 那句来源说明用
-						source: isG ? val("source") : val("eventSource"),
-						startTs: w.startTs,
-						endTs: w.endTs
-					});
+					push(id, side, site, title, name, w.startTs, w.endTs, false);
 				}
 			}
 			return { events, skipped };
@@ -1914,67 +1966,103 @@
 			return { startTs, endTs };
 		}
 
-		// lastData 里的 games（{ id: { banner, bannerDates, event, eventDates, eventClaimDates, … } }）→ 提醒条目。
-		// 每个游戏侧最多两条：结束（T=endTs）/ 开始（T=startTs）；已经过去的方向直接不派生。
-		// **活动侧例外**：`eventClaimDates`（明日方舟的「奖励领取截止」，与「活动结束」是两个独立 deadline）
-		// 存在且读得出窗口时，再**额外**派生一条 end 条目 —— 于是「活动结束」和「兑换截止」各按自己的 T
-		// 走 72/24/6/2 档位，互不吞掉；两个 T 相同时只留主条目（同一时刻不弹两条）。
+		// lastData 里的 games（{ id: { banner, bannerDates, event, eventDates, eventClaimDates, gacha?, events?, … } }）
+		// → 提醒条目。
+		//
+		// ── P4（2026-11-07）：有数据层数组 ⇒ **逐条派生** ───────────────────────────────
+		// 旧实现每侧只看记录里的那一个窗口（bannerDates / eventDates）⇒ 同一期多口池 / 多条活动
+		// 只有一条会响。现在：
+		//   · 数组非空 ⇒ 每一条**都**派生自己的 end / start（`T` = 条目自己的绝对 ts，`title` = 条目名），
+		//     key 仍是 `游戏|侧|方向|T`（`REMIND_KEY_RE` 的口径不变）⇒ 多个 deadline 各走各的去重状态；
+		//   · 活动条目的 `phase`（奖励领取截止）再**额外**派生一条 `event-claim` 的 end（与「活动结束」
+		//     那条各按自己的 T 走 72/24/6/2 档位）；
+		//   · 数组为空（老 lastData）⇒ 走原来的记录字符串路径，行为逐字不变。
+		// ⚠️ 同一个 `T` 的多条（比如同一期 16 个活动的结束时间完全相同）在末尾**按 key 去重**成一条：
+		//    既有口径就是"同一时刻不弹两条"，逐条派生不该把这一点改掉（否则一次弹十几个 toast）。
+		// ⚠️ 数组条目两端必须是 number（源站写「版本更新后」的那种读不出窗口 ⇒ 不派生，与旧口径一致）。
 		// extraTzById 用来覆盖时区（自定义条目自己填的 tz 不在 REMIND_TZ_BY_ID 里）。
 		function remindItemsOf(games, now, extraTzById) {
 			const nowTs = Number(now);
 			const out = [];
 			if (!Number.isFinite(nowTs) || !games || typeof games !== "object") return out;
 			const extra = extraTzById && typeof extraTzById === "object" ? extraTzById : {};
+			const numOf = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 			for (const [gameId, game] of Object.entries(games)) {
 				if (!game || typeof game !== "object") continue;
 				const gameName = String(game.name || gameId);
 				const tz = extra[gameId] || REMIND_TZ_BY_ID[gameId] || null;
 				for (const s of REMIND_SIDES) {
+					// 派生一条 end / start（唯一的两处 key 拼法都在这里，主条目与兑换期共用）
+					const pushEnd = (T, startTs, endTs, title, keySide, claim) => {
+						if (!(T > nowTs)) return;
+						const base = { gameId, gameName, side: s.side, title, startTs, endTs, kind: "end", T };
+						out.push(claim
+							? { ...base, sideLabel: REMIND_EVENT_CLAIM_LABEL, claim: true, key: gameId + "|" + keySide + "|end|" + T }
+							: { ...base, sideLabel: s.label, key: gameId + "|" + keySide + "|end|" + T });
+					};
+					const pushStart = (T, startTs, endTs, title) => {
+						if (!(T > nowTs)) return;
+						out.push({ gameId, gameName, side: s.side, sideLabel: s.label, title, startTs, endTs, kind: "start", T, key: gameId + "|" + s.side + "|start|" + T });
+					};
+					// 记录级的兑换窗口（有就兜底：数组里万一没带 phase 也不丢第二个 deadline；
+					// 同 T 的键会在末尾去重，所以不会与 phase 那条重复弹）
+					const claimRaw = s.side === "event" ? String(game.eventClaimDates || "").trim() : "";
+					const claimTitle = String(game.event || "").trim() || gameName;
+					// `sameT` = 已经派生的那些 end 的时刻（主窗口 / 数组条目的 end）：
+					// 兑换截止与它们相同时不另派生（"同一时刻不弹两条"的既有口径）。
+					const pushClaimFromRecord = (sameT) => {
+						if (!claimRaw) return;
+						const w = remindWindowOf(claimRaw, nowTs, tz);
+						if (!w) return;
+						if (Array.isArray(sameT) && sameT.indexOf(w.endTs) >= 0) return;
+						pushEnd(w.endTs, w.startTs, w.endTs, claimTitle, REMIND_EVENT_CLAIM_SIDE, true);
+					};
+
+					// ── ① 数组分支（P4）：每条目各派生一条 ─────────────────────────────
+					const list = s.side === "gacha" ? game.gacha : game.events;
+					const items = Array.isArray(list) ? list.filter((x) => x && typeof x === "object") : [];
+					if (items.length) {
+						const itemEnds = [];
+						for (const item of items) {
+							const startTs = numOf(item.startTs);
+							const endTs = numOf(item.endTs);
+							if (startTs == null || endTs == null) continue;   // 读不出窗口 ⇒ 不硬凑
+							const title = String(item.title || item.show || "").trim() || gameName;
+							itemEnds.push(endTs);
+							pushEnd(endTs, startTs, endTs, title, s.side, false);
+							pushStart(startTs, startTs, endTs, title);
+							if (s.side !== "event") continue;
+							const ph = item.phase && typeof item.phase === "object" ? item.phase : null;
+							if (!ph || ph.kind !== "claim") continue;
+							const cs = numOf(ph.startTs), ce = numOf(ph.endTs);
+							if (cs == null || ce == null) continue;
+							// T 相同（刷新时已进入兑换期，eventDates 本身就是兑换区间）⇒ 主条目已经代表
+							// 这个时刻，不再加一条（避免同一时刻弹两条）——与旧实现的判据一致。
+							if (ce === endTs) continue;
+							pushEnd(ce, cs, ce, title, REMIND_EVENT_CLAIM_SIDE, true);
+						}
+						pushClaimFromRecord(itemEnds);
+						continue;
+					}
+
+					// ── ② 记录字符串分支（老 lastData / 没切直出的来源）：行为逐字不变 ──────
 					const raw = String(game[s.dateKey] || "").trim();
-					if (!raw) continue;
+					if (!raw) continue;   // 与旧实现一致：这一侧连档期文本都没有 ⇒ 不派生（含兑换窗口）
 					const win = remindWindowOf(raw, nowTs, tz);
 					if (!win) continue;
-					const base = {
-						gameId,
-						gameName,
-						side: s.side,
-						sideLabel: s.label,
-						title: String(game[s.titleKey] || "").trim() || gameName,
-						startTs: win.startTs,
-						endTs: win.endTs
-					};
-					if (win.endTs > nowTs) {
-						out.push({ ...base, kind: "end", T: win.endTs, key: gameId + "|" + s.side + "|end|" + win.endTs });
-					}
-					if (win.startTs > nowTs) {
-						out.push({ ...base, kind: "start", T: win.startTs, key: gameId + "|" + s.side + "|start|" + win.startTs });
-					}
-					if (s.side !== "event") continue;
-					// 奖励领取截止：只有**真正有兑换期**的游戏才带这个字段（其它来源根本没有 ⇒ 空串/缺失）。
-					const claimRaw = String(game.eventClaimDates || "").trim();
-					if (!claimRaw) continue;
-					const claimWin = remindWindowOf(claimRaw, nowTs, tz);
-					// 读不出（源站文本变了 / 半截）⇒ 不派生，绝不用主条目的窗口去猜。
-					// T 相同（刷新时已进入兑换期，eventDates 本身就是兑换区间）⇒ 主条目已经代表这个时刻，
-					// 不再加一条（避免同一时刻弹两条）。
-					if (!claimWin || claimWin.endTs <= nowTs || claimWin.endTs === win.endTs) continue;
-					out.push({
-						gameId,
-						gameName,
-						side: s.side,
-						sideLabel: REMIND_EVENT_CLAIM_LABEL,
-						title: base.title,
-						kind: "end",
-						T: claimWin.endTs,
-						startTs: claimWin.startTs,
-						endTs: claimWin.endTs,
-						// 文案侧据此把正文写成「奖励领取截止」（见 remindToastOf），不改其它侧的文案。
-						claim: true,
-						key: gameId + "|" + REMIND_EVENT_CLAIM_SIDE + "|end|" + claimWin.endTs
-					});
+					const title = String(game[s.titleKey] || "").trim() || gameName;
+					pushEnd(win.endTs, win.startTs, win.endTs, title, s.side, false);
+					pushStart(win.startTs, win.startTs, win.endTs, title);
+					if (s.side === "event") pushClaimFromRecord([win.endTs]);
 				}
 			}
-			return out;
+			// 按 key 去重（同一个 deadline 的多条只留第一条）：数组里多条同 T / phase 与记录级兜底同 T。
+			const seen = new Set();
+			return out.filter((it) => {
+				if (seen.has(it.key)) return false;
+				seen.add(it.key);
+				return true;
+			});
 		}
 
 		// 一轮判定。**纯函数**：同样的 (now, items, config, state) ⇒ 同样的返回值；入参一概不改。
@@ -3912,7 +4000,8 @@ export function createEngine(env) {
 			}));
 			const bannerHover = hoverTextFromItems(hoverItems, "gacha", tz);
 			// 主条：外显沿用 selectCurrent 的 banner/roles（显示名 = cleanRoleNames，与合成路径同一句）
-			const w = dataArrayWindowOf(cur.bannerDates, now);
+			// `tz` 必传（P4）：数组条目的 ts 是**绝对时刻**，按条目 tz 解析源站墙钟。
+			const w = dataArrayWindowOf(cur.bannerDates, now, tz);
 			const main = {
 				title: cur.banner,
 				show: cleanRoleNames(cur.roles, opts.id) || cur.banner,
@@ -5566,7 +5655,7 @@ EVENT_FETCHERS["zzz"] = {
 			// 角色是多池合并的，若外显挂"但愿长圆如此夜"，卡片就成了"标题只说一个池、角色却是三个池的合成"。
 			// 与用户 2026-09-30 定的统一口径一致（国服显示 `限时限定招募`、异环显示 `限定棋盘`）。
 			// 具体池名在悬停里逐条列出，不丢信息。
-			const w = dataArrayWindowOf(raw, now);
+			const w = dataArrayWindowOf(raw, now, tz);
 			const main = {
 				title: first.type,
 				show: cleanRoleNames(roles, "wuwa") || first.type,
@@ -5620,7 +5709,7 @@ EVENT_FETCHERS["zzz"] = {
 			const dates = fmtWindow(primary.startTs, primary.endTs, tz);
 			// ── P3（2026-11-07）：条目事实 → 悬停 + `events` 数组（顺序 = sortEventItems）──
 			const hoverItems = sorted.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: "" }));
-			const w = dataArrayWindowOf(dates, now);
+			const w = dataArrayWindowOf(dates, now, tz);
 			const main = {
 				title: primary.name,
 				show: primary.name,
@@ -6167,7 +6256,7 @@ EVENT_FETCHERS["wuwa"] = {
 				endTs: x.endTs,
 				raw: x.raw
 			}));
-			const w = dataArrayWindowOf(p.bannerDates, now);
+			const w = dataArrayWindowOf(p.bannerDates, now, tz);
 			const main = {
 				title: p.banner,
 				show: cleanRoleNames(p.roles, "arknights") || p.banner,
@@ -6692,7 +6781,7 @@ EVENT_FETCHERS["wuwa"] = {
 			// 提示行锚点**同一串**；数组的并列条目也从这一份去生成（不再从悬停文本反解）。
 			const hoverItems = hoverActive.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
 			const eventHover = hoverTextFromItems(hoverItems, "event", tz);
-			const w = dataArrayWindowOf(windowText, now);
+			const w = dataArrayWindowOf(windowText, now, tz);
 			const main = {
 				title: eventLabel,
 				show: eventShow || eventLabel,
@@ -6704,7 +6793,7 @@ EVENT_FETCHERS["wuwa"] = {
 			};
 			// 第二阶段（兑换截止）：独立窗口，**不是**第二个活动条目（数组里放在 `phase`）
 			if (claimDates) {
-				const cw = dataArrayWindowOf(claimDates, now);
+				const cw = dataArrayWindowOf(claimDates, now, tz);
 				main.phase = {
 					kind: "claim",
 					startTs: cw.startTs,
@@ -7265,7 +7354,7 @@ EVENT_FETCHERS["wuwa"] = {
 			// ⚠️ 不写 `cat`：改造前的合成数组里没有这条事实（SMW 的「类型」只参与外显挑选），
 			//    本批加进去会让数组与显示层规则同时变 —— 那是 P3b 的事。
 			const hoverItems = ordered.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: "" }));
-			const w = dataArrayWindowOf(win, now);
+			const w = dataArrayWindowOf(win, now, tz);
 			const main = {
 				title: best.name,
 				show: best.name,          // 活动侧没有只为显示的事项名（`eventShow`）= 活动名本身
@@ -13709,7 +13798,7 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 			data.gacha = dataArrayProducedGachaOf(data, gachaItems, { tz }, now);
 			data.gachaHoverItems = gachaItems;
 			if (data.event) {
-				const evItems = [{ title: data.event, startTs: dataArrayWindowOf(data.eventDates, now).startTs, endTs: dataArrayWindowOf(data.eventDates, now).endTs, raw: data.eventDatesRaw }];
+				const evItems = [{ title: data.event, startTs: dataArrayWindowOf(data.eventDates, now, tz).startTs, endTs: dataArrayWindowOf(data.eventDates, now, tz).endTs, raw: data.eventDatesRaw }];
 				data.events = dataArrayProducedEventsOf(data, evItems, { tz }, now);
 				data.eventHoverItems = evItems;
 			}
@@ -16139,11 +16228,12 @@ EVENT_FETCHERS["r1999"] = {
 		//              cat?, tags?, preview?, phase?: { kind:"claim", startTs, endTs, show } }]
 		//   · title = 源站原文名（卡池名 / 活动名）；show = **显示名**（外显时真正显示的那串）
 		//   · key   = `<gameId>:gacha:<index>` / `<gameId>:event:<index>`，同一次归一里唯一
-		//   · startTs/endTs = **本机时刻**（`parseDisplayRange` 按运行环境时区解释源站墙钟）。
-		//     ⚠️ 这是 P1 的**临时口径**（任务书明说可以先这样）：它没做"源站 tz → 本机"的换算，
-		//     所以在非 +08 的机器上会与显示层换算后的小时不符。P2 会换成**结构化来源**
-		//     （解析器直出 startTs/endTs），届时两端都按绝对时刻，这个偏差自动消失。
-		//   · tz = 条目声明的源站时区（让下游能自己判断"这串时间按哪个墙钟读"）
+		//   · startTs/endTs = **绝对时刻**（epoch 毫秒）。
+		//     ⚠️ 口径沿革（P4，2026-11-07）：P1~P3 是"源站墙钟按**本机**时区解释"的临时口径
+		//     （同一份数据在 UTC 机器上比 +08 少 8 小时）；现在 `dataArrayWindowOf(文本, now, tz)`
+		//     按**条目自己的 tz** 解析源站墙钟 → 两端都是同一个绝对时刻。所以数组 ts 逐字节
+		//     跨时区相同，显示层也据此按条目 tz 渲染源站墙钟文本（见 81 的 scheduleMeta）。
+		//   · tz = 条目声明的源站时区（既是"这串时间按哪个墙钟读"，也是显示层渲染的时区）
 		//   · raw = 源站原文（`bannerDatesRaw` / `eventDatesRaw`；并列池那条 = 悬停里那行档期）
 		//   · source = **这条是谁**（P2 收尾，2026-11-07）：`"primary"` = 引擎给的外显那条；
 		//     `"hover"` = 从悬停文本解析出来的并列条目。两侧都要在数组里（旧探头一直这么显示），
@@ -16175,10 +16265,75 @@ EVENT_FETCHERS["r1999"] = {
 		}
 		// 一段档期文本 → { startTs, endTs }；读不出（"长期"/"版本更新后 ~ …"/空）⇒ 两端 null，不硬凑
 		// `now` 两种都收：数据层合成器手里是 `Date`，解析器（P3 直出数组）手里是毫秒数。
-		function dataArrayWindowOf(text, now) {
+		//
+		// ── 时间口径（P4，2026-11-07）：数组条目的 ts = **绝对时刻** ─────────────────────
+		// `tz` = 条目声明的**源站墙钟**时区。同一段 `MM-DD HH:MM` 在 UTC 与 +08 的机器上必须读出
+		// **同一个绝对毫秒**（P1~P3 的"本机墙钟"口径已废，见下面的实现说明）。做法只有三步、全是既有工具：
+		//   ① 把 `now` 换成"**源站墙钟字段**构成的本机 Date"（`sourceWallParts`）——
+		//      于是 `parseDisplayRange` 补年份 / 判跨年时用的是**源站那一年**（跨年那半天不会错位）；
+		//   ② 让 `parseDisplayRange` 照常把文本当本机墙钟解释（它只会这一种），得到"墙钟时刻"；
+		//   ③ 把每个时刻按 `sourceInstant(墙钟字段, tz)` 平移成真正的绝对时刻 ——
+		//      与解析器造 ts、ics 导出用的是**同一个函数**，换算只有一处实现。
+		// ⚠️ 为什么不在 `parseDisplayRange` 里加 tz 参数：60-helpers 在 core 产物里位于**模块顶层**，
+		//    而 15-env 的 `sourceInstant` 在 `createEngine` 内部 ⇒ 在 core 里那句 `typeof sourceInstant`
+		//    会静默退化成本机时区（2026-11-07 实测：core 产物的数组 ts 全体偏 8 小时、lib 却是对的，
+		//    最后 P3 等价性在 +08 机器上红了一大片）。本函数在 createEngine 内 ⇒ 这里引用才是安全的。
+		// 没有 tz（自定义条目 / 老调用）⇒ 沿用本机墙钟（与改造前一致，不猜时区）。
+		function dataArrayWindowOf(text, now, tz) {
 			const at = now instanceof Date ? now : new Date(now);
-			const r = parseDisplayRange(dataArrayTextOf(text), at);
-			return r ? { startTs: dataArrayTsOf(r.startTs), endTs: dataArrayTsOf(r.endTs) } : { startTs: null, endTs: null };
+			const textOf = dataArrayTextOf(text);
+			const srcTz = tz == null || tz === "" ? "" : String(tz).trim();
+			// ① 源站墙钟字段 → 一个"本机字段恰好等于源站墙钟"的 Date（只用于补年份 / 判跨年）
+			const wp = srcTz ? sourceWallParts(at.getTime(), srcTz) : null;
+			const atSrc = wp ? new Date(wp.y, wp.mo - 1, wp.d, wp.h, wp.mi) : at;
+			// ② 两种文本形态：`MM-DD HH:MM ~ MM-DD HH:MM`（年份给 `parseDisplayRange` 按 atSrc 补）
+			//    与 `YYYY-MM-DD HH:MM ~ YYYY-MM-DD HH:MM`（跨年窗口的原文，`fmtWindow` 的另一种输出）。
+			//    后者不带进 `parseDisplayRange` 是因为它只认两位月份（ics 那边也刻意另写了一份）；
+			//    这里按**墙钟字段**直接构造，再把两端按同一个 toSrc 平移。
+			const parts = textOf.split("~").map((s) => s.trim());
+			const parseYmd = (s) => {
+				const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?$/);
+				if (!m) return null;
+				const mo = Number(m[2]), d = Number(m[3]);
+				if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+				return { y: Number(m[1]), mo, d, h: m[4] ? Number(m[4]) : 0, mi: m[5] ? Number(m[5]) : 0 };
+			};
+			let r = null;
+			if (parts.length >= 2) {
+				const a = parseYmd(parts[0]), b = parseYmd(parts[1]);
+				if (a && b) {
+					r = {
+						startTs: new Date(a.y, a.mo - 1, a.d, a.h, a.mi).getTime(),
+						endTs: new Date(b.y, b.mo - 1, b.d, b.h, b.mi).getTime()
+					};
+				}
+			}
+			// ③ 其余形态照常交给 `parseDisplayRange`（年份 / 跨年规则只有那一处实现）
+			if (!r) r = parseDisplayRange(textOf, atSrc);
+			// ④ **单边窗口**（P4，2026-11-07）：星铁那类「4.6版本更新后 ~ 11-10 15:00」——
+			//    起点读不出、终点是明确日期。以前整条两端都判 null ⇒ 数组里留着这条事实、面板却
+			//    永远看不到它（"同一游戏的多个在期条目各占一行"就少一条）。现在两端**各自独立解析**：
+			//    唯一可解析的那一端照常给绝对时刻，另一端 null（调用方按"起点未知 = 已开始 / 终点未知 = 长期"
+			//    退化，绝不编一个开始时刻）。年份仍按 atSrc 那一年补（单边跨年的极端情形与两端都写年份的
+			//    形态另有分支，见上面 ②）。
+			if (!r && parts.length >= 2) {
+				const selfOf = (s) => {
+					if (!s) return null;
+					const one = parseDisplayRange(s + " ~ " + s, atSrc);
+					return one ? one.startTs : null;
+				};
+				const sa = selfOf(parts[0]), sb = selfOf(parts[1]);
+				if (sa != null || sb != null) r = { startTs: sa, endTs: sb };
+			}
+			if (!r) return { startTs: null, endTs: null };
+			if (!srcTz) return { startTs: dataArrayTsOf(r.startTs), endTs: dataArrayTsOf(r.endTs) };
+			// ⑤ 墙钟时刻 → 源站时区下的绝对时刻（`sourceInstant` 对 IANA 名做两遍法，跨 DST 也对）
+			const toSrc = (ts) => {
+				if (ts == null) return null;
+				const d = new Date(ts);
+				return sourceInstant(d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes(), srcTz);
+			};
+			return { startTs: dataArrayTsOf(toSrc(r.startTs)), endTs: dataArrayTsOf(toSrc(r.endTs)) };
 		}
 		// 自然顺序：结束时间升序 → 起点升序 → 无结束时间的排最后（与 buildPoolHover 同一口径）
 		function dataArraySortOf(a, b) {
@@ -16217,9 +16372,9 @@ EVENT_FETCHERS["r1999"] = {
 		//  `dataArrayHoverPoolsOf` 已在 P3c 删除；这里的 `win` 分支只为回归 oracle 保留，见 test/cases-p3.mjs）。
 		// `opts.tz`：条目没有现成的窗口文本时，按**源站时区**渲染出同一串
 		// （悬停里那一行就是它 —— 两边必须同一份，否则数组里的 raw/ts 与悬停对不上）。
-		// 时间戳口径**沿用 P1**：把窗口文本按本机时区读回（与改造前的合成结果逐字相同）。
-		// ⚠️ 本批**不**改成绝对时刻：显示层探头的档期文本是"本机时刻按本机时区渲染"，
-		//    换成绝对时刻会让 34 个侧的等价性在 `TZ=UTC` 下变红（README_Dev「已知不等价①」留 P4）。
+		// 时间戳口径（P4，2026-11-07）：窗口文本按**条目 tz** 读成**绝对时刻**（`dataArrayWindowOf`），
+		// 于是"同一段 `MM-DD HH:MM`"在 UTC 与 +08 的机器上得到同一个 ts；显示层再按条目 tz 渲染回
+		// 源站墙钟 —— 渲染文本因此跨时区逐字相同（P1 的"本机时刻"口径已废）。
 		function dataArrayExtrasFromEntriesOf(entries, main, now, opts) {
 			const o = opts || {};
 			const isEvent = o.kind === "event";
@@ -16254,7 +16409,7 @@ EVENT_FETCHERS["r1999"] = {
 					}
 				}
 				const win = dataArrayTextOf(x.win) || hoverWindowTextOf(x, o.tz);
-				const w = dataArrayWindowOf(scheduleNoYear(win), now);
+				const w = dataArrayWindowOf(scheduleNoYear(win), now, o.tz);
 				const identity = dataArrayIdentityOf(title, w.startTs, w.endTs);
 				if (seen.has(identity)) continue;
 				seen.add(identity);
@@ -16298,7 +16453,7 @@ EVENT_FETCHERS["r1999"] = {
 			const banner = dataArrayTextOf(rec && rec.banner);
 			if (!banner) return null;   // 这一侧没有卡池数据（未公布 / 失败）⇒ 空数组，不硬造
 			const roles = dataArrayTextOf(rec.roles);
-			const w = dataArrayWindowOf(rec.bannerDates, now);
+			const w = dataArrayWindowOf(rec.bannerDates, now, tz);
 			return {
 				title: banner,
 				// 外显口径与 81 的 scheduleNormalize 一致：有角色名就显示**去修饰**的角色名，否则池名
@@ -16316,7 +16471,7 @@ EVENT_FETCHERS["r1999"] = {
 			const event = dataArrayTextOf(rec && rec.event);
 			if (!event) return null;
 			const eventShow = dataArrayTextOf(rec.eventShow);
-			const w = dataArrayWindowOf(rec.eventDates, now);
+			const w = dataArrayWindowOf(rec.eventDates, now, tz);
 			const main = {
 				title: event,
 				// 与 scheduleNormalize 一致：活动侧优先用**只给显示**的 `eventShow`，没有就退回活动名
@@ -16330,7 +16485,7 @@ EVENT_FETCHERS["r1999"] = {
 			// 第二阶段（奖励领取/兑换截止）：独立窗口，不是第二个活动条目
 			const claim = dataArrayTextOf(rec.eventClaimDates);
 			if (claim) {
-				const cw = dataArrayWindowOf(claim, now);
+				const cw = dataArrayWindowOf(claim, now, tz);
 				main.phase = {
 					kind: "claim",
 					startTs: cw.startTs,
@@ -16405,9 +16560,10 @@ EVENT_FETCHERS["r1999"] = {
 		//   `{ title, show, roles?, startTs, endTs, tz, raw, source, cat?, tags?, preview?, phase? }`
 		// 这里做**唯一一次**归一（复用持久化白名单那份 `dataArray*ItemOf`，键顺序因此天然与
 		// getCached 往返一致），并按与合成路径**同一判据**补 `preview` 事实（标题命中 予告/coming soon）。
-		// ⚠️ 时间戳口径**沿用 P1**（本机时刻，由窗口文本回算）：解析器与这里都**不**改成绝对时刻 ——
-		//    显示层探头按"本机时刻"渲染档期文本，换成绝对时刻会让 34 个侧的等价性在 UTC 下变红。
-		//    改成绝对时刻要连显示层的渲染口径一起改（README_Dev「已知不等价①」，留 P4）。
+		// ⚠️ 时间戳口径（P4，2026-11-07）：解析器给的是**绝对时刻**，这里原样归一、**不重算**。
+		//    从窗口文本反算 ts 的那几个入口（`dataArray*MainOf` / `dataArrayExtrasFromEntriesOf`）
+		//    一律经 `dataArrayWindowOf(文本, now, tz)` 按条目 tz 解析源站墙钟 ⇒ 同一份数据在
+		//    UTC 与 +08 的机器上得到同一个 ts（P1 的"本机时刻"临时口径已废）。
 		function dataArrayProducedItemOf(raw, kind) {
 			if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
 			const src = Object.assign({}, raw);

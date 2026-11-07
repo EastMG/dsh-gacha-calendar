@@ -264,7 +264,7 @@
 			data.gacha = dataArrayProducedGachaOf(data, gachaItems, { tz }, now);
 			data.gachaHoverItems = gachaItems;
 			if (data.event) {
-				const evItems = [{ title: data.event, startTs: dataArrayWindowOf(data.eventDates, now).startTs, endTs: dataArrayWindowOf(data.eventDates, now).endTs, raw: data.eventDatesRaw }];
+				const evItems = [{ title: data.event, startTs: dataArrayWindowOf(data.eventDates, now, tz).startTs, endTs: dataArrayWindowOf(data.eventDates, now, tz).endTs, raw: data.eventDatesRaw }];
 				data.events = dataArrayProducedEventsOf(data, evItems, { tz }, now);
 				data.eventHoverItems = evItems;
 			}
