@@ -351,7 +351,7 @@ const p3bFixtureMapOf = (overrides) => {
 // `call(t, src)` 收 `engine.__test` 与来源声明（用它自己的 url / eventUrl / tz）；
 // `urlsOf(src)` 就地补 map 覆盖（个别夹具没进 map.json）；
 // `switched: true` = 该路径已改成"解析器直出数组 + 悬停由条目反生成"。
-const P3B_SWITCHED_EXPECT = 37;   // 已切路径数（每批提交时 +N，最终 = P3B_PATHS.length）
+const P3B_SWITCHED_EXPECT = 41;   // 已切路径数（每批提交时 +N，最终 = P3B_PATHS.length）
 const P3B_PATHS = [
 	// ── 第 1 批：星铁（bwiki）/ 绝区零（官方公告）/ 崩坏3（米游社备选）/ 米游社卡池 ──
 	{
@@ -526,7 +526,28 @@ const P3B_PATHS = [
 		key: "stellasoraEvent", switched: true, id: "stellasora", side: "event", field: "events", now: Date.parse("2026-10-02T00:00:00.000Z"),
 		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
 	}
-];
+,
+	// ── 第 6 批：蔚蓝档案国服（日志表）+ 重返未来 1999（游戏内公告）──
+	{
+		key: "baCnGacha", switched: true, id: "ba-cn", side: "gacha", field: "gacha", now: Date.parse("2026-10-20T00:00:00.000Z"),
+		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
+	},
+	{
+		key: "baCnEvent", switched: true, id: "ba-cn", side: "event", field: "events", now: Date.parse("2026-10-20T00:00:00.000Z"),
+		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
+	},
+	{
+		// 重返未来 1999：默认源 = 游戏内公告接口（一条 URL 同时含卡池/活动），夹具是**本批新抓**的
+		// 真响应（`p3b-r1999-notice`，2026-11-07 抓取），now = 抓取时刻。
+		key: "r1999Gacha", switched: true, id: "r1999", side: "gacha", field: "gacha", now: Date.parse("2026-11-07T01:08:25.105Z"),
+		urlsOf: (s) => ({ [s.url]: "p3b-r1999-notice" }),
+		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
+	},
+	{
+		key: "r1999Event", switched: true, id: "r1999", side: "event", field: "events", now: Date.parse("2026-11-07T01:08:25.105Z"),
+		urlsOf: (s) => ({ [s.eventUrl]: "p3b-r1999-notice" }),
+		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
+	}];
 
 // 12 个用户可见字符串字段（与 P3a 同一份口径）
 const P3B_VISIBLE = ["banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover",

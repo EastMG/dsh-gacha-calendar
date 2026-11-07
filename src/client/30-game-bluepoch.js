@@ -274,6 +274,8 @@
 				seenName.add(p.name);
 				return true;
 			});
+			// ── P3b：条目事实 → 悬停 + `gacha`/`events` 数组 ──────────────────────
+			let poolItems = [];
 			if (active.length > 0) {
 				const rank = (p) => {
 					const i = R99_POOL_TIERS.indexOf(p.kind);
@@ -284,22 +286,31 @@
 				data.roles = win.roles || "";
 				data.bannerDates = win.display;
 				data.bannerDatesRaw = win.raw || win.display;
-				const hover = buildPoolHover(active.map((p) => ({
+				poolItems = poolHoverKept(active.map((p) => ({
 					name: p.name,
 					label: `${p.name}${p.roles ? `\uFF1A${p.roles}` : ""}`,
 					startTs: p.startTs, endTs: p.endTs, raw: p.raw
-				})), tz);
+				}))).map((p) => ({ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw }));
+				const hover = hoverTextFromItems(poolItems, "gacha", tz);
 				if (hover) data.bannerHover = hover;
 			}
 			const activeEvents = sortEventItems(events.filter((e) => coversNow(e, now)));
 			const primary = pickEventPrimary(activeEvents);
+			const eventItems = activeEvents.map((e) => ({ title: e.name, startTs: e.startTs, endTs: e.endTs, raw: e.raw }));
 			if (primary) {
 				data.event = primary.name;
 				// 文本 = 源站墙钟（按源站 tz 渲染）；`eventDatesRaw` 取 `primary.raw`（同一份合并跨度）。
 				data.eventDates = fmtWindow(primary.startTs, primary.endTs, tz);
 				data.eventDatesRaw = primary.raw || data.eventDates;
-				const hover = buildEventHover(activeEvents, 0, tz);
+				const hover = hoverTextFromItems(eventItems, "event", tz);
 				if (hover) data.eventHover = hover;
+			}
+			// 数组收口（主条来自上面已定稿的字符串字段；并列条 = 同一份条目事实）
+			data.gacha = dataArrayProducedGachaOf(data, poolItems, { tz }, now);
+			data.gachaHoverItems = poolItems;
+			if (data.event) {
+				data.events = dataArrayProducedEventsOf(data, eventItems, { tz }, now);
+				data.eventHoverItems = eventItems;
 			}
 			return (data.banner || data.event) ? data : null;
 		}

@@ -627,5 +627,73 @@
 			"eventHoverExtra": ""
 		},
 		"array": "[{\"key\":\"stellasora:event:0\",\"title\":\"「灾变防线」活动说明\",\"show\":\"「灾变防线」活动说明\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-27 11:30 ~ 10-20 10:59\",\"source\":\"hover\"},{\"key\":\"stellasora:event:1\",\"title\":\"「联合讨伐」活动说明\",\"show\":\"「联合讨伐」活动说明\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"活动时间：2026/10/01 04:00 ~ 2026/10/30 22:59\",\"source\":\"primary\"}]"
+	},
+	"baCnGacha": {
+		"rec": {
+			"banner": "限时招募",
+			"roles": "夏(乐队)、和纱(乐队)、好美(乐队)",
+			"bannerDates": "10-08 14:00 ~ 10-22 13:59",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "限时活动：-ive aLIVE!",
+			"eventDates": "10-08 14:00 ~ 10-22 13:59",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "限时活动：-ive aLIVE!   10-08 14:00 ~ 10-22 13:59\n限时活动：沙勒总决算   10-08 04:00 ~ 10-22 13:59\n无限制决战：提翡瑞 • 重装甲   10-09 14:00 ~ 10-29 03:59\n掉落量3倍活动即将开启！   10-15 04:00 ~ 10-23 03:59",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"ba-cn:gacha:0\",\"title\":\"限时招募\",\"show\":\"夏(乐队)、和纱(乐队)、好美(乐队)\",\"roles\":[\"夏(乐队)\",\"和纱(乐队)\",\"好美(乐队)\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"\",\"source\":\"primary\"}]"
+	},
+	"baCnEvent": {
+		"rec": {
+			"banner": "限时招募",
+			"roles": "夏(乐队)、和纱(乐队)、好美(乐队)",
+			"bannerDates": "10-08 14:00 ~ 10-22 13:59",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "限时活动：-ive aLIVE!",
+			"eventDates": "10-08 14:00 ~ 10-22 13:59",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "限时活动：-ive aLIVE!   10-08 14:00 ~ 10-22 13:59\n限时活动：沙勒总决算   10-08 04:00 ~ 10-22 13:59\n无限制决战：提翡瑞 • 重装甲   10-09 14:00 ~ 10-29 03:59\n掉落量3倍活动即将开启！   10-15 04:00 ~ 10-23 03:59",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"ba-cn:event:0\",\"title\":\"限时活动：沙勒总决算\",\"show\":\"限时活动：沙勒总决算\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-08 04:00 ~ 10-22 13:59\",\"source\":\"hover\"},{\"key\":\"ba-cn:event:1\",\"title\":\"限时活动：-ive aLIVE!\",\"show\":\"限时活动：-ive aLIVE!\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"\",\"source\":\"primary\"},{\"key\":\"ba-cn:event:2\",\"title\":\"掉落量3倍活动即将开启！\",\"show\":\"掉落量3倍活动即将开启！\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-15 04:00 ~ 10-23 03:59\",\"source\":\"hover\"},{\"key\":\"ba-cn:event:3\",\"title\":\"无限制决战：提翡瑞 • 重装甲\",\"show\":\"无限制决战：提翡瑞 • 重装甲\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-09 14:00 ~ 10-29 03:59\",\"source\":\"hover\"}]"
+	},
+	"r1999Gacha": {
+		"rec": {
+			"banner": "「果实的赤红」活动征集",
+			"roles": "佩施塔（星）、气球派对（岩）、挖掘艺术（木）",
+			"bannerDates": "11-05 10:00 ~ 11-26 04:59",
+			"bannerDatesRaw": "11/5 10:00 - 11/26 4:59",
+			"bannerHover": "「明日之础」轮换征集\n10-27 05:00 ~ 11-10 04:59\n「果实的赤红」活动征集：佩施塔（星）、气球派对（岩）、挖掘艺术（木）\n11-05 10:00 ~ 11-26 04:59\n「湖的涟漪」限时征集：自选 1 位 6★\n11-05 10:00 ~ 12-10 04:59",
+			"event": "佩施塔·雪红与玫瑰白",
+			"eventDates": "11-05 10:00 ~ 11-26 04:59",
+			"eventDatesRaw": "11-05 10:00 ~ 11-26 04:59",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "佩施塔·雪红与玫瑰白   11-05 10:00 ~ 11-26 04:59\n亚特兰蒂斯谋杀案·上篇   11-05 10:00 ~ 11-26 04:59\n推理演绎   11-05 10:00 ~ 12-07 04:59\n烟斗客指津   11-05 10:00 ~ 12-07 04:59\n吼吼点唱机：余下的真相   11-05 10:00 ~ 12-09 04:59\n亚特兰蒂斯谋杀案   11-05 10:00 ~ 12-10 04:59\n红鲱鱼推理爱好社   11-05 10:00 ~ 12-10 04:59\n幸存者游戏   11-05 10:00 ~ 12-10 04:59\n狂想与解构   11-05 10:00 ~ 12-10 04:59\n鬃毛邮报   11-05 10:00 ~ 12-10 04:59\n星光礼赠   11-05 10:00 ~ 12-10 04:59\n衣着风尚   11-05 10:00 ~ 12-10 04:59\n注定之城   11-05 10:00 ~ 12-10 04:59\n焦点闪回   11-07 05:00 ~ 12-10 04:59\n书页与小憩   11-05 10:00 ~ 12-31 04:59\n衣着风尚   11-05 10:00 ~ 12-31 04:59",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"r1999:gacha:0\",\"title\":\"「明日之础」轮换征集\",\"show\":\"「明日之础」轮换征集\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-27 05:00 ~ 11-10 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:gacha:1\",\"title\":\"「果实的赤红」活动征集\",\"show\":\"佩施塔、气球派对、挖掘艺术\",\"roles\":[\"佩施塔（星）\",\"气球派对（岩）\",\"挖掘艺术（木）\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11/5 10:00 - 11/26 4:59\",\"source\":\"primary\"},{\"key\":\"r1999:gacha:2\",\"title\":\"「湖的涟漪」限时征集：自选 1 位 6★\",\"show\":\"「湖的涟漪」限时征集：自选 1 位 6★\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-10 04:59\",\"source\":\"hover\"}]"
+	},
+	"r1999Event": {
+		"rec": {
+			"banner": "「果实的赤红」活动征集",
+			"roles": "佩施塔（星）、气球派对（岩）、挖掘艺术（木）",
+			"bannerDates": "11-05 10:00 ~ 11-26 04:59",
+			"bannerDatesRaw": "11/5 10:00 - 11/26 4:59",
+			"bannerHover": "「明日之础」轮换征集\n10-27 05:00 ~ 11-10 04:59\n「果实的赤红」活动征集：佩施塔（星）、气球派对（岩）、挖掘艺术（木）\n11-05 10:00 ~ 11-26 04:59\n「湖的涟漪」限时征集：自选 1 位 6★\n11-05 10:00 ~ 12-10 04:59",
+			"event": "佩施塔·雪红与玫瑰白",
+			"eventDates": "11-05 10:00 ~ 11-26 04:59",
+			"eventDatesRaw": "11-05 10:00 ~ 11-26 04:59",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "佩施塔·雪红与玫瑰白   11-05 10:00 ~ 11-26 04:59\n亚特兰蒂斯谋杀案·上篇   11-05 10:00 ~ 11-26 04:59\n推理演绎   11-05 10:00 ~ 12-07 04:59\n烟斗客指津   11-05 10:00 ~ 12-07 04:59\n吼吼点唱机：余下的真相   11-05 10:00 ~ 12-09 04:59\n亚特兰蒂斯谋杀案   11-05 10:00 ~ 12-10 04:59\n红鲱鱼推理爱好社   11-05 10:00 ~ 12-10 04:59\n幸存者游戏   11-05 10:00 ~ 12-10 04:59\n狂想与解构   11-05 10:00 ~ 12-10 04:59\n鬃毛邮报   11-05 10:00 ~ 12-10 04:59\n星光礼赠   11-05 10:00 ~ 12-10 04:59\n衣着风尚   11-05 10:00 ~ 12-10 04:59\n注定之城   11-05 10:00 ~ 12-10 04:59\n焦点闪回   11-07 05:00 ~ 12-10 04:59\n书页与小憩   11-05 10:00 ~ 12-31 04:59\n衣着风尚   11-05 10:00 ~ 12-31 04:59",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"r1999:event:0\",\"title\":\"佩施塔·雪红与玫瑰白\",\"show\":\"佩施塔·雪红与玫瑰白\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 11-26 04:59\",\"source\":\"primary\"},{\"key\":\"r1999:event:1\",\"title\":\"亚特兰蒂斯谋杀案·上篇\",\"show\":\"亚特兰蒂斯谋杀案·上篇\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 11-26 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:2\",\"title\":\"推理演绎\",\"show\":\"推理演绎\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-07 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:3\",\"title\":\"烟斗客指津\",\"show\":\"烟斗客指津\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-07 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:4\",\"title\":\"吼吼点唱机：余下的真相\",\"show\":\"吼吼点唱机：余下的真相\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-09 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:5\",\"title\":\"亚特兰蒂斯谋杀案\",\"show\":\"亚特兰蒂斯谋杀案\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-10 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:6\",\"title\":\"红鲱鱼推理爱好社\",\"show\":\"红鲱鱼推理爱好社\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-10 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:7\",\"title\":\"幸存者游戏\",\"show\":\"幸存者游戏\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-10 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:8\",\"title\":\"狂想与解构\",\"show\":\"狂想与解构\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-10 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:9\",\"title\":\"鬃毛邮报\",\"show\":\"鬃毛邮报\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-10 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:10\",\"title\":\"星光礼赠\",\"show\":\"星光礼赠\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-10 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:11\",\"title\":\"衣着风尚\",\"show\":\"衣着风尚\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-10 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:12\",\"title\":\"注定之城\",\"show\":\"注定之城\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-10 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:13\",\"title\":\"焦点闪回\",\"show\":\"焦点闪回\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-07 05:00 ~ 12-10 04:59\",\"source\":\"hover\"},{\"key\":\"r1999:event:14\",\"title\":\"书页与小憩\",\"show\":\"书页与小憩\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 10:00 ~ 12-31 04:59\",\"source\":\"hover\"}]"
 	}
 }

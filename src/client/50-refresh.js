@@ -237,6 +237,15 @@
 			rec.gacha = Array.isArray(rec.gacha)
 				? dataArrayProducedListOf(dataArrayGachaListOf(rec.gacha), ((meta && meta.id) || "") + ":gacha")
 				: dataArrayGachaOf(rec, meta, new Date(nowTs));
+			// 主条 `show` 与记录的字符串**同源**：`cleanRoleNames` 对蔚蓝三服（`BA_ROLE_IDS`）按 id
+			// 保留括号后缀，而解析器未必知道 `meta.id`（通用源 / 自定义条目拿不到）→ 这里按记录 id
+			// 再算一次，与 `dataArrayGachaMainOf` 是**同一句**（解析器直出与合成因此不会在 show 上漂开）。
+			if (rec.gacha.length && rec.roles != null) {
+				const mainItem = rec.gacha.find((x) => x.source === "primary");
+				if (mainItem && typeof rec.banner === "string" && rec.banner) {
+					mainItem.show = cleanRoleNames(rec.roles, (meta && meta.id) || "") || rec.banner;
+				}
+			}
 			rec.events = Array.isArray(rec.events)
 				? dataArrayProducedListOf(dataArrayEventListOf(rec.events), ((meta && meta.id) || "") + ":event")
 				: dataArrayEventsOf(rec, meta, new Date(nowTs));

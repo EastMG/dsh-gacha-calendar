@@ -132,7 +132,6 @@
 			const evDates = eventRow
 				? (eventRow.startTs != null && eventRow.endTs != null ? fmtWindow(eventRow.startTs, eventRow.endTs) : (eventRow.raw || ""))
 				: "";
-			const eventHover = buildEventHover(evOrdered, 0, tz);
 			const data = {
 				banner: "",
 				roles: "",
@@ -150,21 +149,32 @@
 				data.bannerDates = evDates;
 			}
 			// 卡池列悬停：日程表里同期所有招募行（特選招募/特別特選招募 等），每池"类别：成员"一行 + 时间
+			// ── P3b：条目事实 → 悬停 + `gacha`/`events` 数组 ──────────────────────
 			const recRows = rows.filter((r) => /招募/.test(r.cat) && r.range && coversNowBounded(r.range, now));
-			const poolHover = buildPoolHover(recRows.map((r) => ({
+			const poolItems = poolHoverKept(recRows.map((r) => ({
 				name: r.cat,
 				label: `${r.cat}\uFF1A${baRoleName(r.name)}`,
 				startTs: r.range.startTs,
 				endTs: r.range.endTs,
 				raw: r.range.raw
-			})), tz);
+			}))).map((p) => ({ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw }));
+			const poolHover = hoverTextFromItems(poolItems, "gacha", tz);
+			const eventItems = evOrdered.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
 			if (poolHover) data.bannerHover = poolHover;
 			if (eventRow) {
 				data.event = eventRow.name; // 活动名（去掉"活動劇情："类类别前缀，精简展示）
 				data.eventDates = evDates;
 				if (eventRow.openEnded) data.eventDatesRaw = eventRow.dateRaw;
 			}
-			if (eventHover) data.eventHover = eventHover;
+			const eventHover2 = hoverTextFromItems(eventItems, "event", tz);
+			if (eventHover2) data.eventHover = eventHover2;
+			// 数组收口（主条来自上面已定稿的字符串字段；并列条 = 同一份条目事实）
+			data.gacha = dataArrayProducedGachaOf(data, poolItems, { tz }, now);
+			data.gachaHoverItems = poolItems;
+			if (data.event) {
+				data.events = dataArrayProducedEventsOf(data, eventItems, { tz }, now);
+				data.eventHoverItems = eventItems;
+			}
 			if (!data.banner || !data.bannerDates) return null;
 			return data;
 		}
@@ -907,7 +917,10 @@
 			//   （2026-10-21 之前本体 `buildEventHover` 不接受 tz、会用**机器本地时区**格式化档期，
 			//    在 `$env:TZ=UTC` 下实测到悬停 06:00 vs 外显 14:00；本体当天已补上 tz 参数，
 			//    两条路径现在等价 —— 这里保持 hoverEvent 不动，避免无谓改动已验收的 ba-cn 输出。）
-			const eventHover = hoverEvent(ev ? [ev, ...events.filter((x) => x !== ev)] : events, tz, permanentCount);
+			const eventList = ev ? [ev, ...events.filter((x) => x !== ev)] : events;
+			// ── P3b：条目事实 → 悬停 + `gacha`/`events` 数组 ──────────────────────
+			const eventItems = eventList.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: "" }));
+			const eventHover = hoverTextFromItems(eventItems, "event", tz, { permanentCount });
 			const data = {
 				banner: primary ? primary.typeName : "",
 				roles: [...new Set(pools.map((p) => p.member).filter(Boolean))].join("、"),
@@ -916,6 +929,13 @@
 				eventDates: ev ? fmtWindow(ev.startTs, ev.endTs, tz) : ""
 			};
 			if (eventHover) data.eventHover = eventHover;
+			const gachaItems = primary ? [{ title: primary.typeName, startTs: primary.startTs, endTs: primary.endTs, raw: "" }] : [];
+			data.gacha = dataArrayProducedGachaOf(data, gachaItems, { tz }, now);
+			data.gachaHoverItems = gachaItems;
+			if (data.event) {
+				data.events = dataArrayProducedEventsOf(data, eventItems, { tz }, now);
+				data.eventHoverItems = eventItems;
+			}
 			if (!data.banner && !data.event) return null;
 			return data;
 		}
