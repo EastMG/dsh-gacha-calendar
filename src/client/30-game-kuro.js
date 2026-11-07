@@ -98,19 +98,53 @@
 			};
 			const raw = fmtWindow(first.startTs, first.endTs, tz);
 			// 悬停：首行=卡池类型（与卡片外显同源），随后每池"池名：角色"一行；窗口相同则时间只在末尾写一遍；
-			// 按结束时间升序。**类型行只在本源补**，不动全站共用的 buildPoolHover（它按约定对 0/1 池返回 ""）。
-			const poolHover = buildPoolHover(cur.map((p) => ({
+			// 按结束时间升序。**类型行只在本源补**（它不是任何一口池，`hoverTextFromItems` 不排序 ⇒
+			// 放在最前就永远在最前；放进条目列表反而会让"窗口全同只在末尾写一遍"的折叠规则走样）。
+			// ── P3（2026-11-07）：条目事实 → 悬停 + `gacha` 数组 ────────────────────
+			// 去重/排序走共用工具（`poolHoverKept`：与 buildPoolHover 同一份，结束时间升序），
+			// 悬停与数组的并列条目都从这一份出发。
+			const hoverItems = poolHoverKept(cur.map((p) => ({
 				name: p.name,
 				label: `${p.name}\uFF1A${p.roles || "-"}`,
 				startTs: p.startTs,
 				endTs: p.endTs
-			})), tz);
+			}))).map((x) => ({
+				title: x.label || x.name,
+				label: x.label || x.name,
+				startTs: x.startTs,
+				endTs: x.endTs,
+				raw: x.raw
+			}));
+			const poolHover = hoverTextFromItems(hoverItems, "gacha", tz);
 			const bannerHover = poolHover ? `${first.type}\n${poolHover}` : "";
 			// **外显用卡池类型**（`角色活动唤取`），不用某一个池名：
 			// 角色是多池合并的，若外显挂"但愿长圆如此夜"，卡片就成了"标题只说一个池、角色却是三个池的合成"。
 			// 与用户 2026-09-30 定的统一口径一致（国服显示 `限时限定招募`、异环显示 `限定棋盘`）。
 			// 具体池名在悬停里逐条列出，不丢信息。
-			return { banner: first.type, roles, bannerDates: raw, bannerDatesRaw: raw, startTs: first.startTs, endTs: first.endTs, bannerHover };
+			const w = dataArrayWindowOf(raw, now);
+			const main = {
+				title: first.type,
+				show: cleanRoleNames(roles, "wuwa") || first.type,
+				roles: dataArrayRolesOf(roles),
+				startTs: w.startTs,
+				endTs: w.endTs,
+				tz,
+				raw,
+				source: "primary"
+			};
+			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "gacha", tz });
+			return {
+				banner: first.type,
+				roles,
+				bannerDates: raw,
+				bannerDatesRaw: raw,
+				startTs: first.startTs,
+				endTs: first.endTs,
+				bannerHover,
+				// ⚠️ `gachaHoverItems` 只含**池行**（首行的"卡池类型"由 `banner` 补，见 `bannerHover` 的构造）
+				gacha: dataArrayProducedListOf([main].concat(extras).map((x) => dataArrayProducedItemOf(x, "gacha")), "wuwa:gacha"),
+				gachaHoverItems: hoverItems
+			};
 		}
 
 
@@ -139,7 +173,27 @@
 			if (sorted.length === 0) return null;
 			const primary = pickEventPrimary(sorted) || sorted[0];
 			const dates = fmtWindow(primary.startTs, primary.endTs, tz);
-			return { banner: primary.name, bannerDates: dates, bannerDatesRaw: dates, eventHover: buildEventHover(sorted, 0, tz) };
+			// ── P3（2026-11-07）：条目事实 → 悬停 + `events` 数组（顺序 = sortEventItems）──
+			const hoverItems = sorted.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: "" }));
+			const w = dataArrayWindowOf(dates, now);
+			const main = {
+				title: primary.name,
+				show: primary.name,
+				startTs: w.startTs,
+				endTs: w.endTs,
+				tz,
+				raw: dates,
+				source: "primary"
+			};
+			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "event", tz });
+			return {
+				banner: primary.name,
+				bannerDates: dates,
+				bannerDatesRaw: dates,
+				eventHover: hoverTextFromItems(hoverItems, "event", tz),
+				events: dataArrayProducedListOf([main].concat(extras).map((x) => dataArrayProducedItemOf(x, "event")), "wuwa:event"),
+				eventHoverItems: hoverItems
+			};
 		}
 
 
@@ -167,8 +221,13 @@
 			// 活动侧仍保留自己的抓取器（fetchWuwaEventsOfficial）：卡池侧失败、或用户在设置里
 			// 单独选活动来源时，活动侧要能自己抓、自己报错（解耦不变）。
 			const ev = parseWuwaRecommendEvents(list, now, tz);
+			// P3：活动侧的 `events` 数组与条目事实**原样带出**（同一份公告同时喂两侧，别在这里重算）
 			const evFields = ev
-				? { event: ev.banner, eventDates: ev.bannerDates || "", eventDatesRaw: ev.bannerDatesRaw || ev.bannerDates || "", eventHover: ev.eventHover || "" }
+				? {
+					event: ev.banner, eventDates: ev.bannerDates || "", eventDatesRaw: ev.bannerDatesRaw || ev.bannerDates || "",
+					eventHover: ev.eventHover || "",
+					...(ev.events ? { events: ev.events, eventHoverItems: ev.eventHoverItems } : {})
+				}
 				: {};
 			const d = parseWuwaNotice(list, now, tz);
 			if (!d) return null;
@@ -191,7 +250,8 @@
 				event: d.banner,
 				eventDates: d.bannerDates || "",
 				eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "",
-				eventHover: d.eventHover || ""
+				eventHover: d.eventHover || "",
+				...(d.events ? { events: d.events, eventHoverItems: d.eventHoverItems } : {})
 			};
 		}
 

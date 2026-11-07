@@ -409,6 +409,20 @@
 			//        不许依赖 80 顶层的 const（那些在本文件执行时还在 TDZ）。
 			buildEventHover,
 			buildPoolHover,
+			// P3（2026-11-07）：**反向产物**的生成器 —— `hoverLinesFromItems` / `hoverTextFromItems`
+			//   把解析器直出的**条目事实**排成悬停行/字符串（排版与 buildPoolHover / buildEventHover
+			//   逐字一致）。导出后可以拿真夹具直接钉住"悬停文本 == 同一份条目的生成结果"，
+			//   并且把生成器改坏（少一个分隔空格之类）时 golden 会红（见 test/cases-p3.mjs）。
+			hoverLinesFromItems,
+			hoverTextFromItems,
+			// poolHoverKept = 卡池列表的**去重**（"同一个池被源描述两遍"）；buildPoolHover 与
+			//   P3 直出的数组都从这一份结果出发 ⇒ 导出后可断言"文本里没有的行，数组里也没有"。
+			poolHoverKept,
+			// dataArrayExtrasFromEntriesOf = 并列条目 → 数组条目的**唯一实现**（三条判据 + 完全相同去重），
+			//   悬停文本路径（dataArrayHoverPoolsOf）与解析器直出路径共用。
+			dataArrayExtrasFromEntriesOf,
+			dataArrayProducedItemOf,
+			dataArrayProducedListOf,
 			localWin,
 			localWinText,
 			localDatesOf,

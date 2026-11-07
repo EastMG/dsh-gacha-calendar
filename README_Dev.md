@@ -100,8 +100,8 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 30 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（11 处定稿）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=*）
-│   ├── cases-*.mjs  # 各段用例（30 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / cases-arknights-claim / cases-arknights-timeline / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh / settings-jump / settings-copy / sources / bwiki-cors）
+│   ├── all.mjs      # 统一门禁：聚 31 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（11 处定稿）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成））
+│   ├── cases-*.mjs  # 各段用例（31 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / cases-arknights-claim / cases-arknights-timeline / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh / settings-jump / settings-copy / sources / bwiki-cors / p3）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
 │   ├── lib-text.mjs # 悬停文本的共用判定（去重 / 相邻重复 / 「名称 ⏎ 只有区间」/ 分类前缀双写）
@@ -315,7 +315,7 @@ DSH 渲染进程的页面源是 `dsh-app://app`（自定义 scheme）。**有些
 
 > 唯一例外（已核实、本轮不改）：`30-game-bluearchive.js` 的两处 `fmtWindow(ts)`。它们的 ts 是 `new Date(y, mo-1, …)`（本机墙钟）**合成**的，解析与渲染同口径 ⇒ 文本在两种机器上都 roundtrip 成源站原文；真正的缺陷在**解析方向**（绝对时刻随机器变），只改渲染一侧反而会让文本偏 8 小时。
 
-### 数据层数组（P1）与派生层（P2，2026-11-07）
+### 数据层数组（P1）/ 派生层（P2）/ 解析器直出（P3，2026-11-07）
 
 **方向**（用户原话）：数据核心只放"事实"；"谁排第一"是**纯展示决策**，下移到显示层；表格与探头**共用同一份数组**（探头只是会动的 UI 组件，零数据语义）；面板对用户的行为保持等效。
 
@@ -324,6 +324,8 @@ DSH 渲染进程的页面源是 `dsh-app://app`（自定义 scheme）。**有些
 **P2（派生层，已完成）**：显示层改读这两个数组 —— 表格那一行 = `sideViewOf(...).primary`、探头 = `.rest`，两处共用同一份数组；**不再解析悬停文本**（悬停 tooltip 仍读 `bannerHover` / `eventHover`，那是 P3 的事）。派生规则与兼容退化见下面「派生层（P2）」一节。
 
 **P2 收尾（2026-11-07，方案 C「补事实、不藏差异」）**：数据层补了 `source` / `cat` / `tags` / `preview` 四个事实字段，判重改为"引擎主行 + 悬停并列行各一条"；显示层加了**按游戏分派的规则表**；FGO 解析器额外给一份 `itemFacts`（类别通道）。结果是 34 个侧与改造前**逐字相等**（已知差异清零）。
+
+**P3 第一批（2026-11-07，已完成）**：方向倒过来了 —— **解析器直接产数组**（真源），悬停字符串改由**同一份条目**反生成（不再手拼、也不再从文本反解数组）。本批只切 **3 款 6 条路径**（原神卡池+活动 / 明日方舟卡池+活动 / 鸣潮卡池+活动），其余 25 款仍走 P1 的合成路径（见下面「解析器直出（P3）」与「P3b 待办清单」）。
 
 #### 字段形状（每个游戏都有）
 
@@ -353,7 +355,7 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 
 #### 谁生成（`src/client/50-refresh.js`）
 
-- `mergeEntryRecord(r, prevRec, nowTs, meta)` 末尾两行：来源若已给结构化数组（P3 的解析器会开始给）就原样用，否则 `dataArrayGachaOf` / `dataArrayEventsOf` 合成。`meta = { id, tz }` 由 `engine-api.js` 的 `refresh()` 从条目上带进来（只用来生成 key 与 `tz` 字段）。
+- `mergeEntryRecord(r, prevRec, nowTs, meta)` 末尾两行：来源若已给结构化数组就原样用（**P3 第一批起 3 款 6 条路径由解析器直出**，见下节），否则 `dataArrayGachaOf` / `dataArrayEventsOf` 合成。`meta = { id, tz }` 由 `engine-api.js` 的 `refresh()` 从条目上带进来（只用来生成 key 与 `tz` 字段）。
 - **并列池怎么展开**（P2 收尾改了判重口径）：复用**显示层同一个** `scheduleHoverItems`（`bannerHover`/`eventHover` 的多行文本 → `[{ title, win }]`），再用 `dataArrayHoverPoolsOf` 里那三条判据（与外显同名 / 与**显示名**同名 / 「池名：外显名」这种整段包裹写法）—— 与 `81-schedule-model.js` 的 `scheduleHoverOnes` **逐字对应**。
   - ⚠️ **判重口径（2026-11-07 用户定，方案 C）**：不再按「起止时间 + 池名」把同一口池并成一条 —— 那是 P1 自己发明的判据，旧探头从来没有，它一直把「合并角色的主行」和「`池名：角色`」并列显示（物华弥新「繁霜春落：李小孩项链」、星铁「「我身即刃」…：千冶•刃」就是这么被丢掉的）。现在**引擎主行一条 + 悬停并列行各一条**，`source` 区分；只有"内容完全一样"（同标题 **且** 同起止）才去掉一条，并且**优先保留 `source:"primary"`** 那条。
   - ⚠️ `scheduleHoverItems` + 它的两条区间正则 + `scheduleNoYear` 已在 2026-11-07 **从 81 搬进 26-parser-hover.js**（逐字搬迁）：`50-refresh.js` 也在 core 产物里（`CORE_ORDER`），而 81 只属于渲染层。不搬就会变成"core 里调用一个不存在的函数"。
@@ -410,10 +412,66 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 
 **回归（`test/cases-core.mjs` ⑤，35 条）**：纯函数（空 / 单条 / 在期里结束最早 / 起点未知 / 并列起点 / claim 优先 / 类别档位 / 顺序稳定 / 不改输入）+ `scheduleItemOf` 同形 + 兼容分支输出与老路逐字相同 + **等价性普查**（34 个侧全部逐字相等）+ 原来 6 处已知差异的严格相等 + **反向证明**（通用规则与特化规则必须选出不同的那条）+ FGO 09-05 那侧（`cat` 事实 + 特化规则缺一不可）。
 
-#### 已知不等价（如实记，留给 P3 / P4）
+#### 解析器直出（P3，第一批 2026-11-07）
 
-1. **`startTs` / `endTs` 用的是"本机时刻"**：P1 直接 `parseDisplayRange(源站原文)`，**没做**"源站 tz → 本机"换算。于是在 `TZ≠+08` 的机器上，数组里的 ts 会比显示层换算后的小时**差一个时区差**（+08 机器上一致）。P2 用「主条直接走 `scheduleNormalize`」把**显示文本**这一面避开了（等价性用例在 UTC / +08 都逐字相等）；要彻底消掉得等 P3 换成**结构化来源**（解析器直出绝对时刻）。
-2. **并列池的 `show` = 标题本身**：悬停行只给"池名：角色"，没有结构化角色表 ⇒ 并列池那条 `show === title`、`roles = []`（主条的 `show`/`roles` 是完整的）。P3 让解析器直出每口池的角色表后可补。
+**为什么倒过来**：P1 的数组是"从悬停文本反解"的 —— 悬停是**手拼**的、数组是**从那串文本猜**的，谁改了排版都会让两边**悄悄**错位（面板看起来仍然正常）。P3 让**条目成为事实**：解析器直接给 `gacha` / `events`，悬停文本由条目生成。
+
+**反生成器**（`src/client/26-parser-hover.js`，与 `buildPoolHover` / `buildEventHover` 同处）：
+
+| 函数 | 签名 | 做什么 |
+|---|---|---|
+| `hoverLinesFromItems(items, kind, tz)` | → `string[]` | 条目 → 悬停**行**（`kind` = `"gacha"` / `"event"`） |
+| `hoverTextFromItems(items, kind, tz)` | → `string` | 行拼成一根字符串（`join("\n")`） |
+| `hoverWindowTextOf(item, tz)` | → `string` | 一条的档期文本：两端 ts 都有 ⇒ `fmtWindow(ts, ts, tz)`；否则 `raw.trim()` |
+| `poolHoverKept(pools)` / `poolHoverOrderOf(a,b)` | | 卡池列表的**去重**与**排序**（从 `buildPoolHover` 抽出来，悬停与数组共用同一份） |
+
+复刻的排版规则（逐条对得上老的 `buildPoolHover` / `buildEventHover`）：
+1. 活动侧每行 = `名称` + **3 个空格** + `MM-DD HH:MM ~ MM-DD HH:MM`；
+2. 卡池侧每条两行 = `label || title` ⏎ 档期；
+3. **窗口完全相同**时都只在**末尾**写一遍档期（活动侧每条只写名称）；
+4. 缺起止（源站写"X.Y版本更新后"）⇒ 活动侧写 `名称   raw`、卡池侧档期行写 `raw`；没有 raw 就只写名称；
+5. **不足 2 条 ⇒ 空串**（交回 UI 单条展示）；活动侧另按 `isLongTermEvent`（>120 天）剔掉常驻窗口；
+6. 顺序 = **调用方给的**（卡池侧与 `poolHoverOrderOf` 同口径、活动侧与 `sortEventItems` 同口径）—— 鸣潮卡池悬停的**首行是"卡池活动类型"**（不是任何一口池），必须固定在首位，所以生成器**不排序**。
+
+**已切的 3 款 6 条路径**（其余 25 款仍走 P1 的合成路径）：
+
+| 游戏 | 侧 | 生产者（文件:入口） | 数组条数（真机夹具 2026-11-07） |
+|---|---|---|---|
+| 原神 `genshin` | 卡池 | `26-parser-hover.js` 的 `bwikiGachaPayload(html, tz, { emitArrays:true, id:"genshin" })`（bwiki 往期祈愿；**星铁仍走老分支**） | 3（主条 + 2 口并列池） |
+| 原神 `genshin` | 活动 | `30-game-hypergryph.js` 的 `parseSmwActivity(json, tz, { emitArrays:true, id:"genshin" })`（bwiki SMW `action=ask`，经 `fetchYsActivity`） | 5（主条 + 4 条并列活动） |
+| 明日方舟 `arknights` | 卡池 | `30-game-hypergryph.js` 的 `fetchArknightsGacha`（官方公告 CMS） | 1（当期只有一口限时寻访） |
+| 明日方舟 `arknights` | 活动 | `30-game-hypergryph.js` 的 `prtsEventPayload`（PRTS SMW 单请求；兑换期在 `phase`） | 3（含 1 条 claim 主条） |
+| 鸣潮 `wuwa` | 卡池 | `30-game-kuro.js` 的 `parseWuwaNotice`（官方公告 `recommend` 组） | 4（主条=卡池类型 + 3 口角色池） |
+| 鸣潮 `wuwa` | 活动 | `30-game-kuro.js` 的 `parseWuwaRecommendEvents` | 2 |
+
+条目形状 = 记录里数组条目的形状（`title` / `show` / `roles?` / `startTs` / `endTs` / `tz` / `raw` / `source`，可选 `cat` / `tags` / `preview` / `phase`）。`source:"primary"` = 引擎挑出的外显那条，其余 `"hover"`。
+
+**数据层收口**（`src/client/50-refresh.js`，P3 只加函数、不改语义）：
+
+- `dataArrayProducedItemOf(raw, kind)` —— 解析器条目 → 记录条目（**复用**持久化白名单那份 `dataArray*ItemOf`，键顺序因此与 `getCached()` 往返一致；并按合成路径同一判据补 `preview`）。
+- `dataArrayProducedListOf(list, prefix)` —— 排序 + 发 `key`（`<id>:gacha:<i>` / `<id>:event:<i>`）；**先摘掉条目上可能已有的 `key`**（`Object.assign` 会把刚发的 key 覆盖成空串）。
+- `dataArrayExtrasFromEntriesOf(entries, main, now, { kind, tz })` —— 并列条目的**唯一实现**（三条判据 + "同标题同区间"去重）；悬停文本路径（`dataArrayHoverPoolsOf`）与解析器直出路径都调它 ⇒ 不会出现"文本里丢了两行、数组里还留着"。
+- `mergeEntryRecord` 的两个分支**没改**：来源给了数组就原样用（`Array.isArray(rec.gacha) ? rec.gacha : dataArrayGachaOf(...)`），只是把 `gachaHoverItems` / `eventHoverItems` 两条**通道**在末尾 `delete` 掉（与 `itemFacts` 同一性质：不进记录、不落盘）。
+
+**时间戳口径不变（重要）**：`startTs` / `endTs` **仍是 P1 的本机时刻**（`dataArrayWindowOf`：把窗口文本按运行环境时区读回）。改成绝对时刻要连显示层探头一起改（`scheduleMeta` 用 `new Date(ts)` 渲染），否则 34 个侧在 `TZ=UTC` 下会变红 —— 那是 P4（见「已知不等价①」）。
+
+**回归（`test/cases-p3.mjs`，77 条）**：① 生成器排版规则逐条（3 空格 / 同窗口折叠 / <2 条 / 缺起止写原文 / 长期过滤 / `label` 优先 / 去重 / **与老 `buildPoolHover`·`buildEventHover` 逐字节相同**）；② 6 条路径的 **12 个字符串字段 + 数组 golden**（`sansTs`；golden 是写死的字面量，取自 HEAD 跑同一批夹具）；③ 数组与**改造前的合成结果逐条相等**（把解析器给的数组摘掉、让旧合成器照同一份字符串字段再合成 —— 含 `startTs`/`endTs`，UTC / +08 都成立）；④ **同源**：`hoverTextFromItems(条目事实)` 逐字等于载荷里的悬停文本；⑤ 通道不外泄。新夹具 6 份（`p3-genshin-bwiki-gacha` / `p3-genshin-smw-events` / `p3-arknights-official-{list,detail-4916}` / `p3-wuwa-{entry,zh-hans}`），**不进 `map.json`**（免得改变其它批次对"默认源 404"的期望）。
+
+**反向证明**：把生成器的分隔符从 3 个空格改成 2 个 ⇒ `test/cases-p3.mjs` ①（`名称   + 3 空格`）与 ②（原神/明日方舟活动 golden）同时红；把 `dataArrayExtrasFromEntriesOf` 的三条判据去掉一条 ⇒ ② 的数组 golden 红。这是"悬停/数组同源"真的承重的证据。
+
+#### P3b 待办清单（本批**没做**的，按现成路径排好）
+
+1. **其余 25 款切解析器直出**：`bwikiGachaPayload` 的星铁分支（`dedupeRoleNames`）、`selectArknights`（PRTS 卡池备选）、`pickCurrent(parseAllBwiki)`（绝区零 bwiki 备选）、`zspms` / `whmx` / `kedr` / `czn` / `stellasora` / `fgo` / `gf2` / `bandori` / `pjsk` / `p5x` / `nte` / `r1999` / `ba-*` / `uma-*` / `endfield` / `ddlezj` / `ournotes` 等 —— 统一按本批的三段式改：**条目事实 → `hoverTextFromItems` → `dataArrayProducedListOf`**。
+2. **`hoverTextFromItems` 接住永久计数行**：`buildEventHover` 的 `permanentCount` 参数（`以及常驻活动 N 项`）还没有进生成器；切"有常驻活动"的来源（如星铁活动一览）时要补 `hoverLinesFromItems(items, kind, tz, { permanentCount })`。
+3. **时间戳换绝对时刻**（P4）：`dataArrayWindowOf` 不再按本机时区回算，同时把显示层探头（`scheduleMeta` / `scheduleItemOf`）的渲染口径改成"按条目 `tz` 渲染"——这两个必须**同一批**改，否则 34 侧等价性在 UTC 下变红。
+4. **`cat` / `tags` / 逐池角色表**：P3 只搬结构、不扩事实（原神 SMW 的「类型」、bwiki 每口池自己的 5 星列表都还没进数组 —— 加了会同时改变数组与显示层规则，属独立一批）。
+5. **删 `scheduleCellOf` 的兼容分支**（`fromArray === false`）：等 25 款都切完、老缓存彻底淘汰后删（`README_Dev` 的这一节就是它的死亡通知）。
+6. **`50-refresh.js` 的合成函数**（`dataArrayGachaOf` / `dataArrayEventsOf` / `dataArrayHoverPoolsOf`）：全部切完后与兼容分支一起删；本批它们在**其余 25 款**上仍是唯一路径，不能删。
+
+#### 已知不等价（如实记，留给 P4）
+
+1. **`startTs` / `endTs` 用的是"本机时刻"**：P1 直接 `parseDisplayRange(源站原文)`，**没做**"源站 tz → 本机"换算。于是在 `TZ≠+08` 的机器上，数组里的 ts 会比显示层换算后的小时**差一个时区差**（+08 机器上一致）。P2 用「主条直接走 `scheduleNormalize`」把**显示文本**这一面避开了（等价性用例在 UTC / +08 都逐字相等）；**P3 第一批也刻意沿用这个口径**（解析器直出的数组同样由窗口文本回算 —— 换成绝对时刻会让探头档期文本在 UTC 下变 8 小时，34 侧等价性立刻变红）；要彻底消掉得**同时**改「数据层口径 + 显示层探头渲染」，留 P4。
+2. **并列池的 `show` = 标题本身**：悬停行只给"池名：角色"，没有结构化角色表 ⇒ 并列池那条 `show === title`、`roles = []`（主条的 `show`/`roles` 是完整的）。解析器直出每口池的角色表后可补（P3b）。
 3. **卡池侧"跨池合并的角色表"没有拆开**：主条的 `roles` 仍是引擎给的那串合并角色（FGO 那种 13 个角色一行），不是"每口池自己的角色"。同样是 P3 的结构化来源才能拆。
 4. **完全同名的悬停行只留一条**：`scheduleHoverItems` 对**完全同名**（归一后同串）的行只留第一条 —— 这是悬停逆解析的既有口径（与 `buildPoolHover` 的去重同源），不是 P1 发明的；数组沿用。**同一口池的两种写法**（合并角色的主条 vs 悬停里的 `池名：角色`）现在**都留着**（`source` 区分），只有内容完全一样（同标题 + 同区间）才去重并优先保 `primary`。
 

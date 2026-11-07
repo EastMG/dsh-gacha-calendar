@@ -41,6 +41,7 @@ import runSettingsJump from "./cases-settings-jump.mjs";
 import runSettingsCopy from "./cases-settings-copy.mjs";
 import runSources from "./cases-sources.mjs";
 import runBwikiCors from "./cases-bwiki-cors.mjs";
+import runP3 from "./cases-p3.mjs";
 
 const LIVE = process.argv.includes("--live");
 
@@ -97,7 +98,7 @@ section("夹具卫生");
 	check("夹具非空", fx.length > 0, String(fx.length));
 	check("夹具数量 ≥ 20（各批都抓了真实响应）", fx.length >= 20, String(fx.length));
 	check("夹具命名带批次前缀（便于溯源）",
-		fx.every((f) => /^(p5x|p4|p5|p6|p7|p8|p9|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights)/.test(f)), fx.slice(0, 5).join(","));
+		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights)/.test(f)), fx.slice(0, 5).join(","));
 }
 //#endregion
 
@@ -132,7 +133,8 @@ const batches = [
 	["设置入口（两个面板的齿轮 + 三步跳转设置页）", runSettingsJump],
 	["设置页 title 文案（11 处定稿：5 条改写 + 6 条删除）", runSettingsCopy],
 	["来源策略（默认源无自动兜底：5 处「不请求第二个站点」+ 手动切源仍取数）", runSources],
-	["bwiki 请求统一带 origin=*（CORS 收口点：纯函数边界 + 两条 transport 出口接线 + 请求记账 + 别的站点逐字不变）", runBwikiCors]
+	["bwiki 请求统一带 origin=*（CORS 收口点：纯函数边界 + 两条 transport 出口接线 + 请求记账 + 别的站点逐字不变）", runBwikiCors],
+	["P3 解析器直出数组（悬停由条目反生成：排版 golden + 3 款逐字不变）", runP3]
 ];
 const before = counts();
 for (const [label, fn] of batches) {

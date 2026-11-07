@@ -10,7 +10,12 @@
 		// 数据层在合成数组时按标题贴到条目上（见 dataArrayAttachFactsOf），**随后就从记录里删掉**
 		// （它不是展示字段，也不进 lastData；留在数组条目上的 `cat`/`tags` 才是事实）。
 		// 两边的字段表都要登记，否则 `pickFields` 会把这条通道静默削掉。
-		const GACHA_FIELDS = ["banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover", "gacha", "itemFacts"];
+		// `gachaHoverItems` / `eventHoverItems` = **条目事实**（P3，2026-11-07）：解析器直出
+		// `gacha` / `events` 时，把"生成悬停文本与数组的那份条目"一并带上来（`{ title/label, startTs,
+		// endTs, raw }`）。它是 `gacha` / `events` 的**同一份来源**（数组 = 它排序发 key 的结果、
+		// 悬停 = 它排版的结果），到 `mergeEntryRecord` 末尾就删掉 —— **不进记录、不进 lastData**。
+		// 与 `itemFacts` 同一性质：只是"解析器 → 数据层"这一跳的通道（回归用例靠它证明两边同源）。
+		const GACHA_FIELDS = ["banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover", "gacha", "gachaHoverItems", "itemFacts"];
 		// `eventClaimDates` = 明日方舟「奖励领取（兑换）截止」窗口（只有**有兑换期**的来源才带；
 		// 没有就没有这个键）。它是**提醒侧**的第二个 deadline，不参与任何显示逻辑 ⇒ 必须原样进 lastData，
 		// 否则「刷新过一次、中途不再刷新」就只剩一个 deadline 会响（见 65-remind.js 的 remindItemsOf）。
@@ -20,7 +25,7 @@
 		// 同样要随 lastData 走，否则"沿用旧值时"提示框会少掉那一行（与 `eventShow` 同口径）。
 		// `events` = **数据层数组**（P1，2026-11-07）：每条活动一条、兑换期放在 `phase` 里
 		// （见下面「数据层数组」region）。与 `gacha` 同理必须登记，否则结构化来源会被静默削掉。
-		const EVENT_FIELDS = ["event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventShow", "eventHoverExtra", "eventHover", "events", "itemFacts"];
+		const EVENT_FIELDS = ["event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventShow", "eventHoverExtra", "eventHover", "events", "eventHoverItems", "itemFacts"];
 		function pickFields(src, fields) {
 			const out = {};
 			if (!src) return out;
@@ -105,11 +110,14 @@
 					const reuseSameRequest = eventUrl === gachaUrl && !!(g.data && g.data.event);
 					if (reuseSameRequest) {
 						// 同 URL：活动字段就在卡池载荷里，不重复抓
+						// ⚠️ P3（2026-11-07）：解析器直出的 `events` / 条目事实也要跟着走 —— 只是"省一次请求"，
+						//    不是"活动侧的数据可以少"（漏了这行，鸣潮的活动数组就会在复用分支里静默消失）。
 						evData = {
 							event: g.data.event,
 							eventDates: g.data.eventDates || "",
 							eventDatesRaw: g.data.eventDatesRaw || g.data.bannerDatesRaw || "",
-							eventHover: g.data.eventHover || ""
+							eventHover: g.data.eventHover || "",
+							...(g.data.events ? { events: g.data.events, eventHoverItems: g.data.eventHoverItems } : {})
 						};
 					} else if (eventUrl === gachaUrl && !evFetcher) {
 						// ── 两侧同一条 URL、但活动侧**没有自己的抓取器**（该条目就只有这一份载荷可用）──
@@ -218,13 +226,20 @@
 			const skipped = !!(r && r.reason === "skipped");
 			rec.okAt = (!skipped && !gachaFail && !eventFail) ? nowTs : (prevRec && prevRec.okAt) || 0;
 			// 数据层数组（P1，见下面「数据层数组」region）：
-			// 来源若已给结构化数组（P3 的解析器会开始给）就原样用；否则从**上面合并后的**字符串字段合成。
+			// 来源若已给结构化数组就原样用（P3 第一批：原神 / 明日方舟 / 鸣潮的 6 条路径由解析器直出）；
+			// 否则从**上面合并后的**字符串字段合成（其余 25 款仍是这条路径）。
 			// 合成发生在**沿回旧值之后**，所以"这一列显示的是沿用值"时数组内容与沿回的那串文本一致，
 			// 不会出现"字符串是新的、数组还是上一轮"这种两套事实。
+			// ⚠️ P3（2026-11-07）：解析器直出的数组**已经是**最终形状（顺序 / key / 事实都在解析器侧定好，
+			//    见 `dataArrayProducedItemOf`），这里原样用 —— 但"上一轮的数组"要不要沿用仍按同一判据
+			//    （`dataArrayInheritableOf`：每条都带 `source`），见上面两个分支。
 			rec.gacha = Array.isArray(rec.gacha) ? rec.gacha : dataArrayGachaOf(rec, meta, new Date(nowTs));
 			rec.events = Array.isArray(rec.events) ? rec.events : dataArrayEventsOf(rec, meta, new Date(nowTs));
-			// `itemFacts` 只是"解析器 → 数组"的**通道**：类别已经贴到数组条目上了，不进记录/缓存。
+			// `itemFacts` / `gachaHoverItems` / `eventHoverItems` 只是"解析器 → 数组"的**通道**：
+			// 事实已经贴到数组条目上了、悬停文本也已经生成了，它们不进记录/缓存。
 			delete rec.itemFacts;
+			delete rec.gachaHoverItems;
+			delete rec.eventHoverItems;
 			return rec;
 		}
 
@@ -283,8 +298,10 @@
 			return String(roles || "").split(/[、,，]/).map((x) => x.trim()).filter(Boolean);
 		}
 		// 一段档期文本 → { startTs, endTs }；读不出（"长期"/"版本更新后 ~ …"/空）⇒ 两端 null，不硬凑
+		// `now` 两种都收：数据层合成器手里是 `Date`，解析器（P3 直出数组）手里是毫秒数。
 		function dataArrayWindowOf(text, now) {
-			const r = parseDisplayRange(dataArrayTextOf(text), now);
+			const at = now instanceof Date ? now : new Date(now);
+			const r = parseDisplayRange(dataArrayTextOf(text), at);
 			return r ? { startTs: dataArrayTsOf(r.startTs), endTs: dataArrayTsOf(r.endTs) } : { startTs: null, endTs: null };
 		}
 		// 自然顺序：结束时间升序 → 起点升序 → 无结束时间的排最后（与 buildPoolHover 同一口径）
@@ -324,27 +341,51 @@
 		//   ② 与**显示名**同名（明日方舟兑换期的主行 = `eventShow`「<活动名> 兑换截止」⇒ 同一条）
 		//   ③ 「池名：外显名」/「外显名：其余」= 同一口池的两种写法（只认「：」两侧整段）
 		// 在此之上只补一条"完全相同"判重（同标题+同区间）—— 这是任务书允许的、且**优先保主行**。
-		function dataArrayHoverPoolsOf(hover, main, now) {
-			const list = scheduleHoverItems(dataArrayTextOf(hover), main ? main.title : "", true);
+		//
+		// ⚠️ P3（2026-11-07）：三条判据的**唯一实现**搬到 `dataArrayExtrasFromEntriesOf`，
+		//    因为解析器直出的条目也要过同一套判据 —— 否则"文本里丢了两行、数组里还留着"又成了两套事实。
+		//    文本路径只负责把悬停行拆成 `{ title, win }`（与 `scheduleHoverItems` 同一份逆解析）。
+		function dataArrayHoverPoolsOf(hover, main, now, kind) {
+			const list = scheduleHoverItems(dataArrayTextOf(hover), main ? main.title : "", true)
+				.map((x) => ({ title: x.title, win: x.win }));
+			return dataArrayExtrasFromEntriesOf(list, main, now, { kind: kind || "gacha" });
+		}
+		// 并列条目（**结构化**）→ 数组条目：三条判据 + "完全相同"去重（与上面那段注释同一份口径）。
+		// `entries` 元素形状 = 解析器直出的条目事实 `{ title|label, startTs, endTs, raw }`
+		// （或者文本路径给的 `{ title, win }`，`win` = 悬停里那一行档期原文）。
+		// `opts.tz` 只在结构化路径需要：条目没有现成的窗口文本时，按**源站时区**渲染出同一串
+		// （悬停里那一行就是它 —— 两边必须同一份，否则数组里的 raw/ts 与悬停对不上）。
+		// 时间戳口径**沿用 P1**：把窗口文本按本机时区读回（与改造前的合成结果逐字相同）。
+		// ⚠️ 本批**不**改成绝对时刻：显示层探头的档期文本是"本机时刻按本机时区渲染"，
+		//    换成绝对时刻会让 34 个侧的等价性在 `TZ=UTC` 下变红（README_Dev「已知不等价①」留 P4）。
+		function dataArrayExtrasFromEntriesOf(entries, main, now, opts) {
+			const o = opts || {};
+			const isEvent = o.kind === "event";
 			const shown = DATA_ARRAY_LABEL(main && (main.show || main.title));
 			const seen = new Set();
 			if (main) seen.add(dataArrayIdentityOf(main.title, main.startTs, main.endTs));
 			const out = [];
-			for (const x of list) {
+			for (const x of (Array.isArray(entries) ? entries : [])) {
+				if (!x) continue;
+				const title = dataArrayTextOf(x.title || x.label);
+				if (!title) continue;
+				// 活动侧与 buildEventHover 同一条长期窗口过滤（文本路径的条目没有 ts ⇒ 恒不命中）
+				if (isEvent && isLongTermEvent(x)) continue;
 				if (main) {
-					if (x.title === main.title) continue;
-					if (main.show && x.title === main.show) continue;
-					const t = DATA_ARRAY_LABEL(x.title);
+					if (title === main.title) continue;
+					if (main.show && title === main.show) continue;
+					const t = DATA_ARRAY_LABEL(title);
 					if (shown && t && t !== shown) {
 						const tail = t.lastIndexOf("\uFF1A" + shown);
 						if (t.indexOf(shown + "\uFF1A") === 0 || (tail >= 0 && tail === t.length - shown.length - 1)) continue;
 					}
 				}
-				const w = dataArrayWindowOf(scheduleNoYear(x.win), now);
-				const identity = dataArrayIdentityOf(x.title, w.startTs, w.endTs);
+				const win = dataArrayTextOf(x.win) || hoverWindowTextOf(x, o.tz);
+				const w = dataArrayWindowOf(scheduleNoYear(win), now);
+				const identity = dataArrayIdentityOf(title, w.startTs, w.endTs);
 				if (seen.has(identity)) continue;
 				seen.add(identity);
-				out.push({ title: x.title, show: x.title, startTs: w.startTs, endTs: w.endTs, raw: x.win, source: "hover" });
+				out.push({ title, show: title, startTs: w.startTs, endTs: w.endTs, tz: dataArrayTextOf(o.tz), raw: win, source: "hover" });
 			}
 			return out;
 		}
@@ -395,7 +436,7 @@
 				source: "primary"
 			};
 			const facts = dataArrayFactsOf(rec);
-			const list = [main].concat(dataArrayHoverPoolsOf(rec.bannerHover, main, now));
+			const list = [main].concat(dataArrayHoverPoolsOf(rec.bannerHover, main, now, "gacha"));
 			return dataArrayOrderedOf(list.map((x) => dataArrayAttachFactsOf({
 				title: x.title,
 				show: x.show,
@@ -437,7 +478,7 @@
 					show: eventShow || (event + " 兑换截止")
 				};
 			}
-			const extras = dataArrayHoverPoolsOf(rec.eventHover, main, now).map((x) => ({
+			const extras = dataArrayHoverPoolsOf(rec.eventHover, main, now, "event").map((x) => ({
 				title: x.title,
 				show: x.show,
 				startTs: x.startTs,
@@ -523,6 +564,33 @@
 		}
 		function dataArrayEventListOf(v) {
 			return Array.isArray(v) ? v.map(dataArrayEventItemOf).filter(Boolean) : [];
+		}
+		// ── P3（2026-11-07）：解析器直出条目 → 记录数组条目 ───────────────────────────
+		// 解析器不再"手拼字符串、等着数据层反解"，而是自己给出**条目事实**：
+		//   `{ title, show, roles?, startTs, endTs, tz, raw, source, cat?, tags?, preview?, phase? }`
+		// 这里做**唯一一次**归一（复用持久化白名单那份 `dataArray*ItemOf`，键顺序因此天然与
+		// getCached 往返一致），并按与合成路径**同一判据**补 `preview` 事实（标题命中 予告/coming soon）。
+		// ⚠️ 时间戳口径**沿用 P1**（本机时刻，由窗口文本回算）：解析器与这里都**不**改成绝对时刻 ——
+		//    显示层探头按"本机时刻"渲染档期文本，换成绝对时刻会让 34 个侧的等价性在 UTC 下变红。
+		//    改成绝对时刻要连显示层的渲染口径一起改（README_Dev「已知不等价①」，留 P4）。
+		function dataArrayProducedItemOf(raw, kind) {
+			if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+			const src = Object.assign({}, raw);
+			if (src.preview !== true && dataArrayIsPreview(dataArrayTextOf(src.title))) src.preview = true;
+			return kind === "event" ? dataArrayEventItemOf(src) : dataArrayGachaItemOf(src);
+		}
+		// 排序 + 发 key（下标 = 自然顺序里的位置）。解析器直出的数组一律走这里，
+		// 免得"排序/发 key"在两处各写一份。
+		// ⚠️ 必须先摘掉条目上可能已有的 `key`：`dataArrayOrderedOf` 是 `Object.assign({ key }, x)`，
+		//    带着一个空 `key` 的条目会把刚发好的 key **覆盖成空串**（`dataArrayGachaOf` 的条目是现搭的、
+		//    没有这个坑；解析器路径的条目已经过归一，`key` 恒存在）。
+		function dataArrayProducedListOf(list, prefix) {
+			const clean = (Array.isArray(list) ? list : []).filter(Boolean).map((x) => {
+				const out = Object.assign({}, x);
+				delete out.key;
+				return out;
+			});
+			return dataArrayOrderedOf(clean, prefix);
 		}
 		//#endregion
 

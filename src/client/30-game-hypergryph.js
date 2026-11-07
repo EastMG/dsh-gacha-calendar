@@ -196,12 +196,36 @@
 				endTs: x.endTs,
 				raw: x.raw || x.bannerDatesRaw || x.bannerDates
 			}));
+			// ── P3（2026-11-07）：条目事实 → 悬停 + `gacha` 数组 ────────────────
+			// 顺序/去重都走共用工具（`poolHoverKept` = buildPoolHover 里那一份），
+			// 所以"悬停里列了哪几口池"与"数组里有哪些并列条目"永远是同一份结果。
+			const hoverItems = poolHoverKept(pools).map((x) => ({
+				title: x.label || x.name,
+				label: x.label || x.name,
+				startTs: x.startTs,
+				endTs: x.endTs,
+				raw: x.raw
+			}));
+			const w = dataArrayWindowOf(p.bannerDates, now);
+			const main = {
+				title: p.banner,
+				show: cleanRoleNames(p.roles, "arknights") || p.banner,
+				roles: dataArrayRolesOf(p.roles),
+				startTs: w.startTs,
+				endTs: w.endTs,
+				tz,
+				raw: p.bannerDatesRaw,
+				source: "primary"
+			};
+			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "gacha", tz });
 			return {
 				banner: p.banner,
 				roles: p.roles,
 				bannerDates: p.bannerDates,
 				bannerDatesRaw: p.bannerDatesRaw,
-				bannerHover: buildPoolHover(pools, tz)
+				bannerHover: hoverTextFromItems(hoverItems, "gacha", tz),
+				gacha: dataArrayProducedListOf([main].concat(extras).map((x) => dataArrayProducedItemOf(x, "gacha")), "arknights:gacha"),
+				gachaHoverItems: hoverItems
 			};
 		}
 
@@ -674,6 +698,36 @@
 			//   · 消费方：81-schedule-model.js 的 scheduleNormalize（活动侧 show = g.eventShow || title）。
 			const eventLabel = labelOf(primary.cat, primary.name);
 			const eventShow = primary.phase === "claim" ? eventLabel + " 兑换截止" : "";
+			// 兑换期的日期格悬停也用**兑换区间**（与格子里显示的那份同一个区间），
+			// 否则"格子=兑换期、悬停=活动期"会互相打脸；活动期仍是一览原文（改造前行为）。
+			// 活动真正的起止仍完整出现在 eventHover 的说明里，信息没有丢。
+			const eventDatesRaw = primary.phase === "claim" ? windowText : (primary.raw || "");
+			// ── P3（2026-11-07）：条目事实 → 悬停 + `events` 数组 ────────────────────
+			// 悬停名一律过 `labelOf`（兑换期那条再带「 兑换截止」）—— 与 `event` / `eventShow` /
+			// 提示行锚点**同一串**；数组的并列条目也从这一份去生成（不再从悬停文本反解）。
+			const hoverItems = hoverActive.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
+			const eventHover = hoverTextFromItems(hoverItems, "event", tz);
+			const w = dataArrayWindowOf(windowText, now);
+			const main = {
+				title: eventLabel,
+				show: eventShow || eventLabel,
+				startTs: w.startTs,
+				endTs: w.endTs,
+				tz,
+				raw: eventDatesRaw,
+				source: "primary"
+			};
+			// 第二阶段（兑换截止）：独立窗口，**不是**第二个活动条目（数组里放在 `phase`）
+			if (claimDates) {
+				const cw = dataArrayWindowOf(claimDates, now);
+				main.phase = {
+					kind: "claim",
+					startTs: cw.startTs,
+					endTs: cw.endTs,
+					show: eventShow || (eventLabel + " 兑换截止")
+				};
+			}
+			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "event", tz });
 			return {
 				event: eventLabel,
 				eventDates: windowText,
@@ -681,14 +735,13 @@
 				...(eventShow ? { eventShow } : {}),
 				// 提示行只进**提示框**（`scheduleHoverNote` 把它插到对应活动那一行之后），没有就不写这个键。
 				...(extraLines.length ? { eventHoverExtra: extraLines.join("\n") } : {}),
-				// 兑换期的日期格悬停也用**兑换区间**（与格子里显示的那份同一个区间），
-				// 否则"格子=兑换期、悬停=活动期"会互相打脸；活动期仍是一览原文（改造前行为）。
-				// 活动真正的起止仍完整出现在 eventHover 的说明里，信息没有丢。
-				eventDatesRaw: primary.phase === "claim" ? windowText : (primary.raw || ""),
-				// ⚠️ **只由共用 buildEventHover 产生**（与改造前逐字一致）：格子的并列条目由它解析出来，
+				eventDatesRaw,
+				// ⚠️ **只由共用生成器产生**（与改造前的 buildEventHover 逐字一致）：格子的并列条目由它解析出来，
 				//    多一行提示就会在格子里多出一行**可见文字**（2026-11-06 真机 bug）。
 				//    兑换期那条的活动名走 hoverActive（带「 兑换截止」），仍是一条「名称 + 3 空格 + 档期」。
-				eventHover: buildEventHover(hoverActive, 0, tz)
+				eventHover,
+				events: dataArrayProducedListOf([main].concat(extras).map((x) => dataArrayProducedItemOf(x, "event")), "arknights:event"),
+				eventHoverItems: hoverItems
 			};
 		}
 
@@ -1157,7 +1210,9 @@
 		// 改用 api.php?action=ask 直接查询「分类:活动」的开始/结束时间，选当期。
 		// 属性：名称/开始时间/结束时间/所属版本；结束时间 9999/01/01 为永久活动占位（跳过）。
 		// 查询 URL 由 fetchYsActivity 构造，浏览器直连（api.php 带 origin=* 有 CORS）。
-		function parseSmwActivity(json, tz) {
+		// `opts.emitArrays` + `opts.id`（P3，2026-11-07）⇒ 直出 `events` 数组 + 条目事实
+		// （`eventHoverItems`），悬停文本改由同一份条目反生成；不传时走改造前的 buildEventHover。
+		function parseSmwActivity(json, tz, opts) {
 			const results = json?.query?.results || {};
 			const now = nowMs();
 			const covering = [];
@@ -1206,12 +1261,35 @@
 			const ordered = sortEventItems(covering);
 			const best = pickEventPrimary(ordered) || ordered[0];
 			const win = fmtWindow(best.startTs, best.endTs, tz);
-			return {
+			const out = {
 				banner: best.name,
 				roles: "",
 				bannerDates: win,
-				bannerDatesRaw: win,
-				eventHover: buildEventHover(ordered, 0, tz)
+				bannerDatesRaw: win
+			};
+			const emit = !!(opts && opts.emitArrays === true && opts.id);
+			if (!emit) return { ...out, eventHover: buildEventHover(ordered, 0, tz) };
+			// ── P3：条目事实（当期每条活动一行）→ 悬停 + `events` 数组 ──────────────
+			// 顺序 = `sortEventItems`（与改造前喂给 buildEventHover 的是同一份，逐行不会换位）。
+			// ⚠️ 不写 `cat`：改造前的合成数组里没有这条事实（SMW 的「类型」只参与外显挑选），
+			//    本批加进去会让数组与显示层规则同时变 —— 那是 P3b 的事。
+			const hoverItems = ordered.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: "" }));
+			const w = dataArrayWindowOf(win, now);
+			const main = {
+				title: best.name,
+				show: best.name,          // 活动侧没有只为显示的事项名（`eventShow`）= 活动名本身
+				startTs: w.startTs,
+				endTs: w.endTs,
+				tz,
+				raw: win,
+				source: "primary"
+			};
+			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "event", tz });
+			return {
+				...out,
+				eventHover: hoverTextFromItems(hoverItems, "event", tz),
+				events: dataArrayProducedListOf([main].concat(extras).map((x) => dataArrayProducedItemOf(x, "event")), opts.id + ":event"),
+				eventHoverItems: hoverItems
 			};
 		}
 

@@ -501,9 +501,14 @@ export default async function run() {
 		const only = parseArknightsSmwEvents(FIXTURE_JSON, TZ_CN).filter((x) => x.name === "感谢庆典2026限时签到");
 		const noClaimPl = prtsEventPayload(only, TZ_CN, at("2026-11-08T12:00:00+08:00"));
 		const PRE_CHANGE_KEYS = "event,eventDates,eventDatesRaw,eventHover";
-		check("无兑换期：载荷键集合 = 改造前那四个（不多 eventShow / eventClaimDates / eventHoverExtra）",
-			!!noClaimPl && Object.keys(noClaimPl).sort().join(",") === PRE_CHANGE_KEYS,
-			`不变量=退化形状｜期望=${PRE_CHANGE_KEYS}｜实测=${Object.keys(noClaimPl || {}).sort().join(",")}`);
+		// P3（2026-11-07）：载荷多了两条**数据层通道** —— `events`（解析器直出的数组）与
+		// `eventHoverItems`（生成悬停/数组的那份条目事实）。两者到 `mergeEntryRecord` 末尾就删掉、
+		// 不进记录也不落盘，所以这里比的仍是"**会显示/会落盘**的可见字段"是否还是改造前那四个。
+		const visibleKeysOf = (pl) => Object.keys(pl || {})
+			.filter((k) => k !== "events" && k !== "eventHoverItems").sort().join(",");
+		check("无兑换期：可见字段 = 改造前那四个（不多 eventShow / eventClaimDates / eventHoverExtra）",
+			!!noClaimPl && visibleKeysOf(noClaimPl) === PRE_CHANGE_KEYS,
+			`不变量=退化形状｜期望=${PRE_CHANGE_KEYS}｜实测=${visibleKeysOf(noClaimPl)}`);
 		const NO_CLAIM_RAW = "11-01 12:00 ~ 11-15 03:59";
 		check("无兑换期：eventDates 与 eventDatesRaw 都是源站墙钟原文（跨 TZ 逐字相同）",
 			!!noClaimPl && noClaimPl.eventDates === NO_CLAIM_RAW

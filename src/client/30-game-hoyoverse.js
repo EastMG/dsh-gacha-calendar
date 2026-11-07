@@ -269,6 +269,8 @@
 
 		// 原神 SMW 活动查询（经 origin=* 直连）
 		// 返回 EVENT_FETCHERS 契约格式 {event, eventDates, eventDatesRaw}（parseSmwActivity 产出卡池格式，这里转换）
+		// P3（2026-11-07）：parseSmwActivity 直出 `events` 数组 + 条目事实，这里**原样带出**（别在这里重算，
+		// 否则数组与悬停又成了两份来源）。
 		async function fetchYsActivity(signal, tz) {
 			const nowYear = new Date(nowMs()).getFullYear();   // 走注入时钟（core 不得直接读宿主时钟）
 			const q = "[[\u5206\u7C7B:\u6D3B\u52A8]][[\u7ED3\u675F\u65F6\u95F4::>" + nowYear + "/01/01]]|?\u540D\u79F0|?\u5F00\u59CB\u65F6\u95F4|?\u7ED3\u675F\u65F6\u95F4|?\u7C7B\u578B|sort=\u5F00\u59CB\u65F6\u95F4|order=desc|limit=60";
@@ -276,13 +278,14 @@
 			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
 			if (!res.ok) throw new Error("http-" + res.status);
 			const json = await res.json();
-			const d = parseSmwActivity(json, tz);
+			const d = parseSmwActivity(json, tz, { emitArrays: true, id: "genshin" });
 			if (!d) return null;
 			return {
 				event: d.banner,
 				eventDates: d.bannerDates || "",
 				eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "",
-				eventHover: d.eventHover || ""
+				eventHover: d.eventHover || "",
+				...(d.events ? { events: d.events, eventHoverItems: d.eventHoverItems } : {})
 			};
 		}
 
@@ -955,7 +958,9 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 		});
 
 		// ── 抓取器登记 ──
-		GACHA_FETCHERS["genshin"] = mkMediaWiki(bwikiGachaPayload);
+		// P3（2026-11-07）：原神改由解析器**直出** `gacha` 数组（`bwikiGachaPayload` 的 emitArrays 分支），
+		// 悬停文本由同一份条目反生成；星铁本批仍走改造前的 buildPoolHover（见 README_Dev 的 P3 范围）。
+		GACHA_FETCHERS["genshin"] = mkMediaWiki((html, tz) => bwikiGachaPayload(html, tz, { emitArrays: true, id: "genshin" }));
 		// 星铁：bwiki「历史跃迁」的「5星角色」格子会把同一角色写两遍（缺图红链的名字 + 正常链接的
 		// 「名字（属性）」）⇒ 载荷按**角色名（去掉括号属性后缀）**判重，保留第一次出现的形式。
 		// 规则与理由见 26-parser-hover.js 的 dedupeRoleNames；**只在星铁这里开启**，

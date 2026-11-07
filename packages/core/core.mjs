@@ -3522,28 +3522,31 @@ export function createEngine(env) {
 		}
 
 
-		// 卡池列悬停（统一格式，沿用方舟/面板既有"换行"排版）：
-		// 每池两行 —— "池名：角色" + "起止时间"；窗口完全相同的池合并时间（只在末尾写一遍）；
-		// 排序：结束时间升序（无/未知结束时间排最后）。
-		// 外显不受此函数影响：仍按各源原有逻辑（同窗口角色合并）。兜底：0/1 池返回 ""，退回单条展示。
-		// `tz`（源站时区）**必传**：与 buildEventHover 同口径 —— 悬停 = 源站墙钟原文。
-		function buildPoolHover(pools, tz) {
+		// 卡池悬停的**排序**（结束时间升序 → 起点升序；无/未知的排最后）。
+		// 单独抽出来是因为 P3 的**反向生成**也要用同一份：解析器直出的条目列表必须按同一顺序，
+		// 否则"hover 由条目反生成"就会与改造前的文本差一个行序。
+		function poolHoverOrderOf(a, b) {
+			const ea = a.endTs == null ? Infinity : a.endTs;
+			const eb = b.endTs == null ? Infinity : b.endTs;
+			if (ea !== eb) return ea - eb;
+			const sa = a.startTs == null ? Infinity : a.startTs;
+			const sb = b.startTs == null ? Infinity : b.startTs;
+			return sa - sb;
+		}
+
+		// 卡池列表的**去重**（"同一个池被源重复描述两遍"）：
+		// ⚠️ 同一个池会被源重复描述两遍 ⇒ 探头上出现"重复"两行（用户 2026-10-16）：
+		//    明日方舟「克莱门莎」+「海渊巡游：克莱门莎」；星塔旅人「「微醺茶香，藤花幽梦」」+「…：仙踪良梦」；
+		//    重返未来「狩勋女巫红弩箭、小叶尼塞、婴儿蓝」+「「不渝者的领航」…：狩勋女巫红弩箭（星）…」。
+		//    共同点：其中一条的信息，整段出现在另一条「：」的某一侧 ⇒ 它是同一池的残缺描述。
+		//    规则：只认「：」两侧的整段包含（不做任意子串）——这样不会把「夏日活动」
+		//    误当成「夏日活动·特别篇」的重复；括号后缀（(星)/（星））先归一化再去比。
+		// 抽成独立函数（P3）：**悬停文本**与**解析器直出的数组**都从这一份结果出发，
+		// 不允许"文本里丢了两行、数组里还留着"这种两套事实。
+		function poolHoverKept(pools) {
 			const rawList = (Array.isArray(pools) ? pools : [])
-				.filter((p) => p && typeof p.name === "string" && p.name.trim() !== "")
-				.sort((a, b) => {
-					const ea = a.endTs == null ? Infinity : a.endTs;
-					const eb = b.endTs == null ? Infinity : b.endTs;
-					if (ea !== eb) return ea - eb;
-					const sa = a.startTs == null ? Infinity : a.startTs;
-					const sb = b.startTs == null ? Infinity : b.startTs;
-					return sa - sb;
-				});
-			// ⚠️ 同一个池会被源重复描述两遍 ⇒ 探头上出现"重复"两行（用户 2026-10-16）：
-			//    明日方舟「克莱门莎」+「海渊巡游：克莱门莎」；星塔旅人「「微醺茶香，藤花幽梦」」+「…：仙踪良梦」；
-			//    重返未来「狩勋女巫红弩箭、小叶尼塞、婴儿蓝」+「「不渝者的领航」…：狩勋女巫红弩箭（星）…」。
-			//    共同点：其中一条的信息，整段出现在另一条「：」的某一侧 ⇒ 它是同一池的残缺描述。
-			//    规则：只认「：」两侧的整段包含（不做任意子串）——这样不会把「夏日活动」
-			//    误当成「夏日活动·特别篇」的重复；括号后缀（(星)/（星））先归一化再去比。
+				.filter((p) => p && String(p.label || p.name || p.title || "").trim() !== "")
+				.sort(poolHoverOrderOf);
 			const normLabel = (s) => String(s || "").replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, "");
 			const keep = [];
 			for (const p of rawList) {
@@ -3559,7 +3562,19 @@ export function createEngine(env) {
 				});
 				if (!dup) keep.push(p);
 			}
-			const list = keep;
+			return keep;
+		}
+
+		// 卡池列悬停（统一格式，沿用方舟/面板既有"换行"排版）：
+		// 每池两行 —— "池名：角色" + "起止时间"；窗口完全相同的池合并时间（只在末尾写一遍）；
+		// 排序：结束时间升序（无/未知结束时间排最后）。
+		// 外显不受此函数影响：仍按各源原有逻辑（同窗口角色合并）。兜底：0/1 池返回 ""，退回单条展示。
+		// `tz`（源站时区）**必传**：与 buildEventHover 同口径 —— 悬停 = 源站墙钟原文。
+		function buildPoolHover(pools, tz) {
+			// 过滤条件保持原样（`name` 必须是非空字符串）—— 去重 / 排序在 poolHoverKept 里，
+			// 那一份也要给 P3 的数组路径用，所以**不能**让这里变成第二个"谁算重复"的实现。
+			const list = poolHoverKept((Array.isArray(pools) ? pools : [])
+				.filter((p) => p && typeof p.name === "string" && p.name.trim() !== ""));
 			if (list.length < 2) return "";
 			const allTimed = list.every((p) => p.startTs != null && p.endTs != null);
 			const same = allTimed && new Set(list.map((p) => `${p.startTs}~${p.endTs}`)).size === 1;
@@ -3572,6 +3587,53 @@ export function createEngine(env) {
 			}
 			if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs, tz));
 			return lines.join("\n");
+		}
+
+
+		// ── P3（2026-11-07）：**条目 → 悬停文本**（与 buildPoolHover / buildEventHover 同一排版）──
+		// 方向反过来了：以前是"解析器手拼字符串、数据层再从字符串反解条目"，现在是
+		// **解析器先有条目事实**（`{ title/label, startTs, endTs, raw }`），悬停文本由条目生成。
+		// 复刻的排版规则（逐条对得上 buildPoolHover / buildEventHover）：
+		//   · 卡池侧：每条一行 `label || title`；档期另起一行（`MM-DD HH:MM ~ MM-DD HH:MM`，
+		//     由 `fmtWindow(ts, ts, tz)` 渲染）；**窗口全同 ⇒ 每条只写名称、末尾写一遍档期**；
+		//     缺起止的条目（源站写"X.Y版本更新后"）**原样写 raw**、没有 raw 就只写名称。
+		//   · 活动侧：每条一行 `名称 + 3 个空格 + 档期`；窗口全同 ⇒ 每条只写名称、末尾写一遍档期；
+		//     缺起止的条目写 `名称 + 3 空格 + raw`（没有 raw 就只写名称）。
+		//   · 两侧都：**不足 2 条 ⇒ 空串**（交回 UI 单条展示）；`kind === "event"` 时另按
+		//     `isLongTermEvent` 剔掉长期/常驻窗口（与 buildEventHover 完全一致）。
+		// 顺序：**调用方给**（卡池侧与 `poolHoverOrderOf` 同口径、活动侧与 `sortEventItems` 同口径）。
+		//   这里**不排序**：鸣潮卡池悬停的首行是"卡池类型"（不是任何一口池），必须固定在首位。
+		function hoverWindowTextOf(item, tz) {
+			if (item.startTs != null && item.endTs != null) return fmtWindow(item.startTs, item.endTs, tz);
+			return String(item.raw || "").trim();
+		}
+
+		function hoverLinesFromItems(items, kind, tz) {
+			const isEvent = kind === "event";
+			// 名称字段三选一：`title`（活动名）/ `label`（卡池那行"池名：角色"）/ `name`（老调用形状）
+			const nameOf = (x) => String(x.title || x.label || x.name);
+			const list = (Array.isArray(items) ? items : [])
+				.filter((x) => x && nameOf(x).trim() !== "")
+				.filter((x) => !isEvent || !isLongTermEvent(x));
+			if (list.length < 2) return [];
+			const allTimed = list.every((x) => x.startTs != null && x.endTs != null);
+			const same = allTimed && new Set(list.map((x) => `${x.startTs}~${x.endTs}`)).size === 1;
+			const lines = [];
+			for (const x of list) {
+				const win = hoverWindowTextOf(x, tz);
+				if (isEvent) {
+					lines.push(allTimed ? (same ? nameOf(x) : `${nameOf(x)}   ${win}`) : (win ? `${nameOf(x)}   ${win}` : nameOf(x)));
+				} else {
+					lines.push(x.label || nameOf(x));
+					if (!same && win) lines.push(win);
+				}
+			}
+			if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs, tz));
+			return lines;
+		}
+
+		function hoverTextFromItems(items, kind, tz) {
+			return hoverLinesFromItems(items, kind, tz).join("\n");
 		}
 
 
@@ -3700,12 +3762,16 @@ export function createEngine(env) {
 		// Bwiki 卡池列载荷（原神/星铁）：外显沿用 selectCurrent（同窗口主池角色合并、武器/光锥池不入选）；
 		// bannerHover 列出同期全部主池（每池"池名：角色"+时间；窗口相同则合并时间；结束时间升序）
 		// `opts.dedupeRoleNames === true` ⇒ 每个池的 roles 与合并后的 roles 都按「角色名」判重（星铁用）。
+		// `opts.emitArrays === true` + `opts.id` ⇒ **P3**：解析器直出 `gacha` 数组（条目事实 → 数组），
+		//   悬停文本改由**同一份条目**反生成（`hoverTextFromItems`）。不传时走改造前的 `buildPoolHover`
+		//   （星铁本批不动，见 README_Dev 的 P3 范围）。
 		function bwikiGachaPayload(html, tz, opts) {
 			const items = parseAllBwiki(html, tz);
 			// 页面拿到了却连一行候选都没有 → wiki 表结构变了（抛错，面板显示"卡池失败"）；
 			// 有候选但都不覆盖当前时刻 → 下面返回 null（未公布）。这两件事必须分开。
 			if (items.length === 0) throw new Error("bwiki-gacha-no-table");
 			const dedupe = !!(opts && opts.dedupeRoleNames === true);
+			const emit = !!(opts && opts.emitArrays === true && opts.id);
 			// 先按池判重（悬停的「池名：角色」也用这份 roles），再交给 selectCurrent 合并
 			if (dedupe) for (const it of items) it.roles = dedupeRoleNames(it.roles);
 			// selectCurrent 会就地补全缺失起点（fillMissingStarts），故先取快照
@@ -3724,7 +3790,37 @@ export function createEngine(env) {
 					endTs: it.endTs,
 					raw: it.raw
 				}));
-			return { ...cur, bannerHover: buildPoolHover(pools, tz) };
+			if (!emit) return { ...cur, bannerHover: buildPoolHover(pools, tz) };
+			// ── P3：条目事实（每口当期主池一行）→ 悬停 + 数组 ────────────────────
+			// 顺序 = `poolHoverOrderOf`（与 buildPoolHover 同一份排序）；去重也走 `poolHoverKept`，
+			// 所以"悬停里那几行"与"数组里的并列条目"从**同一份**结果出发。
+			const hoverItems = poolHoverKept(pools).map((p) => ({
+				title: p.label || p.name,
+				label: p.label || p.name,
+				startTs: p.startTs,
+				endTs: p.endTs,
+				raw: p.raw
+			}));
+			const bannerHover = hoverTextFromItems(hoverItems, "gacha", tz);
+			// 主条：外显沿用 selectCurrent 的 banner/roles（显示名 = cleanRoleNames，与合成路径同一句）
+			const w = dataArrayWindowOf(cur.bannerDates, now);
+			const main = {
+				title: cur.banner,
+				show: cleanRoleNames(cur.roles, opts.id) || cur.banner,
+				roles: dataArrayRolesOf(cur.roles),
+				startTs: w.startTs,
+				endTs: w.endTs,
+				tz,
+				raw: cur.bannerDatesRaw,
+				source: "primary"
+			};
+			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "gacha", tz });
+			return {
+				...cur,
+				bannerHover,
+				gacha: dataArrayProducedListOf([main].concat(extras).map((x) => dataArrayProducedItemOf(x, "gacha")), opts.id + ":gacha"),
+				gachaHoverItems: hoverItems
+			};
 		}
 
 		// 起止时间戳 → 统一文本 `MM-DD HH:MM ~ MM-DD HH:MM`（**源站墙钟**）
@@ -4390,6 +4486,8 @@ export function createEngine(env) {
 
 		// 原神 SMW 活动查询（经 origin=* 直连）
 		// 返回 EVENT_FETCHERS 契约格式 {event, eventDates, eventDatesRaw}（parseSmwActivity 产出卡池格式，这里转换）
+		// P3（2026-11-07）：parseSmwActivity 直出 `events` 数组 + 条目事实，这里**原样带出**（别在这里重算，
+		// 否则数组与悬停又成了两份来源）。
 		async function fetchYsActivity(signal, tz) {
 			const nowYear = new Date(nowMs()).getFullYear();   // 走注入时钟（core 不得直接读宿主时钟）
 			const q = "[[\u5206\u7C7B:\u6D3B\u52A8]][[\u7ED3\u675F\u65F6\u95F4::>" + nowYear + "/01/01]]|?\u540D\u79F0|?\u5F00\u59CB\u65F6\u95F4|?\u7ED3\u675F\u65F6\u95F4|?\u7C7B\u578B|sort=\u5F00\u59CB\u65F6\u95F4|order=desc|limit=60";
@@ -4397,13 +4495,14 @@ export function createEngine(env) {
 			const res = await transportFetchRaw(apiUrl, { signal, headers: rawHeaders(apiUrl) });
 			if (!res.ok) throw new Error("http-" + res.status);
 			const json = await res.json();
-			const d = parseSmwActivity(json, tz);
+			const d = parseSmwActivity(json, tz, { emitArrays: true, id: "genshin" });
 			if (!d) return null;
 			return {
 				event: d.banner,
 				eventDates: d.bannerDates || "",
 				eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "",
-				eventHover: d.eventHover || ""
+				eventHover: d.eventHover || "",
+				...(d.events ? { events: d.events, eventHoverItems: d.eventHoverItems } : {})
 			};
 		}
 
@@ -5076,7 +5175,9 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 		});
 
 		// ── 抓取器登记 ──
-		GACHA_FETCHERS["genshin"] = mkMediaWiki(bwikiGachaPayload);
+		// P3（2026-11-07）：原神改由解析器**直出** `gacha` 数组（`bwikiGachaPayload` 的 emitArrays 分支），
+		// 悬停文本由同一份条目反生成；星铁本批仍走改造前的 buildPoolHover（见 README_Dev 的 P3 范围）。
+		GACHA_FETCHERS["genshin"] = mkMediaWiki((html, tz) => bwikiGachaPayload(html, tz, { emitArrays: true, id: "genshin" }));
 		// 星铁：bwiki「历史跃迁」的「5星角色」格子会把同一角色写两遍（缺图红链的名字 + 正常链接的
 		// 「名字（属性）」）⇒ 载荷按**角色名（去掉括号属性后缀）**判重，保留第一次出现的形式。
 		// 规则与理由见 26-parser-hover.js 的 dedupeRoleNames；**只在星铁这里开启**，
@@ -5288,19 +5389,53 @@ EVENT_FETCHERS["zzz"] = {
 			};
 			const raw = fmtWindow(first.startTs, first.endTs, tz);
 			// 悬停：首行=卡池类型（与卡片外显同源），随后每池"池名：角色"一行；窗口相同则时间只在末尾写一遍；
-			// 按结束时间升序。**类型行只在本源补**，不动全站共用的 buildPoolHover（它按约定对 0/1 池返回 ""）。
-			const poolHover = buildPoolHover(cur.map((p) => ({
+			// 按结束时间升序。**类型行只在本源补**（它不是任何一口池，`hoverTextFromItems` 不排序 ⇒
+			// 放在最前就永远在最前；放进条目列表反而会让"窗口全同只在末尾写一遍"的折叠规则走样）。
+			// ── P3（2026-11-07）：条目事实 → 悬停 + `gacha` 数组 ────────────────────
+			// 去重/排序走共用工具（`poolHoverKept`：与 buildPoolHover 同一份，结束时间升序），
+			// 悬停与数组的并列条目都从这一份出发。
+			const hoverItems = poolHoverKept(cur.map((p) => ({
 				name: p.name,
 				label: `${p.name}\uFF1A${p.roles || "-"}`,
 				startTs: p.startTs,
 				endTs: p.endTs
-			})), tz);
+			}))).map((x) => ({
+				title: x.label || x.name,
+				label: x.label || x.name,
+				startTs: x.startTs,
+				endTs: x.endTs,
+				raw: x.raw
+			}));
+			const poolHover = hoverTextFromItems(hoverItems, "gacha", tz);
 			const bannerHover = poolHover ? `${first.type}\n${poolHover}` : "";
 			// **外显用卡池类型**（`角色活动唤取`），不用某一个池名：
 			// 角色是多池合并的，若外显挂"但愿长圆如此夜"，卡片就成了"标题只说一个池、角色却是三个池的合成"。
 			// 与用户 2026-09-30 定的统一口径一致（国服显示 `限时限定招募`、异环显示 `限定棋盘`）。
 			// 具体池名在悬停里逐条列出，不丢信息。
-			return { banner: first.type, roles, bannerDates: raw, bannerDatesRaw: raw, startTs: first.startTs, endTs: first.endTs, bannerHover };
+			const w = dataArrayWindowOf(raw, now);
+			const main = {
+				title: first.type,
+				show: cleanRoleNames(roles, "wuwa") || first.type,
+				roles: dataArrayRolesOf(roles),
+				startTs: w.startTs,
+				endTs: w.endTs,
+				tz,
+				raw,
+				source: "primary"
+			};
+			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "gacha", tz });
+			return {
+				banner: first.type,
+				roles,
+				bannerDates: raw,
+				bannerDatesRaw: raw,
+				startTs: first.startTs,
+				endTs: first.endTs,
+				bannerHover,
+				// ⚠️ `gachaHoverItems` 只含**池行**（首行的"卡池类型"由 `banner` 补，见 `bannerHover` 的构造）
+				gacha: dataArrayProducedListOf([main].concat(extras).map((x) => dataArrayProducedItemOf(x, "gacha")), "wuwa:gacha"),
+				gachaHoverItems: hoverItems
+			};
 		}
 
 
@@ -5329,7 +5464,27 @@ EVENT_FETCHERS["zzz"] = {
 			if (sorted.length === 0) return null;
 			const primary = pickEventPrimary(sorted) || sorted[0];
 			const dates = fmtWindow(primary.startTs, primary.endTs, tz);
-			return { banner: primary.name, bannerDates: dates, bannerDatesRaw: dates, eventHover: buildEventHover(sorted, 0, tz) };
+			// ── P3（2026-11-07）：条目事实 → 悬停 + `events` 数组（顺序 = sortEventItems）──
+			const hoverItems = sorted.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: "" }));
+			const w = dataArrayWindowOf(dates, now);
+			const main = {
+				title: primary.name,
+				show: primary.name,
+				startTs: w.startTs,
+				endTs: w.endTs,
+				tz,
+				raw: dates,
+				source: "primary"
+			};
+			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "event", tz });
+			return {
+				banner: primary.name,
+				bannerDates: dates,
+				bannerDatesRaw: dates,
+				eventHover: hoverTextFromItems(hoverItems, "event", tz),
+				events: dataArrayProducedListOf([main].concat(extras).map((x) => dataArrayProducedItemOf(x, "event")), "wuwa:event"),
+				eventHoverItems: hoverItems
+			};
 		}
 
 
@@ -5357,8 +5512,13 @@ EVENT_FETCHERS["zzz"] = {
 			// 活动侧仍保留自己的抓取器（fetchWuwaEventsOfficial）：卡池侧失败、或用户在设置里
 			// 单独选活动来源时，活动侧要能自己抓、自己报错（解耦不变）。
 			const ev = parseWuwaRecommendEvents(list, now, tz);
+			// P3：活动侧的 `events` 数组与条目事实**原样带出**（同一份公告同时喂两侧，别在这里重算）
 			const evFields = ev
-				? { event: ev.banner, eventDates: ev.bannerDates || "", eventDatesRaw: ev.bannerDatesRaw || ev.bannerDates || "", eventHover: ev.eventHover || "" }
+				? {
+					event: ev.banner, eventDates: ev.bannerDates || "", eventDatesRaw: ev.bannerDatesRaw || ev.bannerDates || "",
+					eventHover: ev.eventHover || "",
+					...(ev.events ? { events: ev.events, eventHoverItems: ev.eventHoverItems } : {})
+				}
 				: {};
 			const d = parseWuwaNotice(list, now, tz);
 			if (!d) return null;
@@ -5381,7 +5541,8 @@ EVENT_FETCHERS["zzz"] = {
 				event: d.banner,
 				eventDates: d.bannerDates || "",
 				eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "",
-				eventHover: d.eventHover || ""
+				eventHover: d.eventHover || "",
+				...(d.events ? { events: d.events, eventHoverItems: d.eventHoverItems } : {})
 			};
 		}
 
@@ -5808,12 +5969,36 @@ EVENT_FETCHERS["wuwa"] = {
 				endTs: x.endTs,
 				raw: x.raw || x.bannerDatesRaw || x.bannerDates
 			}));
+			// ── P3（2026-11-07）：条目事实 → 悬停 + `gacha` 数组 ────────────────
+			// 顺序/去重都走共用工具（`poolHoverKept` = buildPoolHover 里那一份），
+			// 所以"悬停里列了哪几口池"与"数组里有哪些并列条目"永远是同一份结果。
+			const hoverItems = poolHoverKept(pools).map((x) => ({
+				title: x.label || x.name,
+				label: x.label || x.name,
+				startTs: x.startTs,
+				endTs: x.endTs,
+				raw: x.raw
+			}));
+			const w = dataArrayWindowOf(p.bannerDates, now);
+			const main = {
+				title: p.banner,
+				show: cleanRoleNames(p.roles, "arknights") || p.banner,
+				roles: dataArrayRolesOf(p.roles),
+				startTs: w.startTs,
+				endTs: w.endTs,
+				tz,
+				raw: p.bannerDatesRaw,
+				source: "primary"
+			};
+			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "gacha", tz });
 			return {
 				banner: p.banner,
 				roles: p.roles,
 				bannerDates: p.bannerDates,
 				bannerDatesRaw: p.bannerDatesRaw,
-				bannerHover: buildPoolHover(pools, tz)
+				bannerHover: hoverTextFromItems(hoverItems, "gacha", tz),
+				gacha: dataArrayProducedListOf([main].concat(extras).map((x) => dataArrayProducedItemOf(x, "gacha")), "arknights:gacha"),
+				gachaHoverItems: hoverItems
 			};
 		}
 
@@ -6286,6 +6471,36 @@ EVENT_FETCHERS["wuwa"] = {
 			//   · 消费方：81-schedule-model.js 的 scheduleNormalize（活动侧 show = g.eventShow || title）。
 			const eventLabel = labelOf(primary.cat, primary.name);
 			const eventShow = primary.phase === "claim" ? eventLabel + " 兑换截止" : "";
+			// 兑换期的日期格悬停也用**兑换区间**（与格子里显示的那份同一个区间），
+			// 否则"格子=兑换期、悬停=活动期"会互相打脸；活动期仍是一览原文（改造前行为）。
+			// 活动真正的起止仍完整出现在 eventHover 的说明里，信息没有丢。
+			const eventDatesRaw = primary.phase === "claim" ? windowText : (primary.raw || "");
+			// ── P3（2026-11-07）：条目事实 → 悬停 + `events` 数组 ────────────────────
+			// 悬停名一律过 `labelOf`（兑换期那条再带「 兑换截止」）—— 与 `event` / `eventShow` /
+			// 提示行锚点**同一串**；数组的并列条目也从这一份去生成（不再从悬停文本反解）。
+			const hoverItems = hoverActive.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
+			const eventHover = hoverTextFromItems(hoverItems, "event", tz);
+			const w = dataArrayWindowOf(windowText, now);
+			const main = {
+				title: eventLabel,
+				show: eventShow || eventLabel,
+				startTs: w.startTs,
+				endTs: w.endTs,
+				tz,
+				raw: eventDatesRaw,
+				source: "primary"
+			};
+			// 第二阶段（兑换截止）：独立窗口，**不是**第二个活动条目（数组里放在 `phase`）
+			if (claimDates) {
+				const cw = dataArrayWindowOf(claimDates, now);
+				main.phase = {
+					kind: "claim",
+					startTs: cw.startTs,
+					endTs: cw.endTs,
+					show: eventShow || (eventLabel + " 兑换截止")
+				};
+			}
+			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "event", tz });
 			return {
 				event: eventLabel,
 				eventDates: windowText,
@@ -6293,14 +6508,13 @@ EVENT_FETCHERS["wuwa"] = {
 				...(eventShow ? { eventShow } : {}),
 				// 提示行只进**提示框**（`scheduleHoverNote` 把它插到对应活动那一行之后），没有就不写这个键。
 				...(extraLines.length ? { eventHoverExtra: extraLines.join("\n") } : {}),
-				// 兑换期的日期格悬停也用**兑换区间**（与格子里显示的那份同一个区间），
-				// 否则"格子=兑换期、悬停=活动期"会互相打脸；活动期仍是一览原文（改造前行为）。
-				// 活动真正的起止仍完整出现在 eventHover 的说明里，信息没有丢。
-				eventDatesRaw: primary.phase === "claim" ? windowText : (primary.raw || ""),
-				// ⚠️ **只由共用 buildEventHover 产生**（与改造前逐字一致）：格子的并列条目由它解析出来，
+				eventDatesRaw,
+				// ⚠️ **只由共用生成器产生**（与改造前的 buildEventHover 逐字一致）：格子的并列条目由它解析出来，
 				//    多一行提示就会在格子里多出一行**可见文字**（2026-11-06 真机 bug）。
 				//    兑换期那条的活动名走 hoverActive（带「 兑换截止」），仍是一条「名称 + 3 空格 + 档期」。
-				eventHover: buildEventHover(hoverActive, 0, tz)
+				eventHover,
+				events: dataArrayProducedListOf([main].concat(extras).map((x) => dataArrayProducedItemOf(x, "event")), "arknights:event"),
+				eventHoverItems: hoverItems
 			};
 		}
 
@@ -6769,7 +6983,9 @@ EVENT_FETCHERS["wuwa"] = {
 		// 改用 api.php?action=ask 直接查询「分类:活动」的开始/结束时间，选当期。
 		// 属性：名称/开始时间/结束时间/所属版本；结束时间 9999/01/01 为永久活动占位（跳过）。
 		// 查询 URL 由 fetchYsActivity 构造，浏览器直连（api.php 带 origin=* 有 CORS）。
-		function parseSmwActivity(json, tz) {
+		// `opts.emitArrays` + `opts.id`（P3，2026-11-07）⇒ 直出 `events` 数组 + 条目事实
+		// （`eventHoverItems`），悬停文本改由同一份条目反生成；不传时走改造前的 buildEventHover。
+		function parseSmwActivity(json, tz, opts) {
 			const results = json?.query?.results || {};
 			const now = nowMs();
 			const covering = [];
@@ -6818,12 +7034,35 @@ EVENT_FETCHERS["wuwa"] = {
 			const ordered = sortEventItems(covering);
 			const best = pickEventPrimary(ordered) || ordered[0];
 			const win = fmtWindow(best.startTs, best.endTs, tz);
-			return {
+			const out = {
 				banner: best.name,
 				roles: "",
 				bannerDates: win,
-				bannerDatesRaw: win,
-				eventHover: buildEventHover(ordered, 0, tz)
+				bannerDatesRaw: win
+			};
+			const emit = !!(opts && opts.emitArrays === true && opts.id);
+			if (!emit) return { ...out, eventHover: buildEventHover(ordered, 0, tz) };
+			// ── P3：条目事实（当期每条活动一行）→ 悬停 + `events` 数组 ──────────────
+			// 顺序 = `sortEventItems`（与改造前喂给 buildEventHover 的是同一份，逐行不会换位）。
+			// ⚠️ 不写 `cat`：改造前的合成数组里没有这条事实（SMW 的「类型」只参与外显挑选），
+			//    本批加进去会让数组与显示层规则同时变 —— 那是 P3b 的事。
+			const hoverItems = ordered.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: "" }));
+			const w = dataArrayWindowOf(win, now);
+			const main = {
+				title: best.name,
+				show: best.name,          // 活动侧没有只为显示的事项名（`eventShow`）= 活动名本身
+				startTs: w.startTs,
+				endTs: w.endTs,
+				tz,
+				raw: win,
+				source: "primary"
+			};
+			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "event", tz });
+			return {
+				...out,
+				eventHover: hoverTextFromItems(hoverItems, "event", tz),
+				events: dataArrayProducedListOf([main].concat(extras).map((x) => dataArrayProducedItemOf(x, "event")), opts.id + ":event"),
+				eventHoverItems: hoverItems
 			};
 		}
 
@@ -15067,7 +15306,12 @@ EVENT_FETCHERS["r1999"] = {
 		// 数据层在合成数组时按标题贴到条目上（见 dataArrayAttachFactsOf），**随后就从记录里删掉**
 		// （它不是展示字段，也不进 lastData；留在数组条目上的 `cat`/`tags` 才是事实）。
 		// 两边的字段表都要登记，否则 `pickFields` 会把这条通道静默削掉。
-		const GACHA_FIELDS = ["banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover", "gacha", "itemFacts"];
+		// `gachaHoverItems` / `eventHoverItems` = **条目事实**（P3，2026-11-07）：解析器直出
+		// `gacha` / `events` 时，把"生成悬停文本与数组的那份条目"一并带上来（`{ title/label, startTs,
+		// endTs, raw }`）。它是 `gacha` / `events` 的**同一份来源**（数组 = 它排序发 key 的结果、
+		// 悬停 = 它排版的结果），到 `mergeEntryRecord` 末尾就删掉 —— **不进记录、不进 lastData**。
+		// 与 `itemFacts` 同一性质：只是"解析器 → 数据层"这一跳的通道（回归用例靠它证明两边同源）。
+		const GACHA_FIELDS = ["banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover", "gacha", "gachaHoverItems", "itemFacts"];
 		// `eventClaimDates` = 明日方舟「奖励领取（兑换）截止」窗口（只有**有兑换期**的来源才带；
 		// 没有就没有这个键）。它是**提醒侧**的第二个 deadline，不参与任何显示逻辑 ⇒ 必须原样进 lastData，
 		// 否则「刷新过一次、中途不再刷新」就只剩一个 deadline 会响（见 65-remind.js 的 remindItemsOf）。
@@ -15077,7 +15321,7 @@ EVENT_FETCHERS["r1999"] = {
 		// 同样要随 lastData 走，否则"沿用旧值时"提示框会少掉那一行（与 `eventShow` 同口径）。
 		// `events` = **数据层数组**（P1，2026-11-07）：每条活动一条、兑换期放在 `phase` 里
 		// （见下面「数据层数组」region）。与 `gacha` 同理必须登记，否则结构化来源会被静默削掉。
-		const EVENT_FIELDS = ["event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventShow", "eventHoverExtra", "eventHover", "events", "itemFacts"];
+		const EVENT_FIELDS = ["event", "eventDates", "eventDatesRaw", "eventClaimDates", "eventShow", "eventHoverExtra", "eventHover", "events", "eventHoverItems", "itemFacts"];
 		function pickFields(src, fields) {
 			const out = {};
 			if (!src) return out;
@@ -15162,11 +15406,14 @@ EVENT_FETCHERS["r1999"] = {
 					const reuseSameRequest = eventUrl === gachaUrl && !!(g.data && g.data.event);
 					if (reuseSameRequest) {
 						// 同 URL：活动字段就在卡池载荷里，不重复抓
+						// ⚠️ P3（2026-11-07）：解析器直出的 `events` / 条目事实也要跟着走 —— 只是"省一次请求"，
+						//    不是"活动侧的数据可以少"（漏了这行，鸣潮的活动数组就会在复用分支里静默消失）。
 						evData = {
 							event: g.data.event,
 							eventDates: g.data.eventDates || "",
 							eventDatesRaw: g.data.eventDatesRaw || g.data.bannerDatesRaw || "",
-							eventHover: g.data.eventHover || ""
+							eventHover: g.data.eventHover || "",
+							...(g.data.events ? { events: g.data.events, eventHoverItems: g.data.eventHoverItems } : {})
 						};
 					} else if (eventUrl === gachaUrl && !evFetcher) {
 						// ── 两侧同一条 URL、但活动侧**没有自己的抓取器**（该条目就只有这一份载荷可用）──
@@ -15275,13 +15522,20 @@ EVENT_FETCHERS["r1999"] = {
 			const skipped = !!(r && r.reason === "skipped");
 			rec.okAt = (!skipped && !gachaFail && !eventFail) ? nowTs : (prevRec && prevRec.okAt) || 0;
 			// 数据层数组（P1，见下面「数据层数组」region）：
-			// 来源若已给结构化数组（P3 的解析器会开始给）就原样用；否则从**上面合并后的**字符串字段合成。
+			// 来源若已给结构化数组就原样用（P3 第一批：原神 / 明日方舟 / 鸣潮的 6 条路径由解析器直出）；
+			// 否则从**上面合并后的**字符串字段合成（其余 25 款仍是这条路径）。
 			// 合成发生在**沿回旧值之后**，所以"这一列显示的是沿用值"时数组内容与沿回的那串文本一致，
 			// 不会出现"字符串是新的、数组还是上一轮"这种两套事实。
+			// ⚠️ P3（2026-11-07）：解析器直出的数组**已经是**最终形状（顺序 / key / 事实都在解析器侧定好，
+			//    见 `dataArrayProducedItemOf`），这里原样用 —— 但"上一轮的数组"要不要沿用仍按同一判据
+			//    （`dataArrayInheritableOf`：每条都带 `source`），见上面两个分支。
 			rec.gacha = Array.isArray(rec.gacha) ? rec.gacha : dataArrayGachaOf(rec, meta, new Date(nowTs));
 			rec.events = Array.isArray(rec.events) ? rec.events : dataArrayEventsOf(rec, meta, new Date(nowTs));
-			// `itemFacts` 只是"解析器 → 数组"的**通道**：类别已经贴到数组条目上了，不进记录/缓存。
+			// `itemFacts` / `gachaHoverItems` / `eventHoverItems` 只是"解析器 → 数组"的**通道**：
+			// 事实已经贴到数组条目上了、悬停文本也已经生成了，它们不进记录/缓存。
 			delete rec.itemFacts;
+			delete rec.gachaHoverItems;
+			delete rec.eventHoverItems;
 			return rec;
 		}
 
@@ -15340,8 +15594,10 @@ EVENT_FETCHERS["r1999"] = {
 			return String(roles || "").split(/[、,，]/).map((x) => x.trim()).filter(Boolean);
 		}
 		// 一段档期文本 → { startTs, endTs }；读不出（"长期"/"版本更新后 ~ …"/空）⇒ 两端 null，不硬凑
+		// `now` 两种都收：数据层合成器手里是 `Date`，解析器（P3 直出数组）手里是毫秒数。
 		function dataArrayWindowOf(text, now) {
-			const r = parseDisplayRange(dataArrayTextOf(text), now);
+			const at = now instanceof Date ? now : new Date(now);
+			const r = parseDisplayRange(dataArrayTextOf(text), at);
 			return r ? { startTs: dataArrayTsOf(r.startTs), endTs: dataArrayTsOf(r.endTs) } : { startTs: null, endTs: null };
 		}
 		// 自然顺序：结束时间升序 → 起点升序 → 无结束时间的排最后（与 buildPoolHover 同一口径）
@@ -15381,27 +15637,51 @@ EVENT_FETCHERS["r1999"] = {
 		//   ② 与**显示名**同名（明日方舟兑换期的主行 = `eventShow`「<活动名> 兑换截止」⇒ 同一条）
 		//   ③ 「池名：外显名」/「外显名：其余」= 同一口池的两种写法（只认「：」两侧整段）
 		// 在此之上只补一条"完全相同"判重（同标题+同区间）—— 这是任务书允许的、且**优先保主行**。
-		function dataArrayHoverPoolsOf(hover, main, now) {
-			const list = scheduleHoverItems(dataArrayTextOf(hover), main ? main.title : "", true);
+		//
+		// ⚠️ P3（2026-11-07）：三条判据的**唯一实现**搬到 `dataArrayExtrasFromEntriesOf`，
+		//    因为解析器直出的条目也要过同一套判据 —— 否则"文本里丢了两行、数组里还留着"又成了两套事实。
+		//    文本路径只负责把悬停行拆成 `{ title, win }`（与 `scheduleHoverItems` 同一份逆解析）。
+		function dataArrayHoverPoolsOf(hover, main, now, kind) {
+			const list = scheduleHoverItems(dataArrayTextOf(hover), main ? main.title : "", true)
+				.map((x) => ({ title: x.title, win: x.win }));
+			return dataArrayExtrasFromEntriesOf(list, main, now, { kind: kind || "gacha" });
+		}
+		// 并列条目（**结构化**）→ 数组条目：三条判据 + "完全相同"去重（与上面那段注释同一份口径）。
+		// `entries` 元素形状 = 解析器直出的条目事实 `{ title|label, startTs, endTs, raw }`
+		// （或者文本路径给的 `{ title, win }`，`win` = 悬停里那一行档期原文）。
+		// `opts.tz` 只在结构化路径需要：条目没有现成的窗口文本时，按**源站时区**渲染出同一串
+		// （悬停里那一行就是它 —— 两边必须同一份，否则数组里的 raw/ts 与悬停对不上）。
+		// 时间戳口径**沿用 P1**：把窗口文本按本机时区读回（与改造前的合成结果逐字相同）。
+		// ⚠️ 本批**不**改成绝对时刻：显示层探头的档期文本是"本机时刻按本机时区渲染"，
+		//    换成绝对时刻会让 34 个侧的等价性在 `TZ=UTC` 下变红（README_Dev「已知不等价①」留 P4）。
+		function dataArrayExtrasFromEntriesOf(entries, main, now, opts) {
+			const o = opts || {};
+			const isEvent = o.kind === "event";
 			const shown = DATA_ARRAY_LABEL(main && (main.show || main.title));
 			const seen = new Set();
 			if (main) seen.add(dataArrayIdentityOf(main.title, main.startTs, main.endTs));
 			const out = [];
-			for (const x of list) {
+			for (const x of (Array.isArray(entries) ? entries : [])) {
+				if (!x) continue;
+				const title = dataArrayTextOf(x.title || x.label);
+				if (!title) continue;
+				// 活动侧与 buildEventHover 同一条长期窗口过滤（文本路径的条目没有 ts ⇒ 恒不命中）
+				if (isEvent && isLongTermEvent(x)) continue;
 				if (main) {
-					if (x.title === main.title) continue;
-					if (main.show && x.title === main.show) continue;
-					const t = DATA_ARRAY_LABEL(x.title);
+					if (title === main.title) continue;
+					if (main.show && title === main.show) continue;
+					const t = DATA_ARRAY_LABEL(title);
 					if (shown && t && t !== shown) {
 						const tail = t.lastIndexOf("\uFF1A" + shown);
 						if (t.indexOf(shown + "\uFF1A") === 0 || (tail >= 0 && tail === t.length - shown.length - 1)) continue;
 					}
 				}
-				const w = dataArrayWindowOf(scheduleNoYear(x.win), now);
-				const identity = dataArrayIdentityOf(x.title, w.startTs, w.endTs);
+				const win = dataArrayTextOf(x.win) || hoverWindowTextOf(x, o.tz);
+				const w = dataArrayWindowOf(scheduleNoYear(win), now);
+				const identity = dataArrayIdentityOf(title, w.startTs, w.endTs);
 				if (seen.has(identity)) continue;
 				seen.add(identity);
-				out.push({ title: x.title, show: x.title, startTs: w.startTs, endTs: w.endTs, raw: x.win, source: "hover" });
+				out.push({ title, show: title, startTs: w.startTs, endTs: w.endTs, tz: dataArrayTextOf(o.tz), raw: win, source: "hover" });
 			}
 			return out;
 		}
@@ -15452,7 +15732,7 @@ EVENT_FETCHERS["r1999"] = {
 				source: "primary"
 			};
 			const facts = dataArrayFactsOf(rec);
-			const list = [main].concat(dataArrayHoverPoolsOf(rec.bannerHover, main, now));
+			const list = [main].concat(dataArrayHoverPoolsOf(rec.bannerHover, main, now, "gacha"));
 			return dataArrayOrderedOf(list.map((x) => dataArrayAttachFactsOf({
 				title: x.title,
 				show: x.show,
@@ -15494,7 +15774,7 @@ EVENT_FETCHERS["r1999"] = {
 					show: eventShow || (event + " 兑换截止")
 				};
 			}
-			const extras = dataArrayHoverPoolsOf(rec.eventHover, main, now).map((x) => ({
+			const extras = dataArrayHoverPoolsOf(rec.eventHover, main, now, "event").map((x) => ({
 				title: x.title,
 				show: x.show,
 				startTs: x.startTs,
@@ -15580,6 +15860,33 @@ EVENT_FETCHERS["r1999"] = {
 		}
 		function dataArrayEventListOf(v) {
 			return Array.isArray(v) ? v.map(dataArrayEventItemOf).filter(Boolean) : [];
+		}
+		// ── P3（2026-11-07）：解析器直出条目 → 记录数组条目 ───────────────────────────
+		// 解析器不再"手拼字符串、等着数据层反解"，而是自己给出**条目事实**：
+		//   `{ title, show, roles?, startTs, endTs, tz, raw, source, cat?, tags?, preview?, phase? }`
+		// 这里做**唯一一次**归一（复用持久化白名单那份 `dataArray*ItemOf`，键顺序因此天然与
+		// getCached 往返一致），并按与合成路径**同一判据**补 `preview` 事实（标题命中 予告/coming soon）。
+		// ⚠️ 时间戳口径**沿用 P1**（本机时刻，由窗口文本回算）：解析器与这里都**不**改成绝对时刻 ——
+		//    显示层探头按"本机时刻"渲染档期文本，换成绝对时刻会让 34 个侧的等价性在 UTC 下变红。
+		//    改成绝对时刻要连显示层的渲染口径一起改（README_Dev「已知不等价①」，留 P4）。
+		function dataArrayProducedItemOf(raw, kind) {
+			if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+			const src = Object.assign({}, raw);
+			if (src.preview !== true && dataArrayIsPreview(dataArrayTextOf(src.title))) src.preview = true;
+			return kind === "event" ? dataArrayEventItemOf(src) : dataArrayGachaItemOf(src);
+		}
+		// 排序 + 发 key（下标 = 自然顺序里的位置）。解析器直出的数组一律走这里，
+		// 免得"排序/发 key"在两处各写一份。
+		// ⚠️ 必须先摘掉条目上可能已有的 `key`：`dataArrayOrderedOf` 是 `Object.assign({ key }, x)`，
+		//    带着一个空 `key` 的条目会把刚发好的 key **覆盖成空串**（`dataArrayGachaOf` 的条目是现搭的、
+		//    没有这个坑；解析器路径的条目已经过归一，`key` 恒存在）。
+		function dataArrayProducedListOf(list, prefix) {
+			const clean = (Array.isArray(list) ? list : []).filter(Boolean).map((x) => {
+				const out = Object.assign({}, x);
+				delete out.key;
+				return out;
+			});
+			return dataArrayOrderedOf(clean, prefix);
 		}
 		//#endregion
 

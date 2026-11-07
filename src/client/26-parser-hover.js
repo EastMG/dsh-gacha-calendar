@@ -35,28 +35,31 @@
 		}
 
 
-		// 卡池列悬停（统一格式，沿用方舟/面板既有"换行"排版）：
-		// 每池两行 —— "池名：角色" + "起止时间"；窗口完全相同的池合并时间（只在末尾写一遍）；
-		// 排序：结束时间升序（无/未知结束时间排最后）。
-		// 外显不受此函数影响：仍按各源原有逻辑（同窗口角色合并）。兜底：0/1 池返回 ""，退回单条展示。
-		// `tz`（源站时区）**必传**：与 buildEventHover 同口径 —— 悬停 = 源站墙钟原文。
-		function buildPoolHover(pools, tz) {
+		// 卡池悬停的**排序**（结束时间升序 → 起点升序；无/未知的排最后）。
+		// 单独抽出来是因为 P3 的**反向生成**也要用同一份：解析器直出的条目列表必须按同一顺序，
+		// 否则"hover 由条目反生成"就会与改造前的文本差一个行序。
+		function poolHoverOrderOf(a, b) {
+			const ea = a.endTs == null ? Infinity : a.endTs;
+			const eb = b.endTs == null ? Infinity : b.endTs;
+			if (ea !== eb) return ea - eb;
+			const sa = a.startTs == null ? Infinity : a.startTs;
+			const sb = b.startTs == null ? Infinity : b.startTs;
+			return sa - sb;
+		}
+
+		// 卡池列表的**去重**（"同一个池被源重复描述两遍"）：
+		// ⚠️ 同一个池会被源重复描述两遍 ⇒ 探头上出现"重复"两行（用户 2026-10-16）：
+		//    明日方舟「克莱门莎」+「海渊巡游：克莱门莎」；星塔旅人「「微醺茶香，藤花幽梦」」+「…：仙踪良梦」；
+		//    重返未来「狩勋女巫红弩箭、小叶尼塞、婴儿蓝」+「「不渝者的领航」…：狩勋女巫红弩箭（星）…」。
+		//    共同点：其中一条的信息，整段出现在另一条「：」的某一侧 ⇒ 它是同一池的残缺描述。
+		//    规则：只认「：」两侧的整段包含（不做任意子串）——这样不会把「夏日活动」
+		//    误当成「夏日活动·特别篇」的重复；括号后缀（(星)/（星））先归一化再去比。
+		// 抽成独立函数（P3）：**悬停文本**与**解析器直出的数组**都从这一份结果出发，
+		// 不允许"文本里丢了两行、数组里还留着"这种两套事实。
+		function poolHoverKept(pools) {
 			const rawList = (Array.isArray(pools) ? pools : [])
-				.filter((p) => p && typeof p.name === "string" && p.name.trim() !== "")
-				.sort((a, b) => {
-					const ea = a.endTs == null ? Infinity : a.endTs;
-					const eb = b.endTs == null ? Infinity : b.endTs;
-					if (ea !== eb) return ea - eb;
-					const sa = a.startTs == null ? Infinity : a.startTs;
-					const sb = b.startTs == null ? Infinity : b.startTs;
-					return sa - sb;
-				});
-			// ⚠️ 同一个池会被源重复描述两遍 ⇒ 探头上出现"重复"两行（用户 2026-10-16）：
-			//    明日方舟「克莱门莎」+「海渊巡游：克莱门莎」；星塔旅人「「微醺茶香，藤花幽梦」」+「…：仙踪良梦」；
-			//    重返未来「狩勋女巫红弩箭、小叶尼塞、婴儿蓝」+「「不渝者的领航」…：狩勋女巫红弩箭（星）…」。
-			//    共同点：其中一条的信息，整段出现在另一条「：」的某一侧 ⇒ 它是同一池的残缺描述。
-			//    规则：只认「：」两侧的整段包含（不做任意子串）——这样不会把「夏日活动」
-			//    误当成「夏日活动·特别篇」的重复；括号后缀（(星)/（星））先归一化再去比。
+				.filter((p) => p && String(p.label || p.name || p.title || "").trim() !== "")
+				.sort(poolHoverOrderOf);
 			const normLabel = (s) => String(s || "").replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, "");
 			const keep = [];
 			for (const p of rawList) {
@@ -72,7 +75,19 @@
 				});
 				if (!dup) keep.push(p);
 			}
-			const list = keep;
+			return keep;
+		}
+
+		// 卡池列悬停（统一格式，沿用方舟/面板既有"换行"排版）：
+		// 每池两行 —— "池名：角色" + "起止时间"；窗口完全相同的池合并时间（只在末尾写一遍）；
+		// 排序：结束时间升序（无/未知结束时间排最后）。
+		// 外显不受此函数影响：仍按各源原有逻辑（同窗口角色合并）。兜底：0/1 池返回 ""，退回单条展示。
+		// `tz`（源站时区）**必传**：与 buildEventHover 同口径 —— 悬停 = 源站墙钟原文。
+		function buildPoolHover(pools, tz) {
+			// 过滤条件保持原样（`name` 必须是非空字符串）—— 去重 / 排序在 poolHoverKept 里，
+			// 那一份也要给 P3 的数组路径用，所以**不能**让这里变成第二个"谁算重复"的实现。
+			const list = poolHoverKept((Array.isArray(pools) ? pools : [])
+				.filter((p) => p && typeof p.name === "string" && p.name.trim() !== ""));
 			if (list.length < 2) return "";
 			const allTimed = list.every((p) => p.startTs != null && p.endTs != null);
 			const same = allTimed && new Set(list.map((p) => `${p.startTs}~${p.endTs}`)).size === 1;
@@ -85,6 +100,53 @@
 			}
 			if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs, tz));
 			return lines.join("\n");
+		}
+
+
+		// ── P3（2026-11-07）：**条目 → 悬停文本**（与 buildPoolHover / buildEventHover 同一排版）──
+		// 方向反过来了：以前是"解析器手拼字符串、数据层再从字符串反解条目"，现在是
+		// **解析器先有条目事实**（`{ title/label, startTs, endTs, raw }`），悬停文本由条目生成。
+		// 复刻的排版规则（逐条对得上 buildPoolHover / buildEventHover）：
+		//   · 卡池侧：每条一行 `label || title`；档期另起一行（`MM-DD HH:MM ~ MM-DD HH:MM`，
+		//     由 `fmtWindow(ts, ts, tz)` 渲染）；**窗口全同 ⇒ 每条只写名称、末尾写一遍档期**；
+		//     缺起止的条目（源站写"X.Y版本更新后"）**原样写 raw**、没有 raw 就只写名称。
+		//   · 活动侧：每条一行 `名称 + 3 个空格 + 档期`；窗口全同 ⇒ 每条只写名称、末尾写一遍档期；
+		//     缺起止的条目写 `名称 + 3 空格 + raw`（没有 raw 就只写名称）。
+		//   · 两侧都：**不足 2 条 ⇒ 空串**（交回 UI 单条展示）；`kind === "event"` 时另按
+		//     `isLongTermEvent` 剔掉长期/常驻窗口（与 buildEventHover 完全一致）。
+		// 顺序：**调用方给**（卡池侧与 `poolHoverOrderOf` 同口径、活动侧与 `sortEventItems` 同口径）。
+		//   这里**不排序**：鸣潮卡池悬停的首行是"卡池类型"（不是任何一口池），必须固定在首位。
+		function hoverWindowTextOf(item, tz) {
+			if (item.startTs != null && item.endTs != null) return fmtWindow(item.startTs, item.endTs, tz);
+			return String(item.raw || "").trim();
+		}
+
+		function hoverLinesFromItems(items, kind, tz) {
+			const isEvent = kind === "event";
+			// 名称字段三选一：`title`（活动名）/ `label`（卡池那行"池名：角色"）/ `name`（老调用形状）
+			const nameOf = (x) => String(x.title || x.label || x.name);
+			const list = (Array.isArray(items) ? items : [])
+				.filter((x) => x && nameOf(x).trim() !== "")
+				.filter((x) => !isEvent || !isLongTermEvent(x));
+			if (list.length < 2) return [];
+			const allTimed = list.every((x) => x.startTs != null && x.endTs != null);
+			const same = allTimed && new Set(list.map((x) => `${x.startTs}~${x.endTs}`)).size === 1;
+			const lines = [];
+			for (const x of list) {
+				const win = hoverWindowTextOf(x, tz);
+				if (isEvent) {
+					lines.push(allTimed ? (same ? nameOf(x) : `${nameOf(x)}   ${win}`) : (win ? `${nameOf(x)}   ${win}` : nameOf(x)));
+				} else {
+					lines.push(x.label || nameOf(x));
+					if (!same && win) lines.push(win);
+				}
+			}
+			if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs, tz));
+			return lines;
+		}
+
+		function hoverTextFromItems(items, kind, tz) {
+			return hoverLinesFromItems(items, kind, tz).join("\n");
 		}
 
 
@@ -213,12 +275,16 @@
 		// Bwiki 卡池列载荷（原神/星铁）：外显沿用 selectCurrent（同窗口主池角色合并、武器/光锥池不入选）；
 		// bannerHover 列出同期全部主池（每池"池名：角色"+时间；窗口相同则合并时间；结束时间升序）
 		// `opts.dedupeRoleNames === true` ⇒ 每个池的 roles 与合并后的 roles 都按「角色名」判重（星铁用）。
+		// `opts.emitArrays === true` + `opts.id` ⇒ **P3**：解析器直出 `gacha` 数组（条目事实 → 数组），
+		//   悬停文本改由**同一份条目**反生成（`hoverTextFromItems`）。不传时走改造前的 `buildPoolHover`
+		//   （星铁本批不动，见 README_Dev 的 P3 范围）。
 		function bwikiGachaPayload(html, tz, opts) {
 			const items = parseAllBwiki(html, tz);
 			// 页面拿到了却连一行候选都没有 → wiki 表结构变了（抛错，面板显示"卡池失败"）；
 			// 有候选但都不覆盖当前时刻 → 下面返回 null（未公布）。这两件事必须分开。
 			if (items.length === 0) throw new Error("bwiki-gacha-no-table");
 			const dedupe = !!(opts && opts.dedupeRoleNames === true);
+			const emit = !!(opts && opts.emitArrays === true && opts.id);
 			// 先按池判重（悬停的「池名：角色」也用这份 roles），再交给 selectCurrent 合并
 			if (dedupe) for (const it of items) it.roles = dedupeRoleNames(it.roles);
 			// selectCurrent 会就地补全缺失起点（fillMissingStarts），故先取快照
@@ -237,7 +303,37 @@
 					endTs: it.endTs,
 					raw: it.raw
 				}));
-			return { ...cur, bannerHover: buildPoolHover(pools, tz) };
+			if (!emit) return { ...cur, bannerHover: buildPoolHover(pools, tz) };
+			// ── P3：条目事实（每口当期主池一行）→ 悬停 + 数组 ────────────────────
+			// 顺序 = `poolHoverOrderOf`（与 buildPoolHover 同一份排序）；去重也走 `poolHoverKept`，
+			// 所以"悬停里那几行"与"数组里的并列条目"从**同一份**结果出发。
+			const hoverItems = poolHoverKept(pools).map((p) => ({
+				title: p.label || p.name,
+				label: p.label || p.name,
+				startTs: p.startTs,
+				endTs: p.endTs,
+				raw: p.raw
+			}));
+			const bannerHover = hoverTextFromItems(hoverItems, "gacha", tz);
+			// 主条：外显沿用 selectCurrent 的 banner/roles（显示名 = cleanRoleNames，与合成路径同一句）
+			const w = dataArrayWindowOf(cur.bannerDates, now);
+			const main = {
+				title: cur.banner,
+				show: cleanRoleNames(cur.roles, opts.id) || cur.banner,
+				roles: dataArrayRolesOf(cur.roles),
+				startTs: w.startTs,
+				endTs: w.endTs,
+				tz,
+				raw: cur.bannerDatesRaw,
+				source: "primary"
+			};
+			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "gacha", tz });
+			return {
+				...cur,
+				bannerHover,
+				gacha: dataArrayProducedListOf([main].concat(extras).map((x) => dataArrayProducedItemOf(x, "gacha")), opts.id + ":gacha"),
+				gachaHoverItems: hoverItems
+			};
 		}
 
 		// 起止时间戳 → 统一文本 `MM-DD HH:MM ~ MM-DD HH:MM`（**源站墙钟**）

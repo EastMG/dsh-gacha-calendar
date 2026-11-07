@@ -374,6 +374,9 @@ export default async function run() {
 	// 漏传不会抛错，只会让 `fmtWindow` 静默退回**运行环境本机时区**：UTC 机器上悬停比外显早 8 小时
 	// （用户 2026-10-21 实测到：悬停 06:00 vs 外显 14:00）。这类"只在海外机器上出错"的问题靠人眼
 	// 审计守不住（CI 跑 UTC、本地跑 +08，两边都可能碰巧对），所以静态扫全仓调用点。
+	//
+	// ⚠️ 2026-11-07（P3）：悬停的**生成器**多了 `hoverTextFromItems(items, kind, tz)`（与上面两个
+	// **同一排版**，解析器直出条目后改由它生成文本）。它同样**必须**收源站 tz ⇒ 一并纳入这条守卫。
 	{
 		// 从 `(` 之后扫到配对的 `)`，取实参文本。扫的是 codeOnly 结果（字符串/正则/注释已挖空），
 		// 所以括号一定属于代码本身，模板字面量里的括号不会把扫描带偏。
@@ -392,7 +395,7 @@ export default async function run() {
 		let calls = 0;
 		for (const f of readdirSync(SRC).filter((x) => x.endsWith(".js"))) {
 			const code = codeOnly(readFileSync(path.join(SRC, f), "utf8"));
-			for (const m of code.matchAll(/\b(buildEventHover|buildPoolHover)\b\s*\(/g)) {
+			for (const m of code.matchAll(/\b(buildEventHover|buildPoolHover|hoverTextFromItems)\b\s*\(/g)) {
 				const args = argsOf(code, m.index + m[0].length);
 				// 定义处（`function buildEventHover(...)`）：形参里必须有 tz，且**不许**给默认值
 				if (/function\s+$/.test(code.slice(0, m.index))) {
@@ -404,10 +407,10 @@ export default async function run() {
 				if (!/\btz\b/.test(args)) bad.push(`${f}:${lineAt(code, m.index)} ${m[1]}(…) 调用未传 tz`);
 			}
 		}
-		check("守卫自身没瞎：两个函数都定位到了定义、且找到 ≥15 个调用点",
-			defs.has("buildEventHover") && defs.has("buildPoolHover") && calls >= 15,
+		check("守卫自身没瞎：三个生成器都定位到了定义、且找到 ≥15 个调用点",
+			defs.has("buildEventHover") && defs.has("buildPoolHover") && defs.has("hoverTextFromItems") && calls >= 15,
 			`defs=${[...defs].join(",")} calls=${calls}`);
-		check("每个 buildEventHover / buildPoolHover 调用都传了源站 tz（漏传会退回本机时区）",
+		check("每个 buildEventHover / buildPoolHover / hoverTextFromItems 调用都传了源站 tz（漏传会退回本机时区）",
 			bad.length === 0, bad.slice(0, 6).join(" / "));
 	}
 

@@ -508,9 +508,13 @@ export default async function run() {
 		// ② 只有这条活动时（确实没有兑换期）⇒ 载荷与改造前逐键相同
 		const only = SNAPSHOT.filter((x) => x.name === NO_CLAIM_NAME);
 		const noClaimPl = p.prtsEventPayload(only, TZ_CN, AT("2026-11-08T12:00:00+08:00"));
-		check("无兑换期：载荷键集合 = 改造前那四个（不多 eventShow / eventClaimDates / eventHoverExtra）",
-			!!noClaimPl && Object.keys(noClaimPl).sort().join(",") === PRE_CHANGE_KEYS,
-			`不变量=退化形状｜期望=${PRE_CHANGE_KEYS}｜实测=${Object.keys(noClaimPl || {}).sort().join(",")}`);
+		// P3（2026-11-07）：`events` / `eventHoverItems` 是数据层通道（记录里会被删掉），
+		// 这里比的仍是"会显示/会落盘"的可见字段集合。
+		const visibleKeysOf = (pl) => Object.keys(pl || {})
+			.filter((k) => k !== "events" && k !== "eventHoverItems").sort().join(",");
+		check("无兑换期：可见字段 = 改造前那四个（不多 eventShow / eventClaimDates / eventHoverExtra）",
+			!!noClaimPl && visibleKeysOf(noClaimPl) === PRE_CHANGE_KEYS,
+			`不变量=退化形状｜期望=${PRE_CHANGE_KEYS}｜实测=${visibleKeysOf(noClaimPl)}`);
 		// ⚠️ 活动期 `eventDatesRaw` = SMW 那条 `raw`（两端都按源站 tz 渲染）。
 		// 期望值写成**字面量**：本文件在 `TZ=UTC` 与 `TZ=Asia/Shanghai` 两道门禁下都必须逐字等于这一串
 		// （这才是"跨时区相等"的断言，而不是跟着环境现算）。
