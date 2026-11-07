@@ -433,7 +433,7 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 5. **不足 2 条 ⇒ 空串**（交回 UI 单条展示）；活动侧另按 `isLongTermEvent`（>120 天）剔掉常驻窗口；
 6. 顺序 = **调用方给的**（卡池侧与 `poolHoverOrderOf` 同口径、活动侧与 `sortEventItems` 同口径）—— 鸣潮卡池悬停的**首行是"卡池活动类型"**（不是任何一口池），必须固定在首位，所以生成器**不排序**。
 
-**已切的 3 款 6 条路径**（其余 25 款仍走 P1 的合成路径）：
+**已切的路径**（P3 第一批 3 款 6 条 + P3b 逐批；**未切的仍走 P1 的合成路径**，见下面「P3b 进度」）：
 
 | 游戏 | 侧 | 生产者（文件:入口） | 数组条数（真机夹具 2026-11-07） |
 |---|---|---|---|
@@ -446,6 +446,19 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 
 条目形状 = 记录里数组条目的形状（`title` / `show` / `roles?` / `startTs` / `endTs` / `tz` / `raw` / `source`，可选 `cat` / `tags` / `preview` / `phase`）。`source:"primary"` = 引擎挑出的外显那条，其余 `"hover"`。
 
+**P3b 进度（2026-11-07，逐批切换，每批独立 commit）**：目标 = 其余 25 款全部直出。回归在 `test/cases-p3.mjs`
+的 P3b 段（路径表 `P3B_PATHS` + golden 文件 `test/fixtures/p3b-golden.json`；golden 于切换**之前**用
+`node test/cases-p3.mjs --capture-p3b` 采集，**只补缺、不覆盖**，见该文件注释）。
+
+| 批次 | 游戏（侧） | 生产者 | 数组条数（夹具） | 状态 |
+|---|---|---|---|---|
+| P3b-1 | 星铁 `hsr`（卡池 / 活动）、绝区零 `zzz`（卡池 / 活动）、崩坏3 `bh3`（活动；米游社备选）、米游社卡池（4 个 gids 共用） | `bwikiGachaPayload`（hsr 叠 `dedupeRoleNames`）、`genericEventPayload`（生成器补 `permanentCount`）、`fetchZzzGacha` / `parseZzzEventsOfficial`、`ns_miyoushe_{gacha,events}Miyoushe` | 5 / 3；1 / 3；1；1 | ✅ 已切 |
+| 待切 | 其余 22 款（同生产者的备选源随该生产者一起切，不单独算一款） | `pickCurrent(parseAllBwiki)` / `selectArknights` / bwiki-wikitext 族 / biligame 族 / cygames 族 / bluearchive 族 / bluepoch / bandori 族 / aniplex(FGO) / perfectworld / sega / sunborn / yostar / hypergryph(终末地) | — | ⬜ |
+
+**收口的两点补充（P3b）**：① 生成器 `hoverLinesFromItems(items, kind, tz, { permanentCount })` —— 活动侧
+末尾补 `以及常驻活动 N 项`（与 `buildEventHover` 同一句 `permanentLine`，不足 2 条时也带上）；
+② `mergeEntryRecord` 收到解析器数组后**统一归一 + 按记录 id 重发 key**（`dataArrayProducedListOf`）——
+解析器不必知道 `meta.id`（通用源 / 自定义条目拿不到），key 前缀由数据层裁成 `<id>:gacha:i`。
 **数据层收口**（`src/client/50-refresh.js`，P3 只加函数、不改语义）：
 
 - `dataArrayProducedItemOf(raw, kind)` —— 解析器条目 → 记录条目（**复用**持久化白名单那份 `dataArray*ItemOf`，键顺序因此与 `getCached()` 往返一致；并按合成路径同一判据补 `preview`）。

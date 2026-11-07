@@ -1,0 +1,104 @@
+{
+	"hsrGacha": {
+		"rec": {
+			"banner": "「我身即刃」角色活动跃迁",
+			"roles": "星神★阿哈、银狼LV.999（欢愉•虚数） 火花（欢愉•火） 爻光（欢愉•物理）、千冶•刃（虚无•火）、真珠（欢愉•冰）",
+			"bannerDates": "10-21 12:00 ~ 11-10 15:00",
+			"bannerDatesRaw": "10-21 12:00 ~ 11-10 15:00",
+			"bannerHover": "「我身即刃」角色活动跃迁：千冶•刃（虚无•火）\n10-21 12:00 ~ 11-10 15:00\n「沧海萃珠」角色活动跃迁：真珠（欢愉•冰）\n4.6版本更新后 ~ 11-10 15:00\n「铭心之萃」角色活动跃迁：银狼LV.999（欢愉•虚数） 火花（欢愉•火） 爻光（欢愉•物理）\n4.7版本更新后 ~ 12-02 11:59\n「愚戏众星」角色活动跃迁：星神★阿哈\n4.7版本更新后 ~ 12-22 15:00",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"hsr:gacha:0\",\"title\":\"「我身即刃」角色活动跃迁\",\"show\":\"星神★阿哈、银狼LV.999 火花 爻光、千冶•刃、真珠\",\"roles\":[\"星神★阿哈\",\"银狼LV.999（欢愉•虚数） 火花（欢愉•火） 爻光（欢愉•物理）\",\"千冶•刃（虚无•火）\",\"真珠（欢愉•冰）\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-21 12:00 ~ 11-10 15:00\",\"source\":\"primary\"},{\"key\":\"hsr:gacha:1\",\"title\":\"「我身即刃」角色活动跃迁：千冶•刃（虚无•火）\",\"show\":\"「我身即刃」角色活动跃迁：千冶•刃（虚无•火）\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-21 12:00 ~ 11-10 15:00\",\"source\":\"hover\"},{\"key\":\"hsr:gacha:2\",\"title\":\"「沧海萃珠」角色活动跃迁：真珠（欢愉•冰）\",\"show\":\"「沧海萃珠」角色活动跃迁：真珠（欢愉•冰）\",\"roles\":[],\"startTs\":\"null\",\"endTs\":\"null\",\"tz\":\"Asia/Shanghai\",\"raw\":\"4.6版本更新后 ~ 11-10 15:00\",\"source\":\"hover\"},{\"key\":\"hsr:gacha:3\",\"title\":\"「铭心之萃」角色活动跃迁：银狼LV.999（欢愉•虚数） 火花（欢愉•火） 爻光（欢愉•物理）\",\"show\":\"「铭心之萃」角色活动跃迁：银狼LV.999（欢愉•虚数） 火花（欢愉•火） 爻光（欢愉•物理）\",\"roles\":[],\"startTs\":\"null\",\"endTs\":\"null\",\"tz\":\"Asia/Shanghai\",\"raw\":\"4.7版本更新后 ~ 12-02 11:59\",\"source\":\"hover\"},{\"key\":\"hsr:gacha:4\",\"title\":\"「愚戏众星」角色活动跃迁：星神★阿哈\",\"show\":\"「愚戏众星」角色活动跃迁：星神★阿哈\",\"roles\":[],\"startTs\":\"null\",\"endTs\":\"null\",\"tz\":\"Asia/Shanghai\",\"raw\":\"4.7版本更新后 ~ 12-22 15:00\",\"source\":\"hover\"}]"
+	},
+	"hsrEvent": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "「镇伏『贪饕』，汇聚愿力」",
+			"eventDates": "09-28 04:00 ~ 11-10 15:00",
+			"eventDatesRaw": "09-28 04:00 ~ 11-10 15:00",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "「镇伏『贪饕』，汇聚愿力」   09-28 04:00 ~ 11-10 15:00\n「巡星之礼」第二十七期   4.6版本更新后 ~ 11-11 03:59\n「爱，幽灵与机器人」   10-21 12:00 ~ 12-02 11:59",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"hsr:event:0\",\"title\":\"「镇伏『贪饕』，汇聚愿力」\",\"show\":\"「镇伏『贪饕』，汇聚愿力」\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-28 04:00 ~ 11-10 15:00\",\"source\":\"primary\"},{\"key\":\"hsr:event:1\",\"title\":\"「爱，幽灵与机器人」\",\"show\":\"「爱，幽灵与机器人」\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-21 12:00 ~ 12-02 11:59\",\"source\":\"hover\"},{\"key\":\"hsr:event:2\",\"title\":\"「巡星之礼」第二十七期\",\"show\":\"「巡星之礼」第二十七期\",\"startTs\":\"null\",\"endTs\":\"null\",\"tz\":\"Asia/Shanghai\",\"raw\":\"4.6版本更新后 ~ 11-11 03:59\",\"source\":\"hover\"}]"
+	},
+	"zzzGacha": {
+		"rec": {
+			"banner": "3.3版本限时频段（上期）",
+			"roles": "菲欧妮（异常·火）、维琳娜（异常·风）",
+			"bannerDates": "10-21 06:00 ~ 11-11 11:59",
+			"bannerDatesRaw": "3.3版本更新后 ~ 11-11 11:59",
+			"bannerHover": "",
+			"event": "天使应援大作战",
+			"eventDates": "09-09 06:00 ~ 11-30 03:59",
+			"eventDatesRaw": "3.2版本更新后 ~ 2026/11/30 03:59",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "天使应援大作战   09-09 06:00 ~ 11-30 03:59\n怪奇诡屋惊魂记   10-22 10:00 ~ 11-30 03:59\n全新放送   10-21 06:00 ~ 12-01 03:59",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"zzz:gacha:0\",\"title\":\"3.3版本限时频段（上期）\",\"show\":\"菲欧妮、维琳娜\",\"roles\":[\"菲欧妮（异常·火）\",\"维琳娜（异常·风）\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"3.3版本更新后 ~ 11-11 11:59\",\"source\":\"primary\"}]"
+	},
+	"zzzEvent": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "天使应援大作战",
+			"eventDates": "09-09 06:00 ~ 11-30 03:59",
+			"eventDatesRaw": "3.2版本更新后 ~ 2026/11/30 03:59",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "天使应援大作战   09-09 06:00 ~ 11-30 03:59\n怪奇诡屋惊魂记   10-22 10:00 ~ 11-30 03:59\n全新放送   10-21 06:00 ~ 12-01 03:59",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"zzz:event:0\",\"title\":\"天使应援大作战\",\"show\":\"天使应援大作战\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"3.2版本更新后 ~ 2026/11/30 03:59\",\"source\":\"primary\"},{\"key\":\"zzz:event:1\",\"title\":\"怪奇诡屋惊魂记\",\"show\":\"怪奇诡屋惊魂记\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-22 10:00 ~ 11-30 03:59\",\"source\":\"hover\"},{\"key\":\"zzz:event:2\",\"title\":\"全新放送\",\"show\":\"全新放送\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-21 06:00 ~ 12-01 03:59\",\"source\":\"hover\"}]"
+	},
+	"hsrGachaMiyoushe": {
+		"rec": {
+			"banner": "4.6版本活动跃迁（其一）",
+			"roles": "真珠",
+			"bannerDates": "09-28 07:00 ~ 11-10 15:00",
+			"bannerDatesRaw": "2026/09/28 4.6版本更新后 - 2026/11/10 15:00",
+			"bannerHover": "4.6版本活动跃迁（其一）：真珠\n09-28 07:00 ~ 10-21 11:59\n4.6版本活动跃迁（其一）：真珠\n09-28 07:00 ~ 11-10 15:00",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"hsr:gacha:0\",\"title\":\"4.6版本活动跃迁（其一）\",\"show\":\"真珠\",\"roles\":[\"真珠\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"2026/09/28 4.6版本更新后 - 2026/11/10 15:00\",\"source\":\"primary\"}]"
+	},
+	"bh3EventMiyoushe": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "【有奖活动】分享你与崩坏3的专属片段，参与讨论赢水晶！",
+			"eventDates": "09-28 12:00 ~ 10-07 23:59",
+			"eventDatesRaw": "9.28 12:00~10.7 23:59",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"bh3:event:0\",\"title\":\"【有奖活动】分享你与崩坏3的专属片段，参与讨论赢水晶！\",\"show\":\"【有奖活动】分享你与崩坏3的专属片段，参与讨论赢水晶！\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"9.28 12:00~10.7 23:59\",\"source\":\"primary\"}]"
+	}
+}

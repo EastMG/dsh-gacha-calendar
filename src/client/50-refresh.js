@@ -226,15 +226,20 @@
 			const skipped = !!(r && r.reason === "skipped");
 			rec.okAt = (!skipped && !gachaFail && !eventFail) ? nowTs : (prevRec && prevRec.okAt) || 0;
 			// 数据层数组（P1，见下面「数据层数组」region）：
-			// 来源若已给结构化数组就原样用（P3 第一批：原神 / 明日方舟 / 鸣潮的 6 条路径由解析器直出）；
-			// 否则从**上面合并后的**字符串字段合成（其余 25 款仍是这条路径）。
+			// 来源若已给结构化数组就原样用（**P3 / P3b：解析器直出**），
+			// 否则从**上面合并后的**字符串字段合成（尚未切换的路径仍是这条）。
 			// 合成发生在**沿回旧值之后**，所以"这一列显示的是沿用值"时数组内容与沿回的那串文本一致，
 			// 不会出现"字符串是新的、数组还是上一轮"这种两套事实。
-			// ⚠️ P3（2026-11-07）：解析器直出的数组**已经是**最终形状（顺序 / key / 事实都在解析器侧定好，
-			//    见 `dataArrayProducedItemOf`），这里原样用 —— 但"上一轮的数组"要不要沿用仍按同一判据
-			//    （`dataArrayInheritableOf`：每条都带 `source`），见上面两个分支。
-			rec.gacha = Array.isArray(rec.gacha) ? rec.gacha : dataArrayGachaOf(rec, meta, new Date(nowTs));
-			rec.events = Array.isArray(rec.events) ? rec.events : dataArrayEventsOf(rec, meta, new Date(nowTs));
+			// ⚠️ P3（2026-11-07）：解析器直出的数组**已经是**最终形状（顺序 / 事实都在解析器侧定好，
+			//    见 `dataArrayProducedItemOf`），这里只做**归一 + 按记录 id 重发 key**：
+			//    解析器不必知道自己的 `meta.id`（通用源 / 自定义条目根本拿不到），key 的前缀由
+			//    数据层统一裁到 `<id>:gacha:i` / `<id>:event:i` —— 顺带保证"同一记录里 key 唯一"。
+			rec.gacha = Array.isArray(rec.gacha)
+				? dataArrayProducedListOf(dataArrayGachaListOf(rec.gacha), ((meta && meta.id) || "") + ":gacha")
+				: dataArrayGachaOf(rec, meta, new Date(nowTs));
+			rec.events = Array.isArray(rec.events)
+				? dataArrayProducedListOf(dataArrayEventListOf(rec.events), ((meta && meta.id) || "") + ":event")
+				: dataArrayEventsOf(rec, meta, new Date(nowTs));
 			// `itemFacts` / `gachaHoverItems` / `eventHoverItems` 只是"解析器 → 数组"的**通道**：
 			// 事实已经贴到数组条目上了、悬停文本也已经生成了，它们不进记录/缓存。
 			delete rec.itemFacts;
@@ -417,14 +422,14 @@
 		}
 		// 卡池侧数组：主条目（banner / roles / bannerDates，`source:"primary"`）
 		// + 并列池（bannerHover 能解析出来时，`source:"hover"`）
-		function dataArrayGachaOf(rec, meta, now) {
-			const id = (meta && meta.id) || "";
-			const tz = (meta && meta.tz) || "";
+		// 主条目（P3b 从 `dataArrayGachaOf` **原样抽出**，合成路径与解析器直出路径共用同一份）：
+		// 从记录里已定稿的字符串字段造第一条 —— 抽出来只为让"两条路"出一个来源，不是改语义。
+		function dataArrayGachaMainOf(rec, id, tz, now) {
 			const banner = dataArrayTextOf(rec && rec.banner);
-			if (!banner) return [];   // 这一侧没有卡池数据（未公布 / 失败）⇒ 空数组，不硬造
+			if (!banner) return null;   // 这一侧没有卡池数据（未公布 / 失败）⇒ 空数组，不硬造
 			const roles = dataArrayTextOf(rec.roles);
 			const w = dataArrayWindowOf(rec.bannerDates, now);
-			const main = {
+			return {
 				title: banner,
 				// 外显口径与 81 的 scheduleNormalize 一致：有角色名就显示**去修饰**的角色名，否则池名
 				show: cleanRoleNames(roles, id) || banner,
@@ -435,6 +440,12 @@
 				raw: dataArrayTextOf(rec.bannerDatesRaw),
 				source: "primary"
 			};
+		}
+		function dataArrayGachaOf(rec, meta, now) {
+			const id = (meta && meta.id) || "";
+			const tz = (meta && meta.tz) || "";
+			const main = dataArrayGachaMainOf(rec, id, tz, now);
+			if (!main) return [];
 			const facts = dataArrayFactsOf(rec);
 			const list = [main].concat(dataArrayHoverPoolsOf(rec.bannerHover, main, now, "gacha"));
 			return dataArrayOrderedOf(list.map((x) => dataArrayAttachFactsOf({
@@ -450,11 +461,9 @@
 		}
 		// 活动侧数组：主条目（event / eventShow / eventDates，带 phase，`source:"primary"`）
 		// + 并列活动（eventHover，`source:"hover"`）
-		function dataArrayEventsOf(rec, meta, now) {
-			const id = (meta && meta.id) || "";
-			const tz = (meta && meta.tz) || "";
+		function dataArrayEventMainOf(rec, id, tz, now) {
 			const event = dataArrayTextOf(rec && rec.event);
-			if (!event) return [];
+			if (!event) return null;
 			const eventShow = dataArrayTextOf(rec.eventShow);
 			const w = dataArrayWindowOf(rec.eventDates, now);
 			const main = {
@@ -478,6 +487,13 @@
 					show: eventShow || (event + " 兑换截止")
 				};
 			}
+			return main;
+		}
+		function dataArrayEventsOf(rec, meta, now) {
+			const id = (meta && meta.id) || "";
+			const tz = (meta && meta.tz) || "";
+			const main = dataArrayEventMainOf(rec, id, tz, now);
+			if (!main) return [];
 			const extras = dataArrayHoverPoolsOf(rec.eventHover, main, now, "event").map((x) => ({
 				title: x.title,
 				show: x.show,
@@ -591,6 +607,43 @@
 				return out;
 			});
 			return dataArrayOrderedOf(clean, prefix);
+		}
+		// ── P3b：解析器直出数组的**收口**（每款只写一句，不各写一套）────────────────────────
+		// 入参 `payload` = 解析器**已经定稿的字符串字段**（banner/roles/bannerDates/bannerDatesRaw 或
+		// event/eventShow/eventDates/eventDatesRaw/eventClaimDates）；`entries` = 悬停行对应的
+		// **条目事实**（顺序 = 悬停行顺序，形状 `{ title|label, startTs, endTs, raw }`）。
+		// 主条走 `dataArrayGachaMainOf` / `dataArrayEventMainOf`（与合成路径**同一个函数**），
+		// 并列条走 `dataArrayExtrasFromEntriesOf`（与文本路径**同一条判据**）—— 所以
+		// "解析器直出的数组"与"改造前从字符串合成"必然逐条相同，这由结构保证、不靠调用方记得。
+		function dataArrayProducedGachaOf(payload, entries, meta, now) {
+			const id = (meta && meta.id) || "";
+			const tz = (meta && meta.tz) || "";
+			const main = dataArrayGachaMainOf(payload, id, tz, now);
+			if (!main) return [];
+			const facts = dataArrayFactsOf(payload);
+			const extras = dataArrayExtrasFromEntriesOf(entries, main, now, { kind: "gacha", tz });
+			return dataArrayProducedListOf([main].concat(extras)
+				.map((x) => dataArrayAttachFactsOf(x, facts))
+				.map((x) => dataArrayProducedItemOf(x, "gacha")), id + ":gacha");
+		}
+		function dataArrayProducedEventsOf(payload, entries, meta, now) {
+			const id = (meta && meta.id) || "";
+			const tz = (meta && meta.tz) || "";
+			const main = dataArrayEventMainOf(payload, id, tz, now);
+			if (!main) return [];
+			const facts = dataArrayFactsOf(payload);
+			const extras = dataArrayExtrasFromEntriesOf(entries, main, now, { kind: "event", tz }).map((x) => ({
+				title: x.title,
+				show: x.show,
+				startTs: x.startTs,
+				endTs: x.endTs,
+				tz: x.tz,
+				raw: x.raw,
+				source: x.source
+			}));
+			return dataArrayProducedListOf([main].concat(extras)
+				.map((x) => dataArrayAttachFactsOf(x, facts))
+				.map((x) => dataArrayProducedItemOf(x, "event")), id + ":event");
 		}
 		//#endregion
 

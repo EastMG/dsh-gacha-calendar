@@ -423,6 +423,12 @@
 			dataArrayExtrasFromEntriesOf,
 			dataArrayProducedItemOf,
 			dataArrayProducedListOf,
+			// P3b：解析器直出数组的**收口**（主条与合成路径共用同一份 main 构造函数，
+			//   并列条与文本路径共用同一条判据）—— 导出后可断言"直出的数组 == 改造前的合成结果"。
+			dataArrayProducedGachaOf,
+			dataArrayProducedEventsOf,
+			dataArrayGachaMainOf,
+			dataArrayEventMainOf,
 			localWin,
 			localWinText,
 			localDatesOf,

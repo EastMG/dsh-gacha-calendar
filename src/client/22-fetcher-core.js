@@ -183,8 +183,14 @@
 		// 活动列载荷：外显=排序第一条（最快结束的当期活动，③）；eventHover=全部覆盖当前时刻的活动（同序）。
 		// 注意 selectCurrent 会就地补全缺失起点（fillMissingStarts），故这里只取快照自行排序，
 		// 避免"版本更新后 ~ 未来"这类起点未给的行被补成未来起点而漏掉。
-		// 只有 1 条时 buildEventHover 返回 ""，由 UI 退回单条展示（兜底）。
-		function genericEventPayload(html, tz) {
+		// 只有 1 条时生成器返回 ""，由 UI 退回单条展示（兜底）。
+		//
+		// ── P3b（2026-11-07）：**条目事实 → 悬停 + `events` 数组** ──────────────────
+		// 这个生产者为星铁活动一览（默认源）与绝区零 Bwiki 活动一览（备选源）共用，也是
+		// **唯一会用到 `permanentCount`（「以及常驻活动 N 项」）** 的地方 —— 所以 P3b 先给
+		// 生成器补上 `opts.permanentCount`，再在这里切。顺序（`sortEventItems`）由本函数负责，
+		// 生成器**不排序**（与 buildEventHover 一致）。
+		function genericEventPayload(html, tz, opts) {
 			const items = collectGenericEvents(html, tz);
 			// 页面拿到了却连一行候选都没有 → 活动表结构变了（抛错 = "活动失败"）；
 			// 有候选但当期没有覆盖现在的 → 下面返回 null（未公布）
@@ -198,12 +204,18 @@
 			if (active.length === 0) return null;
 			// 外显：类别优先（剧情/叙事、限时高难），同级内结束时间升序；悬停仍按 endTs 升序全量
 			const primary = pickEventPrimary(active) || active[0];
-			return {
+			const hoverItems = active.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
+			const out = {
 				event: primary.name,
 				eventDates: primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs, tz) : (primary.raw || ""),
 				eventDatesRaw: primary.raw || "",
-				eventHover: buildEventHover(active, permanent.length, tz)
+				eventHover: hoverTextFromItems(hoverItems, "event", tz, { permanentCount: permanent.length })
 			};
+			if (opts && opts.emitArrays) {
+				out.events = dataArrayProducedEventsOf(out, hoverItems, { id: opts.id || "generic", tz }, now);
+				out.eventHoverItems = hoverItems;
+			}
+			return out;
 		}
 
 

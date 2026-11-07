@@ -20,9 +20,10 @@
 //      不是另外手拼的一份；条目事实是**通道**，不进记录、不落盘。
 
 import path from "node:path";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { createEngine } from "../packages/core/core.mjs";
-import { check, section, useFixtures, fixtureBody } from "./harness.mjs";
-import { T } from "./load.mjs";
+import { check, section, summary, useFixtures, fixtureBody } from "./harness.mjs";
+import { T, FIXTURES_DIR } from "./load.mjs";
 
 const TZ_CN = "Asia/Shanghai";
 // 时钟 = 夹具抓取时刻（不随跑测日期漂移）
@@ -315,4 +316,213 @@ export default async function runP3() {
 		check(`P3 通道（${p.key}）：记录里没有 \`gachaHoverItems\` / \`eventHoverItems\`（只是解析器→数据层的一跳）`,
 			!("gachaHoverItems" in r.rec) && !("eventHoverItems" in r.rec), JSON.stringify(Object.keys(r.rec)));
 	}
+
+	await runP3b();
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// P3b（2026-11-07）：**其余 25 款**逐个切"解析器直出数组 + 悬停由条目反生成"
+//
+// 与 P3a 的差别只在**覆盖面**（P3a 6 条路径 → 本段按批次追加，最终 25 款两侧全覆盖）：
+//   ① 每款一条路径 = 真实夹具 + 固定 now 跑一次"抓取器 → mergeEntryRecord"；
+//   ② golden = **改造前（HEAD）跑同一批夹具**的 12 个字符串字段 + 数组（非时间字段逐字）；
+//      文件 `test/fixtures/p3b-golden.json`，用 `node test/cases-p3.mjs --capture-p3b` 采集
+//      （**只补缺**，不覆盖已有条目 —— 否则"改完再采集"会把回归钉成现状，等于没有 golden）；
+//   ③ 数组**逐条相等（含 startTs / endTs）**：把解析器给的数组摘掉，让改造前的合成器照同一份
+//      字符串字段再合成一次，两者必须逐字相同（UTC / +08 都成立）；
+//   ④ 悬停 == hoverTextFromItems(解析器给的条目事实) 逐字相等 ⇒ 悬停确实是**产物**。
+//
+// ⚠️ 为什么 golden 存文件而不是写字面量：25 款 × 两侧 = 40+ 条路径，每条 12 个字符串 + 整段数组，
+//    手抄必然抄错；采集脚本本身把"取自 HEAD"这件事固化成一条命令（见上面 ②）。
+const P3B_GOLDEN_FILE = path.join(FIXTURES_DIR, "p3b-golden.json");
+const CAPTURE_P3B = process.argv.includes("--capture-p3b");
+
+// 夹具读原文（带 .meta.json 时读 status；与 harness 的夹具约定一致）
+const p3bFixtureOf = (dir) => {
+	const file = path.join(FIXTURES_DIR, dir, "response.txt");
+	if (!existsSync(file)) throw new Error("P3b 缺夹具：" + dir);
+	const metaFile = file + ".meta.json";
+	const meta = existsSync(metaFile) ? JSON.parse(readFileSync(metaFile, "utf8")) : {};
+	return { status: meta.status || 200, body: readFileSync(file, "utf8") };
+};
+// 本段自己的 transport：**URL 白名单**（routes: [[正则, 夹具目录], …]）——
+// 没列出来的 URL 直接抛错，免得"以为在用夹具、其实打通了别的路径"。
+const p3bTransportOf = (routes) => {
+	const pick = (url) => {
+		const hit = (routes || []).find(([re]) => re.test(String(url)));
+		if (!hit) throw new Error("P3b 夹具里没有这个 URL：" + url);
+		return p3bFixtureOf(hit[1]);
+	};
+	return {
+		async fetchRaw(url) {
+			const f = pick(url);
+			return {
+				ok: f.status >= 200 && f.status < 300, status: f.status, headers: { get: () => null },
+				text: async () => f.body, json: async () => JSON.parse(f.body)
+			};
+		},
+		async fetchViaProxy(url) { return pick(url).body; }
+	};
+};
+
+// ── P3b 路径表（**每款每侧一条**；新增批次只往这里加）──────────────────────────
+// `routes` 里的 URL 正则按顺序匹配；`call` 收 `engine.__test`；`switched: true` = 该路径已改成
+// "解析器直出数组 + 悬停由条目反生成"（同一批里改代码时一起打开）。
+const P3B_SWITCHED_EXPECT = 6;   // 已切路径数（每批提交时 +N，最终 = P3B_PATHS.length）
+const P3B_PATHS = [
+	// ── 第 1 批：崩坏：星穹铁道（bwiki）/ 绝区零（官方公告）/ 崩坏3（米游社备选）──
+	{
+		key: "hsrGacha", switched: true, id: "hsr", side: "gacha", field: "gacha", now: Date.parse("2026-11-07T00:00:00.000Z"),
+		routes: [[/wiki\.biligame\.com\/sr\/api\.php/, "p4-hsr-bwiki-warp-1107"]],
+		call: (t) => t.GACHA_FETCHERS["hsr"]("https://wiki.biligame.com/sr/api.php?action=parse&page=warp&prop=text&format=json&formatversion=2", undefined, TZ_CN)
+	},
+	{
+		key: "hsrEvent", switched: true, id: "hsr", side: "event", field: "events", now: Date.parse("2026-11-07T00:00:00.000Z"),
+		routes: [[/wiki\.biligame\.com\/sr\/api\.php/, "p4-hsr-bwiki-events-1107"]],
+		call: (t) => t.EVENT_FETCHERS["hsr"].default("https://wiki.biligame.com/sr/api.php?action=parse&page=events&prop=text&format=json&formatversion=2", undefined, TZ_CN)
+	},
+	{
+		key: "zzzGacha", switched: true, id: "zzz", side: "gacha", field: "gacha", now: Date.parse("2026-10-25T12:00:00+08:00"),
+		routes: [[/api-takumi-static\.mihoyo\.com/, "p4-zzz-freq-official"]],
+		call: (t) => t.GACHA_FETCHERS["zzz"]("https://api-takumi-static.mihoyo.com/content_v2_user/app/706fd13a87294881/getContentList?iChanId=279&iPageSize=50&iPage=1&sLangKey=zh-cn", undefined, TZ_CN)
+	},
+	{
+		key: "zzzEvent", switched: true, id: "zzz", side: "event", field: "events", now: Date.parse("2026-10-25T12:00:00+08:00"),
+		routes: [[/api-takumi-static\.mihoyo\.com/, "p4-zzz-freq-official"]],
+		call: (t) => t.EVENT_FETCHERS["zzz"].default("https://api-takumi-static.mihoyo.com/content_v2_user/app/706fd13a87294881/getContentList?iChanId=279&iPageSize=50&iPage=1&sLangKey=zh-cn", undefined, TZ_CN)
+	},
+	{
+		// 米游社卡池（`ns_miyoushe_gachaMiyoushe`）是 4 个 gids 共用的**一个**生产者，
+		// 这里用星铁的夹具（`p4-hsr-news` 有可解析的当期池；bh3 的补给公告正文无日期 ⇒ 恒 null，
+		// 拿它当"直出非空"的样本会永远测不到）。
+		key: "hsrGachaMiyoushe", switched: true, id: "hsr", side: "gacha", field: "gacha", now: Date.parse("2026-10-02T14:37:00.000Z"),
+		routes: [
+			[/getNewsList\?gids=6&type=1/, "p4-hsr-news"],
+			[/post_id=78448395/, "p4-hsr-detail-warp"],
+			[/post_id=78487092/, "p4-hsr-detail-event"],
+			[/getPostFull/, "p4-post-missing"]
+		],
+		call: (t) => t.GACHA_FETCHERS["hsr-miyoushe"]("https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=6&type=1&page_size=20", undefined, TZ_CN)
+	},
+	{
+		key: "bh3EventMiyoushe", switched: true, id: "bh3", side: "event", field: "events", now: Date.parse("2026-10-02T14:37:00.000Z"),
+		routes: [
+			[/getNewsList\?gids=1&type=2/, "p4-bh3-events"],
+			[/post_id=78549971/, "p4-bh3-detail-gacha"],
+			[/post_id=78549969/, "p4-bh3-detail-char"],
+			[/post_id=78469952/, "p4-bh3-detail-event"],
+			[/getPostFull/, "p4-post-missing"]
+		],
+		call: (t) => t.EVENT_FETCHERS["bh3"]["bh3-miyoushe"].default("https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=1&type=2&page_size=20", undefined, TZ_CN)
+	}
+];
+
+async function runP3b() {
+	useFixtures();   // 禁止真网络的兜底（本段自己按 URL 白名单供 body）
+	const makeStore = () => { const m = new Map(); return { async get(k) { return m.get(k); }, async set(k, v) { m.set(k, v); } }; };
+	// 12 个用户可见字符串字段（与 P3a 同一份口径）
+	const VISIBLE = ["banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover",
+		"event", "eventDates", "eventDatesRaw", "eventShow", "eventClaimDates", "eventHover", "eventHoverExtra"];
+	const textOf = (v) => (v == null ? "" : String(v));
+	// 时间戳只比类型（口径 = 本机时刻，见 README_Dev「已知不等价①」）；值的相等由下面 ③ 单独守
+	const sansTs = (arr) => JSON.stringify((arr || []).map((x) => {
+		const o = Object.assign({}, x, {
+			startTs: x.startTs == null ? "null" : typeof x.startTs,
+			endTs: x.endTs == null ? "null" : typeof x.endTs
+		});
+		if (o.phase) o.phase = Object.assign({}, o.phase, {
+			startTs: o.phase.startTs == null ? "null" : typeof o.phase.startTs,
+			endTs: o.phase.endTs == null ? "null" : typeof o.phase.endTs
+		});
+		return o;
+	}));
+	// 把解析器直出的数组/通道摘掉 ⇒ mergeEntryRecord 走改造前的合成路径（同一份字符串字段）
+	const stripProduced = (payload) => {
+		const o = Object.assign({}, payload || {});
+		delete o.gacha; delete o.events; delete o.gachaHoverItems; delete o.eventHoverItems;
+		return o;
+	};
+
+	const golden = existsSync(P3B_GOLDEN_FILE) ? JSON.parse(readFileSync(P3B_GOLDEN_FILE, "utf8")) : {};
+	const fresh = {};
+	const results = {};
+	for (const p of P3B_PATHS) {
+		const engine = createEngine({
+			transport: p3bTransportOf(p.routes), storage: makeStore(),
+			now: () => p.now, timer: { setTimeout, clearTimeout }
+		});
+		const payload = await p.call(engine.__test);
+		const rec = engine.__test.mergeEntryRecord({ data: payload || {} }, null, p.now, { id: p.id, tz: TZ_CN });
+		results[p.key] = { payload, rec, engine, p };
+		const arr = rec[p.field] || [];
+		fresh[p.key] = {
+			rec: Object.fromEntries(VISIBLE.map((f) => [f, textOf(rec[f])])),
+			array: sansTs(arr)
+		};
+	}
+	// ── 采集模式：**只补缺**（已有条目一律不动，避免"改完再采集"把回归钉成现状）──
+	if (CAPTURE_P3B) {
+		const added = [];
+		for (const [k, v] of Object.entries(fresh)) {
+			if (golden[k]) continue;
+			golden[k] = v;
+			added.push(k);
+		}
+		writeFileSync(P3B_GOLDEN_FILE, JSON.stringify(golden, null, "\t") + "\n", "utf8");
+		section("P3b golden 采集（只补缺）");
+		check("P3b golden 采集：本次新增条目（已有条目一字未动）", added.length > 0, JSON.stringify(added));
+	}
+
+	section("P3b ①：解析器直出 —— 12 个字符串字段与改造前逐字相同（golden，全款覆盖）");
+	for (const p of P3B_PATHS) {
+		const g = golden[p.key];
+		const r = results[p.key];
+		check(`P3b golden（${p.key}）：golden 里有这一条（覆盖到、不是抽样）`, !!g, p.key);
+		if (!g) continue;
+		const changed = VISIBLE.filter((f) => textOf(r.rec[f]) !== textOf(g.rec[f]));
+		check(`P3b golden（${p.key}）：12 个字符串字段与改造前逐字相同`, changed.length === 0, JSON.stringify(changed));
+		const arr = r.rec[p.field] || [];
+		check(`P3b golden（${p.key}）：\`${p.field}\` 非时间字段逐字不变（键序 / 顺序 / source / phase 全等）`,
+			sansTs(arr) === g.array, sansTs(arr));
+		check(`P3b golden（${p.key}）：数组非空（解析器真的直出了，而不是悄悄退回空数组）`,
+			arr.length > 0, String(arr.length));
+	}
+
+	section("P3b ②：数组与改造前**合成结果**逐条相等（含 startTs / endTs）");
+	for (const p of P3B_PATHS) {
+		const r = results[p.key];
+		const oldRec = r.engine.__test.mergeEntryRecord({ data: stripProduced(r.payload) }, null, p.now, { id: p.id, tz: TZ_CN });
+		check(`P3b 等价（${p.key}）：\`${p.field}\` 与改造前的合成结果逐条相等（含 ts）`,
+			JSON.stringify(r.rec[p.field]) === JSON.stringify(oldRec[p.field]),
+			JSON.stringify([r.rec[p.field], oldRec[p.field]]));
+		const other = p.field === "gacha" ? "events" : "gacha";
+		check(`P3b 等价（${p.key}）：另一侧也不会凭空多出条目`,
+			JSON.stringify(r.rec[other]) === JSON.stringify(oldRec[other]));
+	}
+
+	section("P3b ③：同源 —— 悬停 == hoverTextFromItems(解析器给的条目事实)");
+	// 只对**本批已切**的路径断言（`switched: true`）。未切的款仍走改造前的路径（悬停是手拼的、
+	// 没有条目事实通道），那是 P3b 的剩余工作，不是回归；改造完成的判据是 **全部路径 switched**。
+	// `P3B_SWITCHED_EXPECT` 每批 +N：让"切了却没登记 / 登记了却没切"都会红（账要平）。
+	const switched = P3B_PATHS.filter((x) => x.switched);
+	check(`P3b 已切路径数 = ${P3B_SWITCHED_EXPECT}（每批提交时同步 +N；最终 = ${P3B_PATHS.length} 条路径）`,
+		switched.length === P3B_SWITCHED_EXPECT, `${switched.length} / ${P3B_PATHS.length}：${switched.map((x) => x.key).join(",")}`);
+	for (const p of switched) {
+		const r = results[p.key];
+		const pay = r.payload || {};
+		const items = (p.side === "gacha" ? pay.gachaHoverItems : pay.eventHoverItems) || [];
+		const regen = T.hoverTextFromItems(items, p.side, TZ_CN, p.genOpts);
+		const hover = p.side === "gacha" ? pay.bannerHover : pay.eventHover;
+		// `hoverPrefix`：有些来源的悬停首行不是条目（如鸣潮的"卡池类型"），由构造方显式声明
+		const expected = p.hoverPrefix ? (regen ? p.hoverPrefix(pay) + regen : "") : regen;
+		check(`P3b 同源（${p.key}）：悬停 == hoverTextFromItems(条目事实) 逐字相等`,
+			expected === (hover || ""), JSON.stringify([expected, hover || ""]));
+		check(`P3b 同源（${p.key}）：条目事实非空，且每条都带 startTs/endTs/raw 三种事实`,
+			items.length > 0 && items.every((x) => "startTs" in x && "endTs" in x && "raw" in x), String(items.length));
+		check(`P3b 通道（${p.key}）：记录里没有 \`gachaHoverItems\` / \`eventHoverItems\``,
+			!("gachaHoverItems" in r.rec) && !("eventHoverItems" in r.rec), JSON.stringify(Object.keys(r.rec)));
+	}
+}
+
+// 直接 `node test/cases-p3.mjs` 时自报结果；被 all.mjs import 时不报（由 all.mjs 统一 summary）
+if (process.argv[1] && process.argv[1].endsWith("cases-p3.mjs")) { await runP3(); summary(); }

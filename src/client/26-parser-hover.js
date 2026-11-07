@@ -121,14 +121,20 @@
 			return String(item.raw || "").trim();
 		}
 
-		function hoverLinesFromItems(items, kind, tz) {
+		// `opts.permanentCount`（P3b）：永久/常驻活动的条数 —— 只在**活动侧**生效，末尾补一行
+		// `以及常驻活动 N 项`（`permanentLine`，与 buildEventHover 同一句措辞）。为什么必须支持：
+		// 通用活动源（`genericEventPayload`）一直把这个计数交给 `buildEventHover`，切到反生成器后
+		// 若不支持，那一行会**静默消失**（源站有永久活动、面板却看不到）。
+		// 不足 2 条时也要带上这一行（与 buildEventHover 的 `return permanentLine(permanentCount)` 一致）。
+		function hoverLinesFromItems(items, kind, tz, opts) {
 			const isEvent = kind === "event";
+			const permanent = isEvent && opts && opts.permanentCount > 0 ? opts.permanentCount : 0;
 			// 名称字段三选一：`title`（活动名）/ `label`（卡池那行"池名：角色"）/ `name`（老调用形状）
 			const nameOf = (x) => String(x.title || x.label || x.name);
 			const list = (Array.isArray(items) ? items : [])
 				.filter((x) => x && nameOf(x).trim() !== "")
 				.filter((x) => !isEvent || !isLongTermEvent(x));
-			if (list.length < 2) return [];
+			if (list.length < 2) return permanent > 0 ? [permanentLine(permanent)] : [];
 			const allTimed = list.every((x) => x.startTs != null && x.endTs != null);
 			const same = allTimed && new Set(list.map((x) => `${x.startTs}~${x.endTs}`)).size === 1;
 			const lines = [];
@@ -142,11 +148,12 @@
 				}
 			}
 			if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs, tz));
+			if (permanent > 0) lines.push(permanentLine(permanent));
 			return lines;
 		}
 
-		function hoverTextFromItems(items, kind, tz) {
-			return hoverLinesFromItems(items, kind, tz).join("\n");
+		function hoverTextFromItems(items, kind, tz, opts) {
+			return hoverLinesFromItems(items, kind, tz, opts).join("\n");
 		}
 
 

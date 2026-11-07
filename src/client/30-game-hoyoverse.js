@@ -175,13 +175,24 @@
 			// 一次 parseZzzFreq 取频段、一次 parseZzzEventsOfficial 取活动 —— 纯重复（2026-10-01 实测）。
 			// 活动侧**仍保留**自己的抓取器（fetchZzzEventsOfficial 与 `zzz-event-bwiki` 备选）：
 			// 卡池侧失败、或用户在设置里单独选活动来源时，活动侧要能自己抓、自己报错（解耦不变）。
-			const ev = parseZzzEventsOfficial(payload, now, tz);
+			const ev = parseZzzEventsOfficial(payload, now, tz, { emitArrays: true, id: "zzz" });
 			const evFields = ev
-				? { event: ev.event, eventDates: ev.eventDates || "", eventDatesRaw: ev.eventDatesRaw || "", eventHover: ev.eventHover || "" }
+				? {
+					event: ev.event, eventDates: ev.eventDates || "", eventDatesRaw: ev.eventDatesRaw || "", eventHover: ev.eventHover || "",
+					// P3b：活动侧直出的数组/条目通道**原样带出**（别在这里重算，否则又成两份来源）
+					...(ev.events ? { events: ev.events, eventHoverItems: ev.eventHoverItems } : {})
+				}
 				: {};
 			const d = parseZzzFreq(payload, now, tz);
 			if (!d) return null;
-			return { ...d, ...evFields };
+			// ── P3b：卡池侧条目事实 → `gacha` 数组 ────────────────────────────────
+			// 本期只有**一口**当期频段（同名同期的角色已合并进 `roles`）⇒ 悬停生成器给 ""（交回
+			// UI 默认两行式），数组也只有主条 —— 与改造前的合成结果一致。
+			const pools = [{ title: d.banner, startTs: d.startTs, endTs: d.endTs, raw: d.bannerDatesRaw }];
+			const out = { ...d };
+			out.gacha = dataArrayProducedGachaOf(out, pools, { id: "zzz", tz }, now);
+			out.gachaHoverItems = pools;
+			return { ...out, ...evFields };
 		}
 
 
@@ -195,7 +206,7 @@
 		const ZZZ_EVENT_WINDOW_RE = /((?:\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\s+\d{1,2}:\d{2})|(?:\d+\.\d+\s*版本更新后))\s*[~～\-—]\s*((?:\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\s+\d{1,2}:\d{2})|(?:\d+\.\d+\s*版本结束))/g;
 
 
-		function parseZzzEventsOfficial(payload, now = nowMs(), tz) {
+		function parseZzzEventsOfficial(payload, now = nowMs(), tz, opts) {
 			const list = Array.isArray(payload?.data?.list) ? payload.data.list : [];
 			const clean = (s) => stripTags(s);
 			// 版本起点表：与卡池侧共用 zzzVersionStarts（它已处理「预下载」与「排期上线时间 ≠ 维护时刻」两个坑）。
@@ -251,19 +262,26 @@
 			if (active.length === 0) return null;
 			const primary = pickEventPrimary(active) || active[0];
 			const dates = primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs, tz) : (primary.raw || "");
-			return {
+			// ── P3b（2026-11-07）：条目事实 → 悬停 + `events` 数组 ────────────────
+			// 顺序 = `sortEventItems`（生成器**不排序**）；只有 1 条时生成器给 ""，由 UI 退回单条展示。
+			const hoverItems = active.map((x) => ({ title: x.name || x.banner, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
+			const out = {
 				event: primary.name,
 				eventDates: dates,
 				eventDatesRaw: primary.raw || "",
-				// 只有 1 条时 buildEventHover 返回 ""，由 UI 退回单条展示（与其它源一致）
-				eventHover: buildEventHover(active, 0, tz)
+				eventHover: hoverTextFromItems(hoverItems, "event", tz)
 			};
+			if (opts && opts.emitArrays) {
+				out.events = dataArrayProducedEventsOf(out, hoverItems, { id: opts.id || "zzz", tz }, now);
+				out.eventHoverItems = hoverItems;
+			}
+			return out;
 		}
 
 
 		async function fetchZzzEventsOfficial(listUrl, signal, tz) {
 			const payload = await proxyFetchJson(listUrl, "https://zzz.mihoyo.com/");
-			return parseZzzEventsOfficial(payload, nowMs(), tz);
+			return parseZzzEventsOfficial(payload, nowMs(), tz, { emitArrays: true, id: "zzz" });
 		}
 
 
@@ -838,16 +856,18 @@ async function ns_miyoushe_gachaMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE_
 	const r = await ns_miyoushe_collectMiyousheSide(listUrl, signal, tz, now, "gacha");
 	if (!r) return null;
 	const p = r.primary;
-	// 悬停 = 全部当期池，每池「池名：角色」一行 + 档期（排版交给共用工具 hoverPool，≥2 池才有内容）。
+	// 悬停 = 全部当期池，每池「池名：角色」一行 + 档期（排版交给**条目反生成** hoverTextFromItems）。
 	// 只有 1 个当期池 → "" → **不设** bannerHover，由 UI 走默认两行式「banner ⏎ bannerDates」。
-	const bannerHover = hoverPool(r.covering.map((w) => ({
-		name: w.subject,
+	// ── P3b（2026-11-07）：条目事实 → 悬停 + `gacha` 数组（顺序 = poolHoverOrderOf，与 hoverPool 同口径）──
+	const pools = r.covering.map((w) => ({
+		title: w.subject,
 		label: ns_miyoushe_hoverPoolName(w),
 		startTs: w.startTs,
 		endTs: w.endTs,
 		raw: ns_miyoushe_hoverRaw(w)
-	})), tz);
-	return {
+	})).sort(poolHoverOrderOf);
+	const bannerHover = hoverTextFromItems(pools, "gacha", tz);
+	const out = {
 		banner: p.subject,
 		roles: p.roles || "",
 		bannerDates: fmtWindow(p.startTs, p.endTs, tz),
@@ -856,6 +876,9 @@ async function ns_miyoushe_gachaMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE_
 		endTs: p.endTs,
 		...(bannerHover ? { bannerHover } : {})
 	};
+	out.gacha = dataArrayProducedGachaOf(out, pools, { id: "miyoushe", tz }, now);
+	out.gachaHoverItems = pools;
+	return out;
 }
 
 /** 活动侧（type=2 活动；标题按活动关键词分流） */
@@ -865,20 +888,25 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 	if (!r) return null;
 	const p = r.primary;
 	// 悬停 = 全部当期活动，结束时间升序逐行「名称 + 3 空格 + 档期」
-	// （排版交给共用工具 hoverEvent；它自己**不排序** → 这里先排好再传）。
+	// （排版交给**条目反生成**；它自己**不排序** → 这里先排好再传）。
 	// 只有 1 条 → "" → **不设** eventHover，由 UI 走默认两行式「event ⏎ eventDates」。
-	const eventHover = hoverEvent(r.covering.slice().sort(ns_miyoushe_byEndTs).map((w) => ({
-		name: w.subject,
+	// ── P3b（2026-11-07）：条目事实 → 悬停 + `events` 数组 ─────────────────────
+	const eventItems = r.covering.slice().sort(ns_miyoushe_byEndTs).map((w) => ({
+		title: w.subject,
 		startTs: w.startTs,
 		endTs: w.endTs,
 		raw: ns_miyoushe_hoverRaw(w)
-	})), tz);
-	return {
+	}));
+	const eventHover = hoverTextFromItems(eventItems, "event", tz);
+	const out = {
 		event: p.subject,
 		eventDates: fmtWindow(p.startTs, p.endTs, tz),
 		eventDatesRaw: ns_miyoushe_rawOf(p, tz),
 		...(eventHover ? { eventHover } : {})
 	};
+	out.events = dataArrayProducedEventsOf(out, eventItems, { id: "miyoushe", tz }, now);
+	out.eventHoverItems = eventItems;
+	return out;
 }
 //#endregion
 
@@ -959,13 +987,13 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 
 		// ── 抓取器登记 ──
 		// P3（2026-11-07）：原神改由解析器**直出** `gacha` 数组（`bwikiGachaPayload` 的 emitArrays 分支），
-		// 悬停文本由同一份条目反生成；星铁本批仍走改造前的 buildPoolHover（见 README_Dev 的 P3 范围）。
+		// 悬停文本由同一份条目反生成；星铁 **P3b** 起同样直出（叠上 `dedupeRoleNames`）。
 		GACHA_FETCHERS["genshin"] = mkMediaWiki((html, tz) => bwikiGachaPayload(html, tz, { emitArrays: true, id: "genshin" }));
 		// 星铁：bwiki「历史跃迁」的「5星角色」格子会把同一角色写两遍（缺图红链的名字 + 正常链接的
 		// 「名字（属性）」）⇒ 载荷按**角色名（去掉括号属性后缀）**判重，保留第一次出现的形式。
 		// 规则与理由见 26-parser-hover.js 的 dedupeRoleNames；**只在星铁这里开启**，
 		// 原神/绝区零的 bwiki 载荷（以及全局 cleanRoleNames）语义一字不改。
-		GACHA_FETCHERS["hsr"] = mkMediaWiki((html, tz) => bwikiGachaPayload(html, tz, { dedupeRoleNames: true }));
+		GACHA_FETCHERS["hsr"] = mkMediaWiki((html, tz) => bwikiGachaPayload(html, tz, { dedupeRoleNames: true, emitArrays: true, id: "hsr" }));
 		GACHA_FETCHERS["zzz"] = (url, signal, tz) => fetchZzzGacha(url, signal, tz);
 		GACHA_FETCHERS["zzz-bwiki"] = mkMediaWiki(pickCurrent(parseAllBwiki));
 					// 原神：活动一览为 JS 动态加载（Dquery+SMW），走 SMW ask 查询（fetchYsActivity 忽略 URL 参数）
@@ -974,13 +1002,13 @@ EVENT_FETCHERS["genshin"] = {
 			};
 					// 星铁：活动一览（静态「活动时间」表，api.php 可直连）→ 外显当期 + 悬停列出全部并行活动
 EVENT_FETCHERS["hsr"] = {
-				default: mkMediaWiki(genericEventPayload)
+				default: mkMediaWiki((html, tz) => genericEventPayload(html, tz, { emitArrays: true, id: "hsr" }))
 			};
 					// 绝区零：默认=官方公告（api-takumi-static，与卡池侧同一接口；活动时间写在公告正文里，
 			// 含"X.Y版本更新后/版本结束"的换算；结束时间未知的活动保留并沉底）→ 备选=Bwiki 活动一览
 EVENT_FETCHERS["zzz"] = {
 				default: (url, signal, tz) => fetchZzzEventsOfficial(url, signal, tz),
-				"zzz-event-bwiki": mkMediaWiki(genericEventPayload)
+				"zzz-event-bwiki": mkMediaWiki((html, tz) => genericEventPayload(html, tz, { emitArrays: true, id: "zzz" }))
 			};
 
 		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
