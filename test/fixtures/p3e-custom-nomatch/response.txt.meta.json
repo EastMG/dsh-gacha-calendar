@@ -1,0 +1,6 @@
+{
+ "url": "https://example.invalid/p3e-custom-nomatch.html",
+ "status": 200,
+ "capturedAt": "2026-11-07T02:20:17.024Z",
+ "note": "手工构造：故意没有任何表格（HTML 不匹配），用于「解析失败 ⇒ 不抛错、该侧显示无数据」的端到端用例。"
+}

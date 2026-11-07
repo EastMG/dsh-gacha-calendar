@@ -408,7 +408,7 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 
 **显示层（`src/client/82-schedule-view.js`）**：`cells` 存**数组本身**（`cells.set(key, g.gacha / g.events)`，与探头共用同一份）；`cellViews` 存派生结果；表格那一行 = `primary` 经 `scheduleNormalize` 渲染（主条直接走它 ⇒ 档期文本与今天**逐字一致**），探头 = `sideViewOf(...).rest`（内部先后仍是今天的 `schedulePickItem`）。失败横条改按**侧**判定（数组条目没有 `fail`），口径与改造前一致。
 
-**兼容退化（P3c 起，2026-11-07 已删老路）**：`scheduleCellOf` **只读数据层数组**；数组为空（老 `lastData` / 这一侧真没数据 / 没切直出的备选源）⇒ 返回 `null`，格子里写「该来源无数据」，**不抛错**。原来的 `fromArray === false` 兼容分支（`scheduleNormalize` + 逆解析悬停文本）连同 `scheduleHoverOnes` 已随 P3c 删除 —— 它已没有任何生产调用方（28 款默认源全部直出）。抓取失败时"显示旧数据"仍走 `mergeEntryRecord` 的沿回逻辑（`dataArrayInheritableOf`），不受影响。
+**兼容退化（P3c 起，2026-11-07 已删老路）**：`scheduleCellOf` **只读数据层数组**；数组为空（老 `lastData` / 这一侧真没数据）⇒ 返回 `null`，格子里写「该来源无数据」，**不抛错**。原来的 `fromArray === false` 兼容分支（`scheduleNormalize` + 逆解析悬停文本）连同 `scheduleHoverOnes` 已随 P3c 删除 —— 它已没有任何生产调用方（28 款默认源全部直出）。抓取失败时"显示旧数据"仍走 `mergeEntryRecord` 的沿回逻辑（`dataArrayInheritableOf`），不受影响。
 
 **回归（`test/cases-core.mjs` ⑤，35 条）**：纯函数（空 / 单条 / 在期里结束最早 / 起点未知 / 并列起点 / claim 优先 / 类别档位 / 顺序稳定 / 不改输入）+ `scheduleItemOf` 同形 + **老 `lastData` ⇒ `null` 且不抛错** + 老路（oracle）输出与数组派生逐字相同 + **等价性普查**（34 个侧全部逐字相等）+ 原来 6 处已知差异的严格相等 + **反向证明**（通用规则与特化规则必须选出不同的那条）+ FGO 09-05 那侧（`cat` 事实 + 特化规则缺一不可）。⚠️ 老路已从产品删除，等价性用的对照 oracle **冻结在测试文件顶部**（`legacyCellOf` / `legacyHoverOnes` / `LEGACY_LONG_MS`），逐字复刻 P3c 之前的实现 —— oracle 不随产品漂移，否则"等价"就成了拿产品和自己比。
 
@@ -475,13 +475,11 @@ canmoe 页面 + 它第一轮真的并发抓的 6 份 chunk、FZ Wiki 活动 REST
 | `50-refresh.js` | `dataArrayGachaOf`（18 行）/ `dataArrayEventsOf`（32 行）/ `dataArrayHoverPoolsOf`（5 行） | 没有解析器再走"从字符串合成"那条路（含 ba-cn 第①条补漏） |
 | `82-schedule-view.js` | `cells.set` 的 `view.fromArray ? … : [primary].concat(rest)` 三分支 | 只有一条路径：`cells.set(key, g.gacha / g.events)` |
 
-**老 `lastData` / 未切备选源的退化行为（P3c 后的口径）**：`gacha` / `events` 缺数组 ⇒ 归一成**空数组** ⇒
+**老 `lastData` / 缺数组的退化行为（P3c 后的口径）**：`gacha` / `events` 缺数组 ⇒ 归一成**空数组** ⇒
 显示层 `scheduleCellOf` 返回 `null` ⇒ 该格写「该来源无数据」，**不抛错**；抓取失败但上一轮有数据 ⇒
 仍按 `dataArrayInheritableOf` 沿回上一轮的数组（"显示旧数据"）。`test/cases-core.mjs` ⑤-4 有针对性断言
-（老缓存 ⇒ `null` 且不抛错）。⚠️ 仍**没有**切直出的生产者只剩"手动切换才用得到"的几个备选源：
-`selectArknights`（PRTS 卡池一览）、`parseWuwaCalendar`（鸣沙活动日历）、`pickCurrent(parseAllBwiki)`
-（绝区零 bwiki）、Nexon 官方公告、`parseGachaTracker` / `fetchEndfieldWikiGg` / Game8、`fetchR99Official`
-—— 这些**不是默认源**，选中后该侧会显示「无数据」（P3 边界，如实记录）。
+（老缓存 ⇒ `null` 且不抛错）。⚠️ P3e 之后**已经没有"未切直出"的生产者**（28 款默认源 / 48 条默认路径 +
+全部备选源 + 用户自定义地址都直出）；这条退化只剩"老 `lastData` / 这一侧真没数据"两种情形。
 
 **收口的两点补充（P3b）**：① 生成器 `hoverLinesFromItems(items, kind, tz, { permanentCount })` —— 活动侧
 末尾补 `以及常驻活动 N 项`（与 `buildEventHover` 同一句 `permanentLine`，不足 2 条时也带上）；
@@ -496,7 +494,7 @@ canmoe 页面 + 它第一轮真的并发抓的 6 份 chunk、FZ Wiki 活动 REST
 
 **时间戳口径不变（重要）**：`startTs` / `endTs` **仍是 P1 的本机时刻**（`dataArrayWindowOf`：把窗口文本按运行环境时区读回）。改成绝对时刻要连显示层探头一起改（`scheduleMeta` 用 `new Date(ts)` 渲染），否则 34 个侧在 `TZ=UTC` 下会变红 —— 那是 P4（见「已知不等价①」）。
 
-**回归（`test/cases-p3.mjs`，482 条）**：① 生成器排版规则逐条（3 空格 / 同窗口折叠 / <2 条 / 缺起止写原文 / 长期过滤 / `label` 优先 / 去重 / **与老 `buildPoolHover`·`buildEventHover` 逐字节相同**）；② 54 条路径（P3a 6 + P3b 41 + P3c 7）的 **12 个字符串字段 + 数组 golden**（`sansTs`）；③ 数组与**改造前的合成结果逐条相等**（含 `startTs`/`endTs`，UTC / +08 都成立）；④ **同源**：`hoverTextFromItems(条目事实)` 逐字等于载荷里的悬停文本；⑤ 通道不外泄。P3 新夹具 6 份 + P3c 15 份，**都不进 `map.json`**（免得改变其它批次对"默认源 404"的期望）。
+**回归（`test/cases-p3.mjs`，P3e 后 685 条）**：① 生成器排版规则逐条（3 空格 / 同窗口折叠 / <2 条 / 缺起止写原文 / 长期过滤 / `label` 优先 / 去重 / **与老 `buildPoolHover`·`buildEventHover` 逐字节相同**）；② 54 条路径（P3a 6 + P3b 41 + P3c 7）的 **12 个字符串字段 + 数组 golden**（`sansTs`）；③ 数组与**改造前的合成结果逐条相等**（含 `startTs`/`endTs`，UTC / +08 都成立）；④ **同源**：`hoverTextFromItems(条目事实)` 逐字等于载荷里的悬停文本；⑤ 通道不外泄。P3 新夹具 6 份 + P3c 15 份，**都不进 `map.json`**（免得改变其它批次对"默认源 404"的期望）。
 ⚠️ P3c 删掉合成器后，③ 的对照 oracle 挪进测试文件（`legacySynthArrOf`：拿**记录字符串 + 悬停文本**过 `dataArray*MainOf` + `scheduleHoverItems` + `dataArrayExtrasFromEntriesOf` 重算一遍）—— 它只读改造前的三样输入（字符串 / 悬停 / `itemFacts`），不读解析器直出的数组，所以"直出被削"仍会红（P3c 实测：把 endfield 卡池的并列条去掉 ⇒ ② 数组 golden + ③ 同时红）。
 
 **反向证明**：把生成器的分隔符从 3 个空格改成 2 个 ⇒ `test/cases-p3.mjs` ①（`名称   + 3 空格`）与 ②（原神/明日方舟活动 golden）同时红；把 `dataArrayExtrasFromEntriesOf` 的三条判据去掉一条 ⇒ ② 的数组 golden 红。这是"悬停/数组同源"真的承重的证据。
@@ -511,7 +509,7 @@ canmoe 页面 + 它第一轮真的并发抓的 6 份 chunk、FZ Wiki 活动 REST
 
 **兼容层已删**（详情见上表）：`scheduleHoverOnes` / `scheduleCellOf` 的 `fromArray === false` 分支 /
 `dataArrayGachaOf` / `dataArrayEventsOf` / `dataArrayHoverPoolsOf` 全部不存在了（`git grep` 只剩注释提及）。
-老 `lastData` / 未切备选源的退化 = **空数组 ⇒ 该侧「无数据」，不抛错**。
+老 `lastData` / 缺数组的退化 = **空数组 ⇒ 该侧「无数据」，不抛错**（P3e 起没有"未切直出"的生产者了）。
 
 **P3d（2026-11-07）：备选来源已全部直出**。P3c 删掉合成器后，`altSources` / `eventAltSources`
 （设置页**手动切源**时才走）里还有一批只产字符串 ⇒ 数组恒 null ⇒ 切过去那一侧显示「该来源无数据」。
@@ -533,15 +531,57 @@ canmoe 页面 + 它第一轮真的并发抓的 6 份 chunk、FZ Wiki 活动 REST
 （设置存储 `customUrls` / `customEventUrls` 写备选源标识 → `engine.refresh()` → `scheduleCellOf` 非 null，
 即面板不再是「该来源无数据」）+ 注册表一致（用的就是设置页会选中的那个 fetcher）。
 
-**P3 待办清单（P3d 后仍然没做的）**：只剩下面这些：
+**P3e（2026-11-07）：自定义地址 + 全部备选源直出（P3 完成）**。P3d 之后还剩两类"只产字符串 ⇒ 数组恒 null
+⇒ 切过去显示「该来源无数据」"的路径，本轮全部按同一个三段式（条目事实 → `hoverTextFromItems` →
+`dataArrayProduced*Of`）补齐：
+
+- **用户自定义地址**（`custom:<url>` / 自定义条目 / `allowGeneric`）：`tryParseGenericGacha` 的三条通用分支
+  （`parseAllBwiki` 表 / `parseArknights` 轮换表 / `collectGenericGacha` 普通 HTML 表，前两条与末位兜底统一走
+  新收口 `genericGachaPayloadOf`）与 `genericEventPayloadFromHtml`（含"两侧同址、活动侧复用卡池那次 HTML"分支）
+  现在都直出 `gacha` / `events`。主条仍取自 `selectCurrent` 的字符串字段（值一字不改）；并列条目 = 覆盖当前的
+  主池 / 活动 ⇒ **自定义地址第一次有悬停**（此前恒空），悬停与数组同源。解析失败（任意站、HTML 不匹配）照旧
+  **不抛错**、该侧空数组（面板写失败/未命中，与今天一致）。
+- **最后 5 条备选源**：本批点名的 `bandori-bestdori-gacha`（Bestdori 扭蛋）、`uma-jp-umapyoi`（赛马娘日服
+  umapyoi）；**穷尽普查另抓出 3 条**同样只产字符串的：`bandori-bestdori-event`（Bestdori 活动）、
+  `uma-global-gt`（赛马娘国际服 GachaTracker 英文）、`nte-ldshop`（异环 LDSHOP）。后两条与"终末地 GachaTracker
+  / 鸣潮 Bwiki"同一口径（本源**没有**悬停 ⇒ `entries` 传空数组，只补"能显示"、不扩事实）。
+- **独立 bug（`nte-ldshop` 真机 `base.getTime is not a function`）**：`parseLdshopRange(raw, now, tz)` 唯一的
+  调用方 `parseLdshopPools` 传的是 `nowMs()`（数字），函数里却当 `Date` 用（`base.getTime()`）。修法只做类型归一
+  （Date / 毫秒数都收，缺省仍走注入时钟），**时间口径一个字不动**。
+- **顺带抓出的路由 bug**：8 个**活动备选源**登记成 `{ default: fn }`（genshin/hsr/zzz/bh3 的米游社、
+  bandori/ournotes-global 官网、`uma-jp-bwiki`、`stellasora-bwiki`），而 `eventFetcherFor` 直接返回该对象 ⇒
+  `await fetcher(...)` 抛 `fetcher is not a function`（切过去只看到「抓取失败」）。现在 `eventFetcherFor`
+  统一解包成函数（两种登记形状都认）。
+- 夹具 8 份（`test/fixtures/p3e-*`，**不进 `map.json`**）：`p3e-bandori-bestdori-gacha` / `p3e-bandori-bestdori-event`
+  / `p3e-uma-umapyoi-gacha` / `p3e-uma-global-gt` / `p3e-nte-ldshop` 真抓（2026-11-07）；`p3e-custom-bwiki-html` /
+  `p3e-custom-events-html` 是从现有真抓夹具抽出的 `parse.text`（自定义地址走"非 api.php 的普通 HTML"路径），
+  `p3e-custom-nomatch` 手工构造（故意无表格）。回归在 `test/cases-p3.mjs` 的 P3e 段（① 自定义地址端到端 +
+  解析失败不抛错；② 5 条备选路径 × 数组逐条相等（含 ts）/ 悬停同源 / 路由可调用；③ 切源端到端；④ nte-ldshop
+  夹具级回归；⑤ 全部备选源路由可解出函数）。**"数组与改造前合成结果逐条相等"的口径不变**：对照 oracle 仍是
+  测试文件里的 `legacySynthArrOf`（只读改造前的字符串 + 悬停，不读直出数组）。
+
+**P3 待办清单（P3e 后仍然没做的）**：只剩下面这些：
 1. **时间戳换绝对时刻（P4）**：见「已知不等价①」。
 2. **`cat` / `tags` / 逐池角色表**：P3 只搬结构、不扩事实。
-3. **通用解析（自定义条目 / 用户自定义地址）仍靠"字符串→数组"的旧口径**：`tryParseGenericGacha`
-   的 `selectCurrent` / `collectGenericGacha` 分支与 `genericEventPayloadFromHtml`（自定义条目两侧同址时
-   复用卡池那次 HTML 的那条）都**不直出** ⇒ 自定义条目/自定义地址那一侧 P3c 之后同样是「无数据」。
-   要补就按同一个三段式改（`parseGachaTracker` / `parseCanmoe` 两条分支因为 P3d 顺带切了，已经直出）。
-4. **剩下的手切备选仍未直出**：`bandori-bestdori-gacha`（Bestdori 扭蛋）、`uma-jp-umapyoi`
-   （赛马娘日服卡池备选）—— 真机取得到数据但数组为 null。
+
+**P3 完成状态（P3e）**：**28 款默认源 / 48 条路径 + 全部备选源（20 条卡池 / 16 条活动）+ 用户自定义地址
+（三条通用分支 + 复用分支）都直出数组**，面板任何一侧都不再因为"没切直出"而显示「无数据」；`test/cases-p3.mjs`
+的 P3e ⑤ 有一条普查守卫（全部备选源都必须经注册表解出可调用抓取器）。
+
+**反向证明（P3e 实测，红字见提交说明/会话记录；每条改回后都复跑全绿）**：
+① **去掉 `bandori-bestdori-gacha` 的直出**（注释掉 `out.gacha = …`）⇒ `P3e 直出…数组非空（0 条）` /
+`P3e 等价…逐条相等` / `P3e 端到端…切源后数组非空（0 条）` / `P3e 端到端…面板那一格能渲染（null）`
+**四条同时红**（`结果：681 通过 / 4 失败`）；
+② **去掉自定义地址的直出**（`genericGachaPayloadOf` 不再写 `out.gacha`）⇒ `P3e 自定义地址：卡池数组非空（0 条）` /
+`P3e 自定义地址：面板卡池那一格能渲染（null）` / `P3e 自定义地址：卡池悬停非空且由条目生成` /
+`P3e 自定义条目（两侧同址）：卡池数组非空（0 条）` / `P3e 自定义条目（两侧同址）：两格都能渲染`
+**五条同时红**（`结果：680 通过 / 5 失败`）；
+③ **把 `parseLdshopRange` 的类型归一改回去**（`const base = now || new Date(nowMs())`）⇒
+`P3e 抓取（nteLdshop）：抓取器不抛错（base.getTime is not a function）` / `P3e nte-ldshop：parseLdshopPools 不抛错`
+/ `P3e nte-ldshop：解析出 2 口池` 等**五条同时红**（`结果：679 通过 / 5 失败`），红字原文就是用户报的那句。
+
+**P3 反向证明汇总（P3c / P3d / P3e 各自实测）**：见上面三段；共同点是"把直出拿掉 ⇒ 数组 golden /
+等价 / 端到端**同时**红"，说明这几条断言是承重的，不是自说自话。
 
 **反向证明（P3c 实测，红字见提交说明/会话记录；每条改回后都复跑全绿）**：
 ① **改坏直出**：把 endfield 卡池直出的并列条去掉（`poolItems.slice(0,1)`）⇒ `test/cases-p3.mjs`

@@ -1,0 +1,3 @@
+<!DOCTYPE html>
+<html><head><title>P3e 自定义地址（无表格）</title></head>
+<body><p>这个页面里没有任何「时间 + 名称」表格，用来钉住「解析失败 ⇒ 不抛错、该侧无数据」。</p></body></html>

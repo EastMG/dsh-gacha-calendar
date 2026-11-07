@@ -22,7 +22,7 @@
 import path from "node:path";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { createEngine } from "../packages/core/core.mjs";
-import { check, section, summary, useFixtures, fixtureBody } from "./harness.mjs";
+import { check, section, summary, useFixtures, fixtureBody, makeFetchTransport } from "./harness.mjs";
 import { T, FIXTURES_DIR } from "./load.mjs";
 
 const TZ_CN = "Asia/Shanghai";
@@ -771,6 +771,7 @@ async function runP3b() {
 			!("gachaHoverItems" in r.rec) && !("eventHoverItems" in r.rec), JSON.stringify(Object.keys(r.rec)));
 	}
 	await runP3d();
+	await runP3e();
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1062,6 +1063,302 @@ async function runP3d() {
 		const hit = list.find((a) => a.fetcher === p.alt);
 		check(`P3d 注册（${p.key}）：\`${p.id}\` 的${p.side === "event" ? "活动" : "卡池"}备选源里有 ${p.alt}`,
 			!!hit && (hit.url === (r.alt.url) || hit.id === r.alt.id), JSON.stringify(hit));
+	}
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// P3e（2026-11-07）：**用户自定义地址**直出 + 最后一批备选源直出 + 路由解包 + 一处独立 bug
+//
+// ── 为什么还有这一批 ──
+// P3d 把「手动切源才走」的备选源全部切成了直出，但留下两个洞：
+//   ① **用户自定义地址**（设置页填任意 URL ⇒ `custom:<url>` / 自定义条目 ⇒ `allowGeneric`）：
+//      `tryParseGenericGacha` 的三条通用分支（bwiki 表 / 方舟轮换表 / 普通 HTML 表）与
+//      `genericEventPayloadFromHtml` 都只产字符串 ⇒ P3c 删掉合成器后，切到自定义地址那一侧
+//      显示「无数据」（**功能回归**）。
+//   ② 备选源里还有 5 条没直出（本批全切）：`bandori-bestdori-gacha`（本批点名）、
+//      `uma-jp-umapyoi`（本批点名）、`bandori-bestdori-event`、`uma-global-gt`、`nte-ldshop`
+//      （后三条是**穷尽普查**抓出来的：它们同样"真机有数据、数组为 null"）。
+//   ③ 独立 bug：`nte-ldshop` 真机抛 `base.getTime is not a function`（`parseLdshopRange` 收到
+//      数字当 Date 用）；修好之后它才有"能显示"的前提。
+//   ④ 顺带抓出的路由 bug：8 个**活动备选源**登记成 `{ default: fn }`，而 `eventFetcherFor`
+//      直接返回该对象 ⇒ `await fetcher(...)` 抛 "fetcher is not a function"（切过去只看到
+//      「抓取失败」）。`eventFetcherFor` 现在统一解包成一等函数。
+//
+// ── 这一段守四件事 ──
+// ① **自定义地址端到端**：设置存储写 `custom:<url>`（内置条目的自定义地址）与 `customEntries`
+//    （自定义条目）→ `engine.refresh()` → `rec.gacha` / `rec.events` 非空 **且**
+//    `scheduleCellOf` 非 null（= 面板不再写「该来源无数据」）。
+// ② **解析失败不抛错**：任意站 / HTML 不匹配 ⇒ 数组为空、`refresh()` 正常返回。
+// ③ **备选源直出**：数组（含 ts）与改造前合成结果**逐条相等**、悬停与条目事实**逐字同源**、
+//    切源端到端有数据 —— 5 条路径全覆盖（含本批点名的 2 条）。
+// ④ **nte-ldshop 回归**：夹具级（`parseLdshopPools` 不再抛错）+ 抓取器级（能出载荷/数组）。
+//
+// ⚠️ 夹具全部 `p3e-*`，**不进 map.json**（免得改变其它批次对默认源 404 的期望）；
+//    来源与构造依据写在各自的 `response.txt.meta.json` 里。
+const P3E_FIX = {
+	bwiki: "p3e-custom-bwiki-html/response.txt",          // 真抓夹具的 parse.text（bwiki 原神往期祈愿）
+	events: "p3e-custom-events-html/response.txt",       // 真抓夹具的 parse.text（bwiki 星铁活动一览）
+	nomatch: "p3e-custom-nomatch/response.txt",          // 手工：故意没有任何表格
+	bestdoriGacha: "p3e-bandori-bestdori-gacha/response.txt",
+	bestdoriEvent: "p3e-bandori-bestdori-event/response.txt",
+	umapyoi: "p3e-uma-umapyoi-gacha/response.txt",
+	gt: "p3e-uma-global-gt/response.txt",
+	ldshop: "p3e-nte-ldshop/response.txt"
+};
+// 合成出来的"自定义地址"（`example.invalid` 不会被真的访问 —— 全部经夹具 transport）
+const P3E_CUSTOM_URL = "https://example.invalid/p3e-custom-bwiki.html";
+const P3E_CUSTOM_EVENT_URL = "https://example.invalid/p3e-custom-events.html";
+const P3E_CUSTOM_NOMATCH_URL = "https://example.invalid/p3e-custom-nomatch.html";
+// 夹具抓取时刻（bwiki/星铁活动页）/ gachatracker 数据期 / ldshop 页数据期
+const P3E_NOW = Date.parse("2026-11-07T02:20:17.024Z");
+const P3E_NOW_BWIKI = Date.parse("2026-11-07T00:28:21.868Z");
+const P3E_NOW_GT = Date.parse("2026-10-05T00:00:00.000Z");
+const P3E_NOW_LDSHOP = Date.parse("2026-09-15T00:00:00.000Z");
+
+// 5 条备选路径：id / side / 备选源键 / 夹具时刻 / URL→夹具映射
+const P3E_PATHS = [
+	{
+		// 本批点名 ①：BanG Dream! 扭蛋备选（Bestdori 社区库，简中服）
+		key: "bandoriBestdoriGacha", id: "bandori", side: "gacha", field: "gacha",
+		alt: "bandori-bestdori-gacha", now: P3E_NOW,
+		urls: { "https://bestdori.com/api/gacha/all.5.json": P3E_FIX.bestdoriGacha },
+		// 改造前的悬停 = `hoverPool(uniq...)`（本轮改成 hoverTextFromItems，必须逐字相同）
+		legacyHoverPool: true
+	},
+	{
+		// 本批点名 ②：赛马娘日服卡池备选（umapyoi，无卡池名）
+		key: "umaJpUmapyoi", id: "uma-jp", side: "gacha", field: "gacha",
+		alt: "uma-jp-umapyoi", now: P3E_NOW,
+		urls: { "https://api.umapyoi.net/api/v1/gacha": P3E_FIX.umapyoi },
+		legacyHoverPool: true
+	},
+	{
+		// 穷尽普查抓出来的 ③：BanG Dream! 活动备选（Bestdori 活动）
+		// ⚠️ 这里**只**钉"直出/同源/切源有数据"：本源的活动档期互不重叠（夹具普查：任一时刻
+		//    最多 1 期在期），所以 `eventHover` 恒为 ""（与改造前相同，UI 走默认两行式）；
+		//    多期时的新排版（3 空格，本体约定）在本夹具里走不到 —— 如实记录，不假装测过。
+		key: "bandoriBestdoriEvent", id: "bandori", side: "event", field: "events",
+		alt: "bandori-bestdori-event", now: P3E_NOW,
+		urls: { "https://bestdori.com/api/events/all.5.json": P3E_FIX.bestdoriEvent },
+	},
+	{
+		// 穷尽普查抓出来的 ④：赛马娘国际服卡池备选（GachaTracker 英文；数据停在 10-11）
+		key: "umaGlobalGt", id: "uma-global", side: "gacha", field: "gacha",
+		alt: "uma-global-gt", now: P3E_NOW_GT,
+		urls: { "https://gachatracker.app/games/umamusume/banners/": P3E_FIX.gt }
+	},
+	{
+		// 穷尽普查抓出来的 ⑤：异环卡池备选（LDSHOP 繁体静态表）
+		key: "nteLdshop", id: "nte", side: "gacha", field: "gacha",
+		alt: "nte-ldshop", now: P3E_NOW_LDSHOP,
+		urls: { "https://www.ldshop.gg/tw/blog/nte/neverness-to-everness-banner.html": P3E_FIX.ldshop }
+	}
+];
+
+async function runP3e() {
+	const makeStore = () => { const m = new Map(); return { async get(k) { return m.get(k); }, async set(k, v) { m.set(k, v); } }; };
+	const allIds = createEngine({
+		transport: { async fetchRaw() { throw new Error("no"); }, async fetchViaProxy() { throw new Error("no"); } },
+		storage: makeStore(), now: () => 0
+	}).__test.SOURCES.map((s) => s.id);
+	// 一份夹具 transport（P3d 同一手法：直连与宿主代理两个出口都映射到同一份 body）
+	const transportOf = (overrides) => makeFetchTransport(useFixtures(overrides));
+	const cellOf = (id, rec, side, now) => T.scheduleCellOf(Object.assign({ id }, rec), side, new Date(now));
+
+	// ── ① 自定义地址（内置条目 + `custom:<url>`）：两侧都要有数据 ──────────────
+	section("P3e ①：自定义地址（custom:<url>）端到端 —— 卡池/活动两侧都不再是「无数据」");
+	{
+		const transport = transportOf({
+			[P3E_CUSTOM_URL]: P3E_FIX.bwiki,
+			[P3E_CUSTOM_EVENT_URL]: P3E_FIX.events,
+			[P3E_CUSTOM_NOMATCH_URL]: P3E_FIX.nomatch
+		});
+		const store = makeStore();
+		await store.set("hidden", allIds.filter((x) => x !== "genshin"));
+		await store.set("customUrls", JSON.stringify({ genshin: "custom:" + P3E_CUSTOM_URL }));
+		await store.set("customEventUrls", JSON.stringify({ genshin: "custom:" + P3E_CUSTOM_EVENT_URL }));
+		const engine = createEngine({ transport, storage: store, now: () => P3E_NOW_BWIKI, timer: { setTimeout, clearTimeout } });
+		let rec = {};
+		let threw = "";
+		try {
+			const res = await engine.refresh();
+			rec = (res.games || {}).genshin || {};
+		} catch (e) { threw = String((e && e.message) || e); }
+		check("P3e 自定义地址（内置条目）：`refresh()` 不抛错", threw === "", threw);
+		check(`P3e 自定义地址：卡池数组非空（${(rec.gacha || []).length} 条 ⇒ 通用 bwiki 分支直出）`,
+			(rec.gacha || []).length > 0, JSON.stringify((rec.gacha || []).map((x) => x.title)));
+		check(`P3e 自定义地址：活动数组非空（${(rec.events || []).length} 条 ⇒ genericEventPayloadFromHtml 直出）`,
+			(rec.events || []).length > 0, JSON.stringify((rec.events || []).map((x) => x.title)));
+		const gCell = cellOf("genshin", rec, "gacha", P3E_NOW_BWIKI);
+		const eCell = cellOf("genshin", rec, "event", P3E_NOW_BWIKI);
+		check("P3e 自定义地址：面板卡池那一格能渲染（scheduleCellOf 非 null）", !!gCell && !!gCell.primary,
+			JSON.stringify(gCell && gCell.primary && gCell.primary.title));
+		check("P3e 自定义地址：面板活动那一格能渲染（scheduleCellOf 非 null）", !!eCell && !!eCell.primary,
+			JSON.stringify(eCell && eCell.primary && eCell.primary.title));
+		// 数组 key 由数据层按记录 id 重发（解析器不知道 meta.id）
+		check("P3e 自定义地址：数组 key 前缀是记录 id（`genshin:gacha:i` / `genshin:event:i`）",
+			(rec.gacha || []).every((x) => /^genshin:gacha:\d+$/.test(x.key)) &&
+			(rec.events || []).every((x) => /^genshin:event:\d+$/.test(x.key)),
+			JSON.stringify([(rec.gacha || []).map((x) => x.key), (rec.events || []).map((x) => x.key)]));
+		// 悬停确实由条目生成（P3e 的三段式）：不与非条目串比较绝对档期 —— 数组条目的 ts 是
+		// P1 的「本机时刻」口径，重算悬停会在非 +08 机器上偏 8 小时（见「已知不等价①」）。
+		// 这里钉的是**与机器时区无关**的那部分：悬停非空、且外显池名出现在悬停行里。
+		const gMain = (rec.gacha || []).find((x) => x.source === "primary");
+		check("P3e 自定义地址：卡池悬停非空且由条目生成（外显池名出现在悬停里）",
+			!!(rec.bannerHover || "") && !!gMain && rec.bannerHover.split("\n").some((l) => l.indexOf(gMain.title) === 0),
+			JSON.stringify([rec.bannerHover || "", gMain && gMain.title]));
+		const eMain = (rec.events || []).find((x) => x.source === "primary");
+		check("P3e 自定义地址：活动悬停非空且由条目生成（外显活动名出现在悬停里）",
+			!!(rec.eventHover || "") && !!eMain && rec.eventHover.split("\n").some((l) => l.indexOf(eMain.title) === 0),
+			JSON.stringify([rec.eventHover || "", eMain && eMain.title]));
+
+		// 独立条目（customEntries）：卡池与活动**同一条 URL** ⇒ 活动侧走「复用卡池那次 HTML」分支
+		const store2 = makeStore();
+		await store2.set("hidden", allIds);
+		await store2.set("customEntries", JSON.stringify([{
+			id: "p3e-custom-entry", name: "P3E 自定义条目", url: P3E_CUSTOM_EVENT_URL, eventUrl: P3E_CUSTOM_EVENT_URL
+		}]));
+		const engine2 = createEngine({ transport, storage: store2, now: () => P3E_NOW_BWIKI, timer: { setTimeout, clearTimeout } });
+		const res2 = await engine2.refresh();
+		const rec2 = (res2.games || {})["p3e-custom-entry"] || {};
+		check(`P3e 自定义条目（两侧同址）：卡池数组非空（${(rec2.gacha || []).length} 条）`,
+			(rec2.gacha || []).length > 0, String((rec2.gacha || []).length));
+		check(`P3e 自定义条目（两侧同址）：活动数组非空（${(rec2.events || []).length} 条 ⇒ genericEventPayloadFromHtml 复用分支）`,
+			(rec2.events || []).length > 0, String((rec2.events || []).length));
+		check("P3e 自定义条目（两侧同址）：两格都能渲染",
+			!!cellOf("p3e-custom-entry", rec2, "gacha", P3E_NOW_BWIKI) && !!cellOf("p3e-custom-entry", rec2, "event", P3E_NOW_BWIKI));
+
+		// 解析失败（HTML 不匹配）⇒ 不抛错、该侧数组为空（与今天一致）
+		const store3 = makeStore();
+		await store3.set("hidden", allIds.filter((x) => x !== "genshin"));
+		await store3.set("customUrls", JSON.stringify({ genshin: "custom:" + P3E_CUSTOM_NOMATCH_URL }));
+		await store3.set("customEventUrls", JSON.stringify({ genshin: "custom:" + P3E_CUSTOM_NOMATCH_URL }));
+		const engine3 = createEngine({ transport, storage: store3, now: () => P3E_NOW_BWIKI, timer: { setTimeout, clearTimeout } });
+		let threw3 = "";
+		let rec3 = {};
+		try { const res3 = await engine3.refresh(); rec3 = (res3.games || {}).genshin || {}; }
+		catch (e) { threw3 = String((e && e.message) || e); }
+		check("P3e 解析失败（任意站 / HTML 不匹配）：`refresh()` 不抛错", threw3 === "", threw3);
+		check("P3e 解析失败：两侧数组都为空（空数组 + 不抛错 = 今天的口径）",
+			(rec3.gacha || []).length === 0 && (rec3.events || []).length === 0,
+			JSON.stringify([(rec3.gacha || []).length, (rec3.events || []).length]));
+		check("P3e 解析失败：该侧如实记失败/未命中（不伪装成有数据）",
+			!!rec3.gachaFail && !!rec3.eventFail, JSON.stringify([rec3.gachaFail, rec3.eventFail]));
+	}
+
+	// ── ② 备选源（含本批点名的 2 条 + 穷尽普查补的 3 条）──────────────────────
+	section("P3e ②：备选源直出 —— 数组与改造前合成结果逐条相等（含 ts）/ 悬停同源 / 切源后有数据");
+	const results = {};
+	for (const p of P3E_PATHS) {
+		const transport = transportOf(p.urls);
+		const eng0 = createEngine({ transport, storage: makeStore(), now: () => p.now });
+		const src0 = eng0.__test.SOURCES.find((s) => s.id === p.id);
+		if (!src0) throw new Error("P3e 找不到来源：" + p.id);
+		const list = p.side === "event" ? (src0.eventAltSources || []) : (src0.altSources || []);
+		const alt0 = list.find((a) => a.fetcher === p.alt);
+		check(`P3e 注册（${p.key}）：\`${p.id}\` 的${p.side === "event" ? "活动" : "卡池"}备选源里有 ${p.alt}`,
+			!!alt0, JSON.stringify(list));
+		if (!alt0) continue;
+		// 走**注册表路由**（设置页切源后真正会拿到的那一个）；P3e 顺带把 `{default:fn}` 解包
+		const fetcher = p.side === "event"
+			? eng0.__test.eventFetcherFor(src0, alt0.url)
+			: eng0.__test.gachaFetcherFor(src0, alt0.url);
+		check(`P3e 路由（${p.key}）：\`${alt0.fetcher}\` 经注册表解出一个**可调用**的抓取器`,
+			typeof fetcher === "function", typeof fetcher);
+		if (typeof fetcher !== "function") continue;
+		const engine = createEngine({ transport, storage: makeStore(), now: () => p.now, timer: { setTimeout, clearTimeout } });
+		let payload = null;
+		let fetchThrew = "";
+		try { payload = await fetcher(alt0.url, undefined, src0.tz); }
+		catch (e) { fetchThrew = String((e && e.message) || e); }
+		// 抓取器自己抛错 ⇒ 干净地记一条红（而不是让整批用例崩掉）：
+		// 反向证明「把 nte-ldshop 的类型归一改回去」时会红在这一条（错误原文 = base.getTime is not a function）。
+		check(`P3e 抓取（${p.key}）：抓取器不抛错（${fetchThrew || "ok"}）`, fetchThrew === "", fetchThrew);
+		if (!payload) { check(`P3e 载荷（${p.key}）：当期有数据（夹具覆盖 now）`, false, String(p.now)); continue; }
+		const rec = engine.__test.mergeEntryRecord({ data: payload }, null, p.now, { id: p.id, tz: src0.tz });
+		const arr = rec[p.field] || [];
+		const oldArr = legacySynthArrOf(payload, p.side, p.id, src0.tz, p.now);
+		const items = (p.side === "gacha" ? payload.gachaHoverItems : payload.eventHoverItems) || [];
+		const hover = p.side === "gacha" ? payload.bannerHover : payload.eventHover;
+		results[p.key] = { payload, rec, engine, p, src: src0, alt: alt0, transport, items };
+		check(`P3e 直出（${p.key}）：\`${p.field}\` 数组非空（${arr.length} 条）`, arr.length > 0, String(arr.length));
+		check(`P3e 等价（${p.key}）：数组与改造前合成结果逐条相等（含 startTs / endTs）`,
+			JSON.stringify(arr) === JSON.stringify(oldArr), JSON.stringify([arr, oldArr]));
+		check(`P3e 同源（${p.key}）：悬停 == hoverTextFromItems(条目事实) 逐字相等`,
+			(hover || "") === T.hoverTextFromItems(items, p.side, src0.tz),
+			JSON.stringify([hover || "", T.hoverTextFromItems(items, p.side, src0.tz)]));
+		check(`P3e 通道（${p.key}）：记录里没有 \`gachaHoverItems\` / \`eventHoverItems\``,
+			!("gachaHoverItems" in rec) && !("eventHoverItems" in rec), JSON.stringify(Object.keys(rec)));
+		if (p.legacyHoverPool) {
+			// 改造前的悬停是 `hoverPool(name/startTs/endTs)`：新实现必须**逐字**等于它
+			const legacyHover = T.hoverPool(items.map((x) => ({ name: x.title, startTs: x.startTs, endTs: x.endTs })), src0.tz);
+			check(`P3e 悬停逐字（${p.key}）：== 改造前 \`hoverPool\` 的输出（逐字相等）`,
+				(hover || "") === legacyHover, JSON.stringify([hover || "", legacyHover]));
+		}
+	}
+
+	// ── ③ 端到端手动切源（设置存储写备选源 ⇒ refresh ⇒ 该侧能渲染）──────────
+	section("P3e ③：端到端切源 —— 设置存储里写备选源 ⇒ refresh() ⇒ 该侧不再是「该来源无数据」");
+	for (const p of P3E_PATHS) {
+		const r = results[p.key];
+		if (!r) continue;
+		const altUrl = r.alt.url || r.alt.id || "";
+		const store = makeStore();
+		await store.set("hidden", allIds.filter((x) => x !== p.id));
+		await store.set(p.side === "event" ? "customEventUrls" : "customUrls", JSON.stringify({ [p.id]: altUrl }));
+		const engine = createEngine({ transport: r.transport, storage: store, now: () => p.now, timer: { setTimeout, clearTimeout } });
+		let threw = "";
+		let rec = {};
+		try { const res = await engine.refresh(); rec = (res.games || {})[p.id] || {}; }
+		catch (e) { threw = String((e && e.message) || e); }
+		const arr = rec[p.field] || [];
+		check(`P3e 端到端（${p.key}）：切源后 refresh() 不抛错`, threw === "", threw);
+		check(`P3e 端到端（${p.key}）：切源后数组非空（${arr.length} 条）`, arr.length > 0, String(arr.length));
+		const cell = cellOf(p.id, rec, p.side, p.now);
+		check(`P3e 端到端（${p.key}）：面板那一格能渲染（scheduleCellOf 非 null）`, !!cell && !!cell.primary,
+			JSON.stringify(cell && cell.primary && cell.primary.title));
+	}
+
+	// ── ④ nte-ldshop 独立 bug 回归（夹具级 + 抓取器级）────────────────────────
+	section("P3e ④：nte-ldshop 不再抛 `base.getTime is not a function`（夹具级回归）");
+	{
+		const r = results.nteLdshop;
+		const html = readFileSync(path.join(FIXTURES_DIR, P3E_FIX.ldshop), "utf8");
+		let pools = null;
+		let threw = "";
+		try { pools = T.parsers.nte.parseLdshopPools(html, "Asia/Shanghai"); } catch (e) { threw = String((e && e.message) || e); }
+		check("P3e nte-ldshop：`parseLdshopPools(html, tz)` 不抛错（真因 = 把 nowMs() 当 Date 用）",
+			threw === "", threw);
+		check("P3e nte-ldshop：解析出 2 口池（夹具里就是两期）", Array.isArray(pools) && pools.length === 2,
+			JSON.stringify(pools && pools.length));
+		check("P3e nte-ldshop：抓取器出载荷且带 `gacha` 数组（切过去能显示）",
+			!!r && (r.rec.gacha || []).length > 0 && !!r.rec.banner, JSON.stringify(r && r.rec.banner));
+	}
+
+	// ── ⑤ 穷尽守卫：**所有**已登记的备选源都能解出可调用抓取器（P3e 抓出的路由 bug）──
+	section("P3e ⑤：全部已登记备选源的路由都能解出函数（8 个 `{default:fn}` 形状不再炸）");
+	{
+		const engine = createEngine({
+			transport: { async fetchRaw() { throw new Error("no"); }, async fetchViaProxy() { throw new Error("no"); } },
+			storage: makeStore(), now: () => 0
+		});
+		const t = engine.__test;
+		let gTotal = 0, gBad = [];
+		let eTotal = 0, eBad = [];
+		for (const s of t.SOURCES) {
+			for (const a of (s.altSources || [])) {
+				gTotal++;
+				const f = t.gachaFetcherFor(s, a.url || a.id || "");
+				if (typeof f !== "function") gBad.push(s.id + "/" + a.fetcher);
+			}
+			for (const a of (s.eventAltSources || [])) {
+				eTotal++;
+				const f = t.eventFetcherFor(s, a.url || a.id || "");
+				if (typeof f !== "function") eBad.push(s.id + "/" + a.fetcher);
+			}
+		}
+		check(`P3e 普查：卡池备选源 ${gTotal} 条全部解出函数`, gBad.length === 0, JSON.stringify(gBad));
+		check(`P3e 普查：活动备选源 ${eTotal} 条全部解出函数（本轮修的就是这一类）`, eBad.length === 0, JSON.stringify(eBad));
 	}
 }
 

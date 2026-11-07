@@ -40,11 +40,19 @@
 
 
 		// 异环（ldshop 经 host 代理）：抓页面 → 解析卡池表 → 选当期
+		// ⚠️ P3e（2026-11-07）：**直出 `gacha` 数组**。P3c 删掉数据层合成器后，这条备选源只产字符串 ⇒
+		//    手动把异环卡池源切到「LDSHOP」时那一侧显示「无数据」。
+		//    本源**没有悬停**（改造前只有一口当期池、UI 走默认两行式）⇒ 并列条目为 0（`entries` 传空数组），
+		//    与「GachaTracker（英文）」「鸣潮 Bwiki 角色轮换池」两处同一口径：只补"能显示"，不扩事实。
 		async function fetchLdshopNte(pageUrl, _signal, tz) {
 			const html = await proxyFetchText(pageUrl, "https://www.ldshop.gg/");
 			const pools = parseLdshopPools(html, tz);
 			if (pools.length === 0) return null;
-			return selectCurrent(pools, nowMs());
+			const now = nowMs();
+			const cur = selectCurrent(pools, now);
+			if (!cur) return null;
+			cur.gacha = dataArrayProducedGachaOf(cur, [], { tz }, now);
+			return cur;
 		}
 
 

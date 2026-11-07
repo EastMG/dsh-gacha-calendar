@@ -781,13 +781,19 @@ function ns_umapyoi_parseUmapyoiGacha(json, now = nowMs(), tz = "Asia/Tokyo") {
 	//    它会漏网是因为它只是 `uma-jp.altSources` 里的**备选源**，不在主源悬停审计的覆盖范围内。
 	//    现在改用共用 hoverPool：池名与档期分开两行，无元信息，无截断。
 	//    （源站没有卡池名 → 池名用「赛马娘日服卡池（卡级构成）」，与 banner 同构。）
-	const hover = hoverPool(active.map((p) => ({
-		name: p.cardTypes.length ? `赛马娘日服卡池（${p.cardTypes.join("、")}）` : "赛马娘日服卡池",
-		startTs: p.startTs,
-		endTs: p.endTs
-	})), tz);
+	// ⚠️ P3e（2026-11-07）：手动切到「umapyoi（无卡池名）」时该侧也要有数组。三段式：
+	//    条目事实 → `hoverTextFromItems` → `dataArrayProducedGachaOf`；排序用 `poolHoverOrderOf`
+	//    （= `hoverPool` 内部的 `hoverSortByEnd`），所以悬停与改造前逐字相同、数组与改造前合成结果逐条相等。
+	const items = active
+		.map((p) => ({
+			title: p.cardTypes.length ? `赛马娘日服卡池（${p.cardTypes.join("、")}）` : "赛马娘日服卡池",
+			startTs: p.startTs,
+			endTs: p.endTs
+		}))
+		.sort(poolHoverOrderOf);
+	const hover = hoverTextFromItems(items, "gacha", tz);
 
-	return {
+	const out = {
 		banner,
 		roles: "",
 		bannerDates: dates,
@@ -796,6 +802,9 @@ function ns_umapyoi_parseUmapyoiGacha(json, now = nowMs(), tz = "Asia/Tokyo") {
 		endTs: cur.endTs,
 		...(hover ? { bannerHover: hover } : {})
 	};
+	out.gacha = dataArrayProducedGachaOf(out, items, { tz }, now);
+	out.gachaHoverItems = items;
+	return out;
 }
 
 // 抓取器：mode="direct"（实测 api.umapyoi.net 响应 ACAO=*）
@@ -886,11 +895,17 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 			const cur = items.filter((it) => coversNow(it, now)).sort((a, b) => b.endTs - a.endTs)[0];
 			if (!cur) return null;
 			const fmtDate = (s) => { const m = String(s).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); return m ? `${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}` : String(s); };
-			return {
+			const out = {
 				banner: cur.banner,
 				roles: cur.roles,
 				bannerDates: `${fmtDate(cur.startText)} 00:00 ~ ${fmtDate(cur.endText)} 23:59`
 			};
+			// ── P3e（2026-11-07）：手动切到「GachaTracker（英文 · 不可靠）」时该侧也要有数组 ──
+			// 本源**没有悬停**（改造前就没写 `bannerHover`：只取一口当期池，UI 走默认两行式）⇒
+			// 并列条目为 0（`entries` 传空数组）。与「终末地 GachaTracker」「鸣潮 Bwiki」两处同一口径：
+			// 只补「能显示」这一件，不把池列表塞进数组（那会让数组比改造前多出条目 = 行为变更）。
+			out.gacha = dataArrayProducedGachaOf(out, [], { tz }, now);
+			return out;
 		}
 
 		async function ns_cygames_gachaGtUma(url, signal, tz) {

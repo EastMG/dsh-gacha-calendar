@@ -2805,16 +2805,68 @@ export function createEngine(env) {
 		}
 
 
+		// ── P3e（2026-11-07）：通用卡池载荷的**收口**（条目事实 → 悬停 + `gacha` 数组）──
+		// 为什么需要：三条通用分支（bwiki 式表 / 方舟轮换表 / 普通 HTML 表）此前都只产字符串；
+		// P3c 把数据层的"字符串 → 数组"合成器删掉之后，**用户自定义地址**（`custom:<url>` /
+		// 自定义条目）切过去那一侧就恒为空数组 ⇒ 面板写「该来源无数据」（功能回归）。
+		//
+		// 三段式与内置源完全一致（`bwikiGachaPayload` / `selectArknights` 同一套）：
+		//   条目事实（覆盖当前的池）→ `hoverTextFromItems` 反生成悬停 → `dataArrayProducedGachaOf` 收口。
+		// ⚠️ 主条仍来自 `selectCurrent` 的 4 个字符串字段（与改造前同一句、值一字不改）；
+		//    并列条目 = 覆盖当前的**主池**（与内置 bwiki 同一条判据：`isMain` + `coversNow`）。
+		// ⚠️ `selectCurrent` 会**就地**补全缺失起点（fillMissingStarts）⇒ 必须先拍快照再调它
+		//    （与 `bwikiGachaPayload` 的手法一致），否则"X.Y版本更新后"那类行的 raw/起点会被改写。
+		function genericGachaPayloadOf(items, tz, now) {
+			const list = Array.isArray(items) ? items : [];
+			if (list.length === 0) return null;
+			const snapshot = list.map((it) => ({
+				name: it.banner,
+				roles: it.roles || "",
+				startTs: it.startTs,
+				endTs: it.endTs,
+				raw: it.rawOriginal || it.raw,
+				isMain: it.isMain
+			}));
+			const cur = selectCurrent(list, now);
+			if (!cur) return null;
+			const pools = snapshot
+				.filter((it) => it.isMain && coversNow(it, now))
+				.map((it) => ({
+					name: it.name,
+					label: `${it.name}${it.roles ? `\uFF1A${cleanRoles(it.roles)}` : ""}`,
+					startTs: it.startTs,
+					endTs: it.endTs,
+					raw: it.raw
+				}));
+			// 顺序/去重走共用工具（`poolHoverKept` = `buildPoolHover` 里同一份）
+			const hoverItems = poolHoverKept(pools).map((p) => ({
+				title: p.label || p.name,
+				label: p.label || p.name,
+				startTs: p.startTs,
+				endTs: p.endTs,
+				raw: p.raw
+			}));
+			const out = { ...cur, bannerHover: hoverTextFromItems(hoverItems, "gacha", tz) };
+			out.gacha = dataArrayProducedGachaOf(out, hoverItems, { tz }, now);
+			out.gachaHoverItems = hoverItems;
+			return out;
+		}
+
+
 		// 通用卡池解析（新增自定义条目的"卡池来源"地址用）：
 		// 依次尝试 bwiki 式「时间+版本」表、方舟式「限时寻访」表、GachaTracker 式日期表、
 		// Next.js SPA（canmoe 等，页面无表格、数据在组件 chunk 里），选当期；
 		// 最后再退到**普通 HTML 表**（见下方 collectGenericGacha）；
 		// 全部失败返回 null（调用方按解析失败处理，不做可达性健康检查）
+		// ⚠️ P3e：前两条与末位兜底都改走 `genericGachaPayloadOf`（直出数组）；
+		//    `parseGachaTracker` / `parseCanmoe` 在 P3d 就已经直出，这里原样返回。
 		async function tryParseGenericGacha(url, signal, tz) {
 			const html = await fetchHtmlText(url, signal);
 			const now = nowMs();
-			const cur = selectCurrent(parseAllBwiki(html, tz), now) || selectCurrent(parseArknights(html, tz), now);
-			if (cur && cur.banner && cur.bannerDates) return cur;
+			const bwiki = genericGachaPayloadOf(parseAllBwiki(html, tz), tz, now);
+			if (bwiki && bwiki.banner && bwiki.bannerDates) return bwiki;
+			const ak = genericGachaPayloadOf(parseArknights(html, tz), tz, now);
+			if (ak && ak.banner && ak.bannerDates) return ak;
 			const gt = parseGachaTracker(html, tz);
 			if (gt && gt.banner && gt.bannerDates) return gt;
 			// Next.js SPA：HTML 无表格数据，定位组件 chunk 后抓 chunk JS 解析。
@@ -2834,7 +2886,7 @@ export function createEngine(env) {
 			// （bwiki 卡池列 / PRTS 卡池一览 / GachaTracker），而用户给自定义条目
 			// 填一个普通 wiki 页面时，**活动列能出、卡池列恒空** —— 同一张表明显有内容。
 			// 这一兜底复用与活动侧同一套"时间+名称"列识别，保证自定义条目两侧口径一致。
-			const generic = selectCurrent(collectGenericGacha(html, tz), now);
+			const generic = genericGachaPayloadOf(collectGenericGacha(html, tz), tz, now);
 			if (generic && generic.banner && generic.bannerDates) return generic;
 			return null;
 		}
@@ -2979,17 +3031,39 @@ export function createEngine(env) {
 		// HTML —— 省掉第二次请求，同时保证活动侧也能被通用解析命中。
 		// 与 genericEventPayload 的差别：表里一行都没有时返回 null（交给调用方按 nomatch 处理），
 		// 而不是抛 "bwiki-event-no-table"（那条错误语义是给"内置源站改版"用的）。
+		// ⚠️ P3e（2026-11-07）：**直出 `events` 数组**（三段式与 `genericEventPayload` 同一套）——
+		//    P3c 删掉数据层合成器后，这条路径只产三个字符串 ⇒ 自定义地址/自定义条目的**活动侧**
+		//    切过去就显示「无数据」。并列条目 = 覆盖当前时刻的活动（与 `genericEventPayload` 同一份
+		//    `sortEventItems` 排序），主条仍取自 `selectCurrent` 的字符串字段（值一字不改）。
+		// ⚠️ 这里**不传** `permanentCount`：改造前这条路径就不产「以及常驻活动 N 项」那一行，
+		//    本批只补数组、不扩事实（永久活动不参与 `coversNow`，本来也不在条目里）。
 		function genericEventPayloadFromHtml(html, tz) {
 			let items;
 			try { items = collectGenericEvents(html, tz); } catch { return null; }
 			if (items.length === 0) return null;
-			const cur = selectCurrent(items, nowMs());
+			const now = nowMs();
+			// 快照要在 `selectCurrent` 之前拍：它会就地把"版本更新后"那类行的起点补全
+			const snapshot = items.map((it) => ({
+				name: it.banner,
+				cat: it.cat || "",
+				startTs: it.startTs,
+				endTs: it.endTs,
+				raw: it.rawOriginal || it.raw
+			}));
+			const cur = selectCurrent(items, now);
 			if (!cur || !cur.banner) return null;
-			return {
+			const hoverItems = sortEventItems(snapshot.filter((it) => coversNow(it, now)))
+				.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
+			const out = {
 				event: cur.banner,
 				eventDates: cur.bannerDates || "",
 				eventDatesRaw: cur.bannerDatesRaw || cur.bannerDates || ""
 			};
+			const hover = hoverTextFromItems(hoverItems, "event", tz);
+			if (hover) out.eventHover = hover;
+			out.events = dataArrayProducedEventsOf(out, hoverItems, { tz }, now);
+			out.eventHoverItems = hoverItems;
+			return out;
 		}
 
 
@@ -3059,12 +3133,26 @@ export function createEngine(env) {
 
 
 		// 取条目当前活动源的抓取器：命中的活动备选源 > 默认活动抓取器（无 → null）
+		//
+		// ⚠️ P3e（2026-11-07）：备选源有**两种登记形状** —— 一种直接是函数
+		//    （`"arknights-event-list": (url, signal, tz) => …`），另一种是 `{ default: fn }`
+		//    （历史批次，如 `"genshin-miyoushe": { default: fn }`）。而 `EVENT_FETCHERS[id].default`
+		//    这一层的值恒为函数。这里必须**统一解包**：直接 `return table[a.fetcher]` 会把
+		//    `{ default: fn }` 整个对象交给 `fetchEntry` → `await fetcher(...)` 抛
+		//    「fetcher is not a function」→ 用户把活动来源切到那 8 个备选源时只看到「抓取失败」。
+		//    （实测受影响：genshin/hsr/zzz/bh3 的米游社、bandori/ournotes-global 官网、
+		//      uma-jp-bwiki、stellasora-bwiki。）
+		function eventFetcherOf(v) {
+			if (typeof v === "function") return v;
+			if (v && typeof v === "object" && typeof v.default === "function") return v.default;
+			return null;
+		}
 		function eventFetcherFor(source, url) {
 			const table = EVENT_FETCHERS[source.id];
 			if (!table) return null;
 			const want = normalizeSourceId(url);
-			const alt = (source.eventAltSources || []).find((a) => altSourceId(a) === want && table[a.fetcher]);
-			return alt ? table[alt.fetcher] : table.default || null;
+			const alt = (source.eventAltSources || []).find((a) => altSourceId(a) === want && eventFetcherOf(table[a.fetcher]));
+			return alt ? eventFetcherOf(table[alt.fetcher]) : eventFetcherOf(table.default);
 		}
 
 // src/client/23-parser-time.js —— 时间解析（2026-10-28 由 25-parser-shared.js 拆出，第 1/7 段）
@@ -9606,6 +9694,10 @@ function ns_bestdori_parseBestdoriGacha(json, now = nowMs(), tz = "Asia/Shanghai
 	//    + 「结束时间是 2100 之类的哨兵值」这类元信息），与本体/其它来源的
 	//    「池名 ⏎ 档期」两行式不一致 —— 本备选源没被方案 A 的悬停审计覆盖到（它只是 altSources 里的一个）。
 	//    现在改用共用 hoverPool：排版只有一处实现。
+	// ⚠️ P3e（2026-11-07）：手动切到「Bestdori 扭蛋」时该侧也要有数组（P3c 删掉数据层合成器后
+	//    这里只产字符串 ⇒ 切过去显示「无数据」）。三段式：条目事实 → `hoverTextFromItems` →
+	//    `dataArrayProducedGachaOf`。排序仍走 `poolHoverOrderOf`（与 `hoverPool` 内部同一份比较器），
+	//    所以悬停文本与改造前**逐字相同**、数组与改造前的合成结果**逐条相等**（含 ts）。
 	const seen = new Set();
 	const uniq = bounded.filter((p) => {
 		const k = `${p.name}|${p.startTs}|${p.endTs}`;
@@ -9613,9 +9705,12 @@ function ns_bestdori_parseBestdoriGacha(json, now = nowMs(), tz = "Asia/Shanghai
 		seen.add(k);
 		return true;
 	});
-	const hover = hoverPool(uniq.map((p) => ({ name: p.name, startTs: p.startTs, endTs: p.endTs })), tz);
+	const items = uniq
+		.map((p) => ({ title: p.name, startTs: p.startTs, endTs: p.endTs }))
+		.sort(poolHoverOrderOf);
+	const hover = hoverTextFromItems(items, "gacha", tz);
 
-	return {
+	const out = {
 		banner: cur.name,
 		roles: "",
 		bannerDates: dates,
@@ -9624,6 +9719,9 @@ function ns_bestdori_parseBestdoriGacha(json, now = nowMs(), tz = "Asia/Shanghai
 		endTs: cur.endTs,
 		...(hover ? { bannerHover: hover } : {})
 	};
+	out.gacha = dataArrayProducedGachaOf(out, items, { tz }, now);
+	out.gachaHoverItems = items;
+	return out;
 }
 
 // ── 活动侧 ──
@@ -9649,10 +9747,19 @@ function ns_bestdori_parseBestdoriEvents(json, now = nowMs(), tz = "Asia/Shangha
 	if (!cur) return null;
 	const dates = fmtWindow(cur.startTs, cur.endTs, tz);
 	// 活动一般只有一期在期；多期时 hover 逐行列出（与插件 buildEventHover 同约定：<2 条返回 ""）
-	const hover = active.length >= 2
-		? active.map((x) => `${x.name}（${x.type}）  ${fmtWindow(x.startTs, x.endTs, tz)}`).join("\n")
-		: "";
-	return { event: cur.name, eventDates: dates, eventDatesRaw: dates, eventHover: hover };
+	// ⚠️ P3e（2026-11-07）：改走三段式（条目事实 → `hoverTextFromItems` → `dataArrayProducedEventsOf`），
+	//    手动切到「Bestdori 活动」时该侧才有数组（P3c 之后这里只产字符串 ⇒ 「无数据」）。
+	//    两处**可见差异**（都是向本体口径靠拢，不是数据变化）：
+	//      · 分隔符 2 个空格 → **3 个空格**（本体 `buildEventHover` / `hoverEvent` 的约定）；
+	//      · 条目名里的「（类型）」保留（那是源站的类别事实，不进数组的 `cat`——本批不扩事实）。
+	const items = active.map((x) => ({ title: `${x.name}（${x.type}）`, startTs: x.startTs, endTs: x.endTs }));
+	const hover = hoverTextFromItems(items, "event", tz);
+	// `eventHover` **恒有该键**（只有 1 期时是空串，交回 UI 默认两行式）——
+	// 这是改造前的字段契约，`test/cases-b1.mjs` 有一条断言钉着 `=== ""`，别改成条件写法。
+	const out = { event: cur.name, eventDates: dates, eventDatesRaw: dates, eventHover: hover };
+	out.events = dataArrayProducedEventsOf(out, items, { tz }, now);
+	out.eventHoverItems = items;
+	return out;
 }
 
 // 抓取器：mode="proxy"（实测 bestdori.com 无 ACAO，必须走宿主代理）
@@ -13060,13 +13167,19 @@ function ns_umapyoi_parseUmapyoiGacha(json, now = nowMs(), tz = "Asia/Tokyo") {
 	//    它会漏网是因为它只是 `uma-jp.altSources` 里的**备选源**，不在主源悬停审计的覆盖范围内。
 	//    现在改用共用 hoverPool：池名与档期分开两行，无元信息，无截断。
 	//    （源站没有卡池名 → 池名用「赛马娘日服卡池（卡级构成）」，与 banner 同构。）
-	const hover = hoverPool(active.map((p) => ({
-		name: p.cardTypes.length ? `赛马娘日服卡池（${p.cardTypes.join("、")}）` : "赛马娘日服卡池",
-		startTs: p.startTs,
-		endTs: p.endTs
-	})), tz);
+	// ⚠️ P3e（2026-11-07）：手动切到「umapyoi（无卡池名）」时该侧也要有数组。三段式：
+	//    条目事实 → `hoverTextFromItems` → `dataArrayProducedGachaOf`；排序用 `poolHoverOrderOf`
+	//    （= `hoverPool` 内部的 `hoverSortByEnd`），所以悬停与改造前逐字相同、数组与改造前合成结果逐条相等。
+	const items = active
+		.map((p) => ({
+			title: p.cardTypes.length ? `赛马娘日服卡池（${p.cardTypes.join("、")}）` : "赛马娘日服卡池",
+			startTs: p.startTs,
+			endTs: p.endTs
+		}))
+		.sort(poolHoverOrderOf);
+	const hover = hoverTextFromItems(items, "gacha", tz);
 
-	return {
+	const out = {
 		banner,
 		roles: "",
 		bannerDates: dates,
@@ -13075,6 +13188,9 @@ function ns_umapyoi_parseUmapyoiGacha(json, now = nowMs(), tz = "Asia/Tokyo") {
 		endTs: cur.endTs,
 		...(hover ? { bannerHover: hover } : {})
 	};
+	out.gacha = dataArrayProducedGachaOf(out, items, { tz }, now);
+	out.gachaHoverItems = items;
+	return out;
 }
 
 // 抓取器：mode="direct"（实测 api.umapyoi.net 响应 ACAO=*）
@@ -13165,11 +13281,17 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 			const cur = items.filter((it) => coversNow(it, now)).sort((a, b) => b.endTs - a.endTs)[0];
 			if (!cur) return null;
 			const fmtDate = (s) => { const m = String(s).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); return m ? `${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}` : String(s); };
-			return {
+			const out = {
 				banner: cur.banner,
 				roles: cur.roles,
 				bannerDates: `${fmtDate(cur.startText)} 00:00 ~ ${fmtDate(cur.endText)} 23:59`
 			};
+			// ── P3e（2026-11-07）：手动切到「GachaTracker（英文 · 不可靠）」时该侧也要有数组 ──
+			// 本源**没有悬停**（改造前就没写 `bannerHover`：只取一口当期池，UI 走默认两行式）⇒
+			// 并列条目为 0（`entries` 传空数组）。与「终末地 GachaTracker」「鸣潮 Bwiki」两处同一口径：
+			// 只补「能显示」这一件，不把池列表塞进数组（那会让数组比改造前多出条目 = 行为变更）。
+			out.gacha = dataArrayProducedGachaOf(out, [], { tz }, now);
+			return out;
 		}
 
 		async function ns_cygames_gachaGtUma(url, signal, tz) {
@@ -13363,11 +13485,19 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 
 
 		// 异环（ldshop 经 host 代理）：抓页面 → 解析卡池表 → 选当期
+		// ⚠️ P3e（2026-11-07）：**直出 `gacha` 数组**。P3c 删掉数据层合成器后，这条备选源只产字符串 ⇒
+		//    手动把异环卡池源切到「LDSHOP」时那一侧显示「无数据」。
+		//    本源**没有悬停**（改造前只有一口当期池、UI 走默认两行式）⇒ 并列条目为 0（`entries` 传空数组），
+		//    与「GachaTracker（英文）」「鸣潮 Bwiki 角色轮换池」两处同一口径：只补"能显示"，不扩事实。
 		async function fetchLdshopNte(pageUrl, _signal, tz) {
 			const html = await proxyFetchText(pageUrl, "https://www.ldshop.gg/");
 			const pools = parseLdshopPools(html, tz);
 			if (pools.length === 0) return null;
-			return selectCurrent(pools, nowMs());
+			const now = nowMs();
+			const cur = selectCurrent(pools, now);
+			if (!cur) return null;
+			cur.gacha = dataArrayProducedGachaOf(cur, [], { tz }, now);
+			return cur;
 		}
 
 

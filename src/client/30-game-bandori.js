@@ -988,6 +988,10 @@ function ns_bestdori_parseBestdoriGacha(json, now = nowMs(), tz = "Asia/Shanghai
 	//    + 「结束时间是 2100 之类的哨兵值」这类元信息），与本体/其它来源的
 	//    「池名 ⏎ 档期」两行式不一致 —— 本备选源没被方案 A 的悬停审计覆盖到（它只是 altSources 里的一个）。
 	//    现在改用共用 hoverPool：排版只有一处实现。
+	// ⚠️ P3e（2026-11-07）：手动切到「Bestdori 扭蛋」时该侧也要有数组（P3c 删掉数据层合成器后
+	//    这里只产字符串 ⇒ 切过去显示「无数据」）。三段式：条目事实 → `hoverTextFromItems` →
+	//    `dataArrayProducedGachaOf`。排序仍走 `poolHoverOrderOf`（与 `hoverPool` 内部同一份比较器），
+	//    所以悬停文本与改造前**逐字相同**、数组与改造前的合成结果**逐条相等**（含 ts）。
 	const seen = new Set();
 	const uniq = bounded.filter((p) => {
 		const k = `${p.name}|${p.startTs}|${p.endTs}`;
@@ -995,9 +999,12 @@ function ns_bestdori_parseBestdoriGacha(json, now = nowMs(), tz = "Asia/Shanghai
 		seen.add(k);
 		return true;
 	});
-	const hover = hoverPool(uniq.map((p) => ({ name: p.name, startTs: p.startTs, endTs: p.endTs })), tz);
+	const items = uniq
+		.map((p) => ({ title: p.name, startTs: p.startTs, endTs: p.endTs }))
+		.sort(poolHoverOrderOf);
+	const hover = hoverTextFromItems(items, "gacha", tz);
 
-	return {
+	const out = {
 		banner: cur.name,
 		roles: "",
 		bannerDates: dates,
@@ -1006,6 +1013,9 @@ function ns_bestdori_parseBestdoriGacha(json, now = nowMs(), tz = "Asia/Shanghai
 		endTs: cur.endTs,
 		...(hover ? { bannerHover: hover } : {})
 	};
+	out.gacha = dataArrayProducedGachaOf(out, items, { tz }, now);
+	out.gachaHoverItems = items;
+	return out;
 }
 
 // ── 活动侧 ──
@@ -1031,10 +1041,19 @@ function ns_bestdori_parseBestdoriEvents(json, now = nowMs(), tz = "Asia/Shangha
 	if (!cur) return null;
 	const dates = fmtWindow(cur.startTs, cur.endTs, tz);
 	// 活动一般只有一期在期；多期时 hover 逐行列出（与插件 buildEventHover 同约定：<2 条返回 ""）
-	const hover = active.length >= 2
-		? active.map((x) => `${x.name}（${x.type}）  ${fmtWindow(x.startTs, x.endTs, tz)}`).join("\n")
-		: "";
-	return { event: cur.name, eventDates: dates, eventDatesRaw: dates, eventHover: hover };
+	// ⚠️ P3e（2026-11-07）：改走三段式（条目事实 → `hoverTextFromItems` → `dataArrayProducedEventsOf`），
+	//    手动切到「Bestdori 活动」时该侧才有数组（P3c 之后这里只产字符串 ⇒ 「无数据」）。
+	//    两处**可见差异**（都是向本体口径靠拢，不是数据变化）：
+	//      · 分隔符 2 个空格 → **3 个空格**（本体 `buildEventHover` / `hoverEvent` 的约定）；
+	//      · 条目名里的「（类型）」保留（那是源站的类别事实，不进数组的 `cat`——本批不扩事实）。
+	const items = active.map((x) => ({ title: `${x.name}（${x.type}）`, startTs: x.startTs, endTs: x.endTs }));
+	const hover = hoverTextFromItems(items, "event", tz);
+	// `eventHover` **恒有该键**（只有 1 期时是空串，交回 UI 默认两行式）——
+	// 这是改造前的字段契约，`test/cases-b1.mjs` 有一条断言钉着 `=== ""`，别改成条件写法。
+	const out = { event: cur.name, eventDates: dates, eventDatesRaw: dates, eventHover: hover };
+	out.events = dataArrayProducedEventsOf(out, items, { tz }, now);
+	out.eventHoverItems = items;
+	return out;
 }
 
 // 抓取器：mode="proxy"（实测 bestdori.com 无 ACAO，必须走宿主代理）

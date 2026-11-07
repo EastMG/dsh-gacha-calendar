@@ -1,0 +1,6 @@
+{
+ "url": "https://example.invalid/p3e-custom-bwiki.html",
+ "status": 200,
+ "capturedAt": "2026-11-07T00:28:21.868Z",
+ "note": "手工构造（不是真抓）：正文 = 现有真抓夹具 p3-genshin-bwiki-gacha 的 `parse.text`（bwiki 原神「往期祈愿」页的 HTML 本体，2026-11-07T00:28:21.868Z 抓取）。为什么要抽出来：自定义地址分支走的是「非 api.php 的普通 HTML」路径（fetchHtmlText 不解析 JSON），所以夹具必须是 HTML 本体而不是 api.php 的外壳 JSON。用途 = 自定义地址端到端（卡池/活动两侧）。"
+}

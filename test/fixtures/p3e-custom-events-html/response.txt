@@ -1,0 +1,50 @@
+<div class="mw-parser-output"><div class="navbox">
+<table class="wikitable" style="text-align:center;">
+<tbody><tr>
+<th>时间
+</th><th>活动
+</th><th class="hidden-xs">名称
+</th><th class="hidden-xs">类型
+</th><th class="hidden-xs">分类
+</th><th class="hidden-xs">版本
+</th></tr>
+<tr data-param1="额外活动" data-param2="4.6" data-param3="签到" data-param4="0">
+<td>4.6版本更新后~<br />2026/11/11 03:59
+</td>
+<td><a href="/sr/%E3%80%8C%E5%B7%A1%E6%98%9F%E4%B9%8B%E7%A4%BC%E3%80%8D%E7%AC%AC%E4%BA%8C%E5%8D%81%E4%B8%83%E6%9C%9F" title="「巡星之礼」第二十七期"><img alt="「巡星之礼」第二十七期.png" src="https://patchwiki.biligame.com/images/sr/thumb/y.png/300px-y.png" decoding="async" loading="lazy" width="300" height="166" /></a> <div class="visible-xs"><a href="/sr/%E3%80%8C%E5%B7%A1%E6%98%9F%E4%B9%8B%E7%A4%BC%E3%80%8D%E7%AC%AC%E4%BA%8C%E5%8D%81%E4%B8%83%E6%9C%9F" title="「巡星之礼」第二十七期">「巡星之礼」第二十七期</a></div>
+</td>
+<td class="hidden-xs"><a href="/sr/%E3%80%8C%E5%B7%A1%E6%98%9F%E4%B9%8B%E7%A4%BC%E3%80%8D%E7%AC%AC%E4%BA%8C%E5%8D%81%E4%B8%83%E6%9C%9F" title="「巡星之礼」第二十七期">「巡星之礼」第二十七期</a>
+</td>
+<td class="hidden-xs">额外活动
+</td>
+<td class="hidden-xs">签到
+</td>
+<td class="hidden-xs">4.6
+</td></tr>
+<tr data-param1="版本活动" data-param2="4.6" data-param3="休闲" data-param4="0">
+<td>2026/09/28 4.6版本更新后~<br />2026/11/10 15:00
+</td>
+<td><a href="/sr/%E3%80%8C%E9%95%87%E4%BC%8F%E3%80%8E%E8%B4%AA%E9%A5%95%E3%80%8F%EF%BC%8C%E6%B1%87%E8%81%9A%E6%84%BF%E5%8A%9B%E3%80%8D" title="「镇伏『贪饕』，汇聚愿力」"><img alt="「镇伏『贪饕』，汇聚愿力」.png" src="https://patchwiki.biligame.com/images/sr/thumb/y.png/300px-y.png" decoding="async" loading="lazy" width="300" height="166" /></a> <div class="visible-xs"><a href="/sr/%E3%80%8C%E9%95%87%E4%BC%8F%E3%80%8E%E8%B4%AA%E9%A5%95%E3%80%8F%EF%BC%8C%E6%B1%87%E8%81%9A%E6%84%BF%E5%8A%9B%E3%80%8D" title="「镇伏『贪饕』，汇聚愿力」">「镇伏『贪饕』，汇聚愿力」</a></div>
+</td>
+<td class="hidden-xs"><a href="/sr/%E3%80%8C%E9%95%87%E4%BC%8F%E3%80%8E%E8%B4%AA%E9%A5%95%E3%80%8F%EF%BC%8C%E6%B1%87%E8%81%9A%E6%84%BF%E5%8A%9B%E3%80%8D" title="「镇伏『贪饕』，汇聚愿力」">「镇伏『贪饕』，汇聚愿力」</a>
+</td>
+<td class="hidden-xs">版本活动
+</td>
+<td class="hidden-xs">休闲
+</td>
+<td class="hidden-xs">4.6
+</td></tr>
+<tr data-param1="版本活动" data-param2="4.6" data-param3="剧情" data-param4="0">
+<td>2026/10/21 12:00 ~ 2026/12/02 11:59
+</td>
+<td><a href="/sr/%E3%80%8C%E7%88%B1%EF%BC%8C%E5%B9%BD%E7%81%B5%E4%B8%8E%E6%9C%BA%E5%99%A8%E4%BA%BA%E3%80%8D" title="「爱，幽灵与机器人」"><img alt="「爱，幽灵与机器人」.png" src="https://patchwiki.biligame.com/images/sr/thumb/y.png/300px-y.png" decoding="async" loading="lazy" width="300" height="166" /></a> <div class="visible-xs"><a href="/sr/%E3%80%8C%E7%88%B1%EF%BC%8C%E5%B9%BD%E7%81%B5%E4%B8%8E%E6%9C%BA%E5%99%A8%E4%BA%BA%E3%80%8D" title="「爱，幽灵与机器人」">「爱，幽灵与机器人」</a></div>
+</td>
+<td class="hidden-xs"><a href="/sr/%E3%80%8C%E7%88%B1%EF%BC%8C%E5%B9%BD%E7%81%B5%E4%B8%8E%E6%9C%BA%E5%99%A8%E4%BA%BA%E3%80%8D" title="「爱，幽灵与机器人」">「爱，幽灵与机器人」</a>
+</td>
+<td class="hidden-xs">版本活动
+</td>
+<td class="hidden-xs">剧情
+</td>
+<td class="hidden-xs">4.6
+</td></tr>
+</tbody></table></div></div>

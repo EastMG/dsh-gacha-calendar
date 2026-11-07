@@ -60,16 +60,68 @@
 		}
 
 
+		// ── P3e（2026-11-07）：通用卡池载荷的**收口**（条目事实 → 悬停 + `gacha` 数组）──
+		// 为什么需要：三条通用分支（bwiki 式表 / 方舟轮换表 / 普通 HTML 表）此前都只产字符串；
+		// P3c 把数据层的"字符串 → 数组"合成器删掉之后，**用户自定义地址**（`custom:<url>` /
+		// 自定义条目）切过去那一侧就恒为空数组 ⇒ 面板写「该来源无数据」（功能回归）。
+		//
+		// 三段式与内置源完全一致（`bwikiGachaPayload` / `selectArknights` 同一套）：
+		//   条目事实（覆盖当前的池）→ `hoverTextFromItems` 反生成悬停 → `dataArrayProducedGachaOf` 收口。
+		// ⚠️ 主条仍来自 `selectCurrent` 的 4 个字符串字段（与改造前同一句、值一字不改）；
+		//    并列条目 = 覆盖当前的**主池**（与内置 bwiki 同一条判据：`isMain` + `coversNow`）。
+		// ⚠️ `selectCurrent` 会**就地**补全缺失起点（fillMissingStarts）⇒ 必须先拍快照再调它
+		//    （与 `bwikiGachaPayload` 的手法一致），否则"X.Y版本更新后"那类行的 raw/起点会被改写。
+		function genericGachaPayloadOf(items, tz, now) {
+			const list = Array.isArray(items) ? items : [];
+			if (list.length === 0) return null;
+			const snapshot = list.map((it) => ({
+				name: it.banner,
+				roles: it.roles || "",
+				startTs: it.startTs,
+				endTs: it.endTs,
+				raw: it.rawOriginal || it.raw,
+				isMain: it.isMain
+			}));
+			const cur = selectCurrent(list, now);
+			if (!cur) return null;
+			const pools = snapshot
+				.filter((it) => it.isMain && coversNow(it, now))
+				.map((it) => ({
+					name: it.name,
+					label: `${it.name}${it.roles ? `\uFF1A${cleanRoles(it.roles)}` : ""}`,
+					startTs: it.startTs,
+					endTs: it.endTs,
+					raw: it.raw
+				}));
+			// 顺序/去重走共用工具（`poolHoverKept` = `buildPoolHover` 里同一份）
+			const hoverItems = poolHoverKept(pools).map((p) => ({
+				title: p.label || p.name,
+				label: p.label || p.name,
+				startTs: p.startTs,
+				endTs: p.endTs,
+				raw: p.raw
+			}));
+			const out = { ...cur, bannerHover: hoverTextFromItems(hoverItems, "gacha", tz) };
+			out.gacha = dataArrayProducedGachaOf(out, hoverItems, { tz }, now);
+			out.gachaHoverItems = hoverItems;
+			return out;
+		}
+
+
 		// 通用卡池解析（新增自定义条目的"卡池来源"地址用）：
 		// 依次尝试 bwiki 式「时间+版本」表、方舟式「限时寻访」表、GachaTracker 式日期表、
 		// Next.js SPA（canmoe 等，页面无表格、数据在组件 chunk 里），选当期；
 		// 最后再退到**普通 HTML 表**（见下方 collectGenericGacha）；
 		// 全部失败返回 null（调用方按解析失败处理，不做可达性健康检查）
+		// ⚠️ P3e：前两条与末位兜底都改走 `genericGachaPayloadOf`（直出数组）；
+		//    `parseGachaTracker` / `parseCanmoe` 在 P3d 就已经直出，这里原样返回。
 		async function tryParseGenericGacha(url, signal, tz) {
 			const html = await fetchHtmlText(url, signal);
 			const now = nowMs();
-			const cur = selectCurrent(parseAllBwiki(html, tz), now) || selectCurrent(parseArknights(html, tz), now);
-			if (cur && cur.banner && cur.bannerDates) return cur;
+			const bwiki = genericGachaPayloadOf(parseAllBwiki(html, tz), tz, now);
+			if (bwiki && bwiki.banner && bwiki.bannerDates) return bwiki;
+			const ak = genericGachaPayloadOf(parseArknights(html, tz), tz, now);
+			if (ak && ak.banner && ak.bannerDates) return ak;
 			const gt = parseGachaTracker(html, tz);
 			if (gt && gt.banner && gt.bannerDates) return gt;
 			// Next.js SPA：HTML 无表格数据，定位组件 chunk 后抓 chunk JS 解析。
@@ -89,7 +141,7 @@
 			// （bwiki 卡池列 / PRTS 卡池一览 / GachaTracker），而用户给自定义条目
 			// 填一个普通 wiki 页面时，**活动列能出、卡池列恒空** —— 同一张表明显有内容。
 			// 这一兜底复用与活动侧同一套"时间+名称"列识别，保证自定义条目两侧口径一致。
-			const generic = selectCurrent(collectGenericGacha(html, tz), now);
+			const generic = genericGachaPayloadOf(collectGenericGacha(html, tz), tz, now);
 			if (generic && generic.banner && generic.bannerDates) return generic;
 			return null;
 		}
@@ -234,17 +286,39 @@
 		// HTML —— 省掉第二次请求，同时保证活动侧也能被通用解析命中。
 		// 与 genericEventPayload 的差别：表里一行都没有时返回 null（交给调用方按 nomatch 处理），
 		// 而不是抛 "bwiki-event-no-table"（那条错误语义是给"内置源站改版"用的）。
+		// ⚠️ P3e（2026-11-07）：**直出 `events` 数组**（三段式与 `genericEventPayload` 同一套）——
+		//    P3c 删掉数据层合成器后，这条路径只产三个字符串 ⇒ 自定义地址/自定义条目的**活动侧**
+		//    切过去就显示「无数据」。并列条目 = 覆盖当前时刻的活动（与 `genericEventPayload` 同一份
+		//    `sortEventItems` 排序），主条仍取自 `selectCurrent` 的字符串字段（值一字不改）。
+		// ⚠️ 这里**不传** `permanentCount`：改造前这条路径就不产「以及常驻活动 N 项」那一行，
+		//    本批只补数组、不扩事实（永久活动不参与 `coversNow`，本来也不在条目里）。
 		function genericEventPayloadFromHtml(html, tz) {
 			let items;
 			try { items = collectGenericEvents(html, tz); } catch { return null; }
 			if (items.length === 0) return null;
-			const cur = selectCurrent(items, nowMs());
+			const now = nowMs();
+			// 快照要在 `selectCurrent` 之前拍：它会就地把"版本更新后"那类行的起点补全
+			const snapshot = items.map((it) => ({
+				name: it.banner,
+				cat: it.cat || "",
+				startTs: it.startTs,
+				endTs: it.endTs,
+				raw: it.rawOriginal || it.raw
+			}));
+			const cur = selectCurrent(items, now);
 			if (!cur || !cur.banner) return null;
-			return {
+			const hoverItems = sortEventItems(snapshot.filter((it) => coversNow(it, now)))
+				.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
+			const out = {
 				event: cur.banner,
 				eventDates: cur.bannerDates || "",
 				eventDatesRaw: cur.bannerDatesRaw || cur.bannerDates || ""
 			};
+			const hover = hoverTextFromItems(hoverItems, "event", tz);
+			if (hover) out.eventHover = hover;
+			out.events = dataArrayProducedEventsOf(out, hoverItems, { tz }, now);
+			out.eventHoverItems = hoverItems;
+			return out;
 		}
 
 
@@ -314,10 +388,24 @@
 
 
 		// 取条目当前活动源的抓取器：命中的活动备选源 > 默认活动抓取器（无 → null）
+		//
+		// ⚠️ P3e（2026-11-07）：备选源有**两种登记形状** —— 一种直接是函数
+		//    （`"arknights-event-list": (url, signal, tz) => …`），另一种是 `{ default: fn }`
+		//    （历史批次，如 `"genshin-miyoushe": { default: fn }`）。而 `EVENT_FETCHERS[id].default`
+		//    这一层的值恒为函数。这里必须**统一解包**：直接 `return table[a.fetcher]` 会把
+		//    `{ default: fn }` 整个对象交给 `fetchEntry` → `await fetcher(...)` 抛
+		//    「fetcher is not a function」→ 用户把活动来源切到那 8 个备选源时只看到「抓取失败」。
+		//    （实测受影响：genshin/hsr/zzz/bh3 的米游社、bandori/ournotes-global 官网、
+		//      uma-jp-bwiki、stellasora-bwiki。）
+		function eventFetcherOf(v) {
+			if (typeof v === "function") return v;
+			if (v && typeof v === "object" && typeof v.default === "function") return v.default;
+			return null;
+		}
 		function eventFetcherFor(source, url) {
 			const table = EVENT_FETCHERS[source.id];
 			if (!table) return null;
 			const want = normalizeSourceId(url);
-			const alt = (source.eventAltSources || []).find((a) => altSourceId(a) === want && table[a.fetcher]);
-			return alt ? table[alt.fetcher] : table.default || null;
+			const alt = (source.eventAltSources || []).find((a) => altSourceId(a) === want && eventFetcherOf(table[a.fetcher]));
+			return alt ? eventFetcherOf(table[alt.fetcher]) : eventFetcherOf(table.default);
 		}

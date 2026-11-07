@@ -1,0 +1,6 @@
+{
+ "url": "https://example.invalid/p3e-custom-events.html",
+ "status": 200,
+ "capturedAt": "2026-11-07T00:00:00.000Z",
+ "note": "手工构造（不是真抓）：正文 = 现有夹具 p4-hsr-bwiki-events-1107 的 `parse.text`（bwiki 星铁「活动一览」页 HTML，按 2026-11-07 真机快照裁剪）。用途 = 自定义地址端到端（活动侧：通用「时间 + 名称」表，含 3 条覆盖 2026-11-07 的活动）。"
+}
