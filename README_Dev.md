@@ -408,9 +408,9 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 
 **显示层（`src/client/82-schedule-view.js`）**：`cells` 存**数组本身**（`cells.set(key, g.gacha / g.events)`，与探头共用同一份）；`cellViews` 存派生结果；表格那一行 = `primary` 经 `scheduleNormalize` 渲染（主条直接走它 ⇒ 档期文本与今天**逐字一致**），探头 = `sideViewOf(...).rest`（内部先后仍是今天的 `schedulePickItem`）。失败横条改按**侧**判定（数组条目没有 `fail`），口径与改造前一致。
 
-**兼容退化**：`scheduleCellOf` 的 `fromArray === false` 分支 —— **P3 可删**（等解析器直出结构化数组、老缓存彻底淘汰后）。
+**兼容退化（P3c 起，2026-11-07 已删老路）**：`scheduleCellOf` **只读数据层数组**；数组为空（老 `lastData` / 这一侧真没数据 / 没切直出的备选源）⇒ 返回 `null`，格子里写「该来源无数据」，**不抛错**。原来的 `fromArray === false` 兼容分支（`scheduleNormalize` + 逆解析悬停文本）连同 `scheduleHoverOnes` 已随 P3c 删除 —— 它已没有任何生产调用方（28 款默认源全部直出）。抓取失败时"显示旧数据"仍走 `mergeEntryRecord` 的沿回逻辑（`dataArrayInheritableOf`），不受影响。
 
-**回归（`test/cases-core.mjs` ⑤，35 条）**：纯函数（空 / 单条 / 在期里结束最早 / 起点未知 / 并列起点 / claim 优先 / 类别档位 / 顺序稳定 / 不改输入）+ `scheduleItemOf` 同形 + 兼容分支输出与老路逐字相同 + **等价性普查**（34 个侧全部逐字相等）+ 原来 6 处已知差异的严格相等 + **反向证明**（通用规则与特化规则必须选出不同的那条）+ FGO 09-05 那侧（`cat` 事实 + 特化规则缺一不可）。
+**回归（`test/cases-core.mjs` ⑤，35 条）**：纯函数（空 / 单条 / 在期里结束最早 / 起点未知 / 并列起点 / claim 优先 / 类别档位 / 顺序稳定 / 不改输入）+ `scheduleItemOf` 同形 + **老 `lastData` ⇒ `null` 且不抛错** + 老路（oracle）输出与数组派生逐字相同 + **等价性普查**（34 个侧全部逐字相等）+ 原来 6 处已知差异的严格相等 + **反向证明**（通用规则与特化规则必须选出不同的那条）+ FGO 09-05 那侧（`cat` 事实 + 特化规则缺一不可）。⚠️ 老路已从产品删除，等价性用的对照 oracle **冻结在测试文件顶部**（`legacyCellOf` / `legacyHoverOnes` / `LEGACY_LONG_MS`），逐字复刻 P3c 之前的实现 —— oracle 不随产品漂移，否则"等价"就成了拿产品和自己比。
 
 #### 解析器直出（P3，第一批 2026-11-07）
 
@@ -433,7 +433,7 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 5. **不足 2 条 ⇒ 空串**（交回 UI 单条展示）；活动侧另按 `isLongTermEvent`（>120 天）剔掉常驻窗口；
 6. 顺序 = **调用方给的**（卡池侧与 `poolHoverOrderOf` 同口径、活动侧与 `sortEventItems` 同口径）—— 鸣潮卡池悬停的**首行是"卡池活动类型"**（不是任何一口池），必须固定在首位，所以生成器**不排序**。
 
-**已切的路径**（P3 第一批 3 款 6 条 + P3b 逐批；**未切的仍走 P1 的合成路径**，见下面「P3b 进度」）：
+**已切的路径**（P3 第一批 3 款 6 条 + P3b 六批 + P3c 最后 3 款；**P3c 起 48 条路径全部直出、没有未切款**，见下面「P3 完成状态」）：
 
 | 游戏 | 侧 | 生产者（文件:入口） | 数组条数（真机夹具 2026-11-07） |
 |---|---|---|---|
@@ -458,7 +458,30 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 | P3b-4 | BanG Dream! `bandori`（卡池 / 活动）、PJSK `pjsk`（卡池 / 活动）、OurNotes `ournotes`（活动）、OurNotes 国际服 `ournotes-global`（活动） | `ns_bandori_{gacha,events}Bandori`、`ns_sekai_{gacha,events}Sekai`、`ns_ournotes_eventsOurNotes`、`ns_ournotes_global_{gacha,events}OurNotesGlobal` | 1 / 16；17 / 1；1；1 | ✅ 已切 |
 | P3b-5 | Fate/Grand Order `fgo`（卡池 / 活动）、少女前线2 `gf2`（卡池 / 活动）、P5X `p5x`（卡池 / 活动）、异环 `nte`（卡池 / 活动）、星塔旅人 `stellasora`（卡池 / 活动） | `ns_fgo_{gacha,events}Fgo`、`ns_gf2_{gacha,events}Gf2`、`ns_p5x_{gacha,events}P5x`、`parseNteWanmei`、`ns_stellasora_{gacha,events}Stellasora` | 4 / 5；1 / 1；1 / 6；1 / 1；2 / 2 | ✅ 已切 |
 | P3b-6 | 蔚蓝档案国服 `ba-cn`（卡池 / 活动）、重返未来 1999 `r1999`（卡池 / 活动） | `fetchBaCn` 的两条载荷路径（维护公告日志表 / 列表 `content` 块）、`fetchR99Notice`（游戏内公告） | 1 / 4；3 / 15 | ✅ 已切 |
-| 待切 | 其余 3 款：`ba-global` / `ba-jp`（默认源 GameKee / 日服官网新闻，前者夹具是"同一 body 应答所有请求"的合成夹具、后者无夹具）、`endfield`（canmoe Next.js chunk，无夹具） | `fetchGameKeeBa`、`fetchBaJpGacha` / `fetchBaJpOfficialEvent`、`fetchCanmoeEndfield` 等 | — | ⬜（同生产者的备选源随该生产者一起切，不单独算一款） | `pickCurrent(parseAllBwiki)` / `selectArknights` / bwiki-wikitext 族 / biligame 族 / cygames 族 / bluearchive 族 / bluepoch / bandori 族 / aniplex(FGO) / perfectworld / sega / sunborn / yostar / hypergryph(终末地) | — | ⬜ |
+| P3c | 蔚蓝档案国际服 `ba-global`（卡池 / 活动）、蔚蓝档案日服 `ba-jp`（卡池 + 活动）、终末地 `endfield`（卡池 + 活动） | `fetchGameKeeBa`（两侧各 1 条）、`parseBaJpNews`（日服官网新闻，多池 ⇒ 悬停多行）、`fetchCanmoeEndfield`（canmoe chunk，`canmoePoolHover` → `canmoePoolItems`）、`parseFzWikiActivities`（FZ Wiki 活动） | 1 / 1；3 / 1；3 / 6 | ✅ 已切 |
+| P3c 补漏 | 蔚蓝档案国服 `ba-cn` 的**第三条**载荷路径（默认源第①步「维护更新说明」正文 `parseBaCnMaintText`；P3b-6 只切了 ②/③） | `parseBaCnMaintText`（单池单活动、无悬停） | 1 | ✅ 已切 |
+
+**P3 完成状态（P3c，2026-11-07）**：**28 款默认源 / 48 条路径全部解析器直出**（`P3B_SWITCHED_EXPECT = 48`，
+路径表里没有 `switched:false`）。兼容层已删（见下面「P3c 删掉的兼容层」）。P3c 的夹具全部**真抓**
+（2026-11-07T01:19:55Z，`p3c-*` 共 15 份：GameKee 目录树 / 4 个 detail / CDN 正文、日服官网新闻、
+canmoe 页面 + 它第一轮真的并发抓的 6 份 chunk、FZ Wiki 活动 REST），**不进 `map.json`**（沿用 P3 做法）。
+
+**P3c 删掉的兼容层**（`git grep` 可证：`scheduleHoverOnes` / `dataArrayGachaOf` / `dataArrayEventsOf` /
+`dataArrayHoverPoolsOf` 在 src 里**只剩注释提及**，没有定义或调用）：
+
+| 位置 | 删掉的东西 | 为什么现在能删 |
+|---|---|---|
+| `81-schedule-model.js` | `scheduleHoverOnes`（32 行）+ `scheduleCellOf` 的 `fromArray === false` 兼容分支（7 行）+ `fromArray` 字段 | 显示层不再逆解析悬停文本；数组是唯一来源 |
+| `50-refresh.js` | `dataArrayGachaOf`（18 行）/ `dataArrayEventsOf`（32 行）/ `dataArrayHoverPoolsOf`（5 行） | 没有解析器再走"从字符串合成"那条路（含 ba-cn 第①条补漏） |
+| `82-schedule-view.js` | `cells.set` 的 `view.fromArray ? … : [primary].concat(rest)` 三分支 | 只有一条路径：`cells.set(key, g.gacha / g.events)` |
+
+**老 `lastData` / 未切备选源的退化行为（P3c 后的口径）**：`gacha` / `events` 缺数组 ⇒ 归一成**空数组** ⇒
+显示层 `scheduleCellOf` 返回 `null` ⇒ 该格写「该来源无数据」，**不抛错**；抓取失败但上一轮有数据 ⇒
+仍按 `dataArrayInheritableOf` 沿回上一轮的数组（"显示旧数据"）。`test/cases-core.mjs` ⑤-4 有针对性断言
+（老缓存 ⇒ `null` 且不抛错）。⚠️ 仍**没有**切直出的生产者只剩"手动切换才用得到"的几个备选源：
+`selectArknights`（PRTS 卡池一览）、`parseWuwaCalendar`（鸣沙活动日历）、`pickCurrent(parseAllBwiki)`
+（绝区零 bwiki）、Nexon 官方公告、`parseGachaTracker` / `fetchEndfieldWikiGg` / Game8、`fetchR99Official`
+—— 这些**不是默认源**，选中后该侧会显示「无数据」（P3 边界，如实记录）。
 
 **收口的两点补充（P3b）**：① 生成器 `hoverLinesFromItems(items, kind, tz, { permanentCount })` —— 活动侧
 末尾补 `以及常驻活动 N 项`（与 `buildEventHover` 同一句 `permanentLine`，不足 2 条时也带上）；
@@ -468,45 +491,50 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 
 - `dataArrayProducedItemOf(raw, kind)` —— 解析器条目 → 记录条目（**复用**持久化白名单那份 `dataArray*ItemOf`，键顺序因此与 `getCached()` 往返一致；并按合成路径同一判据补 `preview`）。
 - `dataArrayProducedListOf(list, prefix)` —— 排序 + 发 `key`（`<id>:gacha:<i>` / `<id>:event:<i>`）；**先摘掉条目上可能已有的 `key`**（`Object.assign` 会把刚发的 key 覆盖成空串）。
-- `dataArrayExtrasFromEntriesOf(entries, main, now, { kind, tz })` —— 并列条目的**唯一实现**（三条判据 + "同标题同区间"去重）；悬停文本路径（`dataArrayHoverPoolsOf`）与解析器直出路径都调它 ⇒ 不会出现"文本里丢了两行、数组里还留着"。
-- `mergeEntryRecord` 的两个分支**没改**：来源给了数组就原样用（`Array.isArray(rec.gacha) ? rec.gacha : dataArrayGachaOf(...)`），只是把 `gachaHoverItems` / `eventHoverItems` 两条**通道**在末尾 `delete` 掉（与 `itemFacts` 同一性质：不进记录、不落盘）。
+- `dataArrayExtrasFromEntriesOf(entries, main, now, { kind, tz })` —— 并列条目的**唯一实现**（三条判据 + "同标题同区间"去重）；解析器直出路径调它（P3c 之前还有一条"把悬停文本拆成 `{ title, win }` 再喂进来"的 `dataArrayHoverPoolsOf`，已删）⇒ 不会出现"文本里丢了两行、数组里还留着"。
+- `mergeEntryRecord` 现在**只有一条路**：归一 + 按记录 id 重发 key（P3c 删掉了 `Array.isArray(rec.gacha) ? … : dataArrayGachaOf(…)` 那半个分支），末尾把 `gachaHoverItems` / `eventHoverItems` 两条**通道** `delete` 掉（与 `itemFacts` 同一性质：不进记录、不落盘）。
 
 **时间戳口径不变（重要）**：`startTs` / `endTs` **仍是 P1 的本机时刻**（`dataArrayWindowOf`：把窗口文本按运行环境时区读回）。改成绝对时刻要连显示层探头一起改（`scheduleMeta` 用 `new Date(ts)` 渲染），否则 34 个侧在 `TZ=UTC` 下会变红 —— 那是 P4（见「已知不等价①」）。
 
-**回归（`test/cases-p3.mjs`，77 条）**：① 生成器排版规则逐条（3 空格 / 同窗口折叠 / <2 条 / 缺起止写原文 / 长期过滤 / `label` 优先 / 去重 / **与老 `buildPoolHover`·`buildEventHover` 逐字节相同**）；② 6 条路径的 **12 个字符串字段 + 数组 golden**（`sansTs`；golden 是写死的字面量，取自 HEAD 跑同一批夹具）；③ 数组与**改造前的合成结果逐条相等**（把解析器给的数组摘掉、让旧合成器照同一份字符串字段再合成 —— 含 `startTs`/`endTs`，UTC / +08 都成立）；④ **同源**：`hoverTextFromItems(条目事实)` 逐字等于载荷里的悬停文本；⑤ 通道不外泄。新夹具 6 份（`p3-genshin-bwiki-gacha` / `p3-genshin-smw-events` / `p3-arknights-official-{list,detail-4916}` / `p3-wuwa-{entry,zh-hans}`），**不进 `map.json`**（免得改变其它批次对"默认源 404"的期望）。
+**回归（`test/cases-p3.mjs`，482 条）**：① 生成器排版规则逐条（3 空格 / 同窗口折叠 / <2 条 / 缺起止写原文 / 长期过滤 / `label` 优先 / 去重 / **与老 `buildPoolHover`·`buildEventHover` 逐字节相同**）；② 53 条路径（P3a 6 + P3b 41 + P3c 6）的 **12 个字符串字段 + 数组 golden**（`sansTs`）；③ 数组与**改造前的合成结果逐条相等**（含 `startTs`/`endTs`，UTC / +08 都成立）；④ **同源**：`hoverTextFromItems(条目事实)` 逐字等于载荷里的悬停文本；⑤ 通道不外泄。P3 新夹具 6 份 + P3c 15 份，**都不进 `map.json`**（免得改变其它批次对"默认源 404"的期望）。
+⚠️ P3c 删掉合成器后，③ 的对照 oracle 挪进测试文件（`legacySynthArrOf`：拿**记录字符串 + 悬停文本**过 `dataArray*MainOf` + `scheduleHoverItems` + `dataArrayExtrasFromEntriesOf` 重算一遍）—— 它只读改造前的三样输入（字符串 / 悬停 / `itemFacts`），不读解析器直出的数组，所以"直出被削"仍会红（P3c 实测：把 endfield 卡池的并列条去掉 ⇒ ② 数组 golden + ③ 同时红）。
 
 **反向证明**：把生成器的分隔符从 3 个空格改成 2 个 ⇒ `test/cases-p3.mjs` ①（`名称   + 3 空格`）与 ②（原神/明日方舟活动 golden）同时红；把 `dataArrayExtrasFromEntriesOf` 的三条判据去掉一条 ⇒ ② 的数组 golden 红。这是"悬停/数组同源"真的承重的证据。
 
-#### P3b 收尾状态（2026-11-07）
+#### P3 收尾状态（P3c，2026-11-07）
 
-**已切 22 / 25 款**（41 条路径，全部有 golden）：星铁 / 绝区零 / 崩坏3 / 物华弥新 / 战双帕弥什 / 卡厄斯梦境 /
-雪松 / 嘟嘟脸恶作剧 / 闪耀优俊少女国服 / 赛马娘日服 / 赛马娘国际服 / BanG Dream! / PJSK / OurNotes /
-OurNotes 国际服 / FGO / 少女前线2 / P5X / 异环 / 星塔旅人 / 蔚蓝档案国服 / 重返未来1999。
+**28 款默认源 / 48 条路径全部直出**（P3a 3 款 6 条 + P3b 22 款 41 条 + P3c 3 款 6 条 + P3c 补漏 1 条）。
+最后 3 款：`ba-global`（GameKee 609133 单源）、`ba-jp`（日服官网新闻，多池 ⇒ 悬停多行）、`endfield`
+（canmoe chunk + FZ Wiki 活动）。**P3c 补漏**：`ba-cn` 的默认源第①步（「维护更新说明」正文
+`parseBaCnMaintText`）P3b-6 漏切了 —— 它是被 `test/cases-core.mjs` ⑤-5 的 ba-cn 两侧红线抓出来的
+（数组为空、老路非空 ⇒ diffs 里出现 `ba-cn:gacha` / `ba-cn:event`），补切后 34/34 恢复 `diffs = 0`。
 
-**未切 3 款（如实记录，不是抽样）**：`ba-global`（默认源 GameKee：现存夹具是"同一 body 应答所有请求"的合成夹具，
-线上是 SPA + `content_cdn` 两段请求）、`ba-jp`（默认源日服官网新闻接口，仓库里**没有**夹具）、`endfield`
-（canmoe Next.js chunk，**没有**夹具）。这三款的 `bannerHover` / `eventHover` 仍走改造前的手拼路径，
-因此 **`scheduleCellOf` 的兼容分支与 `50-refresh` 的合成函数（`dataArrayGachaOf` / `dataArrayEventsOf` /
-`dataArrayHoverPoolsOf`）本批保留**（任务书规定的删除条件 = 全款切完，未满足）。它们的数组仍由合成路径产出，
-`test/cases-core.mjs` ⑤-5 的 34 侧等价性继续覆盖。
+**兼容层已删**（详情见上表）：`scheduleHoverOnes` / `scheduleCellOf` 的 `fromArray === false` 分支 /
+`dataArrayGachaOf` / `dataArrayEventsOf` / `dataArrayHoverPoolsOf` 全部不存在了（`git grep` 只剩注释提及）。
+老 `lastData` / 未切备选源的退化 = **空数组 ⇒ 该侧「无数据」，不抛错**。
 
-**反向证明（本批实测，红字见提交说明/会话记录）**：
-① 把生成器活动侧分隔符从 **3 个空格改成 2 个** ⇒ `test/cases-p3.mjs` ①（3 空格 / 缺起止 / 长期过滤 /
-与 `buildEventHover` 逐字节相同）、P3 golden（原神 / 明日方舟活动）与 **P3b golden（hsrEvent / zzzEvent 等）**
-同时红；② 把 `bwikiGachaPayload` 直出分支里的 `extras` 去掉（只留主条）⇒ P3 golden（genshinGacha）、
-P3b golden（hsrGacha）与"数组与改造前合成结果逐条相等"断言同时红。改回后 4292 通过 / 0 失败。
+**回归规模**：`test/cases-p3.mjs` 53 条路径 × ① golden（12 字符串 + 数组非时间字段）/ ② 与合成结果
+逐条相等（含 ts）/ ③ 同源（悬停 == `hoverTextFromItems(条目事实)`）三层断言；
+`P3B_SWITCHED_EXPECT = 48` 让"切了没登记 / 登记了没切"都会红（现在没有未切路径）。
 
-**回归规模**：`test/cases-p3.mjs` 的 P3b 段 41 条路径（每款每侧一条）× ① golden（12 字符串 + 数组非时间字段）
-/ ② 与合成结果逐条相等（含 ts）/ ③ 同源（悬停 == `hoverTextFromItems(条目事实)`）三层断言；
-`P3B_SWITCHED_EXPECT = 41` 让"切了没登记 / 登记了没切"都会红。
-#### P3b 待办清单（本批**没做**的，按现成路径排好）
+**P3 待办清单（P3c 后仍然没做的）**：只剩下面这些（都与"直出数组"无关，属独立一批）：
+1. **时间戳换绝对时刻（P4）**：见「已知不等价①」。
+2. **`cat` / `tags` / 逐池角色表**：P3 只搬结构、不扩事实。
+3. **未切直出的备选源**：`selectArknights`（PRTS 卡池一览）、`parseWuwaCalendar`（鸣沙活动日历）、
+   `pickCurrent(parseAllBwiki)`（绝区零 bwiki）、Nexon 官方公告、`parseGachaTracker` / `fetchEndfieldWikiGg` /
+   Game8、`fetchR99Official` —— 手动切到它们时该侧显示「无数据」（P3 边界；要补就按同一个三段式改，
+   各自需要真夹具）。
 
-1. **其余 25 款切解析器直出**：`bwikiGachaPayload` 的星铁分支（`dedupeRoleNames`）、`selectArknights`（PRTS 卡池备选）、`pickCurrent(parseAllBwiki)`（绝区零 bwiki 备选）、`zspms` / `whmx` / `kedr` / `czn` / `stellasora` / `fgo` / `gf2` / `bandori` / `pjsk` / `p5x` / `nte` / `r1999` / `ba-*` / `uma-*` / `endfield` / `ddlezj` / `ournotes` 等 —— 统一按本批的三段式改：**条目事实 → `hoverTextFromItems` → `dataArrayProducedListOf`**。
-2. **`hoverTextFromItems` 接住永久计数行**：`buildEventHover` 的 `permanentCount` 参数（`以及常驻活动 N 项`）还没有进生成器；切"有常驻活动"的来源（如星铁活动一览）时要补 `hoverLinesFromItems(items, kind, tz, { permanentCount })`。
-3. **时间戳换绝对时刻**（P4）：`dataArrayWindowOf` 不再按本机时区回算，同时把显示层探头（`scheduleMeta` / `scheduleItemOf`）的渲染口径改成"按条目 `tz` 渲染"——这两个必须**同一批**改，否则 34 侧等价性在 UTC 下变红。
-4. **`cat` / `tags` / 逐池角色表**：P3 只搬结构、不扩事实（原神 SMW 的「类型」、bwiki 每口池自己的 5 星列表都还没进数组 —— 加了会同时改变数组与显示层规则，属独立一批）。
-5. **删 `scheduleCellOf` 的兼容分支**（`fromArray === false`）：等 25 款都切完、老缓存彻底淘汰后删（`README_Dev` 的这一节就是它的死亡通知）。
-6. **`50-refresh.js` 的合成函数**（`dataArrayGachaOf` / `dataArrayEventsOf` / `dataArrayHoverPoolsOf`）：全部切完后与兼容分支一起删；本批它们在**其余 25 款**上仍是唯一路径，不能删。
+**反向证明（P3c 实测，红字见提交说明/会话记录；每条改回后都复跑全绿）**：
+① **改坏直出**：把 endfield 卡池直出的并列条去掉（`poolItems.slice(0,1)`）⇒ `test/cases-p3.mjs`
+的 ② `P3b golden（endfieldGacha）：gacha 非时间字段…` 与 ② `P3b 等价（endfieldGacha）…逐条相等`
+同时红（③ 同源仍绿 —— 说明数组那一路是独立被钉住的）；
+② **改坏反生成输入**：把 ba-jp 卡池条目的 label 从「池名：生徒」改成只有池名 ⇒ golden 的
+`bannerHover` 与数组**同时**红（③ 同源仍绿：生成器自洽，抓不住的是"输入被改坏"，只有 golden 抓得住）；
+③ **改坏 tz**：GameKee 直出数组的 tz 传成 `Asia/Shanghai`（应 UTC/Tokyo）⇒ `baGlobalGacha` 的数组
+golden + 等价（两侧都红）；
+④ **把兼容层偷偷加回来**（`scheduleCellOf` 又返回 `fromArray`）⇒ `test/cases-core.mjs` ⑤-4
+「有数组 ⇒ 正常派生出主条」与 ⑤-5「等价性前置…没有偷偷长回 `fromArray` 兼容字段」同时红（28 个侧列出）。
 
 #### 已知不等价（如实记，留给 P4）
 

@@ -225,18 +225,21 @@
 			// "两侧都拿到新数据"才算 okAt；被跳过的条目（两侧都没配来源）本轮根本没抓，不能算新数据
 			const skipped = !!(r && r.reason === "skipped");
 			rec.okAt = (!skipped && !gachaFail && !eventFail) ? nowTs : (prevRec && prevRec.okAt) || 0;
-			// 数据层数组（P1，见下面「数据层数组」region）：
-			// 来源若已给结构化数组就原样用（**P3 / P3b：解析器直出**），
-			// 否则从**上面合并后的**字符串字段合成（尚未切换的路径仍是这条）。
+			// 数据层数组（P1，见下面「数据层数组」region）：**唯一来源 = 解析器直出**。
+			// ⚠️ P3c（2026-11-07）：最后 3 款切完后，"从字符串字段合成"的那条老路（`dataArrayGachaOf` /
+			//    `dataArrayEventsOf` / `dataArrayHoverPoolsOf`）已删。于是：
+			//      · 解析器给了数组 ⇒ 归一 + 按记录 id 重发 key（见下）；
+			//      · 没给（老 lastData 归一后的空数组 / 未切直出的备选源）⇒ **空数组**，
+			//        显示层据此写「该来源无数据」，**不抛错**（`dataArrayGachaListOf(undefined)` = []）。
+			//    沿回旧值那条路（上面 `dataArrayInheritableOf`）仍然保留：抓取失败时这一列显示上一轮的
+			//    数组，"旧数据"照旧能看见。
 			// 合成发生在**沿回旧值之后**，所以"这一列显示的是沿用值"时数组内容与沿回的那串文本一致，
 			// 不会出现"字符串是新的、数组还是上一轮"这种两套事实。
 			// ⚠️ P3（2026-11-07）：解析器直出的数组**已经是**最终形状（顺序 / 事实都在解析器侧定好，
 			//    见 `dataArrayProducedItemOf`），这里只做**归一 + 按记录 id 重发 key**：
 			//    解析器不必知道自己的 `meta.id`（通用源 / 自定义条目根本拿不到），key 的前缀由
 			//    数据层统一裁到 `<id>:gacha:i` / `<id>:event:i` —— 顺带保证"同一记录里 key 唯一"。
-			rec.gacha = Array.isArray(rec.gacha)
-				? dataArrayProducedListOf(dataArrayGachaListOf(rec.gacha), ((meta && meta.id) || "") + ":gacha")
-				: dataArrayGachaOf(rec, meta, new Date(nowTs));
+			rec.gacha = dataArrayProducedListOf(dataArrayGachaListOf(rec.gacha), ((meta && meta.id) || "") + ":gacha");
 			// 主条 `show` 与记录的字符串**同源**：`cleanRoleNames` 对蔚蓝三服（`BA_ROLE_IDS`）按 id
 			// 保留括号后缀，而解析器未必知道 `meta.id`（通用源 / 自定义条目拿不到）→ 这里按记录 id
 			// 再算一次，与 `dataArrayGachaMainOf` 是**同一句**（解析器直出与合成因此不会在 show 上漂开）。
@@ -246,9 +249,7 @@
 					mainItem.show = cleanRoleNames(rec.roles, (meta && meta.id) || "") || rec.banner;
 				}
 			}
-			rec.events = Array.isArray(rec.events)
-				? dataArrayProducedListOf(dataArrayEventListOf(rec.events), ((meta && meta.id) || "") + ":event")
-				: dataArrayEventsOf(rec, meta, new Date(nowTs));
+			rec.events = dataArrayProducedListOf(dataArrayEventListOf(rec.events), ((meta && meta.id) || "") + ":event");
 			// `itemFacts` / `gachaHoverItems` / `eventHoverItems` 只是"解析器 → 数组"的**通道**：
 			// 事实已经贴到数组条目上了、悬停文本也已经生成了，它们不进记录/缓存。
 			delete rec.itemFacts;
@@ -262,12 +263,14 @@
 		// 用户定的方向：数据核心只放**事实**；"谁排第一"是**纯展示决策**，要下移到显示层；
 		// 表格与探头必须**共用同一份数组**（探头只是会动的 UI，零数据语义）。
 		//
-		// P1（本阶段）**只做数据层、不碰显示层行为**：
+		// P1（第一阶段的迁移）**只做数据层、不碰显示层行为**：
 		//   · 新增两个数组字段（每个游戏都有）：`gacha` / `events`（形状见下）
 		//   · 它们**不从解析器改**（那是 P3），而是在"数据流入 lastData 前"这一层（就是这里）
 		//     从**现有字符串字段合成** —— 旧字段一个都不删、值一字不改，所以面板行为逐字不变。
+		//   ⚠️ **P3c（2026-11-07）起那条合成路径已删**：解析器全部直出数组（`dataArrayProduced*`），
+		//      这里只做"归一 + 按记录 id 重发 key"。老缓存（没有数组）⇒ 空数组 ⇒ 该侧显示「无数据」。
 		//   · 顺序 = **自然顺序**（结束时间升序，与现有悬停同一口径）；这里**不挑选**"第一条"。
-		//     外显哪一条是显示层的决定（现在它仍在 81/82 里自己选，P2 再改成读数组）。
+		//     外显哪一条是显示层的决定（`sideViewOf`）。
 		//
 		// 形状（每个元素都是一条"事实"）：
 		//   gacha:  [{ key, title, show, roles: string[], startTs, endTs, tz, raw,
@@ -294,10 +297,9 @@
 		//     `eventClaimDates` 才有这个键 —— 它是一条**独立的**截止窗口，不是另一个活动条目。
 		//   · longTerm = P1 **不合成**（可选字段，留给 P2/P3 的结构化来源；归一函数会原样透传）。
 		//
-		// 并列池怎么展开：复用**显示层同一个** `scheduleHoverItems`（2026-11-07 搬进 26-parser-hover.js，
-		// 因为它要同时进 core 产物），再按下面 dataArrayHoverPoolsOf 里那三条"这条已经在数组里了"
-		// 的判据 —— 与 81-schedule-model.js 的 scheduleHoverOnes **逐字对应**。P2 让显示层直接读数组后，
-		// 那段显示层解析会删掉，这里就成为唯一实现。
+		// 并列条目怎么展开：**唯一实现** = `dataArrayExtrasFromEntriesOf`（下面那份；三条"这条已经在
+		// 数组里了"的判据 + "完全相同"去重）。P3c 之前还有一条"把悬停文本拆成 `{ title, win }` 再喂进来"
+		// 的路径（`dataArrayHoverPoolsOf`），28 款全部直出后已删 —— 现在条目事实由解析器直接给。
 		const DATA_ARRAY_LABEL = (s) => String(s || "").replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, "");
 		// 字符串字段归一（数组元素用）：非字符串一律空串（与 CONTENT_FIELDS 的口径一致）
 		function dataArrayTextOf(v) {
@@ -349,25 +351,11 @@
 			return Array.isArray(list) && list.length > 0
 				&& list.every((x) => x && typeof x.source === "string" && x.source);
 		}
-		// 悬停文本 → 可进数组的**并列条目**（这条活动/这口池在主条目之外，还是独立一条）
-		// ⚠️ 三条判据与 81-schedule-model.js 的 scheduleHoverOnes 逐字对应：
-		//   ① 与外显同名（那条已经在数组里了）
-		//   ② 与**显示名**同名（明日方舟兑换期的主行 = `eventShow`「<活动名> 兑换截止」⇒ 同一条）
-		//   ③ 「池名：外显名」/「外显名：其余」= 同一口池的两种写法（只认「：」两侧整段）
-		// 在此之上只补一条"完全相同"判重（同标题+同区间）—— 这是任务书允许的、且**优先保主行**。
-		//
-		// ⚠️ P3（2026-11-07）：三条判据的**唯一实现**搬到 `dataArrayExtrasFromEntriesOf`，
-		//    因为解析器直出的条目也要过同一套判据 —— 否则"文本里丢了两行、数组里还留着"又成了两套事实。
-		//    文本路径只负责把悬停行拆成 `{ title, win }`（与 `scheduleHoverItems` 同一份逆解析）。
-		function dataArrayHoverPoolsOf(hover, main, now, kind) {
-			const list = scheduleHoverItems(dataArrayTextOf(hover), main ? main.title : "", true)
-				.map((x) => ({ title: x.title, win: x.win }));
-			return dataArrayExtrasFromEntriesOf(list, main, now, { kind: kind || "gacha" });
-		}
 		// 并列条目（**结构化**）→ 数组条目：三条判据 + "完全相同"去重（与上面那段注释同一份口径）。
 		// `entries` 元素形状 = 解析器直出的条目事实 `{ title|label, startTs, endTs, raw }`
-		// （或者文本路径给的 `{ title, win }`，`win` = 悬停里那一行档期原文）。
-		// `opts.tz` 只在结构化路径需要：条目没有现成的窗口文本时，按**源站时区**渲染出同一串
+		// （历史：P3c 之前还有一条"把悬停文本拆成 `{ title, win }` 再进来"的路径 ——
+		//  `dataArrayHoverPoolsOf` 已在 P3c 删除；这里的 `win` 分支只为回归 oracle 保留，见 test/cases-p3.mjs）。
+		// `opts.tz`：条目没有现成的窗口文本时，按**源站时区**渲染出同一串
 		// （悬停里那一行就是它 —— 两边必须同一份，否则数组里的 raw/ts 与悬停对不上）。
 		// 时间戳口径**沿用 P1**：把窗口文本按本机时区读回（与改造前的合成结果逐字相同）。
 		// ⚠️ 本批**不**改成绝对时刻：显示层探头的档期文本是"本机时刻按本机时区渲染"，
@@ -442,9 +430,10 @@
 			return item;
 		}
 		// 卡池侧数组：主条目（banner / roles / bannerDates，`source:"primary"`）
-		// + 并列池（bannerHover 能解析出来时，`source:"hover"`）
-		// 主条目（P3b 从 `dataArrayGachaOf` **原样抽出**，合成路径与解析器直出路径共用同一份）：
-		// 从记录里已定稿的字符串字段造第一条 —— 抽出来只为让"两条路"出一个来源，不是改语义。
+		// 主条目（P3b 从已删的 `dataArrayGachaOf` **原样抽出**）：从记录里已定稿的字符串字段造第一条。
+		// ⚠️ P3c（2026-11-07）：`dataArrayGachaOf` / `dataArrayEventsOf` / `dataArrayHoverPoolsOf`（从字符串
+		//    字段合成整列数组的三个函数）已删 —— 28 款全部直出后它们再没有生产调用方。主条这两个构造函数
+		//    **保留**：解析器直出路径（`dataArrayProduced*`）与回归 oracle 都用它，删了会变成两套"主条"。
 		function dataArrayGachaMainOf(rec, id, tz, now) {
 			const banner = dataArrayTextOf(rec && rec.banner);
 			if (!banner) return null;   // 这一侧没有卡池数据（未公布 / 失败）⇒ 空数组，不硬造
@@ -462,26 +451,7 @@
 				source: "primary"
 			};
 		}
-		function dataArrayGachaOf(rec, meta, now) {
-			const id = (meta && meta.id) || "";
-			const tz = (meta && meta.tz) || "";
-			const main = dataArrayGachaMainOf(rec, id, tz, now);
-			if (!main) return [];
-			const facts = dataArrayFactsOf(rec);
-			const list = [main].concat(dataArrayHoverPoolsOf(rec.bannerHover, main, now, "gacha"));
-			return dataArrayOrderedOf(list.map((x) => dataArrayAttachFactsOf({
-				title: x.title,
-				show: x.show,
-				roles: x.roles || [],
-				startTs: x.startTs,
-				endTs: x.endTs,
-				tz,
-				raw: x.raw,
-				source: x.source
-			}, facts)), id + ":gacha");
-		}
-		// 活动侧数组：主条目（event / eventShow / eventDates，带 phase，`source:"primary"`）
-		// + 并列活动（eventHover，`source:"hover"`）
+		// 活动侧主条目（event / eventShow / eventDates，带 phase，`source:"primary"`）—— 同上，保留。
 		function dataArrayEventMainOf(rec, id, tz, now) {
 			const event = dataArrayTextOf(rec && rec.event);
 			if (!event) return null;
@@ -509,38 +479,6 @@
 				};
 			}
 			return main;
-		}
-		function dataArrayEventsOf(rec, meta, now) {
-			const id = (meta && meta.id) || "";
-			const tz = (meta && meta.tz) || "";
-			const main = dataArrayEventMainOf(rec, id, tz, now);
-			if (!main) return [];
-			const extras = dataArrayHoverPoolsOf(rec.eventHover, main, now, "event").map((x) => ({
-				title: x.title,
-				show: x.show,
-				startTs: x.startTs,
-				endTs: x.endTs,
-				tz,
-				raw: x.raw,
-				source: x.source
-			}));
-			const facts = dataArrayFactsOf(rec);
-			// 键顺序 = 归一函数（dataArrayEventItemOf）那一份：source 紧跟 raw，cat/tags/preview 在后，
-			// phase 最后 —— 否则 getCached() 往返的 JSON 会对不上（④-5 有逐字断言）。
-			return dataArrayOrderedOf([main].concat(extras).map((x) => {
-				const out = {
-					title: x.title,
-					show: x.show,
-					startTs: x.startTs,
-					endTs: x.endTs,
-					tz: x.tz,
-					raw: x.raw,
-					source: x.source
-				};
-				dataArrayAttachFactsOf(out, facts);
-				if (x.phase) out.phase = x.phase;
-				return out;
-			}), id + ":event");
 		}
 		// ── 归一（持久化白名单的数组分支用；engine-head.js 的 normalizeRecord 调它们）──
 		// 只做**最少校验**：非对象丢弃、ts 必须是 number 否则 null、其余字符串字段缺了填空串。
@@ -619,8 +557,8 @@
 		// 排序 + 发 key（下标 = 自然顺序里的位置）。解析器直出的数组一律走这里，
 		// 免得"排序/发 key"在两处各写一份。
 		// ⚠️ 必须先摘掉条目上可能已有的 `key`：`dataArrayOrderedOf` 是 `Object.assign({ key }, x)`，
-		//    带着一个空 `key` 的条目会把刚发好的 key **覆盖成空串**（`dataArrayGachaOf` 的条目是现搭的、
-		//    没有这个坑；解析器路径的条目已经过归一，`key` 恒存在）。
+		//    带着一个空 `key` 的条目会把刚发好的 key **覆盖成空串**（解析器路径的条目已经过归一，
+		//    `key` 恒存在 —— 所以这一摘是必需的，不是保险）。
 		function dataArrayProducedListOf(list, prefix) {
 			const clean = (Array.isArray(list) ? list : []).filter(Boolean).map((x) => {
 				const out = Object.assign({}, x);

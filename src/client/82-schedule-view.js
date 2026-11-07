@@ -273,15 +273,12 @@
 			for (const g of shownGames) {
 				for (const side of ["gacha", "event"]) {
 					const key = g.id + ":" + side;
-					// 一格的全部条目 = 81 的 `scheduleCellOf`：**数组优先**（P2），数组不可用才退化到老路
-					// （解析悬停文本；兼容分支在 81，**P3 可删**）。表格那一行 = `primary`，探头 = `rest`。
+					// 一格的全部条目 = 81 的 `scheduleCellOf`：**只读数据层数组**（P3c 起没有老路）。
+					// 表格那一行 = `primary`，探头 = `rest`。
 					const view = scheduleCellOf(g, side, now);
 					if (!view) continue;                     // 这一侧没有任何数据 → 格子里写"该来源无数据"
-					// `cells` 存**数组本身**（与探头共用同一份，用户口径）；兼容分支没有数组，
-					// 就把老路算出来的那一份列表存进去（结构仍是数组，渲染侧只看 `cellViews`）。
-					cells.set(key, view.fromArray
-						? (side === "gacha" ? g.gacha : g.events)
-						: [view.primary].concat(view.rest));
+					// `cells` 存**数组本身**（与探头共用同一份，用户口径）。
+					cells.set(key, side === "gacha" ? g.gacha : g.events);
 					cellViews.set(key, view);
 					// 「近期」只收外显那一条（all 的语义不变）—— 探头里的并列条目不进「近期」。
 					if (view.primary.state !== "ended") all.push(view.primary);

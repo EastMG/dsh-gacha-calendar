@@ -797,5 +797,22 @@
 			"eventHoverExtra": ""
 		},
 		"array": "[{\"key\":\"endfield:event:0\",\"title\":\"予众魂的新光影\",\"show\":\"予众魂的新光影\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-31 12:00 ~ 11-14 04:00\",\"source\":\"hover\"},{\"key\":\"endfield:event:1\",\"title\":\"百趣演武\",\"show\":\"百趣演武\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-29 12:00 ~ 11-19 04:00\",\"source\":\"primary\"},{\"key\":\"endfield:event:2\",\"title\":\"烟火生缘\",\"show\":\"烟火生缘\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-15 07:00 ~ 11-25 06:00\",\"source\":\"hover\"},{\"key\":\"endfield:event:3\",\"title\":\"星河共我签到\",\"show\":\"星河共我签到\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 12:00 ~ 11-25 06:00\",\"source\":\"hover\"},{\"key\":\"endfield:event:4\",\"title\":\"作战演练\",\"show\":\"作战演练\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 12:00 ~ 11-25 06:00\",\"source\":\"hover\"},{\"key\":\"endfield:event:5\",\"title\":\"归野\",\"show\":\"归野\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 12:00 ~ 11-25 06:00\",\"source\":\"hover\"}]"
+	},
+	"baCnMaintText": {
+		"rec": {
+			"banner": "限时限定招募",
+			"roles": "莲见(泳装)、圣娅(泳装)",
+			"bannerDates": "09-24 14:00 ~ 10-08 13:59",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "夏日天空的约定",
+			"eventDates": "09-24 14:00 ~ 10-22 13:59",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"ba-cn:gacha:0\",\"title\":\"限时限定招募\",\"show\":\"莲见(泳装)、圣娅(泳装)\",\"roles\":[\"莲见(泳装)\",\"圣娅(泳装)\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"\",\"source\":\"primary\"}]"
 	}
 }

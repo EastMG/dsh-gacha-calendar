@@ -33,6 +33,26 @@ const NOW_WUWA = NOW_AK;
 
 const AT = (s) => Date.parse(s);
 
+// ── 改造前的**合成器 oracle**（P3c，2026-11-07）────────────────────────────────────
+// P3c 之前，`50-refresh.js` 有两个把"记录字符串 + 悬停文本"合成整列数组的函数
+// （`dataArrayGachaOf` / `dataArrayEventsOf`，经 `dataArrayHoverPoolsOf` 展开并列条目）。
+// 最后 3 款切完后它们**已从产品里删除**，于是"数组 == 改造前的合成结果"这条断言必须有新的对照：
+// 用同一批纯函数（主条 = `dataArray*MainOf` 从**记录字符串**造；并列条 = `scheduleHoverItems`
+// 逆解**悬停文本**后过 `dataArrayExtrasFromEntriesOf`；排序发 key = `dataArrayProducedListOf`）
+// 按**当时的判据**复刻一遍。⚠️ `scheduleHoverItems` 的第三参当时对两侧都传 `true`，这里保持一致。
+// 这是"改造前"的**冻结对照**，不是产品的第二条路径 —— 产品里没有调用它。
+const legacySynthArrOf = (payload, side, id, tz, now) => {
+	const pay = payload || {};
+	const isG = side === "gacha";
+	const main = isG ? T.dataArrayGachaMainOf(pay, id, tz, now) : T.dataArrayEventMainOf(pay, id, tz, now);
+	if (!main) return [];
+	const entries = T.scheduleHoverItems((isG ? pay.bannerHover : pay.eventHover) || "", main.title, true)
+		.map((x) => ({ title: x.title, win: x.win }));
+	return isG
+		? T.dataArrayProducedGachaOf(pay, entries, { id, tz }, now)
+		: T.dataArrayProducedEventsOf(pay, entries, { id, tz }, now);
+};
+
 export default async function runP3() {
 	useFixtures();   // 只为了装"禁止真网络"的兜底；夹具按需显式读取
 
@@ -98,12 +118,6 @@ export default async function runP3() {
 		});
 		return o;
 	}));
-	// 把解析器直出的数组/通道摘掉 ⇒ mergeEntryRecord 会走**改造前的合成路径**（同一份字符串字段）
-	const stripProduced = (payload) => {
-		const o = Object.assign({}, payload || {});
-		delete o.gacha; delete o.events; delete o.gachaHoverItems; delete o.eventHoverItems;
-		return o;
-	};
 
 	// ══════════════════════════════════════════════════════════════════════════
 	section("P3 ①：悬停生成器的排版规则（与 buildPoolHover / buildEventHover 逐字一致）");
@@ -283,15 +297,18 @@ export default async function runP3() {
 			arr.length > 0 || !!p.emptyOk, String(arr.length));
 	}
 
-	// ── ③ 数组与改造前的**合成结果**逐条相等（含 ts）：把解析器给的数组摘掉，旧合成器照同一份字符串字段再合成 ──
+	// ── ③ 数组与改造前的**合成结果**逐条相等（含 ts）：拿记录字符串 + 悬停文本过 oracle 再合成一遍 ──
 	for (const p of paths) {
 		const r = got[p.key];
-		const oldRec = r.engine.__test.mergeEntryRecord({ data: stripProduced(r.payload) }, null, p.now, { id: p.id, tz: TZ_CN });
+		const other = p.field === "gacha" ? "events" : "gacha";
+		const otherSide = p.field === "gacha" ? "event" : "gacha";
+		const oldArr = legacySynthArrOf(r.payload, p.side, p.id, TZ_CN, p.now);
+		const oldOther = legacySynthArrOf(r.payload, otherSide, p.id, TZ_CN, p.now);
 		check(`P3 等价（${p.key}）：\`${p.field}\` 与改造前的合成结果**逐条相等**（含 startTs / endTs）`,
-			JSON.stringify(r.rec[p.field]) === JSON.stringify(oldRec[p.field]),
-			JSON.stringify([r.rec[p.field], oldRec[p.field]]));
-		check(`P3 等价（${p.key}）：另一侧也不会凭空多出条目（摘掉数组后合成结果同样相等）`,
-			JSON.stringify(r.rec[p.field === "gacha" ? "events" : "gacha"]) === JSON.stringify(oldRec[p.field === "gacha" ? "events" : "gacha"]));
+			JSON.stringify(r.rec[p.field]) === JSON.stringify(oldArr),
+			JSON.stringify([r.rec[p.field], oldArr]));
+		check(`P3 等价（${p.key}）：另一侧也不会凭空多出条目（同一份合成结果同样相等）`,
+			JSON.stringify(r.rec[other]) === JSON.stringify(oldOther));
 	}
 
 	// ── ④ 同源：悬停文本 = 同一份条目事实的**生成结果**（不是另外手拼的）──────────
@@ -351,7 +368,7 @@ const p3bFixtureMapOf = (overrides) => {
 // `call(t, src)` 收 `engine.__test` 与来源声明（用它自己的 url / eventUrl / tz）；
 // `urlsOf(src)` 就地补 map 覆盖（个别夹具没进 map.json）；
 // `switched: true` = 该路径已改成"解析器直出数组 + 悬停由条目反生成"。
-const P3B_SWITCHED_EXPECT = 47;   // 已切路径数（每批提交时 +N，最终 = P3B_PATHS.length）
+const P3B_SWITCHED_EXPECT = 48;   // 已切路径数（每批提交时 +N，最终 = P3B_PATHS.length）
 const P3B_PATHS = [
 	// ── 第 1 批：星铁（bwiki）/ 绝区零（官方公告）/ 崩坏3（米游社备选）/ 米游社卡池 ──
 	{
@@ -613,6 +630,15 @@ const P3B_PATHS = [
 			"https://api.fz.wiki/api/v1/articles/by-title?ns=0&title=%E6%B4%BB%E5%8A%A8&withRevision=1": "p3c-endfield-fz-activity"
 		}),
 		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
+	},
+	{
+		// 蔚蓝档案国服**第三条载荷路径**（P3c 普查时发现 P3b-6 漏切）：默认源的第①步是
+		// 「维护更新说明」正文块（parseBaCnMaintText），它只产卡池类型 + 角色 + 活动名，**没有悬停**。
+		// P3b-6 只切了 ②/③（baCnFromNoticeBlocks 的两条），于是这一条仍在靠合成器出数组 ——
+		// 删兼容层前必须补上，否则走这条路径的当期（如 09-25 这期）会整个变成「无数据」。
+		// 夹具 = map.json 里 ba-cn 默认源的 ba-cn-live-1021（就是这条路径的响应）；now = 09-25 当期内。
+		key: "baCnMaintText", switched: true, id: "ba-cn", side: "gacha", field: "gacha", now: Date.parse("2026-09-25T00:00:00.000Z"),
+		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
 	}];
 
 // 12 个用户可见字符串字段（与 P3a 同一份口径）
@@ -631,13 +657,6 @@ const p3bSansTs = (arr) => JSON.stringify((arr || []).map((x) => {
 	});
 	return o;
 }));
-// 把解析器直出的数组/通道摘掉 ⇒ mergeEntryRecord 走改造前的合成路径（同一份字符串字段）
-const p3bStripProduced = (payload) => {
-	const o = Object.assign({}, payload || {});
-	delete o.gacha; delete o.events; delete o.gachaHoverItems; delete o.eventHoverItems;
-	return o;
-};
-
 async function runP3b() {
 	const makeStore = () => { const m = new Map(); return { async get(k) { return m.get(k); }, async set(k, v) { m.set(k, v); } }; };
 	const golden = existsSync(P3B_GOLDEN_FILE) ? JSON.parse(readFileSync(P3B_GOLDEN_FILE, "utf8")) : {};
@@ -713,13 +732,15 @@ async function runP3b() {
 	section("P3b ②：数组与改造前**合成结果**逐条相等（含 startTs / endTs）");
 	for (const p of P3B_PATHS) {
 		const r = results[p.key];
-		const oldRec = r.engine.__test.mergeEntryRecord({ data: p3bStripProduced(r.payload) }, null, p.now, { id: p.id, tz: r.src.tz });
-		check(`P3b 等价（${p.key}）：\`${p.field}\` 与改造前的合成结果逐条相等（含 ts）`,
-			JSON.stringify(r.rec[p.field]) === JSON.stringify(oldRec[p.field]),
-			JSON.stringify([r.rec[p.field], oldRec[p.field]]));
 		const other = p.field === "gacha" ? "events" : "gacha";
+		const otherSide = p.side === "gacha" ? "event" : "gacha";
+		const oldArr = legacySynthArrOf(r.payload, p.side, p.id, r.src.tz, p.now);
+		const oldOther = legacySynthArrOf(r.payload, otherSide, p.id, r.src.tz, p.now);
+		check(`P3b 等价（${p.key}）：\`${p.field}\` 与改造前的合成结果逐条相等（含 ts）`,
+			JSON.stringify(r.rec[p.field]) === JSON.stringify(oldArr),
+			JSON.stringify([r.rec[p.field], oldArr]));
 		check(`P3b 等价（${p.key}）：另一侧也不会凭空多出条目`,
-			JSON.stringify(r.rec[other]) === JSON.stringify(oldRec[other]));
+			JSON.stringify(r.rec[other]) === JSON.stringify(oldOther));
 	}
 
 	section("P3b ③：同源 —— 悬停 == hoverTextFromItems(解析器给的条目事实)");

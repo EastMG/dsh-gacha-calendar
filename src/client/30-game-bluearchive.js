@@ -1041,7 +1041,7 @@
 				// 选中那篇若已经在上面抓过详情（列表 content 被截断的情况）→ 直接复用，省掉一次代理往返
 				const content = maintRaw || String((await proxyFetchJson(`https://bluearchive-cn.com/api/news/detail?id=${maintTitle.id}`, ref, H))?.data?.news?.content || "");
 				if (content) {
-					const d1 = parseBaCnMaintText(baCnNoticeText(content), nowYear, tz);
+					const d1 = parseBaCnMaintText(baCnNoticeText(content), nowYear, tz, now);
 					if (d1) return d1;
 				}
 			}
@@ -1082,7 +1082,9 @@
 		// 抽出来是为了能用合成文本精确回归 —— 这个源的坑全在措辞（见上面类型表），
 		// 而措辞能不能认出来只能靠测解析，靠抓线上只能"等它坏了才发现"。
 		// 无角色卡池时返回 null（调用方据此判"未公布"）。
-		function parseBaCnMaintText(text, nowYear, tz) {
+		// ⚠️ P3c（2026-11-07）：第 4 参 `now` 是给 `dataArrayProduced*` 用的（窗口文本 → 本机 ts 要一个
+		//    "今年是哪年"的基准）。默认走注入时钟 —— 调用方 `fetchBaCn` 已把它传进来，别再读宿主时钟。
+		function parseBaCnMaintText(text, nowYear, tz, now = nowMs()) {
 			// 卡池识别分两步：① 挑出**角色卡池**（排除招募活动）；② 按档位选外显那一类。
 			//
 			// WHY 不能只认一种写法：措辞漂移过。旧写法 `更新限时招募【X】` 曾一度**一处都没有**
@@ -1164,6 +1166,18 @@
 			// 的文字（只有成员不同）；而按类型归并成一条后，`buildPoolHover` 对 0/1 池返回空串
 			// （全站共用的兜底约定）。结论：这里根本不需要 bannerHover，交给 UI 的兜底更准。
 			if (!data.banner) return null;
+			// ── P3c（2026-11-07）：条目事实 → `gacha` / `events` 数组 ─────────────────────
+			// 这条路径**没有悬停**（类型已在 banner 里，`buildPoolHover` 对 0/1 池也给空串，见上面注释），
+			// 所以只给"主条一条"，悬停键照旧不写。ts 仍由 `dataArrayProduced*` 从**上面那串文本**回算
+			// （与改造前的合成结果逐条相同，含 tz 字段）。
+			const gachaItems = [{ title: data.banner, startTs: null, endTs: null, raw: data.bannerDates }];
+			data.gacha = dataArrayProducedGachaOf(data, gachaItems, { tz }, now);
+			data.gachaHoverItems = gachaItems;
+			if (data.event) {
+				const eventItems = [{ title: data.event, startTs: null, endTs: null, raw: data.eventDates }];
+				data.events = dataArrayProducedEventsOf(data, eventItems, { tz }, now);
+				data.eventHoverItems = eventItems;
+			}
 			return data;
 		}
 

@@ -169,45 +169,13 @@
 			return { key: g.id + ":" + side, g, side, isG, title, show, orig, raw, rawSrc, fail, state, startTs, endTs, remain };
 		}
 
-		// ── 同格并列条目：从悬停文本解析出来 ─────────────────────────────────────────
-		// `scheduleHoverItems`（悬停多行文本 → [{ title, win }]）+ 它用到的两条区间正则 /
-		// `scheduleNoYear` 已搬到 **26-parser-hover.js**（2026-11-07，P1 数据层数组）：
-		// 数据层（50-refresh.js）也要按同一份判据展开并列池，而 50-refresh.js 在 core 产物里，
-		// 本文件（81）只属于渲染层。搬动是逐字搬迁，行为不变。
-		// 下面 `scheduleHoverOnes` 仍是**显示层**的"补成与 scheduleNormalize 同形"那一步。
-		// 把 { title, win } 补成与 scheduleNormalize **同形**的条目（渲染层只认这一种形状）
-		function scheduleHoverOnes(items, it, now) {
-			const out = [];
-			for (const x of items) {
-				if (x.title === it.title) continue;                  // 外显那条已经有了，不重复列
-				// 活动侧兑换期：悬停里那一行的名字是「<活动名> 兑换截止」= 面板显示的事项名（`show`），
-				// 它和 `title`（活动名）不同串，但**就是外显那一条**（2026-11-07 起兑换期主行改带
-				// 「兑换截止」）⇒ 也要跳过，否则格子里会多出一条一模一样的并列条目。
-				if (it.show && x.title === it.show) continue;
-				// ⚠️ 外显那条（引擎 roles → 通常只有角色名，如「克莱门莎」）与这里的「池名：角色」
-				//    （如「海渊巡游：克莱门莎」）常常是同一口池 ⇒ 按用户口径"只显示角色名那条"，
-				//    外显已经占了角色名，这里就不再把同一口池列一遍（用户 2026-10-16）。
-				//    ⚠️ 必须在**这一层**做：scheduleHoverItems 只看得到悬停解析出的条目，
-				//    看不到 it（外显那条）⇒ 上一版规则所以在真机上完全不起作用。
-				const normOne = (s) => String(s || "").replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, "");
-				const shownText = normOne(it.show || it.title || "");
-				const titleText = normOne(x.title);
-				if (shownText && titleText && titleText !== shownText) {
-					const tailAt = titleText.lastIndexOf("\uFF1A" + shownText);
-					if (titleText.indexOf(shownText + "\uFF1A") === 0 || (tailAt >= 0 && tailAt === titleText.length - shownText.length - 1)) continue;
-				}
-				const r = parseDisplayRange(scheduleNoYear(x.win), now);
-				if (!r) continue;                                    // 读不出绝对档期 → 不硬凑天数
-				const span = Math.max(1, r.endTs - r.startTs);
-				let state = "long", remain = 0;
-				if (span > SCHEDULE_LONG_MS) state = "long";
-				else if (now.getTime() < r.startTs) state = "wait";
-				else if (now.getTime() > r.endTs) state = "ended";
-				else { state = "live"; remain = Math.max(0, r.endTs - now.getTime()); }
-				out.push({ key: it.key, g: it.g, side: it.side, isG: it.isG, title: x.title, raw: x.win, fail: null, state, startTs: r.startTs, endTs: r.endTs, remain });
-			}
-			return out;
-		}
+		// ── 同格并列条目：**只**来自数据层数组（P3c，2026-11-07 删掉"解析悬停文本"那条老路）──
+		// 历史：P2 之前这一格的外显来自 `scheduleNormalize`（记录字符串），并列条目来自把
+		// `bannerHover` / `eventHover` 逆解析成 `[{ title, win }]` 再补成同形条目（`scheduleHoverOnes`）。
+		// P1/P2 把事实搬进 `gacha` / `events` 数组、P3/P3b/P3c 让所有 28 款解析器直出数组后，
+		// 那条老路**不再有任何调用方**（老缓存也只是"数组为空 ⇒ 该侧无数据"），于是整段删掉。
+		// `scheduleHoverItems`（悬停文本 → [{ title, win }]）仍留在 26-parser-hover.js：它现在的
+		// 唯一用途是回归里当"改造前"的对照 oracle（见 test/cases-core.mjs ⑤-5 / test/cases-p3.mjs ③）。
 
 		// ── 派生层：从「事实数组」里挑出这一格今天要露的那一条（P2，2026-11-07）──────────
 		// 数据层（50-refresh.js，P1）只放事实：`gacha` / `events` 按结束时间升序、**不挑选**。
@@ -408,10 +376,10 @@
 		// 数组条目 → 与 `scheduleNormalize` **同形**的渲染条目（表格那一行 / 探头的一行）。
 		// ⚠️ 记录自己那条外显（`item.title` == 记录的 banner/event）**直接走 scheduleNormalize**：
 		//    卡池侧的档期文本优先用记录里的绝对 `startTs/endTs`、活动侧走「源站原文 + tz」换算，
-		//    而数组里没有这两样（P1 只存 `raw` 与本机时刻）—— 从数组重算会在 TZ≠+08 的机器上
-		//    差一个时区（README_Dev「P1 已知不等价①」）。P3 让解析器直出 display 文本后这段可删。
-		// 并列条目：与今天 `scheduleHoverOnes` 产出的条目同形（`state/startTs/endTs` 都来自
-		//    同一段悬停文本的解析），所以渲染结果逐字一致。
+		//    而数组里没有这两样（`raw` + 本机时刻）—— 从数组重算会在 TZ≠+08 的机器上差一个时区
+		//    （README_Dev「已知不等价①」，留给 P4）。
+		// 并列条目：`state/startTs/endTs` 直接用数组条目的绝对 ts（P3 之前是从悬停文本解析出来的，
+		//    那条老路已在 P3c 删除 —— 见下面「同格并列条目」那段）。
 		function scheduleItemOf(g, side, item, now) {
 			if (!g || !item) return null;
 			const isG = side === "gacha";
@@ -419,9 +387,8 @@
 			const rawSrc = item.raw || "";
 			const recTitle = (isG ? g.banner : g.event) || "";
 			if (title && title === recTitle) return scheduleNormalize(g, side, now);
-			// 读不出绝对档期（源站只写「长期」/「版本更新后 ~ …」且悬停里也是原文）⇒ 不硬凑。
-			// 与今天 `scheduleHoverOnes` 的 `if (!r) continue` 同一行为：这类条目**没有可算的状态**，
-			// 探头里不列（数据层仍留着这条事实）。
+			// 读不出绝对档期（源站只写「长期」/「版本更新后 ~ …」且条目里也没有 ts）⇒ 不硬凑。
+			// 这类条目**没有可算的状态**，探头里不列（数据层仍留着这条事实）。
 			if (item.startTs == null && item.endTs == null) return null;
 			const startTs = item.startTs == null ? 0 : item.startTs;
 			const endTs = item.endTs == null ? 0 : item.endTs;
@@ -439,35 +406,23 @@
 		}
 
 		// 一格（游戏 × 卡池/活动）在面板上的全部条目：`{ primary, rest, fromArray }`；null = 这一侧没有数据。
-		//   · 有数据层数组（P2 主路径）⇒ `sideViewOf` 挑外显 + `scheduleItemOf` 转成渲染条目，`fromArray = true`；
-		//   · 数组不可用 ⇒ **兼容分支（P3 可删）**：今天的老路（记录字符串 + 解析悬停文本），`fromArray = false`。
-		//     什么时候会走到：① 老 lastData（P1 之前的缓存，归一后是空数组）；② 这一侧本来就没数据
-		//     （`gacha` / `events` 是空数组，老路同样会返回 null ⇒ 格子里写「该来源无数据」）；
-		//     ③ 极端情况：数组非空但派生不出主条（条目全都读不出窗口）—— 这时也按老路渲染，不让格子空白。
+		//   · 数据层数组（**唯一**来源）⇒ `sideViewOf` 挑外显 + `scheduleItemOf` 转成渲染条目；
+		//   · 数组为空（老 lastData / 这一侧真没数据 / 没切直出的备选源）⇒ **null**，格子里写
+		//     「该来源无数据」，**不抛错**。P3c（2026-11-07）之前这里还有一条"记录字符串 + 解析悬停文本"
+		//     的兼容分支（`fromArray === false`）；28 款全部直出后它已删（见上面「同格并列条目」那段）。
 		function scheduleCellOf(g, side, now) {
 			if (!g) return null;
-			const isG = side === "gacha";
-			const items = isG ? g.gacha : g.events;
-			const sideItems = Array.isArray(items) && items.length ? items : null;
-			if (sideItems) {
-				const derived = sideViewOf(sideItems, now, side, g.id);
-				const primary = scheduleItemOf(g, side, derived.primary, now);
-				if (primary) {
-					const rest = [];
-					for (const x of derived.rest) {
-						const v = scheduleItemOf(g, side, x, now);
-						if (v) rest.push(v);      // 读不出绝对档期的并列条目：与今天 scheduleHoverOnes 一样不列
-					}
-					return { primary, rest, fromArray: true };
-				}
+			const items = side === "gacha" ? g.gacha : g.events;
+			if (!Array.isArray(items) || !items.length) return null;
+			const derived = sideViewOf(items, now, side, g.id);
+			const primary = scheduleItemOf(g, side, derived.primary, now);
+			if (!primary) return null;      // 数组非空但派生不出主条（条目全都读不出窗口）⇒ 该侧无数据
+			const rest = [];
+			for (const x of derived.rest) {
+				const v = scheduleItemOf(g, side, x, now);
+				if (v) rest.push(v);        // 读不出绝对档期的并列条目：不列（数据层仍留着这条事实）
 			}
-			// ── 兼容分支（**P3 可删**）───────────────────────────────────────────────
-			// 与 P2 之前逐字相同：scheduleNormalize 出外显那条，悬停文本逆解析补并列条目。
-			const it = scheduleNormalize(g, side, now);
-			if (!it) return null;
-			const extras = scheduleHoverOnes(
-				scheduleHoverItems(isG ? g.bannerHover : g.eventHover, it.title, it.isG), it, now);
-			return { primary: it, rest: extras, fromArray: false };
+			return { primary, rest };
 		}
 
 

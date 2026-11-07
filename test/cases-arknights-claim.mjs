@@ -27,8 +27,10 @@
 // ⚠️ 夹具 `test/fixtures/arknights-smw-events/` 是**真实 SMW 响应**（本机出口 403，经宿主侧
 //    web_fetch 取得，逐字保存；只保留 2026-11-07 那三条活动的 results，见 meta.json 的 note）。
 
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { check, section, useFixtures, setFetchImpl, fixtureBody } from "./harness.mjs";
-import { T, readComponentsSource } from "./load.mjs";
+import { T, readComponentsSource, REPO } from "./load.mjs";
 import { createEngine } from "../packages/core/core.mjs";
 // 悬停文本的判定**只有一份实现**（在 `test/lib-text.mjs`）：本段（真机 bug 的逐字基线）与
 // `cases-arknights-timeline.mjs`（整周期时间轴扫描）都调它 —— 两处不许各写一套谓词。
@@ -823,9 +825,14 @@ export default async function run() {
 			bItems.length === 3 && bItems[0].title === "视相博物馆：演化 兑换截止"
 			&& bItems[0].win === "11-07 03:59 ~ 11-10 03:59",
 			JSON.stringify(bItems.map((x) => [x.title, x.win])));
-		check("静态：scheduleHoverOnes 跳过与外显事项名（`show`）同名的那条（兑换期主行不会在探头里重复一条）",
-			/if \(it\.show && x\.title === it\.show\) continue;/.test(readComponentsSource()),
-			(readComponentsSource().match(/if \(it\.show && x\.title === it\.show\) continue;/) || [""])[0]);
+		// ⚠️ P3c（2026-11-07）：这条判据的**唯一实现**现在在数据层 `50-refresh.js` 的
+		// `dataArrayExtrasFromEntriesOf`（P3c 删掉了 81 里的 `scheduleHoverOnes` 与兼容分支，
+		// 判据只剩这一处）。断言从"grep 显示层"改成"grep 数据层"—— 守的仍是同一件事：
+		// 与外显事项名（`show`）同名的那条不再重复成第二个条目。
+		const refreshSrc = readFileSync(path.join(REPO, "src", "client", "50-refresh.js"), "utf8");
+		check("静态：并列条目判据跳过与外显事项名（`show`）同名的那条（兑换期主行不会在探头里重复一条）",
+			/if \(main\.show && title === main\.show\) continue;/.test(refreshSrc),
+			(refreshSrc.match(/if \(main\.show && title === main\.show\) continue;/) || [""])[0]);
 
 		// ⑦ 卡池侧**行为不变** / 活动侧只有 eventHover 为空才兜底
 		const gachaX = {

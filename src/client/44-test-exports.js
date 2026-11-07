@@ -418,13 +418,15 @@
 			// poolHoverKept = 卡池列表的**去重**（"同一个池被源描述两遍"）；buildPoolHover 与
 			//   P3 直出的数组都从这一份结果出发 ⇒ 导出后可断言"文本里没有的行，数组里也没有"。
 			poolHoverKept,
-			// dataArrayExtrasFromEntriesOf = 并列条目 → 数组条目的**唯一实现**（三条判据 + 完全相同去重），
-			//   悬停文本路径（dataArrayHoverPoolsOf）与解析器直出路径共用。
+			// dataArrayExtrasFromEntriesOf = 并列条目 → 数组条目的**唯一实现**（三条判据 + 完全相同去重）。
+			//   P3c（2026-11-07）起"把悬停文本拆成 { title, win } 再喂进来"的那条路（dataArrayHoverPoolsOf）
+			//   已删：现在只有解析器直出这一条路径；`win` 分支留给回归 oracle（test/cases-p3.mjs ③）。
 			dataArrayExtrasFromEntriesOf,
 			dataArrayProducedItemOf,
 			dataArrayProducedListOf,
-			// P3b：解析器直出数组的**收口**（主条与合成路径共用同一份 main 构造函数，
-			//   并列条与文本路径共用同一条判据）—— 导出后可断言"直出的数组 == 改造前的合成结果"。
+			// P3b：解析器直出数组的**收口**（主条 = `dataArray*MainOf` 从记录字符串造，并列条 =
+			//   `dataArrayExtrasFromEntriesOf` 按同一条判据展开）—— 导出后回归可以拿"记录字符串 + 悬停文本"
+			//   再合成一遍当**改造前**的对照（P3c 删掉产品里的合成器后，oracle 挪进了 test/cases-p3.mjs ③）。
 			dataArrayProducedGachaOf,
 			dataArrayProducedEventsOf,
 			dataArrayGachaMainOf,
@@ -463,12 +465,16 @@
 			sideViewOf,
 			// scheduleItemOf = 数组条目 → 与 scheduleNormalize 同形的渲染条目（81-schedule-model.js）：
 			//   记录自己那条外显直接走 scheduleNormalize（档期文本与今天逐字一致），并列条目按
-			//   `startTs/endTs/raw` 组装（与今天 scheduleHoverOnes 同形）。导出后等价性用例可以逐字比对。
+			//   `startTs/endTs/raw` 组装。导出后等价性用例可以逐字比对。
 			scheduleItemOf,
-			// scheduleCellOf = 一格（游戏 × 卡池/活动）的全部渲染条目：`{ primary, rest, fromArray }`。
-			//   有数据层数组就走 P2 主路径（fromArray = true），没有就退化到今天的老路（解析悬停文本，
-			//   fromArray = false，**P3 可删**）。导出后可以离线钉住"老缓存 ⇒ 兼容分支输出与今天相同"。
+			// scheduleCellOf = 一格（游戏 × 卡池/活动）的全部渲染条目：`{ primary, rest }`；null = 该侧无数据。
+			//   **只读数据层数组**（P3c 起唯一路径）：没有数组（老缓存 / 没数据）⇒ null，不抛错。
+			//   P3c 删掉了 `fromArray` 字段与那条"解析悬停文本"的兼容分支。
 			scheduleCellOf,
+			// parseDisplayRange = 窗口文本 → { startTs, endTs }（24-parser-window.js）。
+			//   导出给回归的**改造前 oracle** 用：P3c 删掉了 81 的 `scheduleHoverOnes`（把悬停行补成
+			//   渲染条目），test/cases-core.mjs ⑤-5 要在测试里**逐字复刻**它才能继续比"数组派生 vs 老路"。
+			parseDisplayRange,
 			// scheduleMeta / schedulePickItem = 表格一格的「档期 · 状态」文本与探头内部排序（81）：
 			//   等价性用例要逐字比对"渲染出来的文本"，用**真函数**而不是在测试里再抄一份
 			//   （抄一份会与实现漂移，等价性就成了自说自话）。

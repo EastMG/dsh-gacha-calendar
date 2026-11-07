@@ -21,6 +21,47 @@ import { createEngine } from "../packages/core/core.mjs";
 import { check, section, useFixtures, fixtureBody } from "./harness.mjs";
 import { T, REPO } from "./load.mjs";
 
+// ── 改造前老路的 **oracle**（P3c，2026-11-07 从产品里删掉，逐字复刻到这里）──────────────
+// 删掉的是 81 的两段：`scheduleCellOf` 的 `fromArray === false` 兼容分支（记录字符串 →
+// `scheduleNormalize` 出外显那条）与 `scheduleHoverOnes`（悬停文本 → 并列条目）。等价性用例
+// （⑤-4 / ⑤-5）要回答的仍然是"数组派生出来的表格行 / 探头行，与改造前算出来的那一份是否逐字
+// 相同"，所以把老路**原样搬进测试**当对照 oracle。
+// ⚠️ `SCHEDULE_LONG_MS` 按当时的常量（366 天）**冻结**在这里：oracle 必须不随产品漂移，
+//    否则"等价性"就成了拿产品和自己比。`scheduleNoYear` 同理（26 里那份是 const，未导出）。
+const LEGACY_LONG_MS = 366 * 864e5;
+const legacyNoYear = (x) => String(x).replace(/(\d{4})-(\d{1,2}-\d{1,2})/g, "$2");
+const legacyHoverOnes = (items, it, now) => {
+	const out = [];
+	for (const x of items) {
+		if (x.title === it.title) continue;                  // 外显那条已经有了，不重复列
+		if (it.show && x.title === it.show) continue;        // 活动侧兑换期：就是外显那一条
+		// 外显那条（通常只有角色名）与「池名：角色」常常是同一口池 ⇒ 只显示角色名那条
+		const normOne = (s) => String(s || "").replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, "");
+		const shownText = normOne(it.show || it.title || "");
+		const titleText = normOne(x.title);
+		if (shownText && titleText && titleText !== shownText) {
+			const tailAt = titleText.lastIndexOf("\uFF1A" + shownText);
+			if (titleText.indexOf(shownText + "\uFF1A") === 0 || (tailAt >= 0 && tailAt === titleText.length - shownText.length - 1)) continue;
+		}
+		const r = T.parseDisplayRange(legacyNoYear(x.win), now);
+		if (!r) continue;                                    // 读不出绝对档期 → 不硬凑天数
+		const span = Math.max(1, r.endTs - r.startTs);
+		let state = "long", remain = 0;
+		if (span > LEGACY_LONG_MS) state = "long";
+		else if (now.getTime() < r.startTs) state = "wait";
+		else if (now.getTime() > r.endTs) state = "ended";
+		else { state = "live"; remain = Math.max(0, r.endTs - now.getTime()); }
+		out.push({ key: it.key, g: it.g, side: it.side, isG: it.isG, title: x.title, raw: x.win, fail: null, state, startTs: r.startTs, endTs: r.endTs, remain });
+	}
+	return out;
+};
+// 老路的 `scheduleCellOf`：**没有数组也能出条目**（这正是 P3c 删掉的那条路）
+const legacyCellOf = (g, side, now) => {
+	const it = T.scheduleNormalize(g, side, now);
+	if (!it) return null;
+	const extras = legacyHoverOnes(T.scheduleHoverItems(side === "gacha" ? g.bannerHover : g.eventHover, it.title, it.isG), it, now);
+	return { primary: it, rest: extras };
+};
 export default async function runCore() {
 	section("core 产物（零宿主依赖 + 注册幂等）");
 
@@ -474,28 +515,34 @@ export default async function runCore() {
 				["我身即刃", "沧海萃珠", "铭心之萃", "愚戏众星"].every((n) => hsrGacha.some((x) => x.title.indexOf(`「${n}」角色活动跃迁`) === 0)),
 				JSON.stringify(hsrGacha.map((x) => x.title)));
 			// ③-bis 判重口径的边界：**内容完全一样**（同标题 + 同区间）才去掉一条，且优先保 primary。
-			// 这里悬停第一条与主行同名 ⇒ 不重复成两条；第二条是另一口池 ⇒ 照常保留（source = hover）。
-			const sameRec = probe.__test.mergeEntryRecord({ data: {
-				banner: "同名池",
-				roles: "",
-				bannerDates: "10-21 12:00 ~ 11-10 15:00",
-				bannerDatesRaw: "10-21 12:00 ~ 11-10 15:00",
-				bannerHover: "同名池\n10-21 12:00 ~ 11-10 15:00\n另一池\n10-30 12:00 ~ 12-01 15:00"
-			} }, null, NOW_HSR, metaHsr);
+			// ⚠️ P3c（2026-11-07）：数据层不再从 `bannerHover` 合成数组（合成器已删），所以这里改成
+			//    直接给**条目事实** —— 判重仍走 `dataArrayExtrasFromEntriesOf` 同一份实现，
+			//    再让 `mergeEntryRecord` 做归一/发 key（这一段守的是那三条判据，不是入口形状）。
+			const samePayload = { banner: "同名池", roles: "", bannerDates: "10-21 12:00 ~ 11-10 15:00", bannerDatesRaw: "10-21 12:00 ~ 11-10 15:00" };
+			const sameEntries = [
+				{ title: "同名池", startTs: null, endTs: null, raw: "10-21 12:00 ~ 11-10 15:00" },
+				{ title: "另一池", startTs: null, endTs: null, raw: "10-30 12:00 ~ 12-01 15:00" }
+			];
+			const sameRec = probe.__test.mergeEntryRecord({ data: Object.assign({}, samePayload, {
+				gacha: T.dataArrayProducedGachaOf(samePayload, sameEntries, { id: "hsr", tz: "Asia/Shanghai" }, NOW_HSR),
+				gachaHoverItems: sameEntries
+			}) }, null, NOW_HSR, metaHsr);
 			check("星铁③：内容完全相同的行只留一条（同名同区间 ⇒ 只剩 source=primary 的主行）",
 				(sameRec.gacha || []).length === 2
 				&& (sameRec.gacha || [])[0].source === "primary" && (sameRec.gacha || [])[0].title === "同名池"
 				&& (sameRec.gacha || [])[1].source === "hover" && (sameRec.gacha || [])[1].title === "另一池",
 				JSON.stringify((sameRec.gacha || []).map((x) => [x.title, x.source])));
-			// 补：主条**自己**就是「版本更新后」池时（startTs 被 fillMissingStarts 补过、悬停里解析不出 ts），
+			// 补：主条**自己**就是「版本更新后」池时（startTs 被 fillMissingStarts 补过、条目里读不出 ts），
 			// 判重键必须靠该行原生 raw 认出"起点未折算"，否则同一口池仍会留两条。
-			const openStartRec = probe.__test.mergeEntryRecord({ data: {
-				banner: "「甲」角色活动跃迁",
-				roles: "甲角色（火）",
-				bannerDates: "11-10 15:00 ~ 12-02 11:59",
-				bannerDatesRaw: "4.7版本更新后 ~ 12-02 11:59",
-				bannerHover: "「甲」角色活动跃迁：甲角色（火）\n4.7版本更新后 ~ 12-02 11:59\n「乙」角色活动跃迁：乙角色（冰）\n4.7版本更新后 ~ 12-22 15:00"
-			} }, null, NOW_HSR, metaHsr);
+			const openPayload = { banner: "「甲」角色活动跃迁", roles: "甲角色（火）", bannerDates: "11-10 15:00 ~ 12-02 11:59", bannerDatesRaw: "4.7版本更新后 ~ 12-02 11:59" };
+			const openEntries = [
+				{ title: "「甲」角色活动跃迁：甲角色（火）", startTs: null, endTs: null, raw: "4.7版本更新后 ~ 12-02 11:59" },
+				{ title: "「乙」角色活动跃迁：乙角色（冰）", startTs: null, endTs: null, raw: "4.7版本更新后 ~ 12-22 15:00" }
+			];
+			const openStartRec = probe.__test.mergeEntryRecord({ data: Object.assign({}, openPayload, {
+				gacha: T.dataArrayProducedGachaOf(openPayload, openEntries, { id: "hsr", tz: "Asia/Shanghai" }, NOW_HSR),
+				gachaHoverItems: openEntries
+			}) }, null, NOW_HSR, metaHsr);
 			check("星铁③：主条自己就是「版本更新后」池（ts 被补过）时，悬停里同一池仍判成同一条",
 				(openStartRec.gacha || []).length === 2,
 				JSON.stringify((openStartRec.gacha || []).map((x) => [x.title, x.startTs, x.endTs, x.raw])));
@@ -565,10 +612,12 @@ export default async function runCore() {
 	// （探头只是一个会动的 UI 组件，零数据语义）。这一段守三件事：
 	//   ① 纯函数本身：空数组 / 单条 / 多条 / claim 优先 / 类别档位 / 在期里结束最早 / 顺序稳定 / 不改输入；
 	//   ② **等价性（本阶段硬验收）**：同一份夹具下，"数组派生"渲染出的「名称 / 档期文本 / 探头行数 /
-	//      行顺序」与**改造前的老路**逐字相等 —— 老路 = `scheduleCellOf` 的兼容分支（`fromArray === false`），
-	//      它的代码就是 HEAD 的 `82-schedule-view.js` 里 `[it].concat(extras)` 那几行（逐字搬进 81）。
-	//      所以这里不需要 `git show HEAD:` 的副本：**老路在产品里就还在**（数组不可用时走它）。
-	//   ③ 兼容退化：老 lastData（没有 `gacha` / `events`）⇒ 走老路，输出与今天相同。
+	//      行顺序」与**改造前的老路**逐字相等 —— 老路 = 82 里 `[it].concat(extras)` 那几行（P2 搬进 81，
+	//      P3c **又从产品里删掉**），现在冻结成本文件顶部的 `legacyCellOf` oracle（`scheduleNormalize` +
+	//      `scheduleHoverItems` + 逐字复刻的 `scheduleHoverOnes`）。产品里已经**没有**老路的代码可当对照，
+	//      所以这段 oracle 必须独立冻结、不随产品漂移。
+	//   ③ 兼容退化（P3c 起）：老 lastData（没有 `gacha` / `events`）⇒ `scheduleCellOf` 返回 **null**
+	//      （该侧显示「无数据」），**不抛错**、也不再有"解析悬停文本"的兜底渲染。
 	//
 	// ⚠️ 2026-11-07（P2 收尾）：原来这里钉着 6 处「已知差异」（数组没有 cat/tags、判重键并掉
 	//    "同池"那一行）。现在数据层补了事实（`cat` / `tags` / `preview` / `source`）并按
@@ -582,6 +631,8 @@ export default async function runCore() {
 		const rowsOf = (cell, now) => (cell ? [cell.primary].concat(cell.rest.slice().sort(T.schedulePickItem)).map((x) => rowOf(x, now)) : null);
 		const rowText = (rows) => (rows ? rows.map((r) => r.name + " ⏎ " + r.meta) : rows);
 		const sortedRowText = (rows) => (rows ? rows.map((r) => r.name + " ⏎ " + r.meta).sort() : rows);
+
+
 
 		// ── ⑤-1 纯函数：空 / 单条 / 顺序稳定 ──────────────────────────────
 		let v = T.sideViewOf([], NOW, "gacha");
@@ -653,17 +704,23 @@ export default async function runCore() {
 		check("scheduleItemOf：读不出绝对档期的并列条目 ⇒ null（与今天 scheduleHoverOnes 的 if (!r) continue 一致）",
 			T.scheduleItemOf(recEv, "event", { title: "版本更新后", raw: "4.6版本更新后 ~ 11-10 15:00", startTs: null, endTs: null }, NOW) === null);
 
-		// ── ⑤-4 scheduleCellOf：数组优先，数组不可用 ⇒ 今天的老路（兼容分支）────────
+		// ── ⑤-4 scheduleCellOf：**只读数组**；没有数组 ⇒ null（不抛错）────────────────
+		// P3c 之前这里还有一条 `fromArray === false` 的兼容分支。删掉之后：
+		//   · 老 lastData（`gacha` / `events` 是空数组）⇒ `scheduleCellOf` 返回 null，
+		//     显示层据此写「该来源无数据」—— 不抛错、不猜（这是任务书要求的老缓存退化行为）。
+		//   · 有数组 ⇒ 正常派生；与老路（oracle）的输出逐字相同。
 		const legacyRec = Object.assign({}, recEv, { gacha: [], events: [] });
-		const cellLegacy = T.scheduleCellOf(legacyRec, "event", NOW);
-		check("兼容分支：老 lastData（没有 gacha / events ⇒ 空数组）⇒ fromArray = false，退化到解析悬停文本",
-			!!cellLegacy && cellLegacy.fromArray === false, JSON.stringify(cellLegacy && cellLegacy.fromArray));
+		let cellLegacy = null, legacyThrew = null;
+		try { cellLegacy = T.scheduleCellOf(legacyRec, "event", NOW); } catch (e) { legacyThrew = String((e && e.message) || e); }
+		check("老 lastData（没有 gacha / events ⇒ 空数组）⇒ scheduleCellOf = null，且**不抛错**",
+			legacyThrew === null && cellLegacy === null, JSON.stringify([legacyThrew, cellLegacy]));
 		const cellArray = T.scheduleCellOf(Object.assign({}, recEv, { events: [mainItem] }), "event", NOW);
-		check("主路径：有数组 ⇒ fromArray = true，primary 来自数组（不再解析悬停文本）",
-			!!cellArray && cellArray.fromArray === true && cellArray.primary.title === "剧情活动");
-		check("兼容分支的输出 = 主路径的输出（同一条记录、数组只有主条 ⇒ 逐字相同）",
-			JSON.stringify(rowText(rowsOf(cellLegacy, NOW))) === JSON.stringify(rowText(rowsOf(cellArray, NOW))),
-			JSON.stringify([rowText(rowsOf(cellLegacy, NOW)), rowText(rowsOf(cellArray, NOW))]));
+		check("有数组 ⇒ 正常派生出主条（primary 来自数组，不再解析悬停文本）",
+			!!cellArray && cellArray.primary.title === "剧情活动" && !("fromArray" in cellArray));
+		const cellOld = legacyCellOf(recEv, "event", NOW);
+		check("老路（oracle）的输出 = 数组派生的输出（同一条记录、数组只有主条 ⇒ 逐字相同）",
+			JSON.stringify(rowText(rowsOf(cellOld, NOW))) === JSON.stringify(rowText(rowsOf(cellArray, NOW))),
+			JSON.stringify([rowText(rowsOf(cellOld, NOW)), rowText(rowsOf(cellArray, NOW))]));
 	}
 
 	// ⑤-5 等价性（硬验收）：同一份夹具，**老路 vs 数组派生**逐字比对
@@ -760,7 +817,7 @@ export default async function runCore() {
 		const text = (rows) => (rows ? rows.map((r) => r.name + " ⏎ " + r.meta) : rows);
 
 		const got = new Map();          // "id:side" → { old, next }
-		const fallback = [];            // 有数组却退化成老路的一侧（不该出现）
+		const fallback = [];            // 有数组却派生不出条目（或又长出一条 fromArray 分支）的一侧
 		const diffs = [];
 		for (const { id, now, rec } of records) {
 			const g = Object.assign({ id, name: id }, rec);
@@ -768,16 +825,19 @@ export default async function runCore() {
 				const key = id + ":" + side;
 				const hasArray = ((side === "gacha" ? g.gacha : g.events) || []).length > 0;
 				const nextCell = T.scheduleCellOf(g, side, now);
-				if (hasArray && (!nextCell || nextCell.fromArray !== true)) fallback.push(key);
-				// 老路 = 兼容分支（把两个数组抹空 ⇒ scheduleCellOf 走"解析悬停文本"那条，与 HEAD 逐字相同）
-				const oldCell = T.scheduleCellOf(Object.assign({}, g, { gacha: [], events: [] }), side, now);
+				// P3c：`fromArray` 字段已不存在（兼容分支删了）—— 现在守"有数组的一侧必须派生得出条目"，
+				// 且返回对象里**不许**再冒出 `fromArray`（防止有人把兼容分支偷偷加回来）。
+				if (hasArray && (!nextCell || "fromArray" in nextCell)) fallback.push(key);
+				// 老路 = 改造前的兼容分支（P3c 从产品删除，oracle 冻结在本文件顶部）：
+				// 记录字符串 → scheduleNormalize 出外显 + 悬停文本逆解析补并列条目。
+				const oldCell = legacyCellOf(g, side, now);
 				const old = rowsOf(oldCell, now);
 				const next = rowsOf(nextCell, now);
 				got.set(key, { old, next });
 				if (JSON.stringify(old) !== JSON.stringify(next)) diffs.push(key);
 			}
 		}
-		check("等价性前置：有数组的一侧都走**主路径**（fromArray = true，没有偷偷退化到老路）",
+		check("等价性前置：有数组的一侧都派生出条目、且没有偷偷长回 `fromArray` 兼容字段",
 			fallback.length === 0, JSON.stringify(fallback));
 		// 硬验收（P2 收尾）：34 个侧**一个不差**地逐字相等 —— 不再有"允许不等"的白名单
 		check("等价性：17 款游戏（34 个侧）**全部逐字相等**（diffs = 0；名称 / 档期文本 / 探头行数 / 行顺序）",
@@ -849,7 +909,7 @@ export default async function runCore() {
 			const rec = await runGame("fgo", now.getTime());
 			const g = Object.assign({ id: "fgo", name: "fgo" }, rec);
 			const nextCell = T.scheduleCellOf(g, "event", now);
-			const oldCell = T.scheduleCellOf(Object.assign({}, g, { gacha: [], events: [] }), "event", now);
+			const oldCell = legacyCellOf(g, "event", now);   // P3c：老路已从产品删除，用顶部冻结的 oracle
 			const old = rowsOf(oldCell, now), next = rowsOf(nextCell, now);
 			check("等价性（FGO 09-05）：老路与数组派生逐字相等（外显 = 「失落的创世(Vanished Beginning) 来自未来的方舟」）",
 				JSON.stringify(old) === JSON.stringify(next)
