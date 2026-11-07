@@ -1,0 +1,182 @@
+{
+	"arknightsPrtsGacha": {
+		"rec": {
+			"banner": "【限定寻访·庆典】将雪投火",
+			"roles": "塔露拉、冻河",
+			"bannerDates": "11-01 12:00 ~ 11-15 03:59",
+			"bannerDatesRaw": "11-01 12:00 ~ 11-15 03:59",
+			"bannerHover": "中坚干员轮换卡池77：阿、莫斯提马、普罗旺斯、月禾、红\n10-29 04:00 ~ 11-12 03:59\n【限定寻访·庆典】将雪投火：塔露拉、冻河\n11-01 12:00 ~ 11-15 03:59\n干员轮换卡池197：薇薇安娜、隐德来希、深律、但书、阿罗玛\n11-05 04:00 ~ 11-19 03:59",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"arknights:gacha:0\",\"title\":\"中坚干员轮换卡池77：阿、莫斯提马、普罗旺斯、月禾、红\",\"show\":\"中坚干员轮换卡池77：阿、莫斯提马、普罗旺斯、月禾、红\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-29 04:00 ~ 11-12 03:59\",\"source\":\"hover\"},{\"key\":\"arknights:gacha:1\",\"title\":\"【限定寻访·庆典】将雪投火\",\"show\":\"塔露拉、冻河\",\"roles\":[\"塔露拉\",\"冻河\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-01 12:00 ~ 11-15 03:59\",\"source\":\"primary\"},{\"key\":\"arknights:gacha:2\",\"title\":\"干员轮换卡池197：薇薇安娜、隐德来希、深律、但书、阿罗玛\",\"show\":\"干员轮换卡池197：薇薇安娜、隐德来希、深律、但书、阿罗玛\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-05 04:00 ~ 11-19 03:59\",\"source\":\"hover\"}]"
+	},
+	"arknightsEventList": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "支线故事：时间啊，向前！",
+			"eventDates": "11-01 12:00 ~ 11-22 03:59",
+			"eventDatesRaw": "11-01 12:00 ~ 11-29 03:59",
+			"eventShow": "",
+			"eventClaimDates": "11-22 03:59 ~ 11-29 03:59",
+			"eventHover": "视相博物馆：演化   10-24 16:00 ~ 11-07 03:59\n登录活动：感谢庆典2026限时签到   11-01 12:00 ~ 11-15 03:59\n支线故事：时间啊，向前！   11-01 12:00 ~ 11-22 03:59",
+			"eventHoverExtra": "视相博物馆：演化\n视相博物馆：演化 兑换截止   11-10 03:59\n支线故事：时间啊，向前！\n支线故事：时间啊，向前！ 兑换截止   11-29 03:59"
+		},
+		"array": "[{\"key\":\"arknights:event:0\",\"title\":\"视相博物馆：演化\",\"show\":\"视相博物馆：演化\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-24 16:00 ~ 11-07 03:59\",\"source\":\"hover\"},{\"key\":\"arknights:event:1\",\"title\":\"登录活动：感谢庆典2026限时签到\",\"show\":\"登录活动：感谢庆典2026限时签到\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-01 12:00 ~ 11-15 03:59\",\"source\":\"hover\"},{\"key\":\"arknights:event:2\",\"title\":\"支线故事：时间啊，向前！\",\"show\":\"支线故事：时间啊，向前！\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-01 12:00 ~ 11-29 03:59\",\"source\":\"primary\",\"phase\":{\"kind\":\"claim\",\"startTs\":\"number\",\"endTs\":\"number\",\"show\":\"支线故事：时间啊，向前！ 兑换截止\"}}]"
+	},
+	"wuwaPoolBwiki": {
+		"rec": {
+			"banner": "角色换召池",
+			"roles": "锁暝、灯灯、丹瑾、炽霞",
+			"bannerDates": "10-22 10:00 ~ 11-11 11:59",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"wuwa:gacha:0\",\"title\":\"角色换召池\",\"show\":\"锁暝、灯灯、丹瑾、炽霞\",\"roles\":[\"锁暝\",\"灯灯\",\"丹瑾\",\"炽霞\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"\",\"source\":\"primary\"}]"
+	},
+	"wuwaEventBwiki": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "「无音消除」休闲活动",
+			"eventDates": "10-22 10:00 ~ 11-09 03:59",
+			"eventDatesRaw": "10-22 10:00 ~ 11-09 03:59",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "「无音消除」休闲活动   10-22 10:00 ~ 11-09 03:59\n「朝月赠礼」3.7版本限时签到   09-30 11:00 ~ 11-11 03:59\n「梦构匣中」区域探索活动   09-30 11:00 ~ 11-11 03:59\n「凭栏听雨之礼」限时签到活动   10-22 10:00 ~ 11-11 03:59\n「踏潮探历·玄方地界」限时探索委托活动   10-29 04:00 ~ 11-11 03:59\n「声弦涤荡」声骸材料限时双倍   11-04 04:00 ~ 11-11 03:59\n「先约电台」版本通行证   09-30 11:00 ~ 11-11 11:59\n「团团勇者大乱斗」休闲活动   09-30 11:00 ~ 11-11 11:59\n「索拉里斯回归邀约」网页活动   09-30 11:00 ~ 11-11 23:59",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"wuwa:event:0\",\"title\":\"「无音消除」休闲活动\",\"show\":\"「无音消除」休闲活动\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-22 10:00 ~ 11-09 03:59\",\"source\":\"primary\"},{\"key\":\"wuwa:event:1\",\"title\":\"「朝月赠礼」3.7版本限时签到\",\"show\":\"「朝月赠礼」3.7版本限时签到\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-30 11:00 ~ 11-11 03:59\",\"source\":\"hover\"},{\"key\":\"wuwa:event:2\",\"title\":\"「梦构匣中」区域探索活动\",\"show\":\"「梦构匣中」区域探索活动\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-30 11:00 ~ 11-11 03:59\",\"source\":\"hover\"},{\"key\":\"wuwa:event:3\",\"title\":\"「凭栏听雨之礼」限时签到活动\",\"show\":\"「凭栏听雨之礼」限时签到活动\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-22 10:00 ~ 11-11 03:59\",\"source\":\"hover\"},{\"key\":\"wuwa:event:4\",\"title\":\"「踏潮探历·玄方地界」限时探索委托活动\",\"show\":\"「踏潮探历·玄方地界」限时探索委托活动\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-29 04:00 ~ 11-11 03:59\",\"source\":\"hover\"},{\"key\":\"wuwa:event:5\",\"title\":\"「声弦涤荡」声骸材料限时双倍\",\"show\":\"「声弦涤荡」声骸材料限时双倍\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"11-04 04:00 ~ 11-11 03:59\",\"source\":\"hover\"},{\"key\":\"wuwa:event:6\",\"title\":\"「先约电台」版本通行证\",\"show\":\"「先约电台」版本通行证\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-30 11:00 ~ 11-11 11:59\",\"source\":\"hover\"},{\"key\":\"wuwa:event:7\",\"title\":\"「团团勇者大乱斗」休闲活动\",\"show\":\"「团团勇者大乱斗」休闲活动\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-30 11:00 ~ 11-11 11:59\",\"source\":\"hover\"},{\"key\":\"wuwa:event:8\",\"title\":\"「索拉里斯回归邀约」网页活动\",\"show\":\"「索拉里斯回归邀约」网页活动\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-30 11:00 ~ 11-11 23:59\",\"source\":\"hover\"}]"
+	},
+	"zzzBwikiGacha": {
+		"rec": {
+			"banner": "「倾掷浮生」039-1期独家频段",
+			"roles": "菲欧妮（异常·火）、维琳娜（异常·风）",
+			"bannerDates": "10-20 14:59 ~ 11-10 11:59",
+			"bannerDatesRaw": "3.3版本更新后 ~ 11-10 11:59",
+			"bannerHover": "",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"zzz:gacha:0\",\"title\":\"「倾掷浮生」039-1期独家频段\",\"show\":\"菲欧妮、维琳娜\",\"roles\":[\"菲欧妮（异常·火）\",\"维琳娜（异常·风）\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"3.3版本更新后 ~ 11-10 11:59\",\"source\":\"primary\"}]"
+	},
+	"baGlobalNexonGacha": {
+		"rec": {
+			"banner": "特別特選招募",
+			"roles": "真琴、亞子(禮服)",
+			"bannerDates": "11-03 10:00 ~ 11-10 09:59",
+			"bannerDatesRaw": "",
+			"bannerHover": ""
+		},
+		"array": "[{\"key\":\"ba-global:gacha:0\",\"title\":\"特別特選招募\",\"show\":\"真琴、亞子(禮服)\",\"roles\":[\"真琴\",\"亞子(禮服)\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"UTC\",\"raw\":\"\",\"source\":\"primary\"}]"
+	},
+	"endfieldGachatracker": {
+		"rec": {
+			"banner": "Winter Hunt",
+			"roles": "Typhoeus、Liino、Arcane",
+			"bannerDates": "09-02 00:00 ~ 09-29 23:59",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"endfield:gacha:0\",\"title\":\"Winter Hunt\",\"show\":\"Typhoeus、Liino、Arcane\",\"roles\":[\"Typhoeus\",\"Liino\",\"Arcane\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"\",\"source\":\"primary\"}]"
+	},
+	"endfieldWikigg": {
+		"rec": {
+			"banner": "The Hearth Fire Beckons the Starry Flow",
+			"roles": "Argent Flow、Si",
+			"bannerDates": "11-05 12:00 ~ 11-26 11:59",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"endfield:gacha:0\",\"title\":\"The Hearth Fire Beckons the Starry Flow\",\"show\":\"Argent Flow、Si\",\"roles\":[\"Argent Flow\",\"Si\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"\",\"source\":\"primary\"}]"
+	},
+	"endfieldGame8": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "Log In",
+			"eventDates": "10-15 00:00 ~ 11-25 23:59",
+			"eventDatesRaw": "10-15 00:00 ~ 11-25 23:59",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"endfield:event:0\",\"title\":\"Log In\",\"show\":\"Log In\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-15 00:00 ~ 11-25 23:59\",\"source\":\"primary\"}]"
+	},
+	"r1999OfficialGacha": {
+		"rec": {
+			"banner": "佩施塔",
+			"roles": "佩施塔、伊芙琳",
+			"bannerDates": "暂无时间信息",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "雪红与玫瑰白",
+			"eventDates": "暂无时间信息",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"r1999:gacha:0\",\"title\":\"佩施塔\",\"show\":\"佩施塔、伊芙琳\",\"roles\":[\"佩施塔\",\"伊芙琳\"],\"startTs\":\"null\",\"endTs\":\"null\",\"tz\":\"Asia/Shanghai\",\"raw\":\"\",\"source\":\"primary\"}]"
+	},
+	"r1999OfficialEvent": {
+		"rec": {
+			"banner": "佩施塔",
+			"roles": "佩施塔、伊芙琳",
+			"bannerDates": "暂无时间信息",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "雪红与玫瑰白",
+			"eventDates": "暂无时间信息",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"r1999:event:0\",\"title\":\"雪红与玫瑰白\",\"show\":\"雪红与玫瑰白\",\"startTs\":\"null\",\"endTs\":\"null\",\"tz\":\"Asia/Shanghai\",\"raw\":\"\",\"source\":\"primary\"}]"
+	}
+}

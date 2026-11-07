@@ -995,7 +995,18 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 		// 原神/绝区零的 bwiki 载荷（以及全局 cleanRoleNames）语义一字不改。
 		GACHA_FETCHERS["hsr"] = mkMediaWiki((html, tz) => bwikiGachaPayload(html, tz, { dedupeRoleNames: true, emitArrays: true, id: "hsr" }));
 		GACHA_FETCHERS["zzz"] = (url, signal, tz) => fetchZzzGacha(url, signal, tz);
-		GACHA_FETCHERS["zzz-bwiki"] = mkMediaWiki(pickCurrent(parseAllBwiki));
+		// 绝区零卡池**备选**（Bwiki 往期调频）：P3d（2026-11-07）起由这里补 `gacha` 数组。
+		// `selectCurrent` 给的载荷只有外显那一条字符串（**没有** `bannerHover`）⇒ 并列条目为 0，
+		// 数组 = 主条一条。`entries` 传空数组是**故意的**：把池列表塞进去会让数组比改造前多出条目，
+		// 那不是等价切换（P3 的口径是"数组与改造前合成结果逐条相等"）。
+		// 没切这一条时，用户手动把卡池源切到「Bwiki 往期调频」⇒ 数组恒 null ⇒ 该侧显示「无数据」。
+		GACHA_FETCHERS["zzz-bwiki"] = mkMediaWiki((html, tz) => {
+			const now = nowMs();
+			const d = pickCurrent(parseAllBwiki)(html);
+			if (!d) return null;
+			d.gacha = dataArrayProducedGachaOf(d, [], { tz }, now);
+			return d;
+		});
 					// 原神：活动一览为 JS 动态加载（Dquery+SMW），走 SMW ask 查询（fetchYsActivity 忽略 URL 参数）
 EVENT_FETCHERS["genshin"] = {
 				default: (url, signal, tz) => fetchYsActivity(signal, tz)

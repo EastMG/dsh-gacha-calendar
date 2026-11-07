@@ -29,12 +29,18 @@
 				const seg = text.slice(m.index + m[0].length, i + 1 < marks.length ? marks[i + 1].index : text.length);
 				const chars = [...new Set([...seg.matchAll(/共鸣者\/([^"]+)"/g)].map((x) => x[1]))].slice(0, 6);
 				if (chars.length === 0) continue;
-				return {
+				// ── P3d（2026-11-07）：手动切到「Bwiki 角色轮换池」时该侧也要有数组 ──────────
+				// 本源**没有悬停**（改造前就没写 `bannerHover`：单口池，UI 走默认两行式）⇒ 并列条目为 0。
+				// 所以 `entries` 传空数组 —— 把池列表塞进去会让数组比改造前**多出条目**，
+				// 那不是等价切换、是行为变更（P3 的硬口径是"数组与改造前合成结果逐条相等"）。
+				const out = {
 					banner: "\u89D2\u8272\u6362\u53EC\u6C60",
 					roles: chars.join("、"),
 					startTs: start.ts, endTs: end.ts,
 					bannerDates: `${start.text} ~ ${end.text}`
 				};
+				out.gacha = dataArrayProducedGachaOf(out, [], { tz }, now);
+				return out;
 			}
 			return null;
 		}
@@ -279,7 +285,23 @@
 			// 外显：类别优先（战斗/高难类优先），同级内结束时间升序（③）；悬停仍按 endTs 升序全量
 			const primary = pickEventPrimary(active) || active[0];
 			const dates = primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs, tz) : (primary.raw || "");
-			return { banner: primary.name, roles: "", bannerDates: dates, bannerDatesRaw: primary.raw || dates, eventHover: buildEventHover(active, 0, tz) };
+			// ── P3d（2026-11-07）：条目事实 → 悬停 + `events` 数组 ────────────────────
+			// 这是**活动备选源**「Bwiki 活动日历」（`EVENT_FETCHERS["wuwa"]["wuwa-event-bwiki"]`）的解析器。
+			// 改造前悬停直接 `buildEventHover(active, 0, tz)` 拼串、条目只活在那一句里 ⇒ P3c 删掉
+			// 合成器后，用户手动切到本源时活动列显示「无数据」。现在条目是事实：悬停由
+			// `hoverTextFromItems` 反生成（与 buildEventHover 逐字一致），数组由
+			// `dataArrayProducedEventsOf` 收口。顺带把载荷收成**最终形状**（`event` / `eventDates`…），
+			// 注册处不再做 `banner → event` 的映射 —— 那层映射正是"两套字符串"的接缝。
+			const hoverItems = active.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
+			const out = {
+				event: primary.name,
+				eventDates: dates,
+				eventDatesRaw: primary.raw || dates,
+				eventHover: hoverTextFromItems(hoverItems, "event", tz)
+			};
+			out.events = dataArrayProducedEventsOf(out, hoverItems, { tz }, now);
+			out.eventHoverItems = hoverItems;
+			return out;
 		}
 
 
@@ -477,10 +499,9 @@ EVENT_FETCHERS["wuwa"] = {
 				default: (url, signal, tz) => fetchWuwaEventsOfficial(url, signal, tz),
 				// ⚠️ 回调**必须**声明第二个参数 `tz`：mkMediaWiki 的契约是 `parse(text, tz)`
 				//   （见 30-parsers.js 的 mkMediaWiki，压平后见 22-fetcher-core.js）。原来只写了 `(html)` 却在体内用 `tz`
-				//   → 运行时 `tz is not defined`：用户在设置页把鸣潮活动源切到「Bwiki 活动日历」就必然抓取失败。
+				//   → 运行时 `tz is undefined`：用户在设置页把鸣潮活动源切到「Bwiki 活动日历」就必然抓取失败。
 				//   2026-10-03 修正（同批还加了静态守卫；那个探针脚本没入库）。
-				"wuwa-event-bwiki": mkMediaWiki((html, tz) => {
-					const d = parseWuwaCalendar(html, tz);
-					return d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "", eventHover: d.eventHover || "" } : null;
-				})
+				// ⚠️ P3d（2026-11-07）：`parseWuwaCalendar` 现在直接返回**最终载荷**（`event` / `eventDates` /
+				//   `events` 数组 + 条目事实），所以这里不再做 `banner → event` 的映射。
+				"wuwa-event-bwiki": mkMediaWiki((html, tz) => parseWuwaCalendar(html, tz))
 			};

@@ -770,6 +770,299 @@ async function runP3b() {
 		check(`P3b 通道（${p.key}）：记录里没有 \`gachaHoverItems\` / \`eventHoverItems\``,
 			!("gachaHoverItems" in r.rec) && !("eventHoverItems" in r.rec), JSON.stringify(Object.keys(r.rec)));
 	}
+	await runP3d();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// P3d（2026-11-07）：**备选来源**（设置页手动切源时用）也直出数组
+//
+// ── 为什么还有这一批 ──
+// P3c 删掉 `dataArrayGachaOf` / `dataArrayEventsOf` / `dataArrayHoverPoolsOf` 之后，28 款的**默认源**
+// 都能直出数组；但**备选源**（`altSources` / `eventAltSources`，用户手动切过去才走）里有一批仍然
+// 只产字符串 ⇒ 数组为 null ⇒ 那一侧显示「该来源无数据」。这是"手动切源"功能的**实际回归**。
+//
+// ── 这一段守四件事 ──
+// ① **golden** = 改造前（HEAD 1268d71）跑同一批夹具的字符串字段（多数路径 12 个；Nexon 卡池侧只钉
+//    5 个卡池字段，理由见那条路径的注释）+ 数组（非时间字段逐字）。采集命令：
+//    `node test/cases-p3.mjs --capture-p3d`（**必须在切代码之前**跑，见采集模式那段注释）。
+// ② **数组逐条相等（含 startTs / endTs）**：用 P3c 冻结的 `legacySynthArrOf` 当 oracle ——
+//    把解析器给的数组摘掉，让改造前的合成器照同一份字符串字段再合成一次。
+// ③ **悬停逐字相等 + 同源**：`hover == hoverTextFromItems(条目事实)`，且 golden 里的悬停文本与改造前逐字相同。
+// ④ **端到端手动切源**：走**真实设置存储**（`customUrls` / `customEventUrls` = 备选源标识，
+//    与设置页写的是同一种值）→ `engine.refresh()` → 该侧 `scheduleCellOf` 非 null（= 面板不再是
+//    「该来源无卡池数据 / 无活动数据」）。反向证明：去掉任一备选源的直出 ⇒ ① 的数组 + ④ 两条同时红
+//    （实测红字见 README_Dev 的「反向证明（P3d 实测）」）。
+//
+// ⚠️ 夹具：P3 专用夹具**不进 `map.json`**（那会改变其它批次对默认源的期望），一律用 `urlsOf` 就地映射。
+//    13 份夹具的真抓 / 手工构造依据写在各自的 `response.txt.meta.json` 里。
+const P3D_GOLDEN_FILE = path.join(FIXTURES_DIR, "p3d-golden.json");
+const CAPTURE_P3D = process.argv.includes("--capture-p3d");
+// 夹具抓取时刻附近的"期中"时刻（2026-11-06 20:00 +08 / 12:00 UTC）——所有当期窗口都远远包住它，
+// 所以「覆盖当前」的判定在 UTC 与 +08 两道门禁下一致（不靠本机时区巧合）。
+const P3D_NOW = Date.parse("2026-11-06T12:00:00.000Z");
+// GachaTracker 的夹具数据停在 2026-09（最新一期 09-02 ~ 09-29）⇒ 这一条用**夹具内**的时刻，
+// 而不是抓取时刻（否则当期恒 null，断言会变成"空数组也绿"的假绿）。
+const P3D_NOW_GT = Date.parse("2026-09-10T00:00:00.000Z");
+
+const P3D_PATHS = [
+	// ① 明日方舟·卡池备选：PRTS 卡池一览
+	{
+		key: "arknightsPrtsGacha", id: "arknights", side: "gacha", field: "gacha",
+		alt: "arknights-prts", now: P3D_NOW,
+		urlsOf: (alt) => ({ [alt.url]: "p3d-arknights-prts-pool" })
+	},
+	// ② 明日方舟·活动备选：PRTS 活动一览（+ 一次批量 wikitext）
+	{
+		key: "arknightsEventList", id: "arknights", side: "event", field: "events",
+		alt: "arknights-event-list", now: P3D_NOW,
+		urlsOf: (alt) => ({
+			[alt.url]: "p3d-arknights-events-list",
+			"https://prts.wiki/api.php?action=query&prop=revisions": "p3d-arknights-events-pages"
+		})
+	},
+	// ③ 鸣潮·卡池备选：Bwiki 角色轮换池（`parseWuwaPool`）
+	{
+		key: "wuwaPoolBwiki", id: "wuwa", side: "gacha", field: "gacha",
+		alt: "wuwa-bwiki", now: P3D_NOW,
+		urlsOf: (alt) => ({ [alt.url]: "p3d-wuwa-pool-bwiki" })
+	},
+	// ④ 鸣潮·活动备选：Bwiki 活动日历（`parseWuwaCalendar`）
+	{
+		key: "wuwaEventBwiki", id: "wuwa", side: "event", field: "events",
+		alt: "wuwa-event-bwiki", now: P3D_NOW,
+		urlsOf: (alt) => ({ [alt.url]: "p3d-wuwa-event-bwiki" })
+	},
+	// ⑤ 绝区零·卡池备选：Bwiki 往期调频
+	{
+		key: "zzzBwikiGacha", id: "zzz", side: "gacha", field: "gacha",
+		alt: "zzz-bwiki", now: P3D_NOW,
+		urlsOf: (alt) => ({ [alt.url]: "p3d-zzz-bwiki" })
+	},
+	// ⑥ 蔚蓝档案国际服·备选：Nexon 更新日志（卡池 + 活动同一份载荷）
+	// ⚠️ golden **只钉卡池侧字段**：同一个抓取器也顺手填了活动侧，但那一侧的活动悬停文本
+	//    **随运行环境时区变**（成因见下面 `baGlobalNexonEvent` 的注释，是 P3d 之前就有的缺陷）⇒
+	//    钉 12 个字段会让 UTC 门禁为了一个与 P3d 无关的原因变红。
+	{
+		key: "baGlobalNexonGacha", id: "ba-global", side: "gacha", field: "gacha",
+		alt: "ba-global-nexon", now: P3D_NOW,
+		goldenFields: ["banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover"],
+		urlsOf: (alt) => ({
+			[alt.url]: "p3d-ba-nexon-list",
+			"https://forum.nexon.com/api/v1/thread/3567784?alias=bluearchiveTW&countryCode=KR": "p3d-ba-nexon-detail"
+		})
+	},
+	{
+		key: "baGlobalNexonEvent", id: "ba-global", side: "event", field: "events",
+		alt: "ba-global-nexon", now: P3D_NOW,
+		// ⚠️ 这一侧**在 P3d 之前就已经直出**（P3c 收尾时 `fetchBaGlobal` 一起切了），所以它不是 P3d 要修的回归；
+		//    而且它的两个产物都**随运行环境时区变**（P3d 之前就如此，本轮不改）：
+		//      · 活动悬停文本：`parseBaLogRows` 用 `new Date(y,mo,d,…)` 造**本机墙钟**时刻，悬停却按
+		//        `tz`（本源是 `UTC`）渲染 ⇒ 机器不在 UTC 时整段偏 8 小时（+08 下是 `11-03 02:00 ~ 11-09 18:59`）；
+		//      · 数组顺序：主条的窗口来自**文本**（按本机时区回读），并列条的窗口来自**ts** ⇒ 两者在
+		//        非 UTC 机器上不再是同一把尺，`endTs` 升序的次序会变。
+		//    所以这里**不钉 golden / 不做逐条等价**（钉了只会让 UTC 门禁红在一个与 P3d 无关的地方）。
+		//    仍然断言的是 P3d 真正负责的东西：**数组非空**、**悬停 == 同一份条目事实的生成结果**、
+		//    **切源后那一格能渲染**。（这两条时区缺陷已写进报告，留待单独一轮修。）
+		noGolden: true,
+		urlsOf: (alt) => ({
+			[alt.url]: "p3d-ba-nexon-list",
+			"https://forum.nexon.com/api/v1/thread/3567784?alias=bluearchiveTW&countryCode=KR": "p3d-ba-nexon-detail"
+		})
+	},
+	// ⑦ 终末地·卡池备选：GachaTracker（英文）
+	{
+		key: "endfieldGachatracker", id: "endfield", side: "gacha", field: "gacha",
+		alt: "endfield-gachatracker", now: P3D_NOW_GT,
+		urlsOf: (alt) => ({ [alt.url]: "p3d-endfield-gachatracker" })
+	},
+	// ⑧ 终末地·卡池备选：wiki.gg（英文）
+	{
+		key: "endfieldWikigg", id: "endfield", side: "gacha", field: "gacha",
+		alt: "endfield-wiki-gg", now: P3D_NOW,
+		urlsOf: (alt) => ({ [alt.url]: "p3d-endfield-wikigg" })
+	},
+	// ⑨ 终末地·活动备选：Game8（英文）
+	{
+		key: "endfieldGame8", id: "endfield", side: "event", field: "events",
+		alt: "endfield-game8", now: P3D_NOW,
+		urlsOf: (alt) => ({ [alt.url]: "p3d-endfield-game8" })
+	},
+	// ⑩ 重返未来 1999·备选：官网公告+小米（卡池侧与活动侧是同一个抓取器）
+	{
+		key: "r1999OfficialGacha", id: "r1999", side: "gacha", field: "gacha",
+		alt: "r1999-official", now: P3D_NOW,
+		urlsOf: (alt) => ({ [alt.url]: "p3d-r1999-official", "https://game.xiaomi.com/game/62346241": "p3d-r1999-xiaomi" })
+	},
+	{
+		key: "r1999OfficialEvent", id: "r1999", side: "event", field: "events",
+		alt: "r1999-official", now: P3D_NOW,
+		urlsOf: (alt) => ({ [alt.url]: "p3d-r1999-official", "https://game.xiaomi.com/game/62346241": "p3d-r1999-xiaomi" })
+	}
+];
+
+// 12 个用户可见字符串字段（与 P3b 同一份口径）
+const P3D_VISIBLE = ["banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover",
+	"event", "eventDates", "eventDatesRaw", "eventShow", "eventClaimDates", "eventHover", "eventHoverExtra"];
+const p3dTextOf = (v) => (v == null ? "" : String(v));
+
+async function runP3d() {
+	const makeStore = () => { const m = new Map(); return { async get(k) { return m.get(k); }, async set(k, v) { m.set(k, v); } }; };
+	const golden = existsSync(P3D_GOLDEN_FILE) ? JSON.parse(readFileSync(P3D_GOLDEN_FILE, "utf8")) : {};
+	const fresh = {};
+	const results = {};
+
+	for (const p of P3D_PATHS) {
+		// 每个路径一份**自己的**夹具实现（map.json + 该路径的覆盖；`urlsOf` 收的是**注册表里的那个备选源**）
+		const src0 = createEngine({
+			transport: { async fetchRaw() { throw new Error("no"); }, async fetchViaProxy() { throw new Error("no"); } },
+			storage: makeStore(), now: () => p.now
+		}).__test.SOURCES.find((s) => s.id === p.id);
+		if (!src0) throw new Error("P3d 找不到来源：" + p.id);
+		const altFrom = (s) => ((p.side === "event" ? s.eventAltSources : s.altSources) || []).find((a) => a.fetcher === p.alt) || null;
+		const alt0 = altFrom(src0);
+		if (!alt0) throw new Error(`P3d 找不到备选源：${p.id} / ${p.alt}`);
+		const overrides = p3bFixtureMapOf(p.urlsOf ? p.urlsOf(alt0) : null);
+		const fixture = useFixtures(overrides);
+		const transport = {
+			async fetchRaw(url, opts) {
+				const r = await fixture(url, opts);
+				return { ok: r.ok, status: r.status, headers: { get: () => null }, text: () => r.text(), json: () => r.json() };
+			},
+			async fetchViaProxy(url, opts) {
+				const o = opts || {};
+				let api = "/api/gacha-calendar-proxy?url=" + encodeURIComponent(String(url));
+				api += "&referer=" + encodeURIComponent(o.referer || "");
+				if (o.headers) api += "&headers=" + encodeURIComponent(JSON.stringify(o.headers));
+				const r = await fixture(api);
+				if (!r.ok) throw new Error("proxy-http-" + r.status);
+				const wrapped = JSON.parse(await r.text());
+				if (wrapped.status !== 200) throw new Error("proxy-bad:" + wrapped.status);
+				return wrapped.body;
+			}
+		};
+		const engine = createEngine({ transport, storage: makeStore(), now: () => p.now, timer: { setTimeout, clearTimeout } });
+		const src = engine.__test.SOURCES.find((s) => s.id === p.id) || src0;
+		const alt = altFrom(src) || alt0;
+		// 走**注册表里的那个抓取器**（不是随便调一个内部函数）：`gachaFetcherFor` / `eventFetcherFor`
+		// 在设置页切源后选中它，这里必须证明"它产出的就是能显示的数组"。
+		const fetcher = p.side === "event"
+			? (engine.__test.EVENT_FETCHERS[src.id] || {})[alt.fetcher]
+			: (engine.__test.GACHA_FETCHERS || {})[alt.fetcher];
+		if (typeof fetcher !== "function") throw new Error(`P3d 抓取器没登记：${alt.fetcher}`);
+		const payload = await fetcher(alt.url, undefined, src.tz);
+		const rec = engine.__test.mergeEntryRecord({ data: payload || {} }, null, p.now, { id: p.id, tz: src.tz });
+		results[p.key] = { payload, rec, engine, p, src, alt, transport, now: p.now };
+		const arr = rec[p.field] || [];
+		// `noGolden` 的路径不参与 golden（它那一侧在 P3d 之前就直出，且产物随运行环境时区变，见该路径注释）
+		if (p.noGolden) continue;
+		fresh[p.key] = {
+			rec: Object.fromEntries((p.goldenFields || P3D_VISIBLE).map((f) => [f, p3dTextOf(rec[f])])),
+			// ⚠️ 数组 golden = **改造前代码真实产出的数组**；改造前这一侧**还没有数组**（P3c 之后仍是字符串）
+			//    时退回**改造前合成器**照同一份字符串字段算出的结果（`legacySynthArrOf`）——
+			//    那正是改造前界面本来会显示的条目。两种口径都等于"改造前的行为"，不是"改完再采集"。
+			array: p3bSansTs(arr.length ? arr : legacySynthArrOf(payload, p.side, p.id, src.tz, p.now))
+		};
+	}
+
+	// ── 采集模式：**只补缺**（已有条目一律不动 —— 否则"改完再采集"会把回归钉成现状）──
+	// 用法（**必须在切代码之前**）：`git stash push -- src lib packages` → `node build.mjs` →
+	// `node test/cases-p3.mjs --capture-p3d` → `git stash pop` → `node build.mjs`。
+	if (CAPTURE_P3D) {
+		const added = [];
+		for (const [k, v] of Object.entries(fresh)) {
+			if (golden[k]) continue;
+			golden[k] = v;
+			added.push(k);
+		}
+		writeFileSync(P3D_GOLDEN_FILE, JSON.stringify(golden, null, "\t") + "\n", "utf8");
+		section("P3d golden 采集（只补缺；只有 golden 里已有『改造前』的记录才算有效）");
+		check("P3d golden 采集：本次新增条目（已有条目一字未动）", added.length > 0, JSON.stringify(added));
+		return;
+	}
+
+	section("P3d ①：备选来源直出 —— 字符串字段与改造前逐字相同（golden，8 组 / 11 条路径全覆盖）");
+	for (const p of P3D_PATHS) {
+		const r = results[p.key];
+		const arr = r.rec[p.field] || [];
+		if (p.noGolden) {
+			// 这一侧不钉 golden（原因见该路径上的注释）⇒ 只断言"有数组"这件 P3d 负责的事
+			check(`P3d golden（${p.key}）：不钉 golden（该侧 P3d 之前就直出、产物随运行环境时区变）⇒ 只断言数组非空`,
+				arr.length > 0, String(arr.length));
+			continue;
+		}
+		const g = golden[p.key];
+		check(`P3d golden（${p.key}）：golden 里有这一条（覆盖到、不是抽样）`, !!g, p.key);
+		if (!g) continue;
+		const fields = p.goldenFields || P3D_VISIBLE;
+		const changed = fields.filter((f) => p3dTextOf(r.rec[f]) !== p3dTextOf(g.rec[f]));
+		check(`P3d golden（${p.key}）：${fields.length} 个字符串字段与改造前逐字相同`, changed.length === 0, JSON.stringify(changed));
+		check(`P3d golden（${p.key}）：\`${p.field}\` 非时间字段逐字不变（键序 / 顺序 / source / phase 全等）`,
+			p3bSansTs(arr) === g.array, p3bSansTs(arr));
+		check(`P3d golden（${p.key}）：数组非空（备选源真的直出了，而不是悄悄退回空数组）`,
+			arr.length > 0, String(arr.length));
+	}
+
+	section("P3d ②：数组与改造前**合成结果**逐条相等（含 startTs / endTs）");
+	for (const p of P3D_PATHS) {
+		if (p.noGolden) continue;   // 同上：这一侧的产物随运行环境时区变，不做逐条钉死
+		const r = results[p.key];
+		const oldArr = legacySynthArrOf(r.payload, p.side, p.id, r.src.tz, r.now);
+		const arr = r.rec[p.field] || [];
+		check(`P3d 等价（${p.key}）：\`${p.field}\` 与改造前的合成结果逐条相等（含 ts）`,
+			JSON.stringify(arr) === JSON.stringify(oldArr),
+			JSON.stringify([arr, oldArr]));
+	}
+
+	section("P3d ③：同源 —— 悬停 == hoverTextFromItems(条目事实)，且与 golden 逐字相同");
+	for (const p of P3D_PATHS) {
+		const r = results[p.key];
+		const pay = r.payload || {};
+		const items = (p.side === "gacha" ? pay.gachaHoverItems : pay.eventHoverItems) || [];
+		const regen = T.hoverTextFromItems(items, p.side, r.src.tz || TZ_CN);
+		const hover = p.side === "gacha" ? pay.bannerHover : pay.eventHover;
+		check(`P3d 同源（${p.key}）：悬停 == hoverTextFromItems(条目事实) 逐字相等`,
+			regen === (hover || ""), JSON.stringify([regen, hover || ""]));
+		check(`P3d 同源（${p.key}）：条目事实齐备（每条带 startTs/endTs/raw；悬停非空时至少 1 条）`,
+			items.every((x) => "startTs" in x && "endTs" in x && "raw" in x) && (items.length > 0 || !hover),
+			String(items.length));
+		check(`P3d 通道（${p.key}）：记录里没有 \`gachaHoverItems\` / \`eventHoverItems\``,
+			!("gachaHoverItems" in r.rec) && !("eventHoverItems" in r.rec), JSON.stringify(Object.keys(r.rec)));
+	}
+
+	// ── ④ 端到端：设置页把来源切到备选源 → 一整轮 refresh() → 该侧真的能显示 ──────────
+	section("P3d ④：端到端手动切源 —— 设置存储里写备选源 ⇒ refresh() ⇒ 该侧不再是「该来源无数据」");
+	// 只让目标条目「可见」（其余全部进 hidden）⇒ 一轮 refresh 只发这个条目的请求（与 cases-core 同一手法）
+	const allIds = createEngine({
+		transport: { async fetchRaw() { throw new Error("no"); }, async fetchViaProxy() { throw new Error("no"); } },
+		storage: makeStore(), now: () => 0
+	}).__test.SOURCES.map((s) => s.id);
+	for (const p of P3D_PATHS) {
+		const r = results[p.key];
+		// 设置页写的就是这个值：备选源的 `url`（老配置里也可能是 `id`，见 altSourceId）
+		const altUrl = r.alt.url || r.alt.id || "";
+		const store = makeStore();
+		await store.set("hidden", allIds.filter((x) => x !== p.id));
+		await store.set(p.side === "event" ? "customEventUrls" : "customUrls", JSON.stringify({ [p.id]: altUrl }));
+		const engine = createEngine({ transport: r.transport, storage: store, now: () => p.now, timer: { setTimeout, clearTimeout } });
+		const res = await engine.refresh();
+		const rec = (res.games || {})[p.id] || {};
+		const arr = rec[p.field] || [];
+		const view = T.scheduleCellOf(Object.assign({ id: p.id }, rec), p.side, new Date(p.now));
+		check(`P3d 端到端（${p.key}）：切源后数组非空（${arr.length} 条）`, arr.length > 0, String(arr.length));
+		check(`P3d 端到端（${p.key}）：面板那一格能渲染（\`scheduleCellOf\` 非 null ⇒ 不再写「该来源无数据」）`,
+			!!view && !!view.primary, JSON.stringify(view && { title: view.primary && view.primary.title, rest: view.rest && view.rest.length }));
+	}
+
+	// ── ⑤ 反向证明用钩子：这一节读的是**构建产物里的真实抓取器**，所以"关掉某条备选源的直出"
+	//    会让 ①/②/④ 同时红（见报告里的贴红）。这里只固定"每条路径都恰好经它自己的那一个备选抓取器"。
+	section("P3d ⑤：路径与注册表一致（每条路径用的就是设置页会选中的那个 fetcher）");
+	for (const p of P3D_PATHS) {
+		const r = results[p.key];
+		const list = p.side === "event" ? (r.src.eventAltSources || []) : (r.src.altSources || []);
+		const hit = list.find((a) => a.fetcher === p.alt);
+		check(`P3d 注册（${p.key}）：\`${p.id}\` 的${p.side === "event" ? "活动" : "卡池"}备选源里有 ${p.alt}`,
+			!!hit && (hit.url === (r.alt.url) || hit.id === r.alt.id), JSON.stringify(hit));
+	}
 }
 
 // 直接 `node test/cases-p3.mjs` 时自报结果；被 all.mjs import 时不报（由 all.mjs 统一 summary）

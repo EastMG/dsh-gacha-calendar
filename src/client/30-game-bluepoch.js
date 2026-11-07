@@ -388,13 +388,19 @@
 				try {
 					const xiaomi = await fetchXiaomiR99Gacha("https://game.xiaomi.com/game/62346241", sixStars);
 					if (xiaomi && xiaomi.banner && xiaomi.bannerDates) {
-						return {
+						// ── P3d（2026-11-07）：这条兜底分支也要直出数组 ──────────────────
+						// 改造前它返回纯字符串，数组只能由数据层合成；P3c 删掉合成器后，
+						// 用户手动切到「官网公告+小米」且走到这一支时该侧会显示「无数据」。
+						// 本源没有悬停（单口池）⇒ 并列条目 0；没有活动 ⇒ 不写 `events`。
+						const out = {
 							banner: xiaomi.banner,
 							roles: xiaomi.roles || "",
 							bannerDates: xiaomi.bannerDates,
 							bannerDatesRaw: xiaomi.bannerDates,
 							event: ""
 						};
+						out.gacha = dataArrayProducedGachaOf(out, [], { tz }, now);
+						return out;
 					}
 				} catch { /* 兜底失败 → 返回空，由上层"失败沿用上次成功数据"保留展示原数据 */ }
 				return null;
@@ -436,6 +442,11 @@
 					data.roles = xiaomi.roles || "";
 				}
 			} catch { /* 增强源失败不影响官网解析结果 */ }
+			// ── P3d（2026-11-07）：手动切到「官网公告+小米」时两侧都要有数组 ──────────────
+			// 本源**没有悬停**（单口池 / 单个活动，改造前就没写 `bannerHover` / `eventHover`）⇒
+			// 并列条目为 0（`entries` 传空数组）。没这两句的话，切到本源时数组恒 null ⇒ 该侧「无数据」。
+			data.gacha = dataArrayProducedGachaOf(data, [], { tz }, now);
+			if (data.event) data.events = dataArrayProducedEventsOf(data, [], { tz }, now);
 			return data;
 		}
 

@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="/gachatracker-favicon64.ico?v=2" type="image/icon" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Arknights: Endfield Banners | GachaTracker</title>
+  <meta name="description" content="Browse all 14 banners for Arknights: Endfield on GachaTracker, including featured characters, date ranges, and durations." />
+  <link rel="canonical" href="https://gachatracker.app/games/endfield/banners" />
+
+  
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6115932026814680" crossorigin="anonymous"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@100..900&display=swap" rel="stylesheet">
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Arknights: Endfield Banners | GachaTracker" />
+  <meta property="og:description" content="Browse all 14 banners for Arknights: Endfield on GachaTracker, including featured characters, date ranges, and durations." />
+  <meta property="og:url" content="https://gachatracker.app/games/endfield/banners" />
+  
+
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Games","item":"https://gachatracker.app/games"},{"@type":"ListItem","position":2,"name":"Arknights: Endfield","item":"https://gachatracker.app/games/endfield"},{"@type":"ListItem","position":3,"name":"Banners","item":"https://gachatracker.app/games/endfield/banners"}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"ItemList","name":"Arknights: Endfield Banners","url":"https://gachatracker.app/games/endfield/banners","numberOfItems":14,"itemListElement":[{"@type":"ListItem","position":1,"name":"Winter Hunt","url":"https://gachatracker.app/games/endfield/banners#winter-hunt"},{"@type":"ListItem","position":2,"name":"Winter Hunt","url":"https://gachatracker.app/games/endfield/banners#winter-hunt"},{"@type":"ListItem","position":3,"name":"Good Morning from Your Dawnstar","url":"https://gachatracker.app/games/endfield/banners#good-morning-from-your-dawnstar"},{"@type":"ListItem","position":4,"name":"North Yearns the Rift Vigile","url":"https://gachatracker.app/games/endfield/banners#north-yearns-the-rift-vigile"},{"@type":"ListItem","position":5,"name":"Expunger of Sin","url":"https://gachatracker.app/games/endfield/banners#expunger-of-sin"},{"@type":"ListItem","position":6,"name":"Fists of No Regrets","url":"https://gachatracker.app/games/endfield/banners#fists-of-no-regrets"},{"@type":"ListItem","position":7,"name":"Fest of Brilliance","url":"https://gachatracker.app/games/endfield/banners#fest-of-brilliance"},{"@type":"ListItem","position":8,"name":"Thunder of Renewal","url":"https://gachatracker.app/games/endfield/banners#thunder-of-renewal"},{"@type":"ListItem","position":9,"name":"Wolf Pearl","url":"https://gachatracker.app/games/endfield/banners#wolf-pearl"},{"@type":"ListItem","position":10,"name":"River's Daughter","url":"https://gachatracker.app/games/endfield/banners#rivers-daughter"},{"@type":"ListItem","position":11,"name":"Hues of Passion","url":"https://gachatracker.app/games/endfield/banners#hues-of-passion"},{"@type":"ListItem","position":12,"name":"The Floaty Messenger","url":"https://gachatracker.app/games/endfield/banners#the-floaty-messenger"},{"@type":"ListItem","position":13,"name":"Basic Headhunting","url":"https://gachatracker.app/games/endfield/banners#basic-headhunting"},{"@type":"ListItem","position":14,"name":"Scars of the Forge","url":"https://gachatracker.app/games/endfield/banners#scars-of-the-forge"}]}</script>
+
+  <style>
+    
+    :root { color-scheme: dark; }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      margin: 0;
+      background: radial-gradient(circle at 10% 5%, rgba(198, 151, 73, 0.24), transparent 45%), radial-gradient(circle at 92% 12%, rgba(45, 152, 240, 0.2), transparent 40%), linear-gradient(160deg, #0b0b0e 0%, #121420 55%, #0b0f1b 100%);
+      background-attachment: fixed;
+      color: #e9eefc;
+    }
+    a { color: rgb(198, 151, 73); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .container { max-width: 980px; margin: 0 auto; padding: 24px; }
+    /* Hidden rather than removed -- JSON-LD BreadcrumbList already covers search engines, and
+       an on-page trail read as redundant directly above each page's own hero title. */
+    .breadcrumbs { font-size: 13px; opacity: 0.85; margin-bottom: 16px; display: none; }
+    .muted { opacity: 0.85; }
+    .hero, .card {
+      border: 1px solid rgba(198, 151, 73, 0.4);
+      border-radius: 10px;
+      background: rgba(40, 42, 58, 0.8);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      box-sizing: border-box;
+    }
+    /* renderTopBarStyles() zeroes .container's padding-top (!important, so it can't
+       be overridden here) to avoid double-spacing under the landing-shell pages' plain,
+       unbordered .hero. Here .hero is the first thing in the container *and* a bordered bubble
+       (bubbleCardCss above), so with no compensation its top edge sits flush against the
+       topbar. margin-top isn't touched by that override, so it's the escape hatch. */
+    .hero { padding: 18px; margin-top: 24px; }
+    .card { padding: 18px; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 14px; }
+    .grid > * { min-width: 0; }
+    @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }
+    .ad-slot {
+      display: none; border-radius: 10px; padding: 18px; border: 1px dashed rgba(198, 151, 73, 0.3);
+      text-align: center; opacity: 0.85;
+    }
+    h1 { margin: 0; font-size: 32px; }
+    h2 { margin: 0 0 12px 0; font-size: 18px; }
+
+    /* Summary stats grid */
+    .stats-grid { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 4px; }
+    .stat-item { display: flex; flex-direction: column; gap: 2px; min-width: 120px; }
+    .stat-value { font-size: 20px; font-weight: 700; color: #e9eefc; }
+    .stat-label { font-size: 11px; opacity: 0.65; text-transform: uppercase; letter-spacing: 0.04em; }
+
+    /* Banner table */
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .banner-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .banner-table th {
+      text-align: left;
+      padding: 8px 10px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      opacity: 0.65;
+      border-bottom: 1px solid rgba(255,255,255,0.10);
+      white-space: nowrap;
+    }
+    .banner-table td {
+      padding: 10px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      vertical-align: middle;
+    }
+    .banner-table tr:last-child td { border-bottom: none; }
+    .banner-table tr:target { background: rgba(198,151,73,0.1); }
+    .banner-name-cell { min-width: 160px; font-weight: 500; }
+    .banner-subtitle { font-size: 11px; display: block; margin-top: 2px; }
+    .entity-icons-cell { min-width: 100px; }
+    .entity-icons { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+    .entity-icon-link { display: inline-flex; align-items: center; flex-shrink: 0; }
+    .entity-placeholder {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 40px; height: 40px; border-radius: 8px;
+      background: rgba(255,255,255,0.06); font-size: 12px; opacity: 0.85;
+    }
+    .show-more-btn:hover { text-decoration: none; opacity: 0.8; }
+    .hidden-entities { display: none; }
+    .hidden-entities.visible { display: contents; }
+    .date-cell { white-space: nowrap; font-size: 13px; opacity: 0.85; }
+    .duration-cell { white-space: nowrap; font-size: 13px; opacity: 0.85; }
+
+    
+    /* ── Shared top bar (ports frontend/src/styles/topBarStyles.scss) ──────── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      padding: 0 24px;
+      min-height: 62px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(11, 15, 26, 0.92);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      font-family: 'Roboto Condensed', Helvetica, sans-serif;
+    }
+    body { padding-top: 0; }
+    .container { padding-top: 0 !important; }
+
+    .topbar-brand { display: flex; align-items: center; gap: 9px; flex-shrink: 0; text-decoration: none; color: #fff; z-index: 1; }
+    .topbar-brand:hover { text-decoration: none; }
+    .topbar-logo { border-radius: 8px; display: block; }
+    .topbar-word { font-size: 19px; font-weight: 700; white-space: nowrap; }
+    .topbar-beta { font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.65); margin-left: 3px; }
+
+    .topbar-routes { display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; }
+    .topbar-routes-scroll { display: flex; align-items: center; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+    .topbar-routes--condensed, .topbar-routes--compact, .topbar-routes--mobile { display: none; }
+
+    .topbar-route {
+      appearance: none; background: transparent; border: 0;
+      font-family: 'Roboto Condensed', Helvetica, sans-serif;
+      font-size: 16.5px; color: rgba(255,255,255,0.65);
+      padding: 10px 14px; border-radius: 7px; cursor: pointer;
+      white-space: nowrap; position: relative; flex-shrink: 0;
+      text-decoration: none; display: inline-block;
+    }
+    .topbar-route:hover { color: rgba(45, 152, 240, 1); background: rgba(255,255,255,0.05); text-decoration: none; }
+    .topbar-route[data-active='true'] { color: rgb(198, 151, 73); font-weight: 700; }
+    /* Mobile-zone-only (RouteData.shortName) -- smaller font/padding buys back
+       the room the quick nav shortcuts need at phone widths. */
+    .topbar-route--short { font-size: 14px; padding: 9px 7px; }
+    .topbar-news-dot {
+      position: absolute; top: 6px; right: 4px;
+      width: 7px; height: 7px; border-radius: 50%;
+      background: rgba(255, 0, 0, 0.8);
+    }
+
+    .topbar-more { position: relative; flex-shrink: 0; }
+    .topbar-more-toggle {
+      appearance: none; background: transparent; border: 0;
+      font-family: 'Roboto Condensed', Helvetica, sans-serif;
+      font-size: 16.5px; color: rgba(255,255,255,0.65);
+      padding: 10px 12px; border-radius: 7px; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 4px;
+      list-style: none;
+    }
+    .topbar-more-toggle::-webkit-details-marker { display: none; }
+    .topbar-more-toggle:hover { color: rgba(45, 152, 240, 1); background: rgba(255,255,255,0.05); }
+    /* Mobile-zone-only -- icon instead of "More " + caret text. */
+    .topbar-more-toggle--hamburger { padding: 9px; justify-content: center; }
+    .topbar-caret { font-size: 11px; display: inline-block; transition: transform 0.15s ease; }
+    .topbar-more[open] .topbar-caret { transform: rotate(180deg); }
+    .topbar-more-menu {
+      display: none; position: absolute; top: calc(100% + 8px); left: 0;
+      min-width: 150px; max-width: calc(100vw - 24px);
+      background: rgba(11, 15, 26, 0.92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 9px; padding: 6px;
+      box-shadow: 0 12px 28px rgba(0,0,0,0.4); z-index: 10;
+    }
+    .topbar-more-menu .topbar-route { display: block; width: 100%; text-align: left; }
+    .topbar-more[open] .topbar-more-menu { display: block; }
+
+    /* Not flex-shrink: 0 -- a max-length username must be able to give up room
+       (down to .topbar-username's ellipsis below) rather than push the topbar
+       wider than the viewport on the narrowest phones. */
+    .topbar-auth { flex-shrink: 1; min-width: 0; z-index: 1; }
+    .topbar-login {
+      appearance: none; font-family: 'Roboto Condensed', Helvetica, sans-serif;
+      font-size: 15.5px; font-weight: 700; color: #0b0f1a; background: rgba(45, 152, 240, 1);
+      border: 0; border-radius: 7px; padding: 9px 18px; cursor: pointer;
+      text-decoration: none; display: inline-block;
+    }
+    .topbar-login:hover { text-decoration: none; }
+
+    .topbar-user { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .topbar-username {
+      appearance: none; background: transparent; border: 0;
+      font-family: 'Roboto Condensed', Helvetica, sans-serif;
+      font-size: 17px; font-weight: 700; color: rgba(45, 152, 240, 1);
+      cursor: pointer; padding: 0; text-decoration: none;
+      min-width: 0; overflow: hidden; white-space: nowrap;
+      /* ellipsis first as a fallback for browsers without custom-string support */
+      text-overflow: ellipsis;
+      text-overflow: '..';
+    }
+    .topbar-username:hover { text-decoration: underline; }
+
+    @media (max-width: 1230px) {
+      .topbar-routes--full { display: none; }
+      .topbar-routes--condensed { display: flex; }
+    }
+    @media (max-width: 1180px) {
+      .topbar-routes--condensed { display: none; }
+      .topbar-routes--compact { display: flex; }
+      .topbar-word { display: none; }
+      .topbar { gap: 14px; }
+    }
+    @media (max-width: 1000px) {
+      .topbar-routes--compact { display: none; }
+      .topbar-routes--mobile { display: flex; }
+      /* Not flex-shrink: 1 (the .topbar-routes default) -- letting the quick
+         nav strip compete with .topbar-auth for shrink space meant part of any
+         deficit landed on the strip (which can only "absorb" it via its own
+         inner scrollbar) instead of entirely on the username, which can afford
+         to give up width via its ellipsis. Pinning this forces every px of
+         deficit onto auth first, where it belongs. */
+      .topbar-routes--mobile { flex-shrink: 0; }
+      /* 120px, not just an emergency shrink -- wide enough to show a realistic
+         ~15-character username in full. The quick nav breakpoints below are
+         set to where this is first available without a deficit. */
+      .topbar-username { font-size: 15px; max-width: 120px; }
+    }
+    @media (max-width: 500px) {
+      .topbar-route--quicknav-database { display: none; }
+    }
+    @media (max-width: 460px) {
+      .topbar-route--quicknav-stats { display: none; }
+    }
+    @media (max-width: 410px) {
+      /* Income Tracker and Pull Tracker stay inline for the rest of the mobile
+         zone -- nothing folds away below this. */
+      .topbar-route--quicknav-tiers { display: none; }
+    }
+    /* ────────────────────────────────────────────────────────────────────── */
+  </style>
+</head>
+<body>
+  
+  <header class="topbar">
+    <a class="topbar-brand" href="/track">
+      <img class="topbar-logo" src="https://media.gachatracker.app/media/gachatracker-logo.webp" alt="GachaTracker logo" width="34" height="34" />
+      <span class="topbar-word">GachaTracker<sup class="topbar-beta">2.2.1</sup></span>
+    </a>
+
+    <nav class="topbar-routes topbar-routes--full" aria-label="Site navigation">
+      <div class="topbar-routes-scroll">
+        <a class="topbar-route" data-active="false" href="/track">Income Tracker</a>
+        <a class="topbar-route" data-active="false" href="/pull-tracker">Pull Tracker</a>
+        <a class="topbar-route" data-active="false" href="/tierlist">Tier Lists</a>
+        <a class="topbar-route" data-active="false" href="/stats">Global Stats</a>
+        <a class="topbar-route" data-active="true" href="/games">Database</a>
+        <a class="topbar-route" data-active="false" href="/news">News<span class="topbar-news-dot" data-news-dot aria-hidden="true" style="display:none"></span></a>
+        <a class="topbar-route" data-active="false" href="/about">About</a>
+        <a class="topbar-route" href="https://discord.gg/Gz9aAtr3" target="_blank" rel="noopener noreferrer">Discord</a>
+      </div>
+    </nav>
+
+    <nav class="topbar-routes topbar-routes--condensed" aria-label="Site navigation">
+      <div class="topbar-routes-scroll">
+        <a class="topbar-route" data-active="false" href="/track">Income Tracker</a>
+        <a class="topbar-route" data-active="false" href="/pull-tracker">Pull Tracker</a>
+        <a class="topbar-route" data-active="false" href="/tierlist">Tier Lists</a>
+        <a class="topbar-route" data-active="false" href="/stats">Global Stats</a>
+        <a class="topbar-route" data-active="true" href="/games">Database</a>
+      </div>
+      
+    <details class="topbar-more">
+      <summary class="topbar-more-toggle">More <span class="topbar-caret">&#9662;</span></summary>
+      <div class="topbar-more-menu">
+        <a class="topbar-route" data-active="false" href="/news">News<span class="topbar-news-dot" data-news-dot aria-hidden="true" style="display:none"></span></a>
+        <a class="topbar-route" data-active="false" href="/about">About</a>
+        
+      </div>
+    </details>
+      <a class="topbar-route" href="https://discord.gg/Gz9aAtr3" target="_blank" rel="noopener noreferrer">Discord</a>
+    </nav>
+
+    <nav class="topbar-routes topbar-routes--compact" aria-label="Site navigation">
+      <div class="topbar-routes-scroll">
+        <a class="topbar-route" data-active="false" href="/track">Income Tracker</a>
+        <a class="topbar-route" data-active="false" href="/pull-tracker">Pull Tracker</a>
+        <a class="topbar-route" data-active="false" href="/tierlist">Tier Lists</a>
+        <a class="topbar-route" data-active="false" href="/stats">Global Stats</a>
+        <a class="topbar-route" data-active="true" href="/games">Database</a>
+      </div>
+      
+    <details class="topbar-more">
+      <summary class="topbar-more-toggle">More <span class="topbar-caret">&#9662;</span></summary>
+      <div class="topbar-more-menu">
+        <a class="topbar-route" data-active="false" href="/news">News<span class="topbar-news-dot" data-news-dot aria-hidden="true" style="display:none"></span></a>
+        <a class="topbar-route" data-active="false" href="/about">About</a>
+        <a class="topbar-route" href="https://discord.gg/Gz9aAtr3" target="_blank" rel="noopener noreferrer">Discord</a>
+      </div>
+    </details>
+    </nav>
+
+    <nav class="topbar-routes topbar-routes--mobile" aria-label="Site navigation">
+      <div class="topbar-routes-scroll">
+        <a class="topbar-route topbar-route--short" data-active="false" href="/track">Track</a>
+        <a class="topbar-route topbar-route--short" data-active="false" href="/pull-tracker">Pulls</a>
+        <a class="topbar-route topbar-route--short topbar-route--quicknav-tiers" data-active="false" href="/tierlist">Tiers</a>
+        <a class="topbar-route topbar-route--short topbar-route--quicknav-stats" data-active="false" href="/stats">Stats</a>
+        <a class="topbar-route topbar-route--short topbar-route--quicknav-database" data-active="true" href="/games">Data</a>
+      </div>
+      
+    <details class="topbar-more">
+      <summary class="topbar-more-toggle topbar-more-toggle--hamburger" aria-label="More"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></summary>
+      <div class="topbar-more-menu">
+        <a class="topbar-route" data-active="false" href="/track">Income Tracker</a>
+        <a class="topbar-route" data-active="false" href="/pull-tracker">Pull Tracker</a>
+        <a class="topbar-route" data-active="false" href="/tierlist">Tier Lists</a>
+        <a class="topbar-route" data-active="false" href="/stats">Global Stats</a>
+        <a class="topbar-route" data-active="true" href="/games">Database</a>
+        <a class="topbar-route" data-active="false" href="/news">News<span class="topbar-news-dot" data-news-dot aria-hidden="true" style="display:none"></span></a>
+        <a class="topbar-route" data-active="false" href="/about">About</a>
+        <a class="topbar-route" href="https://discord.gg/Gz9aAtr3" target="_blank" rel="noopener noreferrer">Discord</a>
+      </div>
+    </details>
+    </nav>
+
+    <div class="topbar-auth">
+      <a class="topbar-login" href="/login">Login</a>
+    </div>
+  </header>
+  <script>
+    (function () {
+      // <details> already opens/closes natively with zero JS (see moreMenu() in
+      // renderTopBar.ts) -- this is pure enhancement: closing sibling menus when one
+      // opens, and closing on a click outside. Neither running is fine, just less polished.
+      var moreEls = document.querySelectorAll('.topbar-more');
+      moreEls.forEach(function (el) {
+        el.addEventListener('toggle', function () {
+          if (!el.open) return;
+          moreEls.forEach(function (other) {
+            if (other !== el && other.open) other.removeAttribute('open');
+          });
+        });
+      });
+      document.addEventListener('click', function (e) {
+        moreEls.forEach(function (el) {
+          if (el.open && !el.contains(e.target)) el.removeAttribute('open');
+        });
+      });
+    })();
+
+    // Swap the guest "Login" button for a username link, read from the stored JWT --
+    // build time has no visitor, so the markup above always starts as guest. Reads the
+    // token's payload only (no signature verification, same as the SPA's own optimistic
+    // display of gachaTracker.user.username) purely to decide what to show; every real API
+    // call still verifies the signature server-side, so a tampered token can't do more here
+    // than make this box show a wrong name. Kept out of the "More" toggle IIFE above since a
+    // JSON.parse/localStorage failure here (private browsing, a malformed or stale token)
+    // must never take the nav dropdowns down with it.
+    (function () {
+      function base64UrlDecode(str) {
+        str = str.replace(/-/g, '+').replace(/_/g, '/');
+        while (str.length % 4) str += '=';
+        return decodeURIComponent(
+          atob(str).split('').map(function (c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join('')
+        );
+      }
+      try {
+        var token = localStorage.getItem('usertoken');
+        if (!token) return;
+        var parts = token.split('.');
+        if (parts.length < 2) return;
+        var payload = JSON.parse(base64UrlDecode(parts[1]));
+        var username = payload && payload.username;
+        if (!username || typeof username !== 'string') return;
+        if (username.length > 20) username = username.slice(0, 20);
+
+        var authEl = document.querySelector('.topbar-auth');
+        if (!authEl) return;
+        var wrap = document.createElement('div');
+        wrap.className = 'topbar-user';
+        var link = document.createElement('a');
+        link.className = 'topbar-username';
+        link.href = '/profile';
+        link.textContent = username; // textContent, not innerHTML -- the decoded payload is unverified
+        wrap.appendChild(link);
+        authEl.innerHTML = '';
+        authEl.appendChild(wrap);
+      } catch (e) {
+        // Malformed token or localStorage unavailable -- leave the guest "Login" button as-is.
+      }
+    })();
+    
+    (function () {
+      fetch('/news/latest.json', { cache: 'no-store' })
+        .then(function (res) { return res.ok ? res.json() : null; })
+        .then(function (latest) {
+          if (!latest || typeof latest.id !== 'number') return;
+          var seen = Number(localStorage.getItem('news_last_seen_id') || 0);
+          if (latest.id <= seen) return;
+          document.querySelectorAll('[data-news-dot]').forEach(function (el) {
+            el.style.display = '';
+          });
+        })
+        .catch(function () { /* offline, or the file doesn't exist yet -- leave dots hidden */ });
+    })();
+  </script>
+  <div class="container">
+    <div class="breadcrumbs">
+      <a href="/">GachaTracker</a> / <a href="/games">Games</a> / <a href="/games/endfield">Arknights: Endfield</a> / Banners
+    </div>
+
+    <section class="hero">
+      <div style="font-size:13px; margin-bottom:8px;"><a href="/games/endfield">← Arknights: Endfield</a></div>
+      <h1>Arknights: Endfield Banners</h1>
+      <p class="muted" style="margin: 8px 0 0 0; line-height: 1.6;">Browse all 14 banners for Arknights: Endfield, from the latest rate-up to the game&#039;s launch banners. Each banner lists its featured characters and weapons, duration, and date range.</p>
+    </section>
+
+    <div class="grid">
+      <section class="ad-slot" style="grid-column: 1 / -1;"><div aria-label="Advertisement">
+      <div style="display:none" class="ad-unit-wrap">
+        <ins class="adsbygoogle" style="display:block"
+             data-ad-client="ca-pub-6115932026814680"
+             data-ad-slot="1667309304"
+             data-ad-format="auto"
+             data-full-width-responsive="true"></ins>
+        <script>
+          (adsbygoogle = window.adsbygoogle || []).push({});
+          (function() {
+            var wrap = document.currentScript.parentElement;
+            var ins = wrap && wrap.querySelector('ins');
+            if (!ins) return;
+            var observer = new MutationObserver(function() {
+              var status = ins.getAttribute('data-ad-status');
+              if (status === 'filled') {
+                wrap.style.display = '';
+                var slot = wrap.closest('.ad-slot');
+                if (slot) slot.style.display = '';
+                observer.disconnect();
+              } else if (status === 'unfilled') {
+                observer.disconnect();
+              }
+            });
+            observer.observe(ins, { attributes: true, attributeFilter: ['data-ad-status'] });
+          })();
+        </script>
+      </div></div></section>
+
+      <section class="card" style="grid-column: 1 / -1;">
+    <h2>Summary</h2>
+    <div class="stats-grid">
+      <div class="stat-item">
+        <span class="stat-value">14</span>
+        <span class="stat-label">Total Banners</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value">22</span>
+        <span class="stat-label">Avg. Duration (days)</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value">Gilberta</span>
+        <span class="stat-label">Most Featured (5×)</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value">Winter Hunt</span>
+        <span class="stat-label">Most Recent (2026-09-02)</span>
+      </div>
+    </div>
+  </section>
+
+      <section class="card" style="grid-column: 1 / -1;">
+    <h2>All Banners</h2>
+    <div class="table-scroll">
+      <table class="banner-table">
+        <thead>
+          <tr>
+            <th>Banner Name</th>
+            <th>Featured</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th>Duration</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr id="winter-hunt">
+          <td class="banner-name-cell"><a href="#winter-hunt">Winter Hunt</a><br/><span class="banner-subtitle muted">Winter Hunt</span></td>
+          <td class="entity-icons-cell"><div class="entity-icons"><a href="/games/endfield/characters/typhoeus" title="Typhoeus" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Typhoeus.webp" alt="Typhoeus" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/liino" title="Liino" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Liino.webp" alt="Liino" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/arcane" title="Arcane" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Arcane.webp" alt="Arcane" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><div class="hidden-entities" data-banner-slug="winter-hunt" style="display:none;"></div></div></td>
+          <td class="date-cell">2026-09-02</td>
+          <td class="date-cell">2026-09-29</td>
+          <td class="duration-cell">27d</td>
+        </tr>
+<tr id="winter-hunt">
+          <td class="banner-name-cell"><a href="#winter-hunt">Winter Hunt</a><br/><span class="banner-subtitle muted">Winter Hunt</span></td>
+          <td class="entity-icons-cell"><div class="entity-icons"><a href="/games/endfield/characters/typhoeus" title="Typhoeus" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Typhoeus.webp" alt="Typhoeus" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/liino" title="Liino" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Liino.webp" alt="Liino" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/arcane" title="Arcane" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Arcane.webp" alt="Arcane" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><div class="hidden-entities" data-banner-slug="winter-hunt" style="display:none;"></div></div></td>
+          <td class="date-cell">2026-09-01</td>
+          <td class="date-cell">2026-09-30</td>
+          <td class="duration-cell">29d</td>
+        </tr>
+<tr id="good-morning-from-your-dawnstar">
+          <td class="banner-name-cell"><a href="#good-morning-from-your-dawnstar">Good Morning from Your Dawnstar</a><br/><span class="banner-subtitle muted">Good Morning from Your Dawnstar</span></td>
+          <td class="entity-icons-cell"><div class="entity-icons"><a href="/games/endfield/characters/liino" title="Liino" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Liino.webp" alt="Liino" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/arcane" title="Arcane" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Arcane.webp" alt="Arcane" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/camille" title="Camille" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Camille.webp" alt="Camille" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><div class="hidden-entities" data-banner-slug="good-morning-from-your-dawnstar" style="display:none;"></div></div></td>
+          <td class="date-cell">2026-08-09</td>
+          <td class="date-cell">2026-09-01</td>
+          <td class="duration-cell">23d</td>
+        </tr>
+<tr id="north-yearns-the-rift-vigile">
+          <td class="banner-name-cell"><a href="#north-yearns-the-rift-vigile">North Yearns the Rift Vigile</a><br/><span class="banner-subtitle muted">North Yearns the Rift Vigile</span></td>
+          <td class="entity-icons-cell"><div class="entity-icons"><a href="/games/endfield/characters/arcane" title="Arcane" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Arcane.webp" alt="Arcane" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/camille" title="Camille" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Camille.webp" alt="Camille" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/mi-fu" title="Mi Fu" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Mi_Fu.webp" alt="Mi Fu" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><div class="hidden-entities" data-banner-slug="north-yearns-the-rift-vigile" style="display:none;"></div></div></td>
+          <td class="date-cell">2026-07-15</td>
+          <td class="date-cell">2026-08-09</td>
+          <td class="duration-cell">25d</td>
+        </tr>
+<tr id="expunger-of-sin">
+          <td class="banner-name-cell"><a href="#expunger-of-sin">Expunger of Sin</a><br/><span class="banner-subtitle muted">Expunger of Sin</span></td>
+          <td class="entity-icons-cell"><div class="entity-icons"><a href="/games/endfield/characters/camille" title="Camille" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Camille.webp" alt="Camille" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/mi-fu" title="Mi Fu" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Mi_Fu.webp" alt="Mi Fu" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/zhuang-fangyi" title="Zhuang Fangyi" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Zhuang_Fangyi.webp" alt="Zhuang Fangyi" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><div class="hidden-entities" data-banner-slug="expunger-of-sin" style="display:none;"></div></div></td>
+          <td class="date-cell">2026-06-26</td>
+          <td class="date-cell">2026-07-15</td>
+          <td class="duration-cell">19d</td>
+        </tr>
+<tr id="fists-of-no-regrets">
+          <td class="banner-name-cell"><a href="#fists-of-no-regrets">Fists of No Regrets</a><br/><span class="banner-subtitle muted">Fists of No Regrets</span></td>
+          <td class="entity-icons-cell"><div class="entity-icons"><a href="/games/endfield/characters/mi-fu" title="Mi Fu" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Mi_Fu.webp" alt="Mi Fu" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/zhuang-fangyi" title="Zhuang Fangyi" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Zhuang_Fangyi.webp" alt="Zhuang Fangyi" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/rossi" title="Rossi" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Rossi.webp" alt="Rossi" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><div class="hidden-entities" data-banner-slug="fists-of-no-regrets" style="display:none;"></div></div></td>
+          <td class="date-cell">2026-06-04</td>
+          <td class="date-cell">2026-06-26</td>
+          <td class="duration-cell">22d</td>
+        </tr>
+<tr id="fest-of-brilliance">
+          <td class="banner-name-cell"><a href="#fest-of-brilliance">Fest of Brilliance</a><br/><span class="banner-subtitle muted">Fest of Brilliance</span></td>
+          <td class="entity-icons-cell"><div class="entity-icons"><a href="/games/endfield/characters/pogranichnik" title="Pogranichnik" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Pogranichnik.webp" alt="Pogranichnik" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/gilberta" title="Gilberta" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Gilberta.webp" alt="Gilberta" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/laevatain" title="Laevatain" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Laevatain.webp" alt="Laevatain" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/ardelia" title="Ardelia" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Ardelia.webp" alt="Ardelia" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><div class="hidden-entities" data-banner-slug="fest-of-brilliance" style="display:none;"></div></div></td>
+          <td class="date-cell">2026-05-14</td>
+          <td class="date-cell">2026-06-04</td>
+          <td class="duration-cell">21d</td>
+        </tr>
+<tr id="thunder-of-renewal">
+          <td class="banner-name-cell"><a href="#thunder-of-renewal">Thunder of Renewal</a><br/><span class="banner-subtitle muted">Thunder of Renewal</span></td>
+          <td class="entity-icons-cell"><div class="entity-icons"><a href="/games/endfield/characters/zhuang-fangyi" title="Zhuang Fangyi" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Zhuang_Fangyi.webp" alt="Zhuang Fangyi" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/rossi" title="Rossi" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Rossi.webp" alt="Rossi" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/tangtang" title="Tangtang" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Tangtang.webp" alt="Tangtang" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><div class="hidden-entities" data-banner-slug="thunder-of-renewal" style="display:none;"></div></div></td>
+          <td class="date-cell">2026-04-16</td>
+          <td class="date-cell">2026-05-22</td>
+          <td class="duration-cell">36d</td>
+        </tr>
+<tr id="wolf-pearl">
+          <td class="banner-name-cell"><a href="#wolf-pearl">Wolf Pearl</a><br/><span class="banner-subtitle muted">Wolf Pearl</span></td>
+          <td class="entity-icons-cell"><div class="entity-icons"><a href="/games/endfield/characters/rossi" title="Rossi" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Rossi.webp" alt="Rossi" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/tangtang" title="Tangtang" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Tangtang.webp" alt="Tangtang" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/yvonne" title="Yvonne" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Yvonne.webp" alt="Yvonne" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><div class="hidden-entities" data-banner-slug="wolf-pearl" style="display:none;"></div></div></td>
+          <td class="date-cell">2026-03-29</td>
+          <td class="date-cell">2026-04-16</td>
+          <td class="duration-cell">18d</td>
+        </tr>
+<tr id="rivers-daughter">
+          <td class="banner-name-cell"><a href="#rivers-daughter">River&#039;s Daughter</a><br/><span class="banner-subtitle muted">River&#039;s Daughter</span></td>
+          <td class="entity-icons-cell"><div class="entity-icons"><a href="/games/endfield/characters/tangtang" title="Tangtang" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Tangtang.webp" alt="Tangtang" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/gilberta" title="Gilberta" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Gilberta.webp" alt="Gilberta" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/yvonne" title="Yvonne" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Yvonne.webp" alt="Yvonne" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><div class="hidden-entities" data-banner-slug="rivers-daughter" style="display:none;"></div></div></td>
+          <td class="date-cell">2026-03-11</td>
+          <td class="date-cell">2026-03-29</td>
+          <td class="duration-cell">18d</td>
+        </tr>
+<tr id="hues-of-passion">
+          <td class="banner-name-cell"><a href="#hues-of-passion">Hues of Passion</a><br/><span class="banner-subtitle muted">Hues of Passion</span></td>
+          <td class="entity-icons-cell"><div class="entity-icons"><a href="/games/endfield/characters/yvonne" title="Yvonne" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Yvonne.webp" alt="Yvonne" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/laevatain" title="Laevatain" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Laevatain.webp" alt="Laevatain" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/gilberta" title="Gilberta" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Gilberta.webp" alt="Gilberta" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><div class="hidden-entities" data-banner-slug="hues-of-passion" style="display:none;"></div></div></td>
+          <td class="date-cell">2026-02-24</td>
+          <td class="date-cell">2026-03-11</td>
+          <td class="duration-cell">15d</td>
+        </tr>
+<tr id="the-floaty-messenger">
+          <td class="banner-name-cell"><a href="#the-floaty-messenger">The Floaty Messenger</a><br/><span class="banner-subtitle muted">The Floaty Messenger</span></td>
+          <td class="entity-icons-cell"><div class="entity-icons"><a href="/games/endfield/characters/gilberta" title="Gilberta" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Gilberta.webp" alt="Gilberta" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/yvonne" title="Yvonne" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Yvonne.webp" alt="Yvonne" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/laevatain" title="Laevatain" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Laevatain.webp" alt="Laevatain" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><div class="hidden-entities" data-banner-slug="the-floaty-messenger" style="display:none;"></div></div></td>
+          <td class="date-cell">2026-02-07</td>
+          <td class="date-cell">2026-02-24</td>
+          <td class="duration-cell">17d</td>
+        </tr>
+<tr id="basic-headhunting">
+          <td class="banner-name-cell"><a href="#basic-headhunting">Basic Headhunting</a><br/><span class="banner-subtitle muted">Basic Headhunting</span></td>
+          <td class="entity-icons-cell"><div class="entity-icons"><a href="/games/endfield/characters/ardelia" title="Ardelia" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Ardelia.webp" alt="Ardelia" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/pogranichnik" title="Pogranichnik" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Pogranichnik.webp" alt="Pogranichnik" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/last-rite" title="Last Rite" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Last_Rite.webp" alt="Last Rite" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/ember" title="Ember" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Ember.webp" alt="Ember" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/lifeng" title="Lifeng" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Lifeng.webp" alt="Lifeng" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><div class="hidden-entities" data-banner-slug="basic-headhunting" style="display:none;"></div></div></td>
+          <td class="date-cell">2026-01-22</td>
+          <td class="date-cell"><span class="muted">—</span></td>
+          <td class="duration-cell"><span class="muted">—</span></td>
+        </tr>
+<tr id="scars-of-the-forge">
+          <td class="banner-name-cell"><a href="#scars-of-the-forge">Scars of the Forge</a><br/><span class="banner-subtitle muted">Scars of the Forge</span></td>
+          <td class="entity-icons-cell"><div class="entity-icons"><a href="/games/endfield/characters/laevatain" title="Laevatain" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Laevatain.webp" alt="Laevatain" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/gilberta" title="Gilberta" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Gilberta.webp" alt="Gilberta" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><a href="/games/endfield/characters/yvonne" title="Yvonne" class="entity-icon-link"><img src="https://media.gachatracker.app/media/games/endfield/characters/Yvonne.webp" alt="Yvonne" width="40" height="40" loading="lazy" style="width:40px;height:40px;object-fit:cover;border-radius:8px;background:rgba(255,255,255,0.06);" /></a><div class="hidden-entities" data-banner-slug="scars-of-the-forge" style="display:none;"></div></div></td>
+          <td class="date-cell">2026-01-21</td>
+          <td class="date-cell">2026-02-07</td>
+          <td class="duration-cell">17d</td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+    </div>
+
+    <footer class="muted" style="margin-top: 22px; font-size: 13px;">
+      <div>Built by GachaTracker. <a href="/">Back to app</a> · <a href="/about">About</a> · <a href="/privacy">Privacy</a></div>
+      <div style="margin-top:6px; font-size:12px; opacity:0.75;">Generated: 10/1/2026, 12:24:23 AM</div>
+    </footer>
+  </div>
+
+  <script>
+    document.querySelectorAll('.show-more-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const bannerSlug = btn.getAttribute('data-banner-slug');
+        const hiddenDiv = document.querySelector(`.hidden-entities[data-banner-slug="${bannerSlug}"]`);
+        if (hiddenDiv) {
+          const isVisible = hiddenDiv.classList.contains('visible');
+          hiddenDiv.classList.toggle('visible');
+          btn.setAttribute('aria-expanded', String(!isVisible));
+          btn.textContent = isVisible ? `and ${hiddenDiv.querySelectorAll('a').length} more` : 'show less';
+        }
+      });
+    });
+  </script>
+<!-- Cloudflare Pages Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "c7a04969f63e40df949a0c3b7e8a4a52"}'></script><!-- Cloudflare Pages Analytics --><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a568a527695d7851',t:'MTc5NDAxNTc4Ng=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a568a527695d7851',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

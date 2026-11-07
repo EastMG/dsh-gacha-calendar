@@ -1,0 +1,6 @@
+{
+ "url": "https://endfield.wiki.gg/api.php?action=parse&page=Headhunting%2FBanners&prop=text&format=json&formatversion=2",
+ "status": 200,
+ "capturedAt": "2026-11-07T02:15:00.000Z",
+ "note": "真抓（2026-11-07，本机直连；UA=dsh-gacha-calendar，抓取器就是这么覆盖 UA 的）。"
+}

@@ -1,0 +1,6 @@
+{
+ "url": "https://prts.wiki/api.php?action=parse&page=%E5%8D%A1%E6%B1%A0%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
+ "status": 200,
+ "capturedAt": "2026-11-07T02:15:00.000Z",
+ "note": "真抓（2026-11-07，本机直连 prts.wiki；mediawiki api.php action=parse，抓取器再追加 origin=*）。原样保存，未裁剪。"
+}

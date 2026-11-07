@@ -513,17 +513,35 @@ canmoe 页面 + 它第一轮真的并发抓的 6 份 chunk、FZ Wiki 活动 REST
 `dataArrayGachaOf` / `dataArrayEventsOf` / `dataArrayHoverPoolsOf` 全部不存在了（`git grep` 只剩注释提及）。
 老 `lastData` / 未切备选源的退化 = **空数组 ⇒ 该侧「无数据」，不抛错**。
 
+**P3d（2026-11-07）：备选来源已全部直出**。P3c 删掉合成器后，`altSources` / `eventAltSources`
+（设置页**手动切源**时才走）里还有一批只产字符串 ⇒ 数组恒 null ⇒ 切过去那一侧显示「该来源无数据」。
+本轮按同一个三段式（条目事实 → `hoverTextFromItems` → `dataArrayProduced*Of`）补齐 11 条备选路径
+（8 组）：`arknights-prts`（PRTS 卡池一览）/ `arknights-event-list`（PRTS 活动一览）/
+`wuwa-bwiki` / `wuwa-event-bwiki` / `zzz-bwiki` / `ba-global-nexon`（卡池+活动）/
+`endfield-gachatracker` / `endfield-wiki-gg` / `endfield-game8` / `r1999-official`（卡池+活动）。
+夹具 13 份（`test/fixtures/p3d-*`，**不进 `map.json`**，用例里用 `urlsOf` 就地映射），12 份真抓、
+`p3d-wuwa-pool-bwiki` 手工构造（线上版式把角色列在计时器之前，宏内有说明）。golden =
+`test/fixtures/p3d-golden.json`，由 `--capture-p3d` 在**切换前**采集（`git stash` 掉 src 再 build）。
+`ba-global` 的**活动**侧在 P3c 就已经直出、且它的悬停文本/数组次序**随运行环境时区变**（`parseBaLogRows`
+造本机墙钟、悬停却按 `tz` 渲染 ⇒ 非 UTC 机器整段偏 8 小时）—— 这是 P3d 之前就有的缺陷，本轮只断言
+"数组非空 / 同源 / 切源后能渲染"，**不钉 golden**（钉了只会让 UTC 门禁红在与本批无关的地方）。
+
 **回归规模**：`test/cases-p3.mjs` 54 条路径 × ① golden（12 字符串 + 数组非时间字段）/ ② 与合成结果
 逐条相等（含 ts）/ ③ 同源（悬停 == `hoverTextFromItems(条目事实)`）三层断言；
 `P3B_SWITCHED_EXPECT = 48` 让"切了没登记 / 登记了没切"都会红（现在没有未切路径）。
+**P3d 追加**：11 条备选路径 ×（golden / 与合成结果逐条相等 / 同源 / 数组非空）+ **端到端手动切源**
+（设置存储 `customUrls` / `customEventUrls` 写备选源标识 → `engine.refresh()` → `scheduleCellOf` 非 null，
+即面板不再是「该来源无数据」）+ 注册表一致（用的就是设置页会选中的那个 fetcher）。
 
-**P3 待办清单（P3c 后仍然没做的）**：只剩下面这些（都与"直出数组"无关，属独立一批）：
+**P3 待办清单（P3d 后仍然没做的）**：只剩下面这些：
 1. **时间戳换绝对时刻（P4）**：见「已知不等价①」。
 2. **`cat` / `tags` / 逐池角色表**：P3 只搬结构、不扩事实。
-3. **未切直出的备选源**：`selectArknights`（PRTS 卡池一览）、`parseWuwaCalendar`（鸣沙活动日历）、
-   `pickCurrent(parseAllBwiki)`（绝区零 bwiki）、Nexon 官方公告、`parseGachaTracker` / `fetchEndfieldWikiGg` /
-   Game8、`fetchR99Official` —— 手动切到它们时该侧显示「无数据」（P3 边界；要补就按同一个三段式改，
-   各自需要真夹具）。
+3. **通用解析（自定义条目 / 用户自定义地址）仍靠"字符串→数组"的旧口径**：`tryParseGenericGacha`
+   的 `selectCurrent` / `collectGenericGacha` 分支与 `genericEventPayloadFromHtml`（自定义条目两侧同址时
+   复用卡池那次 HTML 的那条）都**不直出** ⇒ 自定义条目/自定义地址那一侧 P3c 之后同样是「无数据」。
+   要补就按同一个三段式改（`parseGachaTracker` / `parseCanmoe` 两条分支因为 P3d 顺带切了，已经直出）。
+4. **剩下的手切备选仍未直出**：`bandori-bestdori-gacha`（Bestdori 扭蛋）、`uma-jp-umapyoi`
+   （赛马娘日服卡池备选）—— 真机取得到数据但数组为 null。
 
 **反向证明（P3c 实测，红字见提交说明/会话记录；每条改回后都复跑全绿）**：
 ① **改坏直出**：把 endfield 卡池直出的并列条去掉（`poolItems.slice(0,1)`）⇒ `test/cases-p3.mjs`
@@ -535,6 +553,13 @@ canmoe 页面 + 它第一轮真的并发抓的 6 份 chunk、FZ Wiki 活动 REST
 golden + 等价（两侧都红）；
 ④ **把兼容层偷偷加回来**（`scheduleCellOf` 又返回 `fromArray`）⇒ `test/cases-core.mjs` ⑤-4
 「有数组 ⇒ 正常派生出主条」与 ⑤-5「等价性前置…没有偷偷长回 `fromArray` 兼容字段」同时红（28 个侧列出）。
+
+**反向证明（P3d 实测，红字见提交说明/会话记录；两条改回后都复跑全绿）**：
+① **去掉一条备选源的直出**（`parseEndfieldCurrent` 不再写 `out.gacha`）⇒ `endfieldWikigg` 的
+`P3d golden…非时间字段不变` / `数组非空` / `P3d 等价…逐条相等` **以及端到端两条**
+（`切源后数组非空（0 条）`、`面板那一格能渲染（scheduleCellOf = null）`）同时红 —— 这正是"手动切过去显示无数据"的机器版。
+② **把悬停改成不再由条目生成**（`selectArknights` 的 `bannerHover` 直接给 `""`）⇒ `arknightsPrtsGacha`
+的 golden（`bannerHover`）/ 等价（数组少了并列条）/ 同源（悬停 != 生成结果）三条同时红。
 
 #### 已知不等价（如实记，留给 P4）
 

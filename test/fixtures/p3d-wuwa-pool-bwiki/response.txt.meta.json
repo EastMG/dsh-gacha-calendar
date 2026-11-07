@@ -1,0 +1,6 @@
+{
+ "url": "https://wiki.biligame.com/wutheringwaves/api.php?action=parse&page=%E9%A6%96%E9%A1%B5%2F%E8%A7%92%E8%89%B2%E8%BD%AE%E6%8D%A2%E6%B1%A0&prop=text&format=json&formatversion=2",
+ "status": 200,
+ "capturedAt": "2026-11-07T02:15:00.000Z",
+ "note": "**手工构造**（不是真抓的整页）。依据：① 2026-11-07 真抓了同一 URL 的整页（见提交说明/报告），计时器 data-start=\"2026/10/22 10:00\" data-end=\"2026/11/11 11:59\" 与四个共鸣者链接（锁暝/灯灯/丹瑾/炽霞）都是**线上原文**；② 但线上版式把角色列表放在计时器**之前**，而 parseWuwaPool 只读「计时器之后」那一段 ⇒ 拿真页会解析成 null（本轮**不改**解析语义，已作为发现上报）；③ 本夹具按本源**契约形状**（计时器在前、共鸣者链接在后）排列同一份线上原文，供\"切源后有数组\"断言使用。 响应体外层按 MediaWiki api.php 的 JSON 形状（{\"parse\":{\"text\":\"<html>\"}}）包装 —— 抓取器是 mkMediaWiki，读的是 parse.text。"
+}

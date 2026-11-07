@@ -74,17 +74,31 @@
 				.sort((a, b) => (rank(a) - rank(b)) || (a.endTs - b.endTs) || (a.startTs - b.startTs));
 			if (active.length === 0) return null;
 			const win = active[0];
-			return {
+			// ── P3d（2026-11-07）：条目事实 → 悬停 + `gacha` 数组 ────────────────────
+			// 这是**卡池备选源**「PRTS 卡池一览」（`GACHA_FETCHERS["arknights-prts"]`）的唯一解析器。
+			// P3c 删掉数据层合成器之后，没切直出的备选源会**只产字符串** ⇒ 数组恒 null ⇒
+			// 用户手动切到本源时该侧显示「无数据」。改造前这里直接 `buildPoolHover(...)` 拼串、
+			// 条目只活在那一句里；现在条目是事实：悬停由 `hoverTextFromItems` 反生成
+			// （排版与 `buildPoolHover` 逐字一致），数组由 `dataArrayProducedGachaOf` 收口。
+			// ⚠️ 过滤 / 去重 / 排序仍走 `buildPoolHover` 内部那一份（`name` 非空 + `poolHoverKept`），
+			//    否则"悬停里那几行"与"数组里的并列条目"会从两份不同的列表出发。
+			const pools = active.map((it) => ({
+				name: it.banner,
+				label: `${it.banner}${it.roles ? `\uFF1A${it.roles}` : ""}`,
+				startTs: it.startTs, endTs: it.endTs, raw: it.rawOriginal || it.raw
+			})).filter((p) => p && typeof p.name === "string" && p.name.trim() !== "");
+			const hoverItems = poolHoverKept(pools)
+				.map((p) => ({ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw }));
+			const out = {
 				banner: win.banner,
 				roles: win.roles,
 				bannerDates: win.raw,
 				bannerDatesRaw: win.rawOriginal || win.raw,
-				bannerHover: buildPoolHover(active.map((it) => ({
-					name: it.banner,
-					label: `${it.banner}${it.roles ? `\uFF1A${it.roles}` : ""}`,
-					startTs: it.startTs, endTs: it.endTs, raw: it.rawOriginal || it.raw
-				})), tz)
+				bannerHover: hoverTextFromItems(hoverItems, "gacha", tz)
 			};
+			out.gacha = dataArrayProducedGachaOf(out, hoverItems, { tz }, now);
+			out.gachaHoverItems = hoverItems;
+			return out;
 		}
 
 
@@ -253,7 +267,7 @@
 		// 线上真实标记（2026-09 实测）：Asia 行是 "Sep 02, 2026, 12:00 &#8211; Sep 30, 2026, 11:59 (UTC+8)"，
 		// 同一格里还有 AM/EU 行（UTC−5）；旧实现用 parseTime + split(/[–-]/) 解不了英文月份与实体，恒返回 null
 		// → 该备选源长期"抓得到但解析不出"。现在：解实体 + 只取 Asia 行 + 英文月份解析。
-		function parseEndfieldCurrent(html) {
+		function parseEndfieldCurrent(html, tz) {
 			const i = html.indexOf('id="Current"');
 			// 页面拿到了却没有 Current 分节 → wiki 页改版（抛错，别伪装成"未公布"）
 			if (i < 0) throw new Error("endfield-current-no-section");
@@ -278,11 +292,16 @@
 			if (!banner) throw new Error("endfield-current-no-banner");
 			if (startTs == null || endTs == null) throw new Error("endfield-current-no-dates");
 			if (!(startTs <= nowMs() && endTs >= nowMs())) return null;
-			return {
+			// ── P3d（2026-11-07）：手动切到「wiki.gg（英文）」时该侧也要有数组 ──────────
+			// 同上两条备选源：本源没有悬停（只取 Current 那一口池）⇒ 并列条目 0，数组 = 主条一条。
+			const out = {
 				banner,
 				roles: [...new Set(upM.map((m) => m[1]))].join("、"),
 				bannerDates: startText && endText ? `${startText} ~ ${endText}` : ""
 			};
+			// `tz` = 源站墙钟时区（由抓取器透传）；数组条目的 `tz` 与改造前合成路径同源。
+			out.gacha = dataArrayProducedGachaOf(out, [], { tz }, nowMs());
+			return out;
 		}
 
 
@@ -330,11 +349,16 @@
 				const m = String(s).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
 				return m ? `${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}` : String(s);
 			};
-			return {
+			// ── P3d（2026-11-07）：手动切到「GachaTracker（英文）」时该侧也要有数组 ──────
+			// 本源**没有悬停**（改造前就没写 `bannerHover`：只取一口当期池，UI 走默认两行式）⇒
+			// 并列条目为 0（`entries` 传空数组）。没这一句的话，切到本源时数组恒 null ⇒「无数据」。
+			const out = {
 				banner: cur.banner,
 				roles: cur.roles,
 				bannerDates: `${fmtDate(cur.startText)} 00:00 ~ ${fmtDate(cur.endText)} 23:59`
 			};
+			out.gacha = dataArrayProducedGachaOf(out, [], { tz }, now);
+			return out;
 		}
 
 
@@ -1046,12 +1070,12 @@
 			if (!cur) return null;
 			// 文本 = 源站墙钟原文（按源站 tz 渲染）；日期来自源站 MM/DD/YY ⇒ 跨机器逐字相同。
 			const dates = fmtWindow(cur.startTs, cur.endTs, tz);
-			return {
-				banner: cur.banner,
-				roles: "",
-				bannerDates: dates,
-				bannerDatesRaw: dates
-			};
+			// ── P3d（2026-11-07）：手动切到「Game8（英文）」时活动列也要有数组 ──────────
+			// 本源没有悬停（改造前是 `{banner, bannerDates}` 由注册处映射成 `event`）⇒ 并列条目 0。
+			// 顺带把载荷收成**最终形状**（`event` / `eventDates`…），注册处不再做 banner → event 的映射。
+			const out = { event: cur.banner, eventDates: dates, eventDatesRaw: dates };
+			out.events = dataArrayProducedEventsOf(out, [], { tz }, now);
+			return out;
 		}
 
 
@@ -1077,12 +1101,10 @@
 			const cur = items.filter((it) => coversNow(it, now)).sort((x, y) => y.endTs - x.endTs)[0];
 			if (!cur) return null;
 			const dates = fmtWindow(cur.startTs, cur.endTs, tz);
-			return {
-				banner: cur.banner,
-				roles: "",
-				bannerDates: dates,
-				bannerDatesRaw: dates
-			};
+			// 同 parseGame8Events（P3d）：最终载荷 + 一条数组主条（本源没有悬停 ⇒ 无并列条目）
+			const out = { event: cur.banner, eventDates: dates, eventDatesRaw: dates };
+			out.events = dataArrayProducedEventsOf(out, [], { tz }, now);
+			return out;
 		}
 
 
@@ -1325,11 +1347,11 @@
 		// 注意：这个地址是 MediaWiki 的 **api.php**，返回的是 JSON（`{"parse":{"text":"<html>"}}`）——
 		// 必须取 parse.text 再解析。旧实现直接把原始 JSON 串喂给解析器，于是 id="Current" 在 JSON 里是
 		// 转义形式（id=\"Current\"）永远匹配不到 → 该备选源长期"抓得到但解析不出"（这才是真根因）。
-		async function fetchEndfieldWikiGg(proxyUrl) {
+		async function fetchEndfieldWikiGg(proxyUrl, _signal, tz) {
 			const json = await proxyFetchJson(proxyUrl, "https://endfield.wiki.gg/", { "User-Agent": ENDFIELD_WG_UA });
 			const html = json?.parse?.text;
 			if (typeof html !== "string") throw new Error("bad-json");
-			return parseEndfieldCurrent(html);
+			return parseEndfieldCurrent(html, tz);
 		}
 
 		const ARKNIGHTS_OFFICIAL_LIST_URL = AK_OFFICIAL_BULLETIN + "?lang=zh-cn&code=arknights&page=1&pageSize=30";
@@ -1428,7 +1450,7 @@ EVENT_FETCHERS["arknights"] = {
 					//    所以这里不再做 `banner → event` 的映射（那层映射就是"两套字符串"的接缝）。
 EVENT_FETCHERS["endfield"] = {
 				default: (url, signal, tz) => fetchFzWikiEndfield(url, signal, tz),
-				"endfield-game8": (url, signal, tz) => fetchGame8Endfield(url, signal, tz).then((d) =>
-					d ? { event: d.banner, eventDates: d.bannerDates || "", eventDatesRaw: d.bannerDatesRaw || d.bannerDates || "" } : null
-				)
+				// ⚠️ P3d（2026-11-07）：Game8 现在直接给**最终载荷**（`event` / `eventDates` / `events` 数组），
+				//    这里不再做 `banner → event` 的映射。
+				"endfield-game8": (url, signal, tz) => fetchGame8Endfield(url, signal, tz)
 			};

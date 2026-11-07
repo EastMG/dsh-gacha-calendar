@@ -1,0 +1,6 @@
+{
+ "url": "https://prts.wiki/api.php?action=query&prop=revisions&rvslots=main&rvprop=content&format=json&formatversion=2&origin=*&titles=<上面那条一览的 9 个相关页>",
+ "status": 200,
+ "capturedAt": "2026-11-07T02:15:00.000Z",
+ "note": "真抓（2026-11-07）：titles 由 parse 一览后 prtsClaimTitles 决定（9 页），响应是 query.pages[] + revisions[0].slots.main.content。"
+}
