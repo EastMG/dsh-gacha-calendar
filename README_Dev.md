@@ -453,7 +453,8 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 | 批次 | 游戏（侧） | 生产者 | 数组条数（夹具） | 状态 |
 |---|---|---|---|---|
 | P3b-1 | 星铁 `hsr`（卡池 / 活动）、绝区零 `zzz`（卡池 / 活动）、崩坏3 `bh3`（活动；米游社备选）、米游社卡池（4 个 gids 共用） | `bwikiGachaPayload`（hsr 叠 `dedupeRoleNames`）、`genericEventPayload`（生成器补 `permanentCount`）、`fetchZzzGacha` / `parseZzzEventsOfficial`、`ns_miyoushe_{gacha,events}Miyoushe` | 5 / 3；1 / 3；1；1 | ✅ 已切 |
-| 待切 | 其余 22 款（同生产者的备选源随该生产者一起切，不单独算一款） | `pickCurrent(parseAllBwiki)` / `selectArknights` / bwiki-wikitext 族 / biligame 族 / cygames 族 / bluearchive 族 / bluepoch / bandori 族 / aniplex(FGO) / perfectworld / sega / sunborn / yostar / hypergryph(终末地) | — | ⬜ |
+| P3b-2 | 物华弥新 `wuhuamixin`（卡池 / 活动）、战双帕弥什 `zspms`（卡池 / 活动）、卡厄斯梦境 `czn`（卡池）、雪松 `kedr`（卡池 / 活动） | `30-game-bwiki-wikitext-common.js` 的两个载荷（`ns_bwiki_wikitext_{gacha,event}Payload`）、`30-game-bwiki-common.js` 的两个载荷、`ns_biligame_activity_eventsWhmxOfficial` | 6 / 8；4 / 9；4；2 / 3 | ✅ 已切 |
+| 待切 | 其余 18 款（同生产者的备选源随该生产者一起切，不单独算一款） | `pickCurrent(parseAllBwiki)` / `selectArknights` / bwiki-wikitext 族 / biligame 族 / cygames 族 / bluearchive 族 / bluepoch / bandori 族 / aniplex(FGO) / perfectworld / sega / sunborn / yostar / hypergryph(终末地) | — | ⬜ |
 
 **收口的两点补充（P3b）**：① 生成器 `hoverLinesFromItems(items, kind, tz, { permanentCount })` —— 活动侧
 末尾补 `以及常驻活动 N 项`（与 `buildEventHover` 同一句 `permanentLine`，不足 2 条时也带上）；

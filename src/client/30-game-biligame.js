@@ -529,7 +529,9 @@ function ns_biligame_activity_hoverRows(covering, nameOf) {
 		.sort(ns_biligame_activity_byEndAsc)
 		.map((x) => {
 			const name = String(nameOf(x) || "").trim();
-			return name ? { name, startTs: x.startTs, endTs: x.endTs, raw: x.raw } : null;
+			// `name` 给 hoverPool 用（它的过滤/显示读 name），`title` 给**条目反生成**与数组收口用
+			// （`dataArrayExtrasFromEntriesOf` 读 title/label）—— 同一行两种形状，值相同。
+			return name ? { name, title: name, startTs: x.startTs, endTs: x.endTs, raw: x.raw } : null;
 		})
 		.filter(Boolean);
 }
@@ -893,19 +895,24 @@ async function ns_biligame_activity_eventsWhmxOfficial(url, signal, tz = ns_bili
 		const parsed = ns_biligame_activity_parseWhmxActivity(d.content, tz, ns_biligame_activity_yearHintOf(it, tz));
 		const best = ns_biligame_activity_pickWhmxEvent(parsed.items, now, ns_biligame_activity_quotedName(title));
 		if (!best) continue;
-		// 悬停 = 覆盖 now 的全部活动档期，逐行「小节名 + 3 空格 + 档期」（共用工具排版，按结束时间升序）。
-		// 只有 1 条 → 工具返回 "" → **不设** eventHover，交回 UI 默认两行式（`event` ⏎ `eventDates`）。
+		// 悬停 = 覆盖 now 的全部活动档期，逐行「小节名 + 3 空格 + 档期」（**条目反生成**，按结束时间升序）。
+		// 只有 1 条 → 生成器返回 "" → **不设** eventHover，交回 UI 默认两行式（`event` ⏎ `eventDates`）。
 		// ⚠️ 旧版的「来源：B站官方公告 api.biligame.com/news（gameExtensionId=613，typeId=4/1…
 		// 共 N 篇）」「物华弥新 国服 · 标题 + tz 推定」「▶ 标出外显那条」「另有 N 条常驻不产出」
 		// 全部是元信息/实现说明 → 已彻底删除（见文件头「悬停规则」）。
-		const eventHover = ns_biligame_activity_whmxEventHover(ns_biligame_activity_coveringWhmxEvents(parsed.items, now), tz);
+		// ── P3b：条目事实 → 悬停 + `events` 数组 ──────────────────────────────
+		const eventItems = ns_biligame_activity_hoverRows(ns_biligame_activity_coveringWhmxEvents(parsed.items, now), (x) => x.section || x.label);
+		const eventHover = hoverTextFromItems(eventItems, "event", tz);
 		const eventDates = fmtWindow(best.startTs, best.endTs, tz);
-		return {
+		const out = {
 			event: ns_biligame_activity_cleanTitle(title) || best.section || best.label,
 			eventDates,
 			eventDatesRaw: best.raw,
 			...(eventHover ? { eventHover } : {})
 		};
+		out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
+		out.eventHoverItems = eventItems;
+		return out;
 	}
 	if (loaded === 0 && firstErr) throw firstErr;
 	if (feedErrors.length) throw feedErrors[0];        // 一路 feed 失败 → 不能声称「未公布」

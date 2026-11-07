@@ -273,8 +273,14 @@ function ns_bwiki_gachaPayload(items, tz, now) {
 	if (!cur) return null;                       // 有候选但都不覆盖当期 → 未公布（不硬凑过期档期）
 	const first = cur.first;
 	// 池名与本体同构：有角色名 →「池名：角色」，没有 → 只写池名
-	const hover = hoverPool(cur.pool.map((p) => ({ name: p.banner, label: `${p.banner}${p.roles ? `：${p.roles}` : ""}`, startTs: p.startTs, endTs: p.endTs, raw: p.raw })), tz);
-	return {
+	// ── P3b：条目事实 → 悬停 + `gacha` 数组（排序与 hoverPool 同一份：结束时间升序）──
+	const hoverItems = cur.pool
+		.map((p) => ({ name: p.banner, label: `${p.banner}${p.roles ? `：${p.roles}` : ""}`, startTs: p.startTs, endTs: p.endTs, raw: p.raw }))
+		.filter((p) => p.name)
+		.sort(poolHoverOrderOf)
+		.map((p) => ({ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw }));
+	const hover = hoverTextFromItems(hoverItems, "gacha", tz);
+	const out = {
 		banner: first.banner,
 		roles: ns_bwiki_mergeRoles(cur.pool),
 		bannerDates: fmtWindow(first.startTs, first.endTs, tz),
@@ -283,19 +289,27 @@ function ns_bwiki_gachaPayload(items, tz, now) {
 		endTs: first.endTs,
 		...(hover ? { bannerHover: hover } : {})
 	};
+	out.gacha = dataArrayProducedGachaOf(out, hoverItems, { tz }, now);
+	out.gachaHoverItems = hoverItems;
+	return out;
 }
 function ns_bwiki_eventPayload(items, tz, now, permanentCount = 0) {
 	const cur = ns_bwiki_pickCurrentEvent(items, now);
 	if (!cur) return null;
 	const first = cur.first;
-	// 排序由调用方负责（hoverEvent **不排序**，与本体一致）：这里按结束时间升序
+	// 排序由调用方负责（生成器**不排序**，与本体一致）：这里按结束时间升序
 	const ordered = cur.ordered.slice().sort((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs) || ((a._i || 0) - (b._i || 0)));
-	const hover = hoverEvent(ordered.map((x) => ({ name: x.event, startTs: x.startTs, endTs: x.endTs, raw: x.raw })), tz, permanentCount);
-	return {
+	// ── P3b：条目事实 → 悬停 + `events` 数组 ──────────────────────────────────
+	const hoverItems = ordered.map((x) => ({ title: x.event, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
+	const hover = hoverTextFromItems(hoverItems, "event", tz, { permanentCount });
+	const out = {
 		event: first.event,
 		eventDates: fmtWindow(first.startTs, first.endTs, tz),
 		eventDatesRaw: first.raw || "",
 		...(hover ? { eventHover: hover } : {})
 	};
+	out.events = dataArrayProducedEventsOf(out, hoverItems, { tz }, now);
+	out.eventHoverItems = hoverItems;
+	return out;
 }
 //#endregion

@@ -100,5 +100,124 @@
 			"eventHoverExtra": ""
 		},
 		"array": "[{\"key\":\"bh3:event:0\",\"title\":\"【有奖活动】分享你与崩坏3的专属片段，参与讨论赢水晶！\",\"show\":\"【有奖活动】分享你与崩坏3的专属片段，参与讨论赢水晶！\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"9.28 12:00~10.7 23:59\",\"source\":\"primary\"}]"
+	},
+	"whmxGacha": {
+		"rec": {
+			"banner": "孤岛螺旋",
+			"roles": "凯尔特之书、错金博山炉、天球仪、小宋香炉、结伴同游·请调书",
+			"bannerDates": "09-30 10:00 ~ 10-22 09:59",
+			"bannerDatesRaw": "2026年09月30日 10:00 ~ 10月22日 09:59",
+			"bannerHover": "孤岛螺旋：凯尔特之书\n万嶂烟峦：错金博山炉\n四海无争-常驻：天球仪\n刻名存念-常驻：小宋香炉\n结伴同游：结伴同游·请调书\n09-30 10:00 ~ 10-22 09:59",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"wuhuamixin:gacha:0\",\"title\":\"孤岛螺旋\",\"show\":\"凯尔特之书、错金博山炉、天球仪、小宋香炉、请调书\",\"roles\":[\"凯尔特之书\",\"错金博山炉\",\"天球仪\",\"小宋香炉\",\"结伴同游·请调书\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"2026年09月30日 10:00 ~ 10月22日 09:59\",\"source\":\"primary\"},{\"key\":\"wuhuamixin:gacha:1\",\"title\":\"孤岛螺旋：凯尔特之书\",\"show\":\"孤岛螺旋：凯尔特之书\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-30 10:00 ~ 10-22 09:59\",\"source\":\"hover\"},{\"key\":\"wuhuamixin:gacha:2\",\"title\":\"万嶂烟峦：错金博山炉\",\"show\":\"万嶂烟峦：错金博山炉\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-30 10:00 ~ 10-22 09:59\",\"source\":\"hover\"},{\"key\":\"wuhuamixin:gacha:3\",\"title\":\"四海无争-常驻：天球仪\",\"show\":\"四海无争-常驻：天球仪\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-30 10:00 ~ 10-22 09:59\",\"source\":\"hover\"},{\"key\":\"wuhuamixin:gacha:4\",\"title\":\"刻名存念-常驻：小宋香炉\",\"show\":\"刻名存念-常驻：小宋香炉\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-30 10:00 ~ 10-22 09:59\",\"source\":\"hover\"},{\"key\":\"wuhuamixin:gacha:5\",\"title\":\"结伴同游：结伴同游·请调书\",\"show\":\"结伴同游：结伴同游·请调书\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-30 10:00 ~ 10-22 09:59\",\"source\":\"hover\"}]"
+	},
+	"whmxEvent": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "「经以山海」限时活动",
+			"eventDates": "09-30 10:00 ~ 10-22 09:59",
+			"eventDatesRaw": "9月30日 10:00 ~ 10月22日 09:59",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "旅程将启-经以山海   09-23 10:00 ~ 10-22 09:59\n同赴山海   09-30 10:00 ~ 10-22 09:59\n经以山海   09-30 10:00 ~ 10-22 09:59\n云想集珍   09-30 10:00 ~ 10-22 09:59\n衣装上新   09-30 10:00 ~ 10-22 09:59\n榑桑遗境   09-30 10:00 ~ 11-12 09:59\n游历   09-30 10:00 ~ 11-12 09:59",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"wuhuamixin:event:0\",\"title\":\"旅程将启-经以山海\",\"show\":\"旅程将启-经以山海\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-23 10:00 ~ 10-22 09:59\",\"source\":\"hover\"},{\"key\":\"wuhuamixin:event:1\",\"title\":\"「经以山海」限时活动\",\"show\":\"「经以山海」限时活动\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"9月30日 10:00 ~ 10月22日 09:59\",\"source\":\"primary\"},{\"key\":\"wuhuamixin:event:2\",\"title\":\"同赴山海\",\"show\":\"同赴山海\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-30 10:00 ~ 10-22 09:59\",\"source\":\"hover\"},{\"key\":\"wuhuamixin:event:3\",\"title\":\"经以山海\",\"show\":\"经以山海\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-30 10:00 ~ 10-22 09:59\",\"source\":\"hover\"},{\"key\":\"wuhuamixin:event:4\",\"title\":\"云想集珍\",\"show\":\"云想集珍\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-30 10:00 ~ 10-22 09:59\",\"source\":\"hover\"},{\"key\":\"wuhuamixin:event:5\",\"title\":\"衣装上新\",\"show\":\"衣装上新\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-30 10:00 ~ 10-22 09:59\",\"source\":\"hover\"},{\"key\":\"wuhuamixin:event:6\",\"title\":\"榑桑遗境\",\"show\":\"榑桑遗境\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-30 10:00 ~ 11-12 09:59\",\"source\":\"hover\"},{\"key\":\"wuhuamixin:event:7\",\"title\":\"游历\",\"show\":\"游历\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-30 10:00 ~ 11-12 09:59\",\"source\":\"hover\"}]"
+	},
+	"zspmsGacha": {
+		"rec": {
+			"banner": "淬炼活动角色 / 命运淬炼活动角色",
+			"roles": "阿德莱德·破渊",
+			"bannerDates": "09-24 11:00 ~ 11-05 05:00",
+			"bannerDatesRaw": "2026年9月24日版本更新后 - 2026年11月5日05:00",
+			"bannerHover": "淬炼活动角色 / 命运淬炼活动角色：阿德莱德·破渊\n狙击武器：不孤航炬\n辅助机狙击：凯尔派\n09-24 11:00 ~ 11-05 05:00",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"zspms:gacha:0\",\"title\":\"淬炼活动角色 / 命运淬炼活动角色\",\"show\":\"破渊\",\"roles\":[\"阿德莱德·破渊\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"2026年9月24日版本更新后 - 2026年11月5日05:00\",\"source\":\"primary\"},{\"key\":\"zspms:gacha:1\",\"title\":\"淬炼活动角色 / 命运淬炼活动角色：阿德莱德·破渊\",\"show\":\"淬炼活动角色 / 命运淬炼活动角色：阿德莱德·破渊\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-24 11:00 ~ 11-05 05:00\",\"source\":\"hover\"},{\"key\":\"zspms:gacha:2\",\"title\":\"狙击武器：不孤航炬\",\"show\":\"狙击武器：不孤航炬\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-24 11:00 ~ 11-05 05:00\",\"source\":\"hover\"},{\"key\":\"zspms:gacha:3\",\"title\":\"辅助机狙击：凯尔派\",\"show\":\"辅助机狙击：凯尔派\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-24 11:00 ~ 11-05 05:00\",\"source\":\"hover\"}]"
+	},
+	"zspmsEvent": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "回路演算",
+			"eventDates": "09-24 11:00 ~ 11-04 05:00",
+			"eventDatesRaw": "2026年9月24日版本更新后 - 2026年11月4日05:00",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "回路演算   09-24 11:00 ~ 11-04 05:00\n主线剧情-远信回响   09-24 11:00 ~ 11-05 05:00\n执炬者望海-角色试玩关   09-24 11:00 ~ 11-05 05:00\n新客访临签到活动   09-24 11:00 ~ 11-03 23:59\n相约纪事   09-24 11:00 ~ 11-04 05:00\n7日登录签到奖励   09-24 11:00 ~ 11-04 05:00\n【勤务商店】新增内容   09-24 11:00 ~ 11-05 05:00\n新增涂装   09-24 11:00 ~ 11-05 05:00\n新增涂装   09-24 11:00 ~ 11-05 05:00\n新增涂装   09-24 11:00 ~ 11-05 05:00\n新增涂装   09-24 11:00 ~ 11-05 05:00\n新增涂装   09-24 11:00 ~ 11-05 05:00\n战略评定手册-远哨档案   09-24 11:00 ~ 11-05 05:00",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"zspms:event:0\",\"title\":\"新客访临签到活动\",\"show\":\"新客访临签到活动\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-24 11:00 ~ 11-03 23:59\",\"source\":\"hover\"},{\"key\":\"zspms:event:1\",\"title\":\"回路演算\",\"show\":\"回路演算\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"2026年9月24日版本更新后 - 2026年11月4日05:00\",\"source\":\"primary\"},{\"key\":\"zspms:event:2\",\"title\":\"相约纪事\",\"show\":\"相约纪事\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-24 11:00 ~ 11-04 05:00\",\"source\":\"hover\"},{\"key\":\"zspms:event:3\",\"title\":\"7日登录签到奖励\",\"show\":\"7日登录签到奖励\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-24 11:00 ~ 11-04 05:00\",\"source\":\"hover\"},{\"key\":\"zspms:event:4\",\"title\":\"主线剧情-远信回响\",\"show\":\"主线剧情-远信回响\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-24 11:00 ~ 11-05 05:00\",\"source\":\"hover\"},{\"key\":\"zspms:event:5\",\"title\":\"执炬者望海-角色试玩关\",\"show\":\"执炬者望海-角色试玩关\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-24 11:00 ~ 11-05 05:00\",\"source\":\"hover\"},{\"key\":\"zspms:event:6\",\"title\":\"【勤务商店】新增内容\",\"show\":\"【勤务商店】新增内容\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-24 11:00 ~ 11-05 05:00\",\"source\":\"hover\"},{\"key\":\"zspms:event:7\",\"title\":\"新增涂装\",\"show\":\"新增涂装\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-24 11:00 ~ 11-05 05:00\",\"source\":\"hover\"},{\"key\":\"zspms:event:8\",\"title\":\"战略评定手册-远哨档案\",\"show\":\"战略评定手册-远哨档案\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-24 11:00 ~ 11-05 05:00\",\"source\":\"hover\"}]"
+	},
+	"cznGacha": {
+		"rec": {
+			"banner": "赛季限定主战员营救概率提升（海德玛丽）",
+			"roles": "海德玛丽",
+			"bannerDates": "06-17 10:00 ~ 07-08 02:00",
+			"bannerDatesRaw": "2026-6-17 10:00:00 ~ 2026-7-08 02:00:00",
+			"bannerHover": "常驻主战员营救概率提升（黛安娜）：黛安娜\n06-10 10:00 ~ 07-01 02:00\n常驻辅战员营救概率提升（索菲亚）：索菲亚\n06-10 10:00 ~ 07-01 02:00\n赛季限定主战员营救概率提升（海德玛丽）：海德玛丽\n06-17 10:00 ~ 07-08 02:00\n赛季限定辅战员营救概率提升（西尔维亚）：西尔维亚\n06-17 10:00 ~ 07-08 02:00",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"czn:gacha:0\",\"title\":\"常驻主战员营救概率提升（黛安娜）：黛安娜\",\"show\":\"常驻主战员营救概率提升（黛安娜）：黛安娜\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"06-10 10:00 ~ 07-01 02:00\",\"source\":\"hover\"},{\"key\":\"czn:gacha:1\",\"title\":\"常驻辅战员营救概率提升（索菲亚）：索菲亚\",\"show\":\"常驻辅战员营救概率提升（索菲亚）：索菲亚\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"06-10 10:00 ~ 07-01 02:00\",\"source\":\"hover\"},{\"key\":\"czn:gacha:2\",\"title\":\"赛季限定主战员营救概率提升（海德玛丽）\",\"show\":\"海德玛丽\",\"roles\":[\"海德玛丽\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"2026-6-17 10:00:00 ~ 2026-7-08 02:00:00\",\"source\":\"primary\"},{\"key\":\"czn:gacha:3\",\"title\":\"赛季限定辅战员营救概率提升（西尔维亚）：西尔维亚\",\"show\":\"赛季限定辅战员营救概率提升（西尔维亚）：西尔维亚\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"06-17 10:00 ~ 07-08 02:00\",\"source\":\"hover\"}]"
+	},
+	"kedrGacha": {
+		"rec": {
+			"banner": "【精英集结·支援】西尔维亚",
+			"roles": "西尔维亚",
+			"bannerDates": "10-02 05:00 ~ 10-09 05:00",
+			"bannerDatesRaw": "2026/10/02 05:00 ~ 2026/10/09 05:00",
+			"bannerHover": "【精英集结·支援】西尔维亚：西尔维亚\n【演习·联合领】莫菲：莫菲\n10-02 05:00 ~ 10-09 05:00",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"kedr:gacha:0\",\"title\":\"【精英集结·支援】西尔维亚\",\"show\":\"西尔维亚\",\"roles\":[\"西尔维亚\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"2026/10/02 05:00 ~ 2026/10/09 05:00\",\"source\":\"primary\"},{\"key\":\"kedr:gacha:1\",\"title\":\"【演习·联合领】莫菲：莫菲\",\"show\":\"【演习·联合领】莫菲：莫菲\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-02 05:00 ~ 10-09 05:00\",\"source\":\"hover\"}]"
+	},
+	"kedrEvent": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "个人剧情活动第1期：【新机动队故事】",
+			"eventDates": "09-25 05:00 ~ 10-09 05:00",
+			"eventDatesRaw": "2026/9/25 05:00 ~ 2026/10/09 05:00",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "个人剧情活动第1期：【新机动队故事】   09-25 05:00 ~ 10-09 05:00\n战令通行证赛季   08-31 05:00 ~ 10-04 05:00\n第三期边境防卫活动   08-31 05:00 ~ 10-04 05:00",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"kedr:event:0\",\"title\":\"战令通行证赛季\",\"show\":\"战令通行证赛季\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"08-31 05:00 ~ 10-04 05:00\",\"source\":\"hover\"},{\"key\":\"kedr:event:1\",\"title\":\"第三期边境防卫活动\",\"show\":\"第三期边境防卫活动\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"08-31 05:00 ~ 10-04 05:00\",\"source\":\"hover\"},{\"key\":\"kedr:event:2\",\"title\":\"个人剧情活动第1期：【新机动队故事】\",\"show\":\"个人剧情活动第1期：【新机动队故事】\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"2026/9/25 05:00 ~ 2026/10/09 05:00\",\"source\":\"primary\"}]"
 	}
 }

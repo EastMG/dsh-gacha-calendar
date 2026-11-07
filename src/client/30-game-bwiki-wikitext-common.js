@@ -104,9 +104,11 @@ function ns_bwiki_wikitext_poolItem(x) {
 		raw: x.raw || ""
 	};
 }
-// 活动条目 → `hoverEvent` 入参：显示的是**活动名**（不是「活动时间」这类标签）+ 档期。
+// 活动条目 → 条目事实的行（显示的是**活动名**，不是「活动时间」这类标签）+ 档期。
+// ⚠️ P3b：活动载荷改成**条目反生成**后，这里直接产出 `{ title, startTs, endTs, raw }`
+// （`hoverTextFromItems` 与 `dataArrayProducedEventsOf` 读的都是这一份）。
 function ns_bwiki_wikitext_eventItem(x, nameOf) {
-	return { name: nameOf(x), startTs: x.startTs, endTs: x.endTs, raw: x.raw || "" };
+	return { title: nameOf(x), startTs: x.startTs, endTs: x.endTs, raw: x.raw || "" };
 }
 // 卡池侧载荷。cmp 决定"外显"优先序；默认 = 结束最早优先（越快结束越该盯住，与 `30-game-bwiki-common.js` 同口径）。
 // 悬停一律走共用 `hoverPool`：≥2 池 → 每池「池名：角色」行 + 档期行（窗口全同则只写一次档期）；
@@ -116,7 +118,12 @@ function ns_bwiki_wikitext_gachaPayload(items, tz, now, opts = {}) {
 	if (act.length === 0) return null;                       // 有候选但都不覆盖当期 → 未公布（不硬凑过期档期）
 	const sorted = act.slice().sort(opts.cmp || ((a, b) => (a.endTs - b.endTs) || ((a._i || 0) - (b._i || 0))));
 	const first = sorted[0];
-	const hover = hoverPool(sorted.map(ns_bwiki_wikitext_poolItem), tz);
+	// ── P3b：条目事实 → 悬停 + `gacha` 数组（去重/排序与 hoverPool 同一份：结束时间升序）──
+	const hoverItems = sorted.map(ns_bwiki_wikitext_poolItem)
+		.filter((p) => p.name)
+		.sort(poolHoverOrderOf)
+		.map((p) => ({ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw }));
+	const hover = hoverTextFromItems(hoverItems, "gacha", tz);
 	const out = {
 		banner: first.banner,
 		roles: first.roles || "",
@@ -126,10 +133,12 @@ function ns_bwiki_wikitext_gachaPayload(items, tz, now, opts = {}) {
 		endTs: first.endTs
 	};
 	if (hover) out.bannerHover = hover;
+	out.gacha = dataArrayProducedGachaOf(out, hoverItems, { tz }, now);
+	out.gachaHoverItems = hoverItems;
 	return out;
 }
 // 活动侧载荷。cmp 决定外显优先序；悬停列出**全部覆盖当期**的条目（按同一排序，**名称在前**）。
-// 悬停一律走共用 `hoverEvent`（名称 + 3 空格 + 档期；不排序，由调用方排好）：
+// 悬停一律走**条目反生成**（名称 + 3 空格 + 档期；不排序，由调用方排好）：
 // **<2 条 → 不设 eventHover**（交回 UI 的「event」⏎「eventDates|raw」兜底）。
 function ns_bwiki_wikitext_eventPayload(items, tz, now, opts = {}) {
 	const act = ns_bwiki_wikitext_activeItems(items, now);
@@ -137,12 +146,17 @@ function ns_bwiki_wikitext_eventPayload(items, tz, now, opts = {}) {
 	const sorted = act.slice().sort(opts.cmp || ((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs) || ((a._i || 0) - (b._i || 0))));
 	const first = sorted[0];
 	const nameOf = opts.nameOf || ((x) => x.name || x.event || "");
-	const hover = hoverEvent(sorted.map((x) => ns_bwiki_wikitext_eventItem(x, nameOf)), tz, opts.permanentCount || 0);
-	return {
+	// ── P3b：条目事实 → 悬停 + `events` 数组 ──────────────────────────────────
+	const hoverItems = sorted.map((x) => ns_bwiki_wikitext_eventItem(x, nameOf));
+	const hover = hoverTextFromItems(hoverItems, "event", tz, { permanentCount: opts.permanentCount || 0 });
+	const out = {
 		event: nameOf(first),
 		eventDates: fmtWindow(first.startTs, first.endTs, tz),
 		eventDatesRaw: first.raw || "",
 		...(hover ? { eventHover: hover } : {})
 	};
+	out.events = dataArrayProducedEventsOf(out, hoverItems, { tz }, now);
+	out.eventHoverItems = hoverItems;
+	return out;
 }
 //#endregion
