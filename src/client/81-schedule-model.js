@@ -209,6 +209,134 @@
 			return out;
 		}
 
+		// ── 派生层：从「事实数组」里挑出这一格今天要露的那一条（P2，2026-11-07）──────────
+		// 数据层（50-refresh.js，P1）只放事实：`gacha` / `events` 按结束时间升序、**不挑选**。
+		// 「谁排第一」是**纯展示决策**，所以放在这里；表格那一行与探头读的是**同一份数组**
+		// （探头只是一个会动的 UI 组件，零数据语义）。
+		//
+		// 返回 `{ primary, rest }`：
+		//   · `primary` = 这一格外显的那条（数组空 ⇒ null）
+		//   · `rest`    = 数组里其余条目，**保持数组原顺序**（那是数据层的自然顺序；
+		//                 探头内部怎么排是渲染层的事，见 82 的 schedulePickItem）
+		//
+		// 两侧的规则都是**今天外显规则的原样搬运**，不新发明口径：
+		//   · event：25-parser-order.js 的 `pickEventPrimary`（各解析器挑外显时调的就是它）
+		//     —— 奖励领取期（`phase.kind === "claim"`）优先 → 类别档位 → 结束时间升序 → 开始时间升序。
+		//     ⚠️ 数组条目**没有** `cat` / `tags`（P1 的字段表里没这两个），所以档位判定会退化成
+		//        按活动名匹配 EVENT_TIER1_RE。对少数来源（赛马娘 / 雪松 / FGO 等）这就是已知不等价，
+		//        见 README_Dev 的「P2 已知不等价」—— 结构化来源（P3）把类别带进数组后才能消掉。
+		//   · gacha：24-parser-window.js 的 `selectCurrent`（卡池外显的本体；各内置解析器内部的
+		//     `selectGacha*` / `pickMergedGachaWindow` 都注明"与 selectCurrent 同口径"）：
+		//       ① 只在**在期**的池里挑：`endTs >= now` 且（起点缺失 ⇒ 源站写「X.Y 版本更新后」，
+		//          视为已开始；或 `startTs <= now`）。这条与 selectCurrent 的 `inWindow` 等价
+		//          —— 它多认一个"起点被 fillMissingStarts 补过、补出来的值 > now"的分支，
+		//          那种池的真实起点是"版本更新后"（已上线），数组里同样表现为 startTs <= now 或缺失。
+		//       ② 在期的里取**结束最早**的那条（越快结束越该被盯住）。
+		//       ③ 并列按起点升序（selectCurrent 用稳定排序 + endTs 单键；数组已按
+		//          endTs → startTs 排好 ⇒ 等价于"数组里第一条在期的"）。
+		//       ④ 一条都不在期（沿用旧值 / 已结束）⇒ 取数组首条 = 结束最早的那条。
+		//          老实现的外显那条本来就是结束最早的那条，不凭 now 另造一条。
+		function sideViewOf(items, now, side) {
+			const list = Array.isArray(items) ? items : [];
+			const at = now && typeof now.getTime === "function" ? now.getTime() : Number(now) || 0;
+			const startOf = (x) => (x.startTs == null ? Infinity : x.startTs);
+			if (!list.length) return { primary: null, rest: [] };
+			let primary = null;
+			if (side === "event") {
+				// `pickEventPrimary` 吃的条目来自解析器：`name` / `cat` / `tags` / `startTs` / `endTs` / `phase`。
+				// 数据层数组把名称叫 `title`（见 50-refresh.js 的字段表）⇒ 这里做一层**只读适配**再调用它：
+				// 规则本体一个字不改，只是把它认的字段喂进去（否则 eventTier 读不到名字，档位永远退化成第二档）。
+				// ⚠️ `phase` 也要适配：解析器给的是字符串 `"claim"`（25-parser-order.js 的判据），
+				//    数组里存的是对象 `{ kind: "claim", startTs, endTs, show }`（50-refresh.js 的 phase 形状）
+				//    ⇒ 这里取 `kind`，两种形状在 pickEventPrimary 眼里才是同一件事。
+				// 适配对象带 `item` 指回原条目，选中后再取回数组里那一条（不复制、不污染输入）。
+				const adapted = list.map((x) => ({
+					item: x,
+					name: x.title || "",
+					cat: x.cat,
+					tags: x.tags,
+					startTs: x.startTs,
+					endTs: x.endTs,
+					phase: x.phase && typeof x.phase === "object" ? x.phase.kind : x.phase
+				}));
+				const picked = pickEventPrimary(adapted);
+				primary = picked ? picked.item : null;
+			} else {
+				const live = list.filter((x) => x && x.endTs != null && x.endTs >= at && (x.startTs == null || x.startTs <= at));
+				primary = live.length
+					? live.reduce((a, b) => (b.endTs < a.endTs || (b.endTs === a.endTs && startOf(b) < startOf(a)) ? b : a))
+					: list[0];
+			}
+			if (!primary) return { primary: null, rest: list.slice() };
+			return { primary, rest: list.filter((x) => x !== primary) };
+		}
+
+		// 数组条目 → 与 `scheduleNormalize` **同形**的渲染条目（表格那一行 / 探头的一行）。
+		// ⚠️ 记录自己那条外显（`item.title` == 记录的 banner/event）**直接走 scheduleNormalize**：
+		//    卡池侧的档期文本优先用记录里的绝对 `startTs/endTs`、活动侧走「源站原文 + tz」换算，
+		//    而数组里没有这两样（P1 只存 `raw` 与本机时刻）—— 从数组重算会在 TZ≠+08 的机器上
+		//    差一个时区（README_Dev「P1 已知不等价①」）。P3 让解析器直出 display 文本后这段可删。
+		// 并列条目：与今天 `scheduleHoverOnes` 产出的条目同形（`state/startTs/endTs` 都来自
+		//    同一段悬停文本的解析），所以渲染结果逐字一致。
+		function scheduleItemOf(g, side, item, now) {
+			if (!g || !item) return null;
+			const isG = side === "gacha";
+			const title = item.title || "";
+			const rawSrc = item.raw || "";
+			const recTitle = (isG ? g.banner : g.event) || "";
+			if (title && title === recTitle) return scheduleNormalize(g, side, now);
+			// 读不出绝对档期（源站只写「长期」/「版本更新后 ~ …」且悬停里也是原文）⇒ 不硬凑。
+			// 与今天 `scheduleHoverOnes` 的 `if (!r) continue` 同一行为：这类条目**没有可算的状态**，
+			// 探头里不列（数据层仍留着这条事实）。
+			if (item.startTs == null && item.endTs == null) return null;
+			const startTs = item.startTs == null ? 0 : item.startTs;
+			const endTs = item.endTs == null ? 0 : item.endTs;
+			const span = Math.max(1, endTs - startTs);
+			let state = "long", remain = 0;
+			if (span > SCHEDULE_LONG_MS) state = "long";
+			else if (now.getTime() < startTs) state = "wait";
+			else if (now.getTime() > endTs) state = "ended";
+			else { state = "live"; remain = Math.max(0, endTs - now.getTime()); }
+			return {
+				key: item.key || (g.id + ":" + side), g, side, isG,
+				title, show: item.show || title, orig: title + (rawSrc ? "\n" + rawSrc : ""),
+				raw: rawSrc, rawSrc, fail: null, state, startTs, endTs, remain
+			};
+		}
+
+		// 一格（游戏 × 卡池/活动）在面板上的全部条目：`{ primary, rest, fromArray }`；null = 这一侧没有数据。
+		//   · 有数据层数组（P2 主路径）⇒ `sideViewOf` 挑外显 + `scheduleItemOf` 转成渲染条目，`fromArray = true`；
+		//   · 数组不可用 ⇒ **兼容分支（P3 可删）**：今天的老路（记录字符串 + 解析悬停文本），`fromArray = false`。
+		//     什么时候会走到：① 老 lastData（P1 之前的缓存，归一后是空数组）；② 这一侧本来就没数据
+		//     （`gacha` / `events` 是空数组，老路同样会返回 null ⇒ 格子里写「该来源无数据」）；
+		//     ③ 极端情况：数组非空但派生不出主条（条目全都读不出窗口）—— 这时也按老路渲染，不让格子空白。
+		function scheduleCellOf(g, side, now) {
+			if (!g) return null;
+			const isG = side === "gacha";
+			const items = isG ? g.gacha : g.events;
+			const sideItems = Array.isArray(items) && items.length ? items : null;
+			if (sideItems) {
+				const derived = sideViewOf(sideItems, now, side);
+				const primary = scheduleItemOf(g, side, derived.primary, now);
+				if (primary) {
+					const rest = [];
+					for (const x of derived.rest) {
+						const v = scheduleItemOf(g, side, x, now);
+						if (v) rest.push(v);      // 读不出绝对档期的并列条目：与今天 scheduleHoverOnes 一样不列
+					}
+					return { primary, rest, fromArray: true };
+				}
+			}
+			// ── 兼容分支（**P3 可删**）───────────────────────────────────────────────
+			// 与 P2 之前逐字相同：scheduleNormalize 出外显那条，悬停文本逆解析补并列条目。
+			const it = scheduleNormalize(g, side, now);
+			if (!it) return null;
+			const extras = scheduleHoverOnes(
+				scheduleHoverItems(isG ? g.bannerHover : g.eventHover, it.title, it.isG), it, now);
+			return { primary: it, rest: extras, fromArray: false };
+		}
+
+
 		// 倒计时只给"数字 + 单位"，标签（还剩 / 之后开始）由渲染层写 —— 同一个位置不会一会儿"还剩"
 		// 一会儿"距开始"。
 		function scheduleCountdown(ms) {

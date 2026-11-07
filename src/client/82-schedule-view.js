@@ -259,36 +259,47 @@
 			// 无关设置写入都会让本组件重渲染；这一段原本每次都要逐游戏跑 scheduleNormalize（28×2）
 			// ＋悬停文本解析＋失败归类。用 useMemo 按真正输入（games / now）缓存。
 			//   ⚠️ 依赖只写 shownGames / now：本段不再读别的可变输入（主题色不参与，见 gameColorMap 只在下游用）。
-			const { cells, all, failed, failRows, soonCount } = (0, react.useMemo)(() => {
+			const { cells, cellViews, all, failed, failRows, soonCount } = (0, react.useMemo)(() => {
+			// ── P2（2026-11-07）：表格与探头改读**数据层数组**（`g.gacha` / `g.events`）──
+			// `cells`   = 每格的**数组本身**（与探头共用同一份：探头只是会动的 UI，零数据语义）
+			// `cellViews` = 从数组**派生**出来的渲染条目：`sideViewOf`（谁排第一）+ `scheduleItemOf`
+			//              （数组条目 → 与 scheduleNormalize 同形的条目）。两条都是 81 的纯函数。
+			// 顺序 = 数据层的自然顺序（结束时间升序）；这一格"露哪一条"由 sideViewOf 决定。
 			const cells = new Map();
+			const cellViews = new Map();
 			const all = [];
 			// ⚠️ 遍历的是**搜索过滤后**的 shownGames（空查询时它就是 games 本身）：
 			//    表格 / 近期 / 留白卡因此共用同一份过滤结果；轮播不读这里（见 CalendarPanel）。
 			for (const g of shownGames) {
 				for (const side of ["gacha", "event"]) {
-					const it = scheduleNormalize(g, side, now);
-					if (!it) continue;                       // 这一侧没有任何数据 → 格子里写"该来源无数据"
-					// 同格并列多条：**外显那条排最前**，其余由悬停文本解析补上（解析不出、或只有一条 → 就只有外显）。
-					// ⚠️ 「近期」只收外显那条（all 的语义不变）—— 大列表改版不动「近期」。
-					const extras = scheduleHoverOnes(
-						scheduleHoverItems(side === "gacha" ? g.bannerHover : g.eventHover, it.title, it.isG), it, now);					// ⚠️ 外显与探头是**同一份列表**（用户 2026-10-16）。引擎给的 roles 是**跨池合并**的角色表
-					// ⚠️ 有并列池时，外显**不能**再显示引擎给的"合并角色表"：
-					//    探头会把每个池连角色再列一遍（原神 = 丝柯克/爱可菲 两个池、鸣潮 = 3 个池各列一遍），
-					//    同一批角色"先合并说一遍、再分池说一遍"正是用户看到的重复 + 粒度混乱。
-					//    所以：有并列池 ⇒ 外显回到池名（角色名在探头的每一池里）；只有一池 ⇒ 外显就是角色名。
-					// 外显文本规则**与旧面板完全一致**：卡池侧永远显示"去修饰的角色名"（roles 过 cleanRoleNames），
-					// 没有角色名才退回池名/活动名。旧面板就是这么写的（见本文件旧面板分支的 gachaVisible）。
-					// ⚠️ 这里曾有一版特例「有并列池就改显池名」（想避免角色名"先说一遍、探头再分池说一遍"），
-					//    但那是与旧面板不一致的**显示规则**，用户 2026-10-16 要求对齐 ⇒ 已删除。
-					//    并列池的角色名在探头里逐池列，重复问题留着不动（显示规则优先与旧面板一致）。
-					cells.set(g.id + ":" + side, [it].concat(extras));
-					if (it.state !== "ended") all.push(it);
+					const key = g.id + ":" + side;
+					// 一格的全部条目 = 81 的 `scheduleCellOf`：**数组优先**（P2），数组不可用才退化到老路
+					// （解析悬停文本；兼容分支在 81，**P3 可删**）。表格那一行 = `primary`，探头 = `rest`。
+					const view = scheduleCellOf(g, side, now);
+					if (!view) continue;                     // 这一侧没有任何数据 → 格子里写"该来源无数据"
+					// `cells` 存**数组本身**（与探头共用同一份，用户口径）；兼容分支没有数组，
+					// 就把老路算出来的那一份列表存进去（结构仍是数组，渲染侧只看 `cellViews`）。
+					cells.set(key, view.fromArray
+						? (side === "gacha" ? g.gacha : g.events)
+						: [view.primary].concat(view.rest));
+					cellViews.set(key, view);
+					// 「近期」只收外显那一条（all 的语义不变）—— 探头里的并列条目不进「近期」。
+					if (view.primary.state !== "ended") all.push(view.primary);
 				}
 			}
 			const sourceNameOf = (x) => (x.isG ? x.g.source : x.g.eventSource) || "";
-			// 刷新失败是**来源级**问题（某个网站抓不到），不属于任何一格 → 底部横条 + 重试
+			// 刷新失败是**来源级**问题（某个网站抓不到），不属于任何一格 → 底部横条 + 重试。
+			// 数组条目没有 `fail`（fail 是"这一侧本轮抓取结论"，住在记录上）⇒ 按**侧**判定。
+			// 口径与改造前一致：只有这一侧**真的有外显条目**（scheduleNormalize 非 null ⇒ 有可沿用的
+			// 旧值）时才报；全新失败且没有任何旧值时，格子里写「该来源无数据」，横条不重复报。
 			const failed = [];
-			for (const list of cells.values()) for (const x of list) if (isDown(x.fail)) failed.push(x);
+			for (const g of shownGames) {
+				for (const side of ["gacha", "event"]) {
+					if (!isDown(side === "gacha" ? g.gachaFail : g.eventFail)) continue;
+					const it = scheduleNormalize(g, side, now);
+					if (it) failed.push(it);
+				}
+			}
 			const failRows = failed.map((x) => {
 				const reason = (normalizeFail(x.fail) || {}).reason || "";
 				return x.g.name + " · " + sourceNameOf(x) + (reason ? " " + reason : "") + " —— 该条沿用上次成功数据";
@@ -302,9 +313,9 @@
 				(x.startTs > nowMs && x.startTs <= nowMs + SCHEDULE_DUE_MS) ||
 				(x.endTs > nowMs && x.endTs <= nowMs + SCHEDULE_DUE_MS)
 			)).length;
-			return { cells, all, failed, failRows, soonCount };
+			return { cells, cellViews, all, failed, failRows, soonCount };
 			}, [shownGames, now]);
-			// ↑↑↑ useMemo 结束（cells / all / 失败归类 / 24 小时计数）
+			// ↑↑↑ useMemo 结束（cells / cellViews / all / 失败归类 / 24 小时计数）
 			// 「近期」= **7 天内有事发生**（到期或开始）；更远的只出现在下方游戏表里
 			// （用户 2026-10-15：不能把 20 多天后的也算近期）。长期/已结束不进近期。
 			const SCHEDULE_NEAR_MS = SCHEDULE_AMBER_MS;
@@ -370,11 +381,13 @@
 					]
 				});
 			};
-			// 表格里的一格：名称 + 「档期 · 状态」+ 14 天迷你条。**不折叠不点开**：同格多条时露一条 + 「另有 N 条」
+			// 表格里的一格：名称 + 「档期 · 状态」+ 14 天迷你条。**不折叠不点开**：同格多条时露一条 + 探头。
+			// P2 起读的是 `cellViews`（= `sideViewOf` 从数组派生出来的 { primary, rest }），不再自己拼列表。
 			const cellView = (g, side) => {
 				const isG = side === "gacha";
-				const list = cells.get(g.id + ":" + side) || [];
-				if (!list.length) {
+				const view = cellViews.get(g.id + ":" + side) || null;
+				const it = view ? view.primary : null;
+				if (!it) {
 					return (0, react_jsx_runtime.jsxs)("div", {
 						className: "gacha-cal-sched-cell gacha-cal-sched-cell--none", "data-t": side,
 						children: [
@@ -385,14 +398,10 @@
 						]
 					});
 				}
-				// ⚠️ 外显与探头在数据层面就是**同一份列表**：第 0 条 = 引擎那条 =
-				//    老面板的外显判定结果（g.roles ? cleanRoleNames(roles) : banner）。
-				//    ⇒ 外显**固定为第一条**，其余才按紧迫度排序。
-				//    不能让排序把某口并列池顶到外显：那会让外显的文本格式时而是"角色名"、
-				//    时而是"池名：角色"（用户 2026-10-16 反馈的"怪怪的"就是这个）。
-				//    同池重复已在上游处理（悬停解析那层 + scheduleHoverOnes），这里保证"一口池一条"。
-				const sorted = [list[0]].concat(list.slice(1).sort(schedulePickItem));
-				const it = sorted[0];
+				// 外显那条由 `sideViewOf` 决定（gacha = 在期里结束最早 / event = pickEventPrimary）；
+				// 探头 = 数组里其余条目。**探头内部**的先后仍是今天的 `schedulePickItem`
+				// （在期优先、越早结束越前）—— 那是显示决策，与数据层的自然顺序无关。
+				const rest = (view.rest || []).slice().sort(schedulePickItem);
 				// 同格多条（2026-10-15 定稿）：**第一条完整三行**（名称 / 档期·状态 / 迷你条），
 				// 其余收进「探头」：收起只露顶部 12px 且虚化，悬停时该格底板向下变长**覆盖**下面的行
 				// （下面的行位置一格不动、格子高度恒定、文字不位移）。不再写「另有 N 条」文字。
@@ -436,7 +445,6 @@
 						scheduleBars(x, days)
 					]
 				});
-				const rest = sorted.slice(1);
 				return (0, react_jsx_runtime.jsxs)("div", {
 					className: "gacha-cal-sched-cell", "data-t": side, "data-u": scheduleUrgency(it),
 					// 展开的探头改成 position:fixed：绝对定位元素会把滚动容器"撑长"（实测悬停时 +133px），
@@ -480,15 +488,15 @@
 			// （`oldProps === newProps` 的 bailout，与 React.memo 是同一机制）⇒ 4s 翻页不再重算这 2000+
 			// 个格子。**DOM、类名、内联变量（--g/--z）、动画标记与关键帧全部不变**（纯实现层缓存）。
 			// 依赖必须覆盖 rowOf/cellView 读到的全部输入：shownGames（搜索过滤后的行序/数据，空查询时就是
-			// games）、days（14 天刻度）、cells（每格候选档期，含 now 结果）、gameColorMap（--g）、
-			// now（档期文本/紧迫度）、findQuery（无命中时要换空结果文案）。
+			// games）、days（14 天刻度）、cells / cellViews（每格数组 + 派生出的外显/探头条目，含 now 结果）、
+			// gameColorMap（--g）、now（档期文本/紧迫度）、findQuery（无命中时要换空结果文案）。
 			const tableJsx = (0, react.useMemo)(() => (shownGames.length
 				? shownGames.map(rowOf)
 				// 搜索无命中：说清楚"是筛掉了"（否则会被当成"游戏都没了"）
 				: (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-empty", children: findQuery.trim()
 					? "没有匹配的游戏 · 清空搜索可恢复全部"
 					: "还没有勾选任何游戏 · 去设置里挑几款" })),
-				[shownGames, days, cells, gameColorMap, now, findQuery]);
+				[shownGames, days, cells, cellViews, gameColorMap, now, findQuery]);
 
 			// 「总览」两段的数字（纯函数 scheduleGlanceSegs 决定；**恒为两段**，N/M 是 0 也照写）。
 			// ⚠️ 「7 天内」那段的数字 = recent.length = **就是**「近期」底部按钮「展开全部 N 条」的 N

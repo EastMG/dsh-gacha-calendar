@@ -515,4 +515,275 @@ export default async function runCore() {
 				sansTs(zzz.rec.gacha) === GOLDEN.zzz, sansTs(zzz.rec.gacha));
 		}
 	}
+
+	// ⑤ 派生层（P2，2026-11-07）：`sideViewOf` / `scheduleItemOf` / `scheduleCellOf`
+	//
+	// ── 为什么需要它 ──
+	// P1 已把数据层收敛成"事实"（`gacha` / `events` 按结束时间升序、**不挑选**）。P2 把"谁排第一"
+	// 下移到显示层：表格那一行 = `sideViewOf(...).primary`、探头 = `.rest`，两处**共用同一份数组**
+	// （探头只是一个会动的 UI 组件，零数据语义）。这一段守三件事：
+	//   ① 纯函数本身：空数组 / 单条 / 多条 / claim 优先 / 类别档位 / 在期里结束最早 / 顺序稳定 / 不改输入；
+	//   ② **等价性（本阶段硬验收）**：同一份夹具下，"数组派生"渲染出的「名称 / 档期文本 / 探头行数 /
+	//      行顺序」与**改造前的老路**逐字相等 —— 老路 = `scheduleCellOf` 的兼容分支（`fromArray === false`），
+	//      它的代码就是 HEAD 的 `82-schedule-view.js` 里 `[it].concat(extras)` 那几行（逐字搬进 81）。
+	//      所以这里不需要 `git show HEAD:` 的副本：**老路在产品里就还在**（数组不可用时走它）。
+	//   ③ 兼容退化：老 lastData（没有 `gacha` / `events`）⇒ 走老路，输出与今天相同。
+	//
+	// ⚠️ 已知不等价（逐条钉在最后）：P1 数组丢了两类信息 —— ① 条目没有 `cat` / `tags`（event 侧
+	//   档位只能按名字匹配）；② "同池两条"判重键会并掉老探头里重复的那一行。这是**数据层**的损失，
+	//   不是 ① 的挑选规则写错；要等 P3（解析器直出结构化数组）或 P4（允许改变输出）才消掉。
+	{
+		const NOW = new Date(Date.parse("2026-10-02T00:00:00.000Z"));
+		const at = (s) => Date.parse(s + "T00:00:00.000Z");
+		const mk = (o) => Object.assign({ key: "k", title: "", show: "", roles: [], startTs: null, endTs: null, raw: "" }, o);
+		const rowOf = (x, now) => ({ name: x.show || x.title || x.raw || "—", meta: T.scheduleMeta(x, now) });
+		const rowsOf = (cell, now) => (cell ? [cell.primary].concat(cell.rest.slice().sort(T.schedulePickItem)).map((x) => rowOf(x, now)) : null);
+		const rowText = (rows) => (rows ? rows.map((r) => r.name + " ⏎ " + r.meta) : rows);
+		const sortedRowText = (rows) => (rows ? rows.map((r) => r.name + " ⏎ " + r.meta).sort() : rows);
+
+		// ── ⑤-1 纯函数：空 / 单条 / 顺序稳定 ──────────────────────────────
+		let v = T.sideViewOf([], NOW, "gacha");
+		check("sideViewOf：空数组 ⇒ primary = null、rest = []（两侧、脏值也一样）",
+			v.primary === null && v.rest.length === 0
+			&& T.sideViewOf(null, NOW, "event").primary === null && T.sideViewOf(undefined, NOW, "gacha").rest.length === 0,
+			JSON.stringify(v));
+		const one = mk({ title: "唯一", startTs: at("2026-10-01"), endTs: at("2026-10-05") });
+		v = T.sideViewOf([one], NOW, "gacha");
+		check("sideViewOf：单条 ⇒ primary 就是它、rest 为空（两侧）",
+			v.primary === one && v.rest.length === 0 && T.sideViewOf([one], NOW, "event").primary === one);
+		const gLate = mk({ key: "late", title: "晚结束", startTs: at("2026-10-01"), endTs: at("2026-10-09") });
+		const gSoon = mk({ key: "soon", title: "早结束", startTs: at("2026-09-28"), endTs: at("2026-10-04") });
+		const gEnded = mk({ key: "ended", title: "已结束", startTs: at("2026-09-01"), endTs: at("2026-09-20") });
+		const gOpen = mk({ key: "open", title: "版本更新后", startTs: null, endTs: at("2026-10-06") });
+		v = T.sideViewOf([gEnded, gSoon, gLate], NOW, "gacha");
+		check("sideViewOf(gacha)：只在**在期**的池里挑，取结束最早的那条（= 24-parser-window.js selectCurrent）",
+			v.primary === gSoon, v.primary && v.primary.title);
+		check("sideViewOf(gacha)：rest = 其余条目，**保持数组原顺序**（派生层不重排）",
+			JSON.stringify(v.rest.map((x) => x.title)) === JSON.stringify(["已结束", "晚结束"]),
+			JSON.stringify(v.rest.map((x) => x.title)));
+		check("sideViewOf(gacha)：起点未知（源站写「X.Y 版本更新后」）的在期池照样参选（startTs == null 视为已开始）",
+			T.sideViewOf([gLate, gOpen], NOW, "gacha").primary === gOpen);
+		const gTieA = mk({ key: "tieA", title: "并列后", startTs: at("2026-10-02"), endTs: at("2026-10-08") });
+		const gTieB = mk({ key: "tieB", title: "并列先", startTs: at("2026-09-30"), endTs: at("2026-10-08") });
+		check("sideViewOf(gacha)：同 endTs ⇒ 起点早的优先（selectCurrent 的稳定排序 + endTs 单键）",
+			T.sideViewOf([gTieA, gTieB], NOW, "gacha").primary === gTieB);
+		check("sideViewOf(gacha)：一条都不在期 ⇒ 取数组首条（= 结束最早的那条），不凭 now 另造一条",
+			T.sideViewOf([gEnded], NOW, "gacha").primary === gEnded);
+		const srcList = [gLate, gSoon];
+		T.sideViewOf(srcList, NOW, "gacha");
+		check("sideViewOf：纯函数 —— 不改输入数组（内容与顺序都不动）",
+			srcList.length === 2 && srcList[0] === gLate && srcList[1] === gSoon);
+
+		// ── ⑤-2 纯函数：event 侧 = pickEventPrimary（claim → 档位 → endTs → startTs）──
+		const evTier1 = mk({ key: "t1", title: "剧情活动", startTs: at("2026-10-01"), endTs: at("2026-10-20") });
+		const evTier2 = mk({ key: "t2", title: "签到活动", startTs: at("2026-10-01"), endTs: at("2026-10-04") });
+		check("sideViewOf(event)：完全复用 pickEventPrimary —— 类别档位（第一档）压过结束时间",
+			T.sideViewOf([evTier2, evTier1], NOW, "event").primary === evTier1);
+		const evClaim = mk({ key: "claim", title: "兑换截止", phase: { kind: "claim" }, startTs: at("2026-10-01"), endTs: at("2026-10-30") });
+		check("sideViewOf(event)：奖励领取期（phase.kind = claim）压过类别档位（2026-11-07 明日方舟真机口径）",
+			T.sideViewOf([evTier1, evClaim], NOW, "event").primary === evClaim);
+		const evEarly = mk({ key: "e1", title: "甲", startTs: at("2026-10-01"), endTs: at("2026-10-05") });
+		const evLate = mk({ key: "e2", title: "乙", startTs: at("2026-10-01"), endTs: at("2026-10-09") });
+		check("sideViewOf(event)：同档位按结束时间升序（越快结束越靠前）",
+			T.sideViewOf([evLate, evEarly], NOW, "event").primary === evEarly);
+
+		// ── ⑤-3 scheduleItemOf：数组条目 → 与 scheduleNormalize 同形 ──────────────
+		const recEv = {
+			id: "g1", name: "某游戏",
+			event: "剧情活动", eventDates: "10-01 12:00 ~ 10-20 23:59",
+			eventDatesRaw: "2026年10月1日 12:00 ~ 10月20日 23:59", tz: "Asia/Shanghai"
+		};
+		const mainItem = {
+			key: "g1:event:0", title: "剧情活动", show: "剧情活动",
+			startTs: at("2026-10-01"), endTs: at("2026-10-20"), tz: "Asia/Shanghai", raw: recEv.eventDatesRaw
+		};
+		const norm = T.scheduleNormalize(recEv, "event", NOW);
+		const mainView = T.scheduleItemOf(recEv, "event", mainItem, NOW);
+		check("scheduleItemOf：记录自己那条外显 ⇒ 直接走 scheduleNormalize（title / show / raw / rawSrc / state / ts 逐字相同）",
+			!!mainView && !!norm && ["title", "show", "raw", "rawSrc", "state", "startTs", "endTs", "remain"].every((f) => mainView[f] === norm[f]),
+			JSON.stringify(mainView && [mainView.raw, mainView.rawSrc, mainView.state]));
+		const extraItem = { key: "g1:event:1", title: "支线故事", show: "支线故事", startTs: at("2026-10-01"), endTs: at("2026-10-31"), raw: "10-01 12:00 ~ 10-31 23:59" };
+		const extraView = T.scheduleItemOf(recEv, "event", extraItem, NOW);
+		check("scheduleItemOf：并列条目 ⇒ 与 scheduleNormalize 同形（名称/原文来自数组条目，state/remain 由 ts 算）",
+			!!extraView && extraView.title === "支线故事" && extraView.show === "支线故事"
+			&& extraView.raw === extraItem.raw && extraView.rawSrc === extraItem.raw
+			&& extraView.state === "live" && extraView.fail === null);
+		check("scheduleItemOf：读不出绝对档期的并列条目 ⇒ null（与今天 scheduleHoverOnes 的 if (!r) continue 一致）",
+			T.scheduleItemOf(recEv, "event", { title: "版本更新后", raw: "4.6版本更新后 ~ 11-10 15:00", startTs: null, endTs: null }, NOW) === null);
+
+		// ── ⑤-4 scheduleCellOf：数组优先，数组不可用 ⇒ 今天的老路（兼容分支）────────
+		const legacyRec = Object.assign({}, recEv, { gacha: [], events: [] });
+		const cellLegacy = T.scheduleCellOf(legacyRec, "event", NOW);
+		check("兼容分支：老 lastData（没有 gacha / events ⇒ 空数组）⇒ fromArray = false，退化到解析悬停文本",
+			!!cellLegacy && cellLegacy.fromArray === false, JSON.stringify(cellLegacy && cellLegacy.fromArray));
+		const cellArray = T.scheduleCellOf(Object.assign({}, recEv, { events: [mainItem] }), "event", NOW);
+		check("主路径：有数组 ⇒ fromArray = true，primary 来自数组（不再解析悬停文本）",
+			!!cellArray && cellArray.fromArray === true && cellArray.primary.title === "剧情活动");
+		check("兼容分支的输出 = 主路径的输出（同一条记录、数组只有主条 ⇒ 逐字相同）",
+			JSON.stringify(rowText(rowsOf(cellLegacy, NOW))) === JSON.stringify(rowText(rowsOf(cellArray, NOW))),
+			JSON.stringify([rowText(rowsOf(cellLegacy, NOW)), rowText(rowsOf(cellArray, NOW))]));
+	}
+
+	// ⑤-5 等价性（硬验收）：同一份夹具，**老路 vs 数组派生**逐字比对
+	//       覆盖 17 款（15 款端到端刷新 + 星铁 / 原神 两条 payload 级），比较「名称 / 档期文本 /
+	//       探头行数 / 行顺序」。12 款完全相等；5 款有 6 个侧不等，逐条钉在下面（已知的数据层损失）。
+	{
+		const fixture = useFixtures();
+		const transport = {
+			async fetchRaw(url, opts) {
+				const r = await fixture(url, opts);
+				return { ok: r.ok, status: r.status, text: () => r.text(), json: () => r.json() };
+			},
+			async fetchViaProxy(url, opts) {
+				const o = opts || {};
+				let api = "/api/gacha-calendar-proxy?url=" + encodeURIComponent(String(url));
+				api += "&referer=" + encodeURIComponent(o.referer || "");
+				if (o.headers) api += "&headers=" + encodeURIComponent(JSON.stringify(o.headers));
+				const r = await fixture(api);
+				if (!r.ok) throw new Error("proxy-http-" + r.status);
+				const wrapped = JSON.parse(await r.text());
+				if (wrapped.status !== 200) throw new Error("proxy-bad:" + wrapped.status);
+				return wrapped.body;
+			}
+		};
+		const makeStore = (seed) => {
+			const m = new Map(Object.entries(seed || {}));
+			return { map: m, async get(k) { return m.get(k); }, async set(k, v) { m.set(k, v); } };
+		};
+		const ids = createEngine({ transport, storage: makeStore(), now: () => 0 }).__test.SOURCES.map((s) => s.id);
+		const only = (id) => ({ hidden: ids.filter((x) => x !== id) });
+		const runGame = async (id, nowMs) => {
+			const engine = createEngine({ transport, storage: makeStore(only(id)), now: () => nowMs, timer: { setTimeout, clearTimeout } });
+			const r = await engine.refresh();
+			return r.games[id] || {};
+		};
+		// 各游戏的 now = 夹具的抓取时刻（probe 实测过：这一组时刻每款都至少一侧有数据）
+		const CASES = [
+			["zzz", "2026-08-25T00:00:00.000Z"],
+			["arknights", "2026-10-25T00:00:00.000Z"],
+			["ba-cn", "2026-09-25T00:00:00.000Z"],
+			["bandori", "2026-08-25T00:00:00.000Z"],
+			["wuhuamixin", "2026-08-25T00:00:00.000Z"],
+			["zspms", "2026-09-25T00:00:00.000Z"],
+			["kedr", "2026-09-01T00:00:00.000Z"],
+			["uma-cn", "2026-10-02T00:00:00.000Z"],
+			["uma-jp", "2026-10-02T00:00:00.000Z"],
+			["uma-global", "2026-10-02T00:00:00.000Z"],
+			["p5x", "2026-09-25T00:00:00.000Z"],
+			["nte", "2026-10-20T00:00:00.000Z"],
+			["gf2", "2026-08-25T00:00:00.000Z"],
+			["fgo", "2026-08-25T00:00:00.000Z"],
+			["stellasora", "2026-09-01T00:00:00.000Z"]
+		];
+		const records = [];
+		for (const [id, iso] of CASES) {
+			const now = new Date(Date.parse(iso));
+			records.push({ id, now, rec: await runGame(id, now.getTime()) });
+		}
+		// 星铁（bwiki 历史跃迁 / 活动一览，形状与线上一致的真机夹具；与 ④-9 同一份）
+		{
+			const FIX = (dir) => fixtureBody("fixture:" + dir, { ["fixture:" + dir]: dir + "/response.txt" });
+			const warpBody = FIX("p4-hsr-bwiki-warp-1107");
+			const eventsBody = FIX("p4-hsr-bwiki-events-1107");
+			let body = "";
+			const hsrTransport = {
+				async fetchRaw() { return { ok: true, status: 200, headers: { get: () => null }, text: async () => body, json: async () => JSON.parse(body) }; },
+				async fetchViaProxy() { return body; }
+			};
+			const now = new Date(Date.parse("2026-11-07T00:00:00.000Z"));
+			const probe = createEngine({ transport: hsrTransport, storage: makeStore(), now: () => now.getTime(), timer: { setTimeout, clearTimeout } });
+			const meta = { id: "hsr", tz: "Asia/Shanghai" };
+			body = warpBody;
+			const gp = await probe.__test.GACHA_FETCHERS["hsr"]("https://wiki.biligame.com/sr/api.php?action=parse&page=warp", undefined, "Asia/Shanghai");
+			const recG = probe.__test.mergeEntryRecord({ data: gp || {} }, null, now.getTime(), meta);
+			body = eventsBody;
+			const ep = await probe.__test.EVENT_FETCHERS["hsr"].default("https://wiki.biligame.com/sr/api.php?action=parse&page=events", undefined, "Asia/Shanghai");
+			const recE = probe.__test.mergeEntryRecord({ data: ep || {} }, null, now.getTime(), meta);
+			// 两侧记录合并：卡池字段取 recG、活动字段取 recE，**两个数组各自保留**（recE 里的 gacha 是空数组）
+			records.push({ id: "hsr", now, rec: Object.assign({}, recG, recE, { gacha: recG.gacha, events: recE.events }) });
+		}
+		// 原神（米游社；卡池侧正文无日期 ⇒ gacha 空数组，只比活动侧；与 ④-1 同一份）
+		{
+			const now = new Date(Date.parse("2026-10-02T14:37:53.720Z"));
+			const probe = createEngine({ transport, storage: makeStore(), now: () => now.getTime(), timer: { setTimeout, clearTimeout } });
+			const miyoushe = (gids, type) => "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=" + gids + "&type=" + type + "&page_size=20";
+			const ev = await probe.__test.EVENT_FETCHERS["genshin"]["genshin-miyoushe"].default(miyoushe(2, 2), undefined, "Asia/Shanghai");
+			const rec = probe.__test.mergeEntryRecord({ data: ev || {} }, null, now.getTime(), { id: "genshin", tz: "Asia/Shanghai" });
+			records.push({ id: "genshin", now, rec });
+		}
+
+		const rowOf = (x, now) => ({ name: x.show || x.title || x.raw || "—", meta: T.scheduleMeta(x, now) });
+		const rowsOf = (cell, now) => (cell ? [cell.primary].concat(cell.rest.slice().sort(T.schedulePickItem)).map((x) => rowOf(x, now)) : null);
+		const text = (rows) => (rows ? rows.map((r) => r.name + " ⏎ " + r.meta) : rows);
+		const sortedText = (rows) => (rows ? rows.map((r) => r.name + " ⏎ " + r.meta).sort() : rows);
+
+		const got = new Map();          // "id:side" → { old, next }
+		const fallback = [];            // 有数组却退化成老路的一侧（不该出现）
+		const diffs = [];
+		for (const { id, now, rec } of records) {
+			const g = Object.assign({ id, name: id }, rec);
+			for (const side of ["gacha", "event"]) {
+				const key = id + ":" + side;
+				const hasArray = ((side === "gacha" ? g.gacha : g.events) || []).length > 0;
+				const nextCell = T.scheduleCellOf(g, side, now);
+				if (hasArray && (!nextCell || nextCell.fromArray !== true)) fallback.push(key);
+				// 老路 = 兼容分支（把两个数组抹空 ⇒ scheduleCellOf 走"解析悬停文本"那条，与 HEAD 逐字相同）
+				const oldCell = T.scheduleCellOf(Object.assign({}, g, { gacha: [], events: [] }), side, now);
+				const old = rowsOf(oldCell, now);
+				const next = rowsOf(nextCell, now);
+				got.set(key, { old, next });
+				if (JSON.stringify(old) !== JSON.stringify(next)) diffs.push(key);
+			}
+		}
+		check("等价性前置：有数组的一侧都走**主路径**（fromArray = true，没有偷偷退化到老路）",
+			fallback.length === 0, JSON.stringify(fallback));
+		check("等价性：17 款游戏（34 个侧）里只有 **6 个侧**与改造前不等 —— 其余全部逐字相等",
+			diffs.length === 6, JSON.stringify(diffs));
+		const notInList = diffs.filter((k) => ["wuhuamixin:gacha", "wuhuamixin:event", "zspms:event", "uma-cn:event", "uma-jp:gacha", "hsr:gacha"].indexOf(k) < 0);
+		check("等价性：逐字相等的是「名称 / 档期文本（含倒计时）/ 探头行数 / 行顺序」，不等的那 6 处就是下面钉住的已知差异",
+			notInList.length === 0, JSON.stringify(notInList));
+
+		// 12 款完全相等（逐一侧比对，含"这一侧没有数据"的那些）
+		const STRICT = ["zzz", "arknights", "ba-cn", "bandori", "kedr", "uma-global", "p5x", "nte", "gf2", "fgo", "stellasora", "genshin"];
+		const strictBad = [];
+		for (const id of STRICT) {
+			for (const side of ["gacha", "event"]) {
+				const d = got.get(id + ":" + side);
+				if (!d || JSON.stringify(d.old) !== JSON.stringify(d.next)) strictBad.push(id + ":" + side);
+			}
+		}
+		check("等价性：12 款游戏（24 个侧）与改造前**逐字相等**（名称 / 档期文本 / 探头行数 / 行顺序）",
+			strictBad.length === 0, JSON.stringify(strictBad));
+
+		// ── 已知不等价（逐条钉住；谁也不许悄悄变多 / 变少）───────────────────────
+		// ① P1 的「同池两条」判重键并掉了老探头里重复的那一行：
+		//    · 物华弥新 gacha：旧 3 行（主行 + 「繁霜春落：李小孩项链」+ 常驻）⇒ 新 2 行
+		//    · 星铁 gacha：旧 2 行（合并角色主行 + 「我身即刃…：千冶•刃」）⇒ 新 1 行
+		const wm = got.get("wuhuamixin:gacha");
+		check("已知差异①（物华弥新·卡池）：老路 3 行、数组派生 2 行 —— 少的是「繁霜春落：李小孩项链」（P1 同池判重键并掉的重复行）",
+			!!wm && wm.old.length === 3 && wm.next.length === 2
+			&& wm.next[0].name === wm.old[0].name && wm.next[1].name === wm.old[2].name
+			&& wm.old[1].name === "繁霜春落：李小孩项链",
+			JSON.stringify([wm && text(wm.old), wm && text(wm.next)]));
+		const hsr = got.get("hsr:gacha");
+		check("已知差异①（星铁·卡池）：老路 2 行、数组派生 1 行 —— 少的是同一口池的「池名：角色」重复行",
+			!!hsr && hsr.old.length === 2 && hsr.next.length === 1
+			&& hsr.next[0].name === hsr.old[0].name
+			&& hsr.old[1].name.indexOf("「我身即刃」角色活动跃迁：") === 0,
+			JSON.stringify([hsr && text(hsr.old), hsr && text(hsr.next)]));
+
+		// ② 数组没有 cat / tags、老实现另有规则（赛马娘 = 覆盖 now 且 startTs 最新；雪松 / FGO 走类别档位；
+		//    物华按"同类取 startTs 更晚"）⇒ **外显那条换了**，但成员与档期文本一字不差（只是那两行换位）。
+		const swap = (key, oldFirst, newFirst) => {
+			const d = got.get(key);
+			check(`已知差异②（${key}）：外显由「${oldFirst}」换成「${newFirst}」；成员 / 档期文本 / 行数不变（只是换位）`,
+				!!d && !!d.old && d.old[0].name === oldFirst && d.next[0].name === newFirst
+				&& JSON.stringify(sortedText(d.old)) === JSON.stringify(sortedText(d.next)),
+				JSON.stringify([d && text(d.old), d && text(d.next)]));
+		};
+		swap("wuhuamixin:event", "「寂夜长生」限时活动", "旅程将启-寂夜长生");
+		swap("zspms:event", "回路演算", "主线剧情-远信回响");
+		swap("uma-cn:event", "赛事活动“群英联赛 中距离”", "第1轮");
+		swap("uma-jp:gacha", "【予告】トゥインクルコレクション プリティーダービーガチャとSSR確定スピードガチャ開催決定！", "育成ウマ娘&サポートカード新登場！ピックアップガチャ開催！");
+	}
 }
