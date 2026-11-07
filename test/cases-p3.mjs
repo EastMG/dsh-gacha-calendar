@@ -351,7 +351,7 @@ const p3bFixtureMapOf = (overrides) => {
 // `call(t, src)` 收 `engine.__test` 与来源声明（用它自己的 url / eventUrl / tz）；
 // `urlsOf(src)` 就地补 map 覆盖（个别夹具没进 map.json）；
 // `switched: true` = 该路径已改成"解析器直出数组 + 悬停由条目反生成"。
-const P3B_SWITCHED_EXPECT = 21;   // 已切路径数（每批提交时 +N，最终 = P3B_PATHS.length）
+const P3B_SWITCHED_EXPECT = 27;   // 已切路径数（每批提交时 +N，最终 = P3B_PATHS.length）
 const P3B_PATHS = [
 	// ── 第 1 批：星铁（bwiki）/ 绝区零（官方公告）/ 崩坏3（米游社备选）/ 米游社卡池 ──
 	{
@@ -454,6 +454,35 @@ const P3B_PATHS = [
 		// 该生产者的**有数据路径**由 `umaJpEvent`（同一个官方公告家族的生产者）覆盖，不是抽样。
 		key: "umaGlobalEvent", switched: true, id: "uma-global", side: "event", field: "events", emptyOk: true, now: Date.parse("2026-10-02T14:36:56Z"),
 		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
+	},
+	// ── 第 4 批：bandori / 世嘉 族 —— BanG Dream! / PJSK / OurNotes / OurNotes 国际服 ──
+	{
+		key: "bandoriGacha", switched: true, id: "bandori", side: "gacha", field: "gacha", now: Date.parse("2026-10-02T00:00:00.000Z"),
+		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
+	},
+	{
+		key: "bandoriEvent", switched: true, id: "bandori", side: "event", field: "events", now: Date.parse("2026-10-02T00:00:00.000Z"),
+		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
+	},
+	{
+		// PJSK 默认源走 gh-proxy 前缀（map.json 里没有）→ 用备选源同款静态地址（已在 map.json 里）
+		key: "pjskGacha", switched: true, id: "pjsk", side: "gacha", field: "gacha", now: Date.parse("2026-10-02T00:00:00.000Z"),
+		call: (t) => t.GACHA_FETCHERS["pjsk"]("https://sekai-world.github.io/sekai-master-db-cn-diff/gachas.json", undefined, TZ_CN)
+	},
+	{
+		key: "pjskEvent", switched: true, id: "pjsk", side: "event", field: "events", now: Date.parse("2026-10-02T00:00:00.000Z"),
+		call: (t) => t.EVENT_FETCHERS["pjsk"].default("https://sekai-world.github.io/sekai-master-db-cn-diff/events.json", undefined, TZ_CN)
+	},
+	{
+		key: "ournotesEvent", switched: true, id: "ournotes", side: "event", field: "events", now: Date.parse("2026-10-02T00:00:00.000Z"),
+		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
+	},
+	{
+		// OurNotes 国际服**默认未配置**（只挂备选源）→ 走备选活动抓取器；页面夹具换成"有内容"的那份
+		// （map.json 里这条 URL 指向 empty 夹具，用于守"空列表 ⇒ 未公布"，这里要看有数据的一面）。
+		key: "ournotesGlobalEvent", switched: true, hoverKind: "gacha", id: "ournotes-global", side: "event", field: "events", now: Date.parse("2026-10-03T00:00:00.000Z"),
+		urlsOf: () => ({ "https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw": "p9-ournotes-global-list" }),
+		call: (t) => t.EVENT_FETCHERS["ournotes-global"]["ournotes-global-event"].default("https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw", undefined, TZ_CN)
 	}
 ];
 
@@ -578,7 +607,7 @@ async function runP3b() {
 		}
 		const items = (p.side === "gacha" ? pay.gachaHoverItems : pay.eventHoverItems) || [];
 		// ⚠️ 用**该来源自己的 tz**：悬停文本是解析器按源站墙钟渲染的（ddlezj 是 +540、赛马娘日服是 Asia/Tokyo）
-		const regen = T.hoverTextFromItems(items, p.side, r.src.tz || TZ_CN, p.genOpts);
+		const regen = T.hoverTextFromItems(items, p.hoverKind || p.side, r.src.tz || TZ_CN, p.genOpts);
 		const hover = p.side === "gacha" ? pay.bannerHover : pay.eventHover;
 		// `hoverPrefix`：有些来源的悬停首行不是条目（如鸣潮的"卡池类型"），由构造方显式声明
 		const expected = p.hoverPrefix ? (regen ? p.hoverPrefix(pay) + regen : "") : regen;

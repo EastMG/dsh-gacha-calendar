@@ -303,14 +303,19 @@ async function ns_bandori_gachaBandori(url, signal, tz = ns_bandori_BANDORI_TZ, 
 	const w = a.picked.primary;
 	const banner = a.picked.quote || a.picked.name;
 	// 悬停（本体 buildPoolHover 格式）：当期主池每池两行「池名：角色」⏎「档期」，结束时间升序。
-	// 派生池（免费/确定/StepUp）不进悬停；只有 1 个当期主池时 hoverPool 返回 "" → 不设 bannerHover。
+	// 派生池（免费/确定/StepUp）不进悬停；只有 1 个当期主池时生成器返回 "" → 不设 bannerHover。
 	const pools = ns_bandori_bandoriActiveGachaSections(a.sections, a.text, now).map((s) => {
 		const roles = ns_bandori_bandoriRolesFromSection(a.text, s).replace(/、/g, "/");
 		const name = ns_bandori_hoverLabel(s.quote || s.name);
 		return { ...ns_bandori_bandoriSectionItem(s, name), label: roles ? `${name}：${roles}` : name };
 	});
-	const bannerHover = hoverPool(pools, tz);
-	return {
+	// ── P3b：条目事实 → 悬停 + `gacha` 数组（排序与 hoverPool 同一份：结束时间升序）──
+	const hoverItems = pools
+		.filter((p) => p.name)
+		.sort(poolHoverOrderOf)
+		.map((p) => ({ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw }));
+	const bannerHover = hoverTextFromItems(hoverItems, "gacha", tz);
+	const out = {
 		banner,
 		roles: ns_bandori_bandoriRolesFromSection(a.text, a.picked),
 		bannerDates: fmtWindow(w.startTs, w.endTs, tz),
@@ -319,6 +324,9 @@ async function ns_bandori_gachaBandori(url, signal, tz = ns_bandori_BANDORI_TZ, 
 		endTs: w.endTs,
 		...(bannerHover ? { bannerHover } : {})
 	};
+	out.gacha = dataArrayProducedGachaOf(out, hoverItems, { tz }, now);
+	out.gachaHoverItems = hoverItems;
+	return out;
 }
 
 // ── 活动侧 ──
@@ -329,18 +337,25 @@ async function ns_bandori_eventsBandori(url, signal, tz = ns_bandori_BANDORI_TZ,
 	const a = await ns_bandori_loadAnnouncement(listUrl, signal, ns_bandori_pickBandoriEventSection);
 	if (!a) return null;
 	const w = a.picked.primary;
-	// 悬停格式一律交 lib/env.js 的 hoverEvent（= 本体 buildEventHover；压平后见 28-parser-hover-tools.js）：`名称` + 3 空格 + `档期`，
-	// **名称在前**（旧实现是「档期在前、名称在后」，与本体相反 —— 用户 2026-10-03 反馈的偏差②）。
-	// 只有 1 条当期 → hoverEvent 返回 "" → 不设 eventHover，由 UI 走默认两行式。
+	// 悬停格式：`名称` + 3 空格 + `档期`（**名称在前** —— 旧实现「档期在前」与本体相反）。
+	// 只有 1 条当期 → 生成器返回 "" → 不设 eventHover，由 UI 走默认两行式。
 	// ⚠️ 这里原来写死 `nowMs()`（2026-10-15 修）：外显按注入时刻、悬停按真实时刻 → 两者不同源。
 	const active = ns_bandori_bandoriActiveSections(a.sections, now);
-	const eventHover = hoverEvent(active.map((s) => ns_bandori_bandoriSectionItem(s)), tz);
-	return {
+	// ── P3b：条目事实 → 悬停 + `events` 数组（顺序 = active 原序，与 hoverEvent 的输入同一份）──
+	const eventItems = active.map((s) => {
+		const it = ns_bandori_bandoriSectionItem(s);
+		return { title: it.name, startTs: it.startTs, endTs: it.endTs, raw: it.raw };
+	});
+	const eventHover = hoverTextFromItems(eventItems, "event", tz);
+	const out = {
 		event: a.picked.quote || ns_bandori_bandoriTitle(a.item) || a.picked.name,
 		eventDates: fmtWindow(w.startTs, w.endTs, tz),
 		eventDatesRaw: w.raw,
 		...(eventHover ? { eventHover } : {})
 	};
+	out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
+	out.eventHoverItems = eventItems;
+	return out;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -525,18 +540,22 @@ async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES
 	// ⚠️ 只有 1 条当期窗口时 hoverEvent 返回 "" → **不设 eventHover**，由 UI 走默认两行式
 	//    「名称 ⏎ 档期」（实测夹具里覆盖当期的只有 1 条：288 那篇）。
 	const list = (active.length ? active : [picked]).map(({ p, w }) => ({
-		name: p.title,
+		title: p.title,
 		startTs: w.startTs,
 		endTs: w.endTs,
 		raw: w.raw
 	}));
-	const eventHover = hoverEvent(list, tz);
-	return {
+	// ── P3b：条目事实 → 悬停 + `events` 数组（不排序，与 hoverEvent 的输入同一份）──
+	const eventHover = hoverTextFromItems(list, "event", tz);
+	const out = {
 		event: picked.post.title,
 		eventDates: fmtWindow(picked.win.startTs, picked.win.endTs, tz),
 		eventDatesRaw: picked.win.raw,
 		...(eventHover ? { eventHover } : {})
 	};
+	out.events = dataArrayProducedEventsOf(out, list, { tz }, now);
+	out.eventHoverItems = list;
+	return out;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -846,8 +865,13 @@ async function ns_ournotes_global_loadOurNotesGlobal(url, signal, tz, now, want)
 		//   它一直没被发现，是因为该条目**默认未配置**（出厂不抓取）→ 活体审计永远看不到它的悬停。
 		//   现在改用共用 hoverPool：只留「名称 ⏎ 档期」。时区依据写在本文件顶部注释与条目 tz 字段里。
 		const name = ns_ournotes_global_cleanTitle(title) || "（未命名）";
-		const hover = hoverPool(active.map((x) => ({ name, startTs: x.startTs, endTs: x.endTs })), tz);
-		return { title, best, hover };
+		// ── P3b：条目事实 → 悬停（P3b 只把悬停改成反生成；数组由两个抓取器收口）──
+		// 池名 = 公告标题（该站没有单独的池名），窗口 = 覆盖当期的全部窗口 ⇒ 多窗口时逐行同名。
+		const items = active
+			.map((x) => ({ title: name, startTs: x.startTs, endTs: x.endTs, raw: "" }))
+			.sort(poolHoverOrderOf);
+		const hover = hoverTextFromItems(items, "gacha", tz);
+		return { title, best, hover, items };
 	}
 	if (loaded === 0 && tried > 0 && firstErr) throw firstErr;   // 本侧相关详情全失败 → 抛错
 	return null;
@@ -855,8 +879,8 @@ async function ns_ournotes_global_loadOurNotesGlobal(url, signal, tz, now, want)
 async function ns_ournotes_global_gachaOurNotesGlobal(url, signal, tz = ns_ournotes_global_OURNOTES_GLOBAL_TZ, now = nowMs()) {
 	const hit = await ns_ournotes_global_loadOurNotesGlobal(url, signal, tz, now, "gacha");
 	if (!hit) return null;
-	const { title, best, hover } = hit;
-	return {
+	const { title, best, hover, items } = hit;
+	const out = {
 		banner: ns_ournotes_global_cleanTitle(title) || "（未命名招募）",
 		roles: "",
 		bannerDates: fmtWindow(best.startTs, best.endTs, tz),
@@ -865,17 +889,25 @@ async function ns_ournotes_global_gachaOurNotesGlobal(url, signal, tz = ns_ourno
 		endTs: best.endTs,
 		bannerHover: hover
 	};
+	out.gacha = dataArrayProducedGachaOf(out, items || [], { tz }, now);
+	out.gachaHoverItems = items || [];
+	return out;
 }
 async function ns_ournotes_global_eventsOurNotesGlobal(url, signal, tz = ns_ournotes_global_OURNOTES_GLOBAL_TZ, now = nowMs()) {
 	const hit = await ns_ournotes_global_loadOurNotesGlobal(url, signal, tz, now, "event");
 	if (!hit) return null;
-	const { title, best, hover } = hit;
-	return {
+	const { title, best, hover, items } = hit;
+	const out = {
 		event: ns_ournotes_global_cleanTitle(title) || "（未命名活动）",
 		eventDates: fmtWindow(best.startTs, best.endTs, tz),
 		eventDatesRaw: best.raw,
+		// ⚠️ 这一侧的悬停**一直是卡池式排版**（两行「名称 ⏎ 档期」，来自 hoverPool），
+		//    P3b 不借机改排版（会改用户可见输出）⇒ 反生成也用 `"gacha"` 那一套，逐字不变。
 		eventHover: hover
 	};
+	out.events = dataArrayProducedEventsOf(out, items || [], { tz }, now);
+	out.eventHoverItems = items || [];
+	return out;
 }
 //#endregion
 

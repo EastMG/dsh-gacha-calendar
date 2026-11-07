@@ -90,13 +90,19 @@ function ns_sekai_parseSekaiGachas(json, now = nowMs(), tz = "Asia/Shanghai") {
 
 	const dates = fmtWindow(cur.startTs, cur.endTs, tz);
 	// 悬停 = 全部当期**有界**池（长期池不参与"当期"，见上）。每池一行池名 + 档期，窗口完全相同则
-	// 档期只在末尾写一遍 —— 排版交给共用工具 hoverPool（与本体 buildPoolHover 逐字一致）。
+	// 档期只在末尾写一遍 —— 排版交给**条目反生成**（与本体 buildPoolHover 逐字一致）。
 	// 源站没有角色名 → name 就用池名本身（对应本体的「池名：角色」里的池名位置）。
 	// 池名里的「（ceil）」等后缀来自 `gachaType` 枚举，**不是源站原文** → 不进悬停；
-	// 同名同窗的阶梯/高级礼物招募多条各自成行（源站如此，不再合并成 ×n）。
-	const hover = hoverPool(bounded.map((p) => ({ name: p.name, startTs: p.startTs, endTs: p.endTs })), tz);
+	// 同名同窗的阶梯/高级礼物招募多条各自成行（源站如此，不再合并成 ×n）——
+	// 数组侧由 `dataArrayExtrasFromEntriesOf` 的「归一后同名只留第一条」收口（与悬停逆解析同一判据）。
+	// ── P3b：条目事实 → 悬停 + `gacha` 数组 ──────────────────────────────────
+	const hoverItems = bounded
+		.filter((p) => p.name)
+		.sort(poolHoverOrderOf)
+		.map((p) => ({ title: p.name, startTs: p.startTs, endTs: p.endTs, raw: "" }));
+	const hover = hoverTextFromItems(hoverItems, "gacha", tz);
 	// 只有 1 个当期池 → hover 为 ""，**不设 bannerHover**，由 UI 走默认两行式「banner ⏎ bannerDates」
-	return {
+	const out = {
 		banner: cur.name,
 		roles: "",
 		bannerDates: dates,
@@ -105,6 +111,9 @@ function ns_sekai_parseSekaiGachas(json, now = nowMs(), tz = "Asia/Shanghai") {
 		endTs: cur.endTs,
 		...(hover ? { bannerHover: hover } : {})
 	};
+	out.gacha = dataArrayProducedGachaOf(out, hoverItems, { tz }, now);
+	out.gachaHoverItems = hoverItems;
+	return out;
 }
 
 // ── 活动侧 ──
@@ -139,13 +148,18 @@ function ns_sekai_parseSekaiEvents(json, now = nowMs(), tz = "Asia/Shanghai") {
 	// 与本体 buildEventHover 逐字一致）。**不排序**由工具负责 → 这里先排好序再传。
 	// 只有 1 条 → 工具返回 ""，不设 eventHover，由 UI 走默认两行式「event ⏎ eventDates」。
 	const ordered = active.slice().sort((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs));
-	const hover = hoverEvent(ordered.map((x) => ({ name: x.name, startTs: x.startTs, endTs: x.endTs })), tz);
-	return {
+	// ── P3b：条目事实 → 悬停 + `events` 数组（顺序 = 上面的结束时间升序）──
+	const eventItems = ordered.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: "" }));
+	const hover = hoverTextFromItems(eventItems, "event", tz);
+	const out = {
 		event: cur.name,
 		eventDates: dates,
 		eventDatesRaw: raw,
 		...(hover ? { eventHover: hover } : {})
 	};
+	out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
+	out.eventHoverItems = eventItems;
+	return out;
 }
 
 // 抓取器：mode="direct"（实测 sekai-world.github.io = GitHub Pages 静态资源，带 ACAO）

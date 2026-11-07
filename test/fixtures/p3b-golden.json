@@ -355,5 +355,107 @@
 			"eventHoverExtra": ""
 		},
 		"array": "[]"
+	},
+	"bandoriGacha": {
+		"rec": {
+			"banner": "黄金周纪念·前篇Dream＆KIRAMEKI Festival招募",
+			"roles": "丸山彩、CHU²、二叶筑紫、山吹沙绫、宇田川巴、大和麻弥",
+			"bannerDates": "09-29 10:00 ~ 10-11 12:59",
+			"bannerDatesRaw": "9月29日维护后~10月11日12:59",
+			"bannerHover": "",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"bandori:gacha:0\",\"title\":\"黄金周纪念·前篇Dream＆KIRAMEKI Festival招募\",\"show\":\"丸山彩、CHU²、二叶筑紫、山吹沙绫、宇田川巴、大和麻弥\",\"roles\":[\"丸山彩\",\"CHU²\",\"二叶筑紫\",\"山吹沙绫\",\"宇田川巴\",\"大和麻弥\"],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"9月29日维护后~10月11日12:59\",\"source\":\"primary\"}]"
+	},
+	"bandoriEvent": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "All☆Stars CiRCRiNG Fes!",
+			"eventDates": "09-29 10:00 ~ 10-14 22:59",
+			"eventDatesRaw": "9月29日维护后~10月14日22:59",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "All☆Stars CiRCRiNG Fes!   09-29 10:00 ~ 10-14 22:59\n黄金周纪念·前篇Dream＆KIRAMEKI Festival招募   09-29 10:00 ~ 10-11 12:59\n黄金周纪念 1日1次免费10连招募   09-29 10:00 ~ 11-09 23:59\n黄金周纪念★ 5初次获得成员1人确定招募   09-29 10:00 ~ 10-26 12:59\n黄金周纪念★ 5期间限定成员1人确定招募   09-29 10:00 ~ 10-26 12:59\n黄金周纪念★ 5KIRAFES限定成员1人确定招募   09-29 10:00 ~ 10-26 12:59\n黄金周纪念★ 5DreamFes限定成员1人确定招募   09-29 10:00 ~ 10-26 12:59\n黄金周纪念Step up DreamFes限定成员招募   09-29 10:00 ~ 10-26 12:59\n超高难度 新SPECIAL难度   09-29 10:00 ~ 10-26 12:59\n黄金周纪念·前篇登录奖励活动   09-29 10:00 ~ 10-26 12:59\n黄金周纪念徽章   09-29 10:00 ~ 10-26 12:59\n黄金周纪念道具交换所   09-29 10:00 ~ 10-26 12:59\n黄金周纪念 星石充值优惠 ！   09-29 10:00 ~ 10-26 12:59\n★ 5 期间限定 奇迹招募券礼包   09-29 10:00 ~ 10-26 12:59\n限时纪念豪华道具组合礼包   09-29 10:00 ~ 10-26 12:59\n黄金周纪念特惠欢乐 BOX   09-29 10:00 ~ 10-26 12:59",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"bandori:event:0\",\"title\":\"黄金周纪念·前篇Dream＆KIRAMEKI Festival招募\",\"show\":\"黄金周纪念·前篇Dream＆KIRAMEKI Festival招募\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-29 10:00 ~ 10-11 12:59\",\"source\":\"hover\"},{\"key\":\"bandori:event:1\",\"title\":\"All☆Stars CiRCRiNG Fes!\",\"show\":\"All☆Stars CiRCRiNG Fes!\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"9月29日维护后~10月14日22:59\",\"source\":\"primary\"},{\"key\":\"bandori:event:2\",\"title\":\"黄金周纪念★ 5初次获得成员1人确定招募\",\"show\":\"黄金周纪念★ 5初次获得成员1人确定招募\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-29 10:00 ~ 10-26 12:59\",\"source\":\"hover\"},{\"key\":\"bandori:event:3\",\"title\":\"黄金周纪念★ 5期间限定成员1人确定招募\",\"show\":\"黄金周纪念★ 5期间限定成员1人确定招募\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-29 10:00 ~ 10-26 12:59\",\"source\":\"hover\"},{\"key\":\"bandori:event:4\",\"title\":\"黄金周纪念★ 5KIRAFES限定成员1人确定招募\",\"show\":\"黄金周纪念★ 5KIRAFES限定成员1人确定招募\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-29 10:00 ~ 10-26 12:59\",\"source\":\"hover\"},{\"key\":\"bandori:event:5\",\"title\":\"黄金周纪念★ 5DreamFes限定成员1人确定招募\",\"show\":\"黄金周纪念★ 5DreamFes限定成员1人确定招募\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-29 10:00 ~ 10-26 12:59\",\"source\":\"hover\"},{\"key\":\"bandori:event:6\",\"title\":\"黄金周纪念Step up DreamFes限定成员招募\",\"show\":\"黄金周纪念Step up DreamFes限定成员招募\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-29 10:00 ~ 10-26 12:59\",\"source\":\"hover\"},{\"key\":\"bandori:event:7\",\"title\":\"超高难度 新SPECIAL难度\",\"show\":\"超高难度 新SPECIAL难度\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-29 10:00 ~ 10-26 12:59\",\"source\":\"hover\"},{\"key\":\"bandori:event:8\",\"title\":\"黄金周纪念·前篇登录奖励活动\",\"show\":\"黄金周纪念·前篇登录奖励活动\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-29 10:00 ~ 10-26 12:59\",\"source\":\"hover\"},{\"key\":\"bandori:event:9\",\"title\":\"黄金周纪念徽章\",\"show\":\"黄金周纪念徽章\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-29 10:00 ~ 10-26 12:59\",\"source\":\"hover\"},{\"key\":\"bandori:event:10\",\"title\":\"黄金周纪念道具交换所\",\"show\":\"黄金周纪念道具交换所\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-29 10:00 ~ 10-26 12:59\",\"source\":\"hover\"},{\"key\":\"bandori:event:11\",\"title\":\"黄金周纪念 星石充值优惠 ！\",\"show\":\"黄金周纪念 星石充值优惠 ！\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-29 10:00 ~ 10-26 12:59\",\"source\":\"hover\"},{\"key\":\"bandori:event:12\",\"title\":\"★ 5 期间限定 奇迹招募券礼包\",\"show\":\"★ 5 期间限定 奇迹招募券礼包\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-29 10:00 ~ 10-26 12:59\",\"source\":\"hover\"},{\"key\":\"bandori:event:13\",\"title\":\"限时纪念豪华道具组合礼包\",\"show\":\"限时纪念豪华道具组合礼包\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-29 10:00 ~ 10-26 12:59\",\"source\":\"hover\"},{\"key\":\"bandori:event:14\",\"title\":\"黄金周纪念特惠欢乐 BOX\",\"show\":\"黄金周纪念特惠欢乐 BOX\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-29 10:00 ~ 10-26 12:59\",\"source\":\"hover\"},{\"key\":\"bandori:event:15\",\"title\":\"黄金周纪念 1日1次免费10连招募\",\"show\":\"黄金周纪念 1日1次免费10连招募\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-29 10:00 ~ 11-09 23:59\",\"source\":\"hover\"}]"
+	},
+	"pjskGacha": {
+		"rec": {
+			"banner": "[桐谷遥]HAPPY BIRTHDAY 2026招募",
+			"roles": "",
+			"bannerDates": "10-01 00:00 ~ 10-07 23:59",
+			"bannerDatesRaw": "10-01 00:00 ~ 10-07 23:59",
+			"bannerHover": "T恤服装特惠招募\n09-19 12:00 ~ 10-03 11:59\n[1.5周年纪念]绚烂节日招募 梦幻Pick\n09-27 12:00 ~ 10-04 11:59\n[1.5周年纪念]绚烂节日招募 金色热潮\n09-27 12:00 ~ 10-04 11:59\n缤纷月卡招募\n09-01 04:00 ~ 10-06 03:59\n[桐谷遥]HAPPY BIRTHDAY 2026招募\n10-01 00:00 ~ 10-07 23:59\n[桐谷遥]HAPPY BIRTHDAY Memories 招募\n10-01 00:00 ~ 10-07 23:59\n[复刻]Grace Marriage招募\n09-26 12:00 ~ 10-10 11:59\n[1.5周年纪念][虚拟歌手]高级礼物招募\n09-27 00:00 ~ 10-11 11:59\n[1.5周年纪念][Leo/need]高级礼物招募\n09-27 00:00 ~ 10-11 11:59\n[1.5周年纪念][MORE MORE JUMP！]高级礼物招募\n09-27 00:00 ~ 10-11 11:59\n[1.5周年纪念][Vivid BAD SQUAD]高级礼物招募\n09-27 00:00 ~ 10-11 11:59\n[1.5周年纪念][Wonderlands×Showtime]高级礼物招募\n09-27 00:00 ~ 10-11 11:59\n[1.5周年纪念][25点，Nightcord见。]高级礼物招募\n09-27 00:00 ~ 10-11 11:59\n[1.5周年纪念]纪念自选招募\n09-27 00:00 ~ 10-11 11:59\n[1.5周年纪念]阶梯招募\n09-27 12:00 ~ 10-11 11:59\n[1.5周年纪念]阶梯招募\n09-27 12:00 ~ 10-11 11:59\n[1.5周年纪念]阶梯招募\n09-27 12:00 ~ 10-11 11:59\n[1.5周年纪念]阶梯招募\n09-27 12:00 ~ 10-11 11:59\n[1.5周年纪念]免费招募\n09-27 00:00 ~ 11-24 23:59\n[邀请朋友]★4成员必出招募\n09-24 12:00 ~ 11-30 23:59",
+			"event": "",
+			"eventDates": "",
+			"eventDatesRaw": "",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"pjsk:gacha:0\",\"title\":\"T恤服装特惠招募\",\"show\":\"T恤服装特惠招募\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-19 12:00 ~ 10-03 11:59\",\"source\":\"hover\"},{\"key\":\"pjsk:gacha:1\",\"title\":\"[1.5周年纪念]绚烂节日招募 梦幻Pick\",\"show\":\"[1.5周年纪念]绚烂节日招募 梦幻Pick\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-27 12:00 ~ 10-04 11:59\",\"source\":\"hover\"},{\"key\":\"pjsk:gacha:2\",\"title\":\"[1.5周年纪念]绚烂节日招募 金色热潮\",\"show\":\"[1.5周年纪念]绚烂节日招募 金色热潮\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-27 12:00 ~ 10-04 11:59\",\"source\":\"hover\"},{\"key\":\"pjsk:gacha:3\",\"title\":\"缤纷月卡招募\",\"show\":\"缤纷月卡招募\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-01 04:00 ~ 10-06 03:59\",\"source\":\"hover\"},{\"key\":\"pjsk:gacha:4\",\"title\":\"[桐谷遥]HAPPY BIRTHDAY 2026招募\",\"show\":\"[桐谷遥]HAPPY BIRTHDAY 2026招募\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-01 00:00 ~ 10-07 23:59\",\"source\":\"primary\"},{\"key\":\"pjsk:gacha:5\",\"title\":\"[桐谷遥]HAPPY BIRTHDAY Memories 招募\",\"show\":\"[桐谷遥]HAPPY BIRTHDAY Memories 招募\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"10-01 00:00 ~ 10-07 23:59\",\"source\":\"hover\"},{\"key\":\"pjsk:gacha:6\",\"title\":\"[复刻]Grace Marriage招募\",\"show\":\"[复刻]Grace Marriage招募\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-26 12:00 ~ 10-10 11:59\",\"source\":\"hover\"},{\"key\":\"pjsk:gacha:7\",\"title\":\"[1.5周年纪念][虚拟歌手]高级礼物招募\",\"show\":\"[1.5周年纪念][虚拟歌手]高级礼物招募\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-27 00:00 ~ 10-11 11:59\",\"source\":\"hover\"},{\"key\":\"pjsk:gacha:8\",\"title\":\"[1.5周年纪念][Leo/need]高级礼物招募\",\"show\":\"[1.5周年纪念][Leo/need]高级礼物招募\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-27 00:00 ~ 10-11 11:59\",\"source\":\"hover\"},{\"key\":\"pjsk:gacha:9\",\"title\":\"[1.5周年纪念][MORE MORE JUMP！]高级礼物招募\",\"show\":\"[1.5周年纪念][MORE MORE JUMP！]高级礼物招募\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-27 00:00 ~ 10-11 11:59\",\"source\":\"hover\"},{\"key\":\"pjsk:gacha:10\",\"title\":\"[1.5周年纪念][Vivid BAD SQUAD]高级礼物招募\",\"show\":\"[1.5周年纪念][Vivid BAD SQUAD]高级礼物招募\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-27 00:00 ~ 10-11 11:59\",\"source\":\"hover\"},{\"key\":\"pjsk:gacha:11\",\"title\":\"[1.5周年纪念][Wonderlands×Showtime]高级礼物招募\",\"show\":\"[1.5周年纪念][Wonderlands×Showtime]高级礼物招募\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-27 00:00 ~ 10-11 11:59\",\"source\":\"hover\"},{\"key\":\"pjsk:gacha:12\",\"title\":\"[1.5周年纪念][25点，Nightcord见。]高级礼物招募\",\"show\":\"[1.5周年纪念][25点，Nightcord见。]高级礼物招募\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-27 00:00 ~ 10-11 11:59\",\"source\":\"hover\"},{\"key\":\"pjsk:gacha:13\",\"title\":\"[1.5周年纪念]纪念自选招募\",\"show\":\"[1.5周年纪念]纪念自选招募\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-27 00:00 ~ 10-11 11:59\",\"source\":\"hover\"},{\"key\":\"pjsk:gacha:14\",\"title\":\"[1.5周年纪念]阶梯招募\",\"show\":\"[1.5周年纪念]阶梯招募\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-27 12:00 ~ 10-11 11:59\",\"source\":\"hover\"},{\"key\":\"pjsk:gacha:15\",\"title\":\"[1.5周年纪念]免费招募\",\"show\":\"[1.5周年纪念]免费招募\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-27 00:00 ~ 11-24 23:59\",\"source\":\"hover\"},{\"key\":\"pjsk:gacha:16\",\"title\":\"[邀请朋友]★4成员必出招募\",\"show\":\"[邀请朋友]★4成员必出招募\",\"roles\":[],\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-24 12:00 ~ 11-30 23:59\",\"source\":\"hover\"}]"
+	},
+	"pjskEvent": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "Our Golden Days",
+			"eventDates": "09-30 15:00 ~ 10-09 20:59",
+			"eventDatesRaw": "09-30 15:00 ~ 10-09 20:59",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"pjsk:event:0\",\"title\":\"Our Golden Days\",\"show\":\"Our Golden Days\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"09-30 15:00 ~ 10-09 20:59\",\"source\":\"primary\"}]"
+	},
+	"ournotesEvent": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "「アワーノーツ リリース日決定特番」発表情報まとめ！",
+			"eventDates": "09-24 00:00 ~ 10-28 14:59",
+			"eventDatesRaw": "2026年9月24日(木)～10月28日(水)14:59",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"ournotes:event:0\",\"title\":\"「アワーノーツ リリース日決定特番」発表情報まとめ！\",\"show\":\"「アワーノーツ リリース日決定特番」発表情報まとめ！\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Tokyo\",\"raw\":\"2026年9月24日(木)～10月28日(水)14:59\",\"source\":\"primary\"}]"
+	},
+	"ournotesGlobalEvent": {
+		"rec": {
+			"banner": "",
+			"roles": "",
+			"bannerDates": "",
+			"bannerDatesRaw": "",
+			"bannerHover": "",
+			"event": "【活動】夏日慶典",
+			"eventDates": "09-30 12:00 ~ 10-14 11:59",
+			"eventDatesRaw": "2026/09/30 12:00 - 2026/10/14 11:59",
+			"eventShow": "",
+			"eventClaimDates": "",
+			"eventHover": "",
+			"eventHoverExtra": ""
+		},
+		"array": "[{\"key\":\"ournotes-global:event:0\",\"title\":\"【活動】夏日慶典\",\"show\":\"【活動】夏日慶典\",\"startTs\":\"number\",\"endTs\":\"number\",\"tz\":\"Asia/Shanghai\",\"raw\":\"2026/09/30 12:00 - 2026/10/14 11:59\",\"source\":\"primary\"}]"
 	}
 }
