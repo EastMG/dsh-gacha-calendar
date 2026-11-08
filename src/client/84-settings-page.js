@@ -851,7 +851,7 @@
 							(0, react_jsx_runtime.jsxs)("label", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
 								(0, react_jsx_runtime.jsx)("span", { style: { flex: "none" }, children: "轮播范围" }),
 								(0, react_jsx_runtime.jsxs)("select", { className: "gacha-cal-select", value: String(currentTicker), onChange: (e) => commit("tickerHours", Number(e.target.value)), children: [
-									!tickerInOptions ? (0, react_jsx_runtime.jsx)("option", { value: String(currentTicker), children: "自定义（" + currentTicker + " 小时）" }) : null,
+									!tickerInOptions ? (0, react_jsx_runtime.jsx)("option", { value: String(currentTicker), children: "自定义（" + currentTicker + " 小时内到期事项）" }) : null,
 									TICKER_OPTIONS.map((o) => (0, react_jsx_runtime.jsx)("option", { value: String(o.hours), children: o.label }, o.hours))
 								] })
 							] })

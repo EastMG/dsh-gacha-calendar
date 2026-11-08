@@ -23,12 +23,13 @@
 			{ label: "42 天", minutes: 42 * 24 * 60 }
 		];
 		// 按钮轮播的范围选项（小时）：12 / 24 / 48 / 72；“关闭”由 tickerOn 开关负责，不是一个档位。
+		// 展示文案（2026-11-08 用户）：「N 小时内到期事项」—— 直接说清这个范围在筛什么。
 		// 默认 72 —— 周末没盯、周一回来才发现池子昨晚已经关了，是最常见的漏看场景。
 		const TICKER_OPTIONS = [
-			{ label: "12 小时", hours: 12 },
-			{ label: "24 小时", hours: 24 },
-			{ label: "48 小时", hours: 48 },
-			{ label: "72 小时", hours: 72 }
+			{ label: "12 小时内到期事项", hours: 12 },
+			{ label: "24 小时内到期事项", hours: 24 },
+			{ label: "48 小时内到期事项", hours: 48 },
+			{ label: "72 小时内到期事项", hours: 72 }
 		];
 		const DEFAULT_SETTINGS = {
 			autoRefresh: true,
