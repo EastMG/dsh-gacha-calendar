@@ -1920,7 +1920,7 @@
 				"tz": "Asia/Shanghai",
 				"raw": "2026年8月8日(周六)15:00 ~ 2026年8月29日(周六)13:59",
 				"source": "primary",
-				"cat": "Event"
+				"category": "Event"
 			},
 			{
 				"key": "fgo:event:1",
@@ -1931,7 +1931,7 @@
 				"tz": "Asia/Shanghai",
 				"raw": "07-24 15:00 ~ 09-02 13:59",
 				"source": "hover",
-				"cat": "Campaign"
+				"category": "Campaign"
 			},
 			{
 				"key": "fgo:event:2",
@@ -1942,7 +1942,7 @@
 				"tz": "Asia/Shanghai",
 				"raw": "07-29 12:00 ~ 09-03 13:59",
 				"source": "hover",
-				"cat": "Campaign"
+				"category": "Campaign"
 			},
 			{
 				"key": "fgo:event:3",
@@ -1953,7 +1953,7 @@
 				"tz": "Asia/Shanghai",
 				"raw": "08-11 19:00 ~ 10-31 13:59",
 				"source": "hover",
-				"cat": "Campaign"
+				"category": "Campaign"
 			},
 			{
 				"key": "fgo:event:4",
@@ -1964,7 +1964,7 @@
 				"tz": "Asia/Shanghai",
 				"raw": "08-18 19:00 ~ 10-31 13:59",
 				"source": "hover",
-				"cat": "Campaign"
+				"category": "Campaign"
 			}
 		],
 		"fgoEvent:gacha": [],

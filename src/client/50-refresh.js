@@ -6,9 +6,9 @@
 		// （P1 的来源都不给这个字段 ⇒ 由 mergeEntryRecord 从字符串合成；P3 才由解析器直出）。
 		// `itemFacts` = **类别/标签的事实通道**（P2 收尾，2026-11-07）：解析器知道"这一条属于哪个类别"
 		// （如 FGO 活动表第 4 列的 `Event` / `Campaign`），但悬停文本里**只允许**名称与档期 ⇒ 没有
-		// 别的地方能把它带进数组。所以由解析器额外给一份 `{ "<条目标题>": { cat?, tags? } }`，
+		// 别的地方能把它带进数组。所以由解析器额外给一份 `{ "<条目标题>": { category?, tags? } }`，
 		// 数据层在合成数组时按标题贴到条目上（见 dataArrayAttachFactsOf），**随后就从记录里删掉**
-		// （它不是展示字段，也不进 lastData；留在数组条目上的 `cat`/`tags` 才是事实）。
+		// （它不是展示字段，也不进 lastData；留在数组条目上的 `category`/`tags` 才是事实）。
 		// 两边的字段表都要登记，否则 `pickFields` 会把这条通道静默削掉。
 		// `gachaHoverItems` / `eventHoverItems` = **条目事实**（P3，2026-11-07）：解析器直出
 		// `gacha` / `events` 时，把"生成悬停文本与数组的那份条目"一并带上来（`{ title/label, startTs,
@@ -199,7 +199,7 @@
 					if (!rec.bannerDates) rec.bannerDates = prevRec.bannerDates || "";
 					if (!rec.bannerDatesRaw) rec.bannerDatesRaw = prevRec.bannerDatesRaw || prevRec.bannerDates || "";
 					if (!rec.bannerHover) rec.bannerHover = prevRec.bannerHover || "";
-					// 数组里的**可选事实**（cat / tags / preview / source）不在字符串字段里 ⇒ 从字符串
+					// 数组里的**可选事实**（category / tags / preview / source）不在字符串字段里 ⇒ 从字符串
 					// 重算这一侧会把它们丢掉（FGO 的 Event/Campaign 档位就是这么来的）。整列是沿用值时
 					// 连数组一起沿用，事实才与显示的那行保持同一份。
 					// 只沿用"每条都带 `source`"的数组：P2 收尾之前写进 lastData 的老数组没有这个事实，
@@ -274,9 +274,9 @@
 		//
 		// 形状（每个元素都是一条"事实"）：
 		//   gacha:  [{ key, title, show, roles: string[], startTs, endTs, tz, raw,
-		//              source, cat?, tags?, preview?, longTerm? }]
+		//              source, category?, tags?, preview?, longTerm? }]
 		//   events: [{ key, title, show, startTs, endTs, tz, raw, source,
-		//              cat?, tags?, preview?, phase?: { kind:"claim", startTs, endTs, show } }]
+		//              category?, tags?, preview?, phase?: { kind:"claim", startTs, endTs, show } }]
 		//   · title = 源站原文名（卡池名 / 活动名）；show = **显示名**（外显时真正显示的那串）
 		//   · key   = `<gameId>:gacha:<index>` / `<gameId>:event:<index>`，同一次归一里唯一
 		//   · startTs/endTs = **绝对时刻**（epoch 毫秒）。
@@ -289,7 +289,7 @@
 		//   · source = **这条是谁**（P2 收尾，2026-11-07）：`"primary"` = 引擎给的外显那条；
 		//     `"hover"` = 从悬停文本解析出来的并列条目。两侧都要在数组里（旧探头一直这么显示），
 		//     显示层按 `source` 分辨"主行 / 并列行"，不再靠判重键把同一口池并成一条。
-		//   · cat / tags = **类别事实**（可缺）：取不到就**留空**（不猜）。`cat` 如 FGO 活动表第 4 列
+		//   · category / tags = **类别事实**（可缺）：取不到就**留空**（不猜）。`category` 如 FGO 活动表第 4 列
 		//     的 `Event` / `Campaign`；`tags` 预留给带标签的来源。解析器若知道类别，通过 `itemFacts`
 		//     通道给（见 GACHA_FIELDS 的说明），数据层按标题贴到条目上。
 		//   · preview = **预告稿标记**（可缺）：标题里带「予告」/coming soon 时为 `true`
@@ -473,8 +473,8 @@
 			}
 			return out;
 		}
-		// ── 事实字段（cat / tags / preview）────────────────────────────────────────────
-		// `itemFacts` = 解析器给的 `{ "<条目标题>": { cat?, tags? } }`（通道说明见 GACHA_FIELDS）。
+		// ── 事实字段（category / tags / preview）────────────────────────────────────────────
+		// `itemFacts` = 解析器给的 `{ "<条目标题>": { category?, tags? } }`（通道说明见 GACHA_FIELDS）。
 		// 取不到就**不写这个键**（"留空"= 没有这个事实，不是空串）；绝不按标题去猜类别。
 		function dataArrayFactsOf(rec) {
 			const f = rec && rec.itemFacts;
@@ -486,11 +486,11 @@
 		function dataArrayIsPreview(title) {
 			return DATA_ARRAY_PREVIEW_RE.test(dataArrayTextOf(title));
 		}
-		// 把事实贴到条目上（键顺序固定：cat → tags → preview，与归一函数一致，往返才逐字相同）
+		// 把事实贴到条目上（键顺序固定：category → tags → preview，与归一函数一致，往返才逐字相同）
 		function dataArrayAttachFactsOf(item, facts) {
 			const f = facts && typeof facts === "object" ? facts[item.title] : null;
 			if (f && typeof f === "object" && !Array.isArray(f)) {
-				if (typeof f.cat === "string" && f.cat) item.cat = f.cat;
+				if (typeof f.category === "string" && f.category) item.category = f.category;
 				if (Array.isArray(f.tags)) {
 					const tags = f.tags.map(dataArrayTextOf).filter(Boolean);
 					if (tags.length) item.tags = tags;
@@ -552,10 +552,20 @@
 		}
 		// ── 归一（持久化白名单的数组分支用；engine-head.js 的 normalizeRecord 调它们）──
 		// 只做**最少校验**：非对象丢弃、ts 必须是 number 否则 null、其余字符串字段缺了填空串。
-		// `source` 与合成侧同口径（字符串，缺了空串）；`cat` / `tags` / `preview` 是**可选事实** ——
+		// `source` 与合成侧同口径（字符串，缺了空串）；`category` / `tags` / `preview` 是**可选事实** ——
 		// 有就原样保留（顺序固定在 source 之后），没有就**不写这个键**（"留空"= 没有这个事实）。
+		//
+		// ⚠️ 向后兼容（2026-11-08，字段改名 category ← 旧名 `cat`）：本字段此前叫 `cat`（缩写，
+		//    用户要求全仓改掉）。老的 lastData 里数组条目上可能还是那个旧键 ⇒ **读入时当
+		//    `category` 的旧名接受**，写出只写 `category`（`out` 上永远不会出现旧键）。
+		//    效果：老缓存不会丢掉类别事实，下一次写盘就自动迁到新名。旧键只在这一处出现 ——
+		//    它是**源数据里已经存在的名字**（不是我们用的缩写），刻意保留成常量而不是写死两遍。
+		const LEGACY_CATEGORY_KEY = "cat";
 		function dataArrayOptionalFactsOf(raw, out) {
-			if (typeof raw.cat === "string" && raw.cat) out.cat = raw.cat;
+			const category = typeof raw.category === "string" && raw.category
+				? raw.category
+				: (typeof raw[LEGACY_CATEGORY_KEY] === "string" ? raw[LEGACY_CATEGORY_KEY] : "");
+			if (category) out.category = category;
 			if (Array.isArray(raw.tags)) {
 				const tags = raw.tags.map(dataArrayTextOf).filter(Boolean);
 				if (tags.length) out.tags = tags;
@@ -612,7 +622,7 @@
 		}
 		// ── P3（2026-11-07）：解析器直出条目 → 记录数组条目 ───────────────────────────
 		// 解析器不再"手拼字符串、等着数据层反解"，而是自己给出**条目事实**：
-		//   `{ title, show, roles?, startTs, endTs, tz, raw, source, cat?, tags?, preview?, phase? }`
+		//   `{ title, show, roles?, startTs, endTs, tz, raw, source, category?, tags?, preview?, phase? }`
 		// 这里做**唯一一次**归一（复用持久化白名单那份 `dataArray*ItemOf`，键顺序因此天然与
 		// getCached 往返一致），并按与合成路径**同一判据**补 `preview` 事实（标题命中 予告/coming soon）。
 		// ⚠️ 时间戳口径（P4，2026-11-07）：解析器给的是**绝对时刻**，这里原样归一、**不重算**。

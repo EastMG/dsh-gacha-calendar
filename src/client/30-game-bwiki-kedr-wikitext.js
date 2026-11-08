@@ -79,13 +79,13 @@ async function ns_bwiki_wikitext_gachaKedrTemplate(url, signal, tz = ns_bwiki_wi
 	return ns_bwiki_wikitext_gachaPayload(gacha, tz, ns_bwiki_wikitext_nowOf(now), { cmp: (a, b) => (b.startTs - a.startTs) || (a._i - b._i) });
 }
 // 活动：开始最新的覆盖档（个人剧情活动 > 战令通行证赛季 / 边境防卫）
-// ⚠️ cat / tags 批 1（2026-11-08）：**故意不补** `cat`。源站确实给了类别词（模板参数「倒计时名称」，
-//    即 `item.timer`：赛季 / 活动 / 边境防卫），但把它当 `cat` 会让档位判定**退化**：
-//    `eventTier` 的判据是 `cat || tags` 优先、读不到才回退**活动名**，而这三个词都不在
+// ⚠️ category / tags 批 1（2026-11-08）：**故意不补** `category`。源站确实给了类别词（模板参数「倒计时名称」，
+//    即 `item.timer`：赛季 / 活动 / 边境防卫），但把它当 `category` 会让档位判定**退化**：
+//    `eventTier` 的判据是 `category || tags` 优先、读不到才回退**活动名**，而这三个词都不在
 //    `EVENT_TIER1_RE` 里 ⇒ 原本靠名字命中第一档的「个人剧情活动第1期：【新机动队故事】」会被打成第二档，
-//    外显从它变成「战令通行证赛季」（实测 2026-10-01，见 test/cases-cat.mjs 的钉住用例）。
-//    用户口径（批 1 硬约束②）：补 cat/tags **不许**动已可见输出，除非那是有意的档位改进 ——
-//    这里不是改进，所以留空。要改成"照源站写"只需一行：给 eventPayload 加回 `catOf` 并传 `x.timer`。
+//    外显从它变成「战令通行证赛季」（实测 2026-10-01，见 test/cases-category.mjs 的钉住用例）。
+//    用户口径（批 1 硬约束②）：补 category/tags **不许**动已可见输出，除非那是有意的档位改进 ——
+//    这里不是改进，所以留空。要改成"照源站写"只需一行：给 eventPayload 加回 `categoryOf` 并传 `x.timer`。
 async function ns_bwiki_wikitext_eventsKedrTemplate(url, signal, tz = ns_bwiki_wikitext_KEDR_TZ, now = nowMs()) {
 	const { event } = ns_bwiki_wikitext_parseKedrTemplate(await ns_bwiki_wikitext_fetchWikitext(url || ns_bwiki_wikitext_KEDR_TEMPLATE_URL, signal, ns_bwiki_wikitext_KEDR_REFERER), tz);
 	return ns_bwiki_wikitext_eventPayload(event, tz, ns_bwiki_wikitext_nowOf(now), { cmp: (a, b) => (b.startTs - a.startTs) || (a._i - b._i), nameOf: (x) => x.name });

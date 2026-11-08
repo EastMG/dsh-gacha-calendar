@@ -211,7 +211,7 @@
 				seenEvent.add(key);
 				// `raw` 是**跨多个时间块合并出来的跨度**，源站没有这一串原文 ⇒ 由绝对时刻渲染成
 				// **源站墙钟**（必须传 tz：旧实现按本机时区，UTC 机器上 `eventDatesRaw` 整体偏 8 小时）。
-				events.push({ name: sec.name, cat: sec.kind, startTs, endTs, raw: fmtWindow(startTs, endTs, tz) });
+				events.push({ name: sec.name, category: sec.kind, startTs, endTs, raw: fmtWindow(startTs, endTs, tz) });
 			}
 			// 轮换征集在一览里**只有日期行**（「N月N日更新：角色」，不带起止时间）→ 这里只当"角色字典"。
 			// 时间不再用"+14 天"推算：每期轮换都有自己的独立公告（见 r99SoloPools），接口给的就是真实起止。
@@ -309,12 +309,12 @@
 			data.gacha = dataArrayProducedGachaOf(data, poolItems, { tz }, now);
 			data.gachaHoverItems = poolItems;
 			if (data.event) {
-				// cat / tags 批 1（2026-11-08）：`activeEvents` 每条都带 `cat: sec.kind`
+				// category / tags 批 1（2026-11-08）：`activeEvents` 每条都带 `category: sec.kind`
 				// （段标题「『名称』类型」里的类型，`:214` 已经写进内部 events 条目），
 				// 此前只用于 `pickEventPrimary` 挑外显、**没进数组** ⇒ 这里按标题贴进 `events[]`。
 				// 值一个字不改；没有类别的段（解析不出类型）⇒ 不写这个键。
 				const facts = {};
-				for (const e of activeEvents) if (e.cat) facts[e.name] = { cat: e.cat };
+				for (const e of activeEvents) if (e.category) facts[e.name] = { category: e.category };
 				if (Object.keys(facts).length) data.itemFacts = facts;
 				data.events = dataArrayProducedEventsOf(data, eventItems, { tz }, now);
 				data.eventHoverItems = eventItems;

@@ -92,16 +92,16 @@ export function noteAnchorsOf(extra) {
 }
 
 /**
- * 分类前缀**出现两次**的检测：`<cat>：<cat>：<name>` / `<cat>:<cat>:…` / `<cat> <cat> …`。
+ * 分类前缀**出现两次**的检测：`<category>：<category>：<name>` / `<category>:<category>:…` / `<category> <category> …`。
  *
- * 为什么不只靠 `labelOf` 的幂等性：`labelOf(cat, "<cat>：<cat>：名称")` 会**原样返回**它
+ * 为什么不只靠 `labelOf` 的幂等性：`labelOf(category, "<category>：<category>：名称")` 会**原样返回**它
  * （规则是"已带前缀就不再加"），所以幂等性**抓不到**"多加了一层"这种错。
  * 两条一起用才完整：幂等性守"同一串不会越拼越长"，本函数守"当初就不该拼第二下"。
  */
-export function doubledCatPrefixOf(label, cats) {
+export function doubledCategoryPrefixOf(label, categories) {
 	const s = String(label == null ? "" : label).trim().toLowerCase();
 	if (!s) return "";
-	for (const raw of Array.isArray(cats) ? cats : []) {
+	for (const raw of Array.isArray(categories) ? categories : []) {
 		const c = String(raw == null ? "" : raw).trim().toLowerCase();
 		if (!c) continue;
 		for (const sep of ["\uFF1A", ":", " "]) {

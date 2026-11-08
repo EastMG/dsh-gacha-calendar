@@ -32,7 +32,7 @@ function ns_bwiki_parseZspmsGacha(html, tz = "Asia/Shanghai") {
 		items.push({
 			_i: ti,
 			banner: head || ns_bwiki_cleanImgName(imgTitle) || "研发池",
-			roles, cat: "研发", note: "降临狙击角色池",
+			roles, category: "研发", note: "降临狙击角色池",
 			startTs: w.startTs, endTs: w.endTs, raw: w.raw
 		});
 	});

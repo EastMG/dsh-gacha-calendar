@@ -140,13 +140,13 @@
 			const skippedCount = list.filter((g) => rec[g.id] && rec[g.id].skipped).length;
 			const skippedNote = skippedCount > 0 ? `（跳过 ${skippedCount} 个）` : "";
 			// 固定类别顺序：卡池失败 / 活动失败 / 新卡池未公布 / 新活动未公布
-			const CATS = [
+			const CATEGORIES = [
 				["gachaFail", "down", SIDE_TEXT.gacha.fail],
 				["eventFail", "down", SIDE_TEXT.event.fail],
 				["gachaFail", "nomatch", SIDE_TEXT.gacha.nomatch],
 				["eventFail", "nomatch", SIDE_TEXT.event.nomatch]
 			];
-			const groups = CATS.map(([field, kind, label]) => ({
+			const groups = CATEGORIES.map(([field, kind, label]) => ({
 				label,
 				names: list.filter((g) => {
 					const f = normalizeFail(rec[g.id] && rec[g.id][field]);

@@ -20,9 +20,9 @@ function ns_bwiki_parseUmaCnGacha(html, tz = "Asia/Shanghai") {
 			if (!cs.length || cs.some((c) => c.tag === "th")) continue;
 			if (cs.length >= 4) {
 				pendingDate = cs[0].text;
-				raw.push({ dateText: pendingDate, catCell: cs[1], nameCell: cs[2], upCell: cs[3] });
+				raw.push({ dateText: pendingDate, categoryCell: cs[1], nameCell: cs[2], upCell: cs[3] });
 			} else if (cs.length === 3) {
-				raw.push({ dateText: pendingDate, catCell: cs[0], nameCell: cs[1], upCell: cs[2] });
+				raw.push({ dateText: pendingDate, categoryCell: cs[0], nameCell: cs[1], upCell: cs[2] });
 			}
 		}
 		const orient = ns_bwiki_detectOrientation(raw.map((x) => x.dateText), tz);
@@ -30,13 +30,13 @@ function ns_bwiki_parseUmaCnGacha(html, tz = "Asia/Shanghai") {
 		raw.forEach((x, i) => {
 			const wins = ns_bwiki_windowsFromCell(x.dateText, tz, orient);
 			if (wins.length === 0) return;
-			const cat = x.catCell.text;
+			const category = x.categoryCell.text;
 			const roles = textOf(x.upCell.html).split("\n")
 				.map((s) => s.trim().replace(/^简\//, "")).filter(Boolean).join("、");
 			items.push({
 				_i: i,
 				banner: String(x.nameCell.text).replace(/\s+/g, " ").trim() || "卡池",
-				roles, cat, isMain: !/支援/.test(cat),
+				roles, category, isMain: !/支援/.test(category),
 				startTs: wins[0].startTs, endTs: wins[0].endTs,
 				orient,                                   // 整表朝向（诊断/测试用；不进契约字段）
 				raw: wins[0].raw                          // 源站原文（不含任何加工）

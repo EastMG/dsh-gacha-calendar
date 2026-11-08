@@ -508,17 +508,17 @@
 
 		// ── 分类前缀去重（**纯函数**，2026-11-06 用户要求）────────────────────────────
 		// 问题：活动名 `name` 本身可能已经带分类前缀（PRTS 的页名「视相博物馆：演化」），
-		// 而标签是 `${cat}：${name}` ⇒ 变成「视相博物馆：视相博物馆：演化」。
+		// 而标签是 `${category}：${name}` ⇒ 变成「视相博物馆：视相博物馆：演化」。
 		// 用户口径「分类前缀重复问题做个判定如果完全一致就合并」：
-		//   · `name` 已经以 `<cat>：` / `<cat>:` / `<cat> ` 开头 ⇒ **原样返回 name**（不重复加前缀）；
-		//   · `name` 与 `cat` 完全一致 ⇒ 原样返回 name；
-		//   · 否则有 `cat` ⇒ `${cat}：${name}`；没有 `cat`（空串）⇒ 返回 name。
+		//   · `name` 已经以 `<category>：` / `<category>:` / `<category> ` 开头 ⇒ **原样返回 name**（不重复加前缀）；
+		//   · `name` 与 `category` 完全一致 ⇒ 原样返回 name；
+		//   · 否则有 `category` ⇒ `${category}：${name}`；没有 `category`（空串）⇒ 返回 name。
 		// 前缀比较**大小写不敏感**（中英混排的分类不该因为大小写再拼一遍），全角/半角冒号与空格都认；
 		// 返回值永远保留 `name` 的原始大小写（显示跟源站走，函数不擅自改字）。
-		// ⚠️ 幂等：`labelOf(cat, labelOf(cat, name))` === `labelOf(cat, name)` —— 所以「显示用标签」与
+		// ⚠️ 幂等：`labelOf(category, labelOf(category, name))` === `labelOf(category, name)` —— 所以「显示用标签」与
 		//    「悬停行里的标签」都调它也不会多拼一次（④「悬停与实际显示同一串」靠这条）。
-		function labelOf(cat, name) {
-			const c = String(cat == null ? "" : cat).trim();
+		function labelOf(category, name) {
+			const c = String(category == null ? "" : category).trim();
 			const n = String(name == null ? "" : name).trim();
 			if (!c || !n) return n;
 			const cl = c.toLowerCase(), nl = n.toLowerCase();
@@ -538,8 +538,8 @@
 		//   「活动开始时间」   → startTs     （活动开场）
 		//   「活动结束时间」   → stageEndTs  （**关卡关闭** = 实际举行结束）
 		//   「兑换结束时间」   → claimEndTs  （**兑换/奖励领取关闭**；可缺，也可能与活动结束**同值** ⇒ 那时没有兑换期）
-		//   「活动类型」       → cat         （≈ 我们原来的分类：支线故事 / 登录活动 / 危机合约 …；
-		//                                  **不是每页都有**，实测 8 条里 1 条为空 ⇒ 缺失时 cat 留空，
+		//   「活动类型」       → category         （≈ 我们原来的分类：支线故事 / 登录活动 / 危机合约 …；
+		//                                  **不是每页都有**，实测 8 条里 1 条为空 ⇒ 缺失时 category 留空，
 		//                                  由 eventTier 按名称关键词回退，见 25-parser-order.js）
 		//   结果键 / fulltext（页名）→ name（+ page）
 		//
@@ -600,7 +600,7 @@
 				const claimTs = smwTimeTs(p["兑换结束时间"]);
 				out.push({
 					name,
-					cat: smwText(p["活动类型"]),
+					category: smwText(p["活动类型"]),
 					startTs,
 					stageEndTs,
 					claimEndTs: claimTs != null && claimTs > stageEndTs ? claimTs : null,
@@ -643,7 +643,7 @@
 			// 兑换期：主行已经是兑换区间 ⇒ 不再生成任何提示行（否则同一区间出现两次）。
 			if (x.phase === "claim") return "";
 			// 标签一律过 labelOf（幂等）：与 `event` / `eventShow` / 悬停里那一行是**同一串**。
-			return `${labelOf(x.cat, x.name)} 兑换截止   ${fmtMdHm(x.claimEndTs, tz)}`;
+			return `${labelOf(x.category, x.name)} 兑换截止   ${fmtMdHm(x.claimEndTs, tz)}`;
 		}
 
 
@@ -698,7 +698,7 @@
 			// 「视相博物馆：演化 兑换截止   11-07 03:59 ~ 11-10 03:59」，而不是
 			// 「视相博物馆：演化   11-07 03:59 ~ 11-10 03:59」+ 一行重复的兑换截止提示。
 			const hoverActive = active.map((x) => {
-				const label = labelOf(x.cat, x.name);
+				const label = labelOf(x.category, x.name);
 				return x.phase === "claim" ? { ...x, name: `${label} 兑换截止` } : { ...x, name: label };
 			});
 			// 提示行（**只进提示框**）：按悬停同样的顺序（结束时间升序）收集。
@@ -709,7 +709,7 @@
 				const line = prtsHoverNoteOf(x, tz);
 				// 锚点用**去重后的活动标签**（不是快照里的原始页名）：渲染层按「标签 + 3 空格」定位悬停里那一行，
 				// 少了分类前缀就定位不到 ⇒ 提示行会被堆到末尾（看不出是哪个活动的截止）。
-				if (line) extraLines.push(labelOf(x.cat, x.name), line);
+				if (line) extraLines.push(labelOf(x.category, x.name), line);
 			}
 			// 外显：类别优先（支线故事/危机合约等 vs 登录活动），同级内结束时间升序
 			const primary = pickEventPrimary(active) || active[0];
@@ -734,7 +734,7 @@
 			//   · 只在**兑换期**出现这个键（活动期 / 没有兑换期 ⇒ 载荷里没有 `eventShow`，
 			//     显示于是退回 `event`，与改造前逐字一致）；
 			//   · 消费方：81-schedule-model.js 的 scheduleNormalize（活动侧 show = g.eventShow || title）。
-			const eventLabel = labelOf(primary.cat, primary.name);
+			const eventLabel = labelOf(primary.category, primary.name);
 			const eventShow = primary.phase === "claim" ? eventLabel + " 兑换截止" : "";
 			// 兑换期的日期格悬停也用**兑换区间**（与格子里显示的那份同一个区间），
 			// 否则"格子=兑换期、悬停=活动期"会互相打脸；活动期仍是一览原文（改造前行为）。
@@ -766,14 +766,14 @@
 				};
 			}
 			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "event", tz });
-			// ── cat / tags 批 1（2026-11-08）：把 SMW 的「活动类型」写进 `events[]` 条目 ───────────
-			// 值 = `parseArknightsSmwEvents` 已经读进 `it.cat` 的那一列（`:603`，页内「活动类型」；
-			// 实测有的页没有这个字段 ⇒ 那条 cat 为空、**不写**）。
+			// ── category / tags 批 1（2026-11-08）：把 SMW 的「活动类型」写进 `events[]` 条目 ───────────
+			// 值 = `parseArknightsSmwEvents` 已经读进 `it.category` 的那一列（`:603`，页内「活动类型」；
+			// 实测有的页没有这个字段 ⇒ 那条 category 为空、**不写**）。
 			// 键是**标签名**（= 悬停里那一行的开头，一律过 `labelOf`）：并列条目由 `hoverItems` 生成，
 			// 主条另用 `eventLabel`（兑换期那条的悬停名多了「 兑换截止」，与主条不同键）。
 			const facts = {};
-			for (const x of hoverActive) if (x.cat) facts[x.name] = { cat: x.cat };
-			if (primary.cat) facts[eventLabel] = { cat: primary.cat };
+			for (const x of hoverActive) if (x.category) facts[x.name] = { category: x.category };
+			if (primary.category) facts[eventLabel] = { category: primary.category };
 			return {
 				event: eventLabel,
 				eventDates: windowText,
@@ -867,19 +867,19 @@
 					const hrefM = aTagM ? aTagM[0].match(/href\s*=\s*"([^"]*)"/i) : null;
 					const page = hrefM ? prtsPageNameFromHref(hrefM[1]) : "";
 					// 分类：第三列所有 <a title="分类:XXX">；核心分类排除"复刻活动"修饰后取第一个
-					const catLinks = [...tds[2].matchAll(/title="分类:([^"]+)"/g)].map((m) => m[1]);
-					let coreCat = "";
-					if (catLinks.length > 0) {
-						coreCat = catLinks.find((c) => c !== "\u590D\u523B\u6D3B\u52A8") || catLinks[0];
+					const categoryLinks = [...tds[2].matchAll(/title="分类:([^"]+)"/g)].map((m) => m[1]);
+					let coreCategory = "";
+					if (categoryLinks.length > 0) {
+						coreCategory = categoryLinks.find((c) => c !== "\u590D\u523B\u6D3B\u52A8") || categoryLinks[0];
 					} else {
-						coreCat = stripTags(tds[2]).replace(/\s+/g, " ").trim();
+						coreCategory = stripTags(tds[2]).replace(/\s+/g, " ").trim();
 					}
-					const label = labelOf(coreCat, name);
+					const label = labelOf(coreCategory, name);
 					// 开始：第一列文本（"2026-08-22 04:00"）
 					const st = parseTime(stripTags(tds[0]).trim(), tz);
 					items.push({
 						banner: label,
-						cat: coreCat,
+						category: coreCategory,
 						page,
 						...range2(st, endTs, tz),
 						isMain: true
@@ -1011,11 +1011,11 @@
 		}
 
 
-		// 活动一览 HTML → 快照（name/cat/起止/原文/页名）。抽出来是为了让"选页名"与"出载荷"用**同一份**解析结果。
+		// 活动一览 HTML → 快照（name/category/起止/原文/页名）。抽出来是为了让"选页名"与"出载荷"用**同一份**解析结果。
 		function prtsEventSnapshot(html, tz) {
 			return collectPrtsEvents(html, tz).map((it) => ({
 				name: it.banner,
-				cat: it.cat || "",
+				category: it.category || "",
 				startTs: it.startTs,
 				endTs: it.endTs,
 				raw: it.raw,
@@ -1219,7 +1219,7 @@
 			// 覆盖当前时刻的活动统一排序（③ 结束时间升序）供悬停；外显另按类别优先挑选
 			// `tags` = 源站每条活动的 `tags` 数组 join 成 "/"（档位判定读它，见 25-parser-order.js 的
 			// `eventTier`）；`tagList` 保留**源站原本的数组形状**，只为了原样写进 `events[]` 的
-			// `tags` 条目事实（cat/tags 批 1）——值一个字都没改，不做归一化猜测。
+			// `tags` 条目事实（category/tags 批 1）——值一个字都没改，不做归一化猜测。
 			const activeActs = sortEventItems(acts
 				.filter((a) => parseT(a.open) <= t0 && parseT(a.close) >= t0)
 				.map((a) => {
@@ -1238,7 +1238,7 @@
 			// 原来那层 `{ banner, bannerDates }` → `{ event, ... }` 的映射在 EVENT_FETCHERS 里，
 			// 现在映射与数组都收在这个函数里，少一处"两套字符串"的接缝。
 			const out = { event: primary.name, eventDates: win, eventDatesRaw: win };
-			// ── cat / tags 批 1（2026-11-08）：把**已经拿在手里**的源站 `tags` 写进条目 ─────────
+			// ── category / tags 批 1（2026-11-08）：把**已经拿在手里**的源站 `tags` 写进条目 ─────────
 			// 值来自 `wikiCardItem.attrs.data.tags`（上面 `pushAct` 收的），不是从活动名猜的类别：
 			// 源站没给 tags 的那一条 ⇒ **不写这个键**（"取不到"保持空，见 50-refresh.js 的 facts 说明）。
 			// 通过 `itemFacts` 通道交给 `dataArrayProducedEventsOf` 贴到 `events[]` 的对应标题上。
@@ -1316,15 +1316,15 @@
 				if (startTs <= now && endTs >= now) {
 					// 类型属性（如 剧情活动/常规活动/版本活动）→ 活动外显的类别优先级。
 					// 注意 SMW 这里返回的是字符串数组（不是 {fulltext} 值对象），两种形态都兼容。
-					// cat/tags 批 1（2026-11-08）：`catList` = 源站那串类型的**数组原形**，只为了原样写进
-					// `events[]` 的 `cat`（首项）+ `tags`（其余项）；`cat`（"/" 拼接）继续供 `eventTier` 用，
+					// category/tags 批 1（2026-11-08）：`categoryList` = 源站那串类型的**数组原形**，只为了原样写进
+					// `events[]` 的 `category`（首项）+ `tags`（其余项）；`category`（"/" 拼接）继续供 `eventTier` 用，
 					// 一个字都没改 —— 档位判定因此仍是改造前的口径。
-					const catArr = p["类型"] || [];
-					const catList = catArr
+					const categoryArr = p["类型"] || [];
+					const categoryList = categoryArr
 						.map((x) => (typeof x === "string" ? x : String((x && (x.fulltext || x.value)) || "")))
 						.filter(Boolean);
-					const cat = catList.join("/");
-					covering.push({ name, cat, catList, startTs, endTs });
+					const category = categoryList.join("/");
+					covering.push({ name, category, categoryList, startTs, endTs });
 				}
 			}
 			if (covering.length === 0) return null;
@@ -1342,17 +1342,17 @@
 			//    不出数组）已删除 —— 唯一调用方（原神 bwiki 活动）一直传 `emitArrays: true, id`。
 			// ── P3：条目事实（当期每条活动一行）→ 悬停 + `events` 数组 ──────────────
 			// 顺序 = `sortEventItems`（与改造前喂给 buildEventHover 的是同一份，逐行不会换位）。
-			// ── cat / tags 批 1（2026-11-08）：把 SMW「类型」写进条目 ─────────────────────
-			// 源站给的是**数组**（实测有 `["版本活动","剧情活动"]` 这种多项）⇒ 首项当 `cat`、其余进
+			// ── category / tags 批 1（2026-11-08）：把 SMW「类型」写进条目 ─────────────────────
+			// 源站给的是**数组**（实测有 `["版本活动","剧情活动"]` 这种多项）⇒ 首项当 `category`、其余进
 			// `tags[]`（任务书的口径）。没有「类型」的那条 ⇒ 一个键都不写（不猜）。
-			// ⚠️ `eventTier` 读的仍是上面那份 "/" 拼接的 `cat`（在 `ordered` 上），所以**档位判定没变**；
-			//    数组条目的 `cat`/`tags` 只服务显示层 `sideViewOf` 里同一套 `eventTier` 判据。
+			// ⚠️ `eventTier` 读的仍是上面那份 "/" 拼接的 `category`（在 `ordered` 上），所以**档位判定没变**；
+			//    数组条目的 `category`/`tags` 只服务显示层 `sideViewOf` 里同一套 `eventTier` 判据。
 			const facts = {};
 			for (const x of ordered) {
 				const f = {};
-				if (x.catList[0]) f.cat = x.catList[0];
-				if (x.catList.length > 1) f.tags = x.catList.slice(1);
-				if (f.cat || f.tags) facts[x.name] = f;
+				if (x.categoryList[0]) f.category = x.categoryList[0];
+				if (x.categoryList.length > 1) f.tags = x.categoryList.slice(1);
+				if (f.category || f.tags) facts[x.name] = f;
 			}
 			const hoverItems = ordered.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: "" }));
 			const w = dataArrayWindowOf(win, now, tz);

@@ -72,7 +72,7 @@ function ns_bwiki_wikitext_parseCznRecord(wikitext, tz = ns_bwiki_wikitext_CZN_T
 			id: f.id || "",
 			banner: f.title || "卡池",
 			roles: f.UP || "",
-			cat: f.type || "",
+			category: f.type || "",
 			startTs, endTs,
 			raw: `${f["Start_Date"]} ~ ${f["End_Date"]}`
 		});

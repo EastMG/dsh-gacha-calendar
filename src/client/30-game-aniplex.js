@@ -255,11 +255,11 @@ function ns_fgo_parseFgoEventTable(html, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 	const eventHover = hoverTextFromItems(hoverItems, "event", tz);
 	// 类别事实通道（P2 收尾，2026-11-07）：源站第 4 列的「类型」（Event / Campaign）是**源站给的
 	// 分类**，上面第 241-244 行的注释说明了它为什么不能进悬停文本。数据层要把这个事实带进
-	// `events` 数组（显示层按 cat 分档，见 81-schedule-model.js 的 sideViewOf 规则表），
-	// 所以另给一份 `itemFacts`：`{ "<活动名>": { cat: "<类型>" } }`，只覆盖**当期**那些行
+	// `events` 数组（显示层按 category 分档，见 81-schedule-model.js 的 sideViewOf 规则表），
+	// 所以另给一份 `itemFacts`：`{ "<活动名>": { category: "<类型>" } }`，只覆盖**当期**那些行
 	// （数组里只有这些行）。`pickFields` 已登记该字段，见 50-refresh.js 的 GACHA_FIELDS 说明。
 	const itemFacts = {};
-	for (const x of active) itemFacts[x.name] = { cat: x.type };
+	for (const x of active) itemFacts[x.name] = { category: x.type };
 	return {
 		year: found.year,
 		rows,
@@ -316,12 +316,12 @@ async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ, now = nowMs()) 
 		eventDatesRaw: r.eventDatesRaw,
 		// ≥2 条当期活动才有值；只有 1 条时不设该字段（UI 走默认两行式「名称 ⏎ 档期」）
 		...(r.eventHover ? { eventHover: r.eventHover } : {}),
-		// 类别事实通道：源站「类型」列（Event / Campaign）交给数据层贴到 events 数组条目的 `cat` 上。
+		// 类别事实通道：源站「类型」列（Event / Campaign）交给数据层贴到 events 数组条目的 `category` 上。
 		// 必须在这里显式透传 —— 这个抓取器是**重新组装**返回对象（不是原样返回解析结果），
-		// 漏一行就等于这条事实在数据层之前就没了（实测：数组 entries 的 cat 全是 null）。
+		// 漏一行就等于这条事实在数据层之前就没了（实测：数组 entries 的 category 全是 null）。
 		...(r.itemFacts ? { itemFacts: r.itemFacts } : {})
 	};
-	// ── P3b：条目事实 → `events` 数组（cat 事实经 itemFacts 贴上，与合成路径同一份）──
+	// ── P3b：条目事实 → `events` 数组（category 事实经 itemFacts 贴上，与合成路径同一份）──
 	out.events = dataArrayProducedEventsOf(out, r.hoverItems || [], { tz }, now);
 	out.eventHoverItems = r.hoverItems || [];
 	return out;

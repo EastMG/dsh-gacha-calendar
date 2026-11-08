@@ -331,12 +331,12 @@ export default async function runCore() {
 					events: [{ title: "活动", startTs: 5, endTs: 6, phase: { kind: "claim", startTs: NaN, endTs: "9" } }, []]
 				},
 				old: { name: "老缓存", banner: "旧池", event: "旧活动" },
-				// P2 收尾新增的**事实字段**：cat / tags / preview / source —— 归一必须原样保留
+				// P2 收尾新增的**事实字段**：category / tags / preview / source —— 归一必须原样保留
 				// （数组是持久化白名单里唯一"不是字符串"的东西，漏登记就是静默丢字段）。
 				facts: {
 					name: "事实字段",
-					gacha: [{ title: "池", show: "池", roles: [], startTs: 1, endTs: 2, tz: "Asia/Shanghai", raw: "", source: "primary", cat: "Event", tags: ["限定", "联动"], preview: true },
-						{ title: "无事实", show: "无事实", startTs: 3, endTs: 4, tz: "Asia/Shanghai", raw: "", source: "hover", cat: "", tags: [], preview: false }],
+					gacha: [{ title: "池", show: "池", roles: [], startTs: 1, endTs: 2, tz: "Asia/Shanghai", raw: "", source: "primary", category: "Event", tags: ["限定", "联动"], preview: true },
+						{ title: "无事实", show: "无事实", startTs: 3, endTs: 4, tz: "Asia/Shanghai", raw: "", source: "hover", category: "", tags: [], preview: false }],
 					events: [{ title: "予告活动", show: "予告活动", startTs: 3, endTs: 4, tz: "Asia/Tokyo", raw: "", source: "hover", preview: true }]
 				}
 			}) });
@@ -360,22 +360,22 @@ export default async function runCore() {
 			check("归一：老缓存的旧字段照旧读回（数组分支没有牵连字符串字段）",
 				old.banner === "旧池" && old.event === "旧活动", JSON.stringify([old.banner, old.event]));
 
-			// ── 事实字段往返（P2 收尾）：cat / tags / preview / source 归一后**一个不少** ──
+			// ── 事实字段往返（P2 收尾）：category / tags / preview / source 归一后**一个不少** ──
 			const facts = games.facts || {};
 			const fg = (facts.gacha || [])[0] || {}, fe = (facts.events || [])[0] || {};
-			check("事实字段往返：`source` / `cat` / `tags` / `preview` 在 getCached() 归一后原样读回",
-				fg.source === "primary" && fg.cat === "Event"
+			check("事实字段往返：`source` / `category` / `tags` / `preview` 在 getCached() 归一后原样读回",
+				fg.source === "primary" && fg.category === "Event"
 				&& JSON.stringify(fg.tags) === JSON.stringify(["限定", "联动"]) && fg.preview === true
 				&& fe.source === "hover" && fe.preview === true,
 				JSON.stringify([fg, fe]));
 			check("事实字段：没给的事实**没有这个键**（不写空串/空数组/false；`source` 恒为字符串）",
-				!("cat" in (dirty.gacha || [])[0]) && !("tags" in (dirty.gacha || [])[0])
+				!("category" in (dirty.gacha || [])[0]) && !("tags" in (dirty.gacha || [])[0])
 				&& !("preview" in (dirty.gacha || [])[0]) && typeof (dirty.gacha || [])[0].source === "string"
-				&& !("cat" in fe) && !("tags" in fe) && (dirty.gacha || [])[0].source === "",
+				&& !("category" in fe) && !("tags" in fe) && (dirty.gacha || [])[0].source === "",
 				JSON.stringify([dirty.gacha && dirty.gacha[0], fe]));
-			check("事实字段：`preview:false` / `cat:\"\"` / `tags:[]` 都**不产生这个键**（可选事实的\"留空\"口径）",
+			check("事实字段：`preview:false` / `category:\"\"` / `tags:[]` 都**不产生这个键**（可选事实的\"留空\"口径）",
 				(facts.gacha || []).length === 2
-				&& !("cat" in (facts.gacha || [])[1]) && !("tags" in (facts.gacha || [])[1])
+				&& !("category" in (facts.gacha || [])[1]) && !("tags" in (facts.gacha || [])[1])
 				&& !("preview" in (facts.gacha || [])[1]) && (facts.gacha || [])[1].source === "hover",
 				JSON.stringify(facts.gacha));
 		}
@@ -588,8 +588,8 @@ export default async function runCore() {
 	//   ③ 兼容退化（P3c 起）：老 lastData（没有 `gacha` / `events`）⇒ `scheduleCellOf` 返回 **null**
 	//      （该侧显示「无数据」），**不抛错**、也不再有"解析悬停文本"的兜底渲染。
 	//
-	// ⚠️ 2026-11-07（P2 收尾）：原来这里钉着 6 处「已知差异」（数组没有 cat/tags、判重键并掉
-	//    "同池"那一行）。现在数据层补了事实（`cat` / `tags` / `preview` / `source`）并按
+	// ⚠️ 2026-11-07（P2 收尾）：原来这里钉着 6 处「已知差异」（数组没有 category/tags、判重键并掉
+	//    "同池"那一行）。现在数据层补了事实（`category` / `tags` / `preview` / `source`）并按
 	//    "引擎主行 + 悬停并列行各一条"改判重，显示层加了**按游戏分派的规则表** ⇒ 34 个侧
 	//    **全部逐字相等**（⑤-5 硬断言 diffs = 0），并且有"还原成通用规则 ⇒ 对应侧必红"的反向证明。
 	{
@@ -897,7 +897,7 @@ export default async function runCore() {
 		// ── FGO 的**另一侧**（2026-09-05）：档位来自源站「类型」列（Event 压过 Campaign）──
 		// 这一侧 08-25 时恰好通用规则也对，所以上面那条 34/34 覆盖不到真正的差异；这里用
 		// 09-05 复跑：通用规则会选「3200万下载突破纪念活动（Campaign，结束最早）」，老实现选
-		// 「失落的创世…（Event）」⇒ `cat` 事实 + 特化规则**缺一不可**（反向证明也钉在这里）。
+		// 「失落的创世…（Event）」⇒ `category` 事实 + 特化规则**缺一不可**（反向证明也钉在这里）。
 		{
 			const now = new Date(Date.parse("2026-09-05T00:00:00.000Z"));
 			const rec = await runGame("fgo", now.getTime());
@@ -910,9 +910,9 @@ export default async function runCore() {
 				&& !!old && old[0].name === "失落的创世(Vanished Beginning) 来自未来的方舟",
 				JSON.stringify([text(old), text(next)]));
 			const ev = g.events || [];
-			check("事实（FGO 09-05）：`events` 每条都带 `cat`（源站类型列 Event / Campaign，取不到才留空）",
-				ev.length > 0 && ev.every((x) => typeof x.cat === "string" && x.cat.length > 0),
-				JSON.stringify(ev.map((x) => [x.title, x.cat])));
+			check("事实（FGO 09-05）：`events` 每条都带 `category`（源站类型列 Event / Campaign，取不到才留空）",
+				ev.length > 0 && ev.every((x) => typeof x.category === "string" && x.category.length > 0),
+				JSON.stringify(ev.map((x) => [x.title, x.category])));
 			const generic = T.sideViewOf(ev, now, "event");
 			check("反向证明（fgo:event @09-05）：通用规则（无 gameId）会选成「3200万下载突破纪念活动」",
 				!!generic.primary && generic.primary.title === "3200万下载突破纪念活动",

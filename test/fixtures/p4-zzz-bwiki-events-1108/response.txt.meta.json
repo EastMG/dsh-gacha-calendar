@@ -1,0 +1,6 @@
+{
+ "url": "https://wiki.biligame.com/zzz/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
+ "status": 200,
+ "capturedAt": "2026-11-08T08:39:52.916Z",
+ "note": "真抓（2026-11-08，本机直连 wiki.biligame.com），原样保存、未裁剪。绝区零「活动一览」：活动时间 | 图 | 名称 | 类型 | TAG | 所属版本 —— 类型列多值用 `<br />` 分隔（如 `版本活动<br />常驻活动`），本批按 `<br />` 拆成 category + tags。"
+}

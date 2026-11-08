@@ -157,12 +157,12 @@ function ns_sekai_parseSekaiEvents(json, now = nowMs(), tz = "Asia/Shanghai") {
 		eventDatesRaw: raw,
 		...(hover ? { eventHover: hover } : {})
 	};
-	// cat / tags 批 1（2026-11-08）：`eventType` 早就读进 `rows` 的 `type`（`:131`），
-	// 此前只用于排查、没进数组 ⇒ 按标题贴进 `events[]` 的 `cat`。
+	// category / tags 批 1（2026-11-08）：`eventType` 早就读进 `rows` 的 `type`（`:131`），
+	// 此前只用于排查、没进数组 ⇒ 按标题贴进 `events[]` 的 `category`。
 	// ⚠️ 值是源站的**英文枚举原样**（`marathon` / `cheerful_carnival` / `world_bloom`），
-	//    不翻译、不映射（映射是批 2 的事，见 README_Dev「cat / tags 来源与现状」）。
+	//    不翻译、不映射（映射是批 2 的事，见 README_Dev「category / tags 来源与现状」）。
 	const facts = {};
-	for (const x of ordered) if (x.type) facts[x.name] = { cat: x.type };
+	for (const x of ordered) if (x.type) facts[x.name] = { category: x.type };
 	if (Object.keys(facts).length) out.itemFacts = facts;
 	out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
 	out.eventHoverItems = eventItems;

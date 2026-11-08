@@ -18,7 +18,7 @@ function ns_bwiki_parseWhmxGacha(html, tz = "Asia/Shanghai") {
 		const banner = ns_bwiki_cleanImgName(ns_bwiki_attrOf(c0.html, "alt")) || c0.text || ns_bwiki_attrOf(r.attrs, "data-param1") || "限时招集";
 		const roles = ns_bwiki_linkTitles(c1.html).join("、") || ns_bwiki_cleanImgName(ns_bwiki_attrOf(c1.html, "alt"));
 		items.push({
-			_i: i, banner, roles, cat: ns_bwiki_attrOf(r.attrs, "data-param1"), note: c3.text,
+			_i: i, banner, roles, category: ns_bwiki_attrOf(r.attrs, "data-param1"), note: c3.text,
 			startTs: wins[0].startTs, endTs: wins[0].endTs, raw: wins[0].raw
 		});
 	});
@@ -41,7 +41,7 @@ function ns_bwiki_parseWhmxEvents(html, tz = "Asia/Shanghai") {
 		items.push({
 			_i: i,
 			event: c2.text || ns_bwiki_cleanImgName(ns_bwiki_attrOf(c1.html, "alt")) || "活动",
-			cat: c3.text, img: ns_bwiki_cleanImgName(ns_bwiki_attrOf(c1.html, "alt")), note: c4.text,
+			category: c3.text, img: ns_bwiki_cleanImgName(ns_bwiki_attrOf(c1.html, "alt")), note: c4.text,
 			startTs: wins[0].startTs, endTs: wins[0].endTs, raw: wins[0].raw
 		});
 	});

@@ -15,7 +15,7 @@ function ns_bwiki_parseKedrGacha(html, tz = "Asia/Shanghai") {
 		items.push({
 			_i: i++,
 			banner: ns_bwiki_headingBefore(html, m.index) || "卡池",
-			roles: "", cat: "台架测试", note: value,
+			roles: "", category: "台架测试", note: value,
 			startTs: w.startTs, endTs: w.endTs, raw: value
 		});
 	}

@@ -7,7 +7,7 @@
 //
 // ── 2026-11-07 起：链路换成 **SMW 单请求** ──
 // PRTS 已装 SemanticMediaWiki 7.3.1，`action=ask` 一次就把四列全给出来：
-//   「活动类型」→ cat、「活动开始时间」→ startTs、「活动结束时间」→ stageEndTs（关卡关闭）、
+//   「活动类型」→ category、「活动开始时间」→ startTs、「活动结束时间」→ stageEndTs（关卡关闭）、
 //   「兑换结束时间」→ claimEndTs（可缺；**与活动结束同值 = 没有兑换期**）。
 // 于是原来那两条链路（① 活动一览 HTML 解析 + ② 一次批量 query 取活动页 wikitext）**整段删除**：
 // `collectPrtsEvents` / `prtsEventSnapshot` / `fetchPrtsPagesWikitext` / `prtsPageTimesFromBatch` /
@@ -17,7 +17,7 @@
 // 这一段的重点是**边界**，不是"正常能跑"：
 //   · 有「兑换结束时间」→ 活动结束后仍出现，外显区间改成兑换期（还剩 X = 到兑换截止）；
 //   · **没有**该字段（或与活动结束同值）→ 与改造前逐字节一致（不补猜 7 天）；
-//   · 「活动类型」缺失 → cat 留空 ⇒ `eventTier` 按名称关键词回退（实测 8 条里 1 条为空）；
+//   · 「活动类型」缺失 → category 留空 ⇒ `eventTier` 按名称关键词回退（实测 8 条里 1 条为空）；
 //   · 请求失败 / 坏响应 → **抛错**（这一侧记 down）；空结果 → 载荷 null（未公布）；
 //   · 分页游标（`query-continue-offset`）→ **不追页**（一次刷新只有 1 条请求）。
 //
@@ -195,24 +195,24 @@ export default async function run() {
 			&& reversed[0].stageEndTs === at("2026-10-10T03:59:00+08:00"),
 			JSON.stringify(reversed));
 
-		// 「活动类型」缺失 ⇒ cat 留空，交给 eventTier 按名字回退
+		// 「活动类型」缺失 ⇒ category 留空，交给 eventTier 按名字回退
 		const noType = parseArknightsSmwEvents(smwOne({
 			"活动类型": [],
 			"活动开始时间": smwTime(at("2026-10-01T04:00:00+08:00")),
 			"活动结束时间": smwTime(at("2026-10-10T03:59:00+08:00")),
 			"兑换结束时间": []
 		}, "危机合约：尖灭测试作战"), TZ_CN);
-		check("纯函数：「活动类型」缺失 ⇒ cat = 空串（不编分类、不抛错）",
-			noType.length === 1 && noType[0].cat === "", JSON.stringify(noType));
+		check("纯函数：「活动类型」缺失 ⇒ category = 空串（不编分类、不抛错）",
+			noType.length === 1 && noType[0].category === "", JSON.stringify(noType));
 		check("「活动类型」缺失时的档位回退：`eventTier` 按**名称**判（尖灭 → 第一档，登录名 → 第二档）",
 			eventTier(noType[0]) === 1
-			&& eventTier({ name: "感谢庆典2026限时签到", cat: "" }) === 2
-			&& eventTier({ name: "感谢庆典2026限时签到", cat: "登录活动" }) === 2,
-			JSON.stringify([eventTier(noType[0]), eventTier({ name: "感谢庆典2026限时签到", cat: "" })]));
+			&& eventTier({ name: "感谢庆典2026限时签到", category: "" }) === 2
+			&& eventTier({ name: "感谢庆典2026限时签到", category: "登录活动" }) === 2,
+			JSON.stringify([eventTier(noType[0]), eventTier({ name: "感谢庆典2026限时签到", category: "" })]));
 		check("有「活动类型」时按分类判档（同一名字「尖灭测试作战」：分类=登录活动 ⇒ 第二档）",
-			eventTier({ name: "尖灭测试作战", cat: "登录活动" }) === 2
-			&& eventTier({ name: "尖灭测试作战", cat: "危机合约" }) === 1,
-			JSON.stringify([eventTier({ name: "尖灭测试作战", cat: "登录活动" }), eventTier({ name: "尖灭测试作战", cat: "危机合约" })]));
+			eventTier({ name: "尖灭测试作战", category: "登录活动" }) === 2
+			&& eventTier({ name: "尖灭测试作战", category: "危机合约" }) === 1,
+			JSON.stringify([eventTier({ name: "尖灭测试作战", category: "登录活动" }), eventTier({ name: "尖灭测试作战", category: "危机合约" })]));
 
 		// 缺时间 / 时间坏掉 ⇒ 跳过该条（算不出窗口就别硬凑）
 		const halfBaked = parseArknightsSmwEvents({
@@ -274,12 +274,12 @@ export default async function run() {
 
 	// ── ①b 分类前缀去重 `labelOf`（纯函数）+ 快照里的 label ────────────────────────
 	// 起因（用户 2026-11-06）：「分类前缀重复问题做个判定如果完全一致就合并」——
-	// PRTS 的活动名本身可能就带分类前缀（页名「视相博物馆：演化」），再无条件拼 `${cat}：${name}`
+	// PRTS 的活动名本身可能就带分类前缀（页名「视相博物馆：演化」），再无条件拼 `${category}：${name}`
 	// 就成了「视相博物馆：视相博物馆：演化」。
 	{
-		check("labelOf：名称不带前缀 ⇒ 拼一次 `<cat>：<name>`",
+		check("labelOf：名称不带前缀 ⇒ 拼一次 `<category>：<name>`",
 			labelOf("视相博物馆", "演化") === "视相博物馆：演化", labelOf("视相博物馆", "演化"));
-		check("labelOf：名称已带 `<cat>：` ⇒ **原样返回**（不再拼成 视相博物馆：视相博物馆：演化）",
+		check("labelOf：名称已带 `<category>：` ⇒ **原样返回**（不再拼成 视相博物馆：视相博物馆：演化）",
 			labelOf("视相博物馆", "视相博物馆：演化") === "视相博物馆：演化", labelOf("视相博物馆", "视相博物馆：演化"));
 		check("labelOf：半角冒号 / 空格两种分隔变体也认（`:`, ` `）",
 			labelOf("视相博物馆", "视相博物馆:演化") === "视相博物馆:演化"
@@ -293,7 +293,7 @@ export default async function run() {
 		check("labelOf：没有分类（空 / null）⇒ 原样返回 name",
 			labelOf("", "视相博物馆：演化") === "视相博物馆：演化" && labelOf(null, "墟") === "墟",
 			JSON.stringify([labelOf("", "视相博物馆：演化"), labelOf(null, "墟")]));
-		check("labelOf：幂等（labelOf(cat, labelOf(cat, name)) 不会多拼一层）",
+		check("labelOf：幂等（labelOf(category, labelOf(category, name)) 不会多拼一层）",
 			labelOf("视相博物馆", labelOf("视相博物馆", "演化")) === "视相博物馆：演化"
 			&& labelOf("视相博物馆", labelOf("视相博物馆", "视相博物馆：演化")) === "视相博物馆：演化");
 
@@ -304,12 +304,12 @@ export default async function run() {
 			"活动结束时间": smwTime(Date.UTC(2026, 10, 6, 19, 59))
 		}, "视相博物馆：演化"), TZ_CN);
 		check("SMW 快照：名称本身带分类前缀时**不重复**（labelOf(name) 逐字 =「视相博物馆：演化」）",
-			dup.length === 1 && labelOf(dup[0].cat, dup[0].name) === "视相博物馆：演化" && dup[0].cat === "视相博物馆",
-			JSON.stringify(dup.map((x) => [x.name, x.cat])));
+			dup.length === 1 && labelOf(dup[0].category, dup[0].name) === "视相博物馆：演化" && dup[0].category === "视相博物馆",
+			JSON.stringify(dup.map((x) => [x.name, x.category])));
 
 		// 用户举的那个例子端到端跑一遍 payload：活动期 → 兑换期
 		const snap = [{
-			name: "视相博物馆：演化", cat: "视相博物馆", page: "视相博物馆：演化",
+			name: "视相博物馆：演化", category: "视相博物馆", page: "视相博物馆：演化",
 			startTs: at("2026-10-24T16:00:00+08:00"), stageEndTs: at("2026-11-07T03:59:00+08:00"),
 			claimEndTs: at("2026-11-10T03:59:00+08:00"), raw: "10-24 16:00 ~ 11-07 03:59"
 		}];
@@ -652,11 +652,11 @@ export default async function run() {
 		const { pickEventPrimary, sortEventItems } = T;
 		// 真机 lastData 等价的候选（两个窗口首尾相接，与 prtsEventPayload 生成的一致）
 		const claimCand = {
-			name: "视相博物馆：演化", cat: "视相博物馆", phase: "claim",
+			name: "视相博物馆：演化", category: "视相博物馆", phase: "claim",
 			startTs: at("2026-11-07T03:59:00+08:00"), endTs: at("2026-11-10T03:59:00+08:00")
 		};
 		const runCand = {
-			name: "支线故事：时间啊，向前！", cat: "支线故事", phase: "event",
+			name: "支线故事：时间啊，向前！", category: "支线故事", phase: "event",
 			startTs: at("2026-11-01T12:00:00+08:00"), endTs: at("2026-11-22T03:59:00+08:00")
 		};
 		// 先证明"档位确实相反"——否则下面那条断言可能因为别的原因通过
@@ -671,12 +671,12 @@ export default async function run() {
 		// 端到端（payload）：同一份输入 → 外显必须是兑换期那一条
 		const snapshot = [
 			{
-				name: "视相博物馆：演化", cat: "视相博物馆", page: "视相博物馆：演化",
+				name: "视相博物馆：演化", category: "视相博物馆", page: "视相博物馆：演化",
 				startTs: at("2026-10-24T16:00:00+08:00"), stageEndTs: at("2026-11-07T03:59:00+08:00"),
 				claimEndTs: at("2026-11-10T03:59:00+08:00"), raw: "10-24 16:00 ~ 11-07 03:59"
 			},
 			{
-				name: "时间啊，向前！", cat: "支线故事", page: "时间啊，向前！",
+				name: "时间啊，向前！", category: "支线故事", page: "时间啊，向前！",
 				startTs: at("2026-11-01T12:00:00+08:00"), stageEndTs: at("2026-11-22T03:59:00+08:00"),
 				claimEndTs: null, raw: "11-01 12:00 ~ 11-22 03:59"
 			}
@@ -691,8 +691,8 @@ export default async function run() {
 			!!pl && pl.eventDates === "11-07 03:59 ~ 11-10 03:59", JSON.stringify(pl && pl.eventDates));
 		// 悬停**不动**：仍按结束时间升序全量（兑换期那条 11-10 本来就最早，这里换成"兑换期最晚"再验一次）
 		const hoverOrder = sortEventItems([
-			{ name: "晚截止：兑换期", cat: "视相博物馆", phase: "claim", startTs: at("2026-11-07T03:59:00+08:00"), endTs: at("2026-11-20T03:59:00+08:00") },
-			{ name: "早结束：进行中", cat: "支线故事", phase: "event", startTs: at("2026-11-01T12:00:00+08:00"), endTs: at("2026-11-12T03:59:00+08:00") }
+			{ name: "晚截止：兑换期", category: "视相博物馆", phase: "claim", startTs: at("2026-11-07T03:59:00+08:00"), endTs: at("2026-11-20T03:59:00+08:00") },
+			{ name: "早结束：进行中", category: "支线故事", phase: "event", startTs: at("2026-11-01T12:00:00+08:00"), endTs: at("2026-11-12T03:59:00+08:00") }
 		]);
 		check("悬停排序（sortEventItems）**不动**：仍按结束时间升序（兑换期最晚 ⇒ 排在悬停最后）",
 			hoverOrder.length === 2 && hoverOrder[0].name === "早结束：进行中" && hoverOrder[1].name === "晚截止：兑换期",
@@ -711,9 +711,9 @@ export default async function run() {
 			JSON.stringify(runOnly.map((x) => x.name)));
 		// 同档位时仍按结束时间升序（旧规则的第二、三键没被挤掉）
 		const sameTier = [
-			{ name: "A", cat: "支线故事", phase: "event", startTs: 10, endTs: 300 },
-			{ name: "B", cat: "支线故事", phase: "event", startTs: 20, endTs: 200 },
-			{ name: "C", cat: "支线故事", phase: "event", startTs: 30, endTs: 200 }
+			{ name: "A", category: "支线故事", phase: "event", startTs: 10, endTs: 300 },
+			{ name: "B", category: "支线故事", phase: "event", startTs: 20, endTs: 200 },
+			{ name: "C", category: "支线故事", phase: "event", startTs: 30, endTs: 200 }
 		];
 		check("反向守卫：同档位内仍按 endTs 升序、再按 startTs 升序（旧排序键一个没丢）",
 			pickEventPrimary(sameTier).name === "B" && pickEventPrimary([sameTier[2], sameTier[0], sameTier[1]]).name === "B",
@@ -721,7 +721,7 @@ export default async function run() {
 		// 两个都是 claim（同一时刻两条都在兑换期）⇒ 档位规则在领取期内部照旧生效
 		const twoClaims = [
 			Object.assign({}, claimCand),
-			{ name: "危机合约：兑换期", cat: "危机合约", phase: "claim", startTs: 10, endTs: 400 }
+			{ name: "危机合约：兑换期", category: "危机合约", phase: "claim", startTs: 10, endTs: 400 }
 		];
 		check("反向守卫：两条都在领取期 ⇒ 领取期**内部**仍按类别档位/结束时间挑（不是随便选一条）",
 			pickEventPrimary(twoClaims) === twoClaims[1] && pickEventPrimary([twoClaims[1], twoClaims[0]]) === twoClaims[1],
@@ -730,10 +730,10 @@ export default async function run() {
 		// 反向守卫 ②：**其它游戏的数据形状没有 `phase`** ⇒ 与显式 `"event"` 逐排列同解。
 		// 4 条候选（档位 × 结束时间都不同）取 24 种排列：去掉 phase / 标成 "event" 两种形状的挑选结果必须一致。
 		const base = [
-			{ name: "t1-早", cat: "支线故事", startTs: 100, endTs: 200 },   // tier 1
-			{ name: "t1-晚", cat: "危机合约", startTs: 100, endTs: 900 },   // tier 1
-			{ name: "t2-早", cat: "登录活动", startTs: 50, endTs: 150 },    // tier 2
-			{ name: "t2-晚", cat: "签到活动", startTs: 50, endTs: 800 }     // tier 2
+			{ name: "t1-早", category: "支线故事", startTs: 100, endTs: 200 },   // tier 1
+			{ name: "t1-晚", category: "危机合约", startTs: 100, endTs: 900 },   // tier 1
+			{ name: "t2-早", category: "登录活动", startTs: 50, endTs: 150 },    // tier 2
+			{ name: "t2-晚", category: "签到活动", startTs: 50, endTs: 800 }     // tier 2
 		];
 		const permute = (arr) => arr.length <= 1 ? [arr] : arr.flatMap((x, i) =>
 			permute(arr.slice(0, i).concat(arr.slice(i + 1))).map((rest) => [x].concat(rest)));
@@ -1091,16 +1091,16 @@ export default async function run() {
 			+ '<td><a title="分类:视相博物馆">视相博物馆</a></td></tr></table>';
 		const dupItems = collectPrtsEvents(dupHtml, TZ_CN);
 		check("恢复·collectPrtsEvents：名称本身带分类前缀时**不重复**（banner 逐字 =「视相博物馆：演化」）",
-			dupItems.length === 1 && dupItems[0].banner === "视相博物馆：演化" && dupItems[0].cat === "视相博物馆",
-			JSON.stringify(dupItems.map((x) => [x.banner, x.cat])));
-		// 快照形状：与 SMW 那份**同一组字段名**（startTs / endTs / raw / page / name / cat）
+			dupItems.length === 1 && dupItems[0].banner === "视相博物馆：演化" && dupItems[0].category === "视相博物馆",
+			JSON.stringify(dupItems.map((x) => [x.banner, x.category])));
+		// 快照形状：与 SMW 那份**同一组字段名**（startTs / endTs / raw / page / name / category）
 		const LIST_TEXT7 = JSON.parse(fixtureBody(LIST_URL, LIST_OV)).parse.text;
 		const snap7 = prtsEventSnapshot(LIST_TEXT7, TZ_CN);
-		check("恢复·prtsEventSnapshot：一览 HTML → 3 条快照（name/cat/startTs/endTs/raw/page 齐备，页名解出来了）",
+		check("恢复·prtsEventSnapshot：一览 HTML → 3 条快照（name/category/startTs/endTs/raw/page 齐备，页名解出来了）",
 			snap7.length === 3 && snap7.every((x) => typeof x.name === "string" && x.name.length > 0
-				&& typeof x.cat === "string" && typeof x.raw === "string" && typeof x.page === "string" && x.page.length > 0
+				&& typeof x.category === "string" && typeof x.raw === "string" && typeof x.page === "string" && x.page.length > 0
 				&& typeof x.startTs === "number" && typeof x.endTs === "number"),
-			JSON.stringify(snap7.map((x) => [x.name, x.cat, x.page])));
+			JSON.stringify(snap7.map((x) => [x.name, x.category, x.page])));
 		check("恢复·labelOf 幂等（一览与 SMW 用的都是这一份去重）",
 			labelOf("视相博物馆", labelOf("视相博物馆", "演化")) === "视相博物馆：演化");
 	}

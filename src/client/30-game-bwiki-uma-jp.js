@@ -23,7 +23,7 @@ function ns_bwiki_parseUmaJpEvents(html, tz = "Asia/Tokyo") {
 		items.push({
 			_i: i,
 			event: c2.text || ns_bwiki_cleanImgName(ns_bwiki_attrOf(c1.html, "alt")) || "活动",
-			cat: c3.text, img: ns_bwiki_cleanImgName(ns_bwiki_attrOf(c1.html, "alt")),
+			category: c3.text, img: ns_bwiki_cleanImgName(ns_bwiki_attrOf(c1.html, "alt")),
 			startTs: wins[0].startTs, endTs: wins[0].endTs, raw: wins[0].raw
 		});
 	});

@@ -224,7 +224,7 @@
 		//
 		// 两侧的**通用**规则都是"今天外显规则的原样搬运"，不新发明口径：
 		//   · event：25-parser-order.js 的 `pickEventPrimary`（各解析器挑外显时调的就是它）
-		//     —— 奖励领取期（`phase.kind === "claim"`）优先 → 类别档位（`cat`/`tags` 能读到就用，
+		//     —— 奖励领取期（`phase.kind === "claim"`）优先 → 类别档位（`category`/`tags` 能读到就用，
 		//     读不到才按活动名匹配 EVENT_TIER1_RE）→ 结束时间升序 → 开始时间升序。
 		//   · gacha：24-parser-window.js 的 `selectCurrent`（卡池外显的本体；各内置解析器内部的
 		//     `selectGacha*` / `pickMergedGachaWindow` 都注明"与 selectCurrent 同口径"）：
@@ -251,7 +251,7 @@
 			if (specialized) {
 				primary = specialized(list, at);
 			} else if (side === "event") {
-				// `pickEventPrimary` 吃的条目来自解析器：`name` / `cat` / `tags` / `startTs` / `endTs` / `phase`。
+				// `pickEventPrimary` 吃的条目来自解析器：`name` / `category` / `tags` / `startTs` / `endTs` / `phase`。
 				// 数据层数组把名称叫 `title`（见 50-refresh.js 的字段表）⇒ 这里做一层**只读适配**再调用它：
 				// 规则本体一个字不改，只是把它认的字段喂进去（否则 eventTier 读不到名字，档位永远退化成第二档）。
 				// ⚠️ `phase` 也要适配：解析器给的是字符串 `"claim"`（25-parser-order.js 的判据），
@@ -261,7 +261,7 @@
 				const adapted = list.map((x) => ({
 					item: x,
 					name: x.title || "",
-					cat: x.cat,
+					category: x.category,
 					tags: x.tags,
 					startTs: x.startTs,
 					endTs: x.endTs,
@@ -280,7 +280,7 @@
 		}
 
 		// ── 按游戏分派的挑选规则表（P2 收尾，2026-11-07）─────────────────────────────
-		// **规则仍属显示层**：数据层只放事实（`startTs`/`endTs`/`cat`/`source`/`preview`…），
+		// **规则仍属显示层**：数据层只放事实（`startTs`/`endTs`/`category`/`source`/`preview`…），
 		// "哪一条是外显"由这里决定。每条都注明它对齐的是哪个老实现（文件:行），以及为什么
 		// 通用规则复现不了它 —— 反过来也说明：把某条特化规则换回通用规则，对应那一侧必然变红
 		// （`test/cases-core.mjs` ⑤-5 的"反向证明"就钉这一点）。
@@ -376,10 +376,10 @@
 		//   覆盖 now 优先 → 类型档位（源站第 4 列 `Event` 压过 `Campaign`）→ endTs 升序 → startTs 升序。
 		// 档位来自**源站类型列**，不是活动名：`Event` 这个词不在 EVENT_TIER1_RE 里，按名字判档会把
 		// 09-05 的「失落的创世（Event）」判成第二档，从而选中「3200万下载突破纪念活动（Campaign）」。
-		// 类型由解析器通过 `itemFacts` 带进数组条目的 `cat`（见 30-game-aniplex.js 的 itemFacts 注释）；
-		// 老缓存没有 cat ⇒ 全落第二档（退化成"结束最早"，与通用规则一致，不凭空猜类别）。
+		// 类型由解析器通过 `itemFacts` 带进数组条目的 `category`（见 30-game-aniplex.js 的 itemFacts 注释）；
+		// 老缓存没有 category ⇒ 全落第二档（退化成"结束最早"，与通用规则一致，不凭空猜类别）。
 		function scheduleFgoTier(x) {
-			return /^Event/i.test(String((x && x.cat) || "")) ? 0 : 1;
+			return /^Event/i.test(String((x && x.category) || "")) ? 0 : 1;
 		}
 		function schedulePickFgoEvent(list, at) {
 			const pool = scheduleCoveringOf(list, at) || list;

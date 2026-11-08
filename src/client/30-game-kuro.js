@@ -172,7 +172,7 @@
 				const sTs = Number(it.startTimeMs), eTs = Number(it.endTimeMs);
 				if (!Number.isFinite(sTs) || !Number.isFinite(eTs)) continue;
 				if (sTs > now || eTs < now) continue;
-				events.push({ name, cat: "", startTs: sTs, endTs: eTs });
+				events.push({ name, category: "", startTs: sTs, endTs: eTs });
 			}
 			if (events.length === 0) return null;
 			const sorted = sortEventItems(events);

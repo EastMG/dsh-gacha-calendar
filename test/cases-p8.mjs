@@ -471,7 +471,7 @@ export default async function run() {
 		const recItems = parseCznRecord(rec.parse.wikitext["*"], CZN_TZ);
 		check("备选页 `卡池记录` 的 `{{Gacha|…}}` 模板：1 条 = 小春概率UP 2026/03/22 08:59 ~ 03/27 08:59",
 			recItems.length === 1 && recItems[0].banner === "小春概率UP" && recItems[0].roles === "小春"
-			&& recItems[0].cat === "救援概率UP" && recItems[0].raw === "2026/03/22 8:59:00 ~ 2026/03/27 8:59:00",
+			&& recItems[0].category === "救援概率UP" && recItems[0].raw === "2026/03/22 8:59:00 ~ 2026/03/27 8:59:00",
 			JSON.stringify(recItems));
 		check("备选页那 1 条也已过期（2026-03）→ 不改变 `czn` 的当期结论（仍是 null）",
 			recItems[0].endTs < SNAP);

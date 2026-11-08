@@ -225,8 +225,8 @@ function ns_bwiki_windowsFromCell(text, tz, orient = "startFirst") {
 //#region 当期挑选（沿用插件本体语义）
 const ns_bwiki_EVENT_TIER1_RE = /剧情|叙事|主线|故事|活动正篇|总力战|總力戰|大决战|大決戰|决战|決戰|危机合约|危機合約|制约解除|综合战术|綜合戰術|挑战|挑戰|深度巡防|极限|逆境深塔|全息/;
 function ns_bwiki_eventTier(x) {
-	const cat = `${x.cat || ""} ${x.name || x.event || ""}`.trim();
-	return ns_bwiki_EVENT_TIER1_RE.test(cat) ? 1 : 2;
+	const category = `${x.category || ""} ${x.name || x.event || ""}`.trim();
+	return ns_bwiki_EVENT_TIER1_RE.test(category) ? 1 : 2;
 }
 function ns_bwiki_nowOf(now) { return typeof now === "number" && Number.isFinite(now) ? now : nowMs(); }
 

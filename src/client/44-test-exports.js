@@ -350,7 +350,7 @@
 				ARKNIGHTS_SMW_URL,
 				PRTS_CLAIM_MAX_TITLES,
 				PRTS_PAGES_API,
-				// labelOf = 分类前缀去重（纯函数）：name 已带 <cat>： 前缀 ⇒ 原样返回，否则拼一次。
+				// labelOf = 分类前缀去重（纯函数）：name 已带 <category>： 前缀 ⇒ 原样返回，否则拼一次。
 				labelOf,
 				collectPrtsEvents,
 				parseArknightsSmwEvents,

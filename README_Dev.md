@@ -100,7 +100,7 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 33 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（18 处定稿，三轮增删）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）+ cat / tags 批 1（8 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 反证））
+│   ├── all.mjs      # 统一门禁：聚 33 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（18 处定稿，三轮增删）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）+ category / tags 批 1（8 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 反证））
 │   ├── cases-*.mjs  # 各段用例（32 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / cases-arknights-claim / cases-arknights-timeline / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh / settings-jump / settings-copy / sources / bwiki-cors / p3 / p4flat）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
@@ -150,8 +150,8 @@ https://prts.wiki/api.php?action=ask&format=json
 | `活动开始时间` | `startTs` | 活动开场 |
 | `活动结束时间` | `stageEndTs` | **关卡关闭** = 实际举行结束（= 原「一览 `data-time` 的第二个值」） |
 | `兑换结束时间` | `claimEndTs` | **兑换 / 奖励领取关闭**；**可缺**（实测 30 条里 6 条是空数组），也可能**与活动结束同值** ⇒ 那时 `claimEndTs = null`（= 没有兑换期） |
-| `活动类型` | `cat` | ≈ 我们的分类（`支线故事` / `登录活动` / `危机合约` / …）；**不是每页都有**（实测 8 条里 1 条为空）⇒ 缺失时 `cat` 留空，由 `eventTier` 按**名称关键词**回退 |
-| 结果键 / `fulltext`（页名） | `name`（+ `page`） | 页名本身可能就是「视相博物馆：演化」，分类前缀由 `labelOf(cat, name)` 去重（不会拼成「视相博物馆：视相博物馆：演化」） |
+| `活动类型` | `category` | ≈ 我们的分类（`支线故事` / `登录活动` / `危机合约` / …）；**不是每页都有**（实测 8 条里 1 条为空）⇒ 缺失时 `category` 留空，由 `eventTier` 按**名称关键词**回退 |
+| 结果键 / `fulltext`（页名） | `name`（+ `page`） | 页名本身可能就是「视相博物馆：演化」，分类前缀由 `labelOf(category, name)` 去重（不会拼成「视相博物馆：视相博物馆：演化」） |
 | 渲染值 `fmtWindow(startTs, stageEndTs, tz)` | `raw` | `timestamp` 是 **Unix 秒（UTC 绝对值）** ⇒ **直接 ×1000**；源站 tz 只参与**渲染**。⚠️ 不要照原神 SMW（`parseSmwActivity`）拿 `raw`（`"1/2026/11/6/19/59/0/0"`）再按 +08 重算 —— PRTS 的 `raw` 是 **UTC 墙钟**，那样会整体偏 8 小时 |
 
 **抓取链路**（默认来源 `PRTS 活动解析` = `fetchArknightsEvents`）**一条**请求：
@@ -178,7 +178,7 @@ https://prts.wiki/api.php?action=ask&format=json
 
 - 兑换期内的活动**仍然出现**（改造前会整条消失 —— 那正是奖励没领的时候）。
 - **奖励领取期的候选在外显挑选中排最前**（`pickEventPrimary` 的第一个排序键，压过类别档位；见 2026-11-07 真机 bug：一条还剩 15 天的「支线故事」把兑换期只剩 3 天的活动挤出面板与「近期」）。判定只看 `phase === "claim"` —— 该字段只有本来源的两阶段候选会设置，其它游戏没有 ⇒ 行为不变；悬停排序 `sortEventItems`（结束时间升序全量）**不动**。
-- **分类前缀去重**（`labelOf(cat, name)`，纯函数）：活动名本身可能已经带分类前缀（PRTS 的 `视相博物馆：演化`）⇒ 不再拼成 `视相博物馆：视相博物馆：演化`。规则：`name` 以 `<cat>：` / `<cat>:` / `<cat> ` 开头、或与 `cat` 完全一致 ⇒ 原样返回 `name`，否则 `<cat>：<name>`，没有 `cat` ⇒ `name`（前缀比较大小写不敏感，幂等）。SMW 给的 `name` 是**页名**（不带分类前缀）⇒ 悬停行、payload 的 `event`、`eventShow`、提示行锚点**全部**走它 ⇒ 面板显示的那一串与提示框里出现的**同一串**。
+- **分类前缀去重**（`labelOf(category, name)`，纯函数）：活动名本身可能已经带分类前缀（PRTS 的 `视相博物馆：演化`）⇒ 不再拼成 `视相博物馆：视相博物馆：演化`。规则：`name` 以 `<category>：` / `<category>:` / `<category> ` 开头、或与 `category` 完全一致 ⇒ 原样返回 `name`，否则 `<category>：<name>`，没有 `category` ⇒ `name`（前缀比较大小写不敏感，幂等）。SMW 给的 `name` 是**页名**（不带分类前缀）⇒ 悬停行、payload 的 `event`、`eventShow`、提示行锚点**全部**走它 ⇒ 面板显示的那一串与提示框里出现的**同一串**。
 - 兑换期那一行的**事项名**（表格格子 / 「近期」/ 留白卡读的 `scheduleNormalize.show`）显示为 `<去重后的活动名> 兑换截止`（中间是**一个空格**，如 `视相博物馆：演化 兑换截止`）：payload 因此多带一个**只给显示**的 `eventShow`（只在兑换期出现，活动期没有这个键；随 `lastData` 持久化，`EVENT_FIELDS` / `CONTENT_FIELDS` 都已登记），`scheduleNormalize` 活动侧改成 `show = g.eventShow || title`。悬停里那条主行也用**同一串**（`prtsEventPayload` 的 `hoverActive`：兑换期的候选把 `name` 改成 `<活动标签> 兑换截止` 再交给 `buildEventHover`），所以它贡献的**只有一行**且就是兑换区间；`event` 一字不动（提醒标题、侧栏轮播、搜索匹配仍读 `event`），类型格仍是「活动」。
 - **悬停里同一个区间只出现一次**（2026-11-07 真机 bug）：① 兑换期那条活动**不再生成提示行**（主行已经是兑换区间，再补一行就是逐字重复）；② 活动侧（`hoverTextOf` 表格格子 / `scheduleHoverText`「近期」行）**不再追加** `title ⏎ rawSrc` —— `eventHover` 已经是"每个活动一行"的完整信息，只有 `eventHover` 为空（当期只有 1 条活动）时才用 `title + 原文` 兜底；卡池侧维持原行为（悬停原文里没有这条池名时才补）。`scheduleHoverOnes` 同步跳过与外显事项名（`show`）同名的那条，兑换期的主行不会在探头里重复出现一条。
 - 提示行走**独立提示字段 `eventHoverExtra`**（只进提示框，不进探头）：`eventHover` 仍**只由共用 `buildEventHover` 产出**（活动期的行与改造前逐字一致；兑换期那一行带「兑换截止」，见上一条）。`eventHoverExtra` 每两条一组（① 该活动的**标签** ② 提示行本身），`hoverTextOf`（表格格子）/ `scheduleHoverText`（「近期」行）都调 `scheduleHoverNote`，由它按标签把提示行**插在该活动那一行之后**（不再统一堆到末尾 —— 那样看不出是哪个活动的兑换截止）。不这么分开的话，表格格子会把 `eventHover` 解析成并列条目，`兑换截止` 那行就会变成格子里的一行**可见文字**（2026-11-06 真机 bug）。没有兑换期时**不写这个键**。
@@ -215,7 +215,7 @@ https://prts.wiki/api.php?action=ask&format=json
 
 1. **悬停文本**：任意一行不重复、相邻两行不相同、不出现「名称单独一行 ⏎ 只有区间」的两行形态。谓词与断言在 `test/lib-text.mjs` 的 `assertHoverTextInvariants` —— 与 `cases-arknights-claim.mjs` ⑥ 共用**同一份实现**，不许再写第二份。⚠️ 当期只有 1 条活动时 `buildEventHover` 按契约返回空串、UI 退回默认两行式「名称 ⏎ 档期」，那是**合法兜底**（判据自动切成"纯档期行 ≤ 1 条"），不是 bug。
 2. **阶段**：活动期没有 `eventShow`、`eventDates` = 活动区间；兑换期 `eventShow` = `<去重后的活动名> 兑换截止`、`eventDates` = 兑换区间；结束后该活动不再作为外显（悬停/提示行也不许再提）。
-3. **名称不重复**：`event` / `eventShow` / 悬停行标签 / 提示行锚点都不许带两层分类前缀。两条判据一起用：`labelOf(cat, label) === label`（幂等）+ `doubledCatPrefixOf`（真的没拼第二下）—— 只靠幂等**抓不到**"多加了一层"（`labelOf` 对已带前缀的串是原样返回的）。
+3. **名称不重复**：`event` / `eventShow` / 悬停行标签 / 提示行锚点都不许带两层分类前缀。两条判据一起用：`labelOf(category, label) === label`（幂等）+ `doubledCategoryPrefixOf`（真的没拼第二下）—— 只靠幂等**抓不到**"多加了一层"（`labelOf` 对已带前缀的串是原样返回的）。
 4. **提醒**：`remindItemsOf` + `remindTickOf` 在「活动结束前 72h」与「兑换截止前 72h」各发一次、key 不同（`arknights|event|end|…` vs `arknights|event-claim|end|…`），且**同一份 `lastData` 不刷新**也各发一次；兑换期载荷两个 T 相同 ⇒ 去重只留一条。
 5. **不崩**：任何时刻抓取器都不抛；退化路径返回**改造前**那个数据形状（键集合逐一比对，不是"看着差不多"）。
 6. **持久化**：载荷喂给 `createEngine().getCached()` 后，现有 4 个字符串字段 + 两阶段新增 3 个字段（`eventClaimDates` / `eventShow` / `eventHoverExtra`）一个不丢；活动列沿用旧值时这三者也一起沿回；没有兑换期的来源归一成空串（形状固定）。
@@ -374,7 +374,7 @@ P1~P4 之后数据真源是 `gacha[]` / `events[]`；`bannerHover` / `eventHover
 
 **P2（派生层，已完成）**：显示层改读这两个数组 —— 表格那一行 = `sideViewOf(...).primary`、探头 = `.rest`，两处共用同一份数组；**不再解析悬停文本**（悬停 tooltip 仍读 `bannerHover` / `eventHover`，那是 P3 的事）。派生规则与兼容退化见下面「派生层（P2）」一节。
 
-**P2 收尾（2026-11-07，方案 C「补事实、不藏差异」）**：数据层补了 `source` / `cat` / `tags` / `preview` 四个事实字段，判重改为"引擎主行 + 悬停并列行各一条"；显示层加了**按游戏分派的规则表**；FGO 解析器额外给一份 `itemFacts`（类别通道）。结果是 34 个侧与改造前**逐字相等**（已知差异清零）。
+**P2 收尾（2026-11-07，方案 C「补事实、不藏差异」）**：数据层补了 `source` / `category` / `tags` / `preview` 四个事实字段，判重改为"引擎主行 + 悬停并列行各一条"；显示层加了**按游戏分派的规则表**；FGO 解析器额外给一份 `itemFacts`（类别通道）。结果是 34 个侧与改造前**逐字相等**（已知差异清零）。
 
 **P3 第一批（2026-11-07，已完成）**：方向倒过来了 —— **解析器直接产数组**（真源），悬停字符串改由**同一份条目**反生成（不再手拼、也不再从文本反解数组）。本批只切 **3 款 6 条路径**（原神卡池+活动 / 明日方舟卡池+活动 / 鸣潮卡池+活动），其余 25 款仍走 P1 的合成路径（见下面「解析器直出（P3）」与「P3b 待办清单」）。
 
@@ -382,9 +382,9 @@ P1~P4 之后数据真源是 `gacha[]` / `events[]`；`bannerHover` / `eventHover
 
 ```js
 gacha:  [{ key, title, show, roles: string[], startTs, endTs, tz, raw, source,
-           cat?, tags?, preview?, longTerm? }]
+           category?, tags?, preview?, longTerm? }]
 events: [{ key, title, show, startTs, endTs, tz, raw, source,
-           cat?, tags?, preview?, phase?: { kind: "claim", startTs, endTs, show } }]
+           category?, tags?, preview?, phase?: { kind: "claim", startTs, endTs, show } }]
 ```
 
 | 字段 | 含义 |
@@ -397,7 +397,7 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 | `tz` | 条目声明的源站时区（让下游知道那串时间按哪个墙钟读） |
 | `raw` | 源站原文（`bannerDatesRaw` / `eventDatesRaw`；并列池那条 = 悬停里那行档期） |
 | `source` | **这条是谁**（P2 收尾新增，恒有）：`"primary"` = 引擎给的外显那条；`"hover"` = 从悬停文本解析出的并列条目。旧探头**两者都显示** ⇒ 数组也两者都留，用 `source` 区分（不再按「同池」并掉，见下） |
-| `cat` / `tags` | **类别事实**（可缺）：解析器知道类别时经 `itemFacts` 通道带进来（目前只有 FGO 活动表第 4 列的 `Event` / `Campaign` 填 `cat`）；**取不到就没有这个键**（不猜、不写空值）。`tags` 目前没有来源提供（字段与归一已就位，留给后续结构化来源） |
+| `category` / `tags` | **类别事实**（可缺）：解析器知道类别时经 `itemFacts` 通道带进来（2026-11-08 起 9 款有来源，逐款见下文「category / tags 来源与现状」表）；**取不到就没有这个键**（不猜、不写空值）。多值来源（原神 SMW 的数组、绝区零/星铁「类型」列按 `<br />` 拆）⇒ 首项 `category`、其余 `tags` |
 | `preview` | **预告稿标记**（可缺）：标题命中 `/予告|coming soon/i` 时为 `true`（与赛马娘老实现 `previewRank` 同一判据，见 `30-game-cygames.js:392`） |
 | `phase` | 活动的**第二阶段**（明日方舟「奖励领取/兑换截止」）：只有来源给了 `eventClaimDates` 才有这个键。它是**一条独立的截止窗口**，不是第二个活动条目 |
 | `longTerm` | P1 **不合成**（可选字段，留给结构化来源；归一函数会原样透传） |
@@ -412,7 +412,7 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
   - ⚠️ `scheduleHoverItems` 当时在 2026-11-07 从 81 **逐字搬进 26-parser-hover.js**（`50-refresh.js` 也在 core 产物里，而 81 只属于渲染层）。**P5 清理（2026-11-08）它已从产品删除**：那两条区间正则与判据现在冻结在 `test/lib-text.mjs` 的 `legacyHoverItemsOf`（只给回归用）；`scheduleNoYear` 留在 26（`dataArrayExtrasFromEntriesOf` 仍在用）。
   - 两条区间正则的**起端也认「X.Y版本更新后」**（不是只有两端日期）：星铁 bwiki 把这种原文直接写进悬停（`「巡星之礼」第二十七期   4.6版本更新后 ~ 11-11 03:59`），不认就会把档期拼进**事件标题**。普查结论：其它 27 款的「版本更新后」已在各自解析器里折算成绝对时刻、悬停原文不含版本标签 ⇒ 只影响星铁（`test/cases-core.mjs` ④-9 有针对性断言）。注意这只影响**悬停逆解析**，`fillMissingStarts` / 「版本更新后」的换算一个字没动。
   - 解析不出并列池（`bannerHover` 为空 / 只有 1 条）⇒ 就 1 条，与今天显示等价。
-- **归一**：`dataArray*ItemOf` 只做最少校验 —— 非对象元素**丢弃**、`startTs`/`endTs` **必须是 number 否则 `null`**（`"123"` / `NaN` / `Infinity` 全变 `null`）、文本字段缺了填空串、`roles` 不是数组就 `[]`、`source` 缺了填空串。**可选事实**（`cat` / `tags` / `preview`）**有就原样保留、没有就不写这个键**（`preview` 只认 `true`，`tags` 空数组/`cat` 空串都不产生键）⇒ `getCached()` 往返后事实不丢、也不会多出空值。缺数组（改造前的老缓存）⇒ **空数组**，形状固定。
+- **归一**：`dataArray*ItemOf` 只做最少校验 —— 非对象元素**丢弃**、`startTs`/`endTs` **必须是 number 否则 `null`**（`"123"` / `NaN` / `Infinity` 全变 `null`）、文本字段缺了填空串、`roles` 不是数组就 `[]`、`source` 缺了填空串。**可选事实**（`category` / `tags` / `preview`）**有就原样保留、没有就不写这个键**（`preview` 只认 `true`，`tags` 空数组/`category` 空串都不产生键）⇒ `getCached()` 往返后事实不丢、也不会多出空值。缺数组（改造前的老缓存）⇒ **空数组**，形状固定。
 
 #### 持久化白名单（六处点名的地方，漏一处就静默丢字段）
 
@@ -437,7 +437,7 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 
 | 函数 | 做什么 | 规则来源 |
 |---|---|---|
-| `sideViewOf(items, now, side, gameId?)` | 数组 → `{ primary, rest }`（`primary` = 这一格外显的那条，`rest` = 其余、**保持数组原顺序**；数组空 ⇒ `primary = null`） | 第 4 个参数命中**按游戏分派表**（见下）⇒ 走特化规则；**不传 gameId = 通用规则**：<br>**event**：`25-parser-order.js` 的 `pickEventPrimary`（claim 优先 → 类别档位（`cat`/`tags` 读得到就用）→ endTs → startTs）。数组条目叫 `title`、`phase` 是对象 ⇒ 调用前做一层**只读适配**（`name = title`、`phase = phase.kind`），规则本体一个字不改。<br>**gacha**：`24-parser-window.js` 的 `selectCurrent` —— ① 只在**在期**的池里挑（`endTs >= now` 且起点缺失或 `<= now`，起点缺失 = 源站写「X.Y 版本更新后」⇒ 视为已开始）；② 在期的里取**结束最早**；③ 并列按起点升序；④ 一条都不在期 ⇒ 取数组首条（= 结束最早的那条，不凭 now 另造） |
+| `sideViewOf(items, now, side, gameId?)` | 数组 → `{ primary, rest }`（`primary` = 这一格外显的那条，`rest` = 其余、**保持数组原顺序**；数组空 ⇒ `primary = null`） | 第 4 个参数命中**按游戏分派表**（见下）⇒ 走特化规则；**不传 gameId = 通用规则**：<br>**event**：`25-parser-order.js` 的 `pickEventPrimary`（claim 优先 → 类别档位（`category`/`tags` 读得到就用）→ endTs → startTs）。数组条目叫 `title`、`phase` 是对象 ⇒ 调用前做一层**只读适配**（`name = title`、`phase = phase.kind`），规则本体一个字不改。<br>**gacha**：`24-parser-window.js` 的 `selectCurrent` —— ① 只在**在期**的池里挑（`endTs >= now` 且起点缺失或 `<= now`，起点缺失 = 源站写「X.Y 版本更新后」⇒ 视为已开始）；② 在期的里取**结束最早**；③ 并列按起点升序；④ 一条都不在期 ⇒ 取数组首条（= 结束最早的那条，不凭 now 另造） |
 | `scheduleItemOf(g, side, item, now)` | 数组条目 → 与 `scheduleNormalize` **同形**的渲染条目 | 记录自己那条外显（`item.title` == 记录的 `banner`/`event`）**直接走 `scheduleNormalize`** —— 卡池侧档期优先用记录里的绝对 `startTs/endTs`、活动侧走「源站原文 + tz」换算，数组里没有这两样（P1 只存 `raw` 与本机时刻），从数组重算会在 `TZ≠+08` 的机器上差一个时区。并列条目按 `startTs/endTs/raw` 组装（与今天 `scheduleHoverOnes` 同形）；两端都读不出 ⇒ `null`（与 `if (!r) continue` 一致） |
 | `scheduleCellOf(g, side, now)` | 一格的**全部**条目 `{ primary, rest, fromArray }`；`null` = 这一侧没数据 | 有数组 ⇒ 上面两步（`fromArray = true`），并把 `g.id` 传给 `sideViewOf` 以命中的规则表；**数组不可用 ⇒ 兼容分支**（`fromArray = false`）：今天的老路（`scheduleNormalize` + 解析悬停文本），代码逐字搬自 P2 之前的 `82-schedule-view.js`。什么时候走到：老 `lastData`（P1 之前的缓存，归一后是空数组）/ 这一侧本来没数据 / 数组非空但派生不出主条（极端）|
 
@@ -451,9 +451,9 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 | `uma-cn` | 两侧 | `schedulePickUmaCn`：**引擎主行优先**（`source:"primary"`）；老缓存没有该事实时退回上面的赛马娘规则 | `ns_biligame_activity_eventsUmaCnOfficial` / `gachaUmaCnOfficial`（`30-game-biligame.js:976` / `:956`） | 国服外显名 = `cleanTitle(公告标题)`（主行），悬停里那几行是**公告正文的「活动期间 / 第1轮 / 联赛报名期间」标签**；`pickUmaWindow` 只负责给档期，不是同一维度的候选 |
 | `wuhuamixin` | 两侧 | `schedulePickWhmx`：**引擎主行优先**；老缓存兜底按 `endTs` 升序 → 同 `endTs` 取 `startTs` **更晚**那条 | `ns_biligame_activity_pickWhmxEvent`（`30-game-biligame.js:836-846`） | 同一理由（外显 = 公告标题），且它的 `rank`（小节名 vs 标题引号名）在数组里没有对应字段 |
 | `zspms` | event | `schedulePickZspmsEvent`：覆盖 now → **该来源自己的类别词表**（含「演算」）→ `endTs` → `startTs` | `ns_bwiki_wikitext_zspmsEventCmp`（`30-game-bwiki-zspms-wikitext.js:242-246`） | 通用 `EVENT_TIER1_RE` 没有「演算」⇒ 09-25 那侧会选「主线剧情-远信回响」，老实现选「回路演算」 |
-| `fgo` | event | `schedulePickFgoEvent`：覆盖 now → 类型档位（`cat` = `Event` 压过 `Campaign`）→ `endTs` → `startTs` | `ns_fgo_pickRow`（`30-game-aniplex.js:139-150`） | 档位来自**源站第 4 列类型**（`Event` 不在 `EVENT_TIER1_RE` 里）⇒ 09-05 那侧会选 Campaign 的「3200万下载突破纪念活动」而不是 Event 的「失落的创世…」 |
+| `fgo` | event | `schedulePickFgoEvent`：覆盖 now → 类型档位（`category` = `Event` 压过 `Campaign`）→ `endTs` → `startTs` | `ns_fgo_pickRow`（`30-game-aniplex.js:139-150`） | 档位来自**源站第 4 列类型**（`Event` 不在 `EVENT_TIER1_RE` 里）⇒ 09-05 那侧会选 Campaign 的「3200万下载突破纪念活动」而不是 Event 的「失落的创世…」 |
 
-`cat` / `tags` 的来路：解析器若知道类别，额外返回 `itemFacts = { "<条目标题>": { cat?, tags? } }`，数据层按标题贴到数组条目上（**目前只有 FGO 活动表提供 `cat`**；`tags` 暂无来源 ⇒ 字段与归一就位但不产生）。取不到就**没有这个键**，显示层相应规则按"无类别事实"退化（不猜）。`preview` 由数据层按标题判据生成（`予告`/`coming soon`）。
+`category` / `tags` 的来路：解析器若知道类别，额外返回 `itemFacts = { "<条目标题>": { category?, tags? } }`，数据层按标题贴到数组条目上（2026-11-08 起 9 款提供 `category`，其中终末地/原神/绝区零/星铁还给多值 `tags`；逐款见下文「category / tags 来源与现状」表）。取不到就**没有这个键**，显示层相应规则按"无类别事实"退化（不猜）。`preview` 由数据层按标题判据生成（`予告`/`coming soon`）。
 
 **已知差异已清零**：`test/cases-core.mjs` ⑤-5 的等价性普查（17 款 / 34 个侧）现在 `diffs = 0` —— 原来 6 处（物华 gacha 少一行、星铁 gacha 少一行、物华/战双/赛马娘国服外显换位、赛马娘日服 gacha 换位）全部逐侧钉成**严格相等**；另有**反向证明**：把任一特化规则换回通用规则（`sideViewOf` 不传 gameId）⇒ 对应侧必红（实测把 `uma-jp` 与 `zspms:event` 两行从分派表拿掉时，⑤-5 立刻红在这两个侧；FGO 用 09-05 那侧单独钉住）。
 
@@ -461,7 +461,7 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 
 **兼容退化（P3c 起，2026-11-07 已删老路）**：`scheduleCellOf` **只读数据层数组**；数组为空（老 `lastData` / 这一侧真没数据）⇒ 返回 `null`，格子里写「该来源无数据」，**不抛错**。原来的 `fromArray === false` 兼容分支（`scheduleNormalize` + 逆解析悬停文本）连同 `scheduleHoverOnes` 已随 P3c 删除 —— 它已没有任何生产调用方（28 款默认源全部直出）。抓取失败时"显示旧数据"仍走 `mergeEntryRecord` 的沿回逻辑（`dataArrayInheritableOf`），不受影响。
 
-**回归（`test/cases-core.mjs` ⑤，35 条）**：纯函数（空 / 单条 / 在期里结束最早 / 起点未知 / 并列起点 / claim 优先 / 类别档位 / 顺序稳定 / 不改输入）+ `scheduleItemOf` 同形 + **老 `lastData` ⇒ `null` 且不抛错** + 老路（oracle）输出与数组派生逐字相同 + **等价性普查**（34 个侧全部逐字相等）+ 原来 6 处已知差异的严格相等 + **反向证明**（通用规则与特化规则必须选出不同的那条）+ FGO 09-05 那侧（`cat` 事实 + 特化规则缺一不可）。⚠️ 老路已从产品删除；**P5 清理后连老路的 oracle 也删了** —— 它的输出固化成了字面量
+**回归（`test/cases-core.mjs` ⑤，35 条）**：纯函数（空 / 单条 / 在期里结束最早 / 起点未知 / 并列起点 / claim 优先 / 类别档位 / 顺序稳定 / 不改输入）+ `scheduleItemOf` 同形 + **老 `lastData` ⇒ `null` 且不抛错** + 老路（oracle）输出与数组派生逐字相同 + **等价性普查**（34 个侧全部逐字相等）+ 原来 6 处已知差异的严格相等 + **反向证明**（通用规则与特化规则必须选出不同的那条）+ FGO 09-05 那侧（`category` 事实 + 特化规则缺一不可）。⚠️ 老路已从产品删除；**P5 清理后连老路的 oracle 也删了** —— 它的输出固化成了字面量
 （`test/fixtures/legacy-oracle-golden.json` 的 `coreRows` / `coreSyntheticRows` / `coreFgo0905Rows`，
 读取器 `test/legacy-golden.mjs`），断言因此是"**当前数组派生 == 冻结的字面量**"。字面量由 HEAD
 `d3e9d35` 的 `legacyCellOf` 采出，**不随产品漂移** —— 否则"等价"就成了拿产品和自己比。
@@ -498,7 +498,7 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 | 鸣潮 `wuwa` | 卡池 | `30-game-kuro.js` 的 `parseWuwaNotice`（官方公告 `recommend` 组） | 4（主条=卡池类型 + 3 口角色池） |
 | 鸣潮 `wuwa` | 活动 | `30-game-kuro.js` 的 `parseWuwaRecommendEvents` | 2 |
 
-条目形状 = 记录里数组条目的形状（`title` / `show` / `roles?` / `startTs` / `endTs` / `tz` / `raw` / `source`，可选 `cat` / `tags` / `preview` / `phase`）。`source:"primary"` = 引擎挑出的外显那条，其余 `"hover"`。
+条目形状 = 记录里数组条目的形状（`title` / `show` / `roles?` / `startTs` / `endTs` / `tz` / `raw` / `source`，可选 `category` / `tags` / `preview` / `phase`）。`source:"primary"` = 引擎挑出的外显那条，其余 `"hover"`。
 
 **P3b 进度（2026-11-07，逐批切换，每批独立 commit）**：目标 = 其余 25 款全部直出。回归在 `test/cases-p3.mjs`
 的 P3b 段（路径表 `P3B_PATHS` + golden 文件 `test/fixtures/p3b-golden.json`；golden 于切换**之前**用
@@ -620,7 +620,7 @@ canmoe 页面 + 它第一轮真的并发抓的 6 份 chunk、FZ Wiki 活动 REST
 
 **P3 待办清单（P3e 后仍然没做的）**：
 1. ~~**时间戳换绝对时刻（P4）**~~ ⇒ **P4 已完成**（见「P4 展平」一节）。
-2. **`cat` / `tags` / 逐池角色表**：P3 只搬结构、不扩事实。
+2. **`category` / `tags` / 逐池角色表**：P3 只搬结构、不扩事实。
 
 **P3 完成状态（P3e）**：**28 款默认源 / 48 条路径 + 全部备选源（20 条卡池 / 16 条活动）+ 用户自定义地址
 （三条通用分支 + 复用分支）都直出数组**，面板任何一侧都不再因为"没切直出"而显示「无数据」；`test/cases-p3.mjs`
@@ -743,15 +743,20 @@ golden + 等价（两侧都红）；
 4. **「近期」页容量**：展平后 7 天窗口内最多可能 20+ 条（每页 10），是否改成 12/15 条或按高度自适应，等真机观感。
 
 
-**P2 已知差异：已全部清零（2026-11-07 收尾，方案 C）**——原来的 6 处（探头的两行被并掉 + 4 款外显换位）靠"数据层补事实（`source` / `cat` / `preview`）+ 显示层按游戏分派规则"消掉了；`test/cases-core.mjs` ⑤-5 的 34 个侧现在 `diffs = 0`，且每条特化规则都有反向证明（换回通用规则 ⇒ 对应侧必红）。各游戏缺什么事实：`cat` / `tags` 的**逐款现状见下一节**（P2 收尾时只有 FGO 有 `cat`、`tags` 无来源；2026-11-08 的批 1 补齐了 8 款）、**只有赛马娘日服的预告稿有 `preview`**（标题判据）；这些"没有"都是**如实留空**（没有这个键），显示层按无事实退化，不猜。
+**P2 已知差异：已全部清零（2026-11-07 收尾，方案 C）**——原来的 6 处（探头的两行被并掉 + 4 款外显换位）靠"数据层补事实（`source` / `category` / `preview`）+ 显示层按游戏分派规则"消掉了；`test/cases-core.mjs` ⑤-5 的 34 个侧现在 `diffs = 0`，且每条特化规则都有反向证明（换回通用规则 ⇒ 对应侧必红）。各游戏缺什么事实：`category` / `tags` 的**逐款现状见下一节**（P2 收尾时只有 FGO 有 `category`、`tags` 无来源；2026-11-08 的批 1 补齐了 8 款、批 2 又给绝区零开了同一列）、**只有赛马娘日服的预告稿有 `preview`**（标题判据）；这些"没有"都是**如实留空**（没有这个键），显示层按无事实退化，不猜。
 
-### cat / tags 来源与现状（2026-11-08，批 1）
+### category / tags 来源与现状（2026-11-08，批 1 + 批 2）
+
+**字段名**：这两个字段此前叫 `cat`（缩写），2026-11-08 按用户要求全仓改名为 `category`
+（`itemFacts` 的键、数组条目字段、`eventTier` 的读法、`opts.categoryFacts` 开关、测试字面量与 golden 的键名全部跟着改）。
+老缓存的条目上可能仍是旧键 —— `dataArrayOptionalFactsOf`（`50-refresh.js`）**读入时把旧键当 `category` 的旧名接受**，
+写出只写 `category`（下一次写盘自动迁完；`test/cases-category.mjs` ⑧ 一条用例钉住）。
 
 **这两个字段是什么**：`gacha` / `events` 数组条目上的**可选事实**（形状见 50-refresh.js 的字段表）。
-解析器若知道"这一条属于哪个类别"，通过 `itemFacts`（`{ "<条目标题>": { cat?, tags? } }`）交给数据层
-按标题贴到条目上（`dataArrayAttachFactsOf`）；也可以直接在条目上带 `cat` / `tags` 再交给
+解析器若知道"这一条属于哪个类别"，通过 `itemFacts`（`{ "<条目标题>": { category?, tags? } }`）交给数据层
+按标题贴到条目上（`dataArrayAttachFactsOf`）；也可以直接在条目上带 `category` / `tags` 再交给
 `dataArrayProducedItemOf`（两条路径写出来的键序完全一样）。**唯一的消费方**是
-`25-parser-order.js` 的 `eventTier` —— 它读 `${cat} ${tags}`，读不到才回退按**活动名**匹配
+`25-parser-order.js` 的 `eventTier` —— 它读 `${category} ${tags}`，读不到才回退按**活动名**匹配
 `EVENT_TIER1_RE`（"有类别就按类别判，没有才按名字"），再由 `81-schedule-model.js` 的 `sideViewOf`
 决定面板那一格外显哪一条。
 
@@ -760,45 +765,58 @@ golden + 等价（两侧都红）；
 | 游戏 | 源站字段（位置） | 写入形态 | 现状 |
 |---|---|---|---|
 | 终末地 `endfield` | 活动卡片 `attrs.data.tags`（数组）· `30-game-hypergryph.js` 的 endfield 活动解析 | `tags[]`（itemFacts） | ✅ 批 1 补 |
-| 重返未来1999 `r1999` | 公告段标题「『名称』类型」里的**类型** → `sec.kind`（`30-game-bluepoch.js` 的 `parseR1999Overview`） | `cat`（itemFacts） | ✅ 批 1 补 |
-| 明日方舟 `arknights` | PRTS SMW「活动类型」→ `parseArknightsSmwEvents` 的 `it.cat` | `cat` | ✅ 批 1 补（有的活动页**没有**这个字段 ⇒ 那条留空） |
-| 原神 `genshin` | bwiki SMW 属性「类型」（是**数组**，如 `["角色获取","版本活动"]`） | 首项 `cat` + 其余 `tags[]` | ✅ 批 1 补 |
-| 星铁 `hsr` | 活动一览表的「类型」列（`22-fetcher-core.js` 的 `collectGenericEvents`） | `cat` | ✅ 批 1 补（只给 `id:"hsr"` 开 `catFacts`） |
-| 绝区零 `zzz`（Bwiki 备选源） | 与星铁**同一张表、同一列**（同一个 `genericEventPayload`） | `cat` | ⏳ 批 2（与 TAG 列拆分一起做） |
-| 女神异闻录5X `p5x` | 公告区块的类别行 → `block.category`（如 `活动更新` / `活动BOSS更新`） | `cat` | ✅ 批 1 补 |
-| PJSK `pjsk` | `events.json` 的 `eventType`（英文枚举：`marathon` / `cheerful_carnival` / `world_bloom`） | `cat`（**原样**，不翻译） | ✅ 批 1 补；枚举→档位的映射留批 2 |
-| FGO `fgo` | 活动表第 4 列的类型（`Event` / `Campaign` / `Other`） | `cat` | ✅ 2026-11-07 已落地；批 1 只让 `EVENT_TIER1_RE` 认英文（见下） |
+| 重返未来1999 `r1999` | 公告段标题「『名称』类型」里的**类型** → `sec.kind`（`30-game-bluepoch.js` 的 `parseR1999Overview`） | `category`（itemFacts） | ✅ 批 1 补 |
+| 明日方舟 `arknights` | PRTS SMW「活动类型」→ `parseArknightsSmwEvents` 的 `it.category` | `category` | ✅ 批 1 补（有的活动页**没有**这个字段 ⇒ 那条留空） |
+| 原神 `genshin` | bwiki SMW 属性「类型」（是**数组**，如 `["角色获取","版本活动"]`） | 首项 `category` + 其余 `tags[]` | ✅ 批 1 补 |
+| 星铁 `hsr` | 活动一览表的「类型」列（`22-fetcher-core.js` 的 `collectGenericEvents`） | `category`（多值时首项 + 其余 `tags[]`） | ✅ 批 1 补（只给 `id:"hsr"` 开 `categoryFacts`） |
+| 绝区零 `zzz`（Bwiki 备选源） | 与星铁**同一张表、同一列**（同一个 `genericEventPayload`） | `category` + 其余 `tags[]` | ✅ 批 2 补（开 `categoryFacts`；多值按 `<br />` 拆，见下） |
+| 女神异闻录5X `p5x` | 公告区块的类别行 → `block.category`（如 `活动更新` / `活动BOSS更新`） | `category` | ✅ 批 1 补 |
+| PJSK `pjsk` | `events.json` 的 `eventType`（英文枚举：`marathon` / `cheerful_carnival` / `world_bloom`） | `category`（**原样**，不翻译） | ✅ 批 1 补；枚举→档位的映射留批 2 |
+| FGO `fgo` | 活动表第 4 列的类型（`Event` / `Campaign` / `Other`） | `category` | ✅ 2026-11-07 已落地；批 1 只让 `EVENT_TIER1_RE` 认英文（见下） |
 | 雪松 `kedr` | 模板参数「倒计时名称」→ `item.timer`（`赛季` / `活动` / `边境防卫`） | —（**故意不写**） | ❌ 批 1 判定**不该补**，理由见下 |
 | 鸣潮 `wuwa` | 官方公告 `it.tag` 只是数字（5=活动 / 7=卡池），没有子类别 | — | ⏳ 批 2（数字映射） |
 | 战双 `zspms` | SMW 有 `?类别` 属性，但当前查询只取 `?标题` / `?时间` | — | ⏳ 批 2 |
 | 其余来源 | 响应里没有独立的类别 / 标签列（活动表往往只有"时间 + 名称"两列） | — | 未补（= 如实留空，档位按活动名回退） |
 
+**「类型」列多值拆分（批 2，绝区零 + 星铁同一张表）**：源站把多个类型写在**同一个单元格**里，分隔符是
+`<br />`（实测普查 240 行：`<br>` / `/` / `、` / `,` / `；` / `※` / 换行 全是 0 处，单元格内也没有 `<p>` / `<div>`）。
+`stripTags` 会把 `<br />` 变成**空格** ⇒ 多值会粘成 `版本活动 常驻活动`（改造前的实际行为）。
+`22-fetcher-core.js` 的 `categoryValuesOf` 因此**先按 `<br />` 拆、再逐段 stripTags**：
+首项进 `category`、其余进 `tags[]`（与批 1 原神 SMW 数组的做法一致）；空单元格 ⇒ 两个键都不写。
+绝区零的 **TAG 列本批不读**（留给后续决策）⇒ 条目上不会出现 `签到` / `战斗 拍照` 这些 TAG 词。
+回归：`test/cases-category.mjs` ⑦ 用真抓夹具逐条钉死（含"没有空格粘串 / 没有 `<br` 残渣"），
+**反向证明**：把拆分换成永不匹配的分隔符 ⇒ ⑦ 的 5 条断言立刻红（`版本活动 常驻活动`、`tags` 为空）。
+
 **`EVENT_TIER1_RE` 的英文分支（批 1 唯一动的正则）**：加了 `\bEvent\b|\bCampaign\b`。
 - `Event` / `Campaign` = FGO 的"活动正篇" ⇒ 第一档；`Other` = 第二档。
 - **必须带 `\b` 词边界**：`Other` 不许被任何英文分支命中（它是第二档），`Events` / `Eventful` /
   `Campaigns` / `Campaigner` / `Pother` 这类更长或嵌在别的词里的写法也不算分类词
-  （`test/cases-cat.mjs` ⑤ 有逐条断言）。
+  （`test/cases-category.mjs` ⑤ 有逐条断言）。
 - FGO 的**外显**其实走特化规则 `schedulePickFgoEvent`（`/^Event/i` 优先），所以这条正则改动对 FGO
   面板**没有可见影响**；它的作用是让通用 `eventTier` 与源站类型列口径一致（将来任何来源写英文分类词
   都不会被判成第二档）。
 
-**雪松为什么不补**（`timer` 有值，但补了会让档位**退化**）：`eventTier` 的判据是"有 `cat` 就**只**看
-`cat`，不再看活动名"。雪松那三个类别词（`赛季` / `活动` / `边境防卫`）都不在 `EVENT_TIER1_RE` 里，
-而活动名 `个人剧情活动第1期：【新机动队故事】` 靠「剧情」本来是第一档 ⇒ 补 `cat` 后它会掉到第二档，
-外显从"剧情活动"变成"战令通行证赛季"（实测 2026-10-01；`test/cases-cat.mjs` ④ 用 what-if 钉住了这个
-退化）。用户口径是"补 cat/tags 不许动已可见输出，除非那是有意的档位改进" ⇒ 这里留空。要改成"照源站
-写"只需给 `ns_bwiki_wikitext_eventPayload` 加一个 `catOf` 选项并在雪松侧传 `x.timer`。
+**雪松为什么不补**（`timer` 有值，但补了会让档位**退化**）：`eventTier` 的判据是"有 `category` 就**只**看
+`category`，不再看活动名"。雪松那三个类别词（`赛季` / `活动` / `边境防卫`）都不在 `EVENT_TIER1_RE` 里，
+而活动名 `个人剧情活动第1期：【新机动队故事】` 靠「剧情」本来是第一档 ⇒ 补 `category` 后它会掉到第二档，
+外显从"剧情活动"变成"战令通行证赛季"（实测 2026-10-01；`test/cases-category.mjs` ④ 用 what-if 钉住了这个
+退化）。用户口径是"补 category/tags 不许动已可见输出，除非那是有意的档位改进" ⇒ 这里留空。要改成"照源站
+写"只需给 `ns_bwiki_wikitext_eventPayload` 加一个 `categoryOf` 选项并在雪松侧传 `x.timer`。
 
 **本批唯一改变的外显**：终末地 2026-11-07 那一刻，面板活动格从「予众魂的新光影」（改造前按活动名判档，
 全员第二档 ⇒ 取结束最早那条）变成「百趣演武」（源站 `tags`「挑战活动」= 第一档）。这是**对齐**：
 引擎自己挑的外显（记录里的 `event`，`pickEventPrimary(activeActs)` 一直读 `tags`）本来就是「百趣演武」，
 改造前面板与记录是**两套事实**。批 1 把这条事实补进数组后两者一致。其余 7 款 + FGO 的 34 个侧等价性
 用例（`test/cases-core.mjs` ⑤-5）仍是 `diffs = 0`。
+**批 2 加的绝区零外显不变**：2026-08-25 那一刻补 `category`/`tags` 前后都是「咔滋酥脆出餐计划」
+（当期 6 条的类型都判不出第一档词 ⇒ 档位仍全为 2，仍按"结束最早 + 起点最早"选）——`test/cases-category.mjs` ③ 有断言。
 
 **既有断言怎么处理的**：`test/cases-p3.mjs` 里的 golden 与等价性 oracle（`legacySynthArrOf`）都是
-**改造前**的产物（条目上没有 `cat` / `tags`），所以比较口径改成"**除 `cat` / `tags` 外**逐字相等"
-（`sansCatTags` / `sansCatTagsJson`），**没有**去改写 golden（P3 的采集模式明确禁止"改完再采集"）。
-新增事实的**取值**由 `test/cases-cat.mjs`（门禁最后一段，真夹具逐款逐字）钉住。
+**改造前**的产物（条目上没有 `category` / `tags`），所以比较口径改成"**除 `category` / `tags` 外**逐字相等"
+（`sansCategoryTags` / `sansCategoryTagsJson`）。文件里只做了一处机械改动：golden 中**本来就有**的那 5 条
+键名的 `cat` → `category`（`legacy-oracle-golden.json` / `p3b-golden.json` 的 `array` 字符串），
+**值一个字符都没动** —— 那是字段改名的同步，不是"改完再采集"（P3 的采集模式明确禁止后者）。
+新增事实的**取值**由 `test/cases-category.mjs`（门禁最后一段，真夹具逐款逐字）钉住。
 
 
 ### 为什么插件要改宿主的槽位布局

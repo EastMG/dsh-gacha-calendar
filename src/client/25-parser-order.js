@@ -48,7 +48,7 @@
 		// 只按名字判会把 39 条限时活动全误判成永久（实测踩到）。有结束时间 = 限时，不做特例。
 		function isPermanentEvent(x) {
 			if (!x || x.endTs != null) return false;
-			if (/永久/.test(`${x.cat || ""} ${x.tags || ""}`)) return true;
+			if (/永久/.test(`${x.category || ""} ${x.tags || ""}`)) return true;
 			return /永久\s*$/.test(String(x.raw || ""));
 		}
 
@@ -74,9 +74,9 @@
 		// 活动类别优先级（只影响"外显"挑选，不影响悬停排序）：
 		// 第一档 = 剧情/叙事类活动 + 限时高难玩法（剧情/叙事/故事、总力战/大决战、危机合约、挑战活动…）；
 		// 其余为第二档。判定优先级：有类别字段（原神 SMW「类型」、星铁/绝区零表「类型」列、方舟分类前缀、
-		// 终末地 tags、蔚蓝国际服 cat 列）就按类别判定；源头没有类别信息时才回退按活动名匹配关键词。
+		// 终末地 tags、蔚蓝国际服 category 列）就按类别判定；源头没有类别信息时才回退按活动名匹配关键词。
 		//
-		// 英文分类词（cat/tags 批 1，2026-11-08）：FGO 活动表第 4 列的「类型」是 `Event` / `Campaign` /
+		// 英文分类词（category/tags 批 1，2026-11-08）：FGO 活动表第 4 列的「类型」是 `Event` / `Campaign` /
 		// `Other` 三个英文词（见 30-game-aniplex.js 的 `itemFacts`），前两个就是"活动正篇"，视同第一档；
 		// `Other` 是"其他"，第二档。
 		// ⚠️ 必须带 `\b` 词边界、**不许**写成裸 `Event`：
@@ -86,8 +86,8 @@
 
 
 		function eventTier(x) {
-			const cat = `${x?.cat || ""} ${x?.tags || ""}`.trim();
-			const hay = cat || `${x?.name || ""}`;
+			const category = `${x?.category || ""} ${x?.tags || ""}`.trim();
+			const hay = category || `${x?.name || ""}`;
 			return EVENT_TIER1_RE.test(hay) ? 1 : 2;
 		}
 

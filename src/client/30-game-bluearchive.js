@@ -10,16 +10,16 @@
 
 		// ── 解析器 / 抓取器 ──
 
-		// 解析更新日誌正文的日程表 → 行数组 {cat, name, range, dateRaw}
+		// 解析更新日誌正文的日程表 → 行数组 {category, name, range, dateRaw}
 		function parseBaLogRows(content, nowYear) {
 			const rows = [...content.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)].map((m) => m[1]);
 			const items = [];
 			for (const row of rows) {
 				const cells = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) => stripTags(m[1]));
 				if (cells.length < 3) continue;
-				const cat = cells[1] || "";
+				const category = cells[1] || "";
 				const name = cells[2] || "";
-				if (!cat || !name) continue;
+				if (!category || !name) continue;
 				let range = parseBaZhRange(cells[0], nowYear);
 				let relStart = false;
 				let openEnded = false;
@@ -36,7 +36,7 @@
 						openEnded = true;
 					}
 				}
-				items.push({ cat, name, range, dateRaw: cells[0], relStart, openEnded });
+				items.push({ category, name, range, dateRaw: cells[0], relStart, openEnded });
 			}
 			return items;
 		}
@@ -101,15 +101,15 @@
 				}
 			}
 			// 当期卡池：特別特選招募 / 特選招募（时间覆盖 now）
-			const bannerRow = rows.find((r) => /特選招募/.test(r.cat) && r.range && coversNow(r.range, now));
+			const bannerRow = rows.find((r) => /特選招募/.test(r.category) && r.range && coversNow(r.range, now));
 			// 当期活动候选：活動劇情 > 迷你活動 > 總力戰/大決戰/制約解除決戰/綜合戰術考試；
 			// 常駐化活動（名稱含「常駐」）优先级最低；只有起点、官方未给结束端的行同样纳入候选
 			const activeRow = (r) => !!r.range && r.range.startTs != null && r.range.startTs <= now &&
 				(r.openEnded || (r.range.endTs != null && r.range.endTs >= now));
 			const evTier = (r) => {
-				if (/活動劇情/.test(r.cat)) return 1;
-				if (/迷你活動/.test(r.cat)) return 2;
-				if (/總力戰|大決戰|制約解除決戰|綜合戰術考試/.test(r.cat)) return 3;
+				if (/活動劇情/.test(r.category)) return 1;
+				if (/迷你活動/.test(r.category)) return 2;
+				if (/總力戰|大決戰|制約解除決戰|綜合戰術考試/.test(r.category)) return 3;
 				return 9;
 			};
 			const evCandidates = rows.filter((r) => evTier(r) < 9 && activeRow(r));
@@ -117,7 +117,7 @@
 			// 外显取排序第一条，悬停按同序逐行；长期/常驻玩法由 sortEventItems 一并剔除
 			const evOrdered = sortEventItems(evCandidates.map((r) => ({
 				name: r.name,
-				cat: r.cat,
+				category: r.category,
 				startTs: r.openEnded ? null : r.range.startTs,
 				endTs: r.openEnded ? null : r.range.endTs,
 				raw: r.openEnded ? r.dateRaw : r.range.raw
@@ -140,7 +140,7 @@
 				eventDates: ""
 			};
 			if (bannerRow) {
-				data.banner = bannerRow.cat; // 如「特別特選招募」「特選招募」
+				data.banner = bannerRow.category; // 如「特別特選招募」「特選招募」
 				data.roles = baRoleName(bannerRow.name); // 蔚蓝三服角色名：保留括号后缀 + 全角括号转半角
 				data.bannerDates = bannerRow.range.raw;
 			} else if (eventRow) {
@@ -150,10 +150,10 @@
 			}
 			// 卡池列悬停：日程表里同期所有招募行（特選招募/特別特選招募 等），每池"类别：成员"一行 + 时间
 			// ── P3b：条目事实 → 悬停 + `gacha`/`events` 数组 ──────────────────────
-			const recRows = rows.filter((r) => /招募/.test(r.cat) && r.range && coversNowBounded(r.range, now));
+			const recRows = rows.filter((r) => /招募/.test(r.category) && r.range && coversNowBounded(r.range, now));
 			const poolItems = poolHoverKept(recRows.map((r) => ({
-				name: r.cat,
-				label: `${r.cat}\uFF1A${baRoleName(r.name)}`,
+				name: r.category,
+				label: `${r.category}\uFF1A${baRoleName(r.name)}`,
 				startTs: r.range.startTs,
 				endTs: r.range.endTs,
 				raw: r.range.raw
@@ -561,17 +561,17 @@
 			// 1. 目录树 → 找"当期活动 | 当期卡池"子条目（活动侧与日服卡池侧都要用）
 			const tree = await proxyFetchJson("https://www.gamekee.com/v1/wiki/entry?id=15", ref, headers);
 			const list = tree?.data?.entry_list || [];
-			let currentCat = null;
+			let currentCategory = null;
 			const find = (nodes) => {
 				for (const n of nodes || []) {
 					// 名称可能含隐藏字符，用 includes 匹配
-					if (String(n.name || "").includes("\u5F53\u671F\u6D3B\u52A8") && String(n.name || "").includes("\u5361\u6C60")) { currentCat = n; return; }
+					if (String(n.name || "").includes("\u5F53\u671F\u6D3B\u52A8") && String(n.name || "").includes("\u5361\u6C60")) { currentCategory = n; return; }
 					if (n.child) find(n.child);
 				}
 			};
 			find(list);
-			if (!currentCat?.child) return null;
-			const child = currentCat.child;
+			if (!currentCategory?.child) return null;
+			const child = currentCategory.child;
 			// 找该服条目：日服(jp) 活动/卡池；国际服(global) 活动
 			//
 			// ⚠️ 2026-10-21 修：目录树里的名字是「国际服**当期**活动」/「国际服当期卡池评测」，

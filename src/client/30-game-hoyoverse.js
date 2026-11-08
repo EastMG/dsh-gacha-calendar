@@ -254,7 +254,7 @@
 				for (const m of text.matchAll(ZZZ_EVENT_WINDOW_RE)) {
 					const w = windowAt(m[1], m[2]);
 					if (!w) continue;                                  // 这个窗口此刻不成立 → 看下一个窗口
-					byName.set(name, { banner: name, name, cat: "", ...w, raw: `${m[1]} ~ ${m[2]}` });
+					byName.set(name, { banner: name, name, category: "", ...w, raw: `${m[1]} ~ ${m[2]}` });
 					break;                                             // 一篇公告只取第一个成立的窗口
 				}
 			}
@@ -1012,17 +1012,18 @@ EVENT_FETCHERS["genshin"] = {
 				default: (url, signal, tz) => fetchYsActivity(signal, tz)
 			};
 					// 星铁：活动一览（静态「活动时间」表，api.php 可直连）→ 外显当期 + 悬停列出全部并行活动
-			// `catFacts`（cat / tags 批 1）：把表里的「类型」列写进 `events[]` 的 `cat`。
-			// ⚠️ 同一个 `genericEventPayload` 也被绝区零 Bwiki 备选源用，但那里**不开**这个开关
-			//    （绝区零的类型/TAG 列在批 2 一起做，见 22-fetcher-core.js 的说明）。
+			// `categoryFacts`（category / tags 批 1）：把表里的「类型」列写进 `events[]` 的 `category`。
+			// 批 2（2026-11-08）：**绝区零 Bwiki 备选源也开了**（同一个 `genericEventPayload`、同一列；
+			//    多值按 `<br />` 拆成 category + tags，见 22-fetcher-core.js 的 `categoryValuesOf`）。
+			//    绝区零的 TAG 列本批仍**不读**（留给后续决策）。
 EVENT_FETCHERS["hsr"] = {
-				default: mkMediaWiki((html, tz) => genericEventPayload(html, tz, { emitArrays: true, id: "hsr", catFacts: true }))
+				default: mkMediaWiki((html, tz) => genericEventPayload(html, tz, { emitArrays: true, id: "hsr", categoryFacts: true }))
 			};
 					// 绝区零：默认=官方公告（api-takumi-static，与卡池侧同一接口；活动时间写在公告正文里，
 			// 含"X.Y版本更新后/版本结束"的换算；结束时间未知的活动保留并沉底）→ 备选=Bwiki 活动一览
 EVENT_FETCHERS["zzz"] = {
 				default: (url, signal, tz) => fetchZzzEventsOfficial(url, signal, tz),
-				"zzz-event-bwiki": mkMediaWiki((html, tz) => genericEventPayload(html, tz, { emitArrays: true, id: "zzz" }))
+				"zzz-event-bwiki": mkMediaWiki((html, tz) => genericEventPayload(html, tz, { emitArrays: true, id: "zzz", categoryFacts: true }))
 			};
 
 		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══

@@ -147,6 +147,20 @@
 		}
 
 
+		// 「类型」列的**多值拆分**（2026-11-08，批 2）：源站把多个类型写在**同一个单元格**里，
+		// 分隔符是 `<br />`（实测普查 236 行 = 绝区零活动一览 233 + 星铁夹具 3：`<br>` / `/` / `、` /
+		// `,` / `；` / `※` / 换行 全是 0 处，单元格内也没有 `<p>` / `<div>`）。⚠️ `stripTags` 会把
+		// `<br />` 变成**空格** ⇒ 多值会粘成「版本活动 常驻活动」这种串，所以**必须先按 `<br />` 拆、
+		// 再逐段 stripTags**。返回：去空、保序的类型数组（首项进 `category`，其余进 `tags`）。
+		const CATEGORY_SEPARATOR_RE = /<br\s*\/?>/i;
+		function categoryValuesOf(cellHtml) {
+			return String(cellHtml == null ? "" : cellHtml)
+				.split(CATEGORY_SEPARATOR_RE)
+				.map((s) => stripTags(s).trim())
+				.filter(Boolean);
+		}
+
+
 		// 通用活动解析：扫描含「时间」（或「活动时间」）表头的表格，行内找时间与名称列，选当期
 		// 起始为"版本更新后"等无日期文本时保留 startTs=null，由 selectCurrent 的 fillMissingStarts 补全
 		function collectGenericEvents(html, tz) {
@@ -157,11 +171,13 @@
 				if (!/<th[^>]*>[^<]*时间[^<]*<\/th>/i.test(body)) continue;
 				// 「类型」列（如 版本活动/常规活动/剧情活动）→ 用于活动外显的类别优先级
 				const heads = [...body.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((m) => stripTags(m[1]).trim());
-				const catIdx = heads.findIndex((h) => /类型|類型/.test(h));
+				const categoryIdx = heads.findIndex((h) => /类型|類型/.test(h));
 				for (const rm of body.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)) {
 					const row = rm[1];
 					if (!/<td/i.test(row)) continue;
-					const tds = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) => stripTags(m[1]).trim());
+					// 单元格**原文**（只有类型列需要）：`<br />` 在 stripTags 里会变成空格，多值就拆不开了
+					const cellsHtml = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) => m[1]);
+					const tds = cellsHtml.map((h) => stripTags(h).trim());
 					if (tds.length < 2) continue;
 					// 时间列（含日期/区间）与名称列分开
 					let name = "", time = "";
@@ -179,10 +195,16 @@
 					// 下游连"它存在过"都看不到（表现为源站表里有、面板悬停里没有）。
 					// 永久活动（结束写作「永久」）保留下来，由 genericEventPayload 单独计数；
 					// 其它无结束时间的行仍按旧规则丢弃（起止都拿不到，画不出来）。
-					const cat0 = catIdx >= 0 ? (tds[catIdx] || "") : "";
-					const isPermanent = range.endTs == null && (/永久/.test(cat0) || /永久\s*$/.test(String(range.raw || time)));
+					// 「永久」可能落在多值类型里的**任意一项**（如 `永久活动`），所以按整组判。
+					const categories = categoryValuesOf(categoryIdx >= 0 ? cellsHtml[categoryIdx] : "");
+					const isPermanent = range.endTs == null
+						&& (categories.some((v) => /永久/.test(v)) || /永久\s*$/.test(String(range.raw || time)));
 					if (range.endTs == null && !isPermanent) continue;
-					items.push({ banner: name, cat: cat0, ...range, isMain: true });
+					// 类型是多值 ⇒ **首项进 `category`、其余进 `tags`**（与批 1 原神 SMW 的做法一致）；
+					// 表里没有「类型」列 / 单元格为空 ⇒ 两个键都不写（不写 > 写个空值）。
+					const item = { banner: name, category: categories[0] || "", ...range, isMain: true };
+					if (categories.length > 1) item.tags = categories.slice(1);
+					items.push(item);
 				}
 			}
 			return items;
@@ -207,11 +229,12 @@
 				const body = t[1];
 				if (!/<th[^>]*>[^<]*时间[^<]*<\/th>/i.test(body)) continue;
 				const heads = [...body.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map((m) => stripTags(m[1]).trim());
-				const catIdx = heads.findIndex((h) => /类型|類型/.test(h));
+				const categoryIdx = heads.findIndex((h) => /类型|類型/.test(h));
 				for (const rm of body.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)) {
 					const row = rm[1];
 					if (!/<td/i.test(row)) continue;
-					const tds = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) => stripTags(m[1]).trim());
+					const cellsHtml = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) => m[1]);
+					const tds = cellsHtml.map((h) => stripTags(h).trim());
 					if (tds.length < 2) continue;
 					let name = "", time = "";
 					for (const td of tds) {
@@ -224,8 +247,11 @@
 					const range = parseRange(time, tz);
 					// 起止都拿不到的行画不出来（活动侧对"永久"有特例，卡池没有该语义）
 					if (range.startTs == null && range.endTs == null) continue;
-					const cat0 = catIdx >= 0 ? (tds[catIdx] || "") : "";
-					items.push({ banner: name, roles: "", cat: cat0, ...range, isMain: true });
+					// 与活动侧同一套类型列口径（多值按 `<br />` 拆；首项 category、其余 tags）
+					const categories = categoryValuesOf(categoryIdx >= 0 ? cellsHtml[categoryIdx] : "");
+					const item = { banner: name, roles: "", category: categories[0] || "", ...range, isMain: true };
+					if (categories.length > 1) item.tags = categories.slice(1);
+					items.push(item);
 				}
 			}
 			return items;
@@ -247,7 +273,14 @@
 			// 页面拿到了却连一行候选都没有 → 活动表结构变了（抛错 = "活动失败"）；
 			// 有候选但当期没有覆盖现在的 → 下面返回 null（未公布）
 			if (items.length === 0) throw new Error("bwiki-event-no-table");
-			const snapshot = items.map((it) => ({ name: it.banner, cat: it.cat || "", startTs: it.startTs, endTs: it.endTs, raw: it.rawOriginal || it.raw }));
+			// 快照带上类别事实（多值时 `category` = 首项、`tags` = 其余项）：`isPermanentEvent` /
+			// `pickEventPrimary`（→ `eventTier`）与下面的 `itemFacts` 都从这份快照读，漏一个字段
+			// 就等于"源站给了、数据层之前就丢了"（实测：漏 `tags` 时多值的第二项直接消失）。
+			const snapshot = items.map((it) => {
+				const row = { name: it.banner, category: it.category || "", startTs: it.startTs, endTs: it.endTs, raw: it.rawOriginal || it.raw };
+				if (Array.isArray(it.tags) && it.tags.length) row.tags = it.tags;
+				return row;
+			});
 			const now = nowMs();
 			// 永久/常驻活动单独计一项：它们 endTs 为 null，本就不该混进"当期"排序，
 			// 但也不能像以前那样无声丢掉（见 isPermanentEvent 注释）。
@@ -264,15 +297,23 @@
 				eventHover: hoverTextFromItems(hoverItems, "event", tz, { permanentCount: permanent.length })
 			};
 			if (opts && opts.emitArrays) {
-				// ── cat / tags 批 1（2026-11-08）：把「类型」列写进 `events[]` ────────────────────
-				// 值 = `collectGenericEvents` 已经读出的 `it.cat`（`:160` 定位列、`:185` 收值），
-				// 此前只参与 `pickEventPrimary` 挑外显、**没进数组**。取不到（表里没有「类型」列）⇒ 不写。
+				// ── category / tags 批 1（2026-11-08）：把「类型」列写进 `events[]` ────────────────────
+				// 值 = `collectGenericEvents` 已经读出的 `it.category`（`categoryIdx` 定位列、`categories`
+				// 收值），此前只参与 `pickEventPrimary` 挑外显、**没进数组**。取不到（表里没有「类型」列）⇒ 不写。
 				// ⚠️ 本函数被**两个**来源共用：星铁活动一览（默认源，`id:"hsr"`）与绝区零 Bwiki 活动一览
-				//    （备选源，`id:"zzz"`）。批 1 只点名星铁 ⇒ 用 `opts.catFacts` 显式开关，**只给星铁开**；
-				//    绝区零的同一列留到批 2（与它的 TAG 列拆分一起做），这样批 1 不会顺手改到批 2 的范围。
-				if (opts.catFacts) {
+				//    （备选源，`id:"zzz"`）。用 `opts.categoryFacts` 显式开关：
+				//      · 批 1 只点名星铁 ⇒ 当时**只给星铁开**；
+				//      · 批 2（2026-11-08）给绝区零也开（同一个来源、同一列；多值拆分见 `categoryValuesOf`）。
+				//    绝区零的 TAG 列**本批不读**（留给后续决策）——这里只写 `category` + `tags`。
+				if (opts.categoryFacts) {
 					const facts = {};
-					for (const x of active) if (x.cat) facts[x.name] = { cat: x.cat };
+					for (const x of active) {
+						if (!x.category) continue;
+						// 多值类型：首项 = `category`，其余 = `tags`（`tags` 为空就不写这个键）
+						const fact = { category: x.category };
+						if (Array.isArray(x.tags) && x.tags.length) fact.tags = x.tags;
+						facts[x.name] = fact;
+					}
 					if (Object.keys(facts).length) out.itemFacts = facts;
 				}
 				out.events = dataArrayProducedEventsOf(out, hoverItems, { id: opts.id || "generic", tz }, now);
@@ -311,7 +352,7 @@
 			// 快照要在 `selectCurrent` 之前拍：它会就地把"版本更新后"那类行的起点补全
 			const snapshot = items.map((it) => ({
 				name: it.banner,
-				cat: it.cat || "",
+				category: it.category || "",
 				startTs: it.startTs,
 				endTs: it.endTs,
 				raw: it.rawOriginal || it.raw

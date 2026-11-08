@@ -20,7 +20,7 @@
 //   视相博物馆：演化            10-24 16:00 ~ 11-07 03:59（兑换到 11-10 03:59）
 //   登录活动：感谢庆典2026限时签到  11-01 12:00 ~ 11-15 03:59（**没有**兑换期 ⇒ 退化路径）
 //   支线故事：时间啊，向前！      11-01 12:00 ~ 11-22 03:59（兑换到 11-29 03:59 ⇒ 兑换期 **7 天**）
-// 期望值**不另抄一份手写表**：活动标签 / 分类都从夹具解析结果里取（`SNAPSHOT` / `CATS` / `CAT_BY_LABEL`），
+// 期望值**不另抄一份手写表**：活动标签 / 分类都从夹具解析结果里取（`SNAPSHOT` / `CATEGORIES` / `CATEGORY_BY_LABEL`），
 // 每个时刻只写"这一刻该看到什么"（阶段 / 外显区间 / 悬停逐字 / 提示行）。
 //
 // ── 每个时刻都查的六条不变量（改这里的任一条前先想清楚）──
@@ -29,7 +29,7 @@
 //   ② 阶段正确：活动期没有 `eventShow`、`eventDates` = 活动区间；兑换期 `eventShow` = 「<去重后的活动名> 兑换截止」、
 //      `eventDates` = 兑换区间；结束后该活动不再作为外显；
 //   ③ 名称不重复：`event` / `eventShow` / 悬停行 / 提示行锚点的标签都不许带两层分类前缀
-//      （`doubledCatPrefixOf` + `labelOf` 幂等两条一起判 —— 只有幂等抓不到"多加了一层"，见 lib-text.mjs 注释）；
+//      （`doubledCategoryPrefixOf` + `labelOf` 幂等两条一起判 —— 只有幂等抓不到"多加了一层"，见 lib-text.mjs 注释）；
 //   ④ 提醒：`remindItemsOf` + `remindTickOf` 在「活动结束前 72h」「兑换截止前 72h」各发一次、key 不同、
 //      且**同一份 lastData 不刷新**也各发一次；
 //   ⑤ 不崩：抓取器任何时刻都不抛；退化路径（无「兑换结束时间」字段 / 批量失败）返回**改造前**那个数据形状；
@@ -54,7 +54,7 @@ import { check, section, useFixtures, setFetchImpl, fixtureBody } from "./harnes
 import { T } from "./load.mjs";
 import { createEngine } from "../packages/core/core.mjs";
 import {
-	assertHoverTextInvariants, bareTwoLineFormOf, doubledCatPrefixOf,
+	assertHoverTextInvariants, bareTwoLineFormOf, doubledCategoryPrefixOf,
 	dupLinesOf, eventRowsOf, linesOf, noteAnchorsOf, noteRowsOf
 } from "./lib-text.mjs";
 
@@ -68,8 +68,8 @@ const P = T.parsers["arknights"];
 
 // 夹具解析出来的"事实"（不手抄第二份：条目增删时这里自动跟着走）
 const SNAPSHOT = P.parseArknightsSmwEvents(JSON.parse(fixtureBody(SMW_URL)), TZ_CN);
-const CATS = [...new Set(SNAPSHOT.map((x) => x.cat))];
-const CAT_BY_LABEL = new Map(SNAPSHOT.map((x) => [P.labelOf(x.cat, x.name), x.cat]));
+const CATEGORIES = [...new Set(SNAPSHOT.map((x) => x.category))];
+const CATEGORY_BY_LABEL = new Map(SNAPSHOT.map((x) => [P.labelOf(x.category, x.name), x.category]));
 // 夹具里那条**没有**「兑换结束时间」的活动（退化路径的代表）。
 // ⚠️ SMW 给的 `name` 是**页名**（"感谢庆典2026限时签到"），面板标签才带分类前缀
 //    （"登录活动：感谢庆典2026限时签到"）—— 两者差一个前缀，别拿标签去查 name。
@@ -289,13 +289,13 @@ async function runMoment(m) {
 		.concat(eventRowsOf(pl.eventHover || "").map((row) => row.label))
 		.concat(noteAnchorsOf(pl.eventHoverExtra));
 	const uniqLabels = [...new Set(labels.filter(Boolean))];
-	const doubled = uniqLabels.filter((L) => doubledCatPrefixOf(L, CATS) !== "");
-	check(`${label}｜名称：分类前缀不出现两次（${CATS.join(" / ")}）`,
+	const doubled = uniqLabels.filter((L) => doubledCategoryPrefixOf(L, CATEGORIES) !== "");
+	check(`${label}｜名称：分类前缀不出现两次（${CATEGORIES.join(" / ")}）`,
 		doubled.length === 0,
 		`不变量=名称去重｜期望=无双重前缀（如「视相博物馆：视相博物馆：演化」）｜实测=${JSON.stringify(doubled)}`);
 	const nonIdem = uniqLabels.filter((L) => {
-		const cat = CAT_BY_LABEL.get(L);
-		return cat != null && T.parsers["arknights"].labelOf(cat, L) !== L;
+		const category = CATEGORY_BY_LABEL.get(L);
+		return category != null && T.parsers["arknights"].labelOf(category, L) !== L;
 	});
 	check(`${label}｜名称：labelOf 幂等（对各自分类再跑一次必须不变）`,
 		nonIdem.length === 0,
@@ -383,12 +383,12 @@ export default async function run() {
 	check("先决：夹具里恰好三条活动（视相 / 登录活动 / 时间啊）", SNAPSHOT.length === 3,
 		JSON.stringify(SNAPSHOT.map((x) => x.banner)));
 	check("先决：三条活动的分类都在（视相博物馆 / 登录活动 / 支线故事）",
-		CATS.length === 3 && CATS.includes("视相博物馆") && CATS.includes("登录活动") && CATS.includes("支线故事"),
-		JSON.stringify(CATS));
+		CATEGORIES.length === 3 && CATEGORIES.includes("视相博物馆") && CATEGORIES.includes("登录活动") && CATEGORIES.includes("支线故事"),
+		JSON.stringify(CATEGORIES));
 	check("先决：夹具里有一条**没有**「兑换结束时间」的活动（退化路径的代表）",
 		SNAPSHOT.some((x) => x.name === NO_CLAIM_NAME && x.claimEndTs === null)
-		&& CAT_BY_LABEL.get(NO_CLAIM_LABEL) === "登录活动",
-		JSON.stringify(SNAPSHOT.map((x) => [x.name, x.cat])));
+		&& CATEGORY_BY_LABEL.get(NO_CLAIM_LABEL) === "登录活动",
+		JSON.stringify(SNAPSHOT.map((x) => [x.name, x.category])));
 
 	for (const m of MOMENTS) await runMoment(m);
 
@@ -412,7 +412,7 @@ export default async function run() {
 		const p = P;
 		const NEW_YEAR = "支线故事：跨年活动";
 		const snap = [{
-			name: NEW_YEAR, cat: "支线故事", page: "跨年活动",
+			name: NEW_YEAR, category: "支线故事", page: "跨年活动",
 			startTs: AT("2026-12-30T16:00:00+08:00"), stageEndTs: AT("2027-01-05T03:59:00+08:00"),
 			claimEndTs: AT("2027-01-08T03:59:00+08:00"),
 			raw: "12-30 16:00 ~ 01-05 03:59"
@@ -475,7 +475,7 @@ export default async function run() {
 
 		// ⑦ 变体：兑换窗口自己跨年（活动 12-30 ~ 12-31，兑换到次年 01-03）——两端都得带年份
 		const snap2 = [{
-			name: "支线故事：跨年兑换", cat: "支线故事", page: "跨年兑换",
+			name: "支线故事：跨年兑换", category: "支线故事", page: "跨年兑换",
 			startTs: AT("2026-12-30T16:00:00+08:00"), stageEndTs: AT("2026-12-31T03:59:00+08:00"),
 			claimEndTs: AT("2027-01-03T03:59:00+08:00"),
 			raw: "12-30 16:00 ~ 12-31 03:59"
@@ -491,7 +491,7 @@ export default async function run() {
 			JSON.stringify([cl2 && cl2.eventDates, cl2 && cl2.eventDatesRaw]));
 		check("跨年｜兑换窗口自己跨年：eventShow 与提示行分组仍然只有一层分类前缀",
 			!!cl2 && cl2.eventShow === "支线故事：跨年兑换 兑换截止"
-			&& doubledCatPrefixOf(cl2.eventShow, ["支线故事"]) === "",
+			&& doubledCategoryPrefixOf(cl2.eventShow, ["支线故事"]) === "",
 			JSON.stringify(cl2 && cl2.eventShow));
 	}
 
@@ -506,7 +506,7 @@ export default async function run() {
 		check("退化前提：夹具里「" + NO_CLAIM_LABEL + "」没有「兑换结束时间」⇒ claimEndTs = null",
 			!!noClaimItem && noClaimItem.stageEndTs === AT("2026-11-15T03:59:00+08:00") && noClaimItem.claimEndTs === null,
 			JSON.stringify(noClaimItem));
-		const claimOf = (label) => (SNAPSHOT.find((x) => P.labelOf(x.cat, x.name) === label) || {}).claimEndTs;
+		const claimOf = (label) => (SNAPSHOT.find((x) => P.labelOf(x.category, x.name) === label) || {}).claimEndTs;
 		check("退化前提：另两条活动（视相 / 时间啊）有兑换期",
 			claimOf("视相博物馆：演化") === AT("2026-11-10T03:59:00+08:00")
 			&& claimOf("支线故事：时间啊，向前！") === AT("2026-11-29T03:59:00+08:00"),

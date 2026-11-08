@@ -116,7 +116,7 @@ export default async function run() {
 		check("最新一条终点 = 2026-10-22 09:59 (UTC+8) → 01:59Z", top.endTs === Date.UTC(2026, 9, 22, 1, 59), SH(top.endTs));
 		check("池名取自 <img alt>（该表正文 text 是空的）", top.banner === "孤岛螺旋", top.banner);
 		check("UP 器者取自 <a title>", top.roles === "凯尔特之书", top.roles);
-		check("招集类型取自 tr[data-param1]", top.cat === "新实装器者·赛季通行证", top.cat);
+		check("招集类型取自 tr[data-param1]", top.category === "新实装器者·赛季通行证", top.category);
 		check("只有图片文件链接的行退化为清洗后的文件名", wg.some((x) => x.roles === "结伴同游·请调书"), JSON.stringify(wg.map((x) => x.roles).slice(0, 6)));
 
 		const g = await safeCall("wuhuamixin.gacha", () => src.gacha.fetcher(src.gacha.url, undefined, src.tz, NOW));
@@ -131,7 +131,7 @@ export default async function run() {
 		check("「未定」终点的行（和合·船）被跳过，不硬造终点", !we.some((x) => x.event === "和合·船"), JSON.stringify(we.map((x) => x.event).slice(0, 3)));
 		const weTop = maxStart(we);
 		check("⚠️ 活动页最新一条 = 2025-05-01 10:00 (UTC+8)：内容停在 2025-05", weTop.startTs === Date.UTC(2025, 4, 1, 2, 0), `${SH(weTop.startTs)} ${weTop.event}`);
-		check("活动条目带名称与类型（表头 活动时间|图|名称|类型|备注）", weTop.event === "旅程将启·如邀飞光" && weTop.cat === "签到活动", `${weTop.event} / ${weTop.cat}`);
+		check("活动条目带名称与类型（表头 活动时间|图|名称|类型|备注）", weTop.event === "旅程将启·如邀飞光" && weTop.category === "签到活动", `${weTop.event} / ${weTop.category}`);
 
 		const e = await safeCall("wuhuamixin.event", () => src.event.fetcher(src.event.url, undefined, src.tz, NOW));
 		assertContract("物华弥新", "event", e);
@@ -148,8 +148,8 @@ export default async function run() {
 		check("「已实装卡池」解析出 191 行", live.length === 191, String(live.length));
 		check("「预测卡池」解析出 240 行", predicted.length === 240, String(predicted.length));
 		check("rowspan=2 的「支援卡卡池」行继承同窗口日期，且不算主池",
-			live[2].cat === "支援卡卡池" && live[2].startTs === live[1].startTs && live[2].isMain === false,
-			JSON.stringify({ cat: live[2].cat, same: live[2].startTs === live[1].startTs, main: live[2].isMain }));
+			live[2].category === "支援卡卡池" && live[2].startTs === live[1].startTs && live[2].isMain === false,
+			JSON.stringify({ category: live[2].category, same: live[2].startTs === live[1].startTs, main: live[2].isMain }));
 		check("已实装表时间列是「结束 ~ 开始」→ 整表判为 endFirst 并已对调",
 			live[0].orient === "endFirst" && live[0].startTs === Date.UTC(2026, 8, 23, 4, 0) && live[0].endTs === Date.UTC(2026, 9, 23, 3, 59),
 			`${live[0].orient} ${SH(live[0].startTs)} ~ ${SH(live[0].endTs)}`);
