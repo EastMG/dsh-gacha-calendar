@@ -553,23 +553,11 @@ function ns_biligame_activity_hoverRows(covering, nameOf) {
 		.filter(Boolean);
 }
 // ① 物华弥新 活动侧：名称 = 源站小节名（`四、经以山海` → `经以山海`），缺小节时退回段落标签
-function ns_biligame_activity_whmxEventHover(covering, tz) {
-	return hoverEvent(ns_biligame_activity_hoverRows(covering, (x) => x.section || x.label), tz);
-}
-// ② 闪耀优俊少女 活动侧：名称 = 源站期间标签（`活动期间` / `第1轮` / `决赛轮：匹配期间` …）；
-//    标签缺失时退回公告标题（= 该活动的名字），仍为空则整行丢弃。
-//    多条期间属于**同一份公告**，因此每行只写期间名 + 档期，不再重复活动名（同一个名字重复 N 遍没有信息量）。
-function ns_biligame_activity_umaCnEventHover(covering, tz, fallbackName = "") {
-	return hoverEvent(ns_biligame_activity_hoverRows(covering, (x) => x.label || fallbackName), tz);
-}
-// ③ 闪耀优俊少女 卡池侧：每池写「池名：角色」（与本体 `banner：roles` 同构；无角色时只写池名）。
-//    池名取**源站期间标签**（`精选招募开放期间` / `开放期间`）：同一份公告可能同时开着多个期间，
-//    若用公告标题，每池同名 → `hoverPool` 会输出重复行。列出的期间集合 = 原有「覆盖 now」集合，
-//    **当期判定不变**（本次只改 hover 拼装，不动外显/档期字段）。
-function ns_biligame_activity_umaCnPoolHover(covering, tz, rolesText = "", fallbackName = "") {
-	const suffix = rolesText ? `：${rolesText}` : "";
-	return hoverPool(ns_biligame_activity_hoverRows(covering, (x) => `${x.label || fallbackName}${suffix}`), tz);
-}
+// ⚠️ P5 清理（2026-11-08）：原来这里还有三个只给测试用的包装
+// （`ns_biligame_activity_whmxEventHover` / `umaCnEventHover` / `umaCnPoolHover`）——
+// 它们各自只是 `hoverEvent/hoverPool(hoverRows(covering, nameOf), tz)` 的一句，生产调用方
+// 早就改成直接 `hoverRows(...)` + `dataArrayProduced*Of` 了。名字投影（nameOf）现在写在各调用点
+// 与回归里，包装层已删。
 //#endregion
 
 //#region 列表

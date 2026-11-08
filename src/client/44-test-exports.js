@@ -304,6 +304,7 @@
 				eventsWhmxOfficial: ns_biligame_activity_eventsWhmxOfficial,
 				extractWindowsDetailed: ns_biligame_activity_extractWindowsDetailed,
 				gachaUmaCnOfficial: ns_biligame_activity_gachaUmaCnOfficial,
+				hoverRows: ns_biligame_activity_hoverRows,
 				mergeBiligameLists: ns_biligame_activity_mergeBiligameLists,
 				parseBiligameList: ns_biligame_activity_parseBiligameList,
 				parseCmsStamp: ns_biligame_activity_parseCmsStamp,
@@ -313,10 +314,7 @@
 				pickWhmxEvent: ns_biligame_activity_pickWhmxEvent,
 				quotedName: ns_biligame_activity_quotedName,
 				siblingListUrl: ns_biligame_activity_siblingListUrl,
-				umaCnEventHover: ns_biligame_activity_umaCnEventHover,
-				umaCnPoolHover: ns_biligame_activity_umaCnPoolHover,
 				umaRoles: ns_biligame_activity_umaRoles,
-				whmxEventHover: ns_biligame_activity_whmxEventHover,
 				whmxListUrls: ns_biligame_activity_whmxListUrls,
 			},
 			"ournotes-global": {
@@ -438,10 +436,10 @@
 			//   失败 ⇒ sideFailText 的既有文案（+「日期为沿用旧值」）；沿用旧值 ⇒「数据来自上次成功抓取 X 前」；
 			//   该侧没有数据 ⇒「（无数据）」。导出后四种情况都能用固定 now 逐字断言（见 cases-tz.mjs ⑤）。
 			scheduleDateHover,
-			// scheduleHoverItems = 表格格子「探头」里并列条目的**解析器**（81-schedule-model.js）：
-			//   `eventHover` 的多行原文 → [{ title, win }]。导出后可以钉住"提示行**不再进 eventHover**"
-			//   这条真机 bug 的回归：同一份提示行塞进 eventHover 会多解析出一个条目（那颗"看得见的一段文字"）。
-			scheduleHoverItems,
+			// ⚠️ P5 清理（2026-11-08）：`scheduleHoverItems`（悬停文本 → [{ title, win }]）已删除 ——
+			//   它自 P3c 起没有生产调用方，只剩回归当"改造前"的 oracle。oracle 的**输出**已固化成
+			//   字面量（test/fixtures/legacy-oracle-golden.json）；仍需"解析悬停文本"的那一处
+			//   （明日方舟 §④ 的提示行回归）已把该判据**逐字搬进测试**（cases-arknights-claim.mjs）。
 			// scheduleHoverNote = 提示框（原生 title）里插入「只给提示框」的提示行（`eventHoverExtra`）：
 			//   表格格子的 hoverTextOf（82-schedule-view.js）与「近期」行的 scheduleHoverText（81）共用它。
 			//   导出后能行为断言"插到对应活动那一行**之后**、另起一行、没有就不动"。

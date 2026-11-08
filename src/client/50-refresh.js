@@ -459,7 +459,11 @@
 						if (t.indexOf(shown + "\uFF1A") === 0 || (tail >= 0 && tail === t.length - shown.length - 1)) continue;
 					}
 				}
-				const win = dataArrayTextOf(x.win) || hoverWindowTextOf(x, o.tz);
+				// ⚠️ P5 清理（2026-11-08）：原来这里是 `dataArrayTextOf(x.win) || hoverWindowTextOf(x, o.tz)`
+				//    —— `win` 分支只服务"把悬停文本拆成 `{ title, win }` 再进来"的回归 oracle，
+				//    生产调用方一律给结构化条目（`startTs` / `endTs` / `raw`）。oracle 已固化成字面量，
+				//    该分支随之删除（`{ title, win }` 形状不再被支持：`hoverWindowTextOf` 只读 ts/raw）。
+				const win = hoverWindowTextOf(x, o.tz);
 				const w = dataArrayWindowOf(scheduleNoYear(win), now, o.tz);
 				const identity = dataArrayIdentityOf(title, w.startTs, w.endTs);
 				if (seen.has(identity)) continue;

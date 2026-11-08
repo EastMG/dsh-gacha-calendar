@@ -22,15 +22,28 @@
 
 import { readFileSync } from "node:fs";
 import { useFixtures, check, section, assertContract, assertHoverConvention, summary } from "./harness.mjs";
-const { sourceInstant, sourceWallParts, fmtWindow } = T;
+const { sourceInstant, sourceWallParts, fmtWindow, hoverPool, hoverEvent } = T;
 import { SOURCES_P9, findSourceP9, listIdsP9, EXTRA_GACHA_FETCHERS_P9, EXTRA_EVENT_FETCHERS_P9 } from "./registry-shim.mjs";
 import { T } from "./load.mjs";
 // 仅测试用：核对备选源登记的就是 B2 那份实现（解析器本体不改）
 const { gachaUmaCn } = T.parsers["bwiki"];
 
-const { eventsWhmxOfficial, gachaUmaCnOfficial, eventsUmaCnOfficial, parseBiligameList, mergeBiligameLists, parseWhmxActivity, parseUmaCnAnnouncement, classifyUmaCnTitle, pickWhmxEvent, pickUmaWindow, umaRoles, quotedName, cleanTitle, biligameParagraphs, extractWindowsDetailed, deglueDateTimes, siblingListUrl, whmxListUrls, biligameDetailUrl, biligameListUrl, parseCmsStamp, whmxEventHover, umaCnEventHover, umaCnPoolHover, BILIGAME_ACTIVITY_TZ, WHMX_GAME_EXTENSION_ID, UMA_CN_GAME_EXTENSION_ID, WHMX_LIST_URL, WHMX_LIST_URLS, UMA_CN_LIST_URL } = T.parsers["biligame-activity"];
+const { eventsWhmxOfficial, gachaUmaCnOfficial, eventsUmaCnOfficial, parseBiligameList, mergeBiligameLists, parseWhmxActivity, parseUmaCnAnnouncement, classifyUmaCnTitle, pickWhmxEvent, pickUmaWindow, umaRoles, quotedName, cleanTitle, biligameParagraphs, extractWindowsDetailed, deglueDateTimes, siblingListUrl, whmxListUrls, biligameDetailUrl, biligameListUrl, parseCmsStamp, hoverRows, BILIGAME_ACTIVITY_TZ, WHMX_GAME_EXTENSION_ID, UMA_CN_GAME_EXTENSION_ID, WHMX_LIST_URL, WHMX_LIST_URLS, UMA_CN_LIST_URL } = T.parsers["biligame-activity"];
 
 const { gachaOurNotesGlobal, eventsOurNotesGlobal, parseOurNotesGlobalPage, isOurNotesGlobalEmpty, classifyOurNotesGlobalTitle, cleanTitle: cleanTitleGlobal, extractOurNotesGlobalWindows, ournotesGlobalListUrl, ournotesGlobalDetailUrl, OURNOTES_GLOBAL_LIST_URL, OURNOTES_GLOBAL_TZ, OURNOTES_GLOBAL_GAME_BASE_ID } = T.parsers["ournotes-global"];
+
+// ── 冻结 oracle：三个「名称投影 + 共用排版」的悬停包装（P5 清理，2026-11-08）────────────────
+// 产品里原有的 `ns_biligame_activity_whmxEventHover` / `umaCnEventHover` / `umaCnPoolHover` 只是
+// `hoverEvent/hoverPool(hoverRows(covering, nameOf), tz)` 的一句 —— **生产调用方早就没有它们了**
+// （活的两处调用点直接 `hoverRows(...)` + `dataArrayProduced*Of`），只有本文件 §活动/卡池悬停 用它。
+// P5 清理把包装层删掉、把"名称怎么投影"留在回归里（与 P3c 把 `scheduleHoverOnes` 搬进测试同一手法）：
+// 断言、期望字面量一字不改，被删的只是产品里那份没人调的死代码。
+const legacyWhmxEventHoverOf = (covering, tz) => hoverEvent(hoverRows(covering, (x) => x.section || x.label), tz);
+const legacyUmaCnEventHoverOf = (covering, tz, fallbackName = "") => hoverEvent(hoverRows(covering, (x) => x.label || fallbackName), tz);
+const legacyUmaCnPoolHoverOf = (covering, tz, rolesText = "", fallbackName = "") => {
+	const suffix = rolesText ? `：${rolesText}` : "";
+	return hoverPool(hoverRows(covering, (x) => `${x.label || fallbackName}${suffix}`), tz);
+};
 
 // ── 夹具读取 ──
 const fixtureText = (p) => readFileSync(new URL("./fixtures/" + p, import.meta.url), "utf8");
@@ -382,9 +395,9 @@ export default async function run() {
 		check("hover 不含 tz 推定说明（源站未标时区这件事只写在文件头交叉印证里）",
 			!/推定|Asia\/Shanghai|UTC\+8/.test(HV));
 		// 守卫：<2 条 → 工具返回 ""，调用方据此**不设** eventHover（交回 UI 默认两行式）
-		check("单条当期活动 → whmxEventHover 返回空串（调用方因此不设 eventHover，UI 走默认两行式）",
-			whmxEventHover([], TZ) === ""
-			&& whmxEventHover([parsed19.items.find((x) => x.section === "经以山海")], TZ) === "");
+		check("单条当期活动 → 悬停包装 返回空串（调用方因此不设 eventHover，UI 走默认两行式）",
+			legacyWhmxEventHoverOf([], TZ) === ""
+			&& legacyWhmxEventHoverOf([parsed19.items.find((x) => x.section === "经以山海")], TZ) === "");
 
 		// ⭐ 两路都拉的**行为级**证据：18265「寂夜长生」只在 typeId=1 那路，而它覆盖 2026-08-25
 		const rAug = await grab(() => src.event.fetcher(src.event.url, undefined, src.tz, NOW_WHMX_AUG));
@@ -587,11 +600,11 @@ export default async function run() {
 
 		// ── helper 级守卫：<2 项一律空串（调用方据此不设 hover 字段）；2 项时排版与本体同构 ──
 		check("helper 对 <2 项一律返回空串 → 单条/单池时调用方**不设** hover 字段（UI 走默认两行式）",
-			umaCnEventHover([], TZ) === "" && umaCnPoolHover([], TZ) === ""
-			&& umaCnEventHover([{ label: "活动期间", startTs: 1, endTs: 2 }], TZ) === ""
-			&& umaCnPoolHover([{ label: "开放期间", startTs: 1, endTs: 2 }], TZ, "目白拉莫娜") === "");
+			legacyUmaCnEventHoverOf([], TZ) === "" && legacyUmaCnPoolHoverOf([], TZ) === ""
+			&& legacyUmaCnEventHoverOf([{ label: "活动期间", startTs: 1, endTs: 2 }], TZ) === ""
+			&& legacyUmaCnPoolHoverOf([{ label: "开放期间", startTs: 1, endTs: 2 }], TZ, "目白拉莫娜") === "");
 		check("helper 2 池排版（合成数据）：每池「池名：角色」+ 各自档期；2 条活动排版：名称 + 3 空格 + 档期",
-			umaCnPoolHover([
+			legacyUmaCnPoolHoverOf([
 				{ label: "精选招募开放期间", startTs: sourceInstant(2026, 10, 2, 12, 0, TZ), endTs: sourceInstant(2026, 10, 13, 11, 59, TZ) },
 				{ label: "精选协助卡招募开放期间", startTs: sourceInstant(2026, 10, 2, 12, 0, TZ), endTs: sourceInstant(2026, 10, 20, 11, 59, TZ) }
 			], TZ, "目白拉莫娜") === [
@@ -600,7 +613,7 @@ export default async function run() {
 				"精选协助卡招募开放期间：目白拉莫娜",
 				"10-02 12:00 ~ 10-20 11:59"
 			].join("\n")
-			&& umaCnEventHover([
+			&& legacyUmaCnEventHoverOf([
 				{ label: "活动期间", startTs: sourceInstant(2026, 10, 2, 12, 0, TZ), endTs: sourceInstant(2026, 10, 13, 11, 59, TZ) },
 				{ label: "奖励领取期间", startTs: sourceInstant(2026, 10, 13, 12, 0, TZ), endTs: sourceInstant(2026, 10, 16, 11, 59, TZ) }
 			], TZ) === [

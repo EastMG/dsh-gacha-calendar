@@ -142,3 +142,58 @@ export function assertHoverTextInvariants(label, text, opts = {}) {
 	}
 	return true;
 }
+
+// ── 冻结 oracle：悬停文本 → 并列条目（P5 清理，2026-11-08）────────────────────────────────
+// 产品里的 `scheduleHoverItems`（26-parser-hover.js）自 P3c 起没有任何生产调用方（表格"探头"早已
+// 改读 `gacha[]` / `events[]` 数组），只剩回归拿它当"改造前"的判据：把 `bannerHover` / `eventHover`
+// 的多行原文拆成 `[{ title, win }]`。P5 清理把产品里那份删掉、把判据**逐字搬到这里**当冻结 oracle
+// （与 P3c 把 `scheduleHoverOnes` 搬进测试同一手法）：断言一条没减，死代码不再留在产品里。
+// ⚠️ 它是"改造前"的口径，**跟着产品漂移就等于拿产品和自己比** —— 除有明确理由，不要改。
+// ⚠️ 后两个形参保留只为对照当时的调用点（那时就不参与逻辑）。
+const LEGACY_WIN_START = "(?:(?:\\d{4}-)?\\d{1,2}-\\d{1,2} \\d{1,2}:\\d{2}|\\d{1,2}\\.\\d{1,2}\\s*版本更新后)";
+const LEGACY_WIN_END = "(?:\\d{4}-)?\\d{1,2}-\\d{1,2} \\d{1,2}:\\d{2}";
+const LEGACY_WINDOW_LINE = new RegExp("^" + LEGACY_WIN_START + " ~ " + LEGACY_WIN_END + "$");
+const LEGACY_INLINE_WINDOW = new RegExp(" " + LEGACY_WIN_START + " ~ " + LEGACY_WIN_END + "$");
+export function legacyHoverItemsOf(hover, shownTitle, isG) {
+	const lines = String(hover || "").split("\n").map((x) => x.trim()).filter(Boolean);
+	if (lines.length < 2) return [];                        // 契约：只有 1 条时给的是空串
+	const rest = lines.filter((x) => !/^以及常驻活动/.test(x));
+	const out = [];
+	let pending = [];                                       // 卡池式：先攒名称，等下一行（或后面某行）的档期
+	for (const line of rest) {
+		const inline = line.match(LEGACY_INLINE_WINDOW);
+		if (inline && inline.index > 0) {                   // 活动式：名称 + 自己的档期
+			const win = inline[0].trim();
+			for (const t of pending.concat([line.slice(0, inline.index).trim()])) out.push({ title: t, win });
+			pending = [];
+			continue;
+		}
+		if (LEGACY_WINDOW_LINE.test(line)) {              // 纯档期行
+			if (pending.length) for (const t of pending) out.push({ title: t, win: line });
+			else if (out.length) out[out.length - 1].win = line;   // 窗口完全相同：给上一条补上档期
+			pending = [];
+			continue;
+		}
+		pending.push(line);
+	}
+	// 同一口池的两种写法（「池名：角色」把只给角色名的整段包住）⇒ 只留被包住的那条；完全同名只留第一条。
+	const normTitle = (s) => String(s || "").replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, "");
+	const wraps = (A, B) => {
+		const la = normTitle(A), lb = normTitle(B);
+		if (lb === "" || la === lb) return false;
+		if (la.indexOf(lb + "\uFF1A") === 0) return true;
+		const tail = la.lastIndexOf("\uFF1A" + lb);
+		return tail >= 0 && tail === la.length - lb.length - 1;
+	};
+	const kept = [];
+	const seenTitle = new Set();
+	for (const a of out) {
+		const la = normTitle(a.title);
+		if (la && seenTitle.has(la)) continue;
+		if (out.some((b) => b !== a && wraps(a.title, b.title))) continue;
+		if (la) seenTitle.add(la);
+		kept.push(a);
+	}
+	if (kept.length < 1) return [];
+	return kept;
+}

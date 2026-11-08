@@ -1255,7 +1255,8 @@
 		// 属性：名称/开始时间/结束时间/所属版本；结束时间 9999/01/01 为永久活动占位（跳过）。
 		// 查询 URL 由 fetchYsActivity 构造，浏览器直连（api.php 带 origin=* 有 CORS）。
 		// `opts.emitArrays` + `opts.id`（P3，2026-11-07）⇒ 直出 `events` 数组 + 条目事实
-		// （`eventHoverItems`），悬停文本改由同一份条目反生成；不传时走改造前的 buildEventHover。
+		// （`eventHoverItems`），悬停文本由同一份条目反生成（`hoverTextFromItems`）。
+		// ⚠️ P5 清理：`!emit` 那条（改造前的 `buildEventHover`）已删 —— 见下面分支处的注释。
 		function parseSmwActivity(json, tz, opts) {
 			const results = json?.query?.results || {};
 			const now = nowMs();
@@ -1311,8 +1312,8 @@
 				bannerDates: win,
 				bannerDatesRaw: win
 			};
-			const emit = !!(opts && opts.emitArrays === true && opts.id);
-			if (!emit) return { ...out, eventHover: buildEventHover(ordered, 0, tz) };
+			// ⚠️ P5 清理（2026-11-08）：原来的 `!emit` 分支（`buildEventHover(ordered, 0, tz)` 手拼悬停、
+			//    不出数组）已删除 —— 唯一调用方（原神 bwiki 活动）一直传 `emitArrays: true, id`。
 			// ── P3：条目事实（当期每条活动一行）→ 悬停 + `events` 数组 ──────────────
 			// 顺序 = `sortEventItems`（与改造前喂给 buildEventHover 的是同一份，逐行不会换位）。
 			// ⚠️ 不写 `cat`：改造前的合成数组里没有这条事实（SMW 的「类型」只参与外显挑选），

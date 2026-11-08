@@ -1,0 +1,3344 @@
+{
+	"coreSyntheticRows": [
+		{
+			"name": "剧情活动",
+			"meta": "10-01 12:00 → 10-20 23:59 · 还剩 18天15时"
+		}
+	],
+	"coreRows": {
+		"zzz:gacha": [
+			{
+				"name": "希格莉德",
+				"meta": "08-19 12:00 → 09-08 14:59 · 还剩 14天6时"
+			}
+		],
+		"zzz:event": [
+			{
+				"name": "恰浪花逐夏而至",
+				"meta": "07-29 06:00 → 09-07 03:59 · 还剩 12天19时"
+			},
+			{
+				"name": "咔滋酥脆出餐计划",
+				"meta": "08-19 10:00 → 09-07 03:59 · 还剩 12天19时"
+			},
+			{
+				"name": "极危通缉与悠游假期",
+				"meta": "08-24 10:00 → 09-07 03:59 · 还剩 12天19时"
+			},
+			{
+				"name": "云端礼赠",
+				"meta": "07-29 06:00 → 09-08 03:59 · 还剩 13天19时"
+			},
+			{
+				"name": "『嗯呢』大派送！",
+				"meta": "08-19 10:00 → 09-08 03:59 · 还剩 13天19时"
+			},
+			{
+				"name": "潜能预演·狩猎游戏",
+				"meta": "07-29 06:00 → 09-09 05:59 · 还剩 14天21时"
+			},
+			{
+				"name": "玛瑟尔周年馈礼",
+				"meta": "07-29 06:00 → 09-09 05:59 · 还剩 14天21时"
+			},
+			{
+				"name": "点映返礼",
+				"meta": "07-29 06:00 → 09-09 05:59 · 还剩 14天21时"
+			}
+		],
+		"arknights:gacha": null,
+		"arknights:event": [
+			{
+				"name": "视相博物馆：演化",
+				"meta": "10-24 16:00 → 11-07 03:59 · 还剩 12天19时"
+			}
+		],
+		"ba-cn:gacha": [
+			{
+				"name": "莲见(泳装)、圣娅(泳装)",
+				"meta": "09-24 14:00 → 10-08 13:59 · 还剩 13天5时"
+			}
+		],
+		"ba-cn:event": [
+			{
+				"name": "夏日天空的约定",
+				"meta": "09-24 14:00 → 10-22 13:59 · 还剩 27天5时"
+			}
+		],
+		"bandori:gacha": [
+			{
+				"name": "丸山彩、CHU²、二叶筑紫、山吹沙绫、宇田川巴、大和麻弥",
+				"meta": "09-29 10:00 开始 · 至 10-11 12:59"
+			}
+		],
+		"bandori:event": [
+			{
+				"name": "All☆Stars CiRCRiNG Fes!",
+				"meta": "09-29 10:00 开始 · 至 10-14 22:59"
+			}
+		],
+		"wuhuamixin:gacha": [
+			{
+				"name": "李小孩项链、王氏书翰卷",
+				"meta": "08-20 10:00 → 09-10 09:59 · 还剩 16天1时"
+			},
+			{
+				"name": "繁霜春落：李小孩项链",
+				"meta": "08-20 10:00 → 09-10 09:59 · 还剩 16天1时"
+			},
+			{
+				"name": "如君执笔-常驻：王氏书翰卷",
+				"meta": "08-20 10:00 → 09-10 09:59 · 还剩 16天1时"
+			}
+		],
+		"wuhuamixin:event": [
+			{
+				"name": "「寂夜长生」限时活动",
+				"meta": "08-20 10:00 → 09-10 09:59 · 还剩 16天1时"
+			},
+			{
+				"name": "旅程将启-寂夜长生",
+				"meta": "08-13 10:00 → 09-10 09:59 · 还剩 16天1时"
+			},
+			{
+				"name": "寂夜长生",
+				"meta": "08-20 10:00 → 09-10 09:59 · 还剩 16天1时"
+			},
+			{
+				"name": "职员考评-演算",
+				"meta": "08-20 10:00 → 09-10 09:59 · 还剩 16天1时"
+			},
+			{
+				"name": "衣装上新",
+				"meta": "08-20 10:00 → 09-10 09:59 · 还剩 16天1时"
+			},
+			{
+				"name": "游历",
+				"meta": "08-20 10:00 → 09-30 09:59 · 还剩 36天1时"
+			}
+		],
+		"zspms:gacha": [
+			{
+				"name": "破渊",
+				"meta": "09-24 11:00 → 11-05 05:00 · 还剩 40天21时"
+			},
+			{
+				"name": "淬炼活动角色 / 命运淬炼活动角色：阿德莱德·破渊",
+				"meta": "09-24 11:00 → 11-05 05:00 · 还剩 40天21时"
+			},
+			{
+				"name": "狙击武器：不孤航炬",
+				"meta": "09-24 11:00 → 11-05 05:00 · 还剩 40天21时"
+			},
+			{
+				"name": "辅助机狙击：凯尔派",
+				"meta": "09-24 11:00 → 11-05 05:00 · 还剩 40天21时"
+			}
+		],
+		"zspms:event": [
+			{
+				"name": "回路演算",
+				"meta": "09-24 11:00 → 11-04 05:00 · 还剩 39天21时"
+			},
+			{
+				"name": "新客访临签到活动",
+				"meta": "09-24 11:00 → 11-03 23:59 · 还剩 39天15时"
+			},
+			{
+				"name": "相约纪事",
+				"meta": "09-24 11:00 → 11-04 05:00 · 还剩 39天21时"
+			},
+			{
+				"name": "7日登录签到奖励",
+				"meta": "09-24 11:00 → 11-04 05:00 · 还剩 39天21时"
+			},
+			{
+				"name": "主线剧情-远信回响",
+				"meta": "09-24 11:00 → 11-05 05:00 · 还剩 40天21时"
+			},
+			{
+				"name": "执炬者望海-角色试玩关",
+				"meta": "09-24 11:00 → 11-05 05:00 · 还剩 40天21时"
+			},
+			{
+				"name": "【勤务商店】新增内容",
+				"meta": "09-24 11:00 → 11-05 05:00 · 还剩 40天21时"
+			},
+			{
+				"name": "新增涂装",
+				"meta": "09-24 11:00 → 11-05 05:00 · 还剩 40天21时"
+			},
+			{
+				"name": "战略评定手册-远哨档案",
+				"meta": "09-24 11:00 → 11-05 05:00 · 还剩 40天21时"
+			}
+		],
+		"kedr:gacha": null,
+		"kedr:event": [
+			{
+				"name": "战令通行证赛季",
+				"meta": "08-31 05:00 → 10-04 05:00 · 还剩 32天21时"
+			},
+			{
+				"name": "第三期边境防卫活动",
+				"meta": "08-31 05:00 → 10-04 05:00 · 还剩 32天21时"
+			}
+		],
+		"uma-cn:gacha": null,
+		"uma-cn:event": [
+			{
+				"name": "赛事活动“群英联赛 中距离”",
+				"meta": "10-01 12:00 → 10-07 11:59 · 还剩 5天3时"
+			},
+			{
+				"name": "第1轮",
+				"meta": "10-01 12:00 → 10-03 11:59 · 还剩 1天3时"
+			},
+			{
+				"name": "联赛报名期间",
+				"meta": "09-28 12:00 → 10-05 11:59 · 还剩 3天3时"
+			},
+			{
+				"name": "活动期间",
+				"meta": "10-01 12:00 → 10-07 11:59 · 还剩 5天3时"
+			}
+		],
+		"uma-jp:gacha": [
+			{
+				"name": "【予告】トゥインクルコレクション プリティーダービーガチャとSSR確定スピードガチャ開催決定！",
+				"meta": "10-01 12:00 → 11-02 11:59 · 还剩 31天2时"
+			},
+			{
+				"name": "育成ウマ娘&サポートカード新登場！ピックアップガチャ開催！",
+				"meta": "09-30 12:00 → 10-13 11:59 · 还剩 11天2时"
+			}
+		],
+		"uma-jp:event": [
+			{
+				"name": "「覚醒Lv6/7追加記念キャンペーン」開催！",
+				"meta": "10-01 05:00 → 10-13 04:59 · 还剩 10天19时"
+			},
+			{
+				"name": "ストーリーイベント「Banquet of Shadows」開催！",
+				"meta": "09-30 12:00 → 10-13 11:59 · 还剩 11天2时"
+			},
+			{
+				"name": "10月～3月対戦レースイベント",
+				"meta": "09-30 12:00 → 12-31 23:59 · 还剩 90天14时"
+			}
+		],
+		"uma-global:gacha": [
+			{
+				"name": "Vodka、Daiwa Scarlet",
+				"meta": "09-28 22:00 → 10-12 21:59 · 还剩 10天21时"
+			}
+		],
+		"uma-global:event": null,
+		"p5x:gacha": [
+			{
+				"name": "汐见琴音",
+				"meta": "09-24 04:00 → 10-22 03:59 · 还剩 26天19时"
+			}
+		],
+		"p5x:event": [
+			{
+				"name": "2.5周年时光庆典",
+				"meta": "09-24 04:00 → 10-22 03:59 · 还剩 26天19时"
+			},
+			{
+				"name": "怪盗团团长的特训日程",
+				"meta": "09-24 04:00 → 10-22 03:59 · 还剩 26天19时"
+			},
+			{
+				"name": "2.5周年庆典特别福利",
+				"meta": "09-24 04:00 → 10-22 03:59 · 还剩 26天19时"
+			},
+			{
+				"name": "2.5周年特别礼包",
+				"meta": "09-24 04:00 → 10-22 03:59 · 还剩 26天19时"
+			},
+			{
+				"name": "2.5周年特别回馈",
+				"meta": "09-24 04:00 → 10-22 03:59 · 还剩 26天19时"
+			},
+			{
+				"name": "2.5周年魅影通行证",
+				"meta": "09-24 04:00 → 11-19 03:59 · 还剩 54天19时"
+			}
+		],
+		"nte:gacha": [
+			{
+				"name": "明音凛",
+				"meta": "10-15 11:00 → 11-05 05:59 · 还剩 15天21时"
+			}
+		],
+		"nte:event": [
+			{
+				"name": "咔滋！黄金双脆",
+				"meta": "10-15 11:00 → 11-05 05:59 · 还剩 15天21时"
+			}
+		],
+		"gf2:gacha": [
+			{
+				"name": "代理人、莉塔拉、科谢尼娅",
+				"meta": "09-22 12:00 开始 · 至 10-13 08:59"
+			}
+		],
+		"gf2:event": [
+			{
+				"name": "【静默突触】现已开启",
+				"meta": "09-22 12:00 开始 · 至 11-03 08:59"
+			}
+		],
+		"fgo:gacha": [
+			{
+				"name": "阿蒂拉 罗摩 兰斯洛特 魁札尔·科亚特尔 反抗军的Rider 弗兰肯斯坦 谜之女主角X〔Alter〕 阿尔托莉雅·潘德拉贡 芦屋道满 妖精骑士兰斯洛特 库库尔坎 大和武尊 堤丰·厄斐墨洛斯",
+				"meta": "09-22 19:00 开始 · 至 10-06 13:59"
+			},
+			{
+				"name": "唠唠叨叨新选组 THE END 河上彦斋推荐召唤：河上彦斋、藤堂平助",
+				"meta": "09-24 19:00 开始 · 至 10-22 13:59"
+			},
+			{
+				"name": "唠唠叨叨新选组 THE END推荐召唤2：土方岁三、冲田总司、斋藤一、山南敬助、永仓新八",
+				"meta": "09-26 19:00 开始 · 至 10-15 13:59"
+			},
+			{
+				"name": "唠唠叨叨新选组 THE END 近藤勇推荐召唤：藤堂平助、近藤勇",
+				"meta": "09-30 19:00 开始 · 至 10-15 13:59"
+			}
+		],
+		"fgo:event": [
+			{
+				"name": "迦勒底·U－夏日岛 ～总统会梦见夏日吗？～",
+				"meta": "08-08 15:00 → 08-29 13:59 · 还剩 4天5时"
+			},
+			{
+				"name": "「总统特异点」通关应援纪念活动 第2弹",
+				"meta": "07-24 15:00 → 09-02 13:59 · 还剩 8天5时"
+			},
+			{
+				"name": "「冠位戴冠战：Extra」开幕前夕纪念活动",
+				"meta": "07-29 12:00 → 09-03 13:59 · 还剩 9天5时"
+			},
+			{
+				"name": "Final Order Project [Lostbelt No.1]通关应援纪念活动",
+				"meta": "08-11 19:00 → 10-31 13:59 · 还剩 67天5时"
+			},
+			{
+				"name": "Final Order Project [Lostbelt No.2]通关应援纪念活动",
+				"meta": "08-18 19:00 → 10-31 13:59 · 还剩 67天5时"
+			}
+		],
+		"stellasora:gacha": null,
+		"stellasora:event": [
+			{
+				"name": "「猎影合围Beta」活动说明",
+				"meta": "09-01 04:00 → 10-01 03:59 · 还剩 29天19时"
+			}
+		],
+		"hsr:gacha": [
+			{
+				"name": "星神★阿哈、银狼LV.999 火花 爻光、千冶•刃、真珠",
+				"meta": "10-21 12:00 → 11-10 15:00 · 还剩 3天7时"
+			},
+			{
+				"name": "「我身即刃」角色活动跃迁：千冶•刃（虚无•火）",
+				"meta": "10-21 12:00 → 11-10 15:00 · 还剩 3天7时"
+			},
+			{
+				"name": "「沧海萃珠」角色活动跃迁：真珠（欢愉•冰）",
+				"meta": "至 11-10 15:00 · 还剩 3天7时"
+			},
+			{
+				"name": "「铭心之萃」角色活动跃迁：银狼LV.999（欢愉•虚数） 火花（欢愉•火） 爻光（欢愉•物理）",
+				"meta": "至 12-02 11:59 · 还剩 25天3时"
+			},
+			{
+				"name": "「愚戏众星」角色活动跃迁：星神★阿哈",
+				"meta": "至 12-22 15:00 · 还剩 45天7时"
+			}
+		],
+		"hsr:event": [
+			{
+				"name": "「镇伏『贪饕』，汇聚愿力」",
+				"meta": "09-28 04:00 → 11-10 15:00 · 还剩 3天7时"
+			},
+			{
+				"name": "「巡星之礼」第二十七期",
+				"meta": "至 11-11 03:59 · 还剩 3天19时"
+			},
+			{
+				"name": "「爱，幽灵与机器人」",
+				"meta": "10-21 12:00 → 12-02 11:59 · 还剩 25天3时"
+			}
+		],
+		"genshin:gacha": null,
+		"genshin:event": [
+			{
+				"name": "【有奖活动】10月生日会话题活动开启！",
+				"meta": "10-02 → 10-31 23:59 · 还剩 29天1时"
+			}
+		]
+	},
+	"coreFgo0905Rows": [
+		{
+			"name": "失落的创世(Vanished Beginning) 来自未来的方舟",
+			"meta": "09-03 19:00 → 09-24 13:59 · 还剩 19天5时"
+		},
+		{
+			"name": "3200万下载突破纪念活动",
+			"meta": "08-29 19:00 → 09-12 13:59 · 还剩 7天5时"
+		},
+		{
+			"name": "「冠位戴冠战：Rider」开幕前夕纪念活动",
+			"meta": "09-03 19:00 → 09-16 13:59 · 还剩 11天5时"
+		},
+		{
+			"name": "Final Order Project [Lostbelt No.1]通关应援纪念活动",
+			"meta": "08-11 19:00 → 10-31 13:59 · 还剩 56天5时"
+		},
+		{
+			"name": "Final Order Project [Lostbelt No.2]通关应援纪念活动",
+			"meta": "08-18 19:00 → 10-31 13:59 · 还剩 56天5时"
+		},
+		{
+			"name": "Final Order Project [Lostbelt No.3]通关应援纪念活动",
+			"meta": "08-25 19:00 → 10-31 13:59 · 还剩 56天5时"
+		},
+		{
+			"name": "Final Order Project [Lostbelt No.4]通关应援纪念活动",
+			"meta": "09-01 19:00 → 10-31 13:59 · 还剩 56天5时"
+		}
+	],
+	"_meta": {
+		"purpose": "改造前 oracle 的输出字面量（P5 清理后 oracle 实现已从产品删除，本文件是唯一真源）",
+		"capturedFrom": "d3e9d35（删除前）的 test/cases-core.mjs legacyCellOf / test/cases-p3.mjs legacySynthArrOf",
+		"capturedAt": "2026-11-08",
+		"note": "键 coreRows = <id>:<side> → [[name, meta]…]（null = 该侧无数据）；p3Synth = <路径key>:<side> → 数组条目（含 ts）"
+	},
+	"p3Synth": {
+		"genshinGacha:gacha": [
+			{
+				"key": "genshin:gacha:0",
+				"title": "「万序衍盈」108期角色活动祈愿",
+				"show": "米提亚、芙宁娜",
+				"roles": [
+					"「列律名虚·米提亚(雷)」",
+					"「不休独舞·芙宁娜(水)」"
+				],
+				"startTs": 1793743200000,
+				"endTs": 1795514340000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-04 06:00 ~ 11-24 17:59",
+				"source": "primary"
+			},
+			{
+				"key": "genshin:gacha:1",
+				"title": "「万序衍盈」108期角色活动祈愿：「列律名虚·米提亚(雷)」",
+				"show": "「万序衍盈」108期角色活动祈愿：「列律名虚·米提亚(雷)」",
+				"roles": [],
+				"startTs": 1793743200000,
+				"endTs": 1795514340000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-04 06:00 ~ 11-24 17:59",
+				"source": "hover"
+			},
+			{
+				"key": "genshin:gacha:2",
+				"title": "「众水的颂诗」108-2期角色活动祈愿：「不休独舞·芙宁娜(水)」",
+				"show": "「众水的颂诗」108-2期角色活动祈愿：「不休独舞·芙宁娜(水)」",
+				"roles": [],
+				"startTs": 1793743200000,
+				"endTs": 1795514340000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-04 06:00 ~ 11-24 17:59",
+				"source": "hover"
+			}
+		],
+		"genshinGacha:event": [],
+		"genshinEvent:event": [
+			{
+				"key": "genshin:event:0",
+				"title": "「坏灭肇始之时」",
+				"show": "「坏灭肇始之时」",
+				"startTs": 1793757600000,
+				"endTs": 1797317940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-04 10:00 ~ 12-15 14:59",
+				"source": "primary"
+			},
+			{
+				"key": "genshin:event:1",
+				"title": "「相遇·悠久旅途之暇」",
+				"show": "「相遇·悠久旅途之暇」",
+				"startTs": 1793757600000,
+				"endTs": 1797317940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-04 10:00 ~ 12-15 14:59",
+				"source": "hover"
+			},
+			{
+				"key": "genshin:event:2",
+				"title": "「绮衣珍赏·赫炽」",
+				"show": "「绮衣珍赏·赫炽」",
+				"startTs": 1793757600000,
+				"endTs": 1797371940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-04 10:00 ~ 12-16 05:59",
+				"source": "hover"
+			},
+			{
+				"key": "genshin:event:3",
+				"title": "「全域镇卫·逆捍谬罚」",
+				"show": "「全域镇卫·逆捍谬罚」",
+				"startTs": 1793757600000,
+				"endTs": 1797371940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-04 10:00 ~ 12-16 05:59",
+				"source": "hover"
+			},
+			{
+				"key": "genshin:event:4",
+				"title": "「晶石如林生长之地」",
+				"show": "「晶石如林生长之地」",
+				"startTs": 1793757600000,
+				"endTs": 1800946740000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026-11-04 10:00 ~ 2027-01-26 14:59",
+				"source": "hover"
+			}
+		],
+		"genshinEvent:gacha": [],
+		"arknightsGacha:gacha": [
+			{
+				"key": "arknights:gacha:0",
+				"title": "将雪投火",
+				"show": "塔露拉、冻河、凛御银灰、新约能天使、荒芜拉普兰德、奥尔佳",
+				"roles": [
+					"塔露拉",
+					"冻河",
+					"凛御银灰",
+					"新约能天使",
+					"荒芜拉普兰德",
+					"奥尔佳"
+				],
+				"startTs": 1793505600000,
+				"endTs": 1794686340000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-01 12:00 ~ 11-15 03:59",
+				"source": "primary"
+			}
+		],
+		"arknightsGacha:event": [],
+		"arknightsEvent:event": [
+			{
+				"key": "arknights:event:0",
+				"title": "视相博物馆：演化",
+				"show": "视相博物馆：演化 兑换截止",
+				"startTs": 1793995140000,
+				"endTs": 1794254340000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-07 03:59 ~ 11-10 03:59",
+				"source": "primary",
+				"phase": {
+					"kind": "claim",
+					"startTs": 1793995140000,
+					"endTs": 1794254340000,
+					"show": "视相博物馆：演化 兑换截止"
+				}
+			},
+			{
+				"key": "arknights:event:1",
+				"title": "登录活动：感谢庆典2026限时签到",
+				"show": "登录活动：感谢庆典2026限时签到",
+				"startTs": 1793505600000,
+				"endTs": 1794686340000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-01 12:00 ~ 11-15 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "arknights:event:2",
+				"title": "支线故事：时间啊，向前！",
+				"show": "支线故事：时间啊，向前！",
+				"startTs": 1793505600000,
+				"endTs": 1795291140000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-01 12:00 ~ 11-22 03:59",
+				"source": "hover"
+			}
+		],
+		"arknightsEvent:gacha": [],
+		"wuwaGacha:gacha": [
+			{
+				"key": "wuwa:gacha:0",
+				"title": "角色活动唤取",
+				"show": "锁暝、灯灯、丹瑾、炽霞、洛瑟菈、琳奈",
+				"roles": [
+					"锁暝",
+					"灯灯",
+					"丹瑾",
+					"炽霞",
+					"洛瑟菈",
+					"琳奈"
+				],
+				"startTs": 1792634400000,
+				"endTs": 1794427140000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-22 10:00 ~ 11-12 03:59",
+				"source": "primary"
+			},
+			{
+				"key": "wuwa:gacha:1",
+				"title": "余心所向九死未悔：锁暝、灯灯、丹瑾、炽霞",
+				"show": "余心所向九死未悔：锁暝、灯灯、丹瑾、炽霞",
+				"roles": [],
+				"startTs": 1792634400000,
+				"endTs": 1794427140000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-22 10:00 ~ 11-12 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "wuwa:gacha:2",
+				"title": "显影于明日：洛瑟菈、灯灯、丹瑾、炽霞",
+				"show": "显影于明日：洛瑟菈、灯灯、丹瑾、炽霞",
+				"roles": [],
+				"startTs": 1792634400000,
+				"endTs": 1794427140000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-22 10:00 ~ 11-12 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "wuwa:gacha:3",
+				"title": "非定义光谱：琳奈、灯灯、丹瑾、炽霞",
+				"show": "非定义光谱：琳奈、灯灯、丹瑾、炽霞",
+				"roles": [],
+				"startTs": 1792634400000,
+				"endTs": 1794427140000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-22 10:00 ~ 11-12 03:59",
+				"source": "hover"
+			}
+		],
+		"wuwaGacha:event": [
+			{
+				"key": "wuwa:event:0",
+				"title": "[团团勇者大乱斗]休闲活动",
+				"show": "[团团勇者大乱斗]休闲活动",
+				"startTs": 1790712000000,
+				"endTs": 1794427140000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 04:00 ~ 11-12 03:59",
+				"source": "primary"
+			},
+			{
+				"key": "wuwa:event:1",
+				"title": "[梦构匣中]区域探索活动",
+				"show": "[梦构匣中]区域探索活动",
+				"startTs": 1790712000000,
+				"endTs": 1794427140000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 04:00 ~ 11-12 03:59",
+				"source": "hover"
+			}
+		],
+		"wuwaEvent:event": [
+			{
+				"key": "wuwa:event:0",
+				"title": "[团团勇者大乱斗]休闲活动",
+				"show": "[团团勇者大乱斗]休闲活动",
+				"startTs": 1790712000000,
+				"endTs": 1794427140000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 04:00 ~ 11-12 03:59",
+				"source": "primary"
+			},
+			{
+				"key": "wuwa:event:1",
+				"title": "[梦构匣中]区域探索活动",
+				"show": "[梦构匣中]区域探索活动",
+				"startTs": 1790712000000,
+				"endTs": 1794427140000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 04:00 ~ 11-12 03:59",
+				"source": "hover"
+			}
+		],
+		"wuwaEvent:gacha": [],
+		"hsrGacha:gacha": [
+			{
+				"key": "hsr:gacha:0",
+				"title": "「我身即刃」角色活动跃迁",
+				"show": "星神★阿哈、银狼LV.999 火花 爻光、千冶•刃、真珠",
+				"roles": [
+					"星神★阿哈",
+					"银狼LV.999（欢愉•虚数） 火花（欢愉•火） 爻光（欢愉•物理）",
+					"千冶•刃（虚无•火）",
+					"真珠（欢愉•冰）"
+				],
+				"startTs": 1792555200000,
+				"endTs": 1794294000000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-21 12:00 ~ 11-10 15:00",
+				"source": "primary"
+			},
+			{
+				"key": "hsr:gacha:1",
+				"title": "「我身即刃」角色活动跃迁：千冶•刃（虚无•火）",
+				"show": "「我身即刃」角色活动跃迁：千冶•刃（虚无•火）",
+				"roles": [],
+				"startTs": 1792555200000,
+				"endTs": 1794294000000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-21 12:00 ~ 11-10 15:00",
+				"source": "hover"
+			},
+			{
+				"key": "hsr:gacha:2",
+				"title": "「沧海萃珠」角色活动跃迁：真珠（欢愉•冰）",
+				"show": "「沧海萃珠」角色活动跃迁：真珠（欢愉•冰）",
+				"roles": [],
+				"startTs": null,
+				"endTs": 1794294000000,
+				"tz": "Asia/Shanghai",
+				"raw": "4.6版本更新后 ~ 11-10 15:00",
+				"source": "hover"
+			},
+			{
+				"key": "hsr:gacha:3",
+				"title": "「铭心之萃」角色活动跃迁：银狼LV.999（欢愉•虚数） 火花（欢愉•火） 爻光（欢愉•物理）",
+				"show": "「铭心之萃」角色活动跃迁：银狼LV.999（欢愉•虚数） 火花（欢愉•火） 爻光（欢愉•物理）",
+				"roles": [],
+				"startTs": null,
+				"endTs": 1796183940000,
+				"tz": "Asia/Shanghai",
+				"raw": "4.7版本更新后 ~ 12-02 11:59",
+				"source": "hover"
+			},
+			{
+				"key": "hsr:gacha:4",
+				"title": "「愚戏众星」角色活动跃迁：星神★阿哈",
+				"show": "「愚戏众星」角色活动跃迁：星神★阿哈",
+				"roles": [],
+				"startTs": null,
+				"endTs": 1797922800000,
+				"tz": "Asia/Shanghai",
+				"raw": "4.7版本更新后 ~ 12-22 15:00",
+				"source": "hover"
+			}
+		],
+		"hsrGacha:event": [],
+		"hsrEvent:event": [
+			{
+				"key": "hsr:event:0",
+				"title": "「镇伏『贪饕』，汇聚愿力」",
+				"show": "「镇伏『贪饕』，汇聚愿力」",
+				"startTs": 1790539200000,
+				"endTs": 1794294000000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-28 04:00 ~ 11-10 15:00",
+				"source": "primary"
+			},
+			{
+				"key": "hsr:event:1",
+				"title": "「巡星之礼」第二十七期",
+				"show": "「巡星之礼」第二十七期",
+				"startTs": null,
+				"endTs": 1794340740000,
+				"tz": "Asia/Shanghai",
+				"raw": "4.6版本更新后 ~ 11-11 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "hsr:event:2",
+				"title": "「爱，幽灵与机器人」",
+				"show": "「爱，幽灵与机器人」",
+				"startTs": 1792555200000,
+				"endTs": 1796183940000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-21 12:00 ~ 12-02 11:59",
+				"source": "hover"
+			}
+		],
+		"hsrEvent:gacha": [],
+		"zzzGacha:gacha": [
+			{
+				"key": "zzz:gacha:0",
+				"title": "3.3版本限时频段（上期）",
+				"show": "菲欧妮、维琳娜",
+				"roles": [
+					"菲欧妮（异常·火）",
+					"维琳娜（异常·风）"
+				],
+				"startTs": 1792533600000,
+				"endTs": 1794369540000,
+				"tz": "Asia/Shanghai",
+				"raw": "3.3版本更新后 ~ 11-11 11:59",
+				"source": "primary"
+			}
+		],
+		"zzzGacha:event": [
+			{
+				"key": "zzz:event:0",
+				"title": "天使应援大作战",
+				"show": "天使应援大作战",
+				"startTs": 1788904800000,
+				"endTs": 1795982340000,
+				"tz": "Asia/Shanghai",
+				"raw": "3.2版本更新后 ~ 2026/11/30 03:59",
+				"source": "primary"
+			},
+			{
+				"key": "zzz:event:1",
+				"title": "怪奇诡屋惊魂记",
+				"show": "怪奇诡屋惊魂记",
+				"startTs": 1792634400000,
+				"endTs": 1795982340000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-22 10:00 ~ 11-30 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "zzz:event:2",
+				"title": "全新放送",
+				"show": "全新放送",
+				"startTs": 1792533600000,
+				"endTs": 1796068740000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-21 06:00 ~ 12-01 03:59",
+				"source": "hover"
+			}
+		],
+		"zzzEvent:event": [
+			{
+				"key": "zzz:event:0",
+				"title": "天使应援大作战",
+				"show": "天使应援大作战",
+				"startTs": 1788904800000,
+				"endTs": 1795982340000,
+				"tz": "Asia/Shanghai",
+				"raw": "3.2版本更新后 ~ 2026/11/30 03:59",
+				"source": "primary"
+			},
+			{
+				"key": "zzz:event:1",
+				"title": "怪奇诡屋惊魂记",
+				"show": "怪奇诡屋惊魂记",
+				"startTs": 1792634400000,
+				"endTs": 1795982340000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-22 10:00 ~ 11-30 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "zzz:event:2",
+				"title": "全新放送",
+				"show": "全新放送",
+				"startTs": 1792533600000,
+				"endTs": 1796068740000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-21 06:00 ~ 12-01 03:59",
+				"source": "hover"
+			}
+		],
+		"zzzEvent:gacha": [],
+		"hsrGachaMiyoushe:gacha": [
+			{
+				"key": "hsr:gacha:0",
+				"title": "4.6版本活动跃迁（其一）",
+				"show": "真珠",
+				"roles": [
+					"真珠"
+				],
+				"startTs": 1790550000000,
+				"endTs": 1794294000000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026/09/28 4.6版本更新后 - 2026/11/10 15:00",
+				"source": "primary"
+			}
+		],
+		"hsrGachaMiyoushe:event": [],
+		"bh3EventMiyoushe:event": [
+			{
+				"key": "bh3:event:0",
+				"title": "【有奖活动】分享你与崩坏3的专属片段，参与讨论赢水晶！",
+				"show": "【有奖活动】分享你与崩坏3的专属片段，参与讨论赢水晶！",
+				"startTs": 1790568000000,
+				"endTs": 1791388740000,
+				"tz": "Asia/Shanghai",
+				"raw": "9.28 12:00~10.7 23:59",
+				"source": "primary"
+			}
+		],
+		"bh3EventMiyoushe:gacha": [],
+		"whmxGacha:gacha": [
+			{
+				"key": "wuhuamixin:gacha:0",
+				"title": "孤岛螺旋",
+				"show": "凯尔特之书、错金博山炉、天球仪、小宋香炉、请调书",
+				"roles": [
+					"凯尔特之书",
+					"错金博山炉",
+					"天球仪",
+					"小宋香炉",
+					"结伴同游·请调书"
+				],
+				"startTs": 1790733600000,
+				"endTs": 1792634340000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026年09月30日 10:00 ~ 10月22日 09:59",
+				"source": "primary"
+			},
+			{
+				"key": "wuhuamixin:gacha:1",
+				"title": "孤岛螺旋：凯尔特之书",
+				"show": "孤岛螺旋：凯尔特之书",
+				"roles": [],
+				"startTs": 1790733600000,
+				"endTs": 1792634340000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 10:00 ~ 10-22 09:59",
+				"source": "hover"
+			},
+			{
+				"key": "wuhuamixin:gacha:2",
+				"title": "万嶂烟峦：错金博山炉",
+				"show": "万嶂烟峦：错金博山炉",
+				"roles": [],
+				"startTs": 1790733600000,
+				"endTs": 1792634340000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 10:00 ~ 10-22 09:59",
+				"source": "hover"
+			},
+			{
+				"key": "wuhuamixin:gacha:3",
+				"title": "四海无争-常驻：天球仪",
+				"show": "四海无争-常驻：天球仪",
+				"roles": [],
+				"startTs": 1790733600000,
+				"endTs": 1792634340000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 10:00 ~ 10-22 09:59",
+				"source": "hover"
+			},
+			{
+				"key": "wuhuamixin:gacha:4",
+				"title": "刻名存念-常驻：小宋香炉",
+				"show": "刻名存念-常驻：小宋香炉",
+				"roles": [],
+				"startTs": 1790733600000,
+				"endTs": 1792634340000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 10:00 ~ 10-22 09:59",
+				"source": "hover"
+			},
+			{
+				"key": "wuhuamixin:gacha:5",
+				"title": "结伴同游：结伴同游·请调书",
+				"show": "结伴同游：结伴同游·请调书",
+				"roles": [],
+				"startTs": 1790733600000,
+				"endTs": 1792634340000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 10:00 ~ 10-22 09:59",
+				"source": "hover"
+			}
+		],
+		"whmxGacha:event": [],
+		"whmxEvent:event": [
+			{
+				"key": "wuhuamixin:event:0",
+				"title": "旅程将启-经以山海",
+				"show": "旅程将启-经以山海",
+				"startTs": 1790128800000,
+				"endTs": 1792634340000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-23 10:00 ~ 10-22 09:59",
+				"source": "hover"
+			},
+			{
+				"key": "wuhuamixin:event:1",
+				"title": "「经以山海」限时活动",
+				"show": "「经以山海」限时活动",
+				"startTs": 1790733600000,
+				"endTs": 1792634340000,
+				"tz": "Asia/Shanghai",
+				"raw": "9月30日 10:00 ~ 10月22日 09:59",
+				"source": "primary"
+			},
+			{
+				"key": "wuhuamixin:event:2",
+				"title": "同赴山海",
+				"show": "同赴山海",
+				"startTs": 1790733600000,
+				"endTs": 1792634340000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 10:00 ~ 10-22 09:59",
+				"source": "hover"
+			},
+			{
+				"key": "wuhuamixin:event:3",
+				"title": "经以山海",
+				"show": "经以山海",
+				"startTs": 1790733600000,
+				"endTs": 1792634340000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 10:00 ~ 10-22 09:59",
+				"source": "hover"
+			},
+			{
+				"key": "wuhuamixin:event:4",
+				"title": "云想集珍",
+				"show": "云想集珍",
+				"startTs": 1790733600000,
+				"endTs": 1792634340000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 10:00 ~ 10-22 09:59",
+				"source": "hover"
+			},
+			{
+				"key": "wuhuamixin:event:5",
+				"title": "衣装上新",
+				"show": "衣装上新",
+				"startTs": 1790733600000,
+				"endTs": 1792634340000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 10:00 ~ 10-22 09:59",
+				"source": "hover"
+			},
+			{
+				"key": "wuhuamixin:event:6",
+				"title": "榑桑遗境",
+				"show": "榑桑遗境",
+				"startTs": 1790733600000,
+				"endTs": 1794448740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 10:00 ~ 11-12 09:59",
+				"source": "hover"
+			},
+			{
+				"key": "wuhuamixin:event:7",
+				"title": "游历",
+				"show": "游历",
+				"startTs": 1790733600000,
+				"endTs": 1794448740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 10:00 ~ 11-12 09:59",
+				"source": "hover"
+			}
+		],
+		"whmxEvent:gacha": [],
+		"zspmsGacha:gacha": [
+			{
+				"key": "zspms:gacha:0",
+				"title": "淬炼活动角色 / 命运淬炼活动角色",
+				"show": "破渊",
+				"roles": [
+					"阿德莱德·破渊"
+				],
+				"startTs": 1790218800000,
+				"endTs": 1793826000000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026年9月24日版本更新后 - 2026年11月5日05:00",
+				"source": "primary"
+			},
+			{
+				"key": "zspms:gacha:1",
+				"title": "淬炼活动角色 / 命运淬炼活动角色：阿德莱德·破渊",
+				"show": "淬炼活动角色 / 命运淬炼活动角色：阿德莱德·破渊",
+				"roles": [],
+				"startTs": 1790218800000,
+				"endTs": 1793826000000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-24 11:00 ~ 11-05 05:00",
+				"source": "hover"
+			},
+			{
+				"key": "zspms:gacha:2",
+				"title": "狙击武器：不孤航炬",
+				"show": "狙击武器：不孤航炬",
+				"roles": [],
+				"startTs": 1790218800000,
+				"endTs": 1793826000000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-24 11:00 ~ 11-05 05:00",
+				"source": "hover"
+			},
+			{
+				"key": "zspms:gacha:3",
+				"title": "辅助机狙击：凯尔派",
+				"show": "辅助机狙击：凯尔派",
+				"roles": [],
+				"startTs": 1790218800000,
+				"endTs": 1793826000000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-24 11:00 ~ 11-05 05:00",
+				"source": "hover"
+			}
+		],
+		"zspmsGacha:event": [],
+		"zspmsEvent:event": [
+			{
+				"key": "zspms:event:0",
+				"title": "新客访临签到活动",
+				"show": "新客访临签到活动",
+				"startTs": 1790218800000,
+				"endTs": 1793721540000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-24 11:00 ~ 11-03 23:59",
+				"source": "hover"
+			},
+			{
+				"key": "zspms:event:1",
+				"title": "回路演算",
+				"show": "回路演算",
+				"startTs": 1790218800000,
+				"endTs": 1793739600000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026年9月24日版本更新后 - 2026年11月4日05:00",
+				"source": "primary"
+			},
+			{
+				"key": "zspms:event:2",
+				"title": "相约纪事",
+				"show": "相约纪事",
+				"startTs": 1790218800000,
+				"endTs": 1793739600000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-24 11:00 ~ 11-04 05:00",
+				"source": "hover"
+			},
+			{
+				"key": "zspms:event:3",
+				"title": "7日登录签到奖励",
+				"show": "7日登录签到奖励",
+				"startTs": 1790218800000,
+				"endTs": 1793739600000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-24 11:00 ~ 11-04 05:00",
+				"source": "hover"
+			},
+			{
+				"key": "zspms:event:4",
+				"title": "主线剧情-远信回响",
+				"show": "主线剧情-远信回响",
+				"startTs": 1790218800000,
+				"endTs": 1793826000000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-24 11:00 ~ 11-05 05:00",
+				"source": "hover"
+			},
+			{
+				"key": "zspms:event:5",
+				"title": "执炬者望海-角色试玩关",
+				"show": "执炬者望海-角色试玩关",
+				"startTs": 1790218800000,
+				"endTs": 1793826000000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-24 11:00 ~ 11-05 05:00",
+				"source": "hover"
+			},
+			{
+				"key": "zspms:event:6",
+				"title": "【勤务商店】新增内容",
+				"show": "【勤务商店】新增内容",
+				"startTs": 1790218800000,
+				"endTs": 1793826000000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-24 11:00 ~ 11-05 05:00",
+				"source": "hover"
+			},
+			{
+				"key": "zspms:event:7",
+				"title": "新增涂装",
+				"show": "新增涂装",
+				"startTs": 1790218800000,
+				"endTs": 1793826000000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-24 11:00 ~ 11-05 05:00",
+				"source": "hover"
+			},
+			{
+				"key": "zspms:event:8",
+				"title": "战略评定手册-远哨档案",
+				"show": "战略评定手册-远哨档案",
+				"startTs": 1790218800000,
+				"endTs": 1793826000000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-24 11:00 ~ 11-05 05:00",
+				"source": "hover"
+			}
+		],
+		"zspmsEvent:gacha": [],
+		"cznGacha:gacha": [
+			{
+				"key": "czn:gacha:0",
+				"title": "常驻主战员营救概率提升（黛安娜）：黛安娜",
+				"show": "常驻主战员营救概率提升（黛安娜）：黛安娜",
+				"roles": [],
+				"startTs": 1781056800000,
+				"endTs": 1782842400000,
+				"tz": "Asia/Shanghai",
+				"raw": "06-10 10:00 ~ 07-01 02:00",
+				"source": "hover"
+			},
+			{
+				"key": "czn:gacha:1",
+				"title": "常驻辅战员营救概率提升（索菲亚）：索菲亚",
+				"show": "常驻辅战员营救概率提升（索菲亚）：索菲亚",
+				"roles": [],
+				"startTs": 1781056800000,
+				"endTs": 1782842400000,
+				"tz": "Asia/Shanghai",
+				"raw": "06-10 10:00 ~ 07-01 02:00",
+				"source": "hover"
+			},
+			{
+				"key": "czn:gacha:2",
+				"title": "赛季限定主战员营救概率提升（海德玛丽）",
+				"show": "海德玛丽",
+				"roles": [
+					"海德玛丽"
+				],
+				"startTs": 1781661600000,
+				"endTs": 1783447200000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026-6-17 10:00:00 ~ 2026-7-08 02:00:00",
+				"source": "primary"
+			},
+			{
+				"key": "czn:gacha:3",
+				"title": "赛季限定辅战员营救概率提升（西尔维亚）：西尔维亚",
+				"show": "赛季限定辅战员营救概率提升（西尔维亚）：西尔维亚",
+				"roles": [],
+				"startTs": 1781661600000,
+				"endTs": 1783447200000,
+				"tz": "Asia/Shanghai",
+				"raw": "06-17 10:00 ~ 07-08 02:00",
+				"source": "hover"
+			}
+		],
+		"cznGacha:event": [],
+		"kedrGacha:gacha": [
+			{
+				"key": "kedr:gacha:0",
+				"title": "【精英集结·支援】西尔维亚",
+				"show": "西尔维亚",
+				"roles": [
+					"西尔维亚"
+				],
+				"startTs": 1790888400000,
+				"endTs": 1791493200000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026/10/02 05:00 ~ 2026/10/09 05:00",
+				"source": "primary"
+			},
+			{
+				"key": "kedr:gacha:1",
+				"title": "【演习·联合领】莫菲：莫菲",
+				"show": "【演习·联合领】莫菲：莫菲",
+				"roles": [],
+				"startTs": 1790888400000,
+				"endTs": 1791493200000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-02 05:00 ~ 10-09 05:00",
+				"source": "hover"
+			}
+		],
+		"kedrGacha:event": [],
+		"kedrEvent:event": [
+			{
+				"key": "kedr:event:0",
+				"title": "战令通行证赛季",
+				"show": "战令通行证赛季",
+				"startTs": 1788123600000,
+				"endTs": 1791061200000,
+				"tz": "Asia/Shanghai",
+				"raw": "08-31 05:00 ~ 10-04 05:00",
+				"source": "hover"
+			},
+			{
+				"key": "kedr:event:1",
+				"title": "第三期边境防卫活动",
+				"show": "第三期边境防卫活动",
+				"startTs": 1788123600000,
+				"endTs": 1791061200000,
+				"tz": "Asia/Shanghai",
+				"raw": "08-31 05:00 ~ 10-04 05:00",
+				"source": "hover"
+			},
+			{
+				"key": "kedr:event:2",
+				"title": "个人剧情活动第1期：【新机动队故事】",
+				"show": "个人剧情活动第1期：【新机动队故事】",
+				"startTs": 1790283600000,
+				"endTs": 1791493200000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026/9/25 05:00 ~ 2026/10/09 05:00",
+				"source": "primary"
+			}
+		],
+		"kedrEvent:gacha": [],
+		"ddlezjGacha:gacha": [
+			{
+				"key": "ddlezj:gacha:0",
+				"title": "精选使徒招募【万年住院医生】希尔德",
+				"show": "精选使徒招募【万年住院医生】希尔德",
+				"roles": [],
+				"startTs": 1777485600000,
+				"endTs": 1778115540000,
+				"tz": "+540",
+				"raw": "2026/04/30 03:00 ~ 2026/05/07 09:59 (UTC+9)",
+				"source": "primary"
+			},
+			{
+				"key": "ddlezj:gacha:1",
+				"title": "精选卡片扭蛋【艾达之灯】",
+				"show": "精选卡片扭蛋【艾达之灯】",
+				"roles": [],
+				"startTs": 1777485600000,
+				"endTs": 1778115540000,
+				"tz": "+540",
+				"raw": "04-30 03:00 ~ 05-07 09:59",
+				"source": "hover"
+			}
+		],
+		"ddlezjGacha:event": [],
+		"ddlezjEvent:event": [
+			{
+				"key": "ddlezj:event:0",
+				"title": "梦境之地",
+				"show": "梦境之地",
+				"startTs": 1777510800000,
+				"endTs": 1778115540000,
+				"tz": "+540",
+				"raw": "2026/04/30 10:00 ~ 2026/05/07 09:59 (UTC+9)",
+				"source": "primary"
+			},
+			{
+				"key": "ddlezj:event:1",
+				"title": "像素异世界",
+				"show": "像素异世界",
+				"startTs": 1777510800000,
+				"endTs": 1778115540000,
+				"tz": "+540",
+				"raw": "04-30 10:00 ~ 05-07 09:59",
+				"source": "hover"
+			},
+			{
+				"key": "ddlezj:event:2",
+				"title": "七、艾利亚斯边境",
+				"show": "七、艾利亚斯边境",
+				"startTs": 1777510800000,
+				"endTs": 1778119140000,
+				"tz": "+540",
+				"raw": "04-30 10:00 ~ 05-07 10:59",
+				"source": "hover"
+			}
+		],
+		"ddlezjEvent:gacha": [],
+		"umaCnGacha:gacha": [
+			{
+				"key": "uma-cn:gacha:0",
+				"title": "养成优俊少女&协助卡新登场！精选招募",
+				"show": "目白拉莫娜",
+				"roles": [
+					"目白拉莫娜"
+				],
+				"startTs": 1790913600000,
+				"endTs": 1791863940000,
+				"tz": "Asia/Shanghai",
+				"raw": "10/2 12:00 ～ 10/13 11:59",
+				"source": "primary"
+			}
+		],
+		"umaCnGacha:event": [],
+		"umaCnEvent:event": [
+			{
+				"key": "uma-cn:event:0",
+				"title": "活动“爱丽速子的因子研究”",
+				"show": "活动“爱丽速子的因子研究”",
+				"startTs": 1790913600000,
+				"endTs": 1791863940000,
+				"tz": "Asia/Shanghai",
+				"raw": "10/2 12:00 ～ 10/13 11:59",
+				"source": "primary"
+			}
+		],
+		"umaCnEvent:gacha": [],
+		"umaJpGacha:gacha": [
+			{
+				"key": "uma-jp:gacha:0",
+				"title": "育成ウマ娘&サポートカード新登場！ピックアップガチャ開催！",
+				"show": "育成ウマ娘&サポートカード新登場！ピックアップガチャ開催！",
+				"roles": [],
+				"startTs": 1790737200000,
+				"endTs": 1791860340000,
+				"tz": "Asia/Tokyo",
+				"raw": "09-30 12:00 ~ 10-13 11:59",
+				"source": "hover"
+			},
+			{
+				"key": "uma-jp:gacha:1",
+				"title": "【予告】トゥインクルコレクション プリティーダービーガチャとSSR確定スピードガチャ開催決定！",
+				"show": "【予告】トゥインクルコレクション プリティーダービーガチャとSSR確定スピードガチャ開催決定！",
+				"roles": [],
+				"startTs": 1790823600000,
+				"endTs": 1793588340000,
+				"tz": "Asia/Tokyo",
+				"raw": "10/1 12:00 ～ 11/2 11:59",
+				"source": "primary",
+				"preview": true
+			}
+		],
+		"umaJpGacha:event": [],
+		"umaJpEvent:event": [
+			{
+				"key": "uma-jp:event:0",
+				"title": "「覚醒Lv6/7追加記念キャンペーン」開催！",
+				"show": "「覚醒Lv6/7追加記念キャンペーン」開催！",
+				"startTs": 1790798400000,
+				"endTs": 1791835140000,
+				"tz": "Asia/Tokyo",
+				"raw": "10/1 5:00 ～ 10/13 4:59",
+				"source": "primary"
+			},
+			{
+				"key": "uma-jp:event:1",
+				"title": "ストーリーイベント「Banquet of Shadows」開催！",
+				"show": "ストーリーイベント「Banquet of Shadows」開催！",
+				"startTs": 1790737200000,
+				"endTs": 1791860340000,
+				"tz": "Asia/Tokyo",
+				"raw": "09-30 12:00 ~ 10-13 11:59",
+				"source": "hover"
+			},
+			{
+				"key": "uma-jp:event:2",
+				"title": "10月～3月対戦レースイベント",
+				"show": "10月～3月対戦レースイベント",
+				"startTs": 1790737200000,
+				"endTs": 1798729140000,
+				"tz": "Asia/Tokyo",
+				"raw": "09-30 12:00 ~ 12-31 23:59",
+				"source": "hover"
+			}
+		],
+		"umaJpEvent:gacha": [],
+		"umaGlobalGacha:gacha": [
+			{
+				"key": "uma-global:gacha:0",
+				"title": "赛马娘国际服卡池（角色）",
+				"show": "Vodka、Daiwa Scarlet",
+				"roles": [
+					"Vodka",
+					"Daiwa Scarlet"
+				],
+				"startTs": 1790632800000,
+				"endTs": 1791842340000,
+				"tz": "UTC",
+				"raw": "09-28 22:00 ~ 10-12 21:59",
+				"source": "primary"
+			}
+		],
+		"umaGlobalGacha:event": [],
+		"umaGlobalEvent:event": [],
+		"umaGlobalEvent:gacha": [],
+		"bandoriGacha:gacha": [
+			{
+				"key": "bandori:gacha:0",
+				"title": "黄金周纪念·前篇Dream＆KIRAMEKI Festival招募",
+				"show": "丸山彩、CHU²、二叶筑紫、山吹沙绫、宇田川巴、大和麻弥",
+				"roles": [
+					"丸山彩",
+					"CHU²",
+					"二叶筑紫",
+					"山吹沙绫",
+					"宇田川巴",
+					"大和麻弥"
+				],
+				"startTs": 1790647200000,
+				"endTs": 1791694740000,
+				"tz": "Asia/Shanghai",
+				"raw": "9月29日维护后~10月11日12:59",
+				"source": "primary"
+			}
+		],
+		"bandoriGacha:event": [],
+		"bandoriEvent:event": [
+			{
+				"key": "bandori:event:0",
+				"title": "黄金周纪念·前篇Dream＆KIRAMEKI Festival招募",
+				"show": "黄金周纪念·前篇Dream＆KIRAMEKI Festival招募",
+				"startTs": 1790647200000,
+				"endTs": 1791694740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-29 10:00 ~ 10-11 12:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:event:1",
+				"title": "All☆Stars CiRCRiNG Fes!",
+				"show": "All☆Stars CiRCRiNG Fes!",
+				"startTs": 1790647200000,
+				"endTs": 1791989940000,
+				"tz": "Asia/Shanghai",
+				"raw": "9月29日维护后~10月14日22:59",
+				"source": "primary"
+			},
+			{
+				"key": "bandori:event:2",
+				"title": "黄金周纪念★ 5初次获得成员1人确定招募",
+				"show": "黄金周纪念★ 5初次获得成员1人确定招募",
+				"startTs": 1790647200000,
+				"endTs": 1792990740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-29 10:00 ~ 10-26 12:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:event:3",
+				"title": "黄金周纪念★ 5期间限定成员1人确定招募",
+				"show": "黄金周纪念★ 5期间限定成员1人确定招募",
+				"startTs": 1790647200000,
+				"endTs": 1792990740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-29 10:00 ~ 10-26 12:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:event:4",
+				"title": "黄金周纪念★ 5KIRAFES限定成员1人确定招募",
+				"show": "黄金周纪念★ 5KIRAFES限定成员1人确定招募",
+				"startTs": 1790647200000,
+				"endTs": 1792990740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-29 10:00 ~ 10-26 12:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:event:5",
+				"title": "黄金周纪念★ 5DreamFes限定成员1人确定招募",
+				"show": "黄金周纪念★ 5DreamFes限定成员1人确定招募",
+				"startTs": 1790647200000,
+				"endTs": 1792990740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-29 10:00 ~ 10-26 12:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:event:6",
+				"title": "黄金周纪念Step up DreamFes限定成员招募",
+				"show": "黄金周纪念Step up DreamFes限定成员招募",
+				"startTs": 1790647200000,
+				"endTs": 1792990740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-29 10:00 ~ 10-26 12:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:event:7",
+				"title": "超高难度 新SPECIAL难度",
+				"show": "超高难度 新SPECIAL难度",
+				"startTs": 1790647200000,
+				"endTs": 1792990740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-29 10:00 ~ 10-26 12:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:event:8",
+				"title": "黄金周纪念·前篇登录奖励活动",
+				"show": "黄金周纪念·前篇登录奖励活动",
+				"startTs": 1790647200000,
+				"endTs": 1792990740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-29 10:00 ~ 10-26 12:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:event:9",
+				"title": "黄金周纪念徽章",
+				"show": "黄金周纪念徽章",
+				"startTs": 1790647200000,
+				"endTs": 1792990740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-29 10:00 ~ 10-26 12:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:event:10",
+				"title": "黄金周纪念道具交换所",
+				"show": "黄金周纪念道具交换所",
+				"startTs": 1790647200000,
+				"endTs": 1792990740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-29 10:00 ~ 10-26 12:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:event:11",
+				"title": "黄金周纪念 星石充值优惠 ！",
+				"show": "黄金周纪念 星石充值优惠 ！",
+				"startTs": 1790647200000,
+				"endTs": 1792990740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-29 10:00 ~ 10-26 12:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:event:12",
+				"title": "★ 5 期间限定 奇迹招募券礼包",
+				"show": "★ 5 期间限定 奇迹招募券礼包",
+				"startTs": 1790647200000,
+				"endTs": 1792990740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-29 10:00 ~ 10-26 12:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:event:13",
+				"title": "限时纪念豪华道具组合礼包",
+				"show": "限时纪念豪华道具组合礼包",
+				"startTs": 1790647200000,
+				"endTs": 1792990740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-29 10:00 ~ 10-26 12:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:event:14",
+				"title": "黄金周纪念特惠欢乐 BOX",
+				"show": "黄金周纪念特惠欢乐 BOX",
+				"startTs": 1790647200000,
+				"endTs": 1792990740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-29 10:00 ~ 10-26 12:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:event:15",
+				"title": "黄金周纪念 1日1次免费10连招募",
+				"show": "黄金周纪念 1日1次免费10连招募",
+				"startTs": 1790647200000,
+				"endTs": 1794239940000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-29 10:00 ~ 11-09 23:59",
+				"source": "hover"
+			}
+		],
+		"bandoriEvent:gacha": [],
+		"pjskGacha:gacha": [
+			{
+				"key": "pjsk:gacha:0",
+				"title": "T恤服装特惠招募",
+				"show": "T恤服装特惠招募",
+				"roles": [],
+				"startTs": 1789790400000,
+				"endTs": 1790999940000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-19 12:00 ~ 10-03 11:59",
+				"source": "hover"
+			},
+			{
+				"key": "pjsk:gacha:1",
+				"title": "[1.5周年纪念]绚烂节日招募 梦幻Pick",
+				"show": "[1.5周年纪念]绚烂节日招募 梦幻Pick",
+				"roles": [],
+				"startTs": 1790481600000,
+				"endTs": 1791086340000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-27 12:00 ~ 10-04 11:59",
+				"source": "hover"
+			},
+			{
+				"key": "pjsk:gacha:2",
+				"title": "[1.5周年纪念]绚烂节日招募 金色热潮",
+				"show": "[1.5周年纪念]绚烂节日招募 金色热潮",
+				"roles": [],
+				"startTs": 1790481600000,
+				"endTs": 1791086340000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-27 12:00 ~ 10-04 11:59",
+				"source": "hover"
+			},
+			{
+				"key": "pjsk:gacha:3",
+				"title": "缤纷月卡招募",
+				"show": "缤纷月卡招募",
+				"roles": [],
+				"startTs": 1788206400000,
+				"endTs": 1791230340000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-01 04:00 ~ 10-06 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "pjsk:gacha:4",
+				"title": "[桐谷遥]HAPPY BIRTHDAY 2026招募",
+				"show": "[桐谷遥]HAPPY BIRTHDAY 2026招募",
+				"roles": [],
+				"startTs": 1790784000000,
+				"endTs": 1791388740000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-01 00:00 ~ 10-07 23:59",
+				"source": "primary"
+			},
+			{
+				"key": "pjsk:gacha:5",
+				"title": "[桐谷遥]HAPPY BIRTHDAY Memories 招募",
+				"show": "[桐谷遥]HAPPY BIRTHDAY Memories 招募",
+				"roles": [],
+				"startTs": 1790784000000,
+				"endTs": 1791388740000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-01 00:00 ~ 10-07 23:59",
+				"source": "hover"
+			},
+			{
+				"key": "pjsk:gacha:6",
+				"title": "[复刻]Grace Marriage招募",
+				"show": "[复刻]Grace Marriage招募",
+				"roles": [],
+				"startTs": 1790395200000,
+				"endTs": 1791604740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-26 12:00 ~ 10-10 11:59",
+				"source": "hover"
+			},
+			{
+				"key": "pjsk:gacha:7",
+				"title": "[1.5周年纪念][虚拟歌手]高级礼物招募",
+				"show": "[1.5周年纪念][虚拟歌手]高级礼物招募",
+				"roles": [],
+				"startTs": 1790438400000,
+				"endTs": 1791691140000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-27 00:00 ~ 10-11 11:59",
+				"source": "hover"
+			},
+			{
+				"key": "pjsk:gacha:8",
+				"title": "[1.5周年纪念][Leo/need]高级礼物招募",
+				"show": "[1.5周年纪念][Leo/need]高级礼物招募",
+				"roles": [],
+				"startTs": 1790438400000,
+				"endTs": 1791691140000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-27 00:00 ~ 10-11 11:59",
+				"source": "hover"
+			},
+			{
+				"key": "pjsk:gacha:9",
+				"title": "[1.5周年纪念][MORE MORE JUMP！]高级礼物招募",
+				"show": "[1.5周年纪念][MORE MORE JUMP！]高级礼物招募",
+				"roles": [],
+				"startTs": 1790438400000,
+				"endTs": 1791691140000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-27 00:00 ~ 10-11 11:59",
+				"source": "hover"
+			},
+			{
+				"key": "pjsk:gacha:10",
+				"title": "[1.5周年纪念][Vivid BAD SQUAD]高级礼物招募",
+				"show": "[1.5周年纪念][Vivid BAD SQUAD]高级礼物招募",
+				"roles": [],
+				"startTs": 1790438400000,
+				"endTs": 1791691140000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-27 00:00 ~ 10-11 11:59",
+				"source": "hover"
+			},
+			{
+				"key": "pjsk:gacha:11",
+				"title": "[1.5周年纪念][Wonderlands×Showtime]高级礼物招募",
+				"show": "[1.5周年纪念][Wonderlands×Showtime]高级礼物招募",
+				"roles": [],
+				"startTs": 1790438400000,
+				"endTs": 1791691140000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-27 00:00 ~ 10-11 11:59",
+				"source": "hover"
+			},
+			{
+				"key": "pjsk:gacha:12",
+				"title": "[1.5周年纪念][25点，Nightcord见。]高级礼物招募",
+				"show": "[1.5周年纪念][25点，Nightcord见。]高级礼物招募",
+				"roles": [],
+				"startTs": 1790438400000,
+				"endTs": 1791691140000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-27 00:00 ~ 10-11 11:59",
+				"source": "hover"
+			},
+			{
+				"key": "pjsk:gacha:13",
+				"title": "[1.5周年纪念]纪念自选招募",
+				"show": "[1.5周年纪念]纪念自选招募",
+				"roles": [],
+				"startTs": 1790438400000,
+				"endTs": 1791691140000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-27 00:00 ~ 10-11 11:59",
+				"source": "hover"
+			},
+			{
+				"key": "pjsk:gacha:14",
+				"title": "[1.5周年纪念]阶梯招募",
+				"show": "[1.5周年纪念]阶梯招募",
+				"roles": [],
+				"startTs": 1790481600000,
+				"endTs": 1791691140000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-27 12:00 ~ 10-11 11:59",
+				"source": "hover"
+			},
+			{
+				"key": "pjsk:gacha:15",
+				"title": "[1.5周年纪念]免费招募",
+				"show": "[1.5周年纪念]免费招募",
+				"roles": [],
+				"startTs": 1790438400000,
+				"endTs": 1795535940000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-27 00:00 ~ 11-24 23:59",
+				"source": "hover"
+			},
+			{
+				"key": "pjsk:gacha:16",
+				"title": "[邀请朋友]★4成员必出招募",
+				"show": "[邀请朋友]★4成员必出招募",
+				"roles": [],
+				"startTs": 1790222400000,
+				"endTs": 1796054340000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-24 12:00 ~ 11-30 23:59",
+				"source": "hover"
+			}
+		],
+		"pjskGacha:event": [],
+		"pjskEvent:event": [
+			{
+				"key": "pjsk:event:0",
+				"title": "Our Golden Days",
+				"show": "Our Golden Days",
+				"startTs": 1790751600000,
+				"endTs": 1791550740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 15:00 ~ 10-09 20:59",
+				"source": "primary"
+			}
+		],
+		"pjskEvent:gacha": [],
+		"ournotesEvent:event": [
+			{
+				"key": "ournotes:event:0",
+				"title": "「アワーノーツ リリース日決定特番」発表情報まとめ！",
+				"show": "「アワーノーツ リリース日決定特番」発表情報まとめ！",
+				"startTs": 1790175600000,
+				"endTs": 1793167140000,
+				"tz": "Asia/Tokyo",
+				"raw": "2026年9月24日(木)～10月28日(水)14:59",
+				"source": "primary"
+			}
+		],
+		"ournotesEvent:gacha": [],
+		"ournotesGlobalEvent:event": [
+			{
+				"key": "ournotes-global:event:0",
+				"title": "【活動】夏日慶典",
+				"show": "【活動】夏日慶典",
+				"startTs": 1790740800000,
+				"endTs": 1791950340000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026/09/30 12:00 - 2026/10/14 11:59",
+				"source": "primary"
+			}
+		],
+		"ournotesGlobalEvent:gacha": [],
+		"fgoGacha:gacha": [
+			{
+				"key": "fgo:gacha:0",
+				"title": "「OVER THE SAME SKY-SEPTEMBER-」推荐召唤",
+				"show": "阿蒂拉 罗摩 兰斯洛特 魁札尔·科亚特尔 反抗军的Rider 弗兰肯斯坦 谜之女主角X〔Alter〕 阿尔托莉雅·潘德拉贡 芦屋道满 妖精骑士兰斯洛特 库库尔坎 大和武尊 堤丰·厄斐墨洛斯",
+				"roles": [
+					"阿蒂拉 罗摩 兰斯洛特(Saber) 魁札尔·科亚特尔 反抗军的Rider 弗兰肯斯坦 谜之女主角X〔Alter〕 阿尔托莉雅·潘德拉贡(Ruler) 芦屋道满 妖精骑士兰斯洛特 库库尔坎 大和武尊 堤丰·厄斐墨洛斯"
+				],
+				"startTs": 1790074800000,
+				"endTs": 1791266340000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026年9月22日(周二) 19:00 ~ 2026年10月6日(周二) 13:59",
+				"source": "primary"
+			},
+			{
+				"key": "fgo:gacha:1",
+				"title": "唠唠叨叨新选组 THE END推荐召唤2：土方岁三、冲田总司、斋藤一、山南敬助、永仓新八",
+				"show": "唠唠叨叨新选组 THE END推荐召唤2：土方岁三、冲田总司、斋藤一、山南敬助、永仓新八",
+				"roles": [],
+				"startTs": 1790420400000,
+				"endTs": 1792043940000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-26 19:00 ~ 10-15 13:59",
+				"source": "hover"
+			},
+			{
+				"key": "fgo:gacha:2",
+				"title": "唠唠叨叨新选组 THE END 近藤勇推荐召唤：藤堂平助、近藤勇",
+				"show": "唠唠叨叨新选组 THE END 近藤勇推荐召唤：藤堂平助、近藤勇",
+				"roles": [],
+				"startTs": 1790766000000,
+				"endTs": 1792043940000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 19:00 ~ 10-15 13:59",
+				"source": "hover"
+			},
+			{
+				"key": "fgo:gacha:3",
+				"title": "唠唠叨叨新选组 THE END 河上彦斋推荐召唤：河上彦斋、藤堂平助",
+				"show": "唠唠叨叨新选组 THE END 河上彦斋推荐召唤：河上彦斋、藤堂平助",
+				"roles": [],
+				"startTs": 1790247600000,
+				"endTs": 1792648740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-24 19:00 ~ 10-22 13:59",
+				"source": "hover"
+			}
+		],
+		"fgoGacha:event": [],
+		"fgoEvent:event": [
+			{
+				"key": "fgo:event:0",
+				"title": "迦勒底·U－夏日岛 ～总统会梦见夏日吗？～",
+				"show": "迦勒底·U－夏日岛 ～总统会梦见夏日吗？～",
+				"startTs": 1786172400000,
+				"endTs": 1787983140000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026年8月8日(周六)15:00 ~ 2026年8月29日(周六)13:59",
+				"source": "primary",
+				"cat": "Event"
+			},
+			{
+				"key": "fgo:event:1",
+				"title": "「总统特异点」通关应援纪念活动 第2弹",
+				"show": "「总统特异点」通关应援纪念活动 第2弹",
+				"startTs": 1784876400000,
+				"endTs": 1788328740000,
+				"tz": "Asia/Shanghai",
+				"raw": "07-24 15:00 ~ 09-02 13:59",
+				"source": "hover",
+				"cat": "Campaign"
+			},
+			{
+				"key": "fgo:event:2",
+				"title": "「冠位戴冠战：Extra」开幕前夕纪念活动",
+				"show": "「冠位戴冠战：Extra」开幕前夕纪念活动",
+				"startTs": 1785297600000,
+				"endTs": 1788415140000,
+				"tz": "Asia/Shanghai",
+				"raw": "07-29 12:00 ~ 09-03 13:59",
+				"source": "hover",
+				"cat": "Campaign"
+			},
+			{
+				"key": "fgo:event:3",
+				"title": "Final Order Project [Lostbelt No.1]通关应援纪念活动",
+				"show": "Final Order Project [Lostbelt No.1]通关应援纪念活动",
+				"startTs": 1786446000000,
+				"endTs": 1793426340000,
+				"tz": "Asia/Shanghai",
+				"raw": "08-11 19:00 ~ 10-31 13:59",
+				"source": "hover",
+				"cat": "Campaign"
+			},
+			{
+				"key": "fgo:event:4",
+				"title": "Final Order Project [Lostbelt No.2]通关应援纪念活动",
+				"show": "Final Order Project [Lostbelt No.2]通关应援纪念活动",
+				"startTs": 1787050800000,
+				"endTs": 1793426340000,
+				"tz": "Asia/Shanghai",
+				"raw": "08-18 19:00 ~ 10-31 13:59",
+				"source": "hover",
+				"cat": "Campaign"
+			}
+		],
+		"fgoEvent:gacha": [],
+		"gf2Gacha:gacha": [
+			{
+				"key": "gf2:gacha:0",
+				"title": "代理人、莉塔拉、科谢尼娅限时概率UP活动现已开启！",
+				"show": "代理人、莉塔拉、科谢尼娅",
+				"roles": [
+					"代理人",
+					"莉塔拉",
+					"科谢尼娅"
+				],
+				"startTs": 1790049600000,
+				"endTs": 1791853140000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026年9月22日 版本更新后~2026年10月13日 08:59",
+				"source": "primary"
+			}
+		],
+		"gf2Gacha:event": [],
+		"gf2Event:event": [
+			{
+				"key": "gf2:event:0",
+				"title": "【静默突触】现已开启",
+				"show": "【静默突触】现已开启",
+				"startTs": 1790049600000,
+				"endTs": 1793667540000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026年9月22日 版本更新后~2026年11月3日 08:59",
+				"source": "primary"
+			}
+		],
+		"gf2Event:gacha": [],
+		"p5xGacha:gacha": [
+			{
+				"key": "p5x:gacha:0",
+				"title": "缘结之契开启",
+				"show": "汐见琴音",
+				"roles": [
+					"汐见琴音"
+				],
+				"startTs": 1790193600000,
+				"endTs": 1792612740000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026年9月24日—2026年10月22日",
+				"source": "primary"
+			}
+		],
+		"p5xGacha:event": [],
+		"p5xEvent:event": [
+			{
+				"key": "p5x:event:0",
+				"title": "2.5周年时光庆典",
+				"show": "2.5周年时光庆典",
+				"startTs": 1790193600000,
+				"endTs": 1792612740000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026年9月24日—10月22日更新前",
+				"source": "primary"
+			},
+			{
+				"key": "p5x:event:1",
+				"title": "怪盗团团长的特训日程",
+				"show": "怪盗团团长的特训日程",
+				"startTs": 1790193600000,
+				"endTs": 1792612740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-24 04:00 ~ 10-22 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "p5x:event:2",
+				"title": "2.5周年庆典特别福利",
+				"show": "2.5周年庆典特别福利",
+				"startTs": 1790193600000,
+				"endTs": 1792612740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-24 04:00 ~ 10-22 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "p5x:event:3",
+				"title": "2.5周年特别礼包",
+				"show": "2.5周年特别礼包",
+				"startTs": 1790193600000,
+				"endTs": 1792612740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-24 04:00 ~ 10-22 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "p5x:event:4",
+				"title": "2.5周年特别回馈",
+				"show": "2.5周年特别回馈",
+				"startTs": 1790193600000,
+				"endTs": 1792612740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-24 04:00 ~ 10-22 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "p5x:event:5",
+				"title": "2.5周年魅影通行证",
+				"show": "2.5周年魅影通行证",
+				"startTs": 1790193600000,
+				"endTs": 1795031940000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-24 04:00 ~ 11-19 03:59",
+				"source": "hover"
+			}
+		],
+		"p5xEvent:gacha": [],
+		"nteGacha:gacha": [
+			{
+				"key": "nte:gacha:0",
+				"title": "限定棋盘",
+				"show": "明音凛",
+				"roles": [
+					"明音凛"
+				],
+				"startTs": 1792033200000,
+				"endTs": 1793829540000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-15 11:00 ~ 11-05 05:59",
+				"source": "primary"
+			}
+		],
+		"nteGacha:event": [
+			{
+				"key": "nte:event:0",
+				"title": "咔滋！黄金双脆",
+				"show": "咔滋！黄金双脆",
+				"startTs": 1792033200000,
+				"endTs": 1793829540000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-15 11:00 ~ 11-05 05:59",
+				"source": "primary"
+			}
+		],
+		"nteEvent:event": [
+			{
+				"key": "nte:event:0",
+				"title": "咔滋！黄金双脆",
+				"show": "咔滋！黄金双脆",
+				"startTs": 1792033200000,
+				"endTs": 1793829540000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-15 11:00 ~ 11-05 05:59",
+				"source": "primary"
+			}
+		],
+		"nteEvent:gacha": [
+			{
+				"key": "nte:gacha:0",
+				"title": "限定棋盘",
+				"show": "明音凛",
+				"roles": [
+					"明音凛"
+				],
+				"startTs": 1792033200000,
+				"endTs": 1793829540000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-15 11:00 ~ 11-05 05:59",
+				"source": "primary"
+			}
+		],
+		"stellasoraGacha:gacha": [
+			{
+				"key": "stellasora:gacha:0",
+				"title": "「沐于温情笑意中」",
+				"show": "「沐于温情笑意中」",
+				"roles": [],
+				"startTs": 1790672400000,
+				"endTs": 1792465140000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026/09/29 维护结束后 ~ 2026/10/20 10:59",
+				"source": "primary"
+			},
+			{
+				"key": "stellasora:gacha:1",
+				"title": "「空白的稚梦」：睡前童话",
+				"show": "「空白的稚梦」：睡前童话",
+				"roles": [],
+				"startTs": 1790672400000,
+				"endTs": 1792465140000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-29 17:00 ~ 10-20 10:59",
+				"source": "hover"
+			}
+		],
+		"stellasoraGacha:event": [],
+		"stellasoraEvent:event": [
+			{
+				"key": "stellasora:event:0",
+				"title": "「灾变防线」活动说明",
+				"show": "「灾变防线」活动说明",
+				"startTs": 1790479800000,
+				"endTs": 1792465140000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-27 11:30 ~ 10-20 10:59",
+				"source": "hover"
+			},
+			{
+				"key": "stellasora:event:1",
+				"title": "「联合讨伐」活动说明",
+				"show": "「联合讨伐」活动说明",
+				"startTs": 1790798400000,
+				"endTs": 1793372340000,
+				"tz": "Asia/Shanghai",
+				"raw": "活动时间：2026/10/01 04:00 ~ 2026/10/30 22:59",
+				"source": "primary"
+			}
+		],
+		"stellasoraEvent:gacha": [],
+		"baCnGacha:gacha": [
+			{
+				"key": "ba-cn:gacha:0",
+				"title": "限时招募",
+				"show": "夏(乐队)、和纱(乐队)、好美(乐队)",
+				"roles": [
+					"夏(乐队)",
+					"和纱(乐队)",
+					"好美(乐队)"
+				],
+				"startTs": 1791439200000,
+				"endTs": 1792648740000,
+				"tz": "Asia/Shanghai",
+				"raw": "",
+				"source": "primary"
+			}
+		],
+		"baCnGacha:event": [
+			{
+				"key": "ba-cn:event:0",
+				"title": "限时活动：沙勒总决算",
+				"show": "限时活动：沙勒总决算",
+				"startTs": 1791403200000,
+				"endTs": 1792648740000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-08 04:00 ~ 10-22 13:59",
+				"source": "hover"
+			},
+			{
+				"key": "ba-cn:event:1",
+				"title": "限时活动：-ive aLIVE!",
+				"show": "限时活动：-ive aLIVE!",
+				"startTs": 1791439200000,
+				"endTs": 1792648740000,
+				"tz": "Asia/Shanghai",
+				"raw": "",
+				"source": "primary"
+			},
+			{
+				"key": "ba-cn:event:2",
+				"title": "掉落量3倍活动即将开启！",
+				"show": "掉落量3倍活动即将开启！",
+				"startTs": 1792008000000,
+				"endTs": 1792699140000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-15 04:00 ~ 10-23 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "ba-cn:event:3",
+				"title": "无限制决战：提翡瑞 • 重装甲",
+				"show": "无限制决战：提翡瑞 • 重装甲",
+				"startTs": 1791525600000,
+				"endTs": 1793217540000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-09 14:00 ~ 10-29 03:59",
+				"source": "hover"
+			}
+		],
+		"baCnEvent:event": [
+			{
+				"key": "ba-cn:event:0",
+				"title": "限时活动：沙勒总决算",
+				"show": "限时活动：沙勒总决算",
+				"startTs": 1791403200000,
+				"endTs": 1792648740000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-08 04:00 ~ 10-22 13:59",
+				"source": "hover"
+			},
+			{
+				"key": "ba-cn:event:1",
+				"title": "限时活动：-ive aLIVE!",
+				"show": "限时活动：-ive aLIVE!",
+				"startTs": 1791439200000,
+				"endTs": 1792648740000,
+				"tz": "Asia/Shanghai",
+				"raw": "",
+				"source": "primary"
+			},
+			{
+				"key": "ba-cn:event:2",
+				"title": "掉落量3倍活动即将开启！",
+				"show": "掉落量3倍活动即将开启！",
+				"startTs": 1792008000000,
+				"endTs": 1792699140000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-15 04:00 ~ 10-23 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "ba-cn:event:3",
+				"title": "无限制决战：提翡瑞 • 重装甲",
+				"show": "无限制决战：提翡瑞 • 重装甲",
+				"startTs": 1791525600000,
+				"endTs": 1793217540000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-09 14:00 ~ 10-29 03:59",
+				"source": "hover"
+			}
+		],
+		"baCnEvent:gacha": [
+			{
+				"key": "ba-cn:gacha:0",
+				"title": "限时招募",
+				"show": "夏(乐队)、和纱(乐队)、好美(乐队)",
+				"roles": [
+					"夏(乐队)",
+					"和纱(乐队)",
+					"好美(乐队)"
+				],
+				"startTs": 1791439200000,
+				"endTs": 1792648740000,
+				"tz": "Asia/Shanghai",
+				"raw": "",
+				"source": "primary"
+			}
+		],
+		"r1999Gacha:gacha": [
+			{
+				"key": "r1999:gacha:0",
+				"title": "「明日之础」轮换征集",
+				"show": "「明日之础」轮换征集",
+				"roles": [],
+				"startTs": 1793048400000,
+				"endTs": 1794257940000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-27 05:00 ~ 11-10 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:gacha:1",
+				"title": "「果实的赤红」活动征集",
+				"show": "佩施塔、气球派对、挖掘艺术",
+				"roles": [
+					"佩施塔（星）",
+					"气球派对（岩）",
+					"挖掘艺术（木）"
+				],
+				"startTs": 1793844000000,
+				"endTs": 1795640340000,
+				"tz": "Asia/Shanghai",
+				"raw": "11/5 10:00 - 11/26 4:59",
+				"source": "primary"
+			},
+			{
+				"key": "r1999:gacha:2",
+				"title": "「湖的涟漪」限时征集：自选 1 位 6★",
+				"show": "「湖的涟漪」限时征集：自选 1 位 6★",
+				"roles": [],
+				"startTs": 1793844000000,
+				"endTs": 1796849940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-10 04:59",
+				"source": "hover"
+			}
+		],
+		"r1999Gacha:event": [
+			{
+				"key": "r1999:event:0",
+				"title": "佩施塔·雪红与玫瑰白",
+				"show": "佩施塔·雪红与玫瑰白",
+				"startTs": 1793844000000,
+				"endTs": 1795640340000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 11-26 04:59",
+				"source": "primary"
+			},
+			{
+				"key": "r1999:event:1",
+				"title": "亚特兰蒂斯谋杀案·上篇",
+				"show": "亚特兰蒂斯谋杀案·上篇",
+				"startTs": 1793844000000,
+				"endTs": 1795640340000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 11-26 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:2",
+				"title": "推理演绎",
+				"show": "推理演绎",
+				"startTs": 1793844000000,
+				"endTs": 1796590740000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-07 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:3",
+				"title": "烟斗客指津",
+				"show": "烟斗客指津",
+				"startTs": 1793844000000,
+				"endTs": 1796590740000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-07 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:4",
+				"title": "吼吼点唱机：余下的真相",
+				"show": "吼吼点唱机：余下的真相",
+				"startTs": 1793844000000,
+				"endTs": 1796763540000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-09 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:5",
+				"title": "亚特兰蒂斯谋杀案",
+				"show": "亚特兰蒂斯谋杀案",
+				"startTs": 1793844000000,
+				"endTs": 1796849940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-10 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:6",
+				"title": "红鲱鱼推理爱好社",
+				"show": "红鲱鱼推理爱好社",
+				"startTs": 1793844000000,
+				"endTs": 1796849940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-10 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:7",
+				"title": "幸存者游戏",
+				"show": "幸存者游戏",
+				"startTs": 1793844000000,
+				"endTs": 1796849940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-10 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:8",
+				"title": "狂想与解构",
+				"show": "狂想与解构",
+				"startTs": 1793844000000,
+				"endTs": 1796849940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-10 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:9",
+				"title": "鬃毛邮报",
+				"show": "鬃毛邮报",
+				"startTs": 1793844000000,
+				"endTs": 1796849940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-10 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:10",
+				"title": "星光礼赠",
+				"show": "星光礼赠",
+				"startTs": 1793844000000,
+				"endTs": 1796849940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-10 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:11",
+				"title": "衣着风尚",
+				"show": "衣着风尚",
+				"startTs": 1793844000000,
+				"endTs": 1796849940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-10 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:12",
+				"title": "注定之城",
+				"show": "注定之城",
+				"startTs": 1793844000000,
+				"endTs": 1796849940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-10 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:13",
+				"title": "焦点闪回",
+				"show": "焦点闪回",
+				"startTs": 1793998800000,
+				"endTs": 1796849940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-07 05:00 ~ 12-10 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:14",
+				"title": "书页与小憩",
+				"show": "书页与小憩",
+				"startTs": 1793844000000,
+				"endTs": 1798664340000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-31 04:59",
+				"source": "hover"
+			}
+		],
+		"r1999Event:event": [
+			{
+				"key": "r1999:event:0",
+				"title": "佩施塔·雪红与玫瑰白",
+				"show": "佩施塔·雪红与玫瑰白",
+				"startTs": 1793844000000,
+				"endTs": 1795640340000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 11-26 04:59",
+				"source": "primary"
+			},
+			{
+				"key": "r1999:event:1",
+				"title": "亚特兰蒂斯谋杀案·上篇",
+				"show": "亚特兰蒂斯谋杀案·上篇",
+				"startTs": 1793844000000,
+				"endTs": 1795640340000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 11-26 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:2",
+				"title": "推理演绎",
+				"show": "推理演绎",
+				"startTs": 1793844000000,
+				"endTs": 1796590740000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-07 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:3",
+				"title": "烟斗客指津",
+				"show": "烟斗客指津",
+				"startTs": 1793844000000,
+				"endTs": 1796590740000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-07 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:4",
+				"title": "吼吼点唱机：余下的真相",
+				"show": "吼吼点唱机：余下的真相",
+				"startTs": 1793844000000,
+				"endTs": 1796763540000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-09 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:5",
+				"title": "亚特兰蒂斯谋杀案",
+				"show": "亚特兰蒂斯谋杀案",
+				"startTs": 1793844000000,
+				"endTs": 1796849940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-10 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:6",
+				"title": "红鲱鱼推理爱好社",
+				"show": "红鲱鱼推理爱好社",
+				"startTs": 1793844000000,
+				"endTs": 1796849940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-10 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:7",
+				"title": "幸存者游戏",
+				"show": "幸存者游戏",
+				"startTs": 1793844000000,
+				"endTs": 1796849940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-10 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:8",
+				"title": "狂想与解构",
+				"show": "狂想与解构",
+				"startTs": 1793844000000,
+				"endTs": 1796849940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-10 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:9",
+				"title": "鬃毛邮报",
+				"show": "鬃毛邮报",
+				"startTs": 1793844000000,
+				"endTs": 1796849940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-10 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:10",
+				"title": "星光礼赠",
+				"show": "星光礼赠",
+				"startTs": 1793844000000,
+				"endTs": 1796849940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-10 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:11",
+				"title": "衣着风尚",
+				"show": "衣着风尚",
+				"startTs": 1793844000000,
+				"endTs": 1796849940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-10 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:12",
+				"title": "注定之城",
+				"show": "注定之城",
+				"startTs": 1793844000000,
+				"endTs": 1796849940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-10 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:13",
+				"title": "焦点闪回",
+				"show": "焦点闪回",
+				"startTs": 1793998800000,
+				"endTs": 1796849940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-07 05:00 ~ 12-10 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:event:14",
+				"title": "书页与小憩",
+				"show": "书页与小憩",
+				"startTs": 1793844000000,
+				"endTs": 1798664340000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-31 04:59",
+				"source": "hover"
+			}
+		],
+		"r1999Event:gacha": [
+			{
+				"key": "r1999:gacha:0",
+				"title": "「明日之础」轮换征集",
+				"show": "「明日之础」轮换征集",
+				"roles": [],
+				"startTs": 1793048400000,
+				"endTs": 1794257940000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-27 05:00 ~ 11-10 04:59",
+				"source": "hover"
+			},
+			{
+				"key": "r1999:gacha:1",
+				"title": "「果实的赤红」活动征集",
+				"show": "佩施塔、气球派对、挖掘艺术",
+				"roles": [
+					"佩施塔（星）",
+					"气球派对（岩）",
+					"挖掘艺术（木）"
+				],
+				"startTs": 1793844000000,
+				"endTs": 1795640340000,
+				"tz": "Asia/Shanghai",
+				"raw": "11/5 10:00 - 11/26 4:59",
+				"source": "primary"
+			},
+			{
+				"key": "r1999:gacha:2",
+				"title": "「湖的涟漪」限时征集：自选 1 位 6★",
+				"show": "「湖的涟漪」限时征集：自选 1 位 6★",
+				"roles": [],
+				"startTs": 1793844000000,
+				"endTs": 1796849940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 10:00 ~ 12-10 04:59",
+				"source": "hover"
+			}
+		],
+		"baGlobalGacha:gacha": [
+			{
+				"key": "ba-global:gacha:0",
+				"title": "特选招募",
+				"show": "真琴、亚子(礼服)、皐月、千秋、环奈(泳装)",
+				"roles": [
+					"真琴",
+					"亚子(礼服)",
+					"皐月",
+					"千秋",
+					"环奈(泳装)"
+				],
+				"startTs": 1793664000000,
+				"endTs": 1794268800000,
+				"tz": "UTC",
+				"raw": "",
+				"source": "primary"
+			}
+		],
+		"baGlobalGacha:event": [
+			{
+				"key": "ba-global:event:0",
+				"title": "海兰德铁道暴走事件～于是列车消失了~ 复刻",
+				"show": "海兰德铁道暴走事件～于是列车消失了~ 复刻",
+				"startTs": 1793059200000,
+				"endTs": 1794268800000,
+				"tz": "UTC",
+				"raw": "",
+				"source": "primary"
+			}
+		],
+		"baGlobalEvent:event": [
+			{
+				"key": "ba-global:event:0",
+				"title": "海兰德铁道暴走事件～于是列车消失了~ 复刻",
+				"show": "海兰德铁道暴走事件～于是列车消失了~ 复刻",
+				"startTs": 1793059200000,
+				"endTs": 1794268800000,
+				"tz": "UTC",
+				"raw": "",
+				"source": "primary"
+			}
+		],
+		"baGlobalEvent:gacha": [
+			{
+				"key": "ba-global:gacha:0",
+				"title": "特选招募",
+				"show": "真琴、亚子(礼服)、皐月、千秋、环奈(泳装)",
+				"roles": [
+					"真琴",
+					"亚子(礼服)",
+					"皐月",
+					"千秋",
+					"环奈(泳装)"
+				],
+				"startTs": 1793664000000,
+				"endTs": 1794268800000,
+				"tz": "UTC",
+				"raw": "",
+				"source": "primary"
+			}
+		],
+		"baJpGacha:gacha": [
+			{
+				"key": "ba-jp:gacha:0",
+				"title": "無限の軌道は希望なりや！",
+				"show": "ヒフミ(レーシング)、アズサ(レーシング)",
+				"roles": [
+					"ヒフミ(レーシング)",
+					"アズサ(レーシング)"
+				],
+				"startTs": 1793181600000,
+				"endTs": 1794362340000,
+				"tz": "Asia/Tokyo",
+				"raw": "メンテナンス後 ~ 2026年11月11日(水) 10:59",
+				"source": "primary"
+			},
+			{
+				"key": "ba-jp:gacha:1",
+				"title": "無限の軌道は希望なりや！：ヒフミ(レーシング)",
+				"show": "無限の軌道は希望なりや！：ヒフミ(レーシング)",
+				"roles": [],
+				"startTs": 1793181600000,
+				"endTs": 1794362340000,
+				"tz": "Asia/Tokyo",
+				"raw": "10-28 19:00 ~ 11-11 10:59",
+				"source": "hover"
+			},
+			{
+				"key": "ba-jp:gacha:2",
+				"title": "夢幻の機動は奇謀なりや？：アズサ(レーシング)",
+				"show": "夢幻の機動は奇謀なりや？：アズサ(レーシング)",
+				"roles": [],
+				"startTs": 1793181600000,
+				"endTs": 1794362340000,
+				"tz": "Asia/Tokyo",
+				"raw": "10-28 19:00 ~ 11-11 10:59",
+				"source": "hover"
+			}
+		],
+		"baJpGacha:event": [],
+		"baJpEvent:event": [
+			{
+				"key": "ba-jp:event:0",
+				"title": "Start Your Engines!",
+				"show": "Start Your Engines!",
+				"startTs": 1793113200000,
+				"endTs": 1794322800000,
+				"tz": "Asia/Tokyo",
+				"raw": "",
+				"source": "primary"
+			}
+		],
+		"baJpEvent:gacha": [
+			{
+				"key": "ba-jp:gacha:0",
+				"title": "Start Your Engines！ ～永远的183号班～",
+				"show": "Start Your Engines！ ～永远的183号班～",
+				"roles": [],
+				"startTs": 1793113200000,
+				"endTs": 1794322800000,
+				"tz": "Asia/Tokyo",
+				"raw": "",
+				"source": "primary"
+			}
+		],
+		"endfieldGacha:gacha": [
+			{
+				"key": "endfield:gacha:0",
+				"title": "「祖泉的新流」重构寻访",
+				"show": "明河、汤汤",
+				"roles": [
+					"明河",
+					"汤汤"
+				],
+				"startTs": 1793246400000,
+				"endTs": 1795060800000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-29 12:00 ~ 11-19 12:00",
+				"source": "primary"
+			},
+			{
+				"key": "endfield:gacha:1",
+				"title": "「祖泉的新流」重构寻访：汤汤",
+				"show": "「祖泉的新流」重构寻访：汤汤",
+				"roles": [],
+				"startTs": 1793246400000,
+				"endTs": 1795060800000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-29 12:00 ~ 11-19 12:00",
+				"source": "hover"
+			},
+			{
+				"key": "endfield:gacha:2",
+				"title": "「烟火邀星河」特许寻访：明河",
+				"show": "「烟火邀星河」特许寻访：明河",
+				"roles": [],
+				"startTs": 1793851200000,
+				"endTs": 1798689540000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026-11-05 12:00 ~ 2099-12-31 11:59",
+				"source": "hover"
+			}
+		],
+		"endfieldGacha:event": [],
+		"endfieldEvent:event": [
+			{
+				"key": "endfield:event:0",
+				"title": "予众魂的新光影",
+				"show": "予众魂的新光影",
+				"startTs": 1793419200000,
+				"endTs": 1794600000000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-31 12:00 ~ 11-14 04:00",
+				"source": "hover"
+			},
+			{
+				"key": "endfield:event:1",
+				"title": "百趣演武",
+				"show": "百趣演武",
+				"startTs": 1793246400000,
+				"endTs": 1795032000000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-29 12:00 ~ 11-19 04:00",
+				"source": "primary"
+			},
+			{
+				"key": "endfield:event:2",
+				"title": "烟火生缘",
+				"show": "烟火生缘",
+				"startTs": 1792018800000,
+				"endTs": 1795557600000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-15 07:00 ~ 11-25 06:00",
+				"source": "hover"
+			},
+			{
+				"key": "endfield:event:3",
+				"title": "星河共我签到",
+				"show": "星河共我签到",
+				"startTs": 1793851200000,
+				"endTs": 1795557600000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 12:00 ~ 11-25 06:00",
+				"source": "hover"
+			},
+			{
+				"key": "endfield:event:4",
+				"title": "作战演练",
+				"show": "作战演练",
+				"startTs": 1793851200000,
+				"endTs": 1795557600000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 12:00 ~ 11-25 06:00",
+				"source": "hover"
+			},
+			{
+				"key": "endfield:event:5",
+				"title": "归野",
+				"show": "归野",
+				"startTs": 1793851200000,
+				"endTs": 1795557600000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 12:00 ~ 11-25 06:00",
+				"source": "hover"
+			}
+		],
+		"endfieldEvent:gacha": [],
+		"baCnMaintText:gacha": [
+			{
+				"key": "ba-cn:gacha:0",
+				"title": "限时限定招募",
+				"show": "莲见(泳装)、圣娅(泳装)",
+				"roles": [
+					"莲见(泳装)",
+					"圣娅(泳装)"
+				],
+				"startTs": 1790229600000,
+				"endTs": 1791439140000,
+				"tz": "Asia/Shanghai",
+				"raw": "",
+				"source": "primary"
+			}
+		],
+		"baCnMaintText:event": [
+			{
+				"key": "ba-cn:event:0",
+				"title": "夏日天空的约定",
+				"show": "夏日天空的约定",
+				"startTs": 1790229600000,
+				"endTs": 1792648740000,
+				"tz": "Asia/Shanghai",
+				"raw": "",
+				"source": "primary"
+			}
+		],
+		"arknightsPrtsGacha:gacha": [
+			{
+				"key": "arknights:gacha:0",
+				"title": "中坚干员轮换卡池77：阿、莫斯提马、普罗旺斯、月禾、红",
+				"show": "中坚干员轮换卡池77：阿、莫斯提马、普罗旺斯、月禾、红",
+				"roles": [],
+				"startTs": 1793217600000,
+				"endTs": 1794427140000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-29 04:00 ~ 11-12 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "arknights:gacha:1",
+				"title": "【限定寻访·庆典】将雪投火",
+				"show": "塔露拉、冻河",
+				"roles": [
+					"塔露拉",
+					"冻河"
+				],
+				"startTs": 1793505600000,
+				"endTs": 1794686340000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-01 12:00 ~ 11-15 03:59",
+				"source": "primary"
+			},
+			{
+				"key": "arknights:gacha:2",
+				"title": "干员轮换卡池197：薇薇安娜、隐德来希、深律、但书、阿罗玛",
+				"show": "干员轮换卡池197：薇薇安娜、隐德来希、深律、但书、阿罗玛",
+				"roles": [],
+				"startTs": 1793822400000,
+				"endTs": 1795031940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 04:00 ~ 11-19 03:59",
+				"source": "hover"
+			}
+		],
+		"arknightsEventList:event": [
+			{
+				"key": "arknights:event:0",
+				"title": "视相博物馆：演化",
+				"show": "视相博物馆：演化",
+				"startTs": 1792828800000,
+				"endTs": 1793995140000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-24 16:00 ~ 11-07 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "arknights:event:1",
+				"title": "登录活动：感谢庆典2026限时签到",
+				"show": "登录活动：感谢庆典2026限时签到",
+				"startTs": 1793505600000,
+				"endTs": 1794686340000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-01 12:00 ~ 11-15 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "arknights:event:2",
+				"title": "支线故事：时间啊，向前！",
+				"show": "支线故事：时间啊，向前！",
+				"startTs": 1793505600000,
+				"endTs": 1795291140000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-01 12:00 ~ 11-29 03:59",
+				"source": "primary",
+				"phase": {
+					"kind": "claim",
+					"startTs": 1795291140000,
+					"endTs": 1795895940000,
+					"show": "支线故事：时间啊，向前！ 兑换截止"
+				}
+			}
+		],
+		"wuwaPoolBwiki:gacha": [
+			{
+				"key": "wuwa:gacha:0",
+				"title": "角色换召池",
+				"show": "锁暝、灯灯、丹瑾、炽霞",
+				"roles": [
+					"锁暝",
+					"灯灯",
+					"丹瑾",
+					"炽霞"
+				],
+				"startTs": 1792634400000,
+				"endTs": 1794369540000,
+				"tz": "Asia/Shanghai",
+				"raw": "",
+				"source": "primary"
+			}
+		],
+		"wuwaEventBwiki:event": [
+			{
+				"key": "wuwa:event:0",
+				"title": "「无音消除」休闲活动",
+				"show": "「无音消除」休闲活动",
+				"startTs": 1792634400000,
+				"endTs": 1794167940000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-22 10:00 ~ 11-09 03:59",
+				"source": "primary"
+			},
+			{
+				"key": "wuwa:event:1",
+				"title": "「朝月赠礼」3.7版本限时签到",
+				"show": "「朝月赠礼」3.7版本限时签到",
+				"startTs": 1790737200000,
+				"endTs": 1794340740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 11:00 ~ 11-11 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "wuwa:event:2",
+				"title": "「梦构匣中」区域探索活动",
+				"show": "「梦构匣中」区域探索活动",
+				"startTs": 1790737200000,
+				"endTs": 1794340740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 11:00 ~ 11-11 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "wuwa:event:3",
+				"title": "「凭栏听雨之礼」限时签到活动",
+				"show": "「凭栏听雨之礼」限时签到活动",
+				"startTs": 1792634400000,
+				"endTs": 1794340740000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-22 10:00 ~ 11-11 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "wuwa:event:4",
+				"title": "「踏潮探历·玄方地界」限时探索委托活动",
+				"show": "「踏潮探历·玄方地界」限时探索委托活动",
+				"startTs": 1793217600000,
+				"endTs": 1794340740000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-29 04:00 ~ 11-11 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "wuwa:event:5",
+				"title": "「声弦涤荡」声骸材料限时双倍",
+				"show": "「声弦涤荡」声骸材料限时双倍",
+				"startTs": 1793736000000,
+				"endTs": 1794340740000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-04 04:00 ~ 11-11 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "wuwa:event:6",
+				"title": "「先约电台」版本通行证",
+				"show": "「先约电台」版本通行证",
+				"startTs": 1790737200000,
+				"endTs": 1794369540000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 11:00 ~ 11-11 11:59",
+				"source": "hover"
+			},
+			{
+				"key": "wuwa:event:7",
+				"title": "「团团勇者大乱斗」休闲活动",
+				"show": "「团团勇者大乱斗」休闲活动",
+				"startTs": 1790737200000,
+				"endTs": 1794369540000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 11:00 ~ 11-11 11:59",
+				"source": "hover"
+			},
+			{
+				"key": "wuwa:event:8",
+				"title": "「索拉里斯回归邀约」网页活动",
+				"show": "「索拉里斯回归邀约」网页活动",
+				"startTs": 1790737200000,
+				"endTs": 1794412740000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-30 11:00 ~ 11-11 23:59",
+				"source": "hover"
+			}
+		],
+		"zzzBwikiGacha:gacha": [
+			{
+				"key": "zzz:gacha:0",
+				"title": "「倾掷浮生」039-1期独家频段",
+				"show": "菲欧妮、维琳娜",
+				"roles": [
+					"菲欧妮（异常·火）",
+					"维琳娜（异常·风）"
+				],
+				"startTs": 1792479540000,
+				"endTs": 1794283140000,
+				"tz": "Asia/Shanghai",
+				"raw": "3.3版本更新后 ~ 11-10 11:59",
+				"source": "primary"
+			}
+		],
+		"baGlobalNexonGacha:gacha": [
+			{
+				"key": "ba-global:gacha:0",
+				"title": "特別特選招募",
+				"show": "真琴、亞子(禮服)",
+				"roles": [
+					"真琴",
+					"亞子(禮服)"
+				],
+				"startTs": 1793700000000,
+				"endTs": 1794304740000,
+				"tz": "UTC",
+				"raw": "",
+				"source": "primary"
+			}
+		],
+		"endfieldGachatracker:gacha": [
+			{
+				"key": "endfield:gacha:0",
+				"title": "Winter Hunt",
+				"show": "Typhoeus、Liino、Arcane",
+				"roles": [
+					"Typhoeus",
+					"Liino",
+					"Arcane"
+				],
+				"startTs": 1788278400000,
+				"endTs": 1790697540000,
+				"tz": "Asia/Shanghai",
+				"raw": "",
+				"source": "primary"
+			}
+		],
+		"endfieldWikigg:gacha": [
+			{
+				"key": "endfield:gacha:0",
+				"title": "The Hearth Fire Beckons the Starry Flow",
+				"show": "Argent Flow、Si",
+				"roles": [
+					"Argent Flow",
+					"Si"
+				],
+				"startTs": 1793851200000,
+				"endTs": 1795665540000,
+				"tz": "Asia/Shanghai",
+				"raw": "",
+				"source": "primary"
+			}
+		],
+		"endfieldGame8:event": [
+			{
+				"key": "endfield:event:0",
+				"title": "Log In",
+				"show": "Log In",
+				"startTs": 1791993600000,
+				"endTs": 1795622340000,
+				"tz": "Asia/Shanghai",
+				"raw": "10-15 00:00 ~ 11-25 23:59",
+				"source": "primary"
+			}
+		],
+		"r1999OfficialGacha:gacha": [
+			{
+				"key": "r1999:gacha:0",
+				"title": "佩施塔",
+				"show": "佩施塔、伊芙琳",
+				"roles": [
+					"佩施塔",
+					"伊芙琳"
+				],
+				"startTs": null,
+				"endTs": null,
+				"tz": "Asia/Shanghai",
+				"raw": "",
+				"source": "primary"
+			}
+		],
+		"r1999OfficialEvent:event": [
+			{
+				"key": "r1999:event:0",
+				"title": "雪红与玫瑰白",
+				"show": "雪红与玫瑰白",
+				"startTs": null,
+				"endTs": null,
+				"tz": "Asia/Shanghai",
+				"raw": "",
+				"source": "primary"
+			}
+		],
+		"bandoriBestdoriGacha:gacha": [
+			{
+				"key": "bandori:gacha:0",
+				"title": "黄金周纪念★5确定招募券招募",
+				"show": "黄金周纪念★5确定招募券招募",
+				"roles": [],
+				"startTs": 1790647200000,
+				"endTs": 1794200340000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-29 10:00 ~ 11-09 12:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:gacha:1",
+				"title": "黄金周纪念★4以上确定招募券招募",
+				"show": "黄金周纪念★4以上确定招募券招募",
+				"roles": [],
+				"startTs": 1790647200000,
+				"endTs": 1794200340000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-29 10:00 ~ 11-09 12:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:gacha:2",
+				"title": "黄金周纪念1日1次免费10连招募",
+				"show": "黄金周纪念1日1次免费10连招募",
+				"roles": [],
+				"startTs": 1790647200000,
+				"endTs": 1794239940000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-29 10:00 ~ 11-09 23:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:gacha:3",
+				"title": "驶向拂晓之空，闪耀着希望的启航招募",
+				"show": "驶向拂晓之空，闪耀着希望的启航招募",
+				"roles": [],
+				"startTs": 1793854800000,
+				"endTs": 1794545940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 13:00 ~ 11-13 12:59",
+				"source": "primary"
+			},
+			{
+				"key": "bandori:gacha:4",
+				"title": "Cool属性招募",
+				"show": "Cool属性招募",
+				"roles": [],
+				"startTs": 1793854800000,
+				"endTs": 1794545940000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 13:00 ~ 11-13 12:59",
+				"source": "hover"
+			}
+		],
+		"umaJpUmapyoi:gacha": [
+			{
+				"key": "uma-jp:gacha:0",
+				"title": "赛马娘日服卡池（Outfit、Support Card）",
+				"show": "赛马娘日服卡池（Outfit、Support Card）",
+				"roles": [],
+				"startTs": 1793588400000,
+				"endTs": 1796093940000,
+				"tz": "Asia/Tokyo",
+				"raw": "11-02 12:00 ~ 12-01 11:59",
+				"source": "primary"
+			}
+		],
+		"bandoriBestdoriEvent:event": [
+			{
+				"key": "bandori:event:0",
+				"title": "萌生的心意，交织于夕阳下",
+				"show": "萌生的心意，交织于夕阳下",
+				"startTs": 1793854800000,
+				"endTs": 1794409140000,
+				"tz": "Asia/Shanghai",
+				"raw": "11-05 13:00 ~ 11-11 22:59",
+				"source": "primary"
+			}
+		],
+		"umaGlobalGt:gacha": [
+			{
+				"key": "uma-global:gacha:0",
+				"title": "Pretty Derby Scout",
+				"show": "Vodka、Daiwa Scarlet",
+				"roles": [
+					"Vodka (Unfreezable Firewater)",
+					"Daiwa Scarlet (Scarlet Nuit Étoilée)"
+				],
+				"startTs": 1790553600000,
+				"endTs": 1791763140000,
+				"tz": "UTC",
+				"raw": "",
+				"source": "primary"
+			}
+		],
+		"nteLdshop:gacha": [
+			{
+				"key": "nte:gacha:0",
+				"title": "靈可限定棋盤（名稱尚未公開） / 獨酌朧月流",
+				"show": "靈可/潯",
+				"roles": [
+					"靈可/潯"
+				],
+				"startTs": 1788883200000,
+				"endTs": 1790783940000,
+				"tz": "Asia/Shanghai",
+				"raw": "09-09 00:00 ~ 09-30 23:59",
+				"source": "primary"
+			}
+		]
+	}
+}

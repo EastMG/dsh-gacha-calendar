@@ -107,6 +107,7 @@ dsh-gacha-calendar/
 │   ├── lib-text.mjs # 悬停文本的共用判定（去重 / 相邻重复 / 「名称 ⏎ 只有区间」/ 分类前缀双写）
 │   │                # 用法：cases-arknights-claim（真机逐字基线）与 cases-arknights-timeline（整周期）都调它
 │   ├── registry-shim.mjs # 各批次注册表规格快照 + DRIFT 守卫（与运行时 SOURCES 核对 tz/name）
+│   ├── legacy-golden.mjs # 改造前 oracle 的**字面量 golden** 读取器（fixtures/legacy-oracle-golden.json）
 │   ├── capture*.mjs # 抓真实响应生成夹具；run.mjs # 单段直跑
 │   ├── map.json     # 请求 URL → 夹具路径（**入库**）
 │   ├── ui/          # UI 渲染验证 harness（`npm run test:ui`：真 Chromium 里按真实产物 CSS 做**几何**断言；**不在默认门禁里**，无浏览器时优雅 skip）
@@ -167,7 +168,7 @@ https://prts.wiki/api.php?action=ask&format=json
 | 请求失败 / 响应不是 JSON / 没有 `query.results` | **抛错**（这一侧记 down、面板显示「活动失败」）。**没有**"SMW 失败就回退解析活动一览 HTML"的自动路径：失败就是失败，绝不换站 —— 要用一览口径请在设置页把「活动来源」手动切成 `PRTS 活动一览`（备选源，见「来源策略」一节） |
 
 
-**三态**（只改 arknights 的 payload 与提示框里的那几行，即 `30-game-hypergryph.js` 的 `prtsHoverNoteOf` / `prtsEventPayload`、`81-schedule-model.js` 的 `scheduleHoverNote` / `scheduleHoverText`、`82-schedule-view.js` 的 `hoverTextOf`；探头的解析逻辑 `scheduleHoverItems` 一个字没动）：
+**三态**（只改 arknights 的 payload 与提示框里的那几行，即 `30-game-hypergryph.js` 的 `prtsHoverNoteOf` / `prtsEventPayload`、`81-schedule-model.js` 的 `scheduleHoverNote` / `scheduleHoverText`、`82-schedule-view.js` 的 `hoverTextOf`；探头的解析逻辑 `scheduleHoverItems` 一个字没动 —— 该函数 P5 清理后已从产品删除，判据冻结在 `test/lib-text.mjs`）：
 
 | 时刻 | 外显 `eventDates` | 独立提示字段 `eventHoverExtra`（只进提示框，插在该活动那一行**之后**） |
 |---|---|---|
@@ -298,7 +299,7 @@ DSH 渲染进程的页面源是 `dsh-app://app`（自定义 scheme）。**有些
 处理方向（将来一次做完，不要逐个打补丁）：把这套判定做成**主机表**（`需要代理的 MediaWiki / 拒发 ACAO 的主机`），
 在 `transportFetchRaw` 同一个收口点按表改道代理；并把 `origin=*` 也统一由收口点补（现在 prts 是 8 处手拼）。
 另注意：改道代理后必须同步 `PROXY_ALLOW_HOSTS`（`src/index.js` 的白名单），否则会 403 `host-not-allowed`。
-### P5 兼容层评估结论（2026-11-07，只审计未删）
+### P5 兼容层评估结论（2026-11-07；2026-11-08 清理了其中 4 类死代码）
 
 P1~P4 之后数据真源是 `gacha[]` / `events[]`；`bannerHover` / `eventHover` 等已降级为**由条目反生成的兼容产物**。
 逐字段普查（生产者已无人手拼；下表只列**仍在读**的地方）：
@@ -323,11 +324,31 @@ P1~P4 之后数据真源是 `gacha[]` / `events[]`；`bannerHover` / `eventHover
 - `50-refresh.js` 的 `dataArrayEventMainOf` compat 分支删除（只保留解析器直出路径）
 建议在 README 的"待废弃"表里登记，给出最早删除版本（例如再两个 minor 版本后）。
 
-#### 仍存在的死代码（待另起一轮清理，不在 P5 范围）
-- `26-parser-hover.js`：`bwikiGachaPayload` / `parseSmwActivity` 的 `emit=false` 分支（走旧 `buildPoolHover` / `buildEventHover`），仅测试 oracle 使用
-- `ns_biligame_activity_*Hover`（仅测试导出）、`ns_kedr_wiki_gachaKedrWiki`（旧抓取器，未注册进活引擎）
-- `scheduleHoverItems` 与 `dataArrayExtrasFromEntriesOf` 的 `win` 分支（只服务 `legacySynthArrOf` 这类冻结 oracle）
-⇒ 清理前提：把测试 oracle 改成 golden 字面量后可一并删除。
+#### 死代码清理结果（P5 后一轮，2026-11-08）
+
+上一版在这里列了 4 类"待清理"，本轮**先固化 oracle、再删实现**，结论：
+
+| 项 | 结果 | 证据 |
+|---|---|---|
+| `bwikiGachaPayload` / `parseSmwActivity` 的 `emit=false` 分支 | **已删** | 两条路都没了 `!emit` 早退；原神/星铁/方舟三个调用方本来就只走直出 |
+| `ns_biligame_activity_whmxEventHover` / `umaCnEventHover` / `umaCnPoolHover`（仅测试导出） | **已删** | 生产调用点一直是 `hoverRows(...)` + `dataArrayProduced*Of`；名字投影搬进 `test/cases-p9.mjs`（`legacy*HoverOf`） |
+| `scheduleHoverItems`（悬停文本 → 并列条目） | **已删** | 自 P3c 起无生产调用方；判据冻结进 `test/lib-text.mjs` 的 `legacyHoverItemsOf`（明日方舟 §④ 与 cases-core ④ 继续调它） |
+| `dataArrayExtrasFromEntriesOf` 的 `win` 分支 | **已删** | 生产条目一律给 `startTs/endTs/raw`；`win` 只服务已删除的 `legacySynthArrOf` |
+| `ns_kedr_wiki_gachaKedrWiki`（旧抓取器） | **保留** | 见下面三条理由 —— 删它必然减少断言 |
+
+`ns_kedr_wiki_gachaKedrWiki` 为什么没删（不是"忘了"）：
+1. `test/registry-shim.mjs` 的 `SOURCES_P6` 在**模块加载期**就 `resolve("kedr-wiki.gachaKedrWiki")`，
+   删导出会让整份门禁在 import 阶段就抛（不是一条红，是一片红）；
+2. `test/cases-p6.mjs` 的"抓取器"小节**端到端调用它**（抓取成功 / 契约 / banner / roles / 窗口 / 悬停 /
+   换期 / 全部过期 ⇒ null / null 过契约），约 10 条断言；删实现就等于删这些断言 ⇒ 违反"条数不减"；
+3. `30-game-bwiki-kedr-wiki.js` 的文件头本来就写着「生产已改走 bwiki-wikitext；**本文件供回归测试**」——
+   它是**有意保留的离线回归目标**，不是漏网的活代码。
+⇒ 要真删，得先把 P6 那 10 条改写成"冻结 oracle 的测试内副本"（像 `legacyHoverItemsOf` 那样），
+   并把 registry-shim 的 P6 快照指向活抓取器；本轮不做（风险大于收益）。
+
+`buildPoolHover` / `buildEventHover` 现在也**没有生产调用方**了（emit 分支删掉后），但**故意保留**：
+`test/cases-p3.mjs` ① 拿它们当"改造前手拼排版"的逐字节参照、`test/cases-tz.mjs` ① 用它们验 tz 口径、
+`test/cases-rule-lint.mjs` 的静态守卫把它们当排版唯一真源（调用点必须传 tz）。删了这三处守卫一起失效。
 ### 时区约定（显示 vs 源站原文）
 
 两条口径，**别混**：
@@ -386,9 +407,9 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 #### 谁生成（`src/client/50-refresh.js`）
 
 - `mergeEntryRecord(r, prevRec, nowTs, meta)` 末尾两行：来源若已给结构化数组就原样用（**P3 第一批起 3 款 6 条路径由解析器直出**，见下节），否则 `dataArrayGachaOf` / `dataArrayEventsOf` 合成。`meta = { id, tz }` 由 `engine-api.js` 的 `refresh()` 从条目上带进来（只用来生成 key 与 `tz` 字段）。
-- **并列池怎么展开**（P2 收尾改了判重口径）：复用**显示层同一个** `scheduleHoverItems`（`bannerHover`/`eventHover` 的多行文本 → `[{ title, win }]`），再用 `dataArrayHoverPoolsOf` 里那三条判据（与外显同名 / 与**显示名**同名 / 「池名：外显名」这种整段包裹写法）—— 与 `81-schedule-model.js` 的 `scheduleHoverOnes` **逐字对应**。
+- **并列池怎么展开**（P2 收尾改了判重口径；⚠️ **P3c 起这段是历史**：合成器已删，现在并列条来自解析器直出的条目事实，判据仍是这三条）：当时复用显示层同一个 `scheduleHoverItems`（`bannerHover`/`eventHover` 的多行文本 → `[{ title, win }]`），再用 `dataArrayHoverPoolsOf` 里那三条判据（与外显同名 / 与**显示名**同名 / 「池名：外显名」这种整段包裹写法）—— 与 `81-schedule-model.js` 的 `scheduleHoverOnes` **逐字对应**。
   - ⚠️ **判重口径（2026-11-07 用户定，方案 C）**：不再按「起止时间 + 池名」把同一口池并成一条 —— 那是 P1 自己发明的判据，旧探头从来没有，它一直把「合并角色的主行」和「`池名：角色`」并列显示（物华弥新「繁霜春落：李小孩项链」、星铁「「我身即刃」…：千冶•刃」就是这么被丢掉的）。现在**引擎主行一条 + 悬停并列行各一条**，`source` 区分；只有"内容完全一样"（同标题 **且** 同起止）才去掉一条，并且**优先保留 `source:"primary"`** 那条。
-  - ⚠️ `scheduleHoverItems` + 它的两条区间正则 + `scheduleNoYear` 已在 2026-11-07 **从 81 搬进 26-parser-hover.js**（逐字搬迁）：`50-refresh.js` 也在 core 产物里（`CORE_ORDER`），而 81 只属于渲染层。不搬就会变成"core 里调用一个不存在的函数"。
+  - ⚠️ `scheduleHoverItems` 当时在 2026-11-07 从 81 **逐字搬进 26-parser-hover.js**（`50-refresh.js` 也在 core 产物里，而 81 只属于渲染层）。**P5 清理（2026-11-08）它已从产品删除**：那两条区间正则与判据现在冻结在 `test/lib-text.mjs` 的 `legacyHoverItemsOf`（只给回归用）；`scheduleNoYear` 留在 26（`dataArrayExtrasFromEntriesOf` 仍在用）。
   - 两条区间正则的**起端也认「X.Y版本更新后」**（不是只有两端日期）：星铁 bwiki 把这种原文直接写进悬停（`「巡星之礼」第二十七期   4.6版本更新后 ~ 11-11 03:59`），不认就会把档期拼进**事件标题**。普查结论：其它 27 款的「版本更新后」已在各自解析器里折算成绝对时刻、悬停原文不含版本标签 ⇒ 只影响星铁（`test/cases-core.mjs` ④-9 有针对性断言）。注意这只影响**悬停逆解析**，`fillMissingStarts` / 「版本更新后」的换算一个字没动。
   - 解析不出并列池（`bannerHover` 为空 / 只有 1 条）⇒ 就 1 条，与今天显示等价。
 - **归一**：`dataArray*ItemOf` 只做最少校验 —— 非对象元素**丢弃**、`startTs`/`endTs` **必须是 number 否则 `null`**（`"123"` / `NaN` / `Infinity` 全变 `null`）、文本字段缺了填空串、`roles` 不是数组就 `[]`、`source` 缺了填空串。**可选事实**（`cat` / `tags` / `preview`）**有就原样保留、没有就不写这个键**（`preview` 只认 `true`，`tags` 空数组/`cat` 空串都不产生键）⇒ `getCached()` 往返后事实不丢、也不会多出空值。缺数组（改造前的老缓存）⇒ **空数组**，形状固定。
@@ -440,7 +461,10 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 
 **兼容退化（P3c 起，2026-11-07 已删老路）**：`scheduleCellOf` **只读数据层数组**；数组为空（老 `lastData` / 这一侧真没数据）⇒ 返回 `null`，格子里写「该来源无数据」，**不抛错**。原来的 `fromArray === false` 兼容分支（`scheduleNormalize` + 逆解析悬停文本）连同 `scheduleHoverOnes` 已随 P3c 删除 —— 它已没有任何生产调用方（28 款默认源全部直出）。抓取失败时"显示旧数据"仍走 `mergeEntryRecord` 的沿回逻辑（`dataArrayInheritableOf`），不受影响。
 
-**回归（`test/cases-core.mjs` ⑤，35 条）**：纯函数（空 / 单条 / 在期里结束最早 / 起点未知 / 并列起点 / claim 优先 / 类别档位 / 顺序稳定 / 不改输入）+ `scheduleItemOf` 同形 + **老 `lastData` ⇒ `null` 且不抛错** + 老路（oracle）输出与数组派生逐字相同 + **等价性普查**（34 个侧全部逐字相等）+ 原来 6 处已知差异的严格相等 + **反向证明**（通用规则与特化规则必须选出不同的那条）+ FGO 09-05 那侧（`cat` 事实 + 特化规则缺一不可）。⚠️ 老路已从产品删除，等价性用的对照 oracle **冻结在测试文件顶部**（`legacyCellOf` / `legacyHoverOnes` / `LEGACY_LONG_MS`），逐字复刻 P3c 之前的实现 —— oracle 不随产品漂移，否则"等价"就成了拿产品和自己比。
+**回归（`test/cases-core.mjs` ⑤，35 条）**：纯函数（空 / 单条 / 在期里结束最早 / 起点未知 / 并列起点 / claim 优先 / 类别档位 / 顺序稳定 / 不改输入）+ `scheduleItemOf` 同形 + **老 `lastData` ⇒ `null` 且不抛错** + 老路（oracle）输出与数组派生逐字相同 + **等价性普查**（34 个侧全部逐字相等）+ 原来 6 处已知差异的严格相等 + **反向证明**（通用规则与特化规则必须选出不同的那条）+ FGO 09-05 那侧（`cat` 事实 + 特化规则缺一不可）。⚠️ 老路已从产品删除；**P5 清理后连老路的 oracle 也删了** —— 它的输出固化成了字面量
+（`test/fixtures/legacy-oracle-golden.json` 的 `coreRows` / `coreSyntheticRows` / `coreFgo0905Rows`，
+读取器 `test/legacy-golden.mjs`），断言因此是"**当前数组派生 == 冻结的字面量**"。字面量由 HEAD
+`d3e9d35` 的 `legacyCellOf` 采出，**不随产品漂移** —— 否则"等价"就成了拿产品和自己比。
 
 #### 解析器直出（P3，第一批 2026-11-07）
 
@@ -526,6 +550,9 @@ canmoe 页面 + 它第一轮真的并发抓的 6 份 chunk、FZ Wiki 活动 REST
 
 **回归（`test/cases-p3.mjs`，P3e 后 685 条）**：① 生成器排版规则逐条（3 空格 / 同窗口折叠 / <2 条 / 缺起止写原文 / 长期过滤 / `label` 优先 / 去重 / **与老 `buildPoolHover`·`buildEventHover` 逐字节相同**）；② 54 条路径（P3a 6 + P3b 41 + P3c 7）的 **12 个字符串字段 + 数组 golden**（`sansTs`）；③ 数组与**改造前的合成结果逐条相等**（含 `startTs`/`endTs`，UTC / +08 都成立）；④ **同源**：`hoverTextFromItems(条目事实)` 逐字等于载荷里的悬停文本；⑤ 通道不外泄。P3 新夹具 6 份 + P3c 15 份，**都不进 `map.json`**（免得改变其它批次对"默认源 404"的期望）。
 ⚠️ P3c 删掉合成器后，③ 的对照 oracle 挪进测试文件（`legacySynthArrOf`：拿**记录字符串 + 悬停文本**过 `dataArray*MainOf` + `scheduleHoverItems` + `dataArrayExtrasFromEntriesOf` 重算一遍）—— 它只读改造前的三样输入（字符串 / 悬停 / `itemFacts`），不读解析器直出的数组，所以"直出被削"仍会红（P3c 实测：把 endfield 卡池的并列条去掉 ⇒ ② 数组 golden + ③ 同时红）。
+⚠️ **P5 清理（2026-11-08）后 ③ 的 oracle 也不在了**：`legacySynthArrOf` 的输出固化成字面量
+（`test/fixtures/legacy-oracle-golden.json` 的 `p3Synth`，键 = `<路径 key>:<side>`，共 124 条），
+`cases-p3.mjs` 里同名函数改成**按 key 查字面量**（缺键直接抛错，防止覆盖不全悄悄变绿）。
 
 **反向证明**：把生成器的分隔符从 3 个空格改成 2 个 ⇒ `test/cases-p3.mjs` ①（`名称   + 3 空格`）与 ②（原神/明日方舟活动 golden）同时红；把 `dataArrayExtrasFromEntriesOf` 的三条判据去掉一条 ⇒ ② 的数组 golden 红。这是"悬停/数组同源"真的承重的证据。
 
@@ -587,8 +614,9 @@ canmoe 页面 + 它第一轮真的并发抓的 6 份 chunk、FZ Wiki 活动 REST
   `p3e-custom-events-html` 是从现有真抓夹具抽出的 `parse.text`（自定义地址走"非 api.php 的普通 HTML"路径），
   `p3e-custom-nomatch` 手工构造（故意无表格）。回归在 `test/cases-p3.mjs` 的 P3e 段（① 自定义地址端到端 +
   解析失败不抛错；② 5 条备选路径 × 数组逐条相等（含 ts）/ 悬停同源 / 路由可调用；③ 切源端到端；④ nte-ldshop
-  夹具级回归；⑤ 全部备选源路由可解出函数）。**"数组与改造前合成结果逐条相等"的口径不变**：对照 oracle 仍是
-  测试文件里的 `legacySynthArrOf`（只读改造前的字符串 + 悬停，不读直出数组）。
+  夹具级回归；⑤ 全部备选源路由可解出函数）。**"数组与改造前合成结果逐条相等"的口径不变**：对照 oracle 现在是
+  冻结的字面量 `legacySynthArrOf`（`test/fixtures/legacy-oracle-golden.json` 的 `p3Synth`；P5 清理前由
+  改造前的合成器采出，只读改造前的字符串 + 悬停，不读直出数组）。
 
 **P3 待办清单（P3e 后仍然没做的）**：
 1. ~~**时间戳换绝对时刻（P4）**~~ ⇒ **P4 已完成**（见「P4 展平」一节）。
@@ -642,7 +670,7 @@ golden + 等价（两侧都红）；
    `endTs: null → number`（单边窗口的直接结果）。
 2. **并列池的 `show` = 标题本身**：悬停行只给"池名：角色"，没有结构化角色表 ⇒ 并列池那条 `show === title`、`roles = []`（主条的 `show`/`roles` 是完整的）。解析器直出每口池的角色表后可补（P3b）。
 3. **卡池侧"跨池合并的角色表"没有拆开**：主条的 `roles` 仍是引擎给的那串合并角色（FGO 那种 13 个角色一行），不是"每口池自己的角色"。同样是 P3 的结构化来源才能拆。
-4. **完全同名的悬停行只留一条**：`scheduleHoverItems` 对**完全同名**（归一后同串）的行只留第一条 —— 这是悬停解析的既有口径（与 `buildPoolHover` 的去重同源），不是 P1 发明的；数组沿用。**同一口池的两种写法**（合并角色的主条 vs 悬停里的 `池名：角色`）现在**都留着**（`source` 区分），只有内容完全一样（同标题 + 同区间）才去重并优先保 `primary`。
+4. **完全同名的悬停行只留一条**：`scheduleHoverItems`（P5 后只在 `test/lib-text.mjs` 里）对**完全同名**（归一后同串）的行只留第一条 —— 这是悬停解析的既有口径（与 `buildPoolHover` 的去重同源），不是 P1 发明的；数组沿用。**同一口池的两种写法**（合并角色的主条 vs 悬停里的 `池名：角色`）现在**都留着**（`source` 区分），只有内容完全一样（同标题 + 同区间）才去重并优先保 `primary`。
 
 #### P4 展平（2026-11-07 完成）
 

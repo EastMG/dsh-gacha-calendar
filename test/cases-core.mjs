@@ -19,81 +19,16 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { createEngine } from "../packages/core/core.mjs";
 import { check, section, useFixtures, fixtureBody } from "./harness.mjs";
+import { legacyHoverItemsOf } from "./lib-text.mjs";
 import { T, REPO } from "./load.mjs";
-
-// ── 改造前老路的 **oracle**（P3c，2026-11-07 从产品里删掉，逐字复刻到这里）──────────────
-// 删掉的是 81 的两段：`scheduleCellOf` 的 `fromArray === false` 兼容分支（记录字符串 →
-// `scheduleNormalize` 出外显那条）与 `scheduleHoverOnes`（悬停文本 → 并列条目）。等价性用例
-// （⑤-4 / ⑤-5）要回答的仍然是"数组派生出来的表格行 / 探头行，与改造前算出来的那一份是否逐字
-// 相同"，所以把老路**原样搬进测试**当对照 oracle。
-// ⚠️ `SCHEDULE_LONG_MS` 按当时的常量（366 天）**冻结**在这里：oracle 必须不随产品漂移，
-//    否则"等价性"就成了拿产品和自己比。`scheduleNoYear` 同理（26 里那份是 const，未导出）。
-// ⚠️ 2026-11-07（P4）**口径修正**：老路把悬停里的 `MM-DD HH:MM` 当**本机墙钟**读（`parseDisplayRange`
-//    只有一个口径），而 P4 起数组条目的 ts 是"按**源站**墙钟解析的绝对时刻"。海外源（赛马娘日服
-//    Asia/Tokyo、闪耀国服 +540、国际服 UTC…）在 +08 机器上会差 1~8 小时 —— **那不是回归，是原先就错的
-//    那 1~8 小时被修掉了**。所以 oracle 同步走**同一个换算**（`sourceInstant`，tz 取来源声明的那个）：
-//    这样比较的仍是"两条数据路径的派生结果"，只是把 ts 口径对齐到修正后的绝对时刻
-//    （反之若让 oracle 继续用本机墙钟，比的就是"错的旧时刻"与"对的新时刻"，等于要求 bug 保留）。
-const LEGACY_LONG_MS = 366 * 864e5;
-const legacyNoYear = (x) => String(x).replace(/(\d{4})-(\d{1,2}-\d{1,2})/g, "$2");
-// 本机墙钟时刻 → 源站时区绝对时刻（与 50-refresh.js 的 `dataArrayWindowOf` 第 ③ 步同一个函数）
-const legacyToSourceTs = (ts, tz) => {
-	if (!tz) return ts;
-	const d = new Date(ts);
-	return T.sourceInstant(d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes(), tz);
-};
-const legacyHoverOnes = (items, it, now, tz) => {
-	const out = [];
-	for (const x of items) {
-		if (x.title === it.title) continue;                  // 外显那条已经有了，不重复列
-		if (it.show && x.title === it.show) continue;        // 活动侧兑换期：就是外显那一条
-		// 外显那条（通常只有角色名）与「池名：角色」常常是同一口池 ⇒ 只显示角色名那条
-		const normOne = (s) => String(s || "").replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, "");
-		const shownText = normOne(it.show || it.title || "");
-		const titleText = normOne(x.title);
-		if (shownText && titleText && titleText !== shownText) {
-			const tailAt = titleText.lastIndexOf("\uFF1A" + shownText);
-			if (titleText.indexOf(shownText + "\uFF1A") === 0 || (tailAt >= 0 && tailAt === titleText.length - shownText.length - 1)) continue;
-		}
-		const winText = legacyNoYear(x.win);
-		let r0 = T.parseDisplayRange(winText, now);
-		// P4 口径修正 ②：**单边窗口**（星铁「4.6版本更新后 ~ 11-10 15:00」）—— 老路整条判 null
-		// 就丢掉了这一行；现在产品两端各自解析，oracle 同步（否则比的是"旧缺陷"与"新行为"）。
-		if (!r0) {
-			const ps = winText.split("~").map((s) => s.trim());
-			if (ps.length >= 2) {
-				const selfOf = (s) => {
-					const one = s ? T.parseDisplayRange(s + " ~ " + s, now) : null;
-					return one ? one.startTs : null;
-				};
-				const sa = selfOf(ps[0]), sb = selfOf(ps[1]);
-				if (sa == null && sb == null) continue;      // 两端都读不出 → 仍然不列
-				r0 = { startTs: sa, endTs: sb };
-			}
-		}
-		if (!r0) continue;                                   // 读不出绝对档期 → 不硬凑天数
-		// P4 口径修正：本机墙钟 → 源站绝对时刻（见上面那段 ⚠️）
-		const r = { startTs: r0.startTs == null ? null : legacyToSourceTs(r0.startTs, tz), endTs: r0.endTs == null ? null : legacyToSourceTs(r0.endTs, tz) };
-		const span = r.startTs == null ? 0 : Math.max(1, r.endTs - r.startTs);
-		let state = "long", remain = 0;
-		if (r.endTs > 0) {
-			if (span > LEGACY_LONG_MS) state = "long";
-			else if (r.startTs != null && now.getTime() < r.startTs) state = "wait";
-			else if (now.getTime() > r.endTs) state = "ended";
-			else { state = "live"; remain = Math.max(0, r.endTs - now.getTime()); }
-		}
-		out.push({ key: it.key, g: it.g, side: it.side, isG: it.isG, title: x.title, raw: x.win, fail: null, state, startTs: r.startTs, endTs: r.endTs, remain, tz: tz || null });
-	}
-	return out;
-};
-// 老路的 `scheduleCellOf`：**没有数组也能出条目**（这正是 P3c 删掉的那条路）
-// `tz` = 该来源声明的源站时区（老路当时没有这个参数；P4 只把它用于上面那次口径修正与渲染）
-const legacyCellOf = (g, side, now, tz) => {
-	const it = T.scheduleNormalize(g, side, now);
-	if (!it) return null;
-	const extras = legacyHoverOnes(T.scheduleHoverItems(side === "gacha" ? g.bannerHover : g.eventHover, it.title, it.isG), it, now, tz);
-	return { primary: it, rest: extras };
-};
+import { LEGACY } from "./legacy-golden.mjs";
+// ── 改造前老路的 **字面量 golden**（P5 清理，2026-11-08）────────────────────────────────
+// 这里原本是逐字复刻进测试的 `legacyCellOf` / `legacyHoverOnes`（P3c 从产品删掉后冻结的 oracle）。
+// 它们依赖产品里的两段死代码 —— `scheduleHoverItems` 与 `dataArrayExtrasFromEntriesOf` 的 `win` 分支 ——
+// 所以 P5 清理时先把 oracle 的**输出**固化成字面量（`test/fixtures/legacy-oracle-golden.json`），
+// 再删实现；断言改成"**当前实现 == 该字面量**"，等价性证据不依赖任何被删的代码。
+// ⚠️ 字面量由 HEAD `d3e9d35` 的 oracle 原样采出（采集方式与重采步骤见 test/legacy-golden.mjs 顶部）。
+// ⚠️ `coreRows` 的每个值 = `[[name, meta], …]`（null = 该侧无数据）；键 = `<id>:<side>`。
 export default async function runCore() {
 	section("core 产物（零宿主依赖 + 注册幂等）");
 
@@ -330,7 +265,8 @@ export default async function runCore() {
 			check("FGO：`gacha` 顺序 = 结束时间升序", ascending(g), JSON.stringify(g.map((x) => x.endTs)));
 			check("FGO：key 逐个唯一且按最终下标编号（`fgo:gacha:<i>`）",
 				g.every((x, i) => x.key === "fgo:gacha:" + i), JSON.stringify(g.map((x) => x.key)));
-			const hoverTitles = T.scheduleHoverItems(fgo.rec.bannerHover, it.title, true).map((x) => x.title);
+			// 悬停解析（`legacyHoverItemsOf` = P5 起冻结在 test/lib-text.mjs 的改造前判据）
+			const hoverTitles = legacyHoverItemsOf(fgo.rec.bannerHover, it.title, true).map((x) => x.title);
 			check("FGO：每一条并列池都能在悬停解析结果里找到同名行（展开没有凭空造条目）",
 				g.slice(1).every((x) => hoverTitles.indexOf(x.title) >= 0), JSON.stringify([hoverTitles, g.map((x) => x.title)]));
 			check("FGO：外显那条（悬停首行就是它自己）没有被重复列成并列池",
@@ -589,7 +525,8 @@ export default async function runCore() {
 				JSON.stringify(hsrEvents.map((e) => [e.title, e.raw])));
 			// 针对性断言：修复落在**悬停逆解析**（唯一真源），所以直接钉住那条规则本身。
 			// （悬停契约：<2 行返回 ""，所以这里给两行；第一行就是真机里被拼脏的那一行。）
-			const split = T.scheduleHoverItems("「巡星之礼」第二十七期   4.6版本更新后 ~ 11-11 03:59\n「爱，幽灵与机器人」   10-21 12:00 ~ 12-02 11:59", "", false);
+			// P5 起该规则**冻结在 test/lib-text.mjs**（`legacyHoverItemsOf`）：产品里那条路已随数组化删除。
+			const split = legacyHoverItemsOf("「巡星之礼」第二十七期   4.6版本更新后 ~ 11-11 03:59\n「爱，幽灵与机器人」   10-21 12:00 ~ 12-02 11:59", "", false);
 			check("星铁④：悬停行「名称 + 3 空格 + 版本标签起端的档期」能拆成 名称 / 档期",
 				split.length === 2 && split[0].title === "「巡星之礼」第二十七期" && split[0].win === "4.6版本更新后 ~ 11-11 03:59"
 				&& split[1].title === "「爱，幽灵与机器人」" && split[1].win === "10-21 12:00 ~ 12-02 11:59",
@@ -645,9 +582,9 @@ export default async function runCore() {
 	//   ① 纯函数本身：空数组 / 单条 / 多条 / claim 优先 / 类别档位 / 在期里结束最早 / 顺序稳定 / 不改输入；
 	//   ② **等价性（本阶段硬验收）**：同一份夹具下，"数组派生"渲染出的「名称 / 档期文本 / 探头行数 /
 	//      行顺序」与**改造前的老路**逐字相等 —— 老路 = 82 里 `[it].concat(extras)` 那几行（P2 搬进 81，
-	//      P3c **又从产品里删掉**），现在冻结成本文件顶部的 `legacyCellOf` oracle（`scheduleNormalize` +
-	//      `scheduleHoverItems` + 逐字复刻的 `scheduleHoverOnes`）。产品里已经**没有**老路的代码可当对照，
-	//      所以这段 oracle 必须独立冻结、不随产品漂移。
+	//      P3c **又从产品里删掉**）。P5 清理时老路的 oracle 也删了：它的**输出**已固化成字面量
+	//      （`test/fixtures/legacy-oracle-golden.json` 的 `coreRows`），断言因此是
+	//      "**当前数组派生 == 冻结的字面量**"—— 证据仍然独立、且不再依赖任何被删的代码。
 	//   ③ 兼容退化（P3c 起）：老 lastData（没有 `gacha` / `events`）⇒ `scheduleCellOf` 返回 **null**
 	//      （该侧显示「无数据」），**不抛错**、也不再有"解析悬停文本"的兜底渲染。
 	//
@@ -753,10 +690,11 @@ export default async function runCore() {
 		const cellArray = T.scheduleCellOf(Object.assign({}, recEv, { events: [mainItem] }), "event", NOW);
 		check("有数组 ⇒ 正常派生出主条（primary 来自数组，不再解析悬停文本）",
 			!!cellArray && cellArray.primary.title === "剧情活动" && !("fromArray" in cellArray));
-		const cellOld = legacyCellOf(recEv, "event", NOW, recEv.tz);
-		check("老路（oracle）的输出 = 数组派生的输出（同一条记录、数组只有主条 ⇒ 逐字相同）",
-			JSON.stringify(rowText(rowsOf(cellOld, NOW))) === JSON.stringify(rowText(rowsOf(cellArray, NOW))),
-			JSON.stringify([rowText(rowsOf(cellOld, NOW)), rowText(rowsOf(cellArray, NOW))]));
+		// 老路的输出 = **字面量 golden**（`[[name, meta], …]`，由 d3e9d35 的 `legacyCellOf` 采出）
+		const oldRows = LEGACY.coreSyntheticRows || null;
+		check("老路（oracle 字面量）的输出 = 数组派生的输出（同一条记录、数组只有主条 ⇒ 逐字相同）",
+			JSON.stringify(rowText(oldRows)) === JSON.stringify(rowText(rowsOf(cellArray, NOW))),
+			JSON.stringify([rowText(oldRows), rowText(rowsOf(cellArray, NOW))]));
 	}
 
 	// ⑤-5 等价性（硬验收）：同一份夹具，**老路 vs 数组派生**逐字比对
@@ -864,6 +802,7 @@ export default async function runCore() {
 
 		const got = new Map();          // "id:side" → { old, next }
 		const fallback = [];            // 有数组却派生不出条目（或又长出一条 fromArray 分支）的一侧
+		const goldenMiss = [];          // 字面量 golden 里缺这个键（覆盖不足 ⇒ 等价性就成了空话）
 		const diffs = [];
 		for (const { id, now, rec } of records) {
 			// `tz` = 来源声明的源站时区（与 CalendarPanel 传给 `scheduleNormalize` 的对象同形）——
@@ -876,17 +815,17 @@ export default async function runCore() {
 				// P3c：`fromArray` 字段已不存在（兼容分支删了）—— 现在守"有数组的一侧必须派生得出条目"，
 				// 且返回对象里**不许**再冒出 `fromArray`（防止有人把兼容分支偷偷加回来）。
 				if (hasArray && (!nextCell || "fromArray" in nextCell)) fallback.push(key);
-				// 老路 = 改造前的兼容分支（P3c 从产品删除，oracle 冻结在本文件顶部）：
+				// 老路 = 改造前的兼容分支（P3c 从产品删除；P5 清理把它的**输出**冻结成字面量）：
 				// 记录字符串 → scheduleNormalize 出外显 + 悬停文本逆解析补并列条目。
-				const oldCell = legacyCellOf(g, side, now, tzOfSource(id));
-				const old = rowsOf(oldCell, now);
+				const old = (LEGACY.coreRows || {})[key];
+				if (!(key in (LEGACY.coreRows || {}))) goldenMiss.push(key);
 				const next = rowsOf(nextCell, now);
 				got.set(key, { old, next });
 				if (JSON.stringify(old) !== JSON.stringify(next)) diffs.push(key);
 			}
 		}
-		check("等价性前置：有数组的一侧都派生出条目、且没有偷偷长回 `fromArray` 兼容字段",
-			fallback.length === 0, JSON.stringify(fallback));
+		check("等价性前置：有数组的一侧都派生出条目、且没有偷偷长回 `fromArray` 兼容字段；golden 覆盖 34 个侧",
+			fallback.length === 0 && goldenMiss.length === 0, JSON.stringify([fallback, goldenMiss]));
 		// 硬验收（P2 收尾）：34 个侧**一个不差**地逐字相等 —— 不再有"允许不等"的白名单
 		check("等价性：17 款游戏（34 个侧）**全部逐字相等**（diffs = 0；名称 / 档期文本 / 探头行数 / 行顺序）",
 			diffs.length === 0, JSON.stringify(diffs));
@@ -964,9 +903,9 @@ export default async function runCore() {
 			const rec = await runGame("fgo", now.getTime());
 			const g = Object.assign({ id: "fgo", name: "fgo", tz: tzOfSource("fgo") }, rec);
 			const nextCell = T.scheduleCellOf(g, "event", now);
-			const oldCell = legacyCellOf(g, "event", now, tzOfSource("fgo"));   // P3c：老路已从产品删除，用顶部冻结的 oracle
-			const old = rowsOf(oldCell, now), next = rowsOf(nextCell, now);
-			check("等价性（FGO 09-05）：老路与数组派生逐字相等（外显 = 「失落的创世(Vanished Beginning) 来自未来的方舟」）",
+			const old = LEGACY.coreFgo0905Rows || null;   // P5 清理：老路的输出已冻结成字面量
+			const next = rowsOf(nextCell, now);
+			check("等价性（FGO 09-05）：老路（oracle 字面量）与数组派生逐字相等（外显 = 「失落的创世(Vanished Beginning) 来自未来的方舟」）",
 				JSON.stringify(old) === JSON.stringify(next)
 				&& !!old && old[0].name === "失落的创世(Vanished Beginning) 来自未来的方舟",
 				JSON.stringify([text(old), text(next)]));
@@ -981,3 +920,4 @@ export default async function runCore() {
 		}
 	}
 }
+

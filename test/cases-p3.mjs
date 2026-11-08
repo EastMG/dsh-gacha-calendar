@@ -24,6 +24,7 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { createEngine } from "../packages/core/core.mjs";
 import { check, section, summary, useFixtures, fixtureBody, makeFetchTransport } from "./harness.mjs";
 import { T, FIXTURES_DIR } from "./load.mjs";
+import { LEGACY } from "./legacy-golden.mjs";
 
 const TZ_CN = "Asia/Shanghai";
 // 时钟 = 夹具抓取时刻（不随跑测日期漂移）
@@ -33,24 +34,24 @@ const NOW_WUWA = NOW_AK;
 
 const AT = (s) => Date.parse(s);
 
-// ── 改造前的**合成器 oracle**（P3c，2026-11-07）────────────────────────────────────
+// ── 改造前的**合成器 oracle** → 已固化成**字面量 golden**（P5 清理，2026-11-08）──────────────
 // P3c 之前，`50-refresh.js` 有两个把"记录字符串 + 悬停文本"合成整列数组的函数
 // （`dataArrayGachaOf` / `dataArrayEventsOf`，经 `dataArrayHoverPoolsOf` 展开并列条目）。
-// 最后 3 款切完后它们**已从产品里删除**，于是"数组 == 改造前的合成结果"这条断言必须有新的对照：
-// 用同一批纯函数（主条 = `dataArray*MainOf` 从**记录字符串**造；并列条 = `scheduleHoverItems`
-// 逆解**悬停文本**后过 `dataArrayExtrasFromEntriesOf`；排序发 key = `dataArrayProducedListOf`）
-// 按**当时的判据**复刻一遍。⚠️ `scheduleHoverItems` 的第三参当时对两侧都传 `true`，这里保持一致。
-// 这是"改造前"的**冻结对照**，不是产品的第二条路径 —— 产品里没有调用它。
-const legacySynthArrOf = (payload, side, id, tz, now) => {
-	const pay = payload || {};
-	const isG = side === "gacha";
-	const main = isG ? T.dataArrayGachaMainOf(pay, id, tz, now) : T.dataArrayEventMainOf(pay, id, tz, now);
-	if (!main) return [];
-	const entries = T.scheduleHoverItems((isG ? pay.bannerHover : pay.eventHover) || "", main.title, true)
-		.map((x) => ({ title: x.title, win: x.win }));
-	return isG
-		? T.dataArrayProducedGachaOf(pay, entries, { id, tz }, now)
-		: T.dataArrayProducedEventsOf(pay, entries, { id, tz }, now);
+// 最后 3 款切完后它们**已从产品里删除**，于是"数组 == 改造前的合成结果"这条断言必须有对照：
+// P3c 当时用同一批纯函数复刻了一遍（主条 = `dataArray*MainOf` 从**记录字符串**造；并列条 =
+// `scheduleHoverItems` 逆解**悬停文本**后过 `dataArrayExtrasFromEntriesOf`；发 key =
+// `dataArrayProducedListOf`），也就是 `legacySynthArrOf`。
+//
+// ⚠️ 那个复刻**依赖产品里的死代码**（`scheduleHoverItems` + `dataArrayExtrasFromEntriesOf` 的 `win`
+//    分支），所以 P5 清理把它的**输出**固化成字面量（`test/fixtures/legacy-oracle-golden.json` 的
+//    `p3Synth`，键 = `<路径 key>:<side>`），断言改成"**当前解析器直出 == 该字面量**"。
+//    证据仍然是"改造前界面本来会显示的那几条"，只是不再需要跑改造前的代码。
+// ⚠️ 字面量由 HEAD `d3e9d35` 的 `legacySynthArrOf` 原样采出（见 test/legacy-golden.mjs 顶部）。
+const legacySynthArrOf = (key, side) => {
+	const all = LEGACY.p3Synth || {};
+	const k = key + ":" + side;
+	if (!(k in all)) throw new Error("legacy-oracle-golden.json 缺键 " + k + " —— 等价性 oracle 覆盖不全");
+	return all[k];
 };
 
 export default async function runP3() {
@@ -302,8 +303,8 @@ export default async function runP3() {
 		const r = got[p.key];
 		const other = p.field === "gacha" ? "events" : "gacha";
 		const otherSide = p.field === "gacha" ? "event" : "gacha";
-		const oldArr = legacySynthArrOf(r.payload, p.side, p.id, TZ_CN, p.now);
-		const oldOther = legacySynthArrOf(r.payload, otherSide, p.id, TZ_CN, p.now);
+		const oldArr = legacySynthArrOf(p.key, p.side);
+		const oldOther = legacySynthArrOf(p.key, otherSide);
 		check(`P3 等价（${p.key}）：\`${p.field}\` 与改造前的合成结果**逐条相等**（含 startTs / endTs）`,
 			JSON.stringify(r.rec[p.field]) === JSON.stringify(oldArr),
 			JSON.stringify([r.rec[p.field], oldArr]));
@@ -734,8 +735,8 @@ async function runP3b() {
 		const r = results[p.key];
 		const other = p.field === "gacha" ? "events" : "gacha";
 		const otherSide = p.side === "gacha" ? "event" : "gacha";
-		const oldArr = legacySynthArrOf(r.payload, p.side, p.id, r.src.tz, p.now);
-		const oldOther = legacySynthArrOf(r.payload, otherSide, p.id, r.src.tz, p.now);
+		const oldArr = legacySynthArrOf(p.key, p.side);
+		const oldOther = legacySynthArrOf(p.key, otherSide);
 		check(`P3b 等价（${p.key}）：\`${p.field}\` 与改造前的合成结果逐条相等（含 ts）`,
 			JSON.stringify(r.rec[p.field]) === JSON.stringify(oldArr),
 			JSON.stringify([r.rec[p.field], oldArr]));
@@ -959,9 +960,9 @@ async function runP3d() {
 		fresh[p.key] = {
 			rec: Object.fromEntries((p.goldenFields || P3D_VISIBLE).map((f) => [f, p3dTextOf(rec[f])])),
 			// ⚠️ 数组 golden = **改造前代码真实产出的数组**；改造前这一侧**还没有数组**（P3c 之后仍是字符串）
-			//    时退回**改造前合成器**照同一份字符串字段算出的结果（`legacySynthArrOf`）——
+			//    时退回**改造前合成器**的输出（P5 清理已把它冻结成字面量 `legacySynthArrOf`）——
 			//    那正是改造前界面本来会显示的条目。两种口径都等于"改造前的行为"，不是"改完再采集"。
-			array: p3bSansTs(arr.length ? arr : legacySynthArrOf(payload, p.side, p.id, src.tz, p.now))
+			array: p3bSansTs(arr.length ? arr : legacySynthArrOf(p.key, p.side))
 		};
 	}
 
@@ -1007,7 +1008,7 @@ async function runP3d() {
 	for (const p of P3D_PATHS) {
 		if (p.noGolden) continue;   // 同上：这一侧的产物随运行环境时区变，不做逐条钉死
 		const r = results[p.key];
-		const oldArr = legacySynthArrOf(r.payload, p.side, p.id, r.src.tz, r.now);
+		const oldArr = legacySynthArrOf(p.key, p.side);
 		const arr = r.rec[p.field] || [];
 		check(`P3d 等价（${p.key}）：\`${p.field}\` 与改造前的合成结果逐条相等（含 ts）`,
 			JSON.stringify(arr) === JSON.stringify(oldArr),
@@ -1277,7 +1278,7 @@ async function runP3e() {
 		if (!payload) { check(`P3e 载荷（${p.key}）：当期有数据（夹具覆盖 now）`, false, String(p.now)); continue; }
 		const rec = engine.__test.mergeEntryRecord({ data: payload }, null, p.now, { id: p.id, tz: src0.tz });
 		const arr = rec[p.field] || [];
-		const oldArr = legacySynthArrOf(payload, p.side, p.id, src0.tz, p.now);
+		const oldArr = legacySynthArrOf(p.key, p.side);
 		const items = (p.side === "gacha" ? payload.gachaHoverItems : payload.eventHoverItems) || [];
 		const hover = p.side === "gacha" ? payload.bannerHover : payload.eventHover;
 		results[p.key] = { payload, rec, engine, p, src: src0, alt: alt0, transport, items };

@@ -34,12 +34,15 @@ import { T, readComponentsSource, REPO } from "./load.mjs";
 import { createEngine } from "../packages/core/core.mjs";
 // 悬停文本的判定**只有一份实现**（在 `test/lib-text.mjs`）：本段（真机 bug 的逐字基线）与
 // `cases-arknights-timeline.mjs`（整周期时间轴扫描）都调它 —— 两处不许各写一套谓词。
+// `legacyHoverItemsOf` = **冻结 oracle**（悬停文本 → 并列条目）：产品里的 `scheduleHoverItems`
+// 在 P5 清理中删除（自 P3c 起就没有生产调用方），判据逐字搬进 lib-text.mjs 供 §④ 的回归继续用。
 import {
 	assertHoverTextInvariants, bareTwoLineFormOf,
-	dupLinesOf, linesOf, NOTE_LINE, SHARED_EVENT_LINE
+	dupLinesOf, linesOf, NOTE_LINE, SHARED_EVENT_LINE, legacyHoverItemsOf
 } from "./lib-text.mjs";
 
 const TZ_CN = "Asia/Shanghai";
+
 
 // 活动侧唯一的一条请求（`eventUrl` 去掉 origin=*；抓取器会自己补）。
 // 直接读源码导出的常量（与 registerSource 里那个 URL 是**同一个**，不抄第二份）。
@@ -528,11 +531,12 @@ export default async function run() {
 	}
 
 	// ── ④ 真机 bug 回归：提示行**不再进 `eventHover`** ⇒ 格子不会多出可见的一行 ─────────────
-	// 表格格子的「探头」由 `scheduleHoverItems(eventHover)` 解析（82-schedule-view.js 的 cells）。
+	// 表格格子的「探头」当时由 `scheduleHoverItems`（悬停文本 → 并列条目，82-schedule-view.js 的 cells）解析；
+	// P5 起产品里没有这个函数了，判据冻结在 test/lib-text.mjs 的 `legacyHoverItemsOf`（见文件顶部 import）。
 	// 提示行不匹配「名称 + 3 空格 + 档期」⇒ 旧实现里它会被攒成 pending、再被下一条活动的档期"带上"，
 	// 于是格子里多出一行**可见文字**（用户截图：`兑换截止：11-10 03:59`）。
 	{
-		const { scheduleHoverItems, scheduleHoverNote } = T;
+		const { scheduleHoverNote } = T;
 		const a = await runFetcher("2026-11-06T15:54:00+08:00");
 		const b = await runFetcher("2026-11-08T12:00:00+08:00");
 
@@ -546,8 +550,8 @@ export default async function run() {
 			JSON.stringify([aLines, bLines]));
 
 		// ② 探头条目数 = 当期活动条数（活动期 / 兑换期都是 3）—— 与改造前一致，不因提示行多出条目
-		const aItems = scheduleHoverItems(a.data && a.data.eventHover, "支线故事：时间啊，向前！", false);
-		const bItems = scheduleHoverItems(b.data && b.data.eventHover, "视相博物馆：演化", false);
+		const aItems = legacyHoverItemsOf(a.data && a.data.eventHover, "支线故事：时间啊，向前！", false);
+		const bItems = legacyHoverItemsOf(b.data && b.data.eventHover, "视相博物馆：演化", false);
 		check("格子探头：eventHover 解析出的并列条目数 = 当期活动条数（活动期 3 条，与改造前一致）",
 			aItems.length === 3, JSON.stringify(aItems.map((x) => x.title)));
 		check("格子探头：兑换期也还是 3 条（视相的兑换期没有顶掉任何一条，也不多出提示行）",
@@ -559,7 +563,7 @@ export default async function run() {
 			JSON.stringify(aItems.concat(bItems).map((x) => x.title)));
 		// ③ 提示行**不参与解析**：把提示行拼进提示框（正确路径）之后，探头仍只解析 eventHover —— 条目数不变
 		check("格子探头：提示行只在提示框里（不参与解析）⇒ 条目数仍是 3；兑换期那条的标题 =「<活动名> 兑换截止」（唯一一条）",
-			scheduleHoverItems(a.data.eventHover, "支线故事：时间啊，向前！", false).length === 3
+			legacyHoverItemsOf(a.data.eventHover, "支线故事：时间啊，向前！", false).length === 3
 			&& scheduleHoverNote(a.data.eventHover, a.data, false).split("\n")
 				.filter((l) => / 兑换截止   \d{2}-\d{2} \d{2}:\d{2}$/.test(l)).length === 2
 			&& bItems.filter((x) => / 兑换截止$/.test(x.title)).length === 1
@@ -570,7 +574,7 @@ export default async function run() {
 		const oldHover = String(a.data.eventHover).split("\n")
 			.flatMap((l) => (l === "视相博物馆：演化   10-24 16:00 ~ 11-07 03:59" ? [l, "视相博物馆：演化 兑换截止   11-10 03:59"] : [l]))
 			.join("\n");
-		const oldItems = scheduleHoverItems(oldHover, "支线故事：时间啊，向前！", false);
+		const oldItems = legacyHoverItemsOf(oldHover, "支线故事：时间啊，向前！", false);
 		check("反向回归：提示行若进了 eventHover ⇒ 探头**多出一条**「视相博物馆：演化 兑换截止   11-10 03:59」（用户截图那一行）",
 			oldItems.length === 4 && oldItems.some((x) => x.title === "视相博物馆：演化 兑换截止   11-10 03:59"),
 			JSON.stringify(oldItems.map((x) => x.title)));
@@ -755,7 +759,7 @@ export default async function run() {
 	// 两条渲染路径都查：表格格子（hoverTextOf：base = eventHover ⇒ scheduleHoverNote）
 	// 与「近期」行（scheduleHoverText）—— 用户 2026-11-06 定的口径是"两处必须一致"。
 	{
-		const { scheduleHoverItems, scheduleNormalize, scheduleHoverText } = T;
+		const { scheduleNormalize, scheduleHoverText } = T;
 		const NOW_EVENT = "2026-11-06T15:54:00+08:00";   // 活动期（视相 11-07 03:59 才结束）
 		const NOW_CLAIM = "2026-11-08T12:00:00+08:00";   // 兑换期（视相 11-10 03:59 才截止）
 		const a = await runFetcher(NOW_EVENT);
@@ -820,7 +824,7 @@ export default async function run() {
 			oldPair);
 
 		// ⑥ 探头：兑换期那条主行的名字 = 面板事项名（`eventShow`）⇒ 不该被当成"另一条并列活动"
-		const bItems = scheduleHoverItems(b.data.eventHover, "视相博物馆：演化", false);
+		const bItems = legacyHoverItemsOf(b.data.eventHover, "视相博物馆：演化", false);
 		check("格子探头：兑换期仍是 3 条活动（主行带着「兑换截止」也照旧解析成一条）",
 			bItems.length === 3 && bItems[0].title === "视相博物馆：演化 兑换截止"
 			&& bItems[0].win === "11-07 03:59 ~ 11-10 03:59",
