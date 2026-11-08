@@ -18,12 +18,21 @@
 //   ⑩ 「只看已启用」label         ：**整条 title 删掉**（label 文字「只看已启用」保留）
 //   ⑪ 健康行 title                ：**删掉第二行**（`\n第四列「上次成功 X 前」= …`），只留 `h.name + " · " + h.text`
 //
-// 为什么单独成段：这 11 条文案散在「通知身份 / 轮播 / 搜索 / 版本号 / 健康」五个特性里，
+// 2026-11-08 第三轮（用户逐条再删 5 处文案 / 改 1 处；⑨ 从"只删 title"升级为"整块删"）：
+//   ⑫ 提醒开关右侧说明 span       ：整条删（「到期前弹系统通知（仅 DSH 运行期间）」）
+//   ⑬ 「提醒」那一行 div 的 title ：整条删（「到点时用系统通知提醒：…」）
+//   ⑭ 「结束提醒」档位行 tooltip  ：整条删（`remindChipRow` 的 titleText 参数一并去掉）
+//   ⑮ 「开始提醒」档位行（注释）  ：整行注释删掉（停用说明保留）
+//   ⑯ 提醒列空态条件渲染整块      ：删（连 `SHOW_REMIND_COLUMN && remindIds.length === 0` 一起）
+//   ⑰ `shortcut-name-taken` 文案  ：→「与开始菜单已有快捷方式冲突」
+//   ⑱ 测试通知正文第三行          ：→「看到这条通知 说明系统通知可用」（中间半角空格）
+//
+// 为什么单独成段：这些文案散在「通知身份 / 轮播 / 搜索 / 版本号 / 健康 / 提醒」六个特性里，
 // 但它们是**同一份产品文案合同**；改回去、或者删 title 时手一抖留下 `title: ""`，都该在这里红。
 //
 // 三条铁律：
-//   ① **反向守卫**：11 条旧字符串在**生产代码**（`src/` 全部 .js）与**产物**（`lib/client.js`）里都不许再出现；
-//   ② **正向守卫**：5 条新字符串**逐字**存在，而且确实挂在**对应的那个控件**上（只查"文件里有这句话"太弱）；
+//   ① **反向守卫**：上面各轮列出的旧字符串在**生产代码**（`src/` 全部 .js）与**产物**（`lib/client.js`）里都不许再出现；
+//   ② **正向守卫**：新字符串**逐字**存在，而且确实挂在**对应的那个控件**上（只查"文件里有这句话"太弱）；
 //   ③ **删除型守卫**：②⑥⑦⑨⑩ 的 title 是从**该控件附近的源码切片**里消失的 —— 不是从别处挪走的。
 //
 // ⚠️ 段数守卫：本文件是 `test/all.mjs` 的第 26 段（README_Dev.md / test/README.md 的「N 段」跟着它走）。
@@ -178,14 +187,24 @@ export default function runSettingsCopy() {
 			JSON.stringify({ src: inSrc, lib: inLib }));
 	}
 	{
-		// ⑨ 切片 = 「白名单为空」判定 → 空态 span 的可见文字。删的是 title，文字必须还在。
-		const m = /SHOW_REMIND_COLUMN && remindIds\.length === 0[\s\S]{0,300}?children: "未勾选任何游戏 ⇒ 不提醒"/.exec(comp);
-		const slice = m ? m[0] : "";
-		check("⑨ 提醒列空态 span 能定位到源码切片（守卫自身没瞎）", slice.length > 0);
-		check("⑨ 空态 span 的 title 整条删掉（切片里没有 title:）", slice.length > 0 && !TITLE_PROP.test(slice));
-		check("⑨ 可见文字保留：仍是「未勾选任何游戏 ⇒ 不提醒」，且只在 SHOW_REMIND_COLUMN + 空数组时渲染",
-			slice.includes('children: "未勾选任何游戏 ⇒ 不提醒"')
-			&& slice.includes("SHOW_REMIND_COLUMN && remindIds.length === 0"));
+		// ⑯ 2026-11-08 用户要求把「白名单为空」那句**整块**删掉（先前只删 title、保留可见文字）。
+		const GONE3 = [
+			["⑫ 提醒开关右侧说明", "到期前弹系统通知（仅 DSH 运行期间）"],
+			["⑬「提醒」行 tooltip", "到点时用系统通知提醒：结束前若干小时，同一件事只发最紧急的一档"],
+			["⑭「结束提醒」档位行 tooltip", "结束前多久提醒（可多选；全不选 = 结束不提醒）"],
+			["⑮「开始提醒」档位行（注释）", "开始前多久提醒（可多选；全不选 = 开始不提醒）"],
+			["⑯ 提醒列空态提示", "未勾选任何游戏 ⇒ 不提醒"]
+		];
+		for (const [label, gone] of GONE3) {
+			const inSrc = sources.filter(([, text]) => text.includes(gone)).map(([f]) => f);
+			const inLib = lib.includes(gone);
+			check(`${label}：文案在生产代码（src/ 与 lib/client.js）里都不再出现`,
+				inSrc.length === 0 && !inLib, JSON.stringify({ src: inSrc, lib: inLib }));
+		}
+		check("⑯ 空态条件渲染整块删掉（源码里没有 `SHOW_REMIND_COLUMN && remindIds.length === 0`）",
+			!comp.includes("SHOW_REMIND_COLUMN && remindIds.length === 0"));
+		check("⑯ 删块没带走相邻控件：「游戏列表」标题之后仍是搜索框",
+			/children: "游戏列表" \}\),\s*\n\s*\/\/ 搜游戏名/.test(comp));
 	}
 	{
 		// ⑩ 切片 = 「只看已启用」那个 label 对象字面量（从 ("label", { 到 label 里的 span 文字）。
@@ -206,6 +225,18 @@ export default function runSettingsCopy() {
 			comp.indexOf('"\\n第四列') < 0 && lib.indexOf('"\\n第四列') < 0
 			&& comp.indexOf('h.text + "') < 0);
 	}
+
+	// ── 4c) 2026-11-08 第三轮：两条**新**文案逐字存在（src + 产物）───────────────────
+	// ⑰ 是宿主错误码的兜底文案（84-settings-page.js）；⑱ 是测试通知正文第三行（65-remind.js，
+	// 中间是**半角空格**，别被编辑器改成全角）。65 不在 COMPONENT_FILES 里，单独取它的源码。
+	const remindSrc65 = (sources.find(([f]) => f === path.join("src", "client", "65-remind.js")) || ["", ""])[1];
+	check("⑰「与开始菜单已有快捷方式冲突」逐字存在（src + 产物）",
+		comp.includes("与开始菜单已有快捷方式冲突") && lib.includes("与开始菜单已有快捷方式冲突"));
+	check("⑱「看到这条通知 说明系统通知可用」逐字存在（src + 产物；中间是半角空格）",
+		remindSrc65.includes("看到这条通知 说明系统通知可用") && lib.includes("看到这条通知 说明系统通知可用"));
+	check("⑱ 测试通知旧第三行「看到这条说明系统通知链路是通的」在 src/ 与 lib/client.js 里都不再出现",
+		sources.every(([, text]) => !text.includes("看到这条说明系统通知链路是通的"))
+		&& !lib.includes("看到这条说明系统通知链路是通的"));
 
 	// ── 5) 格式守卫：删属性不许留下空壳 / 连续逗号，产物必须还能解析 ──────────────
 	check("删 title 后没有残留空属性（`title: \"\"` / `title: ,` / `title: }`）",

@@ -590,9 +590,9 @@ export default async function run() {
 		// ② 设置页接线（静态）
 		const compSrc = readComponentsSource();
 		const styleSrc = readStylesSource();
-		check("胶囊行：结束提醒保留、开始提醒已注释（2026-10-28 搁置），可选集合直接取出厂常量（不另抄一份）",
-			compSrc.includes('remindChipRow("end", "结束提醒", remindEndSavedText, REMIND_DEFAULT_END_NODES, "remindEndNodes"')
-			&& compSrc.includes('remindChipRow("end", "结束提醒"') && /\/\/[^\n]*remindChipRow\([^\n]*开始提醒/.test(compSrc));
+		check("胶囊行：只渲染结束提醒一行；开始提醒整行（含注释）已删，停用说明保留；可选集合直接取出厂常量（不另抄一份）",
+			compSrc.includes('remindChipRow("end", "结束提醒", remindEndSavedText, REMIND_DEFAULT_END_NODES, "remindEndNodes")')
+			&& !compSrc.includes('remindChipRow("start", "开始提醒", remindStartSavedText') && compSrc.includes("开始提醒已暂时停用"));
 		check("文本框 / 预览 / 红框提示**全部删掉**（没有 remindNodeRow、没有\"解析为：\"、没有 aria-invalid）",
 			!/remindNodeRow/.test(compSrc) && !/remindNodesEditOf/.test(compSrc)
 			&& !compSrc.includes("解析为：") && !compSrc.includes("没识别出有效小时数")
@@ -845,8 +845,8 @@ export default async function run() {
 			JSON.stringify([appToast.lines[0], psToast.lines[0], remindTestToastOf(NOW, void 0).lines[0]]));
 		check("时间行 = yyyy-MM-dd HH:mm:ss（本机时区，与 Date 现算逐字一致）",
 			appToast.lines[1] === "时间：" + localClock(NOW), appToast.lines[1]);
-		check("第三行是「看到这条说明系统通知链路是通的」",
-			appToast.lines[2] === "看到这条说明系统通知链路是通的", appToast.lines[2]);
+		check("第三行是「看到这条通知 说明系统通知可用」",
+			appToast.lines[2] === "看到这条通知 说明系统通知可用", appToast.lines[2]);
 		check("时刻非法 ⇒ 不抛、时间行留空（坏在时间上也不该拖垮设置页）",
 			(() => {
 				const t = remindTestToastOf(Number.NaN, "app");
@@ -1545,7 +1545,7 @@ export default async function run() {
 			&& compSrc.includes("通知身份仅 Windows 可用；macOS 由系统直接派发")
 			&& /!\s*\(notifyIdentity && notifyIdentity\.supported !== false\)/.test(compSrc));
 
-		// ⑤b 设置页通知区块 5 处文案（2026-11-01 用户逐条定稿）：旧串在生产代码与产物里都不许再出现，
+		// ⑤b 设置页通知区块 6 处文案（2026-11-01 用户逐条定稿；2026-11-08 又改「冲突」那句）：旧串在生产代码与产物里都不许再出现，
 		//     新串必须逐字存在。为什么正反都钉：只测"新串在"挡不住评论 / 兜底分支里残留旧说法；
 		//     只测"旧串没了"挡不住随手换成第三种说法。旧串里「仅 Windows / macOS」那条必须是**完整**
 		//     旧串（带右括号），否则会误伤新串「仅 Windows / macOS 支持」。
@@ -1554,13 +1554,14 @@ export default async function run() {
 				"当前平台不支持系统通知（仅 Windows / macOS）",
 				"请求格式不对",
 				"这个名字已被开始菜单里另一条快捷方式占用，换个名字",
+				"已被开始菜单已有快捷方式占用冲突",
 				"系统通知（无需身份）",
 				"通知身份仅 Windows 可用；macOS / Linux 由系统直接派发"
 			];
 			const NEW_TEXT = [
 				"当前平台不支持系统通知（仅 Windows / macOS 支持）",
 				"请求格式错误",
-				"已被开始菜单已有快捷方式占用冲突",
+				"与开始菜单已有快捷方式冲突",
 				"系统通知",
 				"通知身份仅 Windows 可用；macOS 由系统直接派发"
 			];
@@ -1568,7 +1569,7 @@ export default async function run() {
 			const pageSrc = readFileSync(pagePath, "utf8");
 			const libSrc = readFileSync(path.join(REPO, "lib", "client.js"), "utf8");
 			const leftOld = (src) => OLD_TEXT.filter((t) => src.includes(t));
-			check("设置页通知区块：5 个旧文案在源码与 lib/client.js 里**都不再出现**",
+			check("设置页通知区块：6 个旧文案在源码与 lib/client.js 里**都不再出现**",
 				leftOld(pageSrc).length === 0 && leftOld(libSrc).length === 0,
 				"src=" + leftOld(pageSrc).join(" | ") + " lib=" + leftOld(libSrc).join(" | "));
 			check("设置页通知区块：5 个新文案在源码与 lib/client.js 里逐字存在（改了 src 忘了 build 会红）",

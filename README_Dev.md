@@ -100,7 +100,7 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 32 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（11 处定稿）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致））
+│   ├── all.mjs      # 统一门禁：聚 32 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（18 处定稿，三轮增删）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致））
 │   ├── cases-*.mjs  # 各段用例（32 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / cases-arknights-claim / cases-arknights-timeline / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh / settings-jump / settings-copy / sources / bwiki-cors / p3 / p4flat）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
@@ -934,7 +934,7 @@ DSH 官方只承诺 **Windows + macOS**（Linux 有安装产物，但不作硬�
         与"配置读坏"的兜底共用它），由 `test/cases-ticker.mjs` 的守卫钉住；
         `engine-head.js` 的 `CONFIG_KEYS` 也含它；
       · 语义 = **普通列表**：列表里有谁就提醒谁，**空数组 = 一个都不提醒**（没有"空 = 全部"的哨兵）；
-        设置页在白名单为空时显示一句「未勾选任何游戏 ⇒ 不提醒」；
+        设置页**不再**为空白名单加说明（2026-11-08 按用户要求删掉的「未勾选任何游戏 ⇒ 不提醒」不恢复）；
       · 判定唯一入口 = 纯函数 `remindGameAllowed`（`65-remind.js`）—— 2026-10-30 从 `60-helpers.js`
         搬进来，因为宿主半边只装 `65-remind.js`（`lib/remind-core.mjs`），放在别处宿主只能抄第二份；
       · ✅ **送达侧已消费**（2026-10-30）：宿主 `runRemindRound` 读 `remindGames`（`configValueOf`
@@ -947,7 +947,7 @@ DSH 官方只承诺 **Windows + macOS**（Linux 有安装产物，但不作硬�
         只有设置页那一列与 `remind.log` 的跳过计数能看出来；要收它们的提醒得手动勾上。
         **轮播不读它**（轮播只有 `tickerOn` + `tickerHours`，见第 1 项）。
    - 守卫：`test/cases-ticker.mjs` ④/⑧ —— 白名单语义 + 默认值 == 展示中来源 + schema 一致
-     + 列恢复后**五处入口都在** + **反向守卫**（轮播链路与函数签名里都不许出现逐游戏列表）；
+     + 列恢复后**入口都在** + **反向守卫**（轮播链路与函数签名里都不许出现逐游戏列表）；
      `test/cases-remind.mjs` ⑱ —— **行为**用例（拿假条目 + 假 settings 跑真判定）：只提醒白名单内、
      跳过的不写已发状态、空白名单全不提醒、事后勾上下一轮照常提醒、旧状态键被清理、宿主接线与日志格式。
 3. **解析器自检（✅ 已完成 2026-10-28）**（原「来源健康看板」的重构升级）：每源展示最近成功时间 / 连续失败次数 / 失败原因，

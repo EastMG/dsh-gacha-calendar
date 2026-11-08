@@ -14,7 +14,7 @@
 			if (text === "payload-too-large") return "请求内容过大";
 			if (text === "invalid-json" || text === "enabled-must-be-boolean") return "请求格式错误";
 			// 改名时目标位置已经有一条**不属于本插件**的同名快捷方式：宿主拒绝覆盖（见启用脚本 ①）
-			if (text === "shortcut-name-taken") return "已被开始菜单已有快捷方式占用冲突";
+			if (text === "shortcut-name-taken") return "与开始菜单已有快捷方式冲突";
 			return text || "未知错误";
 		};
 		async function readNotifyIdentity() {
@@ -84,7 +84,7 @@
 			const [remindDraft, setRemindDraft] = (0, react.useState)({});
 			const remindWriteChain = (0, react.useRef)(Promise.resolve());
 			// 「到期提醒」档位**胶囊**的本地草稿（{ end, start }，null = 跟随已保存的设置值）。
-			// 实际只渲染「结束」一行（`remindChipRow("start", ...)` 于 2026-10-28 起注释掉），
+			// 实际只渲染「结束」一行（开始那一行的胶囊调用与 tooltip 文案 2026-11-08 按用户要求整行删除），
 			// 但草稿结构与「全部取消」仍维护 start 那份 —— 恢复显示时不必再补状态。
 			// 受控值读草稿而不读 `s`：宿主一次写入往返 1.4~3.6s，`s` 不会即时推新 ——
 			// 直接读 `s` 会把用户刚点的那一下吞掉（与上面「展示」草稿同一个病）。
@@ -752,13 +752,13 @@
 			// 胶囊是真的 <button>（可 Tab / 可回车 / aria-pressed 报告选中态），
 			// 选中态走 .gacha-cal-chip--on（主题浅色底 + 深色字；未选中 = 灰描边 + 次级字色；
 			// 两者的 hover 都在 styles/chip.css 里，各有轻微变化）。
-			const remindChipRow = (which, labelText, savedText, fallbackNodes, keyName, titleText, noteText) => {
+			const remindChipRow = (which, labelText, savedText, fallbackNodes, keyName, noteText) => {
 				const nodes = remindNodesOf(remindNodesValue(which, savedText), fallbackNodes);
 				return (0, react_jsx_runtime.jsxs)("div", {
 					key: which,
 					style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
 					children: [
-						(0, react_jsx_runtime.jsx)("span", { style: { flex: "none", fontSize: 12, color: "var(--dsw-alias-label-secondary)" }, title: titleText, children: labelText }),
+						(0, react_jsx_runtime.jsx)("span", { style: { flex: "none", fontSize: 12, color: "var(--dsw-alias-label-secondary)" }, children: labelText }),
 						(0, react_jsx_runtime.jsxs)("div", {
 							style: { display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" },
 							children: fallbackNodes.map((n) => {
@@ -857,20 +857,18 @@
 							] })
 						] }),
 						// 「到期提醒（送达）」总开关（默认开）：到点时由**宿主半边**弹系统通知。
-						// 下面一行是节点档位胶囊（字符串配置 "72,24,6,2"；开始那一行 2026-10-28 起已注释掉，
+						// 下面一行是节点档位胶囊（字符串配置 "72,24,6,2"；开始那一行 2026-11-08 起已整行删除，
 						// 原因见 65-remind.js 的 remindConfigOf 把 startNodes 置空）：解析、归一化、
 						// 全部取消（空串 = 该方向不提醒）全走 65-remind.js，与判定侧同一份口径。
-						(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }, title: "到点时用系统通知提醒：结束前若干小时，同一件事只发最紧急的一档", children: [
+						(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }, children: [
 							(0, react_jsx_runtime.jsxs)("label", { style: { display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }, children: [
 								(0, react_jsx_runtime.jsx)("input", { type: "checkbox", checked: remindOn, onChange: (e) => commit("remindOn", e.target.checked) }),
 								(0, react_jsx_runtime.jsx)("span", { style: { flex: "none" }, children: "提醒" })
-							] }),
-							(0, react_jsx_runtime.jsx)("span", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 11 }, children: "到期前弹系统通知（仅 DSH 运行期间）" })
+							] })
 						] }),
-						remindChipRow("end", "结束提醒", remindEndSavedText, REMIND_DEFAULT_END_NODES, "remindEndNodes", "结束前多久提醒（可多选；全不选 = 结束不提醒）"),
+						remindChipRow("end", "结束提醒", remindEndSavedText, REMIND_DEFAULT_END_NODES, "remindEndNodes"),
 						// 2026-10-28：开始提醒已暂时停用（多数来源不提前提供档期；宿主侧 remindConfigOf 也把
-						// startNodes 置空），恢复时把下面这一行取消注释即可：
-						// remindChipRow("start", "开始提醒", remindStartSavedText, REMIND_DEFAULT_START_NODES, "remindStartNodes", "开始前多久提醒（可多选；全不选 = 开始不提醒）", "多数来源不提前提供档期，已搁置"),
+						// startNodes 置空）。
 						// ── 通知身份（可选）：**一行**。「启用」= 当前用户开始菜单里建一条带 AUMID 的快捷方式，
 						// 通知横幅顶部才会显示下面那个名字；「移除」= 删掉它并退回 PowerShell。
 						// 2026-10-28：三行压成一行 —— 原来那两行说明文字挪进按钮的 title（信息不丢、不再占行）；
@@ -939,11 +937,6 @@
 							// 窄窗口靠外层 flexWrap 换行，不会把按钮挤丢。
 							(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexWrap: "wrap" }, children: [
 								(0, react_jsx_runtime.jsx)("span", { style: { fontWeight: 600 }, children: "游戏列表" }),
-								// 「空数组 = 一个都不提醒」在界面上不直观（全不勾看起来像"还没设置"）⇒ **只在真的空**时
-								// 补一句极短提示；勾上任何一条它就消失（不常驻，2026-10-28 删掉的那行操作提示不重开）。
-								SHOW_REMIND_COLUMN && remindIds.length === 0
-									? (0, react_jsx_runtime.jsx)("span", { style: { fontSize: 11, color: "var(--dsw-alias-label-tertiary)" }, children: "未勾选任何游戏 ⇒ 不提醒" })
-									: null,
 								// 搜游戏名：大小写 / 全半角不敏感，空格分隔 = 多个关键词都要命中（与面板同一套归一）。
 								// **临时 UI 状态、不写设置**；清空（或按 Esc）即恢复全部行。
 								// 2026-11-01 真机修版：输入框前面加一枚放大镜（与新面板底栏那颗**逐字同一套**规格），

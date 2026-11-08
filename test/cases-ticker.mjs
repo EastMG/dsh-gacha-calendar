@@ -16,7 +16,7 @@
 //   ③ 「提醒」逐游戏白名单的语义（纯函数 `remindGameAllowed`）—— 这是「到期提醒（送达）」的钩子，
 //      **轮播不读它**：**普通列表**，列表里有谁就提醒谁，**空数组 = 一个都不提醒**。
 //      ⚠️ 2026-10-30 起送达侧真的按它过滤（宿主 runRemindRound → remindAllowedTickOf），
-//        设置页那一列也随之恢复显示（`SHOW_REMIND_COLUMN = true`）；这里守"五处入口都在"。
+//        设置页那一列也随之恢复显示（`SHOW_REMIND_COLUMN = true`）；这里守"入口都在"。
 //      + **守卫**：`DEFAULT_SETTINGS.remindGames`（及 src/index.js 的 REMIND_GAMES_DEFAULT）
 //        必须恰好等于所有 `defaultHidden !== true` 的来源 id —— 新增来源/改默认隐藏时要同步。
 //      + **反向守卫**：轮播链路（`tickerItemsOf` / `tickerPickOf` / 渲染层 memo）**不得**读这份列表，
@@ -702,8 +702,8 @@ export default async function run() {
 		// ── 「提醒」列（设置页游戏列表）：2026-10-30 起**恢复显示** ────────────────────────
 		// 这一列是「到期提醒（送达）」的逐游戏白名单（`remindGames`）。2026-10-26 曾因为"送达未实现、
 		// 勾了没效果"整列隐藏（`SHOW_REMIND_COLUMN = false`）；2026-10-30 送达开始真的按它过滤
-		// （宿主 runRemindRound → core 的 remindAllowedTickOf），常量改回 true ⇒ 五处入口一起回来。
-		// 静态守卫因此改成"**true，且五处入口都在**"（防有人只恢复一半 / 只留常量不接线）。
+		// （宿主 runRemindRound → core 的 remindAllowedTickOf），常量改回 true ⇒ 各入口一起回来。
+		// 静态守卫因此改成"**true，且入口都在**"（防有人只恢复一半 / 只留常量不接线）。
 		check("常量开关 SHOW_REMIND_COLUMN = true（送达已消费这份白名单，列已恢复）",
 			/const SHOW_REMIND_COLUMN = true;/.test(comp) && !/const SHOW_REMIND_COLUMN = false;/.test(comp));
 		// 列头在源码里是 `\u` 转义（`children: "\u63D0\u9192"`），比对**转义文本**（双反斜杠）。
@@ -725,15 +725,15 @@ export default async function run() {
 			comp.indexOf('children: "导出 .ics"') > -1
 			&& comp.indexOf('children: "导出 .ics"') < comp.indexOf('children: "重置排序"')
 			&& comp.indexOf('children: "重置排序"') < comp.indexOf('children: "恢复条目"'));
-		// 「概括」这一处：2026-10-28 用户要求删掉的那行常驻操作提示**不许回来**，
-		// 取而代之的是"只在白名单为空时"出现的一句极短提示（空数组语义在界面上不直观）。
+		// 「概括」这一处：2026-10-28 用户要求删掉的那行常驻操作提示**不许回来**；
+		// 2026-10-28 补的"只在白名单为空时"那句极短提示也于 2026-11-08 按用户要求删除，同样不许回来。
 		check("表头上方那行常驻操作提示仍然不存在（「展示」控制显示… 两个分支都没回来）",
 			comp.indexOf("「展示」控制显示") < 0
 			&& comp.indexOf("取色器换主题色") < 0
 			&& comp.indexOf("「提醒」到点通知") < 0);
-		check("空列表提示：白名单为空时显示「未勾选任何游戏 ⇒ 不提醒」（唯一的第五处入口）",
-			comp.includes('SHOW_REMIND_COLUMN && remindIds.length === 0')
-			&& comp.includes("未勾选任何游戏 ⇒ 不提醒"));
+		check("空列表提示已删（2026-11-08 用户要求）：不再有「未勾选任何游戏 ⇒ 不提醒」那段条件渲染",
+			!comp.includes('SHOW_REMIND_COLUMN && remindIds.length === 0')
+			&& !comp.includes("未勾选任何游戏"));
 		check("网格列宽走单一常量 SETTINGS_GAME_GRID（表头与数据行同源），显示分支**带 28px 那一格**",
 			(comp.match(/gridTemplateColumns: SETTINGS_GAME_GRID/g) || []).length === 2
 			&& comp.includes('"minmax(0,1.15fr) 28px 28px minmax(0,1fr) minmax(0,1fr) 34px 88px"')
