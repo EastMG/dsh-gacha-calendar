@@ -1183,6 +1183,21 @@ DSH 官方只承诺 **Windows + macOS**（Linux 有安装产物，但不作硬�
 8. **分发/曝光**：`awesome-dsh-plugin` 提 PR；核对 `dshplugin.net` 条目；README 加一张动图；
    `package.json` 补 `keywords`；GitHub 仓库补 topics；npm 页面确认 README 已是最新。
 
+### 待办：对话工具（Dsh ctx.tools）—— 2026-11-09 记录，暂缓
+
+DSH 本身提供工具注册表（`@deepseek-ai/dsh-tools` 的 `ctx.tools`，
+`ctx.tools.register(defineTool({...}))`）：注册后 schema 自动进系统提示词，**模型在对话里就能直接调用**。
+本插件目前只用了 UI 槽位（`settings.section` / `sidebar.footer.action`），**没有注册任何工具**。
+
+可行的候选工具（待评估）：
+- `gacha_upcoming(within_hours)`：返回 N 小时内到期的条目（游戏 / 侧 / 事项名 / 截止时刻 / 剩余）
+- `gacha_status()`：返回来源健康摘要（哪些抓取失败 / 哪些未配置）
+- `gacha_refresh()`：触发一轮刷新（需评估权限与幂等性）
+
+接入要求：`cordis.patch.yml` 增加工具插件入口 + 实现 `defineTool` + 对应用例。
+注意：工具面向模型，对外文案要求与面板一致；README.md 的功能清单属审批制，加工具后需用户确认才能改。
+状态：**用户 2026-11-09 指示「加入待办，稍后处理」** ⇒ 本次不实现。
+
 ### 待论证 / 待定
 
 9. **core 独立成仓库**：倾向**暂不**。core 由 `src/client/` 生成、与 UI 交织，拆开要先重构
