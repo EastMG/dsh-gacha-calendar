@@ -158,6 +158,12 @@ const ORDER = [
   "30-game-sega.js",
   "30-game-yostar.js",
   "30-game-bluepoch.js",
+  // 2026-11-09（用户：「五个都接入，暂时没有数据源的就留空未配置」）：
+  // 三组各自自包含 —— wqmt 有两侧真源（bwiki 卡池 + 官方资讯 API 活动）、
+  // pengpeng 只有卡池源（活动侧留空）、剩下三条（wd / hlr / cytq）只注册条目、来源留空未配置。
+  "30-game-wqmt.js",           // 无期迷途（国服）：卡池 bwiki + 活动 官方资讯 API + 开服锚点
+  "30-game-pengpeng.js",       // 夜幕之下（国服）：卡池 bwiki（活动侧未配置）
+  "30-game-unconfigured.js",   // 未定事件簿 / 时空中的绘旅人 / 炽焰天穹：只注册、来源留空未配置
   "44-test-exports.js",        // 回归出口：解析器 + env 工具 + 来源表（挂 exports.__regression，测试用）
   "50-refresh.js",             // 刷新编排、失败沿用旧值
   "60-helpers.js",             // 共用纯函数：状态归一 / 提示文案 / 显隐 / 格式化 / 排序 / 启动刷新判定
@@ -270,6 +276,11 @@ const CORE_ORDER = [
   "30-game-sega.js",
   "30-game-yostar.js",
   "30-game-bluepoch.js",
+  // 2026-11-09（同 ORDER）：5 款新接入 —— core 侧也要有，否则 Node 宿主（packages/core）里的
+  // SOURCES 少 5 条，`cases-core` 的"来源总数"会与 client 侧对不上。
+  "30-game-wqmt.js",           // 无期迷途（国服）
+  "30-game-pengpeng.js",       // 夜幕之下（国服）
+  "30-game-unconfigured.js",   // 未定事件簿 / 时空中的绘旅人 / 炽焰天穹（来源留空未配置）
   "50-refresh.js",             // 刷新编排
   "engine-api.js",             // 注入 env + refresh() + 测试出口 + return
 ];

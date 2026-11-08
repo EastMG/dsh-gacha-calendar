@@ -79,6 +79,9 @@ dsh-gacha-calendar/
 │       ├── 30-game-sega.js        # 世嘉：初音未来：缤纷舞台
 │       ├── 30-game-yostar.js      # 悠星：星塔旅人
 │       ├── 30-game-bluepoch.js    # 深蓝互动：重返未来：1999
+│       ├── 30-game-wqmt.js        # 无期迷途（国服）：卡池 bwiki 追踪一览 + 活动 官方资讯 API + 开服锚点
+│       ├── 30-game-pengpeng.js    # 夜幕之下（国服）：卡池 bwiki 契约一览（活动侧未配置）
+│       ├── 30-game-unconfigured.js # 未定事件簿 / 时空中的绘旅人 / 炽焰天穹：只注册条目、来源留空未配置
 │       ├── 44-test-exports.js # 回归出口：解析器 + env 工具 + 来源表
 │       ├── 50-refresh.js     # 刷新编排、失败沿用旧值、提示归类
 │       ├── 60-helpers.js     # 顶部提示归类 / 显隐判定 / 排序 / 角色名与倒计时格式化 / 启动刷新判定
@@ -100,8 +103,8 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 33 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（18 处定稿，三轮增删）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）+ category / tags 批 1+2+3（9 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 多值拆分 + 旧键兼容 + 反证；批 3 把 `eventTier` 的 haystack 改成 OR 语义：`category` + `tags` + `name` 都参与））
-│   ├── cases-*.mjs  # 各段用例（32 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / cases-arknights-claim / cases-arknights-timeline / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh / settings-jump / settings-copy / sources / bwiki-cors / p3 / p4flat）
+│   ├── all.mjs      # 统一门禁：聚 34 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（18 处定稿，三轮增删）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）+ category / tags 批 1+2+3（9 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 多值拆分 + 旧键兼容 + 反证；批 3 把 `eventTier` 的 haystack 改成 OR 语义：`category` + `tags` + `name` 都参与）+ 2026-11-09 新接入 5 款（无期迷途两侧真源 / 夜幕之下卡池 / 未定·绘旅人·炽焰天穹留空未配置））
+│   ├── cases-*.mjs  # 各段用例（33 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / cases-arknights-claim / cases-arknights-timeline / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh / settings-jump / settings-copy / sources / bwiki-cors / p3 / p4flat / category / new5）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
 │   ├── lib-text.mjs # 悬停文本的共用判定（去重 / 相邻重复 / 「名称 ⏎ 只有区间」/ 分类前缀双写）
@@ -843,6 +846,82 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
 键名的 `cat` → `category`（`legacy-oracle-golden.json` / `p3b-golden.json` 的 `array` 字符串），
 **值一个字符都没动** —— 那是字段改名的同步，不是"改完再采集"（P3 的采集模式明确禁止后者）。
 新增事实的**取值**由 `test/cases-category.mjs`（门禁最后一段，真夹具逐款逐字）钉住。
+
+
+### 新接入的 5 款（2026-11-09）
+
+用户原话：「五个都接入，暂时没有数据源的就留空未配置」。来源全部**实测过**（见各夹具
+`response.txt.meta.json` 的 `capturedAt`），**有源的接全、无源的只注册条目**——
+面板上不假装"配了一个源"。5 条都不出厂隐藏（`defaultHidden: false`），所以照常占面板一行，
+`DEFAULT_SETTINGS.remindGames` / `REMIND_GAMES_DEFAULT` 也同步加了这 5 个 id（守卫见
+`test/cases-ticker.mjs` ④：两份名单必须恰等于 `defaultHidden !== true` 的集合）。
+
+| id | 游戏 | 卡池源 | 活动源 | 状态 |
+|---|---|---|---|---|
+| `wqmt` | 无期迷途（国服） | bwiki「追踪一览」（`api.php?action=parse`，174 行） | 官方资讯 API `wqmt.aisnogames.com/api/news`（`ACAO:*` ⇒ 直连） | **两侧已接** |
+| `pengpeng` | 夜幕之下（国服，曾用名「代号砰砰」） | bwiki「契约一览」（18 行） | — | **只接卡池**，活动侧未配置 |
+| `wd` | 未定事件簿 | — | — | **未配置**（只注册条目） |
+| `hlr` | 时空中的绘旅人 | — | — | **未配置**（只注册条目） |
+| `cytq` | 炽焰天穹（用户写作「炽焰苍穹」） | — | — | **未配置**（只注册条目） |
+
+**无期迷途两个解析器（`30-game-wqmt.js`）**
+
+- 卡池：`追踪页面 | 开启时间 | 概率提升` 三列。池名与角色在源站是**一格**（`隐秘深渊-格芮芙、渡鸦…`），
+  只有右侧每个名字都能在「概率提升」列里找到才拆开（对不上就整串当池名，不猜）；
+  卡池类型取「开启时间」格里的加粗字（比行属性 `data-param1` 更细：`返场·限定追踪` vs `限定追踪`），
+  通过 `itemFacts` 进 `gacha[]` 的 `category`。
+- 角色合并口径与 `selectCurrent` **只差一条**：只合并**同批（`endTs` 相同）**的池。
+  无期迷途同一时刻常规/活动/限定/统合/定向/联动**六类池并行**、角色互不重复，全合并会把十几个名字
+  拼成一行且看不出"哪一批"。这个口径抽成了共用 helper `ns_bwiki_batchGachaPayloadOf`
+  （`30-game-bwiki-common.js`，wqmt / pengpeng 共用），没有写第二份。
+- 活动：列表 1 次 + 最新 6 条正文（`WQMT_EVENT_MAX_DETAILS`，列表**无分页**）。正文里两种窗口写法都认：
+  ① `■「破碎防线·暗域」第35期开启，11月02日 05:00 ~ 12月14日 04:00`（两端都带 HH:MM 才算区间，
+  防止把「将于X月X日结束」拼成假档期）；② `■活动时间：11月11日 开服后~12月09日 07:59`。
+- **时区**：源站无标注，但时间一律是 `09:59:59` / `04:59` 这种"整点差一分" + 维护窗口 `10:00-14:00`
+  ⇒ 按 **UTC+8** 解析（`tz: "Asia/Shanghai"`，判据写在文件头，**推定**不进悬停）。
+
+**「开服后」怎么处理（这一批最容易出错的地方）**
+
+卡池表 174 行**全部**写成 `YYYY-MM-DD 开服后`，没有一行给时刻。要写 `startTs` 就必须有
+「开服时刻锚点」，机制是 `wqmtMaintAnchorsOf`：从**已经抓到的公告正文**里读
+`维护时间：11月11日10:00-14:00` ⇒ 那一天的开服时刻 = 维护窗口的**结束**（14:00）。
+
+- **有锚点** ⇒ 写 `startTs`，档期文本是正常的两端时刻（`11-11 14:00 ~ 12-09 07:59`）；
+- **没有锚点** ⇒ **`startTs` 留 null，不猜**。卡池侧只抓 bwiki（默认源不跨站取数，见上面
+  「来源策略：无自动兜底」），拿不到维护公告 ⇒ 2026-11-09 实测在期的 6 口池**全部没有锚点**
+  （最新维护公告是 10-27，而在期池从 11-11 起）。`bannerDates` 于是写 `11-11 开服后 ~ 12-09 09:59`
+  —— 与绝区零「3.3版本更新后 ~ 11-11 11:59」同一种降级，`dataArrayWindowOf` 对单边窗口只填 `endTs`。
+  代价是起点未知按全仓口径「视为已开始」⇒ 11-11 才开的池子在 11-09 就显示成在期。
+  **这是有意的**：实测维护窗口是 `10:00-14:00`，编一个 `10:00` 会差 4 小时，比"早两天看见"更糟。
+  锚点机制的正/反两例由 `test/cases-new5.mjs` ③ 用合成正文钉住（不依赖源站当天发没发公告）。
+
+**夜幕之下为什么活动侧留空**：官方只有逐条公告页（无列表接口、无稳定分页），bwiki 也没有活动一览页
+⇒ 没有一页能一次取到"活动 + 起止"。按用户要求留空，`eventUrl` **不写**。
+
+**③④⑤ 三款为什么一个源都没有（不是没找，是找到了也不能用）**
+
+- `wd` 未定事件簿：米哈游 `wd.mihoyo.com` 的公告接口**通**，但内容停更（chan51 最新 2025-09-24、
+  bwiki 备选停在 2024-03）⇒ 接上去只会显示一份过期档期，比"未配置"更糟；
+- `hlr` 时空中的绘旅人：官网 `hlr.163.com` 只有公告 HTML（SSR），卡池只能靠公告正文抽，没有列表页；
+- `cytq` 炽焰天穹：bwiki 只有 `cytq` 子站（无卡池表、无活动表），官网无可抓接口。
+
+**「未配置」在数据与 UI 里的表达（三处，全部不产生 fail）**
+
+1. **刷新**：`50-refresh.js` 的 `fetchEntry` 第一行 `if (!source.url && !source.eventUrl)` ⇒
+   `{ ok:true, reason:"skipped" }`：不抓取、不计成功、不计失败；
+2. **来源健康 / 自检**：`engine-api.js` 的 `describe()` 对 `!url` 的一侧给
+   `{ state:"unconfigured", text:"未配置来源" }`，进 `summary.unconfigured` 而**不是** `down`
+   —— 设置页那行结论是「… / 未配置 N / 失败 M」两个独立数字。`pengpeng` 的活动侧同理。
+3. **面板**：该侧没有外显条目 ⇒ `scheduleCellOf` 返回 `null`，格子里写「该来源无数据」（灰底），
+   底部失败横条只看 `isDown(gachaFail|eventFail)` ⇒ 也不会出现。
+   设置页「卡池来源 / 活动来源」下拉里那一侧显示裸「未配置」（`getDefaultSourceName`）。
+
+断言全在 `test/cases-new5.mjs` ⑤（`fetchEntry` 的 `reason` / `selfCheck` 的 `summary` 三个计数 /
+"未配置条目一个请求都没发"的记账断言 / `scheduleCellOf` 与 `scheduleNormalize` 都返回 null）。
+
+**已知限制（都写进代码注释了）**：① 无期迷途卡池的起点要靠维护公告锚点，卡池侧拿不到 ⇒ 目前恒为
+`null`；② 夜幕之下的 wiki 表在 2026-10-01 之后没有新行（2026-11-09 实测最新一批是 09-10）
+⇒ 当前时刻**如实返回 null（未公布）**，等 wiki 补档，抓取器不需要改。
 
 
 ### 为什么插件要改宿主的槽位布局

@@ -65,6 +65,34 @@
 				parseZspmsGacha: ns_bwiki_parseZspmsGacha,
 				windowsFromCell: ns_bwiki_windowsFromCell,
 			},
+			// 2026-11-09 新接入：无期迷途（两侧都有源）。解析器拆成小步，回归可以分别钉住
+			// 「开服后 → 无 startTs / 有锚点 → 写 startTs」两条路，以及活动正文的两种窗口写法。
+			"wqmt": {
+				WQMT_EVENT_MAX_DETAILS,
+				WQMT_EVENT_MAX_ITEMS,
+				WQMT_MAINT_RE,
+				WQMT_NEWS_URL,
+				WQMT_TZ,
+				wqmtBodyTextOf,
+				wqmtEventCandidatesOf,
+				wqmtEventNameOf,
+				wqmtEventPayloadOf,
+				wqmtEventWindowsOf,
+				wqmtMaintAnchorsOf,
+				wqmtPointOf,
+				wqmtPoolNameOf,
+				wqmtPoolsOf,
+				wqmtRolesOf,
+				wqmtTypeOf,
+				wqmtWindowOf,
+			},
+			// 夜幕之下（只有卡池源；活动侧留空未配置）
+			"pengpeng": {
+				PENGPENG_BWIKI_URL,
+				PENGPENG_TZ,
+				pengpengNameOf,
+				pengpengPoolsOf,
+			},
 			"umapyoi": {
 				PERMANENT_END: ns_umapyoi_PERMANENT_END,
 				gachaUmapyoi: ns_umapyoi_gachaUmapyoi,

@@ -61,15 +61,19 @@ export default async function runCore() {
 		check("多次 createEngine 不会让 altSources 变长", altMax === altMax3, `${altMax} vs ${altMax3}`);
 	}
 
-	// ② core 覆盖全部 28 款（C2 之后的范围），且内置 11 款仍在
+	// ② core 覆盖全部来源（C2 之后 28 款 + 2026-11-09 新接入 5 款 = 33），且内置 11 款仍在
 	{
 		const e = createEngine({ transport: noopTransport, storage: makeStorage(), now: () => 0 });
 		const ids = e.__test.SOURCES.map((s) => s.id);
-		check("core 来源总数 = 28（内置 11 + 另外 17）", ids.length === 28, String(ids.length));
+		check("core 来源总数 = 33（内置 11 + 另外 17 + 2026-11-09 的 5）", ids.length === 33, String(ids.length));
 		const builtin = ["genshin", "hsr", "zzz", "wuwa", "arknights", "endfield", "ba-cn", "ba-global", "ba-jp", "r1999", "nte"];
 		check("内置 11 款都还在", builtin.every((i) => ids.includes(i)), builtin.filter((i) => !ids.includes(i)).join(","));
 		const extra = ["p5x", "zspms", "czn", "kedr", "ddlezj", "bh3", "stellasora", "fgo", "gf2", "bandori", "pjsk"];
 		check("另外 17 款的代表条目也在（C2 后 core 不再只有内置）", extra.every((i) => ids.includes(i)), extra.filter((i) => !ids.includes(i)).join(","));
+		// 2026-11-09：有源的 2 款 + 只注册条目的 3 款，一个都不许漏
+		const added = ["wqmt", "pengpeng", "wd", "hlr", "cytq"];
+		check("2026-11-09 新接入的 5 款都在（wqmt / pengpeng / wd / hlr / cytq）",
+			added.every((i) => ids.includes(i)), added.filter((i) => !ids.includes(i)).join(","));
 	}
 
 	// ③ 纯 Node 环境可用（没有 window / document）

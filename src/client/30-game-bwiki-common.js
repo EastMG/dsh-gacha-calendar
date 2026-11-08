@@ -293,6 +293,53 @@ function ns_bwiki_gachaPayload(items, tz, now) {
 	out.gachaHoverItems = hoverItems;
 	return out;
 }
+// ── 卡池载荷：**同批合并**角色的那一版（2026-11-09 新增，wqmt / pengpeng 共用）──────────────
+//
+// 与上面的 `ns_bwiki_gachaPayload` 只差**一条口径**，而这条口径必须写清：
+//   `ns_bwiki_pickCurrentPool` 取"结束最早"的那口池作外显，角色则来自**全部**在期池。
+//   那对"同期只有主池 + 武器池"的游戏（原神/星铁/物华）是对的；对**同时开六类池**的游戏
+//   （无期迷途：常规/活动/限定/统合/定向/联动）就会把互不相干的角色拼成一行、且看不出"哪一批"。
+//   ⇒ 这里只合并**与外显那口池同批（`endTs` 相同）**的池：这两款的换池都是整批换的，
+//     "同一结束时刻"就是"同一批"（无期迷途 `11-11 09:59:59` 那一批 = 绛夜流光 + 真夜猫影）。
+//
+// 其余与既有实现逐条一致：池名 / 角色 / 档期文本 / 悬停（`hoverTextFromItems`，顺序走
+// `poolHoverOrderOf`）/ 数组收口（`dataArrayProducedGachaOf`，主条 + 并列条各一条）。
+// `opts.id` = 条目 id（数组 key 前缀）；`opts.tz` 不在这里传 —— tz 是实参，不许漏（静态守卫）。
+// 条目形状 = `{ banner, roles, category?, startTs, endTs, raw, isMain?, _i? }`（与 whmx 同形）。
+function ns_bwiki_batchGachaPayloadOf(items, tz, now, opts) {
+	const o = opts || {};
+	const active = (Array.isArray(items) ? items : []).filter((it) => coversNow(it, now));
+	if (active.length === 0) return null;
+	const first = active.slice().sort((a, b) => (a.endTs - b.endTs) || ((a._i || 0) - (b._i || 0)))[0];
+	const batch = active.filter((it) => it.endTs === first.endTs);
+	const roles = ns_bwiki_mergeRoles(batch);
+	const hoverItems = active.slice().sort(poolHoverOrderOf).map((it) => {
+		const label = `${it.banner}${it.roles ? `\uFF1A${it.roles}` : ""}`;
+		return { title: label, label, startTs: it.startTs, endTs: it.endTs, raw: it.raw };
+	});
+	const hover = hoverTextFromItems(hoverItems, "gacha", tz);
+	// 类别事实按**标题**贴（`dataArrayAttachFactsOf` 的通道）：主条标题 = 池名，并列条标题 =
+	// `池名：角色` ⇒ 两个键都要给，否则并列条上没有 category。
+	const facts = {};
+	for (const it of active) {
+		if (!it.category) continue;
+		facts[it.banner] = { category: it.category };
+		if (it.roles) facts[`${it.banner}\uFF1A${it.roles}`] = { category: it.category };
+	}
+	const out = {
+		banner: first.banner,
+		roles,
+		bannerDates: first.raw,
+		bannerDatesRaw: first.raw,
+		startTs: first.startTs,
+		endTs: first.endTs,
+		...(hover ? { bannerHover: hover } : {}),
+		...(Object.keys(facts).length ? { itemFacts: facts } : {})
+	};
+	out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id: o.id || "", tz }, now);
+	out.gachaHoverItems = hoverItems;
+	return out;
+}
 function ns_bwiki_eventPayload(items, tz, now, permanentCount = 0) {
 	const cur = ns_bwiki_pickCurrentEvent(items, now);
 	if (!cur) return null;

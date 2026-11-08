@@ -44,6 +44,7 @@ import runBwikiCors from "./cases-bwiki-cors.mjs";
 import runP3 from "./cases-p3.mjs";
 import runP4Flat from "./cases-p4flat.mjs";
 import runCategory from "./cases-category.mjs";
+import runNew5 from "./cases-new5.mjs";
 
 const LIVE = process.argv.includes("--live");
 
@@ -100,7 +101,7 @@ section("夹具卫生");
 	check("夹具非空", fx.length > 0, String(fx.length));
 	check("夹具数量 ≥ 20（各批都抓了真实响应）", fx.length >= 20, String(fx.length));
 	check("夹具命名带批次前缀（便于溯源）",
-		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights)/.test(f)), fx.slice(0, 5).join(","));
+		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights|wqmt|pengpeng)/.test(f)), fx.slice(0, 5).join(","));
 }
 //#endregion
 
@@ -138,7 +139,8 @@ const batches = [
 	["bwiki 请求统一带 origin=*（CORS 收口点：纯函数边界 + 两条 transport 出口接线 + 请求记账 + 别的站点逐字不变）", runBwikiCors],
 	["P3 解析器直出数组（悬停由条目反生成：排版 golden + 3 款逐字不变）", runP3],
 	["P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）", runP4Flat],
-	["category / tags 批 1+2+3（9 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 多值拆分 + 旧键兼容 + 反证；批 3 = `eventTier` 的 haystack 改 OR 语义 + 逐时刻外显变化登记）", runCategory]
+	["category / tags 批 1+2+3（9 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 多值拆分 + 旧键兼容 + 反证；批 3 = `eventTier` 的 haystack 改 OR 语义 + 逐时刻外显变化登记）", runCategory],
+	["2026-11-09 新接入 5 款（无期迷途两侧真源 + 夜幕之下卡池 + 未定/绘旅人/炽焰天穹留空未配置）", runNew5]
 ];
 const before = counts();
 for (const [label, fn] of batches) {
