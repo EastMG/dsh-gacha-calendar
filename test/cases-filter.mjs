@@ -184,7 +184,7 @@ export default function runFilter() {
 			comp.includes("value: gameQuery") && comp.includes("onChange: (e) => setGameQuery(e.target.value)"));
 		check("搜索框有可见提示「搜游戏名」（不是只有一个裸输入框）",
 			comp.includes('placeholder: "搜游戏名"'));
-		check("设置页有「只看已启用」复选框（受控 onlyShown）",
+		check("设置页有「已启用」复选框（原「只看已启用」）（受控 onlyShown）",
 			comp.includes("checked: onlyShown") && comp.includes("onChange: (e) => setOnlyShown(e.target.checked)"));
 		check("设置页过滤**走纯函数** settingsGamesFilter（不在渲染层另写一套 includes）",
 			/settingsGamesFilter\(ordered, \{/.test(comp)

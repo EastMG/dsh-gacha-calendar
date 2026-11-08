@@ -15,7 +15,7 @@
 //
 // 2026-11-01 第二轮（同一份合同，用户逐条再删 3 处）：
 //   ⑨ 提醒列空态提示 span         ：**整条 title 删掉**（可见文字「未勾选任何游戏 ⇒ 不提醒」保留）
-//   ⑩ 「只看已启用」label         ：**整条 title 删掉**（label 文字「只看已启用」保留）
+//   ⑩ 「已启用」label         ：**整条 title 删掉**（label 文字「已启用」，2026-11-08 用户要求去掉「只看」）
 //   ⑪ 健康行 title                ：**删掉第二行**（`\n第四列「上次成功 X 前」= …`），只留 `h.name + " · " + h.text`
 //
 // 2026-11-08 第三轮（用户逐条再删 5 处文案 / 改 1 处；⑨ 从"只删 title"升级为"整块删"）：
@@ -176,7 +176,7 @@ export default function runSettingsCopy() {
 	// 三处都是**删**：⑨⑩ 整条 title 删掉，⑪ 只删 title 的拼接尾巴（第二行）。
 	const ROUND2 = [
 		["⑨ 提醒列空态提示 span", "「提醒」列一个都没勾 ⇒ 到期提醒不会弹任何通知；在每行的「提醒」列勾上才提醒"],
-		["⑩ 只看已启用 label", "只列当前展示中的条目（不写设置）"],
+		["⑩ 已启用 label", "只列当前展示中的条目（不写设置）"],
 		["⑪ 健康行 title 第二行", "第四列「上次成功 X 前」= 自检时观察到的该源最近一次成功解析（由「立即检查」观察，不是面板刷新时间）"]
 	];
 	for (const [label, old] of ROUND2) {
@@ -207,13 +207,13 @@ export default function runSettingsCopy() {
 			/children: "游戏列表" \}\),\s*\n\s*\/\/ 搜游戏名/.test(comp));
 	}
 	{
-		// ⑩ 切片 = 「只看已启用」那个 label 对象字面量（从 ("label", { 到 label 里的 span 文字）。
-		const m = /\(0, react_jsx_runtime\.jsxs\)\("label", \{[\s\S]{0,700}?children: "只看已启用"/.exec(comp);
+		// ⑩ 切片 = 「已启用」那个 label 对象字面量（从 ("label", { 到 label 里的 span 文字）。
+		const m = /\(0, react_jsx_runtime\.jsxs\)\("label", \{[\s\S]{0,700}?children: "已启用"/.exec(comp);
 		const slice = m ? m[0] : "";
-		check("⑩「只看已启用」label 能定位到源码切片（守卫自身没瞎）", slice.length > 0);
+		check("⑩「已启用」label 能定位到源码切片（守卫自身没瞎）", slice.length > 0);
 		check("⑩ label 的 title 整条删掉（切片里没有 title:）", slice.length > 0 && !TITLE_PROP.test(slice));
-		check("⑩ label 文字与行为保留：children「只看已启用」+ 受控 onlyShown",
-			slice.includes('children: "只看已启用"') && slice.includes("checked: onlyShown")
+		check("⑩ label 文字与行为保留：children「已启用」+ 受控 onlyShown",
+			slice.includes('children: "已启用"') && slice.includes("checked: onlyShown")
 			&& slice.includes("setOnlyShown(e.target.checked)"));
 	}
 	{
