@@ -7,9 +7,10 @@
 //      · `wd` / `hlr` / `cytq` 两侧都不写（只注册条目）。
 //   ② **无期迷途卡池**：真夹具（`test/fixtures/wqmt-bwiki`，2026-11-09 抓）逐字断言
 //      池名 / 卡池类型 / 角色 / 档期文本 / 绝对时刻 + `gacha[]` 逐条 + 悬停文本。
-//      「开服后」的两种结局都在：**无锚点 ⇒ startTs = null**（在线数据就是这个状态），
-//      锚点路径由 ③ 的纯函数用例钉住（合成正文，不依赖源站当天发没发维护公告）。
-//   ③ **无期迷途活动**：真夹具（资讯列表 + 6 条正文）逐字断言 3 条活动；另加锚点机制的正反两例。
+//      ⚠️ 2026-11-09 改口径：`开服后` **不再留 null** —— 有维护公告就取窗口结束（10-27 14:00），
+//      没有就退常量 14:00（11-11 那批）。于是"未来批"如实是未来（state=wait），不再假在期。
+//      只有"日期/年份都定不下来"才给 null（`wqmtEndOfPoint` 的末尾分支，② 段末尾反证）。
+//   ③ **无期迷途活动**：真夹具（资讯列表 + 6 条正文）逐字断言 2 条在期活动；另加锚点机制的正反两例。
 //   ④ **夜幕之下卡池**：夹具在抓取那天（2026-09-10 那一批）**已经过期** ⇒ 用批内时刻断言
 //      逐字值，并单独钉住"当前时刻没有在期池 ⇒ 返回 null（未公布，不是失败）"。
 //   ⑤ **「未配置」路径**（③④⑤ 三款的语义，也是 `pengpeng` 的活动侧）：
@@ -157,59 +158,82 @@ export default async function run() {
 		check("wqmt 外显池名 = 绛夜流光（结束最早那批）", wqmtGacha.banner === "绛夜流光", JSON.stringify(wqmtGacha.banner));
 		check("wqmt 角色 = 同批（同结束时刻）两池合并、按源站顺序去重",
 			wqmtGacha.roles === "来生泪、来生爱、普希拉、泰特拉、来生瞳", JSON.stringify(wqmtGacha.roles));
-		check("wqmt 档期文本 = 「10-27 开服后 ~ 11-11 09:59」（起点只有「开服后」⇒ 照源站写）",
-			wqmtGacha.bannerDates === "10-27 开服后 ~ 11-11 09:59", JSON.stringify(wqmtGacha.bannerDates));
-		check("wqmt startTs = null（**没有锚点就不写**，见 30-game-wqmt.js 文件头）",
-			wqmtGacha.startTs === null, String(wqmtGacha.startTs));
+		// ⚠️ 2026-11-09 改：`开服后` 不再留 null —— 钟点锚定（维护公告窗口结束 / 常量 14:00）
+		check("wqmt 档期文本 = 「10-27 14:00 ~ 11-11 09:59」（`开服后` 锚到维护窗口结束 14:00）",
+			wqmtGacha.bannerDates === "10-27 14:00 ~ 11-11 09:59", JSON.stringify(wqmtGacha.bannerDates));
+		check("wqmt startTs = 2026-10-27 14:00 +08（UTC 06:00；**不再**是 null）",
+			wqmtGacha.startTs === Date.UTC(2026, 9, 27, 6, 0), String(wqmtGacha.startTs));
 		// 绝对时刻：2026-11-11 09:59 +08 == 2026-11-11T01:59Z（手算，不用 sourceInstant 自证）
 		check("wqmt endTs = 2026-11-11 09:59 +08（UTC 01:59）",
 			wqmtGacha.endTs === Date.UTC(2026, 10, 11, 1, 59), String(wqmtGacha.endTs));
 
-		// gacha[] 逐条（主条 + 6 口并列池；顺序 = 结束时间升序，同结束按页面顺序）
+		// gacha[] 逐条（主条 + 2 口并列池）。**11-11 那 4 口池是未来批**（11-11 14:00 才开），
+		// 按 2026-11-09 的口径「起点未知/未到 ≠ 已开始」⇒ 不进在期外显，也不进数组的在期条目。
 		const g = wqmtGacha.gacha;
-		check("wqmt gacha[] 共 7 条（1 主条 + 6 口并列池）", Array.isArray(g) && g.length === 7, String(g && g.length));
+		check("wqmt gacha[] 共 3 条（1 主条 + 2 口在期并列池；11-11 那批是未来 ⇒ 不冒充在期）",
+			Array.isArray(g) && g.length === 3, String(g && g.length));
 		check("wqmt gacha[] 标题逐条（池名：角色）", g.map((x) => x.title).join(" | ")
-			=== "绛夜流光 | 绛夜流光：来生泪、来生爱、普希拉、泰特拉 | 真夜猫影：来生瞳、来生爱、普希拉、泰特拉"
-			+ " | 往迹重寻：黛伦、瑟琳、曜 | 隐秘深渊：格芮芙、渡鸦、阿黛拉、卡门奈特、克里斯蒂娜"
-			+ " | 丧铃既鸣：凯因、梅露辛、艾可、萨妮 | 慈·爱·愈：莎缇拉、梅露辛、艾可、萨妮",
+			=== "绛夜流光 | 绛夜流光：来生泪、来生爱、普希拉、泰特拉 | 真夜猫影：来生瞳、来生爱、普希拉、泰特拉",
 			g.map((x) => x.title).join(" | "));
-		check("wmt gacha[] 的 source 依次 = primary + hover×6",
-			g.map((x) => x.source).join(",") === "primary,hover,hover,hover,hover,hover,hover",
+		check("wqmt gacha[] 的 source 依次 = primary + hover×2",
+			g.map((x) => x.source).join(",") === "primary,hover,hover",
 			g.map((x) => x.source).join(","));
-		check("wqmt gacha[] 的 key 是 wqmt:gacha:0..6",
-			g.map((x) => x.key).join(",") === "wqmt:gacha:0,wqmt:gacha:1,wqmt:gacha:2,wqmt:gacha:3,wqmt:gacha:4,wqmt:gacha:5,wqmt:gacha:6",
+		check("wqmt gacha[] 的 key 是 wqmt:gacha:0..2",
+			g.map((x) => x.key).join(",") === "wqmt:gacha:0,wqmt:gacha:1,wqmt:gacha:2",
 			g.map((x) => x.key).join(","));
 		check("wqmt gacha[] 全部带 tz = Asia/Shanghai（数组条目自带源站时区）",
 			g.every((x) => x.tz === TZ_CN), JSON.stringify([...new Set(g.map((x) => x.tz))]));
-		check("wqmt gacha[] 的档期原文逐条 = 源站的 `MM-DD 开服后 ~ MM-DD HH:MM`",
+		check("wqmt gacha[] 的档期原文逐条 = `MM-DD HH:MM ~ MM-DD HH:MM`（起点已锚定）",
 			g.map((x) => x.raw).join(" | ")
-			=== "10-27 开服后 ~ 11-11 09:59 | 10-27 开服后 ~ 11-11 09:59 | 10-27 开服后 ~ 11-11 09:59"
-			+ " | 11-11 开服后 ~ 12-09 09:59 | 11-11 开服后 ~ 12-09 09:59 | 11-11 开服后 ~ 12-09 09:59"
-			+ " | 11-11 开服后 ~ 12-09 09:59",
+			=== "10-27 14:00 ~ 11-11 09:59 | 10-27 14:00 ~ 11-11 09:59 | 10-27 14:00 ~ 11-11 09:59",
 			g.map((x) => x.raw).join(" | "));
 		// category = 卡池类型（`itemFacts` 通道贴上去的；主条与并列条都要有）
 		check("wqmt gacha[] 的 category 逐条 = 源站加粗那行的卡池类型",
-			g.map((x) => x.category).join(",") === "复刻·联动追踪,复刻·联动追踪,复刻·联动追踪,返场·限定追踪,统合追踪,活动追踪,活动追踪",
+			g.map((x) => x.category).join(",") === "复刻·联动追踪,复刻·联动追踪,复刻·联动追踪",
 			g.map((x) => x.category).join(","));
-		check("wqmt gacha[] 的 ts 与源站墙钟一一对应（11-11 批 = UTC 01:59 / 12-09 批 = UTC 01:59）",
-			g.every((x) => x.endTs === Date.UTC(2026, 10, 11, 1, 59) || x.endTs === Date.UTC(2026, 11, 9, 1, 59)),
-			JSON.stringify([...new Set(g.map((x) => x.endTs))]));
+		check("wqmt gacha[] 的 ts 与源站墙钟一一对应（在期批 = 10-27 14:00 ~ 11-11 09:59）",
+			g.every((x) => x.startTs === Date.UTC(2026, 9, 27, 6, 0) && x.endTs === Date.UTC(2026, 10, 11, 1, 59)),
+			JSON.stringify([...new Set(g.map((x) => [x.startTs, x.endTs]))]));
 
 		// 悬停（由同一份条目反生成）
-		const HOVER = "绛夜流光：来生泪、来生爱、普希拉、泰特拉\n10-27 开服后 ~ 11-11 09:59\n"
-			+ "真夜猫影：来生瞳、来生爱、普希拉、泰特拉\n10-27 开服后 ~ 11-11 09:59\n"
-			+ "往迹重寻：黛伦、瑟琳、曜\n11-11 开服后 ~ 12-09 09:59\n"
-			+ "隐秘深渊：格芮芙、渡鸦、阿黛拉、卡门奈特、克里斯蒂娜\n11-11 开服后 ~ 12-09 09:59\n"
-			+ "丧铃既鸣：凯因、梅露辛、艾可、萨妮\n11-11 开服后 ~ 12-09 09:59\n"
-			+ "慈·爱·愈：莎缇拉、梅露辛、艾可、萨妮\n11-11 开服后 ~ 12-09 09:59";
-		check("wqmt 悬停文本逐字（6 口池 · 每口「池名：角色 ⏎ 档期」）",
+		const HOVER = "绛夜流光：来生泪、来生爱、普希拉、泰特拉\n真夜猫影：来生瞳、来生爱、普希拉、泰特拉\n"
+			+ "10-27 14:00 ~ 11-11 09:59";
+		check("wqmt 悬停文本逐字（2 口池同窗 ⇒ 名称在前、窗口末尾只写一遍）",
 			wqmtGacha.bannerHover === HOVER, JSON.stringify(wqmtGacha.bannerHover));
-		check("wqmt 悬停与 gachaHoverItems 同源（条数 = 6）",
-			Array.isArray(wqmtGacha.gachaHoverItems) && wqmtGacha.gachaHoverItems.length === 6,
+		check("wqmt 悬停与 gachaHoverItems 同源（条数 = 2）",
+			Array.isArray(wqmtGacha.gachaHoverItems) && wqmtGacha.gachaHoverItems.length === 2,
 			String(wqmtGacha.gachaHoverItems && wqmtGacha.gachaHoverItems.length));
 		check("wqmt 悬停 == hoverTextFromItems(同一份条目)（生成器唯一实现）",
 			T.hoverTextFromItems(wqmtGacha.gachaHoverItems, "gacha", TZ_CN) === wqmtGacha.bannerHover);
 		assertHoverConvention("wqmt 卡池", wqmtGacha.bannerHover, { requireSet: true });
+
+		// ── 锚点来源（真夹具：资讯列表 + 10-27 维护公告正文）──
+		// ① 10-27 那批：维护公告 `维护时间：10月27日10:00-14:00` ⇒ 开服 = 窗口结束（14:00）；
+		// ② 11-11 那批：公告里**没有** 11-11 的维护公告 ⇒ 退常量 14:00（同一个值，来源不同）。
+		const PA = T.parsers.wqmt;
+		const anchors = await PA.wqmtGachaAnchorsOf(undefined, TZ_CN);
+		check("wqmt 卡池锚点：从真夹具的维护公告解出 10-27 14:00（窗口结束）",
+			anchors["10-27"] === Date.UTC(2026, 9, 27, 6, 0), JSON.stringify(anchors));
+		const rowsOf = PA.wqmtPoolsOf(await (async () => {
+			const raw = FIX("wqmt-bwiki");
+			return JSON.parse(raw).parse.text;
+		})(), TZ_CN, anchors);
+		const batch1027 = rowsOf.filter((r) => r.endTs === Date.UTC(2026, 10, 11, 1, 59));
+		const batch1111 = rowsOf.filter((r) => r.endTs === Date.UTC(2026, 11, 9, 1, 59));
+		check("wqmt 真夹具：10-27 那批 2 口的 startTs = 10-27 14:00（用锚点）",
+			batch1027.length === 2 && batch1027.every((r) => r.startTs === Date.UTC(2026, 9, 27, 6, 0)),
+			JSON.stringify(batch1027.map((r) => [r.banner, r.startTs])));
+		check("wqmt 真夹具：11-11 那批 4 口的 startTs = 11-11 14:00（无锚点 ⇒ 退常量，仍不是 null）",
+			batch1111.length === 4 && batch1111.every((r) => r.startTs === Date.UTC(2026, 10, 11, 6, 0)),
+			JSON.stringify(batch1111.map((r) => [r.banner, r.startTs])));
+		check("wqmt 常量锚点 = 14:00（官方维护窗口 10:00-14:00 的结束）", PA.WQMT_OPEN_FALLBACK_HOUR === 14,
+			String(PA.WQMT_OPEN_FALLBACK_HOUR));
+		// 「日期/年份都定不下来」的那一端仍必须给 null（不编时刻）
+		check("wqmt 反证：连年份都定不下来 ⇒ 整条窗口不产出（不猜年份）",
+			PA.wqmtWindowOf("11月11日 开服后 ~ 12月09日 07:59", TZ_CN, {}, null) === null);
+		check("wqmt 反证：起点那一端连日期都定不下来 ⇒ ts = null、文本保留「开服后」（不编 14:00）",
+			PA.wqmtEndOfPoint({ y: null, mo: 11, d: 11, h: null, mi: null, open: true }, TZ_CN, 0, 0, {}, true, PA.WQMT_OPEN_FALLBACK_HOUR).ts === null,
+			JSON.stringify(PA.wqmtEndOfPoint({ y: null, mo: 11, d: 11, h: null, mi: null, open: true }, TZ_CN, 0, 0, {}, true, PA.WQMT_OPEN_FALLBACK_HOUR)));
 
 		// 池名拆分规则：右侧角色全部能在「概率提升」列里找到才拆；对不上就整串当池名
 		const P = T.parsers.wqmt;
@@ -229,30 +253,30 @@ export default async function run() {
 		const ev = await e.__test.EVENT_FETCHERS["wqmt"].default(s.eventUrl, undefined, s.tz);
 		check("wqmt 活动抓取器返回对象", !!ev && typeof ev === "object");
 
-		// 3 条：数据间隙·时序11（11-05~12-03，结束最早） / 恩慈余光（11-11 开服后~12-09） / 破碎防线第35期
+		// 2 条：数据间隙·时序11（11-05~12-03，结束最早） / 破碎防线第35期。
+		// ⚠️「恩慈余光」原本也在（`11-11 开服后 ~ 12-09 07:59` 起点为 null ⇒ 被当成已开始）；
+		//    2026-11-09 起 `开服后` 锚到 11-11 14:00（未来）⇒ 它是**未开始**，不进在期外显/数组。
 		check("wqmt 外显活动 = 数据间隙·时序11上半赛季（同档位里结束最早）",
 			ev.event === "数据间隙·时序11上半赛季", JSON.stringify(ev.event));
 		check("wqmt 活动档期 = 「11-05 11:00 ~ 12-03 04:59」",
 			ev.eventDates === "11-05 11:00 ~ 12-03 04:59", JSON.stringify(ev.eventDates));
 		const E = ev.events || [];
-		check("wqmt events[] 共 3 条", E.length === 3, String(E.length));
+		check("wqmt events[] 共 2 条（11-11 才开的「恩慈余光」是未来 ⇒ 不冒充在期）", E.length === 2, String(E.length));
 		check("wqmt events[] 标题逐条",
-			E.map((x) => x.title).join(" | ") === "数据间隙·时序11上半赛季 | 恩慈余光 | 破碎防线·暗域第35期",
+			E.map((x) => x.title).join(" | ") === "数据间隙·时序11上半赛季 | 破碎防线·暗域第35期",
 			E.map((x) => x.title).join(" | "));
 		check("wqmt events[] 档期原文逐条",
-			E.map((x) => x.raw).join(" | ") === "11-05 11:00 ~ 12-03 04:59 | 11-11 开服后 ~ 12-09 07:59 | 11-02 05:00 ~ 12-14 04:00",
+			E.map((x) => x.raw).join(" | ") === "11-05 11:00 ~ 12-03 04:59 | 11-02 05:00 ~ 12-14 04:00",
 			E.map((x) => x.raw).join(" | "));
 		check("wqmt events[] 绝对时刻逐条（+08 手算成 UTC）",
 			E[0].startTs === Date.UTC(2026, 10, 5, 3, 0) && E[0].endTs === Date.UTC(2026, 11, 2, 20, 59)
-			&& E[1].startTs === null && E[1].endTs === Date.UTC(2026, 11, 8, 23, 59)
-			&& E[2].startTs === Date.UTC(2026, 10, 1, 21, 0) && E[2].endTs === Date.UTC(2026, 11, 13, 20, 0),
+			&& E[1].startTs === Date.UTC(2026, 10, 1, 21, 0) && E[1].endTs === Date.UTC(2026, 11, 13, 20, 0),
 			JSON.stringify(E.map((x) => [x.startTs, x.endTs])));
 		check("wqmt 活动侧**不写** category / tags（源站只有公告体裁，没有活动类型）",
 			E.every((x) => !("category" in x) && !("tags" in x)),
 			JSON.stringify(E.map((x) => x.category)));
-		check("wqmt 活动悬停逐字（3 行「名称 + 3 空格 + 档期」）",
+		check("wqmt 活动悬停逐字（2 行「名称 + 3 空格 + 档期」）",
 			ev.eventHover === "数据间隙·时序11上半赛季   11-05 11:00 ~ 12-03 04:59\n"
-			+ "恩慈余光   11-11 开服后 ~ 12-09 07:59\n"
 			+ "破碎防线·暗域第35期   11-02 05:00 ~ 12-14 04:00",
 			JSON.stringify(ev.eventHover));
 		check("wqmt 活动悬停 == hoverTextFromItems(同一份条目)",
@@ -273,11 +297,15 @@ export default async function run() {
 		check("wqmt 锚点·正例：有锚点 ⇒ 起点写成 11-11 14:00、startTs 不再是 null",
 			winA.length === 1 && winA[0].startTs === Date.UTC(2026, 10, 11, 6, 0) && winA[0].raw === "11-11 14:00 ~ 12-09 07:59",
 			JSON.stringify(winA.map((x) => [x.raw, x.startTs])));
-		// 反例：同一份正文、**没有**维护公告 ⇒ 不猜，startTs = null（= 真夹具里的实际状态）
+		// 反例（2026-11-09 改）：同一份正文、**没有**维护公告 ⇒ 退常量 14:00（不再留 null）。
+		// 口径依据 = 用户拍板「取不到窗口就退常量 14:00」；`null` 只剩"日期/年份都定不下来"那一种。
 		const winB = P.wqmtEventWindowsOf("■活动时间：11月11日 开服后~12月09日 07:59", "【预告】丨「恩慈余光」", HINT, TZ_CN, {});
-		check("wqmt 锚点·反例：没有维护公告 ⇒ startTs = null，文本保留「开服后」",
-			winB.length === 1 && winB[0].startTs === null && winB[0].raw === "11-11 开服后 ~ 12-09 07:59",
+		check("wqmt 锚点·反例：没有维护公告 ⇒ 退常量 11-11 14:00（不再是 null）",
+			winB.length === 1 && winB[0].startTs === Date.UTC(2026, 10, 11, 6, 0) && winB[0].raw === "11-11 14:00 ~ 12-09 07:59",
 			JSON.stringify(winB.map((x) => [x.raw, x.startTs])));
+		// 三态之三：连年份线索都没有 ⇒ 整条窗口不产出（不猜年份）。
+		// "日期读不出 ⇒ startTs 为 null" 那条规则由 ② 段末尾的两条反证兜底（同一套 `wqmtWindowOf`
+		// / `wqmtEndOfPoint`），这里不重复。
 
 		// 正文解析的两条口径：① 只认两端都带 HH:MM 的「…」区间；② 公告标题 → 取「」里的名字
 		check("wqmt 活动名：`【预告】丨MBCC特别庆典·「恩慈余光」…开启` → 恩慈余光",

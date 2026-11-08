@@ -128,7 +128,7 @@ export default async function runP4Flat() {
 		const engine = createEngine({ transport: t3, storage: makeStore(), now: () => NOW_HSR, timer: { setTimeout, clearTimeout } });
 		const meta = { id: "hsr", tz: TZ_CN };
 		body = warp;
-		const gp = await engine.__test.GACHA_FETCHERS["hsr"]("https://wiki.biligame.com/sr/api.php?action=parse&page=warp", undefined, TZ_CN);
+		const gp = await engine.__test.GACHA_FETCHERS["hsr-bwiki"]("https://wiki.biligame.com/sr/api.php?action=parse&page=warp", undefined, TZ_CN);
 		const recG = engine.__test.mergeEntryRecord({ data: gp || {} }, null, NOW_HSR, meta);
 		body = events;
 		const ep = await engine.__test.EVENT_FETCHERS["hsr"].default("https://wiki.biligame.com/sr/api.php?action=parse&page=events", undefined, TZ_CN);
@@ -154,8 +154,10 @@ export default async function runP4Flat() {
 		// 单边窗口：星铁 3 口池写「4.6/4.7版本更新后 ~ …」⇒ 起点 null、终点是绝对时刻
 		const g = hsr.gacha || [];
 		const single = g.filter((x) => x.startTs == null && typeof x.endTs === "number");
+		// ⚠️ 2026-11-09「起点未知 ≠ 已开始」：条数 5 → 4（外显只剩两端明确的「我身即刃」，
+		// 另外 3 口池仍作为事实留在数组里，起点照旧是 null —— 不编造）。
 		check("单边窗口：星铁 `gacha` 里有 3 条「版本更新后 ~ …」⇒ startTs=null、endTs 是 number（不编造起点）",
-			g.length === 5 && single.length === 3, JSON.stringify([g.length, single.length]));
+			g.length === 4 && single.length === 3, JSON.stringify([g.length, single.length]));
 		check("单边窗口：这 3 条的 endTs 与源站墙钟对得上（11-10 15:00 +08 = 1794294000000 等）",
 			single.some((x) => x.endTs === Date.parse("2026-11-10T15:00:00+08:00"))
 			&& single.some((x) => x.endTs === Date.parse("2026-12-02T11:59:00+08:00"))
@@ -170,7 +172,7 @@ export default async function runP4Flat() {
 			["arknights", ark, NOW_ARK, 0, 3],      // 3 条活动（兑换期那条在 phase 里，不另算一条）
 			["bandori", bandori, NOW_BD, 1, 16],    // 1 条卡池 + 16 条活动
 			["pjsk", pjsk, NOW_PJSK, 17, 0],        // 17 条卡池（当期全部池）
-			["hsr", hsr, NOW_HSR, 5, 3]             // 5 条卡池（含 3 条单边窗口）+ 3 条活动
+			["hsr", hsr, NOW_HSR, 4, 3]             // 4 条卡池（含 3 条单边窗口）+ 3 条活动
 		];
 		for (const [id, rec, nowMs, expectG, expectE] of cases) {
 			const { flat } = flatOf(id, rec, nowMs);
@@ -182,11 +184,11 @@ export default async function runP4Flat() {
 				`all=${flat.all.length} 期望=${expectG + expectE}`);
 		}
 		// 逐款把 `all` 的绝对条数也钉死（上面那条只在"已结束"为 0 时等价；这里 4 款都全在期）
-		check("展平：四款的 `all` 条数 = 3 / 17 / 17 / 8（与上面逐侧行数一致）",
+		check("展平：四款的 `all` 条数 = 3 / 17 / 17 / 7（与上面逐侧行数一致）",
 			flatOf("arknights", ark, NOW_ARK).flat.all.length === 3
 			&& flatOf("bandori", bandori, NOW_BD).flat.all.length === 17
 			&& flatOf("pjsk", pjsk, NOW_PJSK).flat.all.length === 17
-			&& flatOf("hsr", hsr, NOW_HSR).flat.all.length === 8,
+			&& flatOf("hsr", hsr, NOW_HSR).flat.all.length === 7,
 			JSON.stringify([
 				flatOf("arknights", ark, NOW_ARK).flat.all.length,
 				flatOf("bandori", bandori, NOW_BD).flat.all.length,
@@ -195,8 +197,10 @@ export default async function runP4Flat() {
 			]));
 		// 同一款游戏的多条必须在「近期」候选里**各占一条**，而不是被折成一条
 		const hs = flatOf("hsr", hsr, NOW_HSR);
-		check("「近期」候选（7 天内）：星铁 5 条（4 条卡池 + 1 条活动；两条长档期在 7 天窗口外）",
-			hs.recent.length === 5, JSON.stringify(hs.recent.map((x) => x.show || x.title)));
+		// ⚠️ 2026-11-09：5 条 → 2 条。起点未知的 4 条（3 口池 + 巡星之礼）现在是 state=wait 且
+		// startTs=null ⇒ `scheduleNear` 明确要求 wait 有 startTs ⇒ 它们**不进「近期」**（也不编一个开始时刻）。
+		check("「近期」候选（7 天内）：星铁 2 条（1 条卡池 + 1 条活动；起点未知的 4 条不算在期）",
+			hs.recent.length === 2, JSON.stringify(hs.recent.map((x) => x.show || x.title)));
 		check("「近期」候选：明日方舟 1 条 / bandori 0 条 / pjsk 6 条（7 天窗口本身没变，变的是「按条」）",
 			flatOf("arknights", ark, NOW_ARK).recent.length === 1
 			&& flatOf("bandori", bandori, NOW_BD).recent.length === 0
@@ -299,10 +303,10 @@ export default async function runP4Flat() {
 			&& arkIcs.events[1].summary === "arknights · 视相博物馆：演化 兑换截止"
 			&& arkIcs.events[1].startTs === Date.parse("2026-11-07T03:59:00+08:00"),
 			JSON.stringify(arkIcs.events.map((e) => [e.summary, e.startTs, e.endTs])));
-		// 星铁：5 条卡池里 3 条单边窗口（起点未知）不导出（日历必须两端都有），4 个事件 = 2 卡池 + 2 活动
+		// 星铁：7 条里 4 条单边窗口（起点未知）不导出（日历必须两端都有），3 个事件 = 1 卡池 + 2 活动
 		const hs = T.icsEventsOf([{ id: "hsr", name: "hsr", tz: TZ_CN }], { hsr }, NOW_HSR);
-		check("ics（星铁）：4 个事件（5 条卡池里有 3 条起点未知 ⇒ 不导出，skipped 记 bad-window）",
-			hs.events.length === 4 && hs.skipped.length === 4 && hs.skipped.every((s) => s.reason === "bad-window"),
+		check("ics（星铁）：3 个事件（7 条里有 4 条起点未知 ⇒ 不导出，skipped 记 bad-window）",
+			hs.events.length === 3 && hs.skipped.length === 4 && hs.skipped.every((s) => s.reason === "bad-window"),
 			JSON.stringify([hs.events.length, hs.skipped.map((s) => [s.side, s.reason])]));
 	}
 
@@ -321,8 +325,8 @@ export default async function runP4Flat() {
 			JSON.stringify(ak.map((x) => x.title)));
 		// 起点未知的条目不进轮播（dueKindOf 要求两端都 number）：这是**如实留空**，不是漏
 		const hs = T.tickerItemsOf([gameOf("hsr", hsr)], new Date(NOW_HSR), 24 * 100);
-		check("轮播（星铁）：4 条 —— 5 条卡池里 3 条起点未知被跳过（起点未知的条目不编造开始时刻）",
-			hs.length === 4, JSON.stringify(hs.map((x) => [x.key, x.startTs])));
+		check("轮播（星铁）：3 条 —— 7 条里 4 条起点未知被跳过（起点未知的条目不编造开始时刻）",
+			hs.length === 3, JSON.stringify(hs.map((x) => [x.key, x.startTs])));
 	}
 
 	// ══════════════════════════════════════════════════════════════════════════════
@@ -355,8 +359,8 @@ export default async function runP4Flat() {
 		const rowsUtc = rowsUnder("UTC");
 		const rowsSh = rowsUnder("Asia/Shanghai");
 		const rowsJst = rowsUnder("Asia/Tokyo");
-		check("跨时区：UTC / +08 / +09 三个进程时区下，45 行渲染文本逐字相同",
-			rowsUtc.length === 45 && JSON.stringify(rowsUtc) === JSON.stringify(rowsSh) && JSON.stringify(rowsSh) === JSON.stringify(rowsJst),
+		check("跨时区：UTC / +08 / +09 三个进程时区下，44 行渲染文本逐字相同",
+			rowsUtc.length === 44 && JSON.stringify(rowsUtc) === JSON.stringify(rowsSh) && JSON.stringify(rowsSh) === JSON.stringify(rowsJst),
 			JSON.stringify([rowsUtc.length, rowsSh.length, rowsJst.length,
 				rowsUtc.find((r, i) => r !== rowsSh[i]), rowsSh.find((r, i) => r !== rowsJst[i])]));
 		// 文本 = **源站墙钟**：拿星铁那两条做字面量钉死（在两种时区下都必须长这样）
@@ -365,8 +369,8 @@ export default async function runP4Flat() {
 		const row = hsFlat.map((x) => metaOf(x, hsNow));
 		check("跨时区·字面量：星铁卡池行 =「10-21 12:00 → 11-10 15:00 · 还剩 3天7时」（源站 +08 墙钟）",
 			row[0] === "10-21 12:00 → 11-10 15:00 · 还剩 3天7时", JSON.stringify(row[0]));
-		check("跨时区·字面量：起点未知的行 =「至 12-02 11:59 · 还剩 25天3时」（只写终点，不编起点）",
-			row[3] === "至 12-02 11:59 · 还剩 25天3时", JSON.stringify(row[3]));
+		check("跨时区·字面量：起点未知的行 =「至 12-22 15:00 · 开始时间未知」（只写终点 + 明说不知道，不编起点）",
+			row[3] === "至 12-22 15:00 · 开始时间未知", JSON.stringify(row[3]));
 		// 同一行的渲染文本必须等于条目自己的 `raw`（源站原文）—— 这是"渲染不漂移"的另一面
 		const roundtrip = hsFlat.every((x) => {
 			const head = metaOf(x, hsNow).split(" · ")[0].replace(/^至 /, "");

@@ -3133,11 +3133,16 @@ export function createEngine(env) {
 			// 永久/常驻活动单独计一项：它们 endTs 为 null，本就不该混进"当期"排序，
 			// 但也不能像以前那样无声丢掉（见 isPermanentEvent 注释）。
 			const permanent = snapshot.filter((it) => isPermanentEvent(it));
+			// 外显：只从**两端都明确且覆盖 now** 的行里挑（`coversNow`，2026-11-09 收紧：
+			// 起点写成「X.Y版本更新后」而没有日期的行不参与"是否已开始"的判定）。
 			const active = sortEventItems(snapshot.filter((it) => coversNow(it, now)));
 			if (active.length === 0) return null;
+			// 悬停 / 数组 = 在期 ∪ **起点未知但终点未过**（用户口径：未知起点不算已开始，
+			// 但事实仍要在悬停里列出；否则 bwiki 那些「4.6版本更新后 ~ …」的行会无声消失）。
+			const listed = sortEventItems(snapshot.filter((it) => coveredOrOpen(it, now)));
 			// 外显：类别优先（剧情/叙事、限时高难），同级内结束时间升序；悬停仍按 endTs 升序全量
 			const primary = pickEventPrimary(active) || active[0];
-			const hoverItems = active.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
+			const hoverItems = listed.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
 			const out = {
 				event: primary.name,
 				eventDates: primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs, tz) : (primary.raw || ""),
@@ -3155,7 +3160,7 @@ export function createEngine(env) {
 				//    绝区零的 TAG 列**本批不读**（留给后续决策）——这里只写 `category` + `tags`。
 				if (opts.categoryFacts) {
 					const facts = {};
-					for (const x of active) {
+					for (const x of listed) {
 						if (!x.category) continue;
 						// 多值类型：首项 = `category`，其余 = `tags`（`tags` 为空就不写这个键）
 						const fact = { category: x.category };
@@ -3207,7 +3212,7 @@ export function createEngine(env) {
 			}));
 			const cur = selectCurrent(items, now);
 			if (!cur || !cur.banner) return null;
-			const hoverItems = sortEventItems(snapshot.filter((it) => coversNow(it, now)))
+			const hoverItems = sortEventItems(snapshot.filter((it) => coveredOrOpen(it, now)))
 				.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
 			const out = {
 				event: cur.banner,
@@ -3383,6 +3388,47 @@ export function createEngine(env) {
 		}
 
 
+		// ── 「相对起点」统一锚定（**唯一真源**，2026-11-09 用户拍板）─────────────────────
+		//
+		// 源站最常见的"起点"不是绝对时刻，而是**相对版本/开服**的一天：
+		//   · 星铁  `2026/09/28 4.6版本更新后`（日期 + 版本标签）/ `4.7版本更新后`（只有版本）
+		//   · 无期迷途 `10月27日 开服后`（只有日期，钟点写在维护公告里）
+		// 这些写法的**钟点**源站不给。用户 2026-11-09 定了口径：钟点直接锚定，不去解析维护公告：
+		//   · 星铁 = 该日 **10:00**（+08）：版本更新 06:00 开始、维护 5 小时；
+		//   · 无期迷途 = 该日 **14:00**（+08）：官方公告「维护时间：10月27日 10:00-14:00」，开服 = 窗口结束。
+		// **只有版本标签、没有日期**（`4.7版本更新后`）⇒ 那一天是哪天根本不知道 ⇒ 返 null（起点未知）。
+		//
+		// 三态（返回值只有两种：绝对毫秒 / null）：
+		//   ① `YYYY/MM/DD [X.Y版本更新后|开服后]` → 该日 anchorHour:00（源站时区）
+		//   ② `M月D日 [开服后]`（无年份）        → 借 `hint`（`{y, mo}`，通常 = 公告发布时刻的墙钟）补年份
+		//   ③ 只有 `X.Y版本更新后` / 没有日期     → null（**不猜**，见下方调用方的"起点未知"口径）
+		// 附带：文本里已经写了绝对时刻（`YYYY/MM/DD HH:MM`）⇒ 原样返回，好让调用方只留一个入口。
+		//
+		// ⚠️ 拿到的 null 绝不能再被当成"已开始"（24-parser-window.js 的 coversNow 已收紧）。
+
+		function anchorStartOf(text, anchorHour, tz, hint) {
+			const h = Number(anchorHour);
+			if (!Number.isFinite(h) || h < 0 || h > 23) return null;
+			const s = stripTags(text == null ? "" : text).replace(/\u00a0/g, " ");
+			// ① 已有绝对时刻 ⇒ 原样（这类文本不需要锚）
+			const abs = s.match(/(\d{4})\s*[\/\-]\s*(\d{1,2})\s*[\/\-]\s*(\d{1,2})\s+(\d{1,2})\s*[:：]\s*(\d{2})/);
+			if (abs) return sourceInstant(Number(abs[1]), Number(abs[2]), Number(abs[3]), Number(abs[4]), Number(abs[5]), tz);
+			// ② 有日期（带不带「版本更新后 / 开服后」都一样）⇒ 该日 anchorHour:00
+			const ymd = s.match(/(\d{4})\s*[\/\-年]\s*(\d{1,2})\s*[\/\-月]\s*(\d{1,2})/);
+			if (ymd) return sourceInstant(Number(ymd[1]), Number(ymd[2]), Number(ymd[3]), h, 0, tz);
+			// ③ 只有月日（`10月27日`）⇒ 年份只能借线索；借不到就不产出（inferYear 的既有口径）
+			const md = s.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日?/);
+			if (md) {
+				const mo = Number(md[1]), d = Number(md[2]);
+				if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+				const y = typeof inferYear === "function" ? inferYear(null, mo, hint) : null;
+				return y == null ? null : sourceInstant(y, mo, d, h, 0, tz);
+			}
+			// ④ 只有版本标签（`4.7版本更新后`）⇒ 起点未知
+			return null;
+		}
+
+
 		// 时间段 → startTs/endTs + 统一文本 mm-dd hh:mm ~ mm-dd hh:mm（无法解析的一侧保留原文）
 		// `tz` 同 parseTime：源站墙钟时区（可选，不传 = 本机时区）
 		function parseRange(raw, tz) {
@@ -3464,28 +3510,24 @@ export function createEngine(env) {
 		}
 
 
-		// 选当期：优先"起始明确且覆盖 now"的主池；
-		// 其次"起始未知（版本更新后）但结束在未来"的主池（星铁/zzz 上半，此时起始已被 fillMissingStarts 补齐）；
-		// **当期多个主池的角色全部合并**（见下方合并说明）。返回 null 时调用方回退内置数据。
-		// bannerDates 为补全后用于倒计时的文本；bannerDatesRaw 为源站原文（悬停展示）。
+		// ── 选当期：**起点未知的行不参与"是否已开始"的判定**（2026-11-09 用户拍板）────────────
+		// 源站写「X.Y版本更新后」而**没有日期**时，起点确实是未知的（下一版本哪天更新，源站没说）。
+		// 旧口径把这种行**当成已开始**（`startTs == null` 直接放行），后果是"未来池假在期"：
+		// 星铁 bwiki 的 4.7 两池（`4.7版本更新后 ~ 12-22`）在 11-07 就被当成在期、
+		// 无期迷途 11-11 那批（`11-11 开服后 ~ 12-09`）在 11-09 就被当成在期。
+		// 现在的口径：**未知起点既不算已开始、也不算未开始 —— 它不参与判定**（悬停里仍列出事实）。
+		// 「宁可少显示，也不要假在期」。
+		//
+		// 判定用**补全前**的快照（`hadOpenStart`）：`fillMissingStarts` 会就地给这类行补一个
+		// "上一组结束时间"当起点（那是**显示**用的猜测），拿它去判"已开始"等于把猜测当事实。
 		function selectCurrent(items, now) {
-			// 先记下**补全前**哪些行的起点是"版本更新后"（startTs 原本为 null）。
-			// 为什么要记：fillMissingStarts 会用"上一组结束时间"去猜这类行的起点，
-			// 而那个猜测**并非总是对的** —— 星铁 4.6 上线时间期有两池：
-			//   「韶艾裁英」4.6版本更新后 ~ 10-21 11:59
-			//   「沧海萃珠」4.6版本更新后 ~ 11-10 15:00
-			// 两者同为"4.6 上线"，只是结束不同；按"上一组结束"补会把后者补成 10-21，
-			// 于是"起点已过"判定失败、它被踢出当期 —— 而它其实覆盖当前时刻
-			// （用户实测：卡片只显示绯英，真珠不见了）。
-			const hadOpenStart = new Set(items.filter((it) => it.startTs == null).map((it) => it));
+			// `fillMissingStarts` 只为**显示**补起点（bannerDates / 悬停），不参与下面的在期判定。
+			const hadOpenStart = new Set(items.filter((it) => it.startTs == null));
 			fillMissingStarts(items);
+			// 起点未知（原文「X.Y版本更新后」）⇒ 不参与在期判定；起点明确且已到 ⇒ 参与。
 			const inWindow = (it) => it.endTs != null && it.endTs >= now
-				&& (it.startTs == null ? true : it.startTs <= now || hadOpenStart.has(it));
-			// 说明最后一个条件：起点原本为 null（写作"版本更新后"）的行，**一定已经开始**——
-			// 源站表只列**已发布版本**的排期，"X.Y版本更新后"里的 X.Y 必已上线，
-			// 所以它的真实起点在版本更新那天（≤ now），补出来的那个值不可信、不应用来判"未开始"。
-			// 注意这里**不覆盖**补全后的 startTs：显示（bannerDates 等）仍用补出来的窗口，
-			// 悬停也仍显示源站原文"4.6版本更新后 ~ …"，不编造日期。
+				&& !hadOpenStart.has(it)
+				&& it.startTs != null && it.startTs <= now;
 			const pool = items.filter(inWindow).filter((it) => it.isMain);
 			if (pool.length === 0) return null;
 			// 外显取哪个池的"名字与时间"：结束最早的（越快结束越该被盯住）。
@@ -3577,18 +3619,37 @@ export function createEngine(env) {
 		// 其中 **① 与 ② 完全等价**（`startTs == null` 时 `null <= now` 恒真），只是②写得更"诚实"；
 		// ③ 更严：它把 startTs 为 null 的行排除掉。所以只需要两个判定，各写各的没有意义。
 		//
+		// ⚠️ 2026-11-09（用户拍板）：**只剩一种** —— 起点未知（`startTs == null`）**不再视为已开始**，
+		//    它不参与在期判定（"宁可少显示，也不要假在期"）。原来 ② 的 `startTs == null ||` 那个分支
+		//    正是"未来池假在期"的根源（无期迷途 11-11 批、星铁 4.7 批、绝区零「X.Y版本更新后」上半）。
+		//    事实本身不丢：这类行仍会出现在悬停 / 数据数组里，只是不冒充"在期"。
+		//
 		// `endTs == null` 表示"没有结束时间"（永久/常驻，或源站没给）——**不覆盖 now**（不以"没结束"当"永远在开"）。
 
-		/** 覆盖 now（常用）：起可为 null（视为"已开始"，如源站写"X.Y版本更新后"），末必须有且未过。 */
+		/** 覆盖 now：**两端都必须明确**（起点未知 ⇒ 不覆盖；终点未知 ⇒ 不覆盖）。 */
 
 		function coversNow(x, now) {
-			return !!x && x.endTs != null && x.endTs >= now && (x.startTs == null || x.startTs <= now);
+			return !!x && x.startTs != null && x.endTs != null && x.startTs <= now && x.endTs >= now;
 		}
 
-		/** 覆盖 now（**两端都必须有**）：需要明确起止的场合（如按窗口合并/排序的源）。 */
+		/** 覆盖 now（**两端都必须有**）：历史名，判据已与 `coversNow` 合并（保留以免调用点改签名）。 */
 
 		function coversNowBounded(x, now) {
-			return !!x && x.startTs != null && x.endTs != null && x.startTs <= now && x.endTs >= now;
+			return coversNow(x, now);
+		}
+
+		/**
+		 * 「在期 + 起点未知但终点未过」——**只用于悬停 / 数据数组**（事实层），**不用于选外显**。
+		 *
+		 * 为什么单独一条：用户 2026-11-09 的口径是「起点未知 ≠ 已开始」，但**不等于把它删掉** ——
+		 * 「只在悬停里列出」。所以悬停/数组要的是"这条事实还值得看吗"（终点未过？），
+		 * 而外显要的是"它现在真的在开吗"（两端都明确且覆盖 now？= `coversNow`）。
+		 * 起点**明确**且在未来的行不在此列：那种行有自己的状态（wait），不该混进"当期"的悬停。
+		 */
+		function coveredOrOpen(x, now) {
+			if (!x) return false;
+			if (coversNow(x, now)) return true;
+			return x.startTs == null && x.endTs != null && x.endTs >= now;
 		}
 
 		/**
@@ -4008,7 +4069,7 @@ export function createEngine(env) {
 			if (dedupe) cur.roles = dedupeRoleNames(cur.roles);
 			const now = nowMs();
 			const pools = snapshot
-				.filter((it) => it.isMain && coversNow(it, now))
+				.filter((it) => it.isMain && coveredOrOpen(it, now))
 				.map((it) => ({
 					name: it.banner,
 					label: `${it.banner}${it.roles ? `\uFF1A${cleanRoles(it.roles)}` : ""}`,
@@ -4567,20 +4628,22 @@ export function createEngine(env) {
 				}
 			}
 			if (pools.length === 0) return null;
-			const cover = pools.filter((p) => p.startTs != null && coversNow(p, now));
-			// 起点未知（同版本更新公告未收录）但结束在未来 → 仍作为当期（与 selectCurrent 的宽松分支一致）
-			const loose = pools.filter((p) => p.startTs == null && p.endTs >= now);
+			// ⚠️ 2026-11-09 用户拍板「起点未知 ≠ 已开始」：原来这里有一条
+			// `loose = pools.filter((p) => p.startTs == null && p.endTs >= now)` 的宽松分支
+			// （同版本更新公告没收录时把「X.Y版本更新后」的上半当成在期）。那条分支正是
+			// "维护当天整段空白/假在期"的来源之一 —— 起点未知就不再冒充在期，**已删除**。
+			// 现在的顺序：覆盖 now 的（两端都明确）→ 空档期取"下一个要开的" → 都没有 ⇒ null。
+			const cover = pools.filter((p) => coversNow(p, now));
 			// 空档期：上一期已收池、下一期还没开（官方在版本维护前就发了下一期频段公告）。
 			// 2026-10-21 实测：3.2下半 10-20 14:59 收池、3.3上半 = 3.3版本更新后（10-21 06:00 维护）。
-			// 此时若只认 cover/loose 会返回 null → 面板在维护当天整段空白；
+			// 此时若只认 cover 会返回 null → 面板在维护当天整段空白；
 			// 而"下一期 + MM-DD HH:MM 开始"才是该显示的内容（UI 的 state="wait" 分支本就支持）。
 			// 只按 startTs 升序取**最近的一期**：更远的期次（官方很少提前公布）不该顶掉下一期。
 			const upcoming = pools
 				.filter((p) => p.startTs != null && p.startTs > now && p.endTs >= now)
 				.sort((a, b) => (a.startTs - b.startTs) || (a.endTs - b.endTs));
 			const picked = cover.length > 0 ? cover.sort((a, b) => (b.created - a.created) || (a.endTs - b.endTs))
-				: loose.length > 0 ? loose.sort((a, b) => (b.created - a.created) || (a.endTs - b.endTs))
-					: upcoming;
+				: upcoming;
 			if (picked.length === 0) return null;
 			const first = picked[0];
 			const same = picked.filter((p) => p.ver === first.ver && p.part === first.part);
@@ -4754,6 +4817,188 @@ export function createEngine(env) {
 
 
 		const ZZZ_BWIKI_URL = "https://wiki.biligame.com/zzz/api.php?action=parse&page=%E5%BE%80%E6%9C%9F%E8%B0%83%E9%A2%91&prop=text&format=json&formatversion=2";
+
+
+		// ── 星铁：卡池改**官方公告 CMS**（2026-11-09 用户拍板；bwiki「历史跃迁」降为备选）────────
+		//
+		// 为什么换：bwiki 的「历史跃迁」表里，**版本内上下半的起点常只写「4.6版本更新后」**（没有日期），
+		// 于是起点未知；官方公告里同一期是带日期的窗口（`跃迁时间为 2026/09/28 4.6版本更新后 - 2026/11/10 15:00`），
+		// 并且 5★ / 4★ / 光锥 / 卡池名 / 返场标记都写在同一段正文里。
+		//
+		// 端点（2026-11-09 实测 200 / `ACAO:*` / host 已在 `PROXY_ALLOW_HOSTS`）：
+		//   GET content_v2_user/app/1963de8dc19e461c/getContentList?iChanId=257&iPageSize=200&iPage=1&sLangKey=zh-cn
+		//   一页 200 条里既有「X.Y版本活动跃迁（其一/其二）」也有「X.Y版本更新维护预告」；
+		//   **正文（sContent）在列表里就给了** ⇒ 不需要逐条详情（一次刷新 1 个请求）。
+		//
+		// ⚠️ 正文会**累积**：后一期公告会把前一期窗口再抄一遍（4.6其二 把 4.6其一 的「真珠」窗口
+		//    原样又写了一次）⇒ 必须**收集全部窗口**再按 (角色, 起点, 终点) 判重，**不能取第一条公告就完事**。
+		// ⚠️ 条目识别**只看正文特征**（出现「跃迁时间为」），不靠标题白名单：标题格式会变，
+		//    而「Fate[UBW] 联动跃迁说明」这种没有该句式的公告也就不会被误收（它的窗口是"12:00 后长期开放"）。
+		//
+		// 起点三态交给 `anchorStartOf`（星铁锚点 = 该日 **10:00**，见 23-parser-time.js）；
+		// 「只有版本标签」⇒ `startTs = null` ⇒ **不参与在期判定**（只在悬停里列出）。
+		const HSR_CMS_LIST_URL = "https://api-takumi-static.mihoyo.com/content_v2_user/app/1963de8dc19e461c/getContentList?iPage=1&iPageSize=200&sLangKey=zh-cn&isPreview=0&iChanId=257";
+
+
+		// 旧默认源（2026-11-09 起降为 `altSources` 的备选，抓取器键 `hsr-bwiki`）
+		const HSR_BWIKI_URL = "https://wiki.biligame.com/sr/api.php?action=parse&page=%E5%8E%86%E5%8F%B2%E8%B7%83%E8%BF%81&prop=text&format=json&formatversion=2";
+
+
+		// 「X.Y版本更新后」的钟点锚（用户拍板）：版本更新 06:00 开始、预计 5 小时 ⇒ 开服 10:00（+08）。
+		const HSR_UPDATE_ANCHOR_HOUR = 10;
+
+
+		// 一条「跃迁时间为 <起点> - <终点>」：**终点只认绝对时刻**（源站从不写"版本结束"），
+		// 起点三态交给 anchorStartOf。`[^，。；]` 让起点不越过句读（这一句在正文里很长）。
+		const HSR_WARP_TIME_RE = /跃迁时间为\s*([^，。；]{2,40}?)\s*[-~～—–]\s*(\d{4}\/\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2})/g;
+
+
+		// 该句里的 5★ 角色（「限定5星角色「真珠（欢愉•冰）」…」）
+		const HSR_WARP_ROLE_RE = /限定5星角色\s*「([^」]{1,30})」/g;
+
+
+		// 卡池名 ↔ 角色（只写在 ▌ 段的 ● 行里）：
+		//   ● 「沧海萃珠」角色活动跃迁期间，限定5星角色「真珠（欢愉•冰）」，4星角色「青雀」…
+		const HSR_WARP_POOL_RE = /「([^」]{1,24})」角色活动跃迁期间[，,]?\s*限定5星角色\s*「([^」]{1,30})」/g;
+
+
+		// 标题里的版本 + 上下半（`4.6版本活动跃迁（其二）` → ver=4.6 / part=二）；卡池名取不到时当兜底名。
+		const HSR_WARP_TITLE_RE = /(\d+\.\d+)\s*版本活动跃迁\s*(?:[（(]\s*其([一二三四五六七八九十]{1,3})\s*[）)])?/;
+
+
+		const HSR_ROLE_BASE = (role) => String(role || "").replace(/[（(][^）)]*[）)]/g, "").trim();
+
+
+		// 公告列表 → 全部「跃迁窗口」事实（**跨公告**收集；同一 (角色, 起点, 终点) 只留一条）。
+		// 输出条目形状：`{ ver, part, role, base, pool, startTs, endTs, startText, endText, raw, annTitle }`
+		// `startTs == null` = 起点只有版本标签（未知），调用方不得把它当"已开始"。
+		function hsrWarpWindowsOf(list, tz) {
+			const texts = [];
+			for (const it of Array.isArray(list) ? list : []) {
+				texts.push({
+					title: stripTags(it && it.sTitle),
+					text: `${stripTags(it && it.sIntro)}，${stripTags(it && it.sContent)}`
+				});
+			}
+			// ① 先把「角色 → 卡池名」攒起来（同一角色只认第一次出现的名字）
+			const poolOf = {};
+			for (const t of texts) {
+				HSR_WARP_POOL_RE.lastIndex = 0;
+				let pm;
+				while ((pm = HSR_WARP_POOL_RE.exec(t.text)) !== null) {
+					const pool = pm[1].trim(), base = HSR_ROLE_BASE(pm[2]);
+					if (pool && base && poolOf[base] == null) poolOf[base] = pool;
+				}
+			}
+			// ② 再逐公告抽窗口（只认带「跃迁时间为」正文的公告）
+			const out = [], seen = new Set();
+			for (const t of texts) {
+				if (!/跃迁时间为/.test(t.text)) continue;
+				const tm = t.title.match(HSR_WARP_TITLE_RE);
+				const ver = tm ? tm[1] : "";
+				const part = tm && tm[2] ? tm[2] : "";
+				HSR_WARP_TIME_RE.lastIndex = 0;
+				let m;
+				while ((m = HSR_WARP_TIME_RE.exec(t.text)) !== null) {
+					const endP = parseTime(m[2], tz);
+					if (endP.ts == null) continue;
+					// 5★ 角色写在**同一句**里（句读 = 。/；）。取离窗口最近的那一个（最后一个）。
+					const before = t.text.slice(0, m.index);
+					const cut = Math.max(before.lastIndexOf("。"), before.lastIndexOf("；"));
+					const roleAll = [...before.slice(cut + 1).matchAll(HSR_WARP_ROLE_RE)];
+					const role = roleAll.length ? roleAll[roleAll.length - 1][1].trim() : "";
+					const base = HSR_ROLE_BASE(role);
+					if (!base) continue;
+					const startText = m[1].trim();
+					const startTs = anchorStartOf(startText, HSR_UPDATE_ANCHOR_HOUR, tz);
+					const key = `${base}|${startTs == null ? "" : startTs}|${endP.ts}`;
+					if (seen.has(key)) continue;
+					seen.add(key);
+					out.push({
+						ver, part, role, base,
+						pool: poolOf[base] || "",
+						startTs, endTs: endP.ts,
+						startText, endText: endP.text,
+						// 源站原文（两端 token 逐字；分隔符统一成 `~`，与全仓悬停/数组同一写法）
+						raw: `${startText} ~ ${m[2].replace(/\s+/g, " ")}`,
+						annTitle: t.title
+					});
+				}
+			}
+			return out;
+		}
+
+
+		// 星铁官方公告 → 卡池载荷（契约同 zzz：`{ banner, roles, bannerDates, bannerDatesRaw, … }` + P1~P3 直出数组）。
+		// 选法（逐条对应需求）：
+		//   ① 覆盖 now 的窗口**全部**合并角色（正文会累积，同一角色判重）；
+		//   ② 一条都不覆盖 now ⇒ 取"下一个要开的"那一批（同一 startTs 的窗口 = 同一批）当预告；
+		//   ③ 连未来窗口都没有 ⇒ 只剩起点未知的行（`X.Y版本更新后`）⇒ 如实列出、**不算已开始**；
+		//   ④ 什么都没有 ⇒ null（未公布，不硬凑）。
+		// 悬停 / 数组 = 全部"终点未过"的窗口（含未来与起点未知），按结束时间升序 —— 事实不丢。
+		function parseHsrWarp(payload, now, tz) {
+			const list = payload && payload.data && payload.data.list;
+			// 结构变了必须抛错（不是"未公布"），否则接口改版会长期伪装成「新卡池未公布」
+			if (!Array.isArray(list)) throw new Error("hsr-official-no-section");
+			const at = typeof now === "number" && Number.isFinite(now) ? now : nowMs();
+			const wins = hsrWarpWindowsOf(list, tz);
+			if (wins.length === 0) return null;
+			const live = wins.filter((w) => coversNow(w, at));
+			const future = wins.filter((w) => w.startTs != null && w.startTs > at && w.endTs >= at);
+			const open = wins.filter((w) => w.startTs == null && w.endTs >= at);
+			let picked = live;
+			if (picked.length === 0 && future.length) {
+				// 下一个要开的：只取起点最早的那一批（更远的期次不该顶掉它；与 zzz 同口径）
+				const nextStart = future.reduce((acc, w) => (w.startTs < acc ? w.startTs : acc), Infinity);
+				picked = future.filter((w) => w.startTs === nextStart);
+			}
+			if (picked.length === 0) picked = open;
+			if (picked.length === 0) return null;
+			const startKey = (w) => (w.startTs == null ? Infinity : w.startTs);
+			const rows = picked.slice().sort((a, b) => (startKey(a) - startKey(b)) || (a.endTs - b.endTs));
+			const main = rows[0];
+			// 角色合并（按去属性名判重，保留源站写法；限定/返场不区分——都只是"这一批的 5★"）
+			const roles = [], seenRole = new Set();
+			for (const w of rows) {
+				if (seenRole.has(w.base)) continue;
+				seenRole.add(w.base);
+				roles.push(w.role);
+			}
+			const banner = main.pool
+				? `「${main.pool}」角色活动跃迁`
+				: (main.ver ? `${main.ver}版本活动跃迁${main.part ? `（其${main.part}）` : ""}` : main.role);
+			// 起点未知 ⇒ 档期文本写源站原文的起点（`4.7版本更新后`），不编造时刻
+			const startOut = main.startTs != null ? fmtMdHm(main.startTs, tz) : main.startText;
+			const out = {
+				banner,
+				roles: roles.join("\u3001"),
+				bannerDates: `${startOut} ~ ${main.endText}`,
+				bannerDatesRaw: main.raw,
+				startTs: main.startTs,
+				endTs: main.endTs
+			};
+			const hoverItems = wins
+				.filter((w) => w.endTs >= at)
+				.sort((a, b) => (a.endTs - b.endTs) || (startKey(a) - startKey(b)))
+				.map((w) => {
+					const label = `${w.pool ? `「${w.pool}」角色活动跃迁` : (w.annTitle || "活动跃迁")}：${w.role}`;
+					return { title: label, label, startTs: w.startTs, endTs: w.endTs, raw: w.raw };
+				});
+			const hover = hoverTextFromItems(hoverItems, "gacha", tz);
+			if (hover) out.bannerHover = hover;
+			out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id: "hsr", tz }, at);
+			out.gachaHoverItems = hoverItems;
+			return out;
+		}
+
+
+		// 星铁官方公告列表抓取器（契约：async (url, signal, tz, now) → 载荷 | null）
+		// ⚠️ 不自动回退 bwiki（全站口径：默认源失败 = 失败）。要看 bwiki 请在设置里把卡池来源切到
+		//    「Bwiki 历史跃迁」备选源（`GACHA_FETCHERS["hsr-bwiki"]`）。
+		async function fetchHsrGacha(url, signal, tz, now = nowMs()) {
+			const payload = await proxyFetchJson(url || HSR_CMS_LIST_URL, "https://sr.mihoyo.com/");
+			return parseHsrWarp(payload, now, tz || "Asia/Shanghai");
+		}
 
 
 		// ══ 以下为原 42-parsers-miyoushe.js 的内容（原样保留；压平后见 30-game-hoyoverse.js）══
@@ -5374,11 +5619,20 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 				id: "hsr",
 				defaultHidden: false,
 				tz: TZ_CN,
-				parserVersion: 1,
+				// 2026-11-09：卡池源换成**官方公告 CMS**（解析逻辑与来源同时变）⇒ 版本号 +1
+				parserVersion: 2,
 				name: "崩坏：星穹铁道",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/3/38/HonkaiStarRailIcon_StartingVer3.6_CHN.png!/fw/512",
-				source: "Bwiki \u5386\u53F2\u8DC3\u8FC1",
-				url: "https://wiki.biligame.com/sr/api.php?action=parse&page=%E5%8E%86%E5%8F%B2%E8%B7%83%E8%BF%81&prop=text&format=json&formatversion=2",
+				// 默认卡池源 = 官方公告（api-takumi-static content_v2_user iChanId=257，经 host 代理）：
+				// 「X.Y版本活动跃迁（其N）」正文自带精确起止 + 5★/4★/光锥/卡池名；
+				// 起点「X.Y版本更新后」按 10:00 锚定（见 23-parser-time.js 的 anchorStartOf）。
+				source: "官方公告",
+				url: HSR_CMS_LIST_URL,
+				// bwiki「历史跃迁」降为备选（设置页可切）：它的窗口常只写「4.6版本更新后」（无日期）
+				// ⇒ 起点未知 ⇒ 按 2026-11-09 的口径不参与在期判定，只在悬停里列出。
+				altSources: [
+					{ label: "Bwiki 历史跃迁", url: HSR_BWIKI_URL, fetcher: "hsr-bwiki" }
+				],
 				// 独立活动源：星铁活动一览（api.php 带 origin=* 可浏览器直连；「活动时间」表含当期活动）
 				eventUrl: "https://wiki.biligame.com/sr/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
 				eventSource: "Bwiki \u6D3B\u52A8\u4E00\u89C8"
@@ -5436,7 +5690,10 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 		// 「名字（属性）」）⇒ 载荷按**角色名（去掉括号属性后缀）**判重，保留第一次出现的形式。
 		// 规则与理由见 26-parser-hover.js 的 dedupeRoleNames；**只在星铁这里开启**，
 		// 原神/绝区零的 bwiki 载荷（以及全局 cleanRoleNames）语义一字不改。
-		GACHA_FETCHERS["hsr"] = mkMediaWiki((html, tz) => bwikiGachaPayload(html, tz, { dedupeRoleNames: true, emitArrays: true, id: "hsr" }));
+		// ⚠️ 2026-11-09：这条 bwiki 抓取器**降为备选**（键 `hsr-bwiki`，对应 `altSources[0]`）；
+		//    默认的 `hsr` 换成了官方公告 CMS（见上面 parseHsrWarp / fetchHsrGacha）。
+		GACHA_FETCHERS["hsr-bwiki"] = mkMediaWiki((html, tz) => bwikiGachaPayload(html, tz, { dedupeRoleNames: true, emitArrays: true, id: "hsr" }));
+		GACHA_FETCHERS["hsr"] = (url, signal, tz) => fetchHsrGacha(url, signal, tz);
 		GACHA_FETCHERS["zzz"] = (url, signal, tz) => fetchZzzGacha(url, signal, tz);
 		// 绝区零卡池**备选**（Bwiki 往期调频）：P3d（2026-11-07）起由这里补 `gacha` 数组。
 		// `selectCurrent` 给的载荷只有外显那一条字符串（**没有** `bannerHover`）⇒ 并列条目为 0，
@@ -10305,7 +10562,9 @@ function ns_bwiki_batchGachaPayloadOf(items, tz, now, opts) {
 	const first = active.slice().sort((a, b) => (a.endTs - b.endTs) || ((a._i || 0) - (b._i || 0)))[0];
 	const batch = active.filter((it) => it.endTs === first.endTs);
 	const roles = ns_bwiki_mergeRoles(batch);
-	const hoverItems = active.slice().sort(poolHoverOrderOf).map((it) => {
+	// 悬停/数组的候选 = **在期** ∪ **起点未知但终点未过**（用户口径「起点未知 ≠ 已开始，但悬停里仍列出」）
+	const listed = (Array.isArray(items) ? items : []).filter((it) => coveredOrOpen(it, now));
+	const hoverItems = listed.slice().sort(poolHoverOrderOf).map((it) => {
 		const label = `${it.banner}${it.roles ? `\uFF1A${it.roles}` : ""}`;
 		return { title: label, label, startTs: it.startTs, endTs: it.endTs, raw: it.raw };
 	});
@@ -10313,7 +10572,7 @@ function ns_bwiki_batchGachaPayloadOf(items, tz, now, opts) {
 	// 类别事实按**标题**贴（`dataArrayAttachFactsOf` 的通道）：主条标题 = 池名，并列条标题 =
 	// `池名：角色` ⇒ 两个键都要给，否则并列条上没有 category。
 	const facts = {};
-	for (const it of active) {
+	for (const it of listed) {
 		if (!it.category) continue;
 		facts[it.banner] = { category: it.category };
 		if (it.roles) facts[`${it.banner}\uFF1A${it.roles}`] = { category: it.category };
@@ -16098,17 +16357,19 @@ EVENT_FETCHERS["r1999"] = {
 //
 // ── 「开服后」= 起点只有日期、没有时刻（本文件最需要读清的一段）──────────────────
 // 卡池表 174 行**全部**写成 `YYYY-MM-DD 开服后`，无一行给时刻。要写 startTs 就必须有
-// 「开服时刻锚点」，本文件有锚点机制 `wqmtMaintAnchorsOf`：从**已经抓到的公告正文**里读
+// 「开服时刻锚点」，本文件有锚点机制 `wqmtMaintAnchorsOf`：从**公告正文**里读
 // `维护时间：10月13日10:00-14:00` ⇒ 那一天的开服时刻 = 维护窗口的**结束**（14:00）。
-//   · 有锚点 ⇒ 写 startTs（该日期 + 维护结束时刻），`bannerDates` 是正常的两端时刻；
-//   · 没有锚点 ⇒ **startTs 留 null，不猜**。卡池侧只抓 bwiki 一个站点（默认源不跨站取数，
-//     守卫见 test/cases-sources.mjs「默认源无自动兜底」），拿不到维护公告 ⇒ 2026-11-09 实测
-//     在期的 6 口池**全部没有锚点**（最新一条维护公告是 10-27，而在期池从 11-11 起）。
-//     ⇒ `bannerDates` 写 `11-11 开服后 ~ 12-09 09:59`（源站原文的直译），与绝区零
-//       「3.3版本更新后 ~ 11-11 11:59」同一种降级（见 30-game-hoyoverse.js 的 bannerDates）。
-//     代价（**有意的**）：起点未知 ⇒ 按全仓口径「视为已开始」（`coversNow` 的 `startTs == null`
-//     分支），于是 11-11 才开的池子在 11-09 也显示成在期。宁可早两天看见，也不编一个
-//     10:00 / 00:00 出来 —— 实测维护窗口是 10:00-14:00，编 10:00 会差 4 小时。
+//   · 有锚点 ⇒ 写 startTs（该日期 + 维护结束时刻）；
+//   · 没有锚点 ⇒ **退常量 14:00**（用户 2026-11-09 拍板，依据同上：实测 5 期维护公告
+//     全部是 `10:00-14:00`）。卡池侧为了拿到锚点，会在同一次刷新里串行补 2 个请求
+//     （资讯列表 1 次 + 最新维护公告正文 1 次，见 `wqmtGachaAnchorsOf`）；
+//     取不到也不影响出数据，只是用常量。
+//   · **日期都解析不到 ⇒ startTs = null**（起点未知）。这种行不参与"是否已开始"的判定
+//     （2026-11-09 全仓口径：`coversNow` 不再把 null 起点当已开始），只在悬停里列出。
+//
+// ⚠️ 旧实现（2026-11-09 之前）**没有锚点就留 null**，而当时的 `coversNow` 把 null 起点当成
+// "已开始" ⇒ 11-11 才开的 4 口池在 11-09 就显示成在期（假在期）。现在两头都改了：
+// 钟点恒有（锚点 / 常量 14:00），判定也不再容 null ⇒ 未来批如实是未来（state=wait）。
 //
 // ── 卡池类型（category）──
 // 行属性 `data-param1` 是 bwiki 的**筛选**分类（限定追踪 / 统合追踪 / 联动追踪 …），
@@ -16139,6 +16400,13 @@ EVENT_FETCHERS["r1999"] = {
 
 		// 「开服后 / 维护后 / 更新后」= 只有日期没有时刻
 		const WQMT_OPEN_RE = /开服|维护|更新/;
+		// ── 「开服后」的钟点锚（2026-11-09 用户拍板）─────────────────────────────────
+		// 官方维护公告写「维护时间：10月27日10:00-14:00」⇒ **开服 = 窗口结束**。公告解析不到窗口时
+		// 退这个常量（14:00），依据同上（实测 5 期维护公告全部是 10:00-14:00）。
+		// ⚠️ 与旧实现的关键差别：旧实现**没有锚点就留 null**（起点未知），而 `coversNow` 当时把
+		//    `startTs == null` 当成"已开始" ⇒ 11-11 才开的池子在 11-09 就显示成在期（假在期）。
+		//    现在改成"恒定锚定一个钟点"，于是未来批如实是**未来**（state=wait，不进近期/提醒）。
+		const WQMT_OPEN_FALLBACK_HOUR = 14;
 		const WQMT_YMD_RE = /(\d{4})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})/;
 		const WQMT_MD_RE = /(\d{1,2})\s*月\s*(\d{1,2})\s*日?/;
 		const WQMT_HM_RE = /(\d{1,2})\s*[:：]\s*(\d{2})/;
@@ -16177,10 +16445,10 @@ EVENT_FETCHERS["r1999"] = {
 		// 一端的「档期文本 + 绝对时刻」。四种写法各有明确口径（都不猜时刻）：
 		//   · 有时刻            → 照写；
 		//   · 「开服后」+ 锚点   → 用锚点时刻（维护窗口结束），文本写正常时刻；
-		//   · 「开服后」无锚点   → **startTs = null**，文本写 `MM-DD 开服后`；
+		//   · 「开服后」无锚点   → 用常量 `openFallbackHour`（14:00，用户拍板），文本写正常时刻；
 		//   · 只有日期、没有「开服后」（源站没这么写过，但别崩）→ 按 00:00 / 23:59 的既有约定
 		//     （见 30-game-bwiki-common.js 的 windowsFromCell：这是全仓对"只有日期"的通用处理）。
-		function wqmtEndOfPoint(p, tz, fallbackH, fallbackMi, anchors, isStart) {
+		function wqmtEndOfPoint(p, tz, fallbackH, fallbackMi, anchors, isStart, openFallbackHour) {
 			const h = p.h == null ? fallbackH : p.h;
 			const mi = p.mi == null ? fallbackMi : p.mi;
 			const text = `${pad2(p.mo)}-${pad2(p.d)} ${pad2(h)}:${pad2(mi)}`;
@@ -16189,6 +16457,10 @@ EVENT_FETCHERS["r1999"] = {
 			if (!p.open) return { ts: sourceInstant(p.y, p.mo, p.d, h, mi, tz), text };
 			const anchor = anchors ? anchors[p.mo + "-" + p.d] : null;
 			if (anchor != null) return { ts: anchor, text: fmtMdHm(anchor, tz) };
+			if (openFallbackHour != null && p.y != null) {
+				const ts = sourceInstant(p.y, p.mo, p.d, openFallbackHour, 0, tz);
+				return { ts, text: fmtMdHm(ts, tz) };
+			}
 			return { ts: null, text: `${pad2(p.mo)}-${pad2(p.d)} 开服后` };
 		}
 
@@ -16210,8 +16482,8 @@ EVENT_FETCHERS["r1999"] = {
 			const b = { ...b0, y: endYear == null ? a.y : endYear };
 			// 跨年（12-20 ~ 01-05）：结束月份小于开始月份 ⇒ 结束记次年（共用 endsNextYear）
 			if (b0.y == null && a0.y == null && endsNextYear(a.mo, a.d, b.mo, b.d)) b.y = a.y + 1;
-			const st = wqmtEndOfPoint(a, tz, 0, 0, anchors, true);
-			const en = wqmtEndOfPoint(b, tz, 23, 59, anchors, false);
+			const st = wqmtEndOfPoint(a, tz, 0, 0, anchors, true, WQMT_OPEN_FALLBACK_HOUR);
+			const en = wqmtEndOfPoint(b, tz, 23, 59, anchors, false, null);
 			if (!(en.ts > (st.ts == null ? 0 : st.ts))) return null;
 			return { startTs: st.ts, endTs: en.ts, startText: st.text, endText: en.text, raw: `${st.text} ~ ${en.text}` };
 		}
@@ -16374,13 +16646,58 @@ EVENT_FETCHERS["r1999"] = {
 		//#endregion
 
 		//#region 抓取器（契约：async (url, signal, tz) → 数据对象 | null；now 在最后、有默认值）
+		// ── 开服锚点（卡池侧）────────────────────────────────────────────────────────
+		// 卡池表只有「11-11 开服后」，钟点写在**维护公告正文**里。活动侧会顺手读到那份正文
+		// （`wqmtMaintAnchorsOf`），卡池侧只抓 bwiki、手上没有正文 ⇒ 用**同一条资讯接口**补：
+		//   ① `/api/news` 列表 1 次（找最新的「维护」公告）；
+		//   ② 该公告正文 1 次 → `维护时间：10月27日10:00-14:00` ⇒ 当日开服 = 窗口结束。
+		// 全程串行（bwiki 那条只打一个端点，不并发）；**任何一步失败都不影响卡池**：
+		// 锚点是增强，取不到就退常量 14:00（`WQMT_OPEN_FALLBACK_HOUR`）。
+		async function wqmtGachaAnchorsOf(signal, tz) {
+			try {
+				const list = await fetchJson(WQMT_NEWS_URL, { mode: "direct", signal });
+				const data = list && list.data;
+				if (!data || typeof data !== "object") return {};
+				const seen = new Set(), cands = [];
+				for (const sec of ["notices", "news", "activity", "allNews"]) {
+					for (const it of Array.isArray(data[sec]) ? data[sec] : []) {
+						if (!it || it.id == null || seen.has(it.id)) continue;
+						seen.add(it.id);
+						const title = String(it.title || "");
+						// 只认会写维护窗口的公告（`【公告】丨10月27日停服维护更新公告`）
+						if (!/维护/.test(title)) continue;
+						const at = Date.parse(String(it.publish_time || ""));
+						cands.push({ id: it.id, at: Number.isFinite(at) ? at : null });
+					}
+				}
+				cands.sort((a, b) => (b.at || 0) - (a.at || 0));
+				// 最多试 2 条（最新一期正常就 1 次；某条正文坏了再往下看一条，不影响总预算）
+				for (const c of cands.slice(0, 2)) {
+					try {
+						const j = await fetchJson(WQMT_NEWS_DETAIL + c.id, { mode: "direct", signal });
+						const row = j && Array.isArray(j.data) ? j.data[0] : null;
+						const anchors = wqmtMaintAnchorsOf([{ at: c.at, text: wqmtBodyTextOf(row && row.content_html) }], tz);
+						if (Object.keys(anchors).length) return anchors;
+					} catch {
+						// 单条正文失败 ⇒ 看下一条（都不行就退常量）
+					}
+				}
+				return {};
+			} catch {
+				// 列表都拿不到 ⇒ 没有锚点（常量兜底），卡池照常出数据
+				return {};
+			}
+		}
+
 		// 卡池：bwiki（biligame 系主机 ⇒ 必须走宿主代理，见 15-env.js 的 CORS 收口点）
 		async function ns_wqmt_gachaWqmt(url, signal, tz = WQMT_TZ, now) {
+			const at = typeof now === "number" && Number.isFinite(now) ? now : nowMs();
 			const html = await fetchMediaWikiText(url, { signal, mode: "proxy" });
-			const items = wqmtPoolsOf(html, tz, null);
+			const anchors = await wqmtGachaAnchorsOf(signal, tz);
+			const items = wqmtPoolsOf(html, tz, anchors);
 			// 页面拿到了却一行候选都没有 ⇒ 表结构变了（抛错 = 该侧"抓取失败"，与"未公布"分开）
 			if (items.length === 0) throw new Error("wqmt-no-table");
-			return ns_bwiki_batchGachaPayloadOf(items, tz, typeof now === "number" && Number.isFinite(now) ? now : nowMs(), { id: "wqmt" });
+			return ns_bwiki_batchGachaPayloadOf(items, tz, at, { id: "wqmt" });
 		}
 
 		// 活动：官方资讯 API（`ACAO:*` ⇒ 直连），列表 1 次 + 正文最多 6 次

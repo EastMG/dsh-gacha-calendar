@@ -285,11 +285,16 @@
 			// 永久/常驻活动单独计一项：它们 endTs 为 null，本就不该混进"当期"排序，
 			// 但也不能像以前那样无声丢掉（见 isPermanentEvent 注释）。
 			const permanent = snapshot.filter((it) => isPermanentEvent(it));
+			// 外显：只从**两端都明确且覆盖 now** 的行里挑（`coversNow`，2026-11-09 收紧：
+			// 起点写成「X.Y版本更新后」而没有日期的行不参与"是否已开始"的判定）。
 			const active = sortEventItems(snapshot.filter((it) => coversNow(it, now)));
 			if (active.length === 0) return null;
+			// 悬停 / 数组 = 在期 ∪ **起点未知但终点未过**（用户口径：未知起点不算已开始，
+			// 但事实仍要在悬停里列出；否则 bwiki 那些「4.6版本更新后 ~ …」的行会无声消失）。
+			const listed = sortEventItems(snapshot.filter((it) => coveredOrOpen(it, now)));
 			// 外显：类别优先（剧情/叙事、限时高难），同级内结束时间升序；悬停仍按 endTs 升序全量
 			const primary = pickEventPrimary(active) || active[0];
-			const hoverItems = active.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
+			const hoverItems = listed.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
 			const out = {
 				event: primary.name,
 				eventDates: primary.startTs != null && primary.endTs != null ? fmtWindow(primary.startTs, primary.endTs, tz) : (primary.raw || ""),
@@ -307,7 +312,7 @@
 				//    绝区零的 TAG 列**本批不读**（留给后续决策）——这里只写 `category` + `tags`。
 				if (opts.categoryFacts) {
 					const facts = {};
-					for (const x of active) {
+					for (const x of listed) {
 						if (!x.category) continue;
 						// 多值类型：首项 = `category`，其余 = `tags`（`tags` 为空就不写这个键）
 						const fact = { category: x.category };
@@ -359,7 +364,7 @@
 			}));
 			const cur = selectCurrent(items, now);
 			if (!cur || !cur.banner) return null;
-			const hoverItems = sortEventItems(snapshot.filter((it) => coversNow(it, now)))
+			const hoverItems = sortEventItems(snapshot.filter((it) => coveredOrOpen(it, now)))
 				.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
 			const out = {
 				event: cur.banner,

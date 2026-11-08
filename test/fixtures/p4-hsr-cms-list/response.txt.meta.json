@@ -1,0 +1,6 @@
+{
+  "url": "https://api-takumi-static.mihoyo.com/content_v2_user/app/1963de8dc19e461c/getContentList?iPage=1&iPageSize=200&sLangKey=zh-cn&isPreview=0&iChanId=257",
+  "status": 200,
+  "capturedAt": "2026-11-08T21:16:32.114Z",
+  "note": "裁剪规则：2026-11-09 真抓一页 200 条（iTotal=448），只保留 4 期「X.Y版本活动跃迁」+ 2 期「版本更新维护预告」共 6 条整条对象（其余丢弃），data.iTotal 保留原值；每条 sTitle/sIntro/sContent 等字段逐字未改（仅 JSON 转义写法可能与原始响应不同）。"
+}

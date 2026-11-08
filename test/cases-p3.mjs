@@ -394,11 +394,16 @@ const p3bFixtureMapOf = (overrides) => {
 // `switched: true` = 该路径已改成"解析器直出数组 + 悬停由条目反生成"。
 const P3B_SWITCHED_EXPECT = 48;   // 已切路径数（每批提交时 +N，最终 = P3B_PATHS.length）
 const P3B_PATHS = [
-	// ── 第 1 批：星铁（bwiki）/ 绝区零（官方公告）/ 崩坏3（米游社备选）/ 米游社卡池 ──
+	// ── 第 1 批：星铁（bwiki 备选）/ 绝区零（官方公告）/ 崩坏3（米游社备选）/ 米游社卡池 ──
 	{
+		// ⚠️ 2026-11-09：星铁卡池默认源换成官方公告 CMS，bwiki「历史跃迁」降为备选
+		// （`altSources[0]`，抓取器键 `hsr-bwiki`）。这条 golden 钉的是**同一份 bwiki 夹具**的
+		// 解析结果，所以改走备选源地址 + 备选抓取器；产物（12 个字符串字段 / 数组 / 悬停）逐字不变。
+		// `approvedChange`：同一天"起点未知 ≠ 已开始"让这一侧的**外显与角色**有意变了（见下面分支）。
 		key: "hsrGacha", switched: true, id: "hsr", side: "gacha", field: "gacha", now: Date.parse("2026-11-07T00:00:00.000Z"),
-		urlsOf: (s) => ({ [s.url]: "p4-hsr-bwiki-warp-1107" }),
-		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
+		approvedChange: "open-start-not-live",
+		urlsOf: (s) => ({ [(s.altSources || [])[0].url]: "p4-hsr-bwiki-warp-1107" }),
+		call: (t, s) => t.GACHA_FETCHERS["hsr-bwiki"]((s.altSources || [])[0].url, undefined, s.tz)
 	},
 	{
 		key: "hsrEvent", switched: true, id: "hsr", side: "event", field: "events", now: Date.parse("2026-11-07T00:00:00.000Z"),
@@ -745,6 +750,21 @@ async function runP3b() {
 		const r = results[p.key];
 		check(`P3b golden（${p.key}）：golden 里有这一条（覆盖到、不是抽样）`, !!g, p.key);
 		if (!g) continue;
+		if (p.approvedChange) {
+			// ⚠️ 2026-11-09「起点未知 ≠ 已开始」（用户拍板）：星铁 bwiki 侧的外显/角色**有意变了** ——
+			// 只有两端明确的「我身即刃」在期，`4.6/4.7版本更新后`（无日期）的三口池不再并入外显。
+			// 旧 golden（p3b-golden.json）原样保留作"改造前长什么样"的存档，不再比相等；新口径逐字由
+			// 这里的两条 + cases-core ④-9 + cases-hsr-official 钉住。
+			const arr2 = r.rec[p.field] || [];
+			check(`P3b golden（${p.key}）**已批准差异**：roles 只剩两端明确的「千冶•刃（虚无•火）」`,
+				p3bTextOf(r.rec.roles) === "千冶\u2022刃（虚无\u2022火）", JSON.stringify(r.rec.roles));
+			check(`P3b golden（${p.key}）**已批准差异**：数组 4 条（主行 + 3 条悬停行，其中 3 条起点未知）`,
+				arr2.length === 4 && arr2.filter((x) => x.startTs == null).length === 3,
+				JSON.stringify(arr2.map((x) => [x.title, x.startTs == null ? "null" : "number"])));
+			check(`P3b golden（${p.key}）：旧 golden 原样保留（存档"改造前会显示什么"）`,
+				p3bTextOf(g.rec.roles).indexOf("真珠") > 0, JSON.stringify(g.rec.roles));
+			continue;
+		}
 		const changed = P3B_VISIBLE.filter((f) => p3bTextOf(r.rec[f]) !== p3bTextOf(g.rec[f]));
 		check(`P3b golden（${p.key}）：12 个字符串字段与改造前逐字相同`, changed.length === 0, JSON.stringify(changed));
 		const arr = r.rec[p.field] || [];
@@ -761,6 +781,15 @@ async function runP3b() {
 		const otherSide = p.side === "gacha" ? "event" : "gacha";
 		const oldArr = legacySynthArrOf(p.key, p.side);
 		const oldOther = legacySynthArrOf(p.key, otherSide);
+		if (p.approvedChange) {
+			// 已批准差异：改造前 5 条（含「沧海萃珠」并进外显角色）→ 现在 4 条（外显只有「我身即刃」）。
+			check(`P3b 等价（${p.key}）**已批准差异**：改造前 5 条 → 现在 4 条（起点未知不再算在期）`,
+				(r.rec[p.field] || []).length === 4 && oldArr.length === 5,
+				JSON.stringify([(r.rec[p.field] || []).length, oldArr.length]));
+			check(`P3b 等价（${p.key}）：另一侧也不会凭空多出条目`,
+				JSON.stringify(sansCategoryTags(r.rec[other])) === JSON.stringify(sansCategoryTags(oldOther)));
+			continue;
+		}
 		check(`P3b 等价（${p.key}）：\`${p.field}\` 与改造前的合成结果逐条相等（含 ts）`,
 			JSON.stringify(sansCategoryTags(r.rec[p.field])) === JSON.stringify(sansCategoryTags(oldArr)),
 			JSON.stringify([sansCategoryTags(r.rec[p.field]), oldArr]));
@@ -862,6 +891,12 @@ const P3D_PATHS = [
 	{
 		key: "zzzBwikiGacha", id: "zzz", side: "gacha", field: "gacha",
 		alt: "zzz-bwiki", now: P3D_NOW,
+		// ⚠️ 2026-11-09「起点未知 ≠ 已开始」：这一页**每一行**的起点都写「X.Y版本更新后」（无日期，
+		// 见夹具 meta：039/038/037… 的上半全是这种写法）⇒ 按新口径没有任何一行能证明"已经在开"
+		// ⇒ 载荷 null（如实"未公布"），字符串字段与数组都为空。旧 golden（改造前会显示
+		// 「倾掷浮生」039-1期独家频段）**原样保留**在 p3d-golden.json 里作存档、不再比相等；
+		// 新行为由下面的 `openStartOnly` 分支逐条钉住（含"面板确实显示无数据"这个代价）。
+		openStartOnly: true,
 		urlsOf: (alt) => ({ [alt.url]: "p3d-zzz-bwiki" })
 	},
 	// ⑥ 蔚蓝档案国际服·备选：Nexon 更新日志（卡池 + 活动同一份载荷）
@@ -1019,6 +1054,17 @@ async function runP3d() {
 		const g = golden[p.key];
 		check(`P3d golden（${p.key}）：golden 里有这一条（覆盖到、不是抽样）`, !!g, p.key);
 		if (!g) continue;
+		if (p.openStartOnly) {
+			// 起点未知 ⇒ 什么都不显示（"宁可少显示，也不要假在期"）。两条断言：
+			//   ① 现在的产物 = 空（载荷 null、数组 0 条）；
+			//   ② 旧 golden **没被改写**（仍存着改造前会显示的那条），差异是"批准的变更"而不是"改完再采集"。
+			check(`P3d golden（${p.key}）：整页都是「X.Y版本更新后」⇒ 载荷 null、数组 0 条（不再假在期）`,
+				r.payload === null && arr.length === 0, JSON.stringify([r.payload, arr.length]));
+			check(`P3d golden（${p.key}）：旧 golden 原样保留（存档"改造前会显示什么"）`,
+				p3dTextOf(g.rec.banner) === "\u300C\u503E\u63B7\u6D6E\u751F\u300D039-1\u671F\u72EC\u5BB6\u9891\u6BB5",
+				JSON.stringify(g.rec.banner));
+			continue;
+		}
 		const fields = p.goldenFields || P3D_VISIBLE;
 		const changed = fields.filter((f) => p3dTextOf(r.rec[f]) !== p3dTextOf(g.rec[f]));
 		check(`P3d golden（${p.key}）：${fields.length} 个字符串字段与改造前逐字相同`, changed.length === 0, JSON.stringify(changed));
@@ -1034,6 +1080,12 @@ async function runP3d() {
 		const r = results[p.key];
 		const oldArr = legacySynthArrOf(p.key, p.side);
 		const arr = r.rec[p.field] || [];
+		if (p.openStartOnly) {
+			// 已批准差异（2026-11-09）：改造前有 1 条（把「3.3版本更新后」当成已开始），现在 0 条。
+			check(`P3d 等价（${p.key}）**已批准差异**：改造前 1 条 → 现在 0 条（起点未知不再算在期）`,
+				arr.length === 0 && oldArr.length === 1, JSON.stringify([arr.length, oldArr.length]));
+			continue;
+		}
 		check(`P3d 等价（${p.key}）：\`${p.field}\` 与改造前的合成结果逐条相等（含 ts）`,
 			JSON.stringify(sansCategoryTags(arr)) === JSON.stringify(sansCategoryTags(oldArr)),
 			JSON.stringify([sansCategoryTags(arr), oldArr]));
@@ -1074,6 +1126,13 @@ async function runP3d() {
 		const rec = (res.games || {})[p.id] || {};
 		const arr = rec[p.field] || [];
 		const view = T.scheduleCellOf(Object.assign({ id: p.id }, rec), p.side, new Date(p.now));
+		if (p.openStartOnly) {
+			// 已批准差异（2026-11-09）：切到这个备选源后**不再出数据**（整页起点未知）——
+			// 这是"宁可少显示也不要假在期"的直接代价，写成断言而不是悄悄跳过。
+			check(`P3d 端到端（${p.key}）**已批准差异**：切源后数组 0 条、面板写「该来源无数据」`,
+				arr.length === 0 && view === null, JSON.stringify([arr.length, view && view.primary && view.primary.title]));
+			continue;
+		}
 		check(`P3d 端到端（${p.key}）：切源后数组非空（${arr.length} 条）`, arr.length > 0, String(arr.length));
 		check(`P3d 端到端（${p.key}）：面板那一格能渲染（\`scheduleCellOf\` 非 null ⇒ 不再写「该来源无数据」）`,
 			!!view && !!view.primary, JSON.stringify(view && { title: view.primary && view.primary.title, rest: view.rest && view.rest.length }));

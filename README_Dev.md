@@ -103,7 +103,7 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 34 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（18 处定稿，三轮增删）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）+ category / tags 批 1+2+3（9 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 多值拆分 + 旧键兼容 + 反证；批 3 把 `eventTier` 的 haystack 改成 OR 语义：`category` + `tags` + `name` 都参与）+ 2026-11-09 新接入 5 款（无期迷途两侧真源 / 夜幕之下卡池 / 未定·绘旅人·炽焰天穹留空未配置））
+│   ├── all.mjs      # 统一门禁：聚 35 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（18 处定稿，三轮增删）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）+ category / tags 批 1+2+3（9 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 多值拆分 + 旧键兼容 + 反证；批 3 把 `eventTier` 的 haystack 改成 OR 语义：`category` + `tags` + `name` 都参与）+ 2026-11-09 新接入 5 款（无期迷途两侧真源 / 夜幕之下卡池 / 未定·绘旅人·炽焰天穹留空未配置）+ 星铁卡池换官方公告 CMS + 「相对起点」锚定（星铁 10:00 / 无期迷途 14:00）+ 「起点未知 ≠ 已开始」）
 │   ├── cases-*.mjs  # 各段用例（33 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / cases-arknights-claim / cases-arknights-timeline / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh / settings-jump / settings-copy / sources / bwiki-cors / p3 / p4flat / category / new5）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
@@ -919,9 +919,58 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
 断言全在 `test/cases-new5.mjs` ⑤（`fetchEntry` 的 `reason` / `selfCheck` 的 `summary` 三个计数 /
 "未配置条目一个请求都没发"的记账断言 / `scheduleCellOf` 与 `scheduleNormalize` 都返回 null）。
 
-**已知限制（都写进代码注释了）**：① 无期迷途卡池的起点要靠维护公告锚点，卡池侧拿不到 ⇒ 目前恒为
-`null`；② 夜幕之下的 wiki 表在 2026-10-01 之后没有新行（2026-11-09 实测最新一批是 09-10）
+**已知限制（都写进代码注释了）**：① 无期迷途卡池的起点要靠维护公告锚点（2026-11-09 起取不到就退常量
+14:00，见下一节）；② 夜幕之下的 wiki 表在 2026-10-01 之后没有新行（2026-11-09 实测最新一批是 09-10）
 ⇒ 当前时刻**如实返回 null（未公布）**，等 wiki 补档，抓取器不需要改。
+
+
+### 星铁换官方公告 CMS + 「相对起点」锚定 + 「起点未知 ≠ 已开始」（2026-11-09）
+
+用户当轮拍板的三条规则。**三条互相咬合，改一条要同时看另两条**。
+
+**① 星铁卡池默认源 = 官方公告 CMS**（`30-game-hoyoverse.js`）
+
+- 端点：`content_v2_user/app/1963de8dc19e461c/getContentList?iChanId=257&iPageSize=200&iPage=1&sLangKey=zh-cn`
+  （一页 200 条，正文 `sContent` **在列表里就给了** ⇒ 一次刷新 1 个请求；host 已在 `PROXY_ALLOW_HOSTS`）。
+- 条目识别**只看正文特征**（正文里出现 `跃迁时间为`），不靠标题白名单：标题会变，而
+  「Fate[UBW] 联动跃迁说明」这种没有该句式的公告也就不会被误收（它是"12:00 后长期开放"）。
+- ⚠️ 正文**累积**：后一期会把前一期窗口再抄一遍（4.6其二 抄了 4.6其一 的「真珠」）⇒
+  必须**收集全部窗口**再按 `(角色, 起点, 终点)` 判重，**不能取第一条公告就完事**。
+- 选法：覆盖 now 的窗口**全部**合并角色 → 空档期取"下一个要开的"那一批（同一 `startTs`）→
+  只剩起点未知的行就如实列出（不算在期）→ 都没有 ⇒ `null`（未公布）。
+- bwiki「历史跃迁」降为 `altSources[0]`（`fetcher: "hsr-bwiki"`，走旧抓取器），设置页可手动切。
+
+**② 「相对起点」统一锚定**（`23-parser-time.js` 的 `anchorStartOf(text, anchorHour, tz, hint?)`）
+
+| 源站写法 | 结果 |
+| --- | --- |
+| `2026/09/28 4.6版本更新后` / `2026/09/28` | 该日 `anchorHour`:00（源站时区） |
+| `10月27日 开服后`（无年份） | 借 `hint` 补年份后同上；补不出 ⇒ `null` |
+| `4.7版本更新后`（**只有版本，没有日期**） | `null`（起点未知，绝不猜） |
+| 已写绝对时刻（`2026/10/21 12:00`） | 原样返回（锚点不生效） |
+
+- **星铁 `anchorHour = 10`**（版本更新 06:00 开始、预计 5 小时 ⇒ 开服 10:00，+08）；
+- **无期迷途 `anchorHour = 14`**（官方公告「维护时间：X日10:00-14:00」，开服 = 窗口结束）。
+  卡池侧为了拿到这份窗口，在同一次刷新里串行补 2 个请求（资讯列表 1 次 + 最新维护公告正文 1 次，
+  `wqmtGachaAnchorsOf`）；**取不到就退常量 14:00**（`WQMT_OPEN_FALLBACK_HOUR`），不影响出数据。
+- 旧实现（星铁 bwiki 那种"日期+版本标签"）走的是 `VERSION_UPDATE_ANCHOR = 04:00`，**本批没动**：
+  它只影响 bwiki 备选里的活动/旧表，而星铁卡池已经不吃那条路了。
+
+**③ 起点未知 ≠ 已开始**（`24-parser-window.js` 的 `coversNow`）
+
+- `coversNow` 现在**两端都必须明确**（`startTs != null && endTs != null` 且 `startTs <= now <= endTs`）。
+  旧口径 `startTs == null ||` 那个分支正是"未来池假在期"的根源（无期迷途 11-11 批、星铁 4.7 批、
+  绝区零 `X.Y版本更新后` 上半都是这么变成"在期"的）。
+- 受到影响的三处判定：`selectCurrent` 的 `inWindow`（不再用 `hadOpenStart` 兜底）、
+  `81-schedule-model.js` 的 `sideViewOf`（gacha 在期过滤）与 `scheduleItemOf`（起点未知 ⇒
+  `state = "wait"`，`scheduleWhen` 写「开始时间未知」，不进「近期」/提醒/24 小时计数）。
+- **事实不丢**：悬停与数据数组仍列出这些行（`coveredOrOpen` = 在期 ∪ 起点未知但终点未过），
+  只是不冒充"在期"。**代价（有意的，宁可少显示）**：
+  - 绝区零 **bwiki 备选源**整页都是 `X.Y版本更新后` ⇒ 一切到备选就「该来源无数据」（默认官方源不受影响）；
+  - 星铁 **bwiki 备选**只剩两端明确的那口池当外显，`4.6/4.7版本更新后` 的几口池只出现在悬停里；
+  - 星铁**活动一览**（bwiki，仍是默认活动源）里写成 `4.6版本更新后` 的活动同样只进悬停。
+- 反向证明（改回旧口径 ⇒ 红）见 `test/cases-hsr-official.mjs` ④ 与 `test/cases-core.mjs` ⑤ 的
+  `APPROVED_DIFF`（白名单只有 `hsr:gacha` / `hsr:event` 两个键，并有守卫防止它扩大）。
 
 
 ### 为什么插件要改宿主的槽位布局

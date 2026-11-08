@@ -241,7 +241,7 @@
 			if (dedupe) cur.roles = dedupeRoleNames(cur.roles);
 			const now = nowMs();
 			const pools = snapshot
-				.filter((it) => it.isMain && coversNow(it, now))
+				.filter((it) => it.isMain && coveredOrOpen(it, now))
 				.map((it) => ({
 					name: it.banner,
 					label: `${it.banner}${it.roles ? `\uFF1A${cleanRoles(it.roles)}` : ""}`,

@@ -442,7 +442,7 @@ export default async function runCore() {
 			const probe = createEngine({ transport: hsrTransport, storage: makeStore(), now: () => NOW_HSR, timer: { setTimeout, clearTimeout } });
 			const metaHsr = { id: "hsr", tz: "Asia/Shanghai" };
 			hsrHtml = warpBody;
-			const hsrGachaPayload = await probe.__test.GACHA_FETCHERS["hsr"]("https://wiki.biligame.com/sr/api.php?action=parse&page=warp", undefined, "Asia/Shanghai");
+			const hsrGachaPayload = await probe.__test.GACHA_FETCHERS["hsr-bwiki"]("https://wiki.biligame.com/sr/api.php?action=parse&page=warp", undefined, "Asia/Shanghai");
 			const hsrGacha = probe.__test.mergeEntryRecord({ data: hsrGachaPayload || {} }, null, NOW_HSR, metaHsr).gacha || [];
 			hsrHtml = eventsBody;
 			const hsrEventPayload = await probe.__test.EVENT_FETCHERS["hsr"].default("https://wiki.biligame.com/sr/api.php?action=parse&page=events", undefined, "Asia/Shanghai");
@@ -457,8 +457,12 @@ export default async function runCore() {
 			check("星铁②：roles 里不存在重复角色名（去括号属性后判重，保留第一次出现的形式）",
 				tokens.length > 0 && new Set(tokens.map(roleBase)).size === tokens.length,
 				JSON.stringify(tokens));
-			check("星铁②：roles 逐字（同一角色只出现一次，分组/空白分隔符保持源站写法）",
-				hsrRoles === "星神★阿哈、银狼LV.999（欢愉•虚数） 火花（欢愉•火） 爻光（欢愉•物理）、千冶•刃（虚无•火）、真珠（欢愉•冰）",
+			// ⚠️ 2026-11-09「起点未知 ≠ 已开始」：外显角色只剩**两端明确且覆盖 now** 的那口池
+			// （「我身即刃」10-21~11-10）。「沧海萃珠」与两口 4.7 池的起点在 bwiki 里只写
+			// 「4.6/4.7版本更新后」（无日期）⇒ 不再并进外显，仍留在悬停里（见下面 ③ 的悬停断言）。
+			// 判重规则本身（同一角色写两遍只留一次）由上一行 + 悬停断言继续覆盖。
+			check("星铁②：roles 逐字（起点未知的池不并入；同一角色只出现一次）",
+				hsrRoles === "千冶•刃（虚无•火）",
 				JSON.stringify(hsrRoles));
 			const hsrMain = hsrGacha[0] || {};
 			const showTokens = roleTokens(hsrMain.show);
@@ -473,18 +477,19 @@ export default async function runCore() {
 			//    并成一条 —— 旧探头本来就同时显示「合并角色的主行」与「池名：角色」，数据层只该放事实。
 			//    新口径：**引擎主行一条 + 悬停并列行各一条**，用 `source` 区分（"primary" / "hover"）；
 			//    只有内容完全一样（同标题 + 同区间）才去掉一条，且**优先保 `source:"primary"`** 那条。
-			check("星铁③：gacha 数组 = 5 条（引擎主行 1 + 悬停并列行 4，同一口池不再被并掉）",
-				hsrGacha.length === 5, JSON.stringify(hsrGacha.map((x) => [x.title, x.source])));
+			// ⚠️ 2026-11-09：行数 5 → 4。两条原因都来自"起点未知 ≠ 已开始"：
+			//   ① 外显只剩「我身即刃」一口池（其余三口起点是「版本更新后」且无日期）；
+			//   ② 主行与那条悬停行**归一后同名**（主行 show = 千冶•刃 = 悬停行「…：千冶•刃」的尾部）
+			//      ⇒ 按既有判重口径去掉悬停那条（`dataArrayExtrasFromEntriesOf` 的 shown 规则）。
+			check("星铁③：gacha 数组 = 4 条（引擎主行 1 + 悬停并列行 3）",
+				hsrGacha.length === 4, JSON.stringify(hsrGacha.map((x) => [x.title, x.source])));
 			check("星铁③：`source` 恰好一条 primary（外显那条），其余全是 hover",
 				hsrGacha.filter((x) => x.source === "primary").length === 1
-				&& hsrGacha.filter((x) => x.source === "hover").length === 4
+				&& hsrGacha.filter((x) => x.source === "hover").length === 3
 				&& (hsrGacha.find((x) => x.source === "primary") || {}).title === "「我身即刃」角色活动跃迁",
 				JSON.stringify(hsrGacha.map((x) => [x.title, x.source])));
-			check("星铁③：主行「我身即刃」与悬停行「「我身即刃」…：千冶•刃」**都在**（P1 并掉的那行回来了）",
-				hsrGacha.filter((x) => x.title === "「我身即刃」角色活动跃迁" || x.title.indexOf("「我身即刃」角色活动跃迁：") === 0).length === 2,
-				JSON.stringify(hsrGacha.map((x) => x.title)));
-			check("星铁③：四口当期池的悬停行都在（并没有把判重做成『只留外显那一条』）",
-				["我身即刃", "沧海萃珠", "铭心之萃", "愚戏众星"].every((n) => hsrGacha.some((x) => x.title.indexOf(`「${n}」角色活动跃迁`) === 0)),
+			check("星铁③：起点未知的三口池**仍在悬停/数组里**（判重没有把事实删掉）",
+				["沧海萃珠", "铭心之萃", "愚戏众星"].every((n) => hsrGacha.some((x) => x.title.indexOf(`「${n}」角色活动跃迁：`) === 0)),
 				JSON.stringify(hsrGacha.map((x) => x.title)));
 			// ③-bis 判重口径的边界：**内容完全一样**（同标题 + 同区间）才去掉一条，且优先保 primary。
 			// ⚠️ P3c（2026-11-07）：数据层不再从 `bannerHover` 合成数组（合成器已删），所以这里改成
@@ -631,8 +636,11 @@ export default async function runCore() {
 		check("sideViewOf(gacha)：rest = 其余条目，**保持数组原顺序**（派生层不重排）",
 			JSON.stringify(v.rest.map((x) => x.title)) === JSON.stringify(["已结束", "晚结束"]),
 			JSON.stringify(v.rest.map((x) => x.title)));
-		check("sideViewOf(gacha)：起点未知（源站写「X.Y 版本更新后」）的在期池照样参选（startTs == null 视为已开始）",
-			T.sideViewOf([gLate, gOpen], NOW, "gacha").primary === gOpen);
+		// ⚠️ 2026-11-09 口径反转（用户拍板「起点未知 ≠ 已开始」）：`startTs == null` 的池**不再**参选；
+		// 结果退回 `list[0]`（= 数组首条，结束最早的那条），绝不因为"起点读不出"就当它已经在开。
+		check("sideViewOf(gacha)：起点未知（源站写「X.Y 版本更新后」）的在期池**不参选**（startTs == null 不算已开始）",
+			T.sideViewOf([gLate, gOpen], NOW, "gacha").primary === gLate,
+			JSON.stringify(T.sideViewOf([gLate, gOpen], NOW, "gacha").primary && T.sideViewOf([gLate, gOpen], NOW, "gacha").primary.title));
 		const gTieA = mk({ key: "tieA", title: "并列后", startTs: at("2026-10-02"), endTs: at("2026-10-08") });
 		const gTieB = mk({ key: "tieB", title: "并列先", startTs: at("2026-09-30"), endTs: at("2026-10-08") });
 		check("sideViewOf(gacha)：同 endTs ⇒ 起点早的优先（selectCurrent 的稳定排序 + endTs 单键）",
@@ -778,7 +786,7 @@ export default async function runCore() {
 			const probe = createEngine({ transport: hsrTransport, storage: makeStore(), now: () => now.getTime(), timer: { setTimeout, clearTimeout } });
 			const meta = { id: "hsr", tz: "Asia/Shanghai" };
 			body = warpBody;
-			const gp = await probe.__test.GACHA_FETCHERS["hsr"]("https://wiki.biligame.com/sr/api.php?action=parse&page=warp", undefined, "Asia/Shanghai");
+			const gp = await probe.__test.GACHA_FETCHERS["hsr-bwiki"]("https://wiki.biligame.com/sr/api.php?action=parse&page=warp", undefined, "Asia/Shanghai");
 			const recG = probe.__test.mergeEntryRecord({ data: gp || {} }, null, now.getTime(), meta);
 			body = eventsBody;
 			const ep = await probe.__test.EVENT_FETCHERS["hsr"].default("https://wiki.biligame.com/sr/api.php?action=parse&page=events", undefined, "Asia/Shanghai");
@@ -831,18 +839,40 @@ export default async function runCore() {
 		check("等价性前置：有数组的一侧都派生出条目、且没有偷偷长回 `fromArray` 兼容字段；golden 覆盖 34 个侧",
 			fallback.length === 0 && goldenMiss.length === 0, JSON.stringify([fallback, goldenMiss]));
 		// 硬验收（P2 收尾）：34 个侧**一个不差**地逐字相等 —— 不再有"允许不等"的白名单
+		// ⚠️ 2026-11-09 用户口径变更（「起点未知 ≠ 已开始」）：星铁 bwiki 侧（`hsr:gacha` / `hsr:event`）
+		// 的外显**有意不再等于改造前** —— 改造前把「X.Y版本更新后」（无日期）当成已开始，星铁活动
+		// 夹具里的「巡星之礼」就是这么当上外显的。这是**已批准的差异**，不是回归；
+		// 但白名单只有这 2 个键（下面单独守长度），新口径的逐字期望由 ④-9 钉住。
+		const APPROVED_DIFF = new Set(["hsr:gacha", "hsr:event"]);
+		const unapproved = diffs.filter((k) => !APPROVED_DIFF.has(k));
 		check("等价性：17 款游戏（34 个侧）**全部逐字相等**（diffs = 0；名称 / 档期文本 / 探头行数 / 行顺序）",
-			diffs.length === 0, JSON.stringify(diffs));
+			unapproved.length === 0, JSON.stringify(unapproved));
+		check("等价性白名单只有那 2 个已批准的星铁侧（`hsr:gacha` / `hsr:event`），别的键一律红",
+			diffs.length === unapproved.length + APPROVED_DIFF.size
+			&& [...APPROVED_DIFF].every((k) => diffs.indexOf(k) >= 0),
+			JSON.stringify(diffs));
 		const STRICT = ["zzz", "arknights", "ba-cn", "bandori", "wuhuamixin", "zspms", "kedr", "uma-cn", "uma-jp", "uma-global", "p5x", "nte", "gf2", "fgo", "stellasora", "hsr", "genshin"];
 		const strictBad = [];
 		for (const id of STRICT) {
 			for (const side of ["gacha", "event"]) {
-				const d = got.get(id + ":" + side);
-				if (!d || JSON.stringify(d.old) !== JSON.stringify(d.next)) strictBad.push(id + ":" + side);
+				const key = id + ":" + side;
+				if (APPROVED_DIFF.has(key)) continue;          // 已批准差异（见上）
+				const d = got.get(key);
+				if (!d || JSON.stringify(d.old) !== JSON.stringify(d.next)) strictBad.push(key);
 			}
 		}
 		check("等价性：17 款游戏（34 个侧）逐侧再钉一遍同一条不变量（含「这一侧没有数据」的那些）",
 			strictBad.length === 0, JSON.stringify(strictBad));
+		// 反向证明：那 2 个"已批准差异"确实**真的变了**（不是白名单把没变的键也放过）
+		check("反向证明：那 2 个星铁侧的老路与数组派生**确实不再相等**（口径变更真的生效了）",
+			[...APPROVED_DIFF].every((k) => {
+				const d = got.get(k);
+				return !!d && JSON.stringify(d.old) !== JSON.stringify(d.next);
+			}),
+			JSON.stringify([...APPROVED_DIFF].map((k) => {
+				const d = got.get(k);
+				return [k, !!d && JSON.stringify(d.old) === JSON.stringify(d.next)];
+			})));
 
 		// ── 原来那 6 处「已知差异」：现在是**严格相等** ─────────────────────────────
 		// 断言从"老路 N 行 / 新路 M 行"改成"两侧逐字相等 + 行数 + 外显名"，并额外钉住
@@ -863,14 +893,24 @@ export default async function runCore() {
 		// ⚠️ 2026-11-07（P4 单边窗口）：星铁这一格里 3 口池的源站原文是「4.6/4.7版本更新后 ~ …」——
 		// 起点读不出、终点明确。以前两端一起判 null ⇒ 这 3 行**数组里有、探头与「近期」里没有**；
 		// P4 起两端各自解析 ⇒ 行数 2 → 5（"同一游戏的多个在期条目各占一行"正是本阶段的目标）。
-		const hsrG = strictSide("hsr:gacha", "星神★阿哈、银狼LV.999 火花 爻光、千冶•刃、真珠", 5);
-		check("判重口径：星铁卡池「「我身即刃」…：千冶•刃」回来了（同一口池不再被并成一条）",
-			!!hsrG && hsrG.next[1].name.indexOf("「我身即刃」角色活动跃迁：") === 0,
+		// ⚠️ 2026-11-09：这一侧是**已批准差异**（见上面 APPROVED_DIFF）—— 老路拿改造前的
+		// 记录字符串合成（roles 里含真珠等"起点未知"的池），新口径只认两端明确的那口池。
+		// 所以这里不再用 `strictSide`（它要求 old == next），改为**直接钉新口径的逐字形状**；
+		// 老的 12 字段/数组 golden 仍在 P3b 里（作为"改造前长什么样"的存档）。
+		const hsrG = (() => {
+			const d = got.get("hsr:gacha");
+			check("已知差异（hsr:gacha）：新口径 = 4 行（主行 + 3 条悬停行），外显「千冶•刃」",
+				!!d && !!d.next && d.next.length === 4 && d.next[0].name === "千冶•刃",
+				JSON.stringify([d && text(d.old), d && text(d.next)]));
+			return d;
+		})();
+		check("判重口径：星铁卡池「「沧海萃珠」…：真珠」仍在（不在期不代表事实被删）",
+			!!hsrG && hsrG.next[1].name.indexOf("「沧海萃珠」角色活动跃迁：") === 0,
 			JSON.stringify(hsrG && hsrG.next.map((r) => r.name)));
-		check("单边窗口：星铁那 3 口「版本更新后」的池也列出来了 —— 行文本写「至 <终点>」，不编造开始时刻",
-			!!hsrG && hsrG.next.slice(2).length === 3
-			&& hsrG.next.slice(2).every((r) => r.meta.indexOf("至 ") === 0),
-			JSON.stringify(hsrG && hsrG.next.slice(2).map((r) => r.meta)));
+		check("单边窗口：星铁那 3 口「版本更新后」的池也列出来了 —— 行文本写「至 <终点> · 开始时间未知」，不编造开始时刻",
+			!!hsrG && hsrG.next.slice(1).length === 3
+			&& hsrG.next.slice(1).every((r) => r.meta.indexOf("至 ") === 0 && r.meta.indexOf("开始时间未知") > 0),
+			JSON.stringify(hsrG && hsrG.next.slice(1).map((r) => r.meta)));
 		strictSide("wuhuamixin:event", "「寂夜长生」限时活动", 6);
 		strictSide("zspms:event", "回路演算", 9);
 		strictSide("uma-cn:event", "赛事活动“群英联赛 中距离”", 4);

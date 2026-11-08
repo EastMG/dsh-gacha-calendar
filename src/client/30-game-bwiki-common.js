@@ -313,7 +313,9 @@ function ns_bwiki_batchGachaPayloadOf(items, tz, now, opts) {
 	const first = active.slice().sort((a, b) => (a.endTs - b.endTs) || ((a._i || 0) - (b._i || 0)))[0];
 	const batch = active.filter((it) => it.endTs === first.endTs);
 	const roles = ns_bwiki_mergeRoles(batch);
-	const hoverItems = active.slice().sort(poolHoverOrderOf).map((it) => {
+	// 悬停/数组的候选 = **在期** ∪ **起点未知但终点未过**（用户口径「起点未知 ≠ 已开始，但悬停里仍列出」）
+	const listed = (Array.isArray(items) ? items : []).filter((it) => coveredOrOpen(it, now));
+	const hoverItems = listed.slice().sort(poolHoverOrderOf).map((it) => {
 		const label = `${it.banner}${it.roles ? `\uFF1A${it.roles}` : ""}`;
 		return { title: label, label, startTs: it.startTs, endTs: it.endTs, raw: it.raw };
 	});
@@ -321,7 +323,7 @@ function ns_bwiki_batchGachaPayloadOf(items, tz, now, opts) {
 	// 类别事实按**标题**贴（`dataArrayAttachFactsOf` 的通道）：主条标题 = 池名，并列条标题 =
 	// `池名：角色` ⇒ 两个键都要给，否则并列条上没有 category。
 	const facts = {};
-	for (const it of active) {
+	for (const it of listed) {
 		if (!it.category) continue;
 		facts[it.banner] = { category: it.category };
 		if (it.roles) facts[`${it.banner}\uFF1A${it.roles}`] = { category: it.category };

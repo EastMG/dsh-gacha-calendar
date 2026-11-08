@@ -270,7 +270,8 @@
 				const picked = pickEventPrimary(adapted);
 				primary = picked ? picked.item : null;
 			} else {
-				const live = list.filter((x) => x && x.endTs != null && x.endTs >= at && (x.startTs == null || x.startTs <= at));
+				// 在期 = 两端都明确且覆盖 now（`coversNow` 唯一真源；2026-11-09 起**起点未知不算已开始**）
+				const live = list.filter((x) => coversNow(x, at));
 				primary = live.length
 					? live.reduce((a, b) => (b.endTs < a.endTs || (b.endTs === a.endTs && startOf(b) < startOf(a)) ? b : a))
 					: list[0];
@@ -426,7 +427,8 @@
 			// 这类条目**没有可算的状态**，探头里不列（数据层仍留着这条事实）。
 			if (item.startTs == null && item.endTs == null) return null;
 			// P4（2026-11-07）：两端各自独立（`dataArrayWindowOf` 的"单边窗口"）——
-			//   · 起点未知（源站写「X.Y 版本更新后」）⇒ 视为**已开始**（不编一个开始时刻）；
+			//   · 起点未知（源站写「X.Y 版本更新后」）⇒ **不冒称在期**（2026-11-09 用户口径），
+			//     状态记 `wait`、`startTs` 留 null（`scheduleWhen` 写「开始时间未知」）；
 			//   · 终点未知 ⇒ 长期（与原 `endTs = 0` 的退化一致）。
 			const startTs = item.startTs == null ? null : item.startTs;
 			const endTs = item.endTs == null ? 0 : item.endTs;
@@ -436,6 +438,7 @@
 				if (span > SCHEDULE_LONG_MS) state = "long";
 				else if (startTs != null && now.getTime() < startTs) state = "wait";
 				else if (now.getTime() > endTs) state = "ended";
+				else if (startTs == null) state = "wait";   // 起点未知 ⇒ 不算在期（宁可少显示，也不假在期）
 				else { state = "live"; remain = Math.max(0, endTs - now.getTime()); }
 			}
 			// `tz` = **显示时区**（P4，2026-11-07）：数组条目自带源站 tz，档期文本按它渲染成
@@ -542,7 +545,11 @@
 
 		// 「时间结论」只用**文字**表达紧迫度（颜色已让给"认游戏"）。parts 非空时渲染成"数字 + 小号单位"。
 		function scheduleWhen(it, now, tz) {
-			if (it.state === "wait") return { text: scheduleMDHM(it.startTs, tz) + " 开始", parts: null };
+			if (it.state === "wait") {
+				// 起点未知（源站只写「X.Y 版本更新后」）⇒ 如实说"不知道"，不写一个假的开始时刻
+				if (it.startTs == null) return { text: "开始时间未知", parts: null };
+				return { text: scheduleMDHM(it.startTs, tz) + " 开始", parts: null };
+			}
 			if (it.state === "long") return { text: "长期", parts: null };
 			if (it.state === "ended") return { text: "已结束", parts: null };
 			if (it.remain <= SCHEDULE_DUE_MS && scheduleSameDay(it.endTs, now, tz)) {
@@ -605,7 +612,7 @@
 			const ra = scheduleRank(a), rb = scheduleRank(b);
 			if (ra !== rb) return ra - rb;
 			if (ra <= 1) return a.endTs - b.endTs;
-			if (ra === 2) return a.startTs - b.startTs;
+			if (ra === 2) return (a.startTs == null ? Infinity : a.startTs) - (b.startTs == null ? Infinity : b.startTs);
 			if (ra === 4) return b.endTs - a.endTs;          // 已结束的：最近结束的在前
 			return 0;
 		}

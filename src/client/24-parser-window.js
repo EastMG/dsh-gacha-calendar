@@ -28,28 +28,24 @@
 		}
 
 
-		// 选当期：优先"起始明确且覆盖 now"的主池；
-		// 其次"起始未知（版本更新后）但结束在未来"的主池（星铁/zzz 上半，此时起始已被 fillMissingStarts 补齐）；
-		// **当期多个主池的角色全部合并**（见下方合并说明）。返回 null 时调用方回退内置数据。
-		// bannerDates 为补全后用于倒计时的文本；bannerDatesRaw 为源站原文（悬停展示）。
+		// ── 选当期：**起点未知的行不参与"是否已开始"的判定**（2026-11-09 用户拍板）────────────
+		// 源站写「X.Y版本更新后」而**没有日期**时，起点确实是未知的（下一版本哪天更新，源站没说）。
+		// 旧口径把这种行**当成已开始**（`startTs == null` 直接放行），后果是"未来池假在期"：
+		// 星铁 bwiki 的 4.7 两池（`4.7版本更新后 ~ 12-22`）在 11-07 就被当成在期、
+		// 无期迷途 11-11 那批（`11-11 开服后 ~ 12-09`）在 11-09 就被当成在期。
+		// 现在的口径：**未知起点既不算已开始、也不算未开始 —— 它不参与判定**（悬停里仍列出事实）。
+		// 「宁可少显示，也不要假在期」。
+		//
+		// 判定用**补全前**的快照（`hadOpenStart`）：`fillMissingStarts` 会就地给这类行补一个
+		// "上一组结束时间"当起点（那是**显示**用的猜测），拿它去判"已开始"等于把猜测当事实。
 		function selectCurrent(items, now) {
-			// 先记下**补全前**哪些行的起点是"版本更新后"（startTs 原本为 null）。
-			// 为什么要记：fillMissingStarts 会用"上一组结束时间"去猜这类行的起点，
-			// 而那个猜测**并非总是对的** —— 星铁 4.6 上线时间期有两池：
-			//   「韶艾裁英」4.6版本更新后 ~ 10-21 11:59
-			//   「沧海萃珠」4.6版本更新后 ~ 11-10 15:00
-			// 两者同为"4.6 上线"，只是结束不同；按"上一组结束"补会把后者补成 10-21，
-			// 于是"起点已过"判定失败、它被踢出当期 —— 而它其实覆盖当前时刻
-			// （用户实测：卡片只显示绯英，真珠不见了）。
-			const hadOpenStart = new Set(items.filter((it) => it.startTs == null).map((it) => it));
+			// `fillMissingStarts` 只为**显示**补起点（bannerDates / 悬停），不参与下面的在期判定。
+			const hadOpenStart = new Set(items.filter((it) => it.startTs == null));
 			fillMissingStarts(items);
+			// 起点未知（原文「X.Y版本更新后」）⇒ 不参与在期判定；起点明确且已到 ⇒ 参与。
 			const inWindow = (it) => it.endTs != null && it.endTs >= now
-				&& (it.startTs == null ? true : it.startTs <= now || hadOpenStart.has(it));
-			// 说明最后一个条件：起点原本为 null（写作"版本更新后"）的行，**一定已经开始**——
-			// 源站表只列**已发布版本**的排期，"X.Y版本更新后"里的 X.Y 必已上线，
-			// 所以它的真实起点在版本更新那天（≤ now），补出来的那个值不可信、不应用来判"未开始"。
-			// 注意这里**不覆盖**补全后的 startTs：显示（bannerDates 等）仍用补出来的窗口，
-			// 悬停也仍显示源站原文"4.6版本更新后 ~ …"，不编造日期。
+				&& !hadOpenStart.has(it)
+				&& it.startTs != null && it.startTs <= now;
 			const pool = items.filter(inWindow).filter((it) => it.isMain);
 			if (pool.length === 0) return null;
 			// 外显取哪个池的"名字与时间"：结束最早的（越快结束越该被盯住）。
@@ -141,18 +137,37 @@
 		// 其中 **① 与 ② 完全等价**（`startTs == null` 时 `null <= now` 恒真），只是②写得更"诚实"；
 		// ③ 更严：它把 startTs 为 null 的行排除掉。所以只需要两个判定，各写各的没有意义。
 		//
+		// ⚠️ 2026-11-09（用户拍板）：**只剩一种** —— 起点未知（`startTs == null`）**不再视为已开始**，
+		//    它不参与在期判定（"宁可少显示，也不要假在期"）。原来 ② 的 `startTs == null ||` 那个分支
+		//    正是"未来池假在期"的根源（无期迷途 11-11 批、星铁 4.7 批、绝区零「X.Y版本更新后」上半）。
+		//    事实本身不丢：这类行仍会出现在悬停 / 数据数组里，只是不冒充"在期"。
+		//
 		// `endTs == null` 表示"没有结束时间"（永久/常驻，或源站没给）——**不覆盖 now**（不以"没结束"当"永远在开"）。
 
-		/** 覆盖 now（常用）：起可为 null（视为"已开始"，如源站写"X.Y版本更新后"），末必须有且未过。 */
+		/** 覆盖 now：**两端都必须明确**（起点未知 ⇒ 不覆盖；终点未知 ⇒ 不覆盖）。 */
 
 		function coversNow(x, now) {
-			return !!x && x.endTs != null && x.endTs >= now && (x.startTs == null || x.startTs <= now);
+			return !!x && x.startTs != null && x.endTs != null && x.startTs <= now && x.endTs >= now;
 		}
 
-		/** 覆盖 now（**两端都必须有**）：需要明确起止的场合（如按窗口合并/排序的源）。 */
+		/** 覆盖 now（**两端都必须有**）：历史名，判据已与 `coversNow` 合并（保留以免调用点改签名）。 */
 
 		function coversNowBounded(x, now) {
-			return !!x && x.startTs != null && x.endTs != null && x.startTs <= now && x.endTs >= now;
+			return coversNow(x, now);
+		}
+
+		/**
+		 * 「在期 + 起点未知但终点未过」——**只用于悬停 / 数据数组**（事实层），**不用于选外显**。
+		 *
+		 * 为什么单独一条：用户 2026-11-09 的口径是「起点未知 ≠ 已开始」，但**不等于把它删掉** ——
+		 * 「只在悬停里列出」。所以悬停/数组要的是"这条事实还值得看吗"（终点未过？），
+		 * 而外显要的是"它现在真的在开吗"（两端都明确且覆盖 now？= `coversNow`）。
+		 * 起点**明确**且在未来的行不在此列：那种行有自己的状态（wait），不该混进"当期"的悬停。
+		 */
+		function coveredOrOpen(x, now) {
+			if (!x) return false;
+			if (coversNow(x, now)) return true;
+			return x.startTs == null && x.endTs != null && x.endTs >= now;
 		}
 
 		/**

@@ -284,17 +284,21 @@ export default async function run() {
 	//#region ⑤ bwiki **不再直连**（本轮修复的判定点：直连 0 次 / 代理 1 次）
 	section("bwiki 一律走宿主代理：直连计数 = 0、代理计数 = 1、Referer 仍在（fetch 记账）");
 	{
-		// 星铁卡池默认源 —— 就是宿主日志里被 CORS 拦的那条 `https://wiki.biligame.com/sr/api.php?…&origin=*`。
-		// 它走 mkMediaWiki → transportFetchRaw（**改造前 = 直连**），所以拿它当"红/绿"的判定点最贴证据。
+		// 星铁卡池**备选源** —— 泛 bwiki 判定点。2026-11-09 起星铁默认卡池源换成官方公告 CMS
+		// （`api-takumi-static`，非 bwiki），bwiki「历史跃迁」降为 `altSources[0]`；判定点改用备选源地址，
+		// 断言内容不变（bwiki 一律走代理 / 带 Referer / 只补一个 origin=*）。
 		const hsr = T.SOURCES.find((s) => s.id === "hsr");
-		const HSR_URL = hsr && hsr.url;
-		check("前置：星铁卡池来源地址是 bwiki（/sr/api.php）",
+		const hsrAlt = (hsr && hsr.altSources && hsr.altSources[0]) || null;
+		const HSR_URL = hsrAlt && hsrAlt.url;
+		check("前置：星铁卡池**备选**来源地址是 bwiki（/sr/api.php）",
 			!!HSR_URL && isBiligameHost(hostOf(HSR_URL)) && HSR_URL.includes("/sr/api.php"), HSR_URL);
+		check("前置：星铁卡池默认源已不是 bwiki（换官方公告源）",
+			!!hsr && !isBiligameHost(hostOf(hsr.url)), hsr && hsr.url);
 
 		// 夹具覆盖：map.json 里没有星铁的默认地址（那是 P4 批次的夹具），这里按 URL 精确注入一条。
 		const rec = installCountingTransport({ [HSR_URL]: "p4-hsr-bwiki-warp-1107/response.txt" });
 		let err = null, data = null;
-		try { data = await T.GACHA_FETCHERS["hsr"](HSR_URL, undefined, hsr.tz); } catch (e) { err = e; }
+		try { data = await T.GACHA_FETCHERS[hsrAlt.fetcher](HSR_URL, undefined, hsr.tz); } catch (e) { err = e; }
 		check("前置：星铁卡池抓取器能跑通（夹具齐备 / 解析未坏）", err === null, err && err.message);
 		check("前置：确实拿到了数据（不是空壳）", !!data && typeof data === "object" && typeof data.banner === "string",
 			JSON.stringify(data).slice(0, 80));

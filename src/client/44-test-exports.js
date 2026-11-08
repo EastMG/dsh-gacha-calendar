@@ -72,12 +72,15 @@
 				WQMT_EVENT_MAX_ITEMS,
 				WQMT_MAINT_RE,
 				WQMT_NEWS_URL,
+				WQMT_OPEN_FALLBACK_HOUR,
 				WQMT_TZ,
 				wqmtBodyTextOf,
+				wqmtEndOfPoint,
 				wqmtEventCandidatesOf,
 				wqmtEventNameOf,
 				wqmtEventPayloadOf,
 				wqmtEventWindowsOf,
+				wqmtGachaAnchorsOf,
 				wqmtMaintAnchorsOf,
 				wqmtPointOf,
 				wqmtPoolNameOf,
@@ -172,6 +175,18 @@
 				parseFgoBannerTable: ns_fgo_parseFgoBannerTable,
 				parseFgoEventTable: ns_fgo_parseFgoEventTable,
 				parseFgoWindow: ns_fgo_parseFgoWindow,
+			},
+			// 星铁：卡池默认源换成**官方公告 CMS**（2026-11-09）后新增的解析/抓取器。
+			// 回归要点：正文累积（后一期抄前一期）⇒ 全部窗口 + 角色合并；起点三态（锚 10:00）；
+			// upcoming 分支（当期没有覆盖 now 的窗口 ⇒ 取下一个要开的）；bwiki 备选仍走旧抓取器。
+			"hsr": {
+				HSR_BWIKI_URL,
+				HSR_CMS_LIST_URL,
+				HSR_UPDATE_ANCHOR_HOUR,
+				HSR_WARP_TIME_RE,
+				fetchHsrGacha,
+				hsrWarpWindowsOf,
+				parseHsrWarp,
 			},
 			"miyoushe": {
 				MIYOUSHE_DETAIL_DELAY_MS: ns_miyoushe_MIYOUSHE_DETAIL_DELAY_MS,
@@ -651,6 +666,13 @@
 			sourceOffsetMinutes,
 			tzOffsetMinutesAt,
 			setCoreEnv,
+			// 「相对起点」统一锚定（2026-11-09，23-parser-time.js 的纯函数）：
+			//   星铁「X.Y版本更新后」= 该日 10:00（+08）/ 无期迷途「开服后」= 该日 14:00（+08）；
+			//   **只有版本标签没有日期 ⇒ null（起点未知，不得当已开始）**。
+			anchorStartOf,
+			// 「在期 + 起点未知但终点未过」——悬停/数组的事实口径（24-parser-window.js）。
+			// 与 coversNow 的分工就是用户 2026-11-09 那条口径：判定不含 null 起点，列出仍要含。
+			coveredOrOpen,
 			// withBwikiCors = bwiki 请求统一补 `origin=*` 的**唯一**收口（15-env.js）：直连
 			// （transportFetchRaw）与宿主代理（proxyFetchText）两条出口都过它。导出后可以离线钉住
 			// 「无 query ⇒ 用 ? / 已有 query ⇒ 用 & / 已有 origin ⇒ 不动 / 其它主机逐字不变 /
