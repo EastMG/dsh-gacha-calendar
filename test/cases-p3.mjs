@@ -54,6 +54,28 @@ const legacySynthArrOf = (key, side) => {
 	return all[k];
 };
 
+// ── cat / tags 批 1（2026-11-08）：比较前摘掉 `cat` / `tags` ──────────────────────────────
+// 本批把"解析器早就拿在手里"的类别事实（`cat` / `tags`）写进了 `events[]` / `gacha[]` 条目
+// （见 README_Dev「cat / tags 来源与现状」）。而本文件所有 golden（P3 ② 的字面量、
+// `p3b-golden.json` / `p3d-golden.json`）与等价性 oracle（`legacySynthArrOf` = 冻结的"改造前
+// 合成结果"）都是**改造前**的产物 —— 那时条目上根本没有这两个键。
+//
+// 所以比较口径改为："**除 cat / tags 外**，条目与改造前逐字相等"（键序 / 顺序 / source / phase /
+// 其余可选事实全等）。⚠️ 刻意**不改写** golden / oracle：P3 的采集模式明确禁止"改完再采集"
+// （那会把回归钉成现状，见各采集模式上方的注释）。新增事实的**取值**由 `test/cases-cat.mjs`
+// 用真夹具逐款逐字钉住（含 `cat` / `tags` 的实际值与 `eventTier` 档位）。
+const sansCatTags = (arr) => (arr || []).map((x) => {
+	if (!x || typeof x !== "object") return x;
+	const o = Object.assign({}, x);
+	delete o.cat;
+	delete o.tags;
+	return o;
+});
+// golden 里存的数组是**已经归一过 ts 的 JSON 字符串**（见各 `*SansTs`）⇒ 反解后只摘 cat/tags，
+// **不要**再过一次 ts 归一（那会把 "number" 这类占位字符串按 `typeof` 变成 "string"）。
+// 于是"实际数组（归一 ts + 摘 cat/tags）"与"golden（摘 cat/tags）"两边同一口径。
+const sansCatTagsJson = (json) => JSON.stringify(sansCatTags(JSON.parse(json)));
+
 export default async function runP3() {
 	useFixtures();   // 只为了装"禁止真网络"的兜底；夹具按需显式读取
 
@@ -107,8 +129,9 @@ export default async function runP3() {
 	// 12 个旧字符串字段（可见字段）—— golden 只钉这些 + 数组
 	const VISIBLE = ["banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover",
 		"event", "eventDates", "eventDatesRaw", "eventShow", "eventClaimDates", "eventHover", "eventHoverExtra"];
-	// 时间戳只比类型（P1 口径 = 本机时刻；UTC 与 +08 的绝对数字不同，钉死会让门禁假红）
-	const sansTs = (arr) => JSON.stringify((arr || []).map((x) => {
+	// ── cat / tags 批 1（2026-11-08）：golden / oracle 里**没有**这两个键 ──────────────────
+	// 见文件顶部 `sansCatTags` 的说明（本批新增的条目事实不参与"与改造前逐字相等"）。
+	const sansTs = (arr) => JSON.stringify(sansCatTags(arr).map((x) => {
 		const o = Object.assign({}, x, {
 			startTs: x.startTs == null ? "null" : typeof x.startTs,
 			endTs: x.endTs == null ? "null" : typeof x.endTs
@@ -293,7 +316,7 @@ export default async function runP3() {
 		check(`P3 golden（${p.key}）：12 个字符串字段与改造前逐字相同`, changed.length === 0, JSON.stringify(changed));
 		const arr = r.rec[p.field] || [];
 		check(`P3 golden（${p.key}）：\`${p.field}\` 非时间字段逐字不变（键序 / 顺序 / source / phase 全等）`,
-			sansTs(arr) === g[p.field], sansTs(arr));
+			sansTs(arr) === sansCatTagsJson(g[p.field]), sansTs(arr));
 		check(`P3 golden（${p.key}）：数组非空（解析器真的直出了，而不是悄悄退回空数组）`,
 			arr.length > 0 || !!p.emptyOk, String(arr.length));
 	}
@@ -306,10 +329,10 @@ export default async function runP3() {
 		const oldArr = legacySynthArrOf(p.key, p.side);
 		const oldOther = legacySynthArrOf(p.key, otherSide);
 		check(`P3 等价（${p.key}）：\`${p.field}\` 与改造前的合成结果**逐条相等**（含 startTs / endTs）`,
-			JSON.stringify(r.rec[p.field]) === JSON.stringify(oldArr),
-			JSON.stringify([r.rec[p.field], oldArr]));
+			JSON.stringify(sansCatTags(r.rec[p.field])) === JSON.stringify(sansCatTags(oldArr)),
+			JSON.stringify([sansCatTags(r.rec[p.field]), oldArr]));
 		check(`P3 等价（${p.key}）：另一侧也不会凭空多出条目（同一份合成结果同样相等）`,
-			JSON.stringify(r.rec[other]) === JSON.stringify(oldOther));
+			JSON.stringify(sansCatTags(r.rec[other])) === JSON.stringify(sansCatTags(oldOther)));
 	}
 
 	// ── ④ 同源：悬停文本 = 同一份条目事实的**生成结果**（不是另外手拼的）──────────
@@ -647,7 +670,8 @@ const P3B_VISIBLE = ["banner", "roles", "bannerDates", "bannerDatesRaw", "banner
 	"event", "eventDates", "eventDatesRaw", "eventShow", "eventClaimDates", "eventHover", "eventHoverExtra"];
 const p3bTextOf = (v) => (v == null ? "" : String(v));
 // 时间戳只比类型（口径 = 本机时刻，见 README_Dev「已知不等价①」）；值的相等由 ③ 单独守
-const p3bSansTs = (arr) => JSON.stringify((arr || []).map((x) => {
+// cat / tags 批 1：先摘掉 `cat` / `tags`（golden 是改造前的产物，没有这两个键，见文件顶部说明）
+const p3bSansTs = (arr) => JSON.stringify(sansCatTags(arr).map((x) => {
 	const o = Object.assign({}, x, {
 		startTs: x.startTs == null ? "null" : typeof x.startTs,
 		endTs: x.endTs == null ? "null" : typeof x.endTs
@@ -725,7 +749,7 @@ async function runP3b() {
 		check(`P3b golden（${p.key}）：12 个字符串字段与改造前逐字相同`, changed.length === 0, JSON.stringify(changed));
 		const arr = r.rec[p.field] || [];
 		check(`P3b golden（${p.key}）：\`${p.field}\` 非时间字段逐字不变（键序 / 顺序 / source / phase 全等）`,
-			p3bSansTs(arr) === g.array, p3bSansTs(arr));
+			p3bSansTs(arr) === sansCatTagsJson(g.array), p3bSansTs(arr));
 		check(`P3b golden（${p.key}）：数组非空（解析器真的直出了，而不是悄悄退回空数组）`,
 			arr.length > 0 || !!p.emptyOk, String(arr.length));
 	}
@@ -738,10 +762,10 @@ async function runP3b() {
 		const oldArr = legacySynthArrOf(p.key, p.side);
 		const oldOther = legacySynthArrOf(p.key, otherSide);
 		check(`P3b 等价（${p.key}）：\`${p.field}\` 与改造前的合成结果逐条相等（含 ts）`,
-			JSON.stringify(r.rec[p.field]) === JSON.stringify(oldArr),
-			JSON.stringify([r.rec[p.field], oldArr]));
+			JSON.stringify(sansCatTags(r.rec[p.field])) === JSON.stringify(sansCatTags(oldArr)),
+			JSON.stringify([sansCatTags(r.rec[p.field]), oldArr]));
 		check(`P3b 等价（${p.key}）：另一侧也不会凭空多出条目`,
-			JSON.stringify(r.rec[other]) === JSON.stringify(oldOther));
+			JSON.stringify(sansCatTags(r.rec[other])) === JSON.stringify(sansCatTags(oldOther)));
 	}
 
 	section("P3b ③：同源 —— 悬停 == hoverTextFromItems(解析器给的条目事实)");
@@ -999,7 +1023,7 @@ async function runP3d() {
 		const changed = fields.filter((f) => p3dTextOf(r.rec[f]) !== p3dTextOf(g.rec[f]));
 		check(`P3d golden（${p.key}）：${fields.length} 个字符串字段与改造前逐字相同`, changed.length === 0, JSON.stringify(changed));
 		check(`P3d golden（${p.key}）：\`${p.field}\` 非时间字段逐字不变（键序 / 顺序 / source / phase 全等）`,
-			p3bSansTs(arr) === g.array, p3bSansTs(arr));
+			p3bSansTs(arr) === sansCatTagsJson(g.array), p3bSansTs(arr));
 		check(`P3d golden（${p.key}）：数组非空（备选源真的直出了，而不是悄悄退回空数组）`,
 			arr.length > 0, String(arr.length));
 	}
@@ -1011,8 +1035,8 @@ async function runP3d() {
 		const oldArr = legacySynthArrOf(p.key, p.side);
 		const arr = r.rec[p.field] || [];
 		check(`P3d 等价（${p.key}）：\`${p.field}\` 与改造前的合成结果逐条相等（含 ts）`,
-			JSON.stringify(arr) === JSON.stringify(oldArr),
-			JSON.stringify([arr, oldArr]));
+			JSON.stringify(sansCatTags(arr)) === JSON.stringify(sansCatTags(oldArr)),
+			JSON.stringify([sansCatTags(arr), oldArr]));
 	}
 
 	section("P3d ③：同源 —— 悬停 == hoverTextFromItems(条目事实)，且与 golden 逐字相同");

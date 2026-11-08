@@ -309,6 +309,13 @@
 			data.gacha = dataArrayProducedGachaOf(data, poolItems, { tz }, now);
 			data.gachaHoverItems = poolItems;
 			if (data.event) {
+				// cat / tags 批 1（2026-11-08）：`activeEvents` 每条都带 `cat: sec.kind`
+				// （段标题「『名称』类型」里的类型，`:214` 已经写进内部 events 条目），
+				// 此前只用于 `pickEventPrimary` 挑外显、**没进数组** ⇒ 这里按标题贴进 `events[]`。
+				// 值一个字不改；没有类别的段（解析不出类型）⇒ 不写这个键。
+				const facts = {};
+				for (const e of activeEvents) if (e.cat) facts[e.name] = { cat: e.cat };
+				if (Object.keys(facts).length) data.itemFacts = facts;
 				data.events = dataArrayProducedEventsOf(data, eventItems, { tz }, now);
 				data.eventHoverItems = eventItems;
 			}

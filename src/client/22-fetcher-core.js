@@ -264,6 +264,17 @@
 				eventHover: hoverTextFromItems(hoverItems, "event", tz, { permanentCount: permanent.length })
 			};
 			if (opts && opts.emitArrays) {
+				// ── cat / tags 批 1（2026-11-08）：把「类型」列写进 `events[]` ────────────────────
+				// 值 = `collectGenericEvents` 已经读出的 `it.cat`（`:160` 定位列、`:185` 收值），
+				// 此前只参与 `pickEventPrimary` 挑外显、**没进数组**。取不到（表里没有「类型」列）⇒ 不写。
+				// ⚠️ 本函数被**两个**来源共用：星铁活动一览（默认源，`id:"hsr"`）与绝区零 Bwiki 活动一览
+				//    （备选源，`id:"zzz"`）。批 1 只点名星铁 ⇒ 用 `opts.catFacts` 显式开关，**只给星铁开**；
+				//    绝区零的同一列留到批 2（与它的 TAG 列拆分一起做），这样批 1 不会顺手改到批 2 的范围。
+				if (opts.catFacts) {
+					const facts = {};
+					for (const x of active) if (x.cat) facts[x.name] = { cat: x.cat };
+					if (Object.keys(facts).length) out.itemFacts = facts;
+				}
 				out.events = dataArrayProducedEventsOf(out, hoverItems, { id: opts.id || "generic", tz }, now);
 				out.eventHoverItems = hoverItems;
 			}

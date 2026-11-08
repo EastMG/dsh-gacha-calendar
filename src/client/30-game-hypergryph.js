@@ -766,6 +766,14 @@
 				};
 			}
 			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "event", tz });
+			// ── cat / tags 批 1（2026-11-08）：把 SMW 的「活动类型」写进 `events[]` 条目 ───────────
+			// 值 = `parseArknightsSmwEvents` 已经读进 `it.cat` 的那一列（`:603`，页内「活动类型」；
+			// 实测有的页没有这个字段 ⇒ 那条 cat 为空、**不写**）。
+			// 键是**标签名**（= 悬停里那一行的开头，一律过 `labelOf`）：并列条目由 `hoverItems` 生成，
+			// 主条另用 `eventLabel`（兑换期那条的悬停名多了「 兑换截止」，与主条不同键）。
+			const facts = {};
+			for (const x of hoverActive) if (x.cat) facts[x.name] = { cat: x.cat };
+			if (primary.cat) facts[eventLabel] = { cat: primary.cat };
 			return {
 				event: eventLabel,
 				eventDates: windowText,
@@ -778,7 +786,9 @@
 				//    多一行提示就会在格子里多出一行**可见文字**（2026-11-06 真机 bug）。
 				//    兑换期那条的活动名走 hoverActive（带「 兑换截止」），仍是一条「名称 + 3 空格 + 档期」。
 				eventHover,
-				events: dataArrayProducedListOf([main].concat(extras).map((x) => dataArrayProducedItemOf(x, "event")), "arknights:event"),
+				events: dataArrayProducedListOf([main].concat(extras)
+					.map((x) => dataArrayAttachFactsOf(x, facts))
+					.map((x) => dataArrayProducedItemOf(x, "event")), "arknights:event"),
 				eventHoverItems: hoverItems
 			};
 		}
@@ -1207,9 +1217,15 @@
 			};
 			const t0 = now || nowMs();
 			// 覆盖当前时刻的活动统一排序（③ 结束时间升序）供悬停；外显另按类别优先挑选
+			// `tags` = 源站每条活动的 `tags` 数组 join 成 "/"（档位判定读它，见 25-parser-order.js 的
+			// `eventTier`）；`tagList` 保留**源站原本的数组形状**，只为了原样写进 `events[]` 的
+			// `tags` 条目事实（cat/tags 批 1）——值一个字都没改，不做归一化猜测。
 			const activeActs = sortEventItems(acts
 				.filter((a) => parseT(a.open) <= t0 && parseT(a.close) >= t0)
-				.map((a) => ({ name: a.name, tags: (a.tags || []).join("/"), startTs: parseT(a.open), endTs: parseT(a.close) })));
+				.map((a) => {
+					const tagList = (a.tags || []).map((t) => String(t == null ? "" : t).trim()).filter(Boolean);
+					return { name: a.name, tags: tagList.join("/"), tagList, startTs: parseT(a.open), endTs: parseT(a.close) };
+				}));
 			// 解析到活动、但当期没有覆盖当前时刻的 → 返回 null（这一侧记 nomatch = "新活动未公布"）
 			if (activeActs.length === 0) return null;
 			const primary = pickEventPrimary(activeActs) || activeActs[0]; // 叙事活动/挑战活动优先于签到类
@@ -1222,6 +1238,13 @@
 			// 原来那层 `{ banner, bannerDates }` → `{ event, ... }` 的映射在 EVENT_FETCHERS 里，
 			// 现在映射与数组都收在这个函数里，少一处"两套字符串"的接缝。
 			const out = { event: primary.name, eventDates: win, eventDatesRaw: win };
+			// ── cat / tags 批 1（2026-11-08）：把**已经拿在手里**的源站 `tags` 写进条目 ─────────
+			// 值来自 `wikiCardItem.attrs.data.tags`（上面 `pushAct` 收的），不是从活动名猜的类别：
+			// 源站没给 tags 的那一条 ⇒ **不写这个键**（"取不到"保持空，见 50-refresh.js 的 facts 说明）。
+			// 通过 `itemFacts` 通道交给 `dataArrayProducedEventsOf` 贴到 `events[]` 的对应标题上。
+			const facts = {};
+			for (const a of activeActs) if (a.tagList.length) facts[a.name] = { tags: a.tagList };
+			if (Object.keys(facts).length) out.itemFacts = facts;
 			const eventItems = activeActs.map((a) => ({ title: a.name, startTs: a.startTs, endTs: a.endTs, raw: "" }));
 			const hover = hoverTextFromItems(eventItems, "event", tz);
 			if (hover) out.eventHover = hover;
@@ -1293,12 +1316,15 @@
 				if (startTs <= now && endTs >= now) {
 					// 类型属性（如 剧情活动/常规活动/版本活动）→ 活动外显的类别优先级。
 					// 注意 SMW 这里返回的是字符串数组（不是 {fulltext} 值对象），两种形态都兼容。
+					// cat/tags 批 1（2026-11-08）：`catList` = 源站那串类型的**数组原形**，只为了原样写进
+					// `events[]` 的 `cat`（首项）+ `tags`（其余项）；`cat`（"/" 拼接）继续供 `eventTier` 用，
+					// 一个字都没改 —— 档位判定因此仍是改造前的口径。
 					const catArr = p["类型"] || [];
-					const cat = catArr
+					const catList = catArr
 						.map((x) => (typeof x === "string" ? x : String((x && (x.fulltext || x.value)) || "")))
-						.filter(Boolean)
-						.join("/");
-					covering.push({ name, cat, startTs, endTs });
+						.filter(Boolean);
+					const cat = catList.join("/");
+					covering.push({ name, cat, catList, startTs, endTs });
 				}
 			}
 			if (covering.length === 0) return null;
@@ -1316,8 +1342,18 @@
 			//    不出数组）已删除 —— 唯一调用方（原神 bwiki 活动）一直传 `emitArrays: true, id`。
 			// ── P3：条目事实（当期每条活动一行）→ 悬停 + `events` 数组 ──────────────
 			// 顺序 = `sortEventItems`（与改造前喂给 buildEventHover 的是同一份，逐行不会换位）。
-			// ⚠️ 不写 `cat`：改造前的合成数组里没有这条事实（SMW 的「类型」只参与外显挑选），
-			//    本批加进去会让数组与显示层规则同时变 —— 那是 P3b 的事。
+			// ── cat / tags 批 1（2026-11-08）：把 SMW「类型」写进条目 ─────────────────────
+			// 源站给的是**数组**（实测有 `["版本活动","剧情活动"]` 这种多项）⇒ 首项当 `cat`、其余进
+			// `tags[]`（任务书的口径）。没有「类型」的那条 ⇒ 一个键都不写（不猜）。
+			// ⚠️ `eventTier` 读的仍是上面那份 "/" 拼接的 `cat`（在 `ordered` 上），所以**档位判定没变**；
+			//    数组条目的 `cat`/`tags` 只服务显示层 `sideViewOf` 里同一套 `eventTier` 判据。
+			const facts = {};
+			for (const x of ordered) {
+				const f = {};
+				if (x.catList[0]) f.cat = x.catList[0];
+				if (x.catList.length > 1) f.tags = x.catList.slice(1);
+				if (f.cat || f.tags) facts[x.name] = f;
+			}
 			const hoverItems = ordered.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: "" }));
 			const w = dataArrayWindowOf(win, now, tz);
 			const main = {
@@ -1333,7 +1369,9 @@
 			return {
 				...out,
 				eventHover: hoverTextFromItems(hoverItems, "event", tz),
-				events: dataArrayProducedListOf([main].concat(extras).map((x) => dataArrayProducedItemOf(x, "event")), opts.id + ":event"),
+				events: dataArrayProducedListOf([main].concat(extras)
+					.map((x) => dataArrayAttachFactsOf(x, facts))
+					.map((x) => dataArrayProducedItemOf(x, "event")), opts.id + ":event"),
 				eventHoverItems: hoverItems
 			};
 		}

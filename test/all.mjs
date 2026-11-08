@@ -43,6 +43,7 @@ import runSources from "./cases-sources.mjs";
 import runBwikiCors from "./cases-bwiki-cors.mjs";
 import runP3 from "./cases-p3.mjs";
 import runP4Flat from "./cases-p4flat.mjs";
+import runCat from "./cases-cat.mjs";
 
 const LIVE = process.argv.includes("--live");
 
@@ -136,7 +137,8 @@ const batches = [
 	["来源策略（默认源无自动兜底：5 处「不请求第二个站点」+ 手动切源仍取数）", runSources],
 	["bwiki 请求统一带 origin=*（CORS 收口点：纯函数边界 + 两条 transport 出口接线 + 请求记账 + 别的站点逐字不变）", runBwikiCors],
 	["P3 解析器直出数组（悬停由条目反生成：排版 golden + 3 款逐字不变）", runP3],
-	["P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）", runP4Flat]
+	["P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）", runP4Flat],
+	["cat / tags 批 1（8 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 反证）", runCat]
 ];
 const before = counts();
 for (const [label, fn] of batches) {

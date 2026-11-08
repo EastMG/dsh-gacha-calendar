@@ -100,7 +100,7 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 32 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（18 处定稿，三轮增删）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致））
+│   ├── all.mjs      # 统一门禁：聚 33 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（18 处定稿，三轮增删）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）+ cat / tags 批 1（8 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 反证））
 │   ├── cases-*.mjs  # 各段用例（32 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / cases-arknights-claim / cases-arknights-timeline / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh / settings-jump / settings-copy / sources / bwiki-cors / p3 / p4flat）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
@@ -743,7 +743,63 @@ golden + 等价（两侧都红）；
 4. **「近期」页容量**：展平后 7 天窗口内最多可能 20+ 条（每页 10），是否改成 12/15 条或按高度自适应，等真机观感。
 
 
-**P2 已知差异：已全部清零（2026-11-07 收尾，方案 C）**——原来的 6 处（探头的两行被并掉 + 4 款外显换位）靠"数据层补事实（`source` / `cat` / `preview`）+ 显示层按游戏分派规则"消掉了；`test/cases-core.mjs` ⑤-5 的 34 个侧现在 `diffs = 0`，且每条特化规则都有反向证明（换回通用规则 ⇒ 对应侧必红）。各游戏缺什么事实：**只有 FGO 有 `cat`**（源站类型列）、**只有赛马娘日服的预告稿有 `preview`**（标题判据）、`tags` **暂无来源**；这些"没有"都是**如实留空**（没有这个键），显示层按无事实退化，不猜。
+**P2 已知差异：已全部清零（2026-11-07 收尾，方案 C）**——原来的 6 处（探头的两行被并掉 + 4 款外显换位）靠"数据层补事实（`source` / `cat` / `preview`）+ 显示层按游戏分派规则"消掉了；`test/cases-core.mjs` ⑤-5 的 34 个侧现在 `diffs = 0`，且每条特化规则都有反向证明（换回通用规则 ⇒ 对应侧必红）。各游戏缺什么事实：`cat` / `tags` 的**逐款现状见下一节**（P2 收尾时只有 FGO 有 `cat`、`tags` 无来源；2026-11-08 的批 1 补齐了 8 款）、**只有赛马娘日服的预告稿有 `preview`**（标题判据）；这些"没有"都是**如实留空**（没有这个键），显示层按无事实退化，不猜。
+
+### cat / tags 来源与现状（2026-11-08，批 1）
+
+**这两个字段是什么**：`gacha` / `events` 数组条目上的**可选事实**（形状见 50-refresh.js 的字段表）。
+解析器若知道"这一条属于哪个类别"，通过 `itemFacts`（`{ "<条目标题>": { cat?, tags? } }`）交给数据层
+按标题贴到条目上（`dataArrayAttachFactsOf`）；也可以直接在条目上带 `cat` / `tags` 再交给
+`dataArrayProducedItemOf`（两条路径写出来的键序完全一样）。**唯一的消费方**是
+`25-parser-order.js` 的 `eventTier` —— 它读 `${cat} ${tags}`，读不到才回退按**活动名**匹配
+`EVENT_TIER1_RE`（"有类别就按类别判，没有才按名字"），再由 `81-schedule-model.js` 的 `sideViewOf`
+决定面板那一格外显哪一条。
+
+**硬口径（本批定的，后续照做）**：值必须来自**源站现有字段**，拿不到就**不写这个键**（不是空串、也不是猜的词）。
+
+| 游戏 | 源站字段（位置） | 写入形态 | 现状 |
+|---|---|---|---|
+| 终末地 `endfield` | 活动卡片 `attrs.data.tags`（数组）· `30-game-hypergryph.js` 的 endfield 活动解析 | `tags[]`（itemFacts） | ✅ 批 1 补 |
+| 重返未来1999 `r1999` | 公告段标题「『名称』类型」里的**类型** → `sec.kind`（`30-game-bluepoch.js` 的 `parseR1999Overview`） | `cat`（itemFacts） | ✅ 批 1 补 |
+| 明日方舟 `arknights` | PRTS SMW「活动类型」→ `parseArknightsSmwEvents` 的 `it.cat` | `cat` | ✅ 批 1 补（有的活动页**没有**这个字段 ⇒ 那条留空） |
+| 原神 `genshin` | bwiki SMW 属性「类型」（是**数组**，如 `["角色获取","版本活动"]`） | 首项 `cat` + 其余 `tags[]` | ✅ 批 1 补 |
+| 星铁 `hsr` | 活动一览表的「类型」列（`22-fetcher-core.js` 的 `collectGenericEvents`） | `cat` | ✅ 批 1 补（只给 `id:"hsr"` 开 `catFacts`） |
+| 绝区零 `zzz`（Bwiki 备选源） | 与星铁**同一张表、同一列**（同一个 `genericEventPayload`） | `cat` | ⏳ 批 2（与 TAG 列拆分一起做） |
+| 女神异闻录5X `p5x` | 公告区块的类别行 → `block.category`（如 `活动更新` / `活动BOSS更新`） | `cat` | ✅ 批 1 补 |
+| PJSK `pjsk` | `events.json` 的 `eventType`（英文枚举：`marathon` / `cheerful_carnival` / `world_bloom`） | `cat`（**原样**，不翻译） | ✅ 批 1 补；枚举→档位的映射留批 2 |
+| FGO `fgo` | 活动表第 4 列的类型（`Event` / `Campaign` / `Other`） | `cat` | ✅ 2026-11-07 已落地；批 1 只让 `EVENT_TIER1_RE` 认英文（见下） |
+| 雪松 `kedr` | 模板参数「倒计时名称」→ `item.timer`（`赛季` / `活动` / `边境防卫`） | —（**故意不写**） | ❌ 批 1 判定**不该补**，理由见下 |
+| 鸣潮 `wuwa` | 官方公告 `it.tag` 只是数字（5=活动 / 7=卡池），没有子类别 | — | ⏳ 批 2（数字映射） |
+| 战双 `zspms` | SMW 有 `?类别` 属性，但当前查询只取 `?标题` / `?时间` | — | ⏳ 批 2 |
+| 其余来源 | 响应里没有独立的类别 / 标签列（活动表往往只有"时间 + 名称"两列） | — | 未补（= 如实留空，档位按活动名回退） |
+
+**`EVENT_TIER1_RE` 的英文分支（批 1 唯一动的正则）**：加了 `\bEvent\b|\bCampaign\b`。
+- `Event` / `Campaign` = FGO 的"活动正篇" ⇒ 第一档；`Other` = 第二档。
+- **必须带 `\b` 词边界**：`Other` 不许被任何英文分支命中（它是第二档），`Events` / `Eventful` /
+  `Campaigns` / `Campaigner` / `Pother` 这类更长或嵌在别的词里的写法也不算分类词
+  （`test/cases-cat.mjs` ⑤ 有逐条断言）。
+- FGO 的**外显**其实走特化规则 `schedulePickFgoEvent`（`/^Event/i` 优先），所以这条正则改动对 FGO
+  面板**没有可见影响**；它的作用是让通用 `eventTier` 与源站类型列口径一致（将来任何来源写英文分类词
+  都不会被判成第二档）。
+
+**雪松为什么不补**（`timer` 有值，但补了会让档位**退化**）：`eventTier` 的判据是"有 `cat` 就**只**看
+`cat`，不再看活动名"。雪松那三个类别词（`赛季` / `活动` / `边境防卫`）都不在 `EVENT_TIER1_RE` 里，
+而活动名 `个人剧情活动第1期：【新机动队故事】` 靠「剧情」本来是第一档 ⇒ 补 `cat` 后它会掉到第二档，
+外显从"剧情活动"变成"战令通行证赛季"（实测 2026-10-01；`test/cases-cat.mjs` ④ 用 what-if 钉住了这个
+退化）。用户口径是"补 cat/tags 不许动已可见输出，除非那是有意的档位改进" ⇒ 这里留空。要改成"照源站
+写"只需给 `ns_bwiki_wikitext_eventPayload` 加一个 `catOf` 选项并在雪松侧传 `x.timer`。
+
+**本批唯一改变的外显**：终末地 2026-11-07 那一刻，面板活动格从「予众魂的新光影」（改造前按活动名判档，
+全员第二档 ⇒ 取结束最早那条）变成「百趣演武」（源站 `tags`「挑战活动」= 第一档）。这是**对齐**：
+引擎自己挑的外显（记录里的 `event`，`pickEventPrimary(activeActs)` 一直读 `tags`）本来就是「百趣演武」，
+改造前面板与记录是**两套事实**。批 1 把这条事实补进数组后两者一致。其余 7 款 + FGO 的 34 个侧等价性
+用例（`test/cases-core.mjs` ⑤-5）仍是 `diffs = 0`。
+
+**既有断言怎么处理的**：`test/cases-p3.mjs` 里的 golden 与等价性 oracle（`legacySynthArrOf`）都是
+**改造前**的产物（条目上没有 `cat` / `tags`），所以比较口径改成"**除 `cat` / `tags` 外**逐字相等"
+（`sansCatTags` / `sansCatTagsJson`），**没有**去改写 golden（P3 的采集模式明确禁止"改完再采集"）。
+新增事实的**取值**由 `test/cases-cat.mjs`（门禁最后一段，真夹具逐款逐字）钉住。
+
 
 ### 为什么插件要改宿主的槽位布局
 

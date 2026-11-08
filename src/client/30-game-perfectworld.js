@@ -525,6 +525,12 @@ async function ns_p5x_eventsP5x(url, signal, tz = "Asia/Shanghai", now = nowMs()
 			eventDatesRaw: primary.block.windowRaw,
 			...(hover ? { eventHover: hover } : {})
 		};
+		// cat / tags 批 1（2026-11-08）：`block.category`（类别行的原文，如 `活动更新` / `活动BOSS更新`）
+		// 早就解析出来了（`ns_p5x_parseP5xBlocks`），此前只用来**分流**区块、没进数组 ⇒ 按标题贴进
+		// `events[]` 的 `cat`。值一个字不改；没有类别行的区块（解析不出）⇒ 不写这个键。
+		const facts = {};
+		for (const x of active) if (x.block.category) facts[x.block.title] = { cat: x.block.category };
+		if (Object.keys(facts).length) out.itemFacts = facts;
 		out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
 		out.eventHoverItems = eventItems;
 		return out;
