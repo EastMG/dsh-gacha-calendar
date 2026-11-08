@@ -865,6 +865,7 @@
 								(0, react_jsx_runtime.jsx)("input", { type: "checkbox", checked: remindOn, onChange: (e) => commit("remindOn", e.target.checked) }),
 								(0, react_jsx_runtime.jsx)("span", { style: { flex: "none" }, children: "提醒" })
 							] })
+								(0, react_jsx_runtime.jsx)("span", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 11 }, children: "到期前弹系统通知 仅 DSH 运行期间" })
 						] }),
 						remindChipRow("end", "结束提醒", remindEndSavedText, REMIND_DEFAULT_END_NODES, "remindEndNodes"),
 						// 2026-10-28：开始提醒已暂时停用（多数来源不提前提供档期；宿主侧 remindConfigOf 也把
