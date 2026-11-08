@@ -85,10 +85,28 @@
 		const EVENT_TIER1_RE = /剧情|叙事|主线|故事|活动正篇|总力战|總力戰|大决战|大決戰|决战|決戰|危机合约|危機合約|制约解除|综合战术|綜合戰術|挑战|挑戰|深度巡防|极限|逆境深塔|冥歌海墟|全息|\bEvent\b|\bCampaign\b/;
 
 
+		// ⚠️ haystack 是 **OR 语义**（`category` / `tags` / `name` **三段都参与**，2026-11-08 用户拍板）。
+		// 旧写法是 `hay = category || name` —— 只要有了类别字段，活动名就**完全不参与**判定：
+		//   批 1 / 批 2 把 category 补进数组条目之后，名字里带「全息 / 极限 / 挑战 / 决战 / 深度巡防」
+		//   的活动被**降档**（真实行：绝区零「全息强袭战域」「深度巡防-三倍赏金」「极限裁决试炼」、
+		//   星铁「不要笑挑战」「酷得走火—宇宙！咻！咻！大挑战！」）。
+		// 现在三段拼接，任意段缺失都不影响另外两段，且**不含多余分隔符**：
+		//   空段直接不参与拼接（不是拼出一串空格），所以不会因为"多一个空格"而漏/多命中；
+		//   拼出来的一定是字符串（不含 `undefined` 字面量）。
+		// `tags` 可能是 `null` / 未定义 / 非数组（老缓存、别的游戏）⇒ 只有真数组才逐项展开，
+		//   单个字符串照旧整段参与（与 `isPermanentEvent` 的读法同口径），其它类型一律跳过。
 		function eventTier(x) {
-			const category = `${x?.category || ""} ${x?.tags || ""}`.trim();
-			const hay = category || `${x?.name || ""}`;
-			return EVENT_TIER1_RE.test(hay) ? 1 : 2;
+			const parts = [];
+			const push = (v) => {
+				if (typeof v !== "string") return;
+				const s = v.trim();
+				if (s !== "") parts.push(s);
+			};
+			push(x?.category);
+			if (Array.isArray(x?.tags)) { for (const t of x.tags) push(t); }
+			else push(x?.tags);
+			push(x?.name);
+			return EVENT_TIER1_RE.test(parts.join(" ")) ? 1 : 2;
 		}
 
 

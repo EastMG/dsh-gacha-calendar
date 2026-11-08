@@ -15,6 +15,13 @@
 //   · 字段名 `cat` → `category` 的**旧缓存兼容**（第 ⑧ 段）：老 lastData 条目上的旧键读入时
 //     映射成 `category`，写出只写 `category`。
 //
+// ── 批 3（2026-11-08，用户拍板）：`eventTier` 的 haystack 改成 **OR 语义** ──
+// 旧写法 `hay = category || name`：只要条目上有 `category`，活动名就**完全不参与**档位判定。
+// 批 1/批 2 把 `category` 补进数组条目之后，名字里带「全息 / 极限 / 挑战 / 决战 / 深度巡防」的活动
+// 被**降档**（线上真实行：绝区零「全息强袭战域」「深度巡防-三倍赏金」「极限裁决试炼」、星铁「不要笑挑战」
+// 「酷得走火—宇宙！咻！咻！大挑战！」）。现在三段都参与，任意段缺失不影响另外两段。
+// 本批新增三段（⑨ OR 的 16 格真值表 / ⑩ 反证 / ⑪ 逐款逐时刻外显 + 变化登记）。
+//
 // ── 本文件守四件事 ──
 //   ① **只写不猜**：每款用真夹具，逐条钉死 `events[]` 条目上的 `category` / `tags` **实际值**；
 //      源站没给这一列的那一条**没有**这个键（不是空串、不是猜出来的词）。
@@ -76,6 +83,26 @@ const transport = {
 };
 const makeStore = () => { const m = new Map(); return { async get(k) { return m.get(k); }, async set(k, v) { m.set(k, v); } }; };
 const engineAt = (now) => createEngine({ transport, storage: makeStore(), now: () => now, timer: { setTimeout, clearTimeout } });
+
+// 采样时刻（批 3 ⑪）：从记录的活动窗里取 —— 每个条目的「起点 + 1/8、中点、终点 - 1/8」+ 6 个等距点，
+// 按"该刻并行活动数多 → 时间靠前"排序后取 8 个。目的：覆盖**有并行活动**的时间窗，而不是只看抓取那一刻。
+function momentsOf(events) {
+	const ivs = (Array.isArray(events) ? events : [])
+		.filter((x) => x && x.endTs != null)
+		.map((x) => [x.startTs == null ? x.endTs - 30 * 864e5 : x.startTs, x.endTs]);
+	if (!ivs.length) return [];
+	const lo = Math.min(...ivs.map((v) => v[0])), hi = Math.max(...ivs.map((v) => v[1]));
+	const activeCount = (t) => events.filter((x) => (x.startTs == null || x.startTs <= t) && x.endTs != null && x.endTs >= t).length;
+	const cand = [];
+	for (const [s, e] of ivs) for (const f of [1 / 8, 1 / 2, 7 / 8]) cand.push(Math.round(s + (e - s) * f));
+	for (let i = 1; i <= 6; i++) cand.push(Math.round(lo + ((hi - lo) * i) / 7));
+	const uniq = [...new Set(cand)].filter((t) => t >= lo && t <= hi).sort((a, b) => a - b);
+	const scored = uniq.map((t) => ({ t, n: activeCount(t) })).filter((x) => x.n > 0);
+	const pick = [];
+	for (const x of scored.slice().sort((a, b) => (b.n - a.n) || (a.t - b.t))) if (pick.length < 8) pick.push(x.t);
+	for (const x of scored) if (pick.length < 8 && !pick.includes(x.t)) pick.push(x.t);
+	return pick.sort((a, b) => a - b).slice(0, 8);
+}
 
 // 事件侧路径：`call` 一律用**来源自己的默认抓取器 + 默认地址**（与生产同一跳）
 const PATHS = [
@@ -337,8 +364,13 @@ export default async function runCategory() {
 		const g = Object.assign({ id: "kedr", name: "kedr", tz: TZ_CN }, r.rec, { events: whatIf });
 		const cell = T.scheduleCellOf(g, "event", r.now);
 		const after = cell && cell.primary ? cell.primary.title : null;
-		check("雪松：**假如**补 category，外显会退化成「战令通行证赛季」（改造前是「个人剧情活动第1期：【新机动队故事】」）",
-			after === "战令通行证赛季", JSON.stringify(after));
+		// ── 批 3（OR 语义）之后：这条 what-if 的**结论反过来了** ──────────────────────────
+		// 旧语义 `hay = category || name` 下"补 category"会把名字挡掉 ⇒ 外显退化成「战令通行证赛季」
+		// （当时的实测结论）。现在 name 始终参与 ⇒ 补上「赛季」也抬不动它，外显仍是那条剧情活动。
+		// 也就是说：当初"不补"的理由（**补了会让档位退化**）在 OR 语义下**已不成立**；
+		// 但补不补 category 是另一次改动（本任务只改 haystack），所以条目上仍然一个类别键都没有。
+		check("雪松：OR 语义下**假如**补 category，外显不再退化（「补了就降档」这个旧理由已随批 3 失效）",
+			after === "个人剧情活动第1期：【新机动队故事】", JSON.stringify(after));
 		check("雪松：所以本批不补 —— 条目上一个类别键都没有（不写 > 写错）",
 			arr.length > 0 && arr.every((x) => !("category" in x) && !("tags" in x)),
 			JSON.stringify(arr.map((x) => [x.title, x.category, x.tags])));
@@ -462,5 +494,247 @@ export default async function runCategory() {
 		check("旧键与新键同时存在时以新键 `category` 为准（脏数据也不许旧名赢）",
 			!Object.prototype.hasOwnProperty.call(ev[2], LEGACY_KEY) && ev[2].category === "常规活动",
 			JSON.stringify(ev[2]));
+	}
+
+	// ══════════════════════════════════════════════════════════════════════════
+	section("category / tags 批 3 ⑨：`eventTier` 的 haystack = OR 语义（category + tags + name **三段都参与**）");
+	{
+		const tier = (o) => T.eventTier(o);
+		// 名字：命中 / 不命中；类别：存在但**不**在第一档词表里（这样 tags / name 才有决定权）
+		const NAME_HIT = "「全息强袭战域」";
+		const NAME_MISS = "「云端礼赠」";
+		const CAT_MISS = "版本活动";
+		// (category 有/无) × (tags 有/无/空数组/非数组) × (name 命中/不命中) = 16 格真值表。
+		// 任务书列的 12 格是它的子集：这里把 tags 的「无」再拆出「空数组」与「非数组」两种退化输入。
+		const TAGS_STATES = [["有", ["挑战活动"]], ["无", undefined], ["空数组", []], ["非数组", null]];
+		const CAT_STATES = [["有（不命中）", CAT_MISS], ["无", ""]];
+		const NAME_STATES = [["命中", NAME_HIT], ["不命中", NAME_MISS]];
+		let n = 0;
+		for (const [tagsLabel, tags] of TAGS_STATES) {
+			for (const [catLabel, category] of CAT_STATES) {
+				for (const [nameLabel, name] of NAME_STATES) {
+					// category 这一段本身不命中 ⇒ 档位只由 tags / name 决定（谁命中谁就是第一档）
+					const want = (tagsLabel === "有" || nameLabel === "命中") ? 1 : 2;
+					const got = tier({ category, tags, name });
+					n++;
+					check(`⑨-${String(n).padStart(2, "0")} category=${catLabel} / tags=${tagsLabel} / name=${nameLabel} ⇒ 第 ${want} 档`,
+						got === want, `实际 ${got}（${JSON.stringify({ category, tags, name })}）`);
+				}
+			}
+		}
+		// 关键格：**有类别字段时名字照样参与**（旧写法 `hay = category || name` 在这里给的是 2）
+		check("⑨ 关键格：category 有（不命中）+ name 命中 ⇒ 第一档（旧语义在这里是第二档）",
+			tier({ category: CAT_MISS, name: NAME_HIT }) === 1
+			&& tier({ category: "常规活动", tags: ["周年活动"], name: "「极限裁决试炼」" }) === 1,
+			JSON.stringify([tier({ category: CAT_MISS, name: NAME_HIT }), tier({ category: "常规活动", tags: ["周年活动"], name: "「极限裁决试炼」" })]));
+		check("⑨ 三段都不命中 ⇒ 第二档（不是「有类别就一律第一档」）",
+			tier({ category: CAT_MISS, tags: ["特殊活动"], name: NAME_MISS }) === 2,
+			String(tier({ category: CAT_MISS, tags: ["特殊活动"], name: NAME_MISS })));
+		// 空值安全：任意段缺失都不许抛错、不许把 `undefined` 拼进 haystack（`x?.` + 逐段收值）
+		check("⑨ 空值安全：`{}` / `null` / `undefined` / 只给 tags / tags 是字符串 / tags 是对象或数字 —— 都不抛错，按实际有的段判",
+			tier({}) === 2 && tier(null) === 2 && tier(undefined) === 2
+			&& tier({ tags: ["挑战活动"] }) === 1 && tier({ tags: "挑战活动" }) === 1
+			&& tier({ tags: {} }) === 2 && tier({ tags: 42 }) === 2,
+			JSON.stringify([tier({}), tier(null), tier(undefined), tier({ tags: ["挑战活动"] }), tier({ tags: "挑战活动" }), tier({ tags: {} }), tier({ tags: 42 })]));
+		check("⑨ 数组里混非字符串元素时逐项跳过（`null` / 数字不会被拼成 haystack 的一部分）",
+			tier({ tags: [null, 42, "挑战活动"] }) === 1 && tier({ tags: [null, 42] }) === 2,
+			JSON.stringify([tier({ tags: [null, 42, "挑战活动"] }), tier({ tags: [null, 42] })]));
+		// 分隔符：段与段之间**恰好一个空格** —— 既不会把两段"粘"出一个假分类词，也不会让 `\b` 词边界漏判
+		check("⑨ 分隔符：`Eve` + `nt` 不许粘成 `Event`（粘出来就会被英文分支误命中）",
+			tier({ category: "Eve", tags: ["nt"] }) === 2, String(tier({ category: "Eve", tags: ["nt"] })));
+		check("⑨ 分隔符：`Event` 与 name 之间要有空格（`\\bEvent\\b` 才成立）⇒ 第一档",
+			tier({ category: "Event", tags: [], name: "123" }) === 1, String(tier({ category: "Event", tags: [], name: "123" })));
+	}
+
+	// ══════════════════════════════════════════════════════════════════════════
+	section("category / tags 批 3 ⑩：反证 —— 把 `name` 从 haystack 摘掉 / 把 `tags` 摘掉，红的是哪几条");
+	{
+		// 名字命中的**线上真实行**（星铁「不要笑挑战」「酷得走火…大挑战！」与绝区零三行）。
+		// ⚠️ 星铁那两行**离线夹具里没有**（`p4-hsr-bwiki-events-1107` 只裁了 3 行、不含这两个名字），
+		//    所以它们只能在这一层（纯函数 + 真实行名 + 真实类型列取值）钉住；绝区零三行有真夹具证据（⑪）。
+		const NAME_ROWS = [
+			{ category: "版本活动", name: "「不要笑挑战」", hit: "挑战" },
+			{ category: "版本活动", name: "「酷得走火—宇宙！咻！咻！大挑战！」", hit: "挑战" },
+			{ category: "特殊活动", tags: ["周年活动"], name: "「深度巡防-三倍赏金」", hit: "深度巡防" },
+			{ category: "常规活动", name: "「极限裁决试炼」", hit: "极限" },
+			{ category: "常规活动", name: "「全息强袭战域」", hit: "全息" },
+			{ category: "特殊活动", name: "「决战『金手指』之巅」", hit: "决战" }
+		];
+		for (const r of NAME_ROWS) {
+			const withName = T.eventTier(r);
+			// 旧语义 `hay = category || name` 的等价输入：有类别事实时名字根本不参与 ⇒ 摘掉 name
+			const noName = T.eventTier({ category: r.category, tags: r.tags });
+			check(`⑩ 名字命中「${r.hit}」：带 name ⇒ 第一档；**摘掉 name ⇒ 第二档**（${r.name}）`,
+				withName === 1 && noName === 2, JSON.stringify([withName, noName]));
+		}
+		// `tags` 不是摆设：终末地 6 条都**只有 tags**（没有 category），其中 2 条的第一档完全来自 tags
+		const endEvents = (results.endfield && results.endfield.rec.events) || [];
+		const tagsOnly = endEvents.filter((x) => ("tags" in x) && !("category" in x));
+		const tagDriven = tagsOnly.filter((x) => T.eventTier({ name: x.title, tags: x.tags }) === 1);
+		check("⑩ tags 确实影响档位（不是「摘掉也无影响」）：终末地 tags-only 6 条里有 2 条 ⇒ 带 tags 第一档、摘掉 tags 第二档",
+			tagsOnly.length === 6 && tagDriven.length === 2
+			&& tagDriven.every((x) => T.eventTier({ name: x.title }) === 2),
+			JSON.stringify(tagsOnly.map((x) => [x.title, T.eventTier({ name: x.title, tags: x.tags }), T.eventTier({ name: x.title })])));
+	}
+
+	// ══════════════════════════════════════════════════════════════════════════
+	section("category / tags 批 3 ⑪：逐款逐时刻外显（真 `scheduleCellOf` / 真 `pickEventPrimary`）—— 变化项逐条登记");
+	{
+		const hasFacts = (x) => (typeof x.category === "string" && x.category !== "")
+			|| (Array.isArray(x.tags) && x.tags.length > 0);
+		// **改前**的等价 oracle：真 `T.pickEventPrimary`，只是把「有类别事实时旧规则忽略 name」喂回去。
+		// 这不是近似 —— 旧 haystack 就是 `category || name`，有类别事实时名字本来就不参与。
+		const beforeOf = (events) => {
+			const adapted = events.map((x) => ({
+				item: x,
+				name: hasFacts(x) ? "" : (x.title || ""),
+				category: x.category, tags: x.tags,
+				startTs: x.startTs, endTs: x.endTs,
+				phase: x.phase && typeof x.phase === "object" ? x.phase.kind : x.phase
+			}));
+			const p = T.pickEventPrimary(adapted);
+			return p ? p.item.title : null;
+		};
+		// **改后** = 显示层本体：面板那一格真正选的那条
+		const afterOf = (events, at, gameId) => {
+			const cell = T.scheduleCellOf({ id: gameId, name: gameId, tz: TZ_CN, events }, "event", new Date(at));
+			return cell && cell.primary ? cell.primary.title : null;
+		};
+
+		// ① 每款 ≥6 个时刻（从**真夹具**记录的活动窗里取，覆盖并行活动窗）
+		const SAMPLES = [];   // { game, at, mode, before, after, events? }
+		for (const p of PATHS) {
+			const r = results[p.key];
+			if (!r) continue;
+			const ev = r.rec.events || [];
+			const ms = momentsOf(ev);
+			check(`⑪（${p.key}）采样时刻 ≥ 6（覆盖有并行活动的时间窗）`, ms.length >= 6, `实际 ${ms.length} 个`);
+			for (const t of ms) {
+				SAMPLES.push({ game: p.key, at: t, mode: "record", before: beforeOf(ev), after: afterOf(ev, t, p.id) });
+			}
+		}
+
+		// ② 「应用在时刻 t 运行」：抓取与显示都在 t。**只有这样才能覆盖到线上真实行在期的窗口**
+		//    —— 夹具是全量活动表，抓取时按 now 过滤，只换显示时刻是看不到那几行的。
+		//    （每对 `[时刻, [游戏...]]` 只取该刻真有在期活动的那几款：星铁夹具的活动窗到 2026-12-02 为止、
+		//      PJSK 的 events.json 从 2025-02 之后才有条目 ⇒ 不硬凑。）
+		const RUN_AT = [
+			["2025-01-29T12:00:00.000Z", ["zzz", "hsr"]],   // 绝区零「决战『金手指』之巅」在期
+			["2025-02-06T12:00:00.000Z", ["zzz", "hsr"]],   // 同上（外显的"前一条"已换成「全新放送」第十一期）
+			["2025-06-16T12:00:00.000Z", ["zzz", "hsr"]],   // 绝区零「全息强袭战域」在期
+			["2025-06-24T12:00:00.000Z", ["zzz", "hsr"]],
+			["2026-05-20T12:00:00.000Z", ["zzz", "hsr"]],   // 绝区零「极限裁决试炼」在期
+			["2026-05-24T12:00:00.000Z", ["zzz", "hsr"]],
+			["2026-05-26T12:00:00.000Z", ["zzz", "hsr"]],   // 同窗口：档位翻成第一档，但外显本来就是它（不变）
+			["2026-08-14T12:00:00.000Z", ["zzz", "hsr"]],   // 绝区零「深度巡防-三倍赏金」在期（档位翻了、外显不变）
+			["2026-12-22T12:00:00.000Z", ["pjsk"]]          // PJSK：名字里「故事」命中（档位翻了、外显不变）
+		];
+		for (const [atISO, games] of RUN_AT) {
+			const at = Date.parse(atISO);
+			for (const key of games) {
+				const p = PATHS.find((x) => x.key === key);
+				const e = engineAt(at);
+				const src = e.__test.SOURCES.find((s) => s.id === p.id);
+				const payload = await p.call(e.__test, src);
+				const rec = e.__test.mergeEntryRecord({ data: payload || {} }, null, at, { id: p.id, tz: src.tz });
+				const ev = rec.events || [];
+				check(`⑪ 时刻 ${atISO}（${key}）该刻有在期活动（夹具是全量表，靠 now 过滤）`, ev.length > 0, `${ev.length} 条`);
+				SAMPLES.push({ game: key, at, atISO, mode: "run", before: beforeOf(ev), after: afterOf(ev, at, p.id), events: ev });
+			}
+		}
+
+		// ③ 逐条钉住 8 个 zzz 时刻 + 1 个 pjsk 时刻的「改前 → 改后」（= 有意变化清单的时刻级版本）
+		const RUN_EXPECT = {
+			zzz: {
+				"2025-01-29T12:00:00.000Z": ["「若能化作天琴」", "「决战『金手指』之巅」"],
+				"2025-02-06T12:00:00.000Z": ["「全新放送」第十一期", "「决战『金手指』之巅」"],
+				"2025-06-16T12:00:00.000Z": ["「全新放送」第十一期", "「全息强袭战域」"],
+				"2025-06-24T12:00:00.000Z": ["「全新放送」第十一期", "「全息强袭战域」"],
+				"2026-05-20T12:00:00.000Z": ["「先遣赏金-区域巡防」第十四期", "「极限裁决试炼」"],
+				"2026-05-24T12:00:00.000Z": ["「先遣赏金-区域巡防」第十四期", "「极限裁决试炼」"],
+				"2026-05-26T12:00:00.000Z": ["「极限裁决试炼」", "「极限裁决试炼」"],
+				"2026-08-14T12:00:00.000Z": ["「深度巡防-三倍赏金」", "「深度巡防-三倍赏金」"]
+			},
+			pjsk: { "2026-12-22T12:00:00.000Z": ["这则故事承载着希望", "这则故事承载着希望"] }
+		};
+		for (const s of SAMPLES) {
+			if (s.mode !== "run") continue;
+			const want = RUN_EXPECT[s.game] && RUN_EXPECT[s.game][s.atISO];
+			if (!want) continue;
+			check(`⑪ 时刻 ${s.atISO}（${s.game}）外显：${JSON.stringify(want[0])} → ${JSON.stringify(want[1])}`,
+				s.before === want[0] && s.after === want[1], JSON.stringify([s.before, s.after]));
+		}
+
+		// ④ 档位翻转清单（行级，全采样汇总）：谁从第二档升到第一档
+		const oldTierOf = (x) => T.eventTier({ name: hasFacts(x) ? "" : (x.title || ""), category: x.category, tags: x.tags });
+		const records = [];
+		for (const p of PATHS) { const r = results[p.key]; if (r) records.push([p.key, r.rec.events || []]); }
+		for (const s of SAMPLES) if (s.events) records.push([s.game, s.events]);
+		const flipObserved = new Map();
+		for (const [k, ev] of records) {
+			for (const x of ev) {
+				const nowT = T.eventTier({ name: x.title || "", category: x.category, tags: x.tags });
+				const oldT = oldTierOf(x);
+				if (nowT !== oldT) flipObserved.set(`${k}|${x.title}`, { nowT, oldT });
+			}
+		}
+		// **有意变化清单 · 档位级**（5 条；全部 2 → 1，没有一条降档）
+		const OR_TIER_FLIPS = [
+			{ game: "zzz", title: "「决战『金手指』之巅」", hit: "决战" },
+			{ game: "zzz", title: "「全息强袭战域」", hit: "全息" },
+			{ game: "zzz", title: "「极限裁决试炼」", hit: "极限" },
+			{ game: "zzz", title: "「深度巡防-三倍赏金」", hit: "深度巡防" },
+			{ game: "pjsk", title: "这则故事承载着希望", hit: "故事" }
+		];
+		const flipKey = (c) => `${c.game}|${c.title}`;
+		const flipRegistered = new Map(OR_TIER_FLIPS.map((c) => [flipKey(c), c]));
+		for (const [k, v] of flipObserved) {
+			check(`⑪ **未登记的档位变化**：${k}（只允许清单里的 5 条，且只许 2 → 1）`,
+				flipRegistered.has(k) && v.oldT === 2 && v.nowT === 1, JSON.stringify(v));
+		}
+		for (const [k, c] of flipRegistered) {
+			check(`⑪ 清单登记「${c.hit}」命中 → 档位确实升到第一档：${k}`, flipObserved.has(k), JSON.stringify([...flipObserved.keys()]));
+		}
+
+		// ⑤ 外显变化清单（**有意变化**，3 条）：未登记的意外变化 ⇒ 红（这正是任务书要的那道闸）
+		// ⚠️ FGO 豁免：它的活动外显走特化规则 `schedulePickFgoEvent`（`SCHEDULE_SIDE_RULES` 的
+		//    `"fgo:event"`），**根本不读 `eventTier`** ⇒ 本任务不可能改它；下面单独钉它的外显快照。
+		// 每条登记 = 「这次新上位的**那一条**」+ 它可能顶掉的「改前那条」集合（同一窗口里前一条会随时间
+		// 变化：决战窗口里先后是「若能化作天琴」/「美梦如约而至」/「全新放送」第十一期）。
+		const OR_DISPLAY_CHANGES = [
+			{ game: "zzz", after: "「决战『金手指』之巅」", hit: "决战", from: ["「全新放送」第十一期", "「若能化作天琴」", "「美梦如约而至」"] },
+			{ game: "zzz", after: "「全息强袭战域」", hit: "全息", from: ["「全新放送」第十一期"] },
+			{ game: "zzz", after: "「极限裁决试炼」", hit: "极限", from: ["「先遣赏金-区域巡防」第十四期"] }
+		];
+		const dispObserved = new Map();
+		for (const s of SAMPLES) {
+			if (s.game === "fgo") continue;            // 特化规则，见上
+			if (s.before === s.after) continue;
+			const k = `${s.game}|${s.after}|${s.before}`;
+			if (!dispObserved.has(k)) dispObserved.set(k, new Date(s.at).toISOString());
+		}
+		const dispByAfter = new Map(OR_DISPLAY_CHANGES.map((c) => [`${c.game}|${c.after}`, c]));
+		for (const [k, at] of dispObserved) {
+			const [game, after, before] = k.split("|");
+			const reg = dispByAfter.get(`${game}|${after}`);
+			check(`⑪ **未登记的外显变化**（会红）：${k}（首次 ${at}）`, !!reg && reg.from.includes(before), k);
+		}
+		for (const c of OR_DISPLAY_CHANGES) {
+			const got = [...dispObserved.keys()].filter((k) => k.startsWith(`${c.game}|${c.after}|`));
+			check(`⑪ 清单登记「${c.hit}」命中的外显变化确实发生：${c.game} → ${c.after}（顶掉 ${c.from.join(" / ")} 之一）`,
+				got.length > 0, JSON.stringify([...dispObserved.keys()]));
+		}
+		// FGO：外显快照不变（它不走 eventTier；这里只钉"采样时刻的外显就是这条"，防以后有人把特化规则删掉）
+		const fgoSamples = SAMPLES.filter((s) => s.game === "fgo");
+		check("⑪（fgo）9 个采样时刻的外显全是「迦勒底·U－夏日岛 ～总统会梦见夏日吗？～」（特化规则，与 eventTier 无关）",
+			fgoSamples.length >= 6 && fgoSamples.every((s) => s.after === "迦勒底·U－夏日岛 ～总统会梦见夏日吗？～"),
+			JSON.stringify(fgoSamples.map((s) => s.after)));
+		// 反证（显示层）：三条有意变化的「改前那条」都必须落在登记的 `from` 集合里 —— 把 name 从 haystack
+		// 摘掉（= 旧语义）后，显示层给出的正是这些 `from`，也就是此刻的 `after` 会**退回**到它们。
+		for (const c of OR_DISPLAY_CHANGES) {
+			const hit = SAMPLES.find((s) => s.game === c.game && s.after === c.after && c.from.includes(s.before));
+			check(`⑪ 反证：摘掉 name ⇒ 显示层退回登记里的改前那条（${c.from.join(" / ")} 之一），该变化 100% 来自名字命中「${c.hit}」`,
+				!!hit, JSON.stringify([c, SAMPLES.filter((s) => s.game === c.game && s.after === c.after).map((s) => s.before)]));
+		}
 	}
 }
