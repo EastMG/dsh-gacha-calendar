@@ -532,4 +532,26 @@ export default async function run() {
 			&& /return dates \? dates \+ \(notes\.length/.test(body)),
 			`from=${from} to=${to} pushes=${(body.match(/notes\.push\(/g) || []).length}`);
 	}
+
+	// ── 漏逗号守卫（2026-11-08 真机事故）：数组元素之间漏逗号**不是语法错误** ──
+	// 事故经过：在 `children: [ ... ]` 里插入一个 jsx 元素时，忘了给上一条补逗号
+	//   ⇒ `label(...)(span(...))` 语法合法、运行时 `undefined is not a function`
+	//   ⇒ build.mjs 的语法自检放行 ⇒ 用户看到**整个设置页白屏**。
+	// 判据：一行以 `] })`（无逗号）结尾，下一非空行以 `(0, react_jsx_runtime.` 开头。
+	{
+		const files = readdirSync(SRC).filter((f) => f.endsWith(".js"));
+		const bad = [];
+		for (const f of files) {
+			const lines = readFileSync(path.join(SRC, f), "utf8").split("\n");
+			for (let i = 0; i < lines.length - 1; i++) {
+				if (!/\] \}\)$/.test(lines[i].replace(/\s+$/, ""))) continue;
+				let j = i + 1;
+				while (j < lines.length && lines[j].trim() === "") j++;
+				if (j >= lines.length) continue;
+				if (/^\(0, react_jsx_runtime\./.test(lines[j].trim())) bad.push(`${f}:${i + 1}`);
+			}
+		}
+		check("数组元素之间没有漏逗号（`] })` 后直接跟 jsx 调用会被解析成函数调用）", bad.length === 0, bad.join(", "));
+	}
+
 }
