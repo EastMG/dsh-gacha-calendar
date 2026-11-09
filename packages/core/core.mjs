@@ -8988,6 +8988,18 @@ EVENT_FETCHERS["endfield"] = {
 		}
 
 
+		// 国服「临时维护更新说明」≠ 新一期卡池/活动：正文只写修复与补偿（实测 2026-10-30 那篇 0 条招募/活动）。
+		// 判定以**标题**为主，正文只作标题漏写时的兜底：
+		//   · 标题含「临时」→ 命中（「临时维护」「临时维护更新」「【临时】维护更新说明」… 全覆盖）
+		//   · 否则：清洗后的**前三行**出现「临时维护」→ 命中（正式公告的开篇不会写这三个字）
+		// ⚠️ 用**清洗后**的文本判，不能用原始 HTML：正文可能被 &ldquo;/<p> 包着（`clean` 已去标签/实体）。
+		function baCnIsTempMaint(title, text) {
+			if (/临时/.test(String(title || ""))) return true;
+			const lead = String(text || "").split("\n").slice(0, 3).join("\n");
+			return /临时维护/.test(lead);
+		}
+
+
 		// 蔚蓝国服（官网 bluearchive-cn.com）：news/list → 最新维护更新说明 → 当期卡池/活动名 + 维护起止
 		// 时间：维护日 14:00 ~ 下次维护前（约 +14 天，取维护日开始、预加载下一期预告前）
 		async function fetchBaCn(listUrl, _signal, tz, now = nowMs()) {
@@ -9009,12 +9021,22 @@ EVENT_FETCHERS["endfield"] = {
 			for (const it of mains.slice(0, 8)) {
 				let raw = String(it.content || "");
 				let txt = clean(raw);
+				// ⚠️ 2026-11-09 修（用户报「新卡池未公布」而实际有「艾利」「庚」两池）：
+				//   运营会发「10月30日**临时**维护更新说明」——它同样有"维护时间 10-30 14:00 + 14 天"的窗口，
+				//   会**先于**真正的「10月29日维护更新说明」命中 `coversNow` → 老代码在这里 break，
+				//   而临时公告正文只有修复/补偿、0 条招募/活动 ⇒ ① 解析出空 → 整列 null。
+				//   临时维护不产生新角色/新活动（用户口径），所以**跳过它、继续往下找**覆盖 now 的那篇。
+				//   判定：标题含「临时」为主（「临时维护」「临时维护更新」「【临时】…」都覆盖）；
+				//   正文兜底（标题漏写时）：清洗后**前三行**出现「临时维护」。正式公告的开头不会写这三个字。
+				if (baCnIsTempMaint(it.title, txt)) continue;
 				let first = txt.match(/(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{2})/);
 				if (!first && it.id) {
 					try {
 						const det = await proxyFetchJson(`https://bluearchive-cn.com/api/news/detail?id=${it.id}`, ref, H);
 						raw = String(det?.data?.news?.content || "");
 						txt = clean(raw);
+						// 标题没写「临时」、列表 content 又被截断时，用**详情正文**再判一次（同一条规则，不另立判据）
+						if (baCnIsTempMaint(it.title, txt)) continue;
 						first = txt.match(/(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{2})/);
 					} catch { /* 跳过该候选 */ }
 				}
@@ -13375,7 +13397,20 @@ function ns_umamusume_official_parseUmaInstant(s, tz) {
 /** 列表 JSON → [{ id, title, kind, postTs, postText }]（保持源站顺序：新→旧） */
 function ns_umamusume_official_parseUmaIndex(json, mode = "jp", tz = ns_umamusume_official_UMA_JP_TZ) {
 	if (!json || typeof json !== "object") throw new Error("uma-bad-json");
-	if (json.response_code !== 1) throw new Error("uma-bad-response:" + json.response_code);
+	if (json.response_code !== 1) {
+		// ⚠️ 2026-11-09 实测（用户报「活动失败：抓取异常」而面板红字）：赛马娘**国际服英文公告接口**
+		//   会退化成 HTTP 200 + `{"response_code":200}`（21 字节，没有 information_list / 任何内容条目）。
+		//   这不是抓取失败，而是源站**当期没有可公布的内容** ⇒ 归 nomatch（"新活动未公布"），不是 down。
+		//
+		// 边界（**只吞这一种**，别把真实失败一起吞了）：
+		//   ✔ 仅 `global` + `response_code === 200` + `information_list` 缺失或为空数组；
+		//   ✘ response_code 其它值（如 102 = GET/缺 body）→ 仍抛 uma-bad-response（down）；
+		//   ✘ JSON 结构完全不对（null / 数组 / 无 response_code）→ uma-bad-json / uma-bad-response:undefined（down）；
+		//   ✘ 非 200 / 网络失败 / 非 JSON → 传输层先抛（down），根本走不到这里。
+		if (mode === "global" && json.response_code === 200
+			&& (!Array.isArray(json.information_list) || json.information_list.length === 0)) return [];
+		throw new Error("uma-bad-response:" + json.response_code);
+	}
 	const list = json.information_list;
 	if (!Array.isArray(list)) throw new Error("uma-bad-list");
 	const out = [];

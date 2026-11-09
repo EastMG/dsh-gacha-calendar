@@ -15,6 +15,7 @@
 
 import { readFileSync } from "node:fs";
 import { useFixtures, setFetchImpl, check, section, assertContract, summary } from "./harness.mjs";
+import { createEngine } from "../packages/core/core.mjs";
 const { sourceWallParts, fmtWindow, hoverPool, hoverEvent } = T;
 import { SOURCES_P5, findSource } from "./registry-shim.mjs";
 import { T } from "./load.mjs";
@@ -511,6 +512,75 @@ export default async function run() {
 		check("⚠️ 只有 1 个当期池 → **不设** bannerHover 字段（交回 UI 默认两行式 `池名：角色` ⏎ 档期）",
 			rNow.ok && rNow.data && !("bannerHover" in rNow.data),
 			JSON.stringify(rNow.ok && rNow.data && Object.keys(rNow.data)));
+	}
+
+	// ─────────────── P5-7 国际服「200 空壳」⇒ nomatch；真实失败仍 down ───────────────
+	//
+	// 现场（2026-11-09 用户报「活动失败：抓取异常」红字）：官网英文公告接口 HTTP 200，
+	// 但 body 只有 **21 字节** `{"response_code":200}`（没有 information_list / 任何内容条目）。
+	// 这是"源站当期没有可公布的内容"（nomatch），不是"抓不到"（down）。
+	// 夹具 `p5-uma-global-empty-shell` 就存这 21 字节；500 / 网络错误用注入 transport 反证。
+	section("P5-7 国际服 200 空壳 ⇒ nomatch（新活动未公布）；500 / 网络错误仍 down");
+	{
+		const EMPTY_SHELL = fixtureText("p5-uma-global-empty-shell");
+		check("空壳夹具逐字 = 21 字节 `{\"response_code\":200}`",
+			EMPTY_SHELL === '{"response_code":200}' && Buffer.byteLength(EMPTY_SHELL, "utf8") === 21,
+			JSON.stringify([EMPTY_SHELL, Buffer.byteLength(EMPTY_SHELL, "utf8")]));
+
+		// ── 解析层边界：只吞「global + 200 + 无内容条目」这一种 ──
+		const indexLen = (json, mode, tz) => {
+			try { return parseUmaIndex(json, mode, tz).length; } catch (e) { return "throw:" + ((e && e.message) || e); }
+		};
+		check("parseUmaIndex(global)：200 空壳 → 空数组（交上层判 nomatch，不抛）",
+			indexLen(JSON.parse(EMPTY_SHELL), "global", UMA_GLOBAL_TZ) === 0,
+			JSON.stringify(indexLen(JSON.parse(EMPTY_SHELL), "global", UMA_GLOBAL_TZ)));
+		check("parseUmaIndex(jp)：同样的 200 空壳**不吞**（日服照旧抛 uma-bad-response:200）",
+			throws(() => parseUmaIndex(JSON.parse(EMPTY_SHELL), "jp", UMA_JP_TZ)));
+		check("parseUmaIndex(global)：200 但带了内容条目（结构不对）→ 仍抛（不当 nomatch）",
+			throws(() => parseUmaIndex({ response_code: 200, information_list: [{ announce_id: 1, title: "x" }] }, "global", UMA_GLOBAL_TZ)));
+		check("parseUmaIndex(global)：102（GET/缺 body 的实测形态）→ 仍抛（down）",
+			throws(() => parseUmaIndex({ response_code: 102 }, "global", UMA_GLOBAL_TZ)));
+
+		// ── 端到端归因：走引擎的 fetchEntry，断言 **eventFail.kind** ──
+		// 只测活动侧：把卡池 url 清空（生产环境卡池默认是 GameTora，与此处无关），
+		// eventUrl = 官方英文公告接口。transport 直接返回"目标站正文"（= proxyFetchText 契约）。
+		const evSrc = { ...findSource("uma-global"), url: "", eventUrl: UMA_GLOBAL_INDEX_URL };
+		const engineWith = (proxyImpl) => createEngine({
+			transport: {
+				async fetchRaw() { throw new Error("unexpected-direct"); },
+				async fetchViaProxy(target, opts) { return proxyImpl(String(target), opts); }
+			},
+			storage: { async get() { return null; }, async set() {} },
+			now: () => SNAP_GL,
+			timer: { setTimeout, clearTimeout }
+		});
+		const eShell = engineWith(async () => EMPTY_SHELL);
+		const rShell = await eShell.__test.fetchEntry(evSrc, undefined);
+		check("fetchEntry：200 空壳 ⇒ eventFail.kind === 'nomatch'（新活动未公布，不是抓取失败）",
+			!!rShell && rShell.eventFail && rShell.eventFail.kind === "nomatch",
+			JSON.stringify(rShell && rShell.eventFail));
+		check("fetchEntry：200 空壳时该侧不产出假数据（data 无 event）",
+			!!rShell && rShell.ok === true && (!rShell.data || !rShell.data.event),
+			JSON.stringify(rShell && rShell.data));
+
+		const e500 = engineWith(async () => { throw new Error("proxy-http-500"); });
+		const r500 = await e500.__test.fetchEntry(evSrc, undefined);
+		check("fetchEntry：HTTP 500 ⇒ eventFail.kind === 'down'（真实失败不被吞成 nomatch）",
+			!!r500 && r500.eventFail && r500.eventFail.kind === "down",
+			JSON.stringify(r500 && r500.eventFail));
+
+		const eNet = engineWith(async () => { throw new Error("network unreachable"); });
+		const rNet = await eNet.__test.fetchEntry(evSrc, undefined);
+		check("fetchEntry：网络错误 ⇒ eventFail.kind === 'down'（同上）",
+			!!rNet && rNet.eventFail && rNet.eventFail.kind === "down",
+			JSON.stringify(rNet && rNet.eventFail));
+
+		// 非 JSON（WAF 挑战页）：同样是 down，不是 nomatch
+		const eHtml = engineWith(async () => "<html>567 challenge</html>");
+		const rHtml = await eHtml.__test.fetchEntry(evSrc, undefined);
+		check("fetchEntry：200 但非 JSON（WAF 挑战页）⇒ 仍 down（只有「空壳 JSON」才归 nomatch）",
+			!!rHtml && rHtml.eventFail && rHtml.eventFail.kind === "down",
+			JSON.stringify(rHtml && rHtml.eventFail));
 	}
 
 	// `test/run.mjs` / `test/all.mjs` 会调用 summary()；直接 `node test/cases-p5.mjs` 时也自报结果

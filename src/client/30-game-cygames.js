@@ -327,7 +327,20 @@ function ns_umamusume_official_parseUmaInstant(s, tz) {
 /** 列表 JSON → [{ id, title, kind, postTs, postText }]（保持源站顺序：新→旧） */
 function ns_umamusume_official_parseUmaIndex(json, mode = "jp", tz = ns_umamusume_official_UMA_JP_TZ) {
 	if (!json || typeof json !== "object") throw new Error("uma-bad-json");
-	if (json.response_code !== 1) throw new Error("uma-bad-response:" + json.response_code);
+	if (json.response_code !== 1) {
+		// ⚠️ 2026-11-09 实测（用户报「活动失败：抓取异常」而面板红字）：赛马娘**国际服英文公告接口**
+		//   会退化成 HTTP 200 + `{"response_code":200}`（21 字节，没有 information_list / 任何内容条目）。
+		//   这不是抓取失败，而是源站**当期没有可公布的内容** ⇒ 归 nomatch（"新活动未公布"），不是 down。
+		//
+		// 边界（**只吞这一种**，别把真实失败一起吞了）：
+		//   ✔ 仅 `global` + `response_code === 200` + `information_list` 缺失或为空数组；
+		//   ✘ response_code 其它值（如 102 = GET/缺 body）→ 仍抛 uma-bad-response（down）；
+		//   ✘ JSON 结构完全不对（null / 数组 / 无 response_code）→ uma-bad-json / uma-bad-response:undefined（down）；
+		//   ✘ 非 200 / 网络失败 / 非 JSON → 传输层先抛（down），根本走不到这里。
+		if (mode === "global" && json.response_code === 200
+			&& (!Array.isArray(json.information_list) || json.information_list.length === 0)) return [];
+		throw new Error("uma-bad-response:" + json.response_code);
+	}
 	const list = json.information_list;
 	if (!Array.isArray(list)) throw new Error("uma-bad-list");
 	const out = [];

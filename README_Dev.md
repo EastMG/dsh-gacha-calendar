@@ -1061,6 +1061,23 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
   原先那几条"已批准差异"断言已删除。
 
 
+### ba-cn 跳过「临时」维护公告 + uma-global「200 空壳」归一（2026-11-09）
+
+- **ba-cn 卡池**（`30-game-bluearchive.js` 的 `fetchBaCn`）：扫「维护更新说明」时，运营的
+  「10月30日**临时**维护更新说明」也会命中"维护时间 + 14 天覆盖 now"，且排在 10-29 正式公告之前；
+  老代码在这里 `break`，而临时公告正文 0 条招募/活动 ⇒ 整列「新卡池未公布」。现在**跳过临时公告、
+  继续往下找**覆盖 now 的那篇（10-29 ⇒ 艾利 / 庚 两池，10-29 14:00 ~ 11-12 13:59）。判定以**标题含
+  「临时」**为主（临时维护 / 临时维护更新 /【临时】… 全覆盖），正文只作标题漏写时的兜底（清洗后前三行
+  出现「临时维护」）。全部被跳过 ⇒ 仍按现状返回 `null`（未公布，不硬凑）。回归：`test/cases-ba.mjs`
+  的 `ba-cn/1030`（真夹具 `test/fixtures/ba-cn-list-1030`，真抓后按真实结构保留 1996/1995 两篇）。
+- **uma-global 活动**（`30-game-cygames.js` 的 `parseUmaIndex`）：国际服英文公告接口会退化成
+  HTTP 200 + `{"response_code":200}`（21 字节空壳，无 `information_list`）。这归 **nomatch**
+  （新活动未公布），不是 down。边界只吞这一种：必须 `global` + `response_code === 200` +
+  `information_list` 缺失/空数组；`102` 等其它码、带了内容条目的错结构、非 JSON、非 200 / 网络错误
+  一律仍按 down。回归：`test/cases-p5.mjs` 的 P5-7（夹具 `p5-uma-global-empty-shell`，另有 500 /
+  网络错误 / WAF 挑战页的反证）。
+
+
 ### 为什么插件要改宿主的槽位布局
 
 - **事实**：宿主把 `sidebar.footer.action` 渲染成 `<div data-slot="sidebar.footer.action" style="display:contents">`，它的父容器是 `display:flex; flex-wrap:nowrap` 的**一行**。同一槽位上多个插件的整宽入口会变成同一行的 flex 兄弟、互相挤压（DSH Desktop 源码注释的原话是 "crush each other"）。

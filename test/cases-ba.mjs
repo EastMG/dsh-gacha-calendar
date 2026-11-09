@@ -273,6 +273,74 @@ export default async function run() {
 		check("ba-cn/0924：过了 ① 的窗口且无覆盖当前的活跃块 → nomatch（不残留上一期）", f.data === null, JSON.stringify(f.data));
 	}
 
+	// ── ②b 临时维护公告必须跳过（2026-11-09 用户报「新卡池未公布」）───────────────
+	//
+	// 现场（真夹具 `ba-cn-list-1030`，2026-11-09 13:52 +08 真抓后按真实结构裁剪）：
+	//   列表顺序 = 1996「10月30日**临时**维护更新说明」 → 1995「10月29日维护更新说明」。
+	//   两篇的"首行维护时间 + 14 天"都覆盖 now（11-09）：临时 = 10-30~11-13，正式 = 10-29~11-12。
+	//   老代码在**第一篇覆盖 now 的就 break** → 停在临时公告上，而它正文 0 条招募/活动
+	//   → ① 解析出空 → 面板整列「新卡池未公布」。实际当期有「艾利」「庚」两池（10-29 ~ 11-12）。
+	{
+		const NOW_TEMP = "2026-11-09T13:39:00+08:00";
+		const t = await fetchBaCnAt("ba-cn-list-1030", NOW_TEMP);
+		// 逐字断言：卡池类型 + **两个池的成员都在** + 档期（+14 天口径）；活动同理
+		check("ba-cn/1030：跳过 10-30 临时维护公告，取到 10-29 那期（限时招募 + 艾利/庚 两池）",
+			!!t.data && t.data.banner === "限时招募"
+			&& t.data.roles === "艾利、庚"
+			&& t.data.bannerDates === "10-29 14:00 ~ 11-12 13:59", JSON.stringify(t.data));
+		check("ba-cn/1030：活动也取 10-29 那期（我等乃神秘学研究会 / 10-29~11-26）",
+			!!t.data && t.data.event === "我等乃神秘学研究会！~学院之谜与古老咒文~"
+			&& t.data.eventDates === "10-29 14:00 ~ 11-26 13:59", JSON.stringify(t.data && [t.data.event, t.data.eventDates]));
+		// 绝对时刻（手算，不靠 sourceInstant 自证）：10-29 14:00 +08 / 11-12 13:59 +08
+		check("ba-cn/1030：档期绝对时刻 = 10-29 14:00+08 ~ 11-12 13:59+08",
+			!!t.data && t.data.gacha[0].startTs === 1793253600000 && t.data.gacha[0].endTs === 1794463140000,
+			JSON.stringify(t.data && [t.data.gacha[0].startTs, t.data.gacha[0].endTs]));
+		check("ba-cn/1030：gacha[] 一条里 roles 恰好是两池成员（艾利、庚）",
+			!!t.data && JSON.stringify(t.data.gacha[0].roles) === JSON.stringify(["艾利", "庚"])
+			&& t.data.gacha[0].show === "艾利、庚", JSON.stringify(t.data && t.data.gacha[0]));
+		check("ba-cn/1030：零额外请求（列表 content 已是全文，跳临时公告不触发详情请求）",
+			t.calls.length === 1, "requests=" + t.calls.length);
+
+		// 夹具自身钉住"这就是老代码会踩的现场"：临时公告排在正式公告**之前**，
+		// 且它正文里**一条招募行都没有**（0 条 → 停在它上面必然解析出空）。
+		const rows = JSON.parse(fx("ba-cn-list-1030/response.txt")).data.rows;
+		const iTemp = rows.findIndex((r) => /临时/.test(r.title));
+		const iReal = rows.findIndex((r) => r.id === 1995);
+		const tempText = T.baCnNoticeText(rows[iTemp] && rows[iTemp].content);
+		check("ba-cn/1030 夹具：临时公告排在 10-29 正式公告之前（老代码的 break 点）",
+			iTemp === 0 && iReal === 1, JSON.stringify(rows.map((r) => r.id + ":" + r.title)));
+		check("ba-cn/1030 夹具：临时公告正文 0 条招募/活动（停在这里必空）",
+			!/更新限时.*招募/.test(tempText) && !/更新限时活动/.test(tempText),
+			tempText.split("\n").filter((l) => /招募|活动/.test(l)).slice(0, 3).join(" | "));
+
+		// 判定以标题为主：「临时」可以长在标题任意位置（临时维护 / 【临时】维护更新说明）
+		const variants = ["10月30日【临时】维护更新说明", "10月30日临时维护", "临时维护更新说明"];
+		for (const title of variants) {
+			const body = JSON.parse(fx("ba-cn-list-1030/response.txt"));
+			body.data.rows[0].title = title;
+			const v = await fetchBaCnBody(JSON.stringify(body), NOW_TEMP);
+			check(`ba-cn/1030：标题含「临时」（${title}）同样跳过 → 仍取 10-29 那期`,
+				!!v.data && v.data.roles === "艾利、庚" && v.data.bannerDates === "10-29 14:00 ~ 11-12 13:59",
+				JSON.stringify(v.data && [v.data.roles, v.data.bannerDates]));
+		}
+		// 标题漏写「临时」时，正文兜底（前三行有「临时维护」）—— 同一份真实正文，只改标题
+		{
+			const body = JSON.parse(fx("ba-cn-list-1030/response.txt"));
+			body.data.rows[0].title = "10月30日维护更新说明";
+			const v = await fetchBaCnBody(JSON.stringify(body), NOW_TEMP);
+			check("ba-cn/1030：标题漏写「临时」→ 正文兜底（前三行含「临时维护」）仍跳过",
+				!!v.data && v.data.roles === "艾利、庚", JSON.stringify(v.data && v.data.roles));
+		}
+		// 反向：把正式公告也改成"临时"字样 → 两篇都被跳过 ⇒ 仍按现状返回 null（「未公布」）
+		//   （证明跳过是"不产出"，不是"硬凑一篇"）
+		{
+			const body = JSON.parse(fx("ba-cn-list-1030/response.txt"));
+			body.data.rows[1].title = "10月29日临时维护更新说明";
+			const v = await fetchBaCnBody(JSON.stringify(body), NOW_TEMP);
+			check("ba-cn/1030：覆盖 now 的公告全被跳过 ⇒ null（未公布，不硬凑）", v.data === null, JSON.stringify(v.data));
+		}
+	}
+
 	// ── ③ 通用块解析器：写法归一化 / 严格性（合成文本，逐条钉住）─────────────
 	{
 		const nowYear = 2026;
