@@ -1,8 +1,0 @@
-{
-  "url": "https://umamusume.com/api/ajax/pr_info_index?format=json",
-  "status": 200,
-  "capturedAt": "2026-11-09T13:40:00+08:00",
-  "method": "POST",
-  "body": { "announce_label": 1, "limit": 50, "offset": 0 },
-  "note": "2026-11-09 实测退化形态：国际服英文公告接口 HTTP 200，但响应体是 21 字节空壳 {\"response_code\":200}（无 information_list、无任何内容条目）。用途：把「200 + 空壳」钉成 nomatch（新活动未公布），而不是 down（抓取失败）；同时用 500 / 网络错误反证真实失败仍 down。"
-}

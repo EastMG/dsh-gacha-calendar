@@ -327,20 +327,12 @@ function ns_umamusume_official_parseUmaInstant(s, tz) {
 /** 列表 JSON → [{ id, title, kind, postTs, postText }]（保持源站顺序：新→旧） */
 function ns_umamusume_official_parseUmaIndex(json, mode = "jp", tz = ns_umamusume_official_UMA_JP_TZ) {
 	if (!json || typeof json !== "object") throw new Error("uma-bad-json");
-	if (json.response_code !== 1) {
-		// ⚠️ 2026-11-09 实测（用户报「活动失败：抓取异常」而面板红字）：赛马娘**国际服英文公告接口**
-		//   会退化成 HTTP 200 + `{"response_code":200}`（21 字节，没有 information_list / 任何内容条目）。
-		//   这不是抓取失败，而是源站**当期没有可公布的内容** ⇒ 归 nomatch（"新活动未公布"），不是 down。
-		//
-		// 边界（**只吞这一种**，别把真实失败一起吞了）：
-		//   ✔ 仅 `global` + `response_code === 200` + `information_list` 缺失或为空数组；
-		//   ✘ response_code 其它值（如 102 = GET/缺 body）→ 仍抛 uma-bad-response（down）；
-		//   ✘ JSON 结构完全不对（null / 数组 / 无 response_code）→ uma-bad-json / uma-bad-response:undefined（down）；
-		//   ✘ 非 200 / 网络失败 / 非 JSON → 传输层先抛（down），根本走不到这里。
-		if (mode === "global" && json.response_code === 200
-			&& (!Array.isArray(json.information_list) || json.information_list.length === 0)) return [];
-		throw new Error("uma-bad-response:" + json.response_code);
-	}
+	// ⚠️ 2026-11-09（用户拍板**撤回**）：**这里不认"200 空壳 = nomatch"**。
+	//    `{"response_code":200}`（21 字节）是**用 GET 打这个接口**才会拿到的退化响应 ——
+	//    `pr_info_index` 只认 POST + `Content-Type: application/json`。空壳不是接口契约的一部分，
+	//    把它当 nomatch 只会把"传输层把 POST 降级成 GET"这种**真故障**悄悄吞掉（症状：整侧"未公布"）。
+	//    ⇒ 恢复原语义：`response_code !== 1` 一律抛（该侧如实报失败）。POST 契约见下方 uma-global 注册项注释。
+	if (json.response_code !== 1) throw new Error("uma-bad-response:" + json.response_code);
 	const list = json.information_list;
 	if (!Array.isArray(list)) throw new Error("uma-bad-list");
 	const out = [];
@@ -856,6 +848,17 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 				url: "https://gametora.com/data/manifests/umamusume.json",
 				source: "GameTora（英文）",
 				// 活动侧**本次不动**：GameTora 没有活动数据；官方公告仍是活动侧默认（2026-10-21 实测可用）。
+				//
+				// ⚠️ 2026-11-09（用户核实 + 拍板）：`pr_info_index` / `pr_info_detail`（umamusume.com
+				//    `api/ajax/*`）**只认 POST**，且必须带 `Content-Type: application/json`
+				//    （body 形如 `{announce_label:1, limit:50, offset:0}`；detail 用 `{announce_id}`）。
+				//    走 `ns_umamusume_official_postJsonUma`（POST，body 交 transport 透传），别改成 GET：
+				//      · **GET 恒返回 HTTP 200 + 21 字节 `{"response_code":200}`**（没有 information_list、
+				//        没有任何内容条目）。这**不是**"当期没有内容"的契约，只是拿不到东西时的空壳。
+				//      · ⇒ `parseUmaIndex` **不把空壳当 nomatch**：`response_code !== 1` 一律抛
+				//        （`uma-bad-response`），该侧如实报"抓取失败"。
+				//      · **若 transport 把 POST 降级成 GET（或吞掉 body / Content-Type），症状就是这枚空壳**
+				//        —— 排查顺序：先看请求方法与 Content-Type，再看源站。别再把它归成 nomatch。
 				eventUrl: "https://umamusume.com/api/ajax/pr_info_index?format=json",
 				eventSource: "官方公告（英文 · 不可靠）",
 				altSources: [
