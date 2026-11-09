@@ -911,7 +911,9 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
 
 用户原话：「五个都接入，暂时没有数据源的就留空未配置」。来源全部**实测过**（见各夹具
 `response.txt.meta.json` 的 `capturedAt`），**有源的接全、无源的只注册条目**——
-面板上不假装"配了一个源"。5 条都不出厂隐藏（`defaultHidden: false`），所以照常占面板一行，
+面板上不假装"配了一个源"。2026-11-09 用户要求：**只有无期迷途**出厂展示（`defaultHidden: false`）；
+夜幕之下 / 未定事件簿 / 时空中的绘旅人 / 炽焰天穹 **出厂不勾选展示**（`defaultHidden: true`）
+（两侧都没来源，占版面又没信息；设置页里勾上「展示」就出来）。无期迷途照常占面板一行，
 `DEFAULT_SETTINGS.remindGames` / `REMIND_GAMES_DEFAULT` 也同步加了这 5 个 id（守卫见
 `test/cases-ticker.mjs` ④：两份名单必须恰等于 `defaultHidden !== true` 的集合）。
 

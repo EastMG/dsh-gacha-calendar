@@ -76,9 +76,9 @@
 				"ba-cn", "ba-global", "ba-jp", "bandori", "wuhuamixin", "zspms", "kedr",
 				"uma-cn", "uma-jp", "uma-global",
 				"p5x", "nte", "gf2", "fgo", "pjsk", "stellasora", "r1999",
-				// 2026-11-09 新接入的 5 款：全部 defaultHidden !== true ⇒ 必须在默认名单里
-				// （其余 3 款暂时没配来源，但没有数据就没有可提醒的节点，留着无害）
-				"wqmt", "pengpeng", "wd", "hlr", "cytq"
+				// 2026-11-09 新接入的 5 款里只有 wqmt 出厂展示；另外4款出厂不勾选
+				// ⇒ 不在提醒白名单里（二者必须一致，守卫见 test/cases-ticker.mjs）
+				"wqmt"
 			],
 			order: null,
 			lastRefresh: 0,

@@ -449,7 +449,7 @@ const REMIND_GAMES_DEFAULT = [
 	"ba-cn", "ba-global", "ba-jp", "bandori", "wuhuamixin", "zspms", "kedr",
 	"uma-cn", "uma-jp", "uma-global",
 	"p5x", "nte", "gf2", "fgo", "pjsk", "stellasora", "r1999",
-	"wqmt", "pengpeng", "wd", "hlr", "cytq"
+	"wqmt"
 ];
 
 /** Windows PowerShell 5.1 自带的 AUMID —— 免安装也能弹。 */

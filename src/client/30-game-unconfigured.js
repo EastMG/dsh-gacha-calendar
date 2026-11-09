@@ -23,17 +23,17 @@
 //   面板（82-schedule-view.js）里这两侧没有「外显条目」⇒ 该格写「该来源无数据」（灰底），
 //   底部也**不会**出现失败横条（那是 `isDown(gachaFail|eventFail)` 才有的）。
 //
-// ── 为什么 `defaultHidden` 不给 true ──────────────────────────────────────────
-// 用户这次的措辞是「五个都接入，暂时没有数据源的就**留空**未配置」——留空 = 行在那儿、内容是空的。
-// 所以三款照常占面板一行（两侧灰底「该来源无数据」，不是「抓取失败」），
-// 设置页能把来源填上就立刻生效（`customUrls` / `customEventUrls` 对内置条目也生效）。
-// 若哪天嫌版面空，把这三条的 `defaultHidden` 改成 true 即可（同 `bh3` 的处理），
-// 但**必须同时**改 `10-config.js` 的 `DEFAULT_SETTINGS.remindGames` 与 `src/index.js` 的
-// `REMIND_GAMES_DEFAULT`（守卫见 test/cases-ticker.mjs：两者必须恰等于 `defaultHidden !== true` 的集合）。
+// ── 为什么这几款 `defaultHidden: true`（2026-11-09 用户要求）──────────────────
+// 它们两侧都没配来源 ⇒ 面板上只会是两个灰格「该来源无数据」，占版面又没信息。
+// 所以**出厂不勾选展示**（与 bh3 / ournotes / czn / ddlezj 同一种处理）；
+// 条目仍在设置页列表里，勾上「展示」就出来；填上来源也立刻生效。
+// ⚠️ 改 `defaultHidden` 必须同步 `10-config.js` 的 `DEFAULT_SETTINGS.remindGames`
+// 与 `src/index.js` 的 `REMIND_GAMES_DEFAULT`（守卫见 test/cases-ticker.mjs：
+// 两者必须恰等于 `defaultHidden !== true` 的集合）。
 
 		registerSource({
 			id: "wd",
-			defaultHidden: false,
+			defaultHidden: true,
 			tz: "Asia/Shanghai",
 			name: "未定事件簿",
 			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/bd/c8/ad/bdc8ad3c-1bd5-debe-90b9-e67ea22578de/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",
@@ -42,7 +42,7 @@
 
 		registerSource({
 			id: "hlr",
-			defaultHidden: false,
+			defaultHidden: true,
 			tz: "Asia/Shanghai",
 			name: "时空中的绘旅人",
 			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/1d/2b/48/1d2b48c5-4cdd-ec4b-80a5-336e3574c6ca/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/512x512bb.jpg",
@@ -50,7 +50,7 @@
 
 		registerSource({
 			id: "cytq",
-			defaultHidden: false,
+			defaultHidden: true,
 			tz: "Asia/Shanghai",
 			// 用户原话写作「炽焰苍穹」，官方/商店/条目的正式名是「炽焰天穹」（bwiki 子站目录也叫 cytq）
 			// ⇒ 显示名按正式名，id 保持用户给的 `cytq`。

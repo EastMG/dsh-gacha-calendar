@@ -131,7 +131,11 @@ export default async function run() {
 			check(`${id} 有图标（http(s) 地址）`, !!s && /^https?:\/\//.test(String(s.icon)), s ? String(s.icon).slice(0, 60) : "缺失");
 			// 颜色：本批 5 条在 20-source-core.js 的 SOURCE_COLORS 里各给了一个中间调
 			check(`${id} 有游戏主题色（#rrggbb）`, !!s && /^#[0-9A-Fa-f]{6}$/.test(String(s.color)), s ? String(s.color) : "缺失");
-			check(`${id} 出厂不隐藏（面板上占一行）`, !!s && s.defaultHidden === false, s ? String(s.defaultHidden) : "缺失");
+			// 2026-11-09 用户：无数据源的四款（夜幕之下 / 未定 / 绘旅人 / 炽焰天穹）出厂**不勾选展示**；
+			// 无期迷途两侧都有源 ⇒ 仍出厂展示。两者必须与 `REMIND_GAMES_DEFAULT` 一致（cases-ticker 守卫）。
+			const wantHidden = id !== "wqmt";
+			check(`${id} 出厂${wantHidden ? "不勾选展示" : "展示"}（defaultHidden = ${wantHidden}）`,
+				!!s && s.defaultHidden === wantHidden, s ? String(s.defaultHidden) : "缺失");
 		}
 
 		// 有源接全 / 无源留空 —— 这一批的**核心口径**
@@ -449,7 +453,9 @@ export default async function run() {
 		const ALL = T.SOURCES.map((x) => x.id);
 		const KEEP = new Set([...IDS, "pengpeng"]);
 		const calls = [];
-		const e2 = engineAt(NOW_PP, { hidden: ALL.filter((x) => !KEEP.has(x)) }, calls);
+		// 这 4 条现在出厂默认隐藏 ⇒ 自检范围 = 展示中的条目，
+		// 所以必须同时把它们写进 `shown`，才能验证「未配置」路径。
+		const e2 = engineAt(NOW_PP, { hidden: ALL.filter((x) => !KEEP.has(x)), shown: [...KEEP] }, calls);
 		const rep = await e2.selfCheck({ timeoutMs: 5000 });
 		const g = rep.games || {};
 		for (const id of IDS) {
