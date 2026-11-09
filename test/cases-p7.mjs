@@ -5,7 +5,7 @@
 //   ② 确定性：所有"当期"断言都用**夹具抓取时刻**（meta.capturedAt）当 now，不随运行日期漂移
 //   ③ 不拖垮共享 runner：抓取器调用都包 try/catch，失败只记 ✗，不抛出去中断别的批次
 import { readFileSync } from "node:fs";
-import { useFixtures, check, section, assertContract } from "./harness.mjs";
+import { useFixtures, setFetchImpl, check, section, assertContract } from "./harness.mjs";
 const { sourceWallParts, hoverPool, hoverEvent } = T;
 import { SOURCES_P7 } from "./registry-shim.mjs";
 import { T } from "./load.mjs";
@@ -231,7 +231,9 @@ export default async function runP7() {
 		assertContract("stellasora", "event", ev);
 		if (ev) {
 			console.log(`      · 活动「${ev.event}」 ${ev.eventDates}`);
-			check("活动名含「活动」（分流正确）", /活动/.test(ev.event), ev.event);
+			// 2026-11-09（用户要求）：外显/悬停的活动名 = 源站标题**去掉尾部「活动说明」**
+			// （源站是 `「联合讨伐」活动说明`）。分流仍按标题判，这里只钉"名字怎么显示"。
+			check("活动名已去掉尾部「活动说明」", ev.event === "「联合讨伐」", ev.event);
 			check("活动侧不带卡池字段", ev.banner === undefined);
 
 			// ── 活动悬停（2026-10-03 修：名称在前 + 3 空格 + 档期；删掉「（起点按公告发布时刻推断）」）──
@@ -245,8 +247,8 @@ export default async function runP7() {
 			// ⇒ 写原文；第 2 条两端本来就是绝对时刻 ⇒ 仍然格式化 —— 同一份悬停里两种分支并存，
 			// 这正是"raw 能完整解析成两端绝对时刻才格式化"的口径。
 			check("活动 hover「名称 + 3 空格 + 档期」（相对表述写原文、绝对窗口格式化）",
-				el[0] === "「灾变防线」活动说明   2026/09/29 维护结束后 ~ 2026/10/20 10:59"
-				&& el[1] === "「联合讨伐」活动说明   10-01 04:00 ~ 10-30 22:59",
+				el[0] === "「灾变防线」   2026/09/29 维护结束后 ~ 2026/10/20 10:59"
+				&& el[1] === "「联合讨伐」   10-01 04:00 ~ 10-30 22:59",
 				JSON.stringify(el));
 			check("活动 hover 按结束时间升序（灾变防线 10-20 在前、联合讨伐 10-30 在后）",
 				/「灾变防线」/.test(el[0] || "") && /「联合讨伐」/.test(el[1] || ""), JSON.stringify(el));
@@ -292,5 +294,74 @@ export default async function runP7() {
 		check("源站正文未标时区（故 tz 为推测）", !/UTC|GMT|北京时间|服务器时间/.test(all));
 		// 04:00 日切是国服特征（留作推测依据）
 		check("正文含 04:00/03:59 日切（国服特征）", /04:00|03:59/.test(all));
+	}
+
+	// ─────────────────────────────────────────────────────────
+	section("P7 ⑧ 活动名去掉尾部「活动说明」（含反例）");
+	{
+		// 源站标题体裁是 `「X」活动说明`；用户 2026-11-09 要求外显/悬停只写 `「X」`。
+		// 判据必须钉在**词尾**，否则会误伤名字里本来就含"说明"的活动 —— 这一节用**内存夹具**
+		// （`setFetchImpl`，不走真网络）覆盖四种标题：
+		//   ① `「猎影合围Beta」活动说明`     → `「猎影合围Beta」`（词尾四字，去掉）
+		//   ② `「猎影合围Beta」活动说明　`    → 同上（词尾带**全角空格**，也要去掉）
+		//   ③ `「说明会」活动开场`            → **原样**（含"说明"，但不以"活动说明"结尾）
+		//   ④ `「创业激励基金」说明`          → **原样**（尾是「说明」不是「活动说明」；且不算活动）
+		const LIST_U = "https://stellasora.yostar.cn/api/resource/news?index=1&size=20&type=notice";
+		const LIST_U1 = LIST_U + "&case=only-activity-note";      // 只有 ①：验"外显去尾"
+		const LIST_U2 = LIST_U + "&case=trailing-ideographic";    // 只有 ②：验"词尾全角空格也去"
+		const WIN = "<p>▌活动时间<br>2026/10/01 04:00 ~ 2026/10/30 22:59</p>";
+		const T0 = Date.parse("2026-09-28T00:00:00.000Z");
+		const rowOf = (id, title) => ({ id, title, publishTime: T0 - (id % 1000), type: "notice", typeLabel: "公告" });
+		const detailOf = (id, title) => JSON.stringify({ code: 0, data: { news: { id, title, publishTime: T0 - (id % 1000), content: WIN } } });
+		const R1 = rowOf(9101, "「猎影合围Beta」活动说明");
+		const R2 = rowOf(9102, "「猎影合围Beta」活动说明\u3000");
+		const R3 = rowOf(9103, "「说明会」活动开场");
+		const R4 = rowOf(9104, "「创业激励基金」说明");
+		const listOf = (...rows) => JSON.stringify({ code: 0, data: { rows } });
+		const BODIES = {
+			[LIST_U]: listOf(R1, R3, R4),
+			[LIST_U1]: listOf(R1),
+			[LIST_U2]: listOf(R2),
+			"https://stellasora.yostar.cn/api/resource/news/9101": detailOf(9101, R1.title),
+			"https://stellasora.yostar.cn/api/resource/news/9102": detailOf(9102, R2.title),
+			"https://stellasora.yostar.cn/api/resource/news/9103": detailOf(9103, R3.title),
+			"https://stellasora.yostar.cn/api/resource/news/9104": detailOf(9104, R4.title)
+		};
+		// 该来源 mode=proxy ⇒ 代理包体是 { status, body }；直连形态也一并给出，免得换个 mode 就挂。
+		setFetchImpl(async (url) => {
+			const u = String(url);
+			const isProxy = u.startsWith("/api/gacha-calendar-proxy");
+			let target = u;
+			if (isProxy) { try { target = new URL("http://x" + u).searchParams.get("url") || u; } catch { /* keep */ } }
+			const body = BODIES[target];
+			if (body == null) return { ok: false, status: 404, headers: { get: () => null }, text: async () => "", json: async () => ({}) };
+			if (isProxy) {
+				const p = JSON.stringify({ status: 200, body });
+				return { ok: true, status: 200, headers: { get: () => "application/json" }, text: async () => p, json: async () => JSON.parse(p) };
+			}
+			return { ok: true, status: 200, headers: { get: () => "text/html" }, text: async () => body, json: async () => JSON.parse(body) };
+		});
+		const NOW2 = Date.parse("2026-10-05T00:00:00Z");
+		const call = async (u) => { try { return await eventsStellasora(u, undefined, STELLA_TZ, NOW2); } catch (e) { return "ERR:" + e.message; } };
+		const e2 = await call(LIST_U);
+		check("内存夹具：抓取器不抛错", !!e2 && typeof e2 === "object", JSON.stringify(e2));
+		const names = ((e2 && e2.events) || []).map((x) => x.title);
+		check("词尾「活动说明」被去掉 ⇒ 「猎影合围Beta」；含「说明」的「说明会」活动开场原样保留",
+			JSON.stringify(names) === JSON.stringify(["「说明会」活动开场", "「猎影合围Beta」"]), JSON.stringify(names));
+		check("尾是「说明」不是「活动说明」⇒ 不算活动（原样留在列表里，不被改坏）",
+			!names.some((n) => /创业激励基金/.test(n)), JSON.stringify(names));
+		check("外显 / 数组 / 悬停都不再出现「活动说明」",
+			!/活动说明/.test([e2 && e2.event, e2 && e2.eventHover].map(String).join("|") + "|" + names.join("|")),
+			JSON.stringify([e2 && e2.event, names]));
+		check("外显与悬停同一份名字（悬停里逐字出现外显那条；同窗口时是「名称… ⏎ 档期」折叠式）",
+			!!e2 && String(e2.eventHover || "").split("\n").some((s) => s === e2.event || s.startsWith(e2.event + "   ")),
+			JSON.stringify(e2 && e2.eventHover));
+		// 外显侧的两条分支：只有「…活动说明」那一条在期 ⇒ 外显必须已去尾（单条没有悬停）
+		const e3 = await call(LIST_U1);
+		check("单条当期：外显同样去尾 = 「猎影合围Beta」（没有悬停，交回 UI 两行式）",
+			!!e3 && e3.event === "「猎影合围Beta」" && e3.eventHover === undefined, JSON.stringify(e3 && [e3.event, e3.eventHover]));
+		const e4 = await call(LIST_U2);
+		check("词尾带**全角空格**也照样去干净（不把空格留在名字里）",
+			!!e4 && e4.event === "「猎影合围Beta」", JSON.stringify(e4 && e4.event));
 	}
 }

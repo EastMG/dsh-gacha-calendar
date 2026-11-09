@@ -842,12 +842,14 @@ export default async function runCore() {
 		// ⚠️ 2026-11-09 用户口径变更（「起点未知 ≠ 已开始」）：星铁 bwiki 侧（`hsr:gacha` / `hsr:event`）
 		// 的外显**有意不再等于改造前** —— 改造前把「X.Y版本更新后」（无日期）当成已开始，星铁活动
 		// 夹具里的「巡星之礼」就是这么当上外显的。这是**已批准的差异**，不是回归；
-		// 但白名单只有这 2 个键（下面单独守长度），新口径的逐字期望由 ④-9 钉住。
-		const APPROVED_DIFF = new Set(["hsr:gacha", "hsr:event"]);
+		// ⚠️ 2026-11-09 另一处（「活动名去掉尾部『活动说明』」）：星塔旅人活动侧（`stellasora:event`）
+		// 的名称行里不再有那个体裁尾巴（改造前是 `「联合讨伐」活动说明`）⇒ 同样是有意变更。
+		// 白名单只有这 3 个键（下面单独守长度），逐字期望分别由 cases-p4 / cases-hsr-official 与 cases-p7 钉住。
+		const APPROVED_DIFF = new Set(["hsr:gacha", "hsr:event", "stellasora:event"]);
 		const unapproved = diffs.filter((k) => !APPROVED_DIFF.has(k));
 		check("等价性：17 款游戏（34 个侧）**全部逐字相等**（diffs = 0；名称 / 档期文本 / 探头行数 / 行顺序）",
 			unapproved.length === 0, JSON.stringify(unapproved));
-		check("等价性白名单只有那 2 个已批准的星铁侧（`hsr:gacha` / `hsr:event`），别的键一律红",
+		check("等价性白名单只有那 3 个已批准的侧（星铁 2 个「起点未知≠已开始」+ 星塔 1 个「活动名去尾」），别的键一律红",
 			diffs.length === unapproved.length + APPROVED_DIFF.size
 			&& [...APPROVED_DIFF].every((k) => diffs.indexOf(k) >= 0),
 			JSON.stringify(diffs));

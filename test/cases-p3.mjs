@@ -754,6 +754,19 @@ const P3B_HOVER_RAW_CHANGED = {
 	stellasoraEvent: ["eventHover"]      // 2026/09/29 维护结束后 ~ …
 };
 const p3bTextOf = (v) => (v == null ? "" : String(v));
+// ── 2026-11-09（用户要求）：星塔旅人 活动名去掉尾部「活动说明」的**已批准差异登记** ────────────
+// 源站标题是 `「联合讨伐」活动说明`，「活动说明」是公告体裁不是活动名 ⇒ 外显/悬停/数组标题只写 `「联合讨伐」`。
+// 与上面「悬停相对表述」那张表同一套契约（只登记字段名 / 反向守卫 / 逐字值由 cases-p7 钉住），
+// 差别只在于"变了之后必须**恰好**等于旧值去掉那个尾巴"—— 这里用 `strip` 逐字证明，不是靠人眼看。
+const P3B_EVENT_NAME_TAIL = /[ \t\u00a0\u3000]*活动说明$/;
+const P3B_EVENT_NAME_TRIMMED = { stellasoraEvent: true };
+// 去掉尾巴（悬停是多行：逐行去，别只处理最后一行）
+const p3bStripTail = (v) => p3bTextOf(v).split("\n").map((s) => s.replace(P3B_EVENT_NAME_TAIL, "").trim()).join("\n");
+// 数组条目：title / show 去掉同一个尾巴，其余键原样
+const p3bStripTailArr = (arr) => (arr || []).map((x) => Object.assign({}, x, {
+	title: p3bTextOf(x.title).replace(P3B_EVENT_NAME_TAIL, "").trim(),
+	show: p3bTextOf(x.show).replace(P3B_EVENT_NAME_TAIL, "").trim()
+}));
 // 时间戳只比类型（口径 = 本机时刻，见 README_Dev「已知不等价①」）；值的相等由 ③ 单独守
 // category / tags 批 1：先摘掉 `category` / `tags`（golden 是改造前的产物，没有这两个键，见文件顶部说明）
 const p3bSansTs = (arr) => JSON.stringify(sansCategoryTags(arr).map((x) => {
@@ -847,19 +860,41 @@ async function runP3b() {
 		}
 		const changed = P3B_VISIBLE.filter((f) => p3bTextOf(r.rec[f]) !== p3bTextOf(g.rec[f]));
 		const approved = P3B_HOVER_RAW_CHANGED[p.key] || [];
-		check(`P3b golden（${p.key}）：12 个字符串字段与改造前逐字相同（已登记的相对表述悬停除外）`,
-			changed.every((f) => approved.includes(f)), JSON.stringify(changed));
+		// 活动名去尾（2026-11-09）：只放行 `event` / `eventHover` 两个字符串字段
+		const trimTail = P3B_EVENT_NAME_TRIMMED[p.key] === true;
+		const trimFields = trimTail ? ["event", "eventHover"] : [];
+		check(`P3b golden（${p.key}）：12 个字符串字段与改造前逐字相同（已登记的相对表述悬停 / 活动名去尾除外）`,
+			changed.every((f) => approved.includes(f) || trimFields.includes(f)), JSON.stringify(changed));
 		if (approved.length) {
 			// 已批准差异必须**真的发生**，且是"原文分支"（用产品同一份判据，不另写词表）：
 			// 新值含相对表述、旧值（格式化）不含。
 			check(`P3b golden（${p.key}）：悬停 ${approved.join(" / ")} 是**已批准差异**（相对表述 ⇒ 原文）`,
-				changed.length === approved.length && approved.every((f) => changed.includes(f)
+				approved.every((f) => changed.includes(f)
 					&& T.hoverRawIsRelative(p3bTextOf(r.rec[f])) && !T.hoverRawIsRelative(p3bTextOf(g.rec[f]))),
 				JSON.stringify(approved.map((f) => [f, changed.includes(f), T.hoverRawIsRelative(p3bTextOf(r.rec[f])), T.hoverRawIsRelative(p3bTextOf(g.rec[f]))])));
 		}
+		if (trimTail) {
+			// 逐字证明「只去掉那个尾巴」：
+			//   · `event` 只有一个名字 ⇒ 新值必须**逐字**等于旧值去掉尾巴；
+			//   · `eventHover` 每行是 `名字 + 3 空格 + 档期`，档期那一半另有"相对表述 ⇒ 原文"的已批准差异
+			//     （上面 approved 那段守）⇒ 这里只比**名字**那一半，逐行、逐字。
+			const nameLines = (v) => p3bTextOf(v).split("\n").filter(Boolean)
+				.filter((l) => !/^(\d{4}-)?\d{2}-\d{2} \d{2}:\d{2} ~ /.test(l.trim()))   // 折叠式的最后一行是纯档期
+				.map((l) => l.split(/\s{2,}/)[0].replace(P3B_EVENT_NAME_TAIL, "").trim());
+			check(`P3b golden（${p.key}）**已批准差异**：event / eventHover 只是去掉尾部「活动说明」`,
+				changed.includes("event") && changed.includes("eventHover")
+				&& p3bTextOf(r.rec.event) === p3bStripTail(g.rec.event)
+				&& JSON.stringify(nameLines(r.rec.eventHover)) === JSON.stringify(nameLines(g.rec.eventHover))
+				&& !/活动说明/.test(p3bTextOf(r.rec.event) + "\n" + p3bTextOf(r.rec.eventHover)),
+				JSON.stringify([p3bTextOf(r.rec.event), p3bTextOf(g.rec.event), nameLines(r.rec.eventHover), nameLines(g.rec.eventHover)]));
+		}
 		const arr = r.rec[p.field] || [];
+		// 活动名去尾（2026-11-09）：golden 数组里的 title / show 带「活动说明」⇒ 去掉同一个尾巴后再比，
+		// 其余键（键序 / 顺序 / source / phase）仍然**逐字**不变。
+		// ⚠️ golden 里存的是**已归一 ts 的 JSON 字符串**（见顶部说明）⇒ 先反解、去尾、再序列化回去。
+		const gArr = trimTail ? JSON.stringify(p3bStripTailArr(JSON.parse(g.array))) : g.array;
 		check(`P3b golden（${p.key}）：\`${p.field}\` 非时间字段逐字不变（键序 / 顺序 / source / phase 全等）`,
-			p3bSansTs(arr) === sansCategoryTagsJson(g.array), p3bSansTs(arr));
+			p3bSansTs(arr) === sansCategoryTagsJson(gArr), p3bSansTs(arr));
 		check(`P3b golden（${p.key}）：数组非空（解析器真的直出了，而不是悄悄退回空数组）`,
 			arr.length > 0 || !!p.emptyOk, String(arr.length));
 	}
@@ -892,9 +927,12 @@ async function runP3b() {
 				JSON.stringify(sansCategoryTags(r.rec[other])) === JSON.stringify(sansCategoryTags(oldOther)));
 			continue;
 		}
+		// 活动名去尾（2026-11-09）：旧合成结果里的 title/show 带「活动说明」⇒ 去掉同一个尾巴后再逐条比。
+		// ⚠️ 只动 title / show 两个键，startTs / endTs / raw / source / 顺序**一个都不许变**。
+		const expectArr = P3B_EVENT_NAME_TRIMMED[p.key] === true ? p3bStripTailArr(oldArr) : oldArr;
 		check(`P3b 等价（${p.key}）：\`${p.field}\` 与改造前的合成结果逐条相等（含 ts）`,
-			JSON.stringify(sansCategoryTags(r.rec[p.field])) === JSON.stringify(sansCategoryTags(oldArr)),
-			JSON.stringify([sansCategoryTags(r.rec[p.field]), oldArr]));
+			JSON.stringify(sansCategoryTags(r.rec[p.field])) === JSON.stringify(sansCategoryTags(expectArr)),
+			JSON.stringify([sansCategoryTags(r.rec[p.field]), expectArr]));
 		check(`P3b 等价（${p.key}）：另一侧也不会凭空多出条目`,
 			JSON.stringify(sansCategoryTags(r.rec[other])) === JSON.stringify(sansCategoryTags(oldOther)));
 	}

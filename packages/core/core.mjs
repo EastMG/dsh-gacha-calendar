@@ -15830,6 +15830,8 @@ function ns_stellasora_parseStellaWindows(html, tz = ns_stellasora_STELLA_TZ, an
 // 实测标题形态：
 //   卡池  「空白的稚梦」限时招募开启 / 「沐于温情笑意中」限时招募开启
 //   活动  「猎影合围Beta」活动说明 / 「月华窃梦人」活动说明 / 「联合讨伐」活动说明
+//         ⚠️ 外显与悬停**只写去掉尾部「活动说明」的名字**（`ns_stellasora_stellaEventName`）：
+//            「活动说明」是公告体裁，不是活动名的一部分（2026-11-09 用户要求）。
 //   排除  维护更新说明 / 版本内容一览 / 版本活动一览 / 概率公示
 function ns_stellasora_stellaIsGacha(title) {
 	return /招募/.test(String(title || ""));
@@ -15840,6 +15842,17 @@ function ns_stellasora_stellaIsEvent(title) {
 	if (/维护|更新说明|版本内容|版本活动一览|概率公示|封禁|处罚|问卷/.test(t)) return false;
 	return /活动说明|活动开启|活动一览|活动预告/.test(t) || /活动/.test(t);
 }
+// 活动标题 → 活动名：**只在词尾**去掉「活动说明」四字（前面可能有半角/全角空格）。
+// 源站标题一律是 `「联合讨伐」活动说明`，而「活动说明」是**公告体裁**不是活动名的一部分
+// ⇒ 外显与悬停都只写 `「联合讨伐」`（2026-11-09 用户要求）。
+// ⚠️ 判据钉在**词尾**且要求「活动说明」四字连续，否则会误伤名字里本来就含"说明"的活动：
+//    反例 `「创业激励基金」说明`（尾是「说明」）、`「说明会」活动开场`（"说明"在名字里）—— 一律原样保留。
+// ⚠️ 去完变空（标题只剩「活动说明」）时退回原串，不产空名。
+function ns_stellasora_stellaEventName(title) {
+	const t = String(title == null ? "" : title).trim();
+	return t.replace(/[ \t\u00a0\u3000]*活动说明$/, "").trim() || t;
+}
+
 // 卡池标题 → 干净的卡池名：去掉「限时招募开启」等尾巴
 function ns_stellasora_stellaGachaName(title) {
 	return String(title || "").replace(/(限时|限定)?招募(开启|说明|一览)?[！!。.]?$/, "").trim() || String(title || "").trim();
@@ -15936,9 +15949,11 @@ function ns_stellasora_stellaPoolItems(covering) {
 
 // 活动项：`{ name, startTs, endTs, raw }`。**排序由调用方负责**（hoverEvent 不排序），
 // 这里照本体 sortEventItems 同序：结束时间升序（越快结束越靠前），同结束时间再按开始时间升序。
+// 名称走 `ns_stellasora_stellaEventName`（去掉尾部「活动说明」）—— 与下面外显 `event` 同一个函数，
+// 保证「外显能看到的活动名」在悬停里一定看得到、且逐字相同。
 function ns_stellasora_stellaEventItems(covering) {
 	return covering
-		.map((c) => ({ name: c.row.title, startTs: c.win.startTs, endTs: c.win.endTs, raw: c.win.raw }))
+		.map((c) => ({ name: ns_stellasora_stellaEventName(c.row.title), startTs: c.win.startTs, endTs: c.win.endTs, raw: c.win.raw }))
 		.sort((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs));
 }
 
@@ -15982,9 +15997,9 @@ async function ns_stellasora_eventsStellasora(url, signal, tz = ns_stellasora_ST
 	const eventItems = ns_stellasora_stellaEventItems(covering).map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
 	const hover = hoverTextFromItems(eventItems, "event", tz);
 	const out = {
-		// 外显 = 该公告标题（源站的活动名写法；本次**不改**外显与档期字段的内容）。
-		// 悬停里的名称与它同源同字，故「外显能看到的活动名」在悬停里也一定看得到。
-		event: picked.row.title,
+		// 外显 = 该公告标题**去掉尾部「活动说明」**后的活动名（`「联合讨伐」活动说明` → `「联合讨伐」`）。
+		// 悬停里的名称与它同源（同一个 `ns_stellasora_stellaEventName`），故「外显能看到的活动名」在悬停里一定看得到。
+		event: ns_stellasora_stellaEventName(picked.row.title),
 		eventDates: fmtWindow(picked.win.startTs, picked.win.endTs, tz),
 		eventDatesRaw: picked.win.raw
 	};
