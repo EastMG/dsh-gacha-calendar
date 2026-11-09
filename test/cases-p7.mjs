@@ -9,7 +9,7 @@ import { useFixtures, setFetchImpl, check, section, assertContract } from "./har
 const { sourceWallParts, hoverPool, hoverEvent } = T;
 import { SOURCES_P7 } from "./registry-shim.mjs";
 import { T } from "./load.mjs";
-const { parseStellaList, parseStellaWindow, parseStellaWindows, stellaWindowsFromDetail, stellaIsGacha, stellaIsEvent, stellaGachaName, stellaFeaturedName, gachaStellasora, eventsStellasora, STELLA_TZ } = T.parsers["stellasora"];
+const { parseStellaList, parseStellaWindow, parseStellaWindows, stellaWindowsFromDetail, stellaIsGacha, stellaIsEvent, stellaGachaName, stellaFeatured, stellaFeaturedName, stellaRolesOf, stellaPageUrl, stellaPickOrderOf, STELLA_SCAN_SIZE, STELLA_SCAN_PAGES, gachaStellasora, eventsStellasora, STELLA_TZ } = T.parsers["stellasora"];
 
 const fixture = (name) => JSON.parse(readFileSync(new URL(`./fixtures/${name}/response.txt`, import.meta.url), "utf8"));
 const meta = (name) => JSON.parse(readFileSync(new URL(`./fixtures/${name}/response.txt.meta.json`, import.meta.url), "utf8"));
@@ -20,9 +20,12 @@ const SNAP = Date.parse(meta("p7-stella-notice").capturedAt);
 const SNAP_PARTS = sourceWallParts(SNAP, STELLA_TZ);
 
 // 抓取器会依次请求：列表 + 若干详情。全部登记到夹具映射里。
+// ⚠️ 2026-11-09：列表请求的 `size` 由解析器统一改写为**扫描深度 50**（见 30-game-yostar.js 的
+//    STELLA_SCAN_SIZE 与 stellaPageUrl），所以这里的键必须是 size=50 那一版；
+//    `map.json` 里同一条也指向这份 10-02 夹具（解析器只关心返回了多少行，问 50 拿 20 是合法的）。
 const URLS = {
 	"https://stellasora.yostar.cn/api/resource/news-type": "p7-stella-types/response.txt",
-	"https://stellasora.yostar.cn/api/resource/news?index=1&size=20&type=notice": "p7-stella-notice/response.txt",
+	"https://stellasora.yostar.cn/api/resource/news?index=1&size=50&type=notice": "p7-stella-notice/response.txt",
 	"https://stellasora.yostar.cn/api/resource/news?index=1&size=20&type=activity": "p7-stella-activity/response.txt",
 	"https://stellasora.yostar.cn/api/resource/news/4761": "p7-stella-detail-4761/response.txt",
 	"https://stellasora.yostar.cn/api/resource/news/4760": "p7-stella-detail-4760/response.txt",
@@ -306,7 +309,9 @@ export default async function runP7() {
 		//   ② `「猎影合围Beta」活动说明　`    → 同上（词尾带**全角空格**，也要去掉）
 		//   ③ `「说明会」活动开场`            → **原样**（含"说明"，但不以"活动说明"结尾）
 		//   ④ `「创业激励基金」说明`          → **原样**（尾是「说明」不是「活动说明」；且不算活动）
-		const LIST_U = "https://stellasora.yostar.cn/api/resource/news?index=1&size=20&type=notice";
+		// ⚠️ 2026-11-09：列表地址的 `size` 现在由解析器改写为扫描深度 50（见 stellaPageUrl），
+		// 内存夹具的键必须跟着走，否则会命中 404 —— 这正是下面那条反向证明的接线点。
+		const LIST_U = "https://stellasora.yostar.cn/api/resource/news?index=1&size=50&type=notice";
 		const LIST_U1 = LIST_U + "&case=only-activity-note";      // 只有 ①：验"外显去尾"
 		const LIST_U2 = LIST_U + "&case=trailing-ideographic";    // 只有 ②：验"词尾全角空格也去"
 		const WIN = "<p>▌活动时间<br>2026/10/01 04:00 ~ 2026/10/30 22:59</p>";
@@ -346,8 +351,11 @@ export default async function runP7() {
 		const e2 = await call(LIST_U);
 		check("内存夹具：抓取器不抛错", !!e2 && typeof e2 === "object", JSON.stringify(e2));
 		const names = ((e2 && e2.events) || []).map((x) => x.title);
+		// ⚠️ 2026-11-09（B 项）：两条活动档期完全相同 ⇒ 并列键从「id 倒序」改成「**文档顺序**」
+		// （解析时记住的原始行序：R1「猎影合围Beta」在 R3「说明会」之前）。
+		// 改造前这条钉的是 id 倒序（9103 > 9101 ⇒ 说明会 在前）—— 那是 id 的偶然性，不是口径。
 		check("词尾「活动说明」被去掉 ⇒ 「猎影合围Beta」；含「说明」的「说明会」活动开场原样保留",
-			JSON.stringify(names) === JSON.stringify(["「说明会」活动开场", "「猎影合围Beta」"]), JSON.stringify(names));
+			JSON.stringify(names) === JSON.stringify(["「猎影合围Beta」", "「说明会」活动开场"]), JSON.stringify(names));
 		check("尾是「说明」不是「活动说明」⇒ 不算活动（原样留在列表里，不被改坏）",
 			!names.some((n) => /创业激励基金/.test(n)), JSON.stringify(names));
 		check("外显 / 数组 / 悬停都不再出现「活动说明」",
@@ -363,5 +371,232 @@ export default async function runP7() {
 		const e4 = await call(LIST_U2);
 		check("词尾带**全角空格**也照样去干净（不把空格留在名字里）",
 			!!e4 && e4.event === "「猎影合围Beta」", JSON.stringify(e4 && e4.event));
+	}
+
+	// ─────────────────────────────────────────────────────────
+	section("P7 ⑨ A+B：每池写 roles（秘纹池留空）+ 挑池口径（同窗口优先角色池）+ 扫描深度 50 / 翻页");
+	{
+		// ══════════════════════════════════════════════════════════════════════
+		// A 项：解析器写每池 roles
+		//   旧实现只抓一个 `featured` 名字（悬停「池名：X」用），**从不写 roles**
+		//   ⇒ `50-refresh.js` 的主条只能从 `rec.roles` 反算 ⇒ 恒为空 ⇒ show 永远退回池名，
+		//   而并列条标题里却带着角色（用户看到「主条只有池名、并列条才有角色」）。
+		//   现在：每池条目都带 roles，且**只收角色**（源站「5星旅人」）；秘纹池（「5星秘纹」）留空。
+		// ══════════════════════════════════════════════════════════════════════
+		const fRole = stellaFeatured("<p>活动期间，全新5星旅人「艾蕾」招募概率提升！</p>");
+		check("A：旅人池 → {艾蕾, 旅人}", fRole.name === "艾蕾" && fRole.category === "旅人", JSON.stringify(fRole));
+		check("A：旅人池 → roles =「艾蕾」（角色池写角色名）", stellaRolesOf(fRole) === "艾蕾", JSON.stringify(stellaRolesOf(fRole)));
+		const fPat = stellaFeatured("<p>活动期间，全新5星秘纹「睡前童话」招募概率提升！</p>");
+		check("A：秘纹池 → {睡前童话, 秘纹}", fPat.name === "睡前童话" && fPat.category === "秘纹", JSON.stringify(fPat));
+		check("A：秘纹池 → roles = 空（秘纹不是角色）", stellaRolesOf(fPat) === "", JSON.stringify(stellaRolesOf(fPat)));
+		check("A：4 星行 / 无正文 → roles 空（不臆造）",
+			stellaRolesOf(stellaFeatured("<p>活动期间，4星旅人「师渺」「璟麟」招募概率提升！</p>")) === ""
+			&& stellaRolesOf(stellaFeatured("")) === "");
+		check("A：只有「5星「X」」没有类别词 → roles 空（宁缺勿错）",
+			stellaRolesOf(stellaFeatured("<p>5星「无名」招募概率提升！</p>")) === "");
+		check("A：stellaFeaturedName 仍是同一条正则的那个名字（既有导出行为不变）",
+			stellaFeaturedName("<p>全新5星秘纹「睡前童话」招募概率提升！</p>") === "睡前童话");
+
+		// ── B 项的一半：文档顺序 = 解析时记住的原始行序 ──────────────────────
+		// 旧实现的兜底键是 `row.id` 倒序（id 大者胜 = 谁后发谁上），那是 id 的偶然性，不是"文档顺序"。
+		const orderList = parseStellaList(fixture("p7-stella-notice"));
+		const orderOf = (id) => (orderList.find((x) => x.id === id) || {}).order;
+		check("B：parseStellaList 给每一行发 order（0..n-1，原始行序）",
+			orderList.every((x, i) => typeof x.order === "number" && orderList.filter((y) => y.order === x.order).length === 1)
+			&& Math.min(...orderList.map((x) => x.order)) === 0
+			&& Math.max(...orderList.map((x) => x.order)) === orderList.length - 1,
+			JSON.stringify(orderList.map((x) => x.order).slice(0, 6)));
+		check("B：文档顺序 = 响应里的行序（4761 在 4760 之前；两池同窗口、旧实现却按 id 让 4760 赢）",
+			orderOf(4761) < orderOf(4760), JSON.stringify([orderOf(4761), orderOf(4760)]));
+		check("B：翻页时第 2 页的行序接在第 1 页之后（orderBase 生效，跨页仍是一个全序）",
+			parseStellaList(fixture("p7-stella-notice"), 20).every((x) => x.order >= 20 && x.order < 40));
+
+		// ── B 项的排序键：单测比较函数（与":266"是同一份实现）────────────────
+		const C = (order, startTs, endTs, roles) => ({ row: { order }, win: { startTs, endTs }, roles });
+		check("B：同窗口（起止全等）⇒ 有角色的池在前（哪怕文档序在后）",
+			[C(3, 100, 200, ""), C(4, 100, 200, "火垂")].sort(stellaPickOrderOf)[0].roles === "火垂");
+		check("B：同窗口且都没角色 ⇒ 文档顺序（order 小的在前，不是 id 倒序）",
+			[C(7, 100, 200, ""), C(2, 100, 200, "")].sort(stellaPickOrderOf)[0].row.order === 2);
+		check("B：结束最早仍是第一键（结束早的在前，即使起点更晚）",
+			[C(0, 300, 400, ""), C(1, 100, 500, "")].sort(stellaPickOrderOf)[0].win.endTs === 400);
+		check("B：同结束 ⇒ 起点升序",
+			[C(0, 300, 400, ""), C(1, 100, 400, "")].sort(stellaPickOrderOf)[0].win.startTs === 100);
+		check("B：窗口不同 ⇒ roles **不**插手（不是「有角色就赢」）",
+			[C(5, 100, 400, "火垂"), C(6, 200, 300, "")].sort(stellaPickOrderOf)[0].win.endTs === 300);
+		check("B：没有 win.ts 的行按「无穷远」排最后（null 不参与比较）",
+			[C(0, null, null, ""), C(1, 100, 200, "")].sort(stellaPickOrderOf)[0].win.endTs === 200);
+
+		// ── B 项的另一半：扫描深度 50 + 分页 ────────────────────────────────
+		check("B：扫描深度常量 = 50 条 / 最多 2 页",
+			STELLA_SCAN_SIZE === 50 && STELLA_SCAN_PAGES === 2, `${STELLA_SCAN_SIZE} / ${STELLA_SCAN_PAGES}`);
+		const REG_URL = "https://stellasora.yostar.cn/api/resource/news?index=1&size=20&type=notice";
+		check("B：第 1 页 = size 改写为 50（注册表里那个 size=20 只是地址模板）",
+			stellaPageUrl(REG_URL, 1) === "https://stellasora.yostar.cn/api/resource/news?index=1&size=50&type=notice",
+			stellaPageUrl(REG_URL, 1));
+		check("B：第 2 页 = index=2（接口支持 index/size 分页）",
+			stellaPageUrl(REG_URL, 2) === "https://stellasora.yostar.cn/api/resource/news?index=2&size=50&type=notice",
+			stellaPageUrl(REG_URL, 2));
+		check("B：非星塔主机 ⇒ 第 1 页原样、不翻页（不猜别人的分页参数）",
+			stellaPageUrl("https://example.com/news?size=20", 1) === "https://example.com/news?size=20"
+			&& stellaPageUrl("https://example.com/news?size=20", 2) === null);
+
+		// ══════════════════════════════════════════════════════════════════════
+		// live 2026-11-09 13:30 +08（真联网实抓夹具）：扫描深度 50 之后**有 5 口池在期**
+		//   10-20 那批：星途一载 · 予缘重聚 / 心意凝于剑尖 / 邂逅源初之剑（10-20 17:00 ~ 11-10 10:59）
+		//   10-27 那批：乘光而起的星之砂（角色=火垂）/ 若能触及那片繁星（秘纹=星之所向）
+		//   ⚠️ 旧实现只扫前 20 条 ⇒ 10-20 那三口**根本没被看见**（它们在 #22~#24），
+		//      所以旧口径下外显是「若能触及那片繁星」（10-27 里 startTs 最新 + id 倒序）。
+		//      深度 50 之后按"在期里结束最早"，11-09 该露的是**最快到期**的星途一载（11-10 10:59）；
+		//      10-27 那两口同窗口池的胜负由"优先有角色"决定 —— 这一条在 11-09 的数组与悬停里都能看见。
+		// ══════════════════════════════════════════════════════════════════════
+		const LIVE_LIST = "https://stellasora.yostar.cn/api/resource/news?index=1&size=50&type=notice";
+		const LIVE_IDS = [4982, 4981, 4932, 4931, 4930];
+		const liveMap = () => {
+			const m = { [LIVE_LIST]: "p7-stella-notice-1109/response.txt" };
+			for (const id of LIVE_IDS) m[`https://stellasora.yostar.cn/api/resource/news/${id}`] = `p7-stella-detail-${id}/response.txt`;
+			return m;
+		};
+		const T1109 = Date.parse("2026-11-09T05:30:00.000Z");   // 2026-11-09 13:30 +08
+		const T1112 = Date.parse("2026-11-12T05:30:00.000Z");   // 10-20 那三口已结束（11-10 10:59）
+		const liveList = parseStellaList(fixture("p7-stella-notice-1109"));
+		const liveIdx = (id) => liveList.findIndex((x) => x.id === id);
+		check("live 夹具：50 条整（实抓 size=50）", liveList.length === 50, String(liveList.length));
+		check("live 夹具：两口当期池在 #15/#16（0 基；旧 20 条刚好含住，下一批公告就出界）",
+			liveIdx(4981) === 14 && liveIdx(4982) === 15, JSON.stringify([liveIdx(4981), liveIdx(4982)]));
+
+		useFixtures(liveMap());
+		let liveG = null, liveErr = "";
+		try { liveG = await gachaStellasora(LIVE_LIST, undefined, STELLA_TZ, T1109); } catch (e) { liveErr = e.message; }
+		check("live 11-09：卡池抓取器不抛错", liveErr === "", liveErr);
+		check("live 11-09：外显 = 在期里**结束最早**的那口「星途一载 · 予缘重聚」（11-10 10:59 到期）",
+			!!liveG && liveG.banner === "「星途一载 · 予缘重聚」", JSON.stringify(liveG && liveG.banner));
+		check("live 11-09：那口池的公告没有 5 星行 ⇒ roles 空、show 退回池名",
+			!!liveG && liveG.roles === "" && liveG.gacha[0].show === "「星途一载 · 予缘重聚」",
+			JSON.stringify(liveG && [liveG.roles, liveG.gacha[0] && liveG.gacha[0].show]));
+		const titles1109 = ((liveG && liveG.gacha) || []).map((x) => x.title);
+		const iRole = titles1109.findIndex((t) => t.indexOf("「乘光而起的星之砂」") === 0);
+		const iPat = titles1109.findIndex((t) => t.indexOf("「若能触及那片繁星」") === 0);
+		check("live 11-09：同窗口的两口池都在数组里（角色池 + 秘纹池）", iRole >= 0 && iPat >= 0, JSON.stringify(titles1109));
+		check("live 11-09：同窗口 ⇒ 角色池排在秘纹池**之前**（旧实现 id 倒序 ⇒ 若能 在前）",
+			iRole < iPat, JSON.stringify([iRole, iPat]));
+		const hover1109 = String((liveG && liveG.bannerHover) || "").split("\n");
+		const hRole = hover1109.indexOf("「乘光而起的星之砂」：火垂");
+		const hPat = hover1109.indexOf("「若能触及那片繁星」：星之所向");
+		check("live 11-09：悬停里同一对也是角色池在前（悬停行序 = 数组序）",
+			hRole >= 0 && hPat >= 0 && hRole < hPat, JSON.stringify(hover1109));
+		check("live 11-09：悬停 = 5 口池 × 2 行（池名行 + 档期行）、无元信息；首行是那口没有 UP 的池名",
+			hover1109.length === 10 && hover1109[0] === "「星途一载 · 予缘重聚」"
+			&& hover1109.filter((s, i) => i % 2 === 1).every((s) => / ~ /.test(s))
+			&& hover1109.slice(2).filter((s, i) => i % 2 === 0).every((s) => /^「[^」]+」：.+$/.test(s))
+			&& !/来源|http|tz=|UTC|Asia\/|推定|推断|共扫描|内部/.test(String(liveG && liveG.bannerHover)),
+			JSON.stringify(hover1109));
+
+		// ── 10-20 那三口结束后（11-12）：外显必须是**角色池**，roles / show / 悬停逐字对 ──
+		useFixtures(liveMap());
+		let liveG2 = null, liveErr2 = "";
+		try { liveG2 = await gachaStellasora(LIVE_LIST, undefined, STELLA_TZ, T1112); } catch (e) { liveErr2 = e.message; }
+		check("live 11-12：卡池抓取器不抛错", liveErr2 === "", liveErr2);
+		check("live 11-12：外显 = 角色池「乘光而起的星之砂」",
+			!!liveG2 && liveG2.banner === "「乘光而起的星之砂」", JSON.stringify(liveG2 && liveG2.banner));
+		check("live 11-12：载荷 roles = 火垂（A 项：解析器写，不再靠 rec.roles 反算）",
+			!!liveG2 && liveG2.roles === "火垂", JSON.stringify(liveG2 && liveG2.roles));
+		check("live 11-12：gacha[0].roles = [火垂] 且 show = 火垂（角色池显示角色名）",
+			!!liveG2 && liveG2.gacha[0].roles.join(",") === "火垂" && liveG2.gacha[0].show === "火垂",
+			JSON.stringify(liveG2 && [liveG2.gacha[0].roles, liveG2.gacha[0].show]));
+		check("live 11-12：gacha[0].title 仍是**池名**（title=池名 / show=角色，分工不变）",
+			!!liveG2 && liveG2.gacha[0].title === "「乘光而起的星之砂」", JSON.stringify(liveG2 && liveG2.gacha[0].title));
+		check("live 11-12：秘纹池作并列条、roles 为空（秘纹不是角色）",
+			!!liveG2 && liveG2.gacha[1] && liveG2.gacha[1].title === "「若能触及那片繁星」：星之所向"
+			&& liveG2.gacha[1].roles.length === 0, JSON.stringify(liveG2 && liveG2.gacha[1]));
+		check("live 11-12：悬停 = 同名同窗折叠（2 行名字 + 1 行档期），首行就是外显那口池",
+			!!liveG2 && liveG2.bannerHover === "「乘光而起的星之砂」：火垂\n「若能触及那片繁星」：星之所向\n10-27 12:00 ~ 11-17 10:59",
+			JSON.stringify(liveG2 && liveG2.bannerHover));
+		check("live 11-12：窗口 = 10-27 12:00 ~ 11-17 10:59",
+			!!liveG2 && liveG2.bannerDates === "10-27 12:00 ~ 11-17 10:59", JSON.stringify(liveG2 && liveG2.bannerDates));
+
+		// ══════════════════════════════════════════════════════════════════════
+		// 扫描深度 / 翻页的**反向证明接线点**：下面用"会真分页的虚拟接口"把两口池推到更靠后。
+		//   · 压 20 条新公告 ⇒ 两池落到 #35/#36（0 基）——`STELLA_SCAN_SIZE` 退回 20 必红；
+		//   · 压 60 条 ⇒ 两池落到第 2 页（#75/#76）——只翻 1 页必红；
+		//   · 压 110 条 ⇒ 两池落到第 3 页 —— "最多 2 页"的守卫（必须如实 null，而不是无限翻）。
+		// ══════════════════════════════════════════════════════════════════════
+		const LIST_PREFIX = "https://stellasora.yostar.cn/api/resource/news?index=";
+		const liveRows = fixture("p7-stella-notice-1109").data.rows;
+		const padRows = (n) => Array.from({ length: n }, (_, i) => ({
+			id: 7000 + i,
+			title: `「压测活动${i + 1}」活动说明`,
+			publishTime: Date.parse("2026-11-10T04:00:00.000Z") - i * 60000,
+			type: "notice",
+			typeLabel: "公告"
+		}));
+		const makeVirtualList = (rows, log) => async (url) => {
+			const u = String(url);
+			const isProxy = u.startsWith("/api/gacha-calendar-proxy");
+			let target = u;
+			if (isProxy) { try { target = new URL("http://x" + u).searchParams.get("url") || u; } catch { /* keep */ } }
+			log.push(target);
+			let body = null;
+			if (target.startsWith(LIST_PREFIX)) {
+				const q = new URL(target);
+				const size = Number(q.searchParams.get("size") || 20);
+				const page = Number(q.searchParams.get("index") || 1);
+				body = JSON.stringify({ code: 0, data: { count: rows.length, rows: rows.slice((page - 1) * size, page * size) } });
+			} else {
+				const m = /\/api\/resource\/news\/(\d+)$/.exec(target);
+				if (m && LIVE_IDS.indexOf(Number(m[1])) >= 0) body = raw(`p7-stella-detail-${m[1]}`);
+			}
+			if (body == null) return { ok: false, status: 404, headers: { get: () => null }, text: async () => "", json: async () => ({}) };
+			if (isProxy) {
+				const p = JSON.stringify({ status: 200, body });
+				return { ok: true, status: 200, headers: { get: () => "application/json" }, text: async () => p, json: async () => JSON.parse(p) };
+			}
+			return { ok: true, status: 200, headers: { get: () => "text/html" }, text: async () => body, json: async () => JSON.parse(body) };
+		};
+		const runVirtual = async (rows) => {
+			const log = [];
+			setFetchImpl(makeVirtualList(rows, log));
+			let got = null;
+			try { got = await gachaStellasora(LIVE_LIST, undefined, STELLA_TZ, T1112); } catch (e) { got = "ERR:" + e.message; }
+			const listPages = log.filter((u) => u.startsWith(LIST_PREFIX)).length;
+			return { got, listPages, log };
+		};
+		const deep = await runVirtual(padRows(20).concat(liveRows));
+		check("扫描深度：两口池被 20 条新公告压到 #35/#36（0 基）后**仍然出得来**（旧 20 条实现 = null）",
+			!!deep.got && typeof deep.got === "object" && deep.got.banner === "「乘光而起的星之砂」" && deep.got.roles === "火垂",
+			JSON.stringify(deep.got && (deep.got.banner || deep.got)));
+		check("扫描深度：这一页已经有「上一期已结束」的档期（10-20 那批）⇒ 只请求 1 页",
+			deep.listPages === 1, String(deep.listPages));
+		const page2 = await runVirtual(padRows(60).concat(liveRows));
+		check("翻页：两口池落在第 2 页（#75/#76）时也能出（第 1 页全是非招募公告）",
+			!!page2.got && typeof page2.got === "object" && page2.got.banner === "「乘光而起的星之砂」",
+			JSON.stringify(page2.got && (page2.got.banner || page2.got)));
+		check("翻页：确实翻了第 2 页（index=1 → index=2，共 2 次列表请求）",
+			page2.listPages === 2 && page2.log.some((u) => /[?&]index=2[&]/.test(u)), JSON.stringify(page2.log.filter((u) => u.startsWith(LIST_PREFIX))));
+		const page3 = await runVirtual(padRows(110).concat(liveRows));
+		check("翻页上限：池子要到第 3 页才出现 ⇒ 最多 2 页、如实 null（不无限翻）",
+			page3.got === null && page3.listPages === 2, JSON.stringify(page3.got && page3.got));
+
+		// ══════════════════════════════════════════════════════════════════════
+		// C 项（「维护结束后」的起点 = 该公告 publishTime）**本任务不修**，行为必须与改造前一致
+		// ══════════════════════════════════════════════════════════════════════
+		useFixtures(URLS);
+		let snapG = null, snapErr = "";
+		try { snapG = await gachaStellasora("https://stellasora.yostar.cn/api/resource/news?index=1&size=50&type=notice", undefined, STELLA_TZ, SNAP); } catch (e) { snapErr = e.message; }
+		check("C 项：10-02 夹具下抓取器不抛错", snapErr === "", snapErr);
+		check("C 项：外显 = 起点更早的那口「空白的稚梦」（两池起点差 847ms ⇒ 不是「同一窗口」，按通用键选最早开始）",
+			!!snapG && snapG.banner === "「空白的稚梦」", JSON.stringify(snapG && snapG.banner));
+		check("C 项：「维护结束后」的起点仍**等于该公告 publishTime**（锚点偏早是已知偏差，本任务不修也不掩盖）",
+			!!snapG && snapG.startTs === fixture("p7-stella-detail-4761").data.news.publishTime
+			&& /维护结束后/.test(snapG.bannerDatesRaw),
+			JSON.stringify(snapG && [snapG.startTs, fixture("p7-stella-detail-4761").data.news.publishTime, snapG.bannerDatesRaw]));
+		check("C 项：起点墙钟仍是 09-29 17:00（锚点=发布时刻，不是当日 00:00 / 维护时刻）",
+			!!snapG && (() => { const a = sourceWallParts(snapG.startTs, STELLA_TZ); return a.mo === 9 && a.d === 29 && a.h === 17 && a.mi === 0; })(),
+			JSON.stringify(snapG && sourceWallParts(snapG.startTs, STELLA_TZ)));
+		check("C 项：这口秘纹池 ⇒ roles 空、show 退回池名（秘纹不是角色）",
+			!!snapG && snapG.roles === "" && snapG.gacha[0].show === "「空白的稚梦」",
+			JSON.stringify(snapG && [snapG.roles, snapG.gacha[0] && snapG.gacha[0].show]));
+		check("C 项：外显那口池 = 悬停首行（改造前外显「沐于」、悬停首行「空白的」——正好相反）",
+			!!snapG && String(snapG.bannerHover).split("\n")[0] === "「空白的稚梦」：睡前童话",
+			JSON.stringify(snapG && snapG.bannerHover));
 	}
 }

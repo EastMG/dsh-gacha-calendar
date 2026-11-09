@@ -116,5 +116,6 @@
   "https://wqmt.aisnogames.com/api/news/2121": "wqmt-news-2121/response.txt",
   "https://wqmt.aisnogames.com/api/news/2118": "wqmt-news-2118/response.txt",
   "https://wqmt.aisnogames.com/api/news/2117": "wqmt-news-2117/response.txt",
-  "https://wqmt.aisnogames.com/api/news/2099": "wqmt-news-2099/response.txt"
+  "https://wqmt.aisnogames.com/api/news/2099": "wqmt-news-2099/response.txt",
+  "https://stellasora.yostar.cn/api/resource/news?index=1&size=50&type=notice": "p7-stella-notice/response.txt"
 }

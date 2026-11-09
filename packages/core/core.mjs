@@ -15739,11 +15739,35 @@ async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = now
 const ns_stellasora_STELLA_BASE = "https://stellasora.yostar.cn";
 const ns_stellasora_STELLA_TZ = "Asia/Shanghai";   // 推测：源站未标注，但 04:00 日切与国服一致
 
-function ns_stellasora_stellaListUrl(type = "notice", size = 20, index = 1) {
+// ── 列表扫描深度（2026-11-09 修 P1）──
+// 旧实现只扫列表**前 20 条**。live 11-09 实测：当期两口池（「乘光而起的星之砂」角色池 /
+// 「若能触及那片繁星」秘纹池）已掉到原始行序 #16/#17（0 基 #15/#16）—— 11-10 那批公告一到
+// 就会被挤出前 20 ⇒ `gacha` 整条变 null（"卡池会整条消失"）。
+// 现在：一页 **50 条**，且**只在还没扫到"上一期已结束"时才翻第 2 页**（见 collectStellaSide），
+// 最多 2 页 —— 接口支持 index/size 分页，但不无限翻。
+const ns_stellasora_STELLA_SCAN_SIZE = 50;
+const ns_stellasora_STELLA_SCAN_PAGES = 2;
+
+function ns_stellasora_stellaListUrl(type = "notice", size = ns_stellasora_STELLA_SCAN_SIZE, index = 1) {
 	return `${ns_stellasora_STELLA_BASE}/api/resource/news?index=${index}&size=${size}&type=${type}`;
 }
 function ns_stellasora_stellaDetailUrl(id) {
 	return `${ns_stellasora_STELLA_BASE}/api/resource/news/${id}`;
+}
+
+// 列表第 index 页的地址。
+// ⚠️ 为什么在这里改写 `size` 而不是改注册表里的 URL：`src` 的 url 是**用户可在设置页改的源地址**
+//    （历史值是 size=20），但"扫多深"是解析器的实现口径 —— 用户把地址改回 size=20 不该让挑池
+//    静默退回旧深度。所以 size 一律由本解析器钉死为 SCAN_SIZE，index 跟着翻页走。
+// ⚠️ 只改写星塔自家 API（yostar.cn）：自定义成别的地址时第 1 页原样用、也不翻页（不猜别人的分页参数）。
+function ns_stellasora_stellaPageUrl(url, index) {
+	const raw = String(url || "");
+	let parsed = null;
+	try { parsed = new URL(raw); } catch { return index === 1 ? raw : null; }
+	if (!/(^|\.)yostar\.cn$/i.test(parsed.hostname)) return index === 1 ? raw : null;
+	parsed.searchParams.set("size", String(ns_stellasora_STELLA_SCAN_SIZE));
+	parsed.searchParams.set("index", String(index));
+	return parsed.toString();
 }
 
 // ── 正文 → 纯文本（保留 `<br>` 换行；档期是 `<br>` 分隔的，不能直接压成空格）──
@@ -15893,65 +15917,147 @@ function ns_stellasora_stellaGachaName(title) {
 	return String(title || "").replace(/(限时|限定)?招募(开启|说明|一览)?[！!。.]?$/, "").trim() || String(title || "").trim();
 }
 
-// 卡池正文 → 该池的 UP 角色/秘纹名（悬停里「池名：角色」的右半边）。
+// 卡池正文 → 该池 UP 主推的「名字 + 类别词」（悬停「池名：X」的右半边 / 角色池的 roles）。
 // 实测形态（详情首段，**招募说明**里紧跟其后）：
-//   「…全新5星旅人「艾蕾」招募概率提升！」          → 艾蕾
-//   「…全新5星秘纹「睡前童话」招募概率提升！」      → 睡前童话
+//   「…全新5星旅人「艾蕾」招募概率提升！」          → { name: 艾蕾,  category: 旅人 }
+//   「…全新5星秘纹「睡前童话」招募概率提升！」      → { name: 睡前童话, category: 秘纹 }
 // 只取**首个**匹配（4 星行一定写在 5 星行之后，如「活动期间，4星旅人「师渺」「璟麟」…」）；
-// 抓不到就返回 ""，悬停行退回只写池名 —— 与本体 `label = banner + (roles ? "：" + roles : "")` 同构，
-// **绝不臆造**一个角色名。
-const ns_stellasora_STELLA_NEW_FIVE_STAR_RE = /全新\s*5\s*星[^「」]{0,8}「([^「」]{1,24})」/;
-const ns_stellasora_STELLA_FIVE_STAR_RE = /5\s*星[^「」]{0,8}「([^「」]{1,24})」/;
-function ns_stellasora_stellaFeaturedName(html) {
+// 抓不到就返回 `{ name: "", category: "" }`，悬停行退回只写池名 —— 与本体
+// `label = banner + (roles ? "：" + roles : "")` 同构，**绝不臆造**一个角色名。
+//
+// ⚠️ 2026-11-09（A 项）：源站的 5 星名字**不都是角色** —— 秘纹池给的是秘纹名（星之所向 / 睡前童话）。
+//    所以这里比旧版多捕获一个**类别词**（`旅人` / `秘纹`），由 `stellaRolesOf` 决定要不要写进 roles。
+//    悬停仍用 `name`（秘纹池照旧显示秘纹名：`「空白的稚梦」：睡前童话`，这是既有口径、本任务不改）。
+const ns_stellasora_STELLA_NEW_FIVE_STAR_RE = /全新\s*5\s*星([^「」]{0,8})「([^「」]{1,24})」/;
+const ns_stellasora_STELLA_FIVE_STAR_RE = /5\s*星([^「」]{0,8})「([^「」]{1,24})」/;
+function ns_stellasora_stellaFeatured(html) {
 	const t = ns_stellasora_brText(html);
 	const m = ns_stellasora_STELLA_NEW_FIVE_STAR_RE.exec(t) || ns_stellasora_STELLA_FIVE_STAR_RE.exec(t);
-	return m ? m[1].trim() : "";
+	return m ? { name: m[2].trim(), category: m[1].trim() } : { name: "", category: "" };
+}
+function ns_stellasora_stellaFeaturedName(html) {
+	return ns_stellasora_stellaFeatured(html).name;
+}
+// UP 是不是**角色**：源站把角色池写成「5星旅人」、秘纹池写成「5星秘纹」。
+// 正判据（必须命中「旅人」）而不是"排除秘纹"：以后源站多出别的类别词时，
+// 宁可**不写** roles（外显退回池名），也不要塞一个不是角色的名字进去。
+function ns_stellasora_stellaRolesOf(featured) {
+	const f = featured || {};
+	return /旅人/.test(f.category || "") ? (f.name || "") : "";
 }
 
 // ── 列表解析 ──
-function ns_stellasora_parseStellaList(json) {
+// `order` = **解析时记住的原始行序**（这一段响应里的第几行，0 基）。挑池的最后一档排序键用它 ——
+// 旧实现拿 `row.id` 倒序当兜底（= 谁后发谁上），那是 id 的偶然性，不是"文档顺序"。
+// 翻页时调用方传入 `orderBase`，让第 2 页的行序接在第 1 页后面（跨页仍是一个全序）。
+function ns_stellasora_parseStellaList(json, orderBase = 0) {
 	if (!json || json.code !== 0 || !json.data || !Array.isArray(json.data.rows)) throw new Error("stella-bad-json");
 	return json.data.rows
 		.filter((x) => x && x.id != null)
-		.map((x) => ({
+		.map((x, i) => ({
 			id: x.id,
 			title: decodeEntities(String(x.title || "")).trim(),
 			publishTs: typeof x.publishTime === "number" ? x.publishTime : null,
 			type: x.type || "",
 			typeLabel: x.typeLabel || "",
-			url: x.link || ""
+			url: x.link || "",
+			order: orderBase + i
 		}))
 		.sort((a, b) => (b.publishTs || 0) - (a.publishTs || 0));
 }
 
+// ── 卡池挑池的排序键（**全仓通用口径** + 星塔唯一一条特例）──────────────────────
+// 通用口径（与 `50-refresh.js` 的 `dataArraySortOf`、`81-schedule-model.js` 的 `sideViewOf`、
+// `26-parser-hover.js` 的 `poolHoverOrderOf` **同一个键**）：
+//     在期里「结束最早」→「起点升序」→「文档顺序」
+//   · 结束最早：越快结束越该被盯住；
+//   · 起点升序：同一结束时间里先开始的那池已经开着了（不是"下一个"）；
+//   · 文档顺序：两键全等时按解析时的**原始行序**（`row.order`），不是 id 倒序。
+//     ⚠️ 旧实现就是 `b.row.id - a.row.id`（id 大者胜 = 谁后发谁上），这正是 P0 的根因之一。
+//
+// 星塔特例（插在"起点也相同"之后、"文档顺序"之前）：**窗口完全相同时优先"有角色的池"**。
+//   为什么必须特例：源站把「角色池」和「秘纹池」写成**同一段档期**（live 11-09 实测：
+//   「乘光而起的星之砂」角色池 = 火垂 与「若能触及那片繁星」秘纹池 = 星之所向，
+//   两池都是 `2026/10/27 12:00 ~ 2026/11/17 10:59`，绝对时刻逐毫秒相同）。
+//   此时"结束/起点"两键全等 ⇒ 只剩文档顺序能分胜负，而文档顺序 = 谁先发谁上 ⇒
+//   一个**秘纹池**会顶掉角色池当外显、角色池被挤成并列条（用户看到的正是这一条）。
+//   窗口全等 ⇒ 两池对用户就是"同一期"，这一期该露的是**带角色的**那口：角色池有角色名，
+//   秘纹池只有池名，信息量严格更大。**窗口不等时不插手** —— 那样的两池是不同的一期，
+//   "结束最早 → 起点升序"仍是唯一口径（10-02 夹具就是这种：两池起点因 C 项的锚点偏差
+//   相差 847ms，故按通用口径选早开始的那池，与悬停首行一致）。
+function ns_stellasora_stellaPickOrderOf(a, b) {
+	const ea = a.win.endTs == null ? Infinity : a.win.endTs;
+	const eb = b.win.endTs == null ? Infinity : b.win.endTs;
+	if (ea !== eb) return ea - eb;
+	const sa = a.win.startTs == null ? Infinity : a.win.startTs;
+	const sb = b.win.startTs == null ? Infinity : b.win.startTs;
+	if (sa !== sb) return sa - sb;
+	const ra = a.roles ? 1 : 0;
+	const rb = b.roles ? 1 : 0;
+	if (ra !== rb) return rb - ra;   // 有角色的池在前
+	return (a.row.order == null ? 0 : a.row.order) - (b.row.order == null ? 0 : b.row.order);
+}
+
+// 「扫到上一期了」：本页里出现**已经结束**的档期（`endTs < now`）。
+// 列表按发布时间倒序 ⇒ 再往后只会更早，没必要继续翻页。这是"翻页直到覆盖到上一期已结束"的判据。
+function ns_stellasora_seenEndedPeriod(candidates, now) {
+	return candidates.some((c) => c.win.endTs != null && c.win.endTs < now);
+}
+
 // ── 抓详情并按标题分流，选出「覆盖 now」的条目 ──
 // side: "gacha" | "event"
-// 返回 { entry, win, candidates } 或 null
+// 返回 { picked, covering } 或 null
 async function ns_stellasora_collectStellaSide(url, signal, tz, now, side) {
-	const listUrl = url || ns_stellasora_stellaListUrl("notice");
-	const list = ns_stellasora_parseStellaList(await fetchJson(listUrl, { signal, mode: "proxy" }));
 	const want = side === "gacha" ? ns_stellasora_stellaIsGacha : ns_stellasora_stellaIsEvent;
 	const candidates = [];
-	// 列表按时间倒序；只扫前若干条，每篇抓一次详情
-	for (const row of list.slice(0, 20)) {
-		if (!want(row.title)) continue;
-		let detail = null;
+	const seenIds = new Set();
+	const baseUrl = url || ns_stellasora_stellaListUrl("notice", ns_stellasora_STELLA_SCAN_SIZE, 1);
+	let orderBase = 0;
+	// 逐页扫（一页 SCAN_SIZE 条）：列表按发布时间倒序，每篇抓一次详情。
+	// 翻页条件见文件头的 SCAN_SIZE 说明：**只在还没扫到"上一期已结束"时**才翻，最多 SCAN_PAGES 页。
+	for (let page = 1; page <= ns_stellasora_STELLA_SCAN_PAGES; page++) {
+		const pageUrl = ns_stellasora_stellaPageUrl(baseUrl, page);
+		if (!pageUrl) break;
+		let json = null;
 		try {
-			const dj = await fetchJson(ns_stellasora_stellaDetailUrl(row.id), { signal, mode: "proxy" });
-			detail = dj && dj.code === 0 && dj.data && dj.data.news ? dj.data.news : null;
-		} catch { continue; }   // 单篇失败不拖垮整体
-		if (!detail) continue;
-		const anchorTs = row.publishTs != null ? row.publishTs : null;
-		const wins = ns_stellasora_parseStellaWindows(detail.content, tz, anchorTs);
-		// featured：该篇正文里的 UP 主推（卡池悬停「池名：角色」用；活动侧不用）
-		const featured = ns_stellasora_stellaFeaturedName(detail.content);
-		for (const w of wins) candidates.push({ row, win: w, featured });
+			json = await fetchJson(pageUrl, { signal, mode: "proxy" });
+		} catch (e) {
+			if (page === 1) throw e;   // 第 1 页失败 = 这一侧失败（与旧行为一致）
+			break;                     // 第 2 页失败不拖垮整体：用第 1 页的结果说话
+		}
+		const list = ns_stellasora_parseStellaList(json, orderBase);
+		orderBase += list.length;
+		if (list.length === 0) break;
+		for (const row of list) {
+			if (seenIds.has(row.id)) continue;   // 两页之间理论上不重叠，防一手
+			seenIds.add(row.id);
+			if (!want(row.title)) continue;
+			let detail = null;
+			try {
+				const dj = await fetchJson(ns_stellasora_stellaDetailUrl(row.id), { signal, mode: "proxy" });
+				detail = dj && dj.code === 0 && dj.data && dj.data.news ? dj.data.news : null;
+			} catch { continue; }   // 单篇失败不拖垮整体
+			if (!detail) continue;
+			const anchorTs = row.publishTs != null ? row.publishTs : null;
+			const wins = ns_stellasora_parseStellaWindows(detail.content, tz, anchorTs);
+			// featured：该篇正文里的 UP 主推（悬停「池名：X」用；活动侧不用）
+			const feat = ns_stellasora_stellaFeatured(detail.content);
+			const featured = feat.name;
+			// roles：**该池的 UP 角色**（A 项）。秘纹池留空 —— 它的 UP 是秘纹不是角色；
+			// 见 ns_stellasora_stellaRolesOf。活动侧一律不写。
+			const roles = side === "gacha" ? ns_stellasora_stellaRolesOf(feat) : "";
+			for (const w of wins) candidates.push({ row, win: w, featured, roles });
+		}
+		if (ns_stellasora_seenEndedPeriod(candidates, now)) break;   // 已经扫到上一期 ⇒ 不再翻页
 	}
 	if (candidates.length === 0) return null;
-	// 覆盖 now 的里，取「起点最新」的那条（并列时取终点更晚的）
+	// 覆盖 now 的里，取「结束最早 → 起点升序 → （同窗口：有角色的池优先）→ 文档顺序」的那条（B 项）。
+	// 活动侧的挑法是既有口径（起点最新，并列时终点更晚），本任务不动它；只把 id 倒序换成文档顺序。
 	const covering = candidates.filter((c) => coversNow(c.win, now));
 	if (covering.length === 0) return null;
-	covering.sort((a, b) => (b.win.startTs - a.win.startTs) || (b.win.endTs - a.win.endTs) || (b.row.id - a.row.id));
+	if (side === "gacha") covering.sort(ns_stellasora_stellaPickOrderOf);
+	else covering.sort((a, b) => (b.win.startTs - a.win.startTs) || (b.win.endTs - a.win.endTs)
+		|| ((a.row.order == null ? 0 : a.row.order) - (b.row.order == null ? 0 : b.row.order)));
 	return { picked: covering[0], covering };
 }
 
@@ -15966,15 +16072,18 @@ async function ns_stellasora_collectStellaSide(url, signal, tz, now, side) {
 //   ③ `startInferred` 的**判定逻辑原样保留**（「维护结束后」→ 用该公告 publishTime 当锚点，
 //      不硬造时刻）；变的只是"不再把它写成悬停文案"。
 //
-// 卡池池项：`{ name, label, startTs, endTs, raw }`。
+// 卡池池项：`{ name, label, roles, startTs, endTs, raw }`。
 //   name  = 池名（与面板外显 `banner` 同一个字符串）
-//   label = 「池名：角色」（角色抓不到就 = 池名）—— 与本体 `label = banner + (roles ? "：" + roles : "")` 同构
+//   label = 「池名：UP」（UP 抓不到就 = 池名）—— 与本体 `label = banner + (roles ? "：" + roles : "")` 同构
+//   roles = 该池的 UP **角色**名（A 项；秘纹池为 ""）。**每个池条目都写**，不再让主条靠
+//           `50-refresh.js` 从 `rec.roles` 反算——那条路在解析器不写 roles 时必然回退成池名（P0）。
 function ns_stellasora_stellaPoolItems(covering) {
 	return covering.map((c) => {
 		const name = ns_stellasora_stellaGachaName(c.row.title);
 		return {
 			name,
 			label: c.featured ? `${name}：${c.featured}` : name,
+			roles: c.roles || "",
 			startTs: c.win.startTs,
 			endTs: c.win.endTs,
 			raw: c.win.raw
@@ -16001,13 +16110,20 @@ async function ns_stellasora_gachaStellasora(url, signal, tz = ns_stellasora_STE
 	//    50-refresh 的 `pickFields(g.data, GACHA_FIELDS)` 也只留 bannerHover）——
 	//    旧实现写的是 `eventHover`，运行时被丢弃 = 卡池悬停**根本没生效**。
 	// ── P3b：条目事实 → 悬停 + `gacha` 数组（排序与 hoverPool 同一份：结束时间升序）──
+	// ⚠️ 2026-11-09（A 项）：条目带上每池的 `roles`。`dataArrayProducedGachaOf` 的主条走
+	//    `dataArrayGachaMainOf(rec)`，它读的是载荷上的 `roles` 字符串（`out.roles`，下面已写）——
+	//    旧实现不写载荷 `roles` ⇒ 主条 `roles: []`、`show` 永远退回池名（P0 的另一半）。
 	const gachaItems = ns_stellasora_stellaPoolItems(covering)
 		.filter((p) => p.name)
 		.sort(poolHoverOrderOf)
-		.map((p) => ({ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw }));
+		.map((p) => ({ title: p.label || p.name, label: p.label || p.name, roles: p.roles || "", startTs: p.startTs, endTs: p.endTs, raw: p.raw }));
 	const hover = hoverTextFromItems(gachaItems, "gacha", tz);
 	const out = {
 		banner: ns_stellasora_stellaGachaName(picked.row.title),
+		// 主条的角色 = **被选中那口池**的 UP 角色（A 项：由解析器写，秘纹池为 ""）。
+		// `50-refresh.js` 的 `dataArrayGachaMainOf` 据此算 `roles` 与 `show`：
+		// 有角色 ⇒ show = 去修饰的角色名；没有（秘纹池）⇒ show = 池名。与本体 `cleanRoleNames` 同口径。
+		roles: picked.roles || "",
 		bannerDates: fmtWindow(picked.win.startTs, picked.win.endTs, tz),
 		bannerDatesRaw: picked.win.raw,
 		startTs: picked.win.startTs,
