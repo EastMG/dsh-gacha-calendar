@@ -555,5 +555,14 @@ export default async function run() {
 		}
 		check("数组元素之间没有漏逗号（`] })` 后直接跟 jsx 调用会被解析成函数调用）", bad.length === 0, bad.join(", "));
 	}
+	// ── 设置页导航图标（2026-11-09 DSH 更新后）：必须走官方槽位 `settings.section.icon` ──
+	// 旧写法是 MutationObserver 直改 DOM（齿轮→日历）；新版导航结构变了
+	// （第一个 span 是图标容器、文本为空）⇒ 旧判据失效、图标丢失（真机发现）。
+	{
+		const src = readFileSync(path.join(SRC, "90-plugin.js"), "utf8");
+		check("设置页导航图标注册了 `settings.section.icon` 槽位", /name:\s*"settings\.section\.icon"/.test(src));
+		check("图标槽位的 id 与设置分区 id 一致（gacha-calendar）", /name:\s*"settings\.section\.icon"[\s\S]{0,240}?id:\s*"gacha-calendar"/.test(src));
+		check("DOM 兜底仅在槽位不可用时生效（if (!navIconBySlot)）", /if \(!navIconBySlot\) ctx\.effect\(/.test(src));
+	}
 
 }
