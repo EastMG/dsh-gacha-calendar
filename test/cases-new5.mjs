@@ -19,7 +19,8 @@
 //      逐字值，并单独钉住"当前时刻没有在期池 ⇒ 返回 null（未公布，不是失败）"。
 //      （活动侧的新用例在 `test/cases-pengpeng-event.mjs`，不混在这里。）
 //   ⑤ **「未配置」路径**（现在只剩 `cytq`）：不抓取、不抛错、不产生 fail；自检里算 `unconfigured`
-//      而**不是** `down`；面板那一格派生不出条目（⇒ 写「该来源无数据」），所以底部失败横条也不会出现。
+//      而**不是** `down`；面板那一格派生不出条目（⇒ 写「该来源无数据」），所以也不会进刷新横幅的悬停明细
+//      （2026-11-10 起失败信息不再单独占一条横条，已并入底栏刷新横幅的悬停）。
 //
 // ⚠️ 时间断言一律写**绝对毫秒**（`Date.UTC(...)` 手算，不用 `sourceInstant` 自证）：
 //    这样 `TZ=UTC` 与 `TZ=Asia/Shanghai` 两道门禁跑的是同一份期望值 —— 谁把源站墙钟按本机时区
@@ -506,12 +507,12 @@ export default async function run() {
 		check("自检期间**一个请求都没发**（未配置的条目连 net 都不碰）",
 			calls.length === 0, JSON.stringify(calls));
 
-		// (c) 面板那一格：派生不出条目 ⇒ 写「该来源无数据」（灰底），因此**没有**失败横条
-		//     （82-schedule-view.js 的横条判据是 isDown(gachaFail|eventFail)，这里两者都是 null）
+		// (c) 面板那一格：派生不出条目 ⇒ 写「该来源无数据」（灰底），因此**没有**失败明细
+		//     （失败横条已于 2026-11-10 删除，失败信息改为刷新横幅悬停明细；判据仍是 fail 是否 down）
 		const rec = { id: "cytq", name: "炽焰天穹", tz: TZ_CN, gacha: [], events: [], gachaFail: null, eventFail: null };
 		check("面板：未配置条目两侧都派生不出格子（⇒「该来源无数据」，不是「抓取失败」）",
 			T.scheduleCellOf(rec, "gacha", new Date(NOW)) === null && T.scheduleCellOf(rec, "event", new Date(NOW)) === null);
-		check("面板：未配置条目的两侧 fail 都是 null ⇒ 底部失败横条不会出现",
+		check("面板：未配置条目的两侧 fail 都是 null ⇒ 刷新横幅悬停明细里不会出现失败项（底部失败横条已删）",
 			rec.gachaFail === null && rec.eventFail === null
 			&& T.scheduleNormalize(rec, "gacha", new Date(NOW)) === null
 			&& T.scheduleNormalize(rec, "event", new Date(NOW)) === null,

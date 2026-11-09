@@ -341,6 +341,22 @@
 			if (ef) parts.push({ side: "event", kind: ef.kind, text: sideFailText("event", ef) });
 			return parts;
 		}
+		// 记录里每侧**数据层数组**的键名（形状见 engine-head.js 的 normalizeRecord）：
+		// 卡池 = `gacha`，活动 = `events`（复数，别按 `${side}s` 猜）。
+		const SIDE_ARRAY_KEY = { gacha: "gacha", event: "events" };
+		// 「该侧失败、且这一侧仍有可沿用的旧数据」——2026-11-10 用户要求删掉底部失败横条后，
+		// 这句话是刷新横幅悬停明细里「（沿用上次成功数据）」的唯一判据。
+		// 口径 = 该侧 down **且** 记录里这一侧的数组还有条目：那正是面板格子照旧显示的那份旧值
+		// （82 旧横条用 `scheduleNormalize(g, side, now)` 非 null 才报，判的也是"数组非空"，
+		//  所以并入横幅后"哪些失败算沿用"与删除前逐条一致）。
+		// 为什么 down 时数组非空就一定来自上一轮：`resolveSide` 失败只返回 `data:null`，本轮不可能产出
+		// 新数组；能留在记录里的只可能是 `mergeEntryRecord` 从上一轮沿回的（同一份记录上还带
+		// `gachaStale` / `eventStale`）。为什么不只看 stale 标记：老 lastData 里可能出现 stale=true
+		// 而数组为空（格子写「该来源无数据」）—— 那种情况没有旧值可显示，说「沿用」是假话。
+		function sideFailCarriedOver(r, side) {
+			const list = r && r[SIDE_ARRAY_KEY[side]];
+			return isDown(normalizeFail(r && r[side + "Fail"])) && Array.isArray(list) && list.length > 0;
+		}
 		// —— 备选源（altSources / eventAltSources）字段约定 ——
 		//   label   设置页显示名
 		//   fetcher 抓取器键名（GACHA_FETCHERS / EVENT_FETCHERS[条目 id] 里注册）
@@ -389,15 +405,21 @@
 			groups.forEach((grp) => { info += ` ${grp.label}：${grp.names.join("、")}`; });
 			// 每条的悬停明细：失败/未命中项 + 「那一侧根本没写来源」的未配置项（：同一行、同一种排版，
 			// 名字后一个空格、餐与项用「、」隔开；不加【】）。未配置不算失败，也不进成功分母。
+			// 2026-11-10（用户要求删掉底部失败横条）：失败项右侧追加「（沿用上次成功数据）」——
+			// 只在该侧 down 且仍有可沿用旧数据时写（判据见 `sideFailCarriedOver`），长原因仍留在悬停，
+			// **不进**横幅那一行文字（`info` 的口径逐字不变）。未命中/未配置这两类照旧，不追加。
 			const srcById = new Map((Array.isArray(sources) ? sources : []).map((x) => [x && x.id, x]));
 			const lines = list.map((g) => {
-				const parts = entryFailParts(rec[g.id] || {});
+				const r = rec[g.id] || {};
+				const parts = entryFailParts(r);
 				const src = srcById.get(g.id);
 				if (src) {
 					if (!src.url) parts.push({ side: "gacha", kind: "unconfigured", text: "卡池未配置有效来源" });
 					if (!src.eventUrl) parts.push({ side: "event", kind: "unconfigured", text: "活动未配置有效来源" });
 				}
-				return parts.length > 0 ? `${g.name} ${parts.map((p) => p.text).join("、")}` : "";
+				return parts.length > 0
+					? `${g.name} ${parts.map((p) => p.text + (sideFailCarriedOver(r, p.side) ? "（沿用上次成功数据）" : "")).join("、")}`
+					: "";
 			}).filter(Boolean);
 			return { info, lines };
 		}
@@ -17806,7 +17828,7 @@ EVENT_FETCHERS["r1999"] = {
 //
 // ⚠️ 已知滞后：该 wiki 最新一版只到 **2026-09-10**（比游戏落后约 1 个版本；游戏本身仍在运营，
 //    1.0.54 / 2026-10-21）。所以此刻抓到的活动全部已结束 ⇒ 如实 `null`（未公布），
-//    **绝不**把九月档期当成"当前活动"。设置页/失败横条里的来源标签写明
+//    **绝不**把九月档期当成"当前活动"。设置页的来源标签写明
 //    「Bwiki 公告（wiki 数据滞后）」—— 停更的是 wiki，不是游戏，不要标成"暂停"。
 //
 // ── 2026-11-09 23:1x 真机复测（结论：解析链路正常，nomatch 是「wiki 停更」）─────────
@@ -18094,7 +18116,8 @@ EVENT_FETCHERS["r1999"] = {
 //   ③ 设置页下拉：`getDefaultSourceName(g, "url"|"eventUrl")` 两侧都返回裸「未配置」
 //      （不带括号注释，2026-10-03 用户明确要求）。
 //   面板（82-schedule-view.js）里这两侧没有「外显条目」⇒ 该格写「该来源无数据」（灰底），
-//   底部也**不会**出现失败横条（那是 `isDown(gachaFail|eventFail)` 才有的）。
+//   刷新横幅的悬停明细里也**不会**出现失败项（要 `isDown(gachaFail|eventFail)` 才报；
+//   2026-11-10 起底部失败横条已删，失败信息只走刷新横幅悬停）。
 //
 // ── 为什么 `defaultHidden: true`（2026-11-09 用户要求）──────────────────────────
 //   两侧都没配来源 ⇒ 面板上只会是两个灰格「该来源无数据」，占版面又没信息。

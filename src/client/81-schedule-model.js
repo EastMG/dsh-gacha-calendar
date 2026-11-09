@@ -8,7 +8,8 @@
 		//   ③ 「近期」：跨游戏、按紧迫度、**全列出**（不折叠、不点开），占左约 64%，右侧一个虚线空框
 		//   ④ 游戏表（**没有区块标题**，列表头直接跟在后面）：游戏 190px / 卡池 / 活动，
 		//      顺序 = 用户在设置里拖的排列（`applyOrder` 已经排好，这里**不按紧迫度重排**）
-		//   ⑤ 图例（颜色=游戏 / 图案=状态） ⑥ 失败横条 + 重试 ⑦ 底部「上次更新 X 分钟前」+ 刷新
+		//   ⑤ 图例（颜色=游戏 / 图案=状态） ⑦ 底部「上次更新 X 分钟前」+ 刷新
+		//      （原 ⑥「失败横条 + 重试」已于 2026-11-10 删除：失败明细并入 ⑦ 的刷新横幅悬停）
 		//
 		// 三条**互不抢**的视觉分工（改这个组件前先读这一条）：
 		//   · **颜色 = 游戏**：每行内联一个 `--g`（`g.color`；自定义条目没有 color → 游戏名哈希取固定色盘）
@@ -711,18 +712,6 @@
 					(0, react_jsx_runtime.jsx)("path", { d: "M2.4 2.1h7.2L7.8 4.2l1.8 2.1H2.4z", fill: "currentColor", stroke: "none" })
 				]
 			}));
-		}
-		// 刷新失败横条的警示图标。设计稿这里放的是一个警告表情 —— 用户明确说 emoji 丑，故同样换成内联 SVG。
-		function scheduleWarnIcon(cls) {
-			return (0, react_jsx_runtime.jsxs)("svg", {
-				className: cls, viewBox: "0 0 12 12", fill: "none", stroke: "currentColor",
-				strokeWidth: "1.3", strokeLinecap: "round", "aria-hidden": "true", focusable: "false",
-				children: [
-					(0, react_jsx_runtime.jsx)("path", { d: "M6 1.5 11.1 10.5H.9z" }),
-					(0, react_jsx_runtime.jsx)("path", { d: "M6 4.6v2.5" }),
-					(0, react_jsx_runtime.jsx)("circle", { cx: "6", cy: "8.9", r: ".6", fill: "currentColor", stroke: "none" })
-				]
-			});
 		}
 		// GameIcon 自带 5px 圆角；这里用外层方框定尺寸/圆角/描边（多出来的圆角由 overflow 裁掉）。
 		// 尺寸与设计稿一致：近期行 26（图 24 + 1px 描边）、游戏表 40（图 38 + 1px 描边）。

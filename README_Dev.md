@@ -105,8 +105,8 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 38 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（18 处定稿，三轮增删）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）+ category / tags 批 1+2+3（9 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 多值拆分 + 旧键兼容 + 反证；批 3 把 `eventTier` 的 haystack 改成 OR 语义：`category` + `tags` + `name` 都参与）+ 2026-11-09 新接入 5 款（无期迷途两侧真源 / 夜幕之下卡池 / 未定·绘旅人已接两侧源 / 炽焰天穹仍留空未配置）+ 星铁卡池换官方公告 CMS + 「相对起点」锚定（星铁 10:00 / 无期迷途 14:00）+ 「起点未知 ≠ 已开始」+ 绝区零 bwiki 备选源「起点未知 = 已开始」的唯一例外 + 未定事件簿 / 时空中的绘旅人（米游社官方版块 + 官网新闻：卡池 + 活动 / 跨年补年 / 单侧失败隔离）+ 夜幕之下活动（bwiki 公告/版本活动总览：起点未知不进外显 + wiki 数据滞后如实 null））
-│   ├── cases-*.mjs  # 各段用例（38 个文件 / 38 段，与 all.mjs 的 batches 一一对应；本批新增 cases-wd-hlr / cases-pengpeng-event）
+│   ├── all.mjs      # 统一门禁：聚 39 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（18 处定稿，三轮增删）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）+ category / tags 批 1+2+3（9 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 多值拆分 + 旧键兼容 + 反证；批 3 把 `eventTier` 的 haystack 改成 OR 语义：`category` + `tags` + `name` 都参与）+ 2026-11-09 新接入 5 款（无期迷途两侧真源 / 夜幕之下卡池 / 未定·绘旅人已接两侧源 / 炽焰天穹仍留空未配置）+ 星铁卡池换官方公告 CMS + 「相对起点」锚定（星铁 10:00 / 无期迷途 14:00）+ 「起点未知 ≠ 已开始」+ 绝区零 bwiki 备选源「起点未知 = 已开始」的唯一例外 + 未定事件簿 / 时空中的绘旅人（米游社官方版块 + 官网新闻：卡池 + 活动 / 跨年补年 / 单侧失败隔离）+ 夜幕之下活动（bwiki 公告/版本活动总览：起点未知不进外显 + wiki 数据滞后如实 null）+ 刷新横幅（底部失败横条与「重试」已删 / 失败明细并入悬停：沿用判定 + 文字口径逐字不变））
+│   ├── cases-*.mjs  # 各段用例（39 个文件 / 39 段，与 all.mjs 的 batches 一一对应；本批新增 cases-scrape-fail）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
 │   ├── lib-text.mjs # 悬停文本的共用判定（去重 / 相邻重复 / 「名称 ⏎ 只有区间」/ 分类前缀双写）
@@ -511,7 +511,7 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 
 **已知差异已清零**：`test/cases-core.mjs` ⑤-5 的等价性普查（17 款 / 34 个侧）现在 `diffs = 0` —— 原来 6 处（物华 gacha 少一行、星铁 gacha 少一行、物华/战双/赛马娘国服外显换位、赛马娘日服 gacha 换位）全部逐侧钉成**严格相等**；另有**反向证明**：把任一特化规则换回通用规则（`sideViewOf` 不传 gameId）⇒ 对应侧必红（实测把 `uma-jp` 与 `zspms:event` 两行从分派表拿掉时，⑤-5 立刻红在这两个侧；FGO 用 09-05 那侧单独钉住）。
 
-**显示层（`src/client/82-schedule-view.js`）**：`cells` 存**数组本身**（`cells.set(key, g.gacha / g.events)`，与探头共用同一份）；`cellViews` 存派生结果；表格那一行 = `primary` 经 `scheduleNormalize` 渲染（主条直接走它 ⇒ 档期文本与今天**逐字一致**），探头 = `sideViewOf(...).rest`（内部先后仍是今天的 `schedulePickItem`）。失败横条改按**侧**判定（数组条目没有 `fail`），口径与改造前一致。
+**显示层（`src/client/82-schedule-view.js`）**：`cells` 存**数组本身**（`cells.set(key, g.gacha / g.events)`，与探头共用同一份）；`cellViews` 存派生结果；表格那一行 = `primary` 经 `scheduleNormalize` 渲染（主条直接走它 ⇒ 档期文本与今天**逐字一致**），探头 = `sideViewOf(...).rest`（内部先后仍是今天的 `schedulePickItem`）。2026-11-10 用户要求：**底部失败横条 + 「重试」已删**，失败信息并入刷新横幅的悬停明细（见「刷新横幅的汇总口径」一节）。
 
 **兼容退化（P3c 起，2026-11-07 已删老路）**：`scheduleCellOf` **只读数据层数组**；数组为空（老 `lastData` / 这一侧真没数据）⇒ 返回 `null`，格子里写「该来源无数据」，**不抛错**。原来的 `fromArray === false` 兼容分支（`scheduleNormalize` + 逆解析悬停文本）连同 `scheduleHoverOnes` 已随 P3c 删除 —— 它已没有任何生产调用方（28 款默认源全部直出）。抓取失败时"显示旧数据"仍走 `mergeEntryRecord` 的沿回逻辑（`dataArrayInheritableOf`），不受影响。
 
@@ -908,6 +908,13 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
   （名字后一个空格、多项用「、」隔开，**不加【】**）。
 - 判定：`SOURCES` 里该条目那一侧没写 `url` / `eventUrl` ⇒ 未配置；
   用户手动切到备选源时默认 url 仍在 ⇒ 不会误报。跟「抓取失败」分开展示。
+- **失败明细并入悬停（2026-11-10 用户要求，底部失败横条 + 「重试」已删）**：
+  `info` 一行保持原口径（`成功 N/M …`，**不**塞长原因）；失败项在 `lines` 里写成
+  `赛马娘·日服 卡池失败：HTTP 502（沿用上次成功数据）` —— 「沿用」= 该侧 `down`
+  **且**记录里该侧的数组还有条目（面板格子照旧显示的那份旧值；判据是
+  `60-helpers.js` 的 `sideFailCarriedOver`，与删除前横条用 `scheduleNormalize` 非 null
+  判的口径一致）。未命中 / 未配置两类不追加；「重试」能力由底栏「刷新」按钮承担。
+  回归：`test/cases-scrape-fail.mjs`。
 
 ### 新接入的 5 款（2026-11-09）
 
@@ -1001,7 +1008,8 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
    —— 设置页那行结论是「… / 未配置 N / 失败 M」两个独立数字。**现在只剩 `cytq` 走这条路径**
    （`pengpeng` 的活动侧已在 2026-11-09 晚接上）。
 3. **面板**：该侧没有外显条目 ⇒ `scheduleCellOf` 返回 `null`，格子里写「该来源无数据」（灰底），
-   底部失败横条只看 `isDown(gachaFail|eventFail)` ⇒ 也不会出现。
+   刷新横幅的悬停明细里也不会出现失败项（`isDown(gachaFail|eventFail)` 都是 false）；
+   2026-11-10 起底部失败横条已删，失败信息只走刷新横幅悬停。
    设置页「卡池来源 / 活动来源」下拉里那一侧显示裸「未配置」（`getDefaultSourceName`）。
 
 断言在 `test/cases-new5.mjs` ⑤（只剩 `cytq`：`fetchEntry` 的 `reason` / `selfCheck` 的

@@ -1,11 +1,4 @@
 			/* ⑤ 图例：颜色认游戏、图案看状态 */
-			/* ⑥ 刷新失败横条 + 重试（重试 = 整轮刷新：引擎没有单源刷新接口，见 50-refresh.js） */
-			.gacha-cal-sched-failbar{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11px;color:var(--dsw-alias-state-warn-label,#9a4a06)}
-			.gacha-cal-sched-fic{width:12px;height:12px;flex:0 0 auto}
-			.gacha-cal-sched-failtext{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-			.gacha-cal-sched-retry{flex:0 0 auto;margin-left:6px;padding:0;border:none;background:transparent;font:inherit;color:inherit;cursor:pointer;border-bottom:1px dashed currentColor}
-			.gacha-cal-sched-retry:hover{color:var(--dsw-alias-label-primary,#1f2329)}
-			.gacha-cal-sched-retry:disabled{opacity:.5;cursor:default}
 			/* ⑦ 底部：上次更新 X 分钟前 + 刷新 */
 			/* 刷新成功/失败横幅（旧面板 .gacha-cal-scrape 的同款）：文字一行 + 悬停给逐来源明细。
 			   常驻在底栏里，所以超宽时省略号截断，明细靠 tooltip。 */

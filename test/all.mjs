@@ -49,6 +49,7 @@ import runWdHlr from "./cases-wd-hlr.mjs";
 import runPengpengEvent from "./cases-pengpeng-event.mjs";
 import runHsrOfficial from "./cases-hsr-official.mjs";
 import runZzzBwiki from "./cases-zzz-bwiki.mjs";
+import runScrapeFail from "./cases-scrape-fail.mjs";
 
 const LIVE = process.argv.includes("--live");
 
@@ -148,7 +149,8 @@ const batches = [
 	["未定事件簿 / 时空中的绘旅人（米游社官方版块 + 官网新闻：卡池 + 活动 / 跨年补年 / 单侧失败隔离）", runWdHlr],
 	["夜幕之下活动（bwiki 公告/版本活动总览：「版本更新后」不进外显 + wiki 数据滞后如实 null）", runPengpengEvent],
 	["星铁卡池换官方公告 CMS + 「相对起点」锚定（星铁 10:00 / 无期迷途 14:00）+ 「起点未知 ≠ 已开始」", runHsrOfficial],
-	["绝区零 bwiki 备选源「起点未知 = 已开始」的唯一例外（其余来源仍严格）", runZzzBwiki]
+	["绝区零 bwiki 备选源「起点未知 = 已开始」的唯一例外（其余来源仍严格）", runZzzBwiki],
+	["刷新横幅：底部失败横条 + 重试删除、失败明细并入悬停（沿用判定 / 文字口径逐字不变）", runScrapeFail]
 ];
 const before = counts();
 for (const [label, fn] of batches) {

@@ -257,7 +257,9 @@
 			// 这格的代表，图案走斜纹），但不进「近期」—— 近期回答的是"现在该看哪几条"。
 			// ↓↓↓ 纯派生数据（与 CalendarPanel 同理）：4s 一次的「近期」翻页、每分钟时钟、以及任何
 			// 无关设置写入都会让本组件重渲染；这一段原本每次都要逐游戏跑 scheduleNormalize（28×2）
-			// ＋悬停文本解析＋失败归类。用 useMemo 按真正输入（games / now）缓存。
+			// ＋悬停文本解析。用 useMemo 按真正输入（games / now）缓存。
+			// （失败归类随底部失败横条于 2026-11-10 删除 —— 失败明细改由 60-helpers 的 buildScrapeInfo
+			//   写进刷新横幅悬停，见下面 soonCount 那段的说明。）
 			//   ⚠️ 依赖只写 shownGames / now：本段不再读别的可变输入（主题色不参与，见 gameColorMap 只在下游用）。
 			const { cells, cellViews, all } = (0, react.useMemo)(() => {
 			// ── P2（2026-11-07）：表格与探头改读**数据层数组**（`g.gacha` / `g.events`）──
@@ -273,36 +275,20 @@
 			// 24 小时计数都能在测试里直接钉住。遍历的仍是**搜索过滤后**的 shownGames（空查询时就是 games）。
 			return scheduleFlattenOf(shownGames, now);
 			}, [shownGames, now]);
-			// 失败横条 / 24 小时计数：另一段纯派生（与上面共用同一份 `all`）。
-			const { failed, failRows, soonCount } = (0, react.useMemo)(() => {
-			const sourceNameOf = (x) => (x.isG ? x.g.source : x.g.eventSource) || "";
-			// 刷新失败是**来源级**问题（某个网站抓不到），不属于任何一格 → 底部横条 + 重试。
-			// 数组条目没有 `fail`（fail 是"这一侧本轮抓取结论"，住在记录上）⇒ 按**侧**判定。
-			// 口径与改造前一致：只有这一侧**真的有外显条目**（scheduleNormalize 非 null ⇒ 有可沿用的
-			// 旧值）时才报；全新失败且没有任何旧值时，格子里写「该来源无数据」，横条不重复报。
-			const failed = [];
-			for (const g of shownGames) {
-				for (const side of ["gacha", "event"]) {
-					if (!isDown(side === "gacha" ? g.gachaFail : g.eventFail)) continue;
-					const it = scheduleNormalize(g, side, now);
-					if (it) failed.push(it);
-				}
-			}
-			const failRows = failed.map((x) => {
-				const reason = (normalizeFail(x.fail) || {}).reason || "";
-				return x.g.name + " · " + sourceNameOf(x) + (reason ? " " + reason : "") + " —— 该条沿用上次成功数据";
-			});
+			// 「24 小时内」计数：另一段纯派生（与上面共用同一份 `all`）。
+			// （2026-11-10：原先与它同段的「失败横条 / 重试」派生已删除 —— 用户要求把失败信息并进底栏
+			//   刷新状态横幅的悬停明细；明细的生成在 60-helpers.js 的 buildScrapeInfo，本组件只负责显示。）
+			const soonCount = (0, react.useMemo)(() => {
 			// 「24 小时内」= 未来 24 小时内有**开始或结束**的条目：startTs 或 endTs 落在 (now, now+24h]。
 			// ⚠️ P4：数的是 `all` 里的**每一条**（已展平），不再是"每格外显那一条" ⇒ 计数按条。
 			// ⚠️ 0 值/哨兵不动手：长期档期（endTs=0 或 2099 那种）自然落在窗口外，不需要额外特判。
 			const nowMs = now.getTime();
-			const soonCount = all.filter((x) => (
+			return all.filter((x) => (
 				(x.startTs > nowMs && x.startTs <= nowMs + SCHEDULE_DUE_MS) ||
 				(x.endTs > nowMs && x.endTs <= nowMs + SCHEDULE_DUE_MS)
 			)).length;
-			return { failed, failRows, soonCount };
-			}, [shownGames, all, now]);
-			// ↑↑↑ useMemo 结束（失败归类 / 24 小时计数）
+			}, [all, now]);
+			// ↑↑↑ useMemo 结束（24 小时计数）
 			// 「近期」= **7 天内有事发生**（到期或开始）；更远的只出现在下方游戏表里
 			// （用户 2026-10-15：不能把 20 多天后的也算近期）。长期/已结束不进近期。
 			const SCHEDULE_NEAR_MS = SCHEDULE_AMBER_MS;
@@ -549,12 +535,6 @@
 				(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-theadline" }),
 				tableJsx,
 
-				// ⑤ 刷新失败横条 + 重试（重试 = 整轮刷新：引擎没有单源刷新接口，见 50-refresh.js）
-				failed.length ? (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-sched-failbar", title: failRows.join("\n"), children: [
-					scheduleWarnIcon("gacha-cal-sched-fic"),
-					(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-failtext", children: failRows[0] }),
-					(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sched-retry", disabled: refreshing, onClick: onRefresh, children: "重试" })
-				] }) : null,
 				] }),
 				// ⑦ 底部（**常驻面板下端**）：它在滚动层**之外**，所以内容不会从它下面穿过、也不会被切成两半。
 				//    左：刷新成功/失败横幅（旧面板 .gacha-cal-scrape 那条，悬停给逐来源明细）；右：上次更新 + 刷新。
