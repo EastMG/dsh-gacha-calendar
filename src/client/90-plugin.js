@@ -32,64 +32,15 @@
 				return () => style.remove();
 			}, "dsh-gacha-calendar: styles");
 
-			// 新版 DSH：用正式槽位提供导航图标（id 必须与 settings.section 一致）。
-			// 旧版 DSH 没有这个槽位 ⇒ 抛错被吞掉，下面的 DOM 兜底仍然生效。
-			let navIconBySlot = false;
-			try {
-				ctx.slots.inject("settings.section.icon", () => ctx.slots.register({
-					name: "settings.section.icon",
-					id: "gacha-calendar",
-					locale: NS
-				}, CalendarSectionIcon));
-				navIconBySlot = true;
-			} catch (err) {
-				navIconBySlot = false;
-			}
-
-			// 旧版 DSH（没有 settings.section.icon 槽位）：导航图标由 navIcon 硬编码、
-			// 未知 id 一律默认齿轮 ⇒ 只能在设置面板打开后把“二游日历”那一项的
-			// 齿轮换成日历（Lucide 风格 16px，幂等）。
-			// 性能：MutationObserver 回调只置脏标记，用 requestAnimationFrame 合并执行；
-			// patch 先查 dialog 是否存在，不存在立即返回（Web 端高频 DOM 变化时开销极小）。
-			// ⚠️ 仅作为**旧版 DSH** 的兜底：新版已由上面的 settings.section.icon 槽位提供图标。
-			// 新结构里导航按钮的第一个 span 是图标容器（文本为空），旧判据失效；两者同时生效会双重插图。
-			if (!navIconBySlot) ctx.effect(() => {
-				const LABEL = SETTINGS_SECTION_LABEL;
-				const CAL_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex:none"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>';
-				let raf = 0;
-				const patch = () => {
-					raf = 0;
-					const dialog = document.querySelector('[role="dialog"]');
-					if (!dialog) return;
-					const buttons = dialog.querySelectorAll("nav button");
-					for (const btn of buttons) {
-						const labelEl = btn.querySelector("span");
-						if (!labelEl || labelEl.textContent.trim() !== LABEL) continue;
-						if (btn.dataset.gachaCalIcon === "1") continue;
-						const icon = btn.querySelector("svg");
-						if (icon) {
-							icon.style.display = "none"; // 隐藏 DSH 默认齿轮
-							const wrap = document.createElement("span");
-							wrap.setAttribute("aria-hidden", "true");
-							wrap.innerHTML = CAL_ICON_SVG;
-							// 插到按钮第一个子元素位置（与 DSH 图标同级，flex 子项对齐一致）
-							btn.insertBefore(wrap.firstChild, btn.firstChild);
-							btn.dataset.gachaCalIcon = "1";
-						}
-					}
-				};
-				const schedule = () => {
-					if (raf) return;
-					raf = requestAnimationFrame(patch);
-				};
-				schedule();
-				const mo = new MutationObserver(schedule);
-				mo.observe(document.body, { childList: true, subtree: true });
-				return () => {
-					mo.disconnect();
-					if (raf) cancelAnimationFrame(raf);
-				};
-			}, "dsh-gacha-calendar: settings nav icon");
+			// 设置页左侧导航的 section 图标：走 DSH 官方槽位 `settings.section.icon`，
+			// id 必须与 settings.section 的贡献（gacha-calendar）一致。旧版的 DOM 直接修改
+			// 方案（MutationObserver 把齿轮换成日历）已彻底删除：DSH 已经没有那种结构，
+			// 而且新结构下该判据必失效。
+			ctx.slots.inject("settings.section.icon", () => ctx.slots.register({
+				name: "settings.section.icon",
+				id: "gacha-calendar",
+				locale: NS
+			}, CalendarSectionIcon));
 
 			// 全局截断文字悬停 marquee（面板 + 设置页共用）：内容超出容器时加
 			// gacha-cal-marq 并计算滚动距离，让内层 span 来回滚动显示全文（未超宽不加）。
