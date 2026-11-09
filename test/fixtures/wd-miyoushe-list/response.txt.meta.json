@@ -1,0 +1,6 @@
+{
+  "url": "https://bbs-api.miyoushe.com/post/wapi/getForumPostList?forum_id=33&is_good=false&is_hot=false&page_size=20&sort_type=2",
+  "status": 200,
+  "capturedAt": "2026-11-09T22:50:00.000Z",
+  "trim": "保留 retcode/message + 列表全部 20 条；每条 post 只留 post_id / subject / created_at / content（解析只读这 4 个字段），图片与其它字段删除。"
+}

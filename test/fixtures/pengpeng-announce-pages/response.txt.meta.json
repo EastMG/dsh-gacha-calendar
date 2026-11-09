@@ -1,0 +1,6 @@
+{
+  "url": "https://wiki.biligame.com/pengpeng/api.php?action=query&generator=allpages&gapprefix=公告/&gaplimit=100&format=json&formatversion=2&origin=*",
+  "status": 200,
+  "capturedAt": "2026-11-09T22:50:00.000Z",
+  "trim": "保留 batchcomplete + query.pages 全部 88 条（title/pageid/ns）；其它顶层字段删除。"
+}

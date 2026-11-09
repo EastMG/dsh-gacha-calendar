@@ -117,5 +117,19 @@
   "https://wqmt.aisnogames.com/api/news/2118": "wqmt-news-2118/response.txt",
   "https://wqmt.aisnogames.com/api/news/2117": "wqmt-news-2117/response.txt",
   "https://wqmt.aisnogames.com/api/news/2099": "wqmt-news-2099/response.txt",
-  "https://stellasora.yostar.cn/api/resource/news?index=1&size=50&type=notice": "p7-stella-notice/response.txt"
+  "https://stellasora.yostar.cn/api/resource/news?index=1&size=50&type=notice": "p7-stella-notice/response.txt",
+  "https://bbs-api.miyoushe.com/post/wapi/getForumPostList?forum_id=33&is_good=false&is_hot=false&page_size=20&sort_type=2": "wd-miyoushe-list/response.txt",
+  "https://bbs-api.miyoushe.com/post/wapi/getPostFull?post_id=79191336": "wd-miyoushe-detail-79191336/response.txt",
+  "https://bbs-api.miyoushe.com/post/wapi/getPostFull?post_id=79308001": "wd-miyoushe-detail-79308001/response.txt",
+  "https://bbs-api.miyoushe.com/post/wapi/getPostFull?post_id=79361917": "wd-miyoushe-detail-79361917/response.txt",
+  "https://bbs-api.miyoushe.com/post/wapi/getPostFull?post_id=79327803": "wd-miyoushe-detail-79327803/response.txt",
+  "https://bbs-api.miyoushe.com/post/wapi/getPostFull?post_id=79287295": "wd-miyoushe-detail-79287295/response.txt",
+  "https://bbs-api.miyoushe.com/post/wapi/getPostFull?post_id=79207926": "wd-miyoushe-detail-79207926/response.txt",
+  "https://hlr.163.com/news/official/": "hlr-official-list/response.txt",
+  "https://hlr.163.com/news/official/20261105/30882_1318851.html": "hlr-official-detail-20261105/response.txt",
+  "https://hlr.163.com/news/official/20261014/30882_1316576.html": "hlr-official-detail-20261014/response.txt",
+  "https://hlr.163.com/news/official/20260929/30882_1315388.html": "hlr-official-detail-20260929/response.txt",
+  "https://hlr.163.com/news/official/20251229/30882_1279222.html": "hlr-official-detail-20251229/response.txt",
+  "https://wiki.biligame.com/pengpeng/api.php?action=query&generator=allpages&gapprefix=%E5%85%AC%E5%91%8A%2F&gaplimit=100&format=json&formatversion=2": "pengpeng-announce-pages/response.txt",
+  "https://wiki.biligame.com/pengpeng/api.php?action=parse&page=%E5%85%AC%E5%91%8A%2F%E3%80%8C%E5%85%B1%E4%B8%BE%E6%98%A8%E6%97%A5%E4%B9%8B%E9%85%92%C2%B7%E4%B8%8A%E3%80%8D%E7%89%88%E6%9C%AC%E6%B4%BB%E5%8A%A8%E6%80%BB%E8%A7%88&prop=wikitext&format=json&formatversion=2": "pengpeng-overview-20260910/response.txt"
 }

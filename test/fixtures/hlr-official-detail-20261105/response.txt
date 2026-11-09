@@ -1,0 +1,77 @@
+<div id="NIE-art">
+            
+            <div class="tit">
+                <div class="tbox">
+                    
+                    <p class="artTitle">
+                        <a class="back" href="//hlr.163.com/news/official/"><i></i></a>全新活动「怪谈：时融」现已开启！
+                    </p>
+                    <div class="artInfo">
+                        <span>
+                            位置：
+                            <a href="//hlr.163.com/" title="首页" target="_blank">首页</a>>>
+                            <a href="//hlr.163.com/news/official/" title="新闻">新闻</a>>>新闻详情
+                        </span>                          <span class="artDate">时间：2026-10-31</span>
+                        <span class="artShare"></span>
+                    </div>
+                </div>
+            </div>
+
+            
+            <div class="artText">
+                <p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">全新活动「怪谈：时融」现已正式开启，与叶瑄一起分辨真伪，消灭怪谈吧。</span></span></p>
+
+<div name="videoplayer">
+<style type="text/css">.video_ctn[data-index="1"]{background:url(https://nie.res.netease.com/r/pic/20261105/358434c1-2901-4079-9fc0-75861407c31f.jpg);}
+</style>
+<div class="video_ctn" data-autoplay="true" data-hdmovieurl="https://hlr.v.netease.com/r/video/20261105/64441d78-9933-4a6e-9ed3-5d7ae91d2fd3.mp4" data-height="310" data-index="1" data-movieurl="https://hlr.v.netease.com/r/video/20261105/06645b64-df4f-45b6-ba2a-926347b0b236.mp4" data-name="叶瑄主题活动「怪谈：时融」PV公开" data-startimg="https://nie.res.netease.com/r/pic/20261105/358434c1-2901-4079-9fc0-75861407c31f.jpg" data-width="550" data-wmode="transparent" id="flash" style="text-align: center;">
+<ul style="display:none">
+</ul>
+</div>
+</div>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">在时间融化的梦里，看见了另一种人生。<br />
+反复进入的梦境，与现实重叠的画室。<br />
+和那个……梦里梦外都一样的人。<br />
+“这里……是一切的起始。”<br />
+“最终确定的时间线里，你将跟我在一起。”</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">10月31日09:30起，「怪谈：时融」活动开放探索。请您沉浸式体验多维时间线。</span></span></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【叶瑄SSR·叠轨晨昏】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">「我的心告诉我，它想见你。」</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">10月31日09:30 - 11月7日05:00，「怪谈：时融」活动画廊限时开启。活动期间，叶瑄SSR[叠轨晨昏]获得概率提升。<br />
+[叠轨晨昏]突破后为动态卡面，配备卡组剧情：<br />
+当现实和梦开始重叠，该如何分辨它的界限？<br />
+为何明明只是个普通工程师的我，会一遍遍在梦中拿起画笔？<br />
+踏入那间眼熟的画室时，叶瑄轻柔的声音在我耳边回荡。<br />
+“世界可能是假的，时间线可能被改造的，但人心不受规则裹挟，也不会被篡改。”<br />
+“至少，我正坐在你的身边，牵着你的手，陪伴着你，也属于你。”</span></span></p>
+
+<p><img src="https://nie.res.netease.com/r/pic/20261105/c9f34edb-d62f-44d8-93b5-3cb09d3c7896.jpg" /><img src="https://nie.res.netease.com/r/pic/20261105/dc31cb5b-1631-44ad-b20f-327b1fd197f1.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【怪谈：时融 | 叶瑄主题服装展示】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">10月31日09:30 - 11月7日05:00，全新活动「怪谈：时融」开启，叶瑄主题服装[流光融梦]限时上架。<br />
+► 特殊互动模式[异境空间]，在特殊的空间观察并记录他的状态。<br />
+► 具备7句新增语音，包含1句佳期语音、3句[异境空间]内特殊互动语音</span></span></p>
+
+<p><img src="https://nie.res.netease.com/r/pic/20261105/e461a817-491c-4501-b651-c9000ce3c7aa.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【怪谈：时融 | 活动玩法】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">10月31日09:30 - 11月7日05:00，通过[主界面]-[花架]进入[怪谈：时融]，与叶瑄一起逃离被融化的时空。</span></span><img src="https://nie.res.netease.com/r/pic/20261105/80e95752-4cb0-4cfa-b4bd-8c9daee985d2.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【关于《时空中的绘旅人》】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">《时空中的绘旅人》全新活动「怪谈：时融」10月31日开启！参与游戏体验活动，海量福利等你开启。<br />
+《时空中的绘旅人》官方网站：hlr.163.com<br />
+《时空中的绘旅人》官方微信：时空中的绘旅人<br />
+《时空中的绘旅人》官方微博：时空中的绘旅人<br />
+《时空中的绘旅人》官方群：63271963</span></span></p>
+            </div>
+            
+
+        </div>

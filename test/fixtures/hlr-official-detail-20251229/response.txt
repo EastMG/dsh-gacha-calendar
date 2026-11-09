@@ -1,0 +1,89 @@
+<div id="NIE-art">
+            
+            <div class="tit">
+                <div class="tbox">
+                    
+                    <p class="artTitle">
+                        <a class="back" href="//hlr.163.com/news/official/"><i></i></a>叶瑄生日活动「归途的寒春」现已开启！
+                    </p>
+                    <div class="artInfo">
+                        <span>
+                            位置：
+                            <a href="//hlr.163.com/" title="首页" target="_blank">首页</a>>>
+                            <a href="//hlr.163.com/news/official/" title="新闻">新闻</a>>>新闻详情
+                        </span>                          <span class="artDate">时间：2025-12-27</span>
+                        <span class="artShare"></span>
+                    </div>
+                </div>
+            </div>
+
+            
+            <div class="artText">
+                <div name="videoplayer">
+<style type="text/css">.video_ctn[data-index="1"]{background:url(https://nie.res.netease.com/r/pic/20251229/a5da8fea-1345-427f-9fad-e30721cd3cf5.jpg);}
+</style>
+<div class="video_ctn" data-autoplay="true" data-hdmovieurl="https://hlr.v.netease.com/r/video/20251229/9b71ad88-006c-4b23-9f1a-1b446765821c.mp4" data-height="310" data-index="1" data-movieurl="https://hlr.v.netease.com/r/video/20251229/50f9ba26-7ed5-4239-b31c-f420055cf34f.mp4" data-name="2025叶瑄生日活动「归途的寒春」PV公开" data-startimg="https://nie.res.netease.com/r/pic/20251229/a5da8fea-1345-427f-9fad-e30721cd3cf5.jpg" data-width="550" data-wmode="transparent" id="flash" style="text-align: center;">
+<ul style="display:none">
+</ul>
+</div>
+</div>
+
+<p style="margin-top: 7px; margin-bottom: 7px; text-align: left;"><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">2025叶瑄生日活动「归途的寒春」将于12月27日09:30开启。不畏行走于寒冷与风雪，因为春日就在身边。</span></span></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【叶瑄SSR·逆光而行】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">「在你身边，我有着最松弛的状态。 」</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">12月27日09:30 - 2026年1月5日05:00，叶瑄生日活动「归途的寒春」活动卡池限时开启，叶瑄SSR[逆光而行]获得概率提升。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">[逆光而行]突破后为横幅动态卡面，可设置为开屏界面。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">[逆光而行]配备卡组剧情：</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">最后一个“叶瑄”沉入水底。<br />
+殷红的血珠沿着冰冷的剑锋滑落，融入水中。<br />
+他注定要在此处拔剑，染血，直至赢得最后的胜利</span></span></p>
+
+<p style="text-align: center;"><img src="https://nie.res.netease.com/r/pic/20251229/e2280c83-1db6-4d56-b821-65eafe000eb1.jpg" /><img src="https://nie.res.netease.com/r/pic/20251229/d5c2bc0b-b2ff-484d-934d-9c18e7e4f7b2.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【叶瑄Birthday纪念·岁岁与君】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">12月27日09:30 - 2026年1月5日05:00，参与叶瑄生日活动「归途的寒春」，在生日当天与他共度，完成剧情即可免费获得1张生日纪念画灵[岁岁与君]。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">[岁岁与君]为特殊互动画灵，触碰不同区域，可触发动作或语音。</span></span></p>
+
+<p style="text-align: center;"><img src="https://nie.res.netease.com/r/pic/20251229/22193b25-f3eb-4088-86e6-de33ae0e61ca.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【归途的寒春·叶瑄的私人空间】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">12月27日09:30起，叶瑄的私人空间[溯光共游]上线。获取后，[校园]-[私人空间]将解锁相应地图。</span></span></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【归途的寒春·活动玩法及福利一览】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">12月27日09:30 - 2026年1月5日05:00，参与叶瑄生日活动「归途的寒春」，可免费获取: Birthday纪念互动画灵、小小叶瑄生日限定服装、生日限定闹钟皮肤、专属情头、生日限定Q版头像、[老荷兰颜料]*3、[补签券]、个人信息档案等奖励。</span></span></p>
+
+<p style="text-align: center;"><img src="https://nie.res.netease.com/r/pic/20251229/2c010fa7-d911-4e83-bcc7-bceff0617660.jpg" /><img src="https://nie.res.netease.com/r/pic/20251229/4c2b956c-7000-418a-9522-6f5bec5aa3e5.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【归途的寒春·叶瑄生日服装】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">“猜猜我会画什么？嗯，答对当然有奖。”</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">12月27日09:30 - 2026年1月5日05:00，叶瑄生日活动期间，生日限定服装[浮光凝]、[流霞染]限时上架，可通过购买服装礼包获取。</span></span></p>
+
+<p style="text-align: center;"><img src="https://nie.res.netease.com/r/pic/20251229/fed703d4-fef1-4180-957b-44fe847fbd34.jpg" /><img src="https://nie.res.netease.com/r/pic/20251229/80fc2e9c-9992-4cd5-a756-0feb7ba493c9.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【关于《时空中的绘旅人》】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">《时空中的绘旅人》活动「归途的寒春」12月27日开启！参与游戏体验活动，海量福利等你开启。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">《时空中的绘旅人》官方网站：hlr.163.com</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">《时空中的绘旅人》官方微信：时空中的绘旅人</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">《时空中的绘旅人》官方微博：时空中的绘旅人</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">《时空中的绘旅人》官方群：632719634</span></span></p>
+            </div>
+            
+
+        </div>

@@ -80,8 +80,10 @@ dsh-gacha-calendar/
 │       ├── 30-game-yostar.js      # 悠星：星塔旅人
 │       ├── 30-game-bluepoch.js    # 深蓝互动：重返未来：1999
 │       ├── 30-game-wqmt.js        # 无期迷途（国服）：卡池 bwiki 追踪一览 + 活动 官方资讯 API + 开服锚点
-│       ├── 30-game-pengpeng.js    # 夜幕之下（国服）：卡池 bwiki 契约一览（活动侧未配置）
-│       ├── 30-game-unconfigured.js # 未定事件簿 / 时空中的绘旅人 / 炽焰天穹：只注册条目、来源留空未配置
+│       ├── 30-game-miyoushe-bbs.js # 未定事件簿：米游社官方版块（卡池 + 活动；详情需 Referer www.miyoushe.com/wd/）
+│       ├── 30-game-netease.js     # 时空中的绘旅人：官网新闻列表 + 详情（卡池画廊 + 活动；缺年份补年/跨年）
+│       ├── 30-game-pengpeng.js    # 夜幕之下（国服）：卡池 bwiki 契约一览 + 活动 bwiki 公告/版本活动总览
+│       ├── 30-game-unconfigured.js # 炽焰天穹：只注册条目、来源留空未配置（本批唯一仍不接的）
 │       ├── 44-test-exports.js # 回归出口：解析器 + env 工具 + 来源表
 │       ├── 50-refresh.js     # 刷新编排、失败沿用旧值、提示归类
 │       ├── 60-helpers.js     # 顶部提示归类 / 显隐判定 / 排序 / 角色名与倒计时格式化 / 启动刷新判定
@@ -103,8 +105,8 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 36 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（18 处定稿，三轮增删）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）+ category / tags 批 1+2+3（9 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 多值拆分 + 旧键兼容 + 反证；批 3 把 `eventTier` 的 haystack 改成 OR 语义：`category` + `tags` + `name` 都参与）+ 2026-11-09 新接入 5 款（无期迷途两侧真源 / 夜幕之下卡池 / 未定·绘旅人·炽焰天穹留空未配置）+ 星铁卡池换官方公告 CMS + 「相对起点」锚定（星铁 10:00 / 无期迷途 14:00）+ 「起点未知 ≠ 已开始」+ 绝区零 bwiki 备选源「起点未知 = 已开始」的唯一例外）
-│   ├── cases-*.mjs  # 各段用例（33 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / cases-arknights-claim / cases-arknights-timeline / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh / settings-jump / settings-copy / sources / bwiki-cors / p3 / p4flat / category / new5）
+│   ├── all.mjs      # 统一门禁：聚 38 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（18 处定稿，三轮增删）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）+ category / tags 批 1+2+3（9 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 多值拆分 + 旧键兼容 + 反证；批 3 把 `eventTier` 的 haystack 改成 OR 语义：`category` + `tags` + `name` 都参与）+ 2026-11-09 新接入 5 款（无期迷途两侧真源 / 夜幕之下卡池 / 未定·绘旅人已接两侧源 / 炽焰天穹仍留空未配置）+ 星铁卡池换官方公告 CMS + 「相对起点」锚定（星铁 10:00 / 无期迷途 14:00）+ 「起点未知 ≠ 已开始」+ 绝区零 bwiki 备选源「起点未知 = 已开始」的唯一例外 + 未定事件簿 / 时空中的绘旅人（米游社官方版块 + 官网新闻：卡池 + 活动 / 跨年补年 / 单侧失败隔离）+ 夜幕之下活动（bwiki 公告/版本活动总览：起点未知不进外显 + wiki 数据滞后如实 null））
+│   ├── cases-*.mjs  # 各段用例（38 个文件 / 38 段，与 all.mjs 的 batches 一一对应；本批新增 cases-wd-hlr / cases-pengpeng-event）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
 │   ├── lib-text.mjs # 悬停文本的共用判定（去重 / 相邻重复 / 「名称 ⏎ 只有区间」/ 分类前缀双写）
@@ -960,15 +962,32 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
   **这是有意的**：实测维护窗口是 `10:00-14:00`，编一个 `10:00` 会差 4 小时，比"早两天看见"更糟。
   锚点机制的正/反两例由 `test/cases-new5.mjs` ③ 用合成正文钉住（不依赖源站当天发没发公告）。
 
-**夜幕之下为什么活动侧留空**：官方只有逐条公告页（无列表接口、无稳定分页），bwiki 也没有活动一览页
-⇒ 没有一页能一次取到"活动 + 起止"。按用户要求留空，`eventUrl` **不写**。
+### 2026-11-09 晚：5 个侧的真实接入（wd / hlr / pengpeng 活动；cytq 仍不接）
 
-**③④⑤ 三款为什么一个源都没有（不是没找，是找到了也不能用）**
+调研把上一版「没有可用源」的三条推翻了两条半。**这一节就是那 5 个侧的真实现状**（源 / 代理 /
+已知滞后）；代码注释与夹具 meta 是同一份事实的落点。
 
-- `wd` 未定事件簿：米哈游 `wd.mihoyo.com` 的公告接口**通**，但内容停更（chan51 最新 2025-09-24、
-  bwiki 备选停在 2024-03）⇒ 接上去只会显示一份过期档期，比"未配置"更糟；
-- `hlr` 时空中的绘旅人：官网 `hlr.163.com` 只有公告 HTML（SSR），卡池只能靠公告正文抽，没有列表页；
-- `cytq` 炽焰天穹：bwiki 只有 `cytq` 子站（无卡池表、无活动表），官网无可抓接口。
+| 侧 | 源（文件） | 代理 | 现状 / 已知滞后 |
+| --- | --- | --- | --- |
+| `wd` 卡池 | 米游社官方版块 `forum_id=33`（`30-game-miyoushe-bbs.js`） | **需要**（`bbs-api.miyoushe.com` 无 ACAO；详情必须带 `Referer: https://www.miyoushe.com/wd/`，只带 UA ⇒ 403） | 官方号 76089447 日更；列表 20 条 → 最多 5 篇详情 |
+| `wd` 活动 | 同上（标题含 活动/征集/签到… 的分流） | 同上 | 起点写「11月5日更新后」⇒ `startTs=null`：**不进外显**、只进悬停 |
+| `hlr` 卡池 | 官网 `hlr.163.com/news/official/` 列表 + 详情（`30-game-netease.js`） | **需要**（无 ACAO；详情带 `Referer: https://hlr.163.com/`） | 最新 2026-11-05；一页 6 条只抓前 3 篇详情；画廊名 + SSR 画灵（`叶瑄SSR[叠轨晨昏]` → `叠轨晨昏`） |
+| `hlr` 活动 | 同上（每篇正文第一个窗口） | 同上 | 缺年份用 `artDate`（`时间：YYYY-MM-DD`）补；跨年实测 `2025-12-27 ~ 2026-01-05` |
+| `pengpeng` 卡池 | bwiki「契约一览」（`30-game-pengpeng.js`，**本次未改**） | 需要（biligame 系一律走代理） | 表停在新一批 2026-09-10；当前时刻如实 null |
+| `pengpeng` 活动 | bwiki `公告/` 前缀页 → 最新一页「…版本活动总览」（`30-game-pengpeng.js`） | 需要（同 biligame；接口本身回 `ACAO:*`，但全站口径仍走代理） | **wiki 数据滞后**：最新一版只到 2026-09-10（游戏仍在运营，1.0.54 / 2026-10-21）⇒ 当前时刻如实 null；来源标签写「Bwiki 公告（wiki 数据滞后）」，**不标暂停** |
+| `cytq` 炽焰天穹 | **仍不接**（`30-game-unconfigured.js`） | — | bwiki 只有 `cytq` 子站（无卡池表 / 无活动表）、官网无可抓接口 ⇒ 两侧 `url`/`eventUrl` 留空 |
+
+- **「版本更新后」的口径**：`pengpeng` 活动页每行都写 `2026/9/10 版本更新后 - …`，与 `wd` 的
+  `11月5日更新后` 同一种「起点未知」。按全仓 2026-11-09 口径：`startTs = null`，**不进外显**，
+  仍进悬停（`coveredOrOpen`，悬停里原样印源站原文）。
+- **别把 wiki 停更当游戏停运**：`pengpeng` 活动最新数据比游戏落后约 1 个版本，这是社区 wiki 的
+  维护节奏，不是游戏暂停。面板/设置页的文案只写「wiki 数据滞后」。
+- `wd` / `hlr` 的 `defaultHidden` **仍是 true**（2026-11-09 用户要求出厂不勾选展示）：本次只换来源，
+  没有改展示口径；提醒侧 `REMIND_DEFAULT_HIDDEN_IDS` 因此不用动。
+- 代理白名单：`bbs-api.miyoushe.com` 早已在 `PROXY_ALLOW_HOSTS` 里（星铁/原神那批米游社公告加的）；
+  本次只新增 `hlr.163.com`。`wiki.biligame.com` 本来就在。
+- 回归：`test/cases-wd-hlr.mjs`（wd 卡池/活动 + hlr 卡池/活动 + 跨年 + 单侧失败隔离 + 反证）与
+  `test/cases-pengpeng-event.mjs`（公告列表 → 最新总览 → 活动名 + 起止 + wiki 滞后 null + 反证）。
 
 **「未配置」在数据与 UI 里的表达（三处，全部不产生 fail）**
 
@@ -976,17 +995,19 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
    `{ ok:true, reason:"skipped" }`：不抓取、不计成功、不计失败；
 2. **来源健康 / 自检**：`engine-api.js` 的 `describe()` 对 `!url` 的一侧给
    `{ state:"unconfigured", text:"未配置来源" }`，进 `summary.unconfigured` 而**不是** `down`
-   —— 设置页那行结论是「… / 未配置 N / 失败 M」两个独立数字。`pengpeng` 的活动侧同理。
+   —— 设置页那行结论是「… / 未配置 N / 失败 M」两个独立数字。**现在只剩 `cytq` 走这条路径**
+   （`pengpeng` 的活动侧已在 2026-11-09 晚接上）。
 3. **面板**：该侧没有外显条目 ⇒ `scheduleCellOf` 返回 `null`，格子里写「该来源无数据」（灰底），
    底部失败横条只看 `isDown(gachaFail|eventFail)` ⇒ 也不会出现。
    设置页「卡池来源 / 活动来源」下拉里那一侧显示裸「未配置」（`getDefaultSourceName`）。
 
-断言全在 `test/cases-new5.mjs` ⑤（`fetchEntry` 的 `reason` / `selfCheck` 的 `summary` 三个计数 /
-"未配置条目一个请求都没发"的记账断言 / `scheduleCellOf` 与 `scheduleNormalize` 都返回 null）。
+断言在 `test/cases-new5.mjs` ⑤（只剩 `cytq`：`fetchEntry` 的 `reason` / `selfCheck` 的
+`unconfigured = 2` / "一个请求都没发" / `scheduleCellOf` 与 `scheduleNormalize` 都返回 null）。
 
 **已知限制（都写进代码注释了）**：① 无期迷途卡池的起点要靠维护公告锚点（2026-11-09 起取不到就退常量
 14:00，见下一节）；② 夜幕之下的 wiki 表在 2026-10-01 之后没有新行（2026-11-09 实测最新一批是 09-10）
-⇒ 当前时刻**如实返回 null（未公布）**，等 wiki 补档，抓取器不需要改。
+⇒ 卡池与活动两侧当前时刻都**如实返回 null（未公布）**，等 wiki 补档，抓取器不需要改；
+③ 时空中的绘旅人官网只列最近 280 页（一页 6 条），当前只抓首页前 3 篇详情 —— 活动空窗期会如实 null。
 
 
 ### 星铁换官方公告 CMS + 「相对起点」锚定 + 「起点未知 ≠ 已开始」（2026-11-09）

@@ -310,7 +310,8 @@
 		// 必须恰等于 SOURCES 里 `defaultHidden === true` 的 id（守卫见 test/cases-remind.mjs）。
 		const REMIND_DEFAULT_HIDDEN_IDS = [
 			"bh3", "ournotes", "ournotes-global", "czn", "ddlezj",
-			// 2026-11-09 新接入的 5 款里，除 wqmt 之外都出厂不勾选展示（来源也留空）
+			// 2026-11-09 新接入的 5 款里，除 wqmt 之外都出厂不勾选展示
+			// （wd / hlr 当晚已接上两侧源，但用户「出厂不勾选」的要求没撤回 ⇒ 仍在这张表里）
 			"pengpeng", "wd", "hlr", "cytq"
 		];
 

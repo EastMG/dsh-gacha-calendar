@@ -1,0 +1,56 @@
+<ul class="list">
+                                 <li>
+                    <a title="全新活动「怪谈：时融」现已开启！" href="https://hlr.163.com/news/official/20261105/30882_1318851.html" target="_blank">
+                        <span>新闻</span>
+                        <p class="lside">
+                            <span class="title">全新活动「怪谈：时融」现已开启！</span>
+                            <span class="comment">活动将持续到11月7日。</span>
+                        </p>
+                    </a>
+                </li>
+                                 <li>
+                    <a title="司岚生日活动「钟鸣时风起」现已开启！" href="https://hlr.163.com/news/official/20261014/30882_1316576.html" target="_blank">
+                        <span>新闻</span>
+                        <p class="lside">
+                            <span class="title">司岚生日活动「钟鸣时风起」现已开启！</span>
+                            <span class="comment">活动持续到10月22日05:00。</span>
+                        </p>
+                    </a>
+                </li>
+                                 <li>
+                    <a title="《时空中的绘旅人》周年版本活动「永夜之城666」现已开启！" href="https://hlr.163.com/news/official/20260929/30882_1315388.html" target="_blank">
+                        <span>新闻</span>
+                        <p class="lside">
+                            <span class="title">《时空中的绘旅人》周年版本活动「永夜之城666」现已开启！</span>
+                            <span class="comment">周年庆活动将持续至10月13日05:00。</span>
+                        </p>
+                    </a>
+                </li>
+                                 <li>
+                    <a title="全新活动「此情予你」现已开启！" href="https://hlr.163.com/news/official/20260910/30882_1313590.html" target="_blank">
+                        <span>新闻</span>
+                        <p class="lside">
+                            <span class="title">全新活动「此情予你」现已开启！</span>
+                            <span class="comment">活动将持续到9月17日05:00。</span>
+                        </p>
+                    </a>
+                </li>
+                                 <li>
+                    <a title="全新活动「怪谈：恒扉」现已开启！" href="https://hlr.163.com/news/official/20260903/30882_1313041.html" target="_blank">
+                        <span>新闻</span>
+                        <p class="lside">
+                            <span class="title">全新活动「怪谈：恒扉」现已开启！</span>
+                            <span class="comment">活动将持续到9月10日。</span>
+                        </p>
+                    </a>
+                </li>
+                                 <li>
+                    <a title="全新活动「泼墨黔行」现已开启！" href="https://hlr.163.com/news/official/20260818/30882_1311524.html" target="_blank">
+                        <span>新闻</span>
+                        <p class="lside">
+                            <span class="title">全新活动「泼墨黔行」现已开启！</span>
+                            <span class="comment">活动持续到8月26日05:00。</span>
+                        </p>
+                    </a>
+                </li>
+                            </ul>

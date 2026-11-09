@@ -170,6 +170,9 @@ const PROXY_ALLOW_HOSTS = [
 	// 同一接口换 `gids` 即覆盖 崩坏3(1) / 原神(2) / 星穹铁道(6) / 绝区零(8)。
 	// （⚠️ 米哈游官网那套 `api-takumi.mihoyo.com/.../getAnnList` 恒返 -502，已证伪，别再走）
 	"bbs-api.miyoushe.com",
+	// 时空中的绘旅人 官网新闻（`hlr.163.com/news/official/` 列表 + 详情）：响应**无 ACAO**
+	// ⇒ 必须走代理。与 wd 的米游社版块（同上一条 `bbs-api.miyoushe.com`）同批接入。
+	"hlr.163.com",
 	// B站代理游戏官方公告 API（biligame CMS）：响应**无 ACAO** → 必须走代理。
 	// 认 `gameExtensionId`（不是 `game_base_id`）；已知 BanG Dream 国服=138、嘟嘟脸恶作剧=1282。
 	"api.biligame.com",

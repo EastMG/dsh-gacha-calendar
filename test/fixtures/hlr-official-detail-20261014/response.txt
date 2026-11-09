@@ -1,0 +1,78 @@
+<div id="NIE-art">
+            
+            <div class="tit">
+                <div class="tbox">
+                    
+                    <p class="artTitle">
+                        <a class="back" href="//hlr.163.com/news/official/"><i></i></a>司岚生日活动「钟鸣时风起」现已开启！
+                    </p>
+                    <div class="artInfo">
+                        <span>
+                            位置：
+                            <a href="//hlr.163.com/" title="首页" target="_blank">首页</a>>>
+                            <a href="//hlr.163.com/news/official/" title="新闻">新闻</a>>>新闻详情
+                        </span>                          <span class="artDate">时间：2026-10-14</span>
+                        <span class="artShare"></span>
+                    </div>
+                </div>
+            </div>
+
+            
+            <div class="artText">
+                <p style="margin-top: 7px; margin-bottom: 7px;"><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">2026司岚生日活动「钟鸣时风起」现已正式开启，将持续到10月22日05:00。与司岚一同庆祝生日，参与活动即可获得Birthday纪念画灵[往昔留帧]、生日限定情侣头像等奖励。</span></span></p>
+
+<h2 style="margin-top: 7px; margin-bottom: 7px;"><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【2026司岚生日活动「钟鸣时风起」PV公开】</span></span></h2>
+
+<div name="videoplayer">
+<style type="text/css">.video_ctn[data-index="1"]{background:url(https://nie.res.netease.com/r/pic/20261014/2bf80078-d39f-43ad-804a-3816c79d22b9.jpg);}
+</style>
+<div class="video_ctn" data-autoplay="true" data-hdmovieurl="https://hlr.v.netease.com/r/video/20261014/5cc15ab7-4522-4de0-a558-bb1db1cc7f1a.mp4" data-height="310" data-index="1" data-movieurl="https://hlr.v.netease.com/r/video/20261014/d7bf715c-de34-47bc-b61b-4ce44fe3a945.mp4" data-name="2026司岚生日活动「钟鸣时风起」PV公开" data-startimg="https://nie.res.netease.com/r/pic/20261014/2bf80078-d39f-43ad-804a-3816c79d22b9.jpg" data-width="550" data-wmode="transparent" id="flash" style="text-align: center;">
+<ul style="display:none">
+</ul>
+</div>
+</div>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">2026司岚生日活动「钟鸣时风起」将于2026年10月13日09:30开启。奇怪的幻想，也能在爱里生长。</span></span></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【司岚SSR·晚风沉醉】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">「在既定答案之外，我还想要另一个可能。」<br />
+10月13日09:30-10月22日05:00，司岚生日活动「钟鸣时风起」活动卡池限时开启，司岚SSR[晚风沉醉]获得概率提升。<br />
+[晚风沉醉]突破后为横幅动态卡面，可设置为开屏界面。<br />
+[晚风沉醉]配备卡组剧情：<br />
+十月，就像是为他量身定制的季节。<br />
+是梦也好，不是梦也罢。<br />
+那时的他，正在竭尽全力，奔赴自己选择的那一种未来。</span></span><img src="https://nie.res.netease.com/r/pic/20261014/57a570de-69e3-4076-854e-142ecbdd7a4b.jpg" /><img src="https://nie.res.netease.com/r/pic/20261014/3a7c0afc-b72e-445a-a964-dfb08c717839.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【司岚Birthday纪念·往昔留帧】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">「我想这就是记录的意义。 」<br />
+10月13日09:30-10月22日05:00，参与司岚生日活动「钟鸣时风起」，在生日当天与他共度，完成剧情即可免费获得1张生日纪念画灵[往昔留帧]。<br />
+[往昔留帧]为特殊互动画灵，触碰不同区域，可触发动作或语音。</span></span><img src="https://nie.res.netease.com/r/pic/20261014/765e0111-5f4a-4dbd-8e79-3e3e47e99ddd.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【钟鸣时风起·司岚的私人空间】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">10月13日09:30起，司岚的私人空间[朝暮同欢]上线。获取后，[校园]-[私人空间]将解锁相应地图。</span></span><img src="https://nie.res.netease.com/r/pic/20261014/08a388a6-38fa-4e3b-a275-7f6c941b8ad8.png" /></p>
+
+<h2 style="text-indent: 0pt; padding: 0pt; text-align: left;"><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;"><span style="background:#ffffff"><span style="line-height:200%"><span style="background:#ffffff"><span style="line-height:200%"><span style="letter-spacing:0.0000pt"><span style="font-style:normal">【钟鸣时风起·活动玩法及福利一览】</span></span></span></span></span></span></span></span></h2>
+
+<p style="text-indent:0.0000pt; padding:0pt 0pt 0pt 0pt ; text-align:left"><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;"><span style="background:#ffffff"><span style="line-height:200%"><span style="background:#ffffff"><span style="line-height:200%"><span style="letter-spacing:0.0000pt"><span style="font-style:normal">10月13日09:30-10月22日05:00，参与司岚生日活动「钟鸣时风起」，可免费获取: Birthday纪念互动画灵、小小司岚生日限定服装、生日限定闹钟皮肤、专属情头、生日限定Q版头像、[老荷兰颜料]*3、[补签券]、个人信息档案等奖励。</span></span></span></span></span></span></span></span></p>
+
+<p><img src="https://nie.res.netease.com/r/pic/20261014/88fae5e6-8743-4a12-b84c-40b8cfa9231b.jpg" /><img src="https://nie.res.netease.com/r/pic/20261014/0ef4a25d-c3d1-483a-9985-67102bafb4f1.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【钟鸣时风起·司岚生日服装】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">“不拍摄节目时，也可以穿给你看。”<br />
+10月13日09:30-10月22日05:00，司岚生日活动期间，生日限定服装[暮蝶]、[宵酒]限时上架，可通过购买服装礼包获取。</span></span><img src="https://nie.res.netease.com/r/pic/20261014/e1a79817-d120-48a0-8646-9cc2e7318c21.jpg" /><img src="https://nie.res.netease.com/r/pic/20261014/4108e243-3cfa-49e4-8fe6-e43060f8b1ca.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【关于《时空中的绘旅人》】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">《时空中的绘旅人》活动「钟鸣时风起」10月13日开启！参与游戏体验活动，海量福利等你开启。<br />
+《时空中的绘旅人》官方网站：hlr.163.com<br />
+《时空中的绘旅人》官方微信：时空中的绘旅人<br />
+《时空中的绘旅人》官方微博：时空中的绘旅人<br />
+《时空中的绘旅人》官方群：632719634</span></span></p>
+            </div>
+            
+
+        </div>

@@ -1,0 +1,6 @@
+{
+  "url": "https://bbs-api.miyoushe.com/post/wapi/getPostFull?post_id=79287295",
+  "status": 200,
+  "capturedAt": "2026-11-09T22:50:00.000Z",
+  "trim": "保留 retcode/message + data.post.post；只留 post_id / subject / created_at / content（正文原样，图片标签不删）。"
+}

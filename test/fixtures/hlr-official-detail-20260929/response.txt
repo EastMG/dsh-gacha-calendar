@@ -1,0 +1,261 @@
+<div id="NIE-art">
+            
+            <div class="tit">
+                <div class="tbox">
+                    
+                    <p class="artTitle">
+                        <a class="back" href="//hlr.163.com/news/official/"><i></i></a>《时空中的绘旅人》周年版本活动「永夜之城666」现已开启！
+                    </p>
+                    <div class="artInfo">
+                        <span>
+                            位置：
+                            <a href="//hlr.163.com/" title="首页" target="_blank">首页</a>>>
+                            <a href="//hlr.163.com/news/official/" title="新闻">新闻</a>>>新闻详情
+                        </span>                          <span class="artDate">时间：2026-09-24</span>
+                        <span class="artShare"></span>
+                    </div>
+                </div>
+            </div>
+
+            
+            <div class="artText">
+                <p style="margin-top: 7px; margin-bottom: 7px; text-align: left;"><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【「永夜之城666」活动开启】</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">绘旅人六周年纪念版本活动「永夜之城666」现已正式开启。周年庆活动将持续至10月13日05:00。</span></span></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【全新周年版本「永夜之城666 」PV及画灵公开】</span></span></h2>
+
+<div name="videoplayer">
+<style type="text/css">.video_ctn[data-index="1"]{background:url(https://nie.res.netease.com/r/pic/20260929/8c8e9627-b8e4-4fd6-9ecb-3baad8e83c30.jpg);}
+</style>
+<div class="video_ctn" data-autoplay="true" data-hdmovieurl="https://hlr.v.netease.com/r/video/20260929/463ca07a-4aea-4b3a-a1e6-9e3f9e3724cc.mp4" data-height="310" data-index="1" data-movieurl="https://hlr.v.netease.com/r/video/20260929/10770653-ca0b-4ef5-bdfe-dea71c7a6c86.mp4" data-name="全新周年版本「永夜之城666 」PV公开" data-startimg="https://nie.res.netease.com/r/pic/20260929/8c8e9627-b8e4-4fd6-9ecb-3baad8e83c30.jpg" data-width="550" data-wmode="transparent" id="flash" style="text-align: center;">
+<ul style="display:none">
+</ul>
+</div>
+</div>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">欲望为笼，本能为枷。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">死寂已久的心脏，重新为你搏动。</span></span></p>
+
+<p>&nbsp;</p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">“——你是否曾见过我的爱人？”</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">你听着乡野间传唱着不变的歌谣，偶尔也会跟着复述。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">年长者谈论着歌谣含义，说亲近之人或许从未远去，只是睡在小小的盒子里。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">这些谈话轻柔舒缓，让人不由得放下心来。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">更可怕的可能性只有一个——</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">那就是沉睡之人从来不曾真正沉睡，在某个时刻，他将归来。</span></span></p>
+
+<p>&nbsp;</p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">六周年庆纪念活动「永夜之城666」将于9月24日更新后开启，同名SSR画廊开启。参与活动可参与夜影城剧情，穿梭上下双城，体验殿堂私语等专属互动。</span></span></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【艾因SSR·空冢遗珠】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">「你知道你在说什么吗……还是想要我给你初拥？ 」</span></span></p>
+
+<p>&nbsp;</p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">9月24日更新后 - 10月13日05:00，「永夜之城666」周年卡池、许愿功能限时开启。活动期间，艾因SSR[空冢遗珠]获得概率提升。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">[空冢遗珠]突破后具备动态横幅卡面，可设为登录界面，获取后可在「暮色新生」养成活动获取可切换状态的特殊头像。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">[空冢遗珠]具备6节live2d演出的卡组剧情。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">“错了要罚，不过不是今天。”</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">“你可以理解成，虽然人类的寿命是有界限的，但在走到那个最后限度之前，只要你没有拒绝生命，我就不会让你死。”</span></span><img src="https://nie.res.netease.com/r/pic/20260929/f3b87112-b759-4251-b470-51a87b2f2aab.jpg" /><img src="https://nie.res.netease.com/r/pic/20260929/fce60b89-1da2-40ed-9435-78fe2e2cfc4e.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【路辰SSR·骨中之骨】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">「你可以切开我的心脏，杀死我、吃掉我，但不能不要我。 」</span></span></p>
+
+<p>&nbsp;</p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">9月24日更新后 - 10月13日05:00，「永夜之城666」周年卡池、许愿功能限时开启。活动期间，路辰SSR[骨中之骨]获得概率提升。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">[骨中之骨]突破后具备动态横幅卡面，可设为登录界面，获取后可在「暮色新生」养成活动获取可切换状态的特殊头像。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">[骨中之骨]具备6节live2d演出的卡组剧情。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">“和你分开的这几天里，我总是一遍遍地确认你在我身上留下的痕迹，又一遍遍地想，为什么它们没有愈合呢？”</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">“……为什么我不希望它们愈合呢？”</span></span><img src="https://nie.res.netease.com/r/pic/20260929/3b9f2673-2ad6-4c2f-b49f-575a899c0f2d.jpg" /><img src="https://nie.res.netease.com/r/pic/20260929/e99f3f56-15ee-476b-ac21-4ec3d04df6ca.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【罗夏SSR·地狱礼赞】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">「我们间的联系就剩最后一点了，小夜枭，我真舍不得你。」</span></span></p>
+
+<p>&nbsp;</p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">9月24日更新后 - 10月13日05:00，「永夜之城666」周年卡池、许愿功能限时开启。活动期间，罗夏SSR[地狱礼赞]获得概率提升。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">[地狱礼赞]突破后具备动态横幅卡面，可设为登录界面，获取后可在「暮色新生」养成活动获取可切换状态的特殊头像。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">[地狱礼赞]具备6节live2d演出的卡组剧情。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">“抱歉啊，把你拖了进来，还要你这双漂亮的手沾上我这个恶魔的血……”</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">“虽然我很满意这种结果就是了——如果能被你记一辈子，我在地狱里恐怕也能做些春梦吧。”</span></span><img src="https://nie.res.netease.com/r/pic/20260929/7899b373-c1f1-4547-971a-32c8745b69f0.jpg" /><img src="https://nie.res.netease.com/r/pic/20260929/f1fc7f94-c2c8-45a5-92cd-050f4e10cb8f.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【司岚SSR·寄予长夜】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">「我该愧疚吗？该为想着你的自己愧疚吗？」</span></span></p>
+
+<p>&nbsp;</p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">9月24日更新后 - 10月13日05:00，「永夜之城666」周年卡池、许愿功能限时开启。活动期间，司岚SSR[寄予长夜]获得概率提升。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">[寄予长夜]突破后具备动态横幅卡面，可设为登录界面，获取后可在「暮色新生」养成活动获取可切换状态的特殊头像。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">[寄予长夜]具备6节live2d演出的卡组剧情。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">“如果你真的能成为那只破笼而出的青鸟，我会由衷地为你高兴，也会为自己的玩忽职守付出代价。”</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">“——我注定失去你。这是我得出的答案。”</span></span><img src="https://nie.res.netease.com/r/pic/20260929/d84f4bc3-fdc0-4c5e-87ba-0b979c9ee4af.jpg" /><img src="https://nie.res.netease.com/r/pic/20260929/27924423-4d2c-4b00-af06-3d24e88b47a0.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【叶瑄SSR·荆棘之花】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">「你见过我的妻子吗？我要如何才能找到她？」</span></span></p>
+
+<p>&nbsp;</p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">9月24日更新后 - 10月13日05:00，「永夜之城666」周年卡池、许愿功能限时开启。活动期间，叶瑄SSR[荆棘之花]获得概率提升。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">[荆棘之花]突破后具备动态横幅卡面，可设为登录界面，获取后可在「暮色新生」养成活动获取可切换状态的特殊头像。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">[荆棘之花]具备6节live2d演出的卡组剧情。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">“洞外那一瞥，我只看见灰发的自己，连面容都没看清。”</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">“我坠入这片记忆空洞，代价是容貌尽改、记忆尽失……但我觉得，若我变成‘残缺’的模样，你会在。”</span></span></p>
+
+<p style="text-align: center;"><img src="https://nie.res.netease.com/r/pic/20260929/8de8898a-b8b8-4ab9-bad9-028e8803f25a.jpg" /></p>
+
+<p><img src="https://nie.res.netease.com/r/pic/20260929/da4a9c48-923d-4e7c-847b-4f20b20bbbab.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【全新开屏·古堡游戏】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">「齐聚一桌，游戏开局！」</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">9月24日更新后 - 10月13日05:00，在「永夜之城666」画廊绘制达230次时，可获得版本限定开屏[古堡游戏]。</span></span></p>
+
+<p style="text-align: center;"><img src="https://nie.res.netease.com/r/pic/20260929/77548b9b-db1c-486d-ae58-41cca8c7a10c.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【点击特效·血舞】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">9月24日更新后 - 10月13日05:00，全新点击特效[血舞]限时上架，通过购买[永夜点触礼盒]获得。</span></span></p>
+
+<p style="text-align: center;"><img src="https://nie.res.netease.com/r/pic/20260929/1d7f65cd-720e-4042-88f1-1935480f3f86.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【永夜之城666·主题头像】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">「相拥是克制，本能是渴望。」</span></span></p>
+
+<p>&nbsp;</p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">9月24日更新后 - 10月13日05:00，获得[永夜之城666]主题周年SSR画灵，可在「暮色新生」养成活动中获得对应角色「依恋」主题头像。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">「依恋」主题头像分为[相拥]和[本能]两种状态，均为获得对应周年SSR画灵即可在界面中直接领取，领取后将共享同一头像栏位，可在头像界面切换。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">►艾因[啜血共生]</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">►路辰[不愈渴恋]</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">►罗夏[同赴长夜]</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">►司岚[心魂所契]</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">►叶瑄[伴月同眠]</span></span></p>
+
+<p><img src="https://nie.res.netease.com/r/pic/20260929/1c8e80ba-c1ca-4585-ae7a-693d41df400a.png" /><img src="https://nie.res.netease.com/r/pic/20260929/83e0b856-f4ac-4a5d-ba15-6eacfc17fb59.png" /><img src="https://nie.res.netease.com/r/pic/20260929/f5fda11b-49bd-4d05-87ef-74a0e5786bb4.png" /><img src="https://nie.res.netease.com/r/pic/20260929/20440cd3-7d37-4b2f-9348-eacf79785f9c.png" /><img src="https://nie.res.netease.com/r/pic/20260929/962390b6-0542-440f-83a3-5b4e1c022f83.png" /><img src="https://nie.res.netease.com/r/pic/20260929/c4e7b8ed-c88a-429d-8cb6-b736325dc468.png" /><img src="https://nie.res.netease.com/r/pic/20260929/bc6c712e-87fd-45f0-bbf4-4c45e5abeb47.png" /><img src="https://nie.res.netease.com/r/pic/20260929/f51d4a0f-f0a7-42b9-a64a-d63b9c154df4.png" /><img src="https://nie.res.netease.com/r/pic/20260929/01b87870-e98e-40e5-a5f7-0b4257f9b3fa.png" /><img src="https://nie.res.netease.com/r/pic/20260929/57556e30-9927-4d1a-9eb0-e9359e8db56d.png" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【永夜之城666·Q版画灵】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">9月24日更新后 - 10月13日05:00，参与「永夜之城666」活动，可获取活动限定Q版画灵，获取后可收到来自[他]的短信。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">►艾因[执面] </span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">►路辰[浮火] </span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">►罗夏[卧梦] </span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">►司岚[垂影] </span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">►叶瑄[凝雾]</span></span></p>
+
+<p><img src="https://nie.res.netease.com/r/pic/20260929/ea408411-f103-422d-a424-0a4e2852e4fe.jpg" /><img src="https://nie.res.netease.com/r/pic/20260929/b1e86a1b-6f57-4f49-b329-b3495978754d.jpg" /><img src="https://nie.res.netease.com/r/pic/20260929/d8f5d341-aff8-45c2-8c0b-73a8c77bd227.jpg" /><img src="https://nie.res.netease.com/r/pic/20260929/e01c4e32-1411-4ed3-bbab-f70a3eb46fd1.jpg" /><img src="https://nie.res.netease.com/r/pic/20260929/a643cf79-09cd-484e-86d9-bfc516c5c509.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【永夜之城666·出行服装】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">「种种欲念皆与爱意等同。」</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">9月24日更新后-10月13日05:00， [夜影]系列出行服装限时上架。</span></span></p>
+
+<p><img src="https://nie.res.netease.com/r/pic/20260929/d3d5b8f3-741b-46a2-9b8d-fe4630cf4ebc.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【永夜之城666·校园装扮】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">9月24日更新后 - 10月13日05:00，在「永夜之城666」画廊中累计绘制达80、100、120、150、180次时，可自选一套[永夜之城校园换装]，装扮具备特殊动作。</span></span></p>
+
+<p><img src="https://nie.res.netease.com/r/pic/20260929/e1c6b737-c5b2-4983-8f7a-e2c065cec84a.jpg" /><img src="https://nie.res.netease.com/r/pic/20260929/9630b28a-be1a-4786-80ef-35a3f0f1293c.jpg" /><img src="https://nie.res.netease.com/r/pic/20260929/f7de5223-4cdb-4b0a-a7c0-d922d3d0a8f9.jpg" /><img src="https://nie.res.netease.com/r/pic/20260929/9d1262e6-947d-4089-9945-a9b5a867ddc5.jpg" /><img src="https://nie.res.netease.com/r/pic/20260929/c7a7f39c-1e55-460d-ac7f-52b6a27b5782.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【周年盛典·福利活动&amp;限时累充】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">9月24日更新后 - 10月13日05:00，参与「诸界的牌谕 」活动，可免费获得司岚SSR[直扣心防]；参与周年限时累充活动，在所有积分等级中可获得[老荷兰颜料]*76、[觉悟]*112、满特技艾因SSR[回航地]、可充能家居[长夜绯梦]等奖励。</span></span></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【司岚SSR·直扣心防】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">「什么都不要想，看着我和我手里的球就好。」</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">9月24日更新后 - 10月13日05:00，参与「诸界的牌谕 」活动，可免费获得司岚SSR[直扣心防]。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">SSR画灵[直扣心防]卡组剧情：</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">“今天，对我来说最重要的人就坐在观众席，也让我多了一些特别的期待。 ”</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">“我希望在那个人眼里，我永远有值得探索的、新鲜的一面——就像她之于我那样。 ”</span></span></p>
+
+<p><img src="https://nie.res.netease.com/r/pic/20260929/d12dd5db-f499-4a20-b54d-8ea1ee024d30.jpg" /><img src="https://nie.res.netease.com/r/pic/20260929/5029514e-5300-4fa1-a78d-5fcd2245c0ff.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【艾因SSR·回航地】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">「只要你欢迎，我以后会经常“路过”这里。 」</span></span></p>
+
+<p>&nbsp;</p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">我指向酒馆损坏的桌椅，他则掏出一张赏金高昂的通缉令。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">下一秒，我们同时开口。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">“赔钱。”</span></span></p>
+
+<p>&nbsp;</p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">[回航地]画灵具备独特的卡组剧情，剧情中包含2段ASMR的心间私语。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">[回航地]突破后为动态卡面。</span></span></p>
+
+<p><img src="https://nie.res.netease.com/r/pic/20260929/9deb24d7-8838-4834-8bd2-10a2e4d09421.jpg" /><img src="https://nie.res.netease.com/r/pic/20260929/3c908e9c-30fd-42fc-bd64-20a669854294.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【关于《时空中的绘旅人》】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">《时空中的绘旅人》六周年纪念版本活动「永夜之城666」9月24日开启！参与游戏体验活动，海量福利等你开启。</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">《时空中的绘旅人》官方网站：hlr.163.com</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">《时空中的绘旅人》官方微信：时空中的绘旅人</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">《时空中的绘旅人》官方微博：时空中的绘旅人</span></span></p>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">《时空中的绘旅人》官方群：632719634</span></span></p>
+            </div>
+            
+
+        </div>

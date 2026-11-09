@@ -5,15 +5,23 @@
 //     列：契约 | 开放时间 | 概率提升的风格
 //     行例：隐秘的归属 | 2026/09/10 05:00:00 ~ 2026/10/01 04:59:59 | 杯中藏锋 | 活动
 //
-// ── 活动侧为什么留空（`eventUrl` 不给）──────────────────────────────────────────
-// 官方只有**逐条公告页**（无列表接口、无稳定分页），没有一页能一次取到"活动 + 起止"的表；
-// bwiki 侧也没有活动一览页。⇒ 按用户要求「暂时没有数据源的就留空未配置」：
-// 条目照常注册，`eventUrl` **不写**（不假冒"配了一个源"）。
-//   · 刷新（50-refresh.js）：`source.url` 有 ⇒ 卡池侧照抓；`source.eventUrl` 空 ⇒ 活动侧**根本不抓**，
-//     既不记成功也不记失败（`fetchEntry` 只对给了地址的那一侧判 fail）；
-//   · 自检（engine-api.js 的 describe）：活动侧 `!url` ⇒ `state:"unconfigured"`，
-//     设置页写「未配置来源」，**不算失败**（summary.unconfigured 单独计数）；
-//   · 设置页「活动来源」下拉：`getDefaultSourceName(g,"eventUrl")` → 裸「未配置」。
+// ── 活动侧（2026-11-09 接入）：bwiki `公告/` 前缀页 ───────────────────────────
+// 旧结论是「官方只有逐条公告页（无列表接口），bwiki 也没有活动一览页」⇒ 当时留空未配置。
+// 本批重新实测：bwiki `公告/` 前缀下共 **88 页**，其中 5 页以「版本活动总览」结尾，
+// 每页 5~6 行「活动时间：」，**小节名就是活动名**：
+//   列表  api.php?action=query&generator=allpages&gapprefix=公告/&gaplimit=100&format=json&formatversion=2
+//         `origin=*` 由 `withBwikiCors` 统一补；实测 200、`ACAO: *`（但全站口径仍走宿主代理，见 15-env.js）
+//   详情  api.php?action=parse&page=<页名>&prop=wikitext&format=json&formatversion=2
+//         模板：{{公告页面|公告发布日期=2026-09-10|公告内容=…}}
+//         正文：'''◈「共举昨日之酒·上」版本签到'''<br>
+//               活动时间：2026/9/10 版本更新后 - 2026/10/1 4:59<br>
+// 取**最新一页** = `pageid` 最大（MediaWiki 自增；标题里没有日期，不能按标题排）。
+// 起点「版本更新后」= **起点未知** ⇒ `startTs = null`（与 wd 同口径：不进外显、进悬停）。
+//
+// ⚠️ 已知滞后：该 wiki 最新一版只到 **2026-09-10**（比游戏落后约 1 个版本；游戏本身仍在运营，
+//    1.0.54 / 2026-10-21）。所以此刻抓到的活动全部已结束 ⇒ 如实 `null`（未公布），
+//    **绝不**把九月档期当成"当前活动"。设置页/失败横条里的来源标签写明
+//    「Bwiki 公告（wiki 数据滞后）」—— 停更的是 wiki，不是游戏，不要标成"暂停"。
 //
 // ── 时区 ──
 // 源站无标注；时间写成 `05:00:00 ~ 04:59:59`（凌晨 5 点换池 + 结束前一秒），是国服 UTC+8 口径
@@ -29,6 +37,11 @@
 
 		const PENGPENG_TZ = "Asia/Shanghai";
 		const PENGPENG_BWIKI_URL = "https://wiki.biligame.com/pengpeng/api.php?action=parse&page=契约一览&prop=text&format=json&formatversion=2";
+		// 活动侧：`公告/` 前缀页列表（`gapprefix` 里的 `/` 编码成 `%2F`，MediaWiki 解成同一个值）
+		const PENGPENG_EVENT_URL = "https://wiki.biligame.com/pengpeng/api.php?action=query&generator=allpages&gapprefix="
+			+ encodeURIComponent("公告/") + "&gaplimit=100&format=json&formatversion=2";
+		const PENGPENG_EVENT_OVERVIEW_RE = /版本活动总览$/;
+		const PENGPENG_MAX_OVERVIEWS = 1;
 
 		// 「契约」列：名称住在最后一个加粗 span 里（长期池也有），类型标签是另一枚 span
 		const PENGPENG_NAME_RE = /<span\b[^>]*style="[^"]*font-weight\s*:\s*bold[^"]*"[^>]*>([\s\S]*?)<\/span>/gi;
@@ -96,6 +109,153 @@
 			return ns_bwiki_batchGachaPayloadOf(items, tz, typeof now === "number" && Number.isFinite(now) ? now : nowMs(), { id: "pengpeng" });
 		}
 
+		// ── 活动侧：`公告/*` 版本活动总览 ────────────────────────────────────────
+		function pengpengOverviewPagesOf(json) {
+			if (!json || typeof json !== "object") throw new Error("pengpeng-bad-shape");
+			const pages = json.query && json.query.pages;
+			if (!Array.isArray(pages)) throw new Error("pengpeng-bad-list");
+			return pages
+				.map((p) => ({ title: String((p && p.title) || ""), pageid: Number(p && p.pageid) || 0 }))
+				.filter((p) => p.title.indexOf("公告/") === 0 && PENGPENG_EVENT_OVERVIEW_RE.test(p.title))
+				.sort((a, b) => b.pageid - a.pageid);
+		}
+
+		function pengpengOverviewUrl(title) {
+			return "https://wiki.biligame.com/pengpeng/api.php?action=parse&page="
+				+ encodeURIComponent(String(title)) + "&prop=wikitext&format=json&formatversion=2";
+		}
+
+		function pengpengWikitextOf(json) {
+			if (!json || typeof json !== "object") throw new Error("pengpeng-bad-shape");
+			const wt = json.parse && json.parse.wikitext;
+			if (typeof wt !== "string") throw new Error("pengpeng-bad-wikitext");
+			return wt;
+		}
+
+		// `'''◈「共举昨日之酒·上」版本签到'''<br>` → `「共举昨日之酒·上」版本签到`
+		function pengpengHeadingOf(line) {
+			const s = String(line == null ? "" : line).replace(/'''/g, "").replace(/◈/g, "");
+			return stripTags(s).replace(/\s+/g, " ").trim();
+		}
+
+		// `2026/9/10 版本更新后` / `2026/9/12 5:00` / `2026/10/1 4:59`
+		const PENGPENG_EVENT_POINT_RE = /(\d{4})\s*\/\s*(\d{1,2})\s*\/\s*(\d{1,2})(?:\s*(\d{1,2})\s*[:：]\s*(\d{2}))?(?:\s*(版本更新后))?/g;
+		const PENGPENG_EVENT_CONNECTOR_RE = /^\s*[-~～〜—–－至到]\s*$/;
+
+		function pengpengEventPointsOf(text) {
+			const s = String(text == null ? "" : text);
+			const out = [];
+			PENGPENG_EVENT_POINT_RE.lastIndex = 0;
+			let m;
+			while ((m = PENGPENG_EVENT_POINT_RE.exec(s))) {
+				if (m[0] === "") { PENGPENG_EVENT_POINT_RE.lastIndex++; continue; }
+				out.push({
+					start: m.index,
+					end: m.index + m[0].length,
+					y: +m[1],
+					mo: +m[2],
+					d: +m[3],
+					h: m[4] != null ? +m[4] : null,
+					mi: m[5] != null ? +m[5] : null,
+					open: m[6] === "版本更新后"
+				});
+			}
+			return out;
+		}
+
+		// 一行「活动时间：…」→ 窗口事实（起点未知 = startTs null，display 保留「版本更新后」）
+		function pengpengEventWindowsOf(text, tz = PENGPENG_TZ) {
+			const s = String(text == null ? "" : text);
+			const toks = pengpengEventPointsOf(s);
+			const out = [];
+			const seen = new Set();
+			for (let i = 0; i + 1 < toks.length; i++) {
+				const a = toks[i], b = toks[i + 1];
+				if (!PENGPENG_EVENT_CONNECTOR_RE.test(s.slice(a.end, b.start))) continue;
+				if (a.h == null && !a.open) continue;
+				if (b.h == null) continue;
+				const endY = a.y + (endsNextYear(a.mo, a.d, b.mo, b.d) ? 1 : 0);
+				const startTs = a.open ? null : sourceInstant(a.y, a.mo, a.d, a.h, a.mi, tz);
+				const endTs = sourceInstant(endY, b.mo, b.d, b.h, b.mi, tz);
+				if (startTs != null && !(endTs > startTs)) continue;
+				const key = (startTs == null ? "open" : startTs) + "|" + endTs;
+				if (seen.has(key)) continue;
+				seen.add(key);
+				const aRaw = s.slice(a.start, a.end).replace(/\s+/g, " ").trim();
+				const bRaw = s.slice(b.start, b.end).replace(/\s+/g, " ").trim();
+				const endWall = sourceWallParts(endTs, tz);
+				const startWall = a.open ? { y: a.y } : sourceWallParts(startTs, tz);
+				const sameYear = startWall.y === endWall.y;
+				const startText = a.open
+					? (sameYear ? `${pad2(a.mo)}-${pad2(a.d)} 版本更新后` : `${a.y}-${pad2(a.mo)}-${pad2(a.d)} 版本更新后`)
+					: (sameYear ? fmtMdHm(startTs, tz) : fmtYmdHm(startTs, tz));
+				const endText = sameYear ? fmtMdHm(endTs, tz) : fmtYmdHm(endTs, tz);
+				out.push({ startTs, endTs, raw: `${aRaw} ~ ${bRaw}`, display: `${startText} ~ ${endText}` });
+			}
+			return out;
+		}
+
+		// 一页 wikitext → 活动事实 [{ name, startTs, endTs, raw, display }]
+		function pengpengOverviewActivitiesOf(wikitext, tz = PENGPENG_TZ) {
+			const lines = String(wikitext == null ? "" : wikitext).split(/\r?\n/);
+			const out = [], seen = new Set();
+			let heading = "";
+			for (const line of lines) {
+				if (line.indexOf("◈") >= 0) heading = pengpengHeadingOf(line);
+				if (line.indexOf("活动时间") < 0 || !heading) continue;
+				for (const w of pengpengEventWindowsOf(line, tz)) {
+					const key = heading + "|" + (w.startTs == null ? "open" : w.startTs) + "|" + w.endTs;
+					if (seen.has(key)) continue;
+					seen.add(key);
+					out.push({ name: heading, ...w });
+				}
+			}
+			return out;
+		}
+
+		async function fetchPengpengEvents(url, signal, tz = PENGPENG_TZ) {
+			const at = nowMs();
+			const listJson = await fetchJson(url || PENGPENG_EVENT_URL, { signal, mode: "proxy" });
+			const pages = pengpengOverviewPagesOf(listJson);
+			if (pages.length === 0) return null;
+			const rows = [];
+			let okCount = 0, firstHardErr = null;
+			for (const page of pages.slice(0, PENGPENG_MAX_OVERVIEWS)) {
+				let json;
+				try {
+					json = await fetchJson(pengpengOverviewUrl(page.title), { signal, mode: "proxy" });
+				} catch (e) {
+					if (!firstHardErr) firstHardErr = e;
+					continue;
+				}
+				okCount++;
+				for (const x of pengpengOverviewActivitiesOf(pengpengWikitextOf(json), tz)) rows.push(x);
+			}
+			if (okCount === 0) {
+				if (firstHardErr) throw firstHardErr;
+				return null;
+			}
+			if (rows.length === 0) return null;
+			// 外显：两端都明确且覆盖 now（「版本更新后」那一批**不**进外显）
+			const live = rows.filter((r) => coversNow(r, at));
+			if (live.length === 0) return null;
+			live.sort((a, b) => (a.endTs - b.endTs) || ((a.startTs == null ? Infinity : a.startTs) - (b.startTs == null ? Infinity : b.startTs)));
+			const first = live[0];
+			const hoverItems = rows.filter((r) => coveredOrOpen(r, at))
+				.sort((a, b) => (a.endTs - b.endTs) || ((a.startTs == null ? Infinity : a.startTs) - (b.startTs == null ? Infinity : b.startTs)))
+				.map((r) => ({ title: r.name, startTs: r.startTs, endTs: r.endTs, raw: r.raw }));
+			const hover = hoverTextFromItems(hoverItems, "event", tz);
+			const out = {
+				event: first.name,
+				eventDates: first.display,
+				eventDatesRaw: first.raw,
+				...(hover ? { eventHover: hover } : {})
+			};
+			out.events = dataArrayProducedEventsOf(out, hoverItems, { id: "pengpeng", tz }, at);
+			out.eventHoverItems = hoverItems;
+			return out;
+		}
+
 		// ── 条目 ──
 		registerSource({
 			id: "pengpeng",
@@ -105,7 +265,12 @@
 			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/3f/59/95/3f599572-4d8c-f4f3-0270-1ee72e007926/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",
 			url: PENGPENG_BWIKI_URL,
 			source: "Bwiki",
-			// eventUrl **故意不给**（活动侧没有可用来源）：见文件头「活动侧为什么留空」
+			eventUrl: PENGPENG_EVENT_URL,
+			// 标签如实写「wiki 数据滞后」：停更的是社区 wiki，不是游戏（见文件头）
+			eventSource: "Bwiki 公告（wiki 数据滞后）"
 		});
 
 		GACHA_FETCHERS["pengpeng"] = (url, signal, tz) => ns_pengpeng_gachaPengpeng(url, signal, tz);
+		EVENT_FETCHERS["pengpeng"] = {
+			default: (url, signal, tz) => fetchPengpengEvents(url, signal, tz)
+		};

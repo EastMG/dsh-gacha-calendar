@@ -1,0 +1,6 @@
+{
+  "url": "https://hlr.163.com/news/official/20260929/30882_1315388.html",
+  "status": 200,
+  "capturedAt": "2026-11-09T22:50:00.000Z",
+  "trim": "只保留 <div id=\"NIE-art\"> 整块（artTitle 标题 + artDate 正文标注日期 + artText 正文），页头页脚 / 脚本 / 顶栏删除。"
+}

@@ -150,10 +150,11 @@ export default async function run() {
 	// 「厂商/系列级文件仍是 13 个」+「bwiki 家族正好 15 段」= 28 ——少一个 = 漏接线，多一个 = 忘了登记。
 	const bwikiFiles = files.filter((f) => f.startsWith("30-game-bwiki"));
 	const vendorFiles = files.filter((f) => !f.startsWith("30-game-bwiki"));
-	// 2026-11-09：再 +3 个厂商/系列文件（`30-game-wqmt.js` / `30-game-pengpeng.js` /
-	// `30-game-unconfigured.js` —— 后三条只注册条目、来源留空未配置）⇒ 厂商级 16 + bwiki 15 = 31 个文件。
-	check("游戏文件齐备（16 个厂商/系列文件 + bwiki 系 15 段 = 31 个）",
-		vendorFiles.length === 16 && bwikiFiles.length === 15,
+	// 2026-11-09：再 +5 个厂商/系列文件（`30-game-wqmt.js` / `30-game-pengpeng.js` /
+	// `30-game-unconfigured.js`，以及晚上新接入的 `30-game-miyoushe-bbs.js`（未定）/
+	// `30-game-netease.js`（绘旅人））⇒ 厂商级 18 + bwiki 15 = 33 个文件。
+	check("游戏文件齐备（18 个厂商/系列文件 + bwiki 系 15 段 = 33 个）",
+		vendorFiles.length === 18 && bwikiFiles.length === 15,
 		`厂商=${vendorFiles.length} bwiki=${bwikiFiles.length}`);
 
 	const hit = [];

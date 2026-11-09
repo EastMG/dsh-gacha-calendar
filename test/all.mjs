@@ -45,6 +45,8 @@ import runP3 from "./cases-p3.mjs";
 import runP4Flat from "./cases-p4flat.mjs";
 import runCategory from "./cases-category.mjs";
 import runNew5 from "./cases-new5.mjs";
+import runWdHlr from "./cases-wd-hlr.mjs";
+import runPengpengEvent from "./cases-pengpeng-event.mjs";
 import runHsrOfficial from "./cases-hsr-official.mjs";
 import runZzzBwiki from "./cases-zzz-bwiki.mjs";
 
@@ -103,7 +105,7 @@ section("夹具卫生");
 	check("夹具非空", fx.length > 0, String(fx.length));
 	check("夹具数量 ≥ 20（各批都抓了真实响应）", fx.length >= 20, String(fx.length));
 	check("夹具命名带批次前缀（便于溯源）",
-		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights|wqmt|pengpeng)/.test(f)), fx.slice(0, 5).join(","));
+		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights|wqmt|pengpeng|wd|hlr)/.test(f)), fx.slice(0, 5).join(","));
 }
 //#endregion
 
@@ -143,6 +145,8 @@ const batches = [
 	["P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）", runP4Flat],
 	["category / tags 批 1+2+3（9 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 多值拆分 + 旧键兼容 + 反证；批 3 = `eventTier` 的 haystack 改 OR 语义 + 逐时刻外显变化登记）", runCategory],
 	["2026-11-09 新接入 5 款（无期迷途两侧真源 + 夜幕之下卡池 + 未定/绘旅人/炽焰天穹留空未配置）", runNew5],
+	["未定事件簿 / 时空中的绘旅人（米游社官方版块 + 官网新闻：卡池 + 活动 / 跨年补年 / 单侧失败隔离）", runWdHlr],
+	["夜幕之下活动（bwiki 公告/版本活动总览：「版本更新后」不进外显 + wiki 数据滞后如实 null）", runPengpengEvent],
 	["星铁卡池换官方公告 CMS + 「相对起点」锚定（星铁 10:00 / 无期迷途 14:00）+ 「起点未知 ≠ 已开始」", runHsrOfficial],
 	["绝区零 bwiki 备选源「起点未知 = 已开始」的唯一例外（其余来源仍严格）", runZzzBwiki]
 ];

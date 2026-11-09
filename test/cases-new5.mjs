@@ -3,8 +3,12 @@
 // ── 这一段守什么 ──
 //   ① **注册项**：5 条的 id / 名称 / 图标 / tz / 颜色都在，id 全局唯一；**有源的接全、无源的留空**：
 //      · `wqmt` 两侧都有（bwiki 卡池 + 官方资讯 API 活动）；
-//      · `pengpeng` 只有卡池（`eventUrl` **不写**）；
-//      · `wd` / `hlr` / `cytq` 两侧都不写（只注册条目）。
+//      · `pengpeng` 卡池 + 活动（卡池 bwiki 契约一览；活动 bwiki `公告/` 版本活动总览）；
+//      · `wd` 两侧都有（米游社官方版块 forum_id=33，卡池 + 活动）；
+//      · `hlr` 两侧都有（官网新闻列表 + 详情，卡池 + 活动）；
+//      · `cytq` 两侧都不写（**本批唯一**仍然「未配置」的条目）。
+//      ⚠️ 2026-11-09 晚改：`wd` / `hlr` / `pengpeng` 的活动侧是用新调研到的源接上的，
+//         不再是「未配置」——本文件原先那几条「留空」断言已逐条改成「已配置」，理由见 ①/⑤。
 //   ② **无期迷途卡池**：真夹具（`test/fixtures/wqmt-bwiki`，2026-11-09 抓）逐字断言
 //      池名 / 卡池类型 / 角色 / 档期文本 / 绝对时刻 + `gacha[]` 逐条 + 悬停文本。
 //      ⚠️ 2026-11-09 改口径：`开服后` **不再留 null** —— 有维护公告就取窗口结束（10-27 14:00），
@@ -13,9 +17,9 @@
 //   ③ **无期迷途活动**：真夹具（资讯列表 + 6 条正文）逐字断言 2 条在期活动；另加锚点机制的正反两例。
 //   ④ **夜幕之下卡池**：夹具在抓取那天（2026-09-10 那一批）**已经过期** ⇒ 用批内时刻断言
 //      逐字值，并单独钉住"当前时刻没有在期池 ⇒ 返回 null（未公布，不是失败）"。
-//   ⑤ **「未配置」路径**（③④⑤ 三款的语义，也是 `pengpeng` 的活动侧）：
-//      不抓取、不抛错、不产生 fail；自检里算 `unconfigured` 而**不是** `down`；
-//      面板那一格派生不出条目（⇒ 写「该来源无数据」），所以底部失败横条也不会出现。
+//      （活动侧的新用例在 `test/cases-pengpeng-event.mjs`，不混在这里。）
+//   ⑤ **「未配置」路径**（现在只剩 `cytq`）：不抓取、不抛错、不产生 fail；自检里算 `unconfigured`
+//      而**不是** `down`；面板那一格派生不出条目（⇒ 写「该来源无数据」），所以底部失败横条也不会出现。
 //
 // ⚠️ 时间断言一律写**绝对毫秒**（`Date.UTC(...)` 手算，不用 `sourceInstant` 自证）：
 //    这样 `TZ=UTC` 与 `TZ=Asia/Shanghai` 两道门禁跑的是同一份期望值 —— 谁把源站墙钟按本机时区
@@ -131,8 +135,10 @@ export default async function run() {
 			check(`${id} 有图标（http(s) 地址）`, !!s && /^https?:\/\//.test(String(s.icon)), s ? String(s.icon).slice(0, 60) : "缺失");
 			// 颜色：本批 5 条在 20-source-core.js 的 SOURCE_COLORS 里各给了一个中间调
 			check(`${id} 有游戏主题色（#rrggbb）`, !!s && /^#[0-9A-Fa-f]{6}$/.test(String(s.color)), s ? String(s.color) : "缺失");
-			// 2026-11-09 用户：无数据源的四款（夜幕之下 / 未定 / 绘旅人 / 炽焰天穹）出厂**不勾选展示**；
-			// 无期迷途两侧都有源 ⇒ 仍出厂展示。这张 `defaultHidden` 表与提醒侧那份副本必须一致
+			// 2026-11-09 用户：本批 4 款（夜幕之下 / 未定 / 绘旅人 / 炽焰天穹）出厂**不勾选展示**；
+			// 无期迷途两侧都有源 ⇒ 仍出厂展示。2026-11-09 晚 wd/hlr 接上了源，但用户当轮的
+			// 「出厂不勾选」要求**没有撤回** ⇒ 它们的 defaultHidden 仍是 true（只改源、不改展示口径）。
+			// 这张 `defaultHidden` 表与提醒侧那份副本必须一致
 			// （`65-remind.js` 的 REMIND_DEFAULT_HIDDEN_IDS / 宿主拿它判「展示中」，守卫见 cases-remind.mjs）。
 			const wantHidden = id !== "wqmt";
 			check(`${id} 出厂${wantHidden ? "不勾选展示" : "展示"}（defaultHidden = ${wantHidden}）`,
@@ -152,26 +158,51 @@ export default async function run() {
 		check("pengpeng 卡池源已接（bwiki 契约一览）",
 			!!pp && /^https:\/\/wiki\.biligame\.com\/pengpeng\/api\.php/.test(pp.url) && pp.source === "Bwiki",
 			pp ? String(pp.url) : "缺失");
-		check("pengpeng 活动侧**留空**（eventUrl 缺失 / 空串 —— 没有可用源就不假装有）",
-			!!pp && !pp.eventUrl, pp ? JSON.stringify(pp.eventUrl) : "缺失");
+		// 旧断言「pengpeng 活动侧留空」的理由（官方只有逐条公告、bwiki 没有活动一览）在 2026-11-09
+		// 晚被新调研推翻：bwiki `公告/` 前缀下 5 页「版本活动总览」，每页 5~6 行「活动时间：」。
+		// ⇒ 改成「已配置」，并钉住来源标签如实写「wiki 数据滞后」（停更的是 wiki，不是游戏）。
+		check("pengpeng 活动源已接（bwiki 公告/版本活动总览）",
+			!!pp && /^https:\/\/wiki\.biligame\.com\/pengpeng\/api\.php\?action=query&generator=allpages&gapprefix=/.test(String(pp.eventUrl)),
+			pp ? String(pp.eventUrl) : "缺失");
+		check("pengpeng 活动来源标签写明「wiki 数据滞后」（不标暂停）",
+			!!pp && /wiki 数据滞后/.test(String(pp.eventSource)), pp ? String(pp.eventSource) : "缺失");
 
-		for (const id of ["wd", "hlr", "cytq"]) {
-			const s = srcOf(id);
-			check(`${id} 两侧来源都**留空未配置**（不写 url / eventUrl）`,
-				!!s && !s.url && !s.eventUrl, s ? JSON.stringify({ url: s.url, eventUrl: s.eventUrl }) : "缺失");
-			check(`${id} 没有挂任何抓取器（GACHA_FETCHERS / EVENT_FETCHERS 里查不到）`,
-				typeof T.GACHA_FETCHERS[id] !== "function" && !T.EVENT_FETCHERS[id]);
-		}
+		// wd / hlr：2026-11-09 晚上两端都接上（原「未配置」断言拆成两段：具体源见下面两条）
+		const wd = srcOf("wd");
+		check("wd 卡池源已接（米游社官方版块 forum_id=33）",
+			!!wd && /bbs-api\.miyoushe\.com\/post\/wapi\/getForumPostList\?forum_id=33/.test(String(wd.url))
+			&& wd.source === "米游社官方版块", wd ? String(wd.url) : "缺失");
+		check("wd 活动源已接（与卡池同一个列表，按标题分流）",
+			!!wd && wd.eventUrl === wd.url && wd.eventSource === "米游社官方版块", wd ? JSON.stringify([wd.url, wd.eventUrl]) : "缺失");
+		check("wd 两个抓取器都已登记（卡池 / 活动各一）",
+			typeof T.GACHA_FETCHERS["wd"] === "function" && !!(T.EVENT_FETCHERS["wd"] && T.EVENT_FETCHERS["wd"].default));
 
-		// 设置页「卡池来源 / 活动来源」下拉对未配置的那一侧显示裸「未配置」（2026-10-03 用户要求去掉括号注释）
-		for (const id of ["wd", "hlr", "cytq"]) {
-			const s = srcOf(id);
-			check(`${id} 设置页两侧都写「未配置」`,
-				T.getDefaultSourceName(s, "url") === "未配置" && T.getDefaultSourceName(s, "eventUrl") === "未配置",
-				JSON.stringify([T.getDefaultSourceName(s, "url"), T.getDefaultSourceName(s, "eventUrl")]));
-		}
-		check("pengpeng 设置页：卡池侧写「Bwiki」、活动侧写「未配置」",
-			T.getDefaultSourceName(pp, "url") === "Bwiki" && T.getDefaultSourceName(pp, "eventUrl") === "未配置",
+		const hlr = srcOf("hlr");
+		check("hlr 卡池源已接（官网新闻列表）",
+			!!hlr && hlr.url === "https://hlr.163.com/news/official/" && hlr.source === "官网新闻",
+			hlr ? String(hlr.url) : "缺失");
+		check("hlr 活动源已接（同一个列表，逐篇详情抽窗口）",
+			!!hlr && hlr.eventUrl === hlr.url && hlr.eventSource === "官网新闻", hlr ? JSON.stringify([hlr.url, hlr.eventUrl]) : "缺失");
+		check("hlr 两个抓取器都已登记（卡池 / 活动各一）",
+			typeof T.GACHA_FETCHERS["hlr"] === "function" && !!(T.EVENT_FETCHERS["hlr"] && T.EVENT_FETCHERS["hlr"].default));
+
+		// 本批唯一仍然留空的：cytq（旧断言「wd / hlr / cytq 三款都留空」只剩下这一条）
+		const cytq = srcOf("cytq");
+		check("cytq 两侧来源都**留空未配置**（不写 url / eventUrl）",
+			!!cytq && !cytq.url && !cytq.eventUrl, cytq ? JSON.stringify({ url: cytq.url, eventUrl: cytq.eventUrl }) : "缺失");
+		check("cytq 没有挂任何抓取器（GACHA_FETCHERS / EVENT_FETCHERS 里查不到）",
+			typeof T.GACHA_FETCHERS["cytq"] !== "function" && !T.EVENT_FETCHERS["cytq"]);
+
+		// 设置页「卡池来源 / 活动来源」下拉：已接的写来源名，未配置的写裸「未配置」
+		check("wd / hlr 设置页两侧都写各自的来源名",
+			T.getDefaultSourceName(wd, "url") === "米游社官方版块" && T.getDefaultSourceName(wd, "eventUrl") === "米游社官方版块"
+			&& T.getDefaultSourceName(hlr, "url") === "官网新闻" && T.getDefaultSourceName(hlr, "eventUrl") === "官网新闻",
+			JSON.stringify([T.getDefaultSourceName(wd, "url"), T.getDefaultSourceName(hlr, "url")]));
+		check("cytq 设置页两侧都写「未配置」",
+			T.getDefaultSourceName(cytq, "url") === "未配置" && T.getDefaultSourceName(cytq, "eventUrl") === "未配置",
+			JSON.stringify([T.getDefaultSourceName(cytq, "url"), T.getDefaultSourceName(cytq, "eventUrl")]));
+		check("pengpeng 设置页：卡池侧写「Bwiki」、活动侧写「Bwiki 公告（wiki 数据滞后）」",
+			T.getDefaultSourceName(pp, "url") === "Bwiki" && T.getDefaultSourceName(pp, "eventUrl") === "Bwiki 公告（wiki 数据滞后）",
 			JSON.stringify([T.getDefaultSourceName(pp, "url"), T.getDefaultSourceName(pp, "eventUrl")]));
 	}
 
@@ -389,7 +420,7 @@ export default async function run() {
 	}
 
 	// ─────────────────────④ 夜幕之下 卡池（真夹具 · 两个时刻）─────────────────────
-	section("新接入 5 款 ④：夜幕之下卡池（bwiki 契约一览；活动侧未配置）");
+	section("新接入 5 款 ④：夜幕之下卡池（bwiki 契约一览；活动侧用例另见 cases-pengpeng-event）");
 	{
 		// (a) 夹具最新一批在期（2026-09-15）：逐字断言
 		const e = engineAt(NOW_PP);
@@ -437,10 +468,13 @@ export default async function run() {
 		check("pengpeng 表结构异常 ⇒ 抛 pengpeng-no-table（抓取失败 ≠ 未公布）", bad === "pengpeng-no-table", bad);
 	}
 
-	// ─────────────────────⑤「未配置」路径（wd / hlr / cytq + pengpeng 活动侧）─────────────────────
+	// ─────────────────────⑤「未配置」路径（现在只剩 cytq）─────────────────────
 	section("新接入 5 款 ⑤：「未配置」路径 —— 不抓取、不抛错、不产生 fail（自检算 unconfigured）");
 	{
-		const IDS = ["wd", "hlr", "cytq"];
+		// 2026-11-09 晚：wd / hlr 接上两侧源、pengpeng 活动侧也接上 ⇒ 本段只剩 cytq。
+		// 旧断言「wd / hlr / cytq 各 2 侧未配置 + pengpeng 活动侧 = 7」随之拆掉；
+		// 取而代之：cytq 2 侧未配置、0 请求、0 失败（下面的 2/0/0 三个数字就是新口径）。
+		const IDS = ["cytq"];
 		// (a) fetchEntry：两侧都没地址 ⇒ 直接 skipped（连 net 都不碰）
 		const e = engineAt(NOW);
 		for (const id of IDS) {
@@ -450,12 +484,11 @@ export default async function run() {
 				r && r.ok === true && r.reason === "skipped", JSON.stringify(r));
 		}
 
-		// (b) 自检：只看这 4 条（3 条未配置 + pengpeng）⇒ down = 0、unconfigured = 7、ok = 1
+		// (b) 自检：只看 cytq ⇒ down = 0、unconfigured = 2、ok = 0、一个请求都不发
 		const ALL = T.SOURCES.map((x) => x.id);
-		const KEEP = new Set([...IDS, "pengpeng"]);
+		const KEEP = new Set(IDS);
 		const calls = [];
-		// 这 4 条现在出厂默认隐藏 ⇒ 自检范围 = 展示中的条目，
-		// 所以必须同时把它们写进 `shown`，才能验证「未配置」路径。
+		// cytq 出厂默认隐藏 ⇒ 自检范围 = 展示中的条目，必须同时写进 `shown` 才能验证这条路径。
 		const e2 = engineAt(NOW_PP, { hidden: ALL.filter((x) => !KEEP.has(x)), shown: [...KEEP] }, calls);
 		const rep = await e2.selfCheck({ timeoutMs: 5000 });
 		const g = rep.games || {};
@@ -467,18 +500,15 @@ export default async function run() {
 				g[id] && g[id].event.state === "unconfigured" && g[id].event.text === "未配置来源",
 				JSON.stringify(g[id] && g[id].event));
 		}
-		check("pengpeng 自检：卡池侧 ok（真夹具）、活动侧 unconfigured（未配置 ≠ 失败）",
-			g.pengpeng && g.pengpeng.gacha.state === "ok" && g.pengpeng.event.state === "unconfigured",
-			JSON.stringify(g.pengpeng));
 		check("自检汇总：失败 = 0（未配置**不**混进失败数字）", rep.summary.down === 0, JSON.stringify(rep.summary));
-		check("自检汇总：未配置 = 7（3 款 × 2 侧 + pengpeng 活动侧）", rep.summary.unconfigured === 7, JSON.stringify(rep.summary));
-		check("自检汇总：ok = 1（只有 pengpeng 卡池侧真的解析出内容）", rep.summary.ok === 1, JSON.stringify(rep.summary));
-		check("自检期间**只**请求了 pengpeng 的 bwiki（未配置的 3 条一个请求都没发）",
-			calls.length === 1 && /wiki\.biligame\.com\/pengpeng/.test(calls[0]), JSON.stringify(calls));
+		check("自检汇总：未配置 = 2（cytq 两侧）", rep.summary.unconfigured === 2, JSON.stringify(rep.summary));
+		check("自检汇总：ok = 0（只剩 cytq，没有一侧能解析出内容）", rep.summary.ok === 0, JSON.stringify(rep.summary));
+		check("自检期间**一个请求都没发**（未配置的条目连 net 都不碰）",
+			calls.length === 0, JSON.stringify(calls));
 
 		// (c) 面板那一格：派生不出条目 ⇒ 写「该来源无数据」（灰底），因此**没有**失败横条
 		//     （82-schedule-view.js 的横条判据是 isDown(gachaFail|eventFail)，这里两者都是 null）
-		const rec = { id: "wd", name: "未定事件簿", tz: TZ_CN, gacha: [], events: [], gachaFail: null, eventFail: null };
+		const rec = { id: "cytq", name: "炽焰天穹", tz: TZ_CN, gacha: [], events: [], gachaFail: null, eventFail: null };
 		check("面板：未配置条目两侧都派生不出格子（⇒「该来源无数据」，不是「抓取失败」）",
 			T.scheduleCellOf(rec, "gacha", new Date(NOW)) === null && T.scheduleCellOf(rec, "event", new Date(NOW)) === null);
 		check("面板：未配置条目的两侧 fail 都是 null ⇒ 底部失败横条不会出现",
