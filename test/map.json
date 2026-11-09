@@ -131,5 +131,15 @@
   "https://hlr.163.com/news/official/20260929/30882_1315388.html": "hlr-official-detail-20260929/response.txt",
   "https://hlr.163.com/news/official/20251229/30882_1279222.html": "hlr-official-detail-20251229/response.txt",
   "https://wiki.biligame.com/pengpeng/api.php?action=query&generator=allpages&gapprefix=%E5%85%AC%E5%91%8A%2F&gaplimit=100&format=json&formatversion=2": "pengpeng-announce-pages/response.txt",
-  "https://wiki.biligame.com/pengpeng/api.php?action=parse&page=%E5%85%AC%E5%91%8A%2F%E3%80%8C%E5%85%B1%E4%B8%BE%E6%98%A8%E6%97%A5%E4%B9%8B%E9%85%92%C2%B7%E4%B8%8A%E3%80%8D%E7%89%88%E6%9C%AC%E6%B4%BB%E5%8A%A8%E6%80%BB%E8%A7%88&prop=wikitext&format=json&formatversion=2": "pengpeng-overview-20260910/response.txt"
+  "https://wiki.biligame.com/pengpeng/api.php?action=parse&page=%E5%85%AC%E5%91%8A%2F%E3%80%8C%E5%85%B1%E4%B8%BE%E6%98%A8%E6%97%A5%E4%B9%8B%E9%85%92%C2%B7%E4%B8%8A%E3%80%8D%E7%89%88%E6%9C%AC%E6%B4%BB%E5%8A%A8%E6%80%BB%E8%A7%88&prop=wikitext&format=json&formatversion=2": "pengpeng-overview-20260910/response.txt",
+  "https://hlr.163.com/news/update/": "hlr-update-list/response.txt",
+  "https://hlr.163.com/news/update/20261104/30883_1318708.html": "hlr-update-detail-20261104-1318708/response.txt",
+  "https://hlr.163.com/news/update/20261104/30883_1318707.html": "hlr-update-detail-20261104-1318707/response.txt",
+  "https://hlr.163.com/news/update/20261104/30883_1318706.html": "hlr-update-detail-20261104-1318706/response.txt",
+  "https://hlr.163.com/news/update/20261010/30883_1316284.html": "hlr-update-detail-20261010-1316284/response.txt",
+  "https://hlr.163.com/news/update/20261010/30883_1316283.html": "hlr-update-detail-20261010-1316283/response.txt",
+  "https://wiki.biligame.com/zspms/api.php?action=parse&page=Test4%2F%E6%B4%BB%E5%8A%A8%E6%97%97%E5%B8%9C&prop=wikitext&format=json&formatversion=2": "p8-zspms-flags/response.txt",
+  "https://p5x.wanmei.com/news/gamenews/20261022/264741.html": "p5x-detail-20261022/response.txt",
+  "https://www.taptap.cn/app/746164/topic?type=official": "pengpeng-taptap-official/response.txt",
+  "https://www.taptap.cn/app/746164/topic?type=official&page=2": "pengpeng-taptap-official-p2/response.txt"
 }

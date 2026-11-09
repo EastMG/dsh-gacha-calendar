@@ -305,7 +305,9 @@
 // 契约：async (url, signal, tz) → { banner, roles?, bannerDates, bannerDatesRaw? } | { event, eventDates, ... }
 //
 // 时区：国服，源站**未见显式标注**（原文只有「2026年9月24日—10月22日」），按 UTC+8 推定。
-// 数据形态：日期是**纯日期无时分** → 起止按惯例补 04:00 / 03:59（推算，非源站给定值）。
+// 数据形态：日期是**纯日期无时分** → 起 00:00 / 止 23:59（与 bwiki 通用层 `ns_bwiki_windowsFromCell`
+//   同一约定；2026-11-10 起统一，旧实现是 04:00 / 03:59 的国服换日推算）。「持续进行中」这类
+//   **没有档期行**的区块保持原状：`windowRaw` 为空 ⇒ 该块不产出（不硬凑）。
 
 
 const ns_p5x_BASE = "https://p5x.wanmei.com";
@@ -353,17 +355,24 @@ function ns_p5x_p5xBodyText(html) {
 }
 
 // 从**单行文本**抽「YYYY年M月D日 — YYYY年M月D日」档期
-// 形态（实测）：`2026年9月24日—10月22日更新前`、`2026年10月5日—2026年10月22日更新前`
+// 形态（实测）：`2026年9月24日—10月22日更新前`、`2026年10月5日—2026年10月22日更新前`、
+//              `2026年10月22日-2026年11月19日`（2026-11-10 真机 5.4.2 公告，**只有日期、没有时分**）
+//
+// ── 只有日期、没有时刻 ⇒ 起 00:00 / 止 23:59（2026-11-10 统一口径）──────────────────
+// 与 bwiki 通用层 `ns_bwiki_windowsFromCell` 的注释同一约定（源站只给日期时，"全天"就是那一刻）：
+//   · 起点 00:00、终点 23:59，`raw` 仍逐字保留源站原文（不把补出来的钟点写进原文）
+//   · 旧实现按"国服 04:00 换日"补 04:00 / 03:59（推算）；2026-11-10 用户要求改成仓库通用约定，
+//     跨游戏同一形态的"纯日期"窗口现在读出来一致（`09-24 00:00 ~ 10-22 23:59`）。
 function ns_p5x_parseP5xWindows(text, tz) {
 	const out = [];
-	const re = /(20\d{2})年(\d{1,2})月(\d{1,2})日\s*[—\-~～至]\s*(?:(20\d{2})年)?(\d{1,2})月(\d{1,2})日/g;
+	const re = /(20\d{2})年(\d{1,2})月(\d{1,2})日\s*[—\-~～至–]\s*(?:(20\d{2})年)?(\d{1,2})月(\d{1,2})日/g;
 	for (const m of String(text).matchAll(re)) {
 		const y1 = +m[1], mo1 = +m[2], d1 = +m[3];
 		const y2 = m[4] ? +m[4] : (endsNextYear(mo1, null, +m[5], null) ? y1 + 1 : y1);   // 跨年：结束月小于开始月
 		const mo2 = +m[5], d2 = +m[6];
-		// 时刻：公告只给日期 → 按国服惯例补 04:00 开 / 03:59 收（推算，见文件头）
-		const startTs = sourceInstant(y1, mo1, d1, 4, 0, tz);
-		const endTs = sourceInstant(y2, mo2, d2, 3, 59, tz);
+		// 时刻：公告只给日期 → 起 00:00 / 止 23:59（与 bwiki 通用层同一约定，见上方注释）
+		const startTs = sourceInstant(y1, mo1, d1, 0, 0, tz);
+		const endTs = sourceInstant(y2, mo2, d2, 23, 59, tz);
 		if (endTs <= startTs) continue;
 		out.push({ startTs, endTs, raw: `${y1}年${mo1}月${d1}日 ~ ${y2}年${mo2}月${d2}日` });
 	}

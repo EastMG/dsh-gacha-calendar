@@ -66,7 +66,7 @@ dsh-gacha-calendar/
 │       ├── 30-game-bwiki-stellasora.js  # bwiki ⑦ 星塔旅人（stellasora / 首页活动日历）
 │       ├── 30-game-bwiki-html-fetchers.js # 上面 7 个 HTML 形态来源的抓取器
 │       ├── 30-game-bwiki-wikitext-common.js # wikitext 形态公共段：取正文（parse.wikitext）/ 当期挑选 / 悬停
-│       ├── 30-game-bwiki-zspms-wikitext.js # 战双（wikitext）：SMW ask 索引 + 版本更新公告正文 → 档期
+│       ├── 30-game-bwiki-zspms-wikitext.js # 战双（wikitext）：卡池 = `Test4/活动旗帜`（2026-11-10 起默认）+ 版本更新公告（备选 / 活动侧）
 │       ├── 30-game-bwiki-czn-wikitext.js # 卡厄斯梦境（wikitext）：Module:Gacha/data 的 Lua 表
 │       ├── 30-game-bwiki-kedr-wikitext.js # 雪松（wikitext）：Template:首页游戏版本内容 的模板调用
 │       ├── 30-game-bwiki-kedr-wiki.js   # 雪松社区归档页（往期动员，prop=text）+ 其抓取器
@@ -81,8 +81,8 @@ dsh-gacha-calendar/
 │       ├── 30-game-bluepoch.js    # 深蓝互动：重返未来：1999
 │       ├── 30-game-wqmt.js        # 无期迷途（国服）：卡池 bwiki 追踪一览 + 活动 官方资讯 API + 开服锚点
 │       ├── 30-game-miyoushe-bbs.js # 未定事件簿：米游社官方版块（卡池 + 活动；详情需 Referer www.miyoushe.com/wd/）
-│       ├── 30-game-netease.js     # 时空中的绘旅人：官网新闻列表 + 详情（卡池画廊 + 活动；缺年份补年/跨年）
-│       ├── 30-game-pengpeng.js    # 夜幕之下（国服）：卡池 bwiki 契约一览 + 活动 bwiki 公告/版本活动总览
+│       ├── 30-game-netease.js     # 时空中的绘旅人：官网新闻（official）+ 学院公告（update）列表 + 详情（卡池画廊 + 活动；缺年份补年/跨年）
+│       ├── 30-game-pengpeng.js    # 夜幕之下（国服）：卡池 bwiki 契约一览 + 活动 TapTap 官方 tab（旧 bwiki 公告为备选）
 │       ├── 30-game-unconfigured.js # 炽焰天穹：只注册条目、来源留空未配置（本批唯一仍不接的）
 │       ├── 44-test-exports.js # 回归出口：解析器 + env 工具 + 来源表
 │       ├── 50-refresh.js     # 刷新编排、失败沿用旧值、提示归类
@@ -933,9 +933,9 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
 | id | 游戏 | 卡池源 | 活动源 | 状态 |
 |---|---|---|---|---|
 | `wqmt` | 无期迷途（国服） | bwiki「追踪一览」（`api.php?action=parse`，174 行） | 官方资讯 API `wqmt.aisnogames.com/api/news`（`ACAO:*` ⇒ 直连） | **两侧已接** |
-| `pengpeng` | 夜幕之下（国服，曾用名「代号砰砰」） | bwiki「契约一览」（18 行） | bwiki `公告/` → 最新「…版本活动总览」（2026-11-09 晚接上） | **两侧已接**；wiki 数据滞后（最新一班 2026-09-10）⇒ 当前时刻如实 null |
+| `pengpeng` | 夜幕之下（国服，曾用名「代号砰砰」） | bwiki「契约一览」（18 行） | **TapTap 官方 tab**（`taptap.cn/app/746164/topic?type=official`，翻 2 页；2026-11-10 换源） | **两侧已接**；旧 bwiki `公告/` 降为 `eventAltSources` 手动备选 |
 | `wd` | 未定事件簿 | 米游社官方版块 `forum_id=33`（2026-11-09 晚接上） | 同上（按标题分流） | **两侧已接** |
-| `hlr` | 时空中的绘旅人 | 官网 `news/official/` 列表 + 详情（2026-11-09 晚接上） | 同上（每篇正文第一个窗口） | **两侧已接**；官网活动空窗期如实 null |
+| `hlr` | 时空中的绘旅人 | 官网 `news/official/` 列表 + 详情（2026-11-09 晚接上） | 官网 `news/official/` + **`news/update/` 学院公告**（2026-11-10 增补；同一个抓取器抓两类列表） | **两侧已接**；活动侧现在出「缱绻假日」10-09~11-20，卡池侧无在期画廊 ⇒ 如实 null |
 | `cytq` | 炽焰天穹（用户写作「炽焰苍穹」） | — | — | **未配置**（只注册条目） |
 
 > ⚠️ 上表「状态」是 2026-11-09 **晚批**之后的现状；晚批之前 `pengpeng` 只有卡池侧、`wd` / `hlr` 两侧都未配置，
@@ -1016,9 +1016,12 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
 `unconfigured = 2` / "一个请求都没发" / `scheduleCellOf` 与 `scheduleNormalize` 都返回 null）。
 
 **已知限制（都写进代码注释了）**：① 无期迷途卡池的起点要靠维护公告锚点（2026-11-09 起取不到就退常量
-14:00，见下一节）；② 夜幕之下的 wiki 表在 2026-10-01 之后没有新行（2026-11-09 实测最新一批是 09-10）
-⇒ 卡池与活动两侧当前时刻都**如实返回 null（未公布）**，等 wiki 补档，抓取器不需要改；
-③ 时空中的绘旅人官网只列最近 280 页（一页 6 条），当前只抓首页前 3 篇详情 —— 活动空窗期会如实 null。
+14:00，见下一节）；② 夜幕之下的 **bwiki** 表在 2026-10-01 之后没有新行（最新一批 09-10）—— 卡池侧仍如实
+null，活动侧 2026-11-10 已换 TapTap 官方 tab（能出「新风同行」11-05~11-19）；
+③ 时空中的绘旅人：官方通稿稀疏，**2026-11-10 起同一个抓取器加抓 `news/update/` 学院公告**（每周一条），
+详情预算为卡池侧 2+2 篇、活动侧 2+5 篇；活动侧现在出「缱绻假日」10-09~11-20。
+④ 战双帕弥什卡池侧 **2026-11-10 起以 bwiki `Test4/活动旗帜` 为准**（结构化当期池），版本更新公告降为
+`altSources`；⑤ P5X 的「只有日期、没有时刻」窗口统一按 **起 00:00 / 止 23:59**（仓库通用约定）。
 
 
 ### 星铁换官方公告 CMS + 「相对起点」锚定 + 「起点未知 ≠ 已开始」（2026-11-09）

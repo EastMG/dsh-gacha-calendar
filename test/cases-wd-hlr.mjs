@@ -40,11 +40,18 @@ const B = {
 		"79207926": FIX("wd-miyoushe-detail-79207926")
 	},
 	hlrList: FIX("hlr-official-list"),
+	hlrUpdateList: FIX("hlr-update-list"),
 	hlrDetails: {
 		"20261105/30882_1318851": FIX("hlr-official-detail-20261105"),
 		"20261014/30882_1316576": FIX("hlr-official-detail-20261014"),
 		"20260929/30882_1315388": FIX("hlr-official-detail-20260929"),
-		"20251229/30882_1279222": FIX("hlr-official-detail-20251229")
+		"20251229/30882_1279222": FIX("hlr-official-detail-20251229"),
+		// 学院公告（2026-11-10 新增）：每周一条；10/1 那篇里有 10-09 ~ 11-20 的长窗口（缱绻假日）
+		"20261104/30883_1318708": FIX("hlr-update-detail-20261104-1318708"),
+		"20261104/30883_1318707": FIX("hlr-update-detail-20261104-1318707"),
+		"20261104/30883_1318706": FIX("hlr-update-detail-20261104-1318706"),
+		"20261010/30883_1316284": FIX("hlr-update-detail-20261010-1316284"),
+		"20261010/30883_1316283": FIX("hlr-update-detail-20261010-1316283")
 	}
 };
 
@@ -53,6 +60,8 @@ const B = {
 const NOW_WD = Date.parse("2026-11-09T22:43:00+08:00");
 // hlr：最新活动「怪谈：时融」10-31 ~ 11-07 在期（用 11-05 12:00 +08 断言）
 const NOW_HLR = Date.parse("2026-11-05T12:00:00+08:00");
+// hlr 真机时刻（2026-11-09 23:15 +08）：官方通稿那一期已结束，学院公告里的「缱绻假日」覆盖当前
+const NOW_HLR_REAL = Date.parse("2026-11-09T23:15:00+08:00");
 
 function pickBody(url) {
 	const u = String(url).replace(/[?&]origin=\*/, "");
@@ -64,7 +73,8 @@ function pickBody(url) {
 		return body;
 	}
 	if (u === HLR.HLR_LIST_URL) return B.hlrList;
-	const hlr = /\/news\/official\/(\d{8}\/30882_\d+)\.html/.exec(u);
+	if (u === HLR.HLR_UPDATE_LIST_URL) return B.hlrUpdateList;
+	const hlr = /\/news\/(?:official|update)\/(\d{8}\/3088\d_\d+)\.html/.exec(u);
 	if (hlr) {
 		const body = B.hlrDetails[hlr[1]];
 		if (!body) throw new Error("没有这个 hlr 正文的夹具：" + u);
@@ -117,10 +127,10 @@ export default async function runWdHlr() {
 		check("hlr 卡池 url = 官网新闻列表页",
 			!!hlr && hlr.url === HLR.HLR_LIST_URL && hlr.url === "https://hlr.163.com/news/official/",
 			hlr ? String(hlr.url) : "缺失");
-		check("hlr 活动 eventUrl 与卡池同一条（同一列表，逐篇详情抽窗口）",
+		check("hlr 活动 eventUrl 与卡池同一条（同一个抓取器同时抓官方通稿 + 学院公告）",
 			!!hlr && hlr.eventUrl === hlr.url, hlr ? String(hlr.eventUrl) : "缺失");
-		check("hlr 两侧来源标签 = 官网新闻",
-			!!hlr && hlr.source === "官网新闻" && hlr.eventSource === "官网新闻",
+		check("hlr 两侧来源标签：卡池「官网新闻」/ 活动「官网新闻 + 学院公告」",
+			!!hlr && hlr.source === "官网新闻" && hlr.eventSource === "官网新闻 + 学院公告",
 			hlr ? JSON.stringify([hlr.source, hlr.eventSource]) : "缺失");
 		check("wd / hlr 出厂都不勾选展示（defaultHidden === true，2026-11-09 用户要求没变）",
 			!!wd && !!hlr && wd.defaultHidden === true && hlr.defaultHidden === true,
@@ -258,8 +268,14 @@ export default async function runWdHlr() {
 		check("hlr 活动 startTs / endTs 与卡池同一段（同一篇正文）",
 			ev && ev.events[0].startTs === Date.UTC(2026, 9, 31, 1, 30) && ev.events[0].endTs === Date.UTC(2026, 10, 6, 21, 0),
 			JSON.stringify(ev && ev.events && ev.events[0]));
-		check("hlr 列表只取前 3 篇详情（1 次列表 + 3 次详情，不把 280 页全抓）",
-			calls.length === 4 && calls2.length === 4, JSON.stringify([calls.length, calls2.length]));
+		check("hlr 卡池侧 = 2 次列表（官方 + 学院公告）+ 4 篇详情（各 2 篇配额），不把 300+ 页全抓",
+			calls.length === 6, JSON.stringify(calls.map((c) => c.url.replace("https://hlr.163.com", ""))));
+		check("hlr 活动侧 = 2 次列表 + 7 篇详情（官方 2 + 学院公告 5；10/1 那篇在第 5 条）",
+			calls2.length === 9, JSON.stringify(calls2.map((c) => c.url.replace("https://hlr.163.com", ""))));
+		check("hlr 两类列表都抓了（活动通稿 / 学院公告 各出现一次）",
+			calls.concat(calls2).filter((c) => c.url === HLR.HLR_LIST_URL).length === 2
+			&& calls.concat(calls2).filter((c) => c.url === HLR.HLR_UPDATE_LIST_URL).length === 2,
+			JSON.stringify(calls.concat(calls2).filter((c) => /\/news\/(official|update)\/$/.test(c.url)).map((c) => c.url)));
 		check("hlr 全程走宿主代理且带 Referer `https://hlr.163.com/`",
 			calls.concat(calls2).every((c) => /hlr\.163\.com/.test(c.url) && c.referer === "https://hlr.163.com/"),
 			JSON.stringify(calls.concat(calls2).map((c) => [c.url.slice(0, 40), c.referer])));
@@ -313,15 +329,14 @@ export default async function runWdHlr() {
 			String(HLR.hlrWindowsOf("10月31日09:30起，活动开放探索。", 2026, TZ_CN).length));
 	}
 
-	// ─────────────────────⑧ 真机现状：官网活动空窗期 ⇒ 如实 null ─────────────────────
-	// 2026-11-09 23:1x 真机复测（宿主代理、真响应）：列表 24,505 B / 6 条，最新详情 24,569 B，
-	// artTitle / artDate（时间：2026-10-31）/ artText 全部命中，`怪谈：时融` 解析正常 ——
-	// 但该期档期 10-31 09:30 ~ 11-07 05:00 **已经结束**，此刻官网没有覆盖 now 的窗口
-	// （首页最新一篇仍是 2026-11-05）。按全仓口径不拿过期档期顶 ⇒ 返回 null（未公布）。
-	// 这一节就是「真机刷新看到未公布」的机器证据：它守的是行为（不硬凑），不是源站某一天的内容。
-	section("时空中的绘旅人 ⑧：真机现状（2026-11-09）官网最新一期已结束 ⇒ 卡池/活动都如实 null");
+	// ─────────────────────⑧ 真机现状（2026-11-09/10）─────────────────────
+	// 2026-11-10 真机复测（宿主代理、真响应）：官方通稿最新仍是 11-05「怪谈：时融」（终点 11-07 05:00，
+	// 已结束），但学院公告第 5 条 `10月1日新增内容公告` 里有 `活动时间：2026年10月9日09:30-11月20日05:00`
+	// （缱绻假日）⇒ **活动侧现在能出覆盖当前的活动**；卡池侧没有任何在期画廊（最近一口 11-07 收）
+	// ⇒ 如实 null。这一节钉的就是「增补学院公告」的收益：同一天，活动有数据、卡池不硬凑。
+	section("时空中的绘旅人 ⑧：真机现状（2026-11-10）活动出「缱绻假日」、卡池无在期画廊 ⇒ null");
 	{
-		const NOW_REAL = Date.parse("2026-11-09T23:15:00+08:00");
+		const NOW_REAL = NOW_HLR_REAL;
 		const e = engineAt(NOW_REAL);
 		const s = e.__test.SOURCES.find((x) => x.id === "hlr");
 		let g = "not-run", gErr = "", ev = "not-run", evErr = "";
@@ -329,14 +344,72 @@ export default async function runWdHlr() {
 		catch (e2) { gErr = String((e2 && e2.message) || e2); }
 		try { ev = await e.__test.EVENT_FETCHERS["hlr"].default(s.eventUrl, undefined, s.tz); }
 		catch (e3) { evErr = String((e3 && e3.message) || e3); }
-		check("hlr 真机现状：解析链路正常但最后一期 11-07 05:00 已结束 ⇒ 卡池如实 null（不抛错 = 不记失败）",
+		check("hlr 真机现状：卡池侧没有覆盖 now 的画廊 ⇒ 如实 null（不抛错 = 不记失败）",
 			g === null && gErr === "", gErr || JSON.stringify(g));
-		check("hlr 真机现状：活动侧同样如实 null（不拿过期档期顶）",
-			ev === null && evErr === "", evErr || JSON.stringify(ev));
-		// 对照：同一批夹具、只把 now 挪回期内（11-05 12:00）就有数据 ⇒ 差异只来自时间，不是解析。
+		check("hlr 真机现状：活动侧出「缱绻假日·世纪来电」10-09 09:30 ~ 11-20 05:00（学院公告补上的空窗）",
+			ev != null && ev.event === "缱绻假日·世纪来电"
+			&& ev.eventDates === "10-09 09:30 ~ 11-20 05:00"
+			&& ev.eventDatesRaw === "2026年10月9日09:30 ~ 11月20日05:00" && evErr === "",
+			evErr || JSON.stringify(ev && [ev.event, ev.eventDates, ev.eventDatesRaw]));
+		// 对照：同一批夹具、只把 now 挪回期内（11-05 12:00）⇒ 外显回到官方通稿那条（怪谈：时融）
 		const e2 = engineAt(NOW_HLR);
 		const g2 = await e2.__test.GACHA_FETCHERS["hlr"](s.url, undefined, s.tz);
-		check("hlr 对照：同一批夹具在期内 now（11-05 12:00）⇒ 怪谈：时融 有数据（差异只来自时间）",
-			!!g2 && g2.banner === "怪谈：时融", JSON.stringify(g2 && g2.banner));
+		const ev2 = await e2.__test.EVENT_FETCHERS["hlr"].default(s.eventUrl, undefined, s.tz);
+		check("hlr 对照：期内 now（11-05 12:00）⇒ 卡池出「怪谈：时融」、活动外显也是它（官方通稿优先）",
+			!!g2 && g2.banner === "怪谈：时融" && !!ev2 && ev2.event === "怪谈：时融",
+			JSON.stringify([g2 && g2.banner, ev2 && ev2.event]));
+	}
+
+	// ─────────────────────⑨ 学院公告增补（真夹具 + 反向证明）─────────────────────
+	section("时空中的绘旅人 ⑨：学院公告（/news/update/）——标题分流 / 长窗口 / 反向证明");
+	{
+		const listHtml = B.hlrUpdateList;
+		const items = HLR.hlrParseList(listHtml);
+		check("学院公告列表：6 条一页，href 全部落在 /news/update/，kind=update",
+			items.length === 6 && items.every((x) => x.kind === "update" && /\/news\/update\//.test(x.url)),
+			JSON.stringify(items.map((x) => x.kind)));
+		check("标题分流：放宽后「学院公告 | …」能过（旧正则 活动|版本|生日|联动 一个都不匹配）",
+			items.every((x) => HLR.HLR_EVENT_TITLE_RE.test(x.title)) && /学院公告/.test(items[0].title),
+			items[0] && items[0].title);
+		check("hlrListPlanOf：官方地址 ⇒ [official, update]；updater 地址 ⇒ [update, official]；自定义 ⇒ 只那一条",
+			JSON.stringify(HLR.hlrListPlanOf(HLR.HLR_LIST_URL).map((x) => x.kind)) === JSON.stringify(["official", "update"])
+			&& JSON.stringify(HLR.hlrListPlanOf(HLR.HLR_UPDATE_LIST_URL).map((x) => x.kind)) === JSON.stringify(["update", "official"])
+			&& HLR.hlrListPlanOf("https://example.invalid/news/").length === 1,
+			JSON.stringify(HLR.hlrListPlanOf(HLR.HLR_LIST_URL).map((x) => x.kind)));
+
+		// 10/1 那篇：同一篇里有 5 段带窗口的段落，覆盖 now 的是「缱绻假日」那段
+		const d = HLR.hlrParseDetail(B.hlrDetails["20261010/30883_1316283"]);
+		const year = HLR.hlrYearOf(d, "https://hlr.163.com/news/update/20261010/30883_1316283.html");
+		const blocks = HLR.hlrBlocksOf(d.contentHtml).filter((b) => HLR.hlrWindowsOf(b, year, TZ_CN).length > 0);
+		const juanBlock = blocks.find((b) => b.indexOf("缱绻假日") >= 0);
+		check("10/1 公告：artDate=2026-09-30 ⇒ 年份 2026；正文有 5 段带窗口的段落（含缱绻假日那段）",
+			d.dateText === "时间：2026-09-30" && year === 2026 && blocks.length === 5 && !!juanBlock,
+			JSON.stringify([d.dateText, year, blocks.length]));
+		check("活动名从窗口前面的 `[缱绻假日·世纪来电]` 摘出（不是公告标题）",
+			HLR.hlrEventNameOf(juanBlock, "学院公告 | 10月1日新增内容公告") === "缱绻假日·世纪来电",
+			HLR.hlrEventNameOf(juanBlock, "学院公告 | 10月1日新增内容公告"));
+		check("没有 `[…]` 前缀的段落退回标题（官方通稿「怪谈：时融」的既有取名方式不变）",
+			HLR.hlrEventNameOf("10月31日09:30 - 11月7日05:00，「怪谈：时融」活动画廊限时开启。", "全新活动「怪谈：时融」现已开启！") === "怪谈：时融");
+		check("hlrEventNameOf 反证：既没有前缀、标题也没有「」⇒ 用整条标题（不编名字）",
+			HLR.hlrEventNameOf("活动时间：2026年10月9日09:30-11月20日05:00", "学院公告 | 10月1日新增内容公告") === "学院公告 | 10月1日新增内容公告");
+
+		// 反向证明：只给官方列表（模拟"关掉学院公告"）⇒ 当前空窗依旧是 null
+		const base = makeTransport();
+		const eNoUpdate = createEngine({
+			transport: {
+				fetchRaw: (u, o) => base.fetchRaw(u, o),
+				fetchViaProxy: (u, o) => {
+					if (String(u) === HLR.HLR_UPDATE_LIST_URL) throw new Error("update-list-down");
+					return base.fetchViaProxy(u, o);
+				}
+			},
+			storage: makeStore(),
+			now: () => NOW_HLR_REAL,
+			timer: { setTimeout, clearTimeout }
+		});
+		const sNo = eNoUpdate.__test.SOURCES.find((x) => x.id === "hlr");
+		const evNo = await eNoUpdate.__test.EVENT_FETCHERS["hlr"].default(sNo.eventUrl, undefined, sNo.tz);
+		check("反证：关掉学院公告列表（只留官方通稿）⇒ 11-09 活动照样 null（空窗不是解析坏了，是旧源太稀）",
+			evNo === null, JSON.stringify(evNo && evNo.event));
 	}
 }

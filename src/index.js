@@ -172,7 +172,12 @@ const PROXY_ALLOW_HOSTS = [
 	"bbs-api.miyoushe.com",
 	// 时空中的绘旅人 官网新闻（`hlr.163.com/news/official/` 列表 + 详情）：响应**无 ACAO**
 	// ⇒ 必须走代理。与 wd 的米游社版块（同上一条 `bbs-api.miyoushe.com`）同批接入。
+	// 2026-11-10：增抓同站 `/news/update/`（学院公告），同一个 host，不需要再登记。
 	"hlr.163.com",
+	// 夜幕之下（国服）TapTap 官方 tab（活动侧默认源，2026-11-10 接入）：
+	// `https://www.taptap.cn/app/746164/topic?type=official` 是服务端渲染 HTML、响应**无 ACAO**
+	// ⇒ 必须走代理。⚠️ 登记后要重启宿主才生效（白名单在宿主启动时读入）。
+	"www.taptap.cn",
 	// B站代理游戏官方公告 API（biligame CMS）：响应**无 ACAO** → 必须走代理。
 	// 认 `gameExtensionId`（不是 `game_base_id`）；已知 BanG Dream 国服=138、嘟嘟脸恶作剧=1282。
 	"api.biligame.com",

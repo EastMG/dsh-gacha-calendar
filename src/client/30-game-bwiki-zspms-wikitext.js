@@ -273,3 +273,100 @@ async function ns_bwiki_wikitext_eventsZspms(url, signal, tz = ns_bwiki_wikitext
 	});
 }
 //#endregion
+
+//#region 战双：活动旗帜（结构化当期卡池，2026-11-10 起为卡池侧默认源）
+// 为什么换：版本更新公告最新只到 2026-11-05（11-06 起卡池空窗），而 `Test4/活动旗帜` 是
+// 结构化数据页、当期 70%UP 池到 11-12 ⇒ 更新更快、结构更稳。公告源保留（活动侧仍用；
+// 卡池侧降为 altSources，见 `30-game-bwiki-register.js`）。
+//   {{活动旗帜
+//   |70%UP1=比安卡·晖暮   |70%UP2=七实·芒星之迹   |70%UP3=海伦汀·安魂
+//   |70%UP开始时间=2026/10/29 07:00   |70%UP结束时间=2026/11/12 06:59
+//   |100%UP1=阿德莱德·破渊   |100%UP2=时崎狂三·时崎狂三
+//   |100%UP开始时间=2026/09/24 11:00   |100%UP结束时间=2026/11/05 05:00
+//   <!-- 下面是移动端100%UP池参数--> …}}
+// 口径（逐字照源站）：
+//   · 池名 = 参数前缀原文 `70%UP` / `100%UP`（源站自己就这么分；不改写成「概率提升池」）
+//   · 角色 = 前缀 + 序号 的参数（`70%UP1..3`），按序号排序、`、` 连接；**不删改**源站写法
+//     （`时崎狂三·时崎狂三` 是 wiki 页面名本身就这么写，照抄不猜）
+//   · 起止 `YYYY/MM/DD HH:MM`，tz = Asia/Shanghai（本源同一推测，见文件头）
+//   · raw = 两端原文、display = fmtWindow（「两份文本」约定）
+//   · `<!-- … -->` 之后是移动端参数（机体名/立绘…）⇒ 解析到注释就停
+const ns_bwiki_wikitext_ZSPMS_FLAGS_PAGE = "Test4/活动旗帜";
+// ⚠️ 页名必须 encodeURIComponent 后再拼（`/` → `%2F`、中文 → %E…）
+const ns_bwiki_wikitext_ZSPMS_FLAGS_URL = "https://wiki.biligame.com/zspms/api.php?action=parse&page="
+	+ encodeURIComponent(ns_bwiki_wikitext_ZSPMS_FLAGS_PAGE) + "&prop=wikitext&format=json&formatversion=2";
+
+// `{{活动旗帜 …}}` 的顶层参数 → { 键: 值 }（跳过空值；注释之后的移动端参数不进来）
+function ns_bwiki_wikitext_zspmsFlagParams(wikitext) {
+	const out = {};
+	for (const line of String(wikitext == null ? "" : wikitext).split(/\r?\n/)) {
+		if (/^\s*<!--/.test(line)) break;
+		const m = /^\s*\|\s*([^=|\n{}]+?)\s*=\s*(.*?)\s*$/.exec(line);
+		if (!m) continue;
+		const k = m[1].trim(), v = m[2].trim();
+		if (k && v) out[k] = v;
+	}
+	return out;
+}
+
+// `2026/10/29 07:00` → { y, mo, d, h, mi }；缺时刻 → null（旗帜页两端都到分）
+function ns_bwiki_wikitext_zspmsFlagPoint(text) {
+	const p = ns_bwiki_parsePoints(text)[0];
+	if (!p || p.noTime) return null;
+	return p;
+}
+
+// 活动旗帜 wikitext → [{ pool, roles, startTs, endTs, raw, display }]（源站顺序：70%UP 在前）
+function ns_bwiki_wikitext_parseZspmsFlags(wikitext, tz = ns_bwiki_wikitext_ZSPMS_TZ) {
+	const params = ns_bwiki_wikitext_zspmsFlagParams(wikitext);
+	const prefixes = [];
+	for (const k of Object.keys(params)) {
+		if (!/开始时间$/.test(k)) continue;
+		const prefix = k.slice(0, -"开始时间".length);
+		if (prefix && !prefixes.includes(prefix)) prefixes.push(prefix);
+	}
+	const out = [];
+	for (const prefix of prefixes) {
+		const roles = [];
+		for (const k of Object.keys(params)) {
+			if (k.length <= prefix.length || !k.startsWith(prefix)) continue;
+			const idx = k.slice(prefix.length);
+			if (!/^\d+$/.test(idx)) continue;
+			roles.push({ idx: +idx, name: params[k] });
+		}
+		roles.sort((a, b) => a.idx - b.idx);
+		const startRaw = params[prefix + "开始时间"], endRaw = params[prefix + "结束时间"];
+		const sp = ns_bwiki_wikitext_zspmsFlagPoint(startRaw);
+		const ep = ns_bwiki_wikitext_zspmsFlagPoint(endRaw);
+		if (!sp || !ep || roles.length === 0) continue;
+		const startTs = sourceInstant(sp.y, sp.mo, sp.d, sp.h, sp.mi, tz);
+		const endTs = sourceInstant(ep.y, ep.mo, ep.d, ep.h, ep.mi, tz);
+		if (!(endTs > startTs)) continue;                                   // 源站错行 → 丢掉（不硬造）
+		out.push({
+			pool: prefix,
+			roles: roles.map((r) => r.name).join("\u3001"),
+			startTs, endTs,
+			raw: `${startRaw} ~ ${endRaw}`,
+			display: fmtWindow(startTs, endTs, tz)
+		});
+	}
+	if (out.length === 0) throw new Error("zspms-flags:no-pool");          // 模板被改版 = 结构性损坏
+	return out;
+}
+
+async function ns_bwiki_wikitext_gachaZspmsFlags(url, signal, tz = ns_bwiki_wikitext_ZSPMS_TZ, now = nowMs()) {
+	const wikitext = await ns_bwiki_wikitext_fetchWikitext(url || ns_bwiki_wikitext_ZSPMS_FLAGS_URL, signal, ns_bwiki_wikitext_ZSPMS_REFERER);
+	const items = ns_bwiki_wikitext_parseZspmsFlags(wikitext, tz).map((p, i) => ({
+		banner: p.pool,
+		roles: p.roles,
+		startTs: p.startTs,
+		endTs: p.endTs,
+		raw: p.raw,
+		display: p.display,
+		isMain: true,
+		_i: i
+	}));
+	// 同批合并角色的载荷：70%UP / 100%UP 各自一批（结束时刻不同 ⇒ 只合并同批）
+	return ns_bwiki_batchGachaPayloadOf(items, tz, ns_bwiki_wikitext_nowOf(now), { id: "zspms" });
+}
+//#endregion

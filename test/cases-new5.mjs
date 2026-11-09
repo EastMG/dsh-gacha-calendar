@@ -159,14 +159,17 @@ export default async function run() {
 		check("pengpeng 卡池源已接（bwiki 契约一览）",
 			!!pp && /^https:\/\/wiki\.biligame\.com\/pengpeng\/api\.php/.test(pp.url) && pp.source === "Bwiki",
 			pp ? String(pp.url) : "缺失");
-		// 旧断言「pengpeng 活动侧留空」的理由（官方只有逐条公告、bwiki 没有活动一览）在 2026-11-09
-		// 晚被新调研推翻：bwiki `公告/` 前缀下 5 页「版本活动总览」，每页 5~6 行「活动时间：」。
-		// ⇒ 改成「已配置」，并钉住来源标签如实写「wiki 数据滞后」（停更的是 wiki，不是游戏）。
-		check("pengpeng 活动源已接（bwiki 公告/版本活动总览）",
-			!!pp && /^https:\/\/wiki\.biligame\.com\/pengpeng\/api\.php\?action=query&generator=allpages&gapprefix=/.test(String(pp.eventUrl)),
+		// 2026-11-10：活动侧默认源再换一档 —— bwiki `公告/` 停更 6 周 ⇒ TapTap 官方 tab 成默认，
+		// bwiki 公告降为 eventAltSources 手动备选（标签如实写「wiki 数据滞后」）。
+		check("pengpeng 活动源默认 = TapTap 官方 tab",
+			!!pp && pp.eventUrl === "https://www.taptap.cn/app/746164/topic?type=official",
 			pp ? String(pp.eventUrl) : "缺失");
-		check("pengpeng 活动来源标签写明「wiki 数据滞后」（不标暂停）",
-			!!pp && /wiki 数据滞后/.test(String(pp.eventSource)), pp ? String(pp.eventSource) : "缺失");
+		check("pengpeng 活动来源标签 = 「TapTap 官方（国服）」",
+			!!pp && pp.eventSource === "TapTap 官方（国服）", pp ? String(pp.eventSource) : "缺失");
+		check("pengpeng 旧 bwiki 公告源保留为 eventAltSources（抓取器已登记 / 标签写明 wiki 滞后）",
+			!!pp && (pp.eventAltSources || []).some((a) => /^https:\/\/wiki\.biligame\.com\/pengpeng\/api\.php\?action=query&generator=allpages&gapprefix=/.test(String(a.url))
+				&& /wiki 数据滞后/.test(String(a.label)) && typeof (T.EVENT_FETCHERS["pengpeng"] || {})[a.fetcher] === "function"),
+			pp ? JSON.stringify(pp.eventAltSources) : "缺失");
 
 		// wd / hlr：2026-11-09 晚上两端都接上（原「未配置」断言拆成两段：具体源见下面两条）
 		const wd = srcOf("wd");
@@ -182,8 +185,8 @@ export default async function run() {
 		check("hlr 卡池源已接（官网新闻列表）",
 			!!hlr && hlr.url === "https://hlr.163.com/news/official/" && hlr.source === "官网新闻",
 			hlr ? String(hlr.url) : "缺失");
-		check("hlr 活动源已接（同一个列表，逐篇详情抽窗口）",
-			!!hlr && hlr.eventUrl === hlr.url && hlr.eventSource === "官网新闻", hlr ? JSON.stringify([hlr.url, hlr.eventUrl]) : "缺失");
+		check("hlr 活动源已接（同一个抓取器同时抓官方通稿 + 学院公告）",
+			!!hlr && hlr.eventUrl === hlr.url && hlr.eventSource === "官网新闻 + 学院公告", hlr ? JSON.stringify([hlr.url, hlr.eventUrl, hlr.eventSource]) : "缺失");
 		check("hlr 两个抓取器都已登记（卡池 / 活动各一）",
 			typeof T.GACHA_FETCHERS["hlr"] === "function" && !!(T.EVENT_FETCHERS["hlr"] && T.EVENT_FETCHERS["hlr"].default));
 
@@ -197,13 +200,13 @@ export default async function run() {
 		// 设置页「卡池来源 / 活动来源」下拉：已接的写来源名，未配置的写裸「未配置」
 		check("wd / hlr 设置页两侧都写各自的来源名",
 			T.getDefaultSourceName(wd, "url") === "米游社官方版块" && T.getDefaultSourceName(wd, "eventUrl") === "米游社官方版块"
-			&& T.getDefaultSourceName(hlr, "url") === "官网新闻" && T.getDefaultSourceName(hlr, "eventUrl") === "官网新闻",
-			JSON.stringify([T.getDefaultSourceName(wd, "url"), T.getDefaultSourceName(hlr, "url")]));
+			&& T.getDefaultSourceName(hlr, "url") === "官网新闻" && T.getDefaultSourceName(hlr, "eventUrl") === "官网新闻 + 学院公告",
+			JSON.stringify([T.getDefaultSourceName(wd, "url"), T.getDefaultSourceName(hlr, "url"), T.getDefaultSourceName(hlr, "eventUrl")]));
 		check("cytq 设置页两侧都写「未配置」",
 			T.getDefaultSourceName(cytq, "url") === "未配置" && T.getDefaultSourceName(cytq, "eventUrl") === "未配置",
 			JSON.stringify([T.getDefaultSourceName(cytq, "url"), T.getDefaultSourceName(cytq, "eventUrl")]));
-		check("pengpeng 设置页：卡池侧写「Bwiki」、活动侧写「Bwiki 公告（wiki 数据滞后）」",
-			T.getDefaultSourceName(pp, "url") === "Bwiki" && T.getDefaultSourceName(pp, "eventUrl") === "Bwiki 公告（wiki 数据滞后）",
+		check("pengpeng 设置页：卡池侧写「Bwiki」、活动侧写「TapTap 官方（国服）」",
+			T.getDefaultSourceName(pp, "url") === "Bwiki" && T.getDefaultSourceName(pp, "eventUrl") === "TapTap 官方（国服）",
 			JSON.stringify([T.getDefaultSourceName(pp, "url"), T.getDefaultSourceName(pp, "eventUrl")]));
 	}
 

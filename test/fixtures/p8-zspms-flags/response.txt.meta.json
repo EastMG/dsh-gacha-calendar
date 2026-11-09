@@ -1,0 +1,6 @@
+{
+  "url": "https://wiki.biligame.com/zspms/api.php?action=parse&page=Test4%2F%E6%B4%BB%E5%8A%A8%E6%97%97%E5%B8%9C&prop=wikitext&format=json&formatversion=2",
+  "status": 200,
+  "capturedAt": "2026-11-09T18:45:33.423Z",
+  "trim": "原样（JSON，只有 parse.title / pageid / wikitext）。"
+}

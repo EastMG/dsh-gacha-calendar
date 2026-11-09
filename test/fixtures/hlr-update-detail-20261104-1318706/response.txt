@@ -1,0 +1,62 @@
+<div id="NIE-art">
+            
+            <div class="tit">
+                <div class="tbox">
+                    
+                    <p class="artTitle">
+                        <a class="back" href="//hlr.163.com/news/update/"><i></i></a>学院公告 | 10月15日不停服更新公告
+                    </p>
+                    <div class="artInfo">
+                        <span>
+                            位置：
+                            <a href="//hlr.163.com/" title="首页" target="_blank">首页</a>>>
+                            <a href="//hlr.163.com/news/update/" title="公告">公告</a>>>新闻详情
+                        </span>                          <span class="artDate">时间：2026-10-14</span>
+                        <span class="artShare"></span>
+                    </div>
+                </div>
+            </div>
+
+            
+            <div class="artText">
+                <h2 style="text-align: center;"><img src="https://nie.res.netease.com/r/pic/20261104/93cdea15-560d-4818-b6e8-4edf5230271c.jpg" /></h2>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【更新时间】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">2026年10月15日09:30 - 10:30</span></span></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【服装上新】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">10月20日09:30，艾因·[糖心绒兔]服装上架商城。上架首周特惠30元，活动结束后常驻恢复原价45元，可前往[采购]-[限时开启]购买获取。<br />
+► 艾因·[糖心绒兔]与初始服装语音动作相同，不包含特殊语音。<br />
+► 首周将同期上架[游乐园礼盒]，花费[钻石]购买后即可获得大量礼物、材料和1个[游乐园彩券]（即随机获得1件45元价格的未拥有常驻服装，包括全新艾因·[糖心绒兔]）。[游乐园礼盒]会在每次同系列服装上架时重复上架并刷新可购买次数。<br />
+*[游乐园礼盒]获取为随机未拥有，不区分角色，若已获取全部常驻服装，[游乐园彩券]将随机获取为[纽扣]或[钻石]。</span></span></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【系统修复】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">1.修复了小朋友们穿着[并肩年少]系列服装在出行背景[帝国禁闭室]时，关灯状态下脸红表情异常变成黑眼圈状态的问题。<br />
+2.修复了罗夏卡牌[地狱礼赞]中出现的部分文案错误问题。<br />
+3.修复了[神弃之地·星币篇]、[永夜之城666]、[黑暗的远山]活动剧情中出现的部分文案错误问题。<br />
+4.修复了司岚[暮蝶][宵酒][镜劫之影]服装的部分表情动作的显示问题。<br />
+5.修复了司岚[暮蝶][宵酒]服装手部的美术资源问题。<br />
+6.调整了宽屏设备下罗夏穿着部分服装进入佳期时平板显示的适配位置。<br />
+7.修复了[庆典溯忆]一期卡牌无法发布Lofter的问题。<br />
+8.修复了部分低好感状态出行语音无法触碰解锁的问题。<br />
+9.调整了部分头像的品质等级。<br />
+10.修复了司岚[暮蝶][宵酒]服装的[调整蝴蝶]出行语音资源。<br />
+11.修复了[此意藏情]系列画灵的卡组剧情语音文本缺失的问题。<br />
+12.修复了[晨昏之章]剧情中出现的部分文案问题。</span></span></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【更新须知】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">不停服更新期间，游戏内部分功能短时间内将无法使用(好友、助战、充值、公众号绑定及签到等)。<br />
+届时在游戏内的玩家，可能会出现掉线的情况，重启游戏客户端并更新即可。<br />
+如果有任何问题，欢迎使用游戏内部反馈提交(左上角系统设置-联系客服)，或联系各平台对应客服人员进行反馈。<br />
+公告更新详情可前往官网或游戏内查看。</span></span></p>
+
+<p style="text-align: right;"><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">《时空中的绘旅人》运营团队<br />
+2026年10月14</span></span></p>
+            </div>
+            
+
+        </div>

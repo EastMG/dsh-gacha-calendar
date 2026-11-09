@@ -1,6 +1,6 @@
 // next-sources/test/cases-p5x.mjs —— P5X 国服（Lead 参考实现）的离线用例
 // 从 run.mjs 抽出，便于被 test/all.mjs 统一组合。
-import { useFixtures, fixtureBody, check, section, assertContract } from "./harness.mjs";
+import { useFixtures, fixtureBody, check, section, assertContract, setFetchImpl } from "./harness.mjs";
 import { findSource } from "./registry-shim.mjs";
 import { T } from "./load.mjs";
 const { parseP5xList, parseP5xWindows } = T.parsers["p5x"];
@@ -53,8 +53,9 @@ export default async function run() {
 		const w = parseP5xWindows("2026年9月24日—10月22日更新前", tz);
 		check("同年窗口：解析出 1 条", w.length === 1, JSON.stringify(w));
 		if (w[0]) {
-			check("起点 = 09-24 04:00 (UTC+8)", w[0].startTs === Date.UTC(2026, 8, 24, 4, 0) - 8 * 3600e3, String(w[0].startTs));
-			check("终点 = 10-22 03:59 (UTC+8)", w[0].endTs === Date.UTC(2026, 9, 22, 3, 59) - 8 * 3600e3, String(w[0].endTs));
+			// 2026-11-10 统一口径：只有日期 ⇒ 起 00:00 / 止 23:59（原 04:00 / 03:59 是国服换日推算）
+			check("起点 = 09-24 00:00 (UTC+8)", w[0].startTs === Date.UTC(2026, 8, 24, 0, 0) - 8 * 3600e3, String(w[0].startTs));
+			check("终点 = 10-22 23:59 (UTC+8)", w[0].endTs === Date.UTC(2026, 9, 22, 23, 59) - 8 * 3600e3, String(w[0].endTs));
 			check("endTs > startTs", w[0].endTs > w[0].startTs);
 		}
 		const cross = parseP5xWindows("2025年12月30日—1月15日", tz);
@@ -92,5 +93,63 @@ export default async function run() {
 		const now = Date.now();
 		check("过期窗口不覆盖当前时刻（→ 抓取器会返回 null，而不是显示旧档期）",
 			!(wins[0].startTs <= now && wins[0].endTs >= now));
+	}
+
+	// ───────────────────── 2026-11-10：真机 5.4.2 公告（只有日期、没有时分）─────────────────────
+	section("P5X 国服 —— 真机 5.4.2 公告：`活动时间：2026年10月22日-2026年11月19日`（无时分）");
+	const NOW_1110 = Date.parse("2026-11-10T02:50:00+08:00");
+	const LIST_URL = "https://p5x.wanmei.com/news/gamenews/index.html";
+	const DETAIL_URL = "https://p5x.wanmei.com/news/gamenews/20261022/264741.html";
+	const detailBody = fixtureBody(DETAIL_URL);
+	{
+		const text = T.parsers.p5x.p5xBodyText(detailBody);
+		const blocks = T.parsers.p5x.parseP5xBlocks(text);
+		const bessa = blocks.find((b) => b.title === "贝萨出品");
+		check("真机详情解析出「活动更新-贝萨出品」块，windowRaw = 「2026年10月22日-2026年11月19日」",
+			!!bessa && bessa.category === "活动更新" && bessa.windowRaw === "2026年10月22日-2026年11月19日",
+			JSON.stringify(bessa));
+		const w = parseP5xWindows(bessa.windowRaw, "Asia/Shanghai");
+		check("纯日期窗口 ⇒ 起 00:00 / 止 23:59（UTC+8；与 bwiki 通用层同一约定）",
+			w.length === 1
+			&& w[0].startTs === Date.UTC(2026, 9, 21, 16, 0)      // 2026-10-22 00:00 +08
+			&& w[0].endTs === Date.UTC(2026, 10, 19, 15, 59),     // 2026-11-19 23:59 +08
+			JSON.stringify(w));
+
+		// 抓取器：列表换成 2026-10-22 那版真夹具；详情用真响应（/ 可用 stripped 版本做反向证明）
+		const listBody = fixtureBody(LIST_URL, { [LIST_URL]: "p5x-list-20261022/response.txt" });
+		const makeImpl = (detail) => async (url) => {
+			const raw = String(url);
+			const isApi = raw.startsWith("/api/gacha-calendar-proxy");
+			const target = isApi ? new URL("http://x" + raw).searchParams.get("url") : raw;
+			const body = target === LIST_URL ? listBody : target === DETAIL_URL ? detail : "";
+			// 代理形态要回信封 { status, body }（与 useFixtures 的 impl 同形）；直连形态回正文
+			const text = isApi ? JSON.stringify({ status: body ? 200 : 404, body }) : body;
+			return { ok: !!body, status: body ? 200 : 404, headers: { get: () => null }, text: async () => text, json: async () => JSON.parse(text) };
+		};
+		setFetchImpl(makeImpl(detailBody));
+		const src = findSource("p5x");
+		const g = await src.gacha.fetcher(src.gacha.url, undefined, src.tz, NOW_1110);
+		const e = await src.event.fetcher(src.event.url, undefined, src.tz, NOW_1110);
+		check("活动侧：当期 = 贝萨出品，档期「10-22 00:00 ~ 11-19 23:59」，原文逐字",
+			!!e && e.event === "贝萨出品" && e.eventDates === "10-22 00:00 ~ 11-19 23:59"
+			&& e.eventDatesRaw === "2026年10月22日-2026年11月19日",
+			JSON.stringify(e && [e.event, e.eventDates, e.eventDatesRaw]));
+		check("活动悬停含 3 条当期（贝萨出品 / 统统创飞 / 怪盗幻像的试炼）",
+			!!e && e.eventHover === "贝萨出品   10-22 00:00 ~ 11-19 23:59\n「统统创飞」活动开启   11-05 00:00 ~ 11-19 23:59\n怪盗幻像的试炼   11-05 00:00 ~ 11-19 23:59",
+			JSON.stringify(e && e.eventHover));
+		check("卡池侧仍如实 null：`契约更新` 块只有一行**无标签**的日期（「持续进行中」）⇒ 不硬凑成卡池",
+			g === null && blocks.find((b) => b.category === "契约更新").windowRaw === "",
+			JSON.stringify([g, blocks.find((b) => b.category === "契约更新")]));
+
+		// 反向证明：把「活动时间：」标签从正文里删掉 ⇒ 区块不再带窗口 ⇒ 活动侧 null
+		const stripped = detailBody.replace(/活动时间\s*[:：]/g, "");
+		const blocks2 = T.parsers.p5x.parseP5xBlocks(T.parsers.p5x.p5xBodyText(stripped));
+		check("反证：删掉「活动时间：」标签 ⇒ 所有区块 windowRaw 为空、活动解析不出窗口",
+			blocks2.every((b) => b.windowRaw === "") && blocks2.every((b) => parseP5xWindows(b.windowRaw, "Asia/Shanghai").length === 0),
+			JSON.stringify(blocks2.map((b) => [b.title, b.windowRaw])));
+		setFetchImpl(makeImpl(stripped));
+		const e2 = await src.event.fetcher(src.event.url, undefined, src.tz, NOW_1110);
+		check("反证：源站有公告但没有「活动时间：」⇒ 活动侧如实 null（不是编一条）", e2 === null, JSON.stringify(e2));
+		useFixtures();   // 还原全局夹具（后面的用例还要用）
 	}
 }

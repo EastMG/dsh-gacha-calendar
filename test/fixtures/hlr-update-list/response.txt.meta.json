@@ -1,0 +1,6 @@
+{
+  "url": "https://hlr.163.com/news/update/",
+  "status": 200,
+  "capturedAt": "2026-11-09T18:45:33.085Z",
+  "trim": "只保留 <ul class=\"list\">…</ul>（学院公告首页 6 条：title / href / span.comment 摘要），页头页脚与脚本删除。"
+}

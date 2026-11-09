@@ -761,11 +761,17 @@ export default async function runCore() {
 			const s = T.SOURCES.find((x) => x.id === id);
 			return (s && s.tz) || null;
 		};
-		const runGame = async (id, nowMs) => {
-			const engine = createEngine({ transport, storage: makeStore(only(id)), now: () => nowMs, timer: { setTimeout, clearTimeout } });
+		const runGame = async (id, nowMs, seeds) => {
+			const store = makeStore(only(id));
+			// 2026-11-10：战双卡池默认源换成 bwiki `Test4/活动旗帜`；这条等价性 golden 是
+			// **版本更新公告**那版的存档 ⇒ 用真实设置存储切到备选源（与设置页写的是同一种值）。
+			for (const [k, v] of Object.entries(seeds || {})) await store.set(k, v);
+			const engine = createEngine({ transport, storage: store, now: () => nowMs, timer: { setTimeout, clearTimeout } });
 			const r = await engine.refresh();
 			return r.games[id] || {};
 		};
+		// 战双备选源（版本更新公告）的标识 = altSourceId（这里就是 url）
+		const ZSPMS_NOTICE_SRC = ((T.SOURCES.find((s) => s.id === "zspms") || {}).altSources || [])[0];
 		// 各游戏的 now = 夹具的抓取时刻（probe 实测过：这一组时刻每款都至少一侧有数据）
 		const CASES = [
 			["zzz", "2026-08-25T00:00:00.000Z"],
@@ -787,7 +793,10 @@ export default async function runCore() {
 		const records = [];
 		for (const [id, iso] of CASES) {
 			const now = new Date(Date.parse(iso));
-			records.push({ id, now, rec: await runGame(id, now.getTime()) });
+			const seeds = id === "zspms" && ZSPMS_NOTICE_SRC
+				? { customUrls: JSON.stringify({ zspms: ZSPMS_NOTICE_SRC.url }) }
+				: null;
+			records.push({ id, now, rec: await runGame(id, now.getTime(), seeds) });
 		}
 		// 星铁（bwiki 历史跃迁 / 活动一览，形状与线上一致的真机夹具；与 ④-9 同一份）
 		{
@@ -863,19 +872,38 @@ export default async function runCore() {
 		// 的名称行里不再有那个体裁尾巴（改造前是 `「联合讨伐」活动说明`）⇒ 同样是有意变更。
 		// 白名单只有这 3 个键（下面单独守长度），逐字期望分别由 cases-p4 / cases-hsr-official 与 cases-p7 钉住。
 		const APPROVED_DIFF = new Set(["hsr:gacha", "hsr:event", "stellasora:event"]);
-		const unapproved = diffs.filter((k) => !APPROVED_DIFF.has(k));
+		// ⚠️ 2026-11-10（用户要求）：p5x 的「只有日期、没有时刻」窗口改成 00:00 起 / 23:59 止
+		// （仓库通用约定，见 `ns_bwiki_windowsFromCell` 注释）。golden 是改造前 04:00 / 03:59 的存档
+		// ⇒ 这两侧登记为**已批准差异**，并由下面的专项断言逐行证明"差异只是这条时间口径"。
+		const DAY_ONLY_KEYS = new Set(["p5x:gacha", "p5x:event"]);
+		const unapproved = diffs.filter((k) => !APPROVED_DIFF.has(k) && !DAY_ONLY_KEYS.has(k));
 		check("等价性：17 款游戏（34 个侧）**全部逐字相等**（diffs = 0；名称 / 档期文本 / 探头行数 / 行顺序）",
 			unapproved.length === 0, JSON.stringify(unapproved));
-		check("等价性白名单只有那 3 个已批准的侧（星铁 2 个「起点未知≠已开始」+ 星塔 1 个「活动名去尾」），别的键一律红",
-			diffs.length === unapproved.length + APPROVED_DIFF.size
-			&& [...APPROVED_DIFF].every((k) => diffs.indexOf(k) >= 0),
+		check("等价性白名单 = 3 个已批准（星铁 2 + 星塔 1）+ p5x 2 个纯日期时间口径（这些键都必须真的变了）",
+			diffs.length === APPROVED_DIFF.size + DAY_ONLY_KEYS.size
+			&& [...APPROVED_DIFF].every((k) => diffs.indexOf(k) >= 0)
+			&& [...DAY_ONLY_KEYS].every((k) => diffs.indexOf(k) >= 0),
 			JSON.stringify(diffs));
+		// p5x 专项：名称 / 行数 / 顺序逐字相同；老路（04:00 起 / 03:59 止）按同一条规则换算后与新值逐字相等
+		const p5xDayShift = (meta) => String(meta == null ? "" : meta)
+			.replace(/(\d{2}-\d{2}) 04:00/g, "$1")
+			.replace(/(\d{2}-\d{2}) 03:59/g, "$1 23:59")
+			.replace(/还剩 (?:(\d+)天)?(\d+)时/g, (m, d, h) => {
+				const total = (+(d || 0)) * 24 + (+h) + 20;           // 终点 03:59 → 23:59 ⇒ +20h
+				return `还剩 ${Math.floor(total / 24)}天${total % 24}时`;
+			});
+		for (const key of DAY_ONLY_KEYS) {
+			const d = got.get(key);
+			const want = (d && d.old ? d.old : []).map((r) => ({ name: r.name, meta: p5xDayShift(r.meta) }));
+			check(`等价性（${key}）**已批准差异**：名称/行数/顺序逐字相同，档期只是「纯日期 ⇒ 00:00 / 23:59」`,
+				!!d && JSON.stringify(want) === JSON.stringify(d.next), JSON.stringify([want, d && d.next]));
+		}
 		const STRICT = ["zzz", "arknights", "ba-cn", "bandori", "wuhuamixin", "zspms", "kedr", "uma-cn", "uma-jp", "uma-global", "p5x", "nte", "gf2", "fgo", "stellasora", "hsr", "genshin"];
 		const strictBad = [];
 		for (const id of STRICT) {
 			for (const side of ["gacha", "event"]) {
 				const key = id + ":" + side;
-				if (APPROVED_DIFF.has(key)) continue;          // 已批准差异（见上）
+				if (APPROVED_DIFF.has(key) || DAY_ONLY_KEYS.has(key)) continue;   // 已批准差异（见上）
 				const d = got.get(key);
 				if (!d || JSON.stringify(d.old) !== JSON.stringify(d.next)) strictBad.push(key);
 			}

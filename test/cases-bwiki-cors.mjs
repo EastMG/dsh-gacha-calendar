@@ -205,8 +205,8 @@ export default async function run() {
 	//#region ③ 行为：bwiki 来源实际发出的请求带 origin=*
 	section("bwiki 来源：实际发出的请求 URL 含 origin=*（fetch 记账）");
 	{
-		// 战双（bwiki wikitext）：ask 索引 + 公告正文。改造前这两条都**没有** origin=*
-		// （`fetchJson(url, { mode: "proxy" })` 没有拼参数 —— 只有 fetchMediaWikiText 那条路会拼）。
+		// 战双（bwiki wikitext）：2026-11-10 起默认卡池源换成 `Test4/活动旗帜`（1 条 wikitext 请求），
+		// 旧「ask 索引 + 公告正文」两条请求的路径降为备选源（键 `zspms-bwiki-notice`）—— 两条都测。
 		const zs = T.SOURCES.find((s) => s.id === "zspms");
 		check("前置：战双来源地址是 bwiki", !!zs && isBiligameHost(hostOf(zs.url)), zs && zs.url);
 
@@ -214,11 +214,11 @@ export default async function run() {
 		const seen = [];
 		setFetchImpl(async (u, o) => { seen.push(String(u)); return fx(u, o); });
 		let err = null;
-		try { await T.GACHA_FETCHERS["zspms"](zs.url, undefined, zs.tz); } catch (e) { err = e; }
-		check("战双抓取器不应抛错（夹具齐备 / 解析未坏）", err === null, err && err.message);
+		try { await T.GACHA_FETCHERS["zspms-bwiki-notice"]((zs.altSources || [])[0].url, undefined, zs.tz); } catch (e) { err = e; }
+		check("战双备选源（版本公告）不应抛错（夹具齐备 / 解析未坏）", err === null, err && err.message);
 
 		const targets = seen.map(targetOf);
-		check("战双确实发出了 2 条请求（ask 索引 + 公告正文）", targets.length === 2, String(targets.length) + " 条");
+		check("战双备选源确实发出了 2 条请求（ask 索引 + 公告正文）", targets.length === 2, String(targets.length) + " 条");
 		const ask = targets.find((t) => /[?&]action=ask\b/.test(t));
 		const wt = targets.find((t) => /[?&]action=parse\b/.test(t));
 		check("ask 索引请求带 origin=*（改造前没有）",
@@ -229,6 +229,21 @@ export default async function run() {
 			targets.every((t) => originCount(t) === 1), targets.map(originCount).join(","));
 		check("两条请求仍走宿主代理（收口没有改变通道路径）",
 			seen.every((u) => u.startsWith(PROXY_PREFIX)), seen.map((u) => u.slice(0, 24)).join(" | "));
+
+		// 新默认源（活动旗帜）：只发 1 条 `action=parse&prop=wikitext`，同样带 origin=*、同样走代理
+		const fxFlags = useFixtures();
+		const seenFlags = [];
+		setFetchImpl(async (u, o) => { seenFlags.push(String(u)); return fxFlags(u, o); });
+		let errFlags = null;
+		try { await T.GACHA_FETCHERS["zspms"](zs.url, undefined, zs.tz); } catch (e) { errFlags = e; }
+		check("战双默认源（活动旗帜）不应抛错", errFlags === null, errFlags && errFlags.message);
+		const flagsTargets = seenFlags.map(targetOf);
+		check("活动旗帜只发 1 条请求（action=parse&prop=wikitext）", flagsTargets.length === 1 && /[?&]prop=wikitext\b/.test(flagsTargets[0]),
+			JSON.stringify(flagsTargets.map((t) => t.slice(0, 90))));
+		check("活动旗帜请求带 origin=*（且只补一个）",
+			flagsTargets.length === 1 && originCount(flagsTargets[0]) === 1 && /[?&]origin=\*/.test(flagsTargets[0]),
+			flagsTargets.length ? flagsTargets[0].slice(-90) : "(没发出)");
+		check("活动旗帜请求走宿主代理", seenFlags.every((u) => u.startsWith(PROXY_PREFIX)), seenFlags.map((u) => u.slice(0, 24)).join(" | "));
 
 		// 物华弥新（bwiki）：抓取器**自己已经**拼过 origin=*（fetchMediaWikiText）→ 收口必须是幂等的
 		const fx2 = useFixtures();

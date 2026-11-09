@@ -1,0 +1,96 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+	<meta name="viewport" content="width=device-width,user-scalable=no">
+	<meta name="renderer" content="webkit">
+	<meta name="description" content="《女神异闻录：夜幕魅影》（简称：P5X）是由SEGA正版授权，ATLUS深度参与，完美世界游戏打造的《女神异闻录5》首款日式角色扮演（JRPG）手游。P5X是基于P5的世界观设定展开故事，在深度还原原作潮酷炫风格的基础上，由全新角色和全新剧情带来全新的精彩体验！" />
+	<meta name="keywords" content="P5X,P5X官网,P5X下载,P5X福利,P5X攻略,P5X预约,女神异闻录：夜幕魅影,女神异闻录夜幕魅影,女神异闻录手游,女神异闻录5,女神异闻录X,女神异闻录下载,女神异闻录官网,女神异闻录预约,女神异闻录福利,女神异闻录礼包,女神异闻录公测,女神异闻录攻略,P5,JRPG,角色扮演,日式角色扮演,Joker Persona,人格面具,persona"/>
+	<title>奇想盛放的舞台《女神异闻录：夜幕魅影》5.4.2版本今日上线-P5X-《女神异闻录：夜幕魅影》手游官网</title>
+	<link rel="stylesheet" type="text/css" href="https://p5x.wanmei.com/style/inside240801.css" />
+	<script type="text/javascript">
+		(function(doc, win){
+			var docEl = doc.documentElement,resizeEvt = 'orientationchange' in window ? 'orientationchange' : 'resize',
+			recalc = function(){
+				var clientWidth = window.innerWidth;
+				if (!clientWidth) return;
+				var wid = 100 * (clientWidth / 2560);
+				docEl.style.fontSize = wid + 'px';
+			};
+			if (!doc.addEventListener) return;
+			win.addEventListener(resizeEvt, recalc, false);
+			recalc();
+			doc.addEventListener('DOMContentLoaded', recalc, false);
+		})(document, window);
+	</script>
+</head>
+<body>
+	<audio id="background_audio" src="https://p5xvmg.wmupd.com/webops/p5x/p5x_cn_bgm_20240326.mp3" loop></audio>
+	<div class="wrap pv_wrap">
+		<!--head-->
+		<div class="section_head">
+			<div class="top_nav_box">
+				<a href="https://p5x.wanmei.com/index.html"><img class="logo" src="https://p5x.wanmei.com/images/cover2407/logo.png" /></a>
+				<ul class="top_nav_list">
+				<li class="nav_news"><a href="https://p5x.wanmei.com/main.html?anchor=news"></a></li>
+				<li class="nav_role"><a href="https://p5x.wanmei.com/main.html?anchor=character"></a></li>
+				<li class="nav_school"><a href="https://p5x.wanmei.com/main.html?anchor=schoolLife"></a></li>
+				<li class="nav_world"><a href="https://p5x.wanmei.com/main.html?anchor=metaverseLife"></a></li>
+				<li class="nav_media"><a href="https://p5x.wanmei.com/main.html?anchor=audiovisual"></a></li>
+				<li class="nav_shequ"><a href="https://p5x.wanmei.com/main.html?anchor=community"></a></li>
+			</ul>
+			</div>
+			<div class="share_menu">
+			<span class="icon_share"></span>
+			<ul class="share_list animated fadeIn">
+				<li class="followUs_wechat">
+					<div class="ewm_box"><img src="https://p5x.wanmei.com/images/cover230301/code_wechat.jpg" /></div>
+				</li>
+				<li class="followUs_sina">
+					<a href="https://weibo.com/u/7745874119" target="_blank"></a>
+				</li>
+				<li class="followUs_douliu">
+					<div class="ewm_box"><img src="https://p5x.wanmei.com/images/cover230301/code_douliu.png" /></div>
+				</li>
+				<li class="followUs_tap">
+					<a href="https://www.taptap.cn/app/305435/topic?utm_medium=seo&utm_source=rep_110vzTu7CoH" target="_blank"></a>
+				</li>
+				<li class="followUs_qq">
+					<a href="http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=EUSz0aoIfYnAHw8cJc5-pbo2kHdUgC12&authKey=qadXAGXsL7Q5IU2KvHk2oq58Eg%2F88wxQVc4O4Ivz%2BvqNyWgoCzzHkhiOAB%2B6cTbb&noverify=0&group_code=207069170" target="_blank"></a>
+				</li>
+				<li class="followUs_tieba">
+					<a href="https://tieba.baidu.com/f?ie=utf-8&kw=%E5%A5%B3%E7%A5%9E%E5%BC%82%E9%97%BB%E5%BD%95%E5%A4%9C%E5%B9%95%E9%AD%85%E5%BD%B1" target="_blank"></a>
+				</li>
+				<li class="followUs_bili">
+					<a href="https://space.bilibili.com/1606210274" target="_blank"></a>
+				</li>
+			</ul>
+		</div>
+			<span class="menu_music off"></span>
+		</div>
+		<!--cont-->
+		<div class="section_cont">
+			<img class="news_title" src="https://p5x.wanmei.com/images/inside2407/news_title.png" />
+			<a class="link_list" href="https://p5x.wanmei.com/news/gamenews/index.html">返回列表</a>
+			<div class="article_cont">
+				<p class="article_date">2026.10.22</p>
+				<div class="article_tit">奇想盛放的舞台《女神异闻录：夜幕魅影》5.4.2版本今日上线</div>
+				<div class="article_text">
+					<p>奇想盛放的舞台《女神异闻录：夜幕魅影》5.4.2版本今日上线</p><p><img src="https://p5x.wanmei.com/resources/jpg/20261022/11124cfc5b545d0b4bbba55373065db833bd.jpg" alt="图片: 1.jpg"/></p><p><br/></p><p>活动更新-贝萨出品</p><p>活动时间：2026年10月22日-2026年11月19日</p><p>在印象空间某处存在一个特殊的宫殿，目前由阴影「贝萨」暂时代为管理。为了防止缺失秘宝的宫殿面临坍塌，「贝萨」会在这里定期举办游戏派对并转播画面，用以提高阴影们的欲望。</p><p>&gt;&gt;棋棋追逐秀</p><p>充分利用不同棋子的特性，尝试使用最少的步骤完成挑战！完成任务目标可获得异界晶珀、「节目点数」和大量养成材料。</p><p>&gt;&gt;棋棋大作战</p><p>使用特殊道具，获得特殊效果助力战斗来击败阴影吧！完成任务目标可获得异界晶珀、「节目点数」和大量养成材料。</p><p>使用「节目点数」还可以在「周边商店」兑换各种丰厚奖励。</p><p></p><p><a href="https://p5x.wanmei.com/resources/jpg/20261022/11129a6462b6cd324a1fa15255da4cce3550.jpg" target="_blank" hidefocus="hidefocus" title="图片: 2.jpg"><img src="https://p5x.wanmei.com/resources/jpg/20261022/11129a6462b6cd324a1fa15255da4cce3550.jpg" alt="图片: 2.jpg"/></a></p><p>玩法更新</p><p>大富翁好友邀请模式</p><p>大富翁「好友邀战」模式火热开启！</p><p>玩家可以创建房间，并自主设置单局/三局赛制，更能自定义“欢乐条款”：</p><p>打出三张相同牌触发革命/反革命的「三张革命」、</p><p>随机生成万能牌灵活组合的「随机癞子」、</p><p>以及牌局中移除WONDER牌的「无WONDER」。</p><p>多种条款搭配，打造你的独家烧脑牌局！</p><p>同时支持频道邀请、好友邀请、电脑补位。</p><p>快邀请搭档，体验自定义对战的无穷乐趣吧！</p><p>同步开放「超级大富翁」活动，参与更有丰厚积分奖励。</p><p>活动时间：2026年11月5日-2026年11月19日</p><p><a href="https://p5x.wanmei.com/resources/jpg/20261022/111299f0bbbf73fd4e8da1a24f8e877629cc.jpg" target="_blank" hidefocus="hidefocus" title="图片: 3.jpg"><img src="https://p5x.wanmei.com/resources/jpg/20261022/111299f0bbbf73fd4e8da1a24f8e877629cc.jpg" alt="图片: 3.jpg"/></a></p><p><br/></p><p>玩法更新</p><p>天鹅绒试炼</p><p>本次更新后，将开放常驻新试炼章节「千面浮光」。</p><p>章节效果「众生之相」：有属于相同分类的角色同时在场时，这些角色造成的伤害增加20%（多种分类不可叠加）</p><p><a href="https://p5x.wanmei.com/resources/jpg/20261022/111269df88d5c1b744bbacd587dc7a434ed7.jpg" target="_blank" hidefocus="hidefocus" title="图片: 4.jpg"><img src="https://p5x.wanmei.com/resources/jpg/20261022/111269df88d5c1b744bbacd587dc7a434ed7.jpg" alt="图片: 4.jpg"/></a></p><p><br/></p><p>功能拓展</p><p>心象激活</p><p>宫下美波</p><p>新增潜能：眷佑</p><p>友方生命值低于50%时，立即为其回复宫下美波最大生命值一定百分比的生命值，触发后有若干回合的冷却时间。</p><p>受到宫下美波治疗的同伴伤害永久提升一定百分比、暴击效果永久提升一定百分比；若该同伴为祝福属性角色，效果提升至伤害永久提升一定百分比、暴击效果永久提升一定百分比。</p><p>新增潜能：润泽</p><p>宫下美波提供的增益效果延长1回合。</p><p>获得『甘露』时，使所有同伴造成祝福伤害时总伤害增幅提升一定百分比，持续若干回合。</p><p>使用『春之恩赐』消耗『甘露』时，使所有同伴攻击力提升一定百分比，并使主目标伤害提升一定百分比，持续若干回合。</p><p><br/></p><p>都市更新</p><p>限定扭蛋复刻</p><p>活动时间：2026年10月22日-2026年12月24日</p><p>限定扭蛋「菇菇大冒险」系列将在秋叶原地区扭蛋机中限时开放抽取。</p><p>获取扭蛋即可获得对应的家园扭蛋柜装饰。</p><p><img src="https://p5x.wanmei.com/resources/jpg/20261022/111267f85d26d3e14cad93385d29f2f8f9ab.jpg" alt="图片: 5.jpg"/></p><p><br/></p><p><br/></p><p>活动更新</p><p>「统统创飞」活动开启</p><p>活动时间：2026年11月5日-2026年11月19日</p><p>活动期间，每天完成任务及挑战「磨炼技术」，可以收集「动力能源」。</p><p>消耗动力能源「立即前进」，累计异世界里程，即可领取丰厚奖励！</p><p><br/></p><p><br/></p><p><br/></p><p>活动更新</p><p>怪盗幻像的试炼</p><p>活动时间：2026年11月5日-2026年11月19日</p><p>作为主人公的专属接待员，梅洛普决定在天鹅绒房间开启全新的试炼挑战。</p><p>在特别挑战玩法中，主人公将体验全新战斗机制，通过合理搭配阵容，完成多个试炼关卡的考验，并挑战由梅洛普安排的特殊认知对手。</p><p>同时，经过梅洛普的精心设计，主人公也会面临更高难度、多个阶段的长线战斗。在完成挑战的过程中，主人公在完成特定的阶段后，可以更换出阵的怪盗伙伴。</p><p>本期幻像：李瑶铃·太平乐、道玄坂琉七</p><p><br/></p><p>契约更新</p><p>缘结之契持续开启</p><p>2026年9月24日-2026年11月19日</p><p>指定自选契约「缘结之契」持续进行中！</p><p>队长可在 5.1.1 版本（截止到雨宫莲·星舞）及以前上线的角色中任选 3 名进行签约，获取的限定角色将只会出现当前选择 UP 的角色。</p><p>参与该契约还可获得「认知残影」代币奖励，用于兑换既定之命运、既定之硬币、宿命之残响、启示定制与重置相关的珍贵道具。</p><p>以上角色限定 5 星武器同步复刻，感谢各位队长一直以来的陪伴！</p><p><a href="https://p5x.wanmei.com/resources/jpg/20261022/1112ba9ce1f528144d90970df2308c975dcf.jpg" target="_blank" hidefocus="hidefocus" title="图片: 6.jpg"><img src="https://p5x.wanmei.com/resources/jpg/20261022/1112ba9ce1f528144d90970df2308c975dcf.jpg" alt="图片: 6.jpg"/></a></p><p><br/></p><p>优化清单</p><p>强化自动添加武器后，紫色品质不再弹出消耗确认</p><p>优化港湾都市场景中的任务追踪逻辑</p><p>优化P3R风格手柄快捷键显示逻辑</p><p>修复了意识6伊织顺平【倾力挥击】在特定状况下的生效异常</p><p>修复了平野亚兰传导机制在天鹅绒试炼中的积分计算异常</p><p>修复了真田明彦模型在宫殿安全屋中消失的异常</p><p>修复了代理海岸新出现的贴图异常</p><p><br/></p><p>版本同期系列活动同步开启、战斗玩法更新与奖励重置，别忘记查看活动界面更新！</p><p>预祝队长在游戏内体验愉快！</p><p><br/></p>
+				</div>
+			</div>
+		</div>
+		<div class="back_box">
+			<a class="link_back" href="https://p5x.wanmei.com/main.html"></a>
+			<a class="go_top"></a>
+		</div>
+	</div>
+	<script type="text/javascript" src="https://static.games.wanmei.com/public/js/jq_183.js"></script>
+	<script type="text/javascript" src="https://static.games.wanmei.com/public/js/stat.js"></script>
+	<script type="text/javascript" src="https://static.games.wanmei.com/public/js/top/header.js"></script>
+	<script type="text/javascript" src="https://static.games.wanmei.com/public/js/footer/bottom.js"></script>
+	<script type="text/javascript" src="https://static.games.wanmei.com/public/js/jquery.cookie.js"></script>
+	<script type="text/javascript" src="https://p5x.wanmei.com/js/inside240801.js"></script>
+</body>
+</html>

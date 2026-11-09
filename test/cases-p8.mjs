@@ -21,7 +21,7 @@ const { sourceInstant, sourceWallParts, fmtWindow, hoverPool, hoverEvent } = T;
 import { SOURCES_P8, findSourceP8, listIdsP8 } from "./registry-shim.mjs";
 import { T } from "./load.mjs";
 
-const { mediaWikiWikitext, parseZspmsAsk, zspmsNormalize, zspmsMaintenanceWindow, parseZspmsAnnouncement, gachaZspms, eventsZspms, zspmsParseUrl, zspmsNameAt, zspmsHeadings, parseCznLua, parseCznRecord, cznStamp, gachaCzn, kedrTemplateCalls, kedrStamp, kedrIsGacha, kedrIsEvent, kedrRoleFromName, parseKedrTemplate, gachaKedrTemplate, eventsKedrTemplate, kedrTemplateUrl, ZSPMS_TZ, ZSPMS_ASK_URL, ZSPMS_ASK_QUERY, CZN_TZ, CZN_MODULE_URL, CZN_MODULE_PAGE, CZN_RECORD_URL, KEDR_TZ, KEDR_TEMPLATE_URL, KEDR_TEMPLATE_PAGE } = T.parsers["bwiki-wikitext"];
+const { mediaWikiWikitext, parseZspmsAsk, zspmsNormalize, zspmsMaintenanceWindow, parseZspmsAnnouncement, gachaZspms, eventsZspms, zspmsParseUrl, zspmsNameAt, zspmsHeadings, parseCznLua, parseCznRecord, cznStamp, gachaCzn, kedrTemplateCalls, kedrStamp, kedrIsGacha, kedrIsEvent, kedrRoleFromName, parseKedrTemplate, gachaKedrTemplate, eventsKedrTemplate, kedrTemplateUrl, ZSPMS_TZ, ZSPMS_ASK_URL, ZSPMS_ASK_QUERY, ZSPMS_FLAGS_URL, ZSPMS_FLAGS_PAGE, parseZspmsFlags, gachaZspmsFlags, CZN_TZ, CZN_MODULE_URL, CZN_MODULE_PAGE, CZN_RECORD_URL, KEDR_TZ, KEDR_TEMPLATE_URL, KEDR_TEMPLATE_PAGE } = T.parsers["bwiki-wikitext"];
 
 // ── 夹具读取 ──
 const fxText = (p) => readFileSync(new URL("./fixtures/" + p, import.meta.url), "utf8");
@@ -598,6 +598,78 @@ export default async function run() {
 			JSON.stringify([reOne.ok && reOne.data, rgOne.ok && rgOne.data && rgOne.data.bannerHover]));
 		check("抓取失败 → 抛错（不静默降级成 null）",
 			await throwsAsync(() => gachaKedrTemplate("https://example.invalid/kedr", undefined, KEDR_TZ, SNAP)));
+	}
+	//#endregion
+
+	//#region P8-6 战双帕弥什 —— 卡池默认源换成 `Test4/活动旗帜`（2026-11-10）
+	// 为什么换：版本更新公告最新只到 2026-11-05（11-06 起空窗），活动旗帜的结构化当期池到 11-12。
+	// 夹具 `p8-zspms-flags`（507B 真响应）。断言里 now 一律用 2026-11-10 02:50 +08。
+	section("P8-6 战双帕弥什 —— 卡池默认源 = `Test4/活动旗帜`（结构化当期池；公告源降为备选）");
+	const FLAGS_NOW = sourceInstant(2026, 11, 10, 2, 50, ZSPMS_TZ);
+	{
+		const flagsRaw = fxJson("p8-zspms-flags/response.txt");
+		const wt = mediaWikiWikitext(flagsRaw);
+		check("活动旗帜是**数据页**（parse.title = `Test4/活动旗帜`），页名编码后与夹具 meta.url 一致",
+			flagsRaw.parse.title === ZSPMS_FLAGS_PAGE && fxMeta("p8-zspms-flags/response.txt").url === ZSPMS_FLAGS_URL,
+			JSON.stringify([flagsRaw.parse.title, fxMeta("p8-zspms-flags/response.txt").url]));
+		check("模板参数：70%UP 3 个角色 + 100%UP 2 个角色，两端时间齐全",
+			/\|70%UP1=比安卡·晖暮/.test(wt) && /\|70%UP3=海伦汀·安魂/.test(wt)
+			&& /\|70%UP开始时间=2026\/10\/29 07:00/.test(wt) && /\|70%UP结束时间=2026\/11\/12 06:59/.test(wt)
+			&& /\|100%UP1=阿德莱德·破渊/.test(wt) && /\|100%UP2=时崎狂三·时崎狂三/.test(wt));
+
+		const pools = parseZspmsFlags(wt, ZSPMS_TZ);
+		check("parseZspmsFlags → 2 个池（源站顺序：70%UP 在前）",
+			pools.length === 2 && pools[0].pool === "70%UP" && pools[1].pool === "100%UP",
+			JSON.stringify(pools.map((x) => x.pool)));
+		check("70%UP 角色 = 比安卡·晖暮、七实·芒星之迹、海伦汀·安魂（源站写法，逗号统一「、」）",
+			pools[0].roles === "比安卡·晖暮、七实·芒星之迹、海伦汀·安魂", JSON.stringify(pools[0].roles));
+		check("70%UP 起止 = 2026-10-29 07:00 ~ 11-12 06:59（+08），raw 两端原文、display 补全",
+			pools[0].startTs === sourceInstant(2026, 10, 29, 7, 0, ZSPMS_TZ)
+			&& pools[0].endTs === sourceInstant(2026, 11, 12, 6, 59, ZSPMS_TZ)
+			&& pools[0].raw === "2026/10/29 07:00 ~ 2026/11/12 06:59"
+			&& pools[0].display === "10-29 07:00 ~ 11-12 06:59",
+			JSON.stringify([pools[0].startTs, pools[0].endTs, pools[0].raw, pools[0].display]));
+		check("100%UP 角色照抄源站（`时崎狂三·时崎狂三` 是 wiki 页面名，不删改）",
+			pools[1].roles === "阿德莱德·破渊、时崎狂三·时崎狂三", JSON.stringify(pools[1].roles));
+
+		// 抓取器：now = 2026-11-10 ⇒ 70%UP 在期、100%UP（11-05 收）不进
+		const rg = await grab(() => gachaZspmsFlags(ZSPMS_FLAGS_URL, undefined, ZSPMS_TZ, FLAGS_NOW));
+		check("gacha 抓取成功（now 传第 4 参）", rg.ok, rg.err);
+		assertContract("战双(活动旗帜)", "gacha", rg.ok ? rg.data : null);
+		check("外显 = 70%UP（当期那批），角色 = 三人，档期 = 10-29 07:00 ~ 11-12 06:59",
+			rg.ok && rg.data && rg.data.banner === "70%UP"
+			&& rg.data.roles === "比安卡·晖暮、七实·芒星之迹、海伦汀·安魂"
+			&& rg.data.bannerDates === "10-29 07:00 ~ 11-12 06:59"
+			&& rg.data.bannerDatesRaw === "2026/10/29 07:00 ~ 2026/11/12 06:59",
+			JSON.stringify(rg.ok && rg.data && [rg.data.banner, rg.data.roles, rg.data.bannerDates]));
+		check("100%UP 池 11-05 05:00 已结束 ⇒ 只在数组外，不设 bannerHover（<2 条交回 UI 两行式）",
+			rg.ok && rg.data && rg.data.gacha.length === 1 && rg.data.gacha[0].title === "70%UP" && rg.data.bannerHover === void 0,
+			JSON.stringify(rg.ok && rg.data && rg.data.gacha.map((x) => x.title)));
+
+		// 反向证明：把 70%UP 的开始时间参数删掉 ⇒ 该池**不产出**（不会拿 100%UP 的日期顶）
+		const noStart = wt.replace(/\|70%UP开始时间=[^\n]*\n/, "");
+		const pools2 = parseZspmsFlags(noStart, ZSPMS_TZ);
+		check("反证：删掉 `70%UP开始时间` ⇒ 只剩 100%UP 一个池（不硬造 70% 的起点）",
+			pools2.length === 1 && pools2[0].pool === "100%UP", JSON.stringify(pools2.map((x) => x.pool)));
+		check("反证：模板参数全删 ⇒ 抛 zspms-flags:no-pool（结构性损坏 ≠ 未公布）",
+			throws(() => parseZspmsFlags("{{活动旗帜}}", ZSPMS_TZ)));
+		// now 注入：11-13（两批都结束）⇒ 如实 null
+		const rgAfter = await grab(() => gachaZspmsFlags(ZSPMS_FLAGS_URL, undefined, ZSPMS_TZ, sourceInstant(2026, 11, 13, 0, 0, ZSPMS_TZ)));
+		check("now=2026-11-13（两批都结束）⇒ 返回 null（未公布，不硬凑）", rgAfter.ok && rgAfter.data === null, JSON.stringify(rgAfter.ok ? rgAfter.data : rgAfter.err));
+
+		// 运行时登记：默认源换成活动旗帜；旧公告路径保留为 altSources 且仍能出数据
+		const live = T.SOURCES.find((x) => x.id === "zspms");
+		check("运行时 zspms.url = 活动旗帜页、source = 「Bwiki 活动旗帜」",
+			!!live && live.url === ZSPMS_FLAGS_URL && live.source === "Bwiki 活动旗帜",
+			live ? JSON.stringify([live.url.slice(0, 90), live.source]) : "缺失");
+		check("旧公告源保留在 altSources（抓取器键 `zspms-bwiki-notice` 已登记）",
+			!!live && (live.altSources || []).some((a) => a.fetcher === "zspms-bwiki-notice" && a.url === ZSPMS_ASK_URL)
+			&& typeof T.GACHA_FETCHERS["zspms-bwiki-notice"] === "function",
+			live ? JSON.stringify(live.altSources) : "缺失");
+		const rgOld = await grab(() => T.GACHA_FETCHERS["zspms-bwiki-notice"](ZSPMS_ASK_URL, undefined, ZSPMS_TZ, SNAP));
+		check("备选源（版本更新公告）仍能解析：now=夹具时刻 ⇒ 时崎狂三狙击 09-29 ~ 11-03",
+			rgOld.ok && rgOld.data && rgOld.data.banner === "时崎狂三狙击 / 命运时崎狂三狙击",
+			JSON.stringify(rgOld.ok && rgOld.data && rgOld.data.banner));
 	}
 	//#endregion
 

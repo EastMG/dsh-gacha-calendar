@@ -504,8 +504,12 @@ const P3B_PATHS = [
 		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
 	},
 	{
+		// ⚠️ 2026-11-10：战双卡池默认源换成 bwiki `Test4/活动旗帜`（结构化当期池，更新更快）。
+		// 这条 golden 钉的是**同一份版本更新公告夹具**的解析结果（ask 索引 + 公告正文），
+		// 所以改走备选源地址 + 备选抓取器（`zspms-bwiki-notice`）；产物逐字不变。
+		// 新默认源（活动旗帜）的逐字断言见 `cases-p8.mjs` P8-6。
 		key: "zspmsGacha", switched: true, id: "zspms", side: "gacha", field: "gacha", now: Date.parse("2026-09-25T00:00:00.000Z"),
-		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
+		call: (t, s) => t.GACHA_FETCHERS["zspms-bwiki-notice"]((s.altSources || [])[0].url, undefined, s.tz)
 	},
 	{
 		key: "zspmsEvent", switched: true, id: "zspms", side: "event", field: "events", now: Date.parse("2026-09-25T00:00:00.000Z"),
@@ -767,6 +771,26 @@ const p3bStripTailArr = (arr) => (arr || []).map((x) => Object.assign({}, x, {
 	title: p3bTextOf(x.title).replace(P3B_EVENT_NAME_TAIL, "").trim(),
 	show: p3bTextOf(x.show).replace(P3B_EVENT_NAME_TAIL, "").trim()
 }));
+// ── 2026-11-10（用户要求）：P5X「只有日期没有时刻」的窗口统一成 00:00 / 23:59 ──────────────
+// golden / legacy oracle 都是**改造前**（04:00 / 03:59）的存档 ⇒ 不重采集，比较前按同一规则把旧值
+// 换算成新口径。改造前 p5x 的所有窗口都是"只有日期" ⇒ 换算 = 起点 -4h、终点 +20h（同日 23:59）；
+// 内容里已格式化的悬停/档期文本 `MM-DD 04:00 ~ MM-DD 03:59` → `MM-DD 00:00 ~ MM-DD 23:59`；
+// 源站原文档期（`2026年9月24日—10月22日`）一个字不动（raw 保留原文）。
+// 反向守卫：登记了就必须真的变了（下面逐字断言），没登记就不许变。
+const P3B_DAY_ONLY = { p5xGacha: true, p5xEvent: true };
+const P3B_DAY_MS_START = 4 * 3600e3;
+const P3B_DAY_MS_END = 20 * 3600e3;
+const p3bDayText = (v) => p3bTextOf(v).replace(/(\d{2}-\d{2}) 04:00 ~ (\d{2}-\d{2}) 03:59/g, "$1 00:00 ~ $2 23:59");
+const p3bDayArr = (arr, tsToo = true) => (arr || []).map((x) => {
+	const o = Object.assign({}, x);
+	// golden 里的数组是"ts 只存类型"的形态（"number"），减小时会变成 NaN ⇒ 那种形态只换算 raw
+	if (tsToo) {
+		if (o.startTs != null) o.startTs -= P3B_DAY_MS_START;
+		if (o.endTs != null) o.endTs += P3B_DAY_MS_END;
+	}
+	if (o.raw) o.raw = p3bDayText(o.raw);
+	return o;
+});
 // ── 2026-11-09（星塔 A+B2）：挑池口径再改（**有角色优先**，全局规则）后的**已批准差异登记** ────
 // 起因：上一提交把星塔挑池改成「结束最早 → 起点 → **窗口全等才**优先角色」的星塔特例；用户
 //   2026-11-09 拍板 B：「在期 ⇒ 有角色优先 ⇒ 结束最早 ⇒ 起点升序 ⇒ 文档顺序」是**全局规则**。
@@ -901,7 +925,7 @@ async function runP3b() {
 				p3bTextOf(g.rec.roles).indexOf("真珠") > 0, JSON.stringify(g.rec.roles));
 			continue;
 		}
-		const changed = P3B_VISIBLE.filter((f) => p3bTextOf(r.rec[f]) !== p3bTextOf(g.rec[f]));
+		const changed = P3B_VISIBLE.filter((f) => p3bTextOf(r.rec[f]) !== (P3B_DAY_ONLY[p.key] === true ? p3bDayText(g.rec[f]) : p3bTextOf(g.rec[f])));
 		const approved = P3B_HOVER_RAW_CHANGED[p.key] || [];
 		// 活动名去尾（2026-11-09）：只放行 `event` / `eventHover` 两个字符串字段
 		const trimTail = P3B_EVENT_NAME_TRIMMED[p.key] === true;
@@ -917,6 +941,13 @@ async function runP3b() {
 				changed.includes("roles") && !changed.includes("banner")
 				&& p3bTextOf(r.rec.roles) === stellaRoles.roles && p3bTextOf(r.rec.banner) === p3bTextOf(g.rec.banner),
 				JSON.stringify([changed, p3bTextOf(r.rec.roles), p3bTextOf(r.rec.banner)]));
+		}
+		if (P3B_DAY_ONLY[p.key] === true) {
+			// 反向守卫：旧存档里确实有 `04:00` 的写法（登记没烂），新值里确实一处都不剩
+			check(`P3b golden（${p.key}）**已批准差异**：纯日期窗口 04:00/03:59 → 00:00/23:59（旧值里确实有、新值里一处不剩）`,
+				P3B_VISIBLE.some((f) => p3bTextOf(g.rec[f]).includes("04:00") && p3bDayText(g.rec[f]) !== p3bTextOf(g.rec[f]))
+				&& P3B_VISIBLE.every((f) => !/ 04:00 ~ | 03:59$/.test(p3bTextOf(r.rec[f]))),
+				JSON.stringify(P3B_VISIBLE.map((f) => [f, p3bTextOf(g.rec[f]), p3bTextOf(r.rec[f])])));
 		}
 		if (approved.length) {
 			// 已批准差异必须**真的发生**，且是"原文分支"（用产品同一份判据，不另写词表）：
@@ -948,7 +979,8 @@ async function runP3b() {
 		// ⚠️ golden 里存的是**已归一 ts 的 JSON 字符串**（见顶部说明）⇒ 先反解、改造、再序列化回去。
 		const gArrRaw = JSON.parse(g.array);
 		const gArr = trimTail ? JSON.stringify(p3bStripTailArr(gArrRaw))
-			: (stellaRoles ? JSON.stringify(p3bStellaRoleArr(gArrRaw, stellaRoles)) : g.array);
+			: (stellaRoles ? JSON.stringify(p3bStellaRoleArr(gArrRaw, stellaRoles))
+				: (P3B_DAY_ONLY[p.key] === true ? JSON.stringify(p3bDayArr(gArrRaw, false)) : g.array));
 		check(`P3b golden（${p.key}）：\`${p.field}\` 非时间字段逐字不变（键序 / 顺序 / source / phase 全等）`,
 			p3bSansTs(arr) === sansCategoryTagsJson(gArr), p3bSansTs(arr));
 		if (stellaRoles) {
@@ -1041,8 +1073,8 @@ async function runP3b() {
 		const r = results[p.key];
 		const other = p.field === "gacha" ? "events" : "gacha";
 		const otherSide = p.side === "gacha" ? "event" : "gacha";
-		const oldArr = legacySynthArrOf(p.key, p.side);
-		const oldOther = legacySynthArrOf(p.key, otherSide);
+		const oldArr = P3B_DAY_ONLY[p.key] === true ? p3bDayArr(legacySynthArrOf(p.key, p.side)) : legacySynthArrOf(p.key, p.side);
+		const oldOther = P3B_DAY_ONLY[p.key] === true ? p3bDayArr(legacySynthArrOf(p.key, otherSide)) : legacySynthArrOf(p.key, otherSide);
 		if (p.approvedChange) {
 			// 已批准差异：改造前 5 条（含「沧海萃珠」并进外显角色）→ 现在 4 条（外显只有「我身即刃」）。
 			check(`P3b 等价（${p.key}）**已批准差异**：改造前 5 条 → 现在 4 条（起点未知不再算在期）`,
