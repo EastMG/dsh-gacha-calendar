@@ -52,7 +52,7 @@
 					const rec = JSON.parse(s.lastData) || {};
 					const games = getVisibleEntries(s).map((g) => ({ id: g.id, name: g.name || g.id }));
 					if (!games.length) return null;
-					return buildScrapeInfo(games, { games: rec });
+					return buildScrapeInfo(games, { games: rec }, SOURCES);
 				} catch (e) { return null; }
 			}, [s.lastData, removedKey, customEntriesKey, hiddenKey, shownKey]);
 			const bannerInfo = scrapeInfo || (cachedBanner && cachedBanner.info) || "";
@@ -317,7 +317,7 @@
 					const games = Object.entries(result.games)
 						.filter(([id]) => visibleIds.has(id))
 						.map(([id, g]) => ({ id, name: g.name || id }));
-					const { info, lines } = buildScrapeInfo(games, result);
+					const { info, lines } = buildScrapeInfo(games, result, SOURCES);
 					// 自动刷新时说明原因（只消费一次）："成功 N/M …（插件已更新，已自动刷新）"
 					const note = autoNoteRef.current;
 					autoNoteRef.current = "";

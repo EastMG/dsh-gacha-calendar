@@ -82,6 +82,31 @@ const NOW_PP = Date.parse("2026-09-15T12:00:00+08:00");
 const srcOf = (id) => T.SOURCES.find((s) => s.id === id) || null;
 
 export default async function run() {
+	// ── 0）刷新横幅：不再报「跳过 k 个」，未配置那一侧写明原因 ──
+	// 用户 2026-11-09：去掉跳过统计；未配置用与失败项同一种排版（名字 + 空格 + 项目、项目，不加【】）
+	section("新接入 5 款 ①：刷新横幅汇总（不再报跳过个数 + 未配置明细）");
+	{
+		const sources = [
+			{ id: "cfg", name: "已配置", url: "https://example.com/a", eventUrl: "https://example.com/b" },
+			{ id: "half", name: "只有卡池", url: "https://example.com/c", eventUrl: "" },
+			{ id: "none", name: "未配置", url: "", eventUrl: "" }
+		];
+		const games = sources.map((s) => ({ id: s.id, name: s.name }));
+		const result = { games: { cfg: {}, half: {}, none: {} } };
+		const got = T.buildScrapeInfo(games, result, sources);
+		check("刷新横幅文字不再含「跳过」", !/跳过/.test(got.info), got.info);
+		check("横幅文字 = 成功 3/3（未配置不计入分母也不报跳过）", got.info === "成功 3/3", got.info);
+		check("两侧都没写来源 ⇒ 两项未配置同行（名字后一个空格，项目用「、」）",
+			got.lines.includes("未配置 卡池未配置有效来源、活动未配置有效来源"), JSON.stringify(got.lines));
+		check("只有卡池源 ⇒ 只报活动侧未配置",
+			got.lines.includes("只有卡池 活动未配置有效来源"), JSON.stringify(got.lines));
+		check("两侧都配了且无失败 ⇒ 不出现在明细里", !got.lines.some((l) => l.startsWith("已配置")), JSON.stringify(got.lines));
+		check("不传 sources ⇒ 无未配置行且不报错", (() => {
+			const r2 = T.buildScrapeInfo(games, result);
+			return r2.info === "成功 3/3" && r2.lines.length === 0;
+		})());
+	}
+
 	// ─────────────────────① 注册项：5 条都在、字段齐全、id 唯一 ─────────────────────
 	section("新接入 5 款 ①：注册项（id / 名称 / 图标 / tz / 颜色）+ 来源状态（有源接全 · 无源留空）");
 	{

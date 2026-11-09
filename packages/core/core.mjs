@@ -363,7 +363,7 @@
 		}
 		// 顶部提示（**只读 Result JSON**，不碰抓取内部状态）：行内给"分类 + 条目名"（段间空格，
 		// 零项不显示），悬停明细逐条分行给原因。games 为按显示顺序排列的条目元信息（含 name）。
-		function buildScrapeInfo(games, result) {
+		function buildScrapeInfo(games, result, sources) {
 			const list = Array.isArray(games) ? games : [];
 			const rec = (result && result.games) || {};
 			// "成功"口径 = 两侧都没有**报错**（down）；只有 nomatch（未命中）仍算成功
@@ -372,9 +372,6 @@
 				if (!r || r.skipped) return false;
 				return !isDown(r.gachaFail) && !isDown(r.eventFail);
 			}).length;
-			// 无任何来源的条目（skipped）既不算成功也不算失败，单独给一句"（跳过 k 个）"
-			const skippedCount = list.filter((g) => rec[g.id] && rec[g.id].skipped).length;
-			const skippedNote = skippedCount > 0 ? `（跳过 ${skippedCount} 个）` : "";
 			// 固定类别顺序：卡池失败 / 活动失败 / 新卡池未公布 / 新活动未公布
 			const CATEGORIES = [
 				["gachaFail", "down", SIDE_TEXT.gacha.fail],
@@ -389,10 +386,18 @@
 					return f && f.kind === kind;
 				}).map((g) => g.name)
 			})).filter((grp) => grp.names.length > 0);
-			let info = `成功 ${okCount}/${list.length}${skippedNote}`;
+			let info = `成功 ${okCount}/${list.length}`;
 			groups.forEach((grp) => { info += ` ${grp.label}：${grp.names.join("、")}`; });
+			// 每条的悬停明细：失败/未命中项 + 「那一侧根本没写来源」的未配置项（：同一行、同一种排版，
+			// 名字后一个空格、餐与项用「、」隔开；不加【】）。未配置不算失败，也不进成功分母。
+			const srcById = new Map((Array.isArray(sources) ? sources : []).map((x) => [x && x.id, x]));
 			const lines = list.map((g) => {
 				const parts = entryFailParts(rec[g.id] || {});
+				const src = srcById.get(g.id);
+				if (src) {
+					if (!src.url) parts.push({ side: "gacha", kind: "unconfigured", text: "卡池未配置有效来源" });
+					if (!src.eventUrl) parts.push({ side: "event", kind: "unconfigured", text: "活动未配置有效来源" });
+				}
 				return parts.length > 0 ? `${g.name} ${parts.map((p) => p.text).join("、")}` : "";
 			}).filter(Boolean);
 			return { info, lines };
