@@ -132,7 +132,8 @@ export default async function run() {
 			// 颜色：本批 5 条在 20-source-core.js 的 SOURCE_COLORS 里各给了一个中间调
 			check(`${id} 有游戏主题色（#rrggbb）`, !!s && /^#[0-9A-Fa-f]{6}$/.test(String(s.color)), s ? String(s.color) : "缺失");
 			// 2026-11-09 用户：无数据源的四款（夜幕之下 / 未定 / 绘旅人 / 炽焰天穹）出厂**不勾选展示**；
-			// 无期迷途两侧都有源 ⇒ 仍出厂展示。两者必须与 `REMIND_GAMES_DEFAULT` 一致（cases-ticker 守卫）。
+			// 无期迷途两侧都有源 ⇒ 仍出厂展示。这张 `defaultHidden` 表与提醒侧那份副本必须一致
+			// （`65-remind.js` 的 REMIND_DEFAULT_HIDDEN_IDS / 宿主拿它判「展示中」，守卫见 cases-remind.mjs）。
 			const wantHidden = id !== "wqmt";
 			check(`${id} 出厂${wantHidden ? "不勾选展示" : "展示"}（defaultHidden = ${wantHidden}）`,
 				!!s && s.defaultHidden === wantHidden, s ? String(s.defaultHidden) : "缺失");

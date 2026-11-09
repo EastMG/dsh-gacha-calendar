@@ -913,9 +913,13 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
 `response.txt.meta.json` 的 `capturedAt`），**有源的接全、无源的只注册条目**——
 面板上不假装"配了一个源"。2026-11-09 用户要求：**只有无期迷途**出厂展示（`defaultHidden: false`）；
 夜幕之下 / 未定事件簿 / 时空中的绘旅人 / 炽焰天穹 **出厂不勾选展示**（`defaultHidden: true`）
-（两侧都没来源，占版面又没信息；设置页里勾上「展示」就出来）。无期迷途照常占面板一行，
-`DEFAULT_SETTINGS.remindGames` / `REMIND_GAMES_DEFAULT` 也同步加了这 5 个 id（守卫见
-`test/cases-ticker.mjs` ④：两份名单必须恰等于 `defaultHidden !== true` 的集合）。
+（两侧都没来源，占版面又没信息；设置页里勾上「展示」就出来）。无期迷途照常占面板一行。
+
+提醒侧跟着这两条规则走，**不需要**再同步任何"白名单"（2026-11-09 起提醒是取消列表制）：
+4 个默认隐藏的条目由「展示是上位」自动静默（`65-remind.js` 的 `REMIND_DEFAULT_HIDDEN_IDS`
+带着 `defaultHidden` 那份副本，守卫见 `test/cases-remind.mjs` ⑱ 的 ⑨：它必须恰等于
+`defaultHidden === true` 的集合）；**勾上「展示」就自动恢复提醒**（取消列表里没有它们），
+这与"出厂每个条目都默认勾选"是同一条口径。
 
 | id | 游戏 | 卡池源 | 活动源 | 状态 |
 |---|---|---|---|---|
@@ -1234,34 +1238,55 @@ DSH 官方只承诺 **Windows + macOS**（Linux 有安装产物，但不作硬�
      （判定侧口径见 `65-remind.js` 的 `remindNodesOf`：显式空串 ⇒ 空档；键缺失 / 内容非法 ⇒ 回落默认）。
      ⚠️ **只在 DSH 运行期间生效**（插件宿主随 DSH 起停）。
    - 仍未做：数字角标（桌面/任务栏）。
-    - ✅ **逐游戏白名单（设置页「提醒」列）已完成 2026-10-30**：
+    - ✅ **逐条目提醒开关（设置页「提醒」列）—— 2026-11-09 改成「默认全部勾选 + 取消列表」**：
       · ⚠️ **2026-10-26 曾整列隐藏、2026-10-30 已恢复**：送达没实现时勾了没有效果 ⇒ 用常量
         `SHOW_REMIND_COLUMN`（`80-shared-ui.js`）把**表头 / 每行复选框 / 空列表提示 /
         网格列宽**四处一起藏起来；送达开始真的按它过滤后，常量改回 `true`，整列恢复。
-      · 设置项 = `remindGames`（`string[]`）—— 设置页游戏列表的**「提醒」**列，每行一个复选框；
+      · 用户原话（2026-11-09）：「**改成每个条目的提醒都默认勾选，但展示开关是提醒开关的上位，
+        若展示开关关闭（包括默认关闭和用户手动关闭）则提醒开关关闭且置灰**」。
+      · 设置项 = `remindOffGames`（`string[]`，**取消列表**）—— 设置页游戏列表的**「提醒」**列；
+        出厂 `[]` ⇒ **每个条目都默认勾选**；列表里只装用户**手动取消**的那几条。
         写入只走逐行的复选框（批量「全部提醒」按钮 2026-10-30 按用户要求删掉了，不恢复）；
-      · 默认值 = 出厂时**展示中**的 23 个条目 id（所有 `defaultHidden !== true` 的来源；默认隐藏的
-        bh3 / ournotes / ournotes-global / czn / ddlezj **不在**里面）：`10-config.js` 的
-        `DEFAULT_SETTINGS.remindGames` 与宿主 `src/index.js` 的 `REMIND_GAMES_DEFAULT`（schema 默认值
-        与"配置读坏"的兜底共用它），由 `test/cases-ticker.mjs` 的守卫钉住；
-        `engine-head.js` 的 `CONFIG_KEYS` 也含它；
-      · 语义 = **普通列表**：列表里有谁就提醒谁，**空数组 = 一个都不提醒**（没有"空 = 全部"的哨兵）；
-        设置页**不再**为空白名单加说明（2026-11-08 按用户要求删掉的「未勾选任何游戏 ⇒ 不提醒」不恢复）；
-      · 判定唯一入口 = 纯函数 `remindGameAllowed`（`65-remind.js`）—— 2026-10-30 从 `60-helpers.js`
-        搬进来，因为宿主半边只装 `65-remind.js`（`lib/remind-core.mjs`），放在别处宿主只能抄第二份；
-      · ✅ **送达侧已消费**（2026-10-30）：宿主 `runRemindRound` 读 `remindGames`（`configValueOf`
-        解包）→ `remindGamesOf` 归一 → `remindAllowedTickOf` **在判定节点之前**过滤条目，并且把状态里
-        不属于白名单的键一并清掉（未勾选 ⇒ 不提醒 **且**状态不留痕，之后勾上会正常提醒）。
-        脏值策略：非数组 ⇒ 回落出厂默认；数组里的非字符串元素忽略；**空数组仍是"全不提醒"**。
-        每轮 `remind.log` 都带一个「不在「提醒」列表跳过 N 条」的计数。
-      - ⚠️ **已知风险（用户 2026-10-30 明确要求的行为，不是 bug）**：默认被排除的那 5 个来源
-        （bh3 / ournotes / ournotes-global / czn / ddlezj）**静默不提醒** —— 界面上不会有任何提示，
-        只有设置页那一列与 `remind.log` 的跳过计数能看出来；要收它们的提醒得手动勾上。
-        **轮播不读它**（轮播只有 `tickerOn` + `tickerHours`，见第 1 项）。
-   - 守卫：`test/cases-ticker.mjs` ④/⑧ —— 白名单语义 + 默认值 == 展示中来源 + schema 一致
-     + 列恢复后**入口都在** + **反向守卫**（轮播链路与函数签名里都不许出现逐游戏列表）；
-     `test/cases-remind.mjs` ⑱ —— **行为**用例（拿假条目 + 假 settings 跑真判定）：只提醒白名单内、
-     跳过的不写已发状态、空白名单全不提醒、事后勾上下一轮照常提醒、旧状态键被清理、宿主接线与日志格式。
+        勾上 = 从列表里摘掉，取消 = 并入（幂等）。
+      · ⭐ **不变量：「展示」是提醒的上位**。生效提醒 = 条目**展示中** ∧ **不在** `remindOffGames` 里。
+        展示关着（出厂 `defaultHidden` 没被 `shown` 打开，或用户手动 `hidden`）⇒ 该行复选框
+        **未勾选且置灰**（`disabled`），点不动；**而且展示关时什么都不写** —— 所以重新打开展示
+        ⇒ 不需要任何数据动作就回到勾选（那是 `remindEntryShownOf` 现算的，不是把旧值搬回去）。
+        判定只有一处实现：`65-remind.js` 的 `remindEntryShownOf` / `remindGameAllowed` /
+        `remindAllowedTickOf`（2026-10-30 从 `60-helpers.js` 搬进来，因为宿主半边只装
+        `65-remind.js` = `lib/remind-core.mjs`，放在别处宿主只能抄第二份）。
+        它与面板的 `isEntryHidden` 是**两份实现、同一套规则**（hidden / defaultHidden+shown），
+        等价性由 `test/cases-remind.mjs` ⑱ 逐来源 × 逐组合钉住。
+      · 出厂默认值：`10-config.js` 的 `DEFAULT_SETTINGS.remindOffGames = []` 与宿主
+        `src/index.js` 的 `REMIND_OFF_GAMES_DEFAULT = []`（schema 默认值与"配置读坏"的兜底共用它）；
+        `engine-head.js` 的 `CONFIG_KEYS` 也含它（三处成套的守卫见 `test/cases-ticker.mjs` ④）。
+      · ✅ **送达侧已消费**：宿主 `runRemindRound` 读 `remindOffGames` + `hidden` + `shown`
+        （都经 `configValueOf` 解包）→ `remindOffGamesOf` 归一 → `remindAllowedTickOf`
+        **在判定节点之前**过滤条目，并且把状态里不属于"生效提醒"的键一并清掉
+        （没展示 / 被取消 ⇒ 不提醒 **且**状态不留痕，之后勾上或重新打开会正常提醒）。
+        脏值策略：非数组 ⇒ 回落 `[]`（= 谁都没取消，**不静默丢提醒**）；数组里的非字符串元素忽略。
+        每轮 `remind.log` 都带一个「未展示或已取消提醒跳过 N 条」的计数。
+      · 🔁 **一次性迁移（`migrateRemindOnce`，宿主 `apply` 里 `void` 触发）**：老配置里的
+        `remindGames`（旧**白名单**）在 `remindMigrated !== true` 时被翻译成取消列表 ——
+        `remindOffGames = 全部条目 id − 旧白名单`，与 `remindMigrated: true` **同一笔**写入；
+        旧配置里根本没有这个键（从没动过那一列）⇒ 只写标记（出厂 `[]` 已是"全部勾选"），
+        旧值是脏的（不是数组）同样只写标记。「全部条目 id」= `REMIND_TZ_BY_ID` 的键（内置 33 款，
+        与 `SOURCES` 的 id 集合有守卫）+ 配置里 `customEntries` 的 id。迁移只跑一次：
+        标记写过之后用户再怎么改都不再被覆写。旧键 `remindGames` 因此**只读地**留在宿主 schema 里
+        （**刻意不给 default**：默认值会让新装用户看起来像"存过一份空白名单"，迁移正好迁反），
+        迁移窗口结束后连同 `migrateRemindOnce` 一起删（函数注释写了删除方法）。
+        ⚠️ 迁移的边界：出厂默认隐藏的条目也会被写进取消列表（旧白名单里本来就没有它们）⇒
+        老用户之后**首次**把某个出厂隐藏的条目打开时，「提醒」那一格是未勾选的（点一下即可）。
+        新装用户不受影响（出厂 `[]`）。**轮播不读它**（轮播只有 `tickerOn` + `tickerHours`，见第 1 项）。
+   - 守卫：`test/cases-ticker.mjs` ④/⑧ —— 生效语义（展示上位 / 默认全勾 / 脏值）
+     + `remindOffGames` / `remindMigrated` 三处成套 + 列恢复后**入口都在** + 「展示关 ⇒ 置灰且
+     不写数据」的静态守卫 + **反向守卫**（轮播链路与函数签名里都不许出现逐条目提醒）；
+     `test/cases-remind.mjs` ⑱ —— **行为**用例（拿假条目 + 假 settings 跑真判定）：默认全勾 /
+     手动取消不提醒且不留痕 / 展示关不提醒（即使在取消列表外）/ 展示关→开自动恢复 /
+     出厂隐藏要靠 shown 打开 / 旧状态键被清理 / 两份「展示中」判定等价 / 宿主接线与日志格式；
+     `test/cases-remind.mjs` ⑲ —— **迁移**用例（真跑宿主 `migrateRemindOnce`）：旧白名单 →
+     其余全部进取消列表、只跑一次、没旧值只写标记、旧值脏了只写标记、自定义条目也算、
+     update 抛错不崩、`apply` 里 `void` 触发。
 3. **解析器自检（✅ 已完成 2026-10-28）**（原「来源健康看板」的重构升级）：每源展示最近成功时间 / 连续失败次数 / 失败原因，
    并加"N 天连续 nomatch 即提示源可能改版或停更"（踩过的坑：异环公告改段落写法、雪松源页面停更）。
    - ✅ 实现：**健康记录由「立即检查」（`engine.selfCheck()`）写入，与面板刷新无关**（2026-10-28 用户决策：

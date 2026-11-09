@@ -40,10 +40,13 @@ export default async function run() {
 	const {
 		remindOnOf, remindIdentityOf, notifyShortcutPickOf, notifyIdentityCacheOf, notifyIdentityFallbackOf, remindNodesOf, remindNodesToggleOf, remindConfigOf, remindKeyOf, remindStateOf,
 		remindTestToastOf, remindWindowOf, remindItemsOf, remindTickOf, remindToastOf,
-		// 「提醒」逐游戏白名单（2026-10-30 起送达侧真的消费它）：判定 / 脏值归一 / 按白名单跑一轮
-		remindGameAllowed, remindGamesOf, remindAllowedTickOf,
+		// 「提醒」逐条目取消列表（2026-11-09 起：默认全选 + 展示是上位）：展示判定 / 生效判定 /
+		// 脏值归一 / 按「展示中 ∧ 未取消」跑一轮
+		remindEntryShownOf, remindGameAllowed, remindOffGamesOf, remindAllowedTickOf,
 		// 跨平台（2026-10-30）：状态目录解析 / 通知通道 / macOS 通知脚本（纯函数，宿主直接复用）
 		hostStateDirOf, notifyChannelOf, notifyAppleScriptTextOf, remindAppleScriptOf,
+		// isEntryHidden = 面板/设置页**唯一**的显隐判定（60-helpers.js）：⑱⑧ 用它证明提醒侧那份副本等价
+		isEntryHidden,
 		dueWindowOf, sourceInstant, DEFAULT_SETTINGS, SOURCES
 	} = T;
 
@@ -1720,124 +1723,339 @@ export default z;
 		}
 	}
 
-	// ── ⑱ 「提醒」逐游戏白名单**真的**在送达侧生效（2026-10-30，行为用例）───────────────────
-	// 之前 `remindGames` 只是"设置页写了个数组"，送达侧（runRemindRound）根本没读它 ⇒ 勾了没效果。
-	// 现在过滤 + 判定都收在 core 的 remindAllowedTickOf 一处，宿主只调它。这一节**不用静态断言代替行为**：
-	// 用假条目 + 假 settings 跑与宿主完全相同的两条函数（remindGamesOf → remindAllowedTickOf），钉住四件事：
-	//   ① 在白名单的条目 ⇒ 照常提醒；
-	//   ② 不在白名单的条目 ⇒ **不提醒**，且**状态里不留痕**（否则以后勾上会被当成"已发过"⇒ 该响不响）；
-	//   ③ 空白名单 ⇒ 一条都不提醒（空数组 = 全不提醒，不是"全提醒"的哨兵）；
-	//   ④ 事后把某条加进白名单 ⇒ 下一轮照常提醒（这就是 ② 没留痕的证据）。
+	// ── ⑱ 「提醒」的生效口径**真的**在送达侧生效（2026-11-09 语义：默认全选 + 展示是上位）─────
+	// 旧语义（白名单）在这一节已被**整体重写**：出厂 = 每个条目都默认勾选，取消列表只装用户手动取消的
+	// 那几条；而**展示是提醒的上位** —— 展示关着 ⇒ 不提醒（哪怕它不在取消列表里），重新打开展示 ⇒
+	// 自动恢复提醒（因为「展示关」从来没被写进取消列表）。
+	// 这一节**不用静态断言代替行为**：用假条目 + 假 settings 跑与宿主完全相同的两步
+	// （remindOffGamesOf → remindAllowedTickOf），钉住七件事：
+	//   ① 展示中 ∧ 未取消 ⇒ 提醒（出厂全部勾选）；
+	//   ② 手动取消 ⇒ 不提醒，且**状态里不留痕**（否则以后勾上会被当成"已发过"⇒ 该响不响）；
+	//   ③ 展示关 ⇒ 不提醒（**即使不在取消列表里**），状态同样不留痕；
+	//   ④ 展示关 → 开 ⇒ 下一轮自动恢复提醒（③ 没留痕的证据）；
+	//   ⑤ 出厂默认隐藏的条目：没被 shown 打开 ⇒ 不提醒；打开 ⇒ 提醒（不用动取消列表）；
+	//   ⑥ 取消列表脏值（非数组 / 混非字符串）⇒ 回落 / 忽略，与旧 remindGamesOf 同风格；
+	//   ⑦ 两份「展示中」判定等价：remindEntryShownOf（65-remind.js 的宿主副本）=== isEntryHidden（面板）。
 	// ⚠️ 时刻与状态全部显式传入（NOW + 手写 state），与本机时区无关。
 	{
 		const cfg = {};   // 空配置 = 默认节点 72/24/6/2（两条条目的 4 档此刻都已到期）
-		const D = DEFAULT_SETTINGS.remindGames;
-		// 宿主 runRemindRound 的两步：先归一配置值（脏值兜底），再按白名单跑一轮判定。
-		const round = (rawGames, items, state) =>
-			remindAllowedTickOf(NOW, items, cfg, state, remindGamesOf(rawGames, D));
+		const D = DEFAULT_SETTINGS.remindOffGames;
+		// 宿主 runRemindRound 的两步：先归一配置值（脏值兜底），再按「展示中 ∧ 未取消」跑一轮判定。
+		const round = (rawOff, shownSettings, items, state) =>
+			remindAllowedTickOf(NOW, items, cfg, state, remindOffGamesOf(rawOff, D), shownSettings);
+		const shownAll = { hidden: [], shown: [] };
 		const mkItem = (gameId, side, name) => ({
 			gameId, side, kind: "end", title: "池" + name, gameName: name,
 			T: NOW + 1 * H, startTs: NOW - 10 * H, endTs: NOW + 1 * H
 		});
 		const itemA = mkItem("genshin", "gacha", "原神");
-		const itemB = mkItem("bh3", "event", "崩坏3");   // bh3 = 出厂默认**不在**白名单里的来源（defaultHidden）
+		const itemB = mkItem("bh3", "event", "崩坏3");   // bh3 = 出厂默认隐藏（defaultHidden）
 		const keyA = remindKeyOf(itemA);
 		const keyB = remindKeyOf(itemB);
+		const shownOf = (...ids) => ({ hidden: [], shown: [...ids] });
+		const hiddenOf = (...ids) => ({ hidden: [...ids], shown: [] });
 
-		// ① 纯函数边界：remindGameAllowed（判定唯一入口）
-		check("remindGameAllowed：在列表里 ⇒ true；不在 ⇒ false",
-			remindGameAllowed("genshin", ["genshin", "hsr"]) === true
-			&& remindGameAllowed("bh3", ["genshin", "hsr"]) === false);
-		check("remindGameAllowed：空数组 / 缺失 / 非数组 ⇒ 一律 false（不猜「没设置过」）",
-			remindGameAllowed("genshin", []) === false
-			&& remindGameAllowed("genshin", void 0) === false
-			&& remindGameAllowed("genshin", null) === false
-			&& remindGameAllowed("genshin", "genshin") === false);
-		check("宿主那份 ESM（lib/remind-core.mjs）里的白名单判定与客户端产物**同一份源码**",
-			typeof R.remindGameAllowed === "function"
-			&& R.remindGameAllowed("genshin", ["genshin"]) === true
-			&& R.remindGameAllowed("bh3", ["genshin"]) === false);
+		// ① 出厂口径：取消列表为空 ⇒ 展示中的条目照常提醒
+		{
+			const r = round([], shownAll, [itemA], {});
+			check("① 默认（取消列表 []）⇒ 展示中的条目**照常提醒**",
+				r.toNotify.length === 1 && r.toNotify[0].key === keyA, JSON.stringify(r.toNotify.map((n) => n.key)));
+			check("① allowed / skipped 计数正确（allowed = 1、skipped = 0）",
+				r.allowed === 1 && r.skipped === 0, "allowed=" + r.allowed + " skipped=" + r.skipped);
+		}
 
-		// ② 脏值策略：**非数组 ⇒ 回落出厂默认**；数组里的非法元素忽略；空数组**原样保留**
-		check("remindGamesOf：非数组（undefined / null / 字符串 / 对象）⇒ 回落出厂默认（配置读坏不等于「全都不提醒」）",
-			[void 0, null, "genshin", 42, { a: 1 }].every((bad) => {
-				const out = remindGamesOf(bad, D);
-				return Array.isArray(out) && out.join(",") === D.join(",");
-			}),
-			JSON.stringify(remindGamesOf(void 0, D)));
-		check("remindGamesOf：数组里的非字符串 / 空串元素被忽略（只留字符串 id）",
-			JSON.stringify(remindGamesOf(["genshin", 1, null, "", { id: "x" }, "hsr"], D)) === JSON.stringify(["genshin", "hsr"]),
-			JSON.stringify(remindGamesOf(["genshin", 1, null, "", { id: "x" }, "hsr"], D)));
-		check("remindGamesOf：**空数组原样返回空**（用户的主动选择，不是脏值）",
-			remindGamesOf([], D).length === 0 && remindGamesOf([], D).join(",") === "");
-		check("remindGamesOf：fallback 本身不是数组 ⇒ 空列表（不抛）",
-			remindGamesOf("坏的", "也坏的").length === 0 && remindGamesOf(null, null).length === 0);
-		check("remindGamesOf 不会改动入参（返回新数组）",
-			(() => {
-				const input = ["genshin"];
-				const out = remindGamesOf(input, D);
-				out.push("hsr");
-				return input.length === 1 && out.length === 2;
-			})());
+		// ② 手动取消 ⇒ 不提醒 + 状态不留痕
+		{
+			const cancelled = round(["genshin"], shownAll, [itemA], {});
+			check("② 手动取消（id 进取消列表）⇒ **不提醒**，且被统计为 skipped",
+				cancelled.toNotify.length === 0 && cancelled.skipped === 1 && cancelled.allowed === 0,
+				JSON.stringify({ n: cancelled.toNotify.length, skipped: cancelled.skipped }));
+			check("② 被取消的条目**在状态里不留痕**（以后勾回来不会被当成「已发过」）",
+				JSON.stringify(cancelled.stateNext) === "{}", JSON.stringify(cancelled.stateNext));
+		}
 
-		// ③ 行为：只提醒白名单里的条目
-		const onlyA = round(["genshin"], [itemA, itemB], {});
-		check("行为：白名单 [genshin] ⇒ 只提醒 genshin 那一条（bh3 不在列表 ⇒ 不提醒）",
-			onlyA.toNotify.length === 1 && onlyA.toNotify[0].key === keyA,
-			JSON.stringify(onlyA.toNotify.map((n) => n.key)));
-		check("行为：跳过的条数被统计出来（日志要报它）—— skipped = 1 / allowed = 1",
-			onlyA.skipped === 1 && onlyA.allowed === 1,
-			"skipped=" + onlyA.skipped + " allowed=" + onlyA.allowed);
-		check("行为：**不在白名单的条目在状态里不留痕**（stateNext 里没有 bh3 的键）",
-			Object.keys(onlyA.stateNext).every((k) => !k.includes("bh3"))
-			&& Object.keys(onlyA.stateNext).length === 1 && !!onlyA.stateNext[keyA],
-			JSON.stringify(onlyA.stateNext));
+		// ③ 展示关 ⇒ 不提醒（即使不在取消列表里）—— 这就是「展示是上位」
+		{
+			const hiddenRes = round([], hiddenOf("genshin"), [itemA], {});
+			check("③ 展示关（hidden 里有）⇒ **不提醒**，即使它不在取消列表里",
+				hiddenRes.toNotify.length === 0 && hiddenRes.skipped === 1,
+				JSON.stringify({ n: hiddenRes.toNotify.length, skipped: hiddenRes.skipped }));
+			check("③ 展示关的条目也不在状态里留痕", JSON.stringify(hiddenRes.stateNext) === "{}");
+			// ④ 展示关 → 开 ⇒ 下一轮自动恢复（上一轮 keysNext 是空的，所以这条会重新算到期节点）
+			const back = round([], shownAll, [itemA], hiddenRes.stateNext);
+			check("④ 展示关 → 开 ⇒ 下一轮**自动恢复提醒**（不需要动取消列表）",
+				back.toNotify.length === 1 && back.toNotify[0].key === keyA,
+				JSON.stringify(back.toNotify.map((n) => n.key)));
+		}
 
-		// ④ 空白名单 ⇒ 一条都不提醒（空数组不是"全提醒"）
-		const none = round([], [itemA, itemB], {});
-		check("行为：白名单 = [] ⇒ **一条都不提醒**（toNotify 为空、skipped = 2、状态为空）",
-			none.toNotify.length === 0 && none.skipped === 2 && none.allowed === 0
-			&& Object.keys(none.stateNext).length === 0,
-			JSON.stringify({ n: none.toNotify.length, skipped: none.skipped, state: Object.keys(none.stateNext) }));
-		check("行为：白名单 = [] 时**连已发状态都不写**（以后勾上不会被当成「已发过」）",
-			JSON.stringify(none.stateNext) === "{}");
+		// ⑤ 出厂默认隐藏的条目：展示由 shown 打开，与取消列表无关
+		{
+			const notShown = round([], shownAll, [itemB], {});
+			check("⑤ bh3（defaultHidden）没被 shown 打开 ⇒ 不提醒（展示的默认关闭就是上位）",
+				notShown.toNotify.length === 0 && notShown.skipped === 1);
+			const shownRes = round([], shownOf("bh3"), [itemB], {});
+			check("⑤ 把 bh3 打开展示（shown）⇒ **提醒**，取消列表仍是 []，没有任何额外写入",
+				shownRes.toNotify.length === 1 && shownRes.toNotify[0].key === keyB,
+				JSON.stringify(shownRes.toNotify.map((n) => n.key)));
+			const shownButCancelled = round(["bh3"], shownOf("bh3"), [itemB], {});
+			check("⑤ 展示打开之后**仍可手动取消**（展示只是上位，不是不可取消）",
+				shownButCancelled.toNotify.length === 0 && shownButCancelled.skipped === 1);
+		}
 
-		// ⑤ **关键回归**：事后把 bh3 加进白名单 ⇒ 下一轮照常提醒（证明上一轮没把它标成已发）
-		const later = round(["genshin", "bh3"], [itemA, itemB], onlyA.stateNext);
-		check("行为：后来把 bh3 加进白名单 ⇒ 下一轮**提醒 bh3 那一条**（没被上一轮误标已发）",
-			later.toNotify.length === 1 && later.toNotify[0].key === keyB,
-			JSON.stringify(later.toNotify.map((n) => n.key)));
-		check("行为：genshin 上一轮已经发过 ⇒ 这一轮不重复打扰（去重状态仍然有效）",
-			later.toNotify.every((n) => n.key !== keyA));
-		check("行为：这一轮的 skipped 回到 0（两条都在白名单里）", later.skipped === 0, String(later.skipped));
+		// ⑥ 脏值策略：非数组 ⇒ 回落出厂 []（= 谁都没取消）；数组里的非法元素忽略；空数组原样保留
+		{
+			check("remindOffGamesOf：非数组（undefined / null / 字符串 / 数字 / 对象）⇒ 回落出厂 []",
+				[void 0, null, "genshin", 42, { a: 1 }].every((bad) => {
+					const out = remindOffGamesOf(bad, D);
+					return Array.isArray(out) && out.length === 0;
+				}),
+				JSON.stringify(remindOffGamesOf(void 0, D)));
+			check("remindOffGamesOf：数组里的非字符串 / 空串元素被忽略（只留字符串 id）",
+				JSON.stringify(remindOffGamesOf(["genshin", 1, null, "", { id: "x" }, "hsr"], D)) === JSON.stringify(["genshin", "hsr"]),
+				JSON.stringify(remindOffGamesOf(["genshin", 1, null, "", { id: "x" }, "hsr"], D)));
+			check("remindOffGamesOf：**空数组原样返回空**（出厂 = 全部勾选）",
+				remindOffGamesOf([], D).length === 0 && remindOffGamesOf([]).length === 0);
+			check("remindOffGamesOf：fallback 本身不是数组 ⇒ 空列表（不抛）",
+				remindOffGamesOf("坏的", "也坏的").length === 0 && remindOffGamesOf(null, null).length === 0);
+			check("remindOffGamesOf 不会改动入参（返回新数组）",
+				(() => {
+					const input = ["genshin"];
+					const out = remindOffGamesOf(input, D);
+					out.push("hsr");
+					return input.length === 1 && out.length === 2;
+				})());
+			check("脏值进判定也安全：非数组 ⇒ 展示中的条目照样提醒（不静默丢提醒）",
+				remindGameAllowed("genshin", void 0, shownAll) === true
+				&& remindGameAllowed("genshin", "genshin", shownAll) === true);
+		}
 
-		// ⑥ 状态清理：**上一轮遗留**的、属于非白名单条目的键也要被删掉
+		// ⑦ 状态清理：上一轮遗留的、现在「没展示 / 被取消」的键也要删掉
 		// （remindTickOf 会把 state 里所有未过期的键原样带到下一轮 —— 哪怕这一轮数据里没有它，
 		//  所以光靠"过滤条目"清不掉它，必须再按 gameId 过滤一次状态。）
-		const legacy = round(["genshin"], [], { [keyB]: { fired: [72, 24] } });
-		check("行为：**不在白名单的旧状态键被删掉**（即使这一轮数据里没有那条条目）",
-			Object.keys(legacy.stateNext).length === 0, JSON.stringify(legacy.stateNext));
-		const kept = round(["genshin"], [], { [keyA]: { fired: [72, 24] } });
-		check("对照：在白名单的旧状态键**原样保留**（清理只针对白名单之外）",
-			!!kept.stateNext[keyA] && JSON.stringify(kept.stateNext[keyA].fired) === JSON.stringify([72, 24]),
-			JSON.stringify(kept.stateNext));
+		{
+			const legacyOff = round(["genshin"], shownAll, [], { [keyA]: { fired: [72, 24] } });
+			check("⑦ **被取消的旧状态键被删掉**（即使这一轮数据里没有那条条目）",
+				Object.keys(legacyOff.stateNext).length === 0, JSON.stringify(legacyOff.stateNext));
+			const legacyHidden = round([], hiddenOf("genshin"), [], { [keyA]: { fired: [72, 24] } });
+			check("⑦ **展示关的旧状态键同样被删掉**（重新打开时会重新算节点）",
+				Object.keys(legacyHidden.stateNext).length === 0, JSON.stringify(legacyHidden.stateNext));
+			const kept = round([], shownAll, [], { [keyA]: { fired: [72, 24] } });
+			check("对照：展示中且未取消的旧状态键**原样保留**",
+				!!kept.stateNext[keyA] && JSON.stringify(kept.stateNext[keyA].fired) === JSON.stringify([72, 24]),
+				JSON.stringify(kept.stateNext));
+		}
 
-		// ⑦ 宿主接线（静态）：送达侧读的是同一个函数 + 日志里带跳过计数
+		// ⑧ 两份「展示中」判定等价：提醒侧副本（65-remind.js）=== 面板的 isEntryHidden（60-helpers.js）
+		// 宿主只装 65-remind.js ⇒ remindEntryShownOf 是**另一份实现**；这里逐来源 × 逐组合证明它们一致，
+		// 任何一边改了规则而另一边没跟，这条就会红。
+		{
+			const combos = [
+				{ hidden: [], shown: [] },
+				{ hidden: ["genshin"], shown: [] },
+				{ hidden: [], shown: ["genshin"] },
+				{ hidden: ["genshin"], shown: ["genshin"] },
+				{ hidden: ["bh3"], shown: [] },
+				{ hidden: [], shown: ["bh3"] },
+				{ hidden: ["bh3"], shown: ["bh3"] },
+				{ hidden: ["wd", "hlr"], shown: ["cytq"] },
+				{ hidden: ["不存在的条目"], shown: ["也不存在"] }
+			];
+			const mismatch = [];
+			for (const s of combos) {
+				for (const entry of SOURCES) {
+					if (remindEntryShownOf(entry.id, s) !== !isEntryHidden(entry, s)) {
+						mismatch.push(entry.id + ":" + JSON.stringify(s));
+					}
+				}
+			}
+			check("⑧ remindEntryShownOf 与 isEntryHidden **逐组合等价**（同一套 hidden / shown / defaultHidden 口径）",
+				mismatch.length === 0, mismatch.slice(0, 4).join(" / "));
+			check("⑧ 两份判定对同一组例子给出同一答案（自证：非空组合里确实有「隐藏」）",
+				remindEntryShownOf("genshin", hiddenOf("genshin")) === false
+				&& !isEntryHidden(SOURCES.find((s) => s.id === "genshin"), hiddenOf("genshin")) === false);
+		}
+
+		// ⑨ REMIND_DEFAULT_HIDDEN_IDS（宿主那份副本）必须恰等于 SOURCES 里 defaultHidden === true 的 id
+		{
+			const want = SOURCES.filter((s) => s.defaultHidden === true).map((s) => s.id).sort();
+			const got = [...R.REMIND_DEFAULT_HIDDEN_IDS].sort();
+			check("⑨ REMIND_DEFAULT_HIDDEN_IDS 与 SOURCES 的 defaultHidden 集合逐项一致（改了 defaultHidden 必须同步）",
+				JSON.stringify(got) === JSON.stringify(want),
+				"副本=" + got.join(",") + " ／ SOURCES=" + want.join(","));
+			check("⑨ 那份副本非空（否则「出厂隐藏 ⇒ 不提醒」整条规则会静默失效）", got.length > 0, String(got.length));
+		}
+
+		// ⑩ 宿主接线（静态）：送达侧读的是同一条链路 + 日志里带跳过计数
 		const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
 		const i = hostSrc.indexOf("async function runRemindRound(");
 		const j = i < 0 ? -1 : hostSrc.indexOf("\n}", i);
 		const roundBody = i < 0 ? "" : (j < 0 ? hostSrc.slice(i) : hostSrc.slice(i, j));
-		check("宿主 runRemindRound：白名单走 configValueOf 解包（直接读 cfg.remindGames 永远拿不到数组）",
-			/remindGames:\s*configValueOf\(cfg, "remindGames"\)/.test(roundBody),
+		check("⑩ 宿主 runRemindRound：取消列表走 configValueOf 解包（直接读 cfg.remindOffGames 拿不到数组）",
+			/remindOffGames:\s*configValueOf\(cfg, "remindOffGames"\)/.test(roundBody),
 			roundBody.slice(0, 60));
-		check("宿主 runRemindRound：归一 + 过滤都交给 core（remindGamesOf → remindAllowedTickOf），不自己写一遍",
-			/remindGamesOf\(plain\.remindGames, REMIND_GAMES_DEFAULT\)/.test(roundBody)
-			&& /remindAllowedTickOf\(now, items, remindConfigOf\(plain\), statePrev, remindGames\)/.test(roundBody));
-		check("宿主 runRemindRound：日志里能看出「本轮有 N 条因为不在提醒列表而被跳过」",
-			/const skipNote = "，不在「提醒」列表跳过 " \+ skipped \+ " 条";/.test(roundBody)
+		check("⑩ 宿主 runRemindRound：hidden / shown 也解包（展示是上位，送达侧必须有这两份）",
+			/hidden:\s*configValueOf\(cfg, "hidden"\)/.test(roundBody)
+			&& /shown:\s*configValueOf\(cfg, "shown"\)/.test(roundBody));
+		check("⑩ 宿主 runRemindRound：归一 + 过滤都交给 core（remindOffGamesOf → remindAllowedTickOf），不自己写一遍",
+			/remindOffGamesOf\(plain\.remindOffGames, REMIND_OFF_GAMES_DEFAULT\)/.test(roundBody)
+			&& /remindAllowedTickOf\(/.test(roundBody)
+			&& /\{ hidden: plain\.hidden, shown: plain\.shown \}/.test(roundBody));
+		check("⑩ 宿主 runRemindRound：日志里能看出「本轮有 N 条因为没展示 / 被取消而被跳过」",
+			/const skipNote = "，未展示或已取消提醒跳过 " \+ skipped \+ " 条";/.test(roundBody)
 			&& (roundBody.match(/skipNote/g) || []).length >= 4,
 			String((roundBody.match(/skipNote/g) || []).length));
-		check("宿主 runRemindRound：**不再直接调 remindTickOf**（否则白名单会被绕过）",
+		check("⑩ 宿主 runRemindRound：**不再直接调 remindTickOf**（否则展示 / 取消列表会被绕过）",
 			!/\bremindTickOf\(/.test(roundBody));
+	}
+
+	// ── ⑲ 白名单 → 取消列表的一次性迁移（migrateRemindOnce，2026-11-09）─────────────────
+	// 迁移是"老用户勾选不能丢"的唯一保障，而且它**只在宿主启动时跑一次**、跑错也没有界面提示 ——
+	// 所以这里不靠读代码判断：把 src/index.js 原文搬进临时目录（只换 schemastery 桩）、用**真实**的
+	// lib/remind-core.mjs 真跑 migrateRemindOnce，逐笔核对 settings.update 的 patch。
+	// 覆盖：旧白名单 → 取消列表 / 只迁一次 / 没旧值只写标记 / 旧值脏了也只写标记 / 自定义条目也算进
+	// 「全部条目」/ update 抛错不崩 / apply 里是 void 触发（不 await）。
+	{
+		const savedEnv = { LOCALAPPDATA: process.env.LOCALAPPDATA, HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE };
+		const box = mkdtempSync(path.join(os.tmpdir(), "dsh-remind-mig-" + process.pid + "-"));
+		try {
+			const modDir = path.join(box, "mod");
+			mkdirSync(modDir, { recursive: true });
+			process.env.LOCALAPPDATA = path.join(box, "local");
+			process.env.HOME = path.join(box, "home");
+			writeFileSync(path.join(modDir, "z-stub.mjs"), `function chain() {
+	const o = {
+		default: () => o, min: () => o, max: () => o, volatile: () => o,
+		object: () => o, array: () => o, string: () => o, boolean: () => o, number: () => o
+	};
+	return o;
+}
+const z = { object: () => chain(), boolean: () => chain(), number: () => chain(), string: () => chain(), array: () => chain() };
+export default z;
+`, "utf8");
+			// 真 core：REMIND_TZ_BY_ID（内置条目 id 表）等常量都走生产代码
+			copyFileSync(path.join(REPO, "lib", "remind-core.mjs"), path.join(modDir, "remind-core.mjs"));
+			const srcText = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
+			writeFileSync(path.join(modDir, "index.mjs"), srcText
+				.replace('import z from "@deepseek-ai/schemastery";', 'import z from "./z-stub.mjs";')
+				+ "\nexport { migrateRemindOnce };\n", "utf8");
+			const mod = await import(pathToFileURL(path.join(modDir, "index.mjs")).href);
+			check("⑲ 桩跑能加载真实宿主代码：导出 migrateRemindOnce",
+				typeof mod.migrateRemindOnce === "function");
+
+			const settingsOf = (mode) => {
+				const updates = [];
+				return {
+					updates,
+					async update(ns, patch) {
+						updates.push({ ns, patch, keys: Object.keys(patch).sort().join(",") });
+						if (mode === "throw") throw new Error("boom-from-settings");
+					}
+				};
+			};
+			const ctxOf = (config) => ({
+				fiber: { config },
+				root: { loader: { await: async () => {}, locate: () => "gacha-calendar" } },
+				effect: () => () => {},
+				inject() {}
+			});
+			const builtinIds = Object.keys(R.REMIND_TZ_BY_ID);
+
+			// ① 旧白名单 [genshin, hsr] ⇒ 取消列表 = 「全部条目 id − 旧白名单」
+			{
+				const config = { remindGames: ["genshin", "hsr"] };
+				const settings = settingsOf();
+				await mod.migrateRemindOnce(ctxOf(config), config, settings);
+				check("⑲① 旧白名单存在 ⇒ 恰好 1 笔写入", settings.updates.length === 1, String(settings.updates.length));
+				const u = settings.updates[0] || { ns: "", patch: {}, keys: "" };
+				check("⑲① 写入的条目 id = loader.locate 的结果", u.ns === "gacha-calendar", u.ns);
+				check("⑲① patch 只有 remindOffGames / remindMigrated 两个键（值与标记同笔，不留半状态）",
+					u.keys === "remindMigrated,remindOffGames" && u.patch.remindMigrated === true,
+					JSON.stringify(u.keys));
+				const off = Array.isArray(u.patch.remindOffGames) ? u.patch.remindOffGames : [];
+				check("⑲① 取消列表 = 内置 " + builtinIds.length + " − 2 = " + (builtinIds.length - 2) + " 条",
+					off.length === builtinIds.length - 2, String(off.length));
+				check("⑲① 旧白名单里的 genshin / hsr **不在**取消列表里（它们仍是勾选的）",
+					!off.includes("genshin") && !off.includes("hsr"), off.slice(0, 5).join(","));
+				check("⑲① 旧白名单外的 id（如 bh3 / wqmt）**都进**取消列表（= 当时没勾的）",
+					off.includes("bh3") && off.includes("wqmt"),
+					off.filter((id) => id === "bh3" || id === "wqmt").join(","));
+				check("⑲① 取消列表里没有重复 id", new Set(off).size === off.length, String(off.length));
+			}
+
+			// ② 只跑一次：标记已是 true（模拟上一笔真的落进配置）⇒ 再读不再改
+			{
+				const config = { remindGames: ["genshin", "hsr"], remindMigrated: true };
+				const settings = settingsOf();
+				await mod.migrateRemindOnce(ctxOf(config), config, settings);
+				check("⑲② 标记已 true ⇒ settings.update 零次调用（迁移只跑一次）",
+					settings.updates.length === 0, String(settings.updates.length));
+			}
+
+			// ③ 旧配置里根本没有白名单（新装 / 从没动过那一列）⇒ 只写标记，出厂 [] 已是全部勾选
+			{
+				const config = {};
+				const settings = settingsOf();
+				await mod.migrateRemindOnce(ctxOf(config), config, settings);
+				check("⑲③ 没有旧白名单 ⇒ 仍写 1 笔，但**只有** remindMigrated（不碰 remindOffGames）",
+					settings.updates.length === 1 && settings.updates[0].keys === "remindMigrated",
+					JSON.stringify(settings.updates[0] && settings.updates[0].patch));
+				check("⑲③ 这一笔里没有 remindOffGames（否则会把出厂「全部勾选」写反）",
+					!Object.prototype.hasOwnProperty.call(settings.updates[0].patch, "remindOffGames"));
+			}
+
+			// ④ 旧值脏了（字符串 / 对象 / 数字）⇒ 与 ③ 同一条路（只写标记，绝不按脏值算取消列表）
+			{
+				for (const bad of ["genshin,hsr", { genshin: true }, 42]) {
+					const config = { remindGames: bad };
+					const settings = settingsOf();
+					await mod.migrateRemindOnce(ctxOf(config), config, settings);
+					check("⑲④ 旧白名单是脏值（" + JSON.stringify(bad) + "）⇒ 只写标记",
+						settings.updates.length === 1 && settings.updates[0].keys === "remindMigrated",
+						JSON.stringify(settings.updates[0] && settings.updates[0].patch));
+				}
+			}
+
+			// ⑤ 「全部条目 id」也要含自定义条目（内置表里没有它们）
+			{
+				const config = {
+					remindGames: ["genshin"],
+					customEntries: JSON.stringify([{ id: "my-custom", name: "我的条目", tz: "Asia/Shanghai" }])
+				};
+				const settings = settingsOf();
+				await mod.migrateRemindOnce(ctxOf(config), config, settings);
+				const off = settings.updates[0] ? settings.updates[0].patch.remindOffGames : [];
+				check("⑲⑤ 自定义条目也进「全部条目」⇒ 它的 id 出现在取消列表里（旧白名单没收录过它）",
+					Array.isArray(off) && off.includes("my-custom"), JSON.stringify(off.slice(0, 3)));
+				check("⑲⑤ 取消列表长度 = 内置 " + builtinIds.length + " + 自定义 1 − 白名单 1",
+					Array.isArray(off) && off.length === builtinIds.length, String(off && off.length));
+			}
+
+			// ⑥ 失败不崩：update 抛错 ⇒ 不抛、只记日志（下次启动会重试，因为标记没写进去）
+			{
+				const config = { remindGames: ["genshin"] };
+				const settings = settingsOf("throw");
+				let threw = null;
+				try { await mod.migrateRemindOnce(ctxOf(config), config, settings); } catch (err) { threw = err; }
+				check("⑲⑥ update 抛错时 migrateRemindOnce 不抛（整段 try/catch）",
+					threw === null, String(threw && threw.message));
+				check("⑲⑥ 抛错时也只尝试 1 笔（没有重试循环）", settings.updates.length === 1, String(settings.updates.length));
+			}
+
+			// ⑦ 静态：apply 里 void 触发（不 await），与另外两个迁移同一套
+			{
+				const applyText = srcText.slice(srcText.indexOf("export function apply("));
+				check("⑲⑦ apply() 里是 void 触发迁移（不 await）",
+					/void migrateRemindOnce\(ctx, config, settingsCtx\.settings\);/.test(applyText)
+					&& !/await migrateRemindOnce\(/.test(srcText));
+				check("⑲⑦ 迁移标记键是 remindMigrated（与 10-config.js / schema / CONFIG_KEYS 三处一致）",
+					/remindMigrated/.test(srcText));
+			}
+		} finally {
+			for (const [key, value] of Object.entries(savedEnv)) {
+				if (value === void 0) delete process.env[key];
+				else process.env[key] = value;
+			}
+			try { rmSync(box, { recursive: true, force: true }); } catch { /* 临时目录清不掉不影响门禁 */ }
+		}
 	}
 }

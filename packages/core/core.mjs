@@ -74,21 +74,20 @@
 			// 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 与 src/index.js 的 schema 里
 			// （三处齐的守卫见 test/cases-remind.mjs ⑭）。
 			notifyName: "二游日历",
-			// 「到期提醒（送达）」的逐游戏白名单（不属于轮播）。语义 = 普通列表：列表里有谁就提醒谁，
-			// 空数组 = 一个都不提醒；默认值 = 出厂时展示中的条目（所有 defaultHidden !== true 的 id）。
-			// 送达侧按它过滤（65-remind.js 的 remindAllowedTickOf）⇒ 默认**不含**出厂隐藏的
-			// bh3 / ournotes / ournotes-global / czn / ddlezj，这 5 个开箱即用时静默不提醒。
-			// 守卫见 test/cases-ticker.mjs：新增来源或改 defaultHidden 时要同步这里与 src/index.js 的
-			// REMIND_GAMES_DEFAULT。
-			remindGames: [
-				"genshin", "hsr", "zzz", "wuwa", "arknights", "endfield",
-				"ba-cn", "ba-global", "ba-jp", "bandori", "wuhuamixin", "zspms", "kedr",
-				"uma-cn", "uma-jp", "uma-global",
-				"p5x", "nte", "gf2", "fgo", "pjsk", "stellasora", "r1999",
-				// 2026-11-09 新接入的 5 款里只有 wqmt 出厂展示；另外4款出厂不勾选
-				// ⇒ 不在提醒白名单里（二者必须一致，守卫见 test/cases-ticker.mjs）
-				"wqmt"
-			],
+			// 「到期提醒（送达）」的逐条目**取消列表**（不属于轮播）。语义 = 黑名单：
+			// 出厂 `[]` ⇒ **每个条目都默认勾选**；列表里只装用户**手动取消**的那几条。
+			// ⚠️ 「展示」是提醒的**上位**：生效提醒 = 条目**展示中** ∧ 不在本列表
+			// （判定唯一实现在 65-remind.js 的 remindAllowedTickOf / remindGameAllowed，送达侧只调它）。
+			// 所以展示关着的条目**不进**这个列表，设置页也不写它 ⇒ 重新打开展示就自动回到勾选
+			// （"恢复勾选"是 isEntryHidden 判出来的，不是把旧值搬回去）。
+			remindOffGames: [],
+			// 「提醒」白名单 → 取消列表的**一次性迁移标记**（默认 false = 还没迁）。
+			// 宿主只在这个标记不是 true 时动手一次（见 src/index.js 的 migrateRemindOnce）：
+			//   旧 `remindGames`（白名单 id 数组）存在 ⇒ 同一笔写 { remindOffGames: 全部条目 id − 旧白名单,
+			//   remindMigrated: true }；旧配置里根本没有这个键 ⇒ 只写标记（出厂 [] 已经是「全部勾选」）。
+			// 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 与 src/index.js 的 schema 里
+			// （三处齐的守卫见 test/cases-ticker.mjs 与 test/cases-rule-lint.mjs）。
+			remindMigrated: false,
 			order: null,
 			lastRefresh: 0,
 			lastSource: "none",
@@ -1007,10 +1006,12 @@
 			return endTs - nowTs <= horizon ? "end" : "";
 		}
 
-		// 「提醒」白名单（`remindGames`）的判定与归一化**已搬进 65-remind.js**（remindGameAllowed /
-		// remindGamesOf / remindAllowedTickOf）：2026-10-30 送达开始消费这份白名单，而宿主半边只装
+		// 「提醒」的判定与归一化**已搬进 65-remind.js**（remindEntryShownOf / remindGameAllowed /
+		// remindOffGamesOf / remindAllowedTickOf）：2026-10-30 送达开始消费这份配置，而宿主半边只装
 		// 65-remind.js（lib/remind-core.mjs），放在本文件里宿主就调不到 ⇒ 只能抄第二份实现。
-		// 语义没变：普通列表，列表里有谁就提醒谁，空数组 = 一个都不提醒；轮播不读它。
+		// 2026-11-09 语义改成「默认全选 + 取消列表」：生效提醒 = 展示中 ∧ 不在 remindOffGames；
+		// 「展示」是提醒的**上位**（展示判定与下面 isEntryHidden 同一套规则，两边等价性有守卫用例）。
+		// 轮播不读它。
 
 		// 按钮轮播总开关的读取口径：只有明确的 false 才算关（老配置没有这个键 ⇒ 默认开）。
 		// 设置页与按钮共用这一处，避免"设置页显示开着、按钮却没反应"。
@@ -1849,24 +1850,56 @@
 			};
 		}
 
-		// ── 「提醒」逐游戏白名单（`remindGames`）──────────────────────────────────────────
-		// 语义 = **普通列表**：列表里有谁就提醒谁；**空数组 = 一个都不提醒**（没有"空 = 全部"的哨兵）。
-		// 判定只有这一处实现（2026-10-30 从 60-helpers.js 搬进来，**语义一字未改**）：
-		// 宿主半边只装本文件（build.mjs 把 65-remind.js 原样拼成 lib/remind-core.mjs），而送达侧必须按
-		// 同一份判定过滤 —— 放在别的拼接段里就只能让宿主抄第二份，或者干脆不生效（那正是本次要修的 bug）。
-		// 入参顺序沿用原有调用点：remindGameAllowed(gameId, remindGames)。
-		function remindGameAllowed(gameId, remindGames) {
-			if (!Array.isArray(remindGames)) return false;
-			return remindGames.includes(gameId);
+		// ── 「提醒」逐条目**取消列表**（`remindOffGames`）────────────────────────────────────
+		// 2026-11-09 用户改的语义（白名单 → 默认全选 + 取消列表）：
+		//   生效提醒 = 条目**展示中** ∧ **不在**取消列表里      ← 「展示」是提醒的**上位**
+		// 出厂 `[]` = 每个条目都默认勾选；列表里只装用户手动取消的那几条。
+		// ⚠️ 展示关闭的条目**不写**进取消列表（设置页保证）⇒「展示关 → 开」不需要任何数据动作
+		//    就会回到勾选：那是 remindEntryShownOf 现算出来的，不是把旧值搬回去。
+		// 判定只有这一处实现（2026-10-30 从 60-helpers.js 搬进来）：宿主半边只装本文件
+		// （build.mjs 把 65-remind.js 原样拼成 lib/remind-core.mjs），而送达侧必须按同一份判定过滤
+		// —— 放在别的拼接段里就只能让宿主抄第二份，或者干脆不生效（那正是当初要修的 bug）。
+		//
+		// 出厂就**默认不展示**的条目 id：宿主读不到 SOURCES，这张表只能跟着本文件走一份
+		// （与下面的 REMIND_TZ_BY_ID 同一个理由 —— 那份也是 SOURCES 的副本，靠守卫钉住同步）。
+		// 必须恰等于 SOURCES 里 `defaultHidden === true` 的 id（守卫见 test/cases-remind.mjs）。
+		const REMIND_DEFAULT_HIDDEN_IDS = [
+			"bh3", "ournotes", "ournotes-global", "czn", "ddlezj",
+			// 2026-11-09 新接入的 5 款里，除 wqmt 之外都出厂不勾选展示（来源也留空）
+			"pengpeng", "wd", "hlr", "cytq"
+		];
+
+		// 条目「展示中」判定 —— **与面板同一套规则**（60-helpers.js 的 isEntryHidden）：
+		//   hidden 里有 → 不展示；出厂默认隐藏（defaultHidden）且 shown 里没有 → 不展示；否则展示。
+		// 为什么这里再实现一份：本文件会被**单独**拼成宿主那份 ESM（见文件头），拿不到 60-helpers 的
+		// isEntryHidden。两份规则的一致性由 test/cases-remind.mjs 的等价用例逐组合钉住
+		// （同一组 hidden / shown / defaultHidden 下两边必须逐项相等）⇒ 改一边忘另一边就红。
+		function remindEntryShownOf(gameId, settings) {
+			const s = settings && typeof settings === "object" ? settings : {};
+			const hidden = Array.isArray(s.hidden) ? s.hidden : [];
+			if (hidden.includes(gameId)) return false;               // 用户明确关掉
+			if (REMIND_DEFAULT_HIDDEN_IDS.indexOf(gameId) < 0) return true;
+			const shown = Array.isArray(s.shown) ? s.shown : [];
+			return shown.includes(gameId);                            // 出厂隐藏 ⇒ 要靠 shown 打开
 		}
 
-		// 配置值 → 白名单数组（把脏值挡在判定之前）。两条分支的取舍是**刻意**的：
+		// 单条判定：**生效提醒 = 展示中 ∧ 未被手动取消**。
+		// 入参顺序沿用原有调用点：remindGameAllowed(gameId, remindOffGames, shownSettings)。
+		// 展示关 ⇒ 直接 false（与取消列表无关 —— 这就是「展示是上位」这句话的落点）；
+		// 取消列表读坏（不是数组）⇒ 当成「没人取消过」（出厂口径），而不是让提醒静默消失。
+		function remindGameAllowed(gameId, remindOffGames, shownSettings) {
+			if (!remindEntryShownOf(gameId, shownSettings)) return false;
+			if (!Array.isArray(remindOffGames)) return true;
+			return !remindOffGames.includes(gameId);
+		}
+
+		// 配置值 → 取消列表（把脏值挡在判定之前）。两条分支的取舍是**刻意**的：
 		//   · 是数组 ⇒ 只留**非空字符串**元素（数字 / null / 对象 / 空串当脏元素忽略），
-		//     **空数组原样返回** —— 它是用户的主动选择（"一个都不提醒"），不是脏值；
-		//   · 不是数组（键缺失 / 读坏 / 老配置）⇒ 用 fallback（= 出厂默认的 23 个展示中 id）。
-		// 为什么不把非数组也当"空列表"：那等于"配置一读坏，提醒就悄悄消失"，而且**没有任何界面会报错**；
-		// 回落默认至少还是出厂行为（用户能通过设置页看出来、改回来）。
-		function remindGamesOf(value, fallback) {
+		//     **空数组原样返回** —— 它是出厂口径（全部勾选 / 用户又把最后一条勾回去了）；
+		//   · 不是数组（键缺失 / 读坏 / 还没迁移）⇒ 用 fallback（= 出厂 `[]`）。
+		// 为什么不把非数组当"全都取消"：那等于"配置一读坏，提醒就悄悄消失"，而且**没有任何界面会报错**；
+		// 回落 `[]` 至少还是出厂行为（全部勾选）—— 用户能通过设置页看出来、改回来。
+		function remindOffGamesOf(value, fallback) {
 			const sanitize = (list) => list.filter((v) => typeof v === "string" && v !== "");
 			if (Array.isArray(value)) return sanitize(value);
 			return Array.isArray(fallback) ? sanitize(fallback) : [];
@@ -2159,29 +2192,31 @@
 			return { toNotify, stateNext: next };
 		}
 
-		// 按「提醒」白名单跑一轮 —— **送达侧的唯一入口**（宿主 runRemindRound 只调它，不自己过滤）。
+		// 按「展示中 ∧ 未取消」跑一轮 —— **送达侧的唯一入口**（宿主 runRemindRound 只调它，不自己过滤）。
 		// 与 remindTickOf 只差两件事，两条的顺序都是刻意的：
-		//   ① 过滤发生在**判定节点之前**：不在白名单的条目根本不进 remindTickOf（不白算一遍节点）；
-		//   ② 状态里**不留痕**：stateNext 中不属于白名单的键一律删掉（含上一轮遗留下来的）——
-		//      否则用户后来把某条勾上时，会被"已发过"的旧记录挡住 ⇒ 该响不响。
+		//   ① 过滤发生在**判定节点之前**：不生效提醒的条目根本不进 remindTickOf（不白算一遍节点）；
+		//   ② 状态里**不留痕**：stateNext 中不生效提醒的键一律删掉（含上一轮遗留下来的）——
+		//      否则用户后来把某条勾上（或重新打开展示）时，会被"已发过"的旧记录挡住 ⇒ 该响不响。
 		// ⚠️ ② 不能靠 ① 顺带解决：remindTickOf 会把 state 里所有**未过期**的键原样带进下一轮
 		//    （哪怕这一轮数据里根本没出现它，见它第 ① 步），所以必须再按 gameId 过滤一次状态。
 		// 返回 { toNotify, stateNext, allowed, skipped }：
-		//   skipped = 本轮**因为不在提醒列表而被跳过**的候选条目数（日志要报这个数，便于排查"为什么没提醒"）。
-		function remindAllowedTickOf(now, items, config, state, remindGames) {
+		//   skipped = 本轮**因为「没展示」或「手动取消了提醒」而跳过**的候选条目数
+		//             （日志要报这个数，便于排查"为什么没提醒"）。
+		// shownSettings = { hidden, shown }（配置里的那两个数组；见 remindEntryShownOf）。
+		function remindAllowedTickOf(now, items, config, state, remindOffGames, shownSettings) {
 			const list = Array.isArray(items) ? items : [];
 			const allowed = [];
 			let skipped = 0;
 			for (const item of list) {
 				if (!item || typeof item !== "object") continue;   // 脏条目交给 remindTickOf 自己忽略
-				if (remindGameAllowed(item.gameId, remindGames)) allowed.push(item);
+				if (remindGameAllowed(item.gameId, remindOffGames, shownSettings)) allowed.push(item);
 				else skipped += 1;
 			}
 			const ticked = remindTickOf(now, allowed, config, state);
 			const stateNext = {};
 			for (const [key, rec] of Object.entries(ticked.stateNext)) {
 				const gameId = remindGameIdOfKey(key);
-				if (gameId !== "" && remindGameAllowed(gameId, remindGames)) stateNext[key] = rec;
+				if (gameId !== "" && remindGameAllowed(gameId, remindOffGames, shownSettings)) stateNext[key] = rec;
 			}
 			return { toNotify: ticked.toNotify, stateNext, allowed: allowed.length, skipped };
 		}
@@ -2413,12 +2448,16 @@ export function createEngine(env) {
 				// newPanelMigrated：宿主一次性迁移标记（默认 false），引擎不消费它，但按约定列在这里
 				// （配置键成套）。
 				// tickerOn / tickerHours：按钮轮播的开关与范围。
-				// remindGames：「到期提醒（送达）」的逐游戏白名单（轮播不读它；宿主送达侧按它过滤）。
+				// remindOffGames：「到期提醒（送达）」的逐条目**取消列表**（轮播不读它；送达侧按它过滤，
+				// 且「展示」是它的上位 —— 见 65-remind.js 的 remindGameAllowed）。
 				// remindOn / remindEndNodes / remindStartNodes：「到期提醒（送达）」的总开关与两套节点（字符串）。
 				// 三者都是 DEFAULT_SETTINGS 的键 ⇒ 必须在这里，否则上面的守卫会红。
 				// refreshMigrated：刷新频率一次性迁移的标记（默认 false），引擎不消费它，但按约定列在这里
 				// （配置键成套，同 newPanelMigrated）。
-				"autoRefresh", "refreshMinutes", "refreshMigrated", "tickerOn", "tickerHours", "remindGames",
+				// remindMigrated：提醒白名单 → 取消列表 的一次性迁移标记（默认 false），引擎同样不消费它，
+				// 但必须成套（否则设置页写了、面板读不到；守卫见 test/cases-ticker.mjs）。
+				"autoRefresh", "refreshMinutes", "refreshMigrated", "tickerOn", "tickerHours",
+				"remindOffGames", "remindMigrated",
 				"remindOn", "remindEndNodes", "remindStartNodes",
 				// notifyName：通知身份名（应用名，默认「二游日历」）。设置页那一行窄输入框写它，
 				// 宿主拿它给开始菜单快捷方式起名 / 写 DisplayName。**别漏** —— 与上面每个键同理。
@@ -17084,9 +17123,9 @@ EVENT_FETCHERS["r1999"] = {
 // 它们两侧都没配来源 ⇒ 面板上只会是两个灰格「该来源无数据」，占版面又没信息。
 // 所以**出厂不勾选展示**（与 bh3 / ournotes / czn / ddlezj 同一种处理）；
 // 条目仍在设置页列表里，勾上「展示」就出来；填上来源也立刻生效。
-// ⚠️ 改 `defaultHidden` 必须同步 `10-config.js` 的 `DEFAULT_SETTINGS.remindGames`
-// 与 `src/index.js` 的 `REMIND_GAMES_DEFAULT`（守卫见 test/cases-ticker.mjs：
-// 两者必须恰等于 `defaultHidden !== true` 的集合）。
+// ⚠️ 改 `defaultHidden` 必须同步 `65-remind.js` 的 `REMIND_DEFAULT_HIDDEN_IDS`
+// （宿主读不到 SOURCES，提醒侧的「展示中」判定只能带一份副本过去；守卫见 test/cases-remind.mjs：
+// 那张表必须恰等于 `defaultHidden === true` 的集合）。
 
 		registerSource({
 			id: "wd",

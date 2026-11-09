@@ -40,12 +40,16 @@
 				// newPanelMigrated：宿主一次性迁移标记（默认 false），引擎不消费它，但按约定列在这里
 				// （配置键成套）。
 				// tickerOn / tickerHours：按钮轮播的开关与范围。
-				// remindGames：「到期提醒（送达）」的逐游戏白名单（轮播不读它；宿主送达侧按它过滤）。
+				// remindOffGames：「到期提醒（送达）」的逐条目**取消列表**（轮播不读它；送达侧按它过滤，
+				// 且「展示」是它的上位 —— 见 65-remind.js 的 remindGameAllowed）。
 				// remindOn / remindEndNodes / remindStartNodes：「到期提醒（送达）」的总开关与两套节点（字符串）。
 				// 三者都是 DEFAULT_SETTINGS 的键 ⇒ 必须在这里，否则上面的守卫会红。
 				// refreshMigrated：刷新频率一次性迁移的标记（默认 false），引擎不消费它，但按约定列在这里
 				// （配置键成套，同 newPanelMigrated）。
-				"autoRefresh", "refreshMinutes", "refreshMigrated", "tickerOn", "tickerHours", "remindGames",
+				// remindMigrated：提醒白名单 → 取消列表 的一次性迁移标记（默认 false），引擎同样不消费它，
+				// 但必须成套（否则设置页写了、面板读不到；守卫见 test/cases-ticker.mjs）。
+				"autoRefresh", "refreshMinutes", "refreshMigrated", "tickerOn", "tickerHours",
+				"remindOffGames", "remindMigrated",
 				"remindOn", "remindEndNodes", "remindStartNodes",
 				// notifyName：通知身份名（应用名，默认「二游日历」）。设置页那一行窄输入框写它，
 				// 宿主拿它给开始菜单快捷方式起名 / 写 DisplayName。**别漏** —— 与上面每个键同理。

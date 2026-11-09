@@ -999,7 +999,9 @@ export const remindTestToastOf = empty;
 export const remindTickOf = () => ({ toNotify: [], stateNext: {} });
 export const remindToastOf = () => ({ title: "stub", lines: [] });
 export const remindAllowedTickOf = () => ({ toNotify: [], stateNext: {}, allowed: 0, skipped: 0 });
-export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value : (Array.isArray(fallback) ? fallback : []));
+export const REMIND_TZ_BY_ID = { genshin: "Asia/Shanghai", hsr: "Asia/Shanghai" };
+export const remindEntryShownOf = () => true;
+export const remindOffGamesOf = (value, fallback) => (Array.isArray(value) ? value : (Array.isArray(fallback) ? fallback : []));
 `, "utf8");
 
 			const srcText = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
@@ -1061,7 +1063,7 @@ export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value 
 			//    它是**无条件**写 0 的，这里只靠标记让它 return）。
 			//    让它直接 return，这里测的 newPanel 那一笔才不会被第二笔写入混进来。
 			{
-				const config = { newPanel: false, refreshMigrated: true };
+				const config = { newPanel: false, refreshMigrated: true, remindMigrated: true };
 				const settings = settingsOf();
 				const { ctx, trace } = ctxOf(config, settings);
 				let threw = null;
@@ -1088,7 +1090,7 @@ export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value 
 
 			// ①b 标记**显式 false**，且配置是 DSH 真实的 volatile 引用形态（不是裸值）
 			{
-				const config = { newPanel: volatileOf(false), newPanelMigrated: volatileOf(false) };
+				const config = { newPanel: volatileOf(false), newPanelMigrated: volatileOf(false), remindMigrated: true };
 				const settings = settingsOf();
 				const { ctx } = ctxOf(config, settings);
 				await mod.migrateNewPanelOnce(ctx, config, settings);
@@ -1101,7 +1103,7 @@ export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value 
 
 			// ② 已迁移（标记 true）：零动作 —— 用户关掉后不许被反复打开
 			{
-				const config = { newPanel: false, newPanelMigrated: true };
+				const config = { newPanel: false, newPanelMigrated: true, remindMigrated: true };
 				const settings = settingsOf();
 				const { ctx } = ctxOf(config, settings);
 				const before = migLogged();
@@ -1138,7 +1140,7 @@ export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value 
 			// ④ 只迁一次：第二次（假配置里的标记已变 true，模拟 settings 写入后重载）零调用
 			// （同样先关掉刷新频率那条迁移：`refreshMigrated: true`，见 ① 的说明）
 			{
-				const config = { refreshMigrated: true };
+				const config = { refreshMigrated: true, remindMigrated: true };
 				const settings = settingsOf();
 				mod.apply(ctxOf(config, settings).ctx, config);
 				await settle();

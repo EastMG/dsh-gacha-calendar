@@ -303,7 +303,9 @@ export const remindTestToastOf = empty;
 export const remindTickOf = () => ({ toNotify: [], stateNext: {} });
 export const remindToastOf = () => ({ title: "stub", lines: [] });
 export const remindAllowedTickOf = () => ({ toNotify: [], stateNext: {}, allowed: 0, skipped: 0 });
-export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value : (Array.isArray(fallback) ? fallback : []));
+export const REMIND_TZ_BY_ID = { genshin: "Asia/Shanghai", hsr: "Asia/Shanghai" };
+export const remindEntryShownOf = () => true;
+export const remindOffGamesOf = (value, fallback) => (Array.isArray(value) ? value : (Array.isArray(fallback) ? fallback : []));
 `, "utf8");
 
 			const srcText = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
@@ -361,7 +363,7 @@ export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value 
 
 			// ① 旧默认 1440 且标记缺失 ⇒ 一笔写入、patch 恰好两个键（值 + 标记同笔，不留半状态）
 			{
-				const config = { refreshMinutes: 1440, newPanelMigrated: true };
+				const config = { refreshMinutes: 1440, newPanelMigrated: true, remindMigrated: true };
 				const settings = settingsOf();
 				const { ctx, trace } = ctxOf(config, settings);
 				let threw = null;
@@ -389,7 +391,7 @@ export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value 
 
 			// ② 用户自己选过 2 天（2880）⇒ **也照样改成 0**（无条件、不看旧值；2026-10-31 用户要求）
 			{
-				const config = { refreshMinutes: 2880, newPanelMigrated: true };
+				const config = { refreshMinutes: 2880, newPanelMigrated: true, remindMigrated: true };
 				const settings = settingsOf();
 				await mod.migrateRefreshOnce(ctxOf(config, settings).ctx, config, settings);
 				check("⑭② 值=2880（用户选过 2 天）⇒ 仍只调 1 次 update", settings.updates.length === 1, String(settings.updates.length));
@@ -403,7 +405,7 @@ export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value 
 
 			// ②b 键缺失（= 从没存过，新用户 / 已清空的配置）⇒ 同样一笔写 0 + 标记（代码里没有"键在不在"分支）
 			{
-				const config = { newPanelMigrated: true };
+				const config = { newPanelMigrated: true, remindMigrated: true };
 				const settings = settingsOf();
 				await mod.migrateRefreshOnce(ctxOf(config, settings).ctx, config, settings);
 				check("⑭②b refreshMinutes 键缺失 ⇒ 也是一笔 { refreshMinutes: 0, refreshMigrated: true }",
@@ -414,7 +416,7 @@ export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value 
 
 			// ②c 已经是「启动时」（0）⇒ 仍然整笔写一遍（0 是幂等的；代码里没有分支，不特殊照顾）
 			{
-				const config = { refreshMinutes: 0, newPanelMigrated: true };
+				const config = { refreshMinutes: 0, newPanelMigrated: true, remindMigrated: true };
 				const settings = settingsOf();
 				await mod.migrateRefreshOnce(ctxOf(config, settings).ctx, config, settings);
 				check("⑭②c 值已经是 0 ⇒ 照样写 { refreshMinutes: 0, refreshMigrated: true }（无分支、幂等）",
@@ -425,7 +427,7 @@ export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value 
 
 			// ③ 已迁移（标记 true）：零动作 —— 用户改回去不许被反复覆写
 			{
-				const config = { refreshMinutes: 1440, refreshMigrated: true, newPanelMigrated: true };
+				const config = { refreshMinutes: 1440, refreshMigrated: true, newPanelMigrated: true, remindMigrated: true };
 				const settings = settingsOf();
 				const before = migLogged();
 				await mod.migrateRefreshOnce(ctxOf(config, settings).ctx, config, settings);
@@ -437,7 +439,7 @@ export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value 
 
 			// ③b volatile 引用形态（DSH 真实交给 apply 的就是这种，不是裸值）
 			{
-				const config = { refreshMinutes: volatileOf(1440), refreshMigrated: volatileOf(false), newPanelMigrated: true };
+				const config = { refreshMinutes: volatileOf(1440), refreshMigrated: volatileOf(false), newPanelMigrated: true, remindMigrated: true };
 				const settings = settingsOf();
 				await mod.migrateRefreshOnce(ctxOf(config, settings).ctx, config, settings);
 				check("⑭③b volatile 引用形态下也认得出 1440（解包没漏 ⇒ 不是「永远读到 undefined」）",
@@ -447,7 +449,7 @@ export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value 
 
 			// ④ 失败不崩：update 抛错 ⇒ 函数不抛、只记日志；apply() 本身仍完成
 			{
-				const config = { refreshMinutes: 1440, newPanelMigrated: true };
+				const config = { refreshMinutes: 1440, newPanelMigrated: true, remindMigrated: true };
 				const settings = settingsOf("throw");
 				let threw = null;
 				try { await mod.migrateRefreshOnce(ctxOf(config, settings).ctx, config, settings); } catch (err) { threw = err; }
@@ -470,7 +472,7 @@ export const remindGamesOf = (value, fallback) => (Array.isArray(value) ? value 
 
 			// ⑤ 下次重试：上一轮写入失败 ⇒ 标记没落盘 ⇒ 下一次（真机 = 下次启动）会再试并成功
 			{
-				const config = { refreshMinutes: 1440, newPanelMigrated: true };
+				const config = { refreshMinutes: 1440, newPanelMigrated: true, remindMigrated: true };
 				const failing = settingsOf("throw");
 				await mod.migrateRefreshOnce(ctxOf(config, failing).ctx, config, failing);
 				check("⑭⑤ 失败那轮只尝试 1 笔", failing.updates.length === 1, String(failing.updates.length));

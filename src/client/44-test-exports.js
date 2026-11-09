@@ -542,16 +542,17 @@
 			// 「启动时」（refreshMinutes === 0）每次挂载 due 但不 force / 按间隔 due / 脏值永不 due。
 			// 导出后可以逐字断言 reason 并覆盖 0、负数、NaN 三种边界（见 test/cases-refresh.mjs）。
 			autoRefreshPlan,
-			// dueKindOf = 方向判定（到期提醒也会复用）；remindGameAllowed = 「提醒」白名单判定（轮播不调用）；
+			// dueKindOf = 方向判定（到期提醒也会复用）；remindGameAllowed = 「提醒」生效判定（轮播不调用）；
 			// tickerPickOf / tickerCaptionOf / tickerSlidesOf / tickerStepsOf / tickerDirAt = 轮播的
 			// 选取排序 / 文案 / 每格结构 / 展开序列 / 方向规则，全是纯函数。
 			dueKindOf,
 			remindGameAllowed,
-			// remindGamesOf / remindAllowedTickOf = 白名单的**脏值归一**与**按白名单跑一轮**
-			// （65-remind.js，与宿主 runRemindRound 同一份源码）。导出后可以拿假条目 + 假 settings
-			// 跑真判定，钉住"不在白名单 ⇒ 不提醒且不写已发状态 / 空白名单 ⇒ 一条都不提醒 /
-			// 后来勾上 ⇒ 下一轮照常提醒"（见 cases-remind.mjs ⑰）。
-			remindGamesOf,
+			// remindEntryShownOf / remindOffGamesOf / remindAllowedTickOf = 提醒的**展示上位判定** /
+			// **取消列表脏值归一** / **按「展示中 ∧ 未取消」跑一轮**（65-remind.js，与宿主 runRemindRound
+			// 同一份源码）。导出后可以拿假条目 + 假 settings 跑真判定，钉住"展示关 ⇒ 不提醒（即使在取消
+			// 列表外）/ 手动取消 ⇒ 不提醒 / 展示关→开 ⇒ 自动恢复提醒"（见 cases-remind.mjs ⑱）。
+			remindEntryShownOf,
+			remindOffGamesOf,
 			remindAllowedTickOf,
 			// 总开关与范围的读取口径（设置页与按钮共用）。
 			tickerOnOf,
@@ -647,6 +648,12 @@
 			settingsGamesFilter,
 			panelEntryHit,
 			panelGamesFilter,
+			// isEntryHidden / getVisibleEntries = 面板与设置页**唯一**的显隐判定（60-helpers.js）：
+			// hidden 里有 → 隐；出厂 defaultHidden 且 shown 里没有 → 隐；否则显。
+			// 导出是为了和提醒侧那份副本（65-remind.js 的 remindEntryShownOf）做**等价性**用例 ——
+			// 宿主单独装 65-remind.js 时拿不到本函数，只能各写一份，所以必须机器证明两份判定一致。
+			isEntryHidden,
+			getVisibleEntries,
 			// 「跳到本插件设置页」的三步查找（80-shared-ui.js 的纯判定）：给定候选 record 列表 ⇒
 			// 该点哪个 / 卡在哪一步。覆盖正常三步 / 缺账号菜单 / 菜单里没有设置项 /
 			// 设置开了但导航里没有本插件节 / 本插件面板里的元素必须排除（见 cases-settings-jump.mjs）。

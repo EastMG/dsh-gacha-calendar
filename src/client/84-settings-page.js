@@ -529,28 +529,35 @@
 				showWriteChain.current = run.catch(() => {});
 				return run;
 			};
-			// ── 「提醒」白名单（到期提醒（送达）的逐游戏钩子，不属于轮播）────────────────
+			// ── 「提醒」逐条目开关（到期提醒（送达）的逐行钩子，不属于轮播）────────────────────
 			// 2026-10-30 起送达侧**真的消费它**（宿主 runRemindRound → 65-remind.js 的
 			// remindAllowedTickOf），这一列已恢复显示（SHOW_REMIND_COLUMN = true）。
-			// remindGames = 要提醒的条目 id 列表；空数组 = 一个都不提醒（没有"空 = 全部"的哨兵）。
-			// 读取走 remindGamesOf（与送达侧同一处归一）：数组 ⇒ 忽略非字符串元素；不是数组 / 缺失
-			// ⇒ 回落出厂默认（DEFAULT_SETTINGS.remindGames）—— 否则"配置读坏"会表现为"全都不勾"，
-			// 与送达侧的回退口径就对不上了。
+			// 2026-11-09 语义改成「**默认全选 + 取消列表**」（用户要求）：
+			//   · 配置键 remindOffGames = 用户**手动取消**的条目 id 列表；出厂 [] = 全部勾选；
+			//   · 勾选显示值 = 展示中 ∧ 不在取消列表里；
+			//   · **「展示」是提醒的上位**：展示关着 ⇒ 这一格 disabled 且显示未勾选（见下面的渲染）；
+			//     而且**不写** remindOffGames ⇒ 重新打开展示就自动回到勾选（不搬旧值，是现算的）。
+			// 读取走 remindOffGamesOf（与送达侧同一处归一）：数组 ⇒ 忽略非字符串元素；不是数组 / 缺失
+			// ⇒ 回落出厂 `[]`（= 谁都没取消）—— 否则"配置读坏"会表现为"全都不勾"。
 			// 写入链路与「展示」相同：目标状态驱动 + 串行链 + 执行时读最新快照（避免连点互相覆盖）。
-			const remindIds = remindGamesOf(s.remindGames, DEFAULT_SETTINGS.remindGames);
+			const remindOffIds = remindOffGamesOf(s.remindOffGames, DEFAULT_SETTINGS.remindOffGames);
 			const remindAllowedNow = (id) => (Object.prototype.hasOwnProperty.call(remindDraft, id)
 				? !!remindDraft[id]
-				: remindGameAllowed(id, remindIds));
+				: !remindOffIds.includes(id));
 			const setEntryRemind = (id, shouldRemind) => {
 				const run = remindWriteChain.current.then(async () => {
 					const snap = scope.getSnapshot();
 					const live = snap && snap.status === "ready" ? snap.value : null;
-					const cur = live ? remindGamesOf(live.remindGames, DEFAULT_SETTINGS.remindGames) : remindIds;
-					// 普通列表：加 = 并入，减 = 摘掉；减到空就写空（= 一个都不提醒）。
+					// **展示是上位**：这一条当前没展示 ⇒ 不写任何东西（连"取消"也不写）——
+					// 灰掉的那一格只是"展示关着"的可视化，不是用户的取消意图（数据保持干净）。
+					const entry = entriesById[id];
+					if (!entry || isEntryHidden(entry, live || s)) return;
+					const cur = remindOffGamesOf(live ? live.remindOffGames : s.remindOffGames, DEFAULT_SETTINGS.remindOffGames);
+					// 取消列表：勾上 = 从列表里摘掉；取消 = 并入（幂等，避免重复 id）。
 					const next = shouldRemind
-						? (cur.includes(id) ? cur.slice() : [...cur, id])
-						: cur.filter((x) => x !== id);
-					await commit("remindGames", next);
+						? cur.filter((x) => x !== id)
+						: (cur.includes(id) ? cur.slice() : [...cur, id]);
+					await commit("remindOffGames", next);
 				});
 				remindWriteChain.current = run.catch(() => {});
 				return run;
@@ -564,7 +571,7 @@
 			// 依赖键按**值**派生（宿主每次写入都换掉数组对象，按引用当依赖会白跑；理由同面板 A3）。
 			const hiddenKey = (Array.isArray(s.hidden) ? s.hidden : []).join("\u0000");
 			const shownKey = (Array.isArray(s.shown) ? s.shown : []).join("\u0000");
-			const remindGamesKey = remindGamesOf(s.remindGames, DEFAULT_SETTINGS.remindGames).join("\u0000");
+			const remindOffKey = remindOffGamesOf(s.remindOffGames, DEFAULT_SETTINGS.remindOffGames).join("\u0000");
 			const entriesById = {};
 			for (const x of allEntries) entriesById[x.id] = x;
 			(0, react.useEffect)(() => {
@@ -590,17 +597,17 @@
 				}
 				if (changed) setShowDraft(next);
 			}, [hiddenKey, shownKey, s.customEntries, showDraft]);
-			// 白名单草稿的同一套清理：store 值已相等（或条目被删）⇒ 丢掉草稿；依赖按值而不是数组引用。
+			// 提醒草稿的同一套清理：store 值已相等（或条目被删）⇒ 丢掉草稿；依赖按值而不是数组引用。
 			(0, react.useEffect)(() => {
 				let changed = false;
 				const next = {};
 				for (const id of Object.keys(remindDraft)) {
 					const g = entriesById[id];
-					if (!g || (remindGameAllowed(id, remindIds) === !!remindDraft[id])) { changed = true; continue; }
+					if (!g || (!remindOffIds.includes(id) === !!remindDraft[id])) { changed = true; continue; }
 					next[id] = remindDraft[id];
 				}
 				if (changed) setRemindDraft(next);
-			}, [remindGamesKey, s.customEntries, remindDraft]);
+			}, [remindOffKey, s.customEntries, remindDraft]);
 			// 删除条目：内置条目记入 removed；自定义条目从 customEntries 移除
 			const removeEntry = async (g) => {
 				if (g.custom) {
@@ -1056,15 +1063,21 @@
 													}
 												})
 											] }),
-											// 「提醒」与「展示」独立：它只决定到期送达要不要包含这一条（送达侧按它过滤）。
-											// 未展示的行面板里本来就没有，提醒也无从送达 ⇒ 复选框置灰。
+											// 「提醒」：勾选 = 到期送达包含这一条（送达侧按 remindOffGames 过滤）。
+											// **「展示」是上位**（2026-11-09）：
+											//   · 展示关着 ⇒ 未勾选 + 置灰（disabled），点不动，也**不写**任何配置；
+											//   · 展示开着 ⇒ 勾选显示值 = 不在取消列表里（出厂就是勾上的）；
+											//     点一下 = 加/减 remindOffGames（只记"手动取消"，不记"没展示"）。
 											SHOW_REMIND_COLUMN ? (0, react_jsx_runtime.jsx)("label", {
+												title: shownNow(g) ? "到期时提醒这一条" : "先打开展示才会提醒",
 												style: { ...labelStyle, cursor: shownNow(g) ? "pointer" : "default", justifySelf: "center", opacity: shownNow(g) ? 1 : 0.45 },
 												children: (0, react_jsx_runtime.jsx)("input", {
 													type: "checkbox",
-													checked: remindAllowedNow(g.id),
+													// 展示关 ⇒ 恒为未勾选（disabled 只是让它点不动，checked 也得自己算）
+													checked: shownNow(g) && remindAllowedNow(g.id),
 													disabled: !shownNow(g),
 													onChange: () => {
+														if (!shownNow(g)) return;   // 兜底：置灰的那一格不产生写入
 														const next = !remindAllowedNow(g.id);
 														setRemindDraft((p) => ({ ...p, [g.id]: next }));
 														setEntryRemind(g.id, next);

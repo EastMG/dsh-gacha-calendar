@@ -27,9 +27,9 @@
 // 它们两侧都没配来源 ⇒ 面板上只会是两个灰格「该来源无数据」，占版面又没信息。
 // 所以**出厂不勾选展示**（与 bh3 / ournotes / czn / ddlezj 同一种处理）；
 // 条目仍在设置页列表里，勾上「展示」就出来；填上来源也立刻生效。
-// ⚠️ 改 `defaultHidden` 必须同步 `10-config.js` 的 `DEFAULT_SETTINGS.remindGames`
-// 与 `src/index.js` 的 `REMIND_GAMES_DEFAULT`（守卫见 test/cases-ticker.mjs：
-// 两者必须恰等于 `defaultHidden !== true` 的集合）。
+// ⚠️ 改 `defaultHidden` 必须同步 `65-remind.js` 的 `REMIND_DEFAULT_HIDDEN_IDS`
+// （宿主读不到 SOURCES，提醒侧的「展示中」判定只能带一份副本过去；守卫见 test/cases-remind.mjs：
+// 那张表必须恰等于 `defaultHidden === true` 的集合）。
 
 		registerSource({
 			id: "wd",

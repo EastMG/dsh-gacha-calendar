@@ -65,21 +65,20 @@
 			// 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 与 src/index.js 的 schema 里
 			// （三处齐的守卫见 test/cases-remind.mjs ⑭）。
 			notifyName: "二游日历",
-			// 「到期提醒（送达）」的逐游戏白名单（不属于轮播）。语义 = 普通列表：列表里有谁就提醒谁，
-			// 空数组 = 一个都不提醒；默认值 = 出厂时展示中的条目（所有 defaultHidden !== true 的 id）。
-			// 送达侧按它过滤（65-remind.js 的 remindAllowedTickOf）⇒ 默认**不含**出厂隐藏的
-			// bh3 / ournotes / ournotes-global / czn / ddlezj，这 5 个开箱即用时静默不提醒。
-			// 守卫见 test/cases-ticker.mjs：新增来源或改 defaultHidden 时要同步这里与 src/index.js 的
-			// REMIND_GAMES_DEFAULT。
-			remindGames: [
-				"genshin", "hsr", "zzz", "wuwa", "arknights", "endfield",
-				"ba-cn", "ba-global", "ba-jp", "bandori", "wuhuamixin", "zspms", "kedr",
-				"uma-cn", "uma-jp", "uma-global",
-				"p5x", "nte", "gf2", "fgo", "pjsk", "stellasora", "r1999",
-				// 2026-11-09 新接入的 5 款里只有 wqmt 出厂展示；另外4款出厂不勾选
-				// ⇒ 不在提醒白名单里（二者必须一致，守卫见 test/cases-ticker.mjs）
-				"wqmt"
-			],
+			// 「到期提醒（送达）」的逐条目**取消列表**（不属于轮播）。语义 = 黑名单：
+			// 出厂 `[]` ⇒ **每个条目都默认勾选**；列表里只装用户**手动取消**的那几条。
+			// ⚠️ 「展示」是提醒的**上位**：生效提醒 = 条目**展示中** ∧ 不在本列表
+			// （判定唯一实现在 65-remind.js 的 remindAllowedTickOf / remindGameAllowed，送达侧只调它）。
+			// 所以展示关着的条目**不进**这个列表，设置页也不写它 ⇒ 重新打开展示就自动回到勾选
+			// （"恢复勾选"是 isEntryHidden 判出来的，不是把旧值搬回去）。
+			remindOffGames: [],
+			// 「提醒」白名单 → 取消列表的**一次性迁移标记**（默认 false = 还没迁）。
+			// 宿主只在这个标记不是 true 时动手一次（见 src/index.js 的 migrateRemindOnce）：
+			//   旧 `remindGames`（白名单 id 数组）存在 ⇒ 同一笔写 { remindOffGames: 全部条目 id − 旧白名单,
+			//   remindMigrated: true }；旧配置里根本没有这个键 ⇒ 只写标记（出厂 [] 已经是「全部勾选」）。
+			// 这个键必须同时出现在 engine-head.js 的 CONFIG_KEYS 与 src/index.js 的 schema 里
+			// （三处齐的守卫见 test/cases-ticker.mjs 与 test/cases-rule-lint.mjs）。
+			remindMigrated: false,
 			order: null,
 			lastRefresh: 0,
 			lastSource: "none",

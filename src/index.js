@@ -13,12 +13,17 @@
 import z from "@deepseek-ai/schemastery";
 // 到期提醒（送达）：判定与文案来自 core 的**同一份源码**（lib/remind-core.mjs 由 build.mjs 从
 // src/client/65-remind.js 原样拼出）。宿主半边因此不需要（也拿不到）浏览器 bundle 里的任何东西。
+// ⚠️ 这个 import 列表里**不写注释**（test/cases-remind.mjs ⑩ 直接按逗号切它、逐个核对导出，
+//    中间夹一行注释会被当成"要导出的名字"）。
+// REMIND_TZ_BY_ID 在这里的用途：它的键就是**内置条目的全部 id**（SOURCES[].tz 的副本，有守卫钉同步）——
+// 「提醒」白名单 → 取消列表的一次性迁移要「全部条目 id − 旧白名单」，宿主读不到 SOURCES，只能拿这张表。
 import {
 	HOST_STATE_DIR_NAME,
 	NOTIFY_CHANNEL_NONE,
 	NOTIFY_CHANNEL_OSASCRIPT,
 	NOTIFY_CHANNEL_WINRT,
 	NOTIFY_IDENTITY_MAX_AGE_MS,
+	REMIND_TZ_BY_ID,
 	hostStateDirOf,
 	notifyChannelOf,
 	notifyIdentityCacheOf,
@@ -28,7 +33,7 @@ import {
 	remindAllowedTickOf,
 	remindAppleScriptOf,
 	remindConfigOf,
-	remindGamesOf,
+	remindOffGamesOf,
 	remindIdentityOf,
 	remindItemsOf,
 	remindOnOf,
@@ -425,8 +430,9 @@ async function proxyHandler(req, res) {
 // 每一轮做的事（判定规则本身在 lib/remind-core.mjs，和面板/core 是同一份源码）：
 //   ① 读配置：remindOn === false 或还没有 lastData ⇒ 直接跳过（不算、不读状态）
 //   ② lastData 的档期文本 + 源站 tz → 绝对档期 → 条目
-//   ③ 按「提醒」逐游戏白名单（`remindGames`）过滤条目 + 状态，再拿去重状态判「这一轮该发哪几条」
-//      （同一条目只发最紧急那档，T 已过就作废）——过滤与判定都在 core 的 remindAllowedTickOf 里
+//   ③ 按「提醒」的**生效口径**过滤条目 + 状态（生效提醒 = 展示中 ∧ 不在 remindOffGames 里），
+//      再拿去重状态判「这一轮该发哪几条」（同一条目只发最紧急那档，T 已过就作废）——
+//      过滤与判定都在 core 的 remindAllowedTickOf 里（⚠️「展示」是提醒的上位，2026-11-09 用户要求）
 //   ④ 逐条弹通知（deliverToast）；**失败的档位不记已发**，下一轮会重试（直到成功或 T 过作废）；
 //      没有通知通道的平台在这一步之前短路（只记日志、状态按已发落盘）
 //   ⑤ 状态原子写回 %LOCALAPPDATA%\dsh-gacha-calendar\host-state.json（macOS / Linux 见上表），
@@ -436,21 +442,16 @@ const REMIND_STARTUP_DELAY_MS = 5000;        // 启动后先来一轮，但别�
 const REMIND_LOG_MAX_BYTES = 256 * 1024;     // 日志只留最近一段，长期开着的宿主不该让它无限长
 
 /**
- * 「提醒」逐游戏白名单的**出厂默认** = 出厂时展示中的 23 个条目 id。
- * 两处必须逐项一致（守卫见 test/cases-ticker.mjs ④）：
+ * 「提醒」逐条目**取消列表**的出厂默认 = `[]`（**每个条目都默认勾选**，2026-11-09 用户要求）。
+ * 两处必须一致（守卫见 test/cases-ticker.mjs ④）：
  *   ① 这里是宿主 schema 的 default（也当 configValueOf 读到脏值时的兜底，见 runRemindRound）；
- *   ② src/client/10-config.js 的 DEFAULT_SETTINGS.remindGames —— 浏览器 bundle 里的那一份，
+ *   ② src/client/10-config.js 的 DEFAULT_SETTINGS.remindOffGames —— 浏览器 bundle 里的那一份，
  *      设置页拿它当"没读过配置时的默认值"。宿主读不到那份，所以只能各存一份。
- * 默认**不含**出厂默认隐藏的 5 个来源（bh3 / ournotes / ournotes-global / czn / ddlezj）⇒
- * 开箱即用时这 5 个**静默不提醒**（用户 2026-10-30 明确要的行为，见 README_Dev）。
+ * 「展示」是提醒的**上位**：出厂隐藏的条目本来就不会被送达（判定见 core 的 remindEntryShownOf），
+ * 所以这里**不需要**再排除它们 —— 这正是"默认全勾"能成立的原因。
+ * 老用户的旧白名单（`remindGames`）由 migrateRemindOnce 一次性翻译成取消列表。
  */
-const REMIND_GAMES_DEFAULT = [
-	"genshin", "hsr", "zzz", "wuwa", "arknights", "endfield",
-	"ba-cn", "ba-global", "ba-jp", "bandori", "wuhuamixin", "zspms", "kedr",
-	"uma-cn", "uma-jp", "uma-global",
-	"p5x", "nte", "gf2", "fgo", "pjsk", "stellasora", "r1999",
-	"wqmt"
-];
+const REMIND_OFF_GAMES_DEFAULT = [];
 
 /** Windows PowerShell 5.1 自带的 AUMID —— 免安装也能弹。 */
 const POWERSHELL_AUMID = "{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe";
@@ -1382,6 +1383,27 @@ function customTzByIdOf(customEntries) {
 }
 
 /**
+ * 自定义条目（设置里的 JSON 数组）的条目 id 列表 —— 只给「提醒」迁移用：
+ * 「全部条目 id」= 内置（REMIND_TZ_BY_ID 的键）+ 这些，缺一不可。
+ * 解析失败 / 形状不对 ⇒ 空数组（最坏只是那几个自定义条目没进取消列表 = 保持勾选，不会漏提醒）。
+ */
+function customEntryIdsOf(customEntries) {
+	const out = [];
+	if (typeof customEntries !== "string" || customEntries.trim() === "") return out;
+	let list;
+	try {
+		list = JSON.parse(customEntries);
+	} catch {
+		return out;
+	}
+	if (!Array.isArray(list)) return out;
+	for (const entry of list) {
+		if (entry && typeof entry.id === "string" && entry.id !== "" && !out.includes(entry.id)) out.push(entry.id);
+	}
+	return out;
+}
+
+/**
  * 取当前配置：设置页写入会经 loader 让本插件整体重载（apply 重新跑），所以闭包里的 config 是
  * "这一次加载"的快照；重载进行中 `ctx.fiber.config` 可能已换成新的，两个都试一下。
  */
@@ -1433,9 +1455,14 @@ async function runRemindRound(ctx, fallbackConfig, reason) {
 			remindOn: configValueOf(cfg, "remindOn"),
 			remindEndNodes: configValueOf(cfg, "remindEndNodes"),
 			remindStartNodes: configValueOf(cfg, "remindStartNodes"),
-			// 逐游戏白名单（string[]）：只有列表里的条目才会被提醒；**空数组 = 一个都不提醒**。
-			// 脏值兜底在 core 的 remindGamesOf 里（非数组 ⇒ 出厂默认，数组里的非法元素忽略）。
-			remindGames: configValueOf(cfg, "remindGames"),
+			// 逐条目**取消列表**（string[]）：列表里的条目**不提醒**；出厂 `[]` = 全部勾选。
+			// 脏值兜底在 core 的 remindOffGamesOf 里（非数组 ⇒ 出厂 [] = 谁都没取消，数组里的非法元素忽略）。
+			remindOffGames: configValueOf(cfg, "remindOffGames"),
+			// 「展示」两态列表（hidden = 用户明确关掉 / shown = 用户明确打开，覆盖出厂 defaultHidden）：
+			// **展示是提醒的上位** —— 送达侧要把它们一起交给 remindAllowedTickOf（见 core 的
+			// remindEntryShownOf，与面板 isEntryHidden 同一套规则）。
+			hidden: configValueOf(cfg, "hidden"),
+			shown: configValueOf(cfg, "shown"),
 			// 应用名（默认「二游日历」）：通知署名行 / 快捷方式名字都用它，清洗在 notifyNameOf。
 			notifyName: configValueOf(cfg, "notifyName"),
 			lastData: configValueOf(cfg, "lastData"),
@@ -1454,16 +1481,22 @@ async function runRemindRound(ctx, fallbackConfig, reason) {
 		if (!games || typeof games !== "object" || Array.isArray(games)) return;
 		const now = Date.now();
 		const items = remindItemsOf(games, now, customTzByIdOf(plain.customEntries));
-		// 逐游戏白名单：**先归一**（配置读坏 ⇒ 出厂默认，见 core 的 remindGamesOf）再交给
-		// remindAllowedTickOf —— 它在**判定节点之前**过滤条目，并把状态里不属于白名单的键一并清掉
-		// （未勾选的条目「不提醒」且「不在状态里留痕」，所以后来勾上时下一轮照常会响）。
-		const remindGames = remindGamesOf(plain.remindGames, REMIND_GAMES_DEFAULT);
+		// 取消列表：**先归一**（配置读坏 ⇒ 出厂 `[]`，见 core 的 remindOffGamesOf）再交给
+		// remindAllowedTickOf —— 它在**判定节点之前**过滤条目，并把状态里不属于"生效提醒"的键一并清掉
+		// （没展示 / 被取消的条目「不提醒」且「不在状态里留痕」，所以后来勾上时下一轮照常会响）。
+		const remindOffGames = remindOffGamesOf(plain.remindOffGames, REMIND_OFF_GAMES_DEFAULT);
 		const stateFile = remindStatePath();
 		const firstRun = !existsSync(stateFile);
 		const statePrev = readRemindState(stateFile);
-		const { toNotify, stateNext, skipped } = remindAllowedTickOf(now, items, remindConfigOf(plain), statePrev, remindGames);
-		// 每一条 round 日志都带这个数：排查"为什么没提醒"时先看它（0 = 全都放行，非 0 = 被白名单拦下）。
-		const skipNote = "，不在「提醒」列表跳过 " + skipped + " 条";
+		// 第 6 参 = 「展示」两态列表：**展示是提醒的上位**（展示关 ⇒ 这一条不参与送达，
+		// 与取消列表无关；口径见 core 的 remindEntryShownOf，与面板 isEntryHidden 同一套规则）。
+		const { toNotify, stateNext, skipped } = remindAllowedTickOf(
+			now, items, remindConfigOf(plain), statePrev, remindOffGames,
+			{ hidden: plain.hidden, shown: plain.shown }
+		);
+		// 每一条 round 日志都带这个数：排查"为什么没提醒"时先看它
+		// （0 = 全都放行，非 0 = 被「没展示」或「手动取消」拦下）。
+		const skipNote = "，未展示或已取消提醒跳过 " + skipped + " 条";
 		// 首次运行（还没有状态文件）：只把当前已到档的位置记下来当基线，**不发任何通知**。
 		// 否则刚装好就会把积压的所有档位一次性弹出来（用户 2026-10-27 定：不补发首次积压）。
 		if (firstRun) {
@@ -1582,13 +1615,25 @@ const Config = z.object({
 	// 注册表 DisplayName，以及 toast 正文的署名行。空 / 非法 ⇒ 回落默认（清洗在 core 的 notifyNameOf，
 	// 默认值必须与 src/client/10-config.js 的 DEFAULT_SETTINGS.notifyName 一致，守卫见 cases-remind.mjs ⑭）。
 	notifyName: z.string().default("二游日历").volatile(),
-	// 「到期提醒（送达）」的逐游戏白名单（不属于轮播）。普通列表：列表里有谁就提醒谁，
-	// 空数组 = 一个都不提醒。出厂默认 = 出厂时展示中的条目（所有 defaultHidden !== true 的 id），
-	// 那个列表只有**一处**（文件上方的 REMIND_GAMES_DEFAULT）—— schema 与脏值兜底共用它，
-	// 避免同一份 23 个 id 在宿主里写两遍、迟早漂。必须与 src/client/10-config.js 的
-	// DEFAULT_SETTINGS.remindGames 逐项一致（守卫见 test/cases-ticker.mjs ④）。
+	// 「到期提醒（送达）」的逐条目**取消列表**（不属于轮播，2026-11-09 语义）。
+	// 语义 = 黑名单：出厂 `[]` ⇒ **每个条目都默认勾选**；列表里只装用户手动取消的那几条。
+	// **「展示」是提醒的上位**：展示关着的条目即使不在这个列表里也不会提醒（判定见 core 的
+	// remindAllowedTickOf / remindEntryShownOf），所以这里不需要排除出厂隐藏的条目。
+	// 那个列表只有**一处**（文件上方的 REMIND_OFF_GAMES_DEFAULT）—— schema 与脏值兜底共用它，
+	// 必须与 src/client/10-config.js 的 DEFAULT_SETTINGS.remindOffGames 一致（守卫见 test/cases-ticker.mjs ④）。
 	// `.slice()` 是刻意的：schema 的默认值会被多少个配置实例共享不好控制，别让谁改到常量本身。
-	remindGames: z.array(z.string()).default(REMIND_GAMES_DEFAULT.slice()).volatile(),
+	remindOffGames: z.array(z.string()).default(REMIND_OFF_GAMES_DEFAULT.slice()).volatile(),
+	// 提醒白名单 → 取消列表 的**一次性迁移标记**（默认 false ⇒ 未迁移）。宿主 apply 里若它不是 true，
+	// 就按旧配置里的 `remindGames`（白名单 id 数组）算出取消列表，与标记**同一笔**写下去
+	// （见 migrateRemindOnce）。必须 .volatile()（设置文档只投影 volatile 字段），否则写入会被拒。
+	remindMigrated: z.boolean().default(false).volatile(),
+	// ⏳ 旧键（**只读**，2026-11-09 起语义被 remindOffGames 取代）：旧的「提醒」逐条目**白名单**。
+	// 保留它在 schema 里**只为让 migrateRemindOnce 还能读到老配置的旧值** —— 不在这里声明，
+	// schemastery 会把这个键过滤掉，迁移就永远拿不到白名单（= 老用户的勾选全部丢失）。
+	// ⚠️ **刻意不给 default**：默认值会让"新装用户"看起来像"存过一份空白名单"（空白名单在旧语义里
+	//    = 一个都不提醒 ⇒ 迁移会把全部条目写进取消列表，正好迁反）。缺省 ⇒ undefined ⇒ 只写标记。
+	// 迁移窗口结束后连同 migrateRemindOnce 一起删（见那里的「删除方法」）。
+	remindGames: z.array(z.string()).volatile(),
 	// 实验特性：新「二游日历」面板视图。**默认开**（2026-10-28 用户定）。
 	// 老用户存过 false 的由 migrateNewPanelOnce 一次性迁成 true（迁移标记见下）。
 	newPanel: z.boolean().default(true).volatile(),
@@ -1728,6 +1773,79 @@ async function migrateRefreshOnce(ctx, config, settings) {
 	}
 }
 
+/**
+ * ⏳ 待废弃的一次性迁移（目标移除：2026-12-31 之后）
+ *
+ * 为什么迟早能删：老配置被迁过一轮后，新装用户根本走不到这里（他们出厂就是
+ * `remindOffGames: []` = 全部勾选）；保留期只为覆盖"很久没启动过 DSH 的老用户"。
+ * 删除方法：删掉本函数 + apply() 里对应的 `void migrateRemindOnce(...)` 调用
+ *   + schema 里的旧键 `remindGames` + 相关测试（test/cases-remind.mjs 的迁移用例）。
+ * 涉及键：remindMigrated / remindOffGames / 旧键 remindGames
+ * 用户指令：2026-11-09「白名单制吗？改成每个条目的提醒都默认勾选」
+ *
+ * ────────────────────────────────────────────────────────────────────
+ *
+ * 「提醒」逐条目：**白名单 → 默认全选 + 取消列表**的一次性迁移（2026-11-09）。
+ *
+ * 背景：语义从"列表里有谁就提醒谁（空 = 一个都不提醒）"改成"**出厂全部勾选**，
+ * `remindOffGames` 里只装用户手动取消的那几条"。光改默认值对**存过旧白名单的老用户**无效 ——
+ * 他们配置里有显式的 `remindGames: [...]`（只有动过那一列的人才会被写下来）：
+ *   ① `remindMigrated === true` ⇒ 直接返回（已迁过，永不再碰）；
+ *   ② 旧 `remindGames` **是数组** ⇒ 把「全部条目 id − 旧白名单」写进 `remindOffGames`，
+ *      并与 `remindMigrated: true` **放在同一笔 settings.update 里**（同一笔 ⇒ 不会出现
+ *      "标记写了、值没写"的半状态）；
+ *   ③ 旧 `remindGames` **不是数组**（从没动过那一列 / 键被清掉）⇒ 只写标记：
+ *      出厂 `[]` 已经是「全部勾选」，什么都没丢。
+ *
+ * 「全部条目 id」从哪来：宿主读不到 SOURCES，只能用 core 带过来的两张表 ——
+ *   · `REMIND_TZ_BY_ID` 的键 = 内置 33 款的全部 id（它与 SOURCES 的 id 集合逐项一致的守卫见
+ *     test/cases-remind.mjs ⑬，所以这里可以直接当"全部内置条目"用）；
+ *   · 配置里 `customEntries` 的 id（用户自己加的条目，旧白名单从来没收录过它们 ⇒ 迁完仍是"提醒"）。
+ * 漏掉某一类 id 的后果是单向的：它不会进取消列表 ⇒ 出厂口径的「勾选」，而不是"该响不响"。
+ *
+ * 条目 id 同样不写死：`ctx.root.loader.locate(ctx.fiber)`（与另外两个迁移同一套）。
+ * 失败处理：整段 try/catch —— 迁移失败只是"取消列表没算出来"，**绝不能让插件加载失败**；
+ * 失败时记一行日志，下次启动会重试（因为标记还没写进去）。
+ */
+async function migrateRemindOnce(ctx, config, settings) {
+	try {
+		const cfg = liveConfigOf(ctx, config);
+		if (configValueOf(cfg, "remindMigrated") === true) return;   // 已迁过：永不再碰
+		const loader = ctx.root ? ctx.root.loader : void 0;
+		// 等 loader 把所有条目装完再写：settings.update 会走 configEditor 的 profile 补丁写入，
+		// 加载中途写容易撞上 "Configuration entry is no longer available"（与另外两个迁移同理）。
+		if (loader && typeof loader.await === "function") {
+			try { await loader.await(); } catch { /* 等不到就按当前状态继续（写入自己还会校验） */ }
+		}
+		const ns = loader && typeof loader.locate === "function" ? loader.locate(ctx.fiber) : void 0;
+		if (!ns || !settings || typeof settings.update !== "function") {
+			logRemind("提醒迁移：定位不到配置条目（id=" + String(ns) + "），跳过（提醒配置保持原值）");
+			return;
+		}
+		const oldWhitelist = configValueOf(cfg, "remindGames");
+		// ③ 从没动过那一列（老配置里根本没有这个键）⇒ 只写标记，什么都不改。
+		if (!Array.isArray(oldWhitelist)) {
+			await settings.update(ns, { remindMigrated: true });
+			logRemind("提醒迁移：条目 " + ns + " 没有旧白名单 remindGames ⇒ 出厂 [] 已是「全部勾选」，只写标记 remindMigrated=true");
+			return;
+		}
+		const oldOn = new Set(oldWhitelist.filter((v) => typeof v === "string" && v !== ""));
+		const allIds = [];
+		const pushId = (id) => {
+			if (typeof id === "string" && id !== "" && !allIds.includes(id)) allIds.push(id);
+		};
+		Object.keys(REMIND_TZ_BY_ID).forEach(pushId);
+		customEntryIdsOf(configValueOf(cfg, "customEntries")).forEach(pushId);
+		// 「全部条目 id − 旧白名单」= 用户当时**没勾**的那些（= 取消列表的内容）。
+		const off = allIds.filter((id) => !oldOn.has(id));
+		await settings.update(ns, { remindOffGames: off, remindMigrated: true });
+		logRemind("提醒迁移：条目 " + ns + " 的旧白名单 " + oldOn.size + " 条 ⇒ 取消列表 "
+			+ off.length + " 条（全部条目 " + allIds.length + "，标记 remindMigrated=true）");
+	} catch (err) {
+		logRemind("提醒迁移失败（不影响插件加载，下次启动重试）：" + String((err && err.stack) || err));
+	}
+}
+
 /** Required services (host side). */
 const inject = ["webServer"];
 
@@ -1752,6 +1870,9 @@ export function apply(ctx, config = {}) {
 		// 刷新频率的一次性迁移（无条件迁到「启动时」，见 migrateRefreshOnce）。同样**不 await**。
 		// ⏳ 待废弃（目标移除：2026-11-30 之后）—— 说明见 migrateRefreshOnce 上方的注释块。
 		void migrateRefreshOnce(ctx, config, settingsCtx.settings);
+		// 「提醒」白名单 → 取消列表的一次性迁移（见 migrateRemindOnce）。同样**不 await**。
+		// ⏳ 待废弃（目标移除：2026-12-31 之后）—— 说明见 migrateRemindOnce 上方的注释块。
+		void migrateRemindOnce(ctx, config, settingsCtx.settings);
 	});
 	ctx.inject(["webServer"], (injected) => {
 		const webServer = injected.get("webServer");

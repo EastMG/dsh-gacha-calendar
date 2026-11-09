@@ -13,13 +13,14 @@
 //      "覆盖当前时刻"的窗口（startTs 永远 <= now），所以"即将开始"在真实数据里永远不命中。
 //      现在只会返回 "" / "end"。"start" 的判定代码仍留在 60-helpers.js（注释写了怎么恢复），
 //      这里只守"还没开始 ⇒ \"\"" 这一条（label 里带「暂时停用」，恢复时按名字找得到）。
-//   ③ 「提醒」逐游戏白名单的语义（纯函数 `remindGameAllowed`）—— 这是「到期提醒（送达）」的钩子，
-//      **轮播不读它**：**普通列表**，列表里有谁就提醒谁，**空数组 = 一个都不提醒**。
+//   ③ 「提醒」的**生效语义**（纯函数 `remindGameAllowed`）—— 这是「到期提醒（送达）」的钩子，
+//      **轮播不读它**：生效提醒 = 条目**展示中** ∧ 不在取消列表（`remindOffGames`）里；
+//      出厂取消列表 = `[]` ⇒ **每个条目都默认勾选**；「展示」是提醒的**上位**（2026-11-09 用户口径）。
 //      ⚠️ 2026-10-30 起送达侧真的按它过滤（宿主 runRemindRound → remindAllowedTickOf），
 //        设置页那一列也随之恢复显示（`SHOW_REMIND_COLUMN = true`）；这里守"入口都在"。
-//      + **守卫**：`DEFAULT_SETTINGS.remindGames`（及 src/index.js 的 REMIND_GAMES_DEFAULT）
-//        必须恰好等于所有 `defaultHidden !== true` 的来源 id —— 新增来源/改默认隐藏时要同步。
-//      + **反向守卫**：轮播链路（`tickerItemsOf` / `tickerPickOf` / 渲染层 memo）**不得**读这份列表，
+//      + **成套守卫**：`remindOffGames` / `remindMigrated` 必须在 DEFAULT_SETTINGS / CONFIG_KEYS / 宿主
+//        schema 三处都齐；旧键 `remindGames` 只以**无 default 的只读**形式留在 schema 里给迁移用。
+//      + **反向守卫**：轮播链路（`tickerItemsOf` / `tickerPickOf` / 渲染层 memo）**不得**读这份配置，
 //        也不得再接受"逐游戏筛选"参数 —— 用户 2026-10-25 明确纠正过这一点。
 //   ④ 轮播条目选取与**每格结构**（纯函数 `tickerPickOf` / `tickerCaptionOf` / `tickerSlidesOf`）：
 //      多条时顺序稳定（按"距离那一刻还有多远"升序，同刻保持输入顺序）、无可轮播条目时返回空
@@ -171,56 +172,69 @@ export default async function run() {
 		check("列表版：非数组 → 空数组（不抛）", expiringSoonOf(null, NOW, 24).length === 0);
 	}
 
-	// ── ④ 「提醒」白名单语义（remindGameAllowed）：属于「到期提醒（送达）」，轮播不读它 ─────
-	// 2026-10-25 定稿（用户纠正）：游戏列表里那一列 = 「提醒」，是**主动送达**的逐游戏钩子，
-	// **不是轮播的一部分**。2026-10-30 起送达侧真的消费它（见 cases-remind.mjs ⑰ 的行为用例），
-	// 轮播链路仍然一律不碰它。
-	// 判定仍是普通列表（空 = 一个都不提醒），与原来的语义一字不差 —— 只是**归属改了**。
+	// ── ④ 「提醒」生效语义（remindGameAllowed）：属于「到期提醒（送达）」，轮播不读它 ─────
+	// 2026-11-09 用户改口径（原话：「改成每个条目的提醒都默认勾选，但展示开关是提醒开关的上位，
+	// 若展示开关关闭（包括默认关闭和用户手动关闭）则提醒开关关闭且置灰」）：
+	//   生效提醒 = 条目**展示中** ∧ **不在**取消列表（remindOffGames）里。
+	// 出厂取消列表 = [] ⇒ 每个条目都默认勾选；展示关着的条目一律不提醒（哪怕它没被取消）。
+	// 2026-10-30 起送达侧真的消费这份配置（行为用例见 cases-remind.mjs ⑱），轮播链路仍然一律不碰它。
 	{
-		check("remindGames 为空数组 → **一个都不提醒**（不再有「空 = 全部」的哨兵）",
-			remindGameAllowed("g1", []) === false && remindGameAllowed("随便什么", []) === false);
-		check("remindGames 缺失 / 不是数组 → 也不提醒（纯函数不猜「没设置过」，默认值由 DEFAULT_SETTINGS/schema 给）",
-			remindGameAllowed("g1", void 0) === false
-			&& remindGameAllowed("g1", null) === false
-			&& remindGameAllowed("g1", "g1") === false);
-		check("remindGames 非空 → **只有列表里的提醒**（[\"a\"] 只提醒 a）",
-			remindGameAllowed("a", ["a"]) === true
-			&& remindGameAllowed("b", ["a"]) === false
-			&& remindGameAllowed("a", ["b", "c"]) === false);
+		const shownAll = { hidden: [], shown: [] };
+		check("出厂：取消列表为空 ⇒ 展示中的条目**默认全部提醒**",
+			remindGameAllowed("g1", [], shownAll) === true
+			&& remindGameAllowed("随便什么", [], shownAll) === true);
+		check("手动取消（id 在取消列表里）⇒ **不提醒**；没被取消的那条照旧提醒",
+			remindGameAllowed("a", ["a"], shownAll) === false
+			&& remindGameAllowed("b", ["a"], shownAll) === true);
+		check("展示关（hidden 里有）⇒ 不提醒 —— **哪怕它不在取消列表里**（展示是上位）",
+			remindGameAllowed("a", [], { hidden: ["a"], shown: [] }) === false
+			&& remindGameAllowed("a", [], { hidden: ["a"], shown: ["a"] }) === false);
+		check("出厂默认隐藏的条目（没被 shown 打开）⇒ 也不提醒",
+			remindGameAllowed("bh3", [], { hidden: [], shown: [] }) === false
+			&& remindGameAllowed("pengpeng", [], {}) === false);
+		check("出厂隐藏但用户明确打开（shown）⇒ 提醒恢复，**不需要动取消列表**",
+			remindGameAllowed("bh3", [], { hidden: [], shown: ["bh3"] }) === true);
+		check("取消列表读坏（不是数组）⇒ 当「谁都没取消」= 展示中就提醒（不静默丢提醒）",
+			remindGameAllowed("a", void 0, shownAll) === true
+			&& remindGameAllowed("a", null, shownAll) === true
+			&& remindGameAllowed("a", "a", shownAll) === true);
+		check("展示设置读坏（不是对象）⇒ 当「没有 hidden / shown」（内置条目即展示中）",
+			remindGameAllowed("a", [], void 0) === true && remindGameAllowed("a", [], "坏的") === true);
 
-		// ── 守卫：出厂默认提醒白名单 == 出厂时「展示中」的来源（defaultHidden !== true）──────────
-		// 它钉住两件事（这是"开箱即用"从哨兵手里接过来的保证）：
-		//   ① 新增来源时白名单必须同步（忘了改默认列表就红）；
-		//   ② 改某个条目的 defaultHidden 时白名单必须同步。
-		// 比较口径：两边都去重 + 排序后整体相等（顺序无所谓，集合必须相同）。
-		const sortIds = (xs) => [...xs].sort();
-		const shownIds = sortIds(SOURCES.filter((s) => s.defaultHidden !== true).map((s) => s.id));
-		const defIds = sortIds(DEFAULT_SETTINGS.remindGames);
-		check("默认 remindGames（去重排序后）**恰好等于**所有 defaultHidden !== true 的来源 id（排序后）",
-			defIds.length === new Set(defIds).size && defIds.join(",") === shownIds.join(","),
-			"默认=" + defIds.join(",") + " ／ 展示中=" + shownIds.join(","));
-		check("默认 remindGames **不含**出厂默认隐藏的条目（defaultHidden === true 的一个都不许进来）",
-			SOURCES.filter((s) => s.defaultHidden === true).every((s) => !defIds.includes(s.id)),
-			SOURCES.filter((s) => s.defaultHidden === true).map((s) => s.id).join(","));
-		check("默认 remindGames 非空（否则将来接上送达时开箱即用就是空的）", defIds.length > 0, String(defIds.length));
-
-		// schema 那一侧的 default 必须与 DEFAULT_SETTINGS 一致：两处都是"出厂值"，漂了就是两套默认
-		// （客户端 spread 用 DEFAULT_SETTINGS，宿主表单用 schema default，用户看到哪个取决于读哪一边）。
-		// 2026-10-30：宿主里的那份列表提成了常量 `REMIND_GAMES_DEFAULT`（schema 与「配置读坏」的兜底
-		// 共用它，同一个文件里不再抄两遍 23 个 id）⇒ 守卫改成"先解析那个常量，再看 schema 用没用它"。
+		// 出厂默认值 + 三处成套（DEFAULT_SETTINGS / CONFIG_KEYS / 宿主 schema）
+		check("DEFAULT_SETTINGS.remindOffGames = []（出厂全部勾选）",
+			Array.isArray(DEFAULT_SETTINGS.remindOffGames) && DEFAULT_SETTINGS.remindOffGames.length === 0,
+			JSON.stringify(DEFAULT_SETTINGS.remindOffGames));
+		check("DEFAULT_SETTINGS.remindMigrated = false（还没迁过）", DEFAULT_SETTINGS.remindMigrated === false);
+		check("DEFAULT_SETTINGS 不再有 remindGames（旧白名单键已删）", !("remindGames" in DEFAULT_SETTINGS));
 		{
 			const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
-			const m = /const REMIND_GAMES_DEFAULT = \[([\s\S]*?)\];/.exec(hostSrc);
-			let hostDefault = null;
-			if (m) { try { hostDefault = JSON.parse("[" + m[1] + "]"); } catch { hostDefault = null; } }
-			check("src/index.js 的 REMIND_GAMES_DEFAULT 能解析出来（守卫自身没瞎）",
-				Array.isArray(hostDefault), m ? m[1].trim().slice(0, 80) : "没匹配到 REMIND_GAMES_DEFAULT");
-			check("schema 的 remindGames 默认值**引用的就是这个常量**（不是又抄一份字面量）",
-				/remindGames:\s*z\.array\(z\.string\(\)\)\.default\(REMIND_GAMES_DEFAULT\.slice\(\)\)\.volatile\(\)/.test(hostSrc));
-			check("src/index.js 的 schema default 与 DEFAULT_SETTINGS.remindGames 逐项一致（排序后）",
-				Array.isArray(hostDefault) && sortIds(hostDefault).join(",") === defIds.join(","),
-				Array.isArray(hostDefault) ? sortIds(hostDefault).join(",") : "null");
+			const cfgSrc = readFileSync(path.join(REPO, "src", "client", "10-config.js"), "utf8");
+			const ehSrc = readFileSync(path.join(REPO, "src", "client", "engine-head.js"), "utf8");
+			check("宿主 schema：remindOffGames 默认引用 REMIND_OFF_GAMES_DEFAULT（不另抄一份字面量）",
+				/remindOffGames:\s*z\.array\(z\.string\(\)\)\.default\(REMIND_OFF_GAMES_DEFAULT\.slice\(\)\)\.volatile\(\)/.test(hostSrc));
+			check("宿主 schema：remindMigrated = z.boolean().default(false).volatile()",
+				/remindMigrated:\s*z\.boolean\(\)\.default\(false\)\.volatile\(\)/.test(hostSrc));
+			check("宿主 schema 仍**只读**地保留旧键 remindGames（**没有 default**，否则迁移分不清「没设过」与「空白名单」）",
+				/remindGames:\s*z\.array\(z\.string\(\)\)\.volatile\(\)/.test(hostSrc)
+				&& !/remindGames:\s*z\.array\(z\.string\(\)\)\.default/.test(hostSrc));
+			const m = /const REMIND_OFF_GAMES_DEFAULT = \[([\s\S]*?)\];/.exec(hostSrc);
+			check("src/index.js 的 REMIND_OFF_GAMES_DEFAULT 能解析出来且就是空数组（守卫自身没瞎）",
+				!!m && m[1].trim() === "", m ? m[1].trim().slice(0, 40) : "没匹配到");
+			check("engine-head.js 的 CONFIG_KEYS 里含 remindOffGames / remindMigrated（漏了 = 设了不生效）",
+				/"remindOffGames"/.test(ehSrc) && /"remindMigrated"/.test(ehSrc));
+			check("engine-head.js 的 CONFIG_KEYS 里**不再**列旧键 remindGames（旧键只由宿主迁移读）",
+				!/"remindGames"/.test(ehSrc));
+			check("10-config.js 的 DEFAULT_SETTINGS 里没有 remindGames，有 remindOffGames: [] / remindMigrated: false",
+				!/\n\t\t\tremindGames:/.test(cfgSrc)
+				&& /\n\t\t\tremindOffGames: \[\]/.test(cfgSrc)
+				&& /\n\t\t\tremindMigrated: false/.test(cfgSrc));
 		}
+
+		// 反向守卫：出厂默认隐藏的条目**不在**取消列表里（它们靠「展示」上位静默，而不是靠取消列表）
+		check("出厂取消列表为空 ⇒ 出厂隐藏的条目也不在里面（去重排序后仍为空）",
+			[...DEFAULT_SETTINGS.remindOffGames].sort().join(",") === "",
+			DEFAULT_SETTINGS.remindOffGames.join(","));
 	}
 
 	// ── ⑤ 轮播条目选取（tickerPickOf）：顺序稳定 + 无命中→空 + **不受逐游戏列表影响** ──────
@@ -699,20 +713,31 @@ export default async function run() {
 			(comp.match(/"gacha-cal-dot"/g) || []).length === 1
 			&& /wide === false[\s\S]{0,400}?gacha-cal-dot/.test(comp));
 
-		// ── 「提醒」列（设置页游戏列表）：2026-10-30 起**恢复显示** ────────────────────────
-		// 这一列是「到期提醒（送达）」的逐游戏白名单（`remindGames`）。2026-10-26 曾因为"送达未实现、
-		// 勾了没效果"整列隐藏（`SHOW_REMIND_COLUMN = false`）；2026-10-30 送达开始真的按它过滤
-		// （宿主 runRemindRound → core 的 remindAllowedTickOf），常量改回 true ⇒ 各入口一起回来。
+		// ── 「提醒」列（设置页游戏列表）：2026-10-30 起**恢复显示**；2026-11-09 改成「默认全选 + 展示上位」──
+		// 这一列是「到期提醒（送达）」的逐条目开关（`remindOffGames` = 取消列表）。2026-10-26 曾因为
+		// "送达未实现、勾了没效果"整列隐藏（`SHOW_REMIND_COLUMN = false`）；2026-10-30 送达开始真的按它
+		// 过滤（宿主 runRemindRound → core 的 remindAllowedTickOf），常量改回 true ⇒ 各入口一起回来。
 		// 静态守卫因此改成"**true，且入口都在**"（防有人只恢复一半 / 只留常量不接线）。
-		check("常量开关 SHOW_REMIND_COLUMN = true（送达已消费这份白名单，列已恢复）",
+		check("常量开关 SHOW_REMIND_COLUMN = true（送达已消费这份配置，列已恢复）",
 			/const SHOW_REMIND_COLUMN = true;/.test(comp) && !/const SHOW_REMIND_COLUMN = false;/.test(comp));
 		// 列头在源码里是 `\u` 转义（`children: "\u63D0\u9192"`），比对**转义文本**（双反斜杠）。
 		check("表头「提醒」列标题在 SHOW_REMIND_COLUMN 之后（true ⇒ 这一格渲染）",
 			comp.includes('SHOW_REMIND_COLUMN ? (0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\\u63D0\\u9192" }) : null')
 			&& !comp.includes('(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\\u63D0\\u9192" }),'));
-		check("每行「提醒」复选框也在开关之后（disabled 语义原样保留）",
-			comp.includes('SHOW_REMIND_COLUMN ? (0, react_jsx_runtime.jsx)("label", {')
-			&& /disabled:\s*!shownNow\(g\)/.test(comp));
+		// 2026-11-09 三条核心口径（都在每行那一个复选框上）：
+		//   ① 勾选值 = 展示中 ∧ 不在取消列表里（`shownNow(g) && remindAllowedNow(g.id)`）；
+		//   ② 展示关 ⇒ disabled + 视觉未勾选（checked 自己也得乘上 shownNow）；
+		//   ③ 展示关时**不写**配置（handler 与写入函数各一道早退），所以重新打开就回到勾选。
+		check("每行「提醒」复选框也在开关之后",
+			comp.includes('SHOW_REMIND_COLUMN ? (0, react_jsx_runtime.jsx)("label", {'));
+		check("「提醒」勾选值 = 展示中 ∧ 未被取消（checked: shownNow(g) && remindAllowedNow(g.id)）",
+			/checked:\s*shownNow\(g\) && remindAllowedNow\(g\.id\)/.test(comp));
+		check("展示关 ⇒ 置灰（disabled: !shownNow(g)）—— disabled 与 checked 都由展示状态决定",
+			/disabled:\s*!shownNow\(g\)/.test(comp));
+		check("置灰那一格点不动：handler 里先 `if (!shownNow(g)) return;`（不产生任何写入）",
+			/if \(!shownNow\(g\)\) return;/.test(comp));
+		check("写入函数自己再守一道：展示关着就 early-return（不写 remindOffGames）",
+			/isEntryHidden\(entry, live \|\| s\)\) return;/.test(comp));
 		// 2026-10-30 用户要求删掉批量「全部提醒」按钮（只留逐行复选框）：反向守卫 + 顺序守卫。
 		// 按钮组要回到"没有它"的历史原貌 —— 2026-10-25 的 0062116 把它插在组首（重置排序之前），
 		// 删掉后就是 导出 .ics / 重置排序 / 恢复条目（导出是 2026-10-25 晚些的 7f197ca 插在组首的）。
@@ -732,19 +757,22 @@ export default async function run() {
 			&& comp.indexOf("取色器换主题色") < 0
 			&& comp.indexOf("「提醒」到点通知") < 0);
 		check("空列表提示已删（2026-11-08 用户要求）：不再有「未勾选任何游戏 ⇒ 不提醒」那段条件渲染",
-			!comp.includes('SHOW_REMIND_COLUMN && remindIds.length === 0')
+			!comp.includes('SHOW_REMIND_COLUMN && remindOffIds.length === 0')
+			&& !comp.includes('SHOW_REMIND_COLUMN && remindIds.length === 0')
 			&& !comp.includes("未勾选任何游戏"));
 		check("网格列宽走单一常量 SETTINGS_GAME_GRID（表头与数据行同源），显示分支**带 28px 那一格**",
 			(comp.match(/gridTemplateColumns: SETTINGS_GAME_GRID/g) || []).length === 2
 			&& comp.includes('"minmax(0,1.15fr) 28px 28px minmax(0,1fr) minmax(0,1fr) 34px 88px"')
 			&& comp.includes('"minmax(0,1.15fr) 28px minmax(0,1fr) minmax(0,1fr) 34px 88px"'));
-		check("恢复后写入链路没重写：配置键与写入函数都还是原来那几个（remindGames / setEntryRemind / remindGameAllowed）",
-			comp.includes('commit("remindGames"') && comp.includes("setEntryRemind")
-			&& comp.includes("remindGameAllowed("));
+		check("写入链路改到取消列表：commit(\"remindOffGames\") + setEntryRemind + remindAllowedNow",
+			comp.includes('commit("remindOffGames"') && comp.includes("setEntryRemind")
+			&& comp.includes("!remindOffIds.includes(") && !comp.includes('commit("remindGames"'));
 		// 每行复选框的写入链路必须仍然闭合（批量按钮删了，这条路是唯一入口 ⇒ 断了就整列失效）。
-		check("每行复选框的写入链路仍在：setEntryRemind → commit(\"remindGames\")",
-			/const setEntryRemind = \(id, shouldRemind\) =>[\s\S]{0,900}?commit\("remindGames", next\)/.test(comp)
-			&& /const next = !remindAllowedNow\(g\.id\);[\s\S]{0,200}?setEntryRemind\(g\.id, next\)/.test(comp));
+		check("每行复选框的写入链路仍在：setEntryRemind → commit(\"remindOffGames\")（勾上 = 摘掉，取消 = 并入）",
+			/const setEntryRemind = \(id, shouldRemind\) =>[\s\S]{0,1400}?commit\("remindOffGames", next\)/.test(comp)
+			&& /const next = !remindAllowedNow\(g\.id\);[\s\S]{0,200}?setEntryRemind\(g\.id, next\)/.test(comp)
+			&& /shouldRemind\s*\n?\s*\? cur\.filter\(\(x\) => x !== id\)/.test(comp)
+			&& /cur\.includes\(id\) \? cur\.slice\(\) : \[\.\.\.cur, id\]/.test(comp));
 		check("旧提示语没有回来（「至少留一条」那套拒绝逻辑仍不存在）",
 			comp.indexOf("至少留一条") < 0 && comp.indexOf("要全部关掉请把") < 0
 			&& comp.indexOf("提醒：到点主动通知（尚未实现，先做预留）") < 0
@@ -795,13 +823,13 @@ export default async function run() {
 			"见 83-panel-shell.js 的 tickerItems memo");
 		// ── 反向守卫：轮播 memo **不读**逐游戏列表 ──────────────────────────────
 		// 2026-10-25 定稿（用户纠正）：轮播 = 全局开关 + 范围，**不分游戏**。
-		// 静态证据：memo 体与依赖数组里都不许出现 remindGames / remindGamesKey。
+		// 静态证据：memo 体与依赖数组里都不许出现 remindOffGames / remindOffKey。
 		{
 			const memo = /const tickerItems = \(0, react\.useMemo\)\(([\s\S]*?)\);/.exec(compAll);
 			const memoText = memo ? memo[1] : "";
 			check("能定位到渲染层的 tickerItems memo（守卫自身没瞎）", !!memo && memoText.length > 0);
-			check("轮播 memo 里**不出现** remindGames / remindGamesKey（逐游戏列表不进轮播链路）",
-				!/remindGames/i.test(memoText), memoText.replace(/\s+/g, " ").slice(0, 160));
+			check("轮播 memo 里**不出现** remindOffGames / remindOffKey（逐条目提醒不进轮播链路）",
+				!/remindOff/i.test(memoText), memoText.replace(/\s+/g, " ").slice(0, 160));
 			check("轮播 memo 的依赖里没有逐游戏列表（只有 games / now / tickerOn / tickerHours）",
 				/\[games, now, tickerOn, tickerHours\]/.test(memoText),
 				memoText.replace(/\s+/g, " ").slice(-90));
@@ -818,8 +846,9 @@ export default async function run() {
 			compAll.includes('commit("tickerOn"') && compAll.includes('commit("tickerHours"'));
 		check("设置页文案：「按钮轮播」开关 + 「轮播范围」下拉（旧的那个单行下拉已拆掉）",
 			/children: "按钮轮播"/.test(compAll) && /children: "轮播范围"/.test(compAll));
-		check("设置页「提醒」白名单写的是 remindGames（键名已从 tickerGames 改名）",
-			compAll.includes('commit("remindGames"') && compAll.indexOf('commit("tickerGames"') < 0);
+		check("设置页「提醒」写的是取消列表 remindOffGames（旧键 remindGames / tickerGames 都不再写）",
+			compAll.includes('commit("remindOffGames"') && compAll.indexOf('commit("remindGames"') < 0
+			&& compAll.indexOf('commit("tickerGames"') < 0);
 
 		// 键必须成套：DEFAULT_SETTINGS / schema / CONFIG_KEYS 三处都要有（漏了 = 设了不生效）
 		{
@@ -837,10 +866,10 @@ export default async function run() {
 			const ehSrc = readFileSync(path.join(REPO, "src", "client", "engine-head.js"), "utf8");
 			check("engine-head.js 的 CONFIG_KEYS 里含 tickerOn（漏了会让设置页写了引擎读不到）",
 				/"tickerOn"/.test(ehSrc));
-			// 改名的键同样要成套：DEFAULT_SETTINGS 有 remindGames ⇒ CONFIG_KEYS 必须也有
+			// 提醒的两个键同样要成套：DEFAULT_SETTINGS 有 remindOffGames / remindMigrated ⇒ CONFIG_KEYS 必须也有
 			// （否则设置页写了、引擎读不到；见 test/cases-rule-lint.mjs 的"键必须都在 CONFIG_KEYS"守卫）。
-			check("engine-head.js 的 CONFIG_KEYS 里含 remindGames（改名后不能只改一半）",
-				/"remindGames"/.test(ehSrc) && !/"tickerGames"/.test(ehSrc));
+			check("engine-head.js 的 CONFIG_KEYS 里含 remindOffGames / remindMigrated（不能只改一半）",
+				/"remindOffGames"/.test(ehSrc) && /"remindMigrated"/.test(ehSrc) && !/"tickerGames"/.test(ehSrc));
 		}
 	}
 

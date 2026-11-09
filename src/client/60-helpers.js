@@ -771,10 +771,12 @@
 			return endTs - nowTs <= horizon ? "end" : "";
 		}
 
-		// 「提醒」白名单（`remindGames`）的判定与归一化**已搬进 65-remind.js**（remindGameAllowed /
-		// remindGamesOf / remindAllowedTickOf）：2026-10-30 送达开始消费这份白名单，而宿主半边只装
+		// 「提醒」的判定与归一化**已搬进 65-remind.js**（remindEntryShownOf / remindGameAllowed /
+		// remindOffGamesOf / remindAllowedTickOf）：2026-10-30 送达开始消费这份配置，而宿主半边只装
 		// 65-remind.js（lib/remind-core.mjs），放在本文件里宿主就调不到 ⇒ 只能抄第二份实现。
-		// 语义没变：普通列表，列表里有谁就提醒谁，空数组 = 一个都不提醒；轮播不读它。
+		// 2026-11-09 语义改成「默认全选 + 取消列表」：生效提醒 = 展示中 ∧ 不在 remindOffGames；
+		// 「展示」是提醒的**上位**（展示判定与下面 isEntryHidden 同一套规则，两边等价性有守卫用例）。
+		// 轮播不读它。
 
 		// 按钮轮播总开关的读取口径：只有明确的 false 才算关（老配置没有这个键 ⇒ 默认开）。
 		// 设置页与按钮共用这一处，避免"设置页显示开着、按钮却没反应"。

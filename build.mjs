@@ -45,6 +45,9 @@ const REMIND_EXPORTS = [
   // 提醒文案与测试都读这两处，别在别处硬编码（见 65-remind.js 的 remindItemsOf / remindToastOf）。
   "REMIND_EVENT_CLAIM_SIDE",
   "REMIND_EVENT_CLAIM_LABEL",
+  // 出厂默认**不展示**的条目 id（SOURCES[].defaultHidden 的副本）：宿主读不到 SOURCES，而
+  // 「展示是提醒的上位」这条判定（remindEntryShownOf）需要它 ⇒ 跟着 core 走一份，靠守卫钉同步。
+  "REMIND_DEFAULT_HIDDEN_IDS",
   "remindOnOf",
   "remindIdentityOf",
   // 探测「开始菜单里哪条 .lnk 是我们的」的纯判定：按 AUMID 挑，不按文件名（改名失败时文件名是旧的）。
@@ -63,10 +66,11 @@ const REMIND_EXPORTS = [
   "remindNodesOf",
   "remindNodesToggleOf",
   "remindConfigOf",
-  // 「提醒」逐游戏白名单（2026-10-30 从 60-helpers.js 搬进 65-remind.js）：判定 / 脏值归一 /
-  // 按白名单跑一轮。宿主 runRemindRound 只调 remindAllowedTickOf，不自己过滤一遍。
+  // 「提醒」逐条目取消列表（2026-11-09 从"白名单"改成"默认全选 + 取消列表"）：展示判定 /
+  // 脏值归一 / 按「展示中 ∧ 未取消」跑一轮。宿主 runRemindRound 只调 remindAllowedTickOf，不自己过滤。
+  "remindEntryShownOf",
   "remindGameAllowed",
-  "remindGamesOf",
+  "remindOffGamesOf",
   "remindAllowedTickOf",
   "remindKeyOf",
   "remindStateOf",
