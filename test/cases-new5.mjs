@@ -186,6 +186,10 @@ export default async function run() {
 		// ⚠️ 2026-11-09 改：`开服后` 不再留 null —— 钟点锚定（维护公告窗口结束 / 常量 14:00）
 		check("wqmt 档期文本 = 「10-27 14:00 ~ 11-11 09:59」（`开服后` 锚到维护窗口结束 14:00）",
 			wqmtGacha.bannerDates === "10-27 14:00 ~ 11-11 09:59", JSON.stringify(wqmtGacha.bannerDates));
+		// ⚠️ 2026-11-09 新口径（raw = 源站原文 / display = 补全文本，见 30-game-bwiki-common.js 文件头）：
+		// `bannerDatesRaw` 必须留着源站的「开服后」，不能是上面那串被补全过的钟点。
+		check("wqmt bannerDatesRaw = 源站原文「10-27 开服后 ~ 11-11 09:59」（不被锚点补全改写）",
+			wqmtGacha.bannerDatesRaw === "10-27 开服后 ~ 11-11 09:59", JSON.stringify(wqmtGacha.bannerDatesRaw));
 		check("wqmt startTs = 2026-10-27 14:00 +08（UTC 06:00；**不再**是 null）",
 			wqmtGacha.startTs === Date.UTC(2026, 9, 27, 6, 0), String(wqmtGacha.startTs));
 		// 绝对时刻：2026-11-11 09:59 +08 == 2026-11-11T01:59Z（手算，不用 sourceInstant 自证）
@@ -208,9 +212,15 @@ export default async function run() {
 			g.map((x) => x.key).join(","));
 		check("wqmt gacha[] 全部带 tz = Asia/Shanghai（数组条目自带源站时区）",
 			g.every((x) => x.tz === TZ_CN), JSON.stringify([...new Set(g.map((x) => x.tz))]));
-		check("wqmt gacha[] 的档期原文逐条 = `MM-DD HH:MM ~ MM-DD HH:MM`（起点已锚定）",
+		// ⚠️ 2026-11-09 改（有意变化）：**主条** raw = 源站原文（`10-27 开服后 ~ 11-11 09:59`），
+		// 不再是补全后的 `14:00`（原先 bannerDates / bannerDatesRaw / 主条 raw 取同一个值）。
+		// 并列条那两条的 raw 仍由 `dataArrayWindowTextOf` 从 ts **派生**（`MM-DD HH:MM ~ …`）——
+		// 这是 P3 就有的口径（`50-refresh.js` 的说明）：它还要被 `dataArrayWindowOf` 反解析回 ts，
+		// 换成含「开服后」的原文会让 ts 整片变 null。所以数组这里是"主条原文 / 并列条派生文本"，
+		// 与悬停（全部原文）**有意不同**；本段只钉住"主条那一条原文没丢 + 并列条 ts 不变"。
+		check("wqmt gacha[] 的 raw 逐条 = 主条源站原文 + 并列条派生文本",
 			g.map((x) => x.raw).join(" | ")
-			=== "10-27 14:00 ~ 11-11 09:59 | 10-27 14:00 ~ 11-11 09:59 | 10-27 14:00 ~ 11-11 09:59",
+			=== "10-27 开服后 ~ 11-11 09:59 | 10-27 14:00 ~ 11-11 09:59 | 10-27 14:00 ~ 11-11 09:59",
 			g.map((x) => x.raw).join(" | "));
 		// category = 卡池类型（`itemFacts` 通道贴上去的；主条与并列条都要有）
 		check("wqmt gacha[] 的 category 逐条 = 源站加粗那行的卡池类型",
@@ -221,9 +231,12 @@ export default async function run() {
 			JSON.stringify([...new Set(g.map((x) => [x.startTs, x.endTs]))]));
 
 		// 悬停（由同一份条目反生成）
+		// ⚠️ 2026-11-09 改（有意变化）：悬停里的档期那一行现在是**源站原文**
+		// `10-27 开服后 ~ 11-11 09:59`（`hoverWindowTextOf` 见 raw 含相对表述 ⇒ 印原文），
+		// 不再是补全后的 `10-27 14:00 ~ …`（用户实测反馈的就是这一处）。
 		const HOVER = "绛夜流光：来生泪、来生爱、普希拉、泰特拉\n真夜猫影：来生瞳、来生爱、普希拉、泰特拉\n"
-			+ "10-27 14:00 ~ 11-11 09:59";
-		check("wqmt 悬停文本逐字（2 口池同窗 ⇒ 名称在前、窗口末尾只写一遍）",
+			+ "10-27 开服后 ~ 11-11 09:59";
+		check("wqmt 悬停文本逐字（2 口池同窗 ⇒ 名称在前、窗口末尾只写一遍；窗口 = 源站原文）",
 			wqmtGacha.bannerHover === HOVER, JSON.stringify(wqmtGacha.bannerHover));
 		check("wqmt 悬停与 gachaHoverItems 同源（条数 = 2）",
 			Array.isArray(wqmtGacha.gachaHoverItems) && wqmtGacha.gachaHoverItems.length === 2,
@@ -268,6 +281,27 @@ export default async function run() {
 		check("wqmt 池名拆分（反证）：右侧有人不在角色列 ⇒ 整串当池名，不猜",
 			P.wqmtPoolNameOf("极限挑战-启示录", "某角色") === "极限挑战-启示录",
 			P.wqmtPoolNameOf("极限挑战-启示录", "某角色"));
+
+		// ── 验收（用户 2026-11-09 原话口径）：11-11 那批在期时的三段文本 ────────────────
+		// 真夹具 + 时刻挪到 11-11 批在期（2026-11-20 12:00 +08；10-27 批已结束、更远的批还没开）：
+		//   `bannerDates`    = `11-11 14:00 ~ 12-09 09:59`  ← display（补全：无锚点 ⇒ 常量 14:00）
+		//   `bannerDatesRaw` = `11-11 开服后 ~ 12-09 09:59` ← raw（源站原文，`开服后` 留着）
+		//   悬停里那一行     = `11-11 开服后 ~ 12-09 09:59` ← raw（同一份条目反生成）
+		// 三段**必须不是同一个串**：这正是"原文 vs 补全"拆成两个字段的验收点。
+		const NOW_1111 = Date.parse("2026-11-20T12:00:00+08:00");
+		const e1111 = engineAt(NOW_1111);
+		const s1111 = e1111.__test.SOURCES.find((x) => x.id === "wqmt");
+		const pay1111 = await e1111.__test.GACHA_FETCHERS["wqmt"](s1111.url, undefined, s1111.tz);
+		check("wqmt·11-11 批在期：bannerDates = 补全文本「11-11 14:00 ~ 12-09 09:59」",
+			!!pay1111 && pay1111.bannerDates === "11-11 14:00 ~ 12-09 09:59", JSON.stringify(pay1111 && pay1111.bannerDates));
+		check("wqmt·11-11 批在期：bannerDatesRaw = 源站原文「11-11 开服后 ~ 12-09 09:59」",
+			!!pay1111 && pay1111.bannerDatesRaw === "11-11 开服后 ~ 12-09 09:59", JSON.stringify(pay1111 && pay1111.bannerDatesRaw));
+		check("wqmt·11-11 批在期：悬停里那一行 = 源站原文（看得见「开服后」）",
+			!!pay1111 && String(pay1111.bannerHover || "").split("\n").includes("11-11 开服后 ~ 12-09 09:59"),
+			JSON.stringify(pay1111 && pay1111.bannerHover));
+		check("wqmt·11-11 批在期：startTs/endTs 与改前逐字相同（11-11 14:00 / 12-09 09:59 的绝对时刻）",
+			!!pay1111 && pay1111.startTs === Date.UTC(2026, 10, 11, 6, 0) && pay1111.endTs === Date.UTC(2026, 11, 9, 1, 59),
+			JSON.stringify(pay1111 && [pay1111.startTs, pay1111.endTs]));
 	}
 
 	// ─────────────────────③ 无期迷途 活动（真夹具 + 锚点机制正反例）─────────────────────
@@ -319,15 +353,20 @@ export default async function run() {
 		check("wqmt 锚点：从 `维护时间：11月11日10:00-14:00` 读出开服时刻 = 14:00（维护窗口结束）",
 			anchorsA["11-11"] === Date.UTC(2026, 10, 11, 6, 0), String(anchorsA["11-11"]));
 		const winA = P.wqmtEventWindowsOf(BODY_ANCHOR, "【预告】丨「恩慈余光」", HINT, TZ_CN, anchorsA);
-		check("wqmt 锚点·正例：有锚点 ⇒ 起点写成 11-11 14:00、startTs 不再是 null",
-			winA.length === 1 && winA[0].startTs === Date.UTC(2026, 10, 11, 6, 0) && winA[0].raw === "11-11 14:00 ~ 12-09 07:59",
-			JSON.stringify(winA.map((x) => [x.raw, x.startTs])));
+		// ⚠️ 2026-11-09 改（有意变化）：窗口对象现在给**两份文本** ——
+		//   `display` = 补全后的可读文本（锚点 14:00 写在这里）、`raw` = 源站原文（「开服后」留着）。
+		// 这条断言同时钉住"锚点确实补进了 display"与"原文没有被补全顶掉"。
+		check("wqmt 锚点·正例：有锚点 ⇒ display 写成 11-11 14:00、startTs 不再是 null；raw 仍是原文「开服后」",
+			winA.length === 1 && winA[0].startTs === Date.UTC(2026, 10, 11, 6, 0)
+			&& winA[0].display === "11-11 14:00 ~ 12-09 07:59" && winA[0].raw === "11-11 开服后 ~ 12-09 07:59",
+			JSON.stringify(winA.map((x) => [x.display, x.raw, x.startTs])));
 		// 反例（2026-11-09 改）：同一份正文、**没有**维护公告 ⇒ 退常量 14:00（不再留 null）。
 		// 口径依据 = 用户拍板「取不到窗口就退常量 14:00」；`null` 只剩"日期/年份都定不下来"那一种。
 		const winB = P.wqmtEventWindowsOf("■活动时间：11月11日 开服后~12月09日 07:59", "【预告】丨「恩慈余光」", HINT, TZ_CN, {});
-		check("wqmt 锚点·反例：没有维护公告 ⇒ 退常量 11-11 14:00（不再是 null）",
-			winB.length === 1 && winB[0].startTs === Date.UTC(2026, 10, 11, 6, 0) && winB[0].raw === "11-11 14:00 ~ 12-09 07:59",
-			JSON.stringify(winB.map((x) => [x.raw, x.startTs])));
+		check("wqmt 锚点·反例：没有维护公告 ⇒ 退常量 11-11 14:00（display 有钟点、raw 仍是『开服后』）",
+			winB.length === 1 && winB[0].startTs === Date.UTC(2026, 10, 11, 6, 0)
+			&& winB[0].display === "11-11 14:00 ~ 12-09 07:59" && winB[0].raw === "11-11 开服后 ~ 12-09 07:59",
+			JSON.stringify(winB.map((x) => [x.display, x.raw, x.startTs])));
 		// 三态之三：连年份线索都没有 ⇒ 整条窗口不产出（不猜年份）。
 		// "日期读不出 ⇒ startTs 为 null" 那条规则由 ② 段末尾的两条反证兜底（同一套 `wqmtWindowOf`
 		// / `wqmtEndOfPoint`），这里不重复。

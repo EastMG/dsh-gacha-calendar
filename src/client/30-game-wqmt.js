@@ -30,6 +30,15 @@
 // "已开始" ⇒ 11-11 才开的 4 口池在 11-09 就显示成在期（假在期）。现在两头都改了：
 // 钟点恒有（锚点 / 常量 14:00），判定也不再容 null ⇒ 未来批如实是未来（state=wait）。
 //
+// ── 两份文本：`raw` = 源站原文，`display` = 补全文本（2026-11-09，与星铁 `parseHsrWarp` 同口径）──
+// 条目事实 = `{ name, startTs, endTs, raw, display, startText, endText }`（见 `wqmtWindowOf`）：
+//   · `raw`     = `11-11 开服后 ~ 12-09 09:59` ← **锚点推出来的 14:00 不许写进来**；
+//   · `display` = `11-11 14:00 ~ 12-09 09:59` ← 真正给面板外显的那一行；
+//   · 两端都有时刻的窗口 ⇒ 两者逐字相同（源站本来就给全了）。
+// 载荷与悬停各取一份：`bannerDates`/`eventDates` ← `display`、`bannerDatesRaw`/`eventDatesRaw` ← `raw`、
+// 悬停 `hoverItems[].raw` ← `raw`。⚠️ 这两份**不许合并**：合并 = 悬停把 `开服后` 印成 `14:00`，
+// 用户会以为源站明说了 14:00（2026-11-09 实测反馈，原文见 `30-game-bwiki-common.js` 文件头）。
+//
 // ── 卡池类型（category）──
 // 行属性 `data-param1` 是 bwiki 的**筛选**分类（限定追踪 / 统合追踪 / 联动追踪 …），
 // 单元格里那行加粗字更细（返场·限定追踪 / 复刻·联动追踪）。取**加粗那一行**（更具体），
@@ -57,8 +66,10 @@
 		// 正文里最多认几条活动：维护公告那种正文能扫出十几条「A ~ B」，再多悬停就没法看了。
 		const WQMT_EVENT_MAX_ITEMS = 12;
 
-		// 「开服后 / 维护后 / 更新后」= 只有日期没有时刻
-		const WQMT_OPEN_RE = /开服|维护|更新/;
+		// 「开服后 / 维护后 / 更新后」= 只有日期没有时刻。**只有这一份词表**，两个用途：
+		//   ① 判"这一端是不是相对表述"（`wqmtPointOf.open`）；
+		//   ② 把源站**原话**取出来留在 `raw` 里（`开服后` 不能只剩 `开服`；见文件头「两份文本」）。
+		const WQMT_OPEN_RE = /开服后|维护结束后|维护完成后|维护后|更新维护后|更新结束后|更新完成后|更新后|开服|维护|更新/;
 		// ── 「开服后」的钟点锚（2026-11-09 用户拍板）─────────────────────────────────
 		// 官方维护公告写「维护时间：10月27日10:00-14:00」⇒ **开服 = 窗口结束**。公告解析不到窗口时
 		// 退这个常量（14:00），依据同上（实测 5 期维护公告全部是 10:00-14:00）。
@@ -79,8 +90,9 @@
 		const WQMT_NAME_TAIL_RE = /(开启|开始|开放|上线|结束|复刻|限时|活动)+$/;
 
 		//#region 时间解析（bwiki 卡池表 / 官方公告正文共用）
-		// 一段文本 → { y, mo, d, h, mi, open }；`h == null` = 这一端没有时刻。
-		// `open` = 源站用「开服后」代替了时刻（起点专用）。
+		// 一段文本 → { y, mo, d, h, mi, open, openWord }；`h == null` = 这一端没有时刻。
+		// `open` = 源站用「开服后」代替了时刻（起点专用）；`openWord` = **源站那句原话**
+		// （`开服后` / `维护后` / `更新后`…），原文（`raw`）要原样带上它，见文件头「两份文本」。
 		function wqmtPointOf(text) {
 			const s = String(text == null ? "" : text).replace(/～/g, "~").replace(/[\s\u00a0]+/g, " ").trim();
 			const hm = s.match(WQMT_HM_RE);
@@ -93,40 +105,50 @@
 				mo = Number(md[1]); d = Number(md[2]);
 			}
 			if (!(mo >= 1 && mo <= 12 && d >= 1 && d <= 31)) return null;
+			const oword = hm ? null : s.match(WQMT_OPEN_RE);
 			return {
 				y, mo, d,
 				h: hm ? Number(hm[1]) : null,
 				mi: hm ? Number(hm[2]) : null,
-				open: !hm && WQMT_OPEN_RE.test(s)
+				open: !!oword,
+				openWord: oword ? oword[0] : ""
 			};
 		}
 
-		// 一端的「档期文本 + 绝对时刻」。四种写法各有明确口径（都不猜时刻）：
-		//   · 有时刻            → 照写；
-		//   · 「开服后」+ 锚点   → 用锚点时刻（维护窗口结束），文本写正常时刻；
-		//   · 「开服后」无锚点   → 用常量 `openFallbackHour`（14:00，用户拍板），文本写正常时刻；
+		// 一端的「补全文本 + 源站原文 + 绝对时刻」—— 三个都返回，因为这两份文本**不许合并**
+		// （合并 = 悬停再也判不出相对表述，见 `30-game-bwiki-common.js` 文件头「两份文本」约定）。
+		// 四种写法各有明确口径（都不猜时刻）：
+		//   · 有时刻            → `text` 与 `rawText` 相同（照写）；
+		//   · 「开服后」+ 锚点   → 补全 TEXT = 锚点时刻（维护窗口结束）；`rawText` 仍是 `MM-DD 开服后`；
+		//   · 「开服后」无锚点   → 补全 TEXT = 常量 `openFallbackHour`（14:00，用户拍板）；
+		//                          `rawText` 仍是 `MM-DD 开服后`（**原文不跟着被补全**）；
 		//   · 只有日期、没有「开服后」（源站没这么写过，但别崩）→ 按 00:00 / 23:59 的既有约定
 		//     （见 30-game-bwiki-common.js 的 windowsFromCell：这是全仓对"只有日期"的通用处理）。
+		// 连年份都定不下来 ⇒ `ts = null`，但两份文本照给（不编时刻、也不丢原文）。
 		function wqmtEndOfPoint(p, tz, fallbackH, fallbackMi, anchors, isStart, openFallbackHour) {
 			const h = p.h == null ? fallbackH : p.h;
 			const mi = p.mi == null ? fallbackMi : p.mi;
 			const text = `${pad2(p.mo)}-${pad2(p.d)} ${pad2(h)}:${pad2(mi)}`;
-			if (!isStart) return { ts: sourceInstant(p.y, p.mo, p.d, h, mi, tz), text };
-			if (p.h != null) return { ts: sourceInstant(p.y, p.mo, p.d, h, mi, tz), text };
-			if (!p.open) return { ts: sourceInstant(p.y, p.mo, p.d, h, mi, tz), text };
+			// 原文：源站用相对表述代替时刻时，原话（`开服后`）留在 raw 里，不写补全出来的钟点
+			const rawText = isStart && p.h == null && p.open ? `${pad2(p.mo)}-${pad2(p.d)} ${p.openWord || "开服后"}` : text;
+			if (!isStart) return { ts: sourceInstant(p.y, p.mo, p.d, h, mi, tz), text, rawText };
+			if (p.h != null) return { ts: sourceInstant(p.y, p.mo, p.d, h, mi, tz), text, rawText };
+			if (!p.open) return { ts: sourceInstant(p.y, p.mo, p.d, h, mi, tz), text, rawText };
 			const anchor = anchors ? anchors[p.mo + "-" + p.d] : null;
-			if (anchor != null) return { ts: anchor, text: fmtMdHm(anchor, tz) };
+			if (anchor != null) return { ts: anchor, text: fmtMdHm(anchor, tz), rawText };
 			if (openFallbackHour != null && p.y != null) {
 				const ts = sourceInstant(p.y, p.mo, p.d, openFallbackHour, 0, tz);
-				return { ts, text: fmtMdHm(ts, tz) };
+				return { ts, text: fmtMdHm(ts, tz), rawText };
 			}
-			return { ts: null, text: `${pad2(p.mo)}-${pad2(p.d)} 开服后` };
+			return { ts: null, text: rawText, rawText };
 		}
 
-		// 一个「A ~ B」窗口 → { startTs, endTs, startText, endText, raw }
-		// `raw` 就是 `bannerDates` / `eventDates` 那一串：两端都读得出时刻时是标准
-		// `MM-DD HH:MM ~ MM-DD HH:MM`；起点只有「开服后」时是 `MM-DD 开服后 ~ MM-DD HH:MM`
-		// （显示层 `dataArrayWindowOf` 对这种单边窗口只填 endTs，不硬凑起点）。
+		// 一个「A ~ B」窗口 → **条目事实**（与 bwiki 通用层、星铁同一形状）：
+		// `{ startTs, endTs, raw, display, startText, endText }`
+		//   · `raw`     = 源站原文那一段：起点是「开服后」⇒ `11-11 开服后 ~ 12-09 09:59`（钟点不被补进来）；
+		//                 两端都有时刻 ⇒ 与 `display` 逐字相同。
+		//   · `display` = 补全后的可读文本：`11-11 14:00 ~ 12-09 09:59`（源站 tz 墙钟）。
+		// 载荷按约定各取一份：`bannerDates`/`eventDates` ← display、`*DatesRaw` 与悬停 ← raw。
 		function wqmtWindowOf(text, tz, anchors, hint) {
 			const s = String(text == null ? "" : text).replace(/～/g, "~");
 			const parts = s.split("~");
@@ -144,7 +166,12 @@
 			const st = wqmtEndOfPoint(a, tz, 0, 0, anchors, true, WQMT_OPEN_FALLBACK_HOUR);
 			const en = wqmtEndOfPoint(b, tz, 23, 59, anchors, false, null);
 			if (!(en.ts > (st.ts == null ? 0 : st.ts))) return null;
-			return { startTs: st.ts, endTs: en.ts, startText: st.text, endText: en.text, raw: `${st.text} ~ ${en.text}` };
+			return {
+				startTs: st.ts, endTs: en.ts,
+				raw: `${st.rawText} ~ ${en.rawText}`,
+				display: `${st.text} ~ ${en.text}`,
+				startText: st.text, endText: en.text
+			};
 		}
 		//#endregion
 
@@ -286,6 +313,7 @@
 
 		// 条目事实 → 载荷（与 `genericEventPayload` 同一套：`sortEventItems` 排序、
 		// `pickEventPrimary` 挑外显、`hoverTextFromItems` 反生成悬停、`dataArrayProducedEventsOf` 收口）
+		// 档期两键**各取一份**（文件头「两份文本」）：`eventDates` ← `display`、`eventDatesRaw` ← `raw`。
 		function wqmtEventPayloadOf(items, tz, now) {
 			const active = sortEventItems((Array.isArray(items) ? items : []).filter((it) => coversNow(it, now)));
 			if (active.length === 0) return null;
@@ -294,7 +322,7 @@
 			const hover = hoverTextFromItems(hoverItems, "event", tz);
 			const out = {
 				event: primary.name,
-				eventDates: primary.raw,
+				eventDates: primary.display,
 				eventDatesRaw: primary.raw,
 				...(hover ? { eventHover: hover } : {})
 			};

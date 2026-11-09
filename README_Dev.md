@@ -380,6 +380,44 @@ P1~P4 之后数据真源是 `gacha[]` / `events[]`；`bannerHover` / `eventHover
 
 有意变化（悬停里的档期行由格式化改成源站原文）：**星铁**（官方 CMS / 米游社 / bwiki 备选）、**绝区零**、**战双帕弥什**（卡池 3 池同窗口 ⇒「末尾写一遍」那一行也走两分支）、**BanG Dream**、**少女前线2**、**星塔旅人**。**无期迷途没变** —— 它的 `wqmtWindowOf` 在**解析阶段**就把「开服后」写成锚点时刻（`raw` 里已经不含限定词）。**数组侧不变**：`50-refresh.js` 的数组派生仍用 `dataArrayWindowTextOf`（旧口径），因为数组的 `raw` 要被 `dataArrayWindowOf` 反解析回 ts，源站措辞解析不了。
 
+> ⚠️ 2026-11-09 后续（同一轮）：上面这句「无期迷途没变」**已过时** —— `wqmtWindowOf` 在解析阶段丢掉「开服后」正是下一节修掉的那条。现在无期迷途、夜幕之下与整个 bwiki 通用层的悬停都印源站原文（数组侧口径不变，仍见上一段）。
+
+### bwiki 通用层：`raw` = 源站原文、`display` = 补全文本（2026-11-09）
+
+与星铁 `parseHsrWarp`（`30-game-hoyoverse.js`）同一套「条目事实」写法：解析器给每条事实都带
+`{ ..., startTs, endTs, raw, display }`，两个文本字段**各管一件事**、**不许合并**：
+
+- `raw` = 源站**原文**那一句。相对表述（`开服后 / 维护后 / 更新后 / 版本更新后 / 即日起`）**原样保留**，
+  推断出来的钟点**不许**写进来；分隔符统一成 `~`；日期写法按来源原样（bwiki `2026年09月30日 10:00`、
+  无期迷途 `11-11 开服后`）。
+- `display` = **补全后**的可读文本（`MM-DD HH:MM ~ MM-DD HH:MM`，`fmtWindow` 按源站 tz 渲染）。源站只给
+  日期 / 只给「开服后」时的补全规则在 `ns_bwiki_windowsFromCell`（缺时刻 00:00 / 23:59）与
+  `wqmtEndOfPoint`（维护窗口结束 / 常量 14:00）里，逐条写在函数注释里。
+
+载荷与悬停**各取一份**（谁也不许再让两个键取同一个值）：
+
+| 出口 | 取哪一份 | 落点 |
+| --- | --- | --- |
+| `bannerDates` / `eventDates` | `display` | `ns_bwiki_gachaPayload` / `ns_bwiki_batchGachaPayloadOf` / `ns_bwiki_eventPayload` / `wqmtEventPayloadOf` |
+| `bannerDatesRaw` / `eventDatesRaw` | `raw` | 同上 |
+| 悬停 `hoverItems[].raw` | `raw` | `hoverTextFromItems` → `hoverWindowTextOf` 见相对词就印原文 |
+
+两份文本的产出点只有两处：`30-game-bwiki-common.js` 的 `ns_bwiki_windowsFromCell`（一次给
+`raw` + `display` + `startText`/`endText`），以及 `30-game-wqmt.js` 的 `wqmtWindowOf` /
+`wqmtEndOfPoint`（`text` = 补全、`rawText` = 原文）。各游戏解析器只把它们原样搬进条目；
+`30-game-bwiki-wikitext-common.js`（战双 / 卡厄斯 / 雪松）本来就 `fmtWindow` 出 dates、`first.raw` 出 Raw，
+自动符合本约定，**不需要逐款改**。
+
+为什么必须分开：`hoverRawIsRelative` 只认原文里的相对词。`raw` 一旦被写成补全后的 `14:00`，悬停就
+再也判不出"这是开服后、钟点是我们推的"，面板会替源站"声称"一个它没给过的时刻（用户实测：无期迷途
+显示 `10-27 14:00 ~ …` 而不是原文 `10-27 开服后 ~ …`）。回归见 `test/cases-new5.mjs` 的
+「11-11 批在期：三段文本」与 `test/cases-hsr-official.mjs` ④ 的两条无期迷途断言。
+
+⚠️ **数组侧口径不变**：主条 `raw` 直接取 `*DatesRaw`（源站原文），并列条的 `raw` 仍由
+`dataArrayWindowTextOf` 从 ts 派生（它要被 `dataArrayWindowOf` 反解析回 ts，源站措辞会让 ts 变 null）。
+所以数组里"主条原文 / 并列条派生文本"**有意不同**，`startTs`/`endTs` 逐条不变。
+
+
 ### 数据层数组（P1）/ 派生层（P2）/ 解析器直出（P3，2026-11-07）
 
 **方向**（用户原话）：数据核心只放"事实"；"谁排第一"是**纯展示决策**，下移到显示层；表格与探头**共用同一份数组**（探头只是会动的 UI 组件，零数据语义）；面板对用户的行为保持等效。

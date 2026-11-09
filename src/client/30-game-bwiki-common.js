@@ -7,6 +7,27 @@
 // ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
 //    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
 
+// ══ 条目事实的两份文本：`raw` = 源站原文，`display` = 补全文本（2026-11-09 统一约定）════════
+// 与星铁 `parseHsrWarp`（30-game-hoyoverse.js）**同一套写法**：解析器给每条事实都带
+// `{ ..., startTs, endTs, raw, display }`，两个文本字段**各管一件事**：
+//   · `raw`     = 源站**原文**那一句（相对表述 `开服后 / 维护后 / 更新后 / 版本更新后 / 即日起`
+//                 **原样保留**，不许把推断出的钟点写进来；分隔符统一成 `~`；日期写法按来源原样：
+//                 bwiki 的 `2026年09月30日 10:00`、无期迷途的 `11-11 开服后`，不强行改写成同一种）。
+//   · `display` = **补全后**的可读文本（`MM-DD HH:MM ~ MM-DD HH:MM`，由 `fmtWindow` 按源站 tz 渲染；
+//                 源站只给日期 / 只给「开服后」时，补全规则见 `ns_bwiki_windowsFromCell` / `wqmtEndOfPoint`）。
+// 载荷与悬停**各取一份**，谁也不许再让两个键取同一个值：
+//   · `bannerDates` / `eventDates`        ← `display`（面板上那一行"人话"，两端都是钟点）
+//   · `bannerDatesRaw` / `eventDatesRaw`  ← `raw`（格子 tooltip 里的源站原文）
+//   · 悬停 `hoverItems[].raw`             ← `raw`（`hoverWindowTextOf` 见 raw 含相对表述 ⇒ 印原文）
+// 为什么必须分开（用户 2026-11-09 实测）：`hoverRawIsRelative` 只认原文里的相对词。raw 一旦被写成
+//   补全后的 `14:00`，悬停就再也判不出"这是开服后、钟点是我们推的" —— 面板会替源站"声称"一个它
+//   没给过的时刻（无期迷途显示 `10-27 14:00 ~ …` 而不是原文 `10-27 开服后 ~ …`）。
+// 谁在哪一层落地：`ns_bwiki_windowsFromCell` 一次给出两份 → 各解析器把 `{ ..., raw, display }` 原样
+//   放进条目（`30-game-wqmt.js` / `30-game-pengpeng.js` 另有自己的时间格解析，**同一形状**）；
+//   本文件三个载荷生成器只负责"取哪一份"的映射，不再自己拼字符串。
+// 已经合规、无需改代码的一支：`30-game-bwiki-wikitext-common.js`（战双 / 卡厄斯 / 雪松）本来就是
+//   `fmtWindow` 出 dates、`first.raw` 出 Raw，条目 raw 也是源站原文 ⇒ 自动符合本约定。
+
 
 		// ══ 以下为原 42-parsers-bwiki.js 的内容（原样保留；压平后见 30-game-bwiki-common.js）══
 // src/client/42-parsers-bwiki.js —— bwiki wiki 页系（物华弥新 / 战双 / 卡厄斯 / 雪松 + 4 个备选源）（压平后见 30-game-bwiki-common.js）
@@ -208,6 +229,11 @@ function ns_bwiki_detectOrientation(texts, tz) {
 	return rev > nor ? "endFirst" : "startFirst";
 }
 // 单元格 → 窗口（取前两个日期点）；只有日期没时刻时：起点按 00:00、终点按 23:59
+// 返回值每条 = **条目事实**（两份文本的约定见文件头）：
+//   · `raw`     = 源站原文那一句（整格文本，只折叠空白 —— `开服后 / 维护后` 这类相对表述原样留在里面）
+//   · `display` = 补全后的可读文本（`fmtWindow`，按源站 tz；缺时刻时已按上面 00:00 / 23:59 补全）
+//   · `startText` / `endText` = 两端的补全片段（个别解析器要单独用；与 `display` 的两端逐字相同）
+// ⚠️ 两个文本字段**不许合并**：合成一个就等于让悬停丢掉"这是相对表述"这层信息（见文件头）。
 function ns_bwiki_windowsFromCell(text, tz, orient = "startFirst") {
 	const ps = ns_bwiki_parsePoints(text);
 	if (ps.length < 2) return [];
@@ -218,7 +244,8 @@ function ns_bwiki_windowsFromCell(text, tz, orient = "startFirst") {
 	const endTs = ns_bwiki_pointTs(ep.noTime ? { ...ep, h: 23, mi: 59 } : ep, tz);
 	if (!(endTs > startTs)) return [];                     // 源站错行 → 丢掉（不硬造）
 	const raw = String(text).replace(/\s+/g, " ").trim();
-	return [{ startTs, endTs, raw, startText: ns_bwiki_prettyPoint(sp), endText: ns_bwiki_prettyPoint(ep) }];
+	const display = fmtWindow(startTs, endTs, tz);
+	return [{ startTs, endTs, raw, display, startText: ns_bwiki_prettyPoint(sp), endText: ns_bwiki_prettyPoint(ep) }];
 }
 //#endregion
 
@@ -268,6 +295,12 @@ function ns_bwiki_pickCurrentEvent(items, now) {
 //    是同一套排版（措辞逐字相同），且卡池那份**少了按结束时间排序**（本体 buildPoolHover 会排）——
 //    属于"同一条规则的第二份实现"。本文件只剩 4 个**备选源**仍在用（uma-cn-bwiki / kedr-kaxi /
 //    uma-jp-bwiki / stellasora-bwiki），它们此前没被方案 A 的悬停审计覆盖到，所以漏改了。
+// 条目事实 → 外显档期文本：**只取 `display`**（补全后的可读文本，见文件头「两份文本」约定）。
+// 兜底 = `fmtWindow` 现算（个别老条目/夹具手工造的没有 `display`）：无论如何外显都不许退成原文 ——
+// 否则 `bannerDates` 与 `bannerDatesRaw` 又会取到同一个值，原文那层相对表述就白留了。
+function ns_bwiki_displayOf(it, tz) {
+	return (it && it.display) || fmtWindow(it.startTs, it.endTs, tz);
+}
 function ns_bwiki_gachaPayload(items, tz, now) {
 	const cur = ns_bwiki_pickCurrentPool(items, now);
 	if (!cur) return null;                       // 有候选但都不覆盖当期 → 未公布（不硬凑过期档期）
@@ -283,7 +316,7 @@ function ns_bwiki_gachaPayload(items, tz, now) {
 	const out = {
 		banner: first.banner,
 		roles: ns_bwiki_mergeRoles(cur.pool),
-		bannerDates: fmtWindow(first.startTs, first.endTs, tz),
+		bannerDates: ns_bwiki_displayOf(first, tz),
 		bannerDatesRaw: first.raw || "",
 		startTs: first.startTs,
 		endTs: first.endTs,
@@ -305,7 +338,10 @@ function ns_bwiki_gachaPayload(items, tz, now) {
 // 其余与既有实现逐条一致：池名 / 角色 / 档期文本 / 悬停（`hoverTextFromItems`，顺序走
 // `poolHoverOrderOf`）/ 数组收口（`dataArrayProducedGachaOf`，主条 + 并列条各一条）。
 // `opts.id` = 条目 id（数组 key 前缀）；`opts.tz` 不在这里传 —— tz 是实参，不许漏（静态守卫）。
-// 条目形状 = `{ banner, roles, category?, startTs, endTs, raw, isMain?, _i? }`（与 whmx 同形）。
+// 条目形状 = `{ banner, roles, category?, startTs, endTs, raw, display, isMain?, _i? }`（与 whmx 同形）。
+// ⚠️ 2026-11-09 修：这里原先是 `bannerDates: first.raw, bannerDatesRaw: first.raw` —— 两个键取同一个
+//    值，于是"原文"这一层被写成了"补全文本"（wqmt / pengpeng 的条目 `raw` 当时就是端到端格式化过的）。
+//    现在按文件头的约定分开：`bannerDates` ← `display`、`bannerDatesRaw` ← `raw`、悬停 ← `raw`。
 function ns_bwiki_batchGachaPayloadOf(items, tz, now, opts) {
 	const o = opts || {};
 	const active = (Array.isArray(items) ? items : []).filter((it) => coversNow(it, now));
@@ -331,8 +367,8 @@ function ns_bwiki_batchGachaPayloadOf(items, tz, now, opts) {
 	const out = {
 		banner: first.banner,
 		roles,
-		bannerDates: first.raw,
-		bannerDatesRaw: first.raw,
+		bannerDates: ns_bwiki_displayOf(first, tz),
+		bannerDatesRaw: first.raw || ns_bwiki_displayOf(first, tz),
 		startTs: first.startTs,
 		endTs: first.endTs,
 		...(hover ? { bannerHover: hover } : {}),
@@ -353,7 +389,7 @@ function ns_bwiki_eventPayload(items, tz, now, permanentCount = 0) {
 	const hover = hoverTextFromItems(hoverItems, "event", tz, { permanentCount });
 	const out = {
 		event: first.event,
-		eventDates: fmtWindow(first.startTs, first.endTs, tz),
+		eventDates: ns_bwiki_displayOf(first, tz),
 		eventDatesRaw: first.raw || "",
 		...(hover ? { eventHover: hover } : {})
 	};

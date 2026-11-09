@@ -33,7 +33,7 @@ function ns_bwiki_parseZspmsGacha(html, tz = "Asia/Shanghai") {
 			_i: ti,
 			banner: head || ns_bwiki_cleanImgName(imgTitle) || "研发池",
 			roles, category: "研发", note: "降临狙击角色池",
-			startTs: w.startTs, endTs: w.endTs, raw: w.raw
+			startTs: w.startTs, endTs: w.endTs, raw: w.raw, display: w.display
 		});
 	});
 	if (seenLabel === 0 && tables.length > 0) throw new Error("bwiki-zspms-gacha:no-table");   // 结构变了

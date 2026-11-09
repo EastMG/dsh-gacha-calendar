@@ -69,12 +69,16 @@
 					if (!name) continue;
 					out.push({
 						banner: name,
-						roles: ns_bwiki_linkTitles(cells[2].html).join("、"),
+						roles: ns_bwiki_linkTitles(cells[2].html).join("\u3001"),
 						category,
 						startTs: win.startTs,
 						endTs: win.endTs,
-						// 档期文本按**源站墙钟**渲染（`MM-DD HH:MM ~ MM-DD HH:MM`），与其它来源同形
-						raw: `${fmtMdHm(win.startTs, tz)} ~ ${fmtMdHm(win.endTs, tz)}`,
+						// 两份文本（约定见 `30-game-bwiki-common.js` 文件头）：
+						//   raw = 源站原文那一句（`2026/09/10 05:00:00 ~ 2026/09/24 04:59:59`）
+						//   display = 补全后的可读文本（`MM-DD HH:MM ~ MM-DD HH:MM`，源站 tz）
+						// ⚠️ 原先这里把**格式化后**的字符串塞进 `raw` ⇒ 原文丢了、且与 display 同值。
+						raw: win.raw,
+						display: win.display,
 						isMain: true,
 						_i: i++
 					});

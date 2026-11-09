@@ -25,7 +25,7 @@ function ns_bwiki_parseStellasoraEvents(html, tz = "Asia/Shanghai") {
 			_i: i++,
 			event: ns_bwiki_cleanImgName(alt) || "活动",
 			category: "活动日历", img: ns_bwiki_cleanImgName(alt), imgRaw: alt,
-			startTs, endTs, raw: `${startText} ~ ${endIso}`
+			startTs, endTs, raw: `${startText} ~ ${endIso}`, display: fmtWindow(startTs, endTs, tz)
 		});
 	}
 	return out;

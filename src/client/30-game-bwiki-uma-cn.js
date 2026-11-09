@@ -39,7 +39,8 @@ function ns_bwiki_parseUmaCnGacha(html, tz = "Asia/Shanghai") {
 				roles, category, isMain: !/支援/.test(category),
 				startTs: wins[0].startTs, endTs: wins[0].endTs,
 				orient,                                   // 整表朝向（诊断/测试用；不进契约字段）
-				raw: wins[0].raw                          // 源站原文（不含任何加工）
+				raw: wins[0].raw,                         // 源站原文（不含任何加工）
+				display: wins[0].display                  // 补全后的可读文本（约定见 bwiki-common 文件头）
 			});
 		});
 		return items;

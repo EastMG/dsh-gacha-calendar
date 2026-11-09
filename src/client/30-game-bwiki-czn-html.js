@@ -19,7 +19,7 @@ function ns_bwiki_parseCznGacha(html, tz = "Asia/Shanghai") {
 			_i: i,
 			banner: ns_bwiki_cleanImgName(ns_bwiki_attrOf(c0.html, "alt")) || c0.text || "卡池",
 			roles: ns_bwiki_linkTitles(c1.html).join("、"),
-			startTs: wins[0].startTs, endTs: wins[0].endTs, raw: wins[0].raw
+			startTs: wins[0].startTs, endTs: wins[0].endTs, raw: wins[0].raw, display: wins[0].display
 		});
 	});
 	return items;

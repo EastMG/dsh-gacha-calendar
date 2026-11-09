@@ -255,16 +255,19 @@ export default async function run() {
 		check("无期迷途：提醒里没有 11-11 那批的任何一条（start 时刻在未来的不派生提醒）",
 			remW.every((x) => String(x.title || "").indexOf("往迹重寻") < 0 && String(x.title || "").indexOf("隐秘深渊") < 0),
 			JSON.stringify(remW.map((x) => [x.title, x.kind])));
-		// ── 2026-11-09 悬停档期新口径（raw 含相对表述 ⇒ 原文）在无期迷途这侧**不产生变化** ──
-		// 如实确认：`wqmtWindowOf` 在**解析阶段**就把「开服后」改写成锚点时刻（raw = `MM-DD HH:MM ~ …`），
-		// 所以悬停条目里根本没有「开服后」可保留 —— 走的是分支 ②（格式化），文本逐字不变。
-		check("无期迷途：悬停逐字 = 「10-27 14:00 ~ 11-11 09:59」（原文里已无「开服后」⇒ 不受新口径影响）",
-			!!payW && payW.bannerHover === "绛夜流光：来生泪、来生爱、普希拉、泰特拉\n真夜猫影：来生瞳、来生爱、普希拉、泰特拉\n10-27 14:00 ~ 11-11 09:59",
+		// ── 2026-11-09 悬停档期新口径（raw 含相对表述 ⇒ 原文）在无期迷途这侧**已生效** ──
+		// ⚠️ 有意变化：原先这里断言"悬停不受影响"，前提是 `wqmtWindowOf` 在**解析阶段**就把「开服后」
+		// 改写成了锚点时刻（raw = `MM-DD HH:MM ~ …`）—— 那正是本次修掉的 bug（原文被补全文本顶掉）。
+		// 现在条目事实有两份文本：`display` = 补全（面板外显）、`raw` = 原文（悬停）；悬停因此变成原文。
+		check("无期迷途：悬停逐字 = 源站原文「10-27 开服后 ~ 11-11 09:59」（不再印补全出来的 14:00）",
+			!!payW && payW.bannerHover === "绛夜流光：来生泪、来生爱、普希拉、泰特拉\n真夜猫影：来生瞳、来生爱、普希拉、泰特拉\n10-27 开服后 ~ 11-11 09:59",
 			JSON.stringify(payW && payW.bannerHover));
-		check("无期迷途：条目 raw 在**解析阶段**已是锚点时刻（不含「开服后」）—— 这就是悬停不变的原因",
+		check("无期迷途：条目 raw 在解析阶段**保留**「开服后」（补全只进 display，不进 raw）",
 			!!payW && (payW.gachaHoverItems || []).length > 0
-			&& (payW.gachaHoverItems || []).every((x) => /^\d{2}-\d{2} \d{2}:\d{2} ~ \d{2}-\d{2} \d{2}:\d{2}$/.test(String(x.raw || ""))),
+			&& (payW.gachaHoverItems || []).every((x) => /^\d{2}-\d{2} 开服后 ~ \d{2}-\d{2} \d{2}:\d{2}$/.test(String(x.raw || ""))),
 			JSON.stringify(payW && (payW.gachaHoverItems || []).map((x) => x.raw)));
+		check("无期迷途：外显 bannerDates 仍是补全文本（两份文本各走各的，不互相污染）",
+			!!payW && payW.bannerDates === "10-27 14:00 ~ 11-11 09:59", JSON.stringify(payW && payW.bannerDates));
 
 		// 星铁 4.7 批（bwiki 备选：整页都是「4.7版本更新后」）⇒ 不以在期身份出现
 		const NOW_H = Date.parse("2026-11-07T00:00:00.000Z");
