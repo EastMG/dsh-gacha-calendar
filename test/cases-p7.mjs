@@ -421,8 +421,9 @@ export default async function runP7() {
 			[C(0, 300, 400, ""), C(1, 100, 500, "")].sort(stellaPickOrderOf)[0].win.endTs === 400);
 		check("B：同结束 ⇒ 起点升序",
 			[C(0, 300, 400, ""), C(1, 100, 400, "")].sort(stellaPickOrderOf)[0].win.startTs === 100);
-		check("B：窗口不同 ⇒ roles **不**插手（不是「有角色就赢」）",
-			[C(5, 100, 400, "火垂"), C(6, 200, 300, "")].sort(stellaPickOrderOf)[0].win.endTs === 300);
+		// ⚠️ 2026-11-09（用户拍板 B，全局规则）：roles 是**第一档**，不再是「窗口全等才插手」的星塔特例。
+		check("B：有角色优先**先于**时间键（窗口不同也插手：角色池结束更晚仍排在前面）",
+			[C(5, 100, 500, "火垂"), C(6, 200, 300, "")].sort(stellaPickOrderOf)[0].roles === "火垂");
 		check("B：没有 win.ts 的行按「无穷远」排最后（null 不参与比较）",
 			[C(0, null, null, ""), C(1, 100, 200, "")].sort(stellaPickOrderOf)[0].win.endTs === 200);
 
@@ -442,12 +443,17 @@ export default async function runP7() {
 
 		// ══════════════════════════════════════════════════════════════════════
 		// live 2026-11-09 13:30 +08（真联网实抓夹具）：扫描深度 50 之后**有 5 口池在期**
-		//   10-20 那批：星途一载 · 予缘重聚 / 心意凝于剑尖 / 邂逅源初之剑（10-20 17:00 ~ 11-10 10:59）
+		//   10-20 那批：星途一载 · 予缘重聚（正文没有 5 星行）/ 心意凝于剑尖（5星**秘纹**）/
+		//                邂逅源初之剑（**5星旅人「尘沙(源初)」** —— 是角色池，不是秘纹池！）
 		//   10-27 那批：乘光而起的星之砂（角色=火垂）/ 若能触及那片繁星（秘纹=星之所向）
-		//   ⚠️ 旧实现只扫前 20 条 ⇒ 10-20 那三口**根本没被看见**（它们在 #22~#24），
-		//      所以旧口径下外显是「若能触及那片繁星」（10-27 里 startTs 最新 + id 倒序）。
-		//      深度 50 之后按"在期里结束最早"，11-09 该露的是**最快到期**的星途一载（11-10 10:59）；
-		//      10-27 那两口同窗口池的胜负由"优先有角色"决定 —— 这一条在 11-09 的数组与悬停里都能看见。
+		//
+		// ⚠️ 2026-11-09（用户拍板 B，**全局规则**）：卡池侧挑池 = 在期 ⇒ **有角色优先** ⇒ 结束最早
+		//    ⇒ 起点升序 ⇒ 文档顺序。11-09 在期里带角色的有两口：「邂逅源初之剑」（~11-10 10:59）与
+		//    「乘光而起的星之砂」（~11-17 10:59）—— 同档里**先到期**的是邂逅源初之剑 ⇒ 外显是它。
+		//    ⚠️ 任务书原本预期 11-09 该露「乘光而起的星之砂」，但 4930 的真夹具正文是
+		//    「活动期间，全新限定5星旅人「尘沙(源初)」招募概率提升」—— 它不是秘纹池；按同一把尺
+		//    （同档比结束时间）就该它先露。所谓「3 个没有角色的池」实际是 2 个：星途一载（无 5 星行）
+		//    + 心意凝于剑尖（5★秘纹）。断言因此按**规则实际结果**钉，而不是按预期钉。
 		// ══════════════════════════════════════════════════════════════════════
 		const LIVE_LIST = "https://stellasora.yostar.cn/api/resource/news?index=1&size=50&type=notice";
 		const LIVE_IDS = [4982, 4981, 4932, 4931, 4930];
@@ -468,26 +474,38 @@ export default async function runP7() {
 		let liveG = null, liveErr = "";
 		try { liveG = await gachaStellasora(LIVE_LIST, undefined, STELLA_TZ, T1109); } catch (e) { liveErr = e.message; }
 		check("live 11-09：卡池抓取器不抛错", liveErr === "", liveErr);
-		check("live 11-09：外显 = 在期里**结束最早**的那口「星途一载 · 予缘重聚」（11-10 10:59 到期）",
-			!!liveG && liveG.banner === "「星途一载 · 予缘重聚」", JSON.stringify(liveG && liveG.banner));
-		check("live 11-09：那口池的公告没有 5 星行 ⇒ roles 空、show 退回池名",
-			!!liveG && liveG.roles === "" && liveG.gacha[0].show === "「星途一载 · 予缘重聚」",
-			JSON.stringify(liveG && [liveG.roles, liveG.gacha[0] && liveG.gacha[0].show]));
+		check("live 11-09：外显 = 在期里有角色、且同档里结束最早的那口「邂逅源初之剑」（~11-10 10:59）",
+			!!liveG && liveG.banner === "「邂逅源初之剑」", JSON.stringify(liveG && liveG.banner));
+		check("live 11-09：这口是**角色池** ⇒ 载荷 roles 含「尘沙(源初)」、主条 show = 去修饰的角色名「尘沙」",
+			!!liveG && String(liveG.roles).split("、").includes("尘沙(源初)") && liveG.gacha[0].show === "尘沙"
+				&& liveG.gacha[0].roles.join(",") === "尘沙(源初)" && liveG.gacha[0].title === "「邂逅源初之剑」",
+			JSON.stringify(liveG && [liveG.roles, liveG.gacha[0] && liveG.gacha[0].show, liveG.gacha[0] && liveG.gacha[0].roles]));
 		const titles1109 = ((liveG && liveG.gacha) || []).map((x) => x.title);
+		check("live 11-09：5 口在期池都在数组里（外显那口在最前，其余按档期序）",
+			titles1109.length === 5 && titles1109[0] === "「邂逅源初之剑」", JSON.stringify(titles1109));
 		const iRole = titles1109.findIndex((t) => t.indexOf("「乘光而起的星之砂」") === 0);
 		const iPat = titles1109.findIndex((t) => t.indexOf("「若能触及那片繁星」") === 0);
 		check("live 11-09：同窗口的两口池都在数组里（角色池 + 秘纹池）", iRole >= 0 && iPat >= 0, JSON.stringify(titles1109));
-		check("live 11-09：同窗口 ⇒ 角色池排在秘纹池**之前**（旧实现 id 倒序 ⇒ 若能 在前）",
+		check("live 11-09：同一窗口（10-27 12:00 ~ 11-17 10:59）⇒ 角色池排在秘纹池之前",
 			iRole < iPat, JSON.stringify([iRole, iPat]));
+
+		// ── 显示层：外显必须由「有角色优先」选出，且**旧口径会选另一条**（内建反向守卫）──
+		const liveRec = Object.assign({ id: "stellasora", name: "星塔旅人", tz: STELLA_TZ }, liveG || {});
+		const cell1109 = T.scheduleCellOf(liveRec, "gacha", new Date(T1109));
+		check("live 11-09：面板外显 = 「邂逅源初之剑」/ show = 尘沙（有角色池，不再是只有池名的那条）",
+			!!cell1109 && !!cell1109.primary && cell1109.primary.title === "「邂逅源初之剑」" && cell1109.primary.show === "尘沙",
+			JSON.stringify(cell1109 && cell1109.primary && [cell1109.primary.title, cell1109.primary.show]));
+		const noRoleLive = (liveG && liveG.gacha || []).find((x) => x.startTs != null && x.endTs != null
+			&& x.startTs <= T1109 && x.endTs >= T1109 && !(Array.isArray(x.roles) && x.roles.length));
+		check("live 11-09：在期里最早到期的是**没有角色**的「星途一载 · 予缘重聚」—— 面板却必须露有角色的那口（无角色池不再抢首行）",
+			!!noRoleLive && noRoleLive.title === "「星途一载 · 予缘重聚」" && cell1109.primary.title !== noRoleLive.title,
+			JSON.stringify(noRoleLive && noRoleLive.title));
+
 		const hover1109 = String((liveG && liveG.bannerHover) || "").split("\n");
-		const hRole = hover1109.indexOf("「乘光而起的星之砂」：火垂");
-		const hPat = hover1109.indexOf("「若能触及那片繁星」：星之所向");
-		check("live 11-09：悬停里同一对也是角色池在前（悬停行序 = 数组序）",
-			hRole >= 0 && hPat >= 0 && hRole < hPat, JSON.stringify(hover1109));
-		check("live 11-09：悬停 = 5 口池 × 2 行（池名行 + 档期行）、无元信息；首行是那口没有 UP 的池名",
+		check("live 11-09：悬停 = 5 口池 × 2 行、无元信息；行序是**档期序**（悬停首行 = 那口没有角色的星途一载）",
 			hover1109.length === 10 && hover1109[0] === "「星途一载 · 予缘重聚」"
-			&& hover1109.filter((s, i) => i % 2 === 1).every((s) => / ~ /.test(s))
-			&& hover1109.slice(2).filter((s, i) => i % 2 === 0).every((s) => /^「[^」]+」：.+$/.test(s))
+			&& hover1109.filter((ln, i) => i % 2 === 1).every((ln) => / ~ /.test(ln))
+			&& hover1109.slice(2).filter((ln, i) => i % 2 === 0).every((ln) => /^「[^」]+」：.+$/.test(ln))
 			&& !/来源|http|tz=|UTC|Asia\/|推定|推断|共扫描|内部/.test(String(liveG && liveG.bannerHover)),
 			JSON.stringify(hover1109));
 
@@ -583,20 +601,24 @@ export default async function runP7() {
 		let snapG = null, snapErr = "";
 		try { snapG = await gachaStellasora("https://stellasora.yostar.cn/api/resource/news?index=1&size=50&type=notice", undefined, STELLA_TZ, SNAP); } catch (e) { snapErr = e.message; }
 		check("C 项：10-02 夹具下抓取器不抛错", snapErr === "", snapErr);
-		check("C 项：外显 = 起点更早的那口「空白的稚梦」（两池起点差 847ms ⇒ 不是「同一窗口」，按通用键选最早开始）",
-			!!snapG && snapG.banner === "「空白的稚梦」", JSON.stringify(snapG && snapG.banner));
+		// ⚠️ 2026-11-09（用户拍板 B）：「沐于温情笑意中」是角色池（艾蕾），「空白的稚梦」是秘纹池；
+		// 两池窗口只差 847ms（C 项的锚点偏差）—— 旧口径按「起点最早」选到秘纹池，新口径**有角色优先**
+		// 选角色池。roles 也随之如实写出（`艾蕾`），show = 去修饰的角色名。
+		check("C 项：外显 = 角色池「沐于温情笑意中」（有角色优先，秘纹池不再抢占首行）",
+			!!snapG && snapG.banner === "「沐于温情笑意中」", JSON.stringify(snapG && snapG.banner));
 		check("C 项：「维护结束后」的起点仍**等于该公告 publishTime**（锚点偏早是已知偏差，本任务不修也不掩盖）",
-			!!snapG && snapG.startTs === fixture("p7-stella-detail-4761").data.news.publishTime
+			!!snapG && snapG.startTs === fixture("p7-stella-detail-4760").data.news.publishTime
 			&& /维护结束后/.test(snapG.bannerDatesRaw),
-			JSON.stringify(snapG && [snapG.startTs, fixture("p7-stella-detail-4761").data.news.publishTime, snapG.bannerDatesRaw]));
+			JSON.stringify(snapG && [snapG.startTs, fixture("p7-stella-detail-4760").data.news.publishTime, snapG.bannerDatesRaw]));
 		check("C 项：起点墙钟仍是 09-29 17:00（锚点=发布时刻，不是当日 00:00 / 维护时刻）",
 			!!snapG && (() => { const a = sourceWallParts(snapG.startTs, STELLA_TZ); return a.mo === 9 && a.d === 29 && a.h === 17 && a.mi === 0; })(),
 			JSON.stringify(snapG && sourceWallParts(snapG.startTs, STELLA_TZ)));
-		check("C 项：这口秘纹池 ⇒ roles 空、show 退回池名（秘纹不是角色）",
-			!!snapG && snapG.roles === "" && snapG.gacha[0].show === "「空白的稚梦」",
+		check("C 项：角色池 ⇒ roles = 艾蕾、show = 艾蕾（不再退回池名）",
+			!!snapG && snapG.roles === "艾蕾" && snapG.gacha[0].show === "艾蕾",
 			JSON.stringify(snapG && [snapG.roles, snapG.gacha[0] && snapG.gacha[0].show]));
-		check("C 项：外显那口池 = 悬停首行（改造前外显「沐于」、悬停首行「空白的」——正好相反）",
-			!!snapG && String(snapG.bannerHover).split("\n")[0] === "「空白的稚梦」：睡前童话",
+		check("C 项：悬停首行仍是**档期序**的第一口（「空白的稚梦」）—— 外显换成角色池后，两者不再相同",
+			!!snapG && String(snapG.bannerHover).split("\n")[0] === "「空白的稚梦」：睡前童话"
+			&& snapG.banner !== "「空白的稚梦」",
 			JSON.stringify(snapG && snapG.bannerHover));
 	}
 }

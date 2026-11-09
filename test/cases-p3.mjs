@@ -767,32 +767,49 @@ const p3bStripTailArr = (arr) => (arr || []).map((x) => Object.assign({}, x, {
 	title: p3bTextOf(x.title).replace(P3B_EVENT_NAME_TAIL, "").trim(),
 	show: p3bTextOf(x.show).replace(P3B_EVENT_NAME_TAIL, "").trim()
 }));
-// ── 2026-11-09（星塔 A+B）：卡池挑池口径修复的**已批准差异登记** ──────────────────────────────
-// 起因：`30-game-yostar.js` 的挑池排序由「startTs 降序 + id 倒序」改成全仓通用键
-//   （在期里：结束最早 → 起点升序 → **同窗口优先有角色的池** → 文档顺序），并补上每池 `roles`。
-// 10-02 夹具下两池的起点相差 847ms —— 那是 C 项「维护结束后」把各自公告的 publishTime 当锚点
-// （本任务**不修**）造成的，两池因此不是"起止全等"⇒ 按通用键选**最早开始**的那口
-// 「空白的稚梦」（秘纹池）。变化**只有**下面列的这些，键 / ts / tz / source / 条目数一个不变：
-//   · rec.banner   沐于温情笑意中 → 空白的稚梦（外显换池）
-//   · gacha[0]（primary）与 gacha[1]（hover）的 title/show 对调成新的两口
-//   · rec.roles    仍是空（这口是秘纹池，没有角色）—— roles **新增**的证据在 live 夹具
-//   · rec.bannerHover 的行序随之变化（已在 P3B_HOVER_RAW_CHANGED 登记）
-// 逐字值（含 live 11-12 的 `roles=火垂` / `show=火垂` / 悬停折叠）由 `test/cases-p7.mjs` ⑨ 钉住。
-const P3B_STELLA_PICK = {
-	stellasoraGacha: {
-		banner: "「空白的稚梦」",
-		mainTitle: "「空白的稚梦」",
-		extraTitle: "「沐于温情笑意中」：艾蕾"
-	}
+// ── 2026-11-09（星塔 A+B2）：挑池口径再改（**有角色优先**，全局规则）后的**已批准差异登记** ────
+// 起因：上一提交把星塔挑池改成「结束最早 → 起点 → **窗口全等才**优先角色」的星塔特例；用户
+//   2026-11-09 拍板 B：「在期 ⇒ 有角色优先 ⇒ 结束最早 ⇒ 起点升序 ⇒ 文档顺序」是**全局规则**。
+// 10-02 夹具（角色池「沐于温情笑意中」= 艾蕾 / 秘纹池「空白的稚梦」= 睡前童话）：
+//   · rec.banner **回到 golden 的原值**（「沐于温情笑意中」）—— 角色池不再被 847ms 的起点差顶掉
+//     （那 847ms 是 C 项「维护结束后」锚点偏差，本任务不修）；
+//   · 这一轮**新的**变化只有 `rec.roles`（"" → "艾蕾"）：解析器把被选中那口池的 UP 角色写进载荷，
+//     `50-refresh.js` 的主条据此算 show ⇒ `gacha[0].show` 从池名变成「艾蕾」。
+//   · title / 条目数 / key / ts / tz / source / raw 一个不变；bannerHover 的**档期脱漏**仍由
+//     `P3B_HOVER_RAW_CHANGED` 登记（raw 含「维护结束后」⇒ 原文）。
+// 逐字值（live 11-09 的「邂逅源初之剑」/ 11-12 的「乘光而起的星之砂」= 火垂）由 `test/cases-p7.mjs` ⑨ 钉住。
+const P3B_STELLA_ROLES = {
+	stellasoraGacha: { roles: "艾蕾", show: "艾蕾" }
 };
-// 把"改造前"的数组重建成这一轮之后该有的样子：**只改 title / show**（raw / ts / key / source 原样）。
+// 把"改造前"的数组重建成这一轮之后该有的样子：主条**只改 roles / show**（title / raw / ts / key / source 原样）。
 // 反向守卫：重建成与原值相同 ⇒ 说明这条登记已经烂掉（下面单独断言 old !== rebuilt）。
-const p3bStellaPickArr = (arr, fix) => {
+const p3bStellaRoleArr = (arr, fix) => {
 	const out = (arr || []).map((x) => Object.assign({}, x));
-	if (out[0]) Object.assign(out[0], { title: fix.mainTitle, show: fix.mainTitle });
-	if (out[1]) Object.assign(out[1], { title: fix.extraTitle, show: fix.extraTitle });
+	if (out[0]) Object.assign(out[0], { roles: [fix.show], show: fix.show });
 	return out;
 };
+// ── 2026-11-09（用户拍板 B）：显示层挑池改「在期 ⇒ 有角色优先 ⇒ 结束最早 ⇒ 起点升序」的
+//   **有意变化登记**（`81-schedule-model.js` 的 `sideViewOf`）。键 = `<P3b 路径>@<时刻标签>`，
+//   值 = { before, after }：改前 = 旧通用规则（在期里结束最早 → 起点升序 → 数组序）选出的条目标题，
+//   改后 = 现在 `scheduleCellOf` 真正露的那条。两个方向都守：**变了没登记 ⇒ 红；登记了没变 ⇒ 红**
+//   （与 `cases-category.mjs` 的 `EXPECT_PRIMARY[].changed` 同一套契约）。
+//   · 三个时刻各跑一遍（夹具时刻 / 前 2 天 / 后 3 天），覆盖「同一份数组在不同 now 下会不会换池」；
+//   · 带**特化**挑池规则的款（`schedulePickOf` 的 uma 三服 / uma-cn / wuhuamixin）不经过通用分支，
+//     这里显式跳过（它们的外显变化另由各自的断言钉住）。
+const P3B_GACHA_PICK = {
+	// czn（06-25 夹具）：记录自己的外显 = 「赛季限定…（海德玛丽）」（载荷 roles=海德玛丽，数组主条带 roles）；
+	// 旧通用规则按「结束最早」选了 06-10~07-01 的常驻池（黛安娜）—— 它是**并列条**，数组条目上没有 roles。
+	// 新规则「有角色优先」改回记录自己那口 ⇒ 面板与 `banner` / 悬停里那口有角色的池重新一致。
+	// （三个时刻都一样：常驻池的档期整段覆盖这三个 now。）
+	"cznGacha@t0": { before: "常驻主战员营救概率提升（黛安娜）：黛安娜", after: "赛季限定主战员营救概率提升（海德玛丽）" },
+	"cznGacha@t-2d": { before: "常驻主战员营救概率提升（黛安娜）：黛安娜", after: "赛季限定主战员营救概率提升（海德玛丽）" },
+	"cznGacha@t+3d": { before: "常驻主战员营救概率提升（黛安娜）：黛安娜", after: "赛季限定主战员营救概率提升（海德玛丽）" },
+	// r1999（11-07 夹具）：同上 —— 旧规则选 10-27~11-10 的「明日之础」轮换征集（并列条、无 roles），
+	// 新规则选记录自己的「果实的赤红」活动征集（主条、roles = 佩施塔（星）/气球派对（岩）/挖掘艺术（木））。
+	// 另外两个时刻这口池还没开始 / 已结束 ⇒ 两侧都退化成同一口，不登记。
+	"r1999Gacha@t0": { before: "「明日之础」轮换征集", after: "「果实的赤红」活动征集" }
+};
+const P3B_SPECIALIZED_GACHA = ["uma", "uma-jp", "uma-global", "uma-cn", "wuhuamixin"];
 // 时间戳只比类型（口径 = 本机时刻，见 README_Dev「已知不等价①」）；值的相等由 ③ 单独守
 // category / tags 批 1：先摘掉 `category` / `tags`（golden 是改造前的产物，没有这两个键，见文件顶部说明）
 const p3bSansTs = (arr) => JSON.stringify(sansCategoryTags(arr).map((x) => {
@@ -889,17 +906,17 @@ async function runP3b() {
 		// 活动名去尾（2026-11-09）：只放行 `event` / `eventHover` 两个字符串字段
 		const trimTail = P3B_EVENT_NAME_TRIMMED[p.key] === true;
 		const trimFields = trimTail ? ["event", "eventHover"] : [];
-		// 星塔挑池口径修复（2026-11-09）：只放行 `banner` 一个字段，且必须**恰好**等于登记的新池名
-		const stellaPick = P3B_STELLA_PICK[p.key] || null;
-		const pickFields = stellaPick ? ["banner"] : [];
-		check(`P3b golden（${p.key}）：12 个字符串字段与改造前逐字相同（已登记的相对表述悬停 / 活动名去尾 / 星塔挑池除外）`,
+		// 星塔「有角色优先」（2026-11-09 B）：只放行 `roles` 一个字段，且必须**恰好**等于登记的角色名；
+		// banner 必须回到 golden 原值（证明这一轮没有再换池，换的只是 roles 这个事实被如实写出）。
+		const stellaRoles = P3B_STELLA_ROLES[p.key] || null;
+		const pickFields = stellaRoles ? ["roles"] : [];
+		check(`P3b golden（${p.key}）：12 个字符串字段与改造前逐字相同（已登记的相对表述悬停 / 活动名去尾 / 星塔 roles 除外）`,
 			changed.every((f) => approved.includes(f) || trimFields.includes(f) || pickFields.includes(f)), JSON.stringify(changed));
-		if (stellaPick) {
-			// 已批准差异必须**真的变了**、且**只变这一处**：外显换成登记的那口池，别的字段（roles 等）不动。
-			check(`P3b golden（${p.key}）**已批准差异**：外显换成 ${stellaPick.banner}（挑池口径修复；roles 仍为空 = 秘纹池）`,
-				changed.includes("banner") && p3bTextOf(r.rec.banner) === stellaPick.banner
-				&& p3bTextOf(g.rec.banner) !== stellaPick.banner && p3bTextOf(r.rec.roles) === p3bTextOf(g.rec.roles),
-				JSON.stringify([changed, p3bTextOf(r.rec.banner), p3bTextOf(g.rec.banner), p3bTextOf(r.rec.roles)]));
+		if (stellaRoles) {
+			check(`P3b golden（${p.key}）**已批准差异**：roles = ${stellaRoles.roles}（挑池改「有角色优先」⇒ 选中角色池），banner 仍是 golden 原值`,
+				changed.includes("roles") && !changed.includes("banner")
+				&& p3bTextOf(r.rec.roles) === stellaRoles.roles && p3bTextOf(r.rec.banner) === p3bTextOf(g.rec.banner),
+				JSON.stringify([changed, p3bTextOf(r.rec.roles), p3bTextOf(r.rec.banner)]));
 		}
 		if (approved.length) {
 			// 已批准差异必须**真的发生**，且是"原文分支"（用产品同一份判据，不另写词表）：
@@ -927,23 +944,86 @@ async function runP3b() {
 		const arr = r.rec[p.field] || [];
 		// 活动名去尾（2026-11-09）：golden 数组里的 title / show 带「活动说明」⇒ 去掉同一个尾巴后再比，
 		// 其余键（键序 / 顺序 / source / phase）仍然**逐字**不变。
-		// 星塔挑池（2026-11-09）：主条/并列条的 title / show 按登记表重建后再比（raw / ts / key 一个不动）。
+		// 星塔 roles（2026-11-09 B）：主条的 roles / show 按登记表重建后再比（title / raw / ts / key 一个不动）。
 		// ⚠️ golden 里存的是**已归一 ts 的 JSON 字符串**（见顶部说明）⇒ 先反解、改造、再序列化回去。
 		const gArrRaw = JSON.parse(g.array);
 		const gArr = trimTail ? JSON.stringify(p3bStripTailArr(gArrRaw))
-			: (stellaPick ? JSON.stringify(p3bStellaPickArr(gArrRaw, stellaPick)) : g.array);
+			: (stellaRoles ? JSON.stringify(p3bStellaRoleArr(gArrRaw, stellaRoles)) : g.array);
 		check(`P3b golden（${p.key}）：\`${p.field}\` 非时间字段逐字不变（键序 / 顺序 / source / phase 全等）`,
 			p3bSansTs(arr) === sansCategoryTagsJson(gArr), p3bSansTs(arr));
-		if (stellaPick) {
+		if (stellaRoles) {
 			// 反向守卫：登记的"重建"必须真的改了东西（否则这条白名单会烂掉、将来真变了也发现不了）
-			check(`P3b golden（${p.key}）**已批准差异**：数组只是"换主条"（old != rebuilt，且条目数不变）`,
-				JSON.stringify(gArrRaw) !== JSON.stringify(p3bStellaPickArr(gArrRaw, stellaPick))
+			check(`P3b golden（${p.key}）**已批准差异**：数组只是"主条写出 roles/show"（old != rebuilt，且条目数不变）`,
+				JSON.stringify(gArrRaw) !== JSON.stringify(p3bStellaRoleArr(gArrRaw, stellaRoles))
 				&& gArrRaw.length === arr.length, JSON.stringify([gArrRaw.length, arr.length]));
 		}
 		check(`P3b golden（${p.key}）：数组非空（解析器真的直出了，而不是悄悄退回空数组）`,
 			arr.length > 0 || !!p.emptyOk, String(arr.length));
 	}
 
+	// ══════════════════════════════════════════════════════════════════════════
+	// P3b ④ 显示层挑池（2026-11-09 用户拍板 B）：逐路径 × 三个时刻，把「外显会不会变」逐条登记。
+	//   入口是**真** `T.sideViewOf(..., "gacha", id)`（面板那一格真正用的那个函数），
+	//   改前的值由 `oldGachaPickOf` 复算同一个数组（旧通用规则），只用来做 before/after 对照。
+	// ══════════════════════════════════════════════════════════════════════════
+	section("P3b ④：显示层挑池改「有角色优先」—— 逐路径 × 三时刻外显变化（改前 → 改后，逐条登记）");
+	{
+		const DAY = 864e5;
+		// 旧通用规则（改动前 `sideViewOf` 的 gacha 分支）：在期里结束最早 → 起点升序 → 数组原顺序。
+		const oldGachaPickOf = (list, at) => {
+			const arr = Array.isArray(list) ? list : [];
+			if (!arr.length) return null;
+			const live = arr.filter((x) => x && x.startTs != null && x.endTs != null && x.startTs <= at && x.endTs >= at);
+			if (!live.length) return arr[0];
+			const startOf = (x) => (x.startTs == null ? Infinity : x.startTs);
+			return live.reduce((a, b) => (b.endTs < a.endTs || (b.endTs === a.endTs && startOf(b) < startOf(a)) ? b : a));
+		};
+		const MOMENTS = [
+			["t0", (p) => p.now],
+			["t-2d", (p) => p.now - 2 * DAY],
+			["t+3d", (p) => p.now + 3 * DAY]
+		];
+		let dumps = 0;
+		for (const p of P3B_PATHS) {
+			const r = results[p.key];
+			if (!r || p.field !== "gacha") continue;
+			const arr = r.rec.gacha || [];
+			const specialized = P3B_SPECIALIZED_GACHA.includes(p.id);
+			for (const [label, atOf] of MOMENTS) {
+				const at = atOf(p);
+				const got = T.sideViewOf(arr, new Date(at), "gacha", p.id);
+				const after = got.primary ? got.primary.title : null;
+				const oldOne = specialized ? got.primary : oldGachaPickOf(arr, at);
+				const before = oldOne ? oldOne.title : null;
+				const regKey = p.key + "@" + label;
+				const reg = P3B_GACHA_PICK[regKey];
+				const changed = before !== after;
+				if (process.env.P3B_DUMP && changed) console.log("PICK", regKey, JSON.stringify([before, after]));
+				dumps++;
+				if (specialized) {
+					// 特化规则不经过通用分支 ⇒ 任何时刻都必须 before === after（通用规则改不到它们）
+					check(`P3b ④ 特化款不受影响（${regKey}）：外显与其特化规则一致（${JSON.stringify(after)}）`,
+						before === after, JSON.stringify([before, after]));
+					continue;
+				}
+				if (reg) {
+					check(`P3b ④ **已登记变化**（${regKey}）：改前 ${JSON.stringify(reg.before)} → 改后 ${JSON.stringify(reg.after)}`,
+						changed && before === reg.before && after === reg.after, JSON.stringify([before, after]));
+				} else {
+					check(`P3b ④ 未登记即不许变（${regKey}）：外显仍是 ${JSON.stringify(after)}`,
+						!changed, JSON.stringify([before, after]));
+				}
+			}
+		}
+		// 反向守卫：登记表里的每个键都必须真的跑到（路径改名 / 被删 ⇒ 白名单不许空转）
+		const seenKeys = new Set();
+		for (const p of P3B_PATHS) {
+			if (p.field !== "gacha") continue;
+			for (const [label] of MOMENTS) seenKeys.add(p.key + "@" + label);
+		}
+		const stale = Object.keys(P3B_GACHA_PICK).filter((k) => !seenKeys.has(k));
+		check("P3b ④ 登记表的键都跑到了（没有过期条目）", stale.length === 0, JSON.stringify(stale));
+	}
 	// ── 反向断言（三款之二：FGO / 物华弥新）──────────────────────────────────────────
 	// 这两款的 raw 两端本来就是绝对时刻（`2026年9月22日(周二) 19:00 ~ …` / `09-23 10:00 ~ …`）
 	// ⇒ 悬停**逐字不变**（仍格式化）。用产品同一份判据证明"没触发原文分支"，不是再抄一份词表。
@@ -974,13 +1054,13 @@ async function runP3b() {
 		}
 		// 活动名去尾（2026-11-09）：旧合成结果里的 title/show 带「活动说明」⇒ 去掉同一个尾巴后再逐条比。
 		// ⚠️ 只动 title / show 两个键，startTs / endTs / raw / source / 顺序**一个都不许变**。
-		// 星塔挑池（2026-11-09）：主条/并列条的 title / show 按登记表重建（同样只动这两个键），
+		// 星塔 roles（2026-11-09 B）：主条的 roles / show 按登记表重建（只动这两个键），
 		// 并由下面的反向守卫证明"重建后确实与旧值不同"（白名单不许空转）。
-		const stellaFix = P3B_STELLA_PICK[p.key] || null;
+		const stellaFix = P3B_STELLA_ROLES[p.key] || null;
 		let expectArr = P3B_EVENT_NAME_TRIMMED[p.key] === true ? p3bStripTailArr(oldArr) : oldArr;
 		if (stellaFix) {
-			expectArr = p3bStellaPickArr(oldArr, stellaFix);
-			check(`P3b 等价（${p.key}）**已批准差异**：改造前的合成结果重建后与旧值不同（挑池修复真的生效）`,
+			expectArr = p3bStellaRoleArr(oldArr, stellaFix);
+			check(`P3b 等价（${p.key}）**已批准差异**：改造前的合成结果重建后与旧值不同（roles 如实写出真的生效）`,
 				JSON.stringify(oldArr) !== JSON.stringify(expectArr), JSON.stringify([oldArr, expectArr]));
 		}
 		check(`P3b 等价（${p.key}）：\`${p.field}\` 与改造前的合成结果逐条相等（含 ts）`,

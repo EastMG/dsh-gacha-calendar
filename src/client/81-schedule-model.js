@@ -232,15 +232,28 @@
 		//          视为已开始；或 `startTs <= now`）。这条与 selectCurrent 的 `inWindow` 等价
 		//          —— 它多认一个"起点被 fillMissingStarts 补过、补出来的值 > now"的分支，
 		//          那种池的真实起点是"版本更新后"（已上线），数组里同样表现为 startTs <= now 或缺失。
-		//       ② 在期的里取**结束最早**的那条（越快结束越该被盯住）。
-		//       ③ 并列按起点升序（selectCurrent 用稳定排序 + endTs 单键；数组已按
-		//          endTs → startTs 排好 ⇒ 等价于"数组里第一条在期的"）。
-		//       ④ 一条都不在期（沿用旧值 / 已结束）⇒ 取数组首条 = 结束最早的那条。
+		//       ② 在期的里**优先有角色的池**（2026-11-09 用户拍板 B，全局规则）—— 卡池侧最常见的
+		//          「无角色池」是星塔的秘纹池 / 星铁的光锥池 / 原神的武器池，它们常比角色池更早结束，
+		//          只按「结束最早」会把它们顶到外显、面板首行只剩池名（没有角色可看）。
+		//          在期里一条带角色的都没有 ⇒ 退回下一档，行为与改动前一个字不差。
+		//       ③ 同一档里取**结束最早**的那条（越快结束越该被盯住）。
+		//       ④ 并列按起点升序（selectCurrent 用稳定排序 + endTs 单键；数组已按
+		//          endTs → startTs 排好 ⇒ 等价于「数组里第一条在期的」）；再并列 ⇒ 数组原顺序。
+		//       ⑤ 一条都不在期（沿用旧值 / 已结束）⇒ 取数组首条 = 结束最早的那条。
 		//          老实现的外显那条本来就是结束最早的那条，不凭 now 另造一条。
 		//
 		// ⚠️ 但**通用规则**只对大多数来源成立。下面几款的老实现各有一套排序键（赛马娘按
 		//    "覆盖 now + startTs 最新"、FGO 按源站类型列、战双按自己的类别词表……），
 		//    要"零可见变化"就必须逐字对齐它们 ⇒ 见 `schedulePickOf` 的分派表。
+
+		// 「这口池有角色」：`roles` 两种形状都认 —— `string`（旧缓存 / 手工数据）或 `string[]`
+		// （P1 之后数据层的形状）。空白串 / 空数组 / 缺键一律算「没有角色」。
+		// 卡池侧挑池的第一档（2026-11-09 B，全局规则）就吃它；后面的渲染一步不动。
+		function scheduleHasRoles(x) {
+			const r = x && x.roles;
+			if (Array.isArray(r)) return r.some((v) => String(v == null ? "" : v).trim() !== "");
+			return String(r == null ? "" : r).trim() !== "";
+		}
 		function sideViewOf(items, now, side, gameId) {
 			const list = Array.isArray(items) ? items : [];
 			const at = now && typeof now.getTime === "function" ? now.getTime() : Number(now) || 0;
@@ -272,8 +285,18 @@
 			} else {
 				// 在期 = 两端都明确且覆盖 now（`coversNow` 唯一真源；2026-11-09 起**起点未知不算已开始**）
 				const live = list.filter((x) => coversNow(x, at));
-				primary = live.length
-					? live.reduce((a, b) => (b.endTs < a.endTs || (b.endTs === a.endTs && startOf(b) < startOf(a)) ? b : a))
+				// ⚠️ 2026-11-09（用户拍板 B，**全局规则**）：在期里面，**有角色的池优先**，同档再比时间。
+				// 为什么要有这一档：卡池侧最常见的"无角色池"是星塔的秘纹池 / 星铁的光锥池 / 原神的武器池
+				// ——它们往往比角色池更早结束，只按"结束最早"会把它们顶到外显，面板首行只剩池名（没有
+				// 角色可看）。用户要的是：这一期里该露的是"能抽到角色"的那口池，角色池之间才比谁先到期。
+				// 判定必须两种形状都认：`roles` 可能是 `string`（旧缓存 / 手工数据）或 `string[]`（P1 之后）。
+				// 全都没角色（或都没有 roles 字段）⇒ 退回原来的"结束最早 → 起点升序"，一个字不变。
+				const pool = (() => {
+					const withRoles = live.filter(scheduleHasRoles);
+					return withRoles.length ? withRoles : live;
+				})();
+				primary = pool.length
+					? pool.reduce((a, b) => (b.endTs < a.endTs || (b.endTs === a.endTs && startOf(b) < startOf(a)) ? b : a))
 					: list[0];
 			}
 			if (!primary) return { primary: null, rest: list.slice() };

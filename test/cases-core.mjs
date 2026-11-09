@@ -647,6 +647,23 @@ export default async function runCore() {
 			T.sideViewOf([gTieA, gTieB], NOW, "gacha").primary === gTieB);
 		check("sideViewOf(gacha)：一条都不在期 ⇒ 取数组首条（= 结束最早的那条），不凭 now 另造一条",
 			T.sideViewOf([gEnded], NOW, "gacha").primary === gEnded);
+
+		// ⚠️ 2026-11-09（用户拍板 B，全局规则）：在期里**有角色的池优先**，同档再比「结束最早 → 起点升序」。
+		// 卡池侧常见的无角色池：星塔秘纹池 / 星铁光锥池 / 原神武器池 —— 它们结束得更早也不该抢首行。
+		// `roles` 两种形状都要认：`string[]`（P1 之后的数据层）与 `string`（旧缓存 / 手工数据）。
+		const gRoleLate = mk({ key: "roleLate", title: "角色池", roles: ["火垂"], startTs: at("2026-10-01"), endTs: at("2026-10-20") });
+		const gPlainSoon = mk({ key: "plainSoon", title: "无角色池", roles: [], startTs: at("2026-09-28"), endTs: at("2026-10-04") });
+		check("sideViewOf(gacha)：在期里**有角色的池优先**（无角色池结束更早也不抢首行；roles = string[]）",
+			T.sideViewOf([gPlainSoon, gRoleLate], NOW, "gacha").primary === gRoleLate,
+			JSON.stringify(T.sideViewOf([gPlainSoon, gRoleLate], NOW, "gacha").primary && T.sideViewOf([gPlainSoon, gRoleLate], NOW, "gacha").primary.title));
+		const gRoleStr = mk({ key: "roleStr", title: "旧缓存角色池", roles: "火垂、缇莉娅", startTs: at("2026-10-01"), endTs: at("2026-10-20") });
+		check("sideViewOf(gacha)：`roles` 是**字符串**（旧缓存形状）也照样认",
+			T.sideViewOf([gPlainSoon, gRoleStr], NOW, "gacha").primary === gRoleStr);
+		check("sideViewOf(gacha)：在期里一个带角色的都没有 ⇒ 退回旧口径（结束最早），行为与改动前一字不差",
+			T.sideViewOf([gSoon, gLate], NOW, "gacha").primary === gSoon);
+		const gRoleEnded = mk({ key: "roleEnded", title: "已结束角色池", roles: ["火垂"], startTs: at("2026-09-01"), endTs: at("2026-09-20") });
+		check("sideViewOf(gacha)：角色优先只在**在期**里生效（已结束的角色池不参选）",
+			T.sideViewOf([gRoleEnded, gPlainSoon], NOW, "gacha").primary === gPlainSoon);
 		const srcList = [gLate, gSoon];
 		T.sideViewOf(srcList, NOW, "gacha");
 		check("sideViewOf：纯函数 —— 不改输入数组（内容与顺序都不动）",

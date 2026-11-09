@@ -278,35 +278,29 @@ function ns_stellasora_parseStellaList(json, orderBase = 0) {
 		.sort((a, b) => (b.publishTs || 0) - (a.publishTs || 0));
 }
 
-// ── 卡池挑池的排序键（**全仓通用口径** + 星塔唯一一条特例）──────────────────────
-// 通用口径（与 `50-refresh.js` 的 `dataArraySortOf`、`81-schedule-model.js` 的 `sideViewOf`、
-// `26-parser-hover.js` 的 `poolHoverOrderOf` **同一个键**）：
-//     在期里「结束最早」→「起点升序」→「文档顺序」
+// ── 卡池挑池的排序键（**全仓通用口径**：在期 ⇒ 有角色优先 ⇒ 结束最早 ⇒ 起点升序 ⇒ 文档顺序）──
+// 用户 2026-11-09 拍板 B（**全局规则**，不是星塔特例）：在期的池里**有角色的优先**，同档再比时间。
+//   · 有角色优先：星塔的秘纹池 / 星铁的光锥池 / 原神的武器池都没有角色（`roles` 空），
+//     它们即使结束得更早也不该顶掉角色池 —— 否则面板首行只剩池名（用户看到的就是这一条）。
 //   · 结束最早：越快结束越该被盯住；
-//   · 起点升序：同一结束时间里先开始的那池已经开着了（不是"下一个"）；
-//   · 文档顺序：两键全等时按解析时的**原始行序**（`row.order`），不是 id 倒序。
+//   · 起点升序：同一结束时间里先开始的那池已经开着了（不是「下一个」）；
+//   · 文档顺序：时间键全等时按解析时的**原始行序**（`row.order`），不是 id 倒序。
 //     ⚠️ 旧实现就是 `b.row.id - a.row.id`（id 大者胜 = 谁后发谁上），这正是 P0 的根因之一。
 //
-// 星塔特例（插在"起点也相同"之后、"文档顺序"之前）：**窗口完全相同时优先"有角色的池"**。
-//   为什么必须特例：源站把「角色池」和「秘纹池」写成**同一段档期**（live 11-09 实测：
-//   「乘光而起的星之砂」角色池 = 火垂 与「若能触及那片繁星」秘纹池 = 星之所向，
-//   两池都是 `2026/10/27 12:00 ~ 2026/11/17 10:59`，绝对时刻逐毫秒相同）。
-//   此时"结束/起点"两键全等 ⇒ 只剩文档顺序能分胜负，而文档顺序 = 谁先发谁上 ⇒
-//   一个**秘纹池**会顶掉角色池当外显、角色池被挤成并列条（用户看到的正是这一条）。
-//   窗口全等 ⇒ 两池对用户就是"同一期"，这一期该露的是**带角色的**那口：角色池有角色名，
-//   秘纹池只有池名，信息量严格更大。**窗口不等时不插手** —— 那样的两池是不同的一期，
-//   "结束最早 → 起点升序"仍是唯一口径（10-02 夹具就是这种：两池起点因 C 项的锚点偏差
-//   相差 847ms，故按通用口径选早开始的那池，与悬停首行一致）。
+// ⚠️ 这一把尺只决定**记录里的外显那口池**（`banner` / `roles` / 悬停首行的来源）；数组与悬停的
+//    **行序**仍由 `poolHoverOrderOf`（结束时间升序）决定 —— 两者不是同一个问题，本任务不改数组顺序
+//    （解析器只负责把事实按自然顺序摆好，谁是外显由显示层 + 这一处挑池决定）。
+//    `covering` 进来前已经过滤成「覆盖 now」，所以这里的「在期」是隐含的。
 function ns_stellasora_stellaPickOrderOf(a, b) {
+	const ra = a.roles ? 1 : 0;
+	const rb = b.roles ? 1 : 0;
+	if (ra !== rb) return rb - ra;   // 有角色的池在前（先于任何时间键）
 	const ea = a.win.endTs == null ? Infinity : a.win.endTs;
 	const eb = b.win.endTs == null ? Infinity : b.win.endTs;
 	if (ea !== eb) return ea - eb;
 	const sa = a.win.startTs == null ? Infinity : a.win.startTs;
 	const sb = b.win.startTs == null ? Infinity : b.win.startTs;
 	if (sa !== sb) return sa - sb;
-	const ra = a.roles ? 1 : 0;
-	const rb = b.roles ? 1 : 0;
-	if (ra !== rb) return rb - ra;   // 有角色的池在前
 	return (a.row.order == null ? 0 : a.row.order) - (b.row.order == null ? 0 : b.row.order);
 }
 
@@ -363,7 +357,7 @@ async function ns_stellasora_collectStellaSide(url, signal, tz, now, side) {
 		if (ns_stellasora_seenEndedPeriod(candidates, now)) break;   // 已经扫到上一期 ⇒ 不再翻页
 	}
 	if (candidates.length === 0) return null;
-	// 覆盖 now 的里，取「结束最早 → 起点升序 → （同窗口：有角色的池优先）→ 文档顺序」的那条（B 项）。
+	// 覆盖 now 的里，取「有角色优先 → 结束最早 → 起点升序 → 文档顺序」的那条（B 项，全局规则）。
 	// 活动侧的挑法是既有口径（起点最新，并列时终点更晚），本任务不动它；只把 id 倒序换成文档顺序。
 	const covering = candidates.filter((c) => coversNow(c.win, now));
 	if (covering.length === 0) return null;

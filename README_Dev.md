@@ -489,7 +489,7 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 
 | 函数 | 做什么 | 规则来源 |
 |---|---|---|
-| `sideViewOf(items, now, side, gameId?)` | 数组 → `{ primary, rest }`（`primary` = 这一格外显的那条，`rest` = 其余、**保持数组原顺序**；数组空 ⇒ `primary = null`） | 第 4 个参数命中**按游戏分派表**（见下）⇒ 走特化规则；**不传 gameId = 通用规则**：<br>**event**：`25-parser-order.js` 的 `pickEventPrimary`（claim 优先 → 类别档位（`category`/`tags` 读得到就用）→ endTs → startTs）。数组条目叫 `title`、`phase` 是对象 ⇒ 调用前做一层**只读适配**（`name = title`、`phase = phase.kind`），规则本体一个字不改。<br>**gacha**：`24-parser-window.js` 的 `selectCurrent` —— ① 只在**在期**的池里挑（`endTs >= now` 且起点缺失或 `<= now`，起点缺失 = 源站写「X.Y 版本更新后」⇒ 视为已开始）；② 在期的里取**结束最早**；③ 并列按起点升序；④ 一条都不在期 ⇒ 取数组首条（= 结束最早的那条，不凭 now 另造） |
+| `sideViewOf(items, now, side, gameId?)` | 数组 → `{ primary, rest }`（`primary` = 这一格外显的那条，`rest` = 其余、**保持数组原顺序**；数组空 ⇒ `primary = null`） | 第 4 个参数命中**按游戏分派表**（见下）⇒ 走特化规则；**不传 gameId = 通用规则**：<br>**event**：`25-parser-order.js` 的 `pickEventPrimary`（claim 优先 → 类别档位（`category`/`tags` 读得到就用）→ endTs → startTs）。数组条目叫 `title`、`phase` 是对象 ⇒ 调用前做一层**只读适配**（`name = title`、`phase = phase.kind`），规则本体一个字不改。<br>**gacha**：`24-parser-window.js` 的 `selectCurrent` 的**时间口径** + 2026-11-09 用户拍板 B 的**角色优先** —— ① 只在**在期**的池里挑（`endTs >= now` 且起点缺失或 `<= now`，起点缺失 = 源站写「X.Y 版本更新后」⇒ 视为已开始）；② 在期的里**优先有角色的池**（`roles` 非空；`string[]` 与 `string` 两种形状都认，见 `scheduleHasRoles`）；③ 同一档里取**结束最早**；④ 并列按起点升序；⑤ 一条都不在期 ⇒ 取数组首条（= 结束最早的那条，不凭 now 另造） |
 | `scheduleItemOf(g, side, item, now)` | 数组条目 → 与 `scheduleNormalize` **同形**的渲染条目 | 记录自己那条外显（`item.title` == 记录的 `banner`/`event`）**直接走 `scheduleNormalize`** —— 卡池侧档期优先用记录里的绝对 `startTs/endTs`、活动侧走「源站原文 + tz」换算，数组里没有这两样（P1 只存 `raw` 与本机时刻），从数组重算会在 `TZ≠+08` 的机器上差一个时区。并列条目按 `startTs/endTs/raw` 组装（与今天 `scheduleHoverOnes` 同形）；两端都读不出 ⇒ `null`（与 `if (!r) continue` 一致） |
 | `scheduleCellOf(g, side, now)` | 一格的**全部**条目 `{ primary, rest, fromArray }`；`null` = 这一侧没数据 | 有数组 ⇒ 上面两步（`fromArray = true`），并把 `g.id` 传给 `sideViewOf` 以命中的规则表；**数组不可用 ⇒ 兼容分支**（`fromArray = false`）：今天的老路（`scheduleNormalize` + 解析悬停文本），代码逐字搬自 P2 之前的 `82-schedule-view.js`。什么时候走到：老 `lastData`（P1 之前的缓存，归一后是空数组）/ 这一侧本来没数据 / 数组非空但派生不出主条（极端）|
 
@@ -1061,26 +1061,39 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
   原先那几条"已批准差异"断言已删除。
 
 
-### 星塔旅人：卡池挑池口径 + 扫描深度（2026-11-09）
+### 卡池侧挑池：全局「有角色优先」（2026-11-09 用户拍板 B）+ 星塔扫描深度 50
 
-- **挑池排序键**（`30-game-yostar.js` 的 `ns_stellasora_stellaPickOrderOf`，与全仓 `dataArraySortOf` /
-  `sideViewOf` / `poolHoverOrderOf` **同一个键**）：在期里「结束最早」→「起点升序」→「**同窗口时优先有角色的池**」
-  →「文档顺序」（解析时记下的原始行序 `row.order`；旧实现用 `id` 倒序兜底 = 谁后发谁上，已删除）。
-- **为什么要"同窗口优先角色"这一条**：源站把**角色池**（「5星旅人」）与**秘纹池**（「5星秘纹」）写成**同一段档期**
-  （live 11-09：「乘光而起的星之砂」= 火垂 与「若能触及那片繁星」= 星之所向，两池都是
-  `2026/10/27 12:00 ~ 2026/11/17 10:59`，绝对时刻逐毫秒相同）。此时"结束/起点"两键全等 ⇒ 只剩文档顺序能分胜负
-  ⇒ 秘纹池会顶掉角色池当外显、角色池被挤成并列条。窗口**不全等**时不插手（那两池是不同的一期）。
-- **扫描深度**：一页 **50 条**（`STELLA_SCAN_SIZE`），且**只在还没扫到"上一期已结束"**（本页出现 `endTs < now`
-  的档期）时才翻第 2 页，最多 2 页（`STELLA_SCAN_PAGES`）。注册表 url 里的 `size=20` 只是地址模板，
-  `ns_stellasora_stellaPageUrl` 统一改写 `size`/`index`（用户改地址也压不低扫描深度）。
+- **规则（全仓）**：卡池侧挑池 = **在期 ⇒ 有角色优先 ⇒ 结束最早 ⇒ 起点升序 ⇒ 数组原顺序**。
+  · 显示层唯一落点：`81-schedule-model.js` 的 `sideViewOf`（gacha 通用分支；`schedulePickOf` 的特化款
+    仍走各自规则，不受影响）；「有角色」= `roles` 非空，`string[]`（P1 之后）与 `string`（旧缓存）两种
+    形状都认（`scheduleHasRoles`）。
+  · 星塔**记录自己**的外显（`banner/roles/bannerHover` 的那口池）由 `30-game-yostar.js` 的
+    `ns_stellasora_stellaPickOrderOf` 用**同一把尺**挑；数组与悬停的**行序**仍由 `poolHoverOrderOf`
+    （档期序）决定，本轮**不改**数组顺序。
+- **为什么需要它**：卡池侧最常见的「无角色池」是星塔秘纹池 / 星铁光锥池 / 原神武器池 —— 它们常比角色池
+  更早结束，只按「结束最早」会把它们顶到外显 ⇒ 面板首行只剩池名（没有角色可看）。有角色池之间才比时间。
+- **数据层的现实（别误读）**：数组里**只有主条带 `roles`**（`dataArrayExtrasFromEntriesOf` 只给并列条
+  title / show / ts / raw），所以这条规则实际等价于「在期里优先记录自己那口主条（它有角色时）」——
+  面板因此与 `banner` / 悬停里那口有角色的池一致。逐路径 × 三时刻的**有意变化**登记在
+  `test/cases-p3.mjs` 的 `P3B_GACHA_PICK`（czn ×3、r1999 ×1；都是「面板从无角色的并列条改回记录自己
+  那口角色池」）。
+- **星塔挑池键**（`ns_stellasora_stellaPickOrderOf`）：roles 是第一档（不再是「窗口全等才插手」的星塔特例）
+  → 结束最早 → 起点升序 → 文档顺序（`row.order`；旧的 `id` 倒序已删）。
+- **扫描深度**：一页 **50 条**（`STELLA_SCAN_SIZE`），且**只在还没扫到「上一期已结束」**（本页出现
+  `endTs < now` 的档期）时才翻第 2 页，最多 2 页（`STELLA_SCAN_PAGES`）。注册表 url 里的 `size=20`
+  只是地址模板，`ns_stellasora_stellaPageUrl` 统一改写 `size`/`index`（用户改地址也压不低扫描深度）。
 - **roles**：每个池条目都写 `roles`（只收「5星旅人」= 角色；秘纹池留空），主条 `roles` 由解析器直接给，
   不再靠 `50-refresh.js` 从 `rec.roles` 反算 ⇒ `show` 有角色时是去修饰的角色名、秘纹池退回池名。
 - **已知偏差（C 项，本任务不修）**：起点写「维护结束后」时用**该公告的 `publishTime`** 当锚点
-  ⇒ 同批两篇公告的 `publishTime` 差 <1 秒时，两池 `startTs` 不等，**不算"同一窗口"**，
-  按通用键选最早开始的那口（10-02 夹具就是这样：外显 =「空白的稚梦」）。
-- **回归**：`test/cases-p7.mjs` ⑨（含 live 11-09 / 11-12 两份夹具、扫描深度 / 翻页 / 最多 2 页的反向接线点）；
-  `test/cases-p3.mjs` 的 `P3B_STELLA_PICK` 登记了 10-02 夹具的"已批准差异"（golden 保持"改造前"原值）。
-
+  ⇒ 同批两篇公告的 `publishTime` 差 <1 秒时，两池 `startTs` 不等（10-02 夹具就是这样）。新口径下
+  两池分别是角色池「沐于温情笑意中」（艾蕾）与秘纹池「空白的稚梦」⇒ 角色池胜出（banner 回到 golden 原值）。
+- **回归**：`test/cases-p7.mjs` ⑨（live 11-09 / 11-12 两份夹具、扫描深度 / 翻页 / 最多 2 页的反向接线点）；
+  `test/cases-p3.mjs` 的 `P3B_STELLA_ROLES` 登记 10-02 的「roles 如实写出」（`艾蕾`；banner 不变），
+  `P3B_GACHA_PICK` 登记显示层的逐路径变化。
+  ⚠️ live **11-09 外显 = 「邂逅源初之剑」**（`5星旅人「尘沙(源初)」`，10-20 批、~11-10 10:59）：它也是
+  角色池、且比 10-27 的「乘光而起的星之砂」（~11-17）更早到期 ⇒ 按这把尺就该它先露。任务书原先预期
+  11-09 露「乘光而起的星之砂」，但 4930 的正文写的是 5★**旅人**（不是秘纹池）——这条事实已在
+  `test/cases-p7.mjs` 的断言注释里写明。
 
 ### ba-cn 跳过「临时」维护公告（2026-11-09）
 
