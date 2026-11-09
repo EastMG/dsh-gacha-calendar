@@ -10,7 +10,10 @@
 //   ④ 单侧失败不影响另一侧（卡池详情 500 ⇒ gachaFail=down，event 照常产出）；
 //   ⑤ `hlr` 卡池 + 活动：真夹具 `hlr-official-list` + 3 篇详情，逐字断言 画廊名 / SSR 画灵 / 起止；
 //   ⑥ `hlr` 缺年份补年：真跨年夹具 `hlr-official-detail-20251229`（2025-12-27 ~ 2026-01-05）；
-//   ⑦ 反向证明（纯函数）：把关键标记拿掉 ⇒ 解析器**返回空**，不是硬凑一条。
+//   ⑦ 反向证明（纯函数）：把关键标记拿掉 ⇒ 解析器**返回空**，不是硬凑一条；
+//   ⑧ `hlr` **真机现状**（2026-11-09）：官网新闻首页最新一篇 = 2026-11-05「怪谈：时融」，
+//      该期 11-07 05:00 已结束 ⇒ 卡池/活动都如实 null。这条钉的是「nomatch = 活动空窗期，
+//      不是解析坏了」：⑤ 用的是**期内的 now（11-05 12:00）**，只看 ⑤ 会误以为真机也出数据。
 //
 // 夹具全部真抓（2026-11-09 晚），裁剪规则写在各自 `response.txt.meta.json` 的 `trim` 字段里。
 // 时间断言一律写绝对毫秒（`Date.UTC` 手算），UTC 与 +08 两道门禁跑同一份期望值。
@@ -308,5 +311,32 @@ export default async function runWdHlr() {
 		check("hlr 反证：只有一个时刻（`10月31日09:30起`）⇒ 不是窗口",
 			HLR.hlrWindowsOf("10月31日09:30起，活动开放探索。", 2026, TZ_CN).length === 0,
 			String(HLR.hlrWindowsOf("10月31日09:30起，活动开放探索。", 2026, TZ_CN).length));
+	}
+
+	// ─────────────────────⑧ 真机现状：官网活动空窗期 ⇒ 如实 null ─────────────────────
+	// 2026-11-09 23:1x 真机复测（宿主代理、真响应）：列表 24,505 B / 6 条，最新详情 24,569 B，
+	// artTitle / artDate（时间：2026-10-31）/ artText 全部命中，`怪谈：时融` 解析正常 ——
+	// 但该期档期 10-31 09:30 ~ 11-07 05:00 **已经结束**，此刻官网没有覆盖 now 的窗口
+	// （首页最新一篇仍是 2026-11-05）。按全仓口径不拿过期档期顶 ⇒ 返回 null（未公布）。
+	// 这一节就是「真机刷新看到未公布」的机器证据：它守的是行为（不硬凑），不是源站某一天的内容。
+	section("时空中的绘旅人 ⑧：真机现状（2026-11-09）官网最新一期已结束 ⇒ 卡池/活动都如实 null");
+	{
+		const NOW_REAL = Date.parse("2026-11-09T23:15:00+08:00");
+		const e = engineAt(NOW_REAL);
+		const s = e.__test.SOURCES.find((x) => x.id === "hlr");
+		let g = "not-run", gErr = "", ev = "not-run", evErr = "";
+		try { g = await e.__test.GACHA_FETCHERS["hlr"](s.url, undefined, s.tz); }
+		catch (e2) { gErr = String((e2 && e2.message) || e2); }
+		try { ev = await e.__test.EVENT_FETCHERS["hlr"].default(s.eventUrl, undefined, s.tz); }
+		catch (e3) { evErr = String((e3 && e3.message) || e3); }
+		check("hlr 真机现状：解析链路正常但最后一期 11-07 05:00 已结束 ⇒ 卡池如实 null（不抛错 = 不记失败）",
+			g === null && gErr === "", gErr || JSON.stringify(g));
+		check("hlr 真机现状：活动侧同样如实 null（不拿过期档期顶）",
+			ev === null && evErr === "", evErr || JSON.stringify(ev));
+		// 对照：同一批夹具、只把 now 挪回期内（11-05 12:00）就有数据 ⇒ 差异只来自时间，不是解析。
+		const e2 = engineAt(NOW_HLR);
+		const g2 = await e2.__test.GACHA_FETCHERS["hlr"](s.url, undefined, s.tz);
+		check("hlr 对照：同一批夹具在期内 now（11-05 12:00）⇒ 怪谈：时融 有数据（差异只来自时间）",
+			!!g2 && g2.banner === "怪谈：时融", JSON.stringify(g2 && g2.banner));
 	}
 }
