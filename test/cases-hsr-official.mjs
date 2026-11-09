@@ -116,8 +116,11 @@ export default async function run() {
 			&& g.map((x) => x.key).join(",") === "hsr:gacha:0,hsr:gacha:1,hsr:gacha:2"
 			&& g.every((x) => x.tz === TZ_CN),
 			JSON.stringify(g.map((x) => [x.key, x.source, x.tz])));
-		check("悬停 = 2 口池（每口「池名：角色 ⏎ 档期」）",
-			!!d && d.bannerHover === "「沧海萃珠」角色活动跃迁：真珠（欢愉•冰）\n09-28 10:00 ~ 11-10 15:00\n"
+		// 2026-11-09（悬停档期改口径，用户拍板）：起点是相对表述「4.6版本更新后」⇒ 悬停**逐字写源站原文**
+		// （`2026/09/28 4.6版本更新后 ~ …`），不再印成 `09-28 10:00 ~ …`（10:00 是我们锚的，源站没说过）。
+		// 同一份悬停里的第二口池两端本来就是绝对时刻 ⇒ 仍然格式化 —— 两种分支并存正是口径要求。
+		check("悬停 = 2 口池（每口「池名：角色 ⏎ 档期」）：相对起点那口写原文、绝对窗口那口仍格式化",
+			!!d && d.bannerHover === "「沧海萃珠」角色活动跃迁：真珠（欢愉•冰）\n2026/09/28 4.6版本更新后 ~ 2026/11/10 15:00\n"
 				+ "「我身即刃」角色活动跃迁：千冶•刃（虚无•火）\n10-21 12:00 ~ 11-10 15:00",
 			d && d.bannerHover);
 		check("悬停 == hoverTextFromItems(同一份条目事实)（生成器唯一实现）",
@@ -252,6 +255,16 @@ export default async function run() {
 		check("无期迷途：提醒里没有 11-11 那批的任何一条（start 时刻在未来的不派生提醒）",
 			remW.every((x) => String(x.title || "").indexOf("往迹重寻") < 0 && String(x.title || "").indexOf("隐秘深渊") < 0),
 			JSON.stringify(remW.map((x) => [x.title, x.kind])));
+		// ── 2026-11-09 悬停档期新口径（raw 含相对表述 ⇒ 原文）在无期迷途这侧**不产生变化** ──
+		// 如实确认：`wqmtWindowOf` 在**解析阶段**就把「开服后」改写成锚点时刻（raw = `MM-DD HH:MM ~ …`），
+		// 所以悬停条目里根本没有「开服后」可保留 —— 走的是分支 ②（格式化），文本逐字不变。
+		check("无期迷途：悬停逐字 = 「10-27 14:00 ~ 11-11 09:59」（原文里已无「开服后」⇒ 不受新口径影响）",
+			!!payW && payW.bannerHover === "绛夜流光：来生泪、来生爱、普希拉、泰特拉\n真夜猫影：来生瞳、来生爱、普希拉、泰特拉\n10-27 14:00 ~ 11-11 09:59",
+			JSON.stringify(payW && payW.bannerHover));
+		check("无期迷途：条目 raw 在**解析阶段**已是锚点时刻（不含「开服后」）—— 这就是悬停不变的原因",
+			!!payW && (payW.gachaHoverItems || []).length > 0
+			&& (payW.gachaHoverItems || []).every((x) => /^\d{2}-\d{2} \d{2}:\d{2} ~ \d{2}-\d{2} \d{2}:\d{2}$/.test(String(x.raw || ""))),
+			JSON.stringify(payW && (payW.gachaHoverItems || []).map((x) => x.raw)));
 
 		// 星铁 4.7 批（bwiki 备选：整页都是「4.7版本更新后」）⇒ 不以在期身份出现
 		const NOW_H = Date.parse("2026-11-07T00:00:00.000Z");

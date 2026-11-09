@@ -358,6 +358,68 @@ export default async function runP3() {
 			!("gachaHoverItems" in r.rec) && !("eventHoverItems" in r.rec), JSON.stringify(Object.keys(r.rec)));
 	}
 
+	// ── ⑥ 悬停档期：**原文 vs 格式化**（2026-11-09 用户口径，只有两分支）──────────────
+	// 用户原话："只有两种情况：raw 能完整解析成两端绝对时刻 ⇒ 格式化；否则 ⇒ 原文"。
+	// 判据 = 产品里**唯一**那份词表 `HOVER_RELATIVE_WINDOW_RE`（/ `hoverRawIsRelative`），这里不另写一份。
+	section("P3f 悬停档期：raw 含相对表述 ⇒ 原文；否则 ⇒ 格式化（两分支，唯一词表）");
+	{
+		const S = Date.UTC(2026, 8, 28, 2, 0);          // 2026-09-28 10:00 +08（星铁「4.6版本更新后」锚点）
+		const E = Date.UTC(2026, 10, 10, 7, 0);         // 2026-11-10 15:00 +08
+		const ABS = "11-04 06:00 ~ 11-24 17:59";         // 原神那类两端绝对时刻的格式化输出
+		// ① raw 相对（起点是限定词）⇒ **原文整句**，即使两端 ts 都能格式化（星铁那条就是这种）
+		check("悬停档期 ①：raw 含「版本更新后」+ 两端 ts 都有 ⇒ 返回 raw（原文，不格式化）",
+			T.hoverWindowTextOf({ startTs: S, endTs: E, raw: "2026/09/28 4.6版本更新后 - 2026/11/10 15:00" }, TZ_CN)
+				=== "2026/09/28 4.6版本更新后 - 2026/11/10 15:00",
+			T.hoverWindowTextOf({ startTs: S, endTs: E, raw: "2026/09/28 4.6版本更新后 - 2026/11/10 15:00" }, TZ_CN));
+		// ② raw 两端绝对时刻 ⇒ 现状：格式化（FGO / 物华弥新 / 原神 这一类的正确行为）
+		check("悬停档期 ②：raw 两端都是绝对时刻 + 两端 ts ⇒ 格式化（raw 不被原样印出）",
+			T.hoverWindowTextOf({ startTs: Date.UTC(2026, 10, 3, 22, 0), endTs: Date.UTC(2026, 10, 24, 9, 59), raw: ABS }, TZ_CN) === ABS,
+			T.hoverWindowTextOf({ startTs: Date.UTC(2026, 10, 3, 22, 0), endTs: Date.UTC(2026, 10, 24, 9, 59), raw: ABS }, TZ_CN));
+		// ③ raw 缺失、两端 ts 都有 ⇒ 照样格式化（源站没给原文时不能没档期）
+		check("悬停档期 ③：raw 缺失 + 两端 ts ⇒ 格式化",
+			T.hoverWindowTextOf({ startTs: Date.UTC(2026, 10, 3, 22, 0), endTs: Date.UTC(2026, 10, 24, 9, 59), raw: "" }, TZ_CN) === ABS,
+			T.hoverWindowTextOf({ startTs: Date.UTC(2026, 10, 3, 22, 0), endTs: Date.UTC(2026, 10, 24, 9, 59), raw: "" }, TZ_CN));
+		// ④ ts 缺失 ⇒ 退回 raw（没有任何时刻可格式化）；连 raw 都没有 ⇒ 空串
+		check("悬停档期 ④：ts 缺失（起点未知）⇒ 退回 raw；raw 也没有 ⇒ 空串",
+			T.hoverWindowTextOf({ startTs: null, endTs: null, raw: "4.7版本更新后 ~ 12-22 15:00" }, TZ_CN) === "4.7版本更新后 ~ 12-22 15:00"
+			&& T.hoverWindowTextOf({ startTs: null, endTs: null, raw: "" }, TZ_CN) === "",
+			JSON.stringify([
+				T.hoverWindowTextOf({ startTs: null, endTs: null, raw: "4.7版本更新后 ~ 12-22 15:00" }, TZ_CN),
+				T.hoverWindowTextOf({ startTs: null, endTs: null, raw: "" }, TZ_CN)
+			]));
+		// ⑤ 词表只有一份：仓库现有相对写法都命中同一条正则；绝对时刻的写法不会被误判
+		check("悬停档期 ⑤：现有相对写法全部命中唯一词表（新增写法只改 HOVER_RELATIVE_WINDOW_RE 那一处）",
+			["版本更新后", "版本结束", "更新维护后", "维护更新后", "维护结束后", "维护完成后", "维护后", "更新结束后", "更新完成后", "更新后", "开服后", "即日起"]
+				.every((w) => T.HOVER_RELATIVE_WINDOW_RE.test(`2026/09/28 ${w} ~ 2026/11/10 15:00`) && T.hoverRawIsRelative(`2026/09/28 ${w} ~ 2026/11/10 15:00`)),
+			JSON.stringify(["版本更新后", "开服后", "维护后"].map((w) => T.HOVER_RELATIVE_WINDOW_RE.test(w))));
+		check("悬停档期 ⑤：绝对时刻写法不被误判（FGO / 物华弥新 / 原神 三款的 raw 形态）",
+			!T.hoverRawIsRelative(ABS)
+			&& !T.hoverRawIsRelative("2026年9月22日(周二) 19:00 ~ 2026年10月6日(周二) 13:59")
+			&& !T.hoverRawIsRelative("2026年09月30日 10:00 ~ 10月22日 09:59")
+			&& !T.hoverRawIsRelative("2026年9月29日10:00 - 2026年11月3日23:59"));
+
+		// ⑥ 同窗口折叠那一行也走同一份两分支（战双卡池 3 池同窗口，原文含「版本更新后」）
+		check("悬停档期 ⑥（同窗口折叠）：窗口全同时末尾那一行也按两分支渲染（相对表述 ⇒ 原文）",
+			T.hoverTextFromItems([
+				{ title: "甲", startTs: S, endTs: E, raw: "2026年9月24日版本更新后 - 2026年11月5日05:00" },
+				{ title: "乙", startTs: S, endTs: E, raw: "2026年9月24日版本更新后 - 2026年11月5日05:00" },
+				{ title: "丙", startTs: S, endTs: E, raw: "2026年9月24日版本更新后 - 2026年11月5日05:00" }
+			], "gacha", TZ_CN) === "甲\n乙\n丙\n2026年9月24日版本更新后 - 2026年11月5日05:00",
+			JSON.stringify(T.hoverTextFromItems([
+				{ title: "甲", startTs: S, endTs: E, raw: "2026年9月24日版本更新后 - 2026年11月5日05:00" },
+				{ title: "乙", startTs: S, endTs: E, raw: "2026年9月24日版本更新后 - 2026年11月5日05:00" },
+				{ title: "丙", startTs: S, endTs: E, raw: "2026年9月24日版本更新后 - 2026年11月5日05:00" }
+			], "gacha", TZ_CN)));
+
+		// ⑦ 反向证明（原神，真夹具）：raw 两端绝对 ⇒ 悬停**逐字不变**（golden 字面量 + 不触发原文分支）
+		for (const [key, field] of [["genshinGacha", "bannerHover"], ["genshinEvent", "eventHover"]]) {
+			const actual = textOf(got[key].rec[field]);
+			check(`悬停逐字不变（${key}）：raw 两端绝对时刻 ⇒ 仍格式化，不触发原文分支`,
+				actual === textOf(GOLDEN[key].rec[field]) && !T.hoverRawIsRelative(actual),
+				JSON.stringify([actual, GOLDEN[key].rec[field]]));
+		}
+	}
+
 	await runP3b();
 }
 
@@ -673,6 +735,24 @@ const P3B_PATHS = [
 // 12 个用户可见字符串字段（与 P3a 同一份口径）
 const P3B_VISIBLE = ["banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover",
 	"event", "eventDates", "eventDatesRaw", "eventShow", "eventClaimDates", "eventHover", "eventHoverExtra"];
+// ── 2026-11-09：悬停档期改口径（raw 含相对表述 ⇒ 原文）的**已批准差异登记** ────────────────
+// golden 是"改造前（HEAD）跑同一批夹具"的存档，**不重采集**（见上面 ② 的注释：改完再采集会把
+// 回归钉成现状）。这一轮只有**悬停字段**有意变化：raw 含 `版本更新后 / 维护后 / 即日起…`
+// （相对表述）⇒ 悬停逐字印原文，不再由 fmtWindow 改成具体时刻（那会吃掉限定词）。
+//   · 只登记字段名：其它 11 个字段、数组、以及**没列出的路径**一律逐字不变；
+//   · 反向守卫：登记了却没变（或变了没登记）都会红 ⇒ 这张表不会烂掉；
+//   · 逐字值由各款的集成断言钉住（星铁 cases-p4 / cases-hsr-official、无期迷途 cases-hsr-official、
+//     战双/Bandori cases-b3 / cases-p8、星塔 cases-p7）。
+const P3B_HOVER_RAW_CHANGED = {
+	zzzGacha: ["eventHover"],            // 3.2/3.3版本更新后（同一份 zzz 频段夹具也填活动侧）
+	zzzEvent: ["eventHover"],            // 3.2版本更新后
+	hsrGachaMiyoushe: ["bannerHover"],   // 2026/09/28 4.6版本更新后 - …
+	zspmsGacha: ["bannerHover"],         // 3 池同窗口 ⇒ 折叠那一行也走两分支（2026年9月24日版本更新后 - …）
+	zspmsEvent: ["eventHover"],          // 2026年9月24日版本更新后 - …
+	bandoriEvent: ["eventHover"],        // 9月29日维护后~…
+	stellasoraGacha: ["bannerHover"],    // 2026/09/29 维护结束后 ~ …
+	stellasoraEvent: ["eventHover"]      // 2026/09/29 维护结束后 ~ …
+};
 const p3bTextOf = (v) => (v == null ? "" : String(v));
 // 时间戳只比类型（口径 = 本机时刻，见 README_Dev「已知不等价①」）；值的相等由 ③ 单独守
 // category / tags 批 1：先摘掉 `category` / `tags`（golden 是改造前的产物，没有这两个键，见文件顶部说明）
@@ -766,12 +846,34 @@ async function runP3b() {
 			continue;
 		}
 		const changed = P3B_VISIBLE.filter((f) => p3bTextOf(r.rec[f]) !== p3bTextOf(g.rec[f]));
-		check(`P3b golden（${p.key}）：12 个字符串字段与改造前逐字相同`, changed.length === 0, JSON.stringify(changed));
+		const approved = P3B_HOVER_RAW_CHANGED[p.key] || [];
+		check(`P3b golden（${p.key}）：12 个字符串字段与改造前逐字相同（已登记的相对表述悬停除外）`,
+			changed.every((f) => approved.includes(f)), JSON.stringify(changed));
+		if (approved.length) {
+			// 已批准差异必须**真的发生**，且是"原文分支"（用产品同一份判据，不另写词表）：
+			// 新值含相对表述、旧值（格式化）不含。
+			check(`P3b golden（${p.key}）：悬停 ${approved.join(" / ")} 是**已批准差异**（相对表述 ⇒ 原文）`,
+				changed.length === approved.length && approved.every((f) => changed.includes(f)
+					&& T.hoverRawIsRelative(p3bTextOf(r.rec[f])) && !T.hoverRawIsRelative(p3bTextOf(g.rec[f]))),
+				JSON.stringify(approved.map((f) => [f, changed.includes(f), T.hoverRawIsRelative(p3bTextOf(r.rec[f])), T.hoverRawIsRelative(p3bTextOf(g.rec[f]))])));
+		}
 		const arr = r.rec[p.field] || [];
 		check(`P3b golden（${p.key}）：\`${p.field}\` 非时间字段逐字不变（键序 / 顺序 / source / phase 全等）`,
 			p3bSansTs(arr) === sansCategoryTagsJson(g.array), p3bSansTs(arr));
 		check(`P3b golden（${p.key}）：数组非空（解析器真的直出了，而不是悄悄退回空数组）`,
 			arr.length > 0 || !!p.emptyOk, String(arr.length));
+	}
+
+	// ── 反向断言（三款之二：FGO / 物华弥新）──────────────────────────────────────────
+	// 这两款的 raw 两端本来就是绝对时刻（`2026年9月22日(周二) 19:00 ~ …` / `09-23 10:00 ~ …`）
+	// ⇒ 悬停**逐字不变**（仍格式化）。用产品同一份判据证明"没触发原文分支"，不是再抄一份词表。
+	for (const [key, field] of [["fgoGacha", "bannerHover"], ["fgoEvent", "eventHover"],
+		["whmxGacha", "bannerHover"], ["whmxEvent", "eventHover"]]) {
+		const g = golden[key], r = results[key];
+		const actual = p3bTextOf(r && r.rec[field]);
+		check(`悬停逐字不变（${key}）：raw 两端绝对时刻 ⇒ 仍格式化，不触发原文分支`,
+			!!g && !!r && actual === p3bTextOf(g.rec[field]) && !T.hoverRawIsRelative(actual),
+			JSON.stringify([actual, g && g.rec[field]]));
 	}
 
 	section("P3b ②：数组与改造前**合成结果**逐条相等（含 startTs / endTs）");

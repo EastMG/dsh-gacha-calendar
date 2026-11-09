@@ -421,11 +421,19 @@
 		// `entries` 元素形状 = 解析器直出的条目事实 `{ title|label, startTs, endTs, raw }`
 		// （历史：P3c 之前还有一条"把悬停文本拆成 `{ title, win }` 再进来"的路径 ——
 		//  `dataArrayHoverPoolsOf` 已在 P3c 删除；这里的 `win` 分支只为回归 oracle 保留，见 test/cases-p3.mjs）。
-		// `opts.tz`：条目没有现成的窗口文本时，按**源站时区**渲染出同一串
-		// （悬停里那一行就是它 —— 两边必须同一份，否则数组里的 raw/ts 与悬停对不上）。
+		// `opts.tz`：条目没有现成的窗口文本时，按**源站时区**渲染出同一串。
+		// ⚠️ 2026-11-09 起这里**不再**用 `hoverWindowTextOf`（它会给相对表述退回源站原文）——
+		//    数组的 raw 要能被 `dataArrayWindowOf` 反解析回 ts，源站措辞做不到（见下面调用点的注释）。
 		// 时间戳口径（P4，2026-11-07）：窗口文本按**条目 tz** 读成**绝对时刻**（`dataArrayWindowOf`），
 		// 于是"同一段 `MM-DD HH:MM`"在 UTC 与 +08 的机器上得到同一个 ts；显示层再按条目 tz 渲染回
 		// 源站墙钟 —— 渲染文本因此跨时区逐字相同（P1 的"本机时刻"口径已废）。
+		// 数组派生用的窗口文本（2026-11-09）：**有 ts 就 fmtWindow，缺时刻退回 raw** —— 即 P3b 之前
+		// `hoverWindowTextOf` 的旧函数体。刻意**不**与悬停侧共用（理由见下面调用点那段注释：
+		// 数组的 raw 还要被 `dataArrayWindowOf` 反解析回 ts，源站的「维护后 / 版本更新后」解析不了）。
+		function dataArrayWindowTextOf(item, tz) {
+			if (item.startTs != null && item.endTs != null) return fmtWindow(item.startTs, item.endTs, tz);
+			return dataArrayTextOf(item.raw).trim();
+		}
 		function dataArrayExtrasFromEntriesOf(entries, main, now, opts) {
 			const o = opts || {};
 			const isEvent = o.kind === "event";
@@ -463,7 +471,16 @@
 				//    —— `win` 分支只服务"把悬停文本拆成 `{ title, win }` 再进来"的回归 oracle，
 				//    生产调用方一律给结构化条目（`startTs` / `endTs` / `raw`）。oracle 已固化成字面量，
 				//    该分支随之删除（`{ title, win }` 形状不再被支持：`hoverWindowTextOf` 只读 ts/raw）。
-				const win = hoverWindowTextOf(x, o.tz);
+				//
+				// ⚠️ 2026-11-09（悬停档期改成「相对表述 ⇒ 原文」）：**数组这里仍用旧口径**（有 ts 就
+				//    fmtWindow）。原因：`win` 不只是给数组的 `raw` 字段，它还要被 `dataArrayWindowOf`
+				//    **反解析回 ts**（下面一行）—— 一旦换成含「维护后 / 版本更新后」的源站原文，
+				//    数组条目的 ts 会整片变 null（实测 banGDream 活动 16 条全丢 ts，日程/展平/提醒跟着塌）。
+				//    数组条目是**结构化事实**（ts 来自解析器），它的 raw 一直是"派生文本"而不是源站原文；
+				//    用户可见的**悬停**才需要保留源站措辞。所以两者从这一轮起**有意分开**：
+				//      · 悬停展示 = `hoverWindowTextOf`（26-parser-hover.js，原文优先）；
+				//      · 数组派生 = `dataArrayWindowTextOf`（这里，保持 P3 等价性逐字不变）。
+				const win = dataArrayWindowTextOf(x, o.tz);
 				const w = dataArrayWindowOf(scheduleNoYear(win), now, o.tz);
 				const identity = dataArrayIdentityOf(title, w.startTs, w.endTs);
 				if (seen.has(identity)) continue;

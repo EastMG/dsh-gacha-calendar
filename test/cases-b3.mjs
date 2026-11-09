@@ -210,8 +210,10 @@ export default async function run() {
 				lines.length === 2 && lines.every((l) => /【静默突触】/.test(l))
 				&& /玩法开启时间/.test(lines[0]) && /奖励兑换时间/.test(lines[1]),
 				JSON.stringify(lines));
-			check("GF2 活动 hover 逐行「名称」+ 3 空格 +「档期」（本体格式，档期同窗口不合并）",
-				(e && e.eventHover) === "【静默突触】·玩法开启时间   09-22 12:00 ~ 11-03 08:59\n【静默突触】·奖励兑换时间   09-22 12:00 ~ 11-09 04:59",
+			// 2026-11-09（悬停档期改口径）：档期来源是源站原文（含「版本更新后」）⇒ **逐字写原文**，
+			// 不再由 fmtWindow 改写成具体时刻（那会把「版本更新后」这层信息吃掉，用户 2026-11-09 拍板）。
+			check("GF2 活动 hover 逐行「名称」+ 3 空格 +「档期」（本体格式，档期同窗口不合并；相对表述写源站原文）",
+				(e && e.eventHover) === "【静默突触】·玩法开启时间   2026年9月22日 版本更新后~2026年11月3日 08:59\n【静默突触】·奖励兑换时间   2026年9月22日 版本更新后~2026年11月9日 04:59",
 				JSON.stringify(e && e.eventHover));
 			check("GF2 活动 hover 不再「档期在前」",
 				lines.length === 2 && lines.every((l) => !/^\d{2}-\d{2} \d{2}:\d{2} ~ /.test(l)), JSON.stringify(lines));
@@ -299,8 +301,15 @@ export default async function run() {
 		{
 			const sg = await src.gacha.fetcher(SYNTH_LIST_URL, undefined, src.tz, NOW);
 			const slines = sg && sg.bannerHover ? sg.bannerHover.split("\n") : [];
-			check("Bandori ≥2 个当期主池 → 设 bannerHover（每池「池名：角色」+ 档期两行）",
-				slines.length === 4 && /：/.test(slines[0]) && isDateLine(slines[1]) && /：/.test(slines[2]) && isDateLine(slines[3]),
+			// 2026-11-09（悬停档期改口径）：Bandori 的源站窗口写的是「9月29日维护后~…」（起点是相对表述）
+			// ⇒ 悬停**逐字写源站原文**，不再格式化（`09-29 10:00` 是我们用 displayTime 补的时刻，印出来
+			// 会冒充成源站明说的钟点）。4 行 = 池名行 + 档期行 ×2 池。
+			check("Bandori ≥2 个当期主池 → 设 bannerHover（每池「池名：角色」+ 档期原文两行）",
+				slines.length === 4
+				&& slines[0] === "测试 Dream Festival招募：丸山彩/CHU²"
+				&& slines[1] === "9月29日维护后~10月11日12:59"
+				&& slines[2] === "测试 KIRAMEKI Festival招募：凑友希那"
+				&& slines[3] === "9月29日维护后~10月26日12:59",
 				JSON.stringify(slines));
 			check("Bandori bannerHover 池名在前、档期行不是行首（不是「档期在前」）",
 				slines.length === 4 && !isDateLine(slines[0]) && !isDateLine(slines[2]), JSON.stringify(slines));
@@ -321,10 +330,12 @@ export default async function run() {
 			check("Bandori 活动 hover 逐行多节（含招募节）", elines.length >= 5, JSON.stringify(elines.length));
 			check("Bandori 活动 hover 行首是名称（不是档期）",
 				elines.length > 0 && elines.every((l) => !isDateLine(l)), JSON.stringify(elines.slice(0, 2)));
-			check("Bandori 活动 hover 首行 = 外显活动名 + 3 空格 + 档期",
-				elines[0] === "All☆Stars CiRCRiNG Fes!   09-29 10:00 ~ 10-14 22:59", JSON.stringify(elines[0]));
+			// 2026-11-09：首行档期 = 源站原文「9月29日维护后~10月14日22:59」（相对起点不格式化）。
+			check("Bandori 活动 hover 首行 = 外显活动名 + 3 空格 + 档期原文",
+				elines[0] === "All☆Stars CiRCRiNG Fes!   9月29日维护后~10月14日22:59", JSON.stringify(elines[0]));
+			// 仍然只守「名称 + 3 空格 + 档期」这一种排版（档期本身可能是格式化文本，也可能是源站原文）
 			check("Bandori 活动 hover 名称与档期之间是 3 空格",
-				elines.every((l) => /^.+ {3}(\d{2}-\d{2} \d{2}:\d{2} ~ \d{2}-\d{2} \d{2}:\d{2})$/.test(l)), JSON.stringify(elines.slice(0, 3)));
+				elines.every((l) => /^.+? {3}\S/.test(l)), JSON.stringify(elines.slice(0, 3)));
 			check("Bandori 活动 hover 不含元信息（来源/URL/tz=/推定/抓取统计/内部 id）",
 				!!e && !!e.eventHover && !HOVER_META.test(e.eventHover), JSON.stringify(elines.slice(0, 2)));
 		}

@@ -31,12 +31,14 @@
 			const lines = list.map((x) => {
 				// 有起止的行按行带时间（全部同窗口时只在末尾写一遍）；缺起止的行原样显示该行原文
 				if (x.startTs != null && x.endTs != null) {
-					return same ? x.name : `${x.name}   ${fmtWindow(x.startTs, x.endTs, tz)}`;
+					return same ? x.name : `${x.name}   ${hoverWindowTextOf(x, tz)}`;
 				}
 				const raw = String(x.raw || "").trim();
 				return raw ? `${x.name}   ${raw}` : x.name;
 			});
-			if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs, tz));
+			// 同窗口只在末尾写一遍；**这一行同样走两分支**（raw 含相对表述 ⇒ 原文，见 hoverWindowTextOf）。
+			// 否则「所有池窗口相同」这一种形态会把相对起点吃掉（战双卡池 3 池同窗口就是这样）。
+			if (same) lines.push(hoverWindowTextOf(list[0], tz));
 			if (permanentCount > 0) lines.push(permanentLine(permanentCount));
 			return lines.join("\n");
 		}
@@ -102,10 +104,11 @@
 			for (const p of list) {
 				lines.push(p.label || p.name);
 				if (same) continue;
-				const t = p.startTs != null && p.endTs != null ? fmtWindow(p.startTs, p.endTs, tz) : String(p.raw || "").trim();
+				const t = hoverWindowTextOf(p, tz);
 				if (t) lines.push(t);
 			}
-			if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs, tz));
+			// 同窗口只在末尾写一遍；这一行同样走两分支（相对表述 ⇒ 原文），理由同 buildEventHover。
+			if (same) lines.push(hoverWindowTextOf(list[0], tz));
 			return lines.join("\n");
 		}
 
@@ -114,18 +117,55 @@
 		// 方向反过来了：以前是"解析器手拼字符串、数据层再从字符串反解条目"，现在是
 		// **解析器先有条目事实**（`{ title/label, startTs, endTs, raw }`），悬停文本由条目生成。
 		// 复刻的排版规则（逐条对得上 buildPoolHover / buildEventHover）：
-		//   · 卡池侧：每条一行 `label || title`；档期另起一行（`MM-DD HH:MM ~ MM-DD HH:MM`，
-		//     由 `fmtWindow(ts, ts, tz)` 渲染）；**窗口全同 ⇒ 每条只写名称、末尾写一遍档期**；
-		//     缺起止的条目（源站写"X.Y版本更新后"）**原样写 raw**、没有 raw 就只写名称。
+		//   · 卡池侧：每条一行 `label || title`；档期另起一行（raw 含相对表述 ⇒ 原文；否则
+		//     `MM-DD HH:MM ~ MM-DD HH:MM`，由 `fmtWindow(ts, ts, tz)` 渲染，见 hoverWindowTextOf）；
+		//     **窗口全同 ⇒ 每条只写名称、末尾写一遍档期**（那一行也走同一份两分支）；
+		//     raw 含相对表述（`X.Y版本更新后` / `开服后`…）⇒ **逐字写 raw**（见下面 hoverWindowTextOf），
+		//     没有 raw 就只写名称。
 		//   · 活动侧：每条一行 `名称 + 3 个空格 + 档期`；窗口全同 ⇒ 每条只写名称、末尾写一遍档期；
-		//     缺起止的条目写 `名称 + 3 空格 + raw`（没有 raw 就只写名称）。
+		//     raw 含相对表述 ⇒ `名称 + 3 空格 + raw`（没有 raw 就只写名称）。
 		//   · 两侧都：**不足 2 条 ⇒ 空串**（交回 UI 单条展示）；`kind === "event"` 时另按
 		//     `isLongTermEvent` 剔掉长期/常驻窗口（与 buildEventHover 完全一致）。
 		// 顺序：**调用方给**（卡池侧与 `poolHoverOrderOf` 同口径、活动侧与 `sortEventItems` 同口径）。
 		//   这里**不排序**：鸣潮卡池悬停的首行是"卡池类型"（不是任何一口池），必须固定在首位。
+		// ── 「格式化成两端绝对时刻」还是「原样印源站原文」：**只有两种情况** ────────────────
+		// 用户 2026-11-09 口径（原话）："只有两种情况：raw 能完整解析成两端绝对时刻 ⇒ 格式化；
+		// 否则 ⇒ 原文"。判断"raw 里有没有相对表述"就只认下面这一条正则 —— 这是**唯一**一份词表，
+		// 不要在调用点/测试里各写一份（否则新增一种源站写法时，两处会悄悄不一致）。
+		//
+		// 为什么必须留原文：源站把起点写成 `版本更新后 / 开服后 / 维护后 / 即日起` 这类**限定词**时，
+		// 解析器会把它锚定成具体时刻（星铁 10:00 / 无期迷途 14:00 / 维护窗口结束 / 公告发布时刻）。
+		// 一旦用 fmtWindow 渲染，那层"这是相对表述、钟点是我们推的"信息就被改写成确定时刻 ⇒
+		// **信息丢失**（用户实测：`2026/09/28 4.6版本更新后 - 2026/11/10 15:00` 被印成
+		// `09-28 10:00 ~ 11-10 15:00`，看起来像源站明说了 10:00）。
+		// 反之 raw 两端本来就是绝对时刻（FGO / 物华弥新 / 原神…）⇒ 格式化是正确的，
+		// 且**逐字不变**（悬停口径 = 源站墙钟原文，见 buildEventHover 的说明）。
+		//
+		// 词表来源 = 仓库里**现有**各源真正写过的相对写法（抓取/解析侧逐条可查）：
+		//   星铁/绝区零/战双/少前2  `版本更新后`、`版本结束`      ← 23-parser-time / 30-game-hoyoverse
+		//   无期迷途/物华弥新       `开服后`                        ← 30-game-wqmt / 30-game-bwiki-common
+		//   BanG Dream / 战双      `维护后`、`更新维护后`、`维护结束后`
+		//   星塔旅人               `维护结束后 / 更新后`           ← 30-game-yostar
+		//   米游社（星铁活动）      `即日起`                        ← 30-game-hoyoverse
+		// ⚠️ 不含 `g` 标志：这是 `.test()` 用的，带 g 会因 lastIndex 变成有状态。
+		const HOVER_RELATIVE_WINDOW_RE = /版本更新后|版本结束后?|更新维护后|维护更新后|维护结束后?|维护完成后|维护后|更新结束后|更新完成后|更新后|开服后|即日起/;
+		// `raw` 是否含相对表述（→ 悬停必须退回原文）。导出给回归用**同一份**正则，别另写。
+		function hoverRawIsRelative(raw) {
+			const s = String(raw == null ? "" : raw);
+			return s !== "" && HOVER_RELATIVE_WINDOW_RE.test(s);
+		}
+
+		// 悬停里的**一档期**文本（卡池侧/活动侧共用）：
+		//   ① raw 存在且含相对表述 ⇒ 原文整句（`2026/09/28 4.6版本更新后 ~ 2026/11/10 15:00`）
+		//   ② 否则 ⇒ 现状：两端口 ts 都有就格式化；缺时刻退回 raw（与改造前一致）
+		// `tz` 必传（口径同 buildEventHover / buildPoolHover）；只有分支 ② 会用到它。
 		function hoverWindowTextOf(item, tz) {
+			const raw = String(item.raw || "").trim();
+			// ① 原文优先：格式化会把限定词改写成具体时刻 ⇒ 信息丢失（见上面那段说明）
+			if (raw && hoverRawIsRelative(raw)) return raw;
+			// ② 原文缺失，或两端本来就是绝对时刻 ⇒ 格式化（缺时刻时退回 raw）
 			if (item.startTs != null && item.endTs != null) return fmtWindow(item.startTs, item.endTs, tz);
-			return String(item.raw || "").trim();
+			return raw;
 		}
 
 		// `opts.permanentCount`（P3b）：永久/常驻活动的条数 —— 只在**活动侧**生效，末尾补一行
@@ -154,7 +194,8 @@
 					if (!same && win) lines.push(win);
 				}
 			}
-			if (same) lines.push(fmtWindow(list[0].startTs, list[0].endTs, tz));
+			// 同窗口只在末尾写一遍；这一行同样走两分支（相对表述 ⇒ 原文），与 buildEventHover / buildPoolHover 一致
+			if (same) lines.push(hoverWindowTextOf(list[0], tz));
 			if (permanent > 0) lines.push(permanentLine(permanent));
 			return lines;
 		}

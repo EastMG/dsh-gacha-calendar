@@ -408,11 +408,13 @@ export default async function runP4() {
 		check("hsr.gacha roles = 真珠", !!hsrG && hsrG.roles === "真珠", JSON.stringify(hsrG && hsrG.roles));
 		// 🔁 旧断言（已改）：曾断言 hover 首行是 MIYOUSHE_PROVENANCE 的元信息、且每行"档期在前"。
 		//    用户 2026-10-03 要求元信息彻底删掉 → 现在断言**新格式**：每池两行「池名：角色」⏎ 档期。
-		check("hsr.gacha bannerHover = 2 池 ×「池名：角色」⏎ 档期（4 行，结束时间升序）",
-			!!hsrG && hsrG.bannerHover === "4.6版本活动跃迁（其一）：真珠\n09-28 07:00 ~ 10-21 11:59\n4.6版本活动跃迁（其一）：真珠\n09-28 07:00 ~ 11-10 15:00",
+		// 2026-11-09（悬停档期改口径）：这一侧的源站原文是 `2026/09/28 4.6版本更新后 - …`（起点相对）
+		// ⇒ 悬停**逐字写原文**，不再印成 `09-28 07:00 ~ …`（07:00 是版本更新公告的发布时刻，不是源站说的）。
+		check("hsr.gacha bannerHover = 2 池 ×「池名：角色」⏎ 档期原文（4 行，结束时间升序）",
+			!!hsrG && hsrG.bannerHover === "4.6版本活动跃迁（其一）：真珠\n2026/09/28 4.6版本更新后 - 2026/10/21 11:59\n4.6版本活动跃迁（其一）：真珠\n2026/09/28 4.6版本更新后 - 2026/11/10 15:00",
 			JSON.stringify(hsrG && hsrG.bannerHover));
 		check("hsr.gacha bannerHover 行首是名称（不是档期）——「名称在前」",
-			!!hsrG && hsrG.bannerHover.split("\n").every((l, i) => (i % 2 === 0 ? /：真珠$/.test(l) : WINDOW_LINE_RE.test(l))),
+			!!hsrG && hsrG.bannerHover.split("\n").every((l, i) => (i % 2 === 0 ? /：真珠$/.test(l) : (WINDOW_LINE_RE.test(l) || T.hoverRawIsRelative(l)))),
 			JSON.stringify(hsrG && hsrG.bannerHover.split("\n")));
 		checkHoverClean("hsr.gacha", hsrG && hsrG.bannerHover);
 

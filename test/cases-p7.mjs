@@ -197,8 +197,10 @@ export default async function runP7() {
 			check("卡池 hover = hoverPool 排版：2 池 → 4 行（池名行 + 档期行）", gl.length === 4, JSON.stringify(gl));
 			check("卡池 hover 池名行是「池名：角色」（与本体 label 同构）",
 				gl.filter((s, i) => i % 2 === 0).every((s) => /^「[^」]+」：.+$/.test(s)), JSON.stringify(gl));
-			check("卡池 hover 档期行由 fmtWindow 格式化（MM-DD HH:MM ~ MM-DD HH:MM）",
-				gl.filter((s, i) => i % 2 === 1).every((s) => /^\d{2}-\d{2} \d{2}:\d{2} ~ \d{2}-\d{2} \d{2}:\d{2}$/.test(s)), JSON.stringify(gl));
+			// 2026-11-09（悬停档期改口径）：源站原文是「2026/09/29 维护结束后 ~ …」（起点是相对表述）
+			// ⇒ 档期行**逐字写原文**，不再被 fmtWindow 改写成具体时刻（那会吃掉「维护结束后」）。
+			check("卡池 hover 档期行 = 源站原文（含「维护结束后」，不再格式化）",
+				gl.filter((s, i) => i % 2 === 1).every((s) => s === "2026/09/29 维护结束后 ~ 2026/10/20 10:59"), JSON.stringify(gl));
 			check("卡池 hover 每池带自己的 UP 主推（艾蕾 / 睡前童话）",
 				/「沐于温情笑意中」：艾蕾/.test(g.bannerHover) && /「空白的稚梦」：睡前童话/.test(g.bannerHover),
 				JSON.stringify(gl));
@@ -239,14 +241,13 @@ export default async function runP7() {
 			check("活动 hover 逐条一行（2 条当期 → 2 行）", el.length === 2, JSON.stringify(el));
 			check("活动 hover 行首是**名称**不是档期（旧实现「档期在前」已改掉）",
 				el.every((s) => /^「[^」]+」/.test(s) && !/^\d{2}-\d{2}/.test(s)), JSON.stringify(el));
-			check("活动 hover「名称 + 3 空格 + 档期」（且档期被格式化，不是源站原文）",
-				el.every((s) => {
-					const parts = s.split("   ");
-					return parts.length === 2
-						&& /^「[^」]+」/.test(parts[0])
-						&& /^\d{2}-\d{2} \d{2}:\d{2} ~ \d{2}-\d{2} \d{2}:\d{2}$/.test(parts[1])
-						&& !/20\d\d\//.test(parts[1]);
-				}), JSON.stringify(el));
+			// 2026-11-09（悬停档期改口径）：第 1 条源站原文是「2026/09/29 维护结束后 ~ …」（相对起点）
+			// ⇒ 写原文；第 2 条两端本来就是绝对时刻 ⇒ 仍然格式化 —— 同一份悬停里两种分支并存，
+			// 这正是"raw 能完整解析成两端绝对时刻才格式化"的口径。
+			check("活动 hover「名称 + 3 空格 + 档期」（相对表述写原文、绝对窗口格式化）",
+				el[0] === "「灾变防线」活动说明   2026/09/29 维护结束后 ~ 2026/10/20 10:59"
+				&& el[1] === "「联合讨伐」活动说明   10-01 04:00 ~ 10-30 22:59",
+				JSON.stringify(el));
 			check("活动 hover 按结束时间升序（灾变防线 10-20 在前、联合讨伐 10-30 在后）",
 				/「灾变防线」/.test(el[0] || "") && /「联合讨伐」/.test(el[1] || ""), JSON.stringify(el));
 			check("活动 hover 无元信息（**尤其删掉**「（起点按公告发布时刻推断）」）",

@@ -456,6 +456,15 @@
 			//   并且把生成器改坏（少一个分隔空格之类）时 golden 会红（见 test/cases-p3.mjs）。
 			hoverLinesFromItems,
 			hoverTextFromItems,
+			// hoverWindowTextOf = 悬停里**一档期**的文本（2026-11-09 用户口径，只两分支）：
+			//   raw 含相对表述（版本更新后/开服后/维护后/即日起…）⇒ 原样印 raw；
+			//   否则（raw 缺失，或两端都是绝对时刻）⇒ fmtWindow。
+			// 词表 = `HOVER_RELATIVE_WINDOW_RE`（悬停侧唯一一份）；`hoverRawIsRelative` 是同一份判据的函数形态。
+			// 导出后回归可以直接钉住四个输入（raw 相对 / raw 绝对 / 缺 raw 有 ts / 缺 ts），
+			// 而不必再抄一份词表 —— 改词表时红的是**唯一真源**那一处。
+			hoverWindowTextOf,
+			hoverRawIsRelative,
+			HOVER_RELATIVE_WINDOW_RE,
 			// poolHoverKept = 卡池列表的**去重**（"同一个池被源描述两遍"）；buildPoolHover 与
 			//   P3 直出的数组都从这一份结果出发 ⇒ 导出后可断言"文本里没有的行，数组里也没有"。
 			poolHoverKept,

@@ -332,7 +332,10 @@ export default async function run() {
 			&& zsLines[0] === "时崎狂三狙击 / 命运时崎狂三狙击：时崎狂三"
 			&& zsLines[1] === "09-29 10:00 ~ 11-03 23:59"
 			&& zsLines.filter((l) => l.includes("：")).length === 6
-			&& zsLines.filter((l) => /^\d{2}-\d{2} \d{2}:\d{2} ~ \d{2}-\d{2} \d{2}:\d{2}$/.test(l)).length === 6,
+			&& zsLines.filter((l) => /^\d{2}-\d{2} \d{2}:\d{2} ~ \d{2}-\d{2} \d{2}:\d{2}$/.test(l)).length === 3
+			// 2026-11-09（悬停档期改口径）：淬炼那 3 池的源站原文是「2026年9月24日版本更新后 - …」
+			// （相对起点）⇒ 档期行**逐字写原文**；联动那 3 池两端绝对 ⇒ 仍是格式化（上一行）。
+			&& zsLines.filter((l) => l === "2026年9月24日版本更新后 - 2026年11月5日05:00").length === 3,
 			JSON.stringify(zsLines.slice(0, 4)));
 		check("⚠️ 战双卡池 hover 里**不再有任何元信息**（来源站名/URL/API 名/SMW 时间/tz 推定/抓取条数/起点锚点/「（…）」实现说明）",
 			rg.ok && rg.data
@@ -351,7 +354,10 @@ export default async function run() {
 		check("活动 hover 走共用 hoverEvent：21 条当期、**行首是名称不是日期**、「名称 + 3 空格 + 档期」；未开的活动（忽忽破坏王 10-08 起）不在外显",
 			re.ok && re.data && zeLines.length === 21
 			&& zeLines[0] === "悍猎季风-BOSS挑战   09-25 10:00 ~ 10-19 05:00"
-			&& zeLines.every((l) => /\S {3}\d{2}-\d{2} \d{2}:\d{2} ~ \d{2}-\d{2} \d{2}:\d{2}$/.test(l))
+			&& zeLines.every((l) => /^.+? {3}\S/.test(l))
+			// 2026-11-09（悬停档期改口径）：13 条源站原文是「2026年9月24日版本更新后 - …」（相对起点）
+			// ⇒ 逐字写原文；其余 8 条两端绝对 ⇒ 仍是格式化（`09-25 10:00 ~ …`）。
+			&& zeLines.filter((l) => T.hoverRawIsRelative(l)).length === 13
 			&& zeLines.every((l) => !/^\d{2}-\d{2} /.test(l))          // 「档期在前」必须消失
 			&& re.data.event !== "忽忽破坏王",
 			JSON.stringify(zeLines.slice(0, 3)));
