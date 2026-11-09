@@ -46,6 +46,7 @@ import runP4Flat from "./cases-p4flat.mjs";
 import runCategory from "./cases-category.mjs";
 import runNew5 from "./cases-new5.mjs";
 import runHsrOfficial from "./cases-hsr-official.mjs";
+import runZzzBwiki from "./cases-zzz-bwiki.mjs";
 
 const LIVE = process.argv.includes("--live");
 
@@ -142,7 +143,8 @@ const batches = [
 	["P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）", runP4Flat],
 	["category / tags 批 1+2+3（9 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 多值拆分 + 旧键兼容 + 反证；批 3 = `eventTier` 的 haystack 改 OR 语义 + 逐时刻外显变化登记）", runCategory],
 	["2026-11-09 新接入 5 款（无期迷途两侧真源 + 夜幕之下卡池 + 未定/绘旅人/炽焰天穹留空未配置）", runNew5],
-	["星铁卡池换官方公告 CMS + 「相对起点」锚定（星铁 10:00 / 无期迷途 14:00）+ 「起点未知 ≠ 已开始」", runHsrOfficial]
+	["星铁卡池换官方公告 CMS + 「相对起点」锚定（星铁 10:00 / 无期迷途 14:00）+ 「起点未知 ≠ 已开始」", runHsrOfficial],
+	["绝区零 bwiki 备选源「起点未知 = 已开始」的唯一例外（其余来源仍严格）", runZzzBwiki]
 ];
 const before = counts();
 for (const [label, fn] of batches) {

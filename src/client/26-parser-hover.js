@@ -310,6 +310,8 @@
 		}
 
 		// bwiki 通用"选当期"包装（原神/星铁/绝区零/方舟）
-		const pickCurrent = (parse) => (html) => selectCurrent(parse(html), nowMs());
+		// 第二个参数透传 `selectCurrent` 的 opts（目前只有 `{ unknownStartIsActive }`，
+		// 见 24-parser-window.js 的 selectCurrent 与 30-game-hoyoverse.js 的 `zzz-bwiki`）。
+		const pickCurrent = (parse) => (html, opts) => selectCurrent(parse(html), nowMs(), opts);
 
 		//#endregion

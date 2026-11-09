@@ -38,14 +38,34 @@
 		//
 		// 判定用**补全前**的快照（`hadOpenStart`）：`fillMissingStarts` 会就地给这类行补一个
 		// "上一组结束时间"当起点（那是**显示**用的猜测），拿它去判"已开始"等于把猜测当事实。
-		function selectCurrent(items, now) {
+		//
+		// ── 例外（**只有一处**，2026-11-09 晚用户选 B）：绝区零 bwiki 备选源 ──────────────
+		// `opts.unknownStartIsActive === true` ⇒ 这一侧**恢复 2026-11-09 之前的判据**
+		// （`startTs == null || startTs <= now`，即"起点未知 = 已经开了"）。
+		// 谁会给 true：只有 `registerSource` 条目里显式写了 `unknownStartIsActive: true` 的那条
+		// 备选源 —— 目前全仓**只有一条**：绝区零的「Bwiki 往期调频」（见 30-game-hoyoverse.js）。
+		// 依据：该页**不收录未来卡池**（只列已开的频段；2026-11-09 实测整页每行起点都写
+		// 「X.Y版本更新后」、终点是具体日期）⇒ 这一页的"起点未知"就是"已经在开"，放行是安全的。
+		// ⚠️ 星铁 bwiki 备选**不能**同样处理：它收录未来池（「4.6/4.7版本更新后 ~ …」在开池前几周
+		//    就挂在页面上），放行就会重现 2026-11-09 修掉的"未来池假在期"。所以开关**没有**做成
+		//    全局配置项，而是逐条挂在来源声明上（不进 DEFAULT_SETTINGS / CONFIG_KEYS）。
+		// ⚠️ 放宽只发生在**这一处**：`coversNow`（含所有调用点）、`sideViewOf`、`scheduleItemOf`
+		//    保持严格。为什么够用：放行后 `fillMissingStarts` 立刻把起点补成具体时刻，载荷
+		//    `bannerDates` 因此是一段**可解析的绝对窗口** ⇒ 下游四个严格判定看到的就是具体时间，
+		//    与 2026-11-09 之前逐字相同，不需要再各自读一遍旗标。
+		function selectCurrent(items, now, opts) {
+			const openStartActive = !!(opts && opts.unknownStartIsActive);
 			// `fillMissingStarts` 只为**显示**补起点（bannerDates / 悬停），不参与下面的在期判定。
 			const hadOpenStart = new Set(items.filter((it) => it.startTs == null));
 			fillMissingStarts(items);
-			// 起点未知（原文「X.Y版本更新后」）⇒ 不参与在期判定；起点明确且已到 ⇒ 参与。
-			const inWindow = (it) => it.endTs != null && it.endTs >= now
-				&& !hadOpenStart.has(it)
-				&& it.startTs != null && it.startTs <= now;
+			// 严格（默认）：起点未知（原文「X.Y版本更新后」）⇒ 不参与在期判定；起点明确且已到 ⇒ 参与。
+			// 放行（openStartActive）：恢复旧判据 —— 补全后 `startTs == null || startTs <= now`
+			// （补全过的行起点 = 上一组结束时间，所以这一支与改造前逐字相同）。
+			const inWindow = openStartActive
+				? (it) => it.endTs != null && it.endTs >= now && (it.startTs == null || it.startTs <= now)
+				: (it) => it.endTs != null && it.endTs >= now
+					&& !hadOpenStart.has(it)
+					&& it.startTs != null && it.startTs <= now;
 			const pool = items.filter(inWindow).filter((it) => it.isMain);
 			if (pool.length === 0) return null;
 			// 外显取哪个池的"名字与时间"：结束最早的（越快结束越该被盯住）。
@@ -143,6 +163,10 @@
 		//    事实本身不丢：这类行仍会出现在悬停 / 数据数组里，只是不冒充"在期"。
 		//
 		// `endTs == null` 表示"没有结束时间"（永久/常驻，或源站没给）——**不覆盖 now**（不以"没结束"当"永远在开"）。
+		//
+		// ⚠️ 唯一的例外在**上游**：`selectCurrent` 的 `inWindow` 可以为**一条显式声明的来源**
+		// （`unknownStartIsActive: true`，目前只有绝区零 bwiki 备选源）恢复旧判据。本函数**不**放宽：
+		// 放行之后载荷里已经是具体时刻，所以这里仍然该严格 —— 判定只有一处实现，例外也只有一处。
 
 		/** 覆盖 now：**两端都必须明确**（起点未知 ⇒ 不覆盖；终点未知 ⇒ 不覆盖）。 */
 

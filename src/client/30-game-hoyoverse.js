@@ -1148,7 +1148,17 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 				// 也可在设置中手动切 Bwiki（备选）
 				url: ZZZ_NEWS_LIST_URL,
 				altSources: [
-					{ label: "Bwiki 往期调频", url: ZZZ_BWIKI_URL, fetcher: "zzz-bwiki" }
+					// ⚠️ `unknownStartIsActive: true` —— **全仓唯一**带这个开关的来源（2026-11-09 用户选 B）。
+					// 语义：只在这一条被手动选中时（设置页「卡池来源」= Bwiki 往期调频），
+					// `startTs == null`（源站写「X.Y版本更新后」）的池按"已开始"处理；
+					// 默认源（官方公告）与其它任何来源都不受影响（见 22-fetcher-core.js 的
+					// `unknownStartIsActiveOf` 与 24-parser-window.js 的 selectCurrent）。
+					// 依据：**该页不收录未来卡池**（只列已开的频段；2026-11-09 实测整页每行起点都写
+					// 「X.Y版本更新后」、终点是具体日期）⇒ 这一页的"起点未知"必然等于"已经在开"。
+					// 为什么星铁 bwiki 备选**不能**同样处理：星铁那页收录**未来池**
+					// （「4.6/4.7版本更新后 ~ …」在开池前几周就挂在页面上），同样放行就会重现
+					// 2026-11-09 修掉的"未来池假在期"（那是用户当时点名要修的 bug）。
+					{ label: "Bwiki 往期调频", url: ZZZ_BWIKI_URL, fetcher: "zzz-bwiki", unknownStartIsActive: true }
 				],
 				// 独立活动源：官方公告（api-takumi-static，与卡池侧同一接口，经 host 代理）。
 				// 「…活动说明」公告正文自带【活动时间】起止（含"X.Y版本更新后/版本结束"折算），
@@ -1196,9 +1206,19 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 		// 数组 = 主条一条。`entries` 传空数组是**故意的**：把池列表塞进去会让数组比改造前多出条目，
 		// 那不是等价切换（P3 的口径是"数组与改造前合成结果逐条相等"）。
 		// 没切这一条时，用户手动把卡池源切到「Bwiki 往期调频」⇒ 数组恒 null ⇒ 该侧显示「无数据」。
+		//
+		// ── 起点未知的放行（2026-11-09 晚，用户选 B）────────────────────────────────
+		// 本页**不收录未来卡池**（只列已开的频段；2026-11-09 实测整页每行起点都写「X.Y版本更新后」、
+		// 终点是具体日期）⇒ 这一页的"起点未知"就是"已经在开"。所以这一条**唯一**声明了
+		// `unknownStartIsActive: true`（见上面 `altSources` 的注释），这里把它读出来交给
+		// `selectCurrent` 恢复旧判据（`startTs == null || startTs <= now`）。
+		// "只对该来源生效"由调用关系保证：这个抓取器**只有**在设置里选中该备选源时才会被执行
+		// （`gachaFetcherFor` 命中 altSourceId），默认源走 `GACHA_FETCHERS["zzz"]`，不经过这里。
+		// ⚠️ 星铁 bwiki 备选（`hsr-bwiki`，收录未来池）**没有**这个开关，所以仍严格。
 		GACHA_FETCHERS["zzz-bwiki"] = mkMediaWiki((html, tz) => {
 			const now = nowMs();
-			const d = pickCurrent(parseAllBwiki)(html);
+			const openStartActive = unknownStartIsActiveOf("zzz-bwiki");
+			const d = pickCurrent(parseAllBwiki)(html, { unknownStartIsActive: openStartActive });
 			if (!d) return null;
 			d.gacha = dataArrayProducedGachaOf(d, [], { tz }, now);
 			return d;

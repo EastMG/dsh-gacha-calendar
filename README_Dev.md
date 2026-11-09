@@ -103,7 +103,7 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 35 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（18 处定稿，三轮增删）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）+ category / tags 批 1+2+3（9 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 多值拆分 + 旧键兼容 + 反证；批 3 把 `eventTier` 的 haystack 改成 OR 语义：`category` + `tags` + `name` 都参与）+ 2026-11-09 新接入 5 款（无期迷途两侧真源 / 夜幕之下卡池 / 未定·绘旅人·炽焰天穹留空未配置）+ 星铁卡池换官方公告 CMS + 「相对起点」锚定（星铁 10:00 / 无期迷途 14:00）+ 「起点未知 ≠ 已开始」）
+│   ├── all.mjs      # 统一门禁：聚 36 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（18 处定稿，三轮增删）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）+ category / tags 批 1+2+3（9 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 多值拆分 + 旧键兼容 + 反证；批 3 把 `eventTier` 的 haystack 改成 OR 语义：`category` + `tags` + `name` 都参与）+ 2026-11-09 新接入 5 款（无期迷途两侧真源 / 夜幕之下卡池 / 未定·绘旅人·炽焰天穹留空未配置）+ 星铁卡池换官方公告 CMS + 「相对起点」锚定（星铁 10:00 / 无期迷途 14:00）+ 「起点未知 ≠ 已开始」+ 绝区零 bwiki 备选源「起点未知 = 已开始」的唯一例外）
 │   ├── cases-*.mjs  # 各段用例（33 个：cases-p5x / b1~b3 / p4~p9 / cases-ba / cases-pw / cases-uma-gt / cases-arknights-claim / cases-arknights-timeline / rule-lint / tz / ticker / remind / health / readme / core / star / filter / ics / refresh / settings-jump / settings-copy / sources / bwiki-cors / p3 / p4flat / category / new5）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
@@ -966,11 +966,34 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
   `state = "wait"`，`scheduleWhen` 写「开始时间未知」，不进「近期」/提醒/24 小时计数）。
 - **事实不丢**：悬停与数据数组仍列出这些行（`coveredOrOpen` = 在期 ∪ 起点未知但终点未过），
   只是不冒充"在期"。**代价（有意的，宁可少显示）**：
-  - 绝区零 **bwiki 备选源**整页都是 `X.Y版本更新后` ⇒ 一切到备选就「该来源无数据」（默认官方源不受影响）；
+  - 绝区零 **bwiki 备选源**整页都是 `X.Y版本更新后` ⇒ 一切到备选就「该来源无数据」（默认官方源不受影响）
+    —— **这一条已按下面 ④ 的例外放行**（2026-11-09 晚）；
   - 星铁 **bwiki 备选**只剩两端明确的那口池当外显，`4.6/4.7版本更新后` 的几口池只出现在悬停里；
   - 星铁**活动一览**（bwiki，仍是默认活动源）里写成 `4.6版本更新后` 的活动同样只进悬停。
 - 反向证明（改回旧口径 ⇒ 红）见 `test/cases-hsr-official.mjs` ④ 与 `test/cases-core.mjs` ⑤ 的
   `APPROVED_DIFF`（白名单只有 `hsr:gacha` / `hsr:event` 两个键，并有守卫防止它扩大）。
+
+**④ 例外：绝区零 bwiki 备选源「起点未知 = 已开始」**（2026-11-09 晚，用户选 B，全仓**唯一**例外）
+
+- 用户原话：**「选 B，绝区零的 bwiki 不收录未来卡池」**。
+- **依据**：`altSources` 的「Bwiki 往期调频」（fetcher `zzz-bwiki`）那一页**不收录未来卡池** ——
+  2026-11-09 实测整页每行起点都写 `X.Y版本更新后`、终点是具体日期，也就是"列出来的池必然已经开过"。
+  所以对这一页把"起点未知"当"已开始"是**安全**的（旧口径下它本来也是这么显示的）。
+- **怎么实现的**：来源条目上一个显式开关 `unknownStartIsActive: true`（`registerSource` 的
+  `altSources` / `eventAltSources` 元素可带，全仓只有这 1 条带）。它由那一条**自己的抓取器**读出、
+  交给 `selectCurrent(items, now, { unknownStartIsActive })`；抓取器只在设置里**手动选中**该备选源时
+  才会被执行（`gachaFetcherFor` 命中 `altSourceId`）⇒ 天然"只对该来源生效"。
+- **落点只有一个**：`24-parser-window.js` 的 `selectCurrent`（`inWindow`）。`coversNow` /
+  `sideViewOf` / `scheduleItemOf` **保持严格**——放行之后 `fillMissingStarts` 已经把起点补成具体时刻，
+  载荷 `bannerDates` 是一段可解析的绝对窗口，下游看到的与 2026-11-09 之前逐字相同。
+- **为什么别的来源不适用**：星铁 bwiki 备选（`hsr-bwiki`）**收录未来池**（「4.6/4.7版本更新后 ~ …」
+  在开池前几周就挂在页上），同样放行会立刻重现 2026-11-09 修掉的"未来池假在期"。所以这个开关
+  **不是**全局配置项（不进 `DEFAULT_SETTINGS` / `CONFIG_KEYS`，设置页看不到），只逐条挂在来源声明上。
+- **回归**：`test/cases-zzz-bwiki.mjs`（第 36 段）钉住 ①开关只有 1 条 / 不在设置项里、②端到端切源后
+  有数据且 `state === "live"`、③同一页换没有开关的抓取器仍严格、④星铁 bwiki 仍严格、
+  ⑤默认源在同样情形下仍严格、⑥反向证明（把开关改成 `false` ⇒ 同一页立刻 `null`）。
+  `test/cases-p3.mjs` 的 P3d ⑤（绝区零 bwiki 备选）因此**回到**改造前的 golden / 等价 oracle，
+  原先那几条"已批准差异"断言已删除。
 
 
 ### 为什么插件要改宿主的槽位布局

@@ -891,12 +891,11 @@ const P3D_PATHS = [
 	{
 		key: "zzzBwikiGacha", id: "zzz", side: "gacha", field: "gacha",
 		alt: "zzz-bwiki", now: P3D_NOW,
-		// ⚠️ 2026-11-09「起点未知 ≠ 已开始」：这一页**每一行**的起点都写「X.Y版本更新后」（无日期，
-		// 见夹具 meta：039/038/037… 的上半全是这种写法）⇒ 按新口径没有任何一行能证明"已经在开"
-		// ⇒ 载荷 null（如实"未公布"），字符串字段与数组都为空。旧 golden（改造前会显示
-		// 「倾掷浮生」039-1期独家频段）**原样保留**在 p3d-golden.json 里作存档、不再比相等；
-		// 新行为由下面的 `openStartOnly` 分支逐条钉住（含"面板确实显示无数据"这个代价）。
-		openStartOnly: true,
+		// ⚠️ 2026-11-09 晚（用户选 B「绝区零的 bwiki 不收录未来卡池」）：这一条来源在注册表里声明了
+		// `unknownStartIsActive: true` ⇒ 它的「X.Y版本更新后」（起点未知）按"已开始"处理，
+		// 于是这里**恢复到改造前**的行为（含下面 ①/② 的 golden 与等价 oracle 都按原样比对）。
+		// 唯一一条例外；依据 / 为什么星铁 bwiki 不能同样处理，见 30-game-hoyoverse.js 该条的注释
+		// 与本批 `test/cases-zzz-bwiki.mjs`（含"拿掉开关 ⇒ 这里立刻红"的反向证明）。
 		urlsOf: (alt) => ({ [alt.url]: "p3d-zzz-bwiki" })
 	},
 	// ⑥ 蔚蓝档案国际服·备选：Nexon 更新日志（卡池 + 活动同一份载荷）
@@ -1054,17 +1053,6 @@ async function runP3d() {
 		const g = golden[p.key];
 		check(`P3d golden（${p.key}）：golden 里有这一条（覆盖到、不是抽样）`, !!g, p.key);
 		if (!g) continue;
-		if (p.openStartOnly) {
-			// 起点未知 ⇒ 什么都不显示（"宁可少显示，也不要假在期"）。两条断言：
-			//   ① 现在的产物 = 空（载荷 null、数组 0 条）；
-			//   ② 旧 golden **没被改写**（仍存着改造前会显示的那条），差异是"批准的变更"而不是"改完再采集"。
-			check(`P3d golden（${p.key}）：整页都是「X.Y版本更新后」⇒ 载荷 null、数组 0 条（不再假在期）`,
-				r.payload === null && arr.length === 0, JSON.stringify([r.payload, arr.length]));
-			check(`P3d golden（${p.key}）：旧 golden 原样保留（存档"改造前会显示什么"）`,
-				p3dTextOf(g.rec.banner) === "\u300C\u503E\u63B7\u6D6E\u751F\u300D039-1\u671F\u72EC\u5BB6\u9891\u6BB5",
-				JSON.stringify(g.rec.banner));
-			continue;
-		}
 		const fields = p.goldenFields || P3D_VISIBLE;
 		const changed = fields.filter((f) => p3dTextOf(r.rec[f]) !== p3dTextOf(g.rec[f]));
 		check(`P3d golden（${p.key}）：${fields.length} 个字符串字段与改造前逐字相同`, changed.length === 0, JSON.stringify(changed));
@@ -1080,12 +1068,6 @@ async function runP3d() {
 		const r = results[p.key];
 		const oldArr = legacySynthArrOf(p.key, p.side);
 		const arr = r.rec[p.field] || [];
-		if (p.openStartOnly) {
-			// 已批准差异（2026-11-09）：改造前有 1 条（把「3.3版本更新后」当成已开始），现在 0 条。
-			check(`P3d 等价（${p.key}）**已批准差异**：改造前 1 条 → 现在 0 条（起点未知不再算在期）`,
-				arr.length === 0 && oldArr.length === 1, JSON.stringify([arr.length, oldArr.length]));
-			continue;
-		}
 		check(`P3d 等价（${p.key}）：\`${p.field}\` 与改造前的合成结果逐条相等（含 ts）`,
 			JSON.stringify(sansCategoryTags(arr)) === JSON.stringify(sansCategoryTags(oldArr)),
 			JSON.stringify([sansCategoryTags(arr), oldArr]));
@@ -1126,13 +1108,6 @@ async function runP3d() {
 		const rec = (res.games || {})[p.id] || {};
 		const arr = rec[p.field] || [];
 		const view = T.scheduleCellOf(Object.assign({ id: p.id }, rec), p.side, new Date(p.now));
-		if (p.openStartOnly) {
-			// 已批准差异（2026-11-09）：切到这个备选源后**不再出数据**（整页起点未知）——
-			// 这是"宁可少显示也不要假在期"的直接代价，写成断言而不是悄悄跳过。
-			check(`P3d 端到端（${p.key}）**已批准差异**：切源后数组 0 条、面板写「该来源无数据」`,
-				arr.length === 0 && view === null, JSON.stringify([arr.length, view && view.primary && view.primary.title]));
-			continue;
-		}
 		check(`P3d 端到端（${p.key}）：切源后数组非空（${arr.length} 条）`, arr.length > 0, String(arr.length));
 		check(`P3d 端到端（${p.key}）：面板那一格能渲染（\`scheduleCellOf\` 非 null ⇒ 不再写「该来源无数据」）`,
 			!!view && !!view.primary, JSON.stringify(view && { title: view.primary && view.primary.title, rest: view.rest && view.rest.length }));

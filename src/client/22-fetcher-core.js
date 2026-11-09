@@ -444,6 +444,33 @@
 		}
 
 
+		// ── 来源条目上的「起点未知 = 已开始」开关（2026-11-09 晚，用户选 B）───────────────
+		// 语义：`altSources` / `eventAltSources` 的某一条写了 `unknownStartIsActive: true` ⇒
+		// **仅当当前生效来源是这一条时**，`startTs == null` 的条目按"已开始"处理（恢复旧语义）。
+		// 谁读它：那一条**自己的抓取器**（见 30-game-hoyoverse.js 的 `zzz-bwiki`），再经
+		// `selectCurrent(items, now, { unknownStartIsActive })` 作用到选当期。
+		//
+		// 为什么"按抓取器键反查"就等价于"当前生效来源是这一条"：
+		//   · 备选源的抓取器键在注册表里**唯一**（同一条目下不会两样，见 test/all.mjs 的登记守卫）；
+		//   · `gachaFetcherFor` / `eventFetcherFor` 只有在设置里选中该备选源时（`customUrls` /
+		//     `customEventUrls` = 该条的 `url`／`id`，即 `altSourceId` 命中）才会把它的抓取器交出去；
+		//   · 所以"这个抓取器正在跑"本身就等于"当前生效来源 = 这一条"。默认源（官方公告）走的是
+		//     `GACHA_FETCHERS[source.id]`，永远不经过这里。
+		//
+		// ⚠️ 刻意**不做成全局配置项**：它不进 DEFAULT_SETTINGS / CONFIG_KEYS，也不能由用户在设置页
+		//    打开 —— 一旦全局放开，星铁 bwiki 那类"收录未来池"的来源就会重现"未来池假在期"。
+		function unknownStartIsActiveOf(fetcherKey) {
+			if (!fetcherKey) return false;
+			for (const s of SOURCES) {
+				const list = [].concat(s.altSources || [], s.eventAltSources || []);
+				for (const a of list) {
+					if (a && a.fetcher === fetcherKey && a.unknownStartIsActive === true) return true;
+				}
+			}
+			return false;
+		}
+
+
 		// 取条目当前活动源的抓取器：命中的活动备选源 > 默认活动抓取器（无 → null）
 		//
 		// ⚠️ P3e（2026-11-07）：备选源有**两种登记形状** —— 一种直接是函数
