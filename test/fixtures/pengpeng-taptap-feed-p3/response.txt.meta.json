@@ -1,0 +1,6 @@
+{
+  "url": "https://www.taptap.cn/webapiv2/feed/v7/by-group?X-UA=V%3D1%26PN%3DWebApp%26LANG%3Dzh_CN%26VN_CODE%3D100000000%26LOC%3DCN%26PLT%3DPC%26DS%3DAndroid%26UID%3D%26OS%3DWindows%26OSV%3D10%26DT%3DPC&type=official&group_id=924367&limit=10&sort=created&__times=0&status=0&with_hot_comment=true&from=20",
+  "status": 200,
+  "capturedAt": "2026-11-10T17:48:43.636Z",
+  "trim": "只保留被抓取器读取的字段（data.list[].moment.{id_str,created_time,topic{title,summary}} + data.total/next_page），其余（author / stat / images / hot_comment_list / labels / app …）删除；字段值逐字不动。"
+}

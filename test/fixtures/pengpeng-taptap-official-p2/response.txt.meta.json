@@ -1,6 +1,0 @@
-{
-  "url": "https://www.taptap.cn/app/746164/topic?type=official&page=2",
-  "status": 200,
-  "capturedAt": "2026-11-09T18:45:35.031Z",
-  "trim": "只保留帖子卡片区（首个 <a> 前 500B 到最后一帖后 9KB）；标题/正文/链接结构不动。"
-}

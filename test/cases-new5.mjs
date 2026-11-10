@@ -157,13 +157,15 @@ export default async function run() {
 			wqmt ? String(wqmt.eventUrl) : "缺失");
 
 		const pp = srcOf("pengpeng");
-		check("pengpeng 卡池源已接（bwiki 契约一览）",
-			!!pp && /^https:\/\/wiki\.biligame\.com\/pengpeng\/api\.php/.test(pp.url) && pp.source === "Bwiki",
-			pp ? String(pp.url) : "缺失");
+		check("pengpeng 卡池源已接（bwiki 契约一览；标签写明「源站停更」）",
+			!!pp && /^https:\/\/wiki\.biligame\.com\/pengpeng\/api\.php/.test(pp.url) && pp.source === "Bwiki 契约一览（源站停更）",
+			pp ? String(pp.source) : "缺失");
 		// 2026-11-10：活动侧默认源再换一档 —— bwiki `公告/` 停更 6 周 ⇒ TapTap 官方 tab 成默认，
 		// bwiki 公告降为 eventAltSources 手动备选（标签如实写「wiki 数据滞后」）。
-		check("pengpeng 活动源默认 = TapTap 官方 tab",
-			!!pp && pp.eventUrl === "https://www.taptap.cn/app/746164/topic?type=official",
+		// 2026-11-11：同一份数据的抓取方式从 HTML 正则换成 feed JSON（地址换成 webapiv2 接口，来源标签不变）。
+		check("pengpeng 活动源默认 = TapTap 官方 tab 的 feed JSON（type=official / group_id=924367）",
+			!!pp && /^https:\/\/www\.taptap\.cn\/webapiv2\/feed\/v7\/by-group\?/.test(String(pp.eventUrl))
+			&& /[?&]type=official/.test(String(pp.eventUrl)),
 			pp ? String(pp.eventUrl) : "缺失");
 		check("pengpeng 活动来源标签 = 「TapTap 官方（国服）」",
 			!!pp && pp.eventSource === "TapTap 官方（国服）", pp ? String(pp.eventSource) : "缺失");
@@ -206,8 +208,8 @@ export default async function run() {
 		check("cytq 设置页两侧都写「未配置」",
 			T.getDefaultSourceName(cytq, "url") === "未配置" && T.getDefaultSourceName(cytq, "eventUrl") === "未配置",
 			JSON.stringify([T.getDefaultSourceName(cytq, "url"), T.getDefaultSourceName(cytq, "eventUrl")]));
-		check("pengpeng 设置页：卡池侧写「Bwiki」、活动侧写「TapTap 官方（国服）」",
-			T.getDefaultSourceName(pp, "url") === "Bwiki" && T.getDefaultSourceName(pp, "eventUrl") === "TapTap 官方（国服）",
+		check("pengpeng 设置页：卡池侧写「Bwiki 契约一览（源站停更）」、活动侧写「TapTap 官方（国服）」",
+			T.getDefaultSourceName(pp, "url") === "Bwiki 契约一览（源站停更）" && T.getDefaultSourceName(pp, "eventUrl") === "TapTap 官方（国服）",
 			JSON.stringify([T.getDefaultSourceName(pp, "url"), T.getDefaultSourceName(pp, "eventUrl")]));
 	}
 
