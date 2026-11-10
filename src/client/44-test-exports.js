@@ -655,7 +655,8 @@
 			//   `dataArrayExtrasFromEntriesOf` 按同一条判据展开）—— 导出后回归可以拿"记录字符串 + 悬停文本"
 			//   再合成一遍当**改造前**的对照（P3c 删掉产品里的合成器后，oracle 挪进了 test/cases-p3.mjs ③）。
 			dataArrayProducedGachaOf,
-			dataArrayProducedEventsOf,
+			parseSmwActivity,
+	dataArrayProducedEventsOf,
 			dataArrayGachaMainOf,
 			dataArrayEventMainOf,
 			localWin,

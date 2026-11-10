@@ -7816,7 +7816,11 @@ EVENT_FETCHERS["wuwa"] = {
 			for (const [title, r] of Object.entries(results)) {
 				const p = r.printouts || {};
 				const nameArr = p["名称"] || [];
-				const name = Array.isArray(nameArr) && nameArr[0] ? String(nameArr[0]) : title;
+				// 显示名优先用**页面标题**（页面名是 wiki 的唯一标识，「名称」属性可能重复）。
+				// 真机（2026-11-11）：「巡历雪境，凝铸锋锐」与它的「…新手」变体页名称属性完全相同
+				//   ⇒ 按名称取名会把两页混成一条（用户要求：保留并按**完整页面名**显示）。
+				const pageTitle = String(title || "").trim();
+				const name = pageTitle || (Array.isArray(nameArr) && nameArr[0] ? String(nameArr[0]) : "");
 				const startTs = parseRaw(p["开始时间"]?.[0]);
 				const endTs = parseRaw(p["结束时间"]?.[0]);
 				if (startTs == null || endTs == null) continue;

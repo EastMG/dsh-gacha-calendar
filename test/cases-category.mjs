@@ -412,6 +412,35 @@ export default async function runCategory() {
 			String(T.eventTier({ category: "Other", name: "「总统特异点」通关应援纪念活动 第2弹" })));
 		// C. 原神：`剧情活动` 是第一档的唯一来源（名字「坏灭肇始之时」没有关键词）
 		const gArr = results.genshin.rec.events || [];
+	// ── 2026-11-11：**同名页面**靠页面标题区分（真机 bug）─────────────────
+	// 原神 bwiki：「巡历雪境，凝铸锋锐」与它的「…新手」变体页的 SMW「名称」属性**完全相同**，
+	// 旧取名按「名称」⇒ 两页混成一条（已结束的主活动被当成 294 天长期活动）。
+	// 现在一律取**页面标题**（用户要求：保留并按完整页面名显示）。
+	{
+		const mk = (title, nameProp, s, e) => ({
+			[title]: {
+				fulltext: title,
+				printouts: {
+					"名称": [nameProp],
+					"开始时间": [{ raw: "1/" + s }],
+					"结束时间": [{ raw: "1/" + e }],
+					"类型": ["额外活动"]
+				}
+			}
+		});
+		const json = { query: { results: Object.assign({},
+			mk("「同名测试活动」", "「同名测试活动」", "2026/11/5/10/0/0/0", "2026/11/20/3/59/0/0"),
+			mk("「同名测试活动」新手", "「同名测试活动」", "2026/11/6/10/0/0/0", "2026/11/25/3/59/0/0")
+		) } };
+		const parsed = T.parseSmwActivity(json, TZ_CN, { emitArrays: true, id: "genshin" });
+		const titles = ((parsed && parsed.events) || []).map((x) => x.title).sort();
+		check("同名页面不再混成一条：两条各自用**页面标题**（含「新手」后缀）",
+			titles.length === 2 && titles.includes("「同名测试活动」") && titles.some((x) => x.endsWith("新手")),
+			JSON.stringify(titles));
+		check("页面标题就是显示名（不是 SMW「名称」属性）",
+			((parsed && parsed.events) || []).every((x) => titles.includes(x.title)), JSON.stringify(titles));
+	}
+
 		const gBare = gArr.map((x) => { const o = Object.assign({}, x); delete o.category; delete o.tags; return o; });
 		check("原神：摘掉 category ⇒ `「坏灭肇始之时」` 从第一档掉到第二档（category 是唯一来源）",
 			tierOf(gArr[0]) === 1 && tierOf(gBare[0]) === 2,
