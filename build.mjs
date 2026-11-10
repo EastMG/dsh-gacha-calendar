@@ -171,6 +171,10 @@ const ORDER = [
   "30-game-netease.js",        // 时空中的绘旅人：官网新闻列表 + 详情（卡池 + 活动）
   "30-game-pengpeng.js",       // 夜幕之下（国服）：卡池 bwiki + 活动 bwiki 公告/版本活动总览
   "30-game-unconfigured.js",   // 炽焰天穹：只注册、来源留空未配置
+  // 2026-11-11 第二批：三处新来源（崩坏3 内容中台 / OurNotes 日服 SPICA / 卡厄斯梦境 TapTap 官方 tab）。
+  // ⚠️ 必须排在上面全部 `30-game-*.js` 之后：`registerSource` 要**合并既有条目**
+  //    （ournotes 在 30-game-bandori.js、czn 在 30-game-bwiki-register.js 里声明）。
+  "30-game-batch2.js",
   "44-test-exports.js",        // 回归出口：解析器 + env 工具 + 来源表（挂 exports.__regression，测试用）
   "50-refresh.js",             // 刷新编排、失败沿用旧值
   "60-helpers.js",             // 共用纯函数：状态归一 / 提示文案 / 显隐 / 格式化 / 排序 / 启动刷新判定
@@ -291,6 +295,7 @@ const CORE_ORDER = [
   "30-game-netease.js",        // 时空中的绘旅人（官网新闻）
   "30-game-pengpeng.js",       // 夜幕之下（国服）
   "30-game-unconfigured.js",   // 炽焰天穹（来源留空未配置）
+  "30-game-batch2.js",         // 2026-11-11 第二批（bh3 内容中台 / OurNotes SPICA / czn TapTap）
   "50-refresh.js",             // 刷新编排
   "engine-api.js",             // 注入 env + refresh() + 测试出口 + return
 ];
