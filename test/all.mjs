@@ -51,6 +51,7 @@ import runHsrOfficial from "./cases-hsr-official.mjs";
 import runZzzBwiki from "./cases-zzz-bwiki.mjs";
 import runScrapeFail from "./cases-scrape-fail.mjs";
 import runUmaTw from "./cases-uma-tw.mjs";
+import runBatch2 from "./cases-batch2.mjs";
 
 const LIVE = process.argv.includes("--live");
 
@@ -107,7 +108,7 @@ section("夹具卫生");
 	check("夹具非空", fx.length > 0, String(fx.length));
 	check("夹具数量 ≥ 20（各批都抓了真实响应）", fx.length >= 20, String(fx.length));
 	check("夹具命名带批次前缀（便于溯源）",
-		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights|wqmt|pengpeng|wd|hlr)/.test(f)), fx.slice(0, 5).join(","));
+		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights|wqmt|pengpeng|wd|hlr|bh3|spica|czn)/.test(f)), fx.slice(0, 5).join(","));
 }
 //#endregion
 
@@ -152,7 +153,8 @@ const batches = [
 	["星铁卡池换官方公告 CMS + 「相对起点」锚定（星铁 10:00 / 无期迷途 14:00）+ 「起点未知 ≠ 已开始」", runHsrOfficial],
 	["绝区零 bwiki 备选源「起点未知 = 已开始」的唯一例外（其余来源仍严格）", runZzzBwiki],
 	["刷新横幅：底部失败横条 + 重试删除、失败明细并入悬停（沿用判定 / 文字口径逐字不变）", runScrapeFail],
-	["赛马娘·繁中服（Komoe 官方公告：卡池/活动同一条接口 + 「維護結束後」起点未知 + 反证）", runUmaTw]
+	["赛马娘·繁中服（Komoe 官方公告：卡池/活动同一条接口 + 「維護結束後」起点未知 + 反证）", runUmaTw],
+	["第二批新来源（崩坏3 内容中台：卡池只出名称/角色 + 活动时间块 / OurNotes 日服 SPICA：列表→前 5 条详情 / 卡厄斯 TapTap 官方 tab：HTML 卡片 + 区间）", runBatch2]
 ];
 const before = counts();
 for (const [label, fn] of batches) {

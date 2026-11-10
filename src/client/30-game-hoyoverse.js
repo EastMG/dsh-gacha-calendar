@@ -1180,10 +1180,13 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 			tz: "Asia/Shanghai",
 			name: "崩坏3",
 			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/b0/03/81/b003811c-f82a-428c-aa49-195f22c311bd/AppIcon-1x_U007emarketing-0-10-0-85-220-0.png/512x512bb.jpg",
-			// 出厂默认不勾选展示（用户要求）：默认未配置时面板恒空，不该占版面
-			// 默认**未配置**：不给 url / eventUrl
-			source: "",
-			eventSource: "",
+			// 出厂默认不勾选展示（用户要求），2026-11-11 接入米哈游内容中台后**仍然保持隐藏**。
+			// 默认源 = 内容中台（`iChanId=697` 卡池 / `696` 活动，见 30-game-batch2.js 的文件头与抓取器登记）；
+			// 解析口径（卡池只出名称/角色、活动正文无时间块如实跳过）也写在那份文件里。
+			url: "https://act-api-takumi-static.mihoyo.com/content_v2_user/app/b9d5f96cd69047eb/getContentList?iChanId=697&iPageSize=30&iPage=1&sLangKey=zh-cn",
+			source: "米哈游内容中台",
+			eventUrl: "https://act-api-takumi-static.mihoyo.com/content_v2_user/app/b9d5f96cd69047eb/getContentList?iChanId=696&iPageSize=30&iPage=1&sLangKey=zh-cn",
+			eventSource: "米哈游内容中台",
 			altSources: [{ label: "米游社公告", url: "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=1&type=1&page_size=20", fetcher: "bh3-miyoushe" }],
 			eventAltSources: [{ label: "米游社公告", url: "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=1&type=2&page_size=20", fetcher: "bh3-miyoushe" }]
 		});

@@ -1,0 +1,7 @@
+{
+  "url": "https://act-api-takumi-static.mihoyo.com/content_v2_user/app/b9d5f96cd69047eb/getContentList?iChanId=697&iPageSize=30&iPage=1&sLangKey=zh-cn",
+  "status": 200,
+  "capturedAt": "2026-11-10T17:00:20.340Z",
+  "bytes": 151830,
+  "trim": "整份 30 条原样入库（iTotal=863 的前 30 条，约 151KB）；未删字段、未改顺序。`dtEndTime` 30 条全是 `2035-01-01 00:00:00` 占位，装备/角色补给正文没有补给本身起止 —— 正是「卡池只出名称/角色、不凑区间」的反例；同时保留 `角色补给丨愈生佑翎` 这类正文含 S/A 级角色的样本。"
+}

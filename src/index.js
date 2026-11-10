@@ -143,6 +143,13 @@ const PROXY_ALLOW_HOSTS = [
 	"aki-gm-resources-back-huoshan.aki-game.com",
 	"aki-gm-resources.aki-game.com",
 	"api-takumi-static.mihoyo.com",
+	// 崩坏3 **米哈游内容中台**（2026-11-11 接入）：`act-api-takumi-static.mihoyo.com` 与上面的
+	// `api-takumi-static.mihoyo.com` 是**不同子域** → 白名单按域名精确匹配，必须单独登记。
+	// 实测响应 `Access-Control-Allow-Origin: *`（直连也通），但仍走宿主代理（与其它来源同一条路径）。
+	"act-api-takumi-static.mihoyo.com",
+	// BanG Dream！OurNotes·日服 **卡池** SPICA（社区攻略站，2026-11-11 接入）：
+	// 列表 `/ournotes/gachas` + 详情 `/ournotes/gacha/{id}`；响应**无 ACAO** ⇒ 必须走代理。
+	"spica.wiki",
 	"api-web.bluearchive.jp",
 	// ── 2026-10-03 补登：以下 4 个域名此前**漏登记** → 经代理一律 403 `cross-site-not-allowed` ──
 	// 表现：面板上这几条**长期空白**，失败原因写 `HTTP 403`。源站本身没问题（服务端实测 200），

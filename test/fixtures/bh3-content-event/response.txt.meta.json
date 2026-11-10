@@ -1,0 +1,7 @@
+{
+  "url": "https://act-api-takumi-static.mihoyo.com/content_v2_user/app/b9d5f96cd69047eb/getContentList?iChanId=696&iPageSize=30&iPage=1&sLangKey=zh-cn",
+  "status": 200,
+  "capturedAt": "2026-11-10T17:00:20.531Z",
+  "bytes": 161579,
+  "trim": "整份 30 条原样入库（iTotal=687 的前 30 条）；保留「>>开放时间 11月12日10:00~11月26日04:00」绝对区间、`9.1版本更新后~…` 相对起点、以及 3 条无活动时间块的主线更新帖（如实跳过、不补时刻的反例）。"
+}
