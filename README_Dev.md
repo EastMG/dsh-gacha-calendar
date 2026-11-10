@@ -66,7 +66,8 @@ dsh-gacha-calendar/
 │       ├── 30-game-bwiki-stellasora.js  # bwiki ⑦ 星塔旅人（stellasora / 首页活动日历）
 │       ├── 30-game-bwiki-html-fetchers.js # 上面 7 个 HTML 形态来源的抓取器
 │       ├── 30-game-bwiki-wikitext-common.js # wikitext 形态公共段：取正文（parse.wikitext）/ 当期挑选 / 悬停
-│       ├── 30-game-bwiki-zspms-wikitext.js # 战双（wikitext）：卡池 = `Test4/活动旗帜`（2026-11-10 起默认）+ 版本更新公告（备选 / 活动侧）
+│       ├── 30-game-bwiki-zspms-wikitext.js # 战双（wikitext）：卡池 = `Test4/活动旗帜`（2026-11-10 起默认）+ 活动日历/版本更新公告（均为活动侧备选）
+│       ├── 30-game-zspms-official.js # 战双：**官方 CDN**「版本更新公告」（2026-11-11 起活动侧默认源；菜单 → 最近 3 篇 → HTML 正文抽档期）
 │       ├── 30-game-bwiki-czn-wikitext.js # 卡厄斯梦境（wikitext）：Module:Gacha/data 的 Lua 表
 │       ├── 30-game-bwiki-kedr-wikitext.js # 雪松（wikitext）：Template:首页游戏版本内容 的模板调用
 │       ├── 30-game-bwiki-kedr-wiki.js   # 雪松社区归档页（往期动员，prop=text）+ 其抓取器
@@ -1056,6 +1057,8 @@ null，活动侧 2026-11-10 已换 TapTap 官方 tab（能出「新风同行」1
   未接原因：正文是 HTML 富文本，小节名在 `<strong>` 里（不是 `==` 标题层级），活动名/容器名的区分要另写一套
   解析器；本轮按任务书只把 bwiki 活动日历设为默认。宿主 `PROXY_ALLOW_HOSTS` 不含
   `media-cdn-zspms.kurogame.com`，但该域 `ACAO: *` ⇒ 若接，走 `mode:"direct"` 即可，不需要动白名单。
+  （**2026-11-11 晚已接**：活动侧默认源换成官方 CDN，实测走 `mode:"proxy"` + 已登记
+  `PROXY_ALLOW_HOSTS`；见下面「战双帕弥什活动侧默认源换成官方 CDN」一节。）
 - **夜幕之下 卡池侧**：**不动**（三选一里的 C）。bwiki「契约一览」最后编辑 2026-09-24（`list=recentchanges`），
   最新窗口 `2026/09/10 ~ 2026/10/01` ⇒ 当前 null。TapTap 只有应用简介里的
   「10月22日…「幸福无罪论」活动契约限时开启」（**无年份、无结束日**；11-12 的新版本档期只在图片里）：
@@ -1064,6 +1067,30 @@ null，活动侧 2026-11-10 已换 TapTap 官方 tab（能出「新风同行」1
   也不把默认换成 TapTap：它只能产出单边窗口 ⇒ 外显恒 null（等于用「永远空」换掉 bwiki 的「等补档」）。
   回归钉住 `test/cases-new5.mjs` ④(d)；完整取舍写在 `src/client/30-game-pengpeng.js` 文件头的
   「卡池侧 2026-11-11 复核」段。
+
+
+### 2026-11-11（晚）：战双帕弥什活动侧默认源换成**官方 CDN**「版本更新公告」
+
+- **为什么换**：`Test4/活动日历` 只抄到 2026/11/05 ⇒ 面板从 11-06 起空窗；官方 CDN 的
+  《流光抛诸寰宇》版本更新公告（2026-11-03 发布）已经把 11-05 版本更新那批写到 **12-17**。
+- **默认源**：`eventUrl` = `https://media-cdn-zspms.kurogame.com/pnswebsite/website2.0/json/G144/ArticleMenu.json`，
+  `eventSource` = 「官方公告」。抓取链路 = 菜单 → 按标题匹配「版本更新公告」（清洗后匹配，**不写死 id**，
+  实测 217 条里命中 49 篇；菜单本身**不是**时间序）→ 按发布时间倒序取**最近 3 篇** →
+  逐篇 `article/<id>.json` 的 `articleContent`（HTML 富文本）解析档期。共 4 个请求，全走宿主代理。
+- **降级**：bwiki 两页都保留为 `eventAltSources`（设置页可手动切）：
+  「Bwiki 活动日历（旧默认源）」抓取器键 `zspms-bwiki-calendar`、
+  「Bwiki 版本更新公告（旧，正文抽档期）」抓取器键 `zspms-bwiki-notice`；卡池侧不动（仍是 `Test4/活动旗帜`）。
+- **解析口径**：活动名住在 `<strong>` 里（`四、像素嚼嚼乐` / `4）活动时间` / `「揽光一瞬」` 三种都是整行加粗），
+  清洗掉 `【】「」◆▌` 等装饰符与序号；起点写「版本更新后」⇒ **`startTs = null`**（仓库 2026-11-09 口径：
+  起点未知 ≠ 已开始）⇒ 这类条目**不进外显**，只在悬停/数组里按**源站原文**列出（到 12-16/12-17）；
+  外显仍是两端都明确且覆盖 now 的那条。缺年份共用 `inferYear`、跨年共用 `endsNextYear`；
+  维护窗口（`停服维护：05:00 - 11:00`）与句子里的研发池档期都不当活动。
+- **实测（2026-11-11T12:00+08 活网）**：外显 = 「诸星迷寂-BOSS挑战」11-06 10:00 ~ 11-30 05:00；
+  悬停 14 条（在期 1 + 起点未知但终点未过 13，含「尽心者尽美-角色试玩关」「7日登录签到奖励」等到 12-17）。
+- **白名单**：`media-cdn-zspms.kurogame.com` 已登记进宿主 `PROXY_ALLOW_HOSTS`（响应 `ACAO: *`，但仍走代理口径）。
+  真夹具 `test/fixtures/p8-zspms-cdn-{menu,art5682,art5467,art5306}`，回归 `test/cases-p8.mjs` P8-8。
+- **卡池侧确认**：官方 CDN 里**没有**结构化卡池字段（卡池只出现在公告正文的句子里：`…研发池获得`），
+  与 bwiki `Test4/活动旗帜` 同源同期 ⇒ 卡池侧维持 bwiki，不接。
 
 
 ### 星铁换官方公告 CMS + 「相对起点」锚定 + 「起点未知 ≠ 已开始」（2026-11-09）

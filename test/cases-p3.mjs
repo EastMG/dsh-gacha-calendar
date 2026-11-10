@@ -450,6 +450,14 @@ const p3bFixtureMapOf = (overrides) => {
 	return m;
 };
 
+// 备选源列表 → 该抓取器键对应的 url。⚠️ **按 key 查**，不按下标：
+// 2026-11-11 起战双的 `eventAltSources[0]` 是活动日历，而 golden 钉的是「版本更新公告」那份夹具。
+const altUrlOf = (list, fetcher) => {
+	const hit = (Array.isArray(list) ? list : []).find((a) => a && a.fetcher === fetcher);
+	if (!hit) throw new Error("altUrlOf: 备选源里没有 " + fetcher);
+	return hit.url;
+};
+
 // ── P3b 路径表（**每款每侧一条**；新增批次只往这里加）──────────────────────────
 // `call(t, src)` 收 `engine.__test` 与来源声明（用它自己的 url / eventUrl / tz）；
 // `urlsOf(src)` 就地补 map 覆盖（个别夹具没进 map.json）；
@@ -495,6 +503,8 @@ const P3B_PATHS = [
 	},
 
 	// ── 第 2 批：bwiki 族 —— 物华弥新 / 战双帕弥什 / 卡厄斯梦境 / 雪松 ──
+	// 备选源地址**按抓取器键查**（不要按下标）：2026-11-11 起战双的 `eventAltSources[0]` 是活动日历，
+	// 而这两条 golden 钉的是「版本更新公告」那份夹具（抓取器键 `zspms-bwiki-notice`）。
 	{
 		key: "whmxGacha", switched: true, id: "wuhuamixin", side: "gacha", field: "gacha", now: Date.parse("2026-10-02T00:00:00.000Z"),
 		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
@@ -509,15 +519,16 @@ const P3B_PATHS = [
 		// 所以改走备选源地址 + 备选抓取器（`zspms-bwiki-notice`）；产物逐字不变。
 		// 新默认源（活动旗帜）的逐字断言见 `cases-p8.mjs` P8-6。
 		key: "zspmsGacha", switched: true, id: "zspms", side: "gacha", field: "gacha", now: Date.parse("2026-09-25T00:00:00.000Z"),
-		call: (t, s) => t.GACHA_FETCHERS["zspms-bwiki-notice"]((s.altSources || [])[0].url, undefined, s.tz)
+		call: (t, s) => t.GACHA_FETCHERS["zspms-bwiki-notice"](altUrlOf(s.altSources, "zspms-bwiki-notice"), undefined, s.tz)
 	},
 	{
-		// ⚠️ 2026-11-11：战双活动默认源换成 bwiki `Test4/活动日历`（结构化档期页）。
-		// 这条 golden 钉的是**同一份版本更新公告夹具**的解析结果（ask 索引 + 公告正文），
+		// ⚠️ 2026-11-11：战双活动默认源换成**官方 CDN**「版本更新公告」（2026-11-11 晚；先前是 `Test4/活动日历`）。
+		// 这条 golden 钉的是**同一份版本更新公告夹具**（bwiki ask → 正文）的解析结果，
 		// 所以改走备选源地址 + 备选抓取器（`zspms-bwiki-notice`）；产物逐字不变。
-		// 新默认源（活动日历）的逐字断言见 `cases-p8.mjs` P8-7。
+		// 官方 CDN（新默认源）的逐字断言见 `cases-p8.mjs` P8-8，活动日历（备选）见 P8-7。
+		// ⚠️ 备选源**按抓取器键查**，不要写 `eventAltSources[0]`（2026-11-11 起第 0 项是活动日历）。
 		key: "zspmsEvent", switched: true, id: "zspms", side: "event", field: "events", now: Date.parse("2026-09-25T00:00:00.000Z"),
-		call: (t, s) => t.EVENT_FETCHERS[s.id]["zspms-bwiki-notice"]((s.eventAltSources || [])[0].url, undefined, s.tz)
+		call: (t, s) => t.EVENT_FETCHERS[s.id]["zspms-bwiki-notice"](altUrlOf(s.eventAltSources, "zspms-bwiki-notice"), undefined, s.tz)
 	},
 	{
 		// 卡厄斯梦境的默认页是 Lua `Module:Gacha/data`（不在 map.json）→ 就地补；

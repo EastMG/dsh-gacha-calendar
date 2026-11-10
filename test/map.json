@@ -152,5 +152,9 @@
   "https://spica.wiki/ournotes/gacha/21": "spica-ournotes-gacha-21/response.txt",
   "https://spica.wiki/ournotes/gacha/20": "spica-ournotes-gacha-20/response.txt",
   "https://www.taptap.cn/app/759688/topic?type=official": "czn-taptap-official/response.txt",
-  "https://wiki.biligame.com/zspms/api.php?action=parse&page=Test4%2F%E6%B4%BB%E5%8A%A8%E6%97%A5%E5%8E%86&prop=wikitext&format=json&formatversion=2": "p8-zspms-calendar/response.txt"
+  "https://wiki.biligame.com/zspms/api.php?action=parse&page=Test4%2F%E6%B4%BB%E5%8A%A8%E6%97%A5%E5%8E%86&prop=wikitext&format=json&formatversion=2": "p8-zspms-calendar/response.txt",
+  "https://media-cdn-zspms.kurogame.com/pnswebsite/website2.0/json/G144/ArticleMenu.json": "p8-zspms-cdn-menu/response.txt",
+  "https://media-cdn-zspms.kurogame.com/pnswebsite/website2.0/json/G144/article/5682.json": "p8-zspms-cdn-art5682/response.txt",
+  "https://media-cdn-zspms.kurogame.com/pnswebsite/website2.0/json/G144/article/5467.json": "p8-zspms-cdn-art5467/response.txt",
+  "https://media-cdn-zspms.kurogame.com/pnswebsite/website2.0/json/G144/article/5306.json": "p8-zspms-cdn-art5306/response.txt"
 }

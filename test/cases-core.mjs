@@ -763,18 +763,21 @@ export default async function runCore() {
 		};
 		const runGame = async (id, nowMs, seeds) => {
 			const store = makeStore(only(id));
-			// 2026-11-10：战双卡池默认源换成 bwiki `Test4/活动旗帜`；2026-11-11：活动默认源换成
-			// bwiki `Test4/活动日历`。这条等价性 golden 是**版本更新公告**那版的存档 ⇒ 用真实设置
-			// 存储把两侧都切到备选源（与设置页写的是同一种值）；产物逐字仍是公告那版。
+			// 2026-11-10：战双卡池默认源换成 bwiki `Test4/活动旗帜`；2026-11-11（晚）：活动默认源换成
+			// **官方 CDN**「版本更新公告」（先前是 bwiki `Test4/活动日历`）。这条等价性 golden 是
+			// **bwiki 版本更新公告**那版的存档 ⇒ 用真实设置存储把两侧都切到该备选源（与设置页写的是
+			// 同一种值）；产物逐字仍是公告那版。
 			for (const [k, v] of Object.entries(seeds || {})) await store.set(k, v);
 			const engine = createEngine({ transport, storage: store, now: () => nowMs, timer: { setTimeout, clearTimeout } });
 			const r = await engine.refresh();
 			return r.games[id] || {};
 		};
 		// 战双备选源（版本更新公告）的标识 = altSourceId（这里就是 url）—— 卡池侧 / 活动侧各一条
+		// ⚠️ 活动侧**按抓取器键查**，不要写 `eventAltSources[0]`：2026-11-11 起战双活动默认源是
+		// 官方 CDN，第 0 项是「Bwiki 活动日历」，而这份 golden 钉的是「版本更新公告」那版存档。
 		const ZSPMS_SRC = T.SOURCES.find((s) => s.id === "zspms") || {};
-		const ZSPMS_NOTICE_SRC = (ZSPMS_SRC.altSources || [])[0];
-		const ZSPMS_EVENT_NOTICE_SRC = (ZSPMS_SRC.eventAltSources || [])[0];
+		const ZSPMS_NOTICE_SRC = (ZSPMS_SRC.altSources || []).find((a) => a.fetcher === "zspms-bwiki-notice");
+		const ZSPMS_EVENT_NOTICE_SRC = (ZSPMS_SRC.eventAltSources || []).find((a) => a.fetcher === "zspms-bwiki-notice");
 		// 各游戏的 now = 夹具的抓取时刻（probe 实测过：这一组时刻每款都至少一侧有数据）
 		const CASES = [
 			["zzz", "2026-08-25T00:00:00.000Z"],

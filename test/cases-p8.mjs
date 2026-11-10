@@ -16,12 +16,13 @@
 // 本地直接跑：node test/cases-p8.mjs
 
 import { readFileSync } from "node:fs";
-import { useFixtures, check, section, assertContract, summary } from "./harness.mjs";
+import { useFixtures, check, section, assertContract, assertHoverConvention, setFetchImpl, summary } from "./harness.mjs";
 const { sourceInstant, sourceWallParts, fmtWindow, hoverPool, hoverEvent } = T;
 import { SOURCES_P8, findSourceP8, listIdsP8 } from "./registry-shim.mjs";
 import { T } from "./load.mjs";
 
 const { mediaWikiWikitext, parseZspmsAsk, zspmsNormalize, zspmsMaintenanceWindow, parseZspmsAnnouncement, gachaZspms, eventsZspms, zspmsParseUrl, zspmsNameAt, zspmsHeadings, parseCznLua, parseCznRecord, cznStamp, gachaCzn, kedrTemplateCalls, kedrStamp, kedrIsGacha, kedrIsEvent, kedrRoleFromName, parseKedrTemplate, gachaKedrTemplate, eventsKedrTemplate, kedrTemplateUrl, ZSPMS_TZ, ZSPMS_ASK_URL, ZSPMS_ASK_QUERY, ZSPMS_FLAGS_URL, ZSPMS_FLAGS_PAGE, parseZspmsFlags, gachaZspmsFlags, ZSPMS_CALENDAR_URL, ZSPMS_CALENDAR_PAGE, parseZspmsCalendar, eventsZspmsCalendar, CZN_TZ, CZN_MODULE_URL, CZN_MODULE_PAGE, CZN_RECORD_URL, KEDR_TZ, KEDR_TEMPLATE_URL, KEDR_TEMPLATE_PAGE } = T.parsers["bwiki-wikitext"];
+const { ZSPMS_CDN_MENU_URL, ZSPMS_CDN_ARTICLE_BASE, ZSPMS_CDN_MAX_NOTICES, ZSPMS_CDN_TZ, eventsZspmsCdn, zspmsCdnActivitiesOfArticle, zspmsCdnArticleOf, zspmsCdnArticleUrl, zspmsCdnCleanName, zspmsCdnHintOf, zspmsCdnIsGenericName, zspmsCdnMenuRows, zspmsCdnNoticesOf, zspmsCdnTitleName, zspmsCdnWindowsOfLine } = T.parsers["zspms-official"];
 
 // ── 夹具读取 ──
 const fxText = (p) => readFileSync(new URL("./fixtures/" + p, import.meta.url), "utf8");
@@ -32,10 +33,16 @@ const fxMeta = (p) => JSON.parse(fxText(p + ".meta.json"));
 const ZSPMS_LATEST_PAGE = "《远信回响》版本更新公告";
 
 // 夹具覆盖：URL → fixtures/<name>/response.txt（**显式写死**，不只依赖多人共写的 test/map.json）
+// 官方 CDN（2026-11-11 接入的活动侧默认源）：菜单 + 最近 3 篇「版本更新公告」详情
+const CDN_ART_IDS = [5682, 5467, 5306];
 const OVERRIDES = {
 	[ZSPMS_ASK_URL]: "p8-zspms-ask/response.txt",
 	[zspmsParseUrl(ZSPMS_LATEST_PAGE)]: "p8-zspms-notice/response.txt",
 	[ZSPMS_CALENDAR_URL]: "p8-zspms-calendar/response.txt",
+	[ZSPMS_CDN_MENU_URL]: "p8-zspms-cdn-menu/response.txt",
+	[zspmsCdnArticleUrl(5682)]: "p8-zspms-cdn-art5682/response.txt",
+	[zspmsCdnArticleUrl(5467)]: "p8-zspms-cdn-art5467/response.txt",
+	[zspmsCdnArticleUrl(5306)]: "p8-zspms-cdn-art5306/response.txt",
 	[CZN_MODULE_URL]: "p8-czn-module/response.txt",
 	[KEDR_TEMPLATE_URL]: "p8-kedr-template/response.txt",
 	[CZN_RECORD_URL]: "p8-czn-record/response.txt"
@@ -64,6 +71,24 @@ async function grab(fn) {
 }
 function throws(fn) { try { fn(); return false; } catch { return true; } }
 async function throwsAsync(fn) { try { await fn(); return false; } catch { return true; } }
+// 反证用：按 URL 给 body 的 transport（形状与 harness 的旧式 impl 相同；代理出口回 {status, body} 信封）。
+// 用完必须 `useFixtures(OVERRIDES)` 还原，否则后续用例会拿到这份临时夹具。
+function cdnImpl(map) {
+	return async (url) => {
+		const u = String(url);
+		let target = u;
+		if (u.startsWith("/api/gacha-calendar-proxy")) {
+			try { target = new URL("http://x" + u).searchParams.get("url") || u; } catch { /* keep */ }
+		}
+		const body = map[target];
+		if (body == null) return { ok: false, status: 404, headers: { get: () => null }, text: async () => "", json: async () => ({}) };
+		if (u.startsWith("/api/gacha-calendar-proxy")) {
+			const wrapped = JSON.stringify({ status: 200, body });
+			return { ok: true, status: 200, headers: { get: () => "application/json" }, text: async () => wrapped, json: async () => JSON.parse(wrapped) };
+		}
+		return { ok: true, status: 200, headers: { get: () => "application/json" }, text: async () => body, json: async () => JSON.parse(body) };
+	};
+}
 const wall = (ts, tz) => {
 	const w = sourceWallParts(ts, tz);
 	const p = (n) => String(n).padStart(2, "0");
@@ -121,12 +146,16 @@ export default async function run() {
 		check("kedr 页面名必须带 Template: 前缀（不带前缀源站返回 missingtitle）",
 			KEDR_TEMPLATE_PAGE === "Template:首页游戏版本内容" && KEDR_TEMPLATE_URL.includes("Template%3A")
 			&& KEDR_TEMPLATE_URL === kedrTemplateUrl(), KEDR_TEMPLATE_URL);
-		// test/map.json（多人共写；本批只追加）必须收录本批 5 个 URL
+		// test/map.json（多人共写；本批只追加）必须收录本批全部 URL
 		const map = JSON.parse(readFileSync(new URL("./map.json", import.meta.url), "utf8"));
 		const WANT = {
 			[ZSPMS_ASK_URL]: "p8-zspms-ask/response.txt",
 			[zspmsParseUrl(ZSPMS_LATEST_PAGE)]: "p8-zspms-notice/response.txt",
 			[ZSPMS_CALENDAR_URL]: "p8-zspms-calendar/response.txt",
+			[ZSPMS_CDN_MENU_URL]: "p8-zspms-cdn-menu/response.txt",
+			[zspmsCdnArticleUrl(5682)]: "p8-zspms-cdn-art5682/response.txt",
+			[zspmsCdnArticleUrl(5467)]: "p8-zspms-cdn-art5467/response.txt",
+			[zspmsCdnArticleUrl(5306)]: "p8-zspms-cdn-art5306/response.txt",
 			[CZN_MODULE_URL]: "p8-czn-module/response.txt",
 			[KEDR_TEMPLATE_URL]: "p8-kedr-template/response.txt",
 			[CZN_RECORD_URL]: "p8-czn-record/response.txt"
@@ -751,21 +780,245 @@ export default async function run() {
 			!/bwiki|biligame|api\.php|https?:|tz\s*=|UTC|推测|推定|共\s*扫描|页面|模板/.test(calHover),
 			JSON.stringify(calLines.slice(0, 1)));
 
-		// 运行时登记：活动默认源换成活动日历；旧公告路径保留为 eventAltSources 且仍能出数据
+		// 运行时登记：活动默认源 = **官方 CDN**（2026-11-11）；两个 bwiki 页面都保留为 eventAltSources
 		const liveZs = T.SOURCES.find((x) => x.id === "zspms");
-		check("运行时 zspms.eventUrl = 活动日历页、eventSource = 「Bwiki 活动日历」",
-			!!liveZs && liveZs.eventUrl === ZSPMS_CALENDAR_URL && liveZs.eventSource === "Bwiki 活动日历",
+		check("运行时 zspms.eventUrl = 官方 CDN 菜单、eventSource = 「官方公告」",
+			!!liveZs && liveZs.eventUrl === ZSPMS_CDN_MENU_URL && liveZs.eventSource === "官方公告",
 			liveZs ? JSON.stringify([liveZs.eventUrl.slice(0, 90), liveZs.eventSource]) : "缺失");
+		check("活动日历降为 eventAltSources（抓取器键 `zspms-bwiki-calendar` 已登记、仍能出数据）",
+			!!liveZs && (liveZs.eventAltSources || []).some((a) => a.fetcher === "zspms-bwiki-calendar" && a.url === ZSPMS_CALENDAR_URL)
+			&& typeof T.EVENT_FETCHERS["zspms"]["zspms-bwiki-calendar"] === "function",
+			liveZs ? JSON.stringify(liveZs.eventAltSources) : "缺失");
 		check("旧公告源保留在 eventAltSources（抓取器键 `zspms-bwiki-notice` 已登记）",
 			!!liveZs && (liveZs.eventAltSources || []).some((a) => a.fetcher === "zspms-bwiki-notice" && a.url === ZSPMS_ASK_URL)
 			&& typeof T.EVENT_FETCHERS["zspms"]["zspms-bwiki-notice"] === "function",
 			liveZs ? JSON.stringify(liveZs.eventAltSources) : "缺失");
+		const calAlt = await grab(() => T.EVENT_FETCHERS["zspms"]["zspms-bwiki-calendar"](ZSPMS_CALENDAR_URL, undefined, ZSPMS_TZ, CAL_NOW_IN));
+		check("备选源（活动日历）手动切过去仍能出数据：now=10-20 ⇒ 空滞轮旋之梦 09-29 ~ 11-03",
+			calAlt.ok && calAlt.data && calAlt.data.event === "「空滞轮旋之梦」联动剧情",
+			JSON.stringify(calAlt.ok && calAlt.data && calAlt.data.event));
 		const calOld = await grab(() => T.EVENT_FETCHERS["zspms"]["zspms-bwiki-notice"](ZSPMS_ASK_URL, undefined, ZSPMS_TZ, SNAP));
 		check("备选源（版本更新公告）仍能解析：now=夹具时刻 ⇒ 悍猎季风-BOSS挑战 09-25 ~ 10-19（旧路一字未坏）",
 			calOld.ok && calOld.data && calOld.data.event === "悍猎季风-BOSS挑战",
 			JSON.stringify(calOld.ok && calOld.data && calOld.data.event));
 		check("页面请求失败 → 抛错（不静默降级成 null）",
 			await throwsAsync(() => eventsZspmsCalendar("https://example.invalid/zspms-calendar", undefined, ZSPMS_TZ, SNAP)));
+	}
+	//#endregion
+
+	//#region P8-8 战双帕弥什 —— 活动默认源换成**官方 CDN**「版本更新公告」（2026-11-11）
+	// 为什么换：活动日历只抄到 2026/11/05 ⇒ 面板从 11-06 起空窗；官方 CDN 的《流光抛诸寰宇》公告
+	// 已经把 11-05 版本更新那批写到 12-17（12 处「2026年11月5日版本更新后 - 2026年12月17日05:00」）。
+	// 夹具（2026-11-11T01:31+08 真抓，HTTP 200 / `ACAO:*`）：
+	//   `p8-zspms-cdn-menu`      ArticleMenu.json（217 条）
+	//   `p8-zspms-cdn-art5682`   《流光抛诸寰宇》版本更新公告（2026-11-03）
+	//   `p8-zspms-cdn-art5467`   《远信回响》版本更新公告（2026-09-22）
+	//   `p8-zspms-cdn-art5306`   《歧海循光》版本更新公告（2026-08-17）
+	// 难点（本区逐条钉住）：正文是 HTML 富文本、活动名在 `<strong>` 里、维护窗口与活动窗口混排、
+	// 起点写「版本更新后」⇒ 仓库口径要求 startTs=null（起点未知 ≠ 已开始）。
+	section("P8-8 战双帕弥什 —— 活动默认源 = 官方 CDN「版本更新公告」（HTML 正文 → 档期；起点未知留 null）");
+	const CDN_NOW = sourceInstant(2026, 11, 11, 12, 0, ZSPMS_TZ);      // 真机 now（11-05 版本更新那批在期）
+	const CDN_NOW_BEFORE = sourceInstant(2026, 11, 5, 6, 0, ZSPMS_TZ); // 11-05 维护已结束、新版本活动还没「有起点」
+	const CDN_NOW_OCT = sourceInstant(2026, 10, 1, 12, 0, ZSPMS_TZ);   // 「远信回响」批次在期（证明合并了 3 篇）
+	const CDN_NOW_AFTER = sourceInstant(2026, 12, 18, 0, 0, ZSPMS_TZ); // 最近一篇的档期全部收尾
+	{
+		// ── ① 菜单：按标题挑，不硬编码 id ─────────────────────────────────────
+		const menu = fxJson("p8-zspms-cdn-menu/response.txt");
+		check("菜单夹具是真响应：JSON **数组** 217 条、meta 里 url/capturedAt/status 齐备",
+			Array.isArray(menu) && menu.length === 217
+			&& fxMeta("p8-zspms-cdn-menu/response.txt").url === ZSPMS_CDN_MENU_URL
+			&& fxMeta("p8-zspms-cdn-menu/response.txt").status === 200
+			&& Number.isFinite(Date.parse(fxMeta("p8-zspms-cdn-menu/response.txt").capturedAt)),
+			JSON.stringify([Array.isArray(menu), menu.length]));
+		const rows = zspmsCdnMenuRows(menu);
+		check("菜单行的关键字段：articleId / articleTitle / startTime（发布时间）",
+			rows.length === 217 && rows.every((r) => Number.isFinite(r.id) && r.title && typeof r.published === "string"),
+			JSON.stringify(rows[0]));
+		const notices = zspmsCdnNoticesOf(menu);
+		check("⚠️ 菜单**不是**时间序（置顶/推荐混排）：首元素是 5687（PV，17:27:52）而最新一篇**公告**是 5682（17:26:05）⇒ 必须自己按发布时间倒序排",
+			menu[0].articleId === 5687 && notices[0].id === 5682
+			&& rows.slice().sort((a, b) => (a.published < b.published ? 1 : a.published > b.published ? -1 : 0))[0].id === 5687,
+			JSON.stringify([menu[0].articleId, notices[0].id]));
+		check("标题匹配「版本更新公告」类 = **49 篇**（清洗后匹配，不认单个 id；PV/版本一览/封禁公示/《遥岸方舟》版本更新 都不算）",
+			notices.length === 49 && notices.every((r) => /版本更新公告/.test(zspmsCdnCleanName(r.title))),
+			String(notices.length));
+		check("按发布时间倒序取前 3 篇 = 5682 / 5467 / 5306（《流光抛诸寰宇》《远信回响》《歧海循光》）",
+			ZSPMS_CDN_MAX_NOTICES === 3
+			&& JSON.stringify(notices.slice(0, 3).map((r) => r.id)) === JSON.stringify(CDN_ART_IDS)
+			&& notices.slice(0, 3).every((r, i, a) => i === 0 || a[i - 1].published >= r.published),
+			JSON.stringify(notices.slice(0, 4).map((r) => [r.id, r.published])));
+		check("详情地址 = article/<id>.json（与夹具 meta.url 逐字一致）",
+			zspmsCdnArticleUrl(5682) === ZSPMS_CDN_ARTICLE_BASE + "5682.json"
+			&& fxMeta("p8-zspms-cdn-art5682/response.txt").url === zspmsCdnArticleUrl(5682),
+			zspmsCdnArticleUrl(5682));
+
+		// ── ② 正文解析：活动名在 <strong> 里 ──────────────────────────────────
+		const art = zspmsCdnArticleOf(fxJson("p8-zspms-cdn-art5682/response.txt"));
+		check("详情 JSON 是**对象**（不是数组）；标题/正文/发布时间都在 articleContent 一层",
+			art.title === "《流光抛诸寰宇》版本更新公告" && art.html.length > 15000 && art.published === "2026-11-03 17:26:05",
+			JSON.stringify([art.title, art.html.length, art.published]));
+		check("活动名确实住在 `<strong>` 里（正文是 HTML 富文本：`<span style=\"font-size: 18pt;\"><strong>四、像素嚼嚼乐</strong></span>`）",
+			/<strong>四、像素嚼嚼乐<\/strong>/.test(art.html)
+			&& /<strong><span[^>]*>1）活动说明<\/span><\/strong>|<strong><span[^>]*>4）活动时间<\/span><\/strong>/.test(art.html),
+			JSON.stringify([/<strong>四、像素嚼嚼乐<\/strong>/.test(art.html), /<strong>4）活动时间<\/strong>/.test(art.html)]));
+		const hint = zspmsCdnHintOf(art.published);
+		check("发布时间 → 缺年份线索 = { 2026, 11 }",
+			hint && hint.y === 2026 && hint.mo === 11, JSON.stringify(hint));
+		const parsed = zspmsCdnActivitiesOfArticle(art.html, ZSPMS_TZ, hint);
+		const byName = (n) => parsed.items.find((x) => x.name === n) || null;
+		check("《流光抛诸寰宇》正文解出 **17 条**活动档期（3 条被跳过：句子里的研发池档期）",
+			parsed.items.length === 17 && parsed.skipped === 3,
+			JSON.stringify([parsed.items.length, parsed.skipped]));
+		const lgy = byName("揽光一瞬");
+		check("「揽光一瞬」：起点写「版本更新后」⇒ **startTs=null**（不猜）、终点绝对 12-17 05:00（+08）",
+			!!lgy && lgy.startTs === null && lgy.endTs === sourceInstant(2026, 12, 17, 5, 0, ZSPMS_TZ)
+			&& lgy.startRel === "版本更新后" && lgy.startInferred === true,
+			JSON.stringify(lgy && [lgy.startTs, lgy.endTs, lgy.startRel]));
+		check("「揽光一瞬」raw = 源站原文那一句、display = 两端补全（两份文本不合并）",
+			!!lgy && lgy.raw === "2026年11月5日版本更新后 ~ 2026年12月17日05:00"
+			&& lgy.display === "11-05 版本更新后 ~ 12-17 05:00",
+			JSON.stringify(lgy && [lgy.raw, lgy.display]));
+		const bhw = byName("诸星迷寂-BOSS挑战");
+		check("「诸星迷寂-BOSS挑战」两端都绝对 = 11-06 10:00 ~ 11-30 05:00（**这一条才会进外显**）",
+			!!bhw && bhw.startTs === sourceInstant(2026, 11, 6, 10, 0, ZSPMS_TZ)
+			&& bhw.endTs === sourceInstant(2026, 11, 30, 5, 0, ZSPMS_TZ),
+			JSON.stringify(bhw && [bhw.display, bhw.raw]));
+		check("`6）「伴航补给」研发` → 活动名取引号内那段（`伴航补给`，不是整行）",
+			!!byName("伴航补给") && byName("伴航补给").startTs === sourceInstant(2026, 11, 12, 10, 0, ZSPMS_TZ));
+		check("`战略评定手册-栖光档案` 名字里的 `-` 不当作装饰符剥掉",
+			!!byName("战略评定手册-栖光档案"));
+		check("`泛用式·终 异色涂装` 名字里的 `·` 保留（`莱亚·祈星` 这类机体名靠它）",
+			!!byName("泛用式·终 异色涂装"));
+		check("⚠️ 研发池句子里的档期**不算活动**（`…研发池获得` 那几行）：没有 莱亚·祈星 / 扭曲缎带的边陲 / 聆璃",
+			!byName("莱亚·祈星") && !byName("扭曲缎带的边陲") && !byName("聆璃")
+			&& parsed.items.every((x) => !/研发池/.test(x.name)),
+			JSON.stringify(parsed.items.map((x) => x.name)));
+
+		// ── ③ 维护窗口 ≠ 活动窗口 ─────────────────────────────────────────────
+		check("维护句「将于2026年11月5日05:00 - 11:00进行…停服维护」**不是**窗口（右侧没有日期）",
+			zspmsCdnWindowsOfLine("我们将于2026年11月5日05:00 - 11:00进行“流光抛诸寰宇”版本更新的停服维护", ZSPMS_TZ, hint).length === 0);
+		check("反证：即使写成完整两端（05:00 - 2026年11月5日11:00）也**不进活动**（该行既无时间标签、又不是整行档期）",
+			zspmsCdnActivitiesOfArticle("<div><strong><span>四、维护测试</span></strong><br><span>我们将于2026年11月5日05:00 - 2026年11月5日11:00进行停服维护</span></div>", ZSPMS_TZ, hint).items.length === 0);
+		check("反证：写成 `停服维护活动时间：<完整窗口>` 也不进活动（维护字样优先排除）",
+			zspmsCdnActivitiesOfArticle("<div><strong><span>四、维护测试</span></strong><br><span>停服维护活动时间：2026年11月5日05:00 - 2026年11月5日11:00</span></div>", ZSPMS_TZ, hint).items.length === 0);
+		check("正证：同一份正文里**活动**窗口照旧解得出来（`活动时间：` 标签那条）",
+			zspmsCdnActivitiesOfArticle("<div><strong><span>四、像素嚼嚼乐</span></strong><br><strong><span>4）活动时间</span></strong><br><span>2026年11月19日10:00 - 2026年12月16日05:00</span></div>", ZSPMS_TZ, hint).items.length === 1);
+
+		// ── ④ 缺年份 / 跨年（复用 inferYear / endsNextYear）───────────────────
+		const noYear = zspmsCdnWindowsOfLine("活动时间：11月6日10:00 - 11月30日05:00", ZSPMS_TZ, hint);
+		check("缺年份 ⇒ 借公告发布时间补（共用 inferYear）：11-06 10:00 ~ 11-30 05:00（2026）",
+			noYear.length === 1
+			&& noYear[0].startTs === sourceInstant(2026, 11, 6, 10, 0, ZSPMS_TZ)
+			&& noYear[0].endTs === sourceInstant(2026, 11, 30, 5, 0, ZSPMS_TZ),
+			JSON.stringify(noYear.map((w) => w.display)));
+		const cross = zspmsCdnWindowsOfLine("活动时间：12月28日10:00 - 1月5日05:00", ZSPMS_TZ, { y: 2026, mo: 12 });
+		check("跨年（结束月日早于开始）⇒ 结束记次年（共用 endsNextYear）：2026-12-28 ~ **2027**-01-05",
+			cross.length === 1
+			&& cross[0].startTs === sourceInstant(2026, 12, 28, 10, 0, ZSPMS_TZ)
+			&& cross[0].endTs === sourceInstant(2027, 1, 5, 5, 0, ZSPMS_TZ),
+			JSON.stringify(cross.map((w) => w.display)));
+		check("没有年份线索 ⇒ **不产出**（不猜当前年）",
+			zspmsCdnWindowsOfLine("活动时间：11月6日10:00 - 11月30日05:00", ZSPMS_TZ, null).length === 0);
+
+		// ── ⑤ 抓取器：菜单 → 最近 3 篇 → 合并 → 载荷（now 传第 4 参）──────────
+		const cdnNow = await grab(() => eventsZspmsCdn(ZSPMS_CDN_MENU_URL, undefined, ZSPMS_TZ, CDN_NOW));
+		check("官方 CDN 抓取成功（now 传第 4 参）", cdnNow.ok, cdnNow.err);
+		assertContract("战双(官方 CDN)", "event", cdnNow.ok ? cdnNow.data : null);
+		const dNow = cdnNow.ok ? cdnNow.data : null;
+		check("外显 = 「诸星迷寂-BOSS挑战」11-06 10:00 ~ 11-30 05:00（真机 now 下唯一两端都明确的在期活动）",
+			!!dNow && dNow.event === "诸星迷寂-BOSS挑战"
+			&& dNow.eventDates === "11-06 10:00 ~ 11-30 05:00"
+			&& dNow.eventDatesRaw === "2026年11月6日10:00 ~ 2026年11月30日 05:00",
+			JSON.stringify(dNow && [dNow.event, dNow.eventDates, dNow.eventDatesRaw]));
+		const hover = (dNow && dNow.eventHover) || "";
+		const hoverLines = hover ? hover.split("\n") : [];
+		check("悬停首行 = 外显那条（名称 + 3 空格 + 档期）",
+			hoverLines[0] === "诸星迷寂-BOSS挑战   11-06 10:00 ~ 11-30 05:00", JSON.stringify(hoverLines[0]));
+		check("悬停里 11-05 版本更新那批**按源站原文**列出（起点未知 ⇒ 原文优先，例：尽心者尽美-角色试玩关 到 12-17）",
+			hoverLines.includes("尽心者尽美-角色试玩关   2026年11月5日版本更新后 ~ 2026年12月17日05:00")
+			&& hoverLines.includes("7日登录签到奖励   2026年11月5日版本更新后 ~ 2026年12月16日05:00"),
+			JSON.stringify(hoverLines.slice(1, 3)));
+		check("悬停共 14 条（在期 1 条 + 起点未知但终点未过 13 条）",
+			hoverLines.length === 14, String(hoverLines.length));
+		assertHoverConvention("战双(官方 CDN)", hover);
+		check("⚠️ 悬停里没有元信息（域名/URL/抓取篇数/时区推定/维护窗口）",
+			!/kurogame|https?:|ArticleMenu|tz\s*=|UTC|推测|推定|共\s*扫描|停服维护/.test(hover), JSON.stringify(hoverLines.slice(0, 1)));
+		const evArr = (dNow && dNow.events) || [];
+		check("数组：主条 = 两端明确的 诸星迷寂（startTs/endTs 都是数字），11-05 那批以 raw 原文并列",
+			evArr.length === 14 && evArr[0].title === "诸星迷寂-BOSS挑战"
+			&& typeof evArr[0].startTs === "number" && typeof evArr[0].endTs === "number"
+			&& evArr.slice(1).every((x) => x.raw.includes("版本更新后")),
+			JSON.stringify(evArr.slice(0, 2).map((x) => [x.title, x.startTs, x.endTs])));
+
+		// now 注入：三篇合并的证据（10-01 时「远信回响」批次在期，只有合并前两篇才解得出来）
+		const cdnOct = await grab(() => eventsZspmsCdn(ZSPMS_CDN_MENU_URL, undefined, ZSPMS_TZ, CDN_NOW_OCT));
+		check("合并 3 篇：now=2026-10-01 ⇒ 外显 = 悍猎季风-BOSS挑战（09-25 10:00 ~ 10-19 05:00，出在第 2 篇公告里）",
+			cdnOct.ok && cdnOct.data && cdnOct.data.event === "悍猎季风-BOSS挑战"
+			&& cdnOct.data.eventDates === "09-25 10:00 ~ 10-19 05:00",
+			JSON.stringify(cdnOct.ok && cdnOct.data && [cdnOct.data.event, cdnOct.data.eventDates]));
+		const cdnBefore = await grab(() => eventsZspmsCdn(ZSPMS_CDN_MENU_URL, undefined, ZSPMS_TZ, CDN_NOW_BEFORE));
+		check("⚠️ now=2026-11-05 06:00（维护后 1 小时、新活动尚无起点）⇒ 返回 null：起点未知**不冒充在期**",
+			cdnBefore.ok && cdnBefore.data === null, JSON.stringify(cdnBefore.ok ? cdnBefore.data : cdnBefore.err));
+		const cdnAfter = await grab(() => eventsZspmsCdn(ZSPMS_CDN_MENU_URL, undefined, ZSPMS_TZ, CDN_NOW_AFTER));
+		check("now=2026-12-18（最近一篇也收尾）⇒ 返回 null（未公布，不硬凑过期档期）",
+			cdnAfter.ok && cdnAfter.data === null, JSON.stringify(cdnAfter.ok ? cdnAfter.data : cdnAfter.err));
+
+		// ── ⑥ 反证（关掉关键解析 ⇒ 抛错 / 少解）──────────────────────────────
+		const noStrong = art.html.replace(/<\/?strong[^>]*>/gi, "");
+		check("反证：把 `<strong>` 全去掉（= 关掉「整行加粗 = 标题」）⇒ 一篇公告**一条名字都抽不出**",
+			zspmsCdnActivitiesOfArticle(noStrong, ZSPMS_TZ, hint).items.length === 0,
+			JSON.stringify(zspmsCdnActivitiesOfArticle(noStrong, ZSPMS_TZ, hint).skipped));
+		check("反证：菜单里没有「版本更新公告」⇒ 抛 `zspms-cdn:no-notice`（标题样式改版 ≠ 未公布）",
+			(() => { try { zspmsCdnNoticesOf([{ articleId: 1, articleTitle: "《战双帕弥什》新版本PV公开", articleType: 4, startTime: "2026-11-03 17:27:52" }]); return false; } catch (e) { return String(e.message) === "zspms-cdn:no-notice"; } })());
+		check("反证：正文里一个档期都没有 ⇒ 抓取器抛 `zspms-cdn:no-window`（结构性损坏 ≠ 未公布）",
+			await (async () => {
+				setFetchImpl(cdnImpl({
+					[ZSPMS_CDN_MENU_URL]: fxText("p8-zspms-cdn-menu/response.txt"),
+					[zspmsCdnArticleUrl(5682)]: JSON.stringify({ articleId: 5682, articleTitle: "《流光抛诸寰宇》版本更新公告", startTime: "2026-11-03 17:26:05", articleContent: "<div><span>尊敬的指挥官：本次版本更新没有活动档期。</span></div>" })
+				}));
+				try { await eventsZspmsCdn(ZSPMS_CDN_MENU_URL, undefined, ZSPMS_TZ, CDN_NOW); return false; }
+				catch (e) { return String(e.message) === "zspms-cdn:no-window"; }
+				finally { useFixtures(OVERRIDES); }
+			})());
+		check("反证：把 `版本更新后` 换成显式时刻 ⇒ 同一条立刻有 startTs（证明 null 是**判出来的**、不是丢字段）",
+			(() => {
+				const mutated = art.html.replace(/2026年11月5日版本更新后/g, "2026年11月5日10:00");
+				const m = zspmsCdnActivitiesOfArticle(mutated, ZSPMS_TZ, hint).items.find((x) => x.name === "揽光一瞬");
+				return !!m && m.startTs === sourceInstant(2026, 11, 5, 10, 0, ZSPMS_TZ) && m.startInferred === false;
+			})());
+		check("反证：详情 404 ⇒ 抛错（三篇全挂才算失败，单篇失败只用其余篇）",
+			await (async () => {
+				setFetchImpl(cdnImpl({
+					[ZSPMS_CDN_MENU_URL]: fxText("p8-zspms-cdn-menu/response.txt"),
+					[zspmsCdnArticleUrl(5682)]: fxText("p8-zspms-cdn-art5682/response.txt"),
+					[zspmsCdnArticleUrl(5467)]: fxText("p8-zspms-cdn-art5467/response.txt")
+					// 5306 不提供 ⇒ 404 ⇒ 跳过这一篇
+				}));
+				try {
+					const r = await eventsZspmsCdn(ZSPMS_CDN_MENU_URL, undefined, ZSPMS_TZ, CDN_NOW_OCT);
+					return !!(r && r.event === "悍猎季风-BOSS挑战");     // 前两篇够用
+				} catch { return false; }
+				finally { useFixtures(OVERRIDES); }
+			})());
+		check("反证：菜单三篇全 404 ⇒ 抛错（抓取失败 ≠ 未公布）",
+			await (async () => {
+				setFetchImpl(cdnImpl({ [ZSPMS_CDN_MENU_URL]: fxText("p8-zspms-cdn-menu/response.txt") }));
+				try { await eventsZspmsCdn(ZSPMS_CDN_MENU_URL, undefined, ZSPMS_TZ, CDN_NOW); return false; }
+				catch (e) { return /proxy|404|proxy-http/.test(String(e.message)); }
+				finally { useFixtures(OVERRIDES); }
+			})());
+
+		// ── ⑦ 夹具卫生（官方 CDN 的 4 份）────────────────────────────────────
+		for (const f of ["p8-zspms-cdn-menu", "p8-zspms-cdn-art5682", "p8-zspms-cdn-art5467", "p8-zspms-cdn-art5306"]) {
+			const body = fxText(`${f}/response.txt`);
+			const meta = fxMeta(`${f}/response.txt`);
+			check(`夹具 ${f}：真响应（HTTP 200 + JSON + url/capturedAt/trim 元数据）`,
+				body.length > 2000 && JSON.parse(body) && meta.status === 200 && !!meta.capturedAt && !!meta.url && !!meta.trim,
+				JSON.stringify([body.length, meta.status]));
+		}
+		check("官方 CDN 夹具里**没有** HTML 错误页痕迹（WAF / <html / requestId）",
+			["p8-zspms-cdn-menu", "p8-zspms-cdn-art5682"]
+				.every((f) => !/requestId|<html|EdgeOne/i.test(fxText(`${f}/response.txt`).slice(0, 2000))));
 	}
 	//#endregion
 

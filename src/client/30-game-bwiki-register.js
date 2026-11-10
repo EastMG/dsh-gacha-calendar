@@ -18,18 +18,23 @@
 				name: "战双帕弥什",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/b2/99/ed/b299ed39-90ea-03df-c7ee-bd09548991e5/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",
 				// 2026-11-10：卡池侧改以 `Test4/活动旗帜` 为准（结构化当期池、更新更快）。
-				// 2026-11-11：活动侧改以 `Test4/活动日历` 为准（同站同写法的结构化档期页）。
-				// 旧「版本更新公告」源（SMW ask → 正文）两侧都降为**手动备选**，解析器与回归全部保留。
+				// 2026-11-11：活动侧改以**官方 CDN「版本更新公告」**为准（`ArticleMenu` → 最近 3 篇详情；
+				// 官方比 bwiki 新一版：11-05 版本更新那批档期到 12-17，而 bwiki 两个页面都止于 11-05）。
+				// 两个 bwiki 页面（`Test4/活动日历` / 旧「版本更新公告」）都降为**手动备选**，解析器与回归全部保留。
 				url: ns_bwiki_wikitext_ZSPMS_FLAGS_URL,
 				source: "Bwiki 活动旗帜",
-				eventUrl: ns_bwiki_wikitext_ZSPMS_CALENDAR_URL,
-				eventSource: "Bwiki 活动日历",
+				eventUrl: ns_zspms_cdn_MENU_URL,
+				eventSource: "官方公告",
 				altSources: [{
 					label: "Bwiki 版本更新公告（旧，含研发池）",
 					url: ns_bwiki_wikitext_ZSPMS_ASK_URL,
 					fetcher: "zspms-bwiki-notice"
 				}],
 				eventAltSources: [{
+					label: "Bwiki 活动日历（旧默认源）",
+					url: ns_bwiki_wikitext_ZSPMS_CALENDAR_URL,
+					fetcher: "zspms-bwiki-calendar"
+				}, {
 					label: "Bwiki 版本更新公告（旧，正文抽档期）",
 					url: ns_bwiki_wikitext_ZSPMS_ASK_URL,
 					fetcher: "zspms-bwiki-notice"
@@ -67,9 +72,11 @@
 		GACHA_FETCHERS["czn"] = (url, signal, tz) => ns_bwiki_wikitext_gachaCzn(url, signal, tz);
 		GACHA_FETCHERS["kedr"] = (url, signal, tz) => ns_bwiki_wikitext_gachaKedrTemplate(url, signal, tz);
 		EVENT_FETCHERS["wuhuamixin"] = Object.assign(EVENT_FETCHERS["wuhuamixin"] || {}, { default: (url, signal, tz) => ns_biligame_activity_eventsWhmxOfficial(url, signal, tz) });
-		// 活动侧默认 = 活动日历页；旧公告路径（两步 ask → 正文）保留为 eventAltSources 的抓取器键
+		// 活动侧默认 = **官方 CDN**（`ArticleMenu` → 最近 3 篇「版本更新公告」详情，见 30-game-zspms-official.js）；
+		// 两个 bwiki 页面保留为 eventAltSources 的抓取器键（设置页可手动切）
 		EVENT_FETCHERS["zspms"] = Object.assign(EVENT_FETCHERS["zspms"] || {}, {
-			default: (url, signal, tz, now) => ns_bwiki_wikitext_eventsZspmsCalendar(url, signal, tz, now),
+			default: (url, signal, tz, now) => ns_zspms_cdn_events(url, signal, tz, now),
+			"zspms-bwiki-calendar": (url, signal, tz, now) => ns_bwiki_wikitext_eventsZspmsCalendar(url, signal, tz, now),
 			"zspms-bwiki-notice": (url, signal, tz, now) => ns_bwiki_wikitext_eventsZspms(url, signal, tz, now)
 		});
 		EVENT_FETCHERS["kedr"] = Object.assign(EVENT_FETCHERS["kedr"] || {}, { default: (url, signal, tz) => ns_bwiki_wikitext_eventsKedrTemplate(url, signal, tz) });

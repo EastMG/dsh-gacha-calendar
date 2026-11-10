@@ -198,7 +198,12 @@ const PROXY_ALLOW_HOSTS = [
 	"l11-web-api.biligames.com",
 	// 星塔旅人 国服官方 CMS API：**官网同源反代**（`https://stellasora.yostar.cn/api/...`），
 	// 免 token / 免签名；响应**无 ACAO** → 必须走代理。
-	"stellasora.yostar.cn"
+	"stellasora.yostar.cn",
+	// 战双帕弥什 国服**官方 CDN**（2026-11-11 接入，活动侧默认源）：
+	// `pnswebsite/website2.0/json/G144/ArticleMenu.json` + `article/<id>.json`。
+	// 实测响应 `Access-Control-Allow-Origin: *`（直连也通），但仍走宿主代理（与其它官方公告同一条路径）。
+	// ⚠️ 登记后要重启宿主才生效（白名单在宿主启动时读入）。
+	"media-cdn-zspms.kurogame.com"
 ];
 
 /** Default outgoing request headers (browser-like, to satisfy anti-scrape). */

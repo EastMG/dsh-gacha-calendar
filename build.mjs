@@ -150,6 +150,10 @@ const ORDER = [
   "30-game-bwiki-html-fetchers.js",   // 上面 7 个来源的抓取器（同一 region）
   "30-game-bwiki-wikitext-common.js", // wikitext 形态的公共段（取正文 / 当期挑选 / 悬停）
   "30-game-bwiki-zspms-wikitext.js",  // 战双：SMW ask 索引 + 公告正文 → 档期
+  // 2026-11-11：战双帕弥什活动侧默认源换成**官方 CDN**（ArticleMenu → 最近 3 篇「版本更新公告」详情）。
+  // 必须排在 `30-game-bwiki-register.js` **之前**：register 在**加载期**读 `ns_zspms_cdn_MENU_URL`
+  // （const 有 TDZ，函数声明才提升）；解析器/抓取器则由 register 的 EVENT_FETCHERS 在调用期引用。
+  "30-game-zspms-official.js",        // 战双：官方 CDN 版本更新公告（HTML 正文 → 活动档期）
   "30-game-bwiki-czn-wikitext.js",    // 卡厄斯：Module:Gacha/data 的 Lua 表
   "30-game-bwiki-kedr-wikitext.js",   // 雪松：Template:首页游戏版本内容 的模板调用
   "30-game-bwiki-kedr-wiki.js",       // 雪松社区归档页（往期动员，prop=text）
@@ -275,6 +279,10 @@ const CORE_ORDER = [
   "30-game-bwiki-html-fetchers.js",   // 上面 7 个来源的抓取器（同一 region）
   "30-game-bwiki-wikitext-common.js", // wikitext 形态的公共段（取正文 / 当期挑选 / 悬停）
   "30-game-bwiki-zspms-wikitext.js",  // 战双：SMW ask 索引 + 公告正文 → 档期
+  // 2026-11-11：战双帕弥什活动侧默认源换成**官方 CDN**（ArticleMenu → 最近 3 篇「版本更新公告」详情）。
+  // 必须排在 `30-game-bwiki-register.js` **之前**：register 在**加载期**读 `ns_zspms_cdn_MENU_URL`
+  // （const 有 TDZ，函数声明才提升）；解析器/抓取器则由 register 的 EVENT_FETCHERS 在调用期引用。
+  "30-game-zspms-official.js",        // 战双：官方 CDN 版本更新公告（HTML 正文 → 活动档期）
   "30-game-bwiki-czn-wikitext.js",    // 卡厄斯：Module:Gacha/data 的 Lua 表
   "30-game-bwiki-kedr-wikitext.js",   // 雪松：Template:首页游戏版本内容 的模板调用
   "30-game-bwiki-kedr-wiki.js",       // 雪松社区归档页（往期动员，prop=text）
