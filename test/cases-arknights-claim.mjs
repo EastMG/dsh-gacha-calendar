@@ -1104,4 +1104,28 @@ export default async function run() {
 		check("恢复·labelOf 幂等（一览与 SMW 用的都是这一份去重）",
 			labelOf("视相博物馆", labelOf("视相博物馆", "演化")) === "视相博物馆：演化");
 	}
+	// ── 2026-11-11：**同月跨年**补年回归（真机 bug）───────────────────────
+	// 数组反解时 `scheduleNoYear` 会先把年份剥掉；「卫戍协议·规程」原文
+	// 2026-11-08 ~ 2027-11-07 剥年后是「11-08 ~ 11-07」——同月且结束日更小，
+	// 旧判据只看月份不加年 ⇒ 窗口变成 -2 天。
+	section("同月跨年：结束日 < 开始日 ⇒ 结束记次年（只有月-日 时）");
+	{
+		const nowRef = new Date(2026, 10, 15, 12, 0, 0);
+		const sameMonth = T.parseDisplayRange("11-08 16:00 ~ 11-07 03:59", nowRef);
+		check("同月跨年：11-08 ~ 11-07 ⇒ 起 2026 / 止 2027（而非 -2 天）",
+			!!sameMonth && new Date(sameMonth.startTs).getFullYear() === 2026 && new Date(sameMonth.endTs).getFullYear() === 2027
+				&& sameMonth.endTs > sameMonth.startTs, JSON.stringify(sameMonth));
+		const normal = T.parseDisplayRange("11-01 12:00 ~ 11-22 03:59", nowRef);
+		check("同年正常窗口不受影响（11-01 ~ 11-22 都是 2026）",
+			!!normal && new Date(normal.startTs).getFullYear() === 2026 && new Date(normal.endTs).getFullYear() === 2026,
+			JSON.stringify(normal));
+		const sameDay = T.parseDisplayRange("11-11 20:00 ~ 11-11 23:59", nowRef);
+		check("同日只比时间不加年（合法当日窗口仍是 2026）",
+			!!sameDay && new Date(sameDay.startTs).getFullYear() === 2026 && new Date(sameDay.endTs).getFullYear() === 2026
+				&& sameDay.endTs > sameDay.startTs, JSON.stringify(sameDay));
+		const crossMonth = T.parseDisplayRange("12-20 06:00 ~ 01-05 03:59", nowRef);
+		check("跨月跨年仍正确（12-20 ~ 01-05 ⇒ 2027 年 1 月）",
+			!!crossMonth && new Date(crossMonth.endTs).getFullYear() === 2027 && new Date(crossMonth.endTs).getMonth() === 0,
+			JSON.stringify(crossMonth));
+	}
 }

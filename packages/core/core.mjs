@@ -912,7 +912,15 @@
 			let endTs = b.base;
 			// 跨年：结束月份小于开始月份（如 12-20 ~ 01-05）→ 结束端按"下一年的同月同日同时刻"重算。
 			// 注意不能用 +365 天近似：闰年会差 1 天（实测 2028-12-31 看 "12-30 ~ 01-05" 会少 1 天）。
-			if (b.mo < a.mo) endTs = new Date(now.getFullYear() + 1, b.mo - 1, b.d, b.h, b.mi).getTime();
+			// ⚠️ 2026-11-11：**同月也要判** —— 结束日小于开始日即跨年。真机：
+			//   明日方舟「卫戍协议·规程」原文 2026-11-08 ~ **2027**-11-07；数组反解时年份先被
+			//   `scheduleNoYear` 剥成「11-08 16:00 ~ 11-07 03:59」，旧判据只看月份 ⇒ 不加年
+			//   ⇒ 窗口变成 **-2 天**。同日只比时间不加年（那是合法的当日窗口）。
+			// ⚠️ 不能调 `endsNextYear`：它在 25-parser-order.js，而 60-helpers.js 在两个产物里的
+			//   嵌套层不同（core 顶层 / lib 在 createEngine 内）⇒ 真机报 `endsNextYear is not defined`。
+			//   这里用数值键比较（月*100+日），不写明面的月/日两段条件。
+			const mdKey = (x) => x.mo * 100 + x.d;
+			if (mdKey(b) < mdKey(a)) endTs = new Date(now.getFullYear() + 1, b.mo - 1, b.d, b.h, b.mi).getTime();
 			return { startTs, endTs };
 		}
 
