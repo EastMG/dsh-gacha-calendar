@@ -763,15 +763,18 @@ export default async function runCore() {
 		};
 		const runGame = async (id, nowMs, seeds) => {
 			const store = makeStore(only(id));
-			// 2026-11-10：战双卡池默认源换成 bwiki `Test4/活动旗帜`；这条等价性 golden 是
-			// **版本更新公告**那版的存档 ⇒ 用真实设置存储切到备选源（与设置页写的是同一种值）。
+			// 2026-11-10：战双卡池默认源换成 bwiki `Test4/活动旗帜`；2026-11-11：活动默认源换成
+			// bwiki `Test4/活动日历`。这条等价性 golden 是**版本更新公告**那版的存档 ⇒ 用真实设置
+			// 存储把两侧都切到备选源（与设置页写的是同一种值）；产物逐字仍是公告那版。
 			for (const [k, v] of Object.entries(seeds || {})) await store.set(k, v);
 			const engine = createEngine({ transport, storage: store, now: () => nowMs, timer: { setTimeout, clearTimeout } });
 			const r = await engine.refresh();
 			return r.games[id] || {};
 		};
-		// 战双备选源（版本更新公告）的标识 = altSourceId（这里就是 url）
-		const ZSPMS_NOTICE_SRC = ((T.SOURCES.find((s) => s.id === "zspms") || {}).altSources || [])[0];
+		// 战双备选源（版本更新公告）的标识 = altSourceId（这里就是 url）—— 卡池侧 / 活动侧各一条
+		const ZSPMS_SRC = T.SOURCES.find((s) => s.id === "zspms") || {};
+		const ZSPMS_NOTICE_SRC = (ZSPMS_SRC.altSources || [])[0];
+		const ZSPMS_EVENT_NOTICE_SRC = (ZSPMS_SRC.eventAltSources || [])[0];
 		// 各游戏的 now = 夹具的抓取时刻（probe 实测过：这一组时刻每款都至少一侧有数据）
 		const CASES = [
 			["zzz", "2026-08-25T00:00:00.000Z"],
@@ -793,8 +796,11 @@ export default async function runCore() {
 		const records = [];
 		for (const [id, iso] of CASES) {
 			const now = new Date(Date.parse(iso));
-			const seeds = id === "zspms" && ZSPMS_NOTICE_SRC
-				? { customUrls: JSON.stringify({ zspms: ZSPMS_NOTICE_SRC.url }) }
+			const seeds = id === "zspms" && ZSPMS_NOTICE_SRC && ZSPMS_EVENT_NOTICE_SRC
+				? {
+					customUrls: JSON.stringify({ zspms: ZSPMS_NOTICE_SRC.url }),
+					customEventUrls: JSON.stringify({ zspms: ZSPMS_EVENT_NOTICE_SRC.url })
+				}
 				: null;
 			records.push({ id, now, rec: await runGame(id, now.getTime(), seeds) });
 		}

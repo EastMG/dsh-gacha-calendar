@@ -470,6 +470,27 @@ export default async function run() {
 		try { await e3.__test.GACHA_FETCHERS["pengpeng"]("https://wiki.biligame.com/pengpeng/api.php?x=1", undefined, TZ_CN); }
 		catch (e4) { bad = String(e4 && e4.message || e4); }
 		check("pengpeng 表结构异常 ⇒ 抛 pengpeng-no-table（抓取失败 ≠ 未公布）", bad === "pengpeng-no-table", bad);
+
+		// (d) 2026-11-11 复核：卡池侧**不接** TapTap（见 30-game-pengpeng.js 的「卡池侧 2026-11-11 复核」段）
+		//     TapTap 的卡池信息只有「N月N日 活动契约限时开启」—— 无年份、无结束日；图片档期不可解析。
+		//     选 C（不动）：单边窗口在仓库里没有合法载荷（`coversNow` 两端都要）⇒ 这里钉死显示层行为。
+		const s3 = T.SOURCES.find((x) => x.id === "pengpeng");
+		check("卡池侧没有 TapTap 备选源 / 抓取器（无自动换源；单边源也不做成手动选项）",
+			!!s3
+			&& !(s3.altSources || []).some((a) => /taptap/i.test(String(a.url) + String(a.fetcher)))
+			&& !Object.keys(T.GACHA_FETCHERS).some((k) => /taptap/i.test(k)),
+			JSON.stringify([s3 && s3.altSources, Object.keys(T.GACHA_FETCHERS).filter((k) => /pengpeng/.test(k))]));
+		// 只有开启日 = 2026-10-22 05:00 +08（UTC 10-21 21:00）
+		const oneOpen = Date.UTC(2026, 9, 21, 21, 0);
+		check("单边窗口（只有开启日、结束日未公布）**不覆盖 now**、也不进悬停候选",
+			T.coveredOrOpen({ startTs: oneOpen, endTs: null }, NOW) === false
+			&& T.coveredOrOpen({ startTs: oneOpen, endTs: null }, Date.parse("2026-10-23T00:00:00+08:00")) === false,
+			JSON.stringify([T.coveredOrOpen({ startTs: oneOpen, endTs: null }, NOW)]));
+		const oneSided = { title: "「幸福无罪论」活动契约", startTs: oneOpen, endTs: null, raw: "2026年10月22日 活动契约限时开启" };
+		const oneView = T.scheduleItemOf({ id: "pengpeng", banner: "（另一条）", bannerDates: "" }, "gacha", oneSided, new Date(NOW));
+		check("反证：真把单边条目喂进数组，显示层会当**「长期」**（state=long / remain=0 / endTs=0）—— 所以不接",
+			!!oneView && oneView.state === "long" && oneView.remain === 0 && oneView.endTs === 0 && oneView.startTs === oneOpen,
+			JSON.stringify(oneView && { state: oneView.state, startTs: oneView.startTs, endTs: oneView.endTs, remain: oneView.remain }));
 	}
 
 	// ─────────────────────⑤「未配置」路径（现在只剩 cytq）─────────────────────

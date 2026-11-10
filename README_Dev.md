@@ -1038,6 +1038,33 @@ null，活动侧 2026-11-10 已换 TapTap 官方 tab（能出「新风同行」1
 `altSources`；⑤ P5X 的「只有日期、没有时刻」窗口统一按 **起 00:00 / 止 23:59**（仓库通用约定）。
 
 
+### 2026-11-11：战双活动侧换 `Test4/活动日历`；夜幕之下卡池侧不接 TapTap
+
+- **战双帕弥什 活动侧**：默认源 = `Test4/活动日历`（`action=parse&page=Test4%2F活动日历&prop=wikitext&format=json&formatversion=2`），
+  解析模板行 `{{活动日历|名称|开始|结束}}`（`Template:活动日历` 的位置参数 1/2/3；同义具名参数也认）。
+  实测 2026-11-11T00:58+08：HTTP 200 / 729B / **10 条**，首条「远信回响」主线
+  `2026/09/24 11:00 ~ 2026/11/05 5:00`，末条「新增涂装试玩」同窗口 ⇒ **当前全部过期 ⇒ 活动侧 null**（未公布）。
+  过期不是抓取失败：真夹具 `test/fixtures/p8-zspms-calendar`，回归 `test/cases-p8.mjs` P8-7
+  （注入 10-20 的时刻能出 9 条在期、10-19 收的「悍猎季风」不进外显/悬停）。
+  旧「SMW ask 索引 → 最新版本更新公告正文」降为 `eventAltSources`（抓取器键仍 `zspms-bwiki-notice`，与卡池侧共用）。
+- **官方公告接口（探测到、本批未接）**：官网 `zspms.kurogame.com` 是 SPA，数据在
+  `https://media-cdn-zspms.kurogame.com/pnswebsite/website2.0/json/G144/`：
+  `ArticleMenu.json`（217 条，`ACAO: *`）与 `article/<articleId>.json`（正文 HTML，`ACAO: *`）。
+  实测 `article/5682.json` = 《流光抛诸寰宇》版本更新公告（发布于 2026-11-03 17:26），正文里
+  `2026年11月5日版本更新后 - 2026年12月17日05:00` 出现 **12 次** ⇒ **当前版本有档期**（比 bwiki 新）。
+  未接原因：正文是 HTML 富文本，小节名在 `<strong>` 里（不是 `==` 标题层级），活动名/容器名的区分要另写一套
+  解析器；本轮按任务书只把 bwiki 活动日历设为默认。宿主 `PROXY_ALLOW_HOSTS` 不含
+  `media-cdn-zspms.kurogame.com`，但该域 `ACAO: *` ⇒ 若接，走 `mode:"direct"` 即可，不需要动白名单。
+- **夜幕之下 卡池侧**：**不动**（三选一里的 C）。bwiki「契约一览」最后编辑 2026-09-24（`list=recentchanges`），
+  最新窗口 `2026/09/10 ~ 2026/10/01` ⇒ 当前 null。TapTap 只有应用简介里的
+  「10月22日…「幸福无罪论」活动契约限时开启」（**无年份、无结束日**；11-12 的新版本档期只在图片里）：
+  单边窗口在仓库没有合法载荷（`ns_bwiki_batchGachaPayloadOf` 用 `coversNow`，两端都要），
+  强行喂进数组会被显示层当「长期」（`scheduleItemOf`：`endTs == null ? 0`）。
+  也不把默认换成 TapTap：它只能产出单边窗口 ⇒ 外显恒 null（等于用「永远空」换掉 bwiki 的「等补档」）。
+  回归钉住 `test/cases-new5.mjs` ④(d)；完整取舍写在 `src/client/30-game-pengpeng.js` 文件头的
+  「卡池侧 2026-11-11 复核」段。
+
+
 ### 星铁换官方公告 CMS + 「相对起点」锚定 + 「起点未知 ≠ 已开始」（2026-11-09）
 
 用户当轮拍板的三条规则。**三条互相咬合，改一条要同时看另两条**。

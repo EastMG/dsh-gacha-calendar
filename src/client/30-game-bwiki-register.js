@@ -17,15 +17,21 @@
 				tz: "Asia/Shanghai",
 				name: "战双帕弥什",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/b2/99/ed/b299ed39-90ea-03df-c7ee-bd09548991e5/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",
-				// 2026-11-10：卡池侧改以 `Test4/活动旗帜` 为准（结构化当期池、更新更快）；
-				// 版本更新公告源保留（活动侧仍用它），卡池侧降为 altSources 手动备选。
+				// 2026-11-10：卡池侧改以 `Test4/活动旗帜` 为准（结构化当期池、更新更快）。
+				// 2026-11-11：活动侧改以 `Test4/活动日历` 为准（同站同写法的结构化档期页）。
+				// 旧「版本更新公告」源（SMW ask → 正文）两侧都降为**手动备选**，解析器与回归全部保留。
 				url: ns_bwiki_wikitext_ZSPMS_FLAGS_URL,
 				source: "Bwiki 活动旗帜",
-				eventUrl: "https://wiki.biligame.com/zspms/api.php?action=ask&query=%5B%5B%E5%88%86%E7%B1%BB%3A%E6%B8%B8%E6%88%8F%E6%9B%B4%E6%96%B0%E5%85%AC%E5%91%8A%5D%5D%5B%5B%E7%B1%BB%E5%88%AB%3A%3A%E7%89%88%E6%9C%AC%5D%5D%7C%3F%E6%A0%87%E9%A2%98%7C%3F%E6%97%B6%E9%97%B4%7Csort%3D%E6%97%B6%E9%97%B4%7Corder%3Ddesc%7Climit%3D40&format=json",
-				eventSource: "Bwiki",
+				eventUrl: ns_bwiki_wikitext_ZSPMS_CALENDAR_URL,
+				eventSource: "Bwiki 活动日历",
 				altSources: [{
 					label: "Bwiki 版本更新公告（旧，含研发池）",
-					url: "https://wiki.biligame.com/zspms/api.php?action=ask&query=%5B%5B%E5%88%86%E7%B1%BB%3A%E6%B8%B8%E6%88%8F%E6%9B%B4%E6%96%B0%E5%85%AC%E5%91%8A%5D%5D%5B%5B%E7%B1%BB%E5%88%AB%3A%3A%E7%89%88%E6%9C%AC%5D%5D%7C%3F%E6%A0%87%E9%A2%98%7C%3F%E6%97%B6%E9%97%B4%7Csort%3D%E6%97%B6%E9%97%B4%7Corder%3Ddesc%7Climit%3D40&format=json",
+					url: ns_bwiki_wikitext_ZSPMS_ASK_URL,
+					fetcher: "zspms-bwiki-notice"
+				}],
+				eventAltSources: [{
+					label: "Bwiki 版本更新公告（旧，正文抽档期）",
+					url: ns_bwiki_wikitext_ZSPMS_ASK_URL,
 					fetcher: "zspms-bwiki-notice"
 				}]
 		});
@@ -61,5 +67,9 @@
 		GACHA_FETCHERS["czn"] = (url, signal, tz) => ns_bwiki_wikitext_gachaCzn(url, signal, tz);
 		GACHA_FETCHERS["kedr"] = (url, signal, tz) => ns_bwiki_wikitext_gachaKedrTemplate(url, signal, tz);
 		EVENT_FETCHERS["wuhuamixin"] = Object.assign(EVENT_FETCHERS["wuhuamixin"] || {}, { default: (url, signal, tz) => ns_biligame_activity_eventsWhmxOfficial(url, signal, tz) });
-		EVENT_FETCHERS["zspms"] = Object.assign(EVENT_FETCHERS["zspms"] || {}, { default: (url, signal, tz) => ns_bwiki_wikitext_eventsZspms(url, signal, tz) });
+		// 活动侧默认 = 活动日历页；旧公告路径（两步 ask → 正文）保留为 eventAltSources 的抓取器键
+		EVENT_FETCHERS["zspms"] = Object.assign(EVENT_FETCHERS["zspms"] || {}, {
+			default: (url, signal, tz, now) => ns_bwiki_wikitext_eventsZspmsCalendar(url, signal, tz, now),
+			"zspms-bwiki-notice": (url, signal, tz, now) => ns_bwiki_wikitext_eventsZspms(url, signal, tz, now)
+		});
 		EVENT_FETCHERS["kedr"] = Object.assign(EVENT_FETCHERS["kedr"] || {}, { default: (url, signal, tz) => ns_bwiki_wikitext_eventsKedrTemplate(url, signal, tz) });

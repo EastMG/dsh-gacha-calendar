@@ -142,5 +142,6 @@
   "https://p5x.wanmei.com/news/gamenews/20261022/264741.html": "p5x-detail-20261022/response.txt",
   "https://www.taptap.cn/app/746164/topic?type=official": "pengpeng-taptap-official/response.txt",
   "https://www.taptap.cn/app/746164/topic?type=official&page=2": "pengpeng-taptap-official-p2/response.txt",
-  "https://l11-web-api.komoejoy.com/game/website/content/107075/2/list?pageNum=1&pageSize=20&region=3": "uma-tw-list/response.txt"
+  "https://l11-web-api.komoejoy.com/game/website/content/107075/2/list?pageNum=1&pageSize=20&region=3": "uma-tw-list/response.txt",
+  "https://wiki.biligame.com/zspms/api.php?action=parse&page=Test4%2F%E6%B4%BB%E5%8A%A8%E6%97%A5%E5%8E%86&prop=wikitext&format=json&formatversion=2": "p8-zspms-calendar/response.txt"
 }

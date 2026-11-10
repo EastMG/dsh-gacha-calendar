@@ -1,6 +1,9 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // ① 战双帕弥什 国服（zspms）
-//    SMW ask 索引 → 最新「版本更新公告」→ prop=wikitext 正文抽档期
+//    · 活动侧默认（2026-11-11 起）：`Test4/活动日历` 的结构化 `{{活动日历|名|起|止}}` 行
+//    · 卡池侧默认（2026-11-10 起）：`Test4/活动旗帜` 的 `{{活动旗帜}}` 模板参数
+//    · 旧源（SMW ask 索引 → 最新「版本更新公告」→ prop=wikitext 正文抽档期）
+//      两侧都降为**手动备选**（altSources / eventAltSources），解析器与回归全部保留
 // ══════════════════════════════════════════════════════════════════════════════
 const ns_bwiki_wikitext_ZSPMS_TZ = "Asia/Shanghai";        // 推测：源站未标注（旁证见文件头）
 const ns_bwiki_wikitext_ZSPMS_ASK_QUERY = "[[分类:游戏更新公告]][[类别::版本]]|?标题|?时间|sort=时间|order=desc|limit=40";
@@ -274,10 +277,85 @@ async function ns_bwiki_wikitext_eventsZspms(url, signal, tz = ns_bwiki_wikitext
 }
 //#endregion
 
+//#region 战双：活动日历（结构化活动档期，2026-11-11 起为活动侧默认源）
+// 为什么接：活动侧原先靠「版本更新公告」正文（要剥 `{{颜色引用}}`、靠标题栈取活动名），最新一版
+// 《远信回响》的档期止于 2026-11-05 ⇒ 11-06 起活动列空窗。`Test4/活动日历` 与卡池侧的
+// `Test4/活动旗帜` **同站、同写法**（都是一页数据模板），源站更新一行就多一条 ⇒ 比公告正文规整，
+// 也不依赖标题层级。接它不等于"立刻有数据"（实测末条同样止于 2026/11/05），而是**源站一补档就自动恢复**。
+//
+// 页面实测（2026-11-11T00:58+08，夹具 `test/fixtures/p8-zspms-calendar`，HTTP 200 / 729B）：
+//   <div class="newsOut" …><!--只允许显示8个活动-->
+//      {{活动日历|「远信回响」主线|2026/09/24 11:00|2026/11/05 5:00}}
+//      {{活动日历|「拟战场域」材料|2026/09/24 11:00|2026/11/05 5:00}}
+//      … 共 10 行 …
+//      {{活动日历|「新增涂装试玩」|2026/09/24 11:00|2026/11/05 5:00}}
+//   </div>
+// 模板定义（`Template:活动日历`）：位置参数 1=名称、2=开始时间、3=结束时间，另有同义具名参数
+// （`名称` / `开始时间` / `结束时间`）⇒ 两种写法都吃。
+// 口径：
+//   · 活动名 = 参数 1 **原样**（`「远信回响」主线` 就是源站写法，不拆「」、不剥类别后缀）
+//   · 起止 `YYYY/MM/DD H:MM`（**时位不补零**，如 `11/05 5:00`），tz = Asia/Shanghai（同文件头推测）
+//   · raw = 两端原文（`~` 连接，与活动旗帜同约定）、display = fmtWindow（「两份文本」约定）
+//   · 起止读不出 / 终点不晚于起点 ⇒ **跳过该行**（不硬造）；一条都解不出 ⇒ 抛错（模板改版 = 结构性损坏）
+//   · 外显/悬停交给共用的 `eventPayload`：**两端都明确且覆盖 now** 才进外显（`coversNow` 唯一真源）
+//     ⇒ 当前时刻（2026-11-11）全部已过期 ⇒ 如实返回 null（未公布），绝不把 11-05 收尾的档期当在期。
+const ns_bwiki_wikitext_ZSPMS_CALENDAR_PAGE = "Test4/活动日历";
+// ⚠️ 页名必须 encodeURIComponent 后再拼（`/` → `%2F`、中文 → %E…）
+const ns_bwiki_wikitext_ZSPMS_CALENDAR_URL = "https://wiki.biligame.com/zspms/api.php?action=parse&page="
+	+ encodeURIComponent(ns_bwiki_wikitext_ZSPMS_CALENDAR_PAGE) + "&prop=wikitext&format=json&formatversion=2";
+
+// 一页 wikitext → { items:[{ name, startTs, endTs, raw, display, _i }], skipped }
+// 只认 `{{活动日历|…}}` 顶层调用（参数里没有花括号；与源站写法一致）。
+function ns_bwiki_wikitext_parseZspmsCalendar(wikitext, tz = ns_bwiki_wikitext_ZSPMS_TZ) {
+	const text = String(wikitext == null ? "" : wikitext);
+	const items = [];
+	let skipped = 0;
+	const re = /\{\{活动日历\s*\|([^{}]*?)\}\}/g;
+	let m;
+	while ((m = re.exec(text))) {
+		const pos = [], named = {};
+		for (const piece of m[1].split("|")) {
+			const seg = piece.trim();
+			const kv = /^([^=]{1,8})\s*=\s*([\s\S]*)$/.exec(seg);
+			if (kv && /^(名称|开始时间|结束时间)$/.test(kv[1].trim())) named[kv[1].trim()] = kv[2].trim();
+			else pos.push(seg);
+		}
+		const name = named["名称"] || pos[0] || "";
+		const startRaw = named["开始时间"] || pos[1] || "";
+		const endRaw = named["结束时间"] || pos[2] || "";
+		if (!name || !startRaw || !endRaw) { skipped++; continue; }
+		const sp = ns_bwiki_parsePoints(startRaw)[0];
+		const ep = ns_bwiki_parsePoints(endRaw)[0];
+		if (!sp || !ep) { skipped++; continue; }
+		const startTs = sourceInstant(sp.y, sp.mo, sp.d, sp.h, sp.mi, tz);
+		const endTs = sourceInstant(ep.y, ep.mo, ep.d, ep.h, ep.mi, tz);
+		if (!(endTs > startTs)) { skipped++; continue; }                    // 源站错行 → 丢弃，不硬造
+		items.push({
+			name,
+			startTs, endTs,
+			raw: `${startRaw} ~ ${endRaw}`,
+			display: fmtWindow(startTs, endTs, tz),
+			_i: items.length
+		});
+	}
+	if (items.length === 0) throw new Error("zspms-calendar:no-window");     // 模板改版/页面清空 = 结构性损坏
+	return { items, skipped };
+}
+
+async function ns_bwiki_wikitext_eventsZspmsCalendar(url, signal, tz = ns_bwiki_wikitext_ZSPMS_TZ, now = nowMs()) {
+	const wikitext = await ns_bwiki_wikitext_fetchWikitext(url || ns_bwiki_wikitext_ZSPMS_CALENDAR_URL, signal, ns_bwiki_wikitext_ZSPMS_REFERER);
+	const parsed = ns_bwiki_wikitext_parseZspmsCalendar(wikitext, tz);
+	return ns_bwiki_wikitext_eventPayload(parsed.items, tz, ns_bwiki_wikitext_nowOf(now), {
+		cmp: ns_bwiki_wikitext_zspmsEventCmp,
+		nameOf: (x) => x.name
+	});
+}
+//#endregion
+
 //#region 战双：活动旗帜（结构化当期卡池，2026-11-10 起为卡池侧默认源）
 // 为什么换：版本更新公告最新只到 2026-11-05（11-06 起卡池空窗），而 `Test4/活动旗帜` 是
-// 结构化数据页、当期 70%UP 池到 11-12 ⇒ 更新更快、结构更稳。公告源保留（活动侧仍用；
-// 卡池侧降为 altSources，见 `30-game-bwiki-register.js`）。
+// 结构化数据页、当期 70%UP 池到 11-12 ⇒ 更新更快、结构更稳。公告源保留为手动备选
+// （卡池侧 altSources，见 `30-game-bwiki-register.js`）。
 //   {{活动旗帜
 //   |70%UP1=比安卡·晖暮   |70%UP2=七实·芒星之迹   |70%UP3=海伦汀·安魂
 //   |70%UP开始时间=2026/10/29 07:00   |70%UP结束时间=2026/11/12 06:59
@@ -340,7 +418,7 @@ function ns_bwiki_wikitext_parseZspmsFlags(wikitext, tz = ns_bwiki_wikitext_ZSPM
 		const ep = ns_bwiki_wikitext_zspmsFlagPoint(endRaw);
 		if (!sp || !ep || roles.length === 0) continue;
 		const startTs = sourceInstant(sp.y, sp.mo, sp.d, sp.h, sp.mi, tz);
-		const endTs = sourceInstant(ep.y, ep.mo, ep.d, ep.h, ep.mi, tz);
+		const endTs = sourceInstant(ep.y, ep.mo, ep.d, ep.h, ep.mi, tz)
 		if (!(endTs > startTs)) continue;                                   // 源站错行 → 丢掉（不硬造）
 		out.push({
 			pool: prefix,
