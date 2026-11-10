@@ -26,16 +26,16 @@
 				eventUrl: ns_zspms_cdn_MENU_URL,
 				eventSource: "官方公告",
 				altSources: [{
-					label: "Bwiki 版本更新公告（旧，含研发池）",
+					label: "Bwiki 更新公告",
 					url: ns_bwiki_wikitext_ZSPMS_ASK_URL,
 					fetcher: "zspms-bwiki-notice"
 				}],
 				eventAltSources: [{
-					label: "Bwiki 活动日历（旧默认源）",
+					label: "Bwiki 活动日历",
 					url: ns_bwiki_wikitext_ZSPMS_CALENDAR_URL,
 					fetcher: "zspms-bwiki-calendar"
 				}, {
-					label: "Bwiki 版本更新公告（旧，正文抽档期）",
+					label: "Bwiki 更新公告",
 					url: ns_bwiki_wikitext_ZSPMS_ASK_URL,
 					fetcher: "zspms-bwiki-notice"
 				}]

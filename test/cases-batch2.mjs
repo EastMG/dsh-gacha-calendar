@@ -1,4 +1,4 @@
-// test/cases-batch2.mjs —— 第二批接入（2026-11-11）：崩坏3 内容中台 / OurNotes 日服 SPICA / 卡厄斯 TapTap 官方 tab
+// test/cases-batch2.mjs —— 第二批接入（2026-11-11）：崩坏3 内容中台 / OurNotes 日服 SPICA / 卡厄斯 TapTap tab
 //
 // ── 本段守什么 ──
 //   ① 崩坏3：注册（两侧 url/eventUrl + 来源标签 + defaultHidden 保持 true + 米游社备选源保留）；
@@ -7,7 +7,7 @@
 //      3 条主线更新稿没有时间块 ⇒ 如实不进日历；
 //   ② OurNotes·日服：卡池侧此前无来源，现挂 SPICA（列表取 id → **只抓前 5 条详情**，不是 23 条）；
 //      tz=Asia/Tokyo / 活动侧 bushimo 原样不动；详情「開催期間」→ 绝对 ts；pickup 名单逐字；
-//   ③ 卡厄斯：活动侧此前无来源，现挂 TapTap 官方 tab；HTML 卡片正则 → 有完整区间的 2 帖进日历，
+//   ③ 卡厄斯：活动侧此前无来源，现挂 TapTap tab；HTML 卡片正则 → 有完整区间的 2 帖进日历，
 //      其余 8 帖（角色演示/设定图/PV/福利）**不硬凑**；12:00 +08 时首条维护窗已在期。
 //
 // ── 真夹具（test/fixtures/<名>/response.txt + .meta.json 的 url/capturedAt/trim）──
@@ -239,7 +239,7 @@ export default async function runBatch2() {
 	{
 		const s = T.SOURCES.find((x) => x.id === "ournotes") || null;
 		check("卡池 url = SPICA 列表（此前该侧无来源）", !!s && s.url === SPICA_LIST, s && String(s.url));
-		check("卡池来源标签 = SPICA（社区）", !!s && s.source === B.NS_BATCH2_SPICA_SOURCE_LABEL, s && s.source);
+		check("卡池来源标签 = SPICA", !!s && s.source === B.NS_BATCH2_SPICA_SOURCE_LABEL, s && s.source);
 		check("活动侧原样不动（bushimo WP 公告 / 官方公告（日文））",
 			!!s && s.eventUrl === "https://bang-dream-on.bushimo.jp/wp-json/wp/v2/posts?per_page=20&page=1"
 			&& s.eventSource === "官方公告（日文）", s && JSON.stringify([s.eventUrl, s.eventSource]));
@@ -308,13 +308,13 @@ export default async function runBatch2() {
 		check("空列表 ⇒ ids 为空（抓取器据此抛 `spica-list-empty`，不是静默 null）", B.ns_batch2_spicaIdsOf("<html></html>").length === 0);
 	}
 
-	// ═══════════════════ ③ 卡厄斯梦境 TapTap 官方 tab ═══════════════════
-	section("第二批③：卡厄斯梦境活动 —— TapTap 官方 tab（HTML 卡片 + 区间）");
+	// ═══════════════════ ③ 卡厄斯梦境 TapTap tab ═══════════════════
+	section("第二批③：卡厄斯梦境活动 —— TapTap tab（HTML 卡片 + 区间）");
 	{
 		const s = T.SOURCES.find((x) => x.id === "czn") || null;
-		check("活动 eventUrl = TapTap 官方 tab（app/759688）",
+		check("活动 eventUrl = TapTap tab（app/759688）",
 			!!s && s.eventUrl === CZN && /\/app\/759688\/topic\?type=official$/.test(s.eventUrl), s && String(s.eventUrl));
-		check("活动来源标签 = TapTap 官方", !!s && s.eventSource === B.NS_BATCH2_CZN_SOURCE_LABEL, s && s.eventSource);
+		check("活动来源标签 = TapTap", !!s && s.eventSource === B.NS_BATCH2_CZN_SOURCE_LABEL, s && s.eventSource);
 		check("卡池侧保持 bwiki Lua（未动）",
 			!!s && /wiki\.biligame\.com\/czn\/api\.php/.test(s.url) && s.source === "Bwiki", s && JSON.stringify([s.url, s.source]));
 		check("tz = Asia/Shanghai / defaultHidden 保持 true", !!s && s.tz === "Asia/Shanghai" && s.defaultHidden === true,

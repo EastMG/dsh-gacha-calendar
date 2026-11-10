@@ -171,11 +171,11 @@ const ORDER = [
   // 三组各自自包含 —— wqmt 有两侧真源（bwiki 卡池 + 官方资讯 API 活动）、
   // pengpeng 卡池 bwiki + 活动 bwiki 公告、wd/hlr 走官方版块/官网新闻，只剩 cytq 留空未配置。
   "30-game-wqmt.js",           // 无期迷途（国服）：卡池 bwiki + 活动 官方资讯 API + 开服锚点
-  "30-game-miyoushe-bbs.js",   // 未定事件簿：米游社官方版块（卡池 + 活动）
+  "30-game-miyoushe-bbs.js",   // 未定事件簿：米游社公告（卡池 + 活动）
   "30-game-netease.js",        // 时空中的绘旅人：官网新闻列表 + 详情（卡池 + 活动）
   "30-game-pengpeng.js",       // 夜幕之下（国服）：卡池 bwiki + 活动 bwiki 公告/版本活动总览
   "30-game-unconfigured.js",   // 炽焰天穹：只注册、来源留空未配置
-  // 2026-11-11 第二批：三处新来源（崩坏3 内容中台 / OurNotes 日服 SPICA / 卡厄斯梦境 TapTap 官方 tab）。
+  // 2026-11-11 第二批：三处新来源（崩坏3 内容中台 / OurNotes 日服 SPICA / 卡厄斯梦境 TapTap tab）。
   // ⚠️ 必须排在上面全部 `30-game-*.js` 之后：`registerSource` 要**合并既有条目**
   //    （ournotes 在 30-game-bandori.js、czn 在 30-game-bwiki-register.js 里声明）。
   "30-game-batch2.js",
@@ -302,7 +302,7 @@ const CORE_ORDER = [
   // 2026-11-09（同 ORDER）：新接入的 5 款 —— core 侧也要有，否则 Node 宿主（packages/core）里的
   // SOURCES 少条目，`cases-core` 的"来源总数"会与 client 侧对不上。
   "30-game-wqmt.js",           // 无期迷途（国服）
-  "30-game-miyoushe-bbs.js",   // 未定事件簿（米游社官方版块）
+  "30-game-miyoushe-bbs.js",   // 未定事件簿（米游社公告）
   "30-game-netease.js",        // 时空中的绘旅人（官网新闻）
   "30-game-pengpeng.js",       // 夜幕之下（国服）
   "30-game-unconfigured.js",   // 炽焰天穹（来源留空未配置）

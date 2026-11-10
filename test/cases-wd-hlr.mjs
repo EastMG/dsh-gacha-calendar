@@ -1,4 +1,4 @@
-// test/cases-wd-hlr.mjs —— 未定事件簿（米游社官方版块）+ 时空中的绘旅人（官网新闻）2026-11-09 晚接入
+// test/cases-wd-hlr.mjs —— 未定事件簿（米游社公告）+ 时空中的绘旅人（官网新闻）2026-11-09 晚接入
 //
 // ── 本段守什么 ──
 //   ① 注册：`wd` / `hlr` 两侧都有 url + eventUrl + 来源标签，出厂仍 `defaultHidden: true`
@@ -123,8 +123,8 @@ export default async function runWdHlr() {
 			!!wd && wd.url === WD.WD_LIST_URL && /forum_id=33/.test(wd.url), wd ? String(wd.url) : "缺失");
 		check("wd 活动 eventUrl 与卡池同一条（同一个版块，按标题分流）",
 			!!wd && wd.eventUrl === wd.url, wd ? String(wd.eventUrl) : "缺失");
-		check("wd 两侧来源标签 = 米游社官方版块",
-			!!wd && wd.source === "米游社官方版块" && wd.eventSource === "米游社官方版块",
+		check("wd 两侧来源标签 = 米游社公告",
+			!!wd && wd.source === "米游社公告" && wd.eventSource === "米游社公告",
 			wd ? JSON.stringify([wd.source, wd.eventSource]) : "缺失");
 		check("hlr 卡池 url = 官网新闻列表页",
 			!!hlr && hlr.url === HLR.HLR_LIST_URL && hlr.url === "https://hlr.163.com/news/official/",

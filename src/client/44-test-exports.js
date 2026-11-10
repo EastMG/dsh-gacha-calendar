@@ -89,7 +89,7 @@
 				wqmtTypeOf,
 				wqmtWindowOf,
 			},
-			// 2026-11-09 晚：未定事件簿（米游社官方版块）—— 卡池/活动两个独立抓取器共用
+			// 2026-11-09 晚：未定事件簿（米游社公告）—— 卡池/活动两个独立抓取器共用
 			// 「列表 → 标题分流 → 详情 → 窗口」这条链，导出小步以便回归逐条钉住
 			// （含「更新后 ⇒ startTs null」与「省年份补年 / 跨年」）。
 			"wd": {
@@ -132,7 +132,7 @@
 				hlrWindowsOf,
 				hlrYearOf,
 			},
-			// 夜幕之下（卡池 bwiki 契约一览 + 活动 TapTap 官方 tab 的 feed JSON；旧 bwiki 公告源为备选）
+			// 夜幕之下（卡池 bwiki 契约一览 + 活动 TapTap tab 的 feed JSON；旧 bwiki 公告源为备选）
 			"pengpeng": {
 				PENGPENG_BWIKI_URL,
 				PENGPENG_EVENT_URL,
@@ -544,7 +544,7 @@
 			},
 			// 2026-11-11 第二批（三处新来源）：纯函数导出给 `test/cases-batch2.mjs` 逐条钉住 ——
 			// 崩坏3 内容中台（卡池只出名称/角色、活动时间块）、OurNotes 日服 SPICA（列表/详情）、
-			// 卡厄斯梦境 TapTap 官方 tab（HTML 卡片 + 区间）。抓取器本身走 `GACHA_FETCHERS` / `EVENT_FETCHERS`。
+			// 卡厄斯梦境 TapTap tab（HTML 卡片 + 区间）。抓取器本身走 `GACHA_FETCHERS` / `EVENT_FETCHERS`。
 			"batch2": {
 				NS_BATCH2_BH3_EVENT_URL,
 				NS_BATCH2_BH3_GACHA_URL,

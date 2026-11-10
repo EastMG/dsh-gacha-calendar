@@ -1,6 +1,6 @@
-// src/client/30-game-miyoushe-bbs.js —— 未定事件簿（国服）：米游社官方版块（卡池 + 活动）
+// src/client/30-game-miyoushe-bbs.js —— 未定事件簿（国服）：米游社公告（卡池 + 活动）
 //
-// ── 为什么换到米游社官方版块（2026-11-09 调研）──────────────────────────────────
+// ── 为什么换到米游社公告（2026-11-09 调研）──────────────────────────────────
 // 旧调研说 `wd.mihoyo.com` 的公告 CMS 停在 2025-04-02、bwiki 子站（`cxbs`）停在 2024-03-22
 // ⇒ 当时只注册条目、来源留空。本批重新实测：**米游社（bbs-api.miyoushe.com）未定事件簿版块
 // forum_id=33 仍在日更**（官方号 uid 76089447，最新一条 2026-11-07 20:06），列表/详情都通。
@@ -294,9 +294,9 @@
 			tz: WD_TZ,
 			name: "未定事件簿",
 			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/bd/c8/ad/bdc8ad3c-1bd5-debe-90b9-e67ea22578de/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",
-			source: "米游社官方版块",
+			source: "米游社公告",
 			url: WD_LIST_URL,
-			eventSource: "米游社官方版块",
+			eventSource: "米游社公告",
 			eventUrl: WD_LIST_URL
 		});
 

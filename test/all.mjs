@@ -149,13 +149,13 @@ const batches = [
 	["P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）", runP4Flat],
 	["category / tags 批 1+2+3（9 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 多值拆分 + 旧键兼容 + 反证；批 3 = `eventTier` 的 haystack 改 OR 语义 + 逐时刻外显变化登记）", runCategory],
 	["2026-11-09 新接入 5 款（无期迷途两侧真源 + 夜幕之下卡池 + 未定/绘旅人/炽焰天穹留空未配置）", runNew5],
-	["未定事件簿 / 时空中的绘旅人（米游社官方版块 + 官网新闻：卡池 + 活动 / 跨年补年 / 单侧失败隔离）", runWdHlr],
-	["夜幕之下活动（TapTap 官方 tab 的 feed JSON：区间解析复用 + 翻页上限/早停 + 反向证明；旧 bwiki 公告源仍作备选）", runPengpengEvent],
+	["未定事件簿 / 时空中的绘旅人（米游社公告 + 官网新闻：卡池 + 活动 / 跨年补年 / 单侧失败隔离）", runWdHlr],
+	["夜幕之下活动（TapTap tab 的 feed JSON：区间解析复用 + 翻页上限/早停 + 反向证明；旧 bwiki 公告源仍作备选）", runPengpengEvent],
 	["星铁卡池换官方公告 CMS + 「相对起点」锚定（星铁 10:00 / 无期迷途 14:00）+ 「起点未知 ≠ 已开始」", runHsrOfficial],
 	["绝区零 bwiki 备选源「起点未知 = 已开始」的唯一例外（其余来源仍严格）", runZzzBwiki],
 	["刷新横幅：底部失败横条 + 重试删除、失败明细并入悬停（沿用判定 / 文字口径逐字不变）", runScrapeFail],
 	["赛马娘·繁中服（Komoe 官方公告：卡池/活动同一条接口 + 「維護結束後」起点未知 + 反证）", runUmaTw],
-	["第二批新来源（崩坏3 内容中台：卡池只出名称/角色 + 活动时间块 / OurNotes 日服 SPICA：列表→前 5 条详情 / 卡厄斯 TapTap 官方 tab：HTML 卡片 + 区间）", runBatch2],
+	["第二批新来源（崩坏3 内容中台：卡池只出名称/角色 + 活动时间块 / OurNotes 日服 SPICA：列表→前 5 条详情 / 卡厄斯 TapTap tab：HTML 卡片 + 区间）", runBatch2],
 	["OurNotes 国际服（SPICA 数据 JSON：`_durl` 现解 → gachapages/events 一次拿全；JST 墙钟 → UTC+8 展示；picks 按 id 查角色）", runOnGlobalSpica]
 ];
 const before = counts();

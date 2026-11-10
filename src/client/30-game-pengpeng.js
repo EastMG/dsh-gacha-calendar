@@ -11,7 +11,7 @@
 //   停更的是 wiki，不是游戏（游戏 11-05 已开「流光抛诸寰宇」新版本）—— 但本页结构好，wiki 一补档就自动恢复。
 //
 // 调研（2026-11-11 实测）：
-//   · TapTap 官方 tab 的**列表帖**里没有卡池窗口；卡池档期只在图片「版本活动一览」里（配图，不可解析）。
+//   · TapTap tab 的**列表帖**里没有卡池窗口；卡池档期只在图片「版本活动一览」里（配图，不可解析）。
 //   · 唯一能取到的文字是 TapTap **应用简介**（`/app/746164` 的 ld+json `description`）：
 //       `10月22日，活动版本「无罪之国·上」正式开启。「幸福无罪论」活动契约限时开启，
 //        6星风格「终身监护人·监狱长」获取概率大幅提升！`
@@ -54,7 +54,7 @@
 // ⚠️ 已知滞后：该 wiki 最新一版只到 **2026-09-10**（比游戏落后约 1 个版本；游戏本身仍在运营，
 //    1.0.54 / 2026-10-21）。所以此刻抓到的活动全部已结束 ⇒ 如实 `null`（未公布），
 //    **绝不**把九月档期当成"当前活动"。设置页的来源标签写明
-//    「Bwiki 公告（wiki 数据滞后）」—— 停更的是 wiki，不是游戏，不要标成"暂停"。
+//    「Bwiki 公告（不可靠）」—— 停更的是 wiki，不是游戏，不要标成"暂停"。
 //
 // ── 2026-11-09 23:1x 真机复测（结论：解析链路正常，nomatch 是「wiki 停更」）─────────
 //  经宿主代理抓真接口：`action=query&generator=allpages&gapprefix=公告/` = 88 页（只有 title/pageid）；
@@ -66,9 +66,9 @@
 //  最新档期 10-01 04:59 就结束了 ⇒ 当前时刻如实 null。等 wiki 补档即恢复，抓取器不需要改
 //  （回归 `test/cases-pengpeng-event.mjs` ③ 用期内 now 断言有数据、④ 用真机 now 断言 null）。
 //
-// ── 活动侧（2026-11-11 改）：默认源 = **TapTap 官方 tab 的结构化 JSON** ──────────────
+// ── 活动侧（2026-11-11 改）：默认源 = **TapTap tab 的结构化 JSON** ──────────────
 // 旧默认源 `bwiki 公告/` 已停更 6 周（最新一版 2026-09-10）⇒ 面板活动列长期空窗。
-// 2026-11-10 先接的是 TapTap 官方 tab 的**服务端渲染 HTML**（`/app/746164/topic?type=official`，
+// 2026-11-10 先接的是 TapTap tab 的**服务端渲染 HTML**（`/app/746164/topic?type=official`，
 // 正则切 `moment-article__link` + `summary--title` + `chat-text-render`）；
 // 2026-11-11 换成同一份数据的**结构化 JSON**（就是页面自己发的那个请求，实测 200 / 167 KB）：
 //   GET https://www.taptap.cn/webapiv2/feed/v7/by-group
@@ -114,7 +114,7 @@
 			+ encodeURIComponent("公告/") + "&gaplimit=100&format=json&formatversion=2";
 		const PENGPENG_EVENT_OVERVIEW_RE = /版本活动总览$/;
 		const PENGPENG_MAX_OVERVIEWS = 1;
-		// 活动侧默认源：TapTap 官方 tab 的**结构化 JSON**（`webapiv2` 的 feed 列表接口）
+		// 活动侧默认源：TapTap tab 的**结构化 JSON**（`webapiv2` 的 feed 列表接口）
 		const PENGPENG_TAPTAP_API = "https://www.taptap.cn/webapiv2/feed/v7/by-group";
 		// 给人看的那个页面（只用作 Referer + 文档里的取证地址，不再解析它的 HTML）
 		const PENGPENG_TAPTAP_PAGE_URL = "https://www.taptap.cn/app/746164/topic?type=official";
@@ -350,7 +350,7 @@
 			return out;
 		}
 
-		// ══ 活动侧（2026-11-11）：TapTap 官方 tab 的**结构化 JSON** ═══════════════════════
+		// ══ 活动侧（2026-11-11）：TapTap tab 的**结构化 JSON** ═══════════════════════
 		// 响应形态（真夹具 pengpeng-taptap-feed-p1 / -p2 / -p3）：
 		//   { data: { list: [ { moment: { id_str: "866427359920655283",
 		//                                created_time: 1793674800,
@@ -525,12 +525,12 @@
 			url: PENGPENG_BWIKI_URL,
 			// 卡池侧标签带上停更事实：源站「契约一览」最后编辑 = 2026-09-24，最新窗口 2026-09-10 ~ 10-01
 			// ⇒ 当前时刻如实「未公布」。「停更」的是这张 wiki 表，不是游戏（游戏仍在运营）。
-			source: "Bwiki 契约一览（源站停更）",
-			// 活动侧默认源 = TapTap 官方 tab 的 feed JSON（国服）；旧 bwiki 公告源降为手动备选
+			source: "Bwiki 契约一览（停更）",
+			// 活动侧默认源 = TapTap tab 的 feed JSON（国服）；旧 bwiki 公告源降为手动备选
 			eventUrl: pengpengTaptapApiUrl(0),
-			eventSource: "TapTap 官方（国服）",
+			eventSource: "TapTap",
 			eventAltSources: [
-				{ label: "Bwiki 公告（wiki 数据滞后）", url: PENGPENG_EVENT_URL, fetcher: "pengpeng-bwiki" }
+				{ label: "Bwiki 公告（不可靠）", url: PENGPENG_EVENT_URL, fetcher: "pengpeng-bwiki" }
 			]
 		});
 

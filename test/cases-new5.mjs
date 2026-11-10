@@ -4,7 +4,7 @@
 //   ① **注册项**：5 条的 id / 名称 / 图标 / tz / 颜色都在，id 全局唯一；**有源的接全、无源的留空**：
 //      · `wqmt` 两侧都有（bwiki 卡池 + 官方资讯 API 活动）；
 //      · `pengpeng` 卡池 + 活动（卡池 bwiki 契约一览；活动 bwiki `公告/` 版本活动总览）；
-//      · `wd` 两侧都有（米游社官方版块 forum_id=33，卡池 + 活动）；
+//      · `wd` 两侧都有（米游社公告 forum_id=33，卡池 + 活动）；
 //      · `hlr` 两侧都有（官网新闻列表 + 详情，卡池 + 活动）；
 //      · `cytq` 两侧都不写（**本批唯一**仍然「未配置」的条目）。
 //      ⚠️ 2026-11-09 晚改：`wd` / `hlr` / `pengpeng` 的活动侧是用新调研到的源接上的，
@@ -157,30 +157,30 @@ export default async function run() {
 			wqmt ? String(wqmt.eventUrl) : "缺失");
 
 		const pp = srcOf("pengpeng");
-		check("pengpeng 卡池源已接（bwiki 契约一览；标签写明「源站停更」）",
-			!!pp && /^https:\/\/wiki\.biligame\.com\/pengpeng\/api\.php/.test(pp.url) && pp.source === "Bwiki 契约一览（源站停更）",
+		check("pengpeng 卡池源已接（bwiki 契约一览；标签写明「已停更」）",
+			!!pp && /^https:\/\/wiki\.biligame\.com\/pengpeng\/api\.php/.test(pp.url) && pp.source === "Bwiki 契约一览（停更）",
 			pp ? String(pp.source) : "缺失");
-		// 2026-11-10：活动侧默认源再换一档 —— bwiki `公告/` 停更 6 周 ⇒ TapTap 官方 tab 成默认，
-		// bwiki 公告降为 eventAltSources 手动备选（标签如实写「wiki 数据滞后」）。
+		// 2026-11-10：活动侧默认源再换一档 —— bwiki `公告/` 停更 6 周 ⇒ TapTap tab 成默认，
+		// bwiki 公告降为 eventAltSources 手动备选（标签如实写「不可靠」）。
 		// 2026-11-11：同一份数据的抓取方式从 HTML 正则换成 feed JSON（地址换成 webapiv2 接口，来源标签不变）。
-		check("pengpeng 活动源默认 = TapTap 官方 tab 的 feed JSON（type=official / group_id=924367）",
+		check("pengpeng 活动源默认 = TapTap tab 的 feed JSON（type=official / group_id=924367）",
 			!!pp && /^https:\/\/www\.taptap\.cn\/webapiv2\/feed\/v7\/by-group\?/.test(String(pp.eventUrl))
 			&& /[?&]type=official/.test(String(pp.eventUrl)),
 			pp ? String(pp.eventUrl) : "缺失");
-		check("pengpeng 活动来源标签 = 「TapTap 官方（国服）」",
-			!!pp && pp.eventSource === "TapTap 官方（国服）", pp ? String(pp.eventSource) : "缺失");
-		check("pengpeng 旧 bwiki 公告源保留为 eventAltSources（抓取器已登记 / 标签写明 wiki 滞后）",
+		check("pengpeng 活动来源标签 = 「TapTap」",
+			!!pp && pp.eventSource === "TapTap", pp ? String(pp.eventSource) : "缺失");
+		check("pengpeng 旧 bwiki 公告源保留为 eventAltSources（抓取器已登记 / 标签写明不可靠）",
 			!!pp && (pp.eventAltSources || []).some((a) => /^https:\/\/wiki\.biligame\.com\/pengpeng\/api\.php\?action=query&generator=allpages&gapprefix=/.test(String(a.url))
-				&& /wiki 数据滞后/.test(String(a.label)) && typeof (T.EVENT_FETCHERS["pengpeng"] || {})[a.fetcher] === "function"),
+				&& /不可靠/.test(String(a.label)) && typeof (T.EVENT_FETCHERS["pengpeng"] || {})[a.fetcher] === "function"),
 			pp ? JSON.stringify(pp.eventAltSources) : "缺失");
 
 		// wd / hlr：2026-11-09 晚上两端都接上（原「未配置」断言拆成两段：具体源见下面两条）
 		const wd = srcOf("wd");
-		check("wd 卡池源已接（米游社官方版块 forum_id=33）",
+		check("wd 卡池源已接（米游社公告 forum_id=33）",
 			!!wd && /bbs-api\.miyoushe\.com\/post\/wapi\/getForumPostList\?forum_id=33/.test(String(wd.url))
-			&& wd.source === "米游社官方版块", wd ? String(wd.url) : "缺失");
+			&& wd.source === "米游社公告", wd ? String(wd.url) : "缺失");
 		check("wd 活动源已接（与卡池同一个列表，按标题分流）",
-			!!wd && wd.eventUrl === wd.url && wd.eventSource === "米游社官方版块", wd ? JSON.stringify([wd.url, wd.eventUrl]) : "缺失");
+			!!wd && wd.eventUrl === wd.url && wd.eventSource === "米游社公告", wd ? JSON.stringify([wd.url, wd.eventUrl]) : "缺失");
 		check("wd 两个抓取器都已登记（卡池 / 活动各一）",
 			typeof T.GACHA_FETCHERS["wd"] === "function" && !!(T.EVENT_FETCHERS["wd"] && T.EVENT_FETCHERS["wd"].default));
 
@@ -202,14 +202,14 @@ export default async function run() {
 
 		// 设置页「卡池来源 / 活动来源」下拉：已接的写来源名，未配置的写裸「未配置」
 		check("wd / hlr 设置页两侧都写各自的来源名",
-			T.getDefaultSourceName(wd, "url") === "米游社官方版块" && T.getDefaultSourceName(wd, "eventUrl") === "米游社官方版块"
+			T.getDefaultSourceName(wd, "url") === "米游社公告" && T.getDefaultSourceName(wd, "eventUrl") === "米游社公告"
 			&& T.getDefaultSourceName(hlr, "url") === "官网新闻" && T.getDefaultSourceName(hlr, "eventUrl") === "官网新闻 + 学院公告",
 			JSON.stringify([T.getDefaultSourceName(wd, "url"), T.getDefaultSourceName(hlr, "url"), T.getDefaultSourceName(hlr, "eventUrl")]));
 		check("cytq 设置页两侧都写「未配置」",
 			T.getDefaultSourceName(cytq, "url") === "未配置" && T.getDefaultSourceName(cytq, "eventUrl") === "未配置",
 			JSON.stringify([T.getDefaultSourceName(cytq, "url"), T.getDefaultSourceName(cytq, "eventUrl")]));
-		check("pengpeng 设置页：卡池侧写「Bwiki 契约一览（源站停更）」、活动侧写「TapTap 官方（国服）」",
-			T.getDefaultSourceName(pp, "url") === "Bwiki 契约一览（源站停更）" && T.getDefaultSourceName(pp, "eventUrl") === "TapTap 官方（国服）",
+		check("pengpeng 设置页：卡池侧写「Bwiki 契约一览（停更）」、活动侧写「TapTap」",
+			T.getDefaultSourceName(pp, "url") === "Bwiki 契约一览（停更）" && T.getDefaultSourceName(pp, "eventUrl") === "TapTap",
 			JSON.stringify([T.getDefaultSourceName(pp, "url"), T.getDefaultSourceName(pp, "eventUrl")]));
 	}
 

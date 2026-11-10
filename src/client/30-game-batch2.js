@@ -1,4 +1,4 @@
-// src/client/30-game-batch2.js —— 第二批接入（2026-11-11）：崩坏3 米哈游内容中台 / OurNotes 日服 SPICA / 卡厄斯梦境 TapTap 官方 tab
+// src/client/30-game-batch2.js —— 第二批接入（2026-11-11）：崩坏3 米哈游内容中台 / OurNotes 日服 SPICA / 卡厄斯梦境 TapTap tab
 //
 // 三处来源各自独立，互不共享解析器；共用的是仓库既有口径：
 //   · 条目事实形状 `{ key, title, show, startTs, endTs, tz, raw, display, source }`（见 30-game-komoe.js 的文件头）
@@ -42,12 +42,12 @@
 //     列表**没有日期**（只有 id + 名称）⇒ 日期必须进详情页拿。
 //   抓取口径：列表取 id 顺序 → **只抓前 5 条详情**（`SPICA_MAX_DETAILS`，列表按开始时间倒序，
 //     在期/最近的池都在头部），不抓 23 条。详情里没有 `開催期間` 的池如实 startTs/endTs=null，不进外显。
-//   响应**无 ACAO** ⇒ 必须走宿主代理（白名单 `spica.wiki`）。来源标签「SPICA（社区）」；tz=Asia/Tokyo。
+//   响应**无 ACAO** ⇒ 必须走宿主代理（白名单 `spica.wiki`）。来源标签「SPICA」；tz=Asia/Tokyo。
 //   外显/悬停/数组：当期 = 覆盖 now 的详情（按 startTs 最新）；悬停列出所有 `coveredOrOpen` 的池
 //     （`poolHoverOrderOf`：结束升序），数组由 `dataArrayProducedGachaOf` 直出（主条 + 并列条）。
 //     `bannerDates` ← `display`（`MM-DD HH:MM ~ MM-DD HH:MM`，源站墙钟 JST），`bannerDatesRaw` ← `raw`。
 //
-// ── ③ 卡厄斯梦境 `czn` 的**活动** —— TapTap 官方 tab ─────────────────────────────────
+// ── ③ 卡厄斯梦境 `czn` 的**活动** —— TapTap tab ─────────────────────────────────
 //   https://www.taptap.cn/app/759688/topic?type=official （服务端渲染 HTML，实测 2026-11-11：200 / 440 KB）
 //   结构：每张卡 = `<a class="tap-router moment-article__link" href="/moment/{id}…">` +
 //     `<span class="moment-article__summary--title…">标题</span>` +
@@ -60,7 +60,7 @@
 //     这种单日当区间、也不拿"领取截止"当活动期）。有区间的帖（如
 //     `2026/11/04 02:00~2026/11/25 02:00（服务器时间）`）按区间进外显/悬停/数组。
 //   响应无 ACAO，`www.taptap.cn` 已在白名单（2026-11-10 夜幕之下那批登记）⇒ 走宿主代理。
-//   来源标签「TapTap 官方」；tz=Asia/Shanghai。
+//   来源标签「TapTap」；tz=Asia/Shanghai。
 //
 // ⚠️ 本文件排在各 `30-game-*.js` 之后（ORDER / CORE_ORDER 的两个位置都写死了）：
 //    它要 `registerSource` 合并既有条目（ournotes / czn），而那两条分别在 30-game-bandori.js 与
@@ -78,12 +78,12 @@ const NS_BATCH2_SPICA_LIST_URL = "https://spica.wiki/ournotes/gachas";
 const NS_BATCH2_SPICA_DETAIL_BASE = "https://spica.wiki/ournotes/gacha/";
 const NS_BATCH2_SPICA_REFERER = "https://spica.wiki/";
 const NS_BATCH2_SPICA_MAX_DETAILS = 5;
-const NS_BATCH2_SPICA_SOURCE_LABEL = "SPICA（社区）";
+const NS_BATCH2_SPICA_SOURCE_LABEL = "SPICA";
 
 const NS_BATCH2_CZN_TZ = "Asia/Shanghai";
 const NS_BATCH2_CZN_URL = "https://www.taptap.cn/app/759688/topic?type=official";
 const NS_BATCH2_CZN_REFERER = "https://www.taptap.cn/";
-const NS_BATCH2_CZN_SOURCE_LABEL = "TapTap 官方";
+const NS_BATCH2_CZN_SOURCE_LABEL = "TapTap";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ① 崩坏3：内容中台 JSON → 卡池 / 活动条目事实
@@ -419,7 +419,7 @@ async function ns_batch2_fetchSpicaGacha(url, signal, tz = NS_BATCH2_SPICA_TZ) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ③ 卡厄斯梦境：TapTap 官方 tab HTML → 活动条目事实
+// ③ 卡厄斯梦境：TapTap tab HTML → 活动条目事实
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /** TapTap SSR 摘要 HTML → 纯文本（`<br>` 换成换行，实体解码）。 */
@@ -544,7 +544,7 @@ registerSource({
 });
 GACHA_FETCHERS["ournotes"] = (url, signal, tz) => ns_batch2_fetchSpicaGacha(url, signal, tz);
 
-// czn 卡厄斯梦境：卡池侧保持 bwiki（Module:Gacha/data），活动侧此前**没有来源**，补 TapTap 官方 tab。
+// czn 卡厄斯梦境：卡池侧保持 bwiki（Module:Gacha/data），活动侧此前**没有来源**，补 TapTap tab。
 registerSource({
 	id: "czn",
 	eventUrl: NS_BATCH2_CZN_URL,

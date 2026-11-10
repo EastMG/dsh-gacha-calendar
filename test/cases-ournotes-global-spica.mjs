@@ -82,7 +82,7 @@ export default async function runOnGlobalSpica() {
 			!!s && s.url === PAGE_URL && /^https:\/\/spica\.wiki\/ournotes\/en\/gachas$/.test(s.url), s && String(s.url));
 		check("活动默认源 = **同一条**地址（卡池与活动一次抓全 ⇒ 刷新走复用）",
 			!!s && s.eventUrl === PAGE_URL && s.eventUrl === s.url, s && String(s.eventUrl));
-		check("两侧来源标签 = SPICA（社区）",
+		check("两侧来源标签 = SPICA",
 			!!s && s.source === P.NS_ON_GLOBAL_SOURCE_LABEL && s.eventSource === P.NS_ON_GLOBAL_SOURCE_LABEL,
 			s && JSON.stringify([s.source, s.eventSource]));
 		check("tz 仍是 Asia/Shanghai（= UTC+8；展示口径，与数据里的 JST 钟面分开）",

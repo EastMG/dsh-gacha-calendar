@@ -1,9 +1,9 @@
-// test/cases-pengpeng-event.mjs —— 夜幕之下：活动侧（**TapTap 官方 tab 的 feed JSON**，2026-11-11 换源）
+// test/cases-pengpeng-event.mjs —— 夜幕之下：活动侧（**TapTap tab 的 feed JSON**，2026-11-11 换源）
 //
 // ── 本段守什么 ──
 //   ① 注册：`pengpeng.eventUrl` = `webapiv2/feed/v7/by-group`（type=official / group_id=924367 / from=0）、
-//      `eventSource` = 「TapTap 官方（国服）」；旧 bwiki `公告/` 降为 `eventAltSources`（标签仍如实写「wiki 数据滞后」）；
-//      卡池侧**地址**没动，但 `source` 标签补上「契约一览（源站停更）」这个事实；
+//      `eventSource` = 「TapTap」；旧 bwiki `公告/` 降为 `eventAltSources`（标签仍如实写「不可靠」）；
+//      卡池侧**地址**没动，但 `source` 标签补上「契约一览（已停更）」这个事实；
 //   ② 解析：三页真夹具（`from=0/10/20`）各 10 帖；活动名取标题里的【…】，窗口取 `topic.summary` 里
 //      `▸活动时间：…` 那一行；**只有日期没有年份的不解**（【家族遗藏】两期都是）；
 //   ③ 当期（2026-11-11 00:00 +08，= 活网验收时刻）：外显 = 列表里**第一条覆盖 now** 的
@@ -137,18 +137,18 @@ export default async function runPengpengEvent() {
 		check("pengpeng eventUrl 带 X-UA（缺了源站回 400 INVALID_XUA）",
 			!!s && /[?&]X-UA=V%3D1%26PN%3DWebApp%26/.test(String(s.eventUrl)),
 			s ? String(s.eventUrl).slice(0, 90) : "缺失");
-		check("pengpeng 活动来源标签 = 「TapTap 官方（国服）」（换源不改标签）",
-			!!s && s.eventSource === "TapTap 官方（国服）", s ? String(s.eventSource) : "缺失");
+		check("pengpeng 活动来源标签 = 「TapTap」（换源不改标签）",
+			!!s && s.eventSource === "TapTap", s ? String(s.eventSource) : "缺失");
 		check("pengpeng 卡池侧地址仍是 bwiki 契约一览（卡池不动）",
 			!!s && /action=parse&page=契约一览/.test(String(s.url)),
 			s ? String(s.url) : "缺失");
-		check("pengpeng 卡池侧 `source` 标签写明「Bwiki 契约一览（源站停更）」",
-			!!s && s.source === "Bwiki 契约一览（源站停更）", s ? String(s.source) : "缺失");
+		check("pengpeng 卡池侧 `source` 标签写明「Bwiki 契约一览（停更）」",
+			!!s && s.source === "Bwiki 契约一览（停更）", s ? String(s.source) : "缺失");
 		check("旧 bwiki 活动源保留在 eventAltSources（url + 抓取器键 pengpeng-bwiki + 标签如实）",
 			!!s && (s.eventAltSources || []).length === 1
 			&& s.eventAltSources[0].url === PP.PENGPENG_EVENT_URL
 			&& s.eventAltSources[0].fetcher === "pengpeng-bwiki"
-			&& /wiki 数据滞后/.test(String(s.eventAltSources[0].label))
+			&& /不可靠/.test(String(s.eventAltSources[0].label))
 			&& typeof (T.EVENT_FETCHERS["pengpeng"] || {})["pengpeng-bwiki"] === "function",
 			s ? JSON.stringify(s.eventAltSources) : "缺失");
 		check("默认活动抓取器仍是 EVENT_FETCHERS.pengpeng.default（不是备选键）",

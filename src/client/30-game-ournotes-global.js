@@ -57,7 +57,7 @@ const NS_ON_GLOBAL_DATA_TZ = "Asia/Tokyo";        // 数据 JSON 的墙钟是 JS
 const NS_ON_GLOBAL_ORIGIN = "https://spica.wiki";
 const NS_ON_GLOBAL_URL = "https://spica.wiki/ournotes/en/gachas";
 const NS_ON_GLOBAL_REFERER = "https://spica.wiki/";
-const NS_ON_GLOBAL_SOURCE_LABEL = "SPICA（社区）";
+const NS_ON_GLOBAL_SOURCE_LABEL = "SPICA";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ① 页面 → _durl → 数据 JSON
