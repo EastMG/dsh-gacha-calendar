@@ -512,8 +512,12 @@ const P3B_PATHS = [
 		call: (t, s) => t.GACHA_FETCHERS["zspms-bwiki-notice"]((s.altSources || [])[0].url, undefined, s.tz)
 	},
 	{
+		// ⚠️ 2026-11-11：战双活动默认源换成 bwiki `Test4/活动日历`（结构化档期页）。
+		// 这条 golden 钉的是**同一份版本更新公告夹具**的解析结果（ask 索引 + 公告正文），
+		// 所以改走备选源地址 + 备选抓取器（`zspms-bwiki-notice`）；产物逐字不变。
+		// 新默认源（活动日历）的逐字断言见 `cases-p8.mjs` P8-7。
 		key: "zspmsEvent", switched: true, id: "zspms", side: "event", field: "events", now: Date.parse("2026-09-25T00:00:00.000Z"),
-		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
+		call: (t, s) => t.EVENT_FETCHERS[s.id]["zspms-bwiki-notice"]((s.eventAltSources || [])[0].url, undefined, s.tz)
 	},
 	{
 		// 卡厄斯梦境的默认页是 Lua `Module:Gacha/data`（不在 map.json）→ 就地补；

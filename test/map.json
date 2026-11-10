@@ -151,5 +151,6 @@
   "https://spica.wiki/ournotes/gacha/4001": "spica-ournotes-gacha-4001/response.txt",
   "https://spica.wiki/ournotes/gacha/21": "spica-ournotes-gacha-21/response.txt",
   "https://spica.wiki/ournotes/gacha/20": "spica-ournotes-gacha-20/response.txt",
-  "https://www.taptap.cn/app/759688/topic?type=official": "czn-taptap-official/response.txt"
+  "https://www.taptap.cn/app/759688/topic?type=official": "czn-taptap-official/response.txt",
+  "https://wiki.biligame.com/zspms/api.php?action=parse&page=Test4%2F%E6%B4%BB%E5%8A%A8%E6%97%A5%E5%8E%86&prop=wikitext&format=json&formatversion=2": "p8-zspms-calendar/response.txt"
 }

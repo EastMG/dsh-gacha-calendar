@@ -11358,7 +11358,10 @@ function ns_bwiki_wikitext_eventPayload(items, tz, now, opts = {}) {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ① 战双帕弥什 国服（zspms）
-//    SMW ask 索引 → 最新「版本更新公告」→ prop=wikitext 正文抽档期
+//    · 活动侧默认（2026-11-11 起）：`Test4/活动日历` 的结构化 `{{活动日历|名|起|止}}` 行
+//    · 卡池侧默认（2026-11-10 起）：`Test4/活动旗帜` 的 `{{活动旗帜}}` 模板参数
+//    · 旧源（SMW ask 索引 → 最新「版本更新公告」→ prop=wikitext 正文抽档期）
+//      两侧都降为**手动备选**（altSources / eventAltSources），解析器与回归全部保留
 // ══════════════════════════════════════════════════════════════════════════════
 const ns_bwiki_wikitext_ZSPMS_TZ = "Asia/Shanghai";        // 推测：源站未标注（旁证见文件头）
 const ns_bwiki_wikitext_ZSPMS_ASK_QUERY = "[[分类:游戏更新公告]][[类别::版本]]|?标题|?时间|sort=时间|order=desc|limit=40";
@@ -11632,10 +11635,85 @@ async function ns_bwiki_wikitext_eventsZspms(url, signal, tz = ns_bwiki_wikitext
 }
 //#endregion
 
+//#region 战双：活动日历（结构化活动档期，2026-11-11 起为活动侧默认源）
+// 为什么接：活动侧原先靠「版本更新公告」正文（要剥 `{{颜色引用}}`、靠标题栈取活动名），最新一版
+// 《远信回响》的档期止于 2026-11-05 ⇒ 11-06 起活动列空窗。`Test4/活动日历` 与卡池侧的
+// `Test4/活动旗帜` **同站、同写法**（都是一页数据模板），源站更新一行就多一条 ⇒ 比公告正文规整，
+// 也不依赖标题层级。接它不等于"立刻有数据"（实测末条同样止于 2026/11/05），而是**源站一补档就自动恢复**。
+//
+// 页面实测（2026-11-11T00:58+08，夹具 `test/fixtures/p8-zspms-calendar`，HTTP 200 / 729B）：
+//   <div class="newsOut" …><!--只允许显示8个活动-->
+//      {{活动日历|「远信回响」主线|2026/09/24 11:00|2026/11/05 5:00}}
+//      {{活动日历|「拟战场域」材料|2026/09/24 11:00|2026/11/05 5:00}}
+//      … 共 10 行 …
+//      {{活动日历|「新增涂装试玩」|2026/09/24 11:00|2026/11/05 5:00}}
+//   </div>
+// 模板定义（`Template:活动日历`）：位置参数 1=名称、2=开始时间、3=结束时间，另有同义具名参数
+// （`名称` / `开始时间` / `结束时间`）⇒ 两种写法都吃。
+// 口径：
+//   · 活动名 = 参数 1 **原样**（`「远信回响」主线` 就是源站写法，不拆「」、不剥类别后缀）
+//   · 起止 `YYYY/MM/DD H:MM`（**时位不补零**，如 `11/05 5:00`），tz = Asia/Shanghai（同文件头推测）
+//   · raw = 两端原文（`~` 连接，与活动旗帜同约定）、display = fmtWindow（「两份文本」约定）
+//   · 起止读不出 / 终点不晚于起点 ⇒ **跳过该行**（不硬造）；一条都解不出 ⇒ 抛错（模板改版 = 结构性损坏）
+//   · 外显/悬停交给共用的 `eventPayload`：**两端都明确且覆盖 now** 才进外显（`coversNow` 唯一真源）
+//     ⇒ 当前时刻（2026-11-11）全部已过期 ⇒ 如实返回 null（未公布），绝不把 11-05 收尾的档期当在期。
+const ns_bwiki_wikitext_ZSPMS_CALENDAR_PAGE = "Test4/活动日历";
+// ⚠️ 页名必须 encodeURIComponent 后再拼（`/` → `%2F`、中文 → %E…）
+const ns_bwiki_wikitext_ZSPMS_CALENDAR_URL = "https://wiki.biligame.com/zspms/api.php?action=parse&page="
+	+ encodeURIComponent(ns_bwiki_wikitext_ZSPMS_CALENDAR_PAGE) + "&prop=wikitext&format=json&formatversion=2";
+
+// 一页 wikitext → { items:[{ name, startTs, endTs, raw, display, _i }], skipped }
+// 只认 `{{活动日历|…}}` 顶层调用（参数里没有花括号；与源站写法一致）。
+function ns_bwiki_wikitext_parseZspmsCalendar(wikitext, tz = ns_bwiki_wikitext_ZSPMS_TZ) {
+	const text = String(wikitext == null ? "" : wikitext);
+	const items = [];
+	let skipped = 0;
+	const re = /\{\{活动日历\s*\|([^{}]*?)\}\}/g;
+	let m;
+	while ((m = re.exec(text))) {
+		const pos = [], named = {};
+		for (const piece of m[1].split("|")) {
+			const seg = piece.trim();
+			const kv = /^([^=]{1,8})\s*=\s*([\s\S]*)$/.exec(seg);
+			if (kv && /^(名称|开始时间|结束时间)$/.test(kv[1].trim())) named[kv[1].trim()] = kv[2].trim();
+			else pos.push(seg);
+		}
+		const name = named["名称"] || pos[0] || "";
+		const startRaw = named["开始时间"] || pos[1] || "";
+		const endRaw = named["结束时间"] || pos[2] || "";
+		if (!name || !startRaw || !endRaw) { skipped++; continue; }
+		const sp = ns_bwiki_parsePoints(startRaw)[0];
+		const ep = ns_bwiki_parsePoints(endRaw)[0];
+		if (!sp || !ep) { skipped++; continue; }
+		const startTs = sourceInstant(sp.y, sp.mo, sp.d, sp.h, sp.mi, tz);
+		const endTs = sourceInstant(ep.y, ep.mo, ep.d, ep.h, ep.mi, tz);
+		if (!(endTs > startTs)) { skipped++; continue; }                    // 源站错行 → 丢弃，不硬造
+		items.push({
+			name,
+			startTs, endTs,
+			raw: `${startRaw} ~ ${endRaw}`,
+			display: fmtWindow(startTs, endTs, tz),
+			_i: items.length
+		});
+	}
+	if (items.length === 0) throw new Error("zspms-calendar:no-window");     // 模板改版/页面清空 = 结构性损坏
+	return { items, skipped };
+}
+
+async function ns_bwiki_wikitext_eventsZspmsCalendar(url, signal, tz = ns_bwiki_wikitext_ZSPMS_TZ, now = nowMs()) {
+	const wikitext = await ns_bwiki_wikitext_fetchWikitext(url || ns_bwiki_wikitext_ZSPMS_CALENDAR_URL, signal, ns_bwiki_wikitext_ZSPMS_REFERER);
+	const parsed = ns_bwiki_wikitext_parseZspmsCalendar(wikitext, tz);
+	return ns_bwiki_wikitext_eventPayload(parsed.items, tz, ns_bwiki_wikitext_nowOf(now), {
+		cmp: ns_bwiki_wikitext_zspmsEventCmp,
+		nameOf: (x) => x.name
+	});
+}
+//#endregion
+
 //#region 战双：活动旗帜（结构化当期卡池，2026-11-10 起为卡池侧默认源）
 // 为什么换：版本更新公告最新只到 2026-11-05（11-06 起卡池空窗），而 `Test4/活动旗帜` 是
-// 结构化数据页、当期 70%UP 池到 11-12 ⇒ 更新更快、结构更稳。公告源保留（活动侧仍用；
-// 卡池侧降为 altSources，见 `30-game-bwiki-register.js`）。
+// 结构化数据页、当期 70%UP 池到 11-12 ⇒ 更新更快、结构更稳。公告源保留为手动备选
+// （卡池侧 altSources，见 `30-game-bwiki-register.js`）。
 //   {{活动旗帜
 //   |70%UP1=比安卡·晖暮   |70%UP2=七实·芒星之迹   |70%UP3=海伦汀·安魂
 //   |70%UP开始时间=2026/10/29 07:00   |70%UP结束时间=2026/11/12 06:59
@@ -11698,7 +11776,7 @@ function ns_bwiki_wikitext_parseZspmsFlags(wikitext, tz = ns_bwiki_wikitext_ZSPM
 		const ep = ns_bwiki_wikitext_zspmsFlagPoint(endRaw);
 		if (!sp || !ep || roles.length === 0) continue;
 		const startTs = sourceInstant(sp.y, sp.mo, sp.d, sp.h, sp.mi, tz);
-		const endTs = sourceInstant(ep.y, ep.mo, ep.d, ep.h, ep.mi, tz);
+		const endTs = sourceInstant(ep.y, ep.mo, ep.d, ep.h, ep.mi, tz)
 		if (!(endTs > startTs)) continue;                                   // 源站错行 → 丢掉（不硬造）
 		out.push({
 			pool: prefix,
@@ -12120,15 +12198,21 @@ async function ns_kedr_wiki_gachaKedrWiki(url, signal, tz = ns_kedr_wiki_KEDR_TZ
 				tz: "Asia/Shanghai",
 				name: "战双帕弥什",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/b2/99/ed/b299ed39-90ea-03df-c7ee-bd09548991e5/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",
-				// 2026-11-10：卡池侧改以 `Test4/活动旗帜` 为准（结构化当期池、更新更快）；
-				// 版本更新公告源保留（活动侧仍用它），卡池侧降为 altSources 手动备选。
+				// 2026-11-10：卡池侧改以 `Test4/活动旗帜` 为准（结构化当期池、更新更快）。
+				// 2026-11-11：活动侧改以 `Test4/活动日历` 为准（同站同写法的结构化档期页）。
+				// 旧「版本更新公告」源（SMW ask → 正文）两侧都降为**手动备选**，解析器与回归全部保留。
 				url: ns_bwiki_wikitext_ZSPMS_FLAGS_URL,
 				source: "Bwiki 活动旗帜",
-				eventUrl: "https://wiki.biligame.com/zspms/api.php?action=ask&query=%5B%5B%E5%88%86%E7%B1%BB%3A%E6%B8%B8%E6%88%8F%E6%9B%B4%E6%96%B0%E5%85%AC%E5%91%8A%5D%5D%5B%5B%E7%B1%BB%E5%88%AB%3A%3A%E7%89%88%E6%9C%AC%5D%5D%7C%3F%E6%A0%87%E9%A2%98%7C%3F%E6%97%B6%E9%97%B4%7Csort%3D%E6%97%B6%E9%97%B4%7Corder%3Ddesc%7Climit%3D40&format=json",
-				eventSource: "Bwiki",
+				eventUrl: ns_bwiki_wikitext_ZSPMS_CALENDAR_URL,
+				eventSource: "Bwiki 活动日历",
 				altSources: [{
 					label: "Bwiki 版本更新公告（旧，含研发池）",
-					url: "https://wiki.biligame.com/zspms/api.php?action=ask&query=%5B%5B%E5%88%86%E7%B1%BB%3A%E6%B8%B8%E6%88%8F%E6%9B%B4%E6%96%B0%E5%85%AC%E5%91%8A%5D%5D%5B%5B%E7%B1%BB%E5%88%AB%3A%3A%E7%89%88%E6%9C%AC%5D%5D%7C%3F%E6%A0%87%E9%A2%98%7C%3F%E6%97%B6%E9%97%B4%7Csort%3D%E6%97%B6%E9%97%B4%7Corder%3Ddesc%7Climit%3D40&format=json",
+					url: ns_bwiki_wikitext_ZSPMS_ASK_URL,
+					fetcher: "zspms-bwiki-notice"
+				}],
+				eventAltSources: [{
+					label: "Bwiki 版本更新公告（旧，正文抽档期）",
+					url: ns_bwiki_wikitext_ZSPMS_ASK_URL,
 					fetcher: "zspms-bwiki-notice"
 				}]
 		});
@@ -12164,7 +12248,11 @@ async function ns_kedr_wiki_gachaKedrWiki(url, signal, tz = ns_kedr_wiki_KEDR_TZ
 		GACHA_FETCHERS["czn"] = (url, signal, tz) => ns_bwiki_wikitext_gachaCzn(url, signal, tz);
 		GACHA_FETCHERS["kedr"] = (url, signal, tz) => ns_bwiki_wikitext_gachaKedrTemplate(url, signal, tz);
 		EVENT_FETCHERS["wuhuamixin"] = Object.assign(EVENT_FETCHERS["wuhuamixin"] || {}, { default: (url, signal, tz) => ns_biligame_activity_eventsWhmxOfficial(url, signal, tz) });
-		EVENT_FETCHERS["zspms"] = Object.assign(EVENT_FETCHERS["zspms"] || {}, { default: (url, signal, tz) => ns_bwiki_wikitext_eventsZspms(url, signal, tz) });
+		// 活动侧默认 = 活动日历页；旧公告路径（两步 ask → 正文）保留为 eventAltSources 的抓取器键
+		EVENT_FETCHERS["zspms"] = Object.assign(EVENT_FETCHERS["zspms"] || {}, {
+			default: (url, signal, tz, now) => ns_bwiki_wikitext_eventsZspmsCalendar(url, signal, tz, now),
+			"zspms-bwiki-notice": (url, signal, tz, now) => ns_bwiki_wikitext_eventsZspms(url, signal, tz, now)
+		});
 		EVENT_FETCHERS["kedr"] = Object.assign(EVENT_FETCHERS["kedr"] || {}, { default: (url, signal, tz) => ns_bwiki_wikitext_eventsKedrTemplate(url, signal, tz) });
 
 // src/client/30-game-biligame.js —— biligame 官方公告系（嘟嘟脸恶作剧 / 闪耀优俊少女）
@@ -18358,6 +18446,39 @@ EVENT_FETCHERS["r1999"] = {
 //   bwiki「契约一览」= MediaWiki `api.php?action=parse`（HTML 表，18 行 / 45KB）
 //     列：契约 | 开放时间 | 概率提升的风格
 //     行例：隐秘的归属 | 2026/09/10 05:00:00 ~ 2026/10/01 04:59:59 | 杯中藏锋 | 活动
+//
+// ── 卡池侧 2026-11-11 复核：**不接** TapTap（选项 C），证据与取舍 ────────────────────
+// 现状（活网实测）：bwiki「契约一览」最后编辑 = **2026-09-24**（`list=recentchanges`），最新窗口
+//   2026/09/10 ~ 2026/10/01 ⇒ 当前（11-11）没有在期池，抓取器如实返回 null（回归见 cases-new5 ④(b)）。
+//   停更的是 wiki，不是游戏（游戏 11-05 已开「流光抛诸寰宇」新版本）—— 但本页结构好，wiki 一补档就自动恢复。
+//
+// 调研（2026-11-11 实测）：
+//   · TapTap 官方 tab 的**列表帖**里没有卡池窗口；卡池档期只在图片「版本活动一览」里（配图，不可解析）。
+//   · 唯一能取到的文字是 TapTap **应用简介**（`/app/746164` 的 ld+json `description`）：
+//       `10月22日，活动版本「无罪之国·上」正式开启。「幸福无罪论」活动契约限时开启，
+//        6星风格「终身监护人·监狱长」获取概率大幅提升！`
+//     ⇒ 只有「N月N日」**没有年份**、也**没有结束日**；而且它是营销简介（随版本换稿），不是逐期公告。
+//
+// 为什么三选一里选 **C（不动）**：
+//   · **A**（抽「X」活动契约限时开启 + 开启日，结束日留空）：仓库没有「终点未知的卡池」这种载荷 ——
+//     `ns_bwiki_batchGachaPayloadOf`（30-game-bwiki-common.js）用 `coversNow` 选池（**两端都必须明确**）
+//     ⇒ 单边窗口恒 null；若绕过它强行产出非 null 载荷，显示层 `scheduleItemOf`
+//     （81-schedule-model.js：`const endTs = item.endTs == null ? 0 : item.endTs`）会把 `endTs == null`
+//     当**「长期」**（state "long"、无倒计时）—— 把限时池标成常驻，比「未公布」更误导。
+//     而「只进悬停」也不成立：悬停（`bannerHover`）是载荷字段，没有载荷就没有悬停。
+//     另外「10月22日」没有年份来源，按仓库口径（本文件活动侧/ hlr 同一句「不改写、不猜当前年」）不能补年。
+//   · **B**（用下一期开启日推结束）：11-12 的新版本档期只在图片里（不可解析）⇒ **连推定的依据都没有**；
+//     有依据也不做 —— 编一个结束日会把倒计时/提醒建立在猜测上（用户口径「宁可少显示，也不要假在期」）。
+//   · **C**（不动）：卡池列继续如实「未公布」，等 bwiki 补档即恢复；**不做**「先 bwiki 后 TapTap」自动兜底
+//     （仓库原则：无自动换源）。也没有做成 `altSources`：单边窗口没有合法载荷可出，做成选项等于
+//     「选项看着能用、实际永远空」—— 与「不登记就 403」同类的坑，不制造。
+//     「直接把默认换成 TapTap」同样不可行：它只能产出单边窗口 ⇒ 外显恒 null，等于用「永远空」
+//     换掉 bwiki 的「等补档」，还丢掉结构最好的一张表。
+//
+// 显示层对「单边窗口」的处理（回归钉死，见 cases-new5 ④(d)）：`coversNow` 要求两端明确
+//   ⇒ 只有开启日的条目**不算在期**、也不进悬停候选（`coveredOrOpen` 同样为 false）；
+//   真把它喂进数组，则会被当「长期」（state=long、remain=0）。两条都用测试钉住，免得日后有人
+//   「顺手」把单边池接进来还以为是当期。
 //
 // ── 活动侧旧源（2026-11-09 接入；2026-11-10 起降为 eventAltSources 手动备选）：bwiki `公告/` ──
 // 旧结论是「官方只有逐条公告页（无列表接口），bwiki 也没有活动一览页」⇒ 当时留空未配置。

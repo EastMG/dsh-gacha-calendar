@@ -21,7 +21,7 @@ const { sourceInstant, sourceWallParts, fmtWindow, hoverPool, hoverEvent } = T;
 import { SOURCES_P8, findSourceP8, listIdsP8 } from "./registry-shim.mjs";
 import { T } from "./load.mjs";
 
-const { mediaWikiWikitext, parseZspmsAsk, zspmsNormalize, zspmsMaintenanceWindow, parseZspmsAnnouncement, gachaZspms, eventsZspms, zspmsParseUrl, zspmsNameAt, zspmsHeadings, parseCznLua, parseCznRecord, cznStamp, gachaCzn, kedrTemplateCalls, kedrStamp, kedrIsGacha, kedrIsEvent, kedrRoleFromName, parseKedrTemplate, gachaKedrTemplate, eventsKedrTemplate, kedrTemplateUrl, ZSPMS_TZ, ZSPMS_ASK_URL, ZSPMS_ASK_QUERY, ZSPMS_FLAGS_URL, ZSPMS_FLAGS_PAGE, parseZspmsFlags, gachaZspmsFlags, CZN_TZ, CZN_MODULE_URL, CZN_MODULE_PAGE, CZN_RECORD_URL, KEDR_TZ, KEDR_TEMPLATE_URL, KEDR_TEMPLATE_PAGE } = T.parsers["bwiki-wikitext"];
+const { mediaWikiWikitext, parseZspmsAsk, zspmsNormalize, zspmsMaintenanceWindow, parseZspmsAnnouncement, gachaZspms, eventsZspms, zspmsParseUrl, zspmsNameAt, zspmsHeadings, parseCznLua, parseCznRecord, cznStamp, gachaCzn, kedrTemplateCalls, kedrStamp, kedrIsGacha, kedrIsEvent, kedrRoleFromName, parseKedrTemplate, gachaKedrTemplate, eventsKedrTemplate, kedrTemplateUrl, ZSPMS_TZ, ZSPMS_ASK_URL, ZSPMS_ASK_QUERY, ZSPMS_FLAGS_URL, ZSPMS_FLAGS_PAGE, parseZspmsFlags, gachaZspmsFlags, ZSPMS_CALENDAR_URL, ZSPMS_CALENDAR_PAGE, parseZspmsCalendar, eventsZspmsCalendar, CZN_TZ, CZN_MODULE_URL, CZN_MODULE_PAGE, CZN_RECORD_URL, KEDR_TZ, KEDR_TEMPLATE_URL, KEDR_TEMPLATE_PAGE } = T.parsers["bwiki-wikitext"];
 
 // ── 夹具读取 ──
 const fxText = (p) => readFileSync(new URL("./fixtures/" + p, import.meta.url), "utf8");
@@ -35,6 +35,7 @@ const ZSPMS_LATEST_PAGE = "《远信回响》版本更新公告";
 const OVERRIDES = {
 	[ZSPMS_ASK_URL]: "p8-zspms-ask/response.txt",
 	[zspmsParseUrl(ZSPMS_LATEST_PAGE)]: "p8-zspms-notice/response.txt",
+	[ZSPMS_CALENDAR_URL]: "p8-zspms-calendar/response.txt",
 	[CZN_MODULE_URL]: "p8-czn-module/response.txt",
 	[KEDR_TEMPLATE_URL]: "p8-kedr-template/response.txt",
 	[CZN_RECORD_URL]: "p8-czn-record/response.txt"
@@ -125,6 +126,7 @@ export default async function run() {
 		const WANT = {
 			[ZSPMS_ASK_URL]: "p8-zspms-ask/response.txt",
 			[zspmsParseUrl(ZSPMS_LATEST_PAGE)]: "p8-zspms-notice/response.txt",
+			[ZSPMS_CALENDAR_URL]: "p8-zspms-calendar/response.txt",
 			[CZN_MODULE_URL]: "p8-czn-module/response.txt",
 			[KEDR_TEMPLATE_URL]: "p8-kedr-template/response.txt",
 			[CZN_RECORD_URL]: "p8-czn-record/response.txt"
@@ -670,6 +672,100 @@ export default async function run() {
 		check("备选源（版本更新公告）仍能解析：now=夹具时刻 ⇒ 时崎狂三狙击 09-29 ~ 11-03",
 			rgOld.ok && rgOld.data && rgOld.data.banner === "时崎狂三狙击 / 命运时崎狂三狙击",
 			JSON.stringify(rgOld.ok && rgOld.data && rgOld.data.banner));
+	}
+	//#endregion
+
+	//#region P8-7 战双帕弥什 —— 活动默认源换成 `Test4/活动日历`（2026-11-11）
+	// 为什么换：活动侧原先靠「版本更新公告」正文（最新一版《远信回响》档期止于 11-05 ⇒ 11-06 起空窗）；
+	// `Test4/活动日历` 是同站同写法的**结构化数据页**（一行一条 `{{活动日历|名|起|止}}`），
+	// 源站更新一行就多一条 ⇒ 比正文规整、也不依赖标题层级。接它不等于"立刻有数据"：实测末条同样
+	// 止于 2026/11/05 ⇒ 当前全部过期、如实 null；源站一补档就自动恢复。
+	// 夹具 `p8-zspms-calendar`（729B 真响应，2026-11-11T00:58+08 抓）。
+	section("P8-7 战双帕弥什 —— 活动默认源 = `Test4/活动日历`（结构化档期页；末条 11-05 过期不进外显）");
+	const CAL_NOW_IN = sourceInstant(2026, 10, 20, 12, 0, ZSPMS_TZ);      // 「悍猎季风」10-19 收之后的在期时刻
+	const CAL_NOW_AFTER = sourceInstant(2026, 11, 6, 0, 0, ZSPMS_TZ);     // 全部档期已过期
+	const CAL_SNAP = Date.parse(fxMeta("p8-zspms-calendar/response.txt").capturedAt);   // 真机抓取时刻
+	{
+		const calRaw = fxJson("p8-zspms-calendar/response.txt");
+		const calWt = mediaWikiWikitext(calRaw);
+		check("活动日历是**数据页**（parse.title = `Test4/活动日历`），页名编码后与夹具 meta.url 一致",
+			calRaw.parse.title === ZSPMS_CALENDAR_PAGE && fxMeta("p8-zspms-calendar/response.txt").url === ZSPMS_CALENDAR_URL,
+			JSON.stringify([calRaw.parse.title, fxMeta("p8-zspms-calendar/response.txt").url]));
+		check("正文 = **10 条** `{{活动日历|名|起|止}}`（源站注释写「只允许显示8个活动」，实际挂了 10 条）",
+			(calWt.match(/\{\{活动日历\|/g) || []).length === 10 && /只允许显示8个活动/.test(calWt),
+			String((calWt.match(/\{\{活动日历\|/g) || []).length));
+		check("模板行是**三段位置参数**（名 | 起 | 止），末条 = 「新增涂装试玩」/ 2026/09/24 11:00 / 2026/11/05 5:00",
+			/\{\{活动日历\|「新增涂装试玩」\|2026\/09\/24 11:00\|2026\/11\/05 5:00\}\}/.test(calWt));
+
+		const cal = parseZspmsCalendar(calWt, ZSPMS_TZ);
+		check("parseZspmsCalendar → 10 条、0 行被跳过（模板形态稳定）",
+			cal.items.length === 10 && cal.skipped === 0, JSON.stringify([cal.items.length, cal.skipped]));
+		check("活动名照抄源站（「」与类别后缀都不拆）：第 1 条「远信回响」主线、第 6 条「空滞轮旋之梦」联动剧情",
+			cal.items[0].name === "「远信回响」主线" && cal.items[5].name === "「空滞轮旋之梦」联动剧情",
+			JSON.stringify([cal.items[0].name, cal.items[5].name]));
+		check("起止 = 2026-09-24 11:00 ~ 2026-11-05 05:00（+08）；raw 两端原文、display 补全（两份文本不合并）",
+			cal.items[0].startTs === sourceInstant(2026, 9, 24, 11, 0, ZSPMS_TZ)
+			&& cal.items[0].endTs === sourceInstant(2026, 11, 5, 5, 0, ZSPMS_TZ)
+			&& cal.items[0].raw === "2026/09/24 11:00 ~ 2026/11/05 5:00"
+			&& cal.items[0].display === "09-24 11:00 ~ 11-05 05:00",
+			JSON.stringify([cal.items[0].raw, cal.items[0].display]));
+		check("**末条（第 10 条）止于 2026-11-05 05:00** —— 这就是「当前空窗」的边界",
+			cal.items[9].name === "「新增涂装试玩」"
+			&& cal.items[9].endTs === sourceInstant(2026, 11, 5, 5, 0, ZSPMS_TZ),
+			JSON.stringify([cal.items[9].name, cal.items[9].display]));
+
+		// 反向证明：单行坏（终点早于起点 / 缺参）只跳过这一行；整页没有可解析行 ⇒ 抛错（结构性损坏 ≠ 未公布）
+		check("反证：整页只剩错行/缺参 ⇒ 抛 `zspms-calendar:no-window`（不当'未公布'）",
+			throws(() => parseZspmsCalendar("{{活动日历|坏的|2026/11/05 5:00|2026/10/01 5:00}}\n{{活动日历|缺参|2026/11/05 5:00}}", ZSPMS_TZ)));
+		const calMixed = calWt.replace(/\{\{活动日历\|「悍猎季风」头目挑战\|[^}]*\}\}/, "{{活动日历|坏的|2026/11/05 5:00|2026/10/01 5:00}}");
+		check("反证：混入一行错行 ⇒ 仍解出 9 条、skipped=1（单行坏不拖垮整页）",
+			(() => { const r = parseZspmsCalendar(calMixed, ZSPMS_TZ); return r.items.length === 9 && r.skipped === 1; })(),
+			JSON.stringify((() => { const r = parseZspmsCalendar(calMixed, ZSPMS_TZ); return [r.items.length, r.skipped]; })()));
+
+		// 抓取器：真机 now（2026-11-11）⇒ 全部过期 ⇒ 如实 null（末条 11-05 不冒充在期）
+		const calNow = await grab(() => eventsZspmsCalendar(ZSPMS_CALENDAR_URL, undefined, ZSPMS_TZ, CAL_SNAP));
+		check("now = 夹具抓取时刻（2026-11-11 00:58）⇒ 活动侧返回 null（10 条全部已过期，不硬凑）",
+			calNow.ok && calNow.data === null, JSON.stringify(calNow.ok ? calNow.data : calNow.err));
+		const calAfter = await grab(() => eventsZspmsCalendar(ZSPMS_CALENDAR_URL, undefined, ZSPMS_TZ, CAL_NOW_AFTER));
+		check("now = 2026-11-06 00:00 ⇒ null（「末条 11-05」这类过期条目**不进外显**）",
+			calAfter.ok && calAfter.data === null, JSON.stringify(calAfter.ok ? calAfter.data : calAfter.err));
+
+		// now = 10-20 12:00：「悍猎季风」10-19 05:00 已结束 ⇒ 不进外显、也不进悬停
+		const calIn = await grab(() => eventsZspmsCalendar(ZSPMS_CALENDAR_URL, undefined, ZSPMS_TZ, CAL_NOW_IN));
+		check("event 抓取成功（now 传第 4 参）", calIn.ok, calIn.err);
+		assertContract("战双(活动日历)", "event", calIn.ok ? calIn.data : null);
+		check("外显 = 内容档里结束最早的（「空滞轮旋之梦」联动剧情 09-29 11:00 ~ 11-03 05:00）",
+			calIn.ok && calIn.data && calIn.data.event === "「空滞轮旋之梦」联动剧情"
+			&& calIn.data.eventDates === "09-29 11:00 ~ 11-03 05:00"
+			&& calIn.data.eventDatesRaw === "2026/09/29 11:00 ~ 2026/11/03 5:00",
+			JSON.stringify(calIn.ok && calIn.data && [calIn.data.event, calIn.data.eventDates, calIn.data.eventDatesRaw]));
+		const calHover = (calIn.ok && calIn.data && calIn.data.eventHover) || "";
+		const calLines = calHover.split("\n");
+		check("悬停 = 9 条在期（「悍猎季风」头目挑战 10-19 收 ⇒ **不在**悬停里）；名称在前 + 3 空格 + 档期",
+			calLines.length === 9
+			&& calLines[0] === "「空滞轮旋之梦」联动剧情   09-29 11:00 ~ 11-03 05:00"
+			&& calLines.every((l) => !l.includes("悍猎季风"))
+			&& calLines.every((l) => /^.+? {3}\S/.test(l)),
+			JSON.stringify(calLines.slice(0, 3)));
+		check("⚠️ 活动日历 hover 里没有元信息（来源站名/URL/页面名/tz 推定/抓取条数）",
+			!/bwiki|biligame|api\.php|https?:|tz\s*=|UTC|推测|推定|共\s*扫描|页面|模板/.test(calHover),
+			JSON.stringify(calLines.slice(0, 1)));
+
+		// 运行时登记：活动默认源换成活动日历；旧公告路径保留为 eventAltSources 且仍能出数据
+		const liveZs = T.SOURCES.find((x) => x.id === "zspms");
+		check("运行时 zspms.eventUrl = 活动日历页、eventSource = 「Bwiki 活动日历」",
+			!!liveZs && liveZs.eventUrl === ZSPMS_CALENDAR_URL && liveZs.eventSource === "Bwiki 活动日历",
+			liveZs ? JSON.stringify([liveZs.eventUrl.slice(0, 90), liveZs.eventSource]) : "缺失");
+		check("旧公告源保留在 eventAltSources（抓取器键 `zspms-bwiki-notice` 已登记）",
+			!!liveZs && (liveZs.eventAltSources || []).some((a) => a.fetcher === "zspms-bwiki-notice" && a.url === ZSPMS_ASK_URL)
+			&& typeof T.EVENT_FETCHERS["zspms"]["zspms-bwiki-notice"] === "function",
+			liveZs ? JSON.stringify(liveZs.eventAltSources) : "缺失");
+		const calOld = await grab(() => T.EVENT_FETCHERS["zspms"]["zspms-bwiki-notice"](ZSPMS_ASK_URL, undefined, ZSPMS_TZ, SNAP));
+		check("备选源（版本更新公告）仍能解析：now=夹具时刻 ⇒ 悍猎季风-BOSS挑战 09-25 ~ 10-19（旧路一字未坏）",
+			calOld.ok && calOld.data && calOld.data.event === "悍猎季风-BOSS挑战",
+			JSON.stringify(calOld.ok && calOld.data && calOld.data.event));
+		check("页面请求失败 → 抛错（不静默降级成 null）",
+			await throwsAsync(() => eventsZspmsCalendar("https://example.invalid/zspms-calendar", undefined, ZSPMS_TZ, SNAP)));
 	}
 	//#endregion
 
