@@ -312,8 +312,13 @@ export default async function run() {
 
 		// 夹具覆盖：map.json 里没有星铁的默认地址（那是 P4 批次的夹具），这里按 URL 精确注入一条。
 		const rec = installCountingTransport({ [HSR_URL]: "p4-hsr-bwiki-warp-1107/response.txt" });
+		// ⚠️ 这条定言依赖抓取器内部的 `nowMs()`：夹具里的档期到 2026-11-10 15:00 截止，
+		// 真实时间一过那一刻就「没有在期」⇒ 这条断言会随日期自己变红。
+		// 因此把时钟固定在夹具快照那一天（11-07），跑完立即恢复真实时钟。
+		T.setCoreEnv({ now: () => Date.parse("2026-11-07T00:00:00Z") });
 		let err = null, data = null;
 		try { data = await T.GACHA_FETCHERS[hsrAlt.fetcher](HSR_URL, undefined, hsr.tz); } catch (e) { err = e; }
+		T.setCoreEnv({ now: () => Date.now() });
 		check("前置：星铁卡池抓取器能跑通（夹具齐备 / 解析未坏）", err === null, err && err.message);
 		check("前置：确实拿到了数据（不是空壳）", !!data && typeof data === "object" && typeof data.banner === "string",
 			JSON.stringify(data).slice(0, 80));
