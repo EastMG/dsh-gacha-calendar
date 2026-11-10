@@ -112,6 +112,7 @@
 			"hlr": {
 				HLR_DETAIL_QUOTA,
 				HLR_EVENT_TITLE_RE,
+				HLR_LIST_MAX_PAGES,
 				HLR_LIST_URL,
 				HLR_MAX_DETAILS,
 				HLR_TZ,
@@ -121,6 +122,7 @@
 				hlrBlocksOf,
 				hlrEventNameOf,
 				hlrGalleryRowsOf,
+				hlrListPageUrlOf,
 				hlrListPlanOf,
 				hlrNameOf,
 				hlrParseDetail,

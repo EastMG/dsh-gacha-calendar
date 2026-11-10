@@ -201,30 +201,43 @@
 				return m ? jstTs(+m[1], +m[2], +m[3], +m[4], +m[5]) : null;
 			};
 			const afterMaint = (s) => /メンテナンス後/.test(String(s));
-			// 维护结束时刻（"メンテナンス後"的起点）：最新一篇维护公告的実施時間 结束端
-			let maintEnd = null;
-			for (const it of rows) {
+			// 维护结束时刻（"メンテナンス後"的起点）。
+			// ⚠️ 2026-11-10 修：原来只有一个**全局**值（最新一篇维护公告的结束端）。它只对"最新那期募集"
+			//    成立：最新募集还没开始（11-11 17:00 才开）而要回退看上一期募集（10-28 ~ 11-11 10:59）时，
+			//    起点会被错锚到 11-11 17:00（晚于终点）⇒ 上一期永远判不出在期。现在按行记，回退时取
+			//    "这一行往上最近一条维护公告"的结束端（704 的上一期维护 = 705：10-28 11:00-19:00）。
+			const maintEnds = rows.map((it) => {
 				const m = clean(it.content).match(/実施時間\s*([^~～]{4,48})[~～]\s*([^前]{4,48})/);
-				if (!m) continue;
-				const e = jpDate(m[2]);
-				if (e != null) { maintEnd = e; break; }
-			}
-			// 当期卡池：最新一篇含「ピックアップ名／ピックアップ生徒」的募集公告
+				return m ? jpDate(m[2]) : null;
+			});
+			let maintEnd = null;
+			for (const e of maintEnds) if (e != null) { maintEnd = e; break; }
+			const maintEndFor = (i) => {
+				for (let k = i; k >= 0; k--) if (maintEnds[k] != null) return maintEnds[k];
+				return null;
+			};
+			// 当期卡池：从最新一篇「ピックアップ募集」往下扫，取**第一篇里有覆盖 now 的池**。
+			// ⚠️ 2026-11-10 修：原来取到第一篇就 break ⇒ 最新一期还没开始（11-11 17:00）时直接返回 null，
+			//    而上一期（10-28 ~ 11-11 10:59）仍在期。现在扫到"有覆盖 now 的池"为止；一期都不覆盖才 null。
 			let pools = null;
-			for (const it of rows) {
+			for (let i = 0; i < rows.length; i++) {
+				const it = rows[i];
 				const text = clean(it.content);
 				if (!/ピックアップ募集/.test(text) || !/ピックアップ名/.test(text)) continue;
 				const found = [...text.matchAll(/ピックアップ名：\s*「([^」]+)」\s*ピックアップ生徒：\s*(?:★\d)?「([^」]+)」/g)]
 					.map((m) => ({ name: m[1], student: m[2] }));
 				if (found.length === 0) continue;
+				const anchor = maintEndFor(i);   // 这一期募集对应的那次维护（不是"最新那次"）
 				const windows = [...text.matchAll(/実施期間\s*([^~～]{4,64})[~～]\s*([^▼]{4,48})/g)].map((m) => {
 					const a = m[1].trim(), b = m[2].trim();
-					const startTs = afterMaint(a) ? maintEnd : jpDate(a);
+					const startTs = afterMaint(a) ? anchor : jpDate(a);
 					const endTs = jpDate(b);
 					return { startTs: startTs ?? null, endTs: endTs ?? null, raw: `${afterMaint(a) ? "メンテナンス後" : a} ~ ${b}` };
 				});
 				const fallback = windows[0] || { startTs: null, endTs: null, raw: "" };
-				pools = found.map((f, i) => Object.assign({ name: f.name, student: f.student }, windows[i] || fallback));
+				const cand = found.map((f, k) => Object.assign({ name: f.name, student: f.student }, windows[k] || fallback));
+				if (!cand.some((p) => coversNow(p, now))) continue;   // 这一期还没开 / 已结束 ⇒ 回退看上一条募集
+				pools = cand;
 				break;
 			}
 			if (!pools) return null;
@@ -581,7 +594,11 @@
 			const isJp = serverKey === "jp";
 			const kw = isJp ? "日服" : "国际服";
 			const nameOf = (c) => String(c.name || "");
-			const eventEntry = child.find((c) => nameOf(c).includes(kw) && nameOf(c).includes("活动"));
+			// 活动条目：国际服目录树里这一条 2026-11-10 起叫「国际服当期**攻略**」（content 728357），
+			// 旧匹配 `includes("活动")` 永不命中 ⇒ 活动名恒空。国际服放宽成 活动|攻略；日服那条保持原逻辑。
+			const eventEntry = isJp
+				? child.find((c) => nameOf(c).includes(kw) && nameOf(c).includes("活动"))
+				: child.find((c) => nameOf(c).includes(kw) && /活动|攻略/.test(nameOf(c)));
 			// international 的卡池**不再**读这个条目（池名已改由 609133 提供），只有日服还在用它
 			const bannerEntry = isJp ? child.find((c) => nameOf(c).includes(kw) && nameOf(c).includes("卡池")) : null;
 			// 2. 拉标题（含排期）

@@ -81,6 +81,9 @@
 			event: { official: 2, update: 5 }
 		};
 		const HLR_MAX_DETAILS = HLR_DETAIL_QUOTA.event.official + HLR_DETAIL_QUOTA.event.update;   // 7（导出给用例/文档）
+		// 学院公告列表**最多翻 2 页**（首页 + index_2）：每周一条、6 条一页，需要覆盖 ≈6 周窗口的那一条
+		// 现在可能落在第 2 页。翻页是"够用即停"（候选数达到该类配额就停），不是固定多打一次请求。
+		const HLR_LIST_MAX_PAGES = 2;
 		// 列表页混着新闻 / 获奖名单 / 节气祝福 / 布告栏 ⇒ 只把「活动类」条目当候选。
 		// ⚠️ 2026-11-10：原来只有 活动|版本|生日|联动，**「学院公告 | X月X日…」一个都不匹配** ——
 		//    而新增的 `update` 列表标题全是「学院公告 | …」。不放宽这一条，增抓的列表会被整列过滤掉。
@@ -282,24 +285,45 @@
 			return [{ kind: "", url: u }];
 		}
 
+		// 列表第 n 页地址：站点的分页是 `/news/update/index_2.html`（第 1 页 = 目录本身）。
+		// 只对"目录形态"（以 `/` 结尾）推分页；自定义/备选地址原样返回 ⇒ 调用点据此判"没有下一页"。
+		function hlrListPageUrlOf(url, n) {
+			const u = String(url == null ? "" : url).trim();
+			if (n <= 1) return u;
+			if (!/\/$/.test(u)) return u;
+			return u + "index_" + n + ".html";
+		}
+
 		async function hlrCollectSide(listUrl, signal, tz, want, now = nowMs()) {
 			const at = typeof now === "number" && Number.isFinite(now) ? now : nowMs();
 			const quota = HLR_DETAIL_QUOTA[want] || HLR_DETAIL_QUOTA.event;
 			const lists = [];
 			let firstListErr = null;
 			for (const plan of hlrListPlanOf(listUrl)) {
-				let html;
-				try {
-					html = await fetchText(plan.url, { signal, mode: "proxy", referer: HLR_REFERER });
-				} catch (e) {
+				// 配额按类取：没标 kind 的自定义地址用活动侧的学院公告配额（最多，最保险）
+				const cap = plan.kind === "official" ? quota.official : quota.update;
+				let items = [];
+				let pageErr = null;
+				for (let page = 1; page <= HLR_LIST_MAX_PAGES; page++) {
+					const pageUrl = hlrListPageUrlOf(plan.url, page);
+					let html;
+					try {
+						html = await fetchText(pageUrl, { signal, mode: "proxy", referer: HLR_REFERER });
+					} catch (e) {
+						// 首页挂 = 这一类列表挂（沿用旧行为）；第 2 页挂 = 保留首页已拿到的条目，不整类作废。
+						pageErr = e;
+						break;
+					}
+					items = items.concat(hlrParseList(html).filter((it) => HLR_EVENT_TITLE_RE.test(it.title)));
+					if (items.length >= cap) break;                       // 够用即停（不再多打一页）
+					if (hlrListPageUrlOf(plan.url, page + 1) === pageUrl) break;   // 非目录地址：没有下一页
+				}
+				if (items.length === 0) {
 					// 一类列表抓挂（如学院公告改版 404）不该把另一类带塌；两类都挂才算真失败。
-					if (!firstListErr) firstListErr = e;
+					if (pageErr && !firstListErr) firstListErr = pageErr;
 					continue;
 				}
-				lists.push({
-					kind: plan.kind,
-					items: hlrParseList(html).filter((it) => HLR_EVENT_TITLE_RE.test(it.title))
-				});
+				lists.push({ kind: plan.kind, items });
 			}
 			if (lists.length === 0) throw firstListErr || new Error("hlr-list-failed");
 			const rows = [];

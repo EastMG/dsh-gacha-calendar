@@ -388,6 +388,9 @@ function ns_p5x_parseP5xWindows(text, tz) {
 const ns_p5x_P5X_CAT_RE = /^([\u4e00-\u9fffA-Za-z]{2,10}(?:更新|拓展))(?:\s*[-－—－:：]\s*(.{1,40}))?$/;
 // `活动时间：…` 及其近义写法
 const ns_p5x_P5X_TIME_RE = /^(?:活动|开放|售卖|举办|开启|持续)时间\s*[:：]\s*(.+)$/;
+// 裸档期行：整行只有日期区间、**没有** `活动时间：` 前缀（实测 5.4.2 公告「契约更新」块：
+// `2026年9月24日-2026年11月19日`；正文里 `…更新后…` 这类叙述句不认，必须整行就是区间）。
+const ns_p5x_P5X_BARE_TIME_RE = /^20\d{2}年\d{1,2}月\d{1,2}日\s*[—\-~～至–]\s*(?:20\d{2}年)?\d{1,2}月\d{1,2}日$/;
 
 /**
  * 把公告正文切成区块。返回 [{ category, name, title, windowRaw, lines }]
@@ -411,6 +414,11 @@ function ns_p5x_parseP5xBlocks(text) {
 		const tm = line.match(ns_p5x_P5X_TIME_RE);
 		if (tm) {
 			if (!cur.windowRaw) cur.windowRaw = tm[1].trim();
+			continue;
+		}
+		// 裸档期行也当档期（5.4.2 公告「契约更新」块就是这么写的，见上面 BARE_TIME_RE 注释）
+		if (!cur.windowRaw && ns_p5x_P5X_BARE_TIME_RE.test(line)) {
+			cur.windowRaw = line;
 			continue;
 		}
 		if (!cur.title) cur.title = line;       // 类别行后紧跟的第一条非时间行 = 标题
@@ -469,8 +477,9 @@ function ns_p5x_p5xUpNames(text) {
 }
 
 // ── 卡池侧 ──
-// 只认「契约更新」块（官方唯一明确写卡池档期的地方）。
-// 抽不到覆盖当前的契约档期 → null（未公布）。**绝不**退化成"拿版本公告标题当卡池名"。
+// 区块候选 = 「契约更新」块（官方明确写卡池档期的地方）+「扭蛋」块（2026-11-10 实测 5.4.2 公告的
+// 「都市更新 / 限定扭蛋复刻」也写了在期档期；类别行是「都市更新」，只有**标题**里带"扭蛋"）。
+// 抽不到覆盖当前的档期 → null（未公布）。**绝不**退化成"拿版本公告标题当卡池名"。
 // ⚠️ 必须收 `now`（2026-10-17 修）：此前签名只有 (url, signal, tz)、体内写死 `nowMs()` ⇒
 //   用例没法注入时刻，夹具窗口一过期（到 2026-10-22 更新前）"选当期"就选不中 → 断言**假红**。
 //   第 4 参是**测试专用契约**（沿用 bandori 的约定）；默认值保证生产路径
@@ -478,7 +487,7 @@ function ns_p5x_p5xUpNames(text) {
 async function ns_p5x_gachaP5x(url, signal, tz = "Asia/Shanghai", now = nowMs()) {
 	const anns = await ns_p5x_fetchP5xAnnouncements(url, signal, 2);
 	for (const { text, blocks } of anns) {
-		const poolBlocks = blocks.filter((b) => /契约/.test(b.category) || /契约/.test(b.title));
+		const poolBlocks = blocks.filter((b) => /契约|扭蛋/.test(b.category) || /契约|扭蛋/.test(b.title));
 		const hit = ns_p5x_pickCurrentBlock(poolBlocks, tz, now);
 		if (!hit) continue;
 		const up = ns_p5x_p5xUpNames(text);

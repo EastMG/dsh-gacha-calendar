@@ -580,15 +580,17 @@ async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES
 //   不抓取、不计成功也不计失败，UI 显示「未配置（不抓取卡池/活动）」；用户在设置页选「BHK官方公告」
 //   才会真正抓取。与米游社那套「崩坏3 新建条目、默认未配置」完全同型（见 45-next-sources.js）。
 //
-// ══ 接口（Lead 定位；本机**抓不到**，夹具是**合成**的，见下）══════════════════
+// ══ 接口（Lead 定位；2026-11-10 本机**已实测可达**）══════════════════════════
 //   发行商 = BHK（BILIBILI HK LIMITED），bundleId `com.bilibili.sirius`，内部代号 sirius。
-//   列表 GET https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw
-//   详情 GET https://l11-web-api.biligames.com/game/news/detail?game_base_id=118241&id=<id>&lang=zh-tw
-//   Lead 实测抓到过一次：`{"code":0,"data":{"page_number":1,"page_size":20,"total_count":0,"list":[]}}`
-//   → 源站**暂无公告**（国际服 2026-09-24 才上线）。
-//   ⚠️ 此后本机对该域 `fetch failed`（ECONNRESET）：2026-10-03 复测三个 lang（zh-tw/zh-cn/en-us）
-//      全部失败（实测 437~1507ms 直接失败）→ **拿不到真实夹具**。故本模块的夹具是**合成**的，
-//      并在 fixtures/p9-ournotes-global-*/response.txt.meta.json 与 test/cases-p9.mjs 里**明确标注**。
+//   列表 GET https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=en
+//   详情 GET https://l11-web-api.biligames.com/game/news/detail?game_base_id=118241&news_id=<id>&lang=en
+//   ⚠️ 2026-10-03 Lead 抓到的第一次是 `lang=zh-tw` → `{"code":0,"data":{…,"total_count":0,"list":[]}}`，
+//      当时据此判定"源站暂无公告"，夹具是**合成**的。
+//   ⚠️ 2026-11-10 复核：`lang=zh-tw` **仍然** total_count:0；换成 `lang=en` 立刻 19 条（2026-09-28 ~
+//      2026-06-26 的开服期公告）。所以注册项改成 en、详情参数改成 `news_id`（用 `id` 会回
+//      `{"code":-400,"message":"wrong news_id value"}`），id 必须以**原始字符串**传（18 位转 Number 丢精度）。
+//      19 条全是开服期旧公告 ⇒ 当前时刻两侧仍如实 null；夹具 p9-ournotes-global-* 仍是合成的那份
+//      （守 zh-tw 的空响应路径），en 的真实响应另存 p9-ournotes-global-en-*。
 //
 // ══ 因此本解析器对**字段名**采取宽容策略（合成夹具只覆盖我们假设的字段）══════
 //   · 列表项 id：`id` / `news_id` / `article_id` / `content_id`
@@ -611,7 +613,11 @@ async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES
 
 const ns_ournotes_global_OURNOTES_GLOBAL_GAME_BASE_ID = 118241;
 const ns_ournotes_global_OURNOTES_GLOBAL_TZ = "Asia/Shanghai";
-const ns_ournotes_global_OURNOTES_GLOBAL_LANGS = ["zh-tw", "zh-cn", "en-us", "ko-kr"];
+// ⚠️ 2026-11-10 实测：`lang=zh-tw` 的列表返回 `{"code":0,"data":{…,"total_count":0,"list":[]}}`，
+//    而 `lang=en` 同一接口立刻返回 19 条（第一条 news_id=181789561021989038 / 2026-09-28）。
+//    所以**注册项与详情都走 en**；zh-tw 仍是数组首位（`OURNOTES_GLOBAL_LIST_URL` 与既有用例沿用它，
+//    且它是"空响应"那份真夹具的来源）。`langOf` 认的语种表必须含 en，否则会回落成 zh-tw。
+const ns_ournotes_global_OURNOTES_GLOBAL_LANGS = ["zh-tw", "zh-cn", "en", "en-us", "ko-kr"];
 const ns_ournotes_global_OURNOTES_GLOBAL_HOME = "https://www.biligames.com/";
 const ns_ournotes_global_LIST_ORIGIN = "https://l11-web-api.biligames.com";
 const ns_ournotes_global_DETAIL_LIMIT = 8;
@@ -619,8 +625,10 @@ const ns_ournotes_global_DETAIL_LIMIT = 8;
 function ns_ournotes_global_ournotesGlobalListUrl(lang = ns_ournotes_global_OURNOTES_GLOBAL_LANGS[0]) {
 	return `${ns_ournotes_global_LIST_ORIGIN}/game/news/page?game_base_id=${ns_ournotes_global_OURNOTES_GLOBAL_GAME_BASE_ID}&show_position=1&lang=${lang}`;
 }
+// 详情接口的参数名是 `news_id`（不是 `id`：实测 `&id=…` 回 `{"code":-400,"message":"wrong news_id value"}`）。
+// id 必须是**原始字符串**：18 位 news_id 过 Number 会丢精度（…038 → …040），详情就取不到。
 function ns_ournotes_global_ournotesGlobalDetailUrl(id, lang = ns_ournotes_global_OURNOTES_GLOBAL_LANGS[0]) {
-	return `${ns_ournotes_global_LIST_ORIGIN}/game/news/detail?game_base_id=${ns_ournotes_global_OURNOTES_GLOBAL_GAME_BASE_ID}&id=${id}&lang=${lang}`;
+	return `${ns_ournotes_global_LIST_ORIGIN}/game/news/detail?game_base_id=${ns_ournotes_global_OURNOTES_GLOBAL_GAME_BASE_ID}&news_id=${encodeURIComponent(String(id == null ? "" : id))}&lang=${lang}`;
 }
 const ns_ournotes_global_OURNOTES_GLOBAL_LIST_URL = ns_ournotes_global_ournotesGlobalListUrl("zh-tw");
 // 备选源标识就是 URL 本身（`altSourceId(alt) = alt.url`）→ 注册表里的 URL 必须与这里逐字一致
@@ -678,6 +686,8 @@ function ns_ournotes_global_parseOurNotesGlobalPage(json) {
 			const sortKey = ns_ournotes_global_pickStr(x, ns_ournotes_global_K_TIME);
 			return {
 				id: ns_ournotes_global_pickNum(x, ns_ournotes_global_K_ID),
+				// 详情 URL 用原始字符串（`news_id` 是 18 位；转 Number 会丢精度 → 详情 400）
+				idRaw: ns_ournotes_global_pickStr(x, ns_ournotes_global_K_ID) || (x && x.id != null ? String(x.id) : ""),
 				title: ns_ournotes_global_ournotesGlobalTitle(x),
 				sortKey,
 				dateTs: ns_ournotes_global_parseOurNotesGlobalStamp(sortKey, ns_ournotes_global_OURNOTES_GLOBAL_TZ),
@@ -840,7 +850,7 @@ async function ns_ournotes_global_loadOurNotesGlobal(url, signal, tz, now, want)
 		tried++;
 		let detail = null;
 		try {
-			detail = await fetchJson(ns_ournotes_global_ournotesGlobalDetailUrl(it.id, lang), { referer: ns_ournotes_global_OURNOTES_GLOBAL_HOME, signal, mode: "proxy" });
+			detail = await fetchJson(ns_ournotes_global_ournotesGlobalDetailUrl(it.idRaw || it.id, lang), { referer: ns_ournotes_global_OURNOTES_GLOBAL_HOME, signal, mode: "proxy" });
 		} catch (e) {
 			if (!firstErr) firstErr = e;
 			continue;
@@ -1098,8 +1108,8 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 				tz: "Asia/Shanghai",
 				name: "BanG Dream！OurNotes·国际服",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/ca/da/3a/cada3a9a-491a-fbe5-5494-9be7390e3a9b/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
-				altSources: [{"label":"BHK官方公告","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw","fetcher":"ournotes-global-gacha"}],
-				eventAltSources: [{"label":"BHK官方公告","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=zh-tw","fetcher":"ournotes-global-event"}],
+				altSources: [{"label":"BHK官方公告","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=en","fetcher":"ournotes-global-gacha"}],
+				eventAltSources: [{"label":"BHK官方公告","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=en","fetcher":"ournotes-global-event"}],
 		});
 
 		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══

@@ -1163,6 +1163,42 @@ null，活动侧 2026-11-10 已换 TapTap 官方 tab（能出「新风同行」1
   排查顺序：**若某侧只剩空壳，先看请求方法 / Content-Type，再看源站**。
 
 
+### 2026-11-11 解析修补（第一批，6 处）
+
+都是"源站形态变了 ⇒ 解析取不到在期数据"的当班 bug；每处都用当日真抓夹具钉住，并带一条反向证明。
+
+- **hlr 学院公告翻页**（`30-game-netease.js`）：`/news/update/` 首页 11-09 起新增 4 条
+  「B站渠道资产找回」公告，把 `10月1日新增内容公告`（缱绻假日 10-09 ~ 11-20，content 1316283）
+  挤到 `index_2.html`；旧实现只读首页 ⇒ 活动空窗。现在**首页 + 第 2 页合并**（`HLR_LIST_MAX_PAGES = 2`，
+  候选数达到该类配额即停），并给 `hlrListPageUrlOf`。回归：`test/cases-wd-hlr.mjs` ⑩
+  （`hlr-update-list-1109` / `hlr-update-list-1109-p2`，反向证明 = 第 2 页失败 ⇒ null）。
+- **ba-global 活动**（`30-game-bluearchive.js` 的 `fetchGameKeeBa`）：GameKee 目录树里那条改名为
+  **「国际服当期攻略」**（content 728357），旧匹配 `includes("活动")` 永不命中 ⇒ 活动名恒空。
+  国际服放宽为 `活动|攻略`（日服保持原逻辑）。回归：`test/cases-ba.mjs` ⑤
+  （`ba-gk-tree-1109` / `ba-gk-detail-728357` / `ba-gk-blocks-1109`）。
+- **ba-jp 卡池回退**（同文件 `parseBaJpNews`）：最新募集 `id=708` 的实施期间从 11-11 17:00 JST 才开始，
+  旧实现取到第一篇就 `break` ⇒ 空；现在**扫到有覆盖 now 的池为止**，回退到仍在期的 `id=704`。
+  同时起点「メンテナンス後」的锚点从"最新一篇维护公告"改成**该条募集往上最近那篇**（704 ⇒ 705 的 19:00，
+  旧全局值是 709 的 17:00，会晚于 704 的终点）。回归：`test/cases-ba.mjs` ⑤（`ba-jp-news-1111`）。
+- **p5x 卡池**（`30-game-perfectworld.js`）：公告 264741 的「都市更新 / 限定扭蛋复刻」
+  （活动时间 2026-10-22 ~ 12-24）在期，但卡池只收含「契约」的区块；而「契约更新」的档期是**裸行**
+  `2026年9月24日-2026年11月19日`（没有 `活动时间：` 前缀）。现在**裸档期行也认**
+  （`P5X_BARE_TIME_RE`，整行就是区间才算），并把「扭蛋」纳入卡池区块候选。回归：`test/cases-p5x.mjs`
+  末尾真机 5.4.2 段（10-01 只靠裸行出契约、12-01 只靠扭蛋候选出限定扭蛋复刻，12-25 两侧过期 ⇒ null）。
+- **wqmt 活动候选配额**（`30-game-wqmt.js`）：11-09 起「装束 / 档案 / 影像捕获 / MBCC前瞻」密集发布，
+  把真正写档期的 10/27 维护公告（id=2099）挤到第 7 位，旧配额 6 截断 ⇒ 活动空窗。
+  `WQMT_EVENT_MAX_DETAILS` 6 → 10（列表 + 10 篇正文，仍远低于 20s 超时）。回归：`test/cases-new5.mjs` ⑥
+  （`wqmt-news-list-1111` + 前 10 条正文；反向证明 = 截回前 6 条 ⇒ null）。
+- **ournotes-global 语种**（`30-game-bandori.js`）：注册参数 `lang=zh-tw` 恒返回 `total_count:0`，
+  改 `lang=en` 同刻返回 19 条；详情参数必须叫 `news_id`（用 `id` 回 `code:-400`），且 id 要以原始字符串传
+  （18 位转 Number 丢精度）。`OURNOTES_GLOBAL_LIST_URL` 仍是 zh-tw（它是"空响应"真夹具的来源、也是无参兜底），
+  注册项与详情走 en。回归：`test/cases-p9.mjs` P9-6b（真夹具 `p9-ournotes-global-en-*`；
+  19 条全是 6~9 月开服期公告，当前时刻两侧仍如实 null）。
+
+门禁：`node build.mjs` + `--check` + `cd test && node all.mjs` 在 `TZ=UTC` 与 `TZ=Asia/Shanghai`
+各一遍，均为 **5448 通过 / 0 失败**（改动前 5407）。
+
+
 ### 为什么插件要改宿主的槽位布局
 
 - **事实**：宿主把 `sidebar.footer.action` 渲染成 `<div data-slot="sidebar.footer.action" style="display:contents">`，它的父容器是 `display:flex; flex-wrap:nowrap` 的**一行**。同一槽位上多个插件的整宽入口会变成同一行的 flex 兄弟、互相挤压（DSH Desktop 源码注释的原话是 "crush each other"）。
