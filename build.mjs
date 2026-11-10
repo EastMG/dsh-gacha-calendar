@@ -179,6 +179,9 @@ const ORDER = [
   // ⚠️ 必须排在上面全部 `30-game-*.js` 之后：`registerSource` 要**合并既有条目**
   //    （ournotes 在 30-game-bandori.js、czn 在 30-game-bwiki-register.js 里声明）。
   "30-game-batch2.js",
+  // 2026-11-11：OurNotes **国际服** 卡池 + 活动默认源换成 SPICA 的结构化数据 JSON
+  // （`window._durl` → d-*.json）。同样必须排在 `30-game-bandori.js` 之后（合并既有条目）。
+  "30-game-ournotes-global.js",
   "44-test-exports.js",        // 回归出口：解析器 + env 工具 + 来源表（挂 exports.__regression，测试用）
   "50-refresh.js",             // 刷新编排、失败沿用旧值
   "60-helpers.js",             // 共用纯函数：状态归一 / 提示文案 / 显隐 / 格式化 / 排序 / 启动刷新判定
@@ -304,6 +307,7 @@ const CORE_ORDER = [
   "30-game-pengpeng.js",       // 夜幕之下（国服）
   "30-game-unconfigured.js",   // 炽焰天穹（来源留空未配置）
   "30-game-batch2.js",         // 2026-11-11 第二批（bh3 内容中台 / OurNotes SPICA / czn TapTap）
+  "30-game-ournotes-global.js",// 2026-11-11 OurNotes 国际服（SPICA 数据 JSON：卡池 + 活动）
   "50-refresh.js",             // 刷新编排
   "engine-api.js",             // 注入 env + refresh() + 测试出口 + return
 ];

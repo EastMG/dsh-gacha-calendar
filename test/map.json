@@ -157,5 +157,7 @@
   "https://media-cdn-zspms.kurogame.com/pnswebsite/website2.0/json/G144/ArticleMenu.json": "p8-zspms-cdn-menu/response.txt",
   "https://media-cdn-zspms.kurogame.com/pnswebsite/website2.0/json/G144/article/5682.json": "p8-zspms-cdn-art5682/response.txt",
   "https://media-cdn-zspms.kurogame.com/pnswebsite/website2.0/json/G144/article/5467.json": "p8-zspms-cdn-art5467/response.txt",
-  "https://media-cdn-zspms.kurogame.com/pnswebsite/website2.0/json/G144/article/5306.json": "p8-zspms-cdn-art5306/response.txt"
+  "https://media-cdn-zspms.kurogame.com/pnswebsite/website2.0/json/G144/article/5306.json": "p8-zspms-cdn-art5306/response.txt",
+  "https://spica.wiki/ournotes/en/gachas": "spica-en-gachas/response.txt",
+  "https://spica.wiki/ournotes/data/d-67318986e4.json": "spica-en-data/response.txt"
 }

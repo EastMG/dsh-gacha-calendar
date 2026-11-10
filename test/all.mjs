@@ -52,6 +52,7 @@ import runZzzBwiki from "./cases-zzz-bwiki.mjs";
 import runScrapeFail from "./cases-scrape-fail.mjs";
 import runUmaTw from "./cases-uma-tw.mjs";
 import runBatch2 from "./cases-batch2.mjs";
+import runOnGlobalSpica from "./cases-ournotes-global-spica.mjs";
 
 const LIVE = process.argv.includes("--live");
 
@@ -154,7 +155,8 @@ const batches = [
 	["绝区零 bwiki 备选源「起点未知 = 已开始」的唯一例外（其余来源仍严格）", runZzzBwiki],
 	["刷新横幅：底部失败横条 + 重试删除、失败明细并入悬停（沿用判定 / 文字口径逐字不变）", runScrapeFail],
 	["赛马娘·繁中服（Komoe 官方公告：卡池/活动同一条接口 + 「維護結束後」起点未知 + 反证）", runUmaTw],
-	["第二批新来源（崩坏3 内容中台：卡池只出名称/角色 + 活动时间块 / OurNotes 日服 SPICA：列表→前 5 条详情 / 卡厄斯 TapTap 官方 tab：HTML 卡片 + 区间）", runBatch2]
+	["第二批新来源（崩坏3 内容中台：卡池只出名称/角色 + 活动时间块 / OurNotes 日服 SPICA：列表→前 5 条详情 / 卡厄斯 TapTap 官方 tab：HTML 卡片 + 区间）", runBatch2],
+	["OurNotes 国际服（SPICA 数据 JSON：`_durl` 现解 → gachapages/events 一次拿全；JST 墙钟 → UTC+8 展示；picks 按 id 查角色）", runOnGlobalSpica]
 ];
 const before = counts();
 for (const [label, fn] of batches) {

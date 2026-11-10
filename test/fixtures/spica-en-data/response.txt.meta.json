@@ -1,0 +1,7 @@
+{
+  "url": "https://spica.wiki/ournotes/data/d-67318986e4.json",
+  "status": 200,
+  "capturedAt": "2026-11-10T18:01:36.352Z",
+  "bytes": 18366,
+  "trim": "顶层只留 gachapages / events / members / chars / snaps（其余图鉴/歌曲/理论值键本解析器不读）；gachapages[] 留 id/name/start/end/picks，events[] 留 id/slug/name/start/end/type，members[] 留 id/char，chars 留 name，snaps 留 id/char/chars —— 字段值逐字不动。"
+}

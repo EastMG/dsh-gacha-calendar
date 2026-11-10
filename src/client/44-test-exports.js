@@ -496,6 +496,29 @@
 				parseOurNotesGlobalStamp: ns_ournotes_global_parseOurNotesGlobalStamp,
 				pickOurNotesGlobalWindow: ns_ournotes_global_pickOurNotesGlobalWindow,
 			},
+			// 2026-11-11：OurNotes **国际服**的默认源（SPICA 结构化数据 JSON：`_durl` → d-*.json）。
+			// 与上面那份 "ournotes-global" 是**两套东西**：那份是 BHK 官方公告（现已降为手动备选源），
+			// 这份是新的默认源。命名空间刻意分开，免得测试里把两套解析器混着断言。
+			"ournotes-global-spica": {
+				NS_ON_GLOBAL_DATA_TZ,
+				NS_ON_GLOBAL_REFERER,
+				NS_ON_GLOBAL_SOURCE_LABEL,
+				NS_ON_GLOBAL_TZ,
+				NS_ON_GLOBAL_URL,
+				ns_on_global_dataUrlOf,
+				ns_on_global_durlOf,
+				ns_on_global_eventItemsOf,
+				ns_on_global_eventPayloadOf,
+				ns_on_global_fetchEvents,
+				ns_on_global_fetchGacha,
+				ns_on_global_gachaItemsOf,
+				ns_on_global_gachaPayloadOf,
+				ns_on_global_instantOf,
+				ns_on_global_nameOf,
+				ns_on_global_rolesOf,
+				ns_on_global_wallOf,
+				ns_on_global_windowOf,
+			},
 			// 明日方舟（PRTS）：活动侧有**两个**来源，都导出成纯函数，离线就能钉住两边：
 			//   · 默认「PRTS 活动解析」= SMW 单请求（action=ask）：三态数据（活动开始 / 活动结束 /
 			//     兑换结束）一次定齐 ⇒ parseArknightsSmwEvents；

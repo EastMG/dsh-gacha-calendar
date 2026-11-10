@@ -1,0 +1,7 @@
+{
+  "url": "https://spica.wiki/ournotes/en/gachas",
+  "status": 200,
+  "capturedAt": "2026-11-10T18:01:36.041Z",
+  "bytes": 45401,
+  "trim": "整份列表页原样入库（SPA 外壳 + `window._durl` 指向的数据文件路径）。这是抓取的第一步：hash 每次都变，必须现解。"
+}
