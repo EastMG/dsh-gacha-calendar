@@ -153,8 +153,9 @@ export default async function run() {
 	// 2026-11-09：再 +5 个厂商/系列文件（`30-game-wqmt.js` / `30-game-pengpeng.js` /
 	// `30-game-unconfigured.js`，以及晚上新接入的 `30-game-miyoushe-bbs.js`（未定）/
 	// `30-game-netease.js`（绘旅人））⇒ 厂商级 18 + bwiki 15 = 33 个文件。
-	check("游戏文件齐备（18 个厂商/系列文件 + bwiki 系 15 段 = 33 个）",
-		vendorFiles.length === 18 && bwikiFiles.length === 15,
+	// 2026-11-11：+1 个厂商/系列文件（`30-game-komoe.js`，赛马娘繁中服）⇒ 厂商级 19 + bwiki 15 = 34 个文件。
+	check("游戏文件齐备（19 个厂商/系列文件 + bwiki 系 15 段 = 34 个）",
+		vendorFiles.length === 19 && bwikiFiles.length === 15,
 		`厂商=${vendorFiles.length} bwiki=${bwikiFiles.length}`);
 
 	const hit = [];

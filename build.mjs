@@ -156,6 +156,7 @@ const ORDER = [
   "30-game-bwiki-register.js",        // 本组 4 条 registerSource + GACHA/EVENT_FETCHERS 接线
   "30-game-biligame.js",
   "30-game-cygames.js",
+  "30-game-komoe.js",          // 赛马娘·繁中服（Komoe 官方公告；卡池 + 活动同一条接口）
   "30-game-perfectworld.js",
   "30-game-sunborn.js",
   "30-game-aniplex.js",
@@ -276,6 +277,7 @@ const CORE_ORDER = [
   "30-game-bwiki-register.js",        // 本组 4 条 registerSource + GACHA/EVENT_FETCHERS 接线
   "30-game-biligame.js",
   "30-game-cygames.js",
+  "30-game-komoe.js",          // 赛马娘·繁中服（Komoe 官方公告；卡池 + 活动同一条接口）
   "30-game-perfectworld.js",
   "30-game-sunborn.js",
   "30-game-aniplex.js",

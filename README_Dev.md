@@ -73,6 +73,7 @@ dsh-gacha-calendar/
 │       ├── 30-game-bwiki-register.js    # 本组 4 条 registerSource + GACHA/EVENT_FETCHERS 接线
 │       ├── 30-game-biligame.js    # biligame 系：嘟嘟脸恶作剧 / 闪耀优俊少女
 │       ├── 30-game-cygames.js     # Cygames：赛马娘 日服 / 国际服（umapyoi 备选）
+│       ├── 30-game-komoe.js       # Komoe：赛马娘 繁中服（官方公告 CMS；卡池 + 活动同一条接口、按标题分流）
 │       ├── 30-game-perfectworld.js # 完美世界：女神异闻录：夜幕魅影 / 异环
 │       ├── 30-game-sunborn.js     # 散爆：少女前线2：追放
 │       ├── 30-game-aniplex.js     # Aniplex / TYPE-MOON：Fate/Grand Order
@@ -105,8 +106,8 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 39 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（18 处定稿，三轮增删）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）+ category / tags 批 1+2+3（9 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 多值拆分 + 旧键兼容 + 反证；批 3 把 `eventTier` 的 haystack 改成 OR 语义：`category` + `tags` + `name` 都参与）+ 2026-11-09 新接入 5 款（无期迷途两侧真源 / 夜幕之下卡池 / 未定·绘旅人已接两侧源 / 炽焰天穹仍留空未配置）+ 星铁卡池换官方公告 CMS + 「相对起点」锚定（星铁 10:00 / 无期迷途 14:00）+ 「起点未知 ≠ 已开始」+ 绝区零 bwiki 备选源「起点未知 = 已开始」的唯一例外 + 未定事件簿 / 时空中的绘旅人（米游社官方版块 + 官网新闻：卡池 + 活动 / 跨年补年 / 单侧失败隔离）+ 夜幕之下活动（bwiki 公告/版本活动总览：起点未知不进外显 + wiki 数据滞后如实 null）+ 刷新横幅（底部失败横条与「重试」已删 / 失败明细并入悬停：沿用判定 + 文字口径逐字不变））
-│   ├── cases-*.mjs  # 各段用例（39 个文件 / 39 段，与 all.mjs 的 batches 一一对应；本批新增 cases-scrape-fail）
+│   ├── all.mjs      # 统一门禁：聚 40 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（18 处定稿，三轮增删）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）+ category / tags 批 1+2+3（9 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 多值拆分 + 旧键兼容 + 反证；批 3 把 `eventTier` 的 haystack 改成 OR 语义：`category` + `tags` + `name` 都参与）+ 2026-11-09 新接入 5 款（无期迷途两侧真源 / 夜幕之下卡池 / 未定·绘旅人已接两侧源 / 炽焰天穹仍留空未配置）+ 星铁卡池换官方公告 CMS + 「相对起点」锚定（星铁 10:00 / 无期迷途 14:00）+ 「起点未知 ≠ 已开始」+ 绝区零 bwiki 备选源「起点未知 = 已开始」的唯一例外 + 未定事件簿 / 时空中的绘旅人（米游社官方版块 + 官网新闻：卡池 + 活动 / 跨年补年 / 单侧失败隔离）+ 夜幕之下活动（bwiki 公告/版本活动总览：起点未知不进外显 + wiki 数据滞后如实 null）+ 刷新横幅（底部失败横条与「重试」已删 / 失败明细并入悬停：沿用判定 + 文字口径逐字不变）+ 赛马娘·繁中服（Komoe 官方公告：卡池/活动同一条接口 + 「維護結束後」起点未知））
+│   ├── cases-*.mjs  # 各段用例（40 个文件 / 40 段，与 all.mjs 的 batches 一一对应；本批新增 cases-uma-tw）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
 │   ├── lib-text.mjs # 悬停文本的共用判定（去重 / 相邻重复 / 「名称 ⏎ 只有区间」/ 分类前缀双写）
@@ -998,6 +999,19 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
   本次只新增 `hlr.163.com`。`wiki.biligame.com` 本来就在。
 - 回归：`test/cases-wd-hlr.mjs`（wd 卡池/活动 + hlr 卡池/活动 + 跨年 + 单侧失败隔离 + 反证）与
   `test/cases-pengpeng-event.mjs`（公告列表 → 最新总览 → 活动名 + 起止 + wiki 滞后 null + 反证）。
+
+### 2026-11-11：赛马娘·繁中服（`uma-tw`）
+
+- **源**：Komoe 官方公告 CMS —— `GET https://l11-web-api.komoejoy.com/game/website/content/107075/2/list?pageNum=1&pageSize=20&region=3`
+  （`107075` = 游戏 id；`type=2` 才是公告；`region=3` = 繁中区）。卡池与活动**同一条接口**、按标题分流：
+  卡池 = 含 `轉蛋`/`特選`（**先判** —— `培育劇本開幕轉蛋` 属卡池）、活动 = 含 `活動`/`競賽`/`培育劇本`/`紀念`；
+  `機率公告` / `每天1次免費轉蛋` / `結束` / `預告`·`即將舉辦` 一律不进（判据见 `src/client/30-game-komoe.js` 文件头）。
+- **档期**：正文 `舉辦期間` / `特選期間` 标签后的 `M/D H:MM ～ M/D H:MM`（只取第一段窗口块，块内多行全收）。
+  起点写「維護結束後」⇒ `startTs = null`（不进外显，只进悬停/数组）；缺年份用 `publish_time` 补
+  （共用 `inferYear` / `endsNextYear`）。
+- **代理**：**需要**。`l11-web-api.komoejoy.com` 已登记进 `src/index.js` 的 `PROXY_ALLOW_HOSTS`
+  （响应 `ACAO` 只放行 `https://uma.komoejoy.com`），且请求必须带 `Referer: https://uma.komoejoy.com/`。
+- **回归**：`test/cases-uma-tw.mjs`（真夹具 `uma-tw-list` 逐字断言 + 两侧共用 1 次请求 + 「維護結束後」不进外显 + 反证）。
 
 **「未配置」在数据与 UI 里的表达（三处，全部不产生 fail）**
 

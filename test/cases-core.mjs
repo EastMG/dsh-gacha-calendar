@@ -65,7 +65,7 @@ export default async function runCore() {
 	{
 		const e = createEngine({ transport: noopTransport, storage: makeStorage(), now: () => 0 });
 		const ids = e.__test.SOURCES.map((s) => s.id);
-		check("core 来源总数 = 33（内置 11 + 另外 17 + 2026-11-09 的 5）", ids.length === 33, String(ids.length));
+		check("core 来源总数 = 34（内置 11 + 另外 17 + 2026-11-09 的 5 + 2026-11-11 的 uma-tw）", ids.length === 34, String(ids.length));
 		const builtin = ["genshin", "hsr", "zzz", "wuwa", "arknights", "endfield", "ba-cn", "ba-global", "ba-jp", "r1999", "nte"];
 		check("内置 11 款都还在", builtin.every((i) => ids.includes(i)), builtin.filter((i) => !ids.includes(i)).join(","));
 		const extra = ["p5x", "zspms", "czn", "kedr", "ddlezj", "bh3", "stellasora", "fgo", "gf2", "bandori", "pjsk"];

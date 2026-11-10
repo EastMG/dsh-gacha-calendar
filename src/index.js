@@ -165,6 +165,10 @@ const PROXY_ALLOW_HOSTS = [
 	// 只能走代理；国际服列表/详情是 POST（GET / 缺 body → `{"response_code":102}`）。
 	"umamusume.jp",
 	"umamusume.com",
+	// 赛马娘 **繁中服**（Komoe 官方公告 CMS，2026-11-11 接入）：响应 `ACAO` 只允许
+	// `https://uma.komoejoy.com`（DSH 的 `dsh-app://` 源不在其中）⇒ 必须走宿主代理，
+	// 且**必须带 `Referer: https://uma.komoejoy.com/`**（抓取器里已带）。
+	"l11-web-api.komoejoy.com",
 	// 米哈游系官方公告（米游社 BBS）：`painter/wapi/getNewsList` + `post/wapi/getPostFull`。
 	// 免 token / 免签名；响应 ACAO 只放行 `https://www.miyoushe.com` → 必须走代理。
 	// 同一接口换 `gids` 即覆盖 崩坏3(1) / 原神(2) / 星穹铁道(6) / 绝区零(8)。

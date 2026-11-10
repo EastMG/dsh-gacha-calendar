@@ -1,0 +1,7 @@
+{
+  "url": "https://l11-web-api.komoejoy.com/game/website/content/107075/2/list?pageNum=1&pageSize=20&region=3",
+  "status": 200,
+  "capturedAt": "2026-11-10T16:35:00.000Z",
+  "pageSize": 20,
+  "trim": "整份响应原样入库（20 条公告 / 100698 字符）：只做了 LF 与无 BOM 的保存，未删字段、未改顺序。记录头部两条 2022~2023 的置顶旧稿（機率公告 / 公平遊戲準則）也保留 —— 它们正是「有标题、没档期」的反例。"
+}
