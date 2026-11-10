@@ -563,6 +563,15 @@ export default async function run() {
 		}
 		check("数组元素之间没有漏逗号（`] })` 后直接跟 jsx 调用会被解析成函数调用）", bad.length === 0, bad.join(", "));
 	}
+
+	// ── 紧急度着色只能按条目各自算（2026-11-11 用户反馈：一条临期 ⇒ 整格所有条目都变红）──
+	// 格子级 `[data-u]` 选择器会沿染探头里的同名子类（同级且后出现会覆盖条目级规则）。
+	// 守卫：样式里不允许再出现 `.gacha-cal-sched-cell[data-u=...] .gacha-cal-sched-cn/-cm` 这类后代选择器。
+	{
+		const css = readFileSync(path.join(SRC, "styles", "schedule.css"), "utf8");
+		const bad = css.split("\n").filter((l) => /\.gacha-cal-sched-cell\[data-u=[^\]]*\][^{]*\.gacha-cal-sched-(cn|cm)/.test(l));
+		check("紧急度着色不用格子级 data-u 选择器（会把探头里的同类条目一起染色）", bad.length === 0, bad.join(" ⏎ "));
+	}
 	// ── 设置页导航图标（2026-11-09 DSH 更新后）：必须走官方槽位 `settings.section.icon` ──
 	// 2026-11-09：旧写法（MutationObserver 直改 DOM）已彻底删除，只保留官方槽位。
 	// （第一个 span 是图标容器、文本为空）⇒ 旧判据失效、图标丢失（真机发现）。
