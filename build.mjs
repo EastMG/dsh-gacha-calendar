@@ -124,7 +124,7 @@ const ORDER = [
   // ⚠️ 24 / 26 两个文件的**首行是空行**：拆点落在原文件的**双空行**处，join 会补回一个，
   //    剩下那个只能留在下一段开头 —— 删掉它 `node build.mjs --check` 就会报不一致。
   "23-parser-time.js",         // 时间解析：stripTags + parseTime/parseRange + bwiki 时间表扫描
-  "24-parser-window.js",       // 当期窗口判定：补全起点 / 选当期 / 窗口文案 / 长期与覆盖判定
+  "24-parser-window.js",       // 当期窗口判定：补全起点 / 选当期 / 窗口文案 / 覆盖判定
   "25-parser-order.js",        // 排序优先级：年份与跨年规则 / 永久判定 / 类别档位
   "26-parser-hover.js",        // 悬停构造：buildEventHover / buildPoolHover + bwiki 卡池载荷
   "27-parser-text.js",         // 实体解码与文本工具：decodeEntities / decodeExtra / numOrNull / byNewestStart

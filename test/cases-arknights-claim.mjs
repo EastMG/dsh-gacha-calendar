@@ -1128,4 +1128,32 @@ export default async function run() {
 			!!crossMonth && new Date(crossMonth.endTs).getFullYear() === 2027 && new Date(crossMonth.endTs).getMonth() === 0,
 			JSON.stringify(crossMonth));
 	}
+
+	// ── 2026-11-11：**移除 120 天常驻判定**（用户拍板）的回归 ─────────────────────────────
+	// PRTS 活动一览（备选源）里两条长窗口以前被 `isLongTermEvent`（>120 天）从 `events[]`
+	// 与悬停里一起剔除；现在必须如实出现（363 天 / 236 天）。夹具见 `p3d-arknights-events-list`。
+	section("2026-11-11 移除 120 天常驻判定：明日方舟 363 / 236 天窗口出现在 events[] 与悬停里");
+	{
+		const { collectPrtsEvents, prtsEventPayload } = T.parsers["arknights"];
+		const html = JSON.parse(fixtureBody("p3d:arknights-events-list", {
+			"p3d:arknights-events-list": "p3d-arknights-events-list/response.txt"
+		})).parse.text;
+		const snap = collectPrtsEvents(html, TZ_CN).map((it) => ({
+			name: it.banner, category: it.category || "", startTs: it.startTs, endTs: it.endTs, raw: it.raw, page: it.page || ""
+		}));
+		// 2026-11-11 11:00 +08：两条长窗口都已开始（卫戍协议 11-08 16:00 开）
+		const pl = prtsEventPayload(snap, TZ_CN, Date.parse("2026-11-11T03:00:00Z"), null);
+		const hover = String((pl && pl.eventHover) || "");
+		const cases = [
+			{ name: "卫戍协议：卫戍协议·规程", days: 363, window: "2026-11-08 16:00 ~ 2027-11-07 03:59" },
+			{ name: "集成战略：沉沦者的黑流树海", days: 236, window: "2026-07-17 16:00 ~ 2027-03-10 16:00" }
+		];
+		for (const c of cases) {
+			const hit = ((pl && pl.events) || []).find((x) => x.title === c.name) || null;
+			check(`明日方舟：${c.days} 天窗口「${c.name}」在 \`events[]\` 里`,
+				!!hit && /^[\d-]+ \d{2}:\d{2} ~ [\d-]+ \d{2}:\d{2}$/.test(hit.raw), JSON.stringify(hit && hit.raw));
+			check(`明日方舟：「${c.name}」在悬停里逐字出现（${c.window}）`,
+				hover.split("\n").includes(`${c.name}   ${c.window}`), JSON.stringify(hover));
+		}
+	}
 }

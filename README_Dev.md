@@ -45,7 +45,7 @@ dsh-gacha-calendar/
 │       ├── 21-fetcher-tables.js # GACHA_FETCHERS / EVENT_FETCHERS（与游戏文件同层：每引擎一份）
 │       ├── 22-fetcher-core.js # 抓取公共设施：抓取桥接 / 通用载荷 / 备选源解析
 │       ├── 23-parser-time.js   # 时间解析：stripTags + parseTime/parseRange + bwiki 时间表扫描
-│       ├── 24-parser-window.js # 当期窗口判定：补全起点 / 选当期 / 窗口文案 / 长期与覆盖判定
+│       ├── 24-parser-window.js # 当期窗口判定：补全起点 / 选当期 / 窗口文案 / 覆盖判定
 │       ├── 25-parser-order.js  # 排序优先级：年份与跨年规则 / 永久判定 / 类别档位
 │       ├── 26-parser-hover.js  # 悬停构造：buildEventHover / buildPoolHover + bwiki 卡池载荷
 │       ├── 27-parser-text.js   # 实体解码与文本工具：decodeEntities / decodeExtra / numOrNull / byNewestStart
@@ -542,7 +542,7 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 2. 卡池侧每条两行 = `label || title` ⏎ 档期；
 3. **窗口完全相同**时都只在**末尾**写一遍档期（活动侧每条只写名称）；
 4. 缺起止（源站写"X.Y版本更新后"）⇒ 活动侧写 `名称   raw`、卡池侧档期行写 `raw`；没有 raw 就只写名称；
-5. **不足 2 条 ⇒ 空串**（交回 UI 单条展示）；活动侧另按 `isLongTermEvent`（>120 天）剔掉常驻窗口；
+5. **不足 2 条 ⇒ 空串**（交回 UI 单条展示）；
 6. 顺序 = **调用方给的**（卡池侧与 `poolHoverOrderOf` 同口径、活动侧与 `sortEventItems` 同口径）—— 鸣潮卡池悬停的**首行是"卡池活动类型"**（不是任何一口池），必须固定在首位，所以生成器**不排序**。
 
 **已切的路径**（P3 第一批 3 款 6 条 + P3b 六批 + P3c 最后 3 款；**P3c 起 48 条路径全部直出、没有未切款**，见下面「P3 完成状态」）：
@@ -606,7 +606,7 @@ canmoe 页面 + 它第一轮真的并发抓的 6 份 chunk、FZ Wiki 活动 REST
 
 **时间戳口径（P4 已改，见「P4 展平」一节）**：`startTs` / `endTs` 现在是**绝对时刻**（`dataArrayWindowOf` 按**条目自己的 tz** 解析源站墙钟）。P3 阶段这里是 P1 的"本机时刻"，换绝对时刻必须**同时**改显示层渲染（`scheduleMeta` 按 `x.tz` 渲染），否则 34 个侧在 `TZ=UTC` 下会变红 —— 那是 P4 的活，已做（见「已知不等价①」的收尾说明）。
 
-**回归（`test/cases-p3.mjs`，P3e 后 685 条）**：① 生成器排版规则逐条（3 空格 / 同窗口折叠 / <2 条 / 缺起止写原文 / 长期过滤 / `label` 优先 / 去重 / **与老 `buildPoolHover`·`buildEventHover` 逐字节相同**）；② 54 条路径（P3a 6 + P3b 41 + P3c 7）的 **12 个字符串字段 + 数组 golden**（`sansTs`）；③ 数组与**改造前的合成结果逐条相等**（含 `startTs`/`endTs`，UTC / +08 都成立）；④ **同源**：`hoverTextFromItems(条目事实)` 逐字等于载荷里的悬停文本；⑤ 通道不外泄。P3 新夹具 6 份 + P3c 15 份，**都不进 `map.json`**（免得改变其它批次对"默认源 404"的期望）。
+**回归（`test/cases-p3.mjs`，P3e 后 685 条）**：① 生成器排版规则逐条（3 空格 / 同窗口折叠 / <2 条 / 缺起止写原文 / `label` 优先 / 去重 / **与老 `buildPoolHover`·`buildEventHover` 逐字节相同**）；② 54 条路径（P3a 6 + P3b 41 + P3c 7）的 **12 个字符串字段 + 数组 golden**（`sansTs`）；③ 数组与**改造前的合成结果逐条相等**（含 `startTs`/`endTs`，UTC / +08 都成立）；④ **同源**：`hoverTextFromItems(条目事实)` 逐字等于载荷里的悬停文本；⑤ 通道不外泄。P3 新夹具 6 份 + P3c 15 份，**都不进 `map.json`**（免得改变其它批次对"默认源 404"的期望）。
 ⚠️ P3c 删掉合成器后，③ 的对照 oracle 挪进测试文件（`legacySynthArrOf`：拿**记录字符串 + 悬停文本**过 `dataArray*MainOf` + `scheduleHoverItems` + `dataArrayExtrasFromEntriesOf` 重算一遍）—— 它只读改造前的三样输入（字符串 / 悬停 / `itemFacts`），不读解析器直出的数组，所以"直出被削"仍会红（P3c 实测：把 endfield 卡池的并列条去掉 ⇒ ② 数组 golden + ③ 同时红）。
 ⚠️ **P5 清理（2026-11-08）后 ③ 的 oracle 也不在了**：`legacySynthArrOf` 的输出固化成字面量
 （`test/fixtures/legacy-oracle-golden.json` 的 `p3Synth`，键 = `<路径 key>:<side>`，共 124 条），
@@ -1281,6 +1281,11 @@ null，活动侧 2026-11-10 已换 TapTap tab（能出「新风同行」11-05~11
 
 门禁：`node build.mjs` + `--check` + `cd test && node all.mjs` 在 `TZ=UTC` 与 `TZ=Asia/Shanghai`
 各一遍，均为 **5448 通过 / 0 失败**（改动前 5407）。
+
+
+### 2026-11-11：移除「窗口超过 120 天 = 长期/常驻」判定
+
+事实：`LONG_TERM_MAX_WINDOW_DAYS` / `isLongTermWindow` / `isLongTermEvent`、`pickCovering` 的 `dropLongTerm`、5 个剔除调用点、bestdori/sekai 的 `LONG_MS` 与 `long` 标记、蔚蓝档案的 `keepLongTerm` / `longTerm` 全部删除；长窗口只按「是否覆盖 now」判定，原神 294 天（`「巡历雪境，凝铸锋锐」新手`）与明日方舟 363 / 236 天（`卫戍协议：卫戍协议·规程` / `集成战略：沉沦者的黑流树海`）窗口因此出现在 `events[]` 与悬停里（`isPermanentEvent` 与「以及常驻活动 N 项」不受影响）。
 
 
 ### 为什么插件要改宿主的槽位布局

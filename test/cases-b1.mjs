@@ -190,8 +190,8 @@ export default async function run() {
 		check("窗口 = 10-01 00:00 ~ 10-03 23:59（绝对 UTC 毫秒按 UTC+8 渲染）",
 			!!bdG && bdG.bannerDates === "10-01 00:00 ~ 10-03 23:59" && bdG.startTs === 1790784000000 && bdG.endTs === 1791043199000,
 			JSON.stringify(bdG && [bdG.bannerDates, bdG.startTs, bdG.endTs]));
-		check("长期/常驻卡池（closedAt=2100 哨兵）不参与当期，也不出现在悬停里",
-			!!bdG && !/2100/.test(bdG.bannerDates) && !/2100|哨兵|未列出|另有/.test(bdG.bannerHover),
+		check("长窗口（closedAt=2100 哨兵）不再被剔除：如实出现在悬停里（2026-11-11 移除常驻判定）",
+			!!bdG && !/2100/.test(bdG.bannerDates) && /2100/.test(bdG.bannerHover) && /★3以上确定招募/.test(bdG.bannerHover),
 			JSON.stringify(bdG && bdG.bannerHover.split("\n").slice(-2)));
 		// 悬停 = 共用 hoverPool：每池「池名」+「档期」两行，按结束时间升序，**无**类型枚举 / ×n / 元信息
 		check("hover 每池两行（池名 / 档期）、按结束时间升序、无类型枚举与元信息",
@@ -207,8 +207,9 @@ export default async function run() {
 				return ends.slice().sort().join("|") === ends.join("|");
 			})(), JSON.stringify(bdG && bdG.bannerHover));
 		assertContract("BanG Dream 国服", "gacha", bdG);
-		// 只有长期池在期（或全都过期）→ null，而不是把 2100 哨兵当成当期
-		check("没有在架有界卡池 → null（未公布）", parseBestdoriGacha(bdGachaRaw, Date.UTC(2035, 0, 1), "Asia/Shanghai") === null);
+		// 只有窗口覆盖 now 的池才可能被选中：2101 年时全部池（含 2100 哨兵）都已结束 → null
+		check("没有任何池覆盖 now（2101 年，全部已结束）→ null（未公布）",
+			parseBestdoriGacha(bdGachaRaw, Date.UTC(2101, 0, 1), "Asia/Shanghai") === null);
 
 		bdE = parseBestdoriEvents(bdEventRaw, SNAP, "Asia/Shanghai");
 		check("当期活动 = All☆Stars CiRCRiNG Fes!（简中名）", !!bdE && bdE.event === "All☆Stars CiRCRiNG Fes!", JSON.stringify(bdE && bdE.event));
@@ -251,19 +252,21 @@ export default async function run() {
 		check("窗口 = 10-01 00:00 ~ 10-07 23:59",
 			!!skG && skG.bannerDates === "10-01 00:00 ~ 10-07 23:59" && skG.startTs === 1790784000000 && skG.endTs === 1791388799000,
 			JSON.stringify(skG && [skG.bannerDates, skG.startTs, skG.endTs]));
-		check("长期池（endAt=2099 哨兵）不参与当期，也不进悬停",
-			!!skG && !/2099/.test(skG.bannerDates) && !/2099/.test(skG.bannerHover) && !/长期|常驻招募/.test(skG.bannerHover),
+		check("长窗口（endAt=2099 哨兵）不再被剔除：出现在当期候选与悬停里（2026-11-11 移除常驻判定）",
+			!!skG && !/2099/.test(skG.bannerDates) && /2099/.test(skG.bannerHover) && /任务招募/.test(skG.bannerHover),
 			JSON.stringify(skG && skG.bannerHover.split("\n").slice(-2)));
 		// 悬停排版＝本体 buildPoolHover：每池「池名」一行 + 档期一行（窗口相同则档期只在末尾写一遍），
 		// 结束时间升序。**名称在前、档期在后**（用户 2026-10-03 反馈的偏差②）。
 		{
 			const lines = skG ? skG.bannerHover.split("\n") : [];
-			// 40 行 = 20 个当期有界池 × （池名 + 档期）。
-			// 阈值 2026-10-03 由 400 天收紧到 **120 天**（对齐本体 EVENT_MAX_WINDOW_DAYS）后，
-			// 4 个整 365 天的「新手限定★4自选阶梯招募」被正确判为长期池剔除 → 24 池降为 20 池。
+			// 64 行 = 32 个当期池 × （池名 + 档期）。2026-11-11 移除 120 天常驻判定后，
+			// 4 个整 365 天的「新手限定★4自选阶梯招募」与 2099 哨兵池不再被剔除（20 池 → 32 池）。
 			check("hover 每池「池名」+「档期」两行，结束时间升序",
-				lines.length === 40 && /^T恤服装特惠招募$/.test(lines[0]) && /^09-19 12:00 ~ 10-03 11:59$/.test(lines[1]),
+				lines.length === 64 && /^T恤服装特惠招募$/.test(lines[0]) && /^09-19 12:00 ~ 10-03 11:59$/.test(lines[1]),
 				JSON.stringify(lines.slice(0, 2)));
+			check("长窗口池都在悬停里（新手限定×4 / ★4成员必出 / 世界入住任务 / 任务招募 / 新手应援 / 欢迎回来×4）",
+				["新手限定★4自选阶梯招募", "★4成员必出招募", "世界入住任务招募", "任务招募", "[新手应援]必定获得1名★4成员10连招募券招募", "欢迎回来★4自选阶梯招募"]
+					.every((n) => lines.includes(n)), JSON.stringify(lines.filter((_, i) => i % 2 === 0)));
 			check("hover 行首是名称、档期行不是行首（不是「档期在前」）",
 				lines.filter((_, i) => i % 2 === 0).every((l) => l.trim() !== "" && !/^\d{2}-\d{2} \d{2}:\d{2} ~ /.test(l))
 				&& lines.filter((_, i) => i % 2 === 1).every((l) => /^(\d{4}-)?\d{2}-\d{2} \d{2}:\d{2} ~ (\d{4}-)?\d{2}-\d{2} \d{2}:\d{2}$/.test(l)));
@@ -276,12 +279,17 @@ export default async function run() {
 			!!skG && !/来源|https?:|api\.|bwiki|米游社|官网|tz=|推定|共扫描|取详情|抓取|（[^）]*）|×\d/.test(skG.bannerHover),
 			JSON.stringify(skG && skG.bannerHover.split("\n").slice(0, 4)));
 		assertContract("PJSK", "gacha", skG);
-		check("只有长期池在期 → null（未公布）",
-			parseSekaiGachas([{ id: 1, gachaType: "normal", name: "任务招募", startAt: Date.UTC(2020, 0, 1), endAt: Date.UTC(2099, 11, 30) }], SNAP, "Asia/Shanghai") === null);
-		// 只有 1 个当期有界池 → **不设 bannerHover**（由 UI 走默认两行式「banner ⏎ bannerDates」）
+		check("只有长窗口池在期时也会被选中（不再判「常驻」）",
+			(() => {
+				const g = parseSekaiGachas([{ id: 1, gachaType: "normal", name: "任务招募", startAt: Date.UTC(2020, 0, 1), endAt: Date.UTC(2099, 11, 30) }], SNAP, "Asia/Shanghai");
+				return !!g && g.banner === "任务招募";
+			})());
+		check("全部池都已结束（2100 年）→ null（未公布）",
+			parseSekaiGachas([{ id: 1, gachaType: "normal", name: "任务招募", startAt: Date.UTC(2020, 0, 1), endAt: Date.UTC(2099, 11, 30) }], Date.UTC(2100, 0, 1), "Asia/Shanghai") === null);
+		// 只有 1 个当期池 → **不设 bannerHover**（由 UI 走默认两行式「banner ⏎ bannerDates」）
 		{
 			const one = parseSekaiGachas([
-				{ id: 1, gachaType: "normal", name: "任务招募", startAt: Date.UTC(2026, 9, 1), endAt: Date.UTC(2099, 11, 30) },
+				{ id: 1, gachaType: "normal", name: "已结束的旧池", startAt: Date.UTC(2026, 7, 1), endAt: Date.UTC(2026, 8, 30) },
 				{ id: 2, gachaType: "ceil", name: "独苗招募", startAt: Date.UTC(2026, 9, 1), endAt: Date.UTC(2026, 9, 20) }
 			], Date.UTC(2026, 9, 2), "Asia/Shanghai");
 			check("只有 1 个当期池 → 不设 bannerHover",
@@ -320,10 +328,12 @@ export default async function run() {
 			], t(2, 12), "Asia/Shanghai");
 			const lines = many ? (many.eventHover || "").split("\n") : [];
 			check("多活动 hover：行首是名称（不是日期）、名称与档期之间是 3 空格",
-				lines.length === 2 && /^活动乙 {3}10-01 15:00 ~ 10-05 20:00$/.test(lines[0]) && /^活动甲 {3}10-01 15:00 ~ 10-09 20:00$/.test(lines[1]),
+				lines.length === 3 && /^活动乙 {3}10-01 15:00 ~ 10-05 20:00$/.test(lines[0]) && /^活动甲 {3}10-01 15:00 ~ 10-09 20:00$/.test(lines[1]),
 				JSON.stringify(lines));
-			check("多活动 hover：结束时间升序（乙 10-05 在甲 10-09 之前）", lines.length === 2 && /活动乙/.test(lines[0]));
-			check("多活动 hover：长期活动（>120 天）不进悬停", !/长期露演/.test(many ? many.eventHover : ""));
+			check("多活动 hover：结束时间升序（乙 10-05 在甲 10-09 之前）", lines.length === 3 && /活动乙/.test(lines[0]));
+			// 2026-11-11：200 天长窗口不再被当作"常驻"剔除 —— 如实排在最后（结束最晚）
+			check("多活动 hover：200 天长窗口如实进悬停（不再按 >120 天剔除）",
+				lines.length === 3 && /^长期露演 {3}2026-10-01 15:00 ~ 2027-04-19 15:00$/.test(lines[2]), JSON.stringify(lines));
 			check("多活动 hover 不含元信息（源站字段名 / eventType / aggregateAt / closedAt / 来源 / 推定）",
 				!!many && !!many.eventHover && !/来源|https?:|tz=|推定|aggregateAt|closedAt|eventType|marathon|cheerful|（|）/.test(many.eventHover),
 				JSON.stringify(many && many.eventHover));

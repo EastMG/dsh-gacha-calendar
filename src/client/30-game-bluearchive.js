@@ -736,10 +736,8 @@
 		}
 
 		// 一行文本里的"起止时间" → {startTs,endTs,startText,endText,raw}；解析不了 / 不够严格 → null
-		// `keepLongTerm`（内部用，默认 false = 原行为）：>120 天的长窗口不 return null，而是带上
-		// `longTerm: true` 返回 —— 供 `baCnTimeBlocks` 统计"常驻/长期活动条数"（悬停末尾那行计数），
-		// 判定本身仍只认全仓唯一真源 `isLongTermWindow`。**不影响任何 3 参调用方**。
-		function baCnWindowIn(line, nowYear, tz, keepLongTerm = false) {
+		// ⚠️ 2026-11-11：旧的「>120 天当常驻/误解析 ⇒ 拒绝」已删 —— 窗口多长都如实返回。
+		function baCnWindowIn(line, nowYear, tz) {
 			const s = String(line || "")
 				.replace(/[：]/g, ":")
 				.replace(/[～〜]/g, "~")
@@ -771,16 +769,10 @@
 			const startTs = sourceInstant(startY, aMo, aD, aH, aMi, tz);
 			const endTs = sourceInstant(bY, bMo, bD, bH, bMi, tz);
 			if (endTs <= startTs) return null;
-			// 超长窗口（>120 天）当常驻/误解析，不参与"当期"判定（阈值与全仓唯一真源共用）
-			const win = { startTs, endTs, startText: "", endText: "", raw: `${fmtMdHm(startTs, tz)} ~ ${fmtMdHm(endTs, tz)}` };
-			if (isLongTermWindow(win)) {
-				if (!keepLongTerm) return null;
-				win.longTerm = true;
-			}
-			return win;
+			return { startTs, endTs, startText: "", endText: "", raw: `${fmtMdHm(startTs, tz)} ~ ${fmtMdHm(endTs, tz)}` };
 		}
 
-		// 正文 → 时间块数组：[{label, tag:"招募"|"活动"|"", startTs, endTs, raw, longTerm?}]
+		// 正文 → 时间块数组：[{label, tag:"招募"|"活动"|"", startTs, endTs, raw}]
 		// 只认「■ 标签」开头的块，且只收**块内能解析出起止**的行：
 		//   ■ 活动时间
 		//   · 活动持续时间：10月08日 14:00 ~ 10月22日 13:59   ← 这才是**活动本身的档期**
@@ -805,10 +797,8 @@
 				// 「日期前面那段文字」= 本行的窗口名；命中辅助窗口就直接丢
 				const aux = line.split(/[:：]/)[0];
 				if (/商店|兑换|任務|任务|奖励|獎勵|领取|領取|结算|結算|购买|購買|签到|簽到/.test(aux)) continue;
-				// ⚠️ keepLongTerm=true：>120 天的长窗口也收进来（带 longTerm 标记），
-				// 由调用方 `baCnFromNoticeBlocks` 排除出"当期"候选、只计 permanentCount。
-				// 若在这里就 return null，长窗口会**无声消失**（"源站有、面板没有"）。
-				const win = baCnWindowIn(line, nowYear, tz, true);
+				// 时间块一律照收（2026-11-11：不再按窗口长短判"常驻"）。
+				const win = baCnWindowIn(line, nowYear, tz);
 				if (!win) continue;
 				const tag = /招募/.test(label) ? "招募" : (/活动|活動/.test(label) ? "活动" : "");
 				if (!tag) continue;                     // 维护时间/补偿时间等与卡池/活动无关的块
@@ -963,7 +953,6 @@
 			const { now, nowYear, tz, previewOnly } = opts;
 			const pools = [];
 			const events = [];
-			let permanentCount = 0;
 			for (const it of rows || []) {
 				const title = String(it?.title || "");
 				if (previewOnly && !/预告/.test(title)) continue;
@@ -971,12 +960,9 @@
 				if (!text) continue;                      // 列表 content 被截断 → 跳过（不再为它拉详情：零额外请求）
 				const blocks = baCnTimeBlocks(text, nowYear, tz);
 				if (blocks.length === 0) continue;
-				// 常驻/长期（>120 天，判定走全仓唯一真源）不参与"当期"，但也不能无声消失：
-				// 末尾按既有 `permanentCount` 约定补一行计数（与通用源 `genericEventPayload` 同做法）。
-				permanentCount += blocks.filter((b) => b.tag === "活动" && b.longTerm && coversNow(b, now)).length;
-				const rec = blocks.find((b) => b.tag === "招募" && !b.longTerm && coversNow(b, now));
+				const rec = blocks.find((b) => b.tag === "招募" && coversNow(b, now));
 				if (rec) pools.push(baCnPoolInfoFromNotice(title, text, rec));
-				const ev = blocks.find((b) => b.tag === "活动" && !b.longTerm && coversNow(b, now));
+				const ev = blocks.find((b) => b.tag === "活动" && coversNow(b, now));
 				if (ev) events.push(baCnEventInfoFromNotice(title, text, ev));
 			}
 			if (pools.length === 0 && events.length === 0) return null;
@@ -984,7 +970,7 @@
 			const primary = ranked[0] || null;
 			const ev = baCnPickPrimary(events);
 			// ② 悬停：**外显那条排第一**（仓库既有不变量：外显必须能在悬停里看到），其余按列表顺序。
-			// 零额外请求（content 已是全文）；<2 条时返回 ""（或只剩常驻计数行）。
+			// 零额外请求（content 已是全文）；<2 条时返回 ""。
 			//
 			// ⚠️ 这里用 `hoverEvent(…, tz)`（本体 buildEventHover 的 **tz 版复刻**，排版逐字一致）：
 			//   ba-cn 的 `eventDates` 是 `fmtWindow(..., tz)`（源站 +08 墙钟），悬停必须同口径。
@@ -994,7 +980,7 @@
 			const eventList = ev ? [ev, ...events.filter((x) => x !== ev)] : events;
 			// ── P3b：条目事实 → 悬停 + `gacha`/`events` 数组 ──────────────────────
 			const eventItems = eventList.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: "" }));
-			const eventHover = hoverTextFromItems(eventItems, "event", tz, { permanentCount });
+			const eventHover = hoverTextFromItems(eventItems, "event", tz);
 			const data = {
 				banner: primary ? primary.typeName : "",
 				roles: [...new Set(pools.map((p) => p.member).filter(Boolean))].join("、"),

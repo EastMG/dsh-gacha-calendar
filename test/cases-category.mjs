@@ -164,7 +164,9 @@ const EXPECT = {
 		{ title: "烟火生缘", tags: ["趣味活动"] },
 		{ title: "星河共我签到", tags: ["限时签到"] },
 		{ title: "作战演练", tags: ["干员试用活动"] },
-		{ title: "归野", tags: ["叙事活动"] }
+		{ title: "归野", tags: ["叙事活动"] },
+		// 2026-11-11：166 天的「危机合约」不再被当常驻剔除（120 天判定已删）⇒ 第 7 条
+		{ title: "危机合约", tags: ["挑战活动"] }
 	],
 	r1999: [
 		{ title: "佩施塔·雪红与玫瑰白", category: "角色剧情活动" },
@@ -194,7 +196,9 @@ const EXPECT = {
 		{ title: "「相遇·悠久旅途之暇」", category: "特殊活动", tags: ["千音雅集"] },
 		{ title: "「绮衣珍赏·赫炽」", category: "特殊活动", tags: ["千星奇域"] },
 		{ title: "「全域镇卫·逆捍谬罚」", category: "角色获取", tags: ["版本活动"] },
-		{ title: "「晶石如林生长之地」", category: "探索活动" }
+		{ title: "「晶石如林生长之地」", category: "探索活动" },
+		// 2026-11-11：294 天的「…新手」不再被当常驻剔除（120 天判定已删）⇒ 第 6 条
+		{ title: "「巡历雪境，凝铸锋锐」新手", category: "额外活动", tags: ["角色获取"] }
 	],
 	hsr: [
 		{ title: "「镇伏『贪饕』，汇聚愿力」", category: "版本活动" },
@@ -239,10 +243,10 @@ const EXPECT = {
 
 // ── 期望的档位（`eventTier`：1 = 第一档，2 = 第二档）────────────────────────────────────
 const EXPECT_TIER = {
-	endfield: [2, 1, 2, 2, 2, 1],
+	endfield: [2, 1, 2, 2, 2, 1, 1],
 	r1999: [1, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 2],
 	arknights: [2, 2, 1],
-	genshin: [1, 2, 2, 2, 2],
+	genshin: [1, 2, 2, 2, 2, 2],
 	hsr: [2, 2, 2],
 	zzz: [2, 2, 2, 2, 2, 2],
 	p5x: [2, 2, 2, 2, 2, 2],
@@ -253,7 +257,7 @@ const EXPECT_TIER = {
 
 // 显示层外显（`T.scheduleCellOf` 的 primary）—— 本批**只有终末地变了**
 const EXPECT_PRIMARY = {
-	endfield: { before: "予众魂的新光影", after: "百趣演武", changed: true },
+	endfield: { before: "危机合约", after: "百趣演武", changed: true },
 	r1999: { before: "佩施塔·雪红与玫瑰白", after: "佩施塔·雪红与玫瑰白", changed: false },
 	arknights: { before: "视相博物馆：演化", after: "视相博物馆：演化", changed: false },
 	genshin: { before: "「坏灭肇始之时」", after: "「坏灭肇始之时」", changed: false },
@@ -311,6 +315,24 @@ export default async function runCategory() {
 	}
 
 	// ══════════════════════════════════════════════════════════════════════════
+	// 2026-11-11 用户拍板：**彻底移除「窗口超过 120 天 = 长期/常驻」判定**（回归）
+	// 原神 bwiki 的「「巡历雪境，凝铸锋锐」新手」是 294 天窗口（2026-11-04 ~ 2027-08-25），
+	// 旧规则把它从 `events[]` 与悬停里一起剔除（用户点名：它必须原样出现）。
+	section("2026-11-11 移除 120 天常驻判定：原神 294 天窗口出现在 events[] 与悬停里");
+	{
+		const r = results.genshin;
+		const arr = (r && r.rec.events) || [];
+		const NAME = "「巡历雪境，凝铸锋锐」新手";
+		const WINDOW = "2026-11-04 10:00 ~ 2027-08-25 05:59";
+		const hit = arr.find((x) => x.title === NAME) || null;
+		check("原神：294 天窗口在 `events[]` 里（不是被当常驻剔除）",
+			!!hit && hit.raw === WINDOW, JSON.stringify(hit && [hit.title, hit.raw]));
+		check("原神：同一条在悬停里逐字出现（名称 + 3 空格 + 档期）",
+			!!r && String(r.payload.eventHover || "").split("\n").includes(`${NAME}   ${WINDOW}`),
+			JSON.stringify(r && r.payload.eventHover));
+	}
+
+	// ══════════════════════════════════════════════════════════════════════════
 	section("category / tags 批 1 ②：`eventTier` 对补上的值给出预期档位（第一档 / 第二档）");
 	for (const p of PATHS) {
 		const r = results[p.key];
@@ -340,9 +362,9 @@ export default async function runCategory() {
 			// ⚠️ **有意变化**：用户已知批 1 会改进档位判定。这里把"变"本身也钉住，
 			//    免得以后有人以为这是回归又把它改回去（改回去 = 面板显示"结束最早那条"，
 			//    而引擎自己挑的外显（记录里的 `event`）是另一条 ⇒ 两套事实打架）。
-			check(`（${p.key}）**【有意变化】**外显确实从「予众魂的新光影」变成「百趣演武」——` +
-				`后者是引擎自己挑的那条（终末地 tags「挑战活动」第一档），改前两者不一致`,
-				before === "予众魂的新光影" && after === "百趣演武" && r.rec.event === "百趣演武",
+			check(`（${p.key}）**【有意变化】**外显确实从「危机合约」变成「百趣演武」——` +
+				`改前只有名字命中第一档（危机合约），改后「百趣演武」的 tags「挑战活动」也是第一档且结束更早`,
+				before === "危机合约" && after === "百趣演武" && r.rec.event === "百趣演武",
 				JSON.stringify([before, after, r.rec.event]));
 		} else {
 			check(`（${p.key}）外显**未变**（补 category/tags 不动用户已看到的这一条）`, before === after, JSON.stringify([before, after]));
@@ -596,13 +618,14 @@ export default async function runCategory() {
 			check(`⑩ 名字命中「${r.hit}」：带 name ⇒ 第一档；**摘掉 name ⇒ 第二档**（${r.name}）`,
 				withName === 1 && noName === 2, JSON.stringify([withName, noName]));
 		}
-		// `tags` 不是摆设：终末地 6 条都**只有 tags**（没有 category），其中 2 条的第一档完全来自 tags
+		// `tags` 不是摆设：终末地 7 条都**只有 tags**（没有 category），其中 2 条的第一档完全来自 tags
+		// （「危机合约」是名字本身命中第一档，不算 tags 驱动；2026-11-11 长窗口不再剔除后从 6 条变 7 条）
 		const endEvents = (results.endfield && results.endfield.rec.events) || [];
 		const tagsOnly = endEvents.filter((x) => ("tags" in x) && !("category" in x));
-		const tagDriven = tagsOnly.filter((x) => T.eventTier({ name: x.title, tags: x.tags }) === 1);
-		check("⑩ tags 确实影响档位（不是「摘掉也无影响」）：终末地 tags-only 6 条里有 2 条 ⇒ 带 tags 第一档、摘掉 tags 第二档",
-			tagsOnly.length === 6 && tagDriven.length === 2
-			&& tagDriven.every((x) => T.eventTier({ name: x.title }) === 2),
+		const tagDriven = tagsOnly.filter((x) => T.eventTier({ name: x.title, tags: x.tags }) === 1 && T.eventTier({ name: x.title }) === 2);
+		check("⑩ tags 确实影响档位（不是「摘掉也无影响」）：终末地 tags-only 7 条里有 2 条 ⇒ 带 tags 第一档、摘掉 tags 第二档",
+			tagsOnly.length === 7 && tagDriven.length === 2
+			&& tagsOnly.some((x) => x.title === "危机合约" && T.eventTier({ name: x.title }) === 1),
 			JSON.stringify(tagsOnly.map((x) => [x.title, T.eventTier({ name: x.title, tags: x.tags }), T.eventTier({ name: x.title })])));
 	}
 

@@ -415,7 +415,7 @@
 		"purpose": "改造前 oracle 的输出字面量（P5 清理后 oracle 实现已从产品删除，本文件是唯一真源）",
 		"capturedFrom": "d3e9d35（删除前）的 test/cases-core.mjs legacyCellOf / test/cases-p3.mjs legacySynthArrOf",
 		"capturedAt": "2026-11-08",
-		"note": "键 coreRows = <id>:<side> → [[name, meta]…]（null = 该侧无数据）；p3Synth = <路径key>:<side> → 数组条目（含 ts）"
+		"note": "键 coreRows = <id>:<side> → [[name, meta]…]（null = 该侧无数据）；p3Synth = <路径key>:<side> → 数组条目（含 ts）；2026-11-11 移除 120 天常驻判定后，5 个键（genshinEvent:event / pjskGacha:gacha / endfieldEvent:event / arknightsEventList:event / bandoriBestdoriGacha:gacha）按新口径重采：长窗口如实入数组"
 	},
 	"p3Synth": {
 		"genshinGacha:gacha": [
@@ -466,7 +466,8 @@
 				"endTs": 1797317940000,
 				"tz": "Asia/Shanghai",
 				"raw": "11-04 10:00 ~ 12-15 14:59",
-				"source": "primary"
+				"source": "primary",
+				"category": "剧情活动"
 			},
 			{
 				"key": "genshin:event:1",
@@ -476,7 +477,11 @@
 				"endTs": 1797317940000,
 				"tz": "Asia/Shanghai",
 				"raw": "11-04 10:00 ~ 12-15 14:59",
-				"source": "hover"
+				"source": "hover",
+				"category": "特殊活动",
+				"tags": [
+					"千音雅集"
+				]
 			},
 			{
 				"key": "genshin:event:2",
@@ -486,7 +491,11 @@
 				"endTs": 1797371940000,
 				"tz": "Asia/Shanghai",
 				"raw": "11-04 10:00 ~ 12-16 05:59",
-				"source": "hover"
+				"source": "hover",
+				"category": "特殊活动",
+				"tags": [
+					"千星奇域"
+				]
 			},
 			{
 				"key": "genshin:event:3",
@@ -496,7 +505,11 @@
 				"endTs": 1797371940000,
 				"tz": "Asia/Shanghai",
 				"raw": "11-04 10:00 ~ 12-16 05:59",
-				"source": "hover"
+				"source": "hover",
+				"category": "角色获取",
+				"tags": [
+					"版本活动"
+				]
 			},
 			{
 				"key": "genshin:event:4",
@@ -506,7 +519,22 @@
 				"endTs": 1800946740000,
 				"tz": "Asia/Shanghai",
 				"raw": "2026-11-04 10:00 ~ 2027-01-26 14:59",
-				"source": "hover"
+				"source": "hover",
+				"category": "探索活动"
+			},
+			{
+				"key": "genshin:event:5",
+				"title": "「巡历雪境，凝铸锋锐」新手",
+				"show": "「巡历雪境，凝铸锋锐」新手",
+				"startTs": 1793757600000,
+				"endTs": 1819144740000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026-11-04 10:00 ~ 2027-08-25 05:59",
+				"source": "hover",
+				"category": "额外活动",
+				"tags": [
+					"角色获取"
+				]
 			}
 		],
 		"genshinEvent:gacha": [],
@@ -1635,6 +1663,28 @@
 		"pjskGacha:gacha": [
 			{
 				"key": "pjsk:gacha:0",
+				"title": "★4成员必出招募",
+				"show": "★4成员必出招募",
+				"roles": [],
+				"startTs": 1782144000000,
+				"endTs": 1782576000000,
+				"tz": "Asia/Shanghai",
+				"raw": "2025-06-23 00:00 ~ 2099-06-28 00:00",
+				"source": "hover"
+			},
+			{
+				"key": "pjsk:gacha:1",
+				"title": "世界入住任务招募",
+				"show": "世界入住任务招募",
+				"roles": [],
+				"startTs": 1767240000000,
+				"endTs": 1790740740000,
+				"tz": "Asia/Shanghai",
+				"raw": "2025-01-01 12:00 ~ 2099-09-30 11:59",
+				"source": "hover"
+			},
+			{
+				"key": "pjsk:gacha:2",
 				"title": "T恤服装特惠招募",
 				"show": "T恤服装特惠招募",
 				"roles": [],
@@ -1645,7 +1695,7 @@
 				"source": "hover"
 			},
 			{
-				"key": "pjsk:gacha:1",
+				"key": "pjsk:gacha:3",
 				"title": "[1.5周年纪念]绚烂节日招募 梦幻Pick",
 				"show": "[1.5周年纪念]绚烂节日招募 梦幻Pick",
 				"roles": [],
@@ -1656,7 +1706,7 @@
 				"source": "hover"
 			},
 			{
-				"key": "pjsk:gacha:2",
+				"key": "pjsk:gacha:4",
 				"title": "[1.5周年纪念]绚烂节日招募 金色热潮",
 				"show": "[1.5周年纪念]绚烂节日招募 金色热潮",
 				"roles": [],
@@ -1667,7 +1717,7 @@
 				"source": "hover"
 			},
 			{
-				"key": "pjsk:gacha:3",
+				"key": "pjsk:gacha:5",
 				"title": "缤纷月卡招募",
 				"show": "缤纷月卡招募",
 				"roles": [],
@@ -1678,7 +1728,7 @@
 				"source": "hover"
 			},
 			{
-				"key": "pjsk:gacha:4",
+				"key": "pjsk:gacha:6",
 				"title": "[桐谷遥]HAPPY BIRTHDAY 2026招募",
 				"show": "[桐谷遥]HAPPY BIRTHDAY 2026招募",
 				"roles": [],
@@ -1689,7 +1739,7 @@
 				"source": "primary"
 			},
 			{
-				"key": "pjsk:gacha:5",
+				"key": "pjsk:gacha:7",
 				"title": "[桐谷遥]HAPPY BIRTHDAY Memories 招募",
 				"show": "[桐谷遥]HAPPY BIRTHDAY Memories 招募",
 				"roles": [],
@@ -1700,7 +1750,7 @@
 				"source": "hover"
 			},
 			{
-				"key": "pjsk:gacha:6",
+				"key": "pjsk:gacha:8",
 				"title": "[复刻]Grace Marriage招募",
 				"show": "[复刻]Grace Marriage招募",
 				"roles": [],
@@ -1711,7 +1761,7 @@
 				"source": "hover"
 			},
 			{
-				"key": "pjsk:gacha:7",
+				"key": "pjsk:gacha:9",
 				"title": "[1.5周年纪念][虚拟歌手]高级礼物招募",
 				"show": "[1.5周年纪念][虚拟歌手]高级礼物招募",
 				"roles": [],
@@ -1722,7 +1772,7 @@
 				"source": "hover"
 			},
 			{
-				"key": "pjsk:gacha:8",
+				"key": "pjsk:gacha:10",
 				"title": "[1.5周年纪念][Leo/need]高级礼物招募",
 				"show": "[1.5周年纪念][Leo/need]高级礼物招募",
 				"roles": [],
@@ -1733,7 +1783,7 @@
 				"source": "hover"
 			},
 			{
-				"key": "pjsk:gacha:9",
+				"key": "pjsk:gacha:11",
 				"title": "[1.5周年纪念][MORE MORE JUMP！]高级礼物招募",
 				"show": "[1.5周年纪念][MORE MORE JUMP！]高级礼物招募",
 				"roles": [],
@@ -1744,7 +1794,7 @@
 				"source": "hover"
 			},
 			{
-				"key": "pjsk:gacha:10",
+				"key": "pjsk:gacha:12",
 				"title": "[1.5周年纪念][Vivid BAD SQUAD]高级礼物招募",
 				"show": "[1.5周年纪念][Vivid BAD SQUAD]高级礼物招募",
 				"roles": [],
@@ -1755,7 +1805,7 @@
 				"source": "hover"
 			},
 			{
-				"key": "pjsk:gacha:11",
+				"key": "pjsk:gacha:13",
 				"title": "[1.5周年纪念][Wonderlands×Showtime]高级礼物招募",
 				"show": "[1.5周年纪念][Wonderlands×Showtime]高级礼物招募",
 				"roles": [],
@@ -1766,7 +1816,7 @@
 				"source": "hover"
 			},
 			{
-				"key": "pjsk:gacha:12",
+				"key": "pjsk:gacha:14",
 				"title": "[1.5周年纪念][25点，Nightcord见。]高级礼物招募",
 				"show": "[1.5周年纪念][25点，Nightcord见。]高级礼物招募",
 				"roles": [],
@@ -1777,7 +1827,7 @@
 				"source": "hover"
 			},
 			{
-				"key": "pjsk:gacha:13",
+				"key": "pjsk:gacha:15",
 				"title": "[1.5周年纪念]纪念自选招募",
 				"show": "[1.5周年纪念]纪念自选招募",
 				"roles": [],
@@ -1788,7 +1838,7 @@
 				"source": "hover"
 			},
 			{
-				"key": "pjsk:gacha:14",
+				"key": "pjsk:gacha:16",
 				"title": "[1.5周年纪念]阶梯招募",
 				"show": "[1.5周年纪念]阶梯招募",
 				"roles": [],
@@ -1799,7 +1849,7 @@
 				"source": "hover"
 			},
 			{
-				"key": "pjsk:gacha:15",
+				"key": "pjsk:gacha:17",
 				"title": "[1.5周年纪念]免费招募",
 				"show": "[1.5周年纪念]免费招募",
 				"roles": [],
@@ -1810,7 +1860,7 @@
 				"source": "hover"
 			},
 			{
-				"key": "pjsk:gacha:16",
+				"key": "pjsk:gacha:18",
 				"title": "[邀请朋友]★4成员必出招募",
 				"show": "[邀请朋友]★4成员必出招募",
 				"roles": [],
@@ -1818,6 +1868,50 @@
 				"endTs": 1796054340000,
 				"tz": "Asia/Shanghai",
 				"raw": "09-24 12:00 ~ 11-30 23:59",
+				"source": "hover"
+			},
+			{
+				"key": "pjsk:gacha:19",
+				"title": "任务招募",
+				"show": "任务招募",
+				"roles": [],
+				"startTs": 1767236400000,
+				"endTs": 1798660740000,
+				"tz": "Asia/Shanghai",
+				"raw": "2025-01-01 11:00 ~ 2099-12-31 03:59",
+				"source": "hover"
+			},
+			{
+				"key": "pjsk:gacha:20",
+				"title": "[新手应援]必定获得1名★4成员10连招募券招募",
+				"show": "[新手应援]必定获得1名★4成员10连招募券招募",
+				"roles": [],
+				"startTs": 1772330400000,
+				"endTs": 1798732740000,
+				"tz": "Asia/Shanghai",
+				"raw": "2025-03-01 10:00 ~ 2099-12-31 23:59",
+				"source": "hover"
+			},
+			{
+				"key": "pjsk:gacha:21",
+				"title": "欢迎回来★4自选阶梯招募",
+				"show": "欢迎回来★4自选阶梯招募",
+				"roles": [],
+				"startTs": 1773021600000,
+				"endTs": 1798732740000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026-03-09 10:00 ~ 2099-12-31 23:59",
+				"source": "hover"
+			},
+			{
+				"key": "pjsk:gacha:22",
+				"title": "新手限定★4自选阶梯招募",
+				"show": "新手限定★4自选阶梯招募",
+				"roles": [],
+				"startTs": 1774540800000,
+				"endTs": 1806076740000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026-03-27 00:00 ~ 2027-03-26 23:59",
 				"source": "hover"
 			}
 		],
@@ -2854,7 +2948,10 @@
 				"endTs": 1794600000000,
 				"tz": "Asia/Shanghai",
 				"raw": "10-31 12:00 ~ 11-14 04:00",
-				"source": "hover"
+				"source": "hover",
+				"tags": [
+					"趣味活动"
+				]
 			},
 			{
 				"key": "endfield:event:1",
@@ -2864,7 +2961,10 @@
 				"endTs": 1795032000000,
 				"tz": "Asia/Shanghai",
 				"raw": "10-29 12:00 ~ 11-19 04:00",
-				"source": "primary"
+				"source": "primary",
+				"tags": [
+					"挑战活动"
+				]
 			},
 			{
 				"key": "endfield:event:2",
@@ -2874,7 +2974,10 @@
 				"endTs": 1795557600000,
 				"tz": "Asia/Shanghai",
 				"raw": "10-15 07:00 ~ 11-25 06:00",
-				"source": "hover"
+				"source": "hover",
+				"tags": [
+					"趣味活动"
+				]
 			},
 			{
 				"key": "endfield:event:3",
@@ -2884,7 +2987,10 @@
 				"endTs": 1795557600000,
 				"tz": "Asia/Shanghai",
 				"raw": "11-05 12:00 ~ 11-25 06:00",
-				"source": "hover"
+				"source": "hover",
+				"tags": [
+					"限时签到"
+				]
 			},
 			{
 				"key": "endfield:event:4",
@@ -2894,7 +3000,10 @@
 				"endTs": 1795557600000,
 				"tz": "Asia/Shanghai",
 				"raw": "11-05 12:00 ~ 11-25 06:00",
-				"source": "hover"
+				"source": "hover",
+				"tags": [
+					"干员试用活动"
+				]
 			},
 			{
 				"key": "endfield:event:5",
@@ -2904,7 +3013,23 @@
 				"endTs": 1795557600000,
 				"tz": "Asia/Shanghai",
 				"raw": "11-05 12:00 ~ 11-25 06:00",
-				"source": "hover"
+				"source": "hover",
+				"tags": [
+					"叙事活动"
+				]
+			},
+			{
+				"key": "endfield:event:6",
+				"title": "危机合约",
+				"show": "危机合约",
+				"startTs": 1781841600000,
+				"endTs": 1796155200000,
+				"tz": "Asia/Shanghai",
+				"raw": "06-19 12:00 ~ 12-02 04:00",
+				"source": "hover",
+				"tags": [
+					"挑战活动"
+				]
 			}
 		],
 		"endfieldEvent:gacha": [],
@@ -2977,26 +3102,39 @@
 		"arknightsEventList:event": [
 			{
 				"key": "arknights:event:0",
+				"title": "生息演算：重启锚点",
+				"show": "生息演算：重启锚点",
+				"startTs": 1778832000000,
+				"endTs": 1778788740000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026-05-15 16:00 ~ 2027-05-15 03:59",
+				"source": "hover",
+				"category": "生息演算"
+			},
+			{
+				"key": "arknights:event:1",
 				"title": "视相博物馆：演化",
 				"show": "视相博物馆：演化",
 				"startTs": 1792828800000,
 				"endTs": 1793995140000,
 				"tz": "Asia/Shanghai",
 				"raw": "10-24 16:00 ~ 11-07 03:59",
-				"source": "hover"
+				"source": "hover",
+				"category": "视相博物馆"
 			},
 			{
-				"key": "arknights:event:1",
+				"key": "arknights:event:2",
 				"title": "登录活动：感谢庆典2026限时签到",
 				"show": "登录活动：感谢庆典2026限时签到",
 				"startTs": 1793505600000,
 				"endTs": 1794686340000,
 				"tz": "Asia/Shanghai",
 				"raw": "11-01 12:00 ~ 11-15 03:59",
-				"source": "hover"
+				"source": "hover",
+				"category": "登录活动"
 			},
 			{
-				"key": "arknights:event:2",
+				"key": "arknights:event:3",
 				"title": "支线故事：时间啊，向前！",
 				"show": "支线故事：时间啊，向前！",
 				"startTs": 1793505600000,
@@ -3004,12 +3142,24 @@
 				"tz": "Asia/Shanghai",
 				"raw": "11-01 12:00 ~ 11-29 03:59",
 				"source": "primary",
+				"category": "支线故事",
 				"phase": {
 					"kind": "claim",
 					"startTs": 1795291140000,
 					"endTs": 1795895940000,
 					"show": "支线故事：时间啊，向前！ 兑换截止"
 				}
+			},
+			{
+				"key": "arknights:event:4",
+				"title": "集成战略：沉沦者的黑流树海",
+				"show": "集成战略：沉沦者的黑流树海",
+				"startTs": 1784275200000,
+				"endTs": 1804665600000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026-07-17 16:00 ~ 2027-03-10 16:00",
+				"source": "hover",
+				"category": "集成战略"
 			}
 		],
 		"wuwaPoolBwiki:gacha": [
@@ -3230,6 +3380,17 @@
 		"bandoriBestdoriGacha:gacha": [
 			{
 				"key": "bandori:gacha:0",
+				"title": "回归纪念★4奇迹招募券组合招募",
+				"show": "回归纪念★4奇迹招募券组合招募",
+				"roles": [],
+				"startTs": 1779339600000,
+				"endTs": 1786777140000,
+				"tz": "Asia/Shanghai",
+				"raw": "2023-05-21 13:00 ~ 2100-08-15 14:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:gacha:1",
 				"title": "黄金周纪念★5确定招募券招募",
 				"show": "黄金周纪念★5确定招募券招募",
 				"roles": [],
@@ -3240,7 +3401,7 @@
 				"source": "hover"
 			},
 			{
-				"key": "bandori:gacha:1",
+				"key": "bandori:gacha:2",
 				"title": "黄金周纪念★4以上确定招募券招募",
 				"show": "黄金周纪念★4以上确定招募券招募",
 				"roles": [],
@@ -3251,7 +3412,7 @@
 				"source": "hover"
 			},
 			{
-				"key": "bandori:gacha:2",
+				"key": "bandori:gacha:3",
 				"title": "黄金周纪念1日1次免费10连招募",
 				"show": "黄金周纪念1日1次免费10连招募",
 				"roles": [],
@@ -3262,7 +3423,7 @@
 				"source": "hover"
 			},
 			{
-				"key": "bandori:gacha:3",
+				"key": "bandori:gacha:4",
 				"title": "驶向拂晓之空，闪耀着希望的启航招募",
 				"show": "驶向拂晓之空，闪耀着希望的启航招募",
 				"roles": [],
@@ -3273,7 +3434,7 @@
 				"source": "primary"
 			},
 			{
-				"key": "bandori:gacha:4",
+				"key": "bandori:gacha:5",
 				"title": "Cool属性招募",
 				"show": "Cool属性招募",
 				"roles": [],
@@ -3281,6 +3442,50 @@
 				"endTs": 1794545940000,
 				"tz": "Asia/Shanghai",
 				"raw": "11-05 13:00 ~ 11-13 12:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:gacha:6",
+				"title": "每日最多3次免费！演出招募",
+				"show": "每日最多3次免费！演出招募",
+				"roles": [],
+				"startTs": 1790647200000,
+				"endTs": 1818313140000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026-09-29 10:00 ~ 2100-08-15 14:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:gacha:7",
+				"title": "少女们的回忆招募",
+				"show": "少女们的回忆招募",
+				"roles": [],
+				"startTs": 1790647200000,
+				"endTs": 1818313140000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026-09-29 10:00 ~ 2100-08-15 14:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:gacha:8",
+				"title": "新手限定★5成员1人确定招募",
+				"show": "新手限定★5成员1人确定招募",
+				"roles": [],
+				"startTs": 1790647200000,
+				"endTs": 1818313140000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026-09-29 10:00 ~ 2100-08-15 14:59",
+				"source": "hover"
+			},
+			{
+				"key": "bandori:gacha:9",
+				"title": "★3以上确定招募",
+				"show": "★3以上确定招募",
+				"roles": [],
+				"startTs": 1792990800000,
+				"endTs": 1818313140000,
+				"tz": "Asia/Shanghai",
+				"raw": "2026-10-26 13:00 ~ 2100-08-15 14:59",
 				"source": "hover"
 			}
 		],

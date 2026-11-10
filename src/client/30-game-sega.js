@@ -58,11 +58,6 @@
 
 const ns_sekai_DEFAULT_GACHA = "https://gh-proxy.com/https://raw.githubusercontent.com/Sekai-World/sekai-master-db-cn-diff/main/gachas.json";
 const ns_sekai_DEFAULT_EVENT = "https://gh-proxy.com/https://raw.githubusercontent.com/Sekai-World/sekai-master-db-cn-diff/main/events.json";
-// 长期/常驻池阈值：**用本体那一条**（`LONG_TERM_MAX_WINDOW_DAYS`），不再自带数字。
-// 旧值 400 天只够挡住 2099 哨兵值，会放过 365 天的**永久**池 ——
-// 实测 `新手限定★4自选阶梯招募`（03-26 16:00 ~ 次年 03-26 15:59，整 365 天）就是这样漏进"当期招募"的
-// （用户 2026-10-03 要求「规则和原来一致」）。限时招募最长约 1 个月，120 天阈值不会误伤。
-const ns_sekai_LONG_MS = LONG_TERM_MAX_WINDOW_DAYS * 864e5;
 
 // ⚠️ 2026-10-03 收敛：本文件原有 `toTs`（**严格版**：只接受 number，数字字符串返回 null）
 //    与 `byNewestStart`（与 bestdori 那份逐字相同）。均已统一到 `27-parser-text.js` 的
@@ -70,8 +65,8 @@ const ns_sekai_LONG_MS = LONG_TERM_MAX_WINDOW_DAYS * 864e5;
 //    但若源站哪天改成字符串就能直接吃下，不必再改代码。
 
 // ── 卡池侧 ──
-// 覆盖当前时刻的**有界**池里取 startTs 最新的一期当"当期招募"；长期池（2099 哨兵等）不参与"当期"，
-// 也不进悬停（它们恒在架，列出来是噪音）。
+// 覆盖当前时刻的池里取 startTs 最新的一期当"当期招募"。
+// 2026-11-11 用户拍板：**不再判断"长期池"**（旧的 120 天阈值已删）—— 窗口多长只看是否覆盖 now。
 function ns_sekai_parseSekaiGachas(json, now = nowMs(), tz = "Asia/Shanghai") {
 	if (!Array.isArray(json)) throw new Error("sekai-gacha-bad-shape");
 	const pools = [];
@@ -80,23 +75,22 @@ function ns_sekai_parseSekaiGachas(json, now = nowMs(), tz = "Asia/Shanghai") {
 		const s = numOrNull(g.startAt), e = numOrNull(g.endAt);
 		const name = typeof g.name === "string" ? g.name.trim() : "";
 		if (!name || s == null || e == null || e <= s) continue;
-		pools.push({ id: g.id, name, type: String(g.gachaType || ""), startTs: s, endTs: e, long: e - s > ns_sekai_LONG_MS });
+		pools.push({ id: g.id, name, type: String(g.gachaType || ""), startTs: s, endTs: e });
 	}
 	if (pools.length === 0) throw new Error("sekai-gacha-bad-shape");
 	const active = pools.filter((x) => coversNow(x, now));
-	const bounded = active.filter((x) => !x.long).sort(byNewestStart);
-	const cur = bounded[0] || null;
+	const cur = active.slice().sort(byNewestStart)[0] || null;
 	if (!cur) return null;
 
 	const dates = fmtWindow(cur.startTs, cur.endTs, tz);
-	// 悬停 = 全部当期**有界**池（长期池不参与"当期"，见上）。每池一行池名 + 档期，窗口完全相同则
+	// 悬停 = 全部当期池。每池一行池名 + 档期，窗口完全相同则
 	// 档期只在末尾写一遍 —— 排版交给**条目反生成**（与本体 buildPoolHover 逐字一致）。
 	// 源站没有角色名 → name 就用池名本身（对应本体的「池名：角色」里的池名位置）。
 	// 池名里的「（ceil）」等后缀来自 `gachaType` 枚举，**不是源站原文** → 不进悬停；
 	// 同名同窗的阶梯/高级礼物招募多条各自成行（源站如此，不再合并成 ×n）——
 	// 数组侧由 `dataArrayExtrasFromEntriesOf` 的「归一后同名只留第一条」收口（与悬停逆解析同一判据）。
 	// ── P3b：条目事实 → 悬停 + `gacha` 数组 ──────────────────────────────────
-	const hoverItems = bounded
+	const hoverItems = active
 		.filter((p) => p.name)
 		.sort(poolHoverOrderOf)
 		.map((p) => ({ title: p.name, startTs: p.startTs, endTs: p.endTs, raw: "" }));

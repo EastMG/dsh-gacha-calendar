@@ -956,20 +956,15 @@ async function ns_ournotes_global_eventsOurNotesGlobal(url, signal, tz = ns_ourn
 const ns_bestdori_DEFAULT_GACHA = "https://bestdori.com/api/gacha/all.5.json";
 const ns_bestdori_DEFAULT_EVENT = "https://bestdori.com/api/events/all.5.json";
 const ns_bestdori_CN_INDEX = 3;                        // 简中服下标（见文件头实测）
-// 长期/常驻池阈值：**用本体那一条**（LONG_TERM_MAX_WINDOW_DAYS = 120）。
-// ⚠️ 2026-10-03 收敛：这里原本是 400 天，与本体/sekai 的 120 天**不是同一个值** ——
-//    同一条规则不该有两个值。实测影响：夹具里 22 个窗口落在 (120, 400] 天之间
-//    （「新手限定 / 回归纪念 / 每日免费 / 少女们的回忆 / 开服纪念」这类长期池），
-//    在 400 天下会被误判成"当期"。当前真实在架池恰好 0 个落在该区间，故属**潜在**不一致。
-const ns_bestdori_LONG_MS = LONG_TERM_MAX_WINDOW_DAYS * 864e5;
 
 // ⚠️ 2026-10-03 收敛：本文件原有 `toTs`（宽容版）与 `byNewestStart` —— 前者与 sekai 那份**语义不同**、
 //    后者与 sekai 那份逐字相同（差别只在 `Number(a.id)` 与 `a.id`）。均已统一到
 //    `27-parser-text.js` 的 `numOrNull` / `byNewestStart`。
 
 // ── 卡池侧 ──
-// 覆盖当前时刻的**有界**（≤400 天）简中池里取 startTs 最新的一期当"当期卡池"；
-// 长期/常驻池（miracle/free 等，closedAt 常是 2100 哨兵）不参与选择，只在 hover 里报个数。
+// 覆盖当前时刻的简中池里取 startTs 最新的一期当"当期卡池"。
+// 2026-11-11 用户拍板：**不再判断"长期/常驻池"**（旧的 >120 天阈值已删）——
+// 窗口多长只看是否真的覆盖 now。
 function ns_bestdori_parseBestdoriGacha(json, now = nowMs(), tz = "Asia/Shanghai") {
 	if (!json || typeof json !== "object" || Array.isArray(json)) throw new Error("bestdori-gacha-bad-shape");
 	const keys = Object.keys(json);
@@ -984,13 +979,12 @@ function ns_bestdori_parseBestdoriGacha(json, now = nowMs(), tz = "Asia/Shanghai
 		const p = numOrNull(v.publishedAt[ns_bestdori_CN_INDEX]);
 		const c = numOrNull(v.closedAt[ns_bestdori_CN_INDEX]);
 		if (!name || p == null || c == null || c <= p) continue;   // 该服区没出这期 → 跳过
-		pools.push({ id: k, name: String(name), type: String(v.type || ""), startTs: p, endTs: c, long: c - p > ns_bestdori_LONG_MS });
+		pools.push({ id: k, name: String(name), type: String(v.type || ""), startTs: p, endTs: c });
 	}
 	if (!sawIndexed) throw new Error("bestdori-gacha-bad-shape");   // 结构变了（不再有 publishedAt/closedAt 数组）
 	const active = pools.filter((x) => coversNow(x, now));
-	const bounded = active.filter((x) => !x.long).sort(byNewestStart);
-	const cur = bounded[0] || null;
-	if (!cur) return null;   // 抓到数据但没有"当期"有界窗口 = 未公布（长期池不算当期）
+	const cur = active.slice().sort(byNewestStart)[0] || null;
+	if (!cur) return null;   // 抓到数据但没有覆盖当期时刻的窗口 = 未公布
 
 	const dates = fmtWindow(cur.startTs, cur.endTs, tz);
 	// 同一期招募可能被源站多处登记（同名同窗口）→ 先去重成一条（本体没有「×n」记法，也不该有重复行）。
@@ -1003,7 +997,7 @@ function ns_bestdori_parseBestdoriGacha(json, now = nowMs(), tz = "Asia/Shanghai
 	//    `dataArrayProducedGachaOf`。排序仍走 `poolHoverOrderOf`（与 `hoverPool` 内部同一份比较器），
 	//    所以悬停文本与改造前**逐字相同**、数组与改造前的合成结果**逐条相等**（含 ts）。
 	const seen = new Set();
-	const uniq = bounded.filter((p) => {
+	const uniq = active.filter((p) => {
 		const k = `${p.name}|${p.startTs}|${p.endTs}`;
 		if (seen.has(k)) return false;
 		seen.add(k);

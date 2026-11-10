@@ -19,8 +19,7 @@
 		//   删掉会让上面三处守卫一起失效 ⇒ 先保留（见 README_Dev 的「死代码」一节）。
 		function buildEventHover(items, permanentCount = 0, tz) {
 			const list = (Array.isArray(items) ? items : [])
-				.filter((x) => x && typeof x.name === "string" && x.name.trim() !== "")
-				.filter((x) => !isLongTermEvent(x));
+				.filter((x) => x && typeof x.name === "string" && x.name.trim() !== "");
 			// 只有 1 条当期活动时，本函数仍返回 ""（由 UI 单条展示）；但若还有永久活动，
 			// 就必须把那一行计数带上，否则永久活动又变成看不见。
 			if (list.length < 2) {
@@ -124,8 +123,7 @@
 		//     没有 raw 就只写名称。
 		//   · 活动侧：每条一行 `名称 + 3 个空格 + 档期`；窗口全同 ⇒ 每条只写名称、末尾写一遍档期；
 		//     raw 含相对表述 ⇒ `名称 + 3 空格 + raw`（没有 raw 就只写名称）。
-		//   · 两侧都：**不足 2 条 ⇒ 空串**（交回 UI 单条展示）；`kind === "event"` 时另按
-		//     `isLongTermEvent` 剔掉长期/常驻窗口（与 buildEventHover 完全一致）。
+		//   · 两侧都：**不足 2 条 ⇒ 空串**（交回 UI 单条展示）。
 		// 顺序：**调用方给**（卡池侧与 `poolHoverOrderOf` 同口径、活动侧与 `sortEventItems` 同口径）。
 		//   这里**不排序**：鸣潮卡池悬停的首行是"卡池类型"（不是任何一口池），必须固定在首位。
 		// ── 「格式化成两端绝对时刻」还是「原样印源站原文」：**只有两种情况** ────────────────
@@ -179,8 +177,7 @@
 			// 名称字段三选一：`title`（活动名）/ `label`（卡池那行"池名：角色"）/ `name`（老调用形状）
 			const nameOf = (x) => String(x.title || x.label || x.name);
 			const list = (Array.isArray(items) ? items : [])
-				.filter((x) => x && nameOf(x).trim() !== "")
-				.filter((x) => !isEvent || !isLongTermEvent(x));
+				.filter((x) => x && nameOf(x).trim() !== "");
 			if (list.length < 2) return permanent > 0 ? [permanentLine(permanent)] : [];
 			const allTimed = list.every((x) => x.startTs != null && x.endTs != null);
 			const same = allTimed && new Set(list.map((x) => `${x.startTs}~${x.endTs}`)).size === 1;

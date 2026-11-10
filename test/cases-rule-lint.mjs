@@ -366,18 +366,20 @@ export default async function run() {
 	//    2026-10-28 又按职责拆成 `PARSER_FILES` 那 7 段 —— 所以下面查的是**拼回来的**那份共用源。
 	const shared = codeOnly(readParserSharedSource());
 	check("共用工具 hoverPool / hoverEvent 存在", /function hoverPool\(/.test(shared) && /function hoverEvent\(/.test(shared));
-	check("长期/常驻阈值只有一处（本体 LONG_TERM_MAX_WINDOW_DAYS）",
-		["24-parser-window.js", "30-game-bandori.js", "30-game-sega.js"]
-			.every((f) => {
-				const t = codeOnly(readFileSync(path.join(SRC, f), "utf8"));
-				if (f === "24-parser-window.js") {
-					return /const LONG_TERM_MAX_WINDOW_DAYS = \d+;/.test(t)
-						&& /isLongTermWindow/.test(t)            // 共用判定在本体（现住 24-parser-window.js）
-						&& !/HOVER_MAX_WINDOW_DAYS/.test(t);     // 旧的重复常量已删
-				}
-				// bestdori 的解析器已并入 bandori 文件 → 这两个文件都必须用共用常量
-				return /LONG_TERM_MAX_WINDOW_DAYS \* 864e5/.test(t) && !/=\s*(?:120|400)\s*\*\s*86400e3/.test(t);
-			}));
+	// 2026-11-11 用户拍板：**彻底移除**「窗口超过 120 天 = 长期/常驻」判定。
+	// 守卫改成反向：src 里不许再出现该规则的常量 / 函数 / 选项名（防止有人把旧逻辑加回来）。
+	{
+		const offenders = [];
+		for (const f of readdirSync(SRC).filter((n) => n.endsWith(".js"))) {
+			const t = codeOnly(readFileSync(path.join(SRC, f), "utf8"));
+			if (/LONG_TERM_MAX_WINDOW_DAYS|isLongTermWindow|isLongTermEvent|dropLongTerm|keepLongTerm/.test(t)) offenders.push(f);
+		}
+		check("「120 天 = 长期/常驻」判定已彻底移除（src 里不再有 LONG_TERM / isLongTerm* / dropLongTerm / keepLongTerm）",
+			offenders.length === 0, offenders.join(" / "));
+		// 不要误删**另一个概念**：永久活动（endTs == null 且类别含「永久」）与「以及常驻活动 N 项」计数行仍在。
+		check("永久活动判定与计数行仍在（isPermanentEvent / 「以及常驻活动 N 项」是另一个概念）",
+			/function isPermanentEvent\(/.test(shared) && /以及常驻活动/.test(readParserSharedSource()));
+	}
 
 	// ── 悬停时区守卫：`buildEventHover` / `buildPoolHover` 的调用**必须**传源站 tz（2026-10-21）──
 	// 口径：悬停 = **源站墙钟原文**（游戏内公告那串时间）。`tz` 参数故意**不给默认值** ——

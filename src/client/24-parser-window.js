@@ -123,31 +123,12 @@
 		}
 
 
-		// ── 「长期/常驻窗口」通用规则（**唯一真源**）────────────────────────────────
-		// 判定：声明窗口超过该天数的不当作"当期"（外显与悬停共用，①）。
-		// 依据：各游戏限时活动实测最长约 84 天（原神），而常驻玩法动辄半年以上——
-		// 明日方舟 PRTS 活动一览里「生息演算：重启锚点」245 天、「集成战略：沉沦者的黑流树海」179 天，
-		// 两者都是常驻玩法（表内含"进行中"徽标），且因外显不带年份会被误读成"结束早于开始"。
-		//
-		// ⚠️ 2026-10-03 收敛：这条规则此前有 **3 套实现 / 2 个值** ——
-		//   · 本文件 `EVENT_MAX_WINDOW_DAYS = 120` + `isLongTermEvent`（事件侧）
-		//   · 原 `41-sources-shared.js` 的 `HOVER_MAX_WINDOW_DAYS = 120` + `hoverIsLongTerm`（**逐字重复**，2026-10-03 收敛时已删）
-		//   · `42-parsers-bestdori.js` `LONG_MS = 400 天`（压平后见 30-game-bandori.js 的 `ns_bestdori_LONG_MS`）← **值不同**（sekai 是 120）
-		//   实测：bestdori 历史上有 22 个窗口落在 (120, 400] 天之间（全是「新手限定/回归纪念/
-		//   每日免费/少女们的回忆/开服纪念」这类长期池）→ 在 400 天下会被误判成"当期"。
-		//   当前真实在架池里恰好 0 个落在这个区间，所以是**潜在**不一致而非现行 bug；
-		//   但既然是同一条规则，就不该有第二个值。现在统一到下面这一处。
-		const LONG_TERM_MAX_WINDOW_DAYS = 120;
-
-		/** 声明窗口超阈值 = 长期/常驻（不当作"当期"）。名与阈值都只有这一处。 */
-
-		function isLongTermWindow(x) {
-			return !!x && x.startTs != null && x.endTs != null && (x.endTs - x.startTs) > LONG_TERM_MAX_WINDOW_DAYS * 864e5;
-		}
-
-
-		// 旧名（事件侧语境下可读性更好）。**只是别名**，判定逻辑仍在上面。
-		function isLongTermEvent(x) { return isLongTermWindow(x); }
+		// ── 2026-11-11 用户拍板：**不再判断事项是否属于「长期/常驻」** ──────────────────
+		// 旧规则（声明窗口 > 120 天 ⇒ 不当作"当期"，外显/悬停/数组一起剔除）已**整段删除**：
+		// 窗口多长都只按「是否真的覆盖当前时刻」判定，长窗口如实出现在 `events[]` 与悬停里。
+		// `isPermanentEvent`（`endTs == null` 且类别含「永久」）与「以及常驻活动 N 项」计数
+		// 是**另一个概念**（源站明说"永久"），不受影响；`81-schedule-model.js` 的
+		// `SCHEDULE_LONG_MS`（366 天）只是显示态（点线 + "长期"两字），也不受影响。
 
 		// ── 「覆盖 now」与「选当期」（**唯一真源**）────────────────────────────────
 		// 2026-10-03 普查：全仓有 **92 处**「覆盖 now」判定、**25 种写法**，实质只有 3 种方言：
@@ -199,13 +180,9 @@
 		 *   now            选哪一刻（毫秒，必传）
 		 *   kind           只取 `x.kind === kind` 的行（biligame 系用）
 		 *   bounded        true → 用 `coversNowBounded`（要求两端都有）
-		 *   dropLongTerm   true → 剔除长期/常驻窗口（`isLongTermWindow`）；默认 **false**（保持各源原有语义）
 		 *   sort           可选比较函数，对结果排序
 		 *   first          可选 true → 只返回第一条（排序后）
 		 *   map            可选，先做一次映射再判定（如把 `{win:{startTs,…}}` 摊平）
-		 *
-		 * ⚠️ `dropLongTerm` 默认 false 是**故意的**：多数调用点原本就没做这个过滤，
-		 *    擅自打开会改变选择结果。要改的站点逐个显式打开。
 		 *
 		 * ⚠️ 名字：不叫 `pickCurrent` —— 那个名字在**本文件上方**已被抓取器工厂占用
 		 *    （`const pickCurrent = (parse) => (html) => selectCurrent(...)`）。
@@ -217,7 +194,6 @@
 			const now = o.now;
 			const pred = o.bounded ? coversNowBounded : coversNow;
 			let list = (Array.isArray(items) ? items : []).filter((x) => x && (o.kind == null || x.kind === o.kind) && pred(x, now));
-			if (o.dropLongTerm) list = list.filter((x) => !isLongTermWindow(x));
 			if (typeof o.sort === "function") list = list.slice().sort(o.sort);
 			return o.first ? (list[0] || null) : list;
 		}

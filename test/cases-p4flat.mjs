@@ -8,7 +8,7 @@
 //      同一份夹具在 TZ=UTC 与 TZ=Asia/Shanghai 下逐字节相同；源站写「X.Y 版本更新后」的
 //      **单边窗口**也能给出终点（起点留 null，不编造）；
 //   ② 展平：每侧 `primary + rest` **全部**进「近期」候选（`scheduleFlattenOf` 的 `all`）——
-//      逐款钉住行数（明日方舟 3 条活动 / 星铁 5 条卡池 / pjsk 17 条卡池 / bandori 16 条活动）；
+//      逐款钉住行数（明日方舟 3 条活动 / 星铁 5 条卡池 / pjsk 23 条卡池 / bandori 16 条活动）；
 //   ③ 计数按条：24 小时 / 7 天两段数字与**条数**一致（不是格数）——用"2 格却 13 条"这种
 //      极端时刻钉住（若退回按格，数字会立刻掉到 2）；
 //   ④ 提醒 / 导出 .ics / 侧栏轮播都遍历 N 条（含兑换截止）；
@@ -169,25 +169,27 @@ export default async function runP4Flat() {
 	section("P4 ② 展平：「近期」收每侧全部条目（逐款钉住行数）");
 	{
 		const cases = [
-			["arknights", ark, NOW_ARK, 0, 3],      // 3 条活动（兑换期那条在 phase 里，不另算一条）
-			["bandori", bandori, NOW_BD, 1, 16],    // 1 条卡池 + 16 条活动
-			["pjsk", pjsk, NOW_PJSK, 17, 0],        // 17 条卡池（当期全部池）
-			["hsr", hsr, NOW_HSR, 4, 3]             // 4 条卡池（含 3 条单边窗口）+ 3 条活动
+			["arknights", ark, NOW_ARK, 0, 3, 3],      // 3 条活动（兑换期那条在 phase 里，不另算一条）
+			["bandori", bandori, NOW_BD, 1, 16, 17],    // 1 条卡池 + 16 条活动
+			// 23 条卡池（当期全部池）；其中 2 条 2099 哨兵池在**数组派生**里按 now 补年（既有口径，
+			// 见 50-refresh.js 的 scheduleNoYear）⇒ ts 落在过去、展平按"已结束"不列 ⇒ all = 21
+			["pjsk", pjsk, NOW_PJSK, 23, 0, 21],
+			["hsr", hsr, NOW_HSR, 4, 3, 7]             // 4 条卡池（含 3 条单边窗口）+ 3 条活动
 		];
-		for (const [id, rec, nowMs, expectG, expectE] of cases) {
+		for (const [id, rec, nowMs, expectG, expectE, expectAll] of cases) {
 			const { flat } = flatOf(id, rec, nowMs);
 			check(`展平（${id}）：卡池侧 ${expectG} 行 / 活动侧 ${expectE} 行（primary + rest 全部）`,
 				rowsOfSide(flat, id, "gacha") === expectG && rowsOfSide(flat, id, "event") === expectE,
 				JSON.stringify([rowsOfSide(flat, id, "gacha"), rowsOfSide(flat, id, "event")]));
-			check(`展平（${id}）：\`all\` 的条数 = 两侧行数之和（不再「每侧只收外显那一条」）`,
-				flat.all.length === expectG + expectE,
-				`all=${flat.all.length} 期望=${expectG + expectE}`);
+			check(`展平（${id}）：\`all\` 的条数 = ${expectAll}（= 两侧行数之和 − 已结束）`,
+				flat.all.length === expectAll,
+				`all=${flat.all.length} 期望=${expectAll}`);
 		}
-		// 逐款把 `all` 的绝对条数也钉死（上面那条只在"已结束"为 0 时等价；这里 4 款都全在期）
-		check("展平：四款的 `all` 条数 = 3 / 17 / 17 / 7（与上面逐侧行数一致）",
+		// 逐款把 `all` 的绝对条数也钉死（上面那条只在"已结束"为 0 时等价；pjsk 有 2 条哨兵池落在过去）
+		check("展平：四款的 `all` 条数 = 3 / 17 / 21 / 7（与上面逐侧行数一致）",
 			flatOf("arknights", ark, NOW_ARK).flat.all.length === 3
 			&& flatOf("bandori", bandori, NOW_BD).flat.all.length === 17
-			&& flatOf("pjsk", pjsk, NOW_PJSK).flat.all.length === 17
+			&& flatOf("pjsk", pjsk, NOW_PJSK).flat.all.length === 21
 			&& flatOf("hsr", hsr, NOW_HSR).flat.all.length === 7,
 			JSON.stringify([
 				flatOf("arknights", ark, NOW_ARK).flat.all.length,
@@ -267,15 +269,15 @@ export default async function runP4Flat() {
 			&& second.toNotify.length === 1 && second.toNotify[0].key === kClaim && second.toNotify[0].node === 72,
 			JSON.stringify([first.toNotify.map((n) => [n.key, n.node]), second.toNotify.map((n) => [n.key, n.node])]));
 
-		// ② 多条目各发：pjsk 17 条卡池 ⇒ 8 条不同 deadline（同 T 的合并成一条 = 既有"同一时刻不弹两条"）
+		// ② 多条目各发：pjsk 23 条卡池 ⇒ 11 条不同 deadline（同 T 的合并成一条 = 既有"同一时刻不弹两条"）
 		const pjskItems = T.remindItemsOf({ pjsk: Object.assign({ name: "pjsk" }, pjsk) }, NOW_PJSK, null);
 		const pjskEnds = pjskItems.filter((x) => x.kind === "end" && x.T > NOW_PJSK);
-		check("提醒（pjsk）：17 条卡池 → 8 条 end（按条派生；同一结束时刻的多条合成一条）",
-			pjskEnds.length === 8 && new Set(pjskEnds.map((x) => x.key)).size === 8,
+		check("提醒（pjsk）：23 条卡池 → 11 条 end（长窗口不再剔除后 8 → 11；同一结束时刻的多条合成一条）",
+			pjskEnds.length === 11 && new Set(pjskEnds.map((x) => x.key)).size === 11,
 			JSON.stringify(pjskEnds.map((x) => x.key)));
 		// 反向对照：同一份记录把数组清空 ⇒ 退回"每侧一条"（这正是 P1 之前的限制）
 		const pjskOld = T.remindItemsOf({ pjsk: Object.assign({ name: "pjsk" }, pjsk, { gacha: [], events: [] }) }, NOW_PJSK, null);
-		check("提醒（pjsk）：把数组清空（老 lastData）⇒ 只剩 1 条（说明多出来的 7 条确实是展平带来的）",
+		check("提醒（pjsk）：把数组清空（老 lastData）⇒ 只剩 1 条（说明多出来的 10 条确实是展平带来的）",
 			pjskOld.length === 1, JSON.stringify(pjskOld.map((x) => x.key)));
 		// ③ bandori 多条目：5 条 end（1 卡池 + 4 个不同活动截止），清空数组后只剩 2 条
 		const bdItems = T.remindItemsOf({ bandori: Object.assign({ name: "bandori" }, bandori) }, NOW_BD, null).filter((x) => x.kind === "end");
@@ -295,7 +297,7 @@ export default async function runP4Flat() {
 		check("ics（bandori）：UID 全部唯一（同一份数据重复导入不会重复建事件）",
 			new Set(bd.events.map((e) => e.uid)).size === bd.events.length);
 		const pj = T.icsEventsOf([{ id: "pjsk", name: "pjsk", tz: TZ_CN }], { pjsk }, NOW_PJSK);
-		check("ics（pjsk）：导出事件数 = 数组条目数 17", pj.events.length === 17, JSON.stringify(pj.events.length));
+		check("ics（pjsk）：导出事件数 = 数组条目数 21（长窗口不再剔除后 17 → 21；2 条 2099 哨兵池按既有派生口径落在过去）", pj.events.length === 21, JSON.stringify(pj.events.length));
 		// 明日方舟活动期：活动本身 + 兑换截止（phase）= 2 个事件
 		const arkIcs = T.icsEventsOf([{ id: "arknights", name: "arknights", tz: TZ_CN }], { arknights: arkAct }, NOW_ARK_ACT);
 		check("ics（明日方舟·活动期）：2 个事件 —— 活动本身 + 兑换截止（phase 的窗口独立导出）",
@@ -318,7 +320,8 @@ export default async function runP4Flat() {
 		check("轮播（bandori）：17 条 = 数组条目数（1 卡池 + 16 活动；以前最多 2 条）",
 			bd.length === 17, JSON.stringify(bd.map((x) => x.key)));
 		const pj = T.tickerItemsOf([gameOf("pjsk", pjsk)], new Date(NOW_PJSK), 24 * 100);
-		check("轮播（pjsk）：17 条 = 数组条目数", pj.length === 17, JSON.stringify(pj.length));
+		// 100 天窗口内到期的 17 条（数组 23 条；新手限定 / 2099 哨兵那 6 条结束在 100 天之后）
+		check("轮播（pjsk）：100 天窗口内 20 条（数组 23 条，2 条哨兵池落在过去、长窗口结束在窗口外）", pj.length === 20, JSON.stringify(pj.length));
 		const ak = T.tickerItemsOf([gameOf("arknights", ark)], new Date(NOW_ARK), 24 * 100);
 		check("轮播（明日方舟）：3 条活动（事项名用条目的 `show` —— 兑换期那条带「兑换截止」）",
 			ak.length === 3 && ak.some((x) => x.title === "视相博物馆：演化 兑换截止"),
@@ -359,8 +362,8 @@ export default async function runP4Flat() {
 		const rowsUtc = rowsUnder("UTC");
 		const rowsSh = rowsUnder("Asia/Shanghai");
 		const rowsJst = rowsUnder("Asia/Tokyo");
-		check("跨时区：UTC / +08 / +09 三个进程时区下，44 行渲染文本逐字相同",
-			rowsUtc.length === 44 && JSON.stringify(rowsUtc) === JSON.stringify(rowsSh) && JSON.stringify(rowsSh) === JSON.stringify(rowsJst),
+		check("跨时区：UTC / +08 / +09 三个进程时区下，48 行渲染文本逐字相同",
+			rowsUtc.length === 48 && JSON.stringify(rowsUtc) === JSON.stringify(rowsSh) && JSON.stringify(rowsSh) === JSON.stringify(rowsJst),
 			JSON.stringify([rowsUtc.length, rowsSh.length, rowsJst.length,
 				rowsUtc.find((r, i) => r !== rowsSh[i]), rowsSh.find((r, i) => r !== rowsJst[i])]));
 		// 文本 = **源站墙钟**：拿星铁那两条做字面量钉死（在两种时区下都必须长这样）

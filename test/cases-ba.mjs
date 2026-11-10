@@ -505,7 +505,7 @@ export default async function run() {
 		for (const r of swapped) {
 			const text = T.baCnNoticeText(r.content);
 			if (!text) continue;
-			const b = T.baCnTimeBlocks(text, 2026, TZ_CN).find((x) => x.tag === "活动" && !x.longTerm
+			const b = T.baCnTimeBlocks(text, 2026, TZ_CN).find((x) => x.tag === "活动"
 				&& x.endTs >= nowTs && (x.startTs == null || x.startTs <= nowTs));
 			if (b) { oldPick = T.baCnEventNameFromNotice(r.title, text); break; }
 		}
@@ -546,10 +546,10 @@ export default async function run() {
 		check("baCnPickPrimary：字段 getter 抛异常也不外抛（当第三级）", evilOk);
 	}
 
-	// ── ② 常驻/长期活动：不进当期候选，按既有 permanentCount 约定在悬停末尾补一行计数 ──
-	// 背景：`baCnWindowIn` 默认把 >120 天的窗口判成"常驻/误解析"并 return null（全仓唯一真源），
-	// 于是它们会**无声消失**。现在 `baCnTimeBlocks` 用 keepLongTerm 收下并打标，
-	// `baCnFromNoticeBlocks` 把它们排除出当期、只计入 permanentCount（与通用源同做法）。
+	// ── ② 长窗口活动：2026-11-11 起不再判「常驻」—— 与短窗口一样进当期候选与悬停 ──
+	// 背景：`baCnWindowIn` 旧版把 >120 天的窗口判成"常驻/误解析"并 return null（靠 keepLongTerm 收下打标、
+	// 只计 permanentCount）。用户 2026-11-11 拍板后阈值与标记一并删除：364 天的活动如实出现在
+	// `events[]` 与悬停里，不再折算成「以及常驻活动 N 项」计数行。
 	{
 		const synth = [
 			{ id: 9001, title: "【预告】限时活动：长期开放", content: "■ 活动时间<br>· 活动持续时间：01月01日 00:00 ~ 12月31日 23:59" },
@@ -558,10 +558,12 @@ export default async function run() {
 		];
 		const r = T.baCnFromNoticeBlocks(synth, { now: Date.parse("2026-10-21T03:00:00+08:00"), nowYear: 2026, tz: TZ_CN, previewOnly: true });
 		const rl = (r && r.eventHover ? r.eventHover : "").split("\n");
-		check("常驻/长期（>120 天）不进当期候选 → 外显仍是有明确档期的那条",
-			!!r && r.event === "限时活动：-ive aLIVE!", JSON.stringify(r && r.event));
-		check("常驻/长期活动按 permanentCount 约定出现在悬停末尾（不再无声消失）",
-			!!r && rl.length === 3 && rl[2] === "以及常驻活动 1 项", JSON.stringify(r && r.eventHover));
+		check("长窗口（364 天）不再被当常驻剔除 → 进入当期候选（同级按列表顺序取第一条）",
+			!!r && r.event === "限时活动：长期开放", JSON.stringify(r && r.event));
+		check("长窗口活动如实进悬停（3 行；不再折算成「以及常驻活动 N 项」计数行）",
+			!!r && rl.length === 3
+			&& rl[0] === "限时活动：长期开放   01-01 00:00 ~ 12-31 23:59"
+			&& !rl.some((l) => /^以及常驻活动/.test(l)), JSON.stringify(r && r.eventHover));
 	}
 
 	// ── ⑤ 2026-11-11 两处当班 bug（国际服「当期攻略」/ 日服「募集未开始 ⇒ 回退上一期」）──────────

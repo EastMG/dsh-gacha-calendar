@@ -170,14 +170,12 @@
 			},
 			"bestdori": {
 				BESTDORI_CN_INDEX: ns_bestdori_CN_INDEX,
-				BESTDORI_LONG_MS: ns_bestdori_LONG_MS,
 				eventsBestdori: ns_bestdori_eventsBestdori,
 				gachaBestdori: ns_bestdori_gachaBestdori,
 				parseBestdoriEvents: ns_bestdori_parseBestdoriEvents,
 				parseBestdoriGacha: ns_bestdori_parseBestdoriGacha,
 			},
 			"sekai": {
-				SEKAI_LONG_MS: ns_sekai_LONG_MS,
 				eventsSekai: ns_sekai_eventsSekai,
 				gachaSekai: ns_sekai_gachaSekai,
 				parseSekaiEvents: ns_sekai_parseSekaiEvents,

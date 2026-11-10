@@ -54,12 +54,11 @@
 
 
 		// 活动列表统一排序（③）：结束时间升序（越快结束越靠前）；结束时间无/未知/未抓到的排最后；
-		// 同结束时间再按开始时间升序。同时剔除常驻/长期玩法与空名行（①）。
+		// 同结束时间再按开始时间升序。空名行剔除（①）。
 		// 外显取排序后的第一条，悬停按同序逐行展示 —— 两处共用本函数保证一致。
 		function sortEventItems(items) {
 			return (Array.isArray(items) ? items : [])
 				.filter((x) => x && typeof x.name === "string" && x.name.trim() !== "")
-				.filter((x) => !isLongTermEvent(x))
 				.sort((a, b) => {
 					const ea = a.endTs == null ? Infinity : a.endTs;
 					const eb = b.endTs == null ? Infinity : b.endTs;

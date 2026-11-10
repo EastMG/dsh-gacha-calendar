@@ -178,11 +178,14 @@ export default async function runP3() {
 			=== `池：角色\n丙\n${WIN1}`,
 			JSON.stringify(T.hoverTextFromItems([{ title: "池", label: "池：角色", startTs: g1.startTs, endTs: g1.endTs }, same1], "gacha", TZ_CN)));
 		const longA = { title: "常驻", startTs: AT("2026-01-01T00:00:00Z"), endTs: AT("2026-12-31T00:00:00Z") };
-		check("活动侧：长期/常驻窗口（>120 天）与 buildEventHover 一样被剔掉；只剩 1 条 ⇒ 空串",
-			T.hoverTextFromItems([longA, g1], "event", TZ_CN) === "" && T.hoverTextFromItems([longA, g1, g2], "event", TZ_CN) === `甲   ${WIN1}\n乙   ${WIN2}`,
+		// 2026-11-11 用户拍板：**不再判断事项是否属于「长期/常驻」**（旧的 >120 天剔除已删）。
+		// 365 天的窗口与短窗口一样，只按"是否覆盖 now"参与，悬停里逐行如实出现。
+		check("活动侧：365 天长窗口不再被剔除 —— 与短窗口一样逐行出现（2026-11-11）",
+			T.hoverTextFromItems([longA, g1], "event", TZ_CN) === `常驻   01-01 08:00 ~ 12-31 08:00\n甲   ${WIN1}`
+			&& T.hoverTextFromItems([longA, g1, g2], "event", TZ_CN) === `常驻   01-01 08:00 ~ 12-31 08:00\n甲   ${WIN1}\n乙   ${WIN2}`,
 			JSON.stringify([T.hoverTextFromItems([longA, g1], "event", TZ_CN), T.hoverTextFromItems([longA, g1, g2], "event", TZ_CN)]));
-		check("卡池侧不与活动侧共用「长期过滤」（buildPoolHover 也没有这条）",
-			T.hoverTextFromItems([longA, g1], "gacha", TZ_CN) !== "");
+		check("卡池侧同样不过滤长窗口（两侧现在都没有「长期过滤」）",
+			T.hoverTextFromItems([longA, g1], "gacha", TZ_CN) === `常驻\n01-01 08:00 ~ 12-31 08:00\n甲\n${WIN1}`);
 
 		// 去重：同一个池被源描述两遍（「池名：角色」整段包住「角色」那一行）⇒ 只留一条。
 		// ⚠️ 留的是**被包住的那条**：`buildPoolHover` 的既有口径（回看 26-parser-hover.js 的注释：
@@ -227,9 +230,9 @@ export default async function runP3() {
 				event: "「坏灭肇始之时」",
 				eventDates: "11-04 10:00 ~ 12-15 14:59",
 				eventDatesRaw: "11-04 10:00 ~ 12-15 14:59",
-				eventHover: "「相遇·悠久旅途之暇」   11-04 10:00 ~ 12-15 14:59\n「坏灭肇始之时」   11-04 10:00 ~ 12-15 14:59\n「绮衣珍赏·赫炽」   11-04 10:00 ~ 12-16 05:59\n「全域镇卫·逆捍谬罚」   11-04 10:00 ~ 12-16 05:59\n「晶石如林生长之地」   2026-11-04 10:00 ~ 2027-01-26 14:59"
+				eventHover: "「相遇·悠久旅途之暇」   11-04 10:00 ~ 12-15 14:59\n「坏灭肇始之时」   11-04 10:00 ~ 12-15 14:59\n「绮衣珍赏·赫炽」   11-04 10:00 ~ 12-16 05:59\n「全域镇卫·逆捍谬罚」   11-04 10:00 ~ 12-16 05:59\n「晶石如林生长之地」   2026-11-04 10:00 ~ 2027-01-26 14:59\n「巡历雪境，凝铸锋锐」新手   2026-11-04 10:00 ~ 2027-08-25 05:59"
 			},
-			events: '[{"key":"genshin:event:0","title":"「坏灭肇始之时」","show":"「坏灭肇始之时」","startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"11-04 10:00 ~ 12-15 14:59","source":"primary"},{"key":"genshin:event:1","title":"「相遇·悠久旅途之暇」","show":"「相遇·悠久旅途之暇」","startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"11-04 10:00 ~ 12-15 14:59","source":"hover"},{"key":"genshin:event:2","title":"「绮衣珍赏·赫炽」","show":"「绮衣珍赏·赫炽」","startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"11-04 10:00 ~ 12-16 05:59","source":"hover"},{"key":"genshin:event:3","title":"「全域镇卫·逆捍谬罚」","show":"「全域镇卫·逆捍谬罚」","startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"11-04 10:00 ~ 12-16 05:59","source":"hover"},{"key":"genshin:event:4","title":"「晶石如林生长之地」","show":"「晶石如林生长之地」","startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"2026-11-04 10:00 ~ 2027-01-26 14:59","source":"hover"}]'
+			events: '[{"key":"genshin:event:0","title":"「坏灭肇始之时」","show":"「坏灭肇始之时」","startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"11-04 10:00 ~ 12-15 14:59","source":"primary"},{"key":"genshin:event:1","title":"「相遇·悠久旅途之暇」","show":"「相遇·悠久旅途之暇」","startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"11-04 10:00 ~ 12-15 14:59","source":"hover"},{"key":"genshin:event:2","title":"「绮衣珍赏·赫炽」","show":"「绮衣珍赏·赫炽」","startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"11-04 10:00 ~ 12-16 05:59","source":"hover"},{"key":"genshin:event:3","title":"「全域镇卫·逆捍谬罚」","show":"「全域镇卫·逆捍谬罚」","startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"11-04 10:00 ~ 12-16 05:59","source":"hover"},{"key":"genshin:event:4","title":"「晶石如林生长之地」","show":"「晶石如林生长之地」","startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"2026-11-04 10:00 ~ 2027-01-26 14:59","source":"hover"},{"key":"genshin:event:5","title":"「巡历雪境，凝铸锋锐」新手","show":"「巡历雪境，凝铸锋锐」新手","startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"2026-11-04 10:00 ~ 2027-08-25 05:59","source":"hover"}]'
 		},
 		arknightsGacha: {
 			rec: {

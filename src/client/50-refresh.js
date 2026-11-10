@@ -440,9 +440,8 @@
 		}
 		function dataArrayExtrasFromEntriesOf(entries, main, now, opts) {
 			const o = opts || {};
-			const isEvent = o.kind === "event";
 			const shown = DATA_ARRAY_LABEL(main && (main.show || main.title));
-			// 先按"会不会出现在悬停里"过滤一遍（标题非空 + 活动侧的长期窗口过滤）。
+			// 先按"会不会出现在悬停里"过滤一遍（标题非空）。
 			// ⚠️ 2026-11-07（P3b）：后面两步是**悬停逆解析的既有口径**，结构化条目也必须照做，否则
 			//    "解析器直出的数组"与"从同一份悬停文本反解的数组"会不一致（真机两例：
 			//    ddlezj「七、艾利亚斯边境」与「…（商店兑换时间）」归一后同名、umaCn 只有 1 条期间）：
@@ -450,8 +449,7 @@
 			//       文本路径因此拿到 []）；② **归一后完全同名只留第一条**（`scheduleHoverItems` 的
 			//       `normTitle` 判重：去掉 `（…）/(…)` 与空白 —— 探头上不会出现两行同名，数组也不该）。
 			const eligible = (Array.isArray(entries) ? entries : [])
-				.filter((x) => x && dataArrayTextOf(x.title || x.label))
-				.filter((x) => !(isEvent && isLongTermEvent(x)));
+				.filter((x) => x && dataArrayTextOf(x.title || x.label));
 			if (eligible.length < 2) return [];
 			const normTitle = (s) => String(s || "").replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, "");
 			const seen = new Set();
