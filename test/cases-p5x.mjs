@@ -137,19 +137,45 @@ export default async function run() {
 		check("活动悬停含 3 条当期（贝萨出品 / 统统创飞 / 怪盗幻像的试炼）",
 			!!e && e.eventHover === "贝萨出品   10-22 00:00 ~ 11-19 23:59\n「统统创飞」活动开启   11-05 00:00 ~ 11-19 23:59\n怪盗幻像的试炼   11-05 00:00 ~ 11-19 23:59",
 			JSON.stringify(e && e.eventHover));
-		check("卡池侧仍如实 null：`契约更新` 块只有一行**无标签**的日期（「持续进行中」）⇒ 不硬凑成卡池",
-			g === null && blocks.find((b) => b.category === "契约更新").windowRaw === "",
-			JSON.stringify([g, blocks.find((b) => b.category === "契约更新")]));
+		// 2026-11-10 修（任务 4）：卡池区块候选从「只认契约」扩到「契约 | 扭蛋」，且「契约更新」的档期是
+		// **裸行**（`2026年9月24日-2026年11月19日`，没有「活动时间：」前缀）也要认。两处都改后：
+		//   · 本期在期的「限定扭蛋复刻」（10-22 ~ 12-24，公告里排在契约更新之前）成为当期卡池；
+		//   · 「缘结之契」的裸行也进了 windowRaw（旧实现是空串 ⇒ 那一块永远不产出）。
+		const contract = blocks.find((b) => b.category === "契约更新");
+		check("`契约更新` 块的**裸档期行**（无「活动时间：」前缀）也解析成 windowRaw",
+			!!contract && contract.windowRaw === "2026年9月24日-2026年11月19日", JSON.stringify(contract && contract.windowRaw));
+		const tuandan = blocks.find((b) => b.title === "限定扭蛋复刻");
+		check("「都市更新 / 限定扭蛋复刻」块解析出在期档期 10-22 ~ 12-24",
+			!!tuandan && tuandan.windowRaw === "2026年10月22日-2026年12月24日", JSON.stringify(tuandan && tuandan.windowRaw));
+		check("卡池侧：当期 = 限定扭蛋复刻，档期「10-22 00:00 ~ 12-24 23:59」，原文逐字",
+			!!g && g.banner === "限定扭蛋复刻" && g.bannerDates === "10-22 00:00 ~ 12-24 23:59"
+			&& g.bannerDatesRaw === "2026年10月22日-2026年12月24日",
+			JSON.stringify(g && [g.banner, g.bannerDates, g.bannerDatesRaw]));
 
-		// 反向证明：把「活动时间：」标签从正文里删掉 ⇒ 区块不再带窗口 ⇒ 活动侧 null
-		const stripped = detailBody.replace(/活动时间\s*[:：]/g, "");
+		// 两条修法各自**单独**都能产出卡池（互不依赖，反证有区分力）：
+		//   · now=10-01：扭蛋还没开（10-22 起）⇒ 在期的只有「缘结之契」⇒ 只靠裸行修法；
+		//   · now=12-01：契约已结束（11-19 止）⇒ 在期的只有「限定扭蛋复刻」⇒ 只靠候选扩容。
+		const gOct = await src.gacha.fetcher(src.gacha.url, undefined, src.tz, Date.parse("2026-10-01T12:00:00+08:00"));
+		check("裸行修法单独生效：now=10-01（扭蛋 10-22 才开）⇒ 当期 = 缘结之契持续开启 / 09-24 00:00 ~ 11-19 23:59",
+			!!gOct && gOct.banner === "缘结之契持续开启" && gOct.bannerDates === "09-24 00:00 ~ 11-19 23:59"
+			&& gOct.bannerDatesRaw === "2026年9月24日-2026年11月19日",
+			JSON.stringify(gOct && [gOct.banner, gOct.bannerDates, gOct.bannerDatesRaw]));
+		const gDec = await src.gacha.fetcher(src.gacha.url, undefined, src.tz, Date.parse("2026-12-01T12:00:00+08:00"));
+		check("扭蛋候选单独生效：now=12-01（契约 11-19 已结束）⇒ 当期 = 限定扭蛋复刻 / 10-22 00:00 ~ 12-24 23:59",
+			!!gDec && gDec.banner === "限定扭蛋复刻" && gDec.bannerDates === "10-22 00:00 ~ 12-24 23:59",
+			JSON.stringify(gDec && [gDec.banner, gDec.bannerDates]));
+		check("反证：两段都过期（now=2026-12-25）⇒ 卡池侧 null（不残留上一期）",
+			(await src.gacha.fetcher(src.gacha.url, undefined, src.tz, Date.parse("2026-12-25T12:00:00+08:00"))) === null);
+
+		// 反向证明（活动侧）：把**所有日期区间**从正文里删掉 ⇒ 区块不再带窗口 ⇒ 活动侧 null
+		const stripped = detailBody.replace(/\d{4}年\d{1,2}月\d{1,2}日\s*[-—–~～至]\s*(?:\d{4}年)?\d{1,2}月\d{1,2}日/g, "");
 		const blocks2 = T.parsers.p5x.parseP5xBlocks(T.parsers.p5x.p5xBodyText(stripped));
-		check("反证：删掉「活动时间：」标签 ⇒ 所有区块 windowRaw 为空、活动解析不出窗口",
+		check("反证：删掉正文里所有日期区间 ⇒ 所有区块 windowRaw 为空、解析不出窗口",
 			blocks2.every((b) => b.windowRaw === "") && blocks2.every((b) => parseP5xWindows(b.windowRaw, "Asia/Shanghai").length === 0),
 			JSON.stringify(blocks2.map((b) => [b.title, b.windowRaw])));
 		setFetchImpl(makeImpl(stripped));
 		const e2 = await src.event.fetcher(src.event.url, undefined, src.tz, NOW_1110);
-		check("反证：源站有公告但没有「活动时间：」⇒ 活动侧如实 null（不是编一条）", e2 === null, JSON.stringify(e2));
+		check("反证：源站有公告但没有日期区间 ⇒ 活动侧如实 null（不是编一条）", e2 === null, JSON.stringify(e2));
 		useFixtures();   // 还原全局夹具（后面的用例还要用）
 	}
 }

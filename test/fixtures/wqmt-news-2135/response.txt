@@ -1,0 +1,11 @@
+{
+ "msg": "ok",
+ "data": [
+  {
+   "id": 2135,
+   "title": "【禁闭者装束】丨瑟琳「微明止息」",
+   "publish_time": "2026-11-10T10:00:00.000Z",
+   "content_html": "<p><span style=\"color: rgb(255, 255, 255);\">■影像归属[MBCC-S-017 瑟琳]</span></p><p><span style=\"color: rgb(255, 255, 255);\">■装束档案[★★★★ 微明止息]</span></p><p><br></p><p><span style=\"color: rgb(255, 255, 255);\">▼装束专属印象</span></p><p><span style=\"color: rgb(255, 255, 255);\">「穿过隔绝尘埃与俗世的帷帐……你，触碰到了什么？」</span></p><p><span style=\"color: rgb(255, 255, 255);\">「每个人的内心都藏着深不见底的空洞，不要试图隐瞒……你的欲念与恐惧，在光辉下早已无处遁形。」</span></p><p><br></p><p><span style=\"color: rgb(255, 255, 255);\">▼装束资料</span></p><p><span style=\"color: rgb(255, 255, 255);\">世间万物终将腐朽，唯有纯粹的灵魂能够抵达不朽。来吧，我将亲自引领你走向彼岸。</span></p><p><br></p><p><span style=\"color: rgb(255, 255, 255);\">▼官方网站</span></p><p><span style=\"color: rgb(255, 255, 255);\">https://wqmt.aisnogames.com/</span></p><p><span style=\"color: rgb(255, 255, 255);\">▼点击视频，加载影像</span></p><p><br></p><div data-w-e-type=\"video\" data-w-e-is-void>\n<video poster=\"\" controls=\"true\" width=\"auto\" height=\"auto\"><source src=\"https://static.aisnogames.com/aisnoweb/aisno/wqmtcn/material/20261110/9a17c53f1559f7dcf95cec7e4d9f8669.mp4\" type=\"video/mp4\"/></video>\n</div><div data-w-e-type=\"video\" data-w-e-is-void>\n<video poster=\"\" controls=\"true\" width=\"auto\" height=\"auto\"><source src=\"https://static.aisnogames.com/aisnoweb/aisno/wqmtcn/material/20261110/9a17c53f1559f7dcf95cec7e4d9f8669.mp4\" type=\"video/mp4\"/></video>\n</div><p><br></p>"
+  }
+ ]
+}

@@ -1,0 +1,6 @@
+{
+  "url": "https://www.gamekee.com/v1/content/detail/728357",
+  "status": 200,
+  "capturedAt": "2026-11-10T17:03:04.458Z",
+  "trim": "只保留 { code, msg, data:{ id, title } }（抓取器只读 data.title）；2026-11-11 真抓。"
+}

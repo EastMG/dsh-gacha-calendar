@@ -1,0 +1,11 @@
+{
+ "msg": "ok",
+ "data": [
+  {
+   "id": 2132,
+   "title": "【MBCC前瞻放送】丨第13期",
+   "publish_time": "2026-11-09T11:00:00.000Z",
+   "content_html": "<p><span style=\"color: rgb(255, 255, 255);\">【MBCC前瞻放送】丨第13期</span></p><p><br></p><p><span style=\"color: rgb(255, 255, 255);\">亲爱的局长：</span></p><p><span style=\"color: rgb(255, 255, 255);\">欢迎查阅《MBCC前瞻放送》栏目第13期，为局长们带来更完善的游戏体验一直是我们的重要目标，在即将到来的1111主线大版本中，我们也一如既往为局长带来了一些能改善游戏体验的优化，具体内容敬请局长查阅下文前瞻放送：</span></p><p><img src=\"https://static.aisnogames.com/aisnoweb/aisno/wqmtcn/material/20261110/b61c54f7624eca48bbd2db41e5c9c705.jpeg\" alt=\"\" data-href=\"\" style=\"\"/></p><p><span style=\"color: rgb(255, 255, 255);\">✦MBCC前瞻放送谢礼✦</span></p><p><span style=\"color: rgb(255, 255, 255);\">谢礼内容：异方晶×60、体力×100</span></p><p><span style=\"color: rgb(255, 255, 255);\">发放时间：11月09日19:00通过邮件发放</span></p><p><span style=\"color: rgb(255, 255, 255);\">领取范围：11月16日23:59前解锁邮箱功能并登录的局长，邮箱中邮件有效期为7日</span></p><p><br></p><p><span style=\"color: rgb(255, 255, 255);\">《无期迷途》制作组</span></p>"
+  }
+ ]
+}

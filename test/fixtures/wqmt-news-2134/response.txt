@@ -1,0 +1,11 @@
+{
+ "msg": "ok",
+ "data": [
+  {
+   "id": 2134,
+   "title": "【禁闭者档案】丨MBCC-S-714「莎缇拉」",
+   "publish_time": "2026-11-10T06:00:00.000Z",
+   "content_html": "<p>■MBCC-S-714 莎提拉</p><p>■启迪特化 Catalyst Tendency</p><p><br></p><p>「我听从您的吩咐，为追求幸福的人们指引方向，不知不觉积累了许多人的感谢，您还满意吗？我能得到您的奖赏吗？」</p><p><br></p><p>*条目I：对象为辛德菲尔斯疗养院现任院长。其经营的疗养院主要面向新城富裕阶层，能够为患者提供常规医疗手段难以实现的康复与保养服务，收费极其高昂。</p><p>*条目II：■■■■■■■■■■■■■■■■■■■■■■■■</p><p>*条目III：异能名称【生命灵药】。对象能够将生命能量转化为特殊液体，制成具有治疗、延缓衰老及调节精神状态等功效的灵药。该能力需要消耗生命能量，来源包括对象自身及其他生命体。</p><p><br></p><p>■图片描述、技能效果和显示数值仅做辅助说明使用，非最终版本，具体请以游戏内实际情况为准。</p><p>■官方网站</p><p>https://wqmt.aisnogames.com/</p><p>————————————</p><p><img src=\"https://static.aisnogames.com/aisnoweb/aisno/wqmtcn/material/20261110/b60b352a4033ef0186e49b74a6bd18d0.jpeg\" alt=\"\" data-href=\"\" style=\"\"/><img src=\"https://static.aisnogames.com/aisnoweb/aisno/wqmtcn/material/20261110/f96a504f0c1ef1c3bbe210b0a35d208b.jpeg\" alt=\"\" data-href=\"\" style=\"\"/></p><p><img src=\"https://static.aisnogames.com/aisnoweb/aisno/wqmtcn/material/20261110/a4d1fae049d0ad211a103ef09173384c.gif\" alt=\"\" data-href=\"\" style=\"\"/><img src=\"https://static.aisnogames.com/aisnoweb/aisno/wqmtcn/material/20261110/8efbca6c31b34c1c8bad9d7b56567128.gif\" alt=\"\" data-href=\"\" style=\"\"/></p>"
+  }
+ ]
+}

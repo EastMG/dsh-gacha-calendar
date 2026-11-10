@@ -39,8 +39,9 @@ const B = {
 	wqmtNews: FIX("wqmt-news-list"),       // wqmt.aisnogames.com/api/news（三个栏目各 5 条）
 	pengpeng: FIX("pengpeng-bwiki")        // wiki.biligame.com/pengpeng 契约一览（18 行）
 };
-// 卡池抓取器只取最新 6 条正文（`WQMT_EVENT_MAX_DETAILS`）——这 6 个 id 由 `wqmtEventCandidatesOf`
-// 按 publish_time 从新到旧选出，测试里也逐个列出来（少一个就会抛"没有这个 URL 的夹具"）。
+// 卡池抓取器只取最新 N 条正文（`WQMT_EVENT_MAX_DETAILS`；2026-11-11 起 6 → 10，见下面 ⑥）。
+// ③ 段用的是 11-09 那份列表夹具（2099 恰好是第 6 条）⇒ 这 6 个 id 由 `wqmtEventCandidatesOf`
+// 按 publish_time 从新到旧选出，测试里逐个列出来（少一个就会抛"没有这个 URL 的夹具"）。
 const WQMT_DETAILS = ["2120", "2119", "2121", "2118", "2117", "2099"];
 
 function pickBody(url) {
@@ -520,5 +521,67 @@ export default async function run() {
 			&& T.scheduleNormalize(rec, "gacha", new Date(NOW)) === null
 			&& T.scheduleNormalize(rec, "event", new Date(NOW)) === null,
 			JSON.stringify([T.scheduleNormalize(rec, "gacha", new Date(NOW)), T.scheduleNormalize(rec, "event", new Date(NOW))]));
+	}
+
+	// ── ⑥ 2026-11-11：活动候选配额 6 → 10（非档期公告把 10/27 维护公告挤到第 7 位）─────────────
+	// 现场：11-09 起「禁闭者装束 / 档案 / 影像捕获 / MBCC前瞻」4 条密集发布，把真正写档期的
+	// 10/27 停服维护公告（id=2099）从第 5 位挤到**第 7 位** ⇒ 旧配额 6 把它截断、活动整列空窗。
+	// 真夹具：`wqmt-news-list-1111`（2026-11-11 列表）+ 前 10 条正文各一份 `wqmt-news-<id>`。
+	section("新接入 5 款 ⑥：无期迷途活动候选配额 6 → 10（2099 被 4 条非档期公告挤到第 7 位）");
+	{
+		const LIST = "https://wqmt.aisnogames.com/api/news";
+		const listRaw = FIX("wqmt-news-list-1111");
+		const NOW_1111 = Date.parse("2026-11-11T00:53:00+08:00");
+		const route = (u) => {
+			if (u === LIST) return listRaw;
+			const m = /\/api\/news\/(\d+)$/.exec(u);
+			if (m) return FIX("wqmt-news-" + m[1]);
+			throw new Error("⑥ 没有这个 URL 的夹具：" + u);
+		};
+		const run = async (body) => {
+			const calls = [];
+			const transport = {
+				async fetchRaw(u) {
+					calls.push(String(u));
+					const b = u === LIST ? body : route(String(u));
+					return { ok: true, status: 200, headers: { get: () => null }, text: async () => b, json: async () => JSON.parse(b) };
+				},
+				async fetchViaProxy(u) { calls.push(String(u)); return route(String(u)); }
+			};
+			const e = createEngine({ transport, storage: makeStore(), now: () => NOW_1111, timer: { setTimeout, clearTimeout } });
+			const s = e.__test.SOURCES.find((x) => x.id === "wqmt");
+			const ev = await e.__test.EVENT_FETCHERS["wqmt"].default(s.eventUrl, undefined, s.tz);
+			return { ev, calls };
+		};
+		const wqmtList = JSON.parse(listRaw);
+		const cands = T.parsers.wqmt.wqmtEventCandidatesOf(wqmtList.data);
+		check("真夹具：配额 = 10；11-11 列表里 2099 排**第 7 位**（旧配额 6 正好截掉它）",
+			T.parsers.wqmt.WQMT_EVENT_MAX_DETAILS === 10 && cands.length === 10 && cands[6].id === 2099,
+			JSON.stringify(cands.map((x) => x.id)));
+
+		const { ev, calls } = await run(listRaw);
+		check("活动侧出 2 条在期：外显 = 数据间隙·时序11上半赛季 / 11-05 11:00 ~ 12-03 04:59",
+			!!ev && ev.event === "数据间隙·时序11上半赛季" && ev.eventDates === "11-05 11:00 ~ 12-03 04:59",
+			JSON.stringify(ev && [ev.event, ev.eventDates]));
+		check("活动悬停逐字（名称 + 3 空格 + 档期；结束时间升序）",
+			!!ev && ev.eventHover === "数据间隙·时序11上半赛季   11-05 11:00 ~ 12-03 04:59\n"
+			+ "破碎防线·暗域第35期   11-02 05:00 ~ 12-14 04:00", JSON.stringify(ev && ev.eventHover));
+		check("events[] 绝对时刻（+08 手算）：数据间隙 11-05 11:00~12-03 04:59 / 破碎防线 11-02 05:00~12-14 04:00",
+			!!ev && ev.events.length === 2
+			&& ev.events[0].startTs === Date.UTC(2026, 10, 5, 3, 0) && ev.events[0].endTs === Date.UTC(2026, 11, 2, 20, 59)
+			&& ev.events[1].startTs === Date.UTC(2026, 10, 1, 21, 0) && ev.events[1].endTs === Date.UTC(2026, 11, 13, 20, 0),
+			JSON.stringify(ev && ev.events.map((x) => [x.startTs, x.endTs])));
+		check("请求数 = 1 次列表 + 10 篇正文（配额 10）", calls.length === 11, "requests=" + calls.length);
+
+		// 反向证明：把列表截到前 6 条（= 旧配额能看到的那 6 条）⇒ 活动侧 null（2099 进不来）
+		const top6 = JSON.parse(listRaw);
+		const all = [];
+		for (const sec of ["news", "activity", "notices"]) for (const it of (top6.data[sec] || [])) all.push(it);
+		all.sort((a, b) => (Date.parse(b.publish_time || "") || 0) - (Date.parse(a.publish_time || "") || 0));
+		const keep = new Set(all.slice(0, 6).map((x) => x.id));
+		for (const sec of ["news", "activity", "notices"]) top6.data[sec] = (top6.data[sec] || []).filter((it) => keep.has(it.id));
+		const { ev: ev6 } = await run(JSON.stringify(top6));
+		check("反证：只给前 6 条（旧配额的效果）⇒ 活动侧 null（空窗就是 2099 被截断造成的）",
+			ev6 === null && !keep.has(2099), JSON.stringify([[...keep], ev6 && ev6.event]));
 	}
 }

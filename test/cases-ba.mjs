@@ -20,6 +20,10 @@
 //    除 aLIVE 外全删了），只能证明"路径通了"，**证明不了口径**：
 //    在"唯一一篇覆盖当前"的夹具上断言 `event === "限时活动：-ive aLIVE!"`，
 //    就算实现是"取列表第一篇"也照样绿。完整夹具里同时覆盖当前的有 4 条，才有区分力。
+//
+// ⑤ 2026-11-11：国际服活动条目改名「国际服当期攻略」（匹配放宽到 活动|攻略）；
+//    日服最新募集未开始（708 11-11 17:00）⇒ 回退到仍覆盖 now 的上一期（704），
+//    起点锚到**上一期**维护公告（705 19:00）而不是最新那次（17:00）。
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -558,5 +562,94 @@ export default async function run() {
 			!!r && r.event === "限时活动：-ive aLIVE!", JSON.stringify(r && r.event));
 		check("常驻/长期活动按 permanentCount 约定出现在悬停末尾（不再无声消失）",
 			!!r && rl.length === 3 && rl[2] === "以及常驻活动 1 项", JSON.stringify(r && r.eventHover));
+	}
+
+	// ── ⑤ 2026-11-11 两处当班 bug（国际服「当期攻略」/ 日服「募集未开始 ⇒ 回退上一期」）──────────
+	// 真夹具全部 2026-11-11 抓：
+	//   · `ba-gk-tree-1109`：GameKee 目录树只留「当期活动 | 当期卡池」子树 —— 国际服那条现在叫
+	//     **「国际服当期攻略」**(728357)，旧匹配 `includes("活动")` 永不命中 ⇒ 活动名恒空；
+	//   · `ba-gk-detail-728357`：它的标题 = `国际服 出航！万魔船 真琴议长的豪华避暑 活动攻略整理【11/10~11/24】`；
+	//   · `ba-gk-blocks-1109`：609133 CDN 的「当期卡池」段真字节（11-10~11-17 那一组在期）；
+	//   · `ba-jp-news-1111`：id 710/709/708/706/705/704 六条 —— 708（11-11 17:00 才开）、
+	//     705（维护 10-28 11:00-19:00）、704（10-28 メンテ後 ~ 11-11 10:59，仍在期）。
+	{
+		const NOW_1111 = Date.parse("2026-11-11T00:53:00+08:00");
+		const treeLive = fx("ba-gk-tree-1109/response.txt");
+		const detail728357 = fx("ba-gk-detail-728357/response.txt");
+		const blocks1109 = fx("ba-gk-blocks-1109/response.txt");
+		const routeGk = (url, treeBody) => {
+			if (url.includes("/v1/wiki/entry")) return treeBody;
+			if (url.includes("/v1/content/detail/728357")) return detail728357;
+			if (url.includes("/v1/content/detail/609133")) return fx("p3c-ba-gamekee-detail-609133/response.txt");
+			if (url.startsWith("https://api-cdn.gamekee.com/")) return blocks1109;
+			throw new Error("unexpected-url:" + url);
+		};
+		const runGk = async (treeBody) => {
+			const seen = [];
+			T.setCoreEnv({
+				now: () => NOW_1111,
+				transport: {
+					async fetchRaw(u) { throw new Error("unexpected-direct:" + u); },
+					async fetchViaProxy(u, opts) { seen.push({ u: String(u), referer: opts && opts.referer }); return routeGk(String(u), treeBody); }
+				}
+			});
+			const g = await T.GACHA_FETCHERS["ba-global"]();
+			return { g, seen };
+		};
+		const { g, seen } = await runGk(treeLive);
+		check("ba-global：活动条目叫「国际服当期攻略」(728357) 也能命中 ⇒ 活动名 = 出航！万魔船 真琴议长的豪华避暑",
+			!!g && g.event === "出航！万魔船 真琴议长的豪华避暑", JSON.stringify(g && g.event));
+		check("ba-global：活动档期 = 标题里的【11/10~11/24】→ 11-10 00:00 ~ 11-24 00:00",
+			!!g && g.eventDates === "11-10 00:00 ~ 11-24 00:00", JSON.stringify(g && g.eventDates));
+		check("ba-global：卡池侧用同期真夹具（11-10~11-17 那组）不受影响",
+			!!g && g.roles === "真琴(泳装)、皐月(泳装)" && g.bannerDates === "11-10 00:00 ~ 11-17 00:00",
+			JSON.stringify(g && [g.roles, g.bannerDates]));
+		check("ba-global：请求 4 次（目录树 + 活动标题 + 609133 detail + CDN）",
+			seen.length === 4, "requests=" + seen.length);
+
+		// 反向证明：把「国际服当期攻略」改名成不含 活动/攻略 的「国际服当期卡池评测」⇒ 活动名空
+		// （证明活动名确实来自那条 攻略；卡池侧照旧有数据）
+		const renamed = JSON.parse(treeLive);
+		const childNodes = renamed.data.entry_list[0].child;
+		const hitNode = childNodes.find((c) => c.content_id === 728357);
+		hitNode.name = "国际服当期卡池评测";
+		const { g: gRenamed } = await runGk(JSON.stringify(renamed));
+		check("反证：「攻略」改名后不含 活动/攻略 ⇒ 活动名空串（不是靠猜/靠缓存留下旧名）",
+			!!gRenamed && gRenamed.event === "" && gRenamed.roles === "真琴(泳装)、皐月(泳装)",
+			JSON.stringify(gRenamed && [gRenamed.event, gRenamed.roles]));
+
+		// ── 日服卡池：最新募集 708 还没开始 ⇒ 回退到仍覆盖 now 的 704 ──
+		const newsUrl = "https://api-web.bluearchive.jp/api/news/list?pageIndex=1&pageNum=30";
+		const newsRaw = fx("ba-jp-news-1111/response.txt");
+		const runJp = async (now, body) => {
+			T.setCoreEnv({
+				now: () => now,
+				transport: {
+					async fetchRaw(u) { throw new Error("unexpected-direct:" + u); },
+					async fetchViaProxy(u) { if (String(u) !== newsUrl) throw new Error("unexpected-url:" + u); return body; }
+				}
+			});
+			const s = T.SOURCES.find((x) => x.id === "ba-jp");
+			return T.GACHA_FETCHERS["ba-jp"](s.url, undefined, s.tz);
+		};
+		const jp = await runJp(NOW_1111, newsRaw);
+		check("ba-jp：11-11 00:53（708 的 17:00 还没到）⇒ 回退到 704「無限の軌道は希望なりや！」",
+			!!jp && jp.banner === "無限の軌道は希望なりや！", JSON.stringify(jp && jp.banner));
+		check("ba-jp：角色 = ヒフミ(レーシング)、アズサ(レーシング)（704 的两口池）",
+			!!jp && jp.roles === "ヒフミ(レーシング)、アズサ(レーシング)", JSON.stringify(jp && jp.roles));
+		check("ba-jp：档期 = 「10-28 19:00 ~ 11-11 10:59」（起点锚到**上一期**维护 705 的结束 19:00，不是最新那次 17:00）",
+			!!jp && jp.bannerDates === "10-28 19:00 ~ 11-11 10:59" && jp.bannerDatesRaw === "メンテナンス後 ~ 2026年11月11日(水) 10:59",
+			JSON.stringify(jp && [jp.bannerDates, jp.bannerDatesRaw]));
+		check("ba-jp：绝对时刻 = 10-28 19:00 JST（UTC 10:00）/ 11-11 10:59 JST（UTC 01:59）",
+			!!jp && jp.startTs === Date.UTC(2026, 9, 28, 10, 0) && jp.endTs === Date.UTC(2026, 10, 11, 1, 59),
+			JSON.stringify(jp && [jp.startTs, jp.endTs]));
+		// 反向证明①：704 也已结束、708 还没开 ⇒ null（不拿过期/未开始顶）
+		const jpLate = await runJp(Date.parse("2026-11-11T12:00:00+08:00"), newsRaw);
+		check("反证：11-11 12:00（704 已结束、708 未开始）⇒ 卡池侧 null", jpLate === null, JSON.stringify(jpLate));
+		// 反向证明②：删掉 704 ⇒ 只剩未开始的 708 ⇒ null（回退源确实就是 704）
+		const noFallback = JSON.parse(newsRaw);
+		noFallback.data.rows = noFallback.data.rows.filter((r) => r.id !== 704);
+		const jpNo = await runJp(NOW_1111, JSON.stringify(noFallback));
+		check("反证：删掉 704（回退的那一期）⇒ 只剩未开始的 708 ⇒ null", jpNo === null, JSON.stringify(jpNo));
 	}
 }

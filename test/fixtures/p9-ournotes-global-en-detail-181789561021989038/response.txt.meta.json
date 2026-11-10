@@ -1,0 +1,6 @@
+{
+  "url": "https://l11-web-api.biligames.com/game/news/detail?game_base_id=118241&news_id=181789561021989038&lang=en",
+  "status": 200,
+  "capturedAt": "2026-11-10T17:03:04.458Z",
+  "trim": "只保留 { code, msg, data:{ news_id, title, publish_time, content } }；2026-11-11 经宿主代理真抓（详情参数必须叫 news_id，用 id 会回 code:-400）。"
+}

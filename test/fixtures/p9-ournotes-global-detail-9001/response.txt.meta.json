@@ -1,5 +1,5 @@
 {
-  "url": "https://l11-web-api.biligames.com/game/news/detail?game_base_id=118241&id=9001&lang=zh-tw",
+  "url": "https://l11-web-api.biligames.com/game/news/detail?game_base_id=118241&news_id=9001&lang=zh-tw",
   "status": 200,
   "capturedAt": "2026-10-03T00:50:00.000Z",
   "synthetic": true,

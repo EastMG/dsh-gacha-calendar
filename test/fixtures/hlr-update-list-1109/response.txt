@@ -1,0 +1,56 @@
+<ul class="list">
+                                 <li>
+                    <a title="《时空中的绘旅人》B站渠道角色资产找回公告" href="https://hlr.163.com/news/update/20261109/30883_1319118.html" target="_blank">
+                        <span>公告</span>
+                        <p class="lside">
+                            <span class="title">《时空中的绘旅人》B站渠道角色资产找回公告</span>
+                            <span class="comment">各位亲爱的小画家： 感谢您一直以来对B站与《时空中的绘旅人》的支持和喜爱，因双方合作的业务模式升级，现已在B站内上架新的B站客户端。按照B站平台政策要求，为了保障您的账号和信息安全，您可按照界面提示指引将您的游戏账号与网易账号绑定，绑定成功后下载全新《时空中的绘旅人》客户端即可体验游戏，您的现有游戏数据不会丢失，将会同步至新客户端，同时您后续将无法再使用原账号继续登录原有客户端。</span>
+                        </p>
+                    </a>
+                </li>
+                                 <li>
+                    <a title="多个B站渠道账号如何资产找回" href="https://hlr.163.com/news/update/20261103/30883_1318471.html" target="_blank">
+                        <span>公告</span>
+                        <p class="lside">
+                            <span class="title">多个B站渠道账号如何资产找回</span>
+                            <span class="comment">注意事项 每个B站账号都属于独立账号，需要准备多个新的网易账号，进行对应的渠道资产找回。</span>
+                        </p>
+                    </a>
+                </li>
+                                 <li>
+                    <a title="B站渠道游戏端内找回流程" href="https://hlr.163.com/news/update/20261103/30883_1318470.html" target="_blank">
+                        <span>公告</span>
+                        <p class="lside">
+                            <span class="title">B站渠道游戏端内找回流程</span>
+                            <span class="comment">步骤一：登录B站渠道客户端 确认登录的渠道角色是否为资产找回角色 点击【找回】按钮 步骤二：登陆网易账号 登录您确认接收渠道角色的网易账号 使用网易邮箱登录请在手机号登录页下滑选择 1个网易账号仅支持接收1个渠道账号资产 需使用未登录过时空中的绘旅人的全新网易账号，进行资产接收 若您当前无符合条件账号，请在登录界面点击【去注册】 创建全新网易账号操作 步骤三：确认找回信息 输入并登录网易账号 确认资产找回角色ID与网易账号 确认无误后点击【确认】按钮 步骤四：找回成功 出现“恭喜您成功找回”时，资产找回成功 后续可使用网易账号登录最新的指定客户端。 PS：避免遗忘网易账号，可保存当前页面的截图。</span>
+                        </p>
+                    </a>
+                </li>
+                                 <li>
+                    <a title="B站渠道游戏资产找回指引" href="https://hlr.163.com/news/update/20261103/30883_1318469.html" target="_blank">
+                        <span>公告</span>
+                        <p class="lside">
+                            <span class="title">B站渠道游戏资产找回指引</span>
+                            <span class="comment">一：准备接收资产的网易账号 准备须知： 1、网易账号分为手机账号和邮箱账号。 2、1个账号仅支持接收1个渠道账号资产，因此需使用未登录过《时空中的绘旅人》全新网易账号,进行资产接收，请谨慎选择网易账号接收。</span>
+                        </p>
+                    </a>
+                </li>
+                                 <li>
+                    <a title="学院公告 | 10月29日不停服更新公告" href="https://hlr.163.com/news/update/20261104/30883_1318708.html" target="_blank">
+                        <span>公告</span>
+                        <p class="lside">
+                            <span class="title">学院公告 | 10月29日不停服更新公告</span>
+                            <span class="comment">《时空中的绘旅人》将于2026年10月29日09:30 - 10:30进行不停服更新。</span>
+                        </p>
+                    </a>
+                </li>
+                                 <li>
+                    <a title="学院公告 | 10月22日不停服更新公告" href="https://hlr.163.com/news/update/20261104/30883_1318707.html" target="_blank">
+                        <span>公告</span>
+                        <p class="lside">
+                            <span class="title">学院公告 | 10月22日不停服更新公告</span>
+                            <span class="comment">《时空中的绘旅人》将于2026年10月22日09:30 - 10:30进行不停服更新。</span>
+                        </p>
+                    </a>
+                </li>
+                            </ul>

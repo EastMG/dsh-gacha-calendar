@@ -1,0 +1,56 @@
+<ul class="list">
+                                 <li>
+                    <a title="学院公告 | 10月15日不停服更新公告" href="https://hlr.163.com/news/update/20261104/30883_1318706.html" target="_blank">
+                        <span>公告</span>
+                        <p class="lside">
+                            <span class="title">学院公告 | 10月15日不停服更新公告</span>
+                            <span class="comment">《时空中的绘旅人》将于2026年10月15日09:30 - 10:30进行不停服更新。</span>
+                        </p>
+                    </a>
+                </li>
+                                 <li>
+                    <a title="学院公告 | 10月8日不停服更新公告" href="https://hlr.163.com/news/update/20261010/30883_1316284.html" target="_blank">
+                        <span>公告</span>
+                        <p class="lside">
+                            <span class="title">学院公告 | 10月8日不停服更新公告</span>
+                            <span class="comment">《时空中的绘旅人》将于2026年10月8日09:30 - 10:30进行不停服更新。</span>
+                        </p>
+                    </a>
+                </li>
+                                 <li>
+                    <a title="学院公告 | 10月1日新增内容公告" href="https://hlr.163.com/news/update/20261010/30883_1316283.html" target="_blank">
+                        <span>公告</span>
+                        <p class="lside">
+                            <span class="title">学院公告 | 10月1日新增内容公告</span>
+                            <span class="comment">《时空中的绘旅人》10月1日直接更新以下内容，本周不进行不停服维护。</span>
+                        </p>
+                    </a>
+                </li>
+                                 <li>
+                    <a title="学院公告 | 9月24日不停服更新公告" href="https://hlr.163.com/news/update/20260930/30883_1315720.html" target="_blank">
+                        <span>公告</span>
+                        <p class="lside">
+                            <span class="title">学院公告 | 9月24日不停服更新公告</span>
+                            <span class="comment">《时空中的绘旅人》将于2026年9月24日09:30 - 10:30进行不停服更新。</span>
+                        </p>
+                    </a>
+                </li>
+                                 <li>
+                    <a title="学院公告 | 9月17日不停服更新公告" href="https://hlr.163.com/news/update/20260923/30883_1314867.html" target="_blank">
+                        <span>公告</span>
+                        <p class="lside">
+                            <span class="title">学院公告 | 9月17日不停服更新公告</span>
+                            <span class="comment">《时空中的绘旅人》将于2026年9月17日09:30 - 10:30进行不停服更新。</span>
+                        </p>
+                    </a>
+                </li>
+                                 <li>
+                    <a title="《时空中的绘旅人》随机道具投放概率公示（2026）" href="https://hlr.163.com/news/update/20260914/30883_1313792.html" target="_blank">
+                        <span>公告</span>
+                        <p class="lside">
+                            <span class="title">《时空中的绘旅人》随机道具投放概率公示（2026）</span>
+                            <span class="comment">2026年9月17日更新后，游戏内将更新投放[快乐收藏盲盒]、[周年幸运盒子]，开启活动道具后可获得相应的奖励，以下为对应奖励概率，现予公示。</span>
+                        </p>
+                    </a>
+                </li>
+                            </ul>

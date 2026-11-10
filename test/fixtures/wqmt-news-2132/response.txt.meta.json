@@ -1,0 +1,6 @@
+{
+  "url": "https://wqmt.aisnogames.com/api/news/2132",
+  "status": 200,
+  "capturedAt": "2026-11-10T17:03:04.458Z",
+  "trim": "data 只保留这一条（id/title/publish_time/content_html），cover 等字段删除。2026-11-11 真直连抓取。"
+}

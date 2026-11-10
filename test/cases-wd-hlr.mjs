@@ -14,6 +14,8 @@
 //   ⑧ `hlr` **真机现状**（2026-11-09）：官网新闻首页最新一篇 = 2026-11-05「怪谈：时融」，
 //      该期 11-07 05:00 已结束 ⇒ 卡池/活动都如实 null。这条钉的是「nomatch = 活动空窗期，
 //      不是解析坏了」：⑤ 用的是**期内的 now（11-05 12:00）**，只看 ⑤ 会误以为真机也出数据。
+//   ⑩ 2026-11-11：学院公告**首页 + 第 2 页**合并（11-09 新增 4 条把 10/1 公告挤到 index_2 ⇒ 旧实现空窗）；
+//      反向证明 = 第 2 页失败 ⇒ null；旧首页夹具候选够用 ⇒ 不请求第 2 页（够用即停）。
 //
 // 夹具全部真抓（2026-11-09 晚），裁剪规则写在各自 `response.txt.meta.json` 的 `trim` 字段里。
 // 时间断言一律写绝对毫秒（`Date.UTC` 手算），UTC 与 +08 两道门禁跑同一份期望值。
@@ -411,5 +413,95 @@ export default async function runWdHlr() {
 		const evNo = await eNoUpdate.__test.EVENT_FETCHERS["hlr"].default(sNo.eventUrl, undefined, sNo.tz);
 		check("反证：关掉学院公告列表（只留官方通稿）⇒ 11-09 活动照样 null（空窗不是解析坏了，是旧源太稀）",
 			evNo === null, JSON.stringify(evNo && evNo.event));
+	}
+
+	// ─────────────────────⑩ 学院公告翻页（2026-11-11 空窗修复）─────────────────────
+	// 现场（2026-11-11 真抓）：11-09 起学院公告首页新增 4 条「B站渠道资产找回」公告（标题分流后不是候选），
+	// 但**分页位置**被挤动：10/1 新增内容公告（缱绻假日 10-09 ~ 11-20 那条）落到 `index_2.html` 第 3 条。
+	// 旧实现只读首页 ⇒ 首页候选 2 条（10/29、10/22，窗口都已过期）⇒ 活动空窗。
+	section("时空中的绘旅人 ⑩：学院公告首页 + 第 2 页合并（被挤到 index_2 的 10/1 公告）");
+	{
+		const U1 = HLR.HLR_UPDATE_LIST_URL;
+		const U2 = HLR.hlrListPageUrlOf(U1, 2);
+		const P1 = FIX("hlr-update-list-1109");       // 2026-11-11 真抓首页（6 条，其中 4 条是 B站找回公告）
+		const P2 = FIX("hlr-update-list-1109-p2");    // 第 2 页（10/1 新增内容公告在此页第 3 条）
+		const NOW_1111 = Date.parse("2026-11-11T00:53:00+08:00");
+		const mkT = (sink, failPage2) => {
+			const route = (u) => {
+				if (u === HLR.HLR_LIST_URL) return B.hlrList;
+				if (u === U1) return P1;
+				if (u === U2) return P2;
+				const m = /\/news\/(?:official|update)\/(\d{8}\/3088\d_\d+)\.html/.exec(u);
+				if (m && B.hlrDetails[m[1]]) return B.hlrDetails[m[1]];
+				throw new Error("⑩ 没有这个 URL 的夹具：" + u);
+			};
+			return {
+				async fetchRaw(u) {
+					if (sink) sink.push(String(u));
+					const body = route(String(u));
+					return { ok: true, status: 200, headers: { get: () => null }, text: async () => body, json: async () => JSON.parse(body) };
+				},
+				async fetchViaProxy(u, opts) {
+					if (sink) sink.push(String(u));
+					if (failPage2 && String(u) === U2) throw new Error("update-list-page2-down");
+					return route(String(u));
+				}
+			};
+		};
+		check("hlrListPageUrlOf：目录地址第 2 页 = index_2.html；非目录地址原样返回（不猜分页）；上限 2 页",
+			HLR.hlrListPageUrlOf(U1, 1) === U1 && HLR.hlrListPageUrlOf(U1, 2) === U1 + "index_2.html"
+			&& HLR.hlrListPageUrlOf("https://example.invalid/news/update", 2) === "https://example.invalid/news/update"
+			&& HLR.HLR_LIST_MAX_PAGES === 2,
+			JSON.stringify([HLR.hlrListPageUrlOf(U1, 2), HLR.HLR_LIST_MAX_PAGES]));
+
+		// 真夹具：首页 6 条 → 标题分流后只剩 2 条；第 2 页 5 条 ⇒ 合并后第 5 条候选才是 10/1（1316283）
+		const items1 = HLR.hlrParseList(P1).filter((x) => HLR.HLR_EVENT_TITLE_RE.test(x.title));
+		const items2 = HLR.hlrParseList(P2).filter((x) => HLR.HLR_EVENT_TITLE_RE.test(x.title));
+		const merged = items1.concat(items2);
+		check("真夹具：11-11 首页 6 条里 4 条是「B站渠道资产找回」⇒ 标题分流后只剩 2 条候选（10/29、10/22）",
+			HLR.hlrParseList(P1).length === 6 && items1.length === 2, JSON.stringify(items1.map((x) => x.title)));
+		check("真夹具：10/1 那条（1316283）在**第 2 页**；合并后正好是第 5 条候选（配额 5 的最后一篇）",
+			/1316283/.test(items2.map((x) => x.url).join(" ")) && /1316283/.test(merged[4].url),
+			JSON.stringify(merged.map((x) => x.url.replace("https://hlr.163.com/news/update/", ""))));
+
+		const calls = [];
+		const e = createEngine({ transport: mkT(calls), storage: makeStore(), now: () => NOW_1111, timer: { setTimeout, clearTimeout } });
+		const s = e.__test.SOURCES.find((x) => x.id === "hlr");
+		const ev = await e.__test.EVENT_FETCHERS["hlr"].default(s.eventUrl, undefined, s.tz);
+		check("活动侧 11-11 出「缱绻假日·世纪来电」10-09 09:30 ~ 11-20 05:00（翻到第 2 页才有的长窗口）",
+			!!ev && ev.event === "缱绻假日·世纪来电" && ev.eventDates === "10-09 09:30 ~ 11-20 05:00"
+			&& ev.eventDatesRaw === "2026年10月9日09:30 ~ 11月20日05:00",
+			JSON.stringify(ev && [ev.event, ev.eventDates, ev.eventDatesRaw]));
+		check("请求数 = 3 次列表（官方 + 学院公告 2 页）+ 7 篇详情（官方 2 + 学院公告 5）",
+			calls.length === 10, "requests=" + calls.length + " " + JSON.stringify(calls.map((x) => x.replace("https://hlr.163.com", ""))));
+
+		// 反向证明①：第 2 页抓挂 ⇒ 长窗口那条取不到 ⇒ 活动 null（不是硬凑首页那两条过期的）
+		const eNo = createEngine({ transport: mkT([], true), storage: makeStore(), now: () => NOW_1111, timer: { setTimeout, clearTimeout } });
+		const sNo2 = eNo.__test.SOURCES.find((x) => x.id === "hlr");
+		const evNo2 = await eNo.__test.EVENT_FETCHERS["hlr"].default(sNo2.eventUrl, undefined, sNo2.tz);
+		check("反证：第 2 页失败 ⇒ 首页 2 条都已过期 ⇒ 活动侧如实 null（第 2 页是这条数据的唯一来源）",
+			evNo2 === null, JSON.stringify(evNo2 && [evNo2.event, evNo2.eventDates]));
+
+		// 反向证明②：换回 11-09 的首页夹具（6 条候选 ≥ 配额 5）⇒ 够用即停，不请求第 2 页
+		const callsStop = [];
+		const eStop = createEngine({
+			transport: {
+				async fetchRaw(u) { throw new Error("unexpected-direct:" + u); },
+				async fetchViaProxy(u, opts) {
+					callsStop.push({ u: String(u), referer: opts && opts.referer });
+					if (String(u) === U1) return B.hlrUpdateList;
+					if (String(u) === HLR.HLR_LIST_URL) return B.hlrList;
+					const m = /\/news\/(?:official|update)\/(\d{8}\/3088\d_\d+)\.html/.exec(String(u));
+					if (m && B.hlrDetails[m[1]]) return B.hlrDetails[m[1]];
+					throw new Error("⑩-stop 没有这个 URL 的夹具：" + u);
+				}
+			},
+			storage: makeStore(), now: () => NOW_HLR_REAL, timer: { setTimeout, clearTimeout }
+		});
+		const sStop = eStop.__test.SOURCES.find((x) => x.id === "hlr");
+		const evStop = await eStop.__test.EVENT_FETCHERS["hlr"].default(sStop.eventUrl, undefined, sStop.tz);
+		check("够用即停：11-09 首页已有 6 条候选（≥ 配额 5）⇒ 不请求 index_2.html",
+			!callsStop.some((c) => c.u === U2) && !!evStop && evStop.event === "缱绻假日·世纪来电",
+			JSON.stringify(callsStop.map((c) => c.u.replace("https://hlr.163.com", ""))));
 	}
 }

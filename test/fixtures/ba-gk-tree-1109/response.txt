@@ -1,0 +1,37 @@
+{
+  "code": 0,
+  "msg": "成功",
+  "data": {
+    "entry_list": [
+      {
+        "name": "当期活动 | 当期卡池",
+        "child": [
+          {
+            "name": "日服当期活动",
+            "content_id": 726227
+          },
+          {
+            "name": "日服当期卡池评测",
+            "content_id": 718684
+          },
+          {
+            "name": "国际服当期攻略",
+            "content_id": 728357
+          },
+          {
+            "name": "国际服Fes自选",
+            "content_id": 728457
+          },
+          {
+            "name": "国际服当期卡池评测",
+            "content_id": 717382
+          },
+          {
+            "name": "国服活动攻略",
+            "content_id": 726232
+          }
+        ]
+      }
+    ]
+  }
+}

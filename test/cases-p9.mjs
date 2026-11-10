@@ -30,7 +30,7 @@ const { gachaUmaCn } = T.parsers["bwiki"];
 
 const { eventsWhmxOfficial, gachaUmaCnOfficial, eventsUmaCnOfficial, parseBiligameList, mergeBiligameLists, parseWhmxActivity, parseUmaCnAnnouncement, classifyUmaCnTitle, pickWhmxEvent, pickUmaWindow, umaRoles, quotedName, cleanTitle, biligameParagraphs, extractWindowsDetailed, deglueDateTimes, siblingListUrl, whmxListUrls, biligameDetailUrl, biligameListUrl, parseCmsStamp, hoverRows, BILIGAME_ACTIVITY_TZ, WHMX_GAME_EXTENSION_ID, UMA_CN_GAME_EXTENSION_ID, WHMX_LIST_URL, WHMX_LIST_URLS, UMA_CN_LIST_URL } = T.parsers["biligame-activity"];
 
-const { gachaOurNotesGlobal, eventsOurNotesGlobal, parseOurNotesGlobalPage, isOurNotesGlobalEmpty, classifyOurNotesGlobalTitle, cleanTitle: cleanTitleGlobal, extractOurNotesGlobalWindows, ournotesGlobalListUrl, ournotesGlobalDetailUrl, OURNOTES_GLOBAL_LIST_URL, OURNOTES_GLOBAL_TZ, OURNOTES_GLOBAL_GAME_BASE_ID } = T.parsers["ournotes-global"];
+const { gachaOurNotesGlobal, eventsOurNotesGlobal, parseOurNotesGlobalPage, isOurNotesGlobalEmpty, classifyOurNotesGlobalTitle, cleanTitle: cleanTitleGlobal, extractOurNotesGlobalWindows, ournotesGlobalListUrl, ournotesGlobalDetailUrl, langOf, OURNOTES_GLOBAL_LIST_URL, OURNOTES_GLOBAL_TZ, OURNOTES_GLOBAL_GAME_BASE_ID } = T.parsers["ournotes-global"];
 
 // ── 冻结 oracle：三个「名称投影 + 共用排版」的悬停包装（P5 清理，2026-11-08）────────────────
 // 产品里原有的 `ns_biligame_activity_whmxEventHover` / `umaCnEventHover` / `umaCnPoolHover` 只是
@@ -165,13 +165,16 @@ export default async function run() {
 		check("ournotes-global 只有备选源：altSources + eventAltSources 各 1 条，都指向同一官方列表 URL",
 			Array.isArray(on.altSources) && on.altSources.length === 1
 			&& Array.isArray(on.eventAltSources) && on.eventAltSources.length === 1
-			&& on.altSources[0].url === OURNOTES_GLOBAL_LIST_URL && on.eventAltSources[0].url === OURNOTES_GLOBAL_LIST_URL
+			&& on.altSources[0].url === ournotesGlobalListUrl("en") && on.eventAltSources[0].url === ournotesGlobalListUrl("en")
 			&& on.altSources[0].fetcher === "ournotes-global-gacha" && on.eventAltSources[0].fetcher === "ournotes-global-event",
 			JSON.stringify([on.altSources, on.eventAltSources]));
+		// ⚠️ 2026-11-11：注册的语种从 zh-tw 改成 en（同刻 zh-tw 的 total_count 是 0、en 是 19 条）。
+		//    这条同时守**运行时** SOURCES（registry-shim 只是快照，单看它会漏掉注册项改动）。
 		check("ournotes-global 备选源 URL 与解析器常量逐字一致（altSourceId(alt)=alt.url，差一字符就命中不到）",
-			on.altSources[0].url === ournotesGlobalListUrl("zh-tw")
+			on.altSources[0].url === ournotesGlobalListUrl("en")
 			&& on.altSources[0].url.includes(`game_base_id=${OURNOTES_GLOBAL_GAME_BASE_ID}`)
-			&& on.altSources[0].url.includes("lang=zh-tw"));
+			&& on.altSources[0].url.includes("lang=en")
+			&& (T.SOURCES.find((s) => s.id === "ournotes-global").altSources[0].url === ournotesGlobalListUrl("en")));
 		// 备选源抓取器登记：本文件导出两张表（原 registry-extras.js 属别批次文件，Lead 合并）
 		check("EXTRA_GACHA_FETCHERS_P9 登记了 uma-cn-bwiki / ournotes-global-gacha",
 			typeof EXTRA_GACHA_FETCHERS_P9["uma-cn-bwiki"] === "function"
@@ -649,8 +652,10 @@ export default async function run() {
 			JSON.stringify(emptyRaw));
 		check("parseOurNotesGlobalPage → totalCount=0 / items=0；isOurNotesGlobalEmpty = true",
 			emptyPage.totalCount === 0 && emptyPage.items.length === 0 && isOurNotesGlobalEmpty(emptyRaw, emptyPage) === true);
-		const eEmpty = await grab(() => eventsOurNotesGlobal(src.eventAltSources[0].url, undefined, src.tz, NOW_GLOBAL));
-		const gEmpty = await grab(() => gachaOurNotesGlobal(src.altSources[0].url, undefined, src.tz, NOW_GLOBAL));
+		// ⚠️ 2026-11-11：注册项已改成 lang=en，这条「空响应」真夹具来自 **lang=zh-tw**（当时它恒为 0），
+		// 所以这里显式喂 zh-tw 地址来验证"空列表 ⇒ null"的语义（不是拿注册地址）。
+		const eEmpty = await grab(() => eventsOurNotesGlobal(OURNOTES_GLOBAL_LIST_URL, undefined, src.tz, NOW_GLOBAL));
+		const gEmpty = await grab(() => gachaOurNotesGlobal(OURNOTES_GLOBAL_LIST_URL, undefined, src.tz, NOW_GLOBAL));
 		check("**total_count:0 → 两侧都返回 null**（未公布；不硬凑）",
 			eEmpty.ok && eEmpty.data === null && gEmpty.ok && gEmpty.data === null,
 			JSON.stringify([eEmpty.ok ? eEmpty.data : eEmpty.err, gEmpty.ok ? gEmpty.data : gEmpty.err]));
@@ -755,19 +760,90 @@ export default async function run() {
 	}
 	//#endregion
 
+	//#region P9-6b OurNotes 国际服（lang=en 真夹具；2026-11-11）
+	// 现场：注册参数是 `lang=zh-tw` 时列表恒为 `total_count:0`（那份真夹具就是证据），
+	// 换成 `lang=en` 同一接口立刻 19 条。详情参数必须叫 `news_id`（用 `id` 回 code:-400），
+	// 且 id 要以**原始字符串**传（18 位转 Number 会丢精度）。
+	// 19 条全是 2026-06~09 的开服期公告 ⇒ 当前时刻两侧仍如实 null；这里钉的是"列表不再是死的"
+	// 与"详情链路真的打得通"，不是硬凑一条当期数据。
+	section("P9-6b BanG Dream！OurNotes·国际服 —— lang=en 真夹具（zh-tw total_count:0 / en 19 条）");
+	{
+		const EN_LIST = ournotesGlobalListUrl("en");
+		const FIRST_ID = "181789561021989038";
+		const EN_DETAIL = ournotesGlobalDetailUrl(FIRST_ID, "en");
+		useFixtures(Object.assign({}, OVERRIDES, {
+			[EN_LIST]: "p9-ournotes-global-en-list/response.txt",
+			[EN_DETAIL]: "p9-ournotes-global-en-detail-181789561021989038/response.txt",
+			[ournotesGlobalDetailUrl("181789560857900960", "en")]: "p9-ournotes-global-en-detail-181789560857900960/response.txt",
+			[ournotesGlobalDetailUrl("181790318959816348", "en")]: "p9-ournotes-global-en-detail-181790318959816348/response.txt"
+		}));
+		const enRaw = fixtureJson("p9-ournotes-global-en-list/response.txt");
+		const enPage = parseOurNotesGlobalPage(enRaw);
+		check("真夹具：lang=en 列表 total_count=19 / items=19（同刻 lang=zh-tw 是 0，见 p9-ournotes-global-empty）",
+			enPage.totalCount === 19 && enPage.items.length === 19 && isOurNotesGlobalEmpty(enRaw, enPage) === false,
+			JSON.stringify([enPage.totalCount, enPage.items.length]));
+		check("第一条逐字：news_id / 「Our Notes Stage Call Creation Contest」/ 2026-09-28 13:50",
+			enPage.items[0].title === "Our Notes Stage Call Creation Contest"
+			&& enPage.items[0].sortKey === "2026-09-28 13:50:00"
+			&& wall(enPage.items[0].dateTs, OURNOTES_GLOBAL_TZ) === "2026-09-28 13:50",
+			JSON.stringify([enPage.items[0].title, enPage.items[0].sortKey]));
+		check("idRaw 保留 18 位原始字符串（Number 会丢精度：…038 → …040，详情就 400）",
+			enPage.items[0].idRaw === FIRST_ID && String(enPage.items[0].id) !== FIRST_ID,
+			JSON.stringify([enPage.items[0].idRaw, enPage.items[0].id]));
+		check("详情 URL 用 news_id + 原样 id：…/detail?game_base_id=118241&news_id=181789561021989038&lang=en",
+			EN_DETAIL === "https://l11-web-api.biligames.com/game/news/detail?game_base_id=118241&news_id=181789561021989038&lang=en",
+			EN_DETAIL);
+		check("langOf 认 en / zh-tw（否则详情会回落成 zh-tw，带错语言）",
+			langOf(EN_LIST) === "en" && langOf(OURNOTES_GLOBAL_LIST_URL) === "zh-tw",
+			JSON.stringify([langOf(EN_LIST), langOf(OURNOTES_GLOBAL_LIST_URL)]));
+		check("注册项备选源就是 en 地址（两侧同一条 feed；**运行时** SOURCES 也要一致，不只靠快照）",
+			(findSourceP9("ournotes-global").altSources[0].url === EN_LIST
+				&& findSourceP9("ournotes-global").eventAltSources[0].url === EN_LIST)
+			&& (T.SOURCES.find((s) => s.id === "ournotes-global").altSources[0].url === EN_LIST),
+			JSON.stringify([T.SOURCES.find((s) => s.id === "ournotes-global").altSources[0].url, EN_LIST]));
+
+		// 详情链路：真夹具里正文有源站英文档期 `September 28 – October 18, 2026, 23:59 (UTC+9)`；
+		// 现有抽档期正则只认数字形态（`9/28`、`9月28日`），所以抽不出窗口 ⇒ 不硬凑。
+		const firstDetail = fixtureJson("p9-ournotes-global-en-detail-181789561021989038/response.txt");
+		const firstText = T.parsers["ournotes-global"].ournotesGlobalDetailText(firstDetail);
+		check("真详情正文含源站英文档期原文（September 28 – October 18, 2026, 23:59）",
+			/September 28/.test(firstText) && /October 18, 2026/.test(firstText), firstText.slice(0, 60));
+		check("反证：英文日期不是现有正则认识的形态 ⇒ 抽档期返回 0 条（不硬凑）",
+			extractOurNotesGlobalWindows(firstText, OURNOTES_GLOBAL_TZ, { y: 2026, mo: 9 }).windows.length === 0,
+			String(extractOurNotesGlobalWindows(firstText, OURNOTES_GLOBAL_TZ, { y: 2026, mo: 9 }).windows.length));
+
+		// 两侧：当前时刻（2026-11-11）与开服月（10-02）都如实 null —— 19 条全是过期公告
+		const e = await grab(() => eventsOurNotesGlobal(EN_LIST, undefined, OURNOTES_GLOBAL_TZ, NOW_GLOBAL));
+		check("活动侧：开服期列表里被分流成 event 的只有「Discord Account Binding Event」⇒ 抽不到窗口 ⇒ null",
+			e.ok && e.data === null, e.err || JSON.stringify(e.data && e.data.event));
+		const g = await grab(() => gachaOurNotesGlobal(EN_LIST, undefined, OURNOTES_GLOBAL_TZ, NOW_GLOBAL));
+		check("卡池侧：开服期列表里被分流成 gacha 的只有「Gacha Rates」（概率公示）⇒ null",
+			g.ok && g.data === null, g.err || JSON.stringify(g.data && g.data.banner));
+		const eLate = await grab(() => eventsOurNotesGlobal(EN_LIST, undefined, OURNOTES_GLOBAL_TZ, Date.parse("2026-11-11T00:53:00+08:00")));
+		check("活动侧：真机当前时刻（2026-11-11）同样 null（19 条全是 6~9 月开服期公告）",
+			eLate.ok && eLate.data === null, eLate.err || JSON.stringify(eLate.data && eLate.data.event));
+		useFixtures(OVERRIDES);
+	}
+	//#endregion
+
 	//#region P9-7 夹具卫生 / 合成夹具标注
-	section("P9-7 夹具卫生 —— 物华/闪耀**真抓**，OurNotes 国际服**合成并标注**");
+	section("P9-7 夹具卫生 —— 物华/闪耀/OurNotes en **真抓**，OurNotes zh-tw 仍是合成并标注");
 	{
 		const REAL = [
 			"p9-whmx-act4", "p9-whmx-act1", "p9-uma-cn-list",
 			"p9-whmx-d18419", "p9-whmx-d18334", "p9-whmx-d18265", "p9-whmx-d18194", "p9-whmx-d18109",
-			"p9-uma-d18426", "p9-uma-d18425", "p9-uma-d18424", "p9-uma-d18423", "p9-uma-d18376"
+			"p9-uma-d18426", "p9-uma-d18425", "p9-uma-d18424", "p9-uma-d18423", "p9-uma-d18376",
+			// 2026-11-11 真抓：OurNotes 国际服 lang=en 列表 + 3 条详情（见 P9-6b）
+			"p9-ournotes-global-en-list",
+			"p9-ournotes-global-en-detail-181789561021989038",
+			"p9-ournotes-global-en-detail-181789560857900960",
+			"p9-ournotes-global-en-detail-181790318959816348"
 		];
 		const SYNTH = [
 			"p9-ournotes-global-empty", "p9-ournotes-global-list",
 			"p9-ournotes-global-detail-9001", "p9-ournotes-global-detail-9002"
 		];
-		check("真抓夹具 13 个（物华 2 列表 + 5 详情；闪耀 1 列表 + 5 详情）都带 .meta.json（url/status/capturedAt）",
+		check("真抓夹具 17 个（物华 2+5 / 闪耀 1+5 / OurNotes en 1+3）都带 .meta.json（url/status/capturedAt）",
 			REAL.every((f) => {
 				const m = meta(f + "/response.txt");
 				return m.url && m.status === 200 && typeof m.capturedAt === "string" && m.synthetic === undefined;
@@ -795,6 +871,10 @@ export default async function run() {
 		check("合成夹具的 url 与 ournotes-global 解析器常量一致（空响应那条就是注册表备选源 URL）",
 			meta("p9-ournotes-global-empty/response.txt").url === OURNOTES_GLOBAL_LIST_URL
 			&& meta("p9-ournotes-global-detail-9001/response.txt").url === ournotesGlobalDetailUrl(9001, "zh-tw"));
+		check("OurNotes en 夹具的 meta.url = lang=en 列表 / news_id 详情（与解析器常量逐字一致）",
+			meta("p9-ournotes-global-en-list/response.txt").url === ournotesGlobalListUrl("en")
+			&& meta("p9-ournotes-global-en-detail-181789561021989038/response.txt").url === ournotesGlobalDetailUrl("181789561021989038", "en"),
+			JSON.stringify([meta("p9-ournotes-global-en-list/response.txt").url]));
 	}
 	//#endregion
 

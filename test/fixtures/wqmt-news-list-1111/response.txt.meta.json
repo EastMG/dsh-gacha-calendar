@@ -1,0 +1,6 @@
+{
+  "url": "https://wqmt.aisnogames.com/api/news",
+  "status": 200,
+  "capturedAt": "2026-11-10T17:03:04.458Z",
+  "trim": "原样保留（4.6KB：allNews/activity/news/notices 各 5 条，只有 id/title/publish_time 这类列表字段）。2026-11-11 真直连抓取（该域 ACAO:*，不走宿主代理）。"
+}
