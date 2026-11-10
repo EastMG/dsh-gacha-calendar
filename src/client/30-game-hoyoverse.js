@@ -1184,9 +1184,9 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 			// 默认源 = 内容中台（`iChanId=697` 卡池 / `696` 活动，见 30-game-batch2.js 的文件头与抓取器登记）；
 			// 解析口径（卡池只出名称/角色、活动正文无时间块如实跳过）也写在那份文件里。
 			url: "https://act-api-takumi-static.mihoyo.com/content_v2_user/app/b9d5f96cd69047eb/getContentList?iChanId=697&iPageSize=30&iPage=1&sLangKey=zh-cn",
-			source: "米哈游内容中台",
+			source: "官网公告",
 			eventUrl: "https://act-api-takumi-static.mihoyo.com/content_v2_user/app/b9d5f96cd69047eb/getContentList?iChanId=696&iPageSize=30&iPage=1&sLangKey=zh-cn",
-			eventSource: "米哈游内容中台",
+			eventSource: "官网公告",
 			altSources: [{ label: "米游社公告", url: "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=1&type=1&page_size=20", fetcher: "bh3-miyoushe" }],
 			eventAltSources: [{ label: "米游社公告", url: "https://bbs-api.miyoushe.com/painter/wapi/getNewsList?gids=1&type=2&page_size=20", fetcher: "bh3-miyoushe" }]
 		});

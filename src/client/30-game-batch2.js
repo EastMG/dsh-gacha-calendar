@@ -71,7 +71,7 @@ const NS_BATCH2_BH3_TZ = "Asia/Shanghai";
 const NS_BATCH2_BH3_REFERER = "https://bh3.mihoyo.com/";
 const NS_BATCH2_BH3_GACHA_URL = "https://act-api-takumi-static.mihoyo.com/content_v2_user/app/b9d5f96cd69047eb/getContentList?iChanId=697&iPageSize=30&iPage=1&sLangKey=zh-cn";
 const NS_BATCH2_BH3_EVENT_URL = "https://act-api-takumi-static.mihoyo.com/content_v2_user/app/b9d5f96cd69047eb/getContentList?iChanId=696&iPageSize=30&iPage=1&sLangKey=zh-cn";
-const NS_BATCH2_BH3_SOURCE_LABEL = "米哈游内容中台";
+const NS_BATCH2_BH3_SOURCE_LABEL = "官网公告";
 
 const NS_BATCH2_SPICA_TZ = "Asia/Tokyo";
 const NS_BATCH2_SPICA_LIST_URL = "https://spica.wiki/ournotes/gachas";

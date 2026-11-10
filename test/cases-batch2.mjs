@@ -81,7 +81,7 @@ export default async function runBatch2() {
 			!!s && s.url === BH3_G && /iChanId=697/.test(s.url) && /iPageSize=30/.test(s.url), s && String(s.url));
 		check("活动 eventUrl = 内容中台 iChanId=696",
 			!!s && s.eventUrl === BH3_E && /iChanId=696/.test(s.eventUrl), s && String(s.eventUrl));
-		check("两侧来源标签 = 米哈游内容中台",
+		check("两侧来源标签 = 官网公告",
 			!!s && s.source === B.NS_BATCH2_BH3_SOURCE_LABEL && s.eventSource === B.NS_BATCH2_BH3_SOURCE_LABEL,
 			s && JSON.stringify([s.source, s.eventSource]));
 		check("defaultHidden 保持 true（原出厂隐藏，接入后仍不占版面）", !!s && s.defaultHidden === true, s && String(s.defaultHidden));
