@@ -5,7 +5,8 @@
 //   ① 注册：url / eventUrl **同一条** SPICA 地址（两侧复用一次抓取）、来源标签、tz 仍 Asia/Shanghai（UTC+8）、
 //      defaultHidden 仍 true、BHK 那两条**备选源**没被删掉（设置页还能切回去）、宿主白名单里有 spica.wiki；
 //   ② 抓取链：页面 → `window._durl` → 数据 JSON，两步都经宿主代理；缺 `_durl` ⇒ 抛（不是静默 null）；
-//   ③ 卡池条目事实：23 本 / 名称取 `name.en` / picks 按 **id** 查角色（不是按 snaps 的序号键）/
+//   ③ 卡池条目事实：23 本 / 名称按 **zh → tw → en → ja** 取（简中优先；2026-11-11 起）/
+//      picks 按 **id** 查角色（不是按 snaps 的序号键，角色名同一个五语对象、同一条优先级）/
 //      两端墙钟按 **JST** 转绝对时刻 / `end` 为空的常驻池 ⇒ endTs=null（不冒充当期）；
 //   ④ 当期载荷：banner / roles / bannerDates（UTC+8 钟面）/ bannerDatesRaw（源站 JST 原文）/ 悬停 / 数组；
 //   ⑤ 活动：events[5] 的 5 条 / 当期 e5 / 只有 1 条在期 ⇒ 无悬停（不足 2 条）；
@@ -143,13 +144,13 @@ export default async function runOnGlobalSpica() {
 	}
 
 	// ═══════════════════ ③ 卡池条目事实 ═══════════════════
-	section("OurNotes 国际服③：卡池条目事实 —— 23 本 / name.en / picks 按 id 查角色 / JST→绝对时刻");
+	section("OurNotes 国际服③：卡池条目事实 —— 23 本 / 名称 zh→tw→en→ja / picks 按 id 查角色 / JST→绝对时刻");
 	{
 		const items = P.ns_on_global_gachaItemsOf(json, P.NS_ON_GLOBAL_TZ);
 		check("gachapages 23 本全收（含常驻池）", items.length === 23, String(items.length));
 		const g5001 = items.find((x) => x.key === "g5001") || {};
-		check("当期池名称逐字「Episodium of the Radiant Palace Gacha」（name.en，不是日文/中文）",
-			g5001.title === "Episodium of the Radiant Palace Gacha", JSON.stringify(g5001.title));
+		check("当期池名称逐字「光辉殿堂的不朽篇章招募」（= name.zh 简中，不是 en/日文）",
+			g5001.title === "光辉殿堂的不朽篇章招募", JSON.stringify(g5001.title));
 		check("源站原文 = JST 钟面「2026-11-08 15:00 ~ 2026-11-18 14:59」",
 			g5001.raw === "2026-11-08 15:00 ~ 2026-11-18 14:59", JSON.stringify(g5001.raw));
 		check("startTs = 2026-11-08 15:00 **JST** = UTC 06:00（不是 07:00 —— 按 UTC+8 解就会差 1 小时）",
@@ -159,9 +160,16 @@ export default async function runOnGlobalSpica() {
 			g5001.display === "11-08 14:00 ~ 11-18 13:59", JSON.stringify(g5001.display));
 		check("条目 tz 显式 = Asia/Shanghai / source=hover",
 			g5001.tz === "Asia/Shanghai" && g5001.source === "hover", JSON.stringify([g5001.tz, g5001.source]));
-		check("角色 = picks 里 member 卡的角色 + snap 照片里的角色（按名去重）逐字",
-			g5001.roles === "Mortis / Mutsumi Wakaba、Amoris / Nyamu Yūtenji、Oblivionis / Sakiko Togawa",
+		check("角色 = picks 里 member 卡的角色 + snap 照片里的角色（按名去重）逐字，名字取 chars[].name.zh",
+			g5001.roles === "Mortis / 若叶睦、Amoris / 祐天寺若麦、Oblivionis / 丰川祥子",
 			JSON.stringify(g5001.roles));
+
+		// picks 的角色名是**同一个五语对象**（chars[].name 也有 ja/en/tw/zh/ko），走同一条 zh→tw→en→ja
+		const c7 = json.chars["7"] || {};
+		check("角色名同一条优先级：chars[7].name.zh 逐字「Mortis / 若叶睦」，roles 用的就是它（不是 .en）",
+			!!c7.name && c7.name.zh === "Mortis / 若叶睦" && g5001.roles.indexOf(c7.name.zh) === 0
+			&& g5001.roles.indexOf(c7.name.en) < 0,
+			JSON.stringify([c7.name && c7.name.zh, c7.name && c7.name.en]));
 
 		// picks 的引用语义：member 按 members[].id、snap 按 snaps[].id —— **不是** snaps 的序号键
 		const s78 = json.snaps["78"] || null;
@@ -169,8 +177,8 @@ export default async function runOnGlobalSpica() {
 		check("反证前置事实：snaps 的**序号键**与**内容 id** 不是一回事（键 78 → id=2 的 Anon 照片）",
 			!!s78 && String(s78.id) === "2" && !!sById78 && sById78.char === 7,
 			JSON.stringify([s78 && s78.id, sById78 && sById78.char]));
-		check("按 id 查 ⇒ 5001 的角色里**没有** Anon Chihaya（按序号键查才会把 MyGO 的人塞进 Ave Mujica 池）",
-			g5001.roles.indexOf("Anon Chihaya") < 0, JSON.stringify(g5001.roles));
+		check("按 id 查 ⇒ 5001 的角色里**没有** Anon Chihaya（中文名「千早爱音」；按序号键查才会把 MyGO 的人塞进 Ave Mujica 池）",
+			g5001.roles.indexOf("千早爱音") < 0 && g5001.roles.indexOf("Anon Chihaya") < 0, JSON.stringify(g5001.roles));
 
 		const perm = items.filter((x) => x.endTs === null).map((x) => x.key);
 		check("`end` 为空的常驻池 7 本 ⇒ endTs=null（raw 只留起点原文）",
@@ -188,10 +196,10 @@ export default async function runOnGlobalSpica() {
 		const e = engineAt(NOW, calls);
 		const gp = await e.__test.GACHA_FETCHERS["ournotes-global"](s.url, undefined, s.tz);
 		check("卡池抓取器返回对象", !!gp && typeof gp === "object");
-		check("当期池 = Episodium of the Radiant Palace Gacha",
-			!!gp && gp.banner === "Episodium of the Radiant Palace Gacha", JSON.stringify(gp && gp.banner));
-		check("roles 逐字（3 个名字）",
-			!!gp && gp.roles === "Mortis / Mutsumi Wakaba、Amoris / Nyamu Yūtenji、Oblivionis / Sakiko Togawa",
+		check("当期池 = 光辉殿堂的不朽篇章招募",
+			!!gp && gp.banner === "光辉殿堂的不朽篇章招募", JSON.stringify(gp && gp.banner));
+		check("roles 逐字（3 个简中名）",
+			!!gp && gp.roles === "Mortis / 若叶睦、Amoris / 祐天寺若麦、Oblivionis / 丰川祥子",
 			JSON.stringify(gp && gp.roles));
 		check("bannerDates =「11-08 14:00 ~ 11-18 13:59」（UTC+8 钟面）",
 			!!gp && gp.bannerDates === "11-08 14:00 ~ 11-18 13:59", JSON.stringify(gp && gp.bannerDates));
@@ -216,10 +224,10 @@ export default async function runOnGlobalSpica() {
 	section("OurNotes 国际服⑤：活动 —— events[5] / 当期 e5 / 只有 1 条在期 ⇒ 无悬停");
 	{
 		const items = P.ns_on_global_eventItemsOf(json, P.NS_ON_GLOBAL_TZ);
-		check("events 5 条全解析（名称 name.en / 起止）", items.length === 5, String(items.length));
+		check("events 5 条全解析（名称按 zh→tw→en→ja / 起止）", items.length === 5, String(items.length));
 		const e5 = items.find((x) => x.key === "e5") || {};
-		check("当期活动名称逐字「Saltatio Beneath the Shifting Moon」",
-			e5.title === "Saltatio Beneath the Shifting Moon", JSON.stringify(e5.title));
+		check("当期活动名称逐字「月下流转之舞」（= name.zh 简中）",
+			e5.title === "月下流转之舞", JSON.stringify(e5.title));
 		check("startTs = 2026-11-08 15:00 JST = UTC 06:00", e5.startTs === Date.UTC(2026, 10, 8, 6, 0), String(e5.startTs));
 		check("endTs = 2026-11-17 14:59 JST = UTC 05:59", e5.endTs === Date.UTC(2026, 10, 17, 5, 59), String(e5.endTs));
 		check("display = UTC+8 钟面「11-08 14:00 ~ 11-17 13:59」", e5.display === "11-08 14:00 ~ 11-17 13:59", JSON.stringify(e5.display));
@@ -231,7 +239,7 @@ export default async function runOnGlobalSpica() {
 		const e = engineAt(NOW, calls);
 		const ep = await e.__test.EVENT_FETCHERS["ournotes-global"].default(s.eventUrl, undefined, s.tz);
 		check("活动抓取器**独立可用**（自己走完页面 + 数据 JSON 两步）", !!ep && typeof ep === "object", String(calls.length));
-		check("当期活动 / 档期逐字", !!ep && ep.event === "Saltatio Beneath the Shifting Moon"
+		check("当期活动 / 档期逐字", !!ep && ep.event === "月下流转之舞"
 			&& ep.eventDates === "11-08 14:00 ~ 11-17 13:59"
 			&& ep.eventDatesRaw === "2026-11-08 15:00 ~ 2026-11-17 14:59",
 			JSON.stringify([ep && ep.event, ep && ep.eventDates, ep && ep.eventDatesRaw]));
@@ -255,13 +263,13 @@ export default async function runOnGlobalSpica() {
 			JSON.stringify(calls.map((c) => c.url)));
 		check("两侧都不 fail", rec.gachaFail == null && rec.eventFail == null, JSON.stringify([rec.gachaFail, rec.eventFail]));
 		check("记录逐字：banner / roles / bannerDates / bannerDatesRaw",
-			rec.banner === "Episodium of the Radiant Palace Gacha"
-			&& rec.roles === "Mortis / Mutsumi Wakaba、Amoris / Nyamu Yūtenji、Oblivionis / Sakiko Togawa"
+			rec.banner === "光辉殿堂的不朽篇章招募"
+			&& rec.roles === "Mortis / 若叶睦、Amoris / 祐天寺若麦、Oblivionis / 丰川祥子"
 			&& rec.bannerDates === "11-08 14:00 ~ 11-18 13:59"
 			&& rec.bannerDatesRaw === "2026-11-08 15:00 ~ 2026-11-18 14:59",
 			JSON.stringify([rec.banner, rec.roles, rec.bannerDates, rec.bannerDatesRaw]));
 		check("记录逐字：event / eventDates / eventDatesRaw",
-			rec.event === "Saltatio Beneath the Shifting Moon"
+			rec.event === "月下流转之舞"
 			&& rec.eventDates === "11-08 14:00 ~ 11-17 13:59"
 			&& rec.eventDatesRaw === "2026-11-08 15:00 ~ 2026-11-17 14:59",
 			JSON.stringify([rec.event, rec.eventDates, rec.eventDatesRaw]));
@@ -273,7 +281,7 @@ export default async function runOnGlobalSpica() {
 	}
 
 	// ═══════════════════ ⑦ 反证 ═══════════════════
-	section("OurNotes 国际服⑦反证：拿掉关键解析各自变红（JST 层 / id 层 / 当期层）");
+	section("OurNotes 国际服⑦反证：拿掉关键解析各自变红（JST 层 / id 层 / 当期层 / 名称语言层）");
 	{
 		// A）时区层：把「按 JST 解」换成「按 UTC+8 解」⇒ 绝对时刻差 1 小时，且展示钟面变成源站原文
 		const w = P.ns_on_global_wallOf("2026-11-08 15:00");
@@ -303,18 +311,39 @@ export default async function runOnGlobalSpica() {
 		// C-2：now 提前到 2026-09-25（开服第 2 天）⇒ 当期换成开服双池（证明"当期"是按 now 算的，不是写死）
 		const early = P.ns_on_global_gachaPayloadOf(
 			P.ns_on_global_gachaItemsOf(json, P.NS_ON_GLOBAL_TZ), P.NS_ON_GLOBAL_TZ, Date.parse("2026-09-25T12:00:00+08:00"));
-		check("反证 C-2：now=2026-09-25 ⇒ 当期变成「Launch Celebration! MyGO!!!!! PickUp Gacha」（同日两池取开始最晚者）",
-			!!early && early.banner === "Launch Celebration! MyGO!!!!! PickUp Gacha"
+		check("反证 C-2：now=2026-09-25 ⇒ 当期变成「开服纪念！MyGO!!!!! PickUp 招募」（同日两池取开始最晚者）",
+			!!early && early.banner === "开服纪念！MyGO!!!!! PickUp 招募"
 			&& early.bannerDates === "09-24 19:00 ~ 10-08 22:59",
 			JSON.stringify(early && [early.banner, early.bannerDates]));
 
-		// D）名称层：name.en 优先（把 en 摘掉才退到 ja）—— 证明国际服不吃日文名
-		const en2ja = (o) => ({ name: Object.assign({}, o.name, { en: "" }) });
-		check("反证 D：`name.en` 有 ⇒ 用它；en 空 ⇒ 退到 ja（不印空名、也不优先中文）",
-			P.ns_on_global_nameOf(byIdChar.name) === "Mortis / Mutsumi Wakaba"
-			&& P.ns_on_global_nameOf(en2ja(byIdChar).name).length > 0
-			&& P.ns_on_global_nameOf(en2ja(byIdChar).name) !== "Mortis / Mutsumi Wakaba",
-			JSON.stringify([P.ns_on_global_nameOf(byIdChar.name), P.ns_on_global_nameOf(en2ja(byIdChar).name)]));
+		// D）名称语言层：**简中优先** —— zh 有就用 zh；zh 空退 tw；tw 空退 en；en 空退 ja。
+		//    把优先级改回「en 优先」上面 ③④⑤⑥ 的逐字断言与本节 D 立即变红（2026-11-11 改动的反向证明）。
+		const c7z = byIdChar.name;      // { ja, en, tw, zh, ko } 五语俱全
+		const soak = (drop) => {
+			const o = Object.assign({}, c7z);
+			for (const k of drop) o[k] = "";
+			return o;
+		};
+		check("反证 D：优先级表逐字 = zh → tw → en → ja（唯一定序处 NS_ON_GLOBAL_NAME_LANGS；改序即红）",
+			JSON.stringify(P.NS_ON_GLOBAL_NAME_LANGS.slice(0, 4)) === '["zh","tw","en","ja"]',
+			JSON.stringify(P.NS_ON_GLOBAL_NAME_LANGS));
+		check("反证 D：五语俱全 ⇒ 取 **zh**「Mortis / 若叶睦」（不是 en 的「Mortis / Mutsumi Wakaba」）",
+			P.ns_on_global_nameOf(c7z) === "Mortis / 若叶睦" && P.ns_on_global_nameOf(c7z) !== c7z.en,
+			JSON.stringify([P.ns_on_global_nameOf(c7z), c7z.en]));
+		check("反证 D：zh 空 ⇒ 退 **tw**「Mortis / 若葉睦」（不跳过 tw 直接跳到 en）",
+			P.ns_on_global_nameOf(soak(["zh"])) === "Mortis / 若葉睦",
+			JSON.stringify(P.ns_on_global_nameOf(soak(["zh"]))));
+		check("反证 D：zh+tw 空 ⇒ 退 **en**", P.ns_on_global_nameOf(soak(["zh", "tw"])) === c7z.en,
+			JSON.stringify(P.ns_on_global_nameOf(soak(["zh", "tw"]))));
+		check("反证 D：zh+tw+en 空 ⇒ 退 **ja**（日文名收尾，不印空名）",
+			P.ns_on_global_nameOf(soak(["zh", "tw", "en"])) === c7z.ja,
+			JSON.stringify(P.ns_on_global_nameOf(soak(["zh", "tw", "en"]))));
+		check("反证 D：空白串按「缺失」处理（`\"   \"` 不算有值）⇒ 退下一级",
+			P.ns_on_global_nameOf({ zh: "   ", tw: "TW", en: "EN" }) === "TW",
+			JSON.stringify(P.ns_on_global_nameOf({ zh: "   ", tw: "TW", en: "EN" })));
+		check("反证 D：单语名字（纯字符串 / 只有 ja 的对象）原样用 —— 未来若某个 picks 只有单语，行为不变",
+			P.ns_on_global_nameOf(" 単独名 ") === "単独名" && P.ns_on_global_nameOf({ ja: c7z.ja }) === c7z.ja,
+			JSON.stringify([P.ns_on_global_nameOf(" 単独名 "), P.ns_on_global_nameOf({ ja: c7z.ja })]));
 	}
 }
 
@@ -323,18 +352,19 @@ export default async function runOnGlobalSpica() {
 const PERMANENT_KEYS = ["g3", "g4", "g5", "g6", "g7", "g8", "g9"];
 
 // 悬停逐字（6 池；结束升序 → 同结束按开始升序；常驻池不出现）。
-// 「池名：角色」里的角色 = picks 的成员卡 + 照片里出现的角色（见文件头）。
+// 池名与角色名都按 **zh → tw → en → ja**（简中优先，见文件头）；「池名：角色」里的角色 =
+// picks 的成员卡 + 照片里出现的角色。
 const HOVER_EXPECTED = [
-	"A day〜#HalloweenSnap〜 Item Gacha",
+	"A day～#HalloweenSnap～道具招募",
 	"10-28 11:00 ~ 11-18 13:59",
-	"Episodium of the Radiant Palace Gacha：Mortis / Mutsumi Wakaba、Amoris / Nyamu Yūtenji、Oblivionis / Sakiko Togawa",
+	"光辉殿堂的不朽篇章招募：Mortis / 若叶睦、Amoris / 祐天寺若麦、Oblivionis / 丰川祥子",
 	"11-08 14:00 ~ 11-18 13:59",
-	"Halloween SSR Guaranteed Gacha：Taki Shiina、Doloris / Uika Misumi、Soyo Nagasaki、Anon Chihaya、Timoris / Umiri Yahata、Mortis / Mutsumi Wakaba、Amoris / Nyamu Yūtenji",
+	"万圣节 SSR必得券招募：椎名立希、Doloris / 三角初华、长崎爽世、千早爱音、Timoris / 八幡海铃、Mortis / 若叶睦、Amoris / 祐天寺若麦",
 	"10-27 23:00 ~ 12-08 13:59",
-	"Shadowed Nightwalkers Limited-Time SSR Guaranteed Gacha",
+	"晦冥的夜行者们 期间限定SSR必得券招募",
 	"10-27 23:00 ~ 12-08 13:59",
-	"GEKISO ARENA Season 1 SR+ Guaranteed Ticket Gacha",
+	"激奏舞台第1赛季SR及以上必得券招募",
 	"10-27 23:00 ~ 12-28 13:59",
-	"GEKISO ARENA Season 1 SSR Guaranteed Ticket Gacha",
+	"激奏舞台第1赛季SSR必得券招募",
 	"10-27 23:00 ~ 12-28 13:59"
 ].join("\n");

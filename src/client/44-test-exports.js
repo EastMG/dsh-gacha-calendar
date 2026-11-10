@@ -501,6 +501,7 @@
 			// 这份是新的默认源。命名空间刻意分开，免得测试里把两套解析器混着断言。
 			"ournotes-global-spica": {
 				NS_ON_GLOBAL_DATA_TZ,
+				NS_ON_GLOBAL_NAME_LANGS,
 				NS_ON_GLOBAL_REFERER,
 				NS_ON_GLOBAL_SOURCE_LABEL,
 				NS_ON_GLOBAL_TZ,

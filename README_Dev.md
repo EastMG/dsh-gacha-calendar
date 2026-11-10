@@ -87,7 +87,7 @@ dsh-gacha-calendar/
 │       ├── 30-game-pengpeng.js    # 夜幕之下（国服）：卡池 bwiki 契约一览（源站停更）+ 活动 TapTap 官方 tab 的 feed JSON（旧 bwiki 公告为备选）
 │       ├── 30-game-unconfigured.js # 炽焰天穹：只注册条目、来源留空未配置（本批唯一仍不接的）
 │       ├── 30-game-batch2.js      # 2026-11-11 第二批：崩坏3 米哈游内容中台（卡池只出名称/角色、活动正文时间块）/ OurNotes 日服 SPICA（列表→前 5 条详情）/ 卡厄斯梦境 TapTap 官方 tab（HTML 卡片 + 区间）
-│       ├── 30-game-ournotes-global.js # OurNotes **国际服**卡池 + 活动：默认源 = SPICA 数据 JSON（页面 `window._durl` 现解 → d-*.json；gachapages/events 一次拿全）；数据里是 JST 墙钟、展示按 UTC+8（钟面 −1h）；picks 按 **id** 查角色；BHK 官方公告两条降为手动备选源
+│       ├── 30-game-ournotes-global.js # OurNotes **国际服**卡池 + 活动：默认源 = SPICA 数据 JSON（页面 `window._durl` 现解 → d-*.json；gachapages/events 一次拿全）；数据里是 JST 墙钟、展示按 UTC+8（钟面 −1h）；picks 按 **id** 查角色；池名与角色名按 zh→tw→en→ja 取（简中优先）；BHK 官方公告两条降为手动备选源
 │       ├── 44-test-exports.js # 回归出口：解析器 + env 工具 + 来源表
 │       ├── 50-refresh.js     # 刷新编排、失败沿用旧值、提示归类
 │       ├── 60-helpers.js     # 顶部提示归类 / 显隐判定 / 排序 / 角色名与倒计时格式化 / 启动刷新判定
