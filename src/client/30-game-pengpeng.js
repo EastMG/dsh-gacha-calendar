@@ -1,14 +1,31 @@
 // src/client/30-game-pengpeng.js —— 夜幕之下（国服；曾用名「代号砰砰」，2026-06-05 公测）
 //
-// **只有卡池源**（2026-11-09 实测 200，夹具 test/fixtures/pengpeng-bwiki）：
-//   bwiki「契约一览」= MediaWiki `api.php?action=parse`（HTML 表，18 行 / 45KB）
-//     列：契约 | 开放时间 | 概率提升的风格
-//     行例：隐秘的归属 | 2026/09/10 05:00:00 ~ 2026/10/01 04:59:59 | 杯中藏锋 | 活动
+// ── 卡池侧（2026-11-11 换源）：bwiki **SMW `action=ask` 语义查询** ────────────────────
+// 旧写法是抓「契约一览」的 HTML 表（`action=parse&page=契约一览&prop=text`）。
+// ⚠️ 2026-11-11 实测：该页**已变成 `#REDIRECT [[契约图鉴]]`** —— `action=parse` 只回一段
+//    `redirectMsg`（1059 字节），正文里没有表格；`契约图鉴` 那边的表身是 `{{#ask:…}}` 且在
+//    `资料状态::已核对` 闸门后面，抓 HTML **永远是空表**。这是"方法错"，不是"源站没数据"。
+// 正确入口 = MediaWiki 的 SMW 查询接口（同一份数据，结构化直出）：
+//   GET https://wiki.biligame.com/ymzx/api.php?action=ask&format=json
+//       &query=[[分类:契约]][[条目类型::契约]]|?名称|?契约类型|?活动开始|?活动结束|?推荐风格
+//   → { query: { printrequests: […], results: { "<页面名>": { printouts: {
+//          名称: ["乘自由之风"], 契约类型: ["限时契约"],
+//          活动开始: ["2026-07-30 05:00:00"], 活动结束: ["2026-08-13 04:59:59"],
+//          推荐风格: ["热沙骑士"] }, fulltext, fullurl, … } } } }
+//   实测 11 条（9 条「限时契约」+ 2 条「常规契约」），**9 期历史全部 05:00 起 / 04:59:59 止**。
+//   `results` 是**对象**（key = 页面名），SMW 不保证顺序 ⇒ 逐条解析后由载荷层按 `endTs` 排。
+// 口径：
+//   · 池名 = `名称`；角色列 = `推荐风格`（多个风格用「、」连，缺就留空 ⇒ 不印假角色名）
+//   · 窗口 = `活动开始` / `活动结束`（源站墙钟 UTC+8，无 DST）；只有开始没有结束（「常规契约」两口常驻池）
+//     ⇒ 读不出窗口，**如实跳过**（`coversNow` 两端都要，见文件下方「长期池」注释）
+//   · **不做「按固定 N 天外推」**：9 期里 6 期 14 天、3 期 21 天，规则不唯一 ⇒ 只报源站写下的窗口
+//   · ⚠️ 该页最后一条契约止于 **2026-09-10 04:59:59**（wiki 停更）⇒ 当前（11-11）如实 nomatch。
+//     这是**事实**：等 wiki 补档即自动恢复，绝不外推、不把上一期当"当前"。
 //
 // ── 卡池侧 2026-11-11 复核：**不接** TapTap（选项 C），证据与取舍 ────────────────────
-// 现状（活网实测）：bwiki「契约一览」最后编辑 = **2026-09-24**（`list=recentchanges`），最新窗口
-//   2026/09/10 ~ 2026/10/01 ⇒ 当前（11-11）没有在期池，抓取器如实返回 null（回归见 cases-new5 ④(b)）。
-//   停更的是 wiki，不是游戏（游戏 11-05 已开「流光抛诸寰宇」新版本）—— 但本页结构好，wiki 一补档就自动恢复。
+// 现状（活网实测）：bwiki「契约」SMW 查询最后一条窗口止于 2026-09-10 04:59（见上）⇒ 当前（11-11）
+//   没有在期池，抓取器如实返回 null（回归见 cases-new5 ④(b)）。停更的是 wiki，不是游戏
+//   （游戏 11-05 已开「流光抛诸寰宇」新版本）—— 但 SMW 数据一补档就自动恢复。
 //
 // 调研（2026-11-11 实测）：
 //   · TapTap tab 的**列表帖**里没有卡池窗口；卡池档期只在图片「版本活动一览」里（配图，不可解析）。
@@ -100,15 +117,21 @@
 // ⇒ tz = Asia/Shanghai（推定，只写在这里，不进悬停）。
 //
 // ── 卡池类型（category）──
-// 「契约」列里有个 `遴选 / 活动` 标签（`<span class="ymzx-qiyue-tag">`），就是卡池类型；
-// 长期池（`开放时间` 列写「长期」）没有这个标签 ⇒ 不写 category。
+// 旧 HTML 表里「契约」列有个 `遴选 / 活动` 标签（`<span class="ymzx-qiyue-tag">`）。
+// SMW 那条查询里对应的是 `契约类型`（实测只有「限时契约 / 常规契约」两种），**语义不同**（那是
+// 「限时/常驻」而不是「遴选/活动」）⇒ 本批**不写** `category`（不拿一个含义不同的字段顶替），
+// `?契约类型` 仍在查询里（排障用）；缺字段就留空。
 //
-// ── 长期池（「长期的呼唤」「起始的契约」）──
-// `开放时间` 列写 `长期` ⇒ 读不出窗口（`coversNow` 要求 endTs 非空），**如实跳过**：
-// 没有结束时刻就算不出倒计时，画不出来。屏幕上的代价只是这两口常驻池不进日历。
+// ── 长期池（「夜色的呼唤」「起始的契约」）──
+// 这两条 `活动开始` 有值、`活动结束` **空** ⇒ 读不出窗口（`coversNow` 要求 endTs 非空），
+// **如实跳过**：没有结束时刻就算不出倒计时，画不出来。屏幕上的代价只是这两口常驻池不进日历。
 
 		const PENGPENG_TZ = "Asia/Shanghai";
-		const PENGPENG_BWIKI_URL = "https://wiki.biligame.com/pengpeng/api.php?action=parse&page=契约一览&prop=text&format=json&formatversion=2";
+		// 卡池默认源：bwiki 的 **SMW 语义查询**（`action=ask`）。`origin=*` 由抓取出口统一补，这里显式写上，
+		// 让夹具键／日志／来源健康里看到的地址就是**实际请求**的那一串（幂等，见 15-env.js 的 withBwikiCors）。
+		const PENGPENG_ASK_QUERY = "[[分类:契约]][[条目类型::契约]]|?名称|?契约类型|?活动开始|?活动结束|?推荐风格";
+		const PENGPENG_ASK_URL = "https://wiki.biligame.com/ymzx/api.php?action=ask&format=json&query="
+			+ encodeURIComponent(PENGPENG_ASK_QUERY) + "&origin=*";
 		// 活动侧旧源（现为 eventAltSources 手动备选）：bwiki `公告/` 前缀页列表
 		const PENGPENG_EVENT_URL = "https://wiki.biligame.com/pengpeng/api.php?action=query&generator=allpages&gapprefix="
 			+ encodeURIComponent("公告/") + "&gaplimit=100&format=json&formatversion=2";
@@ -137,59 +160,66 @@
 				+ "&from=" + (Number(from) || 0);
 		}
 
-		// 「契约」列：名称住在最后一个加粗 span 里（长期池也有），类型标签是另一枚 span
-		const PENGPENG_NAME_RE = /<span\b[^>]*style="[^"]*font-weight\s*:\s*bold[^"]*"[^>]*>([\s\S]*?)<\/span>/gi;
-		const PENGPENG_TAG_RE = /<span\b[^>]*class="[^"]*ymzx-qiyue-tag[^"]*"[^>]*>([\s\S]*?)<\/span>/i;
-
-		// 一行「契约」单元格 → { name, category }
-		function pengpengNameOf(html) {
-			const s = String(html == null ? "" : html);
-			const tag = s.match(PENGPENG_TAG_RE);
-			const category = tag ? stripTags(tag[1]).trim() : "";
-			PENGPENG_NAME_RE.lastIndex = 0;
-			let m, name = "";
-			// 取**最后一个**加粗 span：角色的 `<span style="font-weight:bold">` 只出现在名称上，
-			// 但取最后一个能顺带避开将来源站在前面再加别的加粗块。
-			while ((m = PENGPENG_NAME_RE.exec(s))) name = stripTags(m[1]).trim();
-			if (!name) {
-				// 兜底：整格文本去掉类型标签（`遴选天才不必孑立` → `天才不必孑立`）
-				name = stripTags(s).trim();
-				if (category && name.indexOf(category) === 0) name = name.slice(category.length).trim();
-			}
-			return { name, category };
+		// SMW 的 `printouts` 取值：正常情况下是 `["2026-07-30 05:00:00"]` 这样的字符串数组，
+		// 但 SMW 对不同类型会给出对象（如 `{raw:"…", fulltext:"…"}`）⇒ 统一摊成「用「、」连起来的字符串」。
+		function pengpengAskValueOf(v) {
+			const one = (x) => {
+				if (x == null) return "";
+				if (typeof x === "object") return String(x.fulltext != null ? x.fulltext : (x.raw != null ? x.raw : ""))
+					.replace(/<[^>]*>/g, "").trim();
+				return decodeEntities(String(x)).trim();
+			};
+			if (Array.isArray(v)) return v.map(one).filter(Boolean).join("\u3001");
+			return one(v);
 		}
 
-		// HTML → 逐条 `{ banner, roles, category, startTs, endTs, raw, isMain }`（与 whmx 同形）
-		function pengpengPoolsOf(html, tz) {
-			const tables = ns_bwiki_findTablesByHeaders(ns_bwiki_eachTable(String(html == null ? "" : html)), ["契约", "开放时间"]);
+		// SMW 时间戳 `2026-07-30 05:00:00` → 源站墙钟的绝对毫秒（无时分秒也认；年月顺序固定）
+		const PENGPENG_ASK_STAMP_RE = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/;
+		function pengpengAskInstantOf(text, tz) {
+			const m = PENGPENG_ASK_STAMP_RE.exec(String(text == null ? "" : text).trim());
+			if (!m) return null;
+			const h = m[4] != null ? +m[4] : 0, mi = m[5] != null ? +m[5] : 0;
+			if (h > 23 || mi > 59) return null;
+			return sourceInstant(+m[1], +m[2], +m[3], h, mi, tz);
+		}
+
+		// `action=ask` 响应 → 逐条 `{ banner, roles, startTs, endTs, raw, display, isMain, _i }`
+		//   banner = `名称`；roles = `推荐风格`（缺 ⇒ 空串）；窗口 = `活动开始` / `活动结束`
+		// ⚠️ `results` 是**对象**（key = 页面名），SMW 不保证顺序 ⇒ 这里按序列稳定排序由载荷层负责，
+		//    本函数只如实逐条产出（`_i` 留在源里的出现序号上，仅用于同一结束时刻的并列定序）。
+		function pengpengAskPoolsOf(json, tz) {
+			const q = json && typeof json === "object" ? json.query : null;
+			if (!q || typeof q !== "object") {
+				// SMW 查询本身报错（语法/权限）也走这里：抓取失败 ≠ 未公布
+				throw new Error(json && json.error ? "pengpeng-ask-error" : "pengpeng-bad-shape");
+			}
+			const results = q.results;
+			if (!results || typeof results !== "object" || Array.isArray(results)) throw new Error("pengpeng-bad-list");
 			const out = [];
 			let i = 0;
-			for (const tbl of tables) {
-				for (const r of ns_bwiki_tableRows(tbl)) {
-					const cells = r.cells || [];
-					if (cells.length < 3) continue;
-					// 时间列交给 bwiki 系共用的日期解析（`2026/09/10 05:00:00 ~ 2026/09/24 04:59:59`）；
-					// `长期` 只有一个点 ⇒ 返回 []，如实跳过（见文件头）。
-					const win = ns_bwiki_windowsFromCell(cells[1].text, tz, "startFirst")[0];
-					if (!win) continue;
-					const { name, category } = pengpengNameOf(cells[0].html);
-					if (!name) continue;
-					out.push({
-						banner: name,
-						roles: ns_bwiki_linkTitles(cells[2].html).join("\u3001"),
-						category,
-						startTs: win.startTs,
-						endTs: win.endTs,
-						// 两份文本（约定见 `30-game-bwiki-common.js` 文件头）：
-						//   raw = 源站原文那一句（`2026/09/10 05:00:00 ~ 2026/09/24 04:59:59`）
-						//   display = 补全后的可读文本（`MM-DD HH:MM ~ MM-DD HH:MM`，源站 tz）
-						// ⚠️ 原先这里把**格式化后**的字符串塞进 `raw` ⇒ 原文丢了、且与 display 同值。
-						raw: win.raw,
-						display: win.display,
-						isMain: true,
-						_i: i++
-					});
-				}
+			for (const key of Object.keys(results)) {
+				const row = results[key] || {};
+				const p = row.printouts && typeof row.printouts === "object" ? row.printouts : {};
+				const name = pengpengAskValueOf(p["名称"]) || String(row.fulltext || key || "").trim();
+				if (!name) continue;
+				const startText = pengpengAskValueOf(p["活动开始"]);
+				const endText = pengpengAskValueOf(p["活动结束"]);
+				const startTs = pengpengAskInstantOf(startText, tz);
+				const endTs = pengpengAskInstantOf(endText, tz);
+				// 读不出两端（「常规契约」那两口常驻池没有结束时间）⇒ 如实跳过（见文件头「长期池」）
+				if (startTs == null || endTs == null || !(endTs > startTs)) continue;
+				out.push({
+					banner: name,
+					roles: pengpengAskValueOf(p["推荐风格"]),
+					// 两份文本（约定见 `30-game-bwiki-common.js` 文件头）：
+					//   raw = 源站原文那一句；display = 补全后的可读文本（源站 tz）
+					raw: `${startText} ~ ${endText}`,
+					display: fmtWindow(startTs, endTs, tz),
+					startTs,
+					endTs,
+					isMain: true,
+					_i: i++
+				});
 			}
 			return out;
 		}
@@ -197,8 +227,9 @@
 		// 抓取器（契约：async (url, signal, tz) → 数据对象 | null；now 在最后、有默认值）
 		// bwiki 是 biligame 系主机 ⇒ 必须走宿主代理（见 15-env.js 的 CORS 收口点）
 		async function ns_pengpeng_gachaPengpeng(url, signal, tz = PENGPENG_TZ, now) {
-			const html = await fetchMediaWikiText(url, { signal, mode: "proxy" });
-			const items = pengpengPoolsOf(html, tz);
+			const json = await fetchJson(url || PENGPENG_ASK_URL, { signal, mode: "proxy" });
+			const items = pengpengAskPoolsOf(json, tz);
+			// 0 条 = 查询结构变了（**不是**"没有在期池"）：没有在期池是载荷层返回 null 的那条分支
 			if (items.length === 0) throw new Error("pengpeng-no-table");
 			return ns_bwiki_batchGachaPayloadOf(items, tz, typeof now === "number" && Number.isFinite(now) ? now : nowMs(), { id: "pengpeng" });
 		}
@@ -522,10 +553,12 @@
 			tz: PENGPENG_TZ,
 			name: "夜幕之下",
 			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/3f/59/95/3f599572-4d8c-f4f3-0270-1ee72e007926/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",
-			url: PENGPENG_BWIKI_URL,
-			// 卡池侧标签带上停更事实：源站「契约一览」最后编辑 = 2026-09-24，最新窗口 2026-09-10 ~ 10-01
-			// ⇒ 当前时刻如实「未公布」。「停更」的是这张 wiki 表，不是游戏（游戏仍在运营）。
-			source: "Bwiki 契约一览（停更）",
+			url: PENGPENG_ASK_URL,
+			// 卡池来源标签 = **数据是 bwiki 的 SMW（语义查询）给的**，不是那个已改成 #REDIRECT 的
+			// HTML 页。标签里**不再写「停更」**：停更的是 wiki 的内容（最后一期止于 2026-09-10），
+			// 而"卡池列现在为空"是内容停更的结果、不是这条链路坏了 —— 两者混在一句里会让人以为
+			// 抓取器坏了。等 wiki 补档，这里不需要改任何字。
+			source: "Bwiki 契约（SMW）",
 			// 活动侧默认源 = TapTap tab 的 feed JSON（国服）；旧 bwiki 公告源降为手动备选
 			eventUrl: pengpengTaptapApiUrl(0),
 			eventSource: "TapTap",

@@ -84,7 +84,7 @@ dsh-gacha-calendar/
 │       ├── 30-game-wqmt.js        # 无期迷途（国服）：卡池 bwiki 追踪一览 + 活动 官方资讯 API + 开服锚点
 │       ├── 30-game-miyoushe-bbs.js # 未定事件簿：米游社公告（卡池 + 活动；详情需 Referer www.miyoushe.com/wd/）
 │       ├── 30-game-netease.js     # 时空中的绘旅人：官网新闻（official）+ 学院公告（update）列表 + 详情（卡池画廊 + 活动；缺年份补年/跨年）
-│       ├── 30-game-pengpeng.js    # 夜幕之下（国服）：卡池 bwiki 契约一览（已停更）+ 活动 TapTap tab 的 feed JSON（旧 bwiki 公告为备选）
+│       ├── 30-game-pengpeng.js    # 夜幕之下（国服）：卡池 bwiki SMW ask（契约）+ 活动 TapTap tab 的 feed JSON（旧 bwiki 公告为备选）
 │       ├── 30-game-unconfigured.js # 炽焰天穹：只注册条目、来源留空未配置（本批唯一仍不接的）
 │       ├── 30-game-batch2.js      # 2026-11-11 第二批：崩坏3 米哈游内容中台（卡池只出名称/角色、活动正文时间块）/ OurNotes 日服 SPICA（列表→前 5 条详情）/ 卡厄斯梦境 TapTap tab（HTML 卡片 + 区间）
 │       ├── 30-game-ournotes-global.js # OurNotes **国际服**卡池 + 活动：默认源 = SPICA 数据 JSON（页面 `window._durl` 现解 → d-*.json；gachapages/events 一次拿全）；数据里是 JST 墙钟、展示按 UTC+8（钟面 −1h）；picks 按 **id** 查角色；池名与角色名按 zh→tw→en→ja 取（简中优先）；BHK 官方公告两条降为手动备选源
@@ -937,7 +937,7 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
 | id | 游戏 | 卡池源 | 活动源 | 状态 |
 |---|---|---|---|---|
 | `wqmt` | 无期迷途（国服） | bwiki「追踪一览」（`api.php?action=parse`，174 行） | 官方资讯 API `wqmt.aisnogames.com/api/news`（`ACAO:*` ⇒ 直连） | **两侧已接** |
-| `pengpeng` | 夜幕之下（国服，曾用名「代号砰砰」） | bwiki「契约一览」（18 行；2026-09-24 后未编辑 ⇒ 标签写明「已停更」） | **TapTap tab 的 feed JSON**（`webapiv2/feed/v7/by-group`，`from=0/10/20` 最多 3 页；2026-11-10 换源、2026-11-11 由 HTML 正则改 JSON） | **两侧已接**；旧 bwiki `公告/` 降为 `eventAltSources` 手动备选 |
+| `pengpeng` | 夜幕之下（国服，曾用名「代号砰砰」） | bwiki **SMW `action=ask`**（`[[分类:契约]][[条目类型::契约]]`，11 条 / 9 条有窗口；2026-11-11 换源：旧 HTML 页在 `/ymzx` 已 #REDIRECT，标签写「Bwiki 契约（SMW）」） | **TapTap tab 的 feed JSON**（`webapiv2/feed/v7/by-group`，`from=0/10/20` 最多 3 页；2026-11-10 换源、2026-11-11 由 HTML 正则改 JSON） | **两侧已接**；旧 bwiki `公告/` 降为 `eventAltSources` 手动备选 |
 | `wd` | 未定事件簿 | 米游社公告 `forum_id=33`（2026-11-09 晚接上） | 同上（按标题分流） | **两侧已接** |
 | `hlr` | 时空中的绘旅人 | 官网 `news/official/` 列表 + 详情（2026-11-09 晚接上） | 官网 `news/official/` + **`news/update/` 学院公告**（2026-11-10 增补；同一个抓取器抓两类列表） | **两侧已接**；活动侧现在出「缱绻假日」10-09~11-20，卡池侧无在期画廊 ⇒ 如实 null |
 | `cytq` | 炽焰天穹（用户写作「炽焰苍穹」） | — | — | **未配置**（只注册条目） |
@@ -1120,6 +1120,31 @@ null，活动侧 2026-11-10 已换 TapTap tab（能出「新风同行」11-05~11
   只保留 `moment.{id_str,created_time,topic{title,summary}}` + `data.total/next_page`）；
   回归 `test/cases-pengpeng-event.mjs`（注册 / 30 帖解析 / 当期逐字 / 5 条反向证明 / 翻页失败隔离 /
   bwiki 备选源 / 早停）。旧的 `pengpeng-taptap-official{,-p2}`（HTML）已删。
+
+
+### 2026-11-11：嘟嘟脸恶作剧换 TapTap（列表 → 详情）；夜幕之下卡池换 bwiki SMW ask
+
+- **嘟嘟脸 `ddlezj`**：默认源（卡池 + 活动）= **TapTap 官方账号**（国服 `group_id=957044`，
+  `webapiv2/feed/v7/by-group` → `webapiv2/moment/v3/detail`）。旧 B 站代理公告 API 自 2026-06 起冻结
+  （列表最新一条 2026-06-22），降为两侧 `altSources`，抓取器键 `ddlezj-biligame`（该源正文自标 UTC+9
+  ⇒ 抓取器自己钉 `+540`；条目 tz 改为 TapTap 的 `Asia/Shanghai`）。
+  列表里的 `topic.summary` **只有 200 字**（卡池段在正文深处）⇒ 必须抓详情：正文 =
+  `first_post.contents.json` 的段落块（不是 HTML）。`维护后` 的起点用**同帖顶部**那次维护的时刻
+  （`YYYY/MM/DD HH:MM 进行维护更新`），**日期不同就不补**（起点未知 ⇒ 不产出）。
+  实测（2026-11-11）：卡池「全新使徒【波朗】限时概率上升」`11-05 10:00 ~ 11-19 09:59`、活动
+  「主题剧院【篡夺与越轨之间】」同窗 + 悬停 9 条；一次刷新 1 次列表 + 3 份详情（第三帖全结束即停）。
+  夹具 `p6-ddlezj-taptap-feed-p{1,2}` / `p6-ddlezj-taptap-detail-{866691594919610832,
+  854437201591667060,846447554991229760,811237759342608610}`；回归 `test/cases-p6.mjs` 的 P6-6。
+- **夜幕之下 `pengpeng` 卡池**：旧写法抓 HTTP 表（`action=parse&page=契约一览`）；实测该页在
+  **`/ymzx`** 这个 wiki 上已是 `#REDIRECT [[契约图鉴]]`（1059 字节，无 `<table>`）⇒ 改抓同一份数据的
+  **SMW `action=ask`**（`[[分类:契约]][[条目类型::契约]]|?名称|?契约类型|?活动开始|?活动结束|?推荐风格`，
+  实测 200 / 11 条、9 条有窗口，全部 `05:00` 起 / `04:59:59` 止）。池名 = `名称`、角色列 = `推荐风格`；
+  **不做「按固定 N 天外推」**（9 期里 6 期 14 天、3 期 21 天）。末条止 **2026-09-10** ⇒ 当前如实 nomatch。
+  `source` 标签由「Bwiki 契约一览（停更）」改成 **「Bwiki 契约（SMW）」**。
+  夹具 `pengpeng-ask`（+ `pengpeng-contract-redirect` 作反向证明）；回归 `test/cases-new5.mjs` ④。
+  ⚠️ 事实提醒：`wiki.biligame.com/pengpeng` 与 `wiki.biligame.com/ymzx` 是**两个不同的 wiki**
+  （`gamecenter_wiki_pengpeng-pre_` / `gamecenter_wiki_ymzx-pre_`）。前者的「契约一览」仍是 18 行 HTML
+  表、末条 2026-10-01 且最后编辑 2026-09-24（比后者新 1 期、多 6 期历史）；`#REDIRECT` 只发生在后者。
 
 
 ### 星铁换官方公告 CMS + 「相对起点」锚定 + 「起点未知 ≠ 已开始」（2026-11-09）

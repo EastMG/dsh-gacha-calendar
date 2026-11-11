@@ -1,0 +1,1438 @@
+{
+ "data": {
+  "moment": {
+   "id_str": "866691594919610832",
+   "created_time": 1793696400,
+   "topic": {
+    "id_str": "54890259",
+    "title": "《嘟嘟脸恶作剧》活动更新一览",
+    "summary": "圣团长们大家好！\n软萌可爱！嘟嘟脸的生活！《嘟嘟脸恶作剧》即将在2026/11/05 10:00 进行维护更新，实装全新主题剧院【篡夺与越轨之间】。\n具体维护更新内容请见下文。\n----------------------------------------------\n一、主题剧院【篡夺与越轨之间】\n活动时间：2026/11/05 维护后 - 2026/11/19 09:59\n开启条件：通关世界"
+   }
+  },
+  "first_post": {
+   "id_str": "404289081",
+   "created_time": 1793688178,
+   "contents": {
+    "json": [
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "圣团长们大家好！"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "软萌可爱！嘟嘟脸的生活！《嘟嘟脸恶作剧》即将在2026/11/05 10:00 进行维护更新，实装全新主题剧院【篡夺与越轨之间】。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "具体维护更新内容请见下文。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "----------------------------------------------"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "一、主题剧院【篡夺与越轨之间】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/11/05  维护后 - 2026/11/19 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "开启条件：通关世界地图【微微辣】2-2"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动介绍：活动期间将开启主题剧院【篡夺与越轨之间】。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "参与活动可获得活动资源等各种奖励，活动资源可在活动商店中兑换【坚毅的波朗手办】及其他物品。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "每天可在活动主大厅选择一个势力，并通过支援零食参加势力战。所选势力可在每日重置时间后重新选择。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "每次通关关卡，都能获得一堆面包。一堆面包在选择势力后可以使用，获得更多零食支援的势力将获胜。请注意，活动点数若未在活动期限内使用完将会被清除！"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "每天会进行一次结算，结算期间不能支援零食。支援过零食后，结算结束时进入大厅即可领取获胜势力的奖励！"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "首次投票开始时间：11.7 03:00，共计12轮"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "结算时间：每日 02:50～03:00 "
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "※结算期间无法支援零食"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "商店兑换时间：2026/11/05  维护后 - 2026/11/26 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "① 活动剧情"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/11/05  维护后 - 2026/11/26 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：仙灵王国警卫队长波朗最后的作战。波朗究竟向埃尔芬提出了怎样的秘密交易？"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "※ 通关最终章节可获得【精彩片段】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "大厅构成 ＞ 场景背景，可在活动期间内使用。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "②波朗的肖像画"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/11/05  维护后 - 2026/11/19 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：完成主题剧院成就时发放波朗的旗帜！累积波朗的旗帜可提升试炼等级，领取更多奖励！"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "购买后可获得在圣物管理中使用的【守护的象征贡品塔】和名字字体装扮【坚定的意志】。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "③梦境之地"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/11/12 10:00 - 2026/11/19 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：通过梦境之地获取分数，可在活动 ＞ 成就 ＞ 梦境之地  中获得各种奖励。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "※ 未在活动期间内使用完毕的活动资源将会自动转换为金币。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "④宠物跑腿"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/11/05  维护后 - 2026/11/19 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：开放【自然灵之地】跑腿地区。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "二、新使徒、新卡片"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "①全新使徒【波朗】限时概率上升"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/11/05  维护后 - 2026/11/19 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：活动期间内★3波朗获得概率提升。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "②全新卡片扭蛋【波朗的制服帽】限时概率上升"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/11/05  维护后 - 2026/11/19 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：在活动期间传说卡片【波朗的制服帽】获得概率提升。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "三、其他精选使徒招募和精选卡片扭蛋"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/11/12 03:00 - 2026/11/19 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "①精选使徒招募【龙族圣骨贵族】薇薇"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：活动期间内★3【永生】薇薇获得概率提升。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "※该卡池不会出现其他艾达使徒"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "②精选使徒招募【最强的情报员？】洛涅"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：活动期间内★3洛涅获得概率提升。"
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "③精选卡片扭蛋【30公斤壶铃】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：在活动期间传说卡片【30公斤壶铃】获得概率提升。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "四、【欢迎你，圣团长大人】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "开放时间：2026/11/05  维护后"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：11/05维护后，原本的14日签到将调整为15日签到。同时，登录第8天即可获取传说宠物【迷你斯皮奇】。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "※ 已完成专属签到但未获得【迷你斯皮奇】的圣团长，我们将通过邮件发放【迷你斯皮奇】；已拥有【迷你斯皮奇】的圣团长，则通过邮件发放水晶叶×1000。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "五、新【意念体】开放"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "11/05 维护后，开放【波朗】意念体"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "11/12 03:00  ，开放【洛涅】意念体"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "意念体说明：使徒们的愿望具象而成的意念体！通过意念体可以看到使徒们实现愿望变强后的样子。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "使徒达到★5时，可以在不消耗额外资源的情况下立即召唤意念体。召唤意念体，挖掘使徒们的潜在力量吧！"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "【意念体】的升星强化需要消耗对应使徒的【使徒证书】。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "【意念体】的升级强化需要通过消耗特定的素材【种族心形】进行。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "六、周末活动【诡计骰子】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/11/06 11:00 - 2026/11/09 02:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：周末活动【诡计骰子】即将开始！参与活动有机会获得大量的棉花糖自选宝箱！"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "兽人朋友们邀请圣团长大人来玩桌游啦！为考验圣团长大人的运气和策略，请掷出骰子吧！"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "本游戏支持与其他圣团长实时对战。双方轮流投掷骰子，凑出特定组合并比拼合计得分。骰子总共可掷3次。长按骰盅后松开，即可掷出骰子。点击排列好的骰子，可以保留想要的骰子并重新投掷。重掷后，也可以更换已保留的骰子。凑出想要的组合后，请在左侧计分表中选中对应项，并点击登记组合按钮。已登记过的组合不可再次选择。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "请在限定时间内完成组合登记。若超时导致自动登记，将会收到一张黄牌。累计3张黄牌，比赛会立即结束并判为失败，请多加注意。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "局势不利时可以选择投降。当一名玩家登记的组合达到3个以上时，即可选择投降。投降后比赛立即结束并判为失败。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "※ 中途退出游戏将被判定为失败。如果是主动退出游戏，请务必注意。频繁退出比赛可能会受到更严厉的处罚，建议在稳定的网络环境中游玩。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "奖励领取时间：2026/11/06 11:00 - 2026/11/12 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "七、优化/新增"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "开放时间：2026/11/05  维护后"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "● 头像新增排序"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "● 收藏品新增筛选"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "● 好友人数上限扩展"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "● 语音选择下载与删除功能"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "● 证书商店购买优化"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "● 生产厂、宴会厅追加一键获取功能"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "● 新增剧情内的声音调整功能"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "● 重映馆新上映："
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "主题剧院："
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "【终将再度到来的时刻】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "【半个世界的手套】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "【艾利亚斯奥德赛】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "【午夜人偶剧】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "八、次元混战"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/11/12 10:00 - 2026/11/19 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：夏迪制造的口袋次元正在让其他次元的怪兽涌入艾利亚斯。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "在次元之门开启的这段时间里，阻挡源源不断出现的怪兽，可获得丰厚奖励。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "九、通行证"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "【便服通行证】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/11/12 03:00 - 2026/11/26 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：活动期间，玩家可通过每日与每周活跃度获得通行证点数和丰厚奖励。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "购买后可获得使徒薇薇的限定便服【漆黑的暗黑天鹅】等其他奖励。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "十、胜利者的竞技场"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/11/05  维护后 - 2026/12/03 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：活动期间，玩家可前往  冒险 ＞ 巅峰对决  与其他玩家进行对战。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "十一、便装上架"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "获得方式：尊享商店＞精品店"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "①全新便装"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "开放时间：2026/11/05 维护后"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "波朗-【午夜狙击手】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "②便装复刻"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "开放时间：2026/11/12 03:00"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "锡安-【暗网枪手】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "十二、限时获取的主题家具"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "新增"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "获取方式：尊享商店 ＞ 室内装潢商店"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/11/05  维护后 - 2026/11/19 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "①家具套装【波朗的房间礼包】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "②海报【篡夺与越轨之间大型海报】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "③传说宠物【蛋壳小鸡】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "复刻"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "获取方式：尊享商店 ＞ 室内装潢商店"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/11/05  维护后 - 2026/11/19 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "①家具套装【布朗谢的房间礼包】、【皮可拉的房间礼包】、【锡安的房间礼包】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "②传说宠物【偶像】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "③稀有宠物【泼皮鸟】、【脆皮海豹】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "④海报【再次绽放的布朗谢大型海报】、【师父情结皮可拉大型海报】、【黑暗新人锡安大型海报】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "⑤手办【品茶的布朗谢手办】、【短途游客皮可拉手办】、【绝对零度的管理员手办】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "复刻-锡安收藏品"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "获取方式：尊享商店 ＞ 水晶叶商店"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/11/12  03:00 - 2026/11/26 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "①【浪漫的Cosplay锡安海报】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "②【疾驰的枪手锡安海报】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "③【今天也要加油锡安手办】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "④【暗网枪手锡安手办】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "⑤【蓄势待发的锡安钥匙扣】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "⑥【暗网枪手锡安头像框】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "《嘟嘟脸恶作剧》项目组"
+       }
+      ]
+     }
+    ]
+   }
+  }
+ },
+ "success": true
+}

@@ -159,5 +159,12 @@
   "https://media-cdn-zspms.kurogame.com/pnswebsite/website2.0/json/G144/article/5467.json": "p8-zspms-cdn-art5467/response.txt",
   "https://media-cdn-zspms.kurogame.com/pnswebsite/website2.0/json/G144/article/5306.json": "p8-zspms-cdn-art5306/response.txt",
   "https://spica.wiki/ournotes/en/gachas": "spica-en-gachas/response.txt",
-  "https://spica.wiki/ournotes/data/d-67318986e4.json": "spica-en-data/response.txt"
+  "https://spica.wiki/ournotes/data/d-67318986e4.json": "spica-en-data/response.txt",
+  "https://wiki.biligame.com/ymzx/api.php?action=ask&format=json&query=%5B%5B%E5%88%86%E7%B1%BB%3A%E5%A5%91%E7%BA%A6%5D%5D%5B%5B%E6%9D%A1%E7%9B%AE%E7%B1%BB%E5%9E%8B%3A%3A%E5%A5%91%E7%BA%A6%5D%5D%7C%3F%E5%90%8D%E7%A7%B0%7C%3F%E5%A5%91%E7%BA%A6%E7%B1%BB%E5%9E%8B%7C%3F%E6%B4%BB%E5%8A%A8%E5%BC%80%E5%A7%8B%7C%3F%E6%B4%BB%E5%8A%A8%E7%BB%93%E6%9D%9F%7C%3F%E6%8E%A8%E8%8D%90%E9%A3%8E%E6%A0%BC&origin=*": "pengpeng-ask/response.txt",
+  "https://www.taptap.cn/webapiv2/feed/v7/by-group?X-UA=V%3D1%26PN%3DWebApp%26LANG%3Dzh_CN%26VN_CODE%3D100000000%26LOC%3DCN%26PLT%3DPC%26DS%3DAndroid%26UID%3D%26OS%3DWindows%26OSV%3D10%26DT%3DPC&type=official&group_id=957044&limit=10&sort=created&from=0": "p6-ddlezj-taptap-feed-p1/response.txt",
+  "https://www.taptap.cn/webapiv2/feed/v7/by-group?X-UA=V%3D1%26PN%3DWebApp%26LANG%3Dzh_CN%26VN_CODE%3D100000000%26LOC%3DCN%26PLT%3DPC%26DS%3DAndroid%26UID%3D%26OS%3DWindows%26OSV%3D10%26DT%3DPC&type=official&group_id=957044&limit=10&sort=created&from=10": "p6-ddlezj-taptap-feed-p2/response.txt",
+  "https://www.taptap.cn/webapiv2/moment/v3/detail?X-UA=V%3D1%26PN%3DWebApp%26LANG%3Dzh_CN%26VN_CODE%3D100000000%26LOC%3DCN%26PLT%3DPC%26DS%3DAndroid%26UID%3D%26OS%3DWindows%26OSV%3D10%26DT%3DPC&id=866691594919610832": "p6-ddlezj-taptap-detail-866691594919610832/response.txt",
+  "https://www.taptap.cn/webapiv2/moment/v3/detail?X-UA=V%3D1%26PN%3DWebApp%26LANG%3Dzh_CN%26VN_CODE%3D100000000%26LOC%3DCN%26PLT%3DPC%26DS%3DAndroid%26UID%3D%26OS%3DWindows%26OSV%3D10%26DT%3DPC&id=854437201591667060": "p6-ddlezj-taptap-detail-854437201591667060/response.txt",
+  "https://www.taptap.cn/webapiv2/moment/v3/detail?X-UA=V%3D1%26PN%3DWebApp%26LANG%3Dzh_CN%26VN_CODE%3D100000000%26LOC%3DCN%26PLT%3DPC%26DS%3DAndroid%26UID%3D%26OS%3DWindows%26OSV%3D10%26DT%3DPC&id=846447554991229760": "p6-ddlezj-taptap-detail-846447554991229760/response.txt",
+  "https://www.taptap.cn/webapiv2/moment/v3/detail?X-UA=V%3D1%26PN%3DWebApp%26LANG%3Dzh_CN%26VN_CODE%3D100000000%26LOC%3DCN%26PLT%3DPC%26DS%3DAndroid%26UID%3D%26OS%3DWindows%26OSV%3D10%26DT%3DPC&id=811237759342608610": "p6-ddlezj-taptap-detail-811237759342608610/response.txt"
 }

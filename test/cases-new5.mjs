@@ -3,7 +3,7 @@
 // ── 这一段守什么 ──
 //   ① **注册项**：5 条的 id / 名称 / 图标 / tz / 颜色都在，id 全局唯一；**有源的接全、无源的留空**：
 //      · `wqmt` 两侧都有（bwiki 卡池 + 官方资讯 API 活动）；
-//      · `pengpeng` 卡池 + 活动（卡池 bwiki 契约一览；活动 bwiki `公告/` 版本活动总览）；
+//      · `pengpeng` 卡池 + 活动（卡池 bwiki **SMW `action=ask`**；活动 TapTap feed JSON）；
 //      · `wd` 两侧都有（米游社公告 forum_id=33，卡池 + 活动）；
 //      · `hlr` 两侧都有（官网新闻列表 + 详情，卡池 + 活动）；
 //      · `cytq` 两侧都不写（**本批唯一**仍然「未配置」的条目）。
@@ -29,6 +29,10 @@
 import { createEngine } from "../packages/core/core.mjs";
 import { check, section, fixtureBody, assertHoverConvention } from "./harness.mjs";
 import { T } from "./load.mjs";
+import { readFileSync } from "node:fs";
+
+// 直接读夹具原文（不走 transport）：给"看响应长什么样"的反证用
+const fixtureBodyText = (p) => readFileSync(new URL("./fixtures/" + p, import.meta.url), "utf8");
 
 const TZ_CN = "Asia/Shanghai";
 const FIX = (dir) => fixtureBody("fixture:" + dir, { ["fixture:" + dir]: dir + "/response.txt" });
@@ -37,7 +41,7 @@ const FIX = (dir) => fixtureBody("fixture:" + dir, { ["fixture:" + dir]: dir + "
 const B = {
 	wqmtBwiki: FIX("wqmt-bwiki"),          // wiki.biligame.com/wqmt 追踪一览（325KB / 174 行）
 	wqmtNews: FIX("wqmt-news-list"),       // wqmt.aisnogames.com/api/news（三个栏目各 5 条）
-	pengpeng: FIX("pengpeng-bwiki")        // wiki.biligame.com/pengpeng 契约一览（18 行）
+	pengpeng: FIX("pengpeng-ask")          // wiki.biligame.com/ymzx SMW ask（11 行，9 条有窗口）
 };
 // 卡池抓取器只取最新 N 条正文（`WQMT_EVENT_MAX_DETAILS`；2026-11-11 起 6 → 10，见下面 ⑥）。
 // ③ 段用的是 11-09 那份列表夹具（2099 恰好是第 6 条）⇒ 这 6 个 id 由 `wqmtEventCandidatesOf`
@@ -47,7 +51,7 @@ const WQMT_DETAILS = ["2120", "2119", "2121", "2118", "2117", "2099"];
 function pickBody(url) {
 	const u = String(url);
 	if (/wiki\.biligame\.com\/wqmt\/api\.php/.test(u)) return B.wqmtBwiki;
-	if (/wiki\.biligame\.com\/pengpeng\/api\.php/.test(u)) return B.pengpeng;
+	if (/wiki\.biligame\.com\/ymzx\/api\.php\?action=ask/.test(u)) return B.pengpeng;
 	const m = /wqmt\.aisnogames\.com\/api\/news\/(\d+)$/.exec(u);
 	if (m) {
 		if (!WQMT_DETAILS.includes(m[1])) throw new Error("没有这个公告正文的夹具：" + u);
@@ -84,6 +88,9 @@ const engineAt = (now, seed, sink) => createEngine({
 const NOW = Date.parse("2026-11-09T04:23:18+08:00");
 // 夜幕之下夹具里"最新一批"所在的时刻（2026-09-15 12:00 +08）
 const NOW_PP = Date.parse("2026-09-15T12:00:00+08:00");
+// 夜幕之下 **SMW 夹具**（2026-11-11 抓）里某一期在期的时刻：07-30 那批（乘自由之风 / 轻纱下的秘密 08-13 收，
+// 喧嚣止息之时 08-20 收）⇒ 2026-08-05 12:00 三条都在期。
+const NOW_PP_ASK = Date.parse("2026-08-05T12:00:00+08:00");
 
 const srcOf = (id) => T.SOURCES.find((s) => s.id === id) || null;
 
@@ -157,8 +164,11 @@ export default async function run() {
 			wqmt ? String(wqmt.eventUrl) : "缺失");
 
 		const pp = srcOf("pengpeng");
-		check("pengpeng 卡池源已接（bwiki 契约一览；标签写明「已停更」）",
-			!!pp && /^https:\/\/wiki\.biligame\.com\/pengpeng\/api\.php/.test(pp.url) && pp.source === "Bwiki 契约一览（停更）",
+		// 2026-11-11：卡池侧**换方法** —— 旧 HTML 页（`契约一览`）已 #REDIRECT，抓表永远空；
+		// 改成 bwiki 的 SMW 语义查询（`action=ask`），来源标签随之写「Bwiki 契约（SMW）」。
+		check("pengpeng 卡池源已接（bwiki SMW `action=ask`；标签「Bwiki 契约（SMW）」）",
+			!!pp && /^https:\/\/wiki\.biligame\.com\/ymzx\/api\.php\?action=ask&/.test(String(pp.url))
+			&& /%E5%A5%91%E7%BA%A6/.test(String(pp.url)) && pp.source === "Bwiki 契约（SMW）",
 			pp ? String(pp.source) : "缺失");
 		// 2026-11-10：活动侧默认源再换一档 —— bwiki `公告/` 停更 6 周 ⇒ TapTap tab 成默认，
 		// bwiki 公告降为 eventAltSources 手动备选（标签如实写「不可靠」）。
@@ -208,8 +218,8 @@ export default async function run() {
 		check("cytq 设置页两侧都写「未配置」",
 			T.getDefaultSourceName(cytq, "url") === "未配置" && T.getDefaultSourceName(cytq, "eventUrl") === "未配置",
 			JSON.stringify([T.getDefaultSourceName(cytq, "url"), T.getDefaultSourceName(cytq, "eventUrl")]));
-		check("pengpeng 设置页：卡池侧写「Bwiki 契约一览（停更）」、活动侧写「TapTap」",
-			T.getDefaultSourceName(pp, "url") === "Bwiki 契约一览（停更）" && T.getDefaultSourceName(pp, "eventUrl") === "TapTap",
+		check("pengpeng 设置页：卡池侧写「Bwiki 契约（SMW）」、活动侧写「TapTap」",
+			T.getDefaultSourceName(pp, "url") === "Bwiki 契约（SMW）" && T.getDefaultSourceName(pp, "eventUrl") === "TapTap",
 			JSON.stringify([T.getDefaultSourceName(pp, "url"), T.getDefaultSourceName(pp, "eventUrl")]));
 	}
 
@@ -427,34 +437,43 @@ export default async function run() {
 	}
 
 	// ─────────────────────④ 夜幕之下 卡池（真夹具 · 两个时刻）─────────────────────
-	section("新接入 5 款 ④：夜幕之下卡池（bwiki 契约一览；活动侧用例另见 cases-pengpeng-event）");
+	section("新接入 5 款 ④：夜幕之下卡池（bwiki SMW ask；活动侧用例另见 cases-pengpeng-event）");
 	{
-		// (a) 夹具最新一批在期（2026-09-15）：逐字断言
-		const e = engineAt(NOW_PP);
+		// (a) 历史某一期在期（2026-08-05 12:00 +08）：逐字断言
+		//     夹具 = `pengpeng-ask`（2026-11-11 抓的 SMW 结果，11 行；9 条有结束时间）
+		const e = engineAt(NOW_PP_ASK);
 		const s = e.__test.SOURCES.find((x) => x.id === "pengpeng");
 		const g = await e.__test.GACHA_FETCHERS["pengpeng"](s.url, undefined, s.tz);
 		check("pengpeng 有当期 ⇒ 返回对象", !!g && typeof g === "object");
-		check("pengpeng 外显契约 = 天才不必孑立（结束最早的那批）", g.banner === "天才不必孑立", JSON.stringify(g.banner));
-		check("pengpeng 角色 = 科技部长", g.roles === "科技部长", JSON.stringify(g.roles));
-		check("pengpeng 档期 = 「09-10 05:00 ~ 09-24 04:59」", g.bannerDates === "09-10 05:00 ~ 09-24 04:59", JSON.stringify(g.bannerDates));
-		check("pengpeng startTs = 2026-09-10 05:00 +08（UTC 09-09 21:00）",
-			g.startTs === Date.UTC(2026, 8, 9, 21, 0), String(g.startTs));
-		check("pengpeng endTs = 2026-09-24 04:59 +08（UTC 09-23 20:59）",
-			g.endTs === Date.UTC(2026, 8, 23, 20, 59), String(g.endTs));
-		check("pengpeng gacha[] 共 2 条（1 主条 + 1 并列）", g.gacha.length === 2, String(g.gacha.length));
-		check("pengpeng gacha[] 标题 / 类型 / 时刻逐条",
-			g.gacha.map((x) => x.title).join(" | ") === "天才不必孑立 | 隐秘的归属：杯中藏锋"
-			&& g.gacha.map((x) => x.category).join(",") === "遴选,活动"
-			&& g.gacha[1].endTs === Date.UTC(2026, 8, 30, 20, 59),
-			JSON.stringify(g.gacha.map((x) => [x.title, x.category, x.endTs])));
-		check("pengpeng 悬停逐字（2 行「契约：角色 ⏎ 档期」）",
-			g.bannerHover === "天才不必孑立：科技部长\n09-10 05:00 ~ 09-24 04:59\n隐秘的归属：杯中藏锋\n09-10 05:00 ~ 10-01 04:59",
+		check("pengpeng 外显契约 = 乘自由之风（07-30 那批里结束最早的）", g.banner === "乘自由之风", JSON.stringify(g.banner));
+		check("pengpeng 角色 = 推荐风格「热沙骑士、复仇童谣」（同一结束时刻的整批合并）",
+			g.roles === "热沙骑士、复仇童谣", JSON.stringify(g.roles));
+		check("pengpeng 档期 = 「07-30 05:00 ~ 08-13 04:59」", g.bannerDates === "07-30 05:00 ~ 08-13 04:59", JSON.stringify(g.bannerDates));
+		check("pengpeng 源站原文 = 「2026-07-30 05:00:00 ~ 2026-08-13 04:59:59」（raw 与 display 分开）",
+			g.bannerDatesRaw === "2026-07-30 05:00:00 ~ 2026-08-13 04:59:59", JSON.stringify(g.bannerDatesRaw));
+		check("pengpeng startTs = 2026-07-30 05:00 +08（UTC 07-29 21:00）",
+			g.startTs === Date.UTC(2026, 6, 29, 21, 0), String(g.startTs));
+		check("pengpeng endTs = 2026-08-13 04:59 +08（UTC 08-12 20:59）",
+			g.endTs === Date.UTC(2026, 7, 12, 20, 59), String(g.endTs));
+		// gacha[] = 1 主条（池名）+ 3 口在期池（池名：风格）—— 与 wqmt 同一形状（`ns_bwiki_batchGachaPayloadOf` 共用），
+		// 所以主条与第一口池的标题会各出现一次（既有口径，不是本次回归）。
+		check("pengpeng gacha[] 共 4 条（1 主条 + 3 口在期池）", g.gacha.length === 4, String(g.gacha.length));
+		check("pengpeng gacha[] 标题逐条（主条 = 池名；并列条 = 池名：推荐风格）",
+			g.gacha.map((x) => x.title).join(" | ") === "乘自由之风 | 乘自由之风：热沙骑士 | 轻纱下的秘密：复仇童谣 | 喧嚣止息之时：无声裁决",
+			JSON.stringify(g.gacha.map((x) => x.title)));
+		check("pengpeng gacha[] 末条 endTs = 2026-08-20 04:59 +08（UTC 08-19 20:59）",
+			g.gacha[3].endTs === Date.UTC(2026, 7, 19, 20, 59), String(g.gacha[3] && g.gacha[3].endTs));
+		check("pengpeng gacha[] 不再带 category（SMW 的 `契约类型` 是「限时/常规」，含义不同 ⇒ 不拿来顶替旧的「遴选/活动」）",
+			g.gacha.every((x) => x.category == null), JSON.stringify(g.gacha.map((x) => x.category)));
+		check("pengpeng 悬停逐字（3 行「契约：风格 ⏎ 档期」）",
+			g.bannerHover === "乘自由之风：热沙骑士\n07-30 05:00 ~ 08-13 04:59\n轻纱下的秘密：复仇童谣\n07-30 05:00 ~ 08-13 04:59\n喧嚣止息之时：无声裁决\n07-30 05:00 ~ 08-20 04:59",
 			JSON.stringify(g.bannerHover));
 		assertHoverConvention("pengpeng 卡池", g.bannerHover, { requireSet: true });
-		check("pengpeng 长期池（写「长期」，读不出窗口）如实跳过：events/gacha 里没有「夜色的呼唤」",
+		check("pengpeng 长期池（没有 `活动结束`）如实跳过：gacha 里没有「夜色的呼唤」「起始的契约」",
 			!g.gacha.some((x) => /夜色的呼唤|起始的契约/.test(x.title)), JSON.stringify(g.gacha.map((x) => x.title)));
 
-		// (b) 抓取那天（2026-11-09）**没有在期池** ⇒ null = 未公布，不是失败
+		// (b) 当前时刻（2026-11-09 / 夹具抓取那天）：SMW 最后一期止于 2026-09-10 04:59 ⇒ null = 未公布
+		//     **这是事实**（wiki 停更），不是抓取失败：不外推、不把上一期当"当前"。
 		const e2 = engineAt(NOW);
 		const s2 = e2.__test.SOURCES.find((x) => x.id === "pengpeng");
 		let nullOk = false, err = "";
@@ -464,17 +483,50 @@ export default async function run() {
 		nullOk = got === null && err === "";
 		check("pengpeng 当前时刻没有在期池 ⇒ 返回 null（「未公布」，不抛错 = 不记失败）", nullOk, err || JSON.stringify(got));
 
-		// (c) 表结构变了 ⇒ 抛错（改版要看得见，不能静默成「未公布」）
-		const e3 = createEngine({
-			transport: { async fetchRaw() { return { ok: true, status: 200, headers: { get: () => null }, text: async () => "<html>改版了</html>", json: async () => ({ parse: { text: "<html>改版了</html>" } }) }; }, async fetchViaProxy() { return JSON.stringify({ parse: { text: "<html>改版了</html>" } }); } },
-			storage: makeStore(), now: () => NOW_PP, timer: { setTimeout, clearTimeout }
+		// (c) 结构变了 ⇒ 抛错（改版要看得见，不能静默成「未公布」）
+		//     旧 HTML 页面（契约一览）现在只剩一段重定向 ⇒ 把 HTML 喂给这条链路就是 bad-json。
+		const bodyEngine = (body, now) => createEngine({
+			transport: {
+				async fetchRaw() { return { ok: true, status: 200, headers: { get: () => null }, text: async () => body, json: async () => JSON.parse(body) }; },
+				async fetchViaProxy() { return body; }
+			},
+			storage: makeStore(), now: () => now || NOW_PP, timer: { setTimeout, clearTimeout }
 		});
-		let bad = "";
-		try { await e3.__test.GACHA_FETCHERS["pengpeng"]("https://wiki.biligame.com/pengpeng/api.php?x=1", undefined, TZ_CN); }
-		catch (e4) { bad = String(e4 && e4.message || e4); }
-		check("pengpeng 表结构异常 ⇒ 抛 pengpeng-no-table（抓取失败 ≠ 未公布）", bad === "pengpeng-no-table", bad);
+		const errOf = async (body) => {
+			const en = bodyEngine(body);
+			const src = en.__test.SOURCES.find((x) => x.id === "pengpeng");
+			try { await en.__test.GACHA_FETCHERS["pengpeng"](src.url, undefined, src.tz); return "no-throw"; }
+			catch (e4) { return String(e4 && e4.message || e4); }
+		};
+		check("pengpeng 响应里没有 `query` ⇒ 抛 pengpeng-bad-shape（抓取失败 ≠ 未公布）",
+			(await errOf(JSON.stringify({ batchcomplete: "" }))) === "pengpeng-bad-shape",
+			await errOf(JSON.stringify({ batchcomplete: "" })));
+		check("pengpeng SMW 查询报错 ⇒ 抛 pengpeng-ask-error",
+			(await errOf(JSON.stringify({ error: { code: "smw-error", info: "…" } }))) === "pengpeng-ask-error",
+			await errOf(JSON.stringify({ error: { code: "smw-error", info: "…" } })));
+		check("pengpeng `query` 里没有 `results` ⇒ 抛 pengpeng-bad-list",
+			(await errOf(JSON.stringify({ query: { printrequests: [] } }))) === "pengpeng-bad-list",
+			await errOf(JSON.stringify({ query: { printrequests: [] } })));
+		check("pengpeng 一行窗口都读不出（只剩两口常驻池）⇒ 抛 pengpeng-no-table",
+			(await errOf(JSON.stringify({ query: { results: { 夜色的呼唤: { printouts: { "名称": ["夜色的呼唤"], "活动开始": ["2024-08-01 10:00:00"] } } } } }))) === "pengpeng-no-table",
+			await errOf(JSON.stringify({ query: { results: { 夜色的呼唤: { printouts: { "名称": ["夜色的呼唤"], "活动开始": ["2024-08-01 10:00:00"] } } } } })));
 
-		// (d) 2026-11-11 复核：卡池侧**不接** TapTap（见 30-game-pengpeng.js 的「卡池侧 2026-11-11 复核」段）
+		// (d) 反向证明：旧的 HTML 页面（`契约一览`）**已 #REDIRECT**，抓它永远空表 —— 所以换成 SMW ask。
+		//     夹具 `pengpeng-contract-redirect` = 2026-11-11 用**旧地址**真抓的响应（1059 字节）。
+		{
+			const raw = JSON.parse(fixtureBodyText("pengpeng-contract-redirect/response.txt"));
+			const txt = String((raw.parse && raw.parse.text) || "");
+			check("反证：旧地址 `action=parse&page=契约一览` 只回重定向提示（无表格、无契约行）",
+				/redirectMsg/.test(txt) && /契约图鉴/.test(txt)
+				&& !/<table/i.test(txt) && !/ymzx-qiyue-tag/.test(txt),
+				JSON.stringify(txt.slice(0, 160)));
+			check("反证：所以卡池侧不再有「抓 HTML 表」的抓取器（`pengpengPoolsOf` / `pengpengNameOf` 已删）",
+				typeof T.parsers.pengpeng.pengpengPoolsOf === "undefined"
+				&& typeof T.parsers.pengpeng.pengpengNameOf === "undefined"
+				&& String(T.SOURCES.find((x) => x.id === "pengpeng").url).indexOf("action=parse") < 0);
+		}
+
+		// (e) 2026-11-11 复核：卡池侧**不接** TapTap（见 30-game-pengpeng.js 的「卡池侧 2026-11-11 复核」段）
 		//     TapTap 的卡池信息只有「N月N日 活动契约限时开启」—— 无年份、无结束日；图片档期不可解析。
 		//     选 C（不动）：单边窗口在仓库里没有合法载荷（`coversNow` 两端都要）⇒ 这里钉死显示层行为。
 		const s3 = T.SOURCES.find((x) => x.id === "pengpeng");

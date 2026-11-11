@@ -3,7 +3,8 @@
 // ── 本段守什么 ──
 //   ① 注册：`pengpeng.eventUrl` = `webapiv2/feed/v7/by-group`（type=official / group_id=924367 / from=0）、
 //      `eventSource` = 「TapTap」；旧 bwiki `公告/` 降为 `eventAltSources`（标签仍如实写「不可靠」）；
-//      卡池侧**地址**没动，但 `source` 标签补上「契约一览（已停更）」这个事实；
+//      卡池侧 2026-11-11 **换了方法**（HTML 表 → bwiki SMW `action=ask`），`source` 标签随之改成
+//      「Bwiki 契约（SMW）」；本段的注册断言只钉这两点（卡池解析的逐字断言在 cases-new5 ④）；
 //   ② 解析：三页真夹具（`from=0/10/20`）各 10 帖；活动名取标题里的【…】，窗口取 `topic.summary` 里
 //      `▸活动时间：…` 那一行；**只有日期没有年份的不解**（【家族遗藏】两期都是）；
 //   ③ 当期（2026-11-11 00:00 +08，= 活网验收时刻）：外显 = 列表里**第一条覆盖 now** 的
@@ -139,11 +140,12 @@ export default async function runPengpengEvent() {
 			s ? String(s.eventUrl).slice(0, 90) : "缺失");
 		check("pengpeng 活动来源标签 = 「TapTap」（换源不改标签）",
 			!!s && s.eventSource === "TapTap", s ? String(s.eventSource) : "缺失");
-		check("pengpeng 卡池侧地址仍是 bwiki 契约一览（卡池不动）",
-			!!s && /action=parse&page=契约一览/.test(String(s.url)),
+		check("pengpeng 卡池侧地址 = bwiki **SMW ask**（2026-11-11 换源：`契约一览` 已 #REDIRECT 到 `契约图鉴`，抓 HTML 永远空表）",
+			!!s && /^https:\/\/wiki\.biligame\.com\/ymzx\/api\.php\?action=ask/.test(String(s.url))
+			&& /%E5%A5%91%E7%BA%A6/.test(String(s.url)),
 			s ? String(s.url) : "缺失");
-		check("pengpeng 卡池侧 `source` 标签写明「Bwiki 契约一览（停更）」",
-			!!s && s.source === "Bwiki 契约一览（停更）", s ? String(s.source) : "缺失");
+		check("pengpeng 卡池侧 `source` 标签 = 「Bwiki 契约（SMW）」",
+			!!s && s.source === "Bwiki 契约（SMW）", s ? String(s.source) : "缺失");
 		check("旧 bwiki 活动源保留在 eventAltSources（url + 抓取器键 pengpeng-bwiki + 标签如实）",
 			!!s && (s.eventAltSources || []).length === 1
 			&& s.eventAltSources[0].url === PP.PENGPENG_EVENT_URL
