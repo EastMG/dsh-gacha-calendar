@@ -56,7 +56,9 @@
 			"zspms": "Asia/Shanghai",
 			"czn": "Asia/Shanghai",
 			"kedr": "Asia/Shanghai",
-			"ddlezj": "+540",
+			// 2026-11-11：嘟嘟脸默认源换成 TapTap 国服公告（正文 UTC+8）；旧 B 站公告（UTC+9）
+			// 只作为手动备选源，提醒文案跟**默认源**的墙钟走。
+			"ddlezj": "Asia/Shanghai",
 			"uma-cn": "Asia/Shanghai",
 			"uma-jp": "Asia/Tokyo",
 			"uma-global": "UTC",

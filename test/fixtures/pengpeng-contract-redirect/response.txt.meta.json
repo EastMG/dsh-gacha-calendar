@@ -1,0 +1,6 @@
+{
+  "url": "https://wiki.biligame.com/ymzx/api.php?action=parse&page=%E5%A5%91%E7%BA%A6%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2&origin=*",
+  "status": 200,
+  "capturedAt": "2026-11-11T02:45:04.832Z",
+  "trim": "**原样**保存（1059 字节）：这个夹具的用途就是证明「旧写法那个页面现在只回一段重定向」——`action=parse` 的 text 里只有 redirectMsg + 指向 `契约图鉴` 的链接，没有 <table>，也不需要裁剪。"
+}

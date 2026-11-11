@@ -1,0 +1,6 @@
+{
+  "url": "https://wiki.biligame.com/ymzx/api.php?action=ask&format=json&query=%5B%5B%E5%88%86%E7%B1%BB%3A%E5%A5%91%E7%BA%A6%5D%5D%5B%5B%E6%9D%A1%E7%9B%AE%E7%B1%BB%E5%9E%8B%3A%3A%E5%A5%91%E7%BA%A6%5D%5D%7C%3F%E5%90%8D%E7%A7%B0%7C%3F%E5%A5%91%E7%BA%A6%E7%B1%BB%E5%9E%8B%7C%3F%E6%B4%BB%E5%8A%A8%E5%BC%80%E5%A7%8B%7C%3F%E6%B4%BB%E5%8A%A8%E7%BB%93%E6%9D%9F%7C%3F%E6%8E%A8%E8%8D%90%E9%A3%8E%E6%A0%BC&origin=*",
+  "status": 200,
+  "capturedAt": "2026-11-11T02:36:35.309Z",
+  "trim": "只保留 MediaWiki `action=ask` 响应本体（`query.printrequests` + `query.results` 全部字段原样）；`origin=*` 由抓取出口补，夹具里的 url 就是抓取器实际请求的地址。"
+}

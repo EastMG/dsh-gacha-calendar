@@ -1,0 +1,1318 @@
+{
+ "data": {
+  "moment": {
+   "id_str": "846447554991229760",
+   "created_time": 1788861623,
+   "topic": {
+    "id_str": "53870609",
+    "title": "《嘟嘟脸恶作剧》活动更新速览",
+    "summary": "圣团长们大家好！\n软萌可爱！嘟嘟脸的生活！《嘟嘟脸恶作剧》即将在2026/09/10 10:00 进行维护更新，实装全新主题剧院【无处安放的书签】。\n具体维护更新内容请见下文。\n----------------------------------------------\n一、主题剧院【无处安放的书签】\n活动时间：2026/09/10 维护后 - 2026/09/24 09:59\n开启条件：通关世界"
+   }
+  },
+  "first_post": {
+   "id_str": "399085326",
+   "created_time": 1788861623,
+   "contents": {
+    "json": [
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "圣团长们大家好！"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "软萌可爱！嘟嘟脸的生活！《嘟嘟脸恶作剧》即将在2026/09/10 10:00 进行维护更新，实装全新主题剧院【无处安放的书签】。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "具体维护更新内容请见下文。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "----------------------------------------------"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "一、主题剧院【无处安放的书签】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/09/10  维护后 - 2026/09/24 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "开启条件：通关世界地图【微微辣】2-2"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动介绍：活动期间将开启主题剧院【无处安放的书签】。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "参与活动可获得活动资源等各种奖励，活动资源可在活动商店中兑换【正在记录的谢伦手办】及其他物品。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "商店兑换时间：2026/09/10  维护后 - 2026/10/22 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "① 活动剧情"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/09/10  维护后 - 2026/10/22 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：某天，魔女王国图书馆发生了一起神秘的盗窃案。魔女王国的史官谢伦为了寻找犯人，走遍了艾利亚斯的各个角落。最终，谢伦所面对的事件真相是……？"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "※ 通关最终章节可获得【精彩片段】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "大厅构成 ＞ 场景背景，可在活动期间内使用。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "②点数兑换"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/09/10  维护后 - 2026/09/24 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：通关活动关卡，收集活动点数吧！"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "收集主题点数，获得所有普通奖励后，即可获得各区域的完成奖励！"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "③像素异世界"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/09/17 10:00 - 2026/09/24 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：像素异世界读取完毕！在这里可以游玩微辣、中辣难度。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "在像素异世界的队伍组建阶段，可以选择作弊道具来强化体验使者！作弊道具是在像素异世界中套用的特殊效果。分为立即套用、永久持续这2种效果。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "关卡结束后，如果持有永久持续作弊道具，可以从清单中选择1种带走！带走的作弊道具在重新游玩关卡时也会套用效果。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "像素异世界会根据难度，记录完成的区域。请根据记录的进度达成成就并获得各种奖励吧。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "※ 未在活动期间内使用完毕的活动资源将会自动转换为金币。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "④宠物跑腿"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/09/10  维护后 - 2026/09/24 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：开放【仙灵王国】跑腿地区。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "二、新使徒、新卡片"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "①全新使徒【谢伦】&【巴里埃】限时概率上升"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/09/10  维护后 - 2026/09/24 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：活动期间内★3谢伦和★2巴里埃获得概率提升。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "②全新卡片扭蛋【谢伦的羊皮纸卷轴】限时概率上升"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/09/10  维护后 - 2026/09/24 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：在活动期间传说卡片【谢伦的羊皮纸卷轴】获得概率提升。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "三、其他精选使徒招募和精选卡片扭蛋"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/09/17 03:00 - 2026/09/24 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "①精选使徒招募【不要因为我好骗就耍我】杰德"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：活动期间内★3杰德获得概率提升。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "②精选使徒招募【仙灵女王】埃尔芬"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：活动期间内★3埃尔芬获得概率提升。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "③精选卡片扭蛋【埃尔芬的冰淇淋蛋糕】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：在活动期间传说卡片【埃尔芬的冰淇淋蛋糕】获得概率提升。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "四、不断续写的记录"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/09/10  维护后 - 2026/09/24 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：扭蛋活动开启后，在活动期间可以通过达成成就来获得活动资源！"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "奖励分为主要道具和次要道具。可以通过中奖标识来轻松确认主要道具。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "使用活动资源抽取扭蛋后，可以在结果画面中确认获得的道具！"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "获得主要道具或是抽光扭蛋时，点击刷新按钮即可进入下一轮扭蛋。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "刷新轮次时，包含的道具会有所变化，请务必在进行前确认！"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "※ 请注意，如果在活动期间未使用活动资源，将会被兑换成金币。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "五、新【意念体】开放"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "09/10 维护后，开放【谢伦】意念体"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "09/17 03:00  ，开放【杰德】、【埃尔芬】意念体"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "意念体说明：使徒们的愿望具象而成的意念体！通过意念体可以看到使徒们实现愿望变强后的样子。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "使徒达到★5时，可以在不消耗额外资源的情况下立即召唤意念体。召唤意念体，挖掘使徒们的潜在力量吧！"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "【意念体】的升星强化需要消耗对应使徒的【使徒证书】。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "【意念体】的升级强化需要通过消耗特定的素材【种族心形】进行。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "六、周末活动【诡计骰子】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/09/11 11:00 - 2026/09/14 02:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：周末活动【诡计骰子】即将开始！参与活动有机会获得大量的棉花糖自选宝箱！"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "兽人朋友们邀请圣团长大人来玩桌游啦！为考验圣团长大人的运气和策略，请掷出骰子吧！"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "本游戏支持与其他圣团长实时对战。双方轮流投掷骰子，凑出特定组合并比拼合计得分。骰子总共可掷3次。长按骰盅后松开，即可掷出骰子。点击排列好的骰子，可以保留想要的骰子并重新投掷。重掷后，也可以更换已保留的骰子。凑出想要的组合后，请在左侧计分表中选中对应项，并点击登记组合按钮。已登记过的组合不可再次选择。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "请在限定时间内完成组合登记。若超时导致自动登记，将会收到一张黄牌。累计3张黄牌，比赛会立即结束并判为失败，请多加注意。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "局势不利时可以选择投降。当一名玩家登记的组合达到3个以上时，即可选择投降。投降后比赛立即结束并判为失败。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "※ 中途退出游戏将被判定为失败。如果是主动退出游戏，请务必注意。频繁退出比赛可能会受到更严厉的处罚，建议在稳定的网络环境中游玩。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "奖励领取时间：2026/09/11 11:00 - 2026/09/17 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "七、主线剧情无限畅览活动"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/09/17 10:00 - 2026/10/22 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：活动期间，首次观看剧情可领取水晶叶奖励，但每位玩家仅限领取一次。该奖励不因重复观看而再次发放，已领取过的玩家无法重复获得。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "八、其他"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "开放时间：2026/09/10 维护后"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "优化主线剧情 章节8的演出"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "调整了胜利者的竞技场的排名区间结构"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "重映馆新上映："
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "主题剧院：【冲刺！愤怒的快递！】、【没有王国的黑帮】、【大胆放肆的圣诞节】、【苦乐参半的庭园生活】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "新增："
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "冒险解锁世界31、世界32"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "像素异世界的战斗统计增加道具统计"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "次元混战自动推进功能"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "自动战斗中追加使徒高年级技能的ON/OFF选项"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "宴会厅对话追加自动进行功能"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "使徒界面追加收藏相关功能"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "开放时间：2026/09/17 03:00 (UTC+8)"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "新增主线剧情幕间 章节6~10"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "九、次元混战"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/09/17 10:00 - 2026/09/24 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：夏迪制造的口袋次元正在让其他次元的怪兽涌入艾利亚斯。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "在次元之门开启的这段时间里，阻挡源源不断出现的怪兽，可获得丰厚奖励。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "十、胜利者的竞技场"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/09/10  维护后 - 2026/10/08 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动说明：活动期间，玩家可前往  冒险 ＞ 巅峰对决  与其他玩家进行对战。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "本次更新后，将调整胜利者的竞技场的排名区间结构，以优化匹配体验与奖励层级分布。具体排名区间请以游戏内实际显示为准。"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "十一、全新便装上架"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "开放时间：2026/09/10 维护后"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "获得方式：尊享商店＞精品店"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "谢伦-【唱片记录员】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "十二、新增限时获取的主题家具"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "活动时间：2026/09/10  维护后 - 2026/09/24 09:59"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "获取方式：尊享商店 ＞ 室内装潢商店"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "①家具套装【谢伦的房间礼包】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "②海报【无处安放的书签大型海报】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "③传说宠物【迷你勇者蜡】"
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "image",
+      "children": [
+       {
+        "text": ""
+       }
+      ]
+     },
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "text": "《嘟嘟脸恶作剧》项目组"
+       }
+      ]
+     }
+    ]
+   }
+  }
+ },
+ "success": true
+}

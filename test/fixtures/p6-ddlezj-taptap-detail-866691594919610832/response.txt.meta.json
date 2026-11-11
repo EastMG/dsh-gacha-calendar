@@ -1,0 +1,6 @@
+{
+  "url": "https://www.taptap.cn/webapiv2/moment/v3/detail?X-UA=V%3D1%26PN%3DWebApp%26LANG%3Dzh_CN%26VN_CODE%3D100000000%26LOC%3DCN%26PLT%3DPC%26DS%3DAndroid%26UID%3D%26OS%3DWindows%26OSV%3D10%26DT%3DPC&id=866691594919610832",
+  "status": 200,
+  "capturedAt": "2026-11-11T02:36:34.048Z",
+  "trim": "只保留抓取器读取的字段（`data.moment.{id_str,created_time,topic{id_str,title,summary}}` + `data.first_post.contents.json` 的块类型与块内文字）；图片块的 `info`（URL / 尺寸）删除、文字块只留 `text`；其余（author / stat / labels / images / seo / content_suggest …）删除；字段值逐字不动。"
+}

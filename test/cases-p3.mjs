@@ -553,12 +553,18 @@ const P3B_PATHS = [
 
 	// ── 第 3 批：biligame / cygames 族 —— 嘟嘟脸恶作剧 / 闪耀优俊少女国服 / 赛马娘日服 / 赛马娘国际服 ──
 	{
+		// ⚠️ 2026-11-11：嘟嘟脸默认源换成 **TapTap**（列表 → 详情），旧 B 站公告 API 降为备选源
+		// （两侧 `ddlezj-biligame`）。这条 golden 钉的是**旧 B 站公告那份夹具**的解析结果（含 (UTC+9)
+		// 后缀、`维护后` 不产出等），所以改走备选源地址 + 备选抓取器，并显式用 +540：
+		// 产物（12 个字符串字段 / 数组 / 悬停）逐字不变。新源的数组/悬停由 cases-p6 的 P6-6 单独钉。
 		key: "ddlezjGacha", switched: true, id: "ddlezj", side: "gacha", field: "gacha", now: Date.parse("2026-04-30T12:00:00+09:00"),
-		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
+		tz: "+540",
+		call: (t, s) => t.GACHA_FETCHERS["ddlezj-biligame"](altUrlOf(s.altSources, "ddlezj-biligame"))
 	},
 	{
 		key: "ddlezjEvent", switched: true, id: "ddlezj", side: "event", field: "events", now: Date.parse("2026-04-30T12:00:00+09:00"),
-		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
+		tz: "+540",
+		call: (t, s) => t.EVENT_FETCHERS["ddlezj"]["ddlezj-biligame"](altUrlOf(s.eventAltSources, "ddlezj-biligame"))
 	},
 	{
 		key: "umaCnGacha", switched: true, id: "uma-cn", side: "gacha", field: "gacha", now: Date.parse("2026-10-02T16:33:46Z"),
@@ -903,7 +909,10 @@ async function runP3b() {
 		const engine = createEngine({ transport, storage: makeStore(), now: () => p.now, timer: { setTimeout, clearTimeout } });
 		const src = engine.__test.SOURCES.find((s) => s.id === p.id) || src0;
 		const payload = await p.call(engine.__test, src);
-		const rec = engine.__test.mergeEntryRecord({ data: payload || {} }, null, p.now, { id: p.id, tz: src.tz });
+		// ⚠️ `p.tz`（可选）= 该路径**自己的**源站时区。绝大多数路径 = 条目 tz，但 2026-11-11 起
+		//    嘟嘟脸默认源换成 TapTap（条目 tz = Asia/Shanghai），而这条 golden 钉的是**旧 B 站公告**
+		//    （备选源 `ddlezj-biligame`，正文自标 UTC+9）⇒ 用 +540，否则数组条目的 `tz` 字段会漂。
+		const rec = engine.__test.mergeEntryRecord({ data: payload || {} }, null, p.now, { id: p.id, tz: p.tz || src.tz });
 		results[p.key] = { payload, rec, engine, p, src };
 		const arr = rec[p.field] || [];
 		fresh[p.key] = {
@@ -1135,8 +1144,9 @@ async function runP3b() {
 			continue;
 		}
 		const items = (p.side === "gacha" ? pay.gachaHoverItems : pay.eventHoverItems) || [];
-		// ⚠️ 用**该来源自己的 tz**：悬停文本是解析器按源站墙钟渲染的（ddlezj 是 +540、赛马娘日服是 Asia/Tokyo）
-		const regen = T.hoverTextFromItems(items, p.hoverKind || p.side, r.src.tz || TZ_CN, p.genOpts);
+		// ⚠️ 用**该来源自己的 tz**：悬停文本是解析器按源站墙钟渲染的（赛马娘日服是 Asia/Tokyo、
+		//    嘟嘟脸这条路径走旧 B 站公告备选源 ⇒ +540）。`p.tz` 优先，见上面 mergeEntryRecord 的说明。
+		const regen = T.hoverTextFromItems(items, p.hoverKind || p.side, p.tz || r.src.tz || TZ_CN, p.genOpts);
 		const hover = p.side === "gacha" ? pay.bannerHover : pay.eventHover;
 		// `hoverPrefix`：有些来源的悬停首行不是条目（如鸣潮的"卡池类型"），由构造方显式声明
 		const expected = p.hoverPrefix ? (regen ? p.hoverPrefix(pay) + regen : "") : regen;
