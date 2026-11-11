@@ -81,7 +81,13 @@ const hostAllowed = (h) => ALLOW.some((a) => h === a || h.endsWith("." + a));
 // ── 直连源（不需要白名单；实测 ACAO 放行）──
 // 与 next-sources/test/all.mjs 的 direct 模式守卫清单保持一致。
 // gametora.com：赛马娘国际服卡池默认源（2026-10-21 接入，全部数据文件 `Access-Control-Allow-Origin: *`）。
-const DIRECT_HOSTS = ["api.umapyoi.net", "sekai-world.github.io", "bang-dream-on.bushimo.jp", "gametora.com"];
+//
+// ⚠️ 2026-11-11 修正两类历史漏登（实测证据在每条后）：
+//   · gh-proxy.com            pjsk 卡池/活动默认源（github raw 镜像，direct）—— 实测 200 + `ACAO: *`
+//   · wqmt.aisnogames.com     无期迷途官方资讯 API（direct）—— 实测 200 + `ACAO: *`
+//   · 移除 bang-dream-on.bushimo.jp：2026-11-11 该源已改走**宿主代理**（它对 dsh-app:// 回空 ACAO），
+//     现在必须在白名单里；下面新增了一条互斥守卫防止再次漏改。
+const DIRECT_HOSTS = ["api.umapyoi.net", "sekai-world.github.io", "gametora.com", "gh-proxy.com", "wqmt.aisnogames.com"];
 
 // ── 收集全部真实抓取目标 ──
 const targets = new Map();   // host → Set("条目id:用途")
@@ -106,6 +112,14 @@ const missing = [...targets.keys()]
 for (const h of missing) {
 	check(`域名已登记白名单: ${h}`, false, `用它的条目 → ${[...targets.get(h)].join("  ")}`);
 }
+// direct 源与白名单互斥：同一个域名既写 direct 又写白名单，会把"实际用什么通道"两边都糊住
+// （2026-11-11 真实踩到：bushimo 从 direct 改代理后，两边都登记，脚本照样全绿）。
+check(
+	"direct 直连源不应同时在白名单里（不许两边都登记）",
+	!DIRECT_HOSTS.some((h) => hostAllowed(h)),
+	DIRECT_HOSTS.filter((h) => hostAllowed(h)).join(", ")
+);
+
 check(
 	`全部 ${targets.size} 个抓取目标域名都已登记（或属 direct 直连）`,
 	missing.length === 0,
