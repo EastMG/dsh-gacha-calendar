@@ -86,7 +86,7 @@ dsh-gacha-calendar/
 │       ├── 30-game-netease.js     # 时空中的绘旅人：官网新闻（official）+ 学院公告（update）列表 + 详情（卡池画廊 + 活动；缺年份补年/跨年）
 │       ├── 30-game-pengpeng.js    # 夜幕之下（国服）：卡池 bwiki 契约一览（已停更）+ 活动 TapTap tab 的 feed JSON（旧 bwiki 公告为备选）
 │       ├── 30-game-unconfigured.js # 炽焰天穹：只注册条目、来源留空未配置（本批唯一仍不接的）
-│       ├── 30-game-batch2.js      # 2026-11-11 第二批：崩坏3 米哈游内容中台（卡池只出名称/角色、活动正文时间块）/ OurNotes 日服 SPICA（列表→前 5 条详情）/ 卡厄斯梦境 TapTap tab（HTML 卡片 + 区间）
+│       ├── 30-game-batch2.js      # 2026-11-11 第二批：崩坏3 米哈游内容中台（卡池名称/角色 + 档期三级取值：`>>开放时间` → 同帖礼包【上架时间】 → 只出名称/角色；活动正文时间块）/ OurNotes 日服 SPICA（列表→前 5 条详情）/ 卡厄斯梦境 TapTap 官方（feed 列表 → 逐帖详情：卡池「营救概率提升」分节 + 活动分节）
 │       ├── 30-game-ournotes-global.js # OurNotes **国际服**卡池 + 活动：默认源 = SPICA 数据 JSON（页面 `window._durl` 现解 → d-*.json；gachapages/events 一次拿全）；数据里是 JST 墙钟、展示按 UTC+8（钟面 −1h）；picks 按 **id** 查角色；池名与角色名按 zh→tw→en→ja 取（简中优先）；BHK 官方公告两条降为手动备选源
 │       ├── 44-test-exports.js # 回归出口：解析器 + env 工具 + 来源表
 │       ├── 50-refresh.js     # 刷新编排、失败沿用旧值、提示归类
@@ -1120,6 +1120,44 @@ null，活动侧 2026-11-10 已换 TapTap tab（能出「新风同行」11-05~11
   只保留 `moment.{id_str,created_time,topic{title,summary}}` + `data.total/next_page`）；
   回归 `test/cases-pengpeng-event.mjs`（注册 / 30 帖解析 / 当期逐字 / 5 条反向证明 / 翻页失败隔离 /
   bwiki 备选源 / 早停）。旧的 `pengpeng-taptap-official{,-p2}`（HTML）已删。
+
+
+### 2026-11-11：崩坏3 卡池档期（697 文本）+ 卡厄斯梦境卡池换 TapTap 详情
+
+**① 崩坏3 `bh3` 卡池：档期改从文本取**（`src/client/30-game-batch2.js`）
+
+- 现状：`content_v2_user` appId=`b9d5f96cd69047eb`、`iChanId=697` 已接，能出名称/角色但**没有档期**
+  （`dtEndTime` 30/30 恒 `2035-01-01 00:00:00` 占位 ⇒ 当权威就等于把整批挪到 2035）。
+- 实测（2026-11-11 10:30 +08 复核；`bh3-content-gacha` 夹具与活网**逐字节相同**）：697 正文里**部分类别**
+  有 `>>开放时间` 文本块（跃升武装 / 跃升补给 / 庆典角色·装备 / 时光追忆 / 服装补给…）；标准双池
+  （角色补给 / 装备补给）只有图片 `>>补给信息`，但**同帖**「商城礼包【上架时间】」的文字窗口与补给窗口一致
+  （跃升武装 / 跃升补给两条同帖文本互证：礼包 `11月6日12:00~11月26日04:00` == 同帖 `>>开放时间`）。
+- 取值：`>>开放时间` → 同帖「【上架时间】」→ 都没有 ⇒ 只出名称/角色（`bannerDates` 留空）。**`dtEndTime` 不读**；
+  `dtStartTime` 只作年份线索与「帖已发布」判据（实测 跃升武装帖 `dtStartTime`=11-03 18:30，而 `>>开放时间`
+  写 11-06 12:00 —— 前者是内容上线时刻，不是开池时刻）。在期池并列时按「开始更晚 → 帖更晚」取外显。
+- 活网（2026-11-11 10:38 +08）：修前 `bannerDates=""` / `gacha` 1 条（ts=null）；修后
+  `11-06 12:00 ~ 11-26 04:00` / `gacha` 4 条（装备补给琉璃朱燧、跃升武装、跃升补给、时光追忆 10-30~11-13）。
+- 回归：`test/cases-batch2.mjs` ①（三级取值逐条 + 3 条反证：抹掉 `>>开放时间` / 抹掉【上架时间】 / 2035 不进载荷）。
+
+**② 卡厄斯梦境 `czn`：卡池从 bwiki 换成 TapTap 官方 tab（列表 → 逐帖详情）**
+
+- 端点：列表 `https://www.taptap.cn/webapiv2/feed/v7/by-group?X-UA=…&type=official&group_id=974342&limit=10&sort=created&from=0`；
+  详情 `https://www.taptap.cn/webapiv2/moment/v3/detail?X-UA=…&id=<帖 id>`。正文 = `data.first_post.contents.json`
+  （block 数组，`paragraph` 取 `children[].text`）。两者都**无 ACAO** ⇒ 走宿主代理（`www.taptap.cn` 已登记）。
+  列表首页 10 帖 → 逐帖详情（`NS_BATCH2_CZN_MAX_DETAILS = 10`，不翻页；按标题挑会漏掉长文里的卡池分节）。
+- 卡池：「`■ …营救概率提升`」分节 → 池名（分节标题原文）+ 角色（分节标题里的 `「」`，正文里的不算）
+  + 起止（`概率提升期间：` / `概率提升时间：` 那一行）。没有 `■` 分节的单帖公告整帖算一条池。
+  「维护结束后 / 维护开始前」按**同帖**维护窗（`◈更新时间：` 后那一行）映射；同帖没有那一天维护窗
+  ⇒ 该端点如实留空（实测 `2026/12/02 维护开始前` 的 12-02 维护窗不在同帖 ⇒ `endTs=null`，`display` 印源站原文）。
+- 活动：同帖维护窗 + `■ 活动 – …` 的【活动时间】；**营救概率提升不再算活动**（此前摘要路径双计）。
+  两端留空的行走仓库口径（`coveredOrOpen`）不进外显/悬停/数组，但解析结果里保留（测试逐条钉住）。
+- 标签：卡池 / 活动都「TapTap 官方」；bwiki `Module:Gacha/data` 降为 `altSources`（键 `czn-bwiki`，解析器未动，
+  `cases-p3` 的 golden 改走该备选源后逐字不变）。
+- 活网（2026-11-11 10:38 +08）：卡池 修前 `null`（bwiki 停更）→ 修后「常驻主战员「蒂菲拉」& 辅战员「蒂亚娜」
+  营救概率提升即将开始」`11-04 02:00 ~ 11-25 02:00`（角色 蒂菲拉、蒂亚娜）；活动 修前 2 条（含营救帖 = 双计）
+  → 修后 1 条（维护窗 `11-11 08:00 ~ 11-11 13:00`）。
+- 夹具：`czn-taptap-feed`（列表）+ `czn-taptap-moment-<帖 id>` ×10（详情），2026-11-11T10:35+08 真抓、整份原样入库；
+  旧 `czn-taptap-official`（SSR HTML，440 KB）**已删**。回归 `test/cases-batch2.mjs` ③（5 条反向证明）。
 
 
 ### 星铁换官方公告 CMS + 「相对起点」锚定 + 「起点未知 ≠ 已开始」（2026-11-09）

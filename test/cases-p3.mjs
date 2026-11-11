@@ -534,11 +534,13 @@ const P3B_PATHS = [
 		call: (t, s) => t.EVENT_FETCHERS[s.id]["zspms-bwiki-notice"](altUrlOf(s.eventAltSources, "zspms-bwiki-notice"), undefined, s.tz)
 	},
 	{
-		// 卡厄斯梦境的默认页是 Lua `Module:Gacha/data`（不在 map.json）→ 就地补；
+		// ⚠️ 2026-11-11：卡厄斯梦境**卡池默认源换成 TapTap 官方**（feed 列表 → 逐帖详情；bwiki
+		// `Module:Gacha/data` 停更 ⇒ 此前恒 nomatch）。这条 golden 钉的是**同一份 bwiki Lua 夹具**
+		// 的解析结果，所以改走备选源地址 + 备选抓取器（`czn-bwiki`）；产物逐字不变。
 		// now 取最新一期档期内（2026-06-17 ~ 07-08），否则当期恒 null（cases-p8 也这么钉）。
 		key: "cznGacha", switched: true, id: "czn", side: "gacha", field: "gacha", now: Date.parse("2026-06-25T00:00:00.000Z"),
-		urlsOf: (s) => ({ [s.url]: "p8-czn-module" }),
-		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
+		urlsOf: (s) => ({ [altUrlOf(s.altSources, "czn-bwiki")]: "p8-czn-module" }),
+		call: (t, s) => t.GACHA_FETCHERS["czn-bwiki"](altUrlOf(s.altSources, "czn-bwiki"), undefined, s.tz)
 	},
 	{
 		key: "kedrGacha", switched: true, id: "kedr", side: "gacha", field: "gacha", now: Date.parse("2026-10-02T00:00:00.000Z"),
