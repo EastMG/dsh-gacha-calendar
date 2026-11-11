@@ -25,3 +25,9 @@ jobs:
       - name: 门禁 ②　测试套件（全绿）
         working-directory: test
         run: node all.mjs
+
+      # 门禁 ③：「来源域名 vs 代理白名单」守卫（2026-11-11 并入 CI）。
+      # 为什么要进 CI：离线夹具测试会绕过宿主代理，「解析器对、域名没登记」可以
+      # 长期静默（真实事故：p5x / gf2 / fgo 长期 403 白板），只有真人在面板上才看得出来。
+      - name: 门禁 ③　来源域名 vs 代理白名单（全绿）
+        run: node tools/check-host-allow.mjs
