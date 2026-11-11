@@ -189,6 +189,9 @@ const PROXY_ALLOW_HOSTS = [
 	// `https://www.taptap.cn/app/746164/topic?type=official` 是服务端渲染 HTML、响应**无 ACAO**
 	// ⇒ 必须走代理。⚠️ 登记后要重启宿主才生效（白名单在宿主启动时读入）。
 	"www.taptap.cn",
+	// BanG Dream！OurNotes·日服官方 WordPress REST（2026-11-11 加）：
+	// ACAO 回显 Origin，但对 `dsh-app://` 回空值 ⇒ 浏览器直连被 CORS 拦。
+	"bang-dream-on.bushimo.jp",
 	// B站代理游戏官方公告 API（biligame CMS）：响应**无 ACAO** → 必须走代理。
 	// 认 `gameExtensionId`（不是 `game_base_id`）；已知 BanG Dream 国服=138、嘟嘟脸恶作剧=1282。
 	"api.biligame.com",

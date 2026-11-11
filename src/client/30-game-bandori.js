@@ -526,7 +526,9 @@ function ns_ournotes_selectOurNotesPrimary(entries, now) {
 async function ns_ournotes_eventsOurNotes(url, signal, tz = ns_ournotes_OURNOTES_TZ, now = nowMs()) {
 	const listUrl = url || ns_ournotes_OURNOTES_LIST_URL;
 	// mode 必须与 registry-<batch>.js 里声明的 "direct" 一致（本目录只有 3 个源可直连）
-	const json = await fetchJson(listUrl, { signal, mode: "direct" });
+	// ⚠️ 2026-11-11：**不能直连** —— bushimo 回显 Origin，但对 `dsh-app://` 返回**空 ACAO**，
+	//   浏览器直连会被 CORS 拦（真机：活动栏报「抓取异常」）。改走宿主代理 + `src/index.js` 登记该 host。
+	const json = await fetchJson(listUrl, { signal, mode: "proxy", referer: "https://bang-dream-on.bushimo.jp/" });
 	if (!Array.isArray(json)) throw new Error("ournotes-bad-json");
 	if (json.length === 0) return null;
 	const posts = ns_ournotes_parseOurNotesPosts(json, tz);
