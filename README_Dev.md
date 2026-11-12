@@ -86,7 +86,7 @@ dsh-gacha-calendar/
 │       ├── 30-game-netease.js     # 时空中的绘旅人：官网新闻（official）+ 学院公告（update）列表 + 详情（卡池画廊 + 活动；缺年份补年/跨年）
 │       ├── 30-game-pengpeng.js    # 夜幕之下（国服）：卡池 bwiki SMW ask（契约）+ 活动 TapTap tab 的 feed JSON（旧 bwiki 公告为备选）
 │       ├── 30-game-unconfigured.js # 炽焰天穹：只注册条目、来源留空未配置（本批唯一仍不接的）
-│       ├── 30-game-batch2.js      # 2026-11-11 第二批：崩坏3 米哈游内容中台（卡池名称/角色 + 档期三级取值：`>>开放时间` → 同帖礼包【上架时间】 → 只出名称/角色；活动正文时间块）/ OurNotes 日服 SPICA（列表→前 5 条详情）/ 卡厄斯梦境 TapTap 官方（feed 列表 → 逐帖详情：卡池「营救概率提升」分节 + 活动分节）
+│       ├── 30-game-batch2.js      # 2026-11-11 第二批：崩坏3 米哈游内容中台（卡池名称/角色 + 档期三级取值：`>>开放时间` → 同帖礼包【上架时间】 → 只出名称/角色；活动正文时间块）/ OurNotes 日服 SPICA（列表→前 5 条详情）/ 卡厄斯梦境 TapTap 官方（feed 列表 → **按标题挑**逐帖详情：卡池「营救概率提升」分节 + 活动分节；两侧共享 docs（TTL 30 s）、单帖失败跳过）
 │       ├── 30-game-ournotes-global.js # OurNotes **国际服**卡池 + 活动：默认源 = SPICA 数据 JSON（页面 `window._durl` 现解 → d-*.json；gachapages/events 一次拿全）；数据里是 JST 墙钟、展示按 UTC+8（钟面 −1h）；picks 按 **id** 查角色；池名与角色名按 zh→tw→en→ja 取（简中优先）；BHK 官方公告两条降为手动备选源
 │       ├── 44-test-exports.js # 回归出口：解析器 + env 工具 + 来源表
 │       ├── 50-refresh.js     # 刷新编排、失败沿用旧值、提示归类
@@ -1158,6 +1158,25 @@ null，活动侧 2026-11-10 已换 TapTap tab（能出「新风同行」11-05~11
   → 修后 1 条（维护窗 `11-11 08:00 ~ 11-11 13:00`）。
 - 夹具：`czn-taptap-feed`（列表）+ `czn-taptap-moment-<帖 id>` ×10（详情），2026-11-11T10:35+08 真抓、整份原样入库；
   旧 `czn-taptap-official`（SSR HTML，440 KB）**已删**。回归 `test/cases-batch2.mjs` ③（5 条反向证明）。
+
+### 2026-11-12：卡厄斯梦境 `czn` TapTap 抓取加固（WAF 限流）
+
+- 起因：TapTap 在阿里云 WAF 后面，限流时回 `text/html`（正文含 `aliyun_waf`）。此前每轮刷新卡池 / 活动**各自**
+  跑一趟「1 列表 + 10 详情」= 22 个请求，且任意一份详情失败整侧就记「抓取异常」。
+- 抓取口径（`src/client/30-game-batch2.js`）：
+  · 两侧共享同一份 docs：模块级缓存（`NS_BATCH2_CZN_DOCS_CACHE`），key = 完整 feed URL，TTL 30 s（`nowMs()` 判过期），
+    **只有抓成功才写缓存**（失败下一轮重试）。
+  · 按标题挑详情（`更新 / 版本 / 维护 / 公告 / 活动 / 一览 / 概率提升 / 预告`）：成功 3 份即早停
+    （`NS_BATCH2_CZN_DETAIL_TARGET`；feed 是 `sort=created` ⇒ 最近 3 份命中帖覆盖当期）；`NS_BATCH2_CZN_MAX_DETAILS`
+    10 → 4，只作失败时的兜底上限。一帖都没命中 ⇒ 抛 `czn-no-title-match`（不退回 10 帖全抓）。
+  · 单帖详情失败 ⇒ 跳过；≥1 份成功照常出数据；**全部失败才抛错**（该侧记 down），失败的 docs 不入缓存。
+- 回归（`test/cases-batch2.mjs` ③ / ③-2 / ③-3）：整轮 1 列表 + 3 详情 = 4 次（修前 22）；标题命中 3 帖逐条；
+  同 now 二次刷新 0 请求 / +29 s 命中 / +31 s 重抓；单帖 500 跳过仍出数据、更新帖 500 时卡池照常且活动侧如实
+  nomatch；全失败两侧 down；10 帖全命中仍只抓 3 份、全失败时每侧最多 4 次。反向证明：去掉缓存读 ⇒ 请求数断言
+  红 9 条；去掉失败跳过 ⇒ 单帖失败用例红 7 条（均当场还原）。
+- 活网（2026-11-12 22:3x +08，宿主代理 `127.0.0.1:63738`）：TapTap 仍被 WAF 拦 —— 列表 `status 200` /
+  `text/html` 16010 B / 含 `aliyun_waf`；隔数分钟重试一次仍同。如实结论：这次**没取到数据**，两侧记 down，
+  整轮只发 **2 个请求**（每侧 1 次列表、0 次详情）—— 失败路径也不再先扇出 22 次。正常轮的 4 次请求由夹具门禁钉住。
 
 ### 2026-11-11：嘟嘟脸恶作剧换 TapTap（列表 → 详情）；夜幕之下卡池换 bwiki SMW ask
 
