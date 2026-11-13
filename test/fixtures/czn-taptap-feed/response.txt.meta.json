@@ -1,8 +1,0 @@
-{
-  "bytes": 177988,
-  "sha256": "ea704092ff1afd3e",
-  "url": "https://www.taptap.cn/webapiv2/feed/v7/by-group?X-UA=V%3D1%26PN%3DWebApp%26LANG%3Dzh_CN%26VN_CODE%3D100000000%26LOC%3DCN%26PLT%3DPC%26DS%3DAndroid%26UID%3D%26OS%3DWindows%26OSV%3D10%26DT%3DPC&type=official&group_id=974342&limit=10&sort=created&from=0",
-  "status": 200,
-  "capturedAt": "2026-11-11T02:35:43.694Z",
-  "trim": "整份 feed 列表原样入库（limit=10 / from=0，10 张官方帖，含 moment.id_str 与 topic.title/summary）；未删字段、未改顺序。卡池与活动两侧都靠它拿帖 id，再逐帖进详情。"
-}
