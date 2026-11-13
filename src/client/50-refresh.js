@@ -72,7 +72,14 @@
 		// 返回 { ok, data, gachaFail, eventFail }：ok = 两侧都没有 down（只有 nomatch 仍算 ok）。
 		async function fetchEntry(source, signal) {
 			// 无任何来源的条目：跳过（不计成功也不计失败）
-			if (!source.url && !source.eventUrl) return { ok: true, reason: "skipped" };
+			// ⚠️ `gachaNone` / `eventNone` = 「这一侧**未配置**」（不是"本轮没抓到"）—— 合并旧值时
+			//    必须拿它们把这一侧挡掉，否则用户把来源改成未配置后，面板会一直显示上一次的旧结论
+			//    （2026-11-13 真机：ddlezj 卡池 `url=""` 后面板仍显示 11-05~11-19 的旧卡池）。
+			if (!source.url && !source.eventUrl) {
+				return { ok: true, reason: "skipped", gachaNone: true, eventNone: true };
+			}
+			const gachaNone = !source.url;
+			const eventNone = !source.eventUrl;
 			// 来源标识统一归一（老配置的 proxy:/gk-*: 写法 → 真实地址 / 内部来源 id）：
 			// 抓取器一律只拿到"干净地址"，不再需要在抓取层剥前缀
 			const gachaUrl = normalizeSourceId(source.url);
@@ -168,7 +175,9 @@
 					reason: "ok",
 					data,
 					gachaFail,
-					eventFail
+					eventFail,
+					gachaNone,
+					eventNone
 				};
 			} catch (err) {
 				// 顶层异常（含 REFRESH_TIMEOUT_MS 超时中断）：两侧按"报错"记，面板照实提示
@@ -179,21 +188,31 @@
 					ok: false,
 					reason,
 					gachaFail: source.url ? fail : null,
-					eventFail: source.eventUrl ? fail : null
+					eventFail: source.eventUrl ? fail : null,
+					gachaNone,
+					eventNone
 				};
 			}
 		}
 
 		// 合并本轮抓取结果与上次缓存（统一机制，不针对任何游戏）：
 		// - 展示字段按列兜底：本次某列没拿到就沿回旧值，并标记该列"显示的是旧值"（gachaStale/eventStale）
+		// - **但「该侧未配置」不沿回旧值**（`gachaNone` / `eventNone`）：未配置 = 用户主动关掉了这一侧，
+		//   保留旧值会让面板把"已经不管了"显示成"还在用上次成功数据"（2026-11-13 ddlezj 真机 bug）。
+		//   这一侧的内容字段与 stale 标记都不写，显示层据此走「该来源无数据」。
 		// - 抓取状态（gachaFail/eventFail）永远来自本轮，既不继承也不删除
 		// - okAt = 最近一次"两侧都拿到新数据"的时间；有任一侧没拿到就不刷新
 		function mergeEntryRecord(r, prevRec, nowTs, meta) {
 			const gachaFail = (r && r.gachaFail) || null;
 			const eventFail = (r && r.eventFail) || null;
+			// 「这一侧未配置」不是"本轮没抓到"：沿回旧值只对**配置了来源**的那一侧生效。
+			// 否则把来源改成未配置（url="" / eventUrl=""）后，上一次的结论会永久留在面板上
+			// （本轮根本不发请求 ⇒ 没有新数据 ⇒ 旧数据被当成"上次成功"继续显示）。
+			const gachaNone = !!(r && r.gachaNone);
+			const eventNone = !!(r && r.eventNone);
 			const rec = { ...((r && r.data) || {}), gachaFail, eventFail };
 			if (prevRec) {
-				if (!rec.banner && prevRec.banner) {
+				if (!gachaNone && !rec.banner && prevRec.banner) {
 					rec.banner = prevRec.banner;
 					rec.roles = prevRec.roles || "";
 					if (!rec.bannerDates) rec.bannerDates = prevRec.bannerDates || "";
@@ -207,7 +226,7 @@
 					if (!Array.isArray(rec.gacha) && dataArrayInheritableOf(prevRec.gacha)) rec.gacha = dataArrayGachaListOf(prevRec.gacha);
 					rec.gachaStale = true;
 				}
-				if (!rec.event && prevRec.event) {
+				if (!eventNone && !rec.event && prevRec.event) {
 					rec.event = prevRec.event;
 					if (!rec.eventDates) rec.eventDates = prevRec.eventDates || "";
 					if (!rec.eventDatesRaw) rec.eventDatesRaw = prevRec.eventDatesRaw || prevRec.eventDates || "";
@@ -724,7 +743,14 @@
 			const signal = controller ? controller.signal : void 0;
 			const timeoutResult = (t) => {
 				const fail = { kind: "down", reason: "超时" };
-				return { ok: false, reason: "超时", gachaFail: t.url ? fail : null, eventFail: t.eventUrl ? fail : null };
+				return {
+					ok: false, reason: "超时",
+					gachaFail: t.url ? fail : null,
+					eventFail: t.eventUrl ? fail : null,
+					// 未配置的一侧与 fetchEntry 同口径（否则超时分支会把旧值沿回来）
+					gachaNone: !t.url,
+					eventNone: !t.eventUrl
+				};
 			};
 			let timer = 0;
 			const deadline = new Promise((resolve) => {

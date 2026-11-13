@@ -110,6 +110,7 @@
   "https://prts.wiki/api.php?action=query&prop=revisions": "arknights-events-pages/response.txt",
   "https://wiki.biligame.com/wqmt/api.php?action=parse&page=追踪一览&prop=text&format=json&formatversion=2": "wqmt-bwiki/response.txt",
   "https://wiki.biligame.com/pengpeng/api.php?action=parse&page=契约一览&prop=text&format=json&formatversion=2": "pengpeng-bwiki/response.txt",
+  "https://wiki.biligame.com/pengpeng/api.php?action=parse&page=%E5%A5%91%E7%BA%A6%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2": "pengpeng-table/response.txt",
   "https://wqmt.aisnogames.com/api/news": "wqmt-news-list/response.txt",
   "https://wqmt.aisnogames.com/api/news/2120": "wqmt-news-2120/response.txt",
   "https://wqmt.aisnogames.com/api/news/2119": "wqmt-news-2119/response.txt",

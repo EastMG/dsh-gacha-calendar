@@ -1,0 +1,6 @@
+{
+  "url": "https://wiki.biligame.com/pengpeng/api.php?action=parse&page=%E5%A5%91%E7%BA%A6%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2",
+  "status": 200,
+  "capturedAt": "2026-11-13T15:26:00.000Z",
+  "trim": "**原样**保存（48920 字节）：`/pengpeng` wiki 的「契约一览」HTML 表（`action=parse&prop=text`）整份响应。表格本体 18 行 = 表头 1 + 有窗口 15 + 「长期」2；正文与 2026-11-09 那份 `pengpeng-bwiki` 夹具逐字相同（只差页脚 NewPP 的 Cached time）。"
+}

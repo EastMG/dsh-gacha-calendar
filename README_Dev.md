@@ -1273,6 +1273,34 @@ null，活动侧 2026-11-10 已换 TapTap tab（能出「新风同行」11-05~11
   当期逐字 / 反向证明 / 第 2 页抓挂隔离 / bwiki 备选 / 翻页）。
 - **未动**：卡厄斯梦境 `czn` 的 TapTap 链（本批范围外，仍走 webapiv2）；README.md；版本号 / tag / 发布。
 
+### 2026-11-13（晚）：夜幕之下卡池默认置空 + 两个 bwiki 备选；「未配置」的一侧不再沿用旧值
+
+- **卡池默认置空**（`30-game-pengpeng.js`）：`url: ""`、不写 `source`（口径同 ddlezj），设置页写裸「未配置」。
+  两个备选（只在设置页手动选中才请求）：
+  1. 「Bwiki（停更）」= /ymzx 的 SMW `action=ask`（原默认源；抓取器键 `pengpeng-bwiki-ask`）
+  2. 「Bwiki 表格」= /pengpeng「契约一览」HTML 表（新解析器 `pengpengTablePoolsOf`，
+     `action=parse&prop=text`；抓取器键 `pengpeng-bwiki-table`）
+- **为什么两个都留**：/ymzx SMW 结构最好但内容停更（11 条 / 9 条有窗口，末条止 2026-09-10 04:59）；
+  /pengpeng 同一页面仍是活表，实测 2026-11-13 200 / 48920 字节，18 行 = 表头 1 + 有窗口 15 + 「长期」2，
+  最新行「天才不必孑立 | 遴选 | 2026/09/10 05:00 ~ 2026/09/24 04:59 | 科技部长」⇒ 比 SMW 新 1~2 期。
+- **表格列**：契约 | 开放时间 | 概率提升的风格（**3 列**，不是 4 列）——「遴选 / 活动」是契约格里
+  `<span class="ymzx-qiyue-tag">` 的标签。契约名 / 风格名取 `<span style="font-weight:bold;">`
+  （格子里图片的 alt 也含名字，直接读整格会重复）。时间 `YYYY/MM/DD HH:MM:SS`、tz=Asia/Shanghai；
+  「长期」两行没有两端 ⇒ 跳过；类型只留在条目事实上，不写 `category`（与 ask 解析器同形状）。
+- **活网结果（2026-11-13）**：15 条有窗口、最新止于 2026-09-24 04:59 ⇒ 当前没有在期池，抓取器如实
+  `null`（nomatch，不抛错）。夹具 `test/fixtures/pengpeng-table`（48920 字节，正文与 11-09 那份
+  `pengpeng-bwiki` 逐字相同，只差 NewPP 缓存时间）。
+- **真机 bug 修复**（`50-refresh.js`）：ddlezj 卡池 `url=""` 后，面板仍显示旧的「全新使徒【波朗】
+  11-05~11-19」。根因 = `mergeEntryRecord` 的"沿回旧值"分支只判"本轮没拿到"，没判"这一侧根本没配
+  来源" ⇒ 未配置的一侧把上一次成功的数据永久沿回。修法：`fetchEntry` 在本轮结果上带 `gachaNone` /
+  `eventNone`（skipped 与超时两条分支同口径），`mergeEntryRecord` 对这两侧**不沿回、不写 stale**
+  ⇒ 显示层走「该来源无卡池 / 活动数据」。真机 `settings.yaml` 的 `customUrls` / `customEventUrls`
+  实测都是 `'{}'`，不是设置在顶替默认源。
+- **回归**：`cases-new5` ④（表格逐字 / 15 条 / 长期跳过 / 多风格 / 在期载荷 / 当前 null）+ ①（注册形态）
+  + ⑤b（先有数据 ⇒ url="" ⇒ 再刷新 ⇒ 该侧为空；覆盖 ddlezj 与 cytq）；`cases-pengpeng-event` ① 同步。
+  反向证明：把 `pengpengTablePoolsOf` 改成返回 `[]` ⇒ 3 条 ✗ + `pengpeng-no-table` 抛出；
+  把 `gachaNone/eventNone` 临时置 false ⇒ 4 条 ✗，`banner` 仍为「全新使徒【波朗】… 11-05~11-19」。
+
 ### 星铁换官方公告 CMS + 「相对起点」锚定 + 「起点未知 ≠ 已开始」（2026-11-09）
 
 用户当轮拍板的三条规则。**三条互相咬合，改一条要同时看另两条**。

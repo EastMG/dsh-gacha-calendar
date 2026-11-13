@@ -41,7 +41,8 @@ const FIX = (dir) => fixtureBody("fixture:" + dir, { ["fixture:" + dir]: dir + "
 const B = {
 	wqmtBwiki: FIX("wqmt-bwiki"),          // wiki.biligame.com/wqmt 追踪一览（325KB / 174 行）
 	wqmtNews: FIX("wqmt-news-list"),       // wqmt.aisnogames.com/api/news（三个栏目各 5 条）
-	pengpeng: FIX("pengpeng-ask")          // wiki.biligame.com/ymzx SMW ask（11 行，9 条有窗口）
+	pengpeng: FIX("pengpeng-ask"),         // wiki.biligame.com/ymzx SMW ask（11 行，9 条有窗口）
+	pengpengTable: FIX("pengpeng-table")   // wiki.biligame.com/pengpeng 契约一览 HTML 表（18 行，2026-11-13 抓）
 };
 // 卡池抓取器只取最新 N 条正文（`WQMT_EVENT_MAX_DETAILS`；2026-11-11 起 6 → 10，见下面 ⑥）。
 // ③ 段用的是 11-09 那份列表夹具（2099 恰好是第 6 条）⇒ 这 6 个 id 由 `wqmtEventCandidatesOf`
@@ -52,6 +53,8 @@ function pickBody(url) {
 	const u = String(url);
 	if (/wiki\.biligame\.com\/wqmt\/api\.php/.test(u)) return B.wqmtBwiki;
 	if (/wiki\.biligame\.com\/ymzx\/api\.php\?action=ask/.test(u)) return B.pengpeng;
+	// /pengpeng 的「契约一览」HTML 表（卡池备选 ②；中文页名是 percent-encoded 的）
+	if (/wiki\.biligame\.com\/pengpeng\/api\.php\?action=parse&page=%E5%A5%91%E7%BA%A6%E4%B8%80%E8%A7%88/.test(u)) return B.pengpengTable;
 	const m = /wqmt\.aisnogames\.com\/api\/news\/(\d+)$/.exec(u);
 	if (m) {
 		if (!WQMT_DETAILS.includes(m[1])) throw new Error("没有这个公告正文的夹具：" + u);
@@ -164,12 +167,29 @@ export default async function run() {
 			wqmt ? String(wqmt.eventUrl) : "缺失");
 
 		const pp = srcOf("pengpeng");
-		// 2026-11-11：卡池侧**换方法** —— 旧 HTML 页（`契约一览`）已 #REDIRECT，抓表永远空；
-		// 改成 bwiki 的 SMW 语义查询（`action=ask`），来源标签随之写「Bwiki」。
-		check("pengpeng 卡池源已接（bwiki SMW `action=ask`；标签「Bwiki」）",
-			!!pp && /^https:\/\/wiki\.biligame\.com\/ymzx\/api\.php\?action=ask&/.test(String(pp.url))
-			&& /%E5%A5%91%E7%BA%A6/.test(String(pp.url)) && pp.source === "Bwiki",
-			pp ? String(pp.source) : "缺失");
+		// 2026-11-13 用户拍板：卡池侧**默认置空**（口径同 ddlezj），两个 bwiki 源都降为手动备选。
+		// 背景：/ymzx 的 SMW ask 结构最好但内容停更（最后一期止于 2026-09-10 04:59）；
+		// 2026-11-13 复核发现 /pengpeng 的「契约一览」HTML 表仍活着、且比它新 1~2 期。
+		const PP_ALTS = (pp && Array.isArray(pp.altSources)) ? pp.altSources : [];
+		check("pengpeng 卡池默认置空：url = \"\"（不抓）且不写 source（设置页显示裸「未配置」）",
+			!!pp && pp.url === "" && pp.source === void 0,
+			pp ? JSON.stringify({ url: pp.url, source: pp.source }) : "缺失");
+		check("pengpeng 卡池备选 = 2 条，标签逐字「Bwiki（停更）」/「Bwiki 表格」",
+			PP_ALTS.length === 2
+			&& PP_ALTS[0].label === "Bwiki（停更）" && PP_ALTS[1].label === "Bwiki 表格",
+			JSON.stringify(PP_ALTS.map((a) => a && a.label)));
+		check("pengpeng 备选 ① = /ymzx 的 SMW ask（fetcher「pengpeng-bwiki-ask」已登记在 GACHA_FETCHERS）",
+			!!PP_ALTS[0] && /^https:\/\/wiki\.biligame\.com\/ymzx\/api\.php\?action=ask&/.test(String(PP_ALTS[0].url))
+			&& PP_ALTS[0].fetcher === "pengpeng-bwiki-ask"
+			&& typeof T.GACHA_FETCHERS["pengpeng-bwiki-ask"] === "function",
+			JSON.stringify(PP_ALTS[0]));
+		check("pengpeng 备选 ② = /pengpeng「契约一览」表（地址逐字 / fetcher「pengpeng-bwiki-table」已登记）",
+			!!PP_ALTS[1]
+			&& PP_ALTS[1].url === "https://wiki.biligame.com/pengpeng/api.php?action=parse&page=%E5%A5%91%E7%BA%A6%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2"
+			&& PP_ALTS[1].url === T.parsers.pengpeng.PENGPENG_TABLE_URL
+			&& PP_ALTS[1].fetcher === "pengpeng-bwiki-table"
+			&& typeof T.GACHA_FETCHERS["pengpeng-bwiki-table"] === "function",
+			JSON.stringify(PP_ALTS[1]));
 		// 2026-11-10：活动侧默认源再换一档 —— bwiki `公告/` 停更 6 周 ⇒ TapTap tab 成默认，
 		// bwiki 公告降为 eventAltSources 手动备选（标签如实写「不可靠」）。
 		// 2026-11-13：`taptap.cn` 的 robots.txt `Disallow /webapi/`、`/webapiv2/` ⇒ 改抓**允许路径**的
@@ -219,8 +239,8 @@ export default async function run() {
 		check("cytq 设置页两侧都写「未配置」",
 			T.getDefaultSourceName(cytq, "url") === "未配置" && T.getDefaultSourceName(cytq, "eventUrl") === "未配置",
 			JSON.stringify([T.getDefaultSourceName(cytq, "url"), T.getDefaultSourceName(cytq, "eventUrl")]));
-		check("pengpeng 设置页：卡池侧写「Bwiki」、活动侧写「TapTap」",
-			T.getDefaultSourceName(pp, "url") === "Bwiki" && T.getDefaultSourceName(pp, "eventUrl") === "TapTap",
+		check("pengpeng 设置页：卡池侧写「未配置」、活动侧写「TapTap」",
+			T.getDefaultSourceName(pp, "url") === "未配置" && T.getDefaultSourceName(pp, "eventUrl") === "TapTap",
 			JSON.stringify([T.getDefaultSourceName(pp, "url"), T.getDefaultSourceName(pp, "eventUrl")]));
 	}
 
@@ -437,14 +457,15 @@ export default async function run() {
 			String(P.wqmtEventWindowsOf("■「无瑕之胚-极限挑战」将于09月15日限时开启，通过对BOSS造成伤害获得奖励", "t", HINT, TZ_CN, {}).length));
 	}
 
-	// ─────────────────────④ 夜幕之下 卡池（真夹具 · 两个时刻）─────────────────────
-	section("新接入 5 款 ④：夜幕之下卡池（bwiki SMW ask；活动侧用例另见 cases-pengpeng-event）");
+	// ─────────────────────④ 夜幕之下 卡池（真夹具 · 两个备选源）─────────────────────
+	section("新接入 5 款 ④：夜幕之下卡池（默认置空；备选 ① SMW ask / 备选 ② /pengpeng 表格；活动侧见 cases-pengpeng-event）");
 	{
-		// (a) 历史某一期在期（2026-08-05 12:00 +08）：逐字断言
+		// (a) 备选 ①（原默认源）：历史某一期在期（2026-08-05 12:00 +08）逐字断言
 		//     夹具 = `pengpeng-ask`（2026-11-11 抓的 SMW 结果，11 行；9 条有结束时间）
 		const e = engineAt(NOW_PP_ASK);
 		const s = e.__test.SOURCES.find((x) => x.id === "pengpeng");
-		const g = await e.__test.GACHA_FETCHERS["pengpeng"](s.url, undefined, s.tz);
+		const ASK_ALT = (s.altSources || []).find((a) => a.fetcher === "pengpeng-bwiki-ask");
+		const g = await e.__test.GACHA_FETCHERS["pengpeng-bwiki-ask"](ASK_ALT.url, undefined, s.tz);
 		check("pengpeng 有当期 ⇒ 返回对象", !!g && typeof g === "object");
 		check("pengpeng 外显契约 = 乘自由之风（07-30 那批里结束最早的）", g.banner === "乘自由之风", JSON.stringify(g.banner));
 		check("pengpeng 角色 = 推荐风格「热沙骑士、复仇童谣」（同一结束时刻的整批合并）",
@@ -473,13 +494,76 @@ export default async function run() {
 		check("pengpeng 长期池（没有 `活动结束`）如实跳过：gacha 里没有「夜色的呼唤」「起始的契约」",
 			!g.gacha.some((x) => /夜色的呼唤|起始的契约/.test(x.title)), JSON.stringify(g.gacha.map((x) => x.title)));
 
+		// (a2) 备选 ②：/pengpeng「契约一览」HTML 表（真夹具 2026-11-13 活网抓，48920 字节）
+		//     表格 18 行 = 表头 1 + 有窗口 15 + 「长期」2；比 /ymzx SMW 的最后一期（09-10 04:59 止）
+		//     新 1~2 期 —— 最新两行就是用户给的事实：
+		//       天才不必孑立 | 遴选 | 2026/09/10 05:00:00 ~ 2026/09/24 04:59:59 | 科技部长
+		//       隐秘的归属   | 活动 | 2026/09/10 05:00:00 ~ 2026/10/01 04:59:59 | 杯中藏锋
+		const TABLE_ALT = (s.altSources || []).find((a) => a.fetcher === "pengpeng-bwiki-table");
+		const tableRaw = FIX("pengpeng-table");
+		const PPPT = T.parsers.pengpeng;
+		const tableItems = PPPT.pengpengTablePoolsOf(JSON.parse(tableRaw), TZ_CN);
+		check("表格：18 行里解析出 15 条有窗口的条目（表头 + 「长期」2 行被跳过）",
+			tableItems.length === 15, String(tableItems.length));
+		check("表格：第 1 条逐字 = 天才不必孑立 / 遴选 / 科技部长 / 「2026/09/10 05:00:00 ~ 2026/09/24 04:59:59」",
+			JSON.stringify(tableItems[0]) === JSON.stringify({
+				banner: "天才不必孑立", roles: "科技部长",
+				raw: "2026/09/10 05:00:00 ~ 2026/09/24 04:59:59",
+				display: "09-10 05:00 ~ 09-24 04:59",
+				startTs: Date.UTC(2026, 8, 9, 21, 0),
+				endTs: Date.UTC(2026, 8, 23, 20, 59),
+				isMain: true, _i: 0, type: "遴选"
+			}),
+			JSON.stringify(tableItems[0]));
+		check("表格：第 2 条 = 隐秘的归属 / 活动 / 杯中藏锋（10-01 04:59 收）",
+			!!tableItems[1] && tableItems[1].banner === "隐秘的归属" && tableItems[1].type === "活动"
+			&& tableItems[1].roles === "杯中藏锋" && tableItems[1].endTs === Date.UTC(2026, 8, 30, 20, 59),
+			JSON.stringify(tableItems[1]));
+		check("表格：「长期」两行没有两端 ⇒ 不在条目里（夜色的呼唤 / 起始的契约）",
+			!tableItems.some((x) => /夜色的呼唤|起始的契约/.test(x.banner)),
+			JSON.stringify(tableItems.map((x) => x.banner)));
+		// 多风格格（起始的契约 的 3 个风格）用「、」连 —— 取表格里那一行的最后一个 td 验一遍
+		{
+			const text = JSON.parse(tableRaw).parse.text;
+			const at = text.indexOf("起始的契约");
+			const rowHtml = text.slice(text.lastIndexOf("<tr>", at), text.indexOf("</tr>", at));
+			const styleCell = rowHtml.slice(rowHtml.lastIndexOf("<td>"));
+			check("表格：一格多个风格用「、」连（起始的契约 ⇒ 海上浪子、深渊审判、复仇童谣）",
+				PPPT.pengpengTableBoldTextsOf(styleCell).join("、") === "海上浪子、深渊审判、复仇童谣",
+				JSON.stringify(PPPT.pengpengTableBoldTextsOf(styleCell)));
+		}
+		// 抓取器（备选 ②）：在期时刻（2026-09-15 12:00 +08）→ 与 ask 解析器**同一形状**的载荷
+		const NOW_TABLE = Date.parse("2026-09-15T12:00:00+08:00");
+		const eT = engineAt(NOW_TABLE);
+		const gt = await eT.__test.GACHA_FETCHERS["pengpeng-bwiki-table"](TABLE_ALT.url, undefined, s.tz);
+		check("表格抓取器：2026-09-15 有当期 ⇒ 外显 = 天才不必孑立 / 科技部长 / 档期「09-10 05:00 ~ 09-24 04:59」",
+			!!gt && gt.banner === "天才不必孑立" && gt.roles === "科技部长"
+			&& gt.bannerDates === "09-10 05:00 ~ 09-24 04:59"
+			&& gt.bannerDatesRaw === "2026/09/10 05:00:00 ~ 2026/09/24 04:59:59",
+			JSON.stringify(gt && { banner: gt.banner, roles: gt.roles, bannerDates: gt.bannerDates, raw: gt.bannerDatesRaw }));
+		check("表格抓取器：绝对时刻与 ask 同口径（05:00 起 / 04:59 止，Asia/Shanghai）",
+			!!gt && gt.startTs === Date.UTC(2026, 8, 9, 21, 0) && gt.endTs === Date.UTC(2026, 8, 23, 20, 59),
+			JSON.stringify(gt && [gt.startTs, gt.endTs]));
+		check("表格抓取器：gacha[] 与悬停（主条 + 另一口在期池）",
+			!!gt && gt.gacha.map((x) => x.title).join(" | ") === "天才不必孑立 | 隐秘的归属：杯中藏锋"
+			&& gt.bannerHover === "天才不必孑立：科技部长\n09-10 05:00 ~ 09-24 04:59\n隐秘的归属：杯中藏锋\n09-10 05:00 ~ 10-01 04:59",
+			JSON.stringify(gt && [gt.gacha.map((x) => x.title), gt.bannerHover]));
+		// 仓库口径：只出覆盖 now 的池；表格最后一条止于 2026-09-24 04:59 ⇒ 当前（11-13）如实 null
+		const eLive = engineAt(Date.parse("2026-11-13T23:30:00+08:00"));
+		let tableNull = "unset";
+		try { tableNull = await eLive.__test.GACHA_FETCHERS["pengpeng-bwiki-table"](TABLE_ALT.url, undefined, s.tz); }
+		catch (e5) { tableNull = "throw:" + String(e5 && e5.message || e5); }
+		check("表格抓取器：当前（2026-11-13）没有在期池 ⇒ null（未公布，不抛错/不记失败）",
+			tableNull === null, JSON.stringify(tableNull));
+
 		// (b) 当前时刻（2026-11-09 / 夹具抓取那天）：SMW 最后一期止于 2026-09-10 04:59 ⇒ null = 未公布
 		//     **这是事实**（wiki 停更），不是抓取失败：不外推、不把上一期当"当前"。
 		const e2 = engineAt(NOW);
 		const s2 = e2.__test.SOURCES.find((x) => x.id === "pengpeng");
+		const ASK_ALT_2 = (s2.altSources || []).find((a) => a.fetcher === "pengpeng-bwiki-ask");
 		let nullOk = false, err = "";
 		let got = null;
-		try { got = await e2.__test.GACHA_FETCHERS["pengpeng"](s2.url, undefined, s2.tz); }
+		try { got = await e2.__test.GACHA_FETCHERS["pengpeng-bwiki-ask"](ASK_ALT_2.url, undefined, s2.tz); }
 		catch (e3) { err = String(e3 && e3.message || e3); }
 		nullOk = got === null && err === "";
 		check("pengpeng 当前时刻没有在期池 ⇒ 返回 null（「未公布」，不抛错 = 不记失败）", nullOk, err || JSON.stringify(got));
@@ -496,7 +580,8 @@ export default async function run() {
 		const errOf = async (body) => {
 			const en = bodyEngine(body);
 			const src = en.__test.SOURCES.find((x) => x.id === "pengpeng");
-			try { await en.__test.GACHA_FETCHERS["pengpeng"](src.url, undefined, src.tz); return "no-throw"; }
+			const alt = (src.altSources || []).find((a) => a.fetcher === "pengpeng-bwiki-ask");
+			try { await en.__test.GACHA_FETCHERS["pengpeng-bwiki-ask"](alt.url, undefined, src.tz); return "no-throw"; }
 			catch (e4) { return String(e4 && e4.message || e4); }
 		};
 		check("pengpeng 响应里没有 `query` ⇒ 抛 pengpeng-bad-shape（抓取失败 ≠ 未公布）",
@@ -512,19 +597,20 @@ export default async function run() {
 			(await errOf(JSON.stringify({ query: { results: { 夜色的呼唤: { printouts: { "名称": ["夜色的呼唤"], "活动开始": ["2024-08-01 10:00:00"] } } } } }))) === "pengpeng-no-table",
 			await errOf(JSON.stringify({ query: { results: { 夜色的呼唤: { printouts: { "名称": ["夜色的呼唤"], "活动开始": ["2024-08-01 10:00:00"] } } } } })));
 
-		// (d) 反向证明：旧的 HTML 页面（`契约一览`）**已 #REDIRECT**，抓它永远空表 —— 所以换成 SMW ask。
-		//     夹具 `pengpeng-contract-redirect` = 2026-11-11 用**旧地址**真抓的响应（1059 字节）。
+		// (d) 反向证明：**/ymzx** 那个 wiki 的「契约一览」**已 #REDIRECT**，抓它永远空表 ——
+		//     所以那一边只能走 SMW ask；/pengpeng 是**另一个 wiki**，同一页仍是活的 HTML 表（见 ④(a2)）。
+		//     夹具 `pengpeng-contract-redirect` = 2026-11-11 用 /ymzx 的旧地址真抓的响应（1059 字节）。
 		{
 			const raw = JSON.parse(fixtureBodyText("pengpeng-contract-redirect/response.txt"));
 			const txt = String((raw.parse && raw.parse.text) || "");
-			check("反证：旧地址 `action=parse&page=契约一览` 只回重定向提示（无表格、无契约行）",
+			check("反证：/ymzx 的 `action=parse&page=契约一览` 只回重定向提示（无表格、无契约行）",
 				/redirectMsg/.test(txt) && /契约图鉴/.test(txt)
 				&& !/<table/i.test(txt) && !/ymzx-qiyue-tag/.test(txt),
 				JSON.stringify(txt.slice(0, 160)));
-			check("反证：所以卡池侧不再有「抓 HTML 表」的抓取器（`pengpengPoolsOf` / `pengpengNameOf` 已删）",
+			check("反证：卡池默认 url 已置空（不再直连任何 parse/ask 地址），HTML 表只在备选 ② 的 /pengpeng 地址上",
 				typeof T.parsers.pengpeng.pengpengPoolsOf === "undefined"
 				&& typeof T.parsers.pengpeng.pengpengNameOf === "undefined"
-				&& String(T.SOURCES.find((x) => x.id === "pengpeng").url).indexOf("action=parse") < 0);
+				&& String(T.SOURCES.find((x) => x.id === "pengpeng").url) === "");
 		}
 
 		// (e) 2026-11-11 复核：卡池侧**不接** TapTap（见 30-game-pengpeng.js 的「卡池侧 2026-11-11 复核」段）
@@ -599,6 +685,73 @@ export default async function run() {
 			&& T.scheduleNormalize(rec, "gacha", new Date(NOW)) === null
 			&& T.scheduleNormalize(rec, "event", new Date(NOW)) === null,
 			JSON.stringify([T.scheduleNormalize(rec, "gacha", new Date(NOW)), T.scheduleNormalize(rec, "event", new Date(NOW))]));
+	}
+
+	// ─────────────⑤b 未配置的一侧不再沿用旧值（2026-11-13 ddlezj 真机 bug）─────────────
+	// 现场：ddlezj 卡池已改成 `url=""`（不抓），但控制台面板仍显示「全新使徒【波朗】限时概率上升
+	// 11-05~11-19」—— 根因在 `mergeEntryRecord`：未配置的一侧本轮没有新数据，旧记录被当成
+	// "上次成功"照旧沿回，面板于是把旧结论一直挂在屏幕上。修法 = 本轮的 `gachaNone` / `eventNone`
+	// 把「未配置」与「没抓到」分开：未配置的一侧**不沿回、不写 stale**，显示层走「该来源无数据」。
+	section("新接入 5 款 ⑤b：改成「未配置」后该侧清空（先有数据 ⇒ url=\"\" ⇒ 再刷新 ⇒ 该侧为空）");
+	{
+		const OLD_START = Date.UTC(2026, 10, 4, 21, 0);   // 2026-11-05 05:00 +08
+		const OLD_END = Date.UTC(2026, 10, 18, 20, 59);   // 2026-11-19 04:59 +08
+		const ALL_IDS = T.SOURCES.map((x) => x.id);
+		const only = (id) => ({
+			lastData: JSON.stringify({
+				[id]: {
+					name: id === "ddlezj" ? "嘟嘟脸恶作剧" : "炽焰天穹",
+					banner: "全新使徒【波朗】限时概率上升", roles: "波朗",
+					bannerDates: "11-05 05:00 ~ 11-19 04:59", bannerDatesRaw: "2026/11/05 05:00 ~ 2026/11/19 04:59",
+					bannerHover: "全新使徒【波朗】限时概率上升：波朗\n11-05 05:00 ~ 11-19 04:59",
+					event: "旧活动", eventDates: "10-01 05:00 ~ 10-15 04:59", eventDatesRaw: "2026/10/01 05:00 ~ 2026/10/15 04:59",
+					gacha: [{
+						title: "全新使徒【波朗】", show: "波朗", roles: ["波朗"],
+						startTs: OLD_START, endTs: OLD_END, tz: TZ_CN,
+						raw: "2026/11/05 05:00 ~ 2026/11/19 04:59", source: "primary"
+					}],
+					events: [],
+					gachaFail: null, eventFail: null, gachaStale: false, eventStale: false, okAt: OLD_START
+				}
+			}),
+			hidden: ALL_IDS.filter((x) => x !== id),
+			shown: [id]
+		});
+		const NOW_1113 = Date.parse("2026-11-13T23:30:00+08:00");
+
+		// (a) ddlezj：卡池未配置（url=""），活动侧仍有源（TapTap，测试里取不到夹具 ⇒ 记为失败）
+		const calls = [];
+		const e = engineAt(NOW_1113, only("ddlezj"), calls);
+		const before = (await e.getCached()).games.ddlezj || {};
+		check("构造前提：刷新前缓存里确实有旧卡池（11-05~11-19）",
+			before.banner === "全新使徒【波朗】限时概率上升" && (before.gacha || []).length === 1,
+			JSON.stringify([before.banner, before.gacha && before.gacha.length]));
+		const rep = await e.refresh();
+		const rec = (rep.games || {}).ddlezj || {};
+		check("ddlezj 卡池未配置 ⇒ 刷新后 banner / roles / 档期全空（不再沿用旧值）",
+			rec.banner === "" && rec.roles === "" && rec.bannerDates === "" && rec.bannerDatesRaw === "",
+			JSON.stringify({ banner: rec.banner, roles: rec.roles, bannerDates: rec.bannerDates }));
+		check("ddlezj 卡池未配置 ⇒ gacha 数组为空、**没有** gachaStale（不是「沿用旧值」而是「无数据」）",
+			Array.isArray(rec.gacha) && rec.gacha.length === 0 && rec.gachaStale === false,
+			JSON.stringify([rec.gacha && rec.gacha.length, rec.gachaStale]));
+		check("ddlezj 卡池未配置 ⇒ 面板卡池格派生不出条目（走「该来源无卡池数据」）",
+			T.scheduleCellOf(rec, "gacha", new Date(NOW_1113)) === null,
+			JSON.stringify(T.scheduleCellOf(rec, "gacha", new Date(NOW_1113))));
+		check("ddlezj 卡池未配置 ⇒ 这一侧一个请求都没发（calls 里没有 bwiki / biligame API）",
+			calls.every((u) => !/wiki\.biligame\.com|api\.biligame\.com/.test(String(u))),
+			JSON.stringify(calls));
+
+		// (b) cytq：两侧都未配置 ⇒ 两侧旧值一起清空（同一处修复，不针对 ddlezj 特判）
+		const calls2 = [];
+		const e2 = engineAt(NOW_1113, only("cytq"), calls2);
+		const rep2 = await e2.refresh();
+		const rec2 = (rep2.games || {}).cytq || {};
+		check("cytq 两侧都未配置 ⇒ 卡池/活动两侧内容都清空、两个数组都为空、无 stale",
+			rec2.banner === "" && rec2.event === "" && rec2.roles === ""
+			&& (rec2.gacha || []).length === 0 && (rec2.events || []).length === 0
+			&& rec2.gachaStale === false && rec2.eventStale === false,
+			JSON.stringify({ banner: rec2.banner, event: rec2.event, gacha: (rec2.gacha || []).length, events: (rec2.events || []).length }));
+		check("cytq 两侧都未配置 ⇒ 一个请求都没发", calls2.length === 0, JSON.stringify(calls2));
 	}
 
 	// ── ⑥ 2026-11-11：活动候选配额 6 → 10（非档期公告把 10/27 维护公告挤到第 7 位）─────────────

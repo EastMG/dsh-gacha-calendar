@@ -4,7 +4,8 @@
 //   ① 注册：`pengpeng.eventUrl` = `https://www.taptap.cn/app/746164/topic?type=official`
 //      （**允许路径的 tab 页**，不再是 `webapiv2` —— robots.txt 明确 Disallow 那两条接口），
 //      `eventSource` 仍是「TapTap」（用户可见标签不改）；旧 bwiki `公告/` 仍是 `eventAltSources`；
-//      卡池侧（bwiki SMW `action=ask`）本批**不动**；
+//      卡池侧本批**默认置空**（2026-11-13 用户拍板）+ 两个 bwiki 备选（SMW ask / /pengpeng 表格，
+//      解析逐字断言在 cases-new5 ④）；
 //   ② 解析：两页真夹具（`?page=1` / `?page=2`）各 10 帖；标题 + `topic.summary` 的纯文本行；
 //      活动名取标题里的【…】，窗口取 `▸活动时间：…` 那一行；**只有日期没有年份的不解**（【家族遗藏】）；
 //   ③ 当期（2026-11-11 00:00 +08）：第 1 页就覆盖当前窗口 ⇒ **只发 1 个请求**；
@@ -111,7 +112,7 @@ function withoutList(html) {
 
 export default async function runPengpengEvent() {
 	// ─────────────────────① 注册 ─────────────────────
-	section("夜幕之下 ①：活动侧注册（默认 = TapTap tab 页 SSR；bwiki 公告仍是备选；卡池不动）");
+	section("夜幕之下 ①：活动侧注册（默认 = TapTap tab 页 SSR；bwiki 公告仍是备选；卡池默认置空 + 两个备选）");
 	{
 		const s = T.SOURCES.find((x) => x.id === "pengpeng") || null;
 		check("pengpeng eventUrl = TapTap tab 页 `app/746164/topic?type=official`（允许路径）",
@@ -121,12 +122,16 @@ export default async function runPengpengEvent() {
 			!!s && String(s.eventUrl).indexOf("webapiv2") < 0, s ? String(s.eventUrl) : "缺失");
 		check("pengpeng 活动来源标签 = 「TapTap」（换抓取方式不改用户可见标签）",
 			!!s && s.eventSource === "TapTap", s ? String(s.eventSource) : "缺失");
-		check("pengpeng 卡池侧地址 = bwiki **SMW ask**（本批不动）",
-			!!s && /^https:\/\/wiki\.biligame\.com\/ymzx\/api\.php\?action=ask/.test(String(s.url))
-			&& /%E5%A5%91%E7%BA%A6/.test(String(s.url)),
-			s ? String(s.url) : "缺失");
-		check("pengpeng 卡池侧 `source` 标签 = 「Bwiki」",
-			!!s && s.source === "Bwiki", s ? String(s.source) : "缺失");
+		check("pengpeng 卡池侧默认置空（url=\"\"、不写 source）—— 2026-11-13 起卡池只手动启用",
+			!!s && s.url === "" && s.source === void 0,
+			s ? JSON.stringify({ url: s.url, source: s.source }) : "缺失");
+		check("卡池两个 bwiki 备选：① SMW ask「Bwiki（停更）」 ② /pengpeng 表格「Bwiki 表格」",
+			!!s && (s.altSources || []).length === 2
+			&& s.altSources[0].label === "Bwiki（停更）" && s.altSources[0].fetcher === "pengpeng-bwiki-ask"
+			&& s.altSources[1].label === "Bwiki 表格" && s.altSources[1].fetcher === "pengpeng-bwiki-table"
+			&& typeof T.GACHA_FETCHERS["pengpeng-bwiki-ask"] === "function"
+			&& typeof T.GACHA_FETCHERS["pengpeng-bwiki-table"] === "function",
+			s ? JSON.stringify(s.altSources) : "缺失");
 		check("旧 bwiki 活动源保留在 eventAltSources（url + 抓取器键 pengpeng-bwiki + 标签如实）",
 			!!s && (s.eventAltSources || []).length === 1
 			&& s.eventAltSources[0].url === PP.PENGPENG_EVENT_URL
@@ -143,8 +148,8 @@ export default async function runPengpengEvent() {
 			&& /[?&]page=2$/.test(PP.pengpengTaptapPageUrl(TOPIC1, 2))
 			&& /[?&]page=3$/.test(PP.pengpengTaptapPageUrl(TOPIC2, 3)),
 			JSON.stringify([TOPIC1, PP.pengpengTaptapPageUrl(TOPIC1, 2)]));
-		check("设置页下拉：卡池侧写「Bwiki」、活动侧写「TapTap」",
-			!!s && T.getDefaultSourceName(s, "url") === "Bwiki" && T.getDefaultSourceName(s, "eventUrl") === "TapTap",
+		check("设置页下拉：卡池侧写「未配置」、活动侧写「TapTap」",
+			!!s && T.getDefaultSourceName(s, "url") === "未配置" && T.getDefaultSourceName(s, "eventUrl") === "TapTap",
 			JSON.stringify([s && T.getDefaultSourceName(s, "url"), s && T.getDefaultSourceName(s, "eventUrl")]));
 	}
 

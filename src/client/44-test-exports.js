@@ -132,12 +132,13 @@
 				hlrWindowsOf,
 				hlrYearOf,
 			},
-			// 夜幕之下（卡池 bwiki 契约一览 + 活动 TapTap tab 的 SSR；旧 bwiki 公告源为备选）
+			// 夜幕之下（卡池默认置空；备选 = bwiki SMW ask + /pengpeng 契约一览表；活动 TapTap tab 的 SSR）
 			"pengpeng": {
 				PENGPENG_ASK_QUERY,
 				PENGPENG_ASK_URL,
 				PENGPENG_EVENT_URL,
 				PENGPENG_MAX_OVERVIEWS,
+				PENGPENG_TABLE_URL,
 				PENGPENG_TAPTAP_MAX_PAGES,
 				PENGPENG_TAPTAP_PAGE_URL,
 				PENGPENG_TAPTAP_REFERER,
@@ -153,6 +154,10 @@
 				pengpengOverviewActivitiesOf,
 				pengpengOverviewPagesOf,
 				pengpengOverviewUrl,
+				pengpengTableBoldTextsOf,
+				pengpengTablePoolsOf,
+				pengpengTableTextOf,
+				pengpengTableWindowOf,
 				pengpengTaptapActivitiesOf,
 				pengpengTaptapNameOf,
 				pengpengTaptapPageUrl,
