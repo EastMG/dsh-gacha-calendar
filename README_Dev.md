@@ -1122,6 +1122,9 @@ null，活动侧 2026-11-10 已换 TapTap tab（能出「新风同行」11-05~11
   bwiki 备选源 / 早停）。旧的 `pengpeng-taptap-official{,-p2}`（HTML）已删。
 
 
+> ⚠️ **已废弃（2026-11-13）**：下文描述的 `webapiv2` 链路已被替换——`taptap.cn/robots.txt` 明确 `Disallow: /webapiv2/`，
+> 现在改用 robots 允许的 `/app/<id>/topic?type=official` 页（SSR 解码）、请看下方 2026-11-13 那一节。
+
 ### 2026-11-11：崩坏3 卡池档期（697 文本）+ 卡厄斯梦境卡池换 TapTap 详情
 
 **① 崩坏3 `bh3` 卡池：档期改从文本取**（`src/client/30-game-batch2.js`）
