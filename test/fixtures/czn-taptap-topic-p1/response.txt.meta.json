@@ -1,0 +1,8 @@
+{
+  "bytes": 182074,
+  "sha256": "669c98c172314424",
+  "url": "https://www.taptap.cn/app/759688/topic?type=official",
+  "status": 200,
+  "capturedAt": "2026-11-13T14:29:42.131Z",
+  "trim": "原页 416,735 B（HTTP 200 / text/html / 无 WAF）；只保留 SSR 的 <script id=\"__NUXT_DATA__\"> … </script> 原文，payload 一个字节未改，页面其余 head/style/脚本丢弃（抓取器只读这段）。卡池 / 活动要的 title / summary / created_time 都在里面。"
+}

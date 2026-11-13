@@ -86,7 +86,7 @@ dsh-gacha-calendar/
 │       ├── 30-game-netease.js     # 时空中的绘旅人：官网新闻（official）+ 学院公告（update）列表 + 详情（卡池画廊 + 活动；缺年份补年/跨年）
 │       ├── 30-game-pengpeng.js    # 夜幕之下（国服）：卡池 bwiki SMW ask（契约）+ 活动 TapTap tab 的 feed JSON（旧 bwiki 公告为备选）
 │       ├── 30-game-unconfigured.js # 炽焰天穹：只注册条目、来源留空未配置（本批唯一仍不接的）
-│       ├── 30-game-batch2.js      # 2026-11-11 第二批：崩坏3 米哈游内容中台（卡池名称/角色 + 档期三级取值：`>>开放时间` → 同帖礼包【上架时间】 → 只出名称/角色；活动正文时间块）/ OurNotes 日服 SPICA（列表→前 5 条详情）/ 卡厄斯梦境 TapTap 官方（feed 列表 → **按标题挑**逐帖详情：卡池「营救概率提升」分节 + 活动分节；两侧共享 docs（TTL 30 s）、单帖失败跳过）
+│       ├── 30-game-batch2.js      # 2026-11-11 第二批：崩坏3 米哈游内容中台（卡池名称/角色 + 档期三级取值：`>>开放时间` → 同帖礼包【上架时间】 → 只出名称/角色；活动正文时间块）/ OurNotes 日服 SPICA（列表→前 5 条详情）/ 卡厄斯梦境 TapTap 官方（2026-11-13 改 topic 页 SSR：Nuxt devalue 解码 + 2 页固定请求；卡池「营救概率提升」标签 + 活动「活动时间」标签；同页维护窗映射；卡池载荷带活动字段供引擎复用）
 │       ├── 30-game-ournotes-global.js # OurNotes **国际服**卡池 + 活动：默认源 = SPICA 数据 JSON（页面 `window._durl` 现解 → d-*.json；gachapages/events 一次拿全）；数据里是 JST 墙钟、展示按 UTC+8（钟面 −1h）；picks 按 **id** 查角色；池名与角色名按 zh→tw→en→ja 取（简中优先）；BHK 官方公告两条降为手动备选源
 │       ├── 44-test-exports.js # 回归出口：解析器 + env 工具 + 来源表
 │       ├── 50-refresh.js     # 刷新编排、失败沿用旧值、提示归类
@@ -1177,6 +1177,36 @@ null，活动侧 2026-11-10 已换 TapTap tab（能出「新风同行」11-05~11
 - 活网（2026-11-12 22:3x +08，宿主代理 `127.0.0.1:63738`）：TapTap 仍被 WAF 拦 —— 列表 `status 200` /
   `text/html` 16010 B / 含 `aliyun_waf`；隔数分钟重试一次仍同。如实结论：这次**没取到数据**，两侧记 down，
   整轮只发 **2 个请求**（每侧 1 次列表、0 次详情）—— 失败路径也不再先扇出 22 次。正常轮的 4 次请求由夹具门禁钉住。
+
+### 2026-11-13：卡厄斯梦境 `czn` 改抓 robots 允许的 topic SSR 页（删除 webapiv2）
+
+- 合规事实：`https://www.taptap.cn/robots.txt` 明确 `Disallow: /webapi/` 与 `Disallow: /webapiv2/`；
+  旧实现走的 `webapiv2/feed/v7/by-group` + `webapiv2/moment/v3/detail` 两个接口都被禁。
+  实测允许路径 `https://www.taptap.cn/app/759688/topic?type=official[&page=N]`：200 / text/html / 无 WAF，
+  SSR `window.__NUXT_DATA__` 里带每帖 `moment.topic.title / summary / created_time`。
+- 抓取：固定 2 页（`NS_BATCH2_CZN_PAGES = 2`；第 2 页由 `ns_batch2_cznTopicUrlOf(2)` 拼 `&page=2`），
+  每次抓取 2 个请求；单页失败跳过、两页都失败才 down。页面无 ACAO ⇒ 仍走宿主代理（`www.taptap.cn` 在白名单）。
+  **删除**：feed / detail 两个 URL、`X-UA`、按标题挑详情与早停、`NS_BATCH2_CZN_DOCS_CACHE`（TTL 30 s 共享缓存）。
+- 解码：`__NUXT_DATA__` 是 Nuxt 的 **devalue** 编码（JSON 数组；元素为字面量或**数字下标引用**；
+  `ShallowReactive / Reactive / Ref / EmptyRef / Date / Set / Map / BigInt / RegExp / URL / Object` 是特殊容器）。
+  `ns_batch2_cznDevalueOf` 最小实现：每下标 memo + 容器先入 memo 再填（`state` 有自引用环，不 memo 会栈溢出）；
+  未知 tag 当普通数组解；下标越界返回 null。`ns_batch2_cznPostsOf` 按「哪个 `data.<hash>` 节点带 `list[]`」
+  找帖（hash 每页/每次构建会变），不写死。
+- 解析：卡池帖 = 标题或正文首行含 `营救概率提升`（首行是 `-活动内容：` 这类列表项时池名退帖子标题）；
+  池名 = 公告标题那一行，角色 = 池名里的 `「」`；期间只取 `概率提升时间：` / `活动时间：` 标签那一行。
+  活动 = 同帖 `◈更新时间：` 维护窗 + `活动时间：` 标签（`➤活动时间：` / `〓活动时间〓` / `【活动时间】`）；
+  `即日起～<绝对终点>` 的起点锚该帖 `created_time`（没有就留空，不拿 now 猜）。卡池帖的 `➤活动时间：`
+  是池的档期 ⇒ 不算活动（不双计）。`维护结束后/前` 用**同页**维护窗映射（p1 的池帖引用同页更新介绍帖的窗）；
+  `2026/12/02 维护开始前` 在 p1/p2 都没有对应窗 ⇒ endTs=null（不猜）。
+- 活网（2026-11-13 22:40 +08，node 直连；计数 wrapper）：修前（webapiv2）卡池 null / 活动 null、4 个请求
+  （1 feed + 3 详情，全部 200，但解析不出当期）；修后卡池「常驻主战员「蒂菲拉」& 辅战员「蒂亚娜」营救概率提升即将开始」
+  `11-04 02:00 ~ 11-25 02:00`、活动「卡厄思小课堂」`11-11 17:00 ~ 12-01 23:59`，整轮 **2 个请求**
+  （p1 + p2；活动侧复用卡池载荷 0 请求）。两侧 gachaFail / eventFail 均 null。
+- 夹具：`czn-taptap-topic-p1`（182,074 B）/ `czn-taptap-topic-p2`（156,379 B），2026-11-13T22:29~22:30+08 真抓；
+  只保留 `<script id="__NUXT_DATA__">…</script>` 原文（payload 未改，meta.trim 写明；原页 416,735 / 382,736 B）。
+  旧 `czn-taptap-feed` + `czn-taptap-moment-*` ×10 **已删**。
+- 回归：`test/cases-batch2.mjs` ③ / ③-2 / ③-3 / 反证（decode 环 / 池判据 / 标签行 / 同页维护窗 / `即日起` 锚点 /
+  双计守卫 / bwiki 备选源仍在），全批 5820 通过 / 0 失败（UTC 与 +08 同值）。
 
 ### 2026-11-11：嘟嘟脸恶作剧换 TapTap（列表 → 详情）；夜幕之下卡池换 bwiki SMW ask
 

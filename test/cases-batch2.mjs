@@ -8,24 +8,26 @@
 //      3 条主线更新稿没有时间块 ⇒ 如实不进日历；
 //   ② OurNotes·日服：卡池侧此前无来源，现挂 SPICA（列表取 id → **只抓前 5 条详情**，不是 23 条）；
 //      tz=Asia/Tokyo / 活动侧 bushimo 原样不动；详情「開催期間」→ 绝对 ts；pickup 名单逐字；
-//   ③ 卡厄斯：卡池 + 活动**都**从 TapTap 官方 tab 的「feed 列表 → 逐帖详情」解析（此前活动侧只吃列表摘要、
-//      卡池侧 bwiki 停更恒 nomatch）：`■ …营救概率提升` 分节 → 池名 + 角色 + 起止；
-//      「维护结束后 / 维护开始前」按**同帖**维护窗映射（12-02 的维护窗不在同帖 ⇒ endTs 如实留空）；
-//      活动 = 同帖维护窗 + `■ 活动 – …` 的【活动时间】；**营救概率提升不再算成活动**（此前双计）。
-//      2026-11-12 加固（TapTap 有 WAF）：按标题挑详情（更新/版本/维护/活动/一览/概率提升）+ 成功 3 份早停、
-//      `MAX_DETAILS=4` 只作兜底上限；两侧共享同一份 docs（模块级缓存 / key=完整 feed URL / TTL 30 s /
-//      失败不入缓存）；单帖 500 跳过、≥1 份成功照常出数据、全失败才 down。
-//      于是每轮刷新 22 个 TapTap 请求 ⇒ 1 列表 + 3 详情 = 4 个。
+//   ③ 卡厄斯：卡池 + 活动**都**从 TapTap 官方 tab 的 **topic 页 SSR** 解析（2026-11-13 换路径）：
+//      旧 `webapiv2/feed` + `webapiv2/moment detail` 被 robots.txt 明确 Disallow ⇒ 整体删除。
+//      现在固定抓 2 页（`topic?type=official` + `&page=2`），页面里的 `__NUXT_DATA__` 是
+//      **Nuxt devalue** 编码（数组 + 数字下标引用；含自引用环）⇒ 用 `ns_batch2_cznDevalueOf` 最小解码。
+//      每帖取 `moment.topic.title/summary` + `created_time`：
+//      卡池 = 标题/正文首行含「营救概率提升」（首行是 `-…` 列表项时用帖子标题）+ `概率提升时间：` /
+//      `活动时间：` 标签行的区间；「维护结束后/前」用**同页**维护窗映射（12-02 的窗不在 p1/p2 ⇒ endTs 留空）。
+//      活动 = 同帖维护窗 + `活动时间：` 标签（`➤活动时间：` / `〓活动时间〓` / `【活动时间】`）；
+//      `即日起～<绝对终点>` 的起点锚 `created_time`（没有就留空）；卡池帖不算活动（不双计）。
+//      请求数：卡池侧 2 个（p1+p2）；引擎里活动侧复用卡池载荷 ⇒ 整轮仍 2 个。**没有**共享缓存。
 //
 // ── 真夹具（test/fixtures/<名>/response.txt + .meta.json 的 url/capturedAt/trim）──
 //   bh3-content-gacha / bh3-content-event（抓取时刻 2026-11-11T01:00:20+08；当天 10:30 复核与夹具逐字节相同）
 //   spica-ournotes-gachas + spica-ournotes-gacha-{5001,22,4001,21,20}
-//   czn-taptap-feed（列表 / 10 帖）+ czn-taptap-moment-<帖 id> ×10（详情；抓取时刻 2026-11-11T10:35+08；
-//     10 份都留在夹具里 —— 解析器用例仍逐份喂，抓取器用例按新口径只碰标题命中的 3 份）
+//   czn-taptap-topic-p1 / czn-taptap-topic-p2（2026-11-13T22:29~22:30+08 真抓；只保留 SSR 的
+//     `<script id="__NUXT_DATA__">…</script>` 原文，payload 未改 —— 见各自 meta 的 trim）
 //
 // 时间断言一律写 `Date.UTC(...)` 手算的绝对毫秒：UTC 与 +08 两道门禁跑**同一份期望值**，
-// 不存在"本机时区对了才绿"。`NOW` 固定为 2026-11-11 12:00 +08 —— 比抓取时刻晚 1.5 小时，
-// 为的是让 czn 首条维护窗（08:00~13:00）真的在期（抓取时刻 10:35 也还没结束，见 ③ 的反向证明）。
+// 不存在"本机时区对了才绿"。`NOW` 固定为 2026-11-13 23:00 +08 —— 比抓取时刻晚半小时，
+// 让卡池（11-04 02:00 ~ 11-25 02:00）与「卡厄思小课堂」（即日起 ~ 12-01 23:59:59）都在期。
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -42,9 +44,11 @@ const BH3_G = B.NS_BATCH2_BH3_GACHA_URL;
 const BH3_E = B.NS_BATCH2_BH3_EVENT_URL;
 const SPICA_LIST = B.NS_BATCH2_SPICA_LIST_URL;
 const SPICA_DETAIL = B.NS_BATCH2_SPICA_DETAIL_BASE;
-const CZN = B.NS_BATCH2_CZN_FEED_URL;
-const CZN_DETAIL = B.ns_batch2_cznDetailUrl;
+const CZN = B.NS_BATCH2_CZN_TOPIC_URL;
+const CZN_P2 = B.ns_batch2_cznTopicUrlOf(2);
 const NOW = Date.parse("2026-11-11T12:00:00+08:00");
+// czn 的夹具是 2026-11-13T22:29~22:30+08 抓的；23:00 时卡池与「卡厄思小课堂」都在期。
+const CZN_NOW = Date.parse("2026-11-13T23:00:00+08:00");
 
 const FIXTURES = useFixtures();   // 全局夹具 impl（下面的 transport 直接复用它）
 const makeStore = (seed) => {
@@ -93,8 +97,7 @@ const engineWithClock = (clock, sink, extra, opts) => createEngine({
 	timer: { setTimeout, clearTimeout }
 });
 const proxyCallsOf = (calls) => calls.filter((c) => c.via === "proxy");
-// TapTap 帖详情请求（moment/v3/detail）；列表 feed 是另一条地址。
-const detailCallsOf = (list) => list.filter((c) => /\/webapiv2\/moment\/v3\/detail\?/.test(c.url));
+// czn 的 topic 页请求（p1 = 注册地址；p2 由抓取器拼 `&page=2`）。
 
 export default async function runBatch2() {
 	// ═══════════════════ ① 崩坏3 ═══════════════════
@@ -396,101 +399,128 @@ export default async function runBatch2() {
 		check("空列表 ⇒ ids 为空（抓取器据此抛 `spica-list-empty`，不是静默 null）", B.ns_batch2_spicaIdsOf("<html></html>").length === 0);
 	}
 
-	// ═══════════════════ ③ 卡厄斯梦境 TapTap 官方（feed 列表 → 逐帖详情）═══════════════════
-	section("第二批③：卡厄斯梦境 —— TapTap 官方 tab（列表 → 详情：卡池「营救概率提升」+ 活动分节）");
+	// ═══════════════════ ③ 卡厄斯梦境 TapTap 官方（topic 页 SSR：Nuxt devalue 解码）═══════════════════
+	section("第二批③：卡厄斯梦境 —— topic 页 SSR（2 页：卡池「营救概率提升」+ 活动「活动时间」）");
 	{
 		const s = T.SOURCES.find((x) => x.id === "czn") || null;
-		check("卡池 url = TapTap feed 列表（group_id=974342 / type=official / limit=10 / from=0）",
-			!!s && s.url === CZN && /group_id=974342/.test(s.url) && /type=official/.test(s.url)
-			&& /limit=10/.test(s.url) && /from=0$/.test(s.url), s && String(s.url));
-		check("卡池 url 带编码后的 X-UA（缺了源站直接 400）",
-			!!s && /[?&]X-UA=V%3D1%26PN%3DWebApp/.test(s.url), s && String(s.url).slice(0, 90));
+		check("卡池 url = topic 页（app/759688 / type=official）",
+			!!s && s.url === CZN && /\/app\/759688\/topic\?type=official$/.test(s.url), s && String(s.url));
+		check("url 不再含 robots 禁的 /webapi/ 或 /webapiv2/",
+			!!s && !/\/webapi(v2)?\//.test(s.url) && !/webapiv2/.test(String(s.eventUrl)), s && String(s.url));
 		check("卡池 / 活动来源标签都 = 「TapTap 官方」",
 			!!s && s.source === "TapTap 官方" && s.source === B.NS_BATCH2_CZN_SOURCE_LABEL
 			&& s.eventSource === "TapTap 官方", s && JSON.stringify([s.source, s.eventSource]));
-		check("活动 eventUrl = 同一份 feed 列表（两侧同一套列表+详情）",
-			!!s && s.eventUrl === CZN && s.eventUrl === s.url, s && String(s.eventUrl).slice(0, 60));
+		check("活动 eventUrl = 同一个 topic 页（两侧同一套 2 页）",
+			!!s && s.eventUrl === CZN && s.eventUrl === s.url, s && String(s.eventUrl));
 		check("bwiki `Module:Gacha/data` 降为卡池备选源（键 czn-bwiki；label 写明停更）",
 			!!s && (s.altSources || []).length === 1 && s.altSources[0].fetcher === "czn-bwiki"
 			&& /wiki\.biligame\.com\/czn\/api\.php/.test(s.altSources[0].url)
 			&& /停更/.test(s.altSources[0].label), s && JSON.stringify(s.altSources));
 		check("tz = Asia/Shanghai / defaultHidden 保持 true", !!s && s.tz === "Asia/Shanghai" && s.defaultHidden === true,
 			s && JSON.stringify([s.tz, s.defaultHidden]));
-		check("详情上限 = 4（兜底上限）/ 早停目标 = 3（最近 3 份命中帖即覆盖当期）",
-			B.NS_BATCH2_CZN_MAX_DETAILS === 4 && B.NS_BATCH2_CZN_DETAIL_TARGET === 3,
-			JSON.stringify([B.NS_BATCH2_CZN_MAX_DETAILS, B.NS_BATCH2_CZN_DETAIL_TARGET]));
-		check("两侧共享 docs 的缓存 TTL = 30 s", B.NS_BATCH2_CZN_DOCS_TTL_MS === 30 * 1000, String(B.NS_BATCH2_CZN_DOCS_TTL_MS));
+		check("固定 2 页；page2 由抓取器自己拼（逐字 `&page=2`）",
+			B.NS_BATCH2_CZN_PAGES === 2 && CZN_P2 === CZN + "&page=2"
+			&& B.ns_batch2_cznTopicUrlOf(1) === CZN, JSON.stringify([B.NS_BATCH2_CZN_PAGES, CZN_P2]));
+		check("旧的共享缓存 / feed / detail 常量已整体删除（`webapiv2` 路径不再存在）",
+			B.NS_BATCH2_CZN_DOCS_TTL_MS === undefined && B.NS_BATCH2_CZN_FEED_URL === undefined
+			&& B.ns_batch2_cznDetailUrl === undefined);
+		const idx = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
+		check("宿主白名单已登记 www.taptap.cn（否则代理 403）",
+			/const PROXY_ALLOW_HOSTS = \[[\s\S]*?"www\.taptap\.cn"[\s\S]*?\n\];/.test(idx));
 
-		// ── 列表 + 详情 → 正文行 ──
-		const feed = JSON.parse(fixtureBody(CZN));
-		check("feed 首帖 id / 标题逐字",
-			feed.data.list[0].moment.id_str === "869262052198190619"
-			&& feed.data.list[0].moment.topic.title === "赛季「凝结于雪上的约定」阶段2更新介绍",
-			JSON.stringify([feed.data.list[0].moment.id_str, feed.data.list[0].moment.topic.title]));
-		const docs = feed.data.list.map((x) => B.ns_batch2_cznDocOf(JSON.parse(fixtureBody(CZN_DETAIL(x.moment.id_str)))));
-		check("10 帖详情都能解析出正文行（`contents.json` 的 paragraph；image 块跳过）",
-			docs.length === 10 && docs.every((d) => d.title && d.lines.length > 0),
-			JSON.stringify(docs.map((d) => d.lines.length)));
+		// ── 真夹具：topic p1 / p2（只保留 SSR payload，见 meta.trim）──
+		const fx1 = JSON.parse(readFileSync(path.join(HERE, "fixtures", "czn-taptap-topic-p1", "response.txt.meta.json"), "utf8"));
+		const fx2 = JSON.parse(readFileSync(path.join(HERE, "fixtures", "czn-taptap-topic-p2", "response.txt.meta.json"), "utf8"));
+		check("p1 夹具是真抓：url = 注册地址 / status 200 / capturedAt / trim 写明只裁 HTML / bytes 可核",
+			fx1.url === CZN && fx1.status === 200 && !Number.isNaN(Date.parse(fx1.capturedAt))
+			&& /__NUXT_DATA__/.test(fx1.trim) && fx1.bytes > 100000, JSON.stringify([fx1.url, fx1.capturedAt, fx1.bytes]));
+		check("p2 夹具是真抓：url = p1 + `&page=2`",
+			fx2.url === CZN_P2 && fx2.status === 200 && !Number.isNaN(Date.parse(fx2.capturedAt))
+			&& /__NUXT_DATA__/.test(fx2.trim) && fx2.bytes > 100000, JSON.stringify([fx2.url, fx2.capturedAt, fx2.bytes]));
+		const p1 = fixtureBody(CZN);
+		const p2 = fixtureBody(CZN_P2);
+		check("p1/p2 都是真响应（含 `__NUXT_DATA__`；p1 有布蕾兹贝尔帖 / p2 有蒂菲拉帖）",
+			/id="__NUXT_DATA__"/.test(p1) && /id="__NUXT_DATA__"/.test(p2)
+			&& p1.includes("全新主战员「布蕾兹贝尔」") && p2.includes("常驻主战员「蒂菲拉」"),
+			JSON.stringify([p1.length, p2.length]));
 
-		// ── 按标题挑详情：只有「更新/版本/维护/活动/一览/概率提升」这类帖才进详情 ──
-		const hits = B.ns_batch2_cznPostsOf(feed);
-		check("标题命中 = 3 帖（更新介绍 / 活动回顾 / 营救概率提升），角色演示·PV·设定图·一封信都不进",
-			hits.length === 3
-			&& hits.map((x) => x.id).join(",") === [
-				feed.data.list[0].moment.id_str,
-				feed.data.list[7].moment.id_str,
-				feed.data.list[8].moment.id_str
-			].join(","),
-			JSON.stringify(hits.map((x) => x.title)));
-		check("物料帖确实一条都没命中（反证：不是「取前 3 帖」）",
-			hits.every((x) => /更新|版本|活動|活动|概率提升/.test(x.title))
-			&& feed.data.list.slice(1, 7).every((x) => !hits.some((h) => h.id === x.moment.id_str)),
-			JSON.stringify(feed.data.list.slice(1, 7).map((x) => x.moment.topic.title.slice(0, 12))));
-		check("更新帖正文逐字：首行「亲爱的领航者…」（源站把游戏名写成「卡厄思梦境」）/ 含维护行「…（服务器时间）…」",
-			docs[0].lines[0].startsWith("亲爱的领航者，《卡厄思梦境》将于 11 月 11 日进行版本更新")
-			&& docs[0].lines.some((l) => l.startsWith("2026/11/11 08:00 ~ 2026/11/11 13:00（服务器时间）")),
-			JSON.stringify(docs[0].lines.slice(0, 2)));
+		// ── devalue 解码 ──
+		const posts1 = B.ns_batch2_cznPostsOf(p1);
+		const posts2 = B.ns_batch2_cznPostsOf(p2);
+		check("p1 = 9 帖（10 个 moment，1 个 title/summary 全空的空帖跳过）/ p2 = 10 帖",
+			posts1.length === 9 && posts2.length === 10, JSON.stringify([posts1.length, posts2.length]));
+		check("p1 首帖逐字：id / title / created_time（源站 unix 秒 → ms）",
+			posts1[0].id === "870362903092397848"
+			&& posts1[0].title === "关于大龟裂功勋战段位难度反馈的说明"
+			&& posts1[0].createdTs === Date.UTC(2026, 10, 13, 11, 30),
+			JSON.stringify([posts1[0].id, posts1[0].title, posts1[0].createdTs]));
+		check("p2 蒂菲拉帖逐字：title / summary 首行 / created_time",
+			posts2[4].title === "常驻主战员「蒂菲拉」& 辅战员「蒂亚娜」营救概率提升即将开始"
+			&& posts2[4].body.startsWith("-活动内容：常驻战员营救概率提升\n-概率提升时间：2026/11/04 02:00~2026/11/25 02:00（服务器时间）")
+			&& posts2[4].createdTs === Date.UTC(2026, 10, 2, 3, 0),
+			JSON.stringify([posts2[4].title, posts2[4].createdTs]));
+		const raw = JSON.parse(B.ns_batch2_cznNuxtTextOf(p1));
+		check("devalue 原文是**数组 + 数字下标引用**（`[0]`=`[\"ShallowReactive\",1]`，raw.data 是 2 而不是对象）",
+			Array.isArray(raw) && Array.isArray(raw[0]) && raw[0][0] === "ShallowReactive" && raw[0][1] === 1
+			&& raw[1] && typeof raw[1] === "object" && typeof raw[1].data === "number"
+			&& !!B.ns_batch2_cznPayloadOf(p1).data && typeof B.ns_batch2_cznPayloadOf(p1).data === "object",
+			JSON.stringify(raw.slice(0, 2)));
+		check("devalue 自引用环不炸：容器先入 memo 再填（合成的 a↔b 环解出同一个对象）",
+			(() => {
+				const d = B.ns_batch2_cznDevalueOf(JSON.stringify([["ShallowReactive", 1], { "a": 2, "b": 2 }, ["Ref", 1]]));
+				return !!d && d.a === d.b && d === d.a;
+			})());
 
-		// ── 卡池：「营救概率提升」分节 ──
+		// ── 两页 → docs（同页维护窗并集）──
+		const docs = B.ns_batch2_cznDocsOf([p1, p2], CZN_NOW, "Asia/Shanghai");
+		check("两页合成 19 个 doc（9 + 10）", docs.length === 19, String(docs.length));
+		const maintDocs = docs.filter((d) => (d.ownMaint || []).length > 0);
+		check("同页维护窗 1 条（11-11 08:00~13:00）/ 只有「赛季阶段2」那帖自己写它 / 每个 doc 都拿到同页并集",
+			maintDocs.length === 1
+			&& maintDocs[0].title === "赛季「凝结于雪上的约定」阶段2更新介绍"
+			&& maintDocs[0].ownMaint[0].raw === "2026/11/11 08:00 ~ 2026/11/11 13:00"
+			&& docs.slice(0, 9).every((d) => d.maint.length === 1)
+			&& docs.slice(9).every((d) => d.maint.length === 0),
+			JSON.stringify(maintDocs.map((d) => d.title)));
+
+		// ── 卡池：「营救概率提升」帖 + 标签行 ──
 		const poolsOf = (list) => {
 			const out = [];
-			for (const d of list) for (const p of B.ns_batch2_cznPoolsOf(d, "Asia/Shanghai", NOW)) out.push(p);
+			for (const d of list) for (const p of B.ns_batch2_cznPoolsOf(d, "Asia/Shanghai", CZN_NOW)) out.push(p);
 			return out;
 		};
 		const pools = poolsOf(docs);
-		check("卡池事实 = 4 条（更新帖 3 + 蒂菲拉专帖 1）", pools.length === 4, JSON.stringify(pools.map((x) => x.title)));
-		const poolOf = (t) => pools.find((x) => x.title === t) || {};
-		const bz = poolOf("全新主战员「布蕾兹贝尔」营救概率提升");
-		check("布蕾兹贝尔：角色只取分节标题里的「」（正文里的 罗丝薇瑟·希格 不算）",
-			bz.roles === "布蕾兹贝尔" && !/罗丝薇瑟|希格/.test(String(bz.roles)), JSON.stringify(bz.roles));
-		check("布蕾兹贝尔：「2026/11/11 维护结束后」按同帖维护窗映射成 11-11 13:00 +08（UTC 05:00）",
+		check("卡池事实 = 2 条（布蕾兹贝尔&薇薇安 / 蒂菲拉&蒂亚娜）", pools.length === 2, JSON.stringify(pools.map((x) => x.title)));
+		const bz = pools.find((x) => /布蕾兹贝尔/.test(x.title)) || {};
+		const tf = pools.find((x) => /蒂菲拉/.test(x.title)) || {};
+		check("布蕾兹贝尔：池名 = 正文首行（公告标题那行）/ 角色只取池名里的「」",
+			bz.title === "全新主战员「布蕾兹贝尔」& 辅战员「薇薇安」营救概率提升即将开始"
+			&& bz.roles === "布蕾兹贝尔、薇薇安", JSON.stringify([bz.title, bz.roles]));
+		check("布蕾兹贝尔：「2026/11/11 维护结束后」按**同页**维护窗映射成 11-11 13:00 +08（UTC 05:00）",
 			bz.startTs === Date.UTC(2026, 10, 11, 5, 0), String(bz.startTs));
-		check("布蕾兹贝尔：「2026/12/02 维护开始前」同帖没有 12-02 维护窗 ⇒ endTs 如实留空（不猜）",
+		check("布蕾兹贝尔：「2026/12/02 维护开始前」p1/p2 都没有 12-02 维护窗 ⇒ endTs 如实留空（不猜）",
 			bz.endTs === null, String(bz.endTs));
-		check("布蕾兹贝尔：raw 逐字 / 有一端留空 ⇒ display 原样印原文（不渲染成确定时刻）",
+		check("布蕾兹贝尔：raw 逐字 / 有一端留空 ⇒ display 原样印原文",
 			bz.raw === "2026/11/11 维护结束后 ~ 2026/12/02 维护开始前" && bz.display === bz.raw,
 			JSON.stringify([bz.raw, bz.display]));
-		check("薇薇安：同一维护锚 + 同一未映射终点（「概率提升时间：」写法也认）",
-			poolOf("全新辅战员「薇薇安」营救概率提升").startTs === Date.UTC(2026, 10, 11, 5, 0)
-			&& poolOf("全新辅战员「薇薇安」营救概率提升").endTs === null
-			&& poolOf("全新辅战员「薇薇安」营救概率提升").roles === "薇薇安",
-			JSON.stringify(poolOf("全新辅战员「薇薇安」营救概率提升")));
-		const ld = poolOf("常驻主战员「莉妲」& 辅战员「艾薇」营救概率提升");
-		check("莉妲&艾薇：两端绝对时刻 11-25 02:00 ~ 12-16 02:00（raw 逐字 / display 格式化）",
-			ld.startTs === Date.UTC(2026, 10, 24, 18, 0) && ld.endTs === Date.UTC(2026, 11, 15, 18, 0)
-			&& ld.raw === "2026/11/25 02:00 ~ 2026/12/16 02:00" && ld.display === "11-25 02:00 ~ 12-16 02:00",
-			JSON.stringify([ld.startTs, ld.endTs, ld.raw, ld.display]));
-		const tf = poolOf("常驻主战员「蒂菲拉」& 辅战员「蒂亚娜」营救概率提升即将开始");
-		check("蒂菲拉专帖没有 `■` 分节 ⇒ 整帖算一条池（池名 = 帖子标题）/ 11-04 02:00 ~ 11-25 02:00",
+		check("蒂菲拉：首行是 `-活动内容：` 列表项 ⇒ 池名退帖子标题（不是列表项）/ 角色 蒂菲拉、蒂亚娜",
+			tf.title === "常驻主战员「蒂菲拉」& 辅战员「蒂亚娜」营救概率提升即将开始"
+			&& tf.roles === "蒂菲拉、蒂亚娜", JSON.stringify([tf.title, tf.roles]));
+		check("蒂菲拉：两端绝对 11-04 02:00 ~ 11-25 02:00（raw 逐字 / display 格式化）",
 			tf.startTs === Date.UTC(2026, 10, 3, 18, 0) && tf.endTs === Date.UTC(2026, 10, 24, 18, 0)
-			&& tf.raw === "2026/11/04 02:00~2026/11/25 02:00" && tf.roles === "蒂菲拉、蒂亚娜",
-			JSON.stringify([tf.startTs, tf.endTs, tf.roles]));
+			&& tf.raw === "2026/11/04 02:00~2026/11/25 02:00" && tf.display === "11-04 02:00 ~ 11-25 02:00",
+			JSON.stringify([tf.startTs, tf.endTs, tf.raw, tf.display]));
+		check("角色演示 / 主战员介绍 / 设定图 / PV 帖都不成池（正文提「营救」但标题与首行都没写）",
+			docs.filter((d) => /角色演示|主战员介绍|设定图|PV/.test(d.title))
+				.every((d) => B.ns_batch2_cznPoolsOf(d, "Asia/Shanghai", CZN_NOW).length === 0),
+			JSON.stringify(docs.filter((d) => /角色演示|主战员介绍|设定图|PV/.test(d.title)).map((d) => d.title.slice(0, 16))));
 
+		// ── 卡池抓取器（夹具 transport）──
 		const calls = [];
-		const e = engineAt(NOW, calls);
+		const e = engineAt(CZN_NOW, calls);
 		const gp = await e.__test.GACHA_FETCHERS["czn"](s.url, undefined, s.tz);
 		check("卡池抓取器返回对象（换源前 bwiki 停更 ⇒ 恒 null）", !!gp && typeof gp === "object");
-		check("当期池 = 蒂菲拉&蒂亚娜（11-04~11-25 覆盖 12:00；两个新池 13:00 才开 ⇒ 不冒充当期）",
+		check("当期池 = 蒂菲拉&蒂亚娜（11-04~11-25 覆盖 23:00；布蕾兹贝尔终点未知 ⇒ 不算在期）",
 			!!gp && gp.banner === "常驻主战员「蒂菲拉」& 辅战员「蒂亚娜」营救概率提升即将开始", JSON.stringify(gp && gp.banner));
 		check("当期角色 / 档期 / 原文逐字",
 			!!gp && gp.roles === "蒂菲拉、蒂亚娜"
@@ -501,241 +531,217 @@ export default async function runBatch2() {
 			!!gp && gp.gacha.length === 1 && gp.gacha[0].source === "primary"
 			&& gp.gacha[0].startTs === Date.UTC(2026, 10, 3, 18, 0) && gp.gacha[0].endTs === Date.UTC(2026, 10, 24, 18, 0),
 			JSON.stringify(gp && gp.gacha));
-		check("卡池侧请求 = 1 次列表 + 3 次详情（修前 1 + 10；按标题挑 + 早停）；全程经代理、Referer `https://www.taptap.cn/`",
-			proxyCallsOf(calls).length === 4
-			&& calls.filter((c) => c.url === CZN).length === 1
-			&& detailCallsOf(calls).length === B.NS_BATCH2_CZN_DETAIL_TARGET
-			&& hits.every((h) => detailCallsOf(calls).some((c) => c.url === CZN_DETAIL(h.id)))
+		check("卡池侧请求 = 恰好 2 个（p1 + p2，顺序固定）；全程经代理、Referer `https://www.taptap.cn/`",
+			calls.length === 2 && proxyCallsOf(calls).length === 2
+			&& calls[0].url === CZN && calls[1].url === CZN_P2
 			&& calls.every((c) => c.referer === "https://www.taptap.cn/"),
-			JSON.stringify(calls.map((c) => c.url.slice(-24))));
+			JSON.stringify(calls.map((c) => c.url.slice(-20))));
 
-		// ── 活动：同帖维护窗 + `■ 活动 – …` 的【活动时间】 ──
+		// ── 活动：维护窗 + 活动时间标签（`即日起` 锚 created_time）──
 		const rowsOf = (list) => {
 			const out = [];
-			for (const d of list) for (const r of B.ns_batch2_cznEventRowsOf(d, "Asia/Shanghai", NOW)) out.push(r);
+			for (const d of list) for (const r of B.ns_batch2_cznEventRowsOf(d, "Asia/Shanghai", CZN_NOW)) out.push(r);
 			return out;
 		};
 		const rows = rowsOf(docs);
-		check("活动事实 = 5 条（维护窗 1 + 活动分节 4）", rows.length === 5, JSON.stringify(rows.map((x) => x.title)));
+		check("活动事实 = 2 条（小课堂「即日起」+ 同帖维护窗）", rows.length === 2, JSON.stringify(rows.map((x) => x.title)));
+		const quiz = rows.find((x) => x.title === "卡厄思小课堂") || {};
 		const maint = rows.find((x) => x.title === "赛季「凝结于雪上的约定」阶段2更新介绍") || {};
+		check("小课堂：`即日起` 起点锚帖子 created_time（11-11 17:00 +08）/ 终点 12-01 23:59:59 +08",
+			quiz.startTs === Date.UTC(2026, 10, 11, 9, 0) && quiz.endTs === Date.UTC(2026, 11, 1, 15, 59, 0),
+			JSON.stringify([quiz.startTs, quiz.endTs]));
+		check("小课堂：`〓活动时间〓` 标签独占一行 ⇒ 取紧随其后那一行 / raw 逐字 / display 格式化",
+			quiz.raw === "即日起～2026年12月1日 23:59:59（UTC+8）" && quiz.display === "11-11 17:00 ~ 12-01 23:59",
+			JSON.stringify([quiz.raw, quiz.display]));
 		check("维护窗逐字：2026/11/11 08:00 ~ 2026/11/11 13:00 → 08:00 / 13:00 +08",
 			maint.startTs === Date.UTC(2026, 10, 11, 0, 0) && maint.endTs === Date.UTC(2026, 10, 11, 5, 0)
 			&& maint.raw === "2026/11/11 08:00 ~ 2026/11/11 13:00" && maint.display === "11-11 08:00 ~ 11-11 13:00",
-			JSON.stringify([maint.startTs, maint.endTs, maint.raw]));
-		check("**营救概率提升不算活动**（双计守卫）：5 条里没有一条含「营救概率提升」",
+			JSON.stringify([maint.startTs, maint.raw]));
+		check("**营救概率提升帖不算活动**（双计守卫）：2 条里没有一条含「营救概率提升」",
 			rows.every((x) => !/营救概率提升/.test(x.title)), JSON.stringify(rows.map((x) => x.title)));
-		check("4 条活动分节名逐字（取分节标题里「」的名字）",
-			JSON.stringify(rows.slice(1).map((x) => x.title)) === JSON.stringify(["梦境巡游庆典", "映照记忆的焰火", "今日晴，宜开工", "循星迹而行"]),
-			JSON.stringify(rows.slice(1).map((x) => x.title)));
-		check("「维护结束后」起点的三条：startTs=11-11 13:00 / endTs=null（12-02、12-23 维护窗不在同帖）",
-			rows.slice(1, 4).every((x) => x.startTs === Date.UTC(2026, 10, 11, 5, 0) && x.endTs === null
-				&& x.display === x.raw), JSON.stringify(rows.slice(1, 4)));
-		check("循星迹而行两端绝对：11-25 02:00 ~ 12-16 02:00",
-			rows[4].startTs === Date.UTC(2026, 10, 24, 18, 0) && rows[4].endTs === Date.UTC(2026, 11, 15, 18, 0),
-			JSON.stringify([rows[4].startTs, rows[4].endTs]));
 
 		const ep = await e.__test.EVENT_FETCHERS["czn"].default(s.eventUrl, undefined, s.tz);
-		check("两侧共享 docs：活动侧紧接着跑**一个请求都不发**（同 now 命中缓存；修前这里再打 11 次）",
-			calls.length === 4 && proxyCallsOf(calls).length === 4,
-			JSON.stringify(calls.map((c) => c.url.slice(-24))));
-		check("活动抓取器返回对象", !!ep && typeof ep === "object");
-		check("当期活动 = 维护窗（12:00 落在 08:00~13:00）",
-			!!ep && ep.event === "赛季「凝结于雪上的约定」阶段2更新介绍", JSON.stringify(ep && ep.event));
-		check("当期档期逐字 = 维护窗", !!ep && ep.eventDates === "11-11 08:00 ~ 11-11 13:00"
-			&& ep.eventDatesRaw === "2026/11/11 08:00 ~ 2026/11/11 13:00",
+		check("活动侧独立再抓 2 页（**无共享缓存**）：累计 4 个请求",
+			calls.length === 4 && proxyCallsOf(calls).length === 4, JSON.stringify(calls.length));
+		check("活动抓取器返回对象 / 当期 = 卡厄思小课堂（12-01 终点覆盖 now；维护窗 11-11 已过）",
+			!!ep && typeof ep === "object" && ep.event === "卡厄思小课堂", JSON.stringify(ep && ep.event));
+		check("当期档期逐字", !!ep && ep.eventDates === "11-11 17:00 ~ 12-01 23:59"
+			&& ep.eventDatesRaw === "即日起～2026年12月1日 23:59:59（UTC+8）",
 			JSON.stringify([ep && ep.eventDates, ep && ep.eventDatesRaw]));
-		check("`events[]` 1 条（4 条活动分节终点未知 / 循星迹而行未开始 ⇒ 不进在期数组），且不含营救帖",
-			!!ep && ep.events.length === 1 && ep.events[0].title === "赛季「凝结于雪上的约定」阶段2更新介绍",
+		check("`events[]` 1 条（维护窗已过 / 池帖不算活动）", !!ep && ep.events.length === 1 && ep.events[0].title === "卡厄思小课堂",
 			JSON.stringify(ep && ep.events.map((x) => x.title)));
-		check("悬停为空（共用工具 <2 条给空串 ⇒ 解析器不设该字段）", !!ep && ep.eventHover == null,
-			JSON.stringify(ep && ep.eventHover));
+		check("卡池载荷顺手带活动字段（引擎 `reuseSameRequest` 的前提）",
+			!!gp && gp.event === "卡厄思小课堂" && Array.isArray(gp.events) && gp.events.length === 1,
+			JSON.stringify([gp && gp.event, gp && (gp.events || []).length]));
 
-		// 引擎整轮（只让 czn 可见）：两侧共享同一份 docs ⇒ 1 次列表 + 3 次详情 = 4 次请求（修前 22 次）。
+		// 引擎整轮（只让 czn 可见）：卡池 2 页 + 活动复用 0 请求 = 2 个 TapTap 请求。
 		const calls2 = [];
-		const allIds = engineAt(NOW, []).__test.SOURCES.map((x) => x.id);
-		const e2 = engineAt(NOW, calls2, { hidden: allIds.filter((id) => id !== "czn"), shown: ["czn"] });
+		const allIds = engineAt(CZN_NOW, []).__test.SOURCES.map((x) => x.id);
+		const e2 = engineAt(CZN_NOW, calls2, { hidden: allIds.filter((id) => id !== "czn"), shown: ["czn"] });
 		const r = await e2.refresh();
 		const rec = r.games["czn"] || {};
 		check("整轮：两侧都不 fail", rec.gachaFail == null && rec.eventFail == null,
 			JSON.stringify([rec.gachaFail, rec.eventFail]));
-		check("整轮：TapTap 请求总数 = 1 次列表 + 3 次详情（两侧共享 docs；修前 2×(1+10)=22）",
-			calls2.length === 4 && calls2.filter((c) => c.url === CZN).length === 1
-			&& detailCallsOf(calls2).length === B.NS_BATCH2_CZN_DETAIL_TARGET
-			&& hits.every((h) => detailCallsOf(calls2).some((c) => c.url === CZN_DETAIL(h.id))),
-			JSON.stringify([calls2.length, calls2.filter((c) => c.url === CZN).length]));
+		check("整轮：TapTap 请求总数 = 2（卡池 p1+p2；活动侧复用卡池载荷 ⇒ 0）",
+			calls2.length === 2 && calls2[0].url === CZN && calls2[1].url === CZN_P2,
+			JSON.stringify(calls2.map((c) => c.url.slice(-20))));
 		check("整轮记录：banner / roles / bannerDates / event / events 逐字",
 			rec.banner === "常驻主战员「蒂菲拉」& 辅战员「蒂亚娜」营救概率提升即将开始"
 			&& rec.roles === "蒂菲拉、蒂亚娜"
 			&& rec.bannerDates === "11-04 02:00 ~ 11-25 02:00"
-			&& rec.event === "赛季「凝结于雪上的约定」阶段2更新介绍"
+			&& rec.event === "卡厄思小课堂"
 			&& (rec.events || []).length === 1 && (rec.gacha || []).length === 1,
 			JSON.stringify([rec.banner, rec.roles, rec.bannerDates, rec.event, (rec.events || []).length]));
 	}
 
-	// ── ③-2 docs 缓存（TTL 30 s / 成功才入缓存）与请求数 ──
-	section("第二批③-2：两侧共享 docs 缓存 —— 同 now 命中（0 请求）/ 超 30 s 重抓");
+	// ── ③-2 无共享缓存：每侧各 2 页；引擎同 URL 复用省掉活动侧那 2 个 ──
+	section("第二批③-2：无共享缓存 —— 每侧各抓 2 页；引擎同 URL 复用只在载荷带 event 时生效");
 	{
-		const allIds = engineAt(NOW, []).__test.SOURCES.map((x) => x.id);
+		const allIds = engineAt(CZN_NOW, []).__test.SOURCES.map((x) => x.id);
 		const only = { hidden: allIds.filter((id) => id !== "czn"), shown: ["czn"] };
-		const feed = JSON.parse(fixtureBody(CZN));
-		const hitIds = B.ns_batch2_cznPostsOf(feed).map((x) => x.id);
-
-		// ⚠️ 缓存跟着**引擎实例**走（`createEngine` 每次造一个独立 core，30-game-batch2.js 整段都在它里面）。
-		//    所以"过期"必须在同一个引擎里拨表测；换引擎 = 从零开始（生产只有 90-plugin.js 那一个引擎）。
-		const clock = { now: NOW };
+		const clock = { now: CZN_NOW };
 		const calls = [];
 		const e1 = engineWithClock(clock, calls, only);
 		await e1.refresh();
-		check("首轮：1 列表 + 3 详情 = 4 个 TapTap 请求",
-			calls.length === 4 && calls.filter((c) => c.url === CZN).length === 1
-			&& detailCallsOf(calls).length === 3,
-			JSON.stringify(calls.map((c) => c.url.slice(-24))));
+		check("首轮：2 个请求（卡池 p1+p2；活动侧复用）",
+			calls.length === 2 && calls[0].url === CZN && calls[1].url === CZN_P2,
+			JSON.stringify(calls.map((c) => c.url.slice(-20))));
+		clock.now = CZN_NOW + 29 * 1000;
 		await e1.refresh();
-		check("缓存命中：同 now 下第二次刷新 0 个 TapTap 请求", calls.length === 4, JSON.stringify(calls.length));
+		check("+29 s 再刷：照旧 +2 个请求（**没有** 30 s TTL 缓存了）", calls.length === 4, String(calls.length));
 
-		clock.now = NOW + 29 * 1000;
-		await e1.refresh();
-		check("TTL 内（+29 s）仍然命中缓存 ⇒ 0 请求", calls.length === 4, JSON.stringify(calls.length));
-
-		clock.now = NOW + 31 * 1000;
-		await e1.refresh();
-		check("超过 30 s（+31 s）⇒ 重新抓：累计 +4（1 列表 + 3 详情）",
-			calls.length === 8 && calls.slice(4).filter((c) => c.url === CZN).length === 1
-			&& detailCallsOf(calls.slice(4)).length === 3,
-			JSON.stringify(calls.map((c) => c.url.slice(-24))));
-		check("重抓的详情仍是那 3 份命中帖（不是重新挑成别的）",
-			hitIds.length === 3 && hitIds.every((id) => detailCallsOf(calls.slice(4)).some((c) => c.url === CZN_DETAIL(id))),
-			JSON.stringify(detailCallsOf(calls.slice(4)).map((c) => c.url.slice(-19))));
+		const callsDirect = [];
+		const eDirect = engineAt(CZN_NOW, callsDirect);
+		await eDirect.__test.GACHA_FETCHERS["czn"](CZN, undefined, "Asia/Shanghai");
+		check("卡池侧直接调用 = 2 个请求（p1 + p2）", callsDirect.length === 2, String(callsDirect.length));
+		await eDirect.__test.EVENT_FETCHERS["czn"].default(CZN, undefined, "Asia/Shanghai");
+		check("紧接着活动侧直接调用再 +2（两侧各抓各的，不共享中间结果）", callsDirect.length === 4, String(callsDirect.length));
+		check("两侧同 URL 且卡池载荷带 event ⇒ 引擎整轮只 2 个请求（复用不是少一条腿）",
+			calls.length === 4 && callsDirect.length === 4 && B.NS_BATCH2_CZN_PAGES === 2,
+			JSON.stringify([calls.length, callsDirect.length]));
 	}
 
-	// ── ③-3 单帖失败跳过 / 全部失败才抛错 / 失败不入缓存 ──
-	section("第二批③-3：单帖 500 跳过（≥1 份成功照常出数据）/ 全失败才 down");
+	// ── ③-3 单页失败跳过 / 两页全失败才 down / 坏页不重试 ──
+	section("第二批③-3：单页 500 / 坏 HTML 跳过（另一页照出数据）；两页全失败才 down");
 	{
-		const allIds = engineAt(NOW, []).__test.SOURCES.map((x) => x.id);
+		const allIds = engineAt(CZN_NOW, []).__test.SOURCES.map((x) => x.id);
 		const only = { hidden: allIds.filter((id) => id !== "czn"), shown: ["czn"] };
-		const feed = JSON.parse(fixtureBody(CZN));
-		const updateId = feed.data.list[0].moment.id_str;    // 更新帖：活动侧（维护窗 + 4 条活动分节）的唯一来源
-		const reviewId = feed.data.list[8].moment.id_str;    // 活动回顾特辑：命中标题但不贡献任何档期
-		const detailFail = (u) => /\/webapiv2\/moment\/v3\/detail\?/.test(u);
 
-		// A：最后一份命中帖（活动回顾）500 ⇒ 前两份已成功 ⇒ 数据与全成功时一致
-		const cTail = [];
-		const eTail = engineAt(NOW, cTail, only, { fail: (u) => u === CZN_DETAIL(reviewId) });
-		const rTail = await eTail.refresh();
-		const recTail = rTail.games["czn"] || {};
-		check("A 单帖失败（活动回顾帖 500）⇒ 两侧照常出数据、不 down",
-			recTail.gachaFail == null && recTail.eventFail == null
-			&& recTail.banner === "常驻主战员「蒂菲拉」& 辅战员「蒂亚娜」营救概率提升即将开始"
-			&& recTail.event === "赛季「凝结于雪上的约定」阶段2更新介绍",
-			JSON.stringify([recTail.gachaFail, recTail.eventFail, recTail.banner]));
-		check("A 请求数：失败那份也照抓（1 列表 + 3 详情尝试），但数据不受影响",
-			cTail.length === 4 && detailCallsOf(cTail).length === 3, JSON.stringify(cTail.length));
+		// A：p1 500 ⇒ 卡池只吃 p2（蒂菲拉照常）；活动侧小课堂在 p1 ⇒ 如实 nomatch（不是 down）
+		const cA = [];
+		const eA = engineAt(CZN_NOW, cA, only, { fail: (u) => u === CZN });
+		const recA = (await eA.refresh()).games["czn"] || {};
+		check("A p1 500 ⇒ 卡池照常出蒂菲拉（只吃 p2），不 down",
+			recA.gachaFail == null && recA.banner === "常驻主战员「蒂菲拉」& 辅战员「蒂亚娜」营救概率提升即将开始",
+			JSON.stringify([recA.gachaFail, recA.banner]));
+		check("A p1 500 ⇒ 活动侧如实 nomatch（不是 down）/ 请求 2+2 = 4",
+			!!recA.eventFail && recA.eventFail.kind === "nomatch" && !recA.event
+			&& cA.length === 4 && cA.filter((c) => c.url === CZN).length === 2,
+			JSON.stringify([recA.eventFail, cA.length]));
 
-		// B：更新帖（活动来源）500 ⇒ 卡池照常出数据；活动侧如实 nomatch（不是 down）
-		const cMain = [];
-		const eMain = engineAt(NOW, cMain, only, { fail: (u) => u === CZN_DETAIL(updateId) });
-		const rMain = await eMain.refresh();
-		const recMain = rMain.games["czn"] || {};
-		check("B 更新帖 500 ⇒ 卡池照常出数据（蒂菲拉），整条记录不 down",
-			recMain.gachaFail == null
-			&& recMain.banner === "常驻主战员「蒂菲拉」& 辅战员「蒂亚娜」营救概率提升即将开始"
-			&& !recMain.event && !!recMain.eventFail && recMain.eventFail.kind === "nomatch",
-			JSON.stringify([recMain.banner, recMain.event, recMain.eventFail]));
-		check("B 请求数：1 列表 + 3 详情尝试（失败的 1 份跳过，后 2 份照抓）",
-			cMain.length === 4 && detailCallsOf(cMain).length === 3, JSON.stringify(cMain.length));
+		// B：p2 500 ⇒ 卡池侧当期 null（布蕾兹贝尔终点未知）⇒ nomatch；活动侧小课堂在 p1 ⇒ 照常出
+		const cB = [];
+		const eB = engineAt(CZN_NOW, cB, only, { fail: (u) => u === CZN_P2 });
+		const recB = (await eB.refresh()).games["czn"] || {};
+		check("B p2 500 ⇒ 卡池侧 nomatch（无当期），不是 down",
+			!!recB.gachaFail && recB.gachaFail.kind === "nomatch" && !recB.banner,
+			JSON.stringify([recB.gachaFail, recB.banner]));
+		check("B p2 500 ⇒ 活动侧照常出「卡厄思小课堂」（p1 就够）/ 请求 4",
+			recB.eventFail == null && recB.event === "卡厄思小课堂" && cB.length === 4,
+			JSON.stringify([recB.event, cB.length]));
 
-		// C：全部详情失败 ⇒ 抛错 / 两侧 down
-		const cAll = [];
-		const eAll = engineAt(NOW, cAll, only, { fail: detailFail });
-		const rAll = await eAll.refresh();
-		const recAll = rAll.games["czn"] || {};
-		check("C 全部详情失败 ⇒ 两侧都记抓取异常（down），不是静默 null",
-			!!recAll.gachaFail && recAll.gachaFail.kind === "down"
-			&& !!recAll.eventFail && recAll.eventFail.kind === "down",
-			JSON.stringify([recAll.gachaFail, recAll.eventFail]));
-		check("C 请求数：失败不入缓存 ⇒ 两侧各试一遍 = 2×(1 列表 + 3 详情)（不是 22）",
-			cAll.length === 8 && cAll.filter((c) => c.url === CZN).length === 2 && detailCallsOf(cAll).length === 6,
-			JSON.stringify(cAll.length));
-		let thrown = "";
-		try { await eAll.__test.GACHA_FETCHERS["czn"](CZN, undefined, "Asia/Shanghai"); }
-		catch (err) { thrown = String((err && err.message) || err); }
-		check("C 抓取器直接调用也抛错（`proxy-bad:500`，不是返回 null）", /proxy-bad:500/.test(thrown), thrown);
+		// C：两页都 500 ⇒ 两侧 down；每侧只试 2 次，不重试
+		const cC = [];
+		const eC = engineAt(CZN_NOW, cC, only, { fail: (u) => u === CZN || u === CZN_P2 });
+		const recC = (await eC.refresh()).games["czn"] || {};
+		check("C 两页全 500 ⇒ 两侧都记抓取异常（down），不是静默 null",
+			!!recC.gachaFail && recC.gachaFail.kind === "down" && !!recC.eventFail && recC.eventFail.kind === "down",
+			JSON.stringify([recC.gachaFail, recC.eventFail]));
+		check("C 两页全 500 ⇒ 请求数 2+2 = 4（每侧 2 页，没有第三次重试）",
+			cC.length === 4 && cC.filter((c) => c.url === CZN).length === 2 && cC.filter((c) => c.url === CZN_P2).length === 2,
+			String(cC.length));
 
-		// D：失败不入缓存 —— 失败那一轮没写缓存，下一轮照常重抓（不是"缓存住一个失败"）
-		const cRetry = [];
-		await engineAt(NOW, cRetry, only, { fail: detailFail }).refresh();
-		check("D 失败不入缓存：同 now 再来一轮照常 2×(1 列表 + 3 详情)（8 个请求，一次没少）",
-			cRetry.length === 8 && cRetry.filter((c) => c.url === CZN).length === 2, JSON.stringify(cRetry.length));
-
-		// E：早停 + 兜底上限 —— 把 10 帖标题全改成命中词：成功 3 份即停；全失败时每侧最多 4 次尝试
-		const allHit = JSON.parse(JSON.stringify(feed));
-		allHit.data.list.forEach((x) => { x.moment.topic.title += "（更新公告）"; });
-		const allHitBody = JSON.stringify(allHit);
-		const cEarly = [];
-		await engineAt(NOW, cEarly, only, { override: (u) => (u === CZN ? allHitBody : null) }).refresh();
-		check("E 早停：10 帖全命中时也只抓 3 份详情（1 列表 + 3；活动侧命中缓存 = 0）",
-			cEarly.length === 4 && detailCallsOf(cEarly).length === 3,
-			JSON.stringify(cEarly.length));
-		const cCap = [];
-		await engineAt(NOW, cCap, only, { override: (u) => (u === CZN ? allHitBody : null), fail: detailFail }).refresh();
-		check("F 兜底上限：10 帖全命中且全部 500 ⇒ 每侧最多 4 次详情尝试（2×4，不是 2×10）",
-			cCap.length === 10 && cCap.filter((c) => c.url === CZN).length === 2
-			&& detailCallsOf(cCap).length === 2 * B.NS_BATCH2_CZN_MAX_DETAILS,
-			JSON.stringify(cCap.length));
+		// D：p2 返回坏 HTML（无 `__NUXT_DATA__`）⇒ 跳过这一页，不重试；p1 照出活动
+		const cD = [];
+		const eD = engineAt(CZN_NOW, cD, only, { override: (u) => (u === CZN_P2 ? "<html><body>没有 payload</body></html>" : null) });
+		const recD = (await eD.refresh()).games["czn"] || {};
+		check("D p2 坏 HTML ⇒ 不重试（仍 2+2=4 个请求）；活动侧照常出小课堂",
+			cD.length === 4 && recD.event === "卡厄思小课堂", JSON.stringify([cD.length, recD.event]));
+		const cE = [];
+		const eE = engineAt(CZN_NOW, cE, only, { override: (u) => (u === CZN ? "<html></html>" : null) });
+		const recE = (await eE.refresh()).games["czn"] || {};
+		check("D p1 坏 HTML + p2 正常 ⇒ 卡池只吃 p2 出蒂菲拉（坏页不拖垮另一页）",
+			recE.gachaFail == null && recE.banner === "常驻主战员「蒂菲拉」& 辅战员「蒂亚娜」营救概率提升即将开始",
+			JSON.stringify([recE.gachaFail, recE.banner]));
 	}
 
-	section("第二批③反证：拿掉关键解析 ⇒ 不产出 / 不猜 / 不双计");
+	section("第二批③反证：关掉 decode / 关掉标签解析 ⇒ 不产出（逐条红）");
 	{
-		const feed = JSON.parse(fixtureBody(CZN));
-		const docs = feed.data.list.map((x) => B.ns_batch2_cznDocOf(JSON.parse(fixtureBody(CZN_DETAIL(x.moment.id_str)))));
-		const upd = docs[0];
-		const poolsOf = (list) => {
-			const out = [];
-			for (const d of list) for (const p of B.ns_batch2_cznPoolsOf(d, "Asia/Shanghai", NOW)) out.push(p);
-			return out;
-		};
-		const withLines = (lines) => ({ title: upd.title, lines });
+		const p1 = fixtureBody(CZN);
+		const p2 = fixtureBody(CZN_P2);
 
-		// 反证 A：删掉「概率提升期间/时间：」整行 ⇒ 分节还在，但不再成池（不拿正文里别的区间凑）
-		const noPeriod = withLines(upd.lines.filter((l) => !/概率提升(?:期间|时间)\s*[:：]/.test(l)));
-		check("反证 A：删掉「概率提升期间」行 ⇒ 更新帖卡池 0 条（不硬凑）",
-			poolsOf([noPeriod]).length === 0, JSON.stringify(poolsOf([noPeriod])));
+		// 反证 A：删掉 `__NUXT_DATA__` 脚本 = 不做 devalue 解码 ⇒ 明确抛错（不是静默 0 帖）
+		const noScript = p1.replace(/<script[^>]*id="__NUXT_DATA__"[^>]*>[\s\S]*?<\/script>/, "");
+		let noNuxtErr = "";
+		try { B.ns_batch2_cznPostsOf(noScript); } catch (err) { noNuxtErr = String((err && err.message) || err); }
+		check("反证 A：删掉 `__NUXT_DATA__`（不解码）⇒ 抛 `czn-no-nuxt`", noNuxtErr === "czn-no-nuxt", noNuxtErr);
 
-		// 反证 B：分节标题的关键词拿掉 ⇒ 也不成池（证明卡池真的来自 `■ …营救概率提升` 分节）
-		const noKw = withLines(upd.lines.map((l) => l.replace(/营救概率提升/g, "营救")));
-		check("反证 B：分节标题去掉「营救概率提升」⇒ 更新帖卡池 0 条",
-			poolsOf([noKw]).length === 0, JSON.stringify(poolsOf([noKw]).map((x) => x.title)));
+		const docs = B.ns_batch2_cznDocsOf([p1, p2], CZN_NOW, "Asia/Shanghai");
+		const bzDoc = docs.find((d) => /布蕾兹贝尔/.test(d.title));
+		const tfDoc = docs.find((d) => /蒂菲拉/.test(d.title));
+		const poolsOfDoc = (d) => B.ns_batch2_cznPoolsOf(d, "Asia/Shanghai", CZN_NOW);
+		check("对照组：布蕾兹贝尔 / 蒂菲拉 都解析出 1 条池",
+			poolsOfDoc(bzDoc).length === 1 && poolsOfDoc(tfDoc).length === 1,
+			JSON.stringify([poolsOfDoc(bzDoc).length, poolsOfDoc(tfDoc).length]));
 
-		// 反证 C：抹掉维护窗 ⇒ 维护活动消失，且「维护结束后」锚点失效 ⇒ 只剩两端绝对时刻那一条
-		const noMaint = withLines(upd.lines.map((l) => l.replace("2026/11/11 08:00 ~ 2026/11/11 13:00", "时间待定")));
-		const rowsC = B.ns_batch2_cznEventRowsOf(noMaint, "Asia/Shanghai", NOW);
-		const poolsC = poolsOf([noMaint]);
-		check("反证 C：抹掉维护窗 ⇒ 3 条「维护结束后…」活动分节两端都解不出 ⇒ 只剩「循星迹而行」那一条（不猜锚点）",
-			rowsC.length === 1 && rowsC[0].title === "循星迹而行", JSON.stringify(rowsC.map((x) => x.title)));
-		check("反证 C：抹掉维护窗 ⇒ 「维护结束后」端点解不出 ⇒ 只剩「莉妲&艾薇」那条两端绝对的池（不猜锚点）",
-			poolsC.length === 1 && poolsC[0].title === "常驻主战员「莉妲」& 辅战员「艾薇」营救概率提升",
-			JSON.stringify(poolsC.map((x) => x.title)));
+		// 反证 B：池名与标签都去掉「营救概率提升」⇒ 0 条池
+		const noPool = Object.assign({}, bzDoc, {
+			title: bzDoc.title.replace(/营救概率提升/g, "营救"),
+			lines: bzDoc.lines.map((l) => l.replace(/营救概率提升/g, "营救").replace(/活动时间：.*$/, ""))
+		});
+		check("反证 B：池帖去掉「营救概率提升」（池名 + 标签）⇒ 0 条池",
+			poolsOfDoc(noPool).length === 0, JSON.stringify(poolsOfDoc(noPool)));
 
-		// 反证 D：抓取时刻 01:00 +08（维护还没开始）⇒ 活动侧 null（严格 coversNow）
-		const cap = Date.parse("2026-11-11T01:00:20+08:00");
-		const capRows = B.ns_batch2_cznEventRowsOf(docs[0], "Asia/Shanghai", cap);
-		check("反证 D：01:00 时维护窗未开始 / 活动分节 13:00 才开 ⇒ 活动载荷 null",
-			capRows.length === 5 && B.ns_batch2_cznEventPayloadOf(capRows, "Asia/Shanghai", cap) === null,
-			JSON.stringify(capRows.map((x) => x.title)));
-		check("反证 D 对照：12:00 时维护窗已在期 ⇒ 当期 = 维护（证明是 coversNow 起的作用）",
-			(B.ns_batch2_cznEventPayloadOf(B.ns_batch2_cznEventRowsOf(docs[0], "Asia/Shanghai", NOW), "Asia/Shanghai", NOW) || {}).event
-			=== "赛季「凝结于雪上的约定」阶段2更新介绍");
+		// 反证 C：删掉「概率提升时间：」整行 ⇒ 不成池（不拿正文里别的区间凑）
+		const noLabel = Object.assign({}, tfDoc, { lines: tfDoc.lines.filter((l) => !/概率提升时间\s*[:：]/.test(l)) });
+		check("反证 C：删掉「概率提升时间：」行 ⇒ 0 条池（不硬凑）",
+			poolsOfDoc(noLabel).length === 0, JSON.stringify(poolsOfDoc(noLabel)));
 
-		// 反证 E：换源不是删源 —— bwiki 备选抓取器仍登记（设置页能手动切回）
-		const e = engineAt(NOW, []);
-		check("反证 E：bwiki 备选抓取器 `czn-bwiki` 仍登记在 GACHA_FETCHERS（停更但未删）",
+		// 反证 D：抹掉同页维护窗（docs 层清空 maint/ownMaint）⇒ 「维护结束后/前」两端都解不出；维护活动也消失
+		const docsNoMaint = docs.map((d) => Object.assign({}, d, { maint: [], ownMaint: [] }));
+		const poolsNoMaint = [];
+		for (const d of docsNoMaint) for (const p of poolsOfDoc(d)) poolsNoMaint.push(p);
+		const rowsNoMaint = [];
+		for (const d of docsNoMaint) for (const r of B.ns_batch2_cznEventRowsOf(d, "Asia/Shanghai", CZN_NOW)) rowsNoMaint.push(r);
+		check("反证 D：抹掉维护窗 ⇒ 布蕾兹贝尔两端都解不出 ⇒ 只剩蒂菲拉那条池（不猜锚点）",
+			poolsNoMaint.length === 1 && /蒂菲拉/.test(poolsNoMaint[0].title),
+			JSON.stringify(poolsNoMaint.map((x) => x.title)));
+		check("反证 D：抹掉维护窗 ⇒ 维护活动消失，活动事实只剩「卡厄思小课堂」",
+			rowsNoMaint.length === 1 && rowsNoMaint[0].title === "卡厄思小课堂",
+			JSON.stringify(rowsNoMaint.map((x) => x.title)));
+
+		// 反证 E：抹掉 created_time ⇒ 「即日起」起点留空、活动载荷 null（不对 now 猜）
+		const quizDoc = docs.find((d) => /卡厄思小课堂/.test(d.title));
+		const quizNoCreated = Object.assign({}, quizDoc, { createdTs: null });
+		const quizRows = B.ns_batch2_cznEventRowsOf(quizNoCreated, "Asia/Shanghai", CZN_NOW);
+		check("反证 E：抹掉 created_time ⇒ 小课堂起点留空 / 活动载荷 null（不拿 now 当「即日起」）",
+			quizRows.length === 1 && quizRows[0].startTs === null
+			&& B.ns_batch2_cznEventPayloadOf(quizRows, "Asia/Shanghai", CZN_NOW) === null,
+			JSON.stringify(quizRows));
+
+		// 反证 F：池帖去掉「营救概率提升」⇒ 它的 `➤活动时间：` 才被当活动（双计守卫来自池判据）
+		const bzNoKw = Object.assign({}, bzDoc, {
+			title: bzDoc.title.replace(/营救概率提升/g, "营救"),
+			lines: bzDoc.lines.map((l) => l.replace(/营救概率提升/g, "营救"))
+		});
+		const bzRows = B.ns_batch2_cznEventRowsOf(bzNoKw, "Asia/Shanghai", CZN_NOW);
+		check("反证 F：池帖去掉「营救概率提升」⇒ `➤活动时间` 才变成活动（证明不是漏解析）",
+			bzRows.length === 1 && bzRows[0].startTs === Date.UTC(2026, 10, 11, 5, 0) && bzRows[0].endTs === null,
+			JSON.stringify(bzRows));
+
+		// 反证 G：换源不是删源 —— bwiki 备选抓取器仍登记
+		const e = engineAt(CZN_NOW, []);
+		check("反证 G：bwiki 备选抓取器 `czn-bwiki` 仍登记在 GACHA_FETCHERS（停更但未删）",
 			typeof e.__test.GACHA_FETCHERS["czn-bwiki"] === "function");
-
-		// 反证 F：标题词汇一个都不认识 ⇒ 明确抛 `czn-no-title-match`（不退回"10 帖全抓"那条被 WAF 限流的老路）
-		const noKwFeed = JSON.parse(JSON.stringify(feed));
-		noKwFeed.data.list.forEach((x) => { x.moment.topic.title = "角色演示"; });
-		let noKwErr = "";
-		try { B.ns_batch2_cznPostsOf(noKwFeed); } catch (err) { noKwErr = String((err && err.message) || err); }
-		check("反证 F：标题全部改成「角色演示」⇒ 抛 `czn-no-title-match`", noKwErr === "czn-no-title-match", noKwErr);
 	}
 }

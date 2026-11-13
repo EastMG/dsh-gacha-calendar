@@ -1,8 +1,0 @@
-{
-  "bytes": 49772,
-  "sha256": "5bf2dc05eed541ca",
-  "url": "https://www.taptap.cn/webapiv2/moment/v3/detail?X-UA=V%3D1%26PN%3DWebApp%26LANG%3Dzh_CN%26VN_CODE%3D100000000%26LOC%3DCN%26PLT%3DPC%26DS%3DAndroid%26UID%3D%26OS%3DWindows%26OSV%3D10%26DT%3DPC&id=865277851421640924",
-  "status": 200,
-  "capturedAt": "2026-11-11T02:35:43.694Z",
-  "trim": "整份详情 JSON 原样入库（data.moment / data.first_post.contents.json / images 全保留）；未删字段、未改顺序。正文 = contents.json 的 block 数组（paragraph/image），本批只读 block 的 children[].text。"
-}
