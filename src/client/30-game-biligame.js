@@ -37,8 +37,11 @@
 //   两侧都读**同一份官方公告**（同 `30-game-bandori.js`：一份公告里既有活动档期也有招募档期）。
 //
 // ⚠️ 2026-11-11：这条 B 站公告 API **自 2026-06 起冻结**（列表最新一条 = 2026-06-22，游戏却仍在运营）
-//    ⇒ 本条目的**默认源已换成 TapTap 官方账号**（列表 → 详情；见本文件下方 `TapTap（2026-11-11 换源）`
-//    region），这里的代码**保留**为备选源键 `ddlezj-biligame`（设置页可手动切回）。
+//    ⇒ 本条目的**默认源已换成 TapTap 官方账号**（见本文件下方 `TapTap（2026-11-11 换源）` region），
+//    这里的代码**保留**为备选源键 `ddlezj-biligame`（设置页可手动切回）。
+// ⚠️ 2026-11-13：默认源再改一次 —— TapTap 只抓**允许路径的 tab 页 SSR**（活动侧），
+//    卡池侧因 robots 而**置空未配置**；Web 接口那一套降为手动备选「TapTap（不可靠）」。
+//    B 站公告仍是活动/卡池两侧的备选，行为不变。
 //
 // ══ 实测形态（2026-10-02 抓夹具：fixtures/p6-ddlezj-list、fixtures/p6-ddlezj-detail）══
 // 列表：GET https://api.biligame.com/news/list?gameExtensionId=1282&positionId=2&typeId=1&pageNum=1&pageSize=50
@@ -387,6 +390,16 @@ async function ns_biligame_announce_eventsDdlezj(url, signal, tz = ns_biligame_a
 // 官方渠道改成 TapTap 官方账号（国服）：`https://www.taptap.cn/app/755194/topic?type=official`
 //   （`group_id=957044` 来自该页 SSR payload；app id = 755194）。
 //
+// ── 2026-11-13：活动侧改读 **tab 页 SSR**，webapiv2 只留作卡池侧的手动备选 ───────────
+// `www.taptap.cn/robots.txt` 的 `Disallow: /webapi/` 与 `Disallow: /webapiv2/` 是硬事实
+// ⇒ 下面这套「列表接口 + 逐帖详情」**不能**再作为默认抓取（违反 robots，且会被 WAF 拦）。
+// 允许的是给人看的 tab 页 `/app/755194/topic?type=official`：SSR 的 `topic.summary` 里就有
+// 活动档期那一行（`活动时间：2026/11/05 维护后 - 2026/11/19 09:59`），一页 1 个请求就够当期；
+// 而**卡池正文不在 SSR 里**（「活动更新一览」帖只渲染成摘要卡，前 200 字截断在「开启条件」）
+// ⇒ 卡池侧**默认置空**（注册项 `url: ""` = 未配置、不抓），webapiv2 卡池抓取器原样保留为
+// `altSources[0]`，标签逐字写「TapTap（不可靠）」—— 只有用户手动切过去才会请求它。
+// 下面的 `loadDdlezjTaptap` / `gachaDdlezjTaptap` 因此只剩一条用途：那个手动备选源。
+//
 // ══ 响应形态（2026-11-11 实测，夹具 p6-ddlezj-taptap-feed-p1 / -p2 / -detail-*）══
 // 列表 GET https://www.taptap.cn/webapiv2/feed/v7/by-group
 //        ?X-UA=<页面自己发的客户端身份>&type=official&group_id=957044&limit=10&sort=created&from=<偏移>
@@ -440,7 +453,8 @@ async function ns_biligame_announce_eventsDdlezj(url, signal, tz = ns_biligame_a
 const ns_biligame_announce_DDLEZJ_TAPTAP_TZ = "Asia/Shanghai";
 const ns_biligame_announce_DDLEZJ_TAPTAP_API = "https://www.taptap.cn/webapiv2/feed/v7/by-group";
 const ns_biligame_announce_DDLEZJ_TAPTAP_DETAIL = "https://www.taptap.cn/webapiv2/moment/v3/detail";
-// 给人看的那个页面：只用作 Referer + 文档里的取证地址（不解析它的 HTML）
+// 给人看的那个页面 = **活动侧的抓取地址**（2026-11-13 起解析它的 SSR；见上方 region 头的说明）
+// 同时用作卡池备选（webapiv2）请求的 Referer。
 const ns_biligame_announce_DDLEZJ_TAPTAP_PAGE_URL = "https://www.taptap.cn/app/755194/topic?type=official";
 // 页面自己请求里那串客户端身份（缺了 → 400 INVALID_XUA）。`UID=` 留空，不写死会话 UUID。
 const ns_biligame_announce_DDLEZJ_TAPTAP_XUA = "V=1&PN=WebApp&LANG=zh_CN&VN_CODE=100000000&LOC=CN&PLT=PC&DS=Android&UID=&OS=Windows&OSV=10&DT=PC";
@@ -757,6 +771,8 @@ async function ns_biligame_announce_gachaDdlezjTaptap(url, signal, tz = ns_bilig
 }
 
 // 活动侧（同上）
+// ⚠️ 2026-11-13 起**不再是默认**：默认活动侧改读 tab 页 SSR（见下面 `eventsDdlezjTopic`）。
+// 保留它是因为 `loadDdlezjTaptap` 仍是卡池备选源（`altSources[0]` = 「TapTap（不可靠）」）的链路。
 async function ns_biligame_announce_eventsDdlezjTaptap(url, signal, tz = ns_biligame_announce_DDLEZJ_TAPTAP_TZ, now = nowMs()) {
 	const ctx = await ns_biligame_announce_loadDdlezjTaptap(url, signal, tz, now);
 	for (const { parsed } of ctx.seen) {
@@ -765,6 +781,47 @@ async function ns_biligame_announce_eventsDdlezjTaptap(url, signal, tz = ns_bili
 		return ns_biligame_announce_ddlezjEventPayloadOf(best, ns_biligame_announce_covering(parsed.items, now, "event"), tz, now);
 	}
 	return null;
+}
+
+// ── 活动侧默认源（2026-11-13）：tab 页 SSR（robots 允许的路径，1 个请求）──
+// 每篇「活动更新一览 / 速览」帖的摘要里，第一个 `一、主题剧院【…】` + `活动时间：…` 就是当期；
+// 「维护后」的起点用**同帖顶部**那句 `YYYY/MM/DD HH:MM 进行维护更新`（`parseDdlezjTaptapText`
+// 里的锚点逻辑原样复用，日期不同就不产出）。摘要只有前 200 字 ⇒ 一帖只出 1 条活动档期，
+// 这对"当期活动"够用；更多档期本来就在正文里（SSR 没有），不在这里硬凑。
+// 翻页：第 1 页有任何一条**覆盖当前时刻**就停（实测 11-13 只发 1 个请求）；
+// 第 2 页只在第 1 页覆盖不到时抓（最多 `NS_TAPTAP_TOPIC_MAX_PAGES` 页）。
+// 只解析标题命中 `ANNOUNCE_RE` 的帖：其余帖（兑换码 / 参展 / 开发者笔记）即使写了日期，
+// 也不是游戏内活动档期（例如 BW 参展那帖的 `活动时间：2026年7月10日-7月12日`）。
+async function ns_biligame_announce_eventsDdlezjTopic(url, signal, tz = ns_biligame_announce_DDLEZJ_TAPTAP_TZ, now = nowMs()) {
+	const base = String(url == null ? "" : url).trim() || ns_biligame_announce_DDLEZJ_TAPTAP_PAGE_URL;
+	const rows = [];
+	let postCount = 0;
+	for (let page = 1; page <= NS_TAPTAP_TOPIC_MAX_PAGES; page++) {
+		let html;
+		try {
+			html = await fetchText(ns_taptap_topicPageUrl(base, page), {
+				signal, mode: "proxy", referer: base
+			});
+		} catch (e) {
+			if (page === 1) throw e;                       // 第 1 页失败 = 真失败
+			break;                                         // 后续页失败 ⇒ 用手上已有结果
+		}
+		const posts = ns_taptap_topicPostsOf(html);        // 结构变了 ⇒ 抛错（不是"未公布"）
+		postCount += posts.length;
+		for (const post of posts) {
+			if (!ns_biligame_announce_DDLEZJ_TAPTAP_ANNOUNCE_RE.test(post.title)) continue;
+			const parsed = ns_biligame_announce_parseDdlezjTaptapText(post.text.split("\n"), tz);
+			for (const x of parsed.items) {
+				if (x.kind === "event") rows.push(x);
+			}
+		}
+		// 第 1 页已经覆盖当前窗口 ⇒ 不再翻（更早的帖子只会更旧）
+		if (rows.some((x) => coversNow(x, now))) break;
+	}
+	if (postCount === 0) throw new Error("taptap-topic:no-post");   // 有响应但一帖都没有 = 结构变了
+	const best = ns_biligame_announce_pickDdlezjEvent(rows, now);
+	if (!best) return null;                                     // 抓到公告但当期无覆盖 → 未公布
+	return ns_biligame_announce_ddlezjEventPayloadOf(best, ns_biligame_announce_covering(rows, now, "event"), tz, now);
 }
 //#endregion
 
@@ -1415,9 +1472,12 @@ async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_bil
 //#endregion
 
 		// ── 条目 ──
-		// 2026-11-11 换源：卡池/活动两侧默认 = **TapTap 官方账号（国服）的列表 → 详情**；
-		// 原 B 站代理官方公告 API（self 2026-06 起冻结）降为 `altSources` / `eventAltSources` 的手动备选，
-		// 抓取器键保留为 `ddlezj-biligame`（该源正文自标 UTC+9 ⇒ 抓取器自己钉 `+540`，不随条目 tz）。
+		// 2026-11-13：**卡池侧置空**（`url: ""` = 未配置、不抓）—— SSR tab 页里没有卡池正文
+		//   （「活动更新一览」帖只渲染成摘要卡），而能拿到卡池正文的 webapiv2 接口在 robots 的
+		//   `Disallow` 路径下 ⇒ 只保留为手动备选 `altSources[0]`（标签逐字「TapTap（不可靠）」）。
+		// 活动侧默认 = **tab 页 SSR**（允许路径，1 个请求）；旧的 webapiv2 活动链路不再注册为默认。
+		// 原 B 站代理官方公告 API（自 2026-06 起冻结）两侧都保留为手动备选，抓取器键 `ddlezj-biligame`
+		// （该源正文自标 UTC+9 ⇒ 抓取器自己钉 `+540`，不随条目 tz）。
 		registerSource({
 				id: "ddlezj",
 				defaultHidden: true,
@@ -1425,11 +1485,16 @@ async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_bil
 				tz: ns_biligame_announce_DDLEZJ_TAPTAP_TZ,
 				name: "嘟嘟脸恶作剧",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/64/f0/21/64f02145-182e-857a-133c-8de0151425d9/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
-				url: ns_biligame_announce_ddlezjTaptapApiUrl(0),
-				source: "TapTap",
-				eventUrl: ns_biligame_announce_ddlezjTaptapApiUrl(0),
+				// 卡池侧未配置：SSR 里没有卡池正文 ⇒ 不抓、面板写「未配置」（不是失败）。
+				// ⚠️ 这里**不写 `source`**：设置页下拉的规则是「有 source 就给 source，否则 url 空
+				// ⇒ 裸「未配置」」；留着「TapTap」会让用户以为卡池有源、实际一个请求都不发。
+				url: "",
+				eventUrl: ns_biligame_announce_DDLEZJ_TAPTAP_PAGE_URL,
 				eventSource: "TapTap",
 				altSources: [
+					// 手动备选 ①：webapiv2 的「列表 → 详情」卡池链（**违反 robots**，仅手动启用）
+					{ label: "TapTap（不可靠）", url: ns_biligame_announce_ddlezjTaptapApiUrl(0), fetcher: "ddlezj-taptap-gacha" },
+					// 手动备选 ②：旧的 B 站官方公告 API（源站已停更）
 					{ label: "B站官方公告（停更）", url: ns_biligame_announce_DDLEZJ_LIST_URL, fetcher: "ddlezj-biligame" }
 				],
 				eventAltSources: [
@@ -1452,12 +1517,16 @@ async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_bil
 
 		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
 		GACHA_FETCHERS["uma-cn"] = (url, signal, tz) => ns_biligame_activity_gachaUmaCnOfficial(url, signal, tz);
-		// ddlezj：默认 = TapTap；`ddlezj-biligame` = 旧 B 站公告（备选，tz 钉死 +540 —— 那份正文自标 UTC+9）
+		// ddlezj 卡池：默认键保留（老配置里的自定义地址仍可用），但注册项 `url` 已置空 ⇒ 默认不抓。
+		// `ddlezj-taptap-gacha` = 手动备选源「TapTap（不可靠）」的键（同一条 webapiv2 链路）。
+		// `ddlezj-biligame` = 旧 B 站公告（备选，tz 钉死 +540 —— 那份正文自标 UTC+9）。
 		GACHA_FETCHERS["ddlezj"] = (url, signal, tz) => ns_biligame_announce_gachaDdlezjTaptap(url, signal, tz);
+		GACHA_FETCHERS["ddlezj-taptap-gacha"] = (url, signal, tz) => ns_biligame_announce_gachaDdlezjTaptap(url, signal, tz);
 		GACHA_FETCHERS["ddlezj-biligame"] = (url, signal) => ns_biligame_announce_gachaDdlezj(url, signal, ns_biligame_announce_DDLEZJ_TZ);
 		EVENT_FETCHERS["uma-cn"] = Object.assign(EVENT_FETCHERS["uma-cn"] || {}, { default: (url, signal, tz) => ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz) });
 		EVENT_FETCHERS["ddlezj"] = Object.assign(EVENT_FETCHERS["ddlezj"] || {}, {
-			default: (url, signal, tz) => ns_biligame_announce_eventsDdlezjTaptap(url, signal, tz),
+			// 默认 = tab 页 SSR（robots 允许的路径）；webapiv2 活动链路不再注册
+			default: (url, signal, tz) => ns_biligame_announce_eventsDdlezjTopic(url, signal, tz),
 			"ddlezj-biligame": (url, signal) => ns_biligame_announce_eventsDdlezj(url, signal, ns_biligame_announce_DDLEZJ_TZ)
 		});
 		GACHA_FETCHERS["uma-cn-bwiki"] = (url, signal, tz) => ns_bwiki_gachaUmaCn(url, signal, tz);

@@ -1,3 +1,4 @@
+import { createEngine } from "../packages/core/core.mjs";
 // next-sources/test/cases-p6.mjs —— 批次 P6 离线夹具测试
 //   ① 嘟嘟脸恶作剧 国服（biligame 官方公告 API：列表 + 详情正文抽档期，源站自标 (UTC+9)）
 //   ② 雪松（bwiki 社区结构化页 `往期动员【常驻】—1.0.0—`）
@@ -17,7 +18,8 @@ const { sourceInstant, sourceWallParts, fmtWindow } = T;
 import { SOURCES_P6, findSourceP6, listIdsP6 } from "./registry-shim.mjs";
 import { T } from "./load.mjs";
 
-const { gachaDdlezj, eventsDdlezj, parseDdlezjList, parseDdlezjAnnouncement, parseDdlezjWindows, pickDdlezjGacha, pickDdlezjEvent, parseDdlezjStamp, ddlezjParagraphs, DDLEZJ_LIST_URL, DDLEZJ_TZ, DDLEZJ_CMS_TZ, DDLEZJ_GAME_EXTENSION_ID, DDLEZJ_TAPTAP_TZ, DDLEZJ_TAPTAP_MAX_PAGES, DDLEZJ_TAPTAP_MAX_DETAILS, gachaDdlezjTaptap, eventsDdlezjTaptap, parseDdlezjTaptapList, parseDdlezjTaptapBody, parseDdlezjTaptapText, ddlezjTaptapPageUrl, ddlezjTaptapDetailUrl } = T.parsers["biligame-announce"];
+const { gachaDdlezj, eventsDdlezj, parseDdlezjList, parseDdlezjAnnouncement, parseDdlezjWindows, pickDdlezjGacha, pickDdlezjEvent, parseDdlezjStamp, ddlezjParagraphs, DDLEZJ_LIST_URL, DDLEZJ_TZ, DDLEZJ_CMS_TZ, DDLEZJ_GAME_EXTENSION_ID, DDLEZJ_TAPTAP_TZ, DDLEZJ_TAPTAP_MAX_PAGES, DDLEZJ_TAPTAP_MAX_DETAILS, DDLEZJ_TAPTAP_PAGE_URL, gachaDdlezjTaptap, eventsDdlezjTopic, ddlezjTaptapApiUrl, parseDdlezjTaptapList, parseDdlezjTaptapBody, parseDdlezjTaptapText, ddlezjTaptapPageUrl, ddlezjTaptapDetailUrl } = T.parsers["biligame-announce"];
+const TT = T.parsers["taptap-topic"];
 const { gachaKedrWiki, parseKedrArchive, kedrSections, kedrStamp, kedrPools, kedrRoles, kedrParseUrl, KEDR_ARCHIVE_URL, KEDR_ARCHIVE_PAGE, KEDR_TZ } = T.parsers["kedr-wiki"];
 
 // ── 夹具读取 ──
@@ -417,228 +419,282 @@ export default async function run() {
 	}
 	//#endregion
 
-	//#region P6-6 嘟嘟脸 TapTap（2026-11-11 换源：列表 → 详情）
-	// 为什么这段独立成区：P6-1 ~ P6-3 钉的是**旧源**（B 站代理官方公告 API，现为 `ddlezj-biligame` 备选），
-	// 这里的默认源换成了 TapTap 官方账号（国服）的列表 + 详情。两套都保留、各测各的。
-	section("P6-6 嘟嘟脸恶作剧 —— 默认源 = TapTap（列表 200 字截断 ⇒ 必须抓详情；「维护后」用同帖维护时刻锚定）");
+	//#region P6-6 嘟嘟脸 TapTap（2026-11-13：活动侧 = tab 页 SSR；卡池侧未配置；webapiv2 仅手动备选）
+	// 为什么这段独立成区：P6-1 ~ P6-3 钉的是**旧源**（B 站代理官方公告 API，现为 `ddlezj-biligame` 备选）。
+	// 2026-11-11 曾把默认源换成 TapTap 的 webapiv2 接口（列表 → 详情）；2026-11-13 复核发现
+	// `taptap.cn/robots.txt` 明确 `Disallow: /webapi/` 与 `/webapiv2/` ⇒ 活动侧改抓**允许路径**的
+	// tab 页 `/app/755194/topic?type=official`（SSR 里就有活动档期），卡池侧因 SSR 里没有卡池正文
+	// 而**置空未配置**，webapiv2 卡池链原样保留为手动备选「TapTap（不可靠）」。
+	section("P6-6 嘟嘟脸恶作剧 —— 活动侧 = tab 页 SSR（1 请求）；卡池侧未配置；webapiv2 仅手动备选");
 	{
-		// ── (0) 夹具与登记 ──
-		const FEED1 = fixtureText("p6-ddlezj-taptap-feed-p1/response.txt");
-		const FEED2 = fixtureText("p6-ddlezj-taptap-feed-p2/response.txt");
+		const TOPIC1 = DDLEZJ_TAPTAP_PAGE_URL;
+		const TOPIC2 = TT.ns_taptap_topicPageUrl(TOPIC1, 2);
+		const HTML1 = fixtureText("p6-ddlezj-taptap-topic-p1/response.txt");
+		const HTML2 = fixtureText("p6-ddlezj-taptap-topic-p2/response.txt");
 		const DET_NOW = fixtureJson("p6-ddlezj-taptap-detail-866691594919610832/response.txt");
 		const src = T.SOURCES.find((x) => x.id === "ddlezj");
-		const NOW_TAPTAP = Date.parse("2026-11-11T12:00:00+08:00");   // = 抓夹具/live 验收时刻
-		check("ddlezj 默认卡池源 = TapTap feed（type=official / group_id=957044 / from=0）",
-			!!src && /^https:\/\/www\.taptap\.cn\/webapiv2\/feed\/v7\/by-group\?/.test(String(src.url))
-			&& /[?&]type=official/.test(String(src.url)) && /[?&]group_id=957044/.test(String(src.url))
-			&& /[?&]from=0$/.test(String(src.url)),
-			src ? String(src.url).slice(0, 120) : "缺失");
-		check("ddlezj 两侧同一条 TapTap 地址（一份公告里既有活动也有卡池档期）",
-			!!src && src.eventUrl === src.url, src ? String(src.eventUrl).slice(0, 80) : "缺失");
-		check("ddlezj 来源标签两侧都是「TapTap」", !!src && src.source === "TapTap" && src.eventSource === "TapTap",
-			JSON.stringify([src && src.source, src && src.eventSource]));
-		check("ddlezj 条目 tz = Asia/Shanghai（TapTap 正文是国服 UTC+8；正文里标过一次 `(UTC+8)`）",
-			!!src && src.tz === DDLEZJ_TAPTAP_TZ && DDLEZJ_TAPTAP_TZ === "Asia/Shanghai", JSON.stringify(src && src.tz));
-		check("旧 B 站公告源降为两侧的备选源（抓取器键 ddlezj-biligame 已登记）",
-			!!src
-			&& (src.altSources || []).length === 1 && (src.eventAltSources || []).length === 1
-			&& src.altSources[0].url === DDLEZJ_LIST_URL && src.eventAltSources[0].url === DDLEZJ_LIST_URL
-			&& src.altSources[0].fetcher === "ddlezj-biligame" && src.eventAltSources[0].fetcher === "ddlezj-biligame"
-			&& /停更/.test(String(src.altSources[0].label))
-			&& typeof T.GACHA_FETCHERS["ddlezj-biligame"] === "function"
-			&& typeof (T.EVENT_FETCHERS["ddlezj"] || {})["ddlezj-biligame"] === "function",
-			src ? JSON.stringify([src.altSources, src.eventAltSources]) : "缺失");
-		check("默认抓取器仍是各自表里的 default / ddlezj（不是备选键）",
-			typeof T.GACHA_FETCHERS["ddlezj"] === "function"
-			&& typeof (T.EVENT_FETCHERS["ddlezj"] || {}).default === "function");
-		check("X-UA 作为**一个** query 值发出（值里的 = 与 & 已编码；缺了源站回 400 INVALID_XUA）",
-			/[?&]X-UA=V%3D1%26PN%3DWebApp%26LANG%3Dzh_CN%26/.test(String(src && src.url)));
-		check("页码 → 偏移：第 1/2/3 页 = from=0 / 10 / 20",
-			/[?&]from=0$/.test(ddlezjTaptapPageUrl(src.url, 1))
-			&& /[?&]from=10$/.test(ddlezjTaptapPageUrl(src.url, 2))
-			&& /[?&]from=20$/.test(ddlezjTaptapPageUrl(src.url, 3)),
-			JSON.stringify([1, 2, 3].map((p) => ddlezjTaptapPageUrl(src.url, p).slice(-9))));
-		check("翻页上限 3 页 / 详情上限 6 份", DDLEZJ_TAPTAP_MAX_PAGES === 3 && DDLEZJ_TAPTAP_MAX_DETAILS === 6,
-			JSON.stringify([DDLEZJ_TAPTAP_MAX_PAGES, DDLEZJ_TAPTAP_MAX_DETAILS]));
+		const NOW_TOPIC = Date.parse("2026-11-13T23:00:00+08:00");   // 新夹具抓取日（当期 11-05 ~ 11-19）
+		const NOW_OLD = Date.parse("2026-11-11T12:00:00+08:00");     // 旧 webapiv2 夹具的验收时刻
+		const NOW_JUN = Date.parse("2026-06-10T12:00:00+08:00");     // 第 1 页覆盖不到、要翻第 2 页（06-04 ~ 06-18）
 
-		// ── (1) 列表：**只有 200 字摘要**（这就是为什么必须抓详情）──
-		const posts = parseDdlezjTaptapList(JSON.parse(FEED1));
-		check("列表解析 → 10 帖；首条 = 11-03 的「活动更新一览」（id 866691594919610832）",
-			posts.length === 10 && posts[0].id === "866691594919610832" && posts[0].title === "《嘟嘟脸恶作剧》活动更新一览",
-			JSON.stringify(posts.slice(0, 2)));
-		check("反证：列表里的 `topic.summary` **恰好 200 字**（被截断）——卡池段（「限时概率上升」/「卡片扭蛋」）根本不在里面",
+		// 记账 transport：calls = [{ url, referer }]；按 URL 从夹具取正文（未命中即抛，防假绿）
+		const mkTransport = (overrides, failUrls) => {
+			const ov = overrides || {};
+			const bad = new Set(failUrls || []);
+			const calls = [];
+			return {
+				calls,
+				async fetchRaw(u) { throw new Error("本段没有直连源：" + u); },
+				async fetchViaProxy(u, opts) {
+					const url = String(u);
+					calls.push({ url, referer: String((opts && opts.referer) || "") });
+					if (bad.has(url)) throw new Error("http-500");
+					if (ov[url] != null) return ov[url];
+					if (url === TOPIC2) return HTML2;
+					if (url === TOPIC1) return HTML1;
+					return fixtureBody(url, OVERRIDES);
+				}
+			};
+		};
+		const engineAt = (now, transport) => createEngine({
+			transport,
+			storage: makeStore(),
+			now: () => now,
+			timer: { setTimeout, clearTimeout }
+		});
+		const makeStore = () => {
+			const m = new Map();
+			return { async get(k) { return m.get(k); }, async set(k, v) { m.set(k, v); } };
+		};
+		const urlsOf = (tr) => tr.calls.map((c) => c.url);
+
+		// ── (0) 注册 ──
+		check("ddlezj 卡池侧**未配置**：注册项 url = \"\"，设置页下拉写裸「未配置」",
+			!!src && src.url === "" && T.getDefaultSourceName(src, "url") === "未配置",
+			JSON.stringify([src && src.url, src && T.getDefaultSourceName(src, "url")]));
+		check("ddlezj 活动侧默认 = tab 页 `app/755194/topic?type=official`（robots 允许的路径）",
+			!!src && src.eventUrl === TOPIC1 && String(src.eventUrl).indexOf("webapiv2") < 0,
+			src ? String(src.eventUrl) : "缺失");
+		check("ddlezj 活动来源标签保持「TapTap」", !!src && src.eventSource === "TapTap", src && String(src.eventSource));
+		check("ddlezj 卡池备选 ① = 「TapTap（不可靠）」（标签逐字；仍是 webapiv2 的列表 → 详情链）",
+			!!src && (src.altSources || []).length === 2
+			&& src.altSources[0].label === "TapTap（不可靠）"
+			&& src.altSources[0].fetcher === "ddlezj-taptap-gacha"
+			&& src.altSources[0].url === ddlezjTaptapApiUrl(0)
+			&& /webapiv2\/feed\/v7\/by-group/.test(src.altSources[0].url),
+			src ? JSON.stringify(src.altSources[0]) : "缺失");
+		check("ddlezj 卡池备选 ② = 旧 B 站公告（标签仍写「停更」）；活动备选也只有这一条",
+			!!src && src.altSources[1].label === "B站官方公告（停更）"
+			&& src.altSources[1].url === DDLEZJ_LIST_URL && src.altSources[1].fetcher === "ddlezj-biligame"
+			&& (src.eventAltSources || []).length === 1
+			&& src.eventAltSources[0].url === DDLEZJ_LIST_URL && src.eventAltSources[0].fetcher === "ddlezj-biligame",
+			src ? JSON.stringify(src.altSources[1]) : "缺失");
+		check("抓取器登记：活动默认 / 卡池备选键 / B 站备选键都在（GACHA_FETCHERS.ddlezj 保留老配置）",
+			typeof (T.EVENT_FETCHERS["ddlezj"] || {}).default === "function"
+			&& typeof T.GACHA_FETCHERS["ddlezj-taptap-gacha"] === "function"
+			&& typeof T.GACHA_FETCHERS["ddlezj"] === "function"
+			&& typeof T.GACHA_FETCHERS["ddlezj-biligame"] === "function"
+			&& typeof (T.EVENT_FETCHERS["ddlezj"] || {})["ddlezj-biligame"] === "function");
+		check("X-UA 仍作为**一个** query 值在备选地址里（缺了 webapiv2 回 400 INVALID_XUA）",
+			/[?&]X-UA=V%3D1%26PN%3DWebApp%26LANG%3Dzh_CN%26/.test(String(src && src.altSources[0].url)));
+		check("备选链的页码 → 偏移（from=0 / 10 / 20，原样保留；不再用于默认源）",
+			/[?&]from=0$/.test(ddlezjTaptapPageUrl(src.altSources[0].url, 1))
+			&& /[?&]from=10$/.test(ddlezjTaptapPageUrl(src.altSources[0].url, 2))
+			&& /[?&]from=20$/.test(ddlezjTaptapPageUrl(src.altSources[0].url, 3)),
+			JSON.stringify([1, 2, 3].map((p) => ddlezjTaptapPageUrl(src.altSources[0].url, p).slice(-9))));
+		check("tab 页页码 → `&page=N`（第 1 页原样；第 2 页追加；已有 page= 就替换）",
+			TT.ns_taptap_topicPageUrl(TOPIC1, 1) === TOPIC1
+			&& /[?&]page=2$/.test(TT.ns_taptap_topicPageUrl(TOPIC1, 2))
+			&& /[?&]page=3$/.test(TT.ns_taptap_topicPageUrl(TOPIC2, 3)),
+			JSON.stringify([TOPIC1, TT.ns_taptap_topicPageUrl(TOPIC1, 2)]));
+		check("翻页上限 = 2 页（共用常量；`?page=` 是允许路径，不是接口偏移）",
+			TT.NS_TAPTAP_TOPIC_MAX_PAGES === 2 && TOPIC2 !== TOPIC1, JSON.stringify([TT.NS_TAPTAP_TOPIC_MAX_PAGES, TOPIC2]));
+
+		// ── (1) SSR → 帖子 / 活动档期（每篇公告摘要只有前 200 字，活动档期恰在里面）──
+		const posts1 = TT.ns_taptap_topicPostsOf(HTML1);
+		const posts2 = TT.ns_taptap_topicPostsOf(HTML2);
+		check("第 1 页解析出 10 帖；首条 = 11-03 的「活动更新一览」（id 866691594919610832）",
+			posts1.length === 10 && posts1[0].id === "866691594919610832" && posts1[0].title === "《嘟嘟脸恶作剧》活动更新一览",
+			JSON.stringify([posts1.length, posts1[0].id]));
+		check("第 2 页首条 = 6 月的老帖（`?page=2` 确实是更早的帖子）",
+			posts2.length === 10 && posts2[0].id === "814567404787990955",
+			JSON.stringify(posts2[0] && posts2[0].id));
+		check("帖子字段齐全：publishTime = 11-03 09:00 UTC（时间戳原样）+ 绝对 moment 链接",
+			posts1[0].publishTime === 1793696400
+			&& posts1[0].url === "https://www.taptap.cn/moment/866691594919610832",
+			JSON.stringify([posts1[0].publishTime, posts1[0].url]));
+		check("反证：SSR 里的 `topic.summary` **恰好 200 字**（被截断）——卡池段（「限时概率上升」/「卡片扭蛋」）根本不在里面",
 			(() => {
 				const s = String(DET_NOW.data.moment.topic.summary || "");
 				return s.length === 200 && !/限时概率上升/.test(s) && !/卡片扭蛋/.test(s) && /活动时间/.test(s);
 			})(),
 			JSON.stringify(String(DET_NOW.data.moment.topic.summary || "").slice(-40)));
-		check("第 2 页（from=10）首条 = 6 月的老帖（列表从新到旧，翻页靠 `from` 偏移）",
-			JSON.parse(FEED2).data.list[0].moment.id_str === "814567404787990955",
-			JSON.parse(FEED2).data.list[0].moment.id_str);
 
-		// ── (2) 详情正文 → 条目事实（维护锚点 + 段/小节扫描）──
-		const paras = parseDdlezjTaptapBody(DET_NOW);
-		check("详情正文 = `first_post.contents.json` 的段落块 → 166 段（不是 HTML）", paras.length === 166, String(paras.length));
-		check("维护锚点 = 「2026/11/05 10:00 进行维护更新」（「维护后」的起点由它定，不猜）",
-			paras[2].indexOf("2026/11/05 10:00") > 0 && /进行维护更新/.test(paras[2]), paras[2] && paras[2].slice(0, 60));
-		const parsed = parseDdlezjTaptapText(paras, DDLEZJ_TAPTAP_TZ);
-		check("anchor 解析 → 2026-11-05 10:00 +08（UTC 02:00）",
-			!!parsed.anchor && parsed.anchor.ts === Date.UTC(2026, 10, 5, 2, 0), JSON.stringify(parsed.anchor && parsed.anchor.ts));
-		check("正文共 19 条：卡池 5 条 / 活动 14 条",
-			parsed.items.length === 19
-			&& parsed.items.filter((x) => x.kind === "gacha").length === 5
-			&& parsed.items.filter((x) => x.kind === "event").length === 14,
-			JSON.stringify([parsed.items.length, parsed.items.filter((x) => x.kind === "gacha").length]));
-		check("卡池 5 条逐字（名称 / 档期 / 源站原文）",
-			parsed.items.filter((x) => x.kind === "gacha").map((x) => `${x.name}｜${x.display}｜${x.raw}`).join("\n")
-			=== [
-				"全新使徒【波朗】限时概率上升｜11-05 10:00 ~ 11-19 09:59｜2026/11/05 维护后 ~ 2026/11/19 09:59",
-				"全新卡片扭蛋【波朗的制服帽】限时概率上升｜11-05 10:00 ~ 11-19 09:59｜2026/11/05 维护后 ~ 2026/11/19 09:59",
-				"精选使徒招募【龙族圣骨贵族】薇薇｜11-12 03:00 ~ 11-19 09:59｜2026/11/12 03:00 ~ 2026/11/19 09:59",
-				"精选使徒招募【最强的情报员？】洛涅｜11-12 03:00 ~ 11-19 09:59｜2026/11/12 03:00 ~ 2026/11/19 09:59",
-				"精选卡片扭蛋【30公斤壶铃】｜11-12 03:00 ~ 11-19 09:59｜2026/11/12 03:00 ~ 2026/11/19 09:59"
-			].join("\n"),
-			JSON.stringify(parsed.items.filter((x) => x.kind === "gacha").map((x) => [x.name, x.display])));
-		check("活动侧首条 = 主题剧院（`一、` 段标题不吃进名字）+ 「维护后」起点 = 11-05 10:00",
-			parsed.items[0].kind === "event" && parsed.items[0].name === "主题剧院【篡夺与越轨之间】"
-			&& parsed.items[0].display === "11-05 10:00 ~ 11-19 09:59"
-			&& parsed.items[0].startTs === Date.UTC(2026, 10, 5, 2, 0),
-			JSON.stringify([parsed.items[0].name, parsed.items[0].display]));
-		check("「三、其他精选使徒招募和精选卡片扭蛋」的**段级档期**被下面的 ①②③ 三个池子继承（同段内前面最近的窗口）",
-			(() => {
-				const three = parsed.items.filter((x) => x.kind === "gacha" && /精选使徒招募【龙族圣骨贵族】薇薇/.test(x.name));
-				return three.length === 1 && three[0].startTs === Date.UTC(2026, 10, 11, 19, 0)
-					&& three[0].endTs === Date.UTC(2026, 10, 19, 1, 59);
-			})(),
-			JSON.stringify(parsed.items.filter((x) => /薇薇/.test(x.name)).map((x) => [x.name, x.startTs, x.endTs])));
-		check("被继承的那个段级窗口不再单独出现在条目里（避免「三、其他精选使徒招募…」和 3 个池子重复）",
-			!parsed.items.some((x) => /^其他精选使徒招募和精选卡片扭蛋$/.test(x.name)),
-			JSON.stringify(parsed.items.map((x) => x.name).filter((n) => /精选/.test(n))));
-
-		// ── (3) 抓取器：live 验收时刻（2026-11-11 12:00 +08）──
-		const rec = [];
-		const recImpl = async (url) => {
-			const u = String(url);
-			rec.push(u);
-			const isProxy = u.startsWith("/api/gacha-calendar-proxy");
-			const target = isProxy ? new URL("http://x" + u).searchParams.get("url") : u;
-			const body = fixtureBody(target, OVERRIDES);
-			const text = isProxy ? JSON.stringify({ status: 200, body }) : body;
-			return { ok: true, status: 200, headers: { get: () => null }, text: async () => text, json: async () => JSON.parse(text) };
+		const PARSE = (posts) => {
+			const out = [];
+			for (const post of posts) {
+				if (!/活动更新|活动速览|活动一览|更新一览|版本更新/.test(post.title)) continue;
+				out.push({ post, parsed: parseDdlezjTaptapText(post.text.split("\n"), DDLEZJ_TAPTAP_TZ) });
+			}
+			return out;
 		};
-		setFetchImpl(recImpl);
-		const rg = await grab(() => gachaDdlezjTaptap(src.url, undefined, src.tz, NOW_TAPTAP));
-		check("gacha 抓取成功（now 传第 4 参）", rg.ok, rg.err);		assertContract("嘟嘟脸恶作剧（TapTap）", "gacha", rg.ok ? rg.data : null);
-		check("gacha banner = 全新使徒【波朗】限时概率上升", rg.ok && rg.data && rg.data.banner === "全新使徒【波朗】限时概率上升",
-			JSON.stringify(rg.ok && rg.data && rg.data.banner));
-		check("gacha 档期 = 11-05 10:00 ~ 11-19 09:59 / 原文保留「维护后」",
-			rg.ok && rg.data && rg.data.bannerDates === "11-05 10:00 ~ 11-19 09:59"
-			&& rg.data.bannerDatesRaw === "2026/11/05 维护后 ~ 2026/11/19 09:59",
-			JSON.stringify(rg.ok && rg.data && [rg.data.bannerDates, rg.data.bannerDatesRaw]));
-		check("gacha startTs / endTs = 2026-11-05 10:00 / 11-19 09:59 +08（UTC 11-05 02:00 / 11-19 01:59）",
-			rg.ok && rg.data && rg.data.startTs === Date.UTC(2026, 10, 5, 2, 0) && rg.data.endTs === Date.UTC(2026, 10, 19, 1, 59),
-			JSON.stringify(rg.ok && rg.data && [rg.data.startTs, rg.data.endTs]));
-		check("反证：同一墙钟按旧源的 +540 解释会得到**另一个**时刻（差 1 小时）⇒ 证明这里用的是 Asia/Shanghai",
-			!!rg.ok && rg.data && rg.data.startTs !== sourceInstant(2026, 11, 5, 10, 0, "+540")
-			&& rg.data.startTs - sourceInstant(2026, 11, 5, 10, 0, "+540") === 3600000,
-			JSON.stringify(rg.ok && rg.data && rg.data.startTs - sourceInstant(2026, 11, 5, 10, 0, "+540")));
-		check("卡池悬停逐字（两个波朗池同窗 ⇒ 折叠成「名称… ⏎ 档期」）",
-			rg.ok && rg.data && rg.data.bannerHover === "全新使徒【波朗】限时概率上升\n全新卡片扭蛋【波朗的制服帽】限时概率上升\n11-05 10:00 ~ 11-19 09:59",
-			JSON.stringify(rg.ok && rg.data && rg.data.bannerHover));
-		assertHoverConvention("嘟嘟脸恶作剧（TapTap）gacha", rg.ok && rg.data && rg.data.bannerHover, { requireSet: true });
-		check("卡池 gacha[] 2 条（同期两口池）",
-			!!rg.ok && rg.data && rg.data.gacha.length === 2
-			&& rg.data.gacha.map((x) => x.title).join(" | ") === "全新使徒【波朗】限时概率上升 | 全新卡片扭蛋【波朗的制服帽】限时概率上升",
-			JSON.stringify(rg.ok && rg.data && rg.data.gacha && rg.data.gacha.map((x) => x.title)));
+		const parsed1 = PARSE(posts1);
+		check("第 1 页 6 篇公告里解出 5 条活动档期（07-14 那篇 200 字截在正文之前 ⇒ 0 条）",
+			parsed1.length === 6
+			&& parsed1.reduce((n, x) => n + x.parsed.items.length, 0) === 5
+			&& parsed1.filter((x) => x.parsed.items.length === 0).map((x) => x.post.id).join(",") === "826155174744557894",
+			JSON.stringify(parsed1.map((x) => [x.post.id, x.parsed.items.length])));
+		check("每篇公告的窗口数逐条 = [1,1,1,1,0,1]（摘要只给第一个小节，故不会多出卡池窗口）",
+			parsed1.map((x) => x.parsed.items.length).join(",") === "1,1,1,1,0,1",
+			parsed1.map((x) => x.parsed.items.length).join(","));
+		check("「维护后」的起点 = 同帖顶部 `2026/11/05 10:00 进行维护更新`（不猜钟点）",
+			parsed1[0].parsed.anchor && parsed1[0].parsed.anchor.ts === Date.UTC(2026, 10, 5, 2, 0),
+			JSON.stringify(parsed1[0].parsed.anchor && parsed1[0].parsed.anchor.ts));
+		check("活动首条 = 主题剧院【篡夺与越轨之间】/ 11-05 10:00 ~ 11-19 09:59 / 原文保留「维护后」",
+			(() => {
+				const x = parsed1[0].parsed.items[0] || {};
+				return x.kind === "event" && x.name === "主题剧院【篡夺与越轨之间】"
+					&& x.display === "11-05 10:00 ~ 11-19 09:59"
+					&& x.raw === "2026/11/05 维护后 ~ 2026/11/19 09:59";
+			})(),
+			JSON.stringify(parsed1[0].parsed.items.slice(0, 1)));
+		const parsed2 = PARSE(posts2);
+		check("第 2 页那篇 06-03 公告 → 主题剧院【半个世界的手套】06-04 10:00 ~ 06-18 09:59",
+			parsed2.length === 1 && parsed2[0].parsed.items.length === 1
+			&& (parsed2[0].parsed.items[0] || {}).name === "主题剧院【半个世界的手套】"
+			&& (parsed2[0].parsed.items[0] || {}).display === "06-04 10:00 ~ 06-18 09:59",
+			JSON.stringify(parsed2.map((x) => [x.post.id, x.parsed.items.map((y) => [y.name, y.display])])));
+		check("第 2 页那篇的维护锚点 = 2026-06-04 10:00 +08（同帖顶部那句，日期与「维护后」相同才认）",
+			parsed2[0].parsed.anchor && parsed2[0].parsed.anchor.ts === Date.UTC(2026, 5, 4, 2, 0),
+			JSON.stringify(parsed2[0].parsed.anchor && parsed2[0].parsed.anchor.ts));
+		check("共用 SSR 解码：根壳解开后 data 是对象，按**结构**能找到 10 帖列表（键名是构建期哈希）",
+			(() => {
+				const data = TT.ns_taptap_topicDataOf(HTML1);
+				const box = TT.ns_taptap_topicListOf(data);
+				return !!data && typeof data === "object" && !!box && box.list.length === 10;
+			})(),
+			JSON.stringify(Object.keys(TT.ns_taptap_topicDataOf(HTML1))));
 
-		const re = await grab(() => eventsDdlezjTaptap(src.url, undefined, src.tz, NOW_TAPTAP));
-		check("event 抓取成功", re.ok, re.err);
-		assertContract("嘟嘟脸恶作剧（TapTap）", "event", re.ok ? re.data : null);
-		check("event = 主题剧院【篡夺与越轨之间】 / 11-05 10:00 ~ 11-19 09:59",
-			re.ok && re.data && re.data.event === "主题剧院【篡夺与越轨之间】" && re.data.eventDates === "11-05 10:00 ~ 11-19 09:59",
-			JSON.stringify(re.ok && re.data && [re.data.event, re.data.eventDates]));
-		check("活动悬停逐字（9 条在期；按结束时间升序；非「活动时间」标签括注标签）",
-			re.ok && re.data && re.data.eventHover === [
-				"周末活动【诡计骰子】（奖励领取时间）   11-06 11:00 ~ 11-12 09:59",
-				"主题剧院【篡夺与越轨之间】   11-05 10:00 ~ 11-19 09:59",
-				"波朗的肖像画   11-05 10:00 ~ 11-19 09:59",
-				"宠物跑腿   11-05 10:00 ~ 11-19 09:59",
-				"限时获取的主题家具   11-05 10:00 ~ 11-19 09:59",
-				"传说宠物【蛋壳小鸡】   11-05 10:00 ~ 11-19 09:59",
-				"主题剧院【篡夺与越轨之间】（商店兑换时间）   11-05 10:00 ~ 11-26 09:59",
-				"活动剧情   11-05 10:00 ~ 11-26 09:59",
-				"胜利者的竞技场   11-05 10:00 ~ 12-03 09:59"
-			].join("\n"),
-			JSON.stringify(re.ok && re.data && String(re.data.eventHover).split("\n").length));
-		assertHoverConvention("嘟嘟脸恶作剧（TapTap）event", re.ok && re.data && re.data.eventHover, { requireSet: true });
+		// ── (2) 活动抓取器：活网验收时刻（2026-11-13）──
+		{
+			const tr = mkTransport();
+			const e = engineAt(NOW_TOPIC, tr);
+			const s = e.__test.SOURCES.find((x) => x.id === "ddlezj");
+			const re = await grab(() => e.__test.EVENT_FETCHERS["ddlezj"].default(s.eventUrl, undefined, s.tz));
+			check("event 抓取成功", re.ok, re.err);
+			assertContract("嘟嘟脸恶作剧（tab SSR）", "event", re.ok ? re.data : null);
+			check("event = 主题剧院【篡夺与越轨之间】/ 11-05 10:00 ~ 11-19 09:59 / 原文保留「维护后」",
+				re.ok && re.data && re.data.event === "主题剧院【篡夺与越轨之间】"
+				&& re.data.eventDates === "11-05 10:00 ~ 11-19 09:59"
+				&& re.data.eventDatesRaw === "2026/11/05 维护后 ~ 2026/11/19 09:59",
+				JSON.stringify(re.ok && re.data && [re.data.event, re.data.eventDates, re.data.eventDatesRaw]));
+			check("startTs / endTs = 2026-11-05 10:00 / 11-19 09:59 +08（UTC 11-05 02:00 / 11-19 01:59）",
+				re.ok && re.data && ((re.data.events || []).find((x) => x.title === "主题剧院【篡夺与越轨之间】") || {}).startTs === Date.UTC(2026, 10, 5, 2, 0)
+				&& ((re.data.events || []).find((x) => x.title === "主题剧院【篡夺与越轨之间】") || {}).endTs === Date.UTC(2026, 10, 19, 1, 59),
+				JSON.stringify(re.ok && re.data && (re.data.events || []).map((x) => [x.title, x.startTs, x.endTs])));
+			check("第 1 页已覆盖当前窗口 ⇒ **只发 1 个请求**（不再逐帖抓详情，也不再翻页）",
+				tr.calls.length === 1 && urlsOf(tr)[0] === TOPIC1, JSON.stringify(urlsOf(tr)));
+			check("在期活动只有 1 条 ⇒ `eventHoverItems` 也只剩 1 条、不设 eventHover（不编第二条）",
+				re.ok && re.data && re.data.eventHover === void 0
+				&& Array.isArray(re.data.eventHoverItems) && re.data.eventHoverItems.length === 1,
+				JSON.stringify(re.ok && [(re.data || {}).eventHover, (re.data || {}).eventHoverItems]));
+			check("走宿主代理、并带 tab 页自己的 Referer（tab 页无 ACAO）",
+				tr.calls.length === 1 && tr.calls[0].referer === TOPIC1, JSON.stringify(tr.calls[0]));
+		}
 
-		// 翻页与早停：11-11 只需 1 次列表 + 3 次详情（11-03 / 10-08 / 09-10），09-10 那帖窗口全结束 ⇒ 停
-		// （活动侧那次抓取与卡池侧同一条链路，再来一遍同样的 4 个请求 ⇒ 累计 8）
-		const targetOf = (u) => { try { return new URL("http://x" + u).searchParams.get("url") || ""; } catch { return ""; } };
-		const targets = rec.map(targetOf);
-		check("一次刷新（卡池侧）发 4 个请求：列表 from=0 + 3 份详情（09-10 那帖全结束 ⇒ 「上一条已结束」早停，不翻第 2 页）",
-			rec.length === 8
-			&& /[?&]from=0$/.test(targets[0])
-			&& targets.slice(1, 4).every((u) => /webapiv2\/moment\/v3\/detail\?/.test(u) && /&id=\d+$/.test(u))
-			&& targets[1].endsWith("id=866691594919610832") && targets[2].endsWith("id=854437201591667060")
-			&& targets[3].endsWith("id=846447554991229760")
-			&& targets.slice(4).join("\n") === targets.slice(0, 4).join("\n"),
-			JSON.stringify(targets.map((u) => u.slice(-24))));
-		check("详情请求都走宿主代理、并带 TapTap 的 Referer（无 ACAO）",
-			rec.every((u) => u.startsWith("/api/gacha-calendar-proxy?url="))
-			&& rec.every((u) => /referer=https%3A%2F%2Fwww\.taptap\.cn%2Fapp%2F755194/.test(u)),
-			rec[0].slice(0, 120));
+		// ── (3) 卡池侧确实**不抓**：fetchEntry 只发活动那 1 个请求，卡池侧没有失败 ──
+		{
+			const tr = mkTransport();
+			const e = engineAt(NOW_TOPIC, tr);
+			const s = e.__test.SOURCES.find((x) => x.id === "ddlezj");
+			const fe = await grab(() => e.__test.fetchEntry(s, undefined));
+			check("fetchEntry：卡池侧 url 为空 ⇒ gachaFail = null（不抓、不算失败），data 里没有 banner",
+				fe.ok && fe.data && fe.data.gachaFail === null && !("banner" in fe.data.data),
+				JSON.stringify(fe.ok && { gachaFail: fe.data.gachaFail, keys: Object.keys(fe.data.data) }));
+			check("fetchEntry：活动侧照常出数据，整轮只发 1 个请求",
+				fe.ok && fe.data && fe.data.data.event === "主题剧院【篡夺与越轨之间】" && fe.data.eventFail === null
+				&& tr.calls.length === 1,
+				JSON.stringify(fe.ok && [fe.data.data.event, fe.data.eventFail, tr.calls.length]));
+		}
 
-		// ── (4) 反向证明 ──
-		// (a) 删掉「进行维护更新」那一句 ⇒ 所有「维护后」窗口都失去锚点 ⇒ 那两个波朗池不产出
-		const noAnchor = parseDdlezjTaptapText(paras.filter((p) => !/进行维护更新/.test(p)), DDLEZJ_TAPTAP_TZ);
-		check("反证：正文里没有「进行维护更新」⇒ 锚点为 null，「维护后」那批如实不产出（记 skipped，不猜钟点）",
-			noAnchor.anchor === null
-			&& !noAnchor.items.some((x) => /波朗/.test(x.name))
-			&& noAnchor.skippedNoTime.length >= 10,
-			JSON.stringify([noAnchor.anchor, noAnchor.items.filter((x) => x.kind === "gacha").length, noAnchor.skippedNoTime.length]));
+		// ── (4) 手动备选卡池（webapiv2）仍可用：列表 + 3 份详情（旧行为逐字不变）──
+		{
+			const tr = mkTransport();
+			const e = engineAt(NOW_OLD, tr);
+			const s = e.__test.SOURCES.find((x) => x.id === "ddlezj");
+			const rg = await grab(() => e.__test.GACHA_FETCHERS["ddlezj-taptap-gacha"](s.altSources[0].url, undefined, s.tz));
+			check("手动备选卡池：banner = 全新使徒【波朗】限时概率上升 / 11-05 10:00 ~ 11-19 09:59",
+				rg.ok && rg.data && rg.data.banner === "全新使徒【波朗】限时概率上升"
+				&& rg.data.bannerDates === "11-05 10:00 ~ 11-19 09:59"
+				&& rg.data.bannerDatesRaw === "2026/11/05 维护后 ~ 2026/11/19 09:59",
+				JSON.stringify(rg.ok && rg.data && [rg.data.banner, rg.data.bannerDates]));
+			check("手动备选卡池：4 个请求（列表 from=0 + 3 份详情，早停逻辑原样）",
+				tr.calls.length === 4
+				&& /[?&]from=0$/.test(urlsOf(tr)[0])
+				&& urlsOf(tr).slice(1).every((u) => /webapiv2\/moment\/v3\/detail\?/.test(u) && /&id=\d+$/.test(u)),
+				JSON.stringify(urlsOf(tr).map((u) => u.slice(-24))));
+		}
+
+		// ── (5) 反向证明 ──
+		// (a) 删掉「进行维护更新」那一句 ⇒ 「维护后」窗口全部失去锚点 ⇒ 页面里一条活动都解不出
+		{
+			const noAnchorHtml = HTML1.split("进行维护更新").join("进行更新");
+			const noAnchor = PARSE(TT.ns_taptap_topicPostsOf(noAnchorHtml));
+			check("反证：没有「进行维护更新」⇒ 锚点全 null，「维护后」那批如实不产出（记 skipped，不猜钟点）",
+				noAnchor.every((x) => x.parsed.anchor === null && x.parsed.items.length === 0)
+				&& noAnchor.reduce((n, x) => n + x.parsed.skippedNoTime.length, 0) >= 4,
+				JSON.stringify(noAnchor.map((x) => [x.post.id, x.parsed.items.length, x.parsed.skippedNoTime.length])));
+			const tr = mkTransport({ [TOPIC1]: noAnchorHtml });
+			const e = engineAt(NOW_TOPIC, tr);
+			const s = e.__test.SOURCES.find((x) => x.id === "ddlezj");
+			const r = await grab(() => e.__test.EVENT_FETCHERS["ddlezj"].default(s.eventUrl, undefined, s.tz));
+			check("…并且抓取器如实返回 null（两页都没有可解析的活动 ⇒ 翻满 2 页）",
+				r.ok && r.data === null && tr.calls.length === 2,
+				JSON.stringify([r.ok ? r.data : r.err, tr.calls.length]));
+		}
 		// (b) 10-15 的「维护后」≠ 帖内 10-08 那次维护 ⇒ 不拿锚点硬套
 		const det854 = parseDdlezjTaptapText(parseDdlezjTaptapBody(fixtureJson("p6-ddlezj-taptap-detail-854437201591667060/response.txt")), DDLEZJ_TAPTAP_TZ);
 		check("反证：10-08 那篇里「2026/10/15 维护后」的池子**不拿 10-08 的锚点补**（日期不同 ⇒ 起点未知 ⇒ 不产出）",
 			det854.skippedNoTime.some((x) => /柯米（泳装）/.test(x.name) && /2026\/10\/15 维护后/.test(x.raw))
 			&& !det854.items.some((x) => x.kind === "gacha" && /柯米（泳装）/.test(x.name)),
 			JSON.stringify(det854.skippedNoTime.map((x) => [x.name, x.raw])));
-		// (c) 结构变 ⇒ 抛错（抓取失败 ≠ 未公布）
-		check("反证：详情里没有 `first_post` ⇒ 抛 ddlezj-taptap-bad-body",
-			throws(() => parseDdlezjTaptapBody({ data: { moment: {} } })));
-		check("反证：列表里没有 `data.list` ⇒ 抛 ddlezj-taptap-bad-list",
-			throws(() => parseDdlezjTaptapList({ data: {} })) && throws(() => parseDdlezjTaptapList({})));
-		// (d) 详情**全部**失败 ⇒ 抛错（不能静默成「未公布」）
-		setFetchImpl(async (url) => {
-			const u = String(url);
-			const isProxy = u.startsWith("/api/gacha-calendar-proxy");
-			const target = isProxy ? new URL("http://x" + u).searchParams.get("url") : u;
-			if (/webapiv2\/moment\/v3\/detail\?/.test(target)) throw new Error("http-500");
-			const body = fixtureBody(target, OVERRIDES);
-			const text = isProxy ? JSON.stringify({ status: 200, body }) : body;
-			return { ok: true, status: 200, headers: { get: () => null }, text: async () => text, json: async () => JSON.parse(text) };
-		});
-		const rDown = await grab(() => gachaDdlezjTaptap(src.url, undefined, src.tz, NOW_TAPTAP));
-		check("反证：列表拿到了但**所有详情都失败** ⇒ 抛错（抓取失败 ≠ 未公布）",
-			!rDown.ok && /http-500|proxy-http-500/.test(String(rDown.err)), rDown.err || JSON.stringify(rDown.data));
-		// (e) 列表空 ⇒ 未公布（null），不是失败
-		setFetchImpl(async (url) => {
-			const u = String(url);
-			const isProxy = u.startsWith("/api/gacha-calendar-proxy");
-			const target = isProxy ? new URL("http://x" + u).searchParams.get("url") : u;
-			const body = /v7\/by-group/.test(target) ? JSON.stringify({ data: { list: [], total: 0 } }) : fixtureBody(target, OVERRIDES);
-			const text = isProxy ? JSON.stringify({ status: 200, body }) : body;
-			return { ok: true, status: 200, headers: { get: () => null }, text: async () => text, json: async () => JSON.parse(text) };
-		});
-		const rEmpty = await grab(() => eventsDdlezjTaptap(src.url, undefined, src.tz, NOW_TAPTAP));
-		check("反证：列表一帖都没有 ⇒ 如实 null（未公布），不抛错",
-			rEmpty.ok && rEmpty.data === null, JSON.stringify(rEmpty.ok ? rEmpty.data : rEmpty.err));
+		// (c) 没有 `__NUXT_DATA__` / 没有帖子列表 ⇒ 抛错（抓取失败 ≠ 未公布）
+		const withoutNuxt = HTML1.split('id="__NUXT_DATA__"').join('id="__NO_NUXT__"');
+		const barePayload = '<script type="application/json" id="__NUXT_DATA__">[["ShallowReactive",1],{"data":2},{"x":3},"y"]</script>';
+		const withoutList = HTML1.replace(/<script[^>]*\bid="__NUXT_DATA__"[^>]*>[\s\S]*?<\/script>/, barePayload);
+		const errOf = async (html) => {
+			const tr = mkTransport({ [TOPIC1]: html });
+			const e = engineAt(NOW_TOPIC, tr);
+			const s = e.__test.SOURCES.find((x) => x.id === "ddlezj");
+			try { await e.__test.EVENT_FETCHERS["ddlezj"].default(s.eventUrl, undefined, s.tz); return "no-throw"; }
+			catch (err) { return String((err && err.message) || err); }
+		};
+		check("反证：响应里没有 `__NUXT_DATA__` ⇒ 抛 taptap-topic:no-nuxt",
+			(await errOf(withoutNuxt)) === "taptap-topic:no-nuxt", await errOf(withoutNuxt));
+		check("反证：SSR 里找不到帖子列表 ⇒ 抛 taptap-topic:no-post",
+			(await errOf(withoutList)) === "taptap-topic:no-post", await errOf(withoutList));
+		// (d) 第 1 页覆盖不到当前窗口（06-10：当期在更早的 06-04 那篇）⇒ 翻第 2 页
+		{
+			const tr = mkTransport();
+			const e = engineAt(NOW_JUN, tr);
+			const s = e.__test.SOURCES.find((x) => x.id === "ddlezj");
+			const r = await grab(() => e.__test.EVENT_FETCHERS["ddlezj"].default(s.eventUrl, undefined, s.tz));
+			check("第 1 页覆盖不到当前窗口 ⇒ 翻第 2 页拿到「主题剧院【半个世界的手套】」（2 个请求）",
+				r.ok && r.data && r.data.event === "主题剧院【半个世界的手套】"
+				&& r.data.eventDates === "06-04 10:00 ~ 06-18 09:59"
+				&& tr.calls.length === 2 && urlsOf(tr)[1] === TOPIC2,
+				JSON.stringify([r.ok && r.data && r.data.event, urlsOf(tr)]));
+			check("两次请求都走代理且 Referer = tab 页（`?page=2` 是同一页的翻页，不是另一条接口）",
+				tr.calls.every((c) => c.referer === TOPIC1), JSON.stringify(tr.calls.map((c) => c.referer)));
+		}
 
-		// (f) 夹具可溯源：map.json 收录本段全部 URL
+		// (e) 夹具可溯源：map.json 收录本段全部 URL
 		const map = JSON.parse(readFileSync(new URL("./map.json", import.meta.url), "utf8"));
 		const WANT2 = {
-			[src.url]: "p6-ddlezj-taptap-feed-p1/response.txt",
-			[ddlezjTaptapPageUrl(src.url, 2)]: "p6-ddlezj-taptap-feed-p2/response.txt",
+			[TOPIC1]: "p6-ddlezj-taptap-topic-p1/response.txt",
+			[TOPIC2]: "p6-ddlezj-taptap-topic-p2/response.txt",
+			[src.altSources[0].url]: "p6-ddlezj-taptap-feed-p1/response.txt",
+			[ddlezjTaptapPageUrl(src.altSources[0].url, 2)]: "p6-ddlezj-taptap-feed-p2/response.txt",
 			[ddlezjTaptapDetailUrl("866691594919610832")]: "p6-ddlezj-taptap-detail-866691594919610832/response.txt",
 			[ddlezjTaptapDetailUrl("854437201591667060")]: "p6-ddlezj-taptap-detail-854437201591667060/response.txt",
 			[ddlezjTaptapDetailUrl("846447554991229760")]: "p6-ddlezj-taptap-detail-846447554991229760/response.txt",
