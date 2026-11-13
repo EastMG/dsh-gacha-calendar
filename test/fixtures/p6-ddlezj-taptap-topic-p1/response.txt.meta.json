@@ -1,0 +1,6 @@
+{
+  "url": "https://www.taptap.cn/app/755194/topic?type=official",
+  "status": 200,
+  "capturedAt": "2026-11-13T14:37:28.625Z",
+  "trim": "嘟嘟脸恶作剧 官方 tab 第 1 页；只保留 `<script id=\"__NUXT_DATA__\">` 段（服务端渲染的 Nuxt devalue 数组，**逐字不动**）+ 最小 HTML 外壳；HTML 其余部分（样式/预加载/JS bundle/重复的内联 __NUXT__ 数据）全部删除 —— 抓取器只读这一段。"
+}

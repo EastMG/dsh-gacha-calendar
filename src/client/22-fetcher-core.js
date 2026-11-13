@@ -433,6 +433,149 @@
 		}
 
 
+		//#region TapTap 官方账号 tab 页的 SSR（Nuxt `window.__NUXT_DATA__`）—— 嘟嘟脸 / 夜幕之下 共用
+		//
+		// ── 为什么是这条路径（2026-11-13）────────────────────────────────────────────
+		// `https://www.taptap.cn/robots.txt` 明确 `Disallow: /webapi/` 与 `Disallow: /webapiv2/`
+		// ⇒ 之前那套「列表接口 + 逐帖详情」**本身就违反 robots**（且会被 WAF 拦）。
+		// 允许抓的是给人看的 tab 页：`/app/<appId>/topic?type=official`（实测 200、无 WAF、服务端渲染）。
+		// 这一页的 SSR payload 里就有每帖的标题 + 正文摘要（`topic.summary`，**前 200 字**），
+		// 活动档期（`活动时间：…`）恰好在这 200 字里；卡池正文在更深处 ⇒ 嘟嘟脸卡池侧因此置空（见该文件）。
+		// 翻页用 `?page=N`（允许路径，实测第 2 页是更早的帖子）；两页上限由调用方各自决定
+		// （`NS_TAPTAP_TOPIC_MAX_PAGES`）：第 1 页覆盖不到当前窗口才翻。
+		//
+		// ── `window.__NUXT_DATA__` 的编码（devalue）──────────────────────────────────
+		// 页面里是一段 `<script id="__NUXT_DATA__">` + 一个**一维数组**（本页约 2200 项）：
+		//   · 原始值（字符串 / 数字 / bool / null）直接是数组元素；
+		//   · 对象 = `{ key: <下标> }`，**值是数组下标**，不是字面值；
+		//   · 数组 = `[<下标>, <下标>, …]`（无标签）或 `["ShallowReactive", <下标>]` 这类带标签形态；
+		//   · 特殊负数 = devalue 的哨兵（-1 未定义 / -2 空位 / -3 NaN / -4 +∞ / -5 -∞ / -6 -0）。
+		// 解码 = 从根下标递归解引用；`memo` 按**下标**缓存对象/数组（devalue 会共享引用，
+		// 同一份 payload 里 `topic` 可能被引两次，按下标缓存既能省内存，也能兜住自引用）。
+		// 这里只解到「原始值 / 普通对象 / 普通数组」为止；`Date` / `Timestamp` / `BigInt` / `URL` /
+		// `RegExp` 这几个人工确认本页用不到的标签按 devalue 的约定取第 2 槽；`Set` / `Map`
+		// **不做完整语义**（本页没有，真出现也只是按普通数组解开，不会伪造出错误的字符串）。
+		//
+		// ⚠️ 结构变了要**抛错**（抓取失败 ≠ 未公布）：没有 `__NUXT_DATA__` / JSON 坏 / 根上没有
+		//    `data` / data 树里找不到帖子列表 / 列表里一帖都没有 —— 四种都抛带 `taptap-topic:` 前缀的错。
+		const NS_TAPTAP_TOPIC_MAX_PAGES = 2;
+		const NS_TAPTAP_TOPIC_MOMENT_URL = "https://www.taptap.cn/moment/";
+		const NS_TAPTAP_TOPIC_SCRIPT_RE = /<script[^>]*\bid=["']__NUXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i;
+
+		function ns_taptap_topicResolve(arr, idx, memo) {
+			if (typeof idx !== "number") return idx;
+			if (idx < 0) {
+				// devalue 的负下标哨兵（见 region 头）；本页实测没出现，但解错了比抛错更难查
+				if (idx === -3) return NaN;
+				if (idx === -4) return Infinity;
+				if (idx === -5) return -Infinity;
+				if (idx === -6) return -0;
+				return void 0;
+			}
+			const raw = arr[idx];
+			if (raw === null || typeof raw !== "object") return raw;
+			if (memo.has(idx)) return memo.get(idx);
+			if (Array.isArray(raw)) {
+				const tag = raw[0];
+				// `ShallowReactive` / `Ref` 只是壳：真正的值在下一槽（根就是 `["ShallowReactive", 1]`）
+				if (tag === "ShallowReactive" || tag === "Reactive" || tag === "Ref") {
+					memo.set(idx, null);                       // 占位：防自引用
+					const val = ns_taptap_topicResolve(arr, raw[1], memo);
+					memo.set(idx, val);
+					return val;
+				}
+				// 本页用不到的标签：第 2 槽就是原始值（Date / Timestamp / BigInt / URL / RegExp）
+				if (tag === "Date" || tag === "Timestamp" || tag === "BigInt" || tag === "URL" || tag === "RegExp") {
+					const val = raw[1];
+					memo.set(idx, val);
+					return val;
+				}
+				const out = [];
+				memo.set(idx, out);
+				for (const x of raw) out.push(ns_taptap_topicResolve(arr, x, memo));
+				return out;
+			}
+			const out = {};
+			memo.set(idx, out);
+			for (const k of Object.keys(raw)) out[k] = ns_taptap_topicResolve(arr, raw[k], memo);
+			return out;
+		}
+
+		// SSR payload → `root.data`（帖子列表在它下面）。下标 0 是 `["ShallowReactive", 1]` 那层壳。
+		function ns_taptap_topicDataOf(html) {
+			const m = NS_TAPTAP_TOPIC_SCRIPT_RE.exec(String(html == null ? "" : html));
+			if (!m) throw new Error("taptap-topic:no-nuxt");
+			let arr;
+			try { arr = JSON.parse(m[1]); } catch { throw new Error("taptap-topic:bad-nuxt"); }
+			if (!Array.isArray(arr) || arr.length === 0) throw new Error("taptap-topic:bad-nuxt");
+			const root = ns_taptap_topicResolve(arr, 0, new Map());
+			const data = root && typeof root === "object" ? root.data : null;
+			if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("taptap-topic:bad-nuxt");
+			return data;
+		}
+
+		// data 树里找帖子列表。**键名是构建期哈希**（每次发版都变）⇒ 按结构找：
+		// 一个带 `list` 数组、且元素形如 `{ moment: { topic: { … } } }` 的对象（取元素最多的那个）。
+		// 深度上限 8 + `seen` 去环（解码结果里有共享引用）。
+		function ns_taptap_topicListOf(data) {
+			let best = null;
+			const seen = new Set();
+			const walk = (v, depth) => {
+				if (!v || typeof v !== "object" || depth > 8 || seen.has(v)) return;
+				seen.add(v);
+				if (Array.isArray(v)) { for (const x of v) walk(x, depth + 1); return; }
+				if (Array.isArray(v.list) && v.list.some((it) => it && it.moment && it.moment.topic)) {
+					if (!best || v.list.length > best.list.length) best = v;
+				}
+				for (const k of Object.keys(v)) walk(v[k], depth + 1);
+			};
+			walk(data, 0);
+			return best;
+		}
+
+		// tab 页 HTML → [{ id, title, text, publishTime, url }]（顺序 = 源站顺序 = 从新到旧）
+		//   text = `topic.summary` 的纯文本行（源站换行是真 `\n`；空行丢掉）—— 两条链路都按行解析。
+		function ns_taptap_topicPostsOf(html) {
+			const data = ns_taptap_topicDataOf(html);
+			const box = ns_taptap_topicListOf(data);
+			if (!box) throw new Error("taptap-topic:no-post");
+			const out = [];
+			for (const item of box.list) {
+				const mo = item && item.moment;
+				const topic = mo && mo.topic;
+				if (!topic || typeof topic !== "object") continue;
+				const id = mo.id_str == null ? "" : String(mo.id_str);
+				if (!id) continue;
+				const title = decodeEntities(String(topic.title == null ? "" : topic.title)).replace(/\s+/g, " ").trim();
+				const text = String(topic.summary == null ? "" : topic.summary)
+					.split(/\r?\n/)
+					.map((x) => decodeEntities(x).replace(/[ \t\u00a0]+/g, " ").trim())
+					.filter(Boolean)
+					.join("\n");
+				out.push({
+					id,
+					title,
+					text,
+					publishTime: Number(mo.publish_time || mo.created_time) || 0,
+					url: NS_TAPTAP_TOPIC_MOMENT_URL + id
+				});
+			}
+			if (out.length === 0) throw new Error("taptap-topic:no-post");
+			return out;
+		}
+
+		// 页码 → URL（第 1 页原样；第 N 页 = `&page=N`；已有 `page=` 就替换）
+		function ns_taptap_topicPageUrl(base, page) {
+			const u = String(base == null ? "" : base).trim();
+			if (!u) throw new Error("taptap-topic:no-url");
+			const n = Math.max(1, Math.floor(Number(page) || 1));
+			if (n <= 1) return u;
+			if (/[?&]page=\d+/.test(u)) return u.replace(/([?&])page=\d+/, "$1page=" + n);
+			return u + (u.includes("?") ? "&" : "?") + "page=" + n;
+		}
+		//#endregion
+
+
 		// —— 备选源（altSources / eventAltSources）的字段约定与 altSourceId / normalizeSourceId，
 		//    以及下面的 gachaFetcherFor / eventFetcherFor 用到的标识归一，都在 60-helpers.js ——
 		//    （设置页也要用这两个纯函数，所以放在 core 与外壳共用的 helpers 里，而不是 core 内部）

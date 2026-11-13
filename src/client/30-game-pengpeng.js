@@ -83,28 +83,24 @@
 //  最新档期 10-01 04:59 就结束了 ⇒ 当前时刻如实 null。等 wiki 补档即恢复，抓取器不需要改
 //  （回归 `test/cases-pengpeng-event.mjs` ③ 用期内 now 断言有数据、④ 用真机 now 断言 null）。
 //
-// ── 活动侧（2026-11-11 改）：默认源 = **TapTap tab 的结构化 JSON** ──────────────
-// 旧默认源 `bwiki 公告/` 已停更 6 周（最新一版 2026-09-10）⇒ 面板活动列长期空窗。
-// 2026-11-10 先接的是 TapTap tab 的**服务端渲染 HTML**（`/app/746164/topic?type=official`，
-// 正则切 `moment-article__link` + `summary--title` + `chat-text-render`）；
-// 2026-11-11 换成同一份数据的**结构化 JSON**（就是页面自己发的那个请求，实测 200 / 167 KB）：
-//   GET https://www.taptap.cn/webapiv2/feed/v7/by-group
-//       ?X-UA=<页面请求里那串>&type=official&group_id=924367&limit=10&sort=created
-//       &__times=0&status=0&with_hot_comment=true&from=<偏移>
-//   → `data.list[].moment{ id_str, created_time, topic{ title, summary } }`
-//   `topic.summary` 是**纯文本**（换行就是真 `\n`），活动区间在其中一行：
+// ── 活动侧（2026-11-11 接；2026-11-13 改抓 tab 页 SSR）：默认源 = **TapTap 官方账号 tab 页** ──
+// ⚠️ 2026-11-13：`www.taptap.cn/robots.txt` 明确 `Disallow: /webapi/` 与 `Disallow: /webapiv2/`
+//   ⇒ 之前那套「feed 列表 JSON（`webapiv2/feed/v7/by-group`）」**不能**再作为默认抓取。
+//   改成抓**允许路径**的 tab 页：`https://www.taptap.cn/app/746164/topic?type=official`
+//   （实测 200、无 WAF、服务端渲染；SSR payload = Nuxt `window.__NUXT_DATA__`，devalue 编码）。
+//   SSR 的帖子对象里就有 `moment.topic.title` + `moment.topic.summary`（纯文本，前 200 字），
+//   活动区间在读到的摘要行里：
 //     ▸活动时间：2026年11月5日 05:00 - 2026年11月19日 04:59
 //   ⇒ 解析成「活动名 + 起止」（名称取标题里的【…】短语；没有【】就用整条标题）。
-// 为什么不再用 HTML 正则：列表类名一改版就整片归零，而 `topic.title` / `topic.summary` 是同一份
-//   数据的**原始来源**；响应也从 359 KB 降到 167 KB。区间解析函数（`pengpengTaptapWindowsOf`）
-//   **一行没动** —— 换的只是"文本从哪来"。
-// `X-UA` 是 TapTap 的客户端身份串，缺了直接 400 `INVALID_XUA`；值照页面自己的请求抄。
-//   `UID=` 留空即可（实测空 UID 与真 UUID 都 200）⇒ 不把会话 UUID 写死进源码。
-// 仍需宿主代理：JSON 也**无 ACAO**（`www.taptap.cn` 已在 PROXY_ALLOW_HOSTS）。
-// 翻页：`from` 是**偏移**（0 / 10 / 20 …）；`PENGPENG_TAPTAP_MAX_PAGES = 3` 封顶，
-//   并且「整页解析出的活动全都已结束」就停（再往后只会更旧）⇒ 不会无限翻。
-//   为什么要翻到第 2 页：每页 10 帖，仍在期、但公告早于最近 10 帖的活动在 `from=10`
-//   （实测「画廊夜游」10-29 ~ 11-12 就在那一页）；第 1 页之后抓挂不影响已有结果。
+//   区间解析函数（`pengpengTaptapWindowsOf`）与"帖子 → 活动事实"（`pengpengTaptapActivitiesOf`）
+//   **一行没动** —— 换的只是"文本从哪来"（`ns_taptap_topicPostsOf` 解 SSR，见 22-fetcher-core.js）。
+// 为什么不再用 webapiv2 JSON：robots（上面那条，硬事实）+ 它会被 WAF 拦；tab 页是同一份数据的
+//   可见版本，且**一个请求**拿到 10 帖标题 + 摘要（旧链路每页 1 个请求，还得翻页）。
+// 仍需宿主代理：tab 页响应**无 ACAO**（`www.taptap.cn` 已在 PROXY_ALLOW_HOSTS）。
+// 翻页：`?page=N`（允许路径）；`PENGPENG_TAPTAP_MAX_PAGES = 2` 封顶，
+//   并且「第 1 页解析出的活动已覆盖当前时刻」就停（不再翻）。
+//   为什么要第 2 页：每页 10 帖，仍在期、但公告早于最近 10 帖的活动在第 2 页
+//   （实测「画廊夜游」10-29 ~ 11-12 就在那一页）；第 2 页抓挂不影响已有结果。
 // 口径：
 //   · 只认 `活动时间：` 那一行（`更新时间：` 是维护窗口、`折扣时间：` 是商城折扣，都不算活动）
 //   · 两端都要**自带年份**才解；只有 `10月29日 …` 的（如【家族遗藏】）**不解**——不猜当前年
@@ -137,27 +133,17 @@
 			+ encodeURIComponent("公告/") + "&gaplimit=100&format=json&formatversion=2";
 		const PENGPENG_EVENT_OVERVIEW_RE = /版本活动总览$/;
 		const PENGPENG_MAX_OVERVIEWS = 1;
-		// 活动侧默认源：TapTap tab 的**结构化 JSON**（`webapiv2` 的 feed 列表接口）
-		const PENGPENG_TAPTAP_API = "https://www.taptap.cn/webapiv2/feed/v7/by-group";
-		// 给人看的那个页面（只用作 Referer + 文档里的取证地址，不再解析它的 HTML）
+		// 活动侧默认源：TapTap tab 页（**允许路径的 SSR**；2026-11-13 起不再用 `webapiv2` JSON）
+		// 这一条同时是抓取地址与 Referer（tab 页无 ACAO，走宿主代理）。
 		const PENGPENG_TAPTAP_PAGE_URL = "https://www.taptap.cn/app/746164/topic?type=official";
 		const PENGPENG_TAPTAP_REFERER = PENGPENG_TAPTAP_PAGE_URL;
-		const PENGPENG_TAPTAP_MOMENT_URL = "https://www.taptap.cn/moment/";
-		// 页面自己请求里那串客户端身份（缺了 → 400 `INVALID_XUA`）。`UID=` 留空，不写死会话 UUID。
-		const PENGPENG_TAPTAP_XUA = "V=1&PN=WebApp&LANG=zh_CN&VN_CODE=100000000&LOC=CN&PLT=PC&DS=Android&UID=&OS=Windows&OSV=10&DT=PC";
-		const PENGPENG_TAPTAP_GROUP_ID = "924367";
-		const PENGPENG_TAPTAP_LIMIT = 10;
-		// 翻页上限（每页 10 帖）：第 2 页能捞到仍在期、但公告早于最近 10 帖的活动；3 页足够盖住一代版本
-		const PENGPENG_TAPTAP_MAX_PAGES = 3;
+		// 翻页上限（每页 10 帖）：第 2 页能捞到仍在期、但公告早于最近 10 帖的活动；2 页足够当期
+		const PENGPENG_TAPTAP_MAX_PAGES = 2;
 
-		// 列表接口地址：`from` 是**偏移**（不是页码）
-		function pengpengTaptapApiUrl(from) {
-			return PENGPENG_TAPTAP_API
-				+ "?X-UA=" + encodeURIComponent(PENGPENG_TAPTAP_XUA)
-				+ "&type=official&group_id=" + PENGPENG_TAPTAP_GROUP_ID
-				+ "&limit=" + PENGPENG_TAPTAP_LIMIT + "&sort=created"
-				+ "&__times=0&status=0&with_hot_comment=true"
-				+ "&from=" + (Number(from) || 0);
+		// 页码 → URL：第 1 页原样；第 N 页 = `&page=N`（`?page=` 是允许路径，不是接口的偏移）
+		function pengpengTaptapPageUrl(base, page) {
+			const u = String(base == null ? "" : base).trim() || PENGPENG_TAPTAP_PAGE_URL;
+			return ns_taptap_topicPageUrl(u, page);
 		}
 
 		// SMW 的 `printouts` 取值：正常情况下是 `["2026-07-30 05:00:00"]` 这样的字符串数组，
@@ -381,48 +367,10 @@
 			return out;
 		}
 
-		// ══ 活动侧（2026-11-11）：TapTap tab 的**结构化 JSON** ═══════════════════════
-		// 响应形态（真夹具 pengpeng-taptap-feed-p1 / -p2 / -p3）：
-		//   { data: { list: [ { moment: { id_str: "866427359920655283",
-		//                                created_time: 1793674800,
-		//                                topic: { title: "🍃【新风同行】限时活动 即将开启",
-		//                                         summary: "…\n▸活动时间：2026年11月5日 05:00 - 2026年11月19日 04:59\n…" } } } ],
-		//             total: 40, next_page: "/webapiv2/feed/v7/by-group?…" } }
-		// ⇒ 逐帖取 `moment.topic`（标题 + 纯文本正文），**不再碰 HTML**。
-		// `from` = 偏移（每页 `limit=10`）；页码 → 偏移在这一个函数里换算，别处不重复。
-		function pengpengTaptapPageUrl(base, page) {
-			const u = String(base == null ? "" : base).trim() || pengpengTaptapApiUrl(0);
-			const n = Math.max(1, Math.floor(Number(page) || 1));
-			if (n <= 1) return u;
-			const from = (n - 1) * PENGPENG_TAPTAP_LIMIT;
-			if (/[?&]from=\d+/.test(u)) return u.replace(/([?&])from=\d+/, "$1from=" + from);
-			return u + (u.includes("?") ? "&" : "?") + "from=" + from;
-		}
-
-		// JSON → [{ title, url, text }]（数组顺序 = 源站顺序 = 从新到旧）
-		function pengpengTaptapPostsOf(json) {
-			const data = json && typeof json === "object" ? json.data : null;
-			if (!data || typeof data !== "object") throw new Error("pengpeng-bad-shape");
-			const list = data.list;
-			if (!Array.isArray(list)) throw new Error("pengpeng-bad-list");
-			const out = [];
-			for (const item of list) {
-				const mo = item && item.moment;
-				const topic = mo && mo.topic;
-				if (!topic || typeof topic !== "object") continue;
-				const title = decodeEntities(String(topic.title == null ? "" : topic.title)).replace(/\s+/g, " ").trim();
-				// `summary` 里换行就是真 `\n`；逐行去空白后仍用 `\n` 拼回（下面按行找「活动时间：」）
-				const text = String(topic.summary == null ? "" : topic.summary)
-					.split(/\r?\n/)
-					.map((x) => decodeEntities(x).replace(/[ \t\u00a0]+/g, " ").trim())
-					.filter(Boolean)
-					.join("\n");
-				const id = mo.id_str == null ? "" : String(mo.id_str);
-				out.push({ title, url: id ? PENGPENG_TAPTAP_MOMENT_URL + id : "", text });
-			}
-			return out;
-		}
-
+		// ══ 活动侧（2026-11-13）：TapTap tab 页的 **SSR payload**（`window.__NUXT_DATA__`）══
+		// 解析在 22-fetcher-core.js 的 `ns_taptap_topicPostsOf`（Nuxt devalue 解码，两条链路共用）：
+		//   HTML → [{ id, title, text, publishTime, url }]，text = `topic.summary` 的纯文本行。
+		// 这里只保留「标题 → 活动名」与「行 → 窗口」两段纯函数（它们与 webapiv2 时期**逐字相同**）。
 		// 标题 → 活动名：`🍃【新风同行】限时活动 即将开启` → `新风同行`；没有【】⇒ 用整条标题
 		function pengpengTaptapNameOf(title) {
 			const s = String(title == null ? "" : title).replace(/\s+/g, " ").trim();
@@ -482,7 +430,7 @@
 			return out;
 		}
 
-		// 一页帖子（`pengpengTaptapPostsOf` 的产物）→ 活动事实 [{ name, url, startTs, endTs, raw, display }]
+		// 一页帖子（`ns_taptap_topicPostsOf` 的产物）→ 活动事实 [{ name, url, startTs, endTs, raw, display }]
 		function pengpengTaptapActivitiesOf(posts, tz = PENGPENG_TZ) {
 			const out = [];
 			const seen = new Set();
@@ -503,27 +451,29 @@
 
 		async function fetchPengpengTaptapEvents(url, signal, tz = PENGPENG_TZ) {
 			const at = nowMs();
-			const base = String(url == null ? "" : url).trim() || pengpengTaptapApiUrl(0);
+			const base = String(url == null ? "" : url).trim() || PENGPENG_TAPTAP_PAGE_URL;
 			const rows = [];
 			let postCount = 0;
 			for (let page = 1; page <= PENGPENG_TAPTAP_MAX_PAGES; page++) {
-				let json;
+				let html;
 				try {
-					json = await fetchJson(pengpengTaptapPageUrl(base, page), { signal, mode: "proxy", referer: PENGPENG_TAPTAP_REFERER });
+					html = await fetchText(pengpengTaptapPageUrl(base, page), {
+						signal, mode: "proxy", referer: PENGPENG_TAPTAP_REFERER
+					});
 				} catch (e) {
 					if (page === 1) throw e;                                    // 第 1 页失败 = 真失败
 					break;                                                      // 后续页失败 ⇒ 用手上已有结果
 				}
-				const posts = pengpengTaptapPostsOf(json);
+				// SSR → 帖子（结构变了会抛 `taptap-topic:*`，不静默降级成"未公布"）
+				const posts = ns_taptap_topicPostsOf(html);
 				postCount += posts.length;
 				const pageRows = pengpengTaptapActivitiesOf(posts, tz);
 				for (const x of pageRows) rows.push(x);
-				// 「翻到上一条已结束就停」：本页解析出的活动**全都已经结束** ⇒ 再往后只会更旧，不再翻
-				// （`endTs` 恒非空 —— `pengpengTaptapWindowsOf` 会丢掉终点是相对表述的窗口）
-				if (pageRows.length > 0 && !pageRows.some((r) => r.endTs > at)) break;
+				// 第 1 页已经覆盖当前窗口 ⇒ 再往后只会更旧，不再翻（任务口径：覆盖不到才翻，最多 2 页）
+				if (pageRows.some((r) => coversNow(r, at))) break;
 			}
 			// 有响应但一帖都没解析出来 = 响应结构变了 ⇒ 抛错（抓取失败 ≠ 未公布）
-			if (postCount === 0) throw new Error("pengpeng-taptap:no-post");
+			if (postCount === 0) throw new Error("taptap-topic:no-post");
 			if (rows.length === 0) return null;
 			// 外显 = **文档顺序里第一条覆盖 now 的**（列表从新到旧 ⇒ 最新公布的那条当期活动；
 			// 与 hlr 的"第一条覆盖 now = 当前最新一期"同一口径）
@@ -559,8 +509,9 @@
 			// 而"卡池列现在为空"是内容停更的结果、不是这条链路坏了 —— 两者混在一句里会让人以为
 			// 抓取器坏了。等 wiki 补档，这里不需要改任何字。
 			source: "Bwiki 契约（SMW）",
-			// 活动侧默认源 = TapTap tab 的 feed JSON（国服）；旧 bwiki 公告源降为手动备选
-			eventUrl: pengpengTaptapApiUrl(0),
+			// 活动侧默认源 = TapTap tab 页的 SSR（允许路径，2026-11-13 换；用户可见标签仍是「TapTap」）；
+			// 旧 bwiki 公告源保留为手动备选
+			eventUrl: PENGPENG_TAPTAP_PAGE_URL,
 			eventSource: "TapTap",
 			eventAltSources: [
 				{ label: "Bwiki 公告（不可靠）", url: PENGPENG_EVENT_URL, fetcher: "pengpeng-bwiki" }

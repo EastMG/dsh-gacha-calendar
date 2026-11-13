@@ -84,7 +84,7 @@ dsh-gacha-calendar/
 │       ├── 30-game-wqmt.js        # 无期迷途（国服）：卡池 bwiki 追踪一览 + 活动 官方资讯 API + 开服锚点
 │       ├── 30-game-miyoushe-bbs.js # 未定事件簿：米游社公告（卡池 + 活动；详情需 Referer www.miyoushe.com/wd/）
 │       ├── 30-game-netease.js     # 时空中的绘旅人：官网新闻（official）+ 学院公告（update）列表 + 详情（卡池画廊 + 活动；缺年份补年/跨年）
-│       ├── 30-game-pengpeng.js    # 夜幕之下（国服）：卡池 bwiki SMW ask（契约）+ 活动 TapTap tab 的 feed JSON（旧 bwiki 公告为备选）
+│       ├── 30-game-pengpeng.js    # 夜幕之下（国服）：卡池 bwiki SMW ask（契约）+ 活动 TapTap tab 页的 SSR（Nuxt `__NUXT_DATA__`；旧 bwiki 公告为备选）
 │       ├── 30-game-unconfigured.js # 炽焰天穹：只注册条目、来源留空未配置（本批唯一仍不接的）
 │       ├── 30-game-batch2.js      # 2026-11-11 第二批：崩坏3 米哈游内容中台（卡池名称/角色 + 档期三级取值：`>>开放时间` → 同帖礼包【上架时间】 → 只出名称/角色；活动正文时间块）/ OurNotes 日服 SPICA（列表→前 5 条详情）/ 卡厄斯梦境 TapTap 官方（feed 列表 → **按标题挑**逐帖详情：卡池「营救概率提升」分节 + 活动分节；两侧共享 docs（TTL 30 s）、单帖失败跳过）
 │       ├── 30-game-ournotes-global.js # OurNotes **国际服**卡池 + 活动：默认源 = SPICA 数据 JSON（页面 `window._durl` 现解 → d-*.json；gachapages/events 一次拿全）；数据里是 JST 墙钟、展示按 UTC+8（钟面 −1h）；picks 按 **id** 查角色；池名与角色名按 zh→tw→en→ja 取（简中优先）；BHK 官方公告两条降为手动备选源
@@ -109,7 +109,7 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 42 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（18 处定稿，三轮增删）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）+ category / tags 批 1+2+3（9 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 多值拆分 + 旧键兼容 + 反证；批 3 把 `eventTier` 的 haystack 改成 OR 语义：`category` + `tags` + `name` 都参与）+ 2026-11-09 新接入 5 款（无期迷途两侧真源 / 夜幕之下卡池 / 未定·绘旅人已接两侧源 / 炽焰天穹仍留空未配置）+ 星铁卡池换官方公告 CMS + 「相对起点」锚定（星铁 10:00 / 无期迷途 14:00）+ 「起点未知 ≠ 已开始」+ 绝区零 bwiki 备选源「起点未知 = 已开始」的唯一例外 + 未定事件簿 / 时空中的绘旅人（米游社公告 + 官网新闻：卡池 + 活动 / 跨年补年 / 单侧失败隔离）+ 夜幕之下活动（TapTap tab 的 feed JSON：区间解析复用 + 翻页上限/早停 + 反向证明；旧 bwiki 公告源仍作备选）+ 刷新横幅（底部失败横条与「重试」已删 / 失败明细并入悬停：沿用判定 + 文字口径逐字不变）+ 赛马娘·繁中服（Komoe 官方公告：卡池/活动同一条接口 + 「維護結束後」起点未知）+ OurNotes 国际服（SPICA 数据 JSON：`_durl` 现解 → 卡池/活动一次拿全；JST 墙钟 → UTC+8 展示；picks 按 id 查角色；真夹具 + 反向证明））
+│   ├── all.mjs      # 统一门禁：聚 42 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（18 处定稿，三轮增删）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）+ category / tags 批 1+2+3（9 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 多值拆分 + 旧键兼容 + 反证；批 3 把 `eventTier` 的 haystack 改成 OR 语义：`category` + `tags` + `name` 都参与）+ 2026-11-09 新接入 5 款（无期迷途两侧真源 / 夜幕之下卡池 / 未定·绘旅人已接两侧源 / 炽焰天穹仍留空未配置）+ 星铁卡池换官方公告 CMS + 「相对起点」锚定（星铁 10:00 / 无期迷途 14:00）+ 「起点未知 ≠ 已开始」+ 绝区零 bwiki 备选源「起点未知 = 已开始」的唯一例外 + 未定事件簿 / 时空中的绘旅人（米游社公告 + 官网新闻：卡池 + 活动 / 跨年补年 / 单侧失败隔离）+ 夜幕之下活动（TapTap tab 页 SSR：devalue 解码 + 区间解析复用 + 覆盖当前窗口才翻页 + 反向证明；旧 bwiki 公告源仍作备选）+ 刷新横幅（底部失败横条与「重试」已删 / 失败明细并入悬停：沿用判定 + 文字口径逐字不变）+ 赛马娘·繁中服（Komoe 官方公告：卡池/活动同一条接口 + 「維護結束後」起点未知）+ OurNotes 国际服（SPICA 数据 JSON：`_durl` 现解 → 卡池/活动一次拿全；JST 墙钟 → UTC+8 展示；picks 按 id 查角色；真夹具 + 反向证明））
 │   ├── cases-*.mjs  # 各段用例（42 个文件 / 42 段，与 all.mjs 的 batches 一一对应；本批新增 cases-ournotes-global-spica）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
@@ -937,7 +937,7 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
 | id | 游戏 | 卡池源 | 活动源 | 状态 |
 |---|---|---|---|---|
 | `wqmt` | 无期迷途（国服） | bwiki「追踪一览」（`api.php?action=parse`，174 行） | 官方资讯 API `wqmt.aisnogames.com/api/news`（`ACAO:*` ⇒ 直连） | **两侧已接** |
-| `pengpeng` | 夜幕之下（国服，曾用名「代号砰砰」） | bwiki **SMW `action=ask`**（`[[分类:契约]][[条目类型::契约]]`，11 条 / 9 条有窗口；2026-11-11 换源：旧 HTML 页在 `/ymzx` 已 #REDIRECT，标签写「Bwiki 契约（SMW）」） | **TapTap tab 的 feed JSON**（`webapiv2/feed/v7/by-group`，`from=0/10/20` 最多 3 页；2026-11-10 换源、2026-11-11 由 HTML 正则改 JSON） | **两侧已接**；旧 bwiki `公告/` 降为 `eventAltSources` 手动备选 |
+| `pengpeng` | 夜幕之下（国服，曾用名「代号砰砰」） | bwiki **SMW `action=ask`**（`[[分类:契约]][[条目类型::契约]]`，11 条 / 9 条有窗口；2026-11-11 换源：旧 HTML 页在 `/ymzx` 已 #REDIRECT，标签写「Bwiki 契约（SMW）」） | **TapTap tab 页的 SSR**（`/app/746164/topic?type=official`，`?page=1/2` 最多 2 页；2026-11-13 换源：`webapiv2` 在 robots.txt 的 Disallow 路径下） | **两侧已接**；旧 bwiki `公告/` 降为 `eventAltSources` 手动备选 |
 | `wd` | 未定事件簿 | 米游社公告 `forum_id=33`（2026-11-09 晚接上） | 同上（按标题分流） | **两侧已接** |
 | `hlr` | 时空中的绘旅人 | 官网 `news/official/` 列表 + 详情（2026-11-09 晚接上） | 官网 `news/official/` + **`news/update/` 学院公告**（2026-11-10 增补；同一个抓取器抓两类列表） | **两侧已接**；活动侧现在出「缱绻假日」10-09~11-20，卡池侧无在期画廊 ⇒ 如实 null |
 | `cytq` | 炽焰天穹（用户写作「炽焰苍穹」） | — | — | **未配置**（只注册条目） |
@@ -1202,6 +1202,43 @@ null，活动侧 2026-11-10 已换 TapTap tab（能出「新风同行」11-05~11
   （`gamecenter_wiki_pengpeng-pre_` / `gamecenter_wiki_ymzx-pre_`）。前者的「契约一览」仍是 18 行 HTML
   表、末条 2026-10-01 且最后编辑 2026-09-24（比后者新 1 期、多 6 期历史）；`#REDIRECT` 只发生在后者。
 
+
+### 2026-11-13：嘟嘟脸 / 夜幕之下活动侧改抓 TapTap **tab 页 SSR**（robots 允许路径）
+
+> ⚠️ 上一节的「嘟嘟脸默认源 = webapiv2」已被下面这一节**取代**（robots 是硬约束）：活动侧改抓
+> tab 页 SSR、卡池侧置空未配置，webapiv2 两套降为手动备选；B 站公告备选行为不变。
+
+- **起因（硬事实）**：`https://www.taptap.cn/robots.txt` 有 `Disallow: /webapi/` 与
+  `Disallow: /webapiv2/`。上面两节把默认源指到 `webapiv2`（feed 列表 / moment 详情）**违反 robots**，
+  且实测会被 WAF 拦。允许抓的是给人看的 tab 页：
+  `https://www.taptap.cn/app/<appId>/topic?type=official`（实测 200、无 WAF、服务端渲染）。
+- **SSR 形态**：页面里 `<script id="__NUXT_DATA__">` 是一段 **Nuxt devalue** 编码的一维数组
+  （对象的值是**数组下标**、数组可带 `["ShallowReactive", n]` 标签、共享引用）。
+  共用解码在 `22-fetcher-core.js` 的 `ns_taptap_topicPostsOf`（只解原始值/对象/普通数组；
+  结构变了抛 `taptap-topic:*`，**不静默降成"未公布"**）；帖子字段 =
+  `moment.id_str` / `moment.publish_time` / `moment.topic.title` / `moment.topic.summary`。
+  `summary` 只有**前 200 字**：活动档期（`活动时间：…`）恰在里面；**卡池正文不在**。
+- **嘟嘟脸 `ddlezj`**：
+  - 活动侧默认 = tab 页（`30-game-biligame.js` 的 `eventsDdlezjTopic`）。每帖摘要只出**第一个**活动段
+    （`一、主题剧院【…】` + `活动时间：…`），「维护后」的起点用同帖顶部
+    `YYYY/MM/DD HH:MM 进行维护更新`（**日期不同 ⇒ 起点留空、不产出**，复用原解析）。
+  - 卡池侧**默认置空**（注册项 `url: ""` = 未配置、不抓；设置页下拉写裸「未配置」）——
+    SSR 里没有卡池正文，而能拿到卡池正文的 webapiv2 在 Disallow 路径下。
+  - webapiv2 的**卡池**链原样保留为 `altSources[0]`，标签逐字 **「TapTap（不可靠）」**
+    （键 `ddlezj-taptap-gacha`；只有用户手动切过去才请求）；旧 B 站公告仍是第二个卡池备选 + 活动备选。
+  - 实测（2026-11-13 活网）：活动 = 「主题剧院【篡夺与越轨之间】」`11-05 10:00 ~ 11-19 09:59`，
+    一页覆盖当期 ⇒ **1 个请求**；卡池侧 0 请求、无失败。
+  - 夹具 `p6-ddlezj-taptap-topic-p{1,2}`（只留 `__NUXT_DATA__` 段，meta 记 url / capturedAt / trim）；
+    回归 `test/cases-p6.mjs` P6-6（注册 / SSR → 活动逐字 / 1 请求 / fetchEntry 不抓卡池 /
+    手动备选卡池仍可用 / 反向证明 / 覆盖不到才翻第 2 页）。
+- **夜幕之下 `pengpeng`**：活动侧默认同样改成 tab 页（`fetchPengpengTaptapEvents` 只换"文本从哪来"，
+  `pengpengTaptapWindowsOf` / `pengpengTaptapActivitiesOf` 一行没动）。翻页 = `?page=N`，
+  上限 **2 页**，**第 1 页覆盖当前窗口就停**（与嘟嘟脸同口径）。活动侧用户可见标签仍是「TapTap」。
+  卡池侧（bwiki SMW ask）不动。实测（2026-11-11）：新风同行 `11-05 05:00 ~ 11-19 04:59`，1 个请求；
+  10-30 那天第 1 页无在期活动 ⇒ 翻第 2 页拿到画廊夜游（2 个请求）。
+  夹具 `pengpeng-taptap-topic-p{1,2}`；回归 `test/cases-pengpeng-event.mjs`（注册 / SSR 解析 /
+  当期逐字 / 反向证明 / 第 2 页抓挂隔离 / bwiki 备选 / 翻页）。
+- **未动**：卡厄斯梦境 `czn` 的 TapTap 链（本批范围外，仍走 webapiv2）；README.md；版本号 / tag / 发布。
 
 ### 星铁换官方公告 CMS + 「相对起点」锚定 + 「起点未知 ≠ 已开始」（2026-11-09）
 

@@ -3350,6 +3350,149 @@ export function createEngine(env) {
 		}
 
 
+		//#region TapTap 官方账号 tab 页的 SSR（Nuxt `window.__NUXT_DATA__`）—— 嘟嘟脸 / 夜幕之下 共用
+		//
+		// ── 为什么是这条路径（2026-11-13）────────────────────────────────────────────
+		// `https://www.taptap.cn/robots.txt` 明确 `Disallow: /webapi/` 与 `Disallow: /webapiv2/`
+		// ⇒ 之前那套「列表接口 + 逐帖详情」**本身就违反 robots**（且会被 WAF 拦）。
+		// 允许抓的是给人看的 tab 页：`/app/<appId>/topic?type=official`（实测 200、无 WAF、服务端渲染）。
+		// 这一页的 SSR payload 里就有每帖的标题 + 正文摘要（`topic.summary`，**前 200 字**），
+		// 活动档期（`活动时间：…`）恰好在这 200 字里；卡池正文在更深处 ⇒ 嘟嘟脸卡池侧因此置空（见该文件）。
+		// 翻页用 `?page=N`（允许路径，实测第 2 页是更早的帖子）；两页上限由调用方各自决定
+		// （`NS_TAPTAP_TOPIC_MAX_PAGES`）：第 1 页覆盖不到当前窗口才翻。
+		//
+		// ── `window.__NUXT_DATA__` 的编码（devalue）──────────────────────────────────
+		// 页面里是一段 `<script id="__NUXT_DATA__">` + 一个**一维数组**（本页约 2200 项）：
+		//   · 原始值（字符串 / 数字 / bool / null）直接是数组元素；
+		//   · 对象 = `{ key: <下标> }`，**值是数组下标**，不是字面值；
+		//   · 数组 = `[<下标>, <下标>, …]`（无标签）或 `["ShallowReactive", <下标>]` 这类带标签形态；
+		//   · 特殊负数 = devalue 的哨兵（-1 未定义 / -2 空位 / -3 NaN / -4 +∞ / -5 -∞ / -6 -0）。
+		// 解码 = 从根下标递归解引用；`memo` 按**下标**缓存对象/数组（devalue 会共享引用，
+		// 同一份 payload 里 `topic` 可能被引两次，按下标缓存既能省内存，也能兜住自引用）。
+		// 这里只解到「原始值 / 普通对象 / 普通数组」为止；`Date` / `Timestamp` / `BigInt` / `URL` /
+		// `RegExp` 这几个人工确认本页用不到的标签按 devalue 的约定取第 2 槽；`Set` / `Map`
+		// **不做完整语义**（本页没有，真出现也只是按普通数组解开，不会伪造出错误的字符串）。
+		//
+		// ⚠️ 结构变了要**抛错**（抓取失败 ≠ 未公布）：没有 `__NUXT_DATA__` / JSON 坏 / 根上没有
+		//    `data` / data 树里找不到帖子列表 / 列表里一帖都没有 —— 四种都抛带 `taptap-topic:` 前缀的错。
+		const NS_TAPTAP_TOPIC_MAX_PAGES = 2;
+		const NS_TAPTAP_TOPIC_MOMENT_URL = "https://www.taptap.cn/moment/";
+		const NS_TAPTAP_TOPIC_SCRIPT_RE = /<script[^>]*\bid=["']__NUXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i;
+
+		function ns_taptap_topicResolve(arr, idx, memo) {
+			if (typeof idx !== "number") return idx;
+			if (idx < 0) {
+				// devalue 的负下标哨兵（见 region 头）；本页实测没出现，但解错了比抛错更难查
+				if (idx === -3) return NaN;
+				if (idx === -4) return Infinity;
+				if (idx === -5) return -Infinity;
+				if (idx === -6) return -0;
+				return void 0;
+			}
+			const raw = arr[idx];
+			if (raw === null || typeof raw !== "object") return raw;
+			if (memo.has(idx)) return memo.get(idx);
+			if (Array.isArray(raw)) {
+				const tag = raw[0];
+				// `ShallowReactive` / `Ref` 只是壳：真正的值在下一槽（根就是 `["ShallowReactive", 1]`）
+				if (tag === "ShallowReactive" || tag === "Reactive" || tag === "Ref") {
+					memo.set(idx, null);                       // 占位：防自引用
+					const val = ns_taptap_topicResolve(arr, raw[1], memo);
+					memo.set(idx, val);
+					return val;
+				}
+				// 本页用不到的标签：第 2 槽就是原始值（Date / Timestamp / BigInt / URL / RegExp）
+				if (tag === "Date" || tag === "Timestamp" || tag === "BigInt" || tag === "URL" || tag === "RegExp") {
+					const val = raw[1];
+					memo.set(idx, val);
+					return val;
+				}
+				const out = [];
+				memo.set(idx, out);
+				for (const x of raw) out.push(ns_taptap_topicResolve(arr, x, memo));
+				return out;
+			}
+			const out = {};
+			memo.set(idx, out);
+			for (const k of Object.keys(raw)) out[k] = ns_taptap_topicResolve(arr, raw[k], memo);
+			return out;
+		}
+
+		// SSR payload → `root.data`（帖子列表在它下面）。下标 0 是 `["ShallowReactive", 1]` 那层壳。
+		function ns_taptap_topicDataOf(html) {
+			const m = NS_TAPTAP_TOPIC_SCRIPT_RE.exec(String(html == null ? "" : html));
+			if (!m) throw new Error("taptap-topic:no-nuxt");
+			let arr;
+			try { arr = JSON.parse(m[1]); } catch { throw new Error("taptap-topic:bad-nuxt"); }
+			if (!Array.isArray(arr) || arr.length === 0) throw new Error("taptap-topic:bad-nuxt");
+			const root = ns_taptap_topicResolve(arr, 0, new Map());
+			const data = root && typeof root === "object" ? root.data : null;
+			if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("taptap-topic:bad-nuxt");
+			return data;
+		}
+
+		// data 树里找帖子列表。**键名是构建期哈希**（每次发版都变）⇒ 按结构找：
+		// 一个带 `list` 数组、且元素形如 `{ moment: { topic: { … } } }` 的对象（取元素最多的那个）。
+		// 深度上限 8 + `seen` 去环（解码结果里有共享引用）。
+		function ns_taptap_topicListOf(data) {
+			let best = null;
+			const seen = new Set();
+			const walk = (v, depth) => {
+				if (!v || typeof v !== "object" || depth > 8 || seen.has(v)) return;
+				seen.add(v);
+				if (Array.isArray(v)) { for (const x of v) walk(x, depth + 1); return; }
+				if (Array.isArray(v.list) && v.list.some((it) => it && it.moment && it.moment.topic)) {
+					if (!best || v.list.length > best.list.length) best = v;
+				}
+				for (const k of Object.keys(v)) walk(v[k], depth + 1);
+			};
+			walk(data, 0);
+			return best;
+		}
+
+		// tab 页 HTML → [{ id, title, text, publishTime, url }]（顺序 = 源站顺序 = 从新到旧）
+		//   text = `topic.summary` 的纯文本行（源站换行是真 `\n`；空行丢掉）—— 两条链路都按行解析。
+		function ns_taptap_topicPostsOf(html) {
+			const data = ns_taptap_topicDataOf(html);
+			const box = ns_taptap_topicListOf(data);
+			if (!box) throw new Error("taptap-topic:no-post");
+			const out = [];
+			for (const item of box.list) {
+				const mo = item && item.moment;
+				const topic = mo && mo.topic;
+				if (!topic || typeof topic !== "object") continue;
+				const id = mo.id_str == null ? "" : String(mo.id_str);
+				if (!id) continue;
+				const title = decodeEntities(String(topic.title == null ? "" : topic.title)).replace(/\s+/g, " ").trim();
+				const text = String(topic.summary == null ? "" : topic.summary)
+					.split(/\r?\n/)
+					.map((x) => decodeEntities(x).replace(/[ \t\u00a0]+/g, " ").trim())
+					.filter(Boolean)
+					.join("\n");
+				out.push({
+					id,
+					title,
+					text,
+					publishTime: Number(mo.publish_time || mo.created_time) || 0,
+					url: NS_TAPTAP_TOPIC_MOMENT_URL + id
+				});
+			}
+			if (out.length === 0) throw new Error("taptap-topic:no-post");
+			return out;
+		}
+
+		// 页码 → URL（第 1 页原样；第 N 页 = `&page=N`；已有 `page=` 就替换）
+		function ns_taptap_topicPageUrl(base, page) {
+			const u = String(base == null ? "" : base).trim();
+			if (!u) throw new Error("taptap-topic:no-url");
+			const n = Math.max(1, Math.floor(Number(page) || 1));
+			if (n <= 1) return u;
+			if (/[?&]page=\d+/.test(u)) return u.replace(/([?&])page=\d+/, "$1page=" + n);
+			return u + (u.includes("?") ? "&" : "?") + "page=" + n;
+		}
+		//#endregion
+
+
 		// —— 备选源（altSources / eventAltSources）的字段约定与 altSourceId / normalizeSourceId，
 		//    以及下面的 gachaFetcherFor / eventFetcherFor 用到的标识归一，都在 60-helpers.js ——
 		//    （设置页也要用这两个纯函数，所以放在 core 与外壳共用的 helpers 里，而不是 core 内部）
@@ -12616,8 +12759,11 @@ async function ns_kedr_wiki_gachaKedrWiki(url, signal, tz = ns_kedr_wiki_KEDR_TZ
 //   两侧都读**同一份官方公告**（同 `30-game-bandori.js`：一份公告里既有活动档期也有招募档期）。
 //
 // ⚠️ 2026-11-11：这条 B 站公告 API **自 2026-06 起冻结**（列表最新一条 = 2026-06-22，游戏却仍在运营）
-//    ⇒ 本条目的**默认源已换成 TapTap 官方账号**（列表 → 详情；见本文件下方 `TapTap（2026-11-11 换源）`
-//    region），这里的代码**保留**为备选源键 `ddlezj-biligame`（设置页可手动切回）。
+//    ⇒ 本条目的**默认源已换成 TapTap 官方账号**（见本文件下方 `TapTap（2026-11-11 换源）` region），
+//    这里的代码**保留**为备选源键 `ddlezj-biligame`（设置页可手动切回）。
+// ⚠️ 2026-11-13：默认源再改一次 —— TapTap 只抓**允许路径的 tab 页 SSR**（活动侧），
+//    卡池侧因 robots 而**置空未配置**；Web 接口那一套降为手动备选「TapTap（不可靠）」。
+//    B 站公告仍是活动/卡池两侧的备选，行为不变。
 //
 // ══ 实测形态（2026-10-02 抓夹具：fixtures/p6-ddlezj-list、fixtures/p6-ddlezj-detail）══
 // 列表：GET https://api.biligame.com/news/list?gameExtensionId=1282&positionId=2&typeId=1&pageNum=1&pageSize=50
@@ -12966,6 +13112,16 @@ async function ns_biligame_announce_eventsDdlezj(url, signal, tz = ns_biligame_a
 // 官方渠道改成 TapTap 官方账号（国服）：`https://www.taptap.cn/app/755194/topic?type=official`
 //   （`group_id=957044` 来自该页 SSR payload；app id = 755194）。
 //
+// ── 2026-11-13：活动侧改读 **tab 页 SSR**，webapiv2 只留作卡池侧的手动备选 ───────────
+// `www.taptap.cn/robots.txt` 的 `Disallow: /webapi/` 与 `Disallow: /webapiv2/` 是硬事实
+// ⇒ 下面这套「列表接口 + 逐帖详情」**不能**再作为默认抓取（违反 robots，且会被 WAF 拦）。
+// 允许的是给人看的 tab 页 `/app/755194/topic?type=official`：SSR 的 `topic.summary` 里就有
+// 活动档期那一行（`活动时间：2026/11/05 维护后 - 2026/11/19 09:59`），一页 1 个请求就够当期；
+// 而**卡池正文不在 SSR 里**（「活动更新一览」帖只渲染成摘要卡，前 200 字截断在「开启条件」）
+// ⇒ 卡池侧**默认置空**（注册项 `url: ""` = 未配置、不抓），webapiv2 卡池抓取器原样保留为
+// `altSources[0]`，标签逐字写「TapTap（不可靠）」—— 只有用户手动切过去才会请求它。
+// 下面的 `loadDdlezjTaptap` / `gachaDdlezjTaptap` 因此只剩一条用途：那个手动备选源。
+//
 // ══ 响应形态（2026-11-11 实测，夹具 p6-ddlezj-taptap-feed-p1 / -p2 / -detail-*）══
 // 列表 GET https://www.taptap.cn/webapiv2/feed/v7/by-group
 //        ?X-UA=<页面自己发的客户端身份>&type=official&group_id=957044&limit=10&sort=created&from=<偏移>
@@ -13019,7 +13175,8 @@ async function ns_biligame_announce_eventsDdlezj(url, signal, tz = ns_biligame_a
 const ns_biligame_announce_DDLEZJ_TAPTAP_TZ = "Asia/Shanghai";
 const ns_biligame_announce_DDLEZJ_TAPTAP_API = "https://www.taptap.cn/webapiv2/feed/v7/by-group";
 const ns_biligame_announce_DDLEZJ_TAPTAP_DETAIL = "https://www.taptap.cn/webapiv2/moment/v3/detail";
-// 给人看的那个页面：只用作 Referer + 文档里的取证地址（不解析它的 HTML）
+// 给人看的那个页面 = **活动侧的抓取地址**（2026-11-13 起解析它的 SSR；见上方 region 头的说明）
+// 同时用作卡池备选（webapiv2）请求的 Referer。
 const ns_biligame_announce_DDLEZJ_TAPTAP_PAGE_URL = "https://www.taptap.cn/app/755194/topic?type=official";
 // 页面自己请求里那串客户端身份（缺了 → 400 INVALID_XUA）。`UID=` 留空，不写死会话 UUID。
 const ns_biligame_announce_DDLEZJ_TAPTAP_XUA = "V=1&PN=WebApp&LANG=zh_CN&VN_CODE=100000000&LOC=CN&PLT=PC&DS=Android&UID=&OS=Windows&OSV=10&DT=PC";
@@ -13336,6 +13493,8 @@ async function ns_biligame_announce_gachaDdlezjTaptap(url, signal, tz = ns_bilig
 }
 
 // 活动侧（同上）
+// ⚠️ 2026-11-13 起**不再是默认**：默认活动侧改读 tab 页 SSR（见下面 `eventsDdlezjTopic`）。
+// 保留它是因为 `loadDdlezjTaptap` 仍是卡池备选源（`altSources[0]` = 「TapTap（不可靠）」）的链路。
 async function ns_biligame_announce_eventsDdlezjTaptap(url, signal, tz = ns_biligame_announce_DDLEZJ_TAPTAP_TZ, now = nowMs()) {
 	const ctx = await ns_biligame_announce_loadDdlezjTaptap(url, signal, tz, now);
 	for (const { parsed } of ctx.seen) {
@@ -13344,6 +13503,47 @@ async function ns_biligame_announce_eventsDdlezjTaptap(url, signal, tz = ns_bili
 		return ns_biligame_announce_ddlezjEventPayloadOf(best, ns_biligame_announce_covering(parsed.items, now, "event"), tz, now);
 	}
 	return null;
+}
+
+// ── 活动侧默认源（2026-11-13）：tab 页 SSR（robots 允许的路径，1 个请求）──
+// 每篇「活动更新一览 / 速览」帖的摘要里，第一个 `一、主题剧院【…】` + `活动时间：…` 就是当期；
+// 「维护后」的起点用**同帖顶部**那句 `YYYY/MM/DD HH:MM 进行维护更新`（`parseDdlezjTaptapText`
+// 里的锚点逻辑原样复用，日期不同就不产出）。摘要只有前 200 字 ⇒ 一帖只出 1 条活动档期，
+// 这对"当期活动"够用；更多档期本来就在正文里（SSR 没有），不在这里硬凑。
+// 翻页：第 1 页有任何一条**覆盖当前时刻**就停（实测 11-13 只发 1 个请求）；
+// 第 2 页只在第 1 页覆盖不到时抓（最多 `NS_TAPTAP_TOPIC_MAX_PAGES` 页）。
+// 只解析标题命中 `ANNOUNCE_RE` 的帖：其余帖（兑换码 / 参展 / 开发者笔记）即使写了日期，
+// 也不是游戏内活动档期（例如 BW 参展那帖的 `活动时间：2026年7月10日-7月12日`）。
+async function ns_biligame_announce_eventsDdlezjTopic(url, signal, tz = ns_biligame_announce_DDLEZJ_TAPTAP_TZ, now = nowMs()) {
+	const base = String(url == null ? "" : url).trim() || ns_biligame_announce_DDLEZJ_TAPTAP_PAGE_URL;
+	const rows = [];
+	let postCount = 0;
+	for (let page = 1; page <= NS_TAPTAP_TOPIC_MAX_PAGES; page++) {
+		let html;
+		try {
+			html = await fetchText(ns_taptap_topicPageUrl(base, page), {
+				signal, mode: "proxy", referer: base
+			});
+		} catch (e) {
+			if (page === 1) throw e;                       // 第 1 页失败 = 真失败
+			break;                                         // 后续页失败 ⇒ 用手上已有结果
+		}
+		const posts = ns_taptap_topicPostsOf(html);        // 结构变了 ⇒ 抛错（不是"未公布"）
+		postCount += posts.length;
+		for (const post of posts) {
+			if (!ns_biligame_announce_DDLEZJ_TAPTAP_ANNOUNCE_RE.test(post.title)) continue;
+			const parsed = ns_biligame_announce_parseDdlezjTaptapText(post.text.split("\n"), tz);
+			for (const x of parsed.items) {
+				if (x.kind === "event") rows.push(x);
+			}
+		}
+		// 第 1 页已经覆盖当前窗口 ⇒ 不再翻（更早的帖子只会更旧）
+		if (rows.some((x) => coversNow(x, now))) break;
+	}
+	if (postCount === 0) throw new Error("taptap-topic:no-post");   // 有响应但一帖都没有 = 结构变了
+	const best = ns_biligame_announce_pickDdlezjEvent(rows, now);
+	if (!best) return null;                                     // 抓到公告但当期无覆盖 → 未公布
+	return ns_biligame_announce_ddlezjEventPayloadOf(best, ns_biligame_announce_covering(rows, now, "event"), tz, now);
 }
 //#endregion
 
@@ -13994,9 +14194,12 @@ async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_bil
 //#endregion
 
 		// ── 条目 ──
-		// 2026-11-11 换源：卡池/活动两侧默认 = **TapTap 官方账号（国服）的列表 → 详情**；
-		// 原 B 站代理官方公告 API（self 2026-06 起冻结）降为 `altSources` / `eventAltSources` 的手动备选，
-		// 抓取器键保留为 `ddlezj-biligame`（该源正文自标 UTC+9 ⇒ 抓取器自己钉 `+540`，不随条目 tz）。
+		// 2026-11-13：**卡池侧置空**（`url: ""` = 未配置、不抓）—— SSR tab 页里没有卡池正文
+		//   （「活动更新一览」帖只渲染成摘要卡），而能拿到卡池正文的 webapiv2 接口在 robots 的
+		//   `Disallow` 路径下 ⇒ 只保留为手动备选 `altSources[0]`（标签逐字「TapTap（不可靠）」）。
+		// 活动侧默认 = **tab 页 SSR**（允许路径，1 个请求）；旧的 webapiv2 活动链路不再注册为默认。
+		// 原 B 站代理官方公告 API（自 2026-06 起冻结）两侧都保留为手动备选，抓取器键 `ddlezj-biligame`
+		// （该源正文自标 UTC+9 ⇒ 抓取器自己钉 `+540`，不随条目 tz）。
 		registerSource({
 				id: "ddlezj",
 				defaultHidden: true,
@@ -14004,11 +14207,16 @@ async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_bil
 				tz: ns_biligame_announce_DDLEZJ_TAPTAP_TZ,
 				name: "嘟嘟脸恶作剧",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/64/f0/21/64f02145-182e-857a-133c-8de0151425d9/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
-				url: ns_biligame_announce_ddlezjTaptapApiUrl(0),
-				source: "TapTap",
-				eventUrl: ns_biligame_announce_ddlezjTaptapApiUrl(0),
+				// 卡池侧未配置：SSR 里没有卡池正文 ⇒ 不抓、面板写「未配置」（不是失败）。
+				// ⚠️ 这里**不写 `source`**：设置页下拉的规则是「有 source 就给 source，否则 url 空
+				// ⇒ 裸「未配置」」；留着「TapTap」会让用户以为卡池有源、实际一个请求都不发。
+				url: "",
+				eventUrl: ns_biligame_announce_DDLEZJ_TAPTAP_PAGE_URL,
 				eventSource: "TapTap",
 				altSources: [
+					// 手动备选 ①：webapiv2 的「列表 → 详情」卡池链（**违反 robots**，仅手动启用）
+					{ label: "TapTap（不可靠）", url: ns_biligame_announce_ddlezjTaptapApiUrl(0), fetcher: "ddlezj-taptap-gacha" },
+					// 手动备选 ②：旧的 B 站官方公告 API（源站已停更）
 					{ label: "B站官方公告（停更）", url: ns_biligame_announce_DDLEZJ_LIST_URL, fetcher: "ddlezj-biligame" }
 				],
 				eventAltSources: [
@@ -14031,12 +14239,16 @@ async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_bil
 
 		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
 		GACHA_FETCHERS["uma-cn"] = (url, signal, tz) => ns_biligame_activity_gachaUmaCnOfficial(url, signal, tz);
-		// ddlezj：默认 = TapTap；`ddlezj-biligame` = 旧 B 站公告（备选，tz 钉死 +540 —— 那份正文自标 UTC+9）
+		// ddlezj 卡池：默认键保留（老配置里的自定义地址仍可用），但注册项 `url` 已置空 ⇒ 默认不抓。
+		// `ddlezj-taptap-gacha` = 手动备选源「TapTap（不可靠）」的键（同一条 webapiv2 链路）。
+		// `ddlezj-biligame` = 旧 B 站公告（备选，tz 钉死 +540 —— 那份正文自标 UTC+9）。
 		GACHA_FETCHERS["ddlezj"] = (url, signal, tz) => ns_biligame_announce_gachaDdlezjTaptap(url, signal, tz);
+		GACHA_FETCHERS["ddlezj-taptap-gacha"] = (url, signal, tz) => ns_biligame_announce_gachaDdlezjTaptap(url, signal, tz);
 		GACHA_FETCHERS["ddlezj-biligame"] = (url, signal) => ns_biligame_announce_gachaDdlezj(url, signal, ns_biligame_announce_DDLEZJ_TZ);
 		EVENT_FETCHERS["uma-cn"] = Object.assign(EVENT_FETCHERS["uma-cn"] || {}, { default: (url, signal, tz) => ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz) });
 		EVENT_FETCHERS["ddlezj"] = Object.assign(EVENT_FETCHERS["ddlezj"] || {}, {
-			default: (url, signal, tz) => ns_biligame_announce_eventsDdlezjTaptap(url, signal, tz),
+			// 默认 = tab 页 SSR（robots 允许的路径）；webapiv2 活动链路不再注册
+			default: (url, signal, tz) => ns_biligame_announce_eventsDdlezjTopic(url, signal, tz),
 			"ddlezj-biligame": (url, signal) => ns_biligame_announce_eventsDdlezj(url, signal, ns_biligame_announce_DDLEZJ_TZ)
 		});
 		GACHA_FETCHERS["uma-cn-bwiki"] = (url, signal, tz) => ns_bwiki_gachaUmaCn(url, signal, tz);
@@ -19258,28 +19470,24 @@ EVENT_FETCHERS["r1999"] = {
 //  最新档期 10-01 04:59 就结束了 ⇒ 当前时刻如实 null。等 wiki 补档即恢复，抓取器不需要改
 //  （回归 `test/cases-pengpeng-event.mjs` ③ 用期内 now 断言有数据、④ 用真机 now 断言 null）。
 //
-// ── 活动侧（2026-11-11 改）：默认源 = **TapTap tab 的结构化 JSON** ──────────────
-// 旧默认源 `bwiki 公告/` 已停更 6 周（最新一版 2026-09-10）⇒ 面板活动列长期空窗。
-// 2026-11-10 先接的是 TapTap tab 的**服务端渲染 HTML**（`/app/746164/topic?type=official`，
-// 正则切 `moment-article__link` + `summary--title` + `chat-text-render`）；
-// 2026-11-11 换成同一份数据的**结构化 JSON**（就是页面自己发的那个请求，实测 200 / 167 KB）：
-//   GET https://www.taptap.cn/webapiv2/feed/v7/by-group
-//       ?X-UA=<页面请求里那串>&type=official&group_id=924367&limit=10&sort=created
-//       &__times=0&status=0&with_hot_comment=true&from=<偏移>
-//   → `data.list[].moment{ id_str, created_time, topic{ title, summary } }`
-//   `topic.summary` 是**纯文本**（换行就是真 `\n`），活动区间在其中一行：
+// ── 活动侧（2026-11-11 接；2026-11-13 改抓 tab 页 SSR）：默认源 = **TapTap 官方账号 tab 页** ──
+// ⚠️ 2026-11-13：`www.taptap.cn/robots.txt` 明确 `Disallow: /webapi/` 与 `Disallow: /webapiv2/`
+//   ⇒ 之前那套「feed 列表 JSON（`webapiv2/feed/v7/by-group`）」**不能**再作为默认抓取。
+//   改成抓**允许路径**的 tab 页：`https://www.taptap.cn/app/746164/topic?type=official`
+//   （实测 200、无 WAF、服务端渲染；SSR payload = Nuxt `window.__NUXT_DATA__`，devalue 编码）。
+//   SSR 的帖子对象里就有 `moment.topic.title` + `moment.topic.summary`（纯文本，前 200 字），
+//   活动区间在读到的摘要行里：
 //     ▸活动时间：2026年11月5日 05:00 - 2026年11月19日 04:59
 //   ⇒ 解析成「活动名 + 起止」（名称取标题里的【…】短语；没有【】就用整条标题）。
-// 为什么不再用 HTML 正则：列表类名一改版就整片归零，而 `topic.title` / `topic.summary` 是同一份
-//   数据的**原始来源**；响应也从 359 KB 降到 167 KB。区间解析函数（`pengpengTaptapWindowsOf`）
-//   **一行没动** —— 换的只是"文本从哪来"。
-// `X-UA` 是 TapTap 的客户端身份串，缺了直接 400 `INVALID_XUA`；值照页面自己的请求抄。
-//   `UID=` 留空即可（实测空 UID 与真 UUID 都 200）⇒ 不把会话 UUID 写死进源码。
-// 仍需宿主代理：JSON 也**无 ACAO**（`www.taptap.cn` 已在 PROXY_ALLOW_HOSTS）。
-// 翻页：`from` 是**偏移**（0 / 10 / 20 …）；`PENGPENG_TAPTAP_MAX_PAGES = 3` 封顶，
-//   并且「整页解析出的活动全都已结束」就停（再往后只会更旧）⇒ 不会无限翻。
-//   为什么要翻到第 2 页：每页 10 帖，仍在期、但公告早于最近 10 帖的活动在 `from=10`
-//   （实测「画廊夜游」10-29 ~ 11-12 就在那一页）；第 1 页之后抓挂不影响已有结果。
+//   区间解析函数（`pengpengTaptapWindowsOf`）与"帖子 → 活动事实"（`pengpengTaptapActivitiesOf`）
+//   **一行没动** —— 换的只是"文本从哪来"（`ns_taptap_topicPostsOf` 解 SSR，见 22-fetcher-core.js）。
+// 为什么不再用 webapiv2 JSON：robots（上面那条，硬事实）+ 它会被 WAF 拦；tab 页是同一份数据的
+//   可见版本，且**一个请求**拿到 10 帖标题 + 摘要（旧链路每页 1 个请求，还得翻页）。
+// 仍需宿主代理：tab 页响应**无 ACAO**（`www.taptap.cn` 已在 PROXY_ALLOW_HOSTS）。
+// 翻页：`?page=N`（允许路径）；`PENGPENG_TAPTAP_MAX_PAGES = 2` 封顶，
+//   并且「第 1 页解析出的活动已覆盖当前时刻」就停（不再翻）。
+//   为什么要第 2 页：每页 10 帖，仍在期、但公告早于最近 10 帖的活动在第 2 页
+//   （实测「画廊夜游」10-29 ~ 11-12 就在那一页）；第 2 页抓挂不影响已有结果。
 // 口径：
 //   · 只认 `活动时间：` 那一行（`更新时间：` 是维护窗口、`折扣时间：` 是商城折扣，都不算活动）
 //   · 两端都要**自带年份**才解；只有 `10月29日 …` 的（如【家族遗藏】）**不解**——不猜当前年
@@ -19312,27 +19520,17 @@ EVENT_FETCHERS["r1999"] = {
 			+ encodeURIComponent("公告/") + "&gaplimit=100&format=json&formatversion=2";
 		const PENGPENG_EVENT_OVERVIEW_RE = /版本活动总览$/;
 		const PENGPENG_MAX_OVERVIEWS = 1;
-		// 活动侧默认源：TapTap tab 的**结构化 JSON**（`webapiv2` 的 feed 列表接口）
-		const PENGPENG_TAPTAP_API = "https://www.taptap.cn/webapiv2/feed/v7/by-group";
-		// 给人看的那个页面（只用作 Referer + 文档里的取证地址，不再解析它的 HTML）
+		// 活动侧默认源：TapTap tab 页（**允许路径的 SSR**；2026-11-13 起不再用 `webapiv2` JSON）
+		// 这一条同时是抓取地址与 Referer（tab 页无 ACAO，走宿主代理）。
 		const PENGPENG_TAPTAP_PAGE_URL = "https://www.taptap.cn/app/746164/topic?type=official";
 		const PENGPENG_TAPTAP_REFERER = PENGPENG_TAPTAP_PAGE_URL;
-		const PENGPENG_TAPTAP_MOMENT_URL = "https://www.taptap.cn/moment/";
-		// 页面自己请求里那串客户端身份（缺了 → 400 `INVALID_XUA`）。`UID=` 留空，不写死会话 UUID。
-		const PENGPENG_TAPTAP_XUA = "V=1&PN=WebApp&LANG=zh_CN&VN_CODE=100000000&LOC=CN&PLT=PC&DS=Android&UID=&OS=Windows&OSV=10&DT=PC";
-		const PENGPENG_TAPTAP_GROUP_ID = "924367";
-		const PENGPENG_TAPTAP_LIMIT = 10;
-		// 翻页上限（每页 10 帖）：第 2 页能捞到仍在期、但公告早于最近 10 帖的活动；3 页足够盖住一代版本
-		const PENGPENG_TAPTAP_MAX_PAGES = 3;
+		// 翻页上限（每页 10 帖）：第 2 页能捞到仍在期、但公告早于最近 10 帖的活动；2 页足够当期
+		const PENGPENG_TAPTAP_MAX_PAGES = 2;
 
-		// 列表接口地址：`from` 是**偏移**（不是页码）
-		function pengpengTaptapApiUrl(from) {
-			return PENGPENG_TAPTAP_API
-				+ "?X-UA=" + encodeURIComponent(PENGPENG_TAPTAP_XUA)
-				+ "&type=official&group_id=" + PENGPENG_TAPTAP_GROUP_ID
-				+ "&limit=" + PENGPENG_TAPTAP_LIMIT + "&sort=created"
-				+ "&__times=0&status=0&with_hot_comment=true"
-				+ "&from=" + (Number(from) || 0);
+		// 页码 → URL：第 1 页原样；第 N 页 = `&page=N`（`?page=` 是允许路径，不是接口的偏移）
+		function pengpengTaptapPageUrl(base, page) {
+			const u = String(base == null ? "" : base).trim() || PENGPENG_TAPTAP_PAGE_URL;
+			return ns_taptap_topicPageUrl(u, page);
 		}
 
 		// SMW 的 `printouts` 取值：正常情况下是 `["2026-07-30 05:00:00"]` 这样的字符串数组，
@@ -19556,48 +19754,10 @@ EVENT_FETCHERS["r1999"] = {
 			return out;
 		}
 
-		// ══ 活动侧（2026-11-11）：TapTap tab 的**结构化 JSON** ═══════════════════════
-		// 响应形态（真夹具 pengpeng-taptap-feed-p1 / -p2 / -p3）：
-		//   { data: { list: [ { moment: { id_str: "866427359920655283",
-		//                                created_time: 1793674800,
-		//                                topic: { title: "🍃【新风同行】限时活动 即将开启",
-		//                                         summary: "…\n▸活动时间：2026年11月5日 05:00 - 2026年11月19日 04:59\n…" } } } ],
-		//             total: 40, next_page: "/webapiv2/feed/v7/by-group?…" } }
-		// ⇒ 逐帖取 `moment.topic`（标题 + 纯文本正文），**不再碰 HTML**。
-		// `from` = 偏移（每页 `limit=10`）；页码 → 偏移在这一个函数里换算，别处不重复。
-		function pengpengTaptapPageUrl(base, page) {
-			const u = String(base == null ? "" : base).trim() || pengpengTaptapApiUrl(0);
-			const n = Math.max(1, Math.floor(Number(page) || 1));
-			if (n <= 1) return u;
-			const from = (n - 1) * PENGPENG_TAPTAP_LIMIT;
-			if (/[?&]from=\d+/.test(u)) return u.replace(/([?&])from=\d+/, "$1from=" + from);
-			return u + (u.includes("?") ? "&" : "?") + "from=" + from;
-		}
-
-		// JSON → [{ title, url, text }]（数组顺序 = 源站顺序 = 从新到旧）
-		function pengpengTaptapPostsOf(json) {
-			const data = json && typeof json === "object" ? json.data : null;
-			if (!data || typeof data !== "object") throw new Error("pengpeng-bad-shape");
-			const list = data.list;
-			if (!Array.isArray(list)) throw new Error("pengpeng-bad-list");
-			const out = [];
-			for (const item of list) {
-				const mo = item && item.moment;
-				const topic = mo && mo.topic;
-				if (!topic || typeof topic !== "object") continue;
-				const title = decodeEntities(String(topic.title == null ? "" : topic.title)).replace(/\s+/g, " ").trim();
-				// `summary` 里换行就是真 `\n`；逐行去空白后仍用 `\n` 拼回（下面按行找「活动时间：」）
-				const text = String(topic.summary == null ? "" : topic.summary)
-					.split(/\r?\n/)
-					.map((x) => decodeEntities(x).replace(/[ \t\u00a0]+/g, " ").trim())
-					.filter(Boolean)
-					.join("\n");
-				const id = mo.id_str == null ? "" : String(mo.id_str);
-				out.push({ title, url: id ? PENGPENG_TAPTAP_MOMENT_URL + id : "", text });
-			}
-			return out;
-		}
-
+		// ══ 活动侧（2026-11-13）：TapTap tab 页的 **SSR payload**（`window.__NUXT_DATA__`）══
+		// 解析在 22-fetcher-core.js 的 `ns_taptap_topicPostsOf`（Nuxt devalue 解码，两条链路共用）：
+		//   HTML → [{ id, title, text, publishTime, url }]，text = `topic.summary` 的纯文本行。
+		// 这里只保留「标题 → 活动名」与「行 → 窗口」两段纯函数（它们与 webapiv2 时期**逐字相同**）。
 		// 标题 → 活动名：`🍃【新风同行】限时活动 即将开启` → `新风同行`；没有【】⇒ 用整条标题
 		function pengpengTaptapNameOf(title) {
 			const s = String(title == null ? "" : title).replace(/\s+/g, " ").trim();
@@ -19657,7 +19817,7 @@ EVENT_FETCHERS["r1999"] = {
 			return out;
 		}
 
-		// 一页帖子（`pengpengTaptapPostsOf` 的产物）→ 活动事实 [{ name, url, startTs, endTs, raw, display }]
+		// 一页帖子（`ns_taptap_topicPostsOf` 的产物）→ 活动事实 [{ name, url, startTs, endTs, raw, display }]
 		function pengpengTaptapActivitiesOf(posts, tz = PENGPENG_TZ) {
 			const out = [];
 			const seen = new Set();
@@ -19678,27 +19838,29 @@ EVENT_FETCHERS["r1999"] = {
 
 		async function fetchPengpengTaptapEvents(url, signal, tz = PENGPENG_TZ) {
 			const at = nowMs();
-			const base = String(url == null ? "" : url).trim() || pengpengTaptapApiUrl(0);
+			const base = String(url == null ? "" : url).trim() || PENGPENG_TAPTAP_PAGE_URL;
 			const rows = [];
 			let postCount = 0;
 			for (let page = 1; page <= PENGPENG_TAPTAP_MAX_PAGES; page++) {
-				let json;
+				let html;
 				try {
-					json = await fetchJson(pengpengTaptapPageUrl(base, page), { signal, mode: "proxy", referer: PENGPENG_TAPTAP_REFERER });
+					html = await fetchText(pengpengTaptapPageUrl(base, page), {
+						signal, mode: "proxy", referer: PENGPENG_TAPTAP_REFERER
+					});
 				} catch (e) {
 					if (page === 1) throw e;                                    // 第 1 页失败 = 真失败
 					break;                                                      // 后续页失败 ⇒ 用手上已有结果
 				}
-				const posts = pengpengTaptapPostsOf(json);
+				// SSR → 帖子（结构变了会抛 `taptap-topic:*`，不静默降级成"未公布"）
+				const posts = ns_taptap_topicPostsOf(html);
 				postCount += posts.length;
 				const pageRows = pengpengTaptapActivitiesOf(posts, tz);
 				for (const x of pageRows) rows.push(x);
-				// 「翻到上一条已结束就停」：本页解析出的活动**全都已经结束** ⇒ 再往后只会更旧，不再翻
-				// （`endTs` 恒非空 —— `pengpengTaptapWindowsOf` 会丢掉终点是相对表述的窗口）
-				if (pageRows.length > 0 && !pageRows.some((r) => r.endTs > at)) break;
+				// 第 1 页已经覆盖当前窗口 ⇒ 再往后只会更旧，不再翻（任务口径：覆盖不到才翻，最多 2 页）
+				if (pageRows.some((r) => coversNow(r, at))) break;
 			}
 			// 有响应但一帖都没解析出来 = 响应结构变了 ⇒ 抛错（抓取失败 ≠ 未公布）
-			if (postCount === 0) throw new Error("pengpeng-taptap:no-post");
+			if (postCount === 0) throw new Error("taptap-topic:no-post");
 			if (rows.length === 0) return null;
 			// 外显 = **文档顺序里第一条覆盖 now 的**（列表从新到旧 ⇒ 最新公布的那条当期活动；
 			// 与 hlr 的"第一条覆盖 now = 当前最新一期"同一口径）
@@ -19734,8 +19896,9 @@ EVENT_FETCHERS["r1999"] = {
 			// 而"卡池列现在为空"是内容停更的结果、不是这条链路坏了 —— 两者混在一句里会让人以为
 			// 抓取器坏了。等 wiki 补档，这里不需要改任何字。
 			source: "Bwiki 契约（SMW）",
-			// 活动侧默认源 = TapTap tab 的 feed JSON（国服）；旧 bwiki 公告源降为手动备选
-			eventUrl: pengpengTaptapApiUrl(0),
+			// 活动侧默认源 = TapTap tab 页的 SSR（允许路径，2026-11-13 换；用户可见标签仍是「TapTap」）；
+			// 旧 bwiki 公告源保留为手动备选
+			eventUrl: PENGPENG_TAPTAP_PAGE_URL,
 			eventSource: "TapTap",
 			eventAltSources: [
 				{ label: "Bwiki 公告（不可靠）", url: PENGPENG_EVENT_URL, fetcher: "pengpeng-bwiki" }

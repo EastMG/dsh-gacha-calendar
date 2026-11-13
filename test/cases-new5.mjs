@@ -172,10 +172,11 @@ export default async function run() {
 			pp ? String(pp.source) : "缺失");
 		// 2026-11-10：活动侧默认源再换一档 —— bwiki `公告/` 停更 6 周 ⇒ TapTap tab 成默认，
 		// bwiki 公告降为 eventAltSources 手动备选（标签如实写「不可靠」）。
-		// 2026-11-11：同一份数据的抓取方式从 HTML 正则换成 feed JSON（地址换成 webapiv2 接口，来源标签不变）。
-		check("pengpeng 活动源默认 = TapTap tab 的 feed JSON（type=official / group_id=924367）",
-			!!pp && /^https:\/\/www\.taptap\.cn\/webapiv2\/feed\/v7\/by-group\?/.test(String(pp.eventUrl))
-			&& /[?&]type=official/.test(String(pp.eventUrl)),
+		// 2026-11-13：`taptap.cn` 的 robots.txt `Disallow /webapi/`、`/webapiv2/` ⇒ 改抓**允许路径**的
+		// tab 页（`/app/746164/topic?type=official`，SSR 里就有活动档期）；用户可见标签仍是「TapTap」。
+		check("pengpeng 活动源默认 = TapTap tab 页 `app/746164/topic?type=official`（robots 允许）",
+			!!pp && /^https:\/\/www\.taptap\.cn\/app\/746164\/topic\?type=official$/.test(String(pp.eventUrl))
+			&& String(pp.eventUrl).indexOf("webapiv2") < 0,
 			pp ? String(pp.eventUrl) : "缺失");
 		check("pengpeng 活动来源标签 = 「TapTap」",
 			!!pp && pp.eventSource === "TapTap", pp ? String(pp.eventSource) : "缺失");
@@ -533,8 +534,10 @@ export default async function run() {
 		check("卡池侧没有 TapTap 备选源 / 抓取器（无自动换源；单边源也不做成手动选项）",
 			!!s3
 			&& !(s3.altSources || []).some((a) => /taptap/i.test(String(a.url) + String(a.fetcher)))
-			&& !Object.keys(T.GACHA_FETCHERS).some((k) => /taptap/i.test(k)),
-			JSON.stringify([s3 && s3.altSources, Object.keys(T.GACHA_FETCHERS).filter((k) => /pengpeng/.test(k))]));
+			// 只查**本条目的**抓取器键：2026-11-13 起嘟嘟脸的卡池备选键 `ddlezj-taptap-gacha`
+			// 里有 taptap 字样，但它不属于 pengpeng，别把全局键当成本条目的选项
+			&& !Object.keys(T.GACHA_FETCHERS).some((k) => /pengpeng/i.test(k) && /taptap/i.test(k)),
+			JSON.stringify([s3 && s3.altSources, Object.keys(T.GACHA_FETCHERS).filter((k) => /pengpeng/i.test(k))]));
 		// 只有开启日 = 2026-10-22 05:00 +08（UTC 10-21 21:00）
 		const oneOpen = Date.UTC(2026, 9, 21, 21, 0);
 		check("单边窗口（只有开启日、结束日未公布）**不覆盖 now**、也不进悬停候选",

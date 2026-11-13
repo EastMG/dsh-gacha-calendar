@@ -132,19 +132,15 @@
 				hlrWindowsOf,
 				hlrYearOf,
 			},
-			// 夜幕之下（卡池 bwiki 契约一览 + 活动 TapTap tab 的 feed JSON；旧 bwiki 公告源为备选）
+			// 夜幕之下（卡池 bwiki 契约一览 + 活动 TapTap tab 的 SSR；旧 bwiki 公告源为备选）
 			"pengpeng": {
 				PENGPENG_ASK_QUERY,
 				PENGPENG_ASK_URL,
 				PENGPENG_EVENT_URL,
 				PENGPENG_MAX_OVERVIEWS,
-				PENGPENG_TAPTAP_API,
-				PENGPENG_TAPTAP_GROUP_ID,
-				PENGPENG_TAPTAP_LIMIT,
 				PENGPENG_TAPTAP_MAX_PAGES,
 				PENGPENG_TAPTAP_PAGE_URL,
 				PENGPENG_TAPTAP_REFERER,
-				PENGPENG_TAPTAP_XUA,
 				PENGPENG_TZ,
 				fetchPengpengEvents,
 				fetchPengpengTaptapEvents,
@@ -158,10 +154,8 @@
 				pengpengOverviewPagesOf,
 				pengpengOverviewUrl,
 				pengpengTaptapActivitiesOf,
-				pengpengTaptapApiUrl,
 				pengpengTaptapNameOf,
 				pengpengTaptapPageUrl,
-				pengpengTaptapPostsOf,
 				pengpengTaptapWindowsOf,
 				pengpengWikitextOf,
 			},
@@ -319,6 +313,18 @@
 				komoeTwWindowOfLine,
 				komoeTwWindowsOf,
 			},
+			// 2026-11-13：TapTap 官方账号 tab 页的 SSR 解码（嘟嘟脸 / 夜幕之下共用，见 22-fetcher-core.js）。
+			// 导出小步：夹具可以分别钉「devalue 解引用」「结构定位」「行文本」「页码 → URL」，
+			// 反证也能精确指向坏在哪一步（没有 `__NUXT_DATA__` / 解码坏 / 找不到列表 / 一帖都没有）。
+			"taptap-topic": {
+				NS_TAPTAP_TOPIC_MAX_PAGES,
+				NS_TAPTAP_TOPIC_MOMENT_URL,
+				ns_taptap_topicDataOf,
+				ns_taptap_topicListOf,
+				ns_taptap_topicPageUrl,
+				ns_taptap_topicPostsOf,
+				ns_taptap_topicResolve,
+			},
 			"biligame-announce": {
 				DDLEZJ_CMS_TZ: ns_biligame_announce_DDLEZJ_CMS_TZ,
 				DDLEZJ_GAME_EXTENSION_ID: ns_biligame_announce_DDLEZJ_GAME_EXTENSION_ID,
@@ -343,6 +349,8 @@
 				ddlezjTaptapWindowOf: ns_biligame_announce_ddlezjTaptapWindowOf,
 				eventsDdlezj: ns_biligame_announce_eventsDdlezj,
 				eventsDdlezjTaptap: ns_biligame_announce_eventsDdlezjTaptap,
+				// 2026-11-13：活动侧默认 = tab 页 SSR（robots 允许的路径，1 个请求）
+				eventsDdlezjTopic: ns_biligame_announce_eventsDdlezjTopic,
 				gachaDdlezj: ns_biligame_announce_gachaDdlezj,
 				gachaDdlezjTaptap: ns_biligame_announce_gachaDdlezjTaptap,
 				parseDdlezjAnnouncement: ns_biligame_announce_parseDdlezjAnnouncement,
