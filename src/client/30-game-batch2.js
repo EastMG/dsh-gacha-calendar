@@ -105,7 +105,7 @@ const NS_BATCH2_SPICA_SOURCE_LABEL = "SPICA";
 
 const NS_BATCH2_CZN_TZ = "Asia/Shanghai";
 const NS_BATCH2_CZN_REFERER = "https://www.taptap.cn/";
-const NS_BATCH2_CZN_SOURCE_LABEL = "TapTap 官方";
+const NS_BATCH2_CZN_SOURCE_LABEL = "TapTap";
 // TapTap 的客户端身份串（缺了直接 400 `INVALID_XUA`）；与 30-game-pengpeng.js 逐字同一份。
 const NS_BATCH2_CZN_XUA = "V=1&PN=WebApp&LANG=zh_CN&VN_CODE=100000000&LOC=CN&PLT=PC&DS=Android&UID=&OS=Windows&OSV=10&DT=PC";
 const NS_BATCH2_CZN_GROUP_ID = "974342";
@@ -965,7 +965,7 @@ registerSource({
 	eventUrl: NS_BATCH2_CZN_FEED_URL,
 	eventSource: NS_BATCH2_CZN_SOURCE_LABEL,
 	altSources: [{
-		label: "Bwiki Module:Gacha/data（停更）",
+		label: "Bwiki（停更）",
 		url: ns_bwiki_wikitext_CZN_MODULE_URL,
 		fetcher: "czn-bwiki"
 	}]

@@ -8,7 +8,7 @@
 //      3 条主线更新稿没有时间块 ⇒ 如实不进日历；
 //   ② OurNotes·日服：卡池侧此前无来源，现挂 SPICA（列表取 id → **只抓前 5 条详情**，不是 23 条）；
 //      tz=Asia/Tokyo / 活动侧 bushimo 原样不动；详情「開催期間」→ 绝对 ts；pickup 名单逐字；
-//   ③ 卡厄斯：卡池 + 活动**都**从 TapTap 官方 tab 的「feed 列表 → 逐帖详情」解析（此前活动侧只吃列表摘要、
+//   ③ 卡厄斯：卡池 + 活动**都**从 TapTap tab 的「feed 列表 → 逐帖详情」解析（此前活动侧只吃列表摘要、
 //      卡池侧 bwiki 停更恒 nomatch）：`■ …营救概率提升` 分节 → 池名 + 角色 + 起止；
 //      「维护结束后 / 维护开始前」按**同帖**维护窗映射（12-02 的维护窗不在同帖 ⇒ endTs 如实留空）；
 //      活动 = 同帖维护窗 + `■ 活动 – …` 的【活动时间】；**营救概率提升不再算成活动**（此前双计）。
@@ -396,8 +396,8 @@ export default async function runBatch2() {
 		check("空列表 ⇒ ids 为空（抓取器据此抛 `spica-list-empty`，不是静默 null）", B.ns_batch2_spicaIdsOf("<html></html>").length === 0);
 	}
 
-	// ═══════════════════ ③ 卡厄斯梦境 TapTap 官方（feed 列表 → 逐帖详情）═══════════════════
-	section("第二批③：卡厄斯梦境 —— TapTap 官方 tab（列表 → 详情：卡池「营救概率提升」+ 活动分节）");
+	// ═══════════════════ ③ 卡厄斯梦境 TapTap（feed 列表 → 逐帖详情）═══════════════════
+	section("第二批③：卡厄斯梦境 —— TapTap tab（列表 → 详情：卡池「营救概率提升」+ 活动分节）");
 	{
 		const s = T.SOURCES.find((x) => x.id === "czn") || null;
 		check("卡池 url = TapTap feed 列表（group_id=974342 / type=official / limit=10 / from=0）",
@@ -405,9 +405,9 @@ export default async function runBatch2() {
 			&& /limit=10/.test(s.url) && /from=0$/.test(s.url), s && String(s.url));
 		check("卡池 url 带编码后的 X-UA（缺了源站直接 400）",
 			!!s && /[?&]X-UA=V%3D1%26PN%3DWebApp/.test(s.url), s && String(s.url).slice(0, 90));
-		check("卡池 / 活动来源标签都 = 「TapTap 官方」",
-			!!s && s.source === "TapTap 官方" && s.source === B.NS_BATCH2_CZN_SOURCE_LABEL
-			&& s.eventSource === "TapTap 官方", s && JSON.stringify([s.source, s.eventSource]));
+		check("卡池 / 活动来源标签都 = 「TapTap」",
+			!!s && s.source === "TapTap" && s.source === B.NS_BATCH2_CZN_SOURCE_LABEL
+			&& s.eventSource === "TapTap", s && JSON.stringify([s.source, s.eventSource]));
 		check("活动 eventUrl = 同一份 feed 列表（两侧同一套列表+详情）",
 			!!s && s.eventUrl === CZN && s.eventUrl === s.url, s && String(s.eventUrl).slice(0, 60));
 		check("bwiki `Module:Gacha/data` 降为卡池备选源（键 czn-bwiki；label 写明停更）",

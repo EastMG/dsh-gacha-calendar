@@ -165,10 +165,10 @@ export default async function run() {
 
 		const pp = srcOf("pengpeng");
 		// 2026-11-11：卡池侧**换方法** —— 旧 HTML 页（`契约一览`）已 #REDIRECT，抓表永远空；
-		// 改成 bwiki 的 SMW 语义查询（`action=ask`），来源标签随之写「Bwiki 契约（SMW）」。
-		check("pengpeng 卡池源已接（bwiki SMW `action=ask`；标签「Bwiki 契约（SMW）」）",
+		// 改成 bwiki 的 SMW 语义查询（`action=ask`），来源标签随之写「Bwiki」。
+		check("pengpeng 卡池源已接（bwiki SMW `action=ask`；标签「Bwiki」）",
 			!!pp && /^https:\/\/wiki\.biligame\.com\/ymzx\/api\.php\?action=ask&/.test(String(pp.url))
-			&& /%E5%A5%91%E7%BA%A6/.test(String(pp.url)) && pp.source === "Bwiki 契约（SMW）",
+			&& /%E5%A5%91%E7%BA%A6/.test(String(pp.url)) && pp.source === "Bwiki",
 			pp ? String(pp.source) : "缺失");
 		// 2026-11-10：活动侧默认源再换一档 —— bwiki `公告/` 停更 6 周 ⇒ TapTap tab 成默认，
 		// bwiki 公告降为 eventAltSources 手动备选（标签如实写「不可靠」）。
@@ -218,8 +218,8 @@ export default async function run() {
 		check("cytq 设置页两侧都写「未配置」",
 			T.getDefaultSourceName(cytq, "url") === "未配置" && T.getDefaultSourceName(cytq, "eventUrl") === "未配置",
 			JSON.stringify([T.getDefaultSourceName(cytq, "url"), T.getDefaultSourceName(cytq, "eventUrl")]));
-		check("pengpeng 设置页：卡池侧写「Bwiki 契约（SMW）」、活动侧写「TapTap」",
-			T.getDefaultSourceName(pp, "url") === "Bwiki 契约（SMW）" && T.getDefaultSourceName(pp, "eventUrl") === "TapTap",
+		check("pengpeng 设置页：卡池侧写「Bwiki」、活动侧写「TapTap」",
+			T.getDefaultSourceName(pp, "url") === "Bwiki" && T.getDefaultSourceName(pp, "eventUrl") === "TapTap",
 			JSON.stringify([T.getDefaultSourceName(pp, "url"), T.getDefaultSourceName(pp, "eventUrl")]));
 	}
 

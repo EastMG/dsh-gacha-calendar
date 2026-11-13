@@ -558,7 +558,7 @@
 			// HTML 页。标签里**不再写「停更」**：停更的是 wiki 的内容（最后一期止于 2026-09-10），
 			// 而"卡池列现在为空"是内容停更的结果、不是这条链路坏了 —— 两者混在一句里会让人以为
 			// 抓取器坏了。等 wiki 补档，这里不需要改任何字。
-			source: "Bwiki 契约（SMW）",
+			source: "Bwiki",
 			// 活动侧默认源 = TapTap tab 的 feed JSON（国服）；旧 bwiki 公告源降为手动备选
 			eventUrl: pengpengTaptapApiUrl(0),
 			eventSource: "TapTap",
