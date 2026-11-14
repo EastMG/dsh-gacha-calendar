@@ -245,7 +245,7 @@ export default async function runUmaTw() {
 // ── 本段守什么 ──
 //   ① 注册：id / 名称 / tz=`Asia/Seoul` / 两侧同一条帖子 / 两侧来源标签 / `defaultHidden:false` / 面板配色；
 //   ② 抓取链：**板块置顶列表（8 条）→ 当月日程帖**（文章 id 每月变，不写死）—— 2 次请求；
-//   ③ 卡池：真夹具逐字（池名 = 池类型 + 角色名 / 起止 / 跨年 `12월 3일`）；`점검 완료 후` ⇒ `startTs=null`；
+//   ③ 卡池：真夹具逐字（池名 = 池类型 + 角色名 / 起止 / 跨年 `12월 3일`）；`점검 완료 후` ⇒ startTs = 当日 12:00；
 //   ④ 活动：当期活动名 + 起止逐字；悬停按结束时间升序且**起点未知那行印韩文原文**；
 //   ⑤ 引擎整轮：两侧**共用同一份载荷**（同 URL + 载荷带 `event`）⇒ 仍然只有 2 次请求；
 //   ⑥ 反向证明：抹掉日期锚点 ⇒ 一条都进不了外显；`{}` / 空 HTML ⇒ **抛错**（不是 nomatch）；
@@ -307,12 +307,12 @@ export async function runUmaKr() {
 			JSON.stringify(blocks.map((b) => b.kind)));
 	}
 
-	section("赛马娘·韩服 ③：卡池（池名 = 池类型 + 角色名；`점검 완료 후` ⇒ 起点未知）");
+	section("赛马娘·韩服 ③：卡池（池名 = 池类型 + 角色名；`점검 완료 후` ⇒ 起点按维护开始 12:00）");
 	{
 		const items = KK.umaKrItemsOf(KK.umaKrBlocksOf(ART_BODY), "gacha", TZK, HINT);
 		check("卡池条目 2 条（11-10 池 / 11-19 池）", items.length === 2, JSON.stringify(items.map((x) => x.display)));
-		check("11-10 池：起点未知（startTs=null）/ 终点 = 11-19 11:59 KST",
-			items[0].startTs === null && items[0].endTs === Date.UTC(2026, 10, 19, 2, 59)
+		check("11-10 池：起点 = 当日 12:00 KST（维护固定开始）/ 终点 = 11-19 11:59 KST",
+			items[0].startTs === Date.UTC(2026, 10, 10, 3, 0) && items[0].endTs === Date.UTC(2026, 10, 19, 2, 59)
 			&& items[0].raw === "11월 10일(화) 점검 완료 후 ~ 11월 19일(목) 11:59",
 			JSON.stringify([items[0].startTs, items[0].endTs, items[0].raw]));
 		check("11-10 池的池名 = 池类型 + 角色名（日期前缀已剥掉）",
@@ -331,8 +331,8 @@ export async function runUmaKr() {
 
 		// 外显：抓取当天（11-15）唯一在期的 11-10 池起点未知 ⇒ **不进外显**（宁可少显示，不要假在期）
 		const liveGacha = KK.umaKrPayloadOf(items, "gacha", TZK, NOW_LIVE);
-		check("抓取当天（11-15）卡池外显 = null（在期那口池起点写「점검 완료 후」，取不到点检时刻 ⇒ 如实留空）",
-			liveGacha === null, JSON.stringify(liveGacha));
+		check("抓取当天（11-15）卡池外显 = 11-10 12:00 ~ 11-19 11:59（起点按维护开始 12:00）",
+			!!liveGacha && liveGacha.bannerDates === "11-10 12:00 ~ 11-19 11:59", JSON.stringify(liveGacha && liveGacha.bannerDates));
 
 		// 11-19 12:00 之后：下一口池两端明确 ⇒ 外显正常产出（证明卡池侧不是永远空）
 		const nextGacha = KK.umaKrPayloadOf(items, "gacha", TZK, NOW_NEXT);
@@ -363,16 +363,17 @@ export async function runUmaKr() {
 			!!live && live.eventDates === "11-13 12:00 ~ 11-19 11:59"
 			&& live.eventDatesRaw === "11월 13일(금) 12:00 ~ 11월 19일(목) 11:59",
 			JSON.stringify(live && [live.eventDates, live.eventDatesRaw]));
-		check("活动 `events[]` 2 条（主条 + 起点未知的「무인도 캠페인」并列条）",
+		check("活动 `events[]` 2 条（主条 + 「무인도 캠페인」并列条）",
 			!!live && Array.isArray(live.events) && live.events.length === 2
-			&& live.events[0].title === "챔피언스 미팅 「CLASSIC」" && live.events[0].source === "primary"
-			&& /무인도/.test(live.events[1].title),
+			&& live.events.some((x) => x.title === "챔피언스 미팅 「CLASSIC」" && x.source === "primary")
+			&& live.events.some((x) => /무인도/.test(x.title)),
 			JSON.stringify(live && live.events && live.events.map((x) => [x.title, x.source])));
-		check("起点未知的并列条 `startTs` 仍为 null（事实保留、不冒充在期）",
-			!!live && live.events[1].startTs === null, JSON.stringify(live && live.events[1] && live.events[1].startTs));
-		check("活动悬停逐字（起点未知那行**印韩文原文**，不进格式化）",
+		check("并列条「무인도」起点 = 当日 12:00 KST（维护固定开始）",
+			!!live && live.events.some((x) => /무인도/.test(x.title) && x.startTs === Date.UTC(2026, 9, 16, 3, 0)),
+			JSON.stringify(live && live.events && live.events.map((x) => [x.title.slice(0, 10), x.startTs])));
+		check("活动悬停逐字（两条都进格式化；按开始时间升序）",
 			!!live && live.eventHover === [
-				"무인도에 어서 오세요 -DESIGN YOUR ISLAND- 공개 기념 캠페인(진행 중)   10월 16일(금) 점검 완료 후 ~ 11월 19일(목) 04:59",
+				"무인도에 어서 오세요 -DESIGN YOUR ISLAND- 공개 기념 캠페인(진행 중)   10-16 12:00 ~ 11-19 04:59",
 				"챔피언스 미팅 「CLASSIC」   11-13 12:00 ~ 11-19 11:59"
 			].join("\n"),
 			JSON.stringify(live && live.eventHover));
@@ -418,8 +419,9 @@ export async function runUmaKr() {
 			timer: { setTimeout, clearTimeout }
 		});
 		const recLive = (await eLive.refresh()).games["uma-kr"] || {};
-		check("11-15 那一轮：卡池侧记 nomatch（不是 down ⇒ 源站没坏，只是这一口池起点未知）",
-			!!recLive.gachaFail && recLive.gachaFail.kind === "nomatch", JSON.stringify(recLive.gachaFail));
+		check("11-15 那一轮：卡池外显 = 11-10 12:00 ~ 11-19 11:59（起点按维护开始 12:00）",
+			recLive.gachaFail == null && recLive.bannerDates === "11-10 12:00 ~ 11-19 11:59",
+			JSON.stringify([recLive.gachaFail, recLive.banner, recLive.bannerDates]));
 		check("11-15 那一轮：活动侧不 fail，当期 = 챔피언스 미팅 「CLASSIC」",
 			recLive.eventFail == null && recLive.event === "챔피언스 미팅 「CLASSIC」",
 			JSON.stringify([recLive.eventFail, recLive.event]));
@@ -457,8 +459,8 @@ export async function runUmaKr() {
 		// 反证 ③：起点 `점검 완료 후` ⇒ null；同一行改成具体时刻 ⇒ 有值（证明走的是"起点未知"分支）
 		const openWin = KK.umaKrWindowOfLine("- 11월 10일(화) 점검 완료 후 ~ 11월 19일(목) 11:59", HINT, TZK);
 		const absWin = KK.umaKrWindowOfLine("- 11월 10일(화) 12:00 ~ 11월 19일(목) 11:59", HINT, TZK);
-		check("反向③：`점검 완료 후` ⇒ startTs=null / endTs 照常解出",
-			!!openWin && openWin.startTs === null && openWin.endTs === Date.UTC(2026, 10, 19, 2, 59),
+		check("反向③：`점검 완료 후` ⇒ startTs = 当日 12:00 / endTs 照常解出",
+			!!openWin && openWin.startTs === Date.UTC(2026, 10, 10, 3, 0) && openWin.endTs === Date.UTC(2026, 10, 19, 2, 59),
 			JSON.stringify(openWin));
 		check("反向③对照：同一行起点写成具体时刻 ⇒ startTs = 11-10 12:00 KST",
 			!!absWin && absWin.startTs === Date.UTC(2026, 10, 10, 3, 0), JSON.stringify(absWin));

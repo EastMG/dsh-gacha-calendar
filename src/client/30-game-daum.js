@@ -163,7 +163,9 @@
 		/**
 		 * 一行韩文区间 → `{ startTs, endTs, raw, display }`；不是区间 / 拿不到年份线索 ⇒ `null`。
 		 * `hint` = 帖子发布时刻的源站墙钟（`{ y, mo }`），只用来补年。
-		 * 起点写 `점검 완료 후` ⇒ `startTs = null`（**不编一个时刻**），`display` 与 `raw` 同值。
+		 * 起点写 `점검 완료 후`（维护完成后）⇒ 固定用**当日 12:00**（韩服更新维护的固定开始时刻；
+ *   用户 2026-11-15 拍板：官方日程只写「维护完成后」不给钟点，但 11-10 那次维护是 12:00开始）。
+ *   `raw` 仍保留源站原文。
 		 */
 		function umaKrWindowOfLine(line, hint, tz) {
 			const s = String(line == null ? "" : line).trim();
@@ -182,7 +184,11 @@
 			const y2 = y2raw != null ? y2raw : (endsNextYear(mo1, d1, mo2, d2) ? y1 + 1 : y1);
 			if (y2 < y1) return null;
 			const endTs = sourceInstant(y2, mo2, d2, h2, mi2, tz);
-			const startTs = openStart ? null : sourceInstant(y1, mo1, d1, h1, mi1, tz);
+			// 起点写「점검 완료 후」：韩服固定 12:00 开始维护（用户 2026-11-15 拍板）
+			const UMA_KR_MAINT_START_HOUR = 12;
+			const startTs = openStart
+				? sourceInstant(y1, mo1, d1, UMA_KR_MAINT_START_HOUR, 0, tz)
+				: sourceInstant(y1, mo1, d1, h1, mi1, tz);
 			if (startTs != null && !(endTs > startTs)) return null;
 			// 列表符号（`- ` / `· `）是排版记号，不进 raw/display（悬停里那两行要读成"起止"本身）
 			const bare = s.replace(/^[-·]\s*/, "");
