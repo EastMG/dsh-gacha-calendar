@@ -131,6 +131,7 @@ const ORDER = [
   "28-parser-hover-tools.js",  // 悬停排版共用工具（新增来源那套）：hoverPool / hoverEvent
   "29-parser-register.js",     // 中文/繁体时间解析 + 来源抓取器登记（bh3 米游社备选源）
   "30-game-hoyoverse.js",
+  "30-game-benghuai2.js",           // 2026-11-15 崩坏学园2：官网公告（卡池 + 活动）；放在 hoyoverse 之后 ⇒ 面板顺序 绝区零 → 崩坏3 → 崩坏学园2
   "30-game-kuro.js",
   "30-game-hypergryph.js",
   "30-game-bluearchive.js",
@@ -188,7 +189,6 @@ const ORDER = [
   // （`window._durl` → d-*.json）。同样必须排在 `30-game-bandori.js` 之后（合并既有条目）。
   "30-game-ournotes-global.js",
   // 2026-11-15：崩坏学园2 官网公告（列表 POST + 详情；卡池 + 活动两侧同一条列表 → 轮内共享一次请求）
-  "30-game-benghuai2.js",
   "44-test-exports.js",        // 回归出口：解析器 + env 工具 + 来源表（挂 exports.__regression，测试用）
   "50-refresh.js",             // 刷新编排、失败沿用旧值
   "60-helpers.js",             // 共用纯函数：状态归一 / 提示文案 / 显隐 / 格式化 / 排序 / 启动刷新判定
@@ -270,6 +270,7 @@ const CORE_ORDER = [
   "28-parser-hover-tools.js",  // 悬停排版共用工具
   "29-parser-register.js",     // 中文时间解析 + 来源登记
   "30-game-hoyoverse.js",
+  "30-game-benghuai2.js",           // 2026-11-15 崩坏学园2：官网公告（卡池 + 活动）；放在 hoyoverse 之后 ⇒ 面板顺序 绝区零 → 崩坏3 → 崩坏学园2
   "30-game-kuro.js",
   "30-game-hypergryph.js",
   "30-game-bluearchive.js",
@@ -320,7 +321,6 @@ const CORE_ORDER = [
   "30-game-unconfigured.js",   // 炽焰天穹（来源留空未配置）
   "30-game-batch2.js",         // 2026-11-11 第二批（bh3 内容中台 / OurNotes SPICA / czn TapTap）
   "30-game-ournotes-global.js",// 2026-11-11 OurNotes 国际服（SPICA 数据 JSON：卡池 + 活动）
-  "30-game-benghuai2.js",      // 2026-11-15 崩坏学园2 官网公告（卡池 + 活动）
   "50-refresh.js",             // 刷新编排
   "engine-api.js",             // 注入 env + refresh() + 测试出口 + return
 ];
