@@ -1,0 +1,474 @@
+<!doctype html>
+<html>
+
+<head>
+    
+
+
+<!--This is Git Project-->
+<!--This is Git Project From YYS/yys-gw-pc-20240309(28620)-->
+    <title>阴阳师新闻资讯_公告_《阴阳师》手游官网  《阴阳师》手游官网_唯美奇幻 匠心巨制，开启唯美奇幻之旅</title>
+    <meta name="keywords" content="阴阳师下载,阴阳师官方下载,阴阳师安卓下载,阴阳师安卓官方下载,阴阳师手游,阴阳师礼包,阴阳师手游下载,阴阳师手游安卓, 阴阳师手游iOS,阴阳师手游苹果,阴阳师助手,网易手游,阴阳师手游 ios,阴阳师,阴阳师 ios,阴阳师手游ios,阴阳师手游安卓,阴阳师安卓,阴阳师 安卓,阴阳师ios,阴阳师 礼包,阴阳师礼包,阴阳师手游 安卓,阴阳师手游 礼包,阴阳师苹果,阴阳师攻略" />
+    <meta name="description" content="网易匠心巨制，自研国民级手游，经典半即时回合制RPG，梦回平安时代妖怪绮谭，与百种式神缔结契约！更有全新美术迭代升级，全新LBS社交体验突破次元..." />
+    <meta name="renderer" content="webkit|ie-comp|ie-stand">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta charset="utf-8">
+    <meta name="renderer" content="webkit">
+    <meta name="applicable-device" content="pc">
+    <link rel="dns-prefetch" href="https://nie.res.netease.com">
+    <link rel="canonical" href="//yys.163.com/"/>
+    <!--[if lt IE 9]>
+    <script src="https://nie.res.netease.com/comm/html5/html5shiv.js"></script>
+    <![endif]-->
+    <link rel="stylesheet" type="text/css" href="https://nie.res.netease.com/comm/js/nie/util/alertBox/css/alertBox.css">
+    <link type="text/css" rel="stylesheet" href="https://yys.res.netease.com/pc/gw/20160929201016/pkg/inpage_3311a81.css">
+
+<!--This is Git Project From YYS/yys-gw-16v3-20160926(4091)-->
+</head>
+<body>
+    <!--[if lt IE 7]>
+    <div style="position:absolute;left:0;top:0;width:100%;height:50px;background:rgb(255,255,233);color:rgb(30,84,148);border-bottom:1px solid rgb(230,230,198);text-align:center;line-height:50px;font-size:12px;">您使用的浏览器版本过低，可能会影响到您浏览本网页，建议您升级您的浏览器。</div>
+    <![endif]-->
+    <!--此乃头部-->
+    <div id="NIE-topBar"></div>
+    <div id="share" style="display:none">
+    <div id="share_title">您收到一封来自阴阳寮的手信</div>
+    <div id="share_url"></div>
+    <img id="share_pic" src="https://yys.res.netease.com/pc/gw/20160929201016/img/share_1209643.jpg" data-src="https://yys.res.netease.com/pc/gw/20160929201016/img/share_1209643.jpg">
+    <div id="share_desc">魑魅魍魉，和风写意，以阴阳师之名行走于人鬼两界之间......来吧，与我们一同踏上这段唯美和风奇幻之旅。</div>
+</div>
+<!--This is Git Project From YYS/yys-gw-16v3-20160926(4091)-->
+    <div class="wrap">
+        <div id="top_bar">
+	<div class="left_part">
+		<p class="download_txt">扫码下载</p>
+		<img src="https://adl.netease.com/d/g/yys/c/gw/qr">
+		<a class="logo_wrap" href="//yys.163.com/index.html" target="_blank">
+			<span class="logo_icon"></span>
+			<div class="game_name">
+				<h3>阴阳师</h3>
+				<p>唯美奇幻 匠心巨制</p>
+			</div>
+		</a>
+	</div>
+	<ul class="topnav_list">
+		<li class="topnav_li"><a class="nav_item" href="//yys.163.com/index.html" target="_blank">官网首页</a><span class="line"></span></li>
+		<li class="topnav_li"><a class="nav_item" href="//yys.163.com/news/index.html" target="_blank">新闻资讯</a><span class="line"></span></li>
+		<li class="topnav_li xxhd hide"><a class="nav_item" href="//yys.163.com/news/huodong/index.html" target="_blank">线下活动</a><span class="line"></span></li>
+		<li class="topnav_li"><a class="nav_item" href="//yys.163.com/skill/index.html" target="_blank">游戏攻略</a><span class="line"></span></li>
+		<li class="topnav_li ssl hide"><a class="nav_item" href="//yys.163.com/shishen/index.html" target="_blank">式神录</a><span class="line"></span></li>
+		<li class="topnav_li zjl hide"><a class="nav_item" href="//yys.163.com/zj/index.html" target="_blank">主角录</a><span class="line"></span></li>
+		<!-- <li class="topnav_li"><a class="nav_item" href="//yys.163.com/ts/index.html" target="_blank">游戏特色</a><span class="line"></span></li> -->
+		<li class="topnav_li"><a href="//yys.163.com/tongren/index.html" target="_blank" class="nav_item" >玩家互动<em class="arrow"></em></a><span class="line"></span></li>
+		<!-- <li class="topnav_li xxhd hide"><a class="nav_item" href="//yys.163.com/index.html?location=fanyule" target="_blank">泛娱乐</a><span class="line"></span></li> -->
+		<li  class="topnav_li"><a href="javascript:void(0);" class="nav_item" data-tab="qudao" >官方渠道<em class="arrow"></em></a><span class="line"></span></li>
+		<li class="topnav_li"><a href="https://gift.163.com/index_yys.html" target="_blank" class="nav_item" >周边商城</a><span class="line"></span></li>
+		<li class="topnav_li"><a href="//yys.cbg.163.com/" target="_blank" class="nav_item" >藏宝阁</a><span class="line"></span></li>
+		<li class="topnav_li"><a href="https://ds.163.com/webapp/share/users/5b00c224c7de46d98d33a6e0722ce28f/details/5b4f01f112b80d121bf3fcee" target="_blank" class="nav_item" >网易大神</a></li>		
+	</ul>
+	<div class="topbar_more">
+		<div class="topbar_more_list clearfix tongren " data-tab="tongren">
+			 <!--<a href="//tuku.yys.163.com/s/channel.html?id=57cfb15f8617ef3c7f166c4c" class="list_item" target="_blank">
+				<span class="inner_item">
+					<span class="pic gaoshou"></span>
+					<span class="name">高手在民间</span>
+				</span>
+			</a> -->
+			
+			<!-- <a href="#" class="list_item" target="_blank">
+				<span class="inner_item">
+					<span class="pic video"></span>
+					<span class="name">同人视频</span>
+				</span>
+			</a> -->
+			<!--<a href="//tuku.yys.163.com/s/channel.html?id=57cd51f44836e916b7aed893" class="list_item" target="_blank">
+				<span class="inner_item">
+					<span class="pic xiaoshuo"></span>
+					<span class="name">同人小说</span>
+				</span>
+			</a>			-->
+			<a href="//tuku.yys.163.com/s/channel.html?id=57cd51f44836e916b7aed893" class="list_item" target="_blank">
+				<span class="inner_item">
+					<span class="pic cos"></span>
+					<span class="name">玩家COS</span>
+				</span>
+			</a>
+			<a href="//tuku.yys.163.com/s/channel.html?id=57cd514394ca6e78ea837ce0" class="list_item firstone" target="_blank">
+				<span class="inner_item">
+					<span class="pic huihua"></span>
+					<span class="name">同人绘画</span>
+				</span>
+			</a>
+			<!--<a href="//tuku.yys.163.com/s/channel.html?id=57cd514394ca6e78ea837ce0" class="list_item firstone" target="_blank">
+				<span class="inner_item">
+					<span class="pic jingxuan"></span>
+					<span class="name">精选推荐</span>
+				</span>
+			</a>			-->
+		</div>
+		<div class="topbar_more_list qudao" data-tab="qudao">
+			<a class="topbar_codewrap">
+				<img src="https://yys.res.netease.com/pc/gw/20240309182959/img/yrzsq_caa45900.png">
+				<p  class="p-tit">友人帐社区</p>
+				<p class="p-tit-on">友人帐社区</p>
+			</a>
+			
+			<a href="https://ds.163.com/square/5bed6281d545682b8bb8a761/?type=%E6%9C%80%E6%96%B0&page=1"  target="_blank" class="topbar_codewrap">
+				<img src="https://yys.res.netease.com/pc/gw/20240309182959/img/ds_e56d9381.jpg">
+				<p  class="p-tit">网易大神</p>
+				<p class="p-tit-on">网易阴阳师手游</p>
+			</a>
+			<div class="topbar_codewrap">
+				<img src="https://yys.res.netease.com/pc/gw/20240309182959/img/wx_4b0290c3.jpg">
+				<p class="p-tit">官方微信</p>
+				<p class="p-tit-on">网易阴阳师手游</p>
+			</div>
+			<a href="javascript:;" class="topbar_codewrap">
+				<img src="https://yys.res.netease.com/pc/gw/20240309182959/img/wb_60bdf816.png">
+				<p  class="p-tit">官方微博</p>
+				<p class="p-tit-on">网易阴阳师手游</p>
+			</a>
+			<a href="javascript:;" class="topbar_codewrap">
+				<img src="https://yys.res.netease.com/pc/gw/20240309182959/img/tb_5bc6ab29.png">
+				<p  class="p-tit">百度贴吧</p>
+				<p class="p-tit-on">网易阴阳师手游</p>
+			</a>
+			
+		</div>
+	</div>
+</div>
+<!--This is Git Project From YYS/yys-gw-pc-20240309(28620)-->
+        <!-- 导航 -->
+        <div class="banner">
+	<a href="/index.html" target="_blank" class="logo">
+		<img src="https://webinput.nie.netease.com/img/yys/logo.png/100">
+	</a>
+</div>
+<!--This is Git Project From YYS/yys-gw-16v3-20160926(4091)-->
+        <div class="content">
+            <div class="newsWrap clearfix">
+                <div class="content-main">
+                    <h2 class="list_tit">新闻资讯</h2>
+                    <div class="list-nav update-nav">
+                        <a href="/news/index.html" class="all-tit"><em></em>最新</a>
+                        <a href="/news/official/index.html" class="news-tit"><em></em>新闻</a>
+                        <a href="/news/update/index.html" class="update-tit"><em></em>公告</a>
+                        <a href="/news/huodong/index.html" class="huodong-tit"><em></em>活动</a>
+                        <a href="/news/media/index.html" class="media-tit"><em></em>媒体</a>
+                        <a href="/skill/index.html" class="skill-tit"><em></em>攻略</a>
+                        <a href="/news/zhiliaopian/index.html" class="zhiliao-tit"><em></em>资料片</a>
+                    </div>
+                    <div class="news-list" id="Jlist">
+                        
+                        <!-- 新闻列表 -->
+
+                        <div class="item">
+                            <div class="item-inner">
+                                <a class="link" href="//yys.163.com/news/update/20261110/23024_1319269.html" target="_blank" title="《阴阳师》手游11月11日维护更新公告">
+                                    <p class="p-tit">11-10 《阴阳师》手游11月11日维护更新公告</p>
+                                    <p class="p-mess">※维护时间 2026年11月11日7:00-9:00 ※亲爱的阴阳师大人： 为了给大家带来更好的游戏体验，服务器将进行停服维护，期间暂时无法进入游戏。若未能按时完成维护，则开服时间将会顺延，给各位带来的不便敬请谅解，非常感谢大家的支持和理解！</p>
+                                    <span class="category $cname">公告</span>
+                                    <span class="s-icon"></span>
+                                </a>
+                            </div>
+                        </div>
+<div class="item">
+                            <div class="item-inner">
+                                <a class="link" href="//yys.163.com/news/update/20261103/23024_1318585.html" target="_blank" title="《阴阳师》手游11月4日维护更新公告">
+                                    <p class="p-tit">11-03 《阴阳师》手游11月4日维护更新公告</p>
+                                    <p class="p-mess">※维护时间 2026年11月4日7:30-9:00 ※亲爱的阴阳师大人： 为了给大家带来更好的游戏体验，服务器将进行停服维护，期间暂时无法进入游戏。若未能按时完成维护，则开服时间将会顺延，给各位带来的不便敬请谅解，非常感谢大家的支持和理解！</p>
+                                    <span class="category $cname">公告</span>
+                                    <span class="s-icon"></span>
+                                </a>
+                            </div>
+                        </div>
+<div class="item">
+                            <div class="item-inner">
+                                <a class="link" href="//yys.163.com/news/update/20261027/23024_1317870.html" target="_blank" title="《阴阳师》手游10月28日维护更新公告">
+                                    <p class="p-tit">10-27 《阴阳师》手游10月28日维护更新公告</p>
+                                    <p class="p-mess">※维护时间 2026年10月28日7:00-9:00 ※亲爱的阴阳师大人： 为了给大家带来更好的游戏体验，服务器将进行停服维护，期间暂时无法进入游戏。若未能按时完成维护，则开服时间将会顺延，给各位带来的不便敬请谅解，非常感谢大家的支持和理解！</p>
+                                    <span class="category $cname">公告</span>
+                                    <span class="s-icon"></span>
+                                </a>
+                            </div>
+                        </div>
+<div class="item">
+                            <div class="item-inner">
+                                <a class="link" href="//yys.163.com/news/update/20261021/23024_1317347.html" target="_blank" title="《阴阳师》违规处罚公告（10月21日 下）">
+                                    <p class="p-tit">10-21 《阴阳师》违规处罚公告（10月21日 下）</p>
+                                    <p class="p-mess">《阴阳师》致力于打造一个公平、健康、良好的游戏环境。 目前有部分玩家采取“自动挂机”的手段实现持续刷取资源的目的，严重破坏了游戏竞技公平，对游戏环境造成了极大的影响。</p>
+                                    <span class="category $cname">公告</span>
+                                    <span class="s-icon"></span>
+                                </a>
+                            </div>
+                        </div>
+<div class="item">
+                            <div class="item-inner">
+                                <a class="link" href="//yys.163.com/news/update/20261021/23024_1317329.html" target="_blank" title="《阴阳师》违规处罚公告（10月21日 上）">
+                                    <p class="p-tit">10-21 《阴阳师》违规处罚公告（10月21日 上）</p>
+                                    <p class="p-mess">《阴阳师》致力于打造一个公平、健康、良好的游戏环境。 目前有部分玩家采取“自动挂机”的手段实现持续刷取资源的目的，严重破坏了游戏竞技公平，对游戏环境造成了极大的影响。</p>
+                                    <span class="category $cname">公告</span>
+                                    <span class="s-icon"></span>
+                                </a>
+                            </div>
+                        </div>
+<div class="item">
+                            <div class="item-inner">
+                                <a class="link" href="//yys.163.com/news/update/20261020/23024_1317168.html" target="_blank" title="《阴阳师》手游10月21日维护更新公告">
+                                    <p class="p-tit">10-20 《阴阳师》手游10月21日维护更新公告</p>
+                                    <p class="p-mess">※维护时间 2026年10月21日7:30-9:00 ※亲爱的阴阳师大人： 为了给大家带来更好的游戏体验，服务器将进行停服维护，期间暂时无法进入游戏。若未能按时完成维护，则开服时间将会顺延，给各位带来的不便敬请谅解，非常感谢大家的支持和理解！</p>
+                                    <span class="category $cname">公告</span>
+                                    <span class="s-icon"></span>
+                                </a>
+                            </div>
+                        </div>
+<div class="item">
+                            <div class="item-inner">
+                                <a class="link" href="//yys.163.com/news/update/20261013/23024_1316520.html" target="_blank" title="《阴阳师》手游10月14日维护更新公告">
+                                    <p class="p-tit">10-13 《阴阳师》手游10月14日维护更新公告</p>
+                                    <p class="p-mess">※维护时间 2026年10月14日7:30-9:00 ※亲爱的阴阳师大人： 为了给大家带来更好的游戏体验，服务器将进行停服维护，期间暂时无法进入游戏。若未能按时完成维护，则开服时间将会顺延，给各位带来的不便敬请谅解，非常感谢大家的支持和理解！</p>
+                                    <span class="category $cname">公告</span>
+                                    <span class="s-icon"></span>
+                                </a>
+                            </div>
+                        </div>
+<div class="item">
+                            <div class="item-inner">
+                                <a class="link" href="//yys.163.com/news/update/20261009/23024_1316181.html" target="_blank" title="《阴阳师》手游10月10日维护更新公告">
+                                    <p class="p-tit">10-09 《阴阳师》手游10月10日维护更新公告</p>
+                                    <p class="p-mess">※维护时间 2026年10月10日7:00-9:00 ※亲爱的阴阳师大人： 为了给大家带来更好的游戏体验，服务器将进行停服维护，期间暂时无法进入游戏。若未能按时完成维护，则开服时间将会顺延，给各位带来的不便敬请谅解，非常感谢大家的支持和理解！</p>
+                                    <span class="category $cname">公告</span>
+                                    <span class="s-icon"></span>
+                                </a>
+                            </div>
+                        </div>
+<div class="item">
+                            <div class="item-inner">
+                                <a class="link" href="//yys.163.com/news/update/20260929/23024_1315504.html" target="_blank" title="《阴阳师》手游9月30日维护更新公告">
+                                    <p class="p-tit">09-29 《阴阳师》手游9月30日维护更新公告</p>
+                                    <p class="p-mess">※维护时间 2026年9月30日7:30-9:00 ※亲爱的阴阳师大人： 为了给大家带来更好的游戏体验，服务器将进行停服维护，期间暂时无法进入游戏。若未能按时完成维护，则开服时间将会顺延，给各位带来的不便敬请谅解，非常感谢大家的支持和理解！</p>
+                                    <span class="category $cname">公告</span>
+                                    <span class="s-icon"></span>
+                                </a>
+                            </div>
+                        </div>
+<div class="item">
+                            <div class="item-inner">
+                                <a class="link" href="//yys.163.com/news/update/20260922/23024_1314730.html" target="_blank" title="《阴阳师》手游9月23日维护更新公告">
+                                    <p class="p-tit">09-22 《阴阳师》手游9月23日维护更新公告</p>
+                                    <p class="p-mess">※维护时间 2026年9月23日7:30-9:00 ※亲爱的阴阳师大人： 为了给大家带来更好的游戏体验，服务器将进行停服维护，期间暂时无法进入游戏。若未能按时完成维护，则开服时间将会顺延，给各位带来的不便敬请谅解，非常感谢大家的支持和理解！</p>
+                                    <span class="category $cname">公告</span>
+                                    <span class="s-icon"></span>
+                                </a>
+                            </div>
+                        </div>
+<div class="item">
+                            <div class="item-inner">
+                                <a class="link" href="//yys.163.com/news/update/20260915/23024_1313918.html" target="_blank" title="《阴阳师》手游9月16日维护更新公告">
+                                    <p class="p-tit">09-15 《阴阳师》手游9月16日维护更新公告</p>
+                                    <p class="p-mess">※维护时间 2026年9月16日7:30-9:00 ※亲爱的阴阳师大人： 为了给大家带来更好的游戏体验，服务器将进行停服维护，期间暂时无法进入游戏。若未能按时完成维护，则开服时间将会顺延，给各位带来的不便敬请谅解，非常感谢大家的支持和理解！</p>
+                                    <span class="category $cname">公告</span>
+                                    <span class="s-icon"></span>
+                                </a>
+                            </div>
+                        </div>
+<div class="item">
+                            <div class="item-inner">
+                                <a class="link" href="//yys.163.com/news/update/20260908/23024_1313394.html" target="_blank" title="《阴阳师》手游9月9日维护更新公告">
+                                    <p class="p-tit">09-08 《阴阳师》手游9月9日维护更新公告</p>
+                                    <p class="p-mess">※维护时间 2026年9月9日7:00-9:00 ※亲爱的阴阳师大人： 为了给大家带来更好的游戏体验，服务器将进行停服维护，期间暂时无法进入游戏。若未能按时完成维护，则开服时间将会顺延，给各位带来的不便敬请谅解，非常感谢大家的支持和理解！</p>
+                                    <span class="category $cname">公告</span>
+                                    <span class="s-icon"></span>
+                                </a>
+                            </div>
+                        </div>
+<div class="item">
+                            <div class="item-inner">
+                                <a class="link" href="//yys.163.com/news/update/20260901/23024_1312880.html" target="_blank" title="《阴阳师》手游9月2日维护更新公告">
+                                    <p class="p-tit">09-01 《阴阳师》手游9月2日维护更新公告</p>
+                                    <p class="p-mess">※维护时间 2026年9月2日7:30-9:00 ※亲爱的阴阳师大人： 为了给大家带来更好的游戏体验，服务器将进行停服维护，期间暂时无法进入游戏。若未能按时完成维护，则开服时间将会顺延，给各位带来的不便敬请谅解，非常感谢大家的支持和理解！</p>
+                                    <span class="category $cname">公告</span>
+                                    <span class="s-icon"></span>
+                                </a>
+                            </div>
+                        </div>
+<div class="item">
+                            <div class="item-inner">
+                                <a class="link" href="//yys.163.com/news/update/20260827/23024_1312449.html" target="_blank" title="《阴阳师》违规处罚公告（8月27日）">
+                                    <p class="p-tit">08-27 《阴阳师》违规处罚公告（8月27日）</p>
+                                    <p class="p-mess">《阴阳师》致力于打造一个公平、健康、良好的游戏环境。 目前有部分玩家采取“自动挂机”的手段实现持续刷取资源的目的，严重破坏了游戏竞技公平，对游戏环境造成了极大的影响。</p>
+                                    <span class="category $cname">公告</span>
+                                    <span class="s-icon"></span>
+                                </a>
+                            </div>
+                        </div>
+<div class="item">
+                            <div class="item-inner">
+                                <a class="link" href="//yys.163.com/news/update/20260825/23024_1312226.html" target="_blank" title="《阴阳师》手游8月26日维护更新公告">
+                                    <p class="p-tit">08-25 《阴阳师》手游8月26日维护更新公告</p>
+                                    <p class="p-mess">※维护时间 2026年8月26日7:30-9:00 ※亲爱的阴阳师大人： 为了给大家带来更好的游戏体验，服务器将进行停服维护，期间暂时无法进入游戏。若未能按时完成维护，则开服时间将会顺延，给各位带来的不便敬请谅解，非常感谢大家的支持和理解！</p>
+                                    <span class="category $cname">公告</span>
+                                    <span class="s-icon"></span>
+                                </a>
+                            </div>
+                        </div>
+
+
+                        <!--分页-->
+                        
+                        <div class="pager">
+                            <div class="pager-inner">
+
+                                <span class="pager-list">
+                                    <a href="javascript:void(0);" class="pager-list-first">1/49 <i></i></a>
+
+                                    <em>第1页</em><a href="//yys.163.com/news/update/index_2.html">
+                                        
+                                        <em>第2页</em>
+                                        
+                                    </a><a href="//yys.163.com/news/update/index_3.html">
+                                        
+                                        <em>第3页</em>
+                                        
+                                    </a><a href="//yys.163.com/news/update/index_4.html">
+                                        
+                                        <em>第4页</em>
+                                        
+                                    </a><a href="//yys.163.com/news/update/index_5.html">
+                                        
+                                        <em>第5页</em>
+                                        
+                                    </a>
+                                </span>
+
+                                
+
+                                
+                                <a href="//yys.163.com/news/update/index_2.html" class="next no-text">下一页</a>
+                                
+
+                            </div>
+                        </div>
+
+                        
+                        <div class="list-wyds">
+                            <a href="https://ds.163.com/webapp/share/users/5b00c224c7de46d98d33a6e0722ce28f/details/5b4f01f112b80d121bf3fcee" title="网易大神" target="_blank">
+                                <img src="https://test.nie.163.com/test_cdn/yys/pc/qt/20170321215909/img/inpage/wyds_48e246c.webp" alt="">
+                            </a>
+                            <p>　　网易大神是网易游戏旗下的精英玩家社区。这里汇聚了广大精英玩家、游戏圈红人、行业大咖，集合了网易独家的官方资讯和福利趣闻，旨在为玩家打造一个丰富的游戏兴趣社交圈。玩家可以在网易大神与游戏中的好友实时聊 
+                                        天、多元互动;以游戏会友，结交更多游戏同好，和大神一起发现更多游戏乐趣。</p>
+                            <p>　　官方网站：<a href="https://ds.163.com" target="_blank">https://ds.163.com</a></p>
+                            <p>　　官方微信：wyds_163</p>
+                            <p>　　官方微博：@网易大神 APP</p>
+                            <p>　　官方大神号：@网易大神</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 侧栏预约或下载模块 -->
+            <!-- 预约 -->
+<!-- <a id="Jorderbtn" class="sider-btn orderbtn" href="javascript:;"><span class="s-icon"></span>立即预约</a> -->
+<!-- 下载 -->
+<a id="Jdownloadbtn" class="sider-btn downloadbtn" href="javascript:void(0);"><span class="s-icon"><i></i></span>立即下载</a>
+<div class="sider" id="Jsider">
+    <a href="javascript:void(0);" class="btn-close"><i></i></a>
+    <div class="sider-main">
+        <div id="nie-download" class="nie-download" data-download="yys|gw">
+            <h3 class="aside_tit01">下载游戏</h3>
+            <div class="NIE-qrcode">
+                <div class="ewm-light"></div>
+            </div>
+            <p>扫一扫下载游戏</p>
+            <!-- <div class="buttons">
+                <a class="link-apple NIE-button-ios no-text" target="_blank">App Store下载</a>
+                <a class="link-android NIE-button-android no-text" target="_blank">安卓版下载</a>
+            </div> -->
+        </div>
+
+        <h3 class="aside_tit02">近期热点</h3>
+        <div id="hot-banner">
+            <div class="banner_box adbase-ctn">
+                             <a href="//yys.163.com/news/huodong/20240513/23025_1154868.html" title="征浪之夏·阴阳师创作激励计划活动开启" class="banner_item" target="_blank">
+            <img src="https://nie.res.netease.com/r/pic/20240515/e9abd092-0ab4-433b-949f-d957d2eabce4.jpg" alt="征浪之夏·阴阳师创作激励计划活动开启">
+        </a>
+                 <a href="//yys.163.com/news/huodong/20240513/23025_1154867.html" title="丰厚现金奖励助力灵感创作，阴阳师抖音达人扶持计划「征浪之夏」启动！" class="banner_item" target="_blank">
+            <img src="https://nie.res.netease.com/r/pic/20240514/b8b98253-b138-4129-9e72-36a1e70e6360.jpg" alt="丰厚现金奖励助力灵感创作，阴阳师抖音达人扶持计划「征浪之夏」启动！">
+        </a>
+                 <a href="//yys.163.com/news/huodong/20240419/23025_1150482.html" title="丰厚现金奖励助力灵感创作，阴阳师抖音达人扶持计划「上春山」启动！" class="banner_item" target="_blank">
+            <img src="https://nie.res.netease.com/r/pic/20240419/5834d7cd-11c0-4c99-8d53-28be476702ed.png" alt="丰厚现金奖励助力灵感创作，阴阳师抖音达人扶持计划「上春山」启动！">
+        </a>
+                 <a href="https://yys.163.com/20230712/shujia/" title="鼠假！夏日绮遇之旅" class="banner_item" target="_blank">
+            <img src="https://nie.res.netease.com/r/pic/20230726/bdd4a2f5-a200-4c43-ae08-3b74300c0110.png" alt="鼠假！夏日绮遇之旅">
+        </a>
+                      <a href="https://yys.163.com/2022/nebula/" title="《星守千年》点亮星海，共赴千年之约" class="banner_item" target="_blank">
+            <img src="https://nie.res.netease.com/r/pic/20220914/d051f3ef-649e-44d9-8f4e-825970737742.png" alt="《星守千年》点亮星海，共赴千年之约">
+        </a>
+    <!--stamp:bb85ef02-fa2b-4fd7-9833-9744b9c470a3,tplId:21558,pageId:23543,tplName:阴阳师-内页侧边-栏近期热点-->
+            </div>
+            <div class="hd">
+                
+            </div>
+        </div>
+        <h3 class="aside_tit03">热门攻略</h3>
+        <div id="gonglue-box">
+        	<a class="right-more" href="//yys.163.com/skill/index.html" target="_blank"></a>
+            <ul>
+                <li><a href="//yys.163.com/skill/shishen/20261105/23027_1318764.html" title="UR大天狗·高天铁羽 式神攻略" target="_blank"><em></em>【式神】 UR大天狗·高天铁羽 式神攻略</a></li>
+<li><a href="//yys.163.com/skill/shishen/20261028/23027_1317992.html" title="咲耶 式神攻略" target="_blank"><em></em>【式神】 咲耶 式神攻略</a></li>
+<li><a href="//yys.163.com/skill/shishen/20260915/23027_1313864.html" title="石长姬 式神攻略" target="_blank"><em></em>【式神】 石长姬 式神攻略</a></li>
+<li><a href="//yys.163.com/skill/shishen/20260915/23027_1313865.html" title="百羽凤凰火 式神攻略" target="_blank"><em></em>【式神】 百羽凤凰火 式神攻略</a></li>
+
+<!--stamp:504bb02d-25bd-477f-9042-b9770293b205,tplId:15738,pageId:19576,tplName:16v3PC官网列表页-热门攻略-->
+            </ul>
+        </div>
+        <h3 class="aside_tit04">精选同人</h3>
+        <div id="tongren-banner">
+        	<a class="right-more" href="//yys.163.com/tongren/index.html" target="_blank"></a>
+            <ul class="banner_box">
+                <li><a href="https://sp.163.com/text/678095449d580f00472c2b6d" title="正义牌【作者】你跟我抬杠是吧" target="_blank"><img data-src="https://nie.res.netease.com/r/pic/20250110/0cb21d1f-e53a-40d9-a100-2cf2f34c55a6.jpg"></a></li>
+<li><a href="https://sp.163.com/text/678094b0f6eeaf0047f0e45e" title="岁暮【作者】堪忧" target="_blank"><img data-src="https://nie.res.netease.com/r/pic/20250110/37f56c2b-d4b6-4499-8f6e-25a65200d96c.jpg"></a></li>
+<li><a href="https://sp.163.com/text/678094638e37660047bc084d" title="御神之刃【作者】绯刃凌空" target="_blank"><img data-src="https://nie.res.netease.com/r/pic/20250110/9b27ac1d-c296-4603-8fac-9080e05cbb5d.jpg"></a></li>
+<li><a href="https://sp.163.com/text/678093f345de8f004770651f" title="龙珏【作者】宛倾然" target="_blank"><img data-src="https://nie.res.netease.com/r/pic/20250110/6273fe01-b9cf-4e4b-9ec6-4ff6d7b6f09b.jpg"></a></li>
+
+<!--stamp:877ab6a8-3e2e-4eca-8af8-ba3b30896ad9,tplId:15739,pageId:19577,tplName:16v3PC官网列表页-精选同人-->
+            </ul>
+            <div class="hd">
+                
+            </div>
+        </div>
+        <h3 class="aside_tit05">官方媒体</h3>
+        <div id="media-box">
+            <ul class="media-tit clearfix">
+                <li class="weixin-tit cur">关注微信</li>
+                <li class="weibo-tit">关注微博</li>
+            </ul>
+            <ul class="media-wrap">
+                <li class="cur">
+                    <img src="https://yys.res.netease.com/pc/gw/20160929201016/img/inpage/weixin-code_d99aea4.jpg">
+                    <p>扫一扫关注微信</p>
+                </li>
+                <li>
+                    <img src="https://yys.res.netease.com/pc/gw/20160929201016/img/inpage/weibo-code_7c7587b.png">
+                    <p>扫一扫关注微博</p>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+<!--This is Git Project From YYS/yys-gw-16v3-20160926(4091)-->
+        </div>
+    </div>
+    <div id="NIE-copyRight"></div>
+    <!-- jquery mix NIE (最新版本）-->
+    <script charset="utf-8" src="https://nie.res.netease.com/comm/js/jquery(mixNIE).1.11.js"></script>
+    <script type="text/javascript" src="https://nie.res.netease.com/comm/js/nie/ref/jquery.superslide.js"></script>
+    <script type="text/javascript" charset="utf-8" src="https://yys.res.netease.com/pc/gw/20160929201016/pkg/inpage_a3e059a.js"></script>
+
+
+<!--This is Git Project From YYS/yys-gw-16v3-20160926(4091)-->
+    <script type="text/javascript">nie.config.copyRight.setWhite();</script>
+    <iframe id="js_yingxiao" src="https://gad.netease.com/mmad/point?point_id=12058&s=ISx7qMcTGU%2Bwe%2BJlECLMjhpYn%2F8%3D" pub-name="营销点代码" style="display:none"></iframe>
+</body>
+
+</html>
+<!--stamp:90953722-1765-4513-a948-553146dc64f7,tplId:15734,pageId:19564,tplName:16v3PC官网列表页模板-->

@@ -1,0 +1,8 @@
+{
+  "bytes": 25171,
+  "sha256": "87023f29331307f3",
+  "url": "https://yys.163.com/news/update/20261110/23024_1319269.html",
+  "status": 200,
+  "capturedAt": "2026-11-14T16:15:14.000Z",
+  "trim": "原页 40,114 B（HTTP 200 / text/html / 无 ACAO）。只保留 `<h1>` 标题 + `<span class=\"artDate\">` + `<div class=\"artText\">…</div>` 原文两块（另加最小 HTML 外壳），页面其余头尾/导航/脚本丢弃；artText 内部一个字节未改（解析器只读这两块）。"
+}

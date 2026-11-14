@@ -160,8 +160,10 @@ export default async function run() {
 	// 「版本更新公告」，**不是** bwiki ⇒ 计入厂商/系列级）⇒ 21 + 15 = 36。
 	// 2026-11-11 OurNotes 国际服：再 +1（`30-game-ournotes-global.js`：卡池 + 活动默认源 =
 	// SPICA 的结构化数据 JSON；**不是** bwiki ⇒ 计入厂商/系列级）⇒ 22 + 15 = 37。
-	check("游戏文件齐备（22 个厂商/系列文件 + bwiki 系 15 段 = 37 个）",
-		vendorFiles.length === 22 && bwikiFiles.length === 15,
+	// 2026-11-15 白荆回廊：+1 个 **bwiki 系**文件（`30-game-bwiki-bjhl.js`：历史卡池一览 + 活动一览，
+	// 自包含条目 + 解析器 + 抓取器 + 登记）⇒ 厂商级仍是 22 + bwiki 16 = 38。
+	check("游戏文件齐备（22 个厂商/系列文件 + bwiki 系 16 段 = 38 个）",
+		vendorFiles.length === 22 && bwikiFiles.length === 16,
 		`厂商=${vendorFiles.length} bwiki=${bwikiFiles.length}`);
 
 	const hit = [];

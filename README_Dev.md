@@ -78,6 +78,7 @@ dsh-gacha-calendar/
 │       ├── 30-game-bwiki-kedr-wikitext.js # 雪松（wikitext）：Template:首页游戏版本内容 的模板调用
 │       ├── 30-game-bwiki-kedr-wiki.js   # 雪松社区归档页（往期动员，prop=text）+ 其抓取器
 │       ├── 30-game-bwiki-register.js    # 本组 4 条 registerSource + GACHA/EVENT_FETCHERS 接线
+│       ├── 30-game-bwiki-bjhl.js        # 白荆回廊（历史卡池一览 + 活动一览，自包含条目/解析/抓取/登记）
 │       ├── 30-game-biligame.js    # biligame 系：嘟嘟脸恶作剧 / 闪耀优俊少女
 │       ├── 30-game-cygames.js     # Cygames：赛马娘 日服 / 国际服（umapyoi 备选）
 │       ├── 30-game-komoe.js       # Komoe：赛马娘 繁中服（官方公告 CMS；卡池 + 活动同一条接口、按标题分流）
@@ -926,6 +927,35 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
   `60-helpers.js` 的 `sideFailCarriedOver`，与删除前横条用 `scheduleNormalize` 非 null
   判的口径一致）。未命中 / 未配置两类不追加；「重试」能力由底栏「刷新」按钮承担。
   回归：`test/cases-scrape-fail.mjs`。
+
+### 新接入的 2 款（2026-11-15）
+
+来源全部实测过（夹具 `bjhl-gacha` / `bjhl-events` / `yys-update-list` / `yys-update-detail-2026{1110,1103,1027}`
+的 `response.txt.meta.json` 里写着 `url` / `capturedAt` / `trim`），两条都是**两侧已接、出厂展示**
+（`defaultHidden: false`），tz 均为 `Asia/Shanghai`。
+
+| id | 游戏 | 卡池源 | 活动源 | 来源标签（逐字） |
+|---|---|---|---|---|
+| `bjhl` | 白荆回廊（国服） | bwiki `历史卡池一览`（`api.php?action=parse&prop=text`，195 张 `draw-box` 卡；数据由 Lua `Module:卡池图鉴` 生成，SMW 查不到） | bwiki `活动一览`（55 张 `activity-box` 卡） | 卡池「Bwiki 历史卡池」/ 活动「Bwiki 活动一览」 |
+| `yys` | 阴阳师（国服） | 官网 `news/update/index.html` 列表 + 详情（`artText` 里的「XX」限时召唤活动） | 同一份列表 + 详情（编号条目里带 `活动时间 / 开放时间 / 开启时间` 标签的窗口） | 两侧都是「官网公告」 |
+
+- **白荆回廊**（`30-game-bwiki-bjhl.js`，自包含）：每侧 **1 个请求**；池名 = `.draw-name`，
+  角色 = 该卡 `同调者/…` 链接（潜航类卡只有 `记忆烙痕/…` ⇒ 角色留空；池名里已写的角色只去掉不重复）。
+  卡池载荷用 `ns_bwiki_batchGachaPayloadOf`（同批 = 同 `endTs` 合并角色）——它同时开 5~6 类池，
+  用全合并那版会把别的池的角色贴到外显池上；活动侧 `ns_bwiki_eventPayload` 现成的。
+  实测当期：卡池「常态共鸣·昊苍」11-05 10:00 ~ 11-19 03:50（另 2 池并列，悬停 3 行）；
+  活动「破限·伊琅相思」11-05 10:00 ~ 12-03 03:50。
+- **阴阳师**（`30-game-netease.js`，与 hlr 同文件同 CMS）：每侧 **1 次列表 + 最多 3 篇详情**
+  （`YYS_DETAIL_QUOTA`；更新公告一周一篇 ⇒ 3 篇 ≈ 覆盖 3 周）。起点写「维护后」时锚定**同一篇**公告
+  开头 `※维护时间 …7:00-9:00` 的**结束时刻**（= 开服 09:00）；日期对不上或没这句 ⇒ 起点未知 ⇒ 该条不产出
+  （不猜、也不假在期）。活动档期只认**条目开头 8 行内**的**带标签**窗口（`YYS_EVENT_SCAN_LINES`）——
+  不限行时主窗口解不出会静默拿「笼中残梦」这类子阶段窗口顶替；`限购时间 / 返场时间` 不在标签白名单里，
+  礼包与皮肤返场因此不算活动。`yys.163.com` 已登记 `src/index.js` 的 `PROXY_ALLOW_HOSTS`（该站无 ACAO）。
+  实测当期：卡池「旧枷离解·祸命权现」11-11 09:00 ~ 11-22 23:59（角色 笼梦祸津神）；
+  活动 14 条在期，外显「祸至无日，超鬼王开启！」11-11 09:00 ~ 11-17 23:59。
+
+回归都加在 `test/cases-batch2.mjs`（第 ④⑤ 段，**没有新增段数**）：逐字档期 + 数组 + 请求数 +
+两类反证（抹掉起止锚点 ⇒ 该条不进外显 / 数组；响应换成 `{}` 或空 HTML ⇒ **抛错**而不是 nomatch）。
 
 ### 新接入的 5 款（2026-11-09）
 

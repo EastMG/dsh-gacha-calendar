@@ -33,7 +33,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { createEngine } from "../packages/core/core.mjs";
-import { check, section, fixtureBody, useFixtures } from "./harness.mjs";
+import { check, section, fixtureBody, useFixtures, assertHoverConvention } from "./harness.mjs";
 import { T } from "./load.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -754,5 +754,378 @@ export default async function runBatch2() {
 		const e = engineAt(CZN_NOW, []);
 		check("反证 G：bwiki 备选抓取器 `czn-bwiki` 仍登记在 GACHA_FETCHERS（停更但未删）",
 			typeof e.__test.GACHA_FETCHERS["czn-bwiki"] === "function");
+	}
+
+	// ═══════════════════ ④ 白荆回廊（bjhl）—— bwiki 两个页面 ═══════════════════
+	section("白荆回廊 ④：bwiki「历史卡池一览」+「活动一览」（注册 / 逐字档期 / 角色去重 / 请求数 / 反证）");
+	{
+		// 夹具原文（不走 transport）：给"看响应长什么样 + 造变异"用
+		const bjhlGachaRaw = fixtureBody("fixture:bjhl-gacha", { "fixture:bjhl-gacha": "bjhl-gacha/response.txt" });
+		const bjhlEventsRaw = fixtureBody("fixture:bjhl-events", { "fixture:bjhl-events": "bjhl-events/response.txt" });
+		const bjhlGachaHtml = JSON.parse(bjhlGachaRaw).parse.text;
+		const BJ = T.parsers.bwiki;
+		// 夹具抓取时刻（2026-11-15 00:15 +08）
+		const NOW_BJHL = Date.parse("2026-11-15T00:15:14+08:00");
+
+		// ── 注册项 ──
+		{
+			const s = T.SOURCES.find((x) => x.id === "bjhl") || null;
+			check("条目已存在（id = bjhl）", !!s, s ? s.id : "缺失");
+			check("名称 = 白荆回廊", !!s && s.name === "白荆回廊", s && s.name);
+			check("tz = Asia/Shanghai（源站墙钟 = 国服）", !!s && s.tz === "Asia/Shanghai", s && String(s.tz));
+			check("defaultHidden = false（出厂展示）", !!s && s.defaultHidden === false, s && String(s.defaultHidden));
+			check("有游戏主题色（#rrggbb）", !!s && /^#[0-9A-Fa-f]{6}$/.test(String(s.color)), s && String(s.color));
+			check("卡池 url = bwiki `历史卡池一览`（page= 逐字，prop=text / formatversion=2）",
+				!!s && s.url === BJ.BJHL_GACHA_URL && /page=历史卡池一览&/.test(s.url), s && String(s.url));
+			check("活动 eventUrl = bwiki `活动一览`", !!s && s.eventUrl === BJ.BJHL_EVENTS_URL && /page=活动一览&/.test(s.eventUrl),
+				s && String(s.eventUrl));
+			check("来源标签 = 「Bwiki 历史卡池」/「Bwiki 活动一览」（逐字）",
+				!!s && s.source === "Bwiki 历史卡池" && s.eventSource === "Bwiki 活动一览",
+				s && JSON.stringify([s.source, s.eventSource]));
+			const e0 = engineAt(NOW_BJHL, []);
+			check("两侧抓取器都登记（GACHA_FETCHERS.bjhl / EVENT_FETCHERS.bjhl.default）",
+				typeof e0.__test.GACHA_FETCHERS["bjhl"] === "function"
+				&& !!(e0.__test.EVENT_FETCHERS["bjhl"] && typeof e0.__test.EVENT_FETCHERS["bjhl"].default === "function"));
+		}
+
+		// ── 纯解析：10 张卡（夹具裁到前 10 张：11-19 未来池 + 11-05 三张在期 + 往期边界）──
+		{
+			const items = BJ.parseBjhlGacha(bjhlGachaHtml, BJ.BJHL_TZ);
+			check("卡池页解出 10 张卡（夹具 = 原页前 10 张）", items.length === 10, String(items.length));
+			check("首卡 = 常态共鸣·红珠小姐 / 2026.11.19 04:00 ~ 12.03 03:50（**未来池**，源站原文照录）",
+				items[0] && items[0].banner === "常态共鸣·红珠小姐" && items[0].raw === "2026.11.19 04:00 ~ 2026.12.03 03:50",
+				JSON.stringify(items[0] && [items[0].banner, items[0].raw]));
+			check("首卡绝对时刻 = UTC 11-18 20:00 / UTC 12-02 19:50（+08 → UTC 换算对）",
+				items[0] && items[0].startTs === Date.UTC(2026, 10, 18, 20, 0) && items[0].endTs === Date.UTC(2026, 11, 2, 19, 50),
+				JSON.stringify(items[0] && [items[0].startTs, items[0].endTs]));
+			// 角色：`同调者/…` 链接；池名已写的角色**只去掉不重复**
+			check("常态共鸣·红珠小姐 的角色为空（池名已含「红珠小姐」⇒ 只去掉，不改写）",
+				items[0] && items[0].roles === "", JSON.stringify(items[0] && items[0].roles));
+			const gobi = items.find((x) => x.banner === "去往彼岸");
+			check("去往彼岸 的角色 = 伊琅相思、无咎、罗咤、吉娜（4 个同调者链接原序）",
+				!!gobi && gobi.roles === "伊琅相思、无咎、罗咤、吉娜", gobi && gobi.roles);
+			const sail = items.find((x) => x.banner === "启明潜航·伊琅相思 昊苍 红珠小姐");
+			check("启明潜航（记忆烙痕池）角色为空串 —— 只有 `记忆烙痕/…` 链接，不拿它冒充角色",
+				!!sail && sail.roles === "", sail && JSON.stringify(sail.roles));
+			check("`bjhlRolesOf` 直接吃掉池名里的角色、保留其它（纯函数反证）",
+				BJ.bjhlRolesOf('<a title="同调者/甲"></a><a title="同调者/乙"></a>', "常态共鸣·甲") === "乙",
+				BJ.bjhlRolesOf('<a title="同调者/甲"></a><a title="同调者/乙"></a>', "常态共鸣·甲"));
+		}
+
+		// ── 卡池载荷（引擎路径）：外显 = 结束最早的**在期**池，未来池不进 ──
+		{
+			const calls = [];
+			const e = engineAt(NOW_BJHL, calls);
+			const s = e.__test.SOURCES.find((x) => x.id === "bjhl");
+			const g = await e.__test.GACHA_FETCHERS["bjhl"](s.url, undefined, s.tz);
+			check("卡池抓取器返回对象", !!g && typeof g === "object");
+			check("外显池 = 常态共鸣·昊苍（在期池里结束最早：11-19 03:50）",
+				g && g.banner === "常态共鸣·昊苍", JSON.stringify(g && g.banner));
+			check("外显角色为空（同批只有它自己；角色已在池名里）", g && g.roles === "", JSON.stringify(g && g.roles));
+			check("档期 = 「11-05 10:00 ~ 11-19 03:50」", g && g.bannerDates === "11-05 10:00 ~ 11-19 03:50", JSON.stringify(g && g.bannerDates));
+			check("源站原文 = 「2026.11.05 10:00 ~ 2026.11.19 03:50」（只保留一份原文，不与补全文本混用）",
+				g && g.bannerDatesRaw === "2026.11.05 10:00 ~ 2026.11.19 03:50", JSON.stringify(g && g.bannerDatesRaw));
+			check("startTs / endTs = UTC 11-05 02:00 / UTC 11-18 19:50",
+				g && g.startTs === Date.UTC(2026, 10, 5, 2, 0) && g.endTs === Date.UTC(2026, 10, 18, 19, 50),
+				JSON.stringify(g && [g.startTs, g.endTs]));
+			const arr = (g && g.gacha) || [];
+			check("gacha[] = 3 条（主条 + 2 个并列条），key 前缀 = bjhl:gacha",
+				arr.length === 3 && arr.every((x) => String(x.key).indexOf("bjhl:gacha:") === 0),
+				JSON.stringify(arr.map((x) => x.key)));
+			check("gacha[] 逐条标题 = 昊苍 / 去往彼岸：4 角色 / 启明潜航…（与悬停同序同源）",
+				arr.length === 3 && arr[0].title === "常态共鸣·昊苍"
+				&& arr[1].title === "去往彼岸：伊琅相思、无咎、罗咤、吉娜"
+				&& arr[2].title === "启明潜航·伊琅相思 昊苍 红珠小姐",
+				JSON.stringify(arr.map((x) => x.title)));
+			check("**未来池不进数组**（常态共鸣·红珠小姐 11-19 才开）",
+				arr.every((x) => x.title !== "常态共鸣·红珠小姐"), JSON.stringify(arr.map((x) => x.title)));
+			check("悬停逐字（3 池 × 名称 + 档期两行；未来池不在里面）",
+				g && g.bannerHover === "常态共鸣·昊苍\n11-05 10:00 ~ 11-19 03:50\n去往彼岸：伊琅相思、无咎、罗咤、吉娜\n11-05 10:00 ~ 12-03 03:50\n启明潜航·伊琅相思 昊苍 红珠小姐\n11-05 10:00 ~ 12-03 03:50",
+				JSON.stringify(g && g.bannerHover));
+			check("悬停合规（只含名称与档期）", assertHoverConvention("bjhl 卡池", g && g.bannerHover, { requireSet: true }) !== false);
+			check("**1 个请求**：两个页面另一侧才算，本侧只打 `历史卡池一览`",
+				calls.length === 1 && calls[0].via === "proxy" && /page=历史卡池一览/.test(calls[0].url),
+				JSON.stringify(calls.map((c) => c.url.slice(0, 70))));
+			check("bwiki 请求带 `origin=*` + `Referer: https://wiki.biligame.com/`（否则会被 WAF 回 567）",
+				calls.length === 1 && /[?&]origin=\*/.test(calls[0].url) && calls[0].referer === "https://wiki.biligame.com/",
+				JSON.stringify(calls[0]));
+		}
+
+		// ── 活动载荷 ──
+		{
+			const calls = [];
+			const e = engineAt(NOW_BJHL, calls);
+			const s = e.__test.SOURCES.find((x) => x.id === "bjhl");
+			const d = await e.__test.EVENT_FETCHERS["bjhl"].default(s.eventUrl, undefined, s.tz);
+			check("活动抓取器返回对象", !!d && typeof d === "object");
+			check("在期活动 = 破限·伊琅相思（11-05 10:00 ~ 12-03 03:50）",
+				d && d.event === "破限·伊琅相思", JSON.stringify(d && d.event));
+			check("活动档期 = 「11-05 10:00 ~ 12-03 03:50」/ 原文带秒「2026-11-05 10:00:00 ~ 2026-12-03 03:50:00」",
+				d && d.eventDates === "11-05 10:00 ~ 12-03 03:50"
+				&& d.eventDatesRaw === "2026-11-05 10:00:00 ~ 2026-12-03 03:50:00",
+				JSON.stringify(d && [d.eventDates, d.eventDatesRaw]));
+			check("events[] = 1 条（夹具里只有这一期覆盖当期；往期 5 期不进）",
+				!!d && Array.isArray(d.events) && d.events.length === 1
+				&& d.events[0].title === "破限·伊琅相思" && d.events[0].startTs === Date.UTC(2026, 10, 5, 2, 0),
+				JSON.stringify(d && (d.events || []).map((x) => [x.title, x.startTs])));
+			check("只有 1 条在期 ⇒ 不设 eventHover（交回 UI 单条两行式）", d && d.eventHover === void 0, JSON.stringify(d && d.eventHover));
+			check("**1 个请求**：本侧只打 `活动一览`", calls.length === 1 && /page=活动一览/.test(calls[0].url),
+				JSON.stringify(calls.map((c) => c.url.slice(0, 70))));
+		}
+
+		// ── 反证 ①：抹掉起止正则的关键锚点（终点日期）⇒ 那一张卡解不出 ⇒ 该条不进外显/数组 ──
+		{
+			// bwiki 的窗口解析要**两个日期点**（`ns_bwiki_DATE_RE` 认 `YYYY.MM.DD`）：
+			// 抹掉终点那一刻，这张卡就只剩一个点 ⇒ 整条丢弃。
+			// （只抹 ` ~ ` 连接号是**无效**反证 —— 该解析器不要求连接号，第一次就是这么假绿的。）
+			const mutated = bjhlGachaHtml.replace(/2026\.11\.19\s+03:50/, "待定");
+			const items = BJ.parseBjhlGacha(mutated, BJ.BJHL_TZ);
+			check("反证：抹掉终点日期 ⇒ 该卡解不出（9 张），`常态共鸣·昊苍` 不在解析结果里",
+				items.length === 9 && !items.some((x) => x.banner === "常态共鸣·昊苍"),
+				JSON.stringify([items.length, items.map((x) => x.banner)]));
+			const tr = makeTransport([], { override: () => JSON.stringify({ parse: { text: mutated } }) });
+			const e = createEngine({ transport: tr, storage: makeStore(), now: () => NOW_BJHL, timer: { setTimeout, clearTimeout } });
+			const s = e.__test.SOURCES.find((x) => x.id === "bjhl");
+			const g = await e.__test.GACHA_FETCHERS["bjhl"](s.url, undefined, s.tz);
+			check("反证：外显换人 = 去往彼岸（抹掉的那条不进外显，而不是硬凑原值）",
+				g && g.banner === "去往彼岸", JSON.stringify(g && g.banner));
+			check("反证：gacha[] 里没有 常态共鸣·昊苍（数组与悬停同源）",
+				g && (g.gacha || []).every((x) => x.title !== "常态共鸣·昊苍"),
+				JSON.stringify(g && (g.gacha || []).map((x) => x.title)));
+		}
+
+		// ── 反证 ②：响应换成 `{}` / 空 HTML ⇒ **抛错**（抓取失败，不是 nomatch）──
+		{
+			const grab = async (body) => {
+				const tr = makeTransport([], { override: () => body });
+				const e = createEngine({ transport: tr, storage: makeStore(), now: () => NOW_BJHL, timer: { setTimeout, clearTimeout } });
+				const s = e.__test.SOURCES.find((x) => x.id === "bjhl");
+				let err = null, data;
+				try { data = await e.__test.GACHA_FETCHERS["bjhl"](s.url, undefined, s.tz); } catch (e2) { err = e2; }
+				return { err, data };
+			};
+			const r1 = await grab("{}");
+			check("反证：卡池响应 `{}` ⇒ 抛错（`bad-json`），不是返回 null", !!r1.err && /bad-json/.test(r1.err.message), JSON.stringify(r1.err && r1.err.message));
+			const r2 = await grab('{"parse":{"text":""}}');
+			check("反证：卡池 `parse.text` 是空串 ⇒ 抛错（`bjhl-gacha-changed:no-cards`）",
+				!!r2.err && /bjhl-gacha-changed/.test(r2.err.message), JSON.stringify(r2.err && r2.err.message));
+			// 卡片 class 改名（源站改版）：先改 HTML 再封成 JSON —— 直接对 JSON.stringify 的结果做替换
+			// 会因为内层引号被转义成 `\"` 而**静默不命中**（本用例第一次就是这么假绿的）
+			const renamed = bjhlGachaHtml.replace(/class="draw-box[^"]*"/g, 'class="x"');
+			const r3 = await grab(JSON.stringify({ parse: { text: renamed } }));
+			check("反证：卡片 class 改名（源站改版）⇒ 抛错（不是「当期没有」）", !!r3.err && /no-cards/.test(r3.err.message),
+				JSON.stringify([r3.err && r3.err.message, renamed.length !== bjhlGachaHtml.length]));
+			// 活动侧同一条：{} ⇒ 抛
+			const trA = makeTransport([], { override: () => "{}" });
+			const eA = createEngine({ transport: trA, storage: makeStore(), now: () => NOW_BJHL, timer: { setTimeout, clearTimeout } });
+			const sA = eA.__test.SOURCES.find((x) => x.id === "bjhl");
+			let errA = null;
+			try { await eA.__test.EVENT_FETCHERS["bjhl"].default(sA.eventUrl, undefined, sA.tz); } catch (e2) { errA = e2; }
+			check("反证：活动响应 `{}` ⇒ 抛错（不是 nomatch）", !!errA, JSON.stringify(errA && errA.message));
+			check("夹具本身是真抓的 bwiki JSON（`parse.text` 是渲染后 HTML，不是 wikitext）",
+				!!JSON.parse(bjhlEventsRaw).parse && /activity-box/.test(JSON.parse(bjhlEventsRaw).parse.text));
+		}
+	}
+
+	// ═══════════════════ ⑤ 阴阳师（yys）—— 官网公告列表 + 详情 ═══════════════════
+	section("阴阳师 ⑤：官网公告 `/news/update/`（注册 / 维护后锚点 / 卡池+活动 / 请求数 / 反证）");
+	{
+		const YY = T.parsers.yys;
+		const yysListRaw = fixtureBody("fixture:yys-update-list", { "fixture:yys-update-list": "yys-update-list/response.txt" });
+		const detailRaw = (d) => fixtureBody("fixture:yys-update-detail-" + d, { ["fixture:yys-update-detail-" + d]: "yys-update-detail-" + d + "/response.txt" });
+		const NOW_YYS = Date.parse("2026-11-15T00:15:14+08:00");
+
+		// ── 注册项 ──
+		{
+			const s = T.SOURCES.find((x) => x.id === "yys") || null;
+			check("条目已存在（id = yys）", !!s, s ? s.id : "缺失");
+			check("名称 = 阴阳师", !!s && s.name === "阴阳师", s && s.name);
+			check("tz = Asia/Shanghai（国服官网，无夏令时）", !!s && s.tz === "Asia/Shanghai", s && String(s.tz));
+			check("defaultHidden = false（出厂展示）", !!s && s.defaultHidden === false, s && String(s.defaultHidden));
+			check("有游戏主题色（#rrggbb）", !!s && /^#[0-9A-Fa-f]{6}$/.test(String(s.color)), s && String(s.color));
+			check("两侧 url 都是官网公告列表（卡池/活动同一条列表页）",
+				!!s && s.url === YY.YYS_LIST_URL && s.eventUrl === YY.YYS_LIST_URL,
+				s && JSON.stringify([s.url, s.eventUrl]));
+			check("两侧来源标签 = 「官网公告」（与 hlr/其它网易源同口径，逐字）",
+				!!s && s.source === "官网公告" && s.eventSource === "官网公告",
+				s && JSON.stringify([s.source, s.eventSource]));
+			const e0 = engineAt(NOW_YYS, []);
+			check("两侧抓取器都登记（GACHA_FETCHERS.yys / EVENT_FETCHERS.yys.default）",
+				typeof e0.__test.GACHA_FETCHERS["yys"] === "function"
+				&& !!(e0.__test.EVENT_FETCHERS["yys"] && typeof e0.__test.EVENT_FETCHERS["yys"].default === "function"));
+		}
+
+		// ── 列表 + 详情解析（纯函数）──
+		{
+			const list = YY.yysParseList(yysListRaw);
+			check("列表解出 15 条文章链接（`/news/update/YYYYMMDD/…html`；翻页 `index_N.html` 不算）", list.length === 15, String(list.length));
+			check("首条 = 11-10 的「11月11日维护更新公告」（最新在前）",
+				list[0] && list[0].dateText === "20261110" && list[0].title === "《阴阳师》手游11月11日维护更新公告"
+				&& list[0].url === "https://yys.163.com/news/update/20261110/23024_1319269.html",
+				JSON.stringify(list[0]));
+			check("协议相对地址 `//yys.163.com/…` → https 绝对地址",
+				list.every((x) => /^https:\/\/yys\.163\.com\/news\/update\/\d{8}\/[\w_]+\.html$/.test(x.url)),
+				String(list[0] && list[0].url));
+
+			const d1 = YY.yysParseDetail(detailRaw("20261110"));
+			check("详情标题 / artDate = 「《阴阳师》手游11月11日维护更新公告」/ 2026-11-10",
+				d1.title === "《阴阳师》手游11月11日维护更新公告" && d1.dateText === "2026-11-10",
+				JSON.stringify([d1.title, d1.dateText]));
+			const blocks = YY.yysBlocksOf(d1.html);
+			const anchor = YY.yysMaintenanceOf(blocks[0] || []);
+			check("「维护后」锚点 = 同篇 `※维护时间 2026年11月11日7:00-9:00` 的**结束时刻** 09:00",
+				!!anchor && anchor.y === 2026 && anchor.mo === 11 && anchor.d === 11 && anchor.h === 9 && anchor.mi === 0,
+				JSON.stringify(anchor));
+			const rows = YY.yysGachaRowsOf(blocks, YY.YYS_TZ, YY.yysRefYearOf(d1, anchor), anchor);
+			check("召唤条解出 1 条：旧枷离解·祸命权现 / 笼梦祸津神 / 11-11 09:00 ~ 11-22 23:59",
+				rows.length === 1 && rows[0].banner === "旧枷离解·祸命权现" && rows[0].roles === "笼梦祸津神"
+				&& rows[0].display === "11-11 09:00 ~ 11-22 23:59",
+				JSON.stringify(rows));
+			check("起点按锚点补成绝对时刻（UTC 11-11 01:00 = +08 09:00），原文保留「维护后」",
+				rows.length === 1 && rows[0].startTs === Date.UTC(2026, 10, 11, 1, 0)
+				&& rows[0].endTs === Date.UTC(2026, 10, 22, 15, 59)
+				&& rows[0].raw === "11月11日维护后 ~ 11月22日23:59",
+				JSON.stringify(rows[0] && [rows[0].startTs, rows[0].endTs, rows[0].raw]));
+			const evRows = YY.yysEventRowsOf(blocks, YY.YYS_TZ, YY.yysRefYearOf(d1, anchor), anchor);
+			check("活动条：`开放时间：…` 与「标签单独一行 + 下一行窗口」两种写法都吃（超鬼王 / 双十一呱呱礼 都在）",
+				evRows.some((x) => x.event === "祸至无日，超鬼王开启！" && x.endTs === Date.UTC(2026, 10, 17, 15, 59))
+				&& evRows.some((x) => x.event === "双十一呱呱礼" && x.endTs === Date.UTC(2026, 10, 17, 15, 59)),
+				JSON.stringify(evRows.map((x) => [x.event, x.endTs])));
+			check("只有裸窗口的条目（`追忆绘卷`）**不产出** —— 只认带 `活动时间/开放时间/开启时间/活动日期` 的标签窗口",
+				!evRows.some((x) => /追忆绘卷/.test(x.event)), JSON.stringify(evRows.map((x) => x.event)));
+			check("`新礼包情报`（限购时间）/`皮肤限时返场`（返场时间）不算活动（标签不在白名单里）",
+				!evRows.some((x) => /礼包情报|皮肤限时返场/.test(x.event)), JSON.stringify(evRows.map((x) => x.event)));
+		}
+
+		// ── 卡池载荷（引擎路径）──
+		{
+			const calls = [];
+			const e = engineAt(NOW_YYS, calls);
+			const s = e.__test.SOURCES.find((x) => x.id === "yys");
+			const g = await e.__test.GACHA_FETCHERS["yys"](s.url, undefined, s.tz);
+			check("卡池抓取器返回对象", !!g && typeof g === "object");
+			check("当期池 = 旧枷离解·祸命权现 / 角色 = 笼梦祸津神",
+				g && g.banner === "旧枷离解·祸命权现" && g.roles === "笼梦祸津神",
+				JSON.stringify(g && [g.banner, g.roles]));
+			check("档期 = 「11-11 09:00 ~ 11-22 23:59」/ 原文「11月11日维护后 ~ 11月22日23:59」",
+				g && g.bannerDates === "11-11 09:00 ~ 11-22 23:59"
+				&& g.bannerDatesRaw === "11月11日维护后 ~ 11月22日23:59",
+				JSON.stringify(g && [g.bannerDates, g.bannerDatesRaw]));
+			check("gacha[] = 1 条（只有这一口池在期；10-27 那期的飞驰天地 11-08 已收）",
+				!!g && Array.isArray(g.gacha) && g.gacha.length === 1
+				&& g.gacha[0].key === "yys:gacha:0" && g.gacha[0].title === "旧枷离解·祸命权现"
+				&& g.gacha[0].show === "笼梦祸津神",
+				JSON.stringify(g && (g.gacha || []).map((x) => [x.key, x.title, x.show])));
+			check("只有 1 条在期 ⇒ 不设 bannerHover", g && g.bannerHover === void 0, JSON.stringify(g && g.bannerHover));
+			check("请求数 = 4（1 次列表 + 3 篇详情；只挑「维护更新公告」，违规处罚稿不抓）",
+				calls.length === 4
+				&& calls[0].url === YY.YYS_LIST_URL
+				&& calls.slice(1).every((c) => /\/news\/update\/\d{8}\/[\w_]+\.html$/.test(c.url)),
+				JSON.stringify(calls.map((c) => c.url.slice(-40))));
+			check("详情地址 = 最新 3 篇更新公告（11-10 / 11-03 / 10-27，按列表顺序）",
+				calls.slice(1).map((c) => (c.url.match(/\/(\d{8})\//) || [])[1]).join(",") === "20261110,20261103,20261027",
+				JSON.stringify(calls.slice(1).map((c) => c.url)));
+			check("全部请求走宿主代理并带 `Referer: https://yys.163.com/`（该站无 ACAO）",
+				calls.every((c) => c.via === "proxy" && c.referer === "https://yys.163.com/"),
+				JSON.stringify(calls[0]));
+		}
+
+		// ── 活动载荷（引擎路径）──
+		{
+			const calls = [];
+			const e = engineAt(NOW_YYS, calls);
+			const s = e.__test.SOURCES.find((x) => x.id === "yys");
+			const d = await e.__test.EVENT_FETCHERS["yys"].default(s.url, undefined, s.tz);
+			check("活动抓取器返回对象", !!d && typeof d === "object");
+			check("外显活动 = 祸至无日，超鬼王开启！（在期活动里结束最早：11-17 23:59）",
+				d && d.event === "祸至无日，超鬼王开启！", JSON.stringify(d && d.event));
+			check("活动档期 = 「11-11 09:00 ~ 11-17 23:59」/ 原文保留「维护后」",
+				d && d.eventDates === "11-11 09:00 ~ 11-17 23:59"
+				&& d.eventDatesRaw === "11月11日维护后 ~ 11月17日23:59",
+				JSON.stringify(d && [d.eventDates, d.eventDatesRaw]));
+			const arr = (d && d.events) || [];
+			check("events[] 非空且按结束时间升序（每篇详情各出多条，不折叠）",
+				arr.length >= 10 && arr.every((x, i) => i === 0 || x.endTs >= arr[i - 1].endTs),
+				JSON.stringify(arr.map((x) => [x.title, x.endTs])));
+			check("events[] 里含 3 篇公告的档期（超鬼王 11-17 / 祈愿福礼 11-22 / 曜之阁 2027-01-26）",
+				arr.some((x) => x.title === "祸至无日，超鬼王开启！" && x.endTs === Date.UTC(2026, 10, 17, 15, 59))
+				&& arr.some((x) => x.title === "祈愿福礼" && x.endTs === Date.UTC(2026, 10, 22, 15, 59))
+				&& arr.some((x) => /曜之阁/.test(x.title) && x.endTs === Date.UTC(2027, 0, 26, 15, 59)),
+				JSON.stringify(arr.map((x) => [x.title, x.endTs])));
+			check("悬停 = 逐条「名称 + 3 空格 + 档期」，行数 = events[] 条数（首行逐字；档期印源站原文，含「维护后」）",
+				!!d && d.eventHover.split("\n").length === arr.length
+				&& d.eventHover.split("\n")[0] === "霜月「诞生庆典」开启！   11-10 00:00 ~ 11-16 23:59"
+				&& d.eventHover.indexOf("祸至无日，超鬼王开启！   11月11日维护后 ~ 11月17日23:59") > 0,
+				JSON.stringify(d && d.eventHover && d.eventHover.split("\n").slice(0, 3)));
+			// ⚠️ 这里**不**调 assertHoverConvention：它的元信息词表把「维护后」算作元信息，而本源的
+			//    「维护后」是**档期原文的一部分**（与 bandori `9月29日维护后~…` / 嘟嘟脸同一情形，
+			//    那两处也都不走该助手）。上面那条逐字断言比它更严。
+			check("请求数 = 4（列表 1 + 详情 3）", calls.length === 4, String(calls.length));
+		}
+
+		// ── 反证 ①：抹掉起点锚点（`※维护时间`）⇒ 当期池不再产出（**假在期比少显示更糟**）──
+		{
+			const noAnchor = (u) => {
+				if (/20261110/.test(u)) return detailRaw("20261110").replace(/维护时间/g, "维护说明");
+				if (/20261103/.test(u)) return detailRaw("20261103");
+				if (/20261027/.test(u)) return detailRaw("20261027");
+				return yysListRaw;
+			};
+			const tr = makeTransport([], { override: noAnchor });
+			const e = createEngine({ transport: tr, storage: makeStore(), now: () => NOW_YYS, timer: { setTimeout, clearTimeout } });
+			const s = e.__test.SOURCES.find((x) => x.id === "yys");
+			const g = await e.__test.GACHA_FETCHERS["yys"](s.url, undefined, s.tz);
+			check("反证：抹掉 `※维护时间` ⇒ 「维护后」没有锚点 ⇒ 当期池对 now 无覆盖 ⇒ **null（未公布）**",
+				g === null, JSON.stringify(g && g.banner));
+		}
+
+		// ── 反证 ②：抹掉某条窗口的连接号 ⇒ 那一条不进 events[]（且不会被后面的子阶段窗口顶替）──
+		{
+			const d1 = YY.yysParseDetail(detailRaw("20261110"));
+			const blocks = YY.yysBlocksOf(d1.html);
+			const anchor = YY.yysMaintenanceOf(blocks[0] || []);
+			const refYear = YY.yysRefYearOf(d1, anchor);
+			const base = YY.yysEventRowsOf(blocks, YY.YYS_TZ, refYear, anchor);
+			check("基线：未改动时 超鬼王 在 events[]（11-11 09:00 ~ 11-17 23:59）",
+				base.some((x) => x.event === "祸至无日，超鬼王开启！" && x.endTs === Date.UTC(2026, 10, 17, 15, 59)),
+				JSON.stringify(base.map((x) => [x.event, x.endTs])));
+			const mutated = blocks.map((lines) => (/超鬼王/.test(lines[0] || "")
+				? lines.map((l) => (l === "开放时间：11月11日维护后-11月17日23:59" ? "开放时间：11月11日维护后 11月17日23:59" : l))
+				: lines));
+			const rows = YY.yysEventRowsOf(mutated, YY.YYS_TZ, refYear, anchor);
+			check("反证：把 `-` 抹掉 ⇒ 超鬼王那条解不出 ⇒ 不进 events[]（限 8 行扫描 ⇒ 不拿「笼中残梦」的 11-24 顶替）",
+				!rows.some((x) => /超鬼王/.test(x.event)), JSON.stringify(rows.map((x) => [x.event, x.endTs])));
+			// 纯函数级：窗口行本身也就解不出了（证明是正则锚点，不是别的层）
+			check("反证：`yysWindowOf` 对「开放时间：11月11日维护后 11月17日23:59」返回 null（连接号是硬锚点）",
+				YY.yysWindowOf("11月11日维护后 11月17日23:59", YY.YYS_TZ, refYear, anchor) === null);
+		}
+
+		// ── 反证 ③：`{}` / 空 HTML / 结构改名 ⇒ **抛错**（不是 nomatch）──
+		{
+			const grab = async (body) => {
+				const tr = makeTransport([], { override: () => body });
+				const e = createEngine({ transport: tr, storage: makeStore(), now: () => NOW_YYS, timer: { setTimeout, clearTimeout } });
+				const s = e.__test.SOURCES.find((x) => x.id === "yys");
+				let err = null, data;
+				try { data = await e.__test.GACHA_FETCHERS["yys"](s.url, undefined, s.tz); } catch (e2) { err = e2; }
+				return { err, data };
+			};
+			const r1 = await grab("{}");
+			check("反证：列表响应 `{}` ⇒ 抛错（`yys-list-changed:no-articles`）",
+				!!r1.err && /no-articles/.test(r1.err.message), JSON.stringify(r1.err && r1.err.message));
+			const r2 = await grab(yysListRaw.replace(/维护更新公告/g, "维护更新说明"));
+			check("反证：标题口径变了（没有「维护更新公告」）⇒ 抛错（`no-update-articles`）",
+				!!r2.err && /no-update-articles/.test(r2.err.message), JSON.stringify(r2.err && r2.err.message));
+			const r3 = await grab("");
+			check("反证：空响应体 ⇒ 抛错（不是返回 null）", !!r3.err, JSON.stringify(r3.err && r3.err.message));
+			// 详情侧：把三篇的 `artText` 抹掉 ⇒ 全部详情失败 ⇒ 抛错
+			const trD = makeTransport([], { override: (u) => (/\/news\/update\/\d{8}\//.test(u) ? "<html><body>{}" : yysListRaw) });
+			const eD = createEngine({ transport: trD, storage: makeStore(), now: () => NOW_YYS, timer: { setTimeout, clearTimeout } });
+			const sD = eD.__test.SOURCES.find((x) => x.id === "yys");
+			let errD = null;
+			try { await eD.__test.EVENT_FETCHERS["yys"].default(sD.url, undefined, sD.tz); } catch (e2) { errD = e2; }
+			check("反证：详情页没有 `artText` ⇒ 抛错（`yys-detail-changed:artText`，不是静默 nomatch）",
+				!!errD && /yys-detail-changed/.test(errD.message), JSON.stringify(errD && errD.message));
+		}
 	}
 }

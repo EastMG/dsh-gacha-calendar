@@ -1,0 +1,8 @@
+{
+  "bytes": 37893,
+  "sha256": "2b51af947b339f81",
+  "url": "https://wiki.biligame.com/bjhl/api.php?action=parse&page=历史卡池一览&prop=text&format=json&formatversion=2",
+  "status": 200,
+  "capturedAt": "2026-11-14T16:15:14.000Z",
+  "trim": "原页 675,723 B / parse.text 626,988 字符 / 195 张 draw-box 卡（最早到 2024-01）。只保留**前 10 张卡**（= 11-19 那张未来池 + 11-05 三张在期池 + 10-22 / 10-08 / 09-24 / 09-10 的往期边界），parse.text 从第 11 张卡起点截断（尾部不闭合也无害：解析按\"到下一张卡起点\"切片）；JSON 其余字段（parse.title / pageid / revid）原样。"
+}

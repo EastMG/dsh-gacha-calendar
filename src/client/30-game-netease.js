@@ -452,3 +452,308 @@
 		EVENT_FETCHERS["hlr"] = {
 			default: (url, signal, tz) => fetchHlrEvents(url, signal, tz)
 		};
+
+		// ══════════════════════════════════════════════════════════════════════════════
+		// 阴阳师（国服）：官网公告 `/news/update/`（**静态列表页**）→ 当期详情正文
+		//
+		// 同一个网易系 CMS（与上面时空中的绘旅人**同站同结构**）：列表是 SSR 静态 HTML，
+		// 正文在 `<div class="artText">`，标题 `<h1>`，日期 `<span class="artDate">2026-11-10</span>`。
+		// ⇒ 能复用的直接复用：`hlrDivOf`（按深度切 `artText`）/ `textOf`（实体 + 换行）/ `fetchText`
+		//   （宿主代理 + Referer）/ `fmtWindow` / `sourceInstant` / `hoverTextFromItems` /
+		//   `dataArrayProduced*Of` / `poolHoverOrderOf`。**没有**第二套 HTML 工具，也没有第二套悬停排版。
+		//
+		// ── 源站事实（2026-11-15 实测；夹具 yys-update-list / yys-update-detail-*）────────────
+		//   列表：GET https://yys.163.com/news/update/index.html      （200 / 34,755 B / 16 条 / 翻页 index_2…）
+		//         `<a class="link" href="//yys.163.com/news/update/20261110/23024_1319269.html"
+		//             title="《阴阳师》手游11月11日维护更新公告">`
+		//   详情：GET 上面那个链接
+		//         `※维护时间 2026年11月11日7:00-9:00` + `重要更新` 下的编号条目：
+		//           `2.「旧枷离解·祸命权现」限时召唤活动` / `11月11日维护后-11月22日23:59` /
+		//           `全新SP阶式神笼梦祸津神(CV：…)`     ← 卡池
+		//           `4.祸至无日，超鬼王开启！` … `开放时间：11月11日维护后-11月17日23:59`  ← 活动
+		//   时区：`Asia/Shanghai`（国服官网，无夏令时）。
+		//   请求数：每侧 1 次列表 + 最多 3 篇详情（更新公告一周一篇 ⇒ 3 篇 ≈ 覆盖 3 周在期窗口）。
+		//
+		// ── 「维护后」的起点怎么来（**不猜钟点**）──────────────────────────────────────────
+		//   源站只写 `11月11日维护后`，钟点在同**一篇**公告的开头：`※维护时间 2026年11月11日7:00-9:00`
+		//   ⇒ 起点 = 那天的**维护结束时刻（= 开服）09:00**。与 `30-game-biligame.js`（嘟嘟脸）同一手法，
+		//   也遵循同一铁律：**日期对不上就不锚**（11-03 那篇写的是「11月11日维护后」，而那篇的维护是
+		//   11-04 ⇒ 不拿它硬套），没有锚点 ⇒ 这一条**不产出**（宁可少显示，也不要假在期）。
+		//   原文（`11月11日维护后 ~ 11月22日23:59`）留在 `raw` 里，悬停照公共层口径印原文；
+		//   `display` / `bannerDates` 是补全后的 `MM-DD HH:MM ~ MM-DD HH:MM`。
+		//
+		// ── 两侧各取什么（**不新造**）──────────────────────────────────────────────────
+		//   卡池：编号条目首行含 `「…」…召唤活动` ⇒ 池名 = 那个「…」；角色 = 正文里第一个
+		//         `SP/SSR/UR/SR/R 阶式神X`（抽不到就空串）；档期 = 该条目里**第一个**可解析的窗口行
+		//         （召唤条的窗口是裸行 `11月11日维护后-11月22日23:59`）。
+		//   活动：编号条目里**第一个带标签的窗口**（标签 = `活动时间/开放时间/开启时间/活动日期`，
+		//         标签与窗口同行的 `开放时间：…`、或标签单独一行 + 下一行窗口，两种都吃）；
+		//         名称 = 编号条目首行原文（去掉 `N.` 前缀）。
+		//         ⇒ `新礼包情报`（`限购时间`）、`皮肤限时返场`（`限时返场时间`）这类**不是活动时间**的
+		//           窗口自然被排除；`追忆绘卷` 那种只有裸窗口的条目也不产出（如实留空，不硬凑）。
+		//
+		// ── 失败语义（与全仓一致）──────────────────────────────────────────────────────
+		//   · 列表 / 详情 HTTP 非 2xx、响应不是文本 ⇒ **抛**（该侧记失败）；
+		//   · 列表页一条文章链接都解不出 / 没有任何「维护更新公告」标题 ⇒ **抛**（页面结构变了）；
+		//   · 详情页没有 `artText`（`{}` / 空 HTML）⇒ **抛**；
+		//   · 全部详情都失败 ⇒ **抛**（别把源站改版静默成"未公布"）；
+		//   · 详情解出来了、但当期没有覆盖 now 的条目 ⇒ `null`（未公布）。
+		//   卡池与活动是两个独立抓取器：一侧失败不影响另一侧。
+
+		const YYS_TZ = "Asia/Shanghai";
+		const YYS_LIST_URL = "https://yys.163.com/news/update/index.html";
+		const YYS_REFERER = "https://yys.163.com/";
+		// 每侧详情预算（列表顺序 = 从新到旧；更新公告一周一篇）
+		const YYS_DETAIL_QUOTA = { gacha: 3, event: 3 };
+		// 只把「维护更新公告」当候选（违规处罚 / 活动宣传稿等没有档期表）
+		const YYS_UPDATE_TITLE_RE = /维护更新公告/;
+
+		// 列表页 → [{ title, url, dateText }]（文档顺序 = 从新到旧）
+		// 只认 `/news/update/YYYYMMDD/<id>.html`；`href` / `title` 属性顺序不依赖（逐 `<a …>` 取属性）
+		function yysAbsoluteUrl(href) {
+			const h = String(href == null ? "" : href).trim();
+			if (/^https?:\/\//i.test(h)) return h;
+			if (h.startsWith("//")) return "https:" + h;
+			return "https://yys.163.com" + (h.startsWith("/") ? "" : "/") + h;
+		}
+		function yysParseList(html) {
+			const s = String(html == null ? "" : html);
+			const out = [];
+			const re = /<a\b([^>]*)>/gi;
+			let m;
+			while ((m = re.exec(s))) {
+				const attrs = m[1];
+				const href = /\bhref\s*=\s*"([^"]*)"/i.exec(attrs);
+				if (!href) continue;
+				const path = /\/(\d{8})\/[^"/]+\.html$/.exec(href[1]);
+				if (!path || !/\/news\/update\//.test(href[1])) continue;
+				const t = /\btitle\s*=\s*"([^"]*)"/i.exec(attrs);
+				out.push({
+					url: yysAbsoluteUrl(href[1]),
+					dateText: path[1],
+					title: t ? textOf(t[1]).replace(/\s+/g, " ").trim() : ""
+				});
+			}
+			return out;
+		}
+
+		// 详情页 → { title, dateText, html }；没有 `artText` ⇒ 抛（抓取失败，不是"未公布"）
+		function yysParseDetail(html) {
+			const s = String(html == null ? "" : html);
+			const art = hlrDivOf(s, 'class="artText"');
+			if (!art) throw new Error("yys-detail-changed:artText");
+			const h1 = /<h1\b[^>]*>([\s\S]*?)<\/h1>/i.exec(s);
+			const d = /<span\b[^>]*class="[^"]*artDate[^"]*"[^>]*>([\s\S]*?)<\/span>/i.exec(s);
+			return {
+				title: h1 ? textOf(h1[1]).replace(/\s+/g, " ").trim() : "",
+				dateText: d ? textOf(d[1]).replace(/\s+/g, " ").trim() : "",
+				html: art
+			};
+		}
+
+		// 正文 → 段落数组（每段 = 非空行数组）。`textOf` 已把 `<br>` 换成换行，
+		// 这里只按行切 + 逐行 trim（行内信息一个不丢，标签/编号条目都靠行首判定）。
+		function yysBlocksOf(artTextHtml) {
+			const out = [];
+			const re = /<p\b[^>]*>([\s\S]*?)<\/p>/gi;
+			let m;
+			while ((m = re.exec(String(artTextHtml == null ? "" : artTextHtml)))) {
+				const lines = textOf(m[1]).split("\n").map((l) => l.trim()).filter((l) => l !== "");
+				if (lines.length) out.push(lines);
+			}
+			return out;
+		}
+
+		// 窗口行（**整行**匹配，避免把正文里的日期当窗口）：
+		//   `11月11日维护后-11月22日23:59` / `2026年11月4日维护后-2027年1月5日23:59`
+		//   `11月1日0:00-11月11日7:00` / `9月16日0:00至11月11日7:59`
+		const YYS_WIN_RE = /^(?:(\d{4})\s*年\s*)?(\d{1,2})\s*月\s*(\d{1,2})\s*日\s*(?:维护后|(\d{1,2})\s*[:：]\s*(\d{2}))\s*[-~～—–－至到]\s*(?:(\d{4})\s*年\s*)?(\d{1,2})\s*月\s*(\d{1,2})\s*日\s*(\d{1,2})\s*[:：]\s*(\d{2})$/;
+		// 档期标签（`※活动时间` 单独一行、`开放时间：…` 同行、`玩法开放时间：…` 同行都吃）
+		const YYS_LABEL_RE = /^(?:[※*·●▸➤〓【\[]\s*)?([\u4e00-\u9fa5]{0,4}(?:活动时间|开放时间|开启时间|活动日期))\s*[】\]]?\s*[：:]?\s*(.*)$/;
+
+		// 公告开头那句维护窗 → 该篇的「维护后」锚点（= 维护结束时刻）
+		function yysMaintenanceOf(lines) {
+			const text = (Array.isArray(lines) ? lines : []).join(" ");
+			const m = /维护时间[\s\S]{0,8}?(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日\s*(\d{1,2})\s*[:：]\s*(\d{2})\s*[-~～至]\s*(\d{1,2})\s*[:：]\s*(\d{2})/.exec(text);
+			if (!m) return null;
+			return { y: +m[1], mo: +m[2], d: +m[3], h: +m[6], mi: +m[7] };
+		}
+
+		// 窗口行 + 参考年 + 锚点 → 条目事实的档期部分 `{ startTs, endTs, raw, display }`。
+		// 起点解析不出（`维护后` 且锚点日期对不上 / 参考年也没有）⇒ 返回 null（这一条不产出，不猜）。
+		function yysWindowOf(line, tz, refYear, anchor) {
+			const text = String(line == null ? "" : line).replace(/\s+/g, " ").trim();
+			const m = YYS_WIN_RE.exec(text);
+			if (!m) return null;
+			const startY = m[1] != null ? +m[1] : (Number.isFinite(refYear) ? refYear : null);
+			if (startY == null) return null;
+			const sm = +m[2], sd = +m[3];
+			let startTs = null;
+			if (m[4] != null) startTs = sourceInstant(startY, sm, sd, +m[4], +m[5], tz);
+			else if (anchor && anchor.mo === sm && anchor.d === sd) startTs = sourceInstant(startY, sm, sd, anchor.h, anchor.mi, tz);
+			if (startTs == null) return null;
+			const endY = m[6] != null ? +m[6] : startY + (endsNextYear(sm, sd, +m[7], +m[8]) ? 1 : 0);
+			const endTs = sourceInstant(endY, +m[7], +m[8], +m[9], +m[10], tz);
+			if (!(endTs > startTs)) return null;
+			return {
+				startTs, endTs,
+				// raw = 源站原文那一句（只把连接号统一成 `~`，`维护后` 原样保留）
+				raw: text.replace(/\s*[-~～—–－至到]\s*/, " ~ "),
+				display: fmtWindow(startTs, endTs, tz)
+			};
+		}
+
+		// 召唤条：`「旧枷离解·祸命权现」限时召唤活动` + 角色 `SP阶式神笼梦祸津神`
+		const YYS_SUMMON_RE = /「([^」]+)」\s*(?:限时)?召唤活动/;
+		const YYS_ROLE_RE = /(?:SP|SSR|UR|SR|R)阶式神\s*([^\s（(，,。、！!）)】]+)/;
+
+		function yysGachaRowsOf(blocks, tz, refYear, anchor) {
+			const out = [];
+			for (const lines of blocks) {
+				const head = lines[0] || "";
+				if (!/^\d+\./.test(head)) continue;
+				const sm = YYS_SUMMON_RE.exec(head);
+				if (!sm) continue;
+				// 召唤条的窗口是紧跟在标题后的**裸行**（`11月11日维护后-11月22日23:59`）
+				let win = null;
+				for (let i = 1; i < Math.min(lines.length, 4); i++) {
+					win = yysWindowOf(lines[i], tz, refYear, anchor);
+					if (win) break;
+				}
+				if (!win) continue;
+				const rm = YYS_ROLE_RE.exec(lines.join("\n"));
+				out.push({ banner: sm[1].trim(), roles: rm ? rm[1].trim() : "", ...win });
+			}
+			return out;
+		}
+
+		// 活动条：**只看条目开头这几行**里的第一个带标签窗口。
+		// 为什么限行：一个编号条目里常有多个「××开放时间」（超鬼王下面还有「笼中残梦 / 笼梦礼帖 / 解厄商店」
+		// 三个子阶段的窗口）。不限行的话，主窗口一旦解不出就会**静默**拿某个子阶段顶上去（错而不报）。
+		// 限到前 8 行 ⇒ 主窗口解不出就如实不产出（宁可少一条，也不要拿子阶段冒充整条活动的档期）。
+		const YYS_EVENT_SCAN_LINES = 8;
+
+		function yysEventRowsOf(blocks, tz, refYear, anchor) {
+			const out = [];
+			for (const lines of blocks) {
+				const head = lines[0] || "";
+				if (!/^\d+\./.test(head)) continue;
+				const name = head.replace(/^\d+\.\s*/, "").replace(/\s+/g, " ").trim();
+				if (!name) continue;
+				let win = null;
+				const last = Math.min(lines.length, YYS_EVENT_SCAN_LINES);
+				for (let i = 1; i < last && !win; i++) {
+					const lab = YYS_LABEL_RE.exec(lines[i]);
+					if (!lab) continue;
+					const rest = (lab[2] || "").trim();
+					win = rest ? yysWindowOf(rest, tz, refYear, anchor) : yysWindowOf(lines[i + 1] || "", tz, refYear, anchor);
+				}
+				if (!win) continue;
+				out.push({ event: name, ...win });
+			}
+			return out;
+		}
+
+		// 参考年：维护窗的年份 > 详情页 `artDate` 的年份；都没有 ⇒ null（`11月11日` 这种省年份的窗口不产出）
+		function yysRefYearOf(detail, anchor) {
+			if (anchor && Number.isFinite(anchor.y)) return anchor.y;
+			const m = /(\d{4})\s*-\s*(\d{1,2})\s*-\s*(\d{1,2})/.exec(String((detail && detail.dateText) || ""));
+			return m ? +m[1] : null;
+		}
+
+		// 列表 → 候选「维护更新公告」（前 N 篇）→ 逐篇详情 → 该侧的条目事实
+		async function yysCollectSide(listUrl, signal, tz, want) {
+			const u = String(listUrl == null ? "" : listUrl).trim() || YYS_LIST_URL;
+			const html = await fetchText(u, { signal, mode: "proxy", referer: YYS_REFERER });
+			const entries = yysParseList(html);
+			if (entries.length === 0) throw new Error("yys-list-changed:no-articles");
+			const picks = entries.filter((e) => YYS_UPDATE_TITLE_RE.test(e.title)).slice(0, YYS_DETAIL_QUOTA[want] || 3);
+			// 一个「维护更新公告」标题都没有 ⇒ 标题口径变了（源站改版），不是"当期没有"
+			if (picks.length === 0) throw new Error("yys-list-changed:no-update-articles");
+			const rows = [];
+			let okCount = 0, firstHardErr = null;
+			for (const it of picks) {
+				let detail;
+				try {
+					detail = yysParseDetail(await fetchText(it.url, { signal, mode: "proxy", referer: YYS_REFERER }));
+				} catch (e) {
+					if (!firstHardErr) firstHardErr = e;
+					continue;
+				}
+				okCount++;
+				const blocks = yysBlocksOf(detail.html);
+				const anchor = yysMaintenanceOf(blocks[0] || []);
+				const refYear = yysRefYearOf(detail, anchor);
+				const got = want === "gacha" ? yysGachaRowsOf(blocks, tz, refYear, anchor) : yysEventRowsOf(blocks, tz, refYear, anchor);
+				for (const r of got) rows.push({ ...r, title: detail.title || it.title });
+			}
+			if (okCount === 0) throw firstHardErr || new Error("yys-details-failed");
+			return rows;
+		}
+
+		async function fetchYysGacha(url, signal, tz = YYS_TZ) {
+			const at = nowMs();
+			const rows = await yysCollectSide(url, signal, tz, "gacha", at);
+			if (!rows || rows.length === 0) return null;
+			const live = rows.filter((r) => coversNow(r, at));
+			if (live.length === 0) return null;
+			live.sort((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs));
+			const first = live[0];
+			const hoverItems = rows.filter((r) => coveredOrOpen(r, at)).sort(poolHoverOrderOf).map((r) => {
+				const label = r.roles ? `${r.banner}\uFF1A${r.roles}` : r.banner;
+				return { title: label, label, startTs: r.startTs, endTs: r.endTs, raw: r.raw };
+			});
+			const hover = hoverTextFromItems(hoverItems, "gacha", tz);
+			const out = {
+				banner: first.banner,
+				roles: first.roles,
+				bannerDates: first.display,
+				bannerDatesRaw: first.raw,
+				startTs: first.startTs,
+				endTs: first.endTs,
+				...(hover ? { bannerHover: hover } : {})
+			};
+			out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id: "yys", tz }, at);
+			out.gachaHoverItems = hoverItems;
+			return out;
+		}
+
+		async function fetchYysEvents(url, signal, tz = YYS_TZ) {
+			const at = nowMs();
+			const rows = await yysCollectSide(url, signal, tz, "event", at);
+			if (!rows || rows.length === 0) return null;
+			const live = rows.filter((r) => coversNow(r, at));
+			if (live.length === 0) return null;
+			const first = live[0];
+			const hoverItems = rows.filter((r) => coveredOrOpen(r, at))
+				.sort((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs))
+				.map((r) => ({ title: r.event, startTs: r.startTs, endTs: r.endTs, raw: r.raw }));
+			const hover = hoverTextFromItems(hoverItems, "event", tz);
+			const out = {
+				event: first.event,
+				eventDates: first.display,
+				eventDatesRaw: first.raw,
+				...(hover ? { eventHover: hover } : {})
+			};
+			out.events = dataArrayProducedEventsOf(out, hoverItems, { id: "yys", tz }, at);
+			out.eventHoverItems = hoverItems;
+			return out;
+		}
+
+		// ── 条目 ──
+		registerSource({
+			id: "yys",
+			defaultHidden: false,
+			tz: YYS_TZ,
+			name: "阴阳师",
+			// 两侧同一个来源（官网「公告」列表页）：卡池=召唤活动、活动=活动/玩法档期
+			source: "官网公告",
+			url: YYS_LIST_URL,
+			eventSource: "官网公告",
+			eventUrl: YYS_LIST_URL
+		});
+
+		GACHA_FETCHERS["yys"] = (url, signal, tz) => fetchYysGacha(url, signal, tz);
+		EVENT_FETCHERS["yys"] = {
+			default: (url, signal, tz) => fetchYysEvents(url, signal, tz)
+		};

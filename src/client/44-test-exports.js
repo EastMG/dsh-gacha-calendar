@@ -45,16 +45,24 @@
 				parseNteWanmei,
 			},
 			"bwiki": {
+				BJHL_EVENTS_URL,
+				BJHL_GACHA_URL,
+				BJHL_TZ,
 				detectOrientation: ns_bwiki_detectOrientation,
 				eventsStellasora: ns_bwiki_eventsStellasora,
 				eventsUmaJp: ns_bwiki_eventsUmaJp,
 				eventsWhmx: ns_bwiki_eventsWhmx,
+				eventsBjhl: ns_bwiki_eventsBjhl,
+				gachaBjhl: ns_bwiki_gachaBjhl,
 				gachaCzn: ns_bwiki_gachaCzn,
 				gachaKedr: ns_bwiki_gachaKedr,
 				gachaUmaCn: ns_bwiki_gachaUmaCn,
 				gachaWhmx: ns_bwiki_gachaWhmx,
 				gachaZspms: ns_bwiki_gachaZspms,
 				parseCznGacha: ns_bwiki_parseCznGacha,
+				parseBjhlGacha: ns_bwiki_parseBjhlGacha,
+				parseBjhlEvents: ns_bwiki_parseBjhlEvents,
+				bjhlRolesOf: ns_bwiki_bjhlRolesOf,
 				parseKedrGacha: ns_bwiki_parseKedrGacha,
 				parsePoints: ns_bwiki_parsePoints,
 				parseStellasoraEvents: ns_bwiki_parseStellasoraEvents,
@@ -131,6 +139,31 @@
 				hlrRolesOf,
 				hlrWindowsOf,
 				hlrYearOf,
+			},
+			// 2026-11-15：阴阳师（国服）官网公告 `/news/update/` 列表 + 详情。
+			// 与 hlr 同一套网易新闻 CMS（`artText` / `artDate` / `h1`），所以导出同一批步长的纯函数：
+			// 列表解析 / 详情解析 / 段落切分 / 窗口行解析 / 活动行 / 卡池行 —— 让回归能分别钉住
+			// 「维护后 → 锚点 = 同篇维护结束时刻」「日期对不上 → 不产出」「标签窗口 vs 裸窗口」。
+			"yys": {
+				YYS_DETAIL_QUOTA,
+				YYS_LIST_URL,
+				YYS_REFERER,
+				YYS_TZ,
+				YYS_UPDATE_TITLE_RE,
+				YYS_WIN_RE,
+				// 与其它来源同名的两个抓取器别名（test/registry-shim.mjs 的 fetcher 键按 `模块.名字` 解析）
+				gachaYys: fetchYysGacha,
+				eventsYys: fetchYysEvents,
+				fetchYysEvents,
+				fetchYysGacha,
+				yysBlocksOf,
+				yysEventRowsOf,
+				yysGachaRowsOf,
+				yysMaintenanceOf,
+				yysParseDetail,
+				yysParseList,
+				yysRefYearOf,
+				yysWindowOf,
 			},
 			// 夜幕之下（卡池默认置空；备选 = bwiki SMW ask + /pengpeng 契约一览表；活动 TapTap tab 的 SSR）
 			"pengpeng": {

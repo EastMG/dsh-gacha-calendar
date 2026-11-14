@@ -1,0 +1,8 @@
+{
+  "bytes": 6914,
+  "sha256": "d3e28b169cb1454d",
+  "url": "https://wiki.biligame.com/bjhl/api.php?action=parse&page=活动一览&prop=text&format=json&formatversion=2",
+  "status": 200,
+  "capturedAt": "2026-11-14T16:15:14.000Z",
+  "trim": "原页 45,285 B / 55 张 activity-box 卡。只保留**前 6 张卡**（11-05 起在期的「破限·伊琅相思」+ 往期边界），从第 7 张卡起点截断；JSON 其余字段原样。"
+}

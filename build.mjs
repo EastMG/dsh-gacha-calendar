@@ -158,6 +158,10 @@ const ORDER = [
   "30-game-bwiki-kedr-wikitext.js",   // 雪松：Template:首页游戏版本内容 的模板调用
   "30-game-bwiki-kedr-wiki.js",       // 雪松社区归档页（往期动员，prop=text）
   "30-game-bwiki-register.js",        // 本组 4 条 registerSource + GACHA/EVENT_FETCHERS 接线
+  // 2026-11-15：白荆回廊（国服）—— bwiki 两个页面（`历史卡池一览` / `活动一览`）。
+  // 自包含一条（条目 + 解析器 + 抓取器 + 登记），复用 bwiki 公共层（时间解析 / 载荷 / 悬停）；
+  // 必须排在 `30-game-bwiki-common.js` **之后**（它用那边的 `ns_bwiki_*` helper）。
+  "30-game-bwiki-bjhl.js",
   "30-game-biligame.js",
   "30-game-cygames.js",
   "30-game-komoe.js",          // 赛马娘·繁中服（Komoe 官方公告；卡池 + 活动同一条接口）
@@ -290,6 +294,10 @@ const CORE_ORDER = [
   "30-game-bwiki-kedr-wikitext.js",   // 雪松：Template:首页游戏版本内容 的模板调用
   "30-game-bwiki-kedr-wiki.js",       // 雪松社区归档页（往期动员，prop=text）
   "30-game-bwiki-register.js",        // 本组 4 条 registerSource + GACHA/EVENT_FETCHERS 接线
+  // 2026-11-15：白荆回廊（国服）—— bwiki 两个页面（`历史卡池一览` / `活动一览`）。
+  // 自包含一条（条目 + 解析器 + 抓取器 + 登记），复用 bwiki 公共层（时间解析 / 载荷 / 悬停）；
+  // 必须排在 `30-game-bwiki-common.js` **之后**（它用那边的 `ns_bwiki_*` helper）。
+  "30-game-bwiki-bjhl.js",
   "30-game-biligame.js",
   "30-game-cygames.js",
   "30-game-komoe.js",          // 赛马娘·繁中服（Komoe 官方公告；卡池 + 活动同一条接口）
