@@ -294,24 +294,47 @@ function ns_bh2_listJsonOf(signal) {
 	return p;
 }
 // 一侧的抓取器：列表 → 前 N 条详情 → 条目事实（`gach` / `event`）
+//
+// 详情取数**并发 4 路**（2026-11-15 用户拍板）：
+//   · 原实现是 `for (… ) await fetchJson(…)` 串行 ⇒ 12 条详情要 6~12 秒，这一行迟迟不出版面；
+//   · 上限 4 是折中：比串行快 3~4 倍，又不至于 12 条同时打过去（别让源站觉得被爬）；
+//   · 结果按**行顺序**回填（`out[k]`），所以外显/悬停的排序与串行版逐字一致；
+//   · 单条失败仍只影响自己（`{ err }` 槽位），全部失败才抛。
+const ns_bh2_DETAIL_CONCURRENCY = 4;
+async function ns_bh2_detailsOf(rows, signal) {
+	const out = new Array(rows.length);
+	let next = 0;
+	const worker = async () => {
+		for (;;) {
+			const k = next++;
+			if (k >= rows.length) return;
+			try {
+				out[k] = ns_bh2_detailOf(await fetchJson(ns_bh2_DETAIL_URL + encodeURIComponent(rows[k].id), {
+					referer: ns_bh2_REFERER, signal, mode: "proxy"
+				}));
+			} catch (e) {
+				out[k] = { err: e };
+			}
+		}
+	};
+	await Promise.all(Array.from({ length: Math.min(ns_bh2_DETAIL_CONCURRENCY, rows.length) }, worker));
+	return out;
+}
 async function ns_bh2_sideOf(key, signal, tz, now) {
 	const list = ns_bh2_listOf(await ns_bh2_listJsonOf(signal));
 	const rows = list[key];
 	if (rows.length === 0) return null;                          // 该栏目一条都没有 ⇒ 未公布
+	const details = await ns_bh2_detailsOf(rows.slice(0, ns_bh2_MAX_DETAILS), signal);
 	const items = [];
 	let ok = 0, firstErr = null;
-	for (const row of rows.slice(0, ns_bh2_MAX_DETAILS)) {
-		let detail;
-		try {
-			detail = ns_bh2_detailOf(await fetchJson(ns_bh2_DETAIL_URL + encodeURIComponent(row.id), {
-				referer: ns_bh2_REFERER, signal, mode: "proxy"
-			}));
-		} catch (e) {
-			if (!firstErr) firstErr = e;                          // 单条失败 ⇒ 跳过，其余照用
+	for (let k = 0; k < details.length; k++) {
+		const detail = details[k];
+		if (detail && detail.err) {                               // 单条失败 ⇒ 跳过，其余照用
+			if (!firstErr) firstErr = detail.err;
 			continue;
 		}
 		ok++;
-		const item = ns_bh2_itemOf(detail, row, key === "gach" ? "gach" : "event", tz, now);
+		const item = ns_bh2_itemOf(detail, rows[k], key === "gach" ? "gach" : "event", tz, now);
 		if (!item) continue;
 		item._i = items.length;
 		items.push(item);
