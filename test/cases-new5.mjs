@@ -138,8 +138,7 @@ export default async function run() {
 			WANT.map(([id]) => id + "=" + ids.includes(id)).join(","));
 		check("SOURCES 里 id 全局唯一（新增 5 条没造成重复）", new Set(ids).size === ids.length,
 			ids.length + " / " + new Set(ids).size);
-		check("来源总数 = 39（28 + 2026-11-09 的 5 + 2026-11-11 的 uma-tw + 2026-11-14 的 pjsk-tc/pjsk-kr/fgo-jp + 2026-11-15 的 bjhl/yys）", T.SOURCES.length === 39, String(T.SOURCES.length));
-
+		check("来源总数 = 41（28 + 2026-11-09 的 5 + 2026-11-11 的 uma-tw + 2026-11-14 的 pjsk-tc/pjsk-kr/fgo-jp + 2026-11-15 的 bjhl/yys/dhmmr/bh2）", T.SOURCES.length === 41, String(T.SOURCES.length));
 		for (const [id, name] of WANT) {
 			const s = srcOf(id);
 			check(`${id} 名称 = ${name}`, !!s && s.name === name, s ? s.name : "缺失");
@@ -812,5 +811,225 @@ export default async function run() {
 		const { ev: ev6 } = await run(JSON.stringify(top6));
 		check("反证：只给前 6 条（旧配额的效果）⇒ 活动侧 null（空窗就是 2099 被截断造成的）",
 			ev6 === null && !keep.has(2099), JSON.stringify([[...keep], ev6 && ev6.event]));
+	}
+
+	// ───────── ⑥ 2026-11-15 新增 2 款：深空之眼（dhmmr）/ 崩坏学园2（bh2）─────────
+	// 落点：`30-game-bwiki-dhmmr.js`（SMW ask，只有卡池侧）/ `30-game-benghuai2.js`（官网公告，两侧）。
+	// 夹具：`dhmmr-ask`（真抓 + 只留前 8 条）/ `bh2-notice-list`（真抓 POST + 各栏目前 8 条）/
+	//       `bh2-gach-<id>` × 6 / `bh2-event-<id>` × 6（详情原样）。
+	section("2026-11-15 新增 2 款：注册项（标签逐字）+ 真夹具解析 + 反证");
+	{
+		const dh = srcOf("dhmmr");
+		const bh = srcOf("bh2");
+		const DH = T.parsers.dhmmr;
+		const B2 = T.parsers.bh2;
+		const NOW_LIVE = Date.parse("2026-11-15T12:00:00+08:00");
+
+		// ── 注册项 ──
+		check("dhmmr / bh2 都已注册进 SOURCES", !!dh && !!bh, JSON.stringify([!!dh, !!bh]));
+		check("dhmmr = 深空之眼 / Asia/Shanghai / 默认展示 / 有图标与主题色",
+			!!dh && dh.name === "深空之眼" && dh.tz === TZ_CN && dh.defaultHidden === false
+			&& /^https?:\/\//.test(String(dh.icon)) && /^#[0-9A-Fa-f]{6}$/.test(String(dh.color)),
+			dh ? JSON.stringify([dh.name, dh.tz, dh.defaultHidden, dh.color]) : "缺失");
+		check("dhmmr 卡池来源标签逐字 = 「Bwiki 卡池列表（SMW）」",
+			!!dh && dh.source === "Bwiki 卡池列表（SMW）", dh && String(dh.source));
+		check("dhmmr 只有卡池侧：url 是 dhmmr 的 action=ask；eventUrl = \"\"（活动页空壳 ⇒ 设置页显示未配置）",
+			!!dh && dh.url === DH.DHMMR_URL
+			&& /^https:\/\/wiki\.biligame\.com\/dhmmr\/api\.php\?action=ask&format=json&query=/.test(String(dh.url))
+			&& dh.eventUrl === "" && dh.eventSource === void 0,
+			dh ? JSON.stringify([String(dh.url).slice(0, 80), dh.eventUrl, dh.eventSource]) : "缺失");
+		check("bh2 = 崩坏学园2 / Asia/Shanghai / 默认展示 / 有图标与主题色",
+			!!bh && bh.name === "崩坏学园2" && bh.tz === TZ_CN && bh.defaultHidden === false
+			&& /^https?:\/\//.test(String(bh.icon)) && /^#[0-9A-Fa-f]{6}$/.test(String(bh.color)),
+			bh ? JSON.stringify([bh.name, bh.tz, bh.defaultHidden, bh.color]) : "缺失");
+		check("bh2 两侧标签逐字 = 「官网公告」，两侧同一条列表 URL",
+			!!bh && bh.source === "官网公告" && bh.eventSource === "官网公告"
+			&& bh.url === B2.BH2_LIST_URL && bh.eventUrl === B2.BH2_LIST_URL,
+			bh ? JSON.stringify([bh.source, bh.eventSource, bh.url]) : "缺失");
+		check("抓取器已接线：GACHA_FETCHERS.dhmmr / GACHA_FETCHERS.bh2 / EVENT_FETCHERS.bh2.default",
+			typeof T.GACHA_FETCHERS["dhmmr"] === "function"
+			&& typeof T.GACHA_FETCHERS["bh2"] === "function"
+			&& !!(T.EVENT_FETCHERS["bh2"] && typeof T.EVENT_FETCHERS["bh2"].default === "function")
+			&& !T.EVENT_FETCHERS["dhmmr"],
+			JSON.stringify([typeof T.GACHA_FETCHERS["dhmmr"], typeof T.GACHA_FETCHERS["bh2"]]));
+
+		// ── 深空之眼：SMW ask 解析（真夹具；8 条里 2 条是沙盒页副本，按页名排除）──
+		const ask = JSON.parse(FIX("dhmmr-ask"));
+		const dhRows = DH.parseDhmmrAsk(ask, TZ_CN);
+		check("dhmmr 真夹具解析出 6 条（`沙盒/卡池列表#…` 的副本不进结果）",
+			dhRows.length === 6, String(dhRows.length));
+		check("052 期逐字：丝与刃之歌 / 限定、协议扩充 / 07-23 00:00 ~ 09-17 23:59",
+			dhRows[0].banner === "丝与刃之歌" && dhRows[0].display === "07-23 00:00 ~ 09-17 23:59"
+			&& dhRows[0].category === "限定、协议扩充" && dhRows[0].raw === "2026-07-23 ~ 2026-09-17",
+			JSON.stringify([dhRows[0].banner, dhRows[0].display, dhRows[0].category]));
+		check("052 期绝对时刻（+08 手算：只有日期 ⇒ 起 00:00 / 止 23:59）",
+			dhRows[0].startTs === Date.UTC(2026, 6, 22, 16, 0) && dhRows[0].endTs === Date.UTC(2026, 8, 17, 15, 59),
+			JSON.stringify([dhRows[0].startTs, dhRows[0].endTs]));
+		const pDh = DH.dhmmrPayloadOf(dhRows, TZ_CN, Date.parse("2026-08-01T12:00:00+08:00"));
+		check("期内（08-01）外显 = 丝与刃之歌 + 档期",
+			!!pDh && pDh.banner === "丝与刃之歌" && pDh.bannerDates === "07-23 00:00 ~ 09-17 23:59",
+			JSON.stringify(pDh && [pDh.banner, pDh.bannerDates]));
+		check("期内悬停 = 三池（窗口全同 ⇒ 名称各一行 + 末尾一行档期；同开始/结束按池名定序，防 SMW 平局乱序）",
+			!!pDh && pDh.bannerHover === "丝与刃之歌\n奇迹缔造法则\n幻梦回环之理\n07-23 00:00 ~ 09-17 23:59",
+			JSON.stringify(pDh && pDh.bannerHover));
+		check("期内 gacha[] 3 条（主条 + 2 并列条，主条 source=primary）",
+			!!pDh && pDh.gacha.length === 3 && pDh.gacha[0].source === "primary",
+			JSON.stringify(pDh && pDh.gacha.map((x) => [x.title, x.source])));
+		check("真实时刻（2026-11-15）没有在期池 ⇒ null（wiki 的卡池列表最后编辑 2026-09-25，052 止于 09-17）",
+			DH.dhmmrPayloadOf(dhRows, TZ_CN, NOW_LIVE) === null);
+
+		// 053 期那种「结束时间为空」：如实 endTs=null，不猜终点；也不因此冒充当期
+		const ask053 = {
+			query: {
+				results: {
+					"卡池列表#探测053-0期": {
+						printouts: {
+							"卡池开始时间": ["2026-09-17"], "卡池结束时间": [], "卡池名称": ["协议锚定探测"],
+							"卡池类型": ["常驻", "限定", "自选扩充"]
+						},
+						fulltext: "卡池列表#探测053-0期"
+					}
+				}
+			}
+		};
+		const r053 = DH.parseDhmmrAsk(ask053, TZ_CN);
+		check("结束时间为空 ⇒ endTs = null，raw/display 照出源站原文（不猜终点）",
+			r053.length === 1 && r053[0].endTs === null && r053[0].raw === "2026-09-17" && r053[0].display === "2026-09-17",
+			JSON.stringify(r053[0]));
+		check("单边窗口（只有开始）不算当期 ⇒ 外显 null",
+			DH.dhmmrPayloadOf(r053, TZ_CN, NOW_LIVE) === null);
+
+		// 反证：抹掉时间锚点 ⇒ 不进外显；`{}` ⇒ 抛错（不是 nomatch）
+		const oneStripped = {
+			query: {
+				results: {
+					"卡池列表#探测052-1期": {
+						printouts: {
+							"卡池开始时间": ["2026-07-23"], "卡池结束时间": ["2026-09-17"],
+							"卡池名称": ["丝与刃之歌"], "卡池类型": ["限定"]
+						},
+						fulltext: "卡池列表#探测052-1期"
+					},
+					"卡池列表#锚点被抹掉": {
+						printouts: { "卡池开始时间": [], "卡池结束时间": [], "卡池名称": ["锚点被抹掉"], "卡池类型": ["限定"] },
+						fulltext: "卡池列表#锚点被抹掉"
+					}
+				}
+			}
+		};
+		const keptRows = DH.parseDhmmrAsk(oneStripped, TZ_CN);
+		check("抹掉时间锚点的那条不进结果 ⇒ 外显只可能来自有锚点的行",
+			keptRows.length === 1 && keptRows[0].banner === "丝与刃之歌"
+			&& DH.dhmmrPayloadOf(keptRows, TZ_CN, Date.parse("2026-08-01T12:00:00+08:00")).banner === "丝与刃之歌",
+			JSON.stringify(keptRows.map((x) => x.banner)));
+		let dhThrow = false;
+		try { DH.parseDhmmrAsk({}, TZ_CN); } catch { dhThrow = true; }
+		check("`{}` ⇒ 抛错（结构性损坏，不是 nomatch / null）", dhThrow);
+		let dhThrow2 = false;
+		try { DH.parseDhmmrAsk({ query: { results: {} } }, TZ_CN); } catch { dhThrow2 = true; }
+		check("`query.results` 为空 ⇒ 抛错（属性名/页面结构变了要看得见）", dhThrow2);
+
+		// ── 崩坏学园2：列表 POST + 6 条详情（真夹具走 transport，记账请求方法与 body）──
+		const GACH_IDS = ["20104735", "20104679", "20104534", "20104533", "20104532", "20104455"];
+		const calls = [];
+		const transport = {
+			async fetchRaw(u) { calls.push({ u: String(u), method: "GET", body: null }); throw new Error("bh2 不应直连：" + u); },
+			async fetchViaProxy(u, opts) {
+				const o = opts || {};
+				calls.push({ u: String(u), method: o.body !== void 0 ? "POST" : "GET", body: o.body === void 0 ? null : o.body });
+				const target = String(u);
+				if (target === B2.BH2_LIST_URL) return FIX("bh2-notice-list");
+				const m = /id=(\d+)$/.exec(target);
+				if (!m) throw new Error("bh2 用例没有这个 URL 的夹具：" + target);
+				return FIX("bh2-" + (GACH_IDS.includes(m[1]) ? "gach" : "event") + "-" + m[1]);
+			}
+		};
+		T.setCoreEnv({ transport, timer: { setTimeout, clearTimeout } });
+		const NOW_BH2 = Date.parse("2026-11-15T12:00:00+08:00");
+		const gB = await T.GACHA_FETCHERS["bh2"](B2.BH2_LIST_URL, undefined, TZ_CN, NOW_BH2);
+		check("列表请求是 **POST** 且 body = `{}`（宿主代理只在 body 非空时发 POST；源站忽略 body）",
+			calls.length > 0 && calls[0].u === B2.BH2_LIST_URL && calls[0].method === "POST"
+			&& JSON.stringify(calls[0].body) === "{}",
+			JSON.stringify([calls[0] && calls[0].method, calls[0] && calls[0].body]));
+		check("卡池外显 = 妮娜&黛尔塔 / 金蔷薇、蛉翅 / 11-09 00:00 ~ 11-20 00:00（源站 11-19 24:00 ⇒ 次日 0 点）",
+			!!gB && gB.banner === "妮娜&黛尔塔" && gB.roles === "金蔷薇、蛉翅"
+			&& gB.bannerDates === "11-09 00:00 ~ 11-20 00:00"
+			&& gB.startTs === Date.UTC(2026, 10, 8, 16, 0) && gB.endTs === Date.UTC(2026, 10, 19, 16, 0),
+			JSON.stringify(gB && [gB.banner, gB.roles, gB.bannerDates]));
+		const gLines = String((gB && gB.bannerHover) || "").split("\n");
+		check("卡池悬停 = 2 池 ×（名称 ⏎ 档期），按结束升序 → 同结束按开始升序",
+			gLines.length === 4 && gLines[1] === "10-15 00:00 ~ 11-20 00:00"
+			&& gLines[2] === "妮娜&黛尔塔：金蔷薇、蛉翅" && gLines[3] === "11-09 00:00 ~ 11-20 00:00",
+			JSON.stringify(gLines));
+		check("公主祈愿 4 组自选装备逐字进悬停（24 个 UP 名，不是 4 组标题）",
+			/^少女的心愿：自我时支配·仿制版、该隐之血眷、/.test(gLines[0] || "")
+			&& String(gLines[0]).split("、").length === 24,
+			String(gLines[0]).slice(0, 80));
+		check("卡池 gacha[] 2 条（当期两口祈愿各一行）",
+			!!gB && Array.isArray(gB.gacha) && gB.gacha.length === 2,
+			JSON.stringify(gB && gB.gacha.map((x) => x.title)));
+		check("卡池请求数 = 1 次列表 + 6 条详情", calls.length === 7, "requests=" + calls.length);
+
+		const eB = await T.EVENT_FETCHERS["bh2"].default(B2.BH2_LIST_URL, undefined, TZ_CN, NOW_BH2);
+		check("活动外显 = 双11狂欢节丨千羽万事屋活动新品上架 / 11-10 20:00 ~ 11-22 23:59（结束最早优先）",
+			!!eB && eB.event === "双11狂欢节丨千羽万事屋活动新品上架" && eB.eventDates === "11-10 20:00 ~ 11-22 23:59",
+			JSON.stringify(eB && [eB.event, eB.eventDates]));
+		check("活动悬停逐字（名称 + 3 空格 + 档期；结束升序）",
+			!!eB && eB.eventHover === "双11狂欢节丨千羽万事屋活动新品上架   11-10 20:00 ~ 11-22 23:59\n"
+			+ "极地小航海   11-09 12:00 ~ 11-23 23:59\n"
+			+ "斯坦因秘境   11-13 12:00 ~ 11-30 00:00",
+			JSON.stringify(eB && eB.eventHover));
+		check("events[] 绝对时刻（+08 手算）",
+			!!eB && eB.events.length === 3
+			&& eB.events[0].startTs === Date.UTC(2026, 10, 10, 12, 0) && eB.events[0].endTs === Date.UTC(2026, 10, 22, 15, 59)
+			&& eB.events[1].startTs === Date.UTC(2026, 10, 9, 4, 0) && eB.events[1].endTs === Date.UTC(2026, 10, 23, 15, 59)
+			&& eB.events[2].startTs === Date.UTC(2026, 10, 13, 4, 0) && eB.events[2].endTs === Date.UTC(2026, 10, 29, 16, 0),
+			JSON.stringify(eB && eB.events.map((x) => [x.startTs, x.endTs])));
+		check("活动请求数 = 1 次列表 + 6 条详情（两侧共享列表只在**同一轮刷新**内生效，这里直调各算一次）",
+			calls.length === 14, "requests=" + calls.length);
+
+		// 整轮刷新：两侧同一条列表 URL ⇒ 列表只发一次（1 + 6 + 6 = 13）。与 uma-global 的
+		// GameTora manifest 同一套 `fetchRoundSeqOf` 轮内缓存；这里用真引擎跑一轮来钉住。
+		const allIds = T.SOURCES.map((x) => x.id);
+		const engineB = createEngine({
+			transport,
+			storage: makeStore({ hidden: allIds.filter((id) => id !== "bh2"), shown: ["bh2"] }),
+			now: () => NOW_BH2,
+			timer: { setTimeout, clearTimeout }
+		});
+		calls.length = 0;
+		const round = await engineB.refresh();
+		const rec = round.games["bh2"] || {};
+		check("整轮刷新 = 1 次列表 + 6 + 6 条详情（13 次；列表两侧共享同一个轮内 promise）",
+			calls.length === 13 && calls.filter((c) => c.u === B2.BH2_LIST_URL).length === 1,
+			"requests=" + calls.length);
+		check("整轮记录：卡池 + 活动两侧都拿到新数据、都不 fail",
+			rec.banner === "妮娜&黛尔塔" && rec.event === "双11狂欢节丨千羽万事屋活动新品上架"
+			&& !rec.gachaFail && !rec.eventFail,
+			JSON.stringify([rec.banner, rec.event, rec.gachaFail, rec.eventFail]));
+
+		// ── bh2 口径反证 ──
+		let b2Throw = false;
+		try { B2.bh2ListOf({}); } catch { b2Throw = true; }
+		let b2Throw2 = false;
+		try { B2.bh2ListOf({ data: {} }); } catch { b2Throw2 = true; }
+		check("`{}` / 无任何栏目 ⇒ 抛错（列表结构变了不能静默成未公布）", b2Throw && b2Throw2);
+		check("`售卖时间` / `问卷填写时间` 不认（只有 活动时间/开启时间/活动日期/活动期限 才算档期）",
+			B2.bh2WindowOf("售卖时间： 10月30日 00:00 ~ 11月15日 24:00", { y: 2026, mo: 10 }, TZ_CN) === null
+			&& !!B2.bh2WindowOf("【活动时间】\n11月13日 12:00 ~ 11月29日 24:00", { y: 2026, mo: 11 }, TZ_CN));
+		const noAnchor = { title: "极地小航海", text: "<p>极地小航海 活动开启</p><p>活动中可以得以下稀有物品哦~</p>", feature: 0 };
+		check("抹掉时间锚点 ⇒ 这条公告不产出条目（不进外显/悬停/数组）",
+			B2.bh2ItemOf(noAnchor, { id: "0", title: "极地小航海", hint: { y: 2026, mo: 11 } }, "event", TZ_CN, NOW_BH2) === null);
+		const dreamRow = { id: "20104532", title: "梦想祈愿", hint: { y: 2026, mo: 10 }, feature: 22 };
+		const dreamDetail = JSON.parse(FIX("bh2-gach-20104532"));
+		const dreamLines = B2.bh2LinesOf(dreamDetail.data.text);
+		const dreamWin = B2.bh2WindowOf(dreamLines.join("\n"), dreamRow.hint, TZ_CN);
+		const dreamRoles1 = B2.bh2UpRolesOf(dreamLines, dreamWin, Date.parse("2026-10-16T12:00:00+08:00"), TZ_CN);
+		const dreamRoles2 = B2.bh2UpRolesOf(dreamLines, dreamWin, Date.parse("2026-10-19T12:00:00+08:00"), TZ_CN);
+		check("梦想祈愿的「UP装备如下」分段表：按 now 取**当前那一段**（10-16 → 第 1 段 10 件；10-19 → 第 2 段）",
+			dreamRoles1.split("、").length === 10 && dreamRoles1.indexOf("携带型崩坏能探测仪") === 0
+			&& dreamRoles2.split("、").length === 10 && dreamRoles2.indexOf("领域水解") === 0
+			&& dreamWin && dreamWin.endTs === Date.UTC(2026, 9, 26, 16, 0),
+			JSON.stringify([dreamRoles1.split("、").slice(0, 2), dreamRoles2.split("、").slice(0, 2)]));
 	}
 }

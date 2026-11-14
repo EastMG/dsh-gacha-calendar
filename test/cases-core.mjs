@@ -66,8 +66,7 @@ export default async function runCore() {
 	{
 		const e = createEngine({ transport: noopTransport, storage: makeStorage(), now: () => 0 });
 		const ids = e.__test.SOURCES.map((s) => s.id);
-		check("core 来源总数 = 39（内置 11 + 另外 17 + 2026-11-09 的 5 + 2026-11-11 的 uma-tw + 2026-11-14 的 pjsk-tc/pjsk-kr/fgo-jp + 2026-11-15 的 bjhl/yys）", ids.length === 39, String(ids.length));
-		const builtin = ["genshin", "hsr", "zzz", "wuwa", "arknights", "endfield", "ba-cn", "ba-global", "ba-jp", "r1999", "nte"];
+		check("core 来源总数 = 41（内置 11 + 另外 17 + 2026-11-09 的 5 + 2026-11-11 的 uma-tw + 2026-11-14 的 pjsk-tc/pjsk-kr/fgo-jp + 2026-11-15 的 bjhl/yys/dhmmr/bh2）", ids.length === 41, String(ids.length));		const builtin = ["genshin", "hsr", "zzz", "wuwa", "arknights", "endfield", "ba-cn", "ba-global", "ba-jp", "r1999", "nte"];
 		check("内置 11 款都还在", builtin.every((i) => ids.includes(i)), builtin.filter((i) => !ids.includes(i)).join(","));
 		const extra = ["p5x", "zspms", "czn", "kedr", "ddlezj", "bh3", "stellasora", "fgo", "gf2", "bandori", "pjsk"];
 		check("另外 17 款的代表条目也在（C2 后 core 不再只有内置）", extra.every((i) => ids.includes(i)), extra.filter((i) => !ids.includes(i)).join(","));

@@ -1,0 +1,6 @@
+{
+  "url": "https://www.benghuai.com/news/getNotice",
+  "status": 200,
+  "capturedAt": "2026-11-14T16:23:11.711Z",
+  "trim": "data.new / version / gach / event 各只留前 8 条（{\"new\":60,\"version\":60,\"gach\":60,\"event\":60} → 8）；retcode/msg 原样。请求 = POST + body `{}` + Content-Type application/json（源站忽略 body，实测与空 body 同响应）。"
+}

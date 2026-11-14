@@ -675,6 +675,35 @@
 				ns_batch2_spicaPayloadOf,
 				ns_batch2_spicaRolesOf,
 			},
+			// 2026-11-15 接入 2 款：深空之眼（bwiki SMW ask，只有卡池侧）/ 崩坏学园2（官网公告，两侧）。
+			// 导出纯解析步，回归可以分别钉住「空结束时间不算当期」「`{}` ⇒ 抛错」「列表/详情/UP/档期」。
+			"dhmmr": {
+				DHMMR_PAGE: ns_dhmmr_PAGE,
+				DHMMR_QUERY: ns_dhmmr_QUERY,
+				DHMMR_REFERER: ns_dhmmr_REFERER,
+				DHMMR_TZ: ns_dhmmr_TZ,
+				DHMMR_URL: ns_dhmmr_URL,
+				dhmmrPayloadOf: ns_dhmmr_payloadOf,
+				dhmmrPointOf: ns_dhmmr_pointOf,
+				gachaDhmmr: ns_dhmmr_gacha,
+				parseDhmmrAsk: ns_dhmmr_parseAsk
+			},
+			"bh2": {
+				BH2_DETAIL_URL: ns_bh2_DETAIL_URL,
+				BH2_LIST_URL: ns_bh2_LIST_URL,
+				BH2_MAX_DETAILS: ns_bh2_MAX_DETAILS,
+				BH2_REFERER: ns_bh2_REFERER,
+				BH2_TZ: ns_bh2_TZ,
+				bh2EventPayloadOf: ns_bh2_eventPayloadOf,
+				bh2GachaPayloadOf: ns_bh2_gachaPayloadOf,
+				bh2ItemOf: ns_bh2_itemOf,
+				bh2LinesOf: ns_bh2_linesOf,
+				bh2ListOf: ns_bh2_listOf,
+				bh2UpRolesOf: ns_bh2_upRolesOf,
+				bh2WindowOf: ns_bh2_windowOf,
+				eventsBh2: ns_bh2_events,
+				gachaBh2: ns_bh2_gacha
+			},
 			},
 			// 共用工具 / env（测试原先从 next-sources/lib/env.js 取；压平后分别见 23-parser-time.js / 24-parser-window.js / 27-parser-text.js / 28-parser-hover-tools.js）
 			fmtWindow,
