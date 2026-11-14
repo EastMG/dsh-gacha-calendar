@@ -18,45 +18,20 @@
 skip_bom=${DSH_SKIP_BOM_CHECK:-}
 skip_build=${DSH_SKIP_BUILD_CHECK:-}
 
-# 是不是要查 BOM 的文本类型？
-# ⚠️ 为什么写成**顶层函数**、而不是在下面的 while 里内联 case —— 这不是风格问题：
-#   macOS 自带的 /bin/sh 是 bash 3.2，它**解析不了 `$( ... )` 里的 case 语句**，
-#   `x=$(case "$f" in a) ;; esac)` 会直接报 `syntax error near unexpected token ';;'`
-#   （2026-11-14 实测，bash 3.2.57；同一段在 dash / bash 5 上正常，所以 Linux CI 一直是绿的）。
-#   把 case 放在顶层函数里、命令替换内只调用函数，两个平台就都能解析。
-is_text_path() {
-	case "$1" in
-		*.json|*.js|*.mjs|*.cjs|*.ts|*.jsonc|*.yml|*.yaml|*.md|*.toml|*.txt) return 0 ;;
-		*) return 1 ;;
-	esac
-}
-
 fail=0
+
+# BOM 扫描交给 Node（tools/check-bom.mjs）：
+#   原实现用 `... | while IFS= read -r -d '' f; do` —— `read -d` 是 **bash 专有**，
+#   Ubuntu 的 /bin/sh 是 dash ⇒ 直接 `read: Illegal option -d`，循环不执行 ⇒ 守卫**静默失效**
+#   （2026-11-14 在 WSL/Ubuntu 实测：带 BOM 的文件被成功提交；macOS bash3.2 与 Git Bash 反而正常）。
+#   改成 Node 后三平台同一份逻辑，并且能进 CI 单测。
 if [ -z "$skip_bom" ]; then
-# 用 -z + read -d '' 读文件名：旧写法 `for f in $(git diff ...)` 会按空白切分，且 git 默认把
-# 非 ASCII 文件名转义输出（core.quotePath）→ 文件名含中文/空格时那条 BOM 检查会被**静默跳过**。
-# 注意：管道里的 while 在子 shell 里，`fail=1` 传不出来 —— 所以把命中的文件名收集到变量再判定。
-bom_hits=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=ACM -z 2>/dev/null | while IFS= read -r -d '' f; do
-	is_text_path "$f" || continue
-	[ -f "$f" ] || continue
-	if [ "$(head -c 3 -- "$f" | od -An -tx1 | tr -d ' \n')" = "efbbbf" ]; then
-		printf '%s\n' "$f"
+	if command -v node >/dev/null 2>&1; then
+		hook_root=$(git rev-parse --show-toplevel 2>/dev/null) || hook_root=.
+		node "$hook_root/tools/check-bom.mjs" || fail=1
+	else
+		echo "WARN: 未找到 node，跳过 UTF-8 BOM 检查" >&2
 	fi
-done)
-if [ -n "$bom_hits" ]; then
-	echo "ERROR: UTF-8 BOM detected in staged file(s):" >&2
-	printf '%s\n' "$bom_hits" | while IFS= read -r f; do
-		echo "  $f" >&2
-		# ⚠️ 必须用 printf 而不是 echo：macOS 的 /bin/sh（bash 3.2）里 echo **默认解释 `\x` 转义**，
-		# 于是下面这段"修复命令"会被渲染成一个真正的 BOM 字符（`1s/^<BOM>//`），照着敲只会更糊涂；
-		# dash / Git Bash 的行为又各不相同（POSIX 对 echo 的转义行为是 implementation-defined）。
-		# printf '%s' 只做格式化、不解释参数里的转义 ⇒ 三个平台打印的都是字面量 \xEF\xBB\xBF。
-		printf '%s\n' "    Fix: strip BOM, then re-add — sed -i '1s/^\\xEF\\xBB\\xBF//' \"$f\" && git add \"$f\"" >&2
-	done
-	echo "  This breaks DSH plugin loading (JSON.parse does not strip BOM). Commit blocked." >&2
-	echo "  (Or save the file as 'UTF-8 without BOM' in your editor.)" >&2
-	fail=1
-fi
 fi
 
 # ---- src/lib 一致性守卫 ----

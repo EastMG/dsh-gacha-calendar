@@ -27,6 +27,12 @@ npm run publish:core     # 发布中立核心包（gacha-calendar-core，版本�
 - `build.mjs` 做三件事：按 `ORDER` 原样拼接 `src/client/*.js` → `lib/client.js`（DSH 的 `__ModuleLoader__` 工厂形态）；复制 `src/index.js` → `lib/index.js`；把 core 主体包成 `packages/core/core.mjs`（ESM 导出 `createEngine`）。拼接逐字节确定，所以 `check` 能给出"一致/不一致"的确定结论；同时会把根 `package.json` 的版本号注入两个产物。
 - 源文件约定：**LF 换行、UTF-8 无 BOM、Tab 缩进**（带 BOM 会让 DSH 启动直接失败）。`build.mjs` 会强制校验；`.githooks/pre-commit` 还会在提交 `src/**`、`lib/**`、`packages/**` 或 `build.mjs` 时自动跑一次 `check`，防止绕过源码直接改产物。
 - **钩子怎么生效**：跑一次 `npm run setup:hooks` 把 `core.hooksPath` 指到 `.githooks`。它只是一条普通脚本，`npm install` 不会自动执行；等价于手工执行 `git config core.hooksPath .githooks`。
+- **钩子的 BOM 扫描走 Node**（2026-11-14）：`.githooks/pre-commit` 只负责调 `node tools/check-bom.mjs` 并看退出码；扫描本身（读暂存区 `-z` 列表、按扩展名过滤、比首 3 字节）在 Node 里。
+  原实现用 `read -r -d ''`（**bash 专有**）：Ubuntu 的 `/bin/sh` 是 dash ⇒ `read: Illegal option -d`，循环一次都不执行、守卫**静默失效**（WSL 实测：带 BOM 的文件被成功提交）；
+  macOS bash 3.2 与 Git Bash bash 5 反而正常，所以这个洞只在 Linux 上开。对应回归：`test/cases-bom-hook.mjs`。
+- **三平台 CI 矩阵**（2026-11-14）：`verify.yml` 从 `ubuntu-latest` 扩成 `[ubuntu-latest, windows-latest, macos-latest]`。
+  不装依赖（纯 Node 脚本 + 已入库夹具）⇒ 成本很低；macOS 上 darwin 通知断言会走真实 `osascript` 分支。
+- `npm run check:bom`：单独跑 BOM 守卫（不提交也能用）；`npm run setup:hooks` 已改为 `node tools/setup-hooks.mjs`（cmd.exe 没有 `true`）。
 - 历史说明：本仓库此前只提交了打包产物（没有 `src/`），`package.json` 里声明的 `tsc && tsdown` 从未真正可用；当前构建脚本是从产物回填源码时落地的替代方案。
 
 ## 插件结构
@@ -109,8 +115,8 @@ dsh-gacha-calendar/
 │   └── types/       # 类型声明
 ├── packages/core/   # 第二个产物：平台中立核心包 gacha-calendar-core
 ├── test/            # 离线夹具测试
-│   ├── all.mjs      # 统一门禁：聚 42 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（18 处定稿，三轮增删）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）+ category / tags 批 1+2+3（9 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 多值拆分 + 旧键兼容 + 反证；批 3 把 `eventTier` 的 haystack 改成 OR 语义：`category` + `tags` + `name` 都参与）+ 2026-11-09 新接入 5 款（无期迷途两侧真源 / 夜幕之下卡池 / 未定·绘旅人已接两侧源 / 炽焰天穹仍留空未配置）+ 星铁卡池换官方公告 CMS + 「相对起点」锚定（星铁 10:00 / 无期迷途 14:00）+ 「起点未知 ≠ 已开始」+ 绝区零 bwiki 备选源「起点未知 = 已开始」的唯一例外 + 未定事件簿 / 时空中的绘旅人（米游社公告 + 官网新闻：卡池 + 活动 / 跨年补年 / 单侧失败隔离）+ 夜幕之下活动（TapTap tab 页 SSR：devalue 解码 + 区间解析复用 + 覆盖当前窗口才翻页 + 反向证明；旧 bwiki 公告源仍作备选）+ 刷新横幅（底部失败横条与「重试」已删 / 失败明细并入悬停：沿用判定 + 文字口径逐字不变）+ 赛马娘·繁中服（Komoe 官方公告：卡池/活动同一条接口 + 「維護結束後」起点未知）+ OurNotes 国际服（SPICA 数据 JSON：`_durl` 现解 → 卡池/活动一次拿全；JST 墙钟 → UTC+8 展示；picks 按 id 查角色；真夹具 + 反向证明））
-│   ├── cases-*.mjs  # 各段用例（42 个文件 / 42 段，与 all.mjs 的 batches 一一对应；本批新增 cases-ournotes-global-spica）
+│   ├── all.mjs      # 统一门禁：聚 43 段用例（P5X / B1~B3 / P4~P9 / 蔚蓝档案 / 异环 / 赛马娘 GameTora / 明日方舟两阶段（举行 / 奖励领取）+ 明日方舟时间轴（整周期逐时刻扫描）+ 规则静态守卫 + 时区口径 + 侧栏轮播 + 到期提醒 + 来源健康 + README 结构图守卫 + core 产物守卫 + 设置页标题行（版本号 + Star 指引）+ 搜索与筛选 + 排期导出 .ics + 刷新频率「启动时」档 + 设置入口（两个面板的齿轮 + 三步跳转设置页）+ 设置页 title 文案（18 处定稿，三轮增删）+ 来源策略（默认源无自动兜底）+ bwiki 请求统一带 origin=* + P3 解析器直出数组（悬停由条目反生成）+ P4 展平（数组 ts=绝对时刻 / 「近期」收全部条目 / 计数·提醒·ics·轮播按条 / 跨时区渲染一致）+ category / tags 批 1+2+3（9 款把已在内存里的分类写进数组条目：逐字取值 + 档位 + 外显 + 多值拆分 + 旧键兼容 + 反证；批 3 把 `eventTier` 的 haystack 改成 OR 语义：`category` + `tags` + `name` 都参与）+ 2026-11-09 新接入 5 款（无期迷途两侧真源 / 夜幕之下卡池 / 未定·绘旅人已接两侧源 / 炽焰天穹仍留空未配置）+ 星铁卡池换官方公告 CMS + 「相对起点」锚定（星铁 10:00 / 无期迷途 14:00）+ 「起点未知 ≠ 已开始」+ 绝区零 bwiki 备选源「起点未知 = 已开始」的唯一例外 + 未定事件簿 / 时空中的绘旅人（米游社公告 + 官网新闻：卡池 + 活动 / 跨年补年 / 单侧失败隔离）+ 夜幕之下活动（TapTap tab 页 SSR：devalue 解码 + 区间解析复用 + 覆盖当前窗口才翻页 + 反向证明；旧 bwiki 公告源仍作备选）+ 刷新横幅（底部失败横条与「重试」已删 / 失败明细并入悬停：沿用判定 + 文字口径逐字不变）+ 赛马娘·繁中服（Komoe 官方公告：卡池/活动同一条接口 + 「維護結束後」起点未知）+ OurNotes 国际服（SPICA 数据 JSON：`_durl` 现解 → 卡池/活动一次拿全；JST 墙钟 → UTC+8 展示；picks 按 id 查角色；真夹具 + 反向证明））
+│   ├── cases-*.mjs  # 各段用例（43 个文件 / 43 段，与 all.mjs 的 batches 一一对应；本批新增 cases-ournotes-global-spica）
 │   ├── load.mjs     # 加载构建产物，取 exports.__regression（解析器 + env 工具 + 来源表）
 │   ├── harness.mjs  # 夹具 fetch 注入 + check/section/summary + 契约与悬停断言
 │   ├── lib-text.mjs # 悬停文本的共用判定（去重 / 相邻重复 / 「名称 ⏎ 只有区间」/ 分类前缀双写）

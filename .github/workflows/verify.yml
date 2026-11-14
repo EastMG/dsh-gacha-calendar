@@ -10,7 +10,17 @@ on:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    # 三平台矩阵（2026-11-14 跨系统审查后加的）：
+    #   ① 本仓库开发机是 Windows、发布产物要给 macOS/Linux 用，但原来只有 ubuntu-latest 一条通道
+    #   ② 通知分支（WinRT toast / macOS osascript）、路径解析、换行策略都是**按平台分叉**的代码，
+    #      只跑 Linux 等于永远不验证另外两条分支
+    #   ③ 不装依赖（纯 Node 脚本 + 已入库夹具）⇒ 三个平台各跑一次成本很低
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    name: verify (${{ matrix.os }})
     steps:
       - uses: actions/checkout@v4
 

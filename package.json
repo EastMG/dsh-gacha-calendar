@@ -45,7 +45,8 @@
   "scripts": {
     "build": "node build.mjs",
     "check": "node build.mjs --check",
-    "setup:hooks": "git config core.hooksPath .githooks || true",
+    "check:bom": "node tools/check-bom.mjs",
+    "setup:hooks": "node tools/setup-hooks.mjs",
     "test:ui": "node test/ui/harness.mjs",
     "prepublishOnly": "node build.mjs --check",
     "guard:publish": "node tools/require-publish-consent.mjs",

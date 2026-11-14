@@ -53,6 +53,7 @@ import runScrapeFail from "./cases-scrape-fail.mjs";
 import runUmaTw from "./cases-uma-tw.mjs";
 import runBatch2 from "./cases-batch2.mjs";
 import runOnGlobalSpica from "./cases-ournotes-global-spica.mjs";
+import runBomHook from "./cases-bom-hook.mjs";
 
 const LIVE = process.argv.includes("--live");
 
@@ -157,7 +158,8 @@ const batches = [
 	["刷新横幅：底部失败横条 + 重试删除、失败明细并入悬停（沿用判定 / 文字口径逐字不变）", runScrapeFail],
 	["赛马娘·繁中服（Komoe 官方公告：卡池/活动同一条接口 + 「維護結束後」起点未知 + 反证）", runUmaTw],
 	["第二批新来源（崩坏3 内容中台：卡池名称/角色 + 档期三级取值（`>>开放时间` → 同帖礼包【上架时间】 → 只出名称）/ 活动时间块 / OurNotes 日服 SPICA：列表→前 5 条详情 / 卡厄斯 TapTap 官方：topic 页 SSR + Nuxt devalue 解码（2 页；卡池「营救概率提升」+ 活动「活动时间」，不双计））", runBatch2],
-	["OurNotes 国际服（SPICA 数据 JSON：`_durl` 现解 → gachapages/events 一次拿全；JST 墙钟 → UTC+8 展示；picks 按 id 查角色）", runOnGlobalSpica]
+	["OurNotes 国际服（SPICA 数据 JSON：`_durl` 现解 → gachapages/events 一次拿全；JST 墙钟 → UTC+8 展示；picks 按 id 查角色）", runOnGlobalSpica],
+	["BOM 守卫（钩子扫描改 Node：三平台一致 + 字面量修复命令 + setup:hooks 跨平台）", runBomHook]
 ];
 const before = counts();
 for (const [label, fn] of batches) {
