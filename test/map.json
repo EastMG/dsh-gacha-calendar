@@ -152,6 +152,8 @@
   "https://www.taptap.cn/webapiv2/feed/v7/by-group?X-UA=V%3D1%26PN%3DWebApp%26LANG%3Dzh_CN%26VN_CODE%3D100000000%26LOC%3DCN%26PLT%3DPC%26DS%3DAndroid%26UID%3D%26OS%3DWindows%26OSV%3D10%26DT%3DPC&type=official&group_id=924367&limit=10&sort=created&__times=0&status=0&with_hot_comment=true&from=10": "pengpeng-taptap-feed-p2/response.txt",
   "https://www.taptap.cn/webapiv2/feed/v7/by-group?X-UA=V%3D1%26PN%3DWebApp%26LANG%3Dzh_CN%26VN_CODE%3D100000000%26LOC%3DCN%26PLT%3DPC%26DS%3DAndroid%26UID%3D%26OS%3DWindows%26OSV%3D10%26DT%3DPC&type=official&group_id=924367&limit=10&sort=created&__times=0&status=0&with_hot_comment=true&from=20": "pengpeng-taptap-feed-p3/response.txt",
   "https://l11-web-api.komoejoy.com/game/website/content/107075/2/list?pageNum=1&pageSize=20&region=3": "uma-tw-list/response.txt",
+  "https://m.cafe.daum.net/umamusume-kor/Z4os": "uma-kr-list/response.txt",
+  "https://m.cafe.daum.net/umamusume-kor/Z4os/799": "uma-kr-schedule/response.txt",
   "https://act-api-takumi-static.mihoyo.com/content_v2_user/app/b9d5f96cd69047eb/getContentList?iChanId=697&iPageSize=30&iPage=1&sLangKey=zh-cn": "bh3-content-gacha/response.txt",
   "https://act-api-takumi-static.mihoyo.com/content_v2_user/app/b9d5f96cd69047eb/getContentList?iChanId=696&iPageSize=30&iPage=1&sLangKey=zh-cn": "bh3-content-event/response.txt",
   "https://spica.wiki/ournotes/gachas": "spica-ournotes-gachas/response.txt",

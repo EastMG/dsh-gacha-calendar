@@ -64,6 +64,8 @@
 			"uma-global": "UTC",
 			// 2026-11-11：赛马娘·繁中服（Komoe 官方公告；UTC+8，无夏令时）
 			"uma-tw": "Asia/Taipei",
+			// 2026-11-15：赛马娘·韩服（Daum 카페 月间日程帖；KST，UTC+9，无夏令时）
+			"uma-kr": "Asia/Seoul",
 			"p5x": "Asia/Shanghai",
 			"nte": "Asia/Shanghai",
 			"gf2": "Asia/Shanghai",

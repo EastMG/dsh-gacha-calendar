@@ -83,7 +83,17 @@ NEXT_SOURCES.push(
 		name: "以闪亮之名",
 		gacha: { url: T.parsers.yslz.YSLZ_GACHA_URL, kind: "wiki", mode: "proxy", fetcher: resolve("yslz.gachaYslz") },
 		event: { url: T.parsers.yslz.YSLZ_EVENTS_URL, kind: "wiki", mode: "proxy", fetcher: resolve("yslz.eventsYslz") }
-	}
+	},
+	// 2026-11-15：赛马娘·韩服（`uma-kr`）—— Daum 카페「月间日程」帖。
+	// 抓取器**每次先读板块置顶列表**（找当月日程帖，id 每月变），再读该帖正文 ⇒ 2 次请求；
+	// 卡池与活动是**同一个帖子**（按 ❖ 块标题分流），所以两侧 url / eventUrl 相同。
+	// 响应**没有 ACAO** ⇒ `mode: "proxy"`（域名已登记 `src/index.js` 的 `PROXY_ALLOW_HOSTS`）。
+	{
+		id: "uma-kr",
+		tz: "Asia/Seoul",
+		name: "赛马娘·韩服",
+		gacha: { url: T.parsers.umakr.UMA_KR_SCHEDULE_URL, kind: "official-html", mode: "proxy", fetcher: resolve("umakr.fetchUmaKr") },
+		event: { url: T.parsers.umakr.UMA_KR_SCHEDULE_URL, kind: "official-html", mode: "proxy", fetcher: resolve("umakr.fetchUmaKr") }	}
 );
 
 //#region 查找 / 列 id（各批次原有的便捷函数）

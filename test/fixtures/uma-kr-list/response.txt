@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="ko" class="os_windows chrome pc version_131_0_0_0">
+<head>
+	<title>공지사항 - 우마무스메 프리티 더비 공식 카페</title>
+		<meta name="viewport" content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, shrink-to-fit=no">
+	<meta http-equiv="content-type" content="text/html; charset=utf-8">
+	<meta name="format-detection" content="telephone=no"> 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	
+	<link rel="shortcut icon" href="/favicon.ico"> 	<link rel="apple-touch-icon-precomposed" href="//t1.daumcdn.net/cafe_image/mobile/ico_favicon_mw.png">
+	<link rel="stylesheet" type="text/css" href="//t1.daumcdn.net/cafe_cj/mobileweb/build/css/mobile_cafe-881c685b38.min.css">
+	<link rel="stylesheet" type="text/css" href="//t1.daumcdn.net/cafe_cj/mobileweb/build/css/custom-f6c2f631a4.min.css">
+	<link rel="stylesheet" type="text/css" href="//t1.daumcdn.net/cafe_cj/mobileweb/build/css/mobile_cafe_invite-424ce78f69.min.css">
+	<script>
+		var CAFEAPP = {
+			CONTEXT_PATH: "/umamusume-kor/Z4os",
+			GRPID:"1ZK1D",
+			GRPCODE:"umamusume-kor",
+			GRPNAME: "우마무스메 프리티 더비 공식 카페",
+			IS_PUBLIC:"true",
+			FLDID:"Z4os",
+			BOARDNAME: "공지사항",
+			BOARDTYPE:"",
+			DATAID:"",
+			IS_MEMBER: "false",
+			LOGIN_URL: "https://logins.daum.net",
+			MEMBER_URL: "https://member.daum.net",
+			DAUMID:"",
+			DAUMNAME: '',
+            // [신규회원]  KAKAOEMAIL:"",
+			IS_GAMECAFE: "true",
+			IS_FANCAFE: 'false',
+			DID_LOGIN: 'false',
+			IS_DEV: 'false'
+		};
+	</script>
+	<script src="//t1.daumcdn.net/cafe_cj/mobileweb/js/2.1.3/lib/jquery-2.1.3.min.js"></script>
+	<script src="//t1.daumcdn.net/cafe_cj/mobileweb/js/1.4.1/lib/jquery.cookie.js"></script>
+	<script src="//t1.daumcdn.net/cafe_cj/mobileweb/js/1.7.2/lib/jquery.storageapi.min.js"></script>
+	<script src="//t1.daumcdn.net/cafe_cj/mobileweb/build/js/cafe_util-fe8adfb271.min.js"></script>
+	<script src="//t1.daumcdn.net/cafe_cj/mobileweb/build/js/cafe_common-d65cb156ed.min.js"></script>
+	
+
+    <meta property="og:url" content="/umamusume-kor/Z4os">
+	<meta property="og:title" content="우마무스메 프리티 더비 공식 카페">
+	<meta property="og:article:author" content="우마무스메 프리티 더비 공식 카페">
+	<meta property="og:image" content="https://t1.daumcdn.net/cafe_image/cafe_meta_image_260813.png">
+	<meta property="og:description" content="우마무스메 프리티 더비 공식 게임 카페입니다.">
+	<meta name="description" content="모든 이야기의 시작, Daum 카페">
+</head>
+
+<body>
+
+<div id="daumWrap" class="cafe_type3 general">
+	<header id="daumHead" class="daum_head daum_head--fixed">
+		<div class="cafe_head">
+		<!-- 네비게이션바 -->
+			<div class="d_head #cafe_home_gnb">
+		<div class="wrap_tit">
+			<h1 class="tit_daum">
+				<a href="/?t__nil_logo=cafe" id="daumServiceLogo" class="tit_service">
+					<span class="cafe_logo"><span class="sr_only">cafe</span></span>
+				</a>
+			</h1>
+			<h2 class="tit_cafename"><a href="/umamusume-kor" class="link_cafename">우마무스메 프리티 더비 공식 카페</a></h2>
+		</div>
+		<div class="wrap_util">
+							<a href="javascript:;" id="btn_cafe_profile" class="link_info #cafe_profile"><span class="ico_cafe ico_info"><span class="sr_only">카페 정보 보기</span></span></a>
+							<a href="javascript:;" id="btn_cafe_search" class="link_search #search_btn"><span class="ico_cafe ico_search"><span class="sr_only">개별 카페 검색</span></span></a>
+				</div>
+	</div><!-- end d_head -->
+	<script type="text/javascript">
+		jQuery(function () {
+			CafeProfileViewController.init();
+		});
+	</script>
+		<!-- 카페 프로필 -->
+				<div class="d_visual" aria-hidden="true" style="background-image:url(https://img1.daumcdn.net/thumb/R600x0/?fname=https%3A%2F%2Ft1.daumcdn.net%2Fcafeattach%2F1ZK1D%2F592dcc104220c17d7f4aa894c0b8fbd378ec3816)">
+		<div class="inner_visual">
+			<div class="cont_visual">
+				<span class="visual_img">
+					<span class="ico_cafe cafe_img"><img src="https://img1.daumcdn.net/thumb/C100x100/?fname=https%3A%2F%2Ft1.daumcdn.net%2Fcafeattach%2F1ZK1D%2F12a3244dd43d31439377acb5248e3965556865dc" width="50" height="50" class="thumb_cafe" alt=""></span>
+				</span>
+				<strong class="tit_visual">우마무스메 프리티 더비 공식 카페</strong>
+				<span class="desc_visual">
+					회원<span class="num_info member_number">45,336</span>
+																</span>
+												<span class="emblem_visual">
+					<img src="//t1.daumcdn.net/cafe_image/cafetop/svg/gamecafe_emblem_20190705.svg" class="thumb_cafe" width="23" height="23" alt="">
+					<span class="sr_only">공식게임카페</span>
+				</span>
+																			</div>
+		</div>
+	</div>
+			<!-- 툴바 -->
+			
+	<div class="cafe_navi" id="cafe_navi_default" >
+					<span class="tab_btns">
+				<button class="link_refresh" id="board_refesh"><span class="ico_cafe ico_refresh">새로고침</span></button>
+																	<a href="javascript:" id='boardNoticeYn' class="link_btns link_set link_noti">공지</a>
+														<a href="/umamusume-kor/_newmember" class="link_btns" onclick="accountUtil.checkHasEmail(event);"><span class="kor">가입하기</span><span class="eng">Join</span></a>
+						</span>
+			<h2><a href="/umamusume-kor" class="link_pre"><strong class="tit_pre"><span class="ico_cafe ico_arr"></span>공지사항</strong></a></h2>
+			</div>
+	<script>
+		jQuery(function () {
+			var boardType = '';
+			var NoticeToggleManager = createNoticeToggleManager(boardType);
+
+			NoticeToggleManager.init(parseInt('1'));
+
+			NoticeToggleManager.bindEventTo({
+				selector: '#boardNoticeYn',
+				eventName: 'click'
+			});
+		});
+	</script>
+		</div>
+	</header>
+						
+	<div id="daumContent" class="cont_cafe">
+		<article id="mArticle">
+						<div class="cafe_group cafe_all">
+				<h3 class="sr_only">내부 리스트</h3>
+
+						<div id="noticeContainer" class="boardtype_readnotice readnotice_open" >
+				<div id="mustReadNotices" data-page="1" class="head_readnotice">
+			<ul class="list_head">
+																																																																															</ul>
+		</div>
+				<div id="notices" class="cont_readnotice" >
+			<strong class="screen_out">공지 목록</strong>
+			<ul class="list_cafe">
+								<li class="cmt_on notice ">
+										<a href="/umamusume-kor/Z4os/804?" class="link_cafe">
+						<span class="article_info">
+							<strong class="tit_info">
+								<span class="txt_state txt_notice">공지</span><!--
+							--><span class="txt_detail">7th EVENT WORLD TOUR 「THE STAGE」서울, 요코하마 개최 시기 공개! </span>
+															</strong>
+							<span class="txt_info">
+																<span class="sr_only">작성자</span>
+								<span class="username">CM게이트</span>
+																<span class="sr_only">작성시간</span>
+								<span class="created_at">26.11.12</span>
+								<span class="sr_only">조회수</span>
+								<span class="view_count">2,742</span>
+							</span>
+						</span>
+					</a>
+										<a href="/umamusume-kor/Z4os/804/comments?" class="link_cmt">
+						<span class="sr_only">댓글수</span>
+						<span class="num_cmt">18</span>
+					</a>
+									</li>
+								<li class="cmt_on notice ">
+										<a href="/umamusume-kor/ZBhu/229?" class="link_cafe">
+						<span class="article_info">
+							<strong class="tit_info">
+								<span class="txt_state txt_notice">공지</span><!--
+							--><span class="txt_detail">11월 10일(화) 업데이트 안내</span>
+															</strong>
+							<span class="txt_info">
+																<span class="sr_only">작성자</span>
+								<span class="username">CM게이트</span>
+																<span class="sr_only">작성시간</span>
+								<span class="created_at">26.11.06</span>
+								<span class="sr_only">조회수</span>
+								<span class="view_count">600</span>
+							</span>
+						</span>
+					</a>
+									</li>
+								<li class="cmt_on notice ">
+										<a href="/umamusume-kor/ZBhv/985?" class="link_cafe">
+						<span class="article_info">
+							<strong class="tit_info">
+								<span class="txt_state txt_notice">공지</span><!--
+							--><span class="txt_detail">11월~4월 대전 레이스 이벤트 안내</span>
+															</strong>
+							<span class="txt_info">
+																<span class="sr_only">작성자</span>
+								<span class="username">CM캐럿</span>
+																<span class="sr_only">작성시간</span>
+								<span class="created_at">26.10.29</span>
+								<span class="sr_only">조회수</span>
+								<span class="view_count">610</span>
+							</span>
+						</span>
+					</a>
+									</li>
+								<li class="cmt_on notice ">
+										<a href="/umamusume-kor/Z4os/799?" class="link_cafe">
+						<span class="article_info">
+							<strong class="tit_info">
+								<span class="txt_state txt_notice">공지</span><!--
+							--><span class="txt_detail">(수정) 우마무스메 프리티 더비 11월 스케줄</span>
+															</strong>
+							<span class="txt_info">
+																<span class="sr_only">작성자</span>
+								<span class="username">CM게이트</span>
+																<span class="sr_only">작성시간</span>
+								<span class="created_at">26.10.29</span>
+								<span class="sr_only">조회수</span>
+								<span class="view_count">6,839</span>
+							</span>
+						</span>
+					</a>
+									</li>
+								<li class="cmt_on notice ">
+										<a href="/umamusume-kor/Z4os/223?" class="link_cafe">
+						<span class="article_info">
+							<strong class="tit_info">
+								<span class="txt_state txt_notice">공지</span><!--
+							--><span class="txt_detail">PC 버전 클라이언트 변조 및 유포 행위에 관한 안내</span>
+															</strong>
+							<span class="txt_info">
+																<span class="sr_only">작성자</span>
+								<span class="username">CM게이트</span>
+																<span class="sr_only">작성시간</span>
+								<span class="created_at">23.07.03</span>
+								<span class="sr_only">조회수</span>
+								<span class="view_count">41,431</span>
+							</span>
+						</span>
+					</a>
+										<a href="/umamusume-kor/Z4os/223/comments?" class="link_cmt">
+						<span class="sr_only">댓글수</span>
+						<span class="num_cmt">35</span>
+					</a>
+									</li>
+								<li class="cmt_on notice ">
+										<a href="/umamusume-kor/Z4os/790?" class="link_cafe">
+						<span class="article_info">
+							<strong class="tit_info">
+								<span class="txt_state txt_notice">공지</span><!--
+							--><span class="txt_detail">확인된 오류 현상 안내 (10월 30일(금) 12:04 수정)</span>
+															</strong>
+							<span class="txt_info">
+																<span class="sr_only">작성자</span>
+								<span class="username">CM게이트</span>
+																<span class="sr_only">작성시간</span>
+								<span class="created_at">26.08.27</span>
+								<span class="sr_only">조회수</span>
+								<span class="view_count">6,915</span>
+							</span>
+						</span>
+					</a>
+										<a href="/umamusume-kor/Z4os/790/comments?" class="link_cmt">
+						<span class="sr_only">댓글수</span>
+						<span class="num_cmt">3</span>
+					</a>
+									</li>
+								<li class="cmt_on notice ">
+										<a href="/umamusume-kor/Z4os/19?" class="link_cafe">
+						<span class="article_info">
+							<strong class="tit_info">
+								<span class="txt_state txt_notice">공지</span><!--
+							--><span class="txt_detail">비정상 결제 관련 안내</span>
+															</strong>
+							<span class="txt_info">
+																<span class="sr_only">작성자</span>
+								<span class="username">CM게이트</span>
+																<span class="sr_only">작성시간</span>
+								<span class="created_at">22.06.29</span>
+								<span class="sr_only">조회수</span>
+								<span class="view_count">62,215</span>
+							</span>
+						</span>
+					</a>
+										<a href="/umamusume-kor/Z4os/19/comments?" class="link_cmt">
+						<span class="sr_only">댓글수</span>
+						<span class="num_cmt">13</span>
+					</a>
+									</li>
+								<li class="cmt_on notice ">
+										<a href="/umamusume-kor/Z4os/6?" class="link_cafe">
+						<span class="article_info">
+							<strong class="tit_info">
+								<span class="txt_state txt_notice">공지</span><!--
+							--><span class="txt_detail">(추가) 우마무스메 프리티 더비 2차 창작 가이드라인 안내</span>
+															</strong>
+							<span class="txt_info">
+																<span class="sr_only">작성자</span>
+								<span class="username">CM게이트</span>
+																<span class="sr_only">작성시간</span>
+								<span class="created_at">22.06.20</span>
+								<span class="sr_only">조회수</span>
+								<span class="view_count">69,093</span>
+							</span>
+						</span>
+					</a>
+										<a href="/umamusume-kor/Z4os/6/comments?" class="link_cmt">
+						<span class="sr_only">댓글수</span>
+						<span class="num_cmt">6</span>
+					</a>
+									</li>
+							</ul>
+		</div>
+	</div>
+</article>
+</div>
+</body>
+</html>
