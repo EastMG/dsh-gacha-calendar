@@ -290,7 +290,7 @@
 		// ── 条目 ──
 		registerSource({
 			id: "wd",
-			defaultHidden: true,
+			defaultHidden: false,
 			tz: WD_TZ,
 			name: "未定事件簿",
 			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/bd/c8/ad/bdc8ad3c-1bd5-debe-90b9-e67ea22578de/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",

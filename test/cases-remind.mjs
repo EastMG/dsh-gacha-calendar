@@ -1749,7 +1749,7 @@ export default z;
 			T: NOW + 1 * H, startTs: NOW - 10 * H, endTs: NOW + 1 * H
 		});
 		const itemA = mkItem("genshin", "gacha", "原神");
-		const itemB = mkItem("bh3", "event", "崩坏3");   // bh3 = 出厂默认隐藏（defaultHidden）
+		const itemB = mkItem("cytq", "event", "炽焰天穹");   // cytq = 唯一出厂默认隐藏（defaultHidden）
 		const keyA = remindKeyOf(itemA);
 		const keyB = remindKeyOf(itemB);
 		const shownOf = (...ids) => ({ hidden: [], shown: [...ids] });
@@ -1791,13 +1791,13 @@ export default z;
 		// ⑤ 出厂默认隐藏的条目：展示由 shown 打开，与取消列表无关
 		{
 			const notShown = round([], shownAll, [itemB], {});
-			check("⑤ bh3（defaultHidden）没被 shown 打开 ⇒ 不提醒（展示的默认关闭就是上位）",
+			check("⑤ cytq（defaultHidden）没被 shown 打开 ⇒ 不提醒（展示的默认关闭就是上位）",
 				notShown.toNotify.length === 0 && notShown.skipped === 1);
-			const shownRes = round([], shownOf("bh3"), [itemB], {});
-			check("⑤ 把 bh3 打开展示（shown）⇒ **提醒**，取消列表仍是 []，没有任何额外写入",
+			const shownRes = round([], shownOf("cytq"), [itemB], {});
+			check("⑤ 把 cytq 打开展示（shown）⇒ **提醒**，取消列表仍是 []，没有任何额外写入",
 				shownRes.toNotify.length === 1 && shownRes.toNotify[0].key === keyB,
 				JSON.stringify(shownRes.toNotify.map((n) => n.key)));
-			const shownButCancelled = round(["bh3"], shownOf("bh3"), [itemB], {});
+			const shownButCancelled = round(["cytq"], shownOf("cytq"), [itemB], {});
 			check("⑤ 展示打开之后**仍可手动取消**（展示只是上位，不是不可取消）",
 				shownButCancelled.toNotify.length === 0 && shownButCancelled.skipped === 1);
 		}
@@ -1883,6 +1883,10 @@ export default z;
 				JSON.stringify(got) === JSON.stringify(want),
 				"副本=" + got.join(",") + " ／ SOURCES=" + want.join(","));
 			check("⑨ 那份副本非空（否则「出厂隐藏 ⇒ 不提醒」整条规则会静默失效）", got.length > 0, String(got.length));
+			// 2026-11-14 用户拍板「除 cytq 外全部默认展示」⇒ 隐藏集合必须**恰好只有 cytq**
+			// （这条钉的是口径本身：以后谁把某条改回 defaultHidden: true 或忘了改，这里先红）
+			check('⑨ SOURCES 里 defaultHidden === true 的 id 集合恰为 ["cytq"]（2026-11-14 用户拍板）',
+				JSON.stringify(want) === JSON.stringify(["cytq"]), want.join(","));
 		}
 
 		// ⑩ 宿主接线（静态）：送达侧读的是同一条链路 + 日志里带跳过计数

@@ -190,10 +190,13 @@ export default async function run() {
 			remindGameAllowed("a", [], { hidden: ["a"], shown: [] }) === false
 			&& remindGameAllowed("a", [], { hidden: ["a"], shown: ["a"] }) === false);
 		check("出厂默认隐藏的条目（没被 shown 打开）⇒ 也不提醒",
-			remindGameAllowed("bh3", [], { hidden: [], shown: [] }) === false
-			&& remindGameAllowed("pengpeng", [], {}) === false);
+			remindGameAllowed("cytq", [], { hidden: [], shown: [] }) === false
+			&& remindGameAllowed("cytq", [], {}) === false);
+		check("出厂默认展示的条目（2026-11-14 起除 cytq 外全部如此）⇒ 不需要 shown 提醒",
+			remindGameAllowed("bh3", [], { hidden: [], shown: [] }) === true
+			&& remindGameAllowed("pengpeng", [], {}) === true);
 		check("出厂隐藏但用户明确打开（shown）⇒ 提醒恢复，**不需要动取消列表**",
-			remindGameAllowed("bh3", [], { hidden: [], shown: ["bh3"] }) === true);
+			remindGameAllowed("cytq", [], { hidden: [], shown: ["cytq"] }) === true);
 		check("取消列表读坏（不是数组）⇒ 当「谁都没取消」= 展示中就提醒（不静默丢提醒）",
 			remindGameAllowed("a", void 0, shownAll) === true
 			&& remindGameAllowed("a", null, shownAll) === true

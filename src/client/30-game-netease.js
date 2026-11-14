@@ -436,7 +436,7 @@
 		// ── 条目 ──
 		registerSource({
 			id: "hlr",
-			defaultHidden: true,
+			defaultHidden: false,
 			tz: HLR_TZ,
 			name: "时空中的绘旅人",
 			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/1d/2b/48/1d2b48c5-4cdd-ec4b-80a5-336e3574c6ca/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/512x512bb.jpg",

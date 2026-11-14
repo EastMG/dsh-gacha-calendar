@@ -1480,7 +1480,7 @@ async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_bil
 		// （该源正文自标 UTC+9 ⇒ 抓取器自己钉 `+540`，不随条目 tz）。
 		registerSource({
 				id: "ddlezj",
-				defaultHidden: true,
+				defaultHidden: false,
 				// 条目 tz = TapTap 正文的墙钟口径（国服 UTC+8；正文里标过一次 `(UTC+8)`）
 				tz: ns_biligame_announce_DDLEZJ_TAPTAP_TZ,
 				name: "嘟嘟脸恶作剧",

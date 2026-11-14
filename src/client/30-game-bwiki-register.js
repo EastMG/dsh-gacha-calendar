@@ -43,7 +43,7 @@
 
 		registerSource({
 				id: "czn",
-				defaultHidden: true,
+				defaultHidden: false,
 				tz: "Asia/Shanghai",
 				name: "卡厄斯梦境",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/e2/c9/48/e2c94812-11cd-2a52-445a-d67d6ae9e169/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/512x512bb.jpg",

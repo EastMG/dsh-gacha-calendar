@@ -1089,7 +1089,7 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 
 		registerSource({
 				id: "ournotes",
-				defaultHidden: true,
+				defaultHidden: false,
 				tz: "Asia/Tokyo",
 				name: "BanG Dream！OurNotes·日服",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/bf/53/0f/bf530fd7-65e8-e875-0a46-720344af6134/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
@@ -1100,7 +1100,7 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 
 		registerSource({
 				id: "ournotes-global",
-				defaultHidden: true,
+				defaultHidden: false,
 				tz: "Asia/Shanghai",
 				name: "BanG Dream！OurNotes·国际服",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/ca/da/3a/cada3a9a-491a-fbe5-5494-9be7390e3a9b/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",

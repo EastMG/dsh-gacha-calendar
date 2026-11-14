@@ -1,7 +1,7 @@
 // test/cases-batch2.mjs —— 第二批接入（2026-11-11）：崩坏3 内容中台 / OurNotes 日服 SPICA / 卡厄斯 TapTap
 //
 // ── 本段守什么 ──
-//   ① 崩坏3：注册（两侧 url/eventUrl + 来源标签 + defaultHidden 保持 true + 米游社备选源保留）；
+//   ① 崩坏3：注册（两侧 url/eventUrl + 来源标签 + defaultHidden 改为 false + 米游社备选源保留）；
 //      卡池**名称/角色 + 档期**：`>>开放时间` 优先 → 同帖「商城礼包【上架时间】」兜底 → 都没有就只出名称/角色；
 //      `dtEndTime` 恒 2035 占位 ⇒ **一个字段都不许出现 2035**（反证：载荷 JSON 里 grep 不到）；
 //      活动正文「>>开放时间 / 【活动时间】」时间块 → 逐字区间；相对起点 `9.1版本更新后` ⇒ startTs=null；
@@ -113,7 +113,7 @@ export default async function runBatch2() {
 		check("两侧来源标签 = 官网公告",
 			!!s && s.source === B.NS_BATCH2_BH3_SOURCE_LABEL && s.eventSource === B.NS_BATCH2_BH3_SOURCE_LABEL,
 			s && JSON.stringify([s.source, s.eventSource]));
-		check("defaultHidden 保持 true（原出厂隐藏，接入后仍不占版面）", !!s && s.defaultHidden === true, s && String(s.defaultHidden));
+		check("defaultHidden 改为 false（2026-11-14 用户拍板：除 cytq 外全部默认展示）", !!s && s.defaultHidden === false, s && String(s.defaultHidden));
 		check("米游社公告备选源仍在（卡池 + 活动各 1 条，抓取器 bh3-miyoushe）",
 			!!s && (s.altSources || []).length === 1 && s.altSources[0].fetcher === "bh3-miyoushe"
 			&& (s.eventAltSources || []).length === 1 && s.eventAltSources[0].fetcher === "bh3-miyoushe",
@@ -334,8 +334,8 @@ export default async function runBatch2() {
 		check("活动侧原样不动（bushimo WP 公告 / 官方公告（日文））",
 			!!s && s.eventUrl === "https://bang-dream-on.bushimo.jp/wp-json/wp/v2/posts?per_page=20&page=1"
 			&& s.eventSource === "官方公告（日文）", s && JSON.stringify([s.eventUrl, s.eventSource]));
-		check("tz = Asia/Tokyo / defaultHidden 保持 true（与同款其它服一致）",
-			!!s && s.tz === "Asia/Tokyo" && s.defaultHidden === true, s && JSON.stringify([s.tz, s.defaultHidden]));
+		check("tz = Asia/Tokyo / defaultHidden 改为 false（与同款其它服一致）",
+			!!s && s.tz === "Asia/Tokyo" && s.defaultHidden === false, s && JSON.stringify([s.tz, s.defaultHidden]));
 
 		const ids = B.ns_batch2_spicaIdsOf(fixtureBody(SPICA_LIST));
 		check("列表解析出 23 本（与页面「23 件」一致）", ids.length === 23, String(ids.length));
@@ -416,7 +416,7 @@ export default async function runBatch2() {
 			!!s && (s.altSources || []).length === 1 && s.altSources[0].fetcher === "czn-bwiki"
 			&& /wiki\.biligame\.com\/czn\/api\.php/.test(s.altSources[0].url)
 			&& /停更/.test(s.altSources[0].label), s && JSON.stringify(s.altSources));
-		check("tz = Asia/Shanghai / defaultHidden 保持 true", !!s && s.tz === "Asia/Shanghai" && s.defaultHidden === true,
+		check("tz = Asia/Shanghai / defaultHidden 改为 false", !!s && s.tz === "Asia/Shanghai" && s.defaultHidden === false,
 			s && JSON.stringify([s.tz, s.defaultHidden]));
 		check("固定 2 页；page2 由抓取器自己拼（逐字 `&page=2`）",
 			B.NS_BATCH2_CZN_PAGES === 2 && CZN_P2 === CZN + "&page=2"

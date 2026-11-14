@@ -1,8 +1,8 @@
 // test/cases-wd-hlr.mjs —— 未定事件簿（米游社公告）+ 时空中的绘旅人（官网新闻）2026-11-09 晚接入
 //
 // ── 本段守什么 ──
-//   ① 注册：`wd` / `hlr` 两侧都有 url + eventUrl + 来源标签，出厂仍 `defaultHidden: true`
-//      （2026-11-09 用户要求不勾选展示；本次只换来源、不改展示口径）；
+//   ① 注册：`wd` / `hlr` 两侧都有 url + eventUrl + 来源标签，出厂 `defaultHidden: false`
+//      （2026-11-14 用户拍板：除 cytq 外全部默认展示）；
 //   ② `wd` 卡池：真夹具 `wd-miyoushe-list` + `wd-miyoushe-detail-79191336`，
 //      逐字断言 池名 / 角色（思绪名）/ 档期 / 源站原文 / 绝对时刻 / 悬停 / `gacha[]`；
 //      「11月5日更新后」那一池（`79308001`）**不进外显**（startTs=null），只出现在悬停里；
@@ -115,7 +115,7 @@ const srcOf = (id) => T.SOURCES.find((s) => s.id === id) || null;
 
 export default async function runWdHlr() {
 	// ─────────────────────① 注册 ─────────────────────
-	section("未定事件簿 / 绘旅人 ①：注册（两侧来源 + 来源标签 + 出厂不勾选）");
+	section("未定事件簿 / 绘旅人 ①：注册（两侧来源 + 来源标签 + 出厂展示）");
 	{
 		const wd = srcOf("wd");
 		const hlr = srcOf("hlr");
@@ -134,8 +134,8 @@ export default async function runWdHlr() {
 		check("hlr 两侧来源标签：卡池「官网新闻」/ 活动「官网新闻 + 学院公告」",
 			!!hlr && hlr.source === "官网新闻" && hlr.eventSource === "官网新闻 + 学院公告",
 			hlr ? JSON.stringify([hlr.source, hlr.eventSource]) : "缺失");
-		check("wd / hlr 出厂都不勾选展示（defaultHidden === true，2026-11-09 用户要求没变）",
-			!!wd && !!hlr && wd.defaultHidden === true && hlr.defaultHidden === true,
+		check("wd / hlr 出厂都默认展示（defaultHidden === false，2026-11-14 用户拍板：除 cytq 外全部默认展示）",
+			!!wd && !!hlr && wd.defaultHidden === false && hlr.defaultHidden === false,
 			JSON.stringify([wd && wd.defaultHidden, hlr && hlr.defaultHidden]));
 	}
 

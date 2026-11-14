@@ -614,7 +614,7 @@
 		// ── 条目 ──
 		registerSource({
 			id: "pengpeng",
-			defaultHidden: true,
+			defaultHidden: false,
 			tz: PENGPENG_TZ,
 			name: "夜幕之下",
 			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/3f/59/95/3f599572-4d8c-f4f3-0270-1ee72e007926/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",

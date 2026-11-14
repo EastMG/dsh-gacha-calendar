@@ -3,7 +3,8 @@
 //
 // ── 本段守什么 ──
 //   ① 注册：url / eventUrl **同一条** SPICA 地址（两侧复用一次抓取）、来源标签、tz 仍 Asia/Shanghai（UTC+8）、
-//      defaultHidden 仍 true、BHK 那两条**备选源**没被删掉（设置页还能切回去）、宿主白名单里有 spica.wiki；
+//      defaultHidden 已改为 false（2026-11-14 用户拍板：除 cytq 外全部默认展示）、
+//      BHK 那两条**备选源**没被删掉（设置页还能切回去）、宿主白名单里有 spica.wiki；
 //   ② 抓取链：页面 → `window._durl` → 数据 JSON，两步都经宿主代理；缺 `_durl` ⇒ 抛（不是静默 null）；
 //   ③ 卡池条目事实：23 本 / 名称按 **zh → tw → en → ja** 取（简中优先；2026-11-11 起）/
 //      picks 按 **id** 查角色（不是按 snaps 的序号键，角色名同一个五语对象、同一条优先级）/
@@ -87,7 +88,7 @@ export default async function runOnGlobalSpica() {
 			s && JSON.stringify([s.source, s.eventSource]));
 		check("tz 仍是 Asia/Shanghai（= UTC+8；展示口径，与数据里的 JST 钟面分开）",
 			!!s && s.tz === "Asia/Shanghai" && s.tz === P.NS_ON_GLOBAL_TZ, s && s.tz);
-		check("defaultHidden 保持 true（出厂隐藏未变）", !!s && s.defaultHidden === true, s && String(s.defaultHidden));
+		check("defaultHidden 改为 false（2026-11-14 用户拍板：除 cytq 外全部默认展示）", !!s && s.defaultHidden === false, s && String(s.defaultHidden));
 		check("BHK 官方公告两条**备选源仍在**（手动切回得去，抓取器键未变）",
 			!!s && (s.altSources || []).length === 1 && s.altSources[0].fetcher === "ournotes-global-gacha"
 			&& (s.eventAltSources || []).length === 1 && s.eventAltSources[0].fetcher === "ournotes-global-event",

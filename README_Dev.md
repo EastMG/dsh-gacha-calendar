@@ -924,12 +924,11 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
 
 用户原话：「五个都接入，暂时没有数据源的就留空未配置」。来源全部**实测过**（见各夹具
 `response.txt.meta.json` 的 `capturedAt`），**有源的接全、无源的只注册条目**——
-面板上不假装"配了一个源"。2026-11-09 用户要求：**只有无期迷途**出厂展示（`defaultHidden: false`）；
-夜幕之下 / 未定事件簿 / 时空中的绘旅人 / 炽焰天穹 **出厂不勾选展示**（`defaultHidden: true`）
-（两侧都没来源，占版面又没信息；设置页里勾上「展示」就出来）。无期迷途照常占面板一行。
+面板上不假装"配了一个源"。2026-11-14 用户拍板：**除 cytq 外全部默认展示**（本批 5 款里只有
+cytq 仍出厂隐藏 = `defaultHidden: true`；设置页里勾上「展示」就出来）。
 
 提醒侧跟着这两条规则走，**不需要**再同步任何"白名单"（2026-11-09 起提醒是取消列表制）：
-4 个默认隐藏的条目由「展示是上位」自动静默（`65-remind.js` 的 `REMIND_DEFAULT_HIDDEN_IDS`
+出厂默认隐藏的条目（现在只剩 cytq）由「展示是上位」自动静默（`65-remind.js` 的 `REMIND_DEFAULT_HIDDEN_IDS`
 带着 `defaultHidden` 那份副本，守卫见 `test/cases-remind.mjs` ⑱ 的 ⑨：它必须恰等于
 `defaultHidden === true` 的集合）；**勾上「展示」就自动恢复提醒**（取消列表里没有它们），
 这与"出厂每个条目都默认勾选"是同一条口径。
@@ -996,8 +995,7 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
   仍进悬停（`coveredOrOpen`，悬停里原样印源站原文）。
 - **别把 wiki 停更当游戏停运**：`pengpeng` 活动最新数据比游戏落后约 1 个版本，这是社区 wiki 的
   维护节奏，不是游戏暂停。面板/设置页的文案只写「wiki 数据滞后」。
-- `wd` / `hlr` 的 `defaultHidden` **仍是 true**（2026-11-09 用户要求出厂不勾选展示）：本次只换来源，
-  没有改展示口径；提醒侧 `REMIND_DEFAULT_HIDDEN_IDS` 因此不用动。
+- `wd` / `hlr` 的 `defaultHidden` 已改为 false（2026-11-14 用户拍板：除 cytq 外全部默认展示）。
 - 代理白名单：`bbs-api.miyoushe.com` 早已在 `PROXY_ALLOW_HOSTS` 里（星铁/原神那批米游社公告加的）；
   本次只新增 `hlr.163.com`。`wiki.biligame.com` 本来就在。
 - 回归：`test/cases-wd-hlr.mjs`（wd 卡池/活动 + hlr 卡池/活动 + 跨年 + 单侧失败隔离 + 反证）与

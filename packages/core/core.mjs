@@ -784,8 +784,8 @@
 		// 可见条目 = 全部条目 - 隐藏条目
 		//
 		// ── 出厂默认隐藏（`defaultHidden`）──
-		// 有些来源"能用但不可靠/信息量低"（如 p5x 只有版本公告里的契约块、卡厄斯数据已过期、
-		// OurNotes 日服没有卡池源），出厂不该占用面板版面，但**必须仍能在设置页勾选启用**。
+		// 2026-11-14 用户拍板：除 cytq 外全部默认展示。
+		// 隐藏的条目出厂不该占用面板版面，但**必须仍能在设置页勾选启用**。
 		// 用**两个列表**表达三态，避免"默认值只在首次安装生效"这个坑：
 		//   · `hidden` —— 用户**明确关掉**的（出厂默认即为空）
 		//   · `shown`  —— 用户**明确打开**的（用来覆盖 defaultHidden）
@@ -1881,11 +1881,9 @@
 		// 出厂就**默认不展示**的条目 id：宿主读不到 SOURCES，这张表只能跟着本文件走一份
 		// （与下面的 REMIND_TZ_BY_ID 同一个理由 —— 那份也是 SOURCES 的副本，靠守卫钉住同步）。
 		// 必须恰等于 SOURCES 里 `defaultHidden === true` 的 id（守卫见 test/cases-remind.mjs）。
+		// 2026-11-14 用户拍板：除 cytq 外全部默认展示。
 		const REMIND_DEFAULT_HIDDEN_IDS = [
-			"bh3", "ournotes", "ournotes-global", "czn", "ddlezj",
-			// 2026-11-09 新接入的 5 款里，除 wqmt 之外都出厂不勾选展示
-			// （wd / hlr 当晚已接上两侧源，但用户「出厂不勾选」的要求没撤回 ⇒ 仍在这张表里）
-			"pengpeng", "wd", "hlr", "cytq"
+			"cytq"
 		];
 
 		// 条目「展示中」判定 —— **与面板同一套规则**（60-helpers.js 的 isEntryHidden）：
@@ -2458,7 +2456,8 @@ export function createEngine(env) {
 			//    `defaultHidden` 条目恒为 true → `getVisibleEntries` 里没有它 → **refresh 一轮
 			//    一个请求都不给它发**。表现就是用户报的"勾了 p5x、点刷新，这条不刷新"。
 			//    受影响的正是全部 `defaultHidden` 条目（历史上是 6 个：p5x / czn / ournotes /
-			//    ddlezj / ournotes-global / bh3；**2026-10-03 起 p5x 已改为出厂可见 → 剩 5 个**）。
+			//    ddlezj / ournotes-global / bh3；2026-10-03 起 p5x 改为出厂可见，2026-11-14 起
+			//    除 cytq 外全部默认展示 ⇒ 现在只剩 cytq）。
 			//    防回归见 test/cases-rule-lint.mjs 的「DEFAULT_SETTINGS 的键必须都在 CONFIG_KEYS 里」。
 			const CONFIG_KEYS = [
 				"order", "hidden", "shown", "removed", "customEntries", "customUrls", "customEventUrls", "gameColors",
@@ -5953,11 +5952,11 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 
 		registerSource({
 			id: "bh3",
-				defaultHidden: true,
+				defaultHidden: false,
 			tz: "Asia/Shanghai",
 			name: "崩坏3",
 			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/b0/03/81/b003811c-f82a-428c-aa49-195f22c311bd/AppIcon-1x_U007emarketing-0-10-0-85-220-0.png/512x512bb.jpg",
-			// 出厂默认不勾选展示（用户要求），2026-11-11 接入米哈游内容中台后**仍然保持隐藏**。
+			// 2026-11-14 用户拍板：除 cytq 外全部默认展示。
 			// 默认源 = 内容中台（`iChanId=697` 卡池 / `696` 活动，见 30-game-batch2.js 的文件头与抓取器登记）；
 			// 解析口径（卡池只出名称/角色、活动正文无时间块如实跳过）也写在那份文件里。
 			url: "https://act-api-takumi-static.mihoyo.com/content_v2_user/app/b9d5f96cd69047eb/getContentList?iChanId=697&iPageSize=30&iPage=1&sLangKey=zh-cn",
@@ -10537,7 +10536,7 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 
 		registerSource({
 				id: "ournotes",
-				defaultHidden: true,
+				defaultHidden: false,
 				tz: "Asia/Tokyo",
 				name: "BanG Dream！OurNotes·日服",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/bf/53/0f/bf530fd7-65e8-e875-0a46-720344af6134/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
@@ -10548,7 +10547,7 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 
 		registerSource({
 				id: "ournotes-global",
-				defaultHidden: true,
+				defaultHidden: false,
 				tz: "Asia/Shanghai",
 				name: "BanG Dream！OurNotes·国际服",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/ca/da/3a/cada3a9a-491a-fbe5-5494-9be7390e3a9b/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
@@ -12682,7 +12681,7 @@ async function ns_kedr_wiki_gachaKedrWiki(url, signal, tz = ns_kedr_wiki_KEDR_TZ
 
 		registerSource({
 				id: "czn",
-				defaultHidden: true,
+				defaultHidden: false,
 				tz: "Asia/Shanghai",
 				name: "卡厄斯梦境",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/e2/c9/48/e2c94812-11cd-2a52-445a-d67d6ae9e169/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/512x512bb.jpg",
@@ -14202,7 +14201,7 @@ async function ns_biligame_activity_eventsUmaCnOfficial(url, signal, tz = ns_bil
 		// （该源正文自标 UTC+9 ⇒ 抓取器自己钉 `+540`，不随条目 tz）。
 		registerSource({
 				id: "ddlezj",
-				defaultHidden: true,
+				defaultHidden: false,
 				// 条目 tz = TapTap 正文的墙钟口径（国服 UTC+8；正文里标过一次 `(UTC+8)`）
 				tz: ns_biligame_announce_DDLEZJ_TAPTAP_TZ,
 				name: "嘟嘟脸恶作剧",
@@ -18915,7 +18914,7 @@ EVENT_FETCHERS["r1999"] = {
 		// ── 条目 ──
 		registerSource({
 			id: "wd",
-			defaultHidden: true,
+			defaultHidden: false,
 			tz: WD_TZ,
 			name: "未定事件簿",
 			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/bd/c8/ad/bdc8ad3c-1bd5-debe-90b9-e67ea22578de/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",
@@ -19368,7 +19367,7 @@ EVENT_FETCHERS["r1999"] = {
 		// ── 条目 ──
 		registerSource({
 			id: "hlr",
-			defaultHidden: true,
+			defaultHidden: false,
 			tz: HLR_TZ,
 			name: "时空中的绘旅人",
 			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/1d/2b/48/1d2b48c5-4cdd-ec4b-80a5-336e3574c6ca/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/512x512bb.jpg",
@@ -20001,7 +20000,7 @@ EVENT_FETCHERS["r1999"] = {
 		// ── 条目 ──
 		registerSource({
 			id: "pengpeng",
-			defaultHidden: true,
+			defaultHidden: false,
 			tz: PENGPENG_TZ,
 			name: "夜幕之下",
 			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/3f/59/95/3f599572-4d8c-f4f3-0270-1ee72e007926/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",
@@ -20046,7 +20045,7 @@ EVENT_FETCHERS["r1999"] = {
 // ⚠️ 2026-11-09 晚已接入、并从本文件**移走**的两条（别再按老注释把她们当"未配置"）：
 //   · `wd`  未定事件簿 → `30-game-miyoushe-bbs.js`（米游社公告 forum_id=33，卡池 + 活动）
 //   · `hlr` 时空中的绘旅人 → `30-game-netease.js`（官网 hlr.163.com 新闻列表 + 详情，卡池 + 活动）
-//   两款的 `defaultHidden` 仍是 true（2026-11-09 用户要求出厂不勾选展示），
+//   两款的 `defaultHidden` 已改为 false（2026-11-14 用户拍板：除 cytq 外全部默认展示），
 //   所以本文件头原先「三款都没源 ⇒ 灰格占版面」的理由对她们已不成立。
 //
 // ── 「未配置」在代码里到底长什么样（三处，全部**不产生 fail**）────────────────────
@@ -20061,7 +20060,7 @@ EVENT_FETCHERS["r1999"] = {
 //   刷新横幅的悬停明细里也**不会**出现失败项（要 `isDown(gachaFail|eventFail)` 才报；
 //   2026-11-10 起底部失败横条已删，失败信息只走刷新横幅悬停）。
 //
-// ── 为什么 `defaultHidden: true`（2026-11-09 用户要求）──────────────────────────
+// ── 为什么只剩 cytq 还是 `defaultHidden: true`（2026-11-14 用户拍板：除 cytq 外全部默认展示）──
 //   两侧都没配来源 ⇒ 面板上只会是两个灰格「该来源无数据」，占版面又没信息。
 //   条目仍在设置页列表里，勾上「展示」就出来；将来填上来源也立刻生效。
 //   ⚠️ 改 `defaultHidden` 必须同步 `65-remind.js` 的 `REMIND_DEFAULT_HIDDEN_IDS`

@@ -147,12 +147,10 @@ export default async function run() {
 			check(`${id} 有图标（http(s) 地址）`, !!s && /^https?:\/\//.test(String(s.icon)), s ? String(s.icon).slice(0, 60) : "缺失");
 			// 颜色：本批 5 条在 20-source-core.js 的 SOURCE_COLORS 里各给了一个中间调
 			check(`${id} 有游戏主题色（#rrggbb）`, !!s && /^#[0-9A-Fa-f]{6}$/.test(String(s.color)), s ? String(s.color) : "缺失");
-			// 2026-11-09 用户：本批 4 款（夜幕之下 / 未定 / 绘旅人 / 炽焰天穹）出厂**不勾选展示**；
-			// 无期迷途两侧都有源 ⇒ 仍出厂展示。2026-11-09 晚 wd/hlr 接上了源，但用户当轮的
-			// 「出厂不勾选」要求**没有撤回** ⇒ 它们的 defaultHidden 仍是 true（只改源、不改展示口径）。
+			// 2026-11-14 用户拍板：**除 cytq 外全部默认展示**（本批 5 款里只剩 cytq 仍出厂隐藏）。
 			// 这张 `defaultHidden` 表与提醒侧那份副本必须一致
 			// （`65-remind.js` 的 REMIND_DEFAULT_HIDDEN_IDS / 宿主拿它判「展示中」，守卫见 cases-remind.mjs）。
-			const wantHidden = id !== "wqmt";
+			const wantHidden = id === "cytq";
 			check(`${id} 出厂${wantHidden ? "不勾选展示" : "展示"}（defaultHidden = ${wantHidden}）`,
 				!!s && s.defaultHidden === wantHidden, s ? String(s.defaultHidden) : "缺失");
 		}
