@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ja-JP">
+<head>
+    <meta charset="utf-8" />
+    <meta name="format-detection" content="telephone=no">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=0" />
+    <meta name="description" content="announcement" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/detail.css?17946930703472" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/chara.css?17946930703472" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/font_4.css?17946930703472" />
+                                    <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/jquery-3.7.1.min.js?17946930703472" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/detail.js?17946930703472" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/index.js?17946930703472" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/unity-link.js?17946930703472" crossorigin></script>
+                <style>
+        .d_view_page_top{
+            text-align: center;
+            background-color: #000000;
+            opacity: 0.5;
+            margin-bottom: 30px;
+        }
+        .d_view_page_top a{
+            color: #fff;
+            display: inline-block;
+            width: 30%;
+            padding: 20px 0;
+            font-size: 30px;
+        }
+        .d_view_page_top a:hover{
+            background-color: #fd7e7e;
+            padding: 21px 0 19px;
+        }
+        .d_view_page_top {
+            display: block;
+            width: 100%;
+            position: fixed;
+            left: 0px;
+            top: 2px;
+            z-index: 9999;
+            text-align: center;
+            padding: 0 auto;
+        }
+    </style>
+</head>
+
+<body  style="background-color: #49414c" >
+<div class="detail-container">
+  <div class="detail-back">
+    <a class="detail-back" href="/web/announcement?language=1&phoneType=4&userId=0&assetVersion="><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/announcement/icon-back.png" alt="back" width="122" height="108"></a>  </div>
+  <div class="detail-main">
+    <div class="detail-header">
+              <div class="detail-banner">
+          <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_500000013_06.png" width="546" height="192" alt="banner" />
+        </div>
+            <div class="detail-title">
+        <article class="article-item">
+          <div class="article-container">
+                          <div class="article-header is-campaign">
+                <div class="article-category">特别活动</div>
+                <div class="article-date"></div>
+              </div>
+                        <h1 class="article-body">邀请好友活动 第6期举办中！</h1>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    
+    <p>感谢您一直以来对《炽焰天穹》的支持！<br></p><br>
+<br>
+<div>
+<img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/etc/HomePopup_500000013_06.png" width="100%">
+</div><br>
+<h2 class="headline-m">■ 邀请好友活动举办中！</h2>
+<p>
+本期开始，好友邀请活动将变更为<span class="color-positive">常驻开放</span>的活动！<br>
+受邀方可获得<span class="color-positive">晶石×1000</span>，邀请方最多可获得<span class="color-positive">晶石×1500</span>！<br>
+机会难得，快去邀请好友一同游玩吧！<br>
+<br>
+主页 >通过「好友邀请」按钮，可进入好友邀请专用页面。<br>
+</p>
+<br>
+<h3 class="headline-pink">活动时间</h3>
+<p>
+2026/10/8 维护后 ~ <br>
+<small>※好友邀请活动将常驻开放！<br>
+</p>
+<br>
+
+
+<h3 class="headline-pink">关于「受邀方」</h3>
+<p>
+受邀方需为<span class="color-positive">2026/10/8 维护后注册</span>的玩家。<br>
+受邀方可在登录游戏后，输入邀请码领取礼物<span class="color-positive">晶石×1000</span>!
+<br>
+<br><span class="color-strong">STEP1</span>：从好友处接收邀请码
+<br><span class="color-strong">STEP2</span>：在好友邀请专用页面，点击右上角「输入好友的邀请码」按钮后，输入邀请码
+<br><span class="color-strong">STEP3</span>：领取晶石！
+<br><small>※需要通过礼物箱领取奖励。
+<br>※邀请码仅可输入一次。</small>
+<br>
+<br>同时，根据你的游玩进度，向你发出邀请的好友可获得相应奖励。
+<br>
+</p>
+<br>
+
+<h3 class="headline-pink">关于「邀请方」</h3>
+<p>邀请方无注册时间限制。<br>
+你邀请的好友满足一定条件后，你将获得晶石奖励！
+<br>
+<br><span class="color-strong">STEP1</span>：分享邀请码，位于好友邀请专用页面左下角
+<br><span class="color-strong">STEP2</span>：好友输入你的邀请码
+<br><span class="color-strong">STEP3</span>：好友满足一定条件后，即可领取晶石！
+<br><small>※可通过礼物箱领取奖励。
+<br>※有时需要等待一段时间才能收到奖励。</small>
+<br>
+<br>
+</p>
+<h2 class="header">关于达成条件</h2>
+<p>好友输入你的邀请码后，并满足以下条件，即可使你获得晶石奖励。
+<br>奖励领取次数存在上限，每个条件下的奖励仅可各领取1次。
+<br>
+<br>全部达成后，总计可获得<span class="color-positive">晶石×1500</span>。
+<br>
+<br>
+<table>
+  <tr>
+    <th>达成条件</th>
+    <th>奖励</th>
+    <th>上限</th>
+  </tr>
+  <tr>
+    <td>好友通关主线剧情第一章Day7</td>
+    <td>晶石 ×500</td>
+    <td>最多1次</td>
+  </tr>
+  <tr>
+    <td>好友通关主线剧情第一章</td>
+    <td>晶石 ×500</td>
+    <td>最多1次</td>
+  </tr>
+  <tr>
+    <td>好友通关主线剧情第二章Day10</td>
+    <td>晶石 ×500</td>
+    <td>最多1次</td>
+  </tr>
+</table></p>
+<p><small>※好友邀请活动 第5期使用的邀请码不可延续至好友邀请活动 第6期。<br>
+※好友邀请活动 第6期活动页面将生成全新邀请码，请使用新邀请码参与活动。<br>
+※好友邀请活动 第5期的达成条件进度不会继承至好友邀请活动第6期。<br>
+※若好友在输入邀请码前已经满足了条件，邀请方也可领取奖励。<br>
+※请及时从礼物箱中领取奖励。</p></small>
+<br>
+<br>
+
+
+<h3 class="headline-pink">注意事项</h3>
+<p>・同一邀请码，最多可邀请1000名玩家。
+<br>・邀请码可通过SNS进行分享，但请勿以利益方式引导他人输入你的邀请码。
+</p>
+<br>
+<p>
+今后也请继续支持《炽焰天穹》！
+</p>
+<br>
+
+
+  </div>
+</div>
+</body>
+</html>

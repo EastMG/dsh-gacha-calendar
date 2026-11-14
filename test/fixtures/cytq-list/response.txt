@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="ja-JP">
+<head>
+    <meta charset="utf-8" />
+    <meta name="format-detection" content="telephone=no">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=0" />
+    <meta name="description" content="announcement" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/index.css?17946930417107" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/font_4.css?17946930417107" />
+                                    <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/jquery-3.7.1.min.js?17946930417107" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/detail.js?17946930417107" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/index.js?17946930417107" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/unity-link.js?17946930417107" crossorigin></script>
+                <style>
+        .d_view_page_top{
+            text-align: center;
+            background-color: #000000;
+            opacity: 0.5;
+            margin-bottom: 30px;
+        }
+        .d_view_page_top a{
+            color: #fff;
+            display: inline-block;
+            width: 30%;
+            padding: 20px 0;
+            font-size: 30px;
+        }
+        .d_view_page_top a:hover{
+            background-color: #fd7e7e;
+            padding: 21px 0 19px;
+        }
+        .d_view_page_top {
+            display: block;
+            width: 100%;
+            position: fixed;
+            left: 0px;
+            top: 2px;
+            z-index: 9999;
+            text-align: center;
+            padding: 0 auto;
+        }
+    </style>
+</head>
+
+<body  style="background-color: #49414c" >
+  <div class="grid">
+    <div class="banners">
+                                                          <article class="event">
+            <p class="event-date"></p>
+            <a href="/web/announcement/1222?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/thxyl.png" alt="感谢庆典特别活动一览！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date">11/25 10:59结束</p>
+            <a href="/web/announcement/1220?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_thxss1.5(1).png" alt="感谢庆典纪念 SS1.5倍扭蛋举办中！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date">11/25 10:59结束</p>
+            <a href="/web/announcement/1217?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_shop_ori1_261111_select(1).png" alt="SS1.5倍扭蛋探索券礼包发售中！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date"></p>
+            <a href="/web/announcement/500000191?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_500000191_cn.png" alt="光球技能习得庆典举办中！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date"></p>
+            <a href="/web/announcement/220000127?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_220000125_cn.png" alt="异时层EX 第一章登场！通关可获得灵魂共鸣核心！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date">11/18 12:59结束</p>
+            <a href="/web/announcement/200000260?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_200000260_cn.png" alt="剪影活动「珍藏的回忆」开放中！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date">11/18 12:59结束</p>
+            <a href="/web/announcement/1215?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_400001354_cn8(1).png" alt="Autumn特别精选扭蛋举办中！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date">11/18 12:59结束</p>
+            <a href="/web/announcement/1212?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_shop_ori1_26autumn(1).png" alt="Autumn特别精选礼包发售中！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date">11/18 12:59结束</p>
+            <a href="/web/announcement/200000258?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_200000258_cn.png" alt="高分挑战活动#67开启！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date"></p>
+            <a href="/web/announcement/400001431?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_400001431_cn.png" alt="SS小笠原绯雨登场！精选白金扭蛋" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date">11/18 12:59结束</p>
+            <a href="/web/announcement/400001432?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_400001432_cn.png" alt="【仅限付费晶石】感谢庆典必得SS扭蛋举办中！" width="546" height="192">
+            </a>
+          </article>
+                                                                  <article class="event">
+            <p class="event-date"></p>
+            <a href="/web/announcement/1197?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_GGPExchange.png" alt="GGP兑换感谢庆典10连探索券开放中！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date"></p>
+            <a href="/web/announcement/1198?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_ori_300000032.png" alt="付费晶石兑换感谢庆典10连探索券开放中！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date">12/2 12:59结束</p>
+            <a href="/web/announcement/1199?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_ori_ThxPass.png" alt="感谢庆典激励任务通行证发售中！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date"></p>
+            <a href="/web/announcement/827?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/web_30daysPass.png" alt="30日返利通行证发售中！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date">11/18 12:59结束</p>
+            <a href="/web/announcement/1200?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_ori_20261028.png" alt="第1弹·感谢庆典高级礼包A/B/C发售中！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date">12/7 3:59结束</p>
+            <a href="/web/announcement/470?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_ori_WeeklyCard28.png" alt="庆典特惠·体力周卡&amp;晶石周卡发售中！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date"></p>
+            <a href="/web/announcement/500000178?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_500000168_cn.png" alt="感谢庆典兑换所举办中！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date"></p>
+            <a href="/web/announcement/213000013?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_213000013_cn.png" alt="技术模拟战 第8赛季 -2026 AUTUMN-" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date"></p>
+            <a href="/web/announcement/500000179?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_500000179_cn.png" alt="必得至少免费100连！感谢庆典每日登录活动举办中！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date"></p>
+            <a href="/web/announcement/500000171?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_500000171_cn.png" alt="剧情活动批量精选开放中！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date"></p>
+            <a href="/web/announcement/1182?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_300000010.png" alt="通行证3个月礼包购买次数刷新！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date"></p>
+            <a href="/web/announcement/999700231?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_999700220_10.png" alt="战斗赛季 2026.10-12开启!" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date">12/2 12:59结束</p>
+            <a href="/web/announcement/200000261?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_200000261_cn.png" alt="恒星扫荡战线#12 统御苍穹的骸翼 开启！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date"></p>
+            <a href="/web/announcement/1179?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_500000013_06.png" alt="邀请好友活动 第6期举办中！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date"></p>
+            <a href="/web/announcement/1191?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_other_ori1_261008_1.png" alt="高级奖章兑换所道具可兑换次数增加" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date"></p>
+            <a href="/web/announcement/1091?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_ori_MainStory2_2.png" alt="主线激励计划Ⅱ发售中！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date"></p>
+            <a href="/web/announcement/1068?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_300000010.png" alt="通行证3个月礼包购买次数刷新！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date"></p>
+            <a href="/web/announcement/1065?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/web_FirstReset.png" alt="晶石档位首充现已刷新购买次数！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date"></p>
+            <a href="/web/announcement/220000126?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_220000126_cn.png" alt="【记忆之庭】光球BOSSⅣ登场！" width="546" height="192">
+            </a>
+          </article>
+                                  <article class="event">
+            <p class="event-date"></p>
+            <a href="/web/announcement/1057?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_other_ori1_260715_2.png" alt="主线激励任务Ⅱ开启！" width="546" height="192">
+            </a>
+          </article>
+                                                                  <article class="event">
+            <p class="event-date"></p>
+            <a href="/web/announcement/999700229?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_999700229_cn2.png" alt="“忆中身影”玩法追加AR模式" width="546" height="192">
+            </a>
+          </article>
+                    </div>
+
+      <div class="article-tabs">
+                  <button class="article-tab-item" data-switchtab-trigger="tab-0" data-is-current>
+            <span>活动公告</span>
+          </button>
+                  <button class="article-tab-item" data-switchtab-trigger="tab-1" >
+            <span>维护与更新</span>
+          </button>
+                  <button class="article-tab-item" data-switchtab-trigger="tab-2" >
+            <span>常驻与其他</span>
+          </button>
+              </div>
+
+      <div class="article-content">
+        <div class="article-group" data-switchtab-content="tab-0" data-is-current>
+                                    <article class="article-item" data-announcement-id="999800005">
+                <a class="article-container" href="/web/announcement/999800005?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-bug">
+                      <h2 class="article-category" id="new-article-category999800005">问题说明</h2>
+                                      </div>
+                  <p class="article-body">10月28日必得SS探索券扭蛋的问题修复说明</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="1222">
+                <a class="article-container" href="/web/announcement/1222?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-campaign">
+                      <h2 class="article-category" id="new-article-category1222">特别活动</h2>
+                                      </div>
+                  <p class="article-body">感谢庆典特别活动一览！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="1220">
+                <a class="article-container" href="/web/announcement/1220?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-gacha">
+                      <h2 class="article-category" id="new-article-category1220">扭蛋</h2>
+                                      </div>
+                  <p class="article-body">感谢庆典纪念 SS1.5倍扭蛋举办中！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="1217">
+                <a class="article-container" href="/web/announcement/1217?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-pack">
+                      <h2 class="article-category" id="new-article-category1217">礼包</h2>
+                                      </div>
+                  <p class="article-body">SS1.5倍扭蛋探索券礼包发售中！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="500000191">
+                <a class="article-container" href="/web/announcement/500000191?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-campaign">
+                      <h2 class="article-category" id="new-article-category500000191">特别活动</h2>
+                                      </div>
+                  <p class="article-body">光球技能习得庆典举办中！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="220000127">
+                <a class="article-container" href="/web/announcement/220000127?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-event">
+                      <h2 class="article-category" id="new-article-category220000127">活动</h2>
+                                      </div>
+                  <p class="article-body">异时层EX 第一章登场！通关可获得灵魂共鸣核心！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="200000260">
+                <a class="article-container" href="/web/announcement/200000260?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-event">
+                      <h2 class="article-category" id="new-article-category200000260">活动</h2>
+                                      </div>
+                  <p class="article-body">剪影活动「珍藏的回忆」开放中！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="1215">
+                <a class="article-container" href="/web/announcement/1215?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-gacha">
+                      <h2 class="article-category" id="new-article-category1215">扭蛋</h2>
+                                      </div>
+                  <p class="article-body">Autumn特别精选扭蛋举办中！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="1212">
+                <a class="article-container" href="/web/announcement/1212?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-pack">
+                      <h2 class="article-category" id="new-article-category1212">礼包</h2>
+                                      </div>
+                  <p class="article-body">Autumn特别精选礼包发售中！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="200000258">
+                <a class="article-container" href="/web/announcement/200000258?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-event">
+                      <h2 class="article-category" id="new-article-category200000258">活动</h2>
+                                      </div>
+                  <p class="article-body">高分挑战活动#67开启！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="400001431">
+                <a class="article-container" href="/web/announcement/400001431?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-gacha">
+                      <h2 class="article-category" id="new-article-category400001431">扭蛋</h2>
+                                      </div>
+                  <p class="article-body">SS小笠原绯雨登场！精选白金扭蛋</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="400001432">
+                <a class="article-container" href="/web/announcement/400001432?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-gacha">
+                      <h2 class="article-category" id="new-article-category400001432">扭蛋</h2>
+                                      </div>
+                  <p class="article-body">【仅限付费晶石】感谢庆典必得SS扭蛋举办中！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="1195">
+                <a class="article-container" href="/web/announcement/1195?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-info">
+                      <h2 class="article-category" id="new-article-category1195">通知</h2>
+                                      </div>
+                  <p class="article-body">感谢庆典探索券说明</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="1196">
+                <a class="article-container" href="/web/announcement/1196?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-info">
+                      <h2 class="article-category" id="new-article-category1196">通知</h2>
+                                      </div>
+                  <p class="article-body">感谢庆典10连探索券说明</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="1197">
+                <a class="article-container" href="/web/announcement/1197?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-pack">
+                      <h2 class="article-category" id="new-article-category1197">礼包</h2>
+                                      </div>
+                  <p class="article-body">GGP兑换感谢庆典10连探索券开放中！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="1198">
+                <a class="article-container" href="/web/announcement/1198?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-pack">
+                      <h2 class="article-category" id="new-article-category1198">礼包</h2>
+                                      </div>
+                  <p class="article-body">付费晶石兑换感谢庆典10连探索券开放中！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="1199">
+                <a class="article-container" href="/web/announcement/1199?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-pack">
+                      <h2 class="article-category" id="new-article-category1199">礼包</h2>
+                                      </div>
+                  <p class="article-body">感谢庆典激励任务通行证发售中！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="827">
+                <a class="article-container" href="/web/announcement/827?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-pack">
+                      <h2 class="article-category" id="new-article-category827">礼包</h2>
+                                      </div>
+                  <p class="article-body">30日返利通行证发售中！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="1200">
+                <a class="article-container" href="/web/announcement/1200?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-pack">
+                      <h2 class="article-category" id="new-article-category1200">礼包</h2>
+                                      </div>
+                  <p class="article-body">第1弹·感谢庆典高级礼包A/B/C发售中！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="470">
+                <a class="article-container" href="/web/announcement/470?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-pack">
+                      <h2 class="article-category" id="new-article-category470">礼包</h2>
+                                      </div>
+                  <p class="article-body">庆典特惠·体力周卡&amp;晶石周卡发售中！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="500000178">
+                <a class="article-container" href="/web/announcement/500000178?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-campaign">
+                      <h2 class="article-category" id="new-article-category500000178">特别活动</h2>
+                                      </div>
+                  <p class="article-body">感谢庆典兑换所举办中！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="213000013">
+                <a class="article-container" href="/web/announcement/213000013?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-update">
+                      <h2 class="article-category" id="new-article-category213000013">更新</h2>
+                                      </div>
+                  <p class="article-body">技术模拟战 第8赛季 -2026 AUTUMN-</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="500000179">
+                <a class="article-container" href="/web/announcement/500000179?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-campaign">
+                      <h2 class="article-category" id="new-article-category500000179">特别活动</h2>
+                                      </div>
+                  <p class="article-body">必得至少免费100连！感谢庆典每日登录活动举办中！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="500000171">
+                <a class="article-container" href="/web/announcement/500000171?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-event">
+                      <h2 class="article-category" id="new-article-category500000171">活动</h2>
+                                      </div>
+                  <p class="article-body">剧情活动批量精选开放中！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="1182">
+                <a class="article-container" href="/web/announcement/1182?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-pack">
+                      <h2 class="article-category" id="new-article-category1182">礼包</h2>
+                                      </div>
+                  <p class="article-body">通行证3个月礼包购买次数刷新！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="999700231">
+                <a class="article-container" href="/web/announcement/999700231?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-update">
+                      <h2 class="article-category" id="new-article-category999700231">更新</h2>
+                                      </div>
+                  <p class="article-body">战斗赛季 2026.10-12开启!</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="200000261">
+                <a class="article-container" href="/web/announcement/200000261?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-event">
+                      <h2 class="article-category" id="new-article-category200000261">活动</h2>
+                                      </div>
+                  <p class="article-body">恒星扫荡战线#12 统御苍穹的骸翼 开启！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="1091">
+                <a class="article-container" href="/web/announcement/1091?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-pack">
+                      <h2 class="article-category" id="new-article-category1091">礼包</h2>
+                                      </div>
+                  <p class="article-body">主线激励计划Ⅱ发售中！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="1068">
+                <a class="article-container" href="/web/announcement/1068?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-pack">
+                      <h2 class="article-category" id="new-article-category1068">礼包</h2>
+                                      </div>
+                  <p class="article-body">通行证3个月礼包购买次数刷新！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="1065">
+                <a class="article-container" href="/web/announcement/1065?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-pack">
+                      <h2 class="article-category" id="new-article-category1065">礼包</h2>
+                                      </div>
+                  <p class="article-body">晶石档位首充现已刷新购买次数！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="220000126">
+                <a class="article-container" href="/web/announcement/220000126?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-update">
+                      <h2 class="article-category" id="new-article-category220000126">更新</h2>
+                                      </div>
+                  <p class="article-body">【记忆之庭】光球BOSSⅣ登场！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="1057">
+                <a class="article-container" href="/web/announcement/1057?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-update">
+                      <h2 class="article-category" id="new-article-category1057">更新</h2>
+                                      </div>
+                  <p class="article-body">主线激励任务Ⅱ开启！</p>
+                </a>
+              </article>
+                              </div>
+
+        <div class="article-group" data-switchtab-content="tab-1">
+                                    <article class="article-item" data-announcement-id="1190">
+                <a class="article-container" href="/web/announcement/1190?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-update">
+                      <h2 id="new-article-category1190" class="article-category">更新</h2>
+                                      </div>
+                  <p class="article-body">Ver6.5更新内容一览</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="1191">
+                <a class="article-container" href="/web/announcement/1191?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-update">
+                      <h2 id="new-article-category1191" class="article-category">更新</h2>
+                                      </div>
+                  <p class="article-body">高级奖章兑换所道具可兑换次数增加</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="999900050">
+                <a class="article-container" href="/web/announcement/999900050?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-info">
+                      <h2 id="new-article-category999900050" class="article-category">通知</h2>
+                                      </div>
+                  <p class="article-body">关于Ver.6.5起，iOS版系统版本要求的变更</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="999700238">
+                <a class="article-container" href="/web/announcement/999700238?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-update">
+                      <h2 id="new-article-category999700238" class="article-category">更新</h2>
+                                      </div>
+                  <p class="article-body">2个风格追加共鸣天赋！</p>
+                </a>
+              </article>
+                          <article class="article-item" data-announcement-id="999700229">
+                <a class="article-container" href="/web/announcement/999700229?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-update">
+                      <h2 id="new-article-category999700229" class="article-category">更新</h2>
+                                      </div>
+                  <p class="article-body">“忆中身影”玩法追加AR模式</p>
+                </a>
+              </article>
+                              </div>
+
+        <div class="article-group" data-switchtab-content="tab-2">
+                                    <article class="article-item" data-announcement-id="1179">
+                <a class="article-container" href="/web/announcement/1179?userId=0&amp;region=1&amp;language=1&amp;phoneType=4&amp;token=6eb20861733b4ee9a68b1649a82dfef2">
+                  <div class="article-header is-campaign">
+                      <h2 id="new-article-category1179" class="article-category">特别活动</h2>
+                                      </div>
+                  <p class="article-body">邀请好友活动 第6期举办中！</p>
+                </a>
+              </article>
+                              </div>
+
+      </div>
+    </div>
+
+<script>
+    window.addEventListener('pageshow', function(event) {
+        let dataAnnouncementIdStr=sessionStorage.getItem('cameFromForward')
+        let dataAnnouncementIdArr = [];
+        if(dataAnnouncementIdStr){
+            // sessionStorage.removeItem('cameFromForward')
+            // location.reload();
+            dataAnnouncementIdArr = JSON.parse(dataAnnouncementIdStr);
+            // 遍历ID数组
+            dataAnnouncementIdArr.forEach(function(id) {
+                // 获取具有特定ID的元素
+                let element = document.getElementById('new-article-category'+id);
+
+                // 检查元素是否存在
+                if (element) {
+                    // 移除元素的'myClass'类
+                    element.classList.remove('is-new');
+                }
+            });
+        }
+    });
+
+    // 获取所有带有特定class的元素
+    let elements = document.querySelectorAll('.article-item');
+
+    // 为每个元素添加点击事件监听器
+    elements.forEach(function(element) {
+        element.addEventListener('click', function() {
+            let dataAnnouncementIdStr = sessionStorage.getItem('cameFromForward');
+            let dataAnnouncementIdArr = [];
+            if(dataAnnouncementIdStr){
+                 dataAnnouncementIdArr = JSON.parse(dataAnnouncementIdStr);
+            }
+            let dataAnnouncementId = this.getAttribute('data-announcement-id');
+            dataAnnouncementIdArr.push(dataAnnouncementId)
+            const uniqueDataAnnouncementIdArr = dataAnnouncementIdArr.filter((item, index) => dataAnnouncementIdArr.indexOf(item) === index);
+            let newDataAnnouncementIdStr = JSON.stringify(uniqueDataAnnouncementIdArr);
+            sessionStorage.setItem('cameFromForward', newDataAnnouncementIdStr);
+            // 移除元素的class
+            let newElements = this.querySelectorAll('h2');
+            // 遍历<p>元素
+            newElements.forEach(function(pElement) {
+                // 打印或操作<p>元素
+                pElement.classList.remove('is-new')
+                // 你可以在这里对pElement进行任何操作
+            });
+        });
+    });
+</script>
+</body>
+</html>

@@ -221,20 +221,28 @@ export default async function run() {
 		check("hlr 两个抓取器都已登记（卡池 / 活动各一）",
 			typeof T.GACHA_FETCHERS["hlr"] === "function" && !!(T.EVENT_FETCHERS["hlr"] && T.EVENT_FETCHERS["hlr"].default));
 
-		// 本批唯一仍然留空的：cytq（旧断言「wd / hlr / cytq 三款都留空」只剩下这一条）
+		// 2026-11-15：cytq 不再是「未配置」—— 接上官方 H5 公告（`30-game-cytq.js`，原
+		// `30-game-unconfigured.js` 只剩这一条 ⇒ 文件改名）。出厂隐藏**保持不动**（用户口径）。
 		const cytq = srcOf("cytq");
-		check("cytq 两侧来源都**留空未配置**（不写 url / eventUrl）",
-			!!cytq && !cytq.url && !cytq.eventUrl, cytq ? JSON.stringify({ url: cytq.url, eventUrl: cytq.eventUrl }) : "缺失");
-		check("cytq 没有挂任何抓取器（GACHA_FETCHERS / EVENT_FETCHERS 里查不到）",
-			typeof T.GACHA_FETCHERS["cytq"] !== "function" && !T.EVENT_FETCHERS["cytq"]);
+		const CY = T.parsers.cytq;
+		check("cytq 两侧来源已接（官方 H5 公告列表，两侧同一条 URL）",
+			!!cytq && cytq.url === CY.CYTQ_LIST_URL && cytq.eventUrl === CY.CYTQ_LIST_URL,
+			cytq ? JSON.stringify([cytq.url, cytq.eventUrl]) : "缺失");
+		check("cytq 两侧来源标签逐字 = 「官网公告」",
+			!!cytq && cytq.source === "官网公告" && cytq.eventSource === "官网公告",
+			cytq ? JSON.stringify([cytq.source, cytq.eventSource]) : "缺失");
+		check("cytq 仍然出厂隐藏（defaultHidden = true，用户 2026-11-14 口径：只有 cytq 默认隐藏）",
+			!!cytq && cytq.defaultHidden === true, cytq ? String(cytq.defaultHidden) : "缺失");
+		check("cytq 两个抓取器都已登记（卡池 / 活动各一）",
+			typeof T.GACHA_FETCHERS["cytq"] === "function" && !!(T.EVENT_FETCHERS["cytq"] && T.EVENT_FETCHERS["cytq"].default));
 
 		// 设置页「卡池来源 / 活动来源」下拉：已接的写来源名，未配置的写裸「未配置」
 		check("wd / hlr 设置页两侧都写各自的来源名",
 			T.getDefaultSourceName(wd, "url") === "米游社公告" && T.getDefaultSourceName(wd, "eventUrl") === "米游社公告"
 			&& T.getDefaultSourceName(hlr, "url") === "官网新闻" && T.getDefaultSourceName(hlr, "eventUrl") === "官网新闻 + 学院公告",
 			JSON.stringify([T.getDefaultSourceName(wd, "url"), T.getDefaultSourceName(hlr, "url"), T.getDefaultSourceName(hlr, "eventUrl")]));
-		check("cytq 设置页两侧都写「未配置」",
-			T.getDefaultSourceName(cytq, "url") === "未配置" && T.getDefaultSourceName(cytq, "eventUrl") === "未配置",
+		check("cytq 设置页两侧都写「官网公告」",
+			T.getDefaultSourceName(cytq, "url") === "官网公告" && T.getDefaultSourceName(cytq, "eventUrl") === "官网公告",
 			JSON.stringify([T.getDefaultSourceName(cytq, "url"), T.getDefaultSourceName(cytq, "eventUrl")]));
 		check("pengpeng 设置页：卡池侧写「未配置」、活动侧写「TapTap」",
 			T.getDefaultSourceName(pp, "url") === "未配置" && T.getDefaultSourceName(pp, "eventUrl") === "TapTap",
@@ -634,47 +642,43 @@ export default async function run() {
 			JSON.stringify(oneView && { state: oneView.state, startTs: oneView.startTs, endTs: oneView.endTs, remain: oneView.remain }));
 	}
 
-	// ─────────────────────⑤「未配置」路径（现在只剩 cytq）─────────────────────
+	// ─────────────────────⑤「未配置」路径（改用**自定义条目**）─────────────────────
+	// 2026-11-15：内置条目里**已经没有**两侧都不配来源的了（cytq 接上了官方 H5 公告）⇒ 这一段
+	// 改用产品里仍然存在的同类形态：用户自建的自定义条目，两侧地址都留空。
+	// 口径一条没变：不抓取、不抛错、不产生 fail；自检里算 `unconfigured` 而不是 `down`。
 	section("新接入 5 款 ⑤：「未配置」路径 —— 不抓取、不抛错、不产生 fail（自检算 unconfigured）");
 	{
-		// 2026-11-09 晚：wd / hlr 接上两侧源、pengpeng 活动侧也接上 ⇒ 本段只剩 cytq。
-		// 旧断言「wd / hlr / cytq 各 2 侧未配置 + pengpeng 活动侧 = 7」随之拆掉；
-		// 取而代之：cytq 2 侧未配置、0 请求、0 失败（下面的 2/0/0 三个数字就是新口径）。
-		const IDS = ["cytq"];
+		const CUSTOM_ID = "custom:probe-unconfigured";
+		const CUSTOM = JSON.stringify([{ id: CUSTOM_ID, name: "自定义（两侧留空）" }]);
 		// (a) fetchEntry：两侧都没地址 ⇒ 直接 skipped（连 net 都不碰）
 		const e = engineAt(NOW);
-		for (const id of IDS) {
-			const s = e.__test.SOURCES.find((x) => x.id === id);
-			const r = await e.__test.fetchEntry(s, undefined);
-			check(`${id} fetchEntry ⇒ { ok:true, reason:"skipped" }（跳过，不记成功也不记失败）`,
-				r && r.ok === true && r.reason === "skipped", JSON.stringify(r));
-		}
+		const bare = { id: CUSTOM_ID, name: "自定义（两侧留空）", tz: TZ_CN, url: "", eventUrl: "", custom: true };
+		const r0 = await e.__test.fetchEntry(bare, undefined);
+		check(`${CUSTOM_ID} fetchEntry ⇒ { ok:true, reason:"skipped" }（跳过，不记成功也不记失败）`,
+			r0 && r0.ok === true && r0.reason === "skipped", JSON.stringify(r0));
 
-		// (b) 自检：只看 cytq ⇒ down = 0、unconfigured = 2、ok = 0、一个请求都不发
+		// (b) 自检：只留这一条 ⇒ down = 0、unconfigured = 2、ok = 0、一个请求都不发
 		const ALL = T.SOURCES.map((x) => x.id);
-		const KEEP = new Set(IDS);
 		const calls = [];
-		// cytq 出厂默认隐藏 ⇒ 自检范围 = 展示中的条目，必须同时写进 `shown` 才能验证这条路径。
-		const e2 = engineAt(NOW_PP, { hidden: ALL.filter((x) => !KEEP.has(x)), shown: [...KEEP] }, calls);
+		// 只让自定义条目进「展示中」范围（内置条目全部写进 hidden）
+		const e2 = engineAt(NOW_PP, { hidden: ALL, shown: [], customEntries: CUSTOM }, calls);
 		const rep = await e2.selfCheck({ timeoutMs: 5000 });
 		const g = rep.games || {};
-		for (const id of IDS) {
-			check(`${id} 自检：卡池侧 state = unconfigured / text = 未配置来源`,
-				g[id] && g[id].gacha.state === "unconfigured" && g[id].gacha.text === "未配置来源",
-				JSON.stringify(g[id] && g[id].gacha));
-			check(`${id} 自检：活动侧 state = unconfigured / text = 未配置来源`,
-				g[id] && g[id].event.state === "unconfigured" && g[id].event.text === "未配置来源",
-				JSON.stringify(g[id] && g[id].event));
-		}
+		check(`${CUSTOM_ID} 自检：卡池侧 state = unconfigured / text = 未配置来源`,
+			g[CUSTOM_ID] && g[CUSTOM_ID].gacha.state === "unconfigured" && g[CUSTOM_ID].gacha.text === "未配置来源",
+			JSON.stringify(g[CUSTOM_ID] && g[CUSTOM_ID].gacha));
+		check(`${CUSTOM_ID} 自检：活动侧 state = unconfigured / text = 未配置来源`,
+			g[CUSTOM_ID] && g[CUSTOM_ID].event.state === "unconfigured" && g[CUSTOM_ID].event.text === "未配置来源",
+			JSON.stringify(g[CUSTOM_ID] && g[CUSTOM_ID].event));
 		check("自检汇总：失败 = 0（未配置**不**混进失败数字）", rep.summary.down === 0, JSON.stringify(rep.summary));
-		check("自检汇总：未配置 = 2（cytq 两侧）", rep.summary.unconfigured === 2, JSON.stringify(rep.summary));
-		check("自检汇总：ok = 0（只剩 cytq，没有一侧能解析出内容）", rep.summary.ok === 0, JSON.stringify(rep.summary));
+		check("自检汇总：未配置 = 2（自定义条目两侧）", rep.summary.unconfigured === 2, JSON.stringify(rep.summary));
+		check("自检汇总：ok = 0（只剩这条未配置的自定义条目）", rep.summary.ok === 0, JSON.stringify(rep.summary));
 		check("自检期间**一个请求都没发**（未配置的条目连 net 都不碰）",
 			calls.length === 0, JSON.stringify(calls));
 
 		// (c) 面板那一格：派生不出条目 ⇒ 写「该来源无数据」（灰底），因此**没有**失败明细
 		//     （失败横条已于 2026-11-10 删除，失败信息改为刷新横幅悬停明细；判据仍是 fail 是否 down）
-		const rec = { id: "cytq", name: "炽焰天穹", tz: TZ_CN, gacha: [], events: [], gachaFail: null, eventFail: null };
+		const rec = { id: CUSTOM_ID, name: "自定义（两侧留空）", tz: TZ_CN, gacha: [], events: [], gachaFail: null, eventFail: null };
 		check("面板：未配置条目两侧都派生不出格子（⇒「该来源无数据」，不是「抓取失败」）",
 			T.scheduleCellOf(rec, "gacha", new Date(NOW)) === null && T.scheduleCellOf(rec, "event", new Date(NOW)) === null);
 		check("面板：未配置条目的两侧 fail 都是 null ⇒ 刷新横幅悬停明细里不会出现失败项（底部失败横条已删）",
@@ -738,17 +742,20 @@ export default async function run() {
 			calls.every((u) => !/wiki\.biligame\.com|api\.biligame\.com/.test(String(u))),
 			JSON.stringify(calls));
 
-		// (b) cytq：两侧都未配置 ⇒ 两侧旧值一起清空（同一处修复，不针对 ddlezj 特判）
+		// (b) 自定义条目：两侧都未配置 ⇒ 两侧旧值一起清空（同一处修复，不针对 ddlezj 特判）
+		//     （2026-11-15 起内置条目里没有这种形态了 —— cytq 接上了来源 ⇒ 换成自定义条目验证）
+		const CUSTOM_ID = "custom:probe-cleared";
+		const CUSTOM = JSON.stringify([{ id: CUSTOM_ID, name: "自定义（两侧留空）" }]);
 		const calls2 = [];
-		const e2 = engineAt(NOW_1113, only("cytq"), calls2);
+		const e2 = engineAt(NOW_1113, Object.assign(only(CUSTOM_ID), { customEntries: CUSTOM }), calls2);
 		const rep2 = await e2.refresh();
-		const rec2 = (rep2.games || {}).cytq || {};
-		check("cytq 两侧都未配置 ⇒ 卡池/活动两侧内容都清空、两个数组都为空、无 stale",
+		const rec2 = (rep2.games || {})[CUSTOM_ID] || {};
+		check("自定义条目两侧都未配置 ⇒ 卡池/活动两侧内容都清空、两个数组都为空、无 stale",
 			rec2.banner === "" && rec2.event === "" && rec2.roles === ""
 			&& (rec2.gacha || []).length === 0 && (rec2.events || []).length === 0
 			&& rec2.gachaStale === false && rec2.eventStale === false,
 			JSON.stringify({ banner: rec2.banner, event: rec2.event, gacha: (rec2.gacha || []).length, events: (rec2.events || []).length }));
-		check("cytq 两侧都未配置 ⇒ 一个请求都没发", calls2.length === 0, JSON.stringify(calls2));
+		check("自定义条目两侧都未配置 ⇒ 一个请求都没发", calls2.length === 0, JSON.stringify(calls2));
 	}
 
 	// ── ⑥ 2026-11-11：活动候选配额 6 → 10（非档期公告把 10/27 维护公告挤到第 7 位）─────────────
@@ -1031,5 +1038,227 @@ export default async function run() {
 			&& dreamRoles2.split("、").length === 10 && dreamRoles2.indexOf("领域水解") === 0
 			&& dreamWin && dreamWin.endTs === Date.UTC(2026, 9, 26, 16, 0),
 			JSON.stringify([dreamRoles1.split("、").slice(0, 2), dreamRoles2.split("、").slice(0, 2)]));
+	}
+
+	// ───────── ⑦ 2026-11-15：炽焰天穹（cytq）接上**官方 H5 公告** ─────────
+	// 落点：`src/client/30-game-cytq.js`（原 `30-game-unconfigured.js` 只剩这一条 ⇒ 文件名跟着改）。
+	// 源站事实（详见该文件头）：列表 `GET /web/announcement?phoneType=4` 一页 38 条、**没有日期**、
+	// 不分页；正文里才有 `活动时间 …` 与 PickUp 名单 ⇒ 用户拍板的方案 =
+	// 「列表 1 次 → 只对在期 & 未缓存的 id 取详情 → 按 id 缓存（TTL 24h；已结束的不再取）」。
+	// 夹具：`cytq-list`（真抓原样 43961 B）+ `cytq-detail-<id>` × 14（真抓原样；4 个扭蛋帖 114~265KB）。
+	section("2026-11-15 炽焰天穹（cytq）：官方 H5 公告（列表 1 次 → 在期详情 + id 缓存 TTL 24h）");
+	{
+		const CY = T.parsers.cytq;
+		const LIST = CY.CYTQ_LIST_URL;
+		const NOW_LIVE = Date.parse("2026-11-15T13:50:00+08:00");
+		const ALL_IDS = T.SOURCES.map((x) => x.id);
+		const detailUrl = (id) => CY.CYTQ_DETAIL_BASE + id + CY.CYTQ_DETAIL_PARAMS;
+		// 列表里 is-gacha / is-event / is-campaign 的 14 条（= 首轮要取详情的那批，顺序 = 源站顺序）
+		const DET_IDS = ["1222", "1220", "500000191", "220000127", "200000260", "1215", "200000258",
+			"400001431", "400001432", "500000178", "500000179", "500000171", "200000261", "1179"];
+		// 窗口结束 < 2026-11-26 12:00 - 1 天 ⇒ 「已结束、永不再取」的那 8 条
+		const ENDED = ["1220", "500000191", "200000260", "1215", "200000258", "400001431", "400001432", "500000171"];
+		const OPEN = ["1222", "220000127", "500000178", "500000179", "200000261", "1179"];
+		const ROLES_AUTUMN = "东城司、石井色叶、瑞原蓝娜、国见玉、水濑李、茅森月歌、白河由依奈、苍井绘里香、卡罗尔・利帕、玛利亚・德・安洁莉斯";
+		// 记账 transport：夹具按 URL 查 map.json；**代理一律抛**（ACAO * ⇒ 直连，摸到代理就是接线错了）
+		const transportOf = (sink) => ({
+			async fetchRaw(u) {
+				const url = String(u);
+				sink.push(url);
+				const body = fixtureBody(url);
+				return { ok: true, status: 200, headers: { get: () => null }, text: async () => body, json: async () => JSON.parse(body) };
+			},
+			async fetchViaProxy(u) { sink.push("PROXY:" + String(u)); throw new Error("cytq 不应走代理：" + u); }
+		});
+		const onlyCytq = () => ({ hidden: ALL_IDS.filter((id) => id !== "cytq"), shown: ["cytq"] });
+		const idOfDetail = (u) => {
+			const m = /\/web\/announcement\/(\d+)\?phoneType=4$/.exec(String(u));
+			return m ? m[1] : "";
+		};
+
+		// ── (a) 列表解析（38 条；只认三类；其余 24 条不取详情）──
+		const list = CY.cytqListOf(fixtureBody(LIST));
+		const clsCount = (c) => list.filter((x) => x.categoryClass === c).length;
+		check("列表解析出 38 条（顶部 32 条轮播 `article.event` 不是公告，不进列表）",
+			list.length === 38, String(list.length));
+		check("分类分布逐字：is-gacha 4 / is-event 5 / is-campaign 5；其余 24 条（礼包 12 / 更新 8 / 通知 3 / 问题说明 1）不取详情",
+			clsCount("is-gacha") === 4 && clsCount("is-event") === 5 && clsCount("is-campaign") === 5
+			&& list.filter((x) => !CY.CYTQ_SIDE_BY_CLASS[x.categoryClass]).length === 24
+			&& Object.keys(CY.CYTQ_SIDE_BY_CLASS).length === 3,
+			JSON.stringify({ gacha: clsCount("is-gacha"), event: clsCount("is-event"), campaign: clsCount("is-campaign") }));
+		check("列表项字段逐字（第一条 = 999800005 / is-bug / 问题说明那条）",
+			list[0].id === "999800005" && list[0].categoryClass === "is-bug"
+			&& list[0].title === "10月28日必得SS探索券扭蛋的问题修复说明", JSON.stringify(list[0]));
+		check("1220 那条：id / is-gacha / 标题逐字（`&amp;` 已解实体）",
+			(() => { const x = list.find((i) => i.id === "1220") || {}; return x.categoryClass === "is-gacha" && x.title === "感谢庆典纪念 SS1.5倍扭蛋举办中！"; })(),
+			JSON.stringify(list.find((i) => i.id === "1220")));
+		let lThrow1 = false;
+		try { CY.cytqListOf("<html></html>"); } catch { lThrow1 = true; }
+		let lThrow2 = false;
+		try { CY.cytqListOf('<article class="article-item" data-announcement-id="1"><p class="article-body">x</p></article>'); } catch { lThrow2 = true; }
+		check("列表 0 条 ⇒ 抛错；有项但一条分类 class 都没有 ⇒ 也抛错（结构变了不能静默成「未公布」）",
+			lThrow1 && lThrow2);
+
+		// ── (b) 详情纯解析：标题 / 角色 / 窗口（含「维护后」⇒ startTs=null）──
+		const d431 = CY.cytqDetailOf(fixtureBody(detailUrl("400001431")), TZ_CN);
+		check("详情 400001431：标题 + 「登场风格」名单（去 `[风格名]` 前缀、去姓名中间空白、`、` 连接）",
+			d431.title === "SS小笠原绯雨登场！精选白金扭蛋" && d431.roles === "小笠原绯雨、月城最中"
+			&& d431.categoryClass === "is-gacha" && d431.side === "gacha", JSON.stringify([d431.title, d431.roles]));
+		check("详情 400001431：起点「2026/10/28 维护后」⇒ startTs = **null**（不猜钟点），终点 = 11/18 12:59（+08 手算）",
+			d431.win.startTs === null && d431.win.endTs === Date.UTC(2026, 10, 18, 4, 59)
+			&& d431.win.raw === "2026/10/28 维护后 ~ 2026/11/18 12:59"
+			&& d431.win.display === "2026/10/28 维护后 ~ 2026/11/18 12:59", JSON.stringify(d431.win));
+		const d1220 = CY.cytqDetailOf(fixtureBody(detailUrl("1220")), TZ_CN);
+		check("详情 1220（某批风格概率提升、不指名角色）⇒ roles = \"\"；窗口两端都是绝对时刻",
+			d1220.roles === "" && d1220.win.startTs === Date.UTC(2026, 10, 11, 3, 0)
+			&& d1220.win.endTs === Date.UTC(2026, 10, 25, 2, 59)
+			&& d1220.win.display === "11-11 11:00 ~ 11-25 10:59"
+			&& d1220.win.raw === "2026/11/11 11:00 ~ 2026/11/25 10:59", JSON.stringify([d1220.roles, d1220.win]));
+		const d220 = CY.cytqDetailOf(fixtureBody(detailUrl("220000127")), TZ_CN);
+		check("详情 220000127：`活动时间 2026/8/12 维护后 ~`（开放终点）⇒ 两端都 null、原文照留（**不拿**「※第六轮活动时间」子窗口冒充）",
+			d220.win.startTs === null && d220.win.endTs === null
+			&& d220.win.raw === "2026/8/12 维护后 ~", JSON.stringify(d220.win));
+		const d1222 = CY.cytqDetailOf(fixtureBody(detailUrl("1222")), TZ_CN);
+		check("一览帖 1222 只取**第 1 条** `活动时间`（整场庆典窗口），18 条分块窗口不展开（各分帖会独立抓到）",
+			d1222.win.raw === "2026/10/28 维护后 ~ 2026/12/2 12:59" && d1222.win.startTs === null
+			&& d1222.win.endTs === Date.UTC(2026, 11, 2, 4, 59), JSON.stringify(d1222.win));
+
+		// ── (c) 反证：结构变了要看得见；抹掉锚点就不进外显；角色有退路 ──
+		let dThrow1 = false;
+		try { CY.cytqDetailOf("{}", TZ_CN); } catch { dThrow1 = true; }
+		let dThrow2 = false;
+		try { CY.cytqDetailOf("", TZ_CN); } catch { dThrow2 = true; }
+		check("`{}` / 空串 ⇒ 抛错（**不是** nomatch：详情结构变了必须报失败）", dThrow1 && dThrow2);
+		const noAnchor = CY.cytqDetailOf(String(fixtureBody(detailUrl("1215"))).replace(/活动时间/g, "開催期間"), TZ_CN);
+		check("反证：抹掉「活动时间」锚点 ⇒ win = null（不进外显，也**不**算失败；标题照出）",
+			noAnchor.win === null && noAnchor.title === "Autumn特别精选扭蛋举办中！", JSON.stringify(noAnchor.win));
+		check("反证：只有标题、没有日期 ⇒ win = null（不出窗口）",
+			CY.cytqDetailOf('<h1 class="article-body">只有标题没有日期</h1>', TZ_CN).win === null);
+		const noStyle = CY.cytqDetailOf(String(fixtureBody(detailUrl("400001431")))
+			.replace(/<h2[^>]*class="header-gacha"[^>]*>[\s\S]*?<\/h2>/g, ""), TZ_CN);
+		check("反证：抹掉「登场风格」段 ⇒ 角色退路（正文「精选「A」「B」」连排）仍给出同一份名单",
+			noStyle.roles === "小笠原绯雨、月城最中", JSON.stringify(noStyle.roles));
+
+		// ── (d) 首轮：1 次列表 + 14 条详情（两侧共享同一条列表 URL 的轮内 promise ⇒ 不是 16 次）──
+		CY.cytqResetDetailCache();
+		const calls = [];
+		const engineC = createEngine({
+			transport: transportOf(calls),
+			storage: makeStore(onlyCytq()),
+			now: () => NOW_LIVE,
+			timer: { setTimeout, clearTimeout }
+		});
+		const r1 = await engineC.refresh();
+		const rec = r1.games.cytq || {};
+		check("首轮请求数 = 1 + 14 = 15（列表只在**同一轮**里发一次：卡池侧与活动侧共享）",
+			calls.length === 15 && calls[0] === LIST, "requests=" + calls.length);
+		check("详情只取 is-gacha / is-event / is-campaign 那 14 条（礼包/更新/通知/问题说明一条都不取）",
+			JSON.stringify(calls.slice(1)) === JSON.stringify(DET_IDS.map(detailUrl)),
+			JSON.stringify(calls.slice(1).map(idOfDetail)));
+		check("一个代理请求都没有（ACAO: * ⇒ 直连）",
+			calls.every((u) => /^https:\/\/le3-prod-bili-gs-fever\.bilibiligame\.net\//.test(String(u))),
+			JSON.stringify(calls.filter((u) => !/^https:\/\//.test(String(u)))));
+
+		// ── (e) 载荷逐字：卡池（外显 + 悬停 + gacha[]）/ 活动（外显 + 悬停 + events[]）──
+		check("卡池外显 = Autumn特别精选扭蛋举办中！/ 10 位角色 / 11-04 11:00 ~ 11-18 12:59（绝对时刻 +08 手算）",
+			rec.banner === "Autumn特别精选扭蛋举办中！" && rec.roles === ROLES_AUTUMN
+			&& rec.bannerDates === "11-04 11:00 ~ 11-18 12:59"
+			&& rec.bannerDatesRaw === "2026/11/4 11:00 ~ 2026/11/18 12:59"
+			// ⚠️ 记录里没有 startTs/endTs（GACHA_FIELDS 不含它们）⇒ 绝对时刻断言放在 gacha[0] 上
+			&& rec.gacha[0].startTs === Date.UTC(2026, 10, 4, 3, 0) && rec.gacha[0].endTs === Date.UTC(2026, 10, 18, 4, 59),
+			JSON.stringify([rec.banner, rec.roles, rec.bannerDates, rec.gacha[0] && rec.gacha[0].startTs]));
+		const gLines = String(rec.bannerHover || "").split("\n");
+		check("卡池悬停 = 4 池 ×（`池名：角色` ⏎ 档期），结束时间升序；「维护后」那两池印**原文**（不编钟点）",
+			gLines.length === 8
+			&& gLines[0] === `Autumn特别精选扭蛋举办中！：${ROLES_AUTUMN}`
+			&& gLines[1] === "11-04 11:00 ~ 11-18 12:59"
+			&& gLines[2] === "SS小笠原绯雨登场！精选白金扭蛋：小笠原绯雨、月城最中"
+			&& gLines[3] === "2026/10/28 维护后 ~ 2026/11/18 12:59"
+			&& gLines[6] === "感谢庆典纪念 SS1.5倍扭蛋举办中！"
+			&& gLines[7] === "11-11 11:00 ~ 11-25 10:59",
+			JSON.stringify(gLines));
+		check("卡池 gacha[] 4 条（主条 source=primary + 3 条并列；起点未知那两条 ts 为空 —— 与星铁「版本更新后」同一口径）",
+			Array.isArray(rec.gacha) && rec.gacha.length === 4 && rec.gacha[0].source === "primary"
+			&& rec.gacha[0].title === "Autumn特别精选扭蛋举办中！"
+			&& rec.gacha.some((x) => x.startTs == null && x.endTs == null && /小笠原绯雨、月城最中/.test(String(x.title))),
+			JSON.stringify((rec.gacha || []).map((x) => [x.title, x.startTs, x.endTs])));
+		check("卡池格：面板能派生出在期条目（不是「该来源无数据」）",
+			!!T.scheduleCellOf(rec, "gacha", new Date(NOW_LIVE)) && rec.gachaFail === null,
+			JSON.stringify(T.scheduleCellOf(rec, "gacha", new Date(NOW_LIVE))));
+		check("活动外显 = 剧情活动批量精选开放中！/ 10-21 11:00 ~ 11-18 12:59（类别档位 → 结束最早）",
+			rec.event === "剧情活动批量精选开放中！" && rec.eventDates === "10-21 11:00 ~ 11-18 12:59"
+			&& rec.eventDatesRaw === "2026/10/21 11:00 ~ 2026/11/18 12:59",
+			JSON.stringify([rec.event, rec.eventDates]));
+		check("活动悬停逐字（名称 + 3 空格 + 档期；结束升序 → 同结束按开始升序）",
+			rec.eventHover === "剧情活动批量精选开放中！   10-21 11:00 ~ 11-18 12:59\n"
+			+ "剪影活动「珍藏的回忆」开放中！   11-04 11:00 ~ 11-18 12:59\n"
+			+ "高分挑战活动#67开启！   11-04 11:00 ~ 11-18 12:59\n"
+			+ "光球技能习得庆典举办中！   11-11 11:00 ~ 11-18 12:59",
+			JSON.stringify(rec.eventHover));
+		check("活动 events[] 4 条（绝对时刻 +08 手算；开放终点的 220000127 / 1179 不进数组）",
+			Array.isArray(rec.events) && rec.events.length === 4
+			&& rec.events[0].startTs === Date.UTC(2026, 9, 21, 3, 0) && rec.events[0].endTs === Date.UTC(2026, 10, 18, 4, 59)
+			&& rec.events[3].startTs === Date.UTC(2026, 10, 11, 3, 0) && rec.events[3].endTs === Date.UTC(2026, 10, 18, 4, 59)
+			&& !rec.events.some((x) => /异时层EX|邀请好友/.test(String(x.title))),
+			JSON.stringify((rec.events || []).map((x) => [x.title, x.startTs, x.endTs])));
+		check("两侧都不 fail（首轮解析成功）", rec.gachaFail === null && rec.eventFail === null,
+			JSON.stringify([rec.gachaFail, rec.eventFail]));
+
+		// ── (f) 稳态：TTL 内的第 2 轮 = 1 次（只列表）──
+		calls.length = 0;
+		const r2 = await engineC.refresh();
+		const rec2 = r2.games.cytq || {};
+		check("稳态第 2 轮 = 1 次（只列表；14 条详情全在 24h 缓存里）",
+			calls.length === 1 && calls[0] === LIST, "requests=" + calls.length);
+		check("稳态第 2 轮的值与首轮逐字相同",
+			rec2.banner === rec.banner && rec2.roles === rec.roles && rec2.event === rec.event
+			&& rec2.bannerHover === rec.bannerHover && rec2.eventHover === rec.eventHover);
+
+		// ── (g) 缓存口径：TTL 24h 过期会重取；**已结束的永不再取**；没在期 ⇒ null ──
+		CY.cytqResetDetailCache();
+		let clock = NOW_LIVE;
+		const callsT = [];
+		const engineT = createEngine({
+			transport: transportOf(callsT),
+			storage: makeStore(onlyCytq()),
+			now: () => clock,
+			timer: { setTimeout, clearTimeout }
+		});
+		await engineT.refresh();
+		check("(g) 前提：重置缓存后的首轮又是 1 + 14", callsT.length === 15, "requests=" + callsT.length);
+		callsT.length = 0;
+		clock = NOW_LIVE + 25 * 3600 * 1000;          // 2026-11-16 14:50：TTL 过期、窗口都还没结束
+		await engineT.refresh();
+		check("TTL 24h 过期且窗口未结束 ⇒ 重新取详情（1 + 14 = 15）",
+			callsT.length === 15, "requests=" + callsT.length);
+		callsT.length = 0;
+		clock = Date.parse("2026-11-26T12:00:00+08:00");   // 全部 11/18 与 11/25 的窗口都已结束 > 1 天
+		const r3 = await engineT.refresh();
+		const rec3 = r3.games.cytq || {};
+		const redone = callsT.slice(1).map(idOfDetail).filter(Boolean);
+		check("已结束的 8 条（窗口结束 < now - 1 天）**永不再取**；这一轮只补 1 + 6（12/2 结束的 4 条 + 两个没有终点的）",
+			callsT.length === 7 && callsT[0] === LIST
+			&& ENDED.every((id) => !redone.includes(id))
+			&& OPEN.every((id) => redone.includes(id)),
+			"requests=" + callsT.length + " → " + JSON.stringify(redone));
+		check("那一轮两侧都没在期 ⇒ 标 nomatch（**不是**失败），字符串列沿用上一轮并标 stale（nomatch 不清空已有数据）",
+			String(rec3.gachaFail && rec3.gachaFail.kind) === "nomatch"
+			&& String(rec3.eventFail && rec3.eventFail.kind) === "nomatch"
+			&& rec3.gachaStale === true && rec3.eventStale === true
+			&& rec3.banner === rec.banner && rec3.event === rec.event,
+			JSON.stringify([rec3.banner, rec3.event, rec3.gachaFail, rec3.eventFail, rec3.gachaStale, rec3.eventStale]));
+
+		// ── (h) defaultHidden 保持 true：不勾「展示」就一个请求都不发 ──
+		CY.cytqResetDetailCache();
+		const callsH = [];
+		const engineH = createEngine({
+			transport: transportOf(callsH),
+			storage: makeStore({ hidden: ALL_IDS, shown: [] }),
+			now: () => NOW_LIVE,
+			timer: { setTimeout, clearTimeout }
+		});
+		await engineH.refresh();
+		check("cytq 出厂隐藏（defaultHidden: true）⇒ 不勾展示时一个请求都不发（接上来源不改变这条口径）",
+			callsH.length === 0, JSON.stringify(callsH));
 	}
 }

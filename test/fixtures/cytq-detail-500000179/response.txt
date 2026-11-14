@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ja-JP">
+<head>
+    <meta charset="utf-8" />
+    <meta name="format-detection" content="telephone=no">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=0" />
+    <meta name="description" content="announcement" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/detail.css?17946930698105" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/chara.css?17946930698105" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/font_4.css?17946930698105" />
+                                    <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/jquery-3.7.1.min.js?17946930698105" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/detail.js?17946930698105" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/index.js?17946930698105" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/unity-link.js?17946930698105" crossorigin></script>
+                <style>
+        .d_view_page_top{
+            text-align: center;
+            background-color: #000000;
+            opacity: 0.5;
+            margin-bottom: 30px;
+        }
+        .d_view_page_top a{
+            color: #fff;
+            display: inline-block;
+            width: 30%;
+            padding: 20px 0;
+            font-size: 30px;
+        }
+        .d_view_page_top a:hover{
+            background-color: #fd7e7e;
+            padding: 21px 0 19px;
+        }
+        .d_view_page_top {
+            display: block;
+            width: 100%;
+            position: fixed;
+            left: 0px;
+            top: 2px;
+            z-index: 9999;
+            text-align: center;
+            padding: 0 auto;
+        }
+    </style>
+</head>
+
+<body  style="background-color: #49414c" >
+<div class="detail-container">
+  <div class="detail-back">
+    <a class="detail-back" href="/web/announcement?language=1&phoneType=4&userId=0&assetVersion="><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/announcement/icon-back.png" alt="back" width="122" height="108"></a>  </div>
+  <div class="detail-main">
+    <div class="detail-header">
+              <div class="detail-banner">
+          <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_500000179_cn.png" width="546" height="192" alt="banner" />
+        </div>
+            <div class="detail-title">
+        <article class="article-item">
+          <div class="article-container">
+                          <div class="article-header is-campaign">
+                <div class="article-category">特别活动</div>
+                <div class="article-date"></div>
+              </div>
+                        <h1 class="article-body">必得至少免费100连！感谢庆典每日登录活动举办中！</h1>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    
+    <p>感谢您一直以来对《炽焰天穹》的支持！<br></p>
+<br>
+<p align="center">
+<img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/etc/HomePopup_other_ori1_1500gacha.png" width="90%">
+</p>
+<br>
+
+<h3 class="headline-pink">每日免费10连及以上，最多10日份！以抽奖形式进行扭蛋！</h3>
+<h4 class="header">活动时间</h4>
+<p>
+2026/10/28 维护后 ~ 2026/12/2 12:59<br>
+</p>
+<br>
+
+<h4 class="header">活动内容</h4>
+<p>
+「必得至少免费100连！感谢庆典每日登录活动」举办中！<br>
+<br>
+活动期间，每日登录可抽选<span class="color-positive"><b>特别礼物</b></span>！（最多10日份）<br>
+可以获得<span class="color-strong"><b>「扭蛋庆典10连探索券」</b></span>及<span class="color-strong"><b>「庆典奖章×300」</b></span>。<br>
+<br>
+「扭蛋庆典10连探索券」的数量<span class="color-positive"><b>由抽奖决定</b></span>！<br>
+每日必得<span class="color-positive"><b>1枚及以上</b></span>！<br>
+最多可获得10枚，将<span class="color-positive"><b>有机会抽取免费100连</b></span>！<br>
+<br>
+每日登录获取抽奖机会吧！<br>
+
+<br>
+<small>
+※使用1枚「扭蛋庆典10连探索券」，可以抽取「感谢庆典纪念特别免费10连扭蛋」。<br>
+※感谢庆典纪念特别免费10连扭蛋的详情请点击<a href=/web/announcement/400001467>此处</a>查看。<br>
+</small>
+<br>
+</p>
+
+<h4 class="header">可得道具详情</h4>
+<table>
+  <tr>
+    <th>可得道具</th>
+    <th>获得概率</th>
+  </tr>
+  <tr>
+    <td>扭蛋庆典10连探索券 × <span class="color-positive"><b>1</b></span><br>庆典奖章 × 300</td>
+    <td>42.5%</td>
+  </tr>
+  <tr>
+    <td>扭蛋庆典10连探索券 × <span class="color-positive"><b>2</b></span><br>庆典奖章 × 300</td>
+    <td>42.5%</td>
+  </tr>
+  <tr>
+    <td>扭蛋庆典10连探索券 × <span class="color-positive"><b>5</b></span><br>庆典奖章 × 300</td>
+    <td>14.5%</td>
+  </tr>
+  <tr>
+    <td>扭蛋庆典10连探索券 × <span class="color-positive"><b>10</b></span><br>庆典奖章 × 300</td>
+    <td>0.5%</td>
+  </tr>
+</table>
+
+<p>
+  <br>
+  <small><font color="bcb8b4">
+    ※特别礼物每日仅可触发一次，并于每日4:00刷新。<br>
+    ※点击按钮即可抽选，根据抽奖结果将发放道具至礼物箱中。<br>
+    ※获取动画播放时出现网络问题或应用重启的情况下，动画不会再次播放，但抽奖已经正常进行，获得的道具会发放到礼物箱中。<br>
+  </font></small>
+</p>
+
+<hr>
+<p>
+今后也请继续支持《炽焰天穹》！
+</p>
+<br>
+
+  </div>
+</div>
+</body>
+</html>

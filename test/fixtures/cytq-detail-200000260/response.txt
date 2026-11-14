@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ja-JP">
+<head>
+    <meta charset="utf-8" />
+    <meta name="format-detection" content="telephone=no">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=0" />
+    <meta name="description" content="announcement" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/detail.css?17946930663394" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/chara.css?17946930663394" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/font_4.css?17946930663394" />
+                                    <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/jquery-3.7.1.min.js?17946930663394" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/detail.js?17946930663394" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/index.js?17946930663394" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/unity-link.js?17946930663394" crossorigin></script>
+                <style>
+        .d_view_page_top{
+            text-align: center;
+            background-color: #000000;
+            opacity: 0.5;
+            margin-bottom: 30px;
+        }
+        .d_view_page_top a{
+            color: #fff;
+            display: inline-block;
+            width: 30%;
+            padding: 20px 0;
+            font-size: 30px;
+        }
+        .d_view_page_top a:hover{
+            background-color: #fd7e7e;
+            padding: 21px 0 19px;
+        }
+        .d_view_page_top {
+            display: block;
+            width: 100%;
+            position: fixed;
+            left: 0px;
+            top: 2px;
+            z-index: 9999;
+            text-align: center;
+            padding: 0 auto;
+        }
+    </style>
+</head>
+
+<body  style="background-color: #49414c" >
+<div class="detail-container">
+  <div class="detail-back">
+    <a class="detail-back" href="/web/announcement?language=1&phoneType=4&userId=0&assetVersion="><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/announcement/icon-back.png" alt="back" width="122" height="108"></a>  </div>
+  <div class="detail-main">
+    <div class="detail-header">
+              <div class="detail-banner">
+          <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_200000260_cn.png" width="546" height="192" alt="banner" />
+        </div>
+            <div class="detail-title">
+        <article class="article-item">
+          <div class="article-container">
+                          <div class="article-header is-event">
+                <div class="article-category">活动</div>
+                <div class="article-date"></div>
+              </div>
+                        <h1 class="article-body">剪影活动「珍藏的回忆」开放中！</h1>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    
+    <p>感谢您一直以来对《炽焰天穹》的支持！<br></p>
+<br>
+<br>
+<h2 class="headline-m">■ 剪影活动「珍藏的回忆」</h2>
+<p>
+  剪影活动「珍藏的回忆」现已开启，活动详情如下：<br>
+</p>
+<br>
+<p>
+  <span class="color-strong">▼活动PV</span>
+  <br>
+</p>
+
+<p align="center">
+  <a href="https://www.bilibili.com/video/BV1van166EHf/" style="display: block;"><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/etc/HomePopup_event30011.png" width="100%"></a><br>
+</p>
+<br>
+
+<h3 class="headline-pink">活动时间</h3>
+<p>
+  2026/11/4 11:00 ~ 2026/11/18 12:59<br>
+  <br>
+  <small>
+※活动开放时间结束后，活动剧情将被收录至档案活动中。您仍可阅读活动剧情，如需解锁活动剧情、奖章扭蛋、活动任务之外的内容，需要消耗解锁道具。<br>
+※在开放时间结束后，活动剧情也仍处于开放状态，只要满足参加条件即可阅读。<br>
+※在「主页」＞「活动」中点击活动封面图，即可阅读相应的活动剧情。
+  </small>
+</p>
+<br>
+<br>
+
+<h3 class="headline-pink">参加条件</h3>
+<table>
+  <tr>
+    <th>内容说明</th>
+    <th>参加条件</th>
+  </tr>
+  <tr>
+    <td>剪影活动</td>
+    <td>通关主线剧情第一章</td>
+  </tr>
+  <tr>
+    <td>活动棱镜战</td>
+    <td>通关主线剧情第一章</td>
+   </tr>
+</table>
+<br>
+<br>
+
+<h3 class="headline-pink">活动玩法</h3>
+<h2 class="header">通关活动剧情吧！</h2>
+<p>
+  通关活动剧情后，即可解锁活动视觉图。<br>
+此外，还可以从<span class="color-strong">活动任务奖励</span>中获得本次活动限定的<span class="color-strong">「主页背景」</span>！<br>
+获得的主页背景可以在主页画面的「主页设置」中进行设置。<br>
+</p>
+<br>
+
+<h2 class="header">收集「活动奖章」吧！</h2>
+<p>
+通关活动棱镜战或完成任务，即可获得<span class="color-strong">「活动奖章」</span>。<br>
+</p>
+<br>
+
+<h2 class="headline-m">活动棱镜战</h3>
+<table>
+  <tr>
+    <th>关卡</th>
+    <th>可得奖章</th>
+  </tr>
+  <tr>
+    <td>[难度：D]坚硬巨蛇</td>
+    <td>15枚</td>
+  </tr>
+  <tr>
+    <td>[难度：C]坚硬巨蛇</td>
+    <td>20枚</td>
+  </tr>
+  <tr>
+    <td>[难度：B]坚硬巨蛇</td>
+    <td>25枚</td>
+  </tr>
+  <tr>
+    <td>[难度：A]坚硬巨蛇</td>
+    <td>35枚</td>
+  </tr>
+  <tr>
+    <td>[难度：S]坚硬巨蛇</td>
+    <td>40枚</td>
+  </tr>
+  <tr>
+    <td>[难度：S+]坚硬巨蛇</td>
+    <td>45枚</td>
+  </tr>
+    <tr>
+    <td>[难度：SS]坚硬巨蛇</td>
+    <td>50枚</td>
+  </tr>
+   <tr>
+    <td>[难度：X Ⅰ]坚硬巨蛇</td>
+    <td>55枚</td>
+  </tr>
+    <tr>
+    <td>[难度：X Ⅱ]坚硬巨蛇</td>
+    <td>60枚</td>
+  </tr>
+    <tr>
+    <td>[难度：X Ⅲ]坚硬巨蛇</td>
+    <td>65枚</td>
+  </tr>
+  <tr>
+    <td>[难度：X Ⅳ]坚硬巨蛇</td>
+    <td>70枚</td>
+  </tr>
+  <tr>
+    <td>[难度：X Ⅴ]坚硬巨蛇</td>
+    <td>75枚</td>
+  </tr>
+</table>
+<br>
+<h2 class="headline-m">活动任务</h3>
+<table>
+  <tr>
+    <th>任务描述</th>
+    <th>可得奖章</th>
+  </tr>
+  <tr>
+    <td><b>【限时】</b><br>在活动期间内通关剪影活动<br>「珍藏的回忆」</td>
+    <td>500枚</td>
+  </tr>
+  <tr>
+    <td>通关剪影活动<br>「珍藏的回忆」</td>
+    <td>500枚</td>
+  </tr>
+  <tr>
+    <td>通关5次活动棱镜战</td>
+    <td>500枚</td>
+  </tr>
+  <tr>
+    <td>通关10次活动棱镜战</td>
+    <td>500枚</td>
+  </tr>
+  <tr>
+    <td>通关15次活动棱镜战</td>
+    <td>500枚</td>
+  </tr>
+  <tr>
+    <td>通关20次活动棱镜战</td>
+    <td>500枚</td>
+  </tr>
+</table>
+<p>
+  <small>
+※此处仅展示可以获得活动奖章的任务。<br>
+</small>
+</p>
+<br>
+<br>
+<h3 class="header">活动棱镜战介绍</h3>
+<p>
+通关活动棱镜战并获胜后，可以获得奖励。<br>
+需要消耗「体力」或「棱镜战入场券」，方可参与活动棱镜战。<br>
+关卡设置了不同难易度，难度越高，获胜后获得的<span class="color-strong">「活动奖章」</span>就越多。
+</p>
+<br>
+<br>
+
+<h3 class="header">活动任务介绍</h3>
+<p>
+参与活动可以完成活动任务。<br>
+在「活动」中选择「活动任务」即可查看活动任务详情。<br>
+</p>
+<br>
+<br>
+
+<h3 class="headline-pink">收集活动奖章来抽取奖章扭蛋吧！</h3>
+<p align="center">
+<img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/etc/snapevent_medallottery.png" width="70%">
+</p>
+<p>
+  收集到的活动奖章可用来在活动界面抽取<span class="color-strong">「奖章扭蛋」</span>。<br>
+  从奖章扭蛋中可以随机获得各种奖励。<br>
+  <br>
+  每10枚活动奖章可以抽取一次奖章扭蛋。<br>
+  获得一个BOX内所有的<span class="color-strong">精选奖励</span>后，即可获得<span class="color-strong">完整收集奖励</span><span class="color-strong">晶石</span>，并开启下一个BOX。<br>
+  <br>
+  收集活动奖章，抽取奖章扭蛋，努力获取大奖吧！<br>
+</p>
+<br>
+
+<table>
+  <tr>
+    <td style="text-align:left;">
+      <small>
+        ※奖章扭蛋的<span class="color-positive">所有道具出现概率均等</span>。<br>
+        ※精选奖励在BOX内有数量限制。其他道具的产出没有限制。<br>
+        ※如果连续29次未产出精选奖励，<span class="color-positive">第30次必定会产出其中一项精选奖励</span>。<br>
+        ※当活动奖章耗尽，或已获得BOX内所有精选奖励时，扭蛋将自动停止。<br>
+        ※BOX6及之后的BOX没有完整收集奖励，且BOX6及之后的BOX内容全部相同。<br>
+        ※获得道具后若超过持有上限，该道具将被送至礼物箱。<br>
+      </small>
+    </td>
+  </tr>
+</table>
+<br>
+
+<h2 class="header">注意事项</h3>
+<p>
+  <small>
+※若您在进行本活动后, 又进行了其他剧情活动，或进行了"修复存档数据"，本活动的进度将会被重置，下次游玩需从头开始<br>
+※可通过「主页」＞「活动」参加本活动。<br>
+※活动开放时间结束后，活动剧情将被收录至档案活动中。您仍可阅读活动剧情，如需解锁活动剧情、奖章扭蛋、活动任务之外的内容，需要消耗解锁道具。<br>
+※在开放时间结束后，活动剧情也仍处于开放状态，只要满足参加条件即可阅读。<br>
+  </small>
+</p>
+<br>
+<br>
+<hr><div><p class="all-outro">今后也请继续支持《炽焰天穹》！</p></div>
+
+
+  </div>
+</div>
+</body>
+</html>

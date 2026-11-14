@@ -94,7 +94,9 @@ section("聚合注册表（全部批次合并后）");
 
 	// mode 的取值必须有依据：调研实测只有三个源 ACAO 放行（+2026-10-21 接入的 gametora.com、
 	// +2026-11-14 接入的 api.atlasacademy.io，见 tools/check-host-allow.mjs）
-	const DIRECT_OK = /umapyoi\.net|sekai-world\.github\.io|bang-dream-on\.bushimo\.jp|gametora\.com|atlasacademy\.io/;
+	// 2026-11-15 +bilibiligame\.net：炽焰天穹国服官方 H5 公告（`Access-Control-Allow-Origin: *`，
+	// 列表与详情实测都放行）⇒ 直连，不进宿主代理白名单。
+	const DIRECT_OK = /umapyoi\.net|sekai-world\.github\.io|bang-dream-on\.bushimo\.jp|gametora\.com|atlasacademy\.io|bilibiligame\.net/;
 	for (const s of NEXT_SOURCES) {
 		for (const side of ["gacha", "event"]) {
 			if (!s[side] || s[side].mode !== "direct") continue;
@@ -113,9 +115,9 @@ section("夹具卫生");
 	// 2026-11-15：新增两条来源的夹具前缀（深空之眼 `dhmmr-*` / 崩坏学园2 `bh2-*`）——
 	// 这一条守卫要的是「能从夹具名看出属于哪一批」，所以新批次必须同步登记，否则红。
 	// 同日又接入以闪亮之名（`yslz-*`，bwiki 分类：卡池 2 个请求 + 活动 2 个请求）。
-	// 再同日：无限暖暖（`wxnn-*`，官网资讯列表 1 次 + 详情按 id 缓存 ⇒ 首轮 1 + 10）。
+	// 同日再接：无限暖暖（wxnn-*）、炽焰天穹（cytq-*）
 	check("夹具命名带批次前缀（便于溯源）",
-		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights|wqmt|pengpeng|wd|hlr|bh3|spica|czn|bjhl|yys|dhmmr|bh2|yslz|wxnn)/.test(f)),
+		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights|wqmt|pengpeng|wd|hlr|bh3|spica|czn|bjhl|yys|dhmmr|bh2|yslz|wxnn|cytq)/.test(f)),
 	);
 }
 //#endregion
