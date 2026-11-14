@@ -1,0 +1,6 @@
+{
+  "url": "https://www.princessconnect.so-net.tw/news/newsDetail/4115",
+  "status": 200,
+  "capturedAt": "2026-11-14T23:01:09.122Z",
+  "note": "真抓**整页原样未裁**（57974 B），故意的：整页导航的折叠面板在正文之前有一个 <h2 class=\"accordion-header\" id=\"flush-heading0\">…熱門遊戲…</h2>，本条用例要钉住\"只认 <section class=\"news_con\"> 里的 <h2>\"（2026-11-15 第一次活网跑出来 event = 熱門遊戲 就是这个坑）。运行时正文窗口 = ■活動期間 2026/11/15 05:00 ～ 2026/11/21 04:59。"
+}

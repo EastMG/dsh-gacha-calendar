@@ -129,6 +129,26 @@ NEXT_SOURCES.push(
 		name: "碧蓝航线·日服",
 		gacha: { url: T.parsers.hl.HL_JP_LIST_URL, kind: "official-api", mode: "proxy", fetcher: resolve("hl.gachaHlJp") },
 		event: { url: T.parsers.hl.HL_JP_LIST_URL, kind: "official-api", mode: "proxy", fetcher: resolve("hl.eventsHlJp") }
+	},
+	// 2026-11-15：公主连结 Re:Dive·繁中服（`pcr-tw`）—— So-net 官网公告（`/news?page=1` SSR）。
+	// 卡池与活动**同一条列表**（详情按 id 缓存）；响应无 ACAO ⇒ `mode: "proxy"`（域名已登记
+	// `src/index.js` 的 `PROXY_ALLOW_HOSTS`）。时区 `Asia/Taipei`（繁中服墙钟）。
+	{
+		id: "pcr-tw",
+		tz: "Asia/Taipei",
+		name: "公主连结Re:Dive·繁中服",
+		gacha: { url: T.parsers["pcr-tw"].PCR_TW_LIST_URL, kind: "official-html", mode: "proxy", fetcher: resolve("pcr-tw.gachaPcrTw") },
+		event: { url: T.parsers["pcr-tw"].PCR_TW_LIST_URL, kind: "official-html", mode: "proxy", fetcher: resolve("pcr-tw.eventsPcrTw") }
+	},
+	// 2026-11-15：雷索纳斯（`reso`）—— bwiki「活动日历」的 wikitext（`action=raw`，必须带 Referer）
+	// + `api.php?action=query&prop=revisions` 只补年份。两侧同一条 URL（轮内共享 2 次请求）。
+	// 响应无 ACAO ⇒ `mode: "proxy"`。
+	{
+		id: "reso",
+		tz: "Asia/Shanghai",
+		name: "雷索纳斯",
+		gacha: { url: T.parsers.reso.RESO_RAW_URL, kind: "wiki", mode: "proxy", fetcher: resolve("reso.gachaReso") },
+		event: { url: T.parsers.reso.RESO_RAW_URL, kind: "wiki", mode: "proxy", fetcher: resolve("reso.eventsReso") }
 	}
 );
 

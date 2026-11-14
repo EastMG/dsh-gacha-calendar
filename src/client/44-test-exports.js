@@ -815,6 +815,60 @@
 				hlJpResetCache: ns_hl_jp_resetCache,
 				hlJpWindowOf: ns_hl_jp_windowOf
 			},
+			// 2026-11-15 公主连结 Re:Dive·繁中服（pcr-tw）：So-net 官网公告（列表 1 页 + 按 id 缓存的详情）。
+			// 导出「URL + 纯解析 + 缓存复位 + 抓取器」四层，回归可以分别钉住：
+			// 列表 `<li>` 三件套（类别只认标题前缀、不认 `ac0X` 类名）/ 详情「整行日期区间 + ■ 名字行」/
+			// `{}` ⇒ 抛错 / 抹掉区间 ⇒ 不出窗口 / 每侧最多 2 篇详情 + 轮内共享一次列表。
+			"pcr-tw": {
+				PCR_TW_CACHE_TTL_MS: ns_pcr_TW_CACHE_TTL_MS,
+				PCR_TW_DETAIL_BASE: ns_pcr_TW_DETAIL_BASE,
+				PCR_TW_HOME: ns_pcr_TW_HOME,
+				PCR_TW_ITEM_RE: ns_pcr_TW_ITEM_RE,
+				PCR_TW_LABEL_RE: ns_pcr_TW_LABEL_RE,
+				PCR_TW_LIST_URL: ns_pcr_TW_LIST_URL,
+				PCR_TW_MAX_DETAILS: ns_pcr_TW_MAX_DETAILS,
+				PCR_TW_RANGE_RE: ns_pcr_TW_RANGE_RE,
+				PCR_TW_SECTION_OPEN: ns_pcr_TW_SECTION_OPEN,
+				PCR_TW_SOURCE_LABEL: ns_pcr_TW_SOURCE_LABEL,
+				PCR_TW_TZ: ns_pcr_TW_TZ,
+				eventsPcrTw: ns_pcr_tw_events,
+				gachaPcrTw: ns_pcr_tw_gacha,
+				pcrTwDateTsOf: ns_pcr_tw_dateTsOf,
+				pcrTwDetailOf: ns_pcr_tw_detailOf,
+				pcrTwEventItemsOf: ns_pcr_tw_eventItemsOf,
+				pcrTwItemsOf: ns_pcr_tw_itemsOf,
+				pcrTwKindOf: ns_pcr_tw_kindOf,
+				pcrTwLabelOf: ns_pcr_tw_labelOf,
+				pcrTwLinesOf: ns_pcr_tw_linesOf,
+				pcrTwListOf: ns_pcr_tw_listOf,
+				pcrTwPoolItemsOf: ns_pcr_tw_poolItemsOf,
+				pcrTwResetCache: ns_pcr_tw_resetCache,
+				pcrTwRolesOf: ns_pcr_tw_rolesOf,
+				pcrTwSectionOf: ns_pcr_tw_sectionOf,
+				pcrTwTitleNameOf: ns_pcr_tw_titleNameOf
+			},
+			// 2026-11-15 雷索纳斯（reso）：bwiki「活动日历」的 wikitext（`action=raw`）+ revisions 只补年份。
+			// 导出纯解析步，回归可以分别钉住：注释里的旧档期不算 / 模板条件行不算 / 8 条招募逐字 /
+			// 年份补全（页面更新年 + 前一年 + 次年 + `endsNextYear` 跨年）/ `{}` ⇒ 抛错 / 无当期 ⇒ null。
+			"reso": {
+				RESO_PAGE: ns_reso_PAGE,
+				RESO_RAW_URL: ns_reso_RAW_URL,
+				RESO_REFERER: ns_reso_REFERER,
+				RESO_REV_URL: ns_reso_REV_URL,
+				RESO_SOURCE_LABEL: ns_reso_SOURCE_LABEL,
+				RESO_TZ: ns_reso_TZ,
+				eventsReso: ns_reso_events,
+				gachaReso: ns_reso_gacha,
+				resoItemsOf: ns_reso_itemsOf,
+				resoLinesOf: ns_reso_linesOf,
+				resoNameOf: ns_reso_nameOf,
+				resoResetCache: ns_reso_resetCache,
+				resoRevStampOf: ns_reso_revStampOf,
+				resoRowOf: ns_reso_rowOf,
+				resoRowsOf: ns_reso_rowsOf,
+				resoSideOf: ns_reso_sideOf,
+				resoStartYearOf: ns_reso_startYearOf
+			},
 			// 2026-11-15 炽焰天穹（cytq）：官方 H5 公告（列表 1 次 → 只对在期 & 未缓存的 id 取详情）。
 			// 导出「URL + 纯解析 + 缓存复位 + 抓取器」四层，回归可以分别钉住：
 			// 列表/详情的失败语义（`{}` ⇒ 抛错 / 抹掉锚点 ⇒ 不出窗口）、角色名单、「维护后」⇒ 起点未知、

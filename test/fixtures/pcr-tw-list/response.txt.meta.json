@@ -1,0 +1,6 @@
+{
+  "url": "https://www.princessconnect.so-net.tw/news?page=1",
+  "status": 200,
+  "capturedAt": "2026-11-14T22:57:29.162Z",
+  "note": "真抓裁剪：原始第 1 页 10 条 → 保留 5 条（4116【更新】/4117【活動】禮包/4115【活動】掉落 3 倍/4111【活動】討魔戰線/4106【轉蛋】精選），其余 5 条 <li> 整块删除（同结构、更早）。整页仅 10 个 newsDetail 链接，全部在 article 内。"
+}

@@ -201,6 +201,12 @@ const ORDER = [
   // 2026-11-15：碧蓝航线 —— 国服（hl，**只接活动**：卡池侧 url="" 未配置）+ 日服（hl-jp，官方新闻
   // 列表一条接口同时出池与活动）。自包含两条（条目 + 解析 + 抓取器 + 登记），排在最后 ⇒ 面板顺序追加在末尾。
   "30-game-hl.js",
+  // 2026-11-15：公主连结 Re:Dive·繁中服（pcr-tw）—— So-net 官网公告（列表 1 页 + 按 id 缓存的详情；
+  // 卡池与活动**同源**）。自包含一条（条目 + 解析 + 抓取器 + 登记），排在最后 ⇒ 面板顺序追加在末尾。
+  "30-game-pcr-tw.js",
+  // 2026-11-15：雷索纳斯（reso）—— bwiki「活动日历」页的 wikitext（`action=raw` 正文 + `revisions` 只补年份）。
+  // 卡池与活动**同一条 URL** ⇒ 轮内共享这 2 次请求。排在最后 ⇒ 面板顺序追加在末尾。
+  "30-game-bwiki-reso.js",
   // 2026-11-15：崩坏学园2 官网公告（列表 POST + 详情；卡池 + 活动两侧同一条列表 → 轮内共享一次请求）
   "44-test-exports.js",        // 回归出口：解析器 + env 工具 + 来源表（挂 exports.__regression，测试用）
   "50-refresh.js",             // 刷新编排、失败沿用旧值
@@ -340,6 +346,8 @@ const CORE_ORDER = [
   "30-game-ournotes-global.js",// 2026-11-11 OurNotes 国际服（SPICA 数据 JSON：卡池 + 活动）
   "30-game-wxnn.js",           // 2026-11-15 无限暖暖（国服官网资讯列表 + 详情；卡池 + 活动）
   "30-game-hl.js",             // 2026-11-15 碧蓝航线（国服只接活动 + 日服卡池/活动同一条新闻列表）
+  "30-game-pcr-tw.js",         // 2026-11-15 公主连结·繁中服（官网公告：列表 + 详情；卡池 + 活动同源）
+  "30-game-bwiki-reso.js",     // 2026-11-15 雷索纳斯（bwiki 活动日历 wikitext；年份由 revisions 补）
   "50-refresh.js",             // 刷新编排
   "engine-api.js",             // 注入 env + refresh() + 测试出口 + return
 ];

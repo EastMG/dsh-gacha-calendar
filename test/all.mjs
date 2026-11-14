@@ -118,8 +118,10 @@ section("夹具卫生");
 	// 同日再接：无限暖暖（wxnn-*）、炽焰天穹（cytq-*）
 	// 2026-11-15 同日晚：碧蓝航线（`hl-cn-*` 国服 / `hl-jp-*` 日服；前缀 `hl` 同时覆盖 `hlr-*`，
 	// 后者本来就在清单里 —— 这条守卫要的是"能看出属于哪一批"，宽一点不会误报）。
+	// 2026-11-15 再 +2：公主连结·繁中服（`pcr-tw-*`：列表 + 3 篇详情）/ 雷索纳斯（`reso-*`：活动日历
+	// 的 raw + revisions 两份）。前缀按来源 id 取名，一眼能看出属于哪一条。
 	check("夹具命名带批次前缀（便于溯源）",
-		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights|wqmt|pengpeng|wd|hlr|bh3|spica|czn|bjhl|yys|dhmmr|bh2|yslz|wxnn|cytq|hl)/.test(f)),
+		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights|wqmt|pengpeng|wd|hlr|bh3|spica|czn|bjhl|yys|dhmmr|bh2|yslz|wxnn|cytq|hl|pcr-tw|reso)/.test(f)),
 	);
 }
 //#endregion

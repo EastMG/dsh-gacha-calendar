@@ -1,0 +1,56 @@
+<section class="news_con">
+            <p class="news_meta">
+                <time datetime="2026.11.14">2026.11.14</time>
+                <span class="ac01">活動</span>
+                            </p>
+            <h2>【活動】官方 WebStore限定 每月主題禮包「究極鍊成」期間限定方式販售預告！</h2>
+            <div class="news-body" aria-labelledby="gameName">
+                <h3 id="gameName" class="visually-hidden">超異域公主連結☆Re：Dive</h3>
+                <p>
+                    <p><img alt="公告用圖/20260731_11.png" src="https://www.princessconnect.so-net.tw/uploads/公告用圖/20260731_11.png" style="width: 100%;" /></p>
+
+<p>2026/11/15 16:00起，將在官方WebStore中，期間限定販售官方WebStore限定 每月主題禮包「究極鍊成」。</p>
+
+<p>官方 WebStore限定 每月主題禮包「究極鍊成」可獲得體力與可用在EX★5裝備之究極鍊成的「EX裝備鍊成Pt」、可交換EX★5裝備的「阿爾克絲幣」。<br />
+請務必把握此次機會善加利用！</p>
+
+<p>■購買方法<br />
+‧官方WebStore限定商品請點此前往購買<br />
+<a href="https://princessconnect.xsolla.site/">點此前往購買</a><br />
+&nbsp;<br />
+官方WebStore限定 每月主題禮包「究極鍊成」的詳細資訊如下所述。</p>
+
+<p>■販售期間<br />
+2026/11/15 16:00 ～ 2026/12/15 23:59</p>
+
+<p>■商品名稱<br />
+冒險支援禮包．究極鍊成</p>
+
+<p>■販售價格<br />
+NT$ 220</p>
+
+<p>■關於購買限制<br />
+限購1次。<br />
+※本公告中所刊載的商品，僅限已通關主線冒險18-2（NORMAL）的玩家購買。</p>
+
+<p>■販售內容<br />
+‧體力200 &times; 5<br />
+‧EX裝備鍊成Pt &times; 3000000<br />
+‧阿爾克絲幣 &times; 7500<br />
+&nbsp;<br />
+■注意事項<br />
+1. 透過刊載於本公告的商品所獲得的道具，將會送至禮物箱。<br />
+2. 本公告所刊載的商品內容，有可能不經預告逕行變更。<br />
+3. 本公告中所刊載的商品，僅限已通關主線冒險18-2（NORMAL）的玩家購買。</p>
+
+<p>※So-net 營運團隊保有活動最終修改與詮釋之權利，實際內容請以遊戲內資訊為準。活動舉辦日期與內容，均有可能未先告知而逕行調整，確切詳情以實際開放時所述為主。</p>
+                </p>
+            </div>
+            <!-- 頁碼 -->
+            <nav class="paging" aria-label="新聞列表分頁">
+                <ol>
+                    <li><a href="#" onclick="history.back(); return false;">回上一頁</a></li>
+                    <li><a href="/news">回列表首頁</a></li>
+                </ol>
+            </nav>
+        </section>

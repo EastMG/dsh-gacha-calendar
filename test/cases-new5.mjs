@@ -1518,4 +1518,312 @@ export default async function run() {
 			&& String((jpEmpty.eventFail || {}).kind) === "down",
 			JSON.stringify([hlEmpty.eventFail, jpEmpty.gachaFail, jpEmpty.eventFail]));
 	}
+
+	// ───────── ⑨ 2026-11-15：公主连结·繁中服（pcr-tw）/ 雷索纳斯（reso）─────────
+	// 落点：`src/client/30-game-pcr-tw.js`（厂商级，一条来源）与 `src/client/30-game-bwiki-reso.js`
+	// （bwiki 系，一条来源）。源站事实与口径见两个文件的文件头 ①~⑥。
+	// 夹具全部真抓（2026-11-15）：
+	//   · `pcr-tw-list`（第 1 页 10 条裁到 5 条：4116【更新】/4117/4115/4111【活動】/4106【轉蛋】）
+	//   · `pcr-tw-detail-4106`（裁到 `<section class="news_con">`，卡池正文）
+	//   · `pcr-tw-detail-4117`（裁到 section，活动的 `■販售期間`）
+	//   · `pcr-tw-detail-4115`（**整页未裁**，故意的：导航里有个 `<h2 …>熱門遊戲</h2>` 排在正文之前，
+	//     钉住"只认 section 里的 h2" —— 第一次活网跑出来 event = 熱門遊戲 就是这个坑）
+	//   · `reso-calendar-raw`（原样 3 KB）+ `reso-revision`（只补年份的 revisions 响应）
+	section("2026-11-15 公主连结·繁中服（pcr-tw）+ 雷索纳斯（reso）：真夹具逐字 + 补年份 + 反证");
+	{
+		const PCR = T.parsers["pcr-tw"];
+		const RESO = T.parsers.reso;
+		const TZ_TW = "Asia/Taipei";
+		const TZ_CN2 = "Asia/Shanghai";
+		const PCR_LIST = PCR.PCR_TW_LIST_URL;
+		const PCR_D_4106 = PCR.PCR_TW_DETAIL_BASE + "4106";
+		const PCR_D_4117 = PCR.PCR_TW_DETAIL_BASE + "4117";
+		const PCR_D_4115 = PCR.PCR_TW_DETAIL_BASE + "4115";
+		const PCR_D_4111 = PCR.PCR_TW_DETAIL_BASE + "4111";
+		const RESO_RAW = RESO.RESO_RAW_URL;
+		const RESO_REV = RESO.RESO_REV_URL;
+		const ALL_IDS2 = T.SOURCES.map((x) => x.id);
+		const norm = (u) => String(u).replace(/[?&]origin=\*/, "");
+		const BODY2 = {
+			[PCR_LIST]: FIX("pcr-tw-list"),
+			[PCR_D_4106]: FIX("pcr-tw-detail-4106"),
+			[PCR_D_4117]: FIX("pcr-tw-detail-4117"),
+			[PCR_D_4115]: FIX("pcr-tw-detail-4115"),
+			[RESO_RAW]: FIX("reso-calendar-raw"),
+			[RESO_REV]: FIX("reso-revision")
+		};
+		// 记账 transport：`sink` = 实际发出去的地址；`refs` = 每条代理请求带的 Referer
+		const transport2 = (sink, refs, overrides) => ({
+			async fetchRaw(u) { throw new Error("两条来源都走宿主代理（mode=proxy）：" + u); },
+			async fetchViaProxy(u, opts) {
+				const url = norm(u);
+				if (sink) sink.push(url);
+				if (refs) refs.push({ url, referer: String((opts && opts.referer) || "") });
+				if (overrides && overrides[url] != null) return overrides[url];
+				if (BODY2[url] != null) return BODY2[url];
+				throw new Error("pcr-tw / reso 用例没有这个 URL 的夹具：" + url);
+			}
+		});
+		const engine2 = (now, sink, refs, overrides) => createEngine({
+			transport: transport2(sink, refs, overrides),
+			storage: makeStore({ hidden: ALL_IDS2.filter((id) => id !== "pcr-tw" && id !== "reso"), shown: ["pcr-tw", "reso"] }),
+			now: () => now,
+			timer: { setTimeout, clearTimeout }
+		});
+		// 夹具抓取那天（2026-11-15）上午：4117 的販售 16:00 才开 ⇒ 活动外显应是 4115 那条
+		const NOW2 = Date.parse("2026-11-15T06:30:00+08:00");
+
+		// ── ① 注册 ──
+		const srcPcr = srcOf("pcr-tw");
+		const srcReso = srcOf("reso");
+		check("pcr-tw 注册：卡池与活动**同一条**列表 URL；标签逐字「官网公告（繁中）」；tz = Asia/Taipei；出厂默认展示",
+			!!srcPcr && srcPcr.url === PCR_LIST && srcPcr.eventUrl === PCR_LIST
+			&& srcPcr.source === "官网公告（繁中）" && srcPcr.eventSource === "官网公告（繁中）"
+			&& srcPcr.tz === TZ_TW && srcPcr.defaultHidden === false
+			&& srcPcr.name === "公主连结Re:Dive·繁中服",
+			srcPcr ? JSON.stringify([srcPcr.url, srcPcr.eventUrl, srcPcr.source, srcPcr.tz, srcPcr.name]) : "缺失");
+		check("reso 注册：卡池与活动同一条 `action=raw` URL；标签逐字「Bwiki 活动日历」；tz = Asia/Shanghai；默认展示",
+			!!srcReso && srcReso.url === RESO_RAW && srcReso.eventUrl === RESO_RAW
+			&& srcReso.source === "Bwiki 活动日历" && srcReso.eventSource === "Bwiki 活动日历"
+			&& srcReso.tz === TZ_CN2 && srcReso.defaultHidden === false && srcReso.name === "雷索纳斯",
+			srcReso ? JSON.stringify([srcReso.url, srcReso.eventUrl, srcReso.source, srcReso.tz]) : "缺失");
+		check("两条都有配色（面板「颜色 = 游戏」）、不同色、id 全局唯一",
+			!!srcPcr && !!srcReso && /^#[0-9A-F]{6}$/i.test(String(srcPcr.color))
+			&& /^#[0-9A-F]{6}$/i.test(String(srcReso.color)) && srcPcr.color !== srcReso.color
+			&& new Set(ALL_IDS2).size === ALL_IDS2.length,
+			JSON.stringify([srcPcr && srcPcr.color, srcReso && srcReso.color]));
+		check("bwiki 请求的 Referer 常量逐字 = https://wiki.biligame.com/（不带会被 EdgeOne WAF 回 567）",
+			RESO.RESO_REFERER === "https://wiki.biligame.com/", String(RESO.RESO_REFERER));
+
+		// ── ② pcr-tw：列表（类别只认标题前缀，不认 `ac0X`）──
+		const pcrRows = PCR.pcrTwListOf(BODY2[PCR_LIST]);
+		check("pcr 列表：5 条，按日期倒序（同日按 id 倒序：4117 排在 4116 前）",
+			pcrRows.length === 5 && pcrRows.map((x) => x.id).join(",") === "4117,4116,4115,4111,4106",
+			JSON.stringify(pcrRows.map((x) => x.id)));
+		check("pcr 列表：`kind` 只按标题前缀分（`【轉蛋】`=4106 是 gacha，`活動` span 的 `ac0X` 类名不作数）",
+			pcrRows.find((x) => x.id === "4106").kind === "gacha"
+			&& pcrRows.find((x) => x.id === "4106").type === "活動"
+			&& pcrRows.find((x) => x.id === "4115").kind === "event"
+			&& pcrRows.find((x) => x.id === "4116").kind === "other"
+			&& pcrRows.find((x) => x.id === "4111").kind === "event",
+			JSON.stringify(pcrRows.map((x) => [x.id, x.type, x.kind])));
+		check("pcr 列表日期 `2026.11.14` → Asia/Taipei 当日 00:00（= UTC 前一天 16:00）",
+			pcrRows.find((x) => x.id === "4117").dateTs === Date.UTC(2026, 10, 13, 16, 0),
+			String(pcrRows.find((x) => x.id === "4117").dateTs));
+
+		// ── ③ pcr-tw：卡池详情（逐字）──
+		const d4106 = PCR.pcrTwDetailOf(BODY2[PCR_D_4106], TZ_TW);
+		check("pcr 详情 4106：窗口 1 条，名字取 `■精選轉蛋舉辦期間` 去尾缀 ⇒ 「精選轉蛋」",
+			d4106.windows.length === 1 && d4106.windows[0].label === "精選轉蛋",
+			JSON.stringify(d4106.windows.map((x) => x.label)));
+		check("pcr 详情 4106：起止 = 2026-11-04 16:00 ~ 11-16 15:59 +08（UTC 手算 08:00 / 07:59）",
+			d4106.windows[0].startTs === Date.UTC(2026, 10, 4, 8, 0)
+			&& d4106.windows[0].endTs === Date.UTC(2026, 10, 16, 7, 59),
+			JSON.stringify([d4106.windows[0].startTs, d4106.windows[0].endTs]));
+		check("pcr 详情 4106：raw 保留源站原文、display 是补全后的可读文本（两份文本不混）",
+			d4106.windows[0].raw === "2026/11/04 16:00 ~ 2026/11/16 15:59"
+			&& d4106.windows[0].display === "11-04 16:00 ~ 11-16 15:59",
+			JSON.stringify([d4106.windows[0].raw, d4106.windows[0].display]));
+		const p4106 = PCR.pcrTwPoolItemsOf(d4106);
+		check("pcr 卡池条目事实：banner「精選轉蛋」+ 角色「露易絲瑪莉（夏日）」（引号里的角色名取全名）",
+			p4106.length === 1 && p4106[0].banner === "精選轉蛋" && p4106[0].roles === "露易絲瑪莉（夏日）",
+			JSON.stringify(p4106.map((x) => [x.banner, x.roles])));
+		check("pcr 页头陷阱：整页（未裁）里有 `<h2 …>熱門遊戲</h2>` 排在正文之前 ⇒ 只认 section 里的 h2",
+			BODY2[PCR_D_4115].indexOf("熱門遊戲") > 0
+			&& PCR.pcrTwDetailOf(BODY2[PCR_D_4115], TZ_TW).title.indexOf("熱門遊戲") < 0,
+			JSON.stringify(PCR.pcrTwDetailOf(BODY2[PCR_D_4115], TZ_TW).title.slice(0, 40)));
+
+		// ── ④ pcr-tw：活动详情（`■活動期間` / `■販售期間` 两个锚点都是通用词 ⇒ 名字退回标题派生）──
+		const d4115 = PCR.pcrTwDetailOf(BODY2[PCR_D_4115], TZ_TW);
+		const d4117 = PCR.pcrTwDetailOf(BODY2[PCR_D_4117], TZ_TW);
+		check("pcr 详情 4115：`■活動期間` 是通用词 ⇒ label 留空，活动名走标题派生",
+			d4115.windows.length === 1 && d4115.windows[0].label === "",
+			JSON.stringify([d4115.windows.length, d4115.windows[0] && d4115.windows[0].label]));
+		check("pcr 活动名：剥 `【活動】` + 尾巴（`舉辦預告` / `期間限定方式販售預告`），整名带引号就留里面",
+			PCR.pcrTwTitleNameOf(d4115.title) === "「NORMAL」裝備道具、星素掉落量3倍・瑪那掉落量2倍"
+			&& PCR.pcrTwTitleNameOf(d4117.title) === "官方 WebStore限定 每月主題禮包「究極鍊成」"
+			&& PCR.pcrTwTitleNameOf("【活動】「艾爾皮斯討魔戰線」舉辦預告！") === "艾爾皮斯討魔戰線",
+			JSON.stringify([PCR.pcrTwTitleNameOf(d4115.title), PCR.pcrTwTitleNameOf(d4117.title)]));
+		check("pcr 详情 4117：`■販售期間` 的窗口照样解出来（2026-11-15 16:00 ~ 12-15 23:59 +08）",
+			d4117.windows.length === 1
+			&& d4117.windows[0].startTs === Date.UTC(2026, 10, 15, 8, 0)
+			&& d4117.windows[0].endTs === Date.UTC(2026, 11, 15, 15, 59),
+			JSON.stringify(d4117.windows));
+
+		// ── ⑤ pcr-tw：端到端 + 请求预算（1 页 + 每侧 ≤2 篇详情）──
+		PCR.pcrTwResetCache();
+		RESO.resoResetCache();
+		const calls2 = [];
+		const refs2 = [];
+		const e2 = engine2(NOW2, calls2, refs2);
+		const r2 = await e2.refresh();
+		const recPcr = r2.games["pcr-tw"] || {};
+		const recReso = r2.games.reso || {};
+		check("首轮请求 = 6 次（pcr 列表 1 + 详情 3；reso raw 1 + revisions 1；两侧各只取自己的）",
+			calls2.length === 6
+			&& calls2.filter((u) => u === PCR_LIST).length === 1
+			&& calls2.filter((u) => u === PCR_D_4106).length === 1
+			&& calls2.filter((u) => u === PCR_D_4117).length === 1
+			&& calls2.filter((u) => u === PCR_D_4115).length === 1
+			&& calls2.filter((u) => u === RESO_RAW).length === 1
+			&& calls2.filter((u) => u === RESO_REV).length === 1
+			&& calls2.indexOf(PCR_D_4111) < 0,
+			"requests=" + calls2.length + " " + JSON.stringify(calls2));
+		check("pcr 卡池外显 = 精選轉蛋 / 露易絲瑪莉（夏日）/ 11-04 16:00 ~ 11-16 15:59",
+			recPcr.banner === "精選轉蛋" && recPcr.roles === "露易絲瑪莉（夏日）"
+			&& recPcr.bannerDates === "11-04 16:00 ~ 11-16 15:59"
+			&& recPcr.bannerDatesRaw === "2026/11/04 16:00 ~ 2026/11/16 15:59" && recPcr.gachaFail === null,
+			JSON.stringify([recPcr.banner, recPcr.roles, recPcr.bannerDates, recPcr.bannerDatesRaw]));
+		check("pcr 活动外显 = 「NORMAL」裝備道具… / 11-15 05:00 ~ 11-21 04:59（4117 当天 16:00 才开 ⇒ 不进外显）",
+			recPcr.event === "「NORMAL」裝備道具、星素掉落量3倍・瑪那掉落量2倍"
+			&& recPcr.eventDates === "11-15 05:00 ~ 11-21 04:59" && recPcr.eventFail === null,
+			JSON.stringify([recPcr.event, recPcr.eventDates, recPcr.eventFail]));
+		check("pcr events[] 只有 1 条（4117 的窗口 16:00 才开，未覆盖 now ⇒ 如实不进数组）",
+			Array.isArray(recPcr.events) && recPcr.events.length === 1
+			&& recPcr.events[0].startTs === Date.UTC(2026, 10, 14, 21, 0)
+			&& recPcr.events[0].endTs === Date.UTC(2026, 10, 20, 20, 59),
+			JSON.stringify((recPcr.events || []).map((x) => [x.title, x.startTs, x.endTs])));
+		check("pcr gacha[] 1 条（只有 1 口在期池 ⇒ 不设 bannerHover，交回 UI 两行式）",
+			Array.isArray(recPcr.gacha) && recPcr.gacha.length === 1
+			&& recPcr.gacha[0].title === "精選轉蛋" && !recPcr.bannerHover,
+			JSON.stringify([(recPcr.gacha || []).map((x) => x.title), recPcr.bannerHover]));
+
+		// 稳态：详情 / 正文都进缓存 ⇒ pcr 只发列表、reso 仍 2 次（raw + revisions，没有 24h 缓存，见文件头 ④）
+		calls2.length = 0;
+		const r2b = await e2.refresh();
+		check("稳态第 2 轮 = 3 次（pcr 只列表 1 + reso raw/revisions 2；pcr 的三篇详情在 24h 缓存里）",
+			calls2.length === 3 && calls2.filter((u) => u === PCR_LIST).length === 1
+			&& calls2.filter((u) => u.indexOf("/news/newsDetail/") >= 0).length === 0
+			&& (r2b.games["pcr-tw"] || {}).banner === recPcr.banner,
+			"requests=" + calls2.length + " " + JSON.stringify(calls2));
+		check("两条来源的每个代理请求都带了 Referer（pcr 带官网首页；reso 带 wiki.biligame.com）",
+			refs2.length > 0 && refs2.every((x) => x.referer !== "")
+			&& refs2.filter((x) => x.url.indexOf("wiki.biligame.com") >= 0).every((x) => x.referer === "https://wiki.biligame.com/")
+			&& refs2.filter((x) => x.url.indexOf("princessconnect") >= 0).every((x) => x.referer === "https://www.princessconnect.so-net.tw/"),
+			JSON.stringify(refs2.slice(0, 3)));
+
+		// ── ⑥ reso：行解析（注释里的旧档期 / 模板条件行都不算）──
+		const resoRows = RESO.resoRowsOf(BODY2[RESO_RAW]);
+		check("reso 活行 8 条（全是招募），注释里的 `红茶战争`/`澄明异闻奇谈`/`雅莱` 一个都不算",
+			resoRows.length === 8 && resoRows.every((x) => x.kind === "gacha")
+			&& !resoRows.some((x) => /红茶|澄明|雅莱|限界挑战/.test(x.banner + x.roles)),
+			JSON.stringify(resoRows.map((x) => [x.banner, x.roles])));
+		check("reso 招募行逐字：池名 = 【】里的类型、角色 = 最后一个非文件链接；日期两端都无年份",
+			resoRows[0].banner === "联运招募" && resoRows[0].roles === "朱月"
+			&& resoRows[0].sm === 10 && resoRows[0].sd === 22 && resoRows[0].em === 11 && resoRows[0].ed === 18
+			&& resoRows[7].banner === "常驻招募·轮换UP" && resoRows[7].roles === "伊索斯",
+			JSON.stringify(resoRows.map((x) => [x.banner, x.roles, x.sm, x.sd, x.em, x.ed])));
+		check("reso 页头那条 `{{#ifexpr:…<20230901|…[[限界挑战]]…08.01-08.31}}` 是死分支 ⇒ 整行跳过",
+			!resoRows.some((x) => /限界挑战/.test(String(x.banner) + String(x.roles))),
+			JSON.stringify(resoRows.map((x) => x.banner)));
+		check("reso 活动行的写法（页面注释里的样板）也认：`[[页面|「活动名」]]<small>03.21-04.10</small>`",
+			(() => {
+				const r = RESO.resoRowOf("[[红茶战争|「红茶战争」]]<small>03.21-04.10</small>");
+				return !!r && r.kind === "event" && r.name === "红茶战争" && r.sm === 3 && r.ed === 10;
+			})());
+
+		// ── ⑦ reso：年份补全（页面更新年 + 前一年 + 次年 + 跨年）──
+		const pageTs = RESO.resoRevStampOf(JSON.parse(BODY2[RESO_REV]));
+		check("reso revisions 的时间戳 = 2026-10-26T13:11:13Z（页面更新年/月 = 2026-10）",
+			pageTs === Date.parse("2026-10-26T13:11:13Z"), String(pageTs));
+		const resoPools = RESO.resoItemsOf(resoRows, pageTs, TZ_CN2, "pools");
+		check("reso 条目（卡池）：8 条都补出了年份；朱月 10.22-11.18 ⇒ 10-22 00:00 ~ 11-18 23:59 +08",
+			resoPools.length === 8
+			&& resoPools[0].startTs === Date.UTC(2026, 9, 21, 16, 0)
+			&& resoPools[0].endTs === Date.UTC(2026, 10, 18, 15, 59)
+			&& resoPools[0].raw === "10.22 ~ 11.18"
+			&& resoPools[0].display === "10-22 00:00 ~ 11-18 23:59",
+			JSON.stringify([resoPools.length, resoPools[0] && resoPools[0].startTs, resoPools[0] && resoPools[0].endTs]));
+		check("reso 补年份：页面 10 月更新 ⇒ 10 月的行是当年；12 月的行**不会**被挪到上年（月份不比线索晚 6 个月）",
+			RESO.resoStartYearOf(10, { y: 2026, mo: 10 }) === 2026
+			&& RESO.resoStartYearOf(12, { y: 2026, mo: 10 }) === 2026,
+			JSON.stringify([RESO.resoStartYearOf(10, { y: 2026, mo: 10 }), RESO.resoStartYearOf(12, { y: 2026, mo: 10 })]));
+		check("reso 补年份（上一年）：1 月更新的页面里写 `12.28` ⇒ 去年的 12-28（共用 inferYear + YEAR_HINT_MONTH_GAP）",
+			RESO.resoStartYearOf(12, { y: 2027, mo: 1 }) === 2026, String(RESO.resoStartYearOf(12, { y: 2027, mo: 1 })));
+		check("reso 补年份（次年）：12 月更新的页面里写 `01.10` ⇒ 次年的 01-10（滚动日历的镜像规则）",
+			RESO.resoStartYearOf(1, { y: 2026, mo: 12 }) === 2027, String(RESO.resoStartYearOf(1, { y: 2026, mo: 12 })));
+		check("reso 补年份：**线索拿不到就一条都不出**（不留错年份）—— 没线索 / 线索不是有限数 / 月份不是数",
+			RESO.resoStartYearOf(10, null) === null && RESO.resoStartYearOf(10, {}) === null
+			&& RESO.resoStartYearOf(10, { y: NaN, mo: 10 }) === null
+			&& RESO.resoStartYearOf(Number.NaN, { y: 2026, mo: 10 }) === null
+			&& RESO.resoItemsOf(resoRows, Number.NaN, TZ_CN2, "pools").length === 0,
+			JSON.stringify([RESO.resoStartYearOf(10, null), RESO.resoItemsOf(resoRows, Number.NaN, TZ_CN2, "pools").length]));
+		check("reso 跨年：`12.28-01.05` ⇒ 终点补到次年（共用 endsNextYear）",
+			(() => {
+				const r = RESO.resoRowOf("【专列招募】[[文件:X-头像.png|25px|link=X]][[X]] <small>12.28-01.05 </small><br>");
+				const items = RESO.resoItemsOf([r], Date.parse("2026-10-26T13:11:13Z"), TZ_CN2, "pools");
+				return items.length === 1 && items[0].startTs === Date.UTC(2026, 11, 27, 16, 0)
+					&& items[0].endTs === Date.UTC(2027, 0, 5, 15, 59);
+			})());
+
+		// ── ⑧ reso：端到端 + 请求数（两侧共享同一份正文 ⇒ 2 次）──
+		check("reso 卡池外显 = 结束最早的在期池（特设招募 / 蓝鹊儿 / 10-26 00:00 ~ 11-16 23:59）",
+			!!recReso && recReso.banner === "特设招募" && recReso.roles === "蓝鹊儿"
+			&& recReso.bannerDates === "10-26 00:00 ~ 11-16 23:59"
+			&& recReso.bannerDatesRaw === "10.26 ~ 11.16" && recReso.gachaFail === null,
+			JSON.stringify([recReso.banner, recReso.roles, recReso.bannerDates, recReso.bannerDatesRaw]));
+		check("reso 卡池悬停逐字（两行「池名：角色」+ 各自档期；按结束时间升序）",
+			recReso.bannerHover === "特设招募：蓝鹊儿\n10-26 00:00 ~ 11-16 23:59\n联运招募：朱月\n10-22 00:00 ~ 11-18 23:59",
+			JSON.stringify(recReso.bannerHover));
+		if (recReso.bannerHover) assertHoverConvention("reso 卡池", recReso.bannerHover, { requireSet: true });
+		check("reso 卡池数组 2 条在期（特设招募 蓝鹊儿 / 联运招募 朱月），绝对时刻 +08 手算",
+			Array.isArray(recReso.gacha) && recReso.gacha.length === 2
+			&& recReso.gacha[0].key === "reso:gacha:0" && recReso.gacha[0].endTs === Date.UTC(2026, 10, 16, 15, 59)
+			&& recReso.gacha[1].endTs === Date.UTC(2026, 10, 18, 15, 59),
+			JSON.stringify((recReso.gacha || []).map((x) => [x.title, x.startTs, x.endTs])));
+		check("reso 活动侧如实 null（当期没有活动行 = nomatch，不是失败、也不是未配置）",
+			recReso.event === "" && String((recReso.eventFail || {}).kind) === "nomatch"
+			&& (!Array.isArray(recReso.events) || recReso.events.length === 0),
+			JSON.stringify([recReso.event, recReso.eventFail]));
+
+		// ── ⑨ 反证（结构变了要看得见；抹掉时间锚点 ⇒ 不进外显）──
+		const throws2 = (fn) => { try { fn(); return false; } catch { return true; } };
+		check("pcr 反证：`{}` / 空串 / 没有 `<article>` / article 里一条都没有 ⇒ 抛错（不是 nomatch）",
+			throws2(() => PCR.pcrTwListOf({})) && throws2(() => PCR.pcrTwListOf(""))
+			&& throws2(() => PCR.pcrTwListOf("<html><body>改版页</body></html>"))
+			&& throws2(() => PCR.pcrTwListOf('<article class="news_con"><ul></ul></article>')));
+		check("pcr 反证：详情 `{}` / 空串 / 没有 section / 没有 h2 / 没有 news-body ⇒ 抛错",
+			throws2(() => PCR.pcrTwDetailOf({})) && throws2(() => PCR.pcrTwDetailOf(""))
+			&& throws2(() => PCR.pcrTwDetailOf("<section>x</section>"))
+			&& throws2(() => PCR.pcrTwDetailOf('<section class="news_con"><div class="news-body">x</div></section>'))
+			&& throws2(() => PCR.pcrTwDetailOf('<section class="news_con"><h2>t</h2></section>')));
+		// 抹掉"整行区间"（把全角 `～` 换成 `至`）⇒ 这一篇不出任何窗口（不进外显，但**不抛**）
+		const noRange = BODY2[PCR_D_4106].replace(/～/g, "至");
+		check("pcr 反证：抹掉区间分隔符 ⇒ 这篇 0 个窗口（不进外显，也不算失败）",
+			PCR.pcrTwDetailOf(noRange, TZ_TW).windows.length === 0
+			&& PCR.pcrTwPoolItemsOf(PCR.pcrTwDetailOf(noRange, TZ_TW)).length === 0,
+			JSON.stringify(PCR.pcrTwDetailOf(noRange, TZ_TW).windows));
+		PCR.pcrTwResetCache();
+		const eNoRange = engine2(NOW2, null, null, { [PCR_D_4106]: noRange });
+		const rNoRange = await eNoRange.refresh();
+		check("pcr 反证（端到端）：卡池那篇没有窗口 ⇒ 卡池如实 nomatch（不硬凑过期档期）",
+			((rNoRange.games["pcr-tw"] || {}).banner) === ""
+			&& String((((rNoRange.games["pcr-tw"] || {}).gachaFail) || {}).kind) === "nomatch",
+			JSON.stringify([(rNoRange.games["pcr-tw"] || {}).banner, (rNoRange.games["pcr-tw"] || {}).gachaFail]));
+		// 详情全失败（源站回 `{}`）⇒ 记 down（抓取失败 ≠ 未公布）
+		PCR.pcrTwResetCache();
+		const eDown = engine2(NOW2, null, null, { [PCR_LIST]: "{}", [RESO_RAW]: "{}" });
+		const rDown = await eDown.refresh();
+		check("反证（端到端）：pcr 列表 `{}` / reso 正文 `{}` ⇒ 两侧都记 **down**（不是 nomatch）",
+			String((((rDown.games["pcr-tw"] || {}).gachaFail) || {}).kind) === "down"
+			&& String((((rDown.games["pcr-tw"] || {}).eventFail) || {}).kind) === "down"
+			&& String((((rDown.games.reso || {}).gachaFail) || {}).kind) === "down",
+			JSON.stringify([(rDown.games["pcr-tw"] || {}).gachaFail, (rDown.games.reso || {}).gachaFail]));
+		// reso：正文里一行活行都没有 ⇒ 抛（页面结构变了）；revisions 结构变了 ⇒ 抛（没有年份就没有输出）
+		check("reso 反证：正文 `{}` / 空串 / 全是注释 ⇒ 抛错；revisions `{}` / pages 空 / 没 timestamp ⇒ 抛错",
+			throws2(() => RESO.resoRowsOf("{}")) && throws2(() => RESO.resoRowsOf(""))
+			&& throws2(() => RESO.resoRowsOf("<!-- [[红茶战争|「红茶战争」]]<small>03.21-04.10</small> -->"))
+			&& throws2(() => RESO.resoRevStampOf({})) && throws2(() => RESO.resoRevStampOf({ query: { pages: [] } }))
+			&& throws2(() => RESO.resoRevStampOf({ query: { pages: [{ revisions: [{}] }] } })));
+		// 反证：详情全失败（三篇都回 `{}`）⇒ 两条侧都记 down
+		PCR.pcrTwResetCache();
+		const eDetailDown = engine2(NOW2, null, null, {
+			[PCR_D_4106]: "{}", [PCR_D_4117]: "{}", [PCR_D_4115]: "{}"
+		});
+		const rDetailDown = await eDetailDown.refresh();
+		check("pcr 反证（端到端）：三篇详情都回 `{}` ⇒ 卡池与活动都记 **down**",
+			String((((rDetailDown.games["pcr-tw"] || {}).gachaFail) || {}).kind) === "down"
+			&& String((((rDetailDown.games["pcr-tw"] || {}).eventFail) || {}).kind) === "down",
+			JSON.stringify([(rDetailDown.games["pcr-tw"] || {}).gachaFail, (rDetailDown.games["pcr-tw"] || {}).eventFail]));
+	}
 }

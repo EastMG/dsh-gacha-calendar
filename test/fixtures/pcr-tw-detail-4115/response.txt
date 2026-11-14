@@ -1,0 +1,655 @@
+ <!DOCTYPE html>
+<html lang="zh-tw">
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>《超異域公主連結☆Re：Dive》 - 最新消息 - 【活動】「NORMAL」裝備道具、星素掉落量3倍・瑪那掉落量2倍 舉辦預告 -  日本殿堂級動漫手遊！金賞製作團隊匠心之作！豪華聲優群全語音劇情演繹！</title>
+        <meta name="keywords" content="超異域公主連結, 公主, 抑鬱, Re Dive, WIT STUDIO, 田中公平,日日日, Cygames, 聲優, 動漫手遊, 動漫RPG, 手機遊戲, 手遊, 事前登錄, 事前預約, 限時受付">
+    <meta name="description" content="《超異域公主連結☆Re：Dive》日本殿堂級動漫手遊！小說‧動漫‧聲優的完美交織！超越動漫等級的視聽饗宴！與可愛公主們的冒險物語！">
+
+    <meta property="og:type" content="game">
+    <meta property="og:locale" content="zh-tw">
+    <meta property="og:site_name" content="《超異域公主連結☆Re：Dive》">
+        <meta property="og:url" content="https://www.princessconnect.so-net.tw/news/newsDetail/4115">
+    <meta property="og:description" content="《超異域公主連結☆Re：Dive》日本殿堂級動漫手遊！小說‧動漫‧聲優的完美交織！超越動漫等級的視聽饗宴！與可愛公主們的冒險物語！">
+    <meta property="og:image" content="https://www.princessconnect.so-net.tw/images/game.jpg">
+    <meta property="og:title" content="《超異域公主連結☆Re：Dive》 - 最新消息 - 【活動】「NORMAL」裝備道具、星素掉落量3倍・瑪那掉落量2倍 舉辦預告 - ">
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow,archive">
+    <meta name="csrf-token" content="T5gGHO4QCLzq4hlpG9h9kpfAqp6f10FbJDlwVQ7F">
+    <link rel="icon" href="https://www.princessconnect.so-net.tw/favicon.ico" type="image/x-icon">
+
+    <link href="https://www.princessconnect.so-net.tw/css/main.css?v=202611021" rel="stylesheet">
+<link href="https://www.princessconnect.so-net.tw/css/post.css?v=202511191" rel="stylesheet">
+    <link href="https://www.princessconnect.so-net.tw/css/jquery-ui.css" rel="stylesheet">
+
+    
+    <link rel="preload" as="style" href="https://www.princessconnect.so-net.tw/build/assets/app-e199bdbe.css" /><link rel="modulepreload" href="https://www.princessconnect.so-net.tw/build/assets/app-79079fbe.js" /><link rel="stylesheet" href="https://www.princessconnect.so-net.tw/build/assets/app-e199bdbe.css" /><script type="module" src="https://www.princessconnect.so-net.tw/build/assets/app-79079fbe.js"></script>
+<script src="https://www.princessconnect.so-net.tw/js/webfontloader.js"></script>
+
+<script type="module">
+    $(function() {
+        $('body').on('click', 'a', function(e) {
+            if ($(this).attr('href') == '') {
+                alert('敬請期待...');
+
+                return false;
+            }
+        });
+
+        $('.loading-mask').fadeOut('slow', function() {
+            $('#navBarBlock, #mainBlock, #companyBlock, #copyRightBlock').fadeIn(function() {
+                $(this).trigger("fadeInComplete");
+            });
+        });
+
+        $("#mainBlock").on("fadeInComplete", function() {
+            // do something
+        });
+    });
+
+    loadFontStyle('["Noto Sans TC","Noto Serif TC"]', 'zh_TW', '');
+</script>    <script type="module" src="https://www.princessconnect.so-net.tw/js/main.js?v=202611021"></script>
+<script src="https://www.princessconnect.so-net.tw/js/bodyScrollLock.min.js"></script>
+
+<script type="module">
+    $(function() {
+        $.ajaxSetup ({
+            cache: false //關閉AJAX相應的快取
+        });
+
+                $('#show_crm_block, #mob_show_crm_block, #show_crm_support_block').click(function(e) {
+        e.preventDefault();
+
+        const mainMenuOptionsOffcanvas = document.getElementById('mainMenuOptions');
+        const accordionCollapse = document.getElementsByClassName('accordion-collapse');
+
+        if (accordionCollapse.length > 0) {
+            let openedCanvas = bootstrap.Offcanvas.getInstance(mainMenuOptionsOffcanvas);
+
+            if (openedCanvas) {
+                openedCanvas.hide();
+            }
+        }
+
+        $('#crm_dialog').removeAttr('hidden');
+
+        var max_width = $(window).width();
+        var max_height = $(window).height();
+        if (max_width > 400) {
+            max_width = 400;
+        } else {
+            max_width = max_width - 10;
+        }
+
+        if (max_height > 500) {
+            max_height = 500;
+        }
+
+        const targetElement1 = document.querySelector('html');
+        const targetElement2 = document.querySelector('body');
+
+        $("#crm_dialog").dialog({
+            modal: true,
+            resizable: false,
+            maxWidth: max_width,
+            maxHeight: max_height,
+            width: max_width,
+            height: max_height,
+            open: function( event, ui ) {
+                $("#crm_form_block").load("/crm_form/crm_f1.html",function(data){
+                    $('#ui-id-1').html('聯絡客服 - ' + $('#crm_f_type option:selected').text());
+                });
+
+                bodyScrollLock.disableBodyScroll(targetElement1);
+                bodyScrollLock.disableBodyScroll(targetElement2);
+            },
+            close: function( event, ui ) {
+                bodyScrollLock.clearAllBodyScrollLocks();
+            }
+        });
+    });            });
+</script>
+
+    <!-- Cookie Consent --><script src="https://www.princessconnect.so-net.tw/cookie-consent/script?id=c841110c5f12a265591c1d65d3796846" defer></script></head>
+
+<body >
+        <div class="loading-mask"><div class="loader"></div></div>
+
+    <header id="navBarBlock" style="display: none;">
+            <!-- navbar -->
+            <nav class="navbar navbar-expand-md border-bottom text-nowrap" aria-label="桌機版導覽選單">
+                <div class="container-custom mx-auto">
+                    <div class="collapse navbar-collapse">
+                        <ul class="navbar-nav ms-auto align-items-center py-1 pr-1">
+                                                                                                                <li class="nav-item dropdown border-end" id="navDropdownHotGame">
+                                <button type="button" class="nav-link dropdown-toggle link-body-emphasis" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" aria-label="熱門遊戲(PC menu)">
+                                                                    <span lang-key="menu.hot_game">熱門遊戲</span>
+                                                                </button>
+                                <ul class="dropdown-menu">
+                                                                        <li>
+                                                                            <a class="dropdown-item link-body-emphasis" href="https://mme.so-net.tw/" target="" aria-label="魔法少女小圓 Magia Exedra(PC menu)" >
+                                                                                    魔法少女小圓 Magia Exedra
+                                                                                </a>
+                                                                        </li>
+                                                                        <li><hr class="dropdown-divider"></li>
+                                                                                                            <li>
+                                                                            <a class="dropdown-item link-body-emphasis" href="https://csr.so-net.tw/" target="" aria-label="十字召喚師：R(PC menu)" >
+                                                                                    十字召喚師：R
+                                                                                </a>
+                                                                        </li>
+                                                                        <li><hr class="dropdown-divider"></li>
+                                                                                                            <li>
+                                                                            <a class="dropdown-item link-body-emphasis" href="https://dance.so-net.tw/" target="" aria-label="炫舞狂潮(PC menu)" >
+                                                                                    炫舞狂潮
+                                                                                </a>
+                                                                        </li>
+                                                                        <li><hr class="dropdown-divider"></li>
+                                                                                                            <li>
+                                                                            <a class="dropdown-item link-body-emphasis" href="https://fsl.so-net.tw/" target="" aria-label="無畏的狼煙(PC menu)" >
+                                                                                    無畏的狼煙
+                                                                                </a>
+                                                                        </li>
+                                                                        <li><hr class="dropdown-divider"></li>
+                                                                                                            <li>
+                                                                            <a class="dropdown-item link-body-emphasis" href="https://www.princessconnect.so-net.tw/" target="" aria-label="超異域公主連結☆Re：Dive(PC menu)" >
+                                                                                    超異域公主連結☆Re：Dive
+                                                                                </a>
+                                                                        </li>
+                                                                        <li><hr class="dropdown-divider"></li>
+                                                                                                            <li>
+                                                                            <a class="dropdown-item link-body-emphasis" href="https://www.wiz.so-net.tw/" target="" aria-label="問答RPG魔法使與黑貓維茲(PC menu)" >
+                                                                                    問答RPG魔法使與黑貓維茲
+                                                                                </a>
+                                                                        </li>
+                                                                                                        </ul>
+                            </li>
+                                                                                                                <li class="nav-item dropdown border-end" id="navDropdownGameTopUp">
+                                <button type="button" class="nav-link dropdown-toggle link-body-emphasis" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" aria-label="遊戲儲值(PC menu)">
+                                                                    <span lang-key="menu.game_top_up">遊戲儲值</span>
+                                                                </button>
+                                <ul class="dropdown-menu">
+                                                                        <li>
+                                                                            <a class="dropdown-item link-body-emphasis" href="https://payment.so-net.tw/TW/zh_TW/exchange/index/SON026" target="" aria-label="魔法少女小圓 Magia Exedra(PC menu)" >
+                                                                                    魔法少女小圓 Magia Exedra
+                                                                                </a>
+                                                                        </li>
+                                                                        <li><hr class="dropdown-divider"></li>
+                                                                                                            <li>
+                                                                            <a class="dropdown-item link-body-emphasis" href="https://payment.so-net.tw/TW/zh_TW/exchange/index/SON024" target="" aria-label="十字召喚師：R(PC menu)" >
+                                                                                    十字召喚師：R
+                                                                                </a>
+                                                                        </li>
+                                                                        <li><hr class="dropdown-divider"></li>
+                                                                                                            <li>
+                                                                            <a class="dropdown-item link-body-emphasis" href="https://payment.so-net.tw/TW/zh_TW/exchange/index/SON009" target="" aria-label="超異域公主連結☆Re：Dive(PC menu)" >
+                                                                                    超異域公主連結☆Re：Dive
+                                                                                </a>
+                                                                        </li>
+                                                                        <li><hr class="dropdown-divider"></li>
+                                                                                                            <li>
+                                                                            <a class="dropdown-item link-body-emphasis" href="https://payment.so-net.tw/TW/zh_TW/exchange/index/SON001" target="" aria-label="問答RPG魔法使與黑貓維茲(PC menu)" >
+                                                                                    問答RPG魔法使與黑貓維茲
+                                                                                </a>
+                                                                        </li>
+                                                                                                        </ul>
+                            </li>
+                                                                                                                <li class="nav-item border-end">
+                                                            <a class="nav-link link-body-emphasis" href="https://www.svp.so-net.tw/" target="_self" aria-label="虛寶兌換(PC menu)" >
+                                                                            虛寶兌換
+                                                                    </a>
+                                                        </li>
+                                                                                                                <li class="nav-item border-end">
+                                                            <a class="nav-link link-body-emphasis" href="https://game-member.so-net.tw/" target="_self" aria-label="遊戲會員中心(PC menu)" >
+                                                                            遊戲會員中心
+                                                                    </a>
+                                                        </li>
+                                                                                                                <li class="nav-item border-end">
+                                                            <button type="button" class="nav-link link-body-emphasis" aria-label="客服信箱(PC menu)" id="show_crm_block">
+                                                                            客服信箱
+                                                                    </button>
+                                                        </li>
+                                                                                                                <li class="nav-item border-end">
+                                                            <a class="nav-link link-body-emphasis" href="https://www.princessconnect.so-net.tw/termsOfGameService" target="_self" aria-label="遊戲服務條款(PC menu)" >
+                                                                            遊戲服務條款
+                                                                    </a>
+                                                        </li>
+                                                                                                                <li class="nav-item">
+                                                            <a class="nav-link link-body-emphasis" href="https://www.so-net.net.tw/" target="_self" aria-label="So-net 首頁(PC menu)" >
+                                                                            So-net 首頁
+                                                                    </a>
+                                                        </li>
+                                                                                </ul>
+                    </div>
+                </div>
+            </nav>
+            <!-- mobile navbar -->
+            <nav class="navbar navbar-expand border-bottom text-nowrap d-md-none" aria-label="手機版導覽選單">
+                <div class="container-fluid g-0">
+                    <ul class="navbar-nav ms-auto align-items-center">
+                                                <li class="nav-item">
+                            <a class="nav-link link-body-emphasis" href="https://www.so-net.net.tw/" aria-label="So-net 首頁(Mobile menu)">
+                                So-net 首頁
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <button type="button" class="navbar-toggler mx-1 my-1 d-block btn btn-sm" data-bs-toggle="offcanvas" data-bs-target="#mainMenuOptions" aria-controls="mainMenuOptions" aria-haspopup="true" aria-expanded="false" aria-label="開啟主選單">
+                                <span class="navbar-toggler-icon"></span>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+            <!-- mobile navbar -->
+            <!-- navbar -->
+        </header>
+        <div class="offcanvas offcanvas-end d-md-none" data-bs-scroll="true" tabindex="-1" id="mainMenuOptions" aria-labelledby="mainMenuOptionsLabel">
+            <div class="offcanvas-header">
+                <h6 class="offcanvas-title d-block w-100 fw-bold" id="mainMenuOptionsLabel">連結選單</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body">
+                <div class="accordion accordion-flush" id="accordionFlush">
+                                                            <div class="accordion-item">
+                        <h2 class="accordion-header" id="flush-heading0">
+                            <button type="button" class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#flush-collapse0" aria-haspopup="true" aria-expanded="false" aria-controls="flush-collapse0" id="navDropdownHotGame">
+                                <span class="d-block w-100 text-center ps-3">熱門遊戲</span>
+                            </button>
+                        </h2>
+                        <div id="flush-collapse0" class="accordion-collapse collapse" aria-labelledby="flush-heading0" data-bs-parent="#accordionFlush">
+                            <div class="accordion-body">
+                                <ul class="list-group list-group-flush text-center">
+                                                                        <li class="list-group-item">
+                                                                            <a class="link-underline-light" href="https://mme.so-net.tw/" target="" aria-label="魔法少女小圓 Magia Exedra(Mobile menu)" >
+                                                                                    魔法少女小圓 Magia Exedra
+                                                                                </a>
+                                                                        </li>
+                                                                        <li class="list-group-item">
+                                                                            <a class="link-underline-light" href="https://csr.so-net.tw/" target="" aria-label="十字召喚師：R(Mobile menu)" >
+                                                                                    十字召喚師：R
+                                                                                </a>
+                                                                        </li>
+                                                                        <li class="list-group-item">
+                                                                            <a class="link-underline-light" href="https://dance.so-net.tw/" target="" aria-label="炫舞狂潮(Mobile menu)" >
+                                                                                    炫舞狂潮
+                                                                                </a>
+                                                                        </li>
+                                                                        <li class="list-group-item">
+                                                                            <a class="link-underline-light" href="https://fsl.so-net.tw/" target="" aria-label="無畏的狼煙(Mobile menu)" >
+                                                                                    無畏的狼煙
+                                                                                </a>
+                                                                        </li>
+                                                                        <li class="list-group-item">
+                                                                            <a class="link-underline-light" href="https://www.princessconnect.so-net.tw/" target="" aria-label="超異域公主連結☆Re：Dive(Mobile menu)" >
+                                                                                    超異域公主連結☆Re：Dive
+                                                                                </a>
+                                                                        </li>
+                                                                        <li class="list-group-item">
+                                                                            <a class="link-underline-light" href="https://www.wiz.so-net.tw/" target="" aria-label="問答RPG魔法使與黑貓維茲(Mobile menu)" >
+                                                                                    問答RPG魔法使與黑貓維茲
+                                                                                </a>
+                                                                        </li>
+                                                                    </ul>
+                            </div>
+                        </div>
+                    </div>
+                                                                                                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="flush-heading1">
+                            <button type="button" class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#flush-collapse1" aria-haspopup="true" aria-expanded="false" aria-controls="flush-collapse1" id="navDropdownGameTopUp">
+                                <span class="d-block w-100 text-center ps-3">遊戲儲值</span>
+                            </button>
+                        </h2>
+                        <div id="flush-collapse1" class="accordion-collapse collapse" aria-labelledby="flush-heading1" data-bs-parent="#accordionFlush">
+                            <div class="accordion-body">
+                                <ul class="list-group list-group-flush text-center">
+                                                                        <li class="list-group-item">
+                                                                            <a class="link-underline-light" href="https://payment.so-net.tw/TW/zh_TW/exchange/index/SON026" target="" aria-label="魔法少女小圓 Magia Exedra(Mobile menu)" >
+                                                                                    魔法少女小圓 Magia Exedra
+                                                                                </a>
+                                                                        </li>
+                                                                        <li class="list-group-item">
+                                                                            <a class="link-underline-light" href="https://payment.so-net.tw/TW/zh_TW/exchange/index/SON024" target="" aria-label="十字召喚師：R(Mobile menu)" >
+                                                                                    十字召喚師：R
+                                                                                </a>
+                                                                        </li>
+                                                                        <li class="list-group-item">
+                                                                            <a class="link-underline-light" href="https://payment.so-net.tw/TW/zh_TW/exchange/index/SON009" target="" aria-label="超異域公主連結☆Re：Dive(Mobile menu)" >
+                                                                                    超異域公主連結☆Re：Dive
+                                                                                </a>
+                                                                        </li>
+                                                                        <li class="list-group-item">
+                                                                            <a class="link-underline-light" href="https://payment.so-net.tw/TW/zh_TW/exchange/index/SON001" target="" aria-label="問答RPG魔法使與黑貓維茲(Mobile menu)" >
+                                                                                    問答RPG魔法使與黑貓維茲
+                                                                                </a>
+                                                                        </li>
+                                                                    </ul>
+                            </div>
+                        </div>
+                    </div>
+                                                                                                                                                                                                                                                <ul class="list-group list-group-flush mt-2 text-center">
+                                                <li class="list-group-item">
+                                                        <a class="link-underline-light" href="https://www.svp.so-net.tw/" target="_self" aria-label="虛寶兌換(Mobile menu)" >
+                                                                    虛寶兌換
+                                                            </a>
+                                                    </li>
+                                                                        <li class="list-group-item">
+                                                        <a class="link-underline-light" href="https://game-member.so-net.tw/" target="_self" aria-label="遊戲會員中心(Mobile menu)" >
+                                                                    遊戲會員中心
+                                                            </a>
+                                                    </li>
+                                                                        <li class="list-group-item">
+                                                            <a class="link-underline-light" role="button" aria-label="客服信箱(Mobile menu)" id="show_crm_block">
+                                                                            客服信箱
+                                                                    </a>
+                                                    </li>
+                                                                        <li class="list-group-item">
+                                                        <a class="link-underline-light" href="https://www.princessconnect.so-net.tw/termsOfGameService" target="_self" aria-label="遊戲服務條款(Mobile menu)" >
+                                                                    遊戲服務條款
+                                                            </a>
+                                                    </li>
+                                                <li class="list-group-item text-end">
+                                                        <a class="link-underline-light d-inline-block me-1 mt-1" href="https://www.facebook.com/SonetPCR/" target="_blank" aria-label="超異域公主連結☆Re：Dive - Facebook(Mobile menu)" >
+                                                                    <img src="https://www.princessconnect.so-net.tw/build/assets/icon_fb-da0fb526.png" alt="超異域公主連結☆Re：Dive - Facebook">
+                                                            </a>
+                                                    </li>
+                                                                    </ul>
+                </div>
+            </div>
+        </div>
+    <!--main-->
+<main>
+    <div class="story_logo pc_cl">
+        <a href="/" aria-label="返回 《超異域公主連結☆Re：Dive》 首頁"><img src="https://www.princessconnect.so-net.tw/images/logo_s.png" class="img-responsive" alt=""></a>
+    </div>
+    <!--電腦版上方選單-->
+    <nav class="pcmenu pc_cl">
+        <div class="header-inner">
+            <div class="navi">
+                <ul aria-label="超異域公主連結☆Re：Dive網站導覽選單">
+                    <li class="navi_newslist_pink">
+                        <a href="/news">最新消息</a>
+                    </li>
+                    <li class="navi_news">
+                        <a href="/story">故事劇情</a>
+                    </li>
+                    <li class="navi_introduction">
+                        <a href="/role">公主介紹</a>
+                    </li>
+                    <li class="navi_story">
+                        <a href="/features">遊戲特色</a>
+                    </li>
+                    <li class="navi_character">
+                        <a href="https://payment.so-net.tw/TW/zh_TW/exchange/index/SON009">點數儲值</a>
+                    </li>
+                    <li class="tw">
+                        <a class="static-link" href="https://www.facebook.com/SonetPCR/" target="_blank" rel="noopener noreferrer" aria-label="前往超異域公主連結☆Re：Dive Facebook 粉絲專頁(另開新視窗)">
+                            <img src="https://www.princessconnect.so-net.tw/images/icon_fb.png" height="20" width="20" alt="">
+                        </a>
+                    </li>
+                    <li class="tw">
+                        <a class="static-link" href="https://forum.gamer.com.tw/B.php?bsn=30861" target="_blank" rel="noopener noreferrer" aria-label="前往巴哈姆特論壇(另開新視窗)">
+                            <img src="https://www.princessconnect.so-net.tw/images/icon_baha.png" height="20" width="20" alt="">
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <!--電腦版上方選單-->
+    <!--手機版選單-->
+    <nav class="menu mob_cl">
+        <ul class="mob_cl" aria-label="超異域公主連結☆Re：Dive手機版導覽選單">
+                        <li class="W100">
+                <a href="/">
+                    <img src="https://www.princessconnect.so-net.tw/images/main-f_m.png" alt="首頁" class="img-responsive center-block max_25w">
+                </a>
+            </li>
+                        <li class="W100">
+                <a href="/news">
+                    <img src="https://www.princessconnect.so-net.tw/images/main-g_m.png" alt="最新消息" class="img-responsive center-block max_45w">
+                </a>
+            </li>
+            <li class="W100">
+                <a href="/story">
+                    <img src="https://www.princessconnect.so-net.tw/images/main-a_m.png" alt="故事劇情" class="img-responsive center-block max_45w">
+                </a>
+            </li>
+            <li class="W100">
+                <a href="/role">
+                    <img src="https://www.princessconnect.so-net.tw/images/main-b_m.png" alt="公主介紹" class="img-responsive center-block max_45w">
+                </a>
+            </li>
+            <li class="W100">
+                <a href="/features">
+                    <img src="https://www.princessconnect.so-net.tw/images/main-c_m.png" alt="遊戲特色" class="img-responsive center-block max_45w">
+                </a>
+            </li>
+            <li class="W100">
+                <a href="https://payment.so-net.tw/TW/zh_TW/exchange/index/SON009">
+                    <img src="https://www.princessconnect.so-net.tw/images/main-d_m.png" alt="點數儲值" class="img-responsive center-block max_45w">
+                </a>
+            </li>
+            <li class="W100">
+                <a class="d-inline-block nav_icon" href="https://www.facebook.com/SonetPCR/" target="_blank" rel="noopener noreferrer" aria-label="前往超異域公主連結☆Re：Dive Facebook 粉絲專頁(另開新視窗)">
+                    <img src="https://www.princessconnect.so-net.tw/images/btn_fb.png" alt="">
+                </a>
+                <a class="d-inline-block nav_icon" href="https://forum.gamer.com.tw/B.php?bsn=30861" target="_blank" rel="noopener noreferrer" aria-label="前往巴哈姆特論壇(另開新視窗)">
+                    <img src="https://www.princessconnect.so-net.tw/images/btn_baha.png" alt="">
+                </a>
+            </li>
+                        <li class="W100">
+                <a href="#crm_dialog" aria-haspopup="dialog" aria-controls="crm_dialog" id="mob_show_crm_block">客服信箱</a>
+            </li>
+                    </ul>
+        <div class="white">
+            <div class="animate_white">
+            </div>
+        </div>
+        <div class="tp_con mob_cl">
+            <ol>
+                <li>
+                    <div class="menu_on">
+                    </div>
+                </li>
+                <li>
+                    <div class="menu_off">
+                    </div>
+                </li>
+            </ol>
+        </div>
+    </nav>    <div class="story_container_m mob_cl">
+        <a href="/" aria-label="返回 《超異域公主連結☆Re：Dive》 首頁"><img src="https://www.princessconnect.so-net.tw/images/logo_s.png" class="img-responsive center-block logo_s_m" alt=""></a>
+    </div>
+    <article>
+        <div class="title">
+            <h1>
+                <span class="visually-hidden">最新消息</span>
+                <img src="https://www.princessconnect.so-net.tw/images/title_news.png" alt="" aria-hidden="true">
+            </h1>
+        </div>
+        <!-- 公告 -->
+        <section class="news_con">
+            <p class="news_meta">
+                <time datetime="2026.11.13">2026.11.13</time>
+                <span class="ac01">活動</span>
+                            </p>
+            <h2>【活動】「NORMAL」裝備道具、星素掉落量3倍・瑪那掉落量2倍 舉辦預告</h2>
+            <div class="news-body" aria-labelledby="gameName">
+                <h3 id="gameName" class="visually-hidden">超異域公主連結☆Re：Dive</h3>
+                <p>
+                    <p><img alt="公告用圖/20240713.png" src="https://www.princessconnect.so-net.tw/uploads/公告用圖/20240713.png" style="width: 100%;" /></p>
+
+<p>2026/11/15 05:00起，將舉辦「NORMAL冒險」的裝備道具、星素掉落量3倍・瑪那掉落量2倍活動！<br />
+活動期間內，通關主線冒險(NORMAL)時所獲得的裝備道具、星素的獲得量將變為平常的3倍，瑪那的獲得量則將變為平常的2倍！<br />
+這是個能夠大量獲得強化角色時所需的道具及瑪那的大好機會！<br />
+請務必藉此機會進行挑戰！</p>
+
+<p>■活動期間<br />
+2026/11/15 05:00 ～ 2026/11/21 04:59</p>
+
+<p>■注意事項<br />
+1. 主角EXP、角色EXP、羈絆Pt、掃蕩獎勵、初次通關獎勵、獲得★3時的獎勵，皆非此活動之對象。<br />
+2. 「主線冒險(NORMAL)」的詳細介紹，請點擊遊戲內底部選單的［選單］，並於［幫助］中的「主線冒險」進行確認。<br />
+3. 舉辦期間及活動相關內容，將有可能不經預告逕行調整。</p>
+
+<p>※So-net 營運團隊保有活動最終修改與詮釋之權利，實際內容請以遊戲內資訊為準。活動舉辦日期與內容，均有可能未先告知而逕行調整，確切詳情以實際開放時所述為主。</p>
+                </p>
+            </div>
+            <!-- 頁碼 -->
+            <nav class="paging" aria-label="新聞列表分頁">
+                <ol>
+                    <li><a href="#" onclick="history.back(); return false;">回上一頁</a></li>
+                    <li><a href="/news">回列表首頁</a></li>
+                </ol>
+            </nav>
+        </section>
+        <div id="crm_dialog" role="dialog" aria-modal="true" aria-labelledby="crm_form_block" hidden>
+            <div id="crm_form_block" style="margin: 0 auto;width: 98%;height: 98%;overflow-y: auto;word-break: break-all;">
+            </div>
+        </div>
+            </article>
+    <!--gotop-->
+    <div id="pageTop">
+        <button type="button" class="border-0 bg-transparent" aria-label="回到最上層"><img src="https://www.princessconnect.so-net.tw/images/btn_totop.png" alt="" aria-hidden="true"></button>
+    </div></main>
+<!--End main-->
+<aside id="cookies-policy" class="cookies cookies--no-js" data-text="{&quot;more&quot;:&quot;\u5c55\u958b\u7d30\u7bc0&quot;,&quot;less&quot;:&quot;\u647a\u758a\u7d30\u7bc0&quot;}">
+    <div class="cookies__alert">
+        <div class="cookies__container">
+            <div class="cookies__wrapper">
+                <h3 class="cookies__title" style="text-align: center;">關於 cookies 隱私</h3>
+                <div class="cookies__intro">
+                    <p>本網站使用 cookie 來增強整體使用者體驗。</p>
+                                    </div>
+                <div class="cookies__actions">
+                    <form action="https://www.princessconnect.so-net.tw/cookie-consent/accept-essentials" method="post" data-cookie-action="accept.essentials" class="cookiesBtn cookiesBtn--essentials">
+    <input type="hidden" name="_token" value="T5gGHO4QCLzq4hlpG9h9kpfAqp6f10FbJDlwVQ7F" autocomplete="off">    <button type="submit" class="cookiesBtn__link">
+        <span class="cookiesBtn__label">只有必要</span>
+    </button>
+</form>
+                    <form action="https://www.princessconnect.so-net.tw/cookie-consent/accept-all" method="post" data-cookie-action="accept.all" class="cookiesBtn cookiesBtn--accept">
+    <input type="hidden" name="_token" value="T5gGHO4QCLzq4hlpG9h9kpfAqp6f10FbJDlwVQ7F" autocomplete="off">    <button type="submit" class="cookiesBtn__link">
+        <span class="cookiesBtn__label">接受所有</span>
+    </button>
+</form>
+                </div>
+            </div>
+        </div>
+            <a href="#cookies-policy-customize" class="cookies__btn cookies__btn--customize">
+                <span>自訂</span>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M14.7559 11.9782C15.0814 11.6527 15.0814 11.1251 14.7559 10.7996L10.5893 6.63297C10.433 6.47669 10.221 6.3889 10 6.38889C9.77899 6.38889 9.56703 6.47669 9.41075 6.63297L5.24408 10.7996C4.91864 11.1251 4.91864 11.6527 5.24408 11.9782C5.56951 12.3036 6.09715 12.3036 6.42259 11.9782L10 8.40074L13.5774 11.9782C13.9028 12.3036 14.4305 12.3036 14.7559 11.9782Z" fill="#2C2E30"/>
+                </svg>
+            </a>
+        <div class="cookies__expandable cookies__expandable--custom" id="cookies-policy-customize">
+            <form action="https://www.princessconnect.so-net.tw/cookie-consent/configure" method="post" class="cookies__customize">
+                <input type="hidden" name="_token" value="T5gGHO4QCLzq4hlpG9h9kpfAqp6f10FbJDlwVQ7F" autocomplete="off">                <div class="cookies__sections">
+                                        <div class="cookies__section">
+                        <label for="cookies-policy-check-essentials" class="cookies__category">
+                                                            <input type="hidden" name="categories[]" value="essentials" />
+                                <input type="checkbox" name="categories[]" value="essentials" id="cookies-policy-check-essentials" checked="checked" disabled="disabled" />
+                                                        <span class="cookies__box">
+                                <strong class="cookies__label">必要 cookies</strong>
+                            </span>
+                                                            <p class="cookies__info">我們必須包含一些 cookie 才能使某些網頁正常運行。</p>
+                                                    </label>
+
+                        <div class="cookies__expandable" id="cookies-policy-essentials">
+                            <ul class="cookies__definitions">
+                                                                <li class="cookies__cookie">
+                                    <p class="cookies__name">so_net_pcr_cookie_consent</p>
+                                    <p class="cookies__duration">1年1個月1天</p>
+                                                                            <p class="cookies__description">用於儲存使用者的 cookie 同意偏好。</p>
+                                                                    </li>
+                                                                <li class="cookies__cookie">
+                                    <p class="cookies__name">so_net_pcr_session</p>
+                                    <p class="cookies__duration">1天</p>
+                                                                            <p class="cookies__description">用於識別使用者的瀏覽會話。</p>
+                                                                    </li>
+                                                                <li class="cookies__cookie">
+                                    <p class="cookies__name">XSRF-TOKEN</p>
+                                    <p class="cookies__duration">1天</p>
+                                                                            <p class="cookies__description">用於確保使用者和我們的網站避免跨站點請求偽造攻擊。</p>
+                                                                    </li>
+                                                                <li class="cookies__cookie">
+                                    <p class="cookies__name">so_net_sys_conf</p>
+                                    <p class="cookies__duration">1天</p>
+                                                                            <p class="cookies__description">用於儲存使用者的操作環境偏好。</p>
+                                                                    </li>
+                                                            </ul>
+                        </div>
+                        <a href="#cookies-policy-essentials" class="cookies__details">展開細節</a>
+                    </div>
+                                    </div>
+                <div class="cookies__save">
+                    <button type="submit" class="cookiesBtn__link">儲存設定</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</aside>
+
+
+
+<script data-cookie-consent>
+    (()=>{var e,t={148:()=>{var e=document.querySelector("#cookies-policy"),t=document.querySelector(".cookiereset");if(t&&t.addEventListener("submit",(function(e){return function(e){if(e.preventDefault(),document.querySelector("#cookies-policy"))return;window.LaravelCookieConsent.reset()}(e)})),e){var o=e.querySelector(".cookies__btn--customize"),n=e.querySelectorAll(".cookies__details"),i=e.querySelector(".cookiesBtn--accept"),r=e.querySelector(".cookiesBtn--essentials"),s=e.querySelector(".cookies__customize"),c=JSON.parse(e.getAttribute("data-text"));e.removeAttribute("data-text"),e.classList.remove("cookies--no-js"),e.classList.add("cookies--closing"),setTimeout((function(){e.classList.remove("cookies--closing")}),310);for(var u=0;u<n.length;u++)n[u].addEventListener("click",(function(e){return a(e,e.target,!1)}));o.addEventListener("click",(function(e){return a(e,o)})),i.addEventListener("submit",(function(e){return function(e){e.preventDefault(),window.LaravelCookieConsent.acceptAll(),l()}(e)})),r.addEventListener("submit",(function(e){return function(e){e.preventDefault(),window.LaravelCookieConsent.acceptEssentials(),l()}(e)})),s.addEventListener("submit",(function(e){return function(e){e.preventDefault(),window.LaravelCookieConsent.configure(new FormData(e.target)),l()}(e)})),window.addEventListener("resize",(function(t){window.innerHeight<=e.offsetHeight?e.querySelector(".cookies__sections").style.maxHeight="50vh":e.querySelector(".cookies__sections").removeAttribute("style")}))}function a(t,o){var n=!(arguments.length>2&&void 0!==arguments[2])||arguments[2];t.preventDefault(),t.target.blur();var i=e.querySelector(o.getAttribute("href")),r=i.firstElementChild.offsetHeight,s=i.classList.contains("cookies__expandable--open");i.setAttribute("style","height:"+(s?r:0)+"px"),function(e,t,o){if(e)return;o.target.textContent=t?c.more:c.less}(n,s,t),setTimeout((function(){i.classList.toggle("cookies__expandable--open"),i.setAttribute("style","height:"+(s?0:r)+"px"),setTimeout((function(){i.removeAttribute("style")}),310)}),10),function(t,o){if(!t)return;var n=e.querySelector(".cookies__container"),i=n.firstElementChild.offsetHeight;n.setAttribute("style","height:"+(o?0:i)+"px"),setTimeout(function(e){return function(){e.classList.toggle("cookies--show"),n.classList.toggle("cookies__container--hide"),n.setAttribute("style","height:"+(o?i:0)+"px"),setTimeout((function(){n.removeAttribute("style")}),320)}}(e),10)}(n,s)}function l(){e.classList.add("cookies--closing"),setTimeout(function(e){return function(){e.parentNode.querySelectorAll("[data-cookie-consent]").forEach((function(e){e.parentNode.removeChild(e)})),e.parentNode.removeChild(e)}}(e),210)}},985:()=>{}},o={};function n(e){var i=o[e];if(void 0!==i)return i.exports;var r=o[e]={exports:{}};return t[e](r,r.exports,n),r.exports}n.m=t,e=[],n.O=(t,o,i,r)=>{if(!o){var s=1/0;for(l=0;l<e.length;l++){for(var[o,i,r]=e[l],c=!0,u=0;u<o.length;u++)(!1&r||s>=r)&&Object.keys(n.O).every((e=>n.O[e](o[u])))?o.splice(u--,1):(c=!1,r<s&&(s=r));if(c){e.splice(l--,1);var a=i();void 0!==a&&(t=a)}}return t}r=r||0;for(var l=e.length;l>0&&e[l-1][2]>r;l--)e[l]=e[l-1];e[l]=[o,i,r]},n.o=(e,t)=>Object.prototype.hasOwnProperty.call(e,t),(()=>{var e={879:0,314:0};n.O.j=t=>0===e[t];var t=(t,o)=>{var i,r,[s,c,u]=o,a=0;if(s.some((t=>0!==e[t]))){for(i in c)n.o(c,i)&&(n.m[i]=c[i]);if(u)var l=u(n)}for(t&&t(o);a<s.length;a++)r=s[a],n.o(e,r)&&e[r]&&e[r][0](),e[r]=0;return n.O(l)},o=self.webpackChunklaravel_cookie_consent=self.webpackChunklaravel_cookie_consent||[];o.forEach(t.bind(null,0)),o.push=t.bind(null,o.push.bind(o))})(),n.O(void 0,[314],(()=>n(148)));var i=n.O(void 0,[314],(()=>n(985)));i=n.O(i)})();
+</script>
+<style data-cookie-consent>
+    #cookies-policy.cookies{bottom:0;font-size:16px;max-height:100%;max-width:100%;overflow:auto;position:fixed;right:0;transition:transform .2s ease-out,opacity .2s ease-out;z-index:9999}#cookies-policy.cookies--closing{opacity:0;transform:translateY(10px)}#cookies-policy.cookies--show .cookies__btn--customize{border-bottom:1px solid #e7e8e9;border-top:none}#cookies-policy.cookies--show .cookies__btn svg{transform:rotate(180deg)}#cookies-policy.cookies--no-js .cookies__expandable:target,#cookies-policy.cookies--no-js .cookies__section .cookies__expandable{height:auto;opacity:1;transition:height .3s ease-out,opacity .3s ease-out;visibility:visible}#cookies-policy.cookies--no-js .cookies__details{display:none}#cookies-policy.cookies--no-js .cookies__sections{max-height:-moz-fit-content;max-height:fit-content}#cookies-policy.cookies--no-js svg{display:none}#cookies-policy .cookies__expandable{display:block;height:0;opacity:0;overflow:hidden;transition:height .3s ease-out,opacity .3s ease-out,visibility 0s linear .3s;visibility:hidden}#cookies-policy .cookies__expandable--open{height:auto;opacity:1;transition:height .3s ease-out,opacity .3s ease-out;visibility:visible}#cookies-policy .cookies__alert{background:#fff;border:1px solid #e7e8e9;border-radius:8px;box-shadow:0 12px 12px -8px rgba(0,0,0,.08),0 0 4px rgba(0,0,0,.04);margin:4%;max-height:90%;max-width:90%;width:22em}#cookies-policy .cookies__container{display:block;height:auto;opacity:1;overflow:hidden;transition:height .3s ease-out,opacity .3s ease-out,visibility 0s linear .1s;visibility:visible}#cookies-policy .cookies__container--hide{height:0;opacity:0;transition:height .3s ease-out,opacity .3s ease-out,visibility 0s linear .3s;visibility:hidden}#cookies-policy .cookies__wrapper{padding:1em 1.5em}#cookies-policy .cookies__title{color:#2c2e30;font-weight:700;line-height:1.4em;margin-bottom:.8em}#cookies-policy .cookies__intro{color:#2c2e30;font-size:.875em;font-weight:450;line-height:1.4em}#cookies-policy .cookies__intro p{margin-top:1em}#cookies-policy .cookies__intro p:first-child{margin-top:0}#cookies-policy .cookies__intro a{color:inherit;text-decoration:underline;transition:color .2s ease-out}#cookies-policy .cookies__intro a:focus,#cookies-policy .cookies__intro a:hover{color:#0d6efd}#cookies-policy .cookies__actions{display:flex;flex-direction:column;gap:4px;justify-content:space-between;margin-top:1em}#cookies-policy .cookies__btn--customize{align-items:center;border-top:1px solid #e7e8e9;color:#2c2e30;display:flex;font-size:.875em;font-weight:600;justify-content:space-between;line-height:1em;padding:1.125em 24px;position:relative;text-decoration:none}#cookies-policy .cookies__btn svg{transition:transform .2s ease-out}#cookies-policy .cookies__sections{max-height:450px;overflow-y:scroll}#cookies-policy .cookies__section{padding:0 1.5em}#cookies-policy .cookies__section+.cookies__section{border-top:1px solid #eee}#cookies-policy .cookies__box,#cookies-policy .cookies__category{display:block;overflow:hidden;position:relative}#cookies-policy .cookies__category input{display:block;margin:0;padding:0;position:absolute;right:105%;top:0}#cookies-policy .cookies__box{cursor:pointer;line-height:1.4em;padding:1em 3em 1em 0}#cookies-policy .cookies__box:after,#cookies-policy .cookies__box:before{border-radius:1.4em;content:"";display:block;position:absolute;top:50%}#cookies-policy .cookies__box:after{background:#e7e8e9;height:1.4em;margin-top:-.7em;right:0;transition:background .2s ease-out,opacity .2s ease-out;width:2.5em;z-index:0}#cookies-policy .cookies__box:before{background:#fff;height:1em;margin-top:-.5em;right:.75em;transform:translateX(-.55em);transition:transform .2s ease-out;width:1em;z-index:1}#cookies-policy .cookies__category input:checked+.cookies__box:after{background:#0d6efd;opacity:1}#cookies-policy .cookies__category input:disabled+.cookies__box:after{opacity:.6}#cookies-policy .cookies__category input:checked+.cookies__box:before{transform:translateX(.55em)}#cookies-policy .cookies__label{color:#2c2e30;font-size:.875em;font-weight:600}#cookies-policy .cookies__info{color:#2c2e30;font-size:.875em;font-weight:450;line-height:1.4em}#cookies-policy .cookies__details{color:#0d6efd;display:block;font-size:.875em;margin:.625em 0 .9em;transition:color .2s ease-out}#cookies-policy .cookies__details:focus,#cookies-policy .cookies__details:hover{color:#0d6efd}#cookies-policy .cookies__definitions{color:#676767;font-size:.875em;line-height:1.2em;padding-top:.8em}#cookies-policy .cookies__cookie+.cookies__cookie{margin-top:1em}#cookies-policy .cookies__name{color:#8a8e92;display:inline;font-weight:600;line-height:22px}#cookies-policy .cookies__duration{color:#8a8e92;display:inline;text-align:right}#cookies-policy .cookies__description{color:#8a8e92;display:block;line-height:120%;padding-top:.3em;text-align:left;width:100%}#cookies-policy .cookies__save{border-top:1px solid #e7e8e9;display:flex;justify-content:flex-end;margin-top:.4em;padding:.75em 1.5em}#cookies-policy .cookiesBtn{width:100%}#cookies-policy .cookiesBtn__link{background:#0d6efd;border:1px solid #0d6efd;border-radius:4px;color:#fff;cursor:pointer;display:block;font:inherit;font-size:14px;font-weight:600;line-height:1em;margin:0;overflow:hidden;padding:.86em 1em;text-align:center;text-decoration:none;text-overflow:ellipsis;transition:opacity .2s ease-out;white-space:nowrap;width:100%}#cookies-policy .cookiesBtn__link:focus,#cookies-policy .cookiesBtn__link:hover{opacity:.8}@media (max-width: 575.98px){#cookies-policy.cookies{right: 50%;transform: translate(50%, 0);}
+}
+
+</style>
+    <div id="companyBlock" class="container-fluid bg-white p-0 border border-top-1 border-bottom-1" style="display: none;">
+    <div calss="row g-0">
+        <div class="col">
+            <nav class="d-flex justify-content-center text-nowrap py-2 company_info" aria-label="公司資訊導覽">
+                <div class="border-end px-2">
+                    <a class="text-decoration-none link-body-emphasis" href="https://corporate.so-net.net.tw/">關於So-net</a>
+                </div>
+                <div class="border-end px-2">
+                    <a class="text-decoration-none link-body-emphasis" href="https://corporate.so-net.net.tw/proposal/">合作提案</a>
+                </div>
+                <div class="border-end px-2">
+                    <a class="text-decoration-none link-body-emphasis" href="https://corporate.so-net.net.tw/joinus/">菁英招募</a>
+                </div>
+                <div class="border-end px-2">
+                    <a class="text-decoration-none link-body-emphasis" href="https://corporate.so-net.net.tw/regulations/">營業規章</a>
+                </div>
+                <div class="px-2">
+                    <a class="text-decoration-none link-body-emphasis" href="https://corporate.so-net.net.tw/privacy/">隱私權政策</a>
+                </div>
+            </nav>
+        </div>
+    </div>
+</div>
+<footer id="copyRightBlock" class="bg-white" style="display: none;">
+    <div class="container">
+        <div class="row justify-content-center align-items-center">
+            <div class="col-auto game_2_logo">
+                <img src="https://www.princessconnect.so-net.tw/images/footer_logo1.png" alt="Cygames logo" />
+                <img src="https://www.princessconnect.so-net.tw/images/footer_logo2.png" alt="So-net logo">
+            </div>
+            <div class="col-auto ms-auto game_class d-block d-md-none">
+                <img src="https://www.princessconnect.so-net.tw/build/assets/class_12-0db3e39d.png" alt="遊戲分級 輔12級" />
+            </div>
+            <div class="col-auto copyright py-2">
+                © Cygames, Inc. Published by So-net Entertainment Taiwan Limited.
+            </div>
+            <div class="col-auto game_class d-none d-md-block">
+                <img src="https://www.princessconnect.so-net.tw/build/assets/class_12-0db3e39d.png" alt="遊戲分級 輔12級" />
+            </div>
+        </div>
+    </div>
+    <div class="container">
+        <div class="row justify-content-center align-items-center">
+            <div class="col-auto game_warn py-1">
+                *本遊戲涉及暴力(可愛人物打鬥)、戀愛之情節，依遊戲軟體分級管理辦法，分類為輔12級。<br />
+                *本遊戲為免費使用，但遊戲內部分內容或服務需另行支付其它費用。<br />
+                *請注意遊戲時間，避免沉迷於遊戲，可能影響身心健康。<br />
+                *<a class="highlight_link" href="https://165.npa.gov.tw/#/promotion" target="_blank" rel="noopener noreferrer">謹慎防範詐騙行為與非官方公告資訊</a>
+            </div>
+        </div>
+    </div>
+</footer></body>
+
+</html>

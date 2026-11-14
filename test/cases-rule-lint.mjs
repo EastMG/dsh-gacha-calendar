@@ -169,8 +169,11 @@ export default async function run() {
 	//   ⇒ 厂商级 24 + 1 = 25；合计 25 + 18 = 43 个文件。
 	// 2026-11-15 同日再 +1：`30-game-hl.js`（碧蓝航线：国服 hl 只接活动 + 日服 hl-jp 卡池/活动同一条新闻列表）
 	//   ⇒ 厂商级 25 + 1 = 26；合计 26 + 18 = 44 个文件。
-	check("游戏文件齐备（26 个厂商/系列文件 + bwiki 系 18 段 = 44 个）",
-		vendorFiles.length === 26 && bwikiFiles.length === 18,		`厂商=${vendorFiles.length} bwiki=${bwikiFiles.length}`);
+	// 2026-11-15 再 +2：`30-game-pcr-tw.js`（公主连结·繁中服，官网公告：列表 + 详情）⇒ 厂商级 26 + 1 = 27；
+	//   `30-game-bwiki-reso.js`（雷索纳斯，bwiki 活动日历的 wikitext）⇒ bwiki 系 18 + 1 = 19。
+	//   合计 27 + 19 = 46 个文件。
+	check("游戏文件齐备（27 个厂商/系列文件 + bwiki 系 19 段 = 46 个）",
+		vendorFiles.length === 27 && bwikiFiles.length === 19,		`厂商=${vendorFiles.length} bwiki=${bwikiFiles.length}`);
 	const hit = [];
 	// ⚠️ 重组后**条目声明也住在游戏文件里**（`registerSource({ … })`），而条目里的
 	//    `source:` / `eventSource:` / `label:` 是**数据**（如「Bestdori 扭蛋（社区数据库）」），
