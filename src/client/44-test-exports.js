@@ -360,6 +360,26 @@
 				komoeTwWindowOfLine,
 				komoeTwWindowsOf,
 			},
+			// 2026-11-15：赛马娘·韩服（Daum 카페 月间日程帖，见 30-game-daum.js）。
+			// 导出小步：夹具可以分别钉「列表页认不认得出置顶稿」「正文分块」「韩文区间」「角色小节」。
+			"umakr": {
+				UMA_KR_BOARD_URL,
+				UMA_KR_SCHEDULE_URL,
+				UMA_KR_SOURCE_LABEL,
+				UMA_KR_TZ,
+				fetchUmaKr: ns_umakr_fetchUmaKr,
+				umaKrBlocksOf,
+				umaKrHintOf,
+				umaKrItemsOf,
+				umaKrLinesOf,
+				umaKrNoticesOf,
+				umaKrPayloadOf,
+				umaKrPoolTypeOf,
+				umaKrRolesOf,
+				umaKrScheduleRowOf,
+				umaKrWindowOfBlock,
+				umaKrWindowOfLine,
+			},
 			// 2026-11-13：TapTap 官方账号 tab 页的 SSR 解码（嘟嘟脸 / 夜幕之下共用，见 22-fetcher-core.js）。
 			// 导出小步：夹具可以分别钉「devalue 解引用」「结构定位」「行文本」「页码 → URL」，
 			// 反证也能精确指向坏在哪一步（没有 `__NUXT_DATA__` / 解码坏 / 找不到列表 / 一帖都没有）。
