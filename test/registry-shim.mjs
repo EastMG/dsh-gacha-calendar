@@ -74,6 +74,15 @@ NEXT_SOURCES.push(
 		name: "崩坏学园2",
 		gacha: { url: T.parsers.bh2.BH2_LIST_URL, kind: "official-api", mode: "proxy", fetcher: resolve("bh2.gachaBh2") },
 		event: { url: T.parsers.bh2.BH2_LIST_URL, kind: "official-api", mode: "proxy", fetcher: resolve("bh2.eventsBh2") }
+	},
+	// 2026-11-15 以闪亮之名（yslz）：bwiki 两个分类 —— 卡池 `Category:限时追光`（分类成员 + 正文）、
+	// 活动 `Category:活动`（SMW ask）。两侧都走宿主代理（该站 ACAO 为空）+ `Referer`。
+	{
+		id: "yslz",
+		tz: "Asia/Shanghai",
+		name: "以闪亮之名",
+		gacha: { url: T.parsers.yslz.YSLZ_GACHA_URL, kind: "wiki", mode: "proxy", fetcher: resolve("yslz.gachaYslz") },
+		event: { url: T.parsers.yslz.YSLZ_EVENTS_URL, kind: "wiki", mode: "proxy", fetcher: resolve("yslz.eventsYslz") }
 	}
 );
 

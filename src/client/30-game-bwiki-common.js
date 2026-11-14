@@ -378,7 +378,7 @@ function ns_bwiki_batchGachaPayloadOf(items, tz, now, opts) {
 	out.gachaHoverItems = hoverItems;
 	return out;
 }
-function ns_bwiki_eventPayload(items, tz, now, permanentCount = 0) {
+function ns_bwiki_eventPayload(items, tz, now, permanentCount = 0, id = "") {
 	const cur = ns_bwiki_pickCurrentEvent(items, now);
 	if (!cur) return null;
 	const first = cur.first;
@@ -393,7 +393,11 @@ function ns_bwiki_eventPayload(items, tz, now, permanentCount = 0) {
 		eventDatesRaw: first.raw || "",
 		...(hover ? { eventHover: hover } : {})
 	};
-	out.events = dataArrayProducedEventsOf(out, hoverItems, { tz }, now);
+	// `id` = 条目 id（数组 key 前缀）。**可选第 5 参**、默认空串：不传时与改造前逐字相同
+	// （key 从 `:event:0` 起），传了才写成 `yslz:event:0` —— 与卡池侧
+	// `ns_bwiki_batchGachaPayloadOf({ id })` 的 `yslz:gacha:0` 同一形态（`dataArrayProducedListOf` 的
+	// 约定是 `id + ":event"`；漏传会让不同游戏的数组 key 撞成同一个）。
+	out.events = dataArrayProducedEventsOf(out, hoverItems, { id, tz }, now);
 	out.eventHoverItems = hoverItems;
 	return out;
 }

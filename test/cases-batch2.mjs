@@ -1128,4 +1128,309 @@ export default async function runBatch2() {
 				!!errD && /yys-detail-changed/.test(errD.message), JSON.stringify(errD && errD.message));
 		}
 	}
+
+	// ═══════════════ ⑥ 以闪亮之名（yslz）—— bwiki 两个分类：卡池 / 活动 ═══════════════
+	section("以闪亮之名 ⑥：bwiki 分类（卡池 `Category:限时追光` + 活动 SMW ask）—— 注册 / 脏日期 / 复刻档 / 分页 / 反证");
+	{
+		const Y = T.parsers.yslz;
+		const raw = (name) => fixtureBody("fixture:" + name, { ["fixture:" + name]: name + "/response.txt" });
+		const g1Raw = raw("yslz-gacha");
+		const g2Raw = raw("yslz-gacha-p2");
+		const e1Raw = raw("yslz-events");
+		const e2Raw = raw("yslz-events-p2");
+		// 夹具抓取时刻 = 2026-11-15T03:31Z（+08 11:31）；now 取 11:30+08 ⇒ 三个窗口都还在期、
+		// 魔卡契约的复刻（11-17 10:00）还没开。
+		const NOW_YS = Date.parse("2026-11-15T11:30:00+08:00");
+		const pagesOf = (jsonText) => JSON.parse(jsonText).query.pages
+			.filter((p) => p.revisions && p.revisions[0].slots.main)
+			.map((p) => ({ title: p.title, content: p.revisions[0].slots.main.content }));
+		const pages1 = pagesOf(g1Raw), pages2 = pagesOf(g2Raw);
+		const RERUN = Y.YSLZ_RERUN_TAG;
+
+		// ── 注册项 ──
+		{
+			const s = T.SOURCES.find((x) => x.id === "yslz") || null;
+			check("条目已存在（id = yslz）", !!s, s ? s.id : "缺失");
+			check("名称 = 以闪亮之名", !!s && s.name === "以闪亮之名", s && s.name);
+			check("tz = Asia/Shanghai（源站墙钟 = 国服）", !!s && s.tz === "Asia/Shanghai", s && String(s.tz));
+			check("defaultHidden = false（出厂展示）", !!s && s.defaultHidden === false, s && String(s.defaultHidden));
+			check("有游戏主题色（#rrggbb）", !!s && /^#[0-9A-Fa-f]{6}$/.test(String(s.color)), s && String(s.color));
+			check("卡池 url = `generator=categorymembers` + `gcmtitle=Category:限时追光` + `prop=revisions`（一次拿成员 + 正文）",
+				!!s && s.url === Y.YSLZ_GACHA_URL && /gcmtitle=Category%3A/.test(s.url) && /gcmnamespace=0/.test(s.url)
+				&& /prop=revisions/.test(s.url) && /rvprop=content/.test(s.url), s && String(s.url));
+			check("活动 eventUrl = SMW `action=ask` + `[[分类:活动]]|?名称|?开始时间|?结束时间`（limit=500）",
+				!!s && s.eventUrl === Y.YSLZ_EVENTS_URL && /action=ask/.test(s.eventUrl)
+				&& /%E5%88%86%E7%B1%BB%3A%E6%B4%BB%E5%8A%A8/.test(s.eventUrl) && /limit%3D500/.test(s.eventUrl),
+				s && String(s.eventUrl));
+			check("两侧来源标签逐字 = 「Bwiki 限时追光」/「Bwiki 活动一览」（**提议**，等用户复核）",
+				!!s && s.source === "Bwiki 限时追光" && s.eventSource === "Bwiki 活动一览",
+				s && JSON.stringify([s.source, s.eventSource]));
+			const e0 = engineAt(NOW_YS, []);
+			check("两侧抓取器都登记（GACHA_FETCHERS.yslz / EVENT_FETCHERS.yslz.default）",
+				typeof e0.__test.GACHA_FETCHERS["yslz"] === "function"
+				&& !!(e0.__test.EVENT_FETCHERS["yslz"] && typeof e0.__test.EVENT_FETCHERS["yslz"].default === "function"));
+		}
+
+		// ── 脏日期归一（纯函数）：双空格 / 无前导零 / 只有日期 / 单边 / 源站错行 ──
+		{
+			const w1 = Y.yslzWindowOf("2026/11/03  09:10", "2026/11/23  23:59", Y.YSLZ_TZ);
+			check("双空格 `2026/11/03  09:10` ⇒ 09:10（不是 00:00），display = 「11-03 09:10 ~ 11-23 23:59」",
+				!!w1 && w1.display === "11-03 09:10 ~ 11-23 23:59" && w1.startTs === Date.UTC(2026, 10, 3, 1, 10),
+				JSON.stringify(w1 && [w1.display, w1.startTs]));
+			const w2 = Y.yslzWindowOf("2026/8/30", "2026/9/15", Y.YSLZ_TZ);
+			check("无前导零 + 只有日期 `2026/8/30` ~ `2026/9/15` ⇒ 起 00:00 / 止 23:59（`08-30 00:00 ~ 09-15 23:59`）",
+				!!w2 && w2.display === "08-30 00:00 ~ 09-15 23:59"
+				&& w2.startTs === Date.UTC(2026, 7, 29, 16, 0) && w2.endTs === Date.UTC(2026, 8, 15, 15, 59),
+				JSON.stringify(w2 && [w2.display, w2.startTs, w2.endTs]));
+			const w3 = Y.yslzWindowOf("2026/11/03 10:00", "", Y.YSLZ_TZ);
+			check("只有一端 ⇒ 另一端 null（不猜结束日），raw 照原文",
+				!!w3 && w3.endTs === null && w3.startTs === Date.UTC(2026, 10, 3, 2, 0) && w3.raw === "2026/11/03 10:00",
+				JSON.stringify(w3));
+			const w4 = Y.yslzWindowOf("2026/04/07 10:00", "2025/04/21 05:00", Y.YSLZ_TZ);
+			check("源站错行（止早于起）⇒ 两端 null + 原文保留（不硬造在期）",
+				!!w4 && w4.startTs === null && w4.endTs === null && w4.raw === "2026/04/07 10:00 ~ 2025/04/21 05:00",
+				JSON.stringify(w4));
+			const w5 = Y.yslzWindowOf("", "", Y.YSLZ_TZ);
+			check("两端都空 ⇒ null", w5 === null, JSON.stringify(w5));
+		}
+
+		// ── 纯解析：卡池（两页正文合起来 9 页 → 1 + N 条窗口）──
+		{
+			const items = Y.yslzParsePools(pages1.concat(pages2), Y.YSLZ_TZ);
+			check("9 页正文 ⇒ 16 条窗口（棱彩幻梦 / 黯影新誓 各 3 = 原始 + 2 次复刻；谲舞缚厄 / 月狩神谕 / 魔卡契约 各 2；其余 4 页各 1）",
+				items.length === 16, String(items.length));
+			const shi = items.find((x) => x.banner === "追光·时砂寄念" && x.isMain === true);
+			check("当期主档 追光·时砂寄念 = 原始档（isMain）",
+				!!shi && shi.category === "" && shi.raw === "2026/11/03 10:00 ~ 2026/11/23 23:59",
+				JSON.stringify(shi && [shi.category, shi.raw]));
+			check("角色 = 套装1~3 + 羁绊角色（`、` 连接，去重保序）=「逆时沙海、风翎叶信、珠幕摇星、落言」",
+				!!shi && shi.roles === "逆时沙海、风翎叶信、珠幕摇星、落言", shi && shi.roles);
+			const rerun = items.filter((x) => x.banner === "追光·黯影新誓");
+			check("黯影新誓 = 原始档 + 2 个复刻档（第 1 次 01-21 / 第 2 次 10-27）",
+				rerun.length === 3 && rerun.filter((x) => x.category === RERUN).length === 2
+				&& rerun.some((x) => x.raw === "2026/10/27 10:00 ~ 2026/11/16 23:59" && x.startTs === Date.UTC(2026, 9, 27, 2, 0)),
+				JSON.stringify(rerun.map((x) => [x.raw, x.category])));
+			check("复刻档的 category = 复刻 / isMain = false；原始档 category = 空 / isMain = true",
+				rerun.filter((x) => x.isMain === true).length === 1
+				&& rerun.filter((x) => x.isMain === false).every((x) => x.category === RERUN));
+			const pools = Y.yslzParsePools(pages1, Y.YSLZ_TZ);
+			check("第 1 页（6 页）里**没有**时砂寄念 —— 当期主档在第 2 页（`rvcontinue` 那一页）",
+				!pools.some((x) => x.banner === "追光·时砂寄念"), JSON.stringify(pools.map((x) => x.banner)));
+			check("`yslzPoolRolesOf` 去重（套装与羁绊同名时只留一个）",
+				Y.yslzPoolRolesOf({ 套装1: "甲", 套装2: "甲", 套装3: "", 羁绊角色: "乙" }) === "甲、乙",
+				Y.yslzPoolRolesOf({ 套装1: "甲", 套装2: "甲", 套装3: "", 羁绊角色: "乙" }));
+			check("`yslzFieldOf` 只读到行内值（`|阁名=甲|邀请函=乙` ⇒ 甲）",
+				Y.yslzFieldOf("|阁名=甲|邀请函=乙", "阁名") === "甲", Y.yslzFieldOf("|阁名=甲|邀请函=乙", "阁名"));
+			check("`yslzRerunsOf` 按 N 升序、缺的一端给空串",
+				JSON.stringify(Y.yslzRerunsOf("|第2次复刻开始时间=2026/10/27 10:00|第1次复刻开始时间=2026/01/21 10:00|第1次复刻结束时间=2026/02/10 23:59"))
+				=== JSON.stringify([{ k: 1, start: "2026/01/21 10:00", end: "2026/02/10 23:59" }, { k: 2, start: "2026/10/27 10:00", end: "" }]),
+				JSON.stringify(Y.yslzRerunsOf("|第2次复刻开始时间=2026/10/27 10:00|第1次复刻开始时间=2026/01/21 10:00|第1次复刻结束时间=2026/02/10 23:59")));
+		}
+
+		// ── 卡池载荷（引擎路径）：外显 = 结束最早的**在期**窗口（= 复刻里的 11-16）──
+		{
+			const calls = [];
+			const e = engineAt(NOW_YS, calls);
+			const s = e.__test.SOURCES.find((x) => x.id === "yslz");
+			const g = await e.__test.GACHA_FETCHERS["yslz"](s.url, undefined, s.tz, NOW_YS);
+			check("卡池抓取器返回对象", !!g && typeof g === "object");
+			check("外显 = 追光·黯影新誓（在期窗口里结束最早：11-16 23:59；复刻窗口也算当期）",
+				g && g.banner === "追光·黯影新誓", JSON.stringify(g && g.banner));
+			check("外显角色 = 该批自己的套装（同批 = endTs 相同 ⇒ 只有它自己，不串到别的池）",
+				g && g.roles === "无烬之誓、隐刃破晓、馥心夜蔷、蓝殊", JSON.stringify(g && g.roles));
+			check("档期 = 「10-27 10:00 ~ 11-16 23:59」/ 原文「2026/10/27 10:00 ~ 2026/11/16 23:59」",
+				g && g.bannerDates === "10-27 10:00 ~ 11-16 23:59"
+				&& g.bannerDatesRaw === "2026/10/27 10:00 ~ 2026/11/16 23:59",
+				JSON.stringify(g && [g.bannerDates, g.bannerDatesRaw]));
+			check("startTs / endTs = UTC 10-27 02:00 / 11-16 15:59",
+				g && g.startTs === Date.UTC(2026, 9, 27, 2, 0) && g.endTs === Date.UTC(2026, 10, 16, 15, 59),
+				JSON.stringify(g && [g.startTs, g.endTs]));
+			const arr = (g && g.gacha) || [];
+			check("gacha[] = 3 条（主条 + 2 个并列条），key 前缀 = yslz:gacha",
+				arr.length === 3 && arr.every((x) => String(x.key).indexOf("yslz:gacha:") === 0),
+				JSON.stringify(arr.map((x) => x.key)));
+			check("gacha[] 逐条标题 = 黯影新誓 / 时砂寄念：… / 月狩神谕：…（与悬停同序同源）",
+				arr.length === 3 && arr[0].title === "追光·黯影新誓"
+				&& arr[1].title === "追光·时砂寄念：逆时沙海、风翎叶信、珠幕摇星、落言"
+				&& arr[2].title === "追光·月狩神谕：朔月神临、墨绛焚花、沉砂絮语、苏黎",
+				JSON.stringify(arr.map((x) => x.title)));
+			check("复刻档在数组里带 category = 复刻（走 itemFacts 通道，主条与并列条都有）",
+				arr.length === 3 && arr[0].category === RERUN && arr[2].category === RERUN && arr[1].category === void 0,
+				JSON.stringify(arr.map((x) => x.category)));
+			check("**未来复刻不进数组**（魔卡契约 第 1 次 11-17 10:00 才开）",
+				arr.every((x) => x.title.indexOf("魔卡契约") < 0), JSON.stringify(arr.map((x) => x.title)));
+			check("悬停逐字（3 个在期窗口 × 名称 + 档期两行）",
+				g && g.bannerHover === "追光·黯影新誓：无烬之誓、隐刃破晓、馥心夜蔷、蓝殊\n10-27 10:00 ~ 11-16 23:59\n"
+				+ "追光·时砂寄念：逆时沙海、风翎叶信、珠幕摇星、落言\n11-03 10:00 ~ 11-23 23:59\n"
+				+ "追光·月狩神谕：朔月神临、墨绛焚花、沉砂絮语、苏黎\n11-11 10:00 ~ 12-01 23:59",
+				JSON.stringify(g && g.bannerHover));
+			check("悬停合规（只含名称与档期）", assertHoverConvention("yslz 卡池", g && g.bannerHover, { requireSet: true }) !== false);
+			check("**2 个请求**：分类成员+正文（第 1 页）+ `rvcontinue` 续页（当期主档在续页里）",
+				calls.length === 2
+				&& /gcmtitle=Category%3A/.test(calls[0].url) && !/rvcontinue/.test(calls[0].url)
+				&& /rvcontinue=/.test(calls[1].url),
+				JSON.stringify(calls.map((c) => c.url.slice(-46))));
+			check("两个请求都走宿主代理 + `Referer: https://wiki.biligame.com/` + 自动补 `origin=*`",
+				calls.length === 2 && calls.every((c) => c.via === "proxy" && c.referer === Y.YSLZ_REFERER)
+				&& calls.every((c) => /[?&]origin=\*/.test(c.url)),
+				JSON.stringify(calls.map((c) => [c.via, c.referer, /origin=\*/.test(c.url)])));
+		}
+
+		// ── 活动载荷（引擎路径）：ask 两页合并 ──
+		{
+			const calls = [];
+			const e = engineAt(NOW_YS, calls);
+			const s = e.__test.SOURCES.find((x) => x.id === "yslz");
+			const d = await e.__test.EVENT_FETCHERS["yslz"].default(s.eventUrl, undefined, s.tz, NOW_YS);
+			check("活动抓取器返回对象", !!d && typeof d === "object");
+			check("外显活动 = 店长体验·星幕季（在期活动里结束最早：11-17 05:00）",
+				d && d.event === "店长体验·星幕季", JSON.stringify(d && d.event));
+			check("活动档期 = 「11-03 10:00 ~ 11-17 05:00」/ 原文「2026/11/03 10:00 ~ 2026/11/17 05:00」",
+				d && d.eventDates === "11-03 10:00 ~ 11-17 05:00"
+				&& d.eventDatesRaw === "2026/11/03 10:00 ~ 2026/11/17 05:00",
+				JSON.stringify(d && [d.eventDates, d.eventDatesRaw]));
+			const arr = (d && d.events) || [];
+			check("events[] = 5 条（在期 5 条；往期 / 缺一端 / 错行都不进），key 前缀 = yslz:event",
+				arr.length === 5 && arr.every((x) => String(x.key).indexOf("yslz:event:") === 0),
+				JSON.stringify(arr.map((x) => [x.key, x.title])));
+			check("events[] 按结束时间升序（每条的绝对时刻 = 源站墙钟按 +08 换算）",
+				arr.length === 5 && arr.every((x, i) => i === 0 || x.endTs >= arr[i - 1].endTs)
+				&& arr[0].startTs === Date.UTC(2026, 10, 3, 2, 0) && arr[0].endTs === Date.UTC(2026, 10, 16, 21, 0),
+				JSON.stringify(arr.map((x) => [x.title, x.startTs, x.endTs])));
+			check("双空格那条（泠雨织澜 09:10）在数组里逐字 = 「11-03 09:10 ~ 11-23 23:59」",
+				arr.some((x) => x.title === "泠雨织澜" && x.startTs === Date.UTC(2026, 10, 3, 1, 10)
+					&& x.endTs === Date.UTC(2026, 10, 23, 15, 59)),
+				JSON.stringify(arr.map((x) => [x.title, x.startTs])));
+			check("**缺一端的不进外显/数组**：2022年红包封面（缺结束）/ 初芽新绽（缺开始）/ 全渠道1500W预约谢礼（两端都缺）",
+				!arr.some((x) => /红包封面|初芽新绽|全渠道/.test(x.title)), JSON.stringify(arr.map((x) => x.title)));
+			check("**源站错行不进数组**：仙喵神游记（2026/04/07 ~ 2025/04/21，止早于起）",
+				!arr.some((x) => /仙喵神游记/.test(x.title)), JSON.stringify(arr.map((x) => x.title)));
+			check("活动名取 `名称` 不是页名（p2 的【风起花游】名称 = 春游寻趣）",
+				!arr.some((x) => x.title === "【风起花游】"));
+			check("悬停 = 逐条「名称 + 3 空格 + 档期」（5 行，行数 = events[] 条数）",
+				!!d && d.eventHover.split("\n").length === 5
+				&& d.eventHover.split("\n")[0] === "店长体验·星幕季   11-03 10:00 ~ 11-17 05:00"
+				&& d.eventHover.split("\n")[4] === "泠雨织澜   11-03 09:10 ~ 11-23 23:59",
+				JSON.stringify(d && d.eventHover && d.eventHover.split("\n")));
+			check("悬停合规（活动单行式）", assertHoverConvention("yslz 活动", d && d.eventHover, { requireSet: true }) !== false);
+			check("**2 个请求**：`limit=500` 第 1 页 + `|offset=500` 第 2 页（该 wiki 的列是 `_txt`，`sort=` 被忽略 ⇒ 只能分页取全）",
+				calls.length === 2 && !/offset/.test(calls[0].url) && /offset%3D500/.test(calls[1].url),
+				JSON.stringify(calls.map((c) => c.url.slice(-40))));
+			check("第 2 页的地址由 `yslzEventsUrlOf(500)` 逐字生成（不由调用方手拼）",
+				calls.length === 2 && calls[1].url.indexOf(Y.yslzEventsUrlOf(500)) === 0, String(calls[1] && calls[1].url.slice(0, 80)));
+		}
+
+		// ── 纯解析：活动（两页合并；缺一端 / 错行如实保留为 null）──
+		{
+			const merged = { query: { results: Object.assign({}, JSON.parse(e1Raw).query.results, JSON.parse(e2Raw).query.results) } };
+			const items = Y.yslzParseEvents(merged, Y.YSLZ_TZ);
+			check("两页合并后 17 行全部成为条目（12 + 5，不丢行）", items.length === 17, String(items.length));
+			const none = items.filter((x) => x.startTs === null && x.endTs === null);
+			check("两端都 null 的条目 = 2（全渠道1500W预约谢礼 两端都缺 / 仙喵神游记 错行且原文保留）",
+				none.length === 2
+				&& none.some((x) => x.event === "全渠道1500W预约谢礼")
+				&& none.some((x) => x.event === "仙喵神游记" && x.raw === "2026/04/07 10:00 ~ 2025/04/21 05:00"),
+				JSON.stringify(none.map((x) => [x.event, x.raw])));
+			const half = items.filter((x) => (x.startTs === null) !== (x.endTs === null));
+			check("只有一端的条目 = 3（2022年红包封面 缺结束 / 初芽新绽 缺开始 / 萌新必备 缺结束），那一端如实为 null",
+				half.length === 3
+				&& half.some((x) => x.event === "2022年红包封面" && x.endTs === null && x.startTs !== null)
+				&& half.some((x) => x.event === "初芽新绽" && x.startTs === null && x.endTs !== null)
+				&& half.some((x) => x.event === "萌新必备" && x.endTs === null),
+				JSON.stringify(half.map((x) => [x.event, x.startTs, x.endTs])));
+			const fq = items.find((x) => x.event === "春游寻趣");
+			check("「春游寻趣」来自页名【风起花游】的 `名称` 字段", !!fq, JSON.stringify(items.filter((x) => /花游/.test(x.event)).map((x) => x.event)));
+			check("`yslzParseEvents` 对 `{}` 抛错（结构变了，不是「没有活动」）",
+				(() => { try { Y.yslzParseEvents({}, Y.YSLZ_TZ); return false; } catch (e2) { return /yslz-events-changed:bad-json/.test(e2.message); } })());
+			check("`yslzParseEvents` 对空 results 抛错（`no-rows`）",
+				(() => { try { Y.yslzParseEvents({ query: { results: {} } }, Y.YSLZ_TZ); return false; } catch (e2) { return /yslz-events-changed:no-rows/.test(e2.message); } })());
+		}
+
+		// ── 反证 ①：抹掉**外显那条**的时间锚点 ⇒ 它不进外显（换人，而不是硬凑原值）──
+		{
+			// 只动 `追光·黯影新誓` 那一页：把「第2次复刻结束时间」的值清空 ⇒ 那条窗口只剩一端
+			// ⇒ `coversNow` 两端都要 ⇒ 它不再是当期 ⇒ 外显换成次早结束的月狩神谕（12-01）。
+			const broken = (u) => {
+				if (/rvcontinue=/.test(u)) return g2Raw;
+				const j = JSON.parse(g1Raw);
+				j.query.pages = j.query.pages.map((p) => {
+					if (p.title !== "追光·黯影新誓") return p;
+					const content = p.revisions[0].slots.main.content.replace(/\|第2次复刻结束时间=[^\n|}]*/, "|第2次复刻结束时间=");
+					return { ...p, revisions: [{ ...p.revisions[0], slots: { main: { content } } }] };
+				});
+				return JSON.stringify(j);
+			};
+			const tr = makeTransport([], { override: broken });
+			const e = createEngine({ transport: tr, storage: makeStore(), now: () => NOW_YS, timer: { setTimeout, clearTimeout } });
+			const s = e.__test.SOURCES.find((x) => x.id === "yslz");
+			const g = await e.__test.GACHA_FETCHERS["yslz"](s.url, undefined, s.tz, NOW_YS);
+			check("反证：清空 黯影新誓 第 2 次复刻的结束时间 ⇒ 它只剩一端 ⇒ 外显换成 追光·时砂寄念（11-03 ~ 11-23，次早结束）",
+				!!g && g.banner === "追光·时砂寄念" && g.bannerDates === "11-03 10:00 ~ 11-23 23:59",
+				JSON.stringify(g && [g.banner, g.bannerDates]));
+			check("反证：那条窗口不进 gacha[]（外显与数组同一判据 `coversNow`），黯影新誓整条消失",
+				!!g && (g.gacha || []).length === 2 && !(g.gacha || []).some((x) => x.title.indexOf("黯影新誓") >= 0),
+				JSON.stringify(g && (g.gacha || []).map((x) => x.title)));
+			check("反证：悬停里也不再出现黯影新誓", !!g && g.bannerHover.indexOf("黯影新誓") < 0, JSON.stringify(g && g.bannerHover));
+		}
+
+		// ── 反证 ②：第 2 页失败 ⇒ 抛错（不许把"只看了 50 页"当成完整当期）──
+		{
+			const tr = makeTransport([], { fail: (u) => /rvcontinue=/.test(u) });
+			const e = createEngine({ transport: tr, storage: makeStore(), now: () => NOW_YS, timer: { setTimeout, clearTimeout } });
+			const s = e.__test.SOURCES.find((x) => x.id === "yslz");
+			let err = null, data;
+			try { data = await e.__test.GACHA_FETCHERS["yslz"](s.url, undefined, s.tz, NOW_YS); } catch (e2) { err = e2; }
+			check("反证：`rvcontinue` 那一页失败 ⇒ 抛错（不是只拿第 1 页就返回——当期主档就在第 2 页）",
+				!!err && data === void 0, JSON.stringify(err && err.message));
+		}
+
+		// ── 反证 ③：`{}` / 空 pages / 空 results ⇒ **抛错**（不是 nomatch）──
+		{
+			const grabGacha = async (body) => {
+				const tr = makeTransport([], { override: () => body });
+				const e = createEngine({ transport: tr, storage: makeStore(), now: () => NOW_YS, timer: { setTimeout, clearTimeout } });
+				const s = e.__test.SOURCES.find((x) => x.id === "yslz");
+				let err = null, data;
+				try { data = await e.__test.GACHA_FETCHERS["yslz"](s.url, undefined, s.tz, NOW_YS); } catch (e2) { err = e2; }
+				return { err, data };
+			};
+			const r1 = await grabGacha("{}");
+			check("反证：卡池响应 `{}` ⇒ 抛错（`yslz-gacha-changed:no-pages`），不是返回 null",
+				!!r1.err && /no-pages/.test(r1.err.message), JSON.stringify(r1.err && r1.err.message));
+			const r2 = await grabGacha(JSON.stringify({ query: { pages: [] } }));
+			check("反证：`query.pages` 是空数组 ⇒ 抛错（`no-pools`）",
+				!!r2.err && /no-pools/.test(r2.err.message), JSON.stringify(r2.err && r2.err.message));
+			const r3 = await grabGacha("");
+			check("反证：空响应体 ⇒ 抛错（`bad-json`）", !!r3.err && /bad-json/.test(r3.err.message), JSON.stringify(r3.err && r3.err.message));
+			// 字段名整体改名（源站改版）：页面还在、但一个窗口都读不到
+			const renamed = g1Raw.replace(/\|追光开始时间=/g, "|开池=").replace(/\|追光结束时间=/g, "|关池=")
+				.replace(/\|第(\d+)次复刻开始时间=/g, "|复刻开$1=").replace(/\|第(\d+)次复刻结束时间=/g, "|复刻关$1=");
+			const r4 = await grabGacha(renamed);
+			check("反证：模板字段改名（源站改版）⇒ 抛错（`no-pools`，不是「当期没有」）",
+				!!r4.err && /no-pools/.test(r4.err.message), JSON.stringify(r4.err && r4.err.message));
+			// 活动侧
+			const grabEvent = async (body) => {
+				const tr = makeTransport([], { override: () => body });
+				const e = createEngine({ transport: tr, storage: makeStore(), now: () => NOW_YS, timer: { setTimeout, clearTimeout } });
+				const s = e.__test.SOURCES.find((x) => x.id === "yslz");
+				let err = null;
+				try { await e.__test.EVENT_FETCHERS["yslz"].default(s.eventUrl, undefined, s.tz, NOW_YS); } catch (e2) { err = e2; }
+				return err;
+			};
+			const a1 = await grabEvent("{}");
+			check("反证：活动响应 `{}` ⇒ 抛错（`yslz-events-changed:bad-json`）",
+				!!a1 && /yslz-events-changed:bad-json/.test(a1.message), JSON.stringify(a1 && a1.message));
+			const a2 = await grabEvent(JSON.stringify({ query: { results: {} } }));
+			check("反证：`query.results` 空 ⇒ 抛错（`no-rows`）", !!a2 && /no-rows/.test(a2.message), JSON.stringify(a2 && a2.message));
+			// 当期确实没有（只给往期）⇒ null（不是抛错）
+			const past = JSON.stringify({ query: { results: {
+				"【往期】": { printouts: { 名称: ["往期活动"], 开始时间: ["2020/01/01 10:00"], 结束时间: ["2020/01/10 23:59"], 类型: ["限时"] } }
+			} } });
+			const trP = makeTransport([], { override: () => past });
+			const eP = createEngine({ transport: trP, storage: makeStore(), now: () => NOW_YS, timer: { setTimeout, clearTimeout } });
+			const sP = eP.__test.SOURCES.find((x) => x.id === "yslz");
+			const dP = await eP.__test.EVENT_FETCHERS["yslz"].default(sP.eventUrl, undefined, sP.tz, NOW_YS);
+			check("当期确实没有（只有往期）⇒ **null**（未公布），不是抛错", dP === null, JSON.stringify(dP));
+		}
+	}
 }

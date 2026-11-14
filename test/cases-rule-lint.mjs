@@ -163,8 +163,10 @@ export default async function run() {
 	// 2026-11-15 新接入 4 款（文件 3 个新增 + 阴阳师并入 netease）：
 	//   `30-game-bwiki-bjhl.js`（白荆回廊，bwiki 双页）、`30-game-bwiki-dhmmr.js`（深空之眼，SMW）
 	//   ⇒ bwiki 系 15 + 2 = 17；`30-game-benghuai2.js`（崩坏学园2，官网公告）⇒ 厂商级 22 + 1 = 23。
-	check("游戏文件齐备（23 个厂商/系列文件 + bwiki 系 17 段 = 40 个）",
-		vendorFiles.length === 23 && bwikiFiles.length === 17,		`厂商=${vendorFiles.length} bwiki=${bwikiFiles.length}`);
+	// 2026-11-15 同日再 +1：`30-game-bwiki-yslz.js`（以闪亮之名，bwiki 分类）⇒ bwiki 系 17 + 1 = 18，
+	//   厂商级仍是 23（"每款/每组一个文件"，本文件只在 bwiki 家族里加一段）。
+	check("游戏文件齐备（23 个厂商/系列文件 + bwiki 系 18 段 = 41 个）",
+		vendorFiles.length === 23 && bwikiFiles.length === 18,		`厂商=${vendorFiles.length} bwiki=${bwikiFiles.length}`);
 
 	const hit = [];
 	// ⚠️ 重组后**条目声明也住在游戏文件里**（`registerSource({ … })`），而条目里的

@@ -86,7 +86,9 @@
 			"bjhl": "Asia/Shanghai",
 			"yys": "Asia/Shanghai",
 			"dhmmr": "Asia/Shanghai",
-			"bh2": "Asia/Shanghai"
+			"bh2": "Asia/Shanghai",
+			// 2026-11-15：以闪亮之名（bwiki 源站墙钟 UTC+8）
+			"yslz": "Asia/Shanghai"
 		};
 		// 状态键 / 档期文本的两条形态（正则只在这里写一次）
 		const REMIND_KEY_RE = /^[^|]+\|[^|]+\|(?:end|start)\|\d+$/;

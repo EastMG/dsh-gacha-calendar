@@ -1,0 +1,8 @@
+{
+  "bytes": 10485,
+  "sha256": "08724c47c99b8852",
+  "url": "https://wiki.biligame.com/yslzgame/api.php?action=query&generator=categorymembers&gcmtitle=Category%3A%E9%99%90%E6%97%B6%E8%BF%BD%E5%85%89&gcmnamespace=0&gcmlimit=500&prop=revisions&rvslots=main&rvprop=content&format=json&formatversion=2",
+  "status": 200,
+  "capturedAt": "2026-11-15T03:31:00.000Z",
+  "trim": "原响应 85,744 B / 63 个页面标题、其中前 50 页带正文（另有 13 页要 `rvcontinue` 才有正文）。这里只保留 6 页正文（谲舞缚厄 / 黯影新誓 / 月狩神谕 / 魔卡契约 / 棱彩幻梦 / 焚天神谕）—— 覆盖：当期复刻（黯影新誓 第 2 次 10-27~11-16、月狩神谕 第 1 次 11-11~12-01）、未来复刻（魔卡契约 第 1 次 11-17 才开）、两次以上复刻、无复刻、以及一条带 `第N次复刻备注`。`continue.rvcontinue` 原样保留（\"46763|90296\"）⇒ 第 2 个请求仍会被发出；`batchcomplete` / `query.pages[].pageid|ns|title|revisions` 结构与正文逐字未改（只删了没选中的页面）。"
+}

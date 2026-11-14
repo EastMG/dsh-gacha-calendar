@@ -1,0 +1,8 @@
+{
+  "bytes": 4445,
+  "sha256": "c0850fb2fa1328fc",
+  "url": "https://wiki.biligame.com/yslzgame/api.php?action=query&generator=categorymembers&gcmtitle=Category%3A%E9%99%90%E6%97%B6%E8%BF%BD%E5%85%89&gcmnamespace=0&gcmlimit=500&prop=revisions&rvslots=main&rvprop=content&format=json&formatversion=2&rvcontinue=46763%7C90296",
+  "status": 200,
+  "capturedAt": "2026-11-15T03:31:00.000Z",
+  "trim": "原响应 22,362 B / 13 页正文（续页 `rvcontinue=46763|90296`）。只保留 3 页（丹枫流火 09-22~10-12 / 裁梦化蝶 10-13~11-02 / **时砂寄念 11-03~11-23**）—— 当期主档恰好落在**第 2 页**，所以\"第 2 页失败就不许当完整当期\"这条语义有真夹具可证。无 `continue` 字段（原样）。"
+}

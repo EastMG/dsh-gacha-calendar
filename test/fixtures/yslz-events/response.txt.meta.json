@@ -1,0 +1,8 @@
+{
+  "bytes": 5730,
+  "sha256": "9ba3f68f6ac38ab9",
+  "url": "https://wiki.biligame.com/yslzgame/api.php?action=ask&format=json&query=%5B%5B%E5%88%86%E7%B1%BB%3A%E6%B4%BB%E5%8A%A8%5D%5D%7C%3F%E5%90%8D%E7%A7%B0%7C%3F%E5%BC%80%E5%A7%8B%E6%97%B6%E9%97%B4%7C%3F%E7%BB%93%E6%9D%9F%E6%97%B6%E9%97%B4%7C%3F%E7%B1%BB%E5%9E%8B%7C%3F%E7%89%88%E6%9C%AC%7Climit%3D500",
+  "status": 200,
+  "capturedAt": "2026-11-15T03:31:00.000Z",
+  "trim": "原响应 285,559 B / 500 行（`query-continue-offset=500`）。只保留 13 行 —— 覆盖：在期 5 条（店长体验·星幕季 / 画中蓬莱·珍宝篇（第十八期）/ 占星物语·星轮篇（第二十期）/ 星落长耳礼包 / 泠雨织澜）+ 双空格写法（泠雨织澜 / 仙葫醉月 / 倾心之羽：`2026/11/03  09:10`）+ 缺结束（2022年红包封面）+ 缺开始（初芽新绽）+ 两端都缺（全渠道1500W预约谢礼）+ 源站错行（仙喵神游记 `2026/04/07 ~ 2025/04/21`）+ 往期边界。`query-continue-offset` / `printrequests` / `serializer` / `version` / `meta` 原样保留，只删没选中的 results 行。"
+}

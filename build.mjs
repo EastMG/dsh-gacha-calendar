@@ -164,6 +164,9 @@ const ORDER = [
   // 自包含一条（条目 + 解析器 + 抓取器 + 登记），复用 bwiki 公共层（时间解析 / 载荷 / 悬停）；
   // 必须排在 `30-game-bwiki-common.js` **之后**（它用那边的 `ns_bwiki_*` helper）。
   "30-game-bwiki-bjhl.js",
+  // 2026-11-15：以闪亮之名（国服）—— bwiki 分类（`Category:限时追光` + `Category:活动`）。
+  // 自包含一条（条目 + 解析器 + 抓取器 + 登记）；同样必须排在 `30-game-bwiki-common.js` 之后。
+  "30-game-bwiki-yslz.js",
   "30-game-biligame.js",
   "30-game-cygames.js",
   "30-game-komoe.js",          // 赛马娘·繁中服（Komoe 官方公告；卡池 + 活动同一条接口）
@@ -303,6 +306,9 @@ const CORE_ORDER = [
   // 自包含一条（条目 + 解析器 + 抓取器 + 登记），复用 bwiki 公共层（时间解析 / 载荷 / 悬停）；
   // 必须排在 `30-game-bwiki-common.js` **之后**（它用那边的 `ns_bwiki_*` helper）。
   "30-game-bwiki-bjhl.js",
+  // 2026-11-15：以闪亮之名（国服）—— bwiki 分类（`Category:限时追光` + `Category:活动`）。
+  // 自包含一条（条目 + 解析器 + 抓取器 + 登记）；同样必须排在 `30-game-bwiki-common.js` 之后。
+  "30-game-bwiki-yslz.js",
   "30-game-biligame.js",
   "30-game-cygames.js",
   "30-game-komoe.js",          // 赛马娘·繁中服（Komoe 官方公告；卡池 + 活动同一条接口）

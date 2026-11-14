@@ -80,6 +80,7 @@ dsh-gacha-calendar/
 │       ├── 30-game-bwiki-dhmmr.js       # bwiki ⑧ 深空之眼（dhmmr）：SMW `action=ask` 的「卡池列表」子对象；只有卡池侧（活动页空壳 ⇒ 不接）
 │       ├── 30-game-bwiki-register.js    # 本组 4 条 registerSource + GACHA/EVENT_FETCHERS 接线
 │       ├── 30-game-bwiki-bjhl.js        # 白荆回廊（历史卡池一览 + 活动一览，自包含条目/解析/抓取/登记）
+│       ├── 30-game-bwiki-yslz.js        # 以闪亮之名（国服）：卡池 `Category:限时追光`（分类成员 + 正文，2 个请求）+ 活动 SMW `action=ask`（2 个请求）；复刻档也算当期
 │       ├── 30-game-biligame.js    # biligame 系：嘟嘟脸恶作剧 / 闪耀优俊少女
 │       ├── 30-game-cygames.js     # Cygames：赛马娘 日服 / 国际服（umapyoi 备选）
 │       ├── 30-game-komoe.js       # Komoe：赛马娘 繁中服（官方公告 CMS；卡池 + 活动同一条接口、按标题分流）

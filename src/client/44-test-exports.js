@@ -704,6 +704,28 @@
 				eventsBh2: ns_bh2_events,
 				gachaBh2: ns_bh2_gacha
 			},
+			// 2026-11-15 以闪亮之名（yslz）：bwiki 两个分类（卡池 `Category:限时追光` / 活动 `Category:活动`）。
+			// 导出「URL + 纯解析 + 抓取器」三层，回归可以分别钉住：脏日期归一 / 复刻档 / 分页请求数 /
+			// `{}` ⇒ 抛错 / 抹掉时间锚点 ⇒ 不进外显。
+			"yslz": {
+				YSLZ_EVENTS_QUERY: ns_yslz_EVENTS_QUERY,
+				YSLZ_EVENTS_URL: ns_yslz_EVENTS_URL,
+				YSLZ_GACHA_CATEGORY: ns_yslz_GACHA_CATEGORY,
+				YSLZ_GACHA_URL: ns_yslz_GACHA_URL,
+				YSLZ_REFERER: ns_yslz_REFERER,
+				YSLZ_RERUN_TAG: ns_yslz_RERUN_TAG,
+				YSLZ_TZ: ns_yslz_TZ,
+				eventsYslz: ns_yslz_events,
+				gachaYslz: ns_yslz_gacha,
+				yslzEventsUrlOf: ns_yslz_eventsUrlOf,
+				yslzFieldOf: ns_yslz_fieldOf,
+				yslzGachaPageUrl: ns_yslz_gachaPageUrl,
+				yslzParseEvents: ns_yslz_parseEvents,
+				yslzParsePools: ns_yslz_parsePools,
+				yslzPoolRolesOf: ns_yslz_poolRolesOf,
+				yslzRerunsOf: ns_yslz_rerunsOf,
+				yslzWindowOf: ns_yslz_windowOf
+			},
 			},
 			// 共用工具 / env（测试原先从 next-sources/lib/env.js 取；压平后分别见 23-parser-time.js / 24-parser-window.js / 27-parser-text.js / 28-parser-hover-tools.js）
 			fmtWindow,
