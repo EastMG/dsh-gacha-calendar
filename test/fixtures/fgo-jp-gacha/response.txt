@@ -1,0 +1,428 @@
+[
+ {
+  "id": 101,
+  "name": "チュートリアル召喚",
+  "imageId": 103,
+  "type": "stone",
+  "adjustId": 0,
+  "pickupId": 0,
+  "drawNum1": 1,
+  "drawNum2": 11,
+  "freeDrawFlag": 0,
+  "maxDrawNum": 1,
+  "openedAt": 1435676400,
+  "closedAt": 1911653999,
+  "detailUrl": "",
+  "flags": [],
+  "storyAdjusts": [],
+  "gachaSubs": [],
+  "featuredSvtIds": [],
+  "releaseConditions": []
+ },
+ {
+  "id": 501,
+  "name": "スタートダッシュ期間限定★5確定召喚 第1弾",
+  "imageId": 500,
+  "type": "chargeStone",
+  "adjustId": 0,
+  "pickupId": 0,
+  "drawNum1": 11,
+  "drawNum2": 0,
+  "freeDrawFlag": 0,
+  "maxDrawNum": 1,
+  "openedAt": 1743238800,
+  "closedAt": 1911653999,
+  "detailUrl": "/25_vwezy/start_dash_s",
+  "flags": [
+   "displayFeaturedSvt"
+  ],
+  "storyAdjusts": [],
+  "gachaSubs": [],
+  "featuredSvtIds": [
+   200200,
+   700600,
+   102700,
+   301300,
+   601800,
+   301200,
+   100600,
+   102800,
+   900200,
+   1100200,
+   1100300,
+   400200,
+   602100,
+   702300,
+   500900,
+   302400,
+   202600,
+   502800,
+   600800,
+   202000,
+   500800
+  ],
+  "releaseConditions": [
+   {
+    "type": "privilegeValid",
+    "targetId": 200,
+    "value": 1
+   }
+  ]
+ },
+ {
+  "id": 21001,
+  "name": "ストーリー召喚",
+  "imageId": 271,
+  "type": "stone",
+  "adjustId": 0,
+  "pickupId": 0,
+  "drawNum1": 1,
+  "drawNum2": 11,
+  "freeDrawFlag": 0,
+  "maxDrawNum": 0,
+  "openedAt": 1443157200,
+  "closedAt": 1911653999,
+  "detailUrl": "/story",
+  "flags": [],
+  "storyAdjusts": [
+   {
+    "idx": 1,
+    "adjustId": 31011,
+    "condType": "questClear",
+    "targetId": 1000011,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 2,
+    "adjustId": 31111,
+    "condType": "questClear",
+    "targetId": 1000115,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 3,
+    "adjustId": 31211,
+    "condType": "questClear",
+    "targetId": 1000215,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 4,
+    "adjustId": 31311,
+    "condType": "questClear",
+    "targetId": 1000314,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 5,
+    "adjustId": 31411,
+    "condType": "questClear",
+    "targetId": 1000413,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 6,
+    "adjustId": 31511,
+    "condType": "questClear",
+    "targetId": 1000522,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 7,
+    "adjustId": 31611,
+    "condType": "questClear",
+    "targetId": 1000632,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 8,
+    "adjustId": 31711,
+    "condType": "questClear",
+    "targetId": 1000722,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 9,
+    "adjustId": 31811,
+    "condType": "questClear",
+    "targetId": 2000118,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 10,
+    "adjustId": 31911,
+    "condType": "questClear",
+    "targetId": 2000216,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 11,
+    "adjustId": 32011,
+    "condType": "questClear",
+    "targetId": 2000316,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 12,
+    "adjustId": 32111,
+    "condType": "questClear",
+    "targetId": 2000410,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 13,
+    "adjustId": 32121,
+    "condType": "questClear",
+    "targetId": 3000125,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 14,
+    "adjustId": 32131,
+    "condType": "questClear",
+    "targetId": 3000218,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 15,
+    "adjustId": 32141,
+    "condType": "questClear",
+    "targetId": 3000320,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 16,
+    "adjustId": 32151,
+    "condType": "questClear",
+    "targetId": 3000421,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 17,
+    "adjustId": 32161,
+    "condType": "questClear",
+    "targetId": 3000531,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 18,
+    "adjustId": 32171,
+    "condType": "questClear",
+    "targetId": 3000628,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 19,
+    "adjustId": 32181,
+    "condType": "questClear",
+    "targetId": 3000716,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 20,
+    "adjustId": 32191,
+    "condType": "questClear",
+    "targetId": 3001009,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 21,
+    "adjustId": 32201,
+    "condType": "questClear",
+    "targetId": 3001222,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 22,
+    "adjustId": 32211,
+    "condType": "questClear",
+    "targetId": 3001327,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 23,
+    "adjustId": 32221,
+    "condType": "questClear",
+    "targetId": 4000217,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 24,
+    "adjustId": 32231,
+    "condType": "questClear",
+    "targetId": 4000326,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 25,
+    "adjustId": 32241,
+    "condType": "questClear",
+    "targetId": 4000426,
+    "value": 1,
+    "imageId": 271
+   },
+   {
+    "idx": 26,
+    "adjustId": 32251,
+    "condType": "questClear",
+    "targetId": 4000529,
+    "value": 1,
+    "imageId": 271
+   }
+  ],
+  "gachaSubs": [],
+  "featuredSvtIds": [],
+  "releaseConditions": []
+ },
+ {
+  "id": 50044001,
+  "name": "「冠位名代戦」 タマモアリアピックアップ召喚",
+  "imageId": 83847,
+  "type": "stone",
+  "adjustId": 50020221,
+  "pickupId": 50023542,
+  "drawNum1": 1,
+  "drawNum2": 11,
+  "freeDrawFlag": 0,
+  "maxDrawNum": 0,
+  "openedAt": 1792746000,
+  "closedAt": 1794369599,
+  "detailUrl": "/26_zqikb/26_twbdt",
+  "flags": [
+   "pcMessage"
+  ],
+  "storyAdjusts": [],
+  "gachaSubs": [],
+  "featuredSvtIds": [
+   406000
+  ],
+  "releaseConditions": []
+ },
+ {
+  "id": 50044201,
+  "name": "「真冬の水着スペシャル ぐだぐだぷにぷにウォーズ！」開幕直前 \n沖田総司(セイバー)ピックアップ召喚",
+  "imageId": 83867,
+  "type": "stone",
+  "adjustId": 50020401,
+  "pickupId": 50023722,
+  "drawNum1": 1,
+  "drawNum2": 11,
+  "freeDrawFlag": 0,
+  "maxDrawNum": 0,
+  "openedAt": 1793782800,
+  "closedAt": 1794974399,
+  "detailUrl": "/26_dgyoy/26_evfga_4",
+  "flags": [
+   "pcMessage"
+  ],
+  "storyAdjusts": [],
+  "gachaSubs": [],
+  "featuredSvtIds": [
+   400100,
+   102700,
+   603300,
+   703500,
+   704800
+  ],
+  "releaseConditions": []
+ },
+ {
+  "id": 50044211,
+  "name": "真冬の水着スペシャル ぐだぐだぷにぷにウォーズ！ \n卑弥呼＆壱与ピックアップ召喚",
+  "imageId": 83868,
+  "type": "stone",
+  "adjustId": 50020411,
+  "pickupId": 50023732,
+  "drawNum1": 1,
+  "drawNum2": 11,
+  "freeDrawFlag": 0,
+  "maxDrawNum": 0,
+  "openedAt": 1794394800,
+  "closedAt": 1796183999,
+  "detailUrl": "/26_ezckk/26_cmxhp",
+  "flags": [
+   "pcMessage"
+  ],
+  "storyAdjusts": [],
+  "gachaSubs": [],
+  "featuredSvtIds": [
+   2801400,
+   406100
+  ],
+  "releaseConditions": []
+ },
+ {
+  "id": 50044231,
+  "name": "真冬の水着スペシャル ぐだぐだぷにぷにウォーズ！ \n高杉晋作ピックアップ召喚",
+  "imageId": 83870,
+  "type": "stone",
+  "adjustId": 50020421,
+  "pickupId": 50023742,
+  "drawNum1": 1,
+  "drawNum2": 11,
+  "freeDrawFlag": 0,
+  "maxDrawNum": 0,
+  "openedAt": 1794560400,
+  "closedAt": 1796183999,
+  "detailUrl": "/26_chavc/26_xbkxj_1",
+  "flags": [
+   "pcMessage"
+  ],
+  "storyAdjusts": [],
+  "gachaSubs": [],
+  "featuredSvtIds": [
+   104400,
+   204700
+  ],
+  "releaseConditions": []
+ },
+ {
+  "id": 50044241,
+  "name": "真冬の水着スペシャル ぐだぐだぷにぷにウォーズ！ \n沖田総司〔オルタ〕(セイバー)ピックアップ召喚",
+  "imageId": 83871,
+  "type": "stone",
+  "adjustId": 50020431,
+  "pickupId": 50023752,
+  "drawNum1": 1,
+  "drawNum2": 11,
+  "freeDrawFlag": 0,
+  "maxDrawNum": 0,
+  "openedAt": 1794560400,
+  "closedAt": 1796183999,
+  "detailUrl": "/26_chavc/26_xbkxj_2",
+  "flags": [
+   "pcMessage"
+  ],
+  "storyAdjusts": [],
+  "gachaSubs": [],
+  "featuredSvtIds": [
+   604000,
+   105100
+  ],
+  "releaseConditions": []
+ }
+]

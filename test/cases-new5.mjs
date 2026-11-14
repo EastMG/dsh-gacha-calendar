@@ -138,7 +138,7 @@ export default async function run() {
 			WANT.map(([id]) => id + "=" + ids.includes(id)).join(","));
 		check("SOURCES 里 id 全局唯一（新增 5 条没造成重复）", new Set(ids).size === ids.length,
 			ids.length + " / " + new Set(ids).size);
-		check("来源总数 = 34（28 + 2026-11-09 的 5 + 2026-11-11 的 uma-tw）", T.SOURCES.length === 34, String(T.SOURCES.length));
+		check("来源总数 = 35（28 + 2026-11-09 的 5 + 2026-11-11 的 uma-tw + 2026-11-14 的 fgo-jp）", T.SOURCES.length === 35, String(T.SOURCES.length));
 
 		for (const [id, name] of WANT) {
 			const s = srcOf(id);

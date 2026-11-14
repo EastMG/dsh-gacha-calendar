@@ -19,7 +19,7 @@
 // map.json 是 capture.mjs 读改写共享的，多批次并行抓夹具时可能互相覆盖 → 显式覆盖才可复现。
 
 import { readFileSync } from "node:fs";
-import { useFixtures, check, section, assertContract } from "./harness.mjs";
+import { useFixtures, setFetchImpl, check, section, assertContract } from "./harness.mjs";
 import { SOURCES_B3, findSource } from "./registry-shim.mjs";
 import { T } from "./load.mjs";
 const { sourceInstant, sourceWallParts, textOf, fmtWindow } = T;
@@ -27,7 +27,8 @@ const { sourceInstant, sourceWallParts, textOf, fmtWindow } = T;
 const { gachaGf2, eventsGf2, parseGf2Windows, parseGf2List, parseGf2Date, GF2_GACHA_URL, GF2_EVENT_URL, GF2_BASE, GF2_TZ } = T.parsers["gf2"];
 const { gachaBandori, eventsBandori, parseBandoriSections, parseBandoriList, parseBandoriDate, pickBandoriGachaSection, pickBandoriEventSection, parseBandoriWindow, BANDORI_LIST_URL, BANDORI_TZ } = T.parsers["bandori"];
 const { eventsOurNotes, parseOurNotesPosts, parseOurNotesWindows, parseOurNotesInstant, selectOurNotesPrimary, OURNOTES_LIST_URL, OURNOTES_TZ } = T.parsers["ournotes"];
-const { gachaFgo, eventsFgo, parseFgoBannerTable, parseFgoEventTable, findFgoEventTable, parseFgoWindow, FGO_GACHA_URL, FGO_EVENT_URL, FGO_TZ } = T.parsers["fgo"];
+const { gachaFgo, eventsFgo, parseFgoBannerTable, parseFgoEventTable, findFgoEventTable, parseFgoWindow, FGO_GACHA_URL, FGO_EVENT_URL, FGO_TZ,
+	FGO_JP_GACHA_URL, FGO_JP_EVENT_URL, FGO_JP_TZ } = T.parsers["fgo"];
 const { hoverEvent, hoverPool } = T;
 
 // 悬停守卫（用户 2026-10-03：「元信息彻底删掉」）：来源站名/域名/URL/API 名、时区推定说明、
@@ -53,6 +54,10 @@ const OVERRIDES = {
 	[OURNOTES_LIST_URL]: "ournotes-list/response.txt",
 	[FGO_GACHA_URL]: "fgo-gacha-parse/response.txt",
 	[FGO_EVENT_URL]: "fgo-event-parse/response.txt",
+	// FGO 日服（Atlas Academy）：卡池是**裁剪过**的原响应（8 条，见 fgo-jp-gacha/response.txt.meta.json），
+	// 活动是原样 65 条（14KB，哨兵判据要靠那 49 条共用的 endedAt 才成立）
+	[FGO_JP_GACHA_URL]: "fgo-jp-gacha/response.txt",
+	[FGO_JP_EVENT_URL]: "fgo-jp-event/response.txt",
 	// 合成夹具：给 Bandori 造「**2 个**当期主卡池」的公告，验证 ≥2 池时才设 bannerHover
 	// （真实夹具 18418 的当期主卡池只有 1 个 → 按约定**不设** bannerHover）。
 	[SYNTH_LIST_URL]: "bandori-synth-list/response.txt",
@@ -565,6 +570,178 @@ export default async function run() {
 			check("FGO 活动 fetch 层 eventHover 不含元信息",
 				!!e && !!e.eventHover && !HOVER_META.test(e.eventHover), JSON.stringify(lines.slice(0, 2)));
 		}
+	}
+
+	//#region ⑪ FGO 日服 —— Atlas Academy（卡池 + 活动，两侧同一个数据源）
+	section("B3 ⑪ FGO 日服 · Atlas Academy —— 卡池 + 活动（夹具 + 固定 NOW）");
+	{
+		// 夹具抓取时刻 2026-11-14T00:00:00Z = 日服 11-14 09:00（卡池/活动两侧都在期）
+		const NOW_JP = Date.parse("2026-11-14T00:00:00Z");
+		const srcJp = findSource("fgo-jp");                       // 测试侧快照（含 kind / mode）
+		const liveJp = T.SOURCES.find((s) => s.id === "fgo-jp") || {};   // 运行时注册形态
+		const gachaFx = readJsonFx("fgo-jp-gacha/response.txt");
+		const eventFx = readJsonFx("fgo-jp-event/response.txt");
+		const gachaText = JSON.stringify(gachaFx), eventText = JSON.stringify(eventFx);
+		// 夹具路由：反证用例要换响应体；任何别的 URL 一律 404（保证不会偷偷联网）
+		const installJp = ({ gacha, event } = {}) => setFetchImpl(async (url) => {
+			const u = String(url);
+			const isG = u === FGO_JP_GACHA_URL, isE = u === FGO_JP_EVENT_URL;
+			if (!isG && !isE) return { ok: false, status: 404, headers: { get: () => null }, text: async () => "", json: async () => ({}) };
+			const body = isG ? (gacha !== void 0 ? gacha : gachaText) : (event !== void 0 ? event : eventText);
+			return { ok: true, status: 200, headers: { get: () => "application/json" }, text: async () => body, json: async () => JSON.parse(body) };
+		});
+		// ⚠️ 走**快照里的抓取器原函数**（`srcJp.gacha.fetcher`），原因同 ⑩：`GACHA_FETCHERS[...]`
+		//    那一层只转 3 个参数（引擎就是这么调的），第 4 参 `now` 到不了解析器 ⇒ 用例没法注入时刻。
+		const runGacha = (now = NOW_JP) => srcJp.gacha.fetcher(FGO_JP_GACHA_URL, void 0, FGO_JP_TZ, now);
+		const runEvent = (now = NOW_JP) => srcJp.event.fetcher(FGO_JP_EVENT_URL, void 0, FGO_JP_TZ, now);
+		const grab = async (fn) => { try { return { ok: true, data: await fn() }; } catch (e) { return { ok: false, err: String((e && e.message) || e) }; } };
+
+		// ── ① 注册条目：id / name / tz / defaultHidden / 两个 URL / 两个标签（逐字）──
+		{
+			check("fgo-jp 在测试侧快照里（注册表形态）", !!srcJp, "findSource('fgo-jp') === null");
+			check("fgo-jp 运行时注册：id = fgo-jp", liveJp.id === "fgo-jp", JSON.stringify(liveJp.id));
+			check("fgo-jp 运行时注册：name =「Fate/Grand Order·日服」（逐字）", liveJp.name === "Fate/Grand Order·日服", JSON.stringify(liveJp.name));
+			check("fgo-jp 运行时注册：tz = Asia/Tokyo", liveJp.tz === "Asia/Tokyo", JSON.stringify(liveJp.tz));
+			check("fgo-jp 运行时注册：defaultHidden === false（默认显示）", liveJp.defaultHidden === false, JSON.stringify(liveJp.defaultHidden));
+			check("fgo-jp 两个 URL 逐字（卡池 nice_gacha.json / 活动 event/search?ongoing=true）",
+				liveJp.url === "https://api.atlasacademy.io/export/JP/nice_gacha.json"
+				&& liveJp.eventUrl === "https://api.atlasacademy.io/basic/JP/event/search?ongoing=true"
+				&& FGO_JP_GACHA_URL === liveJp.url && FGO_JP_EVENT_URL === liveJp.eventUrl,
+				JSON.stringify([liveJp.url, liveJp.eventUrl]));
+			check("fgo-jp 两个来源标签逐字 =「Atlas Academy」（两侧同一家）",
+				liveJp.source === "Atlas Academy" && liveJp.eventSource === "Atlas Academy",
+				JSON.stringify([liveJp.source, liveJp.eventSource]));
+			check("fgo-jp 两侧都是 direct（两个端点实测 ACAO: *，不走宿主代理）",
+				!!srcJp && srcJp.gacha.mode === "direct" && srcJp.event.mode === "direct"
+				&& srcJp.gacha.kind === "third-party" && srcJp.event.kind === "third-party",
+				JSON.stringify(srcJp && [srcJp.gacha.mode, srcJp.event.mode, srcJp.gacha.kind, srcJp.event.kind]));
+			// 国服条目必须一个字节都没动（本次只新增相邻条目）
+			const cn = T.SOURCES.find((s) => s.id === "fgo") || {};
+			check("国服条目 fgo 仍是 fgo.wiki / Bwiki / Asia/Shanghai（本次不动它）",
+				cn.tz === "Asia/Shanghai" && cn.source === "Bwiki" && /^https:\/\/fgo\.wiki\//.test(String(cn.url)),
+				JSON.stringify([cn.tz, cn.source]));
+		}
+
+		// ── ② 卡池：当期 = 覆盖 now 且**结束最晚**那条（11-13 18:00 ~ 12-02 12:59 JST）──
+		installJp();
+		const g = await grab(() => runGacha());
+		{
+			check("fgo-jp 卡池抓取成功（离线夹具）", g.ok, g.err);
+			assertContract("FGO 日服", "gacha", g.ok ? g.data : null);
+			const d = g.ok ? g.data : {};
+			const row = gachaFx.find((x) => x.id === 50044231);
+			check("fgo-jp 当期池名逐字（日文原文；源站 `\\n` 排版收敛成一个空格）",
+				d.banner === "真冬の水着スペシャル ぐだぐだぷにぷにウォーズ！ 高杉晋作ピックアップ召喚",
+				JSON.stringify(d.banner));
+			check("fgo-jp 当期池没有换行（悬停/外显都是单行）", typeof d.banner === "string" && !/[\r\n]/.test(d.banner), JSON.stringify(d.banner));
+			check("fgo-jp startTs / endTs 与源站秒值一致（openedAt / closedAt × 1000）",
+				d.startTs === row.openedAt * 1000 && d.endTs === row.closedAt * 1000
+				&& d.startTs === 1794560400000 && d.endTs === 1796183999000,
+				JSON.stringify([d.startTs, d.endTs]));
+			check("fgo-jp 档期按 Asia/Tokyo 渲染（11-13 18:00 ~ 12-02 12:59）",
+				d.bannerDates === "11-13 18:00 ~ 12-02 12:59"
+				&& d.bannerDates === fmtWindow(row.openedAt * 1000, row.closedAt * 1000, "Asia/Tokyo")
+				&& d.bannerDatesRaw === d.bannerDates,
+				JSON.stringify([d.bannerDates, d.bannerDatesRaw]));
+			check("fgo-jp roles 留空（源站只有 featuredSvtIds 数字 id，不新造角色名）", d.roles === "", JSON.stringify(d.roles));
+
+			// 无结束哨兵：closedAt=1911653999（2030-07-30）的常驻池**不许**当当期，也不进悬停
+			const sentinelTitles = ["ストーリー召喚", "チュートリアル召喚", "スタートダッシュ期間限定★5確定召喚 第1弾"];
+			const hoverTitles = (d.gachaHoverItems || []).map((x) => x.title);
+			check("fgo-jp 2030 常驻哨兵池不进外显（否则当期会变成「ストーリー召喚」）",
+				sentinelTitles.every((t) => t !== d.banner), JSON.stringify(d.banner));
+			check("fgo-jp 2030 常驻哨兵池也不进悬停/数组（它们永远在期，是噪音）",
+				sentinelTitles.every((t) => !hoverTitles.includes(t)), JSON.stringify(hoverTitles));
+			// 「结束最晚」不是「还在期」：50044201 此刻也在期，但它 11-18 就结束
+			check("fgo-jp 选中「结束最晚」而不是「还在期」：50044201（11-18 结束）在悬停里、但不占外显",
+				hoverTitles.includes("「真冬の水着スペシャル ぐだぐだぷにぷにウォーズ！」開幕直前 沖田総司(セイバー)ピックアップ召喚")
+				&& d.banner !== "「真冬の水着スペシャル ぐだぐだぷにぷにウォーズ！」開幕直前 沖田総司(セイバー)ピックアップ召喚",
+				JSON.stringify([hoverTitles.length, d.banner]));
+			check("fgo-jp 卡池数组 = 4 条（外显 1 + 悬停并列 3），悬停 4 口池 = 8 行两行式",
+				(d.gacha || []).length === 4 && (d.gachaHoverItems || []).length === 4
+				&& (d.bannerHover || "").split("\n").length === 8,
+				JSON.stringify([(d.gacha || []).length, (d.bannerHover || "").split("\n").length]));
+			check("fgo-jp 卡池悬停不含元信息（来源/URL/tz=/哨兵说明）",
+				!(HOVER_META.test(d.bannerHover || "")), JSON.stringify((d.bannerHover || "").slice(0, 100)));
+		}
+
+		// ── ③ 活动：当期 = 覆盖 now 且结束最晚（11-01 00:00 ~ 12-31 23:59 JST）──
+		const e = await grab(() => runEvent());
+		{
+			check("fgo-jp 活动抓取成功（离线夹具）", e.ok, e.err);
+			assertContract("FGO 日服", "event", e.ok ? e.data : null);
+			const d = e.ok ? e.data : {};
+			const row = eventFx.find((x) => x.id === 71735);      // 絆獲得量アップ（结束最晚）
+			check("fgo-jp 当期活动名逐字 =「絆獲得量アップ」", d.event === "絆獲得量アップ", JSON.stringify(d.event));
+			check("fgo-jp 活动起止 = 源站 startedAt/endedAt 按 JST 渲染（11-01 00:00 ~ 12-31 23:59）",
+				d.eventDates === "11-01 00:00 ~ 12-31 23:59"
+				&& d.eventDates === fmtWindow(row.startedAt * 1000, row.endedAt * 1000, "Asia/Tokyo")
+				&& d.eventDatesRaw === d.eventDates,
+				JSON.stringify([d.eventDates, d.eventDatesRaw]));
+			const curItem = (d.eventHoverItems || []).find((x) => x.title === "絆獲得量アップ" && x.startTs === row.startedAt * 1000);
+			check("fgo-jp 当期活动的 startTs/endTs 秒级一致（1793458800 / 1798729199）",
+				!!curItem && curItem.endTs === row.endedAt * 1000
+				&& curItem.startTs === 1793458800000 && curItem.endTs === 1798729199000,
+				JSON.stringify(curItem));
+			check("fgo-jp 活动数组 10 条、含当期与「真冬の水着スペシャル…」",
+				(d.events || []).length === 10
+				&& (d.events || []).some((x) => x.title === "絆獲得量アップ")
+				&& (d.events || []).some((x) => x.title === "真冬の水着スペシャル ぐだぐだぷにぷにウォーズ！ ～史上最低の爆弾娘～"),
+				JSON.stringify((d.events || []).map((x) => x.title.slice(0, 16))));
+			const hoverLines = (d.eventHover || "").split("\n");
+			check("fgo-jp 活动悬停 14 行、每行「名称 + 3 空格 + 档期」（完全相同的重复行已去掉）",
+				hoverLines.length === 14 && hoverLines.every((l) => /   \d{2}-\d{2} \d{2}:\d{2} ~ \d{2}-\d{2} \d{2}:\d{2}$/.test(l)),
+				JSON.stringify([hoverLines.length, hoverLines.slice(0, 2)]));
+			check("fgo-jp 活动侧 2030 哨兵（終章 / 冠位戴冠戦）不进悬停与外显",
+				!(d.eventHoverItems || []).some((x) => x.title === "終章" || x.title === "冠位戴冠戦")
+				&& d.event !== "終章",
+				JSON.stringify((d.eventHoverItems || []).map((x) => x.title).slice(0, 4)));
+		}
+
+		// ── ④ 反证 ──
+		{
+			// A：把当期池的 openedAt 抹成 null ⇒ 它不覆盖 now ⇒ 不进外显、不进悬停
+			const broken = gachaText.replace('"openedAt":1794560400,"closedAt":1796183999', '"openedAt":null,"closedAt":1796183999');
+			const brokenRows = JSON.parse(broken);
+			check("反证夹具确实只改了 50044231 的 openedAt（50044241 同窗那条不动）",
+				broken !== gachaText
+				&& brokenRows.find((x) => x.id === 50044231).openedAt === null
+				&& brokenRows.find((x) => x.id === 50044241).openedAt === 1794560400,
+				JSON.stringify(brokenRows.map((x) => [x.id, x.openedAt])));
+			installJp({ gacha: broken });
+			const r = await grab(() => runGacha());
+			check("反证：openedAt 为 null 的池不进外显（外显落到同窗的「沖田総司〔オルタ〕」那条）",
+				r.ok && r.data && r.data.banner === "真冬の水着スペシャル ぐだぐだぷにぷにウォーズ！ 沖田総司〔オルタ〕(セイバー)ピックアップ召喚",
+				JSON.stringify(r.ok && r.data && r.data.banner));
+			check("反证：openedAt 为 null 的池同时也不进悬停",
+				r.ok && r.data && !(r.data.gachaHoverItems || []).some((x) => x.title.includes("高杉晋作")),
+				JSON.stringify(r.ok && r.data && (r.data.gachaHoverItems || []).map((x) => x.title)));
+
+			// B：响应改成 `{}` ⇒ 抛错（**不是** nomatch）
+			installJp({ gacha: "{}", event: "{}" });
+			const bg = await grab(() => runGacha());
+			const be = await grab(() => runEvent());
+			check("反证：卡池响应是 `{}` ⇒ 抛错（不是返回 null）",
+				!bg.ok && /fgo-jp-gacha-bad-shape/.test(bg.err), JSON.stringify(bg));
+			check("反证：活动响应是 `{}` ⇒ 抛错（不是返回 null）",
+				!be.ok && /fgo-jp-event-bad-shape/.test(be.err), JSON.stringify(be));
+
+			// C：数组里没有覆盖 now 的 ⇒ null（nomatch，**不是**失败）
+			installJp();
+			const ng = await grab(() => runGacha(Date.parse("2031-01-01T00:00:00Z")));
+			const ne = await grab(() => runEvent(Date.parse("2031-01-01T00:00:00Z")));
+			check("反证：没有覆盖 now 的卡池（2031 年）⇒ null（nomatch，不抛错）",
+				ng.ok && ng.data === null, JSON.stringify(ng));
+			check("反证：没有覆盖 now 的活动（2031 年）⇒ null（nomatch，不抛错）",
+				ne.ok && ne.data === null, JSON.stringify(ne));
+			// D：空数组同理
+			installJp({ gacha: "[]", event: "[]" });
+			const eg = await grab(() => runGacha());
+			const ee = await grab(() => runEvent());
+			check("反证：空数组 ⇒ 两侧都 null（空 ≠ 结构变化）",
+				eg.ok && eg.data === null && ee.ok && ee.data === null, JSON.stringify([eg, ee]));
+		}
+		useFixtures(OVERRIDES);   // 还原夹具 transport（别把后面的用例带偏）
 	}
 	//#endregion
 }

@@ -87,7 +87,13 @@ const hostAllowed = (h) => ALLOW.some((a) => h === a || h.endsWith("." + a));
 //   · wqmt.aisnogames.com     无期迷途官方资讯 API（direct）—— 实测 200 + `ACAO: *`
 //   · 移除 bang-dream-on.bushimo.jp：2026-11-11 该源已改走**宿主代理**（它对 dsh-app:// 回空 ACAO），
 //     现在必须在白名单里；下面新增了一条互斥守卫防止再次漏改。
-const DIRECT_HOSTS = ["api.umapyoi.net", "sekai-world.github.io", "gametora.com", "gh-proxy.com", "wqmt.aisnogames.com"];
+//
+// api.atlasacademy.io：Fate/Grand Order·日服（fgo-jp，2026-11-14 接入，卡池 + 活动两侧）。
+//   实测两个端点都 200 且 `Access-Control-Allow-Origin: *`：
+//     /export/JP/nice_gacha.json                    2,018,335 B
+//     /basic/JP/event/search?ongoing=true              14,301 B
+//   ⇒ 直连（抓取器 `mode: "direct"`），**不**进 PROXY_ALLOW_HOSTS。
+const DIRECT_HOSTS = ["api.umapyoi.net", "sekai-world.github.io", "gametora.com", "gh-proxy.com", "wqmt.aisnogames.com", "api.atlasacademy.io"];
 
 // ── 收集全部真实抓取目标 ──
 const targets = new Map();   // host → Set("条目id:用途")

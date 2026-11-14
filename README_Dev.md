@@ -77,7 +77,7 @@ dsh-gacha-calendar/
 │       ├── 30-game-komoe.js       # Komoe：赛马娘 繁中服（官方公告 CMS；卡池 + 活动同一条接口、按标题分流）
 │       ├── 30-game-perfectworld.js # 完美世界：女神异闻录：夜幕魅影 / 异环
 │       ├── 30-game-sunborn.js     # 散爆：少女前线2：追放
-│       ├── 30-game-aniplex.js     # Aniplex / TYPE-MOON：Fate/Grand Order
+│       ├── 30-game-aniplex.js     # Aniplex / TYPE-MOON：Fate/Grand Order（国服 fgo.wiki + 日服 Atlas Academy）
 │       ├── 30-game-sega.js        # 世嘉：初音未来：缤纷舞台
 │       ├── 30-game-yostar.js      # 悠星：星塔旅人
 │       ├── 30-game-bluepoch.js    # 深蓝互动：重返未来：1999
@@ -299,6 +299,7 @@ DSH 渲染进程的页面源是 `dsh-app://app`（自定义 scheme）。**有些
 | `prts.wiki` | 明日方舟卡池备选、活动（SMW + 一览备选） | 目前正常（prts 会回 `ACAO: *`）；`origin=*` 仍由 8 处调用点各自手拼，未进收口点 |
 | `gachatracker.app` | 终末地卡池备选 | 未验 |
 | `gametora.com` | 赛马娘国际服（卡池 + 活动） | 目前正常（真机在跑） |
+| `api.atlasacademy.io` | Fate/Grand Order·日服（卡池 + 活动） | 实测两个端点都回 `ACAO: *`（2026-11-14）|
 | `sekai-world.github.io` | 初音未来缤纷舞台卡池/活动 | 目前正常 |
 | `gh-proxy.com` | 初音未来缤纷舞台默认源（第三方镜像） | ACAO 未知，镜像服务可能随时变 |
 | `bang-dream-on.bushimo.jp` | BanG Dream! OurNotes | ACAO 是**回显 Origin**（不是 `*`）⇒ 对 `dsh-app://` 有风险 |
@@ -1298,6 +1299,36 @@ null，活动侧 2026-11-10 已换 TapTap tab（能出「新风同行」11-05~11
   + ⑤b（先有数据 ⇒ url="" ⇒ 再刷新 ⇒ 该侧为空；覆盖 ddlezj 与 cytq）；`cases-pengpeng-event` ① 同步。
   反向证明：把 `pengpengTablePoolsOf` 改成返回 `[]` ⇒ 3 条 ✗ + `pengpeng-no-table` 抛出；
   把 `gachaNone/eventNone` 临时置 false ⇒ 4 条 ✗，`banner` 仍为「全新使徒【波朗】… 11-05~11-19」。
+
+### 2026-11-14：Fate/Grand Order·**日服**接入（Atlas Academy 数据导出）
+
+- **新增条目** `fgo-jp`（与国服 `fgo` 相邻、**国服那条一个字节没动**）：`name` = 「Fate/Grand Order·日服」，
+  `tz` = `Asia/Tokyo`，`defaultHidden` = false；卡池 `source` 与活动 `eventSource` 都是「Atlas Academy」。
+- **两个端点**（同域 ⇒ `mode: "direct"`，已登记进 `tools/check-host-allow.mjs` 的 `DIRECT_HOSTS`，
+  **不**进 `PROXY_ALLOW_HOSTS`）：卡池 `https://api.atlasacademy.io/export/JP/nice_gacha.json`
+  （2,018,335 B / 4334 条）、活动 `https://api.atlasacademy.io/basic/JP/event/search?ongoing=true`（14,301 B / 65 条）；
+  两个都实测 200 且 `Access-Control-Allow-Origin: *`。时间是 **epoch 秒**。
+- **解析口径**（`30-game-aniplex.js` 的「FGO 日服」段）：`openedAt/closedAt`（活动 `startedAt/endedAt`）
+  ×1000 → 毫秒；外显 = 覆盖 now 且**结束最晚**（同结束比开始、再比 id，保证确定）；
+  `roles` **留空**（`featuredSvtIds` 是数字 id、`pickupId` 不带名字 ⇒ 不新造角色名）；
+  池名里的 `\n` 排版收敛成**一个空格**（外显/悬停都是单行），全角空格不动。
+- **无结束哨兵**（这条是本源最容易错的地方）：源站用远未来表示"永久开放"——卡池 `closedAt = 1911653999`
+  （2030-07-30T14:59:59Z，本批 6 条共用）、活动 `endedAt = 1893423600`（2030-01-01 00:00 JST，49 条共用）。
+  判据 = **本批最大的结束秒且至少两条共用** ⇒ 判为无结束（`endTs = null`），不参与选当期、不进悬停
+  （否则"结束最晚"会把 2030 年才结束的「ストーリー召喚」当当期）。
+  活动侧同一条 campaign 会被多个 id 重复列出（实测 `消費AP 50%DOWN` 等各有一组同名同窗）⇒ 条目层按
+  「名称 + 起止」去掉**完全相同**的重复行；同名不同窗的仍然都留（数组那边仍走既有「归一后同名只留第一条」）。
+- **失败 vs 未公布**：不是数组（含 `{}`）⇒ 抛 `fgo-jp-{gacha,event}-bad-shape`；没有一条覆盖 now ⇒ `null`。
+- **夹具**：`fgo-jp-gacha` 是**裁剪过**的原响应（8 条：3 条当期池 + 两侧边界 + 3 条无结束哨兵；
+  原 2.0MB 不入库，取舍见 `response.txt.meta.json` 的 `trim`）；`fgo-jp-event` **原样 65 条**（14KB，
+  裁掉哨兵行会让判据在夹具里失效）。
+- **回归**：`test/cases-b3.mjs` ⑪（注册逐字 / 当期池名与秒级 ts / JST 档期 / 活动名 + 起止 /
+  哨兵不进外显与悬停 / 「结束最晚 ≠ 还在期」/ 反证：`openedAt` 抹 null ⇒ 不进外显、`{}` ⇒ 抛错、
+  2031 年与空数组 ⇒ null）。
+- **实测（2026-11-14，本机直连，NOW = 2026-11-14T00:00Z）**：当期池 = 03:59:59Z 结束的那 3 口里的
+  50044231「真冬の水着スペシャル ぐだぐだぷにぷにウォーズ！ 高杉晋作ピックアップ召喚」
+  （11-13 18:00 ~ 12-02 12:59 JST；29 口在期池里取结束最晚、同窗按 id 升序）；当期活动 = 71735「絆獲得量アップ」
+  （11-01 00:00 ~ 12-31 23:59 JST，16 条在期去重后 14 行悬停）。
 
 ### 2026-11-14：赛马娘·国际服**活动侧**换源（官方公告 → GameTora）
 

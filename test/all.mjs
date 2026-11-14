@@ -91,8 +91,9 @@ section("聚合注册表（全部批次合并后）");
 		}
 	}
 
-	// mode 的取值必须有依据：调研实测只有三个源 ACAO 放行（+2026-10-21 接入的 gametora.com，见 tools/check-host-allow.mjs）
-	const DIRECT_OK = /umapyoi\.net|sekai-world\.github\.io|bang-dream-on\.bushimo\.jp|gametora\.com/;
+	// mode 的取值必须有依据：调研实测只有三个源 ACAO 放行（+2026-10-21 接入的 gametora.com、
+	// +2026-11-14 接入的 api.atlasacademy.io，见 tools/check-host-allow.mjs）
+	const DIRECT_OK = /umapyoi\.net|sekai-world\.github\.io|bang-dream-on\.bushimo\.jp|gametora\.com|atlasacademy\.io/;
 	for (const s of NEXT_SOURCES) {
 		for (const side of ["gacha", "event"]) {
 			if (!s[side] || s[side].mode !== "direct") continue;
