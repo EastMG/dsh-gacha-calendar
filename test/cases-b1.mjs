@@ -400,6 +400,8 @@ export default async function run() {
 		{
 			id: "pjsk-tc",
 			name: "初音未来：缤纷舞台·繁中服",
+			srcLabel: "Sekai World 卡池表（代理）",
+			evtLabel: "Sekai World 活动表（代理）",
 			tz: "Asia/Taipei",
 			repo: "sekai-master-db-tc-diff",
 			gachaFx: "sekai-tc-gachas",
@@ -418,6 +420,8 @@ export default async function run() {
 		{
 			id: "pjsk-kr",
 			name: "初音未来：缤纷舞台·韩服",
+			srcLabel: "Sekai World 卡池表（韩文）",
+			evtLabel: "Sekai World 活动表（韩文）",
 			tz: "Asia/Seoul",
 			repo: "sekai-master-db-kr-diff",
 			gachaFx: "sekai-kr-gachas",
@@ -450,8 +454,8 @@ export default async function run() {
 			!!s && s.url === GH(R.repo, "gachas.json"), s && String(s.url));
 		check(`${R.id} 活动 eventUrl 逐字 = gh-proxy 包 raw（${R.repo}/events.json）`,
 			!!s && s.eventUrl === GH(R.repo, "events.json"), s && String(s.eventUrl));
-		check(`${R.id} 两侧来源标签逐字（沿用国服写法）`,
-			!!s && s.source === "Sekai World 卡池表（代理）" && s.eventSource === "Sekai World 活动表（代理）",
+		check(`${R.id} 两侧来源标签逐字`,
+			!!s && s.source === R.srcLabel && s.eventSource === R.evtLabel,
 			s && JSON.stringify([s.source, s.eventSource]));
 		check(`${R.id} 卡池备选 = Pages 版 1 条（label/url/fetcher 逐字）`,
 			!!s && Array.isArray(s.altSources) && s.altSources.length === 1
