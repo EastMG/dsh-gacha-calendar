@@ -1,0 +1,8 @@
+{
+  "bytes": 6607,
+  "sha256": "0d5191c3b4261fd2",
+  "url": "https://infinitynikki.nuanpaper.com/api/news",
+  "status": 200,
+  "capturedAt": "2026-11-14T21:49:02.427Z",
+  "trim": "原文照存（未裁剪）：HTTP 200 / application/json; charset=utf-8 / 6,607 B / 无需任何 header。data.allNews / data.notices / data.news 各 5 条、互相重叠 ⇒ 按 id 去重后 10 篇唯一。实测 page/limit/section/offset 四个参数全被忽略（回的还是这同一份 6,607 B）⇒ 源站没有分页。"
+}

@@ -1433,4 +1433,288 @@ export default async function runBatch2() {
 			check("当期确实没有（只有往期）⇒ **null**（未公布），不是抛错", dP === null, JSON.stringify(dP));
 		}
 	}
+	// ═══════════════ ⑦ 无限暖暖（wxnn）—— 官网「资讯快报」列表 + 详情 ═══════════════
+	section("无限暖暖 ⑦：官网资讯列表 + 详情（注册 / 共鸣时间→卡池 / 活动时间→活动 / 维护窗兜底 / 按 id 缓存 / 反证）");
+	{
+		const X = T.parsers.wxnn;
+		const raw = (name) => fixtureBody("fixture:" + name, { ["fixture:" + name]: name + "/response.txt" });
+		const LIST_RAW = raw("wxnn-list");
+		const D92 = raw("wxnn-detail-1092");
+		const D93 = raw("wxnn-detail-1093");
+		const D94 = raw("wxnn-detail-1094");
+		const D95 = raw("wxnn-detail-1095");
+		// 夹具抓取时刻 = 2026-11-15 上午（+08）。now 取 11-15 12:00+08：
+		// 卡池 11-13 11:00 ~ 11-27 01:29、五条活动全在期、外显 = 结束最早的「超级激化」。
+		const NOW_X = Date.parse("2026-11-15T12:00:00+08:00");
+		// 源站真实列表 15 条里有 6 篇**没有档期**的资讯稿（表情包 / OST / 声明 …），夹具只抓了带档期的
+		// 1092/1093/1094/1095 ⇒ 用例用合成列表把 id 收窄，保证「每个请求都有夹具可回」，
+		// 请求数断言才是在测**缓存**，而不是在测「失败跳过」。
+		const listOf = (ids) => {
+			const j = JSON.parse(LIST_RAW);
+			const all = [];
+			for (const k of ["allNews", "notices", "news"]) for (const it of j.data[k]) all.push(it);
+			const uniq = new Map(all.map((it) => [it.id, it]));
+			const rows = ids.map((id) => uniq.get(id) || {
+				id, title: "《无限暖暖》奇想衣橱 | 万物繁生谣", section: 0, publish_time: "2026-11-10T07:30:00.000Z"
+			});
+			return JSON.stringify({ data: { allNews: rows, notices: [], news: [] } });
+		};
+		const withList = (ids, fallback) => (u) => {
+			if (/\/api\/news$/.test(String(u))) return listOf(ids);
+			return fallback ? fallback(String(u)) : null;
+		};
+		const urlsOf = (sink) => sink.filter((c) => c.via === "proxy").map((c) => String(c.url));
+		const newsIdsOf = (sink) => urlsOf(sink)
+			.map((u) => (/\/news\/(\d+)$/.exec(u) || [])[1])
+			.filter(Boolean)
+			.map(Number);
+		// 可拨动的时钟 + 立即返回的计时器（空 body 重试别真睡 2.5 秒）
+		const clock = { now: NOW_X };
+		const engineX = (sink, opts) => createEngine({
+			transport: makeTransport(sink, opts),
+			storage: makeStore(),
+			now: () => clock.now,
+			timer: { setTimeout: (fn) => setTimeout(fn, 0), clearTimeout }
+		});
+
+		// ── 注册项 ──
+		{
+			const s = T.SOURCES.find((x) => x.id === "wxnn") || null;
+			check("条目已存在（id = wxnn）", !!s, s ? s.id : "缺失");
+			check("名称 = 无限暖暖", !!s && s.name === "无限暖暖", s && s.name);
+			check("tz = Asia/Shanghai（国服；`（UTC+8）` 与 `（服务器时间）` 两种后缀同一时区）",
+				!!s && s.tz === "Asia/Shanghai", s && String(s.tz));
+			check("defaultHidden = false（出厂展示）", !!s && s.defaultHidden === false, s && String(s.defaultHidden));
+			check("有游戏主题色（#rrggbb）", !!s && /^#[0-9A-Fa-f]{6}$/.test(String(s.color)), s && String(s.color));
+			check("卡池 url = 列表接口 `/api/news`（不分页：page/limit/section/offset 全被忽略）",
+				!!s && s.url === X.WXNN_LIST_URL && /\/api\/news$/.test(s.url), s && String(s.url));
+			check("活动 eventUrl = 同一条列表（两侧同一份载荷 ⇒ `fetchEntry` 只取一次）",
+				!!s && s.eventUrl === X.WXNN_LIST_URL, s && String(s.eventUrl));
+			check("两侧来源标签逐字 = 「官网公告」/「官网公告」（**提议**，等用户复核）",
+				!!s && s.source === "官网公告" && s.eventSource === "官网公告",
+				s && JSON.stringify([s.source, s.eventSource]));
+			const e0 = engineX([]);
+			check("两侧抓取器都登记（GACHA_FETCHERS.wxnn / EVENT_FETCHERS.wxnn.default）",
+				typeof e0.__test.GACHA_FETCHERS["wxnn"] === "function"
+				&& !!(e0.__test.EVENT_FETCHERS["wxnn"] && typeof e0.__test.EVENT_FETCHERS["wxnn"].default === "function"));
+		}
+
+		// ── 纯函数：列表 / 档期 / 维护窗（含「后缀剥掉、不进悬停」）──
+		{
+			const rows = X.wxnnListOf(LIST_RAW);
+			check("列表 15 条（三桶各 5、互相重叠）⇒ 按 id 去重后 10 篇唯一", rows.length === 10, String(rows.length));
+			check("去重后含 1092/1094/1095（卡池稿 / 活动稿 / 维护稿）",
+				rows.some((x) => x.id === 1092) && rows.some((x) => x.id === 1094) && rows.some((x) => x.id === 1095),
+				rows.map((x) => x.id).join(","));
+			check("`publish_time` 是 ISO 串也能解成毫秒（1094 = 2026-11-11T04:00:00Z）",
+				rows.find((x) => x.id === 1094).publishTs === Date.UTC(2026, 10, 11, 4, 0),
+				String(rows.find((x) => x.id === 1094).publishTs));
+
+			const w1 = X.wxnnWindowOf("2026年11月13日版本更新后 — 2026年11月27日01:29（UTC+8）", null, X.WXNN_TZ);
+			check("「版本更新后」⇒ startTs = null + openDate 11-13（不编时刻），终点 = 11-27 01:29",
+				!!w1 && w1.startTs === null && w1.endTs === Date.UTC(2026, 10, 26, 17, 29)
+				&& !!w1.openDate && w1.openDate.mo === 11 && w1.openDate.d === 13,
+				JSON.stringify(w1 && [w1.startTs, w1.endTs, w1.openDate]));
+			check("raw = 源站原文（连接号统一 `~`），时间后缀已剥掉（`（UTC+8）` 不进悬停）",
+				!!w1 && w1.raw === "2026年11月13日版本更新后 ~ 2026年11月27日01:29", w1 && w1.raw);
+			const w2 = X.wxnnWindowOf("2026年11月14日04:00 — 2026年11月21日03:59（服务器时间）", null, X.WXNN_TZ);
+			check("两端都明确 + 另一种后缀「（服务器时间）」⇒ 按 UTC+8 换算绝对时刻",
+				!!w2 && w2.startTs === Date.UTC(2026, 10, 13, 20, 0) && w2.endTs === Date.UTC(2026, 10, 20, 19, 59),
+				JSON.stringify(w2 && [w2.startTs, w2.endTs]));
+			check("「（服务器时间）」同样剥掉：raw 里既没有 UTC 也没有那个后缀",
+				!!w2 && w2.raw === "2026年11月14日04:00 ~ 2026年11月21日03:59", w2 && w2.raw);
+			const m1 = X.wxnnMaintOf("我们计划将于2026年11月13日10:00-11:00（UTC+8）进行停服维护更新，维护期间将无法登录游戏", null, X.WXNN_TZ);
+			check("维护窗 ⇒ 锚点 = 维护结束 11-13 11:00（`10:00-11:00` 取后半段）",
+				!!m1 && m1.y === 2026 && m1.mo === 11 && m1.d === 13 && m1.ts === Date.UTC(2026, 10, 13, 3, 0),
+				JSON.stringify(m1));
+
+			const throwsWith = (f, re) => { try { f(); return false; } catch (e) { return re.test(e.message); } };
+			check("列表 `{}` ⇒ 抛错（`wxnn-list-changed:no-data`），不是「当期没有」",
+				throwsWith(() => X.wxnnListOf("{}"), /no-data/));
+			check("列表空串 ⇒ 抛错（`bad-json`）", throwsWith(() => X.wxnnListOf(""), /bad-json/));
+			check("三个桶都是空数组 ⇒ 抛错（`no-news`）",
+				throwsWith(() => X.wxnnListOf(JSON.stringify({ data: { allNews: [], notices: [], news: [] } })), /no-news/));
+
+			const p94 = X.wxnnPageOf(D94);
+			check("详情页 `__NEXT_DATA__.pageData` 能取到 title / publishTs / content_html",
+				!!p94 && /活动开启提醒/.test(p94.title) && p94.publishTs === Date.UTC(2026, 10, 11, 4, 0) && p94.contentHtml.length > 500,
+				JSON.stringify(p94 && [p94.title, p94.publishTs, p94.contentHtml.length]));
+			check("骨架页（旧 id / 不存在的 id 回 200）⇒ pageData 取不到 ⇒ null（跳过，不是失败）",
+				X.wxnnPageOf("<html><body>no next data</body></html>") === null);
+			check("没有 pageData 的空壳 __NEXT_DATA__ ⇒ null",
+				X.wxnnPageOf('<script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{}}}</script>') === null);
+			// 1093 / 1095 的夹具至少要被用到一次（否则抓了没人验证）
+			check("1093 详情夹具能解出「予大地以时光」（共鸣时间独占一行、池名只在正文）",
+				(() => {
+					const p = X.wxnnPageOf(D93);
+					if (!p) return false;
+					const items = X.wxnnFactsOf({ id: 1093, title: p.title, publishTs: p.publishTs }, p, X.WXNN_TZ);
+					return items.gacha.length === 1 && items.gacha[0].name === "予大地以时光";
+				})());
+			check("1095 详情夹具只贡献维护窗（没有共鸣/活动锚点）",
+				(() => {
+					const p = X.wxnnPageOf(D95);
+					if (!p) return false;
+					const f = X.wxnnFactsOf({ id: 1095, title: p.title, publishTs: p.publishTs }, p, X.WXNN_TZ);
+					return f.maint.length === 1 && f.maint[0].ts === Date.UTC(2026, 10, 13, 3, 0)
+						&& f.gacha.length === 0 && f.events.length === 0;
+				})());
+		}
+
+		// ── 端到端：一篇 5 条活动的稿 + 一篇维护稿 + 一篇共鸣稿 ──
+		{
+			const sink = [];
+			const e = engineX(sink, { override: withList([1094, 1095, 1092]) });
+			const s = e.__test.SOURCES.find((x) => x.id === "wxnn");
+			const r = await e.__test.fetchEntry(s);
+			check("首轮请求 = 列表 1 + 详情 3（只对列表里的 id 取）", urlsOf(sink).length === 4, urlsOf(sink).join(" | "));
+			check("卡池外显 = 何人消隐于祷声（池名取 `前往「…」进行共鸣`，不是标题）",
+				r.data.banner === "何人消隐于祷声", JSON.stringify(r.data.banner));
+			check("卡池档期 = 「11-13 11:00 ~ 11-27 01:29」（起点由 1095 的同批维护窗补出 11:00）",
+				r.data.bannerDates === "11-13 11:00 ~ 11-27 01:29", JSON.stringify(r.data.bannerDates));
+			check("卡池原文保留相对表述 = 「2026年11月13日版本更新后 ~ 2026年11月27日01:29」",
+				r.data.bannerDatesRaw === "2026年11月13日版本更新后 ~ 2026年11月27日01:29", JSON.stringify(r.data.bannerDatesRaw));
+			check("卡池 roles = 空串（源站只给池名与套装名；套装不是「角色」）", r.data.roles === "", JSON.stringify(r.data.roles));
+			check("活动外显 = 超级激化（覆盖 now 的活动里结束最早的）", r.data.event === "超级激化", JSON.stringify(r.data.event));
+			check("活动外显档期 = 「11-14 04:00 ~ 11-21 03:59」（两端都明确）",
+				r.data.eventDates === "11-14 04:00 ~ 11-21 03:59", JSON.stringify(r.data.eventDates));
+			check("`gacha[]` 1 条（绝对时刻 11-13 11:00 ~ 11-27 01:29）",
+				(r.data.gacha || []).length === 1
+				&& r.data.gacha[0].startTs === Date.UTC(2026, 10, 13, 3, 0)
+				&& r.data.gacha[0].endTs === Date.UTC(2026, 10, 26, 17, 29),
+				JSON.stringify((r.data.gacha || []).map((x) => [x.title, x.startTs, x.endTs])));
+			check("`events[]` 5 条（一篇多活动全部进数组，不是只取外显那条）",
+				(r.data.events || []).length === 5, JSON.stringify((r.data.events || []).map((x) => x.title)));
+			check("5 条活动的名字逐字（第 5 条带尾巴的保留整行，不去引号）",
+				JSON.stringify((r.data.events || []).map((x) => x.title))
+				=== JSON.stringify(["超级激化", "向明日落笔", "艾莉森的旅行小铺", "星光评选赛", "「颂愿感悟之礼」系列礼包限时上架"]),
+				JSON.stringify((r.data.events || []).map((x) => x.title)));
+			check("活动悬停 5 行（相对起点的行退回源站原文）",
+				String(r.data.eventHover || "").split("\n").filter(Boolean).length === 5,
+				JSON.stringify(String(r.data.eventHover || "").split("\n")));
+			assertHoverConvention("无限暖暖活动悬停", r.data.eventHover);
+			assertHoverConvention("无限暖暖卡池悬停（单条 ⇒ 允许空，由 UI 两行式兜底）", r.data.bannerHover || "");
+
+			// ── 稳态：同一个引擎第二轮只有列表那 1 个请求 ──
+			sink.length = 0;
+			const r2 = await e.__test.fetchEntry(s);
+			check("稳态（缓存内）：第二轮只发 1 个请求（列表），详情一篇都不重取",
+				urlsOf(sink).length === 1, urlsOf(sink).join(" | "));
+			check("稳态第二轮的外显与首轮逐字相同",
+				r2.data.banner === r.data.banner && r2.data.bannerDates === r.data.bannerDates
+				&& r2.data.event === r.data.event, JSON.stringify([r2.data.banner, r2.data.event]));
+		}
+
+		// ── 新公告出现：只补那一条（1093 = 锚点独占一行 + 池名只在正文）──
+		{
+			const sink = [];
+			const e = engineX(sink, { override: withList([1094, 1095, 1092, 1093]) });
+			const s = e.__test.SOURCES.find((x) => x.id === "wxnn");
+			await e.__test.fetchEntry(s);
+			check("列表多出一篇 1093 ⇒ 首轮 1 + 4 个请求", urlsOf(sink).length === 5, urlsOf(sink).join(" | "));
+			sink.length = 0;
+			const g = await e.__test.GACHA_FETCHERS["wxnn"](s.url, undefined, s.tz);
+			check("1093 解析出「予大地以时光」（`共鸣时间` 单独一行 + 「前往…进行共鸣」给池名）",
+				!!g && (g.gacha || []).some((x) => x.title === "予大地以时光"),
+				JSON.stringify((g && g.gacha || []).map((x) => x.title)));
+			check("新篇已入缓存 ⇒ 再取一轮只有列表 1 个请求", urlsOf(sink).length === 1, urlsOf(sink).join(" | "));
+			check("两口池同窗 ⇒ 悬停把同名同窗折叠成「名称… ⏎ 档期」两行式",
+				!!g && String(g.bannerHover || "").split("\n").filter(Boolean).length === 3,
+				JSON.stringify(String((g && g.bannerHover) || "").split("\n")));
+			assertHoverConvention("无限暖暖卡池悬停（两口池同窗）", (g && g.bannerHover) || "");
+		}
+
+		// ── 24h TTL + 已结束的封存：稳态仍只有列表 1 个请求 ──
+		{
+			clock.now = NOW_X;
+			const sink = [];
+			const e = engineX(sink, { override: withList([1094, 1095, 1092]) });
+			const s = e.__test.SOURCES.find((x) => x.id === "wxnn");
+			await e.__test.fetchEntry(s);
+			sink.length = 0;
+			clock.now = NOW_X + 25 * 3600 * 1000;   // 距上次 > 24h
+			await e.__test.fetchEntry(s);
+			const idsTtl = newsIdsOf(sink);
+			check("过 24h TTL 后：仍在期的 1092/1094 补一次详情，无档期的 1095 不再取",
+				idsTtl.length === 2 && idsTtl.includes(1092) && idsTtl.includes(1094), idsTtl.join(","));
+			sink.length = 0;
+			clock.now = NOW_X + 40 * 24 * 3600 * 1000;   // 全部档期已结束
+			const r40 = await e.__test.fetchEntry(s);
+			check("40 天后（全部档期已结束）：**详情一篇都不重取**（封存）——剩下的请求只有列表",
+				newsIdsOf(sink).length === 0, `${urlsOf(sink).length} 个请求，详情 ${newsIdsOf(sink).join(",")}`);
+			check("40 天后当期确实没有 ⇒ 卡池/活动都不外显（如实 null，不拿过期档期顶）",
+				!r40.data.banner && !r40.data.event, JSON.stringify([r40.data.banner, r40.data.event]));
+			clock.now = NOW_X;
+		}
+
+		// ── 反证 ①：抹掉「共鸣时间」锚点 ⇒ 卡池不进外显（活动侧不受影响）──
+		{
+			const e = engineX([], { override: withList([1094, 1095, 1092], (u) => (/\/news\/1092$/.test(u) ? D92.replace(/共鸣时间/g, "共鸣说明") : null)) });
+			const s = e.__test.SOURCES.find((x) => x.id === "wxnn");
+			const r = await e.__test.fetchEntry(s);
+			check("反证：抹掉「共鸣时间」⇒ 卡池外显 = null（没有锚点就不产出，不硬凑）",
+				!r.data.banner && !r.data.bannerDates, JSON.stringify([r.data.banner, r.data.bannerDates]));
+			check("反证：同一轮里活动侧照常出（1094 的「活动时间」锚点没被动）",
+				r.data.event === "超级激化" && (r.data.events || []).length === 5, JSON.stringify(r.data.event));
+		}
+
+		// ── 反证 ②：抹掉「活动时间」锚点 ⇒ 活动不进外显，卡池照常 ──
+		{
+			const e = engineX([], { override: withList([1094, 1095, 1092], (u) => (/\/news\/1094$/.test(u) ? D94.replace(/活动时间/g, "活动档期") : null)) });
+			const s = e.__test.SOURCES.find((x) => x.id === "wxnn");
+			const r = await e.__test.fetchEntry(s);
+			check("反证：抹掉「活动时间」⇒ 活动外显 = null、`events[]` 空",
+				!r.data.event && (r.data.events || []).length === 0, JSON.stringify([r.data.event, (r.data.events || []).length]));
+			check("反证：卡池侧照常（同一轮两侧锚点互不影响）", r.data.banner === "何人消隐于祷声", JSON.stringify(r.data.banner));
+		}
+
+		// ── 反证 ③：抹掉维护窗 ⇒ 「版本更新后」如实留空（不编 10:00 / 12:00 之类的时刻）──
+		{
+			const e = engineX([], { override: withList([1094, 1092], null) });   // 列表里没有 1095 ⇒ 没有维护窗
+			const s = e.__test.SOURCES.find((x) => x.id === "wxnn");
+			const g = await e.__test.GACHA_FETCHERS["wxnn"](s.url, undefined, s.tz);
+			check("反证：没有维护窗 ⇒ 卡池不外显（「版本更新后」的起点如实留空，不拿 10:00 之类去猜）",
+				!g || !g.banner, JSON.stringify(g && [g.banner, g.bannerDates]));
+			check("反证：同一轮活动侧仍有「超级激化」（它两端都明确，不依赖维护窗）",
+				!!g && g.event === "超级激化", JSON.stringify(g && g.event));
+		}
+
+		// ── 反证 ④：列表 `{}` ⇒ 抛错（不是 nomatch）──
+		{
+			const sink = [];
+			const e = engineX(sink, { override: (u) => (/\/api\/news$/.test(u) ? "{}" : null) });
+			const s = e.__test.SOURCES.find((x) => x.id === "wxnn");
+			const r = await e.__test.fetchEntry(s);
+			check("反证：列表 `{}` ⇒ 该侧记 down，不是「未公布」",
+				!!r.gachaFail && r.gachaFail.kind === "down", JSON.stringify(r.gachaFail));
+			let err = null;
+			try { await e.__test.GACHA_FETCHERS["wxnn"](s.url, undefined, s.tz); } catch (e2) { err = e2; }
+			check("反证：抓取器本身对 `{}` 抛 `wxnn-list-changed:no-data`",
+				!!err && /wxnn-list-changed:no-data/.test(err.message), JSON.stringify(err && err.message));
+		}
+
+		// ── 反证 ⑤：详情回空 body（短时限流）⇒ 重试 3 次后跳过该条，其余照出 ──
+		{
+			const sink = [];
+			const e = engineX(sink, {
+				override: withList([1094, 1095, 1092], (u) => (/\/news\/1092$/.test(u) ? "" : null))
+			});
+			const s = e.__test.SOURCES.find((x) => x.id === "wxnn");
+			const r = await e.__test.fetchEntry(s);
+			const calls92 = urlsOf(sink).filter((u) => /\/news\/1092$/.test(u)).length;
+			check("反证：空 body ⇒ 重试 2 次（共 3 次请求）后跳过该条", calls92 === 3, String(calls92));
+			check("反证：被跳过的那篇不影响另一侧（活动照出 5 条）",
+				r.data.event === "超级激化" && (r.data.events || []).length === 5, JSON.stringify(r.data.event));
+			check("反证：卡池那一侧因为没拿到 ⇒ 不外显（不抛错、不硬凑）", !r.data.banner, JSON.stringify(r.data.banner));
+		}
+
+		// ── 反证 ⑥：全部详情都拿不到（缓存也空）⇒ down（别把封禁静默成「未公布」）──
+		{
+			const e = engineX([], { override: (u) => (/\/api\/news$/.test(u) ? listOf([1094, 1095, 1092]) : "") });
+			const s = e.__test.SOURCES.find((x) => x.id === "wxnn");
+			const r = await e.__test.fetchEntry(s);
+			check("反证：全部详情失败 + 缓存为空 ⇒ 该侧 down",
+				!!r.gachaFail && r.gachaFail.kind === "down", JSON.stringify(r.gachaFail));
+		}
+	}
 }

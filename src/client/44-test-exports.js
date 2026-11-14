@@ -746,6 +746,38 @@
 				yslzRerunsOf: ns_yslz_rerunsOf,
 				yslzWindowOf: ns_yslz_windowOf
 			},
+			// 2026-11-15 无限暖暖（国服）：官网「资讯快报」列表 + 详情（`__NEXT_DATA__` 的 pageData）。
+			// 抓取器整体导出（`fetchWxnn`）便于回归直接驱动"列表 1 次 + 新 id 详情 + 缓存"；
+			// 其余全是纯函数，口径（锚点 / 档期 / 维护窗兜底 / 载荷）逐条可断言。
+			"wxnn": {
+				WXNN_CACHE_MAX,
+				WXNN_DETAIL_TTL_MS,
+				WXNN_EMPTY_RETRY,
+				WXNN_EMPTY_RETRY_MS,
+				WXNN_LIST_URL,
+				WXNN_NAME_LOOKBACK,
+				WXNN_NEWS_BASE,
+				WXNN_SOURCE_LABEL,
+				WXNN_TZ,
+				WXNN_WINDOW_RE,
+				fetchWxnn: ns_wxnn_fetchWxnn,
+				wxnnCachedOf,
+				wxnnCollect,
+				wxnnDedupe,
+				wxnnEventNameOf,
+				wxnnFactsOf,
+				wxnnListOf,
+				wxnnLinesOf,
+				wxnnMaintIndexOf,
+				wxnnMaintOf,
+				wxnnPageOf,
+				wxnnPayloadOf,
+				wxnnPrune,
+				wxnnResolveStarts,
+				wxnnSealedOf,
+				wxnnTimestampOf,
+				wxnnWindowOf
+			},
 			},
 			// 共用工具 / env（测试原先从 next-sources/lib/env.js 取；压平后分别见 23-parser-time.js / 24-parser-window.js / 27-parser-text.js / 28-parser-hover-tools.js）
 			fmtWindow,
