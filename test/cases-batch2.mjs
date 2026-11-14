@@ -1480,7 +1480,16 @@ export default async function runBatch2() {
 		// ── 注册项 ──
 		{
 			const s = T.SOURCES.find((x) => x.id === "wxnn") || null;
-			check("条目已存在（id = wxnn）", !!s, s ? s.id : "缺失");
+					// 2026-11-15：列表实际有 4 个栏目（含 activity）——并集解析不能写死三个
+		check("列表解析取 data 下所有数组的并集（activity 也要读）",
+			X.wxnnListOf(JSON.stringify({ data: {
+				allNews: [{ id: 11, title: "a" }],
+				notices: [{ id: 12, title: "b" }],
+				news: [{ id: 12, title: "b" }],
+				activity: [{ id: 13, title: "c" }]
+			} })).length === 3,
+			"并集应为 3（11/12/13，12 重复只算一次）");
+		check("条目已存在（id = wxnn）", !!s, s ? s.id : "缺失");
 			check("名称 = 无限暖暖", !!s && s.name === "无限暖暖", s && s.name);
 			check("tz = Asia/Shanghai（国服；`（UTC+8）` 与 `（服务器时间）` 两种后缀同一时区）",
 				!!s && s.tz === "Asia/Shanghai", s && String(s.tz));
@@ -1502,7 +1511,7 @@ export default async function runBatch2() {
 		// ── 纯函数：列表 / 档期 / 维护窗（含「后缀剥掉、不进悬停」）──
 		{
 			const rows = X.wxnnListOf(LIST_RAW);
-			check("列表 15 条（三桶各 5、互相重叠）⇒ 按 id 去重后 10 篇唯一", rows.length === 10, String(rows.length));
+			check("列表 20 条（四栏各 5、含 activity、互相重叠）⇒ 按 id 去重后 15 篇唯一", rows.length === 15, String(rows.length));
 			check("去重后含 1092/1094/1095（卡池稿 / 活动稿 / 维护稿）",
 				rows.some((x) => x.id === 1092) && rows.some((x) => x.id === 1094) && rows.some((x) => x.id === 1095),
 				rows.map((x) => x.id).join(","));
