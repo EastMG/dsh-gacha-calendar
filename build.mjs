@@ -184,7 +184,10 @@ const ORDER = [
   "30-game-miyoushe-bbs.js",   // 未定事件簿：米游社公告（卡池 + 活动）
   "30-game-netease.js",        // 时空中的绘旅人：官网新闻列表 + 详情（卡池 + 活动）
   "30-game-pengpeng.js",       // 夜幕之下（国服）：卡池 bwiki + 活动 bwiki 公告/版本活动总览
-  "30-game-unconfigured.js",   // 炽焰天穹：只注册、来源留空未配置
+  // 2026-11-15：炽焰天穹（国服）—— 官方 H5 公告（列表 1 次 → 在期详情 + 按 id 缓存，TTL 24h）。
+  // 自包含一条（条目 + 解析器 + 抓取器 + 登记）；复用 bwiki 公共层的载荷/悬停生成器，
+  // 必须排在 `30-game-bwiki-common.js` 之后。原 `30-game-unconfigured.js` 只剩这一条 ⇒ 改名。
+  "30-game-cytq.js",
   // 2026-11-11 第二批：三处新来源（崩坏3 内容中台 / OurNotes 日服 SPICA / 卡厄斯梦境 TapTap tab）。
   // ⚠️ 必须排在上面全部 `30-game-*.js` 之后：`registerSource` 要**合并既有条目**
   //    （ournotes 在 30-game-bandori.js、czn 在 30-game-bwiki-register.js 里声明）。
@@ -326,7 +329,7 @@ const CORE_ORDER = [
   "30-game-miyoushe-bbs.js",   // 未定事件簿（米游社公告）
   "30-game-netease.js",        // 时空中的绘旅人（官网新闻）
   "30-game-pengpeng.js",       // 夜幕之下（国服）
-  "30-game-unconfigured.js",   // 炽焰天穹（来源留空未配置）
+  "30-game-cytq.js",           // 炽焰天穹（国服）：官方 H5 公告（卡池 + 活动；列表 → 在期详情 + id 缓存）
   "30-game-batch2.js",         // 2026-11-11 第二批（bh3 内容中台 / OurNotes SPICA / czn TapTap）
   "30-game-ournotes-global.js",// 2026-11-11 OurNotes 国际服（SPICA 数据 JSON：卡池 + 活动）
   "50-refresh.js",             // 刷新编排

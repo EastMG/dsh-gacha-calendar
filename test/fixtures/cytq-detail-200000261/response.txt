@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ja-JP">
+<head>
+    <meta charset="utf-8" />
+    <meta name="format-detection" content="telephone=no">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=0" />
+    <meta name="description" content="announcement" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/detail.css?17946930679498" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/chara.css?17946930679498" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/font_4.css?17946930679498" />
+                                    <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/jquery-3.7.1.min.js?17946930679498" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/detail.js?17946930679498" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/index.js?17946930679498" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/unity-link.js?17946930679498" crossorigin></script>
+                <style>
+        .d_view_page_top{
+            text-align: center;
+            background-color: #000000;
+            opacity: 0.5;
+            margin-bottom: 30px;
+        }
+        .d_view_page_top a{
+            color: #fff;
+            display: inline-block;
+            width: 30%;
+            padding: 20px 0;
+            font-size: 30px;
+        }
+        .d_view_page_top a:hover{
+            background-color: #fd7e7e;
+            padding: 21px 0 19px;
+        }
+        .d_view_page_top {
+            display: block;
+            width: 100%;
+            position: fixed;
+            left: 0px;
+            top: 2px;
+            z-index: 9999;
+            text-align: center;
+            padding: 0 auto;
+        }
+    </style>
+</head>
+
+<body  style="background-color: #49414c" >
+<div class="detail-container">
+  <div class="detail-back">
+    <a class="detail-back" href="/web/announcement?language=1&phoneType=4&userId=0&assetVersion="><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/announcement/icon-back.png" alt="back" width="122" height="108"></a>  </div>
+  <div class="detail-main">
+    <div class="detail-header">
+              <div class="detail-banner">
+          <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_200000261_cn.png" width="546" height="192" alt="banner" />
+        </div>
+            <div class="detail-title">
+        <article class="article-item">
+          <div class="article-container">
+                          <div class="article-header is-event">
+                <div class="article-category">活动</div>
+                <div class="article-date"></div>
+              </div>
+                        <h1 class="article-body">恒星扫荡战线#12 统御苍穹的骸翼 开启！</h1>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    
+    <p>感谢您一直以来对《炽焰天穹》的支持！<br></p>
+<br>
+<br>
+<p align="center">
+<img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/etc/HomePopup_other40043_1.png" width="100%"><br>
+<br>
+</p>
+<h2 class="headline-m">■ 「恒星扫荡战线」开启！</h2>
+<p>
+<br>
+<h3 class="headline-pink">讨伐证兑换所饰品兑换次数增加！</h3>
+<p>通关恒星战后，可获得奖励<span class="color-positive">「讨伐证」</span>。<br>
+可使用<span class="color-positive">「讨伐证」</span>在<span class="color-strong"><b>「讨伐证兑换所」</b></span>兑换饰品！<br>
+本次<span class="color-positive">饰品<b>「雷霆的远古项链」「雷套的远古项链」</b></span>的可兑换次数增加1次！</p>
+<br>
+<table>
+        <tr>
+                <th>饰品</th>
+                <th>详情</th>
+                <th>兑换次数</th>
+        </tr>
+        <tr>
+                <td>雷霆的远古项链</td>
+                <td style="text-align:left;">雷属性技能次数+1 / 技能攻击力+10% / <br>破坏率上升量+10% / 初始SP+3</td>
+                <td>1次→<span class="color-strong"><b>2次</b></span></td>
+        </tr>
+        <tr>
+                <td>雷套的远古项链</td>
+                <td style="text-align:left;">雷属性技能次数+1 / DP+300 / <br>防御力+10% / 初始SP+3</td>
+                <td>1次→<span class="color-strong"><b>2次</b></span></td>
+        </tr>
+</table>
+<p><small>※讨伐证兑换所的内容将在后续更新中陆续追加。<br>
+<br></small>
+</p>
+<h3 class="headline-pink">活动时间</h3>
+<p>
+2026/10/8 维护后 ~ 2026/12/2 12:59<br>
+※参加本活动需通关主线剧情第二章。<br>
+</p>
+<br>
+<br>
+<h3 class="headline-pink">活动介绍</h3>
+<p>本活动为限时开放的<span class="color-positive">单人游玩专属战斗活动</span>。<br>
+  通关「行星战」可获得仅在「恒星战」中生效的效果，努力取得「恒星战」胜利吧。<br>
+</p>
+ <p align="center">
+  <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/etc/DimensionBattle03_cn.png" width="80%"><br>
+</p>
+  <br>
+<h2 class="header">「行星战」介绍</h2>
+<p>每个行星战中含有<span class="color-positive">特殊的编队规则，需参考对应规则，灵活选择风格进行编队</span>。<br>
+于行星战中<span class="color-strong">派遣的队伍成员将无法编入其他行星战或恒星战的队伍。</span><br>
+<br>
+通关行星战，可<span class="color-positive">获得仅在恒星战生效的附加效果</span>。<br>
+  于行星战获得的附加效果可从游戏画面右上方图标进行确认。<br>
+<small>※派遣队伍成员以风格单独计算，可将同一角色不同风格编入不同队伍派遣。<br>
+※饰品、芯片等装备可从已派遣队伍的成员处继承通用。</small>
+</p>
+<br>
+
+<h2 class="header">「恒星战」介绍</h2>
+<p>通关初始难度的恒星战后，恒星战<span class="color-positive">难度等级将逐步提升</span>，敌人也将逐渐变强。<br>
+<small>※在恒星战中编成的部队成员不会计入派遣状态。</p>
+</small><br>
+<br>
+<h2 class="header">「EX MODE」介绍</h2>
+<p>在<span class="color-strong">EX MODE</span>中，恒星战的难度将进一步提高。<br>
+获得胜利后，敌人也会进一步增强。<br>
+<br>
+
+<p align="center">
+  <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/etc/DimensionBattle04_cn.png" width="80%"><br>
+</p>
+
+<br>
+<br>
+<p>调用多支部队挑战强敌吧！<br></p>
+<br>
+<br>
+<h3 class="headline-pink">奖励</h3>
+<p>奖励分「行星战」奖励与「恒星战」奖励。
+</p>
+<br>
+<h2 class="header">「行星战」奖励</h2>
+<p>在行星战中获胜，可获得「行星战」奖励。<br>
+   奖励详情可通过恒星扫荡战线的挑战界面「奖励一览」＞「行星战奖励」进行查看。
+</p>
+<br>
+<table>
+  <tr>
+    <th width="60%">条件</th>
+    <th>奖励</th>
+ </tr>
+  <tr> 
+    <td>通关行星战1</td>
+    <td>战斗报告Ⅳ × 300</td>
+  </tr>
+  <tr> 
+    <td>通关行星战2</td>
+    <td>战斗报告Ⅳ × 300</td>
+ </tr>
+  <tr> 
+    <td>通关行星战3</td>
+    <td>技能指南 × 1</td>
+    </tr>
+  <tr> 
+    <td>通关行星战4</td>
+      <td>技能指南 × 1</td>
+  </tr>
+ </table>
+<br>
+<br>
+  <h2 class="header">「恒星战」奖励</h2>
+  <p>在恒星战中获胜，可获得「恒星战」奖励。<br>
+   奖励详情可通过恒星扫荡战线的挑战界面「奖励一览」＞「恒星战奖励」进行查看。
+</p>
+<br>
+<table>
+  <tr>
+    <th width="38%">等级</th>
+    <th>获得道具</th>
+ </tr>
+  <tr>
+    <td>通关C级</td>
+    <td>
+     拉普拉斯六花晶×5<br>
+     讨伐证×5<br>
+     赛季奖章×100<br>
+     主题点数×10<br>
+     晶石×300<br>
+     GP×300000</td>
+  </tr>
+  <tr>
+    <td>通关B级</td>
+    <td>
+     拉普拉斯六花晶×5<br>
+     讨伐证×5<br>
+     赛季奖章×200<br>
+     主题点数×10<br>
+     晶石×300<br>
+     阻隔骸翼者之证</td>
+ </tr>
+  <tr>
+    <td>通关A级</td>
+    <td>
+     拉普拉斯六花晶×5<br>
+     讨伐证×5<br>
+     赛季奖章×300<br>
+     主题点数×10<br>
+     晶石×300<br>
+    </tr>
+  <tr>
+    <td>通关S级</td>
+    <td>
+     拉普拉斯六花晶×5<br>
+     讨伐证×5<br>
+     赛季奖章×300<br>
+     主题点数×10<br>
+     晶石×300<br>
+  </tr>
+  <tr>
+    <td>通关X级</td>
+    <td>
+     拉普拉斯六花晶×5<br>
+     讨伐证×5<br>
+     赛季奖章×300<br>
+     主题点数×10<br>
+     晶石×300<br>
+     封印骸翼者之证</td>
+  </tr>
+  <tr>
+    <td>在20回合内通关X级</td>
+    <td>
+     拉普拉斯六花晶×1<br>
+     讨伐证×5<br>
+     赛季奖章×200<br>
+     主题点数×20<br>
+     奇迹之铃×3<br>
+  </tr>
+<tr>
+    <td>在15回合内通关X级</td>
+    <td>
+     拉普拉斯六花晶×2<br>
+     讨伐证×5<br>
+     赛季奖章×200<br>
+     主题点数×20<br>
+     技能指南×1</td>
+  </tr>
+<tr>
+    <td>在10回合内通关X级</td>
+    <td>
+     拉普拉斯六花晶×2<br>
+     讨伐证×5<br>
+     赛季奖章×200<br>
+     主题点数×20<br>
+     屠戮骸翼者之证</td>
+  </tr>
+<tr>
+    <td>通关EX Level1</td>
+    <td>
+     赛季奖章×450<br>
+     晶石×100<br>
+     技能指南×1</td>
+ </tr>
+<tr>
+    <td>通关EX Level2</td>
+    <td>
+     赛季奖章×450<br>
+     晶石×100<br>
+     技能指南×1</td>
+ </tr>
+<tr>
+    <td>通关EX Level3</td>
+    <td>
+     赛季奖章×500<br>
+     晶石×100<br>
+     技能指南×1<br>
+     黑色奖杯×1
+     </td>
+ </tr>
+<tr>
+    <td>通关EX Level4</td>
+    <td>
+     赛季奖章×500<br>
+     晶石×100<br>
+     技能指南×1</td>
+ </tr>
+<tr>
+    <td>通关EX Level5</td>
+    <td>
+     赛季奖章×500<br>
+     晶石×100<br>
+     技能指南×1</td>
+ </tr>
+<tr>
+     <td>通关EX Level6</td>
+     <td>
+     赛季奖章×300<br>
+     体力石×2<br>
+     风格强化教材×1</td>
+ </tr>
+<tr>
+     <td>通关EX Level7</td>
+     <td>
+     赛季奖章×250<br>
+     体力石×2<br>
+     风格强化教材×1</td>
+ </tr>
+<tr>
+     <td>通关EX Level8</td>
+     <td>
+     赛季奖章×250<br>
+     体力石×2<br>
+     风格强化教材×1</td>
+ </tr>
+<tr>
+     <td>通关EX Level9</td>
+     <td>
+     赛季奖章×200<br>
+     体力石×2<br>
+     风格强化教材×1</td>
+  </tr>
+<tr>
+     <td>通关EX Level10</td>
+     <td>
+     赛季奖章×200<br>
+     体力石×2<br>
+     风格强化教材×1</td>
+  </tr>
+<tr>
+     <td>通关EX Level11~</td>
+     <td>
+     体力石×2<br>
+     风格强化教材×1</td>
+  </tr>
+
+  </table>
+  <p><small>※「阻隔骸翼者之证」「封印骸翼者之证」「屠戮骸翼者之证」为荣誉证明，无法当作道具使用。可通过玩家资料界面右下角进行查看与展示。<br>
+<br>
+<br>
+<h2 class="header">注意事项</h2>
+<p>
+<small>
+※本活动有可能会再次复刻。<br>
+※活动复刻时，或下轮活动开启时，本轮活动中获得的分数或奖励的进度将无法继承。<br>
+</small></p>
+<br>
+<hr><div><p class="all-outro">今后也请继续支持《炽焰天穹》！</p></div>
+<br>
+
+
+  </div>
+</div>
+</body>
+</html>

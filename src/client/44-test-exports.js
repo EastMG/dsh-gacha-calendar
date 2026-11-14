@@ -746,6 +746,32 @@
 				yslzRerunsOf: ns_yslz_rerunsOf,
 				yslzWindowOf: ns_yslz_windowOf
 			},
+			// 2026-11-15 炽焰天穹（cytq）：官方 H5 公告（列表 1 次 → 只对在期 & 未缓存的 id 取详情）。
+			// 导出「URL + 纯解析 + 缓存复位 + 抓取器」四层，回归可以分别钉住：
+			// 列表/详情的失败语义（`{}` ⇒ 抛错 / 抹掉锚点 ⇒ 不出窗口）、角色名单、「维护后」⇒ 起点未知、
+			// 以及**请求数**（首轮 1+N / 稳态 1 —— 复位钩子 `cytqResetDetailCache` 只给回归用）。
+			"cytq": {
+				CYTQ_DETAIL_BASE: ns_cytq_DETAIL_BASE,
+				CYTQ_DETAIL_PARAMS: ns_cytq_DETAIL_PARAMS,
+				CYTQ_DETAIL_TTL_MS: ns_cytq_DETAIL_TTL_MS,
+				CYTQ_ENDED_GRACE_MS: ns_cytq_ENDED_GRACE_MS,
+				CYTQ_LIST_URL: ns_cytq_LIST_URL,
+				CYTQ_RELATIVE_START_RE: ns_cytq_RELATIVE_START_RE,
+				CYTQ_SIDE_BY_CLASS: ns_cytq_SIDE_BY_CLASS,
+				CYTQ_TZ: ns_cytq_TZ,
+				cytqCacheUsable: ns_cytq_cacheUsable,
+				cytqDetailOf: ns_cytq_detailOf,
+				cytqDetailUrlOf: ns_cytq_detailUrlOf,
+				cytqLinesOf: ns_cytq_linesOf,
+				cytqListOf: ns_cytq_listOf,
+				cytqPickUpNamesOf: ns_cytq_pickUpNamesOf,
+				cytqResetDetailCache: ns_cytq_resetDetailCache,
+				cytqStyleNamesOf: ns_cytq_styleNamesOf,
+				cytqWindowOf: ns_cytq_windowOf,
+				cytqWindowTextOf: ns_cytq_windowTextOf,
+				eventsCytq: ns_cytq_events,
+				gachaCytq: ns_cytq_gacha
+			},
 			},
 			// 共用工具 / env（测试原先从 next-sources/lib/env.js 取；压平后分别见 23-parser-time.js / 24-parser-window.js / 27-parser-text.js / 28-parser-hover-tools.js）
 			fmtWindow,

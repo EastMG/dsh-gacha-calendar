@@ -93,7 +93,12 @@ const hostAllowed = (h) => ALLOW.some((a) => h === a || h.endsWith("." + a));
 //     /export/JP/nice_gacha.json                    2,018,335 B
 //     /basic/JP/event/search?ongoing=true              14,301 B
 //   ⇒ 直连（抓取器 `mode: "direct"`），**不**进 PROXY_ALLOW_HOSTS。
-const DIRECT_HOSTS = ["api.umapyoi.net", "sekai-world.github.io", "gametora.com", "gh-proxy.com", "wqmt.aisnogames.com", "api.atlasacademy.io"];
+//
+// le3-prod-bili-gs-fever.bilibiligame.net：炽焰天穹 国服（cytq，2026-11-15 接入，卡池 + 活动两侧）。
+//   实测 `GET /web/announcement?phoneType=4` 与 `/web/announcement/<id>?phoneType=4` 都 200 且
+//   `Access-Control-Allow-Origin: *`（`Access-Control-Allow-Methods: GET, POST, OPTIONS`）
+//   ⇒ 直连（抓取器 `mode: "direct"`），**不**进 PROXY_ALLOW_HOSTS。
+const DIRECT_HOSTS = ["api.umapyoi.net", "sekai-world.github.io", "gametora.com", "gh-proxy.com", "wqmt.aisnogames.com", "api.atlasacademy.io", "le3-prod-bili-gs-fever.bilibiligame.net"];
 
 // ── 收集全部真实抓取目标 ──
 const targets = new Map();   // host → Set("条目id:用途")

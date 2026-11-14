@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ja-JP">
+<head>
+    <meta charset="utf-8" />
+    <meta name="format-detection" content="telephone=no">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=0" />
+    <meta name="description" content="announcement" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/detail.css?17946930683779" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/chara.css?17946930683779" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/font_4.css?17946930683779" />
+                                    <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/jquery-3.7.1.min.js?17946930683779" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/detail.js?17946930683779" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/index.js?17946930683779" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/unity-link.js?17946930683779" crossorigin></script>
+                <style>
+        .d_view_page_top{
+            text-align: center;
+            background-color: #000000;
+            opacity: 0.5;
+            margin-bottom: 30px;
+        }
+        .d_view_page_top a{
+            color: #fff;
+            display: inline-block;
+            width: 30%;
+            padding: 20px 0;
+            font-size: 30px;
+        }
+        .d_view_page_top a:hover{
+            background-color: #fd7e7e;
+            padding: 21px 0 19px;
+        }
+        .d_view_page_top {
+            display: block;
+            width: 100%;
+            position: fixed;
+            left: 0px;
+            top: 2px;
+            z-index: 9999;
+            text-align: center;
+            padding: 0 auto;
+        }
+    </style>
+</head>
+
+<body  style="background-color: #49414c" >
+<div class="detail-container">
+  <div class="detail-back">
+    <a class="detail-back" href="/web/announcement?language=1&phoneType=4&userId=0&assetVersion="><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/announcement/icon-back.png" alt="back" width="122" height="108"></a>  </div>
+  <div class="detail-main">
+    <div class="detail-header">
+              <div class="detail-banner">
+          <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/thxyl.png" width="546" height="192" alt="banner" />
+        </div>
+            <div class="detail-title">
+        <article class="article-item">
+          <div class="article-container">
+                          <div class="article-header is-campaign">
+                <div class="article-category">特别活动</div>
+                <div class="article-date"></div>
+              </div>
+                        <h1 class="article-body">感谢庆典特别活动一览！</h1>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    
+    <p>感谢您一直以来对《炽焰天穹》的支持！<br>
+<br>
+<span class="color-positive">感谢庆典特别活动</span>开启，详情如下：<br>
+<br>
+</p>
+<h3 class="headline-m">■ 登录奖励</h3>
+<p><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_500000179_cn.png" width="35%">
+<p>
+<small>
+活动时间:2026/10/28 维护后 ~ 2026/12/2 12:59<br>
+活动期间，每日登录可获得至少<span class="color-positive">扭蛋庆典10连探索券×1</span>、固定庆典奖章×300的奖励，累计登录10天可抽取<span class="color-positive">至少免费100连扭蛋</span>！<br>
+※「必得至少免费100连！感谢庆典每日登录活动」详情可通过<a href=/web/announcement/500000179>此处</a>查看。<br>
+</small>
+</p>
+<br>
+<br>
+<!------------------------------------- block ------------------------------------->
+<p><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_ori_thslogin.png" width="35%">
+<p>
+<small>
+活动时间:2026/11/11 11:00 ~ 2026/12/2 12:59<br>
+活动期间，每日登录可获得<span class="color-positive">晶石×300</span>，累计登录10天可获得<span class="color-positive">晶石×3000</span>的奖励！<br
+</small>
+</p>
+<br>
+<br>
+
+<h3 class="headline-m">■ 剧情活动</h3>
+<p><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_200000260_cn.png" width="35%">
+<p>
+<small>
+活动时间:2026/11/4 11:00 ~ 2026/11/18 12:59<br>
+※剪影活动「珍藏的回忆」详情可通过<a href=/web/announcement/200000260>此处</a>查看。<br>
+</small>
+</p>
+<br>
+<br>
+
+<!------------------------------------- block ------------------------------------->
+<h3 class="headline-m">■ 扭蛋活动</h3>
+<p><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_400001431_cn.png" width="35%">
+<p>
+<small>
+活动时间:2026/10/28 维护后 ~ 2026/11/18 12:59<br>
+<span class="color-positive">SS<灵魂共鸣>小笠原绯雨[春色复活节兔]、S月城最中[坚忍不拔的钻研]</span>新登场，并提高出现概率！<br>
+※「SS小笠原绯雨登场！精选白金扭蛋」详情可通过<a href=/web/announcement/400001431>此处</a>查看。<br>
+</small>
+</p>
+<br>
+<br>
+<!------------------------------------- block ------------------------------------->
+<p><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_400001432_cn.png" width="35%">
+<p>
+<small>
+活动时间:2026/10/28 维护后 ~ 2026/11/18 12:59<br>
+新风格<span class="color-positive">SS<灵魂共鸣>小笠原绯雨[春色复活节兔]、S月城最中[坚忍不拔的钻研]</span>也将出现在本扭蛋中，并提高出现概率！<br>
+※「【仅限付费晶石】感谢庆典必得SS扭蛋」详情可通过<a href=/web/announcement/400001432>此处</a>查看。<br>
+</small>
+</p>
+<br>
+<br>
+<!------------------------------------- block ------------------------------------->
+<p><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_400001354_cn8(1).png" width="35%">
+<p>
+<small>
+活动时间:2026/11/4 11:00 ~ 2026/11/18 12:59<br>
+在本次的Autumn特别精选扭蛋中，SS风格仅会出现精选的10种！<br>
+附赠奖励量表，抽取扭蛋到第100抽时，还可获得<span class="color-positive">「必得SS探索券」</span>，<span class="color-positive">必得10种精选风格之一</span>！<br>
+※「Autumn特别精选扭蛋」详情可通过<a href=/web/announcement/1215>此处</a>查看。<br>
+</small>
+</p>
+<br>
+<br>
+<!------------------------------------- block ------------------------------------->
+<p><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_thxss1.5(1).png" width="35%">
+<p>
+<small>
+活动时间:2026/11/11 11:00 ~ 2026/11/25 10:59<br>
+10连必定出现<span class="color-strong">S或以上风格</span>！
+<br>
+在本次感谢庆典 SS1.5倍扭蛋中，SS风格的出现概率将提升至<span class="color-positive">1.5倍</span>！<br>
+SS风格只会出现<span class="color-positive">近期登场的21种非限定风格</span>（对应<span class="color-strong">2026/3/11 ~ 2026/9/23</span>期间登场的常驻风格），共<span class="color-positive">21</span>种。<br>
+※「感谢庆典纪念 SS1.5倍扭蛋」详情可通过<a href=/web/announcement/1220>此处</a>查看。<br>
+</small>
+</p>
+<br>
+<br>
+<!------------------------------------- block ------------------------------------->
+
+<h3 class="headline-m">■ 限时商城</h3>
+<p><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_GGPExchange.png" width="35%">
+<p>
+<small>
+活动时间:2026/10/28 维护后 ~ 2026/12/2 12:59<br>
+使用<span class="color-positive">GGP x 100</span>可以兑换<span class="color-positive">感谢庆典10连探索券 x 1</span>，<span class="color-positive">仅限1次</span>！<br>
+※「GGP兑换感谢庆典10连探索券」详情可通过<a href=/web/announcement/1197>此处</a>查看。<br>
+</small>
+</p>
+<br>
+<br>
+<!------------------------------------- block ------------------------------------->
+<p><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_ori_300000032.png" width="35%">
+<p>
+<small>
+活动时间:2026/10/28 维护后 ~ 2026/12/2 12:59<br>
+使用<span class="color-positive">付费晶石 x 1500</span>可以兑换<span class="color-positive">感谢庆典10连探索券 x 1</span>，<span class="color-positive">仅限3次</span>！<br>
+使用<span class="color-positive">付费晶石 x 2000</span>可以兑换<span class="color-positive">感谢庆典10连探索券 x 1</span>，<span class="color-positive">不限次数</span>！<br>
+同时开启<span class="color-positive">批量兑换</span>功能！<br>
+※「付费晶石兑换感谢庆典10连探索券」详情可通过<a href=/web/announcement/1198>此处</a>查看。<br>
+</small>
+</p>
+<br>
+<br>
+<!------------------------------------- block ------------------------------------->
+<p><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_ori_20261028.png" width="35%">
+<p>
+<small>
+活动时间:2026/10/28 维护后 ~ 2026/11/18 12:59<br>
+包含付费晶石和<span class="color-positive">感谢庆典10连探索券</span>的特别礼包发售中！<br>
+※感谢庆典10连探索券的使用范围请查看<a href="/web/announcement/1196">此处</a>。<br>
+※「第1弹·感谢庆典高级礼包A/B/C」详情可通过<a href=/web/announcement/1200>此处</a>查看。<br>
+</small>
+</p>
+<br>
+<br>
+<!------------------------------------- block ------------------------------------->
+<p><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_ori_ThxPass.png" width="35%">
+<p>
+<small>
+活动时间:2026/10/28 维护后 ~ 2026/12/2 12:59<br>
+购买即可一次性获得<span class="color-positive">感谢庆典10连探索券 x 1</span>，完成任务最多额外获得<span class="color-positive">晶石 x 3000、感谢庆典探索券 x 3、常驻扭蛋探索券 x 6、万能风格碎片（SS） x 2、魂之辉片 x 1</span>等奖励！<br>
+※「感谢庆典激励任务通行证」详情可通过<a href=/web/announcement/1199>此处</a>查看。<br>
+</small>
+</p>
+<br>
+<br>
+<!------------------------------------- block ------------------------------------->
+<p><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/web_30daysPass.png" width="35%">
+<p>
+<small>
+更新时间:2026/10/28 维护后<br>
+30日返利通行证已更新！<br>
+购买可以立即获得<span class="color-positive">感谢庆典探索券× 5</span>、常驻扭蛋探索券 × 5，并激活30日的<span class="color-positive">登录奖励有效期</span>。<br>
+登录奖励有效期持续期间，每日登录时可以获得<span class="color-positive">晶石×50、体力石×2</span>！<br>
+※「30日返利通行证」详情可通过<a href=/web/announcement/827>此处</a>查看。<br>
+</small>
+</p>
+<br>
+<br>
+<!------------------------------------- block ------------------------------------->
+<p><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_ori_WeeklyCard28.png" width="35%">
+<p>
+<small>
+活动时间:2026/10/28 维护后 ~ 2026/12/7 3:59<br>
+包含<span class="color-positive">付费晶石和体力石</span>的特别周卡与包含<span class="color-positive">付费晶石和免费晶石</span>的特别周卡发售中！<br>
+※「庆典特惠·体力周卡&晶石周卡」详情可通过<a href=/web/announcement/470>此处</a>查看。<br>
+</small>
+</p>
+<br>
+<br
+<!------------------------------------- block ------------------------------------->
+<p><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_shop_ori1_26autumn(1).png" width="35%">
+<p>
+<small>
+活动时间:2026/11/4 11:00 ~ 2026/11/18 12:59<br>
+包含<span class="color-positive">Autumn特别扭蛋10连探索券</span>的特别礼包发售中！<br>
+※「Autumn特别精选礼包」详情可通过<a href=/web/announcement/1212>此处</a>查看。<br>
+</small>
+</p>
+<br>
+<br
+<!------------------------------------- block ------------------------------------->
+<p><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_shop_ori1_261111_select(1).png" width="35%">
+<p>
+<small>
+活动时间:2026/11/11 11:00 ~ 2026/11/25 10:59<br>
+包含<span class="color-positive">SS1.5倍扭蛋10连探索券</span>的特别礼包发售中！<br>
+※「SS1.5倍扭蛋探索券礼包」详情可通过<a href=/web/announcement/1217>此处</a>查看。<br>
+</small>
+</p>
+<br>
+<br
+<!------------------------------------- block ------------------------------------->
+<h3 class="headline-m">■ 特别活动</h3>
+<p><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_500000168_cn.png" width="35%">
+<p>
+<small>
+活动时间:2026/10/28 维护后 ~ 2026/12/2 12:59<br>
+收集<span class="color-positive">「庆典奖章」</span>，可兑换晶石×1500、<span class="color-strong">必得8种白西衣装风格之一</span>的<span class="color-positive">「感谢庆典纪念必得SS探索券」</span>、<span class="color-positive">「必得SS探索券」</span>等豪华奖励。<br>
+※「感谢庆典兑换所」详情可通过<a href=/web/announcement/500000178>此处</a>查看。<br>
+</small>
+</p>
+<br>
+<br>
+<!------------------------------------- block ------------------------------------->
+<p><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_213000013_cn.png" width="35%">
+<p>
+<small>
+活动时间:2026/10/28 维护后 ~ 2026/12/29 6:59<br>
+本活动为限时开放的<span class="color-positive">单人游玩专属战斗活动</span>。<br>
+可通过限时赛季奖励获得<span class="color-positive">最多2000晶石</span>、风格报告、技能指南。<br>
+※「技术模拟战 第8赛季 -2026 AUTUMN-」详情可通过<a href=/web/announcement/213000013>此处</a>查看。<br>
+</small>
+</p>
+<br>
+<br>
+<!------------------------------------- block ------------------------------------->
+<p><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_200000258_cn.png" width="35%">
+<p>
+<small>
+活动时间:2026/11/4 11:00 ~ 2026/11/18 12:59<br>
+本活动为限时开放的<span class="color-positive">单人游玩专属战斗活动</span>。<br>
+可通过该活动获得赛季奖章、探索券、养成道具等奖励。<br>
+※「高分挑战#67 绝对暴君」详情可通过<a href=/web/announcement/200000258>此处</a>查看。<br>
+</small>
+</p>
+<br>
+<br>
+<!------------------------------------- block ------------------------------------->
+<p><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_220000125_cn.png" width="35%">
+<p>
+<small>
+活动时间:2026/11/11 11:00 ~ 2026/11/18 12:59<br>
+限时奖励更新！可获取「必得SS探索券碎片」×1！<br>
+本活动为常驻开放的<span class="color-positive">单人游玩专属战斗活动</span>。<br>
+可通过该活动获得<span class="color-positive">灵魂共鸣核心</span>、必得SS探索券碎片的奖励。<br>
+※「异时层EX 第一章」详情可通过<a href=/web/announcement/220000127>此处</a>查看。<br>
+</small>
+</p>
+<br>
+<br>
+<!------------------------------------- block ------------------------------------->
+
+
+
+
+
+<hr><div><p class="all-outro">今后也请继续支持《炽焰天穹》！</p></div>
+
+
+  </div>
+</div>
+</body>
+</html>

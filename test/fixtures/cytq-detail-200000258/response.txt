@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ja-JP">
+<head>
+    <meta charset="utf-8" />
+    <meta name="format-detection" content="telephone=no">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=0" />
+    <meta name="description" content="announcement" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/detail.css?17946930669041" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/chara.css?17946930669041" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/font_4.css?17946930669041" />
+                                    <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/jquery-3.7.1.min.js?17946930669041" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/detail.js?17946930669041" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/index.js?17946930669041" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/unity-link.js?17946930669041" crossorigin></script>
+                <style>
+        .d_view_page_top{
+            text-align: center;
+            background-color: #000000;
+            opacity: 0.5;
+            margin-bottom: 30px;
+        }
+        .d_view_page_top a{
+            color: #fff;
+            display: inline-block;
+            width: 30%;
+            padding: 20px 0;
+            font-size: 30px;
+        }
+        .d_view_page_top a:hover{
+            background-color: #fd7e7e;
+            padding: 21px 0 19px;
+        }
+        .d_view_page_top {
+            display: block;
+            width: 100%;
+            position: fixed;
+            left: 0px;
+            top: 2px;
+            z-index: 9999;
+            text-align: center;
+            padding: 0 auto;
+        }
+    </style>
+</head>
+
+<body  style="background-color: #49414c" >
+<div class="detail-container">
+  <div class="detail-back">
+    <a class="detail-back" href="/web/announcement?language=1&phoneType=4&userId=0&assetVersion="><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/announcement/icon-back.png" alt="back" width="122" height="108"></a>  </div>
+  <div class="detail-main">
+    <div class="detail-header">
+              <div class="detail-banner">
+          <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_200000258_cn.png" width="546" height="192" alt="banner" />
+        </div>
+            <div class="detail-title">
+        <article class="article-item">
+          <div class="article-container">
+                          <div class="article-header is-event">
+                <div class="article-category">活动</div>
+                <div class="article-date"></div>
+              </div>
+                        <h1 class="article-body">高分挑战活动#67开启！</h1>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    
+    <p>感谢您一直以来对《炽焰天穹》的支持！<br></p>
+<br>
+<div>
+<p align="center">
+<img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/etc/Twitter_ScoreAttack093.png" width="100%">
+</p>
+</div>
+<br>
+<h3 class="headline-pink">活动时间</h3>
+<p>
+2026/11/4 11:00 ~ 2026/11/18 12:59<br>
+<br>
+<p><small>※参加本活动需通关主线剧情第一章。<br>
+※推荐通关剧情活动 「大岛屋物语」后进行游玩。<br>
+
+
+</small></p>
+<br>
+<h3 class="headline-pink">高分挑战活动介绍</h3>&#xA;<p>本活动为限时开放的<span class="color-positive">单人游玩专属战斗活动</span>。&#xA;<br>可以根据战力，调整「难度」及「挑战等阶」。&#xA;<br>&#xA;<br>活动期间可以重复挑战，无需消耗体力。&#xA;<br>您可从活动界面，或记忆之庭中的「殡仪场」参加高分挑战活动。&#xA;<br>&#xA;<br>强化队伍，研究战斗策略，向着<span class="color-positive">高分</span>努力吧！&#xA;</p><br>
+<br>
+<h3 class="headline-pink">难度介绍</h3>
+<p>难度共分40个阶段。
+<br>
+<br>提升难度后，敌方战力会加强，或增加新的战斗行为。
+<br>同时，<span class="color-positive">「难度得分」</span>也会提升，并计入最终得分中。
+<br>※战斗失败时，将根据敌人剩余HP比例来计算得分。
+</p>
+<br>
+<table>
+  <tr>
+    <th>阶段名</th>
+    <th>难度</th>
+  </tr>
+  <tr>
+    <td>初阶</td>
+    <td>1～5</td>
+  </tr>
+  <tr>
+    <td>进阶</td>
+    <td>6～10</td>
+  </tr>
+  <tr>
+    <td>高阶</td>
+    <td>11～15</td>
+  </tr>
+  <tr>
+    <td>超阶</td>
+    <td>16～20</td>
+  </tr>
+  <tr>
+    <td>地狱</td>
+    <td>21～25</td>
+  </tr>
+  <tr>
+    <td>混沌</td>
+    <td>26～30</td>
+  </tr>
+  <tr>
+    <td>未知</td>
+    <td>31～35</td>
+  </tr>
+  <tr>
+    <td>深渊</td>
+    <td>36～40</td>
+  </tr>
+
+</table>
+<br>
+<br>
+
+<h3 class="headline-pink">得分奖励介绍</h3>
+<div>
+<img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/etc/scoreattack_tutorial.jpg" width="100%">
+</div>
+<br>
+<p>除「难度分数」外，还可以通过<span class="color-positive">「回合奖励」</span>与<span class="color-positive">「特别奖励」</span>来提升最终得分。<br>
+  <small>※战斗失败时无法获得。<br></small>
+    <br>
+除最高伤害、难度、等阶外，在<span class="color-positive">更少回合内</span>击败敌人也十分重要！<br>
+<small>※多个敌人出现时，将根据敌人数量调整最高伤害分数。
+</small>
+</p>
+<br>
+<h2 class="header">回合奖励</h2>
+<p><span class="color-positive">通关回合数越少</span>，奖励越高。
+  </p>
+  <br>
+<h2 class="header">特殊奖励</h2>
+<p><b>・无击破状态奖励</b><br>
+  <span class="color-positive">在场上无角色处于击破状态的情况下获胜</span>时可获得该奖励。<br>
+    即便战斗中DP曾被击破，只要战斗胜利时，场上不存在被击破状态的角色，即可获得奖励。<br>
+    <br>
+<b>・回合最高伤害奖励</b><br>
+根据单个回合内造成的<span class="color-positive">总计最高伤害</span>，获得相应奖励。<br>
+通过超频或技能效果所获得的额外回合将算作其它回合。<br>
+</p>
+<br>
+<br>
+
+<h3 class="headline-pink">特殊规则介绍</h3>
+<p>选择<span class="color-positive">「特殊规则」</span>后，战斗中将会添加<span class="color-positive">挑战内容</span>。
+<br> 根据选择的特殊规则，最终得分将获得奖励倍率。
+<br>※单次挑战仅可选择1个特殊规则。
+<br>※战斗失败时无法获得。
+<br>
+<br>
+</p>
+<h2 class="header">11/4 11:00 ~ 11/11 10:59</h2>
+<table>
+  <tr>
+    <th width="80%">规则内容</th>
+    <th>分数倍率</th>
+  </tr>
+  <tr>
+    <td>友方DP恢复量下降100%（不可解除）</td>
+    <td>1.35</td>
+  </tr>
+  <tr>
+    <td>敌方攻击力+50%（不可解除）</td>
+    <td>1.35</td>
+  </tr>
+  <tr>
+    <td>战斗开始时，为前锋友方赋予抑制（SP上限15）（永久/不可解除）</td>
+    <td>1.35</td>
+  </tr>
+</table>
+<br>
+<br>
+</p>
+<h2 class="header">11/11 11:00 ~ 11/18 12:59</h2>
+<table>
+  <tr>
+    <th width="80%">规则内容</th>
+    <th>分数倍率</th>
+  </tr>
+  <tr>
+    <td>每回合前锋SP减少2点</td>
+    <td>1.35</td>
+  </tr>
+  <tr>
+    <td>超频达到等级2或以上后才能发动</td>
+    <td>1.35</td>
+  </tr>
+  <tr>
+    <td>敌方的超频减少攻击强化（可突破下限至-300%）</td>
+    <td>1.35</td>
+  </tr>
+</table>
+<br>
+<br>
+<h3 class="headline-pink">奖励</h3>&#xA;<p>奖励分为<span class="color-positive">「高分奖励」「累计得分奖励」「高分挑战任务奖励」</span>。&#xA;<br>奖励详情可通过高分挑战的挑战界面 >「奖励一览」进行查看。</p>
+<br>
+<h2 class="header">高分奖励</h2>
+<p>根据单次战斗中所获得的<span class="color-positive">最大得分</span>，来获取相应奖励。
+<br>可以获得「奖杯」「魂之碎片」「风格强化教材」「努德斯特伦结晶」「赛季奖章」「技能指南」「必得SS探索券碎片」「光球BOSS入场券」「必得S或以上探索券」等豪华奖励！<br>
+</p>
+<br>
+<table>
+  <tr>
+    <th width="38%">道具</th>
+    <th>详情</th>
+  </tr>
+  <tr>
+    <td>
+      <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/item/ThumbnailtrophyBronze.png" width="15%">
+      <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/item/ThumbnailtrophySilver.png" width="15%">
+      <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/item/ThumbnailtrophyGold.png" width="15%">
+      <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/item/ThumbnailtrophyPlatinum.png" width="15%">
+      <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/item/ThumbnailtrophyBlack.png" width="15%">
+      <br>各类奖杯</td>
+    <td style="text-align:left;">荣誉证明，无法当作道具使用。</td>
+  </tr>
+  <tr>
+    <td ><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/item/ThumbnailSynthesisSoulSmall.png" width="15%"><br>魂之碎片</td>
+    <td style="text-align:left;">可在合成饰品时获得10000魂之经验值的素材。
+      </td>
+  </tr>
+  <tr>
+    <td ><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/item/ThumbnailExpBookStyleA.png" width="15%"><br>风格强化教材</td>
+    <td style="text-align:left;">可将风格等级提升1级的道具。<br>
+无法超过风格等级上限。
+      </td>
+  </tr>
+  <tr>
+    <td ><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/item/ThumbnailMaterial_Lv7_Light.png" width="15%"><br>努德斯特伦结晶</td>
+    <td style="text-align:left;">技能通用化时所必需的强化材料。
+      </td>
+  </tr>
+  <tr>
+    <td ><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/item/ThumbnailSeasonMedal_01.png" width="15%"><br>
+    赛季奖章</td>
+    <td style="text-align:left;">可在赛季奖章兑换所中使用的奖章。<br>
+    <small>※每个战斗赛季的赛季奖章不同。</small>
+    </td>
+  </tr>
+  <tr>
+    <td ><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/item/ThumbnailSkillLevelUpItem.png" width="15%"><br>
+    技能指南</td>
+    <td style="text-align:left;">提升角色技能等级的道具。
+    </td>
+  </tr>
+  <tr>
+    <td ><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/item/ThumbnailHighScoreSSGachaTicket.png" width="15%"><br>
+    必得SS探索券碎片</td>
+    <td style="text-align:left;">收集10张可抽取1次「高难挑战报酬 必得SS风格扭蛋」。
+     </td>
+  </tr>
+  <tr>
+    <td ><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/item/ThumbnailGateBossTicket.png" width="15%"><br>
+    光球BOSS入场券</td>
+    <td style="text-align:left;">用于记忆之庭光球BOSS的入场道具。
+    </td>
+  </tr>
+  <tr>
+    <td ><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/item/ThumbnailSGachaTicket.png" width="15%"><br>
+    必得S或以上探索券</td>
+    <td style="text-align:left;">可抽取1次「必得S或以上探索券扭蛋」的探索券。
+    </td>
+  </tr>
+</table>
+<br>
+<br>
+  <h2 class="header">累计奖励</h2>
+  <p>根据活动时间内的<span class="color-positive">累计分数</span>获得的奖励。<br>
+  可获得「废域入场券」「棱镜战入场券」「阳石之露」「青绿琥珀之露」「光球BOSS入场券」。</p>
+<br>
+  <h2 class="header">高分挑战任务奖励</h2>
+  <p>在活动时间内的特定条件下通关，即可获得任务奖励。
+<br>可获得「必得S或以上探索券」、「晶石」、「活动兑换所奖章」等。
+<br>
+<br>可通过记忆之庭「高分挑战」首页>「奖励一览」>「任务奖励」进行查看。<br>
+<br>
+<table>
+  <thead>
+    <tr>
+      <th width="32%">活动时间</th>
+      <th width="40%">条件</th>
+      <th width="28%">奖励</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="6" style="vertical-align: middle;">11/4 11:00 ~ 11/11 10:59</th>
+      <td style="text-align:left;">在难度11或以上的情况下通关</td>
+      <td style="text-align:left;">必得S或以上探索券 ×1</td>
+    </tr>
+    <tr>
+      <td style="text-align:left;">在难度16或以上的情况下通关</td>
+      <td style="text-align:left;">必得S或以上探索券 ×1</td>
+    </tr>
+    <tr>
+      <td style="text-align:left;">在难度16或以上且设置特殊规则的情况下通关</td>
+      <td style="text-align:left;">晶石 ×100</td>
+    </tr>
+    <tr>
+      <td style="text-align:left;">在难度21或以上<br>且设置特殊规则的情况下通关</td>
+      <td style="text-align:left;">必得S或以上探索券 ×1</td>
+    </tr>
+    <tr>
+      <td style="text-align:left;">在难度26或以上<br>且设置特殊规则的情况下通关</td>
+      <td style="text-align:left;">晶石 ×100</td>
+    </tr>
+    <tr>
+      <td style="text-align:left;">在难度31或以上<br>且设置特殊规则的情况下通关</td>
+      <td style="text-align:left;">技能指南 ×1</td>
+    </tr>
+    <tr>
+      <th rowspan="6" style="vertical-align: middle;">11/11 11:00 ~ 11/18 12:59</th>
+      <td style="text-align:left;">在难度11或以上的情况下通关</td>
+      <td style="text-align:left;">必得S或以上探索券 ×1</td>
+    </tr>
+    <tr>
+      <td style="text-align:left;">在难度16或以上的情况下通关</td>
+      <td style="text-align:left;">必得S或以上探索券 ×1</td>
+    </tr>
+    <tr>
+      <td style="text-align:left;">在难度16或以上且设置特殊规则的情况下通关</td>
+      <td style="text-align:left;">晶石 ×100</td>
+    </tr>
+    <tr>
+      <td style="text-align:left;">在难度21或以上<br>且设置特殊规则的情况下通关</td>
+      <td style="text-align:left;">必得S或以上探索券 ×1</td>
+    </tr>
+    <tr>
+      <td style="text-align:left;">在难度26或以上<br>且设置特殊规则的情况下通关</td>
+      <td style="text-align:left;">晶石 ×100</td>
+    </tr>
+    <tr>
+      <td style="text-align:left;">在难度31或以上<br>且设置特殊规则的情况下通关</td>
+      <td style="text-align:left;">技能指南 ×1</td>
+    </tr>
+  </tbody>
+</table>
+<p><small>※不同活动时间内会开设不同的挑战等阶。
+<br>※活动时间结束后将无法获得任务奖励。</small>
+</p>
+<br>
+<br>
+<h2 class="header">注意事项</h3>&#xA;<p>&#xA;<small>&#xA;※超过有效期的「必得S或以上探索券」将会失效，请悉知。<br>&#xA;※本活动有可能会再次复刻。<br>&#xA;※活动复刻时，或下轮活动开启时，本轮活动中获得的分数或奖励的进度将无法继承。<br>&#xA;</small></p>&#xA;<br>
+<hr><div><p class="all-outro">今后也请继续支持《炽焰天穹》！</p></div>
+
+
+  </div>
+</div>
+</body>
+</html>

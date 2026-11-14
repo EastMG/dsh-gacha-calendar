@@ -93,7 +93,17 @@ NEXT_SOURCES.push(
 		tz: "Asia/Seoul",
 		name: "赛马娘·韩服",
 		gacha: { url: T.parsers.umakr.UMA_KR_SCHEDULE_URL, kind: "official-html", mode: "proxy", fetcher: resolve("umakr.fetchUmaKr") },
-		event: { url: T.parsers.umakr.UMA_KR_SCHEDULE_URL, kind: "official-html", mode: "proxy", fetcher: resolve("umakr.fetchUmaKr") }	}
+		event: { url: T.parsers.umakr.UMA_KR_SCHEDULE_URL, kind: "official-html", mode: "proxy", fetcher: resolve("umakr.fetchUmaKr") }	},
+	// 2026-11-15 炽焰天穹（cytq）：官方 H5 公告（`/web/announcement?phoneType=4` 列表 → 在期详情）。
+	// 两侧**同一条列表 URL**（各自筛自己那类帖：卡池 is-gacha / 活动 is-event+is-campaign）。
+	// 响应有 `Access-Control-Allow-Origin: *` ⇒ `mode: "direct"`（不进代理白名单）。
+	{
+		id: "cytq",
+		tz: "Asia/Shanghai",
+		name: "炽焰天穹",
+		gacha: { url: T.parsers.cytq.CYTQ_LIST_URL, kind: "official-html", mode: "direct", fetcher: resolve("cytq.gachaCytq") },
+		event: { url: T.parsers.cytq.CYTQ_LIST_URL, kind: "official-html", mode: "direct", fetcher: resolve("cytq.eventsCytq") }
+	}
 );
 
 //#region 查找 / 列 id（各批次原有的便捷函数）

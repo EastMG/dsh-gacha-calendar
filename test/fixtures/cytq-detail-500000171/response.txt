@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ja-JP">
+<head>
+    <meta charset="utf-8" />
+    <meta name="format-detection" content="telephone=no">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=0" />
+    <meta name="description" content="announcement" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/detail.css?17946930675087" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/chara.css?17946930675087" />
+                                <link rel="stylesheet" type="text/css" href="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/css/font_4.css?17946930675087" />
+                                    <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/jquery-3.7.1.min.js?17946930675087" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/detail.js?17946930675087" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/index.js?17946930675087" crossorigin></script>
+                                <script type="module" src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/js/unity-link.js?17946930675087" crossorigin></script>
+                <style>
+        .d_view_page_top{
+            text-align: center;
+            background-color: #000000;
+            opacity: 0.5;
+            margin-bottom: 30px;
+        }
+        .d_view_page_top a{
+            color: #fff;
+            display: inline-block;
+            width: 30%;
+            padding: 20px 0;
+            font-size: 30px;
+        }
+        .d_view_page_top a:hover{
+            background-color: #fd7e7e;
+            padding: 21px 0 19px;
+        }
+        .d_view_page_top {
+            display: block;
+            width: 100%;
+            position: fixed;
+            left: 0px;
+            top: 2px;
+            z-index: 9999;
+            text-align: center;
+            padding: 0 auto;
+        }
+    </style>
+</head>
+
+<body  style="background-color: #49414c" >
+<div class="detail-container">
+  <div class="detail-back">
+    <a class="detail-back" href="/web/announcement?language=1&phoneType=4&userId=0&assetVersion="><img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/announcement/icon-back.png" alt="back" width="122" height="108"></a>  </div>
+  <div class="detail-main">
+    <div class="detail-header">
+              <div class="detail-banner">
+          <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/banner/WebView_500000171_cn.png" width="546" height="192" alt="banner" />
+        </div>
+            <div class="detail-title">
+        <article class="article-item">
+          <div class="article-container">
+                          <div class="article-header is-event">
+                <div class="article-category">活动</div>
+                <div class="article-date"></div>
+              </div>
+                        <h1 class="article-body">剧情活动批量精选开放中！</h1>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    
+    <p>感谢您一直以来对《炽焰天穹》的支持！<br></p>
+<p align="center">
+  <img src="https://l3-prod-patch-fever.bilibiligame.net/web-assets/202610081600/images/etc/HomePopup_other40042.png" width="90%"><br>
+</p>
+<br>
+<h3 class="headline-m">■ 剧情活动批量精选开放！</h3>
+<p>
+        剧情活动批量限时精选中！<br>
+        <br>
+        精选期间内，棱镜战中<span class="color-positive">可得兑换所奖章数量将增加至3倍</span>！<br>
+        <br>
+        此外，活动棱镜战追加至<span class="color-strong">[难度：X Ⅴ]</span>！<br>
+	棱镜战[难度：S]及以上的<span class="color-positive"><b>讨伐奖励中新增宝石</b></span>。<br>
+        对应难度讨伐成功后，必定获得1个以上钻石，还可概率获得其他宝石。<br>
+        <small>※详情请点击各剧情活动公告。</small><br>
+</p>
+<br>
+<h3 class="headline-pink">活动时间</h3>
+<p>2026/10/21 11:00 ~ 2026/11/18 12:59<br></p>
+<br>
+<h2 class="header">精选剧情活动</h2>
+<p>
+  ・炽天使刀剑武术会<br>
+  ・新春！31A无人岛荒野求生记～时而会Game Over～<br>
+  ・大岛屋物语<br>
+  ・慕君之意望君觉<br>
+  ・如梦而逝的崇高者们<br>
+  ・罪、罚与爱<br>
+  ・Peace of Cradle<br>
+  ・你是今夏的Fairy，我将那身姿于双眸深处Rec.<br>
+  ・与小小皇帝共享恬静早餐<br>
+  ・美人温泉物语 水雾朦胧万紫千红<br>
+</p>
+<br>
+<hr><div><p class="all-outro">今后也请继续支持《炽焰天穹》！</p></div>
+<br>
+
+
+  </div>
+</div>
+</body>
+</html>

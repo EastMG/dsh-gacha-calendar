@@ -95,7 +95,7 @@ dsh-gacha-calendar/
 │       ├── 30-game-miyoushe-bbs.js # 未定事件簿：米游社公告（卡池 + 活动；详情需 Referer www.miyoushe.com/wd/）
 │       ├── 30-game-netease.js     # 时空中的绘旅人：官网新闻（official）+ 学院公告（update）列表 + 详情（卡池画廊 + 活动；缺年份补年/跨年）
 │       ├── 30-game-pengpeng.js    # 夜幕之下（国服）：卡池 bwiki SMW ask（契约）+ 活动 TapTap tab 页的 SSR（Nuxt `__NUXT_DATA__`；旧 bwiki 公告为备选）
-│       ├── 30-game-unconfigured.js # 炽焰天穹：只注册条目、来源留空未配置（本批唯一仍不接的）
+│       ├── 30-game-cytq.js        # 炽焰天穹（国服）：官方 H5 公告（列表 1 次 → 只取 is-gacha/is-event/is-campaign 的详情 → 按 id 缓存 TTL 24h、已结束的不再取；两侧同一条列表 URL 轮内共享）
 │       ├── 30-game-batch2.js      # 2026-11-11 第二批：崩坏3 米哈游内容中台（卡池名称/角色 + 档期三级取值：`>>开放时间` → 同帖礼包【上架时间】 → 只出名称/角色；活动正文时间块）/ OurNotes 日服 SPICA（列表→前 5 条详情）/ 卡厄斯梦境 TapTap 官方（2026-11-13 改 topic 页 SSR：Nuxt devalue 解码 + 2 页固定请求；卡池「营救概率提升」标签 + 活动「活动时间」标签；同页维护窗映射；卡池载荷带活动字段供引擎复用）
 │       ├── 30-game-ournotes-global.js # OurNotes **国际服**卡池 + 活动：默认源 = SPICA 数据 JSON（页面 `window._durl` 现解 → d-*.json；gachapages/events 一次拿全）；数据里是 JST 墙钟、展示按 UTC+8（钟面 −1h）；picks 按 **id** 查角色；池名与角色名按 zh→tw→en→ja 取（简中优先）；BHK 官方公告两条降为手动备选源
 │       ├── 30-game-benghuai2.js   # 崩坏学园2（国服）：官网公告（列表 POST `{}` + 详情 GET；卡池 + 活动两侧同一条列表，轮内共享 1 次请求）
@@ -961,6 +961,45 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
 回归都加在 `test/cases-batch2.mjs`（第 ④⑤ 段，**没有新增段数**）：逐字档期 + 数组 + 请求数 +
 两类反证（抹掉起止锚点 ⇒ 该条不进外显 / 数组；响应换成 `{}` 或空 HTML ⇒ **抛错**而不是 nomatch）。
 
+### 炽焰天穹（cytq）接上官方 H5 公告（2026-11-15）
+
+2026-11-09 判「无源可接」只查了 bwiki（`cytq` 子站没有卡池表 / 活动表）与「官网有没有 JSON 接口」。
+2026-11-15 复核发现国服官网公告是**服务端渲染的 H5 页面**，正文里就写着档期与 PickUp 名单 ⇒ 接上
+（`30-game-cytq.js`，原 `30-game-unconfigured.js` 只剩这一条 ⇒ 文件名跟着改）。
+
+- **源站**：列表 `GET https://le3-prod-bili-gs-fever.bilibiligame.net/web/announcement?phoneType=4`
+  （200 `text/html` ~42KB，一页 **38 条**、**没有任何日期**、`page/offset/limit/detail/ids` 全被忽略）；
+  详情 `GET …/web/announcement/<id>?phoneType=4`（扭蛋帖 ~265KB / 活动帖 ~10KB，一条详情只讲一个池/活动）。
+  页面里有**两组** `<article>`：`class="event"` × 32 是顶部轮播（只有 `11/25 10:59结束` 这种无年份无开始的
+  残句）⇒ 不读；`class="article-item" data-announcement-id` × 38 才是列表，分类 class 逐字为
+  `is-gacha / is-event / is-campaign / is-pack / is-update / is-info / is-bug`。响应带
+  `Access-Control-Allow-Origin: *` ⇒ **直连**（`mode:"direct"`，不进 `PROXY_ALLOW_HOSTS`）。
+- **请求预算（用户拍板）**：列表 1 次 → **只对 is-gacha / is-event / is-campaign 的 id** 取详情 →
+  按 id 缓存（TTL 24h；**窗口结束 < now - 1 天的不再重取**）。实测首轮 **1 + 14 = 15 次**（约 1.4MB），
+  稳态 **1 次/轮**。礼包 12 / 更新 8 / 通知 3 / 问题说明 1（共 24 条）**一条详情都不取**（不含档期）。
+  卡池侧与活动侧同一条列表 URL ⇒ 一轮里只发一次（`fetchRoundSeqOf` 轮内 promise 缓存，同赛马娘国际服那套）。
+- **解析口径**：卡池 = `is-gacha` 帖，池名 = 详情 `<h1 class="article-body">`，角色 = 「登场风格」段
+  `<h2 class="header-gacha">[风格名] 角色名` 取 `]` 之后的名字（去姓名中间空白、`、` 连接；没有指名角色的
+  「SS1.5倍扭蛋」类帖子留空；退路 = 正文「精选「A」「B」」连排）。活动 = `is-event` / `is-campaign` 帖，
+  活动名 = `<h1>`。档期 = **第一个**「活动时间」锚点（行首才算；正文里"活动时间而变动"那类句子不算）。
+  「2026/10/28 **维护后** ~ …」这类相对起点 ⇒ `startTs = null`（不猜钟点）⇒ 那几口池**不冒充在期**
+  （不进外显），但仍在悬停里（`coveredOrOpen`）。一览帖 1222 一篇含 18 条 `活动时间` ⇒ **只取第 1 条**
+  （整场庆典窗口），分块窗口属于各分帖、会被独立抓到。
+- **失败语义**：列表 0 条 / 一条分类 class 都没有 ⇒ 抛错；详情没有 `<h1 class="article-body">`
+  （`{}` / 空串 / 改版页）⇒ 抛错；**有标题但没有锚点 ⇒ 不抛**（这一条就是"没有窗口"，不进外显）；
+  解出来但没窗口覆盖 now ⇒ `null`（未公布）。
+- **出厂仍隐藏**：`defaultHidden: true` **保持不动**（用户 2026-11-14 口径「只有 cytq 默认隐藏」），
+  `65-remind.js` 的副本不变；不勾「展示」时一个请求都不发（有用例）。
+- **回归**：`test/cases-new5.mjs` ①（注册项改「已接」）/ ⑤·⑤b（「未配置」路径改用**自定义条目**）/
+  **⑦（新增段，不新增段数）**：列表 38 条与分类分布、详情逐字（`维护后`⇒null / 开放终点 / 一览帖取首条 /
+  「登场风格」与退路）、请求数（首轮 15 / 稳态 1 / TTL 过期 15 / 已结束只补 1+6 / 出厂隐藏 0）、
+  载荷逐字（外显 + 悬停 + 数组）、反证（抹掉锚点 ⇒ 不进外显；`{}` / 空 HTML ⇒ 抛错）。
+  夹具：`cytq-list` + `cytq-detail-<id>` × 14（真抓原样，未裁剪）。
+- **实测当期（2026-11-15 13:50 +08）**：卡池外显「Autumn特别精选扭蛋举办中！」11-04 11:00 ~ 11-18 12:59
+  （10 位角色：东城司、石井色叶、瑞原蓝娜、国见玉、水濑李、茅森月歌、白河由依奈、苍井绘里香、卡罗尔・利帕、
+  玛利亚・德・安洁莉斯；另 3 口并列，其中「SS小笠原绯雨登场！精选白金扭蛋」的起点是「维护后」⇒ 只进悬停）；
+  活动外显「剧情活动批量精选开放中！」10-21 11:00 ~ 11-18 12:59（另 3 条在期）。
+
 ### 新接入的 5 款（2026-11-09）
 
 用户原话：「五个都接入，暂时没有数据源的就留空未配置」。来源全部**实测过**（见各夹具
@@ -980,7 +1019,7 @@ cytq 仍出厂隐藏 = `defaultHidden: true`；设置页里勾上「展示」就
 | `pengpeng` | 夜幕之下（国服，曾用名「代号砰砰」） | bwiki **SMW `action=ask`**（`[[分类:契约]][[条目类型::契约]]`，11 条 / 9 条有窗口；2026-11-11 换源：旧 HTML 页在 `/ymzx` 已 #REDIRECT，标签写「Bwiki 契约（SMW）」） | **TapTap tab 页的 SSR**（`/app/746164/topic?type=official`，`?page=1/2` 最多 2 页；2026-11-13 换源：`webapiv2` 在 robots.txt 的 Disallow 路径下） | **两侧已接**；旧 bwiki `公告/` 降为 `eventAltSources` 手动备选 |
 | `wd` | 未定事件簿 | 米游社公告 `forum_id=33`（2026-11-09 晚接上） | 同上（按标题分流） | **两侧已接** |
 | `hlr` | 时空中的绘旅人 | 官网 `news/official/` 列表 + 详情（2026-11-09 晚接上） | 官网 `news/official/` + **`news/update/` 学院公告**（2026-11-10 增补；同一个抓取器抓两类列表） | **两侧已接**；活动侧现在出「缱绻假日」10-09~11-20，卡池侧无在期画廊 ⇒ 如实 null |
-| `cytq` | 炽焰天穹（用户写作「炽焰苍穹」） | — | — | **未配置**（只注册条目） |
+| `cytq` | 炽焰天穹（用户写作「炽焰苍穹」） | 官方 H5 公告 `GET /web/announcement?phoneType=4`（`ACAO:*` ⇒ 直连；2026-11-15 接上，此前留空未配置） | 同一条列表（`is-event` / `is-campaign` 帖） | **两侧已接**（2026-11-15；仍出厂隐藏，见上） |
 
 > ⚠️ 上表「状态」是 2026-11-09 **晚批**之后的现状；晚批之前 `pengpeng` 只有卡池侧、`wd` / `hlr` 两侧都未配置，
 > 当天上午的旧结论不再成立。细节（源 / 代理 / 滞后）见下面「2026-11-09 晚：5 个侧的真实接入」一节。
@@ -1016,7 +1055,7 @@ cytq 仍出厂隐藏 = `defaultHidden: true`；设置页里勾上「展示」就
   **这是有意的**：实测维护窗口是 `10:00-14:00`，编一个 `10:00` 会差 4 小时，比"早两天看见"更糟。
   锚点机制的正/反两例由 `test/cases-new5.mjs` ③ 用合成正文钉住（不依赖源站当天发没发公告）。
 
-### 2026-11-09 晚：5 个侧的真实接入（wd / hlr / pengpeng 活动；cytq 仍不接）
+### 2026-11-09 晚：5 个侧的真实接入（wd / hlr / pengpeng 活动；cytq 当时不接，2026-11-15 已接）
 
 调研把上一版「没有可用源」的三条推翻了两条半。**这一节就是那 5 个侧的真实现状**（源 / 代理 /
 已知滞后）；代码注释与夹具 meta 是同一份事实的落点。
@@ -1029,7 +1068,7 @@ cytq 仍出厂隐藏 = `defaultHidden: true`；设置页里勾上「展示」就
 | `hlr` 活动 | 同上（每篇正文第一个窗口） | 同上 | 缺年份用 `artDate`（`时间：YYYY-MM-DD`）补；跨年实测 `2025-12-27 ~ 2026-01-05` |
 | `pengpeng` 卡池 | bwiki「契约一览」（`30-game-pengpeng.js`，**本次未改**） | 需要（biligame 系一律走代理） | 表停在新一批 2026-09-10；当前时刻如实 null |
 | `pengpeng` 活动 | bwiki `公告/` 前缀页 → 最新一页「…版本活动总览」（`30-game-pengpeng.js`） | 需要（同 biligame；接口本身回 `ACAO:*`，但全站口径仍走代理） | **wiki 数据滞后**：最新一版只到 2026-09-10（游戏仍在运营，1.0.54 / 2026-10-21）⇒ 当前时刻如实 null；来源标签写「Bwiki 公告（不可靠）」，**不标暂停** |
-| `cytq` 炽焰天穹 | **仍不接**（`30-game-unconfigured.js`） | — | bwiki 只有 `cytq` 子站（无卡池表 / 无活动表）、官网无可抓接口 ⇒ 两侧 `url`/`eventUrl` 留空 |
+| `cytq` 炽焰天穹 | 当时**仍不接**（`30-game-unconfigured.js`）→ **2026-11-15 已接**：官方 H5 公告（`30-game-cytq.js`，见上面「炽焰天穹（cytq）接上官方 H5 公告」一节） | 不需要（`ACAO:*` ⇒ 直连） | 2026-11-09 的结论（「bwiki 只有 `cytq` 子站、无卡池表 / 无活动表；官网无可抓接口」）只对"JSON 接口"成立 —— 公告正文是 HTML，能读 |
 
 - **「版本更新后」的口径**：`pengpeng` 活动页每行都写 `2026/9/10 版本更新后 - …`，与 `wd` 的
   `11月5日更新后` 同一种「起点未知」。按全仓 2026-11-09 口径：`startTs = null`，**不进外显**，
@@ -1086,15 +1125,16 @@ cytq 仍出厂隐藏 = `defaultHidden: true`；设置页里勾上「展示」就
    `{ ok:true, reason:"skipped" }`：不抓取、不计成功、不计失败；
 2. **来源健康 / 自检**：`engine-api.js` 的 `describe()` 对 `!url` 的一侧给
    `{ state:"unconfigured", text:"未配置来源" }`，进 `summary.unconfigured` 而**不是** `down`
-   —— 设置页那行结论是「… / 未配置 N / 失败 M」两个独立数字。**现在只剩 `cytq` 走这条路径**
-   （`pengpeng` 的活动侧已在 2026-11-09 晚接上）。
+   —— 设置页那行结论是「… / 未配置 N / 失败 M」两个独立数字。**2026-11-15 起内置条目里已没有**
+   这种形态（`cytq` 接上官方 H5 公告、`pengpeng` 活动侧 2026-11-09 晚接上）；这条路只对**用户自建、
+   两侧地址都留空的自定义条目**生效（回归见 `test/cases-new5.mjs` ⑤ / ⑤b，改用它验证）。
 3. **面板**：该侧没有外显条目 ⇒ `scheduleCellOf` 返回 `null`，格子里写「该来源无数据」（灰底），
    刷新横幅的悬停明细里也不会出现失败项（`isDown(gachaFail|eventFail)` 都是 false）；
    2026-11-10 起底部失败横条已删，失败信息只走刷新横幅悬停。
    设置页「卡池来源 / 活动来源」下拉里那一侧显示裸「未配置」（`getDefaultSourceName`）。
 
-断言在 `test/cases-new5.mjs` ⑤（只剩 `cytq`：`fetchEntry` 的 `reason` / `selfCheck` 的
-`unconfigured = 2` / "一个请求都没发" / `scheduleCellOf` 与 `scheduleNormalize` 都返回 null）。
+断言在 `test/cases-new5.mjs` ⑤（改用**两侧都留空的自定义条目**：`fetchEntry` 的 `reason` /
+`selfCheck` 的 `unconfigured = 2` / "一个请求都没发" / `scheduleCellOf` 与 `scheduleNormalize` 都返回 null）。
 
 **已知限制（都写进代码注释了）**：① 无期迷途卡池的起点要靠维护公告锚点（2026-11-09 起取不到就退常量
 14:00，见下一节）；② 夜幕之下的 **bwiki** 表在 2026-10-01 之后没有新行（最新一批 09-10）—— 卡池侧仍如实
@@ -1359,7 +1399,7 @@ null，活动侧 2026-11-10 已换 TapTap tab（能出「新风同行」11-05~11
   ⇒ 显示层走「该来源无卡池 / 活动数据」。真机 `settings.yaml` 的 `customUrls` / `customEventUrls`
   实测都是 `'{}'`，不是设置在顶替默认源。
 - **回归**：`cases-new5` ④（表格逐字 / 15 条 / 长期跳过 / 多风格 / 在期载荷 / 当前 null）+ ①（注册形态）
-  + ⑤b（先有数据 ⇒ url="" ⇒ 再刷新 ⇒ 该侧为空；覆盖 ddlezj 与 cytq）；`cases-pengpeng-event` ① 同步。
+  + ⑤b（先有数据 ⇒ url="" ⇒ 再刷新 ⇒ 该侧为空；覆盖 ddlezj 与自定义条目 —— 2026-11-15 起内置条目里没有两侧都留空的了）；`cases-pengpeng-event` ① 同步。
   反向证明：把 `pengpengTablePoolsOf` 改成返回 `[]` ⇒ 3 条 ✗ + `pengpeng-no-table` 抛出；
   把 `gachaNone/eventNone` 临时置 false ⇒ 4 条 ✗，`banner` 仍为「全新使徒【波朗】… 11-05~11-19」。
 
