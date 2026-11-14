@@ -778,6 +778,12 @@ export default async function runCore() {
 		const ZSPMS_SRC = T.SOURCES.find((s) => s.id === "zspms") || {};
 		const ZSPMS_NOTICE_SRC = (ZSPMS_SRC.altSources || []).find((a) => a.fetcher === "zspms-bwiki-notice");
 		const ZSPMS_EVENT_NOTICE_SRC = (ZSPMS_SRC.eventAltSources || []).find((a) => a.fetcher === "zspms-bwiki-notice");
+		// 赛马娘国际服活动侧（2026-11-14：默认源换成 **GameTora**，官方接口整站 403 降为备选）——
+		// 这份 golden 是**官方公告**那版（10-02 夹具里没有覆盖当期的活动 ⇒ 空载荷）。与 zspms 同一手法：
+		// 用设置存储把活动侧切回备选源 `uma-global-official`，产物逐字仍是公告那版空载荷。
+		// GameTora 活动侧的有数据路径由 `test/cases-uma-gt.mjs` 单独钉（那里不走这份等价性 golden）。
+		const UMA_GLOBAL_EVENT_ALT = ((T.SOURCES.find((s) => s.id === "uma-global") || {}).eventAltSources || [])
+			.find((a) => a.fetcher === "uma-global-official");
 		// 各游戏的 now = 夹具的抓取时刻（probe 实测过：这一组时刻每款都至少一侧有数据）
 		const CASES = [
 			["zzz", "2026-08-25T00:00:00.000Z"],
@@ -804,7 +810,9 @@ export default async function runCore() {
 					customUrls: JSON.stringify({ zspms: ZSPMS_NOTICE_SRC.url }),
 					customEventUrls: JSON.stringify({ zspms: ZSPMS_EVENT_NOTICE_SRC.url })
 				}
-				: null;
+				: (id === "uma-global" && UMA_GLOBAL_EVENT_ALT
+					? { customEventUrls: JSON.stringify({ "uma-global": UMA_GLOBAL_EVENT_ALT.url }) }
+					: null);
 			records.push({ id, now, rec: await runGame(id, now.getTime(), seeds) });
 		}
 		// 星铁（bwiki 历史跃迁 / 活动一览，形状与线上一致的真机夹具；与 ④-9 同一份）

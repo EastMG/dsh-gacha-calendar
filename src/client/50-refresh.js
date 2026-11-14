@@ -783,7 +783,14 @@
 				allowGenericGacha: !!e.custom || isCustomSource(s, e.id),
 				allowGenericEvent: !!e.custom || isCustomSource(s, e.id, "eventUrl")
 			}));
-			const results = await runEntriesWithDeadline(targets, timeoutMs);
+			// 「轮内复用」只在这一段内有效（卡池/活动都要的 manifest 同轮只发一次），见 22-fetcher-core.js
+			beginFetchRound();
+			let results;
+			try {
+				results = await runEntriesWithDeadline(targets, timeoutMs);
+			} finally {
+				endFetchRound();
+			}
 			// 被跳过的条目（两侧都没配来源）不算成功——与外壳 buildScrapeInfo 的口径一致
 			const okCount = results.filter((r) => r.ok && r.reason !== "skipped").length;
 			return {

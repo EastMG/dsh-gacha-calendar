@@ -2,5 +2,5 @@
  "url": "https://gametora.com/data/manifests/umamusume.json",
  "status": 200,
  "capturedAt": "2026-10-21T03:15:00+08:00",
- "note": "GameTora umamusume manifest 摘录：只留本抓取器用到的 en/ 池表与名字表 hash（真实值）；无前缀的 gacha/char-standard 是日服，别用"
+ "note": "GameTora umamusume manifest 摘录：只留本抓取器用到的 en/ 池表与名字表 hash（真实值）；无前缀的 gacha/char-standard 是日服，别用。2026-11-14 追加 `events/story-events`（活动侧同一个 manifest，hash 实抓 = 9c7f5afc）"
 }

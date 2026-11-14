@@ -298,7 +298,7 @@ DSH 渲染进程的页面源是 `dsh-app://app`（自定义 scheme）。**有些
 |---|---|---|
 | `prts.wiki` | 明日方舟卡池备选、活动（SMW + 一览备选） | 目前正常（prts 会回 `ACAO: *`）；`origin=*` 仍由 8 处调用点各自手拼，未进收口点 |
 | `gachatracker.app` | 终末地卡池备选 | 未验 |
-| `gametora.com` | 赛马娘国际服卡池 | 目前正常（真机在跑） |
+| `gametora.com` | 赛马娘国际服（卡池 + 活动） | 目前正常（真机在跑） |
 | `sekai-world.github.io` | 初音未来缤纷舞台卡池/活动 | 目前正常 |
 | `gh-proxy.com` | 初音未来缤纷舞台默认源（第三方镜像） | ACAO 未知，镜像服务可能随时变 |
 | `bang-dream-on.bushimo.jp` | BanG Dream! OurNotes | ACAO 是**回显 Origin**（不是 `*`）⇒ 对 `dsh-app://` 有风险 |
@@ -566,7 +566,7 @@ events: [{ key, title, show, startTs, endTs, tz, raw, source,
 |---|---|---|---|---|
 | P3b-1 | 星铁 `hsr`（卡池 / 活动）、绝区零 `zzz`（卡池 / 活动）、崩坏3 `bh3`（活动；米游社备选）、米游社卡池（4 个 gids 共用） | `bwikiGachaPayload`（hsr 叠 `dedupeRoleNames`）、`genericEventPayload`（生成器补 `permanentCount`）、`fetchZzzGacha` / `parseZzzEventsOfficial`、`ns_miyoushe_{gacha,events}Miyoushe` | 5 / 3；1 / 3；1；1 | ✅ 已切 |
 | P3b-2 | 物华弥新 `wuhuamixin`（卡池 / 活动）、战双帕弥什 `zspms`（卡池 / 活动）、卡厄斯梦境 `czn`（卡池）、雪松 `kedr`（卡池 / 活动） | `30-game-bwiki-wikitext-common.js` 的两个载荷（`ns_bwiki_wikitext_{gacha,event}Payload`）、`30-game-bwiki-common.js` 的两个载荷、`ns_biligame_activity_eventsWhmxOfficial` | 6 / 8；4 / 9；4；2 / 3 | ✅ 已切 |
-| P3b-3 | 嘟嘟脸恶作剧 `ddlezj`（卡池 / 活动）、闪耀优俊少女国服 `uma-cn`（卡池 / 活动）、赛马娘日服 `uma-jp`（卡池 / 活动）、赛马娘国际服 `uma-global`（卡池 / 活动；活动侧夹具里无当期数据 ⇒ 只守空载荷） | `ns_biligame_announce_{gacha,events}Ddlezj`、`ns_biligame_activity_{gacha,events}UmaCnOfficial`、`ns_umamusume_official_{gacha,events}UmaJpOfficial` / `...UmaGlobal`、`ns_cygames_gachaGameToraUma` | 2 / 3；1 / 1；2 / 3；1 / 0 | ✅ 已切 |
+| P3b-3 | 嘟嘟脸恶作剧 `ddlezj`（卡池 / 活动）、闪耀优俊少女国服 `uma-cn`（卡池 / 活动）、赛马娘日服 `uma-jp`（卡池 / 活动）、赛马娘国际服 `uma-global`（卡池 / 活动；活动侧这份 golden 是**官方公告**那版——夹具里无当期数据 ⇒ 只守空载荷，2026-11-14 起默认源换成 GameTora、这条 golden 改走备选源，见下面 2026-11-14 一节） | `ns_biligame_announce_{gacha,events}Ddlezj`、`ns_biligame_activity_{gacha,events}UmaCnOfficial`、`ns_umamusume_official_{gacha,events}UmaJpOfficial` / `...UmaGlobal`、`ns_cygames_gachaGameToraUma` | 2 / 3；1 / 1；2 / 3；1 / 0 | ✅ 已切 |
 | P3b-4 | BanG Dream! `bandori`（卡池 / 活动）、PJSK `pjsk`（卡池 / 活动）、OurNotes `ournotes`（活动）、OurNotes 国际服 `ournotes-global`（活动） | `ns_bandori_{gacha,events}Bandori`、`ns_sekai_{gacha,events}Sekai`、`ns_ournotes_eventsOurNotes`、`ns_ournotes_global_{gacha,events}OurNotesGlobal` | 1 / 16；17 / 1；1；1 | ✅ 已切 |
 | P3b-5 | Fate/Grand Order `fgo`（卡池 / 活动）、少女前线2 `gf2`（卡池 / 活动）、P5X `p5x`（卡池 / 活动）、异环 `nte`（卡池 / 活动）、星塔旅人 `stellasora`（卡池 / 活动） | `ns_fgo_{gacha,events}Fgo`、`ns_gf2_{gacha,events}Gf2`、`ns_p5x_{gacha,events}P5x`、`parseNteWanmei`、`ns_stellasora_{gacha,events}Stellasora` | 4 / 5；1 / 1；1 / 6；1 / 1；2 / 2 | ✅ 已切 |
 | P3b-6 | 蔚蓝档案国服 `ba-cn`（卡池 / 活动）、重返未来 1999 `r1999`（卡池 / 活动） | `fetchBaCn` 的两条载荷路径（维护公告日志表 / 列表 `content` 块）、`fetchR99Notice`（游戏内公告） | 1 / 4；3 / 15 | ✅ 已切 |
@@ -1298,6 +1298,31 @@ null，活动侧 2026-11-10 已换 TapTap tab（能出「新风同行」11-05~11
   + ⑤b（先有数据 ⇒ url="" ⇒ 再刷新 ⇒ 该侧为空；覆盖 ddlezj 与 cytq）；`cases-pengpeng-event` ① 同步。
   反向证明：把 `pengpengTablePoolsOf` 改成返回 `[]` ⇒ 3 条 ✗ + `pengpeng-no-table` 抛出；
   把 `gachaNone/eventNone` 临时置 false ⇒ 4 条 ✗，`banner` 仍为「全新使徒【波朗】… 11-05~11-19」。
+
+### 2026-11-14：赛马娘·国际服**活动侧**换源（官方公告 → GameTora）
+
+- **起因**：`umamusume.com` 已**整站 403**（连 robots.txt / sitemap.xml / wp-json 都是 199B 的 Apache
+  错误页）⇒ 站点级 IP 封禁，官方接口不能再当活动侧默认。
+- **新默认**：`eventUrl` = `https://gametora.com/data/manifests/umamusume.json`（**与卡池同一个 manifest**），
+  标签「GameTora」（不带语言括号，用户 2026-11-14 拍板：卡池侧 `source` 同改）；再按 manifest 里
+  `events/story-events` 的 hash 取
+  `https://gametora.com/data/umamusume/events/story-events.<hash>.json` ⇒ 活动侧 **2 次 GET**（hash 不写死）。
+- **名称 / 档期口径**：名称**只取** `name_zh_tw`（繁中译名）——缺 `name_zh_tw` 的条目**直接跳过**
+  （不进外显 / `events` 数组 / `eventHoverItems`），**不拿英文名兜底**（用户 2026-11-14 拍板：
+  回退到 en 纯浪费）；档期**只用** `start_en` / `end_en`（`*_zh_tw` 那套是日服档期），epoch **秒** → 毫秒。
+  条目筛选 = `start_en && end_en && name_zh_tw`；
+  外显 = 覆盖 now 且 `end_en` 最晚的一条；一条都不覆盖 ⇒ null（nomatch，不是失败）。
+  manifest 缺 `events/story-events` / 表不是数组 ⇒ 抛「GameTora 数据接口失败」（抓取异常）。
+- **备选**：官方接口原样保留为 `eventAltSources`，标签逐字「官方公告（英文 · 不可靠）」。
+- **轮内复用**：卡池与活动都要同一个 manifest ⇒ 一轮刷新只发一次（`refreshAll` 期间的
+  `beginFetchRound` / `endFetchRound`；轮外——设置页「测试来源」、用例直调——一律现取）。
+- **回归**：`test/cases-uma-gt.mjs` ⑦~⑨（夹具 `uma-gt-story-events` 原样 57 条：id 1022 的名称/档期/
+  秒→毫秒 + `name_zh_tw` 缺失 ⇒ 该条跳过（此刻只有它覆盖 now ⇒ null，不显示英文名）+ manifest 缺键抛错
+  + `start_en` 空不进外显 + 表非数组抛错 + 轮内请求数）；
+  `test/cases-p3.mjs` / `test/cases-core.mjs` 的旧 golden 仍钉**官方公告**那版 ⇒ 那两处改走备选源（先例：
+  2026-11-11 的 ddlezj）。
+- **实测（2026-11-14，本机直连）**：在期 = id 1022「甜蜜回憶・午茶時光」`11-09 22:00 ~ 11-23 21:59`（UTC）；
+  活动侧单侧 2 次请求（manifest 11,502B + 表 119,375B）；一轮刷新（卡池 + 活动）共 5 次、manifest 命中 1 次。
 
 ### 星铁换官方公告 CMS + 「相对起点」锚定 + 「起点未知 ≠ 已开始」（2026-11-09）
 

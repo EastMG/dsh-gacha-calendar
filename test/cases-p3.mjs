@@ -590,8 +590,11 @@ const P3B_PATHS = [
 		// 国际服活动侧：夹具里**没有**覆盖当期的活动（官方 index 夹具 10-02 抓取，活动档期全已过期 /
 		// 未上线）⇒ 载荷恒 null、数组恒空。这一条只守"没有数据时行为不变"（空数组、字符串仍为空）；
 		// 该生产者的**有数据路径**由 `umaJpEvent`（同一个官方公告家族的生产者）覆盖，不是抽样。
+		// ⚠️ 2026-11-14：活动默认源换成 **GameTora**（官方接口 `umamusume.com` 已整站 403），官方公告
+		//    降为备选 ⇒ 这条 golden（公告版的空载荷）改走备选源 + 备选抓取器（先例：2026-11-11 的
+		//    ddlezj）。GameTora 活动侧的有数据路径由 `test/cases-uma-gt.mjs` 单独钉。
 		key: "umaGlobalEvent", switched: true, id: "uma-global", side: "event", field: "events", emptyOk: true, now: Date.parse("2026-10-02T14:36:56Z"),
-		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
+		call: (t, s) => t.EVENT_FETCHERS[s.id]["uma-global-official"](altUrlOf(s.eventAltSources, "uma-global-official"), undefined, s.tz)
 	},
 	// ── 第 4 批：bandori / 世嘉 族 —— BanG Dream! / PJSK / OurNotes / OurNotes 国际服 ──
 	{

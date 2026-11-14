@@ -1,0 +1,8 @@
+{
+ "capturedAt": "2026-11-14T18:30:00+08:00",
+ "url": "https://gametora.com/data/umamusume/events/story-events.9c7f5afc.json",
+ "status": 200,
+ "note": "GameTora 国际服活动表**原样**（57 条，116KB，2026-11-14 抓取；未删字段、未改值）。时间字段是 unix 秒；en/ 那套 = 国际服档期；name_zh_tw 是繁中译名（档期 *_zh_tw 是日服，别用）。在期 id=1022。",
+ "etag": "\"b9f432c5f59b7f8b0586e33e20238f7f\"",
+ "cacheControl": "public, max-age=0, must-revalidate"
+}

@@ -846,21 +846,26 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 				// 把默认换成 GachaTracker；但 GachaTracker **数据陈旧**（2026-10-21 实测：页面能解析、
 				// 却没有任何覆盖 now 的档期 → 自检长期「未公布」）→ 现降为备选。
 				url: "https://gametora.com/data/manifests/umamusume.json",
-				source: "GameTora（英文）",
-				// 活动侧**本次不动**：GameTora 没有活动数据；官方公告仍是活动侧默认（2026-10-21 实测可用）。
+				// 标签不带语言括号（用户 2026-11-14 拍板：同一来源就不留「（英文）」后缀）
+				source: "GameTora",
+				// 2026-11-14：**活动侧也换成 GameTora**（与卡池同一个 manifest 端点，见文件内 GameTora 段落）。
+				//   起因（用户拍板，事实已实测）：官网 `umamusume.com` 已**整站 403** —— 连 robots.txt /
+				//   sitemap.xml / wp-json 都回 199B 的 Apache 错误页 ⇒ 站点级 IP 封禁，官方接口不能再当默认。
+				//   GameTora 的 `events/story-events` 有国际服档期（`start_en` / `end_en`）+ 繁中译名。
 				//
-				// ⚠️ 2026-11-09（用户核实 + 拍板）：`pr_info_index` / `pr_info_detail`（umamusume.com
-				//    `api/ajax/*`）**只认 POST**，且必须带 `Content-Type: application/json`
-				//    （body 形如 `{announce_label:1, limit:50, offset:0}`；detail 用 `{announce_id}`）。
-				//    走 `ns_umamusume_official_postJsonUma`（POST，body 交 transport 透传），别改成 GET：
-				//      · **GET 恒返回 HTTP 200 + 21 字节 `{"response_code":200}`**（没有 information_list、
-				//        没有任何内容条目）。这**不是**"当期没有内容"的契约，只是拿不到东西时的空壳。
-				//      · ⇒ `parseUmaIndex` **不把空壳当 nomatch**：`response_code !== 1` 一律抛
-				//        （`uma-bad-response`），该侧如实报"抓取失败"。
-				//      · **若 transport 把 POST 降级成 GET（或吞掉 body / Content-Type），症状就是这枚空壳**
-				//        —— 排查顺序：先看请求方法与 Content-Type，再看源站。别再把它归成 nomatch。
-				eventUrl: "https://umamusume.com/api/ajax/pr_info_index?format=json",
-				eventSource: "官方公告（英文 · 不可靠）",
+				// 官方接口保留为**备选**（`eventAltSources`，标签一个字都不改）。它此前的 POST 契约仍然有效：
+				//   `pr_info_index` / `pr_info_detail`（umamusume.com `api/ajax/*`）**只认 POST**，且必须带
+				//   `Content-Type: application/json`（body 形如 `{announce_label:1, limit:50, offset:0}`；
+				//   detail 用 `{announce_id}`）。走 `ns_umamusume_official_postJsonUma`（POST，body 交
+				//   transport 透传），别改成 GET：
+				//     · **GET 恒返回 HTTP 200 + 21 字节 `{"response_code":200}`**（没有 information_list、
+				//       没有任何内容条目）。这**不是**"当期没有内容"的契约，只是拿不到东西时的空壳。
+				//     · ⇒ `parseUmaIndex` **不把空壳当 nomatch**：`response_code !== 1` 一律抛
+				//       （`uma-bad-response`），该侧如实报"抓取失败"。
+				//     · **若 transport 把 POST 降级成 GET（或吞掉 body / Content-Type），症状就是这枚空壳**
+				//       —— 排查顺序：先看请求方法与 Content-Type，再看源站。别再把它归成 nomatch。
+				eventUrl: "https://gametora.com/data/manifests/umamusume.json",
+				eventSource: "GameTora",
 				altSources: [
 					{
 						// 降级：境外可达但联通线路不稳，且数据停在旧期（详细原因见文件内 GameTora 段落）
@@ -870,6 +875,14 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 					},
 					{
 						// 最后兜底：官方公告最准，但曾按出口 IP 封锁（2026-10-05），可能整站 403
+						label: "官方公告（英文 · 不可靠）",
+						url: "https://umamusume.com/api/ajax/pr_info_index?format=json",
+						fetcher: "uma-global-official"
+					}
+				],
+				// 活动侧备选 = 原来的官方接口（标签**逐字**沿用，未改）。2026-11-14 起整站 403，仅备用。
+				eventAltSources: [
+					{
 						label: "官方公告（英文 · 不可靠）",
 						url: "https://umamusume.com/api/ajax/pr_info_index?format=json",
 						fetcher: "uma-global-official"
@@ -1021,8 +1034,7 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 		}
 
 		async function ns_cygames_gachaGameToraUma(url, signal, tz = ns_umamusume_official_UMA_GLOBAL_TZ, now = nowMs()) {
-			const manifest = await fetchJson(url || GT_UMA_MANIFEST, { signal, mode: "direct" });
-			if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) throw gtUmaFail("manifest 不是对象（结构可能变了）");
+			const manifest = await gtUmaManifestOf(url || GT_UMA_MANIFEST, signal);
 			// 两个池表**都要**：角色池与支援卡池常并行，得先知道"当期是哪一个"
 			const [charList, supList] = await Promise.all([
 				gtUmaFile(manifest, GT_UMA_POOL_CHAR, signal),
@@ -1055,6 +1067,108 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 			return out;
 		}
 
+		// ══ 赛马娘国际服（Global）：GameTora **活动侧**（2026-11-14 起为活动默认源）══
+		//
+		// 为什么接（用户拍板，事实已实测 2026-11-14）：
+		//   · 官网 `umamusume.com` 已**整站 403**（连 robots.txt / sitemap.xml / wp-json 都是 199B 的
+		//     Apache 错误页）⇒ 站点级 IP 封禁，官方接口只能当备选（见注册项 `eventAltSources`）；
+		//   · `events/story-events` 是**国际服活动档期**：57 条，`start_en` / `end_en` 是 unix 秒；
+		//     实测在期 = id 1022（`start_en` 22:00 起 / `end_en` 21:59 止，按 UTC 渲染与官方公告一致）；
+		//   · 与卡池侧**同一个 manifest 端点** ⇒ 不用改代理白名单（`mode:"direct"`，该站全文件 ACAO=*）。
+		//
+		// 数据形态：
+		//   GET https://gametora.com/data/manifests/umamusume.json
+		//     → { "events/story-events": "9c7f5afc", … }   ← hash 随数据更新而变，**不写死**
+		//   GET https://gametora.com/data/umamusume/events/story-events.<hash>.json   （116KB，`cache-control: must-revalidate` + `etag`）
+		//     数组；字段逐字：id / name_en / name_en_old / name_ja / name_ko / name_zh_tw /
+		//     start_en / start_ja / start_ko / start_zh_tw / end_en / end_ja / end_ko / end_zh_tw /
+		//     banners / bonus_chars / bonus_supports / event_support_ids / url_name
+		//   ⚠️ 时间字段是 **epoch 秒**（不是毫秒）；`en` 那套 = **国际服（Global）**档期。
+		//   ⚠️ 57 条里只有 **22 条**有 `start_en` / `end_en`：1023~1057 是还没上国际服的未来活动
+		//      （只有 `*_ja`，部分有 `*_zh_tw`）⇒ 条目筛选只认 `start_en && end_en`。
+		//   ⚠️ `name_zh_tw` 是同一活动的**繁中译名**（47/57 条有，用户指定**只用它**：缺就跳过该条，
+		//      不拿 `name_en` 兜底）。`start_zh_tw` / `end_zh_tw` 是**日服**档期，**不要**拿它当国际服档期。
+		const GT_UMA_EVENTS = "events/story-events";
+
+		// manifest **轮内**复用（卡池侧与活动侧都要同一个 11KB 的 manifest）：
+		// 只在**一轮刷新**里生效（`refreshAll` 期间为真），且**按轮次号**判定 ⇒ 跨轮一定不复用（hash 变了立刻跟上）；
+		// 同一轮只发一次请求（缓存的是 **Promise**，即便两侧并发也只发一次；失败不留缓存），30s 是轮内的兜底上限。
+		// 轮外（设置页「测试来源」/ 离线用例直调抓取器）一律现取：调用方可能正是在验"源站此刻返回什么"。
+		const GT_UMA_MANIFEST_TTL_MS = 30000;
+		let gtUmaManifestCache = null;   // { url, round, at, promise }
+		async function gtUmaManifestOf(url, signal) {
+			const key = url || GT_UMA_MANIFEST;
+			const at = nowMs();
+			const round = fetchRoundSeqOf();
+			const hit = gtUmaManifestCache;
+			let promise;
+			if (fetchRoundActive() && hit && hit.url === key && hit.round === round && at - hit.at < GT_UMA_MANIFEST_TTL_MS) {
+				promise = hit.promise;
+			} else {
+				promise = fetchJson(key, { signal, mode: "direct" });
+				gtUmaManifestCache = { url: key, round, at, promise };
+				promise.catch(() => { if (gtUmaManifestCache && gtUmaManifestCache.promise === promise) gtUmaManifestCache = null; });
+			}
+			const manifest = await promise;
+			if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) throw gtUmaFail("manifest 不是对象（结构可能变了）");
+			return manifest;
+		}
+
+		// 活动名：**只取 `name_zh_tw`**（繁中译名，用户 2026-11-14 指定）。
+		// 不拿英文名兜底（用户 2026-11-14 拍板：回退到 en 纯浪费）⇒ 没有繁中译名就是空串，调用方直接跳过该条。
+		function gtUmaEventTitleOf(e) {
+			return typeof e.name_zh_tw === "string" ? e.name_zh_tw.trim() : "";
+		}
+
+		// 活动表 → 条目事实：**三个字段都齐**才进候选 —— `start_en && end_en && name_zh_tw`
+		// （未来活动还没上国际服 ⇒ 没有 en 档期；缺繁中译名的条目**直接跳过**：不进外显、不进 `events`
+		//  数组、不进 `eventHoverItems`）。
+		// 秒 → 毫秒在这里换算；不是数组 ⇒ 抛错（结构变化按"抓取失败"处理，不是 nomatch）。
+		function gtUmaEventItems(list) {
+			if (!Array.isArray(list)) throw gtUmaFail("活动表不是数组（结构可能变了）");
+			const out = [];
+			for (const e of list) {
+				if (!e || !e.start_en || !e.end_en) continue;
+				const title = gtUmaEventTitleOf(e);
+				if (!title) continue;
+				const s = Number(e.start_en), en = Number(e.end_en);
+				if (!Number.isFinite(s) || !Number.isFinite(en) || s <= 0 || en <= 0) continue;
+				out.push({ id: e.id, title, startTs: s * 1000, endTs: en * 1000 });
+			}
+			return out;
+		}
+
+		async function ns_cygames_eventsGameToraUma(url, signal, tz = ns_umamusume_official_UMA_GLOBAL_TZ, now = nowMs()) {
+			const manifest = await gtUmaManifestOf(url || GT_UMA_MANIFEST, signal);
+			const items = gtUmaEventItems(await gtUmaFile(manifest, GT_UMA_EVENTS, signal));
+			// 在期 = 覆盖 now 的条（两端都必须明确）；一条都不覆盖 ⇒ `null`（未公布，**不是**失败）
+			const live = items.filter((x) => coversNow(x, now));
+			if (live.length === 0) return null;
+			// 外显 = 在期里**结束最晚**的那条（"越晚结束越靠前"，与其它游戏同一口径）
+			const cur = live.slice().sort((a, b) => (b.endTs - a.endTs) || (b.startTs - a.startTs))[0];
+			// 名称已在筛选里保证非空（缺 `name_zh_tw` 的条目进不来）⇒ 这只是结构断言
+			if (!cur.title) throw gtUmaFail("当期活动没有名称（结构可能变了）");
+			// ── 条目事实 → 悬停 + `events` 数组（同其它条目：**不排序**，保持源站顺序）──
+			// `raw` 与卡池侧同口径：源站只有 epoch 秒 ⇒ 按源站 tz（UTC）渲染出的墙钟原文。
+			const eventItems = live.map((x) => ({
+				title: x.title,
+				startTs: x.startTs,
+				endTs: x.endTs,
+				raw: fmtWindow(x.startTs, x.endTs, tz)
+			}));
+			const eventHover = hoverTextFromItems(eventItems, "event", tz);
+			const dates = fmtWindow(cur.startTs, cur.endTs, tz);
+			const out = {
+				event: cur.title,
+				eventDates: dates,
+				eventDatesRaw: dates,
+				...(eventHover ? { eventHover } : {})
+			};
+			out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
+			out.eventHoverItems = eventItems;
+			return out;
+		}
+
 		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
 		GACHA_FETCHERS["uma-jp"] = (url, signal, tz) => ns_umamusume_official_gachaUmaJpOfficial(url, signal, tz);
 		// 国际服卡池默认：GameTora（2026-10-21 起）。原 GachaTracker 转备选键 `uma-global-gt`；
@@ -1063,7 +1177,12 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 		GACHA_FETCHERS["uma-global-gt"] = (url, signal, tz) => ns_cygames_gachaGtUma(url, signal, tz);            // 备选：GachaTracker（境外 · 联通不稳/数据陈旧）
 		GACHA_FETCHERS["uma-global-official"] = (url, signal, tz) => ns_umamusume_official_gachaUmaGlobal(url, signal, tz);   // 最后兜底：官网公告
 		EVENT_FETCHERS["uma-jp"] = Object.assign(EVENT_FETCHERS["uma-jp"] || {}, { default: (url, signal, tz) => ns_umamusume_official_eventsUmaJpOfficial(url, signal, tz) });
-		EVENT_FETCHERS["uma-global"] = Object.assign(EVENT_FETCHERS["uma-global"] || {}, { default: (url, signal, tz) => ns_umamusume_official_eventsUmaGlobal(url, signal, tz) });
+		// 国际服活动默认：GameTora（2026-11-14 起，与卡池同一个 manifest）。原官方公告转
+		// `eventAltSources` 的 `uma-global-official`（标签逐字「官方公告（英文 · 不可靠）」）。
+		EVENT_FETCHERS["uma-global"] = Object.assign(EVENT_FETCHERS["uma-global"] || {}, {
+			default: (url, signal, tz) => ns_cygames_eventsGameToraUma(url, signal, tz),
+			"uma-global-official": (url, signal, tz) => ns_umamusume_official_eventsUmaGlobal(url, signal, tz)
+		});
 		GACHA_FETCHERS["uma-jp-umapyoi"] = (url, signal, tz) => ns_umapyoi_gachaUmapyoi(url, signal, tz);
 		EVENT_FETCHERS["uma-jp"] = EVENT_FETCHERS["uma-jp"] || {};
 

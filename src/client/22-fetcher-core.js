@@ -33,6 +33,18 @@
 
 		function resetHtmlTextCache() { htmlTextCache = new Map(); }
 
+		// ── 「一轮刷新」的轮次标记（2026-11-14）──────────────────────────────────────
+		// 用途：**同一轮刷新里**同一份数据被两侧都要的来源，可以只发一次请求。
+		// 目前唯一用户 = 赛马娘国际服（卡池 + 活动都要 GameTora 的 manifest，见 `30-game-cygames.js`
+		// 的 `gtUmaManifestOf`）。轮内复用**按轮次号**判定（`fetchRoundSeqOf`）：跨轮一定不复用；
+		// 轮外（设置页「测试来源」、离线用例直调抓取器）也一律现取，**不做跨轮缓存**。
+		let refreshRoundDepth = 0;
+		let refreshRoundSeq = 0;
+		function fetchRoundActive() { return refreshRoundDepth > 0; }
+		function fetchRoundSeqOf() { return refreshRoundSeq; }
+		function beginFetchRound() { refreshRoundDepth++; refreshRoundSeq++; }
+		function endFetchRound() { if (refreshRoundDepth > 0) refreshRoundDepth--; }
+
 		// **只读**查询：命中才返回，绝不发起请求。
 		// 用途见 50-refresh.js：两侧同址且活动侧没有注册抓取器时，**只有在卡池那次
 		// 已经通过本函数取过同一 URL 的情况下**才复用；否则宁可记"未公布"，
