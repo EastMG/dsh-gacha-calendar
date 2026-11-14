@@ -93,7 +93,17 @@ NEXT_SOURCES.push(
 		tz: "Asia/Seoul",
 		name: "赛马娘·韩服",
 		gacha: { url: T.parsers.umakr.UMA_KR_SCHEDULE_URL, kind: "official-html", mode: "proxy", fetcher: resolve("umakr.fetchUmaKr") },
-		event: { url: T.parsers.umakr.UMA_KR_SCHEDULE_URL, kind: "official-html", mode: "proxy", fetcher: resolve("umakr.fetchUmaKr") }	}
+		event: { url: T.parsers.umakr.UMA_KR_SCHEDULE_URL, kind: "official-html", mode: "proxy", fetcher: resolve("umakr.fetchUmaKr") }	},
+	// 2026-11-15：无限暖暖（`wxnn`）—— 官网「资讯快报」列表接口（`/api/news`，无分页）；
+	// 详情按 id 逐篇取（`/news/{id}` 的 `__NEXT_DATA__`），卡池 + 活动**同一份列表** ⇒ 两侧同一条 url。
+	// 响应无 ACAO ⇒ `mode: "proxy"`（域名已登记 `src/index.js` 的 `PROXY_ALLOW_HOSTS`）。
+	{
+		id: "wxnn",
+		tz: "Asia/Shanghai",
+		name: "无限暖暖",
+		gacha: { url: T.parsers.wxnn.WXNN_LIST_URL, kind: "official-api", mode: "proxy", fetcher: resolve("wxnn.fetchWxnn") },
+		event: { url: T.parsers.wxnn.WXNN_LIST_URL, kind: "official-api", mode: "proxy", fetcher: resolve("wxnn.fetchWxnn") }
+	}
 );
 
 //#region 查找 / 列 id（各批次原有的便捷函数）

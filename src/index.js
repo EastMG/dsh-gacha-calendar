@@ -218,7 +218,12 @@ const PROXY_ALLOW_HOSTS = [
 	// `pnswebsite/website2.0/json/G144/ArticleMenu.json` + `article/<id>.json`。
 	// 实测响应 `Access-Control-Allow-Origin: *`（直连也通），但仍走宿主代理（与其它官方公告同一条路径）。
 	// ⚠️ 登记后要重启宿主才生效（白名单在宿主启动时读入）。
-	"media-cdn-zspms.kurogame.com"
+	"media-cdn-zspms.kurogame.com",
+	// 无限暖暖（国服）官网「资讯快报」+ 公告详情（2026-11-15 接入）：`/api/news`（JSON, 6.6 KB）+
+	// `/news/{id}`（HTML，数据在 `__NEXT_DATA__` 的 pageData）。实测响应**无 ACAO** ⇒ 必须走代理。
+	// ⚠️ 与封面图/字体所在的 `assets.nuanpaper.com`、`webstatic.papegames.com` **不是同一域**
+	//   （那些是静态资源，插件不抓）⇒ 只登记真正抓取的这一个。
+	"infinitynikki.nuanpaper.com"
 ];
 
 /** Default outgoing request headers (browser-like, to satisfy anti-scrape). */

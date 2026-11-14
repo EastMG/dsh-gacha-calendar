@@ -192,6 +192,9 @@ const ORDER = [
   // 2026-11-11：OurNotes **国际服** 卡池 + 活动默认源换成 SPICA 的结构化数据 JSON
   // （`window._durl` → d-*.json）。同样必须排在 `30-game-bandori.js` 之后（合并既有条目）。
   "30-game-ournotes-global.js",
+  // 2026-11-15：无限暖暖（国服）—— 官网「资讯快报」列表接口 + 按 id 缓存的详情（卡池共鸣 / 活动档期）。
+  // 自包含一条（条目 + 解析器 + 抓取器 + 登记）；排在最后 ⇒ 面板顺序追加在末尾。
+  "30-game-wxnn.js",
   // 2026-11-15：崩坏学园2 官网公告（列表 POST + 详情；卡池 + 活动两侧同一条列表 → 轮内共享一次请求）
   "44-test-exports.js",        // 回归出口：解析器 + env 工具 + 来源表（挂 exports.__regression，测试用）
   "50-refresh.js",             // 刷新编排、失败沿用旧值
@@ -329,6 +332,7 @@ const CORE_ORDER = [
   "30-game-unconfigured.js",   // 炽焰天穹（来源留空未配置）
   "30-game-batch2.js",         // 2026-11-11 第二批（bh3 内容中台 / OurNotes SPICA / czn TapTap）
   "30-game-ournotes-global.js",// 2026-11-11 OurNotes 国际服（SPICA 数据 JSON：卡池 + 活动）
+  "30-game-wxnn.js",           // 2026-11-15 无限暖暖（国服官网资讯列表 + 详情；卡池 + 活动）
   "50-refresh.js",             // 刷新编排
   "engine-api.js",             // 注入 env + refresh() + 测试出口 + return
 ];

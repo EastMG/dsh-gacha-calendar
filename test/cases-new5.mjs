@@ -138,7 +138,7 @@ export default async function run() {
 			WANT.map(([id]) => id + "=" + ids.includes(id)).join(","));
 		check("SOURCES 里 id 全局唯一（新增 5 条没造成重复）", new Set(ids).size === ids.length,
 			ids.length + " / " + new Set(ids).size);
-		check("来源总数 = 43（28 + 2026-11-09 的 5 + 2026-11-11 的 uma-tw + 2026-11-14 的 pjsk-tc/pjsk-kr/fgo-jp + 2026-11-15 的 bjhl/yys/dhmmr/bh2）", T.SOURCES.length === 43, String(T.SOURCES.length));
+		check("来源总数 = 44（28 + 2026-11-09 的 5 + 2026-11-11 的 uma-tw + 2026-11-14 的 pjsk-tc/pjsk-kr/fgo-jp + 2026-11-15 的 bjhl/yys/dhmmr/bh2 + wxnn）", T.SOURCES.length === 44, String(T.SOURCES.length));
 		for (const [id, name] of WANT) {
 			const s = srcOf(id);
 			check(`${id} 名称 = ${name}`, !!s && s.name === name, s ? s.name : "缺失");
