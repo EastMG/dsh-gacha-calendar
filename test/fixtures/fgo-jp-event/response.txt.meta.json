@@ -1,0 +1,13 @@
+{
+ "url": "https://api.atlasacademy.io/basic/JP/event/search?ongoing=true",
+ "status": 200,
+ "capturedAt": "2026-11-14T18:52:00+08:00",
+ "trim": {
+  "from": {
+   "bytes": 14301,
+   "records": 65
+  },
+  "kept": "全部（14KB 不需要裁）",
+  "why": "活动侧原样入库：无结束哨兵 endedAt=1893423600 由 49 条共用，裁掉就会让 sentinel 判据在夹具里失效"
+ }
+}

@@ -1640,6 +1640,8 @@
 			"nte": "Asia/Shanghai",
 			"gf2": "Asia/Shanghai",
 			"fgo": "Asia/Shanghai",
+			// 2026-11-14：FGO·日服（Atlas Academy 的 epoch 秒按日服墙钟渲染）
+			"fgo-jp": "Asia/Tokyo",
 			"pjsk": "Asia/Shanghai",
 			// 2026-11-14：初音未来：缤纷舞台 另两个服（与 SOURCES[].tz 逐项一致，守卫见 cases-remind.mjs ⑦）
 			"pjsk-tc": "Asia/Taipei",
@@ -17077,6 +17079,164 @@ async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ, now = nowMs()) 
 	return out;
 }
 
+// ══ FGO 日服 · Atlas Academy（2026-11-14 接入；卡池 + 活动两侧同源）══════════════════
+//
+// 为什么接（2026-11-14 实测，两个端点都 200 且 `Access-Control-Allow-Origin: *`）：
+//   · 卡池 `https://api.atlasacademy.io/export/JP/nice_gacha.json`
+//     —— 2,018,335 B / 4334 条全量卡池导出；字段 `id / name / type / openedAt / closedAt /
+//     featuredSvtIds / pickupId / …`，时间是 **epoch 秒**；`name` 是日文原文，形如
+//     「真冬の水着スペシャル…！ \n高杉晋作ピックアップ召喚」（`\n` 是源站的换行排版）。
+//   · 活动 `https://api.atlasacademy.io/basic/JP/event/search?ongoing=true`
+//     —— 14,301 B / 65 条**在期**条目；字段 `id / type / name / startedAt / endedAt`（同为 epoch 秒）。
+//     `type` 有 eventQuest / combineCampaign / questCampaign / … 多种（本解析器**不按类型筛**，
+//     源站给什么就排什么）。
+//   · 两个端点同域 ⇒ 直连（`mode: "direct"`），已登记进 `tools/check-host-allow.mjs` 的 DIRECT_HOSTS。
+//
+// 三条解析口径（「覆盖 now / 选当期」仍只走唯一真源 `coversNow`）：
+//   ① **无结束哨兵**：源站用"远未来"表示"永久开放"——卡池 `closedAt = 1911653999`
+//      （2030-07-30T14:59:59Z，本批 6 条共用：フレンドポイント / チュートリアル / ストーリー /
+//      スタートダッシュ★5確定 第1~3弾）、活动 `endedAt = 1893423600`（2030-01-01 00:00 JST，
+//      49 条共用：主线自由关卡 + 常驻 campaign）。**本批里最大的结束秒、且至少两条共用**就是这个
+//      占位 ⇒ 判为无结束（endTs = null）：不参与选当期、也不进悬停（它们永远"在期"，进悬停只是噪音）。
+//      不做这个区分的话，「结束最晚」会把 2030-07-30 才结束的常驻「ストーリー召喚」当成当期。
+//   ② 卡池外显取**结束最晚**（本仓库惯例「越晚结束越靠前」）；同结束再比开始（更晚的在前）、
+//      最后比 id（升序）—— 多池并行时只有一条能占外显，这条链保证同一份数据每次都选出同一条。
+//   ③ 角色名**不新造**：`featuredSvtIds` 是数字 id（译名要另一份 2MB 的 nice_servant.json）、
+//      `pickupId` 也不带名字 ⇒ `roles` 留空（与 pjsk 那种"源站没有角色名"的同构）。
+//
+// 失败 vs 未公布：不是数组（含 `{}`）⇒ 抛 `fgo-jp-*-bad-shape`（抓取失败）；
+//   数组里没有一条覆盖 now ⇒ `null`（nomatch，源站没公布当期）。
+const ns_fgo_jp_GACHA_URL = "https://api.atlasacademy.io/export/JP/nice_gacha.json";
+const ns_fgo_jp_EVENT_URL = "https://api.atlasacademy.io/basic/JP/event/search?ongoing=true";
+const ns_fgo_jp_TZ = "Asia/Tokyo";
+
+function ns_fgo_jp_badShape(what) { return new Error(`fgo-jp-${what}-bad-shape`); }
+
+// 标题：把源站排版用的换行去掉（`\n` 两侧的空白一起收敛成**一个** ASCII 空格），其余字符逐字保留
+// （全角空格「　」不动 —— 那是名字的一部分，见活动 80044 那类「亜種特異点Ⅰ　A.D.1999 …」）。
+function ns_fgo_jp_titleOf(v) {
+	if (typeof v !== "string") return "";
+	return v.replace(/[ \t\u3000]*[\r\n]+[ \t\u3000]*/g, " ").replace(/ {2,}/g, " ").trim();
+}
+
+// 无结束占位 → 毫秒；不是占位 → null（判据见文件头 ①）。
+function ns_fgo_jp_permanentEndMs(rows, endKey) {
+	const ends = rows.map((x) => numOrNull(x && x[endKey])).filter((n) => n != null && n > 0);
+	if (ends.length < 2) return null;
+	const max = Math.max(...ends);
+	return ends.filter((e) => e === max).length >= 2 ? max * 1000 : null;
+}
+
+// 一张表 → 条目事实：epoch 秒 → 毫秒；起止缺失就留 null，不猜（null 过不了 `coversNow`）。
+function ns_fgo_jp_itemsOf(list, startKey, endKey, what) {
+	if (!Array.isArray(list)) throw ns_fgo_jp_badShape(what);
+	const perm = ns_fgo_jp_permanentEndMs(list, endKey);
+	const out = [];
+	for (const raw of list) {
+		if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+		const title = ns_fgo_jp_titleOf(raw.name);
+		if (!title) continue;
+		const s = numOrNull(raw[startKey]), e = numOrNull(raw[endKey]);
+		out.push({
+			id: raw.id,
+			title,
+			startTs: s == null ? null : s * 1000,
+			endTs: e == null ? null : e * 1000,
+			permanent: e != null && perm != null && e * 1000 === perm
+		});
+	}
+	return out;
+}
+
+// 当期 = 覆盖 now 的条目里**结束最晚**的那条（同结束比开始、再比 id，确定且可复现）。
+function ns_fgo_jp_pickCurrent(items, now) {
+	const live = items.filter((x) => coversNow(x, now));
+	if (!live.length) return null;
+	return live.slice().sort((a, b) =>
+		(b.endTs - a.endTs) || (b.startTs - a.startTs) || ((Number(a.id) || 0) - (Number(b.id) || 0)))[0];
+}
+
+// 悬停行顺序：结束时间升序（与 bwiki / FGO 国服同一口径 —— 外显那条排在最后）。
+function ns_fgo_jp_hoverOrderOf(a, b) {
+	return (a.endTs - b.endTs) || (a.startTs - b.startTs) || ((Number(a.id) || 0) - (Number(b.id) || 0));
+}
+
+// 源站会把**同一个 campaign 用多个 id** 重复列在 `ongoing=true` 里（实测 2026-11-14：活动侧
+// 「消費AP 50%DOWN」「強化『大成功＆極大成功』率3倍！」各有一组同名同窗的重复行）⇒ 条目层按
+// 「名称 + 起止」去掉**完全相同**的重复行。方向与数据层「归一后同名只留第一条」一致，但不提前
+// 按标题合并（那是数组的收口，见 `dataArrayExtrasFromEntriesOf`）：同名不同窗的行仍然都留着。
+function ns_fgo_jp_uniqueOf(items) {
+	const seen = new Set();
+	const out = [];
+	for (const x of items) {
+		const k = `${x.title}\u0000${x.startTs}\u0000${x.endTs}`;
+		if (seen.has(k)) continue;
+		seen.add(k);
+		out.push(x);
+	}
+	return out;
+}
+
+async function ns_fgo_jp_fetchList(url, signal, what) {
+	let data;
+	try {
+		data = await fetchJson(url, { signal, mode: "direct" });
+	} catch (e) {
+		if (e && e.name === "AbortError") throw e;
+		throw new Error(`fgo-jp-${what}-fetch-failed:${(e && e.message) || e}`);
+	}
+	if (!Array.isArray(data)) throw ns_fgo_jp_badShape(what);   // `{}` / 对象 ⇒ 失败，不是 nomatch
+	return data;
+}
+
+async function ns_fgo_jp_gachaFgoJp(url, signal, tz = ns_fgo_jp_TZ, now = nowMs()) {
+	const list = await ns_fgo_jp_fetchList(url || ns_fgo_jp_GACHA_URL, signal, "gacha");
+	// 常驻池（无结束占位）不参与：它们永远在期
+	const items = ns_fgo_jp_uniqueOf(ns_fgo_jp_itemsOf(list, "openedAt", "closedAt", "gacha").filter((x) => !x.permanent));
+	const live = items.filter((x) => coversNow(x, now));
+	if (!live.length) return null;                  // 没有覆盖 now 的 ⇒ 未公布（**不是**失败）
+	const cur = ns_fgo_jp_pickCurrent(live, now);
+	const dates = fmtWindow(cur.startTs, cur.endTs, tz);
+	const out = {
+		banner: cur.title,
+		roles: "",                                  // 源站没有可用的角色名（见文件头 ③）
+		bannerDates: dates,
+		bannerDatesRaw: dates,                      // 源站只有 epoch 秒、没有墙钟原文 ⇒ 同值
+		startTs: cur.startTs,
+		endTs: cur.endTs
+	};
+	// ── P3b：条目事实 → 悬停 + `gacha` 数组（悬停 = 全部在期池；只有 1 条时不设 bannerHover）──
+	const hoverItems = live.slice().sort(ns_fgo_jp_hoverOrderOf)
+		.map((x) => ({ title: x.title, startTs: x.startTs, endTs: x.endTs, raw: "" }));
+	const hover = hoverTextFromItems(hoverItems, "gacha", tz);
+	if (hover) out.bannerHover = hover;
+	out.gacha = dataArrayProducedGachaOf(out, hoverItems, { tz }, now);
+	out.gachaHoverItems = hoverItems;
+	return out;
+}
+
+async function ns_fgo_jp_eventsFgoJp(url, signal, tz = ns_fgo_jp_TZ, now = nowMs()) {
+	const list = await ns_fgo_jp_fetchList(url || ns_fgo_jp_EVENT_URL, signal, "event");
+	const items = ns_fgo_jp_uniqueOf(ns_fgo_jp_itemsOf(list, "startedAt", "endedAt", "event").filter((x) => !x.permanent));
+	const live = items.filter((x) => coversNow(x, now));
+	if (!live.length) return null;
+	const cur = ns_fgo_jp_pickCurrent(live, now);
+	const dates = fmtWindow(cur.startTs, cur.endTs, tz);
+	// ── 条目事实 → 悬停 + `events` 数组（**不排序**给数组：`dataArrayExtrasFromEntriesOf` 自己按判据收口）──
+	const eventItems = live.slice().sort(ns_fgo_jp_hoverOrderOf)
+		.map((x) => ({ title: x.title, startTs: x.startTs, endTs: x.endTs, raw: "" }));
+	const eventHover = hoverTextFromItems(eventItems, "event", tz);
+	const out = {
+		event: cur.title,
+		eventDates: dates,
+		eventDatesRaw: dates,
+		...(eventHover ? { eventHover } : {})
+	};
+	out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
+	out.eventHoverItems = eventItems;
+	return out;
+}
+
 		// ── 条目 ──
 		registerSource({
 				id: "fgo",
@@ -17090,9 +17250,26 @@ async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ, now = nowMs()) 
 				eventSource: "Bwiki",
 		});
 
+		// 同一款游戏的**日服**（Atlas Academy 数据导出，解析器见文件内「FGO 日服」段落）。
+		// 与国服条目相邻；国服那条（fgo.wiki / Bwiki）一个字都不动。
+		registerSource({
+				id: "fgo-jp",
+				defaultHidden: false,
+				tz: ns_fgo_jp_TZ,
+				name: "Fate/Grand Order·日服",
+				// 源站只有 JSON、没有图标地址 ⇒ 沿用同款游戏（国服条目）的图标
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/db/d4/19/dbd4196a-68cb-8a74-ca0b-045d0795e10c/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
+				url: ns_fgo_jp_GACHA_URL,
+				source: "Atlas Academy",
+				eventUrl: ns_fgo_jp_EVENT_URL,
+				eventSource: "Atlas Academy",
+		});
+
 		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
 		GACHA_FETCHERS["fgo"] = (url, signal, tz) => ns_fgo_gachaFgo(url, signal, tz);
 		EVENT_FETCHERS["fgo"] = Object.assign(EVENT_FETCHERS["fgo"] || {}, { default: (url, signal, tz) => ns_fgo_eventsFgo(url, signal, tz) });
+		GACHA_FETCHERS["fgo-jp"] = (url, signal, tz) => ns_fgo_jp_gachaFgoJp(url, signal, tz);
+		EVENT_FETCHERS["fgo-jp"] = Object.assign(EVENT_FETCHERS["fgo-jp"] || {}, { default: (url, signal, tz) => ns_fgo_jp_eventsFgoJp(url, signal, tz) });
 
 // src/client/30-game-sega.js —— 世嘉（初音未来：缤纷舞台）
 //

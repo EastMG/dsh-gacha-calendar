@@ -25,6 +25,8 @@
   "https://bang-dream-on.bushimo.jp/wp-json/wp/v2/posts?per_page=20&page=1": "ournotes-list/response.txt",
   "https://fgo.wiki/api.php?action=parse&page=%E5%8D%A1%E6%B1%A0%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2": "fgo-gacha-parse/response.txt",
   "https://fgo.wiki/api.php?action=parse&page=%E6%B4%BB%E5%8A%A8%E4%B8%80%E8%A7%88&prop=text&format=json&formatversion=2": "fgo-event-parse/response.txt",
+  "https://api.atlasacademy.io/export/JP/nice_gacha.json": "fgo-jp-gacha/response.txt",
+  "https://api.atlasacademy.io/basic/JP/event/search?ongoing=true": "fgo-jp-event/response.txt",
   "https://gf2-web-preregister-api.sunborngame.com/website/news/2129": "gf2-detail-gacha/response.txt",
   "https://gf2-web-preregister-api.sunborngame.com/website/news/2142": "gf2-detail-event/response.txt",
   "https://gf2-web-preregister-api.sunborngame.com/website/news/2128": "gf2-detail-up/response.txt",
