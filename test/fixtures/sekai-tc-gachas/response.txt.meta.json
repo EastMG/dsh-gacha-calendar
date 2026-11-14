@@ -1,0 +1,6 @@
+{
+  "url": "https://gh-proxy.com/https://raw.githubusercontent.com/Sekai-World/sekai-master-db-tc-diff/main/gachas.json",
+  "status": 200,
+  "capturedAt": "2026-11-14T10:54:32.293Z",
+  "note": "**已裁剪**（原始响应 58 条 / 4443816 字节 —— 4MB 级，不入库）。只保留 3 条 id=854/859/861：其中 id=859 覆盖测试用的 now（2026-11-14T00:00:00.000Z），其余为紧邻的前后边界（各 1 条）。原始文件经 raw.githubusercontent.com 直连抓取（与上面的 gh-proxy 镜像同一份文件），保留对象的**字段与取值逐字未改**，只删掉了未选中的条目。"
+}

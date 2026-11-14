@@ -61,11 +61,12 @@ export default async function runCore() {
 		check("多次 createEngine 不会让 altSources 变长", altMax === altMax3, `${altMax} vs ${altMax3}`);
 	}
 
-	// ② core 覆盖全部来源（C2 之后 28 款 + 2026-11-09 新接入 5 款 = 33），且内置 11 款仍在
+	// ② core 覆盖全部来源（C2 之后 28 款 + 2026-11-09 新接入 5 款 + 2026-11-11 的 uma-tw
+	//    + 2026-11-14 的 pjsk 繁中服/韩服 = 36），且内置 11 款仍在
 	{
 		const e = createEngine({ transport: noopTransport, storage: makeStorage(), now: () => 0 });
 		const ids = e.__test.SOURCES.map((s) => s.id);
-		check("core 来源总数 = 34（内置 11 + 另外 17 + 2026-11-09 的 5 + 2026-11-11 的 uma-tw）", ids.length === 34, String(ids.length));
+		check("core 来源总数 = 36（内置 11 + 另外 17 + 2026-11-09 的 5 + 2026-11-11 的 uma-tw + 2026-11-14 的 pjsk-tc/pjsk-kr）", ids.length === 36, String(ids.length));
 		const builtin = ["genshin", "hsr", "zzz", "wuwa", "arknights", "endfield", "ba-cn", "ba-global", "ba-jp", "r1999", "nte"];
 		check("内置 11 款都还在", builtin.every((i) => ids.includes(i)), builtin.filter((i) => !ids.includes(i)).join(","));
 		const extra = ["p5x", "zspms", "czn", "kedr", "ddlezj", "bh3", "stellasora", "fgo", "gf2", "bandori", "pjsk"];

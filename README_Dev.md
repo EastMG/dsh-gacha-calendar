@@ -78,7 +78,7 @@ dsh-gacha-calendar/
 │       ├── 30-game-perfectworld.js # 完美世界：女神异闻录：夜幕魅影 / 异环
 │       ├── 30-game-sunborn.js     # 散爆：少女前线2：追放
 │       ├── 30-game-aniplex.js     # Aniplex / TYPE-MOON：Fate/Grand Order
-│       ├── 30-game-sega.js        # 世嘉：初音未来：缤纷舞台
+│       ├── 30-game-sega.js        # 世嘉：初音未来：缤纷舞台 国服 / 繁中服 / 韩服（同源同形，只换 URL + tz）
 │       ├── 30-game-yostar.js      # 悠星：星塔旅人
 │       ├── 30-game-bluepoch.js    # 深蓝互动：重返未来：1999
 │       ├── 30-game-wqmt.js        # 无期迷途（国服）：卡池 bwiki 追踪一览 + 活动 官方资讯 API + 开服锚点
@@ -1324,7 +1324,38 @@ null，活动侧 2026-11-10 已换 TapTap tab（能出「新风同行」11-05~11
 - **实测（2026-11-14，本机直连）**：在期 = id 1022「甜蜜回憶・午茶時光」`11-09 22:00 ~ 11-23 21:59`（UTC）；
   活动侧单侧 2 次请求（manifest 11,502B + 表 119,375B）；一轮刷新（卡池 + 活动）共 5 次、manifest 命中 1 次。
 
+### 2026-11-14：初音未来：缤纷舞台 **繁中服 / 韩服**（`pjsk-tc` / `pjsk-kr`）
+
+- **源**：与国服**同源同形**（Sekai-World 的 `sekai-master-db-tc-diff` / `sekai-master-db-kr-diff`，与
+  `-cn-diff` 同一套 sekai-master-db 派生仓）。`gachas.json` = `{id, gachaType, name, startAt, endAt}`；
+  `events.json` = `{id, eventType, name, startAt, aggregateAt}`（**没有 `endAt`** —— 活动游玩期取
+  `startAt ~ aggregateAt`，与国服同一条映射）。池名 / 活动名**直接就是本地语言原文**（繁中 / 韩文）。
+- **解析器复用**：直接调用国服那套 `ns_sekai_parseSekaiGachas` / `ns_sekai_parseSekaiEvents`
+  （`src/client/30-game-sega.js`），**只换 URL 与 tz**；`roles` 仍为空串（与国服一致，不新造）。
+- **入口实测（2026-11-14，HEAD + 真 GET）**：三个候选对两个服**全部 200 + `Access-Control-Allow-Origin: *`**
+  —— `raw.githubusercontent.com/.../{tc,kr}-diff/main/gachas.json`、
+  `gh-proxy.com/<同一个 raw 地址>`、`sekai-world.github.io/sekai-master-db-{tc,kr}-diff/gachas.json`
+  （Pages 版**存在**）。四个文件的字节数：繁中 gachas 4,443,816 / events 1,480,360；韩 gachas 4,245,811 /
+  events 1,435,245；经 gh-proxy 取回的字节与直连 raw **完全相同**（sha256 一致）。
+- **主源 / 备选**：主源 = gh-proxy 包 raw（国服惯例）；备选 = Pages 版（`altSources` / `eventAltSources`）。
+  **没有新增直连域名**（`gh-proxy.com` / `sekai-world.github.io` 本来就在 `tools/check-host-allow.mjs`
+  的 `DIRECT_HOSTS` 里），也**没有**把 raw 直连再列成第二个主源 —— 4MB+ 的文件只发一遍（一轮刷新 4 次 GET：
+  两个服 × 卡池/活动）。
+- **tz 依据（2026-11-14，夹具自洽）**：生日池 856「[東雲彰人]HAPPY BIRTHDAY 2026招募」`startAt=1794038400000`
+  ⇒ `Asia/Taipei` 渲染 **2026-11-08 00:00**（生日当天零点）；韩服同一池 `1794034800000` ⇒ `Asia/Seoul`
+  同样渲染 00:00（两地差 1 小时正是 UTC+8 / UTC+9）；常规池轮换落在**当地 12:00**、活动起于**当地 15:00**。
+- **夹具（裁剪过，4MB 级不入库）**：`sekai-tc-gachas` / `sekai-tc-events` / `sekai-kr-gachas` /
+  `sekai-kr-events`。源站 58/200 条（繁中）与 56/199 条（韩）→ 只留**卡池 3 条**（854 前一条边界 /
+  859 覆盖 now / 861 后一条边界）+ **活动 5 条**（183/184 前、185 覆盖 now、187/188 后）；
+  保留对象的字段与取值**逐字未改**，只是删掉了未选中的条目（meta 的 `note` 记了裁剪口径）。
+- **回归**：`test/cases-b1.mjs` 的 B1-5 ①~④ —— 注册（id / 名称 / tz / `defaultHidden: false` /
+  两侧 url 与标签逐字 / 备选源 / 抓取器登记）、解析（当期池名与活动名逐字 + `startTs`/`endTs` 与源站 ms
+  逐毫秒一致）、反证（抹掉 `startAt` 或 `endAt` ⇒ 外显为 `null`；`events.json` 换成 `{}` ⇒ 抛
+  `sekai-event-bad-shape` 而不是 nomatch）、引擎整轮（4 次请求 / 无重复 / 两侧都不 fail）。
+  来源总数 34 → 36（`cases-core` / `cases-new5` 同步），`REMIND_TZ_BY_ID` 补两条（`cases-remind` ⑦ 守卫）。
+
 ### 星铁换官方公告 CMS + 「相对起点」锚定 + 「起点未知 ≠ 已开始」（2026-11-09）
+
 
 用户当轮拍板的三条规则。**三条互相咬合，改一条要同时看另两条**。
 

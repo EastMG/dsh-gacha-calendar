@@ -10,6 +10,7 @@
 // 重抓夹具后需要同步更新，届时以"形态与不变量"那一批断言为准。
 
 import { readFileSync } from "node:fs";
+import { createEngine } from "../packages/core/core.mjs";
 import { useFixtures, check, section, assertContract, summary } from "./harness.mjs";
 const { sourceWallParts } = T;
 import { findSource, SOURCES_B1 } from "./registry-shim.mjs";
@@ -381,6 +382,220 @@ export default async function run() {
 		check("5 个导出的抓取器都能离线跑通（mode=direct/proxy 自动选对分支）",
 			r6.ok && r7.ok && r8.ok && r9.ok && r10.ok,
 			[r6, r7, r8, r9, r10].map((r) => r.err || "ok").join(" | "));
+	}
+
+	// ───────── B1-5 初音未来：缤纷舞台 · 繁中服 / 韩服（2026-11-14 接入）─────────
+	//
+	// 与国服**同源同形**（Sekai-World 的 sekai-master-db-{tc,kr}-diff）：gachas 的
+	// {id,gachaType,name,startAt,endAt} 与 events 的 {id,eventType,name,startAt,aggregateAt} 字段逐字同构，
+	// 池名 / 活动名**直接就是本地语言原文**（繁中 / 韩文）。解析器**复用**国服那套 `ns_sekai_*`
+	// （只换 URL 与 tz），`roles` 仍为空。
+	//
+	// 夹具是**裁剪过的**（源站 gachas 4.4MB / events 1.5MB —— 4MB 级不入库，见各 meta 的 note）：
+	//   卡池 = 854（前一条边界，11-11 03:59Z 就结束了）/ 859（覆盖 now）/ 861（后一条边界，11-20 起）
+	//   活动 = 183/184（前）/ 185（覆盖 now）/ 187/188（后）
+	// 时间断言一律写 `Date.UTC(...)` 手算的绝对毫秒：UTC 与 +08 两道门禁跑的是**同一份期望值**。
+	const PJSK_NOW = Date.parse("2026-11-14T00:00:00Z");
+	const PJSK = [
+		{
+			id: "pjsk-tc",
+			name: "初音未来：缤纷舞台·繁中服",
+			tz: "Asia/Taipei",
+			repo: "sekai-master-db-tc-diff",
+			gachaFx: "sekai-tc-gachas",
+			eventFx: "sekai-tc-events",
+			srcTotal: { gachas: 58, events: 200 },
+			curGachaId: 859,
+			curEventId: 185,
+			banner: "[復刻]於響起音樂的街角 招募",
+			bannerDates: "11-12 12:00 ~ 11-21 11:59",
+			gachaStart: Date.UTC(2026, 10, 12, 4, 0),
+			gachaEnd: Date.UTC(2026, 10, 21, 3, 59, 59),
+			event: "戰勝自我的主角",
+			eventDates: "11-10 15:00 ~ 11-18 20:59",
+			eventStart: Date.UTC(2026, 10, 10, 7, 0)
+		},
+		{
+			id: "pjsk-kr",
+			name: "初音未来：缤纷舞台·韩服",
+			tz: "Asia/Seoul",
+			repo: "sekai-master-db-kr-diff",
+			gachaFx: "sekai-kr-gachas",
+			eventFx: "sekai-kr-events",
+			srcTotal: { gachas: 56, events: 199 },
+			curGachaId: 859,
+			curEventId: 185,
+			banner: "[재등장] 음악이 울리는 길목에서 뽑기",
+			bannerDates: "11-12 12:00 ~ 11-21 11:59",
+			gachaStart: Date.UTC(2026, 10, 12, 3, 0),
+			gachaEnd: Date.UTC(2026, 10, 21, 2, 59, 59),
+			event: "초월의 프로타고니스타",
+			eventDates: "11-10 15:00 ~ 11-18 20:59",
+			eventStart: Date.UTC(2026, 10, 10, 6, 0)
+		}
+	];
+	// 主源 = gh-proxy 包 raw（国服惯例）；备选 = GitHub Pages（实测 200 + ACAO:*）
+	const GH = (repo, file) => `https://gh-proxy.com/https://raw.githubusercontent.com/Sekai-World/${repo}/main/${file}`;
+	const PAGES = (repo, file) => `https://sekai-world.github.io/${repo}/${file}`;
+
+	section("B1-5 ① 繁中服 / 韩服：注册（id / 名称 / tz / defaultHidden / URL 与标签逐字）");
+	for (const R of PJSK) {
+		const s = T.SOURCES.find((x) => x.id === R.id) || null;
+		check(`条目已注册（id = ${R.id}）`, !!s, s ? s.id : "缺失");
+		check(`${R.id} 名称逐字 = ${R.name}`, !!s && s.name === R.name, s && s.name);
+		check(`${R.id} tz = ${R.tz}（源站墙钟 = 各服本地时间）`, !!s && s.tz === R.tz, s && String(s.tz));
+		check(`${R.id} defaultHidden = false（2026-11-14 用户拍板：除 cytq 外全部默认展示）`,
+			!!s && s.defaultHidden === false, s && String(s.defaultHidden));
+		check(`${R.id} 卡池 url 逐字 = gh-proxy 包 raw（${R.repo}/gachas.json）`,
+			!!s && s.url === GH(R.repo, "gachas.json"), s && String(s.url));
+		check(`${R.id} 活动 eventUrl 逐字 = gh-proxy 包 raw（${R.repo}/events.json）`,
+			!!s && s.eventUrl === GH(R.repo, "events.json"), s && String(s.eventUrl));
+		check(`${R.id} 两侧来源标签逐字（沿用国服写法）`,
+			!!s && s.source === "Sekai World 卡池表（代理）" && s.eventSource === "Sekai World 活动表（代理）",
+			s && JSON.stringify([s.source, s.eventSource]));
+		check(`${R.id} 卡池备选 = Pages 版 1 条（label/url/fetcher 逐字）`,
+			!!s && Array.isArray(s.altSources) && s.altSources.length === 1
+			&& s.altSources[0].label === "Sekai World 卡池表"
+			&& s.altSources[0].url === PAGES(R.repo, "gachas.json")
+			&& s.altSources[0].fetcher === R.id,
+			s && JSON.stringify(s.altSources));
+		check(`${R.id} 活动备选 = Pages 版 1 条（label/url/fetcher=default 逐字）`,
+			!!s && Array.isArray(s.eventAltSources) && s.eventAltSources.length === 1
+			&& s.eventAltSources[0].label === "Sekai World 活动表"
+			&& s.eventAltSources[0].url === PAGES(R.repo, "events.json")
+			&& s.eventAltSources[0].fetcher === "default",
+			s && JSON.stringify(s.eventAltSources));
+		// 「不要把 4MB 以上的请求发两遍」：同一个大文件只挂一个主源，raw 直连不另外列一条
+		const allUrls = [s && s.url, s && s.eventUrl, ...((s && s.altSources) || []).map((a) => a.url), ...((s && s.eventAltSources) || []).map((a) => a.url)].filter(Boolean);
+		check(`${R.id} 没有第二个 raw.githubusercontent 入口（同一个 4MB 文件不发两遍）`,
+			allUrls.length === 4 && allUrls.filter((u) => /raw\.githubusercontent\.com/.test(u)).length === 2
+			&& allUrls.filter((u) => /sekai-world\.github\.io/.test(u)).length === 2,
+			JSON.stringify(allUrls));
+		check(`${R.id} 抓取器已登记（卡池 + 活动两侧都复用国服那套）`,
+			typeof T.GACHA_FETCHERS[R.id] === "function" && !!(T.EVENT_FETCHERS[R.id] && typeof T.EVENT_FETCHERS[R.id].default === "function"),
+			JSON.stringify([typeof T.GACHA_FETCHERS[R.id], typeof (T.EVENT_FETCHERS[R.id] || {}).default]));
+		check(`${R.id} 图标是 http(s) 地址（沿用国服同款品牌图标）`,
+			!!s && /^https?:\/\//.test(String(s.icon)), s && String(s.icon).slice(0, 60));
+	}
+
+	section("B1-5 ② 繁中服 / 韩服：解析（裁剪夹具逐字 —— 覆盖 now 的池 / 活动 + 源站 ms）");
+	for (const R of PJSK) {
+		const gRaw = fixture(R.gachaFx);
+		const eRaw = fixture(R.eventFx);
+		// 夹具卫生：裁剪过但形状不变（对象字段与源站逐字同构）
+		check(`${R.id} 卡池夹具 3 条（前 / 当期 / 后）、活动夹具 5 条（前 2 / 当期 / 后 2）`,
+			gRaw.length === 3 && eRaw.length === 5, JSON.stringify([gRaw.length, eRaw.length]));
+		const gCur = gRaw.find((x) => x.id === R.curGachaId);
+		const gBefore = gRaw.filter((x) => x.endAt <= PJSK_NOW);
+		const gAfter = gRaw.filter((x) => x.startAt > PJSK_NOW);
+		check(`${R.id} 夹具里恰好 1 条卡池覆盖 now（id=${R.curGachaId}），另有前后边界各 1 条`,
+			gCur.startAt <= PJSK_NOW && gCur.endAt > PJSK_NOW && gBefore.length === 1 && gAfter.length === 1,
+			JSON.stringify({ cur: gCur.id, before: gBefore.map((x) => x.id), after: gAfter.map((x) => x.id) }));
+		check(`${R.id} 卡池对象字段形态与国服同源（${{ id: 0, gachaType: "", name: "", startAt: 0, endAt: 0 }}）`,
+			typeof gCur.id === "number" && typeof gCur.gachaType === "string" && typeof gCur.name === "string"
+			&& typeof gCur.startAt === "number" && typeof gCur.endAt === "number",
+			JSON.stringify(Object.keys(gCur).slice(0, 8)));
+
+		const G = parseSekaiGachas(gRaw, PJSK_NOW, R.tz);
+		check(`${R.id} 当期池名逐字（${R.banner}）`, !!G && G.banner === R.banner, JSON.stringify(G && G.banner));
+		check(`${R.id} roles 仍为空串（与国服一致，不新造）`, !!G && G.roles === "", JSON.stringify(G && G.roles));
+		check(`${R.id} 档期 = ${R.bannerDates}（各服墙钟）`, !!G && G.bannerDates === R.bannerDates, JSON.stringify(G && G.bannerDates));
+		check(`${R.id} startTs 与源站 startAt 逐毫秒一致`,
+			!!G && G.startTs === gCur.startAt && G.startTs === R.gachaStart, JSON.stringify([G && G.startTs, gCur.startAt]));
+		check(`${R.id} endTs 与源站 endAt 逐毫秒一致`,
+			!!G && G.endTs === gCur.endAt && G.endTs === R.gachaEnd, JSON.stringify([G && G.endTs, gCur.endAt]));
+		check(`${R.id} gacha[] 恰好 1 条（裁剪后只有 1 口池在期）且是 primary`,
+			!!G && Array.isArray(G.gacha) && G.gacha.length === 1 && G.gacha[0].title === R.banner && G.gacha[0].source === "primary",
+			JSON.stringify(G && G.gacha && G.gacha.map((x) => [x.title, x.source])));
+		assertContract(`PJSK·${R.id}`, "gacha", G);
+
+		const eCur = eRaw.find((x) => x.id === R.curEventId);
+		const E = parseSekaiEvents(eRaw, PJSK_NOW, R.tz);
+		check(`${R.id} 当期活动名逐字（${R.event}）`, !!E && E.event === R.event, JSON.stringify(E && E.event));
+		check(`${R.id} 活动档期 = ${R.eventDates}（源站无 endAt：结束取 aggregateAt）`,
+			!!E && E.eventDates === R.eventDates && E.eventDatesRaw === R.eventDates,
+			JSON.stringify([E && E.eventDates, E && E.eventDatesRaw]));
+		check(`${R.id} 活动 startTs 与源站 startAt 逐毫秒一致`,
+			!!E && E.events[0].startTs === eCur.startAt && E.events[0].startTs === R.eventStart,
+			JSON.stringify([E && E.events[0].startTs, eCur.startAt]));
+		check(`${R.id} 结束时刻 = 源站 aggregateAt（数组侧按分钟取整，与国服口径相同）`,
+			!!E && E.events[0].endTs === Math.floor(eCur.aggregateAt / 60000) * 60000,
+			JSON.stringify([E && E.events[0].endTs, eCur.aggregateAt]));
+		check(`${R.id} events[] 恰好 1 条（另 4 条不在期）且 category 原样 = ${eCur.eventType}`,
+			!!E && E.events.length === 1 && E.events[0].title === R.event && E.events[0].category === eCur.eventType,
+			JSON.stringify(E && E.events && E.events.map((x) => [x.title, x.category])));
+		assertContract(`PJSK·${R.id}`, "event", E);
+
+		// 抓取器端到端（走夹具 fetch；now 显式传夹具快照的同一时刻）
+		const rG = await grab(() => gachaSekai(GH(R.repo, "gachas.json"), undefined, R.tz, PJSK_NOW));
+		const rE = await grab(() => eventsSekai(GH(R.repo, "events.json"), undefined, R.tz, PJSK_NOW));
+		check(`${R.id} 抓取器（卡池 + 活动）都能离线跑通`, rG.ok && rE.ok, [rG.err, rE.err].filter(Boolean).join(" | "));
+		check(`${R.id} 抓取器结果与纯函数逐字一致`,
+			rG.ok && rE.ok && rG.data.banner === G.banner && rE.data.event === E.event,
+			JSON.stringify([rG.ok && rG.data.banner, rE.ok && rE.data.event]));
+	}
+
+	section("B1-5 ③ 繁中服 / 韩服：反证（拿掉关键字段 ⇒ 不进外显 / 抛错而不是 nomatch）");
+	for (const R of PJSK) {
+		const gRaw = fixture(R.gachaFx);
+		// 反证 ①：把当期池的 startAt 抹掉 —— 当日唯一的在期池没了窗口 ⇒ 外显为空（不硬凑、不退化成别的池）
+		const noStart = gRaw.map((x) => (x.id === R.curGachaId ? (() => { const y = { ...x }; delete y.startAt; return y; })() : x));
+		check(`${R.id} 反证①：抹掉当期池 startAt ⇒ 卡池侧产出 null（不进外显）`,
+			parseSekaiGachas(noStart, PJSK_NOW, R.tz) === null, JSON.stringify(parseSekaiGachas(noStart, PJSK_NOW, R.tz)));
+		// 反证 ②：events.json 换成 {} ⇒ 抛错（不是"没有当期活动"的 nomatch）
+		let evErr = null;
+		try { parseSekaiEvents({}, PJSK_NOW, R.tz); } catch (e) { evErr = String((e && e.message) || e); }
+		check(`${R.id} 反证②：events.json 换成 {} ⇒ 抛错 sekai-event-bad-shape（不是 nomatch）`,
+			evErr === "sekai-event-bad-shape", JSON.stringify(evErr));
+		// 反证 ③（对照）：把当期池的 endAt 抹掉 ⇒ 同样不进外显（证明上面是"窗口不全"这条判据在起作用）
+		const noEnd = gRaw.map((x) => (x.id === R.curGachaId ? (() => { const y = { ...x }; delete y.endAt; return y; })() : x));
+		check(`${R.id} 反证③：抹掉当期池 endAt ⇒ 卡池侧同样产出 null`,
+			parseSekaiGachas(noEnd, PJSK_NOW, R.tz) === null, JSON.stringify(parseSekaiGachas(noEnd, PJSK_NOW, R.tz)));
+		// 守卫自身没瞎：把 startAt 还回去就能解析出来
+		check(`${R.id} 反证对照：夹具原样能解析出当期池（上面三条不是"恒空"）`,
+			parseSekaiGachas(gRaw, PJSK_NOW, R.tz)?.banner === R.banner);
+	}
+
+	section("B1-5 ④ 繁中服 / 韩服：引擎整轮（4 次请求 / 同一个大文件不发两遍 / 两侧都不 fail）");
+	{
+		const bodies = {};
+		for (const R of PJSK) {
+			bodies[GH(R.repo, "gachas.json")] = readFileSync(new URL(`./fixtures/${R.gachaFx}/response.txt`, import.meta.url), "utf8");
+			bodies[GH(R.repo, "events.json")] = readFileSync(new URL(`./fixtures/${R.eventFx}/response.txt`, import.meta.url), "utf8");
+		}
+		const seen = [];
+		const transport = {
+			async fetchRaw(url) {
+				const u = String(url);
+				seen.push(u);
+				const body = bodies[u];
+				if (body == null) return { ok: false, status: 404, headers: { get: () => null }, text: async () => "", json: async () => ({}) };
+				return { ok: true, status: 200, headers: { get: () => null }, text: async () => body, json: async () => JSON.parse(body) };
+			},
+			async fetchViaProxy(url) { seen.push("proxy:" + String(url)); throw new Error("proxy-bad:404"); }
+		};
+		const store = new Map();
+		const e = createEngine({
+			transport,
+			storage: { async get(k) { return store.get(k); }, async set(k, v) { store.set(k, v); } },
+			now: () => PJSK_NOW,
+			timer: { setTimeout, clearTimeout }
+		});
+		const r = await e.refresh();
+		const mine = seen.filter((u) => /Sekai-World\/sekai-master-db-(tc|kr)-diff/.test(u)).sort();
+		check("整轮只打了 4 次 sekai 的 tc/kr 请求（两个服 × 卡池/活动各 1 次）", mine.length === 4, JSON.stringify(mine));
+		check("4 次请求两两不重复（4MB 级文件没有发两遍）", new Set(mine).size === 4, JSON.stringify(mine));
+		for (const R of PJSK) {
+			const rec = (r.games && r.games[R.id]) || {};
+			check(`${R.id} 引擎记录：两侧都不 fail`, rec.gachaFail == null && rec.eventFail == null,
+				JSON.stringify([rec.gachaFail, rec.eventFail]));
+			check(`${R.id} 引擎记录：当期卡池逐字 = 解析器结果`,
+				rec.banner === R.banner && rec.bannerDates === R.bannerDates,
+				JSON.stringify([rec.banner, rec.bannerDates]));
+			check(`${R.id} 引擎记录：当期活动逐字 = 解析器结果`,
+				rec.event === R.event && rec.eventDates === R.eventDates,
+				JSON.stringify([rec.event, rec.eventDates]));
+		}
 	}
 
 	// run.mjs 会调用 summary()；直接 `node test/cases-b1.mjs` 时也自报结果
