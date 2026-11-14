@@ -608,8 +608,8 @@ export default async function run() {
 				&& liveJp.eventUrl === "https://api.atlasacademy.io/basic/JP/event/search?ongoing=true"
 				&& FGO_JP_GACHA_URL === liveJp.url && FGO_JP_EVENT_URL === liveJp.eventUrl,
 				JSON.stringify([liveJp.url, liveJp.eventUrl]));
-			check("fgo-jp 两个来源标签逐字 =「Atlas Academy」（两侧同一家）",
-				liveJp.source === "Atlas Academy" && liveJp.eventSource === "Atlas Academy",
+			check("fgo-jp 两个来源标签逐字 =「Atlas Academy（日文）」（两侧同一家）",
+				liveJp.source === "Atlas Academy（日文）" && liveJp.eventSource === "Atlas Academy（日文）",
 				JSON.stringify([liveJp.source, liveJp.eventSource]));
 			check("fgo-jp 两侧都是 direct（两个端点实测 ACAO: *，不走宿主代理）",
 				!!srcJp && srcJp.gacha.mode === "direct" && srcJp.event.mode === "direct"
