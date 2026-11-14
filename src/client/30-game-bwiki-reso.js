@@ -253,6 +253,7 @@ registerSource({
 	defaultHidden: false,
 	tz: ns_reso_TZ,
 	name: "雷索纳斯",
+	icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/67/10/a4/6710a4b4-3b57-eb6a-df7a-7a143826aec4/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",
 	url: ns_reso_RAW_URL,
 	source: ns_reso_SOURCE_LABEL,
 	eventUrl: ns_reso_RAW_URL,

@@ -103,7 +103,7 @@ const ns_hl_CN_ANCHOR = "活动时间";
 // 日服
 const ns_hl_jp_TZ = "Asia/Tokyo";
 const ns_hl_jp_LIST_URL = "https://www.azurlane.jp/api/news/list?index=1&size=10";
-const ns_hl_jp_ICON = "https://www.azurlane.jp/favicon.ico";
+const ns_hl_jp_ICON = "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/b0/e5/d1/b0e5d122-0fb4-c7cd-5512-5a798d5c2c78/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg";
 const ns_hl_jp_SOURCE_LABEL = "官网公告（日服）";
 // 池的段标题 / 活动的段标题（见文件头 ③；非贪婪取「…」里的名字；活动要求同一行有「開催」）
 const ns_hl_jp_POOL_TITLE_RE = /「期間限定建造」|期間限定建造(?:の復刻)?(?:開催|を追加)/;
@@ -518,6 +518,7 @@ registerSource({
 	defaultHidden: false,
 	tz: ns_hl_TZ,
 	name: "碧蓝航线",
+	icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/26/7d/f7/267df745-0833-b6d5-51ab-f62e47d6037a/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 	url: "",
 	eventUrl: ns_hl_CN_LIST_URL,
 	eventSource: "官网公告"

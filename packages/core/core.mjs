@@ -13472,6 +13472,7 @@ async function ns_bwiki_eventsBjhl(url, signal, tz = BJHL_TZ, now) {
 		defaultHidden: false,
 		tz: BJHL_TZ,
 		name: "白荆回廊",
+		icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/85/4d/b9/854db9d3-2fa2-c3ac-f96a-aa0e6db4a7c5/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",
 		// 卡池侧与活动侧是**两个页面**（页面名即事实，见本文件头）
 		url: BJHL_GACHA_URL,
 		source: "Bwiki 历史卡池",
@@ -13818,6 +13819,7 @@ registerSource({
 	defaultHidden: false,
 	tz: ns_yslz_TZ,
 	name: "以闪亮之名",
+	icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/b6/b3/23/b6b3232f-e5d5-6753-8320-b37d638d4b2d/AppIcon-1x_U007emarketing-0-8-0-0-85-220-0.png/512x512bb.jpg",
 	// 两侧都是 bwiki，但**入口形态不同**：卡池走 MediaWiki 分类成员 + 正文，活动走 SMW ask
 	url: ns_yslz_GACHA_URL,
 	source: "Bwiki 限时追光",
@@ -18720,8 +18722,8 @@ async function ns_fgo_jp_eventsFgoJp(url, signal, tz = ns_fgo_jp_TZ, now = nowMs
 				defaultHidden: false,
 				tz: ns_fgo_jp_TZ,
 				name: "Fate/Grand Order·日服",
-				// 源站只有 JSON、没有图标地址 ⇒ 沿用同款游戏（国服条目）的图标
-				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/db/d4/19/dbd4196a-68cb-8a74-ca0b-045d0795e10c/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
+				// 源站只有 JSON、没有图标 ⇒ 用**日服**官方 App 图标（App Store JP id=1015521325，Aniplex）
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/6f/61/32/6f613285-f5cc-41d8-891c-1cb5c7029c21/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 				url: ns_fgo_jp_GACHA_URL,
 				source: "Atlas Academy（日文）",
 				eventUrl: ns_fgo_jp_EVENT_URL,
@@ -21539,6 +21541,7 @@ EVENT_FETCHERS["r1999"] = {
 			defaultHidden: false,
 			tz: YYS_TZ,
 			name: "阴阳师",
+			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/51/fa/e3/51fae32d-6dc9-d06a-c031-ac2c870bca83/AppIcon-1x_U007emarketing-0-10-0-85-220-0.png/512x512bb.jpg",
 			// 两侧同一个来源（官网「公告」列表页）：卡池=召唤活动、活动=活动/玩法档期
 			source: "官网公告",
 			url: YYS_LIST_URL,
@@ -24387,6 +24390,7 @@ EVENT_FETCHERS["ournotes-global"] = Object.assign(EVENT_FETCHERS["ournotes-globa
 			defaultHidden: false,
 			tz: WXNN_TZ,
 			name: "无限暖暖",
+			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/8e/0e/e4/8e0ee433-ee2d-67f8-95ca-b00625443c4e/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 			url: WXNN_LIST_URL,
 			source: WXNN_SOURCE_LABEL,
 			eventUrl: WXNN_LIST_URL,
@@ -24503,7 +24507,7 @@ const ns_hl_CN_ANCHOR = "活动时间";
 // 日服
 const ns_hl_jp_TZ = "Asia/Tokyo";
 const ns_hl_jp_LIST_URL = "https://www.azurlane.jp/api/news/list?index=1&size=10";
-const ns_hl_jp_ICON = "https://www.azurlane.jp/favicon.ico";
+const ns_hl_jp_ICON = "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/b0/e5/d1/b0e5d122-0fb4-c7cd-5512-5a798d5c2c78/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg";
 const ns_hl_jp_SOURCE_LABEL = "官网公告（日服）";
 // 池的段标题 / 活动的段标题（见文件头 ③；非贪婪取「…」里的名字；活动要求同一行有「開催」）
 const ns_hl_jp_POOL_TITLE_RE = /「期間限定建造」|期間限定建造(?:の復刻)?(?:開催|を追加)/;
@@ -24918,6 +24922,7 @@ registerSource({
 	defaultHidden: false,
 	tz: ns_hl_TZ,
 	name: "碧蓝航线",
+	icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/26/7d/f7/267df745-0833-b6d5-51ab-f62e47d6037a/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 	url: "",
 	eventUrl: ns_hl_CN_LIST_URL,
 	eventSource: "官网公告"
@@ -25286,6 +25291,7 @@ registerSource({
 	defaultHidden: false,
 	tz: ns_pcr_TW_TZ,
 	name: "公主连结Re:Dive·繁中服",
+	icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/5e/11/a2/5e11a217-4266-19ed-40e0-2a2357067278/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 	url: ns_pcr_TW_LIST_URL,
 	source: ns_pcr_TW_SOURCE_LABEL,
 	eventUrl: ns_pcr_TW_LIST_URL,
@@ -25552,6 +25558,7 @@ registerSource({
 	defaultHidden: false,
 	tz: ns_reso_TZ,
 	name: "雷索纳斯",
+	icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/67/10/a4/6710a4b4-3b57-eb6a-df7a-7a143826aec4/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",
 	url: ns_reso_RAW_URL,
 	source: ns_reso_SOURCE_LABEL,
 	eventUrl: ns_reso_RAW_URL,

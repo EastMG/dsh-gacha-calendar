@@ -505,8 +505,8 @@ async function ns_fgo_jp_eventsFgoJp(url, signal, tz = ns_fgo_jp_TZ, now = nowMs
 				defaultHidden: false,
 				tz: ns_fgo_jp_TZ,
 				name: "Fate/Grand Order·日服",
-				// 源站只有 JSON、没有图标地址 ⇒ 沿用同款游戏（国服条目）的图标
-				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/db/d4/19/dbd4196a-68cb-8a74-ca0b-045d0795e10c/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
+				// 源站只有 JSON、没有图标 ⇒ 用**日服**官方 App 图标（App Store JP id=1015521325，Aniplex）
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/6f/61/32/6f613285-f5cc-41d8-891c-1cb5c7029c21/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 				url: ns_fgo_jp_GACHA_URL,
 				source: "Atlas Academy（日文）",
 				eventUrl: ns_fgo_jp_EVENT_URL,

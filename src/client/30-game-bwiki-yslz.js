@@ -332,6 +332,7 @@ registerSource({
 	defaultHidden: false,
 	tz: ns_yslz_TZ,
 	name: "以闪亮之名",
+	icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/b6/b3/23/b6b3232f-e5d5-6753-8320-b37d638d4b2d/AppIcon-1x_U007emarketing-0-8-0-0-85-220-0.png/512x512bb.jpg",
 	// 两侧都是 bwiki，但**入口形态不同**：卡池走 MediaWiki 分类成员 + 正文，活动走 SMW ask
 	url: ns_yslz_GACHA_URL,
 	source: "Bwiki 限时追光",

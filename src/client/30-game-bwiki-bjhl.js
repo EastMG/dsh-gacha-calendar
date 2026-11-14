@@ -154,6 +154,7 @@ async function ns_bwiki_eventsBjhl(url, signal, tz = BJHL_TZ, now) {
 		defaultHidden: false,
 		tz: BJHL_TZ,
 		name: "白荆回廊",
+		icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/85/4d/b9/854db9d3-2fa2-c3ac-f96a-aa0e6db4a7c5/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",
 		// 卡池侧与活动侧是**两个页面**（页面名即事实，见本文件头）
 		url: BJHL_GACHA_URL,
 		source: "Bwiki 历史卡池",

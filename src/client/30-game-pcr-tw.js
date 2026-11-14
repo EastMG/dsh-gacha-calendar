@@ -340,6 +340,7 @@ registerSource({
 	defaultHidden: false,
 	tz: ns_pcr_TW_TZ,
 	name: "公主连结Re:Dive·繁中服",
+	icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/5e/11/a2/5e11a217-4266-19ed-40e0-2a2357067278/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 	url: ns_pcr_TW_LIST_URL,
 	source: ns_pcr_TW_SOURCE_LABEL,
 	eventUrl: ns_pcr_TW_LIST_URL,

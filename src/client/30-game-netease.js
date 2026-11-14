@@ -746,6 +746,7 @@
 			defaultHidden: false,
 			tz: YYS_TZ,
 			name: "阴阳师",
+			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/51/fa/e3/51fae32d-6dc9-d06a-c031-ac2c870bca83/AppIcon-1x_U007emarketing-0-10-0-85-220-0.png/512x512bb.jpg",
 			// 两侧同一个来源（官网「公告」列表页）：卡池=召唤活动、活动=活动/玩法档期
 			source: "官网公告",
 			url: YYS_LIST_URL,

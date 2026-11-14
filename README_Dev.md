@@ -936,6 +936,15 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
   判的口径一致）。未命中 / 未配置两类不追加；「重试」能力由底栏「刷新」按钮承担。
   回归：`test/cases-scrape-fail.mjs`。
 
+### 2026-11-15：图标补齐（7 个缺 icon）+ 2 个跨服图标换源
+
+48 条里原本缺 `icon` 的 7 条已补，一律取**官方 App Store** 的 `artworkUrl512`（`itunes.apple.com/lookup?id=…&country=…`）：
+`bjhl`（CN 1639079058）/ `yslz`（CN 1552333447）/ `yys`（CN 895670960）/ `wxnn`（CN 6502622479）/
+`hl`（CN 1170457573）/ `reso`（CN 6466783172）/ `pcr-tw`（TW 1390473317，So-net）。
+另两个改源：`fgo-jp` 由「沿用国服图标」改为**日服**官方图标（JP 1015521325，Aniplex），
+`hl-jp` 由 `https://www.azurlane.jp/favicon.ico` 改为日服官方 App 图标（JP 1242186587，Yostar）。
+九个 URL 活网实测均 HTTP 200 + `content-type: image/jpeg`。
+
 ### 新接入的 2 款（2026-11-15）
 
 来源全部实测过（夹具 `bjhl-gacha` / `bjhl-events` / `yys-update-list` / `yys-update-detail-2026{1110,1103,1027}`

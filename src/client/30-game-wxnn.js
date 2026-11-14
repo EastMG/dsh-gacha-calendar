@@ -402,6 +402,7 @@
 			defaultHidden: false,
 			tz: WXNN_TZ,
 			name: "无限暖暖",
+			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/8e/0e/e4/8e0ee433-ee2d-67f8-95ca-b00625443c4e/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 			url: WXNN_LIST_URL,
 			source: WXNN_SOURCE_LABEL,
 			eventUrl: WXNN_LIST_URL,
