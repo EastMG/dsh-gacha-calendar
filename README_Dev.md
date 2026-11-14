@@ -1278,7 +1278,7 @@ null，活动侧 2026-11-10 已换 TapTap tab（能出「新风同行」11-05~11
 - **卡池默认置空**（`30-game-pengpeng.js`）：`url: ""`、不写 `source`（口径同 ddlezj），设置页写裸「未配置」。
   两个备选（只在设置页手动选中才请求）：
   1. 「Bwiki（停更）」= /ymzx 的 SMW `action=ask`（原默认源；抓取器键 `pengpeng-bwiki-ask`）
-  2. 「Bwiki 表格」= /pengpeng「契约一览」HTML 表（新解析器 `pengpengTablePoolsOf`，
+  2. 「Bwiki 表格（停更）」= /pengpeng「契约一览」HTML 表（新解析器 `pengpengTablePoolsOf`，
      `action=parse&prop=text`；抓取器键 `pengpeng-bwiki-table`）
 - **为什么两个都留**：/ymzx SMW 结构最好但内容停更（11 条 / 9 条有窗口，末条止 2026-09-10 04:59）；
   /pengpeng 同一页面仍是活表，实测 2026-11-13 200 / 48920 字节，18 行 = 表头 1 + 有窗口 15 + 「长期」2，

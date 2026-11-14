@@ -174,9 +174,9 @@ export default async function run() {
 		check("pengpeng 卡池默认置空：url = \"\"（不抓）且不写 source（设置页显示裸「未配置」）",
 			!!pp && pp.url === "" && pp.source === void 0,
 			pp ? JSON.stringify({ url: pp.url, source: pp.source }) : "缺失");
-		check("pengpeng 卡池备选 = 2 条，标签逐字「Bwiki（停更）」/「Bwiki 表格」",
+		check("pengpeng 卡池备选 = 2 条，标签逐字「Bwiki（停更）」/「Bwiki 表格（停更）」",
 			PP_ALTS.length === 2
-			&& PP_ALTS[0].label === "Bwiki（停更）" && PP_ALTS[1].label === "Bwiki 表格",
+			&& PP_ALTS[0].label === "Bwiki（停更）" && PP_ALTS[1].label === "Bwiki 表格（停更）",
 			JSON.stringify(PP_ALTS.map((a) => a && a.label)));
 		check("pengpeng 备选 ① = /ymzx 的 SMW ask（fetcher「pengpeng-bwiki-ask」已登记在 GACHA_FETCHERS）",
 			!!PP_ALTS[0] && /^https:\/\/wiki\.biligame\.com\/ymzx\/api\.php\?action=ask&/.test(String(PP_ALTS[0].url))

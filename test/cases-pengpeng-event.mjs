@@ -125,10 +125,10 @@ export default async function runPengpengEvent() {
 		check("pengpeng 卡池侧默认置空（url=\"\"、不写 source）—— 2026-11-13 起卡池只手动启用",
 			!!s && s.url === "" && s.source === void 0,
 			s ? JSON.stringify({ url: s.url, source: s.source }) : "缺失");
-		check("卡池两个 bwiki 备选：① SMW ask「Bwiki（停更）」 ② /pengpeng 表格「Bwiki 表格」",
+		check("卡池两个 bwiki 备选：① SMW ask「Bwiki（停更）」 ② /pengpeng 表格「Bwiki 表格（停更）」",
 			!!s && (s.altSources || []).length === 2
 			&& s.altSources[0].label === "Bwiki（停更）" && s.altSources[0].fetcher === "pengpeng-bwiki-ask"
-			&& s.altSources[1].label === "Bwiki 表格" && s.altSources[1].fetcher === "pengpeng-bwiki-table"
+			&& s.altSources[1].label === "Bwiki 表格（停更）" && s.altSources[1].fetcher === "pengpeng-bwiki-table"
 			&& typeof T.GACHA_FETCHERS["pengpeng-bwiki-ask"] === "function"
 			&& typeof T.GACHA_FETCHERS["pengpeng-bwiki-table"] === "function",
 			s ? JSON.stringify(s.altSources) : "缺失");
