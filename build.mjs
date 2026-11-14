@@ -157,6 +157,7 @@ const ORDER = [
   "30-game-bwiki-czn-wikitext.js",    // 卡厄斯：Module:Gacha/data 的 Lua 表
   "30-game-bwiki-kedr-wikitext.js",   // 雪松：Template:首页游戏版本内容 的模板调用
   "30-game-bwiki-kedr-wiki.js",       // 雪松社区归档页（往期动员，prop=text）
+  "30-game-bwiki-dhmmr.js",           // 深空之眼（dhmmr）：SMW `action=ask` 的「卡池列表」子对象（只有卡池侧）
   "30-game-bwiki-register.js",        // 本组 4 条 registerSource + GACHA/EVENT_FETCHERS 接线
   "30-game-biligame.js",
   "30-game-cygames.js",
@@ -182,6 +183,8 @@ const ORDER = [
   // 2026-11-11：OurNotes **国际服** 卡池 + 活动默认源换成 SPICA 的结构化数据 JSON
   // （`window._durl` → d-*.json）。同样必须排在 `30-game-bandori.js` 之后（合并既有条目）。
   "30-game-ournotes-global.js",
+  // 2026-11-15：崩坏学园2 官网公告（列表 POST + 详情；卡池 + 活动两侧同一条列表 → 轮内共享一次请求）
+  "30-game-benghuai2.js",
   "44-test-exports.js",        // 回归出口：解析器 + env 工具 + 来源表（挂 exports.__regression，测试用）
   "50-refresh.js",             // 刷新编排、失败沿用旧值
   "60-helpers.js",             // 共用纯函数：状态归一 / 提示文案 / 显隐 / 格式化 / 排序 / 启动刷新判定
@@ -289,6 +292,7 @@ const CORE_ORDER = [
   "30-game-bwiki-czn-wikitext.js",    // 卡厄斯：Module:Gacha/data 的 Lua 表
   "30-game-bwiki-kedr-wikitext.js",   // 雪松：Template:首页游戏版本内容 的模板调用
   "30-game-bwiki-kedr-wiki.js",       // 雪松社区归档页（往期动员，prop=text）
+  "30-game-bwiki-dhmmr.js",           // 深空之眼（dhmmr）：SMW `action=ask` 的「卡池列表」子对象（只有卡池侧）
   "30-game-bwiki-register.js",        // 本组 4 条 registerSource + GACHA/EVENT_FETCHERS 接线
   "30-game-biligame.js",
   "30-game-cygames.js",
@@ -308,6 +312,7 @@ const CORE_ORDER = [
   "30-game-unconfigured.js",   // 炽焰天穹（来源留空未配置）
   "30-game-batch2.js",         // 2026-11-11 第二批（bh3 内容中台 / OurNotes SPICA / czn TapTap）
   "30-game-ournotes-global.js",// 2026-11-11 OurNotes 国际服（SPICA 数据 JSON：卡池 + 活动）
+  "30-game-benghuai2.js",      // 2026-11-15 崩坏学园2 官网公告（卡池 + 活动）
   "50-refresh.js",             // 刷新编排
   "engine-api.js",             // 注入 env + refresh() + 测试出口 + return
 ];

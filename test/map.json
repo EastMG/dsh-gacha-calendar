@@ -179,5 +179,19 @@
   "https://www.taptap.cn/app/755194/topic?type=official": "p6-ddlezj-taptap-topic-p1/response.txt",
   "https://www.taptap.cn/app/755194/topic?type=official&page=2": "p6-ddlezj-taptap-topic-p2/response.txt",
   "https://www.taptap.cn/app/746164/topic?type=official": "pengpeng-taptap-topic-p1/response.txt",
-  "https://www.taptap.cn/app/746164/topic?type=official&page=2": "pengpeng-taptap-topic-p2/response.txt"
+  "https://www.taptap.cn/app/746164/topic?type=official&page=2": "pengpeng-taptap-topic-p2/response.txt",
+  "https://wiki.biligame.com/dhmmr/api.php?action=ask&format=json&query=%5B%5B-HasSubobject%3A%3A%E5%8D%A1%E6%B1%A0%E5%88%97%E8%A1%A8%5D%5D%5B%5B%E7%BB%9F%E8%AE%A1%E5%B1%9E%E6%80%A7%3A%3A1%5D%5D%7C%3F%E5%8D%A1%E6%B1%A0%E5%BC%80%E5%A7%8B%E6%97%B6%E9%97%B4%7C%3F%E5%8D%A1%E6%B1%A0%E7%BB%93%E6%9D%9F%E6%97%B6%E9%97%B4%7C%3F%E5%8D%A1%E6%B1%A0%E5%90%8D%E7%A7%B0%7C%3F%E5%8D%A1%E6%B1%A0%E7%B1%BB%E5%9E%8B%7Csort%3D%E5%8D%A1%E6%B1%A0%E5%BC%80%E5%A7%8B%E6%97%B6%E9%97%B4%7Corder%3Ddesc": "dhmmr-ask/response.txt",
+  "https://www.benghuai.com/news/getNotice": "bh2-notice-list/response.txt",
+  "https://www.benghuai.com/news/getNoticeByID?id=20104735": "bh2-gach-20104735/response.txt",
+  "https://www.benghuai.com/news/getNoticeByID?id=20104679": "bh2-gach-20104679/response.txt",
+  "https://www.benghuai.com/news/getNoticeByID?id=20104534": "bh2-gach-20104534/response.txt",
+  "https://www.benghuai.com/news/getNoticeByID?id=20104533": "bh2-gach-20104533/response.txt",
+  "https://www.benghuai.com/news/getNoticeByID?id=20104532": "bh2-gach-20104532/response.txt",
+  "https://www.benghuai.com/news/getNoticeByID?id=20104455": "bh2-gach-20104455/response.txt",
+  "https://www.benghuai.com/news/getNoticeByID?id=20104718": "bh2-event-20104718/response.txt",
+  "https://www.benghuai.com/news/getNoticeByID?id=20104753": "bh2-event-20104753/response.txt",
+  "https://www.benghuai.com/news/getNoticeByID?id=20104717": "bh2-event-20104717/response.txt",
+  "https://www.benghuai.com/news/getNoticeByID?id=20104677": "bh2-event-20104677/response.txt",
+  "https://www.benghuai.com/news/getNoticeByID?id=20104676": "bh2-event-20104676/response.txt",
+  "https://www.benghuai.com/news/getNoticeByID?id=20104627": "bh2-event-20104627/response.txt"
 }

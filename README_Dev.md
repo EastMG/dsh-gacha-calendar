@@ -77,6 +77,7 @@ dsh-gacha-calendar/
 │       ├── 30-game-bwiki-czn-wikitext.js # 卡厄斯梦境（wikitext）：Module:Gacha/data 的 Lua 表
 │       ├── 30-game-bwiki-kedr-wikitext.js # 雪松（wikitext）：Template:首页游戏版本内容 的模板调用
 │       ├── 30-game-bwiki-kedr-wiki.js   # 雪松社区归档页（往期动员，prop=text）+ 其抓取器
+│       ├── 30-game-bwiki-dhmmr.js       # bwiki ⑧ 深空之眼（dhmmr）：SMW `action=ask` 的「卡池列表」子对象；只有卡池侧（活动页空壳 ⇒ 不接）
 │       ├── 30-game-bwiki-register.js    # 本组 4 条 registerSource + GACHA/EVENT_FETCHERS 接线
 │       ├── 30-game-biligame.js    # biligame 系：嘟嘟脸恶作剧 / 闪耀优俊少女
 │       ├── 30-game-cygames.js     # Cygames：赛马娘 日服 / 国际服（umapyoi 备选）
@@ -94,6 +95,7 @@ dsh-gacha-calendar/
 │       ├── 30-game-unconfigured.js # 炽焰天穹：只注册条目、来源留空未配置（本批唯一仍不接的）
 │       ├── 30-game-batch2.js      # 2026-11-11 第二批：崩坏3 米哈游内容中台（卡池名称/角色 + 档期三级取值：`>>开放时间` → 同帖礼包【上架时间】 → 只出名称/角色；活动正文时间块）/ OurNotes 日服 SPICA（列表→前 5 条详情）/ 卡厄斯梦境 TapTap 官方（2026-11-13 改 topic 页 SSR：Nuxt devalue 解码 + 2 页固定请求；卡池「营救概率提升」标签 + 活动「活动时间」标签；同页维护窗映射；卡池载荷带活动字段供引擎复用）
 │       ├── 30-game-ournotes-global.js # OurNotes **国际服**卡池 + 活动：默认源 = SPICA 数据 JSON（页面 `window._durl` 现解 → d-*.json；gachapages/events 一次拿全）；数据里是 JST 墙钟、展示按 UTC+8（钟面 −1h）；picks 按 **id** 查角色；池名与角色名按 zh→tw→en→ja 取（简中优先）；BHK 官方公告两条降为手动备选源
+│       ├── 30-game-benghuai2.js   # 崩坏学园2（国服）：官网公告（列表 POST `{}` + 详情 GET；卡池 + 活动两侧同一条列表，轮内共享 1 次请求）
 │       ├── 44-test-exports.js # 回归出口：解析器 + env 工具 + 来源表
 │       ├── 50-refresh.js     # 刷新编排、失败沿用旧值、提示归类
 │       ├── 60-helpers.js     # 顶部提示归类 / 显隐判定 / 排序 / 角色名与倒计时格式化 / 启动刷新判定
