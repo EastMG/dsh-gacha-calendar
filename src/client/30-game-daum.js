@@ -67,7 +67,7 @@
 		const UMA_KR_BOARD_URL = "https://m.cafe.daum.net/umamusume-kor/Z4os";
 		// 兜底文章 id（列表页里找不到日程帖时用；用户在设置页可以改成别的帖）
 		const UMA_KR_SCHEDULE_URL = "https://m.cafe.daum.net/umamusume-kor/Z4os/799";
-		const UMA_KR_SOURCE_LABEL = "Daum 카페 月间日程";
+		const UMA_KR_SOURCE_LABEL = "Daum 月度日程";
 		// 文章 id 的上限（防御：列表页里 `\d+` 匹配到别的数字）
 		const UMA_KR_MAX_ARTICLE_CHARS = 400000;
 

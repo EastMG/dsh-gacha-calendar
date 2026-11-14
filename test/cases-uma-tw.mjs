@@ -275,9 +275,9 @@ export async function runUmaKr() {
 		check("tz = Asia/Seoul（源站墙钟 KST，无夏令时）", !!s && s.tz === TZK && TZK === "Asia/Seoul", s && s.tz);
 		check("卡池 url = 当月日程帖（默认兜底 id 799）", !!s && s.url === ART_URL && /\/umamusume-kor\/Z4os\/799$/.test(ART_URL), s && String(s.url));
 		check("活动 eventUrl 与卡池同一条（同一个帖子，按 ❖ 块分流）", !!s && s.eventUrl === s.url, s && String(s.eventUrl));
-		check("两侧来源标签 = Daum 카페 月间日程",
+		check("两侧来源标签 = Daum 月度日程",
 			!!s && s.source === KK.UMA_KR_SOURCE_LABEL && s.eventSource === KK.UMA_KR_SOURCE_LABEL
-			&& KK.UMA_KR_SOURCE_LABEL === "Daum 카페 月间日程",
+			&& KK.UMA_KR_SOURCE_LABEL === "Daum 月度日程",
 			s && JSON.stringify([s.source, s.eventSource]));
 		check("defaultHidden 与 uma-jp / uma-tw 一致（都是 false = 出厂展示）",
 			!!s && s.defaultHidden === false, s && String(s.defaultHidden));
