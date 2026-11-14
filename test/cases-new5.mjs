@@ -989,6 +989,26 @@ export default async function run() {
 		check("活动请求数 = 1 次列表 + 6 条详情（两侧共享列表只在**同一轮刷新**内生效，这里直调各算一次）",
 			calls.length === 14, "requests=" + calls.length);
 
+		// 整轮刷新：两侧同一条列表 URL ⇒ 列表只发一次（1 + 6 + 6 = 13）。与 uma-global 的
+		// GameTora manifest 同一套 `fetchRoundSeqOf` 轮内缓存；这里用真引擎跑一轮来钉住。
+		const allIds = T.SOURCES.map((x) => x.id);
+		const engineB = createEngine({
+			transport,
+			storage: makeStore({ hidden: allIds.filter((id) => id !== "bh2"), shown: ["bh2"] }),
+			now: () => NOW_BH2,
+			timer: { setTimeout, clearTimeout }
+		});
+		calls.length = 0;
+		const round = await engineB.refresh();
+		const rec = round.games["bh2"] || {};
+		check("整轮刷新 = 1 次列表 + 6 + 6 条详情（13 次；列表两侧共享同一个轮内 promise）",
+			calls.length === 13 && calls.filter((c) => c.u === B2.BH2_LIST_URL).length === 1,
+			"requests=" + calls.length);
+		check("整轮记录：卡池 + 活动两侧都拿到新数据、都不 fail",
+			rec.banner === "妮娜&黛尔塔" && rec.event === "双11狂欢节丨千羽万事屋活动新品上架"
+			&& !rec.gachaFail && !rec.eventFail,
+			JSON.stringify([rec.banner, rec.event, rec.gachaFail, rec.eventFail]));
+
 		// ── bh2 口径反证 ──
 		let b2Throw = false;
 		try { B2.bh2ListOf({}); } catch { b2Throw = true; }
