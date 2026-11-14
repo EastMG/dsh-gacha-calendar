@@ -111,7 +111,25 @@ NEXT_SOURCES.push(
 		tz: "Asia/Shanghai",
 		name: "炽焰天穹",
 		gacha: { url: T.parsers.cytq.CYTQ_LIST_URL, kind: "official-html", mode: "direct", fetcher: resolve("cytq.gachaCytq") },
-		event: { url: T.parsers.cytq.CYTQ_LIST_URL, kind: "official-html", mode: "direct", fetcher: resolve("cytq.eventsCytq") }	}
+		event: { url: T.parsers.cytq.CYTQ_LIST_URL, kind: "official-html", mode: "direct", fetcher: resolve("cytq.eventsCytq") }	},
+	// 2026-11-15 碧蓝航线 —— 国服（hl）：**卡池侧刻意不写**（`url: ""` = 未配置，不抓取），
+	// 活动侧 = B 站官方维护公告（biligame CMS，响应无 ACAO ⇒ proxy）。见 `src/client/30-game-hl.js` 文件头 ①。
+	{
+		id: "hl",
+		tz: "Asia/Shanghai",
+		name: "碧蓝航线",
+		gacha: null,
+		event: { url: T.parsers.hl.HL_CN_LIST_URL, kind: "official-api", mode: "proxy", fetcher: resolve("hl.eventsHl") }
+	},
+	// 2026-11-15 碧蓝航线·日服（hl-jp）：卡池与活动**同一条**官方新闻列表（`/api/news/list`）。
+	// 响应没有 ACAO（实测带 Origin 再测也是空）⇒ `mode: "proxy"`（域名已登记 `src/index.js` 的 PROXY_ALLOW_HOSTS）。
+	{
+		id: "hl-jp",
+		tz: "Asia/Tokyo",
+		name: "碧蓝航线·日服",
+		gacha: { url: T.parsers.hl.HL_JP_LIST_URL, kind: "official-api", mode: "proxy", fetcher: resolve("hl.gachaHlJp") },
+		event: { url: T.parsers.hl.HL_JP_LIST_URL, kind: "official-api", mode: "proxy", fetcher: resolve("hl.eventsHlJp") }
+	}
 );
 
 //#region 查找 / 列 id（各批次原有的便捷函数）

@@ -116,8 +116,10 @@ section("夹具卫生");
 	// 这一条守卫要的是「能从夹具名看出属于哪一批」，所以新批次必须同步登记，否则红。
 	// 同日又接入以闪亮之名（`yslz-*`，bwiki 分类：卡池 2 个请求 + 活动 2 个请求）。
 	// 同日再接：无限暖暖（wxnn-*）、炽焰天穹（cytq-*）
+	// 2026-11-15 同日晚：碧蓝航线（`hl-cn-*` 国服 / `hl-jp-*` 日服；前缀 `hl` 同时覆盖 `hlr-*`，
+	// 后者本来就在清单里 —— 这条守卫要的是"能看出属于哪一批"，宽一点不会误报）。
 	check("夹具命名带批次前缀（便于溯源）",
-		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights|wqmt|pengpeng|wd|hlr|bh3|spica|czn|bjhl|yys|dhmmr|bh2|yslz|wxnn|cytq)/.test(f)),
+		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights|wqmt|pengpeng|wd|hlr|bh3|spica|czn|bjhl|yys|dhmmr|bh2|yslz|wxnn|cytq|hl)/.test(f)),
 	);
 }
 //#endregion

@@ -223,7 +223,12 @@ const PROXY_ALLOW_HOSTS = [
 	// `/news/{id}`（HTML，数据在 `__NEXT_DATA__` 的 pageData）。实测响应**无 ACAO** ⇒ 必须走代理。
 	// ⚠️ 与封面图/字体所在的 `assets.nuanpaper.com`、`webstatic.papegames.com` **不是同一域**
 	//   （那些是静态资源，插件不抓）⇒ 只登记真正抓取的这一个。
-	"infinitynikki.nuanpaper.com"
+	"infinitynikki.nuanpaper.com",
+	// 碧蓝航线 **日服**官方新闻（2026-11-15 接入，卡池 + 活动两侧）：`/api/news/list?index=1&size=10`。
+	// 实测（2026-11-15）：200 / `content-type: application/json` / **完全没有 `Access-Control-Allow-Origin`**
+	// （带 `Origin: dsh-app://dsh` 再测一遍也是空）⇒ 浏览器直连必被 CORS 拦，必须走宿主代理。
+	// ⚠️ 与 `webusstatic.yo-star.com`（站点静态资源 CDN，图标/JS）**不是同一域**，插件只抓这一个。
+	"www.azurlane.jp"
 ];
 
 /** Default outgoing request headers (browser-like, to satisfy anti-scrape). */

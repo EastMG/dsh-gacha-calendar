@@ -1261,4 +1261,261 @@ export default async function run() {
 		check("cytq 出厂隐藏（defaultHidden: true）⇒ 不勾展示时一个请求都不发（接上来源不改变这条口径）",
 			callsH.length === 0, JSON.stringify(callsH));
 	}
+
+	// ───────── ⑧ 2026-11-15：碧蓝航线 —— 国服只接活动（hl）/ 日服卡池 + 活动（hl-jp）─────────
+	// 落点：`src/client/30-game-hl.js`（一个厂商级文件装两条来源）。
+	// 源站事实与口径见该文件头 ①~⑥；夹具全部真抓（2026-11-15）：
+	//   · `hl-cn-list`（20 条裁到 5 条：置顶的概率公示 + 最近 4 篇维护公告）
+	//   · `hl-cn-detail-18574`（11-12 维护公告原样 49 KB；正文是 Word 富文本，每个 run 一个 `<span>`）
+	//   · `hl-jp-list`（`/api/news/list?index=1&size=10` 裁到 5 行：2 条 offset 回绕的老行 + 771/770/769）
+	section("2026-11-15 碧蓝航线（hl 国服只接活动 / hl-jp 日服卡池 + 活动）：真夹具逐字 + 反证");
+	{
+		const HL = T.parsers.hl;
+		const TZ_JP = "Asia/Tokyo";
+		const LIST_CN = HL.HL_CN_LIST_URL;
+		const DETAIL_CN = HL.HL_CN_DETAIL_BASE + "18574";
+		const LIST_JP = HL.HL_JP_LIST_URL;
+		const ALL_IDS = T.SOURCES.map((x) => x.id);
+		// 真夹具（`origin=*` 是 bwiki/biligame 出口自动补的，比对前先剥掉）
+		const norm = (u) => String(u).replace(/[?&]origin=\*/, "");
+		const BODY = { [LIST_CN]: FIX("hl-cn-list"), [DETAIL_CN]: FIX("hl-cn-detail-18574"), [LIST_JP]: FIX("hl-jp-list") };
+		const transportOf = (sink, overrides) => ({
+			async fetchRaw(u) { throw new Error("hl 两侧都走宿主代理（mode=proxy）：" + u); },
+			async fetchViaProxy(u) {
+				const url = norm(u);
+				if (sink) sink.push(url);
+				if (overrides && overrides[url] != null) return overrides[url];
+				if (BODY[url] != null) return BODY[url];
+				throw new Error("hl 用例没有这个 URL 的夹具：" + url);
+			}
+		});
+		const seedHl = () => ({ hidden: ALL_IDS.filter((id) => id !== "hl" && id !== "hl-jp"), shown: ["hl", "hl-jp"] });
+		const engineHl = (now, sink, overrides) => createEngine({
+			transport: transportOf(sink, overrides),
+			storage: makeStore(seedHl()),
+			now: () => now,
+			timer: { setTimeout, clearTimeout }
+		});
+		const NOW_HL = Date.parse("2026-11-15T06:30:00+08:00");
+		const NOW_JP_POOL = Date.parse("2026-10-25T12:00:00+08:00");
+
+		// ── ① 注册 ──
+		const srcHl = srcOf("hl");
+		const srcJp = srcOf("hl-jp");
+		check("hl 注册：卡池侧 `url: \"\"` 且**不写 source**（= 未配置，面板显示「未配置」而不是失败）",
+			!!srcHl && srcHl.url === "" && srcHl.source === void 0 && srcHl.eventUrl === LIST_CN,
+			srcHl ? JSON.stringify([srcHl.url, srcHl.source, srcHl.eventUrl]) : "缺失");
+		check("hl 活动侧标签逐字 = 「官网公告」；tz = Asia/Shanghai；出厂默认展示",
+			!!srcHl && srcHl.eventSource === "官网公告" && srcHl.tz === "Asia/Shanghai" && srcHl.defaultHidden === false,
+			srcHl ? JSON.stringify([srcHl.eventSource, srcHl.tz, srcHl.defaultHidden]) : "缺失");
+		check("hl-jp 注册：卡池与活动**同一条**新闻列表；标签逐字「官网公告（日服）」；tz = Asia/Tokyo；默认展示",
+			!!srcJp && srcJp.url === LIST_JP && srcJp.eventUrl === LIST_JP
+			&& srcJp.source === "官网公告（日服）" && srcJp.eventSource === "官网公告（日服）"
+			&& srcJp.tz === "Asia/Tokyo" && srcJp.defaultHidden === false
+			&& srcJp.name === "碧蓝航线·日服",
+			srcJp ? JSON.stringify([srcJp.url, srcJp.eventUrl, srcJp.source, srcJp.tz]) : "缺失");
+		check("两条来源都有配色（面板「颜色 = 游戏」），且 hl / hl-jp 不同色、id 全局唯一",
+			!!srcHl && !!srcJp && /^#[0-9A-F]{6}$/i.test(String(srcHl.color)) && /^#[0-9A-F]{6}$/i.test(String(srcJp.color))
+			&& srcHl.color !== srcJp.color && new Set(ALL_IDS).size === ALL_IDS.length,
+			JSON.stringify([srcHl && srcHl.color, srcJp && srcJp.color]));
+
+		// ── ② 国服：列表 / 详情 / 条目事实（逐字）──
+		const cnList = HL.hlCnListOf(JSON.parse(BODY[LIST_CN]));
+		check("国服列表：5 条按 `displayTime || ctime` 倒序（2017 的置顶概率公示**排到最后**，不是源站原序）",
+			cnList.length === 5 && cnList[0].id === "18574" && cnList[cnList.length - 1].id === "1591"
+			&& cnList.map((x) => x.id).join(",") === "18574,18549,18495,18457,1591",
+			JSON.stringify(cnList.map((x) => x.id)));
+		const cnDetail = HL.hlCnDetailOf(JSON.parse(BODY[DETAIL_CN]), TZ_CN);
+		check("国服详情：标题 / 年份（标题里的 2026）/ 同篇维护窗 11-12 10:00~15:00（结束时刻 15:00）",
+			cnDetail.title === "2026维护公告（2026年11月12日10:00）" && cnDetail.year === 2026
+			&& cnDetail.maint && cnDetail.maint.mo === 11 && cnDetail.maint.d === 12
+			&& cnDetail.maint.endH === 15 && cnDetail.maint.endMi === 0,
+			JSON.stringify([cnDetail.title, cnDetail.year, cnDetail.maint]));
+		check("国服条目事实 2 条：`开幕！天使们的碧蓝舞台` 与 `JUUs动态`（名字取 `活动时间` 前最近的「…」）",
+			cnDetail.items.length === 2
+			&& cnDetail.items[0].event === "开幕！天使们的碧蓝舞台" && cnDetail.items[1].event === "JUUs动态",
+			JSON.stringify(cnDetail.items.map((x) => x.event)));
+		check("国服起点 = 「维护后」→ 同篇维护结束时刻 11-12 15:00 +08（UTC 07:00）；终点 = 11-26 23:59 +08（UTC 15:59）",
+			cnDetail.items[0].startTs === Date.UTC(2026, 10, 12, 7, 0)
+			&& cnDetail.items[0].endTs === Date.UTC(2026, 10, 26, 15, 59),
+			JSON.stringify([cnDetail.items[0].startTs, cnDetail.items[0].endTs]));
+		check("国服 raw 保留源站原文（`维护后` 原样）、display 是补全后的可读文本（两份文本不混）",
+			cnDetail.items[0].raw === "11月12日维护后 ~ 11月26日23:59"
+			&& cnDetail.items[0].display === "11-12 15:00 ~ 11-26 23:59",
+			JSON.stringify([cnDetail.items[0].raw, cnDetail.items[0].display]));
+
+		// ── ③ 国服：抓取器 + 请求预算 + 载荷 ──
+		HL.hlCnResetCache();
+		HL.hlJpResetCache();
+		const calls1 = [];
+		const e1 = engineHl(NOW_HL, calls1);
+		const r1 = await e1.refresh();
+		const recHl = r1.games.hl || {};
+		const recJp = r1.games["hl-jp"] || {};
+		check("首轮请求 = 3 次（国服列表 + 国服当期详情 + 日服列表；日服两轮内共享同一次列表）",
+			calls1.length === 3
+			&& calls1.filter((u) => u === LIST_CN).length === 1
+			&& calls1.filter((u) => u === DETAIL_CN).length === 1
+			&& calls1.filter((u) => u === LIST_JP).length === 1,
+			"requests=" + calls1.length + " " + JSON.stringify(calls1));
+		check("国服卡池侧一个请求都不发、也不记失败（未配置 ≠ 抓取失败）",
+			recHl.banner === "" && recHl.gachaFail === null, JSON.stringify([recHl.banner, recHl.gachaFail]));
+		check("国服活动外显 = 开幕！天使们的碧蓝舞台 / 11-12 15:00 ~ 11-26 23:59（原文 `维护后` 保留在 *Raw）",
+			recHl.event === "开幕！天使们的碧蓝舞台" && recHl.eventDates === "11-12 15:00 ~ 11-26 23:59"
+			&& recHl.eventDatesRaw === "11月12日维护后 ~ 11月26日23:59" && recHl.eventFail === null,
+			JSON.stringify([recHl.event, recHl.eventDates, recHl.eventDatesRaw]));
+		check("国服活动悬停逐字（两个活动同一窗口 ⇒ 折叠式：两行名字 + 一行原文）",
+			recHl.eventHover === "开幕！天使们的碧蓝舞台\nJUUs动态\n11月12日维护后 ~ 11月26日23:59",
+			JSON.stringify(recHl.eventHover));
+		check("国服 events[] 2 条，绝对时刻 +08（UTC 手算）",
+			Array.isArray(recHl.events) && recHl.events.length === 2
+			&& recHl.events[0].startTs === Date.UTC(2026, 10, 12, 7, 0)
+			&& recHl.events[0].endTs === Date.UTC(2026, 10, 26, 15, 59),
+			JSON.stringify((recHl.events || []).map((x) => [x.title, x.startTs, x.endTs])));
+		// ⚠️ 这里**不**跑 assertHoverConvention：它的元信息词表里含「维护后」，而本条的悬停按
+		// 2026-11-09 口径（raw 含相对表述 ⇒ 印**源站原文**）会原样印出「11月12日维护后 ~ …」——
+		// 与 cytq 的「2026/10/28 维护后 ~ …」同一情形（那条也没跑这个检查器）。上面的逐字断言已经钉住文本。
+
+		// 稳态：详情进 24h 缓存 ⇒ 只发列表（国服 1 / 日服 1）
+		calls1.length = 0;
+		const r1b = await e1.refresh();
+		check("稳态第 2 轮 = 2 次（国服只列表 + 日服只列表；国服详情 / 日服行解析都在 24h 缓存里）",
+			calls1.length === 2 && calls1.filter((u) => u === DETAIL_CN).length === 0
+			&& (r1b.games.hl || {}).event === recHl.event && (r1b.games["hl-jp"] || {}).event === recJp.event,
+			"requests=" + calls1.length + " " + JSON.stringify(calls1));
+
+		// ── ④ 日服：列表 / 行解析（池 + 活动，逐字）──
+		const jpRows = HL.hlJpListOf(JSON.parse(BODY[LIST_JP]));
+		check("日服列表：5 行，前两行是服务端 offset 回绕的 2017 老行（`index=1&size=10` 的真实形态，解析器必须无视它们）",
+			jpRows.length === 5 && jpRows.map((x) => x.id).join(",") === "289,284,771,770,769",
+			JSON.stringify(jpRows.map((x) => x.id)));
+		const nJunk = HL.hlJpNoticeOf(jpRows[0], TZ_JP);
+		check("日服回绕老行：既没有池也没有活动（0 / 0，不误报）",
+			nJunk.pools.length === 0 && nJunk.events.length === 0, JSON.stringify([nJunk.pools.length, nJunk.events.length]));
+		const n771 = HL.hlJpNoticeOf(jpRows[2], TZ_JP);
+		check("日服 771（11-10 发布 / 11-12 维护）：**没有 期間限定建造 段**（联动角色走任务获取）⇒ pools 0",
+			n771.pools.length === 0, JSON.stringify(n771.pools));
+		check("日服 771 活动 2 条：`開幕！天使たちのアズールステージ`（起点 = 同篇实施时间结束 20:00）与継続中の `強化ユニットキャンペーン『バヤール』`（起点未知）",
+			n771.events.length === 2
+			&& n771.events[0].event === "開幕！天使たちのアズールステージ"
+			&& n771.events[0].startTs === Date.UTC(2026, 10, 12, 11, 0)
+			&& n771.events[0].endTs === Date.UTC(2026, 10, 26, 14, 59)
+			&& n771.events[1].event === "強化ユニットキャンペーン『バヤール』" && n771.events[1].startTs === null,
+			JSON.stringify(n771.events.map((x) => [x.event, x.startTs, x.endTs])));
+		const n769 = HL.hlJpNoticeOf(jpRows[4], TZ_JP);
+		check("日服 769（10-20）：池 1 条 —— 池名「期間限定建造」+ 4 位舰名 + 起止（+09 手算）",
+			n769.pools.length === 1
+			&& n769.pools[0].banner === "期間限定建造"
+			&& n769.pools[0].roles === "メルクーリィ、セリミエ、ヤーンバアデン、オーメン・ランゲ"
+			&& n769.pools[0].startTs === Date.UTC(2026, 9, 22, 11, 0)
+			&& n769.pools[0].endTs === Date.UTC(2026, 10, 5, 14, 59),
+			JSON.stringify(n769.pools));
+		check("日服窗口原文：「…メンテナンス後 ~ …メンテナンスまで」（display 用补全文本、raw 保留原文）",
+			n769.pools[0].raw === "10月22日(木)メンテナンス後 ~ 11月5日(木)メンテナンスまで"
+			&& n769.pools[0].display === "10-22 20:00 ~ 11-05 23:59",
+			JSON.stringify([n769.pools[0].raw, n769.pools[0].display]));
+		check("日服活动名不把 `◇…イベント「X」について` 这种说明段当活动（同一行必须带「開催」）",
+			n771.events.every((x) => !/天使ステージ[LM]/.test(x.event)),
+			JSON.stringify(n771.events.map((x) => x.event)));
+
+		// ── ⑤ 日服：当期（真机时刻）+ 请求预算 ──
+		check("日服 at 2026-11-15：**卡池如实 null**（最后一口限时池 10/22~11/5 已结束；不硬凑过期档期）",
+			recJp.banner === "" && String(recJp.gachaFail && recJp.gachaFail.kind) === "nomatch",
+			JSON.stringify([recJp.banner, recJp.gachaFail]));
+		check("日服 at 2026-11-15：活动 2 条在期，外显 = 開幕！天使たちのアズールステージ / 11-12 20:00 ~ 11-26 23:59",
+			recJp.event === "開幕！天使たちのアズールステージ" && recJp.eventDates === "11-12 20:00 ~ 11-26 23:59"
+			&& recJp.eventDatesRaw === "11月12日(木)メンテナンス後 ~ 11月26日(木)23:59まで" && recJp.eventFail === null,
+			JSON.stringify([recJp.event, recJp.eventDates, recJp.eventDatesRaw]));
+		check("日服活动悬停逐字（同一期在 771/770 各写一遍 ⇒ 去重后只剩 2 行，起点明确的那条优先）",
+			recJp.eventHover === "開幕！天使たちのアズールステージ   11-12 20:00 ~ 11-26 23:59\n"
+			+ "強化ユニットキャンペーン『バヤール』   11-05 20:00 ~ 12-03 23:59",
+			JSON.stringify(recJp.eventHover));
+		check("日服 events[] 2 条（強化… 的 startTs 由 770 补上，不是 null）",
+			Array.isArray(recJp.events) && recJp.events.length === 2
+			&& recJp.events[1].startTs === Date.UTC(2026, 10, 5, 11, 0)
+			&& recJp.events[1].endTs === Date.UTC(2026, 11, 3, 14, 59),
+			JSON.stringify((recJp.events || []).map((x) => [x.title, x.startTs, x.endTs])));
+		if (recJp.eventHover) assertHoverConvention("hl-jp 活动", recJp.eventHover, { requireSet: true });
+
+		// 对照：把 now 放回池期内（10-25）⇒ 卡池出「期間限定建造」+ 舰名（证明池解析本身没坏）
+		const e2 = engineHl(NOW_JP_POOL);
+		const sJp = e2.__test.SOURCES.find((x) => x.id === "hl-jp");
+		const gPool = await e2.__test.GACHA_FETCHERS["hl-jp"](sJp.url, undefined, sJp.tz);
+		check("日服对照（now = 10-25 12:00）：卡池出「期間限定建造」+ 4 位舰名 + 10-22 20:00 ~ 11-05 23:59",
+			!!gPool && gPool.banner === "期間限定建造"
+			&& gPool.roles === "メルクーリィ、セリミエ、ヤーンバアデン、オーメン・ランゲ"
+			&& gPool.bannerDates === "10-22 20:00 ~ 11-05 23:59"
+			&& gPool.startTs === Date.UTC(2026, 9, 22, 11, 0) && gPool.endTs === Date.UTC(2026, 10, 5, 14, 59),
+			JSON.stringify(gPool && [gPool.banner, gPool.roles, gPool.bannerDates]));
+		// 只发列表、**不**取详情（行里自带正文）：1 次
+		const callsPool = [];
+		const e2b = engineHl(NOW_JP_POOL, callsPool);
+		await e2b.refresh();
+		check("日服 1 次列表就够（行里自带完整正文；卡池侧与活动侧共享同一次列表请求）",
+			callsPool.filter((u) => u === LIST_JP).length === 1 && callsPool.filter((u) => u === LIST_CN).length === 1,
+			JSON.stringify(callsPool));
+
+		// ── ⑥ 反证（结构变了要看得见；抹掉锚点/维护窗不进外显）──
+		const throws = (fn) => { try { fn(); return false; } catch { return true; } };
+		check("国服反证：`{}` / 空串 ⇒ 抛错（列表与详情都是「结构变了」，不是 nomatch）",
+			throws(() => HL.hlCnListOf({})) && throws(() => HL.hlCnDetailOf({})) && throws(() => HL.hlCnDetailOf(""))
+			&& throws(() => HL.hlCnListOf({ code: 0, data: [] })));
+		check("日服反证：`{}` / meta.ok=false / rows 空 ⇒ 抛错（不是「当期没有」）",
+			throws(() => HL.hlJpListOf({})) && throws(() => HL.hlJpListOf({ meta: { ok: false, err: { code: 500 } } }))
+			&& throws(() => HL.hlJpListOf({ data: { rows: [] } })));
+		// 抹掉国服的 `活动时间` 锚点 ⇒ 这篇不出任何条目（但不抛错）
+		const noAnchor = JSON.parse(BODY[DETAIL_CN]);
+		noAnchor.data.content = String(noAnchor.data.content).replace(/活动时间/g, "開催期間");
+		const dNo = HL.hlCnDetailOf(noAnchor, TZ_CN);
+		check("国服反证：抹掉 `活动时间` 锚点 ⇒ items 为空（不进外显，**也不**算失败）",
+			dNo.items.length === 0 && dNo.title === cnDetail.title, JSON.stringify(dNo.items));
+		// 抹掉同篇维护窗 ⇒ 「维护后」没有钟点 ⇒ 起点未知（不猜）⇒ 不进外显
+		// （只改 `司令部将于` 这个词组：正文的 Word 富文本把一句话拆进几十个 `<span>`，按整句 replace 匹配不上）
+		const noMaint = JSON.parse(BODY[DETAIL_CN]);
+		noMaint.data.content = String(noMaint.data.content).replace(/司令部将于/g, "本次");
+		const dNoMaint = HL.hlCnDetailOf(noMaint, TZ_CN);
+		check("国服反证：抹掉同篇维护窗 ⇒ 起点未知（startTs = null），不会拿「维护后」硬编一个钟点",
+			dNoMaint.items.length === 2 && dNoMaint.items.every((x) => x.startTs === null),
+			JSON.stringify(dNoMaint.items.map((x) => [x.event, x.startTs])));
+		const callsNoMaint = [];
+		const eNoMaint = engineHl(NOW_HL, callsNoMaint, { [DETAIL_CN]: JSON.stringify(noMaint) });
+		const rNoMaint = await eNoMaint.refresh();
+		check("国服反证（端到端）：维护窗被抹掉 ⇒ 该篇两个活动都不在期 ⇒ 活动如实 nomatch（不硬凑）",
+			(rNoMaint.games.hl || {}).event === ""
+			&& String(((rNoMaint.games.hl || {}).eventFail || {}).kind) === "nomatch",
+			JSON.stringify([(rNoMaint.games.hl || {}).event, (rNoMaint.games.hl || {}).eventFail]));
+		// 抹掉日服的 `開催期間` ⇒ 池与活动都是 0（不硬凑）
+		const stripJp = JSON.stringify(JSON.parse(BODY[LIST_JP])).replace(/開催期間/g, "会場時間");
+		const rowsNoWin = HL.hlJpListOf(JSON.parse(stripJp));
+		const noWin = rowsNoWin.map((x) => HL.hlJpNoticeOf(x, TZ_JP));
+		check("日服反证：抹掉 `開催期間` ⇒ 所有行 0 条池 / 0 条活动（不出窗口、也不抛）",
+			noWin.every((n) => n.pools.length === 0 && n.events.length === 0),
+			JSON.stringify(noWin.map((n) => [n.pools.length, n.events.length])));
+		check("日服窗口反证：缺一端（`開催期間：11月12日(木)メンテナンス後`）⇒ 不是窗口",
+			HL.hlJpWindowOf("開催期間：11月12日(木)メンテナンス後", 2026, null, TZ_JP) === null);
+		check("日服窗口反证：起点「メンテナンス後」但同篇没有实施时间 ⇒ startTs = null（不猜钟点）",
+			(() => {
+				const w = HL.hlJpWindowOf("開催期間：11月12日(木)メンテナンス後～11月26日(木)23:59まで", 2026, null, TZ_JP);
+				return !!w && w.startTs === null && w.endTs === Date.UTC(2026, 10, 26, 14, 59);
+			})());
+		check("日服跨年反证：12-26 ~ 次年 01-09 ⇒ 终点补到次年（共用 endsNextYear）",
+			(() => {
+				const w = HL.hlJpWindowOf("開催期間：12月26日(金)メンテナンス後～1月9日(土)23:59まで", 2026, null, TZ_JP);
+				return !!w && w.endTs === Date.UTC(2027, 0, 9, 14, 59);
+			})());
+		// 端到端：源站回 `{}`（结构变了）⇒ 记 down（**不是** nomatch）
+		const callsEmpty = [];
+		const eEmpty = engineHl(NOW_HL, callsEmpty, {
+			[LIST_CN]: "{}",
+			[LIST_JP]: JSON.stringify({ meta: { ok: false, err: { code: 500 } } })
+		});
+		const rEmpty = await eEmpty.refresh();
+		const hlEmpty = rEmpty.games.hl || {};
+		const jpEmpty = rEmpty.games["hl-jp"] || {};
+		check("反证（端到端）：源站回 `{}` / meta.ok=false ⇒ 两侧都记 **down**（抓取失败 ≠ 未公布）",
+			String((hlEmpty.eventFail || {}).kind) === "down"
+			&& String((jpEmpty.gachaFail || {}).kind) === "down"
+			&& String((jpEmpty.eventFail || {}).kind) === "down",
+			JSON.stringify([hlEmpty.eventFail, jpEmpty.gachaFail, jpEmpty.eventFail]));
+	}
 }

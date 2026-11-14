@@ -777,6 +777,44 @@
 				wxnnSealedOf,
 				wxnnTimestampOf,
 				wxnnWindowOf},
+			// 2026-11-15 碧蓝航线（国服 hl 只接活动 / 日服 hl-jp 卡池 + 活动，见 30-game-hl.js）：
+			// 导出「URL + 纯解析 + 缓存复位 + 抓取器」四层，回归可以分别钉住：
+			// 国服的 `活动时间` 锚点 / 「维护后」用同篇维护结束时刻 / `{}` ⇒ 抛错 / 抹掉锚点 ⇒ 不出窗口；
+			// 日服的「開催期間」行解析 / 池的舰名段 / 段首归属重置 / 轮内列表共享 + 按 id 缓存。
+			"hl": {
+				HL_CACHE_TTL_MS: ns_hl_CACHE_TTL_MS,
+				HL_CN_DETAIL_BASE: ns_hl_CN_DETAIL_BASE,
+				HL_CN_HOME: ns_hl_CN_HOME,
+				HL_CN_LIST_URL: ns_hl_CN_LIST_URL,
+				HL_CN_MAX_DETAILS: ns_hl_CN_MAX_DETAILS,
+				HL_CN_TITLE_RE: ns_hl_CN_TITLE_RE,
+				HL_JP_ICON: ns_hl_jp_ICON,
+				HL_JP_LIST_URL: ns_hl_jp_LIST_URL,
+				HL_JP_SOURCE_LABEL: ns_hl_jp_SOURCE_LABEL,
+				HL_JP_TZ: ns_hl_jp_TZ,
+				HL_TZ: ns_hl_TZ,
+				eventsHl: ns_hl_cn_events,
+				eventsHlJp: ns_hl_jp_events,
+				gachaHlJp: ns_hl_jp_gacha,
+				hlCnDetailOf: ns_hl_cn_detailOf,
+				hlCnDetailUrlOf: ns_hl_cn_detailUrlOf,
+				hlCnItemAt: ns_hl_cn_itemAt,
+				hlCnListOf: ns_hl_cn_listOf,
+				hlCnMaintOf: ns_hl_cn_maintOf,
+				hlCnNameOf: ns_hl_cn_nameOf,
+				hlCnPointOf: ns_hl_cn_pointOf,
+				hlCnResetCache: ns_hl_cn_resetCache,
+				hlCnStampOf: ns_hl_cn_stampOf,
+				hlCnTextOf: ns_hl_cn_textOf,
+				hlJpLinesOf: ns_hl_jp_linesOf,
+				hlJpListOf: ns_hl_jp_listOf,
+				hlJpMaintOf: ns_hl_jp_maintOf,
+				hlJpNoticeOf: ns_hl_jp_noticeOf,
+				hlJpPointOf: ns_hl_jp_pointOf,
+				hlJpPoolRolesOf: ns_hl_jp_poolRolesOf,
+				hlJpResetCache: ns_hl_jp_resetCache,
+				hlJpWindowOf: ns_hl_jp_windowOf
+			},
 			// 2026-11-15 炽焰天穹（cytq）：官方 H5 公告（列表 1 次 → 只对在期 & 未缓存的 id 取详情）。
 			// 导出「URL + 纯解析 + 缓存复位 + 抓取器」四层，回归可以分别钉住：
 			// 列表/详情的失败语义（`{}` ⇒ 抛错 / 抹掉锚点 ⇒ 不出窗口）、角色名单、「维护后」⇒ 起点未知、

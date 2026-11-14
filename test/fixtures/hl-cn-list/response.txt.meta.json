@@ -1,0 +1,6 @@
+{
+  "url": "https://api.biligame.com/news/list?gameExtensionId=103&positionId=2&typeId=1&pageNum=1&pageSize=20",
+  "status": 200,
+  "capturedAt": "2026-11-14T22:36:25.081Z",
+  "note": "真抓裁剪：原始 20 条（totalNum=476）→ 保留 5 条（置顶「概率公示」1591 + 最近 4 篇「维护公告」18574/18549/18495/18457）。其余 15 条是更早的同类维护公告，结构一致。"
+}

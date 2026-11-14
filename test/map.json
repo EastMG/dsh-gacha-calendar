@@ -225,4 +225,7 @@
   "https://le3-prod-bili-gs-fever.bilibiligame.net/web/announcement/500000179?phoneType=4": "cytq-detail-500000179/response.txt",
   "https://le3-prod-bili-gs-fever.bilibiligame.net/web/announcement/500000171?phoneType=4": "cytq-detail-500000171/response.txt",
   "https://le3-prod-bili-gs-fever.bilibiligame.net/web/announcement/200000261?phoneType=4": "cytq-detail-200000261/response.txt",
-  "https://le3-prod-bili-gs-fever.bilibiligame.net/web/announcement/1179?phoneType=4": "cytq-detail-1179/response.txt"}
+  "https://le3-prod-bili-gs-fever.bilibiligame.net/web/announcement/1179?phoneType=4": "cytq-detail-1179/response.txt",
+  "https://api.biligame.com/news/list?gameExtensionId=103&positionId=2&typeId=1&pageNum=1&pageSize=20": "hl-cn-list/response.txt",
+  "https://api.biligame.com/news/18574": "hl-cn-detail-18574/response.txt",
+  "https://www.azurlane.jp/api/news/list?index=1&size=10": "hl-jp-list/response.txt"}
