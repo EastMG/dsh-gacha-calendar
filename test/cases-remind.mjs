@@ -1682,10 +1682,18 @@ export default z;
 					macPost.status === 200 && macPost.body && macPost.body.ok === false && macPost.body.error === "windows-only",
 					JSON.stringify(macPost.body));
 				const macToast = await callTest();
-				check("桩跑(darwin)：测试通知走 osascript 分支 —— 没有 osascript 也只是结构化失败（不抛）",
-					macToast.status === 200 && macToast.body && macToast.body.ok === false
-					&& typeof macToast.body.error === "string" && macToast.body.error.length > 0,
-					JSON.stringify(macToast.body));
+				// 这条断言必须按**真机**上有没有 osascript 分支，不能写死 `ok === false`：
+				//   · macOS 开发机：/usr/bin/osascript 是系统自带的 ⇒ 真的发出去、返回 `ok:true`
+				//     （2026-11-14 在 macOS 26.6.2 上实测；旧断言让门禁在 Mac 上永远红 —— 而
+				//      AGENTS.md 写死"出现失败项就是红，红了不许提交"，等于 Mac 上没法开发）
+				//   · Linux（把平台桩成 darwin）：没有这个可执行文件 ⇒ 结构化失败
+				// 两者的**共同契约**才是这里要钉的东西：绝不抛、绝不 500，失败时必须带可读的 error。
+				const hasOsascript = existsSync("/usr/bin/osascript");
+				check("桩跑(darwin)：测试通知走 osascript 分支 —— 有 osascript 则成功、没有则结构化失败（都不抛）",
+					macToast.status === 200 && macToast.body && (hasOsascript
+						? macToast.body.ok === true
+						: macToast.body.ok === false && typeof macToast.body.error === "string" && macToast.body.error.length > 0),
+					JSON.stringify(macToast.body) + (hasOsascript ? "（本机有 /usr/bin/osascript）" : "（本机无 /usr/bin/osascript）"));
 				check("桩跑(darwin)：整轮跑完**没有写 identity.json**（非 Windows 不落身份缓存）",
 					!existsSync(path.join(macDir, "identity.json")), path.join(macDir, "identity.json"));
 

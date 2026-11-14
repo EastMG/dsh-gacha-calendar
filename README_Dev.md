@@ -1640,7 +1640,8 @@ DSH 官方只承诺 **Windows + macOS**（Linux 有安装产物，但不作硬�
 - 目录解析是 core 的纯函数 `hostStateDirOf(env, platform, home)`：只认**绝对路径**的 env 值（`LOCALAPPDATA` 缺失 / 空串 / 相对路径一律当没有 ⇒ 退 `os.homedir()`），连 home 都拿不到时由宿主退到系统临时目录 —— 不会出现 `undefined/...`，也不会把状态写进宿主进程的 cwd。
 - 通知身份（开始菜单 / AUMID / `IPropertyStore` / `HKCU\Software\Classes\AppUserModelId`）是 **Windows 专有**：非 Windows 上探测、预热、缓存读写全部短路，GET 回 `supported:false`，POST 回 `{ ok:false, error:"windows-only" }`（结构化结果，不抛）。
 - macOS 通知失败**不致命**：`osascript` 起不来 / 返回非 0 ⇒ 与 Windows 同一条"送达失败、下一轮重试"状态机；AppleScript 字面量转义在 `remindAppleScriptOf`（有单测）。系统通知权限 / 勿扰模式关掉时横幅可能不显示，与 Windows 的专注助手同类。
-- ⚠️ **macOS 未真机验证**：开发机是 Windows，macOS 分支只有纯函数单测 + 静态守卫，门禁在 Windows 与 Linux（WSL，同 CI 的 ubuntu-latest）上跑绿。真机首次跑时先看 `~/Library/Application Support/dsh-gacha-calendar/remind.log`。
+- ✅ **macOS 已真机验证（2026-11-14，macOS 26.6.2）**：`node build.mjs --check` 与 `node all.mjs` 在 Mac 上全绿；测试通知走真实 `osascript` 并返回 `ok:true`。这一轮一并修掉三处**只在 macOS 上才踩**的坑：darwin 断言写死 `ok === false`（Mac 自带 `/usr/bin/osascript` ⇒ 必红）、`.githooks/pre-commit` 缺可执行位（git 直接忽略 ⇒ 守卫静默失效）、钩子里 `$( )` 内的 `case` 被 macOS 的 bash 3.2 拒绝解析（补上可执行位后会拦掉每一次提交）。
+- ⚠️ **横幅能不能显示仍取决于系统权限**：Sequoia 起 `display notification` 由「脚本编辑器」代发，必须在「系统设置 → 通知 → 脚本编辑器」里允许；未允许时 `osascript` 仍返回 0、插件按"已送达"落盘 ⇒ 排查时先看 `~/Library/Application Support/dsh-gacha-calendar/remind.log`。
 
 ## 待废弃的一次性迁移（目标移除：2026-11-30 之后）
 
