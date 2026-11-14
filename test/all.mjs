@@ -120,8 +120,9 @@ section("夹具卫生");
 	// 后者本来就在清单里 —— 这条守卫要的是"能看出属于哪一批"，宽一点不会误报）。
 	// 2026-11-15 再 +2：公主连结·繁中服（`pcr-tw-*`：列表 + 3 篇详情）/ 雷索纳斯（`reso-*`：活动日历
 	// 的 raw + revisions 两份）。前缀按来源 id 取名，一眼能看出属于哪一条。
+	// 2026-11-15 晚 +1：幻塔（`tof-*`：gamenews 列表 + 最新版本那篇 + 6.4 那篇，共 3 份真夹具）。
 	check("夹具命名带批次前缀（便于溯源）",
-		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights|wqmt|pengpeng|wd|hlr|bh3|spica|czn|bjhl|yys|dhmmr|bh2|yslz|wxnn|cytq|hl|pcr-tw|reso)/.test(f)),
+		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights|wqmt|pengpeng|wd|hlr|bh3|spica|czn|bjhl|yys|dhmmr|bh2|yslz|wxnn|cytq|hl|pcr-tw|reso|tof)/.test(f)),
 	);
 }
 //#endregion

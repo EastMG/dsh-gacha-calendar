@@ -207,6 +207,9 @@ const ORDER = [
   // 2026-11-15：雷索纳斯（reso）—— bwiki「活动日历」页的 wikitext（`action=raw` 正文 + `revisions` 只补年份）。
   // 卡池与活动**同一条 URL** ⇒ 轮内共享这 2 次请求。排在最后 ⇒ 面板顺序追加在末尾。
   "30-game-bwiki-reso.js",
+  // 2026-11-15：幻塔（tof，国服）—— 官网 `gamenews` 列表（第 1 页）+ **最新版本那一篇**的正文；
+  // 只接卡池侧（活动置空 = 未配置）。排在最后 ⇒ 面板顺序追加在末尾。
+  "30-game-tof.js",
   // 2026-11-15：崩坏学园2 官网公告（列表 POST + 详情；卡池 + 活动两侧同一条列表 → 轮内共享一次请求）
   "44-test-exports.js",        // 回归出口：解析器 + env 工具 + 来源表（挂 exports.__regression，测试用）
   "50-refresh.js",             // 刷新编排、失败沿用旧值
@@ -348,6 +351,7 @@ const CORE_ORDER = [
   "30-game-hl.js",             // 2026-11-15 碧蓝航线（国服只接活动 + 日服卡池/活动同一条新闻列表）
   "30-game-pcr-tw.js",         // 2026-11-15 公主连结·繁中服（官网公告：列表 + 详情；卡池 + 活动同源）
   "30-game-bwiki-reso.js",     // 2026-11-15 雷索纳斯（bwiki 活动日历 wikitext；年份由 revisions 补）
+  "30-game-tof.js",            // 2026-11-15 幻塔（国服官网 gamenews：最新版本公告里的头牌限定池；只有卡池侧）
   "50-refresh.js",             // 刷新编排
   "engine-api.js",             // 注入 env + refresh() + 测试出口 + return
 ];

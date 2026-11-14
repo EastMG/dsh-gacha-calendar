@@ -1,0 +1,6 @@
+{
+  "url": "https://ht.wanmei.com/news/gamenews/index.html",
+  "status": 200,
+  "capturedAt": "2026-11-14T23:23:46.174Z",
+  "note": "真抓裁剪：原始第 1 页 6 条（6.5/6.4/6.3/6.2/6.1/6.0，全部是「《幻塔》X.Y全新版本今日上线」）→ 保留前 3 条，后 3 条 <div class=\"listli\"> 整块删除（同结构、更早）。其余字节（含页脚页码表 index1..index46）逐字未改，换行符按仓库 eol=lf 归一。响应无 ACAO（带 Origin 再测也是空）⇒ 必须走宿主代理。"
+}
