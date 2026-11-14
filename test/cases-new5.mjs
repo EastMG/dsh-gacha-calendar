@@ -831,8 +831,8 @@ export default async function run() {
 			!!dh && dh.name === "深空之眼" && dh.tz === TZ_CN && dh.defaultHidden === false
 			&& /^https?:\/\//.test(String(dh.icon)) && /^#[0-9A-Fa-f]{6}$/.test(String(dh.color)),
 			dh ? JSON.stringify([dh.name, dh.tz, dh.defaultHidden, dh.color]) : "缺失");
-		check("dhmmr 卡池来源标签逐字 = 「Bwiki 卡池列表（SMW）」",
-			!!dh && dh.source === "Bwiki 卡池列表（SMW）", dh && String(dh.source));
+		check("dhmmr 卡池来源标签逐字 = 「Bwiki 卡池列表」",
+			!!dh && dh.source === "Bwiki 卡池列表", dh && String(dh.source));
 		check("dhmmr 只有卡池侧：url 是 dhmmr 的 action=ask；eventUrl = \"\"（活动页空壳 ⇒ 设置页显示未配置）",
 			!!dh && dh.url === DH.DHMMR_URL
 			&& /^https:\/\/wiki\.biligame\.com\/dhmmr\/api\.php\?action=ask&format=json&query=/.test(String(dh.url))

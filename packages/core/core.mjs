@@ -12814,7 +12814,7 @@ async function ns_dhmmr_gacha(url, signal, tz = ns_dhmmr_TZ, now = nowMs()) {
 }
 
 // ── 注册 ───────────────────────────────────────────────────────────────────────
-// 卡池来源标签按任务书提议「Bwiki 卡池列表（SMW）」（等用户复核）；活动侧**留空** = 显示「未配置」。
+// 卡池来源标签按任务书提议「Bwiki 卡池列表」（等用户复核）；活动侧**留空** = 显示「未配置」。
 registerSource({
 	id: "dhmmr",
 	defaultHidden: false,
@@ -12822,7 +12822,7 @@ registerSource({
 	name: "深空之眼",
 	icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/fa/23/6b/fa236b90-9fab-30b2-240a-9f3057506074/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 	url: ns_dhmmr_URL,
-	source: "Bwiki 卡池列表（SMW）",
+	source: "Bwiki 卡池列表",
 	eventUrl: ""
 });
 GACHA_FETCHERS["dhmmr"] = (url, signal, tz, now) => ns_dhmmr_gacha(url, signal, tz, now);
