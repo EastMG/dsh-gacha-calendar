@@ -336,6 +336,17 @@ export default async function runBatch2() {
 			&& s.eventSource === "官方公告（日文）", s && JSON.stringify([s.eventUrl, s.eventSource]));
 		check("tz = Asia/Tokyo / defaultHidden 改为 false（与同款其它服一致）",
 			!!s && s.tz === "Asia/Tokyo" && s.defaultHidden === false, s && JSON.stringify([s.tz, s.defaultHidden]));
+		// ── ⚠️ 2026-11-14 真机 bug 回归：没有任何「覆盖 now」的区间时，活动侧 fallback
+		//    之前把 `{ post, win }` 当 `{ p, w }` 解构 ⇒ TypeError ⇒ 报「拓取异常」。
+		{
+			const e2 = engineAt(NOW + 400 * 864e5, []);   // 固定夹具的所有区间都已过去
+			let fb = null, err = null;
+			try { fb = await e2.__test.EVENT_FETCHERS["ournotes"].default(s.eventUrl, undefined, s.tz, NOW + 400 * 864e5); } catch (x) { err = x; }
+			check("活动 fallback（无区间覆盖 now）：不抛错", err === null, err && err.message);
+			check("活动 fallback：仍然输出最新一篇的区间（而非空壳）",
+				!!fb && typeof fb.event === "string" && fb.event.length > 0 && /~/.test(String(fb.eventDates || "")),
+				JSON.stringify(fb && { event: fb.event, dates: fb.eventDates }));
+		}
 
 		const ids = B.ns_batch2_spicaIdsOf(fixtureBody(SPICA_LIST));
 		check("列表解析出 23 本（与页面「23 件」一致）", ids.length === 23, String(ids.length));
