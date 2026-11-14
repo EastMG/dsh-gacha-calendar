@@ -17534,19 +17534,19 @@ async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = now
 				name: "初音未来：缤纷舞台·韩服",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/00/5c/7c/005c7c99-d162-1dc9-2c38-f5e5a50619e1/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 				url: "https://gh-proxy.com/https://raw.githubusercontent.com/Sekai-World/sekai-master-db-kr-diff/main/gachas.json",
-				source: "Sekai World 卡池表（韩文）",
+				source: "Sekai World 卡池表（韩文 · 代理）",
 				eventUrl: "https://gh-proxy.com/https://raw.githubusercontent.com/Sekai-World/sekai-master-db-kr-diff/main/events.json",
-				eventSource: "Sekai World 活动表（韩文）",
+				eventSource: "Sekai World 活动表（韩文 · 代理）",
 				altSources: [
 					{
-						label: "Sekai World 卡池表",
+						label: "Sekai World 卡池表（韩文）",
 						url: "https://sekai-world.github.io/sekai-master-db-kr-diff/gachas.json",
 						fetcher: "pjsk-kr"
 					}
 				],
 				eventAltSources: [
 					{
-						label: "Sekai World 活动表",
+						label: "Sekai World 活动表（韩文）",
 						url: "https://sekai-world.github.io/sekai-master-db-kr-diff/events.json",
 						fetcher: "default"
 					}

@@ -401,6 +401,8 @@ export default async function run() {
 			id: "pjsk-tc",
 			name: "初音未来：缤纷舞台·繁中服",
 			srcLabel: "Sekai World 卡池表（代理）",
+			altLabel: "Sekai World 卡池表",
+			evtAltLabel: "Sekai World 活动表",
 			evtLabel: "Sekai World 活动表（代理）",
 			tz: "Asia/Taipei",
 			repo: "sekai-master-db-tc-diff",
@@ -420,8 +422,10 @@ export default async function run() {
 		{
 			id: "pjsk-kr",
 			name: "初音未来：缤纷舞台·韩服",
-			srcLabel: "Sekai World 卡池表（韩文）",
-			evtLabel: "Sekai World 活动表（韩文）",
+			srcLabel: "Sekai World 卡池表（韩文 · 代理）",
+			altLabel: "Sekai World 卡池表（韩文）",
+			evtAltLabel: "Sekai World 活动表（韩文）",
+			evtLabel: "Sekai World 活动表（韩文 · 代理）",
 			tz: "Asia/Seoul",
 			repo: "sekai-master-db-kr-diff",
 			gachaFx: "sekai-kr-gachas",
@@ -459,13 +463,13 @@ export default async function run() {
 			s && JSON.stringify([s.source, s.eventSource]));
 		check(`${R.id} 卡池备选 = Pages 版 1 条（label/url/fetcher 逐字）`,
 			!!s && Array.isArray(s.altSources) && s.altSources.length === 1
-			&& s.altSources[0].label === "Sekai World 卡池表"
+			&& s.altSources[0].label === R.altLabel
 			&& s.altSources[0].url === PAGES(R.repo, "gachas.json")
 			&& s.altSources[0].fetcher === R.id,
 			s && JSON.stringify(s.altSources));
 		check(`${R.id} 活动备选 = Pages 版 1 条（label/url/fetcher=default 逐字）`,
 			!!s && Array.isArray(s.eventAltSources) && s.eventAltSources.length === 1
-			&& s.eventAltSources[0].label === "Sekai World 活动表"
+			&& s.eventAltSources[0].label === R.evtAltLabel
 			&& s.eventAltSources[0].url === PAGES(R.repo, "events.json")
 			&& s.eventAltSources[0].fetcher === "default",
 			s && JSON.stringify(s.eventAltSources));
