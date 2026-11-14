@@ -149,6 +149,16 @@ NEXT_SOURCES.push(
 		name: "雷索纳斯",
 		gacha: { url: T.parsers.reso.RESO_RAW_URL, kind: "wiki", mode: "proxy", fetcher: resolve("reso.gachaReso") },
 		event: { url: T.parsers.reso.RESO_RAW_URL, kind: "wiki", mode: "proxy", fetcher: resolve("reso.eventsReso") }
+	},
+	// 2026-11-15：幻塔（`tof`，国服）—— 官网 `gamenews` 列表（SSR，第 1 页 6 条版本公告）+ **最新版本那篇**
+	// 的正文；**只接卡池侧**（活动侧没有可靠源 ⇒ `event: null` = 设置页「未配置」）。
+	// 响应无 ACAO（带 Origin 再测也是空）⇒ `mode: "proxy"`（域名已登记 `src/index.js` 的 PROXY_ALLOW_HOSTS）。
+	{
+		id: "tof",
+		tz: "Asia/Shanghai",
+		name: "幻塔",
+		gacha: { url: T.parsers.tof.TOF_LIST_URL, kind: "official-html", mode: "proxy", fetcher: resolve("tof.gachaTof") },
+		event: null
 	}
 );
 

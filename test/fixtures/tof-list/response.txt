@@ -1,0 +1,79 @@
+<!DOCTYPE html>    
+<html>
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+<meta name="renderer" content="webkit">
+<meta name="description" content="《幻塔》是一款开放世界游戏，借助高自由度探索玩法与沉浸式剧情演出，为你讲述一段有关拯救与毁灭的末世故事"/>
+<meta name="keywords" content="android幻塔,ios版幻塔,幻塔,幻塔 ios,幻塔 安卓,幻塔 官网,幻塔android,幻塔ios,幻塔ios版,幻塔安卓,幻塔安卓版,幻塔官方,幻塔官方正版,幻塔官方版本,幻塔官方网站,幻塔官网,幻塔官网主页,幻塔官网网站,幻塔游戏,幻塔正版,幻塔游戏，幻塔网,幻塔网站,安卓幻塔,安卓版幻塔,官方幻塔,官网幻塔,游戏幻塔,游戏幻塔,Hotta Studio幻塔,Hotta Studio幻塔官方网站,Hotta Studio幻塔,游戏官网,Hotta Studio幻塔游戏,幻塔APP,幻塔收集,苹果幻塔,幻塔 官方,2021幻塔,幻塔礼包,幻塔更新内容,幻塔测试,幻塔注册,幻塔武器搭配,幻塔最新版,幻塔游戏吧,幻塔华为,幻塔充值,幻塔职业养成,幻塔虫洞玩法,幻塔官网论坛,幻塔首充,幻塔论坛,幻塔最新礼包,幻塔升阶,幻塔版本,幻塔技能,幻塔氪金,幻塔升阶攻略,幻塔礼包大全,幻塔最新版本,幻塔视频,幻塔零氪,幻塔测试服,幻塔阵营,幻塔最强,幻塔组合,幻塔夏佐,幻塔莎莉,幻塔小r,幻塔客户端下载,幻塔会员,幻塔最新活动,最新版幻塔,幻塔攻略大全,幻塔升级攻略,幻塔新手攻略,幻塔装备,幻塔服务器选择,幻塔预约,幻塔最新版下载"/>
+<title>新闻 -《幻塔》官网-轻科幻开放世界游戏</title>
+<link rel="stylesheet" type="text/css" href="https://ht.wanmei.com/style/temp221205.css">
+<script type="text/javascript" src="https://static.games.wanmei.com/public/js/skip_m.js"></script>
+</head>
+<body>
+<div class="bg_video_4k_container"><div class="bg_video_4k"></div></div>
+<div id="content"><div class="wrap1"><div class="wrap2"><div class="wrap3">
+	<div class="title"></div>
+	<div class="pubMain">
+		<div class="bread_wrap">
+			<a class="btn_link_home" href="https://ht.wanmei.com/main.html"><span>&lt;&lt;</span>返回首页</a>
+			<div class="link_nav">您当前所在位置：首页 - 游戏资讯</div>
+			<div class="list_nav">
+					<a href="https://ht.wanmei.com/news/index.html" >最新</a>
+					<a href="https://ht.wanmei.com/news/gamenews/index.html" class="on">新闻</a>
+					<a href="https://ht.wanmei.com/news/gamebroad/index.html" >公告</a>
+			</div>
+		</div>
+		<div class="list">
+				<div class="listli">
+					<a href="/news/gamenews/20261027/264766.html" target="_blank">
+						<div class="top"><span class="t">2026-10-28</span><span class="n">[新闻]</span><span class="a">时间背面的谜底 《幻塔》6.5全新版本今日上线</span></div>
+						<div class="desc">轻科幻开放世界游戏《幻塔》新版本「时间背面的谜底」今日正式开启。主线剧情解锁，拟态角色“黑利·佩茵特”登场，还有更多万圣主题活动与版本福利等待体验！</div>
+					</a>
+				</div>
+				<div class="listli">
+					<a href="/news/gamenews/20260915/264156.html" target="_blank">
+						<div class="top"><span class="t">2026-09-16</span><span class="n">[新闻]</span><span class="a">命运交叉的时空 《幻塔》6.4全新版本今日上线</span></div>
+						<div class="desc">轻科幻开放世界游戏《幻塔》新版本「命运交叉的时空」今日正式开启。全新区域“里维塔”开放，主线剧情解锁，拟态角色“芮娜”登场，还有更多中秋国庆主题活动与版本福利等待体验！  </div>
+					</a>
+				</div>
+				<div class="listli">
+					<a href="/news/gamenews/20260812/263524.html" target="_blank">
+						<div class="top"><span class="t">2026-08-12</span><span class="n">[新闻]</span><span class="a">置身晦夜与破晓间 《幻塔》6.3全新版本今日上线</span></div>
+						<div class="desc">轻科幻开放世界游戏《幻塔》新版本「置身晦夜与破晓间」今日正式开启。主线剧情解锁，拟态角色“佐伊”登场，还有更多主题活动与版本福利等待体验！</div>
+					</a>
+				</div>
+				<div class="page"><span>
+    <table width="98%" border="0" align="right" cellpadding="0" cellspacing="0">
+        <tr>
+            <td align=center class="nlist"> <strong><font color="green">1</font></strong>/<strong>47</strong>页;每页<strong>6</strong>条; 共<strong>278</strong>条记录.
+                <a href="index.html" title="首页">‹</a>
+
+
+                            1
+                            <a href='index1.html'>2</a>
+                            <a href='index2.html'>3</a>
+                            <a href='index3.html'>4</a>
+                            <a href='index4.html'>5</a>
+                            <a href='index5.html'>6</a>
+                            <a href='index6.html'>7</a>
+                            <a href='index7.html'>8</a>
+                            <a href='index8.html'>9</a>
+                            <a href='index9.html'>10</a>
+                        <a href="index10.html" title="下十页">»</a>
+                <a href="index46.html" title="末页">›</a>
+           </td>          
+        </tr>
+    </table>
+</span>
+</div>
+		<a class="btn_gtt"></a>
+	</div>
+</div></div></div></div>
+<script type="text/javascript" src="https://static.games.wanmei.com/public/js/jq_183.js"></script>
+<script type="text/javascript" src="https://static.games.wanmei.com/public/js/stat.js"></script>
+<script type="text/javascript" src="https://static.games.wanmei.com/public/js/top/header.js"></script>
+<script type="text/javascript" src="https://static.games.wanmei.com/public/js/footer/bottom.js"></script>
+<script type="text/javascript" src="https://ht.wanmei.com/js/temp221208.js"></script>
+</body>
+</html>

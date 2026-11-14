@@ -869,6 +869,26 @@
 				resoSideOf: ns_reso_sideOf,
 				resoStartYearOf: ns_reso_startYearOf
 			},
+			// 2026-11-15 幻塔（tof，国服）：官网 `gamenews` 列表（第 1 页 6 条版本公告）+ 最新版本那篇的
+			// 正文（`限定拟态角色「…」、限定武器「…」` + `正式服活动时间：…` + `“X订购活动”`）。
+			// 导出「URL/常量 + 纯解析 + 缓存复位 + 抓取器」四层，回归可以分别钉住：
+			// 列表/详情的失败语义（`{}` ⇒ 抛错）、三版逐字（6.5 / 6.4）、抹掉时间锚点 ⇒ 不进外显、
+			// 以及**请求数**（首轮 2 / 稳态 1 —— 复位钩子 `tofResetCache` 只给回归用）。
+			"tof": {
+				TOF_CACHE_TTL_MS: ns_tof_CACHE_TTL_MS,
+				TOF_LIST_URL: ns_tof_LIST_URL,
+				TOF_SOURCE_LABEL: ns_tof_SOURCE_LABEL,
+				TOF_TZ: ns_tof_TZ,
+				gachaTof: ns_tof_gacha,
+				tofDateTsOf: ns_tof_dateTsOf,
+				tofDetailOf: ns_tof_detailOf,
+				tofLinesOf: ns_tof_linesOf,
+				tofListOf: ns_tof_listOf,
+				tofPoolItemsOf: ns_tof_poolItemsOf,
+				tofPoolNameOf: ns_tof_poolNameOf,
+				tofResetCache: ns_tof_resetCache,
+				tofVersionRowOf: ns_tof_versionRowOf
+			},
 			// 2026-11-15 炽焰天穹（cytq）：官方 H5 公告（列表 1 次 → 只对在期 & 未缓存的 id 取详情）。
 			// 导出「URL + 纯解析 + 缓存复位 + 抓取器」四层，回归可以分别钉住：
 			// 列表/详情的失败语义（`{}` ⇒ 抛错 / 抹掉锚点 ⇒ 不出窗口）、角色名单、「维护后」⇒ 起点未知、

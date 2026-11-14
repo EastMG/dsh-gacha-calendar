@@ -1826,4 +1826,196 @@ export default async function run() {
 			&& String((((rDetailDown.games["pcr-tw"] || {}).eventFail) || {}).kind) === "down",
 			JSON.stringify([(rDetailDown.games["pcr-tw"] || {}).gachaFail, (rDetailDown.games["pcr-tw"] || {}).eventFail]));
 	}
+
+	// ───────── ⑩ 2026-11-15：幻塔（tof，国服官网 gamenews，**只有卡池侧**）─────────
+	// 落点：`src/client/30-game-tof.js`（厂商级，一条来源）。
+	// 夹具全部真抓（2026-11-15）：
+	//   · `tof-list`（第 1 页 6 条版本公告裁到前 3 条：6.5 / 6.4 / 6.3；页脚页码表逐字未改）
+	//   · `tof-detail-264766`（6.5「时间背面的谜底」：黑利·佩茵特 / 圣谕权杖 / 10-28 12:00 ~ 12-16 04:59）
+	//   · `tof-detail-264156`（6.4「命运交叉的时空」：芮娜 / 破空 / 09-16 12:00 ~ 10-28 04:59）——
+	//     刻意留两版：证明正则不是只对"当前那一篇"成立（6.4 的月/日是**不补零**写法 `9月16日`）。
+	section("2026-11-15 幻塔（tof）：列表 + 6.5/6.4 两版逐字 + 请求 2→1 + 反证");
+	{
+		const TOF = T.parsers.tof;
+		const TZ_CN3 = "Asia/Shanghai";
+		const TOF_LIST = TOF.TOF_LIST_URL;
+		const TOF_D_264766 = "https://ht.wanmei.com/news/gamenews/20261027/264766.html";
+		const TOF_D_264156 = "https://ht.wanmei.com/news/gamenews/20260915/264156.html";
+		const ALL_IDS3 = T.SOURCES.map((x) => x.id);
+		const BODY3 = {
+			[TOF_LIST]: FIX("tof-list"),
+			[TOF_D_264766]: FIX("tof-detail-264766"),
+			[TOF_D_264156]: FIX("tof-detail-264156")
+		};
+		// 记账 transport：`sink` = 实际发出去的地址；`refs` = 每条代理请求带的 Referer
+		const transport3 = (sink, refs, overrides) => ({
+			async fetchRaw(u) { throw new Error("幻塔走宿主代理（mode=proxy）：" + u); },
+			async fetchViaProxy(u, opts) {
+				const url = String(u);
+				if (sink) sink.push(url);
+				if (refs) refs.push({ url, referer: String((opts && opts.referer) || "") });
+				if (overrides && overrides[url] != null) return overrides[url];
+				if (BODY3[url] != null) return BODY3[url];
+				throw new Error("tof 用例没有这个 URL 的夹具：" + url);
+			}
+		});
+		const engine3 = (now, sink, refs, overrides) => createEngine({
+			transport: transport3(sink, refs, overrides),
+			storage: makeStore({ hidden: ALL_IDS3.filter((id) => id !== "tof"), shown: ["tof"] }),
+			now: () => now,
+			timer: { setTimeout, clearTimeout }
+		});
+		// 夹具抓取那天上午（6.5 的池 10-28 12:00 已开，12-16 04:59 才收）
+		const NOW3 = Date.parse("2026-11-15T07:20:00+08:00");
+
+		// ── ① 注册（只有卡池侧；活动 = 未配置，不是失败）──
+		const srcTof = srcOf("tof");
+		check("tof 注册：卡池 = gamenews 列表；标签逐字「官网公告」；tz = Asia/Shanghai；出厂默认展示；活动侧 url 为空（未配置）",
+			!!srcTof && srcTof.url === TOF_LIST && srcTof.eventUrl === ""
+			&& srcTof.source === "官网公告" && srcTof.eventSource === void 0
+			&& srcTof.tz === TZ_CN3 && srcTof.defaultHidden === false && srcTof.name === "幻塔",
+			srcTof ? JSON.stringify([srcTof.url, srcTof.eventUrl, srcTof.source, srcTof.tz]) : "缺失");
+		check("tof 只登记卡池抓取器（`GACHA_FETCHERS.tof` 是函数、`EVENT_FETCHERS.tof` 不存在）",
+			typeof T.GACHA_FETCHERS.tof === "function" && !T.EVENT_FETCHERS.tof,
+			JSON.stringify([typeof T.GACHA_FETCHERS.tof, typeof T.EVENT_FETCHERS.tof]));
+		check("tof 有配色（面板「颜色 = 游戏」）、id 全局唯一",
+			!!srcTof && /^#[0-9A-F]{6}$/i.test(String(srcTof.color))
+			&& new Set(ALL_IDS3).size === ALL_IDS3.length,
+			JSON.stringify([srcTof && srcTof.color]));
+
+		// ── ② 列表（3 条版本公告，按日期倒序）──
+		const tofRows = TOF.tofListOf(BODY3[TOF_LIST]);
+		check("tof 列表：3 条，按日期倒序 264766 / 264156 / 263524，版本号 6.5 / 6.4 / 6.3",
+			tofRows.length === 3 && tofRows.map((x) => x.id).join(",") === "264766,264156,263524"
+			&& tofRows.map((x) => x.version).join(",") === "6.5,6.4,6.3",
+			JSON.stringify(tofRows.map((x) => [x.id, x.version])));
+		check("tof 列表：栏目逐字「[新闻]」，详情 URL 补成绝对地址（源站写的是 `/news/gamenews/…`）",
+			tofRows.every((x) => x.label === "[新闻]") && tofRows[0].url === TOF_D_264766
+			&& tofRows[1].url === TOF_D_264156,
+			JSON.stringify(tofRows.map((x) => [x.label, x.url])));
+		check("tof 列表日期 `2026-10-28` → Asia/Shanghai 当日 00:00（= UTC 前一天 16:00）",
+			tofRows[0].dateTs === Date.UTC(2026, 9, 27, 16, 0), String(tofRows[0].dateTs));
+		check("tof 最新版本那一行 = 6.5（264766）；把版本号抹掉（改成普通公告）⇒ 选不出行（null，不是抛）",
+			TOF.tofVersionRowOf(tofRows).id === "264766"
+			&& TOF.tofVersionRowOf(tofRows.map((r) => ({ ...r, version: "" }))) === null,
+			JSON.stringify(TOF.tofVersionRowOf(tofRows) && TOF.tofVersionRowOf(tofRows).id));
+
+		// ── ③ 6.5 正文逐字（池名 + 角色 + 武器 + 起止到分）──
+		const d65 = TOF.tofDetailOf(BODY3[TOF_D_264766], TZ_CN3);
+		check("tof 详情 6.5：标题 / 页头日期逐字",
+			d65.title === "时间背面的谜底 《幻塔》6.5全新版本今日上线" && d65.date === "2026-10-28",
+			JSON.stringify([d65.title, d65.date]));
+		check("tof 详情 6.5：1 口池 —— 池名「黑利·佩茵特订购活动」/ 角色「黑利·佩茵特」/ 武器「圣谕权杖」",
+			d65.pools.length === 1 && d65.pools[0].banner === "黑利·佩茵特订购活动"
+			&& d65.pools[0].role === "黑利·佩茵特" && d65.pools[0].weapon === "圣谕权杖",
+			JSON.stringify(d65.pools.map((x) => [x.banner, x.role, x.weapon])));
+		check("tof 详情 6.5：起止 = 2026-10-28 12:00 ~ 12-16 04:59 +08（UTC 手算 04:00 / 20:59）",
+			d65.pools[0].startTs === Date.UTC(2026, 9, 28, 4, 0)
+			&& d65.pools[0].endTs === Date.UTC(2026, 11, 15, 20, 59),
+			JSON.stringify([d65.pools[0].startTs, d65.pools[0].endTs]));
+		check("tof 详情 6.5：raw 保留源站原文、display 是补全后的可读文本（两份文本不混）",
+			d65.pools[0].raw === "2026年10月28日12:00-2026年12月16日04:59"
+			&& d65.pools[0].display === "10-28 12:00 ~ 12-16 04:59",
+			JSON.stringify([d65.pools[0].raw, d65.pools[0].display]));
+
+		// ── ④ 6.4 正文（证明正则不是只对当前那一版成立：月/日不补零）──
+		const d64 = TOF.tofDetailOf(BODY3[TOF_D_264156], TZ_CN3);
+		check("tof 详情 6.4：芮娜 / 破空 /「芮娜订购活动」；`2026年9月16日12:00-2026年10月28日04:59` 解成 09-16 12:00 ~ 10-28 04:59",
+			d64.pools.length === 1 && d64.pools[0].banner === "芮娜订购活动"
+			&& d64.pools[0].role === "芮娜" && d64.pools[0].weapon === "破空"
+			&& d64.pools[0].raw === "2026年9月16日12:00-2026年10月28日04:59"
+			&& d64.pools[0].startTs === Date.UTC(2026, 8, 16, 4, 0)
+			&& d64.pools[0].endTs === Date.UTC(2026, 9, 27, 20, 59)
+			&& d64.pools[0].display === "09-16 12:00 ~ 10-28 04:59",
+			JSON.stringify(d64.pools));
+		check("tof 条目事实：`roles` = 角色名、`isMain` = true、**武器不进条目事实**（载荷不新造字段）",
+			(() => {
+				const it = TOF.tofPoolItemsOf(d65)[0];
+				return !!it && it.roles === "黑利·佩茵特" && it.isMain === true && it.banner === "黑利·佩茵特订购活动"
+					&& it.raw === "2026年10月28日12:00-2026年12月16日04:59" && !("weapon" in it);
+			})(),
+			JSON.stringify(TOF.tofPoolItemsOf(d65)[0]));
+
+		// ── ⑤ 端到端 + 请求预算（列表 1 + 只对最新版本那篇取详情 1）──
+		TOF.tofResetCache();
+		const calls3 = [];
+		const refs3 = [];
+		const e3 = engine3(NOW3, calls3, refs3);
+		const r3 = await e3.refresh();
+		const recTof = r3.games.tof || {};
+		check("tof 首轮请求 = 2 次（列表 1 + 6.5 那篇详情 1；6.4 那篇**不取**）",
+			calls3.length === 2 && calls3.filter((u) => u === TOF_LIST).length === 1
+			&& calls3.filter((u) => u === TOF_D_264766).length === 1
+			&& calls3.indexOf(TOF_D_264156) < 0,
+			"requests=" + calls3.length + " " + JSON.stringify(calls3));
+		check("tof 卡池外显 = 黑利·佩茵特订购活动 / 黑利·佩茵特 / 10-28 12:00 ~ 12-16 04:59",
+			recTof.banner === "黑利·佩茵特订购活动" && recTof.roles === "黑利·佩茵特"
+			&& recTof.bannerDates === "10-28 12:00 ~ 12-16 04:59"
+			&& recTof.bannerDatesRaw === "2026年10月28日12:00-2026年12月16日04:59"
+			&& recTof.gachaFail === null,
+			JSON.stringify([recTof.banner, recTof.roles, recTof.bannerDates, recTof.bannerDatesRaw]));
+		check("tof gacha[] 1 条（只有 1 口在期池 ⇒ 不设 bannerHover，交回 UI 两行式；key 前缀 tof）",
+			Array.isArray(recTof.gacha) && recTof.gacha.length === 1
+			&& recTof.gacha[0].key === "tof:gacha:0" && !recTof.bannerHover
+			&& recTof.gacha[0].endTs === Date.UTC(2026, 11, 15, 20, 59),
+			JSON.stringify([(recTof.gacha || []).map((x) => [x.key, x.title, x.endTs]), recTof.bannerHover]));
+		check("tof 活动侧如实「未配置」：event / eventDates 空串、**没有** eventFail（不抓取、不算失败）",
+			recTof.event === "" && recTof.eventDates === "" && recTof.eventFail == null
+			&& (!Array.isArray(recTof.events) || recTof.events.length === 0),
+			JSON.stringify([recTof.event, recTof.eventDates, recTof.eventFail]));
+		// 稳态：详情进缓存 ⇒ 只发列表
+		calls3.length = 0;
+		const r3b = await e3.refresh();
+		check("tof 稳态第 2 轮 = 1 次（只列表；详情按 URL 缓存 24h）",
+			calls3.length === 1 && calls3[0] === TOF_LIST
+			&& (r3b.games.tof || {}).banner === recTof.banner,
+			"requests=" + calls3.length + " " + JSON.stringify(calls3));
+		check("tof 每个代理请求都带 `Referer: https://ht.wanmei.com/`",
+			refs3.length > 0 && refs3.every((x) => x.referer === "https://ht.wanmei.com/"),
+			JSON.stringify(refs3.slice(0, 2)));
+
+		// ── ⑥ 反证（结构变了要看得见；抹掉时间锚点 ⇒ 不进外显）──
+		const throws3 = (fn) => { try { fn(); return false; } catch { return true; } };
+		check("tof 反证：列表 `{}` / 空串 / 没有 `.list` 容器 / 容器里一条都没有 ⇒ 抛错（不是 nomatch）",
+			throws3(() => TOF.tofListOf({})) && throws3(() => TOF.tofListOf(""))
+			&& throws3(() => TOF.tofListOf("<html><body>改版页</body></html>"))
+			&& throws3(() => TOF.tofListOf('<div class="list"><div class="page"></div></div>')));
+		check("tof 反证：详情 `{}` / 空串 / 没有 text_cont / 没有 h1 ⇒ 抛错",
+			throws3(() => TOF.tofDetailOf({})) && throws3(() => TOF.tofDetailOf(""))
+			&& throws3(() => TOF.tofDetailOf('<h1>只有标题</h1>'))
+			&& throws3(() => TOF.tofDetailOf('<div class="text_cont"><p>正文</p></div>')));
+		// 抹掉「正式服活动时间」这个唯一时间锚 ⇒ 这一篇 0 个窗口（不进外显，但**不抛**）
+		const noLabel = BODY3[TOF_D_264766].replace(/正式服活动时间/g, "活动时间");
+		check("tof 反证：抹掉「正式服活动时间」⇒ 这篇 0 个窗口（不进外显，也不算失败）",
+			TOF.tofDetailOf(noLabel, TZ_CN3).pools.length === 0
+			&& TOF.tofPoolItemsOf(TOF.tofDetailOf(noLabel, TZ_CN3)).length === 0,
+			JSON.stringify(TOF.tofDetailOf(noLabel, TZ_CN3).pools));
+		// 只留起点、抹掉终点 ⇒ 两端不齐 ⇒ 不认（不拿"下一次版本"凑终点）
+		const noEnd = BODY3[TOF_D_264766].replace("2026年12月16日04:59", "");
+		check("tof 反证：只有起点没有终点 ⇒ 0 口池（仓库口径：两端都明确才算池）",
+			TOF.tofDetailOf(noEnd, TZ_CN3).pools.length === 0,
+			JSON.stringify(TOF.tofDetailOf(noEnd, TZ_CN3).pools));
+		TOF.tofResetCache();
+		const eNoLabel = engine3(NOW3, null, null, { [TOF_D_264766]: noLabel });
+		const rNoLabel = await eNoLabel.refresh();
+		check("tof 反证（端到端）：最新版本那篇没有窗口 ⇒ 卡池如实 nomatch（不硬凑过期档期）",
+			(rNoLabel.games.tof || {}).banner === ""
+			&& String((((rNoLabel.games.tof || {}).gachaFail) || {}).kind) === "nomatch",
+			JSON.stringify([(rNoLabel.games.tof || {}).banner, (rNoLabel.games.tof || {}).gachaFail]));
+		// 详情全失败（源站回 `{}`）⇒ 记 down（抓取失败 ≠ 未公布）
+		TOF.tofResetCache();
+		const eDown3 = engine3(NOW3, null, null, { [TOF_LIST]: "{}", [TOF_D_264766]: "{}" });
+		const rDown3 = await eDown3.refresh();
+		check("tof 反证（端到端）：列表 `{}` / 详情 `{}` ⇒ 记 **down**（不是 nomatch）",
+			String((((rDown3.games.tof || {}).gachaFail) || {}).kind) === "down",
+			JSON.stringify((rDown3.games.tof || {}).gachaFail));
+		// now 在池开始之前（10-27）⇒ 解出来了但不覆盖 ⇒ null（未公布）
+		TOF.tofResetCache();
+		const eBefore = engine3(Date.parse("2026-10-27T12:00:00+08:00"), null, null);
+		const rBefore = await eBefore.refresh();
+		check("tof 反证（端到端）：池 10-28 12:00 才开 ⇒ 10-27 跑出来是 nomatch（不提前假在期）",
+			(rBefore.games.tof || {}).banner === ""
+			&& String((((rBefore.games.tof || {}).gachaFail) || {}).kind) === "nomatch",
+			JSON.stringify([(rBefore.games.tof || {}).banner, (rBefore.games.tof || {}).gachaFail]));
+	}
 }
