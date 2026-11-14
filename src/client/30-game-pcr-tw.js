@@ -2,7 +2,7 @@
 //
 // ── 落点 ────────────────────────────────────────────────────────────────────────
 // 厂商级文件（`30-game-*` 家族，不是 bwiki 系）：唯一来源 `id:"pcr-tw"`，
-// 卡池侧与活动侧**共用一份公告列表**，标签逐字「官网公告（繁中）」。
+// 卡池侧与活动侧**共用一份公告列表**，标签逐字「官网公告」。
 //
 // ── ① 站点形态（2026-11-15 实测；夹具 test/fixtures/pcr-tw-list / pcr-tw-detail-{4106,4117,4115}）──
 //   列表 `GET https://www.princessconnect.so-net.tw/news?page=1`
@@ -62,7 +62,7 @@ const ns_pcr_TW_TZ = "Asia/Taipei";
 const ns_pcr_TW_HOME = "https://www.princessconnect.so-net.tw/";
 const ns_pcr_TW_LIST_URL = "https://www.princessconnect.so-net.tw/news?page=1";
 const ns_pcr_TW_DETAIL_BASE = "https://www.princessconnect.so-net.tw/news/newsDetail/";
-const ns_pcr_TW_SOURCE_LABEL = "官网公告（繁中）";
+const ns_pcr_TW_SOURCE_LABEL = "官网公告";
 // 每侧最多取几篇详情（见文件头 ③）
 const ns_pcr_TW_MAX_DETAILS = 2;
 // 详情正文解析结果缓存 TTL = 24h（用户口径；按 id 缓存，换池不会串）
@@ -334,7 +334,7 @@ async function ns_pcr_tw_events(url, signal, tz = ns_pcr_TW_TZ, now = nowMs()) {
 //#endregion
 
 //#region ⑤ 条目登记
-// 卡池与活动**同一条列表**（`eventUrl` 与 `url` 相同）⇒ 两侧标签逐字「官网公告（繁中）」。
+// 卡池与活动**同一条列表**（`eventUrl` 与 `url` 相同）⇒ 两侧标签逐字「官网公告」。
 registerSource({
 	id: "pcr-tw",
 	defaultHidden: false,

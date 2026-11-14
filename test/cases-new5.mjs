@@ -1576,9 +1576,9 @@ export default async function run() {
 		// ── ① 注册 ──
 		const srcPcr = srcOf("pcr-tw");
 		const srcReso = srcOf("reso");
-		check("pcr-tw 注册：卡池与活动**同一条**列表 URL；标签逐字「官网公告（繁中）」；tz = Asia/Taipei；出厂默认展示",
+		check("pcr-tw 注册：卡池与活动**同一条**列表 URL；标签逐字「官网公告」；tz = Asia/Taipei；出厂默认展示",
 			!!srcPcr && srcPcr.url === PCR_LIST && srcPcr.eventUrl === PCR_LIST
-			&& srcPcr.source === "官网公告（繁中）" && srcPcr.eventSource === "官网公告（繁中）"
+			&& srcPcr.source === "官网公告" && srcPcr.eventSource === "官网公告"
 			&& srcPcr.tz === TZ_TW && srcPcr.defaultHidden === false
 			&& srcPcr.name === "公主连结Re:Dive·繁中服",
 			srcPcr ? JSON.stringify([srcPcr.url, srcPcr.eventUrl, srcPcr.source, srcPcr.tz, srcPcr.name]) : "缺失");
