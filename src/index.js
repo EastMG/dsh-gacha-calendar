@@ -1775,18 +1775,40 @@ function configEntryIdCandidatesOf(ctx, settings) {
 	return ids;
 }
 
-/** 按候选顺序试写，返回真正成功的条目 id；全失败则抛出（带每个候选的错误）。 */
+/**
+ * 按候选顺序试写，返回真正成功的条目 id；全失败则抛出（带每个候选的错误）。
+ *
+ * 2026-11-15 上机实测（DSH 2.0.23-next）：插件**热重载**时迁移是跑在 HMR 事务里的，
+ * 此时写 settings 会被拒 —— `HMR transactions cannot be nested`。这不是"条目 id 不对"
+ * （它恰好证明了 `gacha-calendar` 是可配置条目：条目查找已经过了，卡在事务嵌套），
+ * 事务几百毫秒后就结束 ⇒ **对同一个 id 等一会儿重试**，不要换候选、也不要报失败。
+ * 冷启动（不进 HMR 事务）时第一次就成功，退避分支不触发。
+ */
+const HMR_NESTED_RE = /HMR transactions cannot be nested/;
+
+function delayOf(ms) {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function settingsUpdateFirstOf(settings, ids, patch) {
 	const errors = [];
 	for (const id of ids) {
-		try {
-			await settings.update(id, patch);
-			return id;
-		} catch (err) {
-			errors.push(String((err && err.message) || err));
+		for (let attempt = 0; ; attempt += 1) {
+			try {
+				await settings.update(id, patch);
+				return id;
+			} catch (err) {
+				const message = String((err && err.message) || err);
+				if (HMR_NESTED_RE.test(message) && attempt < 3) {
+					await delayOf(700 * (attempt + 1));
+					continue;
+				}
+				errors.push(id + ": " + message);
+				break;
+			}
 		}
 	}
-	throw new Error("settings.update 全部候选都失败（" + ids.join(" / ") + "）：" + errors.join(" | "));
+	throw new Error("settings.update 全部候选都失败：" + errors.join(" | "));
 }
 
 /**

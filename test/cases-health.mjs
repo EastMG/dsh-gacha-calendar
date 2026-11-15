@@ -1208,6 +1208,32 @@ export const remindOffGamesOf = (value, fallback) => (Array.isArray(value) ? val
 					srcText.includes('located.slice("include:".length)'),
 					"src/index.js 里应有 located.slice(\"include:\".length)");
 			}
+			// ⑦ DSH 2.0.23-next 热重载：迁移跑在 HMR 事务里，settings 写入被拒
+			//    （`HMR transactions cannot be nested`）。它不是"条目 id 不对" —— 事务结束后
+			//    同一 id 必须能写进去。这里让前两次抛 HMR、第三次放行，证明有退避重试而不是直接失败。
+			{
+				const config = { newPanel: false, refreshMigrated: true, remindMigrated: true };
+				let calls = 0;
+				const updates = [];
+				const hmrSettings = {
+					updates,
+					configure() {},
+					describe() { return [{ ns: "gacha-calendar" }]; },
+					async update(ns, patch) {
+						calls += 1;
+						if (calls <= 2) throw new Error("HMR transactions cannot be nested");
+						if (ns !== "gacha-calendar") throw new Error('No configurable plugin entry "' + ns + '"');
+						updates.push({ ns, patch });
+					}
+				};
+				const startedAt = Date.now();
+				await mod.migrateNewPanelOnce(ctxOf(config, hmrSettings).ctx, config, hmrSettings);
+				check("⑦ HMR 事务拒绝(前 2 次) ⇒ 退避重试后成功写入（同一次迁移不抛）",
+					updates.length === 1 && updates[0].ns === "gacha-calendar",
+					JSON.stringify({ calls, updates }));
+				check("⑦ 退避确实等了（第 1 次 700ms + 第 2 次 1400ms ⇒ 总耗时不小于 2s）",
+					Date.now() - startedAt >= 2000, String(Date.now() - startedAt));
+			}
 		} catch (err) {
 			check("⑨ 迁移用例整套能跑完（抛异常即视为失败，见 detail）", false, String((err && err.stack) || err));
 		} finally {
