@@ -1017,6 +1017,93 @@
 				kancolleResetCache: ns_kancolle_resetCache,
 				kancolleSectionsOf: ns_kancolle_sectionsOf
 			},
+			// 2026-11-15 龙魂旅人（台服官网公告）：官方 JSON 索引（**只有 4 条**「标题 + 发布日」）+
+			// 详情正文的 `▌名字` ⏎ `活动时间：M月D日H:MM - M月D日H:MM`。导出「URL/常量 + 纯解析 +
+			// 缓存复位 + 抓取器」四层，回归可以分别钉住：列表 `time` 是 **DD-MM-YYYY**、详情一篇 4 个窗口
+			// （含 ` - ` 名字拆分 / `本轮活动主题` 优先 / 礼包类两侧都不要）、`{}` ⇒ 抛错、
+			// 抹掉锚点 ⇒ 不进外显、请求数（首轮 1+4 / 稳态 1 —— `longhunResetCache` 只给回归用）。
+			"longhun": {
+				LONGHUN_CACHE_TTL_MS: ns_longhun_CACHE_TTL_MS,
+				LONGHUN_LIST_URL: ns_longhun_LIST_URL,
+				LONGHUN_MAX_DETAILS: ns_longhun_MAX_DETAILS,
+				LONGHUN_ORIGIN: ns_longhun_ORIGIN,
+				LONGHUN_SOURCE_LABEL: ns_longhun_SOURCE_LABEL,
+				LONGHUN_TZ: ns_longhun_TZ,
+				eventsLonghun: ns_longhun_events,
+				gachaLonghun: ns_longhun_gacha,
+				longhunCleanNameOf: ns_longhun_cleanNameOf,
+				longhunDetailOf: ns_longhun_detailOf,
+				longhunEventItemsOf: ns_longhun_eventItemsOf,
+				longhunHintOf: ns_longhun_hintOf,
+				longhunKindOf: ns_longhun_kindOf,
+				longhunLinesOf: ns_longhun_linesOf,
+				longhunListOf: ns_longhun_listOf,
+				longhunNameOf: ns_longhun_nameOf,
+				longhunPoolItemsOf: ns_longhun_poolItemsOf,
+				longhunResetCache: ns_longhun_resetCache,
+				longhunWindowOf: ns_longhun_windowOf
+			},
+			// 2026-11-15 闪耀暖暖·国服：首页 `__NEXT_DATA__` 的 4 条精选（新闻 id 只在 `info` 的
+			// `/news/{id}` 里）+ `/news/{id}` 的 `pageData.content_html`。回归可以分别钉住：
+			// 列表/详情的失败语义（`{}` ⇒ 抛错）、「更新后」锚定当日 09:30、两端绝对时刻（跨年）原样解析、
+			// 抹掉锚点 ⇒ 不进外显、请求数（首轮 1+4 / 稳态 1 —— `nikki4ResetCache` 只给回归用）。
+			"nikki4": {
+				NIKKI4_CACHE_TTL_MS: ns_nikki4_CACHE_TTL_MS,
+				NIKKI4_DETAIL_BASE: ns_nikki4_DETAIL_BASE,
+				NIKKI4_LIST_URL: ns_nikki4_LIST_URL,
+				NIKKI4_MAX_DETAILS: ns_nikki4_MAX_DETAILS,
+				NIKKI4_SOURCE_LABEL: ns_nikki4_SOURCE_LABEL,
+				NIKKI4_TZ: ns_nikki4_TZ,
+				NIKKI4_UPDATE_ANCHOR: ns_nikki4_UPDATE_ANCHOR,
+				eventsNikki4: ns_nikki4_events,
+				gachaNikki4: ns_nikki4_gacha,
+				nikki4EventItemsOf: ns_nikki4_eventItemsOf,
+				nikki4FactsOf: ns_nikki4_factsOf,
+				nikki4HomeOf: ns_nikki4_homeOf,
+				nikki4KindOf: ns_nikki4_kindOf,
+				nikki4LinesOf: ns_nikki4_linesOf,
+				nikki4NameOf: ns_nikki4_nameOf,
+				nikki4NewsIdOf: ns_nikki4_newsIdOf,
+				nikki4PageOf: ns_nikki4_pageOf,
+				nikki4PoolItemsOf: ns_nikki4_poolItemsOf,
+				nikki4PublishTsOf: ns_nikki4_publishTsOf,
+				nikki4ResetCache: ns_nikki4_resetCache,
+				nikki4TitleNameOf: ns_nikki4_titleNameOf,
+				nikki4WindowOf: ns_nikki4_windowOf
+			},
+			// 2026-11-15 アイドルマスター系列 4 款（gakumas / shinycolors / millisita / deresute）：
+			// 每款一个月份页（`melonpapapapa-n.com` 的「イベント・ガシャ開催スケジュール一覧」），
+			// 卡池（cat-gacha）/ 活动（cat-event）同一张表。导出纯解析步，回归可以分别钉住：
+			// 月份页地址怎么算（含跨年：1 月 → 上一年 12 月）/ 表格按 brand class 定位 /
+			// 行内 `M/D + H:MM` 两端锚点 → JST 绝对时刻 / 脏行（end <= start）丢弃 /
+			// `{}` ⇒ 抛 `imas-<brand>-no-table` / 抹掉时间锚点 ⇒ 该条目不进外显。
+			"idolmaster": {
+				IMAS_BRANDS,
+				IMAS_EVENT_SKIP_RE,
+				IMAS_GACHA_SKIP_RE,
+				IMAS_ORIGIN,
+				IMAS_REFERER,
+				IMAS_SOURCE_LABEL,
+				IMAS_TZ,
+				imasClockOf,
+				imasCollect,
+				imasDateOf,
+				imasDedupeItems,
+				imasFetchDeresute,
+				imasFetchGakumas,
+				imasFetchMillisita,
+				imasFetchShinycolors,
+				imasMonthDayOf,
+				imasMonthItemsOf,
+				imasMonthUrlNow,
+				imasMonthUrlOf,
+				imasItemsFromTable,
+				imasMergeItems,
+				imasPrevMonthOf,
+				imasSidePayloadOf,
+				imasTableOf,
+				imasWindowOf
+			},
 			},
 			// 共用工具 / env（测试原先从 next-sources/lib/env.js 取；压平后分别见 23-parser-time.js / 24-parser-window.js / 27-parser-text.js / 28-parser-hover-tools.js）
 			fmtWindow,

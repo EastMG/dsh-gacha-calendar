@@ -256,7 +256,32 @@ const PROXY_ALLOW_HOSTS = [
 	// ⚠️ 官方公告只在 X（`@KanColle_STAFF`，无公开 JSON）；`kancolle.wiki` 证书链不可用、
 	//    `kancolle.fandom.com` / `zh.kcwiki.cn` 活动页停更、`en.kancollewiki.net` 的 Events 页无档期
 	//    （证据见 `src/client/30-game-batch3.js` 文件头 ②）。
-	"wikiwiki.jp"
+	"wikiwiki.jp",
+	// 龙魂旅人（台服）官网公告（2026-11-15 接入，卡池 + 活动同源）：
+	// 列表 `GET https://news.game-tree.com/jx/dtofficialnewszh/`（内容其实是 JSON 数组，1.2 KB，
+	// 但 `content-type` 写 `text/html`）+ 详情 `/jx/dtofficialnewszh/YYYYMMDD/{id}.html`（SSR HTML，3.7~5.1 KB）。
+	// 实测（2026-11-15）：两处都 200 / **完全没有 `Access-Control-Allow-Origin`**
+	// （带 `Origin: dsh-app://dsh` 再测一遍也是空）⇒ 浏览器直连必被 CORS 拦，必须走宿主代理。
+	// ⚠️ 与封面图所在的 `media.game-tree.com`、字体所在的 `media.zlongame.com` **不是同一域**
+	//   （那些是静态资源，插件只抓页面本体）⇒ 只登记真正抓取的这一个。
+	"news.game-tree.com",
+	// 闪耀暖暖·国服 官网（2026-11-15 接入，卡池 + 活动同源）：
+	// 首页 `GET /`（48 KB，列表在 `__NEXT_DATA__` 的 pageData.newsbanner）+ 详情 `GET /news/{id}`
+	// （37~39 KB，正文在 `__NEXT_DATA__` 的 pageData.content_html）。
+	// 实测（2026-11-15）：两处都 200 / `content-type: text/html; charset=utf-8` /
+	// **完全没有 `Access-Control-Allow-Origin`**（带 `Origin: dsh-app://dsh` 再测一遍也是空）
+	// ⇒ 浏览器直连必被 CORS 拦，必须走宿主代理。
+	// ⚠️ 与 `assets.papegames.com`（Next.js 静态资源/公告配图 CDN）**不是同一域**，插件只抓页面本体。
+	"nikki4.papegames.cn",
+	// アイドルマスター系列 4 款（学マス / シャニマス / ミリシタ / デレステ，2026-11-15 接入）：
+	// 社区汇总站「アイマス全6ブランド イベント・ガシャ総合カレンダー」的**每款月份页**
+	// `/imas_{gm|sc|ml|cgss}_YYYYMM/`（HTML，620~730 KB，表里是游戏内卡池/活动的名称 + 起止到分）。
+	// 实测（2026-11-15）：200 / `content-type: text/html; charset=UTF-8` / **完全没有
+	// `Access-Control-Allow-Origin`**（带 `Origin: dsh-app://dsh` 再测也是空）⇒ 浏览器直连必被
+	// CORS 拦，必须走宿主代理。代理上限 8 MB > 单页 ~0.7 MB，不用调。
+	// ⚠️ 与官网站点（`*.idolmaster-official.jp`）**不是同一域**，那批站点本身只有物贩/直播公告，
+	//   没有游戏内日程（判据见 `30-game-idolmaster.js` 文件头）。
+	"melonpapapapa-n.com"
 ];
 
 /** Default outgoing request headers (browser-like, to satisfy anti-scrape). */

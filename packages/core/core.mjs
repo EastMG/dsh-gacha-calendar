@@ -244,7 +244,20 @@
 			gbf: "#2E62B0",                  // 碧蓝幻想 · 王室蓝
 			//   · 舰队Collection —— 招牌是**浓绀色**（军港/深海）。与 arknights `#52798C`（青灰）、
 			//     hl `#2D6E8E`（舰船青）、hl-jp `#1E4F68`（更深的同系）靠"更蓝更沉"分开。
-			kancolle: "#3C5470"              // 舰队Collection · 浓绀
+			kancolle: "#3C5470",             // 舰队Collection · 浓绀
+			// 2026-11-15：龙魂旅人（台服官网公告）—— 龙鳞铜（偏暖的暗铜）；与 hlr `#C98B4B`
+			// （更亮的琥珀）、gf2 `#D9773F`（橙）在明度与饱和度上各差一档，棕系里仍认得出。
+			longhun: "#8A5A44",              // 龙魂旅人 · 龙鳞铜
+			// 2026-11-15：闪耀暖暖·国服 —— 暖樱粉（品牌主视觉的暖粉）；与无限暖暖 wxnn `#C86B8A`
+			// 同族但更亮更暖，与 bandori `#E85C97`（更品红）、bh2 `#D94F70`（更红）、
+			// pcr-tw `#C4558B`（更暗的桃红）各差一档。
+			nikki4: "#D96F8F",               // 闪耀暖暖 · 暖樱粉
+			// 2026-11-15：アイドルマスター系列 4 款 —— 各取本作主视觉最认得出的那一支，压成中间调；
+			// 四支刻意分在「紫 / 水色 / 赤 / 粉」四个色相上（同系列但仍能一眼区分）。
+			gakumas: "#7C5FC9",               // 学園アイドルマスター · 初星紫（与 czn 的蓝紫、yslz 的梅紫各差一档）
+			shinycolors: "#4E9FC4",           // シャイニーカラーズ · 羽ばたき水色（比 ba 系亮蓝更偏青灰）
+			millisita: "#C2483F",             // ミリオンライブ！シアターデイズ · 劇場赤（比 zspms 的灰调红更暖更亮）
+			deresute: "#D96A9E"               // シンデレラガールズ スターライトステージ · 星光粉（比 bandori 的粉更暗一档）
 		};
 
 		/** 登记一条来源。**幂等**：按 id 找到就 `Object.assign` 合并，否则追加。 */
@@ -1719,7 +1732,17 @@
 			"pcr-jp": "Asia/Tokyo",
 			// 2026-11-15 第三批：碧蓝幻想（gbf-wiki 活动一览）/ 舰队Collection（wikiwiki 期間限定出撃）
 			"gbf": "Asia/Tokyo",
-			"kancolle": "Asia/Tokyo"		};
+			"kancolle": "Asia/Tokyo",
+			// 2026-11-15：龙魂旅人（台服官网公告；条目口径 Asia/Taipei）/
+			// 闪耀暖暖·国服（官网首页 __NEXT_DATA__ 列表 + /news/{id} 详情，UTC+8）
+			"longhun": "Asia/Taipei",
+			"nikki4": "Asia/Shanghai",
+			// 2026-11-15：アイドルマスター系列 4 款（日服，源站墙钟 JST = UTC+9，无夏令时）
+			"gakumas": "Asia/Tokyo",
+			"shinycolors": "Asia/Tokyo",
+			"millisita": "Asia/Tokyo",
+			"deresute": "Asia/Tokyo"
+		};
 		// 状态键 / 档期文本的两条形态（正则只在这里写一次）
 		const REMIND_KEY_RE = /^[^|]+\|[^|]+\|(?:end|start)\|\d+$/;
 		const REMIND_PART_RE = /^(?:(\d{4})-)?(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?$/;
@@ -26947,6 +26970,1118 @@ EVENT_FETCHERS["kancolle"] = Object.assign(EVENT_FETCHERS["kancolle"] || {}, {
 	default: (url, signal, tz, now) => ns_kancolle_events(url, signal, tz, now)
 });
 //#endregion
+
+// src/client/30-game-longhun.js —— 龙魂旅人（台服官网公告：卡池 + 活动**同源**）
+//
+// ── 落点 ────────────────────────────────────────────────────────────────────────
+// 厂商级文件（`30-game-*` 家族，不是 bwiki 系）：唯一来源 `id:"longhun"`，
+// 卡池侧与活动侧**共用一份 JSON 索引**（详情按 id 缓存），标签逐字「官网公告」。
+// 时区 = `Asia/Taipei`（条目口径；源站后缀自相矛盾，见 ①末尾）。
+//
+// ── ① 站点形态（2026-11-15 实测；夹具 test/fixtures/longhun-list / longhun-detail-{981,863,994,1287}）──
+//   列表 `GET https://news.game-tree.com/jx/dtofficialnewszh/`
+//     200 / **1,230 B** / 响应体是 **JSON 数组**，但 `content-type` 写的是 `text/html`（别按它判）。
+//     结构 `[{ id, url, newscover, title, time:"DD-MM-YYYY" }]` —— **只有 4 条**，只给「标题 + 发布日」，
+//     档期必须进详情页（见下）。
+//     ⚠️ `time` 是 **DD-MM-YYYY**（`08-01-2026` = 1 月 8 日），不是 MM-DD；按 `MM` 解析会整体错位。
+//     ⚠️ 实测 2026-11-15 这份**中文索引**里最新一条是 `2026-05-05`（4 条全是 2025-11 ~ 2026-05 的公测期公告）
+//        ⇒ 当期必然解不出东西（见 ⑤，这是源站的陈旧，不是解析失败）。
+//     ⚠️ 响应**没有 `Access-Control-Allow-Origin`**（带 `Origin: dsh-app://dsh` 再测也是空）
+//        ⇒ 浏览器直连必被 CORS 拦，**必须走宿主代理**（域名已登记 `src/index.js` 的 PROXY_ALLOW_HOSTS）。
+//   详情 `<url>` = 相对路径 `/jx/dtofficialnewszh/YYYYMMDD/{id}.html`，拼到 `https://news.game-tree.com`
+//     200 / 3.7~5.1 KB / **服务端渲染**（无 JS）。整页里真正要的是三段：
+//       `<h1 class="title">标题</h1>`、`<p class="time">DD-MM-YYYY</p>`、
+//       `<div class="tempText">` 正文（**每行一个 `<div>`**，实体是 `&middot;` / `&nbsp;` / `&mdash;`）。
+//   档期写法（实测 1287，一篇里 4 个窗口，逐字）：
+//     `▌全新限定召唤卡池 - 护戒圣女·丝碧莫` ⏎ `活动时间：5月7日5:00 - 5月21日4:59 (UTC+7)`
+//     `▌主题活动 - 「潜伏的厄运」`          ⏎ `活动时间：5月7日5:00 - 5月21日4:59 (UTC+7)`
+//     `▌限定炼制 - 指定魔物限时UP`          ⏎ `活动时间：5月7日5:00 - 5月14日4:59 (UTC+7)`
+//     `▌新一轮周活动即将开启` ⏎ `⭐本轮活动主题：神奇魔物在哪里` ⏎ `活动时间：5月7日5:00 - 5月14日4:59 (UTC+7)`
+//     ⇒ 名字行 = 上一行 `▌…`（去掉 `▌` 后若含 ` - ` 取**后半段**）；
+//        `▌…` 与锚点之间若还有 `本轮活动主题：X`，**X 优先**（"即将开启"不是名字）。
+//     ⚠️ **`(UTC+7)` / `(UTC+9)` 在同一个索引里混着出现**（1287 写 UTC+7、994 写 UTC+9）⇒
+//        后缀是跨区搬运的残留、**不可信**；按条目 tz 解析墙钟，后缀解析前剥掉、**不进悬停**（与 wxnn 同手法）。
+//     ⚠️ 只有单点的写法（`开启时间：5月7日6:00 (UTC+7)`、`公测时间：2026年1月13日10:00 (UTC+9)`）
+//        **不是窗口**（两端不齐不产出）；正文里 `解锁条件：通关主线2-4` 这类更不是时间。
+//
+// ── ② 卡池 / 活动怎么分（只认 `▌` 原句的关键词，不看清洗后的名字）──────────────────────
+//   `卡池 | 召唤 | 炼制 | 扭蛋 | 招募 | 祈愿` ⇒ 卡池；`活动 | 玩法 | 挑战 | 赛季 | 签到 | 福利` ⇒ 活动；
+//   两边都不沾（例：`▌时之宝匣 - 时之隙预热礼包！`）⇒ **两侧都不要**（礼包不是卡池也不是活动）。
+//   ⚠️ 必须用 `▌` **原句**判定：清洗后的池名（`护戒圣女·丝碧莫`）把「召唤卡池」这个词丢了。
+//
+// ── ③ 请求预算（用户口径：列表 1 + 新详情，详情按 id 缓存 TTL 24h，已结束不再取）──────────
+//   第 1 轮 = 列表 1 次 + 最多 4 篇详情（索引一共 4 条 ⇒ `ns_longhun_MAX_DETAILS = 4`）⇒ 实测 5 次。
+//   稳态 = 1 次（只列表；详情按 id 缓存 24h，且**窗口全都结束过的详情永不重取**）。
+//   两侧**共用同一次采集**：轮内靠 `fetchRoundSeqOf()` 的 promise 缓存（与 wxnn 同一套），
+//   于是"卡池侧抓完、活动侧再抓"不会重复发请求。
+//
+// ── ④ 失败语义（与全仓一致）──────────────────────────────────────────────────────
+//   · HTTP 非 2xx ⇒ 抛（`fetchText` 自己抛 `http-…`）；
+//   · 列表结构变了（不是数组 / 一条合法项都没有）⇒ **抛**（`longhun-list-changed:*`）；
+//   · 详情结构变了（没有 `<h1 class="title">` / 没有 `<div class="tempText">`；`{}` / 空串 / 改版页）⇒ **抛**
+//     （`longhun-detail-changed:*`）；
+//   · 正文正常但没有「活动时间」锚点、或锚点两端不齐 ⇒ 这一篇 0 个窗口（**不抛、也不硬凑**）；
+//   · 详情全部失败且一条都没解析出来 ⇒ 抛第一篇的错（抓取失败 ≠ 未公布）；
+//   · 解出来了但没有窗口覆盖 now ⇒ `null`（未公布，不硬凑过期档期）。
+//
+// ── ⑤ 当期现状（2026-11-15 实测）──────────────────────────────────────────────────
+//   中文索引 4 条的最新一条 = `2026-05-05` 的维护公告（窗口 05-07 ~ 05-21）；
+//   at 2026-11-15 15:xx +08 跑**两侧都是 null（nomatch）** —— 源站中文索引已 6 个月没更新
+//   （同款游戏的**英文/泰文**索引进到 2026-11-11，但那是另一个 locale 的频道，本条目按任务口径只接 `zh`）。
+//   用抓取当天的时刻（2026-05-10）复跑时：卡池 = `护戒圣女·丝碧莫`（05-07 05:00 ~ 05-21 04:59）、
+//   活动 = `潜伏的厄运`（05-07 05:00 ~ 05-21 04:59）+ `神奇魔物在哪里`（05-07 05:00 ~ 05-14 04:59）。
+//   时区 = `Asia/Taipei`（源站写的是 UTC+7/UTC+9 的混用后缀，见 ①；后缀不可信 ⇒ 按条目 tz 解析墙钟）。
+
+//#region ① 常量
+const ns_longhun_TZ = "Asia/Taipei";
+const ns_longhun_ORIGIN = "https://news.game-tree.com";
+const ns_longhun_LIST_URL = "https://news.game-tree.com/jx/dtofficialnewszh/";
+const ns_longhun_SOURCE_LABEL = "官网公告";
+// 索引一共 4 条 ⇒ 每轮最多取 4 篇详情（见文件头 ③）
+const ns_longhun_MAX_DETAILS = 4;
+// 详情解析结果缓存 TTL = 24h（按 id 缓存；换公告不会串）
+const ns_longhun_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+// 列表段/正文段的字面锚点（源站改版时这里先坏，报错信息因此能定位）
+const ns_longhun_TEXT_OPEN = '<div class="tempText">';
+const ns_longhun_TITLE_RE = /<h1\b[^>]*\bclass="title"[^>]*>([\s\S]*?)<\/h1>/i;
+const ns_longhun_DATE_RE = /<p\b[^>]*\bclass="time"[^>]*>([\s\S]*?)<\/p>/i;
+// `DD-MM-YYYY`（列表 time 字段 + 详情页头，两处同一口径）
+const ns_longhun_DAY_RE = /^(\d{1,2})\s*-\s*(\d{1,2})\s*-\s*(\d{4})$/;
+// 档期锚点：整行以「活动时间」开头（可带 `〓` 之类前缀符号），值可同行或下一行
+const ns_longhun_ANCHOR_RE = /^(?:[※*·●▸➤〓■□☆◆◇>＞▶\s]*)(活动时间)\s*[：:]\s*(.*)$/;
+// 名字行 / 「本轮活动主题」
+const ns_longhun_NAME_LINE_RE = /^▌\s*(.+)$/;
+const ns_longhun_TOPIC_RE = /本轮活动主题\s*[：:]\s*(.+)$/;
+// 窗口：两端都必须是「M月D日H:MM」（年份可缺 → 借发布日补；实测 1287 两端都无年份）
+const ns_longhun_WINDOW_RE = new RegExp(
+	String.raw`^(?:(\d{4})\s*年\s*)?(\d{1,2})\s*月\s*(\d{1,2})\s*日\s*(\d{1,2})\s*[:：]\s*(\d{2})\s*`
+	+ String.raw`[-~～—–－至到]\s*`
+	+ String.raw`(?:(\d{4})\s*年\s*)?(\d{1,2})\s*月\s*(\d{1,2})\s*日\s*(\d{1,2})\s*[:：]\s*(\d{2})$`
+);
+// 时区后缀（`(UTC+7)` / `（UTC+9）` / `(GMT+8)`）—— 剥掉，不进悬停（见文件头 ①）
+const ns_longhun_SUFFIX_RE = /[\s]*[（(]\s*(?:UTC|GMT)\s*[+＋-]\s*\d{1,2}(?::\d{2})?\s*[）)]\s*$/i;
+// 归属关键词（只认 `▌` 原句，见文件头 ②）
+const ns_longhun_GACHA_RE = /卡池|召唤|炼制|扭蛋|招募|祈愿|祈願/;
+const ns_longhun_EVENT_RE = /活动|活動|玩法|挑战|挑戰|赛季|賽季|签到|簽到|福利/;
+// 名字行里 ` - ` 分隔「类别 / 具体名字」（`▌全新限定召唤卡池 - 护戒圣女·丝碧莫`）
+const ns_longhun_NAME_SPLIT_RE = /\s+[-—－–]\s+/;
+//#endregion
+
+//#region ② 纯解析：列表
+// JSON 索引 → `[{ id, url, title, date, dateTs }]`，按发布日期倒序（同日按 id 倒序）。
+// **结构变了要抛**：不是数组 / 一条合法项都没有（`{}` / 空串 / 改版页都落这里）。
+function ns_longhun_listOf(raw) {
+	let j;
+	try { j = JSON.parse(String(raw == null ? "" : raw)); } catch { throw new Error("longhun-list-changed:bad-json"); }
+	if (!Array.isArray(j)) throw new Error("longhun-list-changed:not-array");
+	const out = [];
+	for (const it of j) {
+		if (!it || typeof it !== "object") continue;
+		const id = String(it.id == null ? "" : it.id).trim();
+		const url = ns_longhun_absUrlOf(it.url);
+		const title = htmlTextTight(it.title == null ? "" : it.title);
+		const dm = ns_longhun_DAY_RE.exec(String(it.time == null ? "" : it.time).trim());
+		if (!id || !url || !title || !dm) continue;
+		const mo = Number(dm[2]), d = Number(dm[1]);
+		if (mo < 1 || mo > 12 || d < 1 || d > 31) continue;
+		out.push({
+			id,
+			url,
+			title,
+			date: String(it.time).trim(),
+			dateTs: sourceInstant(Number(dm[3]), mo, d, 0, 0, ns_longhun_TZ)
+		});
+	}
+	if (out.length === 0) throw new Error("longhun-list-changed:no-item");
+	return out.sort((x, y) => ((y.dateTs || 0) - (x.dateTs || 0)) || (Number(y.id) - Number(x.id)));
+}
+// 索引里的 `url` 是 `/jx/…` 相对路径 ⇒ 拼成绝对地址（已经是绝对地址就原样）
+function ns_longhun_absUrlOf(u) {
+	const s = String(u == null ? "" : u).trim();
+	if (!s) return "";
+	if (/^https?:\/\//i.test(s)) return s;
+	return ns_longhun_ORIGIN + (s.startsWith("/") ? s : "/" + s);
+}
+//#endregion
+
+//#region ③ 纯解析：详情（正文行 → 整行区间 → 条目事实）
+// 详情页 → 正文行数组。取 `<div class="tempText">` 到 `</body>` 这一段（内层还有大量 `<div>`，
+// 所以**不能**找第一个 `</div>`）；块级收尾当行边界，其余标签不插分隔符（实体再解一遍）。
+// 没有 `tempText` 段 ⇒ null（结构变了，调用方抛）。
+function ns_longhun_linesOf(html) {
+	const src = String(html == null ? "" : html);
+	const a = src.indexOf(ns_longhun_TEXT_OPEN);
+	if (a < 0) return null;
+	const b = src.indexOf("</body>", a);
+	const seg = b > a ? src.slice(a, b) : src.slice(a);
+	return seg
+		.replace(/<br\s*\/?>/gi, "\n")
+		.replace(/<\/(?:div|p|li|h[1-6]|tr|table|section)>/gi, "\n")
+		.replace(/<[^>]+>/g, "")
+		.split("\n")
+		.map((x) => decodeExtra(x).replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim())
+		.filter(Boolean);
+}
+// 详情页 → `{ title, date, windows:[{ name, kind, startTs, endTs, raw, display }] }`。
+// **没有标题 / 没有正文段 ⇒ 抛**（`{}` / 空串 / 改版页）；有正文但没有窗口 ⇒ `windows: []`。
+function ns_longhun_detailOf(html, tz = ns_longhun_TZ) {
+	const src = String(html == null ? "" : html);
+	const tm = ns_longhun_TITLE_RE.exec(src);
+	if (!tm) throw new Error("longhun-detail-changed:no-title");
+	const lines = ns_longhun_linesOf(src);
+	if (lines == null) throw new Error("longhun-detail-changed:no-body");
+	const title = decodeExtra(stripTags(tm[1])).replace(/\s+/g, " ").trim();
+	const dm = ns_longhun_DATE_RE.exec(src);
+	const date = dm ? decodeExtra(stripTags(dm[1])).trim() : "";
+	const hint = ns_longhun_hintOf(date);
+	const windows = [];
+	const seen = new Set();
+	for (let i = 0; i < lines.length; i++) {
+		const m = ns_longhun_ANCHOR_RE.exec(lines[i]);
+		if (!m) continue;
+		const text = String(m[2] || "").trim() || lines[i + 1] || "";
+		const w = ns_longhun_windowOf(text, hint, tz);
+		if (!w) continue;                                    // 单点 / 两端不齐 ⇒ 不是窗口（不硬凑）
+		const named = ns_longhun_nameOf(lines, i);
+		if (!named) continue;                                // 没有名字行 ⇒ 不产出（宁可不产出）
+		const kind = ns_longhun_kindOf(`${named.source} ${named.name}`);
+		if (!kind) continue;                                 // 礼包 / 说明类 ⇒ 两侧都不要
+		const key = `${kind}|${w.startTs}|${w.endTs}|${named.name}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		windows.push({
+			name: ns_longhun_cleanNameOf(named.name),
+			kind,
+			startTs: w.startTs,
+			endTs: w.endTs,
+			raw: w.raw,
+			display: w.display
+		});
+	}
+	return { title, date, windows };
+}
+// 详情页头日期（`DD-MM-YYYY`）→ 年份线索 `{ y, mo }`（给无年份的窗口行补年）
+function ns_longhun_hintOf(date) {
+	const m = ns_longhun_DAY_RE.exec(String(date == null ? "" : date).trim());
+	if (!m) return null;
+	return { y: Number(m[3]), mo: Number(m[2]) };
+}
+// 一段档期文本 → `{ startTs, endTs, raw, display }`；两端不齐 ⇒ null（不硬凑）。
+function ns_longhun_windowOf(text, hint, tz = ns_longhun_TZ) {
+	const s = String(text == null ? "" : text).replace(ns_longhun_SUFFIX_RE, "").trim();
+	const m = ns_longhun_WINDOW_RE.exec(s);
+	if (!m) return null;
+	const sm = Number(m[2]), sd = Number(m[3]);
+	const startY = inferYear(m[1] != null ? Number(m[1]) : null, sm, hint);
+	if (startY == null) return null;
+	const em = Number(m[7]), ed = Number(m[8]);
+	const endY = m[6] != null ? Number(m[6]) : startY + (endsNextYear(sm, sd, em, ed) ? 1 : 0);
+	const startTs = sourceInstant(startY, sm, sd, Number(m[4]), Number(m[5]), tz);
+	const endTs = sourceInstant(endY, em, ed, Number(m[9]), Number(m[10]), tz);
+	if (!(endTs > startTs)) return null;             // 源站错行 ⇒ 丢掉，不硬造
+	return {
+		startTs,
+		endTs,
+		raw: s,
+		display: fmtWindow(startTs, endTs, tz)
+	};
+}
+// 窗口行往上最多 3 行找名字：`本轮活动主题：X` 优先，其次 `▌…`；都没有 ⇒ null（不产出）。
+// 返回 `{ name, source }`：`name` = 可读名（`source` 里取出的那一段），
+// `source` = **判定归属用的原句**（`▌新一轮周活动即将开启` 本身带「活动」，清洗后的名字不带 —— 见文件头 ②）。
+function ns_longhun_nameOf(lines, at) {
+	const list = Array.isArray(lines) ? lines : [];
+	for (let j = at - 1; j >= 0 && j >= at - 3; j--) {
+		const line = String(list[j] == null ? "" : list[j]);
+		const topic = ns_longhun_TOPIC_RE.exec(line);
+		if (topic) return { name: String(topic[1] || "").trim(), source: line };
+	}
+	for (let j = at - 1; j >= 0 && j >= at - 3; j--) {
+		const line = String(list[j] == null ? "" : list[j]);
+		const nm = ns_longhun_NAME_LINE_RE.exec(line);
+		if (nm) return { name: String(nm[1] || "").trim(), source: line };
+	}
+	return null;
+}
+// `▌` 原句 → 归属（见文件头 ②；**用原句**，因为清洗后的池名会把「召唤卡池」丢掉）
+function ns_longhun_kindOf(nameLine) {
+	const s = String(nameLine == null ? "" : nameLine);
+	if (ns_longhun_GACHA_RE.test(s)) return "gacha";
+	if (ns_longhun_EVENT_RE.test(s)) return "event";
+	return "";
+}
+// `▌` 原句 → 可读名：含 ` - ` 取后半段（`全新限定召唤卡池 - 护戒圣女·丝碧莫` ⇒ `护戒圣女·丝碧莫`）；
+// 整名被一对「」包住就留里面的（`主题活动 - 「潜伏的厄运」` ⇒ `潜伏的厄运`）。
+function ns_longhun_cleanNameOf(nameLine) {
+	let s = String(nameLine == null ? "" : nameLine).replace(/^▌\s*/, "").replace(/\s+/g, " ").trim();
+	const parts = s.split(ns_longhun_NAME_SPLIT_RE);
+	if (parts.length > 1 && parts[parts.length - 1].trim()) s = parts[parts.length - 1].trim();
+	const q = /^「([^」]{1,60})」$/.exec(s);
+	if (q) s = q[1].trim();
+	return s;
+}
+// 详情 → 卡池条目事实（每个卡池窗口一口池；roles 留空 —— 源站没给「池名：角色」的分离写法）
+function ns_longhun_poolItemsOf(detail) {
+	const d = detail && typeof detail === "object" ? detail : {};
+	const items = [];
+	for (const w of Array.isArray(d.windows) ? d.windows : []) {
+		if (w.kind !== "gacha") continue;
+		items.push({
+			_i: items.length,
+			banner: w.name,
+			roles: "",
+			startTs: w.startTs,
+			endTs: w.endTs,
+			raw: w.raw,
+			display: w.display,
+			isMain: true
+		});
+	}
+	return items;
+}
+// 详情 → 活动条目事实（活动名 = 清洗后的名字；类别留空）
+function ns_longhun_eventItemsOf(detail) {
+	const d = detail && typeof detail === "object" ? detail : {};
+	const items = [];
+	for (const w of Array.isArray(d.windows) ? d.windows : []) {
+		if (w.kind !== "event") continue;
+		items.push({
+			_i: items.length,
+			event: w.name,
+			category: "",
+			startTs: w.startTs,
+			endTs: w.endTs,
+			raw: w.raw,
+			display: w.display
+		});
+	}
+	return items;
+}
+//#endregion
+
+//#region ④ 抓取器（契约：async (url, signal, tz, now = nowMs()) → 数据对象 | null）
+// 缓存两级：`ns_longhun_detailCache` 按 id（TTL 24h；**窗口全都结束过的详情永不重取**），
+// `ns_longhun_roundCache` 轮内共享同一份采集 promise（两侧同源 ⇒ 整轮只发一遍请求）。
+let ns_longhun_detailCache = new Map();       // id → { at, fact }
+let ns_longhun_roundCache = { round: -1, promise: null };
+function ns_longhun_resetCache() { ns_longhun_detailCache = new Map(); ns_longhun_roundCache = { round: -1, promise: null }; }
+// 这篇详情还会不会有新信息：一个窗口都没有、或窗口全都结束过 ⇒ 封存（不再重取）
+function ns_longhun_sealedOf(fact, now) {
+	const all = (fact && Array.isArray(fact.windows)) ? fact.windows : [];
+	if (all.length === 0) return true;
+	return all.every((w) => w.endTs != null && w.endTs < now);
+}
+function ns_longhun_cachedOf(id, now) {
+	const hit = ns_longhun_detailCache.get(id);
+	if (!hit) return null;
+	if (ns_longhun_sealedOf(hit.fact, now)) return hit;
+	return now - hit.at < ns_longhun_CACHE_TTL_MS ? hit : null;
+}
+// 列表 → 详情 → 事实数组。详情全部失败且一条都没解析出来 ⇒ 抛（抓取失败 ≠ 未公布）。
+async function ns_longhun_collect(url, signal, tz, now) {
+	const listUrl = String(url == null ? "" : url).trim() || ns_longhun_LIST_URL;
+	const rows = ns_longhun_listOf(await fetchText(listUrl, { mode: "proxy", referer: ns_longhun_LIST_URL, signal }));
+	const facts = [];
+	let firstErr = null, parsed = 0;
+	for (const row of rows.slice(0, ns_longhun_MAX_DETAILS)) {
+		const hit = ns_longhun_cachedOf(row.id, now);
+		if (hit) { facts.push(hit.fact); continue; }
+		try {
+			const html = await fetchText(row.url, { mode: "proxy", referer: ns_longhun_LIST_URL, signal });
+			const fact = ns_longhun_detailOf(html, tz);
+			ns_longhun_detailCache.set(row.id, { at: now, fact });
+			parsed++;
+			facts.push(fact);
+		} catch (e) {
+			if (!firstErr) firstErr = e;
+		}
+	}
+	if (parsed === 0 && firstErr) throw firstErr;
+	return facts;
+}
+// 轮内共享（`fetchRoundSeqOf`）：卡池侧先跑、活动侧后跑，同一轮只采集一次
+function ns_longhun_collectInRound(url, signal, tz, now) {
+	const round = fetchRoundActive() ? fetchRoundSeqOf() : -1;
+	if (round > 0 && ns_longhun_roundCache.round === round && ns_longhun_roundCache.promise) return ns_longhun_roundCache.promise;
+	const promise = ns_longhun_collect(url, signal, tz, now);
+	if (round > 0) {
+		ns_longhun_roundCache = { round, promise };
+		promise.catch(() => { if (ns_longhun_roundCache.promise === promise) ns_longhun_roundCache = { round: -1, promise: null }; });
+	}
+	return promise;
+}
+async function ns_longhun_gacha(url, signal, tz = ns_longhun_TZ, now = nowMs()) {
+	const facts = await ns_longhun_collectInRound(url, signal, tz, now);
+	const items = [];
+	for (const fact of facts) for (const it of ns_longhun_poolItemsOf(fact)) items.push(Object.assign({}, it, { _i: items.length }));
+	if (items.length === 0) return null;                       // 没有带窗口的卡池公告 ⇒ 未公布（不是失败）
+	return ns_bwiki_batchGachaPayloadOf(items, tz, now, { id: "longhun" });
+}
+async function ns_longhun_events(url, signal, tz = ns_longhun_TZ, now = nowMs()) {
+	const facts = await ns_longhun_collectInRound(url, signal, tz, now);
+	const items = [];
+	for (const fact of facts) for (const it of ns_longhun_eventItemsOf(fact)) items.push(Object.assign({}, it, { _i: items.length }));
+	if (items.length === 0) return null;
+	return ns_bwiki_eventPayload(items, tz, now, 0, "longhun");
+}
+//#endregion
+
+//#region ⑤ 条目登记
+// 卡池与活动**同一条 JSON 索引**（`eventUrl` 与 `url` 相同）⇒ 两侧标签逐字「官网公告」。
+registerSource({
+	id: "longhun",
+	defaultHidden: false,
+	tz: ns_longhun_TZ,
+	name: "龙魂旅人",
+	icon: "https://media.zlongame.com/media/pictures/cn/lhlr/img/fav.png",
+	url: ns_longhun_LIST_URL,
+	source: ns_longhun_SOURCE_LABEL,
+	eventUrl: ns_longhun_LIST_URL,
+	eventSource: ns_longhun_SOURCE_LABEL
+});
+GACHA_FETCHERS["longhun"] = (url, signal, tz, now) => ns_longhun_gacha(url, signal, tz, now);
+EVENT_FETCHERS["longhun"] = Object.assign(EVENT_FETCHERS["longhun"] || {}, {
+	default: (url, signal, tz, now) => ns_longhun_events(url, signal, tz, now)
+});
+//#endregion
+
+// src/client/30-game-nikki4.js —— 闪耀暖暖·国服（官网「资讯快报」：卡池 + 活动**同源**）
+//
+// ── 落点 ────────────────────────────────────────────────────────────────────────
+// 厂商级文件（`30-game-*` 家族）：唯一来源 `id:"nikki4"`，卡池侧与活动侧**共用官网首页那份
+// `__NEXT_DATA__`**（详情按 id 缓存），标签逐字「官网公告」。时区 `Asia/Shanghai`。
+//
+// ── ① 站点形态（2026-11-15 实测；夹具 test/fixtures/nikki4-home + nikki4-detail-{102568,102571,102574,102582,102583}）──
+//   列表 `GET https://nikki4.papegames.cn/`（Next.js SSG）
+//     200 / 48,203 B / **服务端渲染**，数据在 `<script id="__NEXT_DATA__">` 的
+//     `props.pageProps.pageData.newsbanner`：**4 条**（编辑精选的 4 格，不是时间序）——
+//     每条 `{ id, title, info:"https://nikki4.papegames.cn/news/{新闻id}?utm_source", stime }`。
+//     ⚠️ 数组元素自己的 `id`（8/9/6/10）是**栏目格子 id**、不是新闻 id；新闻 id 只能从 `info` 里取
+//        （`/news/102583`）。`stime` 也不是新闻发布时间（与详情页 `publish_time` 差好几个月）⇒ 只用来兜底。
+//     ⚠️ 响应**没有 `Access-Control-Allow-Origin`**（带 `Origin: dsh-app://dsh` 再测也是空）
+//        ⇒ 浏览器直连必被 CORS 拦，**必须走宿主代理**（域名已登记 `src/index.js` 的 PROXY_ALLOW_HOSTS）。
+//   详情 `GET https://nikki4.papegames.cn/news/{id}`（同样 Next.js）
+//     200 / 37~39 KB / 数据在 `__NEXT_DATA__` 的 `props.pageProps.pageData`：
+//     `{ title, publish_time:"YYYY-MM-DD HH:MM:SS", id, section, content_html, prev_id, next_id }`。
+//     `content_html` 是**每段一个 `<p>`**（不是 Word 富文本那种一字一 `<span>`），行切法稳定。
+//     ⚠️ 不存在的 id 回 200 + **骨架页**（`pageData` 为空）：实测 102588+ 都是这种 ⇒ 视作「结构变了」抛。
+//   ⚠️ `/api/news` 是 404（实测），**别走 API**；`/newslist` 也只是一页同样的 4 条精选。
+//
+// ── ② 档期写法（实测 5 篇）────────────────────────────────────────────────────────
+//   `🎁活动时间：` ⏎ `11月5日更新后-11月18日23:59`                     ← 锚点与档期**分两行**（102583）
+//   `❤️活动时间：11月5日更新后-11月18日23:59`                          ← 同行（102574）
+//   `⭐第42册【时尚提升计划】活动时间：2026年11月16日5:00-2027年1月17日 23:59` ← 两端绝对时刻 + 跨年（102582）
+//   `活动时间&兑换时间：11月5日更新后-11月18日23:59`                    ← 锚点带 `&兑换时间` 尾巴
+//   ⚠️ 只认下面这几条锚点：`活动时间` / `感应时间` / `阁时间`（任务口径点名「活动时间/阁时间」）。
+//      `兑换时间` / `秀场兑换时间` / `预购时间` / `正式开售` **不是**活动本体档期，不单独成条
+//      （`活动时间&兑换时间：…` 这种合写仍按「活动时间」那条读）。
+//   ⚠️ `X月X日更新后长期开放`（没有终点）/ 只有「11月5日更新后，…即将开启」这种**叙述句**（没有终点）
+//      都构不成窗口 ⇒ 0 条（不硬凑）。
+//
+// ── ③ 「更新后」怎么锚定（唯一一处钟点推定，用户 2026-11-09 口径：钟点直接锚定，不去解析维护公告）──
+//   闪暖的档期起点大量写成「**M月D日更新后**」——日期明确、时分不给。按仓库既有口径
+//   （`23-parser-time.js` 的 `anchorStartOf`：「有日期（带不带『版本更新后』都一样）⇒ 该日 anchorHour:00」），
+//   本文件锚定 **当日 09:30**（+08）：官方维护公告的固定写法是「将于 M月D日 **04:00-09:30** 进行维护更新」、
+//   完成公告写「已于 M月D日 **9:30** 完成停服维护更新」⇒「更新后」= 09:30。
+//   依据（两处官方口径，2026-07 与 2026-05 的公告都这么写）：
+//     · 国服维护公告（微信公众号）「7月9日 04:00-09:30 进行维护更新」；
+//     · 台服官网同款公告「將於 3月4日 **04:00-09:30** 進行維護更新」。
+//   ⇒ 这不是"猜一个钟点"：它是维护公告给的**结束时刻**，只是没写在这一篇正文里。
+//   ⚠️ 这样锚定后，「更新后」条目**能进外显**，但 `raw` 保留源站原文（悬停照旧显示「11月5日更新后 ~ …」），
+//      所以"钟点是我们锚的"这层信息不会丢（见 `hoverWindowTextOf` 的相对表述分支）。
+//   ⚠️ 两端都写绝对时刻的（102582）**不做任何锚定**，原样解析。
+//
+// ── ④ 请求预算（用户口径：列表 1 + 新详情，详情按 id 缓存 TTL 24h，已结束不再取）──────────
+//   第 1 轮 = 列表 1 次 + 最多 4 篇详情（首页精选一共 4 条 ⇒ `ns_nikki4_MAX_DETAILS = 4`）⇒ 实测 5 次。
+//   稳态 = 1 次（只列表；详情按 id 缓存 24h，且**窗口全都结束过的详情永不重取**）。
+//   两侧**共用同一次采集**（轮内 promise 缓存，与 longhun / wxnn 同一套）。
+//
+// ── ⑤ 失败语义（与全仓一致）──────────────────────────────────────────────────────
+//   · HTTP 非 2xx ⇒ 抛（`fetchText` 自己抛 `http-…`）；
+//   · 列表结构变了（没有 `__NEXT_DATA__` / 没有 `pageData.newsbanner` / 一条新闻 id 都取不到）⇒ **抛**
+//     （`nikki4-list-changed:*`）；
+//   · 详情结构变了（没有 `__NEXT_DATA__` / 没有 `pageData` / 标题与正文都空）⇒ **抛**
+//     （`nikki4-detail-changed:*`；`{}` / 空串 / 不存在的 id 的骨架页都落这里）；
+//   · 正文正常但没有锚点、或锚点两端不齐 ⇒ 这一篇 0 个窗口（**不抛、也不硬凑**）；
+//   · 详情全部失败且一条都没解析出来 ⇒ 抛第一篇的错（抓取失败 ≠ 未公布）；
+//   · 解出来了但没有窗口覆盖 now ⇒ `null`（未公布，不硬凑过期档期）。
+//
+// ── ⑥ 卡池 / 活动怎么分 ───────────────────────────────────────────────────────────
+//   锚点本身是 `阁时间` / `感应时间` ⇒ 卡池；否则看「锚点行前缀 + 名字」里有没有
+//   `套装 | 感应 | 阁 | 幻之海 | 流光 | 抽` ⇒ 卡池，有 `累充 | 福利 | 活动 | 计划 | 赛季 | 家园`
+//   ⇒ 活动；两边都不沾 ⇒ **归活动**（宁可放活动列，也不假装卡池）。
+//
+// ── ⑦ 当期现状（2026-11-15 实测）──────────────────────────────────────────────────
+//   首页精选 4 条 = 102568（概念PV，无锚点）/ 102571（套装预告，只有起点）/ 102574（限定累充福利）/
+//   102583（「改造吧！PP游戏！」福利活动）；后两篇的档期都是 `11月5日更新后-11月18日23:59`
+//   ⇒ 活动侧在期（锚定 11-05 09:30 ~ 11-18 23:59）；**卡池侧当日 null**（精选里没有「限时感应/幻之海」帖）。
+//   时区 = `Asia/Shanghai`（国服墙钟）。
+
+//#region ① 常量
+const ns_nikki4_TZ = "Asia/Shanghai";
+const ns_nikki4_LIST_URL = "https://nikki4.papegames.cn/";
+const ns_nikki4_DETAIL_BASE = "https://nikki4.papegames.cn/news/";
+const ns_nikki4_SOURCE_LABEL = "官网公告";
+const ns_nikki4_ICON = "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/e0/fb/00/e0fb0062-4bbc-423f-2c1c-e1cefbd0399f/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg";
+// 首页精选一共 4 条 ⇒ 每轮最多取 4 篇详情（见文件头 ④）
+const ns_nikki4_MAX_DETAILS = 4;
+// 详情解析结果缓存 TTL = 24h（按 id 缓存；换公告不会串）
+const ns_nikki4_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+// 「更新后」的钟点锚（当日 09:30 +08；依据见文件头 ③）
+const ns_nikki4_UPDATE_ANCHOR = { h: 9, mi: 30 };
+const ns_nikki4_NEXT_DATA_RE = /<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/;
+const ns_nikki4_SCRIPT_RE = /<script[\s\S]*?<\/script>/gi;
+const ns_nikki4_BLOCK_END_RE = /<\/(?:p|div|li|ul|ol|h[1-6]|tr|td|table|section|blockquote)>/gi;
+// 锚点行：`<前缀>活动时间[&兑换时间]：<值>`（值可同行或下一行）
+const ns_nikki4_ANCHOR_RE = /^(.*?)(阁时间|感应时间|活动时间)\s*(?:[&＆]\s*(?:兑换时间|兑换))?\s*[：:]\s*(.*)$/;
+// 档期：两端都必须是「[YYYY年]M月D日 + (H:MM | 更新后)」，但**终点不允许是「更新后」**
+const ns_nikki4_WINDOW_RE = new RegExp(
+	String.raw`^(?:(\d{4})\s*年\s*)?(\d{1,2})\s*月\s*(\d{1,2})\s*日\s*(?:(\d{1,2})\s*[:：]\s*(\d{2})|(更新后))\s*`
+	+ String.raw`[-~～—–－至到]\s*`
+	+ String.raw`(?:(\d{4})\s*年\s*)?(\d{1,2})\s*月\s*(\d{1,2})\s*日\s*(\d{1,2})\s*[:：]\s*(\d{2})(?:\s*[（(][^）)]*[）)])?$`
+);
+// 时区后缀（`(UTC+8)` / `（服务器时间）`）—— 剥掉，不进悬停
+const ns_nikki4_SUFFIX_RE = /[\s]*[（(]\s*(?:UTC\s*\+\s*8|GMT\s*\+\s*8|服务器时间)\s*[）)]\s*$/i;
+// 归属关键词（见文件头 ⑥）：
+// ⚠️ `套装` **不算**卡池信号 —— 累充/福利活动的标题里常写「稀有套装…」（实测 102574 就是这种情况，
+//    第一版把它误判成卡池）。只认真正的「阁/感应」词，其余**默认活动**。
+const ns_nikki4_GACHA_RE = /感应|感應|阁|閣|幻之海|流光|抽/;
+const ns_nikki4_EVENT_RE = /累充|福利|活动|活動|计划|計劃|赛季|賽季|家园|家園|礼包|禮包/;
+// 标题尾巴（`| 11月5日更新` / `| 11月16日上线`）与栏目前缀（`【福利活动】`）
+const ns_nikki4_TITLE_TAIL_RE = /\s*[|｜]\s*[^|｜]{0,24}$/;
+const ns_nikki4_TITLE_HEAD_RE = /^【[^】]{1,20}】\s*/;
+// 名字行里的名字（`参与【改造吧！PP游戏！】福利活动` / `「…」`）
+const ns_nikki4_BRACKET_RE = /【([^】]{1,30})】|「([^」]{1,30})」/;
+//#endregion
+
+//#region ② 纯解析：列表
+// Next.js 页面 → `__NEXT_DATA__` 的 JSON；没有 marker / JSON 坏 ⇒ null（调用方按结构变了抛）
+function ns_nikki4_nextDataOf(html) {
+	const m = ns_nikki4_NEXT_DATA_RE.exec(String(html == null ? "" : html));
+	if (!m) return null;
+	try { return JSON.parse(m[1]); } catch { return null; }
+}
+// 新闻发布时间 `2026-11-01 21:23:29` → 绝对毫秒（按条目 tz 解释墙钟）；读不出 ⇒ 0
+function ns_nikki4_publishTsOf(v, tz = ns_nikki4_TZ) {
+	const m = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s](\d{1,2}):(\d{2}))?/.exec(String(v == null ? "" : v).trim());
+	if (!m) return 0;
+	return sourceInstant(Number(m[1]), Number(m[2]), Number(m[3]), m[4] != null ? Number(m[4]) : 0, m[5] != null ? Number(m[5]) : 0, tz);
+}
+// 新闻 id 只能从 `info` 的 `/news/{id}` 里取（数组元素自己的 id 是栏目格子 id，见文件头 ①）
+function ns_nikki4_newsIdOf(info) {
+	const m = /\/news\/(\d+)/.exec(String(info == null ? "" : info));
+	return m ? m[1] : "";
+}
+// 首页 → `[{ id, title, url, publishTs }]`，按新闻 id 倒序（= 越新越靠前；精选格子的顺序是编辑排的）。
+// **结构变了要抛**：没有 `__NEXT_DATA__` / 没有 `pageData.newsbanner` / 一条新闻 id 都没有。
+function ns_nikki4_homeOf(html, tz = ns_nikki4_TZ) {
+	const j = ns_nikki4_nextDataOf(html);
+	if (!j) throw new Error("nikki4-list-changed:no-next-data");
+	const pd = j.props && j.props.pageProps && j.props.pageProps.pageData;
+	if (!pd || typeof pd !== "object") throw new Error("nikki4-list-changed:no-page-data");
+	const list = Array.isArray(pd.newsbanner) ? pd.newsbanner : null;
+	if (list == null) throw new Error("nikki4-list-changed:no-newsbanner");
+	const out = [];
+	for (const it of list) {
+		if (!it || typeof it !== "object") continue;
+		const id = ns_nikki4_newsIdOf(it.info);
+		if (!id) continue;
+		out.push({
+			id,
+			title: htmlTextTight(it.title == null ? "" : it.title),
+			url: ns_nikki4_DETAIL_BASE + id,
+			publishTs: ns_nikki4_publishTsOf(it.stime, tz)
+		});
+	}
+	if (out.length === 0) throw new Error("nikki4-list-changed:no-news");
+	return out.sort((x, y) => Number(y.id) - Number(x.id));
+}
+//#endregion
+
+//#region ③ 纯解析：详情（正文行 → 锚点 → 条目事实）
+// 详情页 → `pageData`（`{ title, publishTs, id, contentHtml }`）。
+// **结构变了要抛**：没有 `__NEXT_DATA__` / 没有 `pageData` / 标题与正文都空（不存在的 id 的骨架页）。
+function ns_nikki4_pageOf(html, tz = ns_nikki4_TZ) {
+	const j = ns_nikki4_nextDataOf(html);
+	if (!j) throw new Error("nikki4-detail-changed:no-next-data");
+	const pd = j.props && j.props.pageProps && j.props.pageProps.pageData;
+	if (!pd || typeof pd !== "object") throw new Error("nikki4-detail-changed:no-page-data");
+	const title = htmlTextTight(pd.title == null ? "" : pd.title);
+	const contentHtml = String(pd.content_html == null ? "" : pd.content_html);
+	if (!title && contentHtml.trim() === "") throw new Error("nikki4-detail-changed:empty-page");
+	return { id: pd.id, title, publishTs: ns_nikki4_publishTsOf(pd.publish_time, tz), contentHtml };
+}
+// `content_html` → 行数组（`<br>` / 块级收尾当行边界，实体解一遍）
+function ns_nikki4_linesOf(contentHtml) {
+	const html = String(contentHtml == null ? "" : contentHtml)
+		.replace(ns_nikki4_SCRIPT_RE, " ")
+		.replace(/<br\s*\/?>/gi, "\n")
+		.replace(ns_nikki4_BLOCK_END_RE, "\n");
+	return htmlText(html).split("\n").map((x) => x.replace(/\s+/g, " ").trim()).filter(Boolean);
+}
+// 一段档期 → `{ startTs, endTs, raw, rawOriginal, display }`；两端不齐 / 源站错行 ⇒ null（不硬凑）。
+// 「更新后」起点锚定当日 `ns_nikki4_UPDATE_ANCHOR`（见文件头 ③）。
+function ns_nikki4_windowOf(text, hint, tz = ns_nikki4_TZ) {
+	const s = String(text == null ? "" : text).replace(ns_nikki4_SUFFIX_RE, "").trim();
+	const m = ns_nikki4_WINDOW_RE.exec(s);
+	if (!m) return null;
+	const sm = Number(m[2]), sd = Number(m[3]);
+	const startY = inferYear(m[1] != null ? Number(m[1]) : null, sm, hint);
+	if (startY == null) return null;
+	const openStart = m[6] != null;
+	const startTs = openStart
+		? sourceInstant(startY, sm, sd, ns_nikki4_UPDATE_ANCHOR.h, ns_nikki4_UPDATE_ANCHOR.mi, tz)
+		: sourceInstant(startY, sm, sd, Number(m[4]), Number(m[5]), tz);
+	const em = Number(m[8]), ed = Number(m[9]);
+	const endY = m[7] != null ? Number(m[7]) : startY + (endsNextYear(sm, sd, em, ed) ? 1 : 0);
+	const endTs = sourceInstant(endY, em, ed, Number(m[10]), Number(m[11]), tz);
+	if (!(endTs > startTs)) return null;
+	const rawOriginal = s;
+	const raw = s.replace(/\s*[-~～—–－至到]\s*/, " ~ ");
+	return { startTs, endTs, raw, rawOriginal, display: fmtWindow(startTs, endTs, tz), openStart };
+}
+// 锚点行前缀 + 名字 → 归属（见文件头 ⑥）
+function ns_nikki4_kindOf(anchorWord, prefix, name) {
+	if (anchorWord === "阁时间" || anchorWord === "感应时间") return "gacha";
+	const hay = `${String(prefix == null ? "" : prefix)} ${String(name == null ? "" : name)}`;
+	if (ns_nikki4_GACHA_RE.test(hay)) return "gacha";
+	if (ns_nikki4_EVENT_RE.test(hay)) return "event";
+	return "event";
+}
+
+// 标题 → 可读名：剥栏目前缀 `【…】` 与尾巴 `| 11月5日更新`
+function ns_nikki4_titleNameOf(title) {
+	let s = String(title == null ? "" : title).replace(/\s+/g, " ").trim();
+	s = s.replace(ns_nikki4_TITLE_HEAD_RE, "").replace(ns_nikki4_TITLE_TAIL_RE, "").trim();
+	return s || String(title == null ? "" : title).trim();
+}
+// 窗口的名字：锚点行前缀里的 `【…】/「…」` 优先，其次往上 3 行里**带活动语境**的名字，最后退回标题派生。
+function ns_nikki4_nameOf(lines, at, prefix, title) {
+	const pre = ns_nikki4_BRACKET_RE.exec(String(prefix == null ? "" : prefix));
+	if (pre) return String(pre[1] || pre[2] || "").trim();
+	const list = Array.isArray(lines) ? lines : [];
+	for (let j = at - 1; j >= 0 && j >= at - 3; j--) {
+		const line = String(list[j] == null ? "" : list[j]);
+		if (!/活动|活動|感应|感應|开启|開啟|参与|參與|阁|閣/.test(line)) continue;
+		const m = ns_nikki4_BRACKET_RE.exec(line);
+		if (m) return String(m[1] || m[2] || "").trim();
+	}
+	return ns_nikki4_titleNameOf(title);
+}
+// 详情 → 事实 `{ id, title, publishTs, windows:[{ name, kind, startTs, endTs, raw, rawOriginal, display }] }`
+function ns_nikki4_factsOf(row, page, tz = ns_nikki4_TZ) {
+	const lines = ns_nikki4_linesOf(page.contentHtml);
+	const hint = page.publishTs ? sourceWallParts(page.publishTs, tz) : null;
+	const windows = [];
+	const seen = new Set();
+	for (let i = 0; i < lines.length; i++) {
+		const a = ns_nikki4_ANCHOR_RE.exec(lines[i]);
+		if (!a) continue;
+		const value = String(a[3] || "").trim() || lines[i + 1] || "";
+		const w = ns_nikki4_windowOf(value, hint, tz);
+		if (!w) continue;                                     // 只有一端 / 长期开放 ⇒ 不是窗口（不硬凑）
+		const name = ns_nikki4_nameOf(lines, i, a[1], page.title || row.title);
+		if (!name) continue;
+		const kind = ns_nikki4_kindOf(a[2], a[1], name);
+		const key = `${kind}|${w.startTs}|${w.endTs}|${name}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		windows.push({ name, kind, startTs: w.startTs, endTs: w.endTs, raw: w.raw, rawOriginal: w.rawOriginal, display: w.display, openStart: w.openStart });
+	}
+	return { id: row.id, title: page.title || row.title, publishTs: page.publishTs || row.publishTs, windows };
+}
+// 事实 → 卡池条目事实（池名 = 窗口名；roles 留空 —— 源站没有「池名：角色」的分离写法）
+function ns_nikki4_poolItemsOf(fact) {
+	const items = [];
+	for (const w of fact && Array.isArray(fact.windows) ? fact.windows : []) {
+		if (w.kind !== "gacha") continue;
+		items.push({ _i: items.length, banner: w.name, roles: "", startTs: w.startTs, endTs: w.endTs, raw: w.raw, display: w.display, isMain: true });
+	}
+	return items;
+}
+// 事实 → 活动条目事实
+function ns_nikki4_eventItemsOf(fact) {
+	const items = [];
+	for (const w of fact && Array.isArray(fact.windows) ? fact.windows : []) {
+		if (w.kind !== "event") continue;
+		items.push({ _i: items.length, event: w.name, category: "", startTs: w.startTs, endTs: w.endTs, raw: w.raw, display: w.display });
+	}
+	return items;
+}
+//#endregion
+
+//#region ④ 抓取器（契约：async (url, signal, tz, now = nowMs()) → 数据对象 | null）
+// 缓存两级：详情按 id（TTL 24h；**窗口全都结束过的详情永不重取**）+ 轮内共享同一份采集 promise。
+let ns_nikki4_detailCache = new Map();        // id → { at, fact }
+let ns_nikki4_roundCache = { round: -1, promise: null };
+function ns_nikki4_resetCache() { ns_nikki4_detailCache = new Map(); ns_nikki4_roundCache = { round: -1, promise: null }; }
+function ns_nikki4_sealedOf(fact, now) {
+	const all = fact && Array.isArray(fact.windows) ? fact.windows : [];
+	if (all.length === 0) return true;
+	return all.every((w) => w.endTs != null && w.endTs < now);
+}
+function ns_nikki4_cachedOf(id, now) {
+	const hit = ns_nikki4_detailCache.get(id);
+	if (!hit) return null;
+	if (ns_nikki4_sealedOf(hit.fact, now)) return hit;
+	return now - hit.at < ns_nikki4_CACHE_TTL_MS ? hit : null;
+}
+// 首页 → 详情 → 事实数组。详情全部失败且一条都没解析出来 ⇒ 抛（抓取失败 ≠ 未公布）。
+async function ns_nikki4_collect(url, signal, tz, now) {
+	const listUrl = String(url == null ? "" : url).trim() || ns_nikki4_LIST_URL;
+	const rows = ns_nikki4_homeOf(await fetchText(listUrl, { mode: "proxy", referer: ns_nikki4_LIST_URL, signal }), tz);
+	const facts = [];
+	let firstErr = null, parsed = 0;
+	for (const row of rows.slice(0, ns_nikki4_MAX_DETAILS)) {
+		const hit = ns_nikki4_cachedOf(row.id, now);
+		if (hit) { facts.push(hit.fact); continue; }
+		try {
+			const page = ns_nikki4_pageOf(await fetchText(row.url, { mode: "proxy", referer: ns_nikki4_LIST_URL, signal }), tz);
+			const fact = ns_nikki4_factsOf(row, page, tz);
+			ns_nikki4_detailCache.set(row.id, { at: now, fact });
+			parsed++;
+			facts.push(fact);
+		} catch (e) {
+			if (!firstErr) firstErr = e;
+		}
+	}
+	if (parsed === 0 && firstErr) throw firstErr;
+	return facts;
+}
+function ns_nikki4_collectInRound(url, signal, tz, now) {
+	const round = fetchRoundActive() ? fetchRoundSeqOf() : -1;
+	if (round > 0 && ns_nikki4_roundCache.round === round && ns_nikki4_roundCache.promise) return ns_nikki4_roundCache.promise;
+	const promise = ns_nikki4_collect(url, signal, tz, now);
+	if (round > 0) {
+		ns_nikki4_roundCache = { round, promise };
+		promise.catch(() => { if (ns_nikki4_roundCache.promise === promise) ns_nikki4_roundCache = { round: -1, promise: null }; });
+	}
+	return promise;
+}
+async function ns_nikki4_gacha(url, signal, tz = ns_nikki4_TZ, now = nowMs()) {
+	const facts = await ns_nikki4_collectInRound(url, signal, tz, now);
+	const items = [];
+	for (const fact of facts) for (const it of ns_nikki4_poolItemsOf(fact)) items.push(Object.assign({}, it, { _i: items.length }));
+	if (items.length === 0) return null;                       // 精选里没有带窗口的「阁/感应」帖 ⇒ 未公布
+	return ns_bwiki_batchGachaPayloadOf(items, tz, now, { id: "nikki4" });
+}
+async function ns_nikki4_events(url, signal, tz = ns_nikki4_TZ, now = nowMs()) {
+	const facts = await ns_nikki4_collectInRound(url, signal, tz, now);
+	const items = [];
+	for (const fact of facts) for (const it of ns_nikki4_eventItemsOf(fact)) items.push(Object.assign({}, it, { _i: items.length }));
+	if (items.length === 0) return null;
+	return ns_bwiki_eventPayload(items, tz, now, 0, "nikki4");
+}
+//#endregion
+
+//#region ⑤ 条目登记
+// 卡池与活动**同一条首页 URL**（`eventUrl` 与 `url` 相同）⇒ 两侧标签逐字「官网公告」。
+registerSource({
+	id: "nikki4",
+	defaultHidden: false,
+	tz: ns_nikki4_TZ,
+	name: "闪耀暖暖",
+	icon: ns_nikki4_ICON,
+	url: ns_nikki4_LIST_URL,
+	source: ns_nikki4_SOURCE_LABEL,
+	eventUrl: ns_nikki4_LIST_URL,
+	eventSource: ns_nikki4_SOURCE_LABEL
+});
+GACHA_FETCHERS["nikki4"] = (url, signal, tz, now) => ns_nikki4_gacha(url, signal, tz, now);
+EVENT_FETCHERS["nikki4"] = Object.assign(EVENT_FETCHERS["nikki4"] || {}, {
+	default: (url, signal, tz, now) => ns_nikki4_events(url, signal, tz, now)
+});
+//#endregion
+
+// src/client/30-game-idolmaster.js —— アイドルマスター（偶像大师）系列 4 款（2026-11-15 接入）
+//
+//   学園アイドルマスター（gakumas） / シャイニーカラーズ（shinycolors） /
+//   ミリオンライブ！シアターデイズ（millisita） / シンデレラガールズ スターライトステージ（deresute）
+//   全部日服，tz = Asia/Tokyo（JST，无夏令时）；每款一个条目，卡池 + 活动**两侧**都接。
+//
+// ── 先说结论：为什么默认源不是官网公告 ────────────────────────────────────────
+//   四款的「官网」都实测过（2026-11-15，均为 HTTP 200）：
+//     · gakuen.idolmaster-official.jp            —— WordPress。`wp-json/wp/v2/posts` 只有 11 条
+//       媒体素材（fankit / comic 页面），没有游戏内公告；`/news/` 直接回落到首页。
+//     · shinycolors.idolmaster-official.jp       —— 纯静态宣传站（story / idol / movie 链接），
+//       没有 news 路径（旧域 shinycolors.idolmaster.jp/news/ 301 到首页；robots.txt 403）。
+//     · millionlive-theaterdays.idolmaster-official.jp —— 同款静态宣传站，`/news/` 是 404。
+//     · cinderellagirls.idolmaster-official.jp   —— WordPress。`news` 自定义 post type 是
+//       **ポータル新闻的镜像**（列表项直接外链 `idolmaster-official.jp/news/01_xxxxx`），
+//       `event` post type 是线下活动（xR LIVE / 联名咖啡），不是游戏内。
+//   系列统一新闻/日程在 `idolmaster-official.jp` 的 CMS API（Next.js；`/sitern/api/cmsbase/Token/get`
+//   → `/sitern/api/idolmaster/Article/list`）。逐 brand 实测：
+//     · `category:["SCHEDULE"]` 的 `article_list[]` 有 `title` + `event_startdate`/`event_enddate`
+//       （官方、含时刻），但内容是**线下**联动/物贩/生放送/radio；全年 `subcategory:["GAME"]`
+//       每 brand 只有 2~10 条且全是生放送（GAKUEN 全年 2 条，都是 #APラウンジ 配信）。
+//     · `category:["NEWS"]` 是物贩/直播/联动公告。**仅ミリシタ**例外：GAME 子类里有
+//       「期間限定イベント…を開催中！」（活动名 + 结束时刻），但起点写「開催中」⇒ 起点未知，
+//       按仓库口径（起点未知不进外显）构不成可用窗口。其余三款的卡池/活动只发在**游戏内**
+//       （アプリ内お知らせ），网页没有。
+//   ⇒ 官方站拿不到「游戏内卡池/活动 + 起止」。按「某款找不到源就不做该款」本来四款都该放弃；
+//     但实测社区汇总站 **melonpapapapa-n.com** 的「イベント・ガシャ開催スケジュール一覧」四款都有
+//     逐条 `日程（起止到分） + 概要（名称）`，且卡池/活动分类明确（cat-gacha / cat-event），
+//     是这套系列**唯一**覆盖全部四款且起止到分的源（Game8 只有ガチャ履歴且只到日；GameWith
+//     没有对应页；官方ポータル没有游戏内日程）。所以四款都接它，来源标签逐字 =
+//     `melonpapapapa 総合カレンダー`（设置页可见；报告里也逐字列出）。
+//
+// ── 源（每款一个月份页；HTML）────────────────────────────────────────────────
+//   GET https://melonpapapapa-n.com/imas_{gm|sc|ml|cgss}_YYYYMM/
+//       200 / text/html; charset=UTF-8 / 620~730 KB（实测 2026-11-15）；**无 ACAO** ⇒ 走宿主代理。
+//       本款那份表：`<table class='imas-calendar-table simple-mode brand-<brand>'>`
+//       （brand class 见 IMAS_BRANDS），表头「日程 | 概要」，每行 `<tr class='calendar-row …'>`：
+//         · `<td class='cal-date'>` 里两个 `<div class='date-line start|end'>`，各含
+//           `<span class='d-text'>M/D</span>` + `<span class='t-text'>H:MM</span>`（JST 墙钟）；
+//         · `<td class='cal-content'>` 里 `<span class='event-badge cat-…'>` + 名称。
+//       cat-gacha ⇒ 卡池侧；cat-event ⇒ 活动侧；其余（ショップ / ログボ / メンテ / キャンペーン /
+//       ミッション / その他）**一律不进** —— 面板的「活动」列是游戏内活动，不是商店/登录奖励。
+//
+// ── 请求数（每款）────────────────────────────────────────────────────────────
+//   月份页 **1 次**（当月）。两种情况下会多抓**上一月页**（合计 2 次）：
+//     ① 当月页两侧都没有覆盖 now 的条目（月初 —— 跨月池/活动只在上一月页里带完整起点，
+//        例如 10/28~11/6）；
+//     ② 当月页还没发布 / 取不到（月初页面可能尚未建好）⇒ 直接用上一月页兜底；
+//        两个都取不到才抛。
+//   ⇒ 稳态 1 次，月初那几天 2 次。卡池与活动同一条地址、一次抓取同时产出两侧字段 ⇒ 轮内只抓一次
+//   （round cache，同 wxnn）。没有详情请求、没有详情缓存。
+//
+// ── 失败语义 ────────────────────────────────────────────────────────────────
+//   · 找不到本款表 ⇒ 抛 `imas-<brand>-no-table`（结构变了，不是「未公布」）；
+//   · 表在、也有 cat-gacha/cat-event 行，但一条窗口都拼不出来 ⇒ 抛 `imas-<brand>-rows-changed`
+//     （日期锚点结构变了 —— 绝不静默成「本期没有卡池」）；
+//   · 当月页没覆盖 + 上月页取不到 ⇒ 只用当月页（跨月补抓只是优化，不是腿）→ 无覆盖 ⇒ null；
+//   · 当月页取不到 + 上月页也取不到 ⇒ 抛（真失败；用当月页那个错当原因）；
+//   · 有数据但没有覆盖 now 的 ⇒ null（未公布）。
+//
+// ── 口径 ────────────────────────────────────────────────────────────────────
+//   · 条目事实 `{ name, startTs, endTs, raw }`；raw = 源站原样的 `M/D H:MM ~ M/D H:MM`。
+//     startTs/endTs 由**该月份页的年份** + JST 墙钟换算（跨年走共用 `endsNextYear`）。
+//   · 一行脏数据（结束早于开始；实测 ml-202611 有一条 `11/14 13:00 -> 10/30 23:59`）⇒ 整行丢弃。
+//   · 卡池侧剔掉 cat-gacha 里被误分类的赠品（名称含「プレゼント」，实测 gm-202611 有一条
+//     「名刺背景…プレゼント」）；活动侧剔掉同一活动的「…折り返し期間」（下半场子区间，与正篇同窗、
+//     重复 —— 实测 ml-202610 的「プラチナスターチューン…折り返し期間」）。
+//   · 当期 = `coversNow`（两端都要明确）里**结束最早**的那条；悬停/数组 = `coveredOrOpen`，
+//     排序走共用 `poolHoverOrderOf` / `sortEventItems` —— 与仓库其它来源同一套判据，不另写。
+
+		// ── 常量 ──
+		const IMAS_TZ = "Asia/Tokyo";
+		const IMAS_ORIGIN = "https://melonpapapapa-n.com";
+		const IMAS_REFERER = "https://melonpapapapa-n.com/";
+		const IMAS_SOURCE_LABEL = "melonpapapapa 総合カレンダー";
+		// cat-gacha 里的赠品（不是池）。实测只有 1 条，但进悬停会让人以为它是池。
+		const IMAS_GACHA_SKIP_RE = /プレゼント/;
+		// cat-event 里的下半场子区间（同一活动重复一段，且与正篇同窗）。
+		const IMAS_EVENT_SKIP_RE = /折り返し期間\s*$/;
+
+		// 四款的 slug（月份页路径前缀）+ 表里的 brand class（`brand-<cls>`）+ 面板名（日文原名）
+		const IMAS_BRANDS = {
+			gakumas: { slug: "imas_gm", cls: "brand-gakumasu", name: "学園アイドルマスター" },
+			shinycolors: { slug: "imas_sc", cls: "brand-shanimas", name: "シャイニーカラーズ" },
+			millisita: { slug: "imas_ml", cls: "brand-mirishita", name: "ミリオンライブ！シアターデイズ" },
+			deresute: { slug: "imas_cgss", cls: "brand-deresute", name: "アイドルマスター シンデレラガールズ スターライトステージ" }
+		};
+
+		const IMAS_ROW_RE = /<tr class='calendar-row[\s\S]*?<\/tr>/g;
+		const IMAS_START_BLOCK_RE = /<div class='date-line start'>([\s\S]*?)<\/div>/;
+		const IMAS_END_BLOCK_RE = /<div class='date-line end'>([\s\S]*?)<\/div>/;
+		const IMAS_DTEXT_RE = /<span class='d-text'>([^<]*)<\/span>/;
+		const IMAS_TTEXT_RE = /<span class='t-text'>([^<]*)<\/span>/;
+		const IMAS_BADGE_RE = /event-badge (cat-[\w-]+)[^>]*>([^<]*)</;
+		const IMAS_TITLE_RE = /<span class='title-simple'>([\s\S]*?)<\/span>/;
+		const IMAS_MD_RE = /^(\d{1,2})\/(\d{1,2})$/;
+		const IMAS_HM_RE = /^(\d{1,2}):(\d{2})$/;
+
+		// 轮内缓存：brand → { seq, promise }（卡池/活动两侧同一轮只抓一次）
+		const IMAS_ROUND_CACHE = {};
+
+		// ── 月份页地址 ──
+		function imasMonthUrlOf(slug, year, mo) {
+			return IMAS_ORIGIN + "/" + slug + "_" + year + String(mo).padStart(2, "0") + "/";
+		}
+
+		// 上一个自然月（1 月 → 上一年 12 月）
+		function imasPrevMonthOf(year, mo) {
+			return mo <= 1 ? { y: year - 1, mo: 12 } : { y: year, mo: mo - 1 };
+		}
+
+		// **注册用**地址：引擎创建那一刻的当月页（真实存在、可点开；抓取器自己按 now 现算月份，不读它）
+		function imasMonthUrlNow(brandKey) {
+			const w = sourceWallParts(nowMs(), IMAS_TZ);
+			return imasMonthUrlOf(IMAS_BRANDS[brandKey].slug, w.y, w.mo);
+		}
+
+		// ── 页面 → 本款表 ──
+		function imasTableOf(html, brandKey) {
+			const brand = IMAS_BRANDS[brandKey];
+			if (!brand) return "";
+			const re = new RegExp("<table class='imas-calendar-table[^']*" + brand.cls + "[^']*'>[\\s\\S]*?</table>");
+			const m = re.exec(String(html == null ? "" : html));
+			return m ? m[0] : "";
+		}
+
+		// ── 行内小字段 ──
+		function imasMonthDayOf(text) {
+			const m = IMAS_MD_RE.exec(String(text == null ? "" : text).trim());
+			return m ? { mo: Number(m[1]), d: Number(m[2]) } : null;
+		}
+
+		function imasClockOf(text) {
+			const m = IMAS_HM_RE.exec(String(text == null ? "" : text).trim());
+			return m ? { h: Number(m[1]), mi: Number(m[2]) } : null;
+		}
+
+		/** 一个 `date-line` 块 → `{ mo, d, h, mi }`；缺日期或时刻 ⇒ null（无锚点就不产出条目）。 */
+		function imasDateOf(block) {
+			if (!block) return null;
+			const day = imasMonthDayOf((IMAS_DTEXT_RE.exec(block) || [])[1]);
+			const clock = imasClockOf((IMAS_TTEXT_RE.exec(block) || [])[1]);
+			if (!day || !clock) return null;
+			return { mo: day.mo, d: day.d, h: clock.h, mi: clock.mi };
+		}
+
+		/** 两端墙钟 → `{ startTs, endTs, raw }`；任一端缺 / 脏数据（结束早于开始）⇒ null。 */
+		function imasWindowOf(start, end, year, tz) {
+			if (!start || !end) return null;
+			const rollover = endsNextYear(start.mo, start.d, end.mo, end.d);
+			// 真正的跨年只可能出现在「12 月页里的 12 月 → 次年 1 月」这一种（1 月页的跨月条目
+			// 起点是空的、会被上面丢掉；完整区间在 12 月页里）。其它「结束早于开始」都是源站脏行
+			//（实测 ml-202611 有一条 `11/14 13:00 -> 10/30 23:59`）—— 硬按 year+1 会变成 350 天窗口，
+			// 所以这里整行丢弃，比编一个假窗口诚实。
+			if (rollover && !(start.mo === 12 && end.mo === 1)) return null;
+			const startTs = sourceInstant(year, start.mo, start.d, start.h, start.mi, tz);
+			const endYear = rollover ? year + 1 : year;
+			const endTs = sourceInstant(endYear, end.mo, end.d, end.h, end.mi, tz);
+			if (!(endTs > startTs)) return null;
+			const hm = (x) => String(x.h).padStart(2, "0") + ":" + String(x.mi).padStart(2, "0");
+			return {
+				startTs,
+				endTs,
+				raw: start.mo + "/" + start.d + " " + hm(start) + " ~ " + end.mo + "/" + end.d + " " + hm(end)
+			};
+		}
+
+		/**
+		 * 本款表 → `{ gacha: [{ name, startTs, endTs, raw }], events: [...] }`。
+		 * year = 该月份页的年份（月份页 URL 里的 YYYY；不靠"本机今年"猜）。
+		 * · 无表 ⇒ 抛 `imas-<brand>-no-table`（抓取器里判，这里只管表内容）；
+		 * · 有 cat-gacha/cat-event 行却一条窗口都拼不出来 ⇒ 抛 `imas-<brand>-rows-changed`。
+		 */
+		function imasItemsFromTable(tableHtml, brandKey, year, tz) {
+			const out = { gacha: [], events: [] };
+			const rows = String(tableHtml == null ? "" : tableHtml).match(IMAS_ROW_RE) || [];
+			let eligible = 0;
+			for (const row of rows) {
+				const badge = IMAS_BADGE_RE.exec(row);
+				if (!badge) continue;
+				const isGacha = badge[1] === "cat-gacha";
+				const isEvent = badge[1] === "cat-event";
+				if (!isGacha && !isEvent) continue;               // ショップ/ログボ/メンテ…一律不进
+				const tm = IMAS_TITLE_RE.exec(row);
+				if (!tm) continue;
+				const name = htmlTextTight(tm[1]);
+				if (!name) continue;
+				eligible++;
+				if (isGacha && IMAS_GACHA_SKIP_RE.test(name)) continue;
+				if (isEvent && IMAS_EVENT_SKIP_RE.test(name)) continue;
+				const start = imasDateOf((IMAS_START_BLOCK_RE.exec(row) || [])[1]);
+				const end = imasDateOf((IMAS_END_BLOCK_RE.exec(row) || [])[1]);
+				const win = imasWindowOf(start, end, year, tz);
+				if (!win) continue;                               // 缺锚点 / 脏行 ⇒ 该条不产出
+				(isGacha ? out.gacha : out.events).push({ name, startTs: win.startTs, endTs: win.endTs, raw: win.raw });
+			}
+			if (eligible > 0 && out.gacha.length + out.events.length === 0) {
+				throw new Error("imas-" + brandKey + "-rows-changed");
+			}
+			return out;
+		}
+
+		// ── 抓取：当月页（必要时补上月页）──
+		function imasDedupeItems(items) {
+			const seen = new Set();
+			const out = [];
+			for (const x of Array.isArray(items) ? items : []) {
+				const key = x.name + "|" + x.startTs + "|" + x.endTs;
+				if (seen.has(key)) continue;
+				seen.add(key);
+				out.push(x);
+			}
+			return out;
+		}
+
+		function imasMergeItems(a, b) {
+			return {
+				gacha: imasDedupeItems([].concat((a && a.gacha) || [], (b && b.gacha) || [])),
+				events: imasDedupeItems([].concat((a && a.events) || [], (b && b.events) || []))
+			};
+		}
+
+		async function imasMonthItemsOf(brandKey, year, mo, tz) {
+			const url = imasMonthUrlOf(IMAS_BRANDS[brandKey].slug, year, mo);
+			const html = await proxyFetchText(url, IMAS_REFERER);
+			const table = imasTableOf(html, brandKey);
+			if (!table) throw new Error("imas-" + brandKey + "-no-table");   // 结构变了（不是"未公布"）
+			return imasItemsFromTable(table, brandKey, year, tz);
+		}
+
+		function imasCoversAny(items, now) {
+			return (Array.isArray(items) ? items : []).some((x) => coversNow(x, now));
+		}
+
+		async function imasCollect(brandKey, tz) {
+			const now = nowMs();
+			const wall = sourceWallParts(now, tz);
+			const prev = imasPrevMonthOf(wall.y, wall.mo);
+			let items = null;
+			let curErr = null;
+			try {
+				items = await imasMonthItemsOf(brandKey, wall.y, wall.mo, tz);
+			} catch (err) {
+				curErr = err;   // 当月页还没发布（月初）/ 结构变 —— 先记下，下面尝试上一月页
+			}
+			if (!items) {
+				// 结构错（`imas-*`）⇒ **立刻抛**，绝不拿上一月页掩盖「页面改版」；
+				// 只有"当月页还没发布 / 取不到"（传输层错）才用上一月页兜底。
+				if (curErr && /^imas-/.test(String(curErr.message || ""))) throw curErr;
+				// 当月页取不到 ⇒ 用上一月页兜底（跨月条目本来也只在上一月页里带完整起点）；
+				// 两个都取不到才抛（真失败，用当月页那个错当原因）。
+				try {
+					items = await imasMonthItemsOf(brandKey, prev.y, prev.mo, tz);
+				} catch (err2) {
+					throw curErr || err2;
+				}
+			} else if (!imasCoversAny(items.gacha, now) && !imasCoversAny(items.events, now)) {
+				// 当月页在、但两侧都没有覆盖 now 的条目 ⇒ 补抓上一月（跨月条目只在上一月页里
+				// 带完整起点）。上一月页取不到**不当整侧失败**：那只是优化没命中，本月页照用 → 无覆盖即 null。
+				try {
+					items = imasMergeItems(items, await imasMonthItemsOf(brandKey, prev.y, prev.mo, tz));
+				} catch { /* 跨月补抓失败 ⇒ 只用当月页 */ }
+			}
+			return items;
+		}
+
+		// 轮内复用：卡池侧那次抓完，活动侧直接拿同一个 promise（不重复发请求）。
+		function imasCollectInRound(brandKey, tz) {
+			const round = fetchRoundActive() ? fetchRoundSeqOf() : -1;
+			const hit = IMAS_ROUND_CACHE[brandKey];
+			if (round > 0 && hit && hit.seq === round) return hit.promise;
+			const promise = imasCollect(brandKey, tz);
+			if (round > 0) {
+				IMAS_ROUND_CACHE[brandKey] = { seq: round, promise };
+				promise.catch(() => {
+					const cur = IMAS_ROUND_CACHE[brandKey];
+					if (cur && cur.promise === promise) delete IMAS_ROUND_CACHE[brandKey];
+				});
+			}
+			return promise;
+		}
+
+		// ── 条目事实 → 载荷（与 wxnn 同一套：当期 → 悬停 → 数组收口）──
+		function imasSidePayloadOf(list, side, id, tz, now) {
+			const isGacha = side === "gacha";
+			const listed = (Array.isArray(list) ? list : []).filter((x) => coveredOrOpen(x, now));
+			const primary = listed.filter((x) => coversNow(x, now))
+				.sort((a, b) => (a.endTs - b.endTs) || (b.startTs - a.startTs))[0] || null;
+			if (!primary) return null;
+			const entries = isGacha ? listed.slice().sort(poolHoverOrderOf) : sortEventItems(listed);
+			const hoverItems = entries.map((x) => (isGacha
+				? { title: x.name, label: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }
+				: { title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
+			const out = {};
+			if (isGacha) {
+				out.banner = primary.name;
+				out.roles = "";
+				out.bannerDates = fmtWindow(primary.startTs, primary.endTs, tz);
+				out.bannerDatesRaw = primary.raw;
+				out.startTs = primary.startTs;
+				out.endTs = primary.endTs;
+			} else {
+				out.event = primary.name;
+				out.eventDates = fmtWindow(primary.startTs, primary.endTs, tz);
+				out.eventDatesRaw = primary.raw;
+			}
+			const hover = hoverTextFromItems(hoverItems, side, tz);
+			if (hover) {
+				if (isGacha) out.bannerHover = hover;
+				else out.eventHover = hover;
+			}
+			if (isGacha) {
+				out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id, tz }, now);
+				out.gachaHoverItems = hoverItems;
+			} else {
+				out.events = dataArrayProducedEventsOf(out, hoverItems, { id, tz }, now);
+				out.eventHoverItems = hoverItems;
+			}
+			return out;
+		}
+
+		async function imasFetchBrand(brandKey, tz) {
+			const tzUse = tz || IMAS_TZ;
+			const items = await imasCollectInRound(brandKey, tzUse);
+			const now = nowMs();
+			const g = imasSidePayloadOf(items.gacha, "gacha", brandKey, tzUse, now);
+			const e = imasSidePayloadOf(items.events, "event", brandKey, tzUse, now);
+			if (!g && !e) return null;
+			return Object.assign({}, g || {}, e || {});
+		}
+
+		const imasFetchGakumas = (url, signal, tz) => imasFetchBrand("gakumas", tz);
+		const imasFetchShinycolors = (url, signal, tz) => imasFetchBrand("shinycolors", tz);
+		const imasFetchMillisita = (url, signal, tz) => imasFetchBrand("millisita", tz);
+		const imasFetchDeresute = (url, signal, tz) => imasFetchBrand("deresute", tz);
+
+		// ── 条目（每款一个；卡池/活动两侧同一条月份页 ⇒ 一次抓取出两侧）──
+		registerSource({
+			id: "gakumas",
+			defaultHidden: false,
+			tz: IMAS_TZ,
+			name: IMAS_BRANDS.gakumas.name,
+			url: imasMonthUrlNow("gakumas"),
+			source: IMAS_SOURCE_LABEL,
+			eventUrl: imasMonthUrlNow("gakumas"),
+			eventSource: IMAS_SOURCE_LABEL
+		});
+
+		registerSource({
+			id: "shinycolors",
+			defaultHidden: false,
+			tz: IMAS_TZ,
+			name: IMAS_BRANDS.shinycolors.name,
+			url: imasMonthUrlNow("shinycolors"),
+			source: IMAS_SOURCE_LABEL,
+			eventUrl: imasMonthUrlNow("shinycolors"),
+			eventSource: IMAS_SOURCE_LABEL
+		});
+
+		registerSource({
+			id: "millisita",
+			defaultHidden: false,
+			tz: IMAS_TZ,
+			name: IMAS_BRANDS.millisita.name,
+			url: imasMonthUrlNow("millisita"),
+			source: IMAS_SOURCE_LABEL,
+			eventUrl: imasMonthUrlNow("millisita"),
+			eventSource: IMAS_SOURCE_LABEL
+		});
+
+		registerSource({
+			id: "deresute",
+			defaultHidden: false,
+			tz: IMAS_TZ,
+			name: IMAS_BRANDS.deresute.name,
+			url: imasMonthUrlNow("deresute"),
+			source: IMAS_SOURCE_LABEL,
+			eventUrl: imasMonthUrlNow("deresute"),
+			eventSource: IMAS_SOURCE_LABEL
+		});
+
+		GACHA_FETCHERS["gakumas"] = imasFetchGakumas;
+		GACHA_FETCHERS["shinycolors"] = imasFetchShinycolors;
+		GACHA_FETCHERS["millisita"] = imasFetchMillisita;
+		GACHA_FETCHERS["deresute"] = imasFetchDeresute;
+		EVENT_FETCHERS["gakumas"] = Object.assign(EVENT_FETCHERS["gakumas"] || {}, { default: imasFetchGakumas });
+		EVENT_FETCHERS["shinycolors"] = Object.assign(EVENT_FETCHERS["shinycolors"] || {}, { default: imasFetchShinycolors });
+		EVENT_FETCHERS["millisita"] = Object.assign(EVENT_FETCHERS["millisita"] || {}, { default: imasFetchMillisita });
+		EVENT_FETCHERS["deresute"] = Object.assign(EVENT_FETCHERS["deresute"] || {}, { default: imasFetchDeresute });
 
 		//#region refresh
 		// 两侧各自只允许写自己的字段：某些来源的载荷同时含卡池与活动字段（如 GameKee），

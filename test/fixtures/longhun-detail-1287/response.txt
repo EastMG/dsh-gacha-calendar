@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="keywords" content="" />
+  <title>《Dragon Traveler》——Love x Comedy x Isekai = The Ultimate Bishoujo RPG! </title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="keywords" content="Dragon Traveler: First Reveal!You're the Hero, They're Your Waifus! Free 1000 Pulls + 30,000 Diamonds！">
+  <meta name="description" content="Dragon Traveler: First Reveal!You're the Hero, They're Your Waifus! Free 1000 Pulls + 30,000 Diamonds！">
+  <link rel="shortcut icon" href="https://media.zlongame.com/media/pictures/cn/lhlr/img/fav.png">
+</head>
+<style>
+  
+   .title {
+    font-size: 20px;
+    color: #000;
+    text-align: center;
+    word-wrap: break-word;
+  }
+
+  .time {
+    color: #8c8c8c;
+    text-align: center;
+    margin: 10px 0;
+    font-size: 12px;
+  }
+   img {
+    max-width: 100%;
+    height: auto !important;
+    display: block;
+  }
+
+  .tempText {
+    word-wrap: break-word;
+    padding: 0 10px 200px;
+    font-size: 14px;
+  }
+  .tempText * {
+    word-wrap: break-word;
+  }
+
+  video {
+    max-width: 100%;
+    object-fit: contain;
+  }
+</style>
+<style>
+  @font-face {
+    font-family: 'jpblack';
+    src: url('https://media.game-tree.com/media/pictures/gametree/dt/font/jp/NotoSansJP-VF-Black.ttf') format('truetype');
+  }
+
+  @font-face {
+    font-family: 'thfont';
+    src: url('https://media.game-tree.com/media/pictures/gametree/dt/font/th/thfont.ttf') format('truetype');
+  }
+
+  .jp {
+    font-family: 'jpblack' !important;
+  }
+
+  .th {
+    font-family: 'thfont' !important;
+  }
+</style>
+
+
+
+
+
+<body>
+  <div class="tempTop">
+    <h1 class="title" style="color:;">5月6日系统更新维护公告</h1>
+    <p class="time">05-05-2026</p>
+</div>
+<div class="tempText">
+        <div>尊敬的勇者：</div>
+<div>&nbsp;</div>
+<div>
+	<div>服务器将于5月6日13:00 (UTC+7)进行停机更新维护，在此期间，勇者将无法进入游戏。</div>
+	<div>请各位勇者相互转告，并提前做好下线准备。维护完成时间可能根据实际维护情况提前或延后，敬请留意公告。</div>
+	<div>维护完成后，我们将以邮件的方式为勇者发放维护补偿，请注意查收。</div>
+	<div>&nbsp;</div>
+	<div>〓【维护时间】：5月6日13:00 (UTC+7)，预计持续120分钟</div>
+	<div>〓【维护补偿】：钻石*300</div>
+	<div>&nbsp;</div>
+	<div>⚙️─────✦ 版本更新活动内容 ✦─────⚙️</div>
+	<div>▌全新限定召唤卡池 - 护戒圣女&middot;丝碧莫</div>
+	<div>活动时间：5月7日5:00 - 5月21日4:59 (UTC+7)</div>
+	<div>⭐ 开启条件：通关主线2-20、服务器开启天数&ge;8天&nbsp;</div>
+	<div>活动说明：</div>
+	<div>活动期间，通过限定召唤可获得【彼岸再临】与【旷野之灵】阵营的牧师幻灵--SSR+品质幻灵【护戒圣女&middot;丝碧莫】</div>
+	<div>&nbsp;</div>
+	<div>▶【护戒圣女&middot;丝碧莫】</div>
+	<div>品质：SSR+</div>
+	<div>职业：牧师</div>
+	<div>阵营：彼岸再临、旷野之灵</div>
+	<div>&nbsp;</div>
+	<div>▌主题活动 - 「潜伏的厄运」</div>
+	<div>活动时间：5月7日5:00 - 5月21日4:59 (UTC+7)</div>
+	<div>⭐ 开启条件：通关主线2-20、服务器开启天数&ge;8天&nbsp;</div>
+	<div>活动内容一览：</div>
+	<div>▶「驱魔仪式」观看剧情收集活动道具【旧忆碎片】，可在限时商店兑换各种珍稀奖励！</div>
+	<div>▶「每日任务」完成指定任务收集活动道具【旧忆碎片】，可在限时商店兑换各种珍稀奖励！</div>
+	<div>▶「升星好礼」护戒圣女&middot;丝碧莫提升至指定星级，可领取限定专属皮肤【圣心降魔】及动态头像等丰厚奖励！星级共鸣达成目标也可领取相应奖励！</div>
+	<div>▶「登录基金」每日登录即可领取命运召唤券，助力勇者召唤更多幻灵，快速提升阵容实力！</div>
+	<div>▶「恶灵古宅」挑战强力BOSS，打造最强阵容输出最高伤害，争夺排名大奖！</div>
+	<div>▶「限时商店」超值礼包限时开启，购买礼包加赠大量【旧忆碎片】！</div>
+	<div>活动内容详情，请前往活动界面查看。踏上挑战旅程，收获奇迹奖励，缔造属于你的传说阵容！</div>
+	<div>&nbsp;</div>
+	<div>▌限定炼制 - 指定魔物限时UP</div>
+	<div>活动时间：5月7日5:00 - 5月14日4:59 (UTC+7)</div>
+	<div>⭐参与条件：通关主线15-48、服务器开启天数&ge;15天</div>
+	<div>活动期间，在限定炼制活动中使用【命运魔药】召唤SSR及以上品质的魔物或魔物碎片，将必定获得本期UP魔物！</div>
+	<div>▼命运魔药</div>
+	<div>可于活动【神奇魔物在哪里】的&ldquo;魔物游戏&rdquo; 或 &ldquo;实验礼包&rdquo;中获取。</div>
+	<div>▶UP魔物初始被动效果说明</div>
+	<div>▼SSR+品质</div>
+	<div>巫术棋国王 - 职业总等级每提升250级：生命+1%</div>
+	<div>巫术棋战车 - 物防+10%</div>
+	<div>茶会瓷壶 - 魔防+10%</div>
+	<div>▼ SSR品质</div>
+	<div>巫术棋主教 - 非竞技模式中，魔法伤害+10%</div>
+	<div>巫术棋骑士 - 竞技模式中，攻击+1440</div>
+	<div>巫术棋兵卒 - 每通关6章冒险主线：生命+1400</div>
+	<div>▼ SR品质</div>
+	<div>茶会蜡烛 - 法师暴击+50</div>
+	<div>茶会餐叉 - 生命+3600</div>
+	<div>&nbsp;</div>
+	<div>▌新一轮周活动即将开启</div>
+	<div>⭐本轮活动主题：神奇魔物在哪里</div>
+	<div>活动时间：5月7日5:00 - 5月14日4:59 (UTC+7)</div>
+	<div>⭐参与条件：通关主线15-48、服务器开启天数&ge;15天</div>
+	<div>活动期间，参与&ldquo;魔物炼制&rdquo;消耗水银秘药或灵魂炼剂、&ldquo;限定炼制&rdquo;消耗命运魔药获得积分，达到指定积分后即可获得黄金四叶草、命运魔药、黄金号角等奖励！</div>
+	<div>※魔物游戏达到指定积分，即可领取【限定SSR+自选魔物蛋碎片】！</div>
+	<div>▼ 【限定SSR+自选魔物蛋碎片】</div>
+	<div>集齐60个碎片可从以下SSR+魔物中任选一个获得。</div>
+	<div>▶初始被动效果说明</div>
+	<div>白羊座--射手暴击+100</div>
+	<div>金牛座--战士闪避+100</div>
+	<div>双子座--法师命中+100</div>
+	<div>巨蟹座--守卫格挡+100</div>
+	<div>天秤座--牧师抗暴+100</div>
+	<div>天蝎座--刺客暴击+100</div>
+	<div>&nbsp;</div>
+	<div>▌时之宝匣 - 时之隙预热礼包！</div>
+	<div>开启时间：5月7日6:00 (UTC+7)</div>
+	<div>⭐参与条件：通关主线25 - 80、服务器开启天数&ge;50天</div>
+	<div>时之隙新赛季即将开启！解锁礼包后可立即获得命运召唤券等奖励，还可在新赛季期间逐步领取到王陵探针、神墓探针等更多超值奖励。</div>
+	<div>※未满足开启条件的勇者，后续解锁时之隙后也可在该玩法中购买礼包。</div>
+	<div>&nbsp;</div>
+	<div>感谢您对《Dragon Traveler》的关注与支持，愿您的旅途满载欢乐与荣光！</div>
+</div>
+<p>&nbsp;</p>
+
+</div>
+</body>
+  <script>
+     document.querySelectorAll('a').forEach(function (anchor) {
+      anchor.setAttribute('target', '_blank');
+    });
+  </script>
+
+<script>
+  (function () {
+    var href = window.location.href;
+    if (href.indexOf('dtofficialnewsjp') !== -1) {
+      document.body.classList.add('jp');
+    } else if (href.indexOf('dtofficialnewsth') !== -1) {
+      // 泰语字体
+      document.body.classList.add('th');
+    }
+  })();
+</script>
+
+</html>
+
+
+
+
+
+

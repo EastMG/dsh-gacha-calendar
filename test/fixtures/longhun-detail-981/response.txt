@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="keywords" content="" />
+  <title>《Dragon Traveler》——Love x Comedy x Isekai = The Ultimate Bishoujo RPG! </title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="keywords" content="Dragon Traveler: First Reveal!You're the Hero, They're Your Waifus! Free 1000 Pulls + 30,000 Diamonds！">
+  <meta name="description" content="Dragon Traveler: First Reveal!You're the Hero, They're Your Waifus! Free 1000 Pulls + 30,000 Diamonds！">
+  <link rel="shortcut icon" href="https://media.zlongame.com/media/pictures/cn/lhlr/img/fav.png">
+</head>
+<style>
+  
+   .title {
+    font-size: 20px;
+    color: #000;
+    text-align: center;
+    word-wrap: break-word;
+  }
+
+  .time {
+    color: #8c8c8c;
+    text-align: center;
+    margin: 10px 0;
+    font-size: 12px;
+  }
+   img {
+    max-width: 100%;
+    height: auto !important;
+    display: block;
+  }
+
+  .tempText {
+    word-wrap: break-word;
+    padding: 0 10px 200px;
+    font-size: 14px;
+  }
+  .tempText * {
+    word-wrap: break-word;
+  }
+
+  video {
+    max-width: 100%;
+    object-fit: contain;
+  }
+</style>
+<style>
+  @font-face {
+    font-family: 'jpblack';
+    src: url('https://media.game-tree.com/media/pictures/gametree/dt/font/jp/NotoSansJP-VF-Black.ttf') format('truetype');
+  }
+
+  @font-face {
+    font-family: 'thfont';
+    src: url('https://media.game-tree.com/media/pictures/gametree/dt/font/th/thfont.ttf') format('truetype');
+  }
+
+  .jp {
+    font-family: 'jpblack' !important;
+  }
+
+  .th {
+    font-family: 'thfont' !important;
+  }
+</style>
+
+
+
+
+
+<body>
+  <div class="tempTop">
+    <h1 class="title" style="color:;">《Dragon Traveler》公测福利活动一览</h1>
+    <p class="time">08-01-2026</p>
+</div>
+<div class="tempText">
+        <div>亲爱的勇者：</div>
+<div>《Dragon Traveler》公测将于1月13日正式开启！</div>
+<div>为了助力各位勇者在冒险旅程中轻松畅玩，我们为大家精心准备了一系列活动及福利！</div>
+<div>&nbsp;</div>
+<div>福利一、豪华福利开局 -- 首日100抽、累计1000抽轻松达成！</div>
+<div>超爽开局！通过【公测预约奖励】【千抽狂欢】【勇者启程】等福利活动及其他玩法奖励可获得海量钻石及召唤券，</div>
+<div>轻松达成首日100抽和累计1000抽！</div>
+<div>&nbsp;</div>
+<div>福利二、世界树之约 -- 专属时装、顶级幻灵参与即得！</div>
+<div>活动期间，完成指定任务获得目标点，达到指定目标点即可领取超级奖励！</div>
+<div>达到1500目标点即可获得烈焰魔女&middot;梅琳娜皮肤【超凡女侠】</div>
+<div>达到3000目标点即可获得神话品质幻灵 海神&middot;波塞冬</div>
+<div>此外，还可通过积分和任务奖励获得合计30000+钻石福利！</div>
+<div>&nbsp;</div>
+<div>福利三、千抽狂欢 -- 传说+刺客 四圣&middot;白虎免费送！</div>
+<div>每日登录即领十连抽！通过活动可免费领取大量召唤券和黄金号角，总计可达1000抽！</div>
+<div>3日、7日登录可领传说＋刺客幻灵 四圣&middot;白虎！轻轻松松直升7星！</div>
+<div>&nbsp;</div>
+<div>福利四、勇者启程 -- 每日连送百抽转盘！林地领主焕新出击！</div>
+<div>活动期间，完成每日指定目标任务，可获取【幸运印记】与【成长印记】：</div>
+<div>收集【成长印记】免费领取命运召唤券，满足积分即可获得传说＋品质幻灵！</div>
+<div>收集【幸运印记】每日轻松获取百抽转盘，传说幻灵-仲夏夜之梦及大量养成资源免费获取！</div>
+<div>※ 幸运转盘奖励可将史诗幻灵-林地领主晋升为传说幻灵-仲夏夜之梦，</div>
+<div>解锁全新形象和更加强大的技能效果，搭配转盘奖励更可轻松直升8星！</div>
+<div>&nbsp;</div>
+<div>福利五、勇者进阶之路 -- 公主齐格菲华丽变身传说+屠龙勇士！</div>
+<div>通关主线关卡，助力戎装公主&middot;齐格菲进阶：</div>
+<div>通关第五章，即可晋升为传说幻灵 英雄王&middot;齐格菲！</div>
+<div>通关第九章，继续跃升至 传说+幻灵 屠龙勇士&middot;齐格菲！</div>
+<div>※ 每次晋升不仅解锁全新形象，还能大幅提升战斗属性，与齐格菲并肩作战，披荆斩棘！</div>
+<div>&nbsp;</div>
+<div>福利六、官方支付中心 -- 充值额外加赠点券！</div>
+<div>使用官方支付中心进行充值，每笔充值畅享加赠5%点券！</div>
+<div>首单更可享受额外加赠5%点券（共赠10%点券）！</div>
+<div>&nbsp;</div>
+<div>感谢您对《Dragon Traveler》的关注与支持，愿您的旅途满载欢乐与荣光！</div>
+
+</div>
+</body>
+  <script>
+     document.querySelectorAll('a').forEach(function (anchor) {
+      anchor.setAttribute('target', '_blank');
+    });
+  </script>
+
+<script>
+  (function () {
+    var href = window.location.href;
+    if (href.indexOf('dtofficialnewsjp') !== -1) {
+      document.body.classList.add('jp');
+    } else if (href.indexOf('dtofficialnewsth') !== -1) {
+      // 泰语字体
+      document.body.classList.add('th');
+    }
+  })();
+</script>
+
+</html>
+
+
+
+
+
+

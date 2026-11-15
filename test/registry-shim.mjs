@@ -199,6 +199,58 @@ NEXT_SOURCES.push(
 		name: "舰队Collection",
 		gacha: null,
 		event: { url: T.parsers.kancolle.KANCOLLE_EVENTS_URL, kind: "wiki", mode: "proxy", fetcher: resolve("kancolle.eventsKancolle") }
+	},
+	// 2026-11-15：龙魂旅人（`longhun`，台服官网公告）—— JSON 索引（4 条）+ 详情页解析档期；
+	// 卡池与活动**同一条列表 URL**（详情按 id 缓存 24h）。响应无 ACAO ⇒ `mode: "proxy"`。
+	{
+		id: "longhun",
+		tz: T.parsers.longhun.LONGHUN_TZ,
+		name: "龙魂旅人",
+		gacha: { url: T.parsers.longhun.LONGHUN_LIST_URL, kind: "official-html", mode: "proxy", fetcher: resolve("longhun.gachaLonghun") },
+		event: { url: T.parsers.longhun.LONGHUN_LIST_URL, kind: "official-html", mode: "proxy", fetcher: resolve("longhun.eventsLonghun") }
+	},
+	// 2026-11-15：闪耀暖暖·国服（`nikki4`）—— 官网首页 `__NEXT_DATA__` 的 4 条精选 + `/news/{id}` 正文；
+	// 卡池与活动**同一条列表 URL**（详情按 id 缓存 24h）。响应无 ACAO ⇒ `mode: "proxy"`。
+	{
+		id: "nikki4",
+		tz: T.parsers.nikki4.NIKKI4_TZ,
+		name: "闪耀暖暖",
+		gacha: { url: T.parsers.nikki4.NIKKI4_LIST_URL, kind: "official-html", mode: "proxy", fetcher: resolve("nikki4.gachaNikki4") },
+		event: { url: T.parsers.nikki4.NIKKI4_LIST_URL, kind: "official-html", mode: "proxy", fetcher: resolve("nikki4.eventsNikki4") }
+	},
+	// 2026-11-15：アイドルマスター系列 4 款（`gakumas` / `shinycolors` / `millisita` / `deresute`）——
+	// 每款一个**月份页**（`melonpapapapa-n.com` 的「イベント・ガシャ開催スケジュール一覧」）。
+	// 卡池（cat-gacha）与活动（cat-event）**同一张表** ⇒ 两侧同一条 URL、轮内共享一次请求；
+	// 注册地址由 `imasMonthUrlNow` 按 now 现算（月份页路径含 YYYYMM），抓取器内部也按 now 现算，
+	// 所以 `url` 只是"当前可点开的那个月份页"，不参与抓取路由。响应无 ACAO ⇒ `mode: "proxy"`
+	// （域名已登记 `src/index.js` 的 `PROXY_ALLOW_HOSTS`）。
+	{
+		id: "gakumas",
+		tz: "Asia/Tokyo",
+		name: "学園アイドルマスター",
+		gacha: { url: T.parsers.idolmaster.imasMonthUrlNow("gakumas"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchGakumas") },
+		event: { url: T.parsers.idolmaster.imasMonthUrlNow("gakumas"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchGakumas") }
+	},
+	{
+		id: "shinycolors",
+		tz: "Asia/Tokyo",
+		name: "シャイニーカラーズ",
+		gacha: { url: T.parsers.idolmaster.imasMonthUrlNow("shinycolors"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchShinycolors") },
+		event: { url: T.parsers.idolmaster.imasMonthUrlNow("shinycolors"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchShinycolors") }
+	},
+	{
+		id: "millisita",
+		tz: "Asia/Tokyo",
+		name: "ミリオンライブ！シアターデイズ",
+		gacha: { url: T.parsers.idolmaster.imasMonthUrlNow("millisita"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchMillisita") },
+		event: { url: T.parsers.idolmaster.imasMonthUrlNow("millisita"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchMillisita") }
+	},
+	{
+		id: "deresute",
+		tz: "Asia/Tokyo",
+		name: "アイドルマスター シンデレラガールズ スターライトステージ",
+		gacha: { url: T.parsers.idolmaster.imasMonthUrlNow("deresute"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchDeresute") },
+		event: { url: T.parsers.idolmaster.imasMonthUrlNow("deresute"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchDeresute") }
 	}
 );
 

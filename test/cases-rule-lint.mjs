@@ -179,8 +179,13 @@ export default async function run() {
 	// 2026-11-15 第三批：再 +1（`30-game-batch3.js`：日本两款共用一个文件 —— 碧蓝幻想 gbf / 舰队Collection kancolle，
 	//   两条都只接活动侧）⇒ 厂商级 28 + 1 = 29；合计 29 + 20 = 49 个文件。
 	// 2026-11-15 同日再 +1：`30-game-pcr-jp.js`（公主连结·日服，microCMS）⇒ 厂商级 29 + 1 = 30；合计 30 + 20 = 50 个文件。
-	check("游戏文件齐备（30 个厂商/系列文件 + bwiki 系 20 段 = 50 个）",
-		vendorFiles.length === 30 && bwikiFiles.length === 20,		`厂商=${vendorFiles.length} bwiki=${bwikiFiles.length}`);
+	// 2026-11-15 再 +3：`30-game-longhun.js`（龙魂旅人，台服官网 JSON 索引 + 详情）/
+	//   `30-game-nikki4.js`（闪耀暖暖·国服，官网首页 `__NEXT_DATA__` + `/news/{id}`）/
+	//   `30-game-idolmaster.js`（アイドルマスター系列 4 款共用一个文件 —— 学マス / シャニマス /
+	//   ミリシタ / デレステ，仍按"一个厂商/系列文件"计）⇒ 厂商级 30 + 3 = 33；
+	//   bwiki 系仍是 20；合计 33 + 20 = 53 个文件。
+	check("游戏文件齐备（33 个厂商/系列文件 + bwiki 系 20 段 = 53 个）",
+		vendorFiles.length === 33 && bwikiFiles.length === 20,		`厂商=${vendorFiles.length} bwiki=${bwikiFiles.length}`);
 	const hit = [];
 	// ⚠️ 重组后**条目声明也住在游戏文件里**（`registerSource({ … })`），而条目里的
 	//    `source:` / `eventSource:` / `label:` 是**数据**（如「Bestdori 扭蛋（社区数据库）」），

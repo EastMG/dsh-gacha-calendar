@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="keywords" content="" />
+  <title>《Dragon Traveler》——Love x Comedy x Isekai = The Ultimate Bishoujo RPG! </title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="keywords" content="Dragon Traveler: First Reveal!You're the Hero, They're Your Waifus! Free 1000 Pulls + 30,000 Diamonds！">
+  <meta name="description" content="Dragon Traveler: First Reveal!You're the Hero, They're Your Waifus! Free 1000 Pulls + 30,000 Diamonds！">
+  <link rel="shortcut icon" href="https://media.zlongame.com/media/pictures/cn/lhlr/img/fav.png">
+</head>
+<style>
+  
+   .title {
+    font-size: 20px;
+    color: #000;
+    text-align: center;
+    word-wrap: break-word;
+  }
+
+  .time {
+    color: #8c8c8c;
+    text-align: center;
+    margin: 10px 0;
+    font-size: 12px;
+  }
+   img {
+    max-width: 100%;
+    height: auto !important;
+    display: block;
+  }
+
+  .tempText {
+    word-wrap: break-word;
+    padding: 0 10px 200px;
+    font-size: 14px;
+  }
+  .tempText * {
+    word-wrap: break-word;
+  }
+
+  video {
+    max-width: 100%;
+    object-fit: contain;
+  }
+</style>
+<style>
+  @font-face {
+    font-family: 'jpblack';
+    src: url('https://media.game-tree.com/media/pictures/gametree/dt/font/jp/NotoSansJP-VF-Black.ttf') format('truetype');
+  }
+
+  @font-face {
+    font-family: 'thfont';
+    src: url('https://media.game-tree.com/media/pictures/gametree/dt/font/th/thfont.ttf') format('truetype');
+  }
+
+  .jp {
+    font-family: 'jpblack' !important;
+  }
+
+  .th {
+    font-family: 'thfont' !important;
+  }
+</style>
+
+
+
+
+
+<body>
+  <div class="tempTop">
+    <h1 class="title" style="color:;">《Dragon Traveler》玩法开启预告</h1>
+    <p class="time">25-11-2025</p>
+</div>
+<div class="tempText">
+        <div>尊敬的勇者：</div>
+<div>欢迎您的到来，您将与世界树的幻灵们一同启程，展开一场拯救幻界山的冒险之旅。</div>
+<div>在旅途中，多样的系统和玩法将逐步开放。</div>
+<div>为使您能够更加从容地应对挑战，我们为您准备了功能开启指南：</div>
+<div>&nbsp;</div>
+<div>一、超实用减负系统</div>
+<div>&gt;&gt;自动推图 &mdash; 自动挑战下一关，解放双手</div>
+<div>解锁条件：通关主线2-4</div>
+<div>&gt;&gt;战斗加速 &mdash; 3倍速战斗，推图效率再提升</div>
+<div>解锁条件：通关主线4-16</div>
+<div>&gt;&gt;战斗托管 &mdash; 后台自动挑战，推图爬塔无忧</div>
+<div>解锁条件：生涯成就达到等级3后可激活</div>
+<div>&nbsp;</div>
+<div>二、前期趣味玩法</div>
+<div>&gt;&gt;奇境攻防 &mdash; 轻松挑战，快速扫荡欢乐加倍</div>
+<div>解锁条件：通关主线2-20，森林保卫战率先开启</div>
+<div>&gt;&gt;公会探索 &mdash; 携手公会成员，共同探索未知领地</div>
+<div>解锁条件：公会等级提升至2级，且开服天数&ge;2</div>
+<div>&gt;&gt;神界裂隙 &mdash; 探索神界领土，寻找稀世财宝</div>
+<div>解锁条件：通关主线5-16</div>
+<div>&gt;&gt;冠军讨伐 &mdash; 挑战首领，赢稀有装备</div>
+<div>解锁条件：通关主线5-32，且开服天数&ge;3</div>
+<div>&gt;&gt;好感度系统 &mdash; 与心仪幻灵约会，开启专属碎片副本</div>
+<div>解锁条件：通关主线6-12</div>
+<div>&nbsp;</div>
+<div>此外还有诸多精彩内容与海量福利，等待您在冒险中逐一开启~</div>
+<div>感谢您对《Dragon Traveler》的关注与支持，愿您的旅途满载欢乐与荣光！</div>
+<div>&nbsp;</div>
+<div>
+	<div><span style="font-size: 14px;"><strong>Join Us!</strong></span></div>
+	<div><em>Facebook Fanpage:&nbsp;<a href="https://www.facebook.com/dragontravelerofficial">https://www.facebook.com/dragontravelerofficial</a></em></div>
+	<div><em>X/Twitter:&nbsp;<a href="https://x.com/dragon_traveler">https://x.com/dragon_traveler</a></em></div>
+	<div><em>Instagram:&nbsp;<a href="https://www.instagram.com/dragontravelerofficial/">https://www.instagram.com/dragontravelerofficial/</a></em></div>
+	<div><em>Reddit:&nbsp;<a href="https://www.reddit.com/r/DragonTraveler/">https://www.reddit.com/r/DragonTraveler/</a></em></div>
+	<div><em>Youtube:&nbsp;<a href="https://www.youtube.com/@DragonTravelerOfficial">https://www.youtube.com/@DragonTravelerOfficial</a></em></div>
+	<div><em>Discord:&nbsp;<a href="https://discord.gg/jkpe8kETsW">https://discord.gg/jkpe8kETsW</a></em></div>
+	<div><em>TikTok:&nbsp;<a href="https://www.tiktok.com/@dragontravelerofficial">https://www.tiktok.com/@dragontravelerofficial</a></em></div>
+</div>
+<p>&nbsp;</p>
+
+</div>
+</body>
+  <script>
+     document.querySelectorAll('a').forEach(function (anchor) {
+      anchor.setAttribute('target', '_blank');
+    });
+  </script>
+
+<script>
+  (function () {
+    var href = window.location.href;
+    if (href.indexOf('dtofficialnewsjp') !== -1) {
+      document.body.classList.add('jp');
+    } else if (href.indexOf('dtofficialnewsth') !== -1) {
+      // 泰语字体
+      document.body.classList.add('th');
+    }
+  })();
+</script>
+
+</html>
+
+
+
+
+
+

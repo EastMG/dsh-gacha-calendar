@@ -1,0 +1,8 @@
+{
+  "url": "https://melonpapapapa-n.com/imas_sc_202611/",
+  "status": 200,
+  "capturedAt": "2026-11-15T07:45:09.439Z",
+  "bytes": 11692,
+  "sha256": "0a96cb1422f30da2",
+  "note": "真抓裁剪：原始页面 734133B（text/html; charset=UTF-8）→ 只保留本款 <table class='imas-calendar-table … brand-shanimas'> 整块（20 条 calendar-row），其余字节全部删除。表内两个日期锚点（date-line start/end 的 d-text + t-text）与 event-badge / title-simple 逐字未改。"
+}

@@ -221,6 +221,17 @@ const ORDER = [
   // （gbf = gbf-wiki 的活动一览；kancolle = wikiwiki 的期間限定出撃）。自包含两条，排在最后 ⇒
   // 面板顺序追加在末尾。
   "30-game-batch3.js",
+  // 2026-11-15：龙魂旅人（台服）—— 官方 JSON 索引（只有 4 条「标题 + 发布日」）+ 详情页解析档期；
+  // 卡池与活动**同一条列表**（详情按 id 缓存 24h，已结束不再取）。排最后 ⇒ 面板顺序追加在末尾。
+  "30-game-longhun.js",
+  // 2026-11-15：闪耀暖暖·国服 —— 官网首页 `__NEXT_DATA__` 的 4 条精选 + `/news/{id}` 的正文；
+  // 卡池与活动**同一条列表**（详情按 id 缓存 24h，已结束不再取）。排最后 ⇒ 面板顺序追加在末尾。
+  "30-game-nikki4.js",
+  // 2026-11-15：アイドルマスター系列 4 款（学マス / シャニマス / ミリシタ / デレステ）——
+  // 每款一个月份页（`melonpapapapa-n.com` 的「イベント・ガシャ開催スケジュール一覧」），
+  // 卡池/活动同一条地址 ⇒ 轮内共享一次请求。自包含四条（条目 + 解析 + 抓取器 + 登记）；
+  // 排在最后 ⇒ 面板顺序追加在末尾。
+  "30-game-idolmaster.js",
   "44-test-exports.js",        // 回归出口：解析器 + env 工具 + 来源表（挂 exports.__regression，测试用）
   "50-refresh.js",             // 刷新编排、失败沿用旧值
   "60-helpers.js",             // 共用纯函数：状态归一 / 提示文案 / 显隐 / 格式化 / 排序 / 启动刷新判定
@@ -365,6 +376,9 @@ const CORE_ORDER = [
   "30-game-bwiki-gachaparty.js", // 2026-11-15 盲盒派对（bwiki 卡池模板 wikitext + SMW 活动查询）
   "30-game-pcr-jp.js",         // 2026-11-15 公主连结·日服（microCMS 官方公告：列表 1 次同圈两侧 + 详情按 id 缓存）
   "30-game-batch3.js",         // 2026-11-15 第三批：碧蓝幻想（gbf-wiki 活动一览）/ 舰队Collection（wikiwiki 期間限定出撃）
+  "30-game-longhun.js",        // 2026-11-15 龙魂旅人（台服官网 JSON 索引 + 详情；卡池 + 活动同源）
+  "30-game-nikki4.js",         // 2026-11-15 闪耀暖暖·国服（官网首页 __NEXT_DATA__ 列表 + /news/{id}；卡池 + 活动同源）
+  "30-game-idolmaster.js",     // 2026-11-15 アイドルマスター系列 4 款（月份页：卡池 + 活动同一页）
   "50-refresh.js",             // 刷新编排
   "engine-api.js",             // 注入 env + refresh() + 测试出口 + return
 ];
