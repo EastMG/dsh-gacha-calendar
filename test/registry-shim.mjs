@@ -273,6 +273,49 @@ NEXT_SOURCES.push(
 		name: "シャイニーカラーズ Song for Prism",
 		gacha: { url: T.parsers.idolmaster.imasMonthUrlNow("shanison"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchShanison") },
 		event: { url: T.parsers.idolmaster.imasMonthUrlNow("shanison"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchShanison") }
+	},
+	// 2026-11-15：棕色尘埃2（`browndust2`）—— 第三方卡池史站点 bannerhistory.app 的
+	// `/en/bd2-pickup-history`（Next.js RSC flight 负载里的 `rows[].groups[]`：池名 + 角色 +
+	// 绝对毫秒起止，页面自报 `sourceZone:"Asia/Seoul"`）。**只接卡池侧**（该站没有活动档期）；
+	// 响应无 ACAO ⇒ `mode: "proxy"`（域名已登记 `src/index.js` 的 PROXY_ALLOW_HOSTS）。
+	{
+		id: "browndust2",
+		tz: T.parsers.browndust2.BROWNDUST2_TZ,
+		name: "棕色尘埃2",
+		gacha: { url: T.parsers.browndust2.BROWNDUST2_URL, kind: "third-party", mode: "proxy", fetcher: resolve("browndust2.browndust2Gacha") },
+		event: null
+	},
+	// 2026-11-15 第五批：4 款 bwiki 游戏（中文 wiki，站点 siteinfo `timezone=Asia/Shanghai`）。
+	// 三条卡池侧走 SMW ask / wikitext 表格（url 逐字见各自解析器导出）；gwdz 两侧 URL 不同
+	// （卡池 = `Data:GachaConfig.json` 的 **JSON**、活动 = `Widget:游戏活动日历` 的 `CALENDAR_DATA`）。
+	// bwiki 响应无 ACAO ⇒ 全部 `mode: "proxy"`。
+	{
+		id: "langrisser",
+		tz: T.parsers.batch5.LANGRISSER_TZ,
+		name: "梦幻模拟战",
+		gacha: { url: T.parsers.batch5.LANGRISSER_URL, kind: "wiki", mode: "proxy", fetcher: resolve("batch5.langrisserGacha") },
+		event: null
+	},
+	{
+		id: "crashfever",
+		tz: T.parsers.batch5.CRASHFEVER_TZ,
+		name: "CrashFever",
+		gacha: { url: T.parsers.batch5.CRASHFEVER_URL, kind: "wiki", mode: "proxy", fetcher: resolve("batch5.crashfeverGacha") },
+		event: null
+	},
+	{
+		id: "bfzy",
+		tz: T.parsers.batch5.BFZY_TZ,
+		name: "百分之一",
+		gacha: { url: T.parsers.batch5.BFZY_URL, kind: "wiki", mode: "proxy", fetcher: resolve("batch5.bfzyGacha") },
+		event: null
+	},
+	{
+		id: "gwdz",
+		tz: T.parsers.batch5.GWDZ_TZ,
+		name: "怪物弹珠",
+		gacha: { url: T.parsers.batch5.GWDZ_GACHA_URL, kind: "wiki", mode: "proxy", fetcher: resolve("batch5.gwdzGacha") },
+		event: { url: T.parsers.batch5.GWDZ_CAL_URL, kind: "wiki", mode: "proxy", fetcher: resolve("batch5.gwdzEvents") }
 	}
 );
 

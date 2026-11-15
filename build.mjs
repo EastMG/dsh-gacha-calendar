@@ -233,6 +233,14 @@ const ORDER = [
   // 卡池/活动同一条地址 ⇒ 轮内共享一次请求。自包含五条（条目 + 解析 + 抓取器 + 登记）；
   // 排在最后 ⇒ 面板顺序追加在末尾。
   "30-game-idolmaster.js",
+  // 2026-11-15：棕色尘埃2（Brown Dust 2，第三方 bannerhistory.app 卡池史）—— 只接卡池侧
+  // （该站只有卡池历史，没有活动档期 ⇒ 活动侧不注册）。一页 0.5MB 的 RSC flight 负载里取
+  // `rows[].groups[]`（池名 + 角色 + 绝对毫秒起止），解析结果按 URL 缓存 24h（首轮 1 次 / 稳态 0 次）。
+  "30-game-browndust2.js",
+  // 2026-11-15 第五批：4 款 bwiki 游戏（梦幻模拟战 langrisser / CrashFever crashfever /
+  // 百分之一 bfzy / 怪物弹珠 gwdz）—— 自包含一个文件（条目 + 解析 + 抓取 + 登记），
+  // 复用 30-game-bwiki-common.js 的载荷/悬停生成器 ⇒ 必须排在该文件之后；排最后 ⇒ 面板顺序追加在末尾。
+  "30-game-bwiki-batch5.js",
   "44-test-exports.js",        // 回归出口：解析器 + env 工具 + 来源表（挂 exports.__regression，测试用）
   "50-refresh.js",             // 刷新编排、失败沿用旧值
   "60-helpers.js",             // 共用纯函数：状态归一 / 提示文案 / 显隐 / 格式化 / 排序 / 启动刷新判定
@@ -380,6 +388,8 @@ const CORE_ORDER = [
   "30-game-longhun.js",        // 2026-11-15 龙魂旅人（台服官网 JSON 索引 + 详情；卡池 + 活动同源）
   "30-game-nikki4.js",         // 2026-11-15 闪耀暖暖·国服（官网首页 __NEXT_DATA__ 列表 + /news/{id}；卡池 + 活动同源）
   "30-game-idolmaster.js",     // 2026-11-15 アイドルマスター系列 5 款（月份页：卡池 + 活动同一页）
+  "30-game-browndust2.js",     // 2026-11-15 棕色尘埃2（第三方 bannerhistory.app 卡池史；只接卡池侧）
+  "30-game-bwiki-batch5.js",   // 2026-11-15 第五批：4 款 bwiki 游戏（SMW ask / wikitext 表 / Data JSON / 活动日历）
   "50-refresh.js",             // 刷新编排
   "engine-api.js",             // 注入 env + refresh() + 测试出口 + return
 ];

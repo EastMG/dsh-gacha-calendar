@@ -53,6 +53,8 @@ import runScrapeFail from "./cases-scrape-fail.mjs";
 import runUmaTw, { runUmaKr } from "./cases-uma-tw.mjs";
 import runBatch2 from "./cases-batch2.mjs";
 import runBatch4 from "./cases-batch4.mjs";
+import runBatch5 from "./cases-batch5.mjs";
+import runBatch6 from "./cases-batch6.mjs";
 import runOnGlobalSpica from "./cases-ournotes-global-spica.mjs";
 import runBomHook from "./cases-bom-hook.mjs";
 
@@ -130,7 +132,7 @@ section("夹具卫生");
 	// 2026-11-15 再接 6 条：龙魂旅人（`longhun-*`）/ 闪耀暖暖·国服（`nikki4-*`）/
 	// アイドルマスター系列 5 款（`imas-*`：每款月份页的 table 裁剪；学マス两份 = 当月 + 上一月）。
 	check("夹具命名带批次前缀（便于溯源）",
-		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights|wqmt|pengpeng|wd|hlr|bh3|spica|czn|bjhl|yys|dhmmr|bh2|yslz|wxnn|cytq|hl|pcr-tw|reso|tof|gachaparty|gbf|kancolle|pcr-jp|longhun|nikki4|imas)/.test(f)),
+		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights|wqmt|pengpeng|wd|hlr|bh3|spica|czn|bjhl|yys|dhmmr|bh2|yslz|wxnn|cytq|hl|pcr-tw|reso|tof|gachaparty|gbf|kancolle|pcr-jp|longhun|nikki4|imas|bd2|b5)/.test(f)),
 	);
 }
 //#endregion
@@ -181,7 +183,9 @@ const batches = [
 	["第二批新来源（崩坏3 内容中台：卡池名称/角色 + 档期三级取值（`>>开放时间` → 同帖礼包【上架时间】 → 只出名称）/ 活动时间块 / OurNotes 日服 SPICA：列表→前 5 条详情 / 卡厄斯 TapTap 官方：topic 页 SSR + Nuxt devalue 解码（2 页；卡池「营救概率提升」+ 活动「活动时间」，不双计）／2026-11-15 第三批：碧蓝幻想 gbf（gbf-wiki 活动一览）+ 舰队Collection kancolle（wikiwiki 期間限定出撃））", runBatch2],
 	["第四批新来源（龙魂旅人 longhun：台服官网 JSON 索引 + 详情 / 闪耀暖暖·国服 nikki4：官网首页 `__NEXT_DATA__` + `/news/{id}`（「更新后」锚定 09:30）/ アイドルマスター系列 5 款：melonpapapapa 月份页（卡池 + 活动同一张表；跨月补抓））", runBatch4],
 	["OurNotes 国际服（SPICA 数据 JSON：`_durl` 现解 → gachapages/events 一次拿全；JST 墙钟 → UTC+8 展示；picks 按 id 查角色）", runOnGlobalSpica],
-	["BOM 守卫（钩子扫描改 Node：三平台一致 + 字面量修复命令 + setup:hooks 跨平台）", runBomHook]
+	["BOM 守卫（钩子扫描改 Node：三平台一致 + 字面量修复命令 + setup:hooks 跨平台）", runBomHook],
+	["第五批第三方来源（棕色尘埃2 browndust2：bannerhistory.app 的 RSC flight 负载 `rows[].groups[]` —— 池名 + 角色 + 绝对毫秒起止；只有卡池侧、24h 缓存）", runBatch5],
+	["第五批新来源（4 款 bwiki：梦幻模拟战 / CrashFever / 百分之一 / 怪物弹珠；SMW ask + wikitext 表 + Data JSON + 活动日历 CALENDAR_DATA）", runBatch6]
 ];
 const before = counts();
 for (const [label, fn] of batches) {

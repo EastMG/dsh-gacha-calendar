@@ -1,0 +1,8 @@
+{
+  "url": "https://wiki.biligame.com/bfzy/api.php?action=parse&page=%E5%8E%86%E5%8F%B2%E5%8D%A1%E6%B1%A0&prop=wikitext&format=json&formatversion=2",
+  "status": 200,
+  "capturedAt": "2026-11-15T08:50:00.000Z",
+  "bytes": 1532,
+  "sha256": "d0bfbec7b8796378",
+  "note": "真抓裁剪：原页面 `历史卡池` wikitext 530 行 / 32,471 B（2022-10-30 ~ 2026-09-04，按年份分 5 张表）→ 只保留页首说明 + `== 2026年 ==` 表头 + 2026-09-04 / 2026-08-28 两个更新日的 6 行（每更新日 3 行：80抽·第1天 / 50抽·第2天 / 50抽·第1天；含 `'''粗体` 新UP 与 `[[链接]]` 两种写法）。`parse.title` / `parse.pageid` 原样保留。"
+}

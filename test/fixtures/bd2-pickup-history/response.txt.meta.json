@@ -1,0 +1,6 @@
+{
+ "url": "https://bannerhistory.app/en/bd2-pickup-history",
+ "status": 200,
+ "capturedAt": "2026-11-15T08:27:30.000Z",
+ "note": "真抓（2026-11-15 16:27 +08，本机 Node fetch 直连：200 / text/html / 496,268 B / 无 ACAO）。**已裁剪**：真实页面是 Next.js App Router 的整页 HTML（含大量 SSR 外壳与其它 flight 推送）；本夹具只保留承载数据的那一段 `<script>self.__next_f.push([1,\"…\"])</script>`（行文本里的 `\"data\":{\"game\":\"bd2\",\"sourceZone\":\"Asia/Seoul\",\"rows\":[…]}`，与线上逐字同形、同义），并把 `rows` 剪成 41 条 = **全部 38 条 2026 年数据 + 最早 3 条 2023 年数据**（真实响应 163 条、245 个 group；被剪掉的 2023~2025 年历史与本链路断言无关）。其余字段（sourceZone / years / elements / kinds / 每行 id·startAt·endAt·groups·members）逐字保留；flight 里的 `badges[].labels` 仍是站点的 RSC 去重引用（`$8:…` 形式），解析器不读它。页面内嵌原始时间：起 09:00 KST / 止 08:59 KST 的绝对毫秒（站点自己算好的，不是墙钟字符串）。"
+}

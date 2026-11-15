@@ -287,7 +287,12 @@ const PROXY_ALLOW_HOSTS = [
 	// 服务端**忽略 `Range`**（实测仍回 200 全量）⇒ 只能整页取一次再缓存 24h）。
 	// 实测（2026-11-15）：**完全没有 `Access-Control-Allow-Origin`**（带 `Origin: dsh-app://dsh`
 	// 再测一遍也是空）⇒ 浏览器直连必被 CORS 拦，必须走宿主代理。
-	"soli-reso.com"
+	"soli-reso.com",
+	// 棕色尘埃2（browndust2，2026-11-15 接入，**只接卡池侧**）—— 第三方卡池史站点 bannerhistory.app
+	// 的 `GET /en/bd2-pickup-history`。实测（2026-11-15）：200 / `text/html; charset=utf-8` /
+	// **完全没有 `Access-Control-Allow-Origin`**（带 `Origin: dsh-app://dsh` 再测也是空）
+	// ⇒ 浏览器直连必被 CORS 拦，必须走宿主代理。
+	"bannerhistory.app"
 ];
 
 /** Default outgoing request headers (browser-like, to satisfy anti-scrape). */

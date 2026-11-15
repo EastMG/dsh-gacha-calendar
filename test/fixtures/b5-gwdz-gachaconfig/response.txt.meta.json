@@ -1,0 +1,8 @@
+{
+  "url": "https://wiki.biligame.com/gwdz/api.php?action=parse&page=Data%3AGachaConfig.json&prop=wikitext&format=json&formatversion=2",
+  "status": 200,
+  "capturedAt": "2026-11-15T08:50:00.000Z",
+  "bytes": 1148,
+  "sha256": "8286b31c96e510ee",
+  "note": "真抓裁剪：`Data:GachaConfig.json` 33 个卡池条目 / 5,052 B 的外层 MediaWiki JSON → 只保留 5 条：在期 `物语`（无职转生Ⅲ联动，2026/11/15 11:00 ~ 2026/12/02 10:59）+ 已结束 `yyj` / `DX池v2` + **9999 哨兵** `彩兽神祭`（关闭时间 9999/9/9 99:59 = 常驻）+ `启用:false` 的 `-1`（池基础，模板条目）。⚠️ 内容是 **JSON 字符串**（`parse.wikitext`），按 JSON 解析而不是转 HTML。"
+}

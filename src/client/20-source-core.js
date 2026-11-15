@@ -117,7 +117,17 @@
 			// 取**源站自己的 brand 色**（该站 CSS：`.hub-month-card.brand-shanison{border-color:#28B4E5}`、
 			// 徽标底 `#7bd3ea`），选更饱和的那支中间调。与 shinycolors `#4E9FC4`（更灰的水色）/
 			// pjsk `#2FB3C9`（更绿的初音青）/ wuwa `#2C8FB8`（更沉的声骸青蓝）各差一档。
-			shanison: "#28B4E5"               // シャイニーカラーズ Song for Prism · 棱镜天青
+			shanison: "#28B4E5",              // シャイニーカラーズ Song for Prism · 棱镜天青
+			// 2026-11-15：棕色尘埃2（Brown Dust 2）—— 取主视觉的**焦褐 / 皮革橙**压成中间调；
+			// 与 longhun `#8A5A44`（更灰的暗铜）、gf2 `#D9773F`（更亮的追放橙）、hlr `#C98B4B`
+			// （更黄的琥珀）在色相与饱和度上各差一档，棕橙系里仍认得出是同一款。
+			browndust2: "#A0592F",            // 棕色尘埃2 · 焦褐橙
+			// 2026-11-15 第五批（4 款 bwiki 游戏）—— 各取本作主视觉最认得出的那一支，压成中间调；
+			// 四支分在「紫蓝 / 品红 / 青绿 / 橙」四个色相上，与既有同色系各差一档（不撞色）。
+			langrisser: "#6E7AC8",            // 梦幻模拟战 · 暮光紫蓝（比 fgo `#4E7CD8` 更紫、比 czn 的梦境紫更蓝）
+			crashfever: "#C7508F",            // CrashFever · 品红（比 bandori 更暗更紫、比 uma-jp 更红）
+			bfzy: "#2E9BA6",                  // 百分之一 · 科技青（比 wuhuamixin 的青瓷玉更蓝、比 wuwa 更绿）
+			gwdz: "#E0762B"                   // 怪物弹珠 · 弹珠橙（比 gf2 橙更亮、与 ddlezj 的亮黄差一个色相）
 		};
 
 		/** 登记一条来源。**幂等**：按 id 找到就 `Object.assign` 合并，否则追加。 */

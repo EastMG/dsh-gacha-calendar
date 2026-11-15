@@ -1126,6 +1126,74 @@
 				imasTableOf,
 				imasWindowOf
 			},
+			// 2026-11-15 棕色尘埃2（第三方 bannerhistory.app 卡池史；**只接卡池侧**）：
+			// 数据在 Next.js 的 RSC flight 负载里（`self.__next_f.push([1,"…"])` 的行文本 → `"data":{"game":"bd2"`）。
+			// 导出「URL/常量 + 纯解析（推送流 / data 对象 / 窗口 / 条目）+ 缓存复位 + 抓取器」四层，回归可以
+			// 分别钉住：`sourceZone` 是 Asia/Seoul、起止是站点自算的**绝对毫秒**（09:00 / 08:59 KST）、
+			// 池名与角色分开取（`name`/`sub` 的 en 优先）、`{}` ⇒ 抛错、抹掉数据 ⇒ 抛错、
+			// 没有覆盖 now 的 ⇒ null、请求数（首轮 1 / 稳态 0 —— `browndust2ResetCache` 只给回归用）。
+			"browndust2": {
+				BROWNDUST2_CACHE_TTL_MS: ns_bd2_CACHE_TTL_MS,
+				BROWNDUST2_ICON: ns_bd2_ICON,
+				BROWNDUST2_SOURCE_LABEL: ns_bd2_SOURCE_LABEL,
+				BROWNDUST2_SOURCE_ZONE: ns_bd2_SOURCE_ZONE,
+				BROWNDUST2_TZ: ns_bd2_TZ,
+				BROWNDUST2_URL: ns_bd2_URL,
+				browndust2DataOf: ns_bd2_dataOf,
+				browndust2Gacha: ns_bd2_gacha,
+				browndust2ItemsOf: ns_bd2_itemsOf,
+				browndust2LabelOf: ns_bd2_labelOf,
+				browndust2LangOf: ns_bd2_langOf,
+				browndust2ResetCache: ns_bd2_resetCache,
+				browndust2StreamOf: ns_bd2_streamOf,
+				browndust2WindowsOf: ns_bd2_windowsOf
+			},
+			// 2026-11-15 第五批：4 款 bwiki 游戏（langrisser / crashfever / bfzy / gwdz）。
+			// 导出纯解析步与条目事实入口，回归可以分别钉住：SMW `_dat` 的 `1/2026/9/10` 形态 /
+			// 历史卡池 wikitext 表格（裸日期与 `[[公告|日期]]` 两种写法）/ `Data:GachaConfig.json`
+			// （**JSON 直读**，含 9999 哨兵）/ 活动日历 `CALENDAR_DATA`（JS 字面量按括号切，**不 eval**）/
+			// `{}` ⇒ 抛结构错 / 抹掉时间锚点 ⇒ 该条目不进外显。
+			"batch5": {
+				ns_b5_pointOfText,
+				ns_b5_pointOfPrintout,
+				ns_b5_stampOf,
+				ns_b5_plainOf,
+				LANGRISSER_TZ: ns_langrisser_TZ,
+				LANGRISSER_QUERY: ns_langrisser_QUERY,
+				LANGRISSER_URL: ns_langrisser_URL,
+				langrisserGacha: ns_langrisser_gacha,
+				langrisserParseAsk: ns_langrisser_parseAsk,
+				langrisserPayloadOf: ns_langrisser_payloadOf,
+				CRASHFEVER_TZ: ns_crashfever_TZ,
+				CRASHFEVER_QUERY: ns_crashfever_QUERY,
+				CRASHFEVER_URL: ns_crashfever_URL,
+				crashfeverGacha: ns_crashfever_gacha,
+				crashfeverParseAsk: ns_crashfever_parseAsk,
+				crashfeverPayloadOf: ns_crashfever_payloadOf,
+				BFZY_TZ: ns_bfzy_TZ,
+				BFZY_PAGE: ns_bfzy_PAGE,
+				BFZY_ROTATE_MS: ns_bfzy_ROTATE_MS,
+				BFZY_URL: ns_bfzy_URL,
+				bfzyGacha: ns_bfzy_gacha,
+				bfzyParseHistory: ns_bfzy_parseHistory,
+				bfzyPayloadOf: ns_bfzy_payloadOf,
+				bfzyRowsOf: ns_bfzy_rowsOf,
+				GWDZ_TZ: ns_gwdz_TZ,
+				GWDZ_CAL_PAGE: ns_gwdz_CAL_PAGE,
+				GWDZ_CAL_URL: ns_gwdz_CAL_URL,
+				GWDZ_GACHA_PAGE: ns_gwdz_GACHA_PAGE,
+				GWDZ_GACHA_URL: ns_gwdz_GACHA_URL,
+				gwdzCalendarObjectOf: ns_gwdz_calendarObjectOf,
+				gwdzEventObjectsOf: ns_gwdz_eventObjectsOf,
+				gwdzEventPayloadOf: ns_gwdz_eventPayloadOf,
+				gwdzEvents: ns_gwdz_events,
+				gwdzFieldOf: ns_gwdz_fieldOf,
+				gwdzGacha: ns_gwdz_gacha,
+				gwdzGachaPayloadOf: ns_gwdz_gachaPayloadOf,
+				gwdzIsSentinel: ns_gwdz_isSentinel,
+				gwdzParseCalendar: ns_gwdz_parseCalendar,
+				gwdzParseConfig: ns_gwdz_parseConfig
+			},
 			},
 			// 共用工具 / env（测试原先从 next-sources/lib/env.js 取；压平后分别见 23-parser-time.js / 24-parser-window.js / 27-parser-text.js / 28-parser-hover-tools.js）
 			fmtWindow,

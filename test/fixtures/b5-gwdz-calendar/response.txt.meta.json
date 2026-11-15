@@ -1,0 +1,8 @@
+{
+  "url": "https://wiki.biligame.com/gwdz/api.php?action=parse&page=Widget%3A%E6%B8%B8%E6%88%8F%E6%B4%BB%E5%8A%A8%E6%97%A5%E5%8E%86&prop=wikitext&format=json&formatversion=2",
+  "status": 200,
+  "capturedAt": "2026-11-15T08:50:00.000Z",
+  "bytes": 3906,
+  "sha256": "b285e9dc77737e72",
+  "note": "真抓裁剪：`Widget:游戏活动日历` 全文 101,382 B → 只保留 `var CALENDAR_DATA = {…}` 这一个对象（原样逐字），其中 events 只保留 6 条**固定窗口**事件（在期：无职转生Ⅲ联动 2026-11-15 11:00~2026-12-02 10:59、「弹珠高手记录」2026-10-02 11:00~2027-04-01 02:59；已结束：银河冒险Ⅱ / 黄泉使者联动 / 彩兽神祭新限定；单日解禁：乌波·萨斯拉兽改解禁）+ 2 条 `recur` 每月轮换（证明解析器跳过它们）。meta/categories 等键原样保留。"
+}
