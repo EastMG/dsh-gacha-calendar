@@ -1430,8 +1430,13 @@ export default async function run() {
 	// （**2026-11-15 二次换源**：主源 = bwiki「活动日历」的 wikitext；官网首页内联 JSON 降为
 	// `altSources` / `eventAltSources` 的手动备选，解析代码全留、回归照样钉住）。
 	// 源站事实与口径见两个文件的文件头 ①~⑥。夹具全部真抓（2026-11-15）：
-	//   · `pcr-tw-list`（第 1 页 10 条裁到 5 条：4116【更新】/4117/4115/4111【活動】/4106【轉蛋】）
+	//   · `pcr-tw-list`（**2026-11-15 19:16 重抓**：第 1 页 10 条裁到 `<article class="news_con">` + 极简外壳；
+	//     旧版是 06:53 抓的——那之后源站又发了 6 条「舉辦預告」，把当期《精選轉蛋》挤到了第 2 页，
+	//     旧夹具已不能代表"第 1 页不含当期"这个 bug 现场）
+	//   · `pcr-tw-list-2`（第 2 页，同上裁剪；当期《精選轉蛋》4106 在这页）
+	//   · `pcr-tw-list-3`（第 3 页，同上裁剪；钉住"三页都没有覆盖 now ⇒ null"的上限）
 	//   · `pcr-tw-detail-4106`（裁到 `<section class="news_con">`，卡池正文）
+	//   · `pcr-tw-detail-4107` / `-detail-4119` / `-detail-4120`（第 2 页同批池与第 1 页预告的正文，裁到 section）
 	//   · `pcr-tw-detail-4117`（裁到 section，活动的 `■販售期間`）
 	//   · `pcr-tw-detail-4115`（**整页未裁**，故意的：导航里有个 `<h2 …>熱門遊戲</h2>` 排在正文之前，
 	//     钉住"只认 section 里的 h2" —— 第一次活网跑出来 event = 熱門遊戲 就是这个坑）
@@ -1447,10 +1452,21 @@ export default async function run() {
 		const TZ_TW = "Asia/Taipei";
 		const TZ_CN2 = "Asia/Shanghai";
 		const PCR_LIST = PCR.PCR_TW_LIST_URL;
+		// 第 2 / 3 页地址由 `pcrTwPageUrlOf` 现算（不要手写字符串：抓取器内部也走同一个函数）
+		const PCR_LIST2 = PCR.pcrTwPageUrlOf(PCR_LIST, 2);
+		const PCR_LIST3 = PCR.pcrTwPageUrlOf(PCR_LIST, 3);
 		const PCR_D_4106 = PCR.PCR_TW_DETAIL_BASE + "4106";
-		const PCR_D_4117 = PCR.PCR_TW_DETAIL_BASE + "4117";
+		const PCR_D_4107 = PCR.PCR_TW_DETAIL_BASE + "4107";
 		const PCR_D_4115 = PCR.PCR_TW_DETAIL_BASE + "4115";
+		const PCR_D_4117 = PCR.PCR_TW_DETAIL_BASE + "4117";
+		const PCR_D_4119 = PCR.PCR_TW_DETAIL_BASE + "4119";
+		const PCR_D_4120 = PCR.PCR_TW_DETAIL_BASE + "4120";
 		const PCR_D_4111 = PCR.PCR_TW_DETAIL_BASE + "4111";
+		// 第 2 页活动的两条（4105 无窗口 / 4110 已结束）与第 3 页活动的两条（4104/4103 在期）
+		const PCR_D_4105 = PCR.PCR_TW_DETAIL_BASE + "4105";
+		const PCR_D_4110 = PCR.PCR_TW_DETAIL_BASE + "4110";
+		const PCR_D_4104 = PCR.PCR_TW_DETAIL_BASE + "4104";
+		const PCR_D_4103 = PCR.PCR_TW_DETAIL_BASE + "4103";
 		// 主源 = bwiki「活动日历」：raw（正文）+ revisions（只补年份）两次请求；备选源 = 官网首页内联 JSON
 		const RESO_RAW = RESO.RESO_RAW_URL;
 		const RESO_REV = RESO.RESO_REV_URL;
@@ -1461,9 +1477,18 @@ export default async function run() {
 		const norm = (u) => String(u).replace(/[?&]origin=\*/, "");
 		const BODY2 = {
 			[PCR_LIST]: FIX("pcr-tw-list"),
+			[PCR_LIST2]: FIX("pcr-tw-list-2"),
+			[PCR_LIST3]: FIX("pcr-tw-list-3"),
 			[PCR_D_4106]: FIX("pcr-tw-detail-4106"),
+			[PCR_D_4107]: FIX("pcr-tw-detail-4107"),
 			[PCR_D_4117]: FIX("pcr-tw-detail-4117"),
 			[PCR_D_4115]: FIX("pcr-tw-detail-4115"),
+			[PCR_D_4119]: FIX("pcr-tw-detail-4119"),
+			[PCR_D_4120]: FIX("pcr-tw-detail-4120"),
+			[PCR_D_4105]: FIX("pcr-tw-detail-4105"),
+			[PCR_D_4110]: FIX("pcr-tw-detail-4110"),
+			[PCR_D_4104]: FIX("pcr-tw-detail-4104"),
+			[PCR_D_4103]: FIX("pcr-tw-detail-4103"),
 			[RESO_RAW]: FIX("reso-calendar-raw"),
 			[RESO_REV]: FIX("reso-revision"),
 			[RESO_HOME]: FIX("reso-home")
@@ -1493,13 +1518,28 @@ export default async function run() {
 			now: () => now,
 			timer: { setTimeout, clearTimeout }
 		});
+		// 只开 pcr-tw 的引擎（请求记账只含 pcr；分页/请求预算的"钉死数字"用它，免得 reso 的 2 次混进来）
+		const enginePcr = (now, sink, overrides) => createEngine({
+			transport: transport2(sink, null, overrides),
+			storage: makeStore({ hidden: ALL_IDS2.filter((id) => id !== "pcr-tw"), shown: ["pcr-tw"] }),
+			now: () => now,
+			timer: { setTimeout, clearTimeout }
+		});
 		// 夹具抓取那天（2026-11-15）上午：4117 的販售 16:00 才开 ⇒ 活动外显应是 4115 那条
 		const NOW2 = Date.parse("2026-11-15T06:30:00+08:00");
+		// 分页用例的另外三个时刻（都用同一批夹具回放，now 显式传）：
+		//   · NOW_A = 11-15 凌晨：第 1 页候选全都没开/已结束 ⇒ 必须翻页（第 2 页卡池命中、第 3 页活动命中）；
+		//   · NOW_HIT = 11-17 12:00：第 1 页候选（gacha 4120 / 活动 4115/4117）已开期 ⇒ 只抓 1 页；
+		//   · NOW_FAR = 12-20 12:00：三页候选窗口全过（再抹掉详情区间做反证）⇒ null（nomatch）。
+		const NOW_A = Date.parse("2026-11-15T02:00:00+08:00");
+		const NOW_HIT = Date.parse("2026-11-17T12:00:00+08:00");
+		const NOW_FAR = Date.parse("2026-12-20T12:00:00+08:00");
 		// 备选源（官网内联 JSON）的"当期"：最新一条更新公告是 2025-12-23（id 290），窗口跨到
 		// 2026-01-12 ⇒ 只有把 now 钉到 2025-12-25 才看得到它（主源 bwiki 在 NOW2 就有当期，见 ⑧）
 		const NOW_RESO = Date.parse("2025-12-25T00:00:00+08:00");
 		const errOf = (fn) => { try { fn(); return ""; } catch (e) { return String((e && e.message) || e); } };
 		const throws2 = (fn) => { try { fn(); return false; } catch { return true; } };
+		const errOfAsync = async (fn) => { try { await fn(); return ""; } catch (e) { return String((e && e.message) || e); } };
 
 		// ── ① 注册 ──
 		const srcPcr = srcOf("pcr-tw");
@@ -1538,21 +1578,49 @@ export default async function run() {
 			&& RESO.RESO_HOME_CACHE_TTL_MS >= 24 * 60 * 60 * 1000,
 			JSON.stringify([RESO_RAW, RESO_REFERER, RESO_REV, RESO_HOME, RESO.RESO_HOME_CACHE_TTL_MS]));
 
-		// ── ② pcr-tw：列表（类别只认标题前缀，不认 `ac0X`）──
+		// ── ② pcr-tw：列表（类别只认标题前缀，不认 `ac0X`；三页夹具都是真抓原文）──
 		const pcrRows = PCR.pcrTwListOf(BODY2[PCR_LIST]);
-		check("pcr 列表：5 条，按日期倒序（同日按 id 倒序：4117 排在 4116 前）",
-			pcrRows.length === 5 && pcrRows.map((x) => x.id).join(",") === "4117,4116,4115,4111,4106",
+		check("pcr 第 1 页列表：10 条（当前线上现场），按日期倒序、同日按 id 倒序",
+			pcrRows.length === 10 && pcrRows.map((x) => x.id).join(",") === "4123,4122,4121,4120,4119,4118,4117,4116,4115,4125",
 			JSON.stringify(pcrRows.map((x) => x.id)));
-		check("pcr 列表：`kind` 只按标题前缀分（`【轉蛋】`=4106 是 gacha，`活動` span 的 `ac0X` 类名不作数）",
-			pcrRows.find((x) => x.id === "4106").kind === "gacha"
-			&& pcrRows.find((x) => x.id === "4106").type === "活動"
+		check("pcr 列表：`kind` 只按标题前缀分（`【轉蛋】`=4121 是 gacha，`活動` span 的 `ac0X` 类名不作数）",
+			pcrRows.find((x) => x.id === "4121").kind === "gacha"
+			&& pcrRows.find((x) => x.id === "4121").type === "活動"
 			&& pcrRows.find((x) => x.id === "4115").kind === "event"
 			&& pcrRows.find((x) => x.id === "4116").kind === "other"
-			&& pcrRows.find((x) => x.id === "4111").kind === "event",
+			&& pcrRows.find((x) => x.id === "4125").kind === "other",
 			JSON.stringify(pcrRows.map((x) => [x.id, x.type, x.kind])));
 		check("pcr 列表日期 `2026.11.14` → Asia/Taipei 当日 00:00（= UTC 前一天 16:00）",
 			pcrRows.find((x) => x.id === "4117").dateTs === Date.UTC(2026, 10, 13, 16, 0),
 			String(pcrRows.find((x) => x.id === "4117").dateTs));
+		// 第 2 / 3 页：同样是真抓（当期《精選轉蛋》4106 就在第 2 页）
+		const pcrRows2 = PCR.pcrTwListOf(BODY2[PCR_LIST2]);
+		const pcrRows3 = PCR.pcrTwListOf(BODY2[PCR_LIST3]);
+		check("pcr 第 2 页列表：10 条（4106《精選轉蛋》/4107/4108 三条 gacha 都在 11-03 这天）",
+			pcrRows2.length === 10 && pcrRows2.map((x) => x.id).join(",") === "4111,4114,4113,4112,4110,4109,4108,4107,4106,4105"
+			&& pcrRows2.find((x) => x.id === "4106").kind === "gacha"
+			&& pcrRows2.find((x) => x.id === "4106").title.indexOf("《精選轉蛋》") > 0,
+			JSON.stringify(pcrRows2.map((x) => x.id)));
+		check("pcr 第 3 页列表：10 条（11-03 那批更早的活动/卡池）",
+			pcrRows3.length === 10 && pcrRows3.map((x) => x.id).join(",") === "4104,4103,4102,4101,4100,4099,4098,4097,4096,4095",
+			JSON.stringify(pcrRows3.map((x) => x.id)));
+		// 候选排序（文件头 ③ 的核心）：页内按 (公告日期升序, 站点原序) 取前 2 ——
+		//   · 第 1 页 gacha 全是 11-15 的「舉辦預告」（4119/4120/4121）⇒ 候选 4119,4120（都不会覆盖 now）；
+		//   · 第 2 页 gacha 同在 11-03，站点原序 = 4106,4107,4108 ⇒ 候选 4106,4107（正好是当期本命池 + 同批池）；
+		//   · 第 1 页活动按日期升序 = 4115（11-13）、4117（11-14）在前，压过 11-15 新发的 4118/4123。
+		check("pcr 候选排序：第 1 页 gacha = 4119,4120（11-15 那批预告）；活动 = 4115,4117（按日期从早到晚）",
+			PCR.pcrTwCandidatesOf(pcrRows, "gacha").map((x) => x.id).join(",") === "4119,4120"
+			&& PCR.pcrTwCandidatesOf(pcrRows, "event").map((x) => x.id).join(",") === "4115,4117",
+			JSON.stringify([PCR.pcrTwCandidatesOf(pcrRows, "gacha").map((x) => x.id), PCR.pcrTwCandidatesOf(pcrRows, "event").map((x) => x.id)]));
+		check("pcr 候选排序：第 2 页 gacha = 4106,4107（同日按站点原序，主池公告 4106 排第一）",
+			PCR.pcrTwCandidatesOf(pcrRows2, "gacha").map((x) => x.id).join(",") === "4106,4107",
+			JSON.stringify(PCR.pcrTwCandidatesOf(pcrRows2, "gacha").map((x) => x.id)));
+		check("pcr 页地址：page 1 **原样返回**注册地址（不发新 URL）；page 2/3 = `?page=N`",
+			PCR.pcrTwPageUrlOf(PCR_LIST, 1) === PCR_LIST
+			&& PCR.pcrTwPageUrlOf(PCR_LIST, 2) === "https://www.princessconnect.so-net.tw/news?page=2"
+			&& PCR.pcrTwPageUrlOf(PCR_LIST, 3) === "https://www.princessconnect.so-net.tw/news?page=3"
+			&& PCR.PCR_TW_MAX_LIST_PAGES === 3,
+			JSON.stringify([PCR.pcrTwPageUrlOf(PCR_LIST, 1), PCR.pcrTwPageUrlOf(PCR_LIST, 2), PCR.PCR_TW_MAX_LIST_PAGES]));
 
 		// ── ③ pcr-tw：卡池详情（逐字）──
 		const d4106 = PCR.pcrTwDetailOf(BODY2[PCR_D_4106], TZ_TW);
@@ -1593,7 +1661,7 @@ export default async function run() {
 			&& d4117.windows[0].endTs === Date.UTC(2026, 11, 15, 15, 59),
 			JSON.stringify(d4117.windows));
 
-		// ── ⑤ pcr-tw：端到端 + 请求预算（1 页 + 每侧 ≤2 篇详情；reso 主源 raw + revisions = 2 次/轮）──
+		// ── ⑤ pcr-tw：端到端 + 请求预算（按页前进：page 1 miss → page 2；reso 主源 raw + revisions = 2 次/轮）──
 		PCR.pcrTwResetCache();
 		RESO.resoResetCache();
 		const calls2 = [];
@@ -1602,24 +1670,31 @@ export default async function run() {
 		const r2 = await e2.refresh();
 		const recPcr = r2.games["pcr-tw"] || {};
 		const recReso = r2.games.reso || {};
-		check("首轮请求 = 6 次（pcr 列表 1 + 详情 3；reso 主源 raw 1 + revisions 1；两侧各只取自己的）",
-			calls2.length === 6
+		// 第 1 轮 = 10 次：pcr 列表 page1 + page2（各 1；两侧共用）+ 详情 6（page1 卡池 4119/4120、
+		// page1 活动 4115/4117、page2 卡池 4106/4107）+ reso raw + revisions。
+		check("首轮请求 = 10 次（pcr 列表 2 + 详情 6；reso 主源 raw 1 + revisions 1；page3 一次都不抓）",
+			calls2.length === 10
 			&& calls2.filter((u) => u === PCR_LIST).length === 1
-			&& calls2.filter((u) => u === PCR_D_4106).length === 1
-			&& calls2.filter((u) => u === PCR_D_4117).length === 1
+			&& calls2.filter((u) => u === PCR_LIST2).length === 1
+			&& calls2.filter((u) => u === PCR_LIST3).length === 0
+			&& calls2.filter((u) => u === PCR_D_4119).length === 1
+			&& calls2.filter((u) => u === PCR_D_4120).length === 1
 			&& calls2.filter((u) => u === PCR_D_4115).length === 1
+			&& calls2.filter((u) => u === PCR_D_4117).length === 1
+			&& calls2.filter((u) => u === PCR_D_4106).length === 1
+			&& calls2.filter((u) => u === PCR_D_4107).length === 1
 			&& calls2.filter((u) => u === RESO_RAW).length === 1
 			&& calls2.filter((u) => u === RESO_REV).length === 1
 			&& calls2.indexOf(PCR_D_4111) < 0,
 			"requests=" + calls2.length + " " + JSON.stringify(calls2));
 		check("默认源下**备选源一次都不抓**（官网首页 soli-reso.com 不在请求里 —— altSources 只在用户选中时才抓）",
 			calls2.indexOf(RESO_HOME) < 0, JSON.stringify(calls2));
-		check("pcr 卡池外显 = 精選轉蛋 / 露易絲瑪莉（夏日）/ 11-04 16:00 ~ 11-16 15:59",
+		check("pcr 卡池外显 = 精選轉蛋 / 露易絲瑪莉（夏日）/ 11-04 16:00 ~ 11-16 15:59（公告在第 2 页，翻页命中）",
 			recPcr.banner === "精選轉蛋" && recPcr.roles === "露易絲瑪莉（夏日）"
 			&& recPcr.bannerDates === "11-04 16:00 ~ 11-16 15:59"
 			&& recPcr.bannerDatesRaw === "2026/11/04 16:00 ~ 2026/11/16 15:59" && recPcr.gachaFail === null,
 			JSON.stringify([recPcr.banner, recPcr.roles, recPcr.bannerDates, recPcr.bannerDatesRaw]));
-		check("pcr 活动外显 = 「NORMAL」裝備道具… / 11-15 05:00 ~ 11-21 04:59（4117 当天 16:00 才开 ⇒ 不进外显）",
+		check("pcr 活动外显 = 「NORMAL」裝備道具… / 11-15 05:00 ~ 11-21 04:59（第 1 页的 4115：页内按日期从早到晚取候选才拿到）",
 			recPcr.event === "「NORMAL」裝備道具、星素掉落量3倍・瑪那掉落量2倍"
 			&& recPcr.eventDates === "11-15 05:00 ~ 11-21 04:59" && recPcr.eventFail === null,
 			JSON.stringify([recPcr.event, recPcr.eventDates, recPcr.eventFail]));
@@ -1628,10 +1703,13 @@ export default async function run() {
 			&& recPcr.events[0].startTs === Date.UTC(2026, 10, 14, 21, 0)
 			&& recPcr.events[0].endTs === Date.UTC(2026, 10, 20, 20, 59),
 			JSON.stringify((recPcr.events || []).map((x) => [x.title, x.startTs, x.endTs])));
-		check("pcr gacha[] 1 条（只有 1 口在期池 ⇒ 不设 bannerHover，交回 UI 两行式）",
-			Array.isArray(recPcr.gacha) && recPcr.gacha.length === 1
-			&& recPcr.gacha[0].title === "精選轉蛋" && !recPcr.bannerHover,
+		check("pcr gacha[] 2 条（精選轉蛋 + 同批同窗口的第10次…；两行悬停按「名称 ⏎ 档期」折叠）",
+			Array.isArray(recPcr.gacha) && recPcr.gacha.length === 2
+			&& recPcr.gacha[0].title === "精選轉蛋"
+			&& recPcr.gacha[1].title === "第10次精選角色出現率3倍轉蛋"
+			&& recPcr.bannerHover === "精選轉蛋：露易絲瑪莉（夏日）\n第10次精選角色出現率3倍轉蛋\n11-04 16:00 ~ 11-16 15:59",
 			JSON.stringify([(recPcr.gacha || []).map((x) => x.title), recPcr.bannerHover]));
+		if (recPcr.bannerHover) assertHoverConvention("pcr 卡池", recPcr.bannerHover, { requireSet: true });
 		// NOW2（夹具抓取时刻 2026-11-15）下，主源 bwiki 的当期 = 蓝鹊儿 / 朱月（见文件头 ⑥）
 		check("reso 主源在夹具抓取时刻（2026-11-15）就有当期：卡池 = 结束最早的 特设招募 / 蓝鹊儿 / 10-26 00:00 ~ 11-16 23:59",
 			recReso.banner === "特设招募" && recReso.roles === "蓝鹊儿"
@@ -1640,11 +1718,13 @@ export default async function run() {
 			&& recReso.event === "" && String((recReso.eventFail || {}).kind) === "nomatch",
 			JSON.stringify([recReso.banner, recReso.roles, recReso.bannerDates, recReso.bannerDatesRaw, recReso.eventFail]));
 
-		// 稳态：pcr 详情进 24h 缓存；reso 主源**没有**24h 数据缓存 ⇒ 每轮仍 raw + revisions 2 次
+		// 稳态：pcr 详情进 24h 缓存；**列表按页缓存只在轮内有效** ⇒ 第 2 轮仍要取 page1+page2
+		//（这一轮 page2 是必需的：page1 依旧 miss）；reso 主源没有 24h 数据缓存 ⇒ 每轮 raw + revisions 2 次
 		calls2.length = 0;
 		const r2b = await e2.refresh();
-		check("稳态第 2 轮 = 3 次（pcr 只列表 1；pcr 三篇详情 24h 缓存；reso 主源 raw + revisions 2）",
-			calls2.length === 3 && calls2.filter((u) => u === PCR_LIST).length === 1
+		check("稳态第 2 轮 = 4 次（pcr 列表 page1 + page2 各 1；6 篇详情全走 24h 缓存；reso 2 次）",
+			calls2.length === 4 && calls2.filter((u) => u === PCR_LIST).length === 1
+			&& calls2.filter((u) => u === PCR_LIST2).length === 1
 			&& calls2.filter((u) => u.indexOf("/news/newsDetail/") >= 0).length === 0
 			&& calls2.filter((u) => u === RESO_RAW).length === 1
 			&& calls2.filter((u) => u === RESO_REV).length === 1
@@ -1655,6 +1735,108 @@ export default async function run() {
 			&& refs2.filter((x) => x.url.indexOf("wiki.biligame.com") >= 0).every((x) => x.referer === "https://wiki.biligame.com/")
 			&& refs2.filter((x) => x.url.indexOf("princessconnect") >= 0).every((x) => x.referer === "https://www.princessconnect.so-net.tw/"),
 			JSON.stringify(refs2.slice(0, 3)));
+
+		// ── ⑤′ pcr-tw：按页前进的四种形态（page1 单独 / 翻到 page2 / 翻到 page3 / 三页全 miss）──
+		// ① page1 单独（maxPages = 1）：11-15 凌晨第 1 页的候选全都没开/已结束 ⇒ 两侧都空（nomatch 的来源）。
+		//    轮外直调不走轮内列表缓存 ⇒ 两侧各取一次第 1 页（这正说明"每个请求都记"）；详情按 id 缓存共用。
+		PCR.pcrTwResetCache();
+		const calls1Page = [];
+		// 直调 T.parsers 的抓取器 ⇒ 走 `T.setCoreEnv`（createEngine 注入的是 packages/core 那份 env，不到这里）
+		T.setCoreEnv({ transport: transport2(calls1Page, null, null), timer: { setTimeout, clearTimeout } });
+		const itPools1 = await PCR.pcrTwItemsOf(PCR_LIST, null, TZ_TW, NOW_A, "pools", 1);
+		const itEvents1 = await PCR.pcrTwItemsOf(PCR_LIST, null, TZ_TW, NOW_A, "events", 1);
+		check("pcr 第 1 页单独（maxPages=1，NOW=11-15 02:00）⇒ 卡池/活动都解不出覆盖 now 的窗口（0 条）",
+			itPools1.length === 0 && itEvents1.length === 0
+			&& calls1Page.filter((u) => u === PCR_LIST).length === 2
+			&& calls1Page.filter((u) => u === PCR_LIST2).length === 0
+			&& calls1Page.filter((u) => u.indexOf("/news/newsDetail/") >= 0).length === 4,
+			"items=" + JSON.stringify([itPools1.length, itEvents1.length]) + " requests=" + JSON.stringify(calls1Page));
+		PCR.pcrTwResetCache();
+		// ② page1 miss ⇒ 翻到 page2（卡池命中《精選轉蛋》）；活动还要再翻到 page3（第 1/2 页候选都过档）。
+		//    ⚠️ 两侧共用同一页的列表请求 ⇒ page1/2/3 各只请求 1 次（两侧都翻页也只算一次）。
+		const callsWalk = [];
+		const eWalk = enginePcr(NOW_A, callsWalk);
+		const rWalk = await eWalk.refresh();
+		const gWalk = rWalk.games["pcr-tw"] || {};
+		check("pcr 翻页（NOW=11-15 02:00）：卡池在第 2 页命中 精選轉蛋 / 露易絲瑪莉（夏日）/ 11-04 16:00 ~ 11-16 15:59",
+			gWalk.banner === "精選轉蛋" && gWalk.roles === "露易絲瑪莉（夏日）"
+			&& gWalk.bannerDates === "11-04 16:00 ~ 11-16 15:59" && gWalk.gachaFail === null,
+			JSON.stringify([gWalk.banner, gWalk.roles, gWalk.bannerDates, gWalk.gachaFail]));
+		check("pcr 翻页（NOW=11-15 02:00）：活动在第 3 页命中 挑戰冒險 / 11-01 16:00 ~ 12-01 15:59（事件档位优先于礼包）",
+			gWalk.event === "挑戰冒險"
+			&& gWalk.eventDates === "11-01 16:00 ~ 12-01 15:59" && gWalk.eventFail === null,
+			JSON.stringify([gWalk.event, gWalk.eventDates, gWalk.eventFail]));
+		check("pcr 翻页请求 = 13 次（列表 page1/2/3 各 1 **两侧共用** + 详情 10：4119/4120/4106/4107/4115/4117/4105/4110/4104/4103 各 1）",
+			callsWalk.length === 13
+			&& callsWalk.filter((u) => u === PCR_LIST).length === 1
+			&& callsWalk.filter((u) => u === PCR_LIST2).length === 1
+			&& callsWalk.filter((u) => u === PCR_LIST3).length === 1
+			&& [PCR_D_4119, PCR_D_4120, PCR_D_4106, PCR_D_4107, PCR_D_4115, PCR_D_4117, PCR_D_4105, PCR_D_4110, PCR_D_4104, PCR_D_4103]
+				.every((u) => callsWalk.filter((x) => x === u).length === 1),
+			"requests=" + callsWalk.length + " " + JSON.stringify(callsWalk));
+		PCR.pcrTwResetCache();
+		// ③ page1 就能出 ⇒ 仍只 1 次列表请求（历史行为保持；NOW=11-17 12:00 时 page1 候选 4120/4115/4117 都已开期）
+		const callsHit = [];
+		const eHit = enginePcr(NOW_HIT, callsHit);
+		const rHit = await eHit.refresh();
+		const gHit = rHit.games["pcr-tw"] || {};
+		check("pcr 第 1 页就能出（NOW=11-17 12:00）⇒ 列表只请求 1 次、详情 4 篇（翻页行为不拖累稳态）",
+			callsHit.length === 5
+			&& callsHit.filter((u) => u === PCR_LIST).length === 1
+			&& callsHit.filter((u) => u === PCR_LIST2).length === 0
+			&& callsHit.filter((u) => u === PCR_LIST3).length === 0
+			&& [PCR_D_4119, PCR_D_4120, PCR_D_4115, PCR_D_4117].every((u) => callsHit.filter((x) => x === u).length === 1),
+			"requests=" + callsHit.length + " " + JSON.stringify(callsHit));
+		check("pcr 第 1 页命中（NOW=11-17 12:00）：卡池 = 附贈大師碎片的★3必中白金轉蛋 / 11-16 16:00 ~ 12-01 15:59；活动 = NORMAL",
+			gHit.banner === "附贈大師碎片的★3必中白金轉蛋" && gHit.bannerDates === "11-16 16:00 ~ 12-01 15:59"
+			&& gHit.event === "「NORMAL」裝備道具、星素掉落量3倍・瑪那掉落量2倍"
+			&& gHit.eventDates === "11-15 05:00 ~ 11-21 04:59" && gHit.gachaFail === null && gHit.eventFail === null,
+			JSON.stringify([gHit.banner, gHit.bannerDates, gHit.event, gHit.eventDates]));
+		PCR.pcrTwResetCache();
+		// ④ 反证：抹掉**所有候选**的整行区间 ⇒ 每页都"解析成功但没有覆盖 now 的窗口" ⇒ 走到第 3 页仍无线索
+		//    ⇒ 两侧如实 null（nomatch，**不抛**；与"列表结构变了 ⇒ 抛"区分开）。
+		//    候选详情：page1 4119/4120/4115/4117；page2 4106/4107/4105/4110；page3 4101/4100/4104/4103。
+		const noRangeHtml = BODY2[PCR_D_4106].replace(/～/g, "至");
+		const noRangeOverrides = {};
+		for (const id of ["4119", "4120", "4115", "4117", "4106", "4107", "4105", "4110", "4101", "4100", "4104", "4103"]) {
+			noRangeOverrides[PCR.PCR_TW_DETAIL_BASE + id] = noRangeHtml;
+		}
+		const callsFar = [];
+		const eFar = enginePcr(NOW_FAR, callsFar, noRangeOverrides);
+		const rFar = await eFar.refresh();
+		const gFar = rFar.games["pcr-tw"] || {};
+		check("pcr 三页都没有覆盖 now 的窗口 ⇒ 卡池/活动都如实 nomatch（不抛、不硬凑过期档期），且翻页上限 = 3 页",
+			gFar.banner === "" && String((gFar.gachaFail || {}).kind) === "nomatch"
+			&& gFar.event === "" && String((gFar.eventFail || {}).kind) === "nomatch"
+			&& callsFar.filter((u) => u === PCR_LIST).length === 1
+			&& callsFar.filter((u) => u === PCR_LIST2).length === 1
+			&& callsFar.filter((u) => u === PCR_LIST3).length === 1
+			&& callsFar.filter((u) => u.indexOf("/news/newsDetail/") >= 0).length === 12,
+			"requests=" + callsFar.length + " " + JSON.stringify([gFar.banner, gFar.gachaFail, gFar.event, gFar.eventFail]));
+		PCR.pcrTwResetCache();
+		// ⑤ 失败语义不变：翻到的页结构变了 ⇒ 抛（down），不是 nomatch
+		//    （⚠️ 失败的那次列表 promise 按既有约定会被清掉 ⇒ 两侧各自再试一次；这里只钉"都记 down"）
+		PCR.pcrTwResetCache();
+		const callsBadList = [];
+		const rBadList = await enginePcr(NOW_A, callsBadList, { [PCR_LIST2]: "<html><body>改版页</body></html>" }).refresh();
+		const gBadList = rBadList.games["pcr-tw"] || {};
+		check("pcr 反证：第 2 页列表结构变了（没有 article）⇒ 两侧记 **down**（不是 nomatch），且只取 page1/2 不越到 page3",
+			gBadList.banner === "" && String((gBadList.gachaFail || {}).kind) === "down"
+			&& gBadList.event === "" && String((gBadList.eventFail || {}).kind) === "down"
+			&& callsBadList.filter((u) => u === PCR_LIST).length === 1
+			&& callsBadList.filter((u) => u === PCR_LIST2).length >= 1
+			&& callsBadList.filter((u) => u === PCR_LIST3).length === 0,
+			JSON.stringify([gBadList.gachaFail, gBadList.eventFail]) + " requests=" + JSON.stringify(callsBadList));
+		// ⑥ 失败语义不变：第 2 页候选详情全失败 ⇒ 抛（down）；活动侧第 3 页还能出（单侧失败隔离）
+		PCR.pcrTwResetCache();
+		const callsBadDto = [];
+		const rBadDto = await enginePcr(NOW_A, callsBadDto, { [PCR_D_4106]: "{}", [PCR_D_4107]: "{}" }).refresh();
+		const gBadDto = rBadDto.games["pcr-tw"] || {};
+		check("pcr 反证：第 2 页两篇候选详情都结构变了（`{}`）⇒ 卡池记 **down**；活动侧第 3 页正常照样出",
+			gBadDto.banner === "" && String((gBadDto.gachaFail || {}).kind) === "down"
+			&& gBadDto.event === "挑戰冒險" && gBadDto.eventFail === null,
+			JSON.stringify([gBadDto.banner, gBadDto.gachaFail, gBadDto.event, gBadDto.eventFail]));
+		PCR.pcrTwResetCache();
 
 		// ── ⑥ reso 主源：wikitext 行解析（注释里的旧档期 / 模板条件行都不算）──
 		const resoRows = RESO.resoRowsOf(BODY2[RESO_RAW]);
@@ -1842,12 +2024,16 @@ export default async function run() {
 			&& PCR.pcrTwPoolItemsOf(PCR.pcrTwDetailOf(noRange, TZ_TW)).length === 0,
 			JSON.stringify(PCR.pcrTwDetailOf(noRange, TZ_TW).windows));
 		PCR.pcrTwResetCache();
-		const eNoRange = engine2(NOW2, null, null, { [PCR_D_4106]: noRange });
-		const rNoRange = await eNoRange.refresh();
-		check("pcr 反证（端到端）：卡池那篇没有窗口 ⇒ 卡池如实 nomatch（不硬凑过期档期）",
-			((rNoRange.games["pcr-tw"] || {}).banner) === ""
-			&& String((((rNoRange.games["pcr-tw"] || {}).gachaFail) || {}).kind) === "nomatch",
-			JSON.stringify([(rNoRange.games["pcr-tw"] || {}).banner, (rNoRange.games["pcr-tw"] || {}).gachaFail]));
+		// 端到端"三页都没有覆盖 now ⇒ null"在 ⑤′④；这里补单元级的一条：
+		// 某一页的候选详情**全部抛错**时必须抛（抓取失败 ≠ 未公布），不能当成"没有窗口"继续翻页。
+		T.setCoreEnv({
+			transport: transport2(null, null, { [PCR_D_4119]: "{}", [PCR_D_4120]: "{}" }),
+			timer: { setTimeout, clearTimeout }
+		});
+		const errPoolPage1 = await errOfAsync(() => PCR.pcrTwItemsOf(PCR_LIST, null, TZ_TW, NOW2, "pools", 1));
+		check("pcr 反证：第 1 页两篇候选详情都结构变了 ⇒ 抛 `pcr-tw-detail-changed:no-section`（不是继续翻页）",
+			errPoolPage1 === "pcr-tw-detail-changed:no-section", errPoolPage1);
+		PCR.pcrTwResetCache();
 		// reso 主源：正文是 `{}` / 空串 / 全是注释 ⇒ 抛错（页面结构变了 = down，不是"当期没有"）
 		check("reso 主源反证：正文 `{}` / 空串 / 全是注释 ⇒ 抛错；revisions `{}` / pages 空 / 没 timestamp ⇒ 抛错",
 			throws2(() => RESO.resoRowsOf("{}")) && throws2(() => RESO.resoRowsOf(""))

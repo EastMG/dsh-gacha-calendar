@@ -802,10 +802,12 @@
 				hlJpResetCache: ns_hl_jp_resetCache,
 				hlJpWindowOf: ns_hl_jp_windowOf
 			},
-			// 2026-11-15 公主连结 Re:Dive·繁中服（pcr-tw）：So-net 官网公告（列表 1 页 + 按 id 缓存的详情）。
-			// 导出「URL + 纯解析 + 缓存复位 + 抓取器」四层，回归可以分别钉住：
+			// 2026-11-15 公主连结 Re:Dive·繁中服（pcr-tw）：So-net 官网公告（**按页前进**：1 → 2 → 3 页，
+			// 页内候选按 (公告日期升序, 站点原序) 取前 2；详情按 id 缓存 24h）。
+			// 导出「URL/常量 + 纯解析 + 候选排序 + 缓存复位 + 抓取器」四层，回归可以分别钉住：
 			// 列表 `<li>` 三件套（类别只认标题前缀、不认 `ac0X` 类名）/ 详情「整行日期区间 + ■ 名字行」/
-			// `{}` ⇒ 抛错 / 抹掉区间 ⇒ 不出窗口 / 每侧最多 2 篇详情 + 轮内共享一次列表。
+			// `{}` ⇒ 抛错 / 抹掉区间 ⇒ 不出窗口 / 每侧每页最多 2 篇详情 + 轮内按页共享列表 /
+			// `maxPages=1` 只剩第 1 页 ⇒ 两侧都 nomatch / 三页都没有覆盖 now ⇒ null。
 			"pcr-tw": {
 				PCR_TW_CACHE_TTL_MS: ns_pcr_TW_CACHE_TTL_MS,
 				PCR_TW_DETAIL_BASE: ns_pcr_TW_DETAIL_BASE,
@@ -814,12 +816,14 @@
 				PCR_TW_LABEL_RE: ns_pcr_TW_LABEL_RE,
 				PCR_TW_LIST_URL: ns_pcr_TW_LIST_URL,
 				PCR_TW_MAX_DETAILS: ns_pcr_TW_MAX_DETAILS,
+				PCR_TW_MAX_LIST_PAGES: ns_pcr_TW_MAX_LIST_PAGES,
 				PCR_TW_RANGE_RE: ns_pcr_TW_RANGE_RE,
 				PCR_TW_SECTION_OPEN: ns_pcr_TW_SECTION_OPEN,
 				PCR_TW_SOURCE_LABEL: ns_pcr_TW_SOURCE_LABEL,
 				PCR_TW_TZ: ns_pcr_TW_TZ,
 				eventsPcrTw: ns_pcr_tw_events,
 				gachaPcrTw: ns_pcr_tw_gacha,
+				pcrTwCandidatesOf: ns_pcr_tw_candidatesOf,
 				pcrTwDateTsOf: ns_pcr_tw_dateTsOf,
 				pcrTwDetailOf: ns_pcr_tw_detailOf,
 				pcrTwEventItemsOf: ns_pcr_tw_eventItemsOf,
@@ -828,6 +832,7 @@
 				pcrTwLabelOf: ns_pcr_tw_labelOf,
 				pcrTwLinesOf: ns_pcr_tw_linesOf,
 				pcrTwListOf: ns_pcr_tw_listOf,
+				pcrTwPageUrlOf: ns_pcr_tw_pageUrlOf,
 				pcrTwPoolItemsOf: ns_pcr_tw_poolItemsOf,
 				pcrTwResetCache: ns_pcr_tw_resetCache,
 				pcrTwRolesOf: ns_pcr_tw_rolesOf,

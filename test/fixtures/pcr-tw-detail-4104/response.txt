@@ -1,0 +1,50 @@
+<section class="news_con">
+            <p class="news_meta">
+                <time datetime="2026.11.03">2026.11.03</time>
+                <span class="ac01">活動</span>
+                            </p>
+            <h2>【活動】「官方WebStore限定 迎新優惠1500寶石」期間限定販售預告！</h2>
+            <div class="news-body" aria-labelledby="gameName">
+                <h3 id="gameName" class="visually-hidden">超異域公主連結☆Re：Dive</h3>
+                <p>
+                    <p><img alt="公告用圖/20261031_06.png" src="https://www.princessconnect.so-net.tw/uploads/公告用圖/20261031_06.png" style="width: 100%;" /></p>
+
+<p><span style="font-size:16px;">2026/11/01 16:00起，「官方WebStore限定 迎新優惠1500寶石」將以期間限定方式開始販售！<br />
+請務必藉此機會利用公主連結 官方WebStore！</span></p>
+
+<p><span style="font-size:16px;">■購買方法<br />
+‧官方WebStore限定商品請點此前往購買<br />
+<a href="https://princessconnect.xsolla.site/zh-TW">請點此前往購買</a></span></p>
+
+<p><span style="font-size:16px;">「官方WebStore限定 迎新優惠1500寶石」的詳細資訊如下所述。</span></p>
+
+<p><span style="font-size:16px;">■販售期間<br />
+2026/11/01 16:00 ～ 2026/11/24 23:59</span></p>
+
+<p><span style="font-size:16px;">■商品名稱<br />
+WebStore 迎新優惠 1500寶石<br />
+※商品僅限購一次。</span></p>
+
+<p><span style="font-size:16px;">■販售價格<br />
+NT $350</span></p>
+
+<p><span style="font-size:16px;">■販售內容<br />
+‧有償寶石 &times; 1500<br />
+※「有償寶石」會直接累加到持有數中。</span></p>
+
+<p><span style="font-size:16px;">■注意事項<br />
+1. 「官方WebStore限定 迎新優惠1500寶石」於販售期間僅限購一次。<br />
+2. 本公告中所刊載的商品相關內容，有可能不經預告逕行調整。<br />
+3.本公告中所刊載的相關商品，可能會於日後再次販售。</span></p>
+
+<p><span style="font-size:16px;">※So-net 營運團隊保有活動最終修改與詮釋之權利，實際內容請以遊戲內資訊為準。活動舉辦日期與內容，均有可能未先告知而逕行調整，確切詳情以實際開放時所述為主。</span></p>
+                </p>
+            </div>
+            <!-- 頁碼 -->
+            <nav class="paging" aria-label="新聞列表分頁">
+                <ol>
+                    <li><a href="#" onclick="history.back(); return false;">回上一頁</a></li>
+                    <li><a href="/news">回列表首頁</a></li>
+                </ol>
+            </nav>
+        </section>

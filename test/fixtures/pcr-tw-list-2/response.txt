@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-tw">
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>《超異域公主連結☆Re：Dive》 - 最新消息列表</title>
+</head>
+<body>
+  <main class="main">
+    <div class="news_list">
+<article class="news_con" aria-labelledby="newsHeading">
+        <h2 class="visually-hidden" id="newsHeading">公告列表</h2>
+        <ul>
+                        <li>
+                <time datetime="2026.11.09">2026.11.09</time>
+                <span class="ac01">活動</span>
+                <a href="/news/newsDetail/4111">【活動】「艾爾皮斯討魔戰線」舉辦預告！</a>
+                            </li>
+                        <li>
+                <time datetime="2026.11.05">2026.11.05</time>
+                <span class="ac02">系統</span>
+                <a href="/news/newsDetail/4114">《外掛停權》11/05 更新公告</a>
+                            </li>
+                        <li>
+                <time datetime="2026.11.05">2026.11.05</time>
+                <span class="ac02">系統</span>
+                <a href="/news/newsDetail/4112">【更新】11/05 V6.0.0版本更新停機維護通知</a>
+                            </li>
+                        <li>
+                <time datetime="2026.11.05">2026.11.05</time>
+                <span class="ac03">更新</span>
+                <a href="/news/newsDetail/4113">【更新】關於依弱化效果數量增加所受傷害的效果中，有部分能力弱化效果未被計入弱化效果數量的錯誤修復公告</a>
+                            </li>
+                        <li>
+                <time datetime="2026.11.04">2026.11.04</time>
+                <span class="ac01">活動</span>
+                <a href="/news/newsDetail/4110">【活動】「深淵討伐戰」舉辦預告！</a>
+                            </li>
+                        <li>
+                <time datetime="2026.11.03">2026.11.03</time>
+                <span class="ac01">活動</span>
+                <a href="/news/newsDetail/4106">【轉蛋】《精選轉蛋》期間限定角色「露易絲瑪莉（夏日）」登場！機率UP活動舉辦預告！</a>
+                            </li>
+                        <li>
+                <time datetime="2026.11.03">2026.11.03</time>
+                <span class="ac01">活動</span>
+                <a href="/news/newsDetail/4107">【轉蛋】「第10次精選角色出現率3倍轉蛋」舉辦預告！</a>
+                            </li>
+                        <li>
+                <time datetime="2026.11.03">2026.11.03</time>
+                <span class="ac01">活動</span>
+                <a href="/news/newsDetail/4108">【轉蛋】「自選 角色精選 獎勵轉蛋」舉辦預告！</a>
+                            </li>
+                        <li>
+                <time datetime="2026.11.03">2026.11.03</time>
+                <span class="ac03">更新</span>
+                <a href="/news/newsDetail/4109">【更新】角色專用裝備1追加！</a>
+                            </li>
+                        <li>
+                <time datetime="2026.11.03">2026.11.03</time>
+                <span class="ac01">活動</span>
+                <a href="/news/newsDetail/4105">【活動】「官方WebStore限定 迎新優惠寶石禮包」販售預告！</a>
+                            </li>
+                    </ul>
+        <!-- 頁碼 --> 
+        <nav class="paging" role="navigation" aria-label="新聞列表分頁">
+            <ol>
+                                <li><a href="news?page=1" aria-label="上一頁">上一頁</a></li>
+                                                <li>
+                                <a href="news?page=1" aria-label="第1頁">1</a>
+                                </li>
+                                <li>
+                                <a class="active" href="news?page=2" aria-current="page" aria-label="第2頁">2</a>
+                                </li>
+                                <li>
+                                <a href="news?page=3" aria-label="第3頁">3</a>
+                                </li>
+                                <li>
+                                <a href="news?page=4" aria-label="第4頁">4</a>
+                                </li>
+                                <li>
+                                <a href="news?page=5" aria-label="第5頁">5</a>
+                                </li>
+                                                <li><a href="news?page=3" aria-label="下一頁">下一頁</a></li>
+                            </ol>
+        </nav>
+        <div id="crm_dialog" role="dialog" aria-modal="true" aria-labelledby="crm_form_block" hidden>
+            <div id="crm_form_block" style="margin: 0 auto;width: 98%;height: 98%;overflow-y: auto;word-break: break-all;">
+            </div>
+        </div>
+            </article>
+    </div>
+  </main>
+</body>
+</html>
