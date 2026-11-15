@@ -24,6 +24,7 @@ import { check, section, fixtureBody, assertHoverConvention } from "./harness.mj
 import { T } from "./load.mjs";
 
 const TZ_CN = "Asia/Shanghai";
+const TZ_JP = "Asia/Tokyo";   // CrashFever（日服）
 const B5 = T.parsers.batch5;
 
 const LR_URL = B5.LANGRISSER_URL;
@@ -92,7 +93,7 @@ export default async function run() {
 		for (const [id, name, gachaLabel, eventLabel, url] of want) {
 			const s = srcOf(id);
 			check(`${id} 已注册（name / tz / 卡池标签逐字）`,
-				!!s && s.name === name && s.tz === TZ_CN && s.source === gachaLabel,
+				!!s && s.name === name && s.tz === (id === "crashfever" ? TZ_JP : TZ_CN) && s.source === gachaLabel,
 				s ? JSON.stringify([s.name, s.tz, s.source]) : "缺失");
 			check(`${id} 出厂默认展示（defaultHidden = false）`, !!s && s.defaultHidden === false, s && String(s.defaultHidden));
 			check(`${id} 有配色（面板「颜色 = 游戏」）`, !!s && /^#[0-9A-F]{6}$/i.test(String(s.color)), s && String(s.color));
@@ -180,11 +181,11 @@ export default async function run() {
 	{
 		const CF_NOW = Date.parse("2026-11-15T12:00:00+08:00");
 		const json = JSON.parse(fixtureBody(CF_URL));
-		const items = B5.crashfeverParseAsk(json, TZ_CN);
+		const items = B5.crashfeverParseAsk(json, TZ_JP);
 		check("ask ⇒ 4 条（模板页「添加卡池预设」没有时间 ⇒ 跳过，不是结构损坏）", items.length === 4, String(items.length));
 		const cur = items.find((x) => x.banner === "超Fever祭典【傅柯】");
-		check("在期池：2026-11-12 15:00 ~ 11-26 14:59 +08（UTC 11-12T07:00Z / 11-26T06:59Z）",
-			!!cur && cur.startTs === Date.UTC(2026, 10, 12, 7, 0) && cur.endTs === Date.UTC(2026, 10, 26, 6, 59),
+		check("在期池：2026-11-12 15:00 ~ 11-26 14:59 +09（UTC 11-12T06:00Z / 11-26T05:59Z）",
+			!!cur && cur.startTs === Date.UTC(2026, 10, 12, 6, 0) && cur.endTs === Date.UTC(2026, 10, 26, 5, 59),
 			JSON.stringify(cur && [cur.startTs, cur.endTs]));
 		check("`类别` 落 category；raw 是源站墙钟（`2026-11-12 15:00 ~ …`），display 同年省略年",
 			!!cur && cur.category === "卡池" && cur.raw === "2026-11-12 15:00 ~ 2026-11-26 14:59"
@@ -192,9 +193,9 @@ export default async function run() {
 			JSON.stringify(cur && [cur.category, cur.raw, cur.display]));
 		check("未来池也在结果里（11-19 开）但不进当期外显",
 			items.some((x) => x.banner === "极Fever祭典【奇幻三人组】")
-			&& B5.crashfeverPayloadOf(items, TZ_CN, CF_NOW).startTs === cur.startTs);
+			&& B5.crashfeverPayloadOf(items, TZ_JP, CF_NOW).startTs === cur.startTs);
 
-		const payload = B5.crashfeverPayloadOf(items, TZ_CN, CF_NOW);
+		const payload = B5.crashfeverPayloadOf(items, TZ_JP, CF_NOW);
 		check("外显 = 结束最早的到期池（超Fever祭典【傅柯】），同结束池一起进悬停/数组",
 			!!payload && payload.banner === "超Fever祭典【傅柯】"
 			&& payload.bannerDates === "11-12 15:00 ~ 11-26 14:59"
@@ -212,10 +213,10 @@ export default async function run() {
 			delete noAnchor.query.results[k].printouts["时间"];
 			delete noAnchor.query.results[k].printouts["结束时间"];
 		}
-		const items2 = B5.crashfeverParseAsk(noAnchor, TZ_CN);
+		const items2 = B5.crashfeverParseAsk(noAnchor, TZ_JP);
 		check("反证：抹掉在期两池的时间锚 ⇒ 外显 null（其它行还在 ⇒ 不抛）",
-			items2.length === 2 && B5.crashfeverPayloadOf(items2, TZ_CN, CF_NOW) === null,
-			JSON.stringify([items2.length, B5.crashfeverPayloadOf(items2, TZ_CN, CF_NOW) && "有外显"]));
+			items2.length === 2 && B5.crashfeverPayloadOf(items2, TZ_JP, CF_NOW) === null,
+			JSON.stringify([items2.length, B5.crashfeverPayloadOf(items2, TZ_JP, CF_NOW) && "有外显"]));
 
 		const calls = [];
 		const rec = await refreshAt(CF_NOW, "crashfever", calls, null);

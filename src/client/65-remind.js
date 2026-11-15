@@ -118,7 +118,7 @@
 			"browndust2": "Asia/Seoul",
 			// 2026-11-15 第五批：4 款 bwiki 游戏（站点 siteinfo `timezone=Asia/Shanghai`，内容中文 ⇒ UTC+8）
 			"langrisser": "Asia/Shanghai",
-			"crashfever": "Asia/Shanghai",
+			"crashfever": "Asia/Tokyo",
 			"bfzy": "Asia/Shanghai",
 			"gwdz": "Asia/Shanghai"
 		};
