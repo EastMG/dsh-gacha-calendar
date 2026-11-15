@@ -588,7 +588,27 @@ export default async function run() {
 		const bad = css.split("\n").filter((l) => /\.gacha-cal-sched-cell\[data-u=[^\]]*\][^{]*\.gacha-cal-sched-(cn|cm)/.test(l));
 		check("紧急度着色不用格子级 data-u 选择器（会把探头里的同类条目一起染色）", bad.length === 0, bad.join(" ⏎ "));
 	}
-	// ── 设置页导航图标（2026-11-09 DSH 更新后）：必须走官方槽位 `settings.section.icon` ──
+	// ── 迷你条动画只许作用在**首屏可见的少数行**（2026-11-15 用户反馈"迷你条动画稍微有点掉帧"）──
+	// 实测：全表 50 行一起跑 = 3600+ 个 transform 动画 ⇒ 开面板动画期间 p50 27ms / 90% 帧 > 40ms；
+	// 只动前 4 行 = 390 个动画 ⇒ p50 12ms / p90 18ms。守卫：选择器必须带行级作用域，且不许再出现
+	// 无作用域的 `.gacha-cal-sched-tl i[data-f]{animation` 写法（那是掉帧的根因）。
+	{
+		const motionCss = readFileSync(path.join(SRC, "styles", "schedule-motion.css"), "utf8");
+		const scoped = motionCss.split("\n").filter((l) => /gacha-cal-sched-tl i\[data-f\]\{animation:/.test(l));
+		check("迷你条动画选择器带行级作用域（.gacha-cal-sched-trow.is-anim …）",
+			scoped.length >= 1 && scoped.every((l) => l.includes(".gacha-cal-sched-trow.is-anim ")),
+			scoped.slice(0, 3).join(" ⏎ "));
+		const unscoped = motionCss.split("\n").filter((l) => /\{animation:gacha-cal-bar-in/.test(l)
+			&& !l.includes(".gacha-cal-sched-trow.is-anim "));
+		check("没有无作用域的迷你条动画（全表 3600+ 动画会掉帧）", unscoped.length === 0, unscoped.join(" ⏎ "));
+		const viewSrc = readFileSync(path.join(SRC, "82-schedule-view.js"), "utf8");
+		check("游戏行渲染时按 BAR_ANIM_ROWS 挂 is-anim（行号决定是否起步动画）",
+			/const BAR_ANIM_ROWS = \d+;/.test(viewSrc)
+			&& /const rowOf = \(g, i\) =>/.test(viewSrc)
+			&& /\(i < BAR_ANIM_ROWS \? " is-anim" : ""\)/.test(viewSrc));
+	}
+
+	// ── 设置页导航图标（2026-11-09 DSH 更新后）：必须走官方槽位 `settings.section.icon` ──	// ── 设置页导航图标（2026-11-09 DSH 更新后）：必须走官方槽位 `settings.section.icon` ──
 	// 2026-11-09：旧写法（MutationObserver 直改 DOM）已彻底删除，只保留官方槽位。
 	// （第一个 span 是图标容器、文本为空）⇒ 旧判据失效、图标丢失（真机发现）。
 	{

@@ -457,8 +457,13 @@
 			// --z 按**行序递减**：上面的行永远画在下面的行之上（越大越靠上）。
 			// 这样"鼠标向上移动"时，上一行正在展开的底板一定压得住下一行尚未收回的内容 ——
 			// 不依赖"谁在悬停"（那是会随时间变化的，会出现两格抢层级、下面的字压住上面的底板）。
+			// 迷你条的「逐格弹出」动画只给**首屏可见的那几行**（10 行 ≈ 8.3 行可见区 + 余量）：
+			// 全表 50 行一起跑 = 3600+ 个动画同时挂在 4600 个 <i> 上，实测开面板动画期间
+			// rAF 掉到几百毫秒一帧（用户反馈"迷你条动画稍微有点掉帧"）⇒ 只动看得见的部分，
+			// 下面的行滚到时已经是静止态（动画本来也看不见）。
+			const BAR_ANIM_ROWS = 4;
 			const rowOf = (g, i) => (0, react_jsx_runtime.jsxs)("div", {
-				className: "gacha-cal-sched-trow",
+				className: "gacha-cal-sched-trow" + (i < BAR_ANIM_ROWS ? " is-anim" : ""),
 				key: g.id,
 				style: { "--g": scheduleGameColor(g, gameColorMap), "--z": String(900 - i) },
 				children: [
