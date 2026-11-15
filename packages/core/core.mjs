@@ -1748,7 +1748,7 @@
 			"kancolle": "Asia/Tokyo",
 			// 2026-11-15：龙魂旅人（台服官网公告；条目口径 Asia/Taipei）/
 			// 闪耀暖暖·国服（官网首页 __NEXT_DATA__ 列表 + /news/{id} 详情，UTC+8）
-			"longhun": "Asia/Taipei",
+			"longhun": "Asia/Bangkok",
 			"nikki4": "Asia/Shanghai",
 			// 2026-11-15：アイドルマスター系列 5 款（日服，源站墙钟 JST = UTC+9，无夏令时）
 			"gakumas": "Asia/Tokyo",
@@ -27139,7 +27139,7 @@ EVENT_FETCHERS["kancolle"] = Object.assign(EVENT_FETCHERS["kancolle"] || {}, {
 // ── 落点 ────────────────────────────────────────────────────────────────────────
 // 厂商级文件（`30-game-*` 家族，不是 bwiki 系）：唯一来源 `id:"longhun"`，
 // 卡池侧与活动侧**共用一份 JSON 索引**（详情按 id 缓存），标签逐字「官网公告」。
-// 时区 = `Asia/Taipei`（条目口径；源站后缀自相矛盾，见 ①末尾）。
+// 时区 = `Asia/Bangkok`（UTC+7；公告正文明确写 (UTC+7)，见 ①末尾）。
 //
 // ── ① 站点形态（2026-11-15 实测；夹具 test/fixtures/longhun-list / longhun-detail-{981,863,994,1287}）──
 //   列表 `GET https://news.game-tree.com/jx/dtofficialnewszh/`
@@ -27193,10 +27193,13 @@ EVENT_FETCHERS["kancolle"] = Object.assign(EVENT_FETCHERS["kancolle"] || {}, {
 //   （同款游戏的**英文/泰文**索引进到 2026-11-11，但那是另一个 locale 的频道，本条目按任务口径只接 `zh`）。
 //   用抓取当天的时刻（2026-05-10）复跑时：卡池 = `护戒圣女·丝碧莫`（05-07 05:00 ~ 05-21 04:59）、
 //   活动 = `潜伏的厄运`（05-07 05:00 ~ 05-21 04:59）+ `神奇魔物在哪里`（05-07 05:00 ~ 05-14 04:59）。
-//   时区 = `Asia/Taipei`（源站写的是 UTC+7/UTC+9 的混用后缀，见 ①；后缀不可信 ⇒ 按条目 tz 解析墙钟）。
+//   时区 = `Asia/Bangkok`（UTC+7；公告正文逐条写了 (UTC+7)，见 ①；后缀解析前剥掉、不进悬停）。
 
 //#region ① 常量
-const ns_longhun_TZ = "Asia/Taipei";
+// 2026-11-15 修正：源站是《Dragon Traveler》（龙魂旅人 东南亚/国际服）的官方中文公告，
+// 正文自己写明服务器时间 = UTC+7（维护 5月6日13:00 (UTC+7)、卡池 5月7日5:00 - 5月21日4:59 (UTC+7)）
+// ⇒ 条目时区改用 Asia/Bangkok（UTC+7）。此前按 Asia/Taipei 是错的。
+const ns_longhun_TZ = "Asia/Bangkok";
 const ns_longhun_ORIGIN = "https://news.game-tree.com";
 const ns_longhun_LIST_URL = "https://news.game-tree.com/jx/dtofficialnewszh/";
 const ns_longhun_SOURCE_LABEL = "官网公告";
@@ -27495,7 +27498,7 @@ registerSource({
 	id: "longhun",
 	defaultHidden: false,
 	tz: ns_longhun_TZ,
-	name: "龙魂旅人",
+	name: "龙魂旅人·东南亚服",
 	icon: "https://media.zlongame.com/media/pictures/cn/lhlr/img/fav.png",
 	url: ns_longhun_LIST_URL,
 	source: ns_longhun_SOURCE_LABEL,

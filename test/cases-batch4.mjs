@@ -30,6 +30,7 @@ import { check, section, fixtureBody, assertHoverConvention } from "./harness.mj
 import { T } from "./load.mjs";
 
 const TZ_TW = "Asia/Taipei";
+const TZ_BKK = "Asia/Bangkok";   // 龙魂旅人（Dragon Traveler）服务器时间 UTC+7
 const TZ_CN4 = "Asia/Shanghai";
 const TZ_JP = "Asia/Tokyo";
 
@@ -73,7 +74,7 @@ export default async function run() {
 		// 用户 2026-11-15 拍板的后缀口径：只许这一种写法（不许（日服）/（JST）/（原文）…）
 		const IMAS_LABEL_LITERAL = "melonpapapapa 総合カレンダー（日文）";
 		for (const [id, name, tz, label] of [
-			["longhun", "龙魂旅人", TZ_TW, "官网公告"],
+			["longhun", "龙魂旅人·东南亚服", TZ_BKK, "官网公告"],
 			["nikki4", "闪耀暖暖", TZ_CN4, "官网公告"],
 			["gakumas", "学園アイドルマスター", TZ_JP, I.IMAS_SOURCE_LABEL],
 			["shinycolors", "シャイニーカラーズ", TZ_JP, I.IMAS_SOURCE_LABEL],
@@ -142,10 +143,10 @@ export default async function run() {
 			JSON.stringify(rows.map((x) => x.id)));
 		check("列表 `time` = DD-MM-YYYY ⇒ `25-11-2025` = 2025-11-25（按 MM-DD 解会得到非法月份）",
 			rows.find((x) => x.id === "863").date === "25-11-2025"
-			&& rows.find((x) => x.id === "863").dateTs === Date.UTC(2025, 10, 24, 16, 0),
+			&& rows.find((x) => x.id === "863").dateTs === Date.UTC(2025, 10, 24, 17, 0),
 			JSON.stringify(rows.map((x) => [x.date, x.dateTs])));
 
-		const d = L.longhunDetailOf(BODY[LH_D_1287], TZ_TW);
+		const d = L.longhunDetailOf(BODY[LH_D_1287], TZ_BKK);
 		check("详情 1287：标题逐字 + 一篇 4 个窗口（`开启时间` 单点不算 / 礼包类没有「活动时间」）",
 			d.title === "5月6日系统更新维护公告" && d.windows.length === 4,
 			JSON.stringify([d.title, d.windows.length]));
@@ -153,9 +154,9 @@ export default async function run() {
 			d.windows.map((w) => `${w.kind}:${w.name}`).join("|")
 			=== "gacha:护戒圣女·丝碧莫|event:潜伏的厄运|gacha:指定魔物限时UP|event:神奇魔物在哪里",
 			JSON.stringify(d.windows.map((w) => [w.kind, w.name])));
-		check("1287 起止 = 2026-05-07 05:00 ~ 05-21 04:59 +08（UTC 手算 05-06T21:00Z / 05-20T20:59Z）",
-			d.windows[0].startTs === Date.UTC(2026, 4, 6, 21, 0)
-			&& d.windows[0].endTs === Date.UTC(2026, 4, 20, 20, 59),
+		check("1287 起止 = 2026-05-07 05:00 ~ 05-21 04:59 +07（UTC 手算 05-06T22:00Z / 05-20T21:59Z）",
+			d.windows[0].startTs === Date.UTC(2026, 4, 6, 22, 0)
+			&& d.windows[0].endTs === Date.UTC(2026, 4, 20, 21, 59),
 			JSON.stringify([d.windows[0].startTs, d.windows[0].endTs]));
 		check("1287 raw 保留源站原文（`(UTC+7)` 后缀剥掉）/ display 是补全后的可读文本",
 			d.windows[0].raw === "5月7日5:00 - 5月21日4:59"
@@ -165,8 +166,8 @@ export default async function run() {
 			L.longhunPoolItemsOf(d).length === 2 && L.longhunEventItemsOf(d).length === 2,
 			JSON.stringify([L.longhunPoolItemsOf(d).length, L.longhunEventItemsOf(d).length]));
 		check("后三篇正文（公测福利 / 玩法预告 / 常见问题）都是 0 窗口（不硬凑时刻）",
-			[LH_D_981, LH_D_863, LH_D_994].every((u) => L.longhunDetailOf(BODY[u], TZ_TW).windows.length === 0),
-			JSON.stringify([LH_D_981, LH_D_863, LH_D_994].map((u) => L.longhunDetailOf(BODY[u], TZ_TW).windows.length)));
+			[LH_D_981, LH_D_863, LH_D_994].every((u) => L.longhunDetailOf(BODY[u], TZ_BKK).windows.length === 0),
+			JSON.stringify([LH_D_981, LH_D_863, LH_D_994].map((u) => L.longhunDetailOf(BODY[u], TZ_BKK).windows.length)));
 
 		// 引擎整轮：夹具在期日 2026-05-10（两口窗 05-07 ~ 05-14 / 05-21）
 		L.longhunResetCache();
@@ -385,7 +386,7 @@ export default async function run() {
 		const NK_102574 = N.NIKKI4_DETAIL_BASE + "102574";
 		const lhNoAnchor = fixtureBody(LH_1287).replace(/活动时间/g, "活动期间");
 		check("longhun 反证：抹掉 `活动时间` 锚点 ⇒ 这篇 0 窗口 / 0 卡池条目（不进外显、不抛）",
-			L.longhunDetailOf(lhNoAnchor, TZ_TW).windows.length === 0
+			L.longhunDetailOf(lhNoAnchor, TZ_BKK).windows.length === 0
 			&& L.longhunPoolItemsOf(L.longhunDetailOf(lhNoAnchor, TZ_TW)).length === 0,
 			JSON.stringify(L.longhunDetailOf(lhNoAnchor, TZ_TW).windows));
 		const nkNoAnchor = fixtureBody(NK_102574).replace(/活动时间/g, "活动说明");

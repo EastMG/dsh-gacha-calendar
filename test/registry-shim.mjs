@@ -206,12 +206,12 @@ NEXT_SOURCES.push(
 		gacha: null,
 		event: { url: T.parsers.kancolle.KANCOLLE_EVENTS_URL, kind: "wiki", mode: "proxy", fetcher: resolve("kancolle.eventsKancolle") }
 	},
-	// 2026-11-15：龙魂旅人（`longhun`，台服官网公告）—— JSON 索引（4 条）+ 详情页解析档期；
+	// 2026-11-15：龙魂旅人·东南亚服（`longhun`，《Dragon Traveler》官方中文公告，UTC+7）—— JSON 索引（4 条）+ 详情页解析档期；
 	// 卡池与活动**同一条列表 URL**（详情按 id 缓存 24h）。响应无 ACAO ⇒ `mode: "proxy"`。
 	{
 		id: "longhun",
 		tz: T.parsers.longhun.LONGHUN_TZ,
-		name: "龙魂旅人",
+		name: "龙魂旅人·东南亚服",
 		gacha: { url: T.parsers.longhun.LONGHUN_LIST_URL, kind: "official-html", mode: "proxy", fetcher: resolve("longhun.gachaLonghun") },
 		event: { url: T.parsers.longhun.LONGHUN_LIST_URL, kind: "official-html", mode: "proxy", fetcher: resolve("longhun.eventsLonghun") }
 	},
