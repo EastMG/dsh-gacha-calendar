@@ -983,13 +983,15 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
 
 | id | 游戏 | 卡池源 | 活动源 | 来源标签（逐字） |
 |---|---|---|---|---|
-| `bjhl` | 白荆回廊（国服） | bwiki `历史卡池一览`（`api.php?action=parse&prop=text`，195 张 `draw-box` 卡；数据由 Lua `Module:卡池图鉴` 生成，SMW 查不到） | bwiki `活动一览`（55 张 `activity-box` 卡） | 卡池「Bwiki 历史卡池」/ 活动「Bwiki 活动一览」 |
+| `bjhl` | 白荆回廊（国服） | bwiki `历史卡池一览`（`api.php?action=parse&prop=text`，195 张 `draw-box` 卡；数据由 Lua `Module:卡池图鉴` 生成，SMW 查不到） | bwiki `分类:活动` 的 SMW `action=ask`（55 行：`开始时间` / `结束时间` / `活动名称` / `活动类型` 四列一次拿全） | 卡池「Bwiki 历史卡池」/ 活动「Bwiki 活动一览」 |
 | `yys` | 阴阳师（国服） | 官网 `news/update/index.html` 列表 + 详情（`artText` 里的「XX」限时召唤活动） | 同一份列表 + 详情（编号条目里带 `活动时间 / 开放时间 / 开启时间` 标签的窗口） | 两侧都是「官网公告」 |
 
-- **白荆回廊**（`30-game-bwiki-bjhl.js`，自包含）：每侧 **1 个请求**；池名 = `.draw-name`，
+- **白荆回廊**（`30-game-bwiki-bjhl.js`，自包含）：每侧 **1 个请求**（卡池 = `action=parse` 取 Lua 渲染后的
+  HTML；活动 = SMW `action=ask` 查 `分类:活动`，四列 printout 一次拿全 —— 2026-11-15 从「解析活动页渲染后的
+  `activity-box` HTML」换过来，条目对外行为/标签/时区/悬停口径都没动，只换数据获取层）；池名 = `.draw-name`，
   角色 = 该卡 `同调者/…` 链接（潜航类卡只有 `记忆烙痕/…` ⇒ 角色留空；池名里已写的角色只去掉不重复）。
   卡池载荷用 `ns_bwiki_batchGachaPayloadOf`（同批 = 同 `endTs` 合并角色）——它同时开 5~6 类池，
-  用全合并那版会把别的池的角色贴到外显池上；活动侧 `ns_bwiki_eventPayload` 现成的。
+  用全合并那版会把别的池的角色贴到外显池上；活动侧 `ns_bwiki_eventPayload` 现成的（数据来自 ask JSON）。
   实测当期：卡池「常态共鸣·昊苍」11-05 10:00 ~ 11-19 03:50（另 2 池并列，悬停 3 行）；
   活动「破限·伊琅相思」11-05 10:00 ~ 12-03 03:50。
 - **阴阳师**（`30-game-netease.js`，与 hlr 同文件同 CMS）：每侧 **1 次列表 + 最多 3 篇详情**
@@ -1003,6 +1005,8 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
 
 回归都加在 `test/cases-batch2.mjs`（第 ④⑤ 段，**没有新增段数**）：逐字档期 + 数组 + 请求数 +
 两类反证（抹掉起止锚点 ⇒ 该条不进外显 / 数组；响应换成 `{}` 或空 HTML ⇒ **抛错**而不是 nomatch）。
+活动侧（ask 后）另两条反证：抹掉某行的 printout `结束时间` ⇒ 那条不出窗口（在期那条被抹则载荷 `null`）；
+`{}` ⇒ 抛 `bjhl-events-changed:bad-json`。
 
 ### 炽焰天穹（cytq）接上官方 H5 公告（2026-11-15）
 

@@ -763,6 +763,7 @@ export default async function runBatch2() {
 		const bjhlGachaRaw = fixtureBody("fixture:bjhl-gacha", { "fixture:bjhl-gacha": "bjhl-gacha/response.txt" });
 		const bjhlEventsRaw = fixtureBody("fixture:bjhl-events", { "fixture:bjhl-events": "bjhl-events/response.txt" });
 		const bjhlGachaHtml = JSON.parse(bjhlGachaRaw).parse.text;
+		const bjhlEventsJson = JSON.parse(bjhlEventsRaw);
 		const BJ = T.parsers.bwiki;
 		// 夹具抓取时刻（2026-11-15 00:15 +08）
 		const NOW_BJHL = Date.parse("2026-11-15T00:15:14+08:00");
@@ -777,7 +778,9 @@ export default async function runBatch2() {
 			check("有游戏主题色（#rrggbb）", !!s && /^#[0-9A-Fa-f]{6}$/.test(String(s.color)), s && String(s.color));
 			check("卡池 url = bwiki `历史卡池一览`（page= 逐字，prop=text / formatversion=2）",
 				!!s && s.url === BJ.BJHL_GACHA_URL && /page=历史卡池一览&/.test(s.url), s && String(s.url));
-			check("活动 eventUrl = bwiki `活动一览`", !!s && s.eventUrl === BJ.BJHL_EVENTS_URL && /page=活动一览&/.test(s.eventUrl),
+			check("活动 eventUrl = bwiki SMW `action=ask`（`分类:活动` + 四列 printout + limit=500）",
+				!!s && s.eventUrl === BJ.BJHL_EVENTS_URL && /action=ask/.test(s.eventUrl)
+				&& /%E5%88%86%E7%B1%BB%3A%E6%B4%BB%E5%8A%A8/.test(s.eventUrl),
 				s && String(s.eventUrl));
 			check("来源标签 = 「Bwiki 历史卡池」/「Bwiki 活动一览」（逐字）",
 				!!s && s.source === "Bwiki 历史卡池" && s.eventSource === "Bwiki 活动一览",
@@ -851,7 +854,7 @@ export default async function runBatch2() {
 				JSON.stringify(calls[0]));
 		}
 
-		// ── 活动载荷 ──
+		// ── 活动载荷（SMW ask：四列 printout，一次拿全）──
 		{
 			const calls = [];
 			const e = engineAt(NOW_BJHL, calls);
@@ -864,13 +867,37 @@ export default async function runBatch2() {
 				d && d.eventDates === "11-05 10:00 ~ 12-03 03:50"
 				&& d.eventDatesRaw === "2026-11-05 10:00:00 ~ 2026-12-03 03:50:00",
 				JSON.stringify(d && [d.eventDates, d.eventDatesRaw]));
-			check("events[] = 1 条（夹具里只有这一期覆盖当期；往期 5 期不进）",
+			check("events[] = 1 条（夹具 8 行里只有这一期覆盖当期；其余 7 行不进）",
 				!!d && Array.isArray(d.events) && d.events.length === 1
 				&& d.events[0].title === "破限·伊琅相思" && d.events[0].startTs === Date.UTC(2026, 10, 5, 2, 0),
 				JSON.stringify(d && (d.events || []).map((x) => [x.title, x.startTs])));
 			check("只有 1 条在期 ⇒ 不设 eventHover（交回 UI 单条两行式）", d && d.eventHover === void 0, JSON.stringify(d && d.eventHover));
-			check("**1 个请求**：本侧只打 `活动一览`", calls.length === 1 && /page=活动一览/.test(calls[0].url),
+			check("**1 个请求**：本侧只打一次 `action=ask`（`offset` 未触发）",
+				calls.length === 1 && /action=ask/.test(calls[0].url),
 				JSON.stringify(calls.map((c) => c.url.slice(0, 70))));
+			check("bwiki 请求带 `origin=*` + `Referer: https://wiki.biligame.com/`（否则会被 WAF 回 567）",
+				calls.length === 1 && /[?&]origin=\*/.test(calls[0].url) && calls[0].referer === "https://wiki.biligame.com/",
+				JSON.stringify(calls[0]));
+		}
+
+		// ── 活动纯解析（ask JSON → 条目事实；HTML 那套断言换成 JSON）──
+		{
+			const items = BJ.parseBjhlEvents(bjhlEventsJson, BJ.BJHL_TZ);
+			check("活动 ask 解出 8 条（夹具 = 原 55 行裁剪）", items.length === 8, String(items.length));
+			const cur = items.find((x) => x.event === "破限·伊琅相思");
+			check("在期那条：startTs / endTs = UTC 11-05 02:00 / UTC 12-02 19:50",
+				!!cur && cur.startTs === Date.UTC(2026, 10, 5, 2, 0) && cur.endTs === Date.UTC(2026, 11, 2, 19, 50),
+				JSON.stringify(cur && [cur.startTs, cur.endTs]));
+			check("`raw` = 两列原文拼回 `起 ~ 止`（与旧 HTML 的同一条逐字相同）",
+				!!cur && cur.raw === "2026-11-05 10:00:00 ~ 2026-12-03 03:50:00", JSON.stringify(cur && cur.raw));
+			check("`category` = `活动类型`（普通活动）", !!cur && cur.category === "普通活动", JSON.stringify(cur && cur.category));
+			const cross = items.find((x) => x.event.indexOf("中国国家地理") >= 0);
+			check("页名 ≠ 活动名称：取 `活动名称`（不是页名 `「寻花异旅，此世同行」`）",
+				!!cross && cross.event === "白荆回廊 × 中国国家地理·图书「寻花异旅，此世同行」",
+				JSON.stringify(cross && cross.event));
+			check("四类 `活动类型` 都进了 `category`（普通 / 主题 / 联动 / 测试 各至少 1 条）",
+				["普通活动", "主题活动", "联动活动", "测试"].every((t) => items.some((x) => x.category === t)),
+				JSON.stringify([...new Set(items.map((x) => x.category))]));
 		}
 
 		// ── 反证 ①：抹掉起止正则的关键锚点（终点日期）⇒ 那一张卡解不出 ⇒ 该条不进外显/数组 ──
@@ -921,9 +948,29 @@ export default async function runBatch2() {
 			const sA = eA.__test.SOURCES.find((x) => x.id === "bjhl");
 			let errA = null;
 			try { await eA.__test.EVENT_FETCHERS["bjhl"].default(sA.eventUrl, undefined, sA.tz); } catch (e2) { errA = e2; }
-			check("反证：活动响应 `{}` ⇒ 抛错（不是 nomatch）", !!errA, JSON.stringify(errA && errA.message));
-			check("夹具本身是真抓的 bwiki JSON（`parse.text` 是渲染后 HTML，不是 wikitext）",
-				!!JSON.parse(bjhlEventsRaw).parse && /activity-box/.test(JSON.parse(bjhlEventsRaw).parse.text));
+			check("反证：活动响应 `{}` ⇒ 抛错（`bjhl-events-changed:bad-json`，不是 nomatch）",
+				!!errA && /bjhl-events-changed/.test(errA.message), JSON.stringify(errA && errA.message));
+			check("夹具本身是真抓的 bwiki SMW ask JSON（`query.results` 每条带四列 printout）",
+				!!bjhlEventsJson.query && typeof bjhlEventsJson.query.results === "object"
+				&& Object.values(bjhlEventsJson.query.results).every((v) => v.printouts && v.printouts["开始时间"] && v.printouts["结束时间"]),
+				JSON.stringify(Object.keys(bjhlEventsJson.query && bjhlEventsJson.query.results || {}).slice(0, 3)));
+		}
+
+		// ── 反证 ③：抹掉在期那条的「结束时间」字段 ⇒ 它不出窗口 / 活动载荷 null（不硬凑）──
+		{
+			const doc = JSON.parse(bjhlEventsRaw);
+			delete doc.query.results["破限·伊琅相思"].printouts["结束时间"];
+			const items = BJ.parseBjhlEvents(doc, BJ.BJHL_TZ);
+			check("反证：抹掉「结束时间」字段 ⇒ 该条不出窗口（8 → 7 条，且不在解析结果里）",
+				items.length === 7 && !items.some((x) => x.event === "破限·伊琅相思"),
+				JSON.stringify([items.length, items.some((x) => x.event === "破限·伊琅相思")]));
+			const tr = makeTransport([], { override: () => JSON.stringify(doc) });
+			const e = createEngine({ transport: tr, storage: makeStore(), now: () => NOW_BJHL, timer: { setTimeout, clearTimeout } });
+			const s = e.__test.SOURCES.find((x) => x.id === "bjhl");
+			let data = "unset";
+			try { data = await e.__test.EVENT_FETCHERS["bjhl"].default(s.eventUrl, undefined, s.tz); } catch (e2) { data = e2; }
+			check("反证：抹掉在期那条的「结束时间」⇒ 活动载荷 = null（不是拿往期/别的窗口硬凑）",
+				data === null, JSON.stringify(data && (data.message || data.event)));
 		}
 	}
 
