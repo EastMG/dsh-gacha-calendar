@@ -1,26 +1,34 @@
 // test/cases-batch4.mjs —— 第四批新来源（2026-11-15 合并）：6 条 + 2026-11-15 追加的 imas 第 5 款
 //
 // 落点（**只取源文件 + 重新接线**，不是 git merge）：
-//   · `src/client/30-game-nikki4.js`   闪耀暖暖·国服 —— 首页 `__NEXT_DATA__` + `/news/{id}`
+//   · `src/client/30-game-nikki4.js`   闪耀暖暖·国服 —— **卡池侧已重做**（2026-11-15 用户点名）：
+//     活动侧仍是首页 `__NEXT_DATA__` + `/news/{id}`；卡池侧改抓**新闻 API**
+//     （列表 `/api/v1/news?section=1|0` + 详情 `/api/v1/news/{id}`），池名/档期来自正文的
+//     「限时感应活动：<名>」/「主题活动|特别活动【<名>】」+「活动时间」。
+//     旧「从首页 4 条编辑精选里猜卡池」的代码路径已删除。
 //   · `src/client/30-game-idolmaster.js` アイドルマスター系列 **5 款**（学マス / シャニマス /
 //     ミリシタ / デレステ / **シャニソン = シャイニーカラーズ Song for Prism**）——
 //     `melonpapapapa-n.com` 每款一个月份页，卡池 + 活动同一张表
 //     （第 5 款是同日补的：源站第 5 个品牌代号 `ss`；判据见 30-game-idolmaster.js 文件头）
 //
 // ── 这一段守什么 ──
-//   ① **注册项**：7 条的 id / 名称 / tz / 来源标签 / 卡池·活动同源 URL（+ 颜色）；
+//   ① **注册项**：7 条的 id / 名称 / tz / 来源标签 / 配色（+ 颜色）；
+//      nikki4 的**卡池 URL 与活动 URL 已分开**（卡池 = 新闻列表 API / 活动 = 官网首页），
+//      imas 五款的卡池·活动仍**同源同 URL**；
 //      以及用户 2026-11-15 拍板的**标签后缀口径**：5 条 imas 的来源文案逐字带「（日文）」，
 //      条目 name 不加任何后缀；
 //      引擎整轮；imas 五款走引擎的 `GACHA_FETCHERS` 抓取器，卡池/活动同一次抓取）；
-//   ③ **反证**：`{}` ⇒ **抛错**（不是 nomatch）；抹掉时间锚点 ⇒ 该条**不进外显**（不抛、不硬凑）；
+//   ③ **反证**：`{}` / `data:{}` / `ret != 0` ⇒ **抛错**（不是 nomatch）；
+//      抹掉时间锚点 ⇒ 该条**不进外显**（不抛、不硬凑）；
 //      imas 月份页所有时刻锚都消失 ⇒ 抛结构错（不许静默成"本期没有"）。
 //
 // ⚠️ 时间断言一律写**绝对毫秒**（`Date.UTC(...)` 手算，不用 `sourceInstant` 自证）：
 //    这样 `TZ=UTC` 与 `TZ=Asia/Shanghai` 两道门禁跑的是同一份期望值。
 //
 // 夹具全部真抓（见各 `response.txt.meta.json` 的 capturedAt / note）：
-//   `nikki4-detail-{102568,102571,102574,102582,102583}`；`imas-{gakumas-202610,
-//   gakumas-202611,shinycolors-202611,millisita-202611,deresute-202611,shanison-202611}`。
+//   活动侧 `nikki4-home` + `nikki4-detail-{102568,102571,102574,102582,102583}`；
+//   卡池侧（2026-11-15 重做）`nikki4-news-list-{s1,s0}` + `nikki4-news-detail-<id>`（15 篇 = 21 天内公告/资讯）；
+//   imas 六份月份页 `imas-{gakumas-202610,gakumas-202611,shinycolors-202611,millisita-202611,deresute-202611,shanison-202611}`。
 
 import { createEngine } from "../packages/core/core.mjs";
 import { check, section, fixtureBody, assertHoverConvention } from "./harness.mjs";
@@ -82,8 +90,11 @@ export default async function run() {
 			check(`${id} 已注册（name / tz / 标签逐字）`,
 				!!s && s.name === name && s.tz === tz && s.source === label && s.eventSource === label,
 				s ? JSON.stringify([s.name, s.tz, s.source, s.eventSource]) : "缺失");
-			check(`${id} 卡池与活动**同一条** URL（同源同轮只抓一次）`,
-				!!s && !!s.url && s.url === s.eventUrl, s ? JSON.stringify([s.url, s.eventUrl]) : "缺失");
+			// 卡池侧重做后：只有 imas 五款还保持「卡池/活动同源同 URL」；nikki4 的两侧端点已分开（下面单独断言）
+			if (id !== "nikki4") {
+				check(`${id} 卡池与活动**同一条** URL（同源同轮只抓一次）`,
+					!!s && !!s.url && s.url === s.eventUrl, s ? JSON.stringify([s.url, s.eventUrl]) : "缺失");
+			}
 			check(`${id} 出厂默认展示（defaultHidden = false）`, !!s && s.defaultHidden === false, s && String(s.defaultHidden));
 			check(`${id} 有配色（面板「颜色 = 游戏」）`, !!s && /^#[0-9A-F]{6}$/i.test(String(s.color)), s && String(s.color));
 		}
@@ -99,7 +110,15 @@ export default async function run() {
 		check("imas 5 条的条目 name **不带**「（日文）」这类后缀（后缀只加在来源文案上）",
 			IMAS_FIVE.every((id) => !/（日文）$/.test(String(srcOf(id).name))),
 			JSON.stringify(IMAS_FIVE.map((id) => srcOf(id).name)));
-		check("nikki4 首页地址逐字", srcOf("nikki4").url === N.NIKKI4_LIST_URL, String(srcOf("nikki4").url));
+		// 2026-11-15 卡池侧重做：卡池 = 新闻列表 API（`/api/v1/news`），活动 = 官网首页 —— **两条不同 URL**
+		check("nikki4 卡池 URL 逐字 = 新闻列表 API（不是首页、也不是 /news/{id}）",
+			srcOf("nikki4").url === N.NIKKI4_NEWS_API && srcOf("nikki4").url === "https://nikki4.papegames.cn/api/v1/news",
+			String(srcOf("nikki4").url));
+		check("nikki4 活动 URL 仍是官网首页（活动侧逻辑保留，未改）",
+			srcOf("nikki4").eventUrl === N.NIKKI4_LIST_URL, String(srcOf("nikki4").eventUrl));
+		check("nikki4 两侧 URL 已分开（旧「同一条 URL」已不成立，且不是靠 newsbanner 猜卡池）",
+			srcOf("nikki4").url !== srcOf("nikki4").eventUrl,
+			JSON.stringify([srcOf("nikki4").url, srcOf("nikki4").eventUrl]));
 		check("imas 五款的注册地址 = 当月的各自月份页（YYYYMM + brand slug）",
 			[["gakumas", "imas_gm"], ["shinycolors", "imas_sc"], ["millisita", "imas_ml"], ["deresute", "imas_cgss"], ["shanison", "imas_ss"]]
 				.every(([id, slug]) => new RegExp("^https://melonpapapapa-n\\.com/" + slug + "_\\d{6}/$").test(String(srcOf(id).url))),
@@ -111,72 +130,187 @@ export default async function run() {
 		check("7 条 id 全局唯一（没和既有来源撞 id）", new Set(allIds()).size === allIds().length, String(allIds().length));
 	}
 
-	// ═════════ ③ nikki4：首页 4 条精选 + 详情（「更新后」锚定 09:30 / 跨年）═════════
-	section("第四批 ③：闪耀暖暖·国服（nikki4）真夹具 —— 首页 / 详情 / 引擎整轮");
+	// ═════════ ③ nikki4：活动侧（首页 4 条精选，原逻辑）+ 卡池侧（新闻 API，2026-11-15 重做）═════════
+	section("第四批 ③：闪耀暖暖·国服（nikki4）真夹具 —— 活动侧（原逻辑保留）/ 卡池侧（新闻 API）/ 引擎整轮");
 	{
 		const N = T.parsers.nikki4;
+		const TZ = TZ_CN4;
+		const NOW = Date.parse("2026-11-15T15:00:00+08:00");
 		const NK_LIST = N.NIKKI4_LIST_URL;
 		const NK_D = (id) => N.NIKKI4_DETAIL_BASE + id;
 		const ids = ["102568", "102571", "102574", "102582", "102583"];
 		const BODY = { [NK_LIST]: fixtureBody(NK_LIST) };
 		for (const id of ids) BODY[NK_D(id)] = fixtureBody(NK_D(id));
 
-		const rows = N.nikki4HomeOf(BODY[NK_LIST], TZ_CN4);
-		check("首页：4 条精选，按新闻 id 倒序（102583 / 102574 / 102571 / 102568）",
+		// ── 活动侧（**逻辑未改**：首页 `pageData.newsbanner` 4 条精选 → `/news/{id}` 正文锚点）──
+		const rows = N.nikki4HomeOf(BODY[NK_LIST], TZ);
+		check("活动侧：首页 4 条精选，按新闻 id 倒序（102583 / 102574 / 102571 / 102568）",
 			rows.length === 4 && rows.map((x) => x.id).join(",") === "102583,102574,102571,102568",
 			JSON.stringify(rows.map((x) => x.id)));
-		check("新闻 id 取自 `info` 的 `/news/{id}`（栏目格子 id 8/9/6/10 不当新闻 id）",
+		check("活动侧：新闻 id 取自 `info` 的 `/news/{id}`（栏目格子 id 8/9/6/10 不当新闻 id）",
 			rows.every((x) => /^\d{6}$/.test(x.id)) && rows[0].url === NK_D("102583"),
 			JSON.stringify(rows.map((x) => [x.id, x.url])));
 
 		const fact = (id) => {
-			const page = N.nikki4PageOf(BODY[NK_D(id)], TZ_CN4);
-			return N.nikki4FactsOf({ id, title: page.title, publishTs: page.publishTs }, page, TZ_CN4);
+			const page = N.nikki4PageOf(BODY[NK_D(id)], TZ);
+			return N.nikki4FactsOf({ id, title: page.title, publishTs: page.publishTs }, page, TZ);
 		};
-		check("「更新后」锚定 = 当日 09:30（+08；依据见 30-game-nikki4.js 文件头 ③）",
+		check("两侧共用「更新后」锚定 = 当日 09:30（+08；依据见 30-game-nikki4.js 文件头 ⑧）",
 			N.NIKKI4_UPDATE_ANCHOR.h === 9 && N.NIKKI4_UPDATE_ANCHOR.mi === 30,
 			JSON.stringify(N.NIKKI4_UPDATE_ANCHOR));
-		check("详情 102574：活动窗口 1 条，起止 = 2026-11-05 09:30 ~ 11-18 23:59 +08（UTC 手算 01:30Z / 15:59Z）",
+		check("活动侧 102574：活动窗口 1 条，起止 = 2026-11-05 09:30 ~ 11-18 23:59 +08（UTC 手算 01:30Z / 15:59Z）",
 			fact("102574").windows.length === 1 && fact("102574").windows[0].kind === "event"
 			&& fact("102574").windows[0].startTs === Date.UTC(2026, 10, 5, 1, 30)
 			&& fact("102574").windows[0].endTs === Date.UTC(2026, 10, 18, 15, 59),
 			JSON.stringify(fact("102574").windows.map((w) => [w.kind, w.startTs, w.endTs])));
-		check("102574 raw 保留「11月5日更新后」⇒ 悬停印原文、外显用锚定后的可读文本",
+		check("活动侧 102574 raw 保留「11月5日更新后」⇒ 悬停印原文、外显用锚定后的可读文本",
 			fact("102574").windows[0].raw === "11月5日更新后 ~ 11月18日23:59"
 			&& fact("102574").windows[0].display === "11-05 09:30 ~ 11-18 23:59",
 			JSON.stringify([fact("102574").windows[0].raw, fact("102574").windows[0].display]));
-		check("102583：锚点与档期**分两行**也认；活动名取正文上一行的 `【改造吧！PP游戏！】`",
+		check("活动侧 102583：锚点与档期**分两行**也认；活动名取正文上一行的 `【改造吧！PP游戏！】`",
 			fact("102583").windows.length === 1 && fact("102583").windows[0].name === "改造吧！PP游戏！"
 			&& fact("102583").windows[0].startTs === Date.UTC(2026, 10, 5, 1, 30),
 			JSON.stringify(fact("102583").windows.map((w) => [w.name, w.startTs])));
-		check("102582：两端绝对时刻 + 跨年 ⇒ 2026-11-16 05:00 ~ 2027-01-17 23:59（不做「更新后」锚定）",
+		check("活动侧 102582：两端绝对时刻 + 跨年 ⇒ 2026-11-16 05:00 ~ 2027-01-17 23:59（不做「更新后」锚定）",
 			fact("102582").windows.length === 1
 			&& fact("102582").windows[0].startTs === Date.UTC(2026, 10, 15, 21, 0)
 			&& fact("102582").windows[0].endTs === Date.UTC(2027, 0, 17, 15, 59)
 			&& fact("102582").windows[0].openStart === false,
 			JSON.stringify(fact("102582").windows));
-		check("只有起点没有终点的两篇（概念PV / 套装预告）⇒ 0 窗口",
+		check("活动侧：只有起点没有终点的两篇（概念PV / 套装预告）⇒ 0 窗口",
 			fact("102568").windows.length === 0 && fact("102571").windows.length === 0,
 			JSON.stringify([fact("102568").windows.length, fact("102571").windows.length]));
 
+		// ── 卡池侧：新闻列表 API（`/api/v1/news?section=1|0`）──
+		const API = N.NIKKI4_NEWS_API;
+		const NK_S1 = `${API}?section=1&offset=0&limit=40`;
+		const NK_S0 = `${API}?section=0&offset=0&limit=20`;
+		const NK_ND = (id) => `${API}/${id}`;
+		// 21 天窗内的 15 篇（公告 13 + 资讯 2）= 抓取器实际会请求的全部详情
+		const NK_CAND = ["102586", "102585", "102583", "102582", "102581", "102578", "102577", "102575", "102573", "102574", "102572", "102571", "102570", "102569", "102568"];
+		const NEWS = { [NK_S1]: JSON.parse(fixtureBody(NK_S1)), [NK_S0]: JSON.parse(fixtureBody(NK_S0)) };
+		for (const id of NK_CAND) NEWS[NK_ND(id)] = JSON.parse(fixtureBody(NK_ND(id)));
+
+		check("卡池侧扫描分段逐字 = 公告 1（40 条）+ 资讯 0（20 条）；2/3 段不扫（功能优化 / 单品，从不放感应公告）",
+			JSON.stringify(N.NIKKI4_GACHA_SECTIONS) === '[{"section":1,"limit":40},{"section":0,"limit":20}]'
+			&& N.NIKKI4_SCAN_DAYS === 21 && N.NIKKI4_GACHA_MAX_DETAILS === 24,
+			JSON.stringify([N.NIKKI4_GACHA_SECTIONS, N.NIKKI4_SCAN_DAYS, N.NIKKI4_GACHA_MAX_DETAILS]));
+
+		const listS1 = N.nikki4NewsListOf(NEWS[NK_S1], TZ);
+		const listS0 = N.nikki4NewsListOf(NEWS[NK_S0], TZ);
+		check("列表 API：公告 40 条 / 资讯 20 条，按发布时间倒序",
+			listS1.length === 40 && listS0.length === 20
+			&& listS1.every((r, i) => i === 0 || listS1[i - 1].publishTs >= r.publishTs)
+			&& listS1[0].id === "102586" && listS0[0].id === "102569",
+			JSON.stringify([listS1.length, listS0.length, listS1[0].id, listS0[0].id]));
+		check("列表 publish_time 是 ISO UTC ⇒ 直接按**绝对时刻**解析（不当 +08 墙钟；首条 = 2026-11-03T08:44:14Z）",
+			listS1[0].publishTs === Date.UTC(2026, 10, 3, 8, 44, 14)
+			&& listS0[0].publishTs === Date.UTC(2026, 10, 1, 13, 12, 6)
+			&& N.nikki4ApiTsOf("2026-11-03T08:44:14.000Z") === Date.UTC(2026, 10, 3, 8, 44, 14)
+			&& N.nikki4ApiTsOf("") === 0,
+			JSON.stringify([listS1[0].publishTs, listS0[0].publishTs]));
+
+		// ── 卡池侧：详情 API → 限时感应块（两种写法）──
+		const post = (id) => N.nikki4NewsDetailOf(NEWS[NK_ND(id)], TZ);
+		const pools = (id) => N.nikki4GachaPoolsOf(post(id), TZ);
+		check("详情 API：`data[0]` 的 title / content_html / publish_time（ISO UTC）",
+			post("102572").title === "【闪暖荆棘鸟·免费80抽】同步送闪耀单品、创意妆容等福利 | 11月5日更新"
+			&& post("102572").publishTs === Date.UTC(2026, 10, 1, 13, 20, 38)
+			&& post("102572").contentHtml.includes("新意节特别活动【笼中歌】"),
+			JSON.stringify([post("102572").title, post("102572").publishTs]));
+		check("**当期卡池**逐字：102572（形态 B「新意节特别活动【笼中歌】」+「活动时间&兑换时间」）⇒ 笼中歌 / 11-05 09:30 ~ 11-18 23:59",
+			pools("102572").length === 1 && pools("102572")[0].name === "笼中歌"
+			&& pools("102572")[0].startTs === Date.UTC(2026, 10, 5, 1, 30)
+			&& pools("102572")[0].endTs === Date.UTC(2026, 10, 18, 15, 59)
+			&& pools("102572")[0].raw === "11月5日更新后 ~ 11月18日23:59"
+			&& pools("102572")[0].display === "11-05 09:30 ~ 11-18 23:59"
+			&& pools("102572")[0].openStart === true,
+			JSON.stringify(pools("102572")));
+		check("形态 A（`限时感应活动：<池名>` ⏎ `活动时间：…`）也认：102277 ⇒ 风谷沉语 / 2026-01-16 09:30 ~ 01-25 23:59",
+			(() => {
+				const p = N.nikki4GachaPoolsOf(N.nikki4NewsDetailOf(JSON.parse(fixtureBody(NK_ND("102277"))), TZ), TZ);
+				return p.length === 1 && p[0].name === "风谷沉语"
+					&& p[0].startTs === Date.UTC(2026, 0, 16, 1, 30)
+					&& p[0].endTs === Date.UTC(2026, 0, 25, 15, 59);
+			})(),
+			"102277");
+		check("门槛：只有「兑换时间」没有「活动时间」的 102573 ⇒ 0 条（兑换时间不是卡池档期）",
+			pools("102573").length === 0, JSON.stringify(pools("102573")));
+		check("门槛：名字在前的商城活动 102578（`【绮夜新意】主题活动`）⇒ 0 条（不拿活动冒充卡池）",
+			pools("102578").length === 0, JSON.stringify(pools("102578")));
+		check("门槛：只有「【笼中歌】限时感应活动即将开启」没有档期的 102571 ⇒ 0 条（不硬凑）",
+			pools("102571").length === 0, JSON.stringify(pools("102571")));
+		check("21 天窗内 15 篇里只有 102572 产出卡池（其余 14 篇 0 条，不误报累充/福利/礼包）",
+			NK_CAND.filter((id) => pools(id).length > 0).join(",") === "102572",
+			JSON.stringify(NK_CAND.filter((id) => pools(id).length > 0)));
+
+		// ── 卡池侧抓取器：请求数 + 载荷 ──
+		N.nikki4ResetCache();
+		const gsink = [];
+		const d0 = await (async () => {
+			const e = engineAt(NOW, "nikki4", gsink);
+			const s = e.__test.SOURCES.find((x) => x.id === "nikki4");
+			return e.__test.GACHA_FETCHERS["nikki4"](s.url, undefined, s.tz);
+		})();
+		check("卡池侧首轮 = 17 次（2 列表 + 15 篇 21 天内详情；活动侧不算在这里）",
+			gsink.length === 17 && gsink[0] === NK_S1 && gsink[1] === NK_S0
+			&& gsink.slice(2).every((u) => u.startsWith(API + "/") && NK_CAND.includes(u.slice(API.length + 1))),
+			"requests=" + gsink.length + " " + JSON.stringify(gsink));
+		check("卡池载荷：banner / bannerDates / bannerDatesRaw / 绝对毫秒（起止都在 gacha[0] 上）",
+			!!d0 && d0.banner === "笼中歌" && d0.bannerDates === "11-05 09:30 ~ 11-18 23:59"
+			&& d0.bannerDatesRaw === "11月5日更新后 ~ 11月18日23:59"
+			&& d0.startTs === Date.UTC(2026, 10, 5, 1, 30) && d0.endTs === Date.UTC(2026, 10, 18, 15, 59)
+			&& Array.isArray(d0.gacha) && d0.gacha.length === 1
+			&& d0.gacha[0].key === "nikki4:gacha:0" && d0.gacha[0].title === "笼中歌"
+			&& d0.gacha[0].startTs === Date.UTC(2026, 10, 5, 1, 30)
+			&& d0.gacha[0].endTs === Date.UTC(2026, 10, 18, 15, 59),
+			JSON.stringify(d0 && { b: d0.banner, d: d0.bannerDates, raw: d0.bannerDatesRaw, g: d0.gacha }));
+
+		// ── 引擎整轮（卡池 + 活动同轮）──
 		N.nikki4ResetCache();
 		const calls = [];
-		const e = engineAt(Date.parse("2026-11-15T15:00:00+08:00"), "nikki4", calls, BODY);
+		const e = engineAt(NOW, "nikki4", calls);
 		const rec = (await e.refresh()).games.nikki4 || {};
-		check("引擎：首轮 5 次（首页 1 + 4 篇精选详情各 1）",
-			calls.length === 5 && calls.filter((u) => u === NK_LIST).length === 1
-			&& ["102583", "102574", "102571", "102568"].every((id) => calls.filter((x) => x === NK_D(id)).length === 1),
+		check("引擎：首轮 22 次 = 卡池 17（2 列表 + 15 详情）+ 活动 5（首页 1 + 4 篇精选详情）",
+			calls.length === 22 && calls.filter((u) => u === NK_S1).length === 1 && calls.filter((u) => u === NK_S0).length === 1
+			&& calls.filter((u) => u === NK_LIST).length === 1
+			&& ["102583", "102574", "102571", "102568"].every((id) => calls.filter((x) => x === NK_D(id)).length === 1)
+			&& NK_CAND.every((id) => calls.filter((x) => x === NK_ND(id)).length === 1),
 			"requests=" + calls.length + " " + JSON.stringify(calls));
-		check("引擎外显：活动 = 改造吧！PP游戏！/ 11-05 09:30 ~ 11-18 23:59（raw 保留「更新后」）",
+		check("引擎外显（卡池）：笼中歌 / 11-05 09:30 ~ 11-18 23:59（raw 保留「更新后」；不再是精选里没感应帖就恒空）",
+			rec.banner === "笼中歌" && rec.bannerDates === "11-05 09:30 ~ 11-18 23:59"
+			&& rec.bannerDatesRaw === "11月5日更新后 ~ 11月18日23:59" && rec.gachaFail === null,
+			JSON.stringify([rec.banner, rec.bannerDates, rec.bannerDatesRaw, rec.gachaFail]));
+		check("引擎外显（活动）：活动 = 改造吧！PP游戏！/ 11-05 09:30 ~ 11-18 23:59（活动侧逻辑保留）",
 			rec.event === "改造吧！PP游戏！" && rec.eventDates === "11-05 09:30 ~ 11-18 23:59"
 			&& rec.eventDatesRaw === "11月5日更新后 ~ 11月18日23:59" && rec.eventFail === null,
 			JSON.stringify([rec.event, rec.eventDates, rec.eventDatesRaw]));
-		check("引擎：卡池侧当日如实 nomatch（不冒充有池），活动数组 2 条",
-			rec.banner === "" && String((rec.gachaFail || {}).kind) === "nomatch"
+		check("引擎：两侧都出数；卡池数组 1 条（key = `nikki4:gacha:0`）、活动数组 2 条",
+			Array.isArray(rec.gacha) && rec.gacha.length === 1 && rec.gacha[0].key === "nikki4:gacha:0"
 			&& Array.isArray(rec.events) && rec.events.length === 2
 			&& rec.events.every((x) => x.key.startsWith("nikki4:event:")),
-			JSON.stringify([rec.banner, rec.gachaFail, (rec.events || []).map((x) => x.key)]));
+			JSON.stringify([(rec.gacha || []).map((x) => x.key), (rec.events || []).map((x) => x.key)]));
 		if (rec.eventHover) assertHoverConvention("nikki4 活动悬停", rec.eventHover, { requireSet: true });
+		if (rec.bannerHover) assertHoverConvention("nikki4 卡池悬停", rec.bannerHover);
+
+		// 稳态：详情按 id 缓存命中 ⇒ 第二轮只剩列表 + 首页
+		const before = calls.length;
+		await e.refresh();
+		check("引擎稳态：第二轮只 3 次（2 列表 + 1 首页；详情按 id 缓存 24h 命中）",
+			calls.length - before === 3
+			&& calls.slice(before).filter((u) => u === NK_S1 || u === NK_S0 || u === NK_LIST).length === 3,
+			"+" + (calls.length - before) + " " + JSON.stringify(calls.slice(before)));
+
+		// 无当期 ⇒ null（解析到了笼中歌，但 now=11/20 已过 11/18 结束 ⇒ 不硬凑过期档期）
+		N.nikki4ResetCache();
+		const calls2 = [];
+		const e2 = engineAt(Date.parse("2026-11-20T15:00:00+08:00"), "nikki4", calls2);
+		const rec2 = (await e2.refresh()).games.nikki4 || {};
+		check("无当期（11/20，笼中歌 11/18 已结束）⇒ 卡池侧 null / nomatch（不是抛错、也不冒充有池）",
+			rec2.banner === "" && String((rec2.gachaFail || {}).kind) === "nomatch",
+			JSON.stringify([rec2.banner, rec2.gachaFail]));
+		check("无当期时仍把 15 篇详情拉全（解析过、只是没覆盖 now）⇒ 整轮仍 22 次",
+			calls2.length === 22, "requests=" + calls2.length);
 	}
 
 	// ═════════ ④ アイドルマスター系列 5 款：月份页（1 次请求 / 跨月补抓）═════════
@@ -303,6 +437,59 @@ export default async function run() {
 				return N.nikki4FactsOf({ id: "102574", title: page.title }, page, TZ_CN4).windows.length === 0;
 			})(),
 			"0 windows");
+
+		// ── 卡池侧（新闻 API）反证：结构变 ⇒ 抛（不是 nomatch）；档期缺失/换成兑换时间 ⇒ 0 条 ──
+		const NK_API = N.NIKKI4_NEWS_API;
+		const NK_ND = (id) => `${NK_API}/${id}`;
+		const NK_CAND = ["102586", "102585", "102583", "102582", "102581", "102578", "102577", "102575", "102573", "102574", "102572", "102571", "102570", "102569", "102568"];
+		check("卡池侧反证：列表 `{}` / `ret != 0` / 没有 `data.data` / 一条合法新闻都没有 ⇒ 抛 `nikki4-news-list-changed:*`",
+			(() => {
+				const errs = [
+					(() => { try { N.nikki4NewsListOf({}, TZ_CN4); return ""; } catch (e) { return e.message; } })(),
+					(() => { try { N.nikki4NewsListOf({ ret: 1, data: { data: [] } }, TZ_CN4); return ""; } catch (e) { return e.message; } })(),
+					(() => { try { N.nikki4NewsListOf({ ret: 0, data: {} }, TZ_CN4); return ""; } catch (e) { return e.message; } })(),
+					(() => { try { N.nikki4NewsListOf({ ret: 0, data: { total: 0, data: [] } }, TZ_CN4); return ""; } catch (e) { return e.message; } })()
+				];
+				return errs.every((m) => /^nikki4-news-list-changed:/.test(m));
+			})(),
+			"list 4 种坏结构");
+		check("卡池侧反证：详情 `{}` / 不存在 id 的 `data:{}` / 首项 `{}` / `ret != 0` ⇒ 抛 `nikki4-news-detail-changed:*`",
+			(() => {
+				const errs = [
+					(() => { try { N.nikki4NewsDetailOf({}, TZ_CN4); return ""; } catch (e) { return e.message; } })(),
+					(() => { try { N.nikki4NewsDetailOf({ ret: 0, data: {} }, TZ_CN4); return ""; } catch (e) { return e.message; } })(),
+					(() => { try { N.nikki4NewsDetailOf({ ret: 0, data: [{}] }, TZ_CN4); return ""; } catch (e) { return e.message; } })(),
+					(() => { try { N.nikki4NewsDetailOf({ ret: 2, data: [] }, TZ_CN4); return ""; } catch (e) { return e.message; } })()
+				];
+				return errs.every((m) => /^nikki4-news-detail-changed:/.test(m));
+			})(),
+			"detail 4 种坏结构");
+		check("卡池侧反证：抹掉 102572 的 `活动时间` 锚点 ⇒ 这篇 0 条（不抛、也不拿「兑换时间」顶替）",
+			(() => {
+				const mut = JSON.parse(fixtureBody(NK_ND("102572")));
+				mut.data[0].content_html = String(mut.data[0].content_html).replace(/活动时间/g, "活动说明");
+				return N.nikki4GachaPoolsOf(N.nikki4NewsDetailOf(mut, TZ_CN4), TZ_CN4).length === 0;
+			})(),
+			"102572 无活动时间");
+		check("卡池侧反证：只剩「兑换时间」的行 ⇒ 0 条（兑换商店档期不是卡池档期）",
+			(() => {
+				const mut = JSON.parse(fixtureBody(NK_ND("102572")));
+				mut.data[0].content_html = String(mut.data[0].content_html).replace(/活动时间(?:&amp;|&)兑换时间/g, "兑换时间");
+				return N.nikki4GachaPoolsOf(N.nikki4NewsDetailOf(mut, TZ_CN4), TZ_CN4).length === 0;
+			})(),
+			"102572 只剩兑换时间");
+		{
+			// 15 篇详情全部结构坏 ⇒ 抛（抓取失败 ≠ 未公布；与活动侧同一套语义）
+			const overrides = {};
+			for (const id of NK_CAND) overrides[NK_ND(id)] = "{}";
+			N.nikki4ResetCache();
+			const e = engineAt(Date.parse("2026-11-15T15:00:00+08:00"), "nikki4", [], overrides);
+			const s = e.__test.SOURCES.find((x) => x.id === "nikki4");
+			let err = null;
+			try { await e.__test.GACHA_FETCHERS["nikki4"](s.url, undefined, s.tz); } catch (x) { err = x; }
+			check("卡池侧反证：15 篇详情全部结构坏 ⇒ 抛 `nikki4-news-detail-changed:*`（不是静默成「本期没有」）",
+				!!err && /^nikki4-news-detail-changed:/.test(String(err.message)), JSON.stringify(err && err.message));
+		}
 
 		// imas：抹掉**单条**的时刻锚 ⇒ 该条不进 gacha[]（其余与外显不变，且不抛）
 		const GM11_URL = "https://melonpapapapa-n.com/imas_gm_202611/";

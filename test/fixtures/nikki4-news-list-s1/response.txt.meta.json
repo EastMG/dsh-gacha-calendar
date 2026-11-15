@@ -1,0 +1,7 @@
+{
+  "url": "https://nikki4.papegames.cn/api/v1/news?section=1&offset=0&limit=40",
+  "status": 200,
+  "capturedAt": "2026-11-15T11:51:54.436Z",
+  "referer": "https://nikki4.papegames.cn/newslist",
+  "note": "闪耀暖暖·国服 官网新闻列表 API（公告 section=1）真抓整段。结构 {ret:0,msg,data:{total,data:[{id,title,section,info,publish_time}]}}；publish_time 是 ISO UTC。这条就是「首页 __NEXT_DATA__ 之外的列表 API」，替代原来只有 4 条精选的 newsbanner。"
+}

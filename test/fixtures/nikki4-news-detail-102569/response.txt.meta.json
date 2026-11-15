@@ -1,0 +1,7 @@
+{
+  "url": "https://nikki4.papegames.cn/api/v1/news/102569",
+  "status": 200,
+  "capturedAt": "2026-11-15T11:51:56.075Z",
+  "referer": "https://nikki4.papegames.cn/newslist",
+  "note": "官网新闻详情 API（真抓整段）。结构 {ret:0,data:[{title,content_html,publish_time,id}]}；正文是每段一个 <p>（不是富文本一字一 span）。本篇标题：【2种氛围1次集齐】全新套装实机效果演示 | 11月5日更新"
+}

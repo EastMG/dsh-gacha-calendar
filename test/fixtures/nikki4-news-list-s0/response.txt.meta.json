@@ -1,0 +1,7 @@
+{
+  "url": "https://nikki4.papegames.cn/api/v1/news?section=0&offset=0&limit=20",
+  "status": 200,
+  "capturedAt": "2026-11-15T11:51:54.580Z",
+  "referer": "https://nikki4.papegames.cn/newslist",
+  "note": "同上，资讯 section=0（历史版本的主题活动介绍帖在这一段，如 102110）。"
+}
