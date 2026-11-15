@@ -413,6 +413,27 @@ export default async function runWdHlr() {
 		const evNo = await eNoUpdate.__test.EVENT_FETCHERS["hlr"].default(sNo.eventUrl, undefined, sNo.tz);
 		check("反证：关掉学院公告列表（只留官方通稿）⇒ 11-09 活动照样 null（空窗不是解析坏了，是旧源太稀）",
 			evNo === null, JSON.stringify(evNo && evNo.event));
+
+		// ── 2026-11-15 补：学院公告里的画廊写法（旧判据只认「活动画廊/活动卡池」，学院公告写作
+		//    `2.[怪谈：时融] 画廊限时开启` ⇒ 之前整类漏掉）。本节钉住新判据 + 两条反证。
+		const d8 = HLR.hlrParseDetail(B.hlrDetails["20261104/30883_1318708"]);
+		const y8 = HLR.hlrYearOf(d8, "https://hlr.163.com/news/update/20261104/30883_1318708.html");
+		const rows8 = HLR.hlrBlocksOf(d8.contentHtml).reduce((acc, b) => acc.concat(HLR.hlrGalleryRowsOf(b, y8, TZ_CN)), []);
+		check("学院公告 10/29 篇：`[怪谈：时融] 画廊限时开启` ⇒ 抽 1 行卡池（池名/角色/档期逐字）",
+			rows8.length === 1 && rows8[0].banner === "怪谈：时融" && rows8[0].roles === "叠轨晨昏"
+			&& rows8[0].raw === "10月31日09:30 ~ 11月7日05:00",
+			JSON.stringify(rows8));
+		check("新判据的窗口 = 同段「活动时间：10月31日09:30 - 11月7日05:00」（入学公告里画廊与活动同段）",
+			rows8.length === 1 && rows8[0].display === "10-31 09:30 ~ 11-07 05:00"
+			&& rows8[0].startTs === Date.UTC(2026, 9, 31, 1, 30),
+			JSON.stringify(rows8.map((r) => [r.display, r.startTs])));
+		check("反证：抹掉「画廊/卡池」字样 ⇒ 学院公告段不再产出卡池行",
+			HLR.hlrBlocksOf(d8.contentHtml).every((b) => HLR.hlrGalleryRowsOf(b.replace(/画廊|卡池/g, "活动"), y8, TZ_CN).length === 0));
+		const d7 = HLR.hlrParseDetail(B.hlrDetails["20261104/30883_1318707"]);
+		const y7 = HLR.hlrYearOf(d7, "https://hlr.163.com/news/update/20261104/30883_1318707.html");
+		const rows7 = HLR.hlrBlocksOf(d7.contentHtml).reduce((acc, b) => acc.concat(HLR.hlrGalleryRowsOf(b, y7, TZ_CN)), []);
+		check("已知限制：10/22 篇的卡池窗口写成「10月22日更新后-…」（无钟点）⇒ 0 行，不硬凑 09:30",
+			rows7.length === 0, JSON.stringify(rows7));
 	}
 
 	// ─────────────────────⑩ 学院公告翻页（2026-11-11 空窗修复）─────────────────────
