@@ -151,15 +151,28 @@ NEXT_SOURCES.push(
 		gacha: { url: T.parsers["pcr-jp"].PCR_JP_LIST_URL, kind: "official-api", mode: "direct", fetcher: resolve("pcr-jp.gachaPcrJp") },
 		event: { url: T.parsers["pcr-jp"].PCR_JP_LIST_URL, kind: "official-api", mode: "direct", fetcher: resolve("pcr-jp.eventsPcrJp") }
 	},
-		// 2026-11-15：雷索纳斯（`reso`）—— 官网首页 `soli-reso.com` 的内联 `notice_json`（更新公告，
-	// 双重转义、卡池 `起止时间` 都在正文里；整页 7,451,933 B，服务端忽略 Range）。两侧同一条 URL
-	// （轮内共享 1 次请求；解析结果按 URL 缓存 24h ⇒ 稳态 0 次）。响应无 ACAO ⇒ `mode: "proxy"`。
+	// 2026-11-15：雷索纳斯（`reso`）—— **主源 = bwiki「活动日历」** 的 wikitext（`action=raw` 正文 +
+	// `api.php?action=query&prop=revisions` 只补年份；必须带 `Referer: https://wiki.biligame.com/`）。
+	// 卡池与活动**同一条 URL** ⇒ 轮内共享 2 次请求。**备选源 = 官网首页 `soli-reso.com`** 的内联
+	// `notice_json`（更新公告；双重转义；整页 7,451,933 B；24h 缓存）—— 2026-11-15 二次换源后降为
+	// `altSources` / `eventAltSources` 的手动备选（见 `test/cases-new5.mjs` ⑨ 的备选源断言）。
+	// 两处响应都无 ACAO ⇒ `mode: "proxy"`。
 	{
 		id: "reso",
 		tz: "Asia/Shanghai",
 		name: "雷索纳斯",
-		gacha: { url: T.parsers.reso.RESO_URL, kind: "official-html", mode: "proxy", fetcher: resolve("reso.gachaReso") },
-		event: { url: T.parsers.reso.RESO_URL, kind: "official-html", mode: "proxy", fetcher: resolve("reso.eventsReso") }
+		gacha: { url: T.parsers.reso.RESO_RAW_URL, kind: "wiki", mode: "proxy", fetcher: resolve("reso.gachaReso") },
+		event: { url: T.parsers.reso.RESO_RAW_URL, kind: "wiki", mode: "proxy", fetcher: resolve("reso.eventsReso") },
+		altSources: [{
+			label: T.parsers.reso.RESO_ALT_SOURCE_LABEL,
+			url: T.parsers.reso.RESO_HOME,
+			fetcher: T.parsers.reso.RESO_ALT_FETCHER
+		}],
+		eventAltSources: [{
+			label: T.parsers.reso.RESO_ALT_SOURCE_LABEL,
+			url: T.parsers.reso.RESO_HOME,
+			fetcher: T.parsers.reso.RESO_ALT_FETCHER
+		}]
 	},
 	// 2026-11-15：幻塔（`tof`，国服）—— 官网 `gamenews` 列表（SSR，第 1 页 6 条版本公告）+ **最新版本那篇**
 	// 的正文；**只接卡池侧**（活动侧没有可靠源 ⇒ `event: null` = 设置页「未配置」）。
@@ -278,6 +291,8 @@ export const EXTRA_GACHA_FETCHERS = {
 	"ournotes-global-gacha": resolve("ournotes-global.gachaOurNotesGlobal"),
 	// 2026-11-11：嘟嘟脸默认源换 TapTap，旧 B 站公告降为备选（抓取器自带 tz=+540）
 	"ddlezj-biligame": resolve("biligame-announce.gachaDdlezj"),
+	// 2026-11-15：雷索纳斯备选源 = 官网首页内联 JSON（主源换回 bwiki 后，它降为手动备选）
+	"reso-official": resolve("reso.gachaResoOfficial"),
 };
 export const EXTRA_EVENT_FETCHERS = {
 	"uma-jp": {
@@ -294,6 +309,10 @@ export const EXTRA_EVENT_FETCHERS = {
 	},
 	"ddlezj": {
 		"ddlezj-biligame": resolve("biligame-announce.eventsDdlezj"),
+	},
+	// 2026-11-15：雷索纳斯备选源 = 官网首页内联 JSON（主源换回 bwiki 后，它降为手动备选）
+	"reso": {
+		"reso-official": resolve("reso.eventsResoOfficial"),
 	},
 };
 //#endregion
