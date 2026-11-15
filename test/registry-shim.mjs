@@ -218,7 +218,7 @@ NEXT_SOURCES.push(
 		gacha: { url: T.parsers.nikki4.NIKKI4_LIST_URL, kind: "official-html", mode: "proxy", fetcher: resolve("nikki4.gachaNikki4") },
 		event: { url: T.parsers.nikki4.NIKKI4_LIST_URL, kind: "official-html", mode: "proxy", fetcher: resolve("nikki4.eventsNikki4") }
 	},
-	// 2026-11-15：アイドルマスター系列 4 款（`gakumas` / `shinycolors` / `millisita` / `deresute`）——
+	// 2026-11-15：アイドルマスター系列 5 款（`gakumas` / `shinycolors` / `millisita` / `deresute` / `shanison`）——
 	// 每款一个**月份页**（`melonpapapapa-n.com` 的「イベント・ガシャ開催スケジュール一覧」）。
 	// 卡池（cat-gacha）与活动（cat-event）**同一张表** ⇒ 两侧同一条 URL、轮内共享一次请求；
 	// 注册地址由 `imasMonthUrlNow` 按 now 现算（月份页路径含 YYYYMM），抓取器内部也按 now 现算，
@@ -251,6 +251,15 @@ NEXT_SOURCES.push(
 		name: "アイドルマスター シンデレラガールズ スターライトステージ",
 		gacha: { url: T.parsers.idolmaster.imasMonthUrlNow("deresute"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchDeresute") },
 		event: { url: T.parsers.idolmaster.imasMonthUrlNow("deresute"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchDeresute") }
+	},
+	// 2026-11-15：同系列第 5 款 `shanison`（シャイニーカラーズ Song for Prism，源站代号 `ss`）——
+	// 注册形态与上面 4 条**完全一致**（同一个月份页、卡池/活动两侧共享一次抓取）。
+	{
+		id: "shanison",
+		tz: "Asia/Tokyo",
+		name: "シャイニーカラーズ Song for Prism",
+		gacha: { url: T.parsers.idolmaster.imasMonthUrlNow("shanison"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchShanison") },
+		event: { url: T.parsers.idolmaster.imasMonthUrlNow("shanison"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchShanison") }
 	}
 );
 

@@ -1,15 +1,19 @@
-// test/cases-batch4.mjs —— 第四批新来源（2026-11-15 合并）：6 条
+// test/cases-batch4.mjs —— 第四批新来源（2026-11-15 合并）：6 条 + 2026-11-15 追加的 imas 第 5 款
 //
 // 落点（**只取源文件 + 重新接线**，不是 git merge）：
 //   · `src/client/30-game-longhun.js`  龙魂旅人（台服官网公告）—— 卡池 + 活动同一条 JSON 索引
 //   · `src/client/30-game-nikki4.js`   闪耀暖暖·国服 —— 首页 `__NEXT_DATA__` + `/news/{id}`
-//   · `src/client/30-game-idolmaster.js` アイドルマスター系列 4 款（学マス / シャニマス /
-//     ミリシタ / デレステ）—— `melonpapapapa-n.com` 每款一个月份页，卡池 + 活动同一张表
+//   · `src/client/30-game-idolmaster.js` アイドルマスター系列 **5 款**（学マス / シャニマス /
+//     ミリシタ / デレステ / **シャニソン = シャイニーカラーズ Song for Prism**）——
+//     `melonpapapapa-n.com` 每款一个月份页，卡池 + 活动同一张表
+//     （第 5 款是同日补的：源站第 5 个品牌代号 `ss`；判据见 30-game-idolmaster.js 文件头）
 //
 // ── 这一段守什么 ──
-//   ① **注册项**：6 条的 id / 名称 / tz / 来源标签 / 卡池·活动同源 URL（+ 颜色）；
+//   ① **注册项**：7 条的 id / 名称 / tz / 来源标签 / 卡池·活动同源 URL（+ 颜色）；
+//      以及用户 2026-11-15 拍板的**标签后缀口径**：5 条 imas 的来源文案逐字带「（日文）」，
+//      条目 name 不加任何后缀；
 //   ② **真夹具驱动**：各自列表 + 详情 → 能解析出「名 + 起止」（longhun / nikki4 走纯函数 +
-//      引擎整轮；imas 四款走引擎的 `GACHA_FETCHERS` 抓取器，卡池/活动同一次抓取）；
+//      引擎整轮；imas 五款走引擎的 `GACHA_FETCHERS` 抓取器，卡池/活动同一次抓取）；
 //   ③ **反证**：`{}` ⇒ **抛错**（不是 nomatch）；抹掉时间锚点 ⇒ 该条**不进外显**（不抛、不硬凑）；
 //      imas 月份页所有时刻锚都消失 ⇒ 抛结构错（不许静默成"本期没有"）。
 //
@@ -19,7 +23,7 @@
 // 夹具全部真抓（见各 `response.txt.meta.json` 的 capturedAt / note）：
 //   `longhun-list` + `longhun-detail-{1287,994,981,863}`；`nikki4-home` +
 //   `nikki4-detail-{102568,102571,102574,102582,102583}`；`imas-{gakumas-202610,
-//   gakumas-202611,shinycolors-202611,millisita-202611,deresute-202611}`。
+//   gakumas-202611,shinycolors-202611,millisita-202611,deresute-202611,shanison-202611}`。
 
 import { createEngine } from "../packages/core/core.mjs";
 import { check, section, fixtureBody, assertHoverConvention } from "./harness.mjs";
@@ -62,17 +66,21 @@ const engineAt = (now, shownId, sink, overrides) => {
 };
 
 export default async function run() {
-	// ═════════ ① 注册项（6 条）═════════
-	section("第四批 ①：6 条注册项（id / 名称 / tz / 标签 / 卡池·活动同源 URL + 颜色）");
+	// ═════════ ① 注册项（6 条 + imas 第 5 款 = 7 条）═════════
+	section("第四批 ①：7 条注册项（id / 名称 / tz / 标签 / 卡池·活动同源 URL + 颜色）");
 	{
 		const L = T.parsers.longhun, N = T.parsers.nikki4, I = T.parsers.idolmaster;
+		// 用户 2026-11-15 拍板的后缀口径：只许这一种写法（不许（日服）/（JST）/（原文）…）
+		const IMAS_LABEL_LITERAL = "melonpapapapa 総合カレンダー（日文）";
 		for (const [id, name, tz, label] of [
 			["longhun", "龙魂旅人", TZ_TW, "官网公告"],
 			["nikki4", "闪耀暖暖", TZ_CN4, "官网公告"],
 			["gakumas", "学園アイドルマスター", TZ_JP, I.IMAS_SOURCE_LABEL],
 			["shinycolors", "シャイニーカラーズ", TZ_JP, I.IMAS_SOURCE_LABEL],
 			["millisita", "ミリオンライブ！シアターデイズ", TZ_JP, I.IMAS_SOURCE_LABEL],
-			["deresute", "アイドルマスター シンデレラガールズ スターライトステージ", TZ_JP, I.IMAS_SOURCE_LABEL]
+			["deresute", "アイドルマスター シンデレラガールズ スターライトステージ", TZ_JP, I.IMAS_SOURCE_LABEL],
+			// 2026-11-15 追加：源站第 5 个品牌代号 `ss`（页面标题「シャニソン」）
+			["shanison", "シャイニーカラーズ Song for Prism", TZ_JP, I.IMAS_SOURCE_LABEL]
 		]) {
 			const s = srcOf(id);
 			check(`${id} 已注册（name / tz / 标签逐字）`,
@@ -83,15 +91,31 @@ export default async function run() {
 			check(`${id} 出厂默认展示（defaultHidden = false）`, !!s && s.defaultHidden === false, s && String(s.defaultHidden));
 			check(`${id} 有配色（面板「颜色 = 游戏」）`, !!s && /^#[0-9A-F]{6}$/i.test(String(s.color)), s && String(s.color));
 		}
+		// 用户 2026-11-15 明确要求：这 5 条来源的**选项文案**（source / eventSource）含日文原文
+		// ⇒ 统一加「（日文）」后缀，且只许这一种；条目 `name` 保持日文原名、**不加**后缀。
+		const IMAS_FIVE = ["gakumas", "shinycolors", "millisita", "deresute", "shanison"];
+		check(`imas 5 条来源标签逐字 = 「${IMAS_LABEL_LITERAL}」（后缀只此一种）`,
+			IMAS_FIVE.every((id) => srcOf(id).source === IMAS_LABEL_LITERAL && srcOf(id).eventSource === IMAS_LABEL_LITERAL),
+			JSON.stringify(IMAS_FIVE.map((id) => [srcOf(id).source, srcOf(id).eventSource])));
+		check("imas 5 条来源标签都**不是**旧写法（无后缀的那版已全部改掉）",
+			IMAS_FIVE.every((id) => srcOf(id).source !== "melonpapapapa 総合カレンダー"),
+			JSON.stringify(IMAS_FIVE.map((id) => srcOf(id).source)));
+		check("imas 5 条的条目 name **不带**「（日文）」这类后缀（后缀只加在来源文案上）",
+			IMAS_FIVE.every((id) => !/（日文）$/.test(String(srcOf(id).name))),
+			JSON.stringify(IMAS_FIVE.map((id) => srcOf(id).name)));
 		check("longhun 列表地址逐字 + nikki4 首页地址逐字",
 			srcOf("longhun").url === L.LONGHUN_LIST_URL && srcOf("longhun").url === "https://news.game-tree.com/jx/dtofficialnewszh/"
 			&& srcOf("nikki4").url === N.NIKKI4_LIST_URL && srcOf("nikki4").url === "https://nikki4.papegames.cn/",
 			JSON.stringify([srcOf("longhun").url, srcOf("nikki4").url]));
-		check("imas 四款的注册地址 = 当月的各自月份页（YYYYMM + brand slug）",
-			[["gakumas", "imas_gm"], ["shinycolors", "imas_sc"], ["millisita", "imas_ml"], ["deresute", "imas_cgss"]]
+		check("imas 五款的注册地址 = 当月的各自月份页（YYYYMM + brand slug）",
+			[["gakumas", "imas_gm"], ["shinycolors", "imas_sc"], ["millisita", "imas_ml"], ["deresute", "imas_cgss"], ["shanison", "imas_ss"]]
 				.every(([id, slug]) => new RegExp("^https://melonpapapapa-n\\.com/" + slug + "_\\d{6}/$").test(String(srcOf(id).url))),
-			JSON.stringify(["gakumas", "shinycolors", "millisita", "deresute"].map((id) => srcOf(id).url)));
-		check("6 条 id 全局唯一（没和既有来源撞 id）", new Set(allIds()).size === allIds().length, String(allIds().length));
+			JSON.stringify(IMAS_FIVE.map((id) => srcOf(id).url)));
+		check("imas 第 5 款（shanison）brand class / 名称 / slug 三者对得上（`ss` ⇒ brand-shanison）",
+			I.IMAS_BRANDS.shanison.slug === "imas_ss" && I.IMAS_BRANDS.shanison.cls === "brand-shanison"
+			&& I.IMAS_BRANDS.shanison.name === "シャイニーカラーズ Song for Prism",
+			JSON.stringify(I.IMAS_BRANDS.shanison));
+		check("7 条 id 全局唯一（没和既有来源撞 id）", new Set(allIds()).size === allIds().length, String(allIds().length));
 	}
 
 	// ═════════ ② longhun：JSON 索引（DD-MM-YYYY）+ 详情 4 窗口 + 引擎整轮 ═════════
@@ -234,8 +258,8 @@ export default async function run() {
 		if (rec.eventHover) assertHoverConvention("nikki4 活动悬停", rec.eventHover, { requireSet: true });
 	}
 
-	// ═════════ ④ アイドルマスター系列 4 款：月份页（1 次请求 / 跨月补抓）═════════
-	section("第四批 ④：アイドルマスター系列 4 款真夹具 —— 名 + 起止（卡池 + 活动）");
+	// ═════════ ④ アイドルマスター系列 5 款：月份页（1 次请求 / 跨月补抓）═════════
+	section("第四批 ④：アイドルマスター系列 5 款真夹具 —— 名 + 起止（卡池 + 活动）");
 	{
 		const I = T.parsers.idolmaster;
 		const NOW = Date.parse("2026-11-15T12:00:00+09:00");
@@ -293,6 +317,30 @@ export default async function run() {
 			check("デレステ 活动 = SSレアアイドル勧誘チャレンジ · 11-01 00:00 ~ 11-30 23:59",
 				!!cs && cs.event === "SSレアアイドル勧誘チャレンジ" && cs.eventDates === "11-01 00:00 ~ 11-30 23:59",
 				cs ? JSON.stringify([cs.event, cs.eventDates]) : "null");
+		}
+		// シャニソン（第 5 款）：源站代号 `ss`，与上面 4 款同一套月份页 → 同一个抓取器形态
+		{
+			const sink = [];
+			const { d } = await fetchOf("shanison", NOW, sink);
+			check("シャニソン：只抓当月页 1 次（`imas_ss_202611`）", sink.length === 1 && /imas_ss_202611\/$/.test(sink[0]), JSON.stringify(sink));
+			check("シャニソン 卡池 = 小糸誕生日記念ガシャ2026 · 11-11 00:00 ~ 11-17 23:59（JST→绝对毫秒；`t-text` 写的是 0:00，raw 补零成 00:00）",
+				!!d && d.banner === "小糸誕生日記念ガシャ2026"
+				&& d.startTs === jst(2026, 11, 11, 0, 0) && d.endTs === jst(2026, 11, 17, 23, 59)
+				&& d.bannerDates === "11-11 00:00 ~ 11-17 23:59" && d.bannerDatesRaw === "11/11 00:00 ~ 11/17 23:59",
+				d ? JSON.stringify([d.banner, d.bannerDates, d.bannerDatesRaw, d.startTs, d.endTs]) : "null");
+			check("シャニソン 活动 = 第18回テクニカルチャレンジ杯「秋の終わり、僕の記憶(xRライブ ver.)」· 11-13 12:00 ~ 11-16 20:59",
+				!!d && d.event === "第18回テクニカルチャレンジ杯「秋の終わり、僕の記憶(xRライブ ver.)」"
+				&& d.eventDates === "11-13 12:00 ~ 11-16 20:59"
+				&& d.eventDatesRaw === "11/13 12:00 ~ 11/16 20:59",
+				d ? JSON.stringify([d.event, d.eventDates]) : "null");
+			// 夹具里 cat-gacha 6 条 / cat-event 3 条都在期内（其余 cat-login/mission/shop/other 一律不进）
+			check("シャニソン：cat-gacha 6 条进卡池数组 / cat-event 3 条进活动数组（ログボ·ミッション·ショップ·その他 一条不进）",
+				!!d && d.gacha.length === 6 && d.events.length === 3
+				&& JSON.stringify(d).indexOf("ログインボーナス") < 0 && JSON.stringify(d).indexOf("記念ミッション") < 0
+				&& JSON.stringify(d).indexOf("販売") < 0,
+				d ? JSON.stringify([d.gacha.length, d.events.length, d.gacha.map((x) => x.title)]) : "null");
+			if (d && d.bannerHover) assertHoverConvention("シャニソン 卡池悬停", d.bannerHover);
+			if (d && d.eventHover) assertHoverConvention("シャニソン 活动悬停", d.eventHover);
 		}
 		// 月初：当月页无覆盖 ⇒ 补抓上一月（跨月条目只在上一月页带完整起点）
 		{
@@ -380,6 +428,23 @@ export default async function run() {
 			try { await e.__test.GACHA_FETCHERS["gakumas"](s.url, undefined, s.tz); } catch (x) { err = x; }
 			check("imas 反证：月份页回 `{}` ⇒ 抛 `imas-gakumas-no-table`",
 				!!err && err.message === "imas-gakumas-no-table", JSON.stringify(err && err.message));
+		}
+		// 第 5 款同一套失败语义（错误码带自己的 brand key：`imas-shanison-…`）
+		{
+			const SS11_URL = "https://melonpapapapa-n.com/imas_ss_202611/";
+			const e = engineAt(Date.parse("2026-11-15T12:00:00+09:00"), "shanison", [], { [SS11_URL]: "{}" });
+			const s = e.__test.SOURCES.find((x) => x.id === "shanison");
+			let err = null;
+			try { await e.__test.GACHA_FETCHERS["shanison"](s.url, undefined, s.tz); } catch (x) { err = x; }
+			check("シャニソン 反证：月份页回 `{}` ⇒ 抛 `imas-shanison-no-table`（与老四款同一套语义）",
+				!!err && err.message === "imas-shanison-no-table", JSON.stringify(err && err.message));
+			const allGone = String(fixtureBody(SS11_URL)).replace(/<span class='t-text'>[^<]*<\/span>/g, "");
+			const e2 = engineAt(Date.parse("2026-11-15T12:00:00+09:00"), "shanison", [], { [SS11_URL]: allGone });
+			const s2 = e2.__test.SOURCES.find((x) => x.id === "shanison");
+			let err2 = null;
+			try { await e2.__test.GACHA_FETCHERS["shanison"](s2.url, undefined, s2.tz); } catch (x) { err2 = x; }
+			check("シャニソン 反证：所有时刻锚都消失 ⇒ 抛 `imas-shanison-rows-changed`",
+				!!err2 && err2.message === "imas-shanison-rows-changed", JSON.stringify(err2 && err2.message));
 		}
 		check("imas 反证：条目全部已结束 ⇒ 卡池/活动侧 null（不是抛错）",
 			I.imasSidePayloadOf([{ name: "往期池", startTs: Date.UTC(2026, 9, 1, 0, 0), endTs: Date.UTC(2026, 9, 2, 0, 0), raw: "10/1 00:00 ~ 10/2 00:00" }],

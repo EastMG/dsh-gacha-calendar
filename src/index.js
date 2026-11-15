@@ -273,9 +273,9 @@ const PROXY_ALLOW_HOSTS = [
 	// ⇒ 浏览器直连必被 CORS 拦，必须走宿主代理。
 	// ⚠️ 与 `assets.papegames.com`（Next.js 静态资源/公告配图 CDN）**不是同一域**，插件只抓页面本体。
 	"nikki4.papegames.cn",
-	// アイドルマスター系列 4 款（学マス / シャニマス / ミリシタ / デレステ，2026-11-15 接入）：
+	// アイドルマスター系列 5 款（学マス / シャニマス / ミリシタ / デレステ / シャニソン，2026-11-15 接入）：
 	// 社区汇总站「アイマス全6ブランド イベント・ガシャ総合カレンダー」的**每款月份页**
-	// `/imas_{gm|sc|ml|cgss}_YYYYMM/`（HTML，620~730 KB，表里是游戏内卡池/活动的名称 + 起止到分）。
+	// `/imas_{gm|sc|ml|cgss|ss}_YYYYMM/`（HTML，620~730 KB，表里是游戏内卡池/活动的名称 + 起止到分）。
 	// 实测（2026-11-15）：200 / `content-type: text/html; charset=UTF-8` / **完全没有
 	// `Access-Control-Allow-Origin`**（带 `Origin: dsh-app://dsh` 再测也是空）⇒ 浏览器直连必被
 	// CORS 拦，必须走宿主代理。代理上限 8 MB > 单页 ~0.7 MB，不用调。

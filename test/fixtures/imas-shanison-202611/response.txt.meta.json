@@ -1,0 +1,8 @@
+{
+  "url": "https://melonpapapapa-n.com/imas_ss_202611/",
+  "status": 200,
+  "capturedAt": "2026-11-15T08:30:48.652Z",
+  "bytes": 10197,
+  "sha256": "8276215fc2a729f9",
+  "note": "真抓裁剪：原始页面 708042B（text/html; charset=UTF-8，title=「【シャニソン】2026年11月 イベント・ガシャ開催スケジュール一覧【11/14更新】 | 散らかるままに」= シャイニーカラーズ Song for Prism）→ 只保留本款 <table class='imas-calendar-table … brand-shanison'> 整块（18 条 calendar-row；表头「日程 | 概要」、每行 date-line start/end 的 d-text + t-text + event-badge + title-simple 与 gm/sc/ml/cgss 同构），其余字节全部删除。表内日期锚点与 badge / 标题逐字未改。"
+}

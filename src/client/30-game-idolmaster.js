@@ -1,11 +1,12 @@
-// src/client/30-game-idolmaster.js —— アイドルマスター（偶像大师）系列 4 款（2026-11-15 接入）
+// src/client/30-game-idolmaster.js —— アイドルマスター（偶像大师）系列 5 款（2026-11-15 接入）
 //
 //   学園アイドルマスター（gakumas） / シャイニーカラーズ（shinycolors） /
-//   ミリオンライブ！シアターデイズ（millisita） / シンデレラガールズ スターライトステージ（deresute）
+//   ミリオンライブ！シアターデイズ（millisita） / シンデレラガールズ スターライトステージ（deresute）/
+//   シャイニーカラーズ Song for Prism（shanison，2026-11-15 追加）
 //   全部日服，tz = Asia/Tokyo（JST，无夏令时）；每款一个条目，卡池 + 活动**两侧**都接。
 //
 // ── 先说结论：为什么默认源不是官网公告 ────────────────────────────────────────
-//   四款的「官网」都实测过（2026-11-15，均为 HTTP 200）：
+//   原本四款的「官网」都实测过（2026-11-15，均为 HTTP 200；第 5 款 シャニソン 的判据见下节）：
 //     · gakuen.idolmaster-official.jp            —— WordPress。`wp-json/wp/v2/posts` 只有 11 条
 //       媒体素材（fankit / comic 页面），没有游戏内公告；`/news/` 直接回落到首页。
 //     · shinycolors.idolmaster-official.jp       —— 纯静态宣传站（story / idol / movie 链接），
@@ -23,15 +24,28 @@
 //       「期間限定イベント…を開催中！」（活动名 + 结束时刻），但起点写「開催中」⇒ 起点未知，
 //       按仓库口径（起点未知不进外显）构不成可用窗口。其余三款的卡池/活动只发在**游戏内**
 //       （アプリ内お知らせ），网页没有。
-//   ⇒ 官方站拿不到「游戏内卡池/活动 + 起止」。按「某款找不到源就不做该款」本来四款都该放弃；
-//     但实测社区汇总站 **melonpapapapa-n.com** 的「イベント・ガシャ開催スケジュール一覧」四款都有
+//   ⇒ 官方站拿不到「游戏内卡池/活动 + 起止」。按「某款找不到源就不做该款」本来这几款都该放弃；
+//     但实测社区汇总站 **melonpapapapa-n.com** 的「イベント・ガシャ開催スケジュール一覧」各款都有
 //     逐条 `日程（起止到分） + 概要（名称）`，且卡池/活动分类明确（cat-gacha / cat-event），
-//     是这套系列**唯一**覆盖全部四款且起止到分的源（Game8 只有ガチャ履歴且只到日；GameWith
-//     没有对应页；官方ポータル没有游戏内日程）。所以四款都接它，来源标签逐字 =
-//     `melonpapapapa 総合カレンダー`（设置页可见；报告里也逐字列出）。
+//     是这套系列**唯一**覆盖全系列且起止到分的源（Game8 只有ガチャ履歴且只到日；GameWith
+//     没有对应页；官方ポータル没有游戏内日程）。所以五款都接它，来源标签逐字 =
+//     `melonpapapapa 総合カレンダー（日文）`（源站文案本身是日文原文 ⇒ 按 2026-11-15 用户口径
+//     统一加「（日文）」后缀；设置页可见；报告里也逐字列出）。条目 `name` 保持日文原名，**不加**后缀。
+//
+// ── 第 5 款是怎么定的（2026-11-15 实测，不猜）──────────────────────────────────
+//   源站品牌代号实测 5 个：`gm` / `sc` / `ml` / `cgss` / **`ss`**。`ss` 页真实存在：
+//     GET https://melonpapapapa-n.com/imas_ss_202611/  → 200 / text/html; charset=UTF-8 / 708042 B
+//   页面 `<title>` = 「【シャニソン】2026年11月 イベント・ガシャ開催スケジュール一覧【11/14更新】」
+//   （`シャニソン` = シャイニーカラーズ Song for Prism 的官方简称），表 class =
+//   `imas-calendar-table simple-mode brand-shanison` —— 与 gm/sc/ml/cgss **完全同构**：
+//   表头 `日程 | 概要`；每行 `date-line start/end` 各含 `d-text`（M/D）+ `t-text`（H:MM）；
+//   `event-badge cat-*` + `title-simple`；行内同样是游戏内卡池/活动 + 起止到分。
+//   ⇒ `ss` = **シャイニーカラーズ Song for Prism**（サイスタ/シャニソン），**不是** スターリットシーズン
+//     （后者不在 melonpapapapa 的品牌代号里，且本页标题直接写死「シャニソン」）。
+//   本款配色也取源站自己的 brand 色（`.hub-month-card.brand-shanison { border-color:#28B4E5; }`）。
 //
 // ── 源（每款一个月份页；HTML）────────────────────────────────────────────────
-//   GET https://melonpapapapa-n.com/imas_{gm|sc|ml|cgss}_YYYYMM/
+//   GET https://melonpapapapa-n.com/imas_{gm|sc|ml|cgss|ss}_YYYYMM/
 //       200 / text/html; charset=UTF-8 / 620~730 KB（实测 2026-11-15）；**无 ACAO** ⇒ 走宿主代理。
 //       本款那份表：`<table class='imas-calendar-table simple-mode brand-<brand>'>`
 //       （brand class 见 IMAS_BRANDS），表头「日程 | 概要」，每行 `<tr class='calendar-row …'>`：
@@ -72,18 +86,21 @@
 		const IMAS_TZ = "Asia/Tokyo";
 		const IMAS_ORIGIN = "https://melonpapapapa-n.com";
 		const IMAS_REFERER = "https://melonpapapapa-n.com/";
-		const IMAS_SOURCE_LABEL = "melonpapapapa 総合カレンダー";
+		const IMAS_SOURCE_LABEL = "melonpapapapa 総合カレンダー（日文）";
 		// cat-gacha 里的赠品（不是池）。实测只有 1 条，但进悬停会让人以为它是池。
 		const IMAS_GACHA_SKIP_RE = /プレゼント/;
 		// cat-event 里的下半场子区间（同一活动重复一段，且与正篇同窗）。
 		const IMAS_EVENT_SKIP_RE = /折り返し期間\s*$/;
 
-		// 四款的 slug（月份页路径前缀）+ 表里的 brand class（`brand-<cls>`）+ 面板名（日文原名）
+		// 五款的 slug（月份页路径前缀）+ 表里的 brand class（`brand-<cls>`）+ 面板名（日文原名）
 		const IMAS_BRANDS = {
 			gakumas: { slug: "imas_gm", cls: "brand-gakumasu", name: "学園アイドルマスター" },
 			shinycolors: { slug: "imas_sc", cls: "brand-shanimas", name: "シャイニーカラーズ" },
 			millisita: { slug: "imas_ml", cls: "brand-mirishita", name: "ミリオンライブ！シアターデイズ" },
-			deresute: { slug: "imas_cgss", cls: "brand-deresute", name: "アイドルマスター シンデレラガールズ スターライトステージ" }
+			deresute: { slug: "imas_cgss", cls: "brand-deresute", name: "アイドルマスター シンデレラガールズ スターライトステージ" },
+			// 2026-11-15 追加：源站代号 `ss`，页面标题写「シャニソン」、brand class = brand-shanison。
+			// 与上面的 shinycolors（シャニマス，brand-sc）是**同一系列的两个不同游戏**，id 不复用。
+			shanison: { slug: "imas_ss", cls: "brand-shanison", name: "シャイニーカラーズ Song for Prism" }
 		};
 
 		const IMAS_ROW_RE = /<tr class='calendar-row[\s\S]*?<\/tr>/g;
@@ -333,6 +350,7 @@
 		const imasFetchShinycolors = (url, signal, tz) => imasFetchBrand("shinycolors", tz);
 		const imasFetchMillisita = (url, signal, tz) => imasFetchBrand("millisita", tz);
 		const imasFetchDeresute = (url, signal, tz) => imasFetchBrand("deresute", tz);
+		const imasFetchShanison = (url, signal, tz) => imasFetchBrand("shanison", tz);
 
 		// ── 条目（每款一个；卡池/活动两侧同一条月份页 ⇒ 一次抓取出两侧）──
 		registerSource({
@@ -379,11 +397,25 @@
 			eventSource: IMAS_SOURCE_LABEL
 		});
 
+		// 第 5 款：シャイニーカラーズ Song for Prism（源站代号 `ss`）—— 与上面 4 条**同一套**注册形态。
+		registerSource({
+			id: "shanison",
+			defaultHidden: false,
+			tz: IMAS_TZ,
+			name: IMAS_BRANDS.shanison.name,
+			url: imasMonthUrlNow("shanison"),
+			source: IMAS_SOURCE_LABEL,
+			eventUrl: imasMonthUrlNow("shanison"),
+			eventSource: IMAS_SOURCE_LABEL
+		});
+
 		GACHA_FETCHERS["gakumas"] = imasFetchGakumas;
 		GACHA_FETCHERS["shinycolors"] = imasFetchShinycolors;
 		GACHA_FETCHERS["millisita"] = imasFetchMillisita;
 		GACHA_FETCHERS["deresute"] = imasFetchDeresute;
+		GACHA_FETCHERS["shanison"] = imasFetchShanison;
 		EVENT_FETCHERS["gakumas"] = Object.assign(EVENT_FETCHERS["gakumas"] || {}, { default: imasFetchGakumas });
 		EVENT_FETCHERS["shinycolors"] = Object.assign(EVENT_FETCHERS["shinycolors"] || {}, { default: imasFetchShinycolors });
 		EVENT_FETCHERS["millisita"] = Object.assign(EVENT_FETCHERS["millisita"] || {}, { default: imasFetchMillisita });
 		EVENT_FETCHERS["deresute"] = Object.assign(EVENT_FETCHERS["deresute"] || {}, { default: imasFetchDeresute });
+		EVENT_FETCHERS["shanison"] = Object.assign(EVENT_FETCHERS["shanison"] || {}, { default: imasFetchShanison });

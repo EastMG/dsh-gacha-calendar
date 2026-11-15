@@ -1074,7 +1074,7 @@
 				nikki4TitleNameOf: ns_nikki4_titleNameOf,
 				nikki4WindowOf: ns_nikki4_windowOf
 			},
-			// 2026-11-15 アイドルマスター系列 4 款（gakumas / shinycolors / millisita / deresute）：
+			// 2026-11-15 アイドルマスター系列 5 款（gakumas / shinycolors / millisita / deresute / shanison）：
 			// 每款一个月份页（`melonpapapapa-n.com` 的「イベント・ガシャ開催スケジュール一覧」），
 			// 卡池（cat-gacha）/ 活动（cat-event）同一张表。导出纯解析步，回归可以分别钉住：
 			// 月份页地址怎么算（含跨年：1 月 → 上一年 12 月）/ 表格按 brand class 定位 /
@@ -1095,6 +1095,7 @@
 				imasFetchDeresute,
 				imasFetchGakumas,
 				imasFetchMillisita,
+				imasFetchShanison,
 				imasFetchShinycolors,
 				imasMonthDayOf,
 				imasMonthItemsOf,

@@ -181,8 +181,8 @@ export default async function run() {
 	// 2026-11-15 同日再 +1：`30-game-pcr-jp.js`（公主连结·日服，microCMS）⇒ 厂商级 29 + 1 = 30；合计 30 + 20 = 50 个文件。
 	// 2026-11-15 再 +3：`30-game-longhun.js`（龙魂旅人，台服官网 JSON 索引 + 详情）/
 	//   `30-game-nikki4.js`（闪耀暖暖·国服，官网首页 `__NEXT_DATA__` + `/news/{id}`）/
-	//   `30-game-idolmaster.js`（アイドルマスター系列 4 款共用一个文件 —— 学マス / シャニマス /
-	//   ミリシタ / デレステ，仍按"一个厂商/系列文件"计）⇒ 厂商级 30 + 3 = 33；
+	//   `30-game-idolmaster.js`（アイドルマスター系列 5 款共用一个文件 —— 学マス / シャニマス /
+	//   ミリシタ / デレステ / シャニソン，仍按"一个厂商/系列文件"计）⇒ 厂商级 30 + 3 = 33；
 	//   bwiki 系仍是 20；合计 33 + 20 = 53 个文件。
 	check("游戏文件齐备（33 个厂商/系列文件 + bwiki 系 20 段 = 53 个）",
 		vendorFiles.length === 33 && bwikiFiles.length === 20,		`厂商=${vendorFiles.length} bwiki=${bwikiFiles.length}`);
