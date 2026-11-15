@@ -514,6 +514,7 @@ registerSource({
 	defaultHidden: false,
 	tz: "Asia/Shanghai",
 	name: "梦幻模拟战",
+			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/71/f6/6e/71f66e00-6fdc-5f63-76bc-3ea3389d03c5/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/512x512bb.jpg",
 	url: ns_langrisser_URL,
 	source: "Bwiki 召唤一览",
 	eventUrl: ""
@@ -523,6 +524,7 @@ registerSource({
 	defaultHidden: false,
 	tz: "Asia/Shanghai",
 	name: "CrashFever",
+			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/96/9a/78/969a78f3-9c5f-e0d8-23bd-db2153b133ad/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 	url: ns_crashfever_URL,
 	source: "Bwiki 卡池一览",
 	eventUrl: ""
@@ -532,6 +534,7 @@ registerSource({
 	defaultHidden: false,
 	tz: "Asia/Shanghai",
 	name: "百分之一",
+			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/83/a4/e4/83a4e4f5-ce7f-1b6f-aab8-ae53746722fc/AppIcon-1x_U007emarketing-0-6-0-85-220-0.png/512x512bb.jpg",
 	url: ns_bfzy_URL,
 	source: "Bwiki 历史卡池",
 	eventUrl: ""
@@ -541,6 +544,7 @@ registerSource({
 	defaultHidden: false,
 	tz: "Asia/Shanghai",
 	name: "怪物弹珠",
+			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/cb/99/e6/cb99e6ce-600e-c8b3-94d4-3846ef2c4a04/AppIcon-1x_U007emarketing-0-9-0-85-220-0.png/512x512bb.jpg",
 	url: ns_gwdz_GACHA_URL,
 	source: "Bwiki 卡池配置",
 	eventUrl: ns_gwdz_CAL_URL,

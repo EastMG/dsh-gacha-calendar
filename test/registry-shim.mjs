@@ -224,28 +224,28 @@ NEXT_SOURCES.push(
 	{
 		id: "gakumas",
 		tz: "Asia/Tokyo",
-		name: "学園アイドルマスター",
+		name: "学园偶像大师",
 		gacha: { url: T.parsers.idolmaster.imasMonthUrlNow("gakumas"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchGakumas") },
 		event: { url: T.parsers.idolmaster.imasMonthUrlNow("gakumas"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchGakumas") }
 	},
 	{
 		id: "shinycolors",
 		tz: "Asia/Tokyo",
-		name: "シャイニーカラーズ",
+		name: "偶像大师 闪耀色彩",
 		gacha: { url: T.parsers.idolmaster.imasMonthUrlNow("shinycolors"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchShinycolors") },
 		event: { url: T.parsers.idolmaster.imasMonthUrlNow("shinycolors"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchShinycolors") }
 	},
 	{
 		id: "millisita",
 		tz: "Asia/Tokyo",
-		name: "ミリオンライブ！シアターデイズ",
+		name: "偶像大师 百万现场 剧场时光",
 		gacha: { url: T.parsers.idolmaster.imasMonthUrlNow("millisita"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchMillisita") },
 		event: { url: T.parsers.idolmaster.imasMonthUrlNow("millisita"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchMillisita") }
 	},
 	{
 		id: "deresute",
 		tz: "Asia/Tokyo",
-		name: "アイドルマスター シンデレラガールズ スターライトステージ",
+		name: "偶像大师 灰姑娘女孩 星光舞台",
 		gacha: { url: T.parsers.idolmaster.imasMonthUrlNow("deresute"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchDeresute") },
 		event: { url: T.parsers.idolmaster.imasMonthUrlNow("deresute"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchDeresute") }
 	},
@@ -254,7 +254,7 @@ NEXT_SOURCES.push(
 	{
 		id: "shanison",
 		tz: "Asia/Tokyo",
-		name: "シャイニーカラーズ Song for Prism",
+		name: "偶像大师 闪耀色彩 Song for Prism",
 		gacha: { url: T.parsers.idolmaster.imasMonthUrlNow("shanison"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchShanison") },
 		event: { url: T.parsers.idolmaster.imasMonthUrlNow("shanison"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchShanison") }
 	},

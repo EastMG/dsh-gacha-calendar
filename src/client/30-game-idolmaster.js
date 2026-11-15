@@ -94,13 +94,13 @@
 
 		// 五款的 slug（月份页路径前缀）+ 表里的 brand class（`brand-<cls>`）+ 面板名（日文原名）
 		const IMAS_BRANDS = {
-			gakumas: { slug: "imas_gm", cls: "brand-gakumasu", name: "学園アイドルマスター" },
-			shinycolors: { slug: "imas_sc", cls: "brand-shanimas", name: "シャイニーカラーズ" },
-			millisita: { slug: "imas_ml", cls: "brand-mirishita", name: "ミリオンライブ！シアターデイズ" },
-			deresute: { slug: "imas_cgss", cls: "brand-deresute", name: "アイドルマスター シンデレラガールズ スターライトステージ" },
+			gakumas: { slug: "imas_gm", cls: "brand-gakumasu", name: "学园偶像大师" },
+			shinycolors: { slug: "imas_sc", cls: "brand-shanimas", name: "偶像大师 闪耀色彩" },
+			millisita: { slug: "imas_ml", cls: "brand-mirishita", name: "偶像大师 百万现场 剧场时光" },
+			deresute: { slug: "imas_cgss", cls: "brand-deresute", name: "偶像大师 灰姑娘女孩 星光舞台" },
 			// 2026-11-15 追加：源站代号 `ss`，页面标题写「シャニソン」、brand class = brand-shanison。
 			// 与上面的 shinycolors（シャニマス，brand-sc）是**同一系列的两个不同游戏**，id 不复用。
-			shanison: { slug: "imas_ss", cls: "brand-shanison", name: "シャイニーカラーズ Song for Prism" }
+			shanison: { slug: "imas_ss", cls: "brand-shanison", name: "偶像大师 闪耀色彩 Song for Prism" }
 		};
 
 		const IMAS_ROW_RE = /<tr class='calendar-row[\s\S]*?<\/tr>/g;
@@ -358,6 +358,7 @@
 			defaultHidden: false,
 			tz: IMAS_TZ,
 			name: IMAS_BRANDS.gakumas.name,
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/5b/59/eb/5b59ebf6-a9a2-2910-689d-8ff5aa701a7d/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 			url: imasMonthUrlNow("gakumas"),
 			source: IMAS_SOURCE_LABEL,
 			eventUrl: imasMonthUrlNow("gakumas"),
@@ -369,6 +370,7 @@
 			defaultHidden: false,
 			tz: IMAS_TZ,
 			name: IMAS_BRANDS.shinycolors.name,
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/11/19/b8/1119b834-8edd-e733-1217-12f5b734322c/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 			url: imasMonthUrlNow("shinycolors"),
 			source: IMAS_SOURCE_LABEL,
 			eventUrl: imasMonthUrlNow("shinycolors"),
@@ -380,6 +382,7 @@
 			defaultHidden: false,
 			tz: IMAS_TZ,
 			name: IMAS_BRANDS.millisita.name,
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/0d/79/21/0d79214a-6b7b-8531-a0a5-1c227e489261/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",
 			url: imasMonthUrlNow("millisita"),
 			source: IMAS_SOURCE_LABEL,
 			eventUrl: imasMonthUrlNow("millisita"),
@@ -391,6 +394,7 @@
 			defaultHidden: false,
 			tz: IMAS_TZ,
 			name: IMAS_BRANDS.deresute.name,
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/95/36/dc/9536dc9f-1d5a-7b64-f7a5-1a4fd470583f/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 			url: imasMonthUrlNow("deresute"),
 			source: IMAS_SOURCE_LABEL,
 			eventUrl: imasMonthUrlNow("deresute"),
@@ -403,6 +407,7 @@
 			defaultHidden: false,
 			tz: IMAS_TZ,
 			name: IMAS_BRANDS.shanison.name,
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/20/82/40/20824063-1832-1507-cf62-49460a12cbb0/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 			url: imasMonthUrlNow("shanison"),
 			source: IMAS_SOURCE_LABEL,
 			eventUrl: imasMonthUrlNow("shanison"),

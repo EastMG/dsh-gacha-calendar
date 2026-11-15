@@ -71,12 +71,12 @@ export default async function run() {
 		const IMAS_LABEL_LITERAL = "melonpapapapa 総合カレンダー（日文）";
 		for (const [id, name, tz, label] of [
 			["nikki4", "闪耀暖暖", TZ_CN4, "官网公告"],
-			["gakumas", "学園アイドルマスター", TZ_JP, I.IMAS_SOURCE_LABEL],
-			["shinycolors", "シャイニーカラーズ", TZ_JP, I.IMAS_SOURCE_LABEL],
-			["millisita", "ミリオンライブ！シアターデイズ", TZ_JP, I.IMAS_SOURCE_LABEL],
-			["deresute", "アイドルマスター シンデレラガールズ スターライトステージ", TZ_JP, I.IMAS_SOURCE_LABEL],
+			["gakumas", "学园偶像大师", TZ_JP, I.IMAS_SOURCE_LABEL],
+			["shinycolors", "偶像大师 闪耀色彩", TZ_JP, I.IMAS_SOURCE_LABEL],
+			["millisita", "偶像大师 百万现场 剧场时光", TZ_JP, I.IMAS_SOURCE_LABEL],
+			["deresute", "偶像大师 灰姑娘女孩 星光舞台", TZ_JP, I.IMAS_SOURCE_LABEL],
 			// 2026-11-15 追加：源站第 5 个品牌代号 `ss`（页面标题「シャニソン」）
-			["shanison", "シャイニーカラーズ Song for Prism", TZ_JP, I.IMAS_SOURCE_LABEL]
+			["shanison", "偶像大师 闪耀色彩 Song for Prism", TZ_JP, I.IMAS_SOURCE_LABEL]
 		]) {
 			const s = srcOf(id);
 			check(`${id} 已注册（name / tz / 标签逐字）`,
@@ -106,7 +106,7 @@ export default async function run() {
 			JSON.stringify(IMAS_FIVE.map((id) => srcOf(id).url)));
 		check("imas 第 5 款（shanison）brand class / 名称 / slug 三者对得上（`ss` ⇒ brand-shanison）",
 			I.IMAS_BRANDS.shanison.slug === "imas_ss" && I.IMAS_BRANDS.shanison.cls === "brand-shanison"
-			&& I.IMAS_BRANDS.shanison.name === "シャイニーカラーズ Song for Prism",
+			&& I.IMAS_BRANDS.shanison.name === "偶像大师 闪耀色彩 Song for Prism",
 			JSON.stringify(I.IMAS_BRANDS.shanison));
 		check("7 条 id 全局唯一（没和既有来源撞 id）", new Set(allIds()).size === allIds().length, String(allIds().length));
 	}
