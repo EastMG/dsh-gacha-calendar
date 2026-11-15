@@ -979,6 +979,44 @@
 				gachapartyTextOf: ns_gachaparty_textOf,
 				gachapartyTsOf: ns_gachaparty_tsOf
 			},
+			// 2026-11-15 第三批：碧蓝幻想（gbf）/ 舰队Collection（kancolle）—— 两条都只接活动侧。
+			// 导出「URL + 纯解析（表格/段位 + 档期 + 名称清洗）+ 缓存复位 + 抓取器」四层，回归可以分别钉住：
+			// gbf：两张表（現在開催中 / 今後の予定）都认、占位名补前缀、`2027/01/15 ～` 只有起点 ⇒ endTs=null、
+			//      `{}` ⇒ 抛 `gbf-events-changed:no-table`、抹掉档期 ⇒ null；
+			// kancolle：44 个 `anchor_super` 段位取活动名（去期次后缀）、`期間限定！【起～止】` 只写日期 ⇒
+			//      00:00 / 23:59、`{}` ⇒ 抛 `kancolle-events-changed:no-sections`、抹掉档期 ⇒ null。
+			"gbf": {
+				GBF_CACHE_TTL_MS: ns_gbf_CACHE_TTL_MS,
+				GBF_DATE_HEAD: ns_gbf_DATE_HEAD,
+				GBF_EVENTS_URL: ns_gbf_EVENTS_URL,
+				GBF_ICON: ns_gbf_ICON,
+				GBF_PLACEHOLDER_RE: ns_gbf_PLACEHOLDER_RE,
+				GBF_RANGE_RE: ns_gbf_RANGE_RE,
+				GBF_SOURCE_LABEL: ns_gbf_SOURCE_LABEL,
+				GBF_TZ: ns_gbf_TZ,
+				eventsGbf: ns_gbf_events,
+				gbfCellText: ns_gbf_cellText,
+				gbfItemsOf: ns_gbf_itemsOf,
+				gbfResetCache: ns_gbf_resetCache,
+				gbfTablesOf: ns_gbf_tablesOf,
+				gbfWindowOf: ns_gbf_windowOf
+			},
+			"kancolle": {
+				KANCOLLE_ANCHOR: ns_kancolle_ANCHOR,
+				KANCOLLE_BOX_RE: ns_kancolle_BOX_RE,
+				KANCOLLE_CACHE_TTL_MS: ns_kancolle_CACHE_TTL_MS,
+				KANCOLLE_EVENTS_URL: ns_kancolle_EVENTS_URL,
+				KANCOLLE_ICON: ns_kancolle_ICON,
+				KANCOLLE_RANGE_RE: ns_kancolle_RANGE_RE,
+				KANCOLLE_SEASON_RE: ns_kancolle_SEASON_RE,
+				KANCOLLE_SOURCE_LABEL: ns_kancolle_SOURCE_LABEL,
+				KANCOLLE_TZ: ns_kancolle_TZ,
+				eventsKancolle: ns_kancolle_events,
+				kancolleItemsOf: ns_kancolle_itemsOf,
+				kancolleNameOf: ns_kancolle_nameOf,
+				kancolleResetCache: ns_kancolle_resetCache,
+				kancolleSectionsOf: ns_kancolle_sectionsOf
+			},
 			},
 			// 共用工具 / env（测试原先从 next-sources/lib/env.js 取；压平后分别见 23-parser-time.js / 24-parser-window.js / 27-parser-text.js / 28-parser-hover-tools.js）
 			fmtWindow,

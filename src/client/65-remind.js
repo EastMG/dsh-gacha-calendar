@@ -104,8 +104,10 @@
 			// 2026-11-15：盲盒派对（国服 bwiki 卡池模板 + SMW 活动，源站墙钟 UTC+8）
 			"gachaparty": "Asia/Shanghai",
 			// 2026-11-15：公主连结·**日服**（microCMS 官方公告，源站墙钟就是 JST）
-			"pcr-jp": "Asia/Tokyo"
-		};
+			"pcr-jp": "Asia/Tokyo",
+			// 2026-11-15 第三批：碧蓝幻想（gbf-wiki 活动一览）/ 舰队Collection（wikiwiki 期間限定出撃）
+			"gbf": "Asia/Tokyo",
+			"kancolle": "Asia/Tokyo"		};
 		// 状态键 / 档期文本的两条形态（正则只在这里写一次）
 		const REMIND_KEY_RE = /^[^|]+\|[^|]+\|(?:end|start)\|\d+$/;
 		const REMIND_PART_RE = /^(?:(\d{4})-)?(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?$/;

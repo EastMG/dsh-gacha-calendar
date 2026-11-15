@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="jp">
+<head>
+<meta charset="utf-8">
+<title>イベント/開催予定・開催中 - グランブルーファンタジー(グラブル)攻略wiki</title>
+</head>
+<body>
+<h3 id="content_1_0">現在開催中のイベント  <a class="anchor_super" id="r93b3661" href="./?%E3%82%A4%E3%83%99%E3%83%B3%E3%83%88/%E9%96%8B%E5%82%AC%E4%BA%88%E5%AE%9A%E3%83%BB%E9%96%8B%E5%82%AC%E4%B8%AD#r93b3661" title="r93b3661">&dagger;</a> <a class="anchor_super" href="https://gbf-wiki.com/?cmd=guiedit&amp;page=%E3%82%A4%E3%83%99%E3%83%B3%E3%83%88%2F%E9%96%8B%E5%82%AC%E4%BA%88%E5%AE%9A%E3%83%BB%E9%96%8B%E5%82%AC%E4%B8%AD&amp;id=r93b3661" title="Edit #r93b3661"><img src="image/paraedit.png" width="9" height="9" alt="Edit" title="Edit #r93b3661" /> </a></h3>
+<div class="ie5"><table class="style_table" cellspacing="1" border="0"><thead><tr><th class="style_th" style="font-size:11px;">イベント種別</th><th class="style_th" style="font-size:11px;">回数</th><th class="style_th" style="font-size:11px;">イベント名</th><th class="style_th" style="font-size:11px;">ボス<br class="spacer" />属性</th><th class="style_th" style="font-size:11px;">有利<br class="spacer" />属性</th><th class="style_th" style="font-size:11px;">開催日時</th><th class="style_th" style="font-size:11px;">備考</th></tr>
+</thead><tbody><tr><td class="style_td" style="font-size:12px; text-align:center; width:120px;">十天衆戦記</td><td class="style_td" style="text-align:center; width:35px;">9</td><td class="style_td" style="background-color:#EEEEEE; width:380px;"><span class="noexists">十天衆戦記<a href="./?cmd=edit&amp;page=%E3%82%A4%E3%83%99%E3%83%B3%E3%83%88727_%289%E5%9B%9E%E7%9B%AE%29%E5%8D%81%E5%A4%A9%E8%A1%86%E6%88%A6%E8%A8%98&amp;refer=%E3%82%A4%E3%83%99%E3%83%B3%E3%83%88%2F%E9%96%8B%E5%82%AC%E4%BA%88%E5%AE%9A%E3%83%BB%E9%96%8B%E5%82%AC%E4%B8%AD">?</a></span></td><td class="style_td" style="text-align:center; width:45px;"><span style="color:blue">水</span></td><td class="style_td" style="text-align:center; width:45px;"><span style="color:brown">土</span></td><td class="style_td" style="font-size:12px; width:250px;">2026/11/13 17:00～2026/11/20 16:59</td><td class="style_td" style="font-size:12px; width:300px;">サラーサ、オクトーのEX POSE</td></tr>
+</tbody></table></div>
+<script>
+function tglRgn(id) {
+	var b = document.getElementById('rgn_description'+id).style.display != 'none';
+	document.getElementById('rgn_description'+id).style.display = b ? 'none' : 'block';
+	document.getElementById('rgn_content'+id).style.display = b ? 'block' : 'none';
+	document.getElementById('rgn_button'+id).textContent = b ? '-' : '+';
+}
+</script><div class="rgn-container" style="
+	position:relative;
+	padding-left:35px;
+"><div id="rgn_button1" class="rgn-button" onclick="tglRgn(1)" style="
+	border:1px solid;
+	cursor:pointer;
+	height:26px;
+	left:0;
+	line-height:26px;
+	position:absolute;
+	text-align:center;
+	top:0;
+	width:14px;
+">+</div><div id="rgn_description1" style="display:block;" class="rgn-description"><p><span style="color:black"><strong>今後の開催予定・過去の開催履歴</strong></span></p>
+</div><div id="rgn_content1" style="display:none;" class="rgn-content">
+
+<div class="jumpmenu"><a href="#navigator">&uarr;</a></div><h3 id="content_1_1">今後の開催予定  <a class="anchor_super" id="c4554000" href="./?%E3%82%A4%E3%83%99%E3%83%B3%E3%83%88/%E9%96%8B%E5%82%AC%E4%BA%88%E5%AE%9A%E3%83%BB%E9%96%8B%E5%82%AC%E4%B8%AD#c4554000" title="c4554000">&dagger;</a> <a class="anchor_super" href="https://gbf-wiki.com/?cmd=guiedit&amp;page=%E3%82%A4%E3%83%99%E3%83%B3%E3%83%88%2F%E9%96%8B%E5%82%AC%E4%BA%88%E5%AE%9A%E3%83%BB%E9%96%8B%E5%82%AC%E4%B8%AD&amp;id=c4554000" title="Edit #c4554000"><img src="image/paraedit.png" width="9" height="9" alt="Edit" title="Edit #c4554000" /> </a></h3>
+<div class="ie5"><table class="style_table" cellspacing="1" border="0"><thead><tr><th class="style_th" style="font-size:11px;">イベント種別</th><th class="style_th" style="font-size:11px;">回数</th><th class="style_th" style="font-size:11px;">イベント名</th><th class="style_th" style="font-size:11px;">ボス<br class="spacer" />属性</th><th class="style_th" style="font-size:11px;">有利<br class="spacer" />属性</th><th class="style_th" style="font-size:11px;">開催日時</th><th class="style_th" style="font-size:11px;">備考</th></tr>
+</thead><tbody><tr><td class="style_td" style="font-size:12px; text-align:center; width:120px;">コラボイベント</td><td class="style_td" style="text-align:center; width:35px;">1</td><td class="style_td" style="color:gray; background-color:#EEEEEE; width:380px;">（SHAMAN KING）</td><td class="style_td" style="text-align:center; width:45px;"></td><td class="style_td" style="text-align:center; width:45px;"></td><td class="style_td" style="font-size:12px; width:250px;">2027/01/15 ～</td><td class="style_td" style="font-size:12px; width:300px;"></td></tr>
+<tr><td class="style_td" colspan="7" style="background-color:White; font-size:12px;"></td></tr>
+<tr><td class="style_td" style="font-size:12px; text-align:center; width:120px;">シナリオイベント</td><td class="style_td" style="text-align:center; width:35px;">1</td><td class="style_td" style="color:gray; background-color:#EEEEEE; width:380px;">（不明）</td><td class="style_td" style="text-align:center; width:45px;"></td><td class="style_td" style="text-align:center; width:45px;"></td><td class="style_td" style="font-size:12px; width:250px;">2026/11/28 17:00～2026/12/06 20:59</td><td class="style_td" style="font-size:12px; width:300px;"></td></tr>
+<tr><td class="style_td" style="font-size:12px; text-align:center; width:120px;">決戦！星の古戦場</td><td class="style_td" style="text-align:center; width:35px;">85</td><td class="style_td" style="background-color:#EEEEEE; width:380px;">決戦！星の古戦場</td><td class="style_td" style="text-align:center; width:45px;"><span style="color:orange">光</span></td><td class="style_td" style="text-align:center; width:45px;"><span style="color:purple">闇</span></td><td class="style_td" style="font-size:12px; width:250px;">2026/11/21 19:00～2026/11/28 23:59</td><td class="style_td" style="font-size:12px; width:300px;"></td></tr>
+</tbody></table>
+</body>
+</html>

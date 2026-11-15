@@ -217,7 +217,10 @@ const ORDER = [
   // filters 同时圈卡池 + 活动 + 按 id 缓存的详情；实测 ACAO * ⇒ 直连）。自包含一条（条目 + 解析 +
   // 抓取器 + 登记），排在最后 ⇒ 面板顺序追加在末尾。
   "30-game-pcr-jp.js",
-  // 2026-11-15：崩坏学园2 官网公告（列表 POST + 详情；卡池 + 活动两侧同一条列表 → 轮内共享一次请求）
+  // 2026-11-15 第三批：碧蓝幻想（gbf）/ 舰队Collection（kancolle）—— 日本两款，**都只接活动侧**
+  // （gbf = gbf-wiki 的活动一览；kancolle = wikiwiki 的期間限定出撃）。自包含两条，排在最后 ⇒
+  // 面板顺序追加在末尾。
+  "30-game-batch3.js",
   "44-test-exports.js",        // 回归出口：解析器 + env 工具 + 来源表（挂 exports.__regression，测试用）
   "50-refresh.js",             // 刷新编排、失败沿用旧值
   "60-helpers.js",             // 共用纯函数：状态归一 / 提示文案 / 显隐 / 格式化 / 排序 / 启动刷新判定
@@ -361,6 +364,7 @@ const CORE_ORDER = [
   "30-game-tof.js",            // 2026-11-15 幻塔（国服官网 gamenews：最新版本公告里的头牌限定池；只有卡池侧）
   "30-game-bwiki-gachaparty.js", // 2026-11-15 盲盒派对（bwiki 卡池模板 wikitext + SMW 活动查询）
   "30-game-pcr-jp.js",         // 2026-11-15 公主连结·日服（microCMS 官方公告：列表 1 次同圈两侧 + 详情按 id 缓存）
+  "30-game-batch3.js",         // 2026-11-15 第三批：碧蓝幻想（gbf-wiki 活动一览）/ 舰队Collection（wikiwiki 期間限定出撃）
   "50-refresh.js",             // 刷新编排
   "engine-api.js",             // 注入 env + refresh() + 测试出口 + return
 ];
