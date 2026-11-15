@@ -261,6 +261,7 @@ registerSource({
 	defaultHidden: false,
 	tz: ns_gachaparty_TZ,
 	name: "盲盒派对",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/2d/7f/76/2d7f76fd-3560-5afb-6544-1c0bb3f28b5d/AppIcon-0-0-1x_U007epad-0-11-0-85-220.png/512x512bb.jpg",
 	url: ns_gachaparty_POOL_URL,
 	source: ns_gachaparty_POOL_LABEL,
 	eventUrl: ns_gachaparty_EVENT_URL,

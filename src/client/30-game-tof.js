@@ -284,6 +284,7 @@ registerSource({
 	defaultHidden: false,
 	tz: ns_tof_TZ,
 	name: "幻塔",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/6d/f5/a0/6df5a0a7-6ae6-9b9c-310a-1c4515c42cf3/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",
 	url: ns_tof_LIST_URL,
 	source: ns_tof_SOURCE_LABEL,
 	eventUrl: ""
