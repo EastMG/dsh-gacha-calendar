@@ -735,7 +735,7 @@ export default async function run() {
 		check("ddlezj 卡池未配置 ⇒ gacha 数组为空、**没有** gachaStale（不是「沿用旧值」而是「无数据」）",
 			Array.isArray(rec.gacha) && rec.gacha.length === 0 && rec.gachaStale === false,
 			JSON.stringify([rec.gacha && rec.gacha.length, rec.gachaStale]));
-		check("ddlezj 卡池未配置 ⇒ 面板卡池格派生不出条目（走「该来源无卡池数据」）",
+		check("ddlezj 卡池未配置 ⇒ 面板卡池格派生不出条目（走「暂无卡池数据」）",
 			T.scheduleCellOf(rec, "gacha", new Date(NOW_1113)) === null,
 			JSON.stringify(T.scheduleCellOf(rec, "gacha", new Date(NOW_1113))));
 		check("ddlezj 卡池未配置 ⇒ 这一侧一个请求都没发（calls 里没有 bwiki / biligame API）",
