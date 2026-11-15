@@ -85,9 +85,9 @@ export default async function run() {
 	{
 		const want = [
 			["langrisser", "梦幻模拟战", "Bwiki 召唤一览", null, LR_URL],
-			["crashfever", "CrashFever", "Bwiki 卡池一览", null, CF_URL],
+			["crashfever", "CrashFever·日服", "Bwiki 卡池一览", null, CF_URL],
 			["bfzy", "百分之一", "Bwiki 历史卡池", null, BF_URL],
-			["gwdz", "怪物弹珠", "Bwiki 卡池配置", "Bwiki 活动日历", GW_JSON_URL]
+			["gwdz", "怪物弹珠·日服", "Bwiki 卡池配置", "Bwiki 活动日历", GW_JSON_URL]
 		];
 		for (const [id, name, gachaLabel, eventLabel, url] of want) {
 			const s = srcOf(id);

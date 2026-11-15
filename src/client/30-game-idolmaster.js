@@ -94,13 +94,13 @@
 
 		// 五款的 slug（月份页路径前缀）+ 表里的 brand class（`brand-<cls>`）+ 面板名（日文原名）
 		const IMAS_BRANDS = {
-			gakumas: { slug: "imas_gm", cls: "brand-gakumasu", name: "学园偶像大师" },
-			shinycolors: { slug: "imas_sc", cls: "brand-shanimas", name: "偶像大师 闪耀色彩" },
-			millisita: { slug: "imas_ml", cls: "brand-mirishita", name: "偶像大师 百万现场 剧场时光" },
-			deresute: { slug: "imas_cgss", cls: "brand-deresute", name: "偶像大师 灰姑娘女孩 星光舞台" },
+			gakumas: { slug: "imas_gm", cls: "brand-gakumasu", name: "学园偶像大师·日服" },
+			shinycolors: { slug: "imas_sc", cls: "brand-shanimas", name: "偶像大师 闪耀色彩·日服" },
+			millisita: { slug: "imas_ml", cls: "brand-mirishita", name: "偶像大师 百万现场 剧场时光·日服" },
+			deresute: { slug: "imas_cgss", cls: "brand-deresute", name: "偶像大师 灰姑娘女孩 星光舞台·日服" },
 			// 2026-11-15 追加：源站代号 `ss`，页面标题写「シャニソン」、brand class = brand-shanison。
 			// 与上面的 shinycolors（シャニマス，brand-sc）是**同一系列的两个不同游戏**，id 不复用。
-			shanison: { slug: "imas_ss", cls: "brand-shanison", name: "偶像大师 闪耀色彩 Song for Prism" }
+			shanison: { slug: "imas_ss", cls: "brand-shanison", name: "偶像大师 闪耀色彩 Song for Prism·日服" }
 		};
 
 		const IMAS_ROW_RE = /<tr class='calendar-row[\s\S]*?<\/tr>/g;

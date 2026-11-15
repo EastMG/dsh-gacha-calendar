@@ -195,14 +195,14 @@ NEXT_SOURCES.push(
 	{
 		id: "gbf",
 		tz: "Asia/Tokyo",
-		name: "碧蓝幻想",
+		name: "碧蓝幻想·日服",
 		gacha: null,
 		event: { url: T.parsers.gbf.GBF_EVENTS_URL, kind: "wiki", mode: "proxy", fetcher: resolve("gbf.eventsGbf") }
 	},
 	{
 		id: "kancolle",
 		tz: "Asia/Tokyo",
-		name: "舰队Collection",
+		name: "舰队Collection·日服",
 		gacha: null,
 		event: { url: T.parsers.kancolle.KANCOLLE_EVENTS_URL, kind: "wiki", mode: "proxy", fetcher: resolve("kancolle.eventsKancolle") }
 	},
@@ -224,28 +224,28 @@ NEXT_SOURCES.push(
 	{
 		id: "gakumas",
 		tz: "Asia/Tokyo",
-		name: "学园偶像大师",
+		name: "学园偶像大师·日服",
 		gacha: { url: T.parsers.idolmaster.imasMonthUrlNow("gakumas"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchGakumas") },
 		event: { url: T.parsers.idolmaster.imasMonthUrlNow("gakumas"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchGakumas") }
 	},
 	{
 		id: "shinycolors",
 		tz: "Asia/Tokyo",
-		name: "偶像大师 闪耀色彩",
+		name: "偶像大师 闪耀色彩·日服",
 		gacha: { url: T.parsers.idolmaster.imasMonthUrlNow("shinycolors"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchShinycolors") },
 		event: { url: T.parsers.idolmaster.imasMonthUrlNow("shinycolors"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchShinycolors") }
 	},
 	{
 		id: "millisita",
 		tz: "Asia/Tokyo",
-		name: "偶像大师 百万现场 剧场时光",
+		name: "偶像大师 百万现场 剧场时光·日服",
 		gacha: { url: T.parsers.idolmaster.imasMonthUrlNow("millisita"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchMillisita") },
 		event: { url: T.parsers.idolmaster.imasMonthUrlNow("millisita"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchMillisita") }
 	},
 	{
 		id: "deresute",
 		tz: "Asia/Tokyo",
-		name: "偶像大师 灰姑娘女孩 星光舞台",
+		name: "偶像大师 灰姑娘女孩 星光舞台·日服",
 		gacha: { url: T.parsers.idolmaster.imasMonthUrlNow("deresute"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchDeresute") },
 		event: { url: T.parsers.idolmaster.imasMonthUrlNow("deresute"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchDeresute") }
 	},
@@ -254,7 +254,7 @@ NEXT_SOURCES.push(
 	{
 		id: "shanison",
 		tz: "Asia/Tokyo",
-		name: "偶像大师 闪耀色彩 Song for Prism",
+		name: "偶像大师 闪耀色彩 Song for Prism·日服",
 		gacha: { url: T.parsers.idolmaster.imasMonthUrlNow("shanison"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchShanison") },
 		event: { url: T.parsers.idolmaster.imasMonthUrlNow("shanison"), kind: "third-party", mode: "proxy", fetcher: resolve("idolmaster.imasFetchShanison") }
 	},
@@ -265,7 +265,7 @@ NEXT_SOURCES.push(
 	{
 		id: "browndust2",
 		tz: T.parsers.browndust2.BROWNDUST2_TZ,
-		name: "棕色尘埃2",
+		name: "棕色尘埃2·国际服",
 		gacha: { url: T.parsers.browndust2.BROWNDUST2_URL, kind: "third-party", mode: "proxy", fetcher: resolve("browndust2.browndust2Gacha") },
 		event: null
 	},
@@ -283,7 +283,7 @@ NEXT_SOURCES.push(
 	{
 		id: "crashfever",
 		tz: T.parsers.batch5.CRASHFEVER_TZ,
-		name: "CrashFever",
+		name: "CrashFever·日服",
 		gacha: { url: T.parsers.batch5.CRASHFEVER_URL, kind: "wiki", mode: "proxy", fetcher: resolve("batch5.crashfeverGacha") },
 		event: null
 	},
@@ -297,7 +297,7 @@ NEXT_SOURCES.push(
 	{
 		id: "gwdz",
 		tz: T.parsers.batch5.GWDZ_TZ,
-		name: "怪物弹珠",
+		name: "怪物弹珠·日服",
 		gacha: { url: T.parsers.batch5.GWDZ_GACHA_URL, kind: "wiki", mode: "proxy", fetcher: resolve("batch5.gwdzGacha") },
 		event: { url: T.parsers.batch5.GWDZ_CAL_URL, kind: "wiki", mode: "proxy", fetcher: resolve("batch5.gwdzEvents") }
 	}

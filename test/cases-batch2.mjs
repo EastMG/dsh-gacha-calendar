@@ -1959,8 +1959,8 @@ export default async function runBatch2() {
 		const kc = T.SOURCES.find((x) => x.id === "kancolle") || null;
 		check("gbf 已注册进 SOURCES", !!gbf, gbf ? gbf.id : "缺失");
 		check("kancolle 已注册进 SOURCES", !!kc, kc ? kc.id : "缺失");
-		check("gbf 名称 = 碧蓝幻想", !!gbf && gbf.name === "碧蓝幻想", gbf && gbf.name);
-		check("kancolle 名称 = 舰队Collection", !!kc && kc.name === "舰队Collection", kc && kc.name);
+		check("gbf 名称 = 碧蓝幻想·日服", !!gbf && gbf.name === "碧蓝幻想·日服", gbf && gbf.name);
+		check("kancolle 名称 = 舰队Collection·日服", !!kc && kc.name === "舰队Collection·日服", kc && kc.name);
 		check("gbf tz = Asia/Tokyo（源站自身口径）", !!gbf && gbf.tz === "Asia/Tokyo", gbf && String(gbf.tz));
 		check("kancolle tz = Asia/Tokyo（源站自身口径）", !!kc && kc.tz === "Asia/Tokyo", kc && String(kc.tz));
 		check("gbf tz 与解析器常量一致", GF.GBF_TZ === "Asia/Tokyo", GF.GBF_TZ);

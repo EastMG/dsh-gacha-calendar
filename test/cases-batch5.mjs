@@ -77,7 +77,7 @@ export default async function run() {
 	{
 		const s = srcOf("browndust2");
 		check("browndust2 已注册（name / tz / 标签逐字）",
-			!!s && s.name === "棕色尘埃2" && s.tz === "Asia/Seoul" && s.source === "bannerhistory.app（英文）",
+			!!s && s.name === "棕色尘埃2·国际服" && s.tz === "Asia/Seoul" && s.source === "bannerhistory.app（英文）",
 			s ? JSON.stringify([s.name, s.tz, s.source]) : "缺失");
 		check("来源地址逐字 = bannerhistory.app 的 BD2 卡池史页",
 			!!s && s.url === URL && URL === "https://bannerhistory.app/en/bd2-pickup-history",

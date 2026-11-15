@@ -261,7 +261,7 @@ registerSource({
 	id: "browndust2",
 	defaultHidden: false,
 	tz: ns_bd2_TZ,
-	name: "棕色尘埃2",
+	name: "棕色尘埃2·国际服",
 	icon: ns_bd2_ICON,
 	url: ns_bd2_URL,
 	source: ns_bd2_SOURCE_LABEL
