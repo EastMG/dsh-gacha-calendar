@@ -77,7 +77,6 @@ dsh-gacha-calendar/
 │       ├── 30-game-bwiki-czn-wikitext.js # 卡厄斯梦境（wikitext）：Module:Gacha/data 的 Lua 表
 │       ├── 30-game-bwiki-kedr-wikitext.js # 雪松（wikitext）：Template:首页游戏版本内容 的模板调用
 │       ├── 30-game-bwiki-kedr-wiki.js   # 雪松社区归档页（往期动员，prop=text）+ 其抓取器
-│       ├── 30-game-bwiki-dhmmr.js       # bwiki ⑧ 深空之眼（dhmmr）：SMW `action=ask` 的「卡池列表」子对象；只有卡池侧（活动页空壳 ⇒ 不接）
 │       ├── 30-game-bwiki-register.js    # 本组 4 条 registerSource + GACHA/EVENT_FETCHERS 接线
 │       ├── 30-game-bwiki-bjhl.js        # 白荆回廊（历史卡池一览 + 活动一览，自包含条目/解析/抓取/登记）
 │       ├── 30-game-bwiki-yslz.js        # 以闪亮之名（国服）：卡池 `Category:限时追光`（分类成员 + 正文，2 个请求）+ 活动 SMW `action=ask`（2 个请求）；复刻档也算当期

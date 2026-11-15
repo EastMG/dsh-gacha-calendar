@@ -158,7 +158,6 @@ const ORDER = [
   "30-game-bwiki-czn-wikitext.js",    // 卡厄斯：Module:Gacha/data 的 Lua 表
   "30-game-bwiki-kedr-wikitext.js",   // 雪松：Template:首页游戏版本内容 的模板调用
   "30-game-bwiki-kedr-wiki.js",       // 雪松社区归档页（往期动员，prop=text）
-  "30-game-bwiki-dhmmr.js",           // 深空之眼（dhmmr）：SMW `action=ask` 的「卡池列表」子对象（只有卡池侧）
   "30-game-bwiki-register.js",        // 本组 4 条 registerSource + GACHA/EVENT_FETCHERS 接线
   // 2026-11-15：白荆回廊（国服）—— bwiki 两个页面（`历史卡池一览` / `活动一览`）。
   // 自包含一条（条目 + 解析器 + 抓取器 + 登记），复用 bwiki 公共层（时间解析 / 载荷 / 悬停）；
@@ -349,7 +348,6 @@ const CORE_ORDER = [
   "30-game-bwiki-czn-wikitext.js",    // 卡厄斯：Module:Gacha/data 的 Lua 表
   "30-game-bwiki-kedr-wikitext.js",   // 雪松：Template:首页游戏版本内容 的模板调用
   "30-game-bwiki-kedr-wiki.js",       // 雪松社区归档页（往期动员，prop=text）
-  "30-game-bwiki-dhmmr.js",           // 深空之眼（dhmmr）：SMW `action=ask` 的「卡池列表」子对象（只有卡池侧）
   "30-game-bwiki-register.js",        // 本组 4 条 registerSource + GACHA/EVENT_FETCHERS 接线
   // 2026-11-15：白荆回廊（国服）—— bwiki 两个页面（`历史卡池一览` / `活动一览`）。
   // 自包含一条（条目 + 解析器 + 抓取器 + 登记），复用 bwiki 公共层（时间解析 / 载荷 / 悬停）；

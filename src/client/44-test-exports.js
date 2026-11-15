@@ -695,19 +695,6 @@
 				ns_batch2_spicaPayloadOf,
 				ns_batch2_spicaRolesOf,
 			},
-			// 2026-11-15 接入 2 款：深空之眼（bwiki SMW ask，只有卡池侧）/ 崩坏学园2（官网公告，两侧）。
-			// 导出纯解析步，回归可以分别钉住「空结束时间不算当期」「`{}` ⇒ 抛错」「列表/详情/UP/档期」。
-			"dhmmr": {
-				DHMMR_PAGE: ns_dhmmr_PAGE,
-				DHMMR_QUERY: ns_dhmmr_QUERY,
-				DHMMR_REFERER: ns_dhmmr_REFERER,
-				DHMMR_TZ: ns_dhmmr_TZ,
-				DHMMR_URL: ns_dhmmr_URL,
-				dhmmrPayloadOf: ns_dhmmr_payloadOf,
-				dhmmrPointOf: ns_dhmmr_pointOf,
-				gachaDhmmr: ns_dhmmr_gacha,
-				parseDhmmrAsk: ns_dhmmr_parseAsk
-			},
 			"bh2": {
 				BH2_DETAIL_URL: ns_bh2_DETAIL_URL,
 				BH2_LIST_URL: ns_bh2_LIST_URL,

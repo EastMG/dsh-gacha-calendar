@@ -184,13 +184,14 @@ export default async function run() {
 	//   `30-game-idolmaster.js`（アイドルマスター系列 5 款共用一个文件 —— 学マス / シャニマス /
 	//   ミリシタ / デレステ / シャニソン，仍按"一个厂商/系列文件"计）⇒ 厂商级 30 + 3 = 33；
 	//   bwiki 系仍是 20；合计 33 + 20 = 53 个文件。
+	// 2026-11-15 再 -1：删除 `30-game-bwiki-dhmmr.js`（深空之眼，陪伴服视同停运）⇒ bwiki 系仍是 20（删掉的 dhmmr 原属这 20 之外的单列统计，见 actual）；合计 34 + 20 = 54 个文件。
 	// 2026-11-15 合并两条已完成分支：
 	//   · 第三方 1 条（`30-game-browndust2.js`，棕色尘埃2）⇒ 厂商级 33 + 1 = 34；
 	//   · 第五批 bwiki 4 款共用一个文件（`30-game-bwiki-batch5.js`：langrisser / crashfever / bfzy / gwdz，
 	//     四个源站都在 `wiki.biligame.com` ⇒ 按既有「站点归类」计入 bwiki 系）⇒ bwiki 系 20 + 1 = 21。
 	//   合计 34 + 21 = 55 个文件。
-	check("游戏文件齐备（34 个厂商/系列文件 + bwiki 系 21 段 = 55 个）",
-		vendorFiles.length === 34 && bwikiFiles.length === 21,		`厂商=${vendorFiles.length} bwiki=${bwikiFiles.length}`);
+	check("游戏文件齐备（34 个厂商/系列文件 + bwiki 系 20 段 = 54 个）",
+		vendorFiles.length === 34 && bwikiFiles.length === 20,		`厂商=${vendorFiles.length} bwiki=${bwikiFiles.length}`);
 	const hit = [];
 	// ⚠️ 重组后**条目声明也住在游戏文件里**（`registerSource({ … })`），而条目里的
 	//    `source:` / `eventSource:` / `label:` 是**数据**（如「Bestdori 扭蛋（社区数据库）」），
