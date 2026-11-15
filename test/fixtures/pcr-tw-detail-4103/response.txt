@@ -1,0 +1,61 @@
+<section class="news_con">
+            <p class="news_meta">
+                <time datetime="2026.11.03">2026.11.03</time>
+                <span class="ac01">活動</span>
+                            </p>
+            <h2>【活動】「挑戰冒險」舉辦預告！</h2>
+            <div class="news-body" aria-labelledby="gameName">
+                <h3 id="gameName" class="visually-hidden">超異域公主連結☆Re：Dive</h3>
+                <p>
+                    <p><img alt="公告用圖/20261031_04.png" src="https://www.princessconnect.so-net.tw/uploads/公告用圖/20261031_04.png" style="width: 100%;" /></p>
+
+<p><span style="font-size:16px;">2026/11/01 16:00起，將舉辦已更新的「挑戰冒險」！<br />
+挑戰10名強力的Boss，以在舉辦期間內，獲得全部獎勵為目標吧！</span></p>
+
+<p><span style="font-size:16px;">此外，本內容是以「&beta;版」的形式公開。</span></p>
+
+<p><span style="font-size:16px;">■關於「&beta;版」<br />
+「挑戰冒險」將作為「&beta;版」公開，今後會將各位玩家提供的意見與遊玩狀況納入考量，有可能會進行調整。<br />
+同時，依照調整規模的大小，有可能會停止公開，敬請見諒。<br />
+※「&beta;版」停止公開時，將會於兩週以上前告知。</span></p>
+
+<p><span style="font-size:16px;">「挑戰冒險」的詳細資訊如下所述。</span></p>
+
+<p><span style="font-size:16px;">■舉辦期間<br />
+2026/11/01 16:00 ～ 2026/12/01 15:59</span></p>
+
+<p><span style="font-size:16px;">■挑戰冒險的基本規則<br />
+‧在挑戰冒險中，挑戰戰鬥時，將會消耗體力。落敗或退出時，將不會消耗體力。<br />
+‧所有角色及Boss將不會繼承HP、TP的數值，並在TP為0的狀態下開始戰鬥。<br />
+‧挑戰冒險無法編組支援角色。<br />
+‧每個冒險都設有3個挑戰目標，冒險勝利時，可獲得已滿足條件的挑戰目標的★。</span></p>
+
+<p><span style="font-size:16px;">■屬性獎勵<br />
+在挑戰冒險中，各Boss對應屬性的屬性獎勵將會大幅提升。<br />
+對應屬性以外的屬性獎勵將會無效化。</span></p>
+
+<p><span style="font-size:16px;">■有效效果標籤<br />
+各Boss設有「有效效果標籤」，挑戰該Boss時可確認有效的特徵和技能。<br />
+「有效效果標籤」可從怪物詳細資訊等進行確認，點擊標籤即可顯示持有該效果的角色一覽。</span></p>
+
+<p><span style="font-size:16px;">■挑戰冒險可以獲得的獎勵<br />
+在挑戰冒險中，每當初次在冒險中取得勝利，將可獲得初次通關獎勵。<br />
+同時，達成挑戰目標時可獲得的★達一定數量後，即可領取★獲得獎勵。</span></p>
+
+<p><span style="font-size:16px;">獎勵獲得狀況將會在Boss更新時重置。</span></p>
+
+<p><span style="font-size:16px;">■注意事項<br />
+1. 「挑戰冒險」將於通關主線冒險20-2（NORMAL）後解放。<br />
+2.「挑戰冒險」的活動內容及其時程，有可能不經預告逕行變更。</span></p>
+
+<p><span style="font-size:16px;">※So-net 營運團隊保有活動最終修改與詮釋之權利，實際內容請以遊戲內資訊為準。活動舉辦日期與內容，均有可能未先告知而逕行調整，確切詳情以實際開放時所述為主。</span></p>
+                </p>
+            </div>
+            <!-- 頁碼 -->
+            <nav class="paging" aria-label="新聞列表分頁">
+                <ol>
+                    <li><a href="#" onclick="history.back(); return false;">回上一頁</a></li>
+                    <li><a href="/news">回列表首頁</a></li>
+                </ol>
+            </nav>
+        </section>

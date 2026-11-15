@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-tw">
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>《超異域公主連結☆Re：Dive》 - 最新消息列表</title>
+</head>
+<body>
+  <main class="main">
+    <div class="news_list">
+<article class="news_con" aria-labelledby="newsHeading">
+        <h2 class="visually-hidden" id="newsHeading">公告列表</h2>
+        <ul>
+                        <li>
+                <time datetime="2026.11.03">2026.11.03</time>
+                <span class="ac01">活動</span>
+                <a href="/news/newsDetail/4104">【活動】「官方WebStore限定 迎新優惠1500寶石」期間限定販售預告！</a>
+                            </li>
+                        <li>
+                <time datetime="2026.11.03">2026.11.03</time>
+                <span class="ac01">活動</span>
+                <a href="/news/newsDetail/4103">【活動】「挑戰冒險」舉辦預告！</a>
+                            </li>
+                        <li>
+                <time datetime="2026.11.03">2026.11.03</time>
+                <span class="ac01">活動</span>
+                <a href="/news/newsDetail/4102">【活動】「賽季通行證」更新預告！</a>
+                            </li>
+                        <li>
+                <time datetime="2026.11.03">2026.11.03</time>
+                <span class="ac01">活動</span>
+                <a href="/news/newsDetail/4101">【轉蛋】「附贈大師碎片 ★3必中白金轉蛋」活動舉辦預告！</a>
+                            </li>
+                        <li>
+                <time datetime="2026.11.03">2026.11.03</time>
+                <span class="ac01">活動</span>
+                <a href="/news/newsDetail/4100">【轉蛋】《公主祭典》★3「雪菲（真龍）」期間限定角色登場！舉辦預告！</a>
+                            </li>
+                        <li>
+                <time datetime="2026.11.03">2026.11.03</time>
+                <span class="ac01">活動</span>
+                <a href="/news/newsDetail/4099">【活動】「探索」掉落量2倍 舉辦預告</a>
+                            </li>
+                        <li>
+                <time datetime="2026.11.03">2026.11.03</time>
+                <span class="ac01">活動</span>
+                <a href="/news/newsDetail/4098">【活動】「VERY HARD冒險」掉落量2倍 舉辦預告</a>
+                            </li>
+                        <li>
+                <time datetime="2026.11.03">2026.11.03</time>
+                <span class="ac01">活動</span>
+                <a href="/news/newsDetail/4097">【活動】「地下城」瑪那2倍掉落中 舉辦預告</a>
+                            </li>
+                        <li>
+                <time datetime="2026.11.03">2026.11.03</time>
+                <span class="ac01">活動</span>
+                <a href="/news/newsDetail/4096">【活動】「期間限定特殊地下城」舉辦預告！</a>
+                            </li>
+                        <li>
+                <time datetime="2026.11.03">2026.11.03</time>
+                <span class="ac01">活動</span>
+                <a href="/news/newsDetail/4095">【活動】劇情活動「禁止觸碰♡島嶼　夏日少女是戀愛炸彈」經驗值1.5倍 即將登場</a>
+                            </li>
+                    </ul>
+        <!-- 頁碼 --> 
+        <nav class="paging" role="navigation" aria-label="新聞列表分頁">
+            <ol>
+                                <li><a href="news?page=2" aria-label="上一頁">上一頁</a></li>
+                                                <li>
+                                <a href="news?page=1" aria-label="第1頁">1</a>
+                                </li>
+                                <li>
+                                <a href="news?page=2" aria-label="第2頁">2</a>
+                                </li>
+                                <li>
+                                <a class="active" href="news?page=3" aria-current="page" aria-label="第3頁">3</a>
+                                </li>
+                                <li>
+                                <a href="news?page=4" aria-label="第4頁">4</a>
+                                </li>
+                                <li>
+                                <a href="news?page=5" aria-label="第5頁">5</a>
+                                </li>
+                                                <li><a href="news?page=4" aria-label="下一頁">下一頁</a></li>
+                            </ol>
+        </nav>
+        <div id="crm_dialog" role="dialog" aria-modal="true" aria-labelledby="crm_form_block" hidden>
+            <div id="crm_form_block" style="margin: 0 auto;width: 98%;height: 98%;overflow-y: auto;word-break: break-all;">
+            </div>
+        </div>
+            </article>
+    </div>
+  </main>
+</body>
+</html>
