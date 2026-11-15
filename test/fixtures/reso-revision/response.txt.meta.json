@@ -1,6 +1,0 @@
-{
-  "url": "https://wiki.biligame.com/resonance/api.php?action=query&prop=revisions&titles=活动日历&rvprop=timestamp%7Cids&rvlimit=1&format=json&formatversion=2",
-  "status": 200,
-  "capturedAt": "2026-11-14T22:57:30.977Z",
-  "note": "真抓原样（213 B）：timestamp = 2026-10-26T13:11:13Z ⇒ 页面更新年/月 = 2026-10（UTC+8 仍是 10 月 26 日）。row 里只有 mm.dd 没有年份，年份只能从这一份拿。"
-}

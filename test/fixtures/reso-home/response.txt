@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>《雷索纳斯》-官方网站</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="Keywords" content="雷索纳斯、resonance、二次元、末世、RPG、二次元手游、末世幻想" />
+	<meta name="Description" content="“地卫二”降临，人类即便有着“学会”掌握的知识和“地联”整合的资源，仍对即将到来的“临界”束手无策，眼睁睁看着世界逐渐分崩离析。"/>
+    <link type="favicon" rel="shortcut icon" href="https://static-jd.gameduchy.com/lsns/pc/images/Icon.ico?321" />
+    <link rel="stylesheet" href="https://static-jd.gameduchy.com/lsns/pc/css/reset.css">
+    <link rel="stylesheet" href="https://static-jd.gameduchy.com/lsns/pc/css/style.css">
+    <link rel="stylesheet" href="https://static-jd.gameduchy.com/lsns/pc/css/swiper.min.css">
+    <style>
+        /* 英文和数字 */
+        @font-face {
+            font-family: HarmonyOS_Sans_Medium;
+            font-style: normal;
+            font-weight: 400;
+            src: url("static/font/HarmonyOS_Sans_Medium.ttf");
+        }
+        /* 中文标题 */
+        @font-face {
+            font-family: SourceHanSansCN-Bold;
+            font-style: normal;
+            font-weight: 400;
+            src: url("static/font/SourceHanSansCN-Bold.otf");
+        }
+        /* 中文描述文本 */
+        @font-face {
+            font-family: SourceHanSansCN-Medium;
+            font-style: normal;
+            font-weight: 400;
+            src: url("static/font/SourceHanSansCN-Medium.otf");
+        }
+        /* 预约数 */
+        @font-face {
+            font-family: BebasNeue;
+            font-style: normal;
+            font-weight: 400;
+            src: url("static/font/BebasNeue.ttf");
+        }
+        .dbcz{
+            display: block;
+            width: 8.711vw;
+            height: 1.4845vw;
+            min-width: 118.469px;
+            min-height: 20.188px;
+            background: url(https://static-jd.gameduchy.com/lsns/pc/images/nav/dbcz.png) no-repeat center top/cover;
+            position: absolute;
+            top: 50%;
+            left: 64%;
+            transform: translateY(-50%);
+        }
+        html, body {
+            min-width: 1360px!important;
+        }
+        .charge_topup_bg{
+            min-width: 65.906px;
+            min-height: 20.031px;
+            width: 4.8828125vw;
+            height: 1.484375vw;
+            position: absolute;
+            top: 76%;
+            left: 66%;
+        }
+        .charge_topup_bg img{
+            width: 100%;
+            height: 100%;
+        }
+        .zyts_tc{
+            display: none;
+            width: 500px;
+            /* height: 260px; */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%,-50%);
+            z-index: 99;
+            background: #000;
+            border: 1px solid #ec7b11;
+            padding: 20px;
+            border-radius: 25px;
+        }
+        .zyts_tc_close{
+            color: #fff;
+            font-size: 24px;
+            position: absolute;
+            top: 5px;
+            right: 14px;
+        }
+        .tap_load{
+            background: url(https://static-jd.gameduchy.com/lsns/pc/images/box1/tap_load.png) no-repeat center center/cover;
+        }
+        .download {
+            width: 1184px!important;
+            align-items: center;
+            flex-wrap: nowrap;
+            flex-direction: row;
+            align-content: center;
+        }
+        .steam_load{
+            background: url(https://static-jd.gameduchy.com/lsns/pc/images/box1/steam_load.png) no-repeat center top/cover;
+            margin-left:0!important;
+            margin-right: 10px!important;
+        }
+    </style>
+</head>
+<body>
+    <div class="jz" id="video-container">
+        <video id="loading_bg" data-autoplay src="https://static-jd.gameduchy.com/lsns/pc/images/loading.mp4" autoplay muted loop onEnded="videoend()"></video>
+    </div>
+    <div class="nav_box">
+        <img class="nav_left_bg" src="https://static-jd.gameduchy.com/lsns/pc/images/nav/nav_bg.png?821" alt="">
+        <img class="nav_right_bg" src="https://static-jd.gameduchy.com/lsns/pc/images/nav/nav_bg.png?821" alt="">
+        <div class="logo"><img src="https://static-jd.gameduchy.com/lsns/pc/images/nav/logo.png?821" alt=""></div>
+        <div class="nav">
+            <a class="home" data-menuanchor="page1" href="#slide1"><p class="nav_a_p1">首页</p><p class="nav_a_p2">MAIN</p></a>
+            <a class="msg" data-menuanchor="page2" href="#slide2"><p class="nav_a_p1">资料</p><p class="nav_a_p2">CHARACTER</p></a>
+            <a class="news" data-menuanchor="page3" href="#slide3"><p class="nav_a_p1">公告</p><p class="nav_a_p2">ANNOUNCEMENT</p></a>
+            <!-- <a class="news" data-menuanchor="page3" href="#slide3"><p class="nav_a_p1">公告</p><p class="nav_a_p2">ANNOUNCEMENT</p></a> -->
+            <!-- <a class="yy" data-menuanchor="page4" href="#slide4"><p class="nav_a_p1">预约</p><p class="nav_a_p2">PRE-REGISTER</p></a> -->
+        </div>
+        <a class="dbcz" href="https://charge-web.soli-reso.com/" target="_blank"></a>
+        <a class="charge_topup_bg" href="javascript:void(0);"><img src="https://static-jd.gameduchy.com/lsns/pc/images/nav/charge_topup_bg.png" alt=""></a>
+        <div class="mt">
+            <a class="wb" href="https://weibo.com/p/1006067542492011" target="_blank"></a>
+            <a class="wx" href="javascript:void(0)"></a>
+            <a style="width: 60px;" class="tap" href="https://tap.cn/CUbFPnNR?channel=rep-rep_ix2i2bkjyhs" target="_blank"></a>
+            <a style="width: 70px;" class="bili" href="https://www.biligame.com/detail/?id=107985" target="_blank"></a>
+            <a class="js" href="https://www.3839.com/a/139473.htm" target="_blank"></a>
+            <a class="qq" href="http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=lUCcS1dOgk6nb1VXA3C5xhI8p_OkbQx-&authKey=K7QvhCKaQRlKNSnfvRQ%2F2A2IRJQIBDBu5N2KKZqog59uMtRCC0oF%2BVJkWI3kqSjN&noverify=0&group_code=738915435" target="_blank"></a>
+            <div class="wx_tc"><img src="https://static-jd.gameduchy.com/lsns/pc/images/box1/wx_tc.jpg" alt=""></div>
+        </div>
+    </div>
+    <div class="list">
+        <div class="list_home">
+            <div class="list_l">
+                <p>01</p>
+                <div class="list_home_line"></div>
+                <p>MAIN</p>
+            </div>
+            <a class="list_home_btn" href="javascript:void(0);"></a>
+            <a data-menuanchor="page1" class="list_home_zz" href="#slide1"></a>
+        </div>
+        <div class="list_msg">
+            <div class="list_l">
+                <p>02</p>
+                <div class="list_msg_line"></div>
+                <p>CHARACTER</p>
+            </div>
+            <a class="list_msg_btn" href="javascript:void(0);"></a>
+            <a data-menuanchor="page2" class="list_msg_zz" href="#slide2"></a>
+        </div>
+        <div class="list_news">
+            <div class="list_l">
+                <p>03</p>
+                <div class="list_news_line"></div>
+                <p>ANNOUNCEMENT</p>
+            </div>
+            <a class="list_news_btn" href="javascript:void(0);"></a>
+            <a data-menuanchor="page3" class="list_news_zz" href="#slide3"></a>
+        </div>
+        <!-- <div class="list_yy">
+            <div class="list_l">
+                <p>04</p>
+                <div class="list_yy_line"></div>
+                <p>PRE-REGISTER</p>
+            </div>
+            <a class="list_yy_btn" href="javascript:void(0);"></a>
+            <a data-menuanchor="page4" class="list_yy_zz" href="#slide4"></a>
+        </div> -->
+    </div>
+    <!-- <a href="javascript:void(0)" class="box1_bottom_bq">版权信息</a> -->
+    <!-- <a class="slts_12"><img src="https://static-jd.gameduchy.com/lsns/pc/images/box1/12%2B.png?821" alt=""></a> -->
+    <div class="box4_content_bg"></div>
+    <!-- <div class="box1_bottom_bq_content">
+        <div class="foot_left">
+            <img class="foot_logo_top" src="https://static-jd.gameduchy.com/lsns/pc/images/logo.png?821">
+            <img class="foot_logo_bottom" src="https://static-jd.gameduchy.com/lsns/pc/images/slogan.png?821">
+        </div>
+        <div class="foot_right">
+            <p class="foot_bth_box"><a class="userAgreement" href="/userAgreement/" target="_blank">用户协议</a> &nbsp;&nbsp; | &nbsp;&nbsp; <a class="policy" href="/policy/" target="_blank">隐私政策</a> &nbsp;&nbsp; | &nbsp;&nbsp; <a class="childPrivacy" href="/childPrivacy/" target="_blank">儿童隐私政策</a></p>
+            <p class="foot_font">游戏健康公告：抵制不良游戏，拒绝盗版游戏。注意自我保护，谨防受骗上当。适度游戏益脑，沉迷游戏伤身。合理安排时间，享受健康生活。</p>
+            <p class="foot_font">本游戏适合：12周岁以上用户使用 | 本游戏已加入防沉迷系统机制</p>
+            <p class="foot_font">浙ICP备2022013928号-2 | 增值业务经营许可证：沪B2-20210220</p>
+            <p class="foot_font">国新出审【2023】445号 | ISBN：978-7-498-12166-0 </p>
+            <p class="foot_font">上海泪雨网络科技有限公司 | 杭州雷索纳斯信息科技有限公司 版权所有</p>
+            <p class="foot_font">技术支持客服联系方式：<a href="mailto:resonance@gameduchy.com">resonance@gameduchy.com</a></p>
+        </div>
+    </div> -->
+    <div class="yy_content_bg"></div>
+    <div class="yy_content">
+        <p class="yy_content_title">手机号预约</p>
+        <a class="yy_close_btn" href="javascript:void(0)"></a>
+        <input class="sjh" type="text" name="mobile" value="" oninput = "value=value.replace(/[^\d]/g,'')" maxlength="11" placeholder="请输入手机号"/>
+        <div class="yzm"><input class="qsryzm" type="text" placeholder="请输入短信验证码"><span>|</span>&nbsp;<input class="hqyzm" type="button" value="获取" onclick="sendCode(this)" /></div>
+        <a class="yyyz_btn" onclick="yyhz()" href="javascript:void(0)">预约</a>
+    </div>
+     <!-- Swiper -->
+     <div class="swiper-container box_swiper-container">
+        <div class="swiper-wrapper">
+            <div class="swiper-slide" data-hash="slide1">
+                <div class="box1">
+                    <div class="sec1_bg img-wrap html-video-background"> 
+                       <!-- <div class="sec1_rgb"></div> -->
+                        <video id="video_bg" data-autoplay src="https://static-jd.gameduchy.com/lsns/pc/images/box1/bg2.mp4" autoplay muted loop onEnded="videoend()" style="height: 100%;width: auto;"></video>
+                    </div>
+                    <div class="box1_slogan"><img src="https://static-jd.gameduchy.com/lsns/pc/images/box1/slogan.png?821" alt=""></div>
+                    <!-- <div class="line_bg"><img src="https://static-jd.gameduchy.com/lsns/pc/images/box1/line_bg_1.png?821" alt=""><a href="javascript:void(0);" class="yy_btn"><img class="yy_btn_l" src="https://static-jd.gameduchy.com/lsns/pc/images/box1/jt.png?821" alt="">立即预约<img class="yy_btn_r" src="https://static-jd.gameduchy.com/lsns/pc/images/box1/jt.png?821" alt=""></a></div> -->
+                    <div class="download">
+                        <a class="load_btn steam_load" href="https://store.steampowered.com/app/3037160/" target="_blank"></a>
+                        <a class="load_btn ios_load" href="https://apps.apple.com/cn/app/id6466783172" target="_blank"></a>
+                        <div class="ios_ewm"><img src="https://static-jd.gameduchy.com/lsns/pc/images/box1/ios.png" alt=""></div>
+                        <div class="az_ewm"><img src="https://static-jd.gameduchy.com/lsns/pc/images/box1/And.png" alt=""></div>
+                        <!-- <a class="load_btn az_load" href="https://uri6.com/tkio/fEniQna" target="_blank"></a> -->
+                        <a class="load_btn az_load" href="https://soli-reso.com/dpackage/webandroid/gwapk/Reso_CN_172_2026011413_Official_202601171225.apk" target="_blank"></a>
+                        <!-- <a class="load_btn mumu_load" href="https://uri6.com/tkio/ZfqyMra" target="_blank"></a> -->
+                        <a class="load_btn pc_load" href="https://soli-reso.com/dpackage/webinstall/main/resonance_setup_v172_main_26011917.exe" target="_blank"></a>
+                        <a class="load_btn tap_load" href="https://www.taptap.cn/app/226568" target="_blank"></a>
+                    </div>
+                    <div class="box1_bottom">
+                        <div class="box1_bottom_logo"><img src="https://static-jd.gameduchy.com/lsns/pc/images/box1/box1_bottom_logo.png?821" alt=""></div>
+                    </div>
+                    <a class="slts_12"><img src="https://static-jd.gameduchy.com/lsns/pc/images/box1/12%2B.png?821" alt=""></a>
+                </div>
+            </div>
+            <div class="swiper-slide" data-hash="slide2"> 
+                <div class="box2">
+                    <div class="box2_btn">
+                        <a class="box2_btn_num box2_btn_1 active" href="javascript:void(0)"><p class="box2_btn_p box2_btn_p_1">科伦巴商会</p><img class="box2_btn_num_img_bg" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_btn_num_bg.png?821" alt=""><img class="box2_btn_num_img_bg_h" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_btn_num_bg_h.png?821" alt=""></a>
+                        <a class="box2_btn_num box2_btn_2" href="javascript:void(0)"><p class="box2_btn_p box2_btn_p_2">铁道同盟</p><img class="box2_btn_num_img_bg" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_btn_num_bg.png?821" alt=""><img class="box2_btn_num_img_bg_h" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_btn_num_bg_h.png?821" alt=""></a>
+                        <a class="box2_btn_num box2_btn_3" href="javascript:void(0)"><p class="box2_btn_p box2_btn_p_3">园丁</p><img class="box2_btn_num_img_bg" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_btn_num_bg.png?821" alt=""><img class="box2_btn_num_img_bg_h" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_btn_num_bg_h.png?821" alt=""></a>
+                        <a class="box2_btn_num box2_btn_4" href="javascript:void(0)"><p class="box2_btn_p box2_btn_p_4">索思学会</p><img class="box2_btn_num_img_bg" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_btn_num_bg.png?821" alt=""><img class="box2_btn_num_img_bg_h" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_btn_num_bg_h.png?821" alt=""></a>
+                        <a class="box2_btn_num box2_btn_5" href="javascript:void(0)"><p class="box2_btn_p box2_btn_p_5">黑月锁链</p><img class="box2_btn_num_img_bg" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_btn_num_bg.png?821" alt=""><img class="box2_btn_num_img_bg_h" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_btn_num_bg_h.png?821" alt=""></a>
+                    </div>
+                    <div class="box2_num">
+                        <div class="box2_1">
+                            <div class="zy_logo zy_logo1"><img src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_slogan_1.png?821" alt=""></div>
+                            <div class="box2_1_btn">
+                                <!-- 临时修改 -->
+                                <!-- <a class="box2_1_btn_num box2_1_btn_1 active" href="javascript:void(0)"></a> -->
+                                <a class="box2_1_btn_num box2_1_btn_2 active" href="javascript:void(0)"></a>
+                                <a class="box2_1_btn_num box2_1_btn_3" href="javascript:void(0)"></a>
+                                <!-- 临时修改 -->
+                                <!-- <a class="box2_1_btn_num box2_1_btn_4" href="javascript:void(0)"></a> -->
+                                <a class="box2_1_btn_num box2_1_btn_5" href="javascript:void(0)"></a>
+                            </div>
+                            <div class="box2_1_num">
+                                <!-- 临时修改 -->
+                                <!-- <div class="box2_1_num_1 box2_1_1">
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">莉薇娅</h1><span class="where">隶属于科伦巴商会</span>
+                                        </div>
+                                        <p class="name_en">Livia</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:鬼头明里<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_1_1_yy.wav" style="display:none; height: 0" id="box2_1_1_yy_jp" controls></audio></a>
+                                        <a class="cv_cn" href="javascript:void(0);">CV:龟娘<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_cn/box2_1_1_yy.wav" style="display:none; height: 0" id="box2_1_1_yy_cn" controls></audio></a>
+                                        <div class="font_box_description"><p>原来我们已经一起经历过那么多了，但是路还很长……出发吧，我就在你身边，列车长。</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_1_pic1.png?821" alt="">
+                                </div> -->
+                                <div class="box2_1_num_1 box2_1_2">
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">弗兰</h1><span class="where">隶属于科伦巴商会</span>
+                                        </div>
+                                        <p class="name_en">Flan</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:丰口惠美<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_1_2_yy.wav" style="display:none; height: 0" id="box2_1_2_yy_jp" controls></audio></a>
+                                        <a class="cv_cn" href="javascript:void(0);">CV:菊花花<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_cn/box2_1_2_yy.wav" style="display:none; height: 0" id="box2_1_2_yy_cn" controls></audio></a>
+                                        <div class="font_box_description"><p>我是弗兰，请多指教，列车长。顺带一提，您知道艾略特在哪里吗？</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_1_pic2.png?821" alt="">
+                                </div>
+                                <div class="box2_1_num_1 box2_1_3">
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">艾略特</h1><span class="where">隶属于科伦巴商会</span>
+                                        </div>
+                                        <p class="name_en">Eliot</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:本多真梨子<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_1_3_yy.wav" style="display:none; height: 0" id="box2_1_3_yy_jp" controls></audio></a>
+                                        <a class="cv_cn" href="javascript:void(0);">CV:唐雅菁<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_cn/box2_1_3_yy.wav" style="display:none; height: 0" id="box2_1_3_yy_cn" controls></audio></a>
+                                        <div class="font_box_description"><p>我是艾略特，该干的活我会干的。</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_1_pic3.png?821" alt="">
+                                </div>
+                                <!-- 临时修改 -->
+                                <!-- <div class="box2_1_num_1 box2_1_4"> 
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">遥</h1><span class="where">隶属于科伦巴商会</span>
+                                        </div>
+                                        <p class="name_en">Haruka</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:田村由香里<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_1_4_yy.wav" style="display:none; height: 0" id="box2_1_4_yy_jp" controls></audio></a>
+                                        <div class="font_box_description"><p> ……遥，我的名字。维修有我，你只管做好你的事就行。</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_1_pic4.png?821" alt="">
+                                </div> -->
+                                <div class="box2_1_num_1 box2_1_5">
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">波克士</h1><span class="where">隶属于科伦巴商会</span>
+                                        </div>
+                                        <p class="name_en">BOX</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:杉田智和<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_1_5_yy.wav" style="display:none; height: 0" id="box2_1_5_yy_jp" controls></audio></a>
+                                        <a class="cv_cn" href="javascript:void(0);">CV:刘照坤<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_cn/box2_1_5_yy.wav" style="display:none; height: 0" id="box2_1_5_yy_cn" controls></audio></a>
+                                        <div class="font_box_description"><p>我是多功能仿生机器人——仿生技工十代。请从设定中选择仿生对话系统的声纹。</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_1_pic5.png?821" alt="">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="box2_2">
+                            <div class="zy_logo zy_logo2"><img src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_slogan_2.png?821" alt=""></div>
+                            <div class="box2_2_btn">
+                                <a class="box2_2_btn_num box2_2_btn_1 active" href="javascript:void(0)"></a>
+                                <a class="box2_2_btn_num box2_2_btn_2" href="javascript:void(0)"></a>
+                                <a class="box2_2_btn_num box2_2_btn_3" href="javascript:void(0)"></a>
+                                <a class="box2_2_btn_num box2_2_btn_4" href="javascript:void(0)"></a>
+                            </div>
+                            <div class="box2_2_num">
+                                <div class="box2_2_num_1 box2_2_1">
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">多萝西</h1><span class="where">隶属于铁道同盟</span>
+                                        </div>
+                                        <p class="name_en">Dorothy</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:伊濑茉莉也<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_2_1_yy.wav" style="display:none; height: 0" id="box2_2_1_yy_jp" controls></audio></a>
+                                        <a class="cv_cn" href="javascript:void(0);">CV:张琦<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_cn/box2_2_1_yy.wav" style="display:none; height: 0" id="box2_2_1_yy_cn" controls></audio></a>
+                                        <div class="font_box_description"><p>呀吼~~！我是多萝西！今后就麻烦你啦！</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_2_pic1.png?821" alt="">
+                                </div>
+                                <div class="box2_2_num_1 box2_2_2">
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">静流</h1><span class="where">隶属于铁道同盟</span>
+                                        </div>
+                                        <p class="name_en">Shizuru</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:前田佳织里<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_2_2_yy.wav" style="display:none; height: 0" id="box2_2_2_yy_jp" controls></audio></a>
+                                        <!-- <a class="cv_cn" href="javascript:void(0);">CV:<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_cn/box2_1_2_yy.wav" style="display:none; height: 0" id="box2_1_2_yy_cn" controls></audio></a> -->
+                                        <div class="font_box_description"><p>我是静流，请多指教......不会吧，我可没想到会在这种地方再见到你。</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_2_pic2.png?821" alt="">
+                                </div>
+                                <div class="box2_2_num_1 box2_2_3">
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">卡莲</h1><span class="where">隶属于铁道同盟</span>
+                                        </div>
+                                        <p class="name_en">Karen</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:汐崎帆南<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_2_3_yy.wav" style="display:none; height: 0" id="box2_2_3_yy_jp" controls></audio></a>
+                                        <!-- <a class="cv_cn" href="javascript:void(0);">CV:<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_cn/box2_1_3_yy.wav" style="display:none; height: 0" id="box2_1_3_yy_cn" controls></audio></a> -->
+                                        <div class="font_box_description"><p>贵安，列车长大人。在下名为卡莲，请多关照。</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_2_pic3.png?821" alt="">
+                                </div>
+                                <div class="box2_2_num_1 box2_2_4"> 
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">伊洛娜</h1><span class="where">隶属于铁道同盟</span>
+                                        </div>
+                                        <p class="name_en">Ilona</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:小仓唯<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_2_4_yy.wav" style="display:none; height: 0" id="box2_2_4_yy_jp" controls></audio></a>
+                                        <!-- <a class="cv_cn" href="javascript:void(0);">CV:</a> -->
+                                        <div class="font_box_description"><p>伊洛娜，狐獴小队……狙击手，嗯……</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_2_pic4.png?821" alt="">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="box2_3">
+                            <div class="zy_logo zy_logo3"><img src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_slogan_3.png?821" alt=""></div>
+                            <div class="box2_3_btn">
+                                <!-- 临时修改 -->
+                                <!-- <a class="box2_3_btn_num box2_3_btn_1 active" href="javascript:void(0)"></a> -->
+                                <a class="box2_3_btn_num box2_3_btn_2 active" href="javascript:void(0)"></a>
+                                <a class="box2_3_btn_num box2_3_btn_3" href="javascript:void(0)"></a>
+                                <a class="box2_3_btn_num box2_3_btn_4" href="javascript:void(0)"></a>
+                                <a class="box2_3_btn_num box2_3_btn_5" href="javascript:void(0)"></a>
+                            </div>
+                            <div class="box2_3_num">
+                                <!-- 临时修改 -->
+                                <!-- <div class="box2_3_num_1 box2_3_1">
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">星花</h1><span class="where">隶属于园丁</span>
+                                        </div>
+                                        <p class="name_en">Stella</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:水树奈奈<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_3_1_yy.wav" style="display:none; height: 0" id="box2_3_1_yy_jp" controls></audio></a>
+                                        <div class="font_box_description"><p>你就是列车长？看起来不太靠谱的样子呢……算了。我叫源星花，请多指教喽。</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_3_pic1.png?821" alt="">
+                                </div> -->
+                                <div class="box2_3_num_1 box2_3_2">
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">叶珏</h1><span class="where">隶属于园丁</span>
+                                        </div>
+                                        <p class="name_en">Yejue</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:竹达彩奈<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_3_2_yy.wav" style="display:none; height: 0" id="box2_3_2_yy_jp" controls></audio></a>
+                                        <!-- <a class="cv_cn" href="javascript:void(0);">CV:菊花花<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_cn/box2_3_2_yy.wav" style="display:none; height: 0" id="box2_3_2_yy_cn" controls></audio></a> -->
+                                        <div class="font_box_description"><p>我是来自阿妮塔能源的派遣人员叶珏。你就是列车长、对吧？多指教啊！</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_3_pic2.png?821" alt="">
+                                </div>
+                                <div class="box2_3_num_1 box2_3_3">
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">伊尔</h1><span class="where">隶属于园丁</span>
+                                        </div>
+                                        <p class="name_en">Yer</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:田所梓<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_3_3_yy.wav" style="display:none; height: 0" id="box2_3_3_yy_jp" controls></audio></a>
+                                        <!-- <a class="cv_cn" href="javascript:void(0);">CV:唐雅菁<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_cn/box2_3_3_yy.wav" style="display:none; height: 0" id="box2_3_3_yy_cn" controls></audio></a> -->
+                                        <div class="font_box_description"><p>你好，列车长，我是来自阿妮塔的伊尔，请给我一间单独的工作间，并且工作时间内请叮嘱其他乘员不要随意进入。</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_3_pic3.png?821" alt="">
+                                </div>
+                                <div class="box2_3_num_1 box2_3_4"> 
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">晃</h1><span class="where">隶属于园丁</span>
+                                        </div>
+                                        <p class="name_en">Akira</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:间宫智明<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_3_4_yy.wav" style="display:none; height: 0" id="box2_3_4_yy_jp" controls></audio></a>
+                                        <!-- <a class="cv_cn" href="javascript:void(0);">CV:</a> -->
+                                        <div class="font_box_description"><p> 噔噔噔~阿妮塔的人气大帅哥——晃，闪耀登场！</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_3_pic4.png?821" alt="">
+                                </div>
+                                <div class="box2_3_num_1 box2_3_5">
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">妮蔻拉</h1><span class="where">隶属于园丁</span>
+                                        </div>
+                                        <p class="name_en">Nicola</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:户松遥<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_3_5_yy.wav" style="display:none; height: 0" id="box2_3_5_yy_jp" controls></audio></a>
+                                        <!-- <a class="cv_cn" href="javascript:void(0);">CV:醋醋<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_cn/box2_3_5_yy.wav" style="display:none; height: 0" id="box2_3_5_yy_cn" controls></audio></a> -->
+                                        <div class="font_box_description"><p>我是妮蔻拉。别害怕，这些装备都已经被我调整到了非杀伤模式。</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_3_pic5.png?821" alt="">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="box2_4">
+                            <div class="zy_logo zy_logo4"><img src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_slogan_4.png?821" alt=""></div>
+                            <div class="box2_4_btn">
+                                <a class="box2_4_btn_num box2_4_btn_1 active" href="javascript:void(0)"></a>
+                                <a class="box2_4_btn_num box2_4_btn_2" href="javascript:void(0)"></a>
+                                <a class="box2_4_btn_num box2_4_btn_3" href="javascript:void(0)"></a>
+                                <a class="box2_4_btn_num box2_4_btn_4" href="javascript:void(0)"></a>
+                            </div>
+                            <div class="box2_4_num">
+                                <div class="box2_4_num_1 box2_4_1">
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">卡塔斯</h1><span class="where">隶属于索思学会</span>
+                                        </div>
+                                        <p class="name_en">Katas</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:园崎未惠<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_4_1_yy.wav" style="display:none; height: 0" id="box2_4_1_yy_jp" controls></audio></a>
+                                        <!-- <a class="cv_cn" href="javascript:void(0);">CV:张琦<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_cn/box2_4_1_yy.wav" style="display:none; height: 0" id="box2_4_1_yy_cn" controls></audio></a> -->
+                                        <div class="font_box_description"><p>吾即咒魔剑姬卡塔斯丨！被深渊侵蚀带来万世终焉的使者！......好，发挥不错。</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_4_pic1.png?821" alt="">
+                                </div>
+                                <div class="box2_4_num_1 box2_4_2">
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">冯里奈</h1><span class="where">隶属于索思学会</span>
+                                        </div>
+                                        <p class="name_en">Rina F</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:大西沙织<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_4_2_yy.wav" style="display:none; height: 0" id="box2_4_2_yy_jp" controls></audio></a>
+                                        <!-- <a class="cv_cn" href="javascript:void(0);">CV:<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_cn/box2_1_2_yy.wav" style="display:none; height: 0" id="box2_1_2_yy_cn" controls></audio></a> -->
+                                        <div class="font_box_description"><p>我是学会的冯里奈。被派遣至此协助工作……那个，听说这边可以按时下班，是真的吗……？</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_4_pic2.png?821" alt="">
+                                </div>
+                                <div class="box2_4_num_1 box2_4_3">
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">菲妮娅</h1><span class="where">隶属于索思学会</span>
+                                        </div>
+                                        <p class="name_en">Fenia</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:Machico<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_4_3_yy.wav" style="display:none; height: 0" id="box2_4_3_yy_jp" controls></audio></a>
+                                        <!-- <a class="cv_cn" href="javascript:void(0);">CV:<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_cn/box2_1_3_yy.wav" style="display:none; height: 0" id="box2_1_3_yy_cn" controls></audio></a> -->
+                                        <div class="font_box_description"><p>我是菲妮娅！为了世界和平冲冲冲！</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_4_pic3.png?821" alt="">
+                                </div>
+                                <div class="box2_4_num_1 box2_4_4"> 
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">约书亚</h1><span class="where">隶属于索思学会</span>
+                                        </div>
+                                        <p class="name_en">Joshua</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:村濑步<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_4_4_yy.wav" style="display:none; height: 0" id="box2_4_4_yy_jp" controls></audio></a>
+                                        <a class="cv_cn" href="javascript:void(0);">CV:喵酱<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_cn/box2_4_4_yy.wav" style="display:none; height: 0" id="box2_4_4_yy_cn" controls></audio></a>
+                                        <div class="font_box_description"><p>我是约书亚。作为学会的天使，我可以给你讲授凡人无法理解的深奥学识。“老师~这是什么意思~”之类的愚蠢要求就不要说了。</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_4_pic4.png?821" alt="">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="box2_5">
+                            <div class="zy_logo zy_logo5"><img src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_slogan_5.png?821" alt=""></div>
+                            <div class="box2_5_btn">
+                                <!-- 临时修改 -->
+                                <!-- <a class="box2_5_btn_num box2_5_btn_1 active" href="javascript:void(0)"></a> -->
+                                <a class="box2_5_btn_num box2_5_btn_2 active" href="javascript:void(0)"></a>
+                                <a class="box2_5_btn_num box2_5_btn_3" href="javascript:void(0)"></a>
+                                <a class="box2_5_btn_num box2_5_btn_4" href="javascript:void(0)"></a>
+                            </div>
+                            <div class="box2_5_num">
+                                <!-- 临时修改 -->
+                                <!-- <div class="box2_5_num_1 box2_5_1">
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">马吉拉</h1><span class="where">隶属于黑月锁链</span>
+                                        </div>
+                                        <p class="name_en">Margiela</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:小原好美<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_5_1_yy.wav" style="display:none; height: 0" id="box2_5_1_yy_jp" controls></audio></a>
+                                        <div class="font_box_description"><p>我叫马吉拉。本职是cosplay服装店的店长，请多关照啦。</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_5_pic1.png?821" alt="">
+                                </div> -->
+                                <div class="box2_5_num_1 box2_5_2">
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">魇</h1><span class="where">隶属于黑月锁链</span>
+                                        </div>
+                                        <p class="name_en">Mhar</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:花守由美里<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_5_2_yy.wav" style="display:none; height: 0" id="box2_5_2_yy_jp" controls></audio></a>
+                                        <!-- <a class="cv_cn" href="javascript:void(0);">CV:<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_cn/box2_1_2_yy.wav" style="display:none; height: 0" id="box2_1_2_yy_cn" controls></audio></a> -->
+                                        <div class="font_box_description"><p>我是魇。我会把坏人统统打跑哦。</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_5_pic2.png?821" alt="">
+                                </div>
+                                <div class="box2_5_num_1 box2_5_3">
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">宵月</h1><span class="where">隶属于黑月锁链</span>
+                                        </div>
+                                        <p class="name_en">Yoiduki</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:ゆかな<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_5_3_yy.wav" style="display:none; height: 0" id="box2_5_3_yy_jp" controls></audio></a>
+                                        <!-- <a class="cv_cn" href="javascript:void(0);">CV:<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_cn/box2_1_3_yy.wav" style="display:none; height: 0" id="box2_1_3_yy_cn" controls></audio></a> -->
+                                        <div class="font_box_description"><p>我是黑月的宵月。往后还请您多多指教。</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_5_pic3.png?821" alt="">
+                                </div>
+                                <div class="box2_5_num_1 box2_5_4"> 
+                                    <div class="font_box">
+                                        <div class="font_box_h1">
+                                            <h1 class="name_cn">闻笙</h1><span class="where">隶属于黑月锁链</span>
+                                        </div>
+                                        <p class="name_en">Wensheng</p>
+                                        <a class="cv_jp" href="javascript:void(0);">CV:内山昂辉<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_jp/box2_5_4_yy.wav" style="display:none; height: 0" id="box2_5_4_yy_jp" controls></audio></a>
+                                        <!-- <a class="cv_cn" href="javascript:void(0);">CV:喵酱<audio class="audio_play" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_cn/box2_5_4_yy.wav" style="display:none; height: 0" id="box2_4_4_yy_cn" controls></audio></a> -->
+                                        <div class="font_box_description"><p>闻笙，奉鹭先生之命与你同行。唔，你的气味……不，别在意。</p></div>
+                                    </div>
+                                    <img class="box_pic" src="https://static-jd.gameduchy.com/lsns/pc/images/box2/box2_5_pic4.png?821" alt="">
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                   
+                </div>
+            </div>
+            <div class="swiper-slide swiper-no-swiping" data-hash="slide3">
+                <div class="box3">
+                    <div class="box3_content">
+                        <div class="news_list_btn">
+                            <a href="javascript:;" class="news_btn news_bg"><p class="news_btn_title">新闻</p><img class="boxx3_list_line" src="https://static-jd.gameduchy.com/lsns/pc/images/box3/boxx3_list_line.png?821" alt=""><p class="news_btn_title_en">news</p></a>
+                            <a href="javascript:;" class="notice_btn"><p class="news_btn_title">公告</p><img class="boxx3_list_line" src="https://static-jd.gameduchy.com/lsns/pc/images/box3/boxx3_list_line.png?821" alt=""><p style="left: 16px;" class="news_btn_title_en">Announcement</p></a>
+                            <a href="javascript:;" class="actii_btn"><p class="news_btn_title">活动</p><img class="boxx3_list_line" src="https://static-jd.gameduchy.com/lsns/pc/images/box3/boxx3_list_line.png?821" alt=""><p class="news_btn_title_en">Event</p></a>
+                            <div class="news_list_line"></div>
+                        </div>
+                        <div class="box3_list">
+                            <div class="news_content">
+                                <ul class="news_content_ul"></ul>      
+                                <div class="page">
+                                    <ul class="page_ul">
+                                      
+                                    </ul>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+                    <div class="box_news">
+                        <div class="box_news_content">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- <div class="swiper-slide" data-hash="slide4">
+                <div class="box4">
+                    <div class="box4_content">
+                        <div class="yys">已成功登录的列车长数量</div>
+                        <div class="input_content"><p class="input_content_p">8682372</p></div>
+                        <a href="javascript:void(0);" class="box4_btn">
+                            <img class="box4_btn_l" src="https://static-jd.gameduchy.com/lsns/pc/images/box4/jt.png?821" alt="">
+                            <span>立即预约</span>
+                            <img class="box4_btn_r" src="https://static-jd.gameduchy.com/lsns/pc/images/box1/jt.png?821" alt="">
+                        </a>
+                        <div class="yyjl" style="width: 684px; height: 204px; margin-left: 38px; margin-top: 56px;">
+                            <img src="https://static-jd.gameduchy.com/lsns/pc/images/box4/yyjl.png" alt="">
+                        </div>
+                    </div>
+                </div>
+            </div> -->
+            <div class="swiper-slide swiper-slide-5" data-hash="slide5">
+                <div class="box1_bottom_bq_content">
+                    <div class="foot_left">
+                        <img class="foot_logo_top" src="https://static-jd.gameduchy.com/lsns/pc/images/logo.png?821">
+                        <img class="foot_logo_bottom" src="https://static-jd.gameduchy.com/lsns/pc/images/slogan.png?821">
+                    </div>
+                    <div class="foot_right">
+                        <!-- <a class="slts_12"><img src="https://static-jd.gameduchy.com/lsns/pc/images/box1/12%2B.png?821" alt=""></a> -->
+                        <p class="foot_bth_box"><a class="userAgreement" href="/userAgreement/" target="_blank">用户协议</a> &nbsp;&nbsp; | &nbsp;&nbsp; <a class="policy" href="/policy/" target="_blank">隐私政策</a> &nbsp;&nbsp; | &nbsp;&nbsp; <a class="childPrivacy" href="/childPrivacy/" target="_blank">儿童隐私政策</a>&nbsp;&nbsp; | &nbsp;&nbsp; <a class="about" href="https://static-jd.gameduchy.com/lsns/pc/about.html" target="_blank">关于我们</a>&nbsp;&nbsp; | &nbsp;&nbsp; <a class="contact" href="mailto:resonance@gameduchy.com" target="_blank">联系我们</a></p>
+                        <p class="foot_font">游戏健康公告：抵制不良游戏，拒绝盗版游戏。注意自我保护，谨防受骗上当。适度游戏益脑，沉迷游戏伤身。合理安排时间，享受健康生活。</p>
+                        <p class="foot_font">本游戏适合：12周岁以上用户使用 | 本游戏已加入防沉迷系统机制</p>
+                        <p class="foot_font">沪ICP备2020029337号-2A | 增值业务经营许可证：沪B2-20210220</p>
+                        <p class="foot_font">国新出审【2023】445号 | ISBN：978-7-498-12166-0 </p>
+                        <!-- <p class="foot_font">上海泪雨网络科技有限公司 | 杭州雷索纳斯信息科技有限公司 版权所有</p> -->
+                        <p class="foot_font">运营单位：上海泪雨网络科技有限公司 | 杭州雷索纳斯信息科技有限公司 版权所有</p>
+                        <p class="foot_font">联系邮箱：<a href="mailto:resonance@gameduchy.com">resonance@gameduchy.com</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- <div class="jz">
+        <div class="jz_l"><div id="jz_l"></div></div>
+        <div class="jz_r"><div id="jz_r"></div></div>
+        <div class="jz_loading"></div>
+        <div id="box">
+            <p id="range"></p>
+            <span id="percent"></span>
+        </div>
+    </div> -->
+    <div class="zyts_tc">
+        <h1>《雷索纳斯》反诈提示</h1></br>
+        <P>亲爱的列车长：</P>
+        <P>感谢您对《雷索纳斯》的关注与支持！近期，出现了部分伪装成《雷索纳斯》官方网站的网页企图诈骗充值的情况。虽目前暂时没有列车长造成损失，请各位玩家切勿在上述网页进行充值，以防被骗取财物及个人信息。</P>
+        <P>再次提醒列车长，官方从未与“北京与智同行信息技术有限公司”、“广州银聪科技有限公司”等第三方进行合作运营。</P>
+        <P>请列车长认准当前正规官方充值渠道：《雷索纳斯》官方充值网站（ <a style="color: #fff;" href="https://charge-web.soli-reso.com/" target="_blank">https://charge-web.soli-reso.com/</a> ）及游戏内充值跳转功能。</P>
+        <P>《雷索纳斯》最终解释权归杭州玉尊信息科技有限公司所有。</P>
+        <a class="zyts_tc_close" href="javascript:void(0);">X</a>
+    </div>
+    
+    <script>
+       
+        var time = setInterval(function () {
+          $('.jz').fadeOut(200)
+          clearInterval(time)
+        }, 4000)
+      
+        
+     </script>
+    <script src="https://static-jd.gameduchy.com/lsns/pc/js/sweetalert.min.js"></script>
+    <script src="https://static-jd.gameduchy.com/lsns/pc/js/jquery.min.js"></script>
+    <script src="https://static-jd.gameduchy.com/lsns/pc/js/swiper.jquery.min.js"></script>
+    <script type="text/javascript" src="https://static-jd.gameduchy.com/lsns/pc/js/html5-video-background.js"></script>
+    <script>
+    //  //获取需要用到的元素
+    //  var box = document.getElementById("box");
+    //     var range = document.getElementById("range");
+    //     var percent = document.getElementById("percent");
+    //     var jz_l_box = document.getElementsByClassName("jz_l")[0];
+    //     var jz_l_box_langh = parseInt(jz_l_box.clientWidth);
+
+    //     var jz_l = document.getElementById("jz_l");
+    //     var jz_r = document.getElementById("jz_r");
+        
+    //     //创建一个定时器，让里面的函数每隔20毫秒自动执行一次
+    //     var time = setInterval(function(){
+    //         //使range部分的宽度每次增加2px
+    //         range.style.width = range.clientWidth + 2 + "px";
+    //         jz_l.style.width = jz_l.clientWidth + 5 + "px";
+    //         jz_r.style.width = jz_r.clientWidth + 5 + "px";
+
+            
+    //         //当宽度达到和外部盒子宽度一致时，清除定时器
+    //         // if(range.clientWidth >= 260){
+    //         //     // $(".jz").fadeOut(500);
+    //         //     clearInterval(time);
+    //         // }
+
+    //         if(jz_l.clientWidth >= jz_l_box_langh){
+    //             $(".jz").fadeOut(500);
+    //             clearInterval(time);
+    //         }
+
+    //         //通过range的宽度和外部盒子宽度的数值比，得到进度的百分比
+    //         // var num = parseInt((range.clientWidth / box.clientWidth)*100) + "%";
+    //         var num = parseInt((jz_l.clientWidth / jz_l_box_langh)*100) + "%";
+    //         percent.innerHTML = num;
+    //     },20);
+
+        function getCookieValue(name) {
+            var cookies = document.cookie.split("; ");
+            for (var i = 0; i < cookies.length; i++) {
+                var parts = cookies[i].split("=");
+                if (parts[0] === name) {
+                    return decodeURIComponent(parts[1]);
+                }
+            }
+        }
+        
+        // 新闻
+        
+<!-- ⚠️ 夹具截断说明（非源站内容）：真实响应 7,451,933 B；此处只保留头部 54918 字符（= 原文 `var news_json` 语句之前，其余 7393165 字符未入库）。notice_json 在原文第 2880537 字符处 ⇒ 头部 100KB **不含**它；下面这一行是从同一响应的第 2880537 字符处截出的语句：数组 100→8 条（留 7 种起止写法 + 跨年 + 显式年）、每条 content 只保留「起止时间」窗口段（体积）。 -->
+        var notice_json = JSON.parse("[{\u0022id\u0022:290,\u0022update_time\u0022:\u00222025\u002D12\u002D23\u0022,\u0022pub_date\u0022:\u00222025\u002D12\u002D23\u0022,\u0022title\u0022:\u0022\u300A\u96F7\u7D22\u7EB3\u65AF\u300B12\u670822\u65E5\u66F4\u65B0\u516C\u544A\u0022,\u0022title_img\u0022:\u0022https://static\u002Djd.gameduchy.com/lsns/news_pic/2025/202512/20251223/fm1.png\u0022,\u0022model_name\u0022:\u0022notice\u0022,\u0022content\u0022:\u0022\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u0026nbsp\u003B\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u258C\u5361\u6C60\u76F8\u5173\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u3010\u4E13\u5217\u62DB\u52DF\u3011\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u8D77\u6B62\u65F6\u95F4\uFF1A\u003C/span\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E12\u670822\u65E5\u66F4\u65B0\u540E \u002D 1\u670812\u65E5 12:00\u003C/span\u003E\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003ESSR \u0026ldquo\u003B\u751C\u83DC\u51FA\u52A8\u0026rdquo\u003B\u65F6\u841D \u83B7\u5F97\u6982\u7387\u63D0\u5347\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u0026nbsp\u003B\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u3010\u5E38\u9A7B\u62DB\u52DF\u3011\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u8D77\u6B62\u65F6\u95F4\uFF1A\u003C/span\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E12\u670822\u65E5\u66F4\u65B0\u540E \u002D 12\u670829\u65E5 12:00\u003C/span\u003E\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003ESSR \u82CF\u6069 \u83B7\u5F97\u6982\u7387\u63D0\u5347\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u0026nbsp\u003B\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u0022},{\u0022id\u0022:289,\u0022update_time\u0022:\u00222025\u002D12\u002D02\u0022,\u0022pub_date\u0022:\u00222025\u002D12\u002D02\u0022,\u0022title\u0022:\u0022\u300A\u96F7\u7D22\u7EB3\u65AF\u300B12\u67082\u65E5\u66F4\u65B0\u516C\u544A\u0022,\u0022title_img\u0022:\u0022https://static\u002Djd.gameduchy.com/lsns/news_pic/2025/202512/20251202/fm1.png\u0022,\u0022model_name\u0022:\u0022notice\u0022,\u0022content\u0022:\u0022\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u0026nbsp\u003B\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u258C\u5361\u6C60\u76F8\u5173\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u3010\u4E13\u5217\u62DB\u52DF\u3011\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u6C42\u7D22\u4E07\u7269\u4E4B\u4E2D\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003ESeek Within Everything That Happens\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u8D77\u6B62\u65F6\u95F4\uFF1A\u003C/span\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E12\u670802\u65E5\u66F4\u65B0\u540E \u002D 12\u670822\u65E5 12:00\u003C/span\u003E\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u62DB\u52DF\u8BF4\u660E\uFF1A\u4EE5\u4E0B\u4E58\u5458\u83B7\u5F97\u6982\u7387\u63D0\u5347\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003ESSR \u9648\u4E66\u95F2\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u0026nbsp\u003B\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u3010\u4E13\u5217\u62DB\u52DF\u3011\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u8D77\u6B62\u65F6\u95F4\uFF1A\u003C/span\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E12\u670802\u65E5\u66F4\u65B0\u540E \u002D 12\u670815\u65E5 12:00\u003C/span\u003E\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003ESSR \u0026ldquo\u003B\u591C\u7FFC\uFF0C\u4E0D\u9E23\u0026rdquo\u003B\u96BC \u83B7\u5F97\u6982\u7387\u63D0\u5347\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u0026nbsp\u003B\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u3010\u4E13\u5217\u62DB\u52DF\u3011\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u8D77\u6B62\u65F6\u95F4\uFF1A\u003C/span\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E12\u670802\u65E5\u66F4\u65B0\u540E \u002D 12\u670808\u65E5 12:00\u003C/span\u003E\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003ESSR \u0026ldquo\u003B\u88C1\u5B9A\u771F\u7406\u0026rdquo\u003B\u4E3D\u6851\u5FB7\u62C9 \u83B7\u5F97\u6982\u7387\u63D0\u5347\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u0026nbsp\u003B\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u0022},{\u0022id\u0022:288,\u0022update_time\u0022:\u00222025\u002D11\u002D26\u0022,\u0022pub_date\u0022:\u00222025\u002D11\u002D25\u0022,\u0022title\u0022:\u0022\u300A\u96F7\u7D22\u7EB3\u65AF\u300B11\u670825\u65E5\u66F4\u65B0\u516C\u544A\u0022,\u0022title_img\u0022:\u0022https://static\u002Djd.gameduchy.com/lsns/news_pic/2025/202511/20251126/fm2.png\u0022,\u0022model_name\u0022:\u0022notice\u0022,\u0022content\u0022:\u0022\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u0026nbsp\u003B\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u258C\u5361\u6C60\u76F8\u5173\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u3010\u4E13\u5217\u62DB\u52DF\u3011\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u8D77\u6B62\u65F6\u95F4\uFF1A\u003C/span\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E11\u670826\u65E5\u66F4\u65B0\u540E \u002D 12\u670817\u65E5 12:00\u003C/span\u003E\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003ESSR \u0026ldquo\u003B\u5411\u751F\u800C\u6B7B\u0026rdquo\u003B\u5207\u831C\u5A05 \u83B7\u5F97\u6982\u7387\u63D0\u5347\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u0026nbsp\u003B\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022mso\u002Dspacerun: \u0027yes\u0027\u003B font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14.0000pt\u003B mso\u002Dfont\u002Dkerning: 1.0000pt\u003B\u005C\u0022\u003E\u0022},{\u0022id\u0022:257,\u0022update_time\u0022:\u00222025\u002D07\u002D18\u0022,\u0022pub_date\u0022:\u00222025\u002D07\u002D11\u0022,\u0022title\u0022:\u0022\u300A\u96F7\u7D22\u7EB3\u65AF\u300B7\u670811\u65E5\u66F4\u65B0\u516C\u544A\u0022,\u0022title_img\u0022:\u0022https://static\u002Djd.gameduchy.com/lsns/news_pic/2025/202507/20250718/gg/fm2.png\u0022,\u0022model_name\u0022:\u0022notice\u0022,\u0022content\u0022:\u0022\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u3010\u5E38\u9A7B\u62DB\u52DF\u3011\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u8D77\u6B62\u65F6\u95F4\uFF1A\u003C/span\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E7\u670811\u65E5 12:00 \u002D 7\u670818\u65E5 12:00\u003C/span\u003E\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003ESSR \u5361\u5854\u65AF \u0026nbsp\u003B\u83B7\u5F97\u6982\u7387\u63D0\u5347\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u0026nbsp\u003B\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u3010\u5E38\u9A7B\u62DB\u52DF\u3011\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u8D77\u6B62\u65F6\u95F4\uFF1A\u003C/span\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E7\u670811\u65E5 12:00\u002D 7\u670818\u65E5 12:00\u003C/span\u003E\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003ESSR \u0026ldquo\u003B\u539F\u7F6A\u62B1\u62E5\u0026rdquo\u003B\u5B89\u83F2\u5A05\u83B7\u5F97\u6982\u7387\u63D0\u5347 \u0026nbsp\u003B\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u0026nbsp\u003B\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u0022},{\u0022id\u0022:247,\u0022update_time\u0022:\u00222025\u002D06\u002D27\u0022,\u0022pub_date\u0022:\u00222025\u002D06\u002D15\u0022,\u0022title\u0022:\u0022\u300A\u96F7\u7D22\u7EB3\u65AF\u300B6\u670815\u65E5\u66F4\u65B0\u516C\u544A\u0022,\u0022title_img\u0022:\u0022https://static\u002Djd.gameduchy.com/lsns/news_pic/2025/202506/20250627/1/fm4.png\u0022,\u0022model_name\u0022:\u0022notice\u0022,\u0022content\u0022:\u0022\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u3010\u4E13\u5217\u62DB\u52DF\u3011\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u754C\u5916\u798F\u97F3\u003C/span\u003E \u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u514B\u6D1B\u4F0A\u003C/span\u003E \u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003EUnheard\u002Dof Tempest Chloe\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u8D77\u6B62\u65F6\u95F4\uFF1A\u003C/span\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E6\u670815\u65E5 \u66F4\u65B0\u540E\u002D7\u670815\u65E5 12:00\u003C/span\u003E\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u62DB\u52DF\u8BF4\u660E\uFF1A\u4EE5\u4E0B\u4E58\u5458\u83B7\u5F97\u6982\u7387\u63D0\u5347\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003ESSR \u0026nbsp\u003B\u514B\u6D1B\u4F0A\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u0026nbsp\u003B\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u5965\u8389\u8587\u6069\u73B0\u5DF2\u52A0\u5165\u5E38\u9A7B\u62DB\u52DF\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u0026nbsp\u003B\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u0022},{\u0022id\u0022:242,\u0022update_time\u0022:\u00222025\u002D06\u002D09\u0022,\u0022pub_date\u0022:\u00222025\u002D06\u002D04\u0022,\u0022title\u0022:\u0022\u300A\u96F7\u7D22\u7EB3\u65AF\u300B6\u67084\u65E5\u66F4\u65B0\u516C\u544A\u0022,\u0022title_img\u0022:\u0022https://static\u002Djd.gameduchy.com/lsns/news_pic/2025/202506/20250609/fm4.jpg\u0022,\u0022model_name\u0022:\u0022notice\u0022,\u0022content\u0022:\u0022\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u3010\u7279\u8BBE\u62DB\u52DF\u3011\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u9759\u6D41\u003C/span\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u0026middot\u003B\u9010\u590F \u9650\u65F6UP\u4E2D\uFF01\u003C/span\u003E\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u8D77\u6B62\u65F6\u95F4\uFF1A\u003C/span\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E6\u67084\u65E5\u66F4\u65B0\u540E \u0026nbsp\u003B\u002D 6\u670825\u65E5 12:00\u003C/span\u003E\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u9759\u6D41\u003C/span\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u0026middot\u003B\u9010\u590F \u83B7\u5F97\u6982\u7387\u63D0\u5347 \u003C/span\u003E\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u0026nbsp\u003B\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u0022},{\u0022id\u0022:237,\u0022update_time\u0022:\u00222025\u002D05\u002D27\u0022,\u0022pub_date\u0022:\u00222025\u002D05\u002D23\u0022,\u0022title\u0022:\u0022\u300A\u96F7\u7D22\u7EB3\u65AF\u300B5\u670823\u65E5\u66F4\u65B0\u516C\u544A\u0022,\u0022title_img\u0022:\u0022https://static\u002Djd.gameduchy.com/lsns/news_pic/2025/202505/20250527/fm5.png\u0022,\u0022model_name\u0022:\u0022notice\u0022,\u0022content\u0022:\u0022\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u3010\u5E38\u9A7B\u62DB\u52DF\u3011\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u8D77\u6B62\u65F6\u95F4\uFF1A\u003C/span\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E5\u670823\u65E5 \u66F4\u65B0\u540E \u002D 5\u670830\u65E5 12:00\u003C/span\u003E\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003ESSR \u96BC \u83B7\u5F97\u6982\u7387\u63D0\u5347\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u0026nbsp\u003B\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u3010\u5E38\u9A7B\u62DB\u52DF\u3011\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u8D77\u6B62\u65F6\u95F4\uFF1A\u003C/span\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E5\u670823\u65E5 \u66F4\u65B0\u540E \u002D 5\u670830\u65E5 12:00\u003C/span\u003E\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003ESSR \u590F\u5C14 \u83B7\u5F97\u6982\u7387\u63D0\u5347\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u0026nbsp\u003B\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B bac\u0022},{\u0022id\u0022:200,\u0022update_time\u0022:\u00222025\u002D02\u002D17\u0022,\u0022pub_date\u0022:\u00222025\u002D02\u002D13\u0022,\u0022title\u0022:\u0022\u300A\u96F7\u7D22\u7EB3\u65AF\u300B2\u670813\u65E5\u66F4\u65B0\u516C\u544A\u0022,\u0022title_img\u0022:\u0022https://static\u002Djd.gameduchy.com/lsns/news_pic/2025/202502/20250217/fm3.png\u0022,\u0022model_name\u0022:\u0022notice\u0022,\u0022content\u0022:\u0022\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u3010\u7279\u8BBE\u62DB\u52DF\u003C/span\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u0026middot\u003B\u51C0\u706D\u516B\u82E6\u3011\u003C/span\u003E\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u8D77\u6B62\u65F6\u95F4\uFF1A\u003C/span\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E2025\u5E741\u670823\u65E5 12:00 \u002D 2025\u5E742\u670819\u65E5 12:00\u003C/span\u003E\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u62DB\u52DF\u8BF4\u660E\uFF1A\u4EE5\u4E0B\u4E58\u5458\u83B7\u5F97\u6982\u7387\u63D0\u5347\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003ESSR \u0026nbsp\u003B\u4E4C\u5239\u5A1C\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u0026nbsp\u003B\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u3010\u4E13\u5217\u62DB\u52DF\u003C/span\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u0026middot\u003B\u8FFD\u5BFB\u5F80\u6614\u4E4B\u98CE\u3011\u003C/span\u003E\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E\u8D77\u6B62\u65F6\u95F4\uFF1A\u003C/span\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B\u005C\u0022\u003E2025\u5E741\u670823\u65E5 12:00 \u002D 2025\u5E742\u670826\u65E5 12:00\u003C/span\u003E\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u62DB\u52DF\u8BF4\u660E\uFF1A\u4EE5\u4E0B\u4E58\u5458\u83B7\u5F97\u6982\u7387\u63D0\u5347\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003ESSR \u0026nbsp\u003B\u7F57\u6D01\u5C14\u0026middot\u003B\u5B9A\u683C\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u0026nbsp\u003B\u003C/span\u003E\u003C/p\u003E\u005Cr\u005Cn\u003Cp class\u003D\u005C\u0022MsoNormal\u005C\u0022 style\u003D\u005C\u0022background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u003Cspan style\u003D\u005C\u0022font\u002Dfamily: \u5FAE\u8F6F\u96C5\u9ED1\u003B font\u002Dsize: 14pt\u003B background\u002Dimage: initial\u003B background\u002Dposition: initial\u003B background\u002Dsize: initial\u003B background\u002Drepeat: initial\u003B background\u002Dattachment: initial\u003B background\u002Dorigin: initial\u003B background\u002Dclip: initial\u003B\u005C\u0022\u003E\u0022}]");

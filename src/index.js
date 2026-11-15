@@ -281,7 +281,13 @@ const PROXY_ALLOW_HOSTS = [
 	// CORS 拦，必须走宿主代理。代理上限 8 MB > 单页 ~0.7 MB，不用调。
 	// ⚠️ 与官网站点（`*.idolmaster-official.jp`）**不是同一域**，那批站点本身只有物贩/直播公告，
 	//   没有游戏内日程（判据见 `30-game-idolmaster.js` 文件头）。
-	"melonpapapapa-n.com"
+	"melonpapapapa-n.com",
+	// 雷索纳斯 **国服官网**首页（2026-11-15 接入，卡池 + 活动同源）：`GET /` → 200 /
+	// `text/html; charset=utf-8` / **整页 7,451,933 B**（更新公告 `notice_json` 在 2.88MB 处，
+	// 服务端**忽略 `Range`**（实测仍回 200 全量）⇒ 只能整页取一次再缓存 24h）。
+	// 实测（2026-11-15）：**完全没有 `Access-Control-Allow-Origin`**（带 `Origin: dsh-app://dsh`
+	// 再测一遍也是空）⇒ 浏览器直连必被 CORS 拦，必须走宿主代理。
+	"soli-reso.com"
 ];
 
 /** Default outgoing request headers (browser-like, to satisfy anti-scrape). */

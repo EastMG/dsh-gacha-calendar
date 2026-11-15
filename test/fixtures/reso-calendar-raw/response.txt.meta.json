@@ -1,6 +1,0 @@
-{
-  "url": "https://wiki.biligame.com/resonance/index.php?title=活动日历&action=raw",
-  "status": 200,
-  "capturedAt": "2026-11-14T22:57:30.850Z",
-  "note": "真抓原样（未裁剪，3096 B；last-modified 头 = Mon, 26 Oct 2026 13:11:13 GMT）。活行 8 条招募，其余是日历模板与 <!-- 注释 -->（注释里有 03.21-04.10 / 05.31-06.29 两行**已下架**的旧档期，解析器必须先剥注释，否则会把它们当当期）。"
-}
