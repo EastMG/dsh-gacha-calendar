@@ -847,27 +847,30 @@
 				pcrTwSectionOf: ns_pcr_tw_sectionOf,
 				pcrTwTitleNameOf: ns_pcr_tw_titleNameOf
 			},
-			// 2026-11-15 雷索纳斯（reso）：bwiki「活动日历」的 wikitext（`action=raw`）+ revisions 只补年份。
-			// 导出纯解析步，回归可以分别钉住：注释里的旧档期不算 / 模板条件行不算 / 8 条招募逐字 /
-			// 年份补全（页面更新年 + 前一年 + 次年 + `endsNextYear` 跨年）/ `{}` ⇒ 抛错 / 无当期 ⇒ null。
+			// 2026-11-15 雷索纳斯（reso）：官网首页 `soli-reso.com` 的内联 `notice_json`（更新公告，
+			// 双重转义 ⇒ 两次 JSON.parse）。导出纯解析步，回归可以分别钉住：内联 JSON 抽取 / 缺锚点抛错 /
+			// `起止时间` 的 7 种写法 + 年份补全（显式年 / inferYear / 跨年镜像 / `endsNextYear`）/
+			// 无锚点不产出 / 24h 缓存与轮内共享（首轮 1 次、稳态 0 次）。
 			"reso": {
-				RESO_PAGE: ns_reso_PAGE,
-				RESO_RAW_URL: ns_reso_RAW_URL,
+				RESO_CACHE_TTL_MS: ns_reso_CACHE_TTL_MS,
+				RESO_HOME: ns_reso_HOME,
 				RESO_REFERER: ns_reso_REFERER,
-				RESO_REV_URL: ns_reso_REV_URL,
 				RESO_SOURCE_LABEL: ns_reso_SOURCE_LABEL,
 				RESO_TZ: ns_reso_TZ,
+				RESO_URL: ns_reso_URL,
 				eventsReso: ns_reso_events,
 				gachaReso: ns_reso_gacha,
 				resoItemsOf: ns_reso_itemsOf,
 				resoLinesOf: ns_reso_linesOf,
-				resoNameOf: ns_reso_nameOf,
+				resoNewestIdOf: ns_reso_newestIdOf,
+				resoNoticesOf: ns_reso_noticesOf,
 				resoResetCache: ns_reso_resetCache,
-				resoRevStampOf: ns_reso_revStampOf,
-				resoRowOf: ns_reso_rowOf,
+				resoRoleOf: ns_reso_roleOf,
 				resoRowsOf: ns_reso_rowsOf,
-				resoSideOf: ns_reso_sideOf,
-				resoStartYearOf: ns_reso_startYearOf
+				resoStartYearOf: ns_reso_startYearOf,
+				resoTagOf: ns_reso_tagOf,
+				resoWindowOf: ns_reso_windowOf,
+				resoYearHintOf: ns_reso_yearHintOf
 			},
 			// 2026-11-15 幻塔（tof，国服）：官网 `gamenews` 列表（第 1 页 6 条版本公告）+ 最新版本那篇的
 			// 正文（`限定拟态角色「…」、限定武器「…」` + `正式服活动时间：…` + `“X订购活动”`）。

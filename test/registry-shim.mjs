@@ -140,15 +140,15 @@ NEXT_SOURCES.push(
 		gacha: { url: T.parsers["pcr-tw"].PCR_TW_LIST_URL, kind: "official-html", mode: "proxy", fetcher: resolve("pcr-tw.gachaPcrTw") },
 		event: { url: T.parsers["pcr-tw"].PCR_TW_LIST_URL, kind: "official-html", mode: "proxy", fetcher: resolve("pcr-tw.eventsPcrTw") }
 	},
-	// 2026-11-15：雷索纳斯（`reso`）—— bwiki「活动日历」的 wikitext（`action=raw`，必须带 Referer）
-	// + `api.php?action=query&prop=revisions` 只补年份。两侧同一条 URL（轮内共享 2 次请求）。
-	// 响应无 ACAO ⇒ `mode: "proxy"`。
+	// 2026-11-15：雷索纳斯（`reso`）—— 官网首页 `soli-reso.com` 的内联 `notice_json`（更新公告，
+	// 双重转义、卡池 `起止时间` 都在正文里；整页 7,451,933 B，服务端忽略 Range）。两侧同一条 URL
+	// （轮内共享 1 次请求；解析结果按 URL 缓存 24h ⇒ 稳态 0 次）。响应无 ACAO ⇒ `mode: "proxy"`。
 	{
 		id: "reso",
 		tz: "Asia/Shanghai",
 		name: "雷索纳斯",
-		gacha: { url: T.parsers.reso.RESO_RAW_URL, kind: "wiki", mode: "proxy", fetcher: resolve("reso.gachaReso") },
-		event: { url: T.parsers.reso.RESO_RAW_URL, kind: "wiki", mode: "proxy", fetcher: resolve("reso.eventsReso") }
+		gacha: { url: T.parsers.reso.RESO_URL, kind: "official-html", mode: "proxy", fetcher: resolve("reso.gachaReso") },
+		event: { url: T.parsers.reso.RESO_URL, kind: "official-html", mode: "proxy", fetcher: resolve("reso.eventsReso") }
 	},
 	// 2026-11-15：幻塔（`tof`，国服）—— 官网 `gamenews` 列表（SSR，第 1 页 6 条版本公告）+ **最新版本那篇**
 	// 的正文；**只接卡池侧**（活动侧没有可靠源 ⇒ `event: null` = 设置页「未配置」）。

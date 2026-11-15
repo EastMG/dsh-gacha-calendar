@@ -1,0 +1,29 @@
+{
+  "capturedAt": "2026-11-15T07:49:29Z",
+  "method": "GET",
+  "status": 200,
+  "url": "https://soli-reso.com/",
+  "fullBytes": 7451933,
+  "fullChars": 7448083,
+  "truncated": true,
+  "truncation": {
+    "keptHeadChars": 54918,
+    "keptHeadUntil": "var news_json = JSON.parse( 之前（干净语句边界）",
+    "noticeJsonAtChars": 2880537,
+    "actiiJsonAtChars": 7357600,
+    "newsJsonLiteralChars": 2825581,
+    "noticeEntries": 8,
+    "contentTrimming": "起点=窗口前最近的【标签】所在 <p>；终点=末个窗口之后的下一个 ▌小节（保留角色行）；无窗口的条目保留开头 320 字符",
+    "note": "notice_json 位于 2,880,537 字符处，头部 100KB（Range 也拿不到：服务端忽略 Range 回 200 全量 7,451,933 B）",
+    "keptNoticeIds": [
+      290,
+      289,
+      288,
+      257,
+      247,
+      242,
+      237,
+      200
+    ]
+  }
+}
