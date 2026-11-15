@@ -1898,4 +1898,259 @@ export default async function runBatch2() {
 			check("反证：分类里一条活动都没有 ⇒ 活动侧 null（不是抛错）", ge6 === null, JSON.stringify(ge6));
 		}
 	}
+	// ═══════════════════ 2026-11-15 第三批：碧蓝幻想（gbf）/ 舰队Collection（kancolle）═══════════════════
+	// 两条都**只接活动侧**（卡池侧 `url: ""` = 未配置，一个请求都不发）：
+	//   · gbf        = gbf-wiki.com「イベント/開催予定・開催中」（PukiWiki 两张同构表：現在開催中 + 今後の予定）
+	//   · kancolle   = wikiwiki.jp「期間限定出撃」（历年大型活动档案，新的一期在最上面）
+	// 真夹具：`gbf-events`（2026-11-15 抓，裁剪到两张表）/ `kancolle-events`（同日抓，裁剪到最新 6 期）。
+	// 断言一律写 `Date.UTC(...)` 手算的绝对毫秒：UTC 与 +08 两道门禁跑**同一份期望值**。
+	{
+		section("2026-11-15 第三批①：注册项（两条都只接活动侧 + 标签逐字 + 颜色下发）");
+		const GF = T.parsers.gbf;
+		const KC = T.parsers.kancolle;
+		const gbf = T.SOURCES.find((x) => x.id === "gbf") || null;
+		const kc = T.SOURCES.find((x) => x.id === "kancolle") || null;
+		check("gbf 已注册进 SOURCES", !!gbf, gbf ? gbf.id : "缺失");
+		check("kancolle 已注册进 SOURCES", !!kc, kc ? kc.id : "缺失");
+		check("gbf 名称 = 碧蓝幻想", !!gbf && gbf.name === "碧蓝幻想", gbf && gbf.name);
+		check("kancolle 名称 = 舰队Collection", !!kc && kc.name === "舰队Collection", kc && kc.name);
+		check("gbf tz = Asia/Tokyo（源站自身口径）", !!gbf && gbf.tz === "Asia/Tokyo", gbf && String(gbf.tz));
+		check("kancolle tz = Asia/Tokyo（源站自身口径）", !!kc && kc.tz === "Asia/Tokyo", kc && String(kc.tz));
+		check("gbf tz 与解析器常量一致", GF.GBF_TZ === "Asia/Tokyo", GF.GBF_TZ);
+		check("kancolle tz 与解析器常量一致", KC.KANCOLLE_TZ === "Asia/Tokyo", KC.KANCOLLE_TZ);
+		check("gbf 出厂展示（defaultHidden = false）", !!gbf && gbf.defaultHidden === false, gbf && String(gbf.defaultHidden));
+		check("kancolle 出厂展示（defaultHidden = false）", !!kc && kc.defaultHidden === false, kc && String(kc.defaultHidden));
+		// 颜色由 20-source-core.js 的 SOURCE_COLORS 下发（条目自己不写 color）
+		check("gbf 颜色 = #2E62B0（王室蓝，已下发）", !!gbf && gbf.color === "#2E62B0", gbf && String(gbf.color));
+		check("kancolle 颜色 = #3C5470（浓绀，已下发）", !!kc && kc.color === "#3C5470", kc && String(kc.color));
+		check("两条都有 http(s) 图标",
+			!!gbf && /^https?:\/\//.test(String(gbf.icon)) && !!kc && /^https?:\/\//.test(String(kc.icon)),
+			`${gbf && String(gbf.icon).slice(0, 46)} | ${kc && String(kc.icon).slice(0, 46)}`);
+		// 卡池侧**刻意留空**（未配置 ⇒ 不发请求、面板显示「未配置」，不是失败）
+		check("gbf 卡池侧未配置（url = \"\" 且不写 source）",
+			!!gbf && gbf.url === "" && gbf.source == null, gbf && JSON.stringify({ url: gbf.url, source: gbf.source }));
+		check("kancolle 卡池侧未配置（url = \"\" 且不写 source）",
+			!!kc && kc.url === "" && kc.source == null, kc && JSON.stringify({ url: kc.url, source: kc.source }));
+		// 活动侧 = 源站单页；标签逐字
+		check("gbf eventUrl = gbf-wiki 的「イベント/開催予定・開催中」",
+			!!gbf && gbf.eventUrl === GF.GBF_EVENTS_URL && /^https:\/\/gbf-wiki\.com\/\?/.test(String(gbf.eventUrl)), gbf && String(gbf.eventUrl));
+		check("kancolle eventUrl = wikiwiki 的「期間限定出撃」",
+			!!kc && kc.eventUrl === KC.KANCOLLE_EVENTS_URL && /^https:\/\/wikiwiki\.jp\/kancolle\//.test(String(kc.eventUrl)), kc && String(kc.eventUrl));
+		check("gbf 活动来源标签逐字 = wiki 活动一览（gbf-wiki）",
+			!!gbf && gbf.eventSource === "wiki 活动一览（gbf-wiki）", gbf && String(gbf.eventSource));
+		check("kancolle 活动来源标签逐字 = wiki 活动一览（wikiwiki）",
+			!!kc && kc.eventSource === "wiki 活动一览（wikiwiki）", kc && String(kc.eventSource));
+		check("gbf 标签与常量同源", GF.GBF_SOURCE_LABEL === (gbf && gbf.eventSource), GF.GBF_SOURCE_LABEL);
+		check("kancolle 标签与常量同源", KC.KANCOLLE_SOURCE_LABEL === (kc && kc.eventSource), KC.KANCOLLE_SOURCE_LABEL);
+		check("gbf 活动抓取器已登记（EVENT_FETCHERS.gbf.default）",
+			typeof (T.EVENT_FETCHERS.gbf && T.EVENT_FETCHERS.gbf.default) === "function");
+		check("kancolle 活动抓取器已登记（EVENT_FETCHERS.kancolle.default）",
+			typeof (T.EVENT_FETCHERS.kancolle && T.EVENT_FETCHERS.kancolle.default) === "function");
+		check("gbf 没有卡池抓取器（卡池侧未配置）", T.GACHA_FETCHERS.gbf == null, typeof T.GACHA_FETCHERS.gbf);
+		check("kancolle 没有卡池抓取器（卡池侧未配置）", T.GACHA_FETCHERS.kancolle == null, typeof T.GACHA_FETCHERS.kancolle);
+		check("id 全局唯一（新增两条没造成重复）", new Set(T.SOURCES.map((x) => x.id)).size === T.SOURCES.length);
+	}
+
+	{
+		section("2026-11-15 第三批②：碧蓝幻想 —— gbf-wiki 两张活动表（真夹具）");
+		const GF = T.parsers.gbf;
+		const html = fixtureBody(GF.GBF_EVENTS_URL);
+		const tables = GF.gbfTablesOf(html).filter((t) => t.includes(GF.GBF_DATE_HEAD));
+		check("两张活动表都命中（表头含「開催日時」的那两张）", tables.length === 2, String(tables.length));
+		const items = GF.gbfItemsOf(html, GF.GBF_TZ);
+		check("解析出 4 条（現在開催中 1 + 今後 3）", items.length === 4, JSON.stringify(items.map((x) => x.event)));
+		const want = [
+			["十天衆戦記", Date.UTC(2026, 10, 13, 8, 0), Date.UTC(2026, 10, 20, 7, 59), "2026/11/13 17:00～2026/11/20 16:59", "11-13 17:00 ~ 11-20 16:59"],
+			["コラボイベント（SHAMAN KING）", Date.UTC(2027, 0, 14, 15, 0), null, "2027/01/15 ～", null],
+			["シナリオイベント（不明）", Date.UTC(2026, 10, 28, 8, 0), Date.UTC(2026, 11, 6, 11, 59), "2026/11/28 17:00～2026/12/06 20:59", "11-28 17:00 ~ 12-06 20:59"],
+			["決戦！星の古戦場", Date.UTC(2026, 10, 21, 10, 0), Date.UTC(2026, 10, 28, 14, 59), "2026/11/21 19:00～2026/11/28 23:59", "11-21 19:00 ~ 11-28 23:59"]
+		];
+		want.forEach(([name, st, en, raw, disp], i) => {
+			const it = items[i];
+			check(`第 ${i + 1} 条名称 = ${name}`, !!it && it.event === name, it && it.event);
+			check(`第 ${i + 1} 条 startTs（JST 墙钟 → 绝对毫秒）`, !!it && it.startTs === st,
+				it && new Date(it.startTs).toISOString());
+			check(`第 ${i + 1} 条 endTs`, !!it && it.endTs === en, it && String(it.endTs));
+			check(`第 ${i + 1} 条 raw 保留源站原文（不换算）`, !!it && it.raw === raw, it && it.raw);
+			check(`第 ${i + 1} 条 display（缺终点就退回原文）`, !!it && it.display === (disp || raw), it && it.display);
+		});
+		check("占位括号名补了种别前缀（没有只剩括号的名字）",
+			items.every((x) => !/^（[^）]*）$/.test(x.event)), JSON.stringify(items.map((x) => x.event)));
+		check("名字尾巴没有 PukiWiki 的新建页问号",
+			items.every((x) => !/[?？]$/.test(x.event)), JSON.stringify(items.map((x) => x.event)));
+		check("只有起点的那条（2027/01/15 ～）endTs = null（不冒充在期）",
+			items.filter((x) => x.event.indexOf("SHAMAN KING") >= 0).every((x) => x.endTs === null));
+		// 只写日期的写法（这里没有，用纯函数直接钉住 00:00 / 23:59 的通用约定）
+		const onlyDate = GF.gbfWindowOf("2026/11/13～2026/11/20", GF.GBF_TZ);
+		check("只写日期 ⇒ 起点 00:00 / 终点 23:59（仓库通用约定）",
+			!!onlyDate && onlyDate.startTs === Date.UTC(2026, 10, 12, 15, 0) && onlyDate.endTs === Date.UTC(2026, 10, 20, 14, 59),
+			onlyDate && (new Date(onlyDate.startTs).toISOString() + " / " + new Date(onlyDate.endTs).toISOString()));
+		// 反证：抹掉时间锚点 ⇒ 不产出条目（不是抛错）
+		const noDates = GF.gbfItemsOf(html.replace(/\d{4}\/\d{1,2}\/\d{1,2}/g, ""), GF.GBF_TZ);
+		check("反证：把所有日期抹掉 ⇒ 一条窗口都产不出来（表还在、行还在）", noDates.length === 0, String(noDates.length));
+		// `{}` ⇒ 结构变了，抛错
+		let e1 = null;
+		try { GF.gbfItemsOf("{}", GF.GBF_TZ); } catch (e) { e1 = e; }
+		check("反证：`{}` ⇒ 抛 `gbf-events-changed:no-table`",
+			!!e1 && /gbf-events-changed:no-table/.test(e1.message), e1 && e1.message);
+		// 表还在、一行 <td> 行都没有 ⇒ 也是结构变了
+		let e2 = null;
+		try { GF.gbfItemsOf(html.replace(/<td\b/g, "<xx"), GF.GBF_TZ); } catch (e) { e2 = e; }
+		check("反证：表在但一行数据行都没有 ⇒ 抛 `gbf-events-changed:no-rows`",
+			!!e2 && /gbf-events-changed:no-rows/.test(e2.message), e2 && e2.message);
+
+		// 列位由表头逐字定位：表头改名（= 结构变了）⇒ 抛错，绝不错列吞数据
+		let e3 = null;
+		try { GF.gbfItemsOf(html.replace(">イベント名<", ">イベント名（改）<"), GF.GBF_TZ); } catch (e) { e3 = e; }
+		check("反证：表头「イベント名」被改掉 ⇒ 抛 `gbf-events-changed:no-columns`（按表头定位，不硬编码列号）",
+			!!e3 && /gbf-events-changed:no-columns/.test(e3.message), e3 && e3.message);
+	}
+
+	{
+		section("2026-11-15 第三批③：碧蓝幻想 —— 抓取器（单页 1 请求 / 按 URL 缓存 24h / 走代理）");
+		const GF = T.parsers.gbf;
+		const NOW = Date.parse("2026-11-15T12:00:00+09:00");
+		const sink = [];
+		GF.gbfResetCache();
+		const e = engineAt(NOW, sink);
+		const s = e.__test.SOURCES.find((x) => x.id === "gbf");
+		const p = await e.__test.EVENT_FETCHERS.gbf.default(s.eventUrl, undefined, s.tz);
+		check("在期活动 = 十天衆戦記", !!p && p.event === "十天衆戦記", p && p.event);
+		check("活动档期文本 = 11-13 17:00 ~ 11-20 16:59", !!p && p.eventDates === "11-13 17:00 ~ 11-20 16:59", p && p.eventDates);
+		check("活动档期原文保留源站写法", !!p && p.eventDatesRaw === "2026/11/13 17:00～2026/11/20 16:59", p && p.eventDatesRaw);
+		check("数据数组 events[] 只有覆盖当期的那 1 条（今后 3 条不冒充在期）",
+			!!p && Array.isArray(p.events) && p.events.length === 1, p && (p.events || []).length);
+		assertHoverConvention("gbf 活动悬停", p && p.eventHover);
+		check("只请求 1 次（单页，行里自带档期）", sink.length === 1, JSON.stringify(sink.map((x) => x.via)));
+		check("走宿主代理（源站无 ACAO）且目标就是 gbf-wiki.com",
+			sink.length === 1 && sink[0].via === "proxy" && /^https:\/\/gbf-wiki\.com\//.test(sink[0].url), sink[0] && sink[0].url);
+		// 缓存：同一 now 再调一次不再发请求
+		const p2 = await e.__test.EVENT_FETCHERS.gbf.default(s.eventUrl, undefined, s.tz);
+		check("缓存命中（同一 now 再取一次：请求数仍是 1）", sink.length === 1, String(sink.length));
+		check("缓存命中后载荷逐字相同", JSON.stringify(p2) === JSON.stringify(p), JSON.stringify(p2).slice(0, 80));
+		// 换 now 看档期切换（每次复位缓存，避免跨引擎命中上一轮的 at）
+		const at = async (iso) => {
+			GF.gbfResetCache();
+			const sk = [];
+			const en = engineAt(Date.parse(iso), sk);
+			const so = en.__test.SOURCES.find((x) => x.id === "gbf");
+			return en.__test.EVENT_FETCHERS.gbf.default(so.eventUrl, undefined, so.tz);
+		};
+		const p3 = await at("2026-11-22T12:00:00+09:00");
+		check("2026-11-22 ⇒ 決戦！星の古戦場（今後の予定表の行が当期になる）",
+			!!p3 && p3.event === "決戦！星の古戦場" && p3.eventDates === "11-21 19:00 ~ 11-28 23:59",
+			p3 && (p3.event + " / " + p3.eventDates));
+		const p4 = await at("2026-12-01T12:00:00+09:00");
+		check("2026-12-01 ⇒ シナリオイベント（不明）",
+			!!p4 && p4.event === "シナリオイベント（不明）" && p4.eventDates === "11-28 17:00 ~ 12-06 20:59",
+			p4 && (p4.event + " / " + p4.eventDates));
+		const p5 = await at("2027-02-01T12:00:00+09:00");
+		check("2027-02-01 ⇒ 没有覆盖当期的窗口 ⇒ null（不是抛错）", p5 === null, JSON.stringify(p5));
+		// `{}` ⇒ 抛错（经抓取器）
+		GF.gbfResetCache();
+		const e2 = engineAt(NOW, [], null, { override: () => "{}" });
+		const s2 = e2.__test.SOURCES.find((x) => x.id === "gbf");
+		let err = null;
+		try { await e2.__test.EVENT_FETCHERS.gbf.default(s2.eventUrl, undefined, s2.tz); } catch (e3) { err = e3; }
+		check("反证：源站回 `{}` ⇒ 抓取器抛 `gbf-events-changed:no-table`",
+			!!err && /gbf-events-changed:no-table/.test(err.message), err && err.message);
+		// 抹掉档期 ⇒ null（不抛）
+		GF.gbfResetCache();
+		const e3 = engineAt(NOW, [], null, { override: () => fixtureBody(GF.GBF_EVENTS_URL).replace(/\d{4}\/\d{1,2}\/\d{1,2}/g, "") });
+		const s3 = e3.__test.SOURCES.find((x) => x.id === "gbf");
+		const p6 = await e3.__test.EVENT_FETCHERS.gbf.default(s3.eventUrl, undefined, s3.tz);
+		check("反证：档期全被抹掉 ⇒ 活动侧 null（不抛错、不算失败）", p6 === null, JSON.stringify(p6));
+	}
+
+	{
+		section("2026-11-15 第三批④：舰队Collection —— wikiwiki「期間限定出撃」（真夹具）");
+		const KC = T.parsers.kancolle;
+		const html = fixtureBody(KC.KANCOLLE_EVENTS_URL);
+		const secs = KC.kancolleSectionsOf(html);
+		check("夹具里 12 个事件段（裁剪到最新 12 期）", secs.length === 12, String(secs.length));
+		const items = KC.kancolleItemsOf(html, KC.KANCOLLE_TZ);
+		check("12 期都解析出了窗口", items.length === 12, JSON.stringify(items.map((x) => x.event)));
+		const first = items[0];
+		check("最新一期名称 = 反撃！第三十一戦隊の戦い（期次后缀已去掉）",
+			!!first && first.event === "反撃！第三十一戦隊の戦い", first && first.event);
+		check("最新一期 startTs（只写日期 ⇒ 00:00 JST）", !!first && first.startTs === Date.UTC(2026, 6, 7, 15, 0),
+			first && new Date(first.startTs).toISOString());
+		check("最新一期 endTs（只写日期 ⇒ 23:59 JST）", !!first && first.endTs === Date.UTC(2026, 8, 10, 14, 59),
+			first && new Date(first.endTs).toISOString());
+		check("最新一期 raw = 源站原文 2026/07/08～2026/09/10", !!first && first.raw === "2026/07/08～2026/09/10", first && first.raw);
+		check("最新一期 display = 07-08 00:00 ~ 09-10 23:59", !!first && first.display === "07-08 00:00 ~ 09-10 23:59", first && first.display);
+		check("所有名字都不带 `(YYYY年…イベント)` 期次后缀",
+			items.every((x) => !/[（(]\s*\d{4}\s*年/.test(x.event)), JSON.stringify(items.map((x) => x.event)));
+		check("名字清洗纯函数：`逆転！ナルヴィク攻防戦(2025年秋イベント)` ⇒ `逆転！ナルヴィク攻防戦`",
+			KC.kancolleNameOf("逆転！ナルヴィク攻防戦(2025年秋イベント)") === "逆転！ナルヴィク攻防戦",
+			KC.kancolleNameOf("逆転！ナルヴィク攻防戦(2025年秋イベント)"));
+		check("名字清洗纯函数：没有后缀的名字原样返回",
+			KC.kancolleNameOf("Operation Menace") === "Operation Menace", KC.kancolleNameOf("Operation Menace"));
+		// 反证：抹掉档期锚点 ⇒ 不产出条目（段位还在）
+		const noWin = KC.kancolleItemsOf(html.replace(/期間限定[！!]?\s*【[^】]*】/g, "期間限定"), KC.KANCOLLE_TZ);
+		check("反证：把所有 `期間限定！【…】` 抹掉 ⇒ 一条窗口都产不出来（段位还在、不抛错）",
+			noWin.length === 0, String(noWin.length));
+		// `{}` ⇒ 结构变了，抛错
+		let e1 = null;
+		try { KC.kancolleItemsOf("{}", KC.KANCOLLE_TZ); } catch (e) { e1 = e; }
+		check("反证：`{}` ⇒ 抛 `kancolle-events-changed:no-sections`",
+			!!e1 && /kancolle-events-changed:no-sections/.test(e1.message), e1 && e1.message);
+		// 段位换标签（h2 → h3）= 结构变了，也要抛
+		let e2 = null;
+		try { KC.kancolleItemsOf(html.replace(/<h2\b/g, "<h3").replace(/<\/h2>/g, "</h3>"), KC.KANCOLLE_TZ); } catch (e) { e2 = e; }
+		check("反证：事件段标签换成 h3 ⇒ 抛 `kancolle-events-changed:no-sections`",
+			!!e2 && /kancolle-events-changed:no-sections/.test(e2.message), e2 && e2.message);
+	}
+
+	{
+		section("2026-11-15 第三批⑤：舰队Collection —— 抓取器（单页 1 请求 / 24h 缓存 / 真机当期为空）");
+		const KC = T.parsers.kancolle;
+		const at = async (iso, extraOpts) => {
+			KC.kancolleResetCache();
+			const sk = [];
+			const en = engineAt(Date.parse(iso), sk, null, extraOpts);
+			const so = en.__test.SOURCES.find((x) => x.id === "kancolle");
+			const out = await en.__test.EVENT_FETCHERS.kancolle.default(so.eventUrl, undefined, so.tz);
+			return { out, sk };
+		};
+		const live = await at("2026-08-01T12:00:00+09:00");
+		const p = live.out;
+		check("2026-08-01（2026 夏イベ在期）⇒ 反撃！第三十一戦隊の戦い",
+			!!p && p.event === "反撃！第三十一戦隊の戦い", p && p.event);
+		check("活动档期文本 = 07-08 00:00 ~ 09-10 23:59",
+			!!p && p.eventDates === "07-08 00:00 ~ 09-10 23:59", p && p.eventDates);
+		check("活动档期原文 = 2026/07/08～2026/09/10", !!p && p.eventDatesRaw === "2026/07/08～2026/09/10", p && p.eventDatesRaw);
+		check("数据数组 events[] 只有覆盖当期的那 1 条", !!p && Array.isArray(p.events) && p.events.length === 1,
+			p && (p.events || []).length);
+		check("只请求 1 次（单页档案）", live.sk.length === 1, JSON.stringify(live.sk.map((x) => x.via)));
+		check("走宿主代理（源站无 ACAO）且目标就是 wikiwiki.jp",
+			live.sk.length === 1 && live.sk[0].via === "proxy" && /^https:\/\/wikiwiki\.jp\/kancolle\//.test(live.sk[0].url),
+			live.sk[0] && live.sk[0].url);
+		assertHoverConvention("kancolle 活动悬停", p && p.eventHover);
+		// 2026-11-15 真机口径：最近一期（2026 夏イベ）已于 2026-09-10 结束、秋イベ未公布 ⇒ null
+		const nowDay = await at("2026-11-15T12:00:00+09:00");
+		check("2026-11-15（真机当天：最近一期已结束、下一期未公布）⇒ null（不是抛错）",
+			nowDay.out === null, JSON.stringify(nowDay.out));
+		const later = await at("2027-03-01T12:00:00+09:00");
+		check("2027-03-01（夹具里没有覆盖该时刻的期）⇒ null", later.out === null, JSON.stringify(later.out));
+		// 缓存：同一 now 再调一次不再发请求
+		KC.kancolleResetCache();
+		const sk2 = [];
+		const e2 = engineAt(Date.parse("2026-08-01T12:00:00+09:00"), sk2);
+		const s2 = e2.__test.SOURCES.find((x) => x.id === "kancolle");
+		await e2.__test.EVENT_FETCHERS.kancolle.default(s2.eventUrl, undefined, s2.tz);
+		await e2.__test.EVENT_FETCHERS.kancolle.default(s2.eventUrl, undefined, s2.tz);
+		check("缓存命中（同一 now 连取两次：请求数仍是 1）", sk2.length === 1, String(sk2.length));
+		// `{}` ⇒ 抛错
+		const bad = await at("2026-08-01T12:00:00+09:00", { override: () => "{}" }).then(
+			() => null, (e) => e);
+		check("反证：源站回 `{}` ⇒ 抓取器抛 `kancolle-events-changed:no-sections`",
+			!!bad && /kancolle-events-changed:no-sections/.test(bad.message), bad && bad.message);
+		// 抹掉档期 ⇒ 本页没有窗口；但**页面里有一条更早的窗口**（脚本注：抹掉后全空 ⇒ null）
+		const wiped = await at("2026-08-01T12:00:00+09:00", {
+			override: () => fixtureBody(KC.KANCOLLE_EVENTS_URL).replace(/期間限定[！!]?\s*【[^】]*】/g, "期間限定")
+		});
+		check("反证：档期全被抹掉 ⇒ 活动侧 null（不抛错）", wiped.out === null, JSON.stringify(wiped.out));
+	}
 }
+

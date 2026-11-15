@@ -170,6 +170,24 @@ NEXT_SOURCES.push(
 		name: "盲盒派对",
 		gacha: { url: T.parsers.gachaparty.GACHAPARTY_POOL_URL, kind: "wiki", mode: "proxy", fetcher: resolve("gachaparty.gachaGachaparty") },
 		event: { url: T.parsers.gachaparty.GACHAPARTY_EVENT_URL, kind: "wiki", mode: "proxy", fetcher: resolve("gachaparty.eventsGachaparty") }
+	},
+	// 2026-11-15 第三批：碧蓝幻想（`gbf`）/ 舰队Collection（`kancolle`）—— 两条都**只接活动侧**
+	// （卡池 `url: ""` = 未配置：GBF 的卡池/公告是登录态数据、kancolle 没有"卡池"这个概念）。
+	// 两个源站（gbf-wiki.com / wikiwiki.jp）响应都**没有 ACAO** ⇒ `mode: "proxy"`
+	// （域名已登记 `src/index.js` 的 `PROXY_ALLOW_HOSTS`）。时区都是源站自身口径 Asia/Tokyo。
+	{
+		id: "gbf",
+		tz: "Asia/Tokyo",
+		name: "碧蓝幻想",
+		gacha: null,
+		event: { url: T.parsers.gbf.GBF_EVENTS_URL, kind: "wiki", mode: "proxy", fetcher: resolve("gbf.eventsGbf") }
+	},
+	{
+		id: "kancolle",
+		tz: "Asia/Tokyo",
+		name: "舰队Collection",
+		gacha: null,
+		event: { url: T.parsers.kancolle.KANCOLLE_EVENTS_URL, kind: "wiki", mode: "proxy", fetcher: resolve("kancolle.eventsKancolle") }
 	}
 );
 

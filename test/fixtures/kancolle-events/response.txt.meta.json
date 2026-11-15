@@ -1,0 +1,7 @@
+{
+  "url": "https://wikiwiki.jp/kancolle/%E6%9C%9F%E9%96%93%E9%99%90%E5%AE%9A%E5%87%BA%E6%92%83",
+  "status": 200,
+  "capturedAt": "2026-11-15T07:44:30.000Z",
+  "bytes": 8458,
+  "note": "真抓裁剪：源页 444,946 B（WikiWiki 服务端渲染，41 个 `anchor_super` 事件段）。只保留最新 12 期：每期一个 `<h2>` 见出 + 紧跟的那段 `<p><strong>期間限定！【起～止】…</strong>…</p>`；每期后面的海域表（几十 KB）整段删除。`<h2>` 与档期行的原文一个字符没改。"
+}
