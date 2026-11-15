@@ -104,6 +104,7 @@ dsh-gacha-calendar/
 │       ├── 30-game-pcr-tw.js      # 公主连结Re:Dive·繁中服（So-net 官网公告）：列表 `/news?page=1`（SSR，一页 10 条，类别只认标题前缀 `【轉蛋】`/`【活動】`）+ 详情 `newsDetail/{id}`（**只认 `<section class="news_con">`**，正文里"整行恰为日期区间"才是窗口、名字取上一行 `■…期間`）；每侧最多 2 篇详情、按 id 缓存 24h、两侧轮内共享 1 次列表
 │       ├── 30-game-bwiki-reso.js  # 雷索纳斯（国服）：bwiki「活动日历」的 wikitext（`action=raw`，必须带 Referer）+ `revisions` 只补年份（页面更新年 + `inferYear` 上一年 + 镜像次年 + `endsNextYear`）；日期只有 `mm.dd-mm.dd` ⇒ 起 00:00 / 止 23:59；两侧同一条 URL 轮内共享 2 次请求
 │       ├── 30-game-tof.js         # 幻塔（国服）：官网 `gamenews` 列表（SSR，第 1 页 6 条版本公告）+ **最新版本那一篇**的正文（`限定拟态角色「…」、限定武器「…」` + `正式服活动时间：…` + `“X订购活动”`）；两端都明确才算池、池名/角色/起止到分；详情按 URL 缓存 24h（首轮 2 次 / 稳态 1 次）；**只有卡池侧**（活动 `eventUrl:""` = 未配置）
+│       ├── 30-game-bwiki-gachaparty.js # 盲盒派对（国服）：bwiki 卡池模板 `模板:近期盲盒扭蛋` 的 wikitext（`{{首页卡池|池名|角色1|角色2|起|止}}`，**必须先剥 `<!-- -->` 注释**）+ 活动侧 SMW `action=ask` 查 `分类:活动`（首页 `模板:近期活动` 只有结束时刻、没有起点 ⇒ 构不成窗口）；两侧 URL 不同 ⇒ 每轮 2 次请求
 │       ├── 44-test-exports.js # 回归出口：解析器 + env 工具 + 来源表
 │       ├── 50-refresh.js     # 刷新编排、失败沿用旧值、提示归类
 │       ├── 60-helpers.js     # 顶部提示归类 / 显隐判定 / 排序 / 角色名与倒计时格式化 / 启动刷新判定
@@ -945,6 +946,34 @@ FGO 的活动外显走特化规则 `schedulePickFgoEvent`（不读 `eventTier`�
 另两个改源：`fgo-jp` 由「沿用国服图标」改为**日服**官方图标（JP 1015521325，Aniplex），
 `hl-jp` 由 `https://www.azurlane.jp/favicon.ico` 改为日服官方 App 图标（JP 1242186587，Yostar）。
 九个 URL 活网实测均 HTTP 200 + `content-type: image/jpeg`。
+
+### 新接入的 1 款（2026-11-15 晚）：盲盒派对（`gachaparty`）
+
+自包含一条（`30-game-bwiki-gachaparty.js`：条目 + 解析器 + 抓取器 + 登记），两侧 URL **不同** ⇒ 每轮
+**2 次请求**（卡池 1 + 活动 1）。`defaultHidden: false`（出厂展示），tz = `Asia/Shanghai`。
+两处都**必须带 `Referer: https://wiki.biligame.com/`**（否则 EdgeOne WAF 回 567），且响应无 ACAO ⇒ 走宿主代理。
+
+| 侧 | URL / 形态 | 来源标签（逐字） |
+|---|---|---|
+| 卡池 | `api.php?action=parse&page=模板:近期盲盒扭蛋&prop=wikitext`（模板 `{{首页卡池\|池名\|角色1\|角色2\|起\|止}}`，位置参数 1~5） | 「Bwiki 近期盲盒扭蛋」 |
+| 活动 | `api.php?action=ask&query=[[分类:活动]]\|?活动名称\|?活动开始时间\|?活动结束时间\|sort=活动开始时间\|order=desc\|limit=100` | 「Bwiki 近期活动」 |
+
+- **卡池**：原文 10 个 `{{首页卡池}}` 里 **7 个写在 `<!-- -->` 注释里**（2026-03~09 的旧池）⇒ 解析前必须剥注释，
+  否则已下架的旧池会被当当期。命名参数 `补充角色1/2` 同样渲染成角色按钮 ⇒ 也算 UP；`link-N` 只影响跳转、不进字段。
+  自选池的角色位是源站自己的占位写法（「心愿自选角色」/「4UP必出」）⇒ **原样**当 UP，不编角色名。
+- **活动**：为什么不用首页那份 `模板:近期活动` —— 它展开后**开始时间三个参数全空**（只有结束时刻），
+  按「起点未知 ≠ 已开始」一条都进不了外显；改查该 wiki 生成 `活动` 页的同一份 SMW 查询。
+  属性是 `_txt` ⇒ printouts 形如 `["20261029"]` ⇒ 起 00:00 / 止 23:59（仓库通用约定）。
+- **外显口径**：覆盖 now 的条目里取**结束最早**那口（`ns_bwiki_batchGachaPayloadOf` 的 `endTs` 升序），
+  角色只合并同批（同 `endTs`）的池 —— 与白荆回廊同一份载荷生成器。
+- **实测当期**（2026-11-15 13:50 +08）：卡池「秋日自选扩招：太极宗师、心愿自选角色」09-27 00:00 ~ 11-15 23:59
+  （另 2 池并列：万圣卡池 10-29~11-22、联动卡池 11-05~11-29，悬停 3 行）；
+  活动「山河同庆」09-27 ~ 11-15 23:59（另 1 条并列：万圣惊魂夜 10-29~11-22，悬停 2 行）。
+- **失败语义**：`parse.wikitext` 缺失（含 `{}`）⇒ 抛 `gachaparty-pools-changed:*`；剥完注释一个调用都没有 ⇒ 抛
+  （模板改版）；SMW 没有 `query.results` ⇒ 抛 `gachaparty-events-changed:no-results`，有 results 却一条都解不出
+  起止 ⇒ 抛 `:no-window`；**SMW 空分类（`results: {}`）⇒ 活动侧 `null`（不是失败）**；结构正常但无一覆盖 now ⇒ `null`。
+- 夹具：`gachaparty-pools`（真抓原样）/ `gachaparty-events`（真抓裁剪：34 条 → 最新 12 条）。
+  回归在 `test/cases-batch2.mjs` 的「第二批⑯」段。
 
 ### 新接入的 2 款（2026-11-15）
 

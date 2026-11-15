@@ -100,7 +100,9 @@
 			"pcr-tw": "Asia/Taipei",
 			"reso": "Asia/Shanghai",
 			// 2026-11-15：幻塔（国服官网公告，墙钟 UTC+8；只有卡池侧）
-			"tof": "Asia/Shanghai"
+			"tof": "Asia/Shanghai",
+			// 2026-11-15：盲盒派对（国服 bwiki 卡池模板 + SMW 活动，源站墙钟 UTC+8）
+			"gachaparty": "Asia/Shanghai"
 		};
 		// 状态键 / 档期文本的两条形态（正则只在这里写一次）
 		const REMIND_KEY_RE = /^[^|]+\|[^|]+\|(?:end|start)\|\d+$/;

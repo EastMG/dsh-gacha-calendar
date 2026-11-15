@@ -1726,4 +1726,176 @@ export default async function runBatch2() {
 				!!r.gachaFail && r.gachaFail.kind === "down", JSON.stringify(r.gachaFail));
 		}
 	}
+
+	// ═══════════════════ ⑯ 盲盒派对（gachaparty，2026-11-15 接入）═══════════════════
+	// 两侧 URL 不同：卡池 = bwiki `模板:近期盲盒扭蛋` 的 wikitext（`prop=wikitext`）；
+	// 活动 = 同站 SMW `action=ask` 查 `分类:活动`（首页那份 `模板:近期活动` 只有结束时刻、没有起点
+	// ⇒ 按仓库口径构不成窗口，不取它 —— 见 `30-game-bwiki-gachaparty.js` 文件头 ②）。
+	section("第二批⑯：盲盒派对 —— bwiki 卡池模板（注释里的旧池不算）+ SMW 活动");
+	{
+		const GP = T.parsers.gachaparty;
+		const GP_POOL = GP.GACHAPARTY_POOL_URL;
+		const GP_EVENT = GP.GACHAPARTY_EVENT_URL;
+		// 抓取时刻 2026-11-15 13:50 +08（夹具 capturedAt 之后）⇒ 三池 / 两活动都在期
+		// （秋日自选扩招与山河同庆当天 23:59 结束）
+		const GP_NOW = Date.parse("2026-11-15T13:50:00+08:00");
+		const at = (y, mo, d, h, mi) => Date.UTC(y, mo - 1, d, h, mi) - 8 * 3600 * 1000;
+
+		// ── ⑯-1 注册 ──
+		{
+			const s = T.SOURCES.find((x) => x.id === "gachaparty") || null;
+			check("条目已存在（id = gachaparty）", !!s, s ? s.id : "缺失");
+			check("name = 盲盒派对", !!s && s.name === "盲盒派对", s && s.name);
+			check("tz = Asia/Shanghai", !!s && s.tz === "Asia/Shanghai", s && s.tz);
+			check("卡池 url = 模板:近期盲盒扭蛋 的 wikitext（prop=wikitext）",
+				!!s && s.url === GP_POOL && /action=parse/.test(s.url) && /prop=wikitext/.test(s.url), s && String(s.url));
+			check("活动 eventUrl = SMW action=ask（**不是**首页模板）",
+				!!s && s.eventUrl === GP_EVENT && /action=ask/.test(s.eventUrl), s && String(s.eventUrl));
+			check("两侧来源标签逐字 = Bwiki 近期盲盒扭蛋 / Bwiki 近期活动",
+				!!s && s.source === "Bwiki 近期盲盒扭蛋" && s.eventSource === "Bwiki 近期活动",
+				s && JSON.stringify([s.source, s.eventSource]));
+			check("defaultHidden = false（出厂展示）", !!s && s.defaultHidden === false, s && String(s.defaultHidden));
+			check("配色已登记（gachaparty = #B4559F）", !!s && s.color === "#B4559F", s && String(s.color));
+		}
+
+		// ── ⑯-2 卡池：注释里的 7 个旧池不算；三个在期池逐字 ──
+		{
+			const calls = [];
+			const e = engineAt(GP_NOW, calls);
+			const s = e.__test.SOURCES.find((x) => x.id === "gachaparty");
+			const gp = await e.__test.GACHA_FETCHERS["gachaparty"](s.url, undefined, s.tz);
+			check("卡池抓取器返回对象（不是 null）", !!gp && typeof gp === "object");
+			check("外显池名 = 秋日自选扩招（结束最早那口）", !!gp && gp.banner === "秋日自选扩招", JSON.stringify(gp && gp.banner));
+			check("UP 逐字 = 太极宗师、心愿自选角色（`3` 号位是源站的占位写法，也照抄）",
+				!!gp && gp.roles === "太极宗师、心愿自选角色", JSON.stringify(gp && gp.roles));
+			check("档期 = 09-27 00:00 ~ 11-15 23:59（源站原文两端 = 2026/9/27 0:00 ~ 2026/11/15 23:59）",
+				!!gp && gp.bannerDates === "09-27 00:00 ~ 11-15 23:59"
+				&& gp.bannerDatesRaw === "2026/9/27 0:00 ~ 2026/11/15 23:59",
+				JSON.stringify([gp && gp.bannerDates, gp && gp.bannerDatesRaw]));
+			check("`gacha[]` 3 条在期池（结束时间升序）",
+				!!gp && Array.isArray(gp.gacha) && gp.gacha.length === 3
+				&& gp.gacha.map((x) => x.title).join("|") === "秋日自选扩招|万圣卡池：星夜床头柜、夜灯守护者|联动卡池：天鹅魔女",
+				JSON.stringify(gp && (gp.gacha || []).map((x) => x.title)));
+			check("三条池的绝对时刻逐条对（UTC 手算，与时区无关）",
+				!!gp && gp.gacha[0].startTs === at(2026, 9, 27, 0, 0) && gp.gacha[0].endTs === at(2026, 11, 15, 23, 59)
+				&& gp.gacha[1].startTs === at(2026, 10, 29, 0, 0) && gp.gacha[1].endTs === at(2026, 11, 22, 23, 59)
+				&& gp.gacha[2].startTs === at(2026, 11, 5, 0, 0) && gp.gacha[2].endTs === at(2026, 11, 29, 23, 59),
+				JSON.stringify((gp && gp.gacha || []).map((x) => [x.startTs, x.endTs])));
+			// 反证：`<!-- … -->` 里的 7 个调用（套圈广场 / 周年自选扩招 / 节拍律动 / 商城兑换 /
+			// 夏日自选扩招 / 联动卡池-幸福天使 / 春日自选扩招）一个都不许出现
+			const all = JSON.stringify(gp || {});
+			const leaked = ["套圈广场", "周年自选扩招", "节拍律动", "商城兑换", "夏日自选扩招", "幸福天使", "春日自选扩招"]
+				.filter((n) => all.indexOf(n) >= 0);
+			check("反证：注释里已下架的 7 个旧池一个都没漏进载荷", leaked.length === 0, leaked.join(","));
+			assertHoverConvention("gachaparty 卡池悬停", gp && gp.bannerHover, { requireSet: true });
+			check("悬停三行池（池名：角色 ⏎ 档期 …）",
+				!!gp && String(gp.bannerHover).split("\n").length === 6 && String(gp.bannerHover).indexOf("万圣卡池：星夜床头柜、夜灯守护者") >= 0,
+				JSON.stringify(gp && gp.bannerHover));
+		}
+
+		// ── ⑯-3 活动：SMW 的 `"20261029"` → 起 00:00 / 止 23:59 ──
+		{
+			const calls = [];
+			const e = engineAt(GP_NOW, calls);
+			const s = e.__test.SOURCES.find((x) => x.id === "gachaparty");
+			const ge = await e.__test.EVENT_FETCHERS["gachaparty"].default(s.eventUrl, undefined, s.tz);
+			check("活动抓取器返回对象（不是 null）", !!ge && typeof ge === "object");
+			check("活动外显 = 山河同庆（结束最早）", !!ge && ge.event === "山河同庆", JSON.stringify(ge && ge.event));
+			check("活动档期 = 09-27 00:00 ~ 11-15 23:59（源站原文两端 = 20260927 ~ 20261115）",
+				!!ge && ge.eventDates === "09-27 00:00 ~ 11-15 23:59" && ge.eventDatesRaw === "20260927 ~ 20261115",
+				JSON.stringify([ge && ge.eventDates, ge && ge.eventDatesRaw]));
+			check("`events[]` 2 条在期（山河同庆 / 万圣惊魂夜；11-08 就结束的智能生活节不在）",
+				!!ge && Array.isArray(ge.events) && ge.events.length === 2
+				&& ge.events[0].title === "山河同庆" && ge.events[1].title === "万圣惊魂夜",
+				JSON.stringify(ge && (ge.events || []).map((x) => x.title)));
+			check("活动时刻逐条对（起 00:00 / 止 23:59）",
+				!!ge && ge.events[0].startTs === at(2026, 9, 27, 0, 0) && ge.events[0].endTs === at(2026, 11, 15, 23, 59)
+				&& ge.events[1].startTs === at(2026, 10, 29, 0, 0) && ge.events[1].endTs === at(2026, 11, 22, 23, 59),
+				JSON.stringify((ge && ge.events || []).map((x) => [x.startTs, x.endTs])));
+			assertHoverConvention("gachaparty 活动悬停", ge && ge.eventHover, { requireSet: true });
+		}
+
+		// ── ⑯-4 请求数：整轮 2 次（卡池 1 + 活动 1，两侧 URL 不同 ⇒ 没有共享）──
+		{
+			const sink = [];
+			const allIds = engineAt(GP_NOW, []).__test.SOURCES.map((x) => x.id);
+			const only = { hidden: allIds.filter((id) => id !== "gachaparty"), shown: ["gachaparty"] };
+			const e = engineAt(GP_NOW, sink, only);
+			const r = await e.refresh();
+			const rec = r.games["gachaparty"] || {};
+			const proxied = proxyCallsOf(sink);
+			check("整轮：两侧都不 fail", rec.gachaFail == null && rec.eventFail == null,
+				JSON.stringify([rec.gachaFail, rec.eventFail]));
+			check("整轮：请求总数 = 2（卡池模板 1 次 + SMW 1 次）", proxied.length === 2, String(proxied.length));
+			check("整轮：两次都带 Referer: https://wiki.biligame.com/（否则 567）",
+				proxied.every((c) => c.referer === "https://wiki.biligame.com/"), JSON.stringify(proxied.map((c) => c.referer)));
+			check("整轮记录：卡池 + 活动两侧字段都落进同一条记录",
+				rec.banner === "秋日自选扩招" && rec.event === "山河同庆" && (rec.gacha || []).length === 3 && (rec.events || []).length === 2,
+				JSON.stringify([rec.banner, rec.event, (rec.gacha || []).length, (rec.events || []).length]));
+		}
+
+		// ── ⑯-5 纯解析：剥注释 / 命名参数也算 UP ──
+		{
+			const wt = JSON.parse(fixtureBody(GP_POOL)).parse.wikitext;
+			const callsAll = GP.gachapartyPoolCallsOf(wt);
+			check("剥注释后只剩 3 个 `{{首页卡池}}` 调用（原文 10 个，7 个在注释里）",
+				callsAll.length === 3, String(callsAll.length));
+			const args = GP.gachapartyArgsOf("秋日自选扩招|太极宗师|心愿自选角色|2026/9/27 0:00|2026/11/15 23:59|link-2=山河同庆");
+			check("参数拆分：5 个位置参数 + 命名参数 link-2 不进位置参数",
+				args.pos.length === 5 && args.pos[0] === "秋日自选扩招" && args.pos[4] === "2026/11/15 23:59"
+				&& args.named["link-2"] === "山河同庆",
+				JSON.stringify([args.pos.length, args.pos[4], args.named["link-2"]]));
+			const withExtra = GP.gachapartyPoolOf("池甲|角色甲|角色乙|2026/1/1 0:00|2026/1/8 23:59|补充角色1=角色丙|补充角色2=角色丁", "Asia/Shanghai");
+			check("命名参数 补充角色1/2 也算 UP（模板里同样渲染成角色按钮）",
+				!!withExtra && withExtra.roles === "角色甲、角色乙、角色丙、角色丁", JSON.stringify(withExtra && withExtra.roles));
+			const noDate = GP.gachapartyPoolOf("商城兑换|风之铃|||", "Asia/Shanghai");
+			check("反证：起止全空（源站真的这么写过）⇒ 这条不产出", noDate === null, JSON.stringify(noDate));
+		}
+
+		// ── ⑯-6 反证：抹掉时间锚点 ⇒ 不进外显；`{}` ⇒ 抛错（非 nomatch）──
+		{
+			// 抹掉万圣卡池那一行的起止（`|2026/10/29 0:00|2026/11/22 23:59` → `||`）
+			const e = engineAt(GP_NOW, [], null, {
+				override: (u) => (/gachaparty\/api\.php\?action=parse/.test(u)
+					? fixtureBody(GP_POOL).replace("|2026/10/29 0:00|2026/11/22 23:59", "||")
+					: null)
+			});
+			const s = e.__test.SOURCES.find((x) => x.id === "gachaparty");
+			const gp = await e.__test.GACHA_FETCHERS["gachaparty"](s.url, undefined, s.tz);
+			check("反证：抹掉万圣卡池的起止 ⇒ 它从 `gacha[]` 里消失（3 → 2）",
+				!!gp && gp.gacha.length === 2 && JSON.stringify(gp).indexOf("万圣卡池") < 0,
+				JSON.stringify(gp && (gp.gacha || []).map((x) => x.title)));
+			check("反证：外显不受影响（仍是秋日自选扩招）", !!gp && gp.banner === "秋日自选扩招", JSON.stringify(gp && gp.banner));
+
+			// 起止全被抹掉 ⇒ 一条窗口都没有 ⇒ null（未公布，**不抛错**）
+			const e2 = engineAt(GP_NOW, [], null, {
+				override: (u) => (/gachaparty\/api\.php\?action=parse/.test(u)
+					? fixtureBody(GP_POOL).replace(/\|2026\/\d{1,2}\/\d{1,2} \d{1,2}:\d{2}\|2026\/\d{1,2}\/\d{1,2} \d{1,2}:\d{2}/g, "||")
+					: null)
+			});
+			const s2 = e2.__test.SOURCES.find((x) => x.id === "gachaparty");
+			const gp2 = await e2.__test.GACHA_FETCHERS["gachaparty"](s2.url, undefined, s2.tz);
+			check("反证：所有池的起止都被抹掉 ⇒ 卡池侧 null（不是抛错）", gp2 === null, JSON.stringify(gp2));
+
+			// `{}` ⇒ 抛错（不是"未公布"）
+			const e3 = engineAt(GP_NOW, [], null, { override: (u) => (/gachaparty\/api\.php/.test(u) ? "{}" : null) });
+			const s3 = e3.__test.SOURCES.find((x) => x.id === "gachaparty");
+			let err = null;
+			try { await e3.__test.GACHA_FETCHERS["gachaparty"](s3.url, undefined, s3.tz); } catch (e4) { err = e4; }
+			check("反证：卡池模板回 `{}` ⇒ 抛 `gachaparty-pools-changed:no-wikitext`",
+				!!err && /gachaparty-pools-changed:no-wikitext/.test(err.message), JSON.stringify(err && err.message));
+			let err2 = null;
+			try { await e3.__test.EVENT_FETCHERS["gachaparty"].default(s3.eventUrl, undefined, s3.tz); } catch (e5) { err2 = e5; }
+			check("反证：SMW 回 `{}` ⇒ 抛 `gachaparty-events-changed:no-results`",
+				!!err2 && /gachaparty-events-changed:no-results/.test(err2.message), JSON.stringify(err2 && err2.message));
+
+			// 空分类（results = {}）⇒ null（当期没有，不是失败）
+			const e6 = engineAt(GP_NOW, [], null, {
+				override: (u) => (/gachaparty\/api\.php\?action=ask/.test(u) ? JSON.stringify({ query: { results: {} } }) : null)
+			});
+			const s6 = e6.__test.SOURCES.find((x) => x.id === "gachaparty");
+			const ge6 = await e6.__test.EVENT_FETCHERS["gachaparty"].default(s6.eventUrl, undefined, s6.tz);
+			check("反证：分类里一条活动都没有 ⇒ 活动侧 null（不是抛错）", ge6 === null, JSON.stringify(ge6));
+		}
+	}
 }

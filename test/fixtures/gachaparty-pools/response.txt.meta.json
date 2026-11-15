@@ -1,0 +1,7 @@
+{
+  "url": "https://wiki.biligame.com/gachaparty/api.php?action=parse&page=模板:近期盲盒扭蛋&prop=wikitext&format=json&formatversion=2",
+  "status": 200,
+  "capturedAt": "2026-11-15T05:46:34.727Z",
+  "bytes": 2219,
+  "note": "真抓原样（未裁剪）。wikitext 里 3 条在期卡池调用（`|图1=` 一行三个 `{{首页卡池|…}}`），其余 7 条全部写在 `<!-- … -->` 注释里（套圈广场 / 周年自选扩招 / 节拍律动 / 商城兑换 / 夏日自选扩招 / 联动卡池-幸福天使 / 春日自选扩招）⇒ 解析器必须先剥注释，否则 2026-03~09 的旧池会被当当期。末尾 {{#css:…}} 与解析无关。"
+}

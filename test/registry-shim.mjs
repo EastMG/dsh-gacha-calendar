@@ -159,6 +159,17 @@ NEXT_SOURCES.push(
 		name: "幻塔",
 		gacha: { url: T.parsers.tof.TOF_LIST_URL, kind: "official-html", mode: "proxy", fetcher: resolve("tof.gachaTof") },
 		event: null
+	},
+	// 2026-11-15：盲盒派对（`gachaparty`）—— 两侧**不同 URL**：
+	// 卡池 = bwiki `模板:近期盲盒扭蛋` 的 wikitext（`prop=wikitext`）；
+	// 活动 = 同站 SMW `action=ask` 查 `分类:活动`（首页那份 `模板:近期活动` 只有结束时刻、没有起点
+	// ⇒ 按仓库口径构不成窗口，不取它）。两处都要 `Referer`，响应无 ACAO ⇒ `mode: "proxy"`。
+	{
+		id: "gachaparty",
+		tz: "Asia/Shanghai",
+		name: "盲盒派对",
+		gacha: { url: T.parsers.gachaparty.GACHAPARTY_POOL_URL, kind: "wiki", mode: "proxy", fetcher: resolve("gachaparty.gachaGachaparty") },
+		event: { url: T.parsers.gachaparty.GACHAPARTY_EVENT_URL, kind: "wiki", mode: "proxy", fetcher: resolve("gachaparty.eventsGachaparty") }
 	}
 );
 

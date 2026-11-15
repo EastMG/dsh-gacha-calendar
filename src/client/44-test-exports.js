@@ -913,7 +913,33 @@
 				cytqWindowOf: ns_cytq_windowOf,
 				cytqWindowTextOf: ns_cytq_windowTextOf,
 				eventsCytq: ns_cytq_events,
-				gachaCytq: ns_cytq_gacha			},
+				gachaCytq: ns_cytq_gacha
+			},
+			// 2026-11-15 盲盒派对（gachaparty）：bwiki 卡池模板 `模板:近期盲盒扭蛋` 的 wikitext
+			// + 活动侧 SMW `action=ask` 查 `分类:活动`。导出纯解析步，回归可以分别钉住：
+			// 注释里的 7 个旧池不算 / 三个在期池逐字（池名 + UP + 起止）/ 命名参数 `补充角色N` 也算 UP /
+			// SMW 字符串日期（`"20261029"`）→ 起 00:00 止 23:59 / `{}` ⇒ 抛错 / 抹掉区间 ⇒ 不进外显。
+			"gachaparty": {
+				GACHAPARTY_EVENT_LABEL: ns_gachaparty_EVENT_LABEL,
+				GACHAPARTY_EVENT_QUERY: ns_gachaparty_EVENT_QUERY,
+				GACHAPARTY_EVENT_URL: ns_gachaparty_EVENT_URL,
+				GACHAPARTY_POOL_LABEL: ns_gachaparty_POOL_LABEL,
+				GACHAPARTY_POOL_PAGE: ns_gachaparty_POOL_PAGE,
+				GACHAPARTY_POOL_URL: ns_gachaparty_POOL_URL,
+				GACHAPARTY_REFERER: ns_gachaparty_REFERER,
+				GACHAPARTY_TZ: ns_gachaparty_TZ,
+				eventsGachaparty: ns_gachaparty_events,
+				gachaGachaparty: ns_gachaparty_gacha,
+				gachapartyArgsOf: ns_gachaparty_argsOf,
+				gachapartyDayOf: ns_gachaparty_dayOf,
+				gachapartyEventsOf: ns_gachaparty_eventsOf,
+				gachapartyPointOf: ns_gachaparty_pointOf,
+				gachapartyPoolCallsOf: ns_gachaparty_poolCallsOf,
+				gachapartyPoolOf: ns_gachaparty_poolOf,
+				gachapartyPoolsOf: ns_gachaparty_poolsOf,
+				gachapartyTextOf: ns_gachaparty_textOf,
+				gachapartyTsOf: ns_gachaparty_tsOf
+			},
 			},
 			// 共用工具 / env（测试原先从 next-sources/lib/env.js 取；压平后分别见 23-parser-time.js / 24-parser-window.js / 27-parser-text.js / 28-parser-hover-tools.js）
 			fmtWindow,

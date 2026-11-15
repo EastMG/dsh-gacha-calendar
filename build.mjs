@@ -210,6 +210,9 @@ const ORDER = [
   // 2026-11-15：幻塔（tof，国服）—— 官网 `gamenews` 列表（第 1 页）+ **最新版本那一篇**的正文；
   // 只接卡池侧（活动置空 = 未配置）。排在最后 ⇒ 面板顺序追加在末尾。
   "30-game-tof.js",
+  // 2026-11-15：盲盒派对（gachaparty）—— bwiki 卡池模板 `模板:近期盲盒扭蛋`（`prop=wikitext`）
+  // + 活动侧 SMW `action=ask` 查 `分类:活动`（两侧 URL 不同 ⇒ 每轮 2 次）。排在最后 ⇒ 面板顺序追加在末尾。
+  "30-game-bwiki-gachaparty.js",
   // 2026-11-15：崩坏学园2 官网公告（列表 POST + 详情；卡池 + 活动两侧同一条列表 → 轮内共享一次请求）
   "44-test-exports.js",        // 回归出口：解析器 + env 工具 + 来源表（挂 exports.__regression，测试用）
   "50-refresh.js",             // 刷新编排、失败沿用旧值
@@ -352,6 +355,7 @@ const CORE_ORDER = [
   "30-game-pcr-tw.js",         // 2026-11-15 公主连结·繁中服（官网公告：列表 + 详情；卡池 + 活动同源）
   "30-game-bwiki-reso.js",     // 2026-11-15 雷索纳斯（bwiki 活动日历 wikitext；年份由 revisions 补）
   "30-game-tof.js",            // 2026-11-15 幻塔（国服官网 gamenews：最新版本公告里的头牌限定池；只有卡池侧）
+  "30-game-bwiki-gachaparty.js", // 2026-11-15 盲盒派对（bwiki 卡池模板 wikitext + SMW 活动查询）
   "50-refresh.js",             // 刷新编排
   "engine-api.js",             // 注入 env + refresh() + 测试出口 + return
 ];

@@ -174,8 +174,10 @@ export default async function run() {
 	//   合计 27 + 19 = 46 个文件。
 	// 2026-11-15 晚 +1：`30-game-tof.js`（幻塔·国服，官网 gamenews 列表 + 最新版本公告详情；只有卡池侧）
 	//   ⇒ 厂商级 27 + 1 = 28；合计 28 + 19 = 47 个文件。
-	check("游戏文件齐备（28 个厂商/系列文件 + bwiki 系 19 段 = 47 个）",
-		vendorFiles.length === 28 && bwikiFiles.length === 19,		`厂商=${vendorFiles.length} bwiki=${bwikiFiles.length}`);
+	// 2026-11-15 同日晚再 +1：`30-game-bwiki-gachaparty.js`（盲盒派对，bwiki 卡池模板 + SMW 活动）
+	//   ⇒ bwiki 系 19 + 1 = 20；厂商级仍是 28；合计 28 + 20 = 48 个文件。
+	check("游戏文件齐备（28 个厂商/系列文件 + bwiki 系 20 段 = 48 个）",
+		vendorFiles.length === 28 && bwikiFiles.length === 20,		`厂商=${vendorFiles.length} bwiki=${bwikiFiles.length}`);
 	const hit = [];
 	// ⚠️ 重组后**条目声明也住在游戏文件里**（`registerSource({ … })`），而条目里的
 	//    `source:` / `eventSource:` / `label:` 是**数据**（如「Bestdori 扭蛋（社区数据库）」），
