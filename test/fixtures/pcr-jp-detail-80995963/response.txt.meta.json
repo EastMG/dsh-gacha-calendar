@@ -1,0 +1,6 @@
+{
+  "url": "https://bekr66d8pd-833ej8ymdl32y5zpbknx.microcms.io/api/v1/news/80995963",
+  "status": 200,
+  "capturedAt": "2026-11-15T08:00:00.000Z",
+  "note": "真抓裁剪：详情 JSON 原样保留（id / createdAt / updatedAt / publishedAt / revisedAt / display_date / categories / thumbnail / display_flag / title / body_html）；body_html 1697 B → 287 B，按 <p> 段落整段保留前 4 段（页头 / 開催中 + 11/03 12:00 那句 / `■開催期間` + 整行区间 / 基本ルール首段），其余整段删除。标题 = 「11月深淵討伐戦」開催中！ —— 只给「已结束窗口」那侧的反证用（live NOW 时活动侧提前收，不会取到它）。"
+}

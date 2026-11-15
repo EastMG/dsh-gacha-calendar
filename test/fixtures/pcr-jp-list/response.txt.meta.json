@@ -1,0 +1,6 @@
+{
+  "url": "https://bekr66d8pd-833ej8ymdl32y5zpbknx.microcms.io/api/v1/news?filters=title%5Bcontains%5D%E3%82%AC%E3%83%81%E3%83%A3%5Bor%5Dcategories%5Bcontains%5D%E3%82%A4%E3%83%99%E3%83%B3%E3%83%88&limit=20&fields=id,title,categories,display_date&orders=-display_date",
+  "status": 200,
+  "capturedAt": "2026-11-15T07:37:42.886Z",
+  "note": "真抓裁剪：microCMS 列表 filters=title[contains]ガチャ[or]categories[contains]イベント（活动侧靠 categories 圈）orders=-display_date limit=20，totalCount=2072；原始 20 条 → 保留 8 条（14116419 活动·明日开 / 34574244 プラチナガチャ·非本命池 / 27607457 复刻活动·正文无整行区间 / 78691968 当期ピックアップガチャ / 99142261 終了·标题即已结束 / 78578770 当期活动 / 80995963 / 70706490），其余 12 条 contents 整块删除（同结构、更早）。contents/totalCount/offset/limit 之外的字节未改。"
+}

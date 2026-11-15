@@ -98,7 +98,16 @@ const hostAllowed = (h) => ALLOW.some((a) => h === a || h.endsWith("." + a));
 //   实测 `GET /web/announcement?phoneType=4` 与 `/web/announcement/<id>?phoneType=4` 都 200 且
 //   `Access-Control-Allow-Origin: *`（`Access-Control-Allow-Methods: GET, POST, OPTIONS`）
 //   ⇒ 直连（抓取器 `mode: "direct"`），**不**进 PROXY_ALLOW_HOSTS。
-const DIRECT_HOSTS = ["api.umapyoi.net", "sekai-world.github.io", "gametora.com", "gh-proxy.com", "wqmt.aisnogames.com", "api.atlasacademy.io", "le3-prod-bili-gs-fever.bilibiligame.net"];
+//
+// bekr66d8pd-833ej8ymdl32y5zpbknx.microcms.io：プリンセスコネクト！Re:Dive·日服（pcr-jp，2026-11-15 接入，
+//   卡池 + 活动两侧同一条官方公告列表）。实测（2026-11-15 16:36 JST）：
+//     · `GET /api/v1/news?…`（列表）与 `/api/v1/news/{id}`（详情）都 200 /
+//       `content-type: application/json; charset=utf-8`，两个端点都回 `Access-Control-Allow-Origin: *`；
+//     · 列表要带自定义头 `X-MICROCMS-API-KEY`，所以浏览器会先发 OPTIONS 预检 ——
+//       带 `Origin: dsh-app://dsh` + `Access-Control-Request-Headers: x-microcms-api-key` 实测预检 200，
+//       且 `Access-Control-Allow-Headers` 明确含 `X-Microcms-Api-Key` ⇒ 自定义头放行。
+//   ⇒ 直连（抓取器 `mode: "direct"`），**不**进 PROXY_ALLOW_HOSTS。
+const DIRECT_HOSTS = ["api.umapyoi.net", "sekai-world.github.io", "gametora.com", "gh-proxy.com", "wqmt.aisnogames.com", "api.atlasacademy.io", "le3-prod-bili-gs-fever.bilibiligame.net", "bekr66d8pd-833ej8ymdl32y5zpbknx.microcms.io"];
 
 // ── 收集全部真实抓取目标 ──
 const targets = new Map();   // host → Set("条目id:用途")

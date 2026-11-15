@@ -2018,4 +2018,324 @@ export default async function run() {
 			&& String((((rBefore.games.tof || {}).gachaFail) || {}).kind) === "nomatch",
 			JSON.stringify([(rBefore.games.tof || {}).banner, (rBefore.games.tof || {}).gachaFail]));
 	}
+
+	// ───────── ⑪ 2026-11-15：プリンセスコネクト！Re:Dive·日服（pcr-jp）─────────
+	// 落点：`src/client/30-game-pcr-jp.js`（厂商级，一条来源；microCMS 官方公告）。
+	// 夹具全部真抓（2026-11-15 16:36 JST）：
+	//   · `pcr-jp-list`（filter 同时圈卡池 + 活动，20 条裁到 8 条）
+	//   · `pcr-jp-detail-78691968`（当期ピックアップガチャ；body_html 按段落裁，保留两条**行内日期**陷阱）
+	//   · `pcr-jp-detail-78578770`（当期活动 バトルスタジアム；保留 `※★獲得報酬は…14:59まで` 陷阱）
+	//   · `pcr-jp-detail-14116419`（明日 11/16 才开的活动 ⇒ 抓到了但尚未在期）
+	//   · `pcr-jp-detail-27607457`（复刻活动；**正文里没有整行区间** ⇒ 0 个窗口、不抛）
+	//   · `pcr-jp-detail-80995963`（11月深淵討伐戦 開催中；窗口 11-03 ~ 11-09 **已结束** ⇒ 封存反证用）
+	// 时间断言一律 `Date.UTC(...)` 手算（JST 墙钟 −9h），UTC / +08 两道门禁跑同一份期望值。
+	section("2026-11-15 公主连结·日服（pcr-jp）：microCMS 真夹具逐字 + 请求预算 + 缓存封存 + 反证");
+	{
+		const PCRJ = T.parsers["pcr-jp"];
+		const TZ_JP4 = "Asia/Tokyo";
+		const JP_LIST = PCRJ.PCR_JP_LIST_URL;
+		const JP_D = (id) => PCRJ.PCR_JP_DETAIL_BASE + id;
+		const JP_D_78691968 = JP_D("78691968");
+		const JP_D_78578770 = JP_D("78578770");
+		const JP_D_14116419 = JP_D("14116419");
+		const JP_D_27607457 = JP_D("27607457");
+		const JP_D_80995963 = JP_D("80995963");
+		const ALL_IDS4 = T.SOURCES.map((x) => x.id);
+		const BODY4 = {
+			[JP_LIST]: FIX("pcr-jp-list"),
+			[JP_D_78691968]: FIX("pcr-jp-detail-78691968"),
+			[JP_D_78578770]: FIX("pcr-jp-detail-78578770"),
+			[JP_D_14116419]: FIX("pcr-jp-detail-14116419"),
+			[JP_D_27607457]: FIX("pcr-jp-detail-27607457"),
+			[JP_D_80995963]: FIX("pcr-jp-detail-80995963")
+		};
+		const resp4 = (body) => ({ ok: true, status: 200, headers: { get: () => null }, text: async () => body, json: async () => JSON.parse(body) });
+		// 记账 transport：`sink` = 实际发出去的地址；`heads` = 每个直连请求的头（证明带了 microCMS key）；
+		// 代理出口**故意抛**（本条实测 ACAO * ⇒ 必须直连；真走代理会在这里炸出来）
+		const transport4 = (sink, heads, overrides) => ({
+			async fetchRaw(u, opts) {
+				const url = String(u);
+				if (sink) sink.push(url);
+				if (heads) heads.push({ url, headers: Object.assign({}, (opts && opts.headers) || {}) });
+				if (overrides && overrides[url] != null) return resp4(overrides[url]);
+				if (BODY4[url] != null) return resp4(BODY4[url]);
+				throw new Error("pcr-jp 用例没有这个 URL 的夹具：" + url);
+			},
+			async fetchViaProxy(u) { throw new Error("pcr-jp 实测 ACAO * ⇒ 走直连（mode=direct），不该用代理：" + u); }
+		});
+		const engine4 = (now, sink, heads, overrides) => createEngine({
+			transport: transport4(sink, heads, overrides),
+			storage: makeStore({ hidden: ALL_IDS4.filter((id) => id !== "pcr-jp"), shown: ["pcr-jp"] }),
+			now: () => now,
+			timer: { setTimeout, clearTimeout }
+		});
+		// 夹具抓取那天（2026-11-15）16:30 JST：バトルスタジアム 20:59 才收、エルピス討魔戦線 明日才开
+		const NOW4 = Date.parse("2026-11-15T16:30:00+09:00");
+
+		// ── ① 注册 ──
+		const srcJp = srcOf("pcr-jp");
+		check("pcr-jp 注册：卡池与活动**同一条**列表 URL；两侧标签逐字「官网公告（日服）」；tz = Asia/Tokyo；出厂默认展示",
+			!!srcJp && srcJp.url === JP_LIST && srcJp.eventUrl === JP_LIST
+			&& srcJp.source === "官网公告（日服）" && srcJp.eventSource === "官网公告（日服）"
+			&& srcJp.tz === TZ_JP4 && srcJp.defaultHidden === false
+			&& srcJp.name === "公主连结Re:Dive·日服",
+			srcJp ? JSON.stringify([srcJp.url, srcJp.eventUrl, srcJp.source, srcJp.tz, srcJp.name]) : "缺失");
+		check("pcr-jp 有配色（与 pcr-tw 同族但不同色）、id 全局唯一；两个抓取器都登记了",
+			!!srcJp && /^#[0-9A-F]{6}$/i.test(String(srcJp.color))
+			&& srcJp.color !== (srcOf("pcr-tw") || {}).color
+			&& new Set(ALL_IDS4).size === ALL_IDS4.length
+			&& typeof T.GACHA_FETCHERS["pcr-jp"] === "function"
+			&& !!(T.EVENT_FETCHERS["pcr-jp"] && typeof T.EVENT_FETCHERS["pcr-jp"].default === "function"),
+			JSON.stringify([srcJp && srcJp.color, (srcOf("pcr-tw") || {}).color, new Set(ALL_IDS4).size, ALL_IDS4.length]));
+		check("pcr-jp 列表地址：filters 同时圈卡池（title contains ガチャ）与活动（categories contains イベント）+ orders=-display_date",
+			/\/api\/v1\/news\?filters=/.test(JP_LIST)
+			&& decodeURIComponent(JP_LIST).includes("title[contains]ガチャ[or]categories[contains]イベント")
+			&& JP_LIST.includes("orders=-display_date") && JP_LIST.includes("fields=id,title,categories,display_date")
+			&& PCRJ.PCR_JP_SOURCE_LABEL === "官网公告（日服）" && PCRJ.PCR_JP_TZ === TZ_JP4,
+			JP_LIST);
+
+		// ── ② 列表：kind 分类（本命池 / 活动 / 已结束 / 其他）──
+		const jpRows = PCRJ.pcrJpListOf(JSON.parse(BODY4[JP_LIST]));
+		check("pcr-jp 列表：8 条，顺序 = 源站（`orders=-display_date`，本地不再排）",
+			jpRows.length === 8
+			&& jpRows.map((x) => x.id).join(",") === "14116419,34574244,27607457,78691968,99142261,78578770,80995963,70706490",
+			JSON.stringify(jpRows.map((x) => x.id)));
+		check("pcr-jp 列表 kind：`ピックアップガチャ`=gacha / `イベント` 分类=event / 标题写「終了」=ended / 其余=other",
+			jpRows.find((x) => x.id === "78691968").kind === "gacha"
+			&& jpRows.find((x) => x.id === "34574244").kind === "other"
+			&& jpRows.find((x) => x.id === "14116419").kind === "event"
+			&& jpRows.find((x) => x.id === "99142261").kind === "ended"
+			&& jpRows.find((x) => x.id === "78578770").kind === "event",
+			JSON.stringify(jpRows.map((x) => [x.id, x.kind])));
+		check("pcr-jp 分类反证：`マスターピースつき ★3確定プラチナガチャ` / `選べるプライズガチャ` / `10回目ピックアップキャラ出現率3倍ガチャ` 都**不是**本命池",
+			PCRJ.pcrJpKindOf("「マスターピースつき ★3確定プラチナガチャ」開催！", ["お知らせ"]) === "other"
+			&& PCRJ.pcrJpKindOf("「選べるプライズガチャ」開催！【2026/11/10(火) 12:30 追記】", ["お知らせ"]) === "other"
+			&& PCRJ.pcrJpKindOf("「10回目ピックアップキャラ出現率3倍ガチャ」開催！", ["お知らせ"]) === "other"
+			&& PCRJ.pcrJpKindOf("プリンセスフェスガチャ開催！！限定キャラ「アグライア」登場！", ["お知らせ"]) === "gacha");
+		check("pcr-jp 已结束标题带【追記】后缀也认（`開催期間終了！【2026/10/31(土) 13:00 追記】`）",
+			PCRJ.pcrJpKindOf("「10月クランバトル」開催期間終了！【2026/10/31(土) 13:00 追記】", ["イベント"]) === "ended"
+			&& PCRJ.pcrJpKindOf("復刻ストーリーイベント「Summer Anemos, Summer Qualia」開催終了！", ["イベント"]) === "ended");
+
+		// ── ③ 详情：`■アンカー + 下一行整行区间`（行内日期陷阱不认）──
+		const d786 = PCRJ.pcrJpDetailOf(JSON.parse(BODY4[JP_D_78691968]), TZ_JP4);
+		check("pcr-jp 详情 78691968：窗口 1 条（`※…の開催期間は2026/11/10…～ 11/16…までです。` 那类**行内日期**不算）",
+			d786.windows.length === 1 && d786.windows[0].label === "ピックアップガチャ",
+			JSON.stringify(d786.windows.map((x) => x.label)));
+		check("pcr-jp 详情 78691968：起止 = 2026-11-10 12:00 ~ 11-30 11:59 JST（UTC 手算 03:00 / 02:59）",
+			d786.windows[0].startTs === Date.UTC(2026, 10, 10, 3, 0)
+			&& d786.windows[0].endTs === Date.UTC(2026, 10, 30, 2, 59),
+			JSON.stringify([d786.windows[0].startTs, d786.windows[0].endTs]));
+		check("pcr-jp 详情 78691968：raw 保留源站原文（含 `(曜日)` 与全角 ～）、display 是补全后的可读文本",
+			d786.windows[0].raw === "2026/11/10(火) 12:00 ～ 2026/11/30(月) 11:59"
+			&& d786.windows[0].display === "11-10 12:00 ~ 11-30 11:59",
+			JSON.stringify([d786.windows[0].raw, d786.windows[0].display]));
+		check("pcr-jp 区间解析：行内日期**不**算窗口；结束年可省且跨年补到次年；`〜` 分隔符也认",
+			PCRJ.pcrJpWindowOf("※開催期間は2026/11/10(火) 12:00 ～ 2026/11/16(月) 11:59までです。", TZ_JP4) === null
+			&& (() => {
+				const w = PCRJ.pcrJpWindowOf("2026/12/28(月) 12:00 ～ 01/05(月) 11:59", TZ_JP4);
+				return !!w && w.startTs === Date.UTC(2026, 11, 28, 3, 0) && w.endTs === Date.UTC(2027, 0, 5, 2, 59);
+			})()
+			&& (() => {
+				const w = PCRJ.pcrJpWindowOf("2026/11/10(日) 12:00〜2026/11/30(月) 11:59", TZ_JP4);
+				return !!w && w.endTs === Date.UTC(2026, 10, 30, 2, 59);
+			})(),
+			JSON.stringify(PCRJ.pcrJpWindowOf("2026/12/28(月) 12:00 ～ 01/05(月) 11:59", TZ_JP4)));
+		check("pcr-jp 卡池条目事实：banner「ピックアップガチャ」+ 角色「ラッキーライラック」+ isMain",
+			(() => {
+				const its = PCRJ.pcrJpPoolItemsOf(d786);
+				return its.length === 1 && its[0].banner === "ピックアップガチャ"
+					&& its[0].roles === "ラッキーライラック" && its[0].isMain === true;
+			})(),
+			JSON.stringify(PCRJ.pcrJpPoolItemsOf(d786)));
+
+		// ── ④ 活动详情：`■開催期間` 是通用锚点 ⇒ 名字走标题派生；无整行区间 ⇒ 0 窗口（不抛）──
+		const d785 = PCRJ.pcrJpDetailOf(JSON.parse(BODY4[JP_D_78578770]), TZ_JP4);
+		const d141 = PCRJ.pcrJpDetailOf(JSON.parse(BODY4[JP_D_14116419]), TZ_JP4);
+		const d276 = PCRJ.pcrJpDetailOf(JSON.parse(BODY4[JP_D_27607457]), TZ_JP4);
+		check("pcr-jp 详情 78578770：`■開催期間` 剥完是空 ⇒ label 留空；起止 11-09 12:00 ~ 11-15 20:59 JST",
+			d785.windows.length === 1 && d785.windows[0].label === ""
+			&& d785.windows[0].startTs === Date.UTC(2026, 10, 9, 3, 0)
+			&& d785.windows[0].endTs === Date.UTC(2026, 10, 15, 11, 59),
+			JSON.stringify(d785.windows));
+		check("pcr-jp 活动名：没有引号就剥 `開催中！` ⇒「バトルスタジアム」；有引号就留引号内",
+			PCRJ.pcrJpEventNameOf("バトルスタジアム開催中！") === "バトルスタジアム"
+			&& PCRJ.pcrJpEventNameOf("「エルピス討魔戦線」開催決定！") === "エルピス討魔戦線"
+			&& PCRJ.pcrJpEventNameOf("「11月深淵討伐戦」開催期間終了！") === "11月深淵討伐戦",
+			JSON.stringify([PCRJ.pcrJpEventNameOf("バトルスタジアム開催中！"), PCRJ.pcrJpEventNameOf("「エルピス討魔戦線」開催決定！")]));
+		check("pcr-jp 活动名：`復刻ストーリーイベント「…」開催決定！` ⇒ 引号内（不被整句带跑）",
+			PCRJ.pcrJpEventNameOf(d276.title).startsWith("【『I Wish』後伝】")
+			&& PCRJ.pcrJpEventNameOf(d276.title).includes("掴み取るこの手で"),
+			PCRJ.pcrJpEventNameOf(d276.title));
+		check("pcr-jp 详情 14116419（明日才开）窗口解得出、但**不覆盖 NOW** ⇒ 端到端不进外显（见下）",
+			d141.windows.length === 1
+			&& d141.windows[0].startTs === Date.UTC(2026, 10, 16, 3, 0)
+			&& d141.windows[0].endTs === Date.UTC(2026, 10, 21, 19, 59),
+			JSON.stringify(d141.windows));
+		check("pcr-jp 详情 27607457：正文没有任何整行区间（只有 `11/17(火) 12:00から` 前瞻句）⇒ 0 窗口、**不抛**",
+			d276.windows.length === 0 && PCRJ.pcrJpEventItemsOf(d276).length === 0,
+			JSON.stringify(d276.windows));
+		check("pcr-jp 详情 80995963（11月深淵討伐戦）：窗口照样解得出来（11-03 12:00 ~ 11-09 04:59 JST）——在期与否由载荷判",
+			(() => {
+				const d = PCRJ.pcrJpDetailOf(JSON.parse(BODY4[JP_D_80995963]), TZ_JP4);
+				return d.windows.length === 1 && d.windows[0].label === ""
+					&& d.windows[0].endTs === Date.UTC(2026, 10, 8, 19, 59);
+			})(),
+			JSON.stringify(PCRJ.pcrJpDetailOf(JSON.parse(BODY4[JP_D_80995963]), TZ_JP4).windows));
+		check("pcr-jp 活动条目事实：event 名来自标题、category 留空（不把粗分类 `イベント` 塞进事实）",
+			(() => {
+				const its = PCRJ.pcrJpEventItemsOf(d785);
+				return its.length === 1 && its[0].event === "バトルスタジアム" && its[0].category === "";
+			})(),
+			JSON.stringify(PCRJ.pcrJpEventItemsOf(d785)));
+
+		// ── ⑤ 端到端 + 请求预算（列表 1 + 卡池详情 1 + 活动详情 3 = 首轮 5；稳态 1）──
+		PCRJ.pcrJpResetCache();
+		const calls4 = [];
+		const heads4 = [];
+		const e4 = engine4(NOW4, calls4, heads4);
+		const r4 = await e4.refresh();
+		const recJp = r4.games["pcr-jp"] || {};
+		check("pcr-jp 首轮请求 = 5 次（列表 1 + 78691968 卡池 1 + 活动 14116419/27607457/78578770 各 1；命中当期即停 ⇒ 80995963/70706490 不取）",
+			calls4.length === 5
+			&& calls4.filter((u) => u === JP_LIST).length === 1
+			&& calls4.filter((u) => u === JP_D_78691968).length === 1
+			&& calls4.filter((u) => u === JP_D_14116419).length === 1
+			&& calls4.filter((u) => u === JP_D_27607457).length === 1
+			&& calls4.filter((u) => u === JP_D_78578770).length === 1
+			&& calls4.indexOf(JP_D("80995963")) < 0 && calls4.indexOf(JP_D("34574244")) < 0
+			&& calls4.indexOf(JP_D("99142261")) < 0,
+			"requests=" + calls4.length + " " + JSON.stringify(calls4));
+		check("pcr-jp 每个请求都带了 `X-MICROCMS-API-KEY`（microCMS 必需；漏了会 401）",
+			heads4.length === 5 && heads4.every((x) => x.headers["X-MICROCMS-API-KEY"] === PCRJ.PCR_JP_API_KEY),
+			JSON.stringify(heads4.slice(0, 2)));
+		check("pcr-jp 卡池外显 = ピックアップガチャ / ラッキーライラック / 11-10 12:00 ~ 11-30 11:59",
+			recJp.banner === "ピックアップガチャ" && recJp.roles === "ラッキーライラック"
+			&& recJp.bannerDates === "11-10 12:00 ~ 11-30 11:59"
+			&& recJp.bannerDatesRaw === "2026/11/10(火) 12:00 ～ 2026/11/30(月) 11:59"
+			&& recJp.gachaFail === null,
+			JSON.stringify([recJp.banner, recJp.roles, recJp.bannerDates, recJp.bannerDatesRaw]));
+		check("pcr-jp 活动外显 = バトルスタジアム / 11-09 12:00 ~ 11-15 20:59（エルピス討魔戦線 明日才开 ⇒ 不进外显）",
+			recJp.event === "バトルスタジアム"
+			&& recJp.eventDates === "11-09 12:00 ~ 11-15 20:59"
+			&& recJp.eventDatesRaw === "2026/11/09(月) 12:00 ～ 2026/11/15(日) 20:59"
+			&& recJp.eventFail === null,
+			JSON.stringify([recJp.event, recJp.eventDates, recJp.eventFail]));
+		check("pcr-jp gacha[] 1 条 / events[] 1 条（各只有 1 条在期 ⇒ 不设悬停；key 前缀 pcr-jp；绝对时刻 + tz）",
+			Array.isArray(recJp.gacha) && recJp.gacha.length === 1
+			&& recJp.gacha[0].key === "pcr-jp:gacha:0" && recJp.gacha[0].title === "ピックアップガチャ"
+			&& recJp.gacha[0].show === "ラッキーライラック"
+			&& recJp.gacha[0].startTs === Date.UTC(2026, 10, 10, 3, 0)
+			&& recJp.gacha[0].endTs === Date.UTC(2026, 10, 30, 2, 59)
+			&& recJp.gacha[0].tz === TZ_JP4 && !recJp.bannerHover
+			&& Array.isArray(recJp.events) && recJp.events.length === 1
+			&& recJp.events[0].key === "pcr-jp:event:0" && recJp.events[0].title === "バトルスタジアム"
+			&& recJp.events[0].endTs === Date.UTC(2026, 10, 15, 11, 59) && !recJp.eventHover,
+			JSON.stringify([(recJp.gacha || []).map((x) => [x.key, x.title, x.startTs, x.endTs]), (recJp.events || []).map((x) => [x.key, x.title]), recJp.bannerHover, recJp.eventHover]));
+		// 稳态：详情全进缓存 ⇒ 只发列表
+		calls4.length = 0;
+		const r4b = await e4.refresh();
+		check("pcr-jp 稳态第 2 轮 = 1 次（只列表；详情按 id 缓存 24h）",
+			calls4.length === 1 && calls4[0] === JP_LIST
+			&& (r4b.games["pcr-jp"] || {}).banner === recJp.banner
+			&& (r4b.games["pcr-jp"] || {}).event === recJp.event,
+			"requests=" + calls4.length + " " + JSON.stringify(calls4));
+
+		// ── ⑥ 缓存语义（TTL 24h / 已结束永久封存 = "已结束不再取"）──
+		check("pcr-jp 缓存判定：null / 超 TTL 且未封存 ⇒ 不可用；TTL 内 / 已封存 ⇒ 可用",
+			PCRJ.pcrJpCacheValidOf(null, NOW4) === false
+			&& PCRJ.pcrJpCacheValidOf({ at: NOW4 - 25 * 3600 * 1000, value: { windows: [] }, sealed: false }, NOW4) === false
+			&& PCRJ.pcrJpCacheValidOf({ at: NOW4 - 3600 * 1000, value: { windows: [] }, sealed: false }, NOW4) === true
+			&& PCRJ.pcrJpCacheValidOf({ at: NOW4 - 400 * 24 * 3600 * 1000, value: { windows: [{}] }, sealed: true }, NOW4) === true);
+		check("pcr-jp 封存判定：有窗口且全部 endTs<=抓取时刻 ⇒ 封存；还有未来窗口 / 没有窗口 ⇒ 不封存",
+			PCRJ.pcrJpCacheSealedOf({ windows: [{ endTs: NOW4 - 1 }] }, NOW4) === true
+			&& PCRJ.pcrJpCacheSealedOf({ windows: [{ endTs: NOW4 - 1 }, { endTs: NOW4 + 1 }] }, NOW4) === false
+			&& PCRJ.pcrJpCacheSealedOf({ windows: [] }, NOW4) === false);
+		// 端到端：11/23 12:00 JST 时活动窗口全过期 ⇒ 首轮抓完当场封存；+25h（超 TTL）只重取"未封存"的那些。
+		// ⚠️ 必须用**同一台引擎**（缓存是每引擎一份）：now 走可变闭包，第 2 轮把时钟拨后 25h。
+		PCRJ.pcrJpResetCache();
+		const NOW_SEALED = Date.parse("2026-11-23T12:00:00+09:00");
+		let nowSealed = NOW_SEALED;
+		const callsSealed = [];
+		const eSealed = createEngine({
+			transport: transport4(callsSealed, null, null),
+			storage: makeStore({ hidden: ALL_IDS4.filter((id) => id !== "pcr-jp"), shown: ["pcr-jp"] }),
+			now: () => nowSealed,
+			timer: { setTimeout, clearTimeout }
+		});
+		await eSealed.refresh();
+		check("pcr-jp 封存①：11/23 首轮 = 6 次（列表 1 + 卡池 1 + 活动 4：当晚无当期 ⇒ 不提前收，4 篇都抓）",
+			callsSealed.length === 6
+			&& callsSealed.indexOf(JP_D_14116419) >= 0 && callsSealed.indexOf(JP_D_78578770) >= 0
+			&& callsSealed.indexOf(JP_D("80995963")) >= 0,
+			"requests=" + callsSealed.length + " " + JSON.stringify(callsSealed));
+		callsSealed.length = 0;
+		nowSealed = NOW_SEALED + 25 * 3600 * 1000;
+		await eSealed.refresh();
+		check("pcr-jp 封存②：超 TTL 后**已结束的 14116419 / 78578770 / 80995963 不再取**（只重取未封存的 27607457 + 仍在期的卡池）",
+			callsSealed.length === 3
+			&& callsSealed.filter((u) => u === JP_LIST).length === 1
+			&& callsSealed.indexOf(JP_D_14116419) < 0 && callsSealed.indexOf(JP_D_78578770) < 0
+			&& callsSealed.indexOf(JP_D_80995963) < 0
+			&& callsSealed.indexOf(JP_D_27607457) >= 0 && callsSealed.indexOf(JP_D_78691968) >= 0,
+			"requests=" + callsSealed.length + " " + JSON.stringify(callsSealed));
+
+		// ── ⑦ 反证（结构变了要看得见；抹掉时间锚点 ⇒ 不进外显）──
+		const throws4 = (fn) => { try { fn(); return false; } catch { return true; } };
+		check("pcr-jp 反证：列表 `{}` / 空串 / 数组 / 没有 contents / contents 里一条可用行都没有 ⇒ 抛错（不是 nomatch）",
+			throws4(() => PCRJ.pcrJpListOf({})) && throws4(() => PCRJ.pcrJpListOf(""))
+			&& throws4(() => PCRJ.pcrJpListOf([])) && throws4(() => PCRJ.pcrJpListOf({ contents: "x" }))
+			&& throws4(() => PCRJ.pcrJpListOf({ contents: [] })));
+		check("pcr-jp 反证：详情 `{}` / 空串 / 没有 body_html / body_html 不是非空字符串 / 正文抽不出行 ⇒ 抛错",
+			throws4(() => PCRJ.pcrJpDetailOf({})) && throws4(() => PCRJ.pcrJpDetailOf(""))
+			&& throws4(() => PCRJ.pcrJpDetailOf([])) && throws4(() => PCRJ.pcrJpDetailOf({ body_html: "" }))
+			&& throws4(() => PCRJ.pcrJpDetailOf({ body_html: 123 }))
+			&& throws4(() => PCRJ.pcrJpDetailOf({ body_html: "<p></p>" })));
+		// 抹掉时间锚点（把全角 `～` 换成 `から`）⇒ 这篇 0 个窗口（不进外显，但**不抛**）
+		const noRange4 = BODY4[JP_D_78691968].replace(/～/g, "から");
+		check("pcr-jp 反证：抹掉区间分隔符 ⇒ 这篇 0 个窗口（不进外显，也不算失败）",
+			PCRJ.pcrJpDetailOf(JSON.parse(noRange4), TZ_JP4).windows.length === 0
+			&& PCRJ.pcrJpPoolItemsOf(PCRJ.pcrJpDetailOf(JSON.parse(noRange4), TZ_JP4)).length === 0,
+			JSON.stringify(PCRJ.pcrJpDetailOf(JSON.parse(noRange4), TZ_JP4).windows));
+		PCRJ.pcrJpResetCache();
+		const eNoRange4 = engine4(NOW4, null, null, { [JP_D_78691968]: noRange4 });
+		const rNoRange4 = await eNoRange4.refresh();
+		check("pcr-jp 反证（端到端）：卡池那篇没有窗口 ⇒ 卡池如实 nomatch（活动侧不受影响、照常出）",
+			((rNoRange4.games["pcr-jp"] || {}).banner) === ""
+			&& String((((rNoRange4.games["pcr-jp"] || {}).gachaFail) || {}).kind) === "nomatch"
+			&& (rNoRange4.games["pcr-jp"] || {}).event === "バトルスタジアム",
+			JSON.stringify([(rNoRange4.games["pcr-jp"] || {}).banner, (rNoRange4.games["pcr-jp"] || {}).gachaFail, (rNoRange4.games["pcr-jp"] || {}).event]));
+		// 详情全失败（源站回 `{}`）⇒ 两侧都记 down（抓取失败 ≠ 未公布）
+		PCRJ.pcrJpResetCache();
+		const eDown4 = engine4(NOW4, null, null, {
+			[JP_D_78691968]: "{}", [JP_D_14116419]: "{}", [JP_D_27607457]: "{}",
+			[JP_D_78578770]: "{}", [JP_D_80995963]: "{}"
+		});
+		const rDown4 = await eDown4.refresh();
+		check("pcr-jp 反证（端到端）：四篇活动详情 + 卡池详情都回 `{}` ⇒ 卡池与活动都记 **down**（不是 nomatch）",
+			String((((rDown4.games["pcr-jp"] || {}).gachaFail) || {}).kind) === "down"
+			&& String((((rDown4.games["pcr-jp"] || {}).eventFail) || {}).kind) === "down",
+			JSON.stringify([(rDown4.games["pcr-jp"] || {}).gachaFail, (rDown4.games["pcr-jp"] || {}).eventFail]));
+		PCRJ.pcrJpResetCache();
+		const eListDown4 = engine4(NOW4, null, null, { [JP_LIST]: "{}" });
+		const rListDown4 = await eListDown4.refresh();
+		check("pcr-jp 反证（端到端）：列表 `{}` ⇒ 两侧都记 **down**",
+			String((((rListDown4.games["pcr-jp"] || {}).gachaFail) || {}).kind) === "down"
+			&& String((((rListDown4.games["pcr-jp"] || {}).eventFail) || {}).kind) === "down",
+			JSON.stringify([(rListDown4.games["pcr-jp"] || {}).gachaFail, (rListDown4.games["pcr-jp"] || {}).eventFail]));
+		// 11/23：活动窗口全过期、卡池仍在期 ⇒ 活动侧如实 nomatch（不硬凑过期档期），卡池照常出
+		PCRJ.pcrJpResetCache();
+		const eLate = engine4(NOW_SEALED, null, null);
+		const rLate = await eLate.refresh();
+		check("pcr-jp 反证（端到端）：11/23 活动全过期 ⇒ 活动如实 nomatch；卡池仍在期照样外显",
+			(rLate.games["pcr-jp"] || {}).event === ""
+			&& String((((rLate.games["pcr-jp"] || {}).eventFail) || {}).kind) === "nomatch"
+			&& (rLate.games["pcr-jp"] || {}).banner === "ピックアップガチャ"
+			&& (rLate.games["pcr-jp"] || {}).gachaFail === null,
+			JSON.stringify([(rLate.games["pcr-jp"] || {}).event, (rLate.games["pcr-jp"] || {}).eventFail, (rLate.games["pcr-jp"] || {}).banner]));
+		// 夹具 meta 的 URL 与抓取链对得上（防止换了接口没换夹具）
+		check("pcr-jp 夹具 meta.url = 列表地址 / 详情地址（夹具与抓取链对得上）",
+			JSON.parse(readFileSync(new URL("./fixtures/pcr-jp-list/response.txt.meta.json", import.meta.url), "utf8")).url === JP_LIST
+			&& JSON.parse(readFileSync(new URL("./fixtures/pcr-jp-detail-78691968/response.txt.meta.json", import.meta.url), "utf8")).url === JP_D_78691968,
+			JP_LIST);
+	}
 }
