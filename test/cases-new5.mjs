@@ -1611,13 +1611,12 @@ export default async function run() {
 		// 备选源存在性 + 标签逐字（「官网公告」；中文内容 ⇒ **不许**加「（内联 JSON）」这类自创括号后缀/语言后缀）
 		const srcResoAlt = (srcReso && srcReso.altSources) || [];
 		const srcResoEventAlt = (srcReso && srcReso.eventAltSources) || [];
-		check("reso 备选源 = 官网首页内联 JSON（两侧各 1 条；标签逐字「官网公告」、URL = soli-reso.com、抓取器键 reso-official）",
+		check("reso 备选源 = 官网首页内联 JSON（两侧各 1 条；标签逐字「官网公告（停更）」、URL = soli-reso.com、抓取器键 reso-official）",
 			srcResoAlt.length === 1 && srcResoEventAlt.length === 1
-			&& srcResoAlt[0].label === "官网公告" && srcResoEventAlt[0].label === "官网公告"
+			&& srcResoAlt[0].label === "官网公告（停更）" && srcResoEventAlt[0].label === "官网公告（停更）"
 			&& srcResoAlt[0].url === RESO_HOME && srcResoEventAlt[0].url === RESO_HOME
 			&& srcResoAlt[0].fetcher === RESO_ALT_FETCHER && srcResoEventAlt[0].fetcher === RESO_ALT_FETCHER
-			&& RESO.RESO_ALT_SOURCE_LABEL === "官网公告" && RESO_ALT_FETCHER === "reso-official"
-			&& !/[（(]/.test(srcResoAlt[0].label),
+			&& RESO.RESO_ALT_SOURCE_LABEL === "官网公告（停更）" && RESO_ALT_FETCHER === "reso-official",
 			JSON.stringify([srcResoAlt, srcResoEventAlt]));
 		check("两条都有配色（面板「颜色 = 游戏」）、不同色、id 全局唯一",
 			!!srcPcr && !!srcReso && /^#[0-9A-F]{6}$/i.test(String(srcPcr.color))

@@ -4,7 +4,7 @@
 // 唯一来源 `id:"reso"`。**主源** = bwiki「活动日历」页的 wikitext（`action=raw` + `revisions` 只补年份），
 // 标签逐字「Bwiki 活动日历」；卡池侧与活动侧**同一条 URL**、轮内共享 2 次请求。
 // **备选源** = 官网首页 `https://soli-reso.com/` 的内联 `notice_json`（`altSources` / `eventAltSources`，
-// 抓取器键 `reso-official`），标签逐字「官网公告」（中文内容 ⇒ 不加任何语言/括号后缀）；
+// 抓取器键 `reso-official`），标签逐字「官网公告（停更）」（官方公告最后更新 2025-12-23，用户 2026-11-15 要求标「（停更）」）；
 // 只有用户在设置页手动切过去时才会请求它（7.4MB 整页 + 24h 缓存，见 ⑤）。
 //
 // ── ① 为什么换回 bwiki（2026-11-15 实测证据，别再来回换）────────────────────────────
@@ -117,9 +117,9 @@ const ns_reso_SOURCE_LABEL = "Bwiki 活动日历";
 // —— 备选源：官网首页内联 JSON（见文件头 ⑤；只在用户手动切过去时抓） ——
 const ns_reso_HOME = "https://soli-reso.com/";
 const ns_reso_HOME_REFERER = ns_reso_HOME;
-// 备选源标签逐字「官网公告」：内容是中文 ⇒ **不加**「（内联 JSON）」这类自创括号后缀，
+// 备选源标签逐字「官网公告（停更）」：官方公告停在 2025-12-23（用户要求标停更）；
 // 也不加语言后缀（后缀只给外语源，见全仓标签口径）。主源/备选靠来源名与备选列表位置区分。
-const ns_reso_ALT_SOURCE_LABEL = "官网公告";
+const ns_reso_ALT_SOURCE_LABEL = "官网公告（停更）";
 const ns_reso_ALT_FETCHER = "reso-official";
 // 官网整页 7.4MB（服务端不支持 Range）⇒ 解析结果按 URL 缓存 24h
 const ns_reso_HOME_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -540,7 +540,7 @@ async function ns_reso_officialEvents(url, signal, tz = ns_reso_TZ, now = nowMs(
 
 //#region ⑥ 条目登记
 // 卡池与活动同一条 URL（主源 = bwiki `action=raw` 的 wikitext；备选源 = 官网首页的内联 JSON）。
-// 标签：主源逐字「Bwiki 活动日历」；备选源逐字「官网公告」（中文内容 ⇒ 不加任何后缀）。
+// 标签：主源逐字「Bwiki 活动日历」；备选源逐字「官网公告（停更）」。
 registerSource({
 	id: "reso",
 	defaultHidden: false,
