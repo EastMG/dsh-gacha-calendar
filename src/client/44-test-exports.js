@@ -1025,29 +1025,41 @@
 				kancolleResetCache: ns_kancolle_resetCache,
 				kancolleSectionsOf: ns_kancolle_sectionsOf
 			},
-			// 2026-11-15 闪耀暖暖·国服：首页 `__NEXT_DATA__` 的 4 条精选（新闻 id 只在 `info` 的
-			// `/news/{id}` 里）+ `/news/{id}` 的 `pageData.content_html`。回归可以分别钉住：
-			// 列表/详情的失败语义（`{}` ⇒ 抛错）、「更新后」锚定当日 09:30、两端绝对时刻（跨年）原样解析、
-			// 抹掉锚点 ⇒ 不进外显、请求数（首轮 1+4 / 稳态 1 —— `nikki4ResetCache` 只给回归用）。
+			// 2026-11-15 闪耀暖暖·国服：**卡池侧已重做**。活动侧不变（首页 `__NEXT_DATA__` 的 4 条精选 +
+			// `/news/{id}` 的 `pageData.content_html`）；卡池侧改抓**新闻 API**（列表 `?section=1|0` +
+			// 详情 `/api/v1/news/{id}`），从正文的「限时感应活动：<池名>」/「主题活动/特别活动【<池名>】」+
+			// 「活动时间」读池名与档期（旧「从 4 条精选猜卡池」的路径已删）。回归可以分别钉住：
+			// 列表/详情的失败语义（`ret != 0`、`data:{}`、`{}` ⇒ 抛错）、新闻 id/时间（ISO UTC 不按墙钟解释）、
+			// 池名两种写法、当期逐字 + 绝对毫秒、「更新后」锚 09:30、无当期 ⇒ null、请求数
+			// （卡池侧首轮 2+15 / 稳态 2；`nikki4ResetCache` 只给回归用）。
 			"nikki4": {
 				NIKKI4_CACHE_TTL_MS: ns_nikki4_CACHE_TTL_MS,
 				NIKKI4_DETAIL_BASE: ns_nikki4_DETAIL_BASE,
+				NIKKI4_GACHA_MAX_DETAILS: ns_nikki4_GACHA_MAX_DETAILS,
+				NIKKI4_GACHA_SECTIONS: ns_nikki4_GACHA_SECTIONS,
 				NIKKI4_LIST_URL: ns_nikki4_LIST_URL,
 				NIKKI4_MAX_DETAILS: ns_nikki4_MAX_DETAILS,
+				NIKKI4_NEWS_API: ns_nikki4_NEWS_API,
+				NIKKI4_NEWSLIST_URL: ns_nikki4_NEWSLIST_URL,
+				NIKKI4_SCAN_DAYS: ns_nikki4_SCAN_DAYS,
 				NIKKI4_SOURCE_LABEL: ns_nikki4_SOURCE_LABEL,
 				NIKKI4_TZ: ns_nikki4_TZ,
 				NIKKI4_UPDATE_ANCHOR: ns_nikki4_UPDATE_ANCHOR,
 				eventsNikki4: ns_nikki4_events,
 				gachaNikki4: ns_nikki4_gacha,
+				nikki4ApiBaseOf: ns_nikki4_apiBaseOf,
+				nikki4ApiTsOf: ns_nikki4_apiTsOf,
 				nikki4EventItemsOf: ns_nikki4_eventItemsOf,
 				nikki4FactsOf: ns_nikki4_factsOf,
+				nikki4GachaPoolsOf: ns_nikki4_gachaPoolsOf,
 				nikki4HomeOf: ns_nikki4_homeOf,
 				nikki4KindOf: ns_nikki4_kindOf,
 				nikki4LinesOf: ns_nikki4_linesOf,
 				nikki4NameOf: ns_nikki4_nameOf,
+				nikki4NewsDetailOf: ns_nikki4_newsDetailOf,
 				nikki4NewsIdOf: ns_nikki4_newsIdOf,
+				nikki4NewsListOf: ns_nikki4_newsListOf,
 				nikki4PageOf: ns_nikki4_pageOf,
-				nikki4PoolItemsOf: ns_nikki4_poolItemsOf,
 				nikki4PublishTsOf: ns_nikki4_publishTsOf,
 				nikki4ResetCache: ns_nikki4_resetCache,
 				nikki4TitleNameOf: ns_nikki4_titleNameOf,

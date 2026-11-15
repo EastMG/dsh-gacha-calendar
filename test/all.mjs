@@ -181,7 +181,7 @@ const batches = [
 	["赛马娘·繁中服（Komoe 官方公告：卡池/活动同一条接口 + 「維護結束後」起点未知 + 反证）", runUmaTw],
 	["赛马娘·韩服（Daum 카페：置顶列表 → 当月日程帖 2 次请求 + 韩文日期/跨年 + 「점검 완료 후」起点未知 + 反证）", runUmaKr],
 	["第二批新来源（崩坏3 内容中台：卡池名称/角色 + 档期三级取值（`>>开放时间` → 同帖礼包【上架时间】 → 只出名称）/ 活动时间块 / OurNotes 日服 SPICA：列表→前 5 条详情 / 卡厄斯 TapTap 官方：topic 页 SSR + Nuxt devalue 解码（2 页；卡池「营救概率提升」+ 活动「活动时间」，不双计）／2026-11-15 第三批：碧蓝幻想 gbf（gbf-wiki 活动一览）+ 舰队Collection kancolle（wikiwiki 期間限定出撃））", runBatch2],
-	["第四批新来源（闪耀暖暖·国服 nikki4：官网首页 `__NEXT_DATA__` + `/news/{id}`（「更新后」锚定 09:30）/ アイドルマスター系列 5 款：melonpapapapa 月份页（卡池 + 活动同一张表；跨月补抓））", runBatch4],
+	["第四批新来源（闪耀暖暖·国服 nikki4：**卡池侧已重做** = 官网新闻 API（列表 `?section=1|0` + 详情 `/api/v1/news/{id}`，读「限时感应活动/主题活动+活动时间」）；活动侧仍是首页 `__NEXT_DATA__` + `/news/{id}`（「更新后」锚定 09:30）/ アイドルマスター系列 5 款：melonpapapapa 月份页（卡池 + 活动同一张表；跨月补抓））", runBatch4],
 	["OurNotes 国际服（SPICA 数据 JSON：`_durl` 现解 → gachapages/events 一次拿全；JST 墙钟 → UTC+8 展示；picks 按 id 查角色）", runOnGlobalSpica],
 	["BOM 守卫（钩子扫描改 Node：三平台一致 + 字面量修复命令 + setup:hooks 跨平台）", runBomHook],
 	["第五批第三方来源（棕色尘埃2 browndust2：bannerhistory.app 的 RSC flight 负载 `rows[].groups[]` —— 池名 + 角色 + 绝对毫秒起止；只有卡池侧、24h 缓存）", runBatch5],

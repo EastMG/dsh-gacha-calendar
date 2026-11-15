@@ -1,0 +1,7 @@
+{
+  "url": "https://nikki4.papegames.cn/api/v1/news/102277",
+  "status": 200,
+  "capturedAt": "2026-11-15T11:54:28.353Z",
+  "referer": "https://nikki4.papegames.cn/newslist",
+  "note": "官网新闻详情 API（真抓整段）。结构 {ret:0,data:[{title,content_html,publish_time,id}]}；正文每段一个 <p>。本篇标题：【限时套装展示】锈火烛心，栖雾林影 | 1月16日更新。用途：卡池侧「形态 A」（`限时感应活动：<池名>` ⏎ `活动时间：…`）的纯解析回归（发布时间 2026-01，不在当期 21 天扫描窗内，抓取器不会请求它）。"
+}

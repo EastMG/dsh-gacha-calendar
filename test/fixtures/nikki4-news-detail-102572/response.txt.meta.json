@@ -1,0 +1,7 @@
+{
+  "url": "https://nikki4.papegames.cn/api/v1/news/102572",
+  "status": 200,
+  "capturedAt": "2026-11-15T11:51:55.745Z",
+  "referer": "https://nikki4.papegames.cn/newslist",
+  "note": "官网新闻详情 API（真抓整段）。结构 {ret:0,data:[{title,content_html,publish_time,id}]}；正文是每段一个 <p>（不是富文本一字一 span）。本篇标题：【闪暖荆棘鸟·免费80抽】同步送闪耀单品、创意妆容等福利 | 11月5日更新"
+}
