@@ -107,9 +107,6 @@
 			// 2026-11-15 第三批：碧蓝幻想（gbf-wiki 活动一览）/ 舰队Collection（wikiwiki 期間限定出撃）
 			"gbf": "Asia/Tokyo",
 			"kancolle": "Asia/Tokyo",
-			// 2026-11-15：龙魂旅人（台服官网公告；条目口径 Asia/Taipei）/
-			// 闪耀暖暖·国服（官网首页 __NEXT_DATA__ 列表 + /news/{id} 详情，UTC+8）
-			"longhun": "Asia/Bangkok",
 			"nikki4": "Asia/Shanghai",
 			// 2026-11-15：アイドルマスター系列 5 款（日服，源站墙钟 JST = UTC+9，无夏令时）
 			"gakumas": "Asia/Tokyo",

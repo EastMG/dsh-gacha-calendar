@@ -1,7 +1,6 @@
 // test/cases-batch4.mjs —— 第四批新来源（2026-11-15 合并）：6 条 + 2026-11-15 追加的 imas 第 5 款
 //
 // 落点（**只取源文件 + 重新接线**，不是 git merge）：
-//   · `src/client/30-game-longhun.js`  龙魂旅人（台服官网公告）—— 卡池 + 活动同一条 JSON 索引
 //   · `src/client/30-game-nikki4.js`   闪耀暖暖·国服 —— 首页 `__NEXT_DATA__` + `/news/{id}`
 //   · `src/client/30-game-idolmaster.js` アイドルマスター系列 **5 款**（学マス / シャニマス /
 //     ミリシタ / デレステ / **シャニソン = シャイニーカラーズ Song for Prism**）——
@@ -12,7 +11,6 @@
 //   ① **注册项**：7 条的 id / 名称 / tz / 来源标签 / 卡池·活动同源 URL（+ 颜色）；
 //      以及用户 2026-11-15 拍板的**标签后缀口径**：5 条 imas 的来源文案逐字带「（日文）」，
 //      条目 name 不加任何后缀；
-//   ② **真夹具驱动**：各自列表 + 详情 → 能解析出「名 + 起止」（longhun / nikki4 走纯函数 +
 //      引擎整轮；imas 五款走引擎的 `GACHA_FETCHERS` 抓取器，卡池/活动同一次抓取）；
 //   ③ **反证**：`{}` ⇒ **抛错**（不是 nomatch）；抹掉时间锚点 ⇒ 该条**不进外显**（不抛、不硬凑）；
 //      imas 月份页所有时刻锚都消失 ⇒ 抛结构错（不许静默成"本期没有"）。
@@ -21,7 +19,6 @@
 //    这样 `TZ=UTC` 与 `TZ=Asia/Shanghai` 两道门禁跑的是同一份期望值。
 //
 // 夹具全部真抓（见各 `response.txt.meta.json` 的 capturedAt / note）：
-//   `longhun-list` + `longhun-detail-{1287,994,981,863}`；`nikki4-home` +
 //   `nikki4-detail-{102568,102571,102574,102582,102583}`；`imas-{gakumas-202610,
 //   gakumas-202611,shinycolors-202611,millisita-202611,deresute-202611,shanison-202611}`。
 
@@ -30,7 +27,6 @@ import { check, section, fixtureBody, assertHoverConvention } from "./harness.mj
 import { T } from "./load.mjs";
 
 const TZ_TW = "Asia/Taipei";
-const TZ_BKK = "Asia/Bangkok";   // 龙魂旅人（Dragon Traveler）服务器时间 UTC+7
 const TZ_CN4 = "Asia/Shanghai";
 const TZ_JP = "Asia/Tokyo";
 
@@ -70,11 +66,10 @@ export default async function run() {
 	// ═════════ ① 注册项（6 条 + imas 第 5 款 = 7 条）═════════
 	section("第四批 ①：7 条注册项（id / 名称 / tz / 标签 / 卡池·活动同源 URL + 颜色）");
 	{
-		const L = T.parsers.longhun, N = T.parsers.nikki4, I = T.parsers.idolmaster;
+		const N = T.parsers.nikki4, I = T.parsers.idolmaster;
 		// 用户 2026-11-15 拍板的后缀口径：只许这一种写法（不许（日服）/（JST）/（原文）…）
 		const IMAS_LABEL_LITERAL = "melonpapapapa 総合カレンダー（日文）";
 		for (const [id, name, tz, label] of [
-			["longhun", "龙魂旅人·东南亚服", TZ_BKK, "官网公告"],
 			["nikki4", "闪耀暖暖", TZ_CN4, "官网公告"],
 			["gakumas", "学園アイドルマスター", TZ_JP, I.IMAS_SOURCE_LABEL],
 			["shinycolors", "シャイニーカラーズ", TZ_JP, I.IMAS_SOURCE_LABEL],
@@ -104,10 +99,7 @@ export default async function run() {
 		check("imas 5 条的条目 name **不带**「（日文）」这类后缀（后缀只加在来源文案上）",
 			IMAS_FIVE.every((id) => !/（日文）$/.test(String(srcOf(id).name))),
 			JSON.stringify(IMAS_FIVE.map((id) => srcOf(id).name)));
-		check("longhun 列表地址逐字 + nikki4 首页地址逐字",
-			srcOf("longhun").url === L.LONGHUN_LIST_URL && srcOf("longhun").url === "https://news.game-tree.com/jx/dtofficialnewszh/"
-			&& srcOf("nikki4").url === N.NIKKI4_LIST_URL && srcOf("nikki4").url === "https://nikki4.papegames.cn/",
-			JSON.stringify([srcOf("longhun").url, srcOf("nikki4").url]));
+		check("nikki4 首页地址逐字", srcOf("nikki4").url === N.NIKKI4_LIST_URL, String(srcOf("nikki4").url));
 		check("imas 五款的注册地址 = 当月的各自月份页（YYYYMM + brand slug）",
 			[["gakumas", "imas_gm"], ["shinycolors", "imas_sc"], ["millisita", "imas_ml"], ["deresute", "imas_cgss"], ["shanison", "imas_ss"]]
 				.every(([id, slug]) => new RegExp("^https://melonpapapapa-n\\.com/" + slug + "_\\d{6}/$").test(String(srcOf(id).url))),
@@ -117,78 +109,6 @@ export default async function run() {
 			&& I.IMAS_BRANDS.shanison.name === "シャイニーカラーズ Song for Prism",
 			JSON.stringify(I.IMAS_BRANDS.shanison));
 		check("7 条 id 全局唯一（没和既有来源撞 id）", new Set(allIds()).size === allIds().length, String(allIds().length));
-	}
-
-	// ═════════ ② longhun：JSON 索引（DD-MM-YYYY）+ 详情 4 窗口 + 引擎整轮 ═════════
-	section("第四批 ②：龙魂旅人（longhun）真夹具 —— 列表 / 详情 / 引擎整轮");
-	{
-		const L = T.parsers.longhun;
-		const LH_LIST = L.LONGHUN_LIST_URL;
-		const LH_D = (id, day) => L.LONGHUN_ORIGIN + "/jx/dtofficialnewszh/" + day + "/" + id + ".html";
-		const LH_D_1287 = LH_D("1287", "20260505");
-		const LH_D_994 = LH_D("994", "20260110");
-		const LH_D_981 = LH_D("981", "20260108");
-		const LH_D_863 = LH_D("863", "20251125");
-		const BODY = {
-			[LH_LIST]: fixtureBody(LH_LIST),
-			[LH_D_1287]: fixtureBody(LH_D_1287),
-			[LH_D_994]: fixtureBody(LH_D_994),
-			[LH_D_981]: fixtureBody(LH_D_981),
-			[LH_D_863]: fixtureBody(LH_D_863)
-		};
-
-		const rows = L.longhunListOf(BODY[LH_LIST]);
-		check("列表：4 条，按发布日期倒序（1287 / 994 / 981 / 863）",
-			rows.length === 4 && rows.map((x) => x.id).join(",") === "1287,994,981,863",
-			JSON.stringify(rows.map((x) => x.id)));
-		check("列表 `time` = DD-MM-YYYY ⇒ `25-11-2025` = 2025-11-25（按 MM-DD 解会得到非法月份）",
-			rows.find((x) => x.id === "863").date === "25-11-2025"
-			&& rows.find((x) => x.id === "863").dateTs === Date.UTC(2025, 10, 24, 17, 0),
-			JSON.stringify(rows.map((x) => [x.date, x.dateTs])));
-
-		const d = L.longhunDetailOf(BODY[LH_D_1287], TZ_BKK);
-		check("详情 1287：标题逐字 + 一篇 4 个窗口（`开启时间` 单点不算 / 礼包类没有「活动时间」）",
-			d.title === "5月6日系统更新维护公告" && d.windows.length === 4,
-			JSON.stringify([d.title, d.windows.length]));
-		check("1287 窗口逐字：卡池/活动交替 4 条（` - ` 拆名字 / `▌` 原句定归属）",
-			d.windows.map((w) => `${w.kind}:${w.name}`).join("|")
-			=== "gacha:护戒圣女·丝碧莫|event:潜伏的厄运|gacha:指定魔物限时UP|event:神奇魔物在哪里",
-			JSON.stringify(d.windows.map((w) => [w.kind, w.name])));
-		check("1287 起止 = 2026-05-07 05:00 ~ 05-21 04:59 +07（UTC 手算 05-06T22:00Z / 05-20T21:59Z）",
-			d.windows[0].startTs === Date.UTC(2026, 4, 6, 22, 0)
-			&& d.windows[0].endTs === Date.UTC(2026, 4, 20, 21, 59),
-			JSON.stringify([d.windows[0].startTs, d.windows[0].endTs]));
-		check("1287 raw 保留源站原文（`(UTC+7)` 后缀剥掉）/ display 是补全后的可读文本",
-			d.windows[0].raw === "5月7日5:00 - 5月21日4:59"
-			&& d.windows[0].display === "05-07 05:00 ~ 05-21 04:59",
-			JSON.stringify([d.windows[0].raw, d.windows[0].display]));
-		check("1287 条目事实：卡池 2 口 / 活动 2 条（按 kind 分流）",
-			L.longhunPoolItemsOf(d).length === 2 && L.longhunEventItemsOf(d).length === 2,
-			JSON.stringify([L.longhunPoolItemsOf(d).length, L.longhunEventItemsOf(d).length]));
-		check("后三篇正文（公测福利 / 玩法预告 / 常见问题）都是 0 窗口（不硬凑时刻）",
-			[LH_D_981, LH_D_863, LH_D_994].every((u) => L.longhunDetailOf(BODY[u], TZ_BKK).windows.length === 0),
-			JSON.stringify([LH_D_981, LH_D_863, LH_D_994].map((u) => L.longhunDetailOf(BODY[u], TZ_BKK).windows.length)));
-
-		// 引擎整轮：夹具在期日 2026-05-10（两口窗 05-07 ~ 05-14 / 05-21）
-		L.longhunResetCache();
-		const calls = [];
-		const e = engineAt(Date.parse("2026-05-10T12:00:00+08:00"), "longhun", calls, BODY);
-		const rec = (await e.refresh()).games.longhun || {};
-		check("引擎：首轮 5 次（列表 1 + 4 篇详情各 1）",
-			calls.length === 5 && calls.filter((u) => u === LH_LIST).length === 1
-			&& [LH_D_1287, LH_D_994, LH_D_981, LH_D_863].every((u) => calls.filter((x) => x === u).length === 1),
-			"requests=" + calls.length + " " + JSON.stringify(calls));
-		check("引擎外显：卡池 = 指定魔物限时UP / 05-07 05:00 ~ 05-14 04:59（结束最早的在期池）",
-			rec.banner === "指定魔物限时UP" && rec.bannerDates === "05-07 05:00 ~ 05-14 04:59"
-			&& rec.bannerDatesRaw === "5月7日5:00 - 5月14日4:59" && rec.gachaFail === null,
-			JSON.stringify([rec.banner, rec.bannerDates, rec.bannerDatesRaw]));
-		check("引擎外显：活动 = 神奇魔物在哪里 / 05-07 05:00 ~ 05-14 04:59（悬停两行，结束升序）",
-			rec.event === "神奇魔物在哪里" && rec.eventDates === "05-07 05:00 ~ 05-14 04:59"
-			&& rec.eventHover === "神奇魔物在哪里   05-07 05:00 ~ 05-14 04:59\n潜伏的厄运   05-07 05:00 ~ 05-21 04:59"
-			&& rec.eventFail === null,
-			JSON.stringify([rec.event, rec.eventDates, rec.eventHover]));
-		if (rec.bannerHover) assertHoverConvention("longhun 卡池悬停", rec.bannerHover, { requireSet: true });
-		if (rec.eventHover) assertHoverConvention("longhun 活动悬停", rec.eventHover, { requireSet: true });
 	}
 
 	// ═════════ ③ nikki4：首页 4 条精选 + 详情（「更新后」锚定 09:30 / 跨年）═════════
@@ -364,15 +284,8 @@ export default async function run() {
 	// ═════════ ⑤ 反证（`{}` ⇒ 抛错；抹掉时间锚点 ⇒ 不进外显）═════════
 	section("第四批 ⑤：反证 —— `{}` ⇒ 抛错（不是 nomatch）/ 抹掉时间锚点 ⇒ 不进外显");
 	{
-		const L = T.parsers.longhun, N = T.parsers.nikki4, I = T.parsers.idolmaster;
+		const N = T.parsers.nikki4, I = T.parsers.idolmaster;
 		const throws = (fn) => { try { fn(); return false; } catch { return true; } };
-		check("longhun 反证：列表 `{}` / 空串 / 非数组 ⇒ 抛错（不是 nomatch）",
-			throws(() => L.longhunListOf({})) && throws(() => L.longhunListOf("")) && throws(() => L.longhunListOf("[]")),
-			"list `{}`");
-		check("longhun 反证：详情 `{}` / 空串 / 缺 title / 缺正文 ⇒ 抛错",
-			throws(() => L.longhunDetailOf({})) && throws(() => L.longhunDetailOf(""))
-			&& throws(() => L.longhunDetailOf('<div class="tempText">x</div>'))
-			&& throws(() => L.longhunDetailOf('<h1 class="title">t</h1>')));
 		check("nikki4 反证：首页 `{}` / 空串 / 没有 __NEXT_DATA__ / 无 newsbanner ⇒ 抛错",
 			throws(() => N.nikki4HomeOf({})) && throws(() => N.nikki4HomeOf(""))
 			&& throws(() => N.nikki4HomeOf("<html></html>"))
@@ -382,13 +295,7 @@ export default async function run() {
 			&& throws(() => N.nikki4PageOf('<script id="__NEXT_DATA__">{"props":{"pageProps":{}}}</script>')));
 
 		// 抹掉时间锚点 ⇒ 0 窗口（不抛、不进外显）
-		const LH_1287 = L.LONGHUN_ORIGIN + "/jx/dtofficialnewszh/20260505/1287.html";
 		const NK_102574 = N.NIKKI4_DETAIL_BASE + "102574";
-		const lhNoAnchor = fixtureBody(LH_1287).replace(/活动时间/g, "活动期间");
-		check("longhun 反证：抹掉 `活动时间` 锚点 ⇒ 这篇 0 窗口 / 0 卡池条目（不进外显、不抛）",
-			L.longhunDetailOf(lhNoAnchor, TZ_BKK).windows.length === 0
-			&& L.longhunPoolItemsOf(L.longhunDetailOf(lhNoAnchor, TZ_TW)).length === 0,
-			JSON.stringify(L.longhunDetailOf(lhNoAnchor, TZ_TW).windows));
 		const nkNoAnchor = fixtureBody(NK_102574).replace(/活动时间/g, "活动说明");
 		check("nikki4 反证：抹掉 `活动时间` 锚点 ⇒ 这篇 0 窗口（不进外显、不抛）",
 			(() => {

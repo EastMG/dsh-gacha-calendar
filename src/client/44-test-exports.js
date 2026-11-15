@@ -1025,32 +1025,6 @@
 				kancolleResetCache: ns_kancolle_resetCache,
 				kancolleSectionsOf: ns_kancolle_sectionsOf
 			},
-			// 2026-11-15 龙魂旅人（台服官网公告）：官方 JSON 索引（**只有 4 条**「标题 + 发布日」）+
-			// 详情正文的 `▌名字` ⏎ `活动时间：M月D日H:MM - M月D日H:MM`。导出「URL/常量 + 纯解析 +
-			// 缓存复位 + 抓取器」四层，回归可以分别钉住：列表 `time` 是 **DD-MM-YYYY**、详情一篇 4 个窗口
-			// （含 ` - ` 名字拆分 / `本轮活动主题` 优先 / 礼包类两侧都不要）、`{}` ⇒ 抛错、
-			// 抹掉锚点 ⇒ 不进外显、请求数（首轮 1+4 / 稳态 1 —— `longhunResetCache` 只给回归用）。
-			"longhun": {
-				LONGHUN_CACHE_TTL_MS: ns_longhun_CACHE_TTL_MS,
-				LONGHUN_LIST_URL: ns_longhun_LIST_URL,
-				LONGHUN_MAX_DETAILS: ns_longhun_MAX_DETAILS,
-				LONGHUN_ORIGIN: ns_longhun_ORIGIN,
-				LONGHUN_SOURCE_LABEL: ns_longhun_SOURCE_LABEL,
-				LONGHUN_TZ: ns_longhun_TZ,
-				eventsLonghun: ns_longhun_events,
-				gachaLonghun: ns_longhun_gacha,
-				longhunCleanNameOf: ns_longhun_cleanNameOf,
-				longhunDetailOf: ns_longhun_detailOf,
-				longhunEventItemsOf: ns_longhun_eventItemsOf,
-				longhunHintOf: ns_longhun_hintOf,
-				longhunKindOf: ns_longhun_kindOf,
-				longhunLinesOf: ns_longhun_linesOf,
-				longhunListOf: ns_longhun_listOf,
-				longhunNameOf: ns_longhun_nameOf,
-				longhunPoolItemsOf: ns_longhun_poolItemsOf,
-				longhunResetCache: ns_longhun_resetCache,
-				longhunWindowOf: ns_longhun_windowOf
-			},
 			// 2026-11-15 闪耀暖暖·国服：首页 `__NEXT_DATA__` 的 4 条精选（新闻 id 只在 `info` 的
 			// `/news/{id}` 里）+ `/news/{id}` 的 `pageData.content_html`。回归可以分别钉住：
 			// 列表/详情的失败语义（`{}` ⇒ 抛错）、「更新后」锚定当日 09:30、两端绝对时刻（跨年）原样解析、

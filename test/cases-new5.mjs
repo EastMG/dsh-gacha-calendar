@@ -138,7 +138,7 @@ export default async function run() {
 			WANT.map(([id]) => id + "=" + ids.includes(id)).join(","));
 		check("SOURCES 里 id 全局唯一（新增 5 条没造成重复）", new Set(ids).size === ids.length,
 			ids.length + " / " + new Set(ids).size);
-		check("来源总数 = 64（28 + 2026-11-09 的 5 + 2026-11-11 的 uma-tw + 2026-11-14 的 pjsk-tc/pjsk-kr/fgo-jp + 2026-11-15 的 bjhl/yys/dhmmr/bh2 + wxnn + 2026-11-15 第三批的 gbf/kancolle + 2026-11-15 第四批的 longhun/nikki4/imas 4 款 + 2026-11-15 的 imas 第 5 款 shanison + 第三方 browndust2 + 第五批 bwiki 4 款）", T.SOURCES.length === 64, String(T.SOURCES.length));		for (const [id, name] of WANT) {
+		check("来源总数 = 63（28 + 2026-11-09 的 5 + 2026-11-11 的 uma-tw + 2026-11-14 的 pjsk-tc/pjsk-kr/fgo-jp + 2026-11-15 的 bjhl/yys/dhmmr/bh2 + wxnn + 2026-11-15 第三批的 gbf/kancolle + 2026-11-15 第四批的 longhun/nikki4/imas 4 款 + 2026-11-15 的 imas 第 5 款 shanison + 第三方 browndust2 + 第五批 bwiki 4 款）", T.SOURCES.length === 63, String(T.SOURCES.length));		for (const [id, name] of WANT) {
 			const s = srcOf(id);
 			check(`${id} 名称 = ${name}`, !!s && s.name === name, s ? s.name : "缺失");
 			check(`${id} tz = Asia/Shanghai（源站墙钟推定见各文件头）`, !!s && s.tz === TZ_CN, s ? String(s.tz) : "缺失");
