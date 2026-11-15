@@ -1035,7 +1035,7 @@ export const remindOffGamesOf = (value, fallback) => (Array.isArray(value) ? val
 			};
 			// 假 ctx：inject("settings") 同步回调（真机是异步，但迁移做的事与时序无关）；
 			// effect 只记账不执行 —— 定时器一旦真起来会挂住门禁。
-			const ctxOf = (config, settings) => {
+			const ctxOf = (config, settings, located = "gacha-calendar") => {
 				const trace = [];
 				const fiber = { config };
 				const effect = () => { trace.push("effect"); return () => {}; };
@@ -1043,7 +1043,7 @@ export const remindOffGamesOf = (value, fallback) => (Array.isArray(value) ? val
 					fiber,
 					root: { loader: {
 						await: async () => { trace.push("loader.await"); },
-						locate: (f) => { trace.push(f === fiber ? "locate(fiber)" : "locate(other)"); return "gacha-calendar"; }
+						locate: (f) => { trace.push(f === fiber ? "locate(fiber)" : "locate(other)"); return located; }
 					} },
 					effect,
 					inject(deps, cb) {
@@ -1165,8 +1165,9 @@ export const remindOffGamesOf = (value, fallback) => (Array.isArray(value) ? val
 				check("⑤ 整段包在 try/catch 里（失败只记日志，绝不让插件加载失败）",
 					/try \{/.test(fnText) && /\} catch \(err\) \{/.test(fnText));
 				check("⑤ 只有一笔写入，字面就是 { newPanel: true, newPanelMigrated: true }（不留半状态）",
-					(fnText.match(/settings\.update\(/g) || []).length === 1
-					&& /await settings\.update\(ns, \{ newPanel: true, newPanelMigrated: true \}\);/.test(fnText));
+					(fnText.match(/settingsUpdateFirstOf\(/g) || []).length === 1
+					&& /await settingsUpdateFirstOf\(settings, ids, \{ newPanel: true, newPanelMigrated: true \}\);/.test(fnText)
+					&& !/settings\.update\(/.test(fnText));
 				check("⑤ 标记判定读**裸值**且严格 === true（volatile 引用不解包会永远读到 undefined）",
 					/if \(configValueOf\(cfg, "newPanelMigrated"\) === true\) return;/.test(fnText));
 				// ⚠️ 必须滤掉注释行再扫：本函数的 JSDoc 里就写着「老用户存过 newPanel: false」这句背景，
@@ -1181,6 +1182,31 @@ export const remindOffGamesOf = (value, fallback) => (Array.isArray(value) ? val
 				check("⑤ schema 默认值：newPanel=true / newPanelMigrated=false，且两者都 .volatile()（否则写入被拒）",
 					/newPanel: z\.boolean\(\)\.default\(true\)\.volatile\(\)/.test(srcText)
 					&& /newPanelMigrated: z\.boolean\(\)\.default\(false\)\.volatile\(\)/.test(srcText));
+			}
+			// ⑥ DSH 2.0.23-next：bundle 里的插件外面多包了一层 include 条目 ⇒ locate 返回
+			//    `include:gacha-calendar`，而 settings.update 只认可配置条目 id（`gacha-calendar`）。
+			//    2026-11-15 上机日志三行 error 全是这个（新面板 / 刷新频率 / 提醒迁移全部静默失败）。
+			//    这里用"只接受 gacha-calendar"的严格 settings 真调 apply()，证明回退链生效。
+			{
+				const config = { newPanel: false, refreshMigrated: true, remindMigrated: true };
+				const updates = [];
+				const strictSettings = {
+					updates,
+					configure() {},
+					describe() { return [{ ns: "gacha-calendar" }]; },
+					async update(ns, patch) {
+						if (ns !== "gacha-calendar") throw new Error('No configurable plugin entry "' + ns + '"');
+						updates.push({ ns, patch });
+					}
+				};
+				mod.apply(ctxOf(config, strictSettings, "include:gacha-calendar").ctx, config);
+				await settle();
+				check("⑥ include: 前缀（2.0.23-next）⇒ 迁移仍写到 `gacha-calendar`（不再抛 No configurable plugin entry）",
+					updates.length === 1 && updates[0].ns === "gacha-calendar",
+					JSON.stringify(updates.map((u) => u.ns)));
+				check("⑥ 候选顺序：去 include: 前缀的 id 排在 locate 原样之前（先试可配置的那个）",
+					srcText.includes('located.slice("include:".length)'),
+					"src/index.js 里应有 located.slice(\"include:\".length)");
 			}
 		} catch (err) {
 			check("⑨ 迁移用例整套能跑完（抛异常即视为失败，见 detail）", false, String((err && err.stack) || err));

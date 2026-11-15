@@ -495,11 +495,12 @@ export const remindOffGamesOf = (value, fallback) => (Array.isArray(value) ? val
 				check("⑭⑥ 迁移函数切片已定位（静态断言没瞎）", fnText.length > 600, String(fnText.length));
 				check("⑭⑥ 整段包在 try/catch 里（失败只记日志，绝不让插件加载失败）",
 					/try \{/.test(fnText) && /\} catch \(err\) \{/.test(fnText));
-				check("⑭⑥ **只有一笔** settings.update（无条件写入，没有第二个分支 / 第三笔）",
-					(fnText.match(/settings\.update\(/g) || []).length === 1,
-					String((fnText.match(/settings\.update\(/g) || []).length));
+				check("⑭⑥ **只有一笔**写入（无条件写入，没有第二个分支 / 第三笔；2.0.23-next 起经 settingsUpdateFirstOf 选条目）",
+					(fnText.match(/settingsUpdateFirstOf\(/g) || []).length === 1
+					&& !/settings\.update\(/.test(fnText),
+					String((fnText.match(/settingsUpdateFirstOf\(/g) || []).length));
 				check("⑭⑥ 那一笔就是 { refreshMinutes: 0, refreshMigrated: true }（值与标记同笔，不留半状态）",
-					/await settings\.update\(ns, \{ refreshMinutes: 0, refreshMigrated: true \}\);/.test(fnText));
+					/await settingsUpdateFirstOf\(settings, ids, \{ refreshMinutes: 0, refreshMigrated: true \}\);/.test(fnText));
 				check("⑭⑥ 不看旧值：函数体里没有 `configValueOf(cfg, \"refreshMinutes\")`，也没有 `=== 1440` 分支",
 					!/configValueOf\(cfg, "refreshMinutes"\)/.test(fnText)
 					&& !/===\s*1440/.test(fnText));
