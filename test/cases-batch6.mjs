@@ -85,9 +85,9 @@ export default async function run() {
 	section("第五批 ①：4 条注册项（id / 名称 / tz / 标签逐字 / 出厂展示 / 配色 / URL）");
 	{
 		const want = [
-			["langrisser", "梦幻模拟战", "Bwiki 召唤一览", null, LR_URL],
+			["langrisser", "梦幻模拟战", "Bwiki 召唤一览（停更）", null, LR_URL],
 			["crashfever", "CrashFever·日服", "Bwiki 卡池一览", null, CF_URL],
-			["bfzy", "百分之一", "Bwiki 历史卡池", null, BF_URL],
+			["bfzy", "百分之一", "Bwiki 历史卡池（停更）", null, BF_URL],
 			["gwdz", "怪物弹珠·日服", "Bwiki 卡池配置", "Bwiki 活动日历", GW_JSON_URL]
 		];
 		for (const [id, name, gachaLabel, eventLabel, url] of want) {
@@ -95,7 +95,8 @@ export default async function run() {
 			check(`${id} 已注册（name / tz / 卡池标签逐字）`,
 				!!s && s.name === name && s.tz === (id === "crashfever" ? TZ_JP : TZ_CN) && s.source === gachaLabel,
 				s ? JSON.stringify([s.name, s.tz, s.source]) : "缺失");
-			check(`${id} 出厂默认展示（defaultHidden = false）`, !!s && s.defaultHidden === false, s && String(s.defaultHidden));
+			const wantHidden = id === "langrisser" || id === "bfzy";   // 2026-11-15：wiki 停更 ⇒ 默认置空（不占面板行）
+			check(`${id} 出厂默认展示 = ${!wantHidden}（defaultHidden）`, !!s && s.defaultHidden === wantHidden, s && String(s.defaultHidden));
 			check(`${id} 有配色（面板「颜色 = 游戏」）`, !!s && /^#[0-9A-F]{6}$/i.test(String(s.color)), s && String(s.color));
 			check(`${id} 卡池 URL 逐字`, !!s && s.url === url, s && String(s.url).slice(0, 120));
 			if (eventLabel) {

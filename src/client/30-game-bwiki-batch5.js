@@ -514,12 +514,12 @@ async function ns_gwdz_events(url, signal, tz = ns_gwdz_TZ, now = nowMs()) {
 // ── 注册（2026-11-15 第五批 4 条；标签命名沿用「Bwiki + 页面/数据名」的既有风格）──────────────
 registerSource({
 	id: "langrisser",
-	defaultHidden: false,
+	defaultHidden: true,
 	tz: "Asia/Shanghai",
 	name: "梦幻模拟战",
 			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/71/f6/6e/71f66e00-6fdc-5f63-76bc-3ea3389d03c5/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/512x512bb.jpg",
 	url: ns_langrisser_URL,
-	source: "Bwiki 召唤一览",
+	source: "Bwiki 召唤一览（停更）",
 	eventUrl: ""
 });
 registerSource({
@@ -534,12 +534,12 @@ registerSource({
 });
 registerSource({
 	id: "bfzy",
-	defaultHidden: false,
+	defaultHidden: true,
 	tz: "Asia/Shanghai",
 	name: "百分之一",
 			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/83/a4/e4/83a4e4f5-ce7f-1b6f-aab8-ae53746722fc/AppIcon-1x_U007emarketing-0-6-0-85-220-0.png/512x512bb.jpg",
 	url: ns_bfzy_URL,
-	source: "Bwiki 历史卡池",
+	source: "Bwiki 历史卡池（停更）",
 	eventUrl: ""
 });
 registerSource({
