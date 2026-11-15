@@ -847,6 +847,45 @@
 				pcrTwSectionOf: ns_pcr_tw_sectionOf,
 				pcrTwTitleNameOf: ns_pcr_tw_titleNameOf
 			},
+			// 2026-11-15 プリンセスコネクト！Re:Dive·日服（pcr-jp）：microCMS 官方公告
+			// （列表 1 次 = filters 同圈卡池 + 活动；详情按 id 缓存 24h、已结束永久缓存）。
+			// 导出「URL/常量 + 纯解析 + 缓存 + 抓取器」四层，回归可以分别钉住：
+			// 列表 kind 分类（本命池 / 活动 / 已结束 / 其他）/ 详情「锚点行 + 整行区间」/
+			// 行内日期陷阱不认 / 抹掉锚点 ⇒ 不出窗口 / `{}` ⇒ 抛错 / 首轮 5 次、稳态 1 次。
+			"pcr-jp": {
+				PCR_JP_API_BASE: ns_pcr_JP_API_BASE,
+				PCR_JP_API_KEY: ns_pcr_JP_API_KEY,
+				PCR_JP_CACHE_TTL_MS: ns_pcr_JP_CACHE_TTL_MS,
+				PCR_JP_DETAIL_BASE: ns_pcr_JP_DETAIL_BASE,
+				PCR_JP_EVENT_CATEGORY: ns_pcr_JP_EVENT_CATEGORY,
+				PCR_JP_GACHA_TITLE_RE: ns_pcr_JP_GACHA_TITLE_RE,
+				PCR_JP_LABEL_RE: ns_pcr_JP_LABEL_RE,
+				PCR_JP_LIST_URL: ns_pcr_JP_LIST_URL,
+				PCR_JP_MAX_DETAILS: ns_pcr_JP_MAX_DETAILS,
+				PCR_JP_RANGE_RE: ns_pcr_JP_RANGE_RE,
+				PCR_JP_SOURCE_LABEL: ns_pcr_JP_SOURCE_LABEL,
+				PCR_JP_TZ: ns_pcr_JP_TZ,
+				eventsPcrJp: ns_pcr_jp_events,
+				gachaPcrJp: ns_pcr_jp_gacha,
+				pcrJpCacheSealedOf: ns_pcr_jp_cacheSealedOf,
+				pcrJpCacheValidOf: ns_pcr_jp_cacheValidOf,
+				pcrJpDetailOf: ns_pcr_jp_detailOf,
+				pcrJpDetailOfId: ns_pcr_jp_detailOfId,
+				pcrJpDetailUrlOf: ns_pcr_jp_detailUrlOf,
+				pcrJpEventItemsOf: ns_pcr_jp_eventItemsOf,
+				pcrJpEventNameOf: ns_pcr_jp_eventNameOf,
+				pcrJpItemsOf: ns_pcr_jp_itemsOf,
+				pcrJpKindOf: ns_pcr_jp_kindOf,
+				pcrJpLabelOf: ns_pcr_jp_labelOf,
+				pcrJpLinesOf: ns_pcr_jp_linesOf,
+				pcrJpListOf: ns_pcr_jp_listOf,
+				pcrJpPoolItemsOf: ns_pcr_jp_poolItemsOf,
+				pcrJpPoolNameOf: ns_pcr_jp_poolNameOf,
+				pcrJpResetCache: ns_pcr_jp_resetCache,
+				pcrJpRolesOf: ns_pcr_jp_rolesOf,
+				pcrJpRowsOf: ns_pcr_jp_rowsOf,
+				pcrJpWindowOf: ns_pcr_jp_windowOf
+			},
 			// 2026-11-15 雷索纳斯（reso）：bwiki「活动日历」的 wikitext（`action=raw`）+ revisions 只补年份。
 			// 导出纯解析步，回归可以分别钉住：注释里的旧档期不算 / 模板条件行不算 / 8 条招募逐字 /
 			// 年份补全（页面更新年 + 前一年 + 次年 + `endsNextYear` 跨年）/ `{}` ⇒ 抛错 / 无当期 ⇒ null。

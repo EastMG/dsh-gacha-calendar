@@ -1,0 +1,6 @@
+{
+  "url": "https://bekr66d8pd-833ej8ymdl32y5zpbknx.microcms.io/api/v1/news/78691968",
+  "status": 200,
+  "capturedAt": "2026-11-15T07:37:42.886Z",
+  "note": "真抓裁剪：详情 JSON 原样保留（id / createdAt / updatedAt / publishedAt / revisedAt / display_date / categories / thumbnail / display_flag / title / body_html）；body_html 3101 B → 540 B，按 <p> 段落整段保留/删除。标题 = 期間限定キャラ「ラッキーライラック」登場！ピックアップガチャ開催！【2026/11/11(水) 16:35 追記】"
+}

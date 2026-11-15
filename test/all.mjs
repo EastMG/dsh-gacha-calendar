@@ -96,7 +96,10 @@ section("聚合注册表（全部批次合并后）");
 	// +2026-11-14 接入的 api.atlasacademy.io，见 tools/check-host-allow.mjs）
 	// 2026-11-15 +bilibiligame\.net：炽焰天穹国服官方 H5 公告（`Access-Control-Allow-Origin: *`，
 	// 列表与详情实测都放行）⇒ 直连，不进宿主代理白名单。
-	const DIRECT_OK = /umapyoi\.net|sekai-world\.github\.io|bang-dream-on\.bushimo\.jp|gametora\.com|atlasacademy\.io|bilibiligame\.net/;
+	// 2026-11-15 +microcms\.io：公主连结·日服官方公告（microCMS）。列表/详情实测都 `ACAO: *`，
+	// 且 OPTIONS 预检的 `Access-Control-Allow-Headers` 明确含 `X-Microcms-Api-Key`（自定义头也放行）
+	// ⇒ 直连，不进宿主代理白名单。
+	const DIRECT_OK = /umapyoi\.net|sekai-world\.github\.io|bang-dream-on\.bushimo\.jp|gametora\.com|atlasacademy\.io|bilibiligame\.net|microcms\.io/;
 	for (const s of NEXT_SOURCES) {
 		for (const side of ["gacha", "event"]) {
 			if (!s[side] || s[side].mode !== "direct") continue;
@@ -122,8 +125,9 @@ section("夹具卫生");
 	// 的 raw + revisions 两份）。前缀按来源 id 取名，一眼能看出属于哪一条。
 	// 2026-11-15 晚 +1：幻塔（`tof-*`：gamenews 列表 + 最新版本那篇 + 6.4 那篇，共 3 份真夹具）。
 	// 2026-11-15 再 +1：盲盒派对（`gachaparty-*`：卡池模板 wikitext + SMW 活动查询，共 2 份真夹具）。
+	// 2026-11-15 再 +1：公主连结·日服（`pcr-jp-*`：microCMS 列表 1 份 + 5 篇详情 JSON）。
 	check("夹具命名带批次前缀（便于溯源）",
-		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights|wqmt|pengpeng|wd|hlr|bh3|spica|czn|bjhl|yys|dhmmr|bh2|yslz|wxnn|cytq|hl|pcr-tw|reso|tof|gachaparty)/.test(f)),
+		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights|wqmt|pengpeng|wd|hlr|bh3|spica|czn|bjhl|yys|dhmmr|bh2|yslz|wxnn|cytq|hl|pcr-tw|reso|tof|gachaparty|pcr-jp)/.test(f)),
 	);
 }
 //#endregion

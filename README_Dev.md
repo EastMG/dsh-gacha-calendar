@@ -105,6 +105,7 @@ dsh-gacha-calendar/
 │       ├── 30-game-bwiki-reso.js  # 雷索纳斯（国服）：bwiki「活动日历」的 wikitext（`action=raw`，必须带 Referer）+ `revisions` 只补年份（页面更新年 + `inferYear` 上一年 + 镜像次年 + `endsNextYear`）；日期只有 `mm.dd-mm.dd` ⇒ 起 00:00 / 止 23:59；两侧同一条 URL 轮内共享 2 次请求
 │       ├── 30-game-tof.js         # 幻塔（国服）：官网 `gamenews` 列表（SSR，第 1 页 6 条版本公告）+ **最新版本那一篇**的正文（`限定拟态角色「…」、限定武器「…」` + `正式服活动时间：…` + `“X订购活动”`）；两端都明确才算池、池名/角色/起止到分；详情按 URL 缓存 24h（首轮 2 次 / 稳态 1 次）；**只有卡池侧**（活动 `eventUrl:""` = 未配置）
 │       ├── 30-game-bwiki-gachaparty.js # 盲盒派对（国服）：bwiki 卡池模板 `模板:近期盲盒扭蛋` 的 wikitext（`{{首页卡池|池名|角色1|角色2|起|止}}`，**必须先剥 `<!-- -->` 注释**）+ 活动侧 SMW `action=ask` 查 `分类:活动`（首页 `模板:近期活动` 只有结束时刻、没有起点 ⇒ 构不成窗口）；两侧 URL 不同 ⇒ 每轮 2 次请求
+│       ├── 30-game-pcr-jp.js      # 公主连结Re:Dive·日服（microCMS 官方公告）：列表 1 次（`filters=title[contains]ガチャ[or]categories[contains]イベント` + `orders=-display_date`）**同时圈卡池与活动** + 详情 `/api/v1/news/{id}` 的 `body_html`（锚点行 `■…期間` + **下一行恰为日期区间**才是窗口；行内日期陷阱不认）；卡池只收「ピックアップ/フェスガチャ」本命池、活动按 `categories` 含「イベント」且标题未写"終了"；每侧最多 4 篇详情、命中当期即提前收、按 id 缓存 24h 且已结束永久缓存（首轮 5 次 / 稳态 1 次）；实测 `ACAO: *` ⇒ 直连
 │       ├── 44-test-exports.js # 回归出口：解析器 + env 工具 + 来源表
 │       ├── 50-refresh.js     # 刷新编排、失败沿用旧值、提示归类
 │       ├── 60-helpers.js     # 顶部提示归类 / 显隐判定 / 排序 / 角色名与倒计时格式化 / 启动刷新判定

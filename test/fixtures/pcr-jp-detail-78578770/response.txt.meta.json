@@ -1,0 +1,6 @@
+{
+  "url": "https://bekr66d8pd-833ej8ymdl32y5zpbknx.microcms.io/api/v1/news/78578770",
+  "status": 200,
+  "capturedAt": "2026-11-15T07:37:42.886Z",
+  "note": "真抓裁剪：详情 JSON 原样保留（id / createdAt / updatedAt / publishedAt / revisedAt / display_date / categories / thumbnail / display_flag / title / body_html）；body_html 975 B → 400 B，按 <p> 段落整段保留/删除。标题 = バトルスタジアム開催中！"
+}
