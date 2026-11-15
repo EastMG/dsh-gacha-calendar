@@ -1445,7 +1445,7 @@ export default async function run() {
 	//   · `reso-home`（备选源：官网首页**头部原文 54,918 字符** + 第 2,880,537 字符处的
 	//     `var notice_json = JSON.parse("…")`：数组 100→8 条、每条 content 只留「起止时间」窗口段；
 	//     ⚠️ 头部 100KB **不含** `notice_json`，服务端又忽略 Range ⇒ 拿头部解析必然抛错，见 ⑥）
-	section("2026-11-15 公主连结·繁中服（pcr-tw）+ 雷索纳斯（reso，主源 = bwiki 活动日历 / 备选源 = 官网内联 JSON）：真夹具逐字 + 补年份 + 反证");
+	section("2026-11-15 公主连结·繁中服（pcr-tw）+ 雷索纳斯（reso，卡池主源 = bwiki 活动日历 / 活动默认置空、备选 = bwiki 活动档（停更）+ 官网内联 JSON）：真夹具逐字 + 补年份 + 反证");
 	{
 		const PCR = T.parsers["pcr-tw"];
 		const RESO = T.parsers.reso;
@@ -1473,6 +1473,8 @@ export default async function run() {
 		const RESO_REFERER = RESO.RESO_REFERER;
 		const RESO_HOME = RESO.RESO_HOME;
 		const RESO_ALT_FETCHER = RESO.RESO_ALT_FETCHER;
+		// 2026-11-15 晚：活动侧**默认置空**，原 bwiki 活动档降为备选源（停更）
+		const RESO_EVENT_ALT_FETCHER = RESO.RESO_EVENT_ALT_FETCHER;
 		const ALL_IDS2 = T.SOURCES.map((x) => x.id);
 		const norm = (u) => String(u).replace(/[?&]origin=\*/, "");
 		const BODY2 = {
@@ -1550,21 +1552,32 @@ export default async function run() {
 			&& srcPcr.tz === TZ_TW && srcPcr.defaultHidden === false
 			&& srcPcr.name === "公主连结Re:Dive·繁中服",
 			srcPcr ? JSON.stringify([srcPcr.url, srcPcr.eventUrl, srcPcr.source, srcPcr.tz, srcPcr.name]) : "缺失");
-		check("reso 注册：卡池与活动同一条 **bwiki `action=raw`** URL；标签逐字「Bwiki 活动日历」；tz = Asia/Shanghai；默认展示",
-			!!srcReso && srcReso.url === RESO_RAW && srcReso.eventUrl === RESO_RAW
-			&& srcReso.source === "Bwiki 活动日历" && srcReso.eventSource === "Bwiki 活动日历"
+		check("reso 注册：卡池主源 = **bwiki `action=raw`**（标签逐字「Bwiki 活动日历」）；**活动侧默认置空**（eventUrl 为空串、不写 eventSource）；tz = Asia/Shanghai；默认展示",
+			!!srcReso && srcReso.url === RESO_RAW && srcReso.source === "Bwiki 活动日历"
+			&& srcReso.eventUrl === "" && srcReso.eventSource === void 0
 			&& srcReso.tz === TZ_CN2 && srcReso.defaultHidden === false && srcReso.name === "雷索纳斯",
-			srcReso ? JSON.stringify([srcReso.url, srcReso.eventUrl, srcReso.source, srcReso.tz]) : "缺失");
-		// 备选源存在性 + 标签逐字（「官网公告」；中文内容 ⇒ **不许**加「（内联 JSON）」这类自创括号后缀/语言后缀）
+			srcReso ? JSON.stringify([srcReso.url, srcReso.eventUrl, srcReso.source, srcReso.eventSource, srcReso.tz]) : "缺失");
+		// 备选源存在性 + 标签逐字（中文内容 ⇒ **不许**加「（内联 JSON）」这类自创括号后缀/语言后缀）
 		const srcResoAlt = (srcReso && srcReso.altSources) || [];
 		const srcResoEventAlt = (srcReso && srcReso.eventAltSources) || [];
-		check("reso 备选源 = 官网首页内联 JSON（两侧各 1 条；标签逐字「官网公告（停更）」、URL = soli-reso.com、抓取器键 reso-official）",
-			srcResoAlt.length === 1 && srcResoEventAlt.length === 1
-			&& srcResoAlt[0].label === "官网公告（停更）" && srcResoEventAlt[0].label === "官网公告（停更）"
-			&& srcResoAlt[0].url === RESO_HOME && srcResoEventAlt[0].url === RESO_HOME
-			&& srcResoAlt[0].fetcher === RESO_ALT_FETCHER && srcResoEventAlt[0].fetcher === RESO_ALT_FETCHER
+		check("reso 卡池备选源 = 官网首页内联 JSON（1 条；标签逐字「官网公告（停更）」、URL = soli-reso.com、抓取器键 reso-official）",
+			srcResoAlt.length === 1
+			&& srcResoAlt[0].label === "官网公告（停更）" && srcResoAlt[0].url === RESO_HOME
+			&& srcResoAlt[0].fetcher === RESO_ALT_FETCHER
 			&& RESO.RESO_ALT_SOURCE_LABEL === "官网公告（停更）" && RESO_ALT_FETCHER === "reso-official",
-			JSON.stringify([srcResoAlt, srcResoEventAlt]));
+			JSON.stringify([srcResoAlt, RESO.RESO_ALT_SOURCE_LABEL, RESO_ALT_FETCHER]));
+		check("reso 活动备选源 **2 条**（顺序：[0] 原 bwiki 活动档「Bwiki 活动日历（停更）」/ [1] 官网「官网公告（停更）」）",
+			srcResoEventAlt.length === 2
+			&& srcResoEventAlt[0].label === "Bwiki 活动日历（停更）" && srcResoEventAlt[0].url === RESO_RAW
+			&& srcResoEventAlt[0].fetcher === RESO_EVENT_ALT_FETCHER
+			&& srcResoEventAlt[1].label === "官网公告（停更）" && srcResoEventAlt[1].url === RESO_HOME
+			&& srcResoEventAlt[1].fetcher === RESO_ALT_FETCHER
+			&& RESO.RESO_EVENT_ALT_SOURCE_LABEL === "Bwiki 活动日历（停更）" && RESO_EVENT_ALT_FETCHER === "reso-activity-stopped",
+			JSON.stringify([srcResoEventAlt, RESO.RESO_EVENT_ALT_SOURCE_LABEL, RESO_EVENT_ALT_FETCHER]));
+		check("reso 卡池侧的备选源**没被这次改动动过**（仍只有官网内联 JSON；不含「Bwiki 活动日历（停更）」）",
+			srcResoAlt.length === 1
+			&& srcResoAlt.every((a) => a.fetcher !== RESO_EVENT_ALT_FETCHER && a.label !== "Bwiki 活动日历（停更）"),
+			JSON.stringify(srcResoAlt));
 		check("两条都有配色（面板「颜色 = 游戏」）、不同色、id 全局唯一",
 			!!srcPcr && !!srcReso && /^#[0-9A-F]{6}$/i.test(String(srcPcr.color))
 			&& /^#[0-9A-F]{6}$/i.test(String(srcReso.color)) && srcPcr.color !== srcReso.color
@@ -1710,13 +1723,36 @@ export default async function run() {
 			&& recPcr.bannerHover === "精選轉蛋：露易絲瑪莉（夏日）\n第10次精選角色出現率3倍轉蛋\n11-04 16:00 ~ 11-16 15:59",
 			JSON.stringify([(recPcr.gacha || []).map((x) => x.title), recPcr.bannerHover]));
 		if (recPcr.bannerHover) assertHoverConvention("pcr 卡池", recPcr.bannerHover, { requireSet: true });
-		// NOW2（夹具抓取时刻 2026-11-15）下，主源 bwiki 的当期 = 蓝鹊儿 / 朱月（见文件头 ⑥）
+		// NOW2（夹具抓取时刻 2026-11-15）下，卡池主源 bwiki 的当期 = 蓝鹊儿 / 朱月（见文件头 ⑥）
 		check("reso 主源在夹具抓取时刻（2026-11-15）就有当期：卡池 = 结束最早的 特设招募 / 蓝鹊儿 / 10-26 00:00 ~ 11-16 23:59",
 			recReso.banner === "特设招募" && recReso.roles === "蓝鹊儿"
 			&& recReso.bannerDates === "10-26 00:00 ~ 11-16 23:59"
 			&& recReso.bannerDatesRaw === "10.26 ~ 11.16" && recReso.gachaFail === null
-			&& recReso.event === "" && String((recReso.eventFail || {}).kind) === "nomatch",
+			&& recReso.event === "" && recReso.eventFail === null,
 			JSON.stringify([recReso.banner, recReso.roles, recReso.bannerDates, recReso.bannerDatesRaw, recReso.eventFail]));
+		check("reso 活动侧**默认不抓**（未配置）：活动外显空、eventFail = null（既不冒充未公布、也不报失败）",
+			recReso.event === "" && recReso.eventFail === null
+			&& (!Array.isArray(recReso.events) || recReso.events.length === 0),
+			JSON.stringify([recReso.event, recReso.eventFail, recReso.events]));
+
+		// 2026-11-15 晚：活动侧切到备选源「Bwiki 活动日历（停更）」⇒ 才抓那一页（与卡池侧同 URL ⇒ 轮内共享）
+		RESO.resoResetCache();
+		const storeEventAlt = makeStore({ hidden: ALL_IDS2.filter((id) => id !== "reso"), shown: ["reso"] });
+		await storeEventAlt.set("customEventUrls", JSON.stringify({ reso: RESO_RAW }));
+		const callsEventAlt = [];
+		const eEventAlt = createEngine({
+			transport: transport2(callsEventAlt, null, null),
+			storage: storeEventAlt, now: () => NOW2, timer: { setTimeout, clearTimeout }
+		});
+		const recEventAlt = (await eEventAlt.refresh()).games.reso || {};
+		check("reso 活动切到备选源「Bwiki 活动日历（停更）」：请求仍 **2 次**（与卡池侧同一条 URL ⇒ raw + revisions 轮内共享）",
+			callsEventAlt.length === 2 && callsEventAlt.filter((u) => u === RESO_RAW).length === 1
+			&& callsEventAlt.filter((u) => u === RESO_REV).length === 1,
+			"requests=" + callsEventAlt.length + " " + JSON.stringify(callsEventAlt));
+		check("reso 活动备选源如实 nomatch（该页当期 0 行活动 ⇒ 不是失败；卡池侧照常）",
+			String((recEventAlt.eventFail || {}).kind) === "nomatch" && recEventAlt.event === ""
+			&& recEventAlt.banner === "特设招募" && recEventAlt.gachaFail === null,
+			JSON.stringify([recEventAlt.event, recEventAlt.eventFail, recEventAlt.banner, recEventAlt.gachaFail]));
 
 		// 稳态：pcr 详情进 24h 缓存；**列表按页缓存只在轮内有效** ⇒ 第 2 轮仍要取 page1+page2
 		//（这一轮 page2 是必需的：page1 依旧 miss）；reso 主源没有 24h 数据缓存 ⇒ 每轮 raw + revisions 2 次
@@ -2058,12 +2094,13 @@ export default async function run() {
 			&& String((((rNoTag.games.reso || {}).gachaFail) || {}).kind) === "nomatch",
 			JSON.stringify([(rNoTag.games.reso || {}).banner, (rNoTag.games.reso || {}).gachaFail]));
 		// reso 主源：正文改成"没有 <small> 的改版页" ⇒ down（不是 nomatch）
+		// （活动侧默认置空 ⇒ 这一轮只抓卡池，eventFail 应为 null = 未配置，不是 down）
 		RESO.resoResetCache();
 		const eChanged = engineReso(NOW2, null, null, { [RESO_RAW]: "<html><body>改版页</body></html>" });
 		const rChanged = await eChanged.refresh();
-		check("reso 主源反证（端到端）：正文没有档期锚 ⇒ 记 **down**（结构变了 ≠ 当期没有）",
+		check("reso 主源反证（端到端）：正文没有档期锚 ⇒ 卡池记 **down**（结构变了 ≠ 当期没有）；活动侧未配置 ⇒ eventFail = null",
 			String((((rChanged.games.reso || {}).gachaFail) || {}).kind) === "down"
-			&& String((((rChanged.games.reso || {}).eventFail) || {}).kind) === "down",
+			&& (((rChanged.games.reso || {}).eventFail) || null) === null,
 			JSON.stringify([(rChanged.games.reso || {}).gachaFail, (rChanged.games.reso || {}).eventFail]));
 		// reso 备选源：首页没有内联 JSON / 两次 JSON.parse 失败 ⇒ 抛错（结构变了 = down）
 		check("reso 备选源反证：空串 / `{}` / 改版页 / 没有 notice_json / 内层不是数组 / 两次 parse 失败 ⇒ 抛错",
@@ -2349,9 +2386,9 @@ export default async function run() {
 
 		// ── ① 注册 ──
 		const srcJp = srcOf("pcr-jp");
-		check("pcr-jp 注册：卡池与活动**同一条**列表 URL；两侧标签逐字「官网公告（日服）」；tz = Asia/Tokyo；出厂默认展示",
+		check("pcr-jp 注册：卡池与活动**同一条**列表 URL；两侧标签逐字「官网公告（日文）」；tz = Asia/Tokyo；出厂默认展示",
 			!!srcJp && srcJp.url === JP_LIST && srcJp.eventUrl === JP_LIST
-			&& srcJp.source === "官网公告（日服）" && srcJp.eventSource === "官网公告（日服）"
+			&& srcJp.source === "官网公告（日文）" && srcJp.eventSource === "官网公告（日文）"
 			&& srcJp.tz === TZ_JP4 && srcJp.defaultHidden === false
 			&& srcJp.name === "公主连结Re:Dive·日服",
 			srcJp ? JSON.stringify([srcJp.url, srcJp.eventUrl, srcJp.source, srcJp.tz, srcJp.name]) : "缺失");
@@ -2366,7 +2403,7 @@ export default async function run() {
 			/\/api\/v1\/news\?filters=/.test(JP_LIST)
 			&& decodeURIComponent(JP_LIST).includes("title[contains]ガチャ[or]categories[contains]イベント")
 			&& JP_LIST.includes("orders=-display_date") && JP_LIST.includes("fields=id,title,categories,display_date")
-			&& PCRJ.PCR_JP_SOURCE_LABEL === "官网公告（日服）" && PCRJ.PCR_JP_TZ === TZ_JP4,
+			&& PCRJ.PCR_JP_SOURCE_LABEL === "官网公告（日文）" && PCRJ.PCR_JP_TZ === TZ_JP4,
 			JP_LIST);
 
 		// ── ② 列表：kind 分类（本命池 / 活动 / 已结束 / 其他）──

@@ -59,11 +59,15 @@ const makeTransport = (sink, overrides) => ({
 	}
 });
 
-const engineAt = (now, shownId, sink, overrides) => {
+const engineAt = (now, shownId, sink, overrides, customUrls) => {
 	const others = allIds().filter((x) => x !== shownId);
+	const seed = { hidden: others, shown: [shownId] };
+	// 2026-11-15 晚：langrisser / bfzy 的来源**默认置空**（`url: ""` = 未配置），
+	// 要测"手动切到备选源（停更）"那条路径就得像设置页一样写 `customUrls`（值 = 备选源的 url）。
+	if (customUrls) seed.customUrls = JSON.stringify(customUrls);
 	return createEngine({
 		transport: makeTransport(sink, overrides),
-		storage: makeStore({ hidden: others, shown: [shownId] }),
+		storage: makeStore(seed),
 		now: () => now,
 		timer: { setTimeout, clearTimeout }
 	});
@@ -74,31 +78,48 @@ const throws = (fn, re) => {
 };
 
 // 引擎整轮失败态：`*Fail` 非空 = 抛错路径（结构损坏）；`*Fail == null` 且无外显 = nomatch（未公布）
-const refreshAt = async (now, id, sink, overrides) => {
-	const e = engineAt(now, id, sink, overrides);
+const refreshAt = async (now, id, sink, overrides, customUrls) => {
+	const e = engineAt(now, id, sink, overrides, customUrls);
 	const r = await e.refresh();
 	return (r && r.games && r.games[id]) || {};
 };
 
 export default async function run() {
 	// ═════════ ① 注册项（4 条）═════════
-	section("第五批 ①：4 条注册项（id / 名称 / tz / 标签逐字 / 出厂展示 / 配色 / URL）");
+	section("第五批 ①：4 条注册项（id / 名称 / tz / 标签逐字 / 出厂展示 / 配色 / 来源）");
 	{
+		// 2026-11-15 晚（用户口径）：langrisser / bfzy 的**来源默认置空**（`url: ""` + 不写 `source`），
+		// 原 wiki 源降为备选源并标「（停更）」—— URL/标签改成断言 `altSources[0]`。
 		const want = [
-			["langrisser", "梦幻模拟战", "Bwiki 召唤一览（停更）", null, LR_URL],
-			["crashfever", "CrashFever·日服", "Bwiki 卡池一览", null, CF_URL],
-			["bfzy", "百分之一", "Bwiki 历史卡池（停更）", null, BF_URL],
-			["gwdz", "怪物弹珠·日服", "Bwiki 卡池配置", "Bwiki 活动日历", GW_JSON_URL]
+			["langrisser", "梦幻模拟战", "Bwiki 召唤一览（停更）", LR_URL, null],
+			["crashfever", "CrashFever·日服", "Bwiki 卡池一览", CF_URL, null],
+			["bfzy", "百分之一", "Bwiki 历史卡池（停更）", BF_URL, null],
+			["gwdz", "怪物弹珠·日服", "Bwiki 卡池配置", GW_JSON_URL, "Bwiki 活动日历"]
 		];
-		for (const [id, name, gachaLabel, eventLabel, url] of want) {
+		for (const [id, name, altLabel, altUrl, eventLabel] of want) {
 			const s = srcOf(id);
-			check(`${id} 已注册（name / tz / 卡池标签逐字）`,
-				!!s && s.name === name && s.tz === (id === "crashfever" ? TZ_JP : TZ_CN) && s.source === gachaLabel,
-				s ? JSON.stringify([s.name, s.tz, s.source]) : "缺失");
-			const wantHidden = id === "langrisser" || id === "bfzy";   // 2026-11-15：wiki 停更 ⇒ 默认置空（不占面板行）
-			check(`${id} 出厂默认展示 = ${!wantHidden}（defaultHidden）`, !!s && s.defaultHidden === wantHidden, s && String(s.defaultHidden));
+			const isStopped = id === "langrisser" || id === "bfzy";
+			check(`${id} 已注册（name / tz / 标签逐字）`,
+				!!s && s.name === name && s.tz === (id === "crashfever" ? TZ_JP : TZ_CN)
+				&& (isStopped ? !!s.altSources && s.altSources[0].label === altLabel : s.source === altLabel),
+				s ? JSON.stringify([s.name, s.tz, s.source, (s.altSources || []).map((a) => a.label)]) : "缺失");
+			// 2026-11-15 晚：`defaultHidden` **恢复 false** ——「置空」= 来源未配置，不是整条隐藏。
+			check(`${id} 出厂默认展示（defaultHidden = false）`, !!s && s.defaultHidden === false, s && String(s.defaultHidden));
 			check(`${id} 有配色（面板「颜色 = 游戏」）`, !!s && /^#[0-9A-F]{6}$/i.test(String(s.color)), s && String(s.color));
-			check(`${id} 卡池 URL 逐字`, !!s && s.url === url, s && String(s.url).slice(0, 120));
+			if (isStopped) {
+				check(`${id} 卡池来源默认置空（\`url: ""\` + 不写 \`source\` ⇒ 设置页/面板「未配置」）`,
+					!!s && s.url === "" && s.source === void 0,
+					s ? JSON.stringify([s.url, s.source]) : "缺失");
+				const alt = (s && s.altSources && s.altSources[0]) || null;
+				check(`${id} 原来源降为备选源：altSources[0] =「${altLabel}」/ URL 逐字 / fetcher 已登记`,
+					!!alt && (s.altSources || []).length === 1 && alt.label === altLabel && alt.url === altUrl
+					&& alt.fetcher === id + "-stopped" && typeof T.GACHA_FETCHERS[alt.fetcher] === "function",
+					JSON.stringify([s && s.altSources, alt && typeof T.GACHA_FETCHERS[alt.fetcher]]));
+			} else {
+				check(`${id} 卡池来源标签逐字 + URL 逐字（本批不动）`,
+					!!s && s.source === altLabel && s.url === altUrl,
+					s ? JSON.stringify([s.source, String(s.url).slice(0, 120)]) : "缺失");
+			}
 			if (eventLabel) {
 				check(`${id} 活动侧标签 =「${eventLabel}」/ URL 与卡池不同`,
 					!!s && s.eventSource === eventLabel && s.eventUrl === GW_CAL_URL && s.eventUrl !== s.url,
@@ -160,18 +181,25 @@ export default async function run() {
 			items2.length === 5 && B5.langrisserPayloadOf(items2, TZ_CN, LR_NOW) === null,
 			JSON.stringify([items2.length, B5.langrisserPayloadOf(items2, TZ_CN, LR_NOW) && "有外显"]));
 
-		// 引擎整轮：1 个请求
+		// 引擎整轮（默认）：来源**置空**⇒ 一个请求都不发、不记失败（那是「未配置」，不是"未公布"）
+		const calls0 = [];
+		const recNone = await refreshAt(LR_NOW, "langrisser", calls0, null);
+		check("引擎（默认置空）：整轮 **0 次**请求、两侧都不记失败（未配置 ≠ 抓取失败）",
+			calls0.length === 0 && !recNone.banner && recNone.gachaFail === null && recNone.eventFail === null,
+			"requests=" + calls0.length + " " + JSON.stringify([recNone.banner, recNone.gachaFail, recNone.eventFail]));
+
+		// 引擎整轮（手动切到备选源「Bwiki 召唤一览（停更）」）：1 个请求
 		const calls = [];
-		const rec = await refreshAt(LR_NOW, "langrisser", calls, null);
-		check("引擎：整轮 **1 次**请求（SMW ask 一次拿全；sort=开始 desc 保证最新一期在首页）",
+		const rec = await refreshAt(LR_NOW, "langrisser", calls, null, { langrisser: LR_URL });
+		check("引擎（切备选源）：整轮 **1 次**请求（SMW ask 一次拿全；sort=开始 desc 保证最新一期在首页）",
 			calls.length === 1 && calls[0] === withOrigin(LR_URL), "requests=" + calls.length + " " + JSON.stringify(calls.slice(0, 2)));
 		check("引擎外显：banner / bannerDates / roles 与解析层一致，gachaFail = null",
 			rec.banner === "炽潮双刃，斩浪焚海" && rec.bannerDates === "09-10 00:00 ~ 10-14 23:59"
 			&& rec.roles === "妮、红莲" && rec.gachaFail === null,
 			JSON.stringify([rec.banner, rec.bannerDates, rec.gachaFail]));
 		if (rec.bannerHover) assertHoverConvention("langrisser 引擎悬停", rec.bannerHover, { requireSet: true });
-		// 反证 ③：`{}` 走引擎 ⇒ 记失败（面板会报"抓取失败"，不会静默"未公布"）
-		const recBad = await refreshAt(LR_NOW, "langrisser", [], { [withOrigin(LR_URL)]: "{}" });
+		// 反证 ③：`{}` 走引擎（切到备选源）⇒ 记失败（面板会报"抓取失败"，不会静默"未公布"）
+		const recBad = await refreshAt(LR_NOW, "langrisser", [], { [withOrigin(LR_URL)]: "{}" }, { langrisser: LR_URL });
 		check("反证：引擎遇到 `{}` ⇒ gachaFail 非空、无外显（与非 nomatch 区分开）",
 			recBad.gachaFail != null && !recBad.banner,
 			JSON.stringify([recBad.gachaFail, recBad.banner]));
@@ -279,13 +307,20 @@ export default async function run() {
 			})(),
 			JSON.stringify(noAnchor.parse.wikitext.includes("2026-09-04")));
 
-		const recBad = await refreshAt(BF_NOW_NEW, "bfzy", [], { [withOrigin(BF_URL)]: "{}" });
+		// 引擎（默认）：来源**置空** ⇒ 0 次请求、不记失败
+		const calls0 = [];
+		const recNone = await refreshAt(BF_NOW_NEW, "bfzy", calls0, null);
+		check("引擎（默认置空）：整轮 **0 次**请求、两侧都不记失败（未配置 ≠ 抓取失败）",
+			calls0.length === 0 && !recNone.banner && recNone.gachaFail === null && recNone.eventFail === null,
+			"requests=" + calls0.length + " " + JSON.stringify([recNone.banner, recNone.gachaFail, recNone.eventFail]));
+
+		const recBad = await refreshAt(BF_NOW_NEW, "bfzy", [], { [withOrigin(BF_URL)]: "{}" }, { bfzy: BF_URL });
 		check("反证：引擎遇到 {}（没有 parse.wikitext）⇒ gachaFail 非空、无外显（与非 nomatch 区分开）",
 			recBad.gachaFail != null && !recBad.banner, JSON.stringify([recBad.gachaFail, recBad.banner]));
 
 		const calls = [];
-		const rec = await refreshAt(BF_NOW_NEW, "bfzy", calls, null);
-		check("引擎：整轮 **1 次**请求（一次 parse 拿整页 wikitext）",
+		const rec = await refreshAt(BF_NOW_NEW, "bfzy", calls, null, { bfzy: BF_URL });
+		check("引擎（切备选源）：整轮 **1 次**请求（一次 parse 拿整页 wikitext）",
 			calls.length === 1 && calls[0] === withOrigin(BF_URL), "requests=" + calls.length);
 		check("引擎外显：banner = 80抽·第1天 / 09-04 00:00 ~ 09-11 00:00 / gachaFail = null",
 			rec.banner === "80抽·第1天" && rec.bannerDates === "09-04 00:00 ~ 09-11 00:00" && rec.gachaFail === null,

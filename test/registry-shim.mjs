@@ -144,28 +144,36 @@ NEXT_SOURCES.push(
 		gacha: { url: T.parsers["pcr-jp"].PCR_JP_LIST_URL, kind: "official-api", mode: "direct", fetcher: resolve("pcr-jp.gachaPcrJp") },
 		event: { url: T.parsers["pcr-jp"].PCR_JP_LIST_URL, kind: "official-api", mode: "direct", fetcher: resolve("pcr-jp.eventsPcrJp") }
 	},
-	// 2026-11-15：雷索纳斯（`reso`）—— **主源 = bwiki「活动日历」** 的 wikitext（`action=raw` 正文 +
+	// 2026-11-15：雷索纳斯（`reso`）—— **卡池主源 = bwiki「活动日历」** 的 wikitext（`action=raw` 正文 +
 	// `api.php?action=query&prop=revisions` 只补年份；必须带 `Referer: https://wiki.biligame.com/`）。
-	// 卡池与活动**同一条 URL** ⇒ 轮内共享 2 次请求。**备选源 = 官网首页 `soli-reso.com`** 的内联
-	// `notice_json`（更新公告；双重转义；整页 7,451,933 B；24h 缓存）—— 2026-11-15 二次换源后降为
-	// `altSources` / `eventAltSources` 的手动备选（见 `test/cases-new5.mjs` ⑨ 的备选源断言）。
-	// 两处响应都无 ACAO ⇒ `mode: "proxy"`。
+	// **活动侧默认置空**（`event: null` = 未配置、不抓取；用户 2026-11-15 晚口径）—— 原 bwiki 活动档
+	// 降为 `eventAltSources` 里的手动备选「Bwiki 活动日历（停更）」（该页活动数据自 2024-10-08 后就没有了），
+	// 抓取器键 `reso-activity-stopped`；另一条备选 = 官网首页 `soli-reso.com` 的内联 `notice_json`
+	// （更新公告；双重转义；整页 7,451,933 B；24h 缓存）「官网公告（停更）」。
+	// 卡池/活动两处响应都无 ACAO ⇒ `mode: "proxy"`。
 	{
 		id: "reso",
 		tz: "Asia/Shanghai",
 		name: "雷索纳斯",
 		gacha: { url: T.parsers.reso.RESO_RAW_URL, kind: "wiki", mode: "proxy", fetcher: resolve("reso.gachaReso") },
-		event: { url: T.parsers.reso.RESO_RAW_URL, kind: "wiki", mode: "proxy", fetcher: resolve("reso.eventsReso") },
+		event: null,
 		altSources: [{
 			label: T.parsers.reso.RESO_ALT_SOURCE_LABEL,
 			url: T.parsers.reso.RESO_HOME,
 			fetcher: T.parsers.reso.RESO_ALT_FETCHER
 		}],
-		eventAltSources: [{
-			label: T.parsers.reso.RESO_ALT_SOURCE_LABEL,
-			url: T.parsers.reso.RESO_HOME,
-			fetcher: T.parsers.reso.RESO_ALT_FETCHER
-		}]
+		eventAltSources: [
+			{
+				label: T.parsers.reso.RESO_EVENT_ALT_SOURCE_LABEL,
+				url: T.parsers.reso.RESO_RAW_URL,
+				fetcher: T.parsers.reso.RESO_EVENT_ALT_FETCHER
+			},
+			{
+				label: T.parsers.reso.RESO_ALT_SOURCE_LABEL,
+				url: T.parsers.reso.RESO_HOME,
+				fetcher: T.parsers.reso.RESO_ALT_FETCHER
+			}
+		]
 	},
 	// 2026-11-15：幻塔（`tof`，国服）—— 官网 `gamenews` 列表（SSR，第 1 页 6 条版本公告）+ **最新版本那篇**
 	// 的正文；**只接卡池侧**（活动侧没有可靠源 ⇒ `event: null` = 设置页「未配置」）。
@@ -273,11 +281,15 @@ NEXT_SOURCES.push(
 	// 三条卡池侧走 SMW ask / wikitext 表格（url 逐字见各自解析器导出）；gwdz 两侧 URL 不同
 	// （卡池 = `Data:GachaConfig.json` 的 **JSON**、活动 = `Widget:游戏活动日历` 的 `CALENDAR_DATA`）。
 	// bwiki 响应无 ACAO ⇒ 全部 `mode: "proxy"`。
+	// 2026-11-15 晚：langrisser / bfzy 的**来源默认置空**（`gacha: null` = 未配置、不抓取），
+	// 原 wiki 源降为 `altSources` 的备选（标签带「（停更）」，fetcher 用字符串键，
+	// 实现在 `EXTRA_GACHA_FETCHERS` 里指向同一批解析器）。
 	{
 		id: "langrisser",
 		tz: T.parsers.batch5.LANGRISSER_TZ,
 		name: "梦幻模拟战",
-		gacha: { url: T.parsers.batch5.LANGRISSER_URL, kind: "wiki", mode: "proxy", fetcher: resolve("batch5.langrisserGacha") },
+		gacha: null,
+		altSources: [{ label: "Bwiki 召唤一览（停更）", url: T.parsers.batch5.LANGRISSER_URL, fetcher: "langrisser-stopped" }],
 		event: null
 	},
 	{
@@ -291,7 +303,8 @@ NEXT_SOURCES.push(
 		id: "bfzy",
 		tz: T.parsers.batch5.BFZY_TZ,
 		name: "百分之一",
-		gacha: { url: T.parsers.batch5.BFZY_URL, kind: "wiki", mode: "proxy", fetcher: resolve("batch5.bfzyGacha") },
+		gacha: null,
+		altSources: [{ label: "Bwiki 历史卡池（停更）", url: T.parsers.batch5.BFZY_URL, fetcher: "bfzy-stopped" }],
 		event: null
 	},
 	{
@@ -329,6 +342,10 @@ export const EXTRA_GACHA_FETCHERS = {
 	"ddlezj-biligame": resolve("biligame-announce.gachaDdlezj"),
 	// 2026-11-15：雷索纳斯备选源 = 官网首页内联 JSON（主源换回 bwiki 后，它降为手动备选）
 	"reso-official": resolve("reso.gachaResoOfficial"),
+	// 2026-11-15 晚：梦幻模拟战 / 百分之一 的来源默认置空，原 wiki 源降为备选（标签带「（停更）」）。
+	// 抓取器直接别名到原解析器（解析代码只有一份）。
+	"langrisser-stopped": resolve("batch5.langrisserGacha"),
+	"bfzy-stopped": resolve("batch5.bfzyGacha"),
 };
 export const EXTRA_EVENT_FETCHERS = {
 	"uma-jp": {
@@ -348,6 +365,8 @@ export const EXTRA_EVENT_FETCHERS = {
 	},
 	// 2026-11-15：雷索纳斯备选源 = 官网首页内联 JSON（主源换回 bwiki 后，它降为手动备选）
 	"reso": {
+		// 2026-11-15 晚：活动侧默认置空，原 bwiki 活动档降为备选（停更）—— 别名到原活动抓取器。
+		"reso-activity-stopped": resolve("reso.eventsReso"),
 		"reso-official": resolve("reso.eventsResoOfficial"),
 	},
 };

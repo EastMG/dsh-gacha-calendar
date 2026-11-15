@@ -878,15 +878,18 @@
 				pcrJpRowsOf: ns_pcr_jp_rowsOf,
 				pcrJpWindowOf: ns_pcr_jp_windowOf
 			},
-						// 2026-11-15 雷索纳斯（reso）：**主源 = bwiki「活动日历」的 wikitext**
-			// （`action=raw` + `revisions` 只补年份）；**备选源 = 官网首页内联 `notice_json`**
-			// （双重转义 ⇒ 两次 JSON.parse；只在设置里选中时才抓）。两套纯解析都导出，回归分别钉住：
+						// 2026-11-15 雷索纳斯（reso）：**卡池主源 = bwiki「活动日历」的 wikitext**
+			// （`action=raw` + `revisions` 只补年份）；活动侧默认置空，原 bwiki 活动档降为备选
+			// （「Bwiki 活动日历（停更）」，键 reso-activity-stopped）；另一条备选 = 官网首页内联
+			// `notice_json`（双重转义 ⇒ 两次 JSON.parse；只在设置里选中时才抓）。两套纯解析都导出，回归分别钉住：
 			// · 主源：注释里的旧档期不算 / 模板条件行不算 / 8 条招募逐字 / 年份补全（页面更新年 +
 			//   前一年 + 次年镜像 + `endsNextYear` 跨年）/ `{}` ⇒ 抛错 / 无当期 ⇒ null；
 			// · 备选源：内联 JSON 抽取 / 缺锚点抛错 / `起止时间` 的 7 种写法 + 年份补全 / 24h 缓存。
 			"reso": {
 				RESO_ALT_FETCHER: ns_reso_ALT_FETCHER,
 				RESO_ALT_SOURCE_LABEL: ns_reso_ALT_SOURCE_LABEL,
+				RESO_EVENT_ALT_FETCHER: ns_reso_EVENT_ALT_FETCHER,
+				RESO_EVENT_ALT_SOURCE_LABEL: ns_reso_EVENT_ALT_SOURCE_LABEL,
 				RESO_HOME: ns_reso_HOME,
 				RESO_HOME_CACHE_TTL_MS: ns_reso_HOME_CACHE_TTL_MS,
 				RESO_HOME_REFERER: ns_reso_HOME_REFERER,

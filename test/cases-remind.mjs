@@ -1891,10 +1891,12 @@ export default z;
 				JSON.stringify(got) === JSON.stringify(want),
 				"副本=" + got.join(",") + " ／ SOURCES=" + want.join(","));
 			check("⑨ 那份副本非空（否则「出厂隐藏 ⇒ 不提醒」整条规则会静默失效）", got.length > 0, String(got.length));
-			// 2026-11-14 用户拍板「除 cytq 外全部默认展示」；2026-11-15 用户追加：
-			// langrisser / bfzy 源站停更 ⇒ 也默认置空（隐藏集合恰好是这三条，多一条少一条都红）
-			check('⑨ SOURCES 里 defaultHidden === true 的 id 集合恰为 ["bfzy","cytq","langrisser"]（2026-11-15 口径）',
-				JSON.stringify(want) === JSON.stringify(["bfzy", "cytq", "langrisser"]), want.join(","));
+			// 2026-11-14 用户拍板「除 cytq 外全部默认展示」⇒ 隐藏集合必须**恰好只有 cytq**
+			// （这条钉的是口径本身：以后谁把某条改回 defaultHidden: true 或忘了改，这里先红）
+			// 2026-11-15 晚修正：langrisser / bfzy 的「置空」是**来源未配置**（`url: ""`）而不是整条隐藏
+			// ⇒ defaultHidden 恢复 false，隐藏集合回到只有 cytq。
+			check('⑨ SOURCES 里 defaultHidden === true 的 id 集合恰为 ["cytq"]（2026-11-14 用户拍板）',
+				JSON.stringify(want) === JSON.stringify(["cytq"]), want.join(","));
 		}
 
 		// ⑩ 宿主接线（静态）：送达侧读的是同一条链路 + 日志里带跳过计数

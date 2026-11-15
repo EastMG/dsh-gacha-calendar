@@ -2,7 +2,7 @@
 //
 // ── 落点 ────────────────────────────────────────────────────────────────────────
 // 厂商级文件（`30-game-*` 家族，不是 bwiki 系）：唯一来源 `id:"pcr-jp"`，
-// 卡池侧与活动侧**共用一份公告列表**，标签逐字「官网公告（日服）」（两侧同一条）。
+// 卡池侧与活动侧**共用一份公告列表**，标签逐字「官网公告（日文）」（两侧同一条）。
 // 与 `30-game-pcr-tw.js`（繁中服 So-net 官网 HTML）**不是**同一套接口：日服走 microCMS JSON。
 //
 // ── ① 站点形态（2026-11-15 16:36 JST 实测；夹具 test/fixtures/pcr-jp-*）──────────────
@@ -80,7 +80,7 @@ const ns_pcr_JP_LIST_URL = ns_pcr_JP_API_BASE
 	+ "?filters=" + encodeURIComponent("title[contains]ガチャ[or]categories[contains]イベント")
 	+ "&limit=20&fields=id,title,categories,display_date&orders=-display_date";
 const ns_pcr_JP_DETAIL_BASE = ns_pcr_JP_API_BASE + "/";
-const ns_pcr_JP_SOURCE_LABEL = "官网公告（日服）";
+const ns_pcr_JP_SOURCE_LABEL = "官网公告（日文）";
 // 每侧最多取几篇详情（见文件头 ③：命中当期窗口会提前收，4 只是上限）
 const ns_pcr_JP_MAX_DETAILS = 4;
 // 详情正文解析结果缓存 TTL = 24h（按 id 缓存，换池不会串）
@@ -353,7 +353,7 @@ async function ns_pcr_jp_events(url, signal, tz = ns_pcr_JP_TZ, now = nowMs()) {
 //#endregion
 
 //#region ⑤ 条目登记
-// 卡池与活动**同一条列表**（`eventUrl` 与 `url` 相同）⇒ 两侧标签逐字「官网公告（日服）」。
+// 卡池与活动**同一条列表**（`eventUrl` 与 `url` 相同）⇒ 两侧标签逐字「官网公告（日文）」。
 registerSource({
 	id: "pcr-jp",
 	defaultHidden: false,

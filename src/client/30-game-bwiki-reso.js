@@ -1,18 +1,26 @@
-// src/client/30-game-bwiki-reso.js —— 雷索纳斯（国服）：主源 = bwiki「活动日历」；备选源 = 官网首页内联 JSON
+// src/client/30-game-bwiki-reso.js —— 雷索纳斯（国服）：卡池主源 = bwiki「活动日历」；活动默认置空（备选 = bwiki 活动档（停更）/ 官网内联 JSON）
 //
-// ── 落点（2026-11-15 二次换源：主源换回 bwiki，官网内联 JSON 降为手动备选）──────────────────
-// 唯一来源 `id:"reso"`。**主源** = bwiki「活动日历」页的 wikitext（`action=raw` + `revisions` 只补年份），
-// 标签逐字「Bwiki 活动日历」；卡池侧与活动侧**同一条 URL**、轮内共享 2 次请求。
-// **备选源** = 官网首页 `https://soli-reso.com/` 的内联 `notice_json`（`altSources` / `eventAltSources`，
-// 抓取器键 `reso-official`），标签逐字「官网公告（停更）」（官方公告最后更新 2025-12-23，用户 2026-11-15 要求标「（停更）」）；
-// 只有用户在设置页手动切过去时才会请求它（7.4MB 整页 + 24h 缓存，见 ⑤）。
+// ── 落点（2026-11-15 三次调整：卡池主源留 bwiki；活动侧默认置空、原 bwiki 活动源降为备选）────────
+// 唯一来源 `id:"reso"`。
+// · **卡池侧**（不动，2026-11-15 二次换源的结论）：主源 = bwiki「活动日历」页的 wikitext
+//   （`action=raw` + `revisions` 只补年份），标签逐字「Bwiki 活动日历」。
+// · **活动侧默认置空**（用户 2026-11-15 晚口径）：`eventUrl: ""` + 不写 `eventSource`
+//   ⇒ 设置页/面板显示裸「未配置」、一个请求都不发。原「Bwiki 活动日历」降为**备选源**
+//   （`eventAltSources`，抓取器键 `reso-activity-stopped`），标签逐字「Bwiki 活动日历（停更）」
+//   —— 实测该页**活动数据自 2024-10-08 后就没有了**（属停更，不是解析失败；夹具里活动侧本来就 0 行）。
+// · **另一条备选**（`altSources` / `eventAltSources` 都有）= 官网首页 `https://soli-reso.com/`
+//   的内联 `notice_json`，抓取器键 `reso-official`，标签逐字「官网公告（停更）」
+//   （官方公告最后更新 2025-12-23，用户 2026-11-15 要求标「（停更）」）；只有用户在设置页
+//   手动切过去时才会请求它（7.4MB 整页 + 24h 缓存，见 ⑤）。
 //
 // ── ① 为什么换回 bwiki（2026-11-15 实测证据，别再来回换）────────────────────────────
 //   · 官网 `soli-reso.com` 的 `notice_json` **最新一条停在 2025-12-23**（id 290）⇒ 已停更 11 个月，
 //     2026-11-15 两侧都是 null（不是解析失败，是源站真的没新公告）；
 //   · 社区 bwiki「活动日历」页**仍在更新**：`revisions` 显示最后编辑 2026-10-26 13:11:13Z，
 //     活行 8 条招募里**当期有 2 口**（见 ⑥）⇒ 它才是"当期的可靠来源"。
-//   ⇒ 主源 = bwiki（社区站，但仍是人工维护的滚动日历）；官网内联 JSON 保留为备选源（解析代码全留）。
+//   ⇒ 卡池主源 = bwiki（社区站，但仍是人工维护的滚动日历）；活动侧 2026-11-15 晚按用户口径
+//     **默认置空**（该页活动数据自 2024-10-08 后就没有了 ⇒ 降为备选源「Bwiki 活动日历（停更）」）；
+//     官网内联 JSON 保留为另一条备选源（解析代码全留）。
 //
 // ── ② 主源页面形态（夹具 test/fixtures/reso-calendar-raw / reso-revision）───────────────
 //   `GET https://wiki.biligame.com/resonance/index.php?title=活动日历&action=raw`
@@ -121,6 +129,11 @@ const ns_reso_HOME_REFERER = ns_reso_HOME;
 // 也不加语言后缀（后缀只给外语源，见全仓标签口径）。主源/备选靠来源名与备选列表位置区分。
 const ns_reso_ALT_SOURCE_LABEL = "官网公告（停更）";
 const ns_reso_ALT_FETCHER = "reso-official";
+// —— 活动侧备选源：原 bwiki「活动日历」降为手动备选（2026-11-15 晚用户口径）——
+// 实测该页活动数据自 2024-10-08 后就没有了 ⇒ 属**停更**（不是解析失败）；卡池侧仍以它为主源，不动。
+// 抓取器键直接别名到上面的主源活动抓取器（同一份解析代码，不另造实现）。
+const ns_reso_EVENT_ALT_SOURCE_LABEL = "Bwiki 活动日历（停更）";
+const ns_reso_EVENT_ALT_FETCHER = "reso-activity-stopped";
 // 官网整页 7.4MB（服务端不支持 Range）⇒ 解析结果按 URL 缓存 24h
 const ns_reso_HOME_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -539,8 +552,10 @@ async function ns_reso_officialEvents(url, signal, tz = ns_reso_TZ, now = nowMs(
 //#endregion
 
 //#region ⑥ 条目登记
-// 卡池与活动同一条 URL（主源 = bwiki `action=raw` 的 wikitext；备选源 = 官网首页的内联 JSON）。
-// 标签：主源逐字「Bwiki 活动日历」；备选源逐字「官网公告（停更）」。
+// 卡池主源 = bwiki `action=raw` 的 wikitext（标签「Bwiki 活动日历」，不动）；
+// 活动侧**默认置空**（`eventUrl: ""` + 不写 `eventSource` ⇒ 未配置、不抓取），
+// 原 bwiki 活动源降为备选（「Bwiki 活动日历（停更）」），官网内联 JSON 是另一条备选（「官网公告（停更）」）。
+// 备选源标识 = 各自的 `url`（`altSourceId`）：两条活动备选 URL 不同（RESO_RAW_URL / RESO_HOME），不会串。
 registerSource({
 	id: "reso",
 	defaultHidden: false,
@@ -549,16 +564,21 @@ registerSource({
 	icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/67/10/a4/6710a4b4-3b57-eb6a-df7a-7a143826aec4/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",
 	url: ns_reso_RAW_URL,
 	source: ns_reso_SOURCE_LABEL,
-	eventUrl: ns_reso_RAW_URL,
-	eventSource: ns_reso_SOURCE_LABEL,
+	eventUrl: "",
 	altSources: [{ label: ns_reso_ALT_SOURCE_LABEL, url: ns_reso_HOME, fetcher: ns_reso_ALT_FETCHER }],
-	eventAltSources: [{ label: ns_reso_ALT_SOURCE_LABEL, url: ns_reso_HOME, fetcher: ns_reso_ALT_FETCHER }]
+	eventAltSources: [
+		{ label: ns_reso_EVENT_ALT_SOURCE_LABEL, url: ns_reso_RAW_URL, fetcher: ns_reso_EVENT_ALT_FETCHER },
+		{ label: ns_reso_ALT_SOURCE_LABEL, url: ns_reso_HOME, fetcher: ns_reso_ALT_FETCHER }
+	]
 });
 GACHA_FETCHERS["reso"] = (url, signal, tz, now) => ns_reso_gacha(url, signal, tz, now);
 // 备选源：官网首页内联 JSON（键 = altSources 的 fetcher 字段；只有选中时才被调用）
 GACHA_FETCHERS[ns_reso_ALT_FETCHER] = (url, signal, tz, now) => ns_reso_officialGacha(url, signal, tz, now);
 EVENT_FETCHERS["reso"] = Object.assign(EVENT_FETCHERS["reso"] || {}, {
+	// 默认抓取器保留（用户把活动地址改成自定义 URL 时的兜底，与其它条目同形）；默认路径不经过它。
 	default: (url, signal, tz, now) => ns_reso_events(url, signal, tz, now),
+	// 活动侧备选：原 bwiki 活动档（停更）—— 直接别名到主源活动抓取器，解析代码只有一份。
+	[ns_reso_EVENT_ALT_FETCHER]: (url, signal, tz, now) => ns_reso_events(url, signal, tz, now),
 	[ns_reso_ALT_FETCHER]: (url, signal, tz, now) => ns_reso_officialEvents(url, signal, tz, now)
 });
 //#endregion

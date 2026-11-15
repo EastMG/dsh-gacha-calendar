@@ -512,14 +512,25 @@ async function ns_gwdz_events(url, signal, tz = ns_gwdz_TZ, now = nowMs()) {
 //#endregion
 
 // ── 注册（2026-11-15 第五批 4 条；标签命名沿用「Bwiki + 页面/数据名」的既有风格）──────────────
+// 2026-11-15 晚（用户口径）：langrisser / bfzy 的**来源默认置空**（`url: ""` + 不写 `source`
+// ⇒ 设置页/面板显示裸「未配置」，一个请求都不发），原 wiki 源降为**备选源**并标「（停更）」：
+//   · langrisser：SMW `分类:召唤` 最新一期止于 2026-10-14（之后没有新卡池）⇒ 停更；
+//   · bfzy：`历史卡池` 表内最新更新日停在 2026-09-04（之后没有新一期）⇒ 停更。
+// 引擎按 `altSources` 的 `fetcher` 键路由（主源不抓、只在用户手动切过去时抓）；抓取器函数
+// 直接**别名登记**，不另造第二份实现。`defaultHidden` 保持 `false` ——「置空」= 来源未配置，
+// 不是整条隐藏（面板仍占一行、显示「未配置」）。
 registerSource({
 	id: "langrisser",
-	defaultHidden: true,
+	defaultHidden: false,
 	tz: "Asia/Shanghai",
 	name: "梦幻模拟战",
 			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/71/f6/6e/71f66e00-6fdc-5f63-76bc-3ea3389d03c5/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/512x512bb.jpg",
-	url: ns_langrisser_URL,
-	source: "Bwiki 召唤一览（停更）",
+	url: "",
+	altSources: [{
+		label: "Bwiki 召唤一览（停更）",
+		url: ns_langrisser_URL,
+		fetcher: "langrisser-stopped"
+	}],
 	eventUrl: ""
 });
 registerSource({
@@ -534,12 +545,16 @@ registerSource({
 });
 registerSource({
 	id: "bfzy",
-	defaultHidden: true,
+	defaultHidden: false,
 	tz: "Asia/Shanghai",
 	name: "百分之一",
 			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/83/a4/e4/83a4e4f5-ce7f-1b6f-aab8-ae53746722fc/AppIcon-1x_U007emarketing-0-6-0-85-220-0.png/512x512bb.jpg",
-	url: ns_bfzy_URL,
-	source: "Bwiki 历史卡池（停更）",
+	url: "",
+	altSources: [{
+		label: "Bwiki 历史卡池（停更）",
+		url: ns_bfzy_URL,
+		fetcher: "bfzy-stopped"
+	}],
 	eventUrl: ""
 });
 registerSource({
@@ -557,6 +572,10 @@ GACHA_FETCHERS["langrisser"] = (url, signal, tz, now) => ns_langrisser_gacha(url
 GACHA_FETCHERS["crashfever"] = (url, signal, tz, now) => ns_crashfever_gacha(url, signal, tz, now);
 GACHA_FETCHERS["bfzy"] = (url, signal, tz, now) => ns_bfzy_gacha(url, signal, tz, now);
 GACHA_FETCHERS["gwdz"] = (url, signal, tz, now) => ns_gwdz_gacha(url, signal, tz, now);
+// 备选源键（主源 `url: ""` ⇒ 默认不抓；用户手动切到「（停更）」那一项时才被路由到这里）。
+// 直接别名到原抓取器 —— 解析代码只有一份，不另造实现（见 test/all.mjs 的备选源登记守卫）。
+GACHA_FETCHERS["langrisser-stopped"] = (url, signal, tz, now) => ns_langrisser_gacha(url, signal, tz, now);
+GACHA_FETCHERS["bfzy-stopped"] = (url, signal, tz, now) => ns_bfzy_gacha(url, signal, tz, now);
 EVENT_FETCHERS["gwdz"] = Object.assign(EVENT_FETCHERS["gwdz"] || {}, {
 	default: (url, signal, tz, now) => ns_gwdz_events(url, signal, tz, now)
 });
