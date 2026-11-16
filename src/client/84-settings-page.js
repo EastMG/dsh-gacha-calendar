@@ -107,7 +107,7 @@
 			const [gameQuery, setGameQuery] = (0, react.useState)("");
 			const [onlyShown, setOnlyShown] = (0, react.useState)(false);
 			// ── 长按拖动排序（2026-11-16）──────────────────────────────────────────────
-			// 一行行点 ↑/↓ 太累：行首「⋮⋮」手柄**长按 260ms** 进入拖动，pointermove 实时预览，
+			// 一行行点 ↑/↓ 太累：行首「⋮⋮」手柄拖动排序（鼠标按下即拖；触摸/笔长按 260ms），
 			// 松手才落盘（order）。拖动中只改本地 dragOrder，不写设置。
 			const [dragId, setDragId] = (0, react.useState)(null);
 			const [dragOrder, setDragOrder] = (0, react.useState)(null);
@@ -115,6 +115,8 @@
 			const dragRef = (0, react.useRef)({ timer: 0, id: null, active: false, startX: 0, startY: 0, pointerId: -1 });
 			const dragOrderRef = (0, react.useRef)(null);
 			const dragScrollRef = (0, react.useRef)(null);
+			const dragPointRef = (0, react.useRef)({ x: 0, y: 0 });
+			const dragRafRef = (0, react.useRef)(0);
 			// 排期导出 .ics（待办第 5 项）的一行结果：`已导出 N 条（跳过 M 条）` / 失败原因。
 			// 只在本页存活，不落盘（导出结果没有可解释的设置项）。
 			const [icsNote, setIcsNote] = (0, react.useState)("");
@@ -518,63 +520,115 @@
 				const r = dragRef.current;
 				if (r.timer) { clearTimeout(r.timer); r.timer = 0; }
 			};
+			// 拖动期间的事件挂在 window 上（capture 阶段），**不**靠手柄上的 pointer 捕获：
+			// 行重排会把 DOM 节点 insertBefore 搬走，节点一搬指针捕获/手柄上的 pointermove 就丢了
+			// （2026-11-16 真机复现：拖一下只动一格、之后彻底不动）。window 监听与 DOM 重排无关。
+			const dragDetachRef = (0, react.useRef)(null);
+			const endDragSession = () => {
+				const detach = dragDetachRef.current;
+				dragDetachRef.current = null;
+				if (detach) detach();
+				if (dragRafRef.current) { cancelAnimationFrame(dragRafRef.current); dragRafRef.current = 0; }
+				document.body.classList.remove("gacha-cal-dragging");
+			};
+			// 组件卸载（关掉设置页）时若还在拖动：清掉 window 监听与 body 类
+			(0, react.useEffect)(() => () => endDragSession(), []);
+			// 真正进入拖动（鼠标按下即进；触摸/笔要长按 260ms，避免滑动列表时误触）。
+			const beginDrag = (id) => {
+				const r = dragRef.current;
+				r.active = true;
+				r.timer = 0;
+				dragOrderRef.current = orderIdsComplete(order, allEntries.map((x) => x.id));
+				setDragId(id);
+				setDragOrder(dragOrderRef.current);
+				document.body.classList.add("gacha-cal-dragging");
+				dragPointRef.current = { x: r.startX, y: r.startY };
+				dragRafRef.current = requestAnimationFrame(dragTick);
+				const move = (ev) => onHandlePointerMove(ev);
+				const up = (ev) => { endDragSession(); onHandlePointerUp(ev); };
+				const cancel = () => { endDragSession(); dragReset("pointercancel"); };
+				window.addEventListener("pointermove", move, true);
+				window.addEventListener("pointerup", up, true);
+				window.addEventListener("pointercancel", cancel, true);
+				dragDetachRef.current = () => {
+					window.removeEventListener("pointermove", move, true);
+					window.removeEventListener("pointerup", up, true);
+					window.removeEventListener("pointercancel", cancel, true);
+				};
+			};
 			const onHandlePointerDown = (e, id) => {
 				if (e.button != null && e.button !== 0) return;      // 只认左键/触摸
 				clearLongPress();
 				const r = dragRef.current;
 				r.id = id; r.active = false; r.startX = e.clientX; r.startY = e.clientY; r.pointerId = e.pointerId;
 				dragScrollRef.current = findScrollParent(e.currentTarget);
-				const handle = e.currentTarget;
-				r.timer = setTimeout(() => {
-					r.timer = 0;
-					r.active = true;
-					const base = orderIdsComplete(order, allEntries.map((x) => x.id));
-					dragOrderRef.current = base;
-					setDragId(id);
-					setDragOrder(base);
-					try { handle.setPointerCapture(r.pointerId); } catch { /* 指针已抬起 */ }
-				}, 260);
+				// 2026-11-16 真机：鼠标用户按住 260ms 再拖很别扭（"不太能用"）⇒ 鼠标按下即拖；
+				// 触摸/笔保留长按 260ms（否则在列表上滑一下就误触发拖动）。
+				if (e.pointerType === "mouse") { beginDrag(id); return; }
+				r.timer = setTimeout(() => beginDrag(id), 260);
 			};
-			const onHandlePointerMove = (e) => {
+			const dragReset = (why) => {
 				const r = dragRef.current;
-				if (!r.active) {
-					// 长按未成：指针一动就取消（滚动/点击不被打断）
-					if (r.timer && (Math.abs(e.clientX - r.startX) + Math.abs(e.clientY - r.startY) > 10)) clearLongPress();
-					return;
-				}
-				const scroller = dragScrollRef.current;
-				if (scroller) {
-					const box = scroller.getBoundingClientRect();
-					if (e.clientY < box.top + 48) scroller.scrollBy(0, -14);
-					else if (e.clientY > box.bottom - 48) scroller.scrollBy(0, 14);
-				}
-				const el = document.elementFromPoint(e.clientX, e.clientY);
+				clearLongPress();
+				r.active = false;
+				r.id = null;
+				dragOrderRef.current = null;
+				dragScrollRef.current = null;
+				setDragId(null);
+				setDragOrder(null);
+				if (why) endDragSession();
+			};
+			// 指针命中的行 → 插到该行前/后（拖动中每帧/每次移动都调它）
+			const reorderAt = (clientX, clientY) => {
+				const r = dragRef.current;
+				if (!r.active || !r.id) return;
+				const el = document.elementFromPoint(clientX, clientY);
 				const row = el && el.closest ? el.closest("[data-gacha-id]") : null;
 				if (!row) return;
 				const overId = row.getAttribute("data-gacha-id");
 				if (!overId || overId === r.id) return;
 				const rect = row.getBoundingClientRect();
-				const before = e.clientY < rect.top + rect.height / 2;
+				const before = clientY < rect.top + rect.height / 2;
 				const base = dragOrderRef.current || dragIdsNow();
 				const next = orderMoveTo(base, r.id, overId, before);
 				if (next.join("|") === base.join("|")) return;
 				dragOrderRef.current = next;
 				setDragOrder(next);
 			};
+			// 自动滚动：指针停在滚动容器上/下 48px 内时，**每帧**滚一点并重新命中
+			// （只靠 pointermove 滚不动：用户停住不动时没有新事件，长列表拖不过去）。
+			const dragTick = () => {
+				dragRafRef.current = 0;
+				const r = dragRef.current;
+				if (!r.active) return;
+				const scroller = dragScrollRef.current;
+				if (scroller) {
+					const box = scroller.getBoundingClientRect();
+					const { x, y } = dragPointRef.current;
+					if (y < box.top + 48) scroller.scrollBy(0, -16);
+					else if (y > box.bottom - 48) scroller.scrollBy(0, 16);
+					reorderAt(x, y);
+				}
+				dragRafRef.current = requestAnimationFrame(dragTick);
+			};
+			const onHandlePointerMove = (e) => {
+				const r = dragRef.current;
+				if (!r.active) {
+					// 触摸长按未成：指针一动就取消（滚动/点击不被打断）
+					if (r.timer && (Math.abs(e.clientX - r.startX) + Math.abs(e.clientY - r.startY) > 10)) clearLongPress();
+					return;
+				}
+				dragPointRef.current = { x: e.clientX, y: e.clientY };
+				reorderAt(e.clientX, e.clientY);
+			};
 			const onHandlePointerUp = async (e) => {
 				const r = dragRef.current;
-				clearLongPress();
-				const wasActive = r.active;
-				r.active = false;
-				r.id = null;
-				if (!wasActive) return;
-				try { e.currentTarget.releasePointerCapture && e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* 已释放 */ }
+				if (!r.active) { dragReset(null); return; }
 				const next = dragOrderRef.current;
-				dragOrderRef.current = null;
-				setDragId(null);
-				setDragOrder(null);
+				dragReset(null);
+				if (!next) return;
 				const base = dragIdsNow();
-				if (next && next.join("|") !== base.join("|")) await setOrder(next);
+				if (next.join("|") !== base.join("|")) await setOrder(next);
 			};
 
 			// 展示开关（勾选/取消勾选）
@@ -1147,7 +1201,7 @@
 												// 长按拖动排序手柄（⋮⋮）：260ms 长按进入拖动；点按不触发任何写入
 												(0, react_jsx_runtime.jsx)("span", {
 													className: "gacha-cal-drag-handle",
-													title: "长按拖动排序",
+													title: "拖动排序（鼠标按住直接拖 / 触屏长按）",
 													onPointerDown: (e) => onHandlePointerDown(e, g.id),
 													onPointerMove: onHandlePointerMove,
 													onPointerUp: onHandlePointerUp,

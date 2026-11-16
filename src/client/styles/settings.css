@@ -5,10 +5,13 @@
 			/* 长按拖动排序（2026-11-16）：⋮⋮ 手柄 + 拖动中的行弱化。
 			   touch-action:none 只在手柄上——避免长按时触发浏览器滚动/缩放，
 			   行内其它控件（勾选框、下拉、取色器）的手势不受影响。 */
-			.gacha-cal-drag-handle{flex:none;display:inline-flex;align-items:center;justify-content:center;width:14px;height:22px;color:var(--dsw-alias-label-tertiary,#9aa1ab);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
-			.gacha-cal-drag-handle:hover{color:var(--dsw-alias-label-secondary,#5f6671)}
+			.gacha-cal-drag-handle{flex:none;display:inline-flex;align-items:center;justify-content:center;width:16px;height:26px;border-radius:4px;color:var(--dsw-alias-label-tertiary,#9aa1ab);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+			.gacha-cal-drag-handle:hover{color:var(--dsw-alias-label-secondary,#5f6671);background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.12))}
 			.gacha-cal-drag-handle:active{cursor:grabbing}
 			.gacha-cal-settings-row.is-dragging{opacity:.55;background:var(--dsw-alias-bg-l2,rgba(127,127,127,.06))}
+			/* 拖动期间整页禁选 + 抓取光标（body 类由 84-settings-page.js 在长按成立时加、松手/取消时移除） */
+			body.gacha-cal-dragging,body.gacha-cal-dragging *{user-select:none!important;-webkit-user-select:none!important}
+			body.gacha-cal-dragging{cursor:grabbing}
 			.gacha-cal-settings-row.is-dragging .gacha-cal-drag-handle{cursor:grabbing;color:var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary,#536dfe))}
 			/* 取色器按钮：原生色块默认撑满整个控件、还自带方形描边 ⇒ 用 swatch 伪元素把它收进来并圆角，
 			   让它看起来是"按钮里嵌一枚圆角色标"，而不是一块贴边的色块。 */

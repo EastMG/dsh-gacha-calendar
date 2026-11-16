@@ -204,9 +204,11 @@ export default function runFilter() {
 			comp.includes("gacha-cal-drag-handle")
 			&& comp.includes("onPointerDown: (e) => onHandlePointerDown(e, g.id)")
 			&& !comp.includes("draggable:"));
-		check("长按拖动排序：260ms 长按阈值 + 指针移动 >10px 取消（不妨碍滚动/点击）",
-			comp.includes("}, 260);")
-			&& /Math\.abs\(e\.clientX - r\.startX\) \+ Math\.abs\(e\.clientY - r\.startY\) > 10/.test(comp));
+		check("拖动排序：触摸长按 260ms 阈值 + 指针移动 >10px 取消（不妨碍滚动/点击）；鼠标按下即拖",
+			comp.includes(", 260);")
+			&& /Math\.abs\(e\.clientX - r\.startX\) \+ Math\.abs\(e\.clientY - r\.startY\) > 10/.test(comp)
+			&& comp.includes('e.pointerType === "mouse"')
+			&& comp.includes("beginDrag(id)"));
 		check("长按拖动排序：拖动中只改 dragOrder 预览，松手（pointerup）才 setOrder 落盘",
 			comp.includes("setDragOrder(next)") && /const onHandlePointerUp = async/.test(comp)
 			&& /await setOrder\(next\);/.test(comp));
@@ -214,6 +216,17 @@ export default function runFilter() {
 			comp.includes('"data-gacha-id": g.id') && comp.includes("orderMoveTo(base, r.id, overId, before)"));
 		check("长按拖动样式在 styles 里（手柄 touch-action:none + 拖动中行 is-dragging）",
 			css.includes(".gacha-cal-drag-handle") && css.includes(".gacha-cal-settings-row.is-dragging"));
+		check("长按拖动用 **window 级 pointer 监听**（行重排会搬走 DOM 节点，手柄上的指针捕获会丢）",
+			comp.includes('window.addEventListener("pointermove"')
+			&& comp.includes('window.addEventListener("pointerup"')
+			&& comp.includes("endDragSession")
+			&& !comp.includes("setPointerCapture"));
+		check("拖动自动滚动：指针停在容器边缘时每帧滚动并重新命中（长列表不用手动翻）",
+			comp.includes("requestAnimationFrame(dragTick)") && comp.includes("scrollBy(0, -16)") && comp.includes("reorderAt(x, y)"));
+		check("拖动期间 body 加 gacha-cal-dragging 类（禁选文字/抓取光标），松手或卸载时移除",
+			comp.includes('document.body.classList.add("gacha-cal-dragging")')
+			&& comp.includes('document.body.classList.remove("gacha-cal-dragging")')
+			&& comp.includes("react.useEffect)(() => () => endDragSession(), [])"));
 
 		// 面板：搜索框 + 清空
 		check("面板底栏有搜索框（value: findQuery + onChange 写回 findQuery）",
