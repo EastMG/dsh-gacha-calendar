@@ -225,9 +225,15 @@ export default function runFilter() {
 			comp.includes("ghostCreate(rowEl, startX, startY)")
 			&& comp.includes("ghost.style.transform = `translate3d(")
 			&& comp.includes('classList.add("gacha-cal-drag-ghost")'));
+		check("落位不弹回：松手先按新顺序渲染（settlingOrder），settings 快照追平后清理",
+			comp.includes("setSettlingOrder(next)") && comp.includes("const previewOrder = dragOrder || settlingOrder")
+			&& comp.includes("setSettlingOrder(null)"));
 		check("落位动画：松手时幽灵动画落回占位行再移除（ghostDrop）+ FLIP 让其它行平滑让位",
 			comp.includes("ghostDrop()") && comp.includes("captureRowTops()")
 			&& comp.includes("translateY(${dy}px)") && comp.includes("transform .18s"));
+		check("幽灵行只做纯平移（不加 rotate/scale —— 旋转层随 y 重栅格化会侧向抽动）",
+			/ghost\.style\.transform = `translate3d\(\$\{pointerX - off\.x\}px, \$\{pointerY - off\.y\}px, 0\)`/.test(comp)
+			&& !comp.includes("rotate(-0.35deg)"));
 		check("幽灵行与占位行样式在 styles 里（固定层 + is-dragging 半透明虚线）",
 			css.includes(".gacha-cal-drag-ghost") && css.includes(".gacha-cal-settings-row.is-dragging"));
 		check("拖动自动滚动：指针停在容器边缘时每帧滚动并重新命中（长列表不用手动翻）",
