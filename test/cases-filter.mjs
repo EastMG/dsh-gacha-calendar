@@ -208,7 +208,7 @@ export default function runFilter() {
 			comp.includes(", 260);")
 			&& /Math\.abs\(e\.clientX - r\.startX\) \+ Math\.abs\(e\.clientY - r\.startY\) > 10/.test(comp)
 			&& comp.includes('e.pointerType === "mouse"')
-			&& comp.includes("beginDrag(id)"));
+			&& comp.includes("beginDrag(id, rowEl"));
 		check("长按拖动排序：拖动中只改 dragOrder 预览，松手（pointerup）才 setOrder 落盘",
 			comp.includes("setDragOrder(next)") && /const onHandlePointerUp = async/.test(comp)
 			&& /await setOrder\(next\);/.test(comp));
@@ -221,12 +221,21 @@ export default function runFilter() {
 			&& comp.includes('window.addEventListener("pointerup"')
 			&& comp.includes("endDragSession")
 			&& !comp.includes("setPointerCapture"));
+		check("浮起跟随：拖动时 cloneNode 出固定层幽灵行、每帧只改 transform（不触发 React 渲染）",
+			comp.includes("ghostCreate(rowEl, startX, startY)")
+			&& comp.includes("ghost.style.transform = `translate3d(")
+			&& comp.includes('classList.add("gacha-cal-drag-ghost")'));
+		check("落位动画：松手时幽灵动画落回占位行再移除（ghostDrop）+ FLIP 让其它行平滑让位",
+			comp.includes("ghostDrop()") && comp.includes("captureRowTops()")
+			&& comp.includes("translateY(${dy}px)") && comp.includes("transform .18s"));
+		check("幽灵行与占位行样式在 styles 里（固定层 + is-dragging 半透明虚线）",
+			css.includes(".gacha-cal-drag-ghost") && css.includes(".gacha-cal-settings-row.is-dragging"));
 		check("拖动自动滚动：指针停在容器边缘时每帧滚动并重新命中（长列表不用手动翻）",
 			comp.includes("requestAnimationFrame(dragTick)") && comp.includes("scrollBy(0, -16)") && comp.includes("reorderAt(x, y)"));
 		check("拖动期间 body 加 gacha-cal-dragging 类（禁选文字/抓取光标），松手或卸载时移除",
 			comp.includes('document.body.classList.add("gacha-cal-dragging")')
 			&& comp.includes('document.body.classList.remove("gacha-cal-dragging")')
-			&& comp.includes("react.useEffect)(() => () => endDragSession(), [])"));
+			&& comp.includes("endDragSession(); ghostRemoveNow(); }"));
 
 		// 面板：搜索框 + 清空
 		check("面板底栏有搜索框（value: findQuery + onChange 写回 findQuery）",

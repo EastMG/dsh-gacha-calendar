@@ -8,7 +8,10 @@
 			.gacha-cal-drag-handle{flex:none;display:inline-flex;align-items:center;justify-content:center;width:16px;height:26px;border-radius:4px;color:var(--dsw-alias-label-tertiary,#9aa1ab);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
 			.gacha-cal-drag-handle:hover{color:var(--dsw-alias-label-secondary,#5f6671);background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.12))}
 			.gacha-cal-drag-handle:active{cursor:grabbing}
-			.gacha-cal-settings-row.is-dragging{opacity:.55;background:var(--dsw-alias-bg-l2,rgba(127,127,127,.06))}
+			.gacha-cal-settings-row.is-dragging{opacity:.32;background:var(--dsw-alias-bg-l2,rgba(127,127,127,.06));outline:1px dashed var(--dsw-alias-border-l2,rgba(127,127,127,.45));outline-offset:-1px}
+			/* 浮起跟随的幽灵行：cloneNode 复制 + position:fixed，transform 由 JS 每帧直写（合成层动画） */
+			.gacha-cal-drag-ghost{position:fixed;left:0;top:0;z-index:2147483000;box-sizing:border-box;pointer-events:none;background:var(--dsw-alias-bg-base,#fff);border:1px solid var(--dsw-alias-border-l1,rgba(127,127,127,.25));border-radius:8px;box-shadow:0 12px 28px rgba(0,0,0,.20),0 3px 8px rgba(0,0,0,.12);opacity:.98;will-change:transform;overflow:hidden}
+			@media (prefers-reduced-motion:reduce){.gacha-cal-drag-ghost{transition:none!important}}
 			/* 拖动期间整页禁选 + 抓取光标（body 类由 84-settings-page.js 在长按成立时加、松手/取消时移除） */
 			body.gacha-cal-dragging,body.gacha-cal-dragging *{user-select:none!important;-webkit-user-select:none!important}
 			body.gacha-cal-dragging{cursor:grabbing}

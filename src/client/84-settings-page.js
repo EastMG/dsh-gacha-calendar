@@ -116,6 +116,12 @@
 			const dragOrderRef = (0, react.useRef)(null);
 			const dragScrollRef = (0, react.useRef)(null);
 			const dragPointRef = (0, react.useRef)({ x: 0, y: 0 });
+			// 「浮起跟随」的幽灵行（cloneNode 出来的固定层元素；直接改 style.transform，不走 React 渲染）
+			const dragGhostRef = (0, react.useRef)(null);
+			// 抓取点相对行左上角的偏移（让幽灵跟着指针时不会跳一下）
+			const dragGrabRef = (0, react.useRef)({ x: 0, y: 0 });
+			// FLIP：重排前一帧每行的 top（id → top），重排后据此补位动画
+			const dragFlipRef = (0, react.useRef)(null);
 			const dragRafRef = (0, react.useRef)(0);
 			// 排期导出 .ics（待办第 5 项）的一行结果：`已导出 N 条（跳过 M 条）` / 失败原因。
 			// 只在本页存活，不落盘（导出结果没有可解释的设置项）。
@@ -532,13 +538,86 @@
 				document.body.classList.remove("gacha-cal-dragging");
 			};
 			// 组件卸载（关掉设置页）时若还在拖动：清掉 window 监听与 body 类
-			(0, react.useEffect)(() => () => endDragSession(), []);
+			(0, react.useEffect)(() => () => { endDragSession(); ghostRemoveNow(); }, []);
+			// ── 浮起跟随的幽灵行 ───────────────────────────────────────────────────────
+			// 用 cloneNode 复制被拖行、position:fixed 放在 body 上，指针到哪它到哪（直接改 transform，
+			// 每帧只动合成层，不触发 React 渲染）。原行保留在原位当"占位"（is-dragging 半透明）。
+			const ghostCreate = (rowEl, pointerX, pointerY) => {
+				ghostRemoveNow();
+				if (!rowEl) return;
+				const rect = rowEl.getBoundingClientRect();
+				dragGrabRef.current = { x: pointerX - rect.left, y: pointerY - rect.top };
+				const ghost = rowEl.cloneNode(true);
+				ghost.setAttribute("data-ghost-id", rowEl.getAttribute("data-gacha-id") || "");
+				ghost.removeAttribute("data-gacha-id");
+				ghost.querySelectorAll("[data-gacha-id]").forEach((n) => n.removeAttribute("data-gacha-id"));
+				ghost.querySelectorAll("input,select,button").forEach((n) => { n.disabled = true; });
+				ghost.classList.add("gacha-cal-drag-ghost");
+				ghost.style.width = rect.width + "px";
+				ghost.style.height = rect.height + "px";
+				ghost.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0)`;
+				document.body.appendChild(ghost);
+				dragGhostRef.current = ghost;
+			};
+			const ghostMove = (pointerX, pointerY) => {
+				const ghost = dragGhostRef.current;
+				if (!ghost) return;
+				const off = dragGrabRef.current;
+				ghost.style.transform = `translate3d(${pointerX - off.x}px, ${pointerY - off.y}px, 0) scale(1.012) rotate(-0.35deg)`;
+			};
+			// 松手：幽灵动画落回"占位行"所在位置，再移除
+			const ghostDrop = () => {
+				const ghost = dragGhostRef.current;
+				dragGhostRef.current = null;
+				if (!ghost) return;
+				const id = ghost.getAttribute("data-ghost-id");
+				const rowEl = id ? document.querySelector(`[data-gacha-id="${id}"]`) : null;
+				const rect = rowEl ? rowEl.getBoundingClientRect() : ghost.getBoundingClientRect();
+				ghost.style.transition = "transform .16s cubic-bezier(.2,.8,.2,1), opacity .16s ease";
+				ghost.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0)`;
+				ghost.style.opacity = "0.25";
+				const el = ghost;
+				setTimeout(() => el.remove(), 200);
+			};
+			const ghostRemoveNow = () => {
+				const ghost = dragGhostRef.current;
+				dragGhostRef.current = null;
+				if (ghost) ghost.remove();
+			};
+			// ── FLIP：重排后让其它行"滑"到新位置（而不是一格一格跳）──────────────
+			const captureRowTops = () => {
+				const map = new Map();
+				document.querySelectorAll(".gacha-cal-settings-row").forEach((r) => {
+					map.set(r.getAttribute("data-gacha-id"), r.getBoundingClientRect().top);
+				});
+				return map;
+			};
+			(0, react.useLayoutEffect)(() => {
+				if (!dragOrder || !dragFlipRef.current) return;
+				const prev = dragFlipRef.current;
+				dragFlipRef.current = null;
+				document.querySelectorAll(".gacha-cal-settings-row").forEach((r) => {
+					const id = r.getAttribute("data-gacha-id");
+					const before = prev.get(id);
+					if (before == null) return;
+					const dy = before - r.getBoundingClientRect().top;
+					if (Math.abs(dy) < 1) return;
+					r.style.transition = "none";
+					r.style.transform = `translateY(${dy}px)`;
+					requestAnimationFrame(() => {
+						r.style.transition = "transform .18s cubic-bezier(.2,.8,.2,1)";
+						r.style.transform = "";
+					});
+				});
+			}, [dragOrder]);
 			// 真正进入拖动（鼠标按下即进；触摸/笔要长按 260ms，避免滑动列表时误触）。
-			const beginDrag = (id) => {
+			const beginDrag = (id, rowEl, startX, startY) => {
 				const r = dragRef.current;
 				r.active = true;
 				r.timer = 0;
 				dragOrderRef.current = orderIdsComplete(order, allEntries.map((x) => x.id));
+				dragFlipRef.current = captureRowTops();     // FLIP 基准（此刻还未重排）
+				if (rowEl) ghostCreate(rowEl, startX, startY);
 				setDragId(id);
 				setDragOrder(dragOrderRef.current);
 				document.body.classList.add("gacha-cal-dragging");
@@ -546,7 +625,7 @@
 				dragRafRef.current = requestAnimationFrame(dragTick);
 				const move = (ev) => onHandlePointerMove(ev);
 				const up = (ev) => { endDragSession(); onHandlePointerUp(ev); };
-				const cancel = () => { endDragSession(); dragReset("pointercancel"); };
+				const cancel = () => { endDragSession(); ghostRemoveNow(); dragReset("pointercancel"); };
 				window.addEventListener("pointermove", move, true);
 				window.addEventListener("pointerup", up, true);
 				window.addEventListener("pointercancel", cancel, true);
@@ -564,8 +643,9 @@
 				dragScrollRef.current = findScrollParent(e.currentTarget);
 				// 2026-11-16 真机：鼠标用户按住 260ms 再拖很别扭（"不太能用"）⇒ 鼠标按下即拖；
 				// 触摸/笔保留长按 260ms（否则在列表上滑一下就误触发拖动）。
-				if (e.pointerType === "mouse") { beginDrag(id); return; }
-				r.timer = setTimeout(() => beginDrag(id), 260);
+				const rowEl = e.currentTarget && e.currentTarget.closest ? e.currentTarget.closest("[data-gacha-id]") : null;
+				if (e.pointerType === "mouse") { beginDrag(id, rowEl, e.clientX, e.clientY); return; }
+				r.timer = setTimeout(() => beginDrag(id, rowEl, r.startX, r.startY), 260);
 			};
 			const dragReset = (why) => {
 				const r = dragRef.current;
@@ -592,6 +672,7 @@
 				const base = dragOrderRef.current || dragIdsNow();
 				const next = orderMoveTo(base, r.id, overId, before);
 				if (next.join("|") === base.join("|")) return;
+				dragFlipRef.current = captureRowTops();     // 重排前记下各行位置（FLIP）
 				dragOrderRef.current = next;
 				setDragOrder(next);
 			};
@@ -619,12 +700,14 @@
 					return;
 				}
 				dragPointRef.current = { x: e.clientX, y: e.clientY };
+				ghostMove(e.clientX, e.clientY);
 				reorderAt(e.clientX, e.clientY);
 			};
 			const onHandlePointerUp = async (e) => {
 				const r = dragRef.current;
 				if (!r.active) { dragReset(null); return; }
 				const next = dragOrderRef.current;
+				ghostDrop();
 				dragReset(null);
 				if (!next) return;
 				const base = dragIdsNow();
