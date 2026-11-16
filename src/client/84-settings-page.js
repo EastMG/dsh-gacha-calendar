@@ -492,22 +492,6 @@
 			}, [remindEndSavedText, remindStartSavedText]);
 
 			const setOrder = async (nextIds) => { await commit("order", nextIds); };
-			const move = async (id, delta) => {
-				// order 可能缺少新条目的 id（如新增的 ba-jp），按默认顺序补齐后再移动
-				let base = order;
-				const allIds = allEntries.map((x) => x.id);
-				if (allIds.some((x) => !base.includes(x))) {
-					base = base.slice();
-					for (const x of allIds) if (!base.includes(x)) base.push(x);
-				}
-				const idx = base.indexOf(id);
-				const target = idx + delta;
-				if (idx < 0 || target < 0 || target >= base.length) return;
-				const next = base.slice();
-				next.splice(idx, 1);
-				next.splice(target, 0, id);
-				await setOrder(next);
-			};
 			// 重置排序：写空数组而不是 null —— 宿主 settings schema 是 z.array(z.string())，
 			// 写 null 会被校验拒绝（旧实现因此永久点不动，还抛未捕获 rejection）；applyOrder 对空数组等价"未设置"
 			const resetOrder = async () => { await commit("order", []); };
@@ -1307,14 +1291,14 @@
 						] }),
 						// 表头行（与数据行同 grid 列；全部居中，与下方各列边界对齐）
 						(0, react_jsx_runtime.jsxs)("div", { style: { display: "grid", gridTemplateColumns: SETTINGS_GAME_GRID, gap: 12, alignItems: "center", padding: "3px 0", borderBottom: "1px solid var(--dsw-alias-border-l1)", color: "var(--dsw-alias-label-tertiary)", fontSize: 11 }, children: [
-							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u6E38\u620F" }),
+							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u5C55\u793A" }),
 							// 「提醒」列：由 SHOW_REMIND_COLUMN 统一 gate（false 时这一格不渲染，列宽模板也少一格）
 							SHOW_REMIND_COLUMN ? (0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u63D0\u9192" }) : null,
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u5361\u6C60\u6765\u6E90" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u6D3B\u52A8\u6765\u6E90" }),
 							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u989C\u8272" }),
-							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "\u64CD\u4F5C" })
+							(0, react_jsx_runtime.jsx)("span", { style: { justifySelf: "center" }, children: "" })
 						] }),
 						// 结果为空：**一行**「没有匹配的游戏」（不是空白表格，也不隐藏表头 —— 表头还在，
 						// 用户一眼知道"是筛掉了，不是坏了"）。
@@ -1323,7 +1307,6 @@
 							: null,
 						sorted.map((g) => {
 							// 上移/下移的**真实边界**按全量顺序（ordered）算：过滤只影响显示、不改变排位
-							const i = dragLiveOrdered.indexOf(g);
 							const mode = entryUrlMode(g.id, g);
 							const evMode = eventUrlMode(g.id);
 							const showGachaInput = mode === "custom";
@@ -1431,8 +1414,6 @@
 												className: "gacha-cal-color"
 											}) }),
 											(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 4, justifySelf: "center" }, children: [
-												(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn gacha-cal-sort-btn--icon", title: "\u4E0A\u79FB", disabled: i === 0, onClick: () => move(g.id, -1), children: (0, react_jsx_runtime.jsx)("svg", { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", children: (0, react_jsx_runtime.jsx)("path", { d: "M6 14.5l6-6 6 6" }) }) }),
-												(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn gacha-cal-sort-btn--icon", title: "\u4E0B\u79FB", disabled: i === dragLiveOrdered.length - 1, onClick: () => move(g.id, 1), children: (0, react_jsx_runtime.jsx)("svg", { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", children: (0, react_jsx_runtime.jsx)("path", { d: "M6 9.5l6 6 6-6" }) }) }),
 												(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn gacha-cal-sort-btn--icon gacha-cal-del-btn", title: "\u5220\u9664", onClick: () => removeEntry(g), children: (0, react_jsx_runtime.jsx)("svg", {
 													width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true",
 													children: [

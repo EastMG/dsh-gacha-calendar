@@ -195,9 +195,11 @@ export default function runFilter() {
 			comp.includes("isShown: (g) => shownNow(g)"));
 		check("空结果文案「没有匹配的游戏」在设置页里",
 			comp.includes('children: "没有匹配的游戏"'));
-		check("上移/下移的边界按**全量/拖动预览**算（过滤不改变真实排位）",
-			comp.includes("disabled: i === 0,") && comp.includes("disabled: i === dragLiveOrdered.length - 1,")
-			&& comp.includes("const i = dragLiveOrdered.indexOf(g);"));
+		check("已删上移/下移按钮与 move()（排序只靠长按拖动），表头「游戏」「操作」文字也删除",
+			!comp.includes("const move = async (id, delta)")
+			&& !comp.includes('title: "\\u4E0A\\u79FB"') && !comp.includes('title: "\\u4E0B\\u79FB"')
+			&& !comp.includes('justifySelf: "center" }, children: "\\u6E38\\u620F"')
+			&& !comp.includes('justifySelf: "center" }, children: "\\u64CD\\u4F5C"'));
 		check("「游戏列表」标题原样保留（cases-star 的位置锚点）", comp.includes('children: "游戏列表"'));
 		// 长按拖动排序（2026-11-16）：手柄 + pointer 长按判定 + 松手才落盘 + 样式
 		check("长按拖动排序：行首 ⋮⋮ 手柄 + onPointerDown 挂在手柄上（不是 HTML5 draggable）",

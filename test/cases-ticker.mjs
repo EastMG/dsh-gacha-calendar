@@ -765,8 +765,8 @@ export default async function run() {
 			&& !comp.includes("未勾选任何游戏"));
 		check("网格列宽走单一常量 SETTINGS_GAME_GRID（表头与数据行同源），显示分支**带 28px 那一格**",
 			(comp.match(/gridTemplateColumns: SETTINGS_GAME_GRID/g) || []).length === 2
-			&& comp.includes('"minmax(0,1.15fr) 28px 28px minmax(0,1fr) minmax(0,1fr) 34px 88px"')
-			&& comp.includes('"minmax(0,1.15fr) 28px minmax(0,1fr) minmax(0,1fr) 34px 88px"'));
+			&& comp.includes('"minmax(0,1.15fr) 28px 28px minmax(0,1fr) minmax(0,1fr) 34px 30px"')
+			&& comp.includes('"minmax(0,1.15fr) 28px minmax(0,1fr) minmax(0,1fr) 34px 30px"'));
 		check("写入链路改到取消列表：commit(\"remindOffGames\") + setEntryRemind + remindAllowedNow",
 			comp.includes('commit("remindOffGames"') && comp.includes("setEntryRemind")
 			&& comp.includes("!remindOffIds.includes(") && !comp.includes('commit("remindGames"'));

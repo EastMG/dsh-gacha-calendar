@@ -15,11 +15,11 @@
 		// 仍是**一个常量 gate 四处**（表头列标题 / 每行复选框 / 空列表提示 / 网格列宽）：
 		// 万一又要临时藏起来，改回 false 即可，不用删代码。
 		const SHOW_REMIND_COLUMN = true;
-		// 游戏列表网格列宽 = 游戏 / 展示 / [提醒] / 卡池来源 / 活动来源 / 颜色 / 操作。
+		// 游戏列表网格列宽 = 游戏 / 展示 / [提醒] / 卡池来源 / 活动来源 / 颜色 / 操作（只剩删除按钮，30px）。
 		// 隐藏「提醒」时把对应那一格（28px）从模板里**去掉**：留空列会把后面各列整体错位。
 		const SETTINGS_GAME_GRID = SHOW_REMIND_COLUMN
-			? "minmax(0,1.15fr) 28px 28px minmax(0,1fr) minmax(0,1fr) 34px 88px"
-			: "minmax(0,1.15fr) 28px minmax(0,1fr) minmax(0,1fr) 34px 88px";
+			? "minmax(0,1.15fr) 28px 28px minmax(0,1fr) minmax(0,1fr) 34px 30px"
+			: "minmax(0,1.15fr) 28px minmax(0,1fr) minmax(0,1fr) 34px 30px";
 
 		// 打开 DSH 设置面板并切到本插件的分区（两个面板上的「设置」齿轮都用它）。
 		//
