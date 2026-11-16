@@ -1413,6 +1413,7 @@
 			isEntryHidden,
 			orderIdsComplete,
 			orderMoveTo,
+			pruneCustomRefsOf,
 			getVisibleEntries,
 			// 「跳到本插件设置页」的三步查找（80-shared-ui.js 的纯判定）：给定候选 record 列表 ⇒
 			// 该点哪个 / 卡在哪一步。覆盖正常三步 / 缺账号菜单 / 菜单里没有设置项 /

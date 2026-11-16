@@ -195,6 +195,9 @@ export default function runFilter() {
 			comp.includes("isShown: (g) => shownNow(g)"));
 		check("空结果文案「没有匹配的游戏」在设置页里",
 			comp.includes('children: "没有匹配的游戏"'));
+		check("删自定义条目时顺手清引用；打开设置页自愈历史残留（pruneCustomRefsOf）",
+			comp.includes("pruneCustomRefsOf({ ...s, customEntries: nextRaw })")
+			&& comp.includes("const patch = pruneCustomRefsOf(s);"));
 		check("已删上移/下移按钮与 move()（排序只靠长按拖动），表头「游戏」「操作」文字也删除",
 			!comp.includes("const move = async (id, delta)")
 			&& !comp.includes('title: "\\u4E0A\\u79FB"') && !comp.includes('title: "\\u4E0B\\u79FB"')
@@ -506,5 +509,41 @@ export default function runFilter() {
 			JSON.stringify(orderIdsComplete(["c", "a"], ["a", "b", "c", "d"])));
 		check("orderIdsComplete：order 为空 ⇒ 等于 allIds（等价于未设置）",
 			JSON.stringify(orderIdsComplete([], ["a", "b"])) === JSON.stringify(["a", "b"]));
+	}
+
+	// ───────────────────── 自定义条目删除后的残留清理（pruneCustomRefsOf）─────────────────────
+	section("自定义条目删除：pruneCustomRefsOf 清掉死 id（只清 custom- 前缀）");
+	{
+		const { pruneCustomRefsOf } = T;
+		const baseSettings = {
+			customEntries: JSON.stringify([{ id: "custom-alive", name: "活的" }]),
+			hidden: ["custom-alive", "custom-dead", "genshin"],
+			shown: ["custom-dead", "hsr"],
+			order: ["custom-dead", "genshin", "custom-alive"],
+			removed: ["custom-dead"],
+			remindOffGames: ["custom-dead", "zzz"],
+			customUrls: JSON.stringify({ "custom-dead": "custom:http://x", genshin: "proxy:http://y" }),
+			customEventUrls: JSON.stringify({ "custom-dead": "custom:http://e" }),
+			gameColors: JSON.stringify({ "custom-dead": "#123456", genshin: "#abcdef" })
+		};
+		const patch = pruneCustomRefsOf(baseSettings);
+		check("数组键：dead id 被清、活的 custom 与内置 id 不动",
+			JSON.stringify(patch.hidden) === JSON.stringify(["custom-alive", "genshin"])
+			&& JSON.stringify(patch.shown) === JSON.stringify(["hsr"])
+			&& JSON.stringify(patch.order) === JSON.stringify(["genshin", "custom-alive"])
+			&& JSON.stringify(patch.removed) === JSON.stringify([])
+			&& JSON.stringify(patch.remindOffGames) === JSON.stringify(["zzz"]),
+			JSON.stringify([patch.hidden, patch.shown, patch.order, patch.removed, patch.remindOffGames]));
+		check("对象键：只删 dead 的 custom 键，返回 JSON 字符串（与设置里存储形态一致）",
+			patch.customUrls === JSON.stringify({ genshin: "proxy:http://y" })
+			&& patch.customEventUrls === JSON.stringify({})
+			&& patch.gameColors === JSON.stringify({ genshin: "#abcdef" }),
+			JSON.stringify([patch.customUrls, patch.customEventUrls, patch.gameColors]));
+		check("没有残留 ⇒ 返回空对象（不会无脑写设置）",
+			JSON.stringify(pruneCustomRefsOf({ ...baseSettings, hidden: [], shown: [], order: [], removed: [], remindOffGames: [], customUrls: "{}", customEventUrls: "{}", gameColors: "{}" })) === "{}");
+		check("customEntries 解析失败 ⇒ 返回空对象（保守：解析不了就不清）",
+			JSON.stringify(pruneCustomRefsOf({ customEntries: "not-json", hidden: ["custom-dead"] })) === "{}");
+		check("只有 custom- 前缀才算残留：内置 id 即使在 hidden/removed 里也绝不清理",
+			JSON.stringify(pruneCustomRefsOf({ customEntries: "[]", hidden: ["genshin"], removed: ["yyz"], order: [] })) === "{}");
 	}
 }

@@ -884,7 +884,12 @@
 			const removeEntry = async (g) => {
 				if (g.custom) {
 					const next = customs.filter((c) => c.id !== g.id);
-					await commit("customEntries", JSON.stringify(next));
+					const nextRaw = JSON.stringify(next);
+					await commit("customEntries", nextRaw);
+					// 顺手清掉这个自定义 id 在其它设置键里的引用（hidden/shown/order/removed/remindOffGames、
+					// customUrls/customEventUrls/gameColors）—— 否则删完会留下死 id（2026-11-17 用户发现）。
+					const patch = pruneCustomRefsOf({ ...s, customEntries: nextRaw });
+					for (const key of Object.keys(patch)) await commit(key, patch[key]);
 				} else {
 					await commit("removed", [...removed, g.id]);
 				}
@@ -1033,7 +1038,23 @@
 			// 两者的 hover 都在 styles/chip.css 里，各有轻微变化）。
 			const remindChipRow = (which, labelText, savedText, fallbackNodes, keyName, noteText) => {
 				const nodes = remindNodesOf(remindNodesValue(which, savedText), fallbackNodes);
-				return (0, react_jsx_runtime.jsxs)("div", {
+				// 历史残留自愈：旧版本删自定义条目时只删了 customEntries、没清其它键 ⇒ 打开设置页时清一次。
+			// 依赖全部相关键：宿主写回后快照更新、patch 变空，不会循环。
+			(0, react.useEffect)(() => {
+				const patch = pruneCustomRefsOf(s);
+				const keys = Object.keys(patch);
+				if (keys.length === 0) return;
+				let alive = true;
+				(async () => {
+					for (const key of keys) {
+						if (!alive) return;
+						await commit(key, patch[key]);
+					}
+				})();
+				return () => { alive = false; };
+			}, [s.customEntries, s.hidden, s.shown, s.order, s.removed, s.remindOffGames, s.customUrls, s.customEventUrls, s.gameColors]);
+
+			return (0, react_jsx_runtime.jsxs)("div", {
 					key: which,
 					style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
 					children: [

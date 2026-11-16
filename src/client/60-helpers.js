@@ -461,6 +461,57 @@
 			return src;
 		}
 
+		// ── 自定义条目删除后的"残留清理"（2026-11-17）─────────────────────────────
+		// 自定义条目被删时，除了 `customEntries`，还有一堆按 id 记录的设置键会留下死 id：
+		//   数组：hidden / shown / order / removed / remindOffGames
+		//   字符串 JSON 对象：customUrls / customEventUrls / gameColors
+		// 死 id 本身无害（渲染只认存在的条目），但会让配置越来越脏、也让"恢复/重置"难以判定。
+		// 这里做成纯函数：只看 settings → 返回需要写回的键（空对象 = 没有可清理项）。
+		// ⚠️ 只清 `custom-` 前缀的 id，内置 id 一律不碰（removed 里保存的就是内置条目的删除记录）。
+		const CUSTOM_REF_LIST_KEYS = ["hidden", "shown", "order", "removed", "remindOffGames"];
+		const CUSTOM_REF_OBJ_KEYS = ["customUrls", "customEventUrls", "gameColors"];
+		function customEntryIdsOf(raw) {
+			let list = null;
+			try {
+				list = typeof raw === "string" ? JSON.parse(raw || "[]") : raw;
+			} catch {
+				return null;                       // 解析失败 ⇒ 调用方据此"不清理"（保守）
+			}
+			if (!Array.isArray(list)) return null;
+			return list.map((c) => (c && typeof c.id === "string" ? c.id : "")).filter(Boolean);
+		}
+		function pruneCustomRefsOf(settings) {
+			const s = settings && typeof settings === "object" ? settings : {};
+			const aliveIds = customEntryIdsOf(s.customEntries);
+			if (aliveIds == null) return {};
+			const alive = new Set(aliveIds);
+			const stale = (id) => typeof id === "string" && id.indexOf("custom-") === 0 && !alive.has(id);
+			const patch = {};
+			for (const key of CUSTOM_REF_LIST_KEYS) {
+				const v = s[key];
+				if (!Array.isArray(v)) continue;
+				const next = v.filter((id) => !stale(id));
+				if (next.length !== v.length) patch[key] = next;
+			}
+			for (const key of CUSTOM_REF_OBJ_KEYS) {
+				let obj = null;
+				try {
+					obj = typeof s[key] === "string" ? JSON.parse(s[key] || "{}") : s[key];
+				} catch {
+					continue;                      // 这一项坏了就不动它
+				}
+				if (!obj || typeof obj !== "object") continue;
+				const next = {};
+				let changed = false;
+				for (const [k, val] of Object.entries(obj)) {
+					if (stale(k)) { changed = true; continue; }
+					next[k] = val;
+				}
+				if (changed) patch[key] = JSON.stringify(next);
+			}
+			return patch;
+		}
+
 		// 安全解析 JSON 字符串
 		function parseJsonStr(str, fallback) {
 			try { return JSON.parse(str || "") ?? fallback; } catch { return fallback; }
