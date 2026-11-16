@@ -438,6 +438,29 @@
 			return out;
 		}
 
+		// 把 order 补成"包含所有 id"的完整顺序（新条目按 allIds 顺序追加；与 applyOrder 的兜底同口径）。
+		// 设置页长按拖动时用它把"可能缺新条目"的已存 order 补齐，再交给 orderMoveTo。
+		function orderIdsComplete(order, allIds) {
+			const out = Array.isArray(order) ? order.slice() : [];
+			for (const id of allIds) if (!out.includes(id)) out.push(id);
+			return out;
+		}
+
+		// 排序数组的"拖到某条之前/之后"（设置页长按拖动的纯函数核心；不改入参）。
+		// ids = 完整顺序；dragId = 被拖的 id；targetId = 指针所在行；before = true 插到目标前、false 插到后。
+		// 任一 id 不在 ids 里 / dragId === targetId ⇒ 返回入参副本（调用方据此当作"没变化"）。
+		function orderMoveTo(ids, dragId, targetId, before) {
+			const src = Array.isArray(ids) ? ids.slice() : [];
+			const from = src.indexOf(dragId);
+			if (from < 0) return src;
+			if (dragId === targetId) return src;
+			src.splice(from, 1);
+			const at = src.indexOf(targetId);
+			if (at < 0) return Array.isArray(ids) ? ids.slice() : [];
+			src.splice(before ? at : at + 1, 0, dragId);
+			return src;
+		}
+
 		// 安全解析 JSON 字符串
 		function parseJsonStr(str, fallback) {
 			try { return JSON.parse(str || "") ?? fallback; } catch { return fallback; }

@@ -97,7 +97,7 @@ dsh-gacha-calendar/
 │       #   30-game-*.js 合计 35 个 = 30 厂商文件 + 1 biligame 公共层 + 4 bwiki helper（与 test/cases-rule-lint.mjs 的计数守卫一致）
 │       ├── 44-test-exports.js # 回归出口：解析器 + env 工具 + 来源表
 │       ├── 50-refresh.js     # 刷新编排、失败沿用旧值、提示归类
-│       ├── 60-helpers.js     # 顶部提示归类 / 显隐判定 / 排序 / 角色名与倒计时格式化 / 启动刷新判定
+│       ├── 60-helpers.js     # 顶部提示归类 / 显隐判定 / 排序（applyOrder + 长按拖动的 orderMoveTo/orderIdsComplete）/ 角色名与倒计时格式化 / 启动刷新判定
 │       ├── 65-remind.js      # 到期提醒（送达）判定 + 文案（**同时被单独拼成 lib/remind-core.mjs 给宿主**）
 │       ├── engine-head.js    # core 外壳：createEngine（storage / listGames / getCached）
 │       ├── engine-api.js     # 引擎 API：refresh / selfCheck / __test
@@ -106,7 +106,7 @@ dsh-gacha-calendar/
 │       ├── 81-schedule-model.js # 新面板排期模型（纯函数）：取色 / 档期窗口 / 悬停文本 / 格式化 / 节拍 hook
 │       ├── 82-schedule-view.js  # 新面板渲染层：轮播节拍 / 探头定位 / 留白卡 / ScheduleView / TickerFlipLines
 │       ├── 83-panel-shell.js  # 面板外壳 CalendarPanel：订阅 / 刷新 / ticker 接线（旧表格是它内部的分支）
-│       ├── 84-settings-page.js # 设置页 CalendarSettingsPage + 通知身份 / 测试通知的宿主路由封装
+│       ├── 84-settings-page.js # 设置页 CalendarSettingsPage（含长按拖动排序）+ 通知身份 / 测试通知的宿主路由封装
 │       ├── 90-plugin.js      # apply(ctx)：slots / configForms / 悬停 marquee
 │       ├── 92-dsh-env.js     # DSH 环境适配（直连 + 宿主代理）
 │       └── 99-tail.js        # exports.apply / exports.inject

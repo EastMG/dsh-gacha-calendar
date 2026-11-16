@@ -1411,6 +1411,8 @@
 			// 导出是为了和提醒侧那份副本（65-remind.js 的 remindEntryShownOf）做**等价性**用例 ——
 			// 宿主单独装 65-remind.js 时拿不到本函数，只能各写一份，所以必须机器证明两份判定一致。
 			isEntryHidden,
+			orderIdsComplete,
+			orderMoveTo,
 			getVisibleEntries,
 			// 「跳到本插件设置页」的三步查找（80-shared-ui.js 的纯判定）：给定候选 record 列表 ⇒
 			// 该点哪个 / 卡在哪一步。覆盖正常三步 / 缺账号菜单 / 菜单里没有设置项 /

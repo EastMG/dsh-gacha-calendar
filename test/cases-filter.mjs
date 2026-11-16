@@ -186,8 +186,8 @@ export default function runFilter() {
 			comp.includes('placeholder: "搜游戏名"'));
 		check("设置页有「已启用」复选框（原「只看已启用」）（受控 onlyShown）",
 			comp.includes("checked: onlyShown") && comp.includes("onChange: (e) => setOnlyShown(e.target.checked)"));
-		check("设置页过滤**走纯函数** settingsGamesFilter（不在渲染层另写一套 includes）",
-			/settingsGamesFilter\(ordered, \{/.test(comp)
+		check("设置页过滤**走纯函数** settingsGamesFilter（长按拖动时喂 dragLiveOrdered 预览顺序；不在渲染层另写一套 includes）",
+			/settingsGamesFilter\(dragLiveOrdered, \{/.test(comp)
 			&& comp.includes("query: gameQuery")
 			&& comp.includes("onlyShown,")
 			&& comp.includes("isShown: (g) => shownNow(g)"));
@@ -195,10 +195,25 @@ export default function runFilter() {
 			comp.includes("isShown: (g) => shownNow(g)"));
 		check("空结果文案「没有匹配的游戏」在设置页里",
 			comp.includes('children: "没有匹配的游戏"'));
-		check("上移/下移的边界按**全量** ordered 算（过滤不改变真实排位）",
-			comp.includes("disabled: i === 0,") && comp.includes("disabled: i === ordered.length - 1,")
-			&& comp.includes("const i = ordered.indexOf(g);"));
+		check("上移/下移的边界按**全量/拖动预览**算（过滤不改变真实排位）",
+			comp.includes("disabled: i === 0,") && comp.includes("disabled: i === dragLiveOrdered.length - 1,")
+			&& comp.includes("const i = dragLiveOrdered.indexOf(g);"));
 		check("「游戏列表」标题原样保留（cases-star 的位置锚点）", comp.includes('children: "游戏列表"'));
+		// 长按拖动排序（2026-11-16）：手柄 + pointer 长按判定 + 松手才落盘 + 样式
+		check("长按拖动排序：行首 ⋮⋮ 手柄 + onPointerDown 挂在手柄上（不是 HTML5 draggable）",
+			comp.includes("gacha-cal-drag-handle")
+			&& comp.includes("onPointerDown: (e) => onHandlePointerDown(e, g.id)")
+			&& !comp.includes("draggable:"));
+		check("长按拖动排序：260ms 长按阈值 + 指针移动 >10px 取消（不妨碍滚动/点击）",
+			comp.includes("}, 260);")
+			&& /Math\.abs\(e\.clientX - r\.startX\) \+ Math\.abs\(e\.clientY - r\.startY\) > 10/.test(comp));
+		check("长按拖动排序：拖动中只改 dragOrder 预览，松手（pointerup）才 setOrder 落盘",
+			comp.includes("setDragOrder(next)") && /const onHandlePointerUp = async/.test(comp)
+			&& /await setOrder\(next\);/.test(comp));
+		check("长按拖动排序：目标行按 data-gacha-id 命中 + 上下半区决定插前/插后（orderMoveTo 纯函数）",
+			comp.includes('"data-gacha-id": g.id') && comp.includes("orderMoveTo(base, r.id, overId, before)"));
+		check("长按拖动样式在 styles 里（手柄 touch-action:none + 拖动中行 is-dragging）",
+			css.includes(".gacha-cal-drag-handle") && css.includes(".gacha-cal-settings-row.is-dragging"));
 
 		// 面板：搜索框 + 清空
 		check("面板底栏有搜索框（value: findQuery + onChange 写回 findQuery）",
@@ -425,5 +440,35 @@ export default function runFilter() {
 		const hasSuffix = SOURCES.filter((s) => /·(国服|日服|国际服)$/.test(String(s.name || ""))).length;
 		check("只有少数来源的名字带「·国服/·日服/·国际服」后缀（按名字硬推会漏掉大多数）",
 			hasSuffix > 0 && hasSuffix < SOURCES.length, hasSuffix + "/" + SOURCES.length);
+	}
+	// ───────────────────── 长按拖动排序的纯函数（orderMoveTo / orderIdsComplete）─────────────────────
+	section("设置页长按拖动：orderMoveTo / orderIdsComplete");
+	{
+		const { orderMoveTo, orderIdsComplete } = T;
+		const base = ["a", "b", "c", "d", "e"];
+		check("拖到目标之前：a 拖到 c 前 ⇒ b,a,c,d,e",
+			JSON.stringify(orderMoveTo(base, "a", "c", true)) === JSON.stringify(["b", "a", "c", "d", "e"]),
+			JSON.stringify(orderMoveTo(base, "a", "c", true)));
+		check("拖到目标之后：a 拖到 c 后 ⇒ b,c,a,d,e",
+			JSON.stringify(orderMoveTo(base, "a", "c", false)) === JSON.stringify(["b", "c", "a", "d", "e"]),
+			JSON.stringify(orderMoveTo(base, "a", "c", false)));
+		check("向下拖到末尾：a 拖到 e 后 ⇒ b,c,d,e,a",
+			JSON.stringify(orderMoveTo(base, "a", "e", false)) === JSON.stringify(["b", "c", "d", "e", "a"]),
+			JSON.stringify(orderMoveTo(base, "a", "e", false)));
+		check("向上拖到开头：e 拖到 a 前 ⇒ e,a,b,c,d",
+			JSON.stringify(orderMoveTo(base, "e", "a", true)) === JSON.stringify(["e", "a", "b", "c", "d"]),
+			JSON.stringify(orderMoveTo(base, "e", "a", true)));
+		check("自身/不存在：dragId === targetId ⇒ 原样副本（不就地改入参）",
+			JSON.stringify(orderMoveTo(base, "c", "c", true)) === JSON.stringify(base)
+			&& orderMoveTo(base, "c", "c", true) !== base,
+			JSON.stringify(orderMoveTo(base, "c", "c", true)));
+		check("不存在：dragId 或 targetId 不在数组里 ⇒ 原样返回（不硬塞）",
+			JSON.stringify(orderMoveTo(base, "zz", "c", true)) === JSON.stringify(base)
+			&& JSON.stringify(orderMoveTo(base, "a", "zz", true)) === JSON.stringify(base));
+		check("orderIdsComplete：缺的新 id 按 allIds 顺序补到末尾（不覆盖已有顺序）",
+			JSON.stringify(orderIdsComplete(["c", "a"], ["a", "b", "c", "d"])) === JSON.stringify(["c", "a", "b", "d"]),
+			JSON.stringify(orderIdsComplete(["c", "a"], ["a", "b", "c", "d"])));
+		check("orderIdsComplete：order 为空 ⇒ 等于 allIds（等价于未设置）",
+			JSON.stringify(orderIdsComplete([], ["a", "b"])) === JSON.stringify(["a", "b"]));
 	}
 }

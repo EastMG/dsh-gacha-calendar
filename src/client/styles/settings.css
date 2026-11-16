@@ -2,6 +2,14 @@
 			   只要图标的按钮再加 --icon 修饰类变成方形（见下方）。 */
 			.gacha-cal-sort-btn{height:28px;padding:0 11px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.4));background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary,#4a5261);border-radius:7px;font:inherit;font-size:12px;line-height:1;white-space:nowrap;cursor:pointer;transition:background .12s,color .12s}
 			.gacha-cal-sort-btn--icon{width:26px;height:26px;padding:0}
+			/* 长按拖动排序（2026-11-16）：⋮⋮ 手柄 + 拖动中的行弱化。
+			   touch-action:none 只在手柄上——避免长按时触发浏览器滚动/缩放，
+			   行内其它控件（勾选框、下拉、取色器）的手势不受影响。 */
+			.gacha-cal-drag-handle{flex:none;display:inline-flex;align-items:center;justify-content:center;width:14px;height:22px;color:var(--dsw-alias-label-tertiary,#9aa1ab);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+			.gacha-cal-drag-handle:hover{color:var(--dsw-alias-label-secondary,#5f6671)}
+			.gacha-cal-drag-handle:active{cursor:grabbing}
+			.gacha-cal-settings-row.is-dragging{opacity:.55;background:var(--dsw-alias-bg-l2,rgba(127,127,127,.06))}
+			.gacha-cal-settings-row.is-dragging .gacha-cal-drag-handle{cursor:grabbing;color:var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary,#536dfe))}
 			/* 取色器按钮：原生色块默认撑满整个控件、还自带方形描边 ⇒ 用 swatch 伪元素把它收进来并圆角，
 			   让它看起来是"按钮里嵌一枚圆角色标"，而不是一块贴边的色块。 */
 			/* 取色器：外框 28×28 + 圆角 9 + 3px 内边距；色块（原生 swatch）**强制铺满内容盒**

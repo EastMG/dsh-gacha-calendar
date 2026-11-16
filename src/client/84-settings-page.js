@@ -106,6 +106,15 @@
 			// 两者都只是 `settingsGamesFilter` 的入参 —— 不改排序、不改显隐、不写任何配置键。
 			const [gameQuery, setGameQuery] = (0, react.useState)("");
 			const [onlyShown, setOnlyShown] = (0, react.useState)(false);
+			// ── 长按拖动排序（2026-11-16）──────────────────────────────────────────────
+			// 一行行点 ↑/↓ 太累：行首「⋮⋮」手柄**长按 260ms** 进入拖动，pointermove 实时预览，
+			// 松手才落盘（order）。拖动中只改本地 dragOrder，不写设置。
+			const [dragId, setDragId] = (0, react.useState)(null);
+			const [dragOrder, setDragOrder] = (0, react.useState)(null);
+			// 长按判定与拖动目标的 ref（不触发渲染）：timer / 是否已激活 / 起点 / 指针 id / 当前预览顺序 / 滚动容器
+			const dragRef = (0, react.useRef)({ timer: 0, id: null, active: false, startX: 0, startY: 0, pointerId: -1 });
+			const dragOrderRef = (0, react.useRef)(null);
+			const dragScrollRef = (0, react.useRef)(null);
 			// 排期导出 .ics（待办第 5 项）的一行结果：`已导出 N 条（跳过 M 条）` / 失败原因。
 			// 只在本页存活，不落盘（导出结果没有可解释的设置项）。
 			const [icsNote, setIcsNote] = (0, react.useState)("");
@@ -184,6 +193,10 @@
 			// ordered = **全量**条目按用户排序（上移/下移的真实边界用它算）；
 			// sorted = 搜索/筛选后要渲染的行（见下面 shownNow 之后的 settingsGamesFilter）。
 			const ordered = applyOrder(allEntries, order);
+			// 长按拖动中的**实时预览顺序**（null = 未拖动）：只影响渲染，松手才写 order。
+			const dragLiveOrdered = dragOrder
+				? dragOrder.map((id) => ordered.find((g) => g.id === id)).filter(Boolean)
+				: ordered;
 			// ── 来源健康（待办第 3 项「解析器自检」卡片的内容，不是并列的第二块）──────────────
 			// 数据 = 引擎 **selfCheck()** 写回的 `sourceHealth` 存档（与 lastData 并列但**独立**的一个键）。
 			// ⚠️ 2026-10-28 用户决策：健康记录与**面板刷新彻底解耦** —— 刷新只做数据轮转，不再写健康；
@@ -483,6 +496,87 @@
 			// 写 null 会被校验拒绝（旧实现因此永久点不动，还抛未捕获 rejection）；applyOrder 对空数组等价"未设置"
 			const resetOrder = async () => { await commit("order", []); };
 
+			// ── 长按拖动排序：判定与落盘 ────────────────────────────────────────────────
+			// 纯函数 orderMoveTo / orderIdsComplete（60-helpers.js）负责"插到目标前/后"，
+			// 这里只做 DOM 命中与手势状态。规则：
+			//   · pointerdown 后 260ms 未移动 >10px ⇒ 进入拖动（避免妨碍滚动）；
+			//   · 拖动中 pointermove：按命中的行 + 指针在该行上半/下半决定插前/插后；
+			//   · 指针贴近可视区上/下 48px ⇒ 自动滚动，便于长列表远距离拖；
+			//   · pointerup：把预览顺序写回 order（dragOrder 为 null 或未变化 ⇒ 不写）；
+			//   · 过滤（搜索/只看已启用）只影响显示，目标行的位置按全量顺序算。
+			const dragIdsNow = () => orderIdsComplete(order, allEntries.map((x) => x.id));
+			const findScrollParent = (el) => {
+				let node = el;
+				while (node && node !== document.body) {
+					const style = window.getComputedStyle(node);
+					if (/(auto|scroll)/.test(style.overflowY) && node.scrollHeight > node.clientHeight + 4) return node;
+					node = node.parentElement;
+				}
+				return null;
+			};
+			const clearLongPress = () => {
+				const r = dragRef.current;
+				if (r.timer) { clearTimeout(r.timer); r.timer = 0; }
+			};
+			const onHandlePointerDown = (e, id) => {
+				if (e.button != null && e.button !== 0) return;      // 只认左键/触摸
+				clearLongPress();
+				const r = dragRef.current;
+				r.id = id; r.active = false; r.startX = e.clientX; r.startY = e.clientY; r.pointerId = e.pointerId;
+				dragScrollRef.current = findScrollParent(e.currentTarget);
+				const handle = e.currentTarget;
+				r.timer = setTimeout(() => {
+					r.timer = 0;
+					r.active = true;
+					const base = orderIdsComplete(order, allEntries.map((x) => x.id));
+					dragOrderRef.current = base;
+					setDragId(id);
+					setDragOrder(base);
+					try { handle.setPointerCapture(r.pointerId); } catch { /* 指针已抬起 */ }
+				}, 260);
+			};
+			const onHandlePointerMove = (e) => {
+				const r = dragRef.current;
+				if (!r.active) {
+					// 长按未成：指针一动就取消（滚动/点击不被打断）
+					if (r.timer && (Math.abs(e.clientX - r.startX) + Math.abs(e.clientY - r.startY) > 10)) clearLongPress();
+					return;
+				}
+				const scroller = dragScrollRef.current;
+				if (scroller) {
+					const box = scroller.getBoundingClientRect();
+					if (e.clientY < box.top + 48) scroller.scrollBy(0, -14);
+					else if (e.clientY > box.bottom - 48) scroller.scrollBy(0, 14);
+				}
+				const el = document.elementFromPoint(e.clientX, e.clientY);
+				const row = el && el.closest ? el.closest("[data-gacha-id]") : null;
+				if (!row) return;
+				const overId = row.getAttribute("data-gacha-id");
+				if (!overId || overId === r.id) return;
+				const rect = row.getBoundingClientRect();
+				const before = e.clientY < rect.top + rect.height / 2;
+				const base = dragOrderRef.current || dragIdsNow();
+				const next = orderMoveTo(base, r.id, overId, before);
+				if (next.join("|") === base.join("|")) return;
+				dragOrderRef.current = next;
+				setDragOrder(next);
+			};
+			const onHandlePointerUp = async (e) => {
+				const r = dragRef.current;
+				clearLongPress();
+				const wasActive = r.active;
+				r.active = false;
+				r.id = null;
+				if (!wasActive) return;
+				try { e.currentTarget.releasePointerCapture && e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* 已释放 */ }
+				const next = dragOrderRef.current;
+				dragOrderRef.current = null;
+				setDragId(null);
+				setDragOrder(null);
+				const base = dragIdsNow();
+				if (next && next.join("|") !== base.join("|")) await setOrder(next);
+			};
+
 			// 展示开关（勾选/取消勾选）
 			// 三态语义见 60-helpers.js 的 isEntryHidden：hidden = 明确关掉，shown = 明确打开
 			// （shown 用来把「出厂默认隐藏 defaultHidden」的条目重新打开）。
@@ -508,7 +602,7 @@
 			// 全走 60-helpers.js 的 settingsGamesFilter（纯函数，与面板那边共用同一套归一规则）。
 			// 「展示中」用**草稿优先**的 shownNow 判定：勾/取消后当拍筛选就跟着变，不落后一次写入往返。
 			// ⚠️ 只在**显示层**过滤：`ordered`（全量、用于上移/下移的真实边界）与任何设置写入都不动。
-			const sorted = settingsGamesFilter(ordered, {
+			const sorted = settingsGamesFilter(dragLiveOrdered, {
 				query: gameQuery,
 				onlyShown,
 				isShown: (g) => shownNow(g)
@@ -1035,19 +1129,42 @@
 							: null,
 						sorted.map((g) => {
 							// 上移/下移的**真实边界**按全量顺序（ordered）算：过滤只影响显示、不改变排位
-							const i = ordered.indexOf(g);
+							const i = dragLiveOrdered.indexOf(g);
 							const mode = entryUrlMode(g.id, g);
 							const evMode = eventUrlMode(g.id);
 							const showGachaInput = mode === "custom";
 							const showEventInput = evMode === "custom";
 							return (0, react_jsx_runtime.jsxs)("div", {
 								key: g.id,
+								className: "gacha-cal-settings-row" + (dragId === g.id ? " is-dragging" : ""),
+								"data-gacha-id": g.id,
 								style: { borderBottom: "1px solid var(--dsw-alias-border-l1)" },
 								children: [
 									(0, react_jsx_runtime.jsxs)("div", {
 										style: { display: "grid", gridTemplateColumns: SETTINGS_GAME_GRID, gap: 12, alignItems: "center", padding: "8px 0" },
 										children: [
 											(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6, minWidth: 0 }, children: [
+												// 长按拖动排序手柄（⋮⋮）：260ms 长按进入拖动；点按不触发任何写入
+												(0, react_jsx_runtime.jsx)("span", {
+													className: "gacha-cal-drag-handle",
+													title: "长按拖动排序",
+													onPointerDown: (e) => onHandlePointerDown(e, g.id),
+													onPointerMove: onHandlePointerMove,
+													onPointerUp: onHandlePointerUp,
+													onPointerCancel: onHandlePointerUp,
+													onContextMenu: (e) => e.preventDefault(),
+													children: (0, react_jsx_runtime.jsxs)("svg", {
+														width: 9, height: 14, viewBox: "0 0 9 14", fill: "currentColor", "aria-hidden": "true",
+														children: [
+															(0, react_jsx_runtime.jsx)("circle", { cx: 2.5, cy: 2.5, r: 1.1 }),
+															(0, react_jsx_runtime.jsx)("circle", { cx: 6.5, cy: 2.5, r: 1.1 }),
+															(0, react_jsx_runtime.jsx)("circle", { cx: 2.5, cy: 7, r: 1.1 }),
+															(0, react_jsx_runtime.jsx)("circle", { cx: 6.5, cy: 7, r: 1.1 }),
+															(0, react_jsx_runtime.jsx)("circle", { cx: 2.5, cy: 11.5, r: 1.1 }),
+															(0, react_jsx_runtime.jsx)("circle", { cx: 6.5, cy: 11.5, r: 1.1 })
+														]
+													})
+												}),
 												(0, react_jsx_runtime.jsx)(GameIcon, { icon: g.icon, name: g.name, size: 22 }),
 												(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-name gacha-cal-settings-name", style: { flex: "1 1 auto", minWidth: 0 }, children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: g.name }) })
 											] }),
@@ -1121,7 +1238,7 @@
 											}) }),
 											(0, react_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 4, justifySelf: "center" }, children: [
 												(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn gacha-cal-sort-btn--icon", title: "\u4E0A\u79FB", disabled: i === 0, onClick: () => move(g.id, -1), children: (0, react_jsx_runtime.jsx)("svg", { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", children: (0, react_jsx_runtime.jsx)("path", { d: "M6 14.5l6-6 6 6" }) }) }),
-												(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn gacha-cal-sort-btn--icon", title: "\u4E0B\u79FB", disabled: i === ordered.length - 1, onClick: () => move(g.id, 1), children: (0, react_jsx_runtime.jsx)("svg", { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", children: (0, react_jsx_runtime.jsx)("path", { d: "M6 9.5l6 6 6-6" }) }) }),
+												(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn gacha-cal-sort-btn--icon", title: "\u4E0B\u79FB", disabled: i === dragLiveOrdered.length - 1, onClick: () => move(g.id, 1), children: (0, react_jsx_runtime.jsx)("svg", { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", children: (0, react_jsx_runtime.jsx)("path", { d: "M6 9.5l6 6 6-6" }) }) }),
 												(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-sort-btn gacha-cal-sort-btn--icon gacha-cal-del-btn", title: "\u5220\u9664", onClick: () => removeEntry(g), children: (0, react_jsx_runtime.jsx)("svg", {
 													width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true",
 													children: [
