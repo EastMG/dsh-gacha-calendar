@@ -570,6 +570,9 @@
 				ghost.removeAttribute("data-gacha-id");
 				ghost.querySelectorAll("[data-gacha-id]").forEach((n) => n.removeAttribute("data-gacha-id"));
 				ghost.querySelectorAll("input,select,button").forEach((n) => { n.disabled = true; });
+				// ⚠️ 必须去掉行类：FLIP 按 `.gacha-cal-settings-row` 命中行并在重排时写/清 transform，
+				//    幽灵若带这个类就会被一起处理 ⇒ 瞬间跳到 (0,0) 再抽回来（2026-11-17 真机"闪现左上角"）
+				ghost.classList.remove("gacha-cal-settings-row", "is-dragging");
 				ghost.classList.add("gacha-cal-drag-ghost");
 				ghost.style.width = rect.width + "px";
 				ghost.style.height = rect.height + "px";
@@ -627,7 +630,7 @@
 			// ── FLIP：重排后让其它行"滑"到新位置（而不是一格一格跳）──────────────
 			const captureRowTops = () => {
 				const map = new Map();
-				document.querySelectorAll(".gacha-cal-settings-row").forEach((r) => {
+				document.querySelectorAll('.gacha-cal-settings-row:not(.gacha-cal-drag-ghost)').forEach((r) => {
 					map.set(r.getAttribute("data-gacha-id"), r.getBoundingClientRect().top);
 				});
 				return map;
@@ -636,7 +639,7 @@
 				if (!dragOrder || !dragFlipRef.current) return;
 				const prev = dragFlipRef.current;
 				dragFlipRef.current = null;
-				document.querySelectorAll(".gacha-cal-settings-row").forEach((r) => {
+				document.querySelectorAll('.gacha-cal-settings-row:not(.gacha-cal-drag-ghost)').forEach((r) => {
 					const id = r.getAttribute("data-gacha-id");
 					const before = prev.get(id);
 					if (before == null) return;

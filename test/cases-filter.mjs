@@ -231,6 +231,9 @@ export default function runFilter() {
 		check("落位动画：松手时幽灵动画落回占位行再移除（ghostDrop）+ FLIP 让其它行平滑让位",
 			comp.includes("ghostDrop()") && comp.includes("captureRowTops()")
 			&& comp.includes("translateY(${dy}px)") && comp.includes("transform .18s"));
+		check("幽灵行不带行类、FLIP 也排除它（否则重排会清幽灵的 transform ⇒ 闪现左上角）",
+			comp.includes('ghost.classList.remove("gacha-cal-settings-row", "is-dragging")')
+			&& comp.includes(":not(.gacha-cal-drag-ghost)"));
 		check("幽灵行只做纯平移 + 钳制在列表容器内（快速甩动不会飞出屏幕）",
 			comp.includes("clampGhostTarget(pointerX - off.x, pointerY - off.y)")
 			&& comp.includes("Math.max(left, Math.min(right, x))")
