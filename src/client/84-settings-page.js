@@ -123,6 +123,9 @@
 			const dragGhostRef = (0, react.useRef)(null);
 			// 抓取点相对行左上角的偏移（让幽灵跟着指针时不会跳一下）
 			const dragGrabRef = (0, react.useRef)({ x: 0, y: 0 });
+			// 幽灵行的当前位置/目标位置：目标来自指针（已钳制在列表容器内），当前位置每帧向目标插值
+			const dragGhostPosRef = (0, react.useRef)({ x: 0, y: 0 });
+			const dragGhostTargetRef = (0, react.useRef)({ x: 0, y: 0 });
 			// FLIP：重排前一帧每行的 top（id → top），重排后据此补位动画
 			const dragFlipRef = (0, react.useRef)(null);
 			const dragRafRef = (0, react.useRef)(0);
@@ -571,15 +574,32 @@
 				ghost.style.width = rect.width + "px";
 				ghost.style.height = rect.height + "px";
 				ghost.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0)`;
+				dragGhostPosRef.current = { x: rect.left, y: rect.top };
+				dragGhostTargetRef.current = { x: rect.left, y: rect.top };
 				document.body.appendChild(ghost);
 				dragGhostRef.current = ghost;
 			};
-			const ghostMove = (pointerX, pointerY) => {
+			// 把幽灵目标位置钳制在列表容器内（左右上下各留 4px）：
+			// 快速拖动时指针会甩出窗口/容器（窗口外还能收到 pointermove，clientY 可以是负数），
+			// 不钳制的话幽灵会一路飞出屏幕（用户反馈"向左上抽搐、飞到屏幕外"）。
+			const clampGhostTarget = (x, y) => {
 				const ghost = dragGhostRef.current;
-				if (!ghost) return;
+				const w = ghost ? ghost.offsetWidth : 0;
+				const h = ghost ? ghost.offsetHeight : 0;
+				const box = dragScrollRef.current ? dragScrollRef.current.getBoundingClientRect() : null;
+				const left = (box ? box.left : 0) + 4;
+				const right = (box ? box.right : window.innerWidth) - w - 4;
+				const top = (box ? box.top : 0) + 4;
+				const bottom = (box ? box.bottom : window.innerHeight) - h - 4;
+				return {
+					x: Math.max(left, Math.min(right, x)),
+					y: Math.max(top, Math.min(bottom, y))
+				};
+			};
+			const ghostMove = (pointerX, pointerY) => {
+				if (!dragGhostRef.current) return;
 				const off = dragGrabRef.current;
-				// 只做纯平移：rotate/scale 会让旋转层的栅格化随 y 变化 ⇒ 视觉上"侧向抽一下"
-				ghost.style.transform = `translate3d(${pointerX - off.x}px, ${pointerY - off.y}px, 0)`;
+				dragGhostTargetRef.current = clampGhostTarget(pointerX - off.x, pointerY - off.y);
 			};
 			// 松手：幽灵动画落回"占位行"所在位置，再移除
 			const ghostDrop = () => {
@@ -589,7 +609,11 @@
 				const id = ghost.getAttribute("data-ghost-id");
 				const rowEl = id ? document.querySelector(`[data-gacha-id="${id}"]`) : null;
 				const rect = rowEl ? rowEl.getBoundingClientRect() : ghost.getBoundingClientRect();
-				ghost.style.transition = "transform .16s cubic-bezier(.2,.8,.2,1), opacity .16s ease";
+				const cur = dragGhostPosRef.current;
+				ghost.style.transform = `translate3d(${cur.x}px, ${cur.y}px, 0)`;
+				// 强制一帧后再上过渡，避免起点被合并导致"瞬移"
+				void ghost.offsetWidth;
+				ghost.style.transition = "transform .18s cubic-bezier(.2,.8,.2,1), opacity .18s ease";
 				ghost.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0)`;
 				ghost.style.opacity = "0.25";
 				const el = ghost;
@@ -706,6 +730,17 @@
 					if (y < box.top + 48) scroller.scrollBy(0, -16);
 					else if (y > box.bottom - 48) scroller.scrollBy(0, 16);
 					reorderAt(x, y);
+				}
+				// 幽灵行平滑跟随：每帧向目标插值（快速甩动时不会一格一格"抽"，看起来跟手且不抖）
+				const ghost = dragGhostRef.current;
+				if (ghost) {
+					const cur = dragGhostPosRef.current;
+					const tgt = dragGhostTargetRef.current;
+					cur.x += (tgt.x - cur.x) * 0.55;
+					cur.y += (tgt.y - cur.y) * 0.55;
+					if (Math.abs(tgt.x - cur.x) < 0.4) cur.x = tgt.x;
+					if (Math.abs(tgt.y - cur.y) < 0.4) cur.y = tgt.y;
+					ghost.style.transform = `translate3d(${cur.x}px, ${cur.y}px, 0)`;
 				}
 				dragRafRef.current = requestAnimationFrame(dragTick);
 			};

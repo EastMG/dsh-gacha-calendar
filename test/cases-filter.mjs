@@ -231,9 +231,12 @@ export default function runFilter() {
 		check("落位动画：松手时幽灵动画落回占位行再移除（ghostDrop）+ FLIP 让其它行平滑让位",
 			comp.includes("ghostDrop()") && comp.includes("captureRowTops()")
 			&& comp.includes("translateY(${dy}px)") && comp.includes("transform .18s"));
-		check("幽灵行只做纯平移（不加 rotate/scale —— 旋转层随 y 重栅格化会侧向抽动）",
-			/ghost\.style\.transform = `translate3d\(\$\{pointerX - off\.x\}px, \$\{pointerY - off\.y\}px, 0\)`/.test(comp)
+		check("幽灵行只做纯平移 + 钳制在列表容器内（快速甩动不会飞出屏幕）",
+			comp.includes("clampGhostTarget(pointerX - off.x, pointerY - off.y)")
+			&& comp.includes("Math.max(left, Math.min(right, x))")
 			&& !comp.includes("rotate(-0.35deg)"));
+		check("幽灵行逐帧平滑跟随（0.55 插值，差 <0.4px 吸附）",
+			comp.includes("cur.x += (tgt.x - cur.x) * 0.55") && comp.includes("Math.abs(tgt.x - cur.x) < 0.4"));
 		check("幽灵行与占位行样式在 styles 里（固定层 + is-dragging 半透明虚线）",
 			css.includes(".gacha-cal-drag-ghost") && css.includes(".gacha-cal-settings-row.is-dragging"));
 		check("拖动自动滚动：指针停在容器边缘时每帧滚动并重新命中（长列表不用手动翻）",
