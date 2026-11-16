@@ -1,4 +1,10 @@
-// src/client/30-game-browndust2.js —— 棕色尘埃2（棕色尘埃2 / Brown Dust 2）：第三方卡池史站点 bannerhistory.app
+// src/client/30-game-neowiz.js —— Neowiz：棕色尘埃2（Brown Dust 2，browndust2）
+//
+// 职责（2026-11-16 按厂商重排）：由 30-game-browndust2.js 整体改名迁入；条目 + 解析器 + 抓取器 + 登记原样保留。
+// 源：第三方 bannerhistory.app 卡池史（Next.js RSC flight 负载；绝对毫秒起止）；只接卡池侧。
+// 复用关系：公共层 fetchText / 悬停与数组生成器；符号名 `ns_browndust2_*` 一个都没改。
+// 请求预算：整页解析结果按 URL 缓存 24h（首轮 1 次 / 稳态 0 次）。
+
 //
 // ── 落点 ────────────────────────────────────────────────────────────────────────
 // 唯一来源 `id:"browndust2"`，**只接卡池侧**（该站只有卡池史，没有活动档期）⇒ 活动侧不注册

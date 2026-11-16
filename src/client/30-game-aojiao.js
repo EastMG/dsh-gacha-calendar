@@ -1,4 +1,10 @@
-// src/client/30-game-bwiki-gachaparty.js —— 盲盒派对（国服）：bwiki 的卡池模板 + SMW 活动查询
+// src/client/30-game-aojiao.js —— 傲娇工作室：盲盒派对（gachaparty，国服）
+//
+// 职责（2026-11-16 按厂商重排）：由 30-game-bwiki-gachaparty.js 整体迁入（自包含：条目 + 解析 + 抓取 + 登记）。
+// 源：卡池 = bwiki 模板 `模板:近期盲盒扭蛋`（prop=wikitext）；活动 = SMW `action=ask` 查 `分类:活动`。
+// 复用关系：bwiki 公共层（载荷生成器 / 悬停）；符号名 `ns_bwiki_*` 不变。
+// 请求预算：每轮 2 次（两侧 URL 不同，不共享）。
+
 //
 // ── 落点 ────────────────────────────────────────────────────────────────────────
 // bwiki 系文件（`30-game-bwiki-*` 家族）：唯一来源 `id:"gachaparty"`，两侧**不是同一条 URL**：

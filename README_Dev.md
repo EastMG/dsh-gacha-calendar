@@ -57,58 +57,44 @@ dsh-gacha-calendar/
 │       ├── 27-parser-text.js   # 实体解码与文本工具：decodeEntities / decodeExtra / numOrNull / byNewestStart
 │       ├── 28-parser-hover-tools.js # 悬停排版共用工具（新增来源那套）：hoverPool / hoverEvent
 │       ├── 29-parser-register.js # 中文/繁体时间解析 + 来源抓取器登记（bh3 米游社备选源）
-│       ├── 30-game-hoyoverse.js   # 米哈游：原神 / 星穹铁道 / 绝区零（含米游社备选源与崩坏3）
-│       ├── 30-game-kuro.js        # 库洛：鸣潮
-│       ├── 30-game-hypergryph.js  # 鹰角：明日方舟 / 终末地
+│       # ── 公共层（2026-11-16 按厂商重排：公共层在前、厂商文件在后）──
+│       ├── 30-game-bwiki-common.js      # bwiki 公共层：HTML 工具 / 日期解析 / 当期挑选 / 载荷生成器（含 batch5 移入的 ns_b5_* 时间锚 helper）
+│       ├── 30-game-bwiki-wikitext-common.js # wikitext 公共层：parse.wikitext 取正文 / 当期挑选 / 悬停（zspms / czn / kedr 共用）
+│       ├── 30-game-bwiki-html-fetchers.js   # bwiki HTML 形态来源的抓取器（whmx / uma-cn / uma-jp / zspms / kedr / czn / stellasora）
+│       ├── 30-game-bwiki-stellasora.js  # stellasora 的 bwiki 解析器（只服务 30-game-yostar.js；悠星不动 ⇒ 留作按游戏 helper）
+│       ├── 30-game-biligame-common.js   # biligame 官方新闻 API 公共层（物华弥新 longyuan + 闪耀优俊少女 uma-cn 共用）
+│       # ── 厂商文件：条目 + 解析入口 + registerSource 都在这里（每个 id 只注册一处）──
+│       ├── 30-game-hoyoverse.js   # 米哈游：原神 / 星穹铁道 / 绝区零 / 崩坏3 / 崩坏学园2 / 未定事件簿
+│       ├── 30-game-kuro.js        # 库洛：鸣潮 / 战双帕弥什（含 bwiki 两个解析器 + 官方 CDN 版本更新公告）
+│       ├── 30-game-cygames.js     # Cygames：赛马娘 日/国际/繁中/韩/国服 + 公主连结 日/繁中服 + 碧蓝幻想
+│       ├── 30-game-bandori.js     # BanG Dream：国服手游 / OurNotes 日服 / OurNotes 国际服（Bestdori 备选）
+│       ├── 30-game-papergames.js  # 叠纸：以闪亮之名 / 无限暖暖 / 闪耀暖暖
+│       ├── 30-game-perfectworld.js # 完美世界：女神异闻录：夜幕魅影 / 异环 / 幻塔
+│       ├── 30-game-netease.js     # 网易：时空中的绘旅人 / 阴阳师
+│       ├── 30-game-idolmaster.js  # 偶像大师系列 5 款（学マス / シャニマス / ミリシタ / デレステ / シャニソン）
+│       ├── 30-game-sega.js        # 世嘉：初音未来：缤纷舞台 国服 / 繁中服 / 韩服
 │       ├── 30-game-bluearchive.js # 蔚蓝档案：国服 / 国际服 / 日服
-│       ├── 30-game-bandori.js     # BanG Dream：国服手游 / OurNotes 日服 / 国际服（Bestdori 备选）
-│       ├── 30-game-bwiki-common.js      # bwiki 公共段：文件头 + HTML 工具 / 日期解析 / 当期挑选（3 个 region）
-│       ├── 30-game-bwiki-wuhuamixin.js  # bwiki ① 物华弥新（whmx）：卡池 + 活动解析
-│       ├── 30-game-bwiki-uma-cn.js      # bwiki ② 闪耀优俊少女 国服（umamusume / 简中卡池）
-│       ├── 30-game-bwiki-uma-jp.js      # bwiki ③ 赛马娘 日服（umamusume / 活动，Asia/Tokyo）
-│       ├── 30-game-bwiki-zspms-html.js  # bwiki ④ 战双帕弥什（zspms / 研发记录，prop=text 形态）
-│       ├── 30-game-bwiki-kedr-html.js   # bwiki ⑤ 雪松（kedrgame / 卡池信息，台架测试占位页）
-│       ├── 30-game-bwiki-czn-html.js    # bwiki ⑥ 卡厄斯梦境（czn / 卡池记录，实测空页）
-│       ├── 30-game-bwiki-stellasora.js  # bwiki ⑦ 星塔旅人（stellasora / 首页活动日历）
-│       ├── 30-game-bwiki-html-fetchers.js # 上面 7 个 HTML 形态来源的抓取器
-│       ├── 30-game-bwiki-wikitext-common.js # wikitext 形态公共段：取正文（parse.wikitext）/ 当期挑选 / 悬停
-│       ├── 30-game-bwiki-zspms-wikitext.js # 战双（wikitext）：卡池 = `Test4/活动旗帜`（2026-11-10 起默认）+ 活动日历/版本更新公告（均为活动侧备选）
-│       ├── 30-game-zspms-official.js # 战双：**官方 CDN**「版本更新公告」（2026-11-11 起活动侧默认源；菜单 → 最近 3 篇 → HTML 正文抽档期）
-│       ├── 30-game-bwiki-czn-wikitext.js # 卡厄斯梦境（wikitext）：Module:Gacha/data 的 Lua 表
-│       ├── 30-game-bwiki-kedr-wikitext.js # 雪松（wikitext）：Template:首页游戏版本内容 的模板调用
-│       ├── 30-game-bwiki-kedr-wiki.js   # 雪松社区归档页（往期动员，prop=text）+ 其抓取器
-│       ├── 30-game-bwiki-register.js    # 本组 4 条 registerSource + GACHA/EVENT_FETCHERS 接线
-│       ├── 30-game-bwiki-bjhl.js        # 白荆回廊（历史卡池一览 + 活动一览，自包含条目/解析/抓取/登记）
-│       ├── 30-game-bwiki-yslz.js        # 以闪亮之名（国服）：卡池 `Category:限时追光`（分类成员 + 正文，2 个请求）+ 活动 SMW `action=ask`（2 个请求）；复刻档也算当期
-│       ├── 30-game-biligame.js    # biligame 系：嘟嘟脸恶作剧 / 闪耀优俊少女
-│       ├── 30-game-cygames.js     # Cygames：赛马娘 日服 / 国际服（umapyoi 备选）
-│       ├── 30-game-komoe.js       # Komoe：赛马娘 繁中服（官方公告 CMS；卡池 + 活动同一条接口、按标题分流）
-│       ├── 30-game-daum.js        # Daum：赛马娘 韩服（카페 月间日程帖；置顶列表 → 当月日程帖、按 ❖ 块分流）
-│       ├── 30-game-perfectworld.js # 完美世界：女神异闻录：夜幕魅影 / 异环
+│       ├── 30-game-hypergryph.js  # 鹰角：明日方舟 / 终末地
+│       ├── 30-game-aniplex.js     # Aniplex / TYPE-MOON：Fate/Grand Order 国服 + 日服
+│       ├── 30-game-hl.js          # 碧蓝航线：国服（只接活动）/ 日服
+│       ├── 30-game-wonderplanet.js # WonderPlanet：粉碎狂热·日服（bwiki SMW ask）
+│       ├── 30-game-mixi.js        # MIXI：怪物弹珠·日服（Data:GachaConfig.json + 活动日历 CALENDAR_DATA）
+│       ├── 30-game-dmm.js         # DMM：舰队Collection·日服（wikiwiki 期間限定出撃）
+│       ├── 30-game-smilegate.js   # Smilegate：卡厄斯梦境（TapTap topic SSR 默认 + bwiki 停更备选）
+│       ├── 30-game-longyuan.js    # 龙渊：物华弥新（bwiki 卡池 + biligame 官方公告活动侧）
+│       ├── 30-game-naroda.js      # Naroda：雪松（bwiki 模板 / 卡池信息 / 社区归档页）
+│       ├── 30-game-aurogan.js     # 上海烛龙：白荆回廊（bwiki 历史卡池一览 + 活动一览）
+│       ├── 30-game-aisno.js       # AISNO / 自意：无期迷途（bwiki 卡池 + 官方资讯 API 活动）
+│       ├── 30-game-baio.js        # 百奥：夜幕之下（卡池 bwiki 备选 + 活动 TapTap tab SSR）
+│       ├── 30-game-wfskey.js      # WFS / Key：炽焰天穹（官方 H5 公告列表 + 在期详情）
+│       ├── 30-game-neowiz.js      # Neowiz：棕色尘埃2（bannerhistory.app 卡池史）
+│       ├── 30-game-gongguo.js     # 弓谷：雷索纳斯（bwiki 活动日历 wikitext 主源）
+│       ├── 30-game-yostar.js      # 悠星：星塔旅人（官方 CMS + bwiki 活动日历备选）
 │       ├── 30-game-sunborn.js     # 散爆：少女前线2：追放
-│       ├── 30-game-aniplex.js     # Aniplex / TYPE-MOON：Fate/Grand Order（国服 fgo.wiki + 日服 Atlas Academy）
-│       ├── 30-game-sega.js        # 世嘉：初音未来：缤纷舞台 国服 / 繁中服 / 韩服（同源同形，只换 URL + tz）
-│       ├── 30-game-yostar.js      # 悠星：星塔旅人
 │       ├── 30-game-bluepoch.js    # 深蓝互动：重返未来：1999
-│       ├── 30-game-wqmt.js        # 无期迷途（国服）：卡池 bwiki 追踪一览 + 活动 官方资讯 API + 开服锚点
-│       ├── 30-game-miyoushe-bbs.js # 未定事件簿：米游社公告（卡池 + 活动；详情需 Referer www.miyoushe.com/wd/）
-│       ├── 30-game-netease.js     # 时空中的绘旅人：官网新闻（official）+ 学院公告（update）列表 + 详情（卡池画廊 + 活动；缺年份补年/跨年）
-│       ├── 30-game-pengpeng.js    # 夜幕之下（国服）：卡池 bwiki SMW ask（契约）+ 活动 TapTap tab 页的 SSR（Nuxt `__NUXT_DATA__`；旧 bwiki 公告为备选）
-│       ├── 30-game-cytq.js        # 炽焰天穹（国服）：官方 H5 公告（列表 1 次 → 只取 is-gacha/is-event/is-campaign 的详情 → 按 id 缓存 TTL 24h、已结束的不再取；两侧同一条列表 URL 轮内共享）
-│       ├── 30-game-batch2.js      # 2026-11-11 第二批：崩坏3 米哈游内容中台（卡池名称/角色 + 档期三级取值：`>>开放时间` → 同帖礼包【上架时间】 → 只出名称/角色；活动正文时间块）/ OurNotes 日服 SPICA（列表→前 5 条详情）/ 卡厄斯梦境 TapTap 官方（2026-11-13 改 topic 页 SSR：Nuxt devalue 解码 + 2 页固定请求；卡池「营救概率提升」标签 + 活动「活动时间」标签；同页维护窗映射；卡池载荷带活动字段供引擎复用）
-│       ├── 30-game-ournotes-global.js # OurNotes **国际服**卡池 + 活动：默认源 = SPICA 数据 JSON（页面 `window._durl` 现解 → d-*.json；gachapages/events 一次拿全）；数据里是 JST 墙钟、展示按 UTC+8（钟面 −1h）；picks 按 **id** 查角色；池名与角色名按 zh→tw→en→ja 取（简中优先）；BHK 官方公告两条降为手动备选源
-│       ├── 30-game-benghuai2.js   # 崩坏学园2（国服）：官网公告（列表 POST `{}` + 详情 GET；卡池 + 活动两侧同一条列表，轮内共享 1 次请求）
-│       ├── 30-game-wxnn.js        # 无限暖暖（国服）：官网「资讯快报」列表 `/api/news`（无分页、固定 15 条）+ 详情 `/news/{id}` 的 `__NEXT_DATA__`；`共鸣时间`→卡池（池名取 `前往「…」进行共鸣`）、`活动时间`→活动（一篇可 5 条）；「版本更新后」按同批维护窗兜底；详情按 id 缓存 24h、已结束的不再取
-│       ├── 30-game-hl.js          # 碧蓝航线：国服（卡池**未配置** `url:""` + 活动 = B 站维护公告列表→详情，`活动时间` 锚点、`维护后` 用同篇维护结束时刻）+ 日服（官方新闻 `/api/news/list` 一条接口出卡池「期間限定建造」与活动「開催期間」；按 id 缓存 24h、两侧轮内共享 1 次请求）
-│       ├── 30-game-pcr-tw.js      # 公主连结Re:Dive·繁中服（So-net 官网公告）：列表 `/news?page=1`（SSR，一页 10 条，类别只认标题前缀 `【轉蛋】`/`【活動】`）+ 详情 `newsDetail/{id}`（**只认 `<section class="news_con">`**，正文里"整行恰为日期区间"才是窗口、名字取上一行 `■…期間`）；每侧最多 2 篇详情、按 id 缓存 24h、两侧轮内共享 1 次列表
-│       ├── 30-game-bwiki-reso.js  # 雷索纳斯（国服）：bwiki「活动日历」的 wikitext（`action=raw`，必须带 Referer）+ `revisions` 只补年份（页面更新年 + `inferYear` 上一年 + 镜像次年 + `endsNextYear`）；日期只有 `mm.dd-mm.dd` ⇒ 起 00:00 / 止 23:59；两侧同一条 URL 轮内共享 2 次请求
-│       ├── 30-game-tof.js         # 幻塔（国服）：官网 `gamenews` 列表（SSR，第 1 页 6 条版本公告）+ **最新版本那一篇**的正文（`限定拟态角色「…」、限定武器「…」` + `正式服活动时间：…` + `“X订购活动”`）；两端都明确才算池、池名/角色/起止到分；详情按 URL 缓存 24h（首轮 2 次 / 稳态 1 次）；**只有卡池侧**（活动 `eventUrl:""` = 未配置）
-│       ├── 30-game-bwiki-gachaparty.js # 盲盒派对（国服）：bwiki 卡池模板 `模板:近期盲盒扭蛋` 的 wikitext（`{{首页卡池|池名|角色1|角色2|起|止}}`，**必须先剥 `<!-- -->` 注释**）+ 活动侧 SMW `action=ask` 查 `分类:活动`（首页 `模板:近期活动` 只有结束时刻、没有起点 ⇒ 构不成窗口）；两侧 URL 不同 ⇒ 每轮 2 次请求
-│       ├── 30-game-pcr-jp.js      # 公主连结Re:Dive·日服（microCMS 官方公告）：列表 1 次（`filters=title[contains]ガチャ[or]categories[contains]イベント` + `orders=-display_date`）**同时圈卡池与活动** + 详情 `/api/v1/news/{id}` 的 `body_html`（锚点行 `■…期間` + **下一行恰为日期区间**才是窗口；行内日期陷阱不认）；卡池只收「ピックアップ/フェスガチャ」本命池、活动按 `categories` 含「イベント」且标题未写"終了"；每侧最多 4 篇详情、命中当期即提前收、按 id 缓存 24h 且已结束永久缓存（首轮 5 次 / 稳态 1 次）；实测 `ACAO: *` ⇒ 直连│       ├── 30-game-batch3.js     # 2026-11-15 第三批（日本两款，**都只接活动侧**）：碧蓝幻想 `gbf` = gbf-wiki.com 的「イベント/開催予定・開催中」（PukiWiki 两张表：現在開催中 + 今後の予定，`YYYY/MM/DD hh:mm～…`，只有起点 ⇒ endTs=null）+ 舰队Collection `kancolle` = wikiwiki.jp 的「期間限定出撃」（历年大型活动档案：`<h2>事件名` + `期間限定！【起～止】`，只写日期 ⇒ 00:00/23:59）；两条卡池侧均留空未配置│       ├── 30-game-longhun.js     # 龙魂旅人（台服官网公告）：JSON 索引 `/jx/dtofficialnewszh/`（**只有 4 条**「标题 + 发布日」，`time` 是 DD-MM-YYYY）+ 详情页正文的 `▌名字` ⏎ `活动时间：M月D日H:MM - M月D日H:MM`（`(UTC+7)/(UTC+9)` 后缀不可信 ⇒ 剥掉按条目 tz 解析）；池/活动只认 `▌` 原句关键词；详情按 id 缓存 24h、已结束不再取；两侧同一条列表 URL 轮内共享
-│       ├── 30-game-nikki4.js      # 闪耀暖暖·国服：官网首页 `__NEXT_DATA__` 的 `pageData.newsbanner`（**4 条精选**，新闻 id 只在 `info` 的 `/news/{id}` 里）+ 详情 `/news/{id}` 的 `pageData.content_html`；锚点 `活动时间/感应时间/阁时间`，档期 `M月D日[更新后|H:MM]-M月D日H:MM`（「更新后」按官方维护公告惯例锚定当日 09:30）；详情按 id 缓存 24h、已结束不再取；两侧同一条列表 URL 轮内共享
-│       ├── 30-game-idolmaster.js  # アイドルマスター系列 5 款（学マス / シャニマス / ミリシタ / デレステ / シャニソン = シャイニーカラーズ Song for Prism，日服；来源标签逐字带「（日文）」后缀）：每款一个月份页（`melonpapapapa-n.com` 的「イベント・ガシャ開催スケジュール一覧」`imas_{gm|sc|ml|cgss|ss}_YYYYMM/`）—— 表里 `日程（起止到分） + 概要` 按 `event-badge` 分流（cat-gacha → 卡池 / cat-event → 活动）；当月页 1 次请求、当月无覆盖才补抓上一月（跨月）；卡池/活动同一张表 ⇒ 轮内共享 1 次
-│       ├── 30-game-browndust2.js  # 棕色尘埃2（Brown Dust 2）：**第三方** bannerhistory.app 的 `/en/bd2-pickup-history`（Next.js RSC flight 负载 `self.__next_f.push([1,"…"])` 里的 `"data":{"game":"bd2",…}`；取 `rows[].groups[]` 的池名（`members[].name`）/ 角色（`members[].sub`）/ **绝对毫秒**起止（站点自算：起 09:00 KST / 止 08:59 KST，页面自报 `sourceZone:"Asia/Seoul"`））；整页 0.5 MB 解析结果按 URL 缓存 24h（首轮 1 次 / 稳态 0 次）；**只接卡池侧**（该站没有活动档期），标签逐字「bannerhistory.app（英文）」
-│       ├── 30-game-bwiki-batch5.js # 2026-11-15 第五批（2026-11-16 精简为 2 款）：粉碎狂热 crashfever = SMW `action=ask` 查 `类别::卡池`；怪物弹珠 gwdz = `Data:GachaConfig.json` JSON 直读（卡池）+ `Widget:游戏活动日历` 的 `CALENDAR_DATA`（活动）
+│       ├── 30-game-aojiao.js      # 傲娇工作室：盲盒派对（bwiki 卡池模板 + SMW 活动）
+│       ├── 30-game-epidgames.js   # EPIDGames：嘟嘟脸恶作剧（B 站公告备选 + TapTap tab SSR 活动）
+│       #   30-game-*.js 合计 35 个 = 30 厂商文件 + 1 biligame 公共层 + 4 bwiki helper（与 test/cases-rule-lint.mjs 的计数守卫一致）
 │       ├── 44-test-exports.js # 回归出口：解析器 + env 工具 + 来源表
 │       ├── 50-refresh.js     # 刷新编排、失败沿用旧值、提示归类
 │       ├── 60-helpers.js     # 顶部提示归类 / 显隐判定 / 排序 / 角色名与倒计时格式化 / 启动刷新判定

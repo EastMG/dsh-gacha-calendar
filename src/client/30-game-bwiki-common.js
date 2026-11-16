@@ -402,3 +402,99 @@ function ns_bwiki_eventPayload(items, tz, now, permanentCount = 0, id = "") {
 	return out;
 }
 //#endregion
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ── 2026-11-16 按厂商重排：由 30-game-bwiki-batch5.js 移入的公共时间锚 helper
+//    （`ns_b5_*`：SMW printout / 文本 → 墙钟点 → 绝对时刻；服务 30-game-wonderplanet.js 与 30-game-mixi.js）
+// ─────────────────────────────────────────────────────────────────────────────
+
+//#region 共用：bwiki 时间锚 → 墙钟点 → 绝对时刻
+const ns_b5_REFERER = "https://wiki.biligame.com/";
+
+// printout / 文本 → `{ y, mo, d, h, mi }`（h/mi = null 表示源站只有日期）。
+// 兼容三种实测形态：
+//   · `_dat` printout：`[{ timestamp, raw }]`，raw = `1/2026/9/10`（首段恒 1，其后 y/m/d/H/i/s/…）
+//   · `_txt` printout（字符串数组）：`["2026-07-23"]`
+//   · 普通文本：`2026/11/15 11:00` / `2026-11-15` / `20261115`
+function ns_b5_pointOfText(text) {
+	const s = String(text == null ? "" : text).trim();
+	if (!s) return null;
+	// bwiki `_dat.raw`：`1/2026/9/10` / `1/2026/11/12/15/0/0/0`（首段恒为 1）
+	const p = s.split("/");
+	if (p.length >= 4 && /^\d{4}$/.test(p[1])) {
+		const h = p.length > 4 && p[4] !== "" ? +p[4] : null;
+		const mi = p.length > 5 && p[5] !== "" ? +p[5] : null;
+		return { y: +p[1], mo: +p[2], d: +p[3], h, mi };
+	}
+	const m = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?$/.exec(s);
+	if (m) return { y: +m[1], mo: +m[2], d: +m[3], h: m[4] == null ? null : +m[4], mi: m[5] == null ? null : +m[5] };
+	const m2 = /^(\d{4})(\d{2})(\d{2})$/.exec(s);
+	if (m2) return { y: +m2[1], mo: +m2[2], d: +m2[3], h: null, mi: null };
+	return null;
+}
+function ns_b5_pointOfPrintout(v) {
+	const first = Array.isArray(v) ? v[0] : v;
+	if (first == null) return null;
+	if (typeof first === "string") return ns_b5_pointOfText(first);
+	if (typeof first === "number") return null;
+	if (typeof first === "object") {
+		// `_dat` 的 `raw` 是源站墙钟原样（`1/2026/9/10`）；`timestamp` 只是兜底（UTC 秒）
+		if (typeof first.raw === "string") {
+			const p = ns_b5_pointOfText(first.raw);
+			if (p) return p;
+		}
+		if (typeof first.timestamp === "number" && Number.isFinite(first.timestamp)) {
+			// 兜底：时间戳是绝对时刻，按源站 tz 取墙钟（本站 tz = Asia/Shanghai，与 SMW 存储时区一致）
+			return null;
+		}
+	}
+	return null;
+}
+// 点 → 绝对时刻。起：只有日期 ⇒ 00:00；止：只有日期 ⇒ 23:59（仓库通用约定）。
+function ns_b5_tsOf(point, isEnd, tz) {
+	if (!point) return null;
+	if (point.h != null) return sourceInstant(point.y, point.mo, point.d, point.h, point.mi == null ? 0 : point.mi, tz);
+	return isEnd
+		? sourceInstant(point.y, point.mo, point.d, 23, 59, tz)
+		: sourceInstant(point.y, point.mo, point.d, 0, 0, tz);
+}
+// 点 → `YYYY-MM-DD` / `YYYY-MM-DD HH:MM`（**只改写法不改数值**；工具提示用）
+function ns_b5_stampOf(point) {
+	const two = (n) => String(n).padStart(2, "0");
+	const d = `${point.y}-${two(point.mo)}-${two(point.d)}`;
+	return point.h == null ? d : `${d} ${two(point.h)}:${two(point.mi == null ? 0 : point.mi)}`;
+}
+// printout 值 → 首个非空字符串（`["a","b"]` / `[{raw}]` / `"a"` 都吃）
+function ns_b5_textOf(v) {
+	if (v == null) return "";
+	if (typeof v === "string") return v.trim();
+	if (typeof v === "number") return String(v);
+	if (Array.isArray(v)) { for (const x of v) { const s = ns_b5_textOf(x); if (s) return s; } return ""; }
+	if (typeof v === "object") {
+		if (typeof v.raw === "string" && v.raw.trim() !== "") return v.raw.trim();
+		if (typeof v.fulltext === "string") return v.fulltext.trim();
+		if (typeof v["*"] === "string") return v["*"].trim();
+	}
+	return "";
+}
+// printout 多值 → 字符串数组
+function ns_b5_listOf(v) {
+	const arr = Array.isArray(v) ? v : (v == null ? [] : [v]);
+	return arr.map((x) => ns_b5_textOf(x)).map((x) => x.trim()).filter(Boolean);
+}
+// wikitext 片段 → 纯文本（去 HTML / 去 `'''` 粗体 / `[[a|b]]` 取 b / `[[a]]` 取 a）
+function ns_b5_plainOf(text) {
+	let s = String(text == null ? "" : text);
+	s = s.replace(/<[^>]*>/g, "");
+	s = s.replace(/\[\[([^\]|]*)\|([^\]]*)\]\]/g, "$2").replace(/\[\[([^\]]*)\]\]/g, "$1");
+	s = s.replace(/'''/g, "").replace(/''/g, "");
+	return s.replace(/\s+/g, " ").trim();
+}
+// SMW ask 的公共取数：`query.results` 不在 ⇒ 结构损坏（`{}` / 改版都走这条）
+function ns_b5_resultsOf(json, tag) {
+	const results = json && json.query && json.query.results;
+	if (!results || typeof results !== "object" || Array.isArray(results)) throw new Error(tag + ":bad-json");
+	return results;
+}
+//#endregion

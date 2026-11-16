@@ -145,52 +145,19 @@ const FORBIDDEN = [
 export default async function run() {
 	section("规则静态守卫（方案 A 悬停：只有名称与档期；选当期：只有一处判定）");
 	const files = readdirSync(SRC).filter((f) => /^30-game-.*\.js$/.test(f)).sort();
-	// 2026-10-28（待办 7③）：bwiki 系一个文件装多个游戏，按文件里**已有的 `//#region`** 拆成了
-	// 15 个 `30-game-bwiki-*.js`（一游戏/一段一文件，见 README_Dev 结构树）。所以这条守卫的口径改成：
-	// 「厂商/系列级文件仍是 13 个」+「bwiki 家族正好 15 段」= 28 ——少一个 = 漏接线，多一个 = 忘了登记。
+	// 2026-10-28（待办 7③）：bwiki 系按 `//#region` 拆成多个 `30-game-bwiki-*.js`。
+	// 2026-11-16 按厂商重排后：bwiki 家族只剩**公共层 / 按游戏 helper 4 段**（common / wikitext-common /
+	// html-fetchers / stellasora），其余 bwiki 解析器与注册都并进厂商文件（见 README_Dev 结构树）。
 	const bwikiFiles = files.filter((f) => f.startsWith("30-game-bwiki"));
-	const vendorFiles = files.filter((f) => !f.startsWith("30-game-bwiki"));
-	// 2026-11-09：再 +5 个厂商/系列文件（`30-game-wqmt.js` / `30-game-pengpeng.js` /
-	// `30-game-unconfigured.js`，以及晚上新接入的 `30-game-miyoushe-bbs.js`（未定）/
-	// `30-game-netease.js`（绘旅人））⇒ 厂商级 18 + bwiki 15 = 33 个文件。
-	// 2026-11-11：+1 个厂商/系列文件（`30-game-komoe.js`，赛马娘繁中服）⇒ 厂商级 19 + bwiki 15 = 34 个文件。
-	// 2026-11-11 第二批：再 +1（`30-game-batch2.js`：崩坏3 内容中台 / OurNotes 日服 SPICA /
-	// 卡厄斯 TapTap tab —— 三条来源共用一个文件，仍按"一个厂商/系列文件"计）⇒ 20 + 15 = 35。
-	// 2026-11-11 战双官方 CDN：再 +1（`30-game-zspms-official.js`：活动侧默认源 = 官方
-	// 「版本更新公告」，**不是** bwiki ⇒ 计入厂商/系列级）⇒ 21 + 15 = 36。
-	// 2026-11-11 OurNotes 国际服：再 +1（`30-game-ournotes-global.js`：卡池 + 活动默认源 =
-	// SPICA 的结构化数据 JSON；**不是** bwiki ⇒ 计入厂商/系列级）⇒ 22 + 15 = 37。
-	// 2026-11-15 新接入 4 款（文件 3 个新增 + 阴阳师并入 netease）：
-	//   `30-game-bwiki-bjhl.js`（白荆回廊，bwiki 双页）、`30-game-bwiki-dhmmr.js`（深空之眼，SMW）
-	//   ⇒ bwiki 系 15 + 2 = 17；`30-game-benghuai2.js`（崩坏学园2，官网公告）⇒ 厂商级 22 + 1 = 23。
-	// 2026-11-15 同日再 +2：`30-game-bwiki-yslz.js`（以闪亮之名，bwiki 分类）⇒ bwiki 系 17 + 1 = 18；
-	//   `30-game-daum.js`（赛马娘·韩服，Daum 카페 日程帖）⇒ 厂商级 23 + 1 = 24。合计 24 + 18 = 42 个文件。
-	// 2026-11-15 再 +1：`30-game-wxnn.js`（无限暖暖·国服，官网「资讯快报」列表 + 按 id 缓存的详情）
-	//   ⇒ 厂商级 24 + 1 = 25；合计 25 + 18 = 43 个文件。
-	// 2026-11-15 同日再 +1：`30-game-hl.js`（碧蓝航线：国服 hl 只接活动 + 日服 hl-jp 卡池/活动同一条新闻列表）
-	//   ⇒ 厂商级 25 + 1 = 26；合计 26 + 18 = 44 个文件。
-	// 2026-11-15 再 +2：`30-game-pcr-tw.js`（公主连结·繁中服，官网公告：列表 + 详情）⇒ 厂商级 26 + 1 = 27；
-	//   `30-game-bwiki-reso.js`（雷索纳斯；主源 = bwiki 活动日历 wikitext，官网内联 JSON 为备选）⇒ bwiki 系 18 + 1 = 19。
-	//   合计 27 + 19 = 46 个文件。
-	// 2026-11-15 晚 +1：`30-game-tof.js`（幻塔·国服，官网 gamenews 列表 + 最新版本公告详情；只有卡池侧）
-	//   ⇒ 厂商级 27 + 1 = 28；合计 28 + 19 = 47 个文件。
-	// 2026-11-15 同日晚再 +1：`30-game-bwiki-gachaparty.js`（盲盒派对，bwiki 卡池模板 + SMW 活动）
-	//   ⇒ bwiki 系 19 + 1 = 20；厂商级仍是 28；合计 28 + 20 = 48 个文件。
-	// 2026-11-15 第三批：再 +1（`30-game-batch3.js`：日本两款共用一个文件 —— 碧蓝幻想 gbf / 舰队Collection kancolle，
-	//   两条都只接活动侧）⇒ 厂商级 28 + 1 = 29；合计 29 + 20 = 49 个文件。
-	// 2026-11-15 同日再 +1：`30-game-pcr-jp.js`（公主连结·日服，microCMS）⇒ 厂商级 29 + 1 = 30；合计 30 + 20 = 50 个文件。
-	// 2026-11-15 再 +2：	//   `30-game-nikki4.js`（闪耀暖暖·国服，官网首页 `__NEXT_DATA__` + `/news/{id}`）/
-	//   `30-game-idolmaster.js`（アイドルマスター系列 5 款共用一个文件 —— 学マス / シャニマス /
-	//   ミリシタ / デレステ / シャニソン，仍按"一个厂商/系列文件"计）⇒ 厂商级 30 + 3 = 33；
-	//   bwiki 系仍是 20；合计 33 + 20 = 53 个文件。
-	// 2026-11-15 再 -1：删除 `30-game-bwiki-dhmmr.js`（深空之眼，陪伴服视同停运）⇒ bwiki 系仍是 20（删掉的 dhmmr 原属这 20 之外的单列统计，见 actual）；合计 34 + 20 = 54 个文件。
-	// 2026-11-15 合并两条已完成分支：
-	//   · 第三方 1 条（`30-game-browndust2.js`，棕色尘埃2）⇒ 厂商级 33 + 1 = 34；
-	//   · 第五批 bwiki 2 款共用一个文件（`30-game-bwiki-batch5.js`：crashfever / gwdz，
-	//     四个源站都在 `wiki.biligame.com` ⇒ 按既有「站点归类」计入 bwiki 系）⇒ bwiki 系 20 + 1 = 21。
-	//   合计 34 + 21 = 55 个文件。
-	check("游戏文件齐备（33 个厂商/系列文件 + bwiki 系 20 段 = 53 个）",
-		vendorFiles.length === 33 && bwikiFiles.length === 20,		`厂商=${vendorFiles.length} bwiki=${bwikiFiles.length}`);
+	// 2026-11-16 按厂商重排：`30-game-*.js` = **30 个厂商文件** + **1 个 biligame 官方新闻 API 公共层**
+	// （`30-game-biligame-common.js`；只放物华弥新 longyuan 与闪耀优俊少女国服 cygames 共用的 helper）
+	// + **bwiki 系 4 段**（common / wikitext-common / html-fetchers / stellasora）。
+	// 少一个 = 漏接线，多一个 = 忘了登记；厂商文件里每条的 registerSource 只有一处。
+	const commonFiles = files.filter((f) => f === "30-game-biligame-common.js");
+	const vendorFiles = files.filter((f) => !f.startsWith("30-game-bwiki") && f !== "30-game-biligame-common.js");
+	check("游戏文件齐备（30 个厂商/系列文件 + 1 个 biligame 公共层 + bwiki 系 4 段 = 35 个）",
+		vendorFiles.length === 30 && commonFiles.length === 1 && bwikiFiles.length === 4,
+		`厂商=${vendorFiles.length} 公共层=${commonFiles.length} bwiki=${bwikiFiles.length}`);
 	const hit = [];
 	// ⚠️ 重组后**条目声明也住在游戏文件里**（`registerSource({ … })`），而条目里的
 	//    `source:` / `eventSource:` / `label:` 是**数据**（如「Bestdori 扭蛋（社区数据库）」），

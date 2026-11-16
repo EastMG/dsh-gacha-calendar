@@ -1,12 +1,17 @@
-// src/client/30-game-kuro.js —— 库洛（鸣潮）
+// src/client/30-game-kuro.js —— 库洛：鸣潮（wuwa）/ 战双帕弥什（zspms）
 //
-// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
-//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
-//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
-//
-// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
-//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
-
+// 职责（2026-11-16 按厂商重排）：库洛两条来源的条目 + 解析器 + 抓取器 + 登记都在本文件；
+//   每个 id 只在此注册一次（符号名沿用原 `ns_*`）。
+// 组成：
+//   · 本文件原有：wuwa（鸣潮，官方公告；bwiki 角色轮换池 / 活动日历为备选）；
+//   · 并入 30-game-bwiki-zspms-html.js / -zspms-wikitext.js：zspms 的两个 bwiki 解析器
+//     （研发记录 prop=text / `Test4/活动旗帜` 与活动日历 / 版本更新公告的 wikitext）；
+//   · 并入 30-game-zspms-official.js：战双官方 CDN「版本更新公告」（活动侧默认源）；
+//   · 并入 30-game-bwiki-register.js 里 zspms 的注册与 GACHA/EVENT_FETCHERS 接线。
+// 复用关系：复用 bwiki 公共层（30-game-bwiki-common.js 表/日期/载荷 helper、30-game-bwiki-wikitext-common.js
+//   的 wikitext helper）与 30-game-bwiki-html-fetchers.js 的 bwiki 抓取器；wuwa / zspms 解析器互不共享。
+// 请求预算：wuwa 1~2 次/轮（卡池与活动同一条官方公告）；zspms 卡池 1 次（bwiki 活动旗帜）、
+//   活动 1 次（官方 CDN 菜单 → 最近 3 篇详情，解析结果按 URL 缓存）。
 
 		// ── 解析器 / 抓取器 ──
 
@@ -505,3 +510,911 @@ EVENT_FETCHERS["wuwa"] = {
 				//   `events` 数组 + 条目事实），所以这里不再做 `banner → event` 的映射。
 				"wuwa-event-bwiki": mkMediaWiki((html, tz) => parseWuwaCalendar(html, tz))
 			};
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ── 并入 30-game-bwiki-zspms-html.js：战双 bwiki「研发记录」解析（卡池备选）
+// ─────────────────────────────────────────────────────────────────────────────
+
+//#region ④ 战双帕弥什 国服（zspms / page=研发记录）
+// 107 张独立小表，每张 = 一期「降临狙击」研发池：行1 = `<td colspan="2">` 立绘/名（名在 <a title>），
+//   行2 = `日期 | 2024/03/21 10:00 AM 至 2024/04/04 09:59 AM`（**12 小时制**），
+//   行3 = `效果 | 「<a title=角色>」…`。表格前最近的 h2 就是干净的池名（如 `【露西亚·深红囚影】…限时概率UP`）。
+//   ⚠️ 实测最新一期 = 2024/03/21（页面缓存时间 2026-10-01）→ 该页 **停在 2024Q1**，当期无覆盖 → null。
+//      （页首自述「目前该记录仅包括"降临狙击角色"池和"命运降临角色狙击"池」。）
+function ns_bwiki_parseZspmsGacha(html, tz = "Asia/Shanghai") {
+	const tables = ns_bwiki_eachTable(html);
+	if (tables.length === 0) return [];
+	const items = [];
+	let seenLabel = 0;
+	tables.forEach((tbl, ti) => {
+		const rows = ns_bwiki_tableRows(tbl);
+		let dateText = "", roleText = "", imgTitle = "";
+		for (const r of rows) {
+			if (r.cells.length === 1) {                        // 立绘行（colspan=2）
+				const t = ns_bwiki_attrOf(r.cells[0].html, "title") || r.cells[0].text;
+				if (t) imgTitle = t;
+			}
+			for (let i = 0; i < r.cells.length; i++) {
+				const label = r.cells[i].text;
+				const next = r.cells[i + 1];
+				if (!next) continue;
+				if (/^(日期|时间)/.test(label)) { dateText = next.text; seenLabel++; }
+				else if (/^效果/.test(label)) roleText = next.html;
+			}
+		}
+		const w = ns_bwiki_windowsFromCell(dateText, tz, "startFirst")[0];
+		if (!w) return;
+		const head = ns_bwiki_headingBefore(html, html.indexOf(tbl));
+		const roles = ns_bwiki_linkTitles(roleText).join("、");
+		items.push({
+			_i: ti,
+			banner: head || ns_bwiki_cleanImgName(imgTitle) || "研发池",
+			roles, category: "研发", note: "降临狙击角色池",
+			startTs: w.startTs, endTs: w.endTs, raw: w.raw, display: w.display
+		});
+	});
+	if (seenLabel === 0 && tables.length > 0) throw new Error("bwiki-zspms-gacha:no-table");   // 结构变了
+	return items;
+}
+//#endregion
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ── 并入 30-game-bwiki-zspms-wikitext.js：战双 bwiki 活动旗帜 / 活动日历 / 版本更新公告
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ① 战双帕弥什 国服（zspms）
+//    · 活动侧默认（2026-11-11 起）：`Test4/活动日历` 的结构化 `{{活动日历|名|起|止}}` 行
+//    · 卡池侧默认（2026-11-10 起）：`Test4/活动旗帜` 的 `{{活动旗帜}}` 模板参数
+//    · 旧源（SMW ask 索引 → 最新「版本更新公告」→ prop=wikitext 正文抽档期）
+//      两侧都降为**手动备选**（altSources / eventAltSources），解析器与回归全部保留
+// ══════════════════════════════════════════════════════════════════════════════
+const ns_bwiki_wikitext_ZSPMS_TZ = "Asia/Shanghai";        // 推测：源站未标注（旁证见文件头）
+const ns_bwiki_wikitext_ZSPMS_ASK_QUERY = "[[分类:游戏更新公告]][[类别::版本]]|?标题|?时间|sort=时间|order=desc|limit=40";
+const ns_bwiki_wikitext_ZSPMS_ASK_URL = "https://wiki.biligame.com/zspms/api.php?action=ask&query="
+	+ encodeURIComponent(ns_bwiki_wikitext_ZSPMS_ASK_QUERY) + "&format=json";
+// ⚠️ `prop=wikitext`（**不是** prop=text）；页名必须 encodeURIComponent 后再拼（否则夹具整串键命中不到）
+function ns_bwiki_wikitext_zspmsParseUrl(page) {
+	return `https://wiki.biligame.com/zspms/api.php?action=parse&page=${encodeURIComponent(page)}&prop=wikitext&format=json`;
+}
+const ns_bwiki_wikitext_ZSPMS_REFERER = "https://wiki.biligame.com/zspms/";
+
+//#region 战双：SMW ask 索引
+// 实测返回（fixtures/p8-zspms-ask）：
+//   {"query-continue-offset":40,
+//    "query":{"printrequests":[{"label":"标题",…},{"label":"时间",…}],
+//             "results":{"《远信回响》版本更新公告":{"printouts":{"标题":["《远信回响》版本更新公告"],
+//                                                              "时间":["20260922"]},
+//                                                 "fulltext":"《远信回响》版本更新公告","fullurl":…,"namespace":0,"exists":"1"}},
+//             "serializer":"SMW\\Serializers\\QueryResultSerializer","version":2,
+//             "meta":{"hash":…,"count":40,"offset":0,…}}}
+// ⚠️ `时间` 是**字符串** `"20260922"`（YYYYMMDD），**不是** SMW 的 timestamp 对象。
+//    但仍做兼容：字符串 / 数组 / {timestamp} / {fulltext} 都吃。
+function ns_bwiki_wikitext_smwText(v) {
+	if (v == null) return "";
+	if (typeof v === "string") return v.trim();
+	if (typeof v === "number") return String(v);
+	if (Array.isArray(v)) return ns_bwiki_wikitext_smwText(v[0]);
+	if (typeof v === "object") {
+		if (typeof v.timestamp === "number") return String(v.timestamp);
+		if (typeof v.fulltext === "string") return v.fulltext.trim();
+		if (typeof v["*"] === "string") return v["*"].trim();
+	}
+	return "";
+}
+// ask JSON → 按 `时间` 严格倒序的行 [{ page, title, time, fullurl }]
+//   结构性损坏（无 query.results）→ 抛错；**0 条也抛错**：该查询依赖 `类别::版本`，
+//   返回 0 条说明索引/属性坏了，绝不能静默降级成"未公布"（任务书明确要求）。
+function ns_bwiki_wikitext_parseZspmsAsk(json) {
+	const results = json && json.query && json.query.results;
+	if (!results || typeof results !== "object" || Array.isArray(results)) throw new Error("zspms-ask:bad-json");
+	const rows = Object.entries(results).map(([page, v]) => {
+		const p = (v && v.printouts) || {};
+		return {
+			page,
+			title: ns_bwiki_wikitext_smwText(p["标题"]) || page,
+			time: ns_bwiki_wikitext_smwText(p["时间"]),
+			fullurl: (v && v.fullurl) || ""
+		};
+	});
+	if (rows.length === 0) throw new Error("zspms-ask:no-result");
+	rows.sort((a, b) => (b.time > a.time ? 1 : b.time < a.time ? -1 : 0));
+	return rows;
+}
+//#endregion
+
+//#region 战双：正文 → 档期
+// `{{颜色引用|红|2026年9月24日版本更新后 - 2026年11月5日05:00}}` —— 档期**写在模板参数里**，
+// 所以必须先剥模板（保留内文），否则整段档期都看不见。处理顺序：
+//   ① `{{颜色引用|<色>|<正文>}}` → 只留 <正文>（档期就在这里）  ② `{{公告|…}}` 信息模板 → 整块丢弃（时间另取）
+//   ③ 其它无参/单参模板 → 无参丢、有参留最后一个参数   ④ `'''` 粗体标记 → 去掉
+//   ⑤ `[[file:…]]` → 去掉   ⑥ `<br>`/块级标签 → 换行（正文是 `<br>` 分行写的）
+//   ⑦ 标题 `==X==` → 独立行，并打上 `\u0001H<level>\u0001` 前缀（后面要靠标题栈取活动名）
+function ns_bwiki_wikitext_zspmsNormalize(wikitext) {
+	let s = String(wikitext == null ? "" : wikitext);
+	s = s.replace(/\{\{颜色引用\s*\|[^|{}]*\|([\s\S]*?)\}\}/g, "$1");
+	s = s.replace(/\{\{公告[\s\S]*?\}\}/g, "");
+	s = s.replace(/\{\{[^{}]*\}\}/g, (m) => { const i = m.lastIndexOf("|"); return i < 0 ? "" : m.slice(i + 1, -2); });
+	s = s.replace(/'''/g, "");
+	s = s.replace(/\[\[(?:file|File|文件)\s*:[^\]]*\]\]/g, "");
+	s = s.replace(/<br\s*\/?>/gi, "\n");
+	s = s.replace(/<\/?(?:hr|center|div|p|li|ul|ol|table|tr|td|th)\b[^>]*>/gi, "\n");
+	s = s.replace(/<\/?(?:b|i|u|span|small|big|font|sup|sub)\b[^>]*>/gi, "");
+	s = s.replace(/&nbsp;/gi, " ");
+	// ⚠️ 标题必须**整行**匹配（加 m + ^$）：否则表格行 `{| class="wikitable" style="…"` 里的两个 `=`
+	//    会被当成一级标题，往标题栈里塞一个假标题。
+	s = s.replace(/^(={1,6})\s*([^=\n]+?)\s*\1\s*$/gm, (m, eq, title) => `\u0001H${eq.length}\u0001${title}`);
+	return s;
+}
+
+// 停服维护窗口（源站原文，例：`我们将于2026年9月24日05:00 - 11:00进行"远信回响"版本更新的停服维护`）
+// 只在含「停服维护/停机维护」的那一行里找 `YY…MM…DD HH:MM - HH:MM`（终点可省日期）。
+function ns_bwiki_wikitext_zspmsMaintenanceWindow(text, tz = ns_bwiki_wikitext_ZSPMS_TZ) {
+	const line = String(text == null ? "" : text).split("\n").find((l) => /停服维护|停机维护|维护更新/.test(l) && /\d{4}\s*年/.test(l));
+	if (!line) return null;
+	const m = /(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日\s*(\d{1,2})\s*[:：]\s*(\d{2})\s*[-–—－~～至到]\s*(\d{1,2})\s*[:：]\s*(\d{2})/.exec(line);
+	if (!m) return null;
+	const y = +m[1], mo = +m[2], d = +m[3];
+	const startTs = sourceInstant(y, mo, d, +m[4], +m[5], tz);
+	let endTs = sourceInstant(y, mo, d, +m[6], +m[7], tz);
+	if (endTs <= startTs) endTs = sourceInstant(y, mo, d + 1, +m[6], +m[7], tz);   // 跨零点的维护（如 22:00-02:00）
+	if (!(endTs > startTs)) return null;
+	const raw = `${y}-${pad2(mo)}-${pad2(d)} ${pad2(+m[4])}:${m[5]} - ${pad2(+m[6])}:${m[7]}`;
+	return { startTs, endTs, raw };
+}
+
+// 中文年月日「起点 - 终点」窗口（源站墙钟原文形态）：
+//   `2026年9月24日版本更新后 - 2026年11月5日05:00`（相对起点）
+//   `2026年9月29日10:00 - 2026年11月3日23:59`（双端显式时刻）
+//   `2026年9月24日 - 2026年10月1日`（双端只有日期 → 起点 00:00 / 终点 23:59）
+// ⚠️ 内部空白只用 `[ \t]`（**不许跨行**）：否则维护段 `9月24日05:00 - 11:00` 会跟下一行的日期拼成假窗口。
+const ns_bwiki_wikitext__SP = "[ \\t]*";
+const ns_bwiki_wikitext__CN_DATE = "(\\d{4})" + ns_bwiki_wikitext__SP + "年" + ns_bwiki_wikitext__SP + "(\\d{1,2})" + ns_bwiki_wikitext__SP + "月" + ns_bwiki_wikitext__SP + "(\\d{1,2})" + ns_bwiki_wikitext__SP + "日";
+const ns_bwiki_wikitext__CN_TIME = "(\\d{1,2})" + ns_bwiki_wikitext__SP + "[:：]" + ns_bwiki_wikitext__SP + "(\\d{2})";
+const ns_bwiki_wikitext__CN_REL = "(版本更新后|维护结束后|维护后|更新结束后|更新后)";
+const ns_bwiki_wikitext__CN_WIN_SRC = ns_bwiki_wikitext__CN_DATE + ns_bwiki_wikitext__SP + "(?:" + ns_bwiki_wikitext__CN_TIME + "|" + ns_bwiki_wikitext__CN_REL + ")?" + ns_bwiki_wikitext__SP + "[-–—－~～至到]" + ns_bwiki_wikitext__SP
+	+ ns_bwiki_wikitext__CN_DATE + ns_bwiki_wikitext__SP + "(?:" + ns_bwiki_wikitext__CN_TIME + ")?";
+
+// 标题栈 → 该行的活动名。先取最内层标题；若它是通用容器标题（如 `4）活动时间`）→ 往上爬一级。
+const ns_bwiki_wikitext__GENERIC_HEAD = /^(活动时间|活动说明|活动奖励|活动对象|活动规则|活动玩法|活动内容|活动时间如下)$/;
+function ns_bwiki_wikitext_cleanHead(title) {
+	return String(title == null ? "" : title)
+		.replace(/\s*\[\s*编辑\s*\]\s*/g, "")
+		.replace(/^\d+\s*）\s*/, "")
+		.replace(/^[一二三四五六七八九十]+\s*、\s*/, "")
+		.replace(/[\s:：]+$/, "")
+		.replace(/\s+/g, " ")
+		.trim();
+}
+function ns_bwiki_wikitext_zspmsHeadings(lines) {
+	const out = [];
+	lines.forEach((l, i) => {
+		const m = /^\u0001H(\d)\u0001(.*)$/.exec(l);
+		if (m) out.push({ lineIdx: i, level: +m[1], title: ns_bwiki_wikitext_cleanHead(m[2]) });
+	});
+	return out;
+}
+function ns_bwiki_wikitext_zspmsNameAt(heads, lineIdx) {
+	const stack = [];
+	for (const h of heads) {
+		if (h.lineIdx > lineIdx) break;
+		while (stack.length && stack[stack.length - 1].level >= h.level) stack.pop();
+		stack.push(h);
+	}
+	for (let i = stack.length - 1; i >= 0; i--) if (stack[i].title && !ns_bwiki_wikitext__GENERIC_HEAD.test(stack[i].title)) return stack[i].title;
+	for (let i = stack.length - 1; i >= 0; i--) if (stack[i].title) return stack[i].title;
+	return "";
+}
+
+// 活动时间标签（`活动时间：` / `•【勤务·限时任务】开放时间：` / `开启时间：` / `售卖时间：` …）
+const ns_bwiki_wikitext__ZSPMS_LABEL_RE = /^[\s*•·\-]*?(?:【[^】]{1,20}】)?[ \t]*([^\s:：]{0,10}?(?:活动时间|开放时间|开启时间|售卖时间|持续时间|领取时间|兑换时间))[ \t]*[:：]/;
+
+// 「研发池名」：`通过“淬炼活动角色” “命运淬炼活动角色”研发池产出/获得` → 池名数组
+function ns_bwiki_wikitext_zspmsPools(line) {
+	const m = /通过([^，。；\n]{1,90}?)研发池/.exec(line);
+	if (!m) return [];
+	return m[1].split(/[“”"'‘’「」\s&、]+/).map((x) => x.trim()).filter(Boolean);
+}
+// 池名前面最近的 `「…」`（就是产出物/角色，如 `「阿德莱德·破渊」`、`「时崎狂三」`）
+function ns_bwiki_wikitext_zspmsRoleBefore(line, idx) {
+	const head = line.slice(0, idx);
+	const all = [...head.matchAll(/「([^」]{1,30})」/g)];
+	return all.length ? all[all.length - 1][1].trim() : "";
+}
+
+// 正文 wikitext → { anchor, items:[{kind:"gacha"|"event", …}], skipped, headings }
+// 条目标签：gacha = 窗口所在行提到「研发池」；event = 带时间标签 / 行首就是窗口 / 行内有「时间段内」。
+// **一条都没解出来 → 抛错**（结构性损坏：版本更新公告不可能没有档期；不能静默当"未公布"）。
+function ns_bwiki_wikitext_parseZspmsAnnouncement(wikitext, tz = ns_bwiki_wikitext_ZSPMS_TZ, askRow = null) {
+	const raw = String(wikitext == null ? "" : wikitext);
+	const timeField = ((raw.match(/\|\s*时间\s*=\s*(\d{8})/) || [])[1]) || (askRow && askRow.time) || "";
+	const annDate = /^\d{8}$/.test(timeField)
+		? { y: +timeField.slice(0, 4), mo: +timeField.slice(4, 6), d: +timeField.slice(6, 8) }
+		: null;
+	const text = ns_bwiki_wikitext_zspmsNormalize(raw);
+	const maint = ns_bwiki_wikitext_zspmsMaintenanceWindow(text, tz);
+	const lines = text.split("\n");
+	const heads = ns_bwiki_wikitext_zspmsHeadings(lines);
+	const items = [];
+	let skipped = 0;
+	const re = new RegExp(ns_bwiki_wikitext__CN_WIN_SRC, "g");
+	let m;
+	while ((m = re.exec(text))) {
+		// —— 起点：显式时刻 > 相对锚点（① 源站维护结束时刻 → ② 公告时间字段[stellasora 先例] → ③ 自带日期）
+		//    三条相对锚点路径都标 startInferred=true，并把依据写进 startFrom（hover 会如实显示）
+		let startTs, startInferred = false, startFrom = "", startRel = "";
+		if (m[4] != null) {
+			startTs = sourceInstant(+m[1], +m[2], +m[3], +m[4], +m[5], tz);
+		} else if (m[6] != null) {
+			startRel = m[6];
+			startInferred = true;
+			if (maint && maint.endTs != null) { startTs = maint.endTs; startFrom = `源站维护窗口 ${maint.raw} 的结束时刻`; }
+			else if (annDate) { startTs = sourceInstant(annDate.y, annDate.mo, annDate.d, 0, 0, tz); startFrom = `公告时间 ${timeField}`; }
+			else { startTs = sourceInstant(+m[1], +m[2], +m[3], 0, 0, tz); startFrom = `自带日期 ${m[1]}-${pad2(+m[2])}-${pad2(+m[3])}`; }
+		} else {
+			startTs = sourceInstant(+m[1], +m[2], +m[3], 0, 0, tz);
+			startInferred = true;
+			startFrom = "源站只给日期，起点按 00:00";
+		}
+		// —— 终点（缺时刻按 23:59）
+		const endTs = m[10] != null
+			? sourceInstant(+m[7], +m[8], +m[9], +m[10], +m[11], tz)
+			: sourceInstant(+m[7], +m[8], +m[9], 23, 59, tz);
+		if (!(endTs > startTs)) { skipped++; continue; }             // 源站错行 → 丢弃，不硬造
+
+		// —— 行上下文（分类 + 池名 + 活动名都只看本行）
+		const lineStart = text.lastIndexOf("\n", m.index) + 1;
+		let lineEnd = text.indexOf("\n", m.index);
+		if (lineEnd < 0) lineEnd = text.length;
+		const line = text.slice(lineStart, lineEnd);
+		const lineIdx = text.slice(0, lineStart).split("\n").length - 1;
+		const isPool = /研发池/.test(line);
+		const base = {
+			_i: items.length,
+			startTs, endTs,
+			raw: m[0],
+			startInferred, startFrom, startRel,
+			line: line.trim()
+		};
+		if (isPool) {
+			const pools = ns_bwiki_wikitext_zspmsPools(line);
+			const role = ns_bwiki_wikitext_zspmsRoleBefore(line, m.index - lineStart);
+			items.push({
+				...base,
+				kind: "gacha",
+				banner: pools.length ? pools.join(" / ") : (role || "研发池"),
+				roles: role,
+				pools
+			});
+			continue;
+		}
+		const labelM = ns_bwiki_wikitext__ZSPMS_LABEL_RE.exec(line);
+		const stripped = line.replace(/^[\s*•·\-]+/, "");
+		if (labelM || stripped.startsWith(m[0]) || /时间段内/.test(line)) {
+			items.push({
+				...base,
+				kind: "event",
+				label: labelM ? labelM[1] : "",
+				name: ns_bwiki_wikitext_zspmsNameAt(heads, lineIdx) || (labelM ? labelM[1] : "活动")
+			});
+			continue;
+		}
+		skipped++;
+	}
+	if (items.length === 0) throw new Error("zspms-notice:no-window");     // 结构变了，当抓取失败
+	return { anchor: maint ? { ts: maint.endTs, raw: maint.raw, how: "维护结束" } : null, announceTime: timeField, items, skipped, headings: heads };
+}
+
+// 活动外显优先序：① 剧情/挑战/演算这类"内容档"优先 ② 结束最早 ③ 开始最早 ④ 文档顺序
+const ns_bwiki_wikitext__ZSPMS_TIER1 = /剧情|主线|故事|叙事|挑战|BOSS|Boss|试玩|玩法|关卡|演算|行动|作战|防卫|巡防|赛季|联合/;
+function ns_bwiki_wikitext_zspmsEventTier(x) { return ns_bwiki_wikitext__ZSPMS_TIER1.test(x.name || "") ? 1 : 2; }
+function ns_bwiki_wikitext_zspmsEventCmp(a, b) {
+	return (ns_bwiki_wikitext_zspmsEventTier(a) - ns_bwiki_wikitext_zspmsEventTier(b)) || (a.endTs - b.endTs) || (a.startTs - b.startTs) || (a._i - b._i);
+}
+// ⚠️ 原先这里有个 zspmsHeader()：往悬停首行拼「战双帕弥什 bwiki 版本更新公告「…」（SMW 时间=…；…；tz=UTC+8
+//    为推测；起点锚点=源站维护结束 …）」。按方案 A **整段删除**（元信息不进悬停，也不搬到别的字段）。
+//    公告标题/SMW 时间/维护窗口仍是**数据字段**（announceTime / anchor / startFrom），解析逻辑不变。
+
+// 两步抓取：ask 索引 → 最新公告正文。结构性损坏（无结果 / 坏 JSON / 正文无档期）都会抛错。
+async function ns_bwiki_wikitext_zspmsLatestNotice(url, signal) {
+	const rows = ns_bwiki_wikitext_parseZspmsAsk(await fetchJson(url || ns_bwiki_wikitext_ZSPMS_ASK_URL, { referer: ns_bwiki_wikitext_ZSPMS_REFERER, signal, mode: "proxy" }));
+	const row = rows[0];
+	if (!row || !row.page) throw new Error("zspms-ask:no-page");
+	const wikitext = await ns_bwiki_wikitext_fetchWikitext(ns_bwiki_wikitext_zspmsParseUrl(row.page), signal, ns_bwiki_wikitext_ZSPMS_REFERER);
+	return { row, rows, wikitext };
+}
+async function ns_bwiki_wikitext_gachaZspms(url, signal, tz = ns_bwiki_wikitext_ZSPMS_TZ, now = nowMs()) {
+	// `row`（ask 索引行）仍要传给解析器：`{{公告|时间=…}}` 缺失时用它兜底相对起点的锚点。
+	const { row, wikitext } = await ns_bwiki_wikitext_zspmsLatestNotice(url, signal);
+	const parsed = ns_bwiki_wikitext_parseZspmsAnnouncement(wikitext, tz, row);
+	return ns_bwiki_wikitext_gachaPayload(parsed.items.filter((x) => x.kind === "gacha"), tz, ns_bwiki_wikitext_nowOf(now), {
+		cmp: (a, b) => (a.endTs - b.endTs) || (a._i - b._i)
+	});
+}
+async function ns_bwiki_wikitext_eventsZspms(url, signal, tz = ns_bwiki_wikitext_ZSPMS_TZ, now = nowMs()) {
+	const { row, wikitext } = await ns_bwiki_wikitext_zspmsLatestNotice(url, signal);
+	const parsed = ns_bwiki_wikitext_parseZspmsAnnouncement(wikitext, tz, row);
+	return ns_bwiki_wikitext_eventPayload(parsed.items.filter((x) => x.kind === "event"), tz, ns_bwiki_wikitext_nowOf(now), {
+		cmp: ns_bwiki_wikitext_zspmsEventCmp,
+		nameOf: (x) => x.name
+	});
+}
+//#endregion
+
+//#region 战双：活动日历（结构化活动档期，2026-11-11 起为活动侧默认源）
+// 为什么接：活动侧原先靠「版本更新公告」正文（要剥 `{{颜色引用}}`、靠标题栈取活动名），最新一版
+// 《远信回响》的档期止于 2026-11-05 ⇒ 11-06 起活动列空窗。`Test4/活动日历` 与卡池侧的
+// `Test4/活动旗帜` **同站、同写法**（都是一页数据模板），源站更新一行就多一条 ⇒ 比公告正文规整，
+// 也不依赖标题层级。接它不等于"立刻有数据"（实测末条同样止于 2026/11/05），而是**源站一补档就自动恢复**。
+//
+// 页面实测（2026-11-11T00:58+08，夹具 `test/fixtures/p8-zspms-calendar`，HTTP 200 / 729B）：
+//   <div class="newsOut" …><!--只允许显示8个活动-->
+//      {{活动日历|「远信回响」主线|2026/09/24 11:00|2026/11/05 5:00}}
+//      {{活动日历|「拟战场域」材料|2026/09/24 11:00|2026/11/05 5:00}}
+//      … 共 10 行 …
+//      {{活动日历|「新增涂装试玩」|2026/09/24 11:00|2026/11/05 5:00}}
+//   </div>
+// 模板定义（`Template:活动日历`）：位置参数 1=名称、2=开始时间、3=结束时间，另有同义具名参数
+// （`名称` / `开始时间` / `结束时间`）⇒ 两种写法都吃。
+// 口径：
+//   · 活动名 = 参数 1 **原样**（`「远信回响」主线` 就是源站写法，不拆「」、不剥类别后缀）
+//   · 起止 `YYYY/MM/DD H:MM`（**时位不补零**，如 `11/05 5:00`），tz = Asia/Shanghai（同文件头推测）
+//   · raw = 两端原文（`~` 连接，与活动旗帜同约定）、display = fmtWindow（「两份文本」约定）
+//   · 起止读不出 / 终点不晚于起点 ⇒ **跳过该行**（不硬造）；一条都解不出 ⇒ 抛错（模板改版 = 结构性损坏）
+//   · 外显/悬停交给共用的 `eventPayload`：**两端都明确且覆盖 now** 才进外显（`coversNow` 唯一真源）
+//     ⇒ 当前时刻（2026-11-11）全部已过期 ⇒ 如实返回 null（未公布），绝不把 11-05 收尾的档期当在期。
+const ns_bwiki_wikitext_ZSPMS_CALENDAR_PAGE = "Test4/活动日历";
+// ⚠️ 页名必须 encodeURIComponent 后再拼（`/` → `%2F`、中文 → %E…）
+const ns_bwiki_wikitext_ZSPMS_CALENDAR_URL = "https://wiki.biligame.com/zspms/api.php?action=parse&page="
+	+ encodeURIComponent(ns_bwiki_wikitext_ZSPMS_CALENDAR_PAGE) + "&prop=wikitext&format=json&formatversion=2";
+
+// 一页 wikitext → { items:[{ name, startTs, endTs, raw, display, _i }], skipped }
+// 只认 `{{活动日历|…}}` 顶层调用（参数里没有花括号；与源站写法一致）。
+function ns_bwiki_wikitext_parseZspmsCalendar(wikitext, tz = ns_bwiki_wikitext_ZSPMS_TZ) {
+	const text = String(wikitext == null ? "" : wikitext);
+	const items = [];
+	let skipped = 0;
+	const re = /\{\{活动日历\s*\|([^{}]*?)\}\}/g;
+	let m;
+	while ((m = re.exec(text))) {
+		const pos = [], named = {};
+		for (const piece of m[1].split("|")) {
+			const seg = piece.trim();
+			const kv = /^([^=]{1,8})\s*=\s*([\s\S]*)$/.exec(seg);
+			if (kv && /^(名称|开始时间|结束时间)$/.test(kv[1].trim())) named[kv[1].trim()] = kv[2].trim();
+			else pos.push(seg);
+		}
+		const name = named["名称"] || pos[0] || "";
+		const startRaw = named["开始时间"] || pos[1] || "";
+		const endRaw = named["结束时间"] || pos[2] || "";
+		if (!name || !startRaw || !endRaw) { skipped++; continue; }
+		const sp = ns_bwiki_parsePoints(startRaw)[0];
+		const ep = ns_bwiki_parsePoints(endRaw)[0];
+		if (!sp || !ep) { skipped++; continue; }
+		const startTs = sourceInstant(sp.y, sp.mo, sp.d, sp.h, sp.mi, tz);
+		const endTs = sourceInstant(ep.y, ep.mo, ep.d, ep.h, ep.mi, tz);
+		if (!(endTs > startTs)) { skipped++; continue; }                    // 源站错行 → 丢弃，不硬造
+		items.push({
+			name,
+			startTs, endTs,
+			raw: `${startRaw} ~ ${endRaw}`,
+			display: fmtWindow(startTs, endTs, tz),
+			_i: items.length
+		});
+	}
+	if (items.length === 0) throw new Error("zspms-calendar:no-window");     // 模板改版/页面清空 = 结构性损坏
+	return { items, skipped };
+}
+
+async function ns_bwiki_wikitext_eventsZspmsCalendar(url, signal, tz = ns_bwiki_wikitext_ZSPMS_TZ, now = nowMs()) {
+	const wikitext = await ns_bwiki_wikitext_fetchWikitext(url || ns_bwiki_wikitext_ZSPMS_CALENDAR_URL, signal, ns_bwiki_wikitext_ZSPMS_REFERER);
+	const parsed = ns_bwiki_wikitext_parseZspmsCalendar(wikitext, tz);
+	return ns_bwiki_wikitext_eventPayload(parsed.items, tz, ns_bwiki_wikitext_nowOf(now), {
+		cmp: ns_bwiki_wikitext_zspmsEventCmp,
+		nameOf: (x) => x.name
+	});
+}
+//#endregion
+
+//#region 战双：活动旗帜（结构化当期卡池，2026-11-10 起为卡池侧默认源）
+// 为什么换：版本更新公告最新只到 2026-11-05（11-06 起卡池空窗），而 `Test4/活动旗帜` 是
+// 结构化数据页、当期 70%UP 池到 11-12 ⇒ 更新更快、结构更稳。公告源保留为手动备选
+// （卡池侧 altSources，见 `30-game-bwiki-register.js`）。
+//   {{活动旗帜
+//   |70%UP1=比安卡·晖暮   |70%UP2=七实·芒星之迹   |70%UP3=海伦汀·安魂
+//   |70%UP开始时间=2026/10/29 07:00   |70%UP结束时间=2026/11/12 06:59
+//   |100%UP1=阿德莱德·破渊   |100%UP2=时崎狂三·时崎狂三
+//   |100%UP开始时间=2026/09/24 11:00   |100%UP结束时间=2026/11/05 05:00
+//   <!-- 下面是移动端100%UP池参数--> …}}
+// 口径（逐字照源站）：
+//   · 池名 = 参数前缀原文 `70%UP` / `100%UP`（源站自己就这么分；不改写成「概率提升池」）
+//   · 角色 = 前缀 + 序号 的参数（`70%UP1..3`），按序号排序、`、` 连接；**不删改**源站写法
+//     （`时崎狂三·时崎狂三` 是 wiki 页面名本身就这么写，照抄不猜）
+//   · 起止 `YYYY/MM/DD HH:MM`，tz = Asia/Shanghai（本源同一推测，见文件头）
+//   · raw = 两端原文、display = fmtWindow（「两份文本」约定）
+//   · `<!-- … -->` 之后是移动端参数（机体名/立绘…）⇒ 解析到注释就停
+const ns_bwiki_wikitext_ZSPMS_FLAGS_PAGE = "Test4/活动旗帜";
+// ⚠️ 页名必须 encodeURIComponent 后再拼（`/` → `%2F`、中文 → %E…）
+const ns_bwiki_wikitext_ZSPMS_FLAGS_URL = "https://wiki.biligame.com/zspms/api.php?action=parse&page="
+	+ encodeURIComponent(ns_bwiki_wikitext_ZSPMS_FLAGS_PAGE) + "&prop=wikitext&format=json&formatversion=2";
+
+// `{{活动旗帜 …}}` 的顶层参数 → { 键: 值 }（跳过空值；注释之后的移动端参数不进来）
+function ns_bwiki_wikitext_zspmsFlagParams(wikitext) {
+	const out = {};
+	for (const line of String(wikitext == null ? "" : wikitext).split(/\r?\n/)) {
+		if (/^\s*<!--/.test(line)) break;
+		const m = /^\s*\|\s*([^=|\n{}]+?)\s*=\s*(.*?)\s*$/.exec(line);
+		if (!m) continue;
+		const k = m[1].trim(), v = m[2].trim();
+		if (k && v) out[k] = v;
+	}
+	return out;
+}
+
+// `2026/10/29 07:00` → { y, mo, d, h, mi }；缺时刻 → null（旗帜页两端都到分）
+function ns_bwiki_wikitext_zspmsFlagPoint(text) {
+	const p = ns_bwiki_parsePoints(text)[0];
+	if (!p || p.noTime) return null;
+	return p;
+}
+
+// 活动旗帜 wikitext → [{ pool, roles, startTs, endTs, raw, display }]（源站顺序：70%UP 在前）
+function ns_bwiki_wikitext_parseZspmsFlags(wikitext, tz = ns_bwiki_wikitext_ZSPMS_TZ) {
+	const params = ns_bwiki_wikitext_zspmsFlagParams(wikitext);
+	const prefixes = [];
+	for (const k of Object.keys(params)) {
+		if (!/开始时间$/.test(k)) continue;
+		const prefix = k.slice(0, -"开始时间".length);
+		if (prefix && !prefixes.includes(prefix)) prefixes.push(prefix);
+	}
+	const out = [];
+	for (const prefix of prefixes) {
+		const roles = [];
+		for (const k of Object.keys(params)) {
+			if (k.length <= prefix.length || !k.startsWith(prefix)) continue;
+			const idx = k.slice(prefix.length);
+			if (!/^\d+$/.test(idx)) continue;
+			roles.push({ idx: +idx, name: params[k] });
+		}
+		roles.sort((a, b) => a.idx - b.idx);
+		const startRaw = params[prefix + "开始时间"], endRaw = params[prefix + "结束时间"];
+		const sp = ns_bwiki_wikitext_zspmsFlagPoint(startRaw);
+		const ep = ns_bwiki_wikitext_zspmsFlagPoint(endRaw);
+		if (!sp || !ep || roles.length === 0) continue;
+		const startTs = sourceInstant(sp.y, sp.mo, sp.d, sp.h, sp.mi, tz);
+		const endTs = sourceInstant(ep.y, ep.mo, ep.d, ep.h, ep.mi, tz)
+		if (!(endTs > startTs)) continue;                                   // 源站错行 → 丢掉（不硬造）
+		out.push({
+			pool: prefix,
+			roles: roles.map((r) => r.name).join("\u3001"),
+			startTs, endTs,
+			raw: `${startRaw} ~ ${endRaw}`,
+			display: fmtWindow(startTs, endTs, tz)
+		});
+	}
+	if (out.length === 0) throw new Error("zspms-flags:no-pool");          // 模板被改版 = 结构性损坏
+	return out;
+}
+
+async function ns_bwiki_wikitext_gachaZspmsFlags(url, signal, tz = ns_bwiki_wikitext_ZSPMS_TZ, now = nowMs()) {
+	const wikitext = await ns_bwiki_wikitext_fetchWikitext(url || ns_bwiki_wikitext_ZSPMS_FLAGS_URL, signal, ns_bwiki_wikitext_ZSPMS_REFERER);
+	const items = ns_bwiki_wikitext_parseZspmsFlags(wikitext, tz).map((p, i) => ({
+		banner: p.pool,
+		roles: p.roles,
+		startTs: p.startTs,
+		endTs: p.endTs,
+		raw: p.raw,
+		display: p.display,
+		isMain: true,
+		_i: i
+	}));
+	// 同批合并角色的载荷：70%UP / 100%UP 各自一批（结束时刻不同 ⇒ 只合并同批）
+	return ns_bwiki_batchGachaPayloadOf(items, tz, ns_bwiki_wikitext_nowOf(now), { id: "zspms" });
+}
+//#endregion
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ── 并入 30-game-zspms-official.js：战双官方 CDN「版本更新公告」（活动侧默认源）
+// ─────────────────────────────────────────────────────────────────────────────
+
+//
+// ══ 为什么接（2026-11-11）══════════════════════════════════════════════════════
+// 活动侧此前默认 = bwiki `Test4/活动日历`（结构化档期页），但它**只抄到 2026/11/05**：
+//   面板活动列从 11-06 起空窗，而游戏 11-05 已经进了「流光抛诸寰宇」版本。
+// 官方 CDN 实测（2026-11-11，直连 200 / `Access-Control-Allow-Origin: *`）：
+//   菜单  …/json/G144/ArticleMenu.json            217 条（含 id / 标题 / 类型 / 发布时间）
+//   详情  …/json/G144/article/5682.json           《流光抛诸寰宇》版本更新公告（2026-11-03）
+//        正文 12 处「2026年11月5日版本更新后 - 2026年12月17日05:00」⇒ **官方比 bwiki 新**
+// ⇒ 活动侧默认源改成它（`eventUrl` = ArticleMenu，来源标签「官方公告」），
+//   bwiki 两个页面（活动日历 / 旧公告）都降为 `eventAltSources` 手动备选（可切，不自动兜底）。
+//
+// ══ 抓取链路（4 个请求，全走宿主代理）═════════════════════════════════════════
+//   ① ArticleMenu.json → 只留标题匹配「版本更新公告」的条目（**不硬编码 id**），按发布时间倒序取前 3 篇
+//   ② 逐篇 article/<id>.json → `articleContent` 是 HTML 富文本 ⇒ 走本文件的解析器
+//   ③ 三篇的条目合并（按 名+起+止 去重：相邻两版公告会重复同一批还不算过期的活动）
+// ⚠️ 该域名**不在**宿主 `PROXY_ALLOW_HOSTS` 里 → 已在 `src/index.js` 登记
+//    （虽然响应带 `ACAO:*`，但全仓口径是"官方公告一律走代理"，与 act-api-takumi 同一条）。
+//
+// ══ 正文形态（真夹具 `p8-zspms-cdn-menu` / `-art5682` / `-art5467`）═════════════
+//   <div><span style="font-size: 18pt;"><strong>四、像素嚼嚼乐</strong></span><br>
+//        <strong><span style="font-size: 14pt;">4）活动时间</span></strong><br>
+//        <span style="font-size: 14pt;">2026年11月19日10:00 - 2026年12月16日05:00</span></div>
+//   ⇒ **活动名在 `<strong>` 里**（不是标题层级：有时是 `一、…` 大标题，有时是 `1）…` 小标题，
+//      有时是 `「揽光一瞬」` 这种只有名字的一行），档期是普通 `<span>`；所以：
+//     · 整行加粗 = 标题行（大标题以「一、二、…」开头；小标题以「1）2）…」开头；其余按"名字行"处理）
+//     · 档期只在**带时间标签**（`活动时间：/开放时间：/…`）或**整行就是档期**的行上认领
+//       （正文里 `…将于2026年9月29日10:00 - 2026年11月3日23:59时间段内，通过…研发池获得`
+//        这类句子里的档期属于**卡池**，卡池侧另有来源 ⇒ 不认；"整行档期"的判定顺带把它们排除）
+//
+// ══ 口径（逐条可查）════════════════════════════════════════════════════════════
+//   · 起点写「版本更新后 / 维护后 / 更新后」⇒ **startTs = null**（仓库口径 2026-11-09：
+//     起点未知 ≠ 已开始，**不猜**；`fillMissingStarts` 那种"显示用的猜测"也不做）
+//     ⇒ 这类条目**不进外显**（`coversNow` 要求两端明确），但会进悬停/数组（`coveredOrOpen`：
+//       终点未过就如实列出，档期用**源站原文**那一句）
+//   · 终点必须绝对；终点写成相对表述（`… - 版本结束`）⇒ 整条丢掉（没有绝对时刻）
+//   · 缺年份 ⇒ 借公告发布时间补（共用 `inferYear`）；结束月日早于开始 ⇒ 次年（共用 `endsNextYear`）
+//   · 只有日期没有时分 ⇒ 起 00:00 / 止 23:59（仓库通用约定）
+//   · tz = Asia/Shanghai（源站无标注；旁证：停服维护 05:00-11:00、卡池日切 05:00，与 bwiki 侧同一推测）
+//   · 源站时间文本里的装饰符（`【】「」◆▌` 等）在**活动名**里清掉；名字内的 `·`（`莱亚·祈星`）保留
+//
+// ══ 不做什么 ══════════════════════════════════════════════════════════════════
+//   · **不**用 `ArticleMenu` 里内联的 `articleContent`（菜单确实也带全文，但口径是"逐篇抓详情"：
+//     列表只用来挑选，正文以详情为准，源站哪天把菜单瘦身了也不会静默失效）
+//   · **不**接卡池侧：官方公告里的卡池档期与 bwiki `Test4/活动旗帜` 同源同期，
+//     且公告正文把「研发池」写成句子（不是结构化字段）⇒ 卡池侧维持 bwiki（本任务只改活动侧）
+
+const ns_zspms_cdn_TZ = "Asia/Shanghai";
+// ⚠️ G144 = 国服（全球版是另一个 path）；`website2.0` 段不可省
+const ns_zspms_cdn_MENU_URL = "https://media-cdn-zspms.kurogame.com/pnswebsite/website2.0/json/G144/ArticleMenu.json";
+const ns_zspms_cdn_ARTICLE_BASE = "https://media-cdn-zspms.kurogame.com/pnswebsite/website2.0/json/G144/article/";
+// 取最近几篇：3 篇足够（一版公告的档期最长约 6 周，两版必然覆盖当期），
+// 且单篇解析失败/结构改版时还有后两篇兜底
+const ns_zspms_cdn_MAX_NOTICES = 3;
+// 标题判据：**清洗后匹配**「版本更新公告」（不写死 id —— 源站每版换 id）
+const ns_zspms_cdn_NOTICE_TITLE_RE = /版本更新公告/;
+
+function ns_zspms_cdn_articleUrl(id) {
+	return ns_zspms_cdn_ARTICLE_BASE + encodeURIComponent(String(id)) + ".json";
+}
+
+// ── 活动名清洗 ────────────────────────────────────────────────────────────────
+// 源站在 `<strong>` 里塞的东西形如：`一、流光抛诸寰宇——新版内容&活动玩法` / `1）尽心者尽美-角色试玩关`
+// / `「揽光一瞬」` / `【勤务·限时任务】开放时间：`。清洗规则（顺序固定）：
+//   ① 解 HTML 实体（`&middot;` → `·`，`&bull;` → `•`；与全仓同一张表 `decodeExtra`）
+//   ② 去行首列表符/装饰符（`- • · ● ◆ ◇ ▌ ▍ ■ □ | ｜ ※`）
+//   ③ 去序号（`1）` / `1.` / `一、` / `（3）`）
+//   ④ 去**装饰括号**（`【】「」『』`）与装饰块字符（`◆◇▌▍■□●○★☆※`）—— 名字里的 `·` 与 `-` 保留
+//   ⑤ 去尾部空白与冒号（`9）新增涂装：` → `新增涂装`）
+function ns_zspms_cdn_cleanName(text) {
+	let s = decodeExtra(String(text == null ? "" : text)).replace(/\u00a0/g, " ");
+	s = s.replace(/^[\s\-–—－•·●◆◇▌▍■□|｜※]+/, "");
+	s = s.replace(/^(?:\d{1,2}\s*[）).．、]|[一二三四五六七八九十]{1,3}\s*[、.．]|[（(]\s*\d{1,2}\s*[）)])\s*/, "");
+	s = s.replace(/[【】「」『』◆◇▌▍■□●○★☆※]/g, "");
+	return s.replace(/[\s:：]+$/, "").replace(/[ \t\u00a0]+/g, " ").trim();
+}
+// 通用容器名（不是活动名）：`4）活动时间` / `1）活动说明` / `-【勤务】任务开放时间`
+// ⚠️ 只认**整串**等于这些词，或**以**时间类标签收尾 —— 不能写成后缀通配：
+//    `7日登录签到奖励`、`涂装复刻`、`战略评定手册-栖光档案` 都是**真活动名**。
+const ns_zspms_cdn_GENERIC_NAME_RE = /^(活动说明|活动奖励|活动对象|活动规则|活动内容|活动玩法|活动时间|活动周期|参与条件|开启条件|奖励概览|特殊说明|版本新增礼包内容和上架时间请指挥官留意相关公告)$/;
+const ns_zspms_cdn_TIME_TAIL_RE = /(活动时间|开放时间|开启时间|持续时间|售卖时间|兑换时间|领取时间)$/;
+function ns_zspms_cdn_isGenericName(name) {
+	const n = String(name || "");
+	return n === "" || ns_zspms_cdn_GENERIC_NAME_RE.test(n) || ns_zspms_cdn_TIME_TAIL_RE.test(n);
+}
+// 标题行 → 活动名：`6）「伴航补给」研发` 这类"引号里是名字、外面只剩类别后缀"的，取引号内那段；
+// 其余（`1）主线剧情-流光抛诸寰宇` / `「揽光一瞬」`）就是清洗后的整行。
+function ns_zspms_cdn_titleName(text) {
+	const raw = String(text == null ? "" : text);
+	const all = ns_zspms_cdn_cleanName(raw);
+	const quoted = /[「『【]([^」』】]{1,30})[」』】]/.exec(raw);
+	if (quoted) {
+		const inner = ns_zspms_cdn_cleanName(quoted[1]);
+		const rest = all.split(inner).join("").trim();
+		if (inner && rest.length > 0 && rest.length <= 4) return inner;   // 「X」研发 / 【X】开放时间
+	}
+	const whole = /^[「『【]([^」』】]{1,30})[」』】]$/.exec(raw.replace(/^[\s\-•·]+/, ""));
+	if (whole) return ns_zspms_cdn_cleanName(whole[1]);                  // 整行就是「X」
+	return all;
+}
+
+// ── HTML → 逐行（带"整行加粗"标记）────────────────────────────────────────────
+// 只做本任务需要的最小结构提取：`<br>` / 块级结束标签 → 换行；`<strong>`/`<b>` → 私有标记，
+// 用来判"这一行是不是标题"。行内其余标签一律丢掉（正文里全是 `<span style>` 包裹）。
+function ns_zspms_cdn_linesOf(html) {
+	let s = String(html == null ? "" : html);
+	s = s.replace(/<(strong|b)\b[^>]*>/gi, "\u0001").replace(/<\/(strong|b)\s*>/gi, "\u0002");
+	s = s.replace(/<br\s*\/?>/gi, "\n");
+	s = s.replace(/<\/(?:div|p|h[1-6]|li|ul|ol|tr|td|th|table|tbody|section|blockquote)\s*>/gi, "\n");
+	s = s.replace(/<[^>]*>/g, "");
+	s = decodeExtra(s);
+	const out = [];
+	for (const rawLine of s.split(/\r?\n/)) {
+		const boldParts = rawLine.match(/\u0001[^\u0001\u0002]*\u0002/g) || [];
+		const text = rawLine.replace(/[\u0001\u0002]/g, "").replace(/\u00a0/g, " ");
+		const boldText = boldParts.join("").replace(/[\u0001\u0002]/g, "").replace(/\u00a0/g, " ");
+		const sq = (x) => x.replace(/[ \t\u00a0]+/g, " ").trim();
+		out.push({ text: sq(text), boldText: sq(boldText) });
+	}
+	return out;
+}
+
+// ── 一行里的档期 ──────────────────────────────────────────────────────────────
+// 端点：`[YYYY年]M月D日[ HH:MM | 版本更新后…]`（年份可缺 → 借公告年，共用 `inferYear`）
+// 连接符：`- — – ~ ～ 〜 至 到`（两侧允许空白；**不跨行** —— 本函数只在单行上跑）
+const ns_zspms_cdn_POINT_RE = /(?:(\d{4})\s*年\s*)?(\d{1,2})\s*月\s*(\d{1,2})\s*日\s*(?:(\d{1,2})\s*[:：]\s*(\d{2})|(版本更新后|维护结束后|维护完成后|维护后|更新结束后|更新完成后|更新后))?/g;
+const ns_zspms_cdn_CONNECTOR_RE = /^\s*[-–—－~～〜至到]\s*$/;
+const ns_zspms_cdn_TIME_LABEL_RE = /(活动时间|开放时间|开启时间|持续时间|售卖时间|兑换时间|领取时间)\s*[:：]/;
+// 维护窗口（停服/停机维护）**不是活动**：整行有这些词 ⇒ 一律不认（哪怕行里带「活动时间：」标签）。
+// 语料实测：三篇真公告里「停服维护/维护更新」只出现在开头那段维护说明里，与「活动时间：」从不同行，
+// 所以这条是无损的；写成条件式反而会漏掉「停服维护活动时间：…」这种拙劣写法。
+const ns_zspms_cdn_MAINTENANCE_RE = /停服维护|停机维护|维护更新|版本更新维护/;
+
+function ns_zspms_cdn_windowsOfLine(line, tz = ns_zspms_cdn_TZ, hint = null) {
+	const s = String(line == null ? "" : line);
+	const toks = [];
+	ns_zspms_cdn_POINT_RE.lastIndex = 0;
+	let m;
+	while ((m = ns_zspms_cdn_POINT_RE.exec(s))) {
+		if (m[0] === "") { ns_zspms_cdn_POINT_RE.lastIndex++; continue; }
+		toks.push({
+			start: m.index, end: m.index + m[0].length,
+			y: m[1] != null ? +m[1] : null, mo: +m[2], d: +m[3],
+			h: m[4] != null ? +m[4] : null, mi: m[5] != null ? +m[5] : null,
+			rel: m[6] || ""
+		});
+	}
+	const out = [];
+	for (let i = 0; i + 1 < toks.length; i++) {
+		const a = toks[i], b = toks[i + 1];
+		if (!ns_zspms_cdn_CONNECTOR_RE.test(s.slice(a.end, b.start))) continue;
+		if (b.rel) continue;                                            // 终点是相对表述 ⇒ 没有绝对时刻
+		const ay = inferYear(a.y, a.mo, hint);
+		let by = inferYear(b.y, b.mo, hint);
+		if (ay == null || by == null) continue;                         // 无年份线索 ⇒ 不产出（不猜当前年）
+		if (a.y == null && b.y == null && endsNextYear(a.mo, a.d, b.mo, b.d)) by = ay + 1;   // 跨年
+		const startTs = a.rel ? null : sourceInstant(ay, a.mo, a.d, a.h == null ? 0 : a.h, a.mi == null ? 0 : a.mi, tz);
+		const endTs = sourceInstant(by, b.mo, b.d, b.h == null ? 23 : b.h, b.mi == null ? 59 : b.mi, tz);
+		if (startTs != null && !(endTs > startTs)) continue;           // 源站错行 ⇒ 丢掉，不硬造
+		const endWall = sourceWallParts(endTs, tz);
+		const sameYear = ay === endWall.y;
+		const aRaw = s.slice(a.start, a.end).replace(/[ \t\u00a0]+/g, " ").trim();
+		const bRaw = s.slice(b.start, b.end).replace(/[ \t\u00a0]+/g, " ").trim();
+		const startText = startTs == null
+			? (sameYear ? `${pad2(a.mo)}-${pad2(a.d)} ${a.rel}` : `${ay}-${pad2(a.mo)}-${pad2(a.d)} ${a.rel}`)
+			: (sameYear ? fmtMdHm(startTs, tz) : fmtYmdHm(startTs, tz));
+		const endText = sameYear ? fmtMdHm(endTs, tz) : fmtYmdHm(endTs, tz);
+		out.push({
+			startTs, endTs,
+			raw: `${aRaw} ~ ${bRaw}`,
+			display: `${startText} ~ ${endText}`,
+			startRel: a.rel,
+			startInferred: startTs == null,
+			_from: a.start,
+			_to: b.end
+		});
+	}
+	return out;
+}
+// 整行是否"只有档期"（把档期原文剪掉后只剩列表符/空白/连接符）：
+// `2026年11月19日10:00 - 2026年12月16日05:00` / `•2026年9月24日版本更新后 - 2026年11月4日05:00`
+// 按**下标从右往左**剪，避免剪完一次让后面的下标错位（不能拿 raw 再 split —— 原文里可能本来就有 `~`）。
+function ns_zspms_cdn_isBareWindowLine(line, wins) {
+	let s = String(line == null ? "" : line);
+	for (const w of wins.slice().sort((a, b) => b._from - a._from)) {
+		s = s.slice(0, w._from) + s.slice(w._to);
+	}
+	s = s.replace(/^[\s\-–—－•·●◆◇▌▍|｜※]+/, "").replace(/[\s\-–—－~～〜至到:：]+/g, "");
+	return s === "";
+}
+
+// ── 一篇公告正文 → 活动条目 ───────────────────────────────────────────────────
+// `publishedAt` = 该篇发布时间（{ y, mo } 平移到 tz 的墙钟），只用于**补缺年份**。
+// 返回 { items, skipped }；一条都没有**不抛错**（单篇无档期 ≠ 整份源坏了，见下面抓取器）。
+function ns_zspms_cdn_activitiesOfArticle(html, tz = ns_zspms_cdn_TZ, publishedAt = null) {
+	const lines = ns_zspms_cdn_linesOf(html);
+	const hint = publishedAt && publishedAt.y != null ? { y: publishedAt.y, mo: publishedAt.mo } : null;
+	const items = [];
+	let skipped = 0;
+	let section = "", sectionIsName = false, cur = "";
+	for (const ln of lines) {
+		const text = ln.text;
+		if (!text) continue;
+		const wins = ns_zspms_cdn_windowsOfLine(text, tz, hint);
+		if (wins.length > 0) {
+			const labelM = ns_zspms_cdn_TIME_LABEL_RE.exec(text);
+			const bare = ns_zspms_cdn_isBareWindowLine(text, wins);
+			const maint = ns_zspms_cdn_MAINTENANCE_RE.test(text);                // 维护窗口 ≠ 活动
+			// 源站行首的 `【名】`（如 `•【勤务·限时任务】开放时间：…`）：比标题栈更贴近这一条
+			const bracket = /^\s*[-–—－•·●◆◇▌▍|｜※]*\s*【([^】]{1,30})】/.exec(text);
+			const bracketName = bracket ? ns_zspms_cdn_cleanName(bracket[1]) : "";
+			for (const w of wins) {
+				if (maint) { skipped++; continue; }
+				if (!labelM && !bare) { skipped++; continue; }                    // 句子里的档期（多为卡池）
+				const name = bracketName || cur || (sectionIsName ? section : "");
+				if (!name) { skipped++; continue; }
+				items.push({
+					name,
+					startTs: w.startTs,
+					endTs: w.endTs,
+					raw: w.raw,
+					display: w.display,
+					startRel: w.startRel,
+					startInferred: w.startInferred,
+					_i: items.length
+				});
+			}
+		}
+		// ── 标题行状态机（只在**整行加粗**的行上走）──
+		// 大标题（`一、…` / `二、…`）：带 `——` 的是**容器**（`二、流光抛诸寰宇——新版内容&活动玩法`），
+		//   里面的小标题才是活动名；不带 `——` 的本身就是活动名（`四、像素嚼嚼乐`）。
+		// 小标题/名字行（`1）…` / `「揽光一瞬」`）：非通用名 ⇒ 成为后续档期的名字。
+		if (ln.boldText && ln.boldText === text) {
+			const isSection = /^[一二三四五六七八九十]{1,3}\s*[、.．]/.test(text);
+			const name = ns_zspms_cdn_titleName(text);
+			if (isSection) {
+				section = name;
+				sectionIsName = !!name && !/—/.test(name) && !ns_zspms_cdn_isGenericName(name);
+				cur = "";
+			} else if (name && !ns_zspms_cdn_isGenericName(name)) {
+				cur = name;
+			} else if (name && ns_zspms_cdn_isGenericName(name)) {
+				// 通用小标题（`4）活动时间` / `1）活动说明`）⇒ 名字沿用上一层，不清空
+			}
+		}
+	}
+	return { items, skipped };
+}
+
+// ── 菜单 → 待抓的「版本更新公告」列表 ─────────────────────────────────────────
+// 实测菜单字段：{ articleId, articleTitle, articleType, createTime, startTime, articleContent, … }
+//   · 顺序**不是**时间序（置顶/推荐混在一起）⇒ 必须自己按发布时间倒序排
+//   · `startTime` = 发布时间（`2026-11-03 17:26:05`），`createTime` 早于它 ⇒ 排序用前者、缺了退后者
+function ns_zspms_cdn_menuRows(menu) {
+	const list = Array.isArray(menu) ? menu
+		: (menu && Array.isArray(menu.data) ? menu.data
+			: (menu && Array.isArray(menu.list) ? menu.list : null));
+	if (!Array.isArray(list)) throw new Error("zspms-cdn:bad-menu");
+	const rows = [];
+	for (const it of list) {
+		if (!it || typeof it !== "object") continue;
+		const id = Number(it.articleId);
+		const title = String(it.articleTitle == null ? "" : it.articleTitle).trim();
+		if (!Number.isFinite(id) || !title) continue;
+		rows.push({
+			id,
+			title,
+			type: Number(it.articleType) || 0,
+			published: String(it.startTime || it.createTime || "").trim()
+		});
+	}
+	if (rows.length === 0) throw new Error("zspms-cdn:empty-menu");
+	return rows;
+}
+function ns_zspms_cdn_noticesOf(menu) {
+	const rows = ns_zspms_cdn_menuRows(menu)
+		.filter((r) => ns_zspms_cdn_NOTICE_TITLE_RE.test(ns_zspms_cdn_cleanName(r.title)));
+	if (rows.length === 0) throw new Error("zspms-cdn:no-notice");        // 标题样式改版 = 结构性损坏
+	// `YYYY-MM-DD HH:MM:SS` 定长 ⇒ 字符串倒序即时间倒序（不依赖时区换算）
+	rows.sort((a, b) => (a.published < b.published ? 1 : a.published > b.published ? -1 : b.id - a.id));
+	return rows;
+}
+
+// 详情 JSON → { title, published, html }
+function ns_zspms_cdn_articleOf(json) {
+	const o = Array.isArray(json) ? json[0] : json;
+	if (!o || typeof o !== "object") throw new Error("zspms-cdn:bad-article");
+	const html = typeof o.articleContent === "string" ? o.articleContent : "";
+	if (!html) throw new Error("zspms-cdn:no-content");                   // 正文缺失 = 结构性损坏
+	return { title: String(o.articleTitle || "").trim(), published: String(o.startTime || "").trim(), html };
+}
+// `2026-11-03 17:26:05` → { y, mo }（墙钟字段，只用来补缺年份）
+function ns_zspms_cdn_hintOf(text, tz = ns_zspms_cdn_TZ) {
+	const p = ns_bwiki_parsePoints(String(text == null ? "" : text))[0];
+	if (!p) return null;
+	const w = sourceWallParts(sourceInstant(p.y, p.mo, p.d, p.h, p.mi, tz), tz);
+	return { y: w.y, mo: w.mo };
+}
+
+// ── 抓取器：菜单 → 最近 3 篇详情 → 合并 → 载荷 ─────────────────────────────────
+// 契约与全仓一致：async (url, signal, tz, now = nowMs()) → 数据对象 | null
+//   · 单篇详情抓失败 ⇒ 跳过这一篇（其余篇照用）；**全部**失败 ⇒ 抛错（抓取失败 ≠ 未公布）
+//   · 三篇都解开但**一条档期都没有** ⇒ 抛 `zspms-cdn:no-window`（正文改版 = 结构性损坏）
+//   · 有档期但都不覆盖 now ⇒ 返回 null（未公布；「起点未知」那批按仓库口径**不算**在期）
+async function ns_zspms_cdn_events(url, signal, tz = ns_zspms_cdn_TZ, now = nowMs()) {
+	const at = ns_bwiki_wikitext_nowOf(now);
+	const menuUrl = String(url == null ? "" : url) || ns_zspms_cdn_MENU_URL;
+	const notices = ns_zspms_cdn_noticesOf(await fetchJson(menuUrl, { signal, mode: "proxy" }));
+	const items = [];
+	const seen = new Set();
+	let okCount = 0, firstErr = null;
+	for (const row of notices.slice(0, ns_zspms_cdn_MAX_NOTICES)) {
+		let article;
+		try {
+			article = ns_zspms_cdn_articleOf(await fetchJson(ns_zspms_cdn_articleUrl(row.id), { signal, mode: "proxy" }));
+		} catch (e) {
+			if (!firstErr) firstErr = e;
+			continue;
+		}
+		okCount++;
+		const hint = ns_zspms_cdn_hintOf(article.published || row.published, tz);
+		const parsed = ns_zspms_cdn_activitiesOfArticle(article.html, tz, hint);
+		for (const x of parsed.items) {
+			const key = `${x.name}|${x.startTs == null ? "open" : x.startTs}|${x.endTs}`;
+			if (seen.has(key)) continue;                                 // 相邻两版公告重复列同一活动
+			seen.add(key);
+			items.push({ ...x, _i: items.length });
+		}
+	}
+	if (okCount === 0) { if (firstErr) throw firstErr; throw new Error("zspms-cdn:no-article"); }
+	if (items.length === 0) throw new Error("zspms-cdn:no-window");       // 正文改版 = 结构性损坏
+	// 外显：**两端都明确且覆盖 now**（`coversNow` 唯一真源；「版本更新后」那批不冒充在期）
+	const live = items.filter((x) => coversNow(x, at));
+	if (live.length === 0) return null;
+	const cmp = ns_bwiki_wikitext_zspmsEventCmp;                          // 与 bwiki 活动侧同一优先序
+	const first = live.slice().sort(cmp)[0];
+	// 悬停/数组：在期 + 「起点未知但终点未过」（`coveredOrOpen`，事实层）—— 按结束时间升序
+	const hoverItems = items.filter((x) => coveredOrOpen(x, at))
+		.sort(cmp)
+		.map((x) => ({ title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
+	const hover = hoverTextFromItems(hoverItems, "event", tz);
+	const out = {
+		event: first.name,
+		eventDates: first.display,
+		eventDatesRaw: first.raw,
+		...(hover ? { eventHover: hover } : {})
+	};
+	out.events = dataArrayProducedEventsOf(out, hoverItems, { id: "zspms", tz }, at);
+	out.eventHoverItems = hoverItems;
+	return out;
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ── 并入 30-game-bwiki-register.js：zspms 的条目登记 + 抓取器接线（唯一一处注册）
+// ─────────────────────────────────────────────────────────────────────────────
+
+		registerSource({
+				id: "zspms",
+				defaultHidden: false,
+				tz: "Asia/Shanghai",
+				name: "战双帕弥什",
+				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/b2/99/ed/b299ed39-90ea-03df-c7ee-bd09548991e5/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",
+				// 2026-11-10：卡池侧改以 `Test4/活动旗帜` 为准（结构化当期池、更新更快）。
+				// 2026-11-11：活动侧改以**官方 CDN「版本更新公告」**为准（`ArticleMenu` → 最近 3 篇详情；
+				// 官方比 bwiki 新一版：11-05 版本更新那批档期到 12-17，而 bwiki 两个页面都止于 11-05）。
+				// 两个 bwiki 页面（`Test4/活动日历` / 旧「版本更新公告」）都降为**手动备选**，解析器与回归全部保留。
+				url: ns_bwiki_wikitext_ZSPMS_FLAGS_URL,
+				source: "Bwiki 活动旗帜",
+				eventUrl: ns_zspms_cdn_MENU_URL,
+				eventSource: "官方公告",
+				altSources: [{
+					label: "Bwiki 更新公告",
+					url: ns_bwiki_wikitext_ZSPMS_ASK_URL,
+					fetcher: "zspms-bwiki-notice"
+				}],
+				eventAltSources: [{
+					label: "Bwiki 活动日历",
+					url: ns_bwiki_wikitext_ZSPMS_CALENDAR_URL,
+					fetcher: "zspms-bwiki-calendar"
+				}, {
+					label: "Bwiki 更新公告",
+					url: ns_bwiki_wikitext_ZSPMS_ASK_URL,
+					fetcher: "zspms-bwiki-notice"
+				}]
+		});
+
+		// 卡池侧默认 = 活动旗帜；旧公告路径保留为 altSources 的抓取器键
+		// （第 4 参 `now` 是测试专用契约，生产路径引擎只传 3 参 ⇒ 默认 nowMs()）
+		GACHA_FETCHERS["zspms"] = (url, signal, tz, now) => ns_bwiki_wikitext_gachaZspmsFlags(url, signal, tz, now);
+		GACHA_FETCHERS["zspms-bwiki-notice"] = (url, signal, tz, now) => ns_bwiki_wikitext_gachaZspms(url, signal, tz, now);
+
+		// 活动侧默认 = **官方 CDN**（`ArticleMenu` → 最近 3 篇「版本更新公告」详情，见 30-game-zspms-official.js）；
+		// 两个 bwiki 页面保留为 eventAltSources 的抓取器键（设置页可手动切）
+		EVENT_FETCHERS["zspms"] = Object.assign(EVENT_FETCHERS["zspms"] || {}, {
+			default: (url, signal, tz, now) => ns_zspms_cdn_events(url, signal, tz, now),
+			"zspms-bwiki-calendar": (url, signal, tz, now) => ns_bwiki_wikitext_eventsZspmsCalendar(url, signal, tz, now),
+			"zspms-bwiki-notice": (url, signal, tz, now) => ns_bwiki_wikitext_eventsZspms(url, signal, tz, now)
+		});

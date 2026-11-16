@@ -1,12 +1,18 @@
-// src/client/30-game-bandori.js —— BanG Dream（国服手游 / OurNotes 日服 / 国际服）
+// src/client/30-game-bandori.js —— BanG Dream：国服手游（bandori）/ OurNotes 日服（ournotes）/ OurNotes 国际服（ournotes-global）
 //
-// ⚠️ 2026-10-03 重组（用户要求「28 款一视同仁」）：不再有「内置 11 款 / 另外 17 款」的文件分层，
-//    每款/每组游戏一个**自包含**文件（条目 + 解析器 + 抓取器 + 登记）。
-//    本次只挪位置，**符号名一个都没改** —— 所以导出表、注册表快照、所有用例都不受影响。
-//
-// ⚠️ 这些文件在 core 产物里位于 `createEngine` **内部**，每建一个引擎都会重跑一遍 →
-//    对 `SOURCES` 的写操作**必须幂等**（统一走 `registerSource`，它按 id 找到就合并、否则追加）。
-
+// 职责（2026-11-16 按厂商重排）：Bandori 三款的条目 + 解析器 + 抓取器 + 登记都在本文件；
+//   每个 id 只在此注册一次（符号名沿用原 `ns_*`）。
+// 组成：
+//   · 本文件原有：bandori（biligame 官方公告 + Bestdori 备选）、ournotes（bushimo WP 活动）、
+//     ournotes-global 条目本体（BHK 官方公告两条备选）；
+//   · 并入 30-game-batch2.js 的 ② 段：ournotes 卡池默认源 = SPICA（列表 → 前 5 条详情）；
+//   · 并入 30-game-ournotes-global.js：ournotes-global 默认源 = SPICA 结构化数据 JSON（`_durl` → d-*.json）。
+// 去重（2026-11-16）：ournotes / ournotes-global 原先各由两个文件先后 `registerSource` 合并，
+//   现在各自**只保留一处**注册（默认源字段直接写进本文件的 registerSource），迁移时去掉重复的第二次注册。
+// 复用关系：三款共用「公告 / 标题分流 / 正文档期」这套口径，但各自符号前缀与实现保留原样；
+//   公共层只用 sourceInstant / fmtWindow / hoverTextFromItems / dataArrayProduced* 等。
+// 请求预算：bandori 列表 1 + 详情；ournotes 活动 1 次（WP）、卡池 = SPICA 列表 1 + 详情 ≤5；
+//   ournotes-global = 页面 1 + 数据 JSON 1（卡池载荷带活动字段，活动侧轮内复用）。
 
 		// ══ 以下为原 42-parsers-bandori.js 的内容（原样保留；压平后见 30-game-bandori.js）══
 // src/client/42-parsers-bandori.js —— BanG Dream 全系（国服手游 / OurNotes 日服 / OurNotes 国际服 / Bestdori 备选源）（压平后见 30-game-bandori.js）
@@ -1092,23 +1098,33 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 				eventAltSources: [{"label":"Bestdori 活动","url":"https://bestdori.com/api/events/all.5.json","fetcher":"bandori-bestdori-event"}],
 		});
 
+		// ── 条目（2026-11-16 去重：每个 id 只在这里注册一次）──
+		// ournotes：活动侧 = bushimo WP 公告（原样）；卡池侧 = SPICA 列表（原 30-game-batch2.js ② 段二次合并的字段已并入）。
 		registerSource({
 				id: "ournotes",
 				defaultHidden: false,
 				tz: "Asia/Tokyo",
 				name: "BanG Dream！OurNotes·日服",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/bf/53/0f/bf530fd7-65e8-e875-0a46-720344af6134/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
+				url: "https://spica.wiki/ournotes/gachas",
+				source: "SPICA",
 				eventUrl: "https://bang-dream-on.bushimo.jp/wp-json/wp/v2/posts?per_page=20&page=1",
 				// 日文站点 → 加语言括号（本体惯例，见 ba-jp 的 `官方公告（日文）`）
 				eventSource: "官方公告（日文）",
 		});
 
+		// ournotes-global：默认源 = SPICA 的结构化数据 JSON（原 30-game-ournotes-global.js 二次合并的字段已并入）。
+		// BHK 官方公告两条**备选源**原样保留（手动切回得去）。
 		registerSource({
 				id: "ournotes-global",
 				defaultHidden: false,
 				tz: "Asia/Shanghai",
 				name: "BanG Dream！OurNotes·国际服",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/ca/da/3a/cada3a9a-491a-fbe5-5494-9be7390e3a9b/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
+				url: "https://spica.wiki/ournotes/en/gachas",
+				source: "SPICA",
+				eventUrl: "https://spica.wiki/ournotes/en/gachas",
+				eventSource: "SPICA",
 				altSources: [{"label":"BHK官方公告","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=en","fetcher":"ournotes-global-gacha"}],
 				eventAltSources: [{"label":"BHK官方公告","url":"https://l11-web-api.biligames.com/game/news/page?game_base_id=118241&show_position=1&lang=en","fetcher":"ournotes-global-event"}],
 		});
@@ -1134,3 +1150,452 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 			"ournotes-global-event": { default: (url, signal, tz) => ns_ournotes_global_eventsOurNotesGlobal(url, signal, tz) },
 
 		});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ── 并入 30-game-ournotes-global.js：国际服默认源 = SPICA 数据 JSON（页面 `_durl` 现解）
+// ─────────────────────────────────────────────────────────────────────────────
+
+//   卡池 + 活动，默认源 = SPICA 的**结构化数据 JSON**（2026-11-11 接入）。
+//
+// ── 为什么换掉官方公告源 ─────────────────────────────────────────────────────
+//   国际服由 BHK 发行，官方只有 `l11-web-api.biligames.com/game/news/page`（公告列表 → 详情正文），
+//   正文里**没有**卡池名 / 角色 / 起止的结构化字段：旧实现只能靠标题分类 + 正文正则抽档期，
+//   而实测 19 条全是开服期旧公告 ⇒ 当前时刻两侧如实 null（见 30-game-bandori.js 的
+//   `ns_ournotes_global_*`）。BHK 那两条**保留为手动备选源**（设置页仍可切回去），本文件只换默认源。
+//
+// ── 抓取路径：两步，`_durl` 每次都变，必须先解 ──────────────────────────────
+//   ① GET https://spica.wiki/ournotes/en/gachas        （客户端渲染 SPA；text/html / 约 44 KB）
+//      页面里 `window._durl = "/ournotes/data/d-<hash>.json"` —— hash 随每次构建变化 ⇒ **不许写死**。
+//   ② GET https://spica.wiki + _durl                  （application/json / 约 1.5 MB）
+//        gachapages[23] = { id, name{ja,en,tw,zh,ko}, start, end, picks[], rates[] }
+//        events[5]      = { id, slug, name{…}, type{…}, start, end, gachas[] }
+//      卡池与活动**一次拿全** ⇒ 注册里 `url` 与 `eventUrl` 是同一条地址：刷新时卡池载荷顺手带上
+//      活动字段，活动侧据此走 50-refresh.js 的 `reuseSameRequest`（省掉第二次页面 + 1.5 MB JSON）。
+//      活动侧**另有**独立抓取器（`EVENT_FETCHERS["ournotes-global"].default`）—— 复用只是省请求，
+//      不是"活动侧少一条腿"。
+//   两个地址都在 `spica.wiki`（已在 src/index.js 的 PROXY_ALLOW_HOSTS；响应无 ACAO ⇒ 必走宿主代理）。
+//
+// ── 时区：数据里是 **JST 墙钟**，展示统一 **UTC+8** ──────────────────────────
+//   数据 JSON 的 `start` / `end` 形如 `2026-11-08 15:00`，**不带时区标记**；它是 JST（SPICA 是日站，
+//   国际服与日服同一绝对时刻：15:00 JST = 14:00 UTC+8）。所以两层分开：
+//     · **解析层**恒按 `Asia/Tokyo` 把墙钟换成绝对毫秒（`NS_ON_GLOBAL_DATA_TZ`）
+//     · **展示层**按条目 tz（= `Asia/Shanghai` = UTC+8）渲染 `display` / `bannerDates` / `eventDates`
+//       ⇒ 钟面比源站原文少 1 小时，绝对时刻不变
+//     · `raw` 保留源站原文（JST 钟面，`2026-11-08 15:00 ~ 2026-11-18 14:59`）
+//   ⚠️ 别照抄 bdon.moe 那类站点：它把 JST 钟面标成「15:00 UTC+8」（错标）；本文件只认 SPICA 的墙钟，
+//      时区换算只发生在上面那两处，不做任何「钟面平移」。
+//
+// ── 口径（沿用仓库既有规则，不另写一套）────────────────────────────────────
+//   · 条目事实形状 `{ key, title, show, startTs, endTs, tz, raw, display, source, roles? }`
+//     （见 30-game-komoe.js 文件头）
+//   · 当期 = `coversNow`（**两端都要明确**）里 startTs 最新的那条；悬停 / 数组 = `coveredOrOpen`
+//   · `end` 为空的**常驻池**（Our Notes Gacha / SSR 确定券 / 每日免费…，实测 7 条）⇒ endTs=null
+//     （起点是源站明说的事实，startTs 照留）：按上面两条既有判据既不冒充当期、也不进悬停 ——
+//     本文件**不额外**加一层过滤。
+//   · 角色：`picks` 的引用形如 `["member", 76]` / `["snap", 79]`。
+//       member → members[id].char → chars[char].name（**同一个多语种对象**，按下面的优先级取名）
+//       snap   → snaps[id].chars[]（照片里出现的角色）→ 同一张角色表
+//     ⚠️ **按 `id` 查，不按对象下标查**：`snaps` 是 `{"0":…,"79":…}` 的序号键、真引用号在 `id` 字段，
+//        两者差 1（实测按序号查会把 Ave Mujica 池的角色查成 MyGO 的）。
+//   · 名称（标题与角色名同一个纯函数 `ns_on_global_nameOf`）的语言优先级：
+//     **`zh`（简中）→ `tw`（繁中）→ `en` → `ja`**（2026-11-11 用户指出源站 `name` 里有 `zh`，
+//     此前取 `en` 是错的）；某一级空串 / 缺失就退下一级，四语全空才退到 `ko` 兜底，绝不拼空名。
+//     ⚠️ 角色名同样带 `{ja,en,tw,zh,ko}` 五语字段（实测 26 个 chars 全有 `zh`），所以走同一函数；
+//        若将来某个 picks 名字只有单语（例如只有日文 / 罗马字），函数本来就只认得出那一种，行为不变。
+//
+// ── 排在哪 ─────────────────────────────────────────────────────────────────
+//   必须排在各 `30-game-*.js`（尤其 30-game-bandori.js）之后：`registerSource` 要**合并既有条目**，
+//   而 ournotes-global 的条目本体（name / icon / tz / defaultHidden / BHK 备选源）声明在那边。
+//   `GACHA_FETCHERS` / `EVENT_FETCHERS` 两张表由 21-fetcher-tables.js 先建好，这里只补键。
+
+const NS_ON_GLOBAL_TZ = "Asia/Shanghai";          // = UTC+8（注册项与展示层用这个）
+const NS_ON_GLOBAL_DATA_TZ = "Asia/Tokyo";        // 数据 JSON 的墙钟是 JST
+const NS_ON_GLOBAL_ORIGIN = "https://spica.wiki";
+const NS_ON_GLOBAL_URL = "https://spica.wiki/ournotes/en/gachas";
+const NS_ON_GLOBAL_REFERER = "https://spica.wiki/";
+const NS_ON_GLOBAL_SOURCE_LABEL = "SPICA";
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ① 页面 → _durl → 数据 JSON
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** SPA 页面 HTML → `window._durl`（形如 `/ournotes/data/d-67318986e4.json`）；没有 ⇒ 空串。 */
+function ns_on_global_durlOf(html) {
+	const m = /window\._durl\s*=\s*["']([^"']+)["']/.exec(String(html == null ? "" : html));
+	return m ? String(m[1]).trim() : "";
+}
+
+/** `_durl` → 绝对地址（源站给站内路径；给了绝对地址就原样）。 */
+function ns_on_global_dataUrlOf(durl) {
+	const s = String(durl == null ? "" : durl).trim();
+	if (!s) return "";
+	if (/^https?:\/\//i.test(s)) return s;
+	return NS_ON_GLOBAL_ORIGIN + (s.charAt(0) === "/" ? "" : "/") + s;
+}
+
+/** 页面 + 数据 JSON（两步都经宿主代理；缺 `_durl` / 非 JSON ⇒ 抛，让刷新记「抓取失败」而不是「未公布」）。 */
+async function ns_on_global_fetchData(url) {
+	const pageUrl = url || NS_ON_GLOBAL_URL;
+	const html = await proxyFetchText(pageUrl, NS_ON_GLOBAL_REFERER);
+	const durl = ns_on_global_durlOf(html);
+	if (!durl) throw new Error("ournotes-global-no-durl");     // 页面结构变了（不是"未公布"）
+	const text = await proxyFetchText(ns_on_global_dataUrlOf(durl), pageUrl);
+	try {
+		return JSON.parse(text);
+	} catch {
+		throw new Error("ournotes-global-bad-json");
+	}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ② 数据 JSON → 条目事实（卡池 / 活动各一支）
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// 名称（标题 / 角色名）的语言优先级，**只在这一处定序** —— 空串或缺失就退下一级。
+//   zh（简中）→ tw（繁中）→ en → ja，四语全空才退到 ko 兜底（源站万一只剩韩文，也不拼空名）。
+//   角色名同样走这个函数：`chars[].name` 与 `gachapages[].name` 是同一形状的五语对象。
+const NS_ON_GLOBAL_NAME_LANGS = ["zh", "tw", "en", "ja", "ko"];
+
+/** 多语种名称对象 → 一种名字（按 `NS_ON_GLOBAL_NAME_LANGS` 逐级回退；纯字符串原样用；取不到 ⇒ 空串）。 */
+function ns_on_global_nameOf(name) {
+	if (typeof name === "string") return name.trim();
+	if (!name || typeof name !== "object") return "";
+	for (const k of NS_ON_GLOBAL_NAME_LANGS) {
+		const v = name[k];
+		if (typeof v === "string" && v.trim() !== "") return v.trim();
+	}
+	return "";
+}
+
+// 源站墙钟：`2026-11-08 15:00`（实测没有秒、也没有时区后缀）
+const NS_ON_GLOBAL_WALL_RE = /^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})/;
+
+/** 墙钟字符串 → `{ y, mo, d, h, mi }`；读不出 ⇒ null。 */
+function ns_on_global_wallOf(s) {
+	const m = NS_ON_GLOBAL_WALL_RE.exec(String(s == null ? "" : s).trim());
+	if (!m) return null;
+	return { y: Number(m[1]), mo: Number(m[2]), d: Number(m[3]), h: Number(m[4]), mi: Number(m[5]) };
+}
+
+/** 墙钟 → 绝对毫秒。**恒按 JST**（数据 JSON 不带时区标记，见文件头的时区小节）。 */
+function ns_on_global_instantOf(wall) {
+	if (!wall) return null;
+	return sourceInstant(wall.y, wall.mo, wall.d, wall.h, wall.mi, NS_ON_GLOBAL_DATA_TZ);
+}
+
+/** 条目的源站原文（两端用 ` ~ ` 连回原样；缺一端就只留那端）。 */
+function ns_on_global_rawOf(obj) {
+	const a = String((obj && obj.start) || "").trim();
+	const b = String((obj && obj.end) || "").trim();
+	if (!a && !b) return "";
+	if (!b) return a;
+	if (!a) return b;
+	return a + " ~ " + b;
+}
+
+/**
+ * `{ start, end }` → `{ startTs, endTs, raw, display }`。
+ * 两端**各自独立**解析：`end` 为空的常驻池只留 startTs、endTs=null（起点是源站明说的事实，不丢）。
+ * 两端都有但 end <= start（脏数据）⇒ 两端 null、`raw` 照实保留（不编时刻）。
+ */
+function ns_on_global_windowOf(obj, tz) {
+	const raw = ns_on_global_rawOf(obj);
+	const a = ns_on_global_wallOf(obj && obj.start);
+	const b = ns_on_global_wallOf(obj && obj.end);
+	const startTs = a ? ns_on_global_instantOf(a) : null;
+	const endTs = b ? ns_on_global_instantOf(b) : null;
+	if (startTs == null || endTs == null) return { startTs, endTs, raw, display: raw };
+	if (!(endTs > startTs)) return { startTs: null, endTs: null, raw, display: raw };
+	return { startTs, endTs, raw, display: fmtWindow(startTs, endTs, tz) };
+}
+
+/** `members` / `snaps`（数组或 `{ "0": … }` 序号对象）→ 按**内容 id** 索引的表。 */
+function ns_on_global_indexById(v) {
+	const list = Array.isArray(v) ? v : (v && typeof v === "object" ? Object.values(v) : []);
+	const map = new Map();
+	for (const x of list) {
+		if (x && x.id != null) map.set(String(x.id), x);
+	}
+	return map;
+}
+
+/** picks → 角色名数组（member = 角色卡、snap = 照片；两者都算"这池 UP 了谁"，按名去重）。 */
+function ns_on_global_rolesOf(json, gacha) {
+	const members = ns_on_global_indexById(json && json.members);
+	const snaps = ns_on_global_indexById(json && json.snaps);
+	const chars = (json && json.chars) || {};
+	const names = [];
+	const pushChar = (cid) => {
+		const c = chars[String(cid)];
+		const n = ns_on_global_nameOf(c && c.name);
+		if (n && names.indexOf(n) < 0) names.push(n);
+	};
+	for (const p of (gacha && gacha.picks) || []) {
+		if (!Array.isArray(p) || p.length < 2) continue;
+		const kind = String(p[0] == null ? "" : p[0]);
+		const id = String(p[1] == null ? "" : p[1]);
+		if (kind === "member") {
+			const m = members.get(id);
+			if (m && m.char != null) pushChar(m.char);
+		} else if (kind === "snap") {
+			const s = snaps.get(id);
+			if (!s) continue;
+			const list = Array.isArray(s.chars) && s.chars.length > 0 ? s.chars : (s.char != null ? [s.char] : []);
+			for (const cid of list) pushChar(cid);
+		}
+		// 其它 kind（未来可能出现）如实跳过：不猜
+	}
+	return names;
+}
+
+/** `gachapages[]` → 卡池条目事实。 */
+function ns_on_global_gachaItemsOf(json, tz = NS_ON_GLOBAL_TZ) {
+	const pages = json && json.gachapages;
+	if (!Array.isArray(pages)) throw new Error("ournotes-global-bad-json");
+	const out = [];
+	for (const g of pages) {
+		if (!g || typeof g !== "object") continue;
+		const title = ns_on_global_nameOf(g.name);
+		if (!title) continue;
+		const w = ns_on_global_windowOf(g, tz);
+		out.push({
+			key: "g" + String(g.id == null ? "" : g.id),
+			title,
+			show: title,
+			roles: ns_on_global_rolesOf(json, g).join("、"),
+			startTs: w.startTs,
+			endTs: w.endTs,
+			tz,
+			raw: w.raw,
+			display: w.display,
+			source: "hover"
+		});
+	}
+	if (out.length === 0) throw new Error("ournotes-global-empty-gachapages");
+	return out;
+}
+
+/** `events[]` → 活动条目事实。 */
+function ns_on_global_eventItemsOf(json, tz = NS_ON_GLOBAL_TZ) {
+	const list = json && json.events;
+	if (!Array.isArray(list)) throw new Error("ournotes-global-bad-json");
+	const out = [];
+	for (const e of list) {
+		if (!e || typeof e !== "object") continue;
+		const title = ns_on_global_nameOf(e.name);
+		if (!title) continue;
+		const w = ns_on_global_windowOf(e, tz);
+		out.push({
+			key: "e" + String(e.id == null ? "" : e.id),
+			title,
+			show: title,
+			startTs: w.startTs,
+			endTs: w.endTs,
+			tz,
+			raw: w.raw,
+			display: w.display,
+			source: "hover"
+		});
+	}
+	if (out.length === 0) throw new Error("ournotes-global-empty-events");
+	return out;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ③ 条目事实 → 载荷（当期 + 悬停 + 数据数组）
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** 卡池载荷：当期 = 覆盖 now 的最新开始；悬停 / 数组 = 全部 `coveredOrOpen`（结束升序）。 */
+function ns_on_global_gachaPayloadOf(items, tz = NS_ON_GLOBAL_TZ, now = nowMs()) {
+	const listed = (items || []).filter((x) => coveredOrOpen(x, now));
+	const primary = listed.filter((x) => coversNow(x, now)).sort((a, b) => b.startTs - a.startTs)[0] || null;
+	if (!primary) return null;
+	const entries = listed.slice().sort(poolHoverOrderOf).map((x) => ({
+		title: x.title,
+		label: x.roles ? `${x.title}：${x.roles}` : x.title,
+		startTs: x.startTs,
+		endTs: x.endTs,
+		raw: x.raw
+	}));
+	const out = {
+		banner: primary.title,
+		roles: primary.roles || "",
+		bannerDates: primary.display,
+		bannerDatesRaw: primary.raw
+	};
+	const hover = hoverTextFromItems(entries, "gacha", tz);
+	if (hover) out.bannerHover = hover;
+	out.gacha = dataArrayProducedGachaOf(out, entries, { tz }, now);
+	out.gachaHoverItems = entries;
+	return out;
+}
+
+/** 活动载荷：当期 = 覆盖 now 的最新开始；悬停 / 数组 = 全部 `coveredOrOpen`。 */
+function ns_on_global_eventPayloadOf(items, tz = NS_ON_GLOBAL_TZ, now = nowMs()) {
+	const listed = (items || []).filter((x) => coveredOrOpen(x, now));
+	const primary = listed.filter((x) => coversNow(x, now)).sort((a, b) => b.startTs - a.startTs)[0] || null;
+	if (!primary) return null;
+	const entries = sortEventItems(listed.map((x) => Object.assign({}, x, { name: x.title })));
+	const out = { event: primary.title, eventDates: primary.display, eventDatesRaw: primary.raw };
+	const hover = hoverTextFromItems(entries, "event", tz);
+	if (hover) out.eventHover = hover;
+	out.events = dataArrayProducedEventsOf(out, entries, { tz }, now);
+	out.eventHoverItems = entries;
+	return out;
+}
+
+/** 卡池抓取器：一次取全，卡池载荷顺手带上活动字段（两侧同 URL ⇒ 刷新走复用）。 */
+async function ns_on_global_fetchGacha(url, signal, tz = NS_ON_GLOBAL_TZ) {
+	const json = await ns_on_global_fetchData(url);
+	const now = nowMs();
+	const gp = ns_on_global_gachaPayloadOf(ns_on_global_gachaItemsOf(json, tz), tz, now);
+	if (!gp) return null;                       // 一期都没在架 = 未公布（活动侧随后自己抓）
+	const ep = ns_on_global_eventPayloadOf(ns_on_global_eventItemsOf(json, tz), tz, now);
+	return ep ? Object.assign(gp, ep) : gp;
+}
+
+/** 活动抓取器：同一份数据 JSON 的 `events[]`（独立可用，不依赖卡池那次抓取）。 */
+async function ns_on_global_fetchEvents(url, signal, tz = NS_ON_GLOBAL_TZ) {
+	const json = await ns_on_global_fetchData(url);
+	const now = nowMs();
+	return ns_on_global_eventPayloadOf(ns_on_global_eventItemsOf(json, tz), tz, now);
+}
+
+GACHA_FETCHERS["ournotes-global"] = (url, signal, tz) => ns_on_global_fetchGacha(url, signal, tz);
+EVENT_FETCHERS["ournotes-global"] = Object.assign(EVENT_FETCHERS["ournotes-global"] || {}, {
+	default: (url, signal, tz) => ns_on_global_fetchEvents(url, signal, tz)
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ── 并入 30-game-batch2.js 的 ② 段：OurNotes 日服卡池默认源 = SPICA（列表 → 前 5 条详情）
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── ② BanG Dream！OurNotes·日服 `ournotes` 的**卡池** —— SPICA（社区攻略站）────────────
+//   列表 https://spica.wiki/ournotes/gachas （服务端渲染 HTML：`<ul><li><a href="/ournotes/gacha/{id}">名称</a>`）
+//   详情 https://spica.wiki/ournotes/gacha/{id}
+//     `<h1>名称</h1>` + `<dt class="k">開催期間</dt><dd class="v">2026.11.08 15:00 – 2026.11.18 14:59</dd>`
+//     + `<h2>ピックアップ</h2><ul><li><a …>角色名</a>…`（pickup）
+//   实测 2026-11-11 00:53 +08：列表 200 / text/html / 44 KB / 23 本 / 页面「更新 2026.11.09」；
+//     列表**没有日期**（只有 id + 名称）⇒ 日期必须进详情页拿。
+//   抓取口径：列表取 id 顺序 → **只抓前 5 条详情**（`SPICA_MAX_DETAILS`，列表按开始时间倒序，
+//     在期/最近的池都在头部），不抓 23 条。详情里没有 `開催期間` 的池如实 startTs/endTs=null，不进外显。
+//   响应**无 ACAO** ⇒ 必须走宿主代理（白名单 `spica.wiki`）。来源标签「SPICA」；tz=Asia/Tokyo。
+//   外显/悬停/数组：当期 = 覆盖 now 的详情（按 startTs 最新）；悬停列出所有 `coveredOrOpen` 的池
+//     （`poolHoverOrderOf`：结束升序），数组由 `dataArrayProducedGachaOf` 直出（主条 + 并列条）。
+//     `bannerDates` ← `display`（`MM-DD HH:MM ~ MM-DD HH:MM`，源站墙钟 JST），`bannerDatesRaw` ← `raw`。
+//
+
+const NS_BATCH2_SPICA_TZ = "Asia/Tokyo";
+const NS_BATCH2_SPICA_LIST_URL = "https://spica.wiki/ournotes/gachas";
+const NS_BATCH2_SPICA_DETAIL_BASE = "https://spica.wiki/ournotes/gacha/";
+const NS_BATCH2_SPICA_REFERER = "https://spica.wiki/";
+const NS_BATCH2_SPICA_MAX_DETAILS = 5;
+const NS_BATCH2_SPICA_SOURCE_LABEL = "SPICA";
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ② OurNotes 日服：SPICA 卡池列表 / 详情
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** 列表 HTML → `[{ id, title }]`（保持源站顺序，去重）。 */
+function ns_batch2_spicaIdsOf(html) {
+	const s = String(html == null ? "" : html);
+	const out = [];
+	const re = /<a\b[^>]*href="\/ournotes\/gacha\/([A-Za-z0-9_-]+)"[^>]*>([\s\S]*?)<\/a>/g;
+	let m;
+	while ((m = re.exec(s)) !== null) {
+		const id = m[1];
+		if (out.some((x) => x.id === id)) continue;
+		const title = stripTags(m[2]).replace(/\s+/g, " ").trim();
+		out.push({ id, title });
+	}
+	return out;
+}
+
+const NS_BATCH2_SPICA_PERIOD_RE = /<dt class="k">開催期間<\/dt>\s*<dd class="v">([\s\S]*?)<\/dd>/;
+// 实测分隔符是 en dash（`2026.11.08 15:00 – 2026.11.18 14:59`）
+const NS_BATCH2_SPICA_DATE_RE = /(\d{4})\.(\d{1,2})\.(\d{1,2})\s+(\d{1,2}):(\d{2})\s*[–—\-~～]\s*(\d{4})\.(\d{1,2})\.(\d{1,2})\s+(\d{1,2}):(\d{2})/;
+
+/** 详情里的 pickup 名单（`<h2>ピックアップ</h2><ul><li><a>名</a>…`）→ `名1、名2`。 */
+function ns_batch2_spicaRolesOf(html) {
+	const s = String(html == null ? "" : html);
+	const box = /<h2>ピックアップ<\/h2>\s*<ul>([\s\S]*?)<\/ul>/.exec(s);
+	if (!box) return "";
+	const names = [];
+	const re = /<a\b[^>]*>([\s\S]*?)<\/a>/g;
+	let m;
+	while ((m = re.exec(box[1])) !== null) {
+		const name = stripTags(m[1]).replace(/\s+/g, " ").trim();
+		if (name && names.indexOf(name) < 0) names.push(name);
+	}
+	return names.join("、");
+}
+
+/**
+ * 详情 HTML → `{ title, startTs, endTs, raw, display, roles }`。
+ * 没有 `開催期間`、或期间里不是绝对时刻 ⇒ 两端 null，`raw`/`display` 照实保留（不编时刻）。
+ */
+function ns_batch2_spicaDetailOf(html, tz) {
+	const s = String(html == null ? "" : html);
+	const h1 = /<h1>([\s\S]*?)<\/h1>/.exec(s);
+	const title = stripTags(h1 ? h1[1] : "").replace(/\s+/g, " ").trim();
+	if (!title) throw new Error("spica-bad-html");
+	const roles = ns_batch2_spicaRolesOf(s);
+	const pm = NS_BATCH2_SPICA_PERIOD_RE.exec(s);
+	if (!pm) return { title, startTs: null, endTs: null, raw: "", display: "", roles };
+	const raw = stripTags(pm[1]).replace(/\s+/g, " ").trim();
+	const dm = NS_BATCH2_SPICA_DATE_RE.exec(raw);
+	if (!dm) return { title, startTs: null, endTs: null, raw, display: raw, roles };
+	const startTs = sourceInstant(Number(dm[1]), Number(dm[2]), Number(dm[3]), Number(dm[4]), Number(dm[5]), tz);
+	const endTs = sourceInstant(Number(dm[6]), Number(dm[7]), Number(dm[8]), Number(dm[9]), Number(dm[10]), tz);
+	if (!(endTs > startTs)) return { title, startTs: null, endTs: null, raw, display: raw, roles };
+	return { title, startTs, endTs, raw, display: fmtWindow(startTs, endTs, tz), roles };
+}
+
+/** 详情事实 → 卡池载荷（当期 = 覆盖 now 的最新开始；悬停/数组 = 全部 coveredOrOpen）。 */
+function ns_batch2_spicaPayloadOf(items, tz, now) {
+	const listed = (items || []).filter((x) => x && coveredOrOpen(x, now));
+	const primary = listed.filter((x) => coversNow(x, now)).sort((a, b) => b.startTs - a.startTs)[0] || null;
+	if (!primary) return null;
+	const entries = listed.slice().sort(poolHoverOrderOf).map((x) => ({
+		title: x.title,
+		label: x.roles ? `${x.title}：${x.roles}` : x.title,
+		startTs: x.startTs,
+		endTs: x.endTs,
+		raw: x.raw
+	}));
+	const out = {
+		banner: primary.title,
+		roles: primary.roles || "",
+		bannerDates: primary.display,
+		bannerDatesRaw: primary.raw
+	};
+	const hover = hoverTextFromItems(entries, "gacha", tz);
+	if (hover) out.bannerHover = hover;
+	out.gacha = dataArrayProducedGachaOf(out, entries, { tz }, now);
+	out.gachaHoverItems = entries;
+	return out;
+}
+
+/** 卡池抓取器：列表 → 前 N 条详情（列表没有日期，必须进详情）。 */
+async function ns_batch2_fetchSpicaGacha(url, signal, tz = NS_BATCH2_SPICA_TZ) {
+	const listUrl = url || NS_BATCH2_SPICA_LIST_URL;
+	const listHtml = await proxyFetchText(listUrl, NS_BATCH2_SPICA_REFERER);
+	const ids = ns_batch2_spicaIdsOf(listHtml);
+	if (ids.length === 0) throw new Error("spica-list-empty");   // 列表结构变了（不是"未公布"）
+	const now = nowMs();
+	const items = [];
+	for (const it of ids.slice(0, NS_BATCH2_SPICA_MAX_DETAILS)) {
+		const html = await proxyFetchText(NS_BATCH2_SPICA_DETAIL_BASE + it.id, NS_BATCH2_SPICA_REFERER);
+		const d = ns_batch2_spicaDetailOf(html, tz);
+		if (!d.title) d.title = it.title;
+		items.push(d);
+	}
+	return ns_batch2_spicaPayloadOf(items, tz, now);
+}
+
+// ournotes 日服：卡池侧此前**没有来源**（只有 bushimo 的 WP 活动源），这里补 SPICA 卡池。
+// `registerSource` 按 id 合并 ⇒ tz / name / 活动侧 / defaultHidden 全部保留原样。
+
+GACHA_FETCHERS["ournotes"] = (url, signal, tz) => ns_batch2_fetchSpicaGacha(url, signal, tz);

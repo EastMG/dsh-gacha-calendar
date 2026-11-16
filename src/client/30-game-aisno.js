@@ -1,4 +1,10 @@
-// src/client/30-game-wqmt.js —— 无期迷途（国服 · AISNO / 自意）
+// src/client/30-game-aisno.js —— AISNO / 自意：无期迷途（wqmt，国服）
+//
+// 职责（2026-11-16 按厂商重排）：由 30-game-wqmt.js 整体改名迁入；条目 + 解析器 + 抓取器 + 登记原样保留。
+// 源：卡池 bwiki 追踪一览 + 活动 官方资讯 API + 开服锚点（`开服后` 起点按锚点补全）。
+// 复用关系：bwiki 公共层（载荷 / 悬停）；符号名 `ns_*` 一个都没改。
+// 请求预算：卡池 1 次 + 活动 1~2 次（细节见文件内注释）。
+
 //
 // 两侧**都是真源**（2026-11-09 实测 200，夹具见 test/fixtures/wqmt-*）：
 //   · 卡池 = bwiki「追踪一览」= MediaWiki `api.php?action=parse`（HTML 表，174 行 / 307KB）

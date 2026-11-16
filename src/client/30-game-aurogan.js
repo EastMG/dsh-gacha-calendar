@@ -1,4 +1,10 @@
-// src/client/30-game-bwiki-bjhl.js —— 白荆回廊（国服）：bwiki「历史卡池一览」（prop=text 渲染后 HTML）
+// src/client/30-game-aurogan.js —— 上海烛龙：白荆回廊（bjhl，国服）
+//
+// 职责（2026-11-16 按厂商重排）：由 30-game-bwiki-bjhl.js 整体迁入（自包含：条目 + 解析 + 抓取 + 登记）。
+// 源：bwiki 两个页面 ——「历史卡池一览」（prop=text 渲染后 HTML）+「活动一览」。
+// 复用关系：bwiki 公共层（表 / 日期 / 载荷 helper）与 bwiki-html-fetchers.js；符号名 `ns_bwiki_*` 不变。
+// 请求预算：每侧 1 次；tz = Asia/Shanghai。
+
 //   +「活动一览」的 SMW `分类:活动`（action=ask 结构化 JSON）
 //
 // ── 为什么单独一个文件（而不是塞进 30-game-bwiki-register.js）────────────────────

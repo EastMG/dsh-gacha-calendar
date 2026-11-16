@@ -1,4 +1,11 @@
-// src/client/30-game-bwiki-reso.js —— 雷索纳斯（国服）：卡池主源 = bwiki「活动日历」；活动默认置空（备选 = bwiki 活动档（停更）/ 官网内联 JSON）
+// src/client/30-game-gongguo.js —— 上海弓谷：雷索纳斯（reso，国服）
+//
+// 职责（2026-11-16 按厂商重排）：由 30-game-bwiki-reso.js 整体迁入（自包含：条目 + 解析 + 抓取 + 登记）。
+// 源：卡池主源 = bwiki「活动日历」wikitext（`action=raw` + `revisions` 只补年份）；活动侧默认置空，
+//   备选 = bwiki 活动档（停更）/ 官网首页内联 `notice_json`。
+// 复用关系：bwiki 公共层（载荷生成器 / 悬停）；符号名 `ns_bwiki_*` 不变。
+// 请求预算：每轮 2 次（同一 URL，轮内共享）。
+
 //
 // ── 落点（2026-11-15 三次调整：卡池主源留 bwiki；活动侧默认置空、原 bwiki 活动源降为备选）────────
 // 唯一来源 `id:"reso"`。

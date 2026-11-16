@@ -1,4 +1,11 @@
-// src/client/30-game-pengpeng.js —— 夜幕之下（国服；曾用名「代号砰砰」，2026-06-05 公测）
+// src/client/30-game-baio.js —— 百奥家庭互动：夜幕之下（pengpeng，国服）
+//
+// 职责（2026-11-16 按厂商重排）：由 30-game-pengpeng.js 整体改名迁入；条目 + 解析器 + 抓取器 + 登记原样保留。
+// 源：卡池 bwiki SMW ask（默认置空）+ 两个 bwiki 页面手动备选；活动 = TapTap tab 页 SSR
+//   （Nuxt `__NUXT_DATA__`；旧 bwiki 公告为备选）。
+// 复用关系：bwiki 公共层 + 本文件内的 TapTap SSR 解码；符号名 `ns_*` 一个都没改。
+// 请求预算：活动 1~2 次（覆盖当前窗口就停；按 id 缓存 24h），卡池默认 0 次（未配置）。
+
 //
 // ── 卡池侧（2026-11-13 用户拍板：**默认置空** + 两个 bwiki 手动备选）────────────────
 // 历史：旧写法抓「契约一览」HTML 表（`action=parse&page=契约一览&prop=text`）；2026-11-11 实测
