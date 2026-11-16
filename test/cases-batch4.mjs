@@ -76,7 +76,7 @@ export default async function run() {
 	{
 		const N = T.parsers.nikki4, I = T.parsers.idolmaster;
 		// 用户 2026-11-15 拍板的后缀口径：只许这一种写法（不许（日服）/（JST）/（原文）…）
-		const IMAS_LABEL_LITERAL = "melonpapapapa 総合カレンダー（日文）";
+		const IMAS_LABEL_LITERAL = "melonpapapapa（日文）";
 		for (const [id, name, tz, label] of [
 			["nikki4", "闪耀暖暖", TZ_CN4, "官网公告"],
 			["gakumas", "学园偶像大师·日服", TZ_JP, I.IMAS_SOURCE_LABEL],
@@ -99,13 +99,14 @@ export default async function run() {
 			check(`${id} 有配色（面板「颜色 = 游戏」）`, !!s && /^#[0-9A-F]{6}$/i.test(String(s.color)), s && String(s.color));
 		}
 		// 用户 2026-11-15 明确要求：这 5 条来源的**选项文案**（source / eventSource）含日文原文
-		// ⇒ 统一加「（日文）」后缀，且只许这一种；条目 `name` 保持日文原名、**不加**后缀。
+		// ⇒ 统一加「（日文）」后缀，且只许这一种。
+		// 2026-11-17 用户再要求：去掉「総合カレンダー」，只留站点名 + 语言后缀。
 		const IMAS_FIVE = ["gakumas", "shinycolors", "millisita", "deresute", "shanison"];
 		check(`imas 5 条来源标签逐字 = 「${IMAS_LABEL_LITERAL}」（后缀只此一种）`,
 			IMAS_FIVE.every((id) => srcOf(id).source === IMAS_LABEL_LITERAL && srcOf(id).eventSource === IMAS_LABEL_LITERAL),
 			JSON.stringify(IMAS_FIVE.map((id) => [srcOf(id).source, srcOf(id).eventSource])));
 		check("imas 5 条来源标签都**不是**旧写法（无后缀的那版已全部改掉）",
-			IMAS_FIVE.every((id) => srcOf(id).source !== "melonpapapapa 総合カレンダー"),
+			IMAS_FIVE.every((id) => srcOf(id).source !== "melonpapapapa"),
 			JSON.stringify(IMAS_FIVE.map((id) => srcOf(id).source)));
 		check("imas 5 条的条目 name **不带**「（日文）」这类后缀（后缀只加在来源文案上）",
 			IMAS_FIVE.every((id) => !/（日文）$/.test(String(srcOf(id).name))),

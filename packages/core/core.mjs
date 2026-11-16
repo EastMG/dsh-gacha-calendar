@@ -17638,8 +17638,9 @@ GACHA_FETCHERS["tof"] = (url, signal, tz, now) => ns_tof_gacha(url, signal, tz, 
 //     逐条 `日程（起止到分） + 概要（名称）`，且卡池/活动分类明确（cat-gacha / cat-event），
 //     是这套系列**唯一**覆盖全系列且起止到分的源（Game8 只有ガチャ履歴且只到日；GameWith
 //     没有对应页；官方ポータル没有游戏内日程）。所以五款都接它，来源标签逐字 =
-//     `melonpapapapa 総合カレンダー（日文）`（源站文案本身是日文原文 ⇒ 按 2026-11-15 用户口径
-//     统一加「（日文）」后缀；设置页可见；报告里也逐字列出）。条目 `name` 保持日文原名，**不加**后缀。
+//     `melonpapapapa（日文）`（2026-11-15 用户口径：源站文案是日文原文 ⇒ 加「（日文）」后缀；
+//     2026-11-17 用户要求去掉「総合カレンダー」，只留站点名 + 语言后缀）。
+//     条目 `name` 保持中文译名 + ·日服 后缀，**不带**语言后缀。
 //
 // ── 第 5 款是怎么定的（2026-11-15 实测，不猜）──────────────────────────────────
 //   源站品牌代号实测 5 个：`gm` / `sc` / `ml` / `cgss` / **`ss`**。`ss` 页真实存在：
@@ -17695,7 +17696,7 @@ GACHA_FETCHERS["tof"] = (url, signal, tz, now) => ns_tof_gacha(url, signal, tz, 
 		const IMAS_TZ = "Asia/Tokyo";
 		const IMAS_ORIGIN = "https://melonpapapapa-n.com";
 		const IMAS_REFERER = "https://melonpapapapa-n.com/";
-		const IMAS_SOURCE_LABEL = "melonpapapapa 総合カレンダー（日文）";
+		const IMAS_SOURCE_LABEL = "melonpapapapa（日文）";
 		// cat-gacha 里的赠品（不是池）。实测只有 1 条，但进悬停会让人以为它是池。
 		const IMAS_GACHA_SKIP_RE = /プレゼント/;
 		// cat-event 里的下半场子区间（同一活动重复一段，且与正篇同窗）。
