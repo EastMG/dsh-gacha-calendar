@@ -277,34 +277,11 @@ NEXT_SOURCES.push(
 		gacha: { url: T.parsers.browndust2.BROWNDUST2_URL, kind: "third-party", mode: "proxy", fetcher: resolve("browndust2.browndust2Gacha") },
 		event: null
 	},
-	// 2026-11-15 第五批：4 款 bwiki 游戏（中文 wiki，站点 siteinfo `timezone=Asia/Shanghai`）。
-	// 三条卡池侧走 SMW ask / wikitext 表格（url 逐字见各自解析器导出）；gwdz 两侧 URL 不同
-	// （卡池 = `Data:GachaConfig.json` 的 **JSON**、活动 = `Widget:游戏活动日历` 的 `CALENDAR_DATA`）。
-	// bwiki 响应无 ACAO ⇒ 全部 `mode: "proxy"`。
-	// 2026-11-15 晚：langrisser / bfzy 的**来源默认置空**（`gacha: null` = 未配置、不抓取），
-	// 原 wiki 源降为 `altSources` 的备选（标签带「（停更）」，fetcher 用字符串键，
-	// 实现在 `EXTRA_GACHA_FETCHERS` 里指向同一批解析器）。
-	{
-		id: "langrisser",
-		tz: T.parsers.batch5.LANGRISSER_TZ,
-		name: "梦幻模拟战",
-		gacha: null,
-		altSources: [{ label: "Bwiki 召唤一览（停更）", url: T.parsers.batch5.LANGRISSER_URL, fetcher: "langrisser-stopped" }],
-		event: null
-	},
 	{
 		id: "crashfever",
 		tz: T.parsers.batch5.CRASHFEVER_TZ,
-		name: "CrashFever·日服",
+		name: "粉碎狂热·日服",
 		gacha: { url: T.parsers.batch5.CRASHFEVER_URL, kind: "wiki", mode: "proxy", fetcher: resolve("batch5.crashfeverGacha") },
-		event: null
-	},
-	{
-		id: "bfzy",
-		tz: T.parsers.batch5.BFZY_TZ,
-		name: "百分之一",
-		gacha: null,
-		altSources: [{ label: "Bwiki 历史卡池（停更）", url: T.parsers.batch5.BFZY_URL, fetcher: "bfzy-stopped" }],
 		event: null
 	},
 	{
@@ -342,10 +319,7 @@ export const EXTRA_GACHA_FETCHERS = {
 	"ddlezj-biligame": resolve("biligame-announce.gachaDdlezj"),
 	// 2026-11-15：雷索纳斯备选源 = 官网首页内联 JSON（主源换回 bwiki 后，它降为手动备选）
 	"reso-official": resolve("reso.gachaResoOfficial"),
-	// 2026-11-15 晚：梦幻模拟战 / 百分之一 的来源默认置空，原 wiki 源降为备选（标签带「（停更）」）。
 	// 抓取器直接别名到原解析器（解析代码只有一份）。
-	"langrisser-stopped": resolve("batch5.langrisserGacha"),
-	"bfzy-stopped": resolve("batch5.bfzyGacha"),
 };
 export const EXTRA_EVENT_FETCHERS = {
 	"uma-jp": {

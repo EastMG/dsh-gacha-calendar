@@ -264,11 +264,7 @@
 			// 与 gf2 `#D9773F`（更亮的追放橙）、hlr `#C98B4B`
 			// （更黄的琥珀）在色相与饱和度上各差一档，棕橙系里仍认得出是同一款。
 			browndust2: "#A0592F",            // 棕色尘埃2 · 焦褐橙
-			// 2026-11-15 第五批（4 款 bwiki 游戏）—— 各取本作主视觉最认得出的那一支，压成中间调；
-			// 四支分在「紫蓝 / 品红 / 青绿 / 橙」四个色相上，与既有同色系各差一档（不撞色）。
-			langrisser: "#6E7AC8",            // 梦幻模拟战 · 暮光紫蓝（比 fgo `#4E7CD8` 更紫、比 czn 的梦境紫更蓝）
 			crashfever: "#C7508F",            // CrashFever · 品红（比 bandori 更暗更紫、比 uma-jp 更红）
-			bfzy: "#2E9BA6",                  // 百分之一 · 科技青（比 wuhuamixin 的青瓷玉更蓝、比 wuwa 更绿）
 			gwdz: "#E0762B"                   // 怪物弹珠 · 弹珠橙（比 gf2 橙更亮、与 ddlezj 的亮黄差一个色相）
 		};
 
@@ -1754,9 +1750,7 @@
 			// 2026-11-15 第三方：棕色尘埃2（bannerhistory.app；页面自报 `sourceZone:"Asia/Seoul"`，GMT+9）
 			"browndust2": "Asia/Seoul",
 			// 2026-11-15 第五批：4 款 bwiki 游戏（站点 siteinfo `timezone=Asia/Shanghai`，内容中文 ⇒ UTC+8）
-			"langrisser": "Asia/Shanghai",
 			"crashfever": "Asia/Tokyo",
-			"bfzy": "Asia/Shanghai",
 			"gwdz": "Asia/Shanghai"
 		};
 		// 状态键 / 档期文本的两条形态（正则只在这里写一次）
@@ -28502,19 +28496,17 @@ registerSource({
 GACHA_FETCHERS["browndust2"] = (url, signal, tz, now) => ns_bd2_gacha(url, signal, tz, now);
 //#endregion
 
-// src/client/30-game-bwiki-batch5.js —— 第五批（2026-11-15）：4 款 bwiki 游戏（**卡池侧为主，gwdz 另接活动侧**）
+// src/client/30-game-bwiki-batch5.js —— 2026-11-15 第五批（bwiki 卡池侧为主；gwdz 另接活动侧）
 //
-//   id           游戏        slug        取数形态（2026-11-15 实测）                         请求数
-//   langrisser   梦幻模拟战  langrisser  SMW `action=ask` 查 `分类:召唤`（名称/开始/结束/项目）   1
-//   crashfever   CrashFever  crashfever  SMW `action=ask` 查 `类别::卡池`（标题/时间/结束时间/类别） 1
-//   bfzy         百分之一    bfzy        页面 `历史卡池` 的 wikitext 表格（更新日/卡池/新UP/上期UP） 1
-//   gwdz         怪物弹珠    gwdz        ① `Data:GachaConfig.json`（**JSON 直读**，卡池名/启用/起止）
-//                                        ② `Widget:游戏活动日历` 的 `CALENDAR_DATA.events`（活动侧） 1+1
+//   id          游戏        slug        取数形态（2026-11-15 实测）                         请求数
+//   crashfever  粉碎狂热    crashfever  SMW `action=ask` 查 `类别::卡池`（标题/时间/结束时间/类别） 1
+//   gwdz        怪物弹珠    gwdz        ① `Data:GachaConfig.json`（**JSON 直读**，卡池名/启用/起止）
+//                                      ② `Widget:游戏活动日历` 的 `CALENDAR_DATA.events`（活动侧） 1+1
 //
-// ── 为什么四款合成一个文件（而不是四份）────────────────────────────────────────
-// 2026-10-03 起本仓库的惯例是「每款/每组游戏一个**自包含**文件」；同批接入、共用同一套
-// 「bwiki 时间锚 → 绝对窗口」口径的几款放一个文件，与 `30-game-batch2.js` / `30-game-batch3.js`
-// （第三批两款）/ `30-game-idolmaster.js`（四款一个文件）同性质。**符号名一律 `ns_<游戏>_` 前缀**，
+// ── 为什么两款合成一个文件（而不是两份）────────────────────────────────────────
+// 2026-10-03 起本仓库的惯例是「每款/每组游戏一个**自包含**文件」；这两款同为 bwiki 数据源、
+// 共用同一套「bwiki 时间锚 → 绝对窗口」口径，因此放一个文件（2026-11-16 用户要求按厂商重新
+// 分类：后续会拆成 `30-game-wonderplanet.js` / `30-game-mixi.js`）。**符号名一律 `ns_<游戏>_` 前缀**，
 // 且复用公共层：`fetchJson` / `stripTags` / `sourceInstant` / `fmtWindow` / `coversNow` 与
 // `30-game-bwiki-common.js` 的载荷生成器（`ns_bwiki_batchGachaPayloadOf` / `ns_bwiki_eventPayload`）。
 // **没有**第二套「当期判定」、也没有第二套悬停排版。
@@ -28524,34 +28516,14 @@ GACHA_FETCHERS["browndust2"] = (url, signal, tz, now) => ns_bd2_gacha(url, signa
 //    `Referer: https://wiki.biligame.com/`（统一走 `fetchJson(..., { referer })`，bwiki 主机由
 //    `15-env.js` 收口改走宿主代理 —— 与既有 bwiki 源同一条通道）。
 //
-// ① langrisser / 梦幻模拟战（国服 wiki，内容中文）
-//    GET …/langrisser/api.php?action=ask&format=json&query=<enc>
-//    query = `[[分类:召唤]][[开始::+]]|?名称|?开始|?结束|?项目|sort=开始|order=desc|limit=100`
-//    `action=ask` 一页**默认只回 50 条**且默认按页面名（最老在前）⇒ 必须 `sort=开始|order=desc`，
-//    否则最新一期永远不在第一页（与深空之眼 dhmmr 同一个坑，实测）。
-//    属性类型：`名称` `_txt`、`开始`/`结束` `_dat`、`项目` `_txt`（多值 ⇒ `["妮","红莲"]`）。
-//    `_dat` 的 printout = `[{ timestamp, raw }]`，raw 形如 `1/2026/9/10`（首段恒为 1，其后 y/m/d/H/i）。
-//    实测最新一期：`召唤/20260910/炽潮双刃，斩浪焚海` = 2026-09-10 ~ 2026-10-14（2026-11-15 已结束
-//    ⇒ 本轮活网返回 null，符合「当期没有 ⇒ null」；夹具把 now 钉在 2026-09-20 断言在期那一期）。
-//    `项目` = 本期 UP 角色（多值）⇒ 当 `roles`（不是池名重复）。
-// ② crashfever / CrashFever（中文 wiki）
+// ① crashfever / 粉碎狂热（CrashFever）（中文 wiki）
 //    GET …/crashfever/api.php?action=ask&format=json&query=<enc>
 //    query = `[[类别::卡池]]|?标题|?时间|?结束时间|?类别|limit=500`
 //    `类别` 是**属性**（不是分类），值为 `卡池`；`时间`/`结束时间` 都是 `_dat`（raw 带时分）。
 //    实测 166 行、**一次拿全**（`limit=500` 生效、无 `query-continue-offset`）。页「添加卡池预设」
 //    是模板页，printouts 没有时间 ⇒ 解析时跳过（结构性坏行 ≠ 结构损坏）。
 //    页 `超Fever祭典【傅柯】` 的 wikitext（`{{卡池信息|时间=…|结束时间=…}}`）与 ask 结果逐字一致。
-// ③ bfzy / 百分之一（国服 wiki）
-//    GET …/bfzy/api.php?action=parse&page=历史卡池&prop=wikitext&format=json&formatversion=2
-//    正文是一张 `wikitable`（2022-10 ~ 2026-09，**530 行**，按年分 5 张表）：`更新日期 | 卡池 | 新UP | 上期UP`。
-//    更新日期两种写法：`[[9月7号更新说明|2026-09-04]]`（带公告链接）与裸 `2025-08-22`；新UP 有
-//    `'''粗体'''` / `'''[[链接]]'''` 两种写法（粗体 = 当期新上架，标题里已说明）。
-//    ⚠️ 表里**只有「更新日」一个时间锚**（没有结束时间）⇒ 窗口按「表内相邻更新日」构造：
-//       起 = 更新日 00:00，止 = **下一期更新日 00:00**；最新一期没有下一期 ⇒ 按源站「每周一轮换」
-//       （抽卡页：每周一 15:30~18:30 例行维护后轮换；表内 2026 各行相邻均 7 天）推 `+7 天`。
-//       这条推定只影响「最新一期的止」，来源与依据写在这里；`raw` 仍只写源站原文的更新日。
-//    实测最新更新日 2026-09-04 ⇒ 2026-11-15 当期 null（夹具把 now 钉在 2026-09-05 断言在期那一期）。
-// ④ gwdz / 怪物弹珠（中文 wiki；游戏是日版内容、wiki 用中文写）
+// ② gwdz / 怪物弹珠（中文 wiki；游戏是日版内容、wiki 用中文写）
 //    ① 卡池：GET …/gwdz/api.php?action=parse&page=Data:GachaConfig.json&prop=wikitext&format=json&formatversion=2
 //       `parse.wikitext` 是**一份 JSON 字符串**（不是 HTML）⇒ `JSON.parse` 后取 `卡池列表`：
 //       每条 `{ 名称, 启用, 启用时间, 关闭时间, 相对路径, 引用卡池列表? }`。
@@ -28670,62 +28642,7 @@ function ns_b5_resultsOf(json, tag) {
 }
 //#endregion
 
-//#region ① 梦幻模拟战（langrisser）：SMW `分类:召唤`（卡池侧）
-const ns_langrisser_TZ = "Asia/Shanghai";
-const ns_langrisser_PAGE = "召唤";
-const ns_langrisser_KEY_NAME = "名称";
-const ns_langrisser_KEY_START = "开始";
-const ns_langrisser_KEY_END = "结束";
-const ns_langrisser_KEY_UP = "项目";
-// `sort=开始|order=desc` 是**必需**的（默认只回最老 50 条，见文件头）；`limit=100` 覆盖最近 ~3 个月。
-const ns_langrisser_QUERY = `[[分类:${ns_langrisser_PAGE}]][[${ns_langrisser_KEY_START}::+]]`
-	+ `|?${ns_langrisser_KEY_NAME}|?${ns_langrisser_KEY_START}|?${ns_langrisser_KEY_END}|?${ns_langrisser_KEY_UP}`
-	+ `|sort=${ns_langrisser_KEY_START}|order=desc|limit=100`;
-const ns_langrisser_URL = "https://wiki.biligame.com/langrisser/api.php?action=ask&format=json&query="
-	+ encodeURIComponent(ns_langrisser_QUERY);
-
-// ask JSON → 条目事实（纯函数：JSON + tz → 数组，不碰网络 / 时钟）
-function ns_langrisser_parseAsk(json, tz = ns_langrisser_TZ) {
-	const results = ns_b5_resultsOf(json, "langrisser-ask");
-	const rows = [];
-	let i = 0;
-	for (const [, v] of Object.entries(results)) {
-		if (!v || typeof v !== "object") continue;
-		const p = v.printouts;
-		if (!p || typeof p !== "object") continue;
-		const banner = String(ns_b5_textOf(p[ns_langrisser_KEY_NAME])).replace(/\s+/g, " ").trim();
-		const sp = ns_b5_pointOfPrintout(p[ns_langrisser_KEY_START]);
-		const ep = ns_b5_pointOfPrintout(p[ns_langrisser_KEY_END]);
-		if (!banner || !sp || !ep) continue;                            // 单条缺时间锚 ⇒ 跳过（不是结构损坏）
-		const startTs = ns_b5_tsOf(sp, false, tz);
-		const endTs = ns_b5_tsOf(ep, true, tz);
-		if (!(endTs > startTs)) continue;                               // 源站错行 ⇒ 丢掉（不硬造）
-		rows.push({
-			_i: i++,
-			banner,
-			roles: ns_b5_listOf(p[ns_langrisser_KEY_UP]).join("、"),
-			category: "",
-			startTs,
-			endTs,
-			raw: `${ns_b5_stampOf(sp)} ~ ${ns_b5_stampOf(ep)}`,
-			display: fmtWindow(startTs, endTs, tz),
-			isMain: true
-		});
-	}
-	if (rows.length === 0) throw new Error("langrisser-ask:no-rows");
-	return rows;
-}
-function ns_langrisser_payloadOf(items, tz, now) {
-	return ns_bwiki_batchGachaPayloadOf(Array.isArray(items) ? items : [], tz, now, { id: "langrisser" });
-}
-async function ns_langrisser_gacha(url, signal, tz = ns_langrisser_TZ, now = nowMs()) {
-	const target = String(url == null ? "" : url) === "" ? ns_langrisser_URL : String(url);
-	const json = await fetchJson(target, { referer: ns_b5_REFERER, signal, mode: "proxy" });
-	return ns_langrisser_payloadOf(ns_langrisser_parseAsk(json, tz), tz, ns_bwiki_nowOf(now));
-}
-//#endregion
-
-//#region ② CrashFever（crashfever）：SMW `类别::卡池`（卡池侧）
+//#region ① CrashFever（crashfever）：SMW `类别::卡池`（卡池侧）
 // 2026-11-15 修正：CrashFever 是**日服**（bwiki 首页「日服角色图鉴 / 最新卡池」）——
 // SMW 的 `时间` 墙钟按 JST 记（165 口池里 60 口 = 15:00，正是日服换池时刻；
 // 同池页内渲染写 14:00 是北京时间的同一时刻）⇒ 条目时区 = Asia/Tokyo。
@@ -28783,77 +28700,7 @@ async function ns_crashfever_gacha(url, signal, tz = ns_crashfever_TZ, now = now
 }
 //#endregion
 
-//#region ③ 百分之一（bfzy）：页面 `历史卡池` 的 wikitext 表格（卡池侧）
-const ns_bfzy_TZ = "Asia/Shanghai";
-const ns_bfzy_PAGE = "历史卡池";
-const ns_bfzy_URL = "https://wiki.biligame.com/bfzy/api.php?action=parse&page="
-	+ encodeURIComponent(ns_bfzy_PAGE) + "&prop=wikitext&format=json&formatversion=2";
-// 最新一期没有「下一期」⇒ 按源站「每周一轮换」推 7 天（依据见文件头 ③）
-const ns_bfzy_ROTATE_MS = 7 * 24 * 60 * 60 * 1000;
-
-// 表格行 → `{ date, pool, up, prev }`（裸日期与 `[[公告|日期]]` 两种写法都吃）
-function ns_bfzy_rowsOf(wikitext) {
-	const lines = String(wikitext == null ? "" : wikitext).split(/\r?\n/);
-	const rows = [];
-	for (const line of lines) {
-		const ln = line.trim();
-		if (!ln.startsWith("|")) continue;
-		const cells = ln.slice(1).split("||").map((x) => x.trim());
-		if (cells.length < 4) continue;
-		const dm = /(20\d{2})-(\d{2})-(\d{2})/.exec(cells[0]);
-		if (!dm) continue;
-		const pool = ns_b5_plainOf(cells[1]);
-		const up = ns_b5_plainOf(cells[2]);
-		if (!pool || !up) continue;
-		rows.push({ date: dm[0], pool, up, prev: ns_b5_plainOf(cells[3]) });
-	}
-	if (rows.length === 0) throw new Error("bfzy-history:no-rows");
-	return rows;
-}
-// 行 → 条目事实：**同一更新日 = 同一期**（3 行：80抽·第1天 / 50抽·第2天 / 50抽·第1天）
-function ns_bfzy_parseHistory(wikitext, tz = ns_bfzy_TZ) {
-	const rows = ns_bfzy_rowsOf(wikitext);
-	const dates = Array.from(new Set(rows.map((r) => r.date))).sort();    // 升序：下一期 = 后一个日期
-	const startOf = (d) => {
-		const [y, mo, dd] = d.split("-").map(Number);
-		return sourceInstant(y, mo, dd, 0, 0, tz);
-	};
-	const items = [];
-	let i = 0;
-	for (const r of rows) {
-		const k = dates.indexOf(r.date);
-		const startTs = startOf(r.date);
-		const endTs = k >= 0 && k + 1 < dates.length ? startOf(dates[k + 1]) : startTs + ns_bfzy_ROTATE_MS;
-		if (!(endTs > startTs)) continue;
-		items.push({
-			_i: i++,
-			banner: r.pool,                      // 卡池列（80抽·第1天 / 50抽·第2天 / …）
-			roles: r.up,                         // 新UP = 当期上架卡（多行同期同窗口 ⇒ 由载荷生成器合并）
-			category: r.pool,
-			prveUp: r.prev,                      // 上期UP：源站有、面板不用（不新造字段，留给回归断言）
-			startTs,
-			endTs,
-			raw: r.date,                         // 源站原文**只有更新日**（止 = 我们的推定，不进 raw）
-			display: fmtWindow(startTs, endTs, tz),
-			isMain: true
-		});
-	}
-	if (items.length === 0) throw new Error("bfzy-history:no-window");
-	return items;
-}
-function ns_bfzy_payloadOf(items, tz, now) {
-	return ns_bwiki_batchGachaPayloadOf(Array.isArray(items) ? items : [], tz, now, { id: "bfzy" });
-}
-async function ns_bfzy_gacha(url, signal, tz = ns_bfzy_TZ, now = nowMs()) {
-	const target = String(url == null ? "" : url) === "" ? ns_bfzy_URL : String(url);
-	const json = await fetchJson(target, { referer: ns_b5_REFERER, signal, mode: "proxy" });
-	const wikitext = json && json.parse && json.parse.wikitext;
-	if (typeof wikitext !== "string") throw new Error("bfzy-history:bad-json");
-	return ns_bfzy_payloadOf(ns_bfzy_parseHistory(wikitext, tz), tz, ns_bwiki_nowOf(now));
-}
-//#endregion
-
-//#region ④ 怪物弹珠（gwdz）：卡池 = `Data:GachaConfig.json`（JSON 直读）；活动 = 活动日历 `CALENDAR_DATA`
+//#region ② 怪物弹珠（gwdz）：卡池 = `Data:GachaConfig.json`（JSON 直读）；活动 = 活动日历 `CALENDAR_DATA`
 const ns_gwdz_TZ = "Asia/Shanghai";
 const ns_gwdz_GACHA_PAGE = "Data:GachaConfig.json";
 const ns_gwdz_GACHA_URL = "https://wiki.biligame.com/gwdz/api.php?action=parse&page="
@@ -29015,50 +28862,14 @@ async function ns_gwdz_events(url, signal, tz = ns_gwdz_TZ, now = nowMs()) {
 }
 //#endregion
 
-// ── 注册（2026-11-15 第五批 4 条；标签命名沿用「Bwiki + 页面/数据名」的既有风格）──────────────
-// 2026-11-15 晚（用户口径）：langrisser / bfzy 的**来源默认置空**（`url: ""` + 不写 `source`
-// ⇒ 设置页/面板显示裸「未配置」，一个请求都不发），原 wiki 源降为**备选源**并标「（停更）」：
-//   · langrisser：SMW `分类:召唤` 最新一期止于 2026-10-14（之后没有新卡池）⇒ 停更；
-//   · bfzy：`历史卡池` 表内最新更新日停在 2026-09-04（之后没有新一期）⇒ 停更。
-// 引擎按 `altSources` 的 `fetcher` 键路由（主源不抓、只在用户手动切过去时抓）；抓取器函数
-// 直接**别名登记**，不另造第二份实现。`defaultHidden` 保持 `false` ——「置空」= 来源未配置，
-// 不是整条隐藏（面板仍占一行、显示「未配置」）。
-registerSource({
-	id: "langrisser",
-	defaultHidden: false,
-	tz: "Asia/Shanghai",
-	name: "梦幻模拟战",
-			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/71/f6/6e/71f66e00-6fdc-5f63-76bc-3ea3389d03c5/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/512x512bb.jpg",
-	url: "",
-	altSources: [{
-		label: "Bwiki 召唤一览（停更）",
-		url: ns_langrisser_URL,
-		fetcher: "langrisser-stopped"
-	}],
-	eventUrl: ""
-});
 registerSource({
 	id: "crashfever",
 	defaultHidden: false,
 	tz: ns_crashfever_TZ,
-	name: "CrashFever·日服",
+	name: "粉碎狂热·日服",
 			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/96/9a/78/969a78f3-9c5f-e0d8-23bd-db2153b133ad/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 	url: ns_crashfever_URL,
 	source: "Bwiki 卡池一览",
-	eventUrl: ""
-});
-registerSource({
-	id: "bfzy",
-	defaultHidden: false,
-	tz: "Asia/Shanghai",
-	name: "百分之一",
-			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/83/a4/e4/83a4e4f5-ce7f-1b6f-aab8-ae53746722fc/AppIcon-1x_U007emarketing-0-6-0-85-220-0.png/512x512bb.jpg",
-	url: "",
-	altSources: [{
-		label: "Bwiki 历史卡池（停更）",
-		url: ns_bfzy_URL,
-		fetcher: "bfzy-stopped"
-	}],
 	eventUrl: ""
 });
 registerSource({
@@ -29072,14 +28883,8 @@ registerSource({
 	eventUrl: ns_gwdz_CAL_URL,
 	eventSource: "Bwiki 活动日历"
 });
-GACHA_FETCHERS["langrisser"] = (url, signal, tz, now) => ns_langrisser_gacha(url, signal, tz, now);
 GACHA_FETCHERS["crashfever"] = (url, signal, tz, now) => ns_crashfever_gacha(url, signal, tz, now);
-GACHA_FETCHERS["bfzy"] = (url, signal, tz, now) => ns_bfzy_gacha(url, signal, tz, now);
 GACHA_FETCHERS["gwdz"] = (url, signal, tz, now) => ns_gwdz_gacha(url, signal, tz, now);
-// 备选源键（主源 `url: ""` ⇒ 默认不抓；用户手动切到「（停更）」那一项时才被路由到这里）。
-// 直接别名到原抓取器 —— 解析代码只有一份，不另造实现（见 test/all.mjs 的备选源登记守卫）。
-GACHA_FETCHERS["langrisser-stopped"] = (url, signal, tz, now) => ns_langrisser_gacha(url, signal, tz, now);
-GACHA_FETCHERS["bfzy-stopped"] = (url, signal, tz, now) => ns_bfzy_gacha(url, signal, tz, now);
 EVENT_FETCHERS["gwdz"] = Object.assign(EVENT_FETCHERS["gwdz"] || {}, {
 	default: (url, signal, tz, now) => ns_gwdz_events(url, signal, tz, now)
 });

@@ -1,8 +1,0 @@
-{
-  "url": "https://wiki.biligame.com/langrisser/api.php?action=ask&format=json&query=%5B%5B%E5%88%86%E7%B1%BB%3A%E5%8F%AC%E5%94%A4%5D%5D%5B%5B%E5%BC%80%E5%A7%8B%3A%3A%2B%5D%5D%7C%3F%E5%90%8D%E7%A7%B0%7C%3F%E5%BC%80%E5%A7%8B%7C%3F%E7%BB%93%E6%9D%9F%7C%3F%E9%A1%B9%E7%9B%AE%7Csort%3D%E5%BC%80%E5%A7%8B%7Corder%3Ddesc%7Climit%3D100",
-  "status": 200,
-  "capturedAt": "2026-11-15T08:50:00.000Z",
-  "bytes": 3467,
-  "sha256": "38d2d6ca2bf67fa6",
-  "note": "真抓裁剪：原响应 100 行（`[[分类:召唤]][[开始::+]]` sort=开始 desc limit=100，最新一条 2026-09-10~2026-10-14）/ 59,176 B → 只保留 6 行（2026-08-20 ~ 2026-09-10；含 `项目` 有值 4 行 / 空值 2 行）。`printrequests` / `serializer` / `version` / `meta` 原样保留，只删没选中的 `results` 行。"
-}

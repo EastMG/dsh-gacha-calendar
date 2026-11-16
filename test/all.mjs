@@ -185,7 +185,7 @@ const batches = [
 	["OurNotes 国际服（SPICA 数据 JSON：`_durl` 现解 → gachapages/events 一次拿全；JST 墙钟 → UTC+8 展示；picks 按 id 查角色）", runOnGlobalSpica],
 	["BOM 守卫（钩子扫描改 Node：三平台一致 + 字面量修复命令 + setup:hooks 跨平台）", runBomHook],
 	["第五批第三方来源（棕色尘埃2 browndust2：bannerhistory.app 的 RSC flight 负载 `rows[].groups[]` —— 池名 + 角色 + 绝对毫秒起止；只有卡池侧、24h 缓存）", runBatch5],
-	["第五批新来源（4 款 bwiki：梦幻模拟战 / CrashFever / 百分之一 / 怪物弹珠；SMW ask + wikitext 表 + Data JSON + 活动日历 CALENDAR_DATA）", runBatch6]
+	["第五批新来源（2 款 bwiki：粉碎狂热 / 怪物弹珠；SMW ask + Data JSON + 活动日历 CALENDAR_DATA）", runBatch6]
 ];
 const before = counts();
 for (const [label, fn] of batches) {

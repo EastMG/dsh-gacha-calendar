@@ -1,17 +1,15 @@
-// test/cases-batch6.mjs —— 第五批新来源（2026-11-15 接入）：4 款 bwiki 游戏
+// test/cases-batch6.mjs —— 第五批来源（2026-11-15 接入；2026-11-16 精简为 2 款 bwiki 游戏）
 //
-//   · `langrisser` 梦幻模拟战 —— SMW `action=ask` 查 `分类:召唤`（名称/开始/结束/项目）
-//   · `crashfever` CrashFever —— SMW `action=ask` 查 `类别::卡池`（标题/时间/结束时间/类别）
-//   · `bfzy` 百分之一 —— 页面 `历史卡池` 的 wikitext 表格（更新日/卡池/新UP/上期UP，530 行）
+//   · `crashfever` 粉碎狂热（CrashFever）—— SMW `action=ask` 查 `类别::卡池`（标题/时间/结束时间/类别）
 //   · `gwdz` 怪物弹珠 —— 卡池 `Data:GachaConfig.json`（**JSON 直读**）+ 活动 `Widget:游戏活动日历`
 //     的 `CALENDAR_DATA.events`（JS 对象字面量，按括号切、**不 eval**）
 //
 // ── 这一段守什么 ──
 //   ① **注册项**：id / 名称 / tz / 来源标签（逐字）/ 出厂展示 / 配色 / URL 逐字；
-//   ② **真夹具驱动**：SMW `_dat` 的 `1/2026/9/10` 形态 / 历史表两种日期写法（`[[公告|日期]]` 与裸日期）
+//   ② **真夹具驱动**：SMW `_dat` 的 `1/2026/9/10` 形态
 //      / `Data:GachaConfig.json`（含 `9999` 哨兵与 `启用:false` 模板条目）/ `CALENDAR_DATA`
 //      （`recur` 每月轮换必须跳过）→ 「名 + 起止」都对得上绝对毫秒；
-//   ③ **引擎整轮 + 请求数**（bwiki 一律走宿主代理：1 / 1 / 1 / 2）；
+//   ③ **引擎整轮 + 请求数**（bwiki 一律走宿主代理：1 / 2）；
 //   ④ **反证**：`{}` ⇒ **抛错**（结构损坏，不是 nomatch：引擎记 `*Fail`、面板不会静默"未公布"）；
 //      抹掉时间锚点 ⇒ 该条**不进外显**（不抛、不硬凑）；
 //      终点是 `9999` 哨兵的常驻池 ⇒ `endTs = null` ⇒ 不算当期。
@@ -24,12 +22,10 @@ import { check, section, fixtureBody, assertHoverConvention } from "./harness.mj
 import { T } from "./load.mjs";
 
 const TZ_CN = "Asia/Shanghai";
-const TZ_JP = "Asia/Tokyo";   // CrashFever（日服）
+const TZ_JP = "Asia/Tokyo";   // 粉碎狂热（日服）
 const B5 = T.parsers.batch5;
 
-const LR_URL = B5.LANGRISSER_URL;
 const CF_URL = B5.CRASHFEVER_URL;
-const BF_URL = B5.BFZY_URL;
 const GW_JSON_URL = B5.GWDZ_GACHA_URL;
 const GW_CAL_URL = B5.GWDZ_CAL_URL;
 
@@ -62,8 +58,6 @@ const makeTransport = (sink, overrides) => ({
 const engineAt = (now, shownId, sink, overrides, customUrls) => {
 	const others = allIds().filter((x) => x !== shownId);
 	const seed = { hidden: others, shown: [shownId] };
-	// 2026-11-15 晚：langrisser / bfzy 的来源**默认置空**（`url: ""` = 未配置），
-	// 要测"手动切到备选源（停更）"那条路径就得像设置页一样写 `customUrls`（值 = 备选源的 url）。
 	if (customUrls) seed.customUrls = JSON.stringify(customUrls);
 	return createEngine({
 		transport: makeTransport(sink, overrides),
@@ -85,41 +79,22 @@ const refreshAt = async (now, id, sink, overrides, customUrls) => {
 };
 
 export default async function run() {
-	// ═════════ ① 注册项（4 条）═════════
-	section("第五批 ①：4 条注册项（id / 名称 / tz / 标签逐字 / 出厂展示 / 配色 / 来源）");
+	// ═════════ ① 注册项（2 条）═════════
+	section("第五批 ①：2 条注册项（id / 名称 / tz / 标签逐字 / 出厂展示 / 配色 / 来源）");
 	{
-		// 2026-11-15 晚（用户口径）：langrisser / bfzy 的**来源默认置空**（`url: ""` + 不写 `source`），
-		// 原 wiki 源降为备选源并标「（停更）」—— URL/标签改成断言 `altSources[0]`。
 		const want = [
-			["langrisser", "梦幻模拟战", "Bwiki 召唤一览（停更）", LR_URL, null],
-			["crashfever", "CrashFever·日服", "Bwiki 卡池一览", CF_URL, null],
-			["bfzy", "百分之一", "Bwiki 历史卡池（停更）", BF_URL, null],
+			["crashfever", "粉碎狂热·日服", "Bwiki 卡池一览", CF_URL, null],
 			["gwdz", "怪物弹珠·日服", "Bwiki 卡池配置", GW_JSON_URL, "Bwiki 活动日历"]
 		];
-		for (const [id, name, altLabel, altUrl, eventLabel] of want) {
+		for (const [id, name, gachaLabel, url, eventLabel] of want) {
 			const s = srcOf(id);
-			const isStopped = id === "langrisser" || id === "bfzy";
 			check(`${id} 已注册（name / tz / 标签逐字）`,
-				!!s && s.name === name && s.tz === (id === "crashfever" ? TZ_JP : TZ_CN)
-				&& (isStopped ? !!s.altSources && s.altSources[0].label === altLabel : s.source === altLabel),
-				s ? JSON.stringify([s.name, s.tz, s.source, (s.altSources || []).map((a) => a.label)]) : "缺失");
-			// 2026-11-15 晚：`defaultHidden` **恢复 false** ——「置空」= 来源未配置，不是整条隐藏。
+				!!s && s.name === name && s.tz === (id === "crashfever" ? TZ_JP : TZ_CN) && s.source === gachaLabel,
+				s ? JSON.stringify([s.name, s.tz, s.source]) : "缺失");
 			check(`${id} 出厂默认展示（defaultHidden = false）`, !!s && s.defaultHidden === false, s && String(s.defaultHidden));
 			check(`${id} 有配色（面板「颜色 = 游戏」）`, !!s && /^#[0-9A-F]{6}$/i.test(String(s.color)), s && String(s.color));
-			if (isStopped) {
-				check(`${id} 卡池来源默认置空（\`url: ""\` + 不写 \`source\` ⇒ 设置页/面板「未配置」）`,
-					!!s && s.url === "" && s.source === void 0,
-					s ? JSON.stringify([s.url, s.source]) : "缺失");
-				const alt = (s && s.altSources && s.altSources[0]) || null;
-				check(`${id} 原来源降为备选源：altSources[0] =「${altLabel}」/ URL 逐字 / fetcher 已登记`,
-					!!alt && (s.altSources || []).length === 1 && alt.label === altLabel && alt.url === altUrl
-					&& alt.fetcher === id + "-stopped" && typeof T.GACHA_FETCHERS[alt.fetcher] === "function",
-					JSON.stringify([s && s.altSources, alt && typeof T.GACHA_FETCHERS[alt.fetcher]]));
-			} else {
-				check(`${id} 卡池来源标签逐字 + URL 逐字（本批不动）`,
-					!!s && s.source === altLabel && s.url === altUrl,
-					s ? JSON.stringify([s.source, String(s.url).slice(0, 120)]) : "缺失");
-			}
+			check(`${id} 卡池来源标签逐字 + URL 逐字`, !!s && s.source === gachaLabel && s.url === url,
+				s ? JSON.stringify([s.source, String(s.url).slice(0, 120)]) : "缺失");
 			if (eventLabel) {
 				check(`${id} 活动侧标签 =「${eventLabel}」/ URL 与卡池不同`,
 					!!s && s.eventSource === eventLabel && s.eventUrl === GW_CAL_URL && s.eventUrl !== s.url,
@@ -128,85 +103,14 @@ export default async function run() {
 				check(`${id} 活动侧未配置（eventUrl 为空串）`, !!s && s.eventUrl === "", s && JSON.stringify(s.eventUrl));
 			}
 		}
-		check("4 条 id 全局唯一（没和既有来源撞 id）", new Set(allIds()).size === allIds().length, String(allIds().length));
+		check("2 条 id 全局唯一（没和既有来源撞 id）", new Set(allIds()).size === allIds().length, String(allIds().length));
 		check("gwdz 两侧来源标签不同（卡池配置 / 活动日历）",
 			srcOf("gwdz").source !== srcOf("gwdz").eventSource,
 			JSON.stringify([srcOf("gwdz").source, srcOf("gwdz").eventSource]));
 	}
 
-	// ═════════ ② langrisser：SMW `_dat` 形态 + 引擎整轮 ═════════
-	section("第五批 ②：梦幻模拟战（langrisser）真夹具 —— SMW ask / 反证 / 引擎整轮");
-	{
-		const LR_NOW = Date.parse("2026-09-20T12:00:00+08:00");
-		check("`_dat.raw` 解析：`1/2026/9/10` ⇒ 2026-09-10（只有日期）/ `1/2026/11/12/15/0/0/0` ⇒ 带 15:00",
-			JSON.stringify(B5.ns_b5_pointOfText("1/2026/9/10")) === JSON.stringify({ y: 2026, mo: 9, d: 10, h: null, mi: null })
-			&& JSON.stringify(B5.ns_b5_pointOfText("1/2026/11/12/15/0/0/0")) === JSON.stringify({ y: 2026, mo: 11, d: 12, h: 15, mi: 0 }),
-			JSON.stringify([B5.ns_b5_pointOfText("1/2026/9/10"), B5.ns_b5_pointOfText("1/2026/11/12/15/0/0/0")]));
-
-		const json = JSON.parse(fixtureBody(LR_URL));
-		const items = B5.langrisserParseAsk(json, TZ_CN);
-		check("ask ⇒ 6 条（夹具裁剪后的行数）", items.length === 6, String(items.length));
-		const top = items.find((x) => x.banner === "炽潮双刃，斩浪焚海");
-		check("最新一期：2026-09-10 00:00 ~ 10-14 23:59 +08（UTC 手算 09-09T16:00Z / 10-14T15:59Z）",
-			!!top && top.startTs === Date.UTC(2026, 8, 9, 16, 0) && top.endTs === Date.UTC(2026, 9, 14, 15, 59),
-			JSON.stringify(top && [top.startTs, top.endTs]));
-		check("`项目` = UP 角色（多值 `、` 连接）⇒ roles，raw 只写日期、display 补全时刻",
-			!!top && top.roles === "妮、红莲" && top.raw === "2026-09-10 ~ 2026-10-14"
-			&& top.display === "09-10 00:00 ~ 10-14 23:59",
-			JSON.stringify(top && [top.roles, top.raw, top.display]));
-		const noRoles = items.find((x) => x.banner === "轮纪·许愿召唤");
-		check("`项目` 为空的那期 ⇒ roles = 空串（不编角色）", !!noRoles && noRoles.roles === "", JSON.stringify(noRoles && noRoles.roles));
-
-		const payload = B5.langrisserPayloadOf(items, TZ_CN, LR_NOW);
-		check("外显（now=2026-09-20）：炽潮双刃，斩浪焚海 / 09-10 00:00 ~ 10-14 23:59 / roles 妮、红莲",
-			!!payload && payload.banner === "炽潮双刃，斩浪焚海"
-			&& payload.bannerDates === "09-10 00:00 ~ 10-14 23:59"
-			&& payload.bannerDatesRaw === "2026-09-10 ~ 2026-10-14"
-			&& payload.roles === "妮、红莲"
-			&& payload.gacha.length === 1 && payload.gacha[0].key === "langrisser:gacha:0",
-			JSON.stringify(payload && [payload.banner, payload.bannerDates, payload.roles]));
-		if (payload && payload.bannerHover) assertHoverConvention("langrisser 卡池悬停", payload.bannerHover);
-		check("当期没有（now=2026-11-15）⇒ null（夹具最新一期 10-14 已结束）",
-			B5.langrisserPayloadOf(items, TZ_CN, Date.parse("2026-11-15T12:00:00+08:00")) === null);
-
-		// 反证 ①：结构损坏（`{}`）⇒ 纯解析抛错（不是"未公布"）
-		check("反证：`{}` ⇒ 抛错 `langrisser-ask:bad-json`", throws(() => B5.langrisserParseAsk({}), /langrisser-ask:bad-json/));
-		// 反证 ②：抹掉时间锚点 ⇒ 该条不进外显
-		const noAnchor = JSON.parse(fixtureBody(LR_URL));
-		const row = noAnchor.query.results["召唤/20260910/炽潮双刃，斩浪焚海"];
-		delete row.printouts["开始"];
-		delete row.printouts["结束"];
-		const items2 = B5.langrisserParseAsk(noAnchor, TZ_CN);
-		check("反证：抹掉在期那一期的 开始/结束 ⇒ 条目数 6→5，且外显 null（不抛、不硬凑）",
-			items2.length === 5 && B5.langrisserPayloadOf(items2, TZ_CN, LR_NOW) === null,
-			JSON.stringify([items2.length, B5.langrisserPayloadOf(items2, TZ_CN, LR_NOW) && "有外显"]));
-
-		// 引擎整轮（默认）：来源**置空**⇒ 一个请求都不发、不记失败（那是「未配置」，不是"未公布"）
-		const calls0 = [];
-		const recNone = await refreshAt(LR_NOW, "langrisser", calls0, null);
-		check("引擎（默认置空）：整轮 **0 次**请求、两侧都不记失败（未配置 ≠ 抓取失败）",
-			calls0.length === 0 && !recNone.banner && recNone.gachaFail === null && recNone.eventFail === null,
-			"requests=" + calls0.length + " " + JSON.stringify([recNone.banner, recNone.gachaFail, recNone.eventFail]));
-
-		// 引擎整轮（手动切到备选源「Bwiki 召唤一览（停更）」）：1 个请求
-		const calls = [];
-		const rec = await refreshAt(LR_NOW, "langrisser", calls, null, { langrisser: LR_URL });
-		check("引擎（切备选源）：整轮 **1 次**请求（SMW ask 一次拿全；sort=开始 desc 保证最新一期在首页）",
-			calls.length === 1 && calls[0] === withOrigin(LR_URL), "requests=" + calls.length + " " + JSON.stringify(calls.slice(0, 2)));
-		check("引擎外显：banner / bannerDates / roles 与解析层一致，gachaFail = null",
-			rec.banner === "炽潮双刃，斩浪焚海" && rec.bannerDates === "09-10 00:00 ~ 10-14 23:59"
-			&& rec.roles === "妮、红莲" && rec.gachaFail === null,
-			JSON.stringify([rec.banner, rec.bannerDates, rec.gachaFail]));
-		if (rec.bannerHover) assertHoverConvention("langrisser 引擎悬停", rec.bannerHover, { requireSet: true });
-		// 反证 ③：`{}` 走引擎（切到备选源）⇒ 记失败（面板会报"抓取失败"，不会静默"未公布"）
-		const recBad = await refreshAt(LR_NOW, "langrisser", [], { [withOrigin(LR_URL)]: "{}" }, { langrisser: LR_URL });
-		check("反证：引擎遇到 `{}` ⇒ gachaFail 非空、无外显（与非 nomatch 区分开）",
-			recBad.gachaFail != null && !recBad.banner,
-			JSON.stringify([recBad.gachaFail, recBad.banner]));
-	}
-
-	// ═════════ ③ crashfever：同窗口多池 + 结构性坏行 ═════════
-	section("第五批 ③：CrashFever（crashfever）真夹具 —— ask / 悬停 / 反证 / 引擎整轮");
+	// ═════════ ③ crashfever（粉碎狂热）：同窗口多池 + 结构性坏行 ═════════
+	section("第五批 ③：粉碎狂热（crashfever）真夹具 —— ask / 悬停 / 反证 / 引擎整轮");
 	{
 		const CF_NOW = Date.parse("2026-11-15T12:00:00+08:00");
 		const json = JSON.parse(fixtureBody(CF_URL));
@@ -257,75 +161,6 @@ export default async function run() {
 			&& rec.gacha && rec.gacha.every((x) => x.category === "卡池"),
 			JSON.stringify([rec.banner, rec.bannerDates, rec.gachaFail]));
 		if (rec.bannerHover) assertHoverConvention("crashfever 引擎悬停", rec.bannerHover, { requireSet: true });
-	}
-
-	// ═════════ ④ bfzy：历史表 → 相邻更新日窗口 ═════════
-	section("第五批 ④：百分之一（bfzy）真夹具 —— wikitext 表 / 窗口推定 / 反证 / 引擎整轮");
-	{
-		const BF_NOW_PREV = Date.parse("2026-09-02T12:00:00+08:00");   // 上一期（08-28 起）在期
-		const BF_NOW_NEW = Date.parse("2026-09-05T12:00:00+08:00");    // 最新一期（09-04 起）在期
-		const outer = JSON.parse(fixtureBody(BF_URL));
-		const rows = B5.bfzyRowsOf(outer.parse.wikitext);
-		check("表 ⇒ 6 行（2 个更新日 × 3 行），卡池列 80抽·第1天 / 50抽·第2天 / 50抽·第1天",
-			rows.length === 6 && rows[0].date === "2026-09-04" && rows[0].pool === "80抽·第1天",
-			JSON.stringify(rows.map((r) => [r.date, r.pool])));
-		check("新UP 去掉 `'''粗体` 与 `[[链接]]`（两种写法都吃）",
-			rows[2].up === "天穹统御·中途岛" && rows[0].up === "礼装的双子温蒂尼",
-			JSON.stringify([rows[0].up, rows[2].up]));
-
-		const items = B5.bfzyParseHistory(outer.parse.wikitext, TZ_CN);
-		check("窗口 = [更新日 00:00, 下一更新日 00:00)；最新一期按每周轮换 +7 天",
-			items.length === 6
-			&& items[0].startTs === Date.UTC(2026, 8, 3, 16, 0) && items[0].endTs === Date.UTC(2026, 8, 10, 16, 0)
-			&& items[3].startTs === Date.UTC(2026, 7, 27, 16, 0) && items[3].endTs === Date.UTC(2026, 8, 3, 16, 0),
-			JSON.stringify(items.map((x) => [x.startTs, x.endTs])));
-		check("raw 只有源站原文的更新日（止是推定值，不进 raw）",
-			items[0].raw === "2026-09-04" && items[0].display === "09-04 00:00 ~ 09-11 00:00",
-			JSON.stringify([items[0].raw, items[0].display]));
-
-		const pPrev = B5.bfzyPayloadOf(items, TZ_CN, BF_NOW_PREV);
-		const pNew = B5.bfzyPayloadOf(items, TZ_CN, BF_NOW_NEW);
-		check("外显（now=09-02）= 08-28 那一期：「80抽·第2天」+ 3 张新UP 合并 / 08-28 00:00 ~ 09-04 00:00",
-			!!pPrev && pPrev.banner === "80抽·第2天"
-			&& pPrev.bannerDates === "08-28 00:00 ~ 09-04 00:00"
-			&& pPrev.roles === "奇迹锚点·约克城、凝华·天津四、蔷薇密令·希尔达"
-			&& pPrev.gacha.length === 4 && pPrev.gacha[0].category === "80抽·第2天",
-			JSON.stringify(pPrev && [pPrev.banner, pPrev.bannerDates, pPrev.roles]));
-		check("外显（now=09-05）= 09-04 那一期：「80抽·第1天」/ 09-04 00:00 ~ 09-11 00:00",
-			!!pNew && pNew.banner === "80抽·第1天" && pNew.bannerDates === "09-04 00:00 ~ 09-11 00:00"
-			&& pNew.roles === "礼装的双子温蒂尼、宵练赤虹·乞巧、天穹统御·中途岛",
-			JSON.stringify(pNew && [pNew.banner, pNew.bannerDates, pNew.roles]));
-		if (pNew && pNew.bannerHover) assertHoverConvention("bfzy 卡池悬停", pNew.bannerHover, { requireSet: true });
-
-		// 反证：抹掉最新一期的日期 ⇒ 只剩 08-28 一行组 ⇒ now=09-05 已过其止 ⇒ 外显 null
-		const noAnchor = JSON.parse(fixtureBody(BF_URL));
-		noAnchor.parse.wikitext = noAnchor.parse.wikitext.split("|2026-09-04]]").join("|]]");
-		check("反证：抹掉在期那一期的更新日 ⇒ 表里只剩 08-28 组、外显 null（不抛）",
-			(() => {
-				const it = B5.bfzyParseHistory(noAnchor.parse.wikitext, TZ_CN);
-				return it.length === 3 && B5.bfzyPayloadOf(it, TZ_CN, BF_NOW_NEW) === null;
-			})(),
-			JSON.stringify(noAnchor.parse.wikitext.includes("2026-09-04")));
-
-		// 引擎（默认）：来源**置空** ⇒ 0 次请求、不记失败
-		const calls0 = [];
-		const recNone = await refreshAt(BF_NOW_NEW, "bfzy", calls0, null);
-		check("引擎（默认置空）：整轮 **0 次**请求、两侧都不记失败（未配置 ≠ 抓取失败）",
-			calls0.length === 0 && !recNone.banner && recNone.gachaFail === null && recNone.eventFail === null,
-			"requests=" + calls0.length + " " + JSON.stringify([recNone.banner, recNone.gachaFail, recNone.eventFail]));
-
-		const recBad = await refreshAt(BF_NOW_NEW, "bfzy", [], { [withOrigin(BF_URL)]: "{}" }, { bfzy: BF_URL });
-		check("反证：引擎遇到 {}（没有 parse.wikitext）⇒ gachaFail 非空、无外显（与非 nomatch 区分开）",
-			recBad.gachaFail != null && !recBad.banner, JSON.stringify([recBad.gachaFail, recBad.banner]));
-
-		const calls = [];
-		const rec = await refreshAt(BF_NOW_NEW, "bfzy", calls, null, { bfzy: BF_URL });
-		check("引擎（切备选源）：整轮 **1 次**请求（一次 parse 拿整页 wikitext）",
-			calls.length === 1 && calls[0] === withOrigin(BF_URL), "requests=" + calls.length);
-		check("引擎外显：banner = 80抽·第1天 / 09-04 00:00 ~ 09-11 00:00 / gachaFail = null",
-			rec.banner === "80抽·第1天" && rec.bannerDates === "09-04 00:00 ~ 09-11 00:00" && rec.gachaFail === null,
-			JSON.stringify([rec.banner, rec.bannerDates, rec.gachaFail]));
-		if (rec.bannerHover) assertHoverConvention("bfzy 引擎悬停", rec.bannerHover, { requireSet: true });
 	}
 
 	// ═════════ ⑤ gwdz 卡池侧：JSON 直读（哨兵 / 启用:false）═════════

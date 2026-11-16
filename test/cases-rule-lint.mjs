@@ -186,7 +186,7 @@ export default async function run() {
 	// 2026-11-15 再 -1：删除 `30-game-bwiki-dhmmr.js`（深空之眼，陪伴服视同停运）⇒ bwiki 系仍是 20（删掉的 dhmmr 原属这 20 之外的单列统计，见 actual）；合计 34 + 20 = 54 个文件。
 	// 2026-11-15 合并两条已完成分支：
 	//   · 第三方 1 条（`30-game-browndust2.js`，棕色尘埃2）⇒ 厂商级 33 + 1 = 34；
-	//   · 第五批 bwiki 4 款共用一个文件（`30-game-bwiki-batch5.js`：langrisser / crashfever / bfzy / gwdz，
+	//   · 第五批 bwiki 2 款共用一个文件（`30-game-bwiki-batch5.js`：crashfever / gwdz，
 	//     四个源站都在 `wiki.biligame.com` ⇒ 按既有「站点归类」计入 bwiki 系）⇒ bwiki 系 20 + 1 = 21。
 	//   合计 34 + 21 = 55 个文件。
 	check("游戏文件齐备（33 个厂商/系列文件 + bwiki 系 20 段 = 53 个）",
