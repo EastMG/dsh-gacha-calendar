@@ -18,6 +18,9 @@
 			parsers: {
 			"p5x": {
 				eventsP5x: ns_p5x_eventsP5x,
+				// 2026-11-18：活动条目的挑选优先级（rank → endTs → 原文顺序），供回归直测
+				eventRankOf: ns_p5x_eventRankOf,
+				orderEventsOf: ns_p5x_orderEventsOf,
 				gachaP5x: ns_p5x_gachaP5x,
 				p5xBodyText: ns_p5x_p5xBodyText,
 				parseP5xBlocks: ns_p5x_parseP5xBlocks,

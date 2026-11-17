@@ -130,13 +130,57 @@ export default async function run() {
 		const src = findSource("p5x");
 		const g = await src.gacha.fetcher(src.gacha.url, undefined, src.tz, NOW_1110);
 		const e = await src.event.fetcher(src.event.url, undefined, src.tz, NOW_1110);
-		check("活动侧：当期 = 贝萨出品，档期「10-22 00:00 ~ 11-19 23:59」，原文逐字",
-			!!e && e.event === "贝萨出品" && e.eventDates === "10-22 00:00 ~ 11-19 23:59"
-			&& e.eventDatesRaw === "2026年10月22日-2026年11月19日",
+		// ── 2026-11-18 活动侧挑选优先级（**已批准差异**：外显由「贝萨出品」改为「「统统创飞」活动开启」）──
+		// 旧值：贝萨出品 / 10-22 00:00 ~ 11-19 23:59（按"结束最早"选中 —— 三块结束时刻全等 11-19 23:59，
+		//   贝萨的起点最早 10-22 ⇒ 排序后第一）。它其实是**栏目/店铺名**（源站小节行 `活动更新-贝萨出品`）。
+		// 新值来源（逐条可验，不靠人看）：
+		//   · 三块的类别行**都是** `活动更新`（下面的 itemFacts 逐字断言）⇒ 任务书假设的"类别=活动"在这款
+		//     源站不存在，光靠类别分不出活动与栏目名；所以 rank 规则在「其余」档里再按标题把 `…出品` 降一档；
+		//   · 「「统统创飞」活动开启」标题里就写着「活动」⇒ 与「怪盗幻像的试炼」同为 rank 2，
+		//     两者结束时刻相同（11-19 23:59）⇒ 保持原文顺序 ⇒ 统统创飞在前，成为外显。
+		check("活动侧：当期 = 「统统创飞」活动开启（**已批准差异**，旧值「贝萨出品」）/ 11-05 00:00 ~ 11-19 23:59 / 原文逐字",
+			!!e && e.event === "「统统创飞」活动开启" && e.eventDates === "11-05 00:00 ~ 11-19 23:59"
+			&& e.eventDatesRaw === "2026年11月5日-2026年11月19日",
 			JSON.stringify(e && [e.event, e.eventDates, e.eventDatesRaw]));
-		check("活动悬停含 3 条当期（贝萨出品 / 统统创飞 / 怪盗幻像的试炼）",
-			!!e && e.eventHover === "贝萨出品   10-22 00:00 ~ 11-19 23:59\n「统统创飞」活动开启   11-05 00:00 ~ 11-19 23:59\n怪盗幻像的试炼   11-05 00:00 ~ 11-19 23:59",
+		check("活动侧：**栏目/店铺名「贝萨出品」不再被选中**（它不是活动名）+ 它仍在数组/悬停里（一条不删）",
+			!!e && e.event !== "贝萨出品"
+			&& Array.isArray(e.events) && e.events.length === 3
+			&& e.events.some((x) => x.title === "贝萨出品")
+			&& String(e.eventHover || "").split("\n").some((l) => l.startsWith("贝萨出品   ")),
+			JSON.stringify(e && [e.event, (e.events || []).map((x) => x.title)]));
+		check("活动悬停按 rank 排序（**已批准差异**，旧值「贝萨出品 / 统统创飞 / 怪盗幻像」⇒ 现在 统统创飞 / 怪盗幻像 / 贝萨出品）",
+			!!e && e.eventHover === "「统统创飞」活动开启   11-05 00:00 ~ 11-19 23:59\n"
+			+ "怪盗幻像的试炼   11-05 00:00 ~ 11-19 23:59\n"
+			+ "贝萨出品   10-22 00:00 ~ 11-19 23:59",
 			JSON.stringify(e && e.eventHover));
+		check("三块的类别行逐字都是 `活动更新`（= 任务书假设的「类别=活动」与实测不符，这是 rank 规则要降级「出品」的依据）",
+			!!e && e.itemFacts && e.itemFacts["贝萨出品"] && e.itemFacts["贝萨出品"].category === "活动更新"
+			&& e.itemFacts["「统统创飞」活动开启"].category === "活动更新"
+			&& e.itemFacts["怪盗幻像的试炼"].category === "活动更新",
+			JSON.stringify(e && e.itemFacts));
+		check("rank 纯函数：类别「活动」+ 标题含活动 = 0；类别「活动」= 1；「…更新」类 = 2；标题以「出品」结尾 = 3",
+			T.parsers.p5x.eventRankOf({ category: "活动", title: "「统统创飞」活动开启" }) === 0
+			&& T.parsers.p5x.eventRankOf({ category: "活动", title: "怪盗幻像的试炼" }) === 1
+			&& T.parsers.p5x.eventRankOf({ category: "活动更新", title: "「统统创飞」活动开启" }) === 2
+			&& T.parsers.p5x.eventRankOf({ category: "活动更新", title: "贝萨出品" }) === 3
+			&& T.parsers.p5x.eventRankOf({ category: "活动BOSS更新", title: "某BOSS" }) === 2,
+			[
+				["活动", "「统统创飞」活动开启"], ["活动", "怪盗幻像的试炼"],
+				["活动更新", "「统统创飞」活动开启"], ["活动更新", "贝萨出品"], ["活动BOSS更新", "某BOSS"]
+			].map(([c, t]) => c + "/" + t + "=" + T.parsers.p5x.eventRankOf({ category: c, title: t })).join(" | "));
+		check("rank 排序（纯函数）：rank 优先、同 rank 按 endTs 升序、再按原文顺序（稳定）",
+			JSON.stringify(T.parsers.p5x.orderEventsOf([
+				{ block: { category: "活动更新", title: "贝萨出品" }, win: { startTs: 1, endTs: 100 } },
+				{ block: { category: "活动更新", title: "甲活动" }, win: { startTs: 2, endTs: 100 } },
+				{ block: { category: "活动更新", title: "乙活动" }, win: { startTs: 3, endTs: 90 } },
+				{ block: { category: "活动", title: "丙" }, win: { startTs: 4, endTs: 200 } }
+			]).map((x) => x.block.title)) === JSON.stringify(["丙", "乙活动", "甲活动", "贝萨出品"]),
+			JSON.stringify(T.parsers.p5x.orderEventsOf([
+				{ block: { category: "活动更新", title: "贝萨出品" }, win: { startTs: 1, endTs: 100 } },
+				{ block: { category: "活动更新", title: "甲活动" }, win: { startTs: 2, endTs: 100 } },
+				{ block: { category: "活动更新", title: "乙活动" }, win: { startTs: 3, endTs: 90 } },
+				{ block: { category: "活动", title: "丙" }, win: { startTs: 4, endTs: 200 } }
+			]).map((x) => x.block.title)));
 		// 2026-11-10 修（任务 4）：卡池区块候选从「只认契约」扩到「契约 | 扭蛋」，且「契约更新」的档期是
 		// **裸行**（`2026年9月24日-2026年11月19日`，没有「活动时间：」前缀）也要认。两处都改后：
 		//   · 本期在期的「限定扭蛋复刻」（10-22 ~ 12-24，公告里排在契约更新之前）成为当期卡池；

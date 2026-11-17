@@ -516,8 +516,39 @@ async function ns_p5x_gachaP5x(url, signal, tz = "Asia/Shanghai", now = nowMs())
 }
 
 // ── 活动侧 ──
-// 只认「活动」类区块（`活动更新` / `活动BOSS更新`）。外显取**最早结束**的当期活动（最紧迫），
-// 悬停按结束时间升序逐行列出全部当期活动。
+// 只认「活动」类区块（`活动更新` / `活动BOSS更新`）。
+// 2026-11-18 修：外显不能再只看"结束最早"——源站把**栏目/店铺名**也写成 `活动更新` 类区块
+//   （实测 5.4.2 公告：`活动更新-贝萨出品` 1000+ 字正文，档期 10-22~11-19）；
+//   同一条公告里真正的活动是 `活动更新` + `「统统创飞」活动开启` / `怪盗幻像的试炼`（11-05~11-19）。
+//   三块的类别行**都是** `活动更新`（实测数据，任务书原假设的"类别=活动"在这款源站不存在）⇒
+//   类别本身分不出活动与栏目名，只能用「标题像不像活动」补一档。
+// 挑选优先级（rank 小者先；同一 rank 内仍按 endTs 升序 + 原文顺序 —— 与旧排序只多了一个 rank 前缀）：
+//   rank 0：类别含`活动`且**不含`更新`**，且标题含`活动`   ← 类别行确实是「活动」的源站形态
+//   rank 1：类别含`活动`且不含`更新`                      ← 同上，标题不含「活动」也算活动条目
+//   rank 2：其余（含「…更新」类别里的活动条目）
+//   rank 3：**栏目/店铺名**（标题以`出品`结尾，如「贝萨出品」）—— 它不是活动，永远排最后
+function ns_p5x_eventRankOf(block) {
+	const category = String((block && block.category) || "");
+	const title = String((block && block.title) || "");
+	const catEvent = /活动/.test(category);
+	const catUpdate = /更新/.test(category);
+	if (catEvent && !catUpdate && /活动/.test(title)) return 0;
+	if (catEvent && !catUpdate) return 1;
+	if (/出品$/.test(title)) return 3;
+	return 2;
+}
+// 当期活动：按 rank → endTs 升序 → 原文顺序（稳定排序）排好；外显取第一条，悬停行用同一顺序。
+// ⚠️ `events[]` 的**顺序**不归本文件管：数据层统一口径是 `50-refresh.js` 的 `dataArraySortOf`
+//    （结束升序 → 起点升序 → 原文顺序；`mergeEntryRecord` 落盘前还会再排一次）——它是 61 款共用
+//    的数组不变式（同一份判据也保证"解析器直出数组 == 从悬停文本反解数组"）。所以这次只改
+//    **外显 + 悬停**的顺序，`events[]` 保证**集合不变、一条不删**（「贝萨出品」仍在数组里，
+//    只是不再是外显；它在"结束升序 → 起点升序"里因为起点最早（10-22）而排在数组第一位）。
+function ns_p5x_orderEventsOf(active) {
+	return (Array.isArray(active) ? active : [])
+		.map((x, i) => ({ x, i, rank: ns_p5x_eventRankOf(x.block) }))
+		.sort((a, b) => (a.rank - b.rank) || (a.x.win.endTs - b.x.win.endTs) || (a.i - b.i))
+		.map((o) => o.x);
+}
 // 同上：收 `now` 注入时刻（2026-10-17 修，测试专用契约，默认 nowMs() 保生产行为）
 async function ns_p5x_eventsP5x(url, signal, tz = "Asia/Shanghai", now = nowMs()) {
 	const anns = await ns_p5x_fetchP5xAnnouncements(url, signal, 2);
@@ -531,12 +562,12 @@ async function ns_p5x_eventsP5x(url, signal, tz = "Asia/Shanghai", now = nowMs()
 			if (coversNow(w, now) && b.title) active.push({ block: b, win: w });
 		}
 		if (active.length === 0) continue;
-		// 稳定排序：先按结束时间升序（越紧迫越前），同结束时间保持原文顺序
-		active.sort((a, b) => a.win.endTs - b.win.endTs);
-		const primary = active[0];
+		// 排序：rank（见 `ns_p5x_eventRankOf`）→ 结束时间升序（越紧迫越前）→ 原文顺序
+		const ordered = ns_p5x_orderEventsOf(active);
+		const primary = ordered[0];
 		// ⚠️ 2026-10-03 改：原本手搓 `名称  + 档期`（**2 个空格**），本体一律 **3 个空格** → 改用生成器。
 		// ── P3b：条目事实 → 悬停 + `events` 数组 ──────────────────────────────
-		const eventItems = active.map((x) => ({ title: x.block.title, startTs: x.win.startTs, endTs: x.win.endTs, raw: "" }));
+		const eventItems = ordered.map((x) => ({ title: x.block.title, startTs: x.win.startTs, endTs: x.win.endTs, raw: "" }));
 		const hover = hoverTextFromItems(eventItems, "event", tz);
 		const out = {
 			event: primary.block.title,
@@ -548,7 +579,7 @@ async function ns_p5x_eventsP5x(url, signal, tz = "Asia/Shanghai", now = nowMs()
 		// 早就解析出来了（`ns_p5x_parseP5xBlocks`），此前只用来**分流**区块、没进数组 ⇒ 按标题贴进
 		// `events[]` 的 `category`。值一个字不改；没有类别行的区块（解析不出）⇒ 不写这个键。
 		const facts = {};
-		for (const x of active) if (x.block.category) facts[x.block.title] = { category: x.block.category };
+		for (const x of ordered) if (x.block.category) facts[x.block.title] = { category: x.block.category };
 		if (Object.keys(facts).length) out.itemFacts = facts;
 		out.events = dataArrayProducedEventsOf(out, eventItems, { tz }, now);
 		out.eventHoverItems = eventItems;
