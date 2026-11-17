@@ -493,18 +493,21 @@ export default async function run() {
 	{
 		const raw = readComponentsSource();
 		const comp = codeOnly(raw);
-		check("「近期」行的事项名取 show（show → title → raw 逐级兜底）",
-			/className: "gacha-cal-sched-what", title: scheduleHoverText\(x\), children: [\s\S]{0,200}?children: x\.show \|\| x\.title \|\| x\.raw \|\| "—"/.test(raw));
+		// 2026-11-18 ③：超长外显名在渲染层截断 ⇒ 渲染点统一走 displayShowTextOf（回落顺序仍是
+		// show → title → raw → 「—」，全名留在 title / 模型里）。断言改成"渲染点用同一个函数 + 函数体顺序"。
+		check("「近期」行的事项名取 show（show → title → raw 逐级兜底；渲染层截断走 displayShowTextOf）",
+			/className: "gacha-cal-sched-what", title: scheduleHoverText\(x\), children: [\s\S]{0,200}?children: displayShowTextOf\(x\)/.test(raw)
+			&& /const v = x && \(x\.show \|\| x\.title \|\| x\.raw\);/.test(raw));
 		check("「近期」行不再以 title 开头（反向：.gacha-cal-sched-what 里没有 children: x.title ||）",
 			!/gacha-cal-sched-what"[\s\S]{0,200}?children: x\.title \|\|/.test(raw));
 		check("「近期」行的悬停仍是 scheduleHoverText(x)（源站原文，没被换成 show）",
 			/className: "gacha-cal-sched-what", title: scheduleHoverText\(x\)/.test(raw));
-		check("表格格子 + 探头行仍是同一份表达式（两处 x.show || x.title || x.raw）",
-			(raw.match(/children: x\.show \|\| x\.title \|\| x\.raw \|\| "—"/g) || []).length === 2,
-			String((raw.match(/children: x\.show \|\| x\.title \|\| x\.raw \|\| "—"/g) || []).length));
-		check("留白卡两处事项名（大标题 + 「再往后两件」那一行）也取 show",
-			(raw.match(/children: it\.show \|\| it\.title \|\| ""/g) || []).length === 2,
-			String((raw.match(/children: it\.show \|\| it\.title \|\| ""/g) || []).length));
+		check("表格格子 + 探头行仍是同一份表达式（两处 displayShowTextOf(x)）",
+			(raw.match(/children: displayShowTextOf\(x\)/g) || []).length === 2,
+			String((raw.match(/children: displayShowTextOf\(x\)/g) || []).length));
+		check("留白卡两处事项名（大标题 + 「再往后两件」那一行）也取 show（同一份 displayShowTextOf）",
+			(raw.match(/children: displayShowTextOf\(it\)/g) || []).length === 2,
+			String((raw.match(/children: displayShowTextOf\(it\)/g) || []).length));
 		check("show 的语义本体：卡池侧有 roles ⇒ cleanRoleNames，否则 title；活动侧 ⇒ g.eventShow || title",
 			/const show = \(isG && roles\) \? \(cleanRoleNames\(roles, g\.id\) \|\| title\) : \(isG \? title : \(g\.eventShow \|\| title\)\);/.test(comp));
 		// 活动侧那个只给显示的事项名（`eventShow`）必须**真从抓取结果透传进面板** ——

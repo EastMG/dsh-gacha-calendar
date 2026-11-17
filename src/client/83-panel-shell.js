@@ -629,10 +629,11 @@
 							games.map((g) => {
 								// 卡池列：外显纯角色名（cleanRoleNames 去称号·前缀/属性后缀；蔚蓝档案三服保留括号换装后缀；
 								// 无角色名时显示卡池名），悬停弹出卡池全名+角色；无数据时显示占位符 "—"
-								const gachaVisible = g.roles ? cleanRoleNames(g.roles, g.id) : (g.banner || "—");
+								// 2026-11-18 ③：超长外显名在**显示层**截断（30 码点 + 一个「…」）；标题/悬停仍是全文。
+								const gachaVisible = truncateDisplayNameOf(g.roles ? cleanRoleNames(g.roles, g.id) : (g.banner || "—"));
 								const gachaTitle = (g.roles ? `${g.banner}\uFF1A${g.roles}` : (g.banner || "")) + (g.bannerDates ? `\n${g.bannerDatesRaw || g.bannerDates}` : "");
 								// 活动列：外显活动名称，悬停弹出活动全名+起止（起止显示源站原文）；无数据时显示 "—"
-								const eventName = g.event || "—";
+								const eventName = truncateDisplayNameOf(g.event || "—");
 								const eventTitle = g.event
 									? (g.eventDates ? `${g.event}\n${g.eventDatesRaw || g.eventDates}` : g.event)
 									: (g.eventDatesRaw || g.eventDates || "");

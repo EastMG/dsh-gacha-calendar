@@ -14,7 +14,7 @@
 // 分段与三个 commit 对齐：① 尾巴归一 / ② 泛名让位 / ③ 超长截断。
 
 import { check, section } from "./harness.mjs";
-import { T } from "./load.mjs";
+import { T, readComponentsSource } from "./load.mjs";
 import { createEngine } from "../packages/core/core.mjs";
 
 const TZ_CN = "Asia/Shanghai";
@@ -247,5 +247,90 @@ export default function runDisplayName() {
 		check("反向守卫：数组里没有更具体条目 ⇒ 泛名保持原样（不硬造 / 不改写）",
 			p5x.banner === "限定扭蛋复刻" && p5x.gacha[0].title === "限定扭蛋复刻",
 			JSON.stringify([p5x.banner, p5x.gacha[0].title]));
+	}
+
+	// ══════════════════════════════════════════════════════════════════════════
+	section("外显名 ③：超长截断（显示层 30 码点 + 一个「…」；数据 / 数组 / 悬停仍是全文）");
+	{
+		const LONG_KR = "픽업 프리티 더비 뽑기 & 셀렉트 픽업 서포트 카드 뽑기（[Assorted Cuteness♡] 후사이치 판도라）";
+		check("测试样本本身 > 30 码点（否则截断用例就是空跑）", [...LONG_KR].length > 30, String([...LONG_KR].length));
+
+		// ── 纯函数：30 / 31 边界 ─────────────────────────────────────────────────
+		const EXACT = "甲".repeat(30);
+		const OVER = "甲".repeat(31);
+		check("30 码点 ⇒ 原样返回（边界不截）", T.truncateDisplayNameOf(EXACT) === EXACT);
+		check("31 码点 ⇒ 前 30 + 一个「…」（码点数 = 31，且只有一个省略号）",
+			T.truncateDisplayNameOf(OVER) === "甲".repeat(30) + "…"
+			&& [...T.truncateDisplayNameOf(OVER)].length === 31
+			&& (T.truncateDisplayNameOf(OVER).match(/…/g) || []).length === 1
+			&& !T.truncateDisplayNameOf(OVER).includes("……"),
+			JSON.stringify(T.truncateDisplayNameOf(OVER)));
+		// 中英混排：按**码点**数（不是字节 / 不是 UTF-16 code unit 的错觉）
+		const MIXED = "BanG Dream! " + "甲".repeat(25);   // 12 + 25 = 37 码点
+		const mixedOut = T.truncateDisplayNameOf(MIXED);
+		check("中英混排：按码点取前 30 + 「…」",
+			mixedOut === Array.from(MIXED).slice(0, 30).join("") + "…"
+			&& [...mixedOut].length === 31,
+			JSON.stringify(mixedOut));
+		// emoji（代理对）：第 30 个码点正好落在 emoji 上 ⇒ 只允许整颗保留，不许劈成半个
+		const EMOJI = "甲".repeat(29) + "🎉" + "乙";       // 31 码点；前 30 = 29 甲 + 🎉
+		const emojiOut = T.truncateDisplayNameOf(EMOJI);
+		check("含 emoji：截断按码点、不劈开代理对（结果仍是合法 UTF-16 + 末尾 🎉）",
+			emojiOut === "甲".repeat(29) + "🎉…"
+			&& emojiOut.isWellFormed()
+			&& !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(emojiOut),
+			JSON.stringify(emojiOut));
+
+		// ── 数据层不截断：mergeEntryRecord 的 banner 仍是 62 字全名 ─────────────────
+		const kr = merge({
+			banner: LONG_KR, roles: "",
+			bannerDates: "11-10 12:00 ~ 11-20 11:59",
+			bannerDatesRaw: "11.10 12:00 ~ 11.20 11:59",
+			gacha: [arrItem({ key: "uma-kr:gacha:0", title: LONG_KR, show: LONG_KR, roles: [] })]
+		}, "uma-kr");
+		check("数据层（mergeEntryRecord / lastData）**不截断**：banner 仍是 62 码点全名",
+			kr.banner === LONG_KR && [...kr.banner].length === [...LONG_KR].length,
+			JSON.stringify([kr.banner, [...kr.banner].length]));
+		check("数组条目 title / show 仍是全名（截断只发生在显示层）",
+			kr.gacha[0].title === LONG_KR && kr.gacha[0].show === LONG_KR,
+			JSON.stringify([kr.gacha[0].title, kr.gacha[0].show]));
+
+		// ── 显示模型不截断：scheduleNormalize 的 show / title 仍是全文（截断只在渲染层）──
+		const krView = T.scheduleNormalize(kr, "gacha", new Date(NOW));
+		check("显示模型（scheduleNormalize）：show / title 都是 62 码点全名（截断只发生在渲染层）",
+			!!krView && krView.show === LONG_KR && krView.title === LONG_KR
+			&& [...krView.show].length === [...LONG_KR].length,
+			JSON.stringify([krView && krView.show, krView && krView.title]));
+		const cell = T.scheduleCellOf(kr, "gacha", new Date(NOW));
+		check("显示模型（scheduleCellOf 主条）：show / title 仍是全名，源站数组也是全名",
+			!!cell && cell.primary.show === LONG_KR && cell.primary.title === LONG_KR
+			&& kr.gacha[0].title === LONG_KR,
+			JSON.stringify(cell && [cell.primary.show, cell.primary.title]));
+
+		// ── 渲染层：displayShowTextOf 截断；回落顺序 show → title → raw → 「—」──────────────
+		check("渲染层（displayShowTextOf）：超长名 ⇒ 30 码点 + 一个「…」（全文在模型里）",
+			T.displayShowTextOf(krView) === T.truncateDisplayNameOf(LONG_KR)
+			&& [...T.displayShowTextOf(krView)].length === 31
+			&& (T.displayShowTextOf(krView).match(/…/g) || []).length === 1
+			&& !T.displayShowTextOf(krView).includes("……"),
+			JSON.stringify(T.displayShowTextOf(krView)));
+		check("渲染层（displayShowTextOf）：回落顺序 show → title → raw → 「—」且短名原样",
+			T.displayShowTextOf({ show: "短名" }) === "短名"
+			&& T.displayShowTextOf({ title: "只有 title" }) === "只有 title"
+			&& T.displayShowTextOf({ raw: "只有 raw" }) === "只有 raw"
+			&& T.displayShowTextOf({}) === "—" && T.displayShowTextOf(null) === "—",
+			JSON.stringify([T.displayShowTextOf({ show: "短名" }), T.displayShowTextOf({}), T.displayShowTextOf(null)]));
+
+		// ── 「悬停 / 全文仍可取到源站原名」断言 ────────────────────────────────────
+		check("悬停（scheduleHoverText）仍含源站全名（截断不伤 title / 悬停）",
+			T.scheduleHoverText(krView).includes(LONG_KR), JSON.stringify(T.scheduleHoverText(krView).slice(0, 40)));
+		check("反向：渲染文本被截断、模型 title 是原名（二者不再相同）",
+			T.displayShowTextOf(krView) !== krView.title && krView.title === LONG_KR);
+
+		// ── 静态守卫：两个面板的名称格都走同一个截断函数（新面板 81 + 旧面板 83）──────
+		const compSrc = readComponentsSource();
+		check("静态守卫：新面板 82（displayShowTextOf）与旧面板 83 都调同一个 truncateDisplayNameOf（不许各写一套）",
+			(compSrc.match(/truncateDisplayNameOf\(/g) || []).length >= 2 && compSrc.includes("displayShowTextOf"),
+			JSON.stringify([(compSrc.match(/truncateDisplayNameOf\(/g) || []).length, compSrc.includes("displayShowTextOf")]));
 	}
 }
