@@ -47,7 +47,11 @@ const ns_kancolle_TZ = "Asia/Tokyo";
 const ns_kancolle_EVENTS_URL = "https://wikiwiki.jp/kancolle/%E6%9C%9F%E9%96%93%E9%99%90%E5%AE%9A%E5%87%BA%E6%92%83";
 // 图标：DMM 网页游戏**没有 app 图标**（DMM 游戏页/官方 feature 页都不带游戏专属图），
 // 这里用抓取源站自己的 favicon（wikiwiki 公共资源，实测 200 / image/x-icon）。
-const ns_kancolle_ICON = "https://cdn.wikiwiki.jp/to/w/common/user-favicon.ico?v=4";
+// 图标 = 官方 X 账号（@KanColle_STAFF）头像（吹雪），自托管在仓库 assets/ 走 jsDelivr。
+// ⚠️ 2026-11-18 修：原值误用了 **wikiwiki 站点的 favicon**（`cdn.wikiwiki.jp/.../user-favicon.ico`），
+//   面板里显示的是 wiki 的图标而不是舰C；舰これ 是 DMM 页游、没有 App Store/Google Play 包，
+//   官方站 kancolle.dmm.com 在部分网络下 NXDOMAIN，故改用官方账号头像并自托管（不依赖第三方图床）。
+const ns_kancolle_ICON = "https://cdn.jsdelivr.net/gh/EastMG/dsh-gacha-calendar@main/assets/icon-kancolle.png";
 const ns_kancolle_SOURCE_LABEL = "wiki 活动一览（wikiwiki）";
 const ns_kancolle_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 // 段位标记：每个事件 `<h2>` 里都有一个 `class="anchor_super"` 的锚点（指南类 h2 没有 ⇒ 天然被排除）
