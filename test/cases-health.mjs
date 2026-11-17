@@ -208,6 +208,39 @@ export default async function runHealth() {
 		check("存档带版本号与本轮时间（at 给 UI 判断数据新旧）",
 			next.v === 1 && next.at === NOW + DAY, JSON.stringify({ v: next.v, at: next.at }));
 
+		// ── D（2026-11-18）：checkedIds = 本轮**真正跑过**的条目 id ───────────────────
+		// 存档里唯一能回答「这次自检到底检查了哪些条目」的字段：卡片据此把「从未检查（无记录）」
+		// 与「上次自检时被隐藏（有记录但没覆盖）」分开。口径 = rounds 里 status !== "skip" 的 id，
+		// 按 rounds 顺序、去重。skip 不算（它压根没抓，不能谎报"检查过"）。
+		check("checkedIds = 本轮真正跑过的条目 id（skip 不算；不在 keepIds 里的也不算）",
+			next.checkedIds.join(",") === "a", JSON.stringify(next.checkedIds));
+		const dupRounds = [
+			{ id: "skipOne", status: "skip", items: 0, error: "" },
+			{ id: "a", status: "ok", items: 2, error: "" },
+			{ id: "b", status: "down", items: 0, error: "卡池失败：网络不通" },
+			{ id: "a", status: "down", items: 0, error: "卡池失败：网络不通" }
+		];
+		const dup = T.sourceHealthUpdateOf("", dupRounds, NOW, ["skipOne", "a", "b"]);
+		check("checkedIds 去重且保持 rounds 顺序（重复 id 只记一次）",
+			dup.checkedIds.join(",") === "a,b", JSON.stringify(dup.checkedIds));
+		check("checkedIds 与 sources 同批：skip 的条目既没记录也不在 checkedIds（不谎报检查过）",
+			dup.sources.skipOne === undefined && dup.checkedIds.indexOf("skipOne") < 0,
+			JSON.stringify({ checkedIds: dup.checkedIds, keys: Object.keys(dup.sources) }));
+
+		// ── D：读存档 —— 老存档没有 checkedIds ⇒ 缺省 []，永不抛；新存档原样带出 ─────
+		const legacyParsed = T.parseSourceHealth(JSON.stringify({ v: 1, at: NOW, sources: { a: recOf() } }));
+		check("parseSourceHealth 容忍老存档（无 checkedIds）⇒ checkedIds = [] 且不抛，sources 照旧",
+			Array.isArray(legacyParsed.checkedIds) && legacyParsed.checkedIds.length === 0
+			&& !!legacyParsed.sources.a,
+			JSON.stringify({ checkedIds: legacyParsed.checkedIds, sources: Object.keys(legacyParsed.sources) }));
+		check("parseSourceHealth 对坏值 / 缺省 / 非数组 checkedIds 一律归零（辅助信息，永不抛）",
+			T.parseSourceHealth("").checkedIds.length === 0
+			&& T.parseSourceHealth("{不是 JSON").checkedIds.length === 0
+			&& T.parseSourceHealth(JSON.stringify({ v: 1, checkedIds: "a,b" })).checkedIds.length === 0
+			&& T.parseSourceHealth(JSON.stringify({ v: 1, checkedIds: ["a", 3, ""] })).checkedIds.join(",") === "a");
+		check("parseSourceHealth 原样带出新存档的 checkedIds（不重排）",
+			T.parseSourceHealth(JSON.stringify({ v: 1, checkedIds: ["b", "a"] })).checkedIds.join(",") === "b,a");
+
 		const fromGarbage = T.sourceHealthUpdateOf("{不是 JSON", [{ id: "a", status: "ok", items: 2, error: "" }], NOW, ["a"]);
 		check("存档坏了/为空 ⇒ 当空表重建（永不抛：辅助信息不该让刷新失败）",
 			!!fromGarbage.sources.a && fromGarbage.sources.a.okAt === NOW, JSON.stringify(fromGarbage));
@@ -253,6 +286,25 @@ export default async function runHealth() {
 			) === true);
 		check("坏存档 vs 有内容的存档 ⇒ 判「内容不同」（借这一笔把坏存档重写掉）",
 			T.sourceHealthSameOf("{不是 JSON", { v: 1, at: NOW, sources: { a: recOf() } }) === false);
+
+		// ── D（2026-11-18）：checkedIds 也参与「内容是否变化」的比较 ──────────────────
+		// 否则自检覆盖集合变了（某条目从隐藏变展示 / 自检范围变化）却不写盘 ⇒ 卡片会把
+		// "这次没检查"一直说成"检查过"。按集合比（顺序只由 rounds 顺序决定，不是语义）。
+		const withChecked = (ids) => ({ v: 1, at: NOW, sources: { a: recOf() }, checkedIds: ids });
+		check("只有 checkedIds 变了（sources 一字未动）⇒ 判「内容不同」（覆盖集合变了必须落盘）",
+			T.sourceHealthSameOf(JSON.stringify(withChecked(["a"])), withChecked(["a", "b"])) === false);
+		check("老存档（无 checkedIds = 空集）vs 新存档带一批 id ⇒ 判「内容不同」（首笔补写）",
+			T.sourceHealthSameOf(
+				JSON.stringify({ v: 1, at: NOW, sources: { a: recOf() } }),
+				withChecked(["a"])
+			) === false);
+		check("checkedIds 集合相同（顺序不同）⇒ 仍判「内容相同」（不为一笔顺序差异白写一次设置）",
+			T.sourceHealthSameOf(JSON.stringify(withChecked(["a", "b"])), withChecked(["b", "a"])) === true);
+		check("两边都没有 checkedIds（老存档形态）⇒ 仍判「内容相同」（不假报变化）",
+			T.sourceHealthSameOf(
+				JSON.stringify({ v: 1, at: NOW, sources: { a: recOf() } }),
+				{ v: 1, at: NOW + DAY, sources: { a: recOf() } }
+			) === true);
 	}
 
 	// ── ④ 给 UI 的每源状态：四种状态 + 第 7 天整的边界 + 文案 ────────────────────────
@@ -269,7 +321,9 @@ export default async function runHealth() {
 			stale1: recOf({ okAt: NOW - 10 * DAY, nomatchStreak: 8, nomatchSince: NOW - 8 * DAY }),
 			never1: recOf({ okAt: 0, nomatchStreak: 7, nomatchSince: NOW - 7 * DAY })
 		};
-		const rows = T.sourceHealthOf(sources, NOW, { entries });
+		// 这一段是"上次自检覆盖了这四条"的形态（checkedIds 全给）：四列措辞按常态断言，
+		// 「未覆盖」那句留给下面 D 的 checkedLast 三态专门验（不靠这里顺带）。
+		const rows = T.sourceHealthOf(sources, NOW, { entries, checkedIds: entries.map((e) => e.id) });
 		const byId = Object.fromEntries(rows.map((r) => [r.id, r]));
 		check("返回顺序 = 传入条目顺序（UI 直接 map，不再排序）", rows.map((r) => r.id).join(",") === "ok1,down1,stale1,never1", rows.map((r) => r.id).join(","));
 
@@ -321,10 +375,42 @@ export default async function runHealth() {
 
 		// 没记录 / 记录过时
 		const unknown = T.sourceHealthOf({}, NOW, { entries: [{ id: "zzz", name: "没刷过" }] })[0];
-		check("没有记录的条目：known=false 且不算异常（UI 据此不显示它）",
-			unknown.known === false && unknown.state === "ok", JSON.stringify(unknown));
+		check("没有记录的条目：known=false、state 不新增档位，胶囊/原因列写「未检查」、tone 中性（不是 warn/error）",
+			unknown.known === false && unknown.state === "ok"
+			&& unknown.tag === "未检查" && unknown.reason === "未检查"
+			&& unknown.tone !== "warn" && unknown.tone !== "error"
+			&& unknown.agoText === "—",
+			JSON.stringify(unknown));
+		check("没有记录的条目**仍然出现在返回结果里**（2026-11-18 修的就是「被整条丢掉」）",
+			T.sourceHealthOf({}, NOW, { entries: [{ id: "x" }, { id: "y" }] }).length === 2);
 		const stale = T.sourceHealthOf({ a: recOf() }, NOW + 30 * DAY, { entries: [{ id: "a" }] })[0];
 		check("上次成功时间会随时间推移变旧（不是落盘时算好的死值）", stale.text === "上次成功 30 天前", stale.text);
+
+		// ── D（2026-11-18）：checkedLast 三态（老存档 / 在集合 / 不在集合）────────────
+		// 用途：把「从未检查（known=false）」与「上次自检时被隐藏（known=true 但没覆盖）」分开。
+		{
+			const entries2 = [{ id: "a", name: "A" }, { id: "b", name: "B" }];
+			const recs = { a: recOf({ okAt: NOW - DAY }), b: recOf({ okAt: NOW - DAY }) };
+			const byRow = (opts) => Object.fromEntries(T.sourceHealthOf(recs, NOW, { entries: entries2, ...opts }).map((r) => [r.id, r]));
+			const inSet = byRow({ checkedIds: ["a", "b"] });
+			check("checkedLast：在 checkedIds 里 ⇒ true，原因列**不**追加「本次自检未覆盖」",
+				inSet.a.checkedLast === true && inSet.a.reason.indexOf("本次自检未覆盖") < 0,
+				JSON.stringify({ checkedLast: inSet.a.checkedLast, reason: inSet.a.reason }));
+			const notInSet = byRow({ checkedIds: ["a"] });
+			check("checkedLast：有记录但**不在**集合（上次自检时被隐藏）⇒ false + 原因列追加「本次自检未覆盖」",
+				notInSet.b.checkedLast === false && notInSet.b.known === true
+				&& /本次自检未覆盖/.test(notInSet.b.reason),
+				JSON.stringify({ checkedLast: notInSet.b.checkedLast, reason: notInSet.b.reason }));
+			const noIds = byRow({});
+			check("checkedLast：老存档 / 未传 checkedIds ⇒ 一律 false（不知道覆盖了哪些，不冒充检查过）",
+				noIds.a.checkedLast === false && noIds.b.checkedLast === false
+				&& /本次自检未覆盖/.test(noIds.a.reason),
+				JSON.stringify({ a: noIds.a.checkedLast, b: noIds.b.checkedLast }));
+			check("checkedLast 不改 state / tone（未覆盖不是异常，不许把行染成 warn/error）",
+				noIds.a.state === "ok" && noIds.a.tone === "ok"
+				&& notInSet.b.state === "ok" && notInSet.b.tone === "ok",
+				JSON.stringify({ legacy: [noIds.a.state, noIds.a.tone], hidden: [notInSet.b.state, notInSet.b.tone] }));
+		}
 	}
 
 	// ── ④b 显示侧补偿**已移除**：健康记录与面板刷新彻底解耦 ─────────────────────────────
@@ -426,8 +512,11 @@ export default async function runHealth() {
 			typeof raw === "string" && raw.length > 2, String(raw).slice(0, 80));
 		let parsed = null;
 		try { parsed = JSON.parse(raw); } catch (e) { parsed = null; }
-		check("sourceHealth 是合法 JSON 且带 { v, at, sources }",
-			!!parsed && parsed.v === 1 && typeof parsed.at === "number" && !!parsed.sources, String(raw).slice(0, 120));
+		check("sourceHealth 是合法 JSON 且带 { v, at, sources, checkedIds }",
+			!!parsed && parsed.v === 1 && typeof parsed.at === "number" && !!parsed.sources
+			&& Array.isArray(parsed.checkedIds), String(raw).slice(0, 120));
+		check("自检把本轮**真正跑过**的条目 id 写进 checkedIds（隐藏条目不在其中）",
+			!!parsed && parsed.checkedIds.join(",") === "fgo", JSON.stringify(parsed && parsed.checkedIds));
 		check("本轮抓到的条目有记录（ok ⇒ items=2 / okAt=本次自检时间 / 无失败连击）",
 			!!parsed && !!parsed.sources.fgo && parsed.sources.fgo.items === 2
 			&& parsed.sources.fgo.okAt === clock && parsed.sources.fgo.failStreak === 0,
@@ -533,6 +622,10 @@ export default async function runHealth() {
 			!!parsed1 && !!parsed1.sources.fgo && parsed1.sources.fgo.items === 2
 			&& parsed1.sources.fgo.failStreak === 0 && parsed1.sources.fgo.nomatchStreak === 0,
 			JSON.stringify(parsed1 && parsed1.sources.fgo));
+		check("第一次自检的 checkedIds = 本次真正抓的那批条目（其余条目都被隐藏，不在其中）",
+			!!parsed1 && Array.isArray(parsed1.checkedIds)
+			&& parsed1.checkedIds.length === 1 && parsed1.checkedIds[0] === "fgo",
+			JSON.stringify(parsed1 && parsed1.checkedIds));
 
 		// ── 第二次：隔 10 分钟再自检，结论完全一样 ⇒ 不该写 sourceHealth（但自检时间必须推进）──
 		let mark = storage.sets.length;
@@ -568,6 +661,9 @@ export default async function runHealth() {
 			JSON.stringify(parsed3 && parsed3.sources.fgo));
 		check("真的写的时候 at 是本次自检时间（不是被跳过的旧时间）",
 			!!parsed3 && parsed3.at === clock, JSON.stringify({ at: parsed3 && parsed3.at, clock }));
+		check("状态变了重写存档时 checkedIds 一起落盘（不是只在首笔写）",
+			!!parsed3 && Array.isArray(parsed3.checkedIds) && parsed3.checkedIds.join(",") === "fgo",
+			JSON.stringify(parsed3 && parsed3.checkedIds));
 		check("down 只推进 failStreak：okAt 停在最后一次成功的那次自检（失败不许抹掉上次成功）",
 			!!parsed3 && parsed3.sources.fgo.okAt === firstClock,
 			JSON.stringify({ okAt: parsed3 && parsed3.sources.fgo.okAt, firstClock }));
@@ -737,8 +833,10 @@ export default async function runHealth() {
 		const comp = readComponentsSource();
 		check("设置页读的是 sourceHealth 存档（不是 lastData 里另起一份）",
 			/parseSourceHealth\(s\.sourceHealth\)/.test(comp));
-		check("设置页用纯函数折算每源状态（判定不在渲染层重写）",
-			/sourceHealthOf\(\s*\n?\s*parseSourceHealth\(s\.sourceHealth\)\.sources/.test(comp));
+		check("设置页用纯函数折算每源状态（判定不在渲染层重写），并把 checkedIds 一并传进 opts（D）",
+			/sourceHealthOf\(\s*\n?\s*healthStore\.sources/.test(comp)
+			&& /checkedIds: healthStore\.checkedIds/.test(comp)
+			&& /const healthStore = parseSourceHealth\(s\.sourceHealth\)/.test(comp));
 		check("只把**展示中**的条目交给健康看板（隐藏条目的记录会僵在隐藏前那一刻）",
 			/getVisibleEntries\(s\), order\)\.map\(\(g\) => \(\{ id: g\.id, name: g\.name \|\| g\.id \}\)\)/.test(comp));
 		check("默认收起：展开开关初值 false（健康的不占地方）",
@@ -761,18 +859,20 @@ export default async function runHealth() {
 			/disabled: selfChecking, onClick: runSelfCheck/.test(card) && /await engine\.selfCheck\(\)/.test(comp));
 
 		// ── 状态条：圆点（颜色编码）+ 主文案（左）+ 次要信息（右，弱化）+ 展开按钮 ──
-		check("状态条有状态圆点（类名带 tone、颜色档来自 core）+ 主文案三选一",
+		check("状态条有状态圆点（类名带 tone、颜色档来自 core）+ 主文案按**条**计数（不再说「个来源」）",
 			/gacha-cal-health-dot gacha-cal-health-dot--" \+ healthTone/.test(card)
-			&& /children: healthBad\.length > 0 \? healthBad\.length \+ " 个来源需要关注" : "全部正常"/.test(card));
+			&& /children: healthBad\.length > 0 \? healthBad\.length \+ " 条需要关注" : "全部正常"/.test(card));
 		check("状态条右侧 = 弱化次要信息 + 展开按钮（aria-expanded 跟着 healthAll，展开后写「只看异常」）",
 			/className: "gacha-cal-health-meta", children: healthMeta/.test(card)
 			&& /"aria-expanded": healthAll, onClick: \(\) => setHealthAll\(\(v\) => !v\)/.test(card)
 			&& /children: healthAll \? "只看异常" : "查看全部"/.test(card));
-		check("次要信息口径：有异常 = 正常/停更/失败三档（0 的那档不写）；全正常 =「N 个来源」（无刷新时间）",
+		check("次要信息口径：有异常 = 三档计数 + 追加「· N 未检查」；无异常 =「已检查 N / 共 M 条（K 未检查）」",
 			/\[healthOkCount \+ " 正常"/.test(comp)
 			&& /healthStaleCount > 0 \? healthStaleCount \+ " 停更" : ""/.test(comp)
 			&& /healthDownCount > 0 \? healthDownCount \+ " 失败" : ""/.test(comp)
-			&& /: healthKnown\.length \+ " 个来源";/.test(comp));
+			&& /\+ \(healthUncheckedCount > 0 \? " · " \+ healthUncheckedCount \+ " 未检查" : ""\)/.test(comp)
+			&& /"已检查 " \+ healthKnown\.length \+ " \/ 共 " \+ healthRows\.length \+ " 条"/.test(comp)
+			&& /\+ \(healthUncheckedCount > 0 \? "（" \+ healthUncheckedCount \+ " 未检查）" : ""\)/.test(comp));
 		check("状态条与列表之间是「1px 极淡分隔线 + 6px 上边距」（CSS 守卫，见 ⑧）",
 			/className: "gacha-cal-health-list"/.test(card) && /className: "gacha-cal-health"/.test(card));
 
@@ -785,9 +885,12 @@ export default async function runHealth() {
 			&& /className: "gacha-cal-health-ago", children: h\.agoText/.test(card));
 		check("行 tooltip 用 core 给的完整 text（渲染层不另写一套原因措辞）",
 			/title: h\.name \+ " · " \+ h\.text/.test(card));
-		check("默认只列异常：列表取 healthAll ? healthKnown : healthBad，展开后同网格换全部",
-			/healthAll \? healthKnown : healthBad\)\.length > 0/.test(comp)
-			&& (comp.match(/healthAll \? healthKnown : healthBad/g) || []).length >= 2);
+		check("列表渲染不再被 healthKnown 过滤：展开后同网格换**全部条目**（含未检查项）",
+			/const healthList = healthAll \? healthRows : healthBad;/.test(comp)
+			&& /healthList\.length > 0/.test(comp)
+			&& /children: healthList\.map\(\(h\) =>/.test(card)
+			&& comp.indexOf("healthAll ? healthKnown : healthBad") < 0,
+			String(comp.indexOf("healthAll ? healthKnown : healthBad")));
 
 		// ── 空状态：一行弱化提示 + 图标（不要感叹号），**无条件下渲染** ──
 		check("没有任何记录时不再整块不渲染（旧的 healthKnown.length === 0 ? null : 短路已删）",
@@ -797,6 +900,8 @@ export default async function runHealth() {
 		// 解耦后「刷新会产生健康数据」这句话已经是错的 ⇒ 空状态改成指路「立即检查」
 		check("空状态文案改成「还没有做过来源自检 —— 点「立即检查」开始」（刷新不再产生健康数据）",
 			comp.indexOf('"还没有做过来源自检 —— 点「立即检查」开始"') >= 0);
+		check("空状态按**实际条目数**分岔：有条目但都没记录 ⇒「未检查 N 条」（不再只说「还没做过自检」）",
+			/healthRows\.length > 0\s*\?\s*"未检查 " \+ healthRows\.length \+ " 条 —— 点「立即检查」开始"/.test(comp));
 		check("旧的「还没有来源健康数据（刷新一次数据后产生）」已经删掉（那句话现在是假话）",
 			comp.indexOf("还没有来源健康数据（刷新一次数据后产生）") < 0);
 		check("空状态按引擎的内存标记分岔：写被拒时改说「健康数据暂时无法保存（宿主拒绝写入），不影响刷新」",
@@ -852,13 +957,19 @@ export default async function runHealth() {
 		// 显示侧补偿**已废弃**：设置页不许再把 lastRefresh 传给纯函数（健康与刷新无关）
 		const callAt = comp.indexOf("const healthRows = sourceHealthOf(");
 		const callSnippet = callAt < 0 ? "" : comp.slice(callAt, callAt + 1200);
-		check("sourceHealthOf 的 opts 里只剩 entries：不再传 lastRefreshAt（刷新时间不是健康证据）",
+		check("sourceHealthOf 的 opts 只有 entries + checkedIds：不再传 lastRefreshAt（刷新时间不是健康证据）",
 			callAt >= 0 && /entries: applyOrder\(getVisibleEntries\(s\), order\)/.test(callSnippet)
+			&& /checkedIds: healthStore\.checkedIds/.test(callSnippet)
 			&& callSnippet.indexOf("lastRefreshAt") < 0,
 			callSnippet.slice(0, 260));
-		check("全正常时汇总行只有「N 个来源」（「尚未刷新」也已删除，健康卡不提刷新）",
-			/: healthKnown\.length \+ " 个来源";/.test(comp)
+		check("全正常时汇总行是「已检查 N / 共 M 条（K 未检查）」（不再说「N 个来源」，且不提刷新）",
+			/"已检查 " \+ healthKnown\.length \+ " \/ 共 " \+ healthRows\.length \+ " 条"/.test(comp)
 			&& comp.indexOf("尚未刷新") < 0);
+		check("数字口径统一：卡片按**条**（条目数），自检报告的**两侧**计数明确写「侧」",
+			/"已检查 " \+ healthKnown\.length \+ " \/ 共 " \+ healthRows\.length \+ " 条"/.test(comp)
+			&& /selfSources \+ " 侧来源 · " \+ selfBad \+ " 侧没内容/.test(comp)
+			&& comp.indexOf('healthKnown.length + " 个来源"') < 0
+			&& comp.indexOf('healthBad.length + " 个来源需要关注"') < 0);
 		check("第四列 title 只剩「名字 · 说明」（2026-11-01 用户定稿：`\\n第四列…` 那段第二行已删）",
 			/title: h\.name \+ " · " \+ h\.text,/.test(card)
 			&& card.indexOf("第四列「上次成功 X 前」") < 0);

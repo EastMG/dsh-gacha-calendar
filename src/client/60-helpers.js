@@ -316,13 +316,19 @@
 		const SOURCE_HEALTH_DAY_MS = 86400000;
 
 		// 读存档：坏值 / 缺失 / 空串一律当成"没有记录"（**永不抛** —— 它只是辅助信息，
-		// 存坏了不该让设置页或刷新链路跟着炸）。返回 { v, at, sources }。
+		// 存坏了不该让设置页或刷新链路跟着炸）。返回 { v, at, sources, checkedIds }。
+		// checkedIds = 上一次自检**真正跑过**的条目 id（2026-11-18 新增，见 sourceHealthUpdateOf）：
+		// 卡片靠它区分「从未检查（无记录）」与「上次自检时被隐藏（有记录但没覆盖）」。
+		// ⚠️ 老存档没有这个字段 ⇒ 缺省 []（"不知道上次覆盖了哪些"，不许猜成"全覆盖"）。
 		function parseSourceHealth(raw) {
 			const obj = typeof raw === "string"
 				? parseJsonStr(raw, null)
 				: (raw && typeof raw === "object" ? raw : null);
 			const sources = obj && obj.sources && typeof obj.sources === "object" ? obj.sources : {};
-			return { v: SOURCE_HEALTH_VERSION, at: Number(obj && obj.at) || 0, sources };
+			const checkedIds = Array.isArray(obj && obj.checkedIds)
+				? obj.checkedIds.filter((x) => typeof x === "string" && x !== "")
+				: [];
+			return { v: SOURCE_HEALTH_VERSION, at: Number(obj && obj.at) || 0, sources, checkedIds };
 		}
 
 		// 本轮结论（纯函数）：source = 条目元信息（要 url / eventUrl 才知道"这一侧配了没有"），
@@ -383,7 +389,9 @@
 		// （2026-10-28 解耦前这里是"一轮刷新后"，写入口从 refresh() 挪到 selfCheck()，口径一字未改。）
 		// · 旧记录只搬"条目还在"的那些（删掉的条目不再占存档；隐藏条目本轮没抓 ⇒ 原样保留）；
 		// · 本轮 skip 的条目（两侧都没配来源 / 被跳过）：**记录一并丢掉** —— 不把"没抓"写成
-		//   "失败"，也不留一条再也不会更新的历史（那会僵成一条假「疑似停更」）。
+		//   "失败"，也不留一条再也不会更新的历史（那会僵成一条假「疑似停更」）；
+		// · checkedIds = 本轮**真正跑过**的条目 id（2026-11-18 新增）—— 存档里唯一能回答
+		//   「这次自检到底检查了哪些条目」的字段，供卡片区分「未检查」与「当时被隐藏」。
 		function sourceHealthUpdateOf(prevRaw, rounds, now, keepIds) {
 			const prev = parseSourceHealth(prevRaw);
 			const keep = Array.isArray(keepIds) ? keepIds.filter((x) => typeof x === "string") : null;
@@ -393,6 +401,9 @@
 				if (!rec || typeof rec !== "object") continue;
 				sources[id] = rec;
 			}
+			// 本次自检真正跑过的条目：status !== "skip" 的 id，按 rounds 顺序去重。
+			// skip（两侧都没配来源 / 被跳过）不算 —— 它压根没抓，不能谎报"检查过"。
+			const checkedIds = [];
 			for (const round of Array.isArray(rounds) ? rounds : []) {
 				if (!round || !round.id) continue;
 				// 只收"现存条目"的结论：与上面搬运同一条不变量（存档里不出现已删除的 id）
@@ -405,10 +416,11 @@
 					delete sources[round.id];
 					continue;
 				}
+				if (checkedIds.indexOf(round.id) < 0) checkedIds.push(round.id);
 				const next = sourceHealthNextOf(sources[round.id], round, now);
 				if (next) sources[round.id] = next;
 			}
-			return { v: SOURCE_HEALTH_VERSION, at: Number(now) || 0, sources };
+			return { v: SOURCE_HEALTH_VERSION, at: Number(now) || 0, sources, checkedIds };
 		}
 
 		// 语义比较：新算出的存档 next 与存储里的旧值 prevRaw 是否**内容相同**。
@@ -443,6 +455,15 @@
 			const a = prev.sources;
 			const b = n.sources && typeof n.sources === "object" ? n.sources : {};
 			if (prev.v !== SOURCE_HEALTH_VERSION || Number(n.v) !== SOURCE_HEALTH_VERSION) return false;
+			// checkedIds（2026-11-18）：本次自检**覆盖了哪些条目**。它变了（可见范围变化 / 某条目
+			// 这次没被抓）⇒ 存档必须重写，否则卡片会把"这次没检查"一直说成"检查过"。
+			// 按**集合**比较：顺序只由 rounds 顺序决定，不是语义（同一批条目换个顺序不算内容变化）。
+			const aChecked = prev.checkedIds;
+			const bChecked = Array.isArray(n.checkedIds)
+				? n.checkedIds.filter((x) => typeof x === "string" && x !== "")
+				: [];
+			if (aChecked.length !== bChecked.length) return false;
+			for (const id of bChecked) if (aChecked.indexOf(id) < 0) return false;
 			const aIds = Object.keys(a);
 			const bIds = Object.keys(b);
 			if (aIds.length !== bIds.length) return false;
@@ -460,14 +481,21 @@
 		}
 
 		// 给 UI 的每源状态（纯函数）：sources = 存档里的 sources 表，now = 毫秒时间戳，
-		// opts = { entries: [{ id, name }]（**展示中**的条目，决定范围与顺序）, nomatchDays }。
+		// opts = { entries: [{ id, name }]（**展示中**的条目，决定范围与顺序）, nomatchDays,
+		//          checkedIds }（上一次自检覆盖的条目 id，来自 parseSourceHealth 的 checkedIds）。
 		//
 		// ⚠️ 2026-10-28 起**不再有** `opts.lastRefreshAt`（旧版用它把 ok 行的上次成功时间顶到本机
 		// 最近一轮刷新）：健康记录只由「立即检查」写、与面板刷新彻底解耦，刷新时间不再是"这些源
 		// 上次成功过"的任何证据。传了也会被忽略（不再有补偿逻辑）；「这份数据有多旧」由设置页
 		// 标题行的「上次自检 X 前」（读 `healthCheckedAt`）回答。
-		// 返回 [{ id, name, known, state, failStreak, nomatchDays, nomatchMs, lastOkAt, items, error,
-		//         text, tag, tone, reason, agoText }]
+		// 返回 [{ id, name, known, checkedLast, state, failStreak, nomatchDays, nomatchMs, lastOkAt,
+		//         items, error, text, tag, tone, reason, agoText }]
+		// `known` = 有没有记录；`checkedLast` = 上一次自检有没有**覆盖到这一条**（2026-11-18）：
+		//   checkedIds 为空（老存档 / 从未自检）⇒ 一律 false；否则 = checkedIds.includes(id)。
+		//   known && checkedLast === false 只可能是"上次自检时它被隐藏"（记录原样保留、本轮没抓）——
+		//   展示侧只在原因列追加一句「本次自检未覆盖」，不改 state / tone（它不是异常）。
+		// `known === false` 的行**照样返回**（2026-11-18 之前 UI 会把它们整条丢掉 ⇒ 卡片永远只显示
+		// 老面孔）：胶囊 / 原因列写「未检查」，tone = "unknown"（中性档，不是 warn/error）。
 		//   展示侧三段（2026-10-28 设置页改四列网格）：tag = 状态胶囊短标签（带灰点/警告/叉），
 		//   reason = 原因列（失败原因 / 连续 N 天没解析出内容 / 正常行的解析条数），agoText = 上次成功列；
 		//   tone = 颜色档（ok / warn / error），渲染层不再从 state 二次映射 —— 措辞只在这里写一次。
@@ -482,10 +510,15 @@
 			const days = Number(opts && opts.nomatchDays) > 0 ? Number(opts.nomatchDays) : SOURCE_HEALTH_NOMATCH_DAYS;
 			const at = Number(now) || 0;
 			const map = sources && typeof sources === "object" ? sources : {};
+			const checkedIds = Array.isArray(opts && opts.checkedIds)
+				? opts.checkedIds.filter((x) => typeof x === "string" && x !== "")
+				: [];
 			return list.map((g) => {
 				const id = String((g && g.id) || "");
 				const name = String((g && g.name) || id);
 				const rec = map[id] && typeof map[id] === "object" ? map[id] : null;
+				// 上一次自检覆盖到这一条没有（老存档 / 从未自检 ⇒ false：不冒充"检查过"）
+				const checkedLast = checkedIds.indexOf(id) >= 0;
 				const okAt = rec ? Number(rec.okAt) || 0 : 0;
 				const items = rec ? Number(rec.items) || 0 : 0;
 				const failStreak = rec ? Number(rec.failStreak) || 0 : 0;
@@ -498,6 +531,16 @@
 				let state = "ok";
 				if (failStreak > 0) state = "down";
 				else if (nomatchMs >= days * SOURCE_HEALTH_DAY_MS) state = okAt > 0 ? "stale" : "never";
+				// 无记录（从没检查过 / 老存档升上来）：不许拿上面的默认 state 冒充「正常」。
+				// 胶囊与原因列都写「未检查」，tone 用中性档 "unknown"（不是 warn/error —— 它不是异常）。
+				// ⚠️ state 不新增档位（用户 2026-11-18 明确：用 known 判定即可），所以它仍是默认 "ok"。
+				if (!rec) {
+					return {
+						id, name, known: false, checkedLast: false,
+						state, failStreak, nomatchDays, nomatchMs, lastOkAt: 0, items: 0, error: "",
+						text: "未检查", tag: "未检查", tone: "unknown", reason: "未检查", agoText: "—"
+					};
+				}
 				// 显示用的「上次成功」= 存档里的真实 okAt（2026-10-28 解耦后不再用刷新时间补偿，
 				// 理由见函数头注释；"数据多旧"由设置页的「上次自检 X 前」回答）。
 				const lastOkAt = okAt;
@@ -526,10 +569,14 @@
 				if (state === "down") reason = rec && rec.error ? String(rec.error) : "连续失败 " + failStreak + " 次";
 				else if (state === "stale" || state === "never") reason = "连续 " + (nomatchDays || days) + " 天没解析出内容";
 				else if (items > 0) reason = "解析出 " + items + " 条";
+				// 有记录但上一次自检**没覆盖到**它（只可能是当时被隐藏，记录原样留着）⇒ 原因列追加一句，
+				// 不改 state / tone：它不是异常，也不是这次检查的结论（2026-11-18，用户只许这一句）。
+				if (!checkedLast) reason = reason ? reason + " · 本次自检未覆盖" : "本次自检未覆盖";
 				return {
 					id,
 					name,
-					known: !!rec,
+					known: true,
+					checkedLast,
 					state,
 					failStreak,
 					nomatchDays,

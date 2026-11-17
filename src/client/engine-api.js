@@ -211,6 +211,9 @@
 						at,
 						getAllEntries(s).map((e) => e.id)
 					);
+					// health 里带 `checkedIds`（本次自检**真正跑过**的条目 id，2026-11-18）：它跟着同一个
+					// JSON 一起落盘（sourceHealthUpdateOf 产出，这里原样写），卡片据此区分「未检查」与
+					// 「上次自检时被隐藏」—— 不新增存储键，也不改任何缓存。
 					// 只有**内容真的变了**才写这一笔（比较见 60-helpers.js 的 sourceHealthSameOf：
 					// 忽略顶层 at / 记录 at / okAt 这三处"本轮时间戳"，否则每次自检都不同 = 等于没优化）。
 					if (!sourceHealthSameOf(prevHealthRaw, health)) {

@@ -225,11 +225,15 @@
 			// ⚠️ 不再传面板刷新时间：解耦后刷新与健康无关，用刷新时间顶新「上次成功」会伪造
 			// "刚刚成功"（刷新跑得很勤、自检很久没做时最明显）。纯函数那边已删掉这个参数。
 			const healthNow = Date.now();
+			// 存档只解析一次：sources 交给纯函数折算逐条状态，checkedIds（2026-11-18 新增）交给它判
+			// 「这一次自检到底覆盖了哪些条目」—— 卡片据此把「从未检查」与「上次自检时被隐藏」分开。
+			const healthStore = parseSourceHealth(s.sourceHealth);
 			const healthRows = sourceHealthOf(
-				parseSourceHealth(s.sourceHealth).sources,
+				healthStore.sources,
 				healthNow,
 				{
-					entries: applyOrder(getVisibleEntries(s), order).map((g) => ({ id: g.id, name: g.name || g.id }))
+					entries: applyOrder(getVisibleEntries(s), order).map((g) => ({ id: g.id, name: g.name || g.id })),
+					checkedIds: healthStore.checkedIds
 				}
 			);
 			// 「上次自检」：`healthCheckedAt` 由引擎的 selfCheck() **每次**都写（不管健康存档内容
@@ -240,18 +244,27 @@
 			const healthCheckedText = healthCheckedAt > 0
 				? "上次自检 " + tickerSpanText(healthNow - healthCheckedAt) + "前"
 				: "从未自检";
-			// known = 有过记录（从没刷过 / 旧版本升上来的老存档没有记录）。**注意**：没有记录
-			// 不再等于"整块不渲染"（那正是用户看不到这个功能的原因）—— 卡片改由一句空状态兜住，
-			// 见下面 JSX 里 healthKnown.length === 0 那一支。
+			// known = 有过记录（从没检查过 / 旧版本升上来的老存档没有记录）。**注意**：没有记录
+			// 不再等于"整块不渲染"，也**不再被过滤掉**（2026-11-18 用户要求：当前 61 条里 38 条无记录，
+			// 卡片必须看得见）⇒ healthKnown 只承担「已检查 N 条」的计数与 tone，**不承担列表过滤**；
+			// 列表渲染一律走 healthList/healthRows（展开后含未检查项）。
 			const healthKnown = healthRows.filter((h) => h.known);
 			const healthBad = healthKnown.filter((h) => h.state !== "ok");
+			// 未检查 = 本次展示中但**没有健康记录**的条目（从没检查 / 老存档）。它既不是异常也不是正常：
+			// 默认（只看异常）不列，展开后与已检查项同网格列出（胶囊/原因列写「未检查」）。
+			const healthUncheckedCount = healthRows.length - healthKnown.length;
+			const healthList = healthAll ? healthRows : healthBad;
 			// ── 状态条（2026-10-28 整块重做）：三档计数 + 最差档色 + 右侧次要信息 ──────────────
 			// 全部由 healthKnown 派生，渲染层不碰存档；tone 只取 ok / warn / error 三档
-			// （down 优先于 stale：有明确失败原因的那一档最该被看见）。
-			// 全正常时右侧 = 「N 个来源」；有异常时改成三档计数（0 的那档不写）。
+			// （down 优先于 stale：有明确失败原因的那一档最该被看见）。**未检查项不改整卡 tone**：
+			// 它没有结论，不代表异常（2026-11-18 用户明确要求）。
+			// 汇总行口径（2026-11-18 统一成**条目数**，一律说「条」）：
+			//   · 全正常 → 「已检查 23 / 共 61 条（38 未检查）」
+			//   · 有异常 → 「21 正常 · 2 失败 · 38 未检查」（三档照旧，只追加未检查数）
+			// 自检报告里的「来源」是**两侧计数**（最多 122）⇒ 那边改说「侧」，两个数字不再同名不同义。
 			// ⚠️ 健康卡**只有一个时间口径**：标题行的「上次自检 X 前」/「从未自检」。
 			// 这里再也不读面板刷新时间 —— 那是面板自己的事（用户 2026-10-28：健康卡里一出现
-			// 刷新时间就说明没真解耦）。汇总行只说"看过几个来源"。
+			// 刷新时间就说明没真解耦）。
 			const healthOkCount = healthKnown.length - healthBad.length;
 			const healthDownCount = healthBad.filter((h) => h.state === "down").length;
 			const healthStaleCount = healthBad.length - healthDownCount;
@@ -263,10 +276,14 @@
 			const healthSaveErr = typeof engine.healthSaveError === "function" ? engine.healthSaveError() : "";
 			const healthMeta = healthBad.length > 0
 				? [healthOkCount + " 正常", healthStaleCount > 0 ? healthStaleCount + " 停更" : "", healthDownCount > 0 ? healthDownCount + " 失败" : ""].filter(Boolean).join(" · ")
-				: healthKnown.length + " 个来源";
-			// 自检报告一行结论要用的两个数：来源数（条目的两侧都算，未配置也算一个来源）、
-			// "没内容"的来源数（无匹配/未公布 + 失败；未配置是合法状态，不算）。summary 是
+					+ (healthUncheckedCount > 0 ? " · " + healthUncheckedCount + " 未检查" : "")
+				: "已检查 " + healthKnown.length + " / 共 " + healthRows.length + " 条"
+					+ (healthUncheckedCount > 0 ? "（" + healthUncheckedCount + " 未检查）" : "");
+			// 自检报告一行结论要用的两个数：**来源侧**数（条目的两侧都算，未配置也算一侧）、
+			// "没内容"的来源侧数（无匹配/未公布 + 失败；未配置是合法状态，不算）。summary 是
 			// core 的 selfCheck() 给的；error 那一支没有 summary，给 0 兜住。
+			// ⚠️ 口径（2026-11-18）：这是**侧**不是**条**（最多 122）—— 与卡片的「N 条」区分开，
+			// 文案里必须带「侧」，不再和条目数共用一个「个来源」。
 			const selfSources = selfReport && selfReport.summary
 				? selfReport.summary.ok + selfReport.summary.nomatch + selfReport.summary.unconfigured + selfReport.summary.down
 				: 0;
@@ -276,13 +293,13 @@
 			// 自检报告收成**一行**（用户 2026-10-28：不要大段落）：小徽章 + 一句汇总；
 			// 游戏数、三档明细与逐条 problems 全部收进 title（悬停可看），不占版面。
 			const selfReportText = selfReport && selfReport.summary
-				? selfSources + " 个来源 · " + selfBad + " 个没内容（成功 " + selfReport.summary.ok
+				? selfSources + " 侧来源 · " + selfBad + " 侧没内容（成功 " + selfReport.summary.ok
 					+ " / 无匹配/未公布 " + selfReport.summary.nomatch
 					+ " / 未配置 " + selfReport.summary.unconfigured
 					+ " / 失败 " + selfReport.summary.down + "）· 用时 " + (selfReport.elapsedMs / 1000).toFixed(1) + "s"
 				: "";
 			const selfReportTitle = selfReport && selfReport.summary
-				? selfReport.total + " 款游戏的 " + selfSources + " 个来源 · " + selfBad + " 个没内容\n"
+				? selfReport.total + " 款游戏的 " + selfSources + " 侧来源 · " + selfBad + " 侧没内容\n"
 					+ "成功 " + selfReport.summary.ok + " / 无匹配/未公布 " + selfReport.summary.nomatch
 					+ " / 未配置 " + selfReport.summary.unconfigured + " / 失败 " + selfReport.summary.down
 					+ "\n" + (selfReport.problems.length > 0
@@ -1527,20 +1544,25 @@
 									// **不影响刷新**，否则用户会以为刷新坏了 —— 那正是本次要修的那个现象的另一半。
 									// 空状态文案 2026-10-28 改口径：解耦后**刷新不再产生健康数据**，
 									// 所以说"刷新一次数据后产生"是错的 —— 只有「立即检查」会产生。
+									// 2026-11-18：按**实际条目数**分岔 —— 有条目却一条记录都没有时说「未检查 N 条」，
+									// 只有真的连条目都没有（全隐藏）才说"还没做过自检"（文案保持最短）。
 									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-empty-text", children: healthSaveErr
 										? "健康数据暂时无法保存（宿主拒绝写入），不影响刷新"
-										: "还没有做过来源自检 —— 点「立即检查」开始" })
+										: healthRows.length > 0
+											? "未检查 " + healthRows.length + " 条 —— 点「立即检查」开始"
+											: "还没有做过来源自检 —— 点「立即检查」开始" })
 								] })
 								: (0, react_jsx_runtime.jsxs)("div", { className: "gacha-cal-health-summary", children: [
 									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-dot gacha-cal-health-dot--" + healthTone, "aria-hidden": "true" }),
-									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-status", children: healthBad.length > 0 ? healthBad.length + " 个来源需要关注" : "全部正常" }),
+									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-status", children: healthBad.length > 0 ? healthBad.length + " 条需要关注" : "全部正常" }),
 									(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-health-meta", children: healthMeta }),
 									(0, react_jsx_runtime.jsx)("button", { type: "button", className: "gacha-cal-health-toggle", "aria-expanded": healthAll, onClick: () => setHealthAll((v) => !v), children: healthAll ? "只看异常" : "查看全部" })
 								] }),
-							// 列表：默认只列异常；点「查看全部」后同网格列出全部（健康行 = 灰点 + 弱化文字）。
+							// 列表：默认只列异常；点「查看全部」后同网格列出**全部条目**（含**未检查**项，
+							// 2026-11-18：它们不再被 healthKnown 过滤掉；未检查行的胶囊/原因列来自 core）。
 							// 行文案（tag / reason / agoText）全部来自 core 的 sourceHealthOf，text 只进 title。
-							healthKnown.length > 0 && (healthAll ? healthKnown : healthBad).length > 0
-								? (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-health-list", children: (healthAll ? healthKnown : healthBad).map((h) => (0, react_jsx_runtime.jsxs)("div", {
+							healthList.length > 0
+								? (0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-health-list", children: healthList.map((h) => (0, react_jsx_runtime.jsxs)("div", {
 									className: "gacha-cal-health-row gacha-cal-health-row--" + h.tone,
 									title: h.name + " · " + h.text,
 									children: [
