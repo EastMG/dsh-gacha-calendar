@@ -95,30 +95,33 @@ export default async function runUmaTw() {
 			!!gacha && gacha.startTs === Date.UTC(2026, 10, 2, 4, 0), String(gacha && gacha.startTs));
 		check("endTs = 2026-12-03 11:59 +08（UTC 03:59）",
 			!!gacha && gacha.endTs === Date.UTC(2026, 11, 3, 3, 59), String(gacha && gacha.endTs));
-		// 悬停：卡池按结束时间升序（11/23 → 12/2 → 12/3），起点未知那两口**印源站原文**
-		check("卡池悬停逐字（3 口池；「維護結束後」原样印原文）",
-			!!gacha && gacha.bannerHover === [
-				"培育賽馬娘&支援卡片新登場！新培育劇本開幕轉蛋舉辦公告！",
-				"10/29 維護結束後 ～ 11/23 11:59",
-				"「保證★3」與「保證SSR」新培育劇本聲援轉蛋舉辦公告！",
-				"10/29 維護結束後 ～ 12/2 11:59",
-				"閃耀收藏 Pretty Derby轉蛋與保證SSR意志力轉蛋舉辦公告！",
-				"11-02 12:00 ~ 12-03 11:59"
-			].join("\n"),
-			JSON.stringify(gacha && gacha.bannerHover));
-		check("`gacha[]` 共 3 条（1 主条 + 2 口起点未知的并列条）",
-			!!gacha && Array.isArray(gacha.gacha) && gacha.gacha.length === 3,
+		// ── 2026-11-18 **已批准差异**（口径变更：数组/悬停与外显同口径，「两端有一端 null」的条目不进数组）──
+		// 改前：`gacha[]` 3 条（1 主条 + 2 口 `10/29 維護結束後 ～ …` 起点未知的并列条），悬停 6 行（那两口印原文）。
+		// 改后：那两口**不进数组、也不在悬停里出现**（只剩 1 条主条 ⇒ <2 条 ⇒ 不设 bannerHover）。
+		// 这不是"放宽断言"，差异的每一处来源都在下面逐条钉住：
+		//   ① 那两口的 `startTs` 确实解不出来（源站写 `10/29 維護結束後`）——由 ⑤ 反向③ 的纯函数断言逐字证明；
+		//   ② 它们**从来没有**进过外显（`coversNow` 要求两端明确）——下面那条原断言一字未改继续守着；
+		//   ③ 条目一条没删：`komoeTwItemsOf`（事实层）仍然返回 3 条，只是载荷层不再把 null 窗口写进数组/悬停。
+		const ITEMS_G = K.komoeTwItemsOf(JSON.parse(fixtureBody(URL_LIST)), "gacha", TZ, NOW);
+		const NULL_START_TITLES = [
+			"培育賽馬娘&支援卡片新登場！新培育劇本開幕轉蛋舉辦公告！",
+			"「保證★3」與「保證SSR」新培育劇本聲援轉蛋舉辦公告！"
+		];
+		check("事实层未改动：`komoeTwItemsOf` 仍 3 条，其中 2 条 startTs=null（= 旧值里被印进数组/悬停的那两口）",
+			ITEMS_G.length === 3
+			&& JSON.stringify(ITEMS_G.filter((x) => x.startTs === null).map((x) => x.title)) === JSON.stringify(NULL_START_TITLES),
+			JSON.stringify(ITEMS_G.map((x) => [x.title.slice(0, 12), x.startTs])));
+		check("**已批准差异**：`gacha[]` 1 条（旧值 3 条 − 2 条 null 窗口），且不含那两口",
+			!!gacha && Array.isArray(gacha.gacha) && gacha.gacha.length === 1
+			&& NULL_START_TITLES.every((t) => !gacha.gacha.some((x) => x.title === t)),
 			JSON.stringify(gacha && gacha.gacha && gacha.gacha.map((x) => x.title)));
 		check("`gacha[]` 主条 = 当期池 / source=primary / 两端 ts 都在",
 			!!gacha && gacha.gacha[0]?.title === gacha.banner && gacha.gacha[0]?.source === "primary"
 			&& gacha.gacha[0]?.startTs === Date.UTC(2026, 10, 2, 4, 0),
 			JSON.stringify(gacha && gacha.gacha[0]));
-		check("**起点未知那两条**（培育劇本開幕 / 保證★3·SSR 声援）startTs 为 null —— 事实保留、不冒充在期",
-			!!gacha && gacha.gacha[1]?.title === "培育賽馬娘&支援卡片新登場！新培育劇本開幕轉蛋舉辦公告！"
-			&& gacha.gacha[1]?.startTs === null
-			&& gacha.gacha[2]?.title === "「保證★3」與「保證SSR」新培育劇本聲援轉蛋舉辦公告！"
-			&& gacha.gacha[2]?.startTs === null,
-			JSON.stringify(gacha && gacha.gacha.map((x) => [x.title.slice(0, 12), x.startTs])));
+		check("**已批准差异**：旧悬停 6 行（3 口池，null 窗口印「10/29 維護結束後 ～ …」）⇒ 现在**不设** bannerHover",
+			!!gacha && gacha.bannerHover === undefined,
+			JSON.stringify(gacha && gacha.bannerHover));
 		check("**「維護結束後」那条不进外显**（外显只有两端明确的閃耀收藏池）",
 			!!gacha && gacha.banner !== "培育賽馬娘&支援卡片新登場！新培育劇本開幕轉蛋舉辦公告！"
 			&& gacha.banner.indexOf("維護結束後") < 0 && gacha.bannerDatesRaw.indexOf("維護結束後") < 0,
@@ -169,24 +172,33 @@ export default async function runUmaTw() {
 			komoeCallsOf(calls).length === 1, String(komoeCallsOf(calls).length));
 		check("两侧都不 fail（gachaFail / eventFail 都是 null）",
 			rec.gachaFail == null && rec.eventFail == null, JSON.stringify([rec.gachaFail, rec.eventFail]));
-		check("记录里的当期卡池与解析器逐字一致",
-			rec.banner === "閃耀收藏 Pretty Derby轉蛋與保證SSR意志力轉蛋舉辦公告！"
+		check("记录里的当期卡池：**已批准差异**（来源 = `stripDisplayTailOf`，逐字证明见下一条）",
+			rec.banner === "閃耀收藏 Pretty Derby轉蛋與保證SSR意志力轉蛋"
 			&& rec.bannerDates === "11-02 12:00 ~ 12-03 11:59"
 			&& rec.bannerDatesRaw === "11/2 12:00 ～ 12/3 11:59",
 			JSON.stringify([rec.banner, rec.bannerDates, rec.bannerDatesRaw]));
+		// ── 2026-11-18 ①（外显名体裁尾巴）的**已批准差异**：记录外显名只多做一件事 = 剥掉白名单尾巴
+		//    `舉辦公告！`。新值必须**恰好** = `stripDisplayTailOf(旧值)`（不靠人眼看、也不放宽）。
+		check("**已批准差异**来源逐字：新 banner === stripDisplayTailOf(旧 banner「…轉蛋舉辦公告！」)",
+			rec.banner === T.stripDisplayTailOf("閃耀收藏 Pretty Derby轉蛋與保證SSR意志力轉蛋舉辦公告！")
+			&& T.stripDisplayTailOf("閃耀收藏 Pretty Derby轉蛋與保證SSR意志力轉蛋舉辦公告！") === "閃耀收藏 Pretty Derby轉蛋與保證SSR意志力轉蛋",
+			JSON.stringify([rec.banner, T.stripDisplayTailOf("閃耀收藏 Pretty Derby轉蛋與保證SSR意志力轉蛋舉辦公告！")]));
+		check("**已批准差异**来源逐字：活动外显 === stripDisplayTailOf(旧「傳奇競賽舉辦中！」)（`舉辦中！` 是**既有**白名单，行为不变）",
+			rec.event === T.stripDisplayTailOf("傳奇競賽舉辦中！") && rec.event === "傳奇競賽",
+			JSON.stringify([rec.event, T.stripDisplayTailOf("傳奇競賽舉辦中！")]));
 		check("记录里的当期活动与解析器逐字一致",
 			rec.event === "傳奇競賽" && rec.eventDates === "11-10 05:00 ~ 11-13 04:59"
 			&& rec.eventDatesRaw === "11/10 5:00 ～ 11/13 4:59",
 			JSON.stringify([rec.event, rec.eventDates, rec.eventDatesRaw]));
-		check("记录数组：gacha 3 条 / events 1 条",
-			Array.isArray(rec.gacha) && rec.gacha.length === 3 && Array.isArray(rec.events) && rec.events.length === 1,
+		check("记录数组：**已批准差异** gacha 1 条（旧 3 条 − 2 条 null 窗口）/ events 1 条",
+			Array.isArray(rec.gacha) && rec.gacha.length === 1 && Array.isArray(rec.events) && rec.events.length === 1,
 			JSON.stringify([(rec.gacha || []).length, (rec.events || []).length]));
 		check("记录数组的 key 带条目 id 前缀（uma-tw:gacha:i / uma-tw:event:i）",
 			(rec.gacha || []).every((x, i) => x.key === "uma-tw:gacha:" + i)
 			&& (rec.events || []).every((x, i) => x.key === "uma-tw:event:" + i),
 			JSON.stringify([(rec.gacha || []).map((x) => x.key), (rec.events || []).map((x) => x.key)]));
-		check("记录里两条起点未知的并列池 startTs 仍为 null（数据层没把它们补成猜测值）",
-			(rec.gacha || []).filter((x) => x.startTs === null).length === 2,
+		check("记录里**不再有** startTs=null 的条目（旧值 2 条 ⇒ 0 条；两端有一端 null 一律不进数组）",
+			(rec.gacha || []).filter((x) => x.startTs === null || x.endTs === null).length === 0,
 			JSON.stringify((rec.gacha || []).map((x) => [x.title.slice(0, 10), x.startTs])));
 	}
 
@@ -235,6 +247,55 @@ export default async function runUmaTw() {
 		check("夹具最新一条 = 2026-11-08（源站顺序头两条是 2022~2023 的置顶旧稿）",
 			ANNOUNCEMENTS.some((a) => a.publishTs === Date.parse("2026-11-08T04:00:01Z")),
 			JSON.stringify(ANNOUNCEMENTS.slice(0, 3).map((a) => [a.title.slice(0, 16), a.publishTs])));
+	}
+
+	// ─────────────────────⑥ 2026-11-18：外显名尾巴 + null 窗口排除（判别性证明）─────────────────────
+	// 本段只钉两件事，且都要有"改回去就红"的区分力：
+	//   ① `stripDisplayTailOf` 新增的「舉辦公告！」白名单：新尾巴剥掉，**既有**的「舉辦中！」行为逐字不变；
+	//   ② `komoeTwPayloadOf` 只排除"两端有一端 null"，**没有**改 `coveredOrOpen` 的语义 ——
+	//      把夹具里 `10/29 維護結束後` 改成具体时刻，那口池就**重新**进数组/悬停（2 条）。
+	section("赛马娘·繁中服 ⑥：外显名尾巴「舉辦公告！」+ null 窗口排除（判别性证明：改回旧写法就红）");
+	{
+		// ① 尾巴（纯函数）
+		check("尾巴白名单新增：`…舉辦公告！` 剥掉（uma-tw 实测名），`…舉辦公告` 无叹号也剥",
+			T.stripDisplayTailOf("培育賽馬娘&支援卡片新登場！特選轉蛋舉辦公告！") === "培育賽馬娘&支援卡片新登場！特選轉蛋"
+			&& T.stripDisplayTailOf("培育賽馬娘&支援卡片新登場！特選轉蛋舉辦公告") === "培育賽馬娘&支援卡片新登場！特選轉蛋",
+			JSON.stringify([
+				T.stripDisplayTailOf("培育賽馬娘&支援卡片新登場！特選轉蛋舉辦公告！"),
+				T.stripDisplayTailOf("培育賽馬娘&支援卡片新登場！特選轉蛋舉辦公告")
+			]));
+		check("**既有行为不变**：`…舉辦中！` 仍剥成同一个值（活动侧「傳奇競賽舉辦中！」⇒「傳奇競賽」）",
+			T.stripDisplayTailOf("傳奇競賽舉辦中！") === "傳奇競賽"
+			&& T.stripDisplayTailOf("「培育報酬」碎片追加活動舉辦中！") === "「培育報酬」碎片追加活動",
+			JSON.stringify([
+				T.stripDisplayTailOf("傳奇競賽舉辦中！"),
+				T.stripDisplayTailOf("「培育報酬」碎片追加活動舉辦中！")
+			]));
+		check("剥完剩余 < 3 码点的保护仍在：`活動舉行公告` ⇒ 不剥（剩「活動」只有 2 码点）",
+			T.stripDisplayTailOf("活動舉行公告") === "活動舉行公告",
+			JSON.stringify(T.stripDisplayTailOf("活動舉行公告")));
+
+		// ② null 窗口排除是**窄口径**（只排除两端有一端 null，不动 coveredOrOpen）
+		const fixed = JSON.parse(BODY);
+		for (const it of fixed.data) {
+			if (String(it.title).indexOf("新培育劇本開幕") >= 0) {
+				it.rich_text = String(it.rich_text).replace(/10\/29 維護結束後 ～ 11\/23 11:59/, "10/29 10:00 ～ 11/23 11:59");
+			}
+		}
+		const fixedPayload = K.komoeTwPayloadOf(fixed, "gacha", TZ, NOW);
+		check("判别：把 `10/29 維護結束後` 改成具体时刻 ⇒ 那口池**重新**进数组/悬停（2 条，档期 10-29 10:00 ~ 11-23 11:59）",
+			!!fixedPayload && fixedPayload.gacha.length === 2
+			&& fixedPayload.gacha[0].title === "培育賽馬娘&支援卡片新登場！新培育劇本開幕轉蛋舉辦公告！"
+			&& fixedPayload.gacha[0].startTs === Date.UTC(2026, 9, 29, 2, 0)
+			&& typeof fixedPayload.bannerHover === "string" && fixedPayload.bannerHover.includes("10-29 10:00 ~ 11-23 11:59"),
+			JSON.stringify(fixedPayload && [fixedPayload.gacha.length, fixedPayload.bannerHover]));
+		check("判别：另一口仍是 `維護結束後`（起点未知）⇒ 依旧排除；外显仍是两端明确的閃耀收藏池",
+			!!fixedPayload && !fixedPayload.gacha.some((x) => x.title.indexOf("保證★3") >= 0)
+			&& fixedPayload.banner === "閃耀收藏 Pretty Derby轉蛋與保證SSR意志力轉蛋舉辦公告！",
+			JSON.stringify(fixedPayload && [fixedPayload.banner, fixedPayload.gacha.map((x) => x.title.slice(0, 12))]));
+		check("事实层判据未被改写：`…維護結束後 ～ 11/23 11:59` 那口在 `komoeTwItemsOf` 里仍然在（只是载荷层不收）",
+			K.komoeTwItemsOf(JSON.parse(BODY), "gacha", TZ, NOW).some((x) => x.startTs === null && x.endTs === Date.UTC(2026, 10, 23, 3, 59)),
+			JSON.stringify(K.komoeTwItemsOf(JSON.parse(BODY), "gacha", TZ, NOW).map((x) => [x.title.slice(0, 12), x.startTs, x.endTs])));
 	}
 }
 

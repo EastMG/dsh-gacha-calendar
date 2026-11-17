@@ -1416,7 +1416,13 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 		 */
 		function komoeTwPayloadOf(json, side, tz, now) {
 			const isGacha = side === "gacha";
-			const listed = komoeTwItemsOf(json, side, tz, now).filter((x) => coveredOrOpen(x, now));
+			// 悬停/数组的取数口径 = `coveredOrOpen`（在期 + 起点未知但终点未过），**这一层语义不变**；
+			// 2026-11-18 修：再排除**两端有一端 null** 的条目（源站 `10/29 維護結束後 ～ 11/23 11:59`
+			// 这种写法解不出起点 ⇒ `startTs=null`）。外显本来就要求两端明确，数组/悬停现在同口径：
+			// 一条没有明确起止的行不进数组，也不在悬停里印一行"原文档期"（用户看到的是一行没有日期的池名）。
+			const listed = komoeTwItemsOf(json, side, tz, now)
+				.filter((x) => x.startTs != null && x.endTs != null)
+				.filter((x) => coveredOrOpen(x, now));
 			const primary = listed
 				.filter((x) => coversNow(x, now))
 				.sort((a, b) => (b.startTs - a.startTs) || (a.endTs - b.endTs))[0] || null;
