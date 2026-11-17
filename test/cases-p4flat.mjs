@@ -221,15 +221,20 @@ export default async function runP4Flat() {
 	// ══════════════════════════════════════════════════════════════════════════════
 	section("P4 ③ 计数按条：24 小时 / 7 天数字与条数一致（不是格数）");
 	{
-		// bandori 10-25：15 条在期活动里有 13 条在 24 小时内到期，而面板只有 **2 格**（卡池+活动）
-		// —— 只有"按条"才会数出 13；按格最多是 2。
+		// bandori 10-25：15 条在期条目（1 卡池 + 14 活动）里有 14 条在 24 小时内到期，而面板只有 **2 格**
+		// （卡池+活动）—— 只有"按条"才会数出 14；按格最多是 2。
+		// ⚠️ 2026-11-17 数字 13 → 14（bandori 卡池侧「必须覆盖 now」的真机 bug 修复）：以前卡池侧不看
+		//    coversNow，把公告里**第一个**「招募」节（黄金周纪念·前篇…，10-11 12:59 已结束）当当期外显，
+		//    那条已结束 ⇒ 不进 24 小时/7 天计数。修复后改选**仍覆盖 now** 的那口池
+		//    「★ 5 期间限定 奇迹招募券礼包（~10-26 12:59，还剩 17 小时）」⇒ 按条多出 1 条，14。
+		//    口径没变（仍是"按条数、不是格数"），所以断言跟着数字走，**不放宽**。
 		const late = flatOf("bandori", bandoriLate, NOW_BD_LATE);
 		const cells = Array.from(late.flat.cellViews.values());
-		check("计数·24 小时：bandori 在 10-25 那一刻有 13 条落在 24 小时内（面板只有 2 格 ⇒ 按条才对）",
-			late.soon.length === 13 && cells.length === 2,
+		check("计数·24 小时：bandori 在 10-25 那一刻有 14 条落在 24 小时内（面板只有 2 格 ⇒ 按条才对）",
+			late.soon.length === 14 && cells.length === 2,
 			JSON.stringify([late.soon.length, cells.length]));
-		check("计数·7 天：同一刻 13 条（7 天窗口 ⊇ 24 小时窗口），且 = 「近期」列表条数",
-			late.recent.length === 13 && late.recent.length === late.soon.length,
+		check("计数·7 天：同一刻 14 条（7 天窗口 ⊇ 24 小时窗口），且 = 「近期」列表条数",
+			late.recent.length === 14 && late.recent.length === late.soon.length,
 			JSON.stringify([late.recent.length, late.soon.length]));
 		// pjsk 10-11：9 条 24 小时内到期 / 10 条 7 天内到期（面板 1 格）
 		const pl = flatOf("pjsk", pjskLate, NOW_PJSK_LATE);

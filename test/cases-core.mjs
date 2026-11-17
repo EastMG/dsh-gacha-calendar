@@ -729,6 +729,8 @@ export default async function runCore() {
 	//       覆盖 17 款（15 款端到端刷新 + 星铁 / 原神 两条 payload 级），比较「名称 / 档期文本 /
 	//       探头行数 / 行顺序」。**34 个侧全部逐字相等**（diffs = 0）—— P2 收尾把原来那 6 处
 	//       已知差异靠"补事实 + 按游戏分派规则"消掉了，断言不再留任何"允许不等"的口子。
+	//       ⚠️ 2026-11-17 起 bandori 两侧进入 `APPROVED_DIFF`（"不覆盖 now 就不外显"的真机 bug 修复，
+	//          见下面该集合的注释与"bandori 专项"断言）；除此之外的 32 个侧仍然一律逐字相等。
 	{
 		const fixture = useFixtures();
 		const transport = {
@@ -886,8 +888,16 @@ export default async function runCore() {
 		// 夹具里的「巡星之礼」就是这么当上外显的。这是**已批准的差异**，不是回归；
 		// ⚠️ 2026-11-09 另一处（「活动名去掉尾部『活动说明』」）：星塔旅人活动侧（`stellasora:event`）
 		// 的名称行里不再有那个体裁尾巴（改造前是 `「联合讨伐」活动说明`）⇒ 同样是有意变更。
-		// 白名单只有这 3 个键（下面单独守长度），逐字期望分别由 cases-p4 / cases-hsr-official 与 cases-p7 钉住。
-		const APPROVED_DIFF = new Set(["hsr:gacha", "hsr:event", "stellasora:event"]);
+		// 白名单里这 3 个键（下面单独守长度），逐字期望分别由 cases-p4 / cases-hsr-official 与 cases-p7 钉住。
+		// ⚠️ 2026-11-17 用户口径（真机 bug）：bandori 两侧的「选当期」以前**不看 coversNow** —— 公告正文里
+		//   第一个「招募」节 / 第一个活动节就被当成当期外显，于是当期结束后仍把上一期印在面板上，而且
+		//   因为 payload 一旦产出就记成功（gachaFail/eventFail = null），面板/悬停都不会提示"沿用旧值"。
+		//   实测 2026-11-17 19:25 那轮：卡池「7.5周年纪念Dream Festival招募 11-13 13:00~11-17 12:59」已过期
+		//   6.5 小时、活动「だんらんTV 10-28~11-14」已过期 3 天，两侧 fail 都是 null。修复后：不覆盖 now
+		//   的节 ⇒ null（nomatch）。**本 golden 的时刻（2026-08-25）夹具窗口 09-29~10-11 尚未开始** ⇒
+		//   新路两侧都是 null，与改造前存档（老路把"尚未开始"的节也当当期）有意不同 ⇒ 这两个键登记为
+		//   **已批准差异**。差异的范围由下面"bandori 专项"钉死：只是「不覆盖 now 就不外显」，数据本身没动。
+		const APPROVED_DIFF = new Set(["hsr:gacha", "hsr:event", "stellasora:event", "bandori:gacha", "bandori:event"]);
 		// ⚠️ 2026-11-10（用户要求）：p5x 的「只有日期、没有时刻」窗口改成 00:00 起 / 23:59 止
 		// （仓库通用约定，见 `ns_bwiki_windowsFromCell` 注释）。golden 是改造前 04:00 / 03:59 的存档
 		// ⇒ 这两侧登记为**已批准差异**，并由下面的专项断言逐行证明"差异只是这条时间口径"。
@@ -895,7 +905,7 @@ export default async function runCore() {
 		const unapproved = diffs.filter((k) => !APPROVED_DIFF.has(k) && !DAY_ONLY_KEYS.has(k));
 		check("等价性：17 款游戏（34 个侧）**全部逐字相等**（diffs = 0；名称 / 档期文本 / 探头行数 / 行顺序）",
 			unapproved.length === 0, JSON.stringify(unapproved));
-		check("等价性白名单 = 3 个已批准（星铁 2 + 星塔 1）+ p5x 2 个纯日期时间口径（这些键都必须真的变了）",
+		check("等价性白名单 = 5 个已批准（星铁 2 + 星塔 1 + bandori 2）+ p5x 2 个纯日期时间口径（这些键都必须真的变了）",
 			diffs.length === APPROVED_DIFF.size + DAY_ONLY_KEYS.size
 			&& [...APPROVED_DIFF].every((k) => diffs.indexOf(k) >= 0)
 			&& [...DAY_ONLY_KEYS].every((k) => diffs.indexOf(k) >= 0),
@@ -914,6 +924,26 @@ export default async function runCore() {
 			check(`等价性（${key}）**已批准差异**：名称/行数/顺序逐字相同，档期只是「纯日期 ⇒ 00:00 / 23:59」`,
 				!!d && JSON.stringify(want) === JSON.stringify(d.next), JSON.stringify([want, d && d.next]));
 		}
+		// bandori 专项（2026-11-17 已批准差异的**依据**）：差异只是「不覆盖 now 就不外显」，数据本身没动。
+		//   ① golden 时刻（2026-08-25）夹具窗口 09-29~10-11 **尚未开始** ⇒ 新路两侧 = null（nomatch）；
+		//   ② 同一份夹具、只把 now 换到**窗口覆盖的时刻**（2026-10-02 01:27 +08，= cases-b3 的 NOW）⇒
+		//      卡池侧 `show` / 活动侧 `event` 与 golden 里的名称**逐字相同**（解析/角色抽取没被改坏）。
+		{
+			const bdG = got.get("bandori:gacha");
+			const bdE = got.get("bandori:event");
+			check("等价性（bandori）已批准差异①：golden 时刻夹具窗口尚未开始 ⇒ 新路两侧都是 null（不再把未开始的节当当期）",
+				!!bdG && !!bdE && bdG.next === null && bdE.next === null,
+				JSON.stringify([bdG && bdG.next, bdE && bdE.next]));
+			const bdCovered = await runGame("bandori", Date.parse("2026-10-01T17:27:00.000Z"));
+			const goldG = (bdG && bdG.old && bdG.old[0]) || {};
+			const goldE = (bdE && bdE.old && bdE.old[0]) || {};
+			const bdMain = (bdCovered.gacha || [])[0] || {};
+			check("等价性（bandori）已批准差异②：同一份夹具换到「窗口覆盖 now」后，卡池 show / 活动 event 与 golden 名称逐字相同",
+				bdCovered.banner === "黄金周纪念·前篇Dream＆KIRAMEKI Festival招募"
+				&& bdMain.show === goldG.name
+				&& bdCovered.event === goldE.name,
+				JSON.stringify([bdCovered.banner, bdMain.show, bdCovered.event, goldG.name, goldE.name]));
+		}
 		const STRICT = ["zzz", "arknights", "ba-cn", "bandori", "wuhuamixin", "zspms", "kedr", "uma-cn", "uma-jp", "uma-global", "p5x", "nte", "gf2", "fgo", "stellasora", "hsr", "genshin"];
 		const strictBad = [];
 		for (const id of STRICT) {
@@ -926,8 +956,8 @@ export default async function runCore() {
 		}
 		check("等价性：17 款游戏（34 个侧）逐侧再钉一遍同一条不变量（含「这一侧没有数据」的那些）",
 			strictBad.length === 0, JSON.stringify(strictBad));
-		// 反向证明：那 2 个"已批准差异"确实**真的变了**（不是白名单把没变的键也放过）
-		check("反向证明：那 2 个星铁侧的老路与数组派生**确实不再相等**（口径变更真的生效了）",
+		// 反向证明：所有"已批准差异"确实**真的变了**（不是白名单把没变的键也放过）
+		check("反向证明：已批准差异（星铁 2 + 星塔 1 + bandori 2）的老路与数组派生**确实不再相等**（口径变更真的生效了）",
 			[...APPROVED_DIFF].every((k) => {
 				const d = got.get(k);
 				return !!d && JSON.stringify(d.old) !== JSON.stringify(d.next);

@@ -286,7 +286,12 @@ export default async function run() {
 	section("B3 ⑤ BanG Dream 国服 —— 两侧抓取器（夹具）");
 	{
 		const src = findSource("bandori");
-		const g = await src.gacha.fetcher(src.gacha.url, undefined, src.tz);
+		// ⚠️ 2026-11-17：卡池侧**必须传 NOW**（与下面活动侧 / 合成夹具同口径）。
+		//    选择器现在要求「节主窗口覆盖 now」（真机 bug 修复：过期节不再当当期外显）⇒
+		//    不传 now 就按真实时钟走，夹具（09-29~10-11）一过期第 1 篇就选不出节，
+		//    抓取器会继续扫后面 4 篇公告，而夹具 transport 没有它们的详情 URL ⇒ proxy-http-404。
+		//    本区块的断言意图就是「**第 1 篇公告**（18418）的卡池侧」，所以把时刻对齐到夹具覆盖的 NOW。
+		const g = await src.gacha.fetcher(src.gacha.url, undefined, src.tz, NOW);
 		assertContract("Bandori", "gacha", g);
 		check("Bandori 卡池 banner = 主招募节名（实体 &middot; 已还原）",
 			!!g && g.banner === "黄金周纪念·前篇Dream＆KIRAMEKI Festival招募", JSON.stringify(g && g.banner));
