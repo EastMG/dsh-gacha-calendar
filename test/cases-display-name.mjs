@@ -11,7 +11,8 @@
 //   悬停 / 复制 / 回归 oracle 读的是它们 ⇒ 每段都有一条"原文不动"的断言。
 //   应用点 = `50-refresh.js` 的 `mergeEntryRecord`；纯函数在 `60-helpers.js`（两个产物都包含）。
 //
-// 分段与三个 commit 对齐：① 尾巴归一 / ② 泛名让位 / ③ 超长截断。
+// 分段与两个 commit 对齐：① 尾巴归一 / ② 泛名让位。
+// （③ 超长截断曾实现后按用户 2026-11-18 要求回退：本文件已无 ③ 的用例。）
 
 import { check, section } from "./harness.mjs";
 import { T } from "./load.mjs";
