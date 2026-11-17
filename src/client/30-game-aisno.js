@@ -67,7 +67,7 @@
 		const WQMT_NEWS_URL = "https://wqmt.aisnogames.com/api/news";
 		const WQMT_NEWS_DETAIL = "https://wqmt.aisnogames.com/api/news/";
 		// 逐条取正文的条数上限：列表一共只有 15 条（三个栏目各 5），一次刷新取最新 **10** 条正文
-		// ≈ 10 次串行请求（实测每条约 0.3s，远低于 REFRESH_TIMEOUT_MS = 20s）。
+		// ≈ 10 次串行请求（实测每条约 0.3s，远低于 REFRESH_ENTRY_TIMEOUT_MS = 25s）。
 		// ⚠️ 2026-11-10 修：原来 6 条。11-09 起「禁闭者装束 / 档案 / 影像捕获 / MBCC前瞻」这类非档期
 		//    公告密集发布，把真正写档期的 10/27 停服维护公告（id=2099）挤到第 7 位 ⇒ 被截断、活动空窗。
 		//    配额提到 10 后 2099 落在候选内（实测其正文能出 2 条在期窗口）。

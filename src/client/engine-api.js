@@ -122,7 +122,12 @@
 			// 隐藏条目的**旧健康记录**则原样保留（keepIds 用全量条目，见下面那段）。
 			async function selfCheck(options) {
 				useEnv();
-				const timeoutMs = (options && options.timeoutMs) || REFRESH_TIMEOUT_MS;
+				// `options.timeoutMs` = **每条条目的预算**（毫秒）。语义变更说明（2026-11-17）：
+				// 旧调度模型下它是"整轮共用的 deadline"（所有条目共享同一个到点时刻）；调度层改成
+				// 「池化 + 每条目自己的预算」后（见 50-refresh.js 的 REFRESH_ENTRY_TIMEOUT_MS 与
+				// runEntriesWithDeadline），同一个参数表示"每一条从开始执行起的预算"——到点只把该条
+				// 还没回来的侧记「超时」，整轮结束由 REFRESH_HARD_CAP_MS 兜底。
+				const timeoutMs = (options && options.timeoutMs) || REFRESH_ENTRY_TIMEOUT_MS;
 				const s = await readSettings();
 				const entries = getVisibleEntries(s);
 				const targets = entries.map((e) => ({
@@ -132,8 +137,9 @@
 					allowGenericGacha: !!e.custom || isCustomSource(s, e.id),
 					allowGenericEvent: !!e.custom || isCustomSource(s, e.id, "eventUrl")
 				}));
-				// 与刷新同一套"到点收尾"兜底：transport 不理会 signal 时，自检也不会永远转圈
-				const results = await runEntriesWithDeadline(targets, timeoutMs);
+				// 与刷新同一套调度兜底（并发上限 / 每条目预算 / 整轮硬上限 / 瞬时失败重试）：
+				// transport 不理会 signal 时，自检也不会永远转圈
+				const results = await runEntriesWithDeadline(targets, { entryTimeoutMs: timeoutMs });
 				// 一侧的结论：ok=有内容；nomatch=抓到页面但没当期内容；down=抓取/解析报错；
 				// unconfigured=该侧压根没配来源（合法状态，**不算失败**——面板把它当"没这回事"，
 				// 自检也必须同口径：单列一类，否则"没配"会混进"报错"数字里，用户去修也无从下手）
