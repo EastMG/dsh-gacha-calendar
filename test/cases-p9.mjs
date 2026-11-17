@@ -28,7 +28,7 @@ import { T } from "./load.mjs";
 // 仅测试用：核对备选源登记的就是 B2 那份实现（解析器本体不改）
 const { gachaUmaCn } = T.parsers["bwiki"];
 
-const { eventsWhmxOfficial, gachaUmaCnOfficial, eventsUmaCnOfficial, parseBiligameList, mergeBiligameLists, parseWhmxActivity, parseUmaCnAnnouncement, classifyUmaCnTitle, pickWhmxEvent, pickUmaWindow, umaRoles, quotedName, cleanTitle, biligameParagraphs, extractWindowsDetailed, deglueDateTimes, siblingListUrl, whmxListUrls, biligameDetailUrl, biligameListUrl, parseCmsStamp, hoverRows, BILIGAME_ACTIVITY_TZ, WHMX_GAME_EXTENSION_ID, UMA_CN_GAME_EXTENSION_ID, WHMX_LIST_URL, WHMX_LIST_URLS, UMA_CN_LIST_URL } = T.parsers["biligame-activity"];
+const { eventsWhmxOfficial, gachaUmaCnOfficial, eventsUmaCnOfficial, parseBiligameList, mergeBiligameLists, parseWhmxActivity, parseUmaCnAnnouncement, classifyUmaCnTitle, pickWhmxEvent, pickUmaWindow, umaRoles, quotedName, cleanTitle, biligameParagraphs, extractWindowsDetailed, deglueDateTimes, siblingListUrl, whmxListUrls, biligameDetailUrl, biligameListUrl, parseCmsStamp, hoverRows, BILIGAME_ACTIVITY_TZ, WHMX_GAME_EXTENSION_ID, UMA_CN_GAME_EXTENSION_ID, WHMX_LIST_URL, WHMX_LIST_URLS, UMA_CN_LIST_URL, umaGachaTitleBlocked, umaGachaTitleRank, umaCnCandidatesOf, umaCnIsExampleLabel } = T.parsers["biligame-activity"];
 
 const { gachaOurNotesGlobal, eventsOurNotesGlobal, parseOurNotesGlobalPage, isOurNotesGlobalEmpty, classifyOurNotesGlobalTitle, cleanTitle: cleanTitleGlobal, extractOurNotesGlobalWindows, ournotesGlobalListUrl, ournotesGlobalDetailUrl, langOf, OURNOTES_GLOBAL_LIST_URL, OURNOTES_GLOBAL_TZ, OURNOTES_GLOBAL_GAME_BASE_ID } = T.parsers["ournotes-global"];
 
@@ -636,6 +636,140 @@ export default async function run() {
 		check("列表请求失败 → 抛错（不静默降级成 null）",
 			await throwsAsync(() => gachaUmaCnOfficial("https://example.invalid/news/list", undefined, TZ, SNAP_UMA))
 			&& await throwsAsync(() => eventsUmaCnOfficial("https://example.invalid/news/list", undefined, TZ, SNAP_UMA)));
+	}
+	//#endregion
+
+	//#region P9-5b 闪耀优俊少女 卡池侧：标题黑名单 + 偏好序 / 示例行过滤（2026-11-18 修）
+	// 现场（真夹具 `p9-uma-cn-list-1118`，抓取时刻 2026-11-17T18:12Z = 11-18 02:12 +08）：
+	//   列表第 4 条 = **免费活动**「最多100次免费招募！“每日1次免费十连招募活动”开放！」
+	//   列表第 5 条 = 真卡池「养成优俊少女&协助卡新登场！精选招募开放！」
+	//   两篇标题都含「招募」⇒ 旧实现按**列表顺序**取第一篇 ⇒ 外显成了免费十连活动（名字与档期都不是卡池）。
+	// 修法两条（都只在卡池侧）：① 标题黑名单命中 ⇒ 跳过（不抓详情）；② 候选先排「新登场|精选招募」再排其余。
+	// 另一条：18598 正文里的举例段 `例：11/16 12:00 ～ 11/21 4:59期间未登录…` 曾被当成一条独立档期
+	//   （标签 = `例`）⇒ 数组/悬停里冒出一条 title=「例」的假条目，现在整条丢弃。
+	section("P9-5b 闪耀优俊少女 卡池侧：标题黑名单 + 偏好序（真夹具 11-18 02:12）+ 示例行过滤");
+	{
+		const LIST_1118 = "https://api.biligame.com/news/list?gameExtensionId=1006&positionId=2&typeId=1&pageNum=1&pageSize=50";
+		const D18598 = "https://api.biligame.com/news/18598";
+		const D18596 = "https://api.biligame.com/news/18596";
+		const META_1118 = meta("p9-uma-cn-list-1118/response.txt");
+		const NOW_1118 = Date.parse(META_1118.capturedAt);
+		const list1118 = parseBiligameList(fixtureJson("p9-uma-cn-list-1118/response.txt"));
+
+		// ── ① 黑名单（纯函数，6 个关键词逐个）+ 反向守卫（真卡池 / 3★必得 不受影响）─────────
+		check("卡池标题黑名单：免费 / 每日1次 / 每天1次 / 每日1回 / 100次免费 / 免费十连 全部命中",
+			umaGachaTitleBlocked("最多100次免费招募！“每日1次免费十连招募活动”开放！")
+			&& umaGachaTitleBlocked("每日1次免费十连招募活动开放！")
+			&& umaGachaTitleBlocked("每天1次免费十连招募开放！")
+			&& umaGachaTitleBlocked("每日1回無料ガチャ開催！")
+			&& umaGachaTitleBlocked("100次免费招募开放！")
+			&& umaGachaTitleBlocked("免费十连招募开放！"),
+			["最多100次免费招募！“每日1次免费十连招募活动”开放！", "每日1次免费十连招募活动开放！", "每天1次免费十连招募开放！", "每日1回無料ガチャ開催！", "100次免费招募开放！", "免费十连招募开放！"].map((t) => t + "=" + umaGachaTitleBlocked(t)).join(" | "));
+		check("黑名单**不误伤**真卡池：新登场/精选招募/3★必得 都不被拦（反向守卫）",
+			!umaGachaTitleBlocked("养成优俊少女&协助卡新登场！精选招募开放！")
+			&& !umaGachaTitleBlocked("自定义精选 协助卡招募开放！")
+			&& !umaGachaTitleBlocked("“3★必得”“超稀有必得”动画第三季纪念招募 第1期开放！"),
+			["养成优俊少女&协助卡新登场！精选招募开放！", "自定义精选 协助卡招募开放！", "“3★必得”“超稀有必得”动画第三季纪念招募 第1期开放！"].map((t) => t + "=" + umaGachaTitleBlocked(t)).join(" | "));
+
+		// ── ② 偏好序（纯函数，合成 8 条受控列表）：含「新登场|精选招募」的排前，同组内保持原序 ──
+		const SYNTH = [
+			{ id: 1, title: "最多100次免费招募！“每日1次免费十连招募活动”开放！" },
+			{ id: 2, title: "“3★必得”动画第三季纪念招募 第1期开放！" },
+			{ id: 3, title: "自定义精选 协助卡招募开放！" },
+			{ id: 4, title: "活动“爱丽速子的因子研究”开放！" },
+			{ id: 5, title: "养成优俊少女&协助卡新登场！精选招募开放！" },
+			{ id: 6, title: "精选招募开放！" },
+			{ id: 7, title: "“2.5周年庆典活动第3弹”举办！" },
+			{ id: 8, title: "传奇赛事开放！" }
+		];
+		check("偏好序：卡池候选 = [新登场…(5), 精选招募(6), 3★必得(2), 自定义精选(3)] —— 免费活动被黑名单剔除，其余同组保持列表原序",
+			JSON.stringify(umaCnCandidatesOf(SYNTH, "gacha").map((x) => x.id)) === JSON.stringify([5, 6, 2, 3]),
+			JSON.stringify(umaCnCandidatesOf(SYNTH, "gacha").map((x) => [x.id, x.title])));
+		check("偏好序只作用于卡池侧：活动候选**顺序与旧版逐字相同**（= 列表原序，不做偏好排序）",
+			JSON.stringify(umaCnCandidatesOf(SYNTH, "event").map((x) => x.id)) === JSON.stringify([4, 7, 8]),
+			JSON.stringify(umaCnCandidatesOf(SYNTH, "event").map((x) => x.id)));
+		check("候选窗口仍是 list.slice(0, 8)（最多抓同样多的详情，不扩请求面）",
+			umaCnCandidatesOf(SYNTH.concat([{ id: 9, title: "养成优俊少女&协助卡新登场！精选招募开放！" }]), "gacha")
+				.every((x) => x.id !== 9),
+			JSON.stringify(umaCnCandidatesOf(SYNTH.concat([{ id: 9, title: "养成优俊少女&协助卡新登场！精选招募开放！" }]), "gacha").map((x) => x.id)));
+		check("真夹具偏好序：11-18 列表窗口内**只剩 18596 一个卡池候选**（18598 免费活动被黑名单剔除、18591 预告在窗口外）",
+			JSON.stringify(umaCnCandidatesOf(list1118, "gacha").map((x) => x.id)) === JSON.stringify([18596]),
+			JSON.stringify(umaCnCandidatesOf(list1118, "gacha").map((x) => [x.id, x.title])));
+		check("偏好档位：标题含「新登场|精选招募」= 0，其余 = 1",
+			umaGachaTitleRank("养成优俊少女&协助卡新登场！精选招募开放！") === 0
+			&& umaGachaTitleRank("自定义精选 协助卡招募开放！") === 1
+			&& umaGachaTitleRank("“3★必得”动画第三季纪念招募 第1期开放！") === 1,
+			[0, 1, 1].join(","));
+
+		// ── ③ 抓取器（真夹具）：外显必须是真卡池，且**免费活动那条详情一次都不请求** ──────────
+		const seen = [];
+		// 目标地址在 transport 出口会由 `withBwikiCors` 统一补 `origin=*`（15-env.js 的唯一收口）⇒
+		// 记账时把 `origin=*` 摘掉再比对，直接用**来源注册的 URL 字面量**做期望值。
+		const normUrl = (u) => String(u).replace(/[?&]origin=\*/, "");
+		T.setCoreEnv({
+			transport: {
+				async fetchRaw(u) { seen.push({ u: normUrl(u), kind: "direct" }); throw new Error("不该直连：" + u); },
+				async fetchViaProxy(u) {
+					seen.push({ u: normUrl(u), kind: "proxy" });
+					if (normUrl(u) === LIST_1118) return fixtureText("p9-uma-cn-list-1118/response.txt");
+					if (normUrl(u) === D18596) return fixtureText("p9-uma-d18596/response.txt");
+					if (normUrl(u) === D18598) return fixtureText("p9-uma-d18598/response.txt");
+					throw new Error("proxy-bad:404 " + u);
+				}
+			},
+			timer: { setTimeout, clearTimeout }
+		});
+		try {
+			const g1118 = await grab(() => gachaUmaCnOfficial(LIST_1118, undefined, TZ, NOW_1118));
+			check("卡池抓取成功（真夹具 11-18 02:12）", g1118.ok, g1118.err);
+			assertContract("闪耀优俊少女 11-18", "gacha", g1118.ok ? g1118.data : null);
+			check("外显 = 「养成优俊少女&协助卡新登场！精选招募」（标题去掉「开放！」尾巴）/ 11-16 12:00 ~ 11-28 11:59",
+				g1118.ok && g1118.data && g1118.data.banner === "养成优俊少女&协助卡新登场！精选招募"
+				&& g1118.data.bannerDates === "11-16 12:00 ~ 11-28 11:59",
+				JSON.stringify(g1118.ok && g1118.data && [g1118.data.banner, g1118.data.bannerDates]));
+			check("外显**不再**是免费十连活动（名字与档期都不是「最多100次免费招募…」/ 11-26 04:59）",
+				g1118.ok && g1118.data && g1118.data.banner.indexOf("免费") < 0
+				&& g1118.data.bannerDates !== "11-16 12:00 ~ 11-26 04:59"
+				&& g1118.data.bannerDatesRaw !== "11/16 12:00 ～ 11/26 4:59",
+				JSON.stringify(g1118.ok && g1118.data && [g1118.data.banner, g1118.data.bannerDates, g1118.data.bannerDatesRaw]));
+			check("黑名单 ⇒ **免费活动那条详情一次都不请求**（详情只请求了 18596；18598 不在请求里）",
+				JSON.stringify(seen.filter((x) => x.kind === "proxy").map((x) => x.u)) === JSON.stringify([LIST_1118, D18596]),
+				JSON.stringify(seen.map((x) => x.u)));
+			check("数组/悬停里**没有**「例」（示例行被丢，只剩真档期 2 条）",
+				g1118.ok && g1118.data && Array.isArray(g1118.data.gacha) && g1118.data.gacha.length === 1
+				&& g1118.data.gacha.every((x) => x.title !== "例" && !/^例/.test(String(x.title)))
+				&& (g1118.data.gachaHoverItems || []).every((x) => x.title !== "例" && !/^例/.test(String(x.title))),
+				JSON.stringify(g1118.ok && g1118.data && (g1118.data.gachaHoverItems || []).map((x) => x.title)));
+			check("数组里也不再出现免费十连活动当卡池（无「免费」标题）",
+				g1118.ok && g1118.data && (g1118.data.gacha || []).every((x) => String(x.title).indexOf("免费") < 0),
+				JSON.stringify(g1118.ok && g1118.data && (g1118.data.gacha || []).map((x) => x.title)));
+		} finally {
+			useFixtures(OVERRIDES);   // 还原（后续 section 只用本批夹具）
+		}
+
+		// ── ④ 解析器级：18598 正文的示例行必须先被识别再从 items 里剔除 ─────────────────
+		const d18598 = parseUmaCnAnnouncement(fixtureJson("p9-uma-d18598/response.txt").data.content, TZ, { y: 2026, mo: 11, d: 16 });
+		check("示例行判定：`例` / `例：` / 以「例」开头且 ≤6 码点 ⇒ 是；`活动期间` 等真标签不是（反向守卫）",
+			umaCnIsExampleLabel("例") && umaCnIsExampleLabel("例：") && umaCnIsExampleLabel("例如期间")
+			&& !umaCnIsExampleLabel("活动期间") && !umaCnIsExampleLabel("每日1次免费十连招募活动期间") && !umaCnIsExampleLabel(""),
+			["例", "例：", "例如期间", "活动期间", "每日1次免费十连招募活动期间", ""].map((s) => JSON.stringify(s) + "=" + umaCnIsExampleLabel(s)).join(" | "));
+		check("d18598：items 里没有 label=`例` 的条目（源站 `例：11/16 12:00 ～ 11/21 4:59…` 那条被丢）",
+			d18598.items.length === 2 && d18598.items.every((x) => x.label !== "例" && !/^例/.test(x.label))
+			&& !d18598.items.some((x) => x.raw === "11/16 12:00 ～ 11/21 4:59"),
+			JSON.stringify(d18598.items.map((x) => [x.label, x.raw])));
+		check("d18598：被丢的示例行**不静默**（skipped 里 reason=`example-label`，且 raw 是源站原文）",
+			d18598.skipped.some((x) => x.reason === "example-label" && x.label === "例" && x.raw === "11/16 12:00 ～ 11/21 4:59"),
+			JSON.stringify(d18598.skipped.map((x) => [x.reason, x.label, x.raw])));
+		check("d18598：剩下的 2 条仍是真档期（活动期间 / 活动对象招募开放期间，11/16 ~ 11/26）",
+			JSON.stringify(d18598.items.map((x) => x.label)) === JSON.stringify(["每日1次免费十连招募活动期间", "每日1次免费十连招募活动对象招募开放期间"])
+			&& d18598.items.every((x) => x.raw === "11/16 12:00 ～ 11/26 4:59"),
+			JSON.stringify(d18598.items.map((x) => [x.label, x.raw])));
+		// 示例行也不许成为**下一段**的 prevLabel（把示例段单独切出来，后面紧跟一条裸窗口段）
+		const EXAMPLE_HTML = "<p>例</p><p>11/20 12:00 ～ 11/22 11:59</p>";
+		const exItems = parseUmaCnAnnouncement(EXAMPLE_HTML, TZ, { y: 2026, mo: 11, d: 16 }).items;
+		check("示例段（`例` 单独成段）**不成为下一段的 prevLabel**（裸窗口段标签留空 → 「（无标签）」而不是「例」）",
+			exItems.length === 1 && exItems[0].label === "" && exItems[0].name === "（无标签）",
+			JSON.stringify(exItems.map((x) => [x.label, x.name, x.raw])));
 	}
 	//#endregion
 

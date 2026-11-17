@@ -567,6 +567,11 @@
 				siblingListUrl: ns_biligame_activity_siblingListUrl,
 				umaRoles: ns_biligame_activity_umaRoles,
 				whmxListUrls: ns_biligame_activity_whmxListUrls,
+				// 2026-11-18：卡池侧标题黑名单 + 偏好序 / 示例行过滤（纯函数，供回归直测）
+				umaGachaTitleBlocked: ns_biligame_activity_umaGachaTitleBlocked,
+				umaGachaTitleRank: ns_biligame_activity_umaGachaTitleRank,
+				umaCnCandidatesOf: ns_biligame_activity_umaCnCandidatesOf,
+				umaCnIsExampleLabel: ns_biligame_activity_umaCnIsExampleLabel,
 			},
 			"ournotes-global": {
 				OURNOTES_GLOBAL_GAME_BASE_ID: ns_ournotes_global_OURNOTES_GLOBAL_GAME_BASE_ID,
