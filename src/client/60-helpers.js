@@ -63,6 +63,62 @@
 			return s;
 		}
 
+		// ── ② 泛名让位（2026-11-18 审计：泛名 11 条）──────────────────────────────
+		// 泛名 = **栏目名 / 类型名**，不是这一期的内容名：「限时招募」「往期复刻」「ピックアップガチャ」
+		// 「70%UP」「联运招募」…。它们本身没有信息量（用户看不出这期是什么），所以当同一侧数组里
+		// 存在更具体的条目时，外显改用那一条的 `show`（无 `show` 用 `title`）。
+		// ⚠️ 按**整串**匹配（trim 后），不做包含匹配：「70%UP：布偶熊·骇影…」是具体条目名，不该被当泛名。
+		const DISPLAY_GENERIC_NAMES = [
+			"限时招募", "特选招募", "往期复刻", "角色活动唤取", "ピックアップガチャ",
+			"70%UP", "联运招募", "限定扭蛋复刻"
+		];
+		// 棋盘类有多种空格写法（源站实测两种都出现过），用正则覆盖：
+		const DISPLAY_GENERIC_NAME_RE = /^(?:限定棋盘\s*&\s*返场限定棋盘|限定棋盘&返场限定棋盘)$/;
+		function displayNameIsGenericOf(name) {
+			const s = String(name == null ? "" : name).trim();
+			if (!s) return false;
+			return DISPLAY_GENERIC_NAMES.indexOf(s) >= 0 || DISPLAY_GENERIC_NAME_RE.test(s);
+		}
+		// 数组条目的显示名（数据层契约：show = 外显名，title = 源站原文）。
+		function displayItemLabelOf(x) {
+			if (!x || typeof x !== "object") return "";
+			const show = typeof x.show === "string" ? x.show.trim() : "";
+			if (show) return show;
+			return typeof x.title === "string" ? x.title.trim() : "";
+		}
+		// 同一侧数组里"更具体的条目"的显示名；没有就返回空串（调用方保持原泛名）。
+		// 「更具体」判据（与任务书同口径）：
+		//   · 该条有非空 roles（它带角色名，必然比泛名具体）；
+		//   · 或它的显示名与泛名不同（它有自己的名字）。
+		// 多个候选时优先有 roles 的一档，同档取**显示名码点最长**的那条，再并列取数组里靠后的
+		// （数组 = 结束时间升序，越靠后通常是跨度更长的轮替池）。
+		// 这条口径是确定的，不是"看心情"：wd 2026-11-17 的真 lastData 里「苦昼长…」（12 字）与
+		// 「轮替女神之影：星如晤…」（26 字）同时存在 ⇒ 取后者（审计点名的目标示例）。
+		function displaySpecificNameOf(genericName, items) {
+			if (!displayNameIsGenericOf(genericName)) return "";
+			const name = String(genericName).trim();
+			const list = Array.isArray(items) ? items : [];
+			const candidates = [];
+			list.forEach((x, i) => {
+				const label = displayItemLabelOf(x);
+				if (!label || label === name) return;
+				const roles = x && Array.isArray(x.roles) ? x.roles : [];
+				const hasRoles = roles.some((r) => String(r == null ? "" : r).trim() !== "");
+				candidates.push({ label, hasRoles, index: i, len: [...label].length });
+			});
+			if (!candidates.length) return "";
+			const withRoles = candidates.filter((c) => c.hasRoles);
+			const pool = withRoles.length ? withRoles : candidates;
+			pool.sort((a, b) => (b.len - a.len) || (b.index - a.index));
+			return pool[0].label;
+		}
+		// 一条记录某一侧的最终外显名（① 尾巴归一 再 ② 泛名让位）。非字符串 / 空值 ⇒ 空串。
+		function displayNameNextOf(name, items) {
+			const stripped = stripDisplayTailOf(name);
+			if (typeof stripped !== "string") return "";
+			return displaySpecificNameOf(stripped, items) || stripped;
+		}
+
 		// 把外显名落到记录字段上（① 尾巴归一与 ② 泛名让位共用这一处）。
 		// **只改记录字段**（`banner` / `event`，外显的唯一入口）；数组条目的 `title` / `show` / `raw`
 		// 与悬停字段一律原样不动（任务书硬约束：数组与悬停仍是源站原文）。

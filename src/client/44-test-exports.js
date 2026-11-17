@@ -1302,9 +1302,14 @@
 			autoRefreshPlan,
 			// 外显名（60-helpers.js 的纯函数，2026-11-18 全量审计）：
 			//   stripDisplayTailOf = 剥源站体裁尾巴（白名单 + 剥完 ≥3 码点才剥）；
-			//   applyDisplayNameOf = 把外显名落到记录字段与数组主条的 show 上（数组 title / 悬停不动）。
-			// 应用点 = 50-refresh.js 的 mergeEntryRecord；逐条回归见 test/cases-display-name.mjs ①。
+			//   displayNameIsGenericOf / displaySpecificNameOf / displayNameNextOf = 泛名判定 /
+			//     「同一侧数组里更具体的条目」挑法 / ①+② 合成（剥尾巴 → 泛名让位）；
+			//   applyDisplayNameOf = 把外显名落到记录字段（数组 title/show/raw 与悬停不动）。
+			// 应用点 = 50-refresh.js 的 mergeEntryRecord；逐条回归见 test/cases-display-name.mjs ①②。
 			stripDisplayTailOf,
+			displayNameIsGenericOf,
+			displaySpecificNameOf,
+			displayNameNextOf,
 			applyDisplayNameOf,
 			// dueKindOf = 方向判定（到期提醒也会复用）；remindGameAllowed = 「提醒」生效判定（轮播不调用）；
 			// tickerPickOf / tickerCaptionOf / tickerSlidesOf / tickerStepsOf / tickerDirAt = 轮播的

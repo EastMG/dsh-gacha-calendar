@@ -2520,8 +2520,8 @@ export default async function run() {
 		check("pcr-jp 每个请求都带了 `X-MICROCMS-API-KEY`（microCMS 必需；漏了会 401）",
 			heads4.length === 5 && heads4.every((x) => x.headers["X-MICROCMS-API-KEY"] === PCRJ.PCR_JP_API_KEY),
 			JSON.stringify(heads4.slice(0, 2)));
-		check("pcr-jp 卡池外显 = ピックアップガチャ / ラッキーライラック / 11-10 12:00 ~ 11-30 11:59",
-			recJp.banner === "ピックアップガチャ" && recJp.roles === "ラッキーライラック"
+		check("pcr-jp 卡池外显 = 泛名「ピックアップガチャ」让位给具体角色名 ラッキーライラック / 11-10 12:00 ~ 11-30 11:59",
+			recJp.banner === "ラッキーライラック" && recJp.roles === "ラッキーライラック"
 			&& recJp.bannerDates === "11-10 12:00 ~ 11-30 11:59"
 			&& recJp.bannerDatesRaw === "2026/11/10(火) 12:00 ～ 2026/11/30(月) 11:59"
 			&& recJp.gachaFail === null,
@@ -2641,7 +2641,7 @@ export default async function run() {
 		check("pcr-jp 反证（端到端）：11/23 活动全过期 ⇒ 活动如实 nomatch；卡池仍在期照样外显",
 			(rLate.games["pcr-jp"] || {}).event === ""
 			&& String((((rLate.games["pcr-jp"] || {}).eventFail) || {}).kind) === "nomatch"
-			&& (rLate.games["pcr-jp"] || {}).banner === "ピックアップガチャ"
+			&& (rLate.games["pcr-jp"] || {}).banner === "ラッキーライラック"
 			&& (rLate.games["pcr-jp"] || {}).gachaFail === null,
 			JSON.stringify([(rLate.games["pcr-jp"] || {}).event, (rLate.games["pcr-jp"] || {}).eventFail, (rLate.games["pcr-jp"] || {}).banner]));
 		// 夹具 meta 的 URL 与抓取链对得上（防止换了接口没换夹具）

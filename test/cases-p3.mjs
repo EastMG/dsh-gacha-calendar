@@ -311,12 +311,25 @@ export default async function runP3() {
 
 	const got = {};
 	const textOf = (v) => (v == null ? "" : String(v));   // 没有这一侧 ⇒ 记录里根本没有这个键（按空串比）
+	// ── 2026-11-18（外显名 ②：泛名让位）的**已批准差异登记** ───────────────────────────
+	// 记录外显名命中泛名（`角色活动唤取`）且同一侧数组里有具体条目 ⇒ 外显改用那一条的 show。
+	// 只登记字段名；新值必须**恰好** = `displayNameNextOf(旧值, 该侧数组)`（同一份产品函数）。
+	// 数组与悬停**一个字没动**（下面 ③ 的数组逐条相等照旧守着）。
+	const P3_GOLDEN_DISPLAY = { wuwaGacha: ["banner"] };
 	for (const p of paths) {
 		const r = await p.run();
 		got[p.key] = r;
 		const g = GOLDEN[p.key];
 		const changed = VISIBLE.filter((f) => textOf(r.rec[f]) !== textOf(g.rec[f]));
-		check(`P3 golden（${p.key}）：12 个字符串字段与改造前逐字相同`, changed.length === 0, JSON.stringify(changed));
+		const displayFields = P3_GOLDEN_DISPLAY[p.key] || [];
+		check(`P3 golden（${p.key}）：12 个字符串字段与改造前逐字相同（已登记的外显名泛名让位除外）`,
+			changed.every((f) => displayFields.includes(f)), JSON.stringify(changed));
+		if (displayFields.length) {
+			check(`P3 golden（${p.key}）**已批准差异**：外显名只做了泛名让位（新值 === displayNameNextOf(旧值, 数组)）`,
+				displayFields.every((f) => changed.includes(f)
+					&& textOf(r.rec[f]) === T.displayNameNextOf(textOf(g.rec[f]), f === "banner" ? r.rec.gacha : r.rec.events)),
+				JSON.stringify(displayFields.map((f) => [f, textOf(g.rec[f]), textOf(r.rec[f])])));
+		}
 		const arr = r.rec[p.field] || [];
 		check(`P3 golden（${p.key}）：\`${p.field}\` 非时间字段逐字不变（键序 / 顺序 / source / phase 全等）`,
 			sansTs(arr) === sansCategoryTagsJson(g[p.field]), sansTs(arr));
@@ -841,9 +854,16 @@ const P3B_STELLA_ROLES = {
 // 新值必须**恰好** = `stripDisplayTailOf(旧值)`（逐字证明，不靠人眼看）。
 // ⚠️ 数组（`gacha` / `events`）与悬停字段**一个字没动** —— 那两处的逐字比较照旧，不登记。
 const P3B_DISPLAY_NAME = {
+	// ① 剥源站体裁尾巴（2026-11-18）
 	umaJpEvent: ["event"],
 	gf2Gacha: ["banner"],
-	gf2Event: ["event"]
+	gf2Event: ["event"],
+	// ② 泛名让位（2026-11-18）：`限时招募` / `特选招募` + 主条带角色名 ⇒ 外显改用角色名。
+	// 这四个路径的载荷都同时含两侧（GameKee 一次返回卡池 + 活动）⇒ 两条路径的 banner 都会变。
+	baCnGacha: ["banner"],
+	baCnEvent: ["banner"],
+	baGlobalGacha: ["banner"],
+	baGlobalEvent: ["banner"]
 };
 // 把"改造前"的数组重建成这一轮之后该有的样子：主条**只改 roles / show**（title / raw / ts / key / source 原样）。
 // 反向守卫：重建成与原值相同 ⇒ 说明这条登记已经烂掉（下面单独断言 old !== rebuilt）。
@@ -982,11 +1002,12 @@ async function runP3b() {
 		check(`P3b golden（${p.key}）：12 个字符串字段与改造前逐字相同（已登记的相对表述悬停 / 活动名去尾 / 外显名去体裁尾巴 / 星塔 roles 除外）`,
 			changed.every((f) => approved.includes(f) || trimFields.includes(f) || pickFields.includes(f) || displayFields.includes(f)), JSON.stringify(changed));
 		if (displayFields.length) {
-			check(`P3b golden（${p.key}）**已批准差异**：外显名只剥了源站体裁尾巴（新值 === stripDisplayTailOf(旧值)）`,
+			check(`P3b golden（${p.key}）**已批准差异**：外显名只做了 ①尾巴归一 / ②泛名让位（新值 === displayNameNextOf(旧值, 该侧数组)）`,
 				displayFields.every((f) => changed.includes(f)
-					&& p3bTextOf(r.rec[f]) === T.stripDisplayTailOf(p3bTextOf(g.rec[f]))
+					&& p3bTextOf(r.rec[f]) === T.displayNameNextOf(p3bTextOf(g.rec[f]), f === "banner" ? r.rec.gacha : r.rec.events)
 					&& p3bTextOf(r.rec[f]) !== p3bTextOf(g.rec[f])),
-				JSON.stringify(displayFields.map((f) => [f, p3bTextOf(g.rec[f]), p3bTextOf(r.rec[f]), T.stripDisplayTailOf(p3bTextOf(g.rec[f]))])));
+				JSON.stringify(displayFields.map((f) => [f, p3bTextOf(g.rec[f]), p3bTextOf(r.rec[f]),
+					T.displayNameNextOf(p3bTextOf(g.rec[f]), f === "banner" ? r.rec.gacha : r.rec.events)])));
 		}
 		if (stellaRoles) {
 			check(`P3b golden（${p.key}）**已批准差异**：roles = ${stellaRoles.roles}（挑池改「有角色优先」⇒ 选中角色池），banner 仍是 golden 原值`,

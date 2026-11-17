@@ -33,7 +33,7 @@ const engineAt = () => createEngine({
 	timer: { setTimeout, clearTimeout }
 });
 const SRC = "fixture";
-const merge = (data) => engineAt().__test.mergeEntryRecord({ data }, null, NOW, { id: SRC, tz: TZ_CN });
+const merge = (data, id) => engineAt().__test.mergeEntryRecord({ data }, null, NOW, { id: id || SRC, tz: TZ_CN });
 // 数组条目：形状 = `50-refresh.js` 数据层数组契约（key 由 mergeEntryRecord 重发，这里给空）
 const arrItem = (o) => Object.assign({
 	key: "", title: "", show: "", roles: [],
@@ -142,5 +142,110 @@ export default function runDisplayName() {
 		const plain = merge({ event: PLAIN, eventDates: "11-10 10:00 ~ 11-20 03:59", events: [] });
 		check("反向守卫：不含尾巴的外显名经 mergeEntryRecord 后逐字不变",
 			plain.event === PLAIN, JSON.stringify(plain.event));
+	}
+
+	// ══════════════════════════════════════════════════════════════════════════
+	section("外显名 ②：泛名让位（命中泛名且同一侧数组有更具体条目 ⇒ 外显用那条的 show；数组与悬停不动）");
+	{
+		// ── 纯函数：泛名判定（整串，不做包含匹配）────────────────────────────────
+		const GENERIC = [
+			"限时招募", "特选招募", "往期复刻", "角色活动唤取", "ピックアップガチャ",
+			"70%UP", "联运招募", "限定扭蛋复刻",
+			"限定棋盘 & 返场限定棋盘", "限定棋盘& 返场限定棋盘", "限定棋盘&返场限定棋盘"
+		];
+		const badGeneric = GENERIC.filter((s) => !T.displayNameIsGenericOf(s));
+		check("泛名白名单全覆盖（10 条真实字符串 + 棋盘三种空格写法）", badGeneric.length === 0, JSON.stringify(badGeneric));
+		const NOT_GENERIC = ["70%UP：布偶熊·骇影、露娜·终焉", "限时招募开启", "「限定棋盘」", "万圣卡池"];
+		const badNotGeneric = NOT_GENERIC.filter((s) => T.displayNameIsGenericOf(s));
+		check("泛名判定按整串：带后缀 / 带前缀 / 别的栏目名都不算（不做包含匹配）",
+			badNotGeneric.length === 0, JSON.stringify(badNotGeneric));
+
+		// ── 纯函数：从数组里挑"更具体的条目"──────────────────────────────────────
+		// wd 2026-11-17 的真 lastData（`_lastdata_dump2.json`）形状：主条 = 泛名、两条 hover 各有具体名。
+		// 苦昼长 = 12 码点 / 轮替女神之影 = 26 码点 ⇒ 取后者（审计点名的目标示例）。
+		const WD_ITEMS = [
+			{ key: "wd:gacha:0", title: "往期复刻", show: "往期复刻", roles: [], source: "primary" },
+			{ key: "wd:gacha:1", title: "苦昼长：苦昼长、岂在朝暮", show: "苦昼长：苦昼长、岂在朝暮", roles: [], source: "hover" },
+			{ key: "wd:gacha:2", title: "轮替女神之影：星如晤、冷暖心知、水“逆”、眸中景", show: "轮替女神之影：星如晤、冷暖心知、水“逆”、眸中景", roles: [], source: "hover" }
+		];
+		check("纯函数：wd 数组里同时有两条具体名 ⇒ 取更具体的「轮替女神之影：…」",
+			T.displaySpecificNameOf("往期复刻", WD_ITEMS) === "轮替女神之影：星如晤、冷暖心知、水“逆”、眸中景",
+			JSON.stringify(T.displaySpecificNameOf("往期复刻", WD_ITEMS)));
+		check("纯函数：同一侧只有泛名本身 ⇒ 返回空串（调用方保持原泛名不变）",
+			T.displaySpecificNameOf("限定扭蛋复刻", [
+				{ title: "限定扭蛋复刻", show: "限定扭蛋复刻", roles: [], source: "primary" }
+			]) === "",
+			JSON.stringify(T.displaySpecificNameOf("限定扭蛋复刻", [{ title: "限定扭蛋复刻", show: "限定扭蛋复刻", roles: [] }])));
+		check("纯函数：有 roles 的条目优先（卡池侧泛名 + 主条带角色名 ⇒ 用角色名）",
+			T.displaySpecificNameOf("限时招募", [
+				{ title: "限时招募", show: "美咲(泳装)", roles: ["美咲(泳装)"], source: "primary" },
+				{ title: "更长的具体池名：某角色", show: "更长的具体池名：某角色", roles: [], source: "hover" }
+			]) === "美咲(泳装)",
+			JSON.stringify(T.displaySpecificNameOf("限时招募", [
+				{ title: "限时招募", show: "美咲(泳装)", roles: ["美咲(泳装)"] },
+				{ title: "更长的具体池名：某角色", show: "更长的具体池名：某角色", roles: [] }
+			])));
+		check("纯函数：非泛名原样传回（displayNameNextOf 只做 ①+②，不改别的名字）",
+			T.displayNameNextOf("「果实的赤红」活动征集", WD_ITEMS) === "「果实的赤红」活动征集"
+			&& T.displayNameNextOf("往期复刻開催中", WD_ITEMS) === "轮替女神之影：星如晤、冷暖心知、水“逆”、眸中景",
+			JSON.stringify([T.displayNameNextOf("「果实的赤红」活动征集", WD_ITEMS), T.displayNameNextOf("往期复刻開催中", WD_ITEMS)]));
+
+		// ── mergeEntryRecord：wd 真 lastData 形态（泛名「往期复刻」⇒ 数组里那条具体 show）──
+		const WD_HOVER = ["往期复刻", "11-12 11:00 ~ 11-19 04:00",
+			"苦昼长：苦昼长、岂在朝暮", "11-17 11:00 ~ 11-24 04:00",
+			"轮替女神之影：星如晤、冷暖心知、水“逆”、眸中景", "11-13 11:00 ~ 11-27 11:00"].join("\n");
+		const wd = merge({
+			banner: "往期复刻", roles: "",
+			bannerDates: "11-12 11:00 ~ 11-19 04:00",
+			bannerDatesRaw: "2026年11月12日11:00 ~ 11月19日04:00",
+			bannerHover: WD_HOVER,
+			gacha: [
+				arrItem({ key: "wd:gacha:0", title: "往期复刻", show: "往期复刻", roles: [],
+					startTs: 1794452400000, endTs: 1795032000000, raw: "2026年11月12日11:00 ~ 11月19日04:00" }),
+				arrItem({ key: "wd:gacha:1", title: "苦昼长：苦昼长、岂在朝暮", show: "苦昼长：苦昼长、岂在朝暮", roles: [],
+					startTs: 1794884400000, endTs: 1795464000000, raw: "11-17 11:00 ~ 11-24 04:00", source: "hover" }),
+				arrItem({ key: "wd:gacha:2", title: "轮替女神之影：星如晤、冷暖心知、水“逆”、眸中景", show: "轮替女神之影：星如晤、冷暖心知、水“逆”、眸中景", roles: [],
+					startTs: 1794538800000, endTs: 1795748400000, raw: "11-13 11:00 ~ 11-27 11:00", source: "hover" })
+			]
+		}, "wd");
+		check("mergeEntryRecord（wd 真数据形态）：外显「往期复刻」⇒「轮替女神之影：星如晤、冷暖心知、水“逆”、眸中景」",
+			wd.banner === "轮替女神之影：星如晤、冷暖心知、水“逆”、眸中景", JSON.stringify(wd.banner));
+		check("mergeEntryRecord（wd）：数组 3 条、title / show / raw **逐字仍是源站原文**（泛名让位不碰数组）",
+			wd.gacha.length === 3
+			&& wd.gacha[0].title === "往期复刻" && wd.gacha[0].show === "往期复刻"
+			&& wd.gacha[1].show === "苦昼长：苦昼长、岂在朝暮"
+			&& wd.gacha[2].show === "轮替女神之影：星如晤、冷暖心知、水“逆”、眸中景"
+			&& wd.gacha[2].raw === "11-13 11:00 ~ 11-27 11:00",
+			JSON.stringify(wd.gacha.map((x) => [x.title, x.show])));
+		check("mergeEntryRecord（wd）：悬停原文（bannerHover）一字未改",
+			wd.bannerHover === WD_HOVER, JSON.stringify(wd.bannerHover));
+		// 显示层：主条走 `scheduleNormalize`（记录字段是外显唯一入口）⇒ 面板上就是那个具体名
+		const wdView = T.scheduleNormalize(wd, "gacha", new Date(NOW));
+		check("显示层：wd 卡池格子外显 = 泛名让位后的具体名（title / show 都是它；源站名仍在数组里）",
+			!!wdView && wdView.title === "轮替女神之影：星如晤、冷暖心知、水“逆”、眸中景"
+			&& wdView.show === "轮替女神之影：星如晤、冷暖心知、水“逆”、眸中景"
+			&& wd.gacha[0].title === "往期复刻",
+			JSON.stringify(wdView && [wdView.title, wdView.show]));
+
+		// ── mergeEntryRecord：卡池泛名 + 主条 roles（ba-cn 形态）⇒ 外显用角色名 ─────────
+		const ba = merge({
+			banner: "限时招募", roles: "美咲(泳装)",
+			bannerDates: "11-06 11:00 ~ 11-20 10:59",
+			bannerHover: "",
+			gacha: [arrItem({ key: "ba-cn:gacha:0", title: "限时招募", show: "美咲(泳装)", roles: ["美咲(泳装)"] })]
+		}, "ba-cn");
+		check("mergeEntryRecord（泛名 + roles）：外显改为角色名（数组 title 仍是「限时招募」）",
+			ba.banner === "美咲(泳装)" && ba.gacha[0].title === "限时招募" && ba.gacha[0].show === "美咲(泳装)",
+			JSON.stringify([ba.banner, ba.gacha[0].title, ba.gacha[0].show]));
+
+		// ── 反向：没有更具体条目 ⇒ 保持原泛名（p5x「限定扭蛋复刻」形态）──────────────
+		const p5x = merge({
+			banner: "限定扭蛋复刻", roles: "",
+			bannerDates: "10-22 00:00 ~ 12-24 23:59",
+			gacha: [arrItem({ key: "p5x:gacha:0", title: "限定扭蛋复刻", show: "限定扭蛋复刻", roles: [] })]
+		}, "p5x");
+		check("反向守卫：数组里没有更具体条目 ⇒ 泛名保持原样（不硬造 / 不改写）",
+			p5x.banner === "限定扭蛋复刻" && p5x.gacha[0].title === "限定扭蛋复刻",
+			JSON.stringify([p5x.banner, p5x.gacha[0].title]));
 	}
 }
