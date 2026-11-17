@@ -421,6 +421,9 @@
 		}
 
 
+		// `opts.noOrigin`（只对 mode:"proxy" 有意义）= 宿主代理**不发** `Origin` 头（代理 URL 上拼
+		// `&origin=0`）。真机依据（2026-11-18）：闪耀暖暖 `nikki4` 卡池的 `/api/` 路径带 Origin ⇒ 403、
+		// 不带 ⇒ 200；同域首页带 Origin 也 200 ⇒ 只有卡池侧需要这个开关，见 30-game-papergames.js。
 		async function fetchText(url, opts) {
 			const o = opts || {};
 			if (o.mode === "direct") {
@@ -428,7 +431,7 @@
 				if (!res.ok) throw new Error("http-" + res.status);
 				return res.text();
 			}
-			return proxyFetchText(url, o.referer || "", o.headers, o.body);
+			return proxyFetchText(url, o.referer || "", o.headers, o.body, { noOrigin: o.noOrigin });
 		}
 
 		async function fetchJson(url, opts) {

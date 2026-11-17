@@ -30,9 +30,11 @@
 //   卡池侧（2026-11-15 重做）`nikki4-news-list-{s1,s0}` + `nikki4-news-detail-<id>`（15 篇 = 21 天内公告/资讯）；
 //   imas 六份月份页 `imas-{gakumas-202610,gakumas-202611,shinycolors-202611,millisita-202611,deresute-202611,shanison-202611}`。
 
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { createEngine } from "../packages/core/core.mjs";
 import { check, section, fixtureBody, assertHoverConvention } from "./harness.mjs";
-import { T } from "./load.mjs";
+import { T, REPO } from "./load.mjs";
 
 const TZ_TW = "Asia/Taipei";
 const TZ_CN4 = "Asia/Shanghai";
@@ -545,5 +547,125 @@ export default async function run() {
 		check("imas 反证：条目全部已结束 ⇒ 卡池/活动侧 null（不是抛错）",
 			I.imasSidePayloadOf([{ name: "往期池", startTs: Date.UTC(2026, 9, 1, 0, 0), endTs: Date.UTC(2026, 9, 2, 0, 0), raw: "10/1 00:00 ~ 10/2 00:00" }],
 				"gacha", "gakumas", TZ_JP, Date.parse("2026-11-15T12:00:00+09:00")) === null);
+	}
+
+	// ═════════ ⑤（2026-11-18 真机修复）宿主代理「不发 Origin」开关 + nikki4 卡池侧启用 ═════════
+	//
+	// 真机依据（2026-11-18 实测，同一 IP / UA / Referer，只改 Origin）：
+	//   GET https://nikki4.papegames.cn/api/v1/news?section=1&offset=0&limit=40
+	//     `Origin: https://nikki4.papegames.cn` → **HTTP 403**
+	//     `Origin: https://example.com`          → **HTTP 403**
+	//     **不带 Origin**                         → **HTTP 200**
+	//   同域**首页**（活动侧 `https://nikki4.papegames.cn/`）带 Origin 也是 200 ⇒ 只有 `/api/` 路径的
+	//   WAF 对 Origin 敏感；列表段 + 24 篇详情 26 请求 2.8s 全 200 ⇒ 不是频率 / Referer 问题。
+	//   修法：宿主代理认 `?origin=0`（不发 Origin 头），只有 nikki4 **卡池侧**三条请求带
+	//   `noOrigin: true`；活动侧首页带 Origin 也是 200 ⇒ 一个字节都不改（下面 ③ 是反向证明）。
+	section("第四批 ⑤：宿主代理 origin=0（nikki4 卡池侧不发 Origin；活动侧反向证明不改）");
+	{
+		// 与 ③ 的 nikki4 夹具同一抓取时刻（夹具覆盖的那一轮）
+		const NOW = Date.parse("2026-11-15T15:00:00+08:00");
+		// ── ① 宿主：出站头唯一构造点 `proxyHeadersOf` 的**真实实现**（截取后直接跑）──
+		{
+			const hostSrc = readFileSync(path.join(REPO, "src", "index.js"), "utf8");
+			const m = /\nfunction proxyHeadersOf\(target, referer, noOrigin\) \{\n([\s\S]*?)\n\}/.exec(hostSrc);
+			check("⑤① 宿主有纯函数 proxyHeadersOf(target, referer, noOrigin)（出站头唯一构造点）",
+				!!m, "src/index.js 里没找到该函数（签名变了？）");
+			let fn = null;
+			if (m) fn = new Function("UA", "return function proxyHeadersOf(target, referer, noOrigin) {" + m[1] + "\n};")("test-UA");
+			const target = new URL("https://nikki4.papegames.cn/api/v1/news?section=1&offset=0&limit=40");
+			const referer = "https://nikki4.papegames.cn/newslist";
+			const withOrigin = fn ? fn(target, referer, false) : {};
+			const withoutOrigin = fn ? fn(target, referer, true) : {};
+			check("⑤① 默认（noOrigin=false）⇒ 照旧带 `Origin: <目标站 origin>`（其它来源既有行为不变）",
+				withOrigin.Origin === "https://nikki4.papegames.cn", JSON.stringify(withOrigin));
+			check("⑤① origin=0（noOrigin=true）⇒ **完全没有** Origin 头（反证：带 Origin → 403 / 不带 → 200）",
+				fn !== null && !Object.prototype.hasOwnProperty.call(withoutOrigin, "Origin"), JSON.stringify(withoutOrigin));
+			check("⑤① 其它头不受影响（UA / Accept / Referer 仍在）",
+				withoutOrigin["User-Agent"] === "test-UA"
+				&& /application\/json/.test(String(withoutOrigin.Accept))
+				&& withoutOrigin.Referer === referer, JSON.stringify(withoutOrigin));
+			check("⑤① proxyHandler 从查询参数读 `origin=0` 并交给 proxyHeadersOf（静态接线）",
+				/parsed\.searchParams\.get\("origin"\) === "0"/.test(hostSrc)
+				&& /const headers = proxyHeadersOf\(target, referer, noOrigin\);/.test(hostSrc));
+			check("⑤① 注释写明实测证据（带 Origin → 403 / 不带 Origin → 200，2026-11-18）",
+				/不带 Origin → 200/.test(hostSrc) && /403/.test(hostSrc) && /2026-11-18/.test(hostSrc));
+		}
+
+		// ── ② 代理 URL 上的 origin=0 只由 dshProxyApiOf 拼、且只拼一次（幂等）──
+		const originParamCount = (s) => (String(s).match(/[?&]origin=0(?:&|$)/g) || []).length;
+		{
+			const apiFn = T.dshProxyApiOf;
+			check("⑤② __regression 暴露 dshProxyApiOf（92-dsh-env.js 的唯一拼装点，测试不必抄一份拼装逻辑）",
+				typeof apiFn === "function", typeof apiFn);
+			if (typeof apiFn === "function") {
+				const target = "https://nikki4.papegames.cn/api/v1/news?section=1&offset=0&limit=40";
+				const referer = "https://nikki4.papegames.cn/newslist";
+				const on = apiFn(target, { referer, noOrigin: true });
+				const onAgain = apiFn(target, { referer, noOrigin: true });
+				const off = apiFn(target, { referer });
+				const offFalse = apiFn(target, { referer, noOrigin: false });
+				check("⑤② noOrigin=true ⇒ 代理 URL 上有且仅有 1 个 `origin=0`", originParamCount(on.api) === 1, on.api);
+				check("⑤② 缺省 / noOrigin=false ⇒ 代理 URL 上一个 `origin=0` 都没有（其它来源逐字不变）",
+					originParamCount(off.api) === 0 && originParamCount(offFalse.api) === 0, off.api);
+				check("⑤② 目标站地址原样编进 url 参数（不在目标 URL 上手改，也不会拼成代理套代理）",
+					decodeURIComponent(new URL(on.api, "http://dsh.local").searchParams.get("url")) === target
+					&& !/gacha-calendar-proxy/.test(decodeURIComponent(new URL(on.api, "http://dsh.local").searchParams.get("url"))));
+				check("⑤② 幂等：同一入参两次拼装逐字相同", on.api === onAgain.api);
+			}
+		}
+
+		// ── ③ 抓取器端到端（真夹具）：卡池侧所有代理请求带 origin=0；活动侧一条都不带 ──
+		{
+			const N = T.parsers.nikki4;
+			const HOST = "nikki4.papegames.cn";
+			const hostOf = (u) => { try { return new URL(String(u)).hostname; } catch { return ""; } };
+			// 记账 transport：`fetchViaProxy` 收到的就是**目标站地址**（与真实宿主代理同一形态）。
+			const makeOptsTransport = (sink) => ({
+				async fetchRaw(url) { throw new Error("nikki4 两侧都走宿主代理：" + url); },
+				async fetchViaProxy(url, opts) {
+					sink.push({ url: String(url), opts: opts || {} });
+					return fixtureBody(String(url));
+				}
+			});
+			check("⑤③ 前置：验证用夹具已登记（卡池列表两段 + 首页）",
+				!!fixtureBody(N.NIKKI4_NEWS_API + "?section=1&offset=0&limit=40")
+				&& !!fixtureBody(N.NIKKI4_NEWS_API + "?section=0&offset=0&limit=20")
+				&& !!fixtureBody(N.NIKKI4_LIST_URL));
+
+			// 卡池侧：2 次列表 + 详情（21 天内候选），**全部**应带 noOrigin: true
+			N.nikki4ResetCache();
+			const gachaSink = [];
+			const eg = createEngine({ transport: makeOptsTransport(gachaSink), storage: makeStore(), now: () => NOW, timer: { setTimeout, clearTimeout } });
+			const sg = eg.__test.SOURCES.find((x) => x.id === "nikki4");
+			let gachaErr = null;
+			try { await eg.__test.GACHA_FETCHERS["nikki4"](sg.url, void 0, sg.tz); } catch (x) { gachaErr = x; }
+			const gachaCalls = gachaSink.filter((c) => hostOf(c.url) === HOST);
+			check("⑤③ 卡池侧真的发出了代理请求（列表 2 段 + 详情若干，全部 nikki4 主机）",
+				gachaCalls.length >= 3 && gachaCalls.length === gachaSink.length,
+				JSON.stringify({ gacha: gachaSink.length, nikki4: gachaCalls.length, err: gachaErr && gachaErr.message }));
+			check("⑤③ 卡池侧**所有**代理请求都带 `noOrigin: true`（含两次列表 + 全部详情）",
+				gachaCalls.length > 0 && gachaCalls.every((c) => c.opts.noOrigin === true),
+				JSON.stringify(gachaCalls.filter((c) => c.opts.noOrigin !== true).map((c) => c.url).slice(0, 3)));
+			check("⑤③ 卡池侧每个请求拼出的代理 URL 都带 `origin=0`（且只有 1 个）",
+				gachaCalls.length > 0 && gachaCalls.every((c) => originParamCount(T.dshProxyApiOf(c.url, c.opts).api) === 1));
+			check("⑤③ 卡池侧确实解析出池事实（不是靠失败走完流程）", !gachaErr, JSON.stringify(gachaErr && gachaErr.message));
+
+			// 活动侧：首页 + 详情，**一条都不带**（首页带 Origin 也是 200 ⇒ 刻意不改）
+			N.nikki4ResetCache();
+			const eventSink = [];
+			const ee = createEngine({ transport: makeOptsTransport(eventSink), storage: makeStore(), now: () => NOW, timer: { setTimeout, clearTimeout } });
+			const se = ee.__test.SOURCES.find((x) => x.id === "nikki4");
+			let eventErr = null;
+			try { await ee.__test.EVENT_FETCHERS["nikki4"].default(se.eventUrl, void 0, se.tz); } catch (x) { eventErr = x; }
+			const eventCalls = eventSink.filter((c) => hostOf(c.url) === HOST);
+			check("⑤③ 活动侧真的发出了代理请求（首页 + 详情）", eventCalls.length >= 2 && eventCalls.length === eventSink.length,
+				JSON.stringify({ event: eventSink.length, nikki4: eventCalls.length, err: eventErr && eventErr.message }));
+			check("⑤③ 活动侧**没有任何**请求带 noOrigin（反向证明：只有 /api/ 卡池侧开开关）",
+				eventCalls.length > 0 && eventCalls.every((c) => !c.opts.noOrigin),
+				JSON.stringify(eventCalls.filter((c) => c.opts.noOrigin).map((c) => c.url).slice(0, 3)));
+			check("⑤③ 活动侧每个请求拼出的代理 URL 都不带 `origin=0`",
+				eventCalls.length > 0 && eventCalls.every((c) => originParamCount(T.dshProxyApiOf(c.url, c.opts).api) === 0));
+			N.nikki4ResetCache();
+		}
 	}
 }

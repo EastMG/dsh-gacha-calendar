@@ -13,6 +13,28 @@
 			return fetch(url, opts);
 		}
 
+		// 拼宿主代理请求 URL 的**唯一**位置（`dshFetchViaProxy` 与回归用例都走它）。
+		//   · `noOrigin: true` ⇒ 追加 `&origin=0`：宿主 `src/index.js` 的 proxyHandler 读到它就
+		//     **不发** `Origin` 头（真机依据 2026-11-18：闪耀暖暖 nikki4 卡池 `/api/` 带 Origin ⇒ 403、
+		//     不带 ⇒ 200；同域首页带 Origin 也 200 ⇒ 只有卡池侧开这个开关，见 30-game-papergames.js）。
+		//   · 参数拼在**代理 URL** 上（`?url=…&referer=…`），目标站地址一个字节都不改；`api` 每次
+		//     从空前缀重新拼 ⇒ `origin=0` 天然不会出现第二次（幂等）。
+		//   · 缺省 / `noOrigin` 为假 ⇒ 完全不追加，旧行为逐字不变。
+		function dshProxyApiOf(proxyUrl, { referer, headers: extraHeaders, body, contentType, noOrigin } = {}) {
+			let api = DSH_PROXY_PREFIX + "?url=" + encodeURIComponent(proxyUrl) + "&referer=" + encodeURIComponent(referer || "");
+			if (extraHeaders) api += "&headers=" + encodeURIComponent(JSON.stringify(extraHeaders));
+			if (noOrigin) api += "&origin=0";
+			const opts = { headers: { "Accept": "application/json" } };
+			if (body !== void 0) {
+				const ct = contentType || "application/json; charset=utf-8";
+				api += "&contentType=" + encodeURIComponent(ct);
+				opts.method = "POST";
+				opts.headers["Content-Type"] = ct;
+				opts.body = typeof body === "string" ? body : JSON.stringify(body);
+			}
+			return { api, opts };
+		}
+
 		// 经宿主代理抓取：GET/POST + referer + 可选额外请求头 → 返回目标站原始 body 字符串。
 		// 宿主侧会做白名单校验（见 lib/index.js 的 PROXY_ALLOW_HOSTS），未列入白名单的主机一律拒绝。
 		//
@@ -22,18 +44,9 @@
 		//    表面上默认值就是 JSON，但**一旦 body 为空就不会进那个分支**，
 		//    而赛马娘国际服（umamusume.com）对"无 Content-Type 的 POST"回 `{"response_code":200}`
 		//    （实测：带 content-type → 170KB 正常；不带 → 21B 报错）。故这里显式带上，别依赖默认值。
-		async function dshFetchViaProxy(proxyUrl, { referer, headers: extraHeaders, body, contentType } = {}) {
-			let api = DSH_PROXY_PREFIX + "?url=" + encodeURIComponent(proxyUrl) + "&referer=" + encodeURIComponent(referer || "");
-			if (extraHeaders) api += "&headers=" + encodeURIComponent(JSON.stringify(extraHeaders));
-			const opts = { headers: { "Accept": "application/json" } };
-			if (body !== void 0) {
-				const ct = contentType || "application/json; charset=utf-8";
-				api += "&contentType=" + encodeURIComponent(ct);
-				opts.method = "POST";
-				opts.headers["Content-Type"] = ct;
-				opts.body = typeof body === "string" ? body : JSON.stringify(body);
-			}
-			const res = await fetch(api, opts);
+		async function dshFetchViaProxy(proxyUrl, opts) {
+			const { api, opts: init } = dshProxyApiOf(proxyUrl, opts);
+			const res = await fetch(api, init);
 			if (!res.ok) throw new Error("proxy-http-" + res.status);
 			const j = await res.json();
 			if (!j || j.status !== 200 || typeof j.body !== "string") throw new Error("proxy-bad:" + (j?.error || j?.status));

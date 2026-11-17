@@ -284,8 +284,18 @@
 		// referer / headers（可选对象）/ body（可选，提供时以 POST + JSON 发出）→ 原始 body 字符串
 		// ⚠️ 参数名沿用 `proxyUrl` 是历史命名：它其实是**目标站地址**（宿主代理前缀由 transport 自己拼）。
 		//    与 transportFetchRaw 同一个收口点：bwiki 的目标地址在这里补 `origin=*`（见上方 withBwikiCors）。
-		async function proxyFetchText(proxyUrl, referer, extraHeaders, body) {
-			return requireTransport().fetchViaProxy(withBwikiCors(proxyUrl), { referer, headers: extraHeaders, body });
+		// `opts.noOrigin`（可选）= 要求宿主代理**不发** `Origin` 头。注意它**不是**目标站 URL 上的参数：
+		//    目标站地址一个字节都不改，`noOrigin` 作为 transport 选项传下去，由宿主代理侧拼成
+		//    代理 URL 的 `&origin=0`（见 92-dsh-env.js 的 dshProxyApiOf 与 src/index.js 的 proxyHeadersOf）。
+		//    真机依据（2026-11-18）：闪耀暖暖 `/api/` 带 Origin ⇒ 403、不带 ⇒ 200（仅该源卡池侧启用）。
+		async function proxyFetchText(proxyUrl, referer, extraHeaders, body, opts) {
+			const o = opts || {};
+			return requireTransport().fetchViaProxy(withBwikiCors(proxyUrl), {
+				referer,
+				headers: extraHeaders,
+				body,
+				noOrigin: !!o.noOrigin
+			});
 		}
 
 		// 经代理抓取 JSON。解析失败统一抛 "bad-json"（normErr 会显示成"响应格式异常"），

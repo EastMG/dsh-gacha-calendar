@@ -1476,6 +1476,10 @@
 			// 「无 query ⇒ 用 ? / 已有 query ⇒ 用 & / 已有 origin ⇒ 不动 / 其它主机逐字不变 /
 			// 大小写·端口·hash / 幂等」这些边界（见 test/cases-bwiki-cors.mjs）。
 			withBwikiCors,
+			// dshProxyApiOf = 宿主代理请求 URL 的**唯一**拼装点（92-dsh-env.js）。导出后用例可以直接断言
+			// 「noOrigin ⇒ 代理 URL 上恰有一个 origin=0 / 缺省 ⇒ 一个都没有」，不必再手写一份拼装逻辑
+			// （手写等于把待测实现抄进测试）。见 test/cases-batch4.mjs 的 ⑤。
+			dshProxyApiOf,
 			// 刷新横幅的汇总（文字 + 悬停明细）：测试直接钉「未配置有效来源」与「不再报跳过个数」
 			buildScrapeInfo,
 			// 来源表与抓取器表（测试直接用它们核对条目/登记，不再需要 registry 模块）

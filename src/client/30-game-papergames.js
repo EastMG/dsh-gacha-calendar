@@ -1240,12 +1240,18 @@ function ns_nikki4_apiBaseOf(url) {
 }
 // 列表（两段）→ 21 天内候选 → 详情 → 池事实（去重）。
 // **详情全部失败且一条都没解析出来 ⇒ 抛第一篇的错**；候选为空 ⇒ 返回 []（上游按「未公布」出 null）。
+//
+// ⚠️ 卡池侧三条请求全带 `noOrigin: true`（2026-11-18 真机修复）：`nikki4` 的 `/api/` 路径对
+//    `Origin` 头敏感 —— 同一 IP / UA / Referer，只改 Origin 实测：
+//      带 `Origin: https://nikki4.papegames.cn` → **403**；带 `Origin: https://example.com` → **403**；
+//      **不带 Origin → 200**（列表段 + 24 篇详情 26 请求 2.8s 全 200）。
+//    同域首页（活动侧）带 Origin 也是 200 ⇒ 只有 `/api/` 敏感，所以**活动侧不加**这个开关。
 async function ns_nikki4_collectGachaPools(url, signal, tz, now) {
 	const base = ns_nikki4_apiBaseOf(url);
 	const rows = [];
 	for (const sec of ns_nikki4_GACHA_SECTIONS) {
 		const listUrl = `${base}?section=${sec.section}&offset=0&limit=${sec.limit}`;
-		const list = await fetchJson(listUrl, { mode: "proxy", referer: ns_nikki4_NEWSLIST_URL, signal });
+		const list = await fetchJson(listUrl, { mode: "proxy", referer: ns_nikki4_NEWSLIST_URL, signal, noOrigin: true });
 		for (const row of ns_nikki4_newsListOf(list, tz)) rows.push(row);
 	}
 	const cutoff = now - ns_nikki4_SCAN_DAYS * 24 * 60 * 60 * 1000;
@@ -1265,7 +1271,7 @@ async function ns_nikki4_collectGachaPools(url, signal, tz, now) {
 		const hit = ns_nikki4_cachedPoolsOf(row.id, now);
 		if (hit) { for (const p of hit.pools) pools.push(p); continue; }
 		try {
-			const post = ns_nikki4_newsDetailOf(await fetchJson(`${base}/${row.id}`, { mode: "proxy", referer: ns_nikki4_NEWSLIST_URL, signal }), tz);
+			const post = ns_nikki4_newsDetailOf(await fetchJson(`${base}/${row.id}`, { mode: "proxy", referer: ns_nikki4_NEWSLIST_URL, signal, noOrigin: true }), tz);
 			const got = ns_nikki4_gachaPoolsOf(post, tz);
 			ns_nikki4_gachaCache.set(row.id, { at: now, pools: got });
 			parsed++;

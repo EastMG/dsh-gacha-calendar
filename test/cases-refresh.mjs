@@ -589,21 +589,31 @@ export const remindOffGamesOf = (value, fallback) => (Array.isArray(value) ? val
 	}
 
 	// ══════════════════════════════════════════════════════════════════════════════
-	// ⑮（2026-11-17 新增）**刷新调度层**：并发上限 / 每条目超时 / 瞬时失败重试一次 / 整轮硬上限
+	// ⑮（2026-11-17 新增，2026-11-18 扩展）**刷新调度层**：
+	//   全局并发上限 / 同主机并发上限 / 每条目超时 / 分级重试 / 整轮硬上限
 	//
 	// 为什么是行为测试而不是静态断言：真机两天的刷新轮暴露了旧调度（整轮共用 20s deadline + 61 条
-	// 全并发 + 无重试）的两个具体后果 —— `fgo-jp` 被整轮 deadline 掐成「超时」（实测源站
+	// 全并发 + 无重试）的具体后果 —— `fgo-jp` 被整轮 deadline 掐成「超时」（实测源站
 	// 200 / 1.4s / 1.77MB），`nikki4`（闪耀暖暖）在全并发下连续两轮 `HTTP 403`（该源一轮 17 次
-	// 请求，单独复跑两轮 32 次请求全 200）。所以这一段**真跑调度层**（createEngine + 假 transport
-	// 记账），短预算全部经 `refreshAll` 的第三参注入 —— 生产默认值（8 / 25s / 120s / 400ms）一个字不改。
-	section("刷新调度：并发 ≤ 8 / 每条目超时 / 瞬时失败重试一次 / 整轮硬上限");
+	// 请求，单独复跑两轮 32 次请求全 200）。2026-11-18 真机第二轮：imas 五款（共用
+	// `melonpapapapa-n.com`，各 ~650KB）同一轮同时 502 / 超时 —— 复测 5 页并发全 200、214~960ms，
+	// 属上游瞬时抖动 ⇒ 补「同主机并发上限 + 分级重试」。所以这一段**真跑调度层**
+	// （createEngine + 假 transport 记账），短预算全部经 `refreshAll` 的第三参注入 ——
+	// 生产默认值（8 / 3 / 25s / 120s / 800·1600·1200ms）一个字不改。
+	section("刷新调度：全局并发 ≤ 8 / 同主机 ≤ 3 / 每条目超时 / 分级重试 / 整轮硬上限");
 	{
 		const refreshSrc = readFileSync(path.join(REPO, "src", "client", "50-refresh.js"), "utf8");
 		const engineApiSrc = readFileSync(path.join(REPO, "src", "client", "engine-api.js"), "utf8");
-		check("⑮ 常量：REFRESH_MAX_PARALLEL = 8 / REFRESH_ENTRY_TIMEOUT_MS = 25000 / REFRESH_HARD_CAP_MS = 120000",
+		check("⑮ 常量：REFRESH_MAX_PARALLEL = 8 / REFRESH_HOST_MAX_PARALLEL = 3 / REFRESH_ENTRY_TIMEOUT_MS = 25000 / REFRESH_HARD_CAP_MS = 120000",
 			/const REFRESH_MAX_PARALLEL = 8;/.test(refreshSrc)
+			&& /const REFRESH_HOST_MAX_PARALLEL = 3;/.test(refreshSrc)
 			&& /const REFRESH_ENTRY_TIMEOUT_MS = 25000;/.test(refreshSrc)
 			&& /const REFRESH_HARD_CAP_MS = 120000;/.test(refreshSrc));
+		check("⑮ 重试退避改成分级：瞬时类 800/1600（2 次）、限流类 1200（1 次）；旧的「一次 400ms」常量已取消",
+			/const REFRESH_RETRY_TRANSIENT_DELAYS_MS = \[800, 1600\];/.test(refreshSrc)
+			&& /const REFRESH_RETRY_LIMITED_DELAYS_MS = \[1200\];/.test(refreshSrc)
+			&& !/const REFRESH_RETRY_DELAY_MS/.test(refreshSrc)
+			&& /\bretryClassOf\b/.test(refreshSrc) && /"limited"/.test(refreshSrc) && /"transient"/.test(refreshSrc));
 		check("⑮ 旧的「整轮共用 20s」常量已取消（代码里不再声明/引用 REFRESH_TIMEOUT_MS，注释里的历史说明不算）",
 			!/const REFRESH_TIMEOUT_MS/.test(refreshSrc) && !/\|\| REFRESH_TIMEOUT_MS/.test(refreshSrc)
 			&& !/REFRESH_TIMEOUT_MS/.test(engineApiSrc));
@@ -624,20 +634,26 @@ export const remindOffGamesOf = (value, fallback) => (Array.isArray(value) ? val
 			ok: status >= 200 && status < 300, status, headers: { get: () => null },
 			text: async () => body, json: async () => JSON.parse(body)
 		});
-		// 假 transport：既记"每个 URL 被请求几次"，也记"同时在飞"的峰值
+		// 假 transport：既记"每个 URL 被请求几次"，也记"同时在飞"的峰值（全局 + 每主机）。
+		const hostOfUrl = (u) => { try { return new URL(String(u)).hostname; } catch { return ""; } };
 		const makeTransport = (handler) => {
 			const calls = [];
 			let inFlight = 0, peak = 0;
+			const perHost = new Map();   // host → { inFlight, peak }
 			const transport = {
 				async fetchRaw(url) {
 					const u = String(url);
 					calls.push(u);
+					const h = hostOfUrl(u);
+					let hs = perHost.get(h);
+					if (!hs) { hs = { inFlight: 0, peak: 0 }; perHost.set(h, hs); }
 					inFlight++; peak = Math.max(peak, inFlight);
-					try { return await handler(u); } finally { inFlight--; }
+					hs.inFlight++; hs.peak = Math.max(hs.peak, hs.inFlight);
+					try { return await handler(u); } finally { inFlight--; hs.inFlight--; }
 				},
 				async fetchViaProxy() { throw new Error("本段用例只走直连"); }
 			};
-			return { transport, calls, peakOf: () => peak };
+			return { transport, calls, peakOf: () => peak, hostPeakOf: (h) => (perHost.get(h) || { peak: 0 }).peak };
 		};
 		const engineOf = (transport) => createEngine({
 			transport, storage: makeStore(), now: () => FX_NOW, timer: { setTimeout, clearTimeout }
@@ -648,11 +664,13 @@ export const remindOffGamesOf = (value, fallback) => (Array.isArray(value) ? val
 			url: "https://example.invalid/sim/" + i
 		}, patch || {});
 
-		// ① 并发上限：24 条、每条 1 个请求、假 transport 内挂 20ms ⇒ 在飞峰值恰为 8（不超、也不串行）
+		// ① 全局并发上限：24 条、每条 1 个请求、假 transport 内挂 20ms ⇒ 在飞峰值恰为 8（不超、也不串行）。
+		//    ⚠️ 每条用**不同主机**：同主机另有 ≤3 的上限（见下面 ①b），这里只量全局池。
 		{
 			const fx = makeTransport(async () => { await new Promise((r) => setTimeout(r, 20)); return respOf(200, FIX_NOMATCH); });
 			const engine = engineOf(fx.transport);
-			const entries = Array.from({ length: 24 }, (_, i) => entryOf(i));
+			const entries = Array.from({ length: 24 }, (_, i) =>
+				entryOf(i, { url: "https://g" + i + ".example.invalid/sim/" + i }));
 			const round = await engine.__test.refreshAll(entries, {}, { entryTimeoutMs: 5000, hardCapMs: 30000, retryDelayMs: 5 });
 			check("⑮① 同时在飞的条目峰值 ≤ 8（REFRESH_MAX_PARALLEL 池化生效）",
 				fx.peakOf() <= 8, String(fx.peakOf()));
@@ -742,6 +760,8 @@ export const remindOffGamesOf = (value, fallback) => (Array.isArray(value) ? val
 
 		// ④ 整轮硬上限：所有条目都挂住 ⇒ 整轮在注入的短硬上限（250ms）附近结束、全部按超时口径收尾
 		//    （每条目预算故意设成 5000ms，证明"是硬上限在兜底"而不是每条目超时）。
+		//    2026-11-18 起这 20 条同主机 ⇒ 同时最多 3 条在飞、其余 17 条在等主机槽位 ——
+		//    硬上限到点必须把**等待者**也一起收尾（不能留下永远挂在 hostAcquire 上的 worker）。
 		{
 			const fx = makeTransport(async () => new Promise(() => {}));
 			const engine = engineOf(fx.transport);
@@ -755,6 +775,84 @@ export const remindOffGamesOf = (value, fallback) => (Array.isArray(value) ? val
 				round.results.length === 20 && round.results.every((r) => r && r.ok === false && r.reason === "超时"
 					&& r.gachaFail && r.gachaFail.kind === "down" && r.gachaFail.reason === "超时"),
 				JSON.stringify(round.results.map((r) => r && r.reason)));
+		}
+
+		// ⑯（2026-11-18 新增）同主机并发 ≤ 3 + 分级重试的**次数**边界。
+		//   真机依据：imas 五款（gakumas / shinycolors / millisita / deresute / shanison）共用
+		//   `https://melonpapapapa-n.com/imas_*_202611/`（各 ~650KB），同一轮同时 502 / 超时；
+		//   复测 5 页并发全 200、214~960ms ⇒ 上游瞬时抖动 ⇒ 用同主机 3 并发 + 分级重试兜住。
+		{
+			// ①a 同主机 10 条（与另外 10 个不同主机交错）⇒ 该主机在飞峰值 ≤ 3（且真的用到 3 不串行），
+			//     全局峰值仍 ≤ 8（同主机上限不是把整轮压成 3）。
+			const SHARED = "example.invalid";
+			const fx = makeTransport(async () => { await new Promise((r) => setTimeout(r, 20)); return respOf(200, FIX_NOMATCH); });
+			const engine = engineOf(fx.transport);
+			const entries = [];
+			for (let i = 0; i < 20; i++) {
+				entries.push(i % 2 === 0
+					? entryOf(i, { url: "https://" + SHARED + "/sim/shared-" + i })
+					: entryOf(i, { url: "https://o" + i + ".example.invalid/sim/solo-" + i }));
+			}
+			const round = await engine.__test.refreshAll(entries, {}, { entryTimeoutMs: 5000, hardCapMs: 30000, retryDelayMs: 5 });
+			check("⑯①a 同主机 10 条并发 ⇒ 该主机在飞峰值 ≤ 3（REFRESH_HOST_MAX_PARALLEL 生效）",
+				fx.hostPeakOf(SHARED) <= 3, String(fx.hostPeakOf(SHARED)));
+			check("⑯①a ……且峰值恰为 3（不是退化成同主机串行）", fx.hostPeakOf(SHARED) === 3, String(fx.hostPeakOf(SHARED)));
+			check("⑯①a 全局在飞峰值仍 ≤ 8（同主机上限没有压死全局并发）", fx.peakOf() <= 8, String(fx.peakOf()));
+			check("⑯①a 20 条全部定稿且 ok（同主机排队不影响结果）",
+				round.results.length === 20 && round.results.every((r) => r && r.ok === true) && round.okCount === 20,
+				JSON.stringify({ ok: round.okCount, total: round.total }));
+
+			// ② 瞬时类（http-5xx）：连续两次 502、第三次 200 ⇒ 用重试结果（成功），请求数恰为 3（2 次重试）。
+			{
+				let hits = 0;
+				const fx5 = makeTransport(async (u) => {
+					if (u.includes("retry-5xx")) { hits++; return hits <= 2 ? respOf(502, "bad gateway") : respOf(200, FIX_BIWIKI); }
+					return respOf(404, "");
+				});
+				const e5 = engineOf(fx5.transport);
+				const round5 = await e5.__test.refreshAll(
+					[{ id: "sim-retry-5xx", name: "5xx 重试", custom: true, url: "https://retry5xx.example.invalid/sim/retry-5xx" }],
+					{}, { entryTimeoutMs: 5000, hardCapMs: 10000, retryDelayMs: 5 });
+				check("⑯② http-5xx 连续失败两次、第三次成功 ⇒ 成功（瞬时类允许 2 次重试）",
+					round5.results[0] && round5.results[0].ok === true && !!(round5.results[0].data && round5.results[0].data.banner),
+					JSON.stringify(round5.results[0] && { ok: round5.results[0].ok, fail: round5.results[0].gachaFail }));
+				check("⑯② 上述条目请求数恰为 3（2 次重试；不是 1 次、也不是无限重试）", hits === 3, String(hits));
+			}
+
+			// ③ 限流类（http-403）：两次都 403 ⇒ down，请求数恰为 2（只允许重试 1 次，别硬顶）。
+			{
+				let hits = 0;
+				const fx4 = makeTransport(async (u) => {
+					if (u.includes("retry-403")) { hits++; return respOf(403, "forbidden"); }
+					return respOf(404, "");
+				});
+				const e4 = engineOf(fx4.transport);
+				const round4 = await e4.__test.refreshAll(
+					[{ id: "sim-retry-403", name: "403 重试", custom: true, url: "https://retry403.example.invalid/sim/retry-403" }],
+					{}, { entryTimeoutMs: 5000, hardCapMs: 10000, retryDelayMs: 5 });
+				check("⑯③ 两次都 403 ⇒ 仍是 down（reason 含 403）且请求数恰为 2（限流类只重试 1 次）",
+					hits === 2 && round4.results[0] && round4.results[0].ok === false
+					&& round4.results[0].gachaFail && round4.results[0].gachaFail.kind === "down"
+					&& /403/.test(round4.results[0].gachaFail.reason || ""),
+					JSON.stringify({ hits, fail: round4.results[0] && round4.results[0].gachaFail }));
+			}
+
+			// ④ nomatch（200 但读不出当期内容）属非瞬时类 ⇒ 不重试，请求数恰为 1。
+			{
+				let hits = 0;
+				const fxN = makeTransport(async (u) => {
+					if (u.includes("retry-nomatch")) { hits++; return respOf(200, FIX_NOMATCH); }
+					return respOf(404, "");
+				});
+				const eN = engineOf(fxN.transport);
+				const roundN = await eN.__test.refreshAll(
+					[{ id: "sim-retry-nomatch", name: "未命中", custom: true, url: "https://retrynm.example.invalid/sim/retry-nomatch" }],
+					{}, { entryTimeoutMs: 5000, hardCapMs: 10000, retryDelayMs: 5 });
+				check("⑯④ nomatch 不重试：请求数恰为 1、结果 ok（kind:nomatch）",
+					hits === 1 && roundN.results[0] && roundN.results[0].ok === true
+					&& roundN.results[0].gachaFail && roundN.results[0].gachaFail.kind === "nomatch",
+					JSON.stringify({ hits, fail: roundN.results[0] && roundN.results[0].gachaFail }));
+			}
 		}
 	}
 }

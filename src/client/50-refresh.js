@@ -742,7 +742,7 @@
 		}
 		//#endregion
 
-		// ── 刷新调度预算（2026-11-17 重做：整轮一个 deadline → 池化 + 每条目预算 + 硬上限 + 重试）──
+		// ── 刷新调度预算（2026-11-17 重做；2026-11-18 加「同主机并发上限」+ 分级重试）──
 		//
 		// 旧模型（2026-10-21 → 2026-11-17）：`REFRESH_TIMEOUT_MS = 20000` 是**整轮共用**的一个
 		// deadline；`targets.map(async …)` + `Promise.all` ⇒ 61 条条目**一次性全并发**，到点还没
@@ -753,31 +753,47 @@
 		//     `event/search?ongoing=true` 200 / 0.2s）⇒ 不是源站慢，是被整轮 deadline 掐掉；
 		//   · `nikki4`（闪耀暖暖）卡池连续两轮 `HTTP 403` —— 该源一轮要 17 次请求（2 列表 + 15 详情），
 		//     单独复跑两轮 32 次请求全 200 ⇒ 是全并发爆发下的限流/抖动。
+		//     （2026-11-18 复核：403 的真因是**宿主代理多送的 Origin 头**，已在 src/index.js 的
+		//      `origin=0` + 30-game-papergames.js 的 `noOrigin: true` 修掉；并发保护仍然要做。）
 		//
-		// 新模型的四件套：
+		// 2026-11-18 真机第二轮：imas 五款（gakumas / shinycolors / millisita / deresute / shanison）
+		// 同一轮同时「卡池=HTTP 502 / 活动=超时」—— 五款共用 `https://melonpapapapa-n.com/imas_*_202611/`
+		// （各 ~650KB）。复测 5 页并发（带/不带 Origin）全部 200、214~960ms ⇒ 上游瞬时抖动、不是稳定复现。
+		// 那一轮瞬时失败还只重试一次 400ms ⇒ 对"同一主机 5 个 0.65MB 页面同时砸过去"毫无保护。所以补两件：
 		//   · 并发上限 `REFRESH_MAX_PARALLEL`：池化执行，同时在飞的条目 ≤ 8，其余排队；
+		//   · **同主机并发上限** `REFRESH_HOST_MAX_PARALLEL`：同一 hostname 的条目同时在飞 ≤ 3
+		//     （host 取条目 `url` 的主机名，`url` 为空时取 `eventUrl`）；池化等待、不忙等，
+		//     整轮硬上限仍然生效（到点会唤醒所有等待者并按超时口径收尾）；
 		//   · 每条目自己的预算 `REFRESH_ENTRY_TIMEOUT_MS`：从该条**开始执行**时计时，到点只把
 		//     **该条目**里还没回来的侧记「超时」，已经回来的侧保留结果（取消"整轮共用 20s"）；
 		//   · 整轮硬上限 `REFRESH_HARD_CAP_MS`：兜底保证整轮一定会结束、面板不会永远「刷新中」，
 		//     到硬上限时未完成的条目按同一超时口径收尾；
-		//   · 瞬时失败重试一次：见 `transientReason` / `runEntry`，退避 `REFRESH_RETRY_DELAY_MS` 后
-		//     用同一个 signal 重试该条目一次；`nomatch` / `skipped` 不重试。
+		//   · **分级重试**（见 `retryClassOf` / `runEntry`）：
+		//       瞬时类（超时 / 网络类 / http-5xx）最多重试 **2** 次，退避 800ms / 1600ms；
+		//       限流类（http-403 / http-429）最多重试 **1** 次，退避 1200ms（别硬顶）；
+		//       `nomatch` / `skipped` / 其它非瞬时类不重试。
+		//     每次重试都受「该条目剩余预算」与「整轮硬上限」约束（超了就不再试）。
 		const REFRESH_MAX_PARALLEL = 8;
+		const REFRESH_HOST_MAX_PARALLEL = 3;
 		const REFRESH_ENTRY_TIMEOUT_MS = 25000;
 		const REFRESH_HARD_CAP_MS = 120000;
-		// 重试前的退避（毫秒）：每轮每条目最多重试一次，只对**瞬时失败**生效。
-		const REFRESH_RETRY_DELAY_MS = 400;
+		// 重试退避（毫秒）：**数组长度 = 该类最多重试次数**（瞬时类两档 / 限流类一档）。
+		const REFRESH_RETRY_TRANSIENT_DELAYS_MS = [800, 1600];
+		const REFRESH_RETRY_LIMITED_DELAYS_MS = [1200];
 
-		// 跑一批 fetchEntry，并施加新调度模型（并发上限 / 每条目预算 / 整轮硬上限 / 瞬时失败重试）。
-		// `budgets` 可选：{ maxParallel, entryTimeoutMs, hardCapMs, retryDelayMs } —— **生产调用不传**
-		// （一律回落到上面的常量），只有回归用例用它注入短预算，免得真等 25s / 120s。
+		// 跑一批 fetchEntry，并施加新调度模型（并发上限 / 同主机上限 / 每条目预算 / 整轮硬上限 / 分级重试）。
+		// `budgets` 可选：{ maxParallel, hostMaxParallel, entryTimeoutMs, hardCapMs, retryDelayMs } ——
+		// **生产调用不传**（一律回落到上面的常量），只有回归用例用它注入短预算，免得真等 25s / 120s；
+		// `retryDelayMs` 是"统一退避"覆盖（给了就用它替换分级退避，次数上限不变）。
 		async function runEntriesWithDeadline(targets, budgets) {
 			const b = budgets || {};
 			const positive = (v, d) => (typeof v === "number" && isFinite(v) && v > 0 ? v : d);
 			const maxParallel = Math.max(1, Math.floor(positive(b.maxParallel, REFRESH_MAX_PARALLEL)));
+			const hostMaxParallel = Math.max(1, Math.floor(positive(b.hostMaxParallel, REFRESH_HOST_MAX_PARALLEL)));
 			const entryMs = positive(b.entryTimeoutMs, REFRESH_ENTRY_TIMEOUT_MS);
 			const hardCapMs = positive(b.hardCapMs, REFRESH_HARD_CAP_MS);
-			const retryDelayMs = typeof b.retryDelayMs === "number" && b.retryDelayMs >= 0 ? b.retryDelayMs : REFRESH_RETRY_DELAY_MS;
+			// null ⇒ 按类别用 REFRESH_RETRY_*_DELAYS_MS；给了数字 ⇒ 所有重试统一用它（回归用例）。
+			const retryDelayMs = typeof b.retryDelayMs === "number" && b.retryDelayMs >= 0 ? b.retryDelayMs : null;
 			const timer = coreEnv.timer;
 			const n = targets.length;
 			const results = new Array(n);
@@ -822,22 +838,62 @@
 				const c = controllers[i];
 				if (c) { try { c.abort(); } catch { /* ignore */ } }
 			};
-			// 瞬时失败判定（只认**能靠重试救回来**的几类：源站限流 / 抖动 / 网络瞬断）。
+			// 重试分类（只认**能靠重试救回来**的几类：源站限流 / 抖动 / 网络瞬断）。
+			//   "limited"   = http-403 / http-429：限流类，最多重试 1 次（别硬顶，见 2026-11-18 imas 五款同轮 502）；
+			//   "transient" = 超时 / 网络类 / http-5xx：最多重试 2 次；
+			//   ""          = 不重试（`nomatch` 未公布 / `skipped` 未配置 / 抓取异常 / 页面结构变了 …）。
 			// 生产 reason 是 normErr 的文案（`超时` / `HTTP 403` / `网络不通` …），底层错误原文
-			//（`fetch failed` / `ECONNRESET` / `ETIMEDOUT` …）只在自定义 transport 里出现 —— 两种都认；
-			// `nomatch`（未公布）、`抓取异常`（未知错误）、`页面结构变了`（源站改版）一律不重试。
-			const transientReason = (reason) => {
+			//（`fetch failed` / `ECONNRESET` / `ETIMEDOUT` …）只在自定义 transport 里出现 —— 两种都认。
+			const retryClassOf = (reason) => {
 				const s = String(reason == null ? "" : reason).toLowerCase();
-				return s === "超时"
-					|| /http[-_ ]?(?:403|429|5\d\d)\b/.test(s)
-					|| /fetch failed|econnreset|etimedout|network|网络不通/.test(s);
+				if (/http[-_ ]?(?:403|429)\b/.test(s)) return "limited";
+				if (s === "超时"
+					|| /http[-_ ]?5\d\d\b/.test(s)
+					|| /fetch failed|econnreset|etimedout|network|网络不通/.test(s)) return "transient";
+				return "";
 			};
-			const transientDown = (r) => {
-				if (!r || r.ok) return false;
-				return [r.gachaFail, r.eventFail].some((f) => !!f && f.kind === "down" && transientReason(f.reason));
+			// 这一条结果里"该按哪类重试"：任一侧限流 ⇒ limited（更保守：只给 1 次）；
+			// 否则任一侧瞬时 ⇒ transient；都没有 ⇒ 不重试。
+			const retryClassDown = (r) => {
+				if (!r || r.ok) return "";
+				let cls = "";
+				for (const f of [r.gachaFail, r.eventFail]) {
+					if (!f || f.kind !== "down") continue;
+					const c = retryClassOf(f.reason);
+					if (c === "limited") return "limited";
+					if (c === "transient") cls = "transient";
+				}
+				return cls;
 			};
+			const retryDelaysOf = (cls) => (cls === "limited" ? REFRESH_RETRY_LIMITED_DELAYS_MS : REFRESH_RETRY_TRANSIENT_DELAYS_MS);
 			const sleep = (ms) => new Promise((resolve) => { timer.setTimeout(resolve, ms); });
-			// 整轮硬上限：到点把还没定稿的条目统一按超时收尾，并 abort 各自在飞的请求。
+			// ── 同主机并发上限（`REFRESH_HOST_MAX_PARALLEL`）──
+			// 每个 hostname 一个桶：`active` = 在飞条数，`waiters` = 排队者（Promise 解析，**不忙等**）。
+			// host 取条目 `url` 的主机名，`url` 为空时取 `eventUrl`；两者都空 / 解析失败 ⇒ 归到 "" 桶
+			//（这类条目本来就会走 skipped，不影响正常路径）。
+			const hostOf = (t) => {
+				const raw = String((t && (t.url || t.eventUrl)) || "");
+				try { return new URL(raw).hostname; } catch { return ""; }
+			};
+			const hostBuckets = new Map();
+			const hostSlotOf = (host) => {
+				let st = hostBuckets.get(host);
+				if (!st) { st = { active: 0, waiters: [] }; hostBuckets.set(host, st); }
+				return st;
+			};
+			const hostAcquire = (host) => {
+				const st = hostSlotOf(host);
+				if (st.active < hostMaxParallel) { st.active++; return Promise.resolve(st); }
+				return new Promise((resolve) => { st.waiters.push(resolve); });
+			};
+			const hostRelease = (st) => {
+				if (!st) return;
+				st.active--;
+				const nextWaiter = st.waiters.shift();
+				if (nextWaiter) { st.active++; nextWaiter(st); }
+			};
+			// 整轮硬上限：到点把还没定稿的条目统一按超时收尾，并 abort 各自在飞的请求；
+			// 同时**唤醒还在等同主机槽位的 worker**（否则它们会永远挂在 hostAcquire 上）。
 			let hardTimer = 0;
 			const hardStop = new Promise((resolve) => {
 				hardTimer = timer.setTimeout(() => {
@@ -846,6 +902,10 @@
 						if (settled[i]) continue;
 						abortEntry(i);
 						finalize(i, timeoutResult(targets[i], partialByEntry[i]));
+					}
+					for (const st of hostBuckets.values()) {
+						const waiters = st.waiters.splice(0);
+						for (const w of waiters) w(null);
 					}
 					resolve(null);
 				}, hardCapMs);
@@ -857,6 +917,7 @@
 				controllers[i] = controller;
 				const signal = controller ? controller.signal : void 0;
 				let expired = false;
+				const startedAt = nowMs();
 				const deadline = new Promise((resolve) => {
 					const id = timer.setTimeout(() => {
 						expired = true;
@@ -876,14 +937,27 @@
 					return rr || timeoutResult(t, part);   // null ⇒ 这条到点还没回来
 				};
 				let r = await attempt();
-				// 瞬时失败重试一次：同一个 signal、且仍在这条的预算内（已到点 / 整轮已硬停 ⇒ 不重试）。
-				if (!expired && !hardStopped && !settled[i] && transientDown(r)) {
-					await sleep(retryDelayMs);
-					if (!expired && !hardStopped && !settled[i]) r = await attempt();
+				// 分级重试：同一个 signal、同一份每条目预算；已到点 / 整轮已硬停 ⇒ 一次都不再试。
+				// 次数由类别决定（瞬时 2 / 限流 1，见 REFRESH_RETRY_*_DELAYS_MS 的数组长度）；
+				// 退避也受**该条目剩余预算**约束（剩余不足时先到点、本轮不再重试）。
+				const retried = { transient: 0, limited: 0 };
+				while (!expired && !hardStopped && !settled[i]) {
+					const cls = retryClassDown(r);
+					if (!cls) break;
+					const delays = retryDelaysOf(cls);
+					if (retried[cls] >= delays.length) break;
+					const left = entryMs - (nowMs() - startedAt);
+					if (left <= 0) break;
+					const delay = retryDelayMs === null ? delays[retried[cls]] : retryDelayMs;
+					retried[cls]++;
+					await sleep(Math.min(delay, left));
+					if (hardStopped || settled[i]) break;
+					if (expired) { r = timeoutResult(t, partialByEntry[i]); break; }
+					r = await attempt();
 				}
 				finalize(i, r);
 			};
-			// 池化执行：同时在飞 ≤ maxParallel，其余排队；results 顺序仍与 targets 一一对应。
+			// 池化执行：全局在飞 ≤ maxParallel、同 host 在飞 ≤ hostMaxParallel；results 顺序仍与 targets 一一对应。
 			let next = 0;
 			const worker = async () => {
 				while (true) {
@@ -891,7 +965,13 @@
 					const i = next++;
 					if (i >= n) return;
 					if (settled[i]) continue;   // 硬上限已替它收尾
-					await runEntry(i);
+					const slot = await hostAcquire(hostOf(targets[i]));
+					try {
+						if (hardStopped || settled[i]) continue;
+						await runEntry(i);
+					} finally {
+						hostRelease(slot);
+					}
 				}
 			};
 			try {
@@ -907,8 +987,8 @@
 			return results;
 		}
 
-		// `budgets` 语义（2026-11-17 起）：数字 = **每条目**预算（毫秒，兼容 selfCheck 的 timeoutMs）；
-		// 对象 = 整组调度预算覆盖（{ entryTimeoutMs, hardCapMs, maxParallel, retryDelayMs }，
+		// `budgets` 语义（2026-11-17 起，2026-11-18 扩展）：数字 = **每条目**预算（毫秒，兼容 selfCheck 的 timeoutMs）；
+		// 对象 = 整组调度预算覆盖（{ entryTimeoutMs, hardCapMs, maxParallel, hostMaxParallel, retryDelayMs }，
 		// **只给回归用例注入短预算用**，生产调用不传 ⇒ 全部回落到上面的常量）。
 		async function refreshAll(entries, s, budgets) {
 			// 每轮清空 HTML 文本缓存：两侧同址的复用必须落在**同一轮内**，

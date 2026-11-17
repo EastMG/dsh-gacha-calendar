@@ -386,10 +386,33 @@ async function snapshotHandler(req, res) {
 }
 
 /**
+ * Outgoing proxy request headers（不含 `headers` 查询参数带来的额外头）。
+ *
+ * `noOrigin` = 调用方在代理 URL 上带了 `origin=0` ⇒ **不发** `Origin` 头。
+ * 为什么要这个开关（2026-11-18 实测，闪耀暖暖 nikki4 卡池持续 HTTP 403 的根因）：
+ *   同一 IP / UA / Referer，只改 `Origin` 重放 `https://nikki4.papegames.cn/api/v1/news?...`：
+ *     Origin=https://nikki4.papegames.cn → 403；Origin=https://example.com → 403；**不带 Origin → 200**。
+ *   同域**首页**（活动侧 `https://nikki4.papegames.cn/`）带 Origin 也是 200 ⇒ 只有 `/api/` 路径的
+ *   WAF 对 `Origin` 敏感；列表段 + 24 篇详情全部 200（26 请求 2.8s），因此不是频率 / Referer 问题。
+ * 默认（缺省 / `origin` 为其它值）保持旧行为：照旧发 `Origin: target.origin`。
+ * 纯函数：回归用例按此签名截取后直接跑，钉住"带 origin=0 ⇒ 无 Origin / 缺省 ⇒ 有"。
+ */
+function proxyHeadersOf(target, referer, noOrigin) {
+	const headers = {
+		"User-Agent": UA,
+		Accept: "application/json, text/plain, */*",
+		Referer: referer
+	};
+	if (!noOrigin) headers.Origin = target.origin;
+	return headers;
+}
+
+/**
  * Same-origin proxy handler: `GET/POST /api/gacha-calendar-proxy?url=<enc>&referer=<enc>`
  * fetches `url` from the host (Node fetch, no CORS), sends back
  * `{ status, contentType, body }` JSON. `referer` overrides the outgoing
  * Referer header when the target checks it (nexon/wiki.gg style anti-scrape).
+ * `origin=0` 可选：要求**不带** `Origin` 头（闪耀暖暖 `/api/` 的 WAF 见 proxyHeadersOf 注释）。
  * POST 请求体（JSON）原样透传给目标（如重返未来官网资讯 API 需要 POST body）。
  */
 async function proxyHandler(req, res) {
@@ -423,12 +446,9 @@ async function proxyHandler(req, res) {
 		return;
 	}
 	const referer = parsed.searchParams.get("referer") || target.origin + "/";
-	const headers = {
-		"User-Agent": UA,
-		Accept: "application/json, text/plain, */*",
-		Referer: referer,
-		Origin: target.origin
-	};
+	// `origin=0`（只用这一个值）：不发 Origin 头。缺省 / 其它值 ⇒ 旧行为（发 target.origin）。
+	const noOrigin = parsed.searchParams.get("origin") === "0";
+	const headers = proxyHeadersOf(target, referer, noOrigin);
 	// 可选额外头（JSON）：如 GameKee 需 "game-alias":"ba"
 	const extra = parsed.searchParams.get("headers");
 	if (extra) {

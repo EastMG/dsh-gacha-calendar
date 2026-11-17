@@ -1,7 +1,9 @@
 		//#region engine（core 对外唯一入口：createEngine）
 		// core = 环境无关的"抓取 + 解析 + 缓存合并"逻辑。宿主（DSH 插件 / 浏览器扩展 / Windows /
 		// Android / iOS / 鸿蒙）只需注入三样东西，然后读它返回的 Result JSON 画界面：
-		//   transport: { fetchRaw(url, opts), fetchViaProxy(url, { referer, headers, body }) }
+		//   transport: { fetchRaw(url, opts), fetchViaProxy(url, { referer, headers, body, noOrigin }) }
+		//              noOrigin: true ⇒ 宿主代理**不发** Origin 头（DSH 侧拼成代理 URL 的 `&origin=0`，
+		//              见 92-dsh-env.js / src/index.js；只有闪耀暖暖卡池侧用，2026-11-18）
 		//   storage:   { get(key), set(key, value) }      —— 配置与缓存都走它（键名见 CONFIG_KEYS）
 		//   now:       () => 毫秒时间戳（可注入 → 单测能固定时间）
 		//   timer:     { setTimeout, clearTimeout }（可选；不传就用宿主全局的）
