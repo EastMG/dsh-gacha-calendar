@@ -419,20 +419,6 @@
 			return displaySpecificNameOf(stripped, items) || stripped;
 		}
 
-		// ── ③ 超长截断（**显示层**用；数据层不截断）──────────────────────────────────
-		// 审计里 11 条 >26 字（最长 uma-kr 62 字）。CSS 的 `text-overflow:ellipsis` 会切在词中间，
-		// 所以改成在显示层按**码点**截到 30 字 + **一个**「…」；全文仍留在记录字段 / 数组条目 /
-		// 悬停 `title` 里（复制、原生悬停拿到的都是原名）。只给外显名用，别拿去截源站原文。
-		// ⚠️ 按码点（`Array.from`）而不是 `slice`：`slice` 会把 emoji 的代理对劈成半个。
-		// ⚠️ 数据层（`mergeEntryRecord` / lastData）**不截断** —— 用户复制、搜索、提醒读的是全名。
-		const DISPLAY_NAME_MAX = 30;
-		function truncateDisplayNameOf(name) {
-			const s = typeof name === "string" ? name : "";
-			const chars = Array.from(s);
-			if (chars.length <= DISPLAY_NAME_MAX) return s;
-			return chars.slice(0, DISPLAY_NAME_MAX).join("") + "…";
-		}
-
 		// 把外显名落到记录字段上（① 尾巴归一与 ② 泛名让位共用这一处）。
 		// **只改记录字段**（`banner` / `event`，外显的唯一入口）；数组条目的 `title` / `show` / `raw`
 		// 与悬停字段一律原样不动（任务书硬约束：数组与悬停仍是源站原文）。

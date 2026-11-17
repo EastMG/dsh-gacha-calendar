@@ -1305,20 +1305,12 @@
 			//   displayNameIsGenericOf / displaySpecificNameOf / displayNameNextOf = 泛名判定 /
 			//     「同一侧数组里更具体的条目」挑法 / ①+② 合成（剥尾巴 → 泛名让位）；
 			//   applyDisplayNameOf = 把外显名落到记录字段（数组 title/show/raw 与悬停不动）。
-			//   truncateDisplayNameOf = 显示层超长截断（按码点 30 字 + 一个「…」；
-			//     数据层不截断，全文仍在记录字段 / 数组 / title 里）。
-			//     ⚠️ 不导出 `DISPLAY_NAME_MAX`：它是 60-helpers 的 `const`，在本文件之后（TDZ）。
-			// 应用点 = 50-refresh.js 的 mergeEntryRecord；逐条回归见 test/cases-display-name.mjs ①②③。
+			// 应用点 = 50-refresh.js 的 mergeEntryRecord；逐条回归见 test/cases-display-name.mjs ①②。
 			stripDisplayTailOf,
 			displayNameIsGenericOf,
 			displaySpecificNameOf,
 			displayNameNextOf,
 			applyDisplayNameOf,
-			truncateDisplayNameOf,
-			// displayShowTextOf = **渲染层**名称格的显示文本（82-schedule-view.js）：show → title → raw
-			//   → 「—」，超长按码点截到 30 + 一个「…」。函数声明在 82 段（本文件之后），提升可见。
-			//   导出后可以钉"渲染文本被截断、而模型 title / 数组仍是全名"（见 cases-display-name.mjs ③）。
-			displayShowTextOf,
 			// dueKindOf = 方向判定（到期提醒也会复用）；remindGameAllowed = 「提醒」生效判定（轮播不调用）；
 			// tickerPickOf / tickerCaptionOf / tickerSlidesOf / tickerStepsOf / tickerDirAt = 轮播的
 			// 选取排序 / 文案 / 每格结构 / 展开序列 / 方向规则，全是纯函数。

@@ -116,19 +116,6 @@
 						strokeDasharray: c.toFixed(1), strokeDashoffset: off.toFixed(1), transform: "rotate(-90 " + size / 2 + " " + size / 2 + ")" })
 				] });
 			}
-			// ── 名称格的显示文本（2026-11-18 ③：超长外显名在**渲染层**截断）────────────────────
-			// 口径：`show → title → raw → 「—」`（与原来逐级回落一致），超过 30 码点则前 30 + 一个「…」。
-			// 为什么放渲染层而不是 `scheduleNormalize` 的 `show`：`show` 是显示模型的字段（等价性/回归
-			// 比的是它），而"太长"是**排版**问题；放这里后数据层与模型都不截断 ⇒ 复制、搜索、悬停
-			// （`title` 属性走的 hoverTextOf / scheduleHoverText）拿到的仍是**源站全名**。
-			// CSS 的 `text-overflow:ellipsis` 继续兜底：文本已自带一个「…」且 ≤31 码点，
-			// 视觉上不会出现第二个省略号（要么整段放得下，要么 CSS 在更早处截断、自带那个看不见）。
-			// ⚠️ 旧面板（83-panel-shell.js）的名称格用同一个纯函数，不许各写一套。
-			function displayShowTextOf(x) {
-				const v = x && (x.show || x.title || x.raw);
-				if (!v) return "—";
-				return truncateDisplayNameOf(String(v));
-			}
 			// 「再往后两件」一行：小环 + 游戏名一行 / 事项名一行 + 剩余天数
 			// ⚠️ 事项名与表格同一口径：取 `show`（卡池侧 = 去修饰的角色名；活动侧 = 活动名），
 			//    `title` 是源站原文（池名），只用于悬停 —— 留白卡若用 title，就会出现"表格显角色名、
@@ -138,7 +125,7 @@
 					slotRing(slotFrac(it, now), slotAccent(it), 22, 3.4),
 					(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-slot-nm", children: [
 						(0, react_jsx_runtime.jsx)("b", { children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: it.g.name }) }),
-						(0, react_jsx_runtime.jsx)("i", { children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: displayShowTextOf(it) }) })
+						(0, react_jsx_runtime.jsx)("i", { children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: it.show || it.title || "" }) })
 					] }),
 					(0, react_jsx_runtime.jsxs)("span", { className: "gacha-cal-slot-dd", children: [
 						(0, react_jsx_runtime.jsx)("em", { children: String(slotLeftDays(it, now)) }), " 天后结束"
@@ -205,7 +192,7 @@
 										(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-slot-n", children: String(slotLeftDays(it, now)) }),
 										(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-slot-u", children: "天后结束" })
 									] }),
-									(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-ttl", children: displayShowTextOf(it) }),
+									(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-ttl", children: it.show || it.title || "" }),
 									(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-slot-sub", children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: slotSub(it, frac) }) })
 								]
 							});
@@ -375,7 +362,7 @@
 						// （上一行的 title 属性走 scheduleHoverText，那里仍是 title + 源站墙钟原文，不要动）。
 						// 兜底顺序：show → title → raw → 「—」（show 在 scheduleNormalize 里已有 title 兜底，
 						// 但探头那些由悬停文本解析出来的条目可能没有 show，所以这里仍逐级回落）。
-						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-what", title: scheduleHoverText(x), children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: displayShowTextOf(x) }) }),
+						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-what", title: scheduleHoverText(x), children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: x.show || x.title || x.raw || "—" }) }),
 						(0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-sched-when gacha-cal-sched-num", children: w.parts
 							? ["还剩 ", ...w.parts.map((p) => (0, react_jsx_runtime.jsxs)("span", { children: [p[0], (0, react_jsx_runtime.jsx)("small", { children: p[1] })] }, p[1]))]
 							: w.text })
@@ -440,7 +427,7 @@
 				const itemOf = (x, key) => (0, react_jsx_runtime.jsxs)("div", {
 					key, className: "gacha-cal-sched-item", "data-u": scheduleUrgency(x),
 					children: [
-						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cn", title: hoverTextOf(x, key === "first"), children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: displayShowTextOf(x) }) }),
+						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cn", title: hoverTextOf(x, key === "first"), children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: x.show || x.title || x.raw || "—" }) }),
 						// 日期格悬停：失败 / 沿用旧值 / 无数据结论（正常态只有源站原文）
 						// P4：外显文本按条目 tz 渲染（源站墙钟），与探头 / 「近期」/ 留白卡同一口径。
 						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cm gacha-cal-sched-num", title: scheduleDateHover(x, now), children: scheduleMeta(x, now, x.tz) }),
