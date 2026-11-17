@@ -260,7 +260,8 @@ export default async function run() {
 		check("Bandori 窗口文本形态（MM-DD HH:MM ~ MM-DD HH:MM）",
 			!!secs[0] && /^\d{2}-\d{2} \d{2}:\d{2} ~ \d{2}-\d{2} \d{2}:\d{2}$/.test(fmtWindow(secs[0].primary.startTs, secs[0].primary.endTs, tz)),
 			secs[0] && fmtWindow(secs[0].primary.startTs, secs[0].primary.endTs, tz));
-		const gs = pickBandoriGachaSection(secs), es = pickBandoriEventSection(secs);
+		// 选择器现在要求「覆盖 now」（2026-11-17 修）⇒ 显式传用例的 NOW（夹具窗口 9/29~11/9）
+		const gs = pickBandoriGachaSection(secs, NOW), es = pickBandoriEventSection(secs, NOW);
 		check("Bandori 卡池节 = 含「招募」且排除免费/1日1次（活动二）",
 			!!gs && /测试 Dream Festival招募/.test(gs.name), JSON.stringify(gs && gs.name));
 		check("Bandori 活动节 = 不含「招募」的挑战演出活动（活动一）",
