@@ -47,11 +47,12 @@ const ns_kancolle_TZ = "Asia/Tokyo";
 const ns_kancolle_EVENTS_URL = "https://wikiwiki.jp/kancolle/%E6%9C%9F%E9%96%93%E9%99%90%E5%AE%9A%E5%87%BA%E6%92%83";
 // 图标：DMM 网页游戏**没有 app 图标**（DMM 游戏页/官方 feature 页都不带游戏专属图），
 // 这里用抓取源站自己的 favicon（wikiwiki 公共资源，实测 200 / image/x-icon）。
-// 图标 = 官方 X 账号（@KanColle_STAFF）头像（吹雪），自托管在仓库 assets/ 走 jsDelivr。
+// 图标 = 官方运营账号「艦これ」開発/運営（@KanColle_STAFF）的头像，**外链、不进仓库**。
 // ⚠️ 2026-11-18 修：原值误用了 **wikiwiki 站点的 favicon**（`cdn.wikiwiki.jp/.../user-favicon.ico`），
-//   面板里显示的是 wiki 的图标而不是舰C；舰これ 是 DMM 页游、没有 App Store/Google Play 包，
-//   官方站 kancolle.dmm.com 在部分网络下 NXDOMAIN，故改用官方账号头像并自托管（不依赖第三方图床）。
-const ns_kancolle_ICON = "https://cdn.jsdelivr.net/gh/EastMG/dsh-gacha-calendar@main/assets/icon-kancolle.png";
+//   面板里显示的是 wiki 的图标而不是舰C。而舰これ 没有 App Store / Google Play 包（DMM 页游），
+//   官网域名 www.kancolle.dmm.com 已经 NXDOMAIN（DoH status=3）⇒ 无“官网静态资源/应用商店图标”可挂，
+//   所以用官方运营账号头像（X 官方 CDN pbs.twimg.com）。代价：官方换头像时这个 URL 会失效，需要同步换一次。
+const ns_kancolle_ICON = "https://pbs.twimg.com/profile_images/1588148346320957440/Kj45v4mC_400x400.jpg";
 const ns_kancolle_SOURCE_LABEL = "wiki 活动一览（wikiwiki）";
 const ns_kancolle_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 // 段位标记：每个事件 `<h2>` 里都有一个 `class="anchor_super"` 的锚点（指南类 h2 没有 ⇒ 天然被排除）
