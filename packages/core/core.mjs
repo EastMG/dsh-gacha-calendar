@@ -313,6 +313,69 @@
 			event: { fail: "活动失败", nomatch: "新活动未公布", nomatchUser: "未解析出内容" }
 		};
 
+		//#region 外显名（只改面板上的名字；源站原文 / 数组事实 / 悬停一个字都不动）
+		// 2026-11-18 全量审计（61 条真实条目）的三类文字问题，处理顺序固定：
+		//   源站原名 → ① 剥「体裁尾巴」→ ② 泛名让位 →（显示层）③ 超长截断。
+		// 放 helpers 的理由：`mergeEntryRecord`（50-refresh.js，core 内）与显示层（81/83）都要用；
+		// 60-helpers 在 core 产物里位于**模块顶层**（不是 createEngine 体内），所以这里只能是纯字符串
+		// 运算、零宿主依赖 —— 两个产物（lib/client.js 与 packages/core/core.mjs）都能直接调用。
+		//
+		// 口径铁律：`banner` / `event` 是**外显名**；数组条目的 `title` 与 `raw`、以及
+		// `bannerHover` / `eventHover` 仍是**源站原文**（悬停、复制、回归 oracle 读的是后者）。
+		// 所以下面这些函数只允许被"外显名"这一侧调用，别拿去改数组标题或悬停。
+
+		// ── ① 尾巴归一（2026-11-18 审计：源站体裁尾巴 3+ 条）──────────────────────────
+		// 「【战前补给】现已开启」「…開催中！」「…のお知らせ」这类尾巴是**页面体裁**，不是名字本身。
+		// 只剥白名单里的尾巴；白名单之外的尾巴（如「…举办公告！」「…开放中」）**逐字不动**。
+		// 剥的条件：剥完必须还剩 ≥3 个码点，否则不剥 —— 一是避免把「开启！」这种名字剥空，
+		// 二是避免「活动开启！」被剥成两字名（审计里两字名本来就少，宁可保守）。
+		// 长尾优先（sort 降序）：否则「開催中！」会先被「開催！」吃掉一个「中」。
+		const DISPLAY_TAIL_SUFFIXES = [
+			"開催中！", "開催中!", "開催中",
+			"舉辦中！", "舉辦中!", "舉辦中",
+			"举办中！", "举办中!", "举办中",
+			"现已开启！", "现已开启!", "现已开启",
+			"现已开始！", "现已开始!", "现已开始",
+			"即将开始！", "即将开始!", "即将开始",
+			"即将开启！", "即将开启!", "即将开启",
+			"即将上线！", "即将上线!", "即将上线",
+			"上线预告！", "上线预告!", "上线预告",
+			"举办预告！", "举办预告!", "举办预告",
+			"のお知らせ",
+			"開催！", "開催!", "开启！", "开启!", "举办！", "举办!"
+		].sort((a, b) => b.length - a.length);
+		// 尾巴被剥掉后可能悬挂的标点 / 空白（**只在命中尾巴之后**清理；不含尾巴的名字不碰任何字符）
+		const DISPLAY_TAIL_TRIM_RE = /[\s\u3000，,、。．.；;：:·|｜/／~～\-—–…]+$/u;
+		const DISPLAY_TAIL_MIN_REST = 3;
+		function stripDisplayTailOf(name) {
+			if (typeof name !== "string" || !name) return name;
+			let s = name;
+			for (;;) {
+				let hit = "";
+				for (const tail of DISPLAY_TAIL_SUFFIXES) {
+					if (s.length > tail.length && s.endsWith(tail)) { hit = tail; break; }
+				}
+				if (!hit) break;
+				const rest = s.slice(0, s.length - hit.length).replace(DISPLAY_TAIL_TRIM_RE, "");
+				if ([...rest].length < DISPLAY_TAIL_MIN_REST) break;
+				s = rest;
+			}
+			return s;
+		}
+
+		// 把外显名落到记录字段上（① 尾巴归一与 ② 泛名让位共用这一处）。
+		// **只改记录字段**（`banner` / `event`，外显的唯一入口）；数组条目的 `title` / `show` / `raw`
+		// 与悬停字段一律原样不动（任务书硬约束：数组与悬停仍是源站原文）。
+		// 显示层读这份记录字段（81-schedule-model.js 的 `scheduleItemOf` 对主条直接走
+		// `scheduleNormalize`），所以改这里 = 改外显，不需要也不允许回头改数组。
+		function applyDisplayNameOf(rec, side, next) {
+			if (!rec || typeof next !== "string" || !next) return;
+			const key = side === "gacha" ? "banner" : "event";
+			const prev = typeof rec[key] === "string" ? rec[key] : "";
+			if (prev === next) return;
+			rec[key] = next;
+		}
+
 		// —— 配置表单写入被拒时的归因（纯函数）——
 		// DSH 0.1.7 的 configForms 表单有四种"能读不能写"的状态，肉眼在界面上完全分不出来
 		// （控件点一下弹回原值、没有任何提示）。这里按快照如实说清是哪一种，让下次出问题能一眼定位：
@@ -29476,6 +29539,13 @@ async function ns_biligame_announce_eventsDdlezjTopic(url, signal, tz = ns_bilig
 				}
 			}
 			rec.events = dataArrayProducedListOf(dataArrayEventListOf(rec.events), ((meta && meta.id) || "") + ":event");
+			// ── 外显名归一（2026-11-18）：① 剥体裁尾巴 ───────────────────────────────
+			// 只改 `banner` / `event`（外显名）与数组主条的 `show`（数据层文档：title = 源站原文、
+			// show = 外显时真正显示的那串）；`title` / `roles` / `raw` / `startTs` / 悬停**一律不动**
+			//（悬停、复制、回归 oracle 读的仍是源站原文）。
+			// 放在数组归一**之后**：② 泛名让位要靠已经归一过的数组判断"这条更具体"（下一步再加）。
+			applyDisplayNameOf(rec, "gacha", stripDisplayTailOf(rec.banner));
+			applyDisplayNameOf(rec, "event", stripDisplayTailOf(rec.event));
 			// `itemFacts` / `gachaHoverItems` / `eventHoverItems` 只是"解析器 → 数组"的**通道**：
 			// 事实已经贴到数组条目上了、悬停文本也已经生成了，它们不进记录/缓存。
 			delete rec.itemFacts;

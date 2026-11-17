@@ -278,6 +278,13 @@
 				}
 			}
 			rec.events = dataArrayProducedListOf(dataArrayEventListOf(rec.events), ((meta && meta.id) || "") + ":event");
+			// ── 外显名归一（2026-11-18）：① 剥体裁尾巴 ───────────────────────────────
+			// 只改 `banner` / `event`（外显名）与数组主条的 `show`（数据层文档：title = 源站原文、
+			// show = 外显时真正显示的那串）；`title` / `roles` / `raw` / `startTs` / 悬停**一律不动**
+			//（悬停、复制、回归 oracle 读的仍是源站原文）。
+			// 放在数组归一**之后**：② 泛名让位要靠已经归一过的数组判断"这条更具体"（下一步再加）。
+			applyDisplayNameOf(rec, "gacha", stripDisplayTailOf(rec.banner));
+			applyDisplayNameOf(rec, "event", stripDisplayTailOf(rec.event));
 			// `itemFacts` / `gachaHoverItems` / `eventHoverItems` 只是"解析器 → 数组"的**通道**：
 			// 事实已经贴到数组条目上了、悬停文本也已经生成了，它们不进记录/缓存。
 			delete rec.itemFacts;

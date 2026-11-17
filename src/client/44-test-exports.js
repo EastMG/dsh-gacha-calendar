@@ -1300,6 +1300,12 @@
 			// 「启动时」（refreshMinutes === 0）每次挂载 due 但不 force / 按间隔 due / 脏值永不 due。
 			// 导出后可以逐字断言 reason 并覆盖 0、负数、NaN 三种边界（见 test/cases-refresh.mjs）。
 			autoRefreshPlan,
+			// 外显名（60-helpers.js 的纯函数，2026-11-18 全量审计）：
+			//   stripDisplayTailOf = 剥源站体裁尾巴（白名单 + 剥完 ≥3 码点才剥）；
+			//   applyDisplayNameOf = 把外显名落到记录字段与数组主条的 show 上（数组 title / 悬停不动）。
+			// 应用点 = 50-refresh.js 的 mergeEntryRecord；逐条回归见 test/cases-display-name.mjs ①。
+			stripDisplayTailOf,
+			applyDisplayNameOf,
 			// dueKindOf = 方向判定（到期提醒也会复用）；remindGameAllowed = 「提醒」生效判定（轮播不调用）；
 			// tickerPickOf / tickerCaptionOf / tickerSlidesOf / tickerStepsOf / tickerDirAt = 轮播的
 			// 选取排序 / 文案 / 每格结构 / 展开序列 / 方向规则，全是纯函数。

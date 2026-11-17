@@ -446,7 +446,12 @@
 			const title = item.title || "";
 			const rawSrc = item.raw || "";
 			const recTitle = (isG ? g.banner : g.event) || "";
-			if (title && title === recTitle) return scheduleNormalize(g, side, now);
+			// ⚠️ 2026-11-18（外显名归一）：主条判定**不能只靠 title === 记录名** ——
+			//    `mergeEntryRecord` 会把记录名归一（剥体裁尾巴 / 泛名让位），数组 title 仍是源站原文
+			//    ⇒ 两者不再相等。主条（`source === "primary"`）在有记录名时**必须**走
+			//    `scheduleNormalize`：记录字段才是"外显名"的唯一入口，数组里的是源站事实
+			//    （任务书：数组与悬停不动）。没有记录名的纯数组调用（测试 / 外层派生）照旧按 title 判。
+			if ((item.source === "primary" && recTitle) || (title && title === recTitle)) return scheduleNormalize(g, side, now);
 			// 读不出绝对档期（源站只写「长期」/「版本更新后 ~ …」且条目里也没有 ts）⇒ 不硬凑。
 			// 这类条目**没有可算的状态**，探头里不列（数据层仍留着这条事实）。
 			if (item.startTs == null && item.endTs == null) return null;

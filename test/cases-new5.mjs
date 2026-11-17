@@ -1066,8 +1066,8 @@ export default async function run() {
 			JSON.stringify(calls.filter((u) => !/^https:\/\//.test(String(u)))));
 
 		// ── (e) 载荷逐字：卡池（外显 + 悬停 + gacha[]）/ 活动（外显 + 悬停 + events[]）──
-		check("卡池外显 = Autumn特别精选扭蛋举办中！/ 10 位角色 / 11-04 11:00 ~ 11-18 12:59（绝对时刻 +08 手算）",
-			rec.banner === "Autumn特别精选扭蛋举办中！" && rec.roles === ROLES_AUTUMN
+		check("卡池外显 = Autumn特别精选扭蛋（尾巴「举办中！」已归一）/ 10 位角色 / 11-04 11:00 ~ 11-18 12:59（绝对时刻 +08 手算）",
+			rec.banner === "Autumn特别精选扭蛋" && rec.roles === ROLES_AUTUMN
 			&& rec.bannerDates === "11-04 11:00 ~ 11-18 12:59"
 			&& rec.bannerDatesRaw === "2026/11/4 11:00 ~ 2026/11/18 12:59"
 			// ⚠️ 记录里没有 startTs/endTs（GACHA_FIELDS 不含它们）⇒ 绝对时刻断言放在 gacha[0] 上

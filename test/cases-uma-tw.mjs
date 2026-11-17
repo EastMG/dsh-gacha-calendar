@@ -175,7 +175,7 @@ export default async function runUmaTw() {
 			&& rec.bannerDatesRaw === "11/2 12:00 ～ 12/3 11:59",
 			JSON.stringify([rec.banner, rec.bannerDates, rec.bannerDatesRaw]));
 		check("记录里的当期活动与解析器逐字一致",
-			rec.event === "傳奇競賽舉辦中！" && rec.eventDates === "11-10 05:00 ~ 11-13 04:59"
+			rec.event === "傳奇競賽" && rec.eventDates === "11-10 05:00 ~ 11-13 04:59"
 			&& rec.eventDatesRaw === "11/10 5:00 ～ 11/13 4:59",
 			JSON.stringify([rec.event, rec.eventDates, rec.eventDatesRaw]));
 		check("记录数组：gacha 3 条 / events 1 条",

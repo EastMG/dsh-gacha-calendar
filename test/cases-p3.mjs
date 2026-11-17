@@ -834,6 +834,17 @@ const p3bDayArr = (arr, tsToo = true) => (arr || []).map((x) => {
 const P3B_STELLA_ROLES = {
 	stellasoraGacha: { roles: "艾蕾", show: "艾蕾" }
 };
+// ── 2026-11-18（外显名 ①：源站体裁尾巴归一）的**已批准差异登记** ───────────────────────
+// `mergeEntryRecord` 只改**外显名**（`banner` / `event`），把白名单里的公告体裁尾巴剥掉
+// （「…開催中！」「…现已开启」）。golden 是改造前的存档、**不重采集** ⇒ 这几个字段有意不同。
+// 契约与上面两张表一致：只登记字段名 / 变了没登记 ⇒ 红 / 登记了没变 ⇒ 红 /
+// 新值必须**恰好** = `stripDisplayTailOf(旧值)`（逐字证明，不靠人眼看）。
+// ⚠️ 数组（`gacha` / `events`）与悬停字段**一个字没动** —— 那两处的逐字比较照旧，不登记。
+const P3B_DISPLAY_NAME = {
+	umaJpEvent: ["event"],
+	gf2Gacha: ["banner"],
+	gf2Event: ["event"]
+};
 // 把"改造前"的数组重建成这一轮之后该有的样子：主条**只改 roles / show**（title / raw / ts / key / source 原样）。
 // 反向守卫：重建成与原值相同 ⇒ 说明这条登记已经烂掉（下面单独断言 old !== rebuilt）。
 const p3bStellaRoleArr = (arr, fix) => {
@@ -966,8 +977,17 @@ async function runP3b() {
 		// banner 必须回到 golden 原值（证明这一轮没有再换池，换的只是 roles 这个事实被如实写出）。
 		const stellaRoles = P3B_STELLA_ROLES[p.key] || null;
 		const pickFields = stellaRoles ? ["roles"] : [];
-		check(`P3b golden（${p.key}）：12 个字符串字段与改造前逐字相同（已登记的相对表述悬停 / 活动名去尾 / 星塔 roles 除外）`,
-			changed.every((f) => approved.includes(f) || trimFields.includes(f) || pickFields.includes(f)), JSON.stringify(changed));
+		// 外显名去体裁尾巴（2026-11-18）：只放行登记过的那几个字符串字段
+		const displayFields = P3B_DISPLAY_NAME[p.key] || [];
+		check(`P3b golden（${p.key}）：12 个字符串字段与改造前逐字相同（已登记的相对表述悬停 / 活动名去尾 / 外显名去体裁尾巴 / 星塔 roles 除外）`,
+			changed.every((f) => approved.includes(f) || trimFields.includes(f) || pickFields.includes(f) || displayFields.includes(f)), JSON.stringify(changed));
+		if (displayFields.length) {
+			check(`P3b golden（${p.key}）**已批准差异**：外显名只剥了源站体裁尾巴（新值 === stripDisplayTailOf(旧值)）`,
+				displayFields.every((f) => changed.includes(f)
+					&& p3bTextOf(r.rec[f]) === T.stripDisplayTailOf(p3bTextOf(g.rec[f]))
+					&& p3bTextOf(r.rec[f]) !== p3bTextOf(g.rec[f])),
+				JSON.stringify(displayFields.map((f) => [f, p3bTextOf(g.rec[f]), p3bTextOf(r.rec[f]), T.stripDisplayTailOf(p3bTextOf(g.rec[f]))])));
+		}
 		if (stellaRoles) {
 			check(`P3b golden（${p.key}）**已批准差异**：roles = ${stellaRoles.roles}（挑池改「有角色优先」⇒ 选中角色池），banner 仍是 golden 原值`,
 				changed.includes("roles") && !changed.includes("banner")

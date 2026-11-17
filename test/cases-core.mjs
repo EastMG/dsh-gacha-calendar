@@ -898,6 +898,11 @@ export default async function runCore() {
 		//   新路两侧都是 null，与改造前存档（老路把"尚未开始"的节也当当期）有意不同 ⇒ 这两个键登记为
 		//   **已批准差异**。差异的范围由下面"bandori 专项"钉死：只是「不覆盖 now 就不外显」，数据本身没动。
 		const APPROVED_DIFF = new Set(["hsr:gacha", "hsr:event", "stellasora:event", "bandori:gacha", "bandori:event"]);
+		// ⚠️ 2026-11-18（外显名 ①：源站体裁尾巴归一）：`mergeEntryRecord` 现在只改**外显名**
+		// （`banner` / `event`），把白名单里的体裁尾巴剥掉（如「…開催中！」「…现已开启」）。
+		// golden 是改造前的存档 ⇒ 这 3 个侧的外显名与 golden 有意不同；**数组与悬停一个字没动**
+		// （由 ③ 的数组逐条相等照旧守着）。逐条"只剥了尾巴"的证明在 cases-display-name.mjs ①。
+		for (const k of ["genshin:event", "uma-jp:event", "gf2:event"]) APPROVED_DIFF.add(k);
 		// ⚠️ 2026-11-10（用户要求）：p5x 的「只有日期、没有时刻」窗口改成 00:00 起 / 23:59 止
 		// （仓库通用约定，见 `ns_bwiki_windowsFromCell` 注释）。golden 是改造前 04:00 / 03:59 的存档
 		// ⇒ 这两侧登记为**已批准差异**，并由下面的专项断言逐行证明"差异只是这条时间口径"。
@@ -905,7 +910,7 @@ export default async function runCore() {
 		const unapproved = diffs.filter((k) => !APPROVED_DIFF.has(k) && !DAY_ONLY_KEYS.has(k));
 		check("等价性：17 款游戏（34 个侧）**全部逐字相等**（diffs = 0；名称 / 档期文本 / 探头行数 / 行顺序）",
 			unapproved.length === 0, JSON.stringify(unapproved));
-		check("等价性白名单 = 5 个已批准（星铁 2 + 星塔 1 + bandori 2）+ p5x 2 个纯日期时间口径（这些键都必须真的变了）",
+		check("等价性白名单 = 8 个已批准（星铁 2 + 星塔 1 + bandori 2 + 外显名尾巴 3）+ p5x 2 个纯日期时间口径（这些键都必须真的变了）",
 			diffs.length === APPROVED_DIFF.size + DAY_ONLY_KEYS.size
 			&& [...APPROVED_DIFF].every((k) => diffs.indexOf(k) >= 0)
 			&& [...DAY_ONLY_KEYS].every((k) => diffs.indexOf(k) >= 0),
@@ -957,7 +962,7 @@ export default async function runCore() {
 		check("等价性：17 款游戏（34 个侧）逐侧再钉一遍同一条不变量（含「这一侧没有数据」的那些）",
 			strictBad.length === 0, JSON.stringify(strictBad));
 		// 反向证明：所有"已批准差异"确实**真的变了**（不是白名单把没变的键也放过）
-		check("反向证明：已批准差异（星铁 2 + 星塔 1 + bandori 2）的老路与数组派生**确实不再相等**（口径变更真的生效了）",
+		check("反向证明：已批准差异（星铁 2 + 星塔 1 + bandori 2 + 外显名尾巴 3）的老路与数组派生**确实不再相等**（口径变更真的生效了）",
 			[...APPROVED_DIFF].every((k) => {
 				const d = got.get(k);
 				return !!d && JSON.stringify(d.old) !== JSON.stringify(d.next);

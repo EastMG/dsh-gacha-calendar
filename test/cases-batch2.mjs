@@ -596,7 +596,7 @@ export default async function runBatch2() {
 			calls2.length === 2 && calls2[0].url === CZN && calls2[1].url === CZN_P2,
 			JSON.stringify(calls2.map((c) => c.url.slice(-20))));
 		check("整轮记录：banner / roles / bannerDates / event / events 逐字",
-			rec.banner === "常驻主战员「蒂菲拉」& 辅战员「蒂亚娜」营救概率提升即将开始"
+			rec.banner === "常驻主战员「蒂菲拉」& 辅战员「蒂亚娜」营救概率提升"
 			&& rec.roles === "蒂菲拉、蒂亚娜"
 			&& rec.bannerDates === "11-04 02:00 ~ 11-25 02:00"
 			&& rec.event === "卡厄思小课堂"
@@ -642,7 +642,7 @@ export default async function runBatch2() {
 		const eA = engineAt(CZN_NOW, cA, only, { fail: (u) => u === CZN });
 		const recA = (await eA.refresh()).games["czn"] || {};
 		check("A p1 500 ⇒ 卡池照常出蒂菲拉（只吃 p2），不 down",
-			recA.gachaFail == null && recA.banner === "常驻主战员「蒂菲拉」& 辅战员「蒂亚娜」营救概率提升即将开始",
+			recA.gachaFail == null && recA.banner === "常驻主战员「蒂菲拉」& 辅战员「蒂亚娜」营救概率提升",
 			JSON.stringify([recA.gachaFail, recA.banner]));
 		check("A p1 500 ⇒ 活动侧如实 nomatch（不是 down）/ 请求 2+2 = 4",
 			!!recA.eventFail && recA.eventFail.kind === "nomatch" && !recA.event
@@ -684,7 +684,7 @@ export default async function runBatch2() {
 		const eE = engineAt(CZN_NOW, cE, only, { override: (u) => (u === CZN ? "<html></html>" : null) });
 		const recE = (await eE.refresh()).games["czn"] || {};
 		check("D p1 坏 HTML + p2 正常 ⇒ 卡池只吃 p2 出蒂菲拉（坏页不拖垮另一页）",
-			recE.gachaFail == null && recE.banner === "常驻主战员「蒂菲拉」& 辅战员「蒂亚娜」营救概率提升即将开始",
+			recE.gachaFail == null && recE.banner === "常驻主战员「蒂菲拉」& 辅战员「蒂亚娜」营救概率提升",
 			JSON.stringify([recE.gachaFail, recE.banner]));
 	}
 
