@@ -792,7 +792,7 @@
 		//         items, error, text, tag, tone, reason, agoText }]
 		// `known` = 有没有记录；`checkedLast` = 上一次自检有没有**覆盖到这一条**（2026-11-18）：
 		//   checkedIds 为空（老存档 / 从未自检）⇒ 一律 false；否则 = checkedIds.includes(id)。
-		//   known && checkedLast === false 只可能是"上次自检时它被隐藏"（记录原样保留、本轮没抓）——
+		//   known && checkedLast === false 且存档有 checkedIds 时，只可能是"上次自检时它被隐藏"（记录原样保留、本轮没抓）——
 		//   展示侧只在原因列追加一句「本次自检未覆盖」，不改 state / tone（它不是异常）。
 		// `known === false` 的行**照样返回**（2026-11-18 之前 UI 会把它们整条丢掉 ⇒ 卡片永远只显示
 		// 老面孔）：胶囊 / 原因列写「未检查」，tone = "unknown"（中性档，不是 warn/error）。
@@ -871,7 +871,9 @@
 				else if (items > 0) reason = "解析出 " + items + " 条";
 				// 有记录但上一次自检**没覆盖到**它（只可能是当时被隐藏，记录原样留着）⇒ 原因列追加一句，
 				// 不改 state / tone：它不是异常，也不是这次检查的结论（2026-11-18，用户只许这一句）。
-				if (!checkedLast) reason = reason ? reason + " · 本次自检未覆盖" : "本次自检未覆盖";
+				// ⚠️ 只有存档**确实记了** checkedIds 才敢这么说：老存档（该字段是 2026-11-18 才加的）里
+				// 没有任何覆盖信息 ⇒ 无从判断，不能给每一行都盖一句「未覆盖」（那是假的，且很吵）。
+				if (checkedIds.length > 0 && !checkedLast) reason = reason ? reason + " · 本次自检未覆盖" : "本次自检未覆盖";
 				return {
 					id,
 					name,

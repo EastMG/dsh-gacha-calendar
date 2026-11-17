@@ -402,10 +402,11 @@ export default async function runHealth() {
 				&& /本次自检未覆盖/.test(notInSet.b.reason),
 				JSON.stringify({ checkedLast: notInSet.b.checkedLast, reason: notInSet.b.reason }));
 			const noIds = byRow({});
-			check("checkedLast：老存档 / 未传 checkedIds ⇒ 一律 false（不知道覆盖了哪些，不冒充检查过）",
+			check("checkedLast：老存档 / 未传 checkedIds ⇒ 字段 false，且**不**盖「本次自检未覆盖」"
+				+ "（存档没有覆盖信息 ⇒ 无从判断，不能给每行都盖一句假话）",
 				noIds.a.checkedLast === false && noIds.b.checkedLast === false
-				&& /本次自检未覆盖/.test(noIds.a.reason),
-				JSON.stringify({ a: noIds.a.checkedLast, b: noIds.b.checkedLast }));
+				&& noIds.a.reason.indexOf("本次自检未覆盖") < 0 && noIds.b.reason.indexOf("本次自检未覆盖") < 0,
+				JSON.stringify({ a: noIds.a.checkedLast, ra: noIds.a.reason, b: noIds.b.checkedLast, rb: noIds.b.reason }));
 			check("checkedLast 不改 state / tone（未覆盖不是异常，不许把行染成 warn/error）",
 				noIds.a.state === "ok" && noIds.a.tone === "ok"
 				&& notInSet.b.state === "ok" && notInSet.b.tone === "ok",
