@@ -316,6 +316,8 @@ DSH 渲染进程的页面源是 `dsh-app://app`（自定义 scheme）。**有些
 处理方向（将来一次做完，不要逐个打补丁）：把这套判定做成**主机表**（`需要代理的 MediaWiki / 拒发 ACAO 的主机`），
 在 `transportFetchRaw` 同一个收口点按表改道代理；并把 `origin=*` 也统一由收口点补（现在 prts 是 8 处手拼）。
 另注意：改道代理后必须同步 `PROXY_ALLOW_HOSTS`（`src/index.js` 的白名单），否则会 403 `host-not-allowed`。
+
+**代理的 `Origin` 头也是一个坑**（2026-11-18）：宿主代理默认会给目标站发 `Origin: <目标站 origin>`；若目标站对带 `Origin` 的请求回 **403**，就要用 `noOrigin: true`（`fetchText`/`fetchJson` 选项 → 代理 URL 上加 `origin=0`）。实测（nikki4 的 `/api/v1/news`，同 IP/UA/Referer，只改 Origin）：`Origin=https://nikki4.papegames.cn` → **403**、`Origin=https://example.com` → **403**、**不带 Origin → 200**；同域首页带 Origin 也 200。目前只有 nikki4 卡池侧（2 次列表 + 详情）用这个选项，守卫见 `test/cases-batch4.mjs` ⑤。
 ### P5 兼容层评估结论（2026-11-07；2026-11-08 清理了其中 4 类死代码）
 
 P1~P4 之后数据真源是 `gacha[]` / `events[]`；`bannerHover` / `eventHover` 等已降级为**由条目反生成的兼容产物**。
@@ -1675,7 +1677,7 @@ null，活动侧 2026-11-10 已换 TapTap tab（能出「新风同行」11-05~11
   末尾真机 5.4.2 段（10-01 只靠裸行出契约、12-01 只靠扭蛋候选出限定扭蛋复刻，12-25 两侧过期 ⇒ null）。
 - **wqmt 活动候选配额**（`30-game-wqmt.js`）：11-09 起「装束 / 档案 / 影像捕获 / MBCC前瞻」密集发布，
   把真正写档期的 10/27 维护公告（id=2099）挤到第 7 位，旧配额 6 截断 ⇒ 活动空窗。
-  `WQMT_EVENT_MAX_DETAILS` 6 → 10（列表 + 10 篇正文，仍远低于 20s 超时）。回归：`test/cases-new5.mjs` ⑥
+  `WQMT_EVENT_MAX_DETAILS` 6 → 10（列表 + 10 篇正文，仍远低于单条 25s 预算、整轮硬上限 120s）。回归：`test/cases-new5.mjs` ⑥
   （`wqmt-news-list-1111` + 前 10 条正文；反向证明 = 截回前 6 条 ⇒ null）。
 - **ournotes-global 语种**（`30-game-bandori.js`）：注册参数 `lang=zh-tw` 恒返回 `total_count:0`，
   改 `lang=en` 同刻返回 19 条；详情参数必须叫 `news_id`（用 `id` 回 `code:-400`），且 id 要以原始字符串传
@@ -1941,6 +1943,24 @@ DSH 官方只承诺 **Windows + macOS**（Linux 有安装产物，但不作硬�
      "这些源最近成功过"的证据）。健康存档读写仍**尽力而为** —— 失败只记内存标记 `healthSaveError`
      （`engine-api.js`，另见 `engine.healthSaveError()`），**不影响自检报告**；设置页空状态据此区分
      「还没做过自检」与「写了但被宿主拒绝」。守卫见 `test/cases-health.mjs` ④b / ⑤ / ⑤a–c / ⑥ / ⑦。
+    - ✅ 2026-11-18 健康卡 A+D（用户口径：这是**用户主动触发**的功能，不加催促/过期提示）：
+      存档新增 `checkedIds`（本次自检**真正跑过**的条目 id，`skip` 不计、按序去重、按 keepIds 过滤），
+      `parseSourceHealth` 容忍老存档缺该字段、`sourceHealthSameOf` 把它按集合纳入「内容是否变化」；
+      卡片**列出无记录条目**（胶囊/原因列写「未检查」，tone 中性、不改 state），汇总改口径
+      「已检查 X / 共 Y 条（Z 未检查）」；只有存档确有 `checkedIds` 时才给「有记录但本次没覆盖」的行
+      追加「本次自检未覆盖」（老存档没有覆盖信息 ⇒ 一个都不标）。自检报告里的「来源」改称「侧」，
+      与卡片的「条」不再同名不同义。守卫见 `test/cases-health.mjs` ⑤/⑦。
+    - ✅ 2026-11-18 刷新调度新模型（`50-refresh.js`）：全局并发 `REFRESH_MAX_PARALLEL=8` +
+      **按主机并发** `REFRESH_HOST_MAX_PARALLEL=3`（host 取 `url||eventUrl` 的主机名）；
+      每条目预算 `REFRESH_ENTRY_TIMEOUT_MS=25000`（从该条**开始执行**计时，到点只把它没回来的侧记超时），
+      整轮硬上限 `REFRESH_HARD_CAP_MS=120000`；瞬时失败重试 —— 超时/网络/`http-5xx` 退避
+      `[800,1600]ms`（≤2 次）、`http-403`/`http-429` 退避 `[1200]ms`（≤1 次），`nomatch`/`skipped` 不重试。
+      旧 `REFRESH_TIMEOUT_MS=20000`（**整轮共用**一个 deadline）已删除。守卫见 `test/cases-refresh.mjs` ⑯。
+    - ✅ 2026-11-18 外显名归一（用户要求「做 1+2，不做 3」；`60-helpers.js` + `mergeEntryRecord`）：
+      `stripDisplayTailOf` 剥源站体裁尾巴（開催中！/舉辦公告！/现已开启/即将开始/のお知らせ 等白名单，
+      剥完剩余长度 ≥3 才剥）；`displayNameNextOf` 泛名让位（外显命中泛名且**同侧数组**里有更具体条目
+      ⇒ 改用后者）。两者**只改 `banner`/`event`**，数组 `title/show`、`raw`、悬停一律保持源站原文；
+      超长名不做程序截断（用户明确不做，交面板 CSS 省略 + 悬停全文）。守卫见 `test/cases-display-name.mjs`。
 4. **搜索与筛选（✅ 已完成 2026-10-28；「分组」跳过 —— `SOURCES` 里没有地区字段，不硬造）**：设置页来源列表加"搜游戏名"+ 分组（国服/日服/国际服）+ 只看已启用；
    面板内加按卡池/角色名搜索（现在的 28 个来源只能靠"展示"开关逐条关）。
 5. **排期导出 .ics（✅ 已完成 2026-10-28）**：把当期窗口导出成一次性快照（可导入手机日历）。
