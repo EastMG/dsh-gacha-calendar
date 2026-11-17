@@ -70,7 +70,10 @@
 		// 抓取单个条目：卡池字段与活动字段分别由各自来源产出（见"统一来源注册表"契约）。
 		// 两个来源独立选择：同 URL 且载荷已带活动字段 → 单次请求复用；否则各自独立抓取。
 		// 返回 { ok, data, gachaFail, eventFail }：ok = 两侧都没有 down（只有 nomatch 仍算 ok）。
-		async function fetchEntry(source, signal) {
+		// `onSide`（可选，2026-11-17 加）：某一侧**已经定稿**时立刻回调 `onSide(side, { data, fail })`。
+		// 用途只在调度层：条目自己的预算到点时，拿它把"已经回来的侧"原样保留，只把没回来的侧记超时
+		//（旧模型整轮一个 deadline 做不到这件事，只能整条两侧都判超时）。
+		async function fetchEntry(source, signal, onSide) {
 			// 无任何来源的条目：跳过（不计成功也不计失败）
 			// ⚠️ `gachaNone` / `eventNone` = 「这一侧**未配置**」（不是"本轮没抓到"）—— 合并旧值时
 			//    必须拿它们把这一侧挡掉，否则用户把来源改成未配置后，面板会一直显示上一次的旧结论
@@ -85,6 +88,7 @@
 			const gachaUrl = normalizeSourceId(source.url);
 			const eventUrl = normalizeSourceId(source.eventUrl);
 			try {
+				const note = typeof onSide === "function" ? onSide : null;
 				let g = { data: null, fail: null };
 				if (source.url) {
 					g = await resolveSide("gacha", {
@@ -94,6 +98,8 @@
 						signal,
 						tz: source.tz
 					});
+					// 卡池侧已定稿（成功或失败都算）—— 条目预算到点时调度层据此保留这一侧
+					if (note) note("gacha", g);
 				}
 				let evData = null;
 				let eventFail = null;
@@ -167,6 +173,9 @@
 						eventFail = ev.fail;
 					}
 				}
+				// 活动侧已定稿（同 URL 复用 / 未公布 / 独立抓取三种分支都汇到这里）——
+				// 条目预算到点时调度层据此保留这一侧
+				if (note && source.eventUrl) note("event", { data: evData, fail: eventFail });
 				const data = pickFields(g.data, GACHA_FIELDS);
 				if (evData) Object.assign(data, pickFields(evData, EVENT_FIELDS));
 				const gachaFail = g.fail;
@@ -180,7 +189,7 @@
 					eventNone
 				};
 			} catch (err) {
-				// 顶层异常（含 REFRESH_TIMEOUT_MS 超时中断）：两侧按"报错"记，面板照实提示
+				// 顶层异常（含每条目预算到点时的 AbortError 中断）：两侧按"报错"记，面板照实提示
 				const aborted = !!err && err.name === "AbortError";
 				const reason = aborted ? "超时" : normErr(err);
 				const fail = { kind: "down", reason };
@@ -725,52 +734,175 @@
 		}
 		//#endregion
 
-		// 一轮刷新的总预算（毫秒）。注意：这只是"到点收尾"的兜底——被掐断的前提是 transport 理会 signal；
-		// 宿主代理等不理会 signal 的实现靠 runEntriesWithDeadline 的兜底收尾，不会让调用方永远等下去。
+		// ── 刷新调度预算（2026-11-17 重做：整轮一个 deadline → 池化 + 每条目预算 + 硬上限 + 重试）──
 		//
-		// 2026-10-21：12000 → 20000（用户点名）。12 秒对**多请求串行**的来源不够用（如赛马娘国际服
-		// 一次刷新要 POST 列表 + 逐条详情、GameKee 要目录树 + 多个详情），慢网下还没抓完就被判超时；
-		// 20 秒与 selfCheck 的默认预算对齐（selfCheck 不传 timeoutMs 时用同一个常量）。
-		const REFRESH_TIMEOUT_MS = 20000;
+		// 旧模型（2026-10-21 → 2026-11-17）：`REFRESH_TIMEOUT_MS = 20000` 是**整轮共用**的一个
+		// deadline；`targets.map(async …)` + `Promise.all` ⇒ 61 条条目**一次性全并发**，到点还没
+		// 回来的条目两侧都记 `{kind:"down", reason:"超时"}`，且没有任何重试。
+		//
+		// 真机证据（2026-11-17 实测，必须按此修）：
+		//   · `fgo-jp` 两侧「超时」—— 但实测源站正常（`nice_gacha.json` 200 / 1.4s / 1.77MB；
+		//     `event/search?ongoing=true` 200 / 0.2s）⇒ 不是源站慢，是被整轮 deadline 掐掉；
+		//   · `nikki4`（闪耀暖暖）卡池连续两轮 `HTTP 403` —— 该源一轮要 17 次请求（2 列表 + 15 详情），
+		//     单独复跑两轮 32 次请求全 200 ⇒ 是全并发爆发下的限流/抖动。
+		//
+		// 新模型的四件套：
+		//   · 并发上限 `REFRESH_MAX_PARALLEL`：池化执行，同时在飞的条目 ≤ 8，其余排队；
+		//   · 每条目自己的预算 `REFRESH_ENTRY_TIMEOUT_MS`：从该条**开始执行**时计时，到点只把
+		//     **该条目**里还没回来的侧记「超时」，已经回来的侧保留结果（取消"整轮共用 20s"）；
+		//   · 整轮硬上限 `REFRESH_HARD_CAP_MS`：兜底保证整轮一定会结束、面板不会永远「刷新中」，
+		//     到硬上限时未完成的条目按同一超时口径收尾；
+		//   · 瞬时失败重试一次：见 `transientReason` / `runEntry`，退避 `REFRESH_RETRY_DELAY_MS` 后
+		//     用同一个 signal 重试该条目一次；`nomatch` / `skipped` 不重试。
+		const REFRESH_MAX_PARALLEL = 8;
+		const REFRESH_ENTRY_TIMEOUT_MS = 25000;
+		const REFRESH_HARD_CAP_MS = 120000;
+		// 重试前的退避（毫秒）：每轮每条目最多重试一次，只对**瞬时失败**生效。
+		const REFRESH_RETRY_DELAY_MS = 400;
 
-		// 跑一批 fetchEntry，并施加"到点即超时"的兜底：
-		// · 到点时**已经回来**的条目保留自己的结果；
-		// · 还没回来的条目按该条目"有哪一侧来源"记成 {kind:"down", reason:"超时"}（与 fetchEntry 顶层 catch 同口径）；
-		// 这样即使 transport 完全不理会 signal（宿主代理就是这样），刷新也一定会结束、面板不会永远"刷新中"。
-		async function runEntriesWithDeadline(targets, timeoutMs) {
-			const ms = timeoutMs || REFRESH_TIMEOUT_MS;
-			const controller = typeof AbortController === "function" ? new AbortController() : null;
-			const signal = controller ? controller.signal : void 0;
-			const timeoutResult = (t) => {
+		// 跑一批 fetchEntry，并施加新调度模型（并发上限 / 每条目预算 / 整轮硬上限 / 瞬时失败重试）。
+		// `budgets` 可选：{ maxParallel, entryTimeoutMs, hardCapMs, retryDelayMs } —— **生产调用不传**
+		// （一律回落到上面的常量），只有回归用例用它注入短预算，免得真等 25s / 120s。
+		async function runEntriesWithDeadline(targets, budgets) {
+			const b = budgets || {};
+			const positive = (v, d) => (typeof v === "number" && isFinite(v) && v > 0 ? v : d);
+			const maxParallel = Math.max(1, Math.floor(positive(b.maxParallel, REFRESH_MAX_PARALLEL)));
+			const entryMs = positive(b.entryTimeoutMs, REFRESH_ENTRY_TIMEOUT_MS);
+			const hardCapMs = positive(b.hardCapMs, REFRESH_HARD_CAP_MS);
+			const retryDelayMs = typeof b.retryDelayMs === "number" && b.retryDelayMs >= 0 ? b.retryDelayMs : REFRESH_RETRY_DELAY_MS;
+			const timer = coreEnv.timer;
+			const n = targets.length;
+			const results = new Array(n);
+			const settled = new Array(n).fill(false);
+			const controllers = new Array(n);
+			const clearEntryTimer = new Array(n);
+			const partialByEntry = new Array(n);
+			let hardStopped = false;
+			// 到点（或整轮硬上限）时"这条还没回来"的收尾口径：**已经回来的侧保留结果**，只把没回来的
+			// 侧记 {kind:"down", reason:"超时"}（与 fetchEntry 顶层 catch 同一文案/形状）；未配置的一侧
+			// 仍按 gachaNone / eventNone 走（否则超时分支会把旧值沿回来）。
+			// `part` = 这条已定稿的侧 `{ gacha: { data, fail }, event: { data, fail } }`（可能为空）。
+			const timeoutResult = (t, part) => {
 				const fail = { kind: "down", reason: "超时" };
+				const p = part || {};
+				const data = {};
+				if (p.gacha) Object.assign(data, pickFields(p.gacha.data, GACHA_FIELDS));
+				if (p.event) Object.assign(data, pickFields(p.event.data, EVENT_FIELDS));
+				const sideFail = (key, configured) => {
+					if (!configured) return null;
+					const sp = p[key];
+					if (sp) return sp.fail || null;   // 这一侧已定稿：成功 ⇒ null
+					return fail;                       // 没回来 ⇒ 超时
+				};
 				return {
 					ok: false, reason: "超时",
-					gachaFail: t.url ? fail : null,
-					eventFail: t.eventUrl ? fail : null,
-					// 未配置的一侧与 fetchEntry 同口径（否则超时分支会把旧值沿回来）
+					data,
+					gachaFail: sideFail("gacha", !!t.url),
+					eventFail: sideFail("event", !!t.eventUrl),
 					gachaNone: !t.url,
 					eventNone: !t.eventUrl
 				};
 			};
-			let timer = 0;
-			const deadline = new Promise((resolve) => {
-				timer = coreEnv.timer.setTimeout(() => {
-					if (controller) { try { controller.abort(); } catch { /* ignore */ } }
+			const finalize = (i, r) => {
+				if (settled[i]) return;
+				settled[i] = true;
+				results[i] = r;
+				const clear = clearEntryTimer[i];
+				if (clear) { clearEntryTimer[i] = null; try { clear(); } catch { /* ignore */ } }
+			};
+			const abortEntry = (i) => {
+				const c = controllers[i];
+				if (c) { try { c.abort(); } catch { /* ignore */ } }
+			};
+			// 瞬时失败判定（只认**能靠重试救回来**的几类：源站限流 / 抖动 / 网络瞬断）。
+			// 生产 reason 是 normErr 的文案（`超时` / `HTTP 403` / `网络不通` …），底层错误原文
+			//（`fetch failed` / `ECONNRESET` / `ETIMEDOUT` …）只在自定义 transport 里出现 —— 两种都认；
+			// `nomatch`（未公布）、`抓取异常`（未知错误）、`页面结构变了`（源站改版）一律不重试。
+			const transientReason = (reason) => {
+				const s = String(reason == null ? "" : reason).toLowerCase();
+				return s === "超时"
+					|| /http[-_ ]?(?:403|429|5\d\d)\b/.test(s)
+					|| /fetch failed|econnreset|etimedout|network|网络不通/.test(s);
+			};
+			const transientDown = (r) => {
+				if (!r || r.ok) return false;
+				return [r.gachaFail, r.eventFail].some((f) => !!f && f.kind === "down" && transientReason(f.reason));
+			};
+			const sleep = (ms) => new Promise((resolve) => { timer.setTimeout(resolve, ms); });
+			// 整轮硬上限：到点把还没定稿的条目统一按超时收尾，并 abort 各自在飞的请求。
+			let hardTimer = 0;
+			const hardStop = new Promise((resolve) => {
+				hardTimer = timer.setTimeout(() => {
+					hardStopped = true;
+					for (let i = 0; i < n; i++) {
+						if (settled[i]) continue;
+						abortEntry(i);
+						finalize(i, timeoutResult(targets[i], partialByEntry[i]));
+					}
 					resolve(null);
-				}, ms);
+				}, hardCapMs);
 			});
-			try {
-				const raced = targets.map(async (t) => {
-					const r = await Promise.race([fetchEntry(t, signal), deadline]);
-					return r || timeoutResult(t);   // null ⇒ 到点时这条还没回来
+			// 单条：自己的预算从**开始执行**时计时；到点 abort 这条在飞的请求，只把这条记超时。
+			const runEntry = async (i) => {
+				const t = targets[i];
+				const controller = typeof AbortController === "function" ? new AbortController() : null;
+				controllers[i] = controller;
+				const signal = controller ? controller.signal : void 0;
+				let expired = false;
+				const deadline = new Promise((resolve) => {
+					const id = timer.setTimeout(() => {
+						expired = true;
+						if (controller) { try { controller.abort(); } catch { /* ignore */ } }
+						resolve(null);
+					}, entryMs);
+					clearEntryTimer[i] = () => timer.clearTimeout(id);
 				});
-				return await Promise.all(raced);
+				const attempt = async () => {
+					// 每次尝试一份新的"已回来侧"台账：重试不会把上一次的侧结果当成这一次的。
+					const part = {};
+					partialByEntry[i] = part;
+					const rr = await Promise.race([
+						fetchEntry(t, signal, (side, sideResult) => { part[side] = sideResult; }),
+						deadline
+					]);
+					return rr || timeoutResult(t, part);   // null ⇒ 这条到点还没回来
+				};
+				let r = await attempt();
+				// 瞬时失败重试一次：同一个 signal、且仍在这条的预算内（已到点 / 整轮已硬停 ⇒ 不重试）。
+				if (!expired && !hardStopped && !settled[i] && transientDown(r)) {
+					await sleep(retryDelayMs);
+					if (!expired && !hardStopped && !settled[i]) r = await attempt();
+				}
+				finalize(i, r);
+			};
+			// 池化执行：同时在飞 ≤ maxParallel，其余排队；results 顺序仍与 targets 一一对应。
+			let next = 0;
+			const worker = async () => {
+				while (true) {
+					if (hardStopped) return;
+					const i = next++;
+					if (i >= n) return;
+					if (settled[i]) continue;   // 硬上限已替它收尾
+					await runEntry(i);
+				}
+			};
+			try {
+				await Promise.race([
+					Promise.all(Array.from({ length: Math.min(maxParallel, n) }, worker)),
+					hardStop
+				]);
 			} finally {
-				coreEnv.timer.clearTimeout(timer);
+				timer.clearTimeout(hardTimer);
 			}
+			// 兜底：硬上限到点时还没定稿的（理论上 hardStop 已收完）也按超时口径补齐。
+			for (let i = 0; i < n; i++) if (!settled[i]) finalize(i, timeoutResult(targets[i], partialByEntry[i]));
+			return results;
 		}
 
-		async function refreshAll(entries, s, timeoutMs) {
+		// `budgets` 语义（2026-11-17 起）：数字 = **每条目**预算（毫秒，兼容 selfCheck 的 timeoutMs）；
+		// 对象 = 整组调度预算覆盖（{ entryTimeoutMs, hardCapMs, maxParallel, retryDelayMs }，
+		// **只给回归用例注入短预算用**，生产调用不传 ⇒ 全部回落到上面的常量）。
+		async function refreshAll(entries, s, budgets) {
 			// 每轮清空 HTML 文本缓存：两侧同址的复用必须落在**同一轮内**，
 			// 跨轮复用会拿到过期页面（见 30-parsers.js 的 fetchHtmlText，压平后见 22-fetcher-core.js）
 			resetHtmlTextCache();
@@ -787,7 +919,8 @@
 			beginFetchRound();
 			let results;
 			try {
-				results = await runEntriesWithDeadline(targets, timeoutMs);
+				const runBudgets = typeof budgets === "number" ? { entryTimeoutMs: budgets } : budgets;
+				results = await runEntriesWithDeadline(targets, runBudgets);
 			} finally {
 				endFetchRound();
 			}

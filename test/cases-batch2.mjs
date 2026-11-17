@@ -660,15 +660,18 @@ export default async function runBatch2() {
 			recB.eventFail == null && recB.event === "卡厄思小课堂" && cB.length === 4,
 			JSON.stringify([recB.event, cB.length]));
 
-		// C：两页都 500 ⇒ 两侧 down；每侧只试 2 次，不重试
+		// C：两页都 500 ⇒ 两侧 down。HTTP 500 属**瞬时失败** ⇒ 2026-11-17 起调度层会退避后
+		// 重试该条目一次（见 50-refresh.js 的 runEntriesWithDeadline / transientReason）。
+		// 这里守的仍是**页级不重试**：每一侧每次尝试只抓 p1 + p2 两页，没有第三次页请求。
+		// 于是总请求 = 2 次尝试 × 2 侧 × 2 页 = 8，每个 URL 恰好 4 次（不是 6 次，也不是无限重试）。
 		const cC = [];
 		const eC = engineAt(CZN_NOW, cC, only, { fail: (u) => u === CZN || u === CZN_P2 });
 		const recC = (await eC.refresh()).games["czn"] || {};
 		check("C 两页全 500 ⇒ 两侧都记抓取异常（down），不是静默 null",
 			!!recC.gachaFail && recC.gachaFail.kind === "down" && !!recC.eventFail && recC.eventFail.kind === "down",
 			JSON.stringify([recC.gachaFail, recC.eventFail]));
-		check("C 两页全 500 ⇒ 请求数 2+2 = 4（每侧 2 页，没有第三次重试）",
-			cC.length === 4 && cC.filter((c) => c.url === CZN).length === 2 && cC.filter((c) => c.url === CZN_P2).length === 2,
+		check("C 两页全 500 ⇒ 请求数 8（每侧每轮 2 页 × 调度层重试 1 次；没有页级第三次重试）",
+			cC.length === 8 && cC.filter((c) => c.url === CZN).length === 4 && cC.filter((c) => c.url === CZN_P2).length === 4,
 			String(cC.length));
 
 		// D：p2 返回坏 HTML（无 `__NUXT_DATA__`）⇒ 跳过这一页，不重试；p1 照出活动

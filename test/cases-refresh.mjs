@@ -28,7 +28,8 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { check, section } from "./harness.mjs";
-import { T, REPO } from "./load.mjs";
+import { T, REPO, FIXTURES_DIR } from "./load.mjs";
+import { createEngine } from "../packages/core/core.mjs";
 
 const { autoRefreshPlan, DEFAULT_SETTINGS } = T;
 
@@ -584,6 +585,176 @@ export const remindOffGamesOf = (value, fallback) => (Array.isArray(value) ? val
 			if (prevLocalAppData === void 0) delete process.env.LOCALAPPDATA;
 			else process.env.LOCALAPPDATA = prevLocalAppData;
 			try { rmSync(box, { recursive: true, force: true }); } catch { /* 清不掉不影响门禁 */ }
+		}
+	}
+
+	// ══════════════════════════════════════════════════════════════════════════════
+	// ⑮（2026-11-17 新增）**刷新调度层**：并发上限 / 每条目超时 / 瞬时失败重试一次 / 整轮硬上限
+	//
+	// 为什么是行为测试而不是静态断言：真机两天的刷新轮暴露了旧调度（整轮共用 20s deadline + 61 条
+	// 全并发 + 无重试）的两个具体后果 —— `fgo-jp` 被整轮 deadline 掐成「超时」（实测源站
+	// 200 / 1.4s / 1.77MB），`nikki4`（闪耀暖暖）在全并发下连续两轮 `HTTP 403`（该源一轮 17 次
+	// 请求，单独复跑两轮 32 次请求全 200）。所以这一段**真跑调度层**（createEngine + 假 transport
+	// 记账），短预算全部经 `refreshAll` 的第三参注入 —— 生产默认值（8 / 25s / 120s / 400ms）一个字不改。
+	section("刷新调度：并发 ≤ 8 / 每条目超时 / 瞬时失败重试一次 / 整轮硬上限");
+	{
+		const refreshSrc = readFileSync(path.join(REPO, "src", "client", "50-refresh.js"), "utf8");
+		const engineApiSrc = readFileSync(path.join(REPO, "src", "client", "engine-api.js"), "utf8");
+		check("⑮ 常量：REFRESH_MAX_PARALLEL = 8 / REFRESH_ENTRY_TIMEOUT_MS = 25000 / REFRESH_HARD_CAP_MS = 120000",
+			/const REFRESH_MAX_PARALLEL = 8;/.test(refreshSrc)
+			&& /const REFRESH_ENTRY_TIMEOUT_MS = 25000;/.test(refreshSrc)
+			&& /const REFRESH_HARD_CAP_MS = 120000;/.test(refreshSrc));
+		check("⑮ 旧的「整轮共用 20s」常量已取消（代码里不再声明/引用 REFRESH_TIMEOUT_MS，注释里的历史说明不算）",
+			!/const REFRESH_TIMEOUT_MS/.test(refreshSrc) && !/\|\| REFRESH_TIMEOUT_MS/.test(refreshSrc)
+			&& !/REFRESH_TIMEOUT_MS/.test(engineApiSrc));
+		check("⑮ selfCheck 的 timeoutMs 改成**每条目**预算：默认值用 REFRESH_ENTRY_TIMEOUT_MS、按对象传给调度层",
+			/\(options && options\.timeoutMs\) \|\| REFRESH_ENTRY_TIMEOUT_MS/.test(engineApiSrc)
+			&& /runEntriesWithDeadline\(targets, \{ entryTimeoutMs: timeoutMs \}\)/.test(engineApiSrc));
+		check("⑮ 注释写清新模型与真机证据（fgo-jp 被整轮 deadline 掐 / nikki4 全并发下 HTTP 403）",
+			/fgo-jp/.test(refreshSrc) && /nikki4/.test(refreshSrc)
+			&& /REFRESH_MAX_PARALLEL/.test(refreshSrc) && /REFRESH_HARD_CAP_MS/.test(refreshSrc));
+
+		// —— 夹具 / transport 小工具（全离线：假 transport 按 URL 回夹具正文或状态码）——
+		const FIX_BIWIKI = readFileSync(path.join(FIXTURES_DIR, "p3e-custom-bwiki-html", "response.txt"), "utf8");
+		const FIX_NOMATCH = readFileSync(path.join(FIXTURES_DIR, "p3e-custom-nomatch", "response.txt"), "utf8");
+		// 夹具抓取时刻（与 cases-p3 的 P3E_NOW_BWIKI 同一份，通用解析才选得出当期）
+		const FX_NOW = Date.parse("2026-11-07T00:28:21.868Z");
+		const makeStore = () => { const m = new Map(); return { async get(k) { return m.get(k); }, async set(k, v) { m.set(k, v); } }; };
+		const respOf = (status, body) => ({
+			ok: status >= 200 && status < 300, status, headers: { get: () => null },
+			text: async () => body, json: async () => JSON.parse(body)
+		});
+		// 假 transport：既记"每个 URL 被请求几次"，也记"同时在飞"的峰值
+		const makeTransport = (handler) => {
+			const calls = [];
+			let inFlight = 0, peak = 0;
+			const transport = {
+				async fetchRaw(url) {
+					const u = String(url);
+					calls.push(u);
+					inFlight++; peak = Math.max(peak, inFlight);
+					try { return await handler(u); } finally { inFlight--; }
+				},
+				async fetchViaProxy() { throw new Error("本段用例只走直连"); }
+			};
+			return { transport, calls, peakOf: () => peak };
+		};
+		const engineOf = (transport) => createEngine({
+			transport, storage: makeStore(), now: () => FX_NOW, timer: { setTimeout, clearTimeout }
+		});
+		// 自定义条目：id 不在抓取器表里 ⇒ 走通用解析兜底（allowGenericGacha = custom:true）
+		const entryOf = (i, patch) => Object.assign({
+			id: "sim-" + i, name: "模拟条目 " + i, custom: true,
+			url: "https://example.invalid/sim/" + i
+		}, patch || {});
+
+		// ① 并发上限：24 条、每条 1 个请求、假 transport 内挂 20ms ⇒ 在飞峰值恰为 8（不超、也不串行）
+		{
+			const fx = makeTransport(async () => { await new Promise((r) => setTimeout(r, 20)); return respOf(200, FIX_NOMATCH); });
+			const engine = engineOf(fx.transport);
+			const entries = Array.from({ length: 24 }, (_, i) => entryOf(i));
+			const round = await engine.__test.refreshAll(entries, {}, { entryTimeoutMs: 5000, hardCapMs: 30000, retryDelayMs: 5 });
+			check("⑮① 同时在飞的条目峰值 ≤ 8（REFRESH_MAX_PARALLEL 池化生效）",
+				fx.peakOf() <= 8, String(fx.peakOf()));
+			check("⑮① 峰值恰为 8（不是退化成串行 / 1 条在飞）", fx.peakOf() === 8, String(fx.peakOf()));
+			check("⑮① 24 条全部定稿且没有 down；refreshAll 返回结构不变（okCount / total / status / results）",
+				round.results.length === 24
+				&& round.results.every((r) => r && r.ok === true && !(r.gachaFail && r.gachaFail.kind === "down"))
+				&& round.okCount === 24 && round.total === 24 && round.status === "ok",
+				JSON.stringify({ peak: fx.peakOf(), okCount: round.okCount, total: round.total, status: round.status }));
+		}
+
+		// ② 每条目超时：一条的卡池侧永远不返回（transport 也不理会 signal）⇒ 只有那一条那一侧记超时、
+		//    其余条目全部正常；整轮在注入的**每条目**预算（120ms）附近结束，而不是等生产默认 25s。
+		{
+			const HANG = "https://example.invalid/sim/hang";
+			const fx = makeTransport(async (u) => (u.startsWith(HANG) ? new Promise(() => {}) : respOf(200, FIX_BIWIKI)));
+			const engine = engineOf(fx.transport);
+			const entries = [entryOf(0), entryOf(1), entryOf(2, { url: HANG }), entryOf(3)];
+			const t0 = Date.now();
+			const round = await engine.__test.refreshAll(entries, {}, { entryTimeoutMs: 120, hardCapMs: 5000, retryDelayMs: 5 });
+			const elapsed = Date.now() - t0;
+			const hung = round.results[2];
+			check("⑮② 卡住的条目只把它自己的卡池侧记 {kind:\"down\", reason:\"超时\"}（文案/形状不变）",
+				hung && hung.ok === false && hung.reason === "超时"
+				&& hung.gachaFail && hung.gachaFail.kind === "down" && hung.gachaFail.reason === "超时",
+				JSON.stringify(hung));
+			check("⑮② 该条目未配置的活动侧仍是 eventNone（不冒充超时）",
+				hung && hung.eventFail === null && hung.eventNone === true, JSON.stringify(hung));
+			check("⑮② 其余 3 条全部正常（ok、无 down、通用解析真的出了卡池内容）",
+				[0, 1, 3].every((i) => {
+					const r = round.results[i];
+					return r && r.ok === true && !(r.gachaFail && r.gachaFail.kind === "down")
+						&& !!(r.data && r.data.banner);
+				}),
+				JSON.stringify([0, 1, 3].map((i) => round.results[i] && { ok: round.results[i].ok, banner: round.results[i].data && round.results[i].data.banner })));
+			check("⑮② 整轮在注入的**每条目**预算附近结束（≥100ms 且远小于 25s：没退化成整轮 deadline）",
+				elapsed >= 100 && elapsed < 2000, elapsed + "ms");
+		}
+
+		// ②b 同一轮里"已经回来的侧保留结果"：卡池侧 200、活动侧永远不返回 ⇒ 只有活动侧记超时
+		{
+			const HANG_EVENT = "https://example.invalid/sim/hang-event";
+			const fx = makeTransport(async (u) => (u.startsWith(HANG_EVENT) ? new Promise(() => {}) : respOf(200, FIX_BIWIKI)));
+			const engine = engineOf(fx.transport);
+			const twoSide = [{ id: "sim-two", name: "两侧条目", custom: true, url: "https://example.invalid/sim/two-gacha", eventUrl: HANG_EVENT }];
+			const round = await engine.__test.refreshAll(twoSide, {}, { entryTimeoutMs: 120, hardCapMs: 5000, retryDelayMs: 5 });
+			const r = round.results[0];
+			check("⑮②b 条目到点时：已回来的卡池侧保留结果、只有没回来的活动侧记超时",
+				r && r.ok === false && r.reason === "超时" && r.gachaFail === null
+				&& !!(r.data && r.data.banner)
+				&& r.eventFail && r.eventFail.kind === "down" && r.eventFail.reason === "超时",
+				JSON.stringify(r && { ok: r.ok, banner: r.data && r.data.banner, gachaFail: r.gachaFail, eventFail: r.eventFail }));
+		}
+
+		// ③ 瞬时失败重试一次：① 403 → 200 成功且请求恰为 2；② 两次 403 仍失败且请求恰为 2；
+		//    ③ nomatch（200 但读不出内容）不重试、请求恰为 1。
+		{
+			const hits = { a: 0, b: 0, c: 0 };
+			const fx = makeTransport(async (u) => {
+				if (u.includes("retry-ok")) { hits.a++; return hits.a === 1 ? respOf(403, "forbidden") : respOf(200, FIX_BIWIKI); }
+				if (u.includes("retry-down")) { hits.b++; return respOf(403, "forbidden"); }
+				if (u.includes("retry-nomatch")) { hits.c++; return respOf(200, FIX_NOMATCH); }
+				return respOf(404, "");
+			});
+			const engine = engineOf(fx.transport);
+			const entries = [
+				{ id: "sim-retry-ok", name: "重试成功", custom: true, url: "https://example.invalid/sim/retry-ok" },
+				{ id: "sim-retry-down", name: "重试仍失败", custom: true, url: "https://example.invalid/sim/retry-down" },
+				{ id: "sim-retry-nomatch", name: "未命中不重试", custom: true, url: "https://example.invalid/sim/retry-nomatch" }
+			];
+			const round = await engine.__test.refreshAll(entries, {}, { entryTimeoutMs: 3000, hardCapMs: 10000, retryDelayMs: 20 });
+			check("⑮③ 第一次 HTTP 403、第二次 200 ⇒ 用重试结果（成功、解析出卡池内容）",
+				round.results[0] && round.results[0].ok === true && !!(round.results[0].data && round.results[0].data.banner)
+				&& !(round.results[0].gachaFail && round.results[0].gachaFail.kind === "down"),
+				JSON.stringify(round.results[0] && { ok: round.results[0].ok, fail: round.results[0].gachaFail }));
+			check("⑮③ 上述条目请求数恰为 2（退避后只重试一次）", hits.a === 2, String(hits.a));
+			check("⑮③ 两次都 403 ⇒ 仍是 {kind:\"down\"}（reason 含 403）且请求数恰为 2（只重试一次）",
+				hits.b === 2 && round.results[1] && round.results[1].ok === false
+				&& round.results[1].gachaFail && round.results[1].gachaFail.kind === "down"
+				&& /403/.test(round.results[1].gachaFail.reason || ""),
+				JSON.stringify({ hits: hits.b, fail: round.results[1] && round.results[1].gachaFail }));
+			check("⑮③ nomatch 不重试：请求数恰为 1、结果 ok（kind:nomatch）",
+				hits.c === 1 && round.results[2] && round.results[2].ok === true
+				&& round.results[2].gachaFail && round.results[2].gachaFail.kind === "nomatch",
+				JSON.stringify({ hits: hits.c, fail: round.results[2] && round.results[2].gachaFail }));
+		}
+
+		// ④ 整轮硬上限：所有条目都挂住 ⇒ 整轮在注入的短硬上限（250ms）附近结束、全部按超时口径收尾
+		//    （每条目预算故意设成 5000ms，证明"是硬上限在兜底"而不是每条目超时）。
+		{
+			const fx = makeTransport(async () => new Promise(() => {}));
+			const engine = engineOf(fx.transport);
+			const t0 = Date.now();
+			const round = await engine.__test.refreshAll(Array.from({ length: 20 }, (_, i) => entryOf(i)), {},
+				{ entryTimeoutMs: 5000, hardCapMs: 250, retryDelayMs: 5 });
+			const elapsed = Date.now() - t0;
+			check("⑮④ 整轮硬上限到点即结束（注入 250ms；没有等 20 条 × 5s 的每条目预算）",
+				elapsed >= 200 && elapsed < 3000, elapsed + "ms");
+			check("⑮④ 未完成的 20 条全部按超时口径收尾（{kind:\"down\", reason:\"超时\"}）",
+				round.results.length === 20 && round.results.every((r) => r && r.ok === false && r.reason === "超时"
+					&& r.gachaFail && r.gachaFail.kind === "down" && r.gachaFail.reason === "超时"),
+				JSON.stringify(round.results.map((r) => r && r.reason)));
 		}
 	}
 }
