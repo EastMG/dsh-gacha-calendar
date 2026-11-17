@@ -7767,6 +7767,30 @@ function ns_bh2_itemOf(detail, row, kind, tz, now) {
 	}
 	return { _i: 0, name: title, ...win };
 }
+// ── 池名收敛（2026-11-18 修）──────────────────────────────────────────────────
+// 现场（bh2 11-18 实测）：公主祈愿把 **24 件 UP 装备名**整串写进池名 ——
+//   `少女的心愿：自我时支配·仿制版、该隐之血眷、…、死境重临`（200+ 字）。
+//   外显是另一口池（妮娜&黛尔塔）所以面板标题没问题，但**数组第一条与悬停第一行**就是这整坨。
+// 判据（任务书口径）：名里 `、` 出现 ≥5 次 **或** 码点长度 > 40，且名里有 `：` / `:` ⇒
+//   显示名 = 第一个冒号前的部分 + 「（N 件）」（N = 冒号后按 `、` 切、去空后的分项数）。
+// 只作用在**显示名**（数组/悬停条目名、以及万一它正好是外显时的外显名）；
+// `raw` 与 `itemFacts` 里的原文一个字不动（事实通道仍按源站原文那个 key 记着 24 个名字）。
+const NS_BH2_LONG_POOL_SEP_MIN = 5;
+const NS_BH2_LONG_POOL_CP_MIN = 40;
+function ns_bh2_poolDisplayNameOf(name) {
+	const s = String(name == null ? "" : name).trim();
+	if (!s) return s;
+	const cpLen = [...s].length;
+	const sepCount = (s.match(/、/g) || []).length;
+	if (sepCount < NS_BH2_LONG_POOL_SEP_MIN && cpLen <= NS_BH2_LONG_POOL_CP_MIN) return s;   // 短名原样
+	const m = /[：:]/.exec(s);
+	if (!m) return s;                                                    // 没有冒号 ⇒ 不知道前缀在哪，不动
+	const head = s.slice(0, m.index).trim();
+	if (!head) return s;
+	const parts = s.slice(m.index + 1).split("、").map((x) => x.trim()).filter(Boolean);
+	if (!parts.length) return s;
+	return `${head}（${parts.length} 件）`;
+}
 // 卡池载荷：外显 = 结束最早的在期池；悬停/数组 = **全部在期池**（每池自己那行「池名：UP」）。
 // 不复用 `ns_bwiki_batchGachaPayloadOf` 的「同批合并角色」：崩坏学园2 同期可开 2~3 口**不同种类**的
 // 祈愿（公主/使魔），合并会把 20+ 个 UP 名拼到一口池上，看不出是哪一批。
@@ -7774,20 +7798,27 @@ function ns_bh2_gachaPayloadOf(items, tz, now) {
 	const active = (Array.isArray(items) ? items : []).filter((it) => coversNow(it, now));
 	if (active.length === 0) return null;
 	const first = active.slice().sort((a, b) => (a.endTs - b.endTs) || ((a._i || 0) - (b._i || 0)))[0];
+	// 条目显示名（数组/悬停/外显都用它）：先拼「池名：UP」，再按 `ns_bh2_poolDisplayNameOf` 收敛超长清单。
+	const labelOf = (it) => ns_bh2_poolDisplayNameOf(`${it.banner}${it.roles ? `\uFF1A${it.roles}` : ""}`);
 	const hoverItems = active.slice().sort(poolHoverOrderOf).map((it) => {
-		const label = `${it.banner}${it.roles ? `\uFF1A${it.roles}` : ""}`;
+		const label = labelOf(it);
 		return { title: label, label, startTs: it.startTs, endTs: it.endTs, raw: it.raw };
 	});
 	const hover = hoverTextFromItems(hoverItems, "gacha", tz);
 	// 类别事实按标题贴（`dataArrayAttachFactsOf` 的通道）：主条标题 = 池名，并列条标题 = `池名：UP`
+	// ⚠️ 事实键始终按**源站原文**记（raw 一份不动）；收敛过的显示名**另加一个别名键**指向同一份事实，
+	//    否则「少女的心愿（24 件）」这条会丢掉 category（事实通道是按标题字面匹配的）。
 	const facts = {};
 	for (const it of active) {
 		if (!it.category) continue;
-		facts[it.banner] = { category: it.category };
-		if (it.roles) facts[`${it.banner}\uFF1A${it.roles}`] = { category: it.category };
+		const fact = { category: it.category };
+		facts[it.banner] = fact;
+		if (it.roles) facts[`${it.banner}\uFF1A${it.roles}`] = fact;
+		const shown = labelOf(it);
+		if (shown !== it.banner) facts[shown] = fact;
 	}
 	const out = {
-		banner: first.banner,
+		banner: ns_bh2_poolDisplayNameOf(first.banner),
 		roles: first.roles || "",
 		bannerDates: first.display,
 		bannerDatesRaw: first.raw || "",

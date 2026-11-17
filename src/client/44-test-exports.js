@@ -711,6 +711,8 @@
 				BH2_TZ: ns_bh2_TZ,
 				bh2EventPayloadOf: ns_bh2_eventPayloadOf,
 				bh2GachaPayloadOf: ns_bh2_gachaPayloadOf,
+				// 2026-11-18：超长清单池名收敛（纯函数，供回归直测）
+				bh2PoolDisplayNameOf: ns_bh2_poolDisplayNameOf,
 				bh2ItemOf: ns_bh2_itemOf,
 				bh2LinesOf: ns_bh2_linesOf,
 				bh2ListOf: ns_bh2_listOf,

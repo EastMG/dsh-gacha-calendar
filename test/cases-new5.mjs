@@ -874,10 +874,47 @@ export default async function run() {
 			gLines.length === 4 && gLines[1] === "10-15 00:00 ~ 11-20 00:00"
 			&& gLines[2] === "妮娜&黛尔塔：金蔷薇、蛉翅" && gLines[3] === "11-09 00:00 ~ 11-20 00:00",
 			JSON.stringify(gLines));
-		check("公主祈愿 4 组自选装备逐字进悬停（24 个 UP 名，不是 4 组标题）",
-			/^少女的心愿：自我时支配·仿制版、该隐之血眷、/.test(gLines[0] || "")
-			&& String(gLines[0]).split("、").length === 24,
-			String(gLines[0]).slice(0, 80));
+		// ── 2026-11-18 **已批准差异**：超长清单池名收敛成「前缀（N 件）」──────────────
+		// 旧值：悬停第 1 行 = `少女的心愿：自我时支配·仿制版、该隐之血眷、…`（24 个 UP 装备名，200+ 字）；
+		// 新值：`少女的心愿（24 件）`。差异的每一处来源都逐字钉住（不是放宽断言）：
+		//   · N = 24 = 冒号后按「、」切分、去空后的分项数 —— 下面直接对**源站原文**（`itemFacts` 的键）数一遍；
+		//   · 源站原文一个字未动：仍在 `itemFacts` 的键里（原键保留；收敛名另加别名键指向同一份事实，
+		//     否则这条会在数据层丢掉 category —— 事实通道是按标题字面匹配的）；
+		//   · `raw` 与 `itemFacts` 里的原文都没改（数组 raw 仍是派生档期原文）。
+		check("**已批准差异**：悬停第 1 行由「少女的心愿：24 个 UP 名」收敛为「少女的心愿（24 件）」",
+			gLines[0] === "少女的心愿（24 件）", JSON.stringify(gLines[0]));
+		check("**已批准差异**来源逐字：源站原文仍在 itemFacts 键里，冒号后恰好 24 个「、」分项（= 收敛后的 N），类别未丢",
+			(() => {
+				const facts = (gB && gB.itemFacts) || {};
+				const rawKey = Object.keys(facts).find((k) => /^少女的心愿：/.test(k));
+				if (!rawKey) return false;
+				const parts = rawKey.split("：")[1].split("、").filter(Boolean);
+				return parts.length === 24
+					&& facts[rawKey].category === "公主祈愿"
+					&& !!facts["少女的心愿（24 件）"] && facts["少女的心愿（24 件）"].category === "公主祈愿";
+			})(),
+			JSON.stringify(Object.keys((gB && gB.itemFacts) || {}).map((k) => [k.slice(0, 14), k.split("：")[1] ? k.split("：")[1].split("、").filter(Boolean).length : 0])));
+		check("数组第一条同口径收敛（title / show = 少女的心愿（24 件）），raw 仍是派生档期原文、category 未丢",
+			!!gB && !!gB.gacha[0] && gB.gacha[0].title === "少女的心愿（24 件）"
+			&& gB.gacha[0].show === "少女的心愿（24 件）"
+			&& gB.gacha[0].raw === "10-15 00:00 ~ 11-20 00:00"
+			&& gB.gacha[0].category === "公主祈愿",
+			JSON.stringify(gB && gB.gacha[0]));
+		check("收敛只作用于超长清单：正常池名（妮娜&黛尔塔 / 妮娜&黛尔塔：金蔷薇、蛉翅）逐字不变",
+			!!gB && gB.gacha[1].title === "妮娜&黛尔塔"
+			&& gB.gachaHoverItems[1].title === "妮娜&黛尔塔：金蔷薇、蛉翅",
+			JSON.stringify(gB && gB.gachaHoverItems.map((x) => x.title)));
+		check("纯函数：`、`≥5 或 码点>40 且有冒号 ⇒ 「前缀（N 件）」；短名 / 无冒号 / 空串一律原样",
+			B2.bh2PoolDisplayNameOf("少女的心愿：甲、乙、丙、丁、戊、己") === "少女的心愿（6 件）"
+			&& B2.bh2PoolDisplayNameOf("妮娜&黛尔塔：金蔷薇、蛉翅") === "妮娜&黛尔塔：金蔷薇、蛉翅"
+			&& B2.bh2PoolDisplayNameOf("一个很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长却没有冒号的池名") === "一个很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长却没有冒号的池名"
+			&& B2.bh2PoolDisplayNameOf("") === ""
+			&& B2.bh2PoolDisplayNameOf(null) === "",
+			JSON.stringify([
+				B2.bh2PoolDisplayNameOf("少女的心愿：甲、乙、丙、丁、戊、己"),
+				B2.bh2PoolDisplayNameOf("妮娜&黛尔塔：金蔷薇、蛉翅"),
+				B2.bh2PoolDisplayNameOf("")
+			]));
 		check("卡池 gacha[] 2 条（当期两口祈愿各一行）",
 			!!gB && Array.isArray(gB.gacha) && gB.gacha.length === 2,
 			JSON.stringify(gB && gB.gacha.map((x) => x.title)));
