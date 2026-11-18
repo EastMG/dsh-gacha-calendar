@@ -515,7 +515,8 @@ async function ns_hl_jp_events(url, signal, tz = ns_hl_jp_TZ, now = nowMs()) {
 // 活动侧 = 官方维护公告列表；标签逐字「官网公告」。
 registerSource({
 	id: "hl",
-	defaultHidden: false,
+	// 卡池侧未配置（`url` 为空）⇒ 出厂隐藏（用户 2026-11-19 口径）。
+	defaultHidden: true,
 	tz: ns_hl_TZ,
 	name: "碧蓝航线",
 	icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/26/7d/f7/267df745-0833-b6d5-51ab-f62e47d6037a/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",

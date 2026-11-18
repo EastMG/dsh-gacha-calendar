@@ -84,9 +84,9 @@
 //     （用户点名的那条反证：抹掉锚点 ⇒ 不进外显，也不该被当成失败）；
 //   · 解出来了但没有任何窗口覆盖 now ⇒ `null`（未公布，不硬凑过期档期）。
 //
-// ── defaultHidden 保持 true（用户 2026-11-14 口径）──────────────────────────────
-//   「除 cytq 外全部默认展示」。本文件接上了来源，**不改**这一条：`65-remind.js` 的
-//   `REMIND_DEFAULT_HIDDEN_IDS` 副本里也仍是 `["cytq"]`（守卫见 test/cases-remind.mjs ⑨）。
+// ── defaultHidden = false（用户 2026-11-19 口径）────────────────────────────────
+//   出厂隐藏 = **至少一侧（url / eventUrl）未配置**的条目。本文件两侧都有来源 ⇒ 恢复出厂展示：
+//   `65-remind.js` 的 `REMIND_DEFAULT_HIDDEN_IDS` 里已没有 cytq（守卫见 test/cases-remind.mjs ⑨）。
 
 //#region ① 常量（URL 是条目的事实：登记与夹具索引都逐字比它）
 const ns_cytq_TZ = "Asia/Shanghai";
@@ -384,10 +384,11 @@ async function ns_cytq_events(url, signal, tz = ns_cytq_TZ, now = nowMs()) {
 //#region ④ 条目登记
 // 两侧同址（同一条列表 → 各自筛自己那类帖）。`source/eventSource` 的**标签逐字** = 「官网公告」
 // （B 站服官方 H5 公告页；用户 2026-11-15 复核项，见交接报告）。
-// ⚠️ `defaultHidden: true` **保持不动**（用户 2026-11-14 口径：只有 cytq 默认隐藏）。
+// 2026-11-19 用户口径：出厂隐藏 = **至少一侧（url / eventUrl）未配置**的条目。
+// cytq 两侧都有来源（官方 H5 公告）⇒ **恢复出厂展示**（`defaultHidden: false`）。
 registerSource({
 	id: "cytq",
-	defaultHidden: true,
+	defaultHidden: false,
 	tz: ns_cytq_TZ,
 	// 用户原话写作「炽焰苍穹」，官方/商店/条目的正式名是「炽焰天穹」（bwiki 子站目录也叫 cytq）
 	// ⇒ 显示名按正式名，id 保持用户给的 `cytq`。

@@ -925,7 +925,8 @@ async function ns_tof_gacha(url, signal, tz = ns_tof_TZ, now = nowMs()) {
 // 卡池来源标签按任务书提议「官网公告」；活动侧**留空** = 显示「未配置」（见文件头 ①）。
 registerSource({
 	id: "tof",
-	defaultHidden: false,
+	// 活动侧未配置（`eventUrl` 为空）⇒ 出厂隐藏（用户 2026-11-19 口径）。
+	defaultHidden: true,
 	tz: ns_tof_TZ,
 	name: "幻塔",
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/6d/f5/a0/6df5a0a7-6ae6-9b9c-310a-1c4515c42cf3/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",

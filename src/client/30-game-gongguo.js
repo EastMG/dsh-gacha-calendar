@@ -565,7 +565,8 @@ async function ns_reso_officialEvents(url, signal, tz = ns_reso_TZ, now = nowMs(
 // 备选源标识 = 各自的 `url`（`altSourceId`）：两条活动备选 URL 不同（RESO_RAW_URL / RESO_HOME），不会串。
 registerSource({
 	id: "reso",
-	defaultHidden: false,
+	// 活动侧未配置（`eventUrl` 为空）⇒ 出厂隐藏（用户 2026-11-19 口径）。
+	defaultHidden: true,
 	tz: ns_reso_TZ,
 	name: "雷索纳斯",
 	icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/67/10/a4/6710a4b4-3b57-eb6a-df7a-7a143826aec4/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",

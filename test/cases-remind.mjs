@@ -1757,7 +1757,7 @@ export default z;
 			T: NOW + 1 * H, startTs: NOW - 10 * H, endTs: NOW + 1 * H
 		});
 		const itemA = mkItem("genshin", "gacha", "原神");
-		const itemB = mkItem("cytq", "event", "炽焰天穹");   // cytq = 唯一出厂默认隐藏（defaultHidden）
+		const itemB = mkItem("cytq", "event", "炽焰天穹");   // cytq = 2026-11-19 起恢复出厂展示（defaultHidden: false）
 		const keyA = remindKeyOf(itemA);
 		const keyB = remindKeyOf(itemB);
 		const shownOf = (...ids) => ({ hidden: [], shown: [...ids] });
@@ -1796,16 +1796,24 @@ export default z;
 				JSON.stringify(back.toNotify.map((n) => n.key)));
 		}
 
-		// ⑤ 出厂默认隐藏的条目：展示由 shown 打开，与取消列表无关
+		// ⑤ 出厂隐藏 / 出厂展示（2026-11-19 口径）：出厂隐藏 = 至少一侧未配置的 9 条，
+		//    它们要靠 shown 打开；cytq 两侧都有来源 ⇒ 已恢复出厂展示。
 		{
-			const notShown = round([], shownAll, [itemB], {});
-			check("⑤ cytq（defaultHidden）没被 shown 打开 ⇒ 不提醒（展示的默认关闭就是上位）",
+			const cytqByDefault = round([], shownAll, [itemB], {});
+			check("⑤ cytq 恢复出厂展示（defaultHidden = false）⇒ 没被 shown 打开也**照常提醒**",
+				cytqByDefault.toNotify.length === 1 && cytqByDefault.toNotify[0].key === keyB,
+				JSON.stringify(cytqByDefault.toNotify.map((n) => n.key)));
+			// gbf 缺卡池侧（`url: ""`）⇒ 出厂隐藏，是「展示要由 shown 打开」的代表
+			const itemC = mkItem("gbf", "event", "碧蓝幻想·日服");
+			const keyC = remindKeyOf(itemC);
+			const notShown = round([], shownAll, [itemC], {});
+			check("⑤ gbf（defaultHidden，缺卡池侧）没被 shown 打开 ⇒ 不提醒（展示的默认关闭就是上位）",
 				notShown.toNotify.length === 0 && notShown.skipped === 1);
-			const shownRes = round([], shownOf("cytq"), [itemB], {});
-			check("⑤ 把 cytq 打开展示（shown）⇒ **提醒**，取消列表仍是 []，没有任何额外写入",
-				shownRes.toNotify.length === 1 && shownRes.toNotify[0].key === keyB,
+			const shownRes = round([], shownOf("gbf"), [itemC], {});
+			check("⑤ 把 gbf 打开展示（shown）⇒ **提醒**，取消列表仍是 []，没有任何额外写入",
+				shownRes.toNotify.length === 1 && shownRes.toNotify[0].key === keyC,
 				JSON.stringify(shownRes.toNotify.map((n) => n.key)));
-			const shownButCancelled = round(["cytq"], shownOf("cytq"), [itemB], {});
+			const shownButCancelled = round(["gbf"], shownOf("gbf"), [itemC], {});
 			check("⑤ 展示打开之后**仍可手动取消**（展示只是上位，不是不可取消）",
 				shownButCancelled.toNotify.length === 0 && shownButCancelled.skipped === 1);
 		}
@@ -1891,10 +1899,18 @@ export default z;
 				JSON.stringify(got) === JSON.stringify(want),
 				"副本=" + got.join(",") + " ／ SOURCES=" + want.join(","));
 			check("⑨ 那份副本非空（否则「出厂隐藏 ⇒ 不提醒」整条规则会静默失效）", got.length > 0, String(got.length));
-			// 2026-11-14 用户拍板「除 cytq 外全部默认展示」⇒ 隐藏集合必须**恰好只有 cytq**
-			// （这条钉的是口径本身：以后谁把某条改回 defaultHidden: true 或忘了改，这里先红）
-			check('⑨ SOURCES 里 defaultHidden === true 的 id 集合恰为 ["cytq"]（2026-11-14 用户拍板）',
-				JSON.stringify(want) === JSON.stringify(["cytq"]), want.join(","));
+			// 2026-11-19 用户口径：出厂隐藏 = **至少一侧（url / eventUrl）未配置**的条目
+			// ⇒ 隐藏集合必须**恰好**是这 9 个（按字母序），cytq 已恢复出厂展示、不在其中。
+			// 这条钉的是口径本身：以后谁改了 defaultHidden 或忘了改，这里先红。
+			const WANT_HIDDEN_IDS = ["browndust2", "crashfever", "ddlezj", "gbf", "hl", "kancolle", "pengpeng", "reso", "tof"];
+			check('⑨ SOURCES 里 defaultHidden === true 的 id 集合恰为「至少一侧未配置」的 9 条（2026-11-19 用户口径）',
+				JSON.stringify(want) === JSON.stringify(WANT_HIDDEN_IDS), want.join(","));
+			// 新增守卫：把用户口径本身钉死 —— 出厂隐藏集合必须**恰等于**「至少一侧未配置」的集合。
+			// 以后谁接了新来源 / 清空某一侧却忘了同步 defaultHidden，这条就红。
+			const unconfigured = SOURCES.filter((s) => !s.url || !s.eventUrl).map((s) => s.id).sort();
+			check("⑨ 出厂隐藏集合恰等于「url / eventUrl 至少一侧为空」的 id 集合（来源配置改了必须同步隐藏）",
+				JSON.stringify(want) === JSON.stringify(unconfigured),
+				"隐藏=" + want.join(",") + " ／ 未配置=" + unconfigured.join(","));
 		}
 
 		// ⑩ 宿主接线（静态）：送达侧读的是同一条链路 + 日志里带跳过计数

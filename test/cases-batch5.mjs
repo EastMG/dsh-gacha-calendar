@@ -84,7 +84,7 @@ export default async function run() {
 			s && s.url);
 		check("**只有卡池侧**（活动侧不注册 ⇒ 设置页显示未配置、不请求、不抛错）",
 			!!s && !s.eventUrl && !s.eventSource, s ? JSON.stringify([s.eventUrl, s.eventSource]) : "缺失");
-		check("出厂默认展示（defaultHidden = false）", !!s && s.defaultHidden === false, s && String(s.defaultHidden));
+		check("出厂不展示（defaultHidden = true，缺活动侧；用户 2026-11-19 口径）", !!s && s.defaultHidden === true, s && String(s.defaultHidden));
 		check("有配色（面板「颜色 = 游戏」）", !!s && /^#[0-9A-F]{6}$/i.test(String(s.color)), s && String(s.color));
 		check("图标取自该站（bannerhistory.app 的 bd2 图标）",
 			!!s && s.icon === "https://bannerhistory.app/icons/apps/bd2.png", s && s.icon);

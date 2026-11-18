@@ -2830,7 +2830,8 @@ async function ns_gbf_events(url, signal, tz = ns_gbf_TZ, now = nowMs()) {
 // 活动侧 = gbf-wiki 的活动一览（标签逐字「wiki 活动一览（gbf-wiki）」）。
 registerSource({
 	id: "gbf",
-	defaultHidden: false,
+	// 卡池侧未配置（`url` 为空）⇒ 出厂隐藏（用户 2026-11-19 口径）。
+	defaultHidden: true,
 	tz: ns_gbf_TZ,
 	name: "碧蓝幻想·日服",
 	icon: ns_gbf_ICON,

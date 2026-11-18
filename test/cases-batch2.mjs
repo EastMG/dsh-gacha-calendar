@@ -113,7 +113,7 @@ export default async function runBatch2() {
 		check("两侧来源标签 = 官网公告",
 			!!s && s.source === B.NS_BATCH2_BH3_SOURCE_LABEL && s.eventSource === B.NS_BATCH2_BH3_SOURCE_LABEL,
 			s && JSON.stringify([s.source, s.eventSource]));
-		check("defaultHidden 改为 false（2026-11-14 用户拍板：除 cytq 外全部默认展示）", !!s && s.defaultHidden === false, s && String(s.defaultHidden));
+		check("defaultHidden 改为 false（两侧都有来源 ⇒ 出厂展示；2026-11-19 口径）", !!s && s.defaultHidden === false, s && String(s.defaultHidden));
 		check("米游社公告备选源仍在（卡池 + 活动各 1 条，抓取器 bh3-miyoushe）",
 			!!s && (s.altSources || []).length === 1 && s.altSources[0].fetcher === "bh3-miyoushe"
 			&& (s.eventAltSources || []).length === 1 && s.eventAltSources[0].fetcher === "bh3-miyoushe",
@@ -1968,8 +1968,8 @@ export default async function runBatch2() {
 		check("kancolle tz = Asia/Tokyo（源站自身口径）", !!kc && kc.tz === "Asia/Tokyo", kc && String(kc.tz));
 		check("gbf tz 与解析器常量一致", GF.GBF_TZ === "Asia/Tokyo", GF.GBF_TZ);
 		check("kancolle tz 与解析器常量一致", KC.KANCOLLE_TZ === "Asia/Tokyo", KC.KANCOLLE_TZ);
-		check("gbf 出厂展示（defaultHidden = false）", !!gbf && gbf.defaultHidden === false, gbf && String(gbf.defaultHidden));
-		check("kancolle 出厂展示（defaultHidden = false）", !!kc && kc.defaultHidden === false, kc && String(kc.defaultHidden));
+		check("gbf 出厂不展示（defaultHidden = true，缺卡池侧；用户 2026-11-19 口径）", !!gbf && gbf.defaultHidden === true, gbf && String(gbf.defaultHidden));
+		check("kancolle 出厂不展示（defaultHidden = true，缺卡池侧；用户 2026-11-19 口径）", !!kc && kc.defaultHidden === true, kc && String(kc.defaultHidden));
 		// 颜色由 20-source-core.js 的 SOURCE_COLORS 下发（条目自己不写 color）
 		check("gbf 颜色 = #2E62B0（王室蓝，已下发）", !!gbf && gbf.color === "#2E62B0", gbf && String(gbf.color));
 		check("kancolle 颜色 = #3C5470（浓绀，已下发）", !!kc && kc.color === "#3C5470", kc && String(kc.color));

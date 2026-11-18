@@ -91,7 +91,11 @@ export default async function run() {
 			check(`${id} 已注册（name / tz / 标签逐字）`,
 				!!s && s.name === name && s.tz === (id === "crashfever" ? TZ_JP : TZ_CN) && s.source === gachaLabel,
 				s ? JSON.stringify([s.name, s.tz, s.source]) : "缺失");
-			check(`${id} 出厂默认展示（defaultHidden = false）`, !!s && s.defaultHidden === false, s && String(s.defaultHidden));
+			// 2026-11-19 用户口径：出厂隐藏 = 至少一侧未配置。crashfever 缺活动侧 ⇒ 出厂不展示；
+			// gwdz 两侧都有来源 ⇒ 出厂展示。
+			const wantHidden = id === "crashfever";
+			check(`${id} 出厂${wantHidden ? "不展示（缺活动侧；defaultHidden = true）" : "默认展示（defaultHidden = false）"}`,
+				!!s && s.defaultHidden === wantHidden, s && String(s.defaultHidden));
 			check(`${id} 有配色（面板「颜色 = 游戏」）`, !!s && /^#[0-9A-F]{6}$/i.test(String(s.color)), s && String(s.color));
 			check(`${id} 卡池来源标签逐字 + URL 逐字`, !!s && s.source === gachaLabel && s.url === url,
 				s ? JSON.stringify([s.source, String(s.url).slice(0, 120)]) : "缺失");

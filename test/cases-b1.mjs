@@ -452,7 +452,7 @@ export default async function run() {
 		check(`条目已注册（id = ${R.id}）`, !!s, s ? s.id : "缺失");
 		check(`${R.id} 名称逐字 = ${R.name}`, !!s && s.name === R.name, s && s.name);
 		check(`${R.id} tz = ${R.tz}（源站墙钟 = 各服本地时间）`, !!s && s.tz === R.tz, s && String(s.tz));
-		check(`${R.id} defaultHidden = false（2026-11-14 用户拍板：除 cytq 外全部默认展示）`,
+		check(`${R.id} defaultHidden = false（两侧都有来源 ⇒ 出厂展示；2026-11-19 口径）`,
 			!!s && s.defaultHidden === false, s && String(s.defaultHidden));
 		check(`${R.id} 卡池 url 逐字 = gh-proxy 包 raw（${R.repo}/gachas.json）`,
 			!!s && s.url === GH(R.repo, "gachas.json"), s && String(s.url));

@@ -833,7 +833,8 @@ async function ns_biligame_announce_eventsDdlezjTopic(url, signal, tz = ns_bilig
 		// （该源正文自标 UTC+9 ⇒ 抓取器自己钉 `+540`，不随条目 tz）。
 		registerSource({
 				id: "ddlezj",
-				defaultHidden: false,
+				// 卡池侧未配置（`url` 为空）⇒ 出厂隐藏（用户 2026-11-19 口径）。
+				defaultHidden: true,
 				// 条目 tz = TapTap 正文的墙钟口径（国服 UTC+8；正文里标过一次 `(UTC+8)`）
 				tz: ns_biligame_announce_DDLEZJ_TAPTAP_TZ,
 				name: "嘟嘟脸恶作剧",

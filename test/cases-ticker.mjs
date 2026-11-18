@@ -189,14 +189,15 @@ export default async function run() {
 		check("展示关（hidden 里有）⇒ 不提醒 —— **哪怕它不在取消列表里**（展示是上位）",
 			remindGameAllowed("a", [], { hidden: ["a"], shown: [] }) === false
 			&& remindGameAllowed("a", [], { hidden: ["a"], shown: ["a"] }) === false);
-		check("出厂默认隐藏的条目（没被 shown 打开）⇒ 也不提醒",
-			remindGameAllowed("cytq", [], { hidden: [], shown: [] }) === false
-			&& remindGameAllowed("cytq", [], {}) === false);
-		check("出厂默认展示的条目（2026-11-14 起除 cytq 外全部如此）⇒ 不需要 shown 提醒",
-			remindGameAllowed("bh3", [], { hidden: [], shown: [] }) === true
-			&& remindGameAllowed("pengpeng", [], {}) === true);
+		check("出厂隐藏的条目（2026-11-19 口径：至少一侧未配置的 9 条，如 gbf / hl / pengpeng；没被 shown 打开）⇒ 也不提醒",
+			remindGameAllowed("gbf", [], { hidden: [], shown: [] }) === false
+			&& remindGameAllowed("hl", [], {}) === false
+			&& remindGameAllowed("pengpeng", [], { hidden: [], shown: [] }) === false);
+		check("出厂展示的条目（两侧都有来源，如 cytq / bh3）⇒ 不需要 shown 提醒",
+			remindGameAllowed("cytq", [], { hidden: [], shown: [] }) === true
+			&& remindGameAllowed("bh3", [], {}) === true);
 		check("出厂隐藏但用户明确打开（shown）⇒ 提醒恢复，**不需要动取消列表**",
-			remindGameAllowed("cytq", [], { hidden: [], shown: ["cytq"] }) === true);
+			remindGameAllowed("gbf", [], { hidden: [], shown: ["gbf"] }) === true);
 		check("取消列表读坏（不是数组）⇒ 当「谁都没取消」= 展示中就提醒（不静默丢提醒）",
 			remindGameAllowed("a", void 0, shownAll) === true
 			&& remindGameAllowed("a", null, shownAll) === true

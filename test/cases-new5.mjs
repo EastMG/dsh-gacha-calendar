@@ -145,10 +145,13 @@ export default async function run() {
 			check(`${id} 有图标（http(s) 地址）`, !!s && /^https?:\/\//.test(String(s.icon)), s ? String(s.icon).slice(0, 60) : "缺失");
 			// 颜色：本批 5 条在 20-source-core.js 的 SOURCE_COLORS 里各给了一个中间调
 			check(`${id} 有游戏主题色（#rrggbb）`, !!s && /^#[0-9A-Fa-f]{6}$/.test(String(s.color)), s ? String(s.color) : "缺失");
-			// 2026-11-14 用户拍板：**除 cytq 外全部默认展示**（本批 5 款里只剩 cytq 仍出厂隐藏）。
+			// 2026-11-19 用户口径：出厂隐藏 = **至少一侧（url / eventUrl）未配置**的条目。
+			// 本批 5 款里只有 pengpeng 缺卡池侧（`url: ""`）⇒ 出厂隐藏；其余 4 款两侧都有来源
+			// ⇒ 出厂展示（cytq 也因此从「唯一出厂隐藏」恢复为展示）。
 			// 这张 `defaultHidden` 表与提醒侧那份副本必须一致
-			// （`65-remind.js` 的 REMIND_DEFAULT_HIDDEN_IDS / 宿主拿它判「展示中」，守卫见 cases-remind.mjs）。
-			const wantHidden = id === "cytq";
+			// （`65-remind.js` 的 REMIND_DEFAULT_HIDDEN_IDS / 宿主拿它判「展示中」，守卫见 cases-remind.mjs ⑨）。
+			const WANT_HIDDEN = { wqmt: false, pengpeng: true, wd: false, hlr: false, cytq: false };
+			const wantHidden = WANT_HIDDEN[id];
 			check(`${id} 出厂${wantHidden ? "不勾选展示" : "展示"}（defaultHidden = ${wantHidden}）`,
 				!!s && s.defaultHidden === wantHidden, s ? String(s.defaultHidden) : "缺失");
 		}
@@ -221,7 +224,8 @@ export default async function run() {
 			typeof T.GACHA_FETCHERS["hlr"] === "function" && !!(T.EVENT_FETCHERS["hlr"] && T.EVENT_FETCHERS["hlr"].default));
 
 		// 2026-11-15：cytq 不再是「未配置」—— 接上官方 H5 公告（`30-game-cytq.js`，原
-		// `30-game-unconfigured.js` 只剩这一条 ⇒ 文件改名）。出厂隐藏**保持不动**（用户口径）。
+		// `30-game-unconfigured.js` 只剩这一条 ⇒ 文件改名）。
+		// 2026-11-19 用户口径：两侧都有来源 ⇒ **恢复出厂展示**（`defaultHidden: false`）。
 		const cytq = srcOf("cytq");
 		const CY = T.parsers.cytq;
 		check("cytq 两侧来源已接（官方 H5 公告列表，两侧同一条 URL）",
@@ -230,8 +234,8 @@ export default async function run() {
 		check("cytq 两侧来源标签逐字 = 「官网公告」",
 			!!cytq && cytq.source === "官网公告" && cytq.eventSource === "官网公告",
 			cytq ? JSON.stringify([cytq.source, cytq.eventSource]) : "缺失");
-		check("cytq 仍然出厂隐藏（defaultHidden = true，用户 2026-11-14 口径：只有 cytq 默认隐藏）",
-			!!cytq && cytq.defaultHidden === true, cytq ? String(cytq.defaultHidden) : "缺失");
+		check("cytq 恢复出厂展示（defaultHidden = false，两侧都有来源；用户 2026-11-19 口径）",
+			!!cytq && cytq.defaultHidden === false, cytq ? String(cytq.defaultHidden) : "缺失");
 		check("cytq 两个抓取器都已登记（卡池 / 活动各一）",
 			typeof T.GACHA_FETCHERS["cytq"] === "function" && !!(T.EVENT_FETCHERS["cytq"] && T.EVENT_FETCHERS["cytq"].default));
 
@@ -1191,7 +1195,7 @@ export default async function run() {
 			&& rec3.banner === rec.banner && rec3.event === rec.event,
 			JSON.stringify([rec3.banner, rec3.event, rec3.gachaFail, rec3.eventFail, rec3.gachaStale, rec3.eventStale]));
 
-		// ── (h) defaultHidden 保持 true：不勾「展示」就一个请求都不发 ──
+		// ── (h) 手动取消（hidden）：一个请求都不发（cytq 已恢复出厂展示，靠取消列表静默） ──
 		CY.cytqResetDetailCache();
 		const callsH = [];
 		const engineH = createEngine({
@@ -1201,7 +1205,7 @@ export default async function run() {
 			timer: { setTimeout, clearTimeout }
 		});
 		await engineH.refresh();
-		check("cytq 出厂隐藏（defaultHidden: true）⇒ 不勾展示时一个请求都不发（接上来源不改变这条口径）",
+		check("cytq 在取消列表（hidden）里 ⇒ 一个请求都不发（展示关掉就是上位；接上来源不改变这条口径）",
 			callsH.length === 0, JSON.stringify(callsH));
 	}
 
@@ -1248,8 +1252,8 @@ export default async function run() {
 		check("hl 注册：卡池侧 `url: \"\"` 且**不写 source**（= 未配置，面板显示「未配置」而不是失败）",
 			!!srcHl && srcHl.url === "" && srcHl.source === void 0 && srcHl.eventUrl === LIST_CN,
 			srcHl ? JSON.stringify([srcHl.url, srcHl.source, srcHl.eventUrl]) : "缺失");
-		check("hl 活动侧标签逐字 = 「官网公告」；tz = Asia/Shanghai；出厂默认展示",
-			!!srcHl && srcHl.eventSource === "官网公告" && srcHl.tz === "Asia/Shanghai" && srcHl.defaultHidden === false,
+		check("hl 活动侧标签逐字 = 「官网公告」；tz = Asia/Shanghai；出厂不展示（缺卡池侧，2026-11-19 口径）",
+			!!srcHl && srcHl.eventSource === "官网公告" && srcHl.tz === "Asia/Shanghai" && srcHl.defaultHidden === true,
 			srcHl ? JSON.stringify([srcHl.eventSource, srcHl.tz, srcHl.defaultHidden]) : "缺失");
 		check("hl-jp 注册：卡池与活动**同一条**新闻列表；标签逐字「官网公告（日服）」；tz = Asia/Tokyo；默认展示",
 			!!srcJp && srcJp.url === LIST_JP && srcJp.eventUrl === LIST_JP
@@ -1589,10 +1593,10 @@ export default async function run() {
 			&& srcPcr.tz === TZ_TW && srcPcr.defaultHidden === false
 			&& srcPcr.name === "公主连结Re:Dive·繁中服",
 			srcPcr ? JSON.stringify([srcPcr.url, srcPcr.eventUrl, srcPcr.source, srcPcr.tz, srcPcr.name]) : "缺失");
-		check("reso 注册：卡池主源 = **bwiki `action=raw`**（标签逐字「Bwiki 活动日历」）；**活动侧默认置空**（eventUrl 为空串、不写 eventSource）；tz = Asia/Shanghai；默认展示",
+		check("reso 注册：卡池主源 = **bwiki `action=raw`**（标签逐字「Bwiki 活动日历」）；**活动侧默认置空**（eventUrl 为空串、不写 eventSource）；tz = Asia/Shanghai；出厂不展示（缺活动侧，2026-11-19 口径）",
 			!!srcReso && srcReso.url === RESO_RAW && srcReso.source === "Bwiki 活动日历"
 			&& srcReso.eventUrl === "" && srcReso.eventSource === void 0
-			&& srcReso.tz === TZ_CN2 && srcReso.defaultHidden === false && srcReso.name === "雷索纳斯",
+			&& srcReso.tz === TZ_CN2 && srcReso.defaultHidden === true && srcReso.name === "雷索纳斯",
 			srcReso ? JSON.stringify([srcReso.url, srcReso.eventUrl, srcReso.source, srcReso.eventSource, srcReso.tz]) : "缺失");
 		// 备选源存在性 + 标签逐字（中文内容 ⇒ **不许**加「（内联 JSON）」这类自创括号后缀/语言后缀）
 		const srcResoAlt = (srcReso && srcReso.altSources) || [];
@@ -2219,10 +2223,10 @@ export default async function run() {
 
 		// ── ① 注册（只有卡池侧；活动 = 未配置，不是失败）──
 		const srcTof = srcOf("tof");
-		check("tof 注册：卡池 = gamenews 列表；标签逐字「官网公告」；tz = Asia/Shanghai；出厂默认展示；活动侧 url 为空（未配置）",
+		check("tof 注册：卡池 = gamenews 列表；标签逐字「官网公告」；tz = Asia/Shanghai；出厂不展示（缺活动侧，2026-11-19 口径）；活动侧 url 为空（未配置）",
 			!!srcTof && srcTof.url === TOF_LIST && srcTof.eventUrl === ""
 			&& srcTof.source === "官网公告" && srcTof.eventSource === void 0
-			&& srcTof.tz === TZ_CN3 && srcTof.defaultHidden === false && srcTof.name === "幻塔",
+			&& srcTof.tz === TZ_CN3 && srcTof.defaultHidden === true && srcTof.name === "幻塔",
 			srcTof ? JSON.stringify([srcTof.url, srcTof.eventUrl, srcTof.source, srcTof.tz]) : "缺失");
 		check("tof 只登记卡池抓取器（`GACHA_FETCHERS.tof` 是函数、`EVENT_FETCHERS.tof` 不存在）",
 			typeof T.GACHA_FETCHERS.tof === "function" && !T.EVENT_FETCHERS.tof,

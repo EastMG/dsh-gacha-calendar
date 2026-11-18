@@ -2,7 +2,7 @@
 //
 // ── 本段守什么 ──
 //   ① 注册：`wd` / `hlr` 两侧都有 url + eventUrl + 来源标签，出厂 `defaultHidden: false`
-//      （2026-11-14 用户拍板：除 cytq 外全部默认展示）；
+//      （两侧都有来源 ⇒ 出厂展示；2026-11-19 口径）；
 //   ② `wd` 卡池：真夹具 `wd-miyoushe-list` + `wd-miyoushe-detail-79191336`，
 //      逐字断言 池名 / 角色（思绪名）/ 档期 / 源站原文 / 绝对时刻 / 悬停 / `gacha[]`；
 //      「11月5日更新后」那一池（`79308001`）**不进外显**（startTs=null），只出现在悬停里；
@@ -134,7 +134,7 @@ export default async function runWdHlr() {
 		check("hlr 两侧来源标签：卡池「官网新闻」/ 活动「官网新闻 + 学院公告」",
 			!!hlr && hlr.source === "官网新闻" && hlr.eventSource === "官网新闻 + 学院公告",
 			hlr ? JSON.stringify([hlr.source, hlr.eventSource]) : "缺失");
-		check("wd / hlr 出厂都默认展示（defaultHidden === false，2026-11-14 用户拍板：除 cytq 外全部默认展示）",
+		check("wd / hlr 出厂都默认展示（defaultHidden === false，两侧都有来源；2026-11-19 口径）",
 			!!wd && !!hlr && wd.defaultHidden === false && hlr.defaultHidden === false,
 			JSON.stringify([wd && wd.defaultHidden, hlr && hlr.defaultHidden]));
 	}

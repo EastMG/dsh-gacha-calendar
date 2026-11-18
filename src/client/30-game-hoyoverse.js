@@ -1185,7 +1185,7 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 			tz: "Asia/Shanghai",
 			name: "崩坏3",
 			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/b0/03/81/b003811c-f82a-428c-aa49-195f22c311bd/AppIcon-1x_U007emarketing-0-10-0-85-220-0.png/512x512bb.jpg",
-			// 2026-11-14 用户拍板：除 cytq 外全部默认展示。
+			// 2026-11-19 用户口径：两侧都有来源 ⇒ 出厂展示（出厂隐藏只看缺哪一侧）。
 			// 默认源 = 内容中台（`iChanId=697` 卡池 / `696` 活动，见 30-game-batch2.js 的文件头与抓取器登记）；
 			// 解析口径（卡池只出名称/角色、活动正文无时间块如实跳过）也写在那份文件里。
 			url: "https://act-api-takumi-static.mihoyo.com/content_v2_user/app/b9d5f96cd69047eb/getContentList?iChanId=697&iPageSize=30&iPage=1&sLangKey=zh-cn",

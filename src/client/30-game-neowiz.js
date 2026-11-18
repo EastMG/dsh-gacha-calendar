@@ -265,7 +265,8 @@ async function ns_bd2_gacha(url, signal, tz = ns_bd2_TZ, now = nowMs()) {
 // 该站只有卡池史（没有活动档期）⇒ 不注册活动侧：设置页显示「未配置」，不请求、不抛错。
 registerSource({
 	id: "browndust2",
-	defaultHidden: false,
+	// 活动侧未配置（`eventUrl` 为空）⇒ 出厂隐藏（用户 2026-11-19 口径）。
+	defaultHidden: true,
 	tz: ns_bd2_TZ,
 	name: "棕色尘埃2·国际服",
 	icon: ns_bd2_ICON,

@@ -79,7 +79,8 @@ async function ns_crashfever_gacha(url, signal, tz = ns_crashfever_TZ, now = now
 
 registerSource({
 	id: "crashfever",
-	defaultHidden: false,
+	// 活动侧未配置（`eventUrl` 为空）⇒ 出厂隐藏（用户 2026-11-19 口径）。
+	defaultHidden: true,
 	tz: ns_crashfever_TZ,
 	name: "粉碎狂热·日服",
 			icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/96/9a/78/969a78f3-9c5f-e0d8-23bd-db2153b133ad/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",

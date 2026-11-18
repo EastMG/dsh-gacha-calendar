@@ -149,7 +149,8 @@ async function ns_kancolle_events(url, signal, tz = ns_kancolle_TZ, now = nowMs(
 // 活动侧 = wikiwiki 的期間限定出撃（标签逐字「wiki 活动一览（wikiwiki）」）。
 registerSource({
 	id: "kancolle",
-	defaultHidden: false,
+	// 卡池侧未配置（`url` 为空）⇒ 出厂隐藏（用户 2026-11-19 口径）。
+	defaultHidden: true,
 	tz: ns_kancolle_TZ,
 	name: "舰队Collection·日服",
 	icon: ns_kancolle_ICON,

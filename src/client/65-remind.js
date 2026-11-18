@@ -353,12 +353,20 @@
 		//
 		// 出厂就**默认不展示**的条目 id：宿主读不到 SOURCES，这张表只能跟着本文件走一份
 		// （与下面的 REMIND_TZ_BY_ID 同一个理由 —— 那份也是 SOURCES 的副本，靠守卫钉住同步）。
-		// 必须恰等于 SOURCES 里 `defaultHidden === true` 的 id（守卫见 test/cases-remind.mjs）。
-		// 2026-11-14 用户拍板：除 cytq 外全部默认展示。
-		// 2026-11-15 晚用户口径修正：langrisser / bfzy 的「置空」= **来源未配置**（`url: ""`），
-		// 不是整条隐藏 ⇒ `defaultHidden` 恢复 false，这张副本也恢复为只有 cytq。
+		// 必须恰等于 SOURCES 里 `defaultHidden === true` 的 id（守卫见 test/cases-remind.mjs ⑨）。
+		// 2026-11-19 用户口径（覆盖 2026-11-14「只有 cytq 默认隐藏」）：出厂隐藏 =
+		// **至少一侧（url / eventUrl）未配置**的条目，恰为下面这 9 条（按字母序）；
+		// cytq（炽焰天穹）两侧都有来源 ⇒ 恢复出厂展示，不再在这张表里。
 		const REMIND_DEFAULT_HIDDEN_IDS = [
-			"cytq"
+			"browndust2",
+			"crashfever",
+			"ddlezj",
+			"gbf",
+			"hl",
+			"kancolle",
+			"pengpeng",
+			"reso",
+			"tof"
 		];
 
 		// 条目「展示中」判定 —— **与面板同一套规则**（60-helpers.js 的 isEntryHidden）：
