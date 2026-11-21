@@ -1704,7 +1704,10 @@ null，活动侧 2026-11-10 已换 TapTap tab（能出「新风同行」11-05~11
 - **门槛（关键）**：桌面壳已经自己注入 CSS 接管同一槽位（旧壳 `flex-direction:column`，Desktop NEXT 用 `display:grid` + `grid-column:1/-1`），并在 `<html>` 上挂 `data-dsh-sidebar-footer-balanced` / `data-dsh-sidebar-footer-compat`。两边都是 `!important` ⇒ 靠**特异性**分胜负，而我们的选择器更长，**没有门槛就会盖掉桌面壳**。所以每条规则都写成 `html:not([data-dsh-sidebar-footer-balanced]):not([data-dsh-sidebar-footer-compat]) body …`，只在**桌面壳未接管**（网页端）时生效。
 - **第二道门槛（2026-10-30）**：三条规则的选择器末尾都追加了 `:has(> * + *)` —— 槽位里**至少两个直系子项**（至少两个入口）才匹配。槽位里只有本插件一个入口时整段规则完全不生效（等于没装），这样"只有我们一个入口"的环境里宿主布局保持原样，影响面最小；`:has()` 是额外一层，双 `:not()` 门槛仍在。
 - **选择器依据**（实测，不是猜）：`data-slot` 属性确实存在于宿主 DOM —— DSH NEXT 的 slots 渲染器给每个槽位挂这个属性（`<html>` 上没有任何 `data-dsh-sidebar-footer-*`）；收起态用的 `[class*="collapsed"]` 命中宿主侧栏根节点的 `GgXflG_collapsed` 一类类名（模块哈希前缀 + `collapsed`）。
-- **注册项**：该槽位的宿主契约只列 `id` / `order` / `label`（`order` 升序、默认 0），**没有 `priority`** —— 旧写法 `priority:-10` 根本不被读，已换成 `order:-10`（仍在最上）；`label` 用 thunk（`() => SETTINGS_SECTION_LABEL`），图标栏提示跟得住语言切换。
+- **注册项**：该槽位的宿主契约只列 `id` / `order` / `label`（`order` 升序、默认 0），**没有 `priority`** —— 旧写法 `priority:-10` 根本不被读，已换成 `order`。**2026-11-21 起用 `order:10`**：
+  ds-harness-remote 0.6.6 把自己的 footer 入口从 `order:-20` 改成 `order:0`（真机 diff：0.6.5 及更早是 -20，
+  0.6.6 起是 0）⇒ 我们还写 -10 就会压到它上面、把 footer 顶成两行；改 10 后相对顺序与旧版一致
+  （remote 0 → 我们 10 → 集成 20 → 移动端 40）；`label` 用 thunk（`() => SETTINGS_SECTION_LABEL`），图标栏提示跟得住语言切换。
 
 ### 跳到本插件设置页（两个面板的「设置」齿轮）
 

@@ -1218,7 +1218,15 @@ export default async function run() {
 		const reg = footerReg ? footerReg[0] : "";
 		check("注册对象带 label thunk：label: () => SETTINGS_SECTION_LABEL（图标栏提示用，跟得住语言切换）",
 			/label:\s*\(\)\s*=>\s*SETTINGS_SECTION_LABEL/.test(reg), reg);
-		check("注册对象用 order: -10（升序 ⇒ 仍在最上），且不再写宿主不认的 priority",
-			/order:\s*-10\b/.test(reg) && !/\bpriority\s*:/.test(reg), reg);
+		// ⚠️ 2026-11-21 真机：这里原来钉的是 `order: -10`（抢最上）。ds-harness-remote 0.6.6 把
+		//   自己的 footer 入口从 `order: -20` 改成 `order: 0`（0.6.5 及更早的 npm 包是 -20，已逐个解包核对）
+		//   ⇒ 我们 -10 < 它 0，被顶到它上面，footer 从 1 行变 2 行（用户反馈「被顶到上一行」）。
+		//   现在用 `order: 10`：升序下 remote 0 → 我们 10 → 集成 20 → 移动端 40，
+		//   与旧版（remote -20 → 我们 -10 → 20 → 40）的**视觉顺序完全一致**。
+		//   反向守卫：注册里**不许**再出现负数 order（抢别人的"最左座"就是这个 bug 的成因）。
+		check("注册对象用 order: 10（升序：remote 0 → 我们 10 → 集成 20 → 移动端 40），且不写宿主不认的 priority",
+			/order:\s*10\b/.test(reg) && !/\bpriority\s*:/.test(reg), reg);
+		check("反向守卫：footer 注册里不出现负数 order（负号 = 去抢最左座 ⇒ remote 0.6.6 起会把 footer 顶成两行）",
+			!/order:\s*-\d/.test(reg), reg);
 	}
 }

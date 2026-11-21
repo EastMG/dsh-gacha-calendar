@@ -103,13 +103,20 @@
 			const engine = createDshEngine(scope);
 
 			// 侧栏底部入口。注册项的三个可选项以宿主槽位契约为准（见 README_Dev）：
-			//   · `order`：**升序**排位（宿主默认 0）⇒ -10 仍在最上；
+			//   · `order`：**升序**排位（宿主默认 0）；
 			//   · `label`：侧栏收起成图标栏时宿主用它做提示（thunk 每帧重读，跟得住语言切换）；
 			//   · `priority`：**不是**这个槽位的可选项（宿主契约只列 id / order / label），旧写法已换成 order。
+			//
+			// ⚠️ 2026-11-21 真机：原来写 -10（抢最上），结果 **ds-harness-remote 0.6.6 把自己从
+			//   `order: -20` 改成了 `order: 0`**（注释还写着 "stays the leftmost seat of the row"）——
+			//   于是 -10 < 0 ⇒ 我们的按钮被顶到它**上面**、整排 footer 从 1 行变 2 行（用户反馈「被顶到上一行」）。
+			//   升序排位的相对位置：remote 0 → 我们 10 → 聊天导入 20 → 移动端入口 40，
+			//   与 remote 0.6.5 及更早（-20 → 我们 -10 → 20 → 40）**视觉顺序完全一致**：
+			//   我们始终在 remote 之下、在第三方集成（20/40）之上。别再加负号去抢第一。
 			ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
 				name: "sidebar.footer.action",
 				id: "dsh-gacha-calendar",
-				order: -10,
+				order: 10,
 				label: () => SETTINGS_SECTION_LABEL,
 				locale: NS,
 				inject: () => ({ scope, engine })
