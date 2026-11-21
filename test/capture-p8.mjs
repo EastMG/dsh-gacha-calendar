@@ -116,6 +116,9 @@ async function main() {
 	await grab("p8-zspms-notice", parseWikitextUrl("zspms", rows[0].page));
 	await grab("p8-czn-module", "https://wiki.biligame.com/czn/api.php?action=parse&page=Module%3AGacha%2Fdata&prop=wikitext&format=json");
 	await grab("p8-kedr-template", "https://wiki.biligame.com/kedrgame/api.php?action=parse&page=Template%3A%E9%A6%96%E9%A1%B5%E6%B8%B8%E6%88%8F%E7%89%88%E6%9C%AC%E5%86%85%E5%AE%B9&prop=wikitext&format=json");
+	// 2026-11-21 改版后的同一页（模板名换成 `{{卡池条}}`）：与上面**同一个 URL**，另存一份夹具，
+	// 供 cases-p8 的 P8-4b 段同时守住「新模板名能解」与「旧模板名仍能解」。
+	await grab("p8-kedr-template-1121", "https://wiki.biligame.com/kedrgame/api.php?action=parse&page=Template%3A%E9%A6%96%E9%A1%B5%E6%B8%B8%E6%88%8F%E7%89%88%E6%9C%AC%E5%86%85%E5%AE%B9&prop=wikitext&format=json");
 	// 可选备选（卡厄斯「卡池记录」，只有 1 条 2026/03）
 	try { await grab("p8-czn-record", parseWikitextUrl("czn", "卡池记录")); }
 	catch (e) { console.log("（可选夹具 p8-czn-record 抓取失败，忽略：" + (e && e.message) + "）"); }

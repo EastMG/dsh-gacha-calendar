@@ -23996,7 +23996,7 @@ async function ns_biligame_activity_eventsWhmxOfficial(url, signal, tz = ns_bili
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ══════════════════════════════════════════════════════════════════════════════
-// ③ 雪松（kedrgame）—— `Template:首页游戏版本内容` 的 `{{时间进度条|…}}` 调用
+// ③ 雪松（kedrgame）—— `Template:首页游戏版本内容` 的模板调用（`{{时间进度条|…}}` / `{{卡池条|…}}`）
 // ══════════════════════════════════════════════════════════════════════════════
 const ns_bwiki_wikitext_KEDR_TZ = "Asia/Shanghai";         // 推测：每期 05:00 换池（与 P6 社区页旁证一致）
 // ⚠️ **必须带 `Template:` 前缀**：不带前缀返回 `{"code":"missingtitle"}`（HTTP 仍 200）；
@@ -24009,11 +24009,18 @@ const ns_bwiki_wikitext_KEDR_TEMPLATE_URL = ns_bwiki_wikitext_kedrTemplateUrl();
 const ns_bwiki_wikitext_KEDR_REFERER = "https://wiki.biligame.com/kedrgame/";
 
 // `{{时间进度条|开始时间=2026/10/02 05:00|结束时间=2026/10/09 05:00|名称=【精英集结·支援】西尔维亚|链接=…|倒计时名称=…}}`
-// → 参数对象数组。`<!-- -->` 注释块先剥掉（页尾注释里有一堆 `{{板块|按钮|…}}`，虽不含时间进度条，防患于未然）。
+// → 参数对象数组。`<!-- -->` 注释块先剥掉（页尾注释里有一堆 `{{板块|按钮|…}}`，防患于未然）。
+//
+// ⚠️ 2026-11-21 真机：bwiki 把本页的模板从 `{{时间进度条|…}}` **改成了 `{{卡池条|…}}`**
+//   （参数名一字未改：开始时间 / 结束时间 / 名称 / 链接 / 倒计时名称 / 过期提示）。
+//   旧正则只认「时间进度条」⇒ 一条都匹配不到 ⇒ `kedr-template:no-call` ⇒ 卡池与活动两侧都报「抓取异常」。
+//   现网实测（2026-11-21 14:2x）：页面里 3 条 `{{卡池条}}`（战令通行证·末班地铁 / 【精英集结·特射】伊妮德 /
+//   【演习·协约组织】嘉比莉露），活动区块（个人剧情活动）整段被 `<!-- -->` 注释掉。
+//   两种模板名**都认**（wiki 可能回退，也可能混用），参数解析逻辑完全共用。
 function ns_bwiki_wikitext_kedrTemplateCalls(wikitext) {
 	const src = String(wikitext == null ? "" : wikitext).replace(/<!--[\s\S]*?-->/g, "");
 	const out = [];
-	const re = /\{\{\s*时间进度条\s*\|([^{}]*)\}\}/g;
+	const re = /\{\{\s*(?:时间进度条|卡池条)\s*\|([^{}]*)\}\}/g;
 	let m;
 	while ((m = re.exec(src))) {
 		const params = {};
@@ -24042,7 +24049,8 @@ function ns_bwiki_wikitext_kedrRoleFromName(name) {
 	return m ? m[1].trim() : "";
 }
 // 模板 wikitext → { gacha:[…], event:[…], skipped }
-// **一条时间进度条都没有 → 抛错**（模板被清空/改版 = 结构性损坏，不当"未公布"）
+// **一条模板调用都没有 → 抛错**（模板被清空/改版 = 结构性损坏，不当"未公布"）
+//   注：改版成新模板名（卡池条）**不算**结构性损坏 —— 那是上面正则已经兼容的情况。
 function ns_bwiki_wikitext_parseKedrTemplate(wikitext, tz = ns_bwiki_wikitext_KEDR_TZ) {
 	const calls = ns_bwiki_wikitext_kedrTemplateCalls(wikitext);
 	if (calls.length === 0) throw new Error("kedr-template:no-call");

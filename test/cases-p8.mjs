@@ -1,7 +1,7 @@
 // next-sources/test/cases-p8.mjs —— 批次 P8 离线夹具测试
 //   ① 战双帕弥什（SMW ask 索引 → 最新「版本更新公告」wikitext 正文抽档期）
 //   ② 卡厄斯梦境（`Module:Gacha/data` 的 Lua 表）
-//   ③ 雪松（`Template:首页游戏版本内容` 的 `{{时间进度条}}` 模板调用）
+//   ③ 雪松（`Template:首页游戏版本内容` 的模板调用：`{{时间进度条}}`；2026-11-21 起源站改成了 `{{卡池条}}`，两种都认）
 //
 // 六条原则（照合并前的 CONVENTIONS.md 与 cases-b1/b3/p6）：
 //   ① 全程离线：`useFixtures(OVERRIDES)` 注入夹具 fetch；纯函数测试直接读 fixtures/*/response.txt。
@@ -35,6 +35,9 @@ const ZSPMS_LATEST_PAGE = "《远信回响》版本更新公告";
 // 夹具覆盖：URL → fixtures/<name>/response.txt（**显式写死**，不只依赖多人共写的 test/map.json）
 // 官方 CDN（2026-11-11 接入的活动侧默认源）：菜单 + 最近 3 篇「版本更新公告」详情
 const CDN_ART_IDS = [5682, 5467, 5306];
+// 2026-11-21 改版夹具的伪 URL（只为 useFixtures 映射用；抓取器把它当 `url` 参数原样用）。
+// ⚠️ 必须在 OVERRIDES 之前声明（对象字面量求值时就要读到它）。
+const KEDR_TEMPLATE_FIXTURE_URL = "https://fixture.local/p8-kedr-template-1121";
 const OVERRIDES = {
 	[ZSPMS_ASK_URL]: "p8-zspms-ask/response.txt",
 	[zspmsParseUrl(ZSPMS_LATEST_PAGE)]: "p8-zspms-notice/response.txt",
@@ -45,6 +48,9 @@ const OVERRIDES = {
 	[zspmsCdnArticleUrl(5306)]: "p8-zspms-cdn-art5306/response.txt",
 	[CZN_MODULE_URL]: "p8-czn-module/response.txt",
 	[KEDR_TEMPLATE_URL]: "p8-kedr-template/response.txt",
+	// 2026-11-21 页面改版后的同一页（模板名换成 `{{卡池条}}`）：用**伪 URL** 映射，
+	// 不覆盖上面那份旧的（旧夹具继续守「纯 `{{时间进度条}}` 也还能解」）。
+	[KEDR_TEMPLATE_FIXTURE_URL]: "p8-kedr-template-1121/response.txt",
 	[CZN_RECORD_URL]: "p8-czn-record/response.txt"
 };
 
@@ -629,6 +635,57 @@ export default async function run() {
 			JSON.stringify([reOne.ok && reOne.data, rgOne.ok && rgOne.data && rgOne.data.bannerHover]));
 		check("抓取失败 → 抛错（不静默降级成 null）",
 			await throwsAsync(() => gachaKedrTemplate("https://example.invalid/kedr", undefined, KEDR_TZ, SNAP)));
+	}
+	//#endregion
+
+	//#region P8-4b 雪松模板改版（2026-11-21）：`{{卡池条}}`
+	// 2026-11-21 真机：bwiki 把 `Template:首页游戏版本内容` 的模板调用从 `{{时间进度条|…}}`
+	// **换成了 `{{卡池条|…}}`**（参数名一字未改）。旧正则只认前者 ⇒ 一条都匹配不到 ⇒
+	// `kedr-template:no-call` ⇒ 卡池与活动两侧都报「抓取异常」（真机：14:2x 那轮两侧都 down）。
+	// 这里守三件事：① 新模板名能解；② 旧模板名仍能解（不许变成"只认新的"）；③ 注释块里的模板不算数。
+	section("P8-4b 雪松 —— 2026-11-21 页面改版：模板名 `时间进度条` → `卡池条`（两种都认）");
+	{
+		const body2 = fxJson("p8-kedr-template-1121/response.txt").parse.wikitext["*"];
+		const snap2 = Date.parse(fxMeta("p8-kedr-template-1121/response.txt").capturedAt);
+		check("改版后的真夹具：3 条 `{{卡池条|…}}`；另有 2 条 `{{时间进度条|…}}` **全在注释块里**",
+			(body2.match(/\{\{卡池条\|/g) || []).length === 3
+			&& /<!--[\s\S]*?\{\{时间进度条\|[\s\S]*?-->/.test(body2),
+			JSON.stringify([(body2.match(/\{\{卡池条\|/g) || []).length, (body2.match(/\{\{时间进度条\|/g) || []).length]));
+		const calls2 = kedrTemplateCalls(body2);
+		check("kedrTemplateCalls 剥注释后恰 3 条（注释里的「个人剧情活动」不产出）",
+			calls2.length === 3 && calls2.every((c) => c["名称"] && c["开始时间"] && c["结束时间"]), String(calls2.length));
+		check("第 1 条 = 战令通行证·末班地铁 2026/11/09 05:00 ~ 2026/12/13 05:00（倒计时名称=赛季）",
+			calls2[0]["名称"] === "战令通行证·末班地铁" && calls2[0]["开始时间"] === "2026/11/09 05:00"
+			&& calls2[0]["结束时间"] === "2026/12/13 05:00" && calls2[0]["倒计时名称"] === "赛季",
+			JSON.stringify(calls2[0]));
+		check("第 2/3 条 = 【精英集结·特射】伊妮德 / 【演习·协约组织】嘉比莉露（同窗口 11-20 05:00 ~ 12-04 05:00）",
+			calls2[1]["名称"] === "【精英集结·特射】伊妮德" && calls2[2]["名称"] === "【演习·协约组织】嘉比莉露"
+			&& calls2[1]["开始时间"] === "2026/11/20 05:00" && calls2[2]["结束时间"] === "2026/12/04 05:00",
+			JSON.stringify([calls2[1]["名称"], calls2[2]["名称"]]));
+		const kp2 = parseKedrTemplate(body2, KEDR_TZ);
+		check("分流：卡池 2（伊妮德 / 嘉比莉露）+ 活动 1（战令通行证·末班地铁），0 跳过",
+			kp2.gacha.length === 2 && kp2.event.length === 1 && kp2.skipped === 0
+			&& kp2.gacha.map((x) => x.name).join("/") === "【精英集结·特射】伊妮德/【演习·协约组织】嘉比莉露"
+			&& kp2.event[0].name === "战令通行证·末班地铁",
+			JSON.stringify([kp2.gacha.map((x) => x.name), kp2.event.map((x) => x.name), kp2.skipped]));
+		// 反证 ①：把新模板名换回旧名，条数不变 ⇒ 两种名字等价（不是"只认新的"）
+		check("反证：把 `卡池条` 换回旧名 `时间进度条` 后条数一致（两种模板名等价）",
+			kedrTemplateCalls(body2.replace(/\{\{卡池条\|/g, "{{时间进度条|")).length === 3);
+		// 反证 ②：删掉 3 条 `卡池条`（只剩注释里的旧模板）⇒ 剥注释后 0 条 + 抛 no-call
+		const stripped = body2.replace(/\{\{卡池条\|[^{}]*\}\}/g, "");
+		check("反证：删掉 3 条 `卡池条` 后剥注释得 0 条，`parseKedrTemplate` 抛 `kedr-template:no-call`（注释不顶数）",
+			kedrTemplateCalls(stripped).length === 0 && throws(() => parseKedrTemplate(stripped, KEDR_TZ)));
+		// 抓取器：11-21 夹具 + 抓取时刻（14:37 +08，两条卡池都在期）
+		const rg2 = await grab(() => gachaKedrTemplate(KEDR_TEMPLATE_FIXTURE_URL, undefined, KEDR_TZ, snap2));
+		check("卡池外显 = 【精英集结·特射】伊妮德（11-20 05:00 ~ 12-04 05:00；角色 = 伊妮德）",
+			rg2.ok && rg2.data && rg2.data.banner === "【精英集结·特射】伊妮德" && rg2.data.roles === "伊妮德"
+			&& rg2.data.bannerDates === "11-20 05:00 ~ 12-04 05:00",
+			JSON.stringify(rg2.ok && rg2.data && [rg2.data.banner, rg2.data.roles, rg2.data.bannerDates]));
+		const re2 = await grab(() => eventsKedrTemplate(KEDR_TEMPLATE_FIXTURE_URL, undefined, KEDR_TZ, snap2));
+		check("活动外显 = 战令通行证·末班地铁（11-09 05:00 ~ 12-13 05:00；只有 1 条在期 ⇒ 不设 eventHover）",
+			re2.ok && re2.data && re2.data.event === "战令通行证·末班地铁"
+			&& re2.data.eventDates === "11-09 05:00 ~ 12-13 05:00" && !("eventHover" in re2.data),
+			JSON.stringify(re2.ok && re2.data && [re2.data.event, re2.data.eventDates]));
 	}
 	//#endregion
 
