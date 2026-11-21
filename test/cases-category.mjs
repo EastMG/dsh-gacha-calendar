@@ -439,6 +439,15 @@ export default async function runCategory() {
 	// 旧取名按「名称」⇒ 两页混成一条（已结束的主活动被当成 294 天长期活动）。
 	// 现在一律取**页面标题**（用户要求：保留并按完整页面名显示）。
 	{
+		// ⚠️ 2026-11-21 修：这里原来写死 `2026/11/5 ~ 11/20`，**11-20 03:59 一过就红**
+		//   （`parseSmwActivity` 的 emitArrays 只收「覆盖 now」的条目 ⇒ 第一条过期后只剩一条）。
+		//   改成相对当天构造，跨天不会再假红；墙钟按 Asia/Shanghai 算（TZ_CN，
+		//   与本文件其它注入 now 的用例同口径，也不受测试进程时区影响）。
+		const wallOf = (ms) => {
+			const d = new Date(ms + 8 * 3600e3);
+			return [d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes(), 0, 0].join("/");
+		};
+		const nowMs0 = Date.now();
 		const mk = (title, nameProp, s, e) => ({
 			[title]: {
 				fulltext: title,
@@ -451,8 +460,8 @@ export default async function runCategory() {
 			}
 		});
 		const json = { query: { results: Object.assign({},
-			mk("「同名测试活动」", "「同名测试活动」", "2026/11/5/10/0/0/0", "2026/11/20/3/59/0/0"),
-			mk("「同名测试活动」新手", "「同名测试活动」", "2026/11/6/10/0/0/0", "2026/11/25/3/59/0/0")
+			mk("「同名测试活动」", "「同名测试活动」", wallOf(nowMs0 - 3 * 864e5), wallOf(nowMs0 + 2 * 864e5)),
+			mk("「同名测试活动」新手", "「同名测试活动」", wallOf(nowMs0 - 2 * 864e5), wallOf(nowMs0 + 8 * 864e5))
 		) } };
 		const parsed = T.parseSmwActivity(json, TZ_CN, { emitArrays: true, id: "genshin" });
 		const titles = ((parsed && parsed.events) || []).map((x) => x.title).sort();
