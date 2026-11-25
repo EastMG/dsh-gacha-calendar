@@ -810,20 +810,18 @@ const P3B_PATHS = [
 		call: (t) => t.EVENT_FETCHERS["ba-global"].default()
 	},
 	{
-		// 日服卡池 = 官网新闻接口（多池同公告 ⇒ 悬停多行）；日服活动 = GameKee「日服当期活动」+「日服当期卡池评测」
-		// 两个 detail（活动路径要读卡池标题那条目录项，因为 `fetchGameKeeBa("jp")` 会顺带读它）。
+		// 日服卡池 = 官网新闻接口（多池同公告 ⇒ 悬停多行）
 		key: "baJpGacha", switched: true, id: "ba-jp", side: "gacha", field: "gacha", now: Date.parse("2026-11-07T01:19:55.965Z"),
 		urlsOf: (s) => ({ [s.url]: "p3c-ba-jp-news" }),
 		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
 	},
 	{
+		// 2026-11-26 活网审计 B ①：日服活动**默认源改成官方公告**（精到分钟），GameKee 降为备选。
+		// 这条 golden 仍是改造前（GameKee 标题口径）的存档；本路径改走官方公告，差异在下面
+		// `P3B_BA_JP_EVENT_OFFICIAL` 里逐字登记（已批准差异 + 反向证明）。
 		key: "baJpEvent", switched: true, id: "ba-jp", side: "event", field: "events", now: Date.parse("2026-11-07T01:19:55.965Z"),
-		urlsOf: () => ({
-			"https://www.gamekee.com/v1/wiki/entry?id=15": "p3c-ba-gamekee-tree",
-			"https://www.gamekee.com/v1/content/detail/726227": "p3c-ba-gamekee-detail-726227",
-			"https://www.gamekee.com/v1/content/detail/718684": "p3c-ba-gamekee-detail-718684"
-		}),
-		call: (t) => t.EVENT_FETCHERS["ba-jp"].default()
+		urlsOf: (s) => ({ [s.eventUrl]: "p3c-ba-jp-news" }),
+		call: (t, s) => t.EVENT_FETCHERS["ba-jp"].default(s.eventUrl, undefined, s.tz)
 	},
 	{
 		// 终末地卡池 = canmoe：页面 HTML → BannerCalendar 的 chunk → 期次数组。抓取器**倒序 + 每轮 6 路并发**
@@ -992,9 +990,23 @@ const P3B_BA_GLOBAL_DAY_WINDOW = {
 		eventDates: "10-27 00:00 ~ 11-10 23:59", eventDatesRaw: "10/27~11/10"
 	}
 };
-// golden 数组重建：把登记路径的 `raw`（ba-global 只有日期窗口）换成新口径后再逐条比。
+// ── 2026-11-26（活网审计 B ①）：ba-jp 活动默认源 GameKee → **官方公告**（精到分钟） ──────────
+// golden（改造前 = GameKee 标题口径）：`event = Start Your Engines!` / `eventDates = 10-28 00:00 ~ 11-11 00:00`
+// / `eventDatesRaw = ""`（字段缺失）、`banner = Start Your Engines！ ～永远的183号班～`（GameKee 一次返回两侧）。
+// 新值 = 官方公告 706：`Start Your Engines！ ～183号よ永遠に！～` / `10-28 19:00 ~ 11-11 10:59`
+// / raw 写官方原文 `メンテナンス後 ~ …`；`banner` 变空串是**卡池/活动解耦**的必然
+//   （官方活动抓取器只产活动字段，不再夹带 GameKee 的卡池列 —— 与其余活动路径同一形状）。
+const P3B_BA_JP_EVENT_OFFICIAL = {
+	baJpEvent: {
+		event: "Start Your Engines！ ～183号よ永遠に！～",
+		eventDates: "10-28 19:00 ~ 11-11 10:59",
+		eventDatesRaw: "メンテナンス後 ~ 2026年11月11日(水) 10:59"
+	}
+};
+// golden 数组重建：把登记路径的 `raw`（ba-global）/ `title`+`show`+`raw`（ba-jp）换成新口径后再逐条比。
 // 反向守卫会证明"重建后与旧值不同"，所以白名单不会空转。
 const p3bBaGlobalDayArr = (arr, raw) => (arr || []).map((x) => Object.assign({}, x, { raw }));
+const p3bBaJpEventOfficialArr = (arr, fix) => (arr || []).map((x) => Object.assign({}, x, { title: fix.event, show: fix.event, raw: fix.eventDatesRaw }));
 // 把"改造前"的数组重建成这一轮之后该有的样子：主条**只改 roles / show**（title / raw / ts / key / source 原样）。
 // 反向守卫：重建成与原值相同 ⇒ 说明这条登记已经烂掉（下面单独断言 old !== rebuilt）。
 const p3bStellaRoleArr = (arr, fix) => {
@@ -1150,8 +1162,11 @@ async function runP3b() {
 		// ba-global 日粒度窗口（2026-11-26）：放行 4 个窗口/原文字段（`banner` 走上面的外显名登记）
 		const baGlobalDay = P3B_BA_GLOBAL_DAY_WINDOW[p.key] || null;
 		const baGlobalFields = baGlobalDay ? Object.keys(baGlobalDay) : [];
-		check(`P3b golden（${p.key}）：12 个字符串字段与改造前逐字相同（已登记的相对表述悬停 / 活动名去尾 / 外显名去体裁尾巴 / 星塔 roles / ba-cn 活动真实窗口 / ba-global 日粒度窗口 除外）`,
-			changed.every((f) => approved.includes(f) || trimFields.includes(f) || pickFields.includes(f) || displayFields.includes(f) || winFields.includes(f) || fbFields.includes(f) || baGlobalFields.includes(f)), JSON.stringify(changed));
+		// ba-jp 活动默认源切官方公告（2026-11-26）：放行 `banner`（解耦后为空）+ 3 个活动字段
+		const baJpEv = P3B_BA_JP_EVENT_OFFICIAL[p.key] || null;
+		const baJpEvFields = baJpEv ? ["banner", "bannerDates", "event", "eventDates", "eventDatesRaw"] : [];
+		check(`P3b golden（${p.key}）：12 个字符串字段与改造前逐字相同（已登记的相对表述悬停 / 活动名去尾 / 外显名去体裁尾巴 / 星塔 roles / ba-cn 活动真实窗口 / ba-global 日粒度窗口 / ba-jp 官方活动源 除外）`,
+			changed.every((f) => approved.includes(f) || trimFields.includes(f) || pickFields.includes(f) || displayFields.includes(f) || winFields.includes(f) || fbFields.includes(f) || baGlobalFields.includes(f) || baJpEvFields.includes(f)), JSON.stringify(changed));
 		if (baGlobalDay) {
 			// ⚠️ 2026-11-26（活网审计 B ②）**已批准差异**：日粒度窗口 终点 00:00 → 23:59、补 raw。
 			// 逐字证明：新值 === 登记值；旧值 === golden 里那 4 个字段的旧读数；每个字段都真的变了。
@@ -1165,6 +1180,22 @@ async function runP3b() {
 				JSON.stringify([bad, baGlobalFields.map((f) => [f, p3bTextOf(g.rec[f]), p3bTextOf(r.rec[f])])]));
 			check(`P3b golden（${p.key}）**已批准差异**：窗口/raw 确实变了（登记没烂，不是白名单空转）`,
 				baGlobalFields.every((f) => p3bTextOf(r.rec[f]) !== p3bTextOf(g.rec[f])));
+		}
+		if (baJpEv) {
+			// ⚠️ 2026-11-26（活网审计 B ①）**已批准差异**：活动名/档期/raw 逐字与官方原文一致；
+			// `eventHover` / `eventShow` 不变（官方当期只有 1 条活动 ⇒ 悬停仍为空串）。
+			check(`P3b golden（${p.key}）**已批准差异**：活动名/档期/raw 切到官方公告逐字值`,
+				p3bTextOf(r.rec.event) === baJpEv.event
+				&& p3bTextOf(r.rec.eventDates) === baJpEv.eventDates
+				&& p3bTextOf(r.rec.eventDatesRaw) === baJpEv.eventDatesRaw,
+				JSON.stringify([p3bTextOf(r.rec.event), p3bTextOf(r.rec.eventDates), p3bTextOf(r.rec.eventDatesRaw)]));
+			check(`P3b golden（${p.key}）**已批准差异**：golden 旧值原样保留（GameKee 标题口径的存档）`,
+				p3bTextOf(g.rec.event) === "Start Your Engines!" && p3bTextOf(g.rec.eventDates) === "10-28 00:00 ~ 11-11 00:00"
+				&& p3bTextOf(g.rec.eventDatesRaw) === "");
+			check(`P3b golden（${p.key}）**已批准差异**：banner / bannerDates 由 GameKee 卡池列变成空串（活动抓取器只产活动字段）`,
+				p3bTextOf(g.rec.banner) === "Start Your Engines！ ～永远的183号班～" && p3bTextOf(r.rec.banner) === ""
+				&& p3bTextOf(g.rec.bannerDates) === "10-28 00:00 ~ 11-11 00:00" && p3bTextOf(r.rec.bannerDates) === "",
+				JSON.stringify([p3bTextOf(g.rec.banner), p3bTextOf(r.rec.banner), p3bTextOf(g.rec.bannerDates), p3bTextOf(r.rec.bannerDates)]));
 		}
 		if (umaFb) {
 			// ⚠️ 2026-11-26（活网审计 B）**已批准差异**：fallback 行（3483）不再进悬停/数组。
@@ -1241,6 +1272,7 @@ async function runP3b() {
 				: (P3B_DAY_ONLY[p.key] === true ? JSON.stringify(p3bDayArr(gArrRaw, false)) : g.array));
 		// 2026-11-26 的两张登记表：数组侧的重建（ba-global 只换 raw；ba-jp 换 title/show/raw）
 		if (baGlobalDay) gArr = JSON.stringify(p3bBaGlobalDayArr(gArrRaw, p.field === "gacha" ? baGlobalDay.bannerDatesRaw : baGlobalDay.eventDatesRaw));
+		if (baJpEv) gArr = JSON.stringify(p3bBaJpEventOfficialArr(gArrRaw, baJpEv));
 		if (umaFb) {
 			// ⚠️ 2026-11-26（活网审计 B）**已批准差异**：`events[]` 3 → 2 条，移除的**恰好**是
 			// fallback 那条（3483「10月～3月対戦レースイベント」）；其余两条逐字 / 逐键相同（key 序号也不变）。
@@ -1266,6 +1298,14 @@ async function runP3b() {
 				&& arr.every((x) => !!x.raw)
 				&& JSON.stringify(gArrRaw) !== JSON.stringify(p3bBaGlobalDayArr(gArrRaw, p.field === "gacha" ? baGlobalDay.bannerDatesRaw : baGlobalDay.eventDatesRaw)),
 				JSON.stringify([gArrRaw.map((x) => x.raw), arr.map((x) => x.raw)]));
+		}
+		if (baJpEv) {
+			// 反向守卫：golden 的 title/raw 是 GameKee 口径、新数组是官方口径，且逐字等于登记值
+			check(`P3b golden（${p.key}）**已批准差异**：\`${p.field}\` 主条换成官方活动名/raw（旧值 GameKee 口径）`,
+				gArrRaw.length === arr.length && arr.length === 1
+				&& gArrRaw[0].title === "Start Your Engines!" && gArrRaw[0].raw === ""
+				&& arr[0].title === baJpEv.event && arr[0].raw === baJpEv.eventDatesRaw,
+				JSON.stringify([gArrRaw.map((x) => [x.title, x.raw]), arr.map((x) => [x.title, x.raw])]));
 		}
 		check(`P3b golden（${p.key}）：数组非空（解析器真的直出了，而不是悄悄退回空数组）`,
 			arr.length > 0 || !!p.emptyOk, String(arr.length));
@@ -1460,6 +1500,30 @@ async function runP3b() {
 				&& curOther.every((x, i) => x.raw === (other === "gacha" ? win.bannerDatesRaw : win.eventDatesRaw)
 					&& oldOther[i].raw === "" && oldOther[i].endTs === x.endTs - DAY_LAST),
 				JSON.stringify([curOther.map((x) => x.raw), oldOther.map((x) => x.raw)]));
+			continue;
+		}
+		if (P3B_BA_JP_EVENT_OFFICIAL[p.key]) {
+			// ⚠️ 2026-11-26（活网审计 B ①）**已批准差异**：活动侧从 GameKee 标题口径换成官方公告口径。
+			// 逐条证明：条数不变（1 条）、key / source / tz 不变；`title`/`show`/`raw` 换官方逐字值；
+			// startTs 恰好 +19h（00:00 → 维护结束 19:00）、endTs 恰好 +10h59m（00:00 → 官方 10:59）。
+			// 另一侧（卡池）数组由非空变空数组：官方活动抓取器只产活动字段（卡池/活动解耦）。
+			const fix = P3B_BA_JP_EVENT_OFFICIAL[p.key];
+			const cur = r.rec[p.field] || [];
+			const curEnd = cur[0] && cur[0].endTs, oldEnd = oldArr[0] && oldArr[0].endTs;
+			check(`P3b 等价（${p.key}）**已批准差异**：活动条数 / key / source / tz 不变，title/show/raw 换官方逐字值`,
+				cur.length === 1 && oldArr.length === 1
+				&& cur[0].key === oldArr[0].key && cur[0].source === oldArr[0].source && cur[0].tz === oldArr[0].tz
+				&& cur[0].title === fix.event && cur[0].show === fix.event && cur[0].raw === fix.eventDatesRaw
+				&& oldArr[0].title === "Start Your Engines!" && oldArr[0].raw === "",
+				JSON.stringify([cur[0], oldArr[0]]));
+			check(`P3b 等价（${p.key}）**已批准差异**：startTs +19h（00:00 ⇒ 19:00）、endTs +10h59m（00:00 ⇒ 10:59）`,
+				typeof cur[0].startTs === "number" && typeof oldArr[0].startTs === "number"
+				&& cur[0].startTs === oldArr[0].startTs + 19 * 3600e3
+				&& typeof curEnd === "number" && curEnd === oldEnd + (10 * 3600e3 + 59 * 60e3),
+				JSON.stringify([cur[0].startTs, oldArr[0].startTs, curEnd, oldEnd]));
+			check(`P3b 等价（${p.key}）**已批准差异**：另一侧（${other}）数组由非空变空（活动抓取器不再夹带卡池侧）`,
+				oldOther.length > 0 && (r.rec[other] || []).length === 0,
+				JSON.stringify([oldOther.length, (r.rec[other] || []).length]));
 			continue;
 		}
 		if (p.approvedChange) {

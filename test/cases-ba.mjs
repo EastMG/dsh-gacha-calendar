@@ -734,6 +734,84 @@ export default async function run() {
 		check("反证：删掉 704（回退的那一期）⇒ 只剩未开始的 708 ⇒ null", jpNo === null, JSON.stringify(jpNo));
 	}
 
+	// ── ⑥ 2026-11-26 活网审计 B ①：ba-jp 活动默认源切到**官方公告**（精到分钟、逐字）──────────
+	// 现场（2026-11-26 实测）：活动外显「被操纵的艺术~象牙塔与不速之客~」`11-25 00:00 ~ 12-09 00:00`
+	//   —— 旧默认 GameKee 标题只写 `【11/25-12/09】`（日粒度）。官方公告 718 原文：
+	//   `▼開催期間 2026年11月25日(水) メンテナンス後 ~ 2026年12月9日(水) 10:59`；
+	//   维护公告 717 `メンテナンスのお知らせ（11/25 11:00 - 19:00予定）` ⇒ 起点 19:00（维护结束）。
+	// 夹具 `ba-jp-news-1126` = 2026-11-26 真抓（rows 只裁到 718/717/716，正文逐字未改；已登记 map.json）。
+	{
+		const NOW_1126 = Date.parse("2026-11-26T02:00:00+08:00");
+		const JP_NEWS = "https://api-web.bluearchive.jp/api/news/list?pageIndex=1&pageNum=30";
+		const map = JSON.parse(readFileSync(path.join(FIXTURES_DIR, "..", "map.json"), "utf8"));
+		const jpSrc = T.SOURCES.find((x) => x.id === "ba-jp");
+		check("ba-jp：活动默认源 = 官方公告（eventUrl = 新闻接口 / eventSource 逐字「官方公告（日文）」）",
+			!!jpSrc && jpSrc.eventUrl === JP_NEWS && jpSrc.eventSource === "官方公告（日文）",
+			JSON.stringify(jpSrc && [jpSrc.eventUrl, jpSrc.eventSource]));
+		const jpAlt = ((jpSrc && jpSrc.eventAltSources) || []).find((a) => a.fetcher === "ba-jp-gamekee");
+		check("ba-jp：GameKee 活动源仍在**备选**（设置页可切回；标识 ba-jp:gamekee 兼容旧配置 gk-jp:）",
+			!!jpAlt && jpAlt.label === "GameKee 当期活动" && (jpAlt.url || jpAlt.id) === "ba-jp:gamekee"
+			&& T.normalizeSourceId("gk-jp:") === "ba-jp:gamekee"
+			&& typeof T.EVENT_FETCHERS["ba-jp"]["ba-jp-gamekee"] === "function",
+			JSON.stringify(jpAlt));
+		check("ba-jp：官方公告夹具已登记 test/map.json（新增夹具可溯源）",
+			map[JP_NEWS] === "ba-jp-news-1126/response.txt", map[JP_NEWS]);
+
+		const runJpEvent = async (now, body) => {
+			T.setCoreEnv({
+				now: () => now,
+				transport: {
+					async fetchRaw(u) { throw new Error("unexpected-direct:" + u); },
+					// **只**挂官方新闻一条路由：默认抓取器若还转身去 GameKee，这里会抛 unexpected-url
+					async fetchViaProxy(u) { if (String(u) !== JP_NEWS) throw new Error("unexpected-url:" + u); return body; }
+				}
+			});
+			return T.EVENT_FETCHERS["ba-jp"].default(jpSrc.eventUrl, undefined, jpSrc.tz);
+		};
+		const jpEv = await runJpEvent(NOW_1126, fx("ba-jp-news-1126/response.txt"));
+		check("ba-jp：默认活动抓取器**不走 GameKee**（只给官方新闻一条路由也能出数据）", !!jpEv, JSON.stringify(jpEv));
+		check("ba-jp：活动名 = 官方原文「踊らされし芸術～象牙の塔と招かれざる客～」（逐字，含全角 ～）",
+			!!jpEv && jpEv.event === "踊らされし芸術～象牙の塔と招かれざる客～", JSON.stringify(jpEv && jpEv.event));
+		check("ba-jp：活动档期 = 11-25 19:00 ~ 12-09 10:59（起点锚维护结束 19:00，终点官方 10:59）",
+			!!jpEv && jpEv.eventDates === "11-25 19:00 ~ 12-09 10:59", JSON.stringify(jpEv && jpEv.eventDates));
+		check("ba-jp：活动 raw = 官方原文「メンテナンス後 ~ 2026年12月9日(水) 10:59」（不是字段缺失）",
+			!!jpEv && jpEv.eventDatesRaw === "メンテナンス後 ~ 2026年12月9日(水) 10:59",
+			JSON.stringify(jpEv && jpEv.eventDatesRaw));
+		check("ba-jp：绝对时刻 = 11-25 19:00 JST（UTC 10:00）/ 12-09 10:59 JST（UTC 01:59）",
+			!!jpEv && !!jpEv.events && !!jpEv.events[0]
+			&& jpEv.events[0].startTs === Date.UTC(2026, 10, 25, 10, 0)
+			&& jpEv.events[0].endTs === Date.UTC(2026, 11, 9, 1, 59),
+			JSON.stringify(jpEv && jpEv.events && jpEv.events[0]));
+		// 反向证明：删掉维护公告 717 ⇒「メンテナンス後」没有锚点 ⇒ null（不拿 00:00 顶替）
+		const noMaint = JSON.parse(fx("ba-jp-news-1126/response.txt"));
+		noMaint.data.rows = noMaint.data.rows.filter((r) => r.id !== 717);
+		const jpEvNoAnchor = await runJpEvent(NOW_1126, JSON.stringify(noMaint));
+		check("反证：删掉维护公告 717 ⇒ 起点无从锚定 ⇒ null（19:00 来自维护公告，不是 00:00 猜测）",
+			jpEvNoAnchor === null, JSON.stringify(jpEvNoAnchor));
+		// 反向证明：去掉【イベント】触发词 ⇒ 不是活动条目 ⇒ null
+		const noTag = JSON.parse(fx("ba-jp-news-1126/response.txt"));
+		const row718 = noTag.data.rows.find((r) => r.id === 718);
+		row718.summary = String(row718.summary).replace(/【イベント】/, "お知らせ");
+		row718.content = String(row718.content).replace(/【イベント】/, "お知らせ");
+		const jpEvNoTag = await runJpEvent(NOW_1126, JSON.stringify(noTag));
+		check("反证：去掉【イベント】标记 ⇒ null（活动名来自官方标题的触发词，不是整段正文）",
+			jpEvNoTag === null, JSON.stringify(jpEvNoTag));
+		// 卡池侧不动（审计确认卡池档期已正确）：同一份官方夹具的募集条目读数逐字不变
+		const jpG = await (async () => {
+			T.setCoreEnv({
+				now: () => NOW_1126,
+				transport: {
+					async fetchRaw(u) { throw new Error("unexpected-direct:" + u); },
+					async fetchViaProxy(u) { if (String(u) !== JP_NEWS) throw new Error("unexpected-url:" + u); return fx("ba-jp-news-1126/response.txt"); }
+				}
+			});
+			return T.GACHA_FETCHERS["ba-jp"](jpSrc.url, undefined, jpSrc.tz);
+		})();
+		check("ba-jp：卡池侧不受本轮改动影响（猛き狩人の先導者 / 11-25 19:00 ~ 12-09 10:59）",
+			!!jpG && jpG.banner === "猛き狩人の先導者" && jpG.bannerDates === "11-25 19:00 ~ 12-09 10:59",
+			JSON.stringify(jpG && [jpG.banner, jpG.bannerDates]));
+	}
+
 	// ── ⑦ 2026-11-26 活网审计 B ②：ba-global 日粒度窗口统一 `00:00 ~ 23:59` + 补 `*DatesRaw` ──
 	// 现场：卡池「特选招募」`11-24 00:00 ~ 12-08 00:00`、活动「恶灵松饼～奇迹的瞬间～活动复刻」同窗口，
 	//   `rawEmpty: true`。源站只有日期（GameKee 卡池表 `11月24日 ～ 12月8日`、活动标题 `【11/24～12/08】`）。
