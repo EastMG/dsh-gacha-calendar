@@ -1,0 +1,6 @@
+{
+  "url": "https://bbs-api.miyoushe.com/post/wapi/getPostFull?post_id=79602859",
+  "status": 200,
+  "capturedAt": "2026-11-25T18:08:47.874Z",
+  "trim": "2026-11-26 +08 经宿主代理真抓的详情；只留 retcode/message + data.post.post 的 post_id / subject / content（解析只读这 3 个字段）。"
+}

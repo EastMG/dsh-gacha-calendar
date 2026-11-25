@@ -1,0 +1,6 @@
+{
+  "url": "https://bbs-api.miyoushe.com/post/wapi/getForumPostList?forum_id=33&is_good=false&is_hot=false&page_size=20&sort_type=2",
+  "status": 200,
+  "capturedAt": "2026-11-25T17:53:00.000Z",
+  "trim": "2026-11-26 01:53 +08 真抓的米游社未定版块列表（_audit-A-raw/wd.gacha.0.txt）；20 条全部保留，但每条只留 post.post_id / post.subject / post.created_at（解析只读这 3 个字段，预览正文删除）。当期包含《往期复刻丨夏彦生日系列限时复刻》(79712870) 与 4 篇《岁悦同欢·夏彦篇》活动稿。"
+}

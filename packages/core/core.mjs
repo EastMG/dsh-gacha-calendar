@@ -8014,6 +8014,9 @@ EVENT_FETCHERS["bh2"] = Object.assign(EVENT_FETCHERS["bh2"] || {}, {
 //  `更新后` 的起点按全仓口径「起点未知 ≠ 已开始」：`startTs = null`，
 //    · **不进外显**（`coversNow` 要求两端都明确）⇒ 面板不会把 11-05 才开的池子当成 11-04 就在开；
 //    · **仍进悬停**（`coveredOrOpen`）⇒ 事实不丢，悬停里印源站原文「2026年11月5日更新后 ~ …」。
+//  ⚠️ 2026-11-26：悬停/数组的收口从 `coveredOrOpen` 放宽到「**终点还没过**」（`endTs >= now`）——
+//    真机里往期复刻帖的第二口池 11-27 才开（起点明确、在未来），但它与第一口池同帖、同属当期事实，
+//    旧口径会把它整条漏掉。外显仍只从"两端明确且覆盖 now"的里挑（不冒充在期）。
 //  可选锚点：同列表的「11月5日08:00停服更新公告」可以给出真实的开服时刻，但本批**刻意不强依赖**
 //  它 —— 公告有时晚发/改期，猜错比"起点未知"更糟（与无期迷途 `开服后` 同一套取舍）。
 //
@@ -8048,7 +8051,12 @@ EVENT_FETCHERS["bh2"] = Object.assign(EVENT_FETCHERS["bh2"] || {}, {
 		// 标题分流：卡池关键词优先（`雪愿相宜丨活动女神之影开启` 同时含"活动"与"女神之影"）。
 		// ⚠️ 活动词表里**不放「登录」**：本周实测列表里「部分安卓设备登录时闪退问题处理说明」
 		//    会因此被误判成活动，白白多抓一篇详情（其余词也验过：闪退/修复/更新都不含）。
-		const WD_GACHA_KW = /女神之影|概率提升|限时返场|概率UP|启示/;
+		// ⚠️ 2026-11-26（真机《往期复刻丨夏彦生日系列限时复刻》）：卡池侧补「复刻」——
+		//    该帖正文逐条列 2 个复刻角色池（四季如夏 / 予爱未名·夏彦篇），旧词表一个都不匹配
+		//    ⇒ 归为 unknown ⇒ 两张在期/即将开启的角色池完全没进卡池。
+		//    「复刻 / 往期复刻 / 生日复刻 / 限定复刻」都被这一条覆盖；**不**单独放「生日」
+		//    （「岁悦同欢·夏彦篇丨夏彦生日活动预告」是活动帖，加「生日」会把它误分到卡池）。
+		const WD_GACHA_KW = /女神之影|概率提升|限时返场|概率UP|启示|复刻/;
 		const WD_EVENT_KW = /活动|征集|赛事|签到|庆典|有奖|话题|抽奖|投票|答题|委托|福利/;
 
 		function wdDetailUrl(postId) {
@@ -8163,7 +8171,7 @@ EVENT_FETCHERS["bh2"] = Object.assign(EVENT_FETCHERS["bh2"] || {}, {
 					startText = sameYear ? fmtMdHm(startTs, tz) : fmtYmdHm(startTs, tz);
 				}
 				const endText = sameYear ? fmtMdHm(endTs, tz) : fmtYmdHm(endTs, tz);
-				out.push({ startTs, endTs, raw: `${aRaw} ~ ${bRaw}`, display: `${startText} ~ ${endText}` });
+				out.push({ startTs, endTs, raw: `${aRaw} ~ ${bRaw}`, display: `${startText} ~ ${endText}`, pos: a.start });
 			}
 			return out;
 		}
@@ -8183,6 +8191,57 @@ EVENT_FETCHERS["bh2"] = Object.assign(EVENT_FETCHERS["bh2"] || {}, {
 				out.push(n);
 			}
 			return out.join("\u3001");
+		}
+
+		// 窗口**前一行**的段名（真机两种写法）：
+		//   `一、「四季如夏」生日系列限时复刻`      → 四季如夏（往期复刻帖逐条列池）
+		//   `✨生日拼图限时活动` / `✨「岁悦同欢·夏彦篇」限时累充活动` → 生日拼图限时活动 / 岁悦同欢·夏彦篇
+		// 用途：一帖多窗口（多口复刻池）与"同名不同窗口"（同一活动名下有多个子活动）时区分条目。
+		// 取不到（窗口前那行就是时间标签自己、或空）⇒ 返回 ""（调用方退回标题名）。
+		function wdSectionNameOf(text, pos) {
+			const s = String(text == null ? "" : text);
+			const head = s.slice(Math.max(0, Number(pos) - 220), Math.max(0, Number(pos)));
+			// 窗口坐标通常正好落在「▶活动时间：」之后 ⇒ 先切掉**这个标签本身**（不能切到段落里
+			// 更早的 ※/【：真机上「※四季如夏…」这类脚注会让 lastIndexOf 选错位置）。
+			// ⚠️ 正文是 `textOf` 压平过的（`</p>` → 空格、`<br>` 才换行），所以"上一行"不可靠 ——
+			//    改为取「标签前最后一个句读之后的那一小段」。
+			const lab = head.lastIndexOf("活动时间");
+			let body = lab >= 0 ? head.slice(0, lab) : head;
+			body = body.replace(/[▶※【】：:\s]+$/, "");
+			const cut = Math.max(body.lastIndexOf("。"), body.lastIndexOf("！"), body.lastIndexOf("!"), body.lastIndexOf("\n"));
+			const clause = body.slice(cut + 1).trim();
+			if (!clause) return "";
+			// 「」出现在段名位置（`一、「四季如夏」…` / `✨「岁悦同欢·夏彦篇」…`）⇒ 取最后一个「」。
+			const alts = [...clause.matchAll(/「([^」]{1,30})」/g)];
+			if (alts.length) return alts[alts.length - 1][1].trim();
+			// 没有「」：整段就是段名（如 `✨生日拼图限时活动`）；含【】/过长 ⇒ 不是段名，退回标题名。
+			const t = clause.replace(/^[✨※●◆★☆\-*・\s]+/, "").replace(/[。！!？?：:，,、]+$/, "").trim();
+			return t && t.length <= 30 && !/[「」【】]/.test(t) ? t : "";
+		}
+
+		// 同名但**窗口不同**的两条（真机《岁悦同欢·夏彦篇》：11-24~12-02 生日拼图 / 11-27~12-07 生日活动+累充）
+		// ⇒ 数据层按"归一后同名只留第一条"判重，第二条会被吃掉。悬停/数组的条目名改用窗口前的段名
+		// （`生日拼图限时活动` / `岁悦同欢·夏彦篇`），取不到段名就保持标题名。
+		function wdUniqueRowsOf(rows) {
+			const seen = new Set();
+			const out = [];
+			for (const r of Array.isArray(rows) ? rows : []) {
+				const key = `${r.name}|${r.startTs == null ? "" : r.startTs}|${r.endTs == null ? "" : r.endTs}`;
+				if (seen.has(key)) continue;
+				seen.add(key);
+				out.push(r);
+			}
+			return out;
+		}
+		/** 一帖多窗口（往期复刻帖逐条列 2 口复刻池）：每个窗口用它前面那行的段名当池名。
+		 *  单窗口帖**一律**用标题名（真机上单窗口帖的前一行常是角色名/卡名，不是池名）。 */
+		function wdMultiWindowNamed(rows) {
+			const list = Array.isArray(rows) ? rows : [];
+			const count = {};
+			for (const r of list) count[r.postId] = (count[r.postId] || 0) + 1;
+			return list.map((r) => (count[r.postId] > 1 && r.headName
+				? Object.assign({}, r, { name: r.headName })
+				: r));
 		}
 
 		// 标题 → 名字：`轮替女神之影更新丨左然SSR【风烛引归】限时返场` → `轮替女神之影`
@@ -8213,8 +8272,18 @@ EVENT_FETCHERS["bh2"] = Object.assign(EVENT_FETCHERS["bh2"] || {}, {
 				const text = textOf(d.content || "");
 				const subject = d.subject || it.subject;
 				const name = wdNameOf(subject);
-				const roles = wdRolesOf(text);
-				for (const w of wdWindowsOf(text, tz)) rows.push({ ...w, subject, name, roles, postId: d.postId });
+				const wins = wdWindowsOf(text, tz);
+				const rolesAll = wdRolesOf(text);
+				for (let i = 0; i < wins.length; i++) {
+					const w = wins[i];
+					// `headName` = 该窗口前那一段的段名（一帖多池 / 同名多窗口时用来区分条目）。
+					// 一帖多窗口时角色也按**该窗口自己的正文段**取（往期复刻帖：四季如夏 = 微醺视线/最佳拍档，
+					// 予爱未名 = 鸥字回时/妄夜之魇…），单窗口帖仍用全文抽取（行为不变）。
+					const segEnd = i + 1 < wins.length ? wins[i + 1].pos : text.length;
+					const segStart = i === 0 ? 0 : w.pos;
+					const roles = wins.length > 1 ? wdRolesOf(text.slice(segStart, segEnd)) : rolesAll;
+					rows.push({ ...w, subject, name, headName: wdSectionNameOf(text, w.pos), roles, postId: d.postId });
+				}
 			}
 			// 一篇都没拿到、且出现过硬错（403 / 567 / 坏 JSON）⇒ 抛出去（别把封禁静默成未公布）
 			if (okCount === 0) {
@@ -8226,15 +8295,22 @@ EVENT_FETCHERS["bh2"] = Object.assign(EVENT_FETCHERS["bh2"] || {}, {
 
 		async function fetchWdGacha(url, signal, tz = WD_TZ) {
 			const at = nowMs();
-			const rows = await wdCollectSide(url, signal, tz, "gacha");
+			// 一帖多池（真机《往期复刻》帖逐条列 2 口复刻池）：每口池用它前面那行的段名；
+			// 单窗口帖行为不变（前一行常是角色名/卡名，不是池名）。
+			const rows = wdMultiWindowNamed(await wdCollectSide(url, signal, tz, "gacha"));
 			if (!rows || rows.length === 0) return null;
 			// 外显：两端都明确且覆盖 now（起点未知的池**不**进外显）
 			const live = rows.filter((r) => coversNow(r, at));
 			if (live.length === 0) return null;
 			live.sort((a, b) => (a.endTs - b.endTs) || ((a.startTs == null ? Infinity : a.startTs) - (b.startTs == null ? Infinity : b.startTs)));
 			const first = live[0];
-			// 悬停：在期 ∪ 起点未知但终点未过（全仓口径，见文件头）
-			const hoverItems = rows.filter((r) => coveredOrOpen(r, at)).sort(poolHoverOrderOf).map((r) => {
+			// 悬停/数组：**终点还没过**的全部窗口 —— 在期 ∪ 起点未知但终点未过 ∪ **即将开启**。
+			// ⚠️ 2026-11-26：原先只认 `coveredOrOpen`（把"起点明确但在未来"的排除），真机里
+			//    往期复刻帖的第二口池 11-27 才开，但它与第一口池同帖、同属当期事实 ⇒ 悬停/数组要收；
+			//    外显仍只从"两端明确且覆盖 now"的里挑（不冒充在期）。同名同窗口只留一条。
+			const hoverRows = wdUniqueRowsOf(rows.filter((r) => r.endTs != null && r.endTs >= at))
+				.sort((a, b) => (a.endTs - b.endTs) || ((a.startTs == null ? Infinity : a.startTs) - (b.startTs == null ? Infinity : b.startTs)));
+			const hoverItems = hoverRows.map((r) => {
 				const label = r.roles ? `${r.name}\uFF1A${r.roles}` : r.name;
 				return { title: label, label, startTs: r.startTs, endTs: r.endTs, raw: r.raw };
 			});
@@ -8255,15 +8331,20 @@ EVENT_FETCHERS["bh2"] = Object.assign(EVENT_FETCHERS["bh2"] || {}, {
 
 		async function fetchWdEvents(url, signal, tz = WD_TZ) {
 			const at = nowMs();
-			const rows = await wdCollectSide(url, signal, tz, "event");
-			if (!rows || rows.length === 0) return null;
+			// 条目名改用窗口前那一行的段名（真机：《岁悦同欢·夏彦篇》名下有两个子活动 ——
+			// 11-24~12-02 生日拼图 / 11-27~12-07 生日活动+累充；不区分的话数据层"同名只留第一条"
+			// 会把第二个窗口吃掉；取不到段名就保持标题名）。
+			const base = await wdCollectSide(url, signal, tz, "event");
+			const rows = (base || []).map((r) => (r.headName ? Object.assign({}, r, { name: r.headName }) : r));
+			if (rows.length === 0) return null;
 			const live = rows.filter((r) => coversNow(r, at));
 			if (live.length === 0) return null;
 			live.sort((a, b) => (a.endTs - b.endTs) || ((a.startTs == null ? Infinity : a.startTs) - (b.startTs == null ? Infinity : b.startTs)));
 			const first = live[0];
-			const hoverItems = rows.filter((r) => coveredOrOpen(r, at))
-				.sort((a, b) => (a.endTs - b.endTs) || ((a.startTs == null ? Infinity : a.startTs) - (b.startTs == null ? Infinity : b.startTs)))
-				.map((r) => ({ title: r.name, startTs: r.startTs, endTs: r.endTs, raw: r.raw }));
+			// 悬停/数组：终点还没过的全部窗口（在期 ∪ 起点未知但终点未过 ∪ 即将开启；同名同窗口只留一条）
+			const hoverRows = wdUniqueRowsOf(rows.filter((r) => r.endTs != null && r.endTs >= at))
+				.sort((a, b) => (a.endTs - b.endTs) || ((a.startTs == null ? Infinity : a.startTs) - (b.startTs == null ? Infinity : b.startTs)));
+			const hoverItems = hoverRows.map((r) => ({ title: r.name, startTs: r.startTs, endTs: r.endTs, raw: r.raw }));
 			const hover = hoverTextFromItems(hoverItems, "event", tz);
 			const out = {
 				event: first.name,

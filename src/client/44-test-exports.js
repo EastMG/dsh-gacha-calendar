@@ -117,6 +117,8 @@
 				wdParseList,
 				wdPointsOf,
 				wdRolesOf,
+				wdSectionNameOf,
+				wdUniqueRowsOf,
 				wdWindowsOf,
 			},
 			// 2026-11-09 晚：时空中的绘旅人（官网 hlr.163.com）—— 同上，另导出跨年补年所需的纯函数。

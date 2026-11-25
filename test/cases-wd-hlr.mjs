@@ -525,4 +525,120 @@ export default async function runWdHlr() {
 			!callsStop.some((c) => c.u === U2) && !!evStop && evStop.event === "缱绻假日·世纪来电",
 			JSON.stringify(callsStop.map((c) => c.u.replace("https://hlr.163.com", ""))));
 	}
+
+	// ─────────────────────⑪ 2026-11-26 真机：往期复刻 2 口生日池 / 一帖多池 / 同名不同窗口 ─────────────────────
+	// 现场（_audit-A-raw/wd.gacha.0.txt + wd.extra.79712870.txt，2026-11-26 01:53 +08 真抓）：
+	//   · 《往期复刻丨夏彦生日系列限时复刻》一帖逐条列 **2 口复刻角色池**：
+	//       一、「四季如夏」生日系列限时复刻      ▶2026年11月24日11:00-11月27日04:00（在期）
+	//       二、「予爱未名·夏彦篇」生日系列限时复刻 ▶2026年11月27日11:00-12月2日04:00（即将开启）
+	//     旧实现：标题不含卡池关键词 ⇒ 归 unknown ⇒ 两张池**完全没进卡池**。
+	//   · 活动侧源站有 **2 个不同窗口**：11-24~12-02（生日拼图）/ 11-27~12-07（生日活动+累充）。
+	//     旧实现：① 起点在未来的窗口不进悬停/数组（`coveredOrOpen`）；② 两条同名
+	//     （都叫「岁悦同欢·夏彦篇」）会被数据层"归一后同名只留第一条"吃掉 ⇒ 只出 1 条。
+	// 夹具：wd-miyoushe-1126（列表 20 条，只留 post_id/subject/created_at）+ 8 篇详情
+	//       `wd-miyoushe-detail-1126-<post_id>`（真抓；只留 post_id/subject/content）。
+	//       URL 与 11-09 的旧夹具相同 ⇒ 按仓库既有做法用 fixtureBody 显式 override（不覆盖 map.json）。
+	section("未定事件簿 ⑪：2026-11-26 真机（往期复刻 2 口生日池 / 一帖多池 / 同名不同窗口）");
+	{
+		const NOW1126 = Date.parse("2026-11-26T01:53:00+08:00");
+		const LIST_1126 = fixtureBody("fixture:wd-miyoushe-1126",
+			{ "fixture:wd-miyoushe-1126": "wd-miyoushe-1126/response.txt" });
+		const DETAIL_IDS = ["79712870", "79516881", "79602859", "79748340", "79731483", "79731084", "79711880", "79627696"];
+		const DETAILS = {};
+		for (const id of DETAIL_IDS) {
+			DETAILS[id] = fixtureBody("fixture:wd-detail-1126-" + id,
+				{ ["fixture:wd-detail-1126-" + id]: "wd-miyoushe-detail-1126-" + id + "/response.txt" });
+		}
+		const transport1126 = {
+			async fetchRaw(u) { throw new Error("直连不该被用到：" + u); },
+			async fetchViaProxy(u) {
+				const url = String(u);
+				if (url === WD.WD_LIST_URL) return LIST_1126;
+				const m = /getPostFull\?post_id=(\d+)/.exec(url);
+				if (m && DETAILS[m[1]] != null) return DETAILS[m[1]];
+				throw new Error("http-404");
+			}
+		};
+		const e1126 = createEngine({
+			transport: transport1126, storage: makeStore(), now: () => NOW1126, timer: { setTimeout, clearTimeout }
+		});
+		const s = e1126.__test.SOURCES.find((x) => x.id === "wd");
+
+		// ① 分类词表（卡池 +「复刻」/ 活动帖不被误分到卡池）
+		check("标题分流：《往期复刻丨夏彦生日系列限时复刻》现在算**卡池帖**（词表补「复刻」）；《…夏彦生日活动预告》仍算活动",
+			WD.wdClassify("往期复刻丨夏彦生日系列限时复刻") === "gacha"
+			&& WD.wdClassify("岁悦同欢·夏彦篇丨夏彦生日活动预告") === "event");
+		check("反向证明：旧卡池词表（无「复刻」）认不出这条 ⇒ unknown —— 正是「两张池完全没进卡池」的原因",
+			/女神之影|概率提升|限时返场|概率UP|启示/.test("往期复刻丨夏彦生日系列限时复刻") === false);
+
+		// ② 一帖两窗口 + 每口池用自己的段名（不编池名）
+		const revText = T.textOf(JSON.parse(DETAILS["79712870"]).data.post.post.content);
+		const revWins = WD.wdWindowsOf(revText, TZ_CN);
+		check("《往期复刻》正文里确实有 2 个窗口（11-24~11-27 / 11-27~12-02，同一帖）",
+			revWins.length === 2
+			&& revWins[0].raw === "2026年11月24日11:00 ~ 11月27日04:00"
+			&& revWins[1].raw === "2026年11月27日11:00 ~ 12月2日04:00",
+			JSON.stringify(revWins.map((w) => w.raw)));
+		check("段名（窗口前那一段）逐字：四季如夏 / 予爱未名·夏彦篇（源站原文，不是标题「往期复刻」）",
+			WD.wdSectionNameOf(revText, revWins[0].pos) === "四季如夏"
+			&& WD.wdSectionNameOf(revText, revWins[1].pos) === "予爱未名·夏彦篇"
+			&& WD.wdNameOf("往期复刻丨夏彦生日系列限时复刻") === "往期复刻",
+			JSON.stringify([WD.wdSectionNameOf(revText, revWins[0].pos), WD.wdSectionNameOf(revText, revWins[1].pos)]));
+
+		// ③ 卡池端到端：2 口生日池都在（1 在期 + 1 即将开启），外显 = 在期且结束最早的那口
+		const g = await e1126.__test.GACHA_FETCHERS["wd"](s.url, undefined, s.tz);
+		check("卡池外显 = 四季如夏（在期且结束最早）/ 角色 = 微醺视线、最佳拍档（该池自己那段正文的思绪名）",
+			!!g && g.banner === "四季如夏" && g.roles === "微醺视线、最佳拍档"
+			&& g.bannerDates === "11-24 11:00 ~ 11-27 04:00"
+			&& g.bannerDatesRaw === "2026年11月24日11:00 ~ 11月27日04:00",
+			JSON.stringify(g && [g.banner, g.roles, g.bannerDates, g.bannerDatesRaw]));
+		check("卡池 `gacha[]` = 3 条：四季如夏（主条）+ 轮替女神之影 + **予爱未名·夏彦篇**（11-27 才开，仍属当期事实）",
+			!!g && g.gacha.length === 3
+			&& g.gacha[0].title === "四季如夏" && g.gacha[0].source === "primary"
+			&& g.gacha.some((x) => x.title.indexOf("轮替女神之影：") === 0)
+			&& g.gacha.some((x) => x.title.indexOf("予爱未名·夏彦篇：") === 0
+				&& x.startTs === Date.UTC(2026, 10, 27, 3, 0) && x.endTs === Date.UTC(2026, 11, 1, 20, 0)),
+			JSON.stringify(g && g.gacha.map((x) => [x.title, x.startTs, x.source])));
+		check("卡池悬停逐字 3 口池（每口「池名：角色 ⏎ 档期」，结束时间升序）",
+			!!g && g.bannerHover === [
+				"四季如夏：微醺视线、最佳拍档",
+				"11-24 11:00 ~ 11-27 04:00",
+				"轮替女神之影：星如晤、冷暖心知、水“逆”、眸中景",
+				"11-13 11:00 ~ 11-27 11:00",
+				"予爱未名·夏彦篇：鸥字回时、妄夜之魇、微醺视线、最佳拍档",
+				"11-27 11:00 ~ 12-02 04:00"
+			].join("\n"), JSON.stringify(g && g.bannerHover));
+		if (g && g.bannerHover) assertHoverConvention("wd 1126 卡池", g.bannerHover, { requireSet: true });
+		check("反向证明：已结束的《苦昼长》池（11-17~11-24）**不进** gacha[]（窗口终点已过 ⇒ 不当当期事实）",
+			!!g && g.gacha.every((x) => String(x.title).indexOf("苦昼长") < 0));
+
+		// ④ 活动端到端：2 个不同窗口都在
+		const ev = await e1126.__test.EVENT_FETCHERS["wd"].default(s.eventUrl, undefined, s.tz);
+		check("活动外显 = 生日拼图限时活动 / 11-24 11:00 ~ 12-02 04:00（覆盖 now 的那条）",
+			!!ev && ev.event === "生日拼图限时活动" && ev.eventDates === "11-24 11:00 ~ 12-02 04:00"
+			&& ev.eventDatesRaw === "2026年11月24日11:00 ~ 12月2日04:00",
+			JSON.stringify(ev && [ev.event, ev.eventDates, ev.eventDatesRaw]));
+		check("活动 `events[]` = 2 条：11-24~12-02（生日拼图）+ 11-27~12-07（岁悦同欢·夏彦篇，即将开启）",
+			!!ev && ev.events.length === 2
+			&& ev.events[0].title === "生日拼图限时活动"
+			&& ev.events[0].startTs === Date.UTC(2026, 10, 24, 3, 0) && ev.events[0].endTs === Date.UTC(2026, 11, 1, 20, 0)
+			&& ev.events[1].title === "岁悦同欢·夏彦篇"
+			&& ev.events[1].startTs === Date.UTC(2026, 10, 27, 3, 0) && ev.events[1].endTs === Date.UTC(2026, 11, 6, 20, 0),
+			JSON.stringify(ev && ev.events.map((x) => [x.title, x.startTs, x.endTs])));
+		check("活动悬停逐字 2 行（同名不同窗口已用段名区分）",
+			!!ev && ev.eventHover === "生日拼图限时活动   11-24 11:00 ~ 12-02 04:00\n岁悦同欢·夏彦篇   11-27 11:00 ~ 12-07 04:00",
+			JSON.stringify(ev && ev.eventHover));
+		if (ev && ev.eventHover) assertHoverConvention("wd 1126 活动", ev.eventHover, { requireSet: true });
+		// 反向证明：若两条仍叫同一个名字，数据层的"归一后同名只留第一条"会把第二个窗口吃掉
+		const twoItems = ev ? ev.eventHoverItems : [];
+		const forced = twoItems.map((x) => Object.assign({}, x, { title: "岁悦同欢·夏彦篇" }));
+		const forcedPayload = { event: "岁悦同欢·夏彦篇", eventDates: "11-24 11:00 ~ 12-02 04:00", eventDatesRaw: "2026年11月24日11:00 ~ 12月2日04:00" };
+		check("反向证明：两条**同名**（不同窗口）时数组只剩 1 条；改用段名后 2 条（主条 + 另一个窗口）——段名区分是必需的",
+			T.dataArrayProducedEventsOf(forcedPayload, forced, { id: "wd", tz: TZ_CN }, NOW1126).length === 1
+			&& T.dataArrayProducedEventsOf(forcedPayload, twoItems, { id: "wd", tz: TZ_CN }, NOW1126).length === 2,
+			JSON.stringify([
+				T.dataArrayProducedEventsOf(forcedPayload, forced, { id: "wd", tz: TZ_CN }, NOW1126).length,
+				T.dataArrayProducedEventsOf(forcedPayload, twoItems, { id: "wd", tz: TZ_CN }, NOW1126).length
+			]));
+	}
 }
