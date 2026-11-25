@@ -208,7 +208,14 @@ async function ns_bwiki_gachaBjhl(url, signal, tz = BJHL_TZ, now) {
 	// 而 `ns_bwiki_gachaPayload` 会把**所有**在期池的角色并到外显那口池上 ——
 	// 实测 2026-11-15：外显「常态共鸣·昊苍」，角色却被填成另一口定向共鸣池的 4 个角色。
 	// 这一版只合并**与外显池同批（endTs 相同）**的池：卡池整批换，同一结束时刻就是同一批。
-	return ns_bwiki_batchGachaPayloadOf(items, tz, ns_bwiki_nowOf(now), { id: "bjhl" });
+	//
+	// ⚠️ 2026-11-26（活网审计 B）：`extrasStrictTitle` 必须开 —— 三池同批（2026-11-26 实测：
+	//   `常态共鸣·红珠小姐` 11-19~12-03 / `去往彼岸` 11-05~12-03 / `启明潜航…` 11-05~12-03，
+	//   后两口同 start/end）。批次合并把 `去往彼岸` 的 4 个角色并进外显 `roles`，`main.show`
+	//   于是 == 那条悬停行的角色后缀 ⇒ 并列条判据把「去往彼岸」当成外显行的重复整条并掉
+	//   （悬停 3 池、`gacha[]` 只有 2 条）。开这个开关后判据只认「前缀 = 主条标题」的整段包裹，
+	//   另一个池（前缀是它自己的池名）不再被误并 —— 数组与悬停逐条对齐（key 仍按自然顺序重发）。
+	return ns_bwiki_batchGachaPayloadOf(items, tz, ns_bwiki_nowOf(now), { id: "bjhl", extrasStrictTitle: true });
 }
 // 活动侧：`|offset=` 续页（SMW 单页 500 行）。当前 55 行 ⇒ 恒 1 个请求；超过才发第 2 个。
 // ⚠️ 续页用 `ns_bwiki_bjhlEventsUrlOf(offset)` 这条**规范地址**（offset 夹在编码过的 query 串里，

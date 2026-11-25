@@ -5544,7 +5544,14 @@ function ns_bwiki_batchGachaPayloadOf(items, tz, now, opts) {
 		...(hover ? { bannerHover: hover } : {}),
 		...(Object.keys(facts).length ? { itemFacts: facts } : {})
 	};
-	out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id: o.id || "", tz }, now);
+	out.gacha = dataArrayProducedGachaOf(out, hoverItems, {
+		id: o.id || "",
+		tz,
+		// 见 `dataArrayExtrasFromEntriesOf` ③：批次合并角色表后，若某口池的「池名：角色表」
+		// 尾部恰好等于主条的 `show`（= 合并角色表），旧判据会把另一个池整条并掉。
+		// 白荆回廊显式开这个开关（只按「池名前缀 = 主条标题」认同一口池），其余来源逐字不变。
+		extrasStrictTitle: o.extrasStrictTitle === true
+	}, now);
 	out.gachaHoverItems = hoverItems;
 	return out;
 }
@@ -24888,7 +24895,14 @@ async function ns_bwiki_gachaBjhl(url, signal, tz = BJHL_TZ, now) {
 	// 而 `ns_bwiki_gachaPayload` 会把**所有**在期池的角色并到外显那口池上 ——
 	// 实测 2026-11-15：外显「常态共鸣·昊苍」，角色却被填成另一口定向共鸣池的 4 个角色。
 	// 这一版只合并**与外显池同批（endTs 相同）**的池：卡池整批换，同一结束时刻就是同一批。
-	return ns_bwiki_batchGachaPayloadOf(items, tz, ns_bwiki_nowOf(now), { id: "bjhl" });
+	//
+	// ⚠️ 2026-11-26（活网审计 B）：`extrasStrictTitle` 必须开 —— 三池同批（2026-11-26 实测：
+	//   `常态共鸣·红珠小姐` 11-19~12-03 / `去往彼岸` 11-05~12-03 / `启明潜航…` 11-05~12-03，
+	//   后两口同 start/end）。批次合并把 `去往彼岸` 的 4 个角色并进外显 `roles`，`main.show`
+	//   于是 == 那条悬停行的角色后缀 ⇒ 并列条判据把「去往彼岸」当成外显行的重复整条并掉
+	//   （悬停 3 池、`gacha[]` 只有 2 条）。开这个开关后判据只认「前缀 = 主条标题」的整段包裹，
+	//   另一个池（前缀是它自己的池名）不再被误并 —— 数组与悬停逐条对齐（key 仍按自然顺序重发）。
+	return ns_bwiki_batchGachaPayloadOf(items, tz, ns_bwiki_nowOf(now), { id: "bjhl", extrasStrictTitle: true });
 }
 // 活动侧：`|offset=` 续页（SMW 单页 500 行）。当前 55 行 ⇒ 恒 1 个请求；超过才发第 2 个。
 // ⚠️ 续页用 `ns_bwiki_bjhlEventsUrlOf(offset)` 这条**规范地址**（offset 夹在编码过的 query 串里，
@@ -30508,10 +30522,20 @@ async function ns_biligame_announce_eventsDdlezjTopic(url, signal, tz = ns_bilig
 				if (main) {
 					if (title === main.title) continue;
 					if (main.show && title === main.show) continue;
+					// ③「池名：显示名」这种**整段包裹**写法 = 同一口池的另一行（历史 `scheduleHoverOnes` 判据）。
+					//    ⚠️ 2026-11-26（活网审计 B / bjhl）：后缀命中**默认仍按旧口径**（uma-cn 的
+					//    「精选招募开放期间：<角色>」这类"期间"行靠它留在悬停、不进数组，是要的）。
+					//    但有的来源（白荆回廊）批次合并角色表后 `main.show` = 另一口池的角色表，
+					//    后缀命中会把**另一个池**误并掉 ⇒ 那条来源显式开 `extrasStrictTitle`
+					//    （要求前缀 = 主条标题才算同池；见 bwiki 批次载荷的 opts）。
 					const t = DATA_ARRAY_LABEL(title);
 					if (shown && t && t !== shown) {
 						const tail = t.lastIndexOf("\uFF1A" + shown);
-						if (t.indexOf(shown + "\uFF1A") === 0 || (tail >= 0 && tail === t.length - shown.length - 1)) continue;
+						const head = t.indexOf("\uFF1A") > 0 ? t.slice(0, t.indexOf("\uFF1A")) : "";
+						const mainTitle = DATA_ARRAY_LABEL(main.title);
+						const tailHit = tail >= 0 && tail === t.length - shown.length - 1
+							&& (!o.extrasStrictTitle || (head !== "" && head === mainTitle));
+						if (t.indexOf(shown + "\uFF1A") === 0 || tailHit) continue;
 					}
 				}
 				// ⚠️ P5 清理（2026-11-08）：原来这里是 `dataArrayTextOf(x.win) || hoverWindowTextOf(x, o.tz)`
@@ -30722,10 +30746,13 @@ async function ns_biligame_announce_eventsDdlezjTopic(url, signal, tz = ns_bilig
 		function dataArrayProducedGachaOf(payload, entries, meta, now) {
 			const id = (meta && meta.id) || "";
 			const tz = (meta && meta.tz) || "";
+			// `extrasStrictTitle`：并列条"同一口池"判据是否要求标题前缀 = 主条标题（默认关，见
+			//   `dataArrayExtrasFromEntriesOf` ③ 的说明；目前只有白荆回廊开）。
+			const extrasStrictTitle = !!(meta && meta.extrasStrictTitle === true);
 			const main = dataArrayGachaMainOf(payload, id, tz, now);
 			if (!main) return [];
 			const facts = dataArrayFactsOf(payload);
-			const extras = dataArrayExtrasFromEntriesOf(entries, main, now, { kind: "gacha", tz });
+			const extras = dataArrayExtrasFromEntriesOf(entries, main, now, { kind: "gacha", tz, extrasStrictTitle });
 			return dataArrayProducedListOf([main].concat(extras)
 				.map((x) => dataArrayAttachFactsOf(x, facts))
 				.map((x) => dataArrayProducedItemOf(x, "gacha")), id + ":gacha");
