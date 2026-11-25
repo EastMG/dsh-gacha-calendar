@@ -58,6 +58,7 @@ import runBatch6 from "./cases-batch6.mjs";
 import runOnGlobalSpica from "./cases-ournotes-global-spica.mjs";
 import runBomHook from "./cases-bom-hook.mjs";
 import runDisplayName from "./cases-display-name.mjs";
+import runWuwa20261126 from "./cases-wuwa-20261126.mjs";
 
 const LIVE = process.argv.includes("--live");
 
@@ -132,8 +133,10 @@ section("夹具卫生");
 	// 2026-11-15 再 +1：公主连结·日服（`pcr-jp-*`：microCMS 列表 1 份 + 5 篇详情 JSON）。
 	// 2026-11-15 再接：闪耀暖暖·国服（`nikki4-*`）/
 	// アイドルマスター系列 5 款（`imas-*`：每款月份页的 table 裁剪；学マス两份 = 当月 + 上一月）。
+	// 2026-11-26：活网审计 A 的两款修复夹具（`wuwa-*`：鸣潮官方公告 11-26 快照 entrypoint + zh-Hans；
+	// `cytq-*` 前缀本来就在清单里）。前缀按来源 id 取名，一眼能看出属于哪一条。
 	check("夹具命名带批次前缀（便于溯源）",
-		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights|wqmt|pengpeng|wd|hlr|bh3|spica|czn|bjhl|yys|dhmmr|bh2|yslz|wxnn|cytq|hl|pcr-tw|reso|tof|gachaparty|gbf|kancolle|pcr-jp|longhun|nikki4|imas|bd2|b5)/.test(f)),
+		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights|wqmt|pengpeng|wd|hlr|bh3|spica|czn|bjhl|yys|dhmmr|bh2|yslz|wxnn|cytq|hl|pcr-tw|reso|tof|gachaparty|gbf|kancolle|pcr-jp|longhun|nikki4|imas|bd2|b5|wuwa)/.test(f)),
 	);
 }
 //#endregion
@@ -187,7 +190,8 @@ const batches = [
 	["BOM 守卫（钩子扫描改 Node：三平台一致 + 字面量修复命令 + setup:hooks 跨平台）", runBomHook],
 	["第五批第三方来源（棕色尘埃2 browndust2：bannerhistory.app 的 RSC flight 负载 `rows[].groups[]` —— 池名 + 角色 + 绝对毫秒起止；只有卡池侧、24h 缓存）", runBatch5],
 	["第五批新来源（2 款 bwiki：粉碎狂热 / 怪物弹珠；SMW ask + Data JSON + 活动日历 CALENDAR_DATA）", runBatch6],
-	["外显名（banner / event）：① 源站体裁尾巴归一（白名单 + 剥完 ≥3 码点保护）/ ② 泛名让位 / ③ 超长截断", runDisplayName]
+	["外显名（banner / event）：① 源站体裁尾巴归一（白名单 + 剥完 ≥3 码点保护）/ ② 泛名让位 / ③ 超长截断", runDisplayName],
+	["2026-11-26 鸣潮（活网审计 A）：活动 tag 口径失效 + 「角色忆旅唤取」池被过滤", runWuwa20261126]
 ];
 const before = counts();
 for (const [label, fn] of batches) {

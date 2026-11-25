@@ -1,4 +1,6 @@
 {
+  "https://aki-gm-resources-back.aki-game.com/gamenotice/G152/76402e5b20be2c39f095a152090afddc/entrypoint.json": "wuwa-notice-entry-20261126/response.txt",
+  "https://aki-gm-resources-back.aki-game.com/gamenotice/G152/76402e5b20be2c39f095a152090afddc/zh-Hans.json": "wuwa-notice-zhhans-20261126/response.txt",
   "https://p5x.wanmei.com/news/gamenews/index.html": "p5x-list/response.txt",
   "https://p5x.wanmei.com/news/gamenews/20260924/264338.html": "p5x-detail/response.txt",
   "https://api.umapyoi.net/api/v1/gacha": "b1-umapyoi-gacha/response.txt",
