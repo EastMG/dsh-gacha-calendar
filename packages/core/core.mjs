@@ -12578,6 +12578,8 @@ EVENT_FETCHERS["pcr-jp"] = Object.assign(EVENT_FETCHERS["pcr-jp"] || {}, {
 //   档期写法（实测 9 篇，逐篇一致）：
 //     `■精選轉蛋舉辦期間` ⏎ `2026/11/04 16:00 ～ 2026/11/16 15:59`
 //     **整行只有一个日期区间**（两端都带 4 位年 + 时分），前面紧邻一行 `■…期間` 就是它的名字。
+//     ⚠️ 时分**偶尔漏冒号**（2026-11-26 活网审计 B 实测 4119：`2026/11/16 1600 ～ 2026/12/01 15:59`）
+//        ⇒ 区间正则同时认 `HH:MM` 与四位 `HHMM`（`1600` ⇒ 16:00；见 `ns_pcr_TW_RANGE_RE` 注释）。
 //     实测的四种 `■` 标签：`精選轉蛋舉辦期間` / `第10次精選角色出現率3倍轉蛋舉辦期間` /
 //     `公主祭典轉蛋舉辦期間` / `附贈大師碎片的★3必中白金轉蛋舉辦期間` / `舉辦期間` / `活動期間` / `販售期間`。
 //     ⇒ 名字取 `■` 那行去掉尾缀（`舉辦期間`/`活動期間`/`販售期間`/`期間`）；`舉辦|活動|販售` 这种
@@ -12596,14 +12598,18 @@ EVENT_FETCHERS["pcr-jp"] = Object.assign(EVENT_FETCHERS["pcr-jp"] || {}, {
 // ── ③ 请求预算（用户口径：按页前进 + N 条详情，详情按 id 缓存 TTL 24h）──────────────────
 //   每侧：page 1 → 解析不出「覆盖 now 的窗口」→ page 2 → page 3（上限 `ns_pcr_TW_MAX_LIST_PAGES` = 3），
 //        某页能产出有效载荷就停；三页都没有 ⇒ `null`（nomatch，不抛）。
-//   · 每侧每页最多 2 篇详情（`ns_pcr_TW_MAX_DETAILS`），候选 = 该页该侧按 (公告日期升序, 站点原序) 的前 2 条；
-//   · **列表按 (url, page) 缓存到本轮刷新**（`fetchRoundSeqOf` + 轮内 Promise，`ns_pcr_tw_listCache` 是 Map）
+//   · 每侧每页的详情数（2026-11-26 活网审计 B 起）：
+//       - **卡池侧 = 该页全部【轉蛋】公告**（`ns_pcr_TW_PAGE_SIZE` = 10 = 源站一页的条数）——
+//         同批 3 个池照源站同日连发，固定 2 篇会把主池/第三池挤掉（bug 现场）；
+//       - **活动侧 = 2 篇**（`ns_pcr_TW_MAX_DETAILS`；按公告日期从早到晚取，已够覆盖当期）。
+//   · 列表按 (url, page) 缓存到本轮刷新（`fetchRoundSeqOf` + 轮内 Promise，`ns_pcr_tw_listCache` 是 Map）
 //     —— 两侧共用同一页的列表请求；轮外（设置页「测试来源」/ 离线用例直调）一律现取；
 //   · 详情按 id 缓存 24h（跨轮、跨页共用；某页没命中而被翻过去的详情也算白拿到的结论，不重复取）。
 //   ⇒ 稳态（page 1 就能出）= 列表 1 次；page 1 miss 才多花 1~2 次列表请求（2026-11-15 19:16 实测：
 //      page 1 miss 卡池 → page 2 命中 ⇒ 列表 2 次 + 详情 6 次 = 8 次，见 ⑤）。
 //   ⚠️ 每侧 2 篇/页够不够：**单看一页的最新 2 篇是不够的**（11-15 那批全是 11-16 才开的预告）；
 //      页内从早到晚取 + 按页前进，才能在第 2 页把 4106《精選轉蛋》与 4107（同批、同窗口）一起取到。
+//      ⇒ 卡池侧同时放宽到"该页全部【轉蛋】"（2026-11-26：4119/4120/4121 三池同批，取 2 篇会漏 4121）。
 //
 // ── ④ 失败语义（与全仓一致）──────────────────────────────────────────────────────
 //   · HTTP 非 2xx ⇒ 抛（`fetchText` 自己抛 `http-…`）；
@@ -12632,9 +12638,16 @@ const ns_pcr_TW_HOME = "https://www.princessconnect.so-net.tw/";
 const ns_pcr_TW_LIST_URL = "https://www.princessconnect.so-net.tw/news?page=1";
 const ns_pcr_TW_DETAIL_BASE = "https://www.princessconnect.so-net.tw/news/newsDetail/";
 const ns_pcr_TW_SOURCE_LABEL = "官网公告";
-// 每侧最多取几篇详情（见文件头 ③）
+// 每侧最多取几篇详情（见文件头 ③）——**活动侧**用的是这个上限（卡池侧见 `ns_pcr_TW_PAGE_SIZE`）
 const ns_pcr_TW_MAX_DETAILS = 2;
+// 源站列表一页固定 10 条（2026-11-15 / 11-26 实测）。**卡池侧按页取"该页全部【轉蛋】"**：
+//   实测同批 3 个池（精選轉蛋 / ★3必中白金 / 自選獎勵）在同一天连着发 3 篇公告，
+//   每页只取 2 篇会把主池（4119）或第三池（4121）挤掉 ⇒ 上限直接用"一整页"（10），
+//   这个数来自源站分页字段本身，不是拍脑袋的常量。活动侧不需要（按日期从早到晚取 2 篇已够）。
+const ns_pcr_TW_PAGE_SIZE = 10;
 // 列表最多翻到第几页（见文件头 ③：1 → 2 → 3 顺序前进，某页命中即停）
+// 为什么是 3：一页 10 条 ≈ 5~8 天（源站日均 2~4 条）⇒ 3 页 ≈ 15~24 天 ≥ 池期上限（约 15 天）。
+// 2026-11-26 实测当期 3 池在 page 2（page 1 全是活动/系统公告）⇒ 1 页 miss 后第 2 页命中，实测够用。
 const ns_pcr_TW_MAX_LIST_PAGES = 3;
 // 详情正文解析结果缓存 TTL = 24h（用户口径；按 id 缓存，换池不会串）
 const ns_pcr_TW_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -12649,7 +12662,20 @@ const ns_pcr_TW_SECTION_CLOSE = "</section>";
 // 条目：`<time datetime="…">` + 类别 span + 详情链接 + 标题（四组：日期 / 类别字 / id / 标题）
 const ns_pcr_TW_ITEM_RE = /<time\b[^>]*\bdatetime="([^"]+)"[^>]*>[\s\S]*?<\/time>\s*<span\b[^>]*>([\s\S]*?)<\/span>\s*<a\b[^>]*href="\/news\/newsDetail\/(\d+)"[^>]*>([\s\S]*?)<\/a>/g;
 // 详情正文里"一整行恰为一个日期区间"（两端都带 4 位年 + 时分）——见文件头 ①
-const ns_pcr_TW_RANGE_RE = /^(\d{4})\s*\/\s*(\d{1,2})\s*\/\s*(\d{1,2})\s+(\d{1,2})\s*[:：]\s*(\d{2})\s*[~～]\s*(\d{4})\s*\/\s*(\d{1,2})\s*\/\s*(\d{1,2})\s+(\d{1,2})\s*[:：]\s*(\d{2})$/;
+// 时刻两种写法都要吃（2026-11-26 活网审计 B）：
+//   · `16:00` / `16：00`（有冒号，主形态）
+//   · `1600` / `0959`（**源站漏冒号**，实测 4119 的 `2026/11/16 1600 ～ 2026/12/01 15:59`）
+// ⚠️ 无冒号那支必须写成"两个数字组"而不能写 `(\d{1,2})[:：]?(\d{2})`：
+//    那样 `16:00` 会被回溯切成 `1` + `6:` 之类的错位。显式分组后 `\d{1,2}` 贪心先吃 2 位再吃 2 位，
+//    `1600` ⇒ 16:00、`0959` ⇒ 09:59 都能正确拆开；两端都是独立命名组，不靠 $n 下标（历史踩过下标错位）。
+const ns_pcr_TW_RANGE_RE = new RegExp([
+	String.raw`^(?<sy>\d{4})\s*\/\s*(?<smo>\d{1,2})\s*\/\s*(?<sd>\d{1,2})\s+`,
+	String.raw`(?<sh>\d{1,2})(?:\s*[:：]\s*(?<sm>\d{2})|(?<sm4>\d{2})(?!\d))`,
+	String.raw`\s*[~～〜]\s*`,
+	String.raw`(?<ey>\d{4})\s*\/\s*(?<emo>\d{1,2})\s*\/\s*(?<ed>\d{1,2})\s+`,
+	String.raw`(?<eh>\d{1,2})(?:\s*[:：]\s*(?<em>\d{2})|(?<em4>\d{2})(?!\d))`,
+	String.raw`$`
+].join(""));
 // 档期的名字行（`■精選轉蛋舉辦期間`）
 const ns_pcr_TW_LABEL_RE = /^■\s*(.{1,40}?)\s*$/;
 // 名字行尾缀：剥掉这些词，剩下的才是"这个档期叫什么"
@@ -12719,15 +12745,21 @@ function ns_pcr_tw_pageUrlOf(url, page) {
 		return base + (base.includes("?") ? "&" : "?") + "page=" + n;
 	}
 }
-// 一页里某一侧的候选：按 **(公告日期升序, 站点原序)** 取前 `ns_pcr_TW_MAX_DETAILS` 条（见文件头 ③）。
+// 一页里某一侧的候选：按 **(公告日期升序, 站点原序)** 排序后取前 N 条（见文件头 ③）。
 // 为什么不是"取最新 2 条"：列表是日期倒序，新公告多数只是「舉辦預告」（窗口还没开）；
 // 同一页里越早发布的越可能已经开期。同日多条按站点原序（= 发布先后）—— 同批卡池里
 // 主池公告（page2 的 4106《精選轉蛋》）就排在 4107/4108 之前，重排成 id 倒序会把它挤出预算。
+// ⚠️ 2026-11-26（活网审计 B）：**卡池侧上限 = 一整页（10）**，不再固定 2 篇：同批 3 个池
+//   （精選轉蛋 / ★3必中白金 / 自選獎勵）在同一天连着发，取 2 篇会让主池或第三池整只丢失
+//   （实测 11-16 那批：4119 主池因源站 `1600` 漏冒号先被丢，再叠加 2 篇上限只剩付费必中池）。
+//   活动侧仍是 2 篇/页（`ns_pcr_TW_MAX_DETAILS`）：活动按日期从早到晚取 2 篇已能覆盖当期，
+//   不必为它多花请求。
 function ns_pcr_tw_candidatesOf(rows, want) {
+	const limit = want === "gacha" ? ns_pcr_TW_PAGE_SIZE : ns_pcr_TW_MAX_DETAILS;
 	return (Array.isArray(rows) ? rows : [])
 		.filter((r) => r && r.kind === want)
 		.sort((a, b) => ((a.dateTs || 0) - (b.dateTs || 0)) || ((a.src || 0) - (b.src || 0)))
-		.slice(0, ns_pcr_TW_MAX_DETAILS);
+		.slice(0, limit);
 }
 //#endregion
 
@@ -12773,15 +12805,23 @@ function ns_pcr_tw_detailOf(html, tz = ns_pcr_TW_TZ) {
 	const title = decodeExtra(stripTags(h[1])).replace(/\s+/g, " ").trim();
 	const windows = [];
 	const seen = new Set();
+	const p2 = (n) => String(n).padStart(2, "0");
 	for (let i = 0; i < lines.length; i++) {
 		const m = ns_pcr_TW_RANGE_RE.exec(lines[i]);
 		if (!m) continue;
-		const startTs = sourceInstant(+m[1], +m[2], +m[3], +m[4], +m[5], tz);
-		const endTs = sourceInstant(+m[6], +m[7], +m[8], +m[9], +m[10], tz);
+		const g = m.groups || {};
+		const sh = +g.sh, smi = +(g.sm != null ? g.sm : g.sm4);
+		const eh = +g.eh, emi = +(g.em != null ? g.em : g.em4);
+		// 漏冒号形态（`1600`）拆出来可能得到非法时刻（如 `160` ⇒ 1:60）⇒ 校验不过就丢掉这一行。
+		if (!(sh >= 0 && sh <= 23 && smi >= 0 && smi <= 59 && eh >= 0 && eh <= 23 && emi >= 0 && emi <= 59)) continue;
+		const startTs = sourceInstant(+g.sy, +g.smo, +g.sd, sh, smi, tz);
+		const endTs = sourceInstant(+g.ey, +g.emo, +g.ed, eh, emi, tz);
 		if (endTs == null || startTs == null || !(endTs > startTs)) continue;   // 源站错行 ⇒ 丢掉，不硬造
 		const label = ns_pcr_tw_labelOf(lines, i);
-		const raw = `${m[1]}/${String(m[2]).padStart(2, "0")}/${String(m[3]).padStart(2, "0")} ${String(m[4]).padStart(2, "0")}:${m[5]}`
-			+ ` ~ ${m[6]}/${String(m[7]).padStart(2, "0")}/${String(m[8]).padStart(2, "0")} ${String(m[9]).padStart(2, "0")}:${m[10]}`;
+		// `raw` = 源站墙钟的可读形态；**漏冒号的 `1600` 归一成 `16:00`**（与 display 同一时刻，
+		// 只是保留源站原文的日期写法 `YYYY/MM/DD HH:MM ~ …`，UI 两行式直接显示它）。
+		const raw = `${g.sy}/${p2(g.smo)}/${p2(g.sd)} ${p2(sh)}:${p2(smi)}`
+			+ ` ~ ${g.ey}/${p2(g.emo)}/${p2(g.ed)} ${p2(eh)}:${p2(emi)}`;
 		const key = `${startTs}|${endTs}|${label}`;
 		if (seen.has(key)) continue;
 		seen.add(key);

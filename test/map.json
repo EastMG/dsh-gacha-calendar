@@ -295,5 +295,8 @@
   "https://umamusume.jp/api/ajax/pr_info_detail?format=json&announce_id=3546": "p5-uma-jp-detail-3546/response.txt",
   "https://umamusume.jp/api/ajax/pr_info_detail?format=json&announce_id=3535": "p5-uma-jp-detail-3535/response.txt",
   "https://umamusume.jp/api/ajax/pr_info_detail?format=json&announce_id=3536": "p5-uma-jp-detail-3536/response.txt",
-  "https://umamusume.jp/api/ajax/pr_info_detail?format=json&announce_id=3553": "p5-uma-jp-detail-3553/response.txt"
+  "https://umamusume.jp/api/ajax/pr_info_detail?format=json&announce_id=3553": "p5-uma-jp-detail-3553/response.txt",
+  "https://www.princessconnect.so-net.tw/news?page=2": "pcr-tw-list-2-20261126/response.txt",
+  "https://www.princessconnect.so-net.tw/news/newsDetail/4121": "pcr-tw-detail-4121/response.txt",
+  "https://www.princessconnect.so-net.tw/news/newsDetail/4108": "pcr-tw-detail-4108/response.txt"
 }
