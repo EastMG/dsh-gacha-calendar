@@ -109,6 +109,7 @@
   "https://gametora.com/data/umamusume/character-cards.": "uma-gt-character-cards/response.txt",
   "https://gametora.com/data/umamusume/support-cards.": "uma-gt-support-cards/response.txt",
   "https://gametora.com/data/umamusume/events/story-events.": "uma-gt-story-events/response.txt",
+  "https://gametora.com/data/umamusume/en/events/champions-meeting.": "uma-gt-champions-meeting/response.txt",
   "https://api-takumi-static.mihoyo.com/content_v2_user/app/706fd13a87294881/getContentList?iChanId=279&iPageSize=50&iPage=1&sLangKey=zh-cn": "p4-zzz-freq-official/response.txt",
   "https://api-takumi-static.mihoyo.com/content_v2_user/app/1963de8dc19e461c/getContentList?iPage=1&iPageSize=200&sLangKey=zh-cn&isPreview=0&iChanId=257": "p4-hsr-cms-1126/response.txt",
   "https://bluearchive-cn.com/api/news/list?pageIndex=1&pageNum=30&type=": "ba-cn-live-1021/response.txt",

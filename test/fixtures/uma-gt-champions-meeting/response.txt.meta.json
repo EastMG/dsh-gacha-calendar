@@ -1,0 +1,7 @@
+{
+  "capturedAt": "2026-11-25T19:00:20.012Z",
+  "url": "https://gametora.com/data/umamusume/en/events/champions-meeting.b09ac21f.json",
+  "status": 200,
+  "bytes": 5223,
+  "note": "GameTora 国际服**冠军集会**表原样（22 条，2026-11-26 活网抓取；未删字段、未改值）。字段 id / name（英文，如 Aquarius Cup）/ start / end（unix 秒），没有 start_en / end_en / name_zh_tw。在期 = id 22 Aquarius Cup（2026-11-21 22:00Z ~ 2026-11-27 21:59Z）。"
+}
