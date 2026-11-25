@@ -26,6 +26,10 @@
 				parseP5xBlocks: ns_p5x_parseP5xBlocks,
 				parseP5xList: ns_p5x_parseP5xList,
 				parseP5xWindows: ns_p5x_parseP5xWindows,
+				// 2026-11-26（审计 A）：多版本公告的排序（版本号优先、发布日期次之）+ 命中块的 UP 角色
+				annCompare: ns_p5x_annCompare,
+				versionOf: ns_p5x_versionOf,
+				blockUpNames: ns_p5x_blockUpNames,
 			},
 			// 异环（官网公告 yh.wanmei.com）：卡池/活动两侧**同一个抓取器**（同一篇公告里两样都有）。
 			// 2026-10-21 之前它一行用例都没有 —— 段落锚点从 `一、` 改成 `【更新内容】` 时

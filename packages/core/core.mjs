@@ -16843,8 +16843,12 @@ function ns_p5x_parseP5xWindows(text, tz) {
 // 这里要求整行**以「类别+更新/拓展」结尾**，或后面只跟一个短分隔符+标题（≤40 字），
 // 从而把叙述句排除掉。
 const ns_p5x_P5X_CAT_RE = /^([\u4e00-\u9fffA-Za-z]{2,10}(?:更新|拓展))(?:\s*[-－—－:：]\s*(.{1,40}))?$/;
-// `活动时间：…` 及其近义写法
-const ns_p5x_P5X_TIME_RE = /^(?:活动|开放|售卖|举办|开启|持续)时间\s*[:：]\s*(.+)$/;
+// `活动时间：…` 及其近义写法。
+// 2026-11-26（审计 A / p5x）：补 `复刻时间:` —— 5.5.1 的契约池写的是
+//   「契约更新 / 佐仓双叶限时复刻 / 复刻时间:2026年11月19日-2026年12月10日」，
+// 旧词表只认 活动|开放|售卖|举办|开启|持续 ⇒ 该块 windowRaw 为空 ⇒ 当期契约复刻池整个不进卡池
+// （于是回退到上一版本 5.4.2 的扭蛋机池，外显挂旧值）。P5X 主池叫"契约"不叫"扭蛋"，口径见下。
+const ns_p5x_P5X_TIME_RE = /^(?:活动|开放|售卖|举办|开启|持续|复刻|契约|卡池)时间\s*[:：]\s*(.+)$/;
 // 裸档期行：整行只有日期区间、**没有** `活动时间：` 前缀（实测 5.4.2 公告「契约更新」块：
 // `2026年9月24日-2026年11月19日`；正文里 `…更新后…` 这类叙述句不认，必须整行就是区间）。
 const ns_p5x_P5X_BARE_TIME_RE = /^20\d{2}年\d{1,2}月\d{1,2}日\s*[—\-~～至–]\s*(?:20\d{2}年)?\d{1,2}月\d{1,2}日$/;
@@ -16887,6 +16891,29 @@ function ns_p5x_parseP5xBlocks(text) {
 
 // 供测试：直接对一段正文本跑区块解析
 // 归一化标题：去掉站点尾巴「-P5X-《女神异闻录：夜幕魅影》手游官网」
+// ── 公告版本排序（2026-11-26，审计 A / p5x）──────────────────────────────────────
+// 现场：列表页同时挂着 **5.5.1（2026.11.19）** 与 **5.4.2（2026.10.22）** 两篇版本公告；
+//   5.5.1 的契约复刻池（佐仓双叶，11-19 ~ 12-10）当年因为 `复刻时间:` 认不出而解析不出窗口，
+//   抓取器就 `continue` 到下一片公告 ⇒ 卡池外显挂成 5.4.2 的「限定扭蛋复刻 10-22 ~ 12-24」。
+// 口径：**同一份列表里的多篇版本公告按版本号优先、发布日期次之**取最新那篇；
+//   旧版本公告只在"最新版本没有可产出的在期池"时兜底（不回退原则不变）。
+//   版本号取标题里的 `X.Y.Z版本`（站点标题形如 `…《女神异闻录：夜幕魅影》5.5.1版本今日上线`）；
+//   没有版本号的公告（如活动/维护稿）不比版本，退回发布日期倒序 —— 与旧实现完全一致。
+function ns_p5x_versionOf(title) {
+	const m = /(\d{1,2})\.(\d{1,2})(?:\.(\d{1,2}))?\s*版本/.exec(String(title == null ? "" : title));
+	return m ? [+m[1], +m[2], +(m[3] || 0)] : null;
+}
+// 列表条目比较：版本号降序（都认得出才比）→ 发布日期降序 → 原列表顺序（sort 稳定）
+function ns_p5x_annCompare(a, b) {
+	const va = ns_p5x_versionOf(a && a.title), vb = ns_p5x_versionOf(b && b.title);
+	if (va && vb) {
+		for (let i = 0; i < 3; i++) if (va[i] !== vb[i]) return vb[i] - va[i];
+	}
+	const da = String((a && a.dateKey) || ""), db = String((b && b.dateKey) || "");
+	if (da !== db) return da < db ? 1 : -1;
+	return 0;
+}
+
 // 取列表里最新的 N 条公告并解析出区块。
 // ⚠️ **逐条容错**：只有"最新一条都抓不到"才算真失败（抛出）；
 //    次新那条只是"多看一条"的兜底（上一轮公告通常已过期），它抓不到（404/超时）不该拖垮整个条目
@@ -16895,7 +16922,8 @@ async function ns_p5x_fetchP5xAnnouncements(url, signal, count = 2) {
 	const listUrl = url || `${ns_p5x_BASE}/news/gamenews/index.html`;
 	const list = ns_p5x_parseP5xList(await fetchText(listUrl, { referer: ns_p5x_BASE, signal }));
 	if (list.length === 0) throw new Error("p5x-list-empty");
-	const sorted = list.slice().sort((a, b) => (a.dateKey < b.dateKey ? 1 : -1)).slice(0, Math.max(1, count));
+	// 2026-11-26：排序从"只按发布日期"改为"版本号优先、发布日期次之"（见 ns_p5x_annCompare 注释）
+	const sorted = list.slice().sort(ns_p5x_annCompare).slice(0, Math.max(1, count));
 	const out = [];
 	for (let i = 0; i < sorted.length; i++) {
 		const item = sorted[i];
@@ -16933,10 +16961,35 @@ function ns_p5x_p5xUpNames(text) {
 	return out;
 }
 
+// 命中块**自己**的 UP 角色（2026-11-26 补，审计 A / p5x）。
+// 为什么不能只用整篇导语：5.5.1 正文导语里的 `「平野亚兰·凛华」获取概率限时UP！` 是**同一版本的
+// 新角色池**，而卡池外显（面板走 `roles`，见 83-panel-shell.js: gachaVisible = g.roles || g.banner）
+// 要的是命中块自己的池。5.5.1 的契约块写的是
+//   `五星解明怪盗「佐仓双叶」复刻契约限时开启!`  ⇒ 角色 = 佐仓双叶。
+// 口径：① 先取**命中块**里的 UP（`「X」获取概率限时UP` / `怪盗「X」…契约`）；② 块内没有再退回整篇
+// （旧行为 —— 5.4.2「缘结之契持续开启」块里没有怪盗名，roles 仍来自整篇导语，历史断言不变）。
+function ns_p5x_blockUpNames(block) {
+	const lines = block && Array.isArray(block.lines) ? block.lines.join(" ") : "";
+	const t = lines + " " + String((block && block.title) || "");
+	const out = [];
+	for (const m of t.matchAll(/[「【]([^」】]{2,30})[」】]\s*获取概率限时UP/g)) {
+		const n = m[1].trim();
+		if (n && !out.includes(n)) out.push(n);
+	}
+	for (const m of t.matchAll(/怪盗\s*[「【]([^」】]{2,20})[」】]/g)) {
+		const n = m[1].trim();
+		if (n && !out.includes(n)) out.push(n);
+	}
+	return out;
+}
+
 // ── 卡池侧 ──
 // 区块候选 = 「契约更新」块（官方明确写卡池档期的地方）+「扭蛋」块（2026-11-10 实测 5.4.2 公告的
 // 「都市更新 / 限定扭蛋复刻」也写了在期档期；类别行是「都市更新」，只有**标题**里带"扭蛋"）。
 // 抽不到覆盖当前的档期 → null（未公布）。**绝不**退化成"拿版本公告标题当卡池名"。
+// 2026-11-26（审计 A）：当期契约复刻池「佐仓双叶限时复刻 11-19~12-10」要能进卡池 —— 见
+//   `ns_p5x_P5X_TIME_RE`（认 复刻时间:）+ `ns_p5x_annCompare`（多版本公告按版本号优先）+
+//   `ns_p5x_blockUpNames`（roles 取命中块自己的角色）。
 // ⚠️ 必须收 `now`（2026-10-17 修）：此前签名只有 (url, signal, tz)、体内写死 `nowMs()` ⇒
 //   用例没法注入时刻，夹具窗口一过期（到 2026-10-22 更新前）"选当期"就选不中 → 断言**假红**。
 //   第 4 参是**测试专用契约**（沿用 bandori 的约定）；默认值保证生产路径
@@ -16947,7 +17000,11 @@ async function ns_p5x_gachaP5x(url, signal, tz = "Asia/Shanghai", now = nowMs())
 		const poolBlocks = blocks.filter((b) => /契约|扭蛋/.test(b.category) || /契约|扭蛋/.test(b.title));
 		const hit = ns_p5x_pickCurrentBlock(poolBlocks, tz, now);
 		if (!hit) continue;
-		const up = ns_p5x_p5xUpNames(text);
+		// 2026-11-26：roles 优先取**命中块自己**的 UP（块内没有才退回整篇导语，见 ns_p5x_blockUpNames）。
+		// 5.5.1 真机：命中「契约更新 / 佐仓双叶限时复刻」，角色 = 佐仓双叶（而不是整篇里别的池的
+		// 「平野亚兰·凛华」—— 面板外显就走 roles，取错会张冠李戴）。
+		const blockUp = ns_p5x_blockUpNames(hit.block);
+		const up = blockUp.length ? blockUp : ns_p5x_p5xUpNames(text);
 		// ⚠️ 2026-10-03 改（方案 A 收敛）：这里原本**手搓**三行悬停 `池名` ⏎ `档期` ⏎ `本期限定UP：角色`
 		//    —— 档期夹在名称与角色中间，与本体「池名：角色 ⏎ 档期」的顺序不一致。
 		//    现在按通用规则表达：把 UP 角色放进 **`roles`** 字段。

@@ -1,0 +1,96 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+	<meta name="viewport" content="width=device-width,user-scalable=no">
+	<meta name="renderer" content="webkit">
+	<meta name="description" content="《女神异闻录：夜幕魅影》（简称：P5X）是由SEGA正版授权，ATLUS深度参与，完美世界游戏打造的《女神异闻录5》首款日式角色扮演（JRPG）手游。P5X是基于P5的世界观设定展开故事，在深度还原原作潮酷炫风格的基础上，由全新角色和全新剧情带来全新的精彩体验！" />
+	<meta name="keywords" content="P5X,P5X官网,P5X下载,P5X福利,P5X攻略,P5X预约,女神异闻录：夜幕魅影,女神异闻录夜幕魅影,女神异闻录手游,女神异闻录5,女神异闻录X,女神异闻录下载,女神异闻录官网,女神异闻录预约,女神异闻录福利,女神异闻录礼包,女神异闻录公测,女神异闻录攻略,P5,JRPG,角色扮演,日式角色扮演,Joker Persona,人格面具,persona"/>
+	<title>献给隐者们的镇魂歌《女神异闻录：夜幕魅影》5.5.1版本今日上线-P5X-《女神异闻录：夜幕魅影》手游官网</title>
+	<link rel="stylesheet" type="text/css" href="https://p5x.wanmei.com/style/inside240801.css" />
+	<script type="text/javascript">
+		(function(doc, win){
+			var docEl = doc.documentElement,resizeEvt = 'orientationchange' in window ? 'orientationchange' : 'resize',
+			recalc = function(){
+				var clientWidth = window.innerWidth;
+				if (!clientWidth) return;
+				var wid = 100 * (clientWidth / 2560);
+				docEl.style.fontSize = wid + 'px';
+			};
+			if (!doc.addEventListener) return;
+			win.addEventListener(resizeEvt, recalc, false);
+			recalc();
+			doc.addEventListener('DOMContentLoaded', recalc, false);
+		})(document, window);
+	</script>
+</head>
+<body>
+	<audio id="background_audio" src="https://p5xvmg.wmupd.com/webops/p5x/p5x_cn_bgm_20240326.mp3" loop></audio>
+	<div class="wrap pv_wrap">
+		<!--head-->
+		<div class="section_head">
+			<div class="top_nav_box">
+				<a href="https://p5x.wanmei.com/index.html"><img class="logo" src="https://p5x.wanmei.com/images/cover2407/logo.png" /></a>
+				<ul class="top_nav_list">
+				<li class="nav_news"><a href="https://p5x.wanmei.com/main.html?anchor=news"></a></li>
+				<li class="nav_role"><a href="https://p5x.wanmei.com/main.html?anchor=character"></a></li>
+				<li class="nav_school"><a href="https://p5x.wanmei.com/main.html?anchor=schoolLife"></a></li>
+				<li class="nav_world"><a href="https://p5x.wanmei.com/main.html?anchor=metaverseLife"></a></li>
+				<li class="nav_media"><a href="https://p5x.wanmei.com/main.html?anchor=audiovisual"></a></li>
+				<li class="nav_shequ"><a href="https://p5x.wanmei.com/main.html?anchor=community"></a></li>
+			</ul>
+			</div>
+			<div class="share_menu">
+			<span class="icon_share"></span>
+			<ul class="share_list animated fadeIn">
+				<li class="followUs_wechat">
+					<div class="ewm_box"><img src="https://p5x.wanmei.com/images/cover230301/code_wechat.jpg" /></div>
+				</li>
+				<li class="followUs_sina">
+					<a href="https://weibo.com/u/7745874119" target="_blank"></a>
+				</li>
+				<li class="followUs_douliu">
+					<div class="ewm_box"><img src="https://p5x.wanmei.com/images/cover230301/code_douliu.png" /></div>
+				</li>
+				<li class="followUs_tap">
+					<a href="https://www.taptap.cn/app/305435/topic?utm_medium=seo&utm_source=rep_110vzTu7CoH" target="_blank"></a>
+				</li>
+				<li class="followUs_qq">
+					<a href="http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=EUSz0aoIfYnAHw8cJc5-pbo2kHdUgC12&authKey=qadXAGXsL7Q5IU2KvHk2oq58Eg%2F88wxQVc4O4Ivz%2BvqNyWgoCzzHkhiOAB%2B6cTbb&noverify=0&group_code=207069170" target="_blank"></a>
+				</li>
+				<li class="followUs_tieba">
+					<a href="https://tieba.baidu.com/f?ie=utf-8&kw=%E5%A5%B3%E7%A5%9E%E5%BC%82%E9%97%BB%E5%BD%95%E5%A4%9C%E5%B9%95%E9%AD%85%E5%BD%B1" target="_blank"></a>
+				</li>
+				<li class="followUs_bili">
+					<a href="https://space.bilibili.com/1606210274" target="_blank"></a>
+				</li>
+			</ul>
+		</div>
+			<span class="menu_music off"></span>
+		</div>
+		<!--cont-->
+		<div class="section_cont">
+			<img class="news_title" src="https://p5x.wanmei.com/images/inside2407/news_title.png" />
+			<a class="link_list" href="https://p5x.wanmei.com/news/gamenews/index.html">返回列表</a>
+			<div class="article_cont">
+				<p class="article_date">2026.11.19</p>
+				<div class="article_tit">献给隐者们的镇魂歌《女神异闻录：夜幕魅影》5.5.1版本今日上线</div>
+				<div class="article_text">
+					<p>献给隐者们的镇魂歌《女神异闻录：夜幕魅影》5.5.1版本今日上线</p><p><a href="https://p5x.wanmei.com/resources/jpg/20261119/1112929b94ab7f004ca08ac6e8162eeac280.jpg" target="_blank" hidefocus="hidefocus" title="图片: 1.jpg"><img src="https://p5x.wanmei.com/resources/jpg/20261119/1112929b94ab7f004ca08ac6e8162eeac280.jpg" alt="图片: 1.jpg"/></a></p><p>主线剧情更新-献给隐者们的镇魂歌</p><p>艰难打倒的KOKORO原来只是一个&quot;假面&quot;，怪盗团的行动彻底暴露在真贺眼前……在需要尽快查出真贺真面目的紧急时刻，大众对怪盗团的支持率却成为掣肘怪盗团行动的锁链。究竟要顺应与祸津神合作的提议，还是任由魅影暴走、让怪盗团成为众矢之的……？</p><p>面对两难的境遇，向那名神秘的刑警灰峰请求协助，会是正确的选择吗？在调查真贺的道路上，面对远比想象中更加厚重的阻碍，破局的关键究竟会是……？</p><p>*本次更新后将新增角色技能升级道具「玉台香」，可通过往日回溯副本等途径获取。</p><p><img src="https://p5x.wanmei.com/resources/jpg/20261119/1112bd97ecb8f4bc41c584801dba4e772305.jpg" alt="图片: 2.jpg"/></p><p><br/></p><p>宫殿新区域开放</p><p>隐秘神域</p><p>超越愚昧的大众，操纵世界的规则，这里是最接近神明的所在，是只对神明认可之人开放的领域。欢迎来到隐秘神域。</p><p>*印象空间慈悲剥夺之路将跟随同步更新。</p><p><img src="https://p5x.wanmei.com/resources/jpg/20261119/11129812a0bd92dd4555ba55de881e07f9c6.jpg" alt="图片: 3.jpg"/></p><p><br/></p><p>五星限定怪盗角色「平野亚兰·凛华」登场！</p><p>五星限定祝福&amp;诅咒属性反抗角色「平野亚兰·凛华」获取概率限时UP！</p><p>认知模拟试用角色更新！</p><p><img src="https://p5x.wanmei.com/resources/jpg/20261119/11127b5362070c254870aa72ef55cfbcfcf4.jpg" alt="图片: 4.jpg"/></p><p><br/></p><p>协同者剧情更新</p><p>平野亚兰</p><p><img src="https://p5x.wanmei.com/resources/jpg/20261119/11120169c44ea718479da86c6423b8fd4520.jpg" alt="图片: 5.jpg"/></p><p><br/></p><p>功能拓展</p><p>心象激活</p><p>佐仓双叶心象激活开启！</p><p>新增潜能：超频</p><p>「以不死鸟的名义」的准备时间减少若干次行动；</p><p>「以不死鸟的名义」释放后获得一定的「解析进度」；</p><p>「以不死鸟的名义」额外使目标的伤害提升，暴击效果提升，持续若干回合。</p><p><br/></p><p>新增潜能：天网</p><p>友方的首个回合开始时，自动释放「无声侵袭」；</p><p>「骇入完成」状态下，同一个队员使用人格面具技能每累计造成2种属性的伤害时，使所有同伴总伤害增幅提升、攻击力提升，持续若干回合，存在叠加上限。</p><p><br/></p><p><br/></p><p>功能拓展</p><p>武器刻印-超限火力</p><p>本期新增武器「机械处刑者」的刻印「超限火力」：任意同伴回合开始前，根据该同伴人格面具属性，使其相应属性的伤害提升、造成相应属性伤害时的暴击效果提升。</p><p>本期刻印图章获取途径：</p><p>&gt;达成宫殿探索度奖励</p><p>&gt;乐园百货中兑换</p><p>&gt;心海秘所中兑换</p><p><br/></p><p><br/></p><p>功能拓展</p><p>新人格面具-巴力</p><p>本次更新开放Ⅸ阶人格面具「巴力」。</p><p>可在「厄抑巡礼·极阶」商店通过使用「不羁纹章·虹」兑换。</p><p><a href="https://p5x.wanmei.com/resources/jpg/20261119/11125ae934415f274a77ad7da9682dbb3cb0.jpg" target="_blank" hidefocus="hidefocus" title="图片: 6.jpg"><img src="https://p5x.wanmei.com/resources/jpg/20261119/11125ae934415f274a77ad7da9682dbb3cb0.jpg" alt="图片: 6.jpg"/></a></p><p><br/></p><p><br/></p><p>活动更新</p><p>启示定制活动</p><p>活动时间：2026年11月30日-2026年12月10日</p><p>本期活动可以定制一张「宙卡」，并支持刷新副属性。完成「命书一览」中的任务可获得「时谕之墨」。塑造时，选择、切换、刷新均需要消耗该道具。</p><p>*注意：本次更新将新增套装效果1种，同时优化「失望」的四件套效果</p><p>「希望」+「失望」：造成双属性伤害时，攻击力提升35%，暴击效果提升24%；且【失望】的四件套效果在造成HIGHLIGHT伤害时也能触发。</p><p>【失望】四件套优化为：造成人格面具技能伤害时，若造成双属性伤害或与自身上次造成人格面具技能伤害的属性不同，该次人格面具技能造成伤害提升25%。</p><p><br/></p><p>玩法更新</p><p>大富翁</p><p>大富翁赛季更新。更新赛季后，排名奖励将会刷新，同时欢乐模式下的富翁币也会按赛季规则进行重置，敬请注意。</p><p>本次新增牌手「片山久未」，新增特殊卡面「片山久未」。</p><p><a href="https://p5x.wanmei.com/resources/jpg/20261119/1112a3f2b8b8fb2b4cb2880b4d5abebe7c59.jpg" target="_blank" hidefocus="hidefocus" title="图片: 7.jpg"><img src="https://p5x.wanmei.com/resources/jpg/20261119/1112a3f2b8b8fb2b4cb2880b4d5abebe7c59.jpg" alt="图片: 7.jpg"/></a></p><p><br/></p><p>契约更新</p><p>佐仓双叶限时复刻</p><p>复刻时间:2026年11月19日-2026年12月10日</p><p>五星解明怪盗「佐仓双叶」复刻契约限时开启!</p><p>配合全新的心象激活，期待她可以带来耳目一新的战斗表现！</p><p><a href="https://p5x.wanmei.com/resources/jpg/20261119/11121d6d76fdd04847c89535d2290e2057ac.jpg" target="_blank" hidefocus="hidefocus" title="图片: 8.jpg"><img src="https://p5x.wanmei.com/resources/jpg/20261119/11121d6d76fdd04847c89535d2290e2057ac.jpg" alt="图片: 8.jpg"/></a></p><p><br/></p><p>活动更新</p><p>新一期魅影通行证</p><p>活动时间：2026年11月19日-2026年12月24日</p><p>魅影通行证新一期上新。激活典藏版即可获取大量额外奖励，购买本期珍藏版更可获得「万圣节」主题聊天气泡与菜单壁纸。</p><p><br/></p><p>活动更新</p><p>特别促销活动</p><p>活动时间：2026年11月19日-2026年12月10日</p><p>玛奇姆特别促销活动开启，除了更具性价比的礼包外，累计消费一定额度可获得超值奖励！</p><p>*本期珍藏空白卡片自选范围增加全新技能卡「涂影囚笼」。</p><p><br/></p><p>优化清单</p><p>优化</p><p>&gt;为松方结协同能力赠送种子增加获取设置开关。</p><p>&gt;P3P常驻活动补充加入支线故事「樱之际遇」。</p><p>&gt;「更生的指引」修改为常驻活动。</p><p>&gt;优化了大富翁的部分细节效果和手柄体验。</p><p>&gt;优化了人格面具马卡布的本能文字描述（效果无修改）。</p><p><br/></p><p>BUG修复</p><p>&gt;修复了阵容界面山岸风花上阵后备角色后偶现的显示异常。</p><p>&gt;修复了一批以往主线和联动剧情中的细微表现异常。</p><p>&gt;修复部分P3R角色展示界面中校徽颜色异常。</p><p>版本同期系列活动同步开启、战斗玩法更新与奖励重置，别忘记查看活动界面更新！</p><p>预祝队长在游戏内体验愉快！</p><p><br/></p><p><br/></p>
+				</div>
+			</div>
+		</div>
+		<div class="back_box">
+			<a class="link_back" href="https://p5x.wanmei.com/main.html"></a>
+			<a class="go_top"></a>
+		</div>
+	</div>
+	<script type="text/javascript" src="https://static.games.wanmei.com/public/js/jq_183.js"></script>
+	<script type="text/javascript" src="https://static.games.wanmei.com/public/js/stat.js"></script>
+	<script type="text/javascript" src="https://static.games.wanmei.com/public/js/top/header.js"></script>
+	<script type="text/javascript" src="https://static.games.wanmei.com/public/js/footer/bottom.js"></script>
+	<script type="text/javascript" src="https://static.games.wanmei.com/public/js/jquery.cookie.js"></script>
+	<script type="text/javascript" src="https://p5x.wanmei.com/js/inside240801.js"></script>
+</body>
+</html>
