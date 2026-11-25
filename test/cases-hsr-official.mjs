@@ -12,6 +12,9 @@
 //      正文累积（其二抄其一）⇒ 全部窗口 + 按角色判重；当期窗口合并 2 个 5★；起点 10:00；
 //      `gacha[]` 逐条；upcoming 分支（空档期取"下一个要开的"）；什么都没有 ⇒ null（未公布）；
 //      维护预告**不**被当成卡池（正文没有「跃迁时间为」）。
+//      ⚠️ 2026-11-26（真机 4.7 其一）：返场句会把 3 个 5★ **并列写在同一句**、只在第一个名字前写
+//      「限定5星角色」⇒ 旧实现每句只取 1 个（4 个角色池只出 2 个）。现在同句并列名字全部成窗口
+//      （`HSR_WARP_ROLE_GROUP_RE`）；6 条公告夹具的窗口数 5 → 7，4.7 真夹具见 ⑥。
 //   ③ `anchorStartOf` 的三态 × 两款锚点（12 组）；
 //   ④ 「起点未知 ≠ 已开始」：无期迷途 11-11 批 / 星铁 4.7 批**不以在期身份出现**
 //      （外显 / 近期 / 提醒 / 24 小时计数都不认它们），并给出**反向证明**（旧口径下它们就是"在期"）。
@@ -73,21 +76,33 @@ export default async function run() {
 
 	// ───────────────────── ② 官方 CMS 解析（真夹具） ─────────────────────
 	section("星铁换官方源 ②：正文累积 + 角色合并 + 10:00 锚点 + upcoming 分支（真夹具 6 条公告）");
+	// 5 条窗口 → **7 条**（2026-11-26 修「每句只取一个 5★」后，4.4其二 的返场句并列 3 个 5★
+	// （刻律德菈/那刻夏/砂金）各落一条窗口，旧实现只落刻律德菈 1 条）。
 	const WINDOWS = P.hsrWarpWindowsOf(CMS_PAYLOAD.data.list, TZ_CN);
 	{
 		check("夹具里有 6 条公告（4 期跃迁 + 2 期维护预告）", CMS_PAYLOAD.data.list.length === 6,
 			String(CMS_PAYLOAD.data.list.length));
-		// 5 条窗口 = 4.6其二(真珠/千冶) + 4.6其一(真珠/绯英) + 4.4其二(姬子/刻律德菈)；「真珠」被抄两遍 ⇒ 判重后只留 1 条
-		check("窗口去重后 5 条：4.6其二 2 条 + 4.6其一 2 条 + 4.4其二 2 条，其中「真珠」被后一期抄过 ⇒ 只留 1 条",
-			WINDOWS.length === 5, JSON.stringify(WINDOWS.map((w) => [w.ver, w.part, w.role])));
+		// 7 条窗口 = 4.6其二(真珠/千冶) + 4.6其一(真珠/绯英) + 4.4其二(姬子/刻律德菈/那刻夏/砂金)；
+		// 「真珠」被后一期抄两遍 ⇒ 判重后只留 1 条
+		check("窗口去重后 7 条：4.6其二 2 条 + 4.6其一 2 条（真珠被抄 ⇒ 只留 1 条）+ 4.4其二 4 条（返场句并列 3 个 5★ 各一条）",
+			WINDOWS.length === 7, JSON.stringify(WINDOWS.map((w) => [w.ver, w.part, w.role])));
 		check("「真珠」在窗口里只出现一次（正文累积被 (角色,起点,终点) 判重吃掉）",
 			WINDOWS.filter((w) => w.base === "真珠").length === 1,
 			JSON.stringify(WINDOWS.map((w) => w.base)));
+		// ── 2026-11-26（真机 4.7 其一 的那条 bug）的离线证据 ──────────────────────────
+		// 4.4其二 的返场句：「限定5星角色「刻律德菈」「那刻夏」「砂金」…将会返场」
+		// ⇒ 3 个并列 5★ 都必须各成一条窗口（旧实现只认紧跟标签的第一个名字 ⇒ 只剩刻律德菈）。
+		check("同句并列的 3 个返场 5★ 都成窗口：刻律德菈 / 那刻夏 / 砂金（同一窗口 08-05 12:00 ~ 08-25 15:00）",
+			["刻律德菈", "那刻夏", "砂金"].every((n) => WINDOWS.filter((w) => w.base === n).length === 1)
+			&& WINDOWS.filter((w) => ["刻律德菈", "那刻夏", "砂金"].indexOf(w.base) >= 0)
+				.every((w) => w.startTs === Date.UTC(2026, 7, 5, 4, 0) && w.endTs === Date.UTC(2026, 7, 25, 7, 0)),
+			JSON.stringify(WINDOWS.filter((w) => ["刻律德菈", "那刻夏", "砂金"].indexOf(w.base) >= 0).map((w) => [w.base, w.startTs, w.endTs])));
 		check("维护预告**不**产出窗口（正文没有「跃迁时间为」，只靠标题白名单就会误收）",
 			WINDOWS.every((w) => !/维护/.test(w.annTitle)), JSON.stringify(WINDOWS.map((w) => w.annTitle)));
-		check("卡池名从 ▌/● 行回填（角色 → 卡池名）：真珠 → 沧海萃珠 / 千冶•刃 → 我身即刃",
+		check("卡池名从 ▌/● 行回填（角色 → 卡池名）：真珠 → 沧海萃珠 / 千冶•刃 → 我身即刃 / 那刻夏 → 铭心之萃•那刻夏",
 			WINDOWS.find((w) => w.base === "真珠").pool === "沧海萃珠"
-			&& WINDOWS.find((w) => w.base === "千冶•刃").pool === "我身即刃",
+			&& WINDOWS.find((w) => w.base === "千冶•刃").pool === "我身即刃"
+			&& WINDOWS.find((w) => w.base === "那刻夏").pool === "铭心之萃•那刻夏",
 			JSON.stringify(WINDOWS.map((w) => [w.base, w.pool])));
 
 		// 当期：2026-11-09 12:00 +08（4.6其二窗口内）
@@ -359,5 +374,64 @@ export default async function run() {
 		check("备选抓取器：起点未知的 3 口池仍在悬停里（事实不丢）",
 			!!pay && String(pay.bannerHover || "").split("\n").filter((l) => /版本更新后/.test(l)).length === 3,
 			JSON.stringify(pay && pay.bannerHover));
+	}
+
+	// ─────────── ⑥ 2026-11-26 真机 4.7 其一：「返场句并列 3 个 5★」→ 4 个角色池全出 ───────────
+	// 现场（_audit-A-raw/hsr.gacha.0.txt，2026-11-26 01:53 +08 真抓）：4.7 其一正文两句窗口——
+	//   ① 限定5星角色「星神★阿哈（欢愉•量子）」… 2026/12/22 15:00
+	//   ② 限定5星角色「银狼LV.999（欢愉•虚数）」「火花（欢愉•火）」「爻光（欢愉•物理）」…将会返场，2026/12/02 11:59
+	// 旧实现每句只取紧跟标签的第一个名字 ⇒ 只出银狼 + 阿哈（roles 2 人、悬停 2 行）。
+	// 本节钉新口径：4 个角色池各一条窗口、roles 4 人、悬停 4 行；并给反向证明（旧式正则只拿得到 1 个）。
+	section("星铁 ⑥：4.7 其一「返场句并列 3 个 5★」⇒ 4 个角色池全出（真夹具 2026-11-26 真抓）");
+	{
+		const F = fixtureBody(CMS_URL, { [CMS_URL]: "p4-hsr-cms-1126/response.txt" });
+		const PAYLOAD = JSON.parse(F);
+		const NOW47 = Date.parse("2026-11-26T01:53:00+08:00");
+		const w47 = P.hsrWarpWindowsOf(PAYLOAD.data.list, TZ_CN).filter((w) => w.ver === "4.7");
+		check("4.7 其一 = 4 条窗口（阿哈 + 返场句里并列的 银狼LV.999 / 火花 / 爻光）",
+			w47.length === 4 && w47.map((w) => w.base).sort().join(",") === ["星神★阿哈", "银狼LV.999", "火花", "爻光"].sort().join(","),
+			JSON.stringify(w47.map((w) => w.base)));
+		check("4 条窗口的池名分别回填成「愚戏众星」/「铭心之萃•银狼LV.999」/「铭心之萃•火花」/「铭心之萃•爻光」（不编池名）",
+			w47.find((w) => w.base === "星神★阿哈").pool === "愚戏众星"
+			&& w47.find((w) => w.base === "银狼LV.999").pool === "铭心之萃•银狼LV.999"
+			&& w47.find((w) => w.base === "火花").pool === "铭心之萃•火花"
+			&& w47.find((w) => w.base === "爻光").pool === "铭心之萃•爻光",
+			JSON.stringify(w47.map((w) => [w.base, w.pool])));
+		const d47 = P.parseHsrWarp(PAYLOAD, NOW47, TZ_CN);
+		check("当期 roles = 4 个 5★（银狼LV.999 / 火花 / 爻光 / 阿哈，按结束时间升序；旧实现只有 2 个）",
+			!!d47 && d47.roles === "银狼LV.999（欢愉•虚数）、火花（欢愉•火）、爻光（欢愉•物理）、星神★阿哈（欢愉•量子）",
+			d47 && d47.roles);
+		check("外显仍是结束最早那口池「铭心之萃•银狼LV.999」角色活动跃迁，档期 11-11 10:00 ~ 12-02 11:59",
+			!!d47 && d47.banner === "「铭心之萃•银狼LV.999」角色活动跃迁" && d47.bannerDates === "11-11 10:00 ~ 12-02 11:59",
+			JSON.stringify(d47 && [d47.banner, d47.bannerDates]));
+		check("gacha[] = 5 条（主条 + 4 口池的悬停行；旧实现只有 3 条）",
+			!!d47 && (d47.gacha || []).length === 5
+			&& (d47.gacha || []).filter((x) => x.source === "hover").length === 4,
+			JSON.stringify(d47 && (d47.gacha || []).map((x) => x.title)));
+		check("悬停 4 口池、逐字（火花 / 爻光 两行回来了）",
+			!!d47 && d47.bannerHover === [
+				"「铭心之萃•银狼LV.999」角色活动跃迁：银狼LV.999（欢愉•虚数）",
+				"2026/11/11 4.7版本更新后 ~ 2026/12/02 11:59",
+				"「铭心之萃•火花」角色活动跃迁：火花（欢愉•火）",
+				"2026/11/11 4.7版本更新后 ~ 2026/12/02 11:59",
+				"「铭心之萃•爻光」角色活动跃迁：爻光（欢愉•物理）",
+				"2026/11/11 4.7版本更新后 ~ 2026/12/02 11:59",
+				"「愚戏众星」角色活动跃迁：星神★阿哈（欢愉•量子）",
+				"2026/11/11 4.7版本更新后 ~ 2026/12/22 15:00"
+			].join("\n"), d47 && d47.bannerHover);
+		check("悬停 == hoverTextFromItems(同一份条目事实)（生成器唯一实现）",
+			!!d47 && T.hoverTextFromItems(d47.gachaHoverItems, "gacha", TZ_CN) === d47.bannerHover);
+		assertHoverConvention("星铁 4.7 卡池", d47 && d47.bannerHover, { requireSet: true });
+		// 反向证明：旧式正则（紧跟「限定5星角色」的第一个「…」）在同一句上只拿得到 1 个名字 ——
+		// 这条 bug 若复现，上面 4 条窗口/roles 4 人会立刻红。
+		const RET_SENT = "限定5星角色「银狼LV.999（欢愉•虚数）」「火花（欢愉•火）」「爻光（欢愉•物理）」与限定5星光锥「欢迎来到银河城（欢愉）」将会返场，跃迁时间为 2026/11/11 4.7版本更新后 - 2026/12/02 11:59。";
+		const oldStyle = [...RET_SENT.matchAll(/限定5星角色\s*「([^」]{1,30})」/g)].map((x) => x[1]);
+		const newStyle = [...RET_SENT.matchAll(P.HSR_WARP_ROLE_GROUP_RE)].flatMap((g) => [...g[1].matchAll(/「([^」]{1,30})」/g)].map((x) => x[1]));
+		check("反向证明：旧式「标签后第一个名字」在这句上只拿得到 1 个（银狼LV.999），新式拿到 3 个 —— 差的正是 火花 / 爻光",
+			oldStyle.length === 1 && oldStyle[0] === "银狼LV.999（欢愉•虚数）"
+			&& newStyle.length === 3 && newStyle[1] === "火花（欢愉•火）" && newStyle[2] === "爻光（欢愉•物理）",
+			JSON.stringify([oldStyle, newStyle]));
+		check("反向证明：4.5 其一「限定5星角色「知更鸟•晴歌」「风堇」跃迁成功概率限时提升」没有「跃迁时间为」⇒ 不产窗口（不因多名字就硬凑）",
+			P.hsrWarpWindowsOf(PAYLOAD.data.list, TZ_CN).filter((w) => /4\.5/.test(w.ver)).length === 0);
 	}
 }

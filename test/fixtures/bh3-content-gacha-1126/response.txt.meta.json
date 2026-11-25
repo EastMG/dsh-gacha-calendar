@@ -1,0 +1,6 @@
+{
+  "url": "https://act-api-takumi-static.mihoyo.com/content_v2_user/app/b9d5f96cd69047eb/getContentList?iChanId=697&iPageSize=30&iPage=1&sLangKey=zh-cn",
+  "status": 200,
+  "capturedAt": "2026-11-25T17:53:00.000Z",
+  "trim": "2026-11-26 01:53 +08 真抓的 iChanId=697 卡池频道（_audit-A-raw/bh3.gacha.0.txt）前 30 条里保留 6 条当期帖子：协同补给·薇塔（`>>开放时间 9.2版本更新后~2027年1月8日12:00`）/ 度星终端·覆羽终端（窗口在「养成活动」段的【开放时间】，同为 2027-01-08）/ 装备补给·琉璃朱燧（礼包【上架时间】）/ 装备补给·濯海之蕊（正文**完全没有时间**）/ 跃升武装 / 跃升补给。每条只留 iInfoId / sTitle / sContent / dtStartTime / dtEndTime（解析不读 dtEndTime，保留是为了钉 2035 占位）。"
+}

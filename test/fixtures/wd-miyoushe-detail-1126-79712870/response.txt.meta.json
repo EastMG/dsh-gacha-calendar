@@ -1,0 +1,6 @@
+{
+  "url": "https://bbs-api.miyoushe.com/post/wapi/getPostFull?post_id=79712870",
+  "status": 200,
+  "capturedAt": "2026-11-25T17:53:00.000Z",
+  "trim": "2026-11-26 01:53 +08 真抓的详情（_audit-A-raw/wd.extra.79712870.txt）；只留 retcode/message + data.post.post 的 post_id / subject / content（解析只读这 3 个字段）。"
+}
