@@ -641,4 +641,134 @@ export default async function runWdHlr() {
 				T.dataArrayProducedEventsOf(forcedPayload, twoItems, { id: "wd", tz: TZ_CN }, NOW1126).length
 			]));
 	}
+
+	// ─────────────────────⑫ 2026-11-26 修（审计 A）：公告标题不再当活动名 ─────────────────────
+	// 现场（`_audit-A.md` hlr 段，真机 11-25 显示层）：活动外显 = 「学院公告 | 11月12日不停服更新公告」
+	//   11-14 09:30 ~ 11-26 05:00 —— 那个窗口是 11/12 公告正文里「往期生日画灵复刻」子项的；
+	//   真活动「因爱你所爱」（official/20261117，11-17 09:30 ~ 11-26 05:00）被排到第 2 行。
+	//   根因：`hlrEventNameOf` 摘不到块内名字时退回**整条标题** ⇒ 公告标题成了活动名。
+	// 夹具（2026-11-26 真抓，`_audit-A-raw/hlr.event.*` 原样裁剪）：11-26 的官方/学院公告列表
+	//   （首页 + 第 2 页）+ 4 篇新详情（official 11-17、学院公告 11-19/11-12/11-05；10-29、10-22 复用旧夹具）。
+	//   ⚠️ 列表 URL 与 11-09 旧夹具相同 ⇒ 按仓库既有做法用 fixtureBody 显式 override（不覆盖 map.json，
+	//     与 wd ⑪ 的 1126 夹具同一处理）；**详情 URL 是新地址，已登记进 `test/map.json`**。
+	section("时空中的绘旅人 ⑫：公告帖只当窗口来源（外显 = 真活动名 / 子标题优先 / 反向证明）");
+	{
+		const NOW_HLR_AUDIT = Date.parse("2026-11-17T06:00:00+08:00");   // 审计现场：公告窗口在期、真活动 09:30 才开
+		const NOW_HLR_1125 = Date.parse("2026-11-25T12:00:00+08:00");    // 真机：两个窗口都在期
+		const U_OFFICIAL_1117 = "https://hlr.163.com/news/official/20261117/30882_1319806.html";
+		const U_UPDATE_1119 = "https://hlr.163.com/news/update/20261120/30883_1320254.html";
+		const U_UPDATE_1112 = "https://hlr.163.com/news/update/20261120/30883_1320253.html";
+		const LIST_1126 = {
+			official: FIX("hlr-official-list-1126"),
+			update: FIX("hlr-update-list-1126"),
+			updateP2: FIX("hlr-update-list-1126-p2")
+		};
+		const DETAIL_1126 = {};
+		for (const u of [
+			U_OFFICIAL_1117, U_UPDATE_1119, U_UPDATE_1112,
+			"https://hlr.163.com/news/update/20261120/30883_1320252.html",
+			"https://hlr.163.com/news/update/20261104/30883_1318708.html",
+			"https://hlr.163.com/news/update/20261104/30883_1318707.html",
+			"https://hlr.163.com/news/official/20261105/30882_1318851.html"
+		]) DETAIL_1126[u] = fixtureBody(u);
+
+		// ── 纯函数：体裁稿判据（正 / 反）──────────────────────────────────────────
+		const NOTICE_TITLES = [
+			"学院公告 | 11月12日不停服更新公告",
+			"学院公告 | 11月19日不停服更新公告",
+			"10月1日新增内容公告",
+			"维护公告：11月12日09:30-10:30",
+			"版本更新"
+		];
+		const REAL_TITLES = [
+			"艾因生日活动「因爱你所爱」现已开启！",
+			"全新活动「怪谈：时融」现已开启！",
+			"版本更新「星轨纪元」",
+			"「更新之夜」限时活动"
+		];
+		check("⑫ 体裁稿判据（正）：公告/维护/更新公告类标题全部识别为「整条标题是体裁稿」",
+			NOTICE_TITLES.every((t) => HLR.hlrIsNoticeTitle(t)),
+			JSON.stringify(NOTICE_TITLES.map((t) => [t, HLR.hlrIsNoticeTitle(t)])));
+		check("⑫ 反向证明：正常活动名（含「更新」字样的 `版本更新「星轨纪元」`/`「更新之夜」`）**不**被误杀",
+			REAL_TITLES.every((t) => HLR.hlrIsNoticeTitle(t) === false),
+			JSON.stringify(REAL_TITLES.map((t) => [t, HLR.hlrIsNoticeTitle(t)])));
+
+		// ── 纯函数：公告帖逐段取子标题（子标题优先；摘不到 ⇒ 空串）────────────────
+		const d12 = HLR.hlrParseDetail(DETAIL_1126[U_UPDATE_1112]);
+		const blocks12 = HLR.hlrBlocksOf(d12.contentHtml);
+		const bfq = blocks12.find((b) => b.indexOf("往期生日画灵复刻") === 0);
+		const bai = blocks12.find((b) => b.indexOf("活动时间：11月17日09:30") === 0);
+		const bsecret = blocks12.find((b) => b.indexOf("秘密提醒") >= 0);
+		check("⑫ 公告帖子项名：窗口前那段原文 = 「往期生日画灵复刻」（源站原文，不是公告标题）",
+			!!bfq && HLR.hlrNoticeSubNameOf(bfq) === "往期生日画灵复刻",
+			JSON.stringify(bfq && HLR.hlrNoticeSubNameOf(bfq)));
+		check("⑫ 公告帖子项名：`活动时间：` 只是标签 ⇒ 退到段内第一个「…」= 「因爱你所爱」",
+			!!bai && HLR.hlrNoticeSubNameOf(bai) === "因爱你所爱",
+			JSON.stringify(bai && HLR.hlrNoticeSubNameOf(bai)));
+		check("⑫ 公告帖子项名反证：摘不到名字的段返回空串（该段不产出，绝不拿公告标题顶）",
+			!!bsecret && HLR.hlrNoticeSubNameOf(bsecret) === "",
+			JSON.stringify(bsecret && HLR.hlrNoticeSubNameOf(bsecret)));
+		check("⑫ 反向证明（旧路径）：同一段交给 `hlrEventNameOf` 仍会退回整条公告标题 —— 审计 A 的现场",
+			!!bfq && d12.title === "学院公告 | 11月12日不停服更新公告" && HLR.hlrEventNameOf(bfq, d12.title) === d12.title,
+			JSON.stringify(d12.title));
+
+		// ── 端到端（11-26 列表/详情真夹具）────────────────────────────────────────
+		const mkT1126 = (sink) => ({
+			async fetchRaw(u) { throw new Error("hlr 1126 不该直连：" + u); },
+			async fetchViaProxy(u) {
+				const url = String(u);
+				if (sink) sink.push(url);
+				if (url === HLR.HLR_LIST_URL) return LIST_1126.official;
+				if (url === HLR.HLR_UPDATE_LIST_URL) return LIST_1126.update;
+				if (url === HLR.HLR_UPDATE_LIST_URL + "index_2.html") return LIST_1126.updateP2;
+				const body = DETAIL_1126[url];
+				if (!body) throw new Error("hlr 1126 没有这个 URL 的夹具：" + url);
+				return body;
+			}
+		});
+		const runAt = async (now, sinkEv, sinkG) => {
+			const mkEng = (sink) => createEngine({ transport: mkT1126(sink), storage: makeStore(), now: () => now, timer: { setTimeout, clearTimeout } });
+			// 两侧各自一个引擎（= 生产里两侧互相独立）
+			const eEv = mkEng(sinkEv);
+			const srcEv = eEv.__test.SOURCES.find((x) => x.id === "hlr");
+			const ev = await eEv.__test.EVENT_FETCHERS["hlr"].default(srcEv.eventUrl, undefined, srcEv.tz);
+			const eG = mkEng(sinkG);
+			const srcG = eG.__test.SOURCES.find((x) => x.id === "hlr");
+			const g = await eG.__test.GACHA_FETCHERS["hlr"](srcG.url, undefined, srcG.tz);
+			return { ev, g };
+		};
+
+		const auditRun = await runAt(NOW_HLR_AUDIT, [], []);
+		const evA = auditRun.ev;
+		const viewA = evA ? T.sideViewOf(evA.events, NOW_HLR_AUDIT, "event", "hlr") : { primary: null };
+		check("⑫ 审计现场（11-17 06:00）：显示层外显 = 「往期生日画灵复刻」11-14 09:30 ~ 11-26 05:00（真子活动名，不是公告）",
+			!!evA && !!viewA.primary && viewA.primary.title === "往期生日画灵复刻"
+			&& viewA.primary.startTs === Date.UTC(2026, 10, 14, 1, 30) && viewA.primary.endTs === Date.UTC(2026, 10, 25, 21, 0)
+			&& !/公告|维护|更新公告/.test(String(viewA.primary.title)),
+			JSON.stringify(evA && [evA.event, evA.eventDates, (evA.events || []).map((x) => x.title), viewA.primary && [viewA.primary.title, viewA.primary.startTs, viewA.primary.endTs]]));
+
+		const calls1125 = [], callsG1125 = [];
+		const realRun = await runAt(NOW_HLR_1125, calls1125, callsG1125);
+		const evB = realRun.ev;
+		const viewB = evB ? T.sideViewOf(evB.events, NOW_HLR_1125, "event", "hlr") : { primary: null };
+		check("⑫ 真机（11-25 12:00）：外显 / 数组 / 悬停里**都不再有**「公告」标题（黑名单真的生效）",
+			!!evB && !!viewB.primary && !/公告|维护/.test(String(viewB.primary.title))
+			&& (evB.events || []).every((x) => !/公告|维护/.test(String(x.title)))
+			&& !/公告|维护/.test(String(evB.eventHover || "")),
+			JSON.stringify(evB && [viewB.primary && viewB.primary.title, (evB.events || []).map((x) => x.title), evB.eventHover]));
+		check("⑫ 真机（11-25 12:00）：当期通稿活动「因爱你所爱」11-17 09:30 ~ 11-26 05:00 在数组/悬停里（档期逐字不变）",
+			!!evB && evB.event === "因爱你所爱"
+			&& (evB.events || []).some((x) => x.title === "因爱你所爱"
+				&& x.startTs === Date.UTC(2026, 10, 17, 1, 30) && x.endTs === Date.UTC(2026, 10, 25, 21, 0))
+			&& String(evB.eventHover || "").indexOf("因爱你所爱   11-17 09:30 ~ 11-26 05:00") >= 0,
+			JSON.stringify(evB && [evB.event, evB.eventDates, evB.eventHover]));
+		check("⑫ 请求预算不变：活动侧 10 次（官方 1 + 学院公告 1 + 第 2 页 1 + 详情 7）/ 卡池侧 6 次（2 列表 + 4 详情）",
+			calls1125.length === 10 && callsG1125.length === 6,
+			"event=" + calls1125.length + " gacha=" + callsG1125.length + " " + JSON.stringify(calls1125.map((u) => u.replace("https://hlr.163.com", ""))));
+		check("⑫ 卡池侧不受影响（同一个抓取器、同一批详情）：外显仍是「因爱你所爱」11-17 ~ 11-26",
+			!!realRun.g && realRun.g.banner === "因爱你所爱"
+			&& realRun.g.bannerDates === "11-17 09:30 ~ 11-26 05:00"
+			&& realRun.g.startTs === Date.UTC(2026, 10, 17, 1, 30) && realRun.g.endTs === Date.UTC(2026, 10, 25, 21, 0),
+			JSON.stringify(realRun.g && [realRun.g.banner, realRun.g.bannerDates]));
+	}
 }

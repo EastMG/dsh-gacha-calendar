@@ -222,4 +222,74 @@ export default async function run() {
 		check("反证：源站有公告但没有日期区间 ⇒ 活动侧如实 null（不是编一条）", e2 === null, JSON.stringify(e2));
 		useFixtures();   // 还原全局夹具（后面的用例还要用）
 	}
+
+	// ───────────────────── 2026-11-26 修（审计 A / p5x）：5.5.1 契约复刻池进卡池 ─────────────────────
+	// 现场（`_audit-A.md` p5x 段）：源站 5.5.1 公告（2026.11.19）写
+	//   「契约更新 / 佐仓双叶限时复刻 / 复刻时间:2026年11月19日-2026年12月10日」，
+	// 旧词表只认 `活动|开放|售卖|举办|开启|持续 时间` ⇒ 该块 windowRaw 为空 ⇒ 契约复刻池**完全没进卡池**，
+	// 抓取器 `continue` 到下一片 5.4.2 公告 ⇒ 外显挂成上一版本的「限定扭蛋复刻 10-22 ~ 12-24」。
+	// 夹具（2026-11-26 真抓）：p5x-list-20261119（列表首页，前两条 = 5.5.1 / 5.4.2；URL 与旧夹具相同
+	//   ⇒ 按 wd ⑪ 同一做法用 fixtureBody 显式 override）+ p5x-detail-20261119（详情，新 URL **已登记 map.json**）。
+	section("P5X 国服 —— 2026-11-26 真机 5.5.1：契约复刻池进卡池（复刻时间:）+ 多版本公告按版本号优先");
+	const NOW_1125 = Date.parse("2026-11-25T12:00:00+08:00");
+	const U_1126 = "https://p5x.wanmei.com/news/gamenews/20261119/265140.html";
+	const U_1022 = "https://p5x.wanmei.com/news/gamenews/20261022/264741.html";
+	const BODY_1126 = fixtureBody(U_1126);
+	const BODY_1022 = fixtureBody(U_1022);
+	const LIST_1126 = fixtureBody("fixture:p5x-list-20261119", { "fixture:p5x-list-20261119": "p5x-list-20261119/response.txt" });
+	{
+		// ── 解析层：`复刻时间:` 现在进 windowRaw ────────────────────────────────
+		const blocks = T.parsers.p5x.parseP5xBlocks(T.parsers.p5x.p5xBodyText(BODY_1126));
+		const contract = blocks.find((b) => b.category === "契约更新");
+		check("5.5.1 真机：`契约更新` 块的 `复刻时间:` 行现在解析成 windowRaw（旧词表认不出 ⇒ 整块无窗口）",
+			!!contract && contract.title === "佐仓双叶限时复刻" && contract.windowRaw === "2026年11月19日-2026年12月10日",
+			JSON.stringify(contract && [contract.category, contract.title, contract.windowRaw]));
+		const w = parseP5xWindows(contract.windowRaw, "Asia/Shanghai");
+		check("复刻时间窗口：11-19 00:00 ~ 12-10 23:59（UTC+8；纯日期口径 00:00 / 23:59）",
+			w.length === 1 && w[0].startTs === Date.UTC(2026, 10, 18, 16, 0) && w[0].endTs === Date.UTC(2026, 11, 10, 15, 59),
+			JSON.stringify(w));
+
+		// ── 端到端：卡池外显 = 当期契约复刻池 ───────────────────────────────────
+		const makeImpl1126 = (detail) => async (url) => {
+			const raw = String(url);
+			const isApi = raw.startsWith("/api/gacha-calendar-proxy");
+			const target = isApi ? new URL("http://x" + raw).searchParams.get("url") : raw;
+			const body = target === LIST_URL ? LIST_1126 : target === U_1126 ? detail : target === U_1022 ? BODY_1022 : "";
+			const text = isApi ? JSON.stringify({ status: body ? 200 : 404, body }) : body;   // 代理形态回信封
+			return { ok: !!body, status: body ? 200 : 404, headers: { get: () => null }, text: async () => text, json: async () => JSON.parse(text) };
+		};
+		setFetchImpl(makeImpl1126(BODY_1126));
+		const src = findSource("p5x");
+		const g = await src.gacha.fetcher(src.gacha.url, undefined, src.tz, NOW_1125);
+		check("卡池外显 = 「佐仓双叶限时复刻」/ 11-19 00:00 ~ 12-10 23:59 / 原文逐字（旧值「限定扭蛋复刻」是上一版本池）",
+			!!g && g.banner === "佐仓双叶限时复刻" && g.bannerDates === "11-19 00:00 ~ 12-10 23:59"
+			&& g.bannerDatesRaw === "2026年11月19日-2026年12月10日"
+			&& g.startTs === Date.UTC(2026, 10, 18, 16, 0) && g.endTs === Date.UTC(2026, 11, 10, 15, 59),
+			JSON.stringify(g && [g.banner, g.bannerDates, g.bannerDatesRaw]));
+		const gv = T.sideViewOf((g && g.gacha) || [], NOW_1125, "gacha", "p5x");
+		check("显示层外显含「佐仓双叶」（面板走 roles；roles 取命中块自己的怪盗名，不是整篇里别的池的 UP）",
+			!!g && g.roles === "佐仓双叶" && !!gv.primary && String(gv.primary.show).indexOf("佐仓双叶") >= 0
+			&& (g.gacha || []).every((x) => String(x.title).indexOf("扭蛋") < 0),
+			JSON.stringify([g && g.roles, gv.primary && gv.primary.show, (g && g.gacha || []).map((x) => x.title)]));
+
+		// ── 多版本公告：版本号优先（发布日期次之）──────────────────────────────
+		const P = T.parsers.p5x;
+		check("版本号解析 + 排序（纯函数）：5.5.1 比 5.4.2 新；**日期先后颠倒时仍按版本号取最新**（旧的纯日期排序会取错）",
+			JSON.stringify(P.versionOf("献给隐者们的镇魂歌《女神异闻录：夜幕魅影》5.5.1版本今日上线")) === JSON.stringify([5, 5, 1])
+			&& P.versionOf("奇想盛放的舞台《女神异闻录：夜幕魅影》5.4.2版本今日上线") && JSON.stringify(P.versionOf("奇想盛放的舞台《女神异闻录：夜幕魅影》5.4.2版本今日上线")) === JSON.stringify([5, 4, 2])
+			&& P.annCompare({ title: "5.5.1版本", dateKey: "20261022" }, { title: "5.4.2版本", dateKey: "20261119" }) < 0
+			&& P.annCompare({ title: "5.4.2版本", dateKey: "20261022" }, { title: "5.4.1版本", dateKey: "20261119" }) < 0,
+			JSON.stringify([P.versionOf("…5.5.1版本今日上线"), P.versionOf("…5.4.2版本今日上线"),
+				P.annCompare({ title: "5.5.1版本", dateKey: "20261022" }, { title: "5.4.2版本", dateKey: "20261119" })]));
+
+		// ── 反向证明：认不出 `复刻时间:` ⇒ 回退旧版本池（正是审计现场的旧行为）──
+		const noContract = BODY_1126.replace(/复刻时间:2026年11月19日-2026年12月10日/, "复刻时间：");
+		setFetchImpl(makeImpl1126(noContract));
+		const gOld = await src.gacha.fetcher(src.gacha.url, undefined, src.tz, NOW_1125);
+		check("反向证明：抹掉「复刻时间:…」的日期 ⇒ 5.5.1 认不出契约池 ⇒ 回退到 5.4.2 的「限定扭蛋复刻 10-22 ~ 12-24」",
+			!!gOld && gOld.banner === "限定扭蛋复刻" && gOld.bannerDates === "10-22 00:00 ~ 12-24 23:59"
+			&& gOld.bannerDatesRaw === "2026年10月22日-2026年12月24日",
+			JSON.stringify(gOld && [gOld.banner, gOld.bannerDates, gOld.bannerDatesRaw]));
+		useFixtures();   // 还原全局夹具
+	}
 }
