@@ -826,6 +826,21 @@ const p3bStripTailArr = (arr) => (arr || []).map((x) => Object.assign({}, x, {
 // 新值 = `09-24 14:00 ~ 10-08 13:59` ⇒ 只登记 `eventDates` 这一个字段，并逐字证明
 // "起点没动、只是结束日换成真实值"；事件数组的 endTs 随之变化，同样在 ② 里逐字核对。
 const P3B_BA_CN_REAL_EVENT_WINDOW = { baCnMaintText: true };
+// ── 2026-11-26（审计 A「nte 1.5 公告 5 个活动只出 1 个」）：活动侧改逐条收集**全部在期窗口** ──
+// golden（2026-10-20 时刻）那篇 10-14 维护公告里，覆盖当时的活动除了「咔滋！黄金双脆」
+// (10-15 11:00 ~ 11-05 05:59) 还有「夺金大作战」(10-19 05:00 ~ 11-02 04:59) —— 旧实现单次 match
+// 只取正文第一个「限时活动」⇒ 现在 record 的 `event` / `eventDates` / `eventDatesRaw` / `eventHover`
+// 与数组都有意变了（数据没丢：咔滋仍在数组/悬停里，逐字由下面 ② 的专项断言给）。
+// 登记两条路径：`nteEvent`（本侧数组 = events）、`nteGacha`（同一篇公告解析出的**另一侧** events）。
+const P3B_NTE_MULTI_WINDOW = { nteEvent: true, nteGacha: true };
+// 反向证明用：旧那条（原为主条 source=primary）在新数组里变成并列条（source=hover）⇒ key 重发、source 变，
+// **条目事实逐字不变**（title / show / startTs / endTs / tz / raw），所以比较时只摘这 2 个框架字段。
+const p3bNteRowShape = (arr) => (arr || []).map((x) => {
+	const o = Object.assign({}, x);
+	delete o.key;
+	delete o.source;
+	return o;
+});
 const P3B_DAY_ONLY = { p5xGacha: true, p5xEvent: true };
 const P3B_DAY_MS_START = 4 * 3600e3;
 const P3B_DAY_MS_END = 20 * 3600e3;
@@ -980,6 +995,18 @@ async function runP3b() {
 		const r = results[p.key];
 		check(`P3b golden（${p.key}）：golden 里有这一条（覆盖到、不是抽样）`, !!g, p.key);
 		if (!g) continue;
+		if (P3B_NTE_MULTI_WINDOW[p.key] === true) {
+			// 已批准差异（nte 多窗口，2026-11-26）：只登记 4 个**活动侧字符串字段**；卡池字段与两侧数组
+			// 的逐字比较搬到 ② 的专项里（数组真的从 1 条变 2 条，不是"放过"）。
+			const nteChanged = P3B_VISIBLE.filter((f) => p3bTextOf(r.rec[f]) !== p3bTextOf(g.rec[f]));
+			check(`P3b golden（${p.key}）**已批准差异**：活动侧 4 个字段有意变了（event / eventDates / eventDatesRaw / eventHover）`,
+				JSON.stringify(nteChanged) === JSON.stringify(["event", "eventDates", "eventDatesRaw", "eventHover"]),
+				JSON.stringify(nteChanged));
+			check(`P3b golden（${p.key}）**已批准差异**：golden 旧值原样保留（event = 咔滋！黄金双脆，存档"改造前显示什么"）`,
+				p3bTextOf(g.rec.event) === "咔滋！黄金双脆" && p3bTextOf(r.rec.event) === "夺金大作战",
+				JSON.stringify([p3bTextOf(g.rec.event), p3bTextOf(r.rec.event)]));
+			continue;
+		}
 		if (p.approvedChange) {
 			// ⚠️ 2026-11-09「起点未知 ≠ 已开始」（用户拍板）：星铁 bwiki 侧的外显/角色**有意变了** ——
 			// 只有两端明确的「我身即刃」在期，`4.6/4.7版本更新后`（无日期）的三口池不再并入外显。
@@ -1206,6 +1233,28 @@ async function runP3b() {
 		const otherSide = p.side === "gacha" ? "event" : "gacha";
 		const oldArr = P3B_DAY_ONLY[p.key] === true ? p3bDayArr(legacySynthArrOf(p.key, p.side)) : legacySynthArrOf(p.key, p.side);
 		const oldOther = P3B_DAY_ONLY[p.key] === true ? p3bDayArr(legacySynthArrOf(p.key, otherSide)) : legacySynthArrOf(p.key, otherSide);
+		if (P3B_NTE_MULTI_WINDOW[p.key] === true) {
+			// 已批准差异（nte 多窗口，2026-11-26）的**反向证明**：
+			//   活动侧数组 1 → 2 条，新增的只有「夺金大作战」（源站同篇公告原文 10-19 05:00~11-02 04:59，
+			//   结束比咔滋早 ⇒ 外显换它）；改造前那条「咔滋！黄金双脆」条目事实逐字仍在（除 key 位移 /
+			//   source primary→hover 这两个框架字段）；另一侧（卡池）数组逐字不变。
+			const evCur = ((p.key === "nteEvent" ? r.rec[p.field] : r.rec[other]) || []);
+			const evOld = p.key === "nteEvent" ? oldArr : oldOther;
+			const stableCur = ((p.key === "nteEvent" ? r.rec[other] : r.rec[p.field]) || []);
+			const stableOld = p.key === "nteEvent" ? oldOther : oldArr;
+			check(`P3b 等价（${p.key}）**已批准差异**：活动数组 1 → 2 条（新增覆盖当时的「夺金大作战」10-19 05:00 ~ 11-02 04:59）`,
+				evCur.length === 2 && evOld.length === 1
+				&& evCur[0].title === "夺金大作战" && evCur[0].raw === "10-19 05:00 ~ 11-02 04:59"
+				&& evCur[1].title === "咔滋！黄金双脆",
+				JSON.stringify([evCur.map((x) => [x.title, x.raw]), evOld.length]));
+			check(`P3b 等价（${p.key}）**已批准差异**：改造前那条「咔滋！黄金双脆」条目事实逐字仍在（title/show/ts/tz/raw 全等）`,
+				JSON.stringify(p3bNteRowShape([evCur[1]])) === JSON.stringify(p3bNteRowShape(evOld)),
+				JSON.stringify([p3bNteRowShape([evCur[1]]), p3bNteRowShape(evOld)]));
+			check(`P3b 等价（${p.key}）：另一侧（卡池）数组逐字不变（这次只改活动侧）`,
+				JSON.stringify(sansCategoryTags(stableCur)) === JSON.stringify(sansCategoryTags(stableOld)),
+				JSON.stringify([sansCategoryTags(stableCur), sansCategoryTags(stableOld)]));
+			continue;
+		}
 		if (p.approvedChange) {
 			// 已批准差异：改造前 5 条（含「沧海萃珠」并进外显角色）→ 现在 4 条（外显只有「我身即刃」）。
 			check(`P3b 等价（${p.key}）**已批准差异**：改造前 5 条 → 现在 4 条（起点未知不再算在期）`,

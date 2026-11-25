@@ -905,6 +905,11 @@ export default async function runCore() {
 		//   新值 09-24~10-08（活动帖 1962 的真实窗口）⇒ `ba-cn:event` 登记为**已批准差异**，
 		//   名称一字未变、起点一字未变，只有**结束日**从估算值改成真实值（专项断言见下面 ba-cn 块）。
 		const BA_CN_REAL_EVENT_WINDOW = new Set(["ba-cn:event"]);
+		// ⚠️ 2026-11-26（审计 A「nte 1.5 公告 5 个活动只出 1 个」）：活动侧改为**逐条收集全部在期窗口**。
+		//   golden 的时刻（2026-10-20）走的 10-14 维护公告里，覆盖当时的活动除「咔滋！黄金双脆」
+		//   (10-15 11:00 → 11-05 05:59) 还有「夺金大作战」(10-19 05:00 → 11-02 04:59) ⇒ 外显从咔滋
+		//   变夺金、行数 1 → 2。数据没丢：咔滋仍在（专项断言逐字证明，见下面 nte 块）。
+		APPROVED_DIFF.add("nte:event");
 		// ⚠️ 2026-11-18（外显名 ①：源站体裁尾巴归一）：`mergeEntryRecord` 现在只改**外显名**
 		// （`banner` / `event`），把白名单里的体裁尾巴剥掉（如「…開催中！」「…现已开启」）。
 		// golden 是改造前的存档 ⇒ 这 3 个侧的外显名与 golden 有意不同；**数组与悬停一个字没动**
@@ -917,7 +922,7 @@ export default async function runCore() {
 		const unapproved = diffs.filter((k) => !APPROVED_DIFF.has(k) && !DAY_ONLY_KEYS.has(k) && !BA_CN_REAL_EVENT_WINDOW.has(k));
 		check("等价性：17 款游戏（34 个侧）**全部逐字相等**（diffs = 0；名称 / 档期文本 / 探头行数 / 行顺序）",
 			unapproved.length === 0, JSON.stringify(unapproved));
-		check("等价性白名单 = 8 个已批准（星铁 2 + 星塔 1 + bandori 2 + 外显名尾巴 3）+ p5x 2 个纯日期时间口径 + ba-cn 活动真实窗口 1（这些键都必须真的变了）",
+		check("等价性白名单 = 9 个已批准（星铁 2 + 星塔 1 + bandori 2 + 外显名尾巴 3 + nte 活动多窗口 1）+ p5x 2 个纯日期时间口径 + ba-cn 活动真实窗口 1（这些键都必须真的变了）",
 			diffs.length === APPROVED_DIFF.size + DAY_ONLY_KEYS.size + BA_CN_REAL_EVENT_WINDOW.size
 			&& [...APPROVED_DIFF].every((k) => diffs.indexOf(k) >= 0)
 			&& [...DAY_ONLY_KEYS].every((k) => diffs.indexOf(k) >= 0)
@@ -980,6 +985,22 @@ export default async function runCore() {
 				JSON.stringify([swapped, stripAgo(goldRow.meta), nextRow.meta, goldRow.meta]));
 		}
 
+		// nte 专项（2026-11-26 已批准差异的**依据**）：同一篇公告里「多个在期活动」逐条进数组/悬停，
+	// 外显按「在期 + 结束最早」挑 —— 夺金比咔滋早结束 ⇒ 排到第一行；咔滋的数据逐字仍在。
+		{
+			const d = got.get("nte:event");
+			const goldRow = (d && d.old && d.old[0]) || {};
+			const nextRows = (d && d.next) || [];
+			check("等价性（nte:event）已批准差异①：行数 1 → 2，新增「夺金大作战」10-19 05:00 → 11-02 04:59（结束更早 ⇒ 外显）",
+				nextRows.length === 2 && nextRows[0].name === "夺金大作战"
+				&& /^10-19 05:00 → 11-02 04:59 · 还剩 \d+天\d+时$/.test(String(nextRows[0].meta)),
+				JSON.stringify(nextRows));
+			check("等价性（nte:event）已批准差异②：改造前外显「咔滋！黄金双脆」逐字仍在（名称 + 档期 + 剩余时间与原 golden 全等）",
+				!!goldRow && goldRow.name === "咔滋！黄金双脆"
+				&& nextRows.some((r) => JSON.stringify(r) === JSON.stringify(goldRow)),
+				JSON.stringify([goldRow, nextRows.slice(1)]));
+		}
+
 		const STRICT = ["zzz", "arknights", "ba-cn", "bandori", "wuhuamixin", "zspms", "kedr", "uma-cn", "uma-jp", "uma-global", "p5x", "nte", "gf2", "fgo", "stellasora", "hsr", "genshin"];
 		const strictBad = [];
 		for (const id of STRICT) {
@@ -993,7 +1014,7 @@ export default async function runCore() {
 		check("等价性：17 款游戏（34 个侧）逐侧再钉一遍同一条不变量（含「这一侧没有数据」的那些）",
 			strictBad.length === 0, JSON.stringify(strictBad));
 		// 反向证明：所有"已批准差异"确实**真的变了**（不是白名单把没变的键也放过）
-		check("反向证明：已批准差异（星铁 2 + 星塔 1 + bandori 2 + 外显名尾巴 3）的老路与数组派生**确实不再相等**（口径变更真的生效了）",
+		check("反向证明：已批准差异（星铁 2 + 星塔 1 + bandori 2 + 外显名尾巴 3 + nte 活动多窗口 1）的老路与数组派生**确实不再相等**（口径变更真的生效了）",
 			[...APPROVED_DIFF].every((k) => {
 				const d = got.get(k);
 				return !!d && JSON.stringify(d.old) !== JSON.stringify(d.next);

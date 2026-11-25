@@ -1,0 +1,6 @@
+{
+  "url": "https://www.taptap.cn/app/755194/topic?type=official",
+  "status": 200,
+  "capturedAt": "2026-11-26T01:45:00+08:00",
+  "trim": "audit A 活网真抓（_audit-A-raw/ddlezj.event.0.txt，368714 字符）；只保留 `<script id=\"__NUXT_DATA__\">` 段 + 最小 HTML 外壳（抓取器只读这一段）；原响应 368714 → 152487 字符"
+}
