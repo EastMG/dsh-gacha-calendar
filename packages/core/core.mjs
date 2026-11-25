@@ -6579,7 +6579,15 @@ function ns_biligame_activity_yearHintOf(item, tz) {
 
 
 		// 该句里的 5★ 角色（「限定5星角色「真珠（欢愉•冰）」…」）
-		const HSR_WARP_ROLE_RE = /限定5星角色\s*「([^」]{1,30})」/g;
+		// ⚠️ 2026-11-26（真机 4.7 其一）：源站会把**返场池并列写在同一句**、只在第一个名字前写
+		//    「限定5星角色」——「限定5星角色「银狼LV.999（欢愉•虚数）」「火花（欢愉•火）」「爻光（欢愉•物理）」
+		//    …将会返场，跃迁时间为 …」。旧正则只认紧跟在标签后的**第一个** `「…」` ⇒ 一个窗口只落 1 个角色，
+		//    4 个角色池（愚戏众星 / 铭心之萃•银狼 / •火花 / •爻光）只出 2 个。
+		// 现在分两步：① 先吃下「限定5星角色」后**连续**的 `「…」` 组（组内只允许空白）；
+		//    ② 再把该组里的名字逐个拆开（`HSR_WARP_ROLE_RE` 只做名字级）。组与组之间必须有新的
+		//    「限定5星角色」才另起一组 —— 后面紧跟的 `4星角色「…」` / 光锥名不会被算进来。
+		const HSR_WARP_ROLE_GROUP_RE = /限定5星角色\s*((?:「[^」]{1,30}」\s*)+)/g;
+		const HSR_WARP_ROLE_RE = /「([^」]{1,30})」/g;
 
 
 		// 卡池名 ↔ 角色（只写在 ▌ 段的 ● 行里）：
@@ -6627,27 +6635,32 @@ function ns_biligame_activity_yearHintOf(item, tz) {
 				while ((m = HSR_WARP_TIME_RE.exec(t.text)) !== null) {
 					const endP = parseTime(m[2], tz);
 					if (endP.ts == null) continue;
-					// 5★ 角色写在**同一句**里（句读 = 。/；）。取离窗口最近的那一个（最后一个）。
+					// 5★ 角色写在**同一句**里（句读 = 。/；）。取离窗口最近的那一组「限定5星角色」，
+					// 组内**所有**并列名字都算（返场句会并列写 3 个 ⇒ 3 个角色池各一条窗口）。
 					const before = t.text.slice(0, m.index);
 					const cut = Math.max(before.lastIndexOf("。"), before.lastIndexOf("；"));
-					const roleAll = [...before.slice(cut + 1).matchAll(HSR_WARP_ROLE_RE)];
-					const role = roleAll.length ? roleAll[roleAll.length - 1][1].trim() : "";
-					const base = HSR_ROLE_BASE(role);
-					if (!base) continue;
-					const startText = m[1].trim();
-					const startTs = anchorStartOf(startText, HSR_UPDATE_ANCHOR_HOUR, tz);
-					const key = `${base}|${startTs == null ? "" : startTs}|${endP.ts}`;
-					if (seen.has(key)) continue;
-					seen.add(key);
-					out.push({
-						ver, part, role, base,
-						pool: poolOf[base] || "",
-						startTs, endTs: endP.ts,
-						startText, endText: endP.text,
-						// 源站原文（两端 token 逐字；分隔符统一成 `~`，与全仓悬停/数组同一写法）
-						raw: `${startText} ~ ${m[2].replace(/\s+/g, " ")}`,
-						annTitle: t.title
-					});
+					const groups = [...before.slice(cut + 1).matchAll(HSR_WARP_ROLE_GROUP_RE)];
+					if (groups.length === 0) continue;
+					const names = [...groups[groups.length - 1][1].matchAll(HSR_WARP_ROLE_RE)]
+						.map((x) => x[1].trim()).filter(Boolean);
+					for (const role of names) {
+						const base = HSR_ROLE_BASE(role);
+						if (!base) continue;
+						const startText = m[1].trim();
+						const startTs = anchorStartOf(startText, HSR_UPDATE_ANCHOR_HOUR, tz);
+						const key = `${base}|${startTs == null ? "" : startTs}|${endP.ts}`;
+						if (seen.has(key)) continue;
+						seen.add(key);
+						out.push({
+							ver, part, role, base,
+							pool: poolOf[base] || "",
+							startTs, endTs: endP.ts,
+							startText, endText: endP.text,
+							// 源站原文（两端 token 逐字；分隔符统一成 `~`，与全仓悬停/数组同一写法）
+							raw: `${startText} ~ ${m[2].replace(/\s+/g, " ")}`,
+							annTitle: t.title
+						});
+					}
 				}
 			}
 			return out;

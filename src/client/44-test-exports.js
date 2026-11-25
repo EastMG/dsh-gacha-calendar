@@ -294,6 +294,7 @@
 				HSR_BWIKI_URL,
 				HSR_CMS_LIST_URL,
 				HSR_UPDATE_ANCHOR_HOUR,
+				HSR_WARP_ROLE_GROUP_RE,
 				HSR_WARP_TIME_RE,
 				fetchHsrGacha,
 				hsrWarpWindowsOf,

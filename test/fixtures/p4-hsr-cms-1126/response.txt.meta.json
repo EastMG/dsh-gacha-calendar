@@ -1,0 +1,6 @@
+{
+  "url": "https://api-takumi-static.mihoyo.com/content_v2_user/app/1963de8dc19e461c/getContentList?iPage=1&iPageSize=200&sLangKey=zh-cn&isPreview=0&iChanId=257",
+  "status": 200,
+  "capturedAt": "2026-11-25T17:53:00.000Z",
+  "trim": "2026-11-26 01:53 +08 真抓的 getContentList 一页 200 条（_audit-A-raw/hsr.gacha.0.txt）；只保留 5 条公告：4.7其一（返场句并列 3 个 5★：银狼LV.999/火花/爻光，+ 愚戏众星=阿哈）+ 4.6其二 + 4.6其一 + 4.5其一 + 4.4其二（返场句并列 3 个 5★：刻律德菈/那刻夏/砂金，用来钉「同句多角色」）。每条只留 iInfoId / sTitle / sIntro / sContent（解析只读 sTitle/sIntro/sContent），其余字段删除；retcode/message/iTotal 原样。"
+}
