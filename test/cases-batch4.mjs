@@ -395,6 +395,49 @@ export default async function run() {
 				d ? JSON.stringify([d.event, d.eventDates]) : "null");
 			if (d && d.bannerHover) assertHoverConvention("学マス 卡池悬停", d.bannerHover);
 		}
+		// 2026-11-26（活网审计 B）：源站「開催中のイベント 2件」= 1 条终点「未定」+ 1 条跨年 11/16→次年 2/15。
+		// 修复前：终点缺失 ⇒ 整行丢；跨年判据只认 12→1 ⇒ 11→2 被当脏行丢 ⇒ 活动侧恒空。
+		{
+			const NOW_1126 = Date.parse("2026-11-26T03:20:00+09:00");   // 审计当天 02:20 +08 = 03:20 JST
+			const sink = [];
+			const { d } = await fetchOf("gakumas", NOW_1126, sink);
+			const evs = (d && d.events) || [];
+			const season5 = evs.find((x) => x.title === "プロデューサーランキング シーズン5") || null;
+			const season2 = evs.find((x) => x.title === "プロデュースランキングシーズン2") || null;
+			check("学マス（11-26 真夹具）：活动数组 = 2 条（修复前 arrLen 0）", evs.length === 2,
+				JSON.stringify(evs.map((x) => [x.title, x.startTs, x.endTs])));
+			check("学マス（11-26）：シーズン5 = 跨年 11/16 11:00 ~ **2027-02-15** 04:59（UTC 手算 11-16T02:00Z ~ 2027-02-14T19:59Z）",
+				!!season5 && d.event === "プロデューサーランキング シーズン5"
+				&& d.eventDates === "2026-11-16 11:00 ~ 2027-02-15 04:59"
+				&& d.eventDatesRaw === "11/16 11:00 ~ 2/15 04:59"
+				&& season5.startTs === jst(2026, 11, 16, 11, 0)
+				&& season5.endTs === jst(2027, 2, 15, 4, 59),
+				JSON.stringify(d && [d.event, d.eventDates, d.eventDatesRaw, season5 && [season5.startTs, season5.endTs]]));
+			check("学マス（11-26）：シーズン2 = 终点「未定」⇒ 进数组/悬停（endTs null、raw「11-16 11:00 ~ 未定」、起点仍明确）",
+				!!season2 && season2.endTs === null && season2.startTs === jst(2026, 11, 16, 11, 0)
+				&& season2.raw === "11-16 11:00 ~ 未定",
+				JSON.stringify(season2));
+			check("学マス（11-26）：外显仍只取两端明确的那条（= シーズン5；「未定」不当外显）",
+				d && d.event === "プロデューサーランキング シーズン5", d && d.event);
+			if (d && d.eventHover) assertHoverConvention("学マス 活动悬停（11-26）", d.eventHover, { requireSet: true });
+			// 纯函数反证：跨年 / 终点未定 / 源站倒挂日期
+			check("imasWindowOf 反证：11/16→2/15 跨年按**次年**解析（旧实现只认 12→1，会整行丢）",
+				(() => {
+					const w = I.imasWindowOf({ mo: 11, d: 16, h: 11, mi: 0 }, { mo: 2, d: 15, h: 4, mi: 59 }, 2026, TZ_JP);
+					return !!w && w.startTs === jst(2026, 11, 16, 11, 0) && w.endTs === jst(2027, 2, 15, 4, 59)
+						&& w.raw === "11/16 11:00 ~ 2/15 04:59";
+				})(),
+				JSON.stringify(I.imasWindowOf({ mo: 11, d: 16, h: 11, mi: 0 }, { mo: 2, d: 15, h: 4, mi: 59 }, 2026, TZ_JP)));
+			check("imasWindowOf 反证：终点缺 ⇒ endTs=null + raw「… ~ 未定」（不再整行丢）",
+				(() => {
+					const w = I.imasWindowOf({ mo: 11, d: 16, h: 11, mi: 0 }, null, 2026, TZ_JP);
+					return !!w && w.startTs === jst(2026, 11, 16, 11, 0) && w.endTs === null && w.raw === "11-16 11:00 ~ 未定";
+				})(),
+				JSON.stringify(I.imasWindowOf({ mo: 11, d: 16, h: 11, mi: 0 }, null, 2026, TZ_JP)));
+			check("imasWindowOf 反证：倒挂跨年（11/14→10/30，按次年 = 350 天）⇒ null（源站脏行不编假窗口）",
+				I.imasWindowOf({ mo: 11, d: 14, h: 13, mi: 0 }, { mo: 10, d: 30, h: 23, mi: 59 }, 2026, TZ_JP) === null,
+				JSON.stringify(I.imasWindowOf({ mo: 11, d: 14, h: 13, mi: 0 }, { mo: 10, d: 30, h: 23, mi: 59 }, 2026, TZ_JP)));
+		}
 		// シャニマス
 		{
 			const sink = [];
