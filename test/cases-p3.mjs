@@ -708,8 +708,13 @@ const P3B_PATHS = [
 		call: (t) => t.EVENT_FETCHERS["pjsk"].default("https://sekai-world.github.io/sekai-master-db-cn-diff/events.json", undefined, TZ_CN)
 	},
 	{
+		// ⚠️ 2026-11-26（活网审计 B）：OurNotes 日服活动默认源换成 **SPICA 活动页**
+		// （bushimo WP 公告 20 条全无档期 ⇒ 恒 nomatch），旧 WP 源降为备选。
+		// 这条 golden 钉的是**旧 bushimo 解析器**的输出 ⇒ 改走备选源 + 备选抓取器（先例：
+		// 2026-11-14 的 umaGlobalEvent 改走 `uma-global-official`）。
+		// SPICA 活动侧的有数据路径由 `test/cases-batch2.mjs` 第二批②B 单独钉。
 		key: "ournotesEvent", switched: true, id: "ournotes", side: "event", field: "events", now: Date.parse("2026-10-02T00:00:00.000Z"),
-		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
+		call: (t, s) => t.EVENT_FETCHERS[s.id]["ournotes-bushimo"](altUrlOf(s.eventAltSources, "ournotes-bushimo"), undefined, s.tz)
 	},
 	{
 		// OurNotes 国际服**默认未配置**（只挂备选源）→ 走备选活动抓取器；页面夹具换成"有内容"的那份
