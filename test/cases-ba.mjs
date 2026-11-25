@@ -91,12 +91,18 @@ export default async function run() {
 		const cur = T.gkBaCurrentPool(blocks, now, 2026, null);
 		check("ba-global：609133 当期卡池表 → 角色名（旬/妃姬，含简繁与括号归一）",
 			!!cur && cur.roles === "旬(泳装)、妃姬(泳装)", JSON.stringify(cur && cur.roles));
-		// 显示口径（endDayTs）与判断口径（endTs 含当日全天）分开：显示必须是 10-27 00:00（上一轮读数），
-		// 但判断不能提前一天过期（到期当天 00:00 起仍算当期）
-		check("ba-global：档期显示 10-13 00:00 ~ 10-27 00:00 / 判断用 endTs 覆盖到 10-27 23:59",
-			!!cur && T.fmtWindow(cur.win.startTs, cur.win.endDayTs) === "10-13 00:00 ~ 10-27 00:00"
-			&& T.fmtMdHm(cur.win.endTs) === "10-27 23:59",
-			cur && [T.fmtWindow(cur.win.startTs, cur.win.endDayTs), T.fmtMdHm(cur.win.endTs)].join(" | "));
+		// 显示口径与判断口径**同一对 ts**（2026-11-26 修）：只有日期 ⇒ 仓库通用约定 00:00 / 23:59。
+		// 旧实现显示另取 `endDayTs`（结束日 00:00）⇒ 外显 `10-27 00:00`（终点早一整天，活网审计现场）。
+		check("ba-global：档期显示 10-13 00:00 ~ 10-27 23:59（只有日期 ⇒ 起点 00:00 / 终点 23:59）",
+			!!cur && T.fmtWindow(cur.win.startTs, cur.win.endTs) === "10-13 00:00 ~ 10-27 23:59",
+			cur && T.fmtWindow(cur.win.startTs, cur.win.endTs));
+		// raw = 表格那一格的日期原文（给 bannerDatesRaw 用，`rawEmpty` 不该是字段缺失）
+		check("ba-global：窗口 raw = 表格日期原文「10月13日～10月27日」（不是格式化后的文本）",
+			!!cur && cur.win.raw === "10月13日～10月27日" && !("endDayTs" in cur.win),
+			cur && JSON.stringify([cur.win.raw, "endDayTs" in cur.win]));
+		// 判定端点与显示端点同一对：终点 = 结束日 23:59（不是 00:00、也不是 23:59:59.999）
+		check("ba-global：日粒度窗口的判断/显示端点同一对 ts（终点 = 10-27 23:59）",
+			!!cur && cur.win.endTs === localTs(2026, 10, 27, 23, 59), cur && String(cur.win.endTs));
 		// titleWindow 不再是卡池标题（线上已不请求它）—— 传了也只作"没有组覆盖 now"时的兜底
 		const outside = Date.parse("2026-12-01T00:00:00+08:00");
 		const title = { startTs: localTs(2026, 10, 13), endTs: localTs(2026, 10, 27) };
@@ -205,11 +211,13 @@ export default async function run() {
 			}
 		});
 		const g = await T.GACHA_FETCHERS["ba-global"]();
-		check("ba-global：卡池三字段全部来自 609133 单源（banner=招募类型 / roles / bannerDates）",
-			!!g && g.banner === "特选招募" && g.roles === "旬(泳装)、妃姬(泳装)" && g.bannerDates === "10-13 00:00 ~ 10-27 00:00",
+		check("ba-global：卡池三字段全部来自 609133 单源（banner=招募类型 / roles / bannerDates + 源站日期原文）",
+			!!g && g.banner === "特选招募" && g.roles === "旬(泳装)、妃姬(泳装)"
+			&& g.bannerDates === "10-13 00:00 ~ 10-27 23:59" && g.bannerDatesRaw === "10月13日～10月27日",
 			JSON.stringify(g));
-		check("ba-global：活动侧未改动（仍来自「国际服当期活动」标题）",
-			!!g && g.event === "岚过天晴" && g.eventDates === "10-13 00:00 ~ 10-27 00:00", JSON.stringify(g && [g.event, g.eventDates]));
+		check("ba-global：活动侧仍是「国际服当期活动」标题（日粒度 ⇒ 00:00 ~ 23:59 + 标题日期原文）",
+			!!g && g.event === "岚过天晴" && g.eventDates === "10-13 00:00 ~ 10-27 23:59"
+			&& g.eventDatesRaw === "10/13~10/27", JSON.stringify(g && [g.event, g.eventDates, g.eventDatesRaw]));
 		check("ba-global：整条抓取器 4 次请求（目录树 + 活动标题 + detail + CDN）",
 			seen.length === 4, "requests=" + seen.length);
 		check("ba-global：卡池侧恰好 2 次请求（detail 609133 + CDN），不再请求目录页叠加标题",
@@ -670,11 +678,13 @@ export default async function run() {
 		const { g, seen } = await runGk(treeLive);
 		check("ba-global：活动条目叫「国际服当期攻略」(728357) 也能命中 ⇒ 活动名 = 出航！万魔船 真琴议长的豪华避暑",
 			!!g && g.event === "出航！万魔船 真琴议长的豪华避暑", JSON.stringify(g && g.event));
-		check("ba-global：活动档期 = 标题里的【11/10~11/24】→ 11-10 00:00 ~ 11-24 00:00",
-			!!g && g.eventDates === "11-10 00:00 ~ 11-24 00:00", JSON.stringify(g && g.eventDates));
-		check("ba-global：卡池侧用同期真夹具（11-10~11-17 那组）不受影响",
-			!!g && g.roles === "真琴(泳装)、皐月(泳装)" && g.bannerDates === "11-10 00:00 ~ 11-17 00:00",
-			JSON.stringify(g && [g.roles, g.bannerDates]));
+		check("ba-global：活动档期 = 标题里的【11/10~11/24】⇒ 11-10 00:00 ~ 11-24 23:59（日期原文进 raw）",
+			!!g && g.eventDates === "11-10 00:00 ~ 11-24 23:59" && g.eventDatesRaw === "11/10~11/24",
+			JSON.stringify(g && [g.eventDates, g.eventDatesRaw]));
+		check("ba-global：卡池侧用同期真夹具（11-10~11-17 那组）不受影响（日粒度 ⇒ 23:59 + 日期原文）",
+			!!g && g.roles === "真琴(泳装)、皐月(泳装)" && g.bannerDates === "11-10 00:00 ~ 11-17 23:59"
+			&& g.bannerDatesRaw === "11月10日～11月17日",
+			JSON.stringify(g && [g.roles, g.bannerDates, g.bannerDatesRaw]));
 		check("ba-global：请求 4 次（目录树 + 活动标题 + 609133 detail + CDN）",
 			seen.length === 4, "requests=" + seen.length);
 
@@ -722,5 +732,98 @@ export default async function run() {
 		noFallback.data.rows = noFallback.data.rows.filter((r) => r.id !== 704);
 		const jpNo = await runJp(NOW_1111, JSON.stringify(noFallback));
 		check("反证：删掉 704（回退的那一期）⇒ 只剩未开始的 708 ⇒ null", jpNo === null, JSON.stringify(jpNo));
+	}
+
+	// ── ⑦ 2026-11-26 活网审计 B ②：ba-global 日粒度窗口统一 `00:00 ~ 23:59` + 补 `*DatesRaw` ──
+	// 现场：卡池「特选招募」`11-24 00:00 ~ 12-08 00:00`、活动「恶灵松饼～奇迹的瞬间～活动复刻」同窗口，
+	//   `rawEmpty: true`。源站只有日期（GameKee 卡池表 `11月24日 ～ 12月8日`、活动标题 `【11/24～12/08】`）。
+	// 夹具全是 2026-11-26 真抓：`ba-global-gk-1126-tree` / `...-event-730634` / `...-detail-609133`
+	//   / `...-cdn-609133`（前两条已登记 map.json；609133 两条 URL 共享映射里已有旧夹具 ⇒
+	//   按仓库惯例用**显式 override**，不覆盖多人共写的 map.json）。
+	{
+		const NOW_1126 = Date.parse("2026-11-26T02:00:00+08:00");
+		const map = JSON.parse(readFileSync(path.join(FIXTURES_DIR, "..", "map.json"), "utf8"));
+		const TREE = "https://www.gamekee.com/v1/wiki/entry?id=15";
+		const EV = "https://www.gamekee.com/v1/content/detail/730634";
+		const DET = "https://www.gamekee.com/v1/content/detail/609133";
+		check("ba-global：2026-11-26 真夹具已登记 test/map.json（目录树 / 活动标题）",
+			map[TREE] === "ba-global-gk-1126-tree/response.txt" && map[EV] === "ba-global-gk-1126-event-730634/response.txt",
+			JSON.stringify([map[TREE], map[EV]]));
+
+		const det = JSON.parse(fx("ba-global-gk-1126-detail-609133/response.txt"));
+		const cdn = String(det?.data?.content_cdn || "");
+		const cdnUrl = cdn.startsWith("//") ? "https:" + cdn : cdn;
+		const routes = [
+			[TREE, fx("ba-global-gk-1126-tree/response.txt")],
+			[EV, fx("ba-global-gk-1126-event-730634/response.txt")],
+			[DET, fx("ba-global-gk-1126-detail-609133/response.txt")],
+			[cdnUrl, fx("ba-global-gk-1126-cdn-609133/response.txt")]
+		];
+		const runGk = async (now, extra = []) => {
+			T.setCoreEnv({
+				now: () => now,
+				transport: {
+					async fetchRaw(u) { throw new Error("unexpected-direct:" + u); },
+					async fetchViaProxy(u) {
+						const s = String(u);
+						const hit = routes.concat(extra).find((r) => s === r[0]);
+						if (!hit) throw new Error("unexpected-url:" + s.slice(0, 100));
+						return hit[1];
+					}
+				}
+			});
+			return T.GACHA_FETCHERS["ba-global"]();
+		};
+		const g = await runGk(NOW_1126);
+		check("ba-global：卡池档期 11-24 00:00 ~ 12-08 23:59（只有日期 ⇒ 起点 00:00 / 终点 23:59）",
+			!!g && g.bannerDates === "11-24 00:00 ~ 12-08 23:59", JSON.stringify(g && g.bannerDates));
+		check("ba-global：bannerDatesRaw = 卡池表日期原文「11月24日 ～ 12月8日」（rawEmpty 不再是字段缺失）",
+			!!g && g.bannerDatesRaw === "11月24日 ～ 12月8日", JSON.stringify(g && g.bannerDatesRaw));
+		check("ba-global：活动档期 11-24 00:00 ~ 12-08 23:59 + eventDatesRaw = 标题日期原文「11/24～12/08」",
+			!!g && g.eventDates === "11-24 00:00 ~ 12-08 23:59" && g.eventDatesRaw === "11/24～12/08",
+			JSON.stringify(g && [g.eventDates, g.eventDatesRaw]));
+		check("ba-global：活动名逐字 = 「恶灵松饼～奇迹的瞬间～活动复刻」（源站标题去掉攻略整理后缀与日期括号）",
+			!!g && g.event === "恶灵松饼～奇迹的瞬间～活动复刻", JSON.stringify(g && g.event));
+		check("ba-global：数组主条 raw 也用源站日期原文（卡池 / 活动两侧），不再是空串",
+			!!g && (g.gacha || []).length === 1 && (g.events || []).length === 1
+			&& g.gacha[0].raw === "11月24日 ～ 12月8日" && g.events[0].raw === "11/24～12/08",
+			JSON.stringify(g && [(g.gacha[0] || {}).raw, (g.events[0] || {}).raw]));
+		check("ba-global：数组 endTs = 12-08 23:59（判断/显示同一口径，不是 12-08 00:00）",
+			!!g && g.gacha[0].endTs === Date.UTC(2026, 11, 8, 23, 59) && g.events[0].endTs === Date.UTC(2026, 11, 8, 23, 59),
+			JSON.stringify(g && [g.gacha[0].endTs, g.events[0].endTs]));
+		// 活动侧默认源与卡池同一份载荷（同一 URL）⇒ 字段一致
+		const ge = await (async () => {
+			T.setCoreEnv({
+				now: () => NOW_1126,
+				transport: {
+					async fetchRaw(u) { throw new Error("unexpected-direct:" + u); },
+					async fetchViaProxy(u) {
+						const s = String(u);
+						const hit = routes.find((r) => s === r[0]);
+						if (!hit) throw new Error("unexpected-url:" + s.slice(0, 100));
+						return hit[1];
+					}
+				}
+			});
+			return T.EVENT_FETCHERS["ba-global"].default();
+		})();
+		check("ba-global：活动侧（默认源）与卡池侧同一份载荷 ⇒ 档期/raw 逐字相同",
+			!!ge && ge.event === g.event && ge.eventDates === g.eventDates && ge.eventDatesRaw === g.eventDatesRaw,
+			JSON.stringify(ge && [ge.event, ge.eventDates, ge.eventDatesRaw]));
+
+		// 反向证明：表里**带时刻**时不许被改成 23:59（只有日期才套通用约定）
+		const row = (cells) => ({
+			type: "table-row", children: cells.map((c) => ({ type: "table-cell", children: [{ type: "paragraph", children: [{ text: c }] }] }))
+		});
+		const withClock = [
+			{ type: "paragraph", children: [{ text: "当期卡池" }] },
+			{ type: "table", children: [row(["卡池图标", "PU学生", "卡池时间"]), row(["", "测试角色", "11月24日 12:00 ～ 12月8日 09:59"])] },
+			{ type: "paragraph", children: [{ text: "历史卡池" }] }
+		];
+		const cur = T.gkBaCurrentPool(withClock, NOW_1126, 2026, null);
+		check("反证：表格里带时刻 ⇒ 档期原样 11-24 12:00 ~ 12-08 09:59（只有日期才套 00:00/23:59）",
+			!!cur && T.fmtWindow(cur.win.startTs, cur.win.endTs) === "11-24 12:00 ~ 12-08 09:59"
+			&& cur.win.raw === "11月24日 12:00 ～ 12月8日 09:59",
+			JSON.stringify(cur && [T.fmtWindow(cur.win.startTs, cur.win.endTs), cur.win.raw]));
 	}
 }

@@ -376,6 +376,11 @@
 		// 那边取日程表里的「特選招募 / 特別特選招募」）。写成简体，与本站其余 GameKee 文本一致。
 		const GK_BA_POOL_BANNER = "特选招募";
 
+		// 只有日期（没有钟点）的窗口 ⇒ **仓库通用约定「起 00:00 / 止 23:59」**：
+		// 终点 = 当日 00:00 + 23h59m（= 23:59 墙钟；`fmtWindow` 渲染出来正好是 `23:59`）。
+		// 同口径见 p5x / 战双 / 星塔（`coversNow` 用同一对 ts，不再另存一个"显示用"端点）。
+		const GK_BA_DAY_LAST_MS = 23 * 3600e3 + 59 * 60e3;
+
 		// block（编辑器节点树）→ 纯文本
 		function gkBlockText(node) {
 			let s = "";
@@ -392,11 +397,12 @@
 		}
 
 		// 表格里的"无年份"档期 → 窗口：`10月13日～10月27日` / `10/13~10/27` / `2026/10/13 ~ 2026/10/27 12:00`
-		// 与 `parseGkRange` 同口径（本机时区墙钟、日粒度），另加跨年与可选钟点。
-		//   · `startTs` / `endTs`：**判断用**。没写钟点时，`endTs` 取当日 23:59:59.999（含当日全天）——
-		//     否则到期当天 00:00 起就会被判成"已过期"，整期最后一天显示空白。
-		//   · `endDayTs`：**显示用**。没写钟点时取结束日 00:00，与标题口径 `【10/13~10/27】` → `10-27 00:00` 同形
-		//     （上一轮 bannerDates 就是这个读数，收敛后保持不变）。
+		// 与 `parseGkRange` 同口径（本机时区墙钟），另加跨年与可选钟点。
+		//   · 只写日期、没写钟点 ⇒ **仓库通用约定「起 00:00 / 止 23:59」**（同 p5x / 战双 / 星塔）：
+		//     `startTs` = 当日 00:00，`endTs` = 当日 23:59。**判断与显示用同一对 ts** ——
+		//     旧实现判断用 23:59:59.999、显示另取 `endDayTs`（结束日 00:00），于是 2026-11-26 活网
+		//     审计看到「11-24 00:00 ~ 12-08 00:00」（终点比真实止期早一整天），已纠正。
+		//   · `raw` = 源站表格那一格**日期原文**（`11月24日 ～ 12月8日`），给 `bannerDatesRaw` 用。
 		function gkBaTableWindow(raw, nowYear) {
 			const s = String(raw || "").replace(/[（(][^）)]*[）)]/g, " ").trim();
 			if (!s) return null;
@@ -421,8 +427,8 @@
 			if (!a || !b || b.ts <= a.ts) return null;
 			return {
 				startTs: a.ts,
-				endTs: b.ts === b.dayTs ? b.dayTs + 86399999 : b.ts,
-				endDayTs: b.dayTs
+				endTs: b.ts === b.dayTs ? b.dayTs + GK_BA_DAY_LAST_MS : b.ts,
+				raw: String(raw || "").replace(/\u00a0/g, " ").trim()
 			};
 		}
 
@@ -619,7 +625,7 @@
 			const tz = isJp ? TZ_JP : TZ_UTC;
 			const emitGameKeeArrays = (d) => {
 				if (d.banner && bannerWin) {
-					const gItems = [{ title: d.banner, startTs: bannerWin.startTs, endTs: bannerWin.endTs, raw: d.bannerDates }];
+					const gItems = [{ title: d.banner, startTs: bannerWin.startTs, endTs: bannerWin.endTs, raw: d.bannerDatesRaw || d.bannerDates }];
 					const gHover = hoverTextFromItems(gItems, "gacha", tz);
 					if (gHover) d.bannerHover = gHover;
 					d.gacha = dataArrayProducedGachaOf(d, gItems, { tz: tz }, now);
@@ -628,7 +634,7 @@
 					d.gacha = [];      // 这一侧没数据 ⇒ 固定形状的空数组（与合成路径同一个下限）
 				}
 				if (d.event && eventWindow) {
-					const eItems = [{ title: d.event, startTs: eventWindow.startTs, endTs: eventWindow.endTs, raw: d.eventDates }];
+					const eItems = [{ title: d.event, startTs: eventWindow.startTs, endTs: eventWindow.endTs, raw: d.eventDatesRaw || d.eventDates }];
 					const eHover = hoverTextFromItems(eItems, "event", tz);
 					if (eHover) d.eventHover = eHover;
 					d.events = dataArrayProducedEventsOf(d, eItems, { tz: tz }, now);
@@ -655,7 +661,7 @@
 					}
 				}
 			}
-			// 4. 活动侧（两侧共用，现状不变）
+			// 4. 活动侧（两侧共用）
 			let eventWindow = null;
 			const eventTitle = eventEntry ? await getTitle(eventEntry) : "";
 			if (eventTitle) {
@@ -676,6 +682,17 @@
 						.trim();
 					data.event = cleaned || String(eventTitle).replace(/【[^】]*\d[^】]*】/g, "").trim();
 					data.eventDates = rng.raw;
+					if (!isJp) {
+						// 国际服：标题里只有日期（GameKee 不写钟点）⇒ 按仓库通用约定展开成 `00:00 ~ 23:59`，
+						// `eventDatesRaw` 保留标题括起的**日期原文**（含 `～` / `~` 与空格写法，逐字不动）。
+						// 理由同 banner 侧：终点写 00:00 会让最后一整天整段消失（2026-11-26 活网审计的现场）。
+						data.eventDatesRaw = rng.dateText || data.eventDates;
+						eventWindow = { startTs: rng.startTs, endTs: rng.endTs + GK_BA_DAY_LAST_MS };
+						data.eventDates = fmtWindow(eventWindow.startTs, eventWindow.endTs);
+					} else {
+						// 日服（GameKee 仅作**手动备选**）：保持原读数，不在本轮范围内改口径。
+						eventWindow = rng;
+					}
 				}
 			}
 			if (isJp) {
@@ -689,11 +706,13 @@
 			if (!pool) return null;
 			data.banner = GK_BA_POOL_BANNER;
 			data.roles = pool.roles;
-			// 显示用 `endDayTs`（日粒度，两端都落在 00:00）：与上一轮标题口径的读数一致（10-13 00:00 ~ 10-27 00:00）
+			// 表里只有日期 ⇒ 同样展开成 `00:00 ~ 23:59`（判断/显示共用 `pool.win.endTs`）；
+			// `bannerDatesRaw` = 表格里那一格的**日期原文**（如 `11月24日 ～ 12月8日`）。
 			// ⚠️ 不传 tz 的理由同上面 `evDates`：`pool.win` 的 ts 由 `gkBaTableWindow` 的本机墙钟合成，
 			//    解析与渲染同口径 ⇒ 文本 roundtrip 稳定；改成传 tz 必须同时改解析方向，否则反而出错。
-			data.bannerDates = fmtWindow(pool.win.startTs, pool.win.endDayTs);
-			bannerWin = { startTs: pool.win.startTs, endTs: pool.win.endDayTs };
+			data.bannerDates = fmtWindow(pool.win.startTs, pool.win.endTs);
+			data.bannerDatesRaw = pool.win.raw || "";
+			bannerWin = { startTs: pool.win.startTs, endTs: pool.win.endTs };
 			return emitGameKeeArrays(data);
 		}
 

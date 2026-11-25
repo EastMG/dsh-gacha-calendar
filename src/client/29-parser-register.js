@@ -43,6 +43,7 @@
 
 		// ---- GameKee（蔚蓝档案）----
 		// 解析标题里的排期：【8/18~9/01】 / 【8月26日 ~ 9月9日】 → {startText, endText, startTs, endTs}
+		// `dateText` = 方括号里那段**日期原文**（如 `11/24～12/08`），给 `*DatesRaw`（源站原文）用。
 		function parseGkRange(title, nowYear) {
 			const m = String(title).match(/【([^】]+)】/);
 			if (!m) return null;
@@ -63,7 +64,7 @@
 			const a = parseGkTime(parts[0], nowYear);
 			const b = parseGkTime(parts[1], am != null && bm != null && endsNextYear(am, null, bm, null) ? nowYear + 1 : nowYear);
 			if (!a || !b) return null;
-			return { startTs: a.ts, endTs: b.ts, startText: a.text, endText: b.text, raw: `${a.text} ~ ${b.text}` };
+			return { startTs: a.ts, endTs: b.ts, startText: a.text, endText: b.text, raw: `${a.text} ~ ${b.text}`, dateText: m[1].trim() };
 		}
 
 		const TZ_CN = "Asia/Shanghai";      // UTC+8：国服一览
