@@ -913,6 +913,15 @@ const P3B_BA_CN_REAL_EVENT_WINDOW = { baCnMaintText: true };
 // 与数组都有意变了（数据没丢：咔滋仍在数组/悬停里，逐字由下面 ② 的专项断言给）。
 // 登记两条路径：`nteEvent`（本侧数组 = events）、`nteGacha`（同一篇公告解析出的**另一侧** events）。
 const P3B_NTE_MULTI_WINDOW = { nteEvent: true, nteGacha: true };
+// ── 2026-11-26（活网审计 B / uma-jp）：`source="fallback"`（from_date～to_date 兜底）不再参与当期 ──
+// golden（2026-10-02 14:36:35Z 那批夹具）的 `events[]` 有 3 条，其中第 3 条
+// 「10月～3月対戦レースイベント」= 3483 的 **fallback** 窗口（09-30 12:00 ~ 12-31 23:59，非真实档期）
+// ⇒ 新口径直接排除：数组 3 → 2 条、`eventHover` 3 → 2 行；外显（event / eventDates / eventDatesRaw）
+// 与卡池侧一个字没动（外显本来就是真活动 3472）。golden 是改造前存档，**不改写**；比较时按下面的
+// 专项把"被移除的恰好是那一条 fallback"逐字证出来（正向 + 反向）。真实 bug 现场（2029 窗口 / 媒体稿）
+// 由 `cases-p5.mjs` P5-8 用 2026-11-26 真夹具单独钉。
+const P3B_UMA_JP_FALLBACK_EXCLUDED = { umaJpEvent: true };
+const P3B_UMA_JP_FALLBACK_ROW_TITLE = "10月～3月対戦レースイベント";
 // 反向证明用：旧那条（原为主条 source=primary）在新数组里变成并列条（source=hover）⇒ key 重发、source 变，
 // **条目事实逐字不变**（title / show / startTs / endTs / tz / raw），所以比较时只摘这 2 个框架字段。
 const p3bNteRowShape = (arr) => (arr || []).map((x) => {
@@ -1116,8 +1125,23 @@ async function runP3b() {
 		// ba-cn 活动真实窗口（2026-11-26）：只放行 `eventDates` 一个字段
 		const baCnWin = P3B_BA_CN_REAL_EVENT_WINDOW[p.key] === true;
 		const winFields = baCnWin ? ["eventDates"] : [];
+		// uma-jp fallback 排除（2026-11-26）：只放行 `eventHover` 一个字段（外显 event 的差异属于上面的外显名归一）
+		const umaFb = P3B_UMA_JP_FALLBACK_EXCLUDED[p.key] === true;
+		const fbFields = umaFb ? ["eventHover"] : [];
 		check(`P3b golden（${p.key}）：12 个字符串字段与改造前逐字相同（已登记的相对表述悬停 / 活动名去尾 / 外显名去体裁尾巴 / 星塔 roles / ba-cn 活动真实窗口 除外）`,
-			changed.every((f) => approved.includes(f) || trimFields.includes(f) || pickFields.includes(f) || displayFields.includes(f) || winFields.includes(f)), JSON.stringify(changed));
+			changed.every((f) => approved.includes(f) || trimFields.includes(f) || pickFields.includes(f) || displayFields.includes(f) || winFields.includes(f) || fbFields.includes(f)), JSON.stringify(changed));
+		if (umaFb) {
+			// ⚠️ 2026-11-26（活网审计 B）**已批准差异**：fallback 行（3483）不再进悬停/数组。
+			// 逐字证明：eventHover 只少了那**一行**，其余行逐字不变；event/eventDates/eventDatesRaw 不动。
+			const oldLines = p3bTextOf(g.rec.eventHover).split("\n").filter(Boolean);
+			const newLines = p3bTextOf(r.rec.eventHover).split("\n").filter(Boolean);
+			check(`P3b golden（${p.key}）**已批准差异**：eventHover 只少了 fallback 那一行（${P3B_UMA_JP_FALLBACK_ROW_TITLE}），其余行逐字不变`,
+				JSON.stringify(changed) === JSON.stringify(["event", "eventHover"])
+				&& oldLines.length === newLines.length + 1
+				&& oldLines.filter((l) => l.indexOf(P3B_UMA_JP_FALLBACK_ROW_TITLE) < 0).join("\n") === newLines.join("\n")
+				&& oldLines.some((l) => l.indexOf(P3B_UMA_JP_FALLBACK_ROW_TITLE) >= 0),
+				JSON.stringify([changed, oldLines, newLines]));
+		}
 		if (baCnWin) {
 			// 逐字证明：起点相同，只有结束时刻从 +28 估算（10-22）换成活动帖真实值（10-08）
 			const oldEv = p3bTextOf(g.rec.eventDates), newEv = p3bTextOf(r.rec.eventDates);
@@ -1179,8 +1203,18 @@ async function runP3b() {
 		const gArr = trimTail ? JSON.stringify(p3bStripTailArr(gArrRaw))
 			: (stellaRoles ? JSON.stringify(p3bStellaRoleArr(gArrRaw, stellaRoles))
 				: (P3B_DAY_ONLY[p.key] === true ? JSON.stringify(p3bDayArr(gArrRaw, false)) : g.array));
-		check(`P3b golden（${p.key}）：\`${p.field}\` 非时间字段逐字不变（键序 / 顺序 / source / phase 全等）`,
-			p3bSansTs(arr) === sansCategoryTagsJson(gArr), p3bSansTs(arr));
+		if (umaFb) {
+			// ⚠️ 2026-11-26（活网审计 B）**已批准差异**：`events[]` 3 → 2 条，移除的**恰好**是
+			// fallback 那条（3483「10月～3月対戦レースイベント」）；其余两条逐字 / 逐键相同（key 序号也不变）。
+			check(`P3b golden（${p.key}）**已批准差异**：\`${p.field}\` 3 → 2 条（移除的恰好是 fallback「${P3B_UMA_JP_FALLBACK_ROW_TITLE}」），其余逐条逐字相同`,
+				gArrRaw.length === 3 && arr.length === 2
+				&& gArrRaw[2].title === P3B_UMA_JP_FALLBACK_ROW_TITLE
+				&& p3bSansTs(arr) === sansCategoryTagsJson(JSON.stringify(gArrRaw.slice(0, 2))),
+				JSON.stringify([gArrRaw.map((x) => x.title), arr.map((x) => x.title)]));
+		} else {
+			check(`P3b golden（${p.key}）：\`${p.field}\` 非时间字段逐字不变（键序 / 顺序 / source / phase 全等）`,
+				p3bSansTs(arr) === sansCategoryTagsJson(gArr), p3bSansTs(arr));
+		}
 		if (stellaRoles) {
 			// 反向守卫：登记的"重建"必须真的改了东西（否则这条白名单会烂掉、将来真变了也发现不了）
 			check(`P3b golden（${p.key}）**已批准差异**：数组只是"主条写出 roles/show"（old != rebuilt，且条目数不变）`,
@@ -1333,6 +1367,22 @@ async function runP3b() {
 			check(`P3b 等价（${p.key}）：另一侧（卡池）数组逐字不变（这次只改活动侧）`,
 				JSON.stringify(sansCategoryTags(stableCur)) === JSON.stringify(sansCategoryTags(stableOld)),
 				JSON.stringify([sansCategoryTags(stableCur), sansCategoryTags(stableOld)]));
+			continue;
+		}
+		if (P3B_UMA_JP_FALLBACK_EXCLUDED[p.key] === true) {
+			// ⚠️ 2026-11-26（活网审计 B）**已批准差异**：改造前的合成结果 3 条 → 现在 2 条，
+			// 被排除的恰好是 fallback「10月～3月対戦レースイベント」。
+			// 正向：前两条逐条逐键相等；反向：新旧数组确实不相等（不是白名单放过没变的键）。
+			const cur = r.rec[p.field] || [];
+			check(`P3b 等价（${p.key}）**已批准差异**：改造前合成 3 条 → 现在 2 条（fallback 行被排除），前两条逐条相等`,
+				oldArr.length === 3 && cur.length === 2
+				&& oldArr[2].title === P3B_UMA_JP_FALLBACK_ROW_TITLE
+				&& JSON.stringify(sansCategoryTags(cur)) === JSON.stringify(sansCategoryTags(oldArr.slice(0, 2))),
+				JSON.stringify([oldArr.map((x) => x.title), cur.map((x) => x.title)]));
+			check(`P3b 等价（${p.key}）**已批准差异**：差异确实发生（新数组 ≠ 改造前合成结果，不是白名单空转）`,
+				JSON.stringify(sansCategoryTags(cur)) !== JSON.stringify(sansCategoryTags(oldArr)));
+			check(`P3b 等价（${p.key}）：另一侧（${other}）也不会凭空多出/少掉条目`,
+				JSON.stringify(sansCategoryTags(r.rec[other])) === JSON.stringify(sansCategoryTags(oldOther)));
 			continue;
 		}
 		if (p.approvedChange) {

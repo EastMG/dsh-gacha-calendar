@@ -350,6 +350,7 @@
 				proxyUrlFor: ns_umamusume_official_proxyUrlFor,
 				tokenizeUma: ns_umamusume_official_tokenizeUma,
 				umaCurrentItems: ns_umamusume_official_umaCurrentItems,
+				umaGameLabelAllowed: ns_umamusume_official_umaGameLabelAllowed,
 				umaJpPageUrl: ns_umamusume_official_umaJpPageUrl,
 			},
 			"komoe": {
@@ -836,6 +837,7 @@
 				PCR_TW_LIST_URL: ns_pcr_TW_LIST_URL,
 				PCR_TW_MAX_DETAILS: ns_pcr_TW_MAX_DETAILS,
 				PCR_TW_MAX_LIST_PAGES: ns_pcr_TW_MAX_LIST_PAGES,
+				PCR_TW_PAGE_SIZE: ns_pcr_TW_PAGE_SIZE,
 				PCR_TW_RANGE_RE: ns_pcr_TW_RANGE_RE,
 				PCR_TW_SECTION_OPEN: ns_pcr_TW_SECTION_OPEN,
 				PCR_TW_SOURCE_LABEL: ns_pcr_TW_SOURCE_LABEL,

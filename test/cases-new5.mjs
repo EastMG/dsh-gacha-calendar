@@ -1532,6 +1532,9 @@ export default async function run() {
 		const PCR_D_4117 = PCR.PCR_TW_DETAIL_BASE + "4117";
 		const PCR_D_4119 = PCR.PCR_TW_DETAIL_BASE + "4119";
 		const PCR_D_4120 = PCR.PCR_TW_DETAIL_BASE + "4120";
+		const PCR_D_4121 = PCR.PCR_TW_DETAIL_BASE + "4121";
+		// 2026-11-26（活网审计 B）：page2 同批第三个池（自選獎勵），原先因"每页 2 篇"整只没抓
+		const PCR_D_4108 = PCR.PCR_TW_DETAIL_BASE + "4108";
 		const PCR_D_4111 = PCR.PCR_TW_DETAIL_BASE + "4111";
 		// 第 2 页活动的两条（4105 无窗口 / 4110 已结束）与第 3 页活动的两条（4104/4103 在期）
 		const PCR_D_4105 = PCR.PCR_TW_DETAIL_BASE + "4105";
@@ -1558,6 +1561,8 @@ export default async function run() {
 			[PCR_D_4115]: FIX("pcr-tw-detail-4115"),
 			[PCR_D_4119]: FIX("pcr-tw-detail-4119"),
 			[PCR_D_4120]: FIX("pcr-tw-detail-4120"),
+			[PCR_D_4121]: FIX("pcr-tw-detail-4121"),
+			[PCR_D_4108]: FIX("pcr-tw-detail-4108"),
 			[PCR_D_4105]: FIX("pcr-tw-detail-4105"),
 			[PCR_D_4110]: FIX("pcr-tw-detail-4110"),
 			[PCR_D_4104]: FIX("pcr-tw-detail-4104"),
@@ -1688,16 +1693,18 @@ export default async function run() {
 		check("pcr 第 3 页列表：10 条（11-03 那批更早的活动/卡池）",
 			pcrRows3.length === 10 && pcrRows3.map((x) => x.id).join(",") === "4104,4103,4102,4101,4100,4099,4098,4097,4096,4095",
 			JSON.stringify(pcrRows3.map((x) => x.id)));
-		// 候选排序（文件头 ③ 的核心）：页内按 (公告日期升序, 站点原序) 取前 2 ——
-		//   · 第 1 页 gacha 全是 11-15 的「舉辦預告」（4119/4120/4121）⇒ 候选 4119,4120（都不会覆盖 now）；
-		//   · 第 2 页 gacha 同在 11-03，站点原序 = 4106,4107,4108 ⇒ 候选 4106,4107（正好是当期本命池 + 同批池）；
+		// 候选排序（文件头 ③ 的核心）：页内按 (公告日期升序, 站点原序) 排序；
+		//   ✅ 2026-11-26（活网审计 B）起**卡池侧上限 = 一整页（10）**（同批 3 个池都在同一天连发，
+		//      固定 2 篇会把 4121 / 4119 整只挤掉）；活动侧仍是 2 篇/页。
+		//   · 第 1 页 gacha 全是 11-15 的「舉辦預告」（4119/4120/4121）⇒ 候选 3 条（按站点原序）；
+		//   · 第 2 页 gacha 同在 11-03，站点原序 = 4106,4107,4108 ⇒ 候选 3 条（正好是当期本命池 + 同批两池）；
 		//   · 第 1 页活动按日期升序 = 4115（11-13）、4117（11-14）在前，压过 11-15 新发的 4118/4123。
-		check("pcr 候选排序：第 1 页 gacha = 4119,4120（11-15 那批预告）；活动 = 4115,4117（按日期从早到晚）",
-			PCR.pcrTwCandidatesOf(pcrRows, "gacha").map((x) => x.id).join(",") === "4119,4120"
+		check("pcr 候选排序：第 1 页 gacha = 4119,4120,4121（同批 3 池全取）；活动 = 4115,4117（按日期从早到晚）",
+			PCR.pcrTwCandidatesOf(pcrRows, "gacha").map((x) => x.id).join(",") === "4119,4120,4121"
 			&& PCR.pcrTwCandidatesOf(pcrRows, "event").map((x) => x.id).join(",") === "4115,4117",
 			JSON.stringify([PCR.pcrTwCandidatesOf(pcrRows, "gacha").map((x) => x.id), PCR.pcrTwCandidatesOf(pcrRows, "event").map((x) => x.id)]));
-		check("pcr 候选排序：第 2 页 gacha = 4106,4107（同日按站点原序，主池公告 4106 排第一）",
-			PCR.pcrTwCandidatesOf(pcrRows2, "gacha").map((x) => x.id).join(",") === "4106,4107",
+		check("pcr 候选排序：第 2 页 gacha = 4106,4107,4108（同日按站点原序，主池公告 4106 排第一）",
+			PCR.pcrTwCandidatesOf(pcrRows2, "gacha").map((x) => x.id).join(",") === "4106,4107,4108",
 			JSON.stringify(PCR.pcrTwCandidatesOf(pcrRows2, "gacha").map((x) => x.id)));
 		check("pcr 页地址：page 1 **原样返回**注册地址（不发新 URL）；page 2/3 = `?page=N`",
 			PCR.pcrTwPageUrlOf(PCR_LIST, 1) === PCR_LIST
@@ -1723,6 +1730,43 @@ export default async function run() {
 		check("pcr 卡池条目事实：banner「精選轉蛋」+ 角色「露易絲瑪莉（夏日）」（引号里的角色名取全名）",
 			p4106.length === 1 && p4106[0].banner === "精選轉蛋" && p4106[0].roles === "露易絲瑪莉（夏日）",
 			JSON.stringify(p4106.map((x) => [x.banner, x.roles])));
+		// ── ③′ 2026-11-26（活网审计 B）：源站漏冒号的四位时刻 `1600` 必须能解出来 ──
+		// 真夹具 pcr-tw-detail-4119（2026-11-15 抓）正文原样写着
+		// `2026/11/16 1600 ～ 2026/12/01 15:59` —— 旧正则要求 `[:：]` ⇒ 整行被丢 ⇒ 主池（精選轉蛋）
+		// 从"当期 3 池"里整只消失，只剩付费必中池。
+		const d4119Live = PCR.pcrTwDetailOf(BODY2[PCR_D_4119], TZ_TW);
+		check("pcr 详情 4119（源站漏冒号 `1600`）：解出 1 条窗口，名字「精選轉蛋」（旧正则 [[:：]] 全丢）",
+			BODY2[PCR_D_4119].includes("2026/11/16 1600 ～ 2026/12/01 15:59")
+			&& d4119Live.windows.length === 1 && d4119Live.windows[0].label === "精選轉蛋",
+			JSON.stringify(d4119Live.windows.map((x) => [x.label, x.raw])));
+		check("pcr 详情 4119：`1600` ⇒ 16:00（+08 ⇒ UTC 08:00），结束 12-01 15:59（UTC 07:59）",
+			d4119Live.windows[0].startTs === Date.UTC(2026, 10, 16, 8, 0)
+			&& d4119Live.windows[0].endTs === Date.UTC(2026, 11, 1, 7, 59),
+			JSON.stringify([d4119Live.windows[0].startTs, d4119Live.windows[0].endTs]));
+		check("pcr 详情 4119：raw 把漏冒号的 `1600` 归一成 `16:00`（源站日期写法保留、不混入 display）",
+			d4119Live.windows[0].raw === "2026/11/16 16:00 ~ 2026/12/01 15:59"
+			&& d4119Live.windows[0].display === "11-16 16:00 ~ 12-01 15:59",
+			JSON.stringify([d4119Live.windows[0].raw, d4119Live.windows[0].display]));
+		check("pcr 卡池条目事实（4119 主池）：banner「精選轉蛋」+ 角色「克蕾琪塔（夏日）」",
+			PCR.pcrTwPoolItemsOf(d4119Live).length === 1
+			&& PCR.pcrTwPoolItemsOf(d4119Live)[0].banner === "精選轉蛋"
+			&& PCR.pcrTwPoolItemsOf(d4119Live)[0].roles === "克蕾琪塔（夏日）",
+			JSON.stringify(PCR.pcrTwPoolItemsOf(d4119Live).map((x) => [x.banner, x.roles])));
+		// 四位时刻的边界形态（合成用例，只测解析器边界；真夹具只有 `1600` 这一种）：
+		//   `0959` ⇒ 09:59（不能拆成 0 + 959）；带冒号的 `09:59` 两种写法必须等价；
+		//   非法四位（`160` / `2960`）不许硬造成 1:60 / 29:60。
+		const winOfLine = (line) => PCR.pcrTwDetailOf(
+			`<section class="news_con"><h2>t</h2><div class="news-body"><p>${line}</p></div></section>`, TZ_TW
+		).windows;
+		check("pcr 四位时刻 0959 ⇒ 09:59（与冒号写法 09:59 等价，UTC 01:59）",
+			winOfLine("2026/11/16 0959 ～ 2026/12/01 15:59").length === 1
+			&& winOfLine("2026/11/16 0959 ～ 2026/12/01 15:59")[0].startTs === Date.UTC(2026, 10, 16, 1, 59)
+			&& winOfLine("2026/11/16 09:59 ～ 2026/12/01 15:59")[0].startTs === Date.UTC(2026, 10, 16, 1, 59),
+			JSON.stringify(winOfLine("2026/11/16 0959 ～ 2026/12/01 15:59")));
+		check("pcr 非法四位时刻（`160` / `2960`）不许硬造窗口（丢行，不抛）",
+			winOfLine("2026/11/16 160 ～ 2026/12/01 15:59").length === 0
+			&& winOfLine("2026/11/16 2960 ～ 2026/12/01 15:59").length === 0,
+			JSON.stringify([winOfLine("2026/11/16 160 ～ 2026/12/01 15:59").length, winOfLine("2026/11/16 2960 ～ 2026/12/01 15:59").length]));
 		check("pcr 页头陷阱：整页（未裁）里有 `<h2 …>熱門遊戲</h2>` 排在正文之前 ⇒ 只认 section 里的 h2",
 			BODY2[PCR_D_4115].indexOf("熱門遊戲") > 0
 			&& PCR.pcrTwDetailOf(BODY2[PCR_D_4115], TZ_TW).title.indexOf("熱門遊戲") < 0,
@@ -1754,19 +1798,22 @@ export default async function run() {
 		const r2 = await e2.refresh();
 		const recPcr = r2.games["pcr-tw"] || {};
 		const recReso = r2.games.reso || {};
-		// 第 1 轮 = 10 次：pcr 列表 page1 + page2（各 1；两侧共用）+ 详情 6（page1 卡池 4119/4120、
-		// page1 活动 4115/4117、page2 卡池 4106/4107）+ reso raw + revisions。
-		check("首轮请求 = 10 次（pcr 列表 2 + 详情 6；reso 主源 raw 1 + revisions 1；page3 一次都不抓）",
-			calls2.length === 10
+		// 第 1 轮 = 12 次：pcr 列表 page1 + page2（各 1；两侧共用）+ 详情 8（page1 卡池 3 = 4119/4120/4121、
+		// page1 活动 2 = 4115/4117、page2 卡池 3 = 4106/4107/4108）+ reso raw + revisions。
+		// ⚠️ 2026-11-26（活网审计 B）：卡池侧每页「全部【轉蛋】」⇒ 比改造前多抓 4121 / 4108 两篇。
+		check("首轮请求 = 12 次（pcr 列表 2 + 详情 8；reso 主源 raw 1 + revisions 1；page3 一次都不抓）",
+			calls2.length === 12
 			&& calls2.filter((u) => u === PCR_LIST).length === 1
 			&& calls2.filter((u) => u === PCR_LIST2).length === 1
 			&& calls2.filter((u) => u === PCR_LIST3).length === 0
 			&& calls2.filter((u) => u === PCR_D_4119).length === 1
 			&& calls2.filter((u) => u === PCR_D_4120).length === 1
+			&& calls2.filter((u) => u === PCR_D_4121).length === 1
 			&& calls2.filter((u) => u === PCR_D_4115).length === 1
 			&& calls2.filter((u) => u === PCR_D_4117).length === 1
 			&& calls2.filter((u) => u === PCR_D_4106).length === 1
 			&& calls2.filter((u) => u === PCR_D_4107).length === 1
+			&& calls2.filter((u) => u === PCR_D_4108).length === 1
 			&& calls2.filter((u) => u === RESO_RAW).length === 1
 			&& calls2.filter((u) => u === RESO_REV).length === 1
 			&& calls2.indexOf(PCR_D_4111) < 0,
@@ -1787,11 +1834,12 @@ export default async function run() {
 			&& recPcr.events[0].startTs === Date.UTC(2026, 10, 14, 21, 0)
 			&& recPcr.events[0].endTs === Date.UTC(2026, 10, 20, 20, 59),
 			JSON.stringify((recPcr.events || []).map((x) => [x.title, x.startTs, x.endTs])));
-		check("pcr gacha[] 2 条（精選轉蛋 + 同批同窗口的第10次…；两行悬停按「名称 ⏎ 档期」折叠）",
-			Array.isArray(recPcr.gacha) && recPcr.gacha.length === 2
+		check("pcr gacha[] 3 条（精選轉蛋 + 第10次… + 自選獎勵，同批同窗口全在；三行悬停按「名称 ⏎ 档期」折叠）",
+			Array.isArray(recPcr.gacha) && recPcr.gacha.length === 3
 			&& recPcr.gacha[0].title === "精選轉蛋"
 			&& recPcr.gacha[1].title === "第10次精選角色出現率3倍轉蛋"
-			&& recPcr.bannerHover === "精選轉蛋：露易絲瑪莉（夏日）\n第10次精選角色出現率3倍轉蛋\n11-04 16:00 ~ 11-16 15:59",
+			&& recPcr.gacha[2].title === "自選 角色精選 獎勵轉蛋"
+			&& recPcr.bannerHover === "精選轉蛋：露易絲瑪莉（夏日）\n第10次精選角色出現率3倍轉蛋\n自選 角色精選 獎勵轉蛋\n11-04 16:00 ~ 11-16 15:59",
 			JSON.stringify([(recPcr.gacha || []).map((x) => x.title), recPcr.bannerHover]));
 		if (recPcr.bannerHover) assertHoverConvention("pcr 卡池", recPcr.bannerHover, { requireSet: true });
 		// NOW2（夹具抓取时刻 2026-11-15）下，卡池主源 bwiki 的当期 = 蓝鹊儿 / 朱月（见文件头 ⑥）
@@ -1856,7 +1904,7 @@ export default async function run() {
 			itPools1.length === 0 && itEvents1.length === 0
 			&& calls1Page.filter((u) => u === PCR_LIST).length === 2
 			&& calls1Page.filter((u) => u === PCR_LIST2).length === 0
-			&& calls1Page.filter((u) => u.indexOf("/news/newsDetail/") >= 0).length === 4,
+			&& calls1Page.filter((u) => u.indexOf("/news/newsDetail/") >= 0).length === 5,
 			"items=" + JSON.stringify([itPools1.length, itEvents1.length]) + " requests=" + JSON.stringify(calls1Page));
 		PCR.pcrTwResetCache();
 		// ② page1 miss ⇒ 翻到 page2（卡池命中《精選轉蛋》）；活动还要再翻到 page3（第 1/2 页候选都过档）。
@@ -1873,39 +1921,46 @@ export default async function run() {
 			gWalk.event === "挑戰冒險"
 			&& gWalk.eventDates === "11-01 16:00 ~ 12-01 15:59" && gWalk.eventFail === null,
 			JSON.stringify([gWalk.event, gWalk.eventDates, gWalk.eventFail]));
-		check("pcr 翻页请求 = 13 次（列表 page1/2/3 各 1 **两侧共用** + 详情 10：4119/4120/4106/4107/4115/4117/4105/4110/4104/4103 各 1）",
-			callsWalk.length === 13
+		check("pcr 翻页请求 = 15 次（列表 page1/2/3 各 1 **两侧共用** + 详情 12：卡池 4119/4120/4121/4106/4107/4108 + 活动 4115/4117/4105/4110/4104/4103 各 1）",
+			callsWalk.length === 15
 			&& callsWalk.filter((u) => u === PCR_LIST).length === 1
 			&& callsWalk.filter((u) => u === PCR_LIST2).length === 1
 			&& callsWalk.filter((u) => u === PCR_LIST3).length === 1
-			&& [PCR_D_4119, PCR_D_4120, PCR_D_4106, PCR_D_4107, PCR_D_4115, PCR_D_4117, PCR_D_4105, PCR_D_4110, PCR_D_4104, PCR_D_4103]
+			&& [PCR_D_4119, PCR_D_4120, PCR_D_4121, PCR_D_4106, PCR_D_4107, PCR_D_4108, PCR_D_4115, PCR_D_4117, PCR_D_4105, PCR_D_4110, PCR_D_4104, PCR_D_4103]
 				.every((u) => callsWalk.filter((x) => x === u).length === 1),
 			"requests=" + callsWalk.length + " " + JSON.stringify(callsWalk));
 		PCR.pcrTwResetCache();
-		// ③ page1 就能出 ⇒ 仍只 1 次列表请求（历史行为保持；NOW=11-17 12:00 时 page1 候选 4120/4115/4117 都已开期）
+		// ③ page1 就能出 ⇒ 仍只 1 次列表请求（历史行为保持；NOW=11-17 12:00 时 page1 候选 4119/4120/4121/4115/4117 都已开期）
 		const callsHit = [];
 		const eHit = enginePcr(NOW_HIT, callsHit);
 		const rHit = await eHit.refresh();
 		const gHit = rHit.games["pcr-tw"] || {};
-		check("pcr 第 1 页就能出（NOW=11-17 12:00）⇒ 列表只请求 1 次、详情 4 篇（翻页行为不拖累稳态）",
-			callsHit.length === 5
+		check("pcr 第 1 页就能出（NOW=11-17 12:00）⇒ 列表只请求 1 次、详情 5 篇（翻页行为不拖累稳态）",
+			callsHit.length === 6
 			&& callsHit.filter((u) => u === PCR_LIST).length === 1
 			&& callsHit.filter((u) => u === PCR_LIST2).length === 0
 			&& callsHit.filter((u) => u === PCR_LIST3).length === 0
-			&& [PCR_D_4119, PCR_D_4120, PCR_D_4115, PCR_D_4117].every((u) => callsHit.filter((x) => x === u).length === 1),
+			&& [PCR_D_4119, PCR_D_4120, PCR_D_4121, PCR_D_4115, PCR_D_4117].every((u) => callsHit.filter((x) => x === u).length === 1),
 			"requests=" + callsHit.length + " " + JSON.stringify(callsHit));
-		check("pcr 第 1 页命中（NOW=11-17 12:00）：卡池 = 附贈大師碎片的★3必中白金轉蛋 / 11-16 16:00 ~ 12-01 15:59；活动 = NORMAL",
-			gHit.banner === "附贈大師碎片的★3必中白金轉蛋" && gHit.bannerDates === "11-16 16:00 ~ 12-01 15:59"
+		// ⚠️ 2026-11-26（活网审计 B）**修的就是这一条**：改造前 4119 的 `1600` 解析失败 + 每页只取 2 篇
+		// ⇒ 外显落到付费必中池（附贈大師碎片 ★3必中白金）。修好后 4119 是主池（结束时刻同批并列时取站点原序第一）。
+		check("pcr 第 1 页命中（NOW=11-17 12:00）：卡池 = **精選轉蛋 / 克蕾琪塔（夏日）**（主池，不再是付费必中池）/ 11-16 16:00 ~ 12-01 15:59；活动 = NORMAL",
+			gHit.banner === "精選轉蛋" && gHit.roles === "克蕾琪塔（夏日）" && gHit.bannerDates === "11-16 16:00 ~ 12-01 15:59"
 			&& gHit.event === "「NORMAL」裝備道具、星素掉落量3倍・瑪那掉落量2倍"
 			&& gHit.eventDates === "11-15 05:00 ~ 11-21 04:59" && gHit.gachaFail === null && gHit.eventFail === null,
-			JSON.stringify([gHit.banner, gHit.bannerDates, gHit.event, gHit.eventDates]));
+			JSON.stringify([gHit.banner, gHit.roles, gHit.bannerDates, gHit.event, gHit.eventDates]));
+		check("pcr 第 1 页命中（NOW=11-17 12:00）：同批 3 池全在数组里（精選轉蛋 / ★3必中白金 / 自選獎勵）",
+			Array.isArray(gHit.gacha) && gHit.gacha.length === 3
+			&& gHit.gacha.map((x) => x.title).join("|") === "精選轉蛋|附贈大師碎片的★3必中白金轉蛋|自選 角色精選 獎勵轉蛋",
+			JSON.stringify([(gHit.gacha || []).map((x) => x.title)]));
 		PCR.pcrTwResetCache();
 		// ④ 反证：抹掉**所有候选**的整行区间 ⇒ 每页都"解析成功但没有覆盖 now 的窗口" ⇒ 走到第 3 页仍无线索
 		//    ⇒ 两侧如实 null（nomatch，**不抛**；与"列表结构变了 ⇒ 抛"区分开）。
-		//    候选详情：page1 4119/4120/4115/4117；page2 4106/4107/4105/4110；page3 4101/4100/4104/4103。
+		//    候选详情：page1 卡池 4119/4120/4121 + 活动 4115/4117；page2 卡池 4106/4107/4108 + 活动 4105/4110；
+		//              page3 卡池 4101/4100 + 活动 4104/4103（卡池侧每页全取，活动侧仍 2 篇）。
 		const noRangeHtml = BODY2[PCR_D_4106].replace(/～/g, "至");
 		const noRangeOverrides = {};
-		for (const id of ["4119", "4120", "4115", "4117", "4106", "4107", "4105", "4110", "4101", "4100", "4104", "4103"]) {
+		for (const id of ["4119", "4120", "4121", "4115", "4117", "4106", "4107", "4108", "4105", "4110", "4101", "4100", "4104", "4103"]) {
 			noRangeOverrides[PCR.PCR_TW_DETAIL_BASE + id] = noRangeHtml;
 		}
 		const callsFar = [];
@@ -1918,7 +1973,7 @@ export default async function run() {
 			&& callsFar.filter((u) => u === PCR_LIST).length === 1
 			&& callsFar.filter((u) => u === PCR_LIST2).length === 1
 			&& callsFar.filter((u) => u === PCR_LIST3).length === 1
-			&& callsFar.filter((u) => u.indexOf("/news/newsDetail/") >= 0).length === 12,
+			&& callsFar.filter((u) => u.indexOf("/news/newsDetail/") >= 0).length === 14,
 			"requests=" + callsFar.length + " " + JSON.stringify([gFar.banner, gFar.gachaFail, gFar.event, gFar.eventFail]));
 		PCR.pcrTwResetCache();
 		// ⑤ 失败语义不变：翻到的页结构变了 ⇒ 抛（down），不是 nomatch
@@ -1934,16 +1989,75 @@ export default async function run() {
 			&& callsBadList.filter((u) => u === PCR_LIST2).length >= 1
 			&& callsBadList.filter((u) => u === PCR_LIST3).length === 0,
 			JSON.stringify([gBadList.gachaFail, gBadList.eventFail]) + " requests=" + JSON.stringify(callsBadList));
-		// ⑥ 失败语义不变：第 2 页候选详情全失败 ⇒ 抛（down）；活动侧第 3 页还能出（单侧失败隔离）
+		// ⑥ 失败语义不变：第 2 页卡池 3 篇候选详情全失败 ⇒ 抛（down）；活动侧第 3 页还能出（单侧失败隔离）
 		PCR.pcrTwResetCache();
 		const callsBadDto = [];
-		const rBadDto = await enginePcr(NOW_A, callsBadDto, { [PCR_D_4106]: "{}", [PCR_D_4107]: "{}" }).refresh();
+		const rBadDto = await enginePcr(NOW_A, callsBadDto, { [PCR_D_4106]: "{}", [PCR_D_4107]: "{}", [PCR_D_4108]: "{}" }).refresh();
 		const gBadDto = rBadDto.games["pcr-tw"] || {};
-		check("pcr 反证：第 2 页两篇候选详情都结构变了（`{}`）⇒ 卡池记 **down**；活动侧第 3 页正常照样出",
+		check("pcr 反证：第 2 页 3 篇卡池候选详情都结构变了（`{}`）⇒ 卡池记 **down**；活动侧第 3 页正常照样出",
 			gBadDto.banner === "" && String((gBadDto.gachaFail || {}).kind) === "down"
 			&& gBadDto.event === "挑戰冒險" && gBadDto.eventFail === null,
 			JSON.stringify([gBadDto.banner, gBadDto.gachaFail, gBadDto.event, gBadDto.eventFail]));
 		PCR.pcrTwResetCache();
+
+		// ── ⑤″ pcr-tw：2026-11-26 活网审计 B 现场回放（真夹具；当期 3 池在 page 2）──────────────
+		// 夹具全部真抓（`pcr-tw-list-20261126` / `-list-2-20261126` / `pcr-tw-detail-4121`
+		// / `pcr-tw-detail-4108`；4119 / 4120 沿用 11-15 那份真抓——4119 正文里本来就写着 `1600`）。
+		// 现场：page1 **一条【轉蛋】都没有**（全是活动/系统公告）⇒ 必须翻到 page2；page2 同批 3 池：
+		//   4119《精選轉蛋》克蕾琪塔（夏日）/ 4120 ★3必中白金 / 4121 自選獎勵，均 11/16 16:00 ~ 12/01 15:59。
+		// 修前：4119 的 `1600` 解析失败 + 每页只取 2 篇 ⇒ 外显只剩付费必中池（本轮的 bug 现场）。
+		const metaOfFix = (dir) => JSON.parse(fixtureBodyText(dir + "/response.txt.meta.json"));
+		const NOW_LIVE = Date.parse(metaOfFix("pcr-tw-list-20261126").capturedAt);
+		const LIVE_PAGE1 = fixtureBodyText("pcr-tw-list-20261126/response.txt");
+		const LIVE_PAGE2 = fixtureBodyText("pcr-tw-list-2-20261126/response.txt");
+		const liveOverrides = {
+			[PCR_LIST]: LIVE_PAGE1,
+			[PCR_LIST2]: LIVE_PAGE2,
+			[PCR_D_4119]: fixtureBodyText("pcr-tw-detail-4119/response.txt"),
+			[PCR_D_4120]: fixtureBodyText("pcr-tw-detail-4120/response.txt"),
+			[PCR_D_4121]: fixtureBodyText("pcr-tw-detail-4121/response.txt")
+		};
+		check("pcr 活网夹具可溯源（2026-11-26 抓）：URL 对得上，page1 确实没有【轉蛋】",
+			metaOfFix("pcr-tw-list-20261126").url === PCR_LIST
+			&& metaOfFix("pcr-tw-list-2-20261126").url === PCR_LIST2
+			&& metaOfFix("pcr-tw-detail-4121").url === PCR_D_4121
+			&& PCR.pcrTwCandidatesOf(PCR.pcrTwListOf(LIVE_PAGE1), "gacha").length === 0,
+			JSON.stringify([metaOfFix("pcr-tw-list-20261126").url, PCR.pcrTwCandidatesOf(PCR.pcrTwListOf(LIVE_PAGE1), "gacha").length]));
+		const callsLive = [];
+		T.setCoreEnv({ transport: transport2(callsLive, null, liveOverrides), timer: { setTimeout, clearTimeout } });
+		PCR.pcrTwResetCache();
+		const gLive = await PCR.gachaPcrTw(PCR_LIST, null, TZ_TW, NOW_LIVE);
+		check("pcr 活网回放：page1 无卡池候选 ⇒ 翻到 page2，取 4119/4120/4121 三篇（page3 一次不抓）",
+			!!gLive
+			&& callsLive.filter((u) => u === PCR_LIST).length === 1
+			&& callsLive.filter((u) => u === PCR_LIST2).length === 1
+			&& callsLive.filter((u) => u === PCR_LIST3).length === 0
+			&& [PCR_D_4119, PCR_D_4120, PCR_D_4121].every((u) => callsLive.filter((x) => x === u).length === 1),
+			"requests=" + JSON.stringify(callsLive));
+		check("pcr 活网回放：外显 = 主池 精選轉蛋 / 克蕾琪塔（夏日）/ 11-16 16:00 ~ 12-01 15:59（不再是付费必中池）",
+			!!gLive && gLive.banner === "精選轉蛋" && gLive.roles === "克蕾琪塔（夏日）"
+			&& gLive.bannerDates === "11-16 16:00 ~ 12-01 15:59"
+			&& gLive.bannerDatesRaw === "2026/11/16 16:00 ~ 2026/12/01 15:59",
+			JSON.stringify(gLive && [gLive.banner, gLive.roles, gLive.bannerDates, gLive.bannerDatesRaw]));
+		check("pcr 活网回放：同批 3 池全在 gacha[]/悬停里（精選轉蛋 / ★3必中白金 / 自選獎勵）",
+			!!gLive && Array.isArray(gLive.gacha) && gLive.gacha.length === 3
+			&& gLive.gacha.map((x) => x.title).join("|") === "精選轉蛋|附贈大師碎片的★3必中白金轉蛋|自選 角色精選 獎勵轉蛋"
+			&& gLive.bannerHover === "精選轉蛋：克蕾琪塔（夏日）\n附贈大師碎片的★3必中白金轉蛋\n自選 角色精選 獎勵轉蛋\n11-16 16:00 ~ 12-01 15:59",
+			JSON.stringify(gLive && [(gLive.gacha || []).map((x) => x.title), gLive.bannerHover]));
+		if (gLive && gLive.bannerHover) assertHoverConvention("pcr 卡池（2026-11-26 活网）", gLive.bannerHover, { requireSet: true });
+		// 反向证明 ①：旧区间正则（强制 `[:：]`）确实解不了 4119 的 `1600` —— 主池丢失的真因，不是猜的。
+		const OLD_PCR_RANGE_RE = /^(\d{4})\s*\/\s*(\d{1,2})\s*\/\s*(\d{1,2})\s+(\d{1,2})\s*[:：]\s*(\d{2})\s*[~～]\s*(\d{4})\s*\/\s*(\d{1,2})\s*\/\s*(\d{1,2})\s+(\d{1,2})\s*[:：]\s*(\d{2})$/;
+		const BAD_LINE_4119 = "2026/11/16 1600 ～ 2026/12/01 15:59";
+		check("pcr 反向证明①：旧正则（要求冒号）解不了 `1600`，新正则能解 ⇒ 4119 主池丢失的真因",
+			!OLD_PCR_RANGE_RE.test(BAD_LINE_4119) && PCR.PCR_TW_RANGE_RE.test(BAD_LINE_4119),
+			JSON.stringify([OLD_PCR_RANGE_RE.test(BAD_LINE_4119), PCR.PCR_TW_RANGE_RE.test(BAD_LINE_4119)]));
+		// 反向证明 ②：若仍按旧上限 2 篇取（候选顺序 = 站点原序），第 3 池 4121 整只丢失 ⇒ 3 池只剩 2。
+		const liveGachaCands = PCR.pcrTwCandidatesOf(PCR.pcrTwListOf(LIVE_PAGE2), "gacha");
+		check("pcr 反向证明②：候选已是 4119,4120,4121（旧上限 2 会丢掉 4121 自選獎勵池）",
+			liveGachaCands.map((x) => x.id).join(",") === "4119,4120,4121"
+			&& liveGachaCands.slice(0, 2).map((x) => x.id).join(",") === "4119,4120"
+			&& PCR.PCR_TW_PAGE_SIZE === 10,
+			JSON.stringify([liveGachaCands.map((x) => x.id), liveGachaCands.slice(0, 2).map((x) => x.id), PCR.PCR_TW_PAGE_SIZE]));
 
 		// ── ⑥ reso 主源：wikitext 行解析（注释里的旧档期 / 模板条件行都不算）──
 		const resoRows = RESO.resoRowsOf(BODY2[RESO_RAW]);
@@ -2133,12 +2247,13 @@ export default async function run() {
 		PCR.pcrTwResetCache();
 		// 端到端"三页都没有覆盖 now ⇒ null"在 ⑤′④；这里补单元级的一条：
 		// 某一页的候选详情**全部抛错**时必须抛（抓取失败 ≠ 未公布），不能当成"没有窗口"继续翻页。
+		// ⚠️ 2026-11-26 起卡池侧每页取「全部【轉蛋】」⇒ 第 1 页候选是 3 篇，要全部打成坏页才会全失败。
 		T.setCoreEnv({
-			transport: transport2(null, null, { [PCR_D_4119]: "{}", [PCR_D_4120]: "{}" }),
+			transport: transport2(null, null, { [PCR_D_4119]: "{}", [PCR_D_4120]: "{}", [PCR_D_4121]: "{}" }),
 			timer: { setTimeout, clearTimeout }
 		});
 		const errPoolPage1 = await errOfAsync(() => PCR.pcrTwItemsOf(PCR_LIST, null, TZ_TW, NOW2, "pools", 1));
-		check("pcr 反证：第 1 页两篇候选详情都结构变了 ⇒ 抛 `pcr-tw-detail-changed:no-section`（不是继续翻页）",
+		check("pcr 反证：第 1 页 3 篇候选详情都结构变了 ⇒ 抛 `pcr-tw-detail-changed:no-section`（不是继续翻页）",
 			errPoolPage1 === "pcr-tw-detail-changed:no-section", errPoolPage1);
 		PCR.pcrTwResetCache();
 		// reso 主源：正文是 `{}` / 空串 / 全是注释 ⇒ 抛错（页面结构变了 = down，不是"当期没有"）

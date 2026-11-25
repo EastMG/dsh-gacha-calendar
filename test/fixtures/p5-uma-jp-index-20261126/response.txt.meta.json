@@ -1,0 +1,6 @@
+{
+  "url": "https://umamusume.jp/api/ajax/pr_info_index?format=json&page=1",
+  "status": 200,
+  "capturedAt": "2026-11-25T18:26:45.517Z",
+  "note": "活网审计 B 修复（2026-11-26）：日服 page1 快照。3553 是 announce_label=3 的媒体稿（标题含「次ガチャ更新」），旧实现会把它当卡池候选。"
+}

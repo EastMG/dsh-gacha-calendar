@@ -18,7 +18,7 @@ import { useFixtures, setFetchImpl, check, section, assertContract, summary } fr
 const { sourceWallParts, fmtWindow, hoverPool, hoverEvent } = T;
 import { SOURCES_P5, findSource } from "./registry-shim.mjs";
 import { T } from "./load.mjs";
-const { classifyUmaTitle, parseUmaIndex, parseUmaInstant, parseUmaDetail, parseUmaWindows, extractUmaRangePlates, pickUmaWindow, umaCurrentItems, umaJpPageUrl, proxyUrlFor, postJsonUma, gachaUmaJpOfficial, eventsUmaJpOfficial, gachaUmaGlobal, eventsUmaGlobal, UMA_JP_TZ, UMA_GLOBAL_TZ, UMA_GLOBAL_DETAIL_URL, UMA_JP_DETAIL_URL, UMA_JP_INDEX_URL } = T.parsers["umamusume-official"];
+const { classifyUmaTitle, parseUmaIndex, parseUmaInstant, parseUmaDetail, parseUmaWindows, extractUmaRangePlates, pickUmaWindow, umaCurrentItems, umaGameLabelAllowed, umaJpPageUrl, proxyUrlFor, postJsonUma, gachaUmaJpOfficial, eventsUmaJpOfficial, gachaUmaGlobal, eventsUmaGlobal, UMA_JP_TZ, UMA_GLOBAL_TZ, UMA_GLOBAL_DETAIL_URL, UMA_JP_DETAIL_URL, UMA_JP_INDEX_URL } = T.parsers["umamusume-official"];
 
 const fixture = (name) => JSON.parse(readFileSync(new URL(`./fixtures/${name}/response.txt`, import.meta.url), "utf8"));
 const fixtureMeta = (name) => JSON.parse(readFileSync(new URL(`./fixtures/${name}/response.txt.meta.json`, import.meta.url), "utf8"));
@@ -265,6 +265,7 @@ export default async function run() {
 		check("预告稿 3469 与正式稿 3470 的窗口完全相同（所以必须靠标题偏好分先后）",
 			gachaEntries.find((d) => d.id === 3469).windows[0].startTs === gachaEntries.find((d) => d.id === 3470).windows[0].startTs);
 		// 3483「10月～3月対戦レースイベント」正文没有区间 → 走 from_date～to_date（到 12-31）；
+		// ⚠️ 2026-11-26 起 fallback 窗口**不参与当期选择**（见下面已批准差异），所以它不影响外显/悬停。
 		// 3472 有 3 段：販売期 09-30 12:00、ストーリー解放期 09-30 12:00、デイリーレース期 10-01 05:00。
 		// 「覆盖 now 且 startTs 最新」→ 3472 的第 3 段（10-01 05:00 JST = 09-30 20:00Z），比 3481 的 09-30 12:00 更晚。
 		const pe = pickUmaWindow(eventEntries, SNAP);
@@ -278,14 +279,20 @@ export default async function run() {
 		check("只有 3481 候选时 → 选中 3481（Banquet of Shadows，09-30 12:00 ~ 10-13 11:59）",
 			pe2 && pe2.e.id === 3481 && pe2.e.title.includes("Banquet of Shadows") && fmtWindow(pe2.w.startTs, pe2.w.endTs, UMA_JP_TZ) === "09-30 12:00 ~ 10-13 11:59",
 			JSON.stringify(pe2 && [pe2.e.id, fmtWindow(pe2.w.startTs, pe2.w.endTs, UMA_JP_TZ)]));
-		// 构造"更新的公告但正文没有区间（fallback 到 12-31）"→ 不应压过真正的当期活动
-		const synEvent = [
-			...eventEntries,
-			{ id: 9999, title: "新着イベントのお知らせ", source: "fallback", windows: [{ startTs: Date.UTC(2026, 8, 30, 3, 0), endTs: Date.UTC(2026, 11, 31, 14, 59), raw: "x", label: "y" }] }
-		];
-		const pe3 = pickUmaWindow(synEvent, SNAP);
-		check("起点更新的 fallback 公告（09-30 12:00 起）会与真活动并列 → 仍按 id/预告偏好收敛（不产生崩溃）",
-			!!pe3 && typeof pe3.e.id === "number", JSON.stringify(pe3 && pe3.e.id));
+		// ⚠️ 2026-11-26（活网审计 B / uma-jp）**已批准差异**：`source="fallback"` 的窗口不参与当期选择。
+		// 构造"更新且覆盖 now 的 fallback 公告"（起点 10-01 12:00，比真活动 3472 的 10-01 05:00 **更晚**）
+		// ⇒ 旧规则「覆盖 now 且开始最晚」会选它；新规则直接排除。反向证明见下面两条。
+		const fbWin = { startTs: Date.UTC(2026, 9, 1, 3, 0), endTs: Date.UTC(2026, 11, 31, 14, 59), raw: "x", label: "from_date～to_date（正文无区间，退化；**非**真实档期）" };
+		const synFallback = { id: 9999, title: "新着イベントのお知らせ", source: "fallback", windows: [fbWin] };
+		const pe3 = pickUmaWindow([...eventEntries, synFallback], SNAP);
+		check("⚠️ 已批准差异：覆盖 now 且起点更晚的 fallback 公告**不再参与当期选择**（外显仍是真活动 3472）",
+			!!pe3 && pe3.e.id === 3472 && pe3.e.source !== "fallback",
+			JSON.stringify(pe3 && [pe3.e.id, pe3.e.source]));
+		check("fallback 反向证明：该窗口确实覆盖 now，且 startTs 比 3472 被选中的那段**更晚**（旧规则会选它，新规则才排除）",
+			fbWin.startTs <= SNAP && fbWin.endTs >= SNAP && fbWin.startTs > pe.w.startTs,
+			JSON.stringify([fbWin.startTs <= SNAP && fbWin.endTs >= SNAP, new Date(fbWin.startTs).toISOString(), new Date(pe.w.startTs).toISOString()]));
+		check("fallback 不参与悬停/数组：`umaCurrentItems` 对纯 fallback 条目返回空数组",
+			umaCurrentItems([synFallback], SNAP).length === 0);
 		check("⚠️ 全窗口都不覆盖 now → **null**（未公布），绝不硬凑过期档期",
 			pickUmaWindow(gachaEntries, Date.UTC(2030, 0, 1)) === null
 			&& pickUmaWindow(eventEntries, Date.UTC(2030, 0, 1)) === null
@@ -311,11 +318,19 @@ export default async function run() {
 			&& !/10\/1\s|～|〜/.test(gachaHover));
 		check("⚠️ 卡池悬停**不含元信息**（来源站名/URL/时区推定/抓取统计/内部 id/字段标签/实现说明）",
 			!META_RE.test(gachaHover), gachaHover.replace(/\n/g, " ⏎ "));
-		check("活动悬停 = 3 行（一条公告一行；3472 的多段小期间只留覆盖 now 的最晚一段，不重复同名）",
-			eventItems.length === 3 && eventHover.split("\n").length === 3
+		// ⚠️ 2026-11-26（活网审计 B / uma-jp）**已批准差异**：3483（10月～3月対戦レースイベント）的
+		// 窗口来自 from_date～to_date 退化兜底 ⇒ 不再进事件数组/悬停（3 行 ⇒ 2 行）。外显那条（3472）没变。
+		check("活动悬停 = 2 行（一条公告一行；3483 的 fallback 退化窗口已按新口径排除；3472 多段只留覆盖 now 的最晚一段）",
+			eventItems.length === 2 && eventHover.split("\n").length === 2
 			&& eventItems[0].name === "「覚醒Lv6/7追加記念キャンペーン」開催！"
-			&& eventHover.split("\n")[0] === "「覚醒Lv6/7追加記念キャンペーン」開催！   10-01 05:00 ~ 10-13 04:59",
+			&& eventHover.split("\n")[0] === "「覚醒Lv6/7追加記念キャンペーン」開催！   10-01 05:00 ~ 10-13 04:59"
+			&& !/10月～3月対戦レースイベント/.test(eventHover),
 			eventHover.replace(/\n/g, " ⏎ "));
+		check("活动数组已批准差异的反向证明：golden 时代那条 fallback 行（3483）确实覆盖 now，但 source=fallback ⇒ 被排除；剩 3481 仍在",
+			eventEntries.find((d) => d.id === 3483).windows.some((w) => w.startTs <= SNAP && w.endTs >= SNAP)
+			&& eventItems.some((it) => it.name.includes("Banquet of Shadows"))
+			&& !eventItems.some((it) => it.name === "10月～3月対戦レースイベント"),
+			JSON.stringify(eventItems.map((x) => x.name.slice(0, 18))));
 		check("⚠️ 活动悬停行首是**名称**不是档期，且分隔符是 **3 个空格**（本体格式）",
 			eventHover.split("\n").every((l) => !/^\d{2}-\d{2} \d{2}:\d{2}/.test(l))
 			&& /開催！ {3}10-01 05:00 ~ 10-13 04:59/.test(eventHover), eventHover.replace(/\n/g, " ⏎ "));
@@ -327,9 +342,17 @@ export default async function run() {
 		check("⚠️ 只有 1 个当期池 / 1 条当期活动 → 共用工具返回**空串**（调用方据此**不设** *Hover 字段）",
 			hoverPool(umaCurrentItems(gachaEntries.filter((d) => d.id === 3470), SNAP), UMA_JP_TZ) === ""
 			&& hoverEvent([{ name: "唯一活动", startTs: Date.UTC(2026, 9, 1), endTs: Date.UTC(2026, 9, 10) }], UMA_JP_TZ) === "");
-		check("fallback 条目（正文无区间）不再往悬停里塞退化说明，只按普通条目排版",
-			!META_RE.test(hoverPool(umaCurrentItems([...gachaEntries, { id: 3477, title: "fallback 条目", source: "fallback", windows: [{ startTs: Date.UTC(2026, 9, 1, 3), endTs: Date.UTC(2027, 0, 31, 14, 59), raw: "x", label: "from_date～to_date（正文无区间，退化；**非**真实档期）" }] }], SNAP), UMA_JP_TZ)),
-			hoverPool(umaCurrentItems([...gachaEntries, { id: 3477, title: "fallback 条目", source: "fallback", windows: [{ startTs: Date.UTC(2026, 9, 1, 3), endTs: Date.UTC(2027, 0, 31, 14, 59), raw: "x", label: "from_date～to_date（正文无区间，退化；**非**真实档期）" }] }], SNAP), UMA_JP_TZ).replace(/\n/g, " ⏎ "));
+		// ⚠️ 2026-11-26（活网审计 B）：fallback 条目**连条目都不再生成**（旧断言是"进数组但不带退化说明"，
+	// 现在口径收紧为"兜底窗口不是档期 ⇒ 不参与当期选择"）。反向证明：同样的 3477 若把 source 改成 body，
+	// 它就会照常出现在悬停里 ⇒ 是 source 判据在起作用，不是布局工具把它吃掉。
+		check("fallback 条目（正文无区间）不再进悬停/数组（umaCurrentItems 返回空 → hoverPool 空串）",
+			umaCurrentItems([{ id: 3477, title: "fallback 条目", source: "fallback", windows: [{ startTs: Date.UTC(2026, 9, 1, 3), endTs: Date.UTC(2027, 0, 31, 14, 59), raw: "x", label: "from_date～to_date（正文无区间，退化；**非**真实档期）" }] }], SNAP).length === 0
+			&& hoverPool(umaCurrentItems([{ id: 3477, title: "fallback 条目", source: "fallback", windows: [{ startTs: Date.UTC(2026, 9, 1, 3), endTs: Date.UTC(2027, 0, 31, 14, 59), raw: "x", label: "from_date～to_date（正文无区间，退化；**非**真实档期）" }] }], SNAP), UMA_JP_TZ) === "",
+			JSON.stringify(umaCurrentItems([{ id: 3477, title: "fallback 条目", source: "fallback", windows: [{ startTs: Date.UTC(2026, 9, 1, 3), endTs: Date.UTC(2027, 0, 31, 14, 59), raw: "x", label: "from_date～to_date（正文无区间，退化；**非**真实档期）" }] }], SNAP)));
+		check("fallback 反向证明：同一条目把 source 改回 body 后就能进数组/悬停（排除判据只认 source，不误伤正常窗口）",
+			umaCurrentItems([{ id: 3478, title: "同窗口但 source=body", source: "body", windows: [{ startTs: Date.UTC(2026, 9, 1, 3), endTs: Date.UTC(2027, 0, 31, 14, 59), raw: "x", label: "y" }] }], SNAP).length === 1
+			&& umaCurrentItems([{ id: 3478, title: "同窗口但 source=body", source: "body", windows: [{ startTs: Date.UTC(2026, 9, 1, 3), endTs: Date.UTC(2027, 0, 31, 14, 59), raw: "x", label: "y" }] }], SNAP)[0].name === "同窗口但 source=body",
+			JSON.stringify(umaCurrentItems([{ id: 3478, title: "同窗口但 source=body", source: "body", windows: [{ startTs: Date.UTC(2026, 9, 1, 3), endTs: Date.UTC(2027, 0, 31, 14, 59), raw: "x", label: "y" }] }], SNAP)));
 	}
 
 	// ───────────────────────── P5-5 国际服（POST + UTC）───────────────────────
@@ -443,11 +466,12 @@ export default async function run() {
 		check("日服活动 = 开始最晚的那段的所属公告（3472「覚醒Lv6/7追加記念キャンペーン」）/ 10-01 05:00 ~ 10-13 04:59",
 			r2.ok && r2.data && /覚醒Lv6\/7追加記念キャンペーン/.test(r2.data.event) && r2.data.eventDates === "10-01 05:00 ~ 10-13 04:59",
 			JSON.stringify(r2.ok && r2.data && [r2.data.event, r2.data.eventDates]));
-		check("⚠️ 日服活动 eventHover 行首是**活动名**（不是档期）：3 行、3 空格分隔、无元信息",
+		check("⚠️ 日服活动 eventHover 行首是**活动名**（不是档期）：**2 行**（3483 fallback 已排除）、3 空格分隔、无元信息",
 			r2.ok && r2.data && typeof r2.data.eventHover === "string"
-			&& r2.data.eventHover.split("\n").length === 3
+			&& r2.data.eventHover.split("\n").length === 2
 			&& r2.data.eventHover.split("\n")[0].startsWith("「覚醒Lv6/7追加記念キャンペーン」開催！")
 			&& /開催！ {3}10-01 05:00 ~ 10-13 04:59/.test(r2.data.eventHover)
+			&& !/10月～3月対戦レースイベント/.test(r2.data.eventHover)
 			&& !/共扫描|取详情|官网公告|tz=|推定|\[3472\]|開催期間|umamusume\.jp/.test(r2.data.eventHover)
 			&& !/^\d{2}-\d{2} \d{2}:\d{2} {2}/m.test(r2.data.eventHover),
 			JSON.stringify(r2.ok && r2.data && r2.data.eventHover));
@@ -510,6 +534,115 @@ export default async function run() {
 		check("⚠️ 只有 1 个当期池 → **不设** bannerHover 字段（交回 UI 默认两行式 `池名：角色` ⏎ 档期）",
 			rNow.ok && rNow.data && !("bannerHover" in rNow.data),
 			JSON.stringify(rNow.ok && rNow.data && Object.keys(rNow.data)));
+	}
+
+	// ─────── P5-8（2026-11-26 活网审计 B）：媒体稿 label≠1 不进候选 + from/to 兜底不参与当期 ───────
+	// 现场（真夹具 `p5-uma-jp-*` 2026-11-26 抓）：日服 page1 **没有** label=1 的卡池公告，
+	// 只有 3553「ぱかライブTV' #9」——announce_label=3（Media），标题含「次回のガチャ更新」
+	// ⇒ 旧实现按关键词判成卡池、抓详情、抽不到区间后退化成 from_date～to_date
+	// （2026-11-20 18:00 ~ **2029-11-19** 23:59，三年哨兵）⇒ 外显挂成生放送稿 + 2029 窗口。
+	// 真卡池 3547（育成ウマ娘が新登場！…）在 page2（11/16 12:00 ~ 12/21 11:59 / 11/16 12:00 ~ 11/30 11:59）。
+	section("P5-8 赛马娘日服（2026-11-26 活网审计 B）：媒体稿 label=3 不进候选 + from/to 兜底不参与当期");
+	{
+		const FIX_DIR = new URL("./fixtures/", import.meta.url);
+		const LIVE_FIX = {
+			"https://umamusume.jp/api/ajax/pr_info_index?format=json&page=1": "p5-uma-jp-index-20261126/response.txt",
+			"https://umamusume.jp/api/ajax/pr_info_index?format=json&page=2": "p5-uma-jp-index-p2-20261126/response.txt",
+			"https://umamusume.jp/api/ajax/pr_info_detail?format=json&announce_id=3547": "p5-uma-jp-detail-3547/response.txt",
+			"https://umamusume.jp/api/ajax/pr_info_detail?format=json&announce_id=3546": "p5-uma-jp-detail-3546/response.txt",
+			"https://umamusume.jp/api/ajax/pr_info_detail?format=json&announce_id=3535": "p5-uma-jp-detail-3535/response.txt",
+			"https://umamusume.jp/api/ajax/pr_info_detail?format=json&announce_id=3536": "p5-uma-jp-detail-3536/response.txt",
+			"https://umamusume.jp/api/ajax/pr_info_detail?format=json&announce_id=3553": "p5-uma-jp-detail-3553/response.txt"
+		};
+		// 夹具 impl（mode="proxy"：把 target 包成 `{status, body}` 信封）+ 可选覆盖 + 请求记账
+		const liveImpl = (overrides, sink) => async (url) => {
+			const u = String(url);
+			let target = u;
+			if (u.startsWith("/api/gacha-calendar-proxy")) {
+				try { target = new URL("http://x" + u).searchParams.get("url") || ""; } catch { target = ""; }
+			}
+			if (sink) sink.push(target);
+			const rel = overrides && overrides[target] != null ? null : (LIVE_FIX[target] || null);
+			const raw = overrides && overrides[target] != null ? overrides[target] : (rel ? readFileSync(new URL(rel, FIX_DIR), "utf8") : null);
+			if (raw == null) return { ok: false, status: 404, headers: { get: () => null }, text: async () => "", json: async () => ({}) };
+			const text = JSON.stringify({ status: 200, body: raw });
+			return { ok: true, status: 200, headers: { get: () => "application/json" }, text: async () => text, json: async () => JSON.parse(text) };
+		};
+		const NOW_LIVE = Date.parse(fixtureMeta("p5-uma-jp-index-20261126").capturedAt);
+		const idxLive1 = parseUmaIndex(fixture("p5-uma-jp-index-20261126"), "jp", UMA_JP_TZ);
+		check("活网夹具可溯源（2026-11-26 抓）：page1 / page2 的 URL 对得上，page1 里那条媒体稿是 label=3",
+			fixtureMeta("p5-uma-jp-index-20261126").url === UMA_JP_INDEX_URL
+			&& fixtureMeta("p5-uma-jp-index-p2-20261126").url === umaJpPageUrl(UMA_JP_INDEX_URL, 2)
+			&& idxLive1.find((x) => x.id === 3553).label === 3,
+			JSON.stringify([fixtureMeta("p5-uma-jp-index-20261126").url, idxLive1.find((x) => x.id === 3553).label]));
+		check("⚠️ 3553（媒体稿）标题含「ガチャ」⇒ 关键词分类 = gacha（这就是「必须靠 announce_label 拦」的原因）",
+			idxLive1.find((x) => x.id === 3553).kind === "gacha",
+			JSON.stringify(idxLive1.find((x) => x.id === 3553)));
+		check("umaGameLabelAllowed：label=3 不收 / label=1 收 / 字段缺失放行（老夹具兼容，不无依据收紧）",
+			umaGameLabelAllowed({ label: 3 }) === false
+			&& umaGameLabelAllowed({ label: 1 }) === true
+			&& umaGameLabelAllowed({}) === true && umaGameLabelAllowed({ label: null }) === true,
+			JSON.stringify([umaGameLabelAllowed({ label: 3 }), umaGameLabelAllowed({ label: 1 }), umaGameLabelAllowed({})]));
+		// ① 正常路径：page1 无 label=1 卡池候选 ⇒ 翻到 page2 拿到 3547；3553 一次都不抓
+		const sinkLive = [];
+		setFetchImpl(liveImpl(null, sinkLive));
+		const rLive = await grab(() => gachaUmaJpOfficial(UMA_JP_INDEX_URL, undefined, UMA_JP_TZ, NOW_LIVE));
+		check("P5-8 抓取成功", rLive.ok, rLive.err);
+		assertContract("赛马娘日服官网（2026-11-26 回放）", "gacha", rLive.ok ? rLive.data : null);
+		check("⚠️ 外显 = 真卡池 3547（11-16 12:00 ~ 11-30 11:59）—— 不是「ぱかライブTV' #9」、**没有 2029 窗口**",
+			rLive.ok && rLive.data
+			&& rLive.data.banner.indexOf("育成ウマ娘が新登場") === 0
+			&& rLive.data.bannerDates === "11-16 12:00 ~ 11-30 11:59"
+			&& rLive.data.bannerDatesRaw === "11/16 12:00 ～ 11/30 11:59"
+			&& !/ぱかライブTV|2029/.test(rLive.data.banner + rLive.data.bannerDates + rLive.data.bannerDatesRaw),
+			JSON.stringify(rLive.ok && rLive.data && [rLive.data.banner, rLive.data.bannerDates, rLive.data.bannerDatesRaw]));
+		check("P5-8 数组/悬停都不含媒体稿、不含 2029（3 条当期池：3547 / 3546 预告 / 3536 スタンプシート）",
+			rLive.ok && rLive.data && Array.isArray(rLive.data.gacha) && rLive.data.gacha.length === 3
+			&& rLive.data.gacha[0].title === "育成ウマ娘が新登場！セレクトピックアップ サポートカードガチャも開催！"
+			&& !(rLive.data.gacha || []).some((x) => /ぱかライブTV/.test(String(x.title) + String(x.raw)))
+			&& !/ぱかライブTV|2029/.test(String(rLive.data.bannerHover || "")),
+			JSON.stringify(rLive.ok && rLive.data && [(rLive.data.gacha || []).map((x) => x.title), rLive.data.bannerHover]));
+		check("P5-8 请求：page1 → page2（page1 无 label=1 卡池候选）；详情只抓 3547/3546/3535/3536 —— **3553 一次不抓**",
+			sinkLive.filter((u) => u === UMA_JP_INDEX_URL).length === 1
+			&& sinkLive.filter((u) => u === umaJpPageUrl(UMA_JP_INDEX_URL, 2)).length === 1
+			&& [3547, 3546, 3535, 3536].every((id) => sinkLive.filter((u) => u === UMA_JP_DETAIL_URL + id).length === 1)
+			&& sinkLive.filter((u) => u === UMA_JP_DETAIL_URL + 3553).length === 0,
+			JSON.stringify(sinkLive));
+		// ② 反向证明（label 判据）：把 3553 的 announce_label 改成 1 ⇒ 它会被当候选抓详情
+		const idxMod = JSON.parse(JSON.stringify(fixture("p5-uma-jp-index-20261126")));
+		idxMod.information_list.find((x) => x.announce_id === 3553).announce_label = 1;
+		const sinkLabel = [];
+		setFetchImpl(liveImpl({ [UMA_JP_INDEX_URL]: JSON.stringify(idxMod) }, sinkLabel));
+		const rLabel = await grab(() => gachaUmaJpOfficial(UMA_JP_INDEX_URL, undefined, UMA_JP_TZ, NOW_LIVE));
+		check("⚠️ 反向证明①：把 3553 的 label 改成 1 后它**会被抓详情**（sink 出现 announce_id=3553）⇒ 过滤判据就是 announce_label",
+			sinkLabel.filter((u) => u === UMA_JP_DETAIL_URL + 3553).length === 1, JSON.stringify(sinkLabel));
+		check("⚠️ 反向证明②：即使 3553 进了候选，它的 from/to 兜底窗口也**不算覆盖**（照旧翻第 2 页）⇒ 外显仍是 3547",
+			sinkLabel.filter((u) => u === umaJpPageUrl(UMA_JP_INDEX_URL, 2)).length === 1
+			&& rLabel.ok && rLabel.data && rLabel.data.banner.indexOf("育成ウマ娘が新登場") === 0
+			&& !/2029/.test(rLabel.data.bannerDates + rLabel.data.bannerDatesRaw),
+			JSON.stringify([sinkLabel, rLabel.ok && rLabel.data && [rLabel.data.banner, rLabel.data.bannerDates]]));
+		// ③ 反向证明（fallback 判据）：3553 的兜底窗口 startTs（11-20）比真卡池 3547 的（11-16）更晚
+		//    ⇒ 旧规则「覆盖 now 且开始最晚」会选它；新规则按 source 排除。
+		const dLive3553 = parseUmaDetail(fixture("p5-uma-jp-detail-3553"), UMA_JP_TZ, "jp");
+		const dLive3547 = parseUmaDetail(fixture("p5-uma-jp-detail-3547"), UMA_JP_TZ, "jp");
+		const pickedLive = pickUmaWindow([dLive3553, dLive3547], NOW_LIVE);
+		check("⚠️ 反向证明③：3553 source=fallback 且窗口 = 2026-11-20 ~ 2029-11-19（startTs 比 3547 更晚，旧规则会选它）",
+			dLive3553.source === "fallback"
+			&& fmtWindow(dLive3553.windows[0].startTs, dLive3553.windows[0].endTs, UMA_JP_TZ) === "2026-11-20 18:00 ~ 2029-11-19 23:59"
+			&& dLive3553.windows[0].startTs > dLive3547.windows[0].startTs
+			&& dLive3553.windows[0].startTs <= NOW_LIVE && dLive3553.windows[0].endTs >= NOW_LIVE,
+			JSON.stringify([dLive3553.source, fmtWindow(dLive3553.windows[0].startTs, dLive3553.windows[0].endTs, UMA_JP_TZ)]));
+		check("⚠️ 反向证明④：新 `pickUmaWindow` 在 [3553, 3547] 里只选 3547（fallback 被排除）、数组也不含 3553",
+			!!pickedLive && pickedLive.e.id === 3547
+			&& umaCurrentItems([dLive3553, dLive3547], NOW_LIVE).every((x) => x.name.indexOf("ぱかライブTV") < 0)
+			&& umaCurrentItems([dLive3553], NOW_LIVE).length === 0,
+			JSON.stringify([pickedLive && pickedLive.e.id, umaCurrentItems([dLive3553, dLive3547], NOW_LIVE).map((x) => x.name.slice(0, 20))]));
+		// 新夹具登记进共享 map.json（细节 URLs 之前没有映射；URL 已被占用的 page1/page2 夹具按仓库惯例就地映射）
+		const map5 = JSON.parse(readFileSync(new URL("./map.json", import.meta.url), "utf8"));
+		check("P5-8 新夹具已登记 test/map.json（详情 URL 5 条）",
+			[3547, 3546, 3535, 3536, 3553].every((id) => map5[UMA_JP_DETAIL_URL + id] === `p5-uma-jp-detail-${id}/response.txt`),
+			JSON.stringify([3547, 3546, 3535, 3536, 3553].map((id) => map5[UMA_JP_DETAIL_URL + id])));
+		setFetchImpl(fixtureFetch);   // 恢复 P5 夹具（不要给后面的用例留自定义 impl）
 	}
 
 	// ─────────────── P5-7【已撤回】国际服「200 空壳」⇒ nomatch ───────────────
