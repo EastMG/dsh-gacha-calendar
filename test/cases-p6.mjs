@@ -18,7 +18,7 @@ const { sourceInstant, sourceWallParts, fmtWindow } = T;
 import { SOURCES_P6, findSourceP6, listIdsP6 } from "./registry-shim.mjs";
 import { T } from "./load.mjs";
 
-const { gachaDdlezj, eventsDdlezj, parseDdlezjList, parseDdlezjAnnouncement, parseDdlezjWindows, pickDdlezjGacha, pickDdlezjEvent, parseDdlezjStamp, ddlezjParagraphs, DDLEZJ_LIST_URL, DDLEZJ_TZ, DDLEZJ_CMS_TZ, DDLEZJ_GAME_EXTENSION_ID, DDLEZJ_TAPTAP_TZ, DDLEZJ_TAPTAP_MAX_PAGES, DDLEZJ_TAPTAP_MAX_DETAILS, DDLEZJ_TAPTAP_PAGE_URL, gachaDdlezjTaptap, eventsDdlezjTopic, ddlezjTaptapApiUrl, parseDdlezjTaptapList, parseDdlezjTaptapBody, parseDdlezjTaptapText, ddlezjTaptapPageUrl, ddlezjTaptapDetailUrl } = T.parsers["biligame-announce"];
+const { gachaDdlezj, eventsDdlezj, parseDdlezjList, parseDdlezjAnnouncement, parseDdlezjWindows, pickDdlezjGacha, pickDdlezjEvent, parseDdlezjStamp, ddlezjParagraphs, DDLEZJ_LIST_URL, DDLEZJ_TZ, DDLEZJ_CMS_TZ, DDLEZJ_GAME_EXTENSION_ID, DDLEZJ_TAPTAP_TZ, DDLEZJ_TAPTAP_MAX_PAGES, DDLEZJ_TAPTAP_MAX_DETAILS, DDLEZJ_TAPTAP_MAX_MOMENTS, DDLEZJ_TAPTAP_PAGE_URL, gachaDdlezjTaptap, eventsDdlezjTopic, ddlezjTaptapApiUrl, parseDdlezjTaptapList, parseDdlezjTaptapBody, parseDdlezjTaptapText, ddlezjTaptapPageUrl, ddlezjTaptapDetailUrl, parseDdlezjMomentHtml, ddlezjMomentEventItemsOf, ddlezjDedupWindows } = T.parsers["biligame-announce"];
 const TT = T.parsers["taptap-topic"];
 const { gachaKedrWiki, parseKedrArchive, kedrSections, kedrStamp, kedrPools, kedrRoles, kedrParseUrl, KEDR_ARCHIVE_URL, KEDR_ARCHIVE_PAGE, KEDR_TZ } = T.parsers["kedr-wiki"];
 
@@ -592,14 +592,24 @@ export default async function run() {
 				re.ok && re.data && ((re.data.events || []).find((x) => x.title === "主题剧院【篡夺与越轨之间】") || {}).startTs === Date.UTC(2026, 10, 5, 2, 0)
 				&& ((re.data.events || []).find((x) => x.title === "主题剧院【篡夺与越轨之间】") || {}).endTs === Date.UTC(2026, 10, 19, 1, 59),
 				JSON.stringify(re.ok && re.data && (re.data.events || []).map((x) => [x.title, x.startTs, x.endTs])));
-			check("第 1 页已覆盖当前窗口 ⇒ **只发 1 个请求**（不再逐帖抓详情，也不再翻页）",
-				tr.calls.length === 1 && urlsOf(tr)[0] === TOPIC1, JSON.stringify(urlsOf(tr)));
-			check("在期活动只有 1 条 ⇒ `eventHoverItems` 也只剩 1 条、不设 eventHover（不编第二条）",
-				re.ok && re.data && re.data.eventHover === void 0
-				&& Array.isArray(re.data.eventHoverItems) && re.data.eventHoverItems.length === 1,
-				JSON.stringify(re.ok && [(re.data || {}).eventHover, (re.data || {}).eventHoverItems]));
-			check("走宿主代理、并带 tab 页自己的 Referer（tab 页无 ACAO）",
-				tr.calls.length === 1 && tr.calls[0].referer === TOPIC1, JSON.stringify(tr.calls[0]));
+			check("第 1 页已覆盖当前窗口 ⇒ **2 个请求**：tab 页 + 该帖正文页 `/moment/866691594919610832`"
+				+ "（2026-11-26 审计 A 修：摘要只有前 200 字 ⇒ 补抓正文拿全部窗口）",
+				tr.calls.length === 2 && urlsOf(tr)[0] === TOPIC1
+				&& urlsOf(tr)[1] === "https://www.taptap.cn/moment/866691594919610832",
+				JSON.stringify(urlsOf(tr)));
+			check("在期活动由 tab 页摘要的 1 条扩成正文页的**多条**（7 条 = 主窗口 + 商店兑换/活动剧情 等档期），悬停逐行",
+				re.ok && re.data && Array.isArray(re.data.eventHoverItems) && re.data.eventHoverItems.length === 7
+				&& (re.data.eventHover || "").split("\n").filter(Boolean).length === 7
+				&& /商店兑换时间/.test(re.data.eventHover || ""),
+				JSON.stringify([(re.data || {}).eventHoverItems && (re.data || {}).eventHoverItems.length, ((re.data || {}).eventHover || "").split("\n").length]));
+			// 反向证明：正文页展开没改「外显」——仍是摘要里那条主活动（起止/原文逐字不变）
+			const summaryOne = parseDdlezjTaptapText(posts1[0].text.split("\n"), DDLEZJ_TAPTAP_TZ).items.filter((x) => x.kind === "event")[0];
+			check("反向证明：外显仍是摘要里那条（主题剧院【篡夺与越轨之间】11-05 10:00 ~ 11-19 09:59，原文保留「维护后」）",
+				!!summaryOne && re.ok && re.data && re.data.event === summaryOne.name
+				&& re.data.eventDates === summaryOne.display && re.data.eventDatesRaw === summaryOne.raw,
+				JSON.stringify([summaryOne && [summaryOne.name, summaryOne.display, summaryOne.raw], re.ok && re.data && [re.data.event, re.data.eventDates, re.data.eventDatesRaw]]));
+			check("两个请求都走宿主代理，且 Referer 都是 tab 页（tab 页/正文页均无 ACAO）",
+				tr.calls.length === 2 && tr.calls.every((c) => c.referer === TOPIC1), JSON.stringify(tr.calls));
 		}
 
 		// ── (3) 卡池侧确实**不抓**：fetchEntry 只发活动那 1 个请求，卡池侧没有失败 ──
@@ -611,9 +621,9 @@ export default async function run() {
 			check("fetchEntry：卡池侧 url 为空 ⇒ gachaFail = null（不抓、不算失败），data 里没有 banner",
 				fe.ok && fe.data && fe.data.gachaFail === null && !("banner" in fe.data.data),
 				JSON.stringify(fe.ok && { gachaFail: fe.data.gachaFail, keys: Object.keys(fe.data.data) }));
-			check("fetchEntry：活动侧照常出数据，整轮只发 1 个请求",
+			check("fetchEntry：活动侧照常出数据（外显仍是摘要那条），整轮 = tab 页 + 正文页 2 个请求",
 				fe.ok && fe.data && fe.data.data.event === "主题剧院【篡夺与越轨之间】" && fe.data.eventFail === null
-				&& tr.calls.length === 1,
+				&& tr.calls.length === 2,
 				JSON.stringify(fe.ok && [fe.data.data.event, fe.data.eventFail, tr.calls.length]));
 		}
 
@@ -679,12 +689,13 @@ export default async function run() {
 			const e = engineAt(NOW_JUN, tr);
 			const s = e.__test.SOURCES.find((x) => x.id === "ddlezj");
 			const r = await grab(() => e.__test.EVENT_FETCHERS["ddlezj"].default(s.eventUrl, undefined, s.tz));
-			check("第 1 页覆盖不到当前窗口 ⇒ 翻第 2 页拿到「主题剧院【半个世界的手套】」（2 个请求）",
+			check("第 1 页覆盖不到当前窗口 ⇒ 翻第 2 页拿到「主题剧院【半个世界的手套】」（3 个请求 = 2 个 tab 页 + 该帖正文页）",
 				r.ok && r.data && r.data.event === "主题剧院【半个世界的手套】"
 				&& r.data.eventDates === "06-04 10:00 ~ 06-18 09:59"
-				&& tr.calls.length === 2 && urlsOf(tr)[1] === TOPIC2,
+				&& tr.calls.length === 3 && urlsOf(tr)[1] === TOPIC2
+				&& urlsOf(tr)[2] === "https://www.taptap.cn/moment/811237759342608610",
 				JSON.stringify([r.ok && r.data && r.data.event, urlsOf(tr)]));
-			check("两次请求都走代理且 Referer = tab 页（`?page=2` 是同一页的翻页，不是另一条接口）",
+			check("三次请求都走代理且 Referer = tab 页（正文页也带同一 Referer）",
 				tr.calls.every((c) => c.referer === TOPIC1), JSON.stringify(tr.calls.map((c) => c.referer)));
 		}
 
@@ -698,11 +709,133 @@ export default async function run() {
 			[ddlezjTaptapDetailUrl("866691594919610832")]: "p6-ddlezj-taptap-detail-866691594919610832/response.txt",
 			[ddlezjTaptapDetailUrl("854437201591667060")]: "p6-ddlezj-taptap-detail-854437201591667060/response.txt",
 			[ddlezjTaptapDetailUrl("846447554991229760")]: "p6-ddlezj-taptap-detail-846447554991229760/response.txt",
-			[ddlezjTaptapDetailUrl("811237759342608610")]: "p6-ddlezj-taptap-detail-811237759342608610/response.txt"
+			[ddlezjTaptapDetailUrl("811237759342608610")]: "p6-ddlezj-taptap-detail-811237759342608610/response.txt",
+			// 2026-11-26：正文页（`/moment/<id>`，robots 未 Disallow）—— 一帖多窗口的夹具
+			"https://www.taptap.cn/moment/866691594919610832": "p6-ddlezj-taptap-moment-866691594919610832/response.txt",
+			"https://www.taptap.cn/moment/811237759342608610": "p6-ddlezj-taptap-moment-811237759342608610/response.txt",
+			"https://www.taptap.cn/moment/871789417855977888": "p6-ddlezj-taptap-moment-871789417855977888/response.txt"
 		};
 		for (const url of Object.keys(WANT2)) check(`map.json 收录 ${url.slice(-40)}`, map[url] === WANT2[url], JSON.stringify(map[url]));
 		// 恢复夹具模式（后面的用例与其它批次共用）
 		useFixtures(OVERRIDES);
+	}
+	//#endregion
+
+	//#region P6-7 嘟嘟脸恶作剧 —— 正文页（`/moment/<id>`）把「活动更新一览」一帖的多个窗口逐条成条
+	// 现场（审计 A 2026-11-26）：面板只出 1 条「主题剧院【机智的女仆生活】」，而这篇帖的正文里有
+	// 9 种档期（主题剧院主窗口 / 商店兑换 / 活动剧情 / 检查清单 / 像素异世界 / 宠物跑腿 /
+	// 指定精选使徒 / 周末活动 / 艾利亚斯边境 / 通行证…）。根因：默认源读 tab 页 SSR，而
+	// `topic.summary` **只有前 200 字** ⇒ 一帖只带得到第一个窗口；robots.txt 只 Disallow
+	// `/webapi/` `/webapiv2/`，`/moment/` 允许抓 ⇒ 对「摘要里覆盖当前时刻」的那篇补抓正文页。
+	// 夹具 `p6-ddlezj-taptap-topic-20261126`（审计现场 tab 页）与
+	// `p6-ddlezj-taptap-moment-871789417855977888`（11-19 那篇正文页）都是真抓（meta.capturedAt）。
+	section("P6-7 嘟嘟脸 —— 正文页一帖多窗口：活动 1 条 → 7 条（审计 A 2026-11-26）");
+	{
+		const PAGE = DDLEZJ_TAPTAP_PAGE_URL;
+		const NOW_LIVE = Date.parse("2026-11-26T02:00:00+08:00");
+		const TODAY_FX = "p6-ddlezj-taptap-topic-20261126/response.txt";
+		const MOMENT_FX = "p6-ddlezj-taptap-moment-871789417855977888/response.txt";
+		const MOMENT_URL = "https://www.taptap.cn/moment/871789417855977888";
+		const html = fixtureText(MOMENT_FX);
+
+		// ── (1) 纯函数：正文页 HTML → 段落行 → 活动事实 ──
+		const lines = parseDdlezjMomentHtml(html);
+		check("正文页只取 `tap-rich-content__wrapper` 容器：109 行正文；评论/相关推荐不进解析（容器后 12 万字被切掉）",
+			lines.length === 109 && !lines.some((l) => /^(赞|回复)$|赞 \d+ 回复/.test(l)),
+			JSON.stringify([lines.length, lines.slice(-3)]));
+		check("正文页结构变了 ⇒ 抛 `ddlezj-taptap-bad-moment`（不是静默空数组）",
+			(() => {
+				try { parseDdlezjMomentHtml("<html><body>没有正文容器</body></html>"); return false; } catch (e) { return /ddlezj-taptap-bad-moment/.test(String(e.message)); }
+			})());
+		const momentItems = ddlezjMomentEventItemsOf(html, DDLEZJ_TAPTAP_TZ);
+		check("正文页解出 **9 种活动窗口**（同一时间窗口去重；像素异世界/艾利亚斯边境同窗只留第一次出现的标题）",
+			momentItems.length === 9, JSON.stringify(momentItems.map((x) => [x.name, x.display])));
+		check("去重是**按窗口**而不是按名字：9 条窗口两两不同（`startTs|endTs` 去重后仍 9 条）",
+			new Set(momentItems.map((x) => `${x.startTs}|${x.endTs}`)).size === 9
+			&& ddlezjDedupWindows(momentItems).length === 9, String(new Set(momentItems.map((x) => `${x.startTs}|${x.endTs}`)).size));
+		check("同一窗口只留正文里第一次出现的标题（11-19 10:00~12-03 的首个标题 = 主题剧院【机智的女仆生活】）",
+			(momentItems.find((x) => x.display === "11-19 10:00 ~ 12-03 09:59") || {}).name === "主题剧院【机智的女仆生活】",
+			JSON.stringify((momentItems.find((x) => x.display === "11-19 10:00 ~ 12-03 09:59") || {}).name));
+		check("卡池小节（①全新使徒/②卡片扭蛋/③指定精选…）不进活动侧（kind=gacha 被过滤）",
+			!momentItems.some((x) => /限时概率上升|卡片扭蛋/.test(x.name)), JSON.stringify(momentItems.map((x) => x.name)));
+		check("没有窗口的段落**不硬造条目**（活动说明 / 盲盒内容 / 项目组这些行不会变成条目）",
+			!momentItems.some((x) => /活动说明|盲盒内容|项目组|开启条件/.test(x.name)), JSON.stringify(momentItems.map((x) => x.name)));
+
+		// ── (2) 抓取器：tab 页摘要（1 条）→ 补抓正文页（7 条数组 / 9 行悬停）──
+		const calls = [];
+		const mkTransport = (overrides) => ({
+			async fetchRaw(u) { throw new Error("本段没有直连源：" + u); },
+			async fetchViaProxy(u, opts) {
+				const url = String(u);
+				calls.push({ url, referer: String((opts && opts.referer) || "") });
+				return fixtureBody(url, overrides || {});
+			}
+		});
+		const makeStore2 = () => { const m = new Map(); return { async get(k) { return m.get(k); }, async set(k, v) { m.set(k, v); } }; };
+		const OV = { [PAGE]: TODAY_FX };
+		const engine = createEngine({ transport: mkTransport(OV), storage: makeStore2(), now: () => NOW_LIVE, timer: { setTimeout, clearTimeout } });
+		const s = engine.__test.SOURCES.find((x) => x.id === "ddlezj");
+		const r = await grab(() => engine.__test.EVENT_FETCHERS["ddlezj"].default(s.eventUrl, undefined, s.tz));
+		check("活网验收时刻（11-26 02:00）活动抓取成功", r.ok, r.err);
+		assertContract("嘟嘟脸恶作剧（正文页）", "event", r.ok ? r.data : null);
+		check("外显保持摘要那条不变：主题剧院【机智的女仆生活】/ 11-19 10:00 ~ 12-03 09:59 / 原文「维护后」",
+			r.ok && r.data && r.data.event === "主题剧院【机智的女仆生活】"
+			&& r.data.eventDates === "11-19 10:00 ~ 12-03 09:59"
+			&& r.data.eventDatesRaw === "2026/11/19 维护后 ~ 2026/12/03 09:59",
+			JSON.stringify(r.ok && r.data && [r.data.event, r.data.eventDates, r.data.eventDatesRaw]));
+		const evs = (r.ok && r.data && r.data.events) || [];
+		check("`events[]` = **7 条**（正文页 9 种窗口；主条 1 + 并列 6，标题归一后同名只留第一条）",
+			evs.length === 7, JSON.stringify(evs.map((x) => x.title)));
+		check("7 条窗口**各不相同**（审计要求的「窗口各不相同」）",
+			new Set(evs.map((x) => `${x.startTs}|${x.endTs}`)).size === 7, JSON.stringify(evs.map((x) => [x.title, x.raw])));
+		check("逐条覆盖：商店兑换 11-19~12-10 / 像素异世界 11-26 10:00~12-03 / 指定精选使徒 11-26 03:00~12-03 / 通行证 12-01~次年 01-01",
+			evs.some((x) => /商店兑换时间/.test(x.title) && x.raw === "11-19 10:00 ~ 12-10 09:59")
+			&& evs.some((x) => x.title === "像素异世界" && x.raw === "11-26 10:00 ~ 12-03 09:59")
+			&& evs.some((x) => x.title === "指定精选使徒" && x.raw === "11-26 03:00 ~ 12-03 09:59")
+			&& evs.some((x) => x.title === "通行证" && x.raw === "2026-12-01 03:00 ~ 2027-01-01 02:59"),
+			JSON.stringify(evs.map((x) => [x.title, x.raw])));
+		check("悬停 = 正文页解出的 9 行（`名字 + 3 空格 + 档期`，含非「活动时间」标签的括注）",
+			Array.isArray(r.ok && r.data && r.data.eventHoverItems) && r.data.eventHoverItems.length === 9
+			&& (r.data.eventHover || "").split("\n").filter(Boolean).length === 9
+			&& /艾利亚斯边境（BOSS登场时间）\s{3}/.test(r.data.eventHover || ""),
+			JSON.stringify([(r.ok && r.data && r.data.eventHoverItems || []).length, ((r.ok && r.data && r.data.eventHover) || "").split("\n").length]));
+		check("请求 = 2 个：tab 页 + 该帖正文页（正文页 URL 由帖子 id 拼出，仍是 robots 允许的 `/moment/`）",
+			calls.length === 2 && calls[0].url === PAGE && calls[1].url === MOMENT_URL
+			&& calls.every((c) => c.referer === PAGE), JSON.stringify(calls));
+
+		// ── (3) 反向证明 ──
+		// (a) 改造前的 summary 路径在这份 11-26 的 tab 页上只解出 1 条活动（正是"面板只 1 条"的现场）
+		const todayPosts = TT.ns_taptap_topicPostsOf(fixtureText(TODAY_FX));
+		const summaryEvs = todayPosts
+			.filter((p) => /活动更新|活动速览|活动一览|更新一览|版本更新/.test(p.title))
+			.map((p) => parseDdlezjTaptapText(p.text.split("\n"), DDLEZJ_TAPTAP_TZ))
+			.reduce((n, q) => n + q.items.filter((x) => x.kind === "event" && x.startTs <= NOW_LIVE && x.endTs >= NOW_LIVE).length, 0);
+		check("反证：同一份 tab 页只靠 `topic.summary` 只有 **1** 条覆盖当前时刻的活动（改造前现场）",
+			summaryEvs === 1, String(summaryEvs));
+		check("反证：改造前的「只取第一条」正是摘要 200 字截断 ⇒ 正文页才有像素异世界/通行证这些窗口（在正文页 HTML 里确实存在）",
+			/像素异世界/.test(html) && /通行证/.test(html) && !/像素异世界/.test(todayPosts[0].text),
+			JSON.stringify([/像素异世界/.test(html), /像素异世界/.test(todayPosts[0].text)]));
+		// (b) 正文页结构坏了 ⇒ 退回摘要（1 条），不整体抛错（抓取失败 ≠ 未公布）
+		{
+			const badCalls = [];
+			const badHtml = "<html><body>结构变了</body></html>";
+			const tr2 = {
+				async fetchRaw(u) { throw new Error("no"); },
+				async fetchViaProxy(u) {
+					const url = String(u);
+					badCalls.push(url);
+					if (url === MOMENT_URL) return badHtml;
+					return fixtureBody(url, OV);
+				}
+			};
+			const e2 = createEngine({ transport: tr2, storage: makeStore2(), now: () => NOW_LIVE, timer: { setTimeout, clearTimeout } });
+			const s2 = e2.__test.SOURCES.find((x) => x.id === "ddlezj");
+			const r2 = await grab(() => e2.__test.EVENT_FETCHERS["ddlezj"].default(s2.eventUrl, undefined, s2.tz));
+			check("反证：正文页解析失败 ⇒ 退回摘要（活动 1 条、外显不变），不把「抓取失败」当「未公布」",
+				r2.ok && r2.data && r2.data.event === "主题剧院【机智的女仆生活】"
+				&& (r2.data.events || []).length === 1 && badCalls.length === 2,
+				JSON.stringify([r2.ok ? [r2.data && r2.data.event, ((r2.data || {}).events || []).length] : r2.err, badCalls.length]));
+		}
 	}
 	//#endregion
 
