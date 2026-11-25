@@ -112,6 +112,7 @@
   "https://gametora.com/data/umamusume/character-cards.": "uma-gt-character-cards/response.txt",
   "https://gametora.com/data/umamusume/support-cards.": "uma-gt-support-cards/response.txt",
   "https://gametora.com/data/umamusume/events/story-events.": "uma-gt-story-events/response.txt",
+  "https://gametora.com/data/umamusume/en/events/champions-meeting.": "uma-gt-champions-meeting/response.txt",
   "https://api-takumi-static.mihoyo.com/content_v2_user/app/706fd13a87294881/getContentList?iChanId=279&iPageSize=50&iPage=1&sLangKey=zh-cn": "p4-zzz-freq-official/response.txt",
   "https://api-takumi-static.mihoyo.com/content_v2_user/app/1963de8dc19e461c/getContentList?iPage=1&iPageSize=200&sLangKey=zh-cn&isPreview=0&iChanId=257": "p4-hsr-cms-1126/response.txt",
   "https://bluearchive-cn.com/api/news/list?pageIndex=1&pageNum=30&type=": "ba-cn-live-1021/response.txt",
@@ -313,5 +314,12 @@
   "https://nikki4.papegames.cn/api/v1/news/102591": "nikki4-news-detail-1126-102591/response.txt",
   "https://nikki4.papegames.cn/api/v1/news/102592": "nikki4-news-detail-1126-102592/response.txt",
   "https://nikki4.papegames.cn/api/v1/news/102593": "nikki4-news-detail-1126-102593/response.txt",
-  "https://nikki4.papegames.cn/api/v1/news/102594": "nikki4-news-detail-1126-102594/response.txt"
+  "https://nikki4.papegames.cn/api/v1/news/102594": "nikki4-news-detail-1126-102594/response.txt",
+  "https://spica.wiki/ournotes/events": "spica-ournotes-events/response.txt",
+  "https://spica.wiki/ournotes/event/you-re-maru-kun": "spica-ournotes-event-you-re-maru-kun/response.txt",
+  "https://spica.wiki/ournotes/event/saltatio-beneath-the-shifting-moon": "spica-ournotes-event-saltatio-beneath-the-shifting-moon/response.txt",
+  "https://spica.wiki/ournotes/event/a-day-halloweensnap": "spica-ournotes-event-a-day-halloweensnap/response.txt",
+  "https://spica.wiki/ournotes/event/event-3": "spica-ournotes-event-event-3/response.txt",
+  "https://spica.wiki/ournotes/event/onegai-side-throw": "spica-ournotes-event-onegai-side-throw/response.txt",
+  "https://spica.wiki/ournotes/event/ai-no-honryu-atoz": "spica-ournotes-event-ai-no-honryu-atoz/response.txt"
 }

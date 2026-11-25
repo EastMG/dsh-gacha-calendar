@@ -1135,6 +1135,13 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 		//   ⚠️ `name_zh_tw` 是同一活动的**繁中译名**（47/57 条有，用户指定**只用它**：缺就跳过该条，
 		//      不拿 `name_en` 兜底）。`start_zh_tw` / `end_zh_tw` 是**日服**档期，**不要**拿它当国际服档期。
 		const GT_UMA_EVENTS = "events/story-events";
+		// 冠军集会（champions-meeting）表：**另一类活动**（月度杯赛，不是剧情活动），与故事活动同一个 manifest。
+		// 实测 2026-11-26：22 条，字段 id / name（**英文**，如 `Aquarius Cup`）/ start / end（unix 秒）；
+		// ⚠️ **没有** `start_en` / `end_en`、**没有** `name_zh_tw` ⇒ 不能走 `gtUmaEventItems` 的
+		//    「只取繁中译名、只认 en 档期」口径（那张表是剧情活动的形状）；本表标题就用 `name`。
+		// 2026-11-21 22:00Z ~ 2026-11-27 21:59Z 的 Aquarius Cup 在期 —— 修「源站冠军集会在期、我们活动侧 nomatch」。
+		// 同 manifest 的 hash 端点，**不新增域名/主机**；该表不在 manifest 里时按"可选表"跳过（见下）。
+		const GT_UMA_EVENTS_CHAMPIONS = "en/events/champions-meeting";
 
 		// manifest **轮内**复用（卡池侧与活动侧都要同一个 11KB 的 manifest）：
 		// 只在**一轮刷新**里生效（`refreshAll` 期间为真），且**按轮次号**判定 ⇒ 跨轮一定不复用（hash 变了立刻跟上）；
@@ -1184,9 +1191,41 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 			return out;
 		}
 
+		// 冠军集会表 → 条目事实（与 `gtUmaEventItems` **同一形状** `{ id, title, startTs, endTs }`）。
+		// 该表的档期字段就叫 `start` / `end`（unix 秒，与 en/ 故事活动同一套 = 国际服），标题只有英文 `name`：
+		//   · 缺 `name` / 秒值非法 ⇒ 跳过该条（缺字段不算结构损坏）；
+		//   · **不是数组** ⇒ 抛（结构变化按"抓取失败"处理，不是 nomatch）。
+		function gtUmaChampionsItems(list) {
+			if (!Array.isArray(list)) throw gtUmaFail("冠军集会表不是数组（结构可能变了）");
+			const out = [];
+			for (const e of list) {
+				if (!e || typeof e !== "object") continue;
+				const title = typeof e.name === "string" ? e.name.trim() : "";
+				if (!title) continue;
+				const s = Number(e.start), en = Number(e.end);
+				if (!Number.isFinite(s) || !Number.isFinite(en) || s <= 0 || en <= 0) continue;
+				out.push({ id: e.id, title, startTs: s * 1000, endTs: en * 1000 });
+			}
+			return out;
+		}
+
+		// 可选表：manifest 里**有**这个键才取；没有键 ⇒ `[]`（该表下线 / 旧 manifest 不影响已接的故事活动）。
+		// 但键在、取不到（404 / 结构坏）仍抛 —— 「抓取失败 ≠ 未公布」，与其它表同一口径。
+		async function gtUmaFileIfListed(manifest, key, signal) {
+			if (!manifest || typeof manifest[key] !== "string") return [];
+			return gtUmaFile(manifest, key, signal);
+		}
+
 		async function ns_cygames_eventsGameToraUma(url, signal, tz = ns_umamusume_official_UMA_GLOBAL_TZ, now = nowMs()) {
 			const manifest = await gtUmaManifestOf(url || GT_UMA_MANIFEST, signal);
-			const items = gtUmaEventItems(await gtUmaFile(manifest, GT_UMA_EVENTS, signal));
+			// 故事活动（剧情）+ 冠军集会**并表**：两类活动都写在源站的"活动侧"，只接一张表会漏另一类
+			// （2026-11-26 活网审计 B：故事活动空档、冠军集会 Aquarius Cup 在期，我们活动侧却 nomatch）。
+			// 两张表同一次 manifest 解析（hash 不写死）；并行取，故事活动表仍是**必需**表。
+			const [storyList, championsList] = await Promise.all([
+				gtUmaFile(manifest, GT_UMA_EVENTS, signal),
+				gtUmaFileIfListed(manifest, GT_UMA_EVENTS_CHAMPIONS, signal)
+			]);
+			const items = gtUmaEventItems(storyList).concat(gtUmaChampionsItems(championsList));
 			// 在期 = 覆盖 now 的条（两端都必须明确）；一条都不覆盖 ⇒ `null`（未公布，**不是**失败）
 			const live = items.filter((x) => coversNow(x, now));
 			if (live.length === 0) return null;

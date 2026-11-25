@@ -15,6 +15,9 @@
 //   ⑤ 第 2 页抓挂不影响第 1 页（如实 null，不抛错）；
 //   ⑥ 旧 bwiki 源（altSources）仍能手动用：期内 now（09-15）照样出「彷徨往昔」；
 //   ⑦ 翻页策略：第 1 页覆盖不到当前窗口（10-30）才翻第 2 页 ⇒ 画廊夜游，2 个请求。
+//   ⑧ 2026-11-26（活网审计 A）：空档期只公布了「下一期预告」（【秘密弹道】11-26 05:00 开）⇒
+//      外显仍 null（不拿未来期冒充），`events[]`/悬停收「起点明确在未来、终点未过」的条目；
+//      同一份夹具过了 05:00 就照常成为当期外显（证明差别只在"什么时候算当期"）。
 //
 // 夹具（均真抓；`response.txt.meta.json` 记 url / capturedAt / trim）：
 //   · `pengpeng-taptap-topic-p1` / `-p2`（2026-11-13 抓；只留 `<script id="__NUXT_DATA__">` 段）
@@ -34,6 +37,13 @@ const fxText = (p) => readFileSync(new URL("./fixtures/" + p, import.meta.url), 
 const B = {
 	t1: fxText("pengpeng-taptap-topic-p1/response.txt"),
 	t2: fxText("pengpeng-taptap-topic-p2/response.txt"),
+	// 2026-11-26 审计当天（活网审计 A）的原始响应快照：
+	//   第 1 页含【秘密弹道】预告 `2026年11月26日 05:00 ~ 2026年12月10日 04:59`；
+	//   两页都**没有**覆盖当天 02:52 的在期活动（上一期 新风同行 11-19 已结束）。
+	// ⚠️ 与 p1/p2 **同一个 URL** 的又一次快照 ⇒ 不进 map.json（避免改掉其它批次对默认源的期望，
+	//    先例见 test/cases-batch4.mjs 的 nikki4 11-26 列表）；本文件按路径直读 + 显式覆盖。
+	p1_1125: fxText("pengpeng-taptap-topic-20261125-p1/response.txt"),
+	p2_1125: fxText("pengpeng-taptap-topic-20261125-p2/response.txt"),
 	pages: fxText("pengpeng-announce-pages/response.txt"),
 	overview: fxText("pengpeng-overview-20260910/response.txt")
 };
@@ -294,13 +304,18 @@ export default async function runPengpengEvent() {
 	}
 
 	// ─────────────────────⑤ 翻页失败隔离 ─────────────────────
-	section("夜幕之下 ⑤：第 2 页抓挂不影响第 1 页（如实 null，不抛错）");
+	section("夜幕之下 ⑤：第 2 页抓挂不影响第 1 页（不抛错；第 1 页只有未来预告 ⇒ 外显 null、数组收待开）");
 	{
 		const tr = makeTransport(null, [TOPIC2]);
 		const e = engineAt(NOW_OLS, tr);
 		const s = e.__test.SOURCES.find((x) => x.id === "pengpeng");
 		const got = await e.__test.EVENT_FETCHERS["pengpeng"].default(s.eventUrl, undefined, s.tz);
-		check("第 2 页 500 ⇒ 抓取器不抛错、如实 null（第 1 页本来就没有在期活动）", got === null, JSON.stringify(got));
+		// ⚠️ 2026-11-26：空档期预告口径改了（见 ⑧）——第 1 页的「新风同行」在 10-30 还是**未来期**，
+		// 现在是「外显 null + 数组收待开」，不再整条 null；本段守的仍是"第 2 页失败不拖垮第 1 页、不抛错"。
+		check("第 2 页 500 ⇒ 抓取器不抛错；第 1 页只解出未来期的新风同行（外显仍 null、数组收待开）",
+			!!got && typeof got === "object" && got.event === void 0
+			&& Array.isArray(got.events) && got.events.length === 1 && got.events[0].title === "新风同行",
+			JSON.stringify(got));
 		check("…并且确实只试了 2 次（第 1 页成功 + 第 2 页失败）", tr.calls.length === 2, String(tr.calls.length));
 	}
 
@@ -331,5 +346,62 @@ export default async function runPengpengEvent() {
 		check("请求顺序 = page1 → page2（各 1 次，最多 2 页）",
 			tr.calls.length === 2 && urlsOf(tr)[0] === TOPIC1 && urlsOf(tr)[1] === TOPIC2,
 			JSON.stringify(urlsOf(tr)));
+	}
+
+	// ─────────────────────⑧ 空档期的「下一期预告」（2026-11-26 活网审计 A）─────────────────────
+	section("夜幕之下 ⑧：空档期只有「下一期预告」（11-26 05:00 开）⇒ 外显 null / 数组+悬停收待开");
+	{
+		// 审计时刻：2026-11-26 02:52:37 +08（距开服 2 小时 7 分）
+		const NOW_PRE = Date.parse("2026-11-26T02:52:37+08:00");
+		const tr = makeTransport({ [TOPIC1]: B.p1_1125, [TOPIC2]: B.p2_1125 });
+		const e = engineAt(NOW_PRE, tr);
+		const s = e.__test.SOURCES.find((x) => x.id === "pengpeng");
+		const got = await e.__test.EVENT_FETCHERS["pengpeng"].default(s.eventUrl, undefined, s.tz);
+
+		check("空档期：抓取器仍返回对象（不再整条 nomatch）", !!got && typeof got === "object", JSON.stringify(got));
+		check("**外显不取未来期**：`event` / `eventDates` / `eventDatesRaw` 都不设（如实「未公布」）",
+			!!got && got.event === void 0 && got.eventDates === void 0 && got.eventDatesRaw === void 0,
+			JSON.stringify(got && [got.event, got.eventDates, got.eventDatesRaw]));
+		check("`events[]` 收到待开的那期：秘密弹道 / 11-26 05:00 ~ 12-10 04:59（源站原文逐字）",
+			!!got && Array.isArray(got.events) && got.events.length === 1
+			&& got.events[0].title === "秘密弹道"
+			&& got.events[0].raw === "2026年11月26日 05:00 ~ 2026年12月10日 04:59",
+			JSON.stringify(got && got.events && got.events.map((x) => [x.title, x.raw])));
+		check("绝对时刻：startTs = 2026-11-26 05:00 +08（UTC 11-25 21:00）/ endTs = 12-10 04:59 +08（UTC 12-09 20:59）",
+			!!got && got.events[0].startTs === Date.UTC(2026, 10, 25, 21, 0) && got.events[0].endTs === Date.UTC(2026, 11, 9, 20, 59),
+			JSON.stringify(got && got.events && got.events.map((x) => [x.startTs, x.endTs])));
+		check("数组条目 tz = Asia/Shanghai + source 事实齐全（显示层据此画 state=wait）",
+			!!got && got.events[0].tz === "Asia/Shanghai" && got.events[0].source === "hover",
+			JSON.stringify(got && got.events && got.events.map((x) => [x.tz, x.source])));
+		check("只有 1 条预告 ⇒ 不设 eventHover（交回 UI 默认两行式），但条目事实留给显示层",
+			!!got && got.eventHover === void 0 && Array.isArray(got.eventHoverItems) && got.eventHoverItems.length === 1,
+			JSON.stringify(got && [got.eventHover, got.eventHoverItems]));
+		check("空档期照样翻到第 2 页再判（第 1 页没有在期活动 ⇒ 2 个请求）",
+			tr.calls.length === 2 && urlsOf(tr)[0] === TOPIC1 && urlsOf(tr)[1] === TOPIC2, JSON.stringify(urlsOf(tr)));
+
+		// 反向证明①：同一份原始响应，按旧判据（只收 coversNow）确实一条都收不到
+		const posts1 = TT.ns_taptap_topicPostsOf(B.p1_1125);
+		const posts2 = TT.ns_taptap_topicPostsOf(B.p2_1125);
+		const rowsNow = PP.pengpengTaptapActivitiesOf(posts1, TZ_CN).concat(PP.pengpengTaptapActivitiesOf(posts2, TZ_CN));
+		const liveNow = rowsNow.filter((r) => r.startTs != null && r.endTs != null && r.startTs <= NOW_PRE && r.endTs >= NOW_PRE);
+		const futureNow = rowsNow.filter((r) => r.startTs != null && r.endTs != null && r.startTs > NOW_PRE && r.endTs >= NOW_PRE);
+		check("反向证明①：审计时刻**没有**任何在期活动（旧判据 coversNow = 0 条 ⇒ 旧实现必然 null）",
+			liveNow.length === 0 && futureNow.length === 1, JSON.stringify([liveNow.length, futureNow.length]));
+
+		// 反向证明②：换成过了 05:00 的时刻（同一份夹具）⇒ 同一条目就是当期外显
+		// ⇒ 「之前 nomatch」不是解析不出来，只是"未来期不算当期"这条口径。
+		const NOW_LIVE2 = Date.parse("2026-11-26T05:30:00+08:00");
+		const e2 = engineAt(NOW_LIVE2, makeTransport({ [TOPIC1]: B.p1_1125, [TOPIC2]: B.p2_1125 }));
+		const s2 = e2.__test.SOURCES.find((x) => x.id === "pengpeng");
+		const got2 = await e2.__test.EVENT_FETCHERS["pengpeng"].default(s2.eventUrl, undefined, s2.tz);
+		check("反向证明②：过了 05:00 的同一份夹具 ⇒ 外显 = 秘密弹道 / 11-26 05:00 ~ 12-10 04:59（真正当期）",
+			!!got2 && got2.event === "秘密弹道" && got2.eventDates === "11-26 05:00 ~ 12-10 04:59",
+			JSON.stringify(got2 && [got2.event, got2.eventDates]));
+
+		// 反证：连未来期都没有（2026-12-20，全部结束）⇒ 如实 null
+		const e3 = engineAt(Date.parse("2026-12-20T00:00:00+08:00"), makeTransport({ [TOPIC1]: B.p1_1125, [TOPIC2]: B.p2_1125 }));
+		const s3 = e3.__test.SOURCES.find((x) => x.id === "pengpeng");
+		const got3 = await e3.__test.EVENT_FETCHERS["pengpeng"].default(s3.eventUrl, undefined, s3.tz);
+		check("反证：全部结束且无下一期 ⇒ 抓取器如实 null（不拿过期/未来期硬凑）", got3 === null, JSON.stringify(got3));
 	}
 }

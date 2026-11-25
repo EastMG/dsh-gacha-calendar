@@ -8,6 +8,9 @@
 //   ⑤ 活动侧：`events/story-events`（en/ 那套 = 国际服）→ 名称**只取** `name_zh_tw`（缺则跳过该条，
 //      不拿 `name_en` 兜底）、epoch 秒 → 毫秒、覆盖 now 且结束最晚的那条作外显；
 //      manifest 缺键 / 活动表不是数组 ⇒ 抛（不是 nomatch）
+//   ⑤b 活动侧并表（2026-11-26 活网审计 B）：`en/events/champions-meeting`（冠军集会，英文 name）也纳入
+//      活动侧 —— 源站冠军集会在期而故事活动空档时不再 nomatch；该表不在 manifest 里 ⇒ 可选跳过，
+//      键在但结构坏 ⇒ 抛（抓取失败 ≠ 未公布）。
 //
 // 夹具是真实响应的**摘录**（`uma-gt-*` 2026-10-21 / 活动表 `uma-gt-story-events` 2026-11-14 原样），
 // 见各 `response.txt.meta.json`；哈希放在 URL 里且随数据更新而变，所以路由用**文件名前缀**而不是完整 URL。
@@ -24,28 +27,36 @@ import { createEngine } from "../packages/core/core.mjs";
 const NOW = Date.parse("2026-10-21T03:00:00+08:00");
 // 活动侧：夹具抓取时刻（实测在期 = id 1022；档期 11-09 22:00Z ~ 11-23 21:59Z）
 const NOW_EV = Date.parse("2026-11-14T10:24:00Z");
+// 冠军集会（champions-meeting）夹具在期时刻：Aquarius Cup 2026-11-21 22:00Z ~ 11-27 21:59Z。
+// NOW_CHAMP 里故事活动 1022 也还在期（11-23 21:59Z 结束）⇒ 两类活动并表的合并路径。
+const NOW_CHAMP = Date.parse("2026-11-22T00:00:00Z");
+// 故事活动已全部结束、只剩冠军集会在期（2026-11-25 19:00Z）⇒ 只靠冠军集会表也能出外显
+const NOW_CHAMP_ONLY = Date.parse("2026-11-25T19:00:00Z");
 const MANIFEST_URL = "https://gametora.com/data/manifests/umamusume.json";
 const TZ = "UTC";
 
 const fxText = (name) => readFileSync(path.join(FIXTURES_DIR, name, "response.txt"), "utf8");
 const fx = (name) => JSON.parse(fxText(name));
 
-/** 夹具路由：URL → 槽位（manifest / charStd / supportStd / charCards / supportCards / storyEvents）；`fail` 指定哪个槽位 404 */
-function installGt({ manifest, charStd, supportStd, charCards, supportCards, storyEvents, fail } = {}) {
+/** 夹具路由：URL → 槽位（manifest / charStd / supportStd / charCards / supportCards / storyEvents / champions）；`fail` 指定哪个槽位 404 */
+function installGt({ manifest, charStd, supportStd, charCards, supportCards, storyEvents, champions, fail } = {}) {
 	const slots = {
 		manifest: manifest != null ? manifest : fxText("uma-gt-manifest"),
 		charStd: charStd != null ? charStd : fxText("uma-gt-char-standard"),
 		supportStd: supportStd != null ? supportStd : fxText("uma-gt-support-standard"),
 		charCards: charCards != null ? charCards : fxText("uma-gt-character-cards"),
 		supportCards: supportCards != null ? supportCards : fxText("uma-gt-support-cards"),
-		storyEvents: storyEvents != null ? storyEvents : fxText("uma-gt-story-events")
+		storyEvents: storyEvents != null ? storyEvents : fxText("uma-gt-story-events"),
+		// 2026-11-26（活网审计 B）：冠军集会表 = 活动侧并入的第二张表（真夹具，22 条）
+		champions: champions != null ? champions : fxText("uma-gt-champions-meeting")
 	};
 	const byFile = {
 		"en/gacha/char-standard": "charStd",
 		"en/gacha/support-standard": "supportStd",
 		"character-cards": "charCards",
 		"support-cards": "supportCards",
-		"events/story-events": "storyEvents"
+		"events/story-events": "storyEvents",
+		"en/events/champions-meeting": "champions"
 	};
 	const seen = [];
 	const notFound = () => ({ ok: false, status: 404, headers: { get: () => null }, text: async () => "", json: async () => ({}) });
@@ -218,8 +229,8 @@ export default async function run() {
 			JSON.stringify(ev0));
 		check("uma-global/event/gametora：只有 1 条在期 ⇒ 不设悬停（交回 UI 默认两行式）",
 			r.ok && r.data && !("eventHover" in r.data), JSON.stringify(r.ok && r.data && r.data.eventHover));
-		check("uma-global/event/gametora：请求 = manifest + 故事活动表（2 次）",
-			JSON.stringify(seen) === JSON.stringify(["manifest", "storyEvents"]), JSON.stringify(seen));
+		check("uma-global/event/gametora：请求 = manifest + 故事活动表 + 冠军集会表（3 次；manifest 轮内共用）",
+			JSON.stringify(seen) === JSON.stringify(["manifest", "storyEvents", "champions"]), JSON.stringify(seen));
 	}
 
 	// ── ⑧ 活动侧反证：name_zh_tw 缺失 ⇒ 该条跳过（不回退 en）；manifest 缺键 / 表非数组 ⇒ 抛；start_en 空 ⇒ 不进外显 ──
@@ -262,6 +273,59 @@ export default async function run() {
 			!r4.ok && /^GameTora 数据接口失败（活动表不是数组/.test(r4.err), r4.err);
 	}
 
+	// ── ⑧b 冠军集会（champions-meeting）并表（2026-11-26 活网审计 B：两类活动都算"活动侧"）──
+	{
+		// ① 故事活动空档、冠军集会在期 ⇒ 外显 = Aquarius Cup（英文 name；该表没有 name_zh_tw 字段）
+		T.setCoreEnv({ now: () => NOW_CHAMP_ONLY });
+		const seen = installGt();
+		const r = await grab(() => T.EVENT_FETCHERS["uma-global"].default(MANIFEST_URL, undefined, TZ));
+		check("uma-global/event/冠军集会：故事活动空档时仍能出外显（抓取成功）", r.ok, r.err);
+		check("uma-global/event/冠军集会：外显 = `Aquarius Cup`（该表只有英文 name，不拿别的字段顶）",
+			r.ok && r.data && r.data.event === "Aquarius Cup", JSON.stringify(r.ok && r.data && r.data.event));
+		check("uma-global/event/冠军集会：档期 = UTC 11-21 22:00 ~ 11-27 21:59（unix 秒 → 毫秒，按 UTC 渲染）",
+			r.ok && r.data && r.data.eventDates === "11-21 22:00 ~ 11-27 21:59",
+			JSON.stringify(r.ok && r.data && r.data.eventDates));
+		const facts = r.ok && r.data && Array.isArray(r.data.eventHoverItems) ? r.data.eventHoverItems[0] : null;
+		check("uma-global/event/冠军集会：绝对时刻逐毫秒（1795298400000 / 1795816799000；源站 end 是 21:59:59）",
+			!!facts && facts.startTs === 1795298400000 && facts.endTs === 1795816799000,
+			JSON.stringify(facts && [facts.startTs, facts.endTs]));
+		check("uma-global/event/冠军集会：请求 = manifest + 故事活动表 + 冠军集会表（3 次，同一 manifest）",
+			JSON.stringify(seen) === JSON.stringify(["manifest", "storyEvents", "champions"]), JSON.stringify(seen));
+
+		// ② 两类活动同时在期（11-22）：故事 1022（11-23 结束）+ Aquarius（11-27 结束）⇒ 外显取结束最晚、数组 2 条
+		T.setCoreEnv({ now: () => NOW_CHAMP });
+		installGt();
+		const both = await grab(() => T.EVENT_FETCHERS["uma-global"].default(MANIFEST_URL, undefined, TZ));
+		check("uma-global/event/并表：两类活动同时在期 ⇒ 外显取结束最晚的 Aquarius Cup（11-27 21:59）",
+			both.ok && both.data && both.data.event === "Aquarius Cup" && both.data.eventDates === "11-21 22:00 ~ 11-27 21:59",
+			JSON.stringify(both.ok && both.data && [both.data.event, both.data.eventDates]));
+		check("uma-global/event/并表：`events[]` 2 条 = 故事活动 + 冠军集会（两条都在）",
+			both.ok && both.data && Array.isArray(both.data.events) && both.data.events.length === 2
+			&& both.data.events.some((x) => x.title === "甜蜜回憶・午茶時光")
+			&& both.data.events.some((x) => x.title === "Aquarius Cup"),
+			JSON.stringify(both.ok && both.data && both.data.events && both.data.events.map((x) => x.title)));
+
+		// ③ 反证：manifest 里没有冠军集会表（旧 manifest / 该表下线）⇒ 故事活动照常，**不抛错**
+		T.setCoreEnv({ now: () => NOW_EV });
+		const manifestNoChamp = JSON.parse(fxText("uma-gt-manifest"));
+		delete manifestNoChamp["en/events/champions-meeting"];
+		const seenNoChamp = installGt({ manifest: JSON.stringify(manifestNoChamp) });
+		const noChamp = await grab(() => T.EVENT_FETCHERS["uma-global"].default(MANIFEST_URL, undefined, TZ));
+		check("反证：manifest 缺冠军集会表 ⇒ 跳过（可选表）但故事活动照常出外显",
+			noChamp.ok && noChamp.data && noChamp.data.event === "甜蜜回憶・午茶時光",
+			JSON.stringify(noChamp.ok ? noChamp.data && noChamp.data.event : noChamp.err));
+		check("反证：缺冠军集会表时不发那次请求（manifest + 故事活动表 2 次）",
+			JSON.stringify(seenNoChamp) === JSON.stringify(["manifest", "storyEvents"]), JSON.stringify(seenNoChamp));
+
+		// ④ 反证：冠军集会表键在、结构坏（不是数组）⇒ 抛错（抓取失败 ≠ 未公布）
+		T.setCoreEnv({ now: () => NOW_CHAMP_ONLY });
+		installGt({ champions: JSON.stringify({ not: "an array" }) });
+		const bad = await grab(() => T.EVENT_FETCHERS["uma-global"].default(MANIFEST_URL, undefined, TZ));
+		check("反证：冠军集会表不是数组 ⇒ 抛「GameTora 数据接口失败（冠军集会表不是数组…）」",
+			!bad.ok && /^GameTora 数据接口失败（冠军集会表不是数组/.test(bad.err), bad.err);
+		T.setCoreEnv({ now: () => NOW_EV });
+	}
+
 	// ── ⑨ 轮内复用：一轮刷新里卡池 + 活动都要 GameTora manifest ⇒ 只发 1 次请求 ──
 	{
 		const base = useFixtures();
@@ -283,7 +347,7 @@ export default async function run() {
 		check("轮内复用不串侧：活动侧照常拿到 id 1022 的繁中名",
 			rec.event === "甜蜜回憶・午茶時光", JSON.stringify(rec.event));
 		check("轮内复用不串侧：卡池侧此刻没有覆盖 now 的池（夹具停在 10-23）⇒ banner 空、活动侧不受影响",
-			!rec.banner && raw.length === 4, JSON.stringify([rec.banner, raw.length]));
+			!rec.banner && raw.length === 5, JSON.stringify([rec.banner, raw.length]));
 		// 跨轮：同一引擎再跑一轮 ⇒ manifest 再发 1 次（轮次号隔离，不吃上一轮的缓存）
 		await engine.refresh();
 		check("跨轮不复用：同一引擎再跑一轮 ⇒ manifest 再发 1 次（两轮共 2 次，各 1 次）",
@@ -293,7 +357,7 @@ export default async function run() {
 		const seen2 = installGt();
 		await grab(() => T.EVENT_FETCHERS["uma-global"].default(MANIFEST_URL, undefined, TZ));
 		check("轮外不复用：refresh 之外直接调抓取器 ⇒ manifest 现取（每侧 2 次请求）",
-			JSON.stringify(seen2) === JSON.stringify(["manifest", "storyEvents"]), JSON.stringify(seen2));
+			JSON.stringify(seen2) === JSON.stringify(["manifest", "storyEvents", "champions"]), JSON.stringify(seen2));
 	}
 
 	// ── ⑩ 夹具可溯源：map.json 收录（前缀键对 hash 变化免疫）──

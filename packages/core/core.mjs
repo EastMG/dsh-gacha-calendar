@@ -11404,6 +11404,13 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 		//   ⚠️ `name_zh_tw` 是同一活动的**繁中译名**（47/57 条有，用户指定**只用它**：缺就跳过该条，
 		//      不拿 `name_en` 兜底）。`start_zh_tw` / `end_zh_tw` 是**日服**档期，**不要**拿它当国际服档期。
 		const GT_UMA_EVENTS = "events/story-events";
+		// 冠军集会（champions-meeting）表：**另一类活动**（月度杯赛，不是剧情活动），与故事活动同一个 manifest。
+		// 实测 2026-11-26：22 条，字段 id / name（**英文**，如 `Aquarius Cup`）/ start / end（unix 秒）；
+		// ⚠️ **没有** `start_en` / `end_en`、**没有** `name_zh_tw` ⇒ 不能走 `gtUmaEventItems` 的
+		//    「只取繁中译名、只认 en 档期」口径（那张表是剧情活动的形状）；本表标题就用 `name`。
+		// 2026-11-21 22:00Z ~ 2026-11-27 21:59Z 的 Aquarius Cup 在期 —— 修「源站冠军集会在期、我们活动侧 nomatch」。
+		// 同 manifest 的 hash 端点，**不新增域名/主机**；该表不在 manifest 里时按"可选表"跳过（见下）。
+		const GT_UMA_EVENTS_CHAMPIONS = "en/events/champions-meeting";
 
 		// manifest **轮内**复用（卡池侧与活动侧都要同一个 11KB 的 manifest）：
 		// 只在**一轮刷新**里生效（`refreshAll` 期间为真），且**按轮次号**判定 ⇒ 跨轮一定不复用（hash 变了立刻跟上）；
@@ -11453,9 +11460,41 @@ async function ns_umapyoi_gachaUmapyoi(url, signal, tz = "Asia/Tokyo", now = now
 			return out;
 		}
 
+		// 冠军集会表 → 条目事实（与 `gtUmaEventItems` **同一形状** `{ id, title, startTs, endTs }`）。
+		// 该表的档期字段就叫 `start` / `end`（unix 秒，与 en/ 故事活动同一套 = 国际服），标题只有英文 `name`：
+		//   · 缺 `name` / 秒值非法 ⇒ 跳过该条（缺字段不算结构损坏）；
+		//   · **不是数组** ⇒ 抛（结构变化按"抓取失败"处理，不是 nomatch）。
+		function gtUmaChampionsItems(list) {
+			if (!Array.isArray(list)) throw gtUmaFail("冠军集会表不是数组（结构可能变了）");
+			const out = [];
+			for (const e of list) {
+				if (!e || typeof e !== "object") continue;
+				const title = typeof e.name === "string" ? e.name.trim() : "";
+				if (!title) continue;
+				const s = Number(e.start), en = Number(e.end);
+				if (!Number.isFinite(s) || !Number.isFinite(en) || s <= 0 || en <= 0) continue;
+				out.push({ id: e.id, title, startTs: s * 1000, endTs: en * 1000 });
+			}
+			return out;
+		}
+
+		// 可选表：manifest 里**有**这个键才取；没有键 ⇒ `[]`（该表下线 / 旧 manifest 不影响已接的故事活动）。
+		// 但键在、取不到（404 / 结构坏）仍抛 —— 「抓取失败 ≠ 未公布」，与其它表同一口径。
+		async function gtUmaFileIfListed(manifest, key, signal) {
+			if (!manifest || typeof manifest[key] !== "string") return [];
+			return gtUmaFile(manifest, key, signal);
+		}
+
 		async function ns_cygames_eventsGameToraUma(url, signal, tz = ns_umamusume_official_UMA_GLOBAL_TZ, now = nowMs()) {
 			const manifest = await gtUmaManifestOf(url || GT_UMA_MANIFEST, signal);
-			const items = gtUmaEventItems(await gtUmaFile(manifest, GT_UMA_EVENTS, signal));
+			// 故事活动（剧情）+ 冠军集会**并表**：两类活动都写在源站的"活动侧"，只接一张表会漏另一类
+			// （2026-11-26 活网审计 B：故事活动空档、冠军集会 Aquarius Cup 在期，我们活动侧却 nomatch）。
+			// 两张表同一次 manifest 解析（hash 不写死）；并行取，故事活动表仍是**必需**表。
+			const [storyList, championsList] = await Promise.all([
+				gtUmaFile(manifest, GT_UMA_EVENTS, signal),
+				gtUmaFileIfListed(manifest, GT_UMA_EVENTS_CHAMPIONS, signal)
+			]);
+			const items = gtUmaEventItems(storyList).concat(gtUmaChampionsItems(championsList));
 			// 在期 = 覆盖 now 的条（两端都必须明确）；一条都不覆盖 ⇒ `null`（未公布，**不是**失败）
 			const live = items.filter((x) => coversNow(x, now));
 			if (live.length === 0) return null;
@@ -14649,7 +14688,10 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 		});
 
 		// ── 条目（2026-11-16 去重：每个 id 只在这里注册一次）──
-		// ournotes：活动侧 = bushimo WP 公告（原样）；卡池侧 = SPICA 列表（原 30-game-batch2.js ② 段二次合并的字段已并入）。
+		// ournotes：卡池侧 = SPICA 卡池列表；活动侧 2026-11-26（活网审计 B）改 = **SPICA 活动页**。
+		// 旧活动源（bushimo WP 公告）**保留为手动备选**：它 20 条全是宣传/告知、**没有任何活动档期**
+		// （审计实测最新一条停在 2026-10-26），所以之前活动侧恒 nomatch；SPICA 有当期活动与真实窗口。
+		// 两地址都在 `spica.wiki`（PROXY_ALLOW_HOSTS 已含），不加新域名。
 		registerSource({
 				id: "ournotes",
 				defaultHidden: false,
@@ -14658,9 +14700,12 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 				icon: "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/bf/53/0f/bf530fd7-65e8-e875-0a46-720344af6134/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
 				url: "https://spica.wiki/ournotes/gachas",
 				source: "SPICA",
-				eventUrl: "https://bang-dream-on.bushimo.jp/wp-json/wp/v2/posts?per_page=20&page=1",
-				// 日文站点 → 加语言括号（本体惯例，见 ba-jp 的 `官方公告（日文）`）
-				eventSource: "官方公告（日文）",
+				eventUrl: "https://spica.wiki/ournotes/events",
+				eventSource: "SPICA",
+				// 日文站点 → 标签带语言括号（本体惯例，见 ba-jp 的 `官方公告（日文）`）
+				eventAltSources: [
+					{ label: "官方公告（日文）", url: "https://bang-dream-on.bushimo.jp/wp-json/wp/v2/posts?per_page=20&page=1", fetcher: "ournotes-bushimo" }
+				],
 		});
 
 		// ournotes-global：默认源 = SPICA 的结构化数据 JSON（原 30-game-ournotes-global.js 二次合并的字段已并入）。
@@ -14682,7 +14727,12 @@ async function ns_bestdori_eventsBestdori(url, signal, tz = "Asia/Shanghai", now
 		// ══ 原 43-sources-register.js 里属于本组的登记代码（原样保留）══
 		GACHA_FETCHERS["bandori"] = (url, signal, tz) => ns_bandori_gachaBandori(url, signal, tz);
 		EVENT_FETCHERS["bandori"] = Object.assign(EVENT_FETCHERS["bandori"] || {}, { default: (url, signal, tz) => ns_bandori_eventsBandori(url, signal, tz) });
-		EVENT_FETCHERS["ournotes"] = Object.assign(EVENT_FETCHERS["ournotes"] || {}, { default: (url, signal, tz) => ns_ournotes_eventsOurNotes(url, signal, tz) });
+		EVENT_FETCHERS["ournotes"] = Object.assign(EVENT_FETCHERS["ournotes"] || {}, {
+			// 2026-11-26（活网审计 B）：活动默认源 = SPICA 活动页（列表 → 每期详情页的 `開催期間`）。
+			// 旧 bushimo WP 源保留为手动备选键 `ournotes-bushimo`（设置页「官方公告（日文）」）。
+			default: (url, signal, tz) => ns_batch2_fetchSpicaEvents(url, signal, tz),
+			"ournotes-bushimo": (url, signal, tz) => ns_ournotes_eventsOurNotes(url, signal, tz)
+		});
 		GACHA_FETCHERS["bandori-bestdori-gacha"] = (url, signal, tz) => ns_bestdori_gachaBestdori(url, signal, tz);
 		GACHA_FETCHERS["ournotes-global-gacha"] = (url, signal, tz) => ns_ournotes_global_gachaOurNotesGlobal(url, signal, tz);
 
@@ -15149,6 +15199,92 @@ async function ns_batch2_fetchSpicaGacha(url, signal, tz = NS_BATCH2_SPICA_TZ) {
 // `registerSource` 按 id 合并 ⇒ tz / name / 活动侧 / defaultHidden 全部保留原样。
 
 GACHA_FETCHERS["ournotes"] = (url, signal, tz) => ns_batch2_fetchSpicaGacha(url, signal, tz);
+
+// ── ②B OurNotes 日服**活动**：SPICA 活动页（2026-11-26 活网审计 B）──────────────
+//   列表 https://spica.wiki/ournotes/events （服务端渲染 HTML：`<ul><li><a href="/ournotes/event/{id}">名称</a>`；
+//     **列表没有日期**，与卡池列表同一形态 ⇒ 日期必须进详情页拿）
+//   详情 https://spica.wiki/ournotes/event/{id}
+//     `<h1>名称</h1>` + `<dt class="k">開催期間</dt><dd class="v">2026.11.18 15:00 – 2026.11.27 14:59</dd>`
+//   实测 2026-11-26 03:00 +08：列表 200 / 43KB / 6 期；当期「きみはまるくん」11-18 15:00 ~ 11-27 14:59。
+//   抓取口径与卡池侧一致：列表取 id 顺序 → **只抓前 6 条详情**（列表按开始时间倒序，在期/最近的在头部；
+//     6 = 当前总期数上限，不是"抓全站"）。
+//   `開催期間` 的写法两种都要认（`ns_batch2_spicaEventWindowOf`）：
+//     · `YYYY.M.D HH:MM – YYYY.M.D HH:MM`（当前 6 期都是这种）
+//     · **终点省略年份**：`YYYY.M.D HH:MM – M.D HH:MM`；两端都可省时刻 ⇒ 起 00:00 / 止 23:59
+//       （终点 < 起点 ⇒ 跨年，年份 +1；仓库通用约定：只有日期时 起 00:00 / 止 23:59）
+//   口径：外显 = 覆盖 now 的最新开始；悬停/数组 = 全部 `coveredOrOpen`（`sortEventItems` 排序）——
+//     与 `ournotes-global` 完全同一支收口函数（`ns_on_global_eventPayloadOf`，只用公共 helper，无国际服常量）。
+const NS_BATCH2_SPICA_EVENTS_URL = "https://spica.wiki/ournotes/events";
+const NS_BATCH2_SPICA_EVENT_DETAIL_BASE = "https://spica.wiki/ournotes/event/";
+const NS_BATCH2_SPICA_EVENT_MAX_DETAILS = 6;
+
+/** 列表 HTML → `[{ id, title }]`（保持源站顺序，去重）。 */
+function ns_batch2_spicaEventIdsOf(html) {
+	const s = String(html == null ? "" : html);
+	const out = [];
+	const re = /<a\b[^>]*href="\/ournotes\/event\/([A-Za-z0-9_-]+)"[^>]*>([\s\S]*?)<\/a>/g;
+	let m;
+	while ((m = re.exec(s)) !== null) {
+		const id = m[1];
+		if (out.some((x) => x.id === id)) continue;
+		const title = stripTags(m[2]).replace(/\s+/g, " ").trim();
+		out.push({ id, title });
+	}
+	return out;
+}
+
+// 两端日期点：起点**必须**带年份；终点年份可省（省了按起点年补，回绕则 +1 年）。时刻可省。
+const NS_BATCH2_SPICA_EVENT_DATE_RE = /(\d{4})\.(\d{1,2})\.(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?\s*[–—\-~～]\s*(?:(\d{4})\.)?(\d{1,2})\.(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?/;
+
+/** `開催期間` 原文 → `{ startTs, endTs }`（读不出 / 非法 ⇒ 两端 null，不猜）。 */
+function ns_batch2_spicaEventWindowOf(raw, tz = NS_BATCH2_SPICA_TZ) {
+	const m = NS_BATCH2_SPICA_EVENT_DATE_RE.exec(String(raw == null ? "" : raw));
+	if (!m) return { startTs: null, endTs: null };
+	const y1 = Number(m[1]), mo1 = Number(m[2]), d1 = Number(m[3]);
+	const h1 = m[4] != null ? Number(m[4]) : 0, mi1 = m[5] != null ? Number(m[5]) : 0;
+	const y2 = m[6] != null ? Number(m[6]) : y1;
+	const mo2 = Number(m[7]), d2 = Number(m[8]);
+	const h2 = m[9] != null ? Number(m[9]) : 23, mi2 = m[10] != null ? Number(m[10]) : 59;
+	if (h1 > 23 || mi1 > 59 || h2 > 23 || mi2 > 59) return { startTs: null, endTs: null };
+	const startTs = sourceInstant(y1, mo1, d1, h1, mi1, tz);
+	let endTs = sourceInstant(y2, mo2, d2, h2, mi2, tz);
+	// 终点省略年份且早于起点 ⇒ 跨年（12 月 → 次年 1 月那类）
+	if (m[6] == null && endTs < startTs) endTs = sourceInstant(y1 + 1, mo2, d2, h2, mi2, tz);
+	if (!(endTs > startTs)) return { startTs: null, endTs: null };
+	return { startTs, endTs };
+}
+
+/** 详情 HTML → `{ title, startTs, endTs, raw, display }`（没有 `開催期間` ⇒ 两端 null，raw/display 照实保留）。 */
+function ns_batch2_spicaEventDetailOf(html, tz = NS_BATCH2_SPICA_TZ) {
+	const s = String(html == null ? "" : html);
+	const h1 = /<h1>([\s\S]*?)<\/h1>/.exec(s);
+	const title = stripTags(h1 ? h1[1] : "").replace(/\s+/g, " ").trim();
+	if (!title) throw new Error("spica-event-bad-html");
+	const pm = NS_BATCH2_SPICA_PERIOD_RE.exec(s);
+	if (!pm) return { title, startTs: null, endTs: null, raw: "", display: "" };
+	const raw = stripTags(pm[1]).replace(/\s+/g, " ").trim();
+	const w = ns_batch2_spicaEventWindowOf(raw, tz);
+	if (w.startTs == null || w.endTs == null) return { title, startTs: null, endTs: null, raw, display: raw };
+	return { title, startTs: w.startTs, endTs: w.endTs, raw, display: fmtWindow(w.startTs, w.endTs, tz) };
+}
+
+/** 活动抓取器：列表 → 前 N 期详情（列表没有日期，必须进详情）。 */
+async function ns_batch2_fetchSpicaEvents(url, signal, tz = NS_BATCH2_SPICA_TZ) {
+	const listUrl = url || NS_BATCH2_SPICA_EVENTS_URL;
+	const listHtml = await proxyFetchText(listUrl, NS_BATCH2_SPICA_REFERER);
+	const ids = ns_batch2_spicaEventIdsOf(listHtml);
+	if (ids.length === 0) throw new Error("spica-event-list-empty");   // 列表结构变了（不是"未公布"）
+	const now = nowMs();
+	const items = [];
+	for (const it of ids.slice(0, NS_BATCH2_SPICA_EVENT_MAX_DETAILS)) {
+		const html = await proxyFetchText(NS_BATCH2_SPICA_EVENT_DETAIL_BASE + it.id, NS_BATCH2_SPICA_REFERER);
+		const d = ns_batch2_spicaEventDetailOf(html, tz);
+		if (!d.title) d.title = it.title;
+		items.push(d);
+	}
+	// 外显/悬停/数组收口 = 与 ournotes-global 同一个函数（只读 items 的公共字段，无国际服常量）
+	return ns_on_global_eventPayloadOf(items, tz, now);
+}
 
 // src/client/30-game-papergames.js —— 叠纸游戏：以闪亮之名（yslz）/ 无限暖暖（wxnn）/ 闪耀暖暖（nikki4）
 //
@@ -25778,6 +25914,13 @@ async function ns_bwiki_eventsBjhl(url, signal, tz = BJHL_TZ, now) {
 //   · 起点「版本更新后 / 维护后」= **起点未知** ⇒ startTs = null（与 wd 同口径：不进外显、进悬停）
 //   · 只有日期没有时分 ⇒ 起 00:00 / 止 23:59（仓库通用约定，同 bwiki `windowsFromCell` 注释）
 //
+// ── 2026-11-26（活网审计 A）：空档期的「下一期预告」─────────
+// 只收「覆盖现在」会把**未来才开**的预告整条丢掉：现场 TapTap 已公布【秘密弹道】
+// `2026年11月26日 05:00 ~ 12月10日 04:59`（审计时刻 11-26 02:52 +08，3 小时后开）⇒ 活动侧 nomatch。
+// 修法（与 cytq 那次同一口径）：**外显仍只取在期**（不拿未来期冒充），`events[]` / 悬停可收
+// 「起点明确在未来、终点未过」的条目（显示层 `state=wait` 画「还有 X 小时开始」）。
+// 起点「版本更新后」这类没有绝对时刻的仍不进数组（排不出倒计时），与此前同口径。
+//
 // ── 时区 ──
 // 源站无标注；时间写成 `05:00:00 ~ 04:59:59`（凌晨 5 点换池 + 结束前一秒），是国服 UTC+8 口径
 // ⇒ tz = Asia/Shanghai（推定，只写在这里，不进悬停）。
@@ -26251,7 +26394,38 @@ async function ns_bwiki_eventsBjhl(url, signal, tz = BJHL_TZ, now) {
 			// 外显 = **文档顺序里第一条覆盖 now 的**（列表从新到旧 ⇒ 最新公布的那条当期活动；
 			// 与 hlr 的"第一条覆盖 now = 当前最新一期"同一口径）
 			const live = rows.filter((r) => coversNow(r, at));
-			if (live.length === 0) return null;
+			if (live.length === 0) {
+				// ── 2026-11-26（活网审计 A）：空档期里的「下一期预告」不能再整条丢掉 ─────────────
+				// 现场：源站已公布【秘密弹道】`2026年11月26日 05:00 ~ 12月10日 04:59`（审计时刻 02:52 +08，
+				// 3 小时后开），而此前只收「覆盖现在」的条目 ⇒ 活动侧 nomatch、面板整段空白。
+				// 口径与仓库既有"预告可进数组/悬停、外显不取未来期"一致（参考 cytq 那次的局部开关）：
+				//   · 外显（`event` / `eventDates`）**只取在期** ⇒ 这里不设外显字段（如实 null，不拿未来期冒充）；
+				//   · `events[]` / 悬停可收「起点明确在未来、终点未过」的条目 —— 显示层按 `state=wait`
+				//     画「还有 X 小时开始」，事实因此不再丢。
+				// 只认**两端都明确**的窗口（起点「版本更新后」这类仍不进：没有绝对时刻，排不出倒计时）。
+				const upcoming = rows
+					.filter((r) => r.startTs != null && r.endTs != null && r.startTs > at && r.endTs >= at)
+					.sort((a, b) => (a.startTs - b.startTs) || (a.endTs - b.endTs));
+				if (upcoming.length === 0) return null;   // 连未来期都没有 ⇒ 如实未公布
+				const upItems = upcoming.map((r) => ({ title: r.name, startTs: r.startTs, endTs: r.endTs, raw: r.raw }));
+				// 只有 1 条时悬停生成器给 ""（UI 默认两行式由显示层按数组画）——与此前同口径
+				const upHover = hoverTextFromItems(upItems, "event", tz);
+				const up = {};
+				if (upHover) up.eventHover = upHover;
+				// 数组条目形状与 `dataArrayProducedEventsOf` 同源（同一份归一函数）；**没有主条**时
+				// 生成器会返回空数组（它要求有外显），所以这里直接按同一归一/排序/发 key 收口。
+				up.events = dataArrayProducedListOf(upItems.map((x) => dataArrayProducedItemOf({
+					title: x.title,
+					show: x.title,
+					startTs: x.startTs,
+					endTs: x.endTs,
+					tz,
+					raw: x.raw,
+					source: "hover"
+				}, "event")), "pengpeng:event");
+				up.eventHoverItems = upItems;
+				return up;
+			}
 			const first = live[0];
 			// 悬停 = 全部在期 / 起点未知但终点未过，按结束时间升序（与旧活动侧同一排版）
 			const hoverItems = rows.filter((r) => coveredOrOpen(r, at))
