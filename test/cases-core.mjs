@@ -898,6 +898,13 @@ export default async function runCore() {
 		//   新路两侧都是 null，与改造前存档（老路把"尚未开始"的节也当当期）有意不同 ⇒ 这两个键登记为
 		//   **已批准差异**。差异的范围由下面"bandori 专项"钉死：只是「不覆盖 now 就不外显」，数据本身没动。
 		const APPROVED_DIFF = new Set(["hsr:gacha", "hsr:event", "stellasora:event", "bandori:gacha", "bandori:event"]);
+		// ⚠️ 2026-11-26（用户报「ba-cn 的卡池不全」连带修活动侧）：
+		//   ① 「更新限时**复刻**活动【X】」现在也算当期活动（旧正则只认「更新限时活动」）；
+		//   ② 活动**结束时间**不再用"维护日 +28 天"估算，改用活动帖里真实的「活动持续时间」行。
+		//   golden 的时刻（09-25）走的是 0924 那期：老值 09-24~10-22（+28 估算），
+		//   新值 09-24~10-08（活动帖 1962 的真实窗口）⇒ `ba-cn:event` 登记为**已批准差异**，
+		//   名称一字未变、起点一字未变，只有**结束日**从估算值改成真实值（专项断言见下面 ba-cn 块）。
+		const BA_CN_REAL_EVENT_WINDOW = new Set(["ba-cn:event"]);
 		// ⚠️ 2026-11-18（外显名 ①：源站体裁尾巴归一）：`mergeEntryRecord` 现在只改**外显名**
 		// （`banner` / `event`），把白名单里的体裁尾巴剥掉（如「…開催中！」「…现已开启」）。
 		// golden 是改造前的存档 ⇒ 这 3 个侧的外显名与 golden 有意不同；**数组与悬停一个字没动**
@@ -907,13 +914,14 @@ export default async function runCore() {
 		// （仓库通用约定，见 `ns_bwiki_windowsFromCell` 注释）。golden 是改造前 04:00 / 03:59 的存档
 		// ⇒ 这两侧登记为**已批准差异**，并由下面的专项断言逐行证明"差异只是这条时间口径"。
 		const DAY_ONLY_KEYS = new Set(["p5x:gacha", "p5x:event"]);
-		const unapproved = diffs.filter((k) => !APPROVED_DIFF.has(k) && !DAY_ONLY_KEYS.has(k));
+		const unapproved = diffs.filter((k) => !APPROVED_DIFF.has(k) && !DAY_ONLY_KEYS.has(k) && !BA_CN_REAL_EVENT_WINDOW.has(k));
 		check("等价性：17 款游戏（34 个侧）**全部逐字相等**（diffs = 0；名称 / 档期文本 / 探头行数 / 行顺序）",
 			unapproved.length === 0, JSON.stringify(unapproved));
-		check("等价性白名单 = 8 个已批准（星铁 2 + 星塔 1 + bandori 2 + 外显名尾巴 3）+ p5x 2 个纯日期时间口径（这些键都必须真的变了）",
-			diffs.length === APPROVED_DIFF.size + DAY_ONLY_KEYS.size
+		check("等价性白名单 = 8 个已批准（星铁 2 + 星塔 1 + bandori 2 + 外显名尾巴 3）+ p5x 2 个纯日期时间口径 + ba-cn 活动真实窗口 1（这些键都必须真的变了）",
+			diffs.length === APPROVED_DIFF.size + DAY_ONLY_KEYS.size + BA_CN_REAL_EVENT_WINDOW.size
 			&& [...APPROVED_DIFF].every((k) => diffs.indexOf(k) >= 0)
-			&& [...DAY_ONLY_KEYS].every((k) => diffs.indexOf(k) >= 0),
+			&& [...DAY_ONLY_KEYS].every((k) => diffs.indexOf(k) >= 0)
+			&& [...BA_CN_REAL_EVENT_WINDOW].every((k) => diffs.indexOf(k) >= 0),
 			JSON.stringify(diffs));
 		// p5x 专项：名称 / 行数 / 顺序逐字相同；老路（04:00 起 / 03:59 止）按同一条规则换算后与新值逐字相等
 		const p5xDayShift = (meta) => String(meta == null ? "" : meta)
@@ -949,12 +957,35 @@ export default async function runCore() {
 				&& bdCovered.event === goldE.name,
 				JSON.stringify([bdCovered.banner, bdMain.show, bdCovered.event, goldG.name, goldE.name]));
 		}
+		// ba-cn 专项（2026-11-26 已批准差异的**依据**）：活动名与起点逐字相同，只有**结束时刻**从
+		//   "+28 天估算" 换成活动帖里的真实「活动持续时间」。golden 时刻走 0924 期：
+		//   golden = 09-24 14:00 → 10-22 13:59（+28）／新 = 09-24 14:00 → 10-08 13:59（活动帖 1962 原文）。
+		// 逐字证明"只动了结束时刻"：把新 meta 的结束时刻换成 golden 的结束时刻后，两者必须逐字相等。
+		{
+			const d = got.get("ba-cn:event");
+			const goldRow = (d && d.old && d.old[0]) || {};
+			const nextRow = (d && d.next && d.next[0]) || {};
+			check("等价性（ba-cn:event）已批准差异：活动名与起点逐字相同（只是结束时刻改用活动帖真实窗口）",
+				!!d && nextRow.name === "夏日天空的约定" && goldRow.name === nextRow.name
+				&& /^09-24 14:00 → 10-08 13:59/.test(String(nextRow.meta))
+				&& /^09-24 14:00 → 10-22 13:59/.test(String(goldRow.meta)),
+				JSON.stringify([goldRow, nextRow]));
+			// meta = `MM-DD HH:MM → MM-DD HH:MM · 还剩 X天X时`：剩余时间跟着结束时刻变，属同一条差异
+			// ⇒ 只把「档期段」换回 golden 的结束时刻再逐字比；`还剩` 段另行核对（新值结束更早 ⇒ 剩余更少）。
+			const stripAgo = (m) => String(m == null ? "" : m).replace(/ · 还剩 .*$/, "");
+			const swapped = stripAgo(nextRow.meta).replace(/→ 10-08 13:59$/, "→ 10-22 13:59");
+			check("等价性（ba-cn:event）已批准差异：把「结束时刻」换回 golden 的 +28 估算值后，档期段逐字相等（差异只在结束时刻）",
+				!!d && swapped === stripAgo(goldRow.meta)
+				&& /还剩 /.test(String(nextRow.meta)) && /还剩 /.test(String(goldRow.meta)),
+				JSON.stringify([swapped, stripAgo(goldRow.meta), nextRow.meta, goldRow.meta]));
+		}
+
 		const STRICT = ["zzz", "arknights", "ba-cn", "bandori", "wuhuamixin", "zspms", "kedr", "uma-cn", "uma-jp", "uma-global", "p5x", "nte", "gf2", "fgo", "stellasora", "hsr", "genshin"];
 		const strictBad = [];
 		for (const id of STRICT) {
 			for (const side of ["gacha", "event"]) {
 				const key = id + ":" + side;
-				if (APPROVED_DIFF.has(key) || DAY_ONLY_KEYS.has(key)) continue;   // 已批准差异（见上）
+				if (APPROVED_DIFF.has(key) || DAY_ONLY_KEYS.has(key) || BA_CN_REAL_EVENT_WINDOW.has(key)) continue;   // 已批准差异（见上）
 				const d = got.get(key);
 				if (!d || JSON.stringify(d.old) !== JSON.stringify(d.next)) strictBad.push(key);
 			}

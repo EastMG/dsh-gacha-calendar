@@ -858,6 +858,49 @@
 		}
 
 
+		// 活动帖里的**真实档期**行：`· 活动持续时间：11月12日 维护结束后 ~ 11月26日 13:59`
+		// （维护公告本身**不写**新活动的结束时间 —— 只写"哪些活动今晚结束"，所以必须去活动帖里找。
+		//   实测 2026-11-26：11-12 维护公告里一条新活动档期都没有；同期活动帖 id=2009 「限时活动：Sheside Outside」
+		//   的正文写着「活动持续时间：11月12日 维护结束后 ~ 11月26日 13:59」⇒ 真实结束 11-26，而按维护日
+		//   +28 天估算是 12-10（错 14 天）。用户 2026-11-26 要求"活动结束时间再找找"，即此。）
+		function baCnEventDurationOf(text) {
+			const m = String(text || "").match(/活动持续时间[：:]\s*([^\n]{4,90})/);
+			return m ? m[1].trim() : "";
+		}
+		// 在**列表**里找与活动同名的帖子（标题包含活动名），取它的真实档期。
+		// 起点：`维护结束后` ⇒ 用本期维护开始时刻（与卡池同一口径）；显式日期时刻 ⇒ 用显式的。
+		// 年份：右端月份小于起点月份 ⇒ 次年。解析不出 / 无同名帖 ⇒ null（调用方回落到估算）。
+		function baCnEventWindowOf(rows, activityName, nowYear, tz, fallbackStartTs) {
+			const name = String(activityName == null ? "" : activityName).trim();
+			if (!name) return null;
+			for (const it of Array.isArray(rows) ? rows : []) {
+				const title = String(it && it.title != null ? it.title : "");
+				// 标题必须点名这个活动（`【预告】限时活动：夏日天空的约定` / `限时活动：Sheside Outside` / 活动名本身）
+				if (title.indexOf(name) < 0) continue;
+				const line = baCnEventDurationOf(baCnNoticeText(it && it.content));
+				if (!line) continue;
+				const parts = line.split(/[~～〜]/);
+				if (parts.length !== 2) continue;
+				const left = parts[0].trim(), right = parts[1].trim();
+				const rm = right.match(/(?:(\d{4})\s*[\/\-年]\s*)?(\d{1,2})\s*[\/月]\s*(\d{1,2})\s*日?\s*(\d{1,2}):(\d{2})/);
+				if (!rm) continue;
+				let startTs = null;
+				if (/维护结束/.test(left)) startTs = fallbackStartTs;
+				else {
+					const lm = left.match(/(?:(\d{4})\s*[\/\-年]\s*)?(\d{1,2})\s*[\/月]\s*(\d{1,2})\s*日?\s*(\d{1,2}):(\d{2})/);
+					if (lm) startTs = sourceInstant(lm[1] ? Number(lm[1]) : nowYear, Number(lm[2]), Number(lm[3]), Number(lm[4]), Number(lm[5]), tz);
+				}
+				if (startTs == null) startTs = fallbackStartTs;
+				if (startTs == null) continue;
+				const sw = sourceWallParts(startTs, tz);
+				const endY = rm[1] ? Number(rm[1]) : (Number(rm[2]) < sw.mo ? sw.y + 1 : sw.y);
+				const endTs = sourceInstant(endY, Number(rm[2]), Number(rm[3]), Number(rm[4]), Number(rm[5]), tz);
+				if (!(endTs > startTs)) continue;
+				return { startTs, endTs, line };
+			}
+			return null;
+		}
+
 		// 一篇公告正文 → 活动信息（名称）
 		// 名称来源优先级：正文里**明确写着活动名**的位置 → 标题。
 		// "明确位置"只有两种（其余一律不取，否则会把正文里的"活动指南/活动商店"抓成名字）：
@@ -1066,7 +1109,7 @@
 				// 选中那篇若已经在上面抓过详情（列表 content 被截断的情况）→ 直接复用，省掉一次代理往返
 				const content = maintRaw || String((await proxyFetchJson(`https://bluearchive-cn.com/api/news/detail?id=${maintTitle.id}`, ref, H))?.data?.news?.content || "");
 				if (content) {
-					const d1 = parseBaCnMaintText(baCnNoticeText(content), nowYear, tz, now);
+					const d1 = parseBaCnMaintText(baCnNoticeText(content), nowYear, tz, now, { rows });
 					if (d1) return d1;
 				}
 			}
@@ -1109,7 +1152,7 @@
 		// 无角色卡池时返回 null（调用方据此判"未公布"）。
 		// ⚠️ P3c（2026-11-07）：第 4 参 `now` 是给 `dataArrayProduced*` 用的（窗口文本 → 本机 ts 要一个
 		//    "今年是哪年"的基准）。默认走注入时钟 —— 调用方 `fetchBaCn` 已把它传进来，别再读宿主时钟。
-		function parseBaCnMaintText(text, nowYear, tz, now = nowMs()) {
+		function parseBaCnMaintText(text, nowYear, tz, now = nowMs(), opts) {
 			// 卡池识别分两步：① 挑出**角色卡池**（排除招募活动）；② 按档位选外显那一类。
 			//
 			// WHY 不能只认一种写法：措辞漂移过。旧写法 `更新限时招募【X】` 曾一度**一处都没有**
@@ -1124,21 +1167,32 @@
 			// 按（档位, 出现顺序）取最优：稳定排序即可，因为 bannerPools 已按文档顺序收集
 			bannerPools.sort((a, b) => (BA_CN_POOL_RANK[a.kind] ?? 9) - (BA_CN_POOL_RANK[b.kind] ?? 9));
 			const bannerPool = bannerPools[0] || null;
-			// 当期活动名（第一个"更新限时活动【X】"）
-			const eventM = text.match(/更新限时活动【([^】]+)】/);
+			// 当期活动名（第一个"更新限时[复刻]活动【X】"）
+			// ⚠️ 2026-11-26：原来只认 `更新限时活动【`，运营写「更新限时**复刻**活动【Sheside Outside】」时
+			//   匹配不到 ⇒ event 空。空值不会覆盖旧记录（合并层保留上一期），于是面板一直挂着**上一期**的活动名，
+			//   而 eventDates 却是按本期维护日重算的（名与期不同期）。现在复刻活动也算当期活动。
+			const eventM = text.match(/更新限时(?:复刻|復刻)?活动【([^】]+)】/);
 			// 维护开始时间 "08月20日 14:00"
 			const maintM = text.match(/(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{2})/);
 			const fmt = (mo, d, h, mi) => `${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")} ${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
 			let bannerDates = "", eventDates = "";
+			let maintStartTs = null;
 			if (maintM) {
 				const mo = Number(maintM[1]), d = Number(maintM[2]);
 				const start = fmt(mo, d, Number(maintM[3]), Number(maintM[4]));
 				// 卡池结束：约 14 天后（下一期维护）
 				const end = new Date(nowYear, mo - 1, d + 14, 13, 59);
 				bannerDates = `${start} ~ ${fmt(end.getMonth() + 1, end.getDate(), end.getHours(), end.getMinutes())}`;
-				// 活动结束：约 28 天后（蓝档国服活动通常比卡池多一期，如和乐庆典到 09-17 13:59）
-				const eEnd = new Date(nowYear, mo - 1, d + 28, 13, 59);
-				eventDates = `${start} ~ ${fmt(eEnd.getMonth() + 1, eEnd.getDate(), eEnd.getHours(), eEnd.getMinutes())}`;
+				maintStartTs = sourceInstant(nowYear, mo, d, Number(maintM[3]), Number(maintM[4]), tz);
+				// 活动档期：**优先用活动帖里的真实「活动持续时间」**（列表里就有，零额外请求）；
+				// 找不到同名活动帖时**才**回落到"维护日 +28 天"的估算（老口径，保留兜底）。
+				const evWin = eventM ? baCnEventWindowOf((opts && opts.rows) || [], eventM[1], nowYear, tz, maintStartTs) : null;
+				if (evWin) {
+					eventDates = fmtWindow(evWin.startTs, evWin.endTs, tz);
+				} else {
+					const eEnd = new Date(nowYear, mo - 1, d + 28, 13, 59);
+					eventDates = `${start} ~ ${fmt(eEnd.getMonth() + 1, eEnd.getDate(), eEnd.getHours(), eEnd.getMinutes())}`;
+				}
 			}
 			// 公告里同期**全部角色卡池**（只含卡池，不含招募活动）：池名 + 该行成员名，如
 			// 2、更新限时招募【夏日思绪长…】，…全新3★成员「桔梗（泳装）」、2★成员「莲华（泳装）」登场

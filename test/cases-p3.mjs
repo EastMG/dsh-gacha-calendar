@@ -819,6 +819,13 @@ const p3bStripTailArr = (arr) => (arr || []).map((x) => Object.assign({}, x, {
 // 内容里已格式化的悬停/档期文本 `MM-DD 04:00 ~ MM-DD 03:59` → `MM-DD 00:00 ~ MM-DD 23:59`；
 // 源站原文档期（`2026年9月24日—10月22日`）一个字不动（raw 保留原文）。
 // 反向守卫：登记了就必须真的变了（下面逐字断言），没登记就不许变。
+// ── 2026-11-26（用户报「ba-cn 卡池不全」连带修活动侧）：ba-cn 活动**结束时刻**改真实值 ──────
+// ① 「更新限时**复刻**活动【X】」算当期活动（正则放宽）；② 结束时间不再按"维护日 +28 天"估算，
+//   改用活动帖里真实的「活动持续时间：… ~ 10月08日 13:59」。
+// golden（改造前存档）里 eventDates = `09-24 14:00 ~ 10-22 13:59`（+28 估算），
+// 新值 = `09-24 14:00 ~ 10-08 13:59` ⇒ 只登记 `eventDates` 这一个字段，并逐字证明
+// "起点没动、只是结束日换成真实值"；事件数组的 endTs 随之变化，同样在 ② 里逐字核对。
+const P3B_BA_CN_REAL_EVENT_WINDOW = { baCnMaintText: true };
 const P3B_DAY_ONLY = { p5xGacha: true, p5xEvent: true };
 const P3B_DAY_MS_START = 4 * 3600e3;
 const P3B_DAY_MS_END = 20 * 3600e3;
@@ -999,8 +1006,19 @@ async function runP3b() {
 		const pickFields = stellaRoles ? ["roles"] : [];
 		// 外显名去体裁尾巴（2026-11-18）：只放行登记过的那几个字符串字段
 		const displayFields = P3B_DISPLAY_NAME[p.key] || [];
-		check(`P3b golden（${p.key}）：12 个字符串字段与改造前逐字相同（已登记的相对表述悬停 / 活动名去尾 / 外显名去体裁尾巴 / 星塔 roles 除外）`,
-			changed.every((f) => approved.includes(f) || trimFields.includes(f) || pickFields.includes(f) || displayFields.includes(f)), JSON.stringify(changed));
+		// ba-cn 活动真实窗口（2026-11-26）：只放行 `eventDates` 一个字段
+		const baCnWin = P3B_BA_CN_REAL_EVENT_WINDOW[p.key] === true;
+		const winFields = baCnWin ? ["eventDates"] : [];
+		check(`P3b golden（${p.key}）：12 个字符串字段与改造前逐字相同（已登记的相对表述悬停 / 活动名去尾 / 外显名去体裁尾巴 / 星塔 roles / ba-cn 活动真实窗口 除外）`,
+			changed.every((f) => approved.includes(f) || trimFields.includes(f) || pickFields.includes(f) || displayFields.includes(f) || winFields.includes(f)), JSON.stringify(changed));
+		if (baCnWin) {
+			// 逐字证明：起点相同，只有结束时刻从 +28 估算（10-22）换成活动帖真实值（10-08）
+			const oldEv = p3bTextOf(g.rec.eventDates), newEv = p3bTextOf(r.rec.eventDates);
+			check(`P3b golden（${p.key}）**已批准差异**：活动档期只有结束时刻变了（旧 +28 估算 10-22 ⇒ 活动帖真实 10-08，起点不变）`,
+				changed.length === 1 && changed[0] === "eventDates"
+				&& oldEv === "09-24 14:00 ~ 10-22 13:59" && newEv === "09-24 14:00 ~ 10-08 13:59",
+				JSON.stringify([changed, oldEv, newEv]));
+		}
 		if (displayFields.length) {
 			check(`P3b golden（${p.key}）**已批准差异**：外显名只做了 ①尾巴归一 / ②泛名让位（新值 === displayNameNextOf(旧值, 该侧数组)）`,
 				displayFields.every((f) => changed.includes(f)
@@ -1171,6 +1189,21 @@ async function runP3b() {
 		check(`P3b 等价（${p.key}）：\`${p.field}\` 与改造前的合成结果逐条相等（含 ts）`,
 			JSON.stringify(sansCategoryTags(r.rec[p.field])) === JSON.stringify(sansCategoryTags(expectArr)),
 			JSON.stringify([sansCategoryTags(r.rec[p.field]), expectArr]));
+		if (P3B_BA_CN_REAL_EVENT_WINDOW[p.key] === true) {
+			// 已批准差异：另一侧（events 数组）的**结束时刻**从 +28 估算换成活动帖真实窗口；
+			// 逐条证明"只有 endTs 变了"：条数 / title / show / startTs / source 全部逐字相同，
+			// 且 endTs 差 = 旧值比新值晚（+28 vs 真实 14 天）。
+			const cur = (r.rec[other] || []).map((x) => Object.assign({}, x, { endTs: "number" }));
+			const oldO = (oldOther || []).map((x) => Object.assign({}, x, { endTs: "number" }));
+			const curEnd = (r.rec[other] || [])[0] && r.rec[other][0].endTs;
+			const oldEnd = (oldOther || [])[0] && oldOther[0].endTs;
+			check(`P3b 等价（${p.key}）**已批准差异**：另一侧（${other}）只有 endTs 变（+28 估算 ⇒ 活动帖真实窗口），其余逐字相同`,
+				JSON.stringify(sansCategoryTags(cur)) === JSON.stringify(sansCategoryTags(oldO))
+				&& typeof curEnd === "number" && typeof oldEnd === "number" && curEnd < oldEnd
+				&& (r.rec[other] || []).length === (oldOther || []).length,
+				JSON.stringify([sansCategoryTags(cur), sansCategoryTags(oldO), curEnd, oldEnd]));
+			continue;
+		}
 		check(`P3b 等价（${p.key}）：另一侧也不会凭空多出条目`,
 			JSON.stringify(sansCategoryTags(r.rec[other])) === JSON.stringify(sansCategoryTags(oldOther)));
 	}

@@ -245,8 +245,11 @@ export default async function run() {
 		check("ba-cn/0924：① 老逻辑不变（限时限定招募 + 莲见/圣娅 + 09-24~10-08）",
 			!!a.data && a.data.banner === "限时限定招募" && a.data.roles === "莲见(泳装)、圣娅(泳装)"
 			&& a.data.bannerDates === "09-24 14:00 ~ 10-08 13:59", JSON.stringify(a.data));
-		check("ba-cn/0924：活动仍走 ① 的「活动名 + 维护起算」",
-			!!a.data && a.data.event === "夏日天空的约定" && a.data.eventDates === "09-24 14:00 ~ 10-22 13:59", JSON.stringify(a.data && a.data.event));
+		// ⚠️ 2026-11-26：活动**结束时间**不再用"维护日 +28 天"估算，改用活动帖里真实的
+		//   「活动持续时间：09月24日 维护结束后 ~ 10月08日 13:59」（本夹具的 1962 那篇就在列表里）。
+		//   旧期望 10-22 是 +28 估算出来的（错 14 天）。
+		check("ba-cn/0924：活动名 + **真实档期**（活动帖 1962 的「活动持续时间」）09-24 14:00 ~ 10-08 13:59",
+			!!a.data && a.data.event === "夏日天空的约定" && a.data.eventDates === "09-24 14:00 ~ 10-08 13:59", JSON.stringify(a.data && [a.data.event, a.data.eventDates]));
 
 		// 形态 B：10-15 维护更新说明（正文没有招募句式 ⇒ ① 返回 null）→ ② 时间块接住
 		//   同时证明"零额外请求"：列表 content 就是全文，② 不再为任何一条拉详情。
@@ -298,6 +301,14 @@ export default async function run() {
 			JSON.stringify(r.data && r.data.roles));
 		check("ba-cn/1112：档期仍按维护日 +14 天（11-12 14:00 ~ 11-26 13:59）",
 			!!r.data && r.data.bannerDates === "11-12 14:00 ~ 11-26 13:59", JSON.stringify(r.data && r.data.bannerDates));
+		// 活动侧（2026-11-26 用户要求一起改）：
+		//   · 「更新限时**复刻**活动【Sheside Outside】」现在也算当期活动（旧正则只认「更新限时活动」）
+		//   · 结束时间取活动帖 2009 的真实「活动持续时间：11月12日 维护结束后 ~ 11月26日 13:59」
+		//     （旧实现是维护日 +28 天 = 12-10，错 14 天）
+		check("ba-cn/1112：复刻活动也计入当期活动名（Sheside Outside）",
+			!!r.data && r.data.event === "Sheside Outside", JSON.stringify(r.data && r.data.event));
+		check("ba-cn/1112：活动档期取活动帖真实窗口（11-12 14:00 ~ 11-26 13:59），不是 +28 天的 12-10",
+			!!r.data && r.data.eventDates === "11-12 14:00 ~ 11-26 13:59", JSON.stringify(r.data && r.data.eventDates));
 		check("ba-cn/1112：gacha[] 的 roles 数组同样是 5 个成员（数组与外显同源）",
 			!!r.data && Array.isArray(r.data.gacha) && r.data.gacha.length === 1
 			&& JSON.stringify(r.data.gacha[0].roles) === JSON.stringify(["美咲(泳装)", "纱织(泳装)", "日和(泳装)", "白子(泳装)", "野宫(泳装)"]),
@@ -308,6 +319,31 @@ export default async function run() {
 		const a0924 = await fetchBaCnAt("ba-cn-list-0924", "2026-09-26T12:00:00+08:00");
 		check("ba-cn/0924 反向：正文 4 条「招募活动」不进 roles（仍然只有 2 个限定池成员）",
 			!!a0924.data && a0924.data.roles === "莲见(泳装)、圣娅(泳装)", JSON.stringify(a0924.data && a0924.data.roles));
+	}
+
+	// ── ②d 2026-11-26 那期（真夹具 ba-cn-list-1126）：4 池 + 真实活动窗口 ───────────
+	// 公告（id=2026）里的 4 个角色池：限时招募【Amiable,Advisor, Analytica!】美代 /
+	//   限时招募【Collect, Convey, Conclude★★★】冬 / 限时复刻【银装素裹，一樽星月】时雨 /
+	//   限时复刻【这里是RABBIT 4，凭指尖完成证明】美游；
+	// 活动「为谁而存的艺术~赝品与美学的归宿~」的档期在活动帖 2025 里：
+	//   「活动持续时间：11月26日 维护结束后 ~ 12月17日 13:59」（+28 估算会给 12-24，错 7 天）。
+	{
+		const r2 = await fetchBaCnAt("ba-cn-list-1126", "2026-11-27T12:00:00+08:00");
+		check("ba-cn/1126：roles 合并 4 个池（美代/冬/时雨/美游，含复刻池）",
+			!!r2.data && r2.data.roles === "美代、冬、时雨、美游", JSON.stringify(r2.data && r2.data.roles));
+		check("ba-cn/1126：卡池档期 = 维护日 +14 天（11-26 14:00 ~ 12-10 13:59）",
+			!!r2.data && r2.data.bannerDates === "11-26 14:00 ~ 12-10 13:59", JSON.stringify(r2.data && r2.data.bannerDates));
+		check("ba-cn/1126：活动名与真实档期（11-26 14:00 ~ 12-17 13:59，不是 +28 的 12-24）",
+			!!r2.data && r2.data.event === "为谁而存的艺术~赝品与美学的归宿~"
+			&& r2.data.eventDates === "11-26 14:00 ~ 12-17 13:59",
+			JSON.stringify(r2.data && [r2.data.event, r2.data.eventDates]));
+		// 反向：活动帖里的「商店和奖励兑换开放时间：… ~ 12月24日 13:59」**不能**被当成活动档期
+		//   （那行在同一个「■ 活动时间」块里，只有「活动持续时间」行才是活动本身）
+		const actText = T.baCnNoticeText(JSON.parse(fx("ba-cn-list-1126/response.txt")).data.rows.find((x) => x.id === 2025).content);
+		check("ba-cn/1126 反向：活动帖里同时有 12-24 的「商店兑换」行，但取的必须是 12-17 的「活动持续时间」行",
+			/商店和奖励兑换开放时间[：:][^\n]*12月24日 13:59/.test(actText)
+			&& !!r2.data && r2.data.eventDates.endsWith("12-17 13:59"),
+			JSON.stringify(actText.match(/活动持续时间[：:][^\n]*/g)));
 	}
 
 	// ── ②b 临时维护公告必须跳过（2026-11-09 用户报「新卡池未公布」）───────────────
