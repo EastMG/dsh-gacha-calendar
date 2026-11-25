@@ -316,14 +316,46 @@ export default async function runP3() {
 	// 只登记字段名；新值必须**恰好** = `displayNameNextOf(旧值, 该侧数组)`（同一份产品函数）。
 	// 数组与悬停**一个字没动**（下面 ③ 的数组逐条相等照旧守着）。
 	const P3_GOLDEN_DISPLAY = { wuwaGacha: ["banner"] };
+	// ── 2026-11-26（wuwa 活动判据失效）的**已批准差异登记** ──────────────────────────
+	// 活网审计 A：源站 `tag` 口径漂移（当期 5 条活动里 4 条 tag=3），而旧实现钉死 `tag === 5`
+	// ⇒ 活动侧 nomatch。修法 = 按内容特征（三组都扫 + 排除卡池/公告/商城/常驻 + 正文要有「活动时间」）
+	// 挑活动（见 `src/client/30-game-kuro.js` 的 `parseWuwaRecommendEvents`）。
+	// 于是**同一个 P3 夹具**（2026-11-07 快照）的活动侧由 2 条（tag=5）变成 9 条：
+	//   旧 2 条：[团团勇者大乱斗]休闲活动 / [梦构匣中]区域探索活动（一条不丢，见下面的断言）；
+	//   新增 7 条：[凭栏听雨之礼]限时签到活动 / [声弦涤荡] 声骸材料限时双倍活动 / [无音消除]休闲活动 /
+	//            [朝月赠礼]七日签到活动 / [凝月辉途]活动说明 / [先约电台]活动说明 / [踏潮探历・玄方地界] 限时探索委托活动。
+	// 差异**只发生在活动侧**：卡池的 banner / roles / bannerHover / gacha[] 与 golden 逐字相同（下面照守）。
+	// 外显口径**没有变**：仍是「类别档位 → 结束最早」，只是候选从 2 条变成 9 条 ⇒ 换成结束最早的
+	// [无音消除]休闲活动（11-09 03:59 结束）。
+	const WUWA_EVENT_RELAXED = {
+		wuwaGacha: ["event", "eventDates", "eventDatesRaw", "eventHover"],
+		wuwaEvent: ["event", "eventDates", "eventDatesRaw", "eventHover"]
+	};
+	// 新口径下同夹具应有的 9 条活动（标题|档期），升序 = 数组顺序
+	const WUWA_EVENTS_NEW = [
+		"[无音消除]休闲活动|10-21 11:00 ~ 11-09 03:59",
+		"[声弦涤荡] 声骸材料限时双倍活动|11-03 11:00 ~ 11-11 03:59",
+		"[团团勇者大乱斗]休闲活动|09-30 04:00 ~ 11-12 03:59",
+		"[梦构匣中]区域探索活动|09-30 04:00 ~ 11-12 03:59",
+		"[凝月辉途]活动说明|09-30 04:00 ~ 11-12 03:59",
+		"[先约电台]活动说明|09-30 04:00 ~ 11-12 03:59",
+		"[朝月赠礼]七日签到活动|09-30 04:00 ~ 11-12 03:59",
+		"[凭栏听雨之礼]限时签到活动|10-21 19:00 ~ 11-12 03:59",
+		"[踏潮探历・玄方地界] 限时探索委托活动|10-28 11:00 ~ 11-12 03:59"
+	];
+	const WUWA_EVENTS_OLD = [
+		"[团团勇者大乱斗]休闲活动|09-30 04:00 ~ 11-12 03:59",
+		"[梦构匣中]区域探索活动|09-30 04:00 ~ 11-12 03:59"
+	];
 	for (const p of paths) {
 		const r = await p.run();
 		got[p.key] = r;
 		const g = GOLDEN[p.key];
 		const changed = VISIBLE.filter((f) => textOf(r.rec[f]) !== textOf(g.rec[f]));
 		const displayFields = P3_GOLDEN_DISPLAY[p.key] || [];
-		check(`P3 golden（${p.key}）：12 个字符串字段与改造前逐字相同（已登记的外显名泛名让位除外）`,
-			changed.every((f) => displayFields.includes(f)), JSON.stringify(changed));
+		const relaxFields = WUWA_EVENT_RELAXED[p.key] || [];
+		check(`P3 golden（${p.key}）：12 个字符串字段与改造前逐字相同（已登记的外显名泛名让位 / 活动判据放宽除外）`,
+			changed.every((f) => displayFields.includes(f) || relaxFields.includes(f)), JSON.stringify(changed));
 		if (displayFields.length) {
 			check(`P3 golden（${p.key}）**已批准差异**：外显名只做了泛名让位（新值 === displayNameNextOf(旧值, 数组)）`,
 				displayFields.every((f) => changed.includes(f)
@@ -331,24 +363,72 @@ export default async function runP3() {
 				JSON.stringify(displayFields.map((f) => [f, textOf(g.rec[f]), textOf(r.rec[f])])));
 		}
 		const arr = r.rec[p.field] || [];
-		check(`P3 golden（${p.key}）：\`${p.field}\` 非时间字段逐字不变（键序 / 顺序 / source / phase 全等）`,
-			sansTs(arr) === sansCategoryTagsJson(g[p.field]), sansTs(arr));
+		// 被放宽的那一侧 = 活动侧（wuwaEvent 的 `events`）；wuwaGacha 的 `gacha` 不在放宽范围内
+		const arrRelaxed = p.key === "wuwaEvent" && p.field === "events";
+		if (!arrRelaxed) {
+			check(`P3 golden（${p.key}）：\`${p.field}\` 非时间字段逐字不变（键序 / 顺序 / source / phase 全等）`,
+				sansTs(arr) === sansCategoryTagsJson(g[p.field]), sansTs(arr));
+		} else {
+			// **已批准差异**（2026-11-26 wuwa）：活动数组由 2 条 ⇒ 9 条。三条证据：
+			//   ① 旧 golden 的 2 条**一条不丢**（标题 + 档期逐字仍在）；
+			//   ② 新的 9 条 == 预期清单（顺序 = 结束时间升序 → 起点升序），多出的 7 条都来自
+			//      「三组里带活动时间、且不是卡池/公告/商城/常驻」的条目（判据见产品代码注释）；
+			//   ③ 外显 / 外显档期 / 悬停 = 新数组的首条与反生成结果（外显口径没变，只是候选变多）。
+			const pairs = arr.map((x) => `${x.title}|${x.raw}`);
+			check(`P3 golden（${p.key}）**已批准差异**：旧活动条目一条不丢（2 条标题+档期逐字仍在）`,
+				WUWA_EVENTS_OLD.every((x) => pairs.includes(x)), JSON.stringify(pairs));
+			check(`P3 golden（${p.key}）**已批准差异**：活动数组 2 ⇒ 9 条，逐条 = 新判据的预期清单`,
+				JSON.stringify(pairs) === JSON.stringify(WUWA_EVENTS_NEW), JSON.stringify(pairs));
+			check(`P3 golden（${p.key}）**已批准差异**：外显 = 新数组首条（口径未变：档位 → 结束最早 → 起点最早）`,
+				textOf(r.rec.event) === "[无音消除]休闲活动" && textOf(r.rec.eventDates) === "10-21 11:00 ~ 11-09 03:59",
+				JSON.stringify([textOf(r.rec.event), textOf(r.rec.eventDates)]));
+			check(`P3 golden（${p.key}）**已批准差异**：差异确实发生（新数组 ≠ 旧 golden 数组，不是白名单放过没变的键）`,
+				sansTs(arr) !== sansCategoryTagsJson(g[p.field]));
+		}
 		check(`P3 golden（${p.key}）：数组非空（解析器真的直出了，而不是悄悄退回空数组）`,
 			arr.length > 0 || !!p.emptyOk, String(arr.length));
+		if (relaxFields.length && p.key === "wuwaGacha") {
+			// 放宽只发生在一个侧面：卡池的 roles / bannerHover / gacha[] 仍与 golden 逐字相同，
+			// banner 只走已登记的「泛名让位」（`角色活动唤取` ⇒ 具体池名，见 P3_GOLDEN_DISPLAY）。
+			check("P3 golden（wuwaGacha）**已批准差异**：卡池侧 roles / bannerHover 与 gacha[] 仍 golden 逐字，banner 只做泛名让位（放宽只在活动侧）",
+				textOf(r.rec.roles) === textOf(g.rec.roles)
+				&& textOf(r.rec.bannerHover) === textOf(g.rec.bannerHover)
+				&& textOf(r.rec.banner) === T.displayNameNextOf(textOf(g.rec.banner), r.rec.gacha)
+				&& sansTs(r.rec.gacha || []) === sansCategoryTagsJson(g.gacha));
+		}
 	}
 
 	// ── ③ 数组与改造前的**合成结果**逐条相等（含 ts）：拿记录字符串 + 悬停文本过 oracle 再合成一遍 ──
+	// **已批准差异**（2026-11-26 wuwa 活动判据放宽，见 ② 上方登记）：活动侧不再与"改造前合成结果"相等。
+	// 这里不重采 oracle（它是"改造前长什么样"的存档，重采会把回归钉成现状），改为证明差异的**形状**：
+	//   · 旧 oracle 的每一条（标题 + 档期）仍逐字出现在新数组里（不丢事实）；
+	//   · 多出来的条目全部是活动条目（标题命中真活动清单，见上 `WUWA_EVENTS_NEW`）；
+	//   · 反向证明：新旧 JSON 确实不等（口径变更真的生效，不是白名单放过没变的键）。
+	const P3_EQUIV_RELAXED = new Set(["wuwaGacha:event", "wuwaEvent:event"]);
 	for (const p of paths) {
 		const r = got[p.key];
 		const other = p.field === "gacha" ? "events" : "gacha";
 		const otherSide = p.field === "gacha" ? "event" : "gacha";
 		const oldArr = legacySynthArrOf(p.key, p.side);
 		const oldOther = legacySynthArrOf(p.key, otherSide);
-		check(`P3 等价（${p.key}）：\`${p.field}\` 与改造前的合成结果**逐条相等**（含 startTs / endTs）`,
-			JSON.stringify(sansCategoryTags(r.rec[p.field])) === JSON.stringify(sansCategoryTags(oldArr)),
-			JSON.stringify([sansCategoryTags(r.rec[p.field]), oldArr]));
-		check(`P3 等价（${p.key}）：另一侧也不会凭空多出条目（同一份合成结果同样相等）`,
-			JSON.stringify(sansCategoryTags(r.rec[other])) === JSON.stringify(sansCategoryTags(oldOther)));
+		const checkEquiv = (sideName, fieldName, nowArr, oldOracle, relaxed) => {
+			if (!relaxed) {
+				check(`P3 等价（${p.key}）：${sideName}与改造前的合成结果**逐条相等**（含 startTs / endTs）`,
+					JSON.stringify(sansCategoryTags(nowArr)) === JSON.stringify(sansCategoryTags(oldOracle)),
+					JSON.stringify([sansCategoryTags(nowArr), oldOracle]));
+				return;
+			}
+			const oldPairs = oldOracle.map((x) => `${x.title}|${x.raw}`);
+			const newPairs = (nowArr || []).map((x) => `${x.title}|${x.raw}`);
+			check(`P3 等价（${p.key}）**已批准差异**：${sideName}旧 oracle 条目一条不丢（标题 + 档期逐字仍在）`,
+				oldPairs.every((x) => newPairs.includes(x)), JSON.stringify(newPairs));
+			check(`P3 等价（${p.key}）**已批准差异**：${sideName}多出的条目全部来自"活动判据放宽"清单`,
+				newPairs.every((x) => oldPairs.includes(x) || WUWA_EVENTS_NEW.includes(x)), JSON.stringify(newPairs));
+			check(`P3 等价（${p.key}）**已批准差异**：${sideName}确实不再与改造前合成结果相等（反向证明）`,
+				JSON.stringify(sansCategoryTags(nowArr)) !== JSON.stringify(sansCategoryTags(oldOracle)));
+		};
+		checkEquiv(`\`${p.field}\` `, p.field, r.rec[p.field], oldArr, P3_EQUIV_RELAXED.has(p.key + ":" + p.side));
+		checkEquiv(`另一侧（${other}）`, other, r.rec[other], oldOther, P3_EQUIV_RELAXED.has(p.key + ":" + otherSide));
 	}
 
 	// ── ④ 同源：悬停文本 = 同一份条目事实的**生成结果**（不是另外手拼的）──────────

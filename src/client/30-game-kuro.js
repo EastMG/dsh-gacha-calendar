@@ -69,21 +69,28 @@
 			for (const arr of groups) {
 				for (const it of arr) {
 					// 标题可能是 "[但愿长圆如此夜]\n角色活动唤取" / "「玉阙玄华」武器活动唤取"
+					// ── 2026-11-26 口径修正（活网审计）：新的池类型「角色忆旅唤取 / 武器忆旅唤取」────────
+					// 源站 2026-11-26 实测 `tag=7` 共 8 条：[忆旅回响Ⅱ]/角色忆旅唤取 + [回响铸忆Ⅱ]/武器忆旅唤取
+					// 与旧的三池同窗口在开（都是 11-12 04:00 起，忆旅到 12-22）。旧判据只认「XX活动唤取」
+					// ⇒ **在期的第 4 个角色池整条丢失**（审计 wuwa 问题②）。这里把「忆旅」并进白名单：
+					//   · 角色池白名单 = 角色活动唤取 ∪ 角色忆旅唤取（外显/悬停/roles 口径不变）；
+					//   · 武器侧同样并进 武器忆旅唤取，但**全站口径"只显角色池"不变** ⇒ 仍然不显。
+					// 池类型名逐字保留源站那一段（`角色忆旅唤取`），免得外显把它谎报成「角色活动唤取」。
 					const title = stripH(it.tabTitle || it.title || "").replace(/\s+/g, " ").trim();
-					const isChar = /角色活动唤取/.test(title);
-					const isWeapon = /武器活动唤取/.test(title);
-					if (!isChar && !isWeapon) continue;
+					const POOL_TYPE_RE = /(?:角色|武器)(?:活动|忆旅)唤取/;
+					const typeM = POOL_TYPE_RE.exec(title);
+					if (!typeM) continue;
+					const type = typeM[0];
+					const isChar = /^角色/.test(type);
 					const sTs = Number(it.startTimeMs), eTs = Number(it.endTimeMs);
 					if (!Number.isFinite(sTs) || !Number.isFinite(eTs)) continue;
 					if (sTs > now || eTs < now) continue; // 只要当期覆盖
 					const name = title
-						.replace(/\s*(?:角色|武器)活动唤取\s*$/, "")
+						.replace(new RegExp("[\\s]*" + POOL_TYPE_RE.source + "\\s*$"), "")
 						.replace(/^[\[【「]\s*/, "")
 						.replace(/\s*[\]】」]$/, "")
 						.trim();
 					if (!name) continue;
-					// 类型名（外显用）：标题尾部那一段，如 `角色活动唤取` / `武器活动唤取`
-					const type = isChar ? "角色活动唤取" : "武器活动唤取";
 					// 角色名：正文开头那句「活动期间，5星角色「心」，4星角色「卜灵」、「桃祈」、「釉瑚」唤取概率限时提升！」
 					// 用 [^。！？\n]+ 限在一句内，避免把后面「唤取说明」里的角色也带进来
 					const text = stripH(it.content || "");
@@ -159,25 +166,52 @@
 		}
 
 
-		// 鸣潮官方活动解析：同一份全量公告的 `recommend` 组里，`tag === 7` 是卡池、**`tag === 5` 是限时活动**。
-		// 活动条目形如 tabTitle="[团团勇者大乱斗]休闲活动"，同样带绝对时间戳。
+		// 鸣潮官方活动解析：`recommend` / `game` / `activity` 三组公告里，**按时限与内容特征**挑活动。
+		//
+		// 活动条目形如 tabTitle="[团团勇者大乱斗]休闲活动"，同样带绝对时间戳（`startTimeMs`/`endTimeMs`）。
 		// 这是 2026-10-01 起鸣潮活动的**默认源**——Bwiki 活动日历页已停更（最新一条结束于 2026/9/29），
-		// 而官方源有当期 3.7 的活动，且**与卡池是同一条 URL**、同一次请求即可拿到两侧数据。
+		// 而官方源有当期活动，且**与卡池是同一条 URL**、同一次请求即可拿到两侧数据。
+		//
+		// ── 2026-11-26 口径修正（活网审计 wuwa 问题①）──────────────────────────────
+		// 旧实现钉死 `Number(it.tag) === 5`（注释当时写「7=卡池；5=限时活动」）。2026-11-26 活网实测
+		// `tag` 分布已漂移：**当期 5 条活动里 4 条是 tag=3**（[拉海洛方块・逆转]休闲活动 / [昔梦赠礼]
+		// 七日签到活动 / [第二索拉：未名之梦]休闲活动 / 【先行体验】功能说明），tag=5 只剩 1 条
+		// （[回音盈域]/养成材料限时双倍活动）⇒ 活动侧 nomatch（0 条）。
+		// 现在按**内容特征**判（tag 只当参考、不再当白名单），三组一起扫：
+		//   ① 三组都看：`recommend`（运营 tab）+ `game`（游戏内公告，当期活动主要在这里）+ `activity`；
+		//   ② 排除卡池：`category === 3`（实测 tag=7 全部 category=3）或标题带「唤取」；
+		//   ③ 排除公告/资讯/周边：`category === 1`（版本说明/反馈途径/运营声明…）/ `category === 4`（社区资讯/手办预售）；
+		//   ④ 排除常驻：`permanent === 1` 或 `tag === 6`（「心影映花」全新常驻玩法）；
+		//   ⑤ 排除商城/付费上架：标题含 商城|礼包|服饰|折扣|特惠（[全新服饰]限时特惠 / [商城礼包]限时折扣上架）；
+		//   ⑥ 必须**限时**：正文有「活动时间」锚点（【先行体验】只有「功能开放时间」、库街区「签到工具」
+		//      没有窗口 ⇒ 都不算限时活动）。时间仍用 JSON 的绝对时间戳，不解析正文日期。
 		function parseWuwaRecommendEvents(list, now = nowMs(), tz) {
-			const arr = Array.isArray(list?.recommend) ? list.recommend : [];
+			const groups = [list?.recommend, list?.game, list?.activity].filter(Array.isArray);
 			const stripH = (s) => String(s || "")
 				.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " ")
 				.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
 				.replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
+			// 商城 / 付费条目（不是"限时活动"，活动日历不该列）
+			const WUWA_SHOP_RE = /商城|礼包|服饰|折扣|特惠/;
 			const events = [];
-			for (const it of arr) {
-				if (Number(it.tag) !== 5) continue; // 7=卡池；5=限时活动
-				const name = stripH(it.tabTitle || "").replace(/\s+/g, " ").trim();
-				if (!name) continue;
-				const sTs = Number(it.startTimeMs), eTs = Number(it.endTimeMs);
-				if (!Number.isFinite(sTs) || !Number.isFinite(eTs)) continue;
-				if (sTs > now || eTs < now) continue;
-				events.push({ name, category: "", startTs: sTs, endTs: eTs });
+			const seen = new Set();
+			for (const arr of groups) {
+				for (const it of arr) {
+					const cat = Number(it.category);
+					if (cat === 1 || cat === 3 || cat === 4) continue;
+					if (it.permanent === 1 || Number(it.tag) === 6) continue;
+					const name = stripH(it.tabTitle || it.title || "").replace(/\s+/g, " ").trim();
+					if (!name || /唤取/.test(name) || WUWA_SHOP_RE.test(name)) continue;
+					const content = stripH(it.content || "");
+					if (!/活动时间/.test(content)) continue;   // 没有限时窗口 ⇒ 不是活动
+					const sTs = Number(it.startTimeMs), eTs = Number(it.endTimeMs);
+					if (!Number.isFinite(sTs) || !Number.isFinite(eTs)) continue;
+					if (sTs > now || eTs < now) continue;
+					const key = `${name}|${sTs}|${eTs}`;
+					if (seen.has(key)) continue;               // 同一条在两组装了 ⇒ 只留一条
+					seen.add(key);
+					events.push({ name, category: "", startTs: sTs, endTs: eTs });
+				}
 			}
 			if (events.length === 0) return null;
 			const sorted = sortEventItems(events);
@@ -225,7 +259,7 @@
 			try { list = await proxyFetchJson(dir + "zh-Hans.json", ref); } catch { list = null; }
 			if (!list || typeof list !== "object") list = await proxyFetchJson(dir + "notice.json", ref);
 			if (!list || typeof list !== "object") throw new Error("wuwa-notice-bad-json");
-			// **同一份 JSON 里卡池（tag=7）与活动（tag=5）都在** → 顺带把活动字段也返回。
+			// **同一份 JSON 里卡池（tag=7）与活动（tag 3/5 等，见 parseWuwaRecommendEvents）都在** → 顺带把活动字段也返回。
 			// 这是"统一来源注册表"里写明的复用契约：**两侧是同一条 URL** 且卡池载荷带 event 字段时，
 			// refresh 不再为活动侧另抓一次（否则每轮会向同一条 URL 重复发一次请求）。
 			// ⚠️ 我重写解析时一度只返回卡池字段，导致鸣潮每轮请求从 1 次变成 2 次 —— 已补回。
@@ -246,7 +280,7 @@
 		}
 
 
-		// 鸣潮活动默认抓取器：抓同一份官方公告，取 `recommend` 组里 tag=5 的限时活动。
+		// 鸣潮活动默认抓取器：抓同一份官方公告，按内容特征取当期限时活动（parseWuwaRecommendEvents，2026-11-26 起不再钉 tag=5）。
 		// 与卡池侧是**同一条 URL**（entrypoint.json），所以 refresh 的复用会让两侧共用一次请求。
 		async function fetchWuwaEventsOfficial(entryUrl, _signal, tz) {
 			const ref = "https://aki-gm-resources.aki-game.com/";
@@ -482,7 +516,7 @@
 				altSources: [
 					{ label: "Bwiki 角色轮换池", url: WUWA_BWIKI_URL, fetcher: "wuwa-bwiki" }
 				],
-				// 活动源：**默认=同一份官方公告**（`recommend` 组里 tag=5 为限时活动，见 parseWuwaRecommendEvents），
+				// 活动源：**默认=同一份官方公告**（按内容特征挑限时活动：tag 3/5 都算，见 parseWuwaRecommendEvents），
 				// 与卡池是**同一条 URL** → 一次请求复用两侧数据。
 				// ⚠️ 2026-10-01 改：Bwiki 活动日历页**已停更**（最新一条结束于 2026/9/29，无 3.7 内容），
 				// 所以把它从默认**降级为备选**（eventAltSources），仍可在设置里手动切回。
@@ -496,7 +530,7 @@
 		// ── 抓取器登记 ──
 		GACHA_FETCHERS["wuwa"] = (url, signal, tz) => fetchWuwaGacha(url, signal, tz);
 		GACHA_FETCHERS["wuwa-bwiki"] = (url, signal, tz) => mkMediaWiki((text) => parseWuwaPool(text, nowMs(), tz))(url, signal, tz);
-					// 鸣潮：**默认=同一份官方公告**（`recommend` 组里 tag=5 为限时活动），与卡池是**同一条 URL**
+					// 鸣潮：**默认=同一份官方公告**（按内容特征挑限时活动，见 parseWuwaRecommendEvents），与卡池是**同一条 URL**
 			// → 一次请求复用两侧数据（refresh 的复用优化）。
 			// ⚠️ 2026-10-01 改：Bwiki 活动日历**已停更**（最新一条结束于 2026/9/29），
 			// 所以把官方提为默认、Bwiki 降级为备选（`wuwa-event-bwiki`），仍可在设置里手动切回。

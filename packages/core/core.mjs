@@ -5425,7 +5425,9 @@ function ns_bwiki_eventTier(x) {
 }
 function ns_bwiki_nowOf(now) { return typeof now === "number" && Number.isFinite(now) ? now : nowMs(); }
 
-// 覆盖 now 的条目：结束在未来且已开始（起点未知的行按"已开始"处理）
+// 覆盖 now 的条目：**两端都必须明确**且覆盖 now（`coversNow`；起点未知的行**不算**在期 ——
+// 用户 2026-11-09 口径「宁可少显示，也不假在期」）。这类行不丢：见 `coveredOrOpen`（只用于悬停/数组）
+// 与 `ns_bwiki_eventPayload` 的 `opts.includeOpenStart`（cytq 的活动侧走这条）。
 function ns_bwiki_activeItems(items, now) {
 	return items.filter((it) => coversNow(it, now));
 }
@@ -5546,12 +5548,27 @@ function ns_bwiki_batchGachaPayloadOf(items, tz, now, opts) {
 	out.gachaHoverItems = hoverItems;
 	return out;
 }
-function ns_bwiki_eventPayload(items, tz, now, permanentCount = 0, id = "") {
+function ns_bwiki_eventPayload(items, tz, now, permanentCount = 0, id = "", opts) {
+	const o = opts || {};
+	// ── 2026-11-26（活网审计 A / cytq）：「起点未知」的行要不要进悬停 + 数组 ──────────────
+	// 用户口径（2026-11-09）是「起点未知 ≠ 已开始，但**只在悬停里列出**」：`coversNow` 只给外显，
+	// 悬停/数组要的是「这条事实还值得看吗」= `coveredOrOpen`（起点未知但终点未过）。
+	// `ns_bwiki_activeItems` 一直用 `coversNow`（函数头注释却写着"起点未知按已开始"）⇒ 起点未知的条目
+	// **整条消失**（cytq：「2026/11/18 维护后 ~ 2026/12/2 12:59」8 条当期活动全被丢）。
+	// 这里给调用方一个**显式开关**（默认 off = 其余 9 个 bwiki 源行为逐字不变）：
+	//   `opts.includeOpenStart === true` ⇒ 悬停/数组候选改用 `coveredOrOpen`；
+	//   **外显仍然只取两端明确的**（`coversNow`，见下 `cur`）—— 不猜起点、不拿未来期。
+	const includeOpenStart = o.includeOpenStart === true;
 	const cur = ns_bwiki_pickCurrentEvent(items, now);
 	if (!cur) return null;
 	const first = cur.first;
 	// 排序由调用方负责（生成器**不排序**，与本体一致）：这里按结束时间升序
-	const ordered = cur.ordered.slice().sort((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs) || ((a._i || 0) - (b._i || 0)));
+	// （起点未知的行排在同结束时间的后面：它们没有开始时刻可比，别按 0 混进最前）
+	const startOrderOf = (x) => (x.startTs == null ? Infinity : x.startTs);
+	const listed = includeOpenStart
+		? (Array.isArray(items) ? items : []).filter((it) => coveredOrOpen(it, now))
+		: cur.ordered;
+	const ordered = listed.slice().sort((a, b) => (a.endTs - b.endTs) || (startOrderOf(a) - startOrderOf(b)) || ((a._i || 0) - (b._i || 0)));
 	// ── P3b：条目事实 → 悬停 + `events` 数组 ──────────────────────────────────
 	const hoverItems = ordered.map((x) => ({ title: x.event, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
 	const hover = hoverTextFromItems(hoverItems, "event", tz, { permanentCount });
@@ -8858,21 +8875,28 @@ EVENT_FETCHERS["bh3"] = Object.assign(EVENT_FETCHERS["bh3"] || {}, {
 			for (const arr of groups) {
 				for (const it of arr) {
 					// 标题可能是 "[但愿长圆如此夜]\n角色活动唤取" / "「玉阙玄华」武器活动唤取"
+					// ── 2026-11-26 口径修正（活网审计）：新的池类型「角色忆旅唤取 / 武器忆旅唤取」────────
+					// 源站 2026-11-26 实测 `tag=7` 共 8 条：[忆旅回响Ⅱ]/角色忆旅唤取 + [回响铸忆Ⅱ]/武器忆旅唤取
+					// 与旧的三池同窗口在开（都是 11-12 04:00 起，忆旅到 12-22）。旧判据只认「XX活动唤取」
+					// ⇒ **在期的第 4 个角色池整条丢失**（审计 wuwa 问题②）。这里把「忆旅」并进白名单：
+					//   · 角色池白名单 = 角色活动唤取 ∪ 角色忆旅唤取（外显/悬停/roles 口径不变）；
+					//   · 武器侧同样并进 武器忆旅唤取，但**全站口径"只显角色池"不变** ⇒ 仍然不显。
+					// 池类型名逐字保留源站那一段（`角色忆旅唤取`），免得外显把它谎报成「角色活动唤取」。
 					const title = stripH(it.tabTitle || it.title || "").replace(/\s+/g, " ").trim();
-					const isChar = /角色活动唤取/.test(title);
-					const isWeapon = /武器活动唤取/.test(title);
-					if (!isChar && !isWeapon) continue;
+					const POOL_TYPE_RE = /(?:角色|武器)(?:活动|忆旅)唤取/;
+					const typeM = POOL_TYPE_RE.exec(title);
+					if (!typeM) continue;
+					const type = typeM[0];
+					const isChar = /^角色/.test(type);
 					const sTs = Number(it.startTimeMs), eTs = Number(it.endTimeMs);
 					if (!Number.isFinite(sTs) || !Number.isFinite(eTs)) continue;
 					if (sTs > now || eTs < now) continue; // 只要当期覆盖
 					const name = title
-						.replace(/\s*(?:角色|武器)活动唤取\s*$/, "")
+						.replace(new RegExp("[\\s]*" + POOL_TYPE_RE.source + "\\s*$"), "")
 						.replace(/^[\[【「]\s*/, "")
 						.replace(/\s*[\]】」]$/, "")
 						.trim();
 					if (!name) continue;
-					// 类型名（外显用）：标题尾部那一段，如 `角色活动唤取` / `武器活动唤取`
-					const type = isChar ? "角色活动唤取" : "武器活动唤取";
 					// 角色名：正文开头那句「活动期间，5星角色「心」，4星角色「卜灵」、「桃祈」、「釉瑚」唤取概率限时提升！」
 					// 用 [^。！？\n]+ 限在一句内，避免把后面「唤取说明」里的角色也带进来
 					const text = stripH(it.content || "");
@@ -8948,25 +8972,52 @@ EVENT_FETCHERS["bh3"] = Object.assign(EVENT_FETCHERS["bh3"] || {}, {
 		}
 
 
-		// 鸣潮官方活动解析：同一份全量公告的 `recommend` 组里，`tag === 7` 是卡池、**`tag === 5` 是限时活动**。
-		// 活动条目形如 tabTitle="[团团勇者大乱斗]休闲活动"，同样带绝对时间戳。
+		// 鸣潮官方活动解析：`recommend` / `game` / `activity` 三组公告里，**按时限与内容特征**挑活动。
+		//
+		// 活动条目形如 tabTitle="[团团勇者大乱斗]休闲活动"，同样带绝对时间戳（`startTimeMs`/`endTimeMs`）。
 		// 这是 2026-10-01 起鸣潮活动的**默认源**——Bwiki 活动日历页已停更（最新一条结束于 2026/9/29），
-		// 而官方源有当期 3.7 的活动，且**与卡池是同一条 URL**、同一次请求即可拿到两侧数据。
+		// 而官方源有当期活动，且**与卡池是同一条 URL**、同一次请求即可拿到两侧数据。
+		//
+		// ── 2026-11-26 口径修正（活网审计 wuwa 问题①）──────────────────────────────
+		// 旧实现钉死 `Number(it.tag) === 5`（注释当时写「7=卡池；5=限时活动」）。2026-11-26 活网实测
+		// `tag` 分布已漂移：**当期 5 条活动里 4 条是 tag=3**（[拉海洛方块・逆转]休闲活动 / [昔梦赠礼]
+		// 七日签到活动 / [第二索拉：未名之梦]休闲活动 / 【先行体验】功能说明），tag=5 只剩 1 条
+		// （[回音盈域]/养成材料限时双倍活动）⇒ 活动侧 nomatch（0 条）。
+		// 现在按**内容特征**判（tag 只当参考、不再当白名单），三组一起扫：
+		//   ① 三组都看：`recommend`（运营 tab）+ `game`（游戏内公告，当期活动主要在这里）+ `activity`；
+		//   ② 排除卡池：`category === 3`（实测 tag=7 全部 category=3）或标题带「唤取」；
+		//   ③ 排除公告/资讯/周边：`category === 1`（版本说明/反馈途径/运营声明…）/ `category === 4`（社区资讯/手办预售）；
+		//   ④ 排除常驻：`permanent === 1` 或 `tag === 6`（「心影映花」全新常驻玩法）；
+		//   ⑤ 排除商城/付费上架：标题含 商城|礼包|服饰|折扣|特惠（[全新服饰]限时特惠 / [商城礼包]限时折扣上架）；
+		//   ⑥ 必须**限时**：正文有「活动时间」锚点（【先行体验】只有「功能开放时间」、库街区「签到工具」
+		//      没有窗口 ⇒ 都不算限时活动）。时间仍用 JSON 的绝对时间戳，不解析正文日期。
 		function parseWuwaRecommendEvents(list, now = nowMs(), tz) {
-			const arr = Array.isArray(list?.recommend) ? list.recommend : [];
+			const groups = [list?.recommend, list?.game, list?.activity].filter(Array.isArray);
 			const stripH = (s) => String(s || "")
 				.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " ")
 				.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
 				.replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
+			// 商城 / 付费条目（不是"限时活动"，活动日历不该列）
+			const WUWA_SHOP_RE = /商城|礼包|服饰|折扣|特惠/;
 			const events = [];
-			for (const it of arr) {
-				if (Number(it.tag) !== 5) continue; // 7=卡池；5=限时活动
-				const name = stripH(it.tabTitle || "").replace(/\s+/g, " ").trim();
-				if (!name) continue;
-				const sTs = Number(it.startTimeMs), eTs = Number(it.endTimeMs);
-				if (!Number.isFinite(sTs) || !Number.isFinite(eTs)) continue;
-				if (sTs > now || eTs < now) continue;
-				events.push({ name, category: "", startTs: sTs, endTs: eTs });
+			const seen = new Set();
+			for (const arr of groups) {
+				for (const it of arr) {
+					const cat = Number(it.category);
+					if (cat === 1 || cat === 3 || cat === 4) continue;
+					if (it.permanent === 1 || Number(it.tag) === 6) continue;
+					const name = stripH(it.tabTitle || it.title || "").replace(/\s+/g, " ").trim();
+					if (!name || /唤取/.test(name) || WUWA_SHOP_RE.test(name)) continue;
+					const content = stripH(it.content || "");
+					if (!/活动时间/.test(content)) continue;   // 没有限时窗口 ⇒ 不是活动
+					const sTs = Number(it.startTimeMs), eTs = Number(it.endTimeMs);
+					if (!Number.isFinite(sTs) || !Number.isFinite(eTs)) continue;
+					if (sTs > now || eTs < now) continue;
+					const key = `${name}|${sTs}|${eTs}`;
+					if (seen.has(key)) continue;               // 同一条在两组装了 ⇒ 只留一条
+					seen.add(key);
+					events.push({ name, category: "", startTs: sTs, endTs: eTs });
+				}
 			}
 			if (events.length === 0) return null;
 			const sorted = sortEventItems(events);
@@ -9014,7 +9065,7 @@ EVENT_FETCHERS["bh3"] = Object.assign(EVENT_FETCHERS["bh3"] || {}, {
 			try { list = await proxyFetchJson(dir + "zh-Hans.json", ref); } catch { list = null; }
 			if (!list || typeof list !== "object") list = await proxyFetchJson(dir + "notice.json", ref);
 			if (!list || typeof list !== "object") throw new Error("wuwa-notice-bad-json");
-			// **同一份 JSON 里卡池（tag=7）与活动（tag=5）都在** → 顺带把活动字段也返回。
+			// **同一份 JSON 里卡池（tag=7）与活动（tag 3/5 等，见 parseWuwaRecommendEvents）都在** → 顺带把活动字段也返回。
 			// 这是"统一来源注册表"里写明的复用契约：**两侧是同一条 URL** 且卡池载荷带 event 字段时，
 			// refresh 不再为活动侧另抓一次（否则每轮会向同一条 URL 重复发一次请求）。
 			// ⚠️ 我重写解析时一度只返回卡池字段，导致鸣潮每轮请求从 1 次变成 2 次 —— 已补回。
@@ -9035,7 +9086,7 @@ EVENT_FETCHERS["bh3"] = Object.assign(EVENT_FETCHERS["bh3"] || {}, {
 		}
 
 
-		// 鸣潮活动默认抓取器：抓同一份官方公告，取 `recommend` 组里 tag=5 的限时活动。
+		// 鸣潮活动默认抓取器：抓同一份官方公告，按内容特征取当期限时活动（parseWuwaRecommendEvents，2026-11-26 起不再钉 tag=5）。
 		// 与卡池侧是**同一条 URL**（entrypoint.json），所以 refresh 的复用会让两侧共用一次请求。
 		async function fetchWuwaEventsOfficial(entryUrl, _signal, tz) {
 			const ref = "https://aki-gm-resources.aki-game.com/";
@@ -9271,7 +9322,7 @@ EVENT_FETCHERS["bh3"] = Object.assign(EVENT_FETCHERS["bh3"] || {}, {
 				altSources: [
 					{ label: "Bwiki 角色轮换池", url: WUWA_BWIKI_URL, fetcher: "wuwa-bwiki" }
 				],
-				// 活动源：**默认=同一份官方公告**（`recommend` 组里 tag=5 为限时活动，见 parseWuwaRecommendEvents），
+				// 活动源：**默认=同一份官方公告**（按内容特征挑限时活动：tag 3/5 都算，见 parseWuwaRecommendEvents），
 				// 与卡池是**同一条 URL** → 一次请求复用两侧数据。
 				// ⚠️ 2026-10-01 改：Bwiki 活动日历页**已停更**（最新一条结束于 2026/9/29，无 3.7 内容），
 				// 所以把它从默认**降级为备选**（eventAltSources），仍可在设置里手动切回。
@@ -9285,7 +9336,7 @@ EVENT_FETCHERS["bh3"] = Object.assign(EVENT_FETCHERS["bh3"] || {}, {
 		// ── 抓取器登记 ──
 		GACHA_FETCHERS["wuwa"] = (url, signal, tz) => fetchWuwaGacha(url, signal, tz);
 		GACHA_FETCHERS["wuwa-bwiki"] = (url, signal, tz) => mkMediaWiki((text) => parseWuwaPool(text, nowMs(), tz))(url, signal, tz);
-					// 鸣潮：**默认=同一份官方公告**（`recommend` 组里 tag=5 为限时活动），与卡池是**同一条 URL**
+					// 鸣潮：**默认=同一份官方公告**（按内容特征挑限时活动，见 parseWuwaRecommendEvents），与卡池是**同一条 URL**
 			// → 一次请求复用两侧数据（refresh 的复用优化）。
 			// ⚠️ 2026-10-01 改：Bwiki 活动日历**已停更**（最新一条结束于 2026/9/29），
 			// 所以把官方提为默认、Bwiki 降级为备选（`wuwa-event-bwiki`），仍可在设置里手动切回。
@@ -26060,6 +26111,12 @@ async function ns_bwiki_eventsBjhl(url, signal, tz = BJHL_TZ, now) {
 //     载荷生成器，不新造字段、不另写悬停排版。
 //   · 两端都拿不到的帖子（如「邀请好友活动」写 `2026/10/8 维护后 ~` 没有终点）**不进数组/悬停**：
 //     `coversNow` / `coveredOrOpen` 都要终点，画不出来的行不硬凑（与 dhmmr 同口径）。
+//   ⚠️ 2026-11-26（活网审计 A）修正：上面这条「起点未知 ⇒ 只在悬停里出现」原来对**卡池**成立、
+//      对**活动**不成立 —— `ns_bwiki_eventPayload` 走的是 `ns_bwiki_activeItems`（`coversNow`），
+//      于是「2026/11/18 维护后 ~ 2026/12/2 12:59」这类当期活动**连悬停/数组都进不去**（8 条全丢，
+//      审计原始响应里「维护后」出现 42 次）。现在活动侧给共用生成器传 `includeOpenStart: true`
+//      （悬停/数组 = `coveredOrOpen`；外显仍只取两端明确且在期的那条）。卡池侧本来就走
+//      `ns_bwiki_batchGachaPayloadOf` 的 `coveredOrOpen`，不受影响。
 //
 // ── 字段口径 ────────────────────────────────────────────────────────────────────
 //   卡池名 = 详情 `<h1 class="article-body">` 原文（`Autumn特别精选扭蛋举办中！`）；
@@ -26354,6 +26411,17 @@ async function ns_cytq_gacha(url, signal, tz = ns_cytq_TZ, now = nowMs()) {
 }
 
 // 活动侧：is-event / is-campaign 帖里有窗口的 → 共用活动载荷
+//
+// ── 2026-11-26（活网审计 A）：起点是「XX维护后」的当期活动被整条丢 ──────────────────
+// 源站大量活动把起点写成 `2026/11/18 维护后`（审计原始响应里 42 处）。`ns_cytq_windowOf` 按用户口径
+// **不猜钟点** ⇒ `startTs = null`，而 `ns_bwiki_eventPayload` 走的 `ns_bwiki_activeItems` 是 `coversNow`
+// （要求两端都有）⇒ 这些条目**连悬停/数组都进不去**，活动侧只剩 3 条（源站当期至少 8 条被丢）。
+// 修法 = 局部开关（不动共用函数的默认语义，见 `ns_bwiki_eventPayload` 的 `opts.includeOpenStart`）：
+//   · 悬停 / `events[]`：`coveredOrOpen`（起点未知但终点未过 ⇒ 列出来，不猜起点）；
+//   · 外显（`event` / `eventDates`）：仍只取**两端明确**且在期的那条（不拿未来期、不编起点）。
+// 数组侧再补一件：`events[]` 的 ts 是从 raw 反解出来的，而 cytq 的 raw 是 `2026/11/18 维护后 ~ …`
+// ⇒ 反解只剩 null。解析器其实已经知道 `endTs`，这里把**终点**补回数组条目（起点仍 null），
+// 使数组按结束时间排得出来；补完重排 + 重发 key（`dataArrayProducedListOf`，与生成器同一份）。
 async function ns_cytq_events(url, signal, tz = ns_cytq_TZ, now = nowMs()) {
 	const posts = await ns_cytq_postsOf(url, signal, tz, now);
 	const items = [];
@@ -26373,7 +26441,21 @@ async function ns_cytq_events(url, signal, tz = ns_cytq_TZ, now = nowMs()) {
 	}
 	if (items.length === 0) return null;
 	// 第 5 参 = 条目 id（数组 key 前缀 `cytq:event:N`；不传会与别的来源撞 key）
-	return ns_bwiki_eventPayload(items, tz, now, 0, "cytq");
+	// 第 6 参 = `includeOpenStart`（只对本来源开：悬停/数组收「起点未知但终点未过」）
+	const payload = ns_bwiki_eventPayload(items, tz, now, 0, "cytq", { includeOpenStart: true });
+	if (!payload) return null;
+	// 起点未知的数组条目：用解析器已知的 endTs 补终点（起点保持 null —— 不猜钟点）
+	const endByTitle = new Map(items.map((it) => [it.event, it]));
+	let filled = false;
+	for (const x of payload.events || []) {
+		const it = endByTitle.get(x.title);
+		if (!it) continue;
+		const known = it.startTs == null && it.endTs != null;
+		if (known && x.startTs == null && x.endTs == null) { x.endTs = it.endTs; filled = true; }
+	}
+	// 补完终点后按同一口径重排 + 重发 key（否则这些行会一直排在 `endTs=null` 的末尾）
+	if (filled) payload.events = dataArrayProducedListOf(payload.events, "cytq:event");
+	return payload;
 }
 //#endregion
 
