@@ -5425,7 +5425,9 @@ function ns_bwiki_eventTier(x) {
 }
 function ns_bwiki_nowOf(now) { return typeof now === "number" && Number.isFinite(now) ? now : nowMs(); }
 
-// 覆盖 now 的条目：结束在未来且已开始（起点未知的行按"已开始"处理）
+// 覆盖 now 的条目：**两端都必须明确**且覆盖 now（`coversNow`；起点未知的行**不算**在期 ——
+// 用户 2026-11-09 口径「宁可少显示，也不假在期」）。这类行不丢：见 `coveredOrOpen`（只用于悬停/数组）
+// 与 `ns_bwiki_eventPayload` 的 `opts.includeOpenStart`（cytq 的活动侧走这条）。
 function ns_bwiki_activeItems(items, now) {
 	return items.filter((it) => coversNow(it, now));
 }
@@ -5546,12 +5548,27 @@ function ns_bwiki_batchGachaPayloadOf(items, tz, now, opts) {
 	out.gachaHoverItems = hoverItems;
 	return out;
 }
-function ns_bwiki_eventPayload(items, tz, now, permanentCount = 0, id = "") {
+function ns_bwiki_eventPayload(items, tz, now, permanentCount = 0, id = "", opts) {
+	const o = opts || {};
+	// ── 2026-11-26（活网审计 A / cytq）：「起点未知」的行要不要进悬停 + 数组 ──────────────
+	// 用户口径（2026-11-09）是「起点未知 ≠ 已开始，但**只在悬停里列出**」：`coversNow` 只给外显，
+	// 悬停/数组要的是「这条事实还值得看吗」= `coveredOrOpen`（起点未知但终点未过）。
+	// `ns_bwiki_activeItems` 一直用 `coversNow`（函数头注释却写着"起点未知按已开始"）⇒ 起点未知的条目
+	// **整条消失**（cytq：「2026/11/18 维护后 ~ 2026/12/2 12:59」8 条当期活动全被丢）。
+	// 这里给调用方一个**显式开关**（默认 off = 其余 9 个 bwiki 源行为逐字不变）：
+	//   `opts.includeOpenStart === true` ⇒ 悬停/数组候选改用 `coveredOrOpen`；
+	//   **外显仍然只取两端明确的**（`coversNow`，见下 `cur`）—— 不猜起点、不拿未来期。
+	const includeOpenStart = o.includeOpenStart === true;
 	const cur = ns_bwiki_pickCurrentEvent(items, now);
 	if (!cur) return null;
 	const first = cur.first;
 	// 排序由调用方负责（生成器**不排序**，与本体一致）：这里按结束时间升序
-	const ordered = cur.ordered.slice().sort((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs) || ((a._i || 0) - (b._i || 0)));
+	// （起点未知的行排在同结束时间的后面：它们没有开始时刻可比，别按 0 混进最前）
+	const startOrderOf = (x) => (x.startTs == null ? Infinity : x.startTs);
+	const listed = includeOpenStart
+		? (Array.isArray(items) ? items : []).filter((it) => coveredOrOpen(it, now))
+		: cur.ordered;
+	const ordered = listed.slice().sort((a, b) => (a.endTs - b.endTs) || (startOrderOf(a) - startOrderOf(b)) || ((a._i || 0) - (b._i || 0)));
 	// ── P3b：条目事实 → 悬停 + `events` 数组 ──────────────────────────────────
 	const hoverItems = ordered.map((x) => ({ title: x.event, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
 	const hover = hoverTextFromItems(hoverItems, "event", tz, { permanentCount });
@@ -25894,6 +25911,12 @@ async function ns_bwiki_eventsBjhl(url, signal, tz = BJHL_TZ, now) {
 //     载荷生成器，不新造字段、不另写悬停排版。
 //   · 两端都拿不到的帖子（如「邀请好友活动」写 `2026/10/8 维护后 ~` 没有终点）**不进数组/悬停**：
 //     `coversNow` / `coveredOrOpen` 都要终点，画不出来的行不硬凑（与 dhmmr 同口径）。
+//   ⚠️ 2026-11-26（活网审计 A）修正：上面这条「起点未知 ⇒ 只在悬停里出现」原来对**卡池**成立、
+//      对**活动**不成立 —— `ns_bwiki_eventPayload` 走的是 `ns_bwiki_activeItems`（`coversNow`），
+//      于是「2026/11/18 维护后 ~ 2026/12/2 12:59」这类当期活动**连悬停/数组都进不去**（8 条全丢，
+//      审计原始响应里「维护后」出现 42 次）。现在活动侧给共用生成器传 `includeOpenStart: true`
+//      （悬停/数组 = `coveredOrOpen`；外显仍只取两端明确且在期的那条）。卡池侧本来就走
+//      `ns_bwiki_batchGachaPayloadOf` 的 `coveredOrOpen`，不受影响。
 //
 // ── 字段口径 ────────────────────────────────────────────────────────────────────
 //   卡池名 = 详情 `<h1 class="article-body">` 原文（`Autumn特别精选扭蛋举办中！`）；
@@ -26188,6 +26211,17 @@ async function ns_cytq_gacha(url, signal, tz = ns_cytq_TZ, now = nowMs()) {
 }
 
 // 活动侧：is-event / is-campaign 帖里有窗口的 → 共用活动载荷
+//
+// ── 2026-11-26（活网审计 A）：起点是「XX维护后」的当期活动被整条丢 ──────────────────
+// 源站大量活动把起点写成 `2026/11/18 维护后`（审计原始响应里 42 处）。`ns_cytq_windowOf` 按用户口径
+// **不猜钟点** ⇒ `startTs = null`，而 `ns_bwiki_eventPayload` 走的 `ns_bwiki_activeItems` 是 `coversNow`
+// （要求两端都有）⇒ 这些条目**连悬停/数组都进不去**，活动侧只剩 3 条（源站当期至少 8 条被丢）。
+// 修法 = 局部开关（不动共用函数的默认语义，见 `ns_bwiki_eventPayload` 的 `opts.includeOpenStart`）：
+//   · 悬停 / `events[]`：`coveredOrOpen`（起点未知但终点未过 ⇒ 列出来，不猜起点）；
+//   · 外显（`event` / `eventDates`）：仍只取**两端明确**且在期的那条（不拿未来期、不编起点）。
+// 数组侧再补一件：`events[]` 的 ts 是从 raw 反解出来的，而 cytq 的 raw 是 `2026/11/18 维护后 ~ …`
+// ⇒ 反解只剩 null。解析器其实已经知道 `endTs`，这里把**终点**补回数组条目（起点仍 null），
+// 使数组按结束时间排得出来；补完重排 + 重发 key（`dataArrayProducedListOf`，与生成器同一份）。
 async function ns_cytq_events(url, signal, tz = ns_cytq_TZ, now = nowMs()) {
 	const posts = await ns_cytq_postsOf(url, signal, tz, now);
 	const items = [];
@@ -26207,7 +26241,21 @@ async function ns_cytq_events(url, signal, tz = ns_cytq_TZ, now = nowMs()) {
 	}
 	if (items.length === 0) return null;
 	// 第 5 参 = 条目 id（数组 key 前缀 `cytq:event:N`；不传会与别的来源撞 key）
-	return ns_bwiki_eventPayload(items, tz, now, 0, "cytq");
+	// 第 6 参 = `includeOpenStart`（只对本来源开：悬停/数组收「起点未知但终点未过」）
+	const payload = ns_bwiki_eventPayload(items, tz, now, 0, "cytq", { includeOpenStart: true });
+	if (!payload) return null;
+	// 起点未知的数组条目：用解析器已知的 endTs 补终点（起点保持 null —— 不猜钟点）
+	const endByTitle = new Map(items.map((it) => [it.event, it]));
+	let filled = false;
+	for (const x of payload.events || []) {
+		const it = endByTitle.get(x.title);
+		if (!it) continue;
+		const known = it.startTs == null && it.endTs != null;
+		if (known && x.startTs == null && x.endTs == null) { x.endTs = it.endTs; filled = true; }
+	}
+	// 补完终点后按同一口径重排 + 重发 key（否则这些行会一直排在 `endTs=null` 的末尾）
+	if (filled) payload.events = dataArrayProducedListOf(payload.events, "cytq:event");
+	return payload;
 }
 //#endregion
 

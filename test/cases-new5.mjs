@@ -1136,18 +1136,48 @@ export default async function run() {
 			rec.event === "剧情活动批量精选开放中！" && rec.eventDates === "10-21 11:00 ~ 11-18 12:59"
 			&& rec.eventDatesRaw === "2026/10/21 11:00 ~ 2026/11/18 12:59",
 			JSON.stringify([rec.event, rec.eventDates]));
-		check("活动悬停逐字（名称 + 3 空格 + 档期；结束升序 → 同结束按开始升序）",
+		// ── 2026-11-26（活网审计 A）**已批准差异**：活动侧纳入「起点未知（`… 维护后`）但终点未过」条目 ──
+		// 旧口径：悬停 4 行 / `events[]` 4 条（`ns_bwiki_eventPayload` → `ns_bwiki_activeItems` 用 `coversNow`，
+		// 要求两端都有 ⇒ 起点是「2026/10/28 维护后」的当期活动**整条消失**，审计说这正是「缺 8 条」的原因）。
+		// 新口径：cytq 的活动路径传 `includeOpenStart: true`（悬停/数组 = `coveredOrOpen`；外显仍只取两端明确的）。
+		// 这份 2026-11-15 夹具上多出的 4 条 = 1222 / 500000178 / 500000179 / 200000261（都是 `维护后` 起点），
+		// 档期印**源站原文**（不编起点钟点）；开放终点（220000127 / 1179）仍不进（画不出来的行不硬凑）。
+		const CY_OPEN_START = [
+			["感谢庆典特别活动一览！", "2026/10/28 维护后 ~ 2026/12/2 12:59"],
+			["感谢庆典兑换所举办中！", "2026/10/28 维护后 ~ 2026/12/2 12:59"],
+			["必得至少免费100连！感谢庆典每日登录活动举办中！", "2026/10/28 维护后 ~ 2026/12/2 12:59"],
+			["恒星扫荡战线#12 统御苍穹的骸翼 开启！", "2026/10/8 维护后 ~ 2026/12/2 12:59"]
+		];
+		check("活动悬停 **已批准差异**：前 4 行与旧口径逐字相同，第 5~8 行 = 起点未知的当期活动（档期 = 源站原文）",
 			rec.eventHover === "剧情活动批量精选开放中！   10-21 11:00 ~ 11-18 12:59\n"
 			+ "剪影活动「珍藏的回忆」开放中！   11-04 11:00 ~ 11-18 12:59\n"
 			+ "高分挑战活动#67开启！   11-04 11:00 ~ 11-18 12:59\n"
-			+ "光球技能习得庆典举办中！   11-11 11:00 ~ 11-18 12:59",
+			+ "光球技能习得庆典举办中！   11-11 11:00 ~ 11-18 12:59\n"
+			+ CY_OPEN_START.map(([t, w]) => `${t}   ${w}`).join("\n"),
 			JSON.stringify(rec.eventHover));
-		check("活动 events[] 4 条（绝对时刻 +08 手算；开放终点的 220000127 / 1179 不进数组）",
-			Array.isArray(rec.events) && rec.events.length === 4
+		check("活动 events[] **已批准差异**：4 条 ⇒ 8 条；旧 4 条绝对时刻逐字不变，新增 4 条 startTs=null / endTs=12-02 12:59（+08 手算）",
+			Array.isArray(rec.events) && rec.events.length === 8
 			&& rec.events[0].startTs === Date.UTC(2026, 9, 21, 3, 0) && rec.events[0].endTs === Date.UTC(2026, 10, 18, 4, 59)
 			&& rec.events[3].startTs === Date.UTC(2026, 10, 11, 3, 0) && rec.events[3].endTs === Date.UTC(2026, 10, 18, 4, 59)
+			&& CY_OPEN_START.every(([t], i) => {
+				const x = rec.events[4 + i];
+				return x && x.title === t && x.startTs === null && x.endTs === Date.UTC(2026, 11, 2, 4, 59);
+			})
+			// 开放终点（没有结束时刻）仍不进数组：画不出来的行不硬凑
 			&& !rec.events.some((x) => /异时层EX|邀请好友/.test(String(x.title))),
 			JSON.stringify((rec.events || []).map((x) => [x.title, x.startTs, x.endTs])));
+		check("**已批准差异**的依据：这 4 条只能靠新口径进来 —— 旧判据 `coversNow` 在这份夹具上只收 4 条，`coveredOrOpen` 收 8 条",
+			CY_OPEN_START.every(([t]) => {
+				const p = String(t);
+				return rec.events.some((x) => x.title === p && x.startTs == null);
+			})
+			&& T.coveredOrOpen({ startTs: null, endTs: Date.UTC(2026, 11, 2, 4, 59) }, NOW_LIVE) === true
+			&& T.coveredOrOpen({ startTs: null, endTs: Date.UTC(2026, 10, 18, 4, 59) }, Date.parse("2026-11-26T12:00:00+08:00")) === false,
+			JSON.stringify([T.coveredOrOpen({ startTs: null, endTs: Date.UTC(2026, 11, 2, 4, 59) }, NOW_LIVE)]));
+		check("**外显没有变**（放宽只碰悬停/数组）：仍是 golden 的「剧情活动批量精选开放中！」且档期两端明确",
+			rec.event === "剧情活动批量精选开放中！" && rec.eventDates === "10-21 11:00 ~ 11-18 12:59"
+			&& !CY_OPEN_START.some(([t]) => t === rec.event),
+			JSON.stringify([rec.event, rec.eventDates]));
 		check("两侧都不 fail（首轮解析成功）", rec.gachaFail === null && rec.eventFail === null,
 			JSON.stringify([rec.gachaFail, rec.eventFail]));
 

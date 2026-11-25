@@ -257,7 +257,9 @@ function ns_bwiki_eventTier(x) {
 }
 function ns_bwiki_nowOf(now) { return typeof now === "number" && Number.isFinite(now) ? now : nowMs(); }
 
-// 覆盖 now 的条目：结束在未来且已开始（起点未知的行按"已开始"处理）
+// 覆盖 now 的条目：**两端都必须明确**且覆盖 now（`coversNow`；起点未知的行**不算**在期 ——
+// 用户 2026-11-09 口径「宁可少显示，也不假在期」）。这类行不丢：见 `coveredOrOpen`（只用于悬停/数组）
+// 与 `ns_bwiki_eventPayload` 的 `opts.includeOpenStart`（cytq 的活动侧走这条）。
 function ns_bwiki_activeItems(items, now) {
 	return items.filter((it) => coversNow(it, now));
 }
@@ -378,12 +380,27 @@ function ns_bwiki_batchGachaPayloadOf(items, tz, now, opts) {
 	out.gachaHoverItems = hoverItems;
 	return out;
 }
-function ns_bwiki_eventPayload(items, tz, now, permanentCount = 0, id = "") {
+function ns_bwiki_eventPayload(items, tz, now, permanentCount = 0, id = "", opts) {
+	const o = opts || {};
+	// ── 2026-11-26（活网审计 A / cytq）：「起点未知」的行要不要进悬停 + 数组 ──────────────
+	// 用户口径（2026-11-09）是「起点未知 ≠ 已开始，但**只在悬停里列出**」：`coversNow` 只给外显，
+	// 悬停/数组要的是「这条事实还值得看吗」= `coveredOrOpen`（起点未知但终点未过）。
+	// `ns_bwiki_activeItems` 一直用 `coversNow`（函数头注释却写着"起点未知按已开始"）⇒ 起点未知的条目
+	// **整条消失**（cytq：「2026/11/18 维护后 ~ 2026/12/2 12:59」8 条当期活动全被丢）。
+	// 这里给调用方一个**显式开关**（默认 off = 其余 9 个 bwiki 源行为逐字不变）：
+	//   `opts.includeOpenStart === true` ⇒ 悬停/数组候选改用 `coveredOrOpen`；
+	//   **外显仍然只取两端明确的**（`coversNow`，见下 `cur`）—— 不猜起点、不拿未来期。
+	const includeOpenStart = o.includeOpenStart === true;
 	const cur = ns_bwiki_pickCurrentEvent(items, now);
 	if (!cur) return null;
 	const first = cur.first;
 	// 排序由调用方负责（生成器**不排序**，与本体一致）：这里按结束时间升序
-	const ordered = cur.ordered.slice().sort((a, b) => (a.endTs - b.endTs) || (a.startTs - b.startTs) || ((a._i || 0) - (b._i || 0)));
+	// （起点未知的行排在同结束时间的后面：它们没有开始时刻可比，别按 0 混进最前）
+	const startOrderOf = (x) => (x.startTs == null ? Infinity : x.startTs);
+	const listed = includeOpenStart
+		? (Array.isArray(items) ? items : []).filter((it) => coveredOrOpen(it, now))
+		: cur.ordered;
+	const ordered = listed.slice().sort((a, b) => (a.endTs - b.endTs) || (startOrderOf(a) - startOrderOf(b)) || ((a._i || 0) - (b._i || 0)));
 	// ── P3b：条目事实 → 悬停 + `events` 数组 ──────────────────────────────────
 	const hoverItems = ordered.map((x) => ({ title: x.event, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
 	const hover = hoverTextFromItems(hoverItems, "event", tz, { permanentCount });
