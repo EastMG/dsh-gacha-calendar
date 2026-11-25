@@ -39,6 +39,7 @@
 				NTE_MAX_DETAILS,
 				fetchLdshopNte,
 				fetchNteWanmei,
+				nteActivityWindowsOf,
 				nteContentBounds,
 				nteNextPageUrls,
 				ntePlainText,

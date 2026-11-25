@@ -28,7 +28,7 @@ import { T } from "./load.mjs";
 const { sourceInstant } = T;
 const {
 	NTE_ITEM_RE, NTE_MAINT_RE, NTE_MAX_LIST_PAGES, NTE_MAX_LOOKBACK_DAYS, NTE_MAX_DETAILS,
-	fetchNteWanmei, nteContentBounds, nteNextPageUrls, ntePlainText, ntePostDate,
+	fetchNteWanmei, nteActivityWindowsOf, nteContentBounds, nteNextPageUrls, ntePlainText, ntePostDate,
 	parseNteBoards, parseNteWanmei
 } = T.parsers["nte"];
 
@@ -42,12 +42,20 @@ const meta = (p) => JSON.parse(fixtureText(p + ".meta.json"));
 const LIST_FX = "pw-nte-list/response.txt";
 const INDEX1_FX = "pw-nte-index1/response.txt";
 const DETAIL_FX = "pw-nte-detail-264537/response.txt";
+// 2026-11-26 审计 A 的 1.5 公告真抓（`https://yh.wanmei.com/news/gamebroad/20261104/264869.html`）
+const LIST_15_FX = "pw-nte-1p5-list/response.txt";
+const INDEX1_15_FX = "pw-nte-1p5-index1/response.txt";
+const HOTFIX_15_FX = "pw-nte-1p5-hotfix-265226/response.txt";
+const DETAIL_15_FX = "pw-nte-detail-264869/response.txt";
+const DETAIL_15_URL = "https://yh.wanmei.com/news/gamebroad/20261104/264869.html";
+const HOTFIX_15_URL = "https://yh.wanmei.com/news/gamebroad/20261125/265226.html";
 
 // ── 关键时间点（都用源站时区 +08 表述；断言只看"覆盖/不覆盖"，离边界很远，故与跑测机器的时区无关）──
 const NOW_IN = sourceInstant(2026, 10, 21, 5, 30, TZ);      // 用户报障那一刻：池子在开
 const NOW_BEFORE = sourceInstant(2026, 10, 1, 0, 0, TZ);    // 10-15 之前：还没开
 const NOW_AFTER = sourceInstant(2026, 11, 6, 0, 0, TZ);     // 11-05 结束之后：已经关了
 const NOW_FAR = sourceInstant(2027, 6, 1, 0, 0, TZ);        // 远到连"回看窗口"都够不着
+const NOW_15 = sourceInstant(2026, 11, 26, 2, 0, TZ);      // 1.5 公告（11-05 版本）在期那一刻
 
 // 包一层记账：数一数一次抓取到底发了几个请求（代理路径 == 真实请求数）
 async function counting(overrides, fn) {
@@ -171,13 +179,31 @@ export default async function run() {
 				inWin.bannerDates === "10-15 11:00 ~ 11-05 05:59", inWin.bannerDates);
 			check("悬停原文与外显同值（两侧都走 bannerDatesRaw）",
 				inWin.bannerDatesRaw === inWin.bannerDates);
-			check("活动侧外显 = 咔滋！黄金双脆", inWin.event === "咔滋！黄金双脆", inWin.event);
-			check("活动档期与卡池同窗口（同一篇公告的两个 10/15-11/05）",
-				inWin.eventDates === "10-15 11:00 ~ 11-05 05:59", inWin.eventDates);
-			check("活动侧也带 eventDatesRaw", inWin.eventDatesRaw === inWin.eventDates);
-			// 活动侧不许被"噗卡翻翻乐 10/23 起""夺金大作战 10/19 起"抢走（取文本里**第一个**命中的）
-			check("活动侧取到的是当期在开的那一个（不是 10/23 才开的翻翻乐）",
-				!/翻翻乐|夺金/.test(inWin.event || ""), inWin.event);
+			// ── 活动侧：2026-11-26 起**逐条收集全部在期窗口**，外显按「在期 + 结束最早」挑 1 条 ──
+			// ⚠️ 这条是**已批准差异**（审计 A 2026-11-26）：旧实现单次 match 只取正文第一个「限时活动」
+			//    （咔滋 10-15~11-05）；新口径在同一篇公告里还看到 夺金大作战（10-19 05:00~11-02 04:59，
+			//    与咔滋同时覆盖 now=10-21）⇒ 结束更早的夺金成为外显。数据没丢：咔滋仍在 events/悬停里。
+			check("活动侧外显 = 夺金大作战（**已批准差异**：在期窗口多了 10-19~11-02 那条，结束最早者居首）",
+				inWin.event === "夺金大作战", inWin.event);
+			check("活动侧档期 = 10-19 05:00 ~ 11-02 04:59（夺金大作战的源站窗口）",
+				inWin.eventDates === "10-19 05:00 ~ 11-02 04:59", inWin.eventDates);
+			check("活动侧也带 eventDatesRaw（与 eventDates 同值）", inWin.eventDatesRaw === inWin.eventDates);
+			// 反向证明：改造前那条「咔滋！黄金双脆」**没丢**，仍在 events[] 与悬停里（diff 只是外显选择）
+			const evTitles = (inWin.events || []).map((x) => x.title);
+			check("反向证明：咔滋！黄金双脆仍在 `events[]`（10-15 11:00 ~ 11-05 05:59）",
+				evTitles.includes("咔滋！黄金双脆")
+				&& (inWin.events || []).some((x) => x.title === "咔滋！黄金双脆" && x.raw === "10-15 11:00 ~ 11-05 05:59"),
+				JSON.stringify(inWin.events));
+			check("`events[]` = 2 条在期窗口（夺金、咔滋；顺序 = 结束时间升序）",
+				evTitles.length === 2 && evTitles[0] === "夺金大作战" && evTitles[1] === "咔滋！黄金双脆",
+				JSON.stringify(evTitles));
+			check("活动悬停 = 同样的 2 行（名字 + 3 空格 + 档期）",
+				(inWin.eventHover || "").split("\n").filter(Boolean).length === 2
+				&& /夺金大作战\s{3}10-19 05:00 ~ 11-02 04:59/.test(inWin.eventHover || ""),
+				JSON.stringify(inWin.eventHover));
+			// 旧实现"只取第一个"的反证：10-23 才开的翻翻乐（未到起点）不进外显/数组 —— 按在期口径该被排除
+			check("反证：10-23 才开的「噗卡翻翻乐」不在在期列表里（起点未到 ⇒ 不冒充当期）",
+				!evTitles.some((t) => /翻翻乐/.test(t)), JSON.stringify(evTitles));
 		}
 
 		check("池子还没开（10-01）→ null（未公布）", parseNteWanmei(detailHtml, TZ, NOW_BEFORE) === null);
@@ -191,13 +217,80 @@ export default async function run() {
 		const r = await counting({}, () => fetchNteWanmei(LIST_URL, undefined, TZ, NOW_IN));
 		check("fetchNteWanmei 不抛错", !r.error, r.error && r.error.message);
 		check("两侧都有数据（修之前这里是 null → 面板两侧都报「未公布」）",
-			!!r.data && r.data.banner === "限定棋盘" && r.data.event === "咔滋！黄金双脆",
+			!!r.data && r.data.banner === "限定棋盘" && r.data.event === "夺金大作战",
 			JSON.stringify(r.data));
 		check("请求数 = 2（1 个列表页 + 1 篇维护公告详情；两条不停服公告被跳过，没白抓）",
 			r.requests.length === 2, String(r.requests.length));
 		check("详情请求落在 264537 那篇上",
 			r.requests.some((u) => decodeURIComponent(u).includes("20261014/264537.html")),
 			r.requests.map((u) => u.slice(0, 90)).join(" | "));
+	}
+
+	// ── 四之二、1.5 更新公告（审计 A 2026-11-26）：一篇公告多个活动窗口要逐条成条 ────────────
+	// 现场：2026-11-04 的《1.5版本更新公告》里有 9 个带档期活动（签到 / 限时 ×6 / 盲盒 / 集市），
+	// 旧实现 `text.match(/「X」限时活动…/)` 单次匹配只取第一个（运通全城）⇒ 面板只出 1 条。
+	// 夹具是审计时真抓的原响应（`pw-nte-detail-264869`，meta.capturedAt = 2026-11-26 审计时刻）。
+	{
+		const html = fixtureText(DETAIL_15_FX);
+		const text = ntePlainText(html);
+		// 反向证明：**旧** 正则在这份真公告上确实只命中 1 条（这就是"活动只出 1 个"的根因）
+		const oldOne = text.match(/「([^」]+)」限时活动[\s\S]{0,200}?活动时间：(\d+)月(\d+)日(?:(?:维护|版本)更新后|(\d{1,2}):(\d{2}))\s*[-–—]\s*(\d+)月(\d+)日(\d{1,2}):(\d{2})/);
+		check("反证：**旧单次 match** 在 1.5 公告上只命中 1 条（= 修复前只出 1 个活动的根因）",
+			!!oldOne && oldOne[1] === "运通全城", JSON.stringify(oldOne && oldOne[1]));
+
+		const wins = nteActivityWindowsOf(text, 2026, TZ);
+		check("nteActivityWindowsOf：1.5 公告里解出 **9** 个带档期活动（盲盒/签到/限时同写法）",
+			wins.length === 9, String(wins.length));
+		check("活动名逐条：所行皆坦途(盲盒) / 环期赠礼(签到) / 运通全城 / 争锋赏宴·攻坚 / 征途坦荡 / 渔获大作战 / 像素溢出 / 夺金大作战 / 集市分福",
+			JSON.stringify(wins.map((x) => x.title)) === JSON.stringify([
+				"所行皆坦途", "环期赠礼", "运通全城", "争锋赏宴·攻坚", "征途坦荡", "渔获大作战", "像素溢出", "夺金大作战", "集市分福"
+			]), JSON.stringify(wins.map((x) => x.title)));
+		check("「征途坦荡」的窗口是 11-13 10:00（与同批其它活动不同）",
+			(wins.find((x) => x.title === "征途坦荡") || {}).display === "11-13 10:00 ~ 12-17 05:59",
+			JSON.stringify((wins.find((x) => x.title === "征途坦荡") || {}).display));
+		check("「所行皆坦途」= 盲盒标题行的窗口（11-05 版本更新后 ⇒ 起点 11:00）",
+			(wins.find((x) => x.title === "所行皆坦途") || {}).display === "11-05 11:00 ~ 12-17 05:59",
+			JSON.stringify((wins.find((x) => x.title === "所行皆坦途") || {}).display));
+
+		const d15 = parseNteWanmei(html, TZ, NOW_15);
+		check("1.5 公告覆盖 now=11-26 02:00：卡池 + 活动两侧都有数据", !!d15, JSON.stringify(d15 && [d15.banner, d15.event]));
+		if (d15) {
+			check("卡池外显 = 限定棋盘 & 返场限定棋盘（1.5 的两张棋盘同窗，卡池口径未动）",
+				d15.banner === "限定棋盘 & 返场限定棋盘" && d15.roles === "曳尔沐、真红", JSON.stringify([d15.banner, d15.roles]));
+			const evTitles15 = (d15.events || []).map((x) => x.title);
+			check("`events[]` = **8 条在期活动**（9 个窗口里 像素溢出 11-09~11-16 已结束 ⇒ 不进在期列表）",
+				evTitles15.length === 8 && !evTitles15.includes("像素溢出"), JSON.stringify(evTitles15));
+			check("8 条逐条都在：盲盒/签到/4 个限时/集市/夺金（不再是只有「运通全城」1 条）",
+				["所行皆坦途", "环期赠礼", "运通全城", "争锋赏宴·攻坚", "征途坦荡", "渔获大作战", "夺金大作战", "集市分福"]
+					.every((t) => evTitles15.includes(t)), JSON.stringify(evTitles15));
+			check("外显 = 结束最早的在期活动「夺金大作战」/ 11-16 05:00 ~ 11-30 04:59（与卡池的 11-26 05:59 分开）",
+				d15.event === "夺金大作战" && d15.eventDates === "11-16 05:00 ~ 11-30 04:59",
+				JSON.stringify([d15.event, d15.eventDates]));
+			check("活动悬停 = 8 行（每条一行 `名字 + 3 空格 + 档期`），不再为空",
+				(d15.eventHover || "").split("\n").filter(Boolean).length === 8
+				&& /环期赠礼\s{3}11-05 11:00 ~ 12-17 05:59/.test(d15.eventHover || ""),
+				JSON.stringify((d15.eventHover || "").split("\n").length));
+			check("8 条里只有 4 种窗口（环期/运通/争锋/盲盒/集市同窗 11-05~12-17 —— nte 按活动名各算一条，不按窗口合并）",
+				new Set((d15.eventHoverItems || []).map((x) => `${x.startTs}|${x.endTs}`)).size === 4,
+				String(new Set((d15.eventHoverItems || []).map((x) => `${x.startTs}|${x.endTs}`)).size));
+		}
+
+		// 端到端：列表 → 20261125 热更（无当期内容）→ index1 → 1.5 维护公告
+		const r15 = await counting({
+			[LIST_URL]: LIST_15_FX,
+			[LIST_URL + "index1.html"]: INDEX1_15_FX,
+			[HOTFIX_15_URL]: HOTFIX_15_FX,
+			[DETAIL_15_URL]: DETAIL_15_FX
+		}, () => fetchNteWanmei(LIST_URL, undefined, TZ, NOW_15));
+		check("fetchNteWanmei（1.5 真链）不抛错", !r15.error, r15.error && r15.error.message);
+		check("端到端：卡池「限定棋盘 & 返场限定棋盘」+ 活动 8 条",
+			!!r15.data && r15.data.banner === "限定棋盘 & 返场限定棋盘" && (r15.data.events || []).length === 8,
+			JSON.stringify(r15.data && [r15.data.banner, (r15.data.events || []).length]));
+		check("端到端请求数 = 4（列表第 1 页 + 20261125 热更 1 篇 + 列表第 2 页 + 1.5 公告 1 篇）",
+			r15.requests.length === 4, String(r15.requests.length));
+		check("端到端确实落在 20261104/264869.html（1.5 版本更新公告）上",
+			r15.requests.some((u) => decodeURIComponent(u).includes("20261104/264869.html")),
+			r15.requests.map((u) => u.slice(0, 90)).join(" | "));
 	}
 
 	// ── 五、翻页深度：维护公告被热更挤到第 2 页也要翻到 ─────────────────────────
@@ -267,8 +360,8 @@ export default async function run() {
 				(src.altSources || []).length === 1 && src.altSources[0].label === "LDSHOP",
 				JSON.stringify((src.altSources || []).map((x) => x.label)));
 			check("tz 仍是 Asia/Shanghai", src.tz === TZ, src.tz);
-			check("parserVersion 升到 3（解析规则变了：段落锚点 + 翻页深度）",
-				src.parserVersion === 3, String(src.parserVersion));
+			check("parserVersion 升到 4（2026-11-26：活动侧改为逐条收集全部在期窗口）",
+				src.parserVersion === 4, String(src.parserVersion));
 		}
 		check("卡池侧抓取器已登记", typeof T.GACHA_FETCHERS["nte"] === "function");
 		check("活动侧抓取器已登记（同一个函数，各报各的错）",
