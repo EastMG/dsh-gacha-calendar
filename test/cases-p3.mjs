@@ -1159,6 +1159,46 @@ async function runP3b() {
 			JSON.stringify([actual, g && g.rec[field]]));
 	}
 
+	// ── 2026-11-26 真机回归：终末地 canmoe 换 Turbopack 构建（flight 模块引用变符号 id）──────
+	// 现场：canmoe-no-chunk（页面拿到了、数据也在，但 chunk 链接从字面量变成 "$2" 这种符号 id，
+	//   真实路径定义在 flight 更早的 2:"/_next/static/chunks/xxx.js" 行里）⇒ 旧逻辑一条都找不到。
+	// 这里用**合成的最小 flight payload** 走完整抓取器（页面 → chunk 解析 → 期次窗口匹配），
+	// 不依赖线上构建产物（构建 hash 天天变，夹具存不住）。
+	{
+		const NOW_EF = Date.parse("2026-11-27T12:00:00+08:00");
+		const pageUrl = "https://end.canmoe.com/zh-CN/banner-calendar";
+		const chunkA = "https://end.canmoe.com/_next/static/chunks/aaa111.js";
+		const chunkB = "https://end.canmoe.com/_next/static/chunks/bbb222.js";
+		const flight = [
+			'2:"/_next/static/chunks/aaa111.js"',
+			'3:"/_next/static/chunks/bbb222.js"',
+			'29:I[60360,["$2","$3"],"BannerCalendar"]'
+		].join("\n");
+		const escaped = flight.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
+		const pageHtml = '<script>self.__next_f.push([1,"' + escaped + '"])</script>';
+		const chunkJs = 'f=[{id:1,title:"测试寻访",subtitle:"测试角色",version:"3.3",periodStart:"2026-11-26T12:00:00+08:00",periodEnd:"2026-12-10T06:00:00+08:00",featured:[]}];';
+		const served = { [pageUrl]: pageHtml, [chunkA]: "var a=1;", [chunkB]: chunkJs };
+		const impl = async (url) => {
+			let target = String(url);
+			if (target.startsWith("/api/gacha-calendar-proxy")) {
+				try { target = new URL("http://x" + target).searchParams.get("url") || target; } catch { /* keep */ }
+			}
+			const body = served[target];
+			if (body == null) return { ok: false, status: 404, headers: { get: () => null }, text: async () => "", json: async () => ({}) };
+			if (String(url).startsWith("/api/gacha-calendar-proxy")) {
+				const wrapped = JSON.stringify({ status: 200, body });
+				return { ok: true, status: 200, headers: { get: () => "application/json" }, text: async () => wrapped, json: async () => JSON.parse(wrapped) };
+			}
+			return { ok: true, status: 200, headers: { get: () => "text/html" }, text: async () => body, json: async () => JSON.parse(body) };
+		};
+		T.setCoreEnv({ transport: makeFetchTransport(impl), timer: { setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (id) => clearTimeout(id) }, now: () => NOW_EF });
+		let data = null, err = null;
+		try { data = await T.GACHA_FETCHERS["endfield"](pageUrl, undefined, "Asia/Shanghai"); } catch (e) { err = e; }
+		check("终末地 canmoe（Turbopack flight）：符号 id 能解出 chunk —— 旧逻辑会抛 canmoe-no-chunk", err === null, err && err.message);
+		check("终末地 canmoe（Turbopack flight）：期次数组命中当期 ⇒ 外显 = 标题", !!data && data.banner === "测试寻访", JSON.stringify(data && data.banner));
+		check("终末地 canmoe（Turbopack flight）：档期来自期次数组真实起止（不是估算）", !!data && data.bannerDates === "11-26 12:00 ~ 12-10 06:00", JSON.stringify(data && data.bannerDates));
+	}
+
 	section("P3b ②：数组与改造前**合成结果**逐条相等（含 startTs / endTs）");
 	for (const p of P3B_PATHS) {
 		const r = results[p.key];
@@ -1372,7 +1412,7 @@ const P3D_PATHS = [
 	}
 ];
 
-// 12 个用户可见字符串字段（与 P3b 同一份口径）
+		// 12 个用户可见字符串字段（与 P3b 同一份口径）
 const P3D_VISIBLE = ["banner", "roles", "bannerDates", "bannerDatesRaw", "bannerHover",
 	"event", "eventDates", "eventDatesRaw", "eventShow", "eventClaimDates", "eventHover", "eventHoverExtra"];
 const p3dTextOf = (v) => (v == null ? "" : String(v));

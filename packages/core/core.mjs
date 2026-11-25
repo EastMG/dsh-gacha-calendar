@@ -20408,19 +20408,45 @@ EVENT_FETCHERS["ba-jp"] = {
 		// 通用：从 Next.js flight payload HTML 中定位指定组件引用的 JS chunk URL 列表。
 		// 适用于"HTML 无数据、数据编译在组件 chunk 里"的 Next.js 站点（如 canmoe）。
 		// componentName 形如 "BannerCalendar"；baseUrl 用于把相对路径补全为绝对 URL。
+		//
+		// ⚠️ 2026-11-26 真机（用户报「终末地卡池失败」，实测 canmoe-no-chunk）：
+		//   canmoe 换成了 **Turbopack** 构建，flight payload 里的模块引用变成**符号 id**：
+		//      29:I[60360,["$2","$17","$18",…,"$28"],"BannerCalendar"]
+		//   真实 chunk 路径定义在 payload 更早的行里：
+		//      2:"/_next/static/chunks/15ap45h_no0cl.js"
+		//   ⇒ 旧逻辑（在组件名附近 1500 字里找字面量 /_next/static/chunks/*.js）一条都找不到
+		//   ⇒ 抛 canmoe-no-chunk（页面拿到了、数据也在，只是链接形式变了）。
+		//   现在两种形态都认：先按旧的字面量格式找；找不到再解符号 id（整份 payload 建 id→路径表）。
 		function nextJsChunkUrls(html, componentName, baseUrl) {
 			const i = html.indexOf(componentName);
 			if (i < 0) return [];
-			const seg = html.slice(Math.max(0, i - 1500), i);
-			const br = seg.lastIndexOf("[");
-			if (br < 0) return [];
-			// flight payload 内 chunk 路径是双重转义（\\\"），还原一层后提取
-			const raw = seg.slice(br).replace(/\\\\"/g, '"').replace(/\\"/g, '"');
-			const names = [...raw.matchAll(/\/_next\/static\/chunks\/([A-Za-z0-9_.~-]+\.js)/g)].map((x) => x[1]);
-			// 补全为绝对 URL：优先页面 origin（chunk 路径是站内相对路径）
 			let origin = "";
 			try { origin = new URL(baseUrl || "").origin; } catch { /* 无 baseUrl 时保持相对 */ }
-			return [...new Set(names)].map((n) => origin + "/_next/static/chunks/" + n);
+			const dedup = (names) => [...new Set(names)].map((n) => origin + "/_next/static/chunks/" + n);
+			// ① 旧形态（Webpack 时代）：组件名附近的片段里直接写着 chunk 路径
+			const seg = html.slice(Math.max(0, i - 1500), i);
+			const br = seg.lastIndexOf("[");
+			if (br >= 0) {
+				const raw = seg.slice(br).replace(/\\\\"/g, '"').replace(/\\"/g, '"');
+				const names = [...raw.matchAll(/\/_next\/static\/chunks\/([A-Za-z0-9_.~-]+\.js)/g)].map((x) => x[1]);
+				if (names.length > 0) return dedup(names);
+			}
+			// ② 新形态（Turbopack，2026-11-26 起）：符号 id → 整份 payload 里 N:"/_next/static/chunks/x.js" 的定义
+			const unescaped = html.replace(/\\\\"/g, '"').replace(/\\"/g, '"').replace(/\\\\n/g, "\n").replace(/\\n/g, "\n");
+			const byId = new Map();
+			for (const m of unescaped.matchAll(/(?:^|\n)([0-9a-z]+):"(\/_next\/static\/chunks\/[^"]+\.js)"/g)) byId.set(m[1], m[2]);
+			if (byId.size === 0) return [];
+			const names = [];
+			// 模块引用：I[<模块id>,["$2","$17",…],"<组件名>"]（组件名可能带后缀，按包含匹配）
+			for (const rm of unescaped.matchAll(/I\[\d+,\[([^\]]{0,4000})\]\s*,\s*"([^"]*)"\]/g)) {
+				if (rm[2].indexOf(componentName) < 0) continue;
+				for (const idm of rm[1].matchAll(/"\$([0-9a-z]+)"/g)) {
+					const p2 = byId.get(idm[1]);
+					if (p2) names.push(p2.slice("/_next/static/chunks/".length));
+				}
+				if (names.length > 0) break;
+			}
+			return dedup(names);
 		}
 
 
