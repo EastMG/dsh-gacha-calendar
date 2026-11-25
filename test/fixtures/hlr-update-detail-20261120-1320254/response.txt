@@ -1,0 +1,56 @@
+<div id="NIE-art">
+            
+            <div class="tit">
+                <div class="tbox">
+                    
+                    <p class="artTitle">
+                        <a class="back" href="//hlr.163.com/news/update/"><i></i></a>学院公告 | 11月19日不停服更新公告
+                    </p>
+                    <div class="artInfo">
+                        <span>
+                            位置：
+                            <a href="//hlr.163.com/" title="首页" target="_blank">首页</a>>>
+                            <a href="//hlr.163.com/news/update/" title="公告">公告</a>>>新闻详情
+                        </span>                          <span class="artDate">时间：2026-11-18</span>
+                        <span class="artShare"></span>
+                    </div>
+                </div>
+            </div>
+
+            
+            <div class="artText">
+                <p style="text-align: center;"><img src="https://nie.res.netease.com/r/pic/20261120/8f1c68f7-3d5b-4c9a-8b95-6d6f8533c930.jpg" /></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【更新时间】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">2026年11月19日09:30 - 10:30</span></span></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【系统更新】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">1.11月19日更新后，每日任务快速模式新增[高级设置]功能，可通过[日常]-[快速模式]-[高级设置]进入，支持任务列表设置、部分任务的详细设置及任务浮窗设置。任务列表支持调整任务顺序、增减任务，部分任务可调整[一键完成]或[快捷跳转]的分类。<br />
+调整了快速模式默认设置下部分任务的描述和排序。<br />
+2.[出行-佳期]和[视讯陪伴]的[一起听歌]模式新增男主耳机挂件开关按钮。<br />
+3.优化了[出行]服装礼包弹窗显示逻辑。<br />
+4.优化了鸿蒙系统的分享流程。<br />
+5.优化了出行音乐和出行背景环境音效的播放逻辑。</span></span></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【系统修复】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">1.优化了司岚[暮蝶][宵酒]服装部分表情的眨眼显示。<br />
+2.修正了墙纸[覆雪凭梅]获取途径中的错字。<br />
+3.修复了[代号:归零]活动剧情回顾中无法解锁彩蛋1的问题，完成第1节活动剧情后即可解锁。<br />
+4.修复了深夜心声成就无法完成的问题。</span></span></p>
+
+<h2><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">【更新须知】</span></span></h2>
+
+<p><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">不停服更新期间，游戏内部分功能短时间内将无法使用(好友、助战、充值、公众号绑定及签到等)。<br />
+届时在游戏内的玩家，可能会出现掉线的情况，重启游戏客户端并更新即可。<br />
+如果有任何问题，欢迎使用游戏内部反馈提交(左上角系统设置-联系客服)，或联系各平台对应客服人员进行反馈。<br />
+公告更新详情可前往官网或游戏内查看。</span></span></p>
+
+<p style="text-align: right;"><span style="font-size:16px;"><span style="font-family:Microsoft YaHei;">《时空中的绘旅人》运营团队<br />
+2026年11月18日</span></span></p>
+            </div>
+            
+
+        </div>
