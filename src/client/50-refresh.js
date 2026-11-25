@@ -499,10 +499,20 @@
 				if (main) {
 					if (title === main.title) continue;
 					if (main.show && title === main.show) continue;
+					// ③「池名：显示名」这种**整段包裹**写法 = 同一口池的另一行（历史 `scheduleHoverOnes` 判据）。
+					//    ⚠️ 2026-11-26（活网审计 B / bjhl）：后缀命中**默认仍按旧口径**（uma-cn 的
+					//    「精选招募开放期间：<角色>」这类"期间"行靠它留在悬停、不进数组，是要的）。
+					//    但有的来源（白荆回廊）批次合并角色表后 `main.show` = 另一口池的角色表，
+					//    后缀命中会把**另一个池**误并掉 ⇒ 那条来源显式开 `extrasStrictTitle`
+					//    （要求前缀 = 主条标题才算同池；见 bwiki 批次载荷的 opts）。
 					const t = DATA_ARRAY_LABEL(title);
 					if (shown && t && t !== shown) {
 						const tail = t.lastIndexOf("\uFF1A" + shown);
-						if (t.indexOf(shown + "\uFF1A") === 0 || (tail >= 0 && tail === t.length - shown.length - 1)) continue;
+						const head = t.indexOf("\uFF1A") > 0 ? t.slice(0, t.indexOf("\uFF1A")) : "";
+						const mainTitle = DATA_ARRAY_LABEL(main.title);
+						const tailHit = tail >= 0 && tail === t.length - shown.length - 1
+							&& (!o.extrasStrictTitle || (head !== "" && head === mainTitle));
+						if (t.indexOf(shown + "\uFF1A") === 0 || tailHit) continue;
 					}
 				}
 				// ⚠️ P5 清理（2026-11-08）：原来这里是 `dataArrayTextOf(x.win) || hoverWindowTextOf(x, o.tz)`
@@ -713,10 +723,13 @@
 		function dataArrayProducedGachaOf(payload, entries, meta, now) {
 			const id = (meta && meta.id) || "";
 			const tz = (meta && meta.tz) || "";
+			// `extrasStrictTitle`：并列条"同一口池"判据是否要求标题前缀 = 主条标题（默认关，见
+			//   `dataArrayExtrasFromEntriesOf` ③ 的说明；目前只有白荆回廊开）。
+			const extrasStrictTitle = !!(meta && meta.extrasStrictTitle === true);
 			const main = dataArrayGachaMainOf(payload, id, tz, now);
 			if (!main) return [];
 			const facts = dataArrayFactsOf(payload);
-			const extras = dataArrayExtrasFromEntriesOf(entries, main, now, { kind: "gacha", tz });
+			const extras = dataArrayExtrasFromEntriesOf(entries, main, now, { kind: "gacha", tz, extrasStrictTitle });
 			return dataArrayProducedListOf([main].concat(extras)
 				.map((x) => dataArrayAttachFactsOf(x, facts))
 				.map((x) => dataArrayProducedItemOf(x, "gacha")), id + ":gacha");

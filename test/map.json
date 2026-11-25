@@ -303,5 +303,12 @@
   "https://umamusume.jp/api/ajax/pr_info_detail?format=json&announce_id=3553": "p5-uma-jp-detail-3553/response.txt",
   "https://www.princessconnect.so-net.tw/news?page=2": "pcr-tw-list-2-20261126/response.txt",
   "https://www.princessconnect.so-net.tw/news/newsDetail/4121": "pcr-tw-detail-4121/response.txt",
-  "https://www.princessconnect.so-net.tw/news/newsDetail/4108": "pcr-tw-detail-4108/response.txt"
+  "https://www.princessconnect.so-net.tw/news/newsDetail/4108": "pcr-tw-detail-4108/response.txt",
+  "https://nikki4.papegames.cn/api/v1/news/102588": "nikki4-news-detail-1126-102588/response.txt",
+  "https://nikki4.papegames.cn/api/v1/news/102589": "nikki4-news-detail-1126-102589/response.txt",
+  "https://nikki4.papegames.cn/api/v1/news/102590": "nikki4-news-detail-1126-102590/response.txt",
+  "https://nikki4.papegames.cn/api/v1/news/102591": "nikki4-news-detail-1126-102591/response.txt",
+  "https://nikki4.papegames.cn/api/v1/news/102592": "nikki4-news-detail-1126-102592/response.txt",
+  "https://nikki4.papegames.cn/api/v1/news/102593": "nikki4-news-detail-1126-102593/response.txt",
+  "https://nikki4.papegames.cn/api/v1/news/102594": "nikki4-news-detail-1126-102594/response.txt"
 }

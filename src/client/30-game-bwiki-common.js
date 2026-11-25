@@ -376,7 +376,14 @@ function ns_bwiki_batchGachaPayloadOf(items, tz, now, opts) {
 		...(hover ? { bannerHover: hover } : {}),
 		...(Object.keys(facts).length ? { itemFacts: facts } : {})
 	};
-	out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id: o.id || "", tz }, now);
+	out.gacha = dataArrayProducedGachaOf(out, hoverItems, {
+		id: o.id || "",
+		tz,
+		// 见 `dataArrayExtrasFromEntriesOf` ③：批次合并角色表后，若某口池的「池名：角色表」
+		// 尾部恰好等于主条的 `show`（= 合并角色表），旧判据会把另一个池整条并掉。
+		// 白荆回廊显式开这个开关（只按「池名前缀 = 主条标题」认同一口池），其余来源逐字不变。
+		extrasStrictTitle: o.extrasStrictTitle === true
+	}, now);
 	out.gachaHoverItems = hoverItems;
 	return out;
 }

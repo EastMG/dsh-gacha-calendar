@@ -219,14 +219,15 @@ NEXT_SOURCES.push(
 		gacha: null,
 		event: { url: T.parsers.kancolle.KANCOLLE_EVENTS_URL, kind: "wiki", mode: "proxy", fetcher: resolve("kancolle.eventsKancolle") }
 	},
-	// 2026-11-15：闪耀暖暖·国服（`nikki4`）—— 官网首页 `__NEXT_DATA__` 的 4 条精选 + `/news/{id}` 正文；
-	// 卡池与活动**同一条列表 URL**（详情按 id 缓存 24h）。响应无 ACAO ⇒ `mode: "proxy"`。
+	// 2026-11-15：闪耀暖暖·国服（`nikki4`）—— 2026-11-26 起**两侧都抓官网新闻 API**
+	// （列表 `/api/v1/news?section=1|0` + 详情 `/api/v1/news/{id}`；旧「活动侧读首页 4 条精选」已删）。
+	// 响应无 ACAO ⇒ `mode: "proxy"`（`/api/` 路径还必须不发 Origin，见抓取器注释）。
 	{
 		id: "nikki4",
 		tz: T.parsers.nikki4.NIKKI4_TZ,
 		name: "闪耀暖暖",
-		gacha: { url: T.parsers.nikki4.NIKKI4_LIST_URL, kind: "official-html", mode: "proxy", fetcher: resolve("nikki4.gachaNikki4") },
-		event: { url: T.parsers.nikki4.NIKKI4_LIST_URL, kind: "official-html", mode: "proxy", fetcher: resolve("nikki4.eventsNikki4") }
+		gacha: { url: T.parsers.nikki4.NIKKI4_NEWS_API, kind: "official-api", mode: "proxy", fetcher: resolve("nikki4.gachaNikki4") },
+		event: { url: T.parsers.nikki4.NIKKI4_NEWS_API, kind: "official-api", mode: "proxy", fetcher: resolve("nikki4.eventsNikki4") }
 	},
 	// 2026-11-15：アイドルマスター系列 5 款（`gakumas` / `shinycolors` / `millisita` / `deresute` / `shanison`）——
 	// 每款一个**月份页**（`melonpapapapa-n.com` 的「イベント・ガシャ開催スケジュール一覧」）。

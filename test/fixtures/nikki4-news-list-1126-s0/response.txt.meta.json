@@ -1,0 +1,6 @@
+{
+  "url": "https://nikki4.papegames.cn/api/v1/news?section=0&offset=0&limit=20",
+  "status": 200,
+  "capturedAt": "2026-11-25T18:36:42.713Z",
+  "note": "真抓原样（2026-11-26 02:2x +08）。不登记 map.json 的理由同 `nikki4-news-list-1126-s1`（同一 URL 已有 11-15 快照映射）。"
+}

@@ -1103,6 +1103,54 @@ export default async function runBatch2() {
 			check("反证：抹掉在期那条的「结束时间」⇒ 活动载荷 = null（不是拿往期/别的窗口硬凑）",
 				data === null, JSON.stringify(data && (data.message || data.event)));
 		}
+	// ── 2026-11-26（活网审计 B）：三池同批、`gacha[]` 少一条「去往彼岸」──────────────
+		// 现场：悬停 3 池，`gacha[]` 只 2 条。根因不是"按窗口去重"，而是**批次合并角色表**后
+		// `main.show`（= 去往彼岸那 4 个角色）与另一口池悬停行的「池名：角色」后缀撞车，
+		// 并列条判据把「去往彼岸」整条当成外显行的重复并掉。
+		// 修法：`ns_bwiki_gachaBjhl` 显式开 `extrasStrictTitle`（同一口池要求「池名前缀 = 主条标题」）。
+		// 夹具仍是 `bjhl-gacha`（真抓前 10 张卡，含这三池；只把 now 拨到审计当天）。
+		{
+			const NOW_1126 = Date.parse("2026-11-26T02:20:00+08:00");
+			const calls = [];
+			const e = engineAt(NOW_1126, calls);
+			const s = e.__test.SOURCES.find((x) => x.id === "bjhl");
+			const g = await e.__test.GACHA_FETCHERS["bjhl"](s.url, undefined, s.tz);
+			const arr = (g && g.gacha) || [];
+			const hoverItems = (g && g.gachaHoverItems) || [];
+			check("bjhl 三池同批（11-26）：外显仍是 常态共鸣·红珠小姐（结束最早那批里 _i 最前）",
+				g && g.banner === "常态共鸣·红珠小姐"
+				&& g.bannerDates === "11-19 04:00 ~ 12-03 03:50",
+				JSON.stringify(g && [g.banner, g.bannerDates]));
+			check("bjhl 三池同批（11-26）：gacha[] = 3 条且**含「去往彼岸」**（修复前只有 2 条）",
+				arr.length === 3 && arr.some((x) => String(x.title).indexOf("去往彼岸") === 0),
+				JSON.stringify(arr.map((x) => x.title)));
+			check("bjhl 三池同批（11-26）：key 唯一、按自然顺序重发（`bjhl:gacha:0..2`）",
+				arr.map((x) => x.key).join(",") === "bjhl:gacha:0,bjhl:gacha:1,bjhl:gacha:2"
+				&& new Set(arr.map((x) => x.key)).size === 3,
+				JSON.stringify(arr.map((x) => x.key)));
+			check("bjhl 三池同批（11-26）：数组与悬停**逐条对齐**（3 条 hover item 全部在数组里，顺序同源）",
+				hoverItems.length === 3 && arr.length === hoverItems.length
+				&& arr.map((x) => x.title).join("|") === hoverItems.map((x) => x.title).join("|"),
+				JSON.stringify([arr.map((x) => x.title), hoverItems.map((x) => x.title)]));
+			check("bjhl 三池同批（11-26）：悬停逐字不变（3 池 × 名称 + 档期两行，修复不动悬停）",
+				g && g.bannerHover === "去往彼岸：伊琅相思、无咎、罗咤、吉娜\n11-05 10:00 ~ 12-03 03:50\n启明潜航·伊琅相思 昊苍 红珠小姐\n11-05 10:00 ~ 12-03 03:50\n常态共鸣·红珠小姐\n11-19 04:00 ~ 12-03 03:50",
+				JSON.stringify(g && g.bannerHover));
+			// 反向证明：同一判据的**开关**是必需的 —— 默认（旧口径）会把"另一个池：同一份角色表"并掉，
+			// 显式开 `extrasStrictTitle` 后只并"主条标题：显示名"那条（同一口池），另一个池保留。
+			const samePayload = { banner: "甲池", roles: "角色X", bannerDates: "11-05 10:00 ~ 12-03 03:50", bannerDatesRaw: "2026.11.05 10:00 ~ 2026.12.03 03:50" };
+			const sameEntries = [
+				{ title: "甲池：角色X", startTs: Date.UTC(2026, 10, 5, 2, 0), endTs: Date.UTC(2026, 11, 2, 19, 50), raw: "2026.11.05 10:00 ~ 2026.12.03 03:50" },
+				{ title: "乙池：角色X", startTs: Date.UTC(2026, 10, 5, 2, 0), endTs: Date.UTC(2026, 11, 2, 19, 50), raw: "2026.11.05 10:00 ~ 2026.12.03 03:50" }
+			];
+			const oldArr = T.dataArrayProducedGachaOf(samePayload, sameEntries, { id: "bjhl", tz: BJ.BJHL_TZ }, NOW_1126);
+			const strictArr = T.dataArrayProducedGachaOf(samePayload, sameEntries, { id: "bjhl", tz: BJ.BJHL_TZ, extrasStrictTitle: true }, NOW_1126);
+			check("bjhl 反证：默认口径把「乙池：同一份角色表」并掉（1 条）；开 extrasStrictTitle 后保留（2 条）",
+				oldArr.length === 1 && strictArr.length === 2
+				&& strictArr.some((x) => x.title === "乙池：角色X") && strictArr.some((x) => x.title === "甲池"),
+				JSON.stringify([oldArr.map((x) => x.title), strictArr.map((x) => x.title)]));
+			check("bjhl 反证：开 extrasStrictTitle 后「主条标题：显示名」那条**仍然**并掉（同一口池不重复列）",
+				strictArr.every((x) => x.title !== "甲池：角色X"), JSON.stringify(strictArr.map((x) => x.title)));
+		}
 	}
 
 	// ═══════════════════ ⑤ 阴阳师（yys）—— 官网公告列表 + 详情 ═══════════════════
