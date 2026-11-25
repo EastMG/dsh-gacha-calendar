@@ -5050,6 +5050,7 @@ export function createEngine(env) {
 
 		// ---- GameKee（蔚蓝档案）----
 		// 解析标题里的排期：【8/18~9/01】 / 【8月26日 ~ 9月9日】 → {startText, endText, startTs, endTs}
+		// `dateText` = 方括号里那段**日期原文**（如 `11/24～12/08`），给 `*DatesRaw`（源站原文）用。
 		function parseGkRange(title, nowYear) {
 			const m = String(title).match(/【([^】]+)】/);
 			if (!m) return null;
@@ -5070,7 +5071,7 @@ export function createEngine(env) {
 			const a = parseGkTime(parts[0], nowYear);
 			const b = parseGkTime(parts[1], am != null && bm != null && endsNextYear(am, null, bm, null) ? nowYear + 1 : nowYear);
 			if (!a || !b) return null;
-			return { startTs: a.ts, endTs: b.ts, startText: a.text, endText: b.text, raw: `${a.text} ~ ${b.text}` };
+			return { startTs: a.ts, endTs: b.ts, startText: a.text, endText: b.text, raw: `${a.text} ~ ${b.text}`, dateText: m[1].trim() };
 		}
 
 		const TZ_CN = "Asia/Shanghai";      // UTC+8：国服一览
@@ -19460,7 +19461,9 @@ async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = now
 		}
 
 
-		// 日服活动备选抓取器：同一个官方接口的「イベント」条目（只取 event 字段）
+		// 日服活动抓取器（2026-11-26 起为**默认**活动源）：同一个官方接口的「イベント」条目（只取 event 字段）
+		// 官方原文形如 `▼開催期間 2026年11月25日(水) メンテナンス後 ~ 2026年12月9日(水) 10:59`
+		// ⇒ 活动名 `踊らされし芸術～象牙の塔と招かれざる客～`、档期 11-25 19:00 ~ 12-09 10:59（JST）。
 		async function fetchBaJpOfficialEvent(url, signal, tz, now = nowMs()) {
 			const json = await proxyFetchJson(url, "https://bluearchive.jp/");
 			const d = parseBaJpNews(json, now, tz);
@@ -19510,6 +19513,11 @@ async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = now
 		// 那边取日程表里的「特選招募 / 特別特選招募」）。写成简体，与本站其余 GameKee 文本一致。
 		const GK_BA_POOL_BANNER = "特选招募";
 
+		// 只有日期（没有钟点）的窗口 ⇒ **仓库通用约定「起 00:00 / 止 23:59」**：
+		// 终点 = 当日 00:00 + 23h59m（= 23:59 墙钟；`fmtWindow` 渲染出来正好是 `23:59`）。
+		// 同口径见 p5x / 战双 / 星塔（`coversNow` 用同一对 ts，不再另存一个"显示用"端点）。
+		const GK_BA_DAY_LAST_MS = 23 * 3600e3 + 59 * 60e3;
+
 		// block（编辑器节点树）→ 纯文本
 		function gkBlockText(node) {
 			let s = "";
@@ -19526,11 +19534,12 @@ async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = now
 		}
 
 		// 表格里的"无年份"档期 → 窗口：`10月13日～10月27日` / `10/13~10/27` / `2026/10/13 ~ 2026/10/27 12:00`
-		// 与 `parseGkRange` 同口径（本机时区墙钟、日粒度），另加跨年与可选钟点。
-		//   · `startTs` / `endTs`：**判断用**。没写钟点时，`endTs` 取当日 23:59:59.999（含当日全天）——
-		//     否则到期当天 00:00 起就会被判成"已过期"，整期最后一天显示空白。
-		//   · `endDayTs`：**显示用**。没写钟点时取结束日 00:00，与标题口径 `【10/13~10/27】` → `10-27 00:00` 同形
-		//     （上一轮 bannerDates 就是这个读数，收敛后保持不变）。
+		// 与 `parseGkRange` 同口径（本机时区墙钟），另加跨年与可选钟点。
+		//   · 只写日期、没写钟点 ⇒ **仓库通用约定「起 00:00 / 止 23:59」**（同 p5x / 战双 / 星塔）：
+		//     `startTs` = 当日 00:00，`endTs` = 当日 23:59。**判断与显示用同一对 ts** ——
+		//     旧实现判断用 23:59:59.999、显示另取 `endDayTs`（结束日 00:00），于是 2026-11-26 活网
+		//     审计看到「11-24 00:00 ~ 12-08 00:00」（终点比真实止期早一整天），已纠正。
+		//   · `raw` = 源站表格那一格**日期原文**（`11月24日 ～ 12月8日`），给 `bannerDatesRaw` 用。
 		function gkBaTableWindow(raw, nowYear) {
 			const s = String(raw || "").replace(/[（(][^）)]*[）)]/g, " ").trim();
 			if (!s) return null;
@@ -19555,8 +19564,8 @@ async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = now
 			if (!a || !b || b.ts <= a.ts) return null;
 			return {
 				startTs: a.ts,
-				endTs: b.ts === b.dayTs ? b.dayTs + 86399999 : b.ts,
-				endDayTs: b.dayTs
+				endTs: b.ts === b.dayTs ? b.dayTs + GK_BA_DAY_LAST_MS : b.ts,
+				raw: String(raw || "").replace(/\u00a0/g, " ").trim()
 			};
 		}
 
@@ -19753,7 +19762,7 @@ async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = now
 			const tz = isJp ? TZ_JP : TZ_UTC;
 			const emitGameKeeArrays = (d) => {
 				if (d.banner && bannerWin) {
-					const gItems = [{ title: d.banner, startTs: bannerWin.startTs, endTs: bannerWin.endTs, raw: d.bannerDates }];
+					const gItems = [{ title: d.banner, startTs: bannerWin.startTs, endTs: bannerWin.endTs, raw: d.bannerDatesRaw || d.bannerDates }];
 					const gHover = hoverTextFromItems(gItems, "gacha", tz);
 					if (gHover) d.bannerHover = gHover;
 					d.gacha = dataArrayProducedGachaOf(d, gItems, { tz: tz }, now);
@@ -19762,7 +19771,7 @@ async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = now
 					d.gacha = [];      // 这一侧没数据 ⇒ 固定形状的空数组（与合成路径同一个下限）
 				}
 				if (d.event && eventWindow) {
-					const eItems = [{ title: d.event, startTs: eventWindow.startTs, endTs: eventWindow.endTs, raw: d.eventDates }];
+					const eItems = [{ title: d.event, startTs: eventWindow.startTs, endTs: eventWindow.endTs, raw: d.eventDatesRaw || d.eventDates }];
 					const eHover = hoverTextFromItems(eItems, "event", tz);
 					if (eHover) d.eventHover = eHover;
 					d.events = dataArrayProducedEventsOf(d, eItems, { tz: tz }, now);
@@ -19789,7 +19798,7 @@ async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = now
 					}
 				}
 			}
-			// 4. 活动侧（两侧共用，现状不变）
+			// 4. 活动侧（两侧共用）
 			let eventWindow = null;
 			const eventTitle = eventEntry ? await getTitle(eventEntry) : "";
 			if (eventTitle) {
@@ -19810,6 +19819,17 @@ async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = now
 						.trim();
 					data.event = cleaned || String(eventTitle).replace(/【[^】]*\d[^】]*】/g, "").trim();
 					data.eventDates = rng.raw;
+					if (!isJp) {
+						// 国际服：标题里只有日期（GameKee 不写钟点）⇒ 按仓库通用约定展开成 `00:00 ~ 23:59`，
+						// `eventDatesRaw` 保留标题括起的**日期原文**（含 `～` / `~` 与空格写法，逐字不动）。
+						// 理由同 banner 侧：终点写 00:00 会让最后一整天整段消失（2026-11-26 活网审计的现场）。
+						data.eventDatesRaw = rng.dateText || data.eventDates;
+						eventWindow = { startTs: rng.startTs, endTs: rng.endTs + GK_BA_DAY_LAST_MS };
+						data.eventDates = fmtWindow(eventWindow.startTs, eventWindow.endTs);
+					} else {
+						// 日服（GameKee 仅作**手动备选**）：保持原读数，不在本轮范围内改口径。
+						eventWindow = rng;
+					}
 				}
 			}
 			if (isJp) {
@@ -19823,11 +19843,13 @@ async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = now
 			if (!pool) return null;
 			data.banner = GK_BA_POOL_BANNER;
 			data.roles = pool.roles;
-			// 显示用 `endDayTs`（日粒度，两端都落在 00:00）：与上一轮标题口径的读数一致（10-13 00:00 ~ 10-27 00:00）
+			// 表里只有日期 ⇒ 同样展开成 `00:00 ~ 23:59`（判断/显示共用 `pool.win.endTs`）；
+			// `bannerDatesRaw` = 表格里那一格的**日期原文**（如 `11月24日 ～ 12月8日`）。
 			// ⚠️ 不传 tz 的理由同上面 `evDates`：`pool.win` 的 ts 由 `gkBaTableWindow` 的本机墙钟合成，
 			//    解析与渲染同口径 ⇒ 文本 roundtrip 稳定；改成传 tz 必须同时改解析方向，否则反而出错。
-			data.bannerDates = fmtWindow(pool.win.startTs, pool.win.endDayTs);
-			bannerWin = { startTs: pool.win.startTs, endTs: pool.win.endDayTs };
+			data.bannerDates = fmtWindow(pool.win.startTs, pool.win.endTs);
+			data.bannerDatesRaw = pool.win.raw || "";
+			bannerWin = { startTs: pool.win.startTs, endTs: pool.win.endTs };
 			return emitGameKeeArrays(data);
 		}
 
@@ -20481,12 +20503,18 @@ async function ns_sekai_eventsSekai(url, signal, tz = "Asia/Shanghai", now = now
 				altSources: [
 					{ label: "GameKee 当期卡池", id: "ba-jp:gamekee", fetcher: "ba-jp-gamekee" }
 				],
-				// 活动源与卡池源保持独立（解耦）：默认仍是原「GameKee 当期活动」条目；
-				// 官方公告的イベント条目作为**可选备选**（备选 value 用其接口地址，抓取器 ba-jp-official）
-				eventUrl: "https://www.gamekee.com/ba/huodong/15",
-				eventSource: "GameKee 当期活动",
+				// 活动默认源 = **官方公告**（2026-11-26 活网审计 B ①；与卡池侧共用同一个接口地址）：
+				//   · 「イベント」条目正文的 `▼開催期間 2026年11月25日(水) メンテナンス後 ~ 2026年12月9日(水) 10:59`
+				//     是**逐字、精到分钟**的官方档期；`メンテナンス後` 起点按同期维护公告的维护结束时刻
+				//     （11/25 11:00-19:00 ⇒ 19:00）锚定 —— 卡池侧同一套锚点。
+				//   · 旧默认是 GameKee「日服 卡池&活动」标题（只写 `【11/25-12/09】`，日粒度），
+				//     显示成 `11-25 00:00 ~ 12-09 00:00`，起点早 19 小时、终点早 10h59。
+				//   · GameKee 降为**手动备选**（仍可在设置页切回；抓取器键 `ba-jp-gamekee`，
+				//     备选标识 `id: "ba-jp:gamekee"` 与旧配置伪地址 `gk-jp:` 归一后一致，老配置不会掉源）。
+				eventUrl: BA_JP_NEWS_URL,
+				eventSource: "官方公告（日文）",
 				eventAltSources: [
-					{ label: "官方公告（日文）", url: BA_JP_NEWS_URL, fetcher: "ba-jp-official" }
+					{ label: "GameKee 当期活动", id: "ba-jp:gamekee", fetcher: "ba-jp-gamekee" }
 				]
 		});
 
@@ -20510,10 +20538,11 @@ EVENT_FETCHERS["ba-global"] = {
 				"ba-global-gamekee": () => fetchGameKeeBa("global"),
 				"ba-global-nexon": (url, signal, tz) => fetchBaGlobal(url, signal, tz)
 			};
-					// 蔚蓝日服：活动源与卡池源独立——默认 GameKee 当期活动条目（原行为不变）；
-			// 备选 = 日服官方公告里的イベント条目（抓取器复用官方解析，仅取 event/eventDates）
+					// 蔚蓝日服：活动默认 = **官方公告**「イベント」条目（精到分钟，2026-11-26 审计 B ①）；
+			// 备选 = GameKee「日服 卡池&活动」标题（日粒度，手动切回用；抓取器键 ba-jp-gamekee）
 EVENT_FETCHERS["ba-jp"] = {
-				default: () => fetchGameKeeBa("jp"),
+				default: (url, signal, tz) => fetchBaJpOfficialEvent(url, signal, tz),
+				"ba-jp-gamekee": () => fetchGameKeeBa("jp"),
 				"ba-jp-official": (url, signal, tz) => fetchBaJpOfficialEvent(url, signal, tz)
 			};
 

@@ -426,10 +426,12 @@ export default async function run() {
 	//   `range2` 现在只被**活动备选源**「PRTS 活动一览」那一处调用（`collectPrtsEvents`），仍是同一类风险。）
 	// 为什么必须静态扫：+08 机器上源站时区恰好等于本机 ⇒ 这个 bug 本地永远看不出来；
 	//   门禁虽然跑 UTC，但只有"断言了具体字面量"才抓得住（见 cases-tz ⑦ 的两游戏用例）。
-	// 允许"不传 tz"的只有下面 4 处（每条都在源码注释里写明原因）：
+	// 允许"不传 tz"的只有下面 5 处（每条都在源码注释里写明原因）：
 	//   · 2 处**显示层**（81-schedule-model.js 的 localWin / localWinText：外显 = 用户本机时区）；
-	//   · 2 处**本机墙钟同源解析**（30-game-bluearchive.js：ts 由本机墙钟 `new Date(...)` 合成，
+	//   · 3 处**本机墙钟同源解析**（30-game-bluearchive.js：ts 由本机墙钟 `new Date(...)` 合成，
 	//     解析/渲染同口径 ⇒ 文本 roundtrip 稳定；改传 tz 必须同时改解析方向，属另一类问题）。
+	//     第三处是 2026-11-26 修 ba-global / ba-jp(GameKee 备选) 日粒度窗口时新增的
+	//     `eventWindow.startTs, eventWindow.endTs`（标题只有日期 ⇒ 00:00 ~ 23:59）。
 	{
 		const argsOf = (code, open) => {
 			let depth = 1, i = open;
@@ -448,7 +450,8 @@ export default async function run() {
 			"fmtWindow|startTs, endTs",                        // 81-schedule-model.js localWin（显示层）
 			"fmtWindow|r.startTs + sa, r.endTs + sb",          // 81-schedule-model.js localWinText（显示层）
 			"fmtWindow|eventRow.startTs, eventRow.endTs",      // 30-game-bluearchive.js（本机墙钟同源解析）
-			"fmtWindow|pool.win.startTs, pool.win.endDayTs"    // 30-game-bluearchive.js（同上）
+			"fmtWindow|pool.win.startTs, pool.win.endTs",      // 30-game-bluearchive.js（同上）
+			"fmtWindow|eventWindow.startTs, eventWindow.endTs" // 30-game-bluearchive.js（同上）
 		]);
 		const bad = [];
 		let calls = 0;
