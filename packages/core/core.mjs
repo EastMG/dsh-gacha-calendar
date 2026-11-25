@@ -8317,6 +8317,9 @@ EVENT_FETCHERS["bh2"] = Object.assign(EVENT_FETCHERS["bh2"] || {}, {
 //          `>>补给信息`，但**礼包窗口与补给窗口一致**（跃升武装/跃升补给三条同帖文本互证：
 //          礼包 `11月6日12:00~11月26日04:00` == 同帖 `>>开放时间` 的区间）；
 //       ③ 两处都没有 ⇒ **只出名称/角色、不起档期**（`bannerDates` / `bannerDatesRaw` 留空，显示层按长期画）。
+//          ⚠️ 2026-11-26：③ 的那类帖不再只留外显一条 —— 同批里"正文完全没写时间"的补给帖
+//          （真机《装备补给丨濯海之蕊&谐谑奇锋》）**以名称进 `gacha[]`**（ts/raw 留空），
+//          当期外显仍只从"有窗口且在期"的里挑（拿不到窗口就不当当期外显）。
 //     ⚠️ `dtEndTime` **一个字节都不读**：30/30 恒为 `2035-01-01 00:00:00` 占位（源站的"无结束"哨兵）。
 //        上一版把它当权威 ⇒ 整批档期落在 2035；这一版宁可留空，也不把哨兵当年份。
 //     `dtStartTime` 不当补给开始时刻（实测 跃升武装帖 `dtStartTime`=11-03 18:30，而 `>>开放时间` 写 11-06 12:00
@@ -8331,7 +8334,10 @@ EVENT_FETCHERS["bh2"] = Object.assign(EVENT_FETCHERS["bh2"] || {}, {
 //       区间两种写法：
 //         `11月12日10:00~11月26日04:00`             ← 两端绝对时刻
 //         `9.1版本更新后~11月6日12:00`               ← 起点是相对表述 ⇒ startTs=null（仓库口径），raw 原样保留
+//         `9.2版本更新后~2027年1月8日12:00`          ← 终点带年份（2026-11-26 补：端点可选 `YYYY年`）
 //       无年份：借 `dtStartTime` 的年份与月份（共用 `inferYear`）；结束月日小于开始 ⇒ 次年（`endsNextYear`）。
+//       时间块：`>>开放时间` / `【活动时间】` 的**每一个**标签块都要看（一帖里前面常有一个不带区间的
+//       「主线开启时刻」块），见 `ns_batch2_bh3EventRangesOf`。
 //     标题就是源站标题（`晚秋拾光丨参与活动获取3★圣痕等奖励`），不拆「丨」后半句 —— 与其它来源一致。
 
 const NS_BATCH2_BH3_TZ = "Asia/Shanghai";
@@ -8372,20 +8378,27 @@ function ns_batch2_bh3InstantOf(hint, tz) {
 // 区间两种写法（`raw` 保留源站原文；分隔符实测有 `~` / `～` / `-` / `–`）：
 //   `11月12日10:00~11月26日04:00`
 //   `9.1版本更新后~11月6日12:00`
-const NS_BATCH2_BH3_ABS_RANGE_RE = /(\d{1,2})月(\d{1,2})日\s*(\d{1,2}):(\d{2})\s*[~～\-–—]\s*(\d{1,2})月(\d{1,2})日\s*(\d{1,2}):(\d{2})/;
-const NS_BATCH2_BH3_REL_RANGE_RE = /(?:\d+(?:\.\d+)?\s*版本更新后|版本更新后|维护后|更新后|开服后)\s*[~～\-–—]\s*(\d{1,2})月(\d{1,2})日\s*(\d{1,2}):(\d{2})/;
+//   `9.2版本更新后~2027年1月8日12:00`   ← 2026-11-26：端点带年份（跨年窗口的真实写法）
+// ⚠️ 2026-11-26（真机 9.2）：两个端点都改成「可选年份 `YYYY年` + M月D日」——
+//    旧正则只认 `M月D日` ⇒ `2027年1月8日` 整段匹配不上 ⇒ `win=null` ⇒ 在期过滤时整条池/活动被丢
+//    （协同补给·薇塔 / 度星终端·覆羽终端 / 游羽欣临 等 5 条活动）。写了年份就以源站为准（不猜）。
+const NS_BATCH2_BH3_ABS_RANGE_RE = /(?:(\d{4})\s*年)?(\d{1,2})月(\d{1,2})日\s*(\d{1,2}):(\d{2})\s*[~～\-–—]\s*(?:(\d{4})\s*年)?(\d{1,2})月(\d{1,2})日\s*(\d{1,2}):(\d{2})/;
+const NS_BATCH2_BH3_REL_RANGE_RE = /(?:\d+(?:\.\d+)?\s*版本更新后|版本更新后|维护后|更新后|开服后)\s*[~～\-–—]\s*(?:(\d{4})\s*年)?(\d{1,2})月(\d{1,2})日\s*(\d{1,2}):(\d{2})/;
 
 /** 一段匹配到的区间文本 → `{ startTs, endTs, raw, display }`；读不出返回 null（不硬凑）。 */
 function ns_batch2_bh3RangeOf(text, hint, tz) {
 	const s = String(text == null ? "" : text);
 	const a = NS_BATCH2_BH3_ABS_RANGE_RE.exec(s);
 	if (a) {
-		const sm = Number(a[1]), sd = Number(a[2]), sh = Number(a[3]), smi = Number(a[4]);
-		const em = Number(a[5]), ed = Number(a[6]), eh = Number(a[7]), emi = Number(a[8]);
-		const sy = inferYear(null, sm, hint);
-		let ey = inferYear(null, em, hint);
+		// 端点自带的年份（写了就不借 hint 补、也不按"结束月日靠前"推次年 —— 源站明说了）
+		const startYear = a[1] != null ? Number(a[1]) : null;
+		const sm = Number(a[2]), sd = Number(a[3]), sh = Number(a[4]), smi = Number(a[5]);
+		const endYear = a[6] != null ? Number(a[6]) : null;
+		const em = Number(a[7]), ed = Number(a[8]), eh = Number(a[9]), emi = Number(a[10]);
+		const sy = startYear != null ? startYear : inferYear(null, sm, hint);
+		let ey = endYear != null ? endYear : inferYear(null, em, hint);
 		if (sy == null || ey == null) return null;
-		if (endsNextYear(sm, sd, em, ed)) ey += 1;
+		if (endYear == null && endsNextYear(sm, sd, em, ed)) ey += 1;
 		const startTs = sourceInstant(sy, sm, sd, sh, smi, tz);
 		const endTs = sourceInstant(ey, em, ed, eh, emi, tz);
 		if (!(endTs > startTs)) return null;
@@ -8393,13 +8406,14 @@ function ns_batch2_bh3RangeOf(text, hint, tz) {
 	}
 	const r = NS_BATCH2_BH3_REL_RANGE_RE.exec(s);
 	if (r) {
-		const em = Number(r[1]), ed = Number(r[2]), eh = Number(r[3]), emi = Number(r[4]);
-		let ey = inferYear(null, em, hint);
+		const endYear = r[1] != null ? Number(r[1]) : null;
+		const em = Number(r[2]), ed = Number(r[3]), eh = Number(r[4]), emi = Number(r[5]);
+		let ey = endYear != null ? endYear : inferYear(null, em, hint);
 		if (ey == null) return null;
 		const hintTs = ns_batch2_bh3InstantOf(hint, tz);
 		let endTs = sourceInstant(ey, em, ed, eh, emi, tz);
-		// 「12月30日更新后 ~ 1月5日」这类跨年：补一个年份再解一次
-		if (endTs < hintTs - 60 * 864e5) endTs = sourceInstant(ey + 1, em, ed, eh, emi, tz);
+		// 「12月30日更新后 ~ 1月5日」这类跨年：补一个年份再解一次（终点写了年份就不猜）
+		if (endYear == null && endTs < hintTs - 60 * 864e5) endTs = sourceInstant(ey + 1, em, ed, eh, emi, tz);
 		if (!(endTs > hintTs - 400 * 864e5)) return null;
 		// 起点是相对表述 ⇒ startTs=null（仓库口径：起点未知 ≠ 已开始），display 原样保留原文
 		return { startTs: null, endTs, raw: r[0], display: r[0] };
@@ -8444,9 +8458,40 @@ function ns_batch2_bh3BlockAfter(text, labelRe) {
 	return (stop >= 0 ? rest.slice(0, stop) : rest).trim();
 }
 
-/** 活动正文里的时间块（`>>开放时间` / `【活动时间】`）。 */
+/** 活动正文里的时间块（`>>开放时间` / `【活动时间】`）——**第一个**标签块（历史入口，反证用）。 */
 function ns_batch2_bh3EventBlockOf(text) {
 	return ns_batch2_bh3BlockAfter(text, NS_BATCH2_BH3_TIME_LABEL_RE);
+}
+
+/**
+ * 活动正文里**全部**时间标签块 → 区间数组（按文档顺序，同一段 raw 只留一次）。
+ * ⚠️ 2026-11-26（真机《海正用火的声音歌唱》）：一帖里常先写一个**不带区间**的
+ *    `【开放时间】10月5日10:00`（主线开启时刻），真正的活动区间写在后面另一段的
+ *    `【活动时间】10月5日10:00~11月26日04:00`。只看第一个标签块 ⇒ 截出的是单个时刻 ⇒
+ *    整条活动被判"没有活动时间"而丢掉（当期 10 条里少 1 条）。
+ *    这里逐个标签块各取一次区间；仍然**只认标签块**，不在全文里兜底找区间
+ *    （否则「金币商店 11月23日04:00~11月26日04:00」这类子窗口会被当成活动期）。
+ */
+function ns_batch2_bh3EventRangesOf(text, hint, tz) {
+	const t = String(text == null ? "" : text);
+	const re = new RegExp(NS_BATCH2_BH3_TIME_LABEL_RE.source, "g");
+	const out = [];
+	const seen = new Set();
+	let m;
+	while ((m = re.exec(t)) !== null) {
+		const rest = t.slice(m.index + m[0].length);
+		const stop = rest.search(/\n\s*(?:【|>>|=====)/);
+		const block = (stop >= 0 ? rest.slice(0, stop) : rest).trim();
+		if (block) {
+			for (const w of ns_batch2_bh3RangesOf(block, hint, tz)) {
+				if (seen.has(w.raw)) continue;
+				seen.add(w.raw);
+				out.push(w);
+			}
+		}
+		if (m.index === re.lastIndex) re.lastIndex++;
+	}
+	return out;
 }
 
 /** 多段窗口里挑一段：优先覆盖 now 的（相对起点的 startTs=null 也接受），否则结束最早的那段。 */
@@ -8458,13 +8503,13 @@ function ns_batch2_bh3PickWindowOf(wins, now) {
 	return pool.slice().sort((a, b) => (a.endTs - b.endTs))[0];
 }
 
-/** 一条活动帖的**那一段**窗口：块内多段时取覆盖 now 的（或结束最近的）那段。 */
+/** 一条活动帖的**那一段**窗口：全部标签块里的多段区间里取覆盖 now 的（或结束最近的）那段。 */
 function ns_batch2_bh3EventWindowOf(text, hint, tz, now) {
-	const block = ns_batch2_bh3EventBlockOf(text);
 	// ⚠️ **只认时间标签块**，不在全文里兜底找区间：正文里的「金币商店 11月23日04:00~11月26日04:00」
 	//    这类子窗口会被误当成活动期（2026-11-11 实测 30 条里 13 条没有活动时间块，全文兜底会把
 	//    其中 11 条硬凑出一条假档期）。没有块 ⇒ 这条帖如实不进日历，**不补时刻**。
-	return ns_batch2_bh3PickWindowOf(block ? ns_batch2_bh3RangesOf(block, hint, tz) : [], now);
+	// 2026-11-26：块要**逐个**看（一帖里前面常有一个不带区间的「主线开启时刻」标签块），见上面说明。
+	return ns_batch2_bh3PickWindowOf(ns_batch2_bh3EventRangesOf(text, hint, tz), now);
 }
 
 /** 活动频道 → 条目事实数组（无窗口的帖如实跳过）。 */
@@ -8596,6 +8641,7 @@ function ns_batch2_bh3GachaPayloadOf(json, tz, now) {
 		bannerDatesRaw: win ? win.raw : ""
 	};
 	let entries = [];
+	let arrayEntries = entries;
 	if (live.length > 0) {
 		// ⚠️ 先摊平成条目事实、**再**排序：`poolHoverOrderOf` 读的是 `endTs` / `startTs`，
 		//    直接对 `{ win: {…} }` 那层排会全是 undefined（= 全 Infinity，顺序等于没排）。
@@ -8609,8 +8655,20 @@ function ns_batch2_bh3GachaPayloadOf(json, tz, now) {
 		const hover = hoverTextFromItems(entries, "gacha", tz);
 		if (hover) out.bannerHover = hover;
 		out.gachaHoverItems = entries;
+		// ⚠️ 2026-11-26（真机《装备补给丨濯海之蕊&谐谑奇锋》）：正文**完全没写时间**的补给帖
+		//    （`>>补给信息` 只有图片、也没有商城礼包行）既拿不到档期，也不该整条消失 ——
+		//    **以名称进数组**（raw / ts 留空 = "档期未知"这一事实），但**不当当期外显**
+		//    （外显仍只从"有窗口且在期"的那些里挑）。
+		//    只捞**同一批**（发布日期不早于任一在期池的）—— 否则几个月前的旧补给帖会全被带出来；
+		//    悬停文本仍是"有档期的那几池"（悬停排版要求每条都有档期，名称行没有档期会破排版）。
+		const batchSince = live.reduce((acc, r) => Math.min(acc, r.postedTs), Infinity);
+		arrayEntries = entries.concat(
+			started
+				.filter((r) => !r.win && r.postedTs >= batchSince)
+				.map((r) => ({ title: r.title, startTs: null, endTs: null, raw: "" }))
+		);
 	}
-	out.gacha = dataArrayProducedGachaOf(out, entries, { tz }, now);
+	out.gacha = dataArrayProducedGachaOf(out, arrayEntries, { tz }, now);
 	return out;
 }
 

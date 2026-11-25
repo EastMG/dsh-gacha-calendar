@@ -666,6 +666,7 @@
 				ns_batch2_bh3EventBlockOf,
 				ns_batch2_bh3EventItemsOf,
 				ns_batch2_bh3EventPayloadOf,
+				ns_batch2_bh3EventRangesOf,
 				ns_batch2_bh3EventWindowOf,
 				ns_batch2_bh3GachaPayloadOf,
 				ns_batch2_bh3GachaWindowOf,

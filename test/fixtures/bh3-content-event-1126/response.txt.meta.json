@@ -1,0 +1,6 @@
+{
+  "url": "https://act-api-takumi-static.mihoyo.com/content_v2_user/app/b9d5f96cd69047eb/getContentList?iChanId=696&iPageSize=30&iPage=1&sLangKey=zh-cn",
+  "status": 200,
+  "capturedAt": "2026-11-25T17:53:00.000Z",
+  "trim": "2026-11-26 01:53 +08 真抓的 iChanId=696 活动频道（_audit-A-raw/bh3.event.0.txt）里保留 16 条：当期 15 条（含 4 条「9.2版本更新后~2027年1月28日…」= 游羽欣临/星愿祈礼/旧日来客/旧日来客/V9.2作战凭证，以及《海正用火的声音歌唱》——它第一个标签块 `【开放时间】10月5日10:00` 不带区间、真区间在后面的 `【活动时间】`）+ 1 条已结束的周年累消（10-05~11-06，用来钉\"过期的不进悬停\"）。每条只留 iInfoId / sTitle / sContent / dtStartTime / dtEndTime。"
+}

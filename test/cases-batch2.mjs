@@ -142,12 +142,22 @@ export default async function runBatch2() {
 			!!gp && JSON.stringify(gp).indexOf("2035") < 0, JSON.stringify(gp && gp.bannerDatesRaw));
 		check("源站该条 dtEndTime 确实是 2035 占位（反证：解析器根本没读它）",
 			String(gJson.data.list[0].dtEndTime).startsWith("2035-01-01"), gJson.data.list[0].dtEndTime);
-		check("`gacha[]` 4 条在期池（主条 source=primary 在数组里，ts 逐条非空）",
-			!!gp && Array.isArray(gp.gacha) && gp.gacha.length === 4
+		// ⚠️ 2026-11-26 **已批准差异**（真机《装备补给丨濯海之蕊&谐谑奇锋》）：正文**完全没写时间**的补给帖
+		//    不再整条消失 —— 同批（发布日期不早于任一在期池）里它**以名称进 `gacha[]`**（ts/raw 留空），
+		//    当期外显仍只从"有窗口且在期"的里挑。golden 因此从 4 条变 5 条；悬停仍是 4 口有档期的池
+		//    （悬停排版要求每条都有档期）。反向证明见下面 ①-3 的「名称条目」断言与本节末尾的对照。
+		check("`gacha[]` 5 条 = 4 条在期池（ts 逐条非空）+ 1 条「正文没写时间」的名称条目（濯海之蕊，ts=null）",
+			!!gp && Array.isArray(gp.gacha) && gp.gacha.length === 5
 			&& gp.gacha.filter((x) => x.source === "primary").length === 1
-			&& gp.gacha.every((x) => x.startTs != null && x.endTs != null)
+			&& gp.gacha.filter((x) => x.startTs != null && x.endTs != null).length === 4
 			&& gp.gacha.find((x) => x.source === "primary").title === gp.banner,
-			JSON.stringify(gp && gp.gacha.map((x) => [x.title, x.source])));
+			JSON.stringify(gp && gp.gacha.map((x) => [x.title, x.source, x.startTs])));
+		check("名称条目逐字 = 「装备补给丨濯海之蕊&谐谑奇锋」，raw 空、两端 ts=null（= 档期未知这一事实，不猜窗口）",
+			!!gp && (() => {
+				const x = gp.gacha.find((y) => y.title === "装备补给丨濯海之蕊&谐谑奇锋");
+				return !!x && x.source === "hover" && x.startTs === null && x.endTs === null && !x.raw;
+			})(),
+			JSON.stringify(gp && gp.gacha.filter((x) => x.startTs === null).map((x) => [x.title, x.raw])));
 		check("在期池含「时光追忆丨服装补给限时开启！」（10-30 ~ 11-13，`>>开放时间` 而不是礼包）",
 			!!gp && gp.gacha.some((x) => x.title === "时光追忆丨服装补给限时开启！"
 				&& x.startTs === Date.UTC(2026, 9, 30, 4, 0) && x.endTs === Date.UTC(2026, 10, 13, 4, 0)),
@@ -209,7 +219,12 @@ export default async function runBatch2() {
 	{
 		const eJson = JSON.parse(fixtureBody(BH3_E));
 		bh3Items = B.ns_batch2_bh3EventItemsOf(eJson, "Asia/Shanghai", NOW);
-		check("活动条目事实 = 27 条（30 条里 27 条有时间块）", bh3Items.length === 27, String(bh3Items.length));
+		// ⚠️ 2026-11-26 **已批准差异**：`ns_batch2_bh3EventWindowOf` 改成逐个时间标签块各取区间
+		//    （原来只看**第一个**标签块）。《海正用火的声音歌唱》的第一个块是 `【开放时间】10月5日10:00`
+		//    （单个时刻 ⇒ 非区间），真正的活动区间写在后面的 `【活动时间】10月5日10:00~11月26日04:00`
+		//    ⇒ 旧实现把这一条整条丢掉（27 条）。新口径 28 条；反向证明见 ①-4「反证 E」。
+		check("活动条目事实 = 28 条（30 条里 28 条有时间块；+1 = 海正用火的声音歌唱，它的区间在第二个标签块）",
+			bh3Items.length === 28, String(bh3Items.length));
 		const first = bh3Items[0] || {};
 		check("首条名称逐字「晚秋拾光丨参与活动获取3★圣痕等奖励」",
 			first.title === "晚秋拾光丨参与活动获取3★圣痕等奖励", JSON.stringify(first.title));
@@ -224,8 +239,14 @@ export default async function runBatch2() {
 			first.tz === "Asia/Shanghai" && first.source === "hover", JSON.stringify([first.tz, first.source]));
 
 		const absent = eJson.data.list.map((x) => x.sTitle).filter((t) => !bh3Items.some((i) => i.title === t));
-		check("3 条主线更新稿（正文没有活动时间块）**如实不进日历**，不补时刻",
-			absent.length === 3 && absent.every((t) => /主线|终章/.test(t)), JSON.stringify(absent));
+		check("2 条主线更新稿（正文没有**任何**时间区间）**如实不进日历**，不补时刻",
+			absent.length === 2 && absent.every((t) => /主线|终章/.test(t)), JSON.stringify(absent));
+		// 已批准差异的另一面：海正用火**这一条**现在进来了（区间来自第二个标签块，不是全文兜底）
+		const hai = bh3Items.find((x) => x.title.startsWith("海正用火的声音歌唱")) || {};
+		check("《海正用火的声音歌唱》现在有窗口：10-05 10:00 ~ 11-26 04:00 +08（区间来自后面的【活动时间】块）",
+			hai.startTs === Date.UTC(2026, 9, 5, 2, 0) && hai.endTs === Date.UTC(2026, 10, 25, 20, 0)
+			&& hai.raw === "10月5日10:00~11月26日04:00",
+			JSON.stringify([hai.startTs, hai.endTs, hai.raw]));
 
 		const rel = bh3Items.find((x) => x.title.startsWith("甜趣沙集")) || {};
 		check("相对起点「9.1版本更新后~11月26日04:00」⇒ startTs=null / endTs 绝对 / display 原样保留",
@@ -244,10 +265,11 @@ export default async function runBatch2() {
 			!!bh3Pay && bh3Pay.eventDates === "11-05 10:00 ~ 11-26 04:00"
 			&& bh3Pay.eventDatesRaw === "11月5日10:00~11月26日04:00",
 			JSON.stringify([bh3Pay && bh3Pay.eventDates, bh3Pay && bh3Pay.eventDatesRaw]));
-		check("活动悬停逐字 9 行（6 条两端明确 + 3 条相对起点印原文；结束时间升序）",
+		check("活动悬停逐字 10 行（7 条两端明确 + 3 条相对起点印原文；结束时间升序）",
 			!!bh3Pay && bh3Pay.eventHover === [
 				"忆旅的流彩叙映丨完成数据回顾获取水晶等奖励   09-28 10:00 ~ 11-26 04:00",
 				"溯梦之行 | 七日登录领取S级角色卡等奖励   10-01 04:00 ~ 11-26 04:00",
+				"海正用火的声音歌唱丨全新主线更新，参与获取携梦待曙礼盒、水晶等奖励   10-05 10:00 ~ 11-26 04:00",
 				"英雄远征：神谕试炼丨参与活动得水晶、根源棱镜等奖励   10-12 10:00 ~ 11-26 04:00",
 				"畅游吼姆世界：好友成群丨参与得服装自选箱、水晶等奖励   10-22 10:00 ~ 11-26 04:00",
 				"银海拾忆 | 完成任务赢取手办、角色自选箱等好礼   10-22 12:00 ~ 11-26 04:00",
@@ -256,9 +278,9 @@ export default async function runBatch2() {
 				"行于曙光丨七日登录领圣痕自选箱、水晶等奖励   9.1版本更新后~11月26日04:00",
 				"V9.1作战凭证开启   9.1版本更新后~11月26日06:00"
 			].join("\n"), JSON.stringify(bh3Pay && bh3Pay.eventHover));
-		check("`events[]` 9 条：6 条带绝对 ts、3 条相对起点在数组派生口径下 ts=null（已知下游口径）",
-			!!bh3Pay && bh3Pay.events.length === 9
-			&& bh3Pay.events.filter((x) => x.startTs != null && x.endTs != null).length === 6
+		check("`events[]` 10 条：7 条带绝对 ts、3 条相对起点在数组派生口径下 ts=null（已知下游口径）",
+			!!bh3Pay && bh3Pay.events.length === 10
+			&& bh3Pay.events.filter((x) => x.startTs != null && x.endTs != null).length === 7
 			&& bh3Pay.events.filter((x) => x.startTs == null).length === 3,
 			JSON.stringify((bh3Pay && bh3Pay.events || []).map((x) => [x.title.slice(0, 10), x.startTs, x.endTs])));
 		check("活动侧 1 次请求、全程经代理、同一条 Referer",
@@ -282,8 +304,8 @@ export default async function runBatch2() {
 			&& rec.event === "双核协战丨参与活动获取活动勋章、水晶等奖励！"
 			&& rec.eventDates === "11-05 10:00 ~ 11-26 04:00",
 			JSON.stringify([rec.banner, rec.roles, rec.bannerDates, rec.event, rec.eventDates]));
-		check("整轮记录：gacha 4 条 / events 9 条，key 带 bh3 前缀",
-			rec.gacha.length === 4 && rec.events.length === 9
+		check("整轮记录：gacha 5 条 / events 10 条，key 带 bh3 前缀",
+			rec.gacha.length === 5 && rec.events.length === 10
 			&& rec.gacha[0].key === "bh3:gacha:0" && rec.events[0].key === "bh3:event:0",
 			JSON.stringify([rec.gacha.length, rec.events.length, rec.gacha[0] && rec.gacha[0].key]));
 	}
@@ -323,6 +345,112 @@ export default async function runBatch2() {
 			!!B.ns_batch2_bh3GachaWindowOf(giftText, giftHint, "Asia/Shanghai", NOW)
 			&& B.ns_batch2_bh3GachaWindowOf(giftText.replace(/【上架时间】/g, "上市时间"), giftHint, "Asia/Shanghai", NOW) === null,
 			JSON.stringify(B.ns_batch2_bh3GachaWindowOf(giftText.replace(/【上架时间】/g, "上市时间"), giftHint, "Asia/Shanghai", NOW)));
+	}
+
+	// ── ①-5 2026-11-26 真机：带年份终点（2027年1月8日）/ 无时间补给帖 / 多时间块 ──
+	// 现场（_audit-A-raw/bh3.gacha.0.txt + bh3.event.0.txt，2026-11-26 01:53 +08 真抓）：
+	//   · 《协同补给丨协同者「薇塔」》`>>开放时间 9.2版本更新后~2027年1月8日12:00`
+	//   · 《度星终端迭代丨神之键「覆羽终端」》同窗口（区间写在「养成活动」段的【开放时间】）
+	//   · 《装备补给丨濯海之蕊&谐谑奇锋》正文**完全没有时间**（`>>补给信息` 只有图片）
+	//   · 《海正用火的声音歌唱》第一个标签块 `【开放时间】10月5日10:00` 不带区间，真区间在后面
+	//   · 活动侧 5 条当期帖子终点都是 `2027年1月28日…`
+	// 旧实现：终点只认 `M月D日` ⇒ 2027 那批整条消失；只看第一个标签块 ⇒ 海正用火 整条消失；
+	//         无时间帖 ⇒ 整条消失。三类都钉在下面（每条都配一条反向证明）。
+	section("第二批①-5：2026-11-26 真机（2027年终点 / 无时间补给帖 / 多时间块）—— 三类丢数据修复");
+	{
+		const G1126 = JSON.parse(fixtureBody("fixture:bh3-content-gacha-1126",
+			{ "fixture:bh3-content-gacha-1126": "bh3-content-gacha-1126/response.txt" }));
+		const E1126 = JSON.parse(fixtureBody("fixture:bh3-content-event-1126",
+			{ "fixture:bh3-content-event-1126": "bh3-content-event-1126/response.txt" }));
+		const NOW1126 = Date.parse("2026-11-26T01:53:00+08:00");
+		const TZ = "Asia/Shanghai";
+		// 2027-01-08 12:00 +08 = 2027-01-08 04:00Z；2027-01-28 04:00 +08 = 2027-01-27 20:00Z（V9.2作战凭证是 06:00 ⇒ 22:00Z）
+		const END_2027_0108 = Date.UTC(2027, 0, 8, 4, 0);
+		const END_2027_0128 = Date.UTC(2027, 0, 27, 20, 0);
+		const END_2027_0128_6 = Date.UTC(2027, 0, 27, 22, 0);
+
+		// ── 卡池：薇塔 / 覆羽终端（2027 终点）+ 濯海之蕊（无时间，只进数组） ──
+		const gp = B.ns_batch2_bh3GachaPayloadOf(G1126, TZ, NOW1126);
+		const gItems = (gp && gp.gachaHoverItems) || [];
+		check("卡池：薇塔的窗口读出来了 —— 条目事实 raw 逐字「9.2版本更新后~2027年1月8日12:00」、endTs = 2027-01-08 12:00 +08、起点未知为空",
+			!!gp && (() => {
+				const x = gItems.find((y) => y.title === "协同补给丨协同者「薇塔」开放获取");
+				return !!x && x.raw === "9.2版本更新后~2027年1月8日12:00" && x.startTs === null && x.endTs === END_2027_0108;
+			})(),
+			JSON.stringify(gItems.filter((x) => /薇塔/.test(x.title))));
+		check("卡池：覆羽终端同窗口也在（区间来自「养成活动」段的【开放时间】块）",
+			!!gp && (() => {
+				const x = gItems.find((y) => y.title.indexOf("度星终端迭代") === 0);
+				return !!x && x.endTs === END_2027_0108 && x.startTs === null;
+			})(),
+			JSON.stringify(gItems.filter((x) => /覆羽终端/.test(x.title))));
+		check("卡池 `gacha[]` = 6 条：3 条在期（琉璃/跃升武装/跃升补给）+ 2 条 2027 终点 + 1 条无时间（濯海之蕊）",
+			!!gp && gp.gacha.length === 6
+			&& gp.gacha.filter((x) => x.startTs != null && x.endTs != null).length === 3
+			&& gItems.filter((x) => x.endTs === END_2027_0108).length === 2,
+			JSON.stringify(gp && gp.gacha.map((x) => [x.title, x.startTs, x.endTs])));
+		check("无时间稿：濯海之蕊**以名称进数组**（ts=null、raw 空），当期外显仍是「琉璃朱燧」（拿不到窗口就不当外显）",
+			!!gp && gp.banner === "装备补给丨琉璃朱燧&泣之哲人" && (() => {
+				const x = gp.gacha.find((y) => y.title.indexOf("濯海之蕊") >= 0);
+				return !!x && x.startTs === null && x.endTs === null && !x.raw;
+			})(),
+			JSON.stringify(gp && [gp.banner, gp.gacha.filter((x) => x.startTs === null).map((x) => x.title)]));
+		check("悬停 5 口有档期的池（含薇塔/覆羽终端原文行）；濯海之蕊不进悬停（悬停每条都要有档期）",
+			!!gp && String(gp.bannerHover || "").split("\n").filter((l) => /2027年1月8日12:00/.test(l)).length === 2
+			&& String(gp.bannerHover || "").indexOf("濯海之蕊") < 0
+			&& gItems.length === 5,
+			JSON.stringify(gp && gp.bannerHover));
+
+		// ── 活动：5 条 2027 终点 + 海正用火（第二个标签块） ──
+		const items = B.ns_batch2_bh3EventItemsOf(E1126, TZ, NOW1126);
+		const ep = B.ns_batch2_bh3EventPayloadOf(items, TZ, NOW1126);
+		const eItems = (ep && ep.eventHoverItems) || [];
+		check("活动：4 条「2027年1月28日」终点的帖子全在（游羽欣临 / 星愿祈礼 / 旧日来客 04:00；V9.2作战凭证 06:00）",
+			!!ep && ["游羽欣临", "星愿祈礼", "旧日来客"].every((k) =>
+				eItems.some((x) => x.title.indexOf(k) === 0 && x.endTs === END_2027_0128)
+				&& (ep.events || []).some((x) => x.title.indexOf(k) === 0))
+			&& eItems.some((x) => x.title.indexOf("V9.2作战凭证") === 0 && x.endTs === END_2027_0128_6),
+			JSON.stringify(eItems.map((x) => [x.title.slice(0, 8), x.endTs])));
+		check("活动：《海正用火的声音歌唱》在（区间来自第二个标签块 10月5日10:00~11月26日04:00，不是全文兜底）",
+			!!ep && eItems.some((x) => x.title.indexOf("海正用火的声音歌唱") === 0
+				&& x.startTs === Date.UTC(2026, 9, 5, 2, 0) && x.endTs === Date.UTC(2026, 10, 25, 20, 0)),
+			JSON.stringify(eItems.filter((x) => /海正/.test(x.title))));
+		check("活动 `events[]` = 15 条（= 审计现场「10 条 + 缺的 5 条」），含 2027/01/28 终点 3+1 条 + 海正用火",
+			!!ep && ep.events.length === 15 && eItems.length === 15
+			&& eItems.filter((x) => x.endTs === END_2027_0128).length === 3
+			&& eItems.filter((x) => x.endTs === END_2027_0128_6).length === 1,
+			JSON.stringify(ep && [ep.events.length, eItems.filter((x) => x.endTs === END_2027_0128).length]));
+		check("反向证明：已结束的《周年累消》（10-05~11-06）**不在** events[]（过期的窗口不当当期事实）",
+			!!ep && (ep.events || []).every((x) => x.title.indexOf("周年累消") < 0),
+			JSON.stringify(ep && (ep.events || []).map((x) => x.title.slice(0, 8))));
+
+		// ── 反向证明（纯函数）：三处修复各自都是必需的 ──
+		// 旧式相对区间正则（起点标签 + 终点只认 M月D日）—— 对 2027 那条整段匹配不上
+		const OLD_REL_RE = /(?:\d+(?:\.\d+)?\s*版本更新后|版本更新后|维护后|更新后|开服后)\s*[~～\-–—]\s*(\d{1,2})月(\d{1,2})日\s*(\d{1,2}):(\d{2})/;
+		check("反向证明①（带年份终点）：旧式「版本更新后~M月D日」正则解不了「~2027年1月8日12:00」（匹配为 null）",
+			OLD_REL_RE.exec("9.2版本更新后~2027年1月8日12:00") === null
+			&& B.ns_batch2_bh3RangeOf("9.2版本更新后~2027年1月8日12:00", { y: 2026, mo: 11, d: 24, h: 18, mi: 0 }, TZ).endTs === END_2027_0108);
+		check("反向证明②（端点年份写了两端）：`2026年12月30日12:00~2027年1月5日12:00` 按显式年份解（不再按「结束月日靠前」推次年）",
+			(() => {
+				const w = B.ns_batch2_bh3RangeOf("2026年12月30日12:00~2027年1月5日12:00", { y: 2026, mo: 11 }, TZ);
+				return !!w && w.startTs === Date.UTC(2026, 11, 30, 4, 0) && w.endTs === Date.UTC(2027, 0, 5, 4, 0);
+			})(),
+			JSON.stringify(B.ns_batch2_bh3RangeOf("2026年12月30日12:00~2027年1月5日12:00", { y: 2026, mo: 11 }, TZ)));
+		const haiItem = E1126.data.list.find((x) => String(x.sTitle).indexOf("海正用火的声音歌唱") === 0);
+		const haiText = B.ns_batch2_bh3Text(haiItem.sContent);
+		const haiHint = B.ns_batch2_bh3WallOf(haiItem.dtStartTime);
+		check("反向证明③（多时间块）：海正用火的**第一个**标签块没有区间（旧实现只看它 ⇒ 整条丢），逐个块取就有",
+			B.ns_batch2_bh3RangesOf(B.ns_batch2_bh3EventBlockOf(haiText), haiHint, TZ).length === 0
+			&& B.ns_batch2_bh3EventRangesOf(haiText, haiHint, TZ).length >= 1
+			&& B.ns_batch2_bh3EventWindowOf(haiText, haiHint, TZ, NOW1126).startTs === Date.UTC(2026, 9, 5, 2, 0),
+			JSON.stringify([B.ns_batch2_bh3EventBlockOf(haiText).slice(0, 20), B.ns_batch2_bh3EventRangesOf(haiText, haiHint, TZ).length]));
+		// 反向证明④（无窗口条目的范围）：把濯海之蕊的发布日期挪到半年前 ⇒ 它不属于"同一批" ⇒ 不被打进数组
+		const OLD = JSON.parse(JSON.stringify(G1126));
+		OLD.data.list.find((x) => String(x.sTitle).indexOf("濯海之蕊") >= 0).dtStartTime = "2026-06-01 18:00:00";
+		const gpOld = B.ns_batch2_bh3GachaPayloadOf(OLD, TZ, NOW1126);
+		check("反向证明④（同批范围）：半年前那条无时间帖**不**被带出来（gacha[] 回到 5 条，濯海不在）",
+			!!gpOld && gpOld.gacha.length === 5 && gpOld.gacha.every((x) => x.title.indexOf("濯海之蕊") < 0),
+			JSON.stringify(gpOld && gpOld.gacha.map((x) => x.title)));
 	}
 
 	// ═══════════════════ ② OurNotes 日服 SPICA ═══════════════════
