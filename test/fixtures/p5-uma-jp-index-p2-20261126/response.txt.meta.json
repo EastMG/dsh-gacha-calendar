@@ -1,0 +1,6 @@
+{
+  "url": "https://umamusume.jp/api/ajax/pr_info_index?format=json&page=2",
+  "status": 200,
+  "capturedAt": "2026-11-25T18:26:45.679Z",
+  "note": "活网审计 B 修复（2026-11-26）：日服 page2 快照。当期真卡池 3547（11/16~12/21、11/16~11/30）在这一页。"
+}

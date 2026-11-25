@@ -350,6 +350,7 @@
 				proxyUrlFor: ns_umamusume_official_proxyUrlFor,
 				tokenizeUma: ns_umamusume_official_tokenizeUma,
 				umaCurrentItems: ns_umamusume_official_umaCurrentItems,
+				umaGameLabelAllowed: ns_umamusume_official_umaGameLabelAllowed,
 				umaJpPageUrl: ns_umamusume_official_umaJpPageUrl,
 			},
 			"komoe": {
