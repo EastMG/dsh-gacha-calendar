@@ -1052,19 +1052,18 @@
 				kancolleResetCache: ns_kancolle_resetCache,
 				kancolleSectionsOf: ns_kancolle_sectionsOf
 			},
-			// 2026-11-15 闪耀暖暖·国服：**卡池侧已重做**。活动侧不变（首页 `__NEXT_DATA__` 的 4 条精选 +
-			// `/news/{id}` 的 `pageData.content_html`）；卡池侧改抓**新闻 API**（列表 `?section=1|0` +
-			// 详情 `/api/v1/news/{id}`），从正文的「限时感应活动：<池名>」/「主题活动/特别活动【<池名>】」+
-			// 「活动时间」读池名与档期（旧「从 4 条精选猜卡池」的路径已删）。回归可以分别钉住：
-			// 列表/详情的失败语义（`ret != 0`、`data:{}`、`{}` ⇒ 抛错）、新闻 id/时间（ISO UTC 不按墙钟解释）、
-			// 池名两种写法、当期逐字 + 绝对毫秒、「更新后」锚 09:30、无当期 ⇒ null、请求数
-			// （卡池侧首轮 2+15 / 稳态 2；`nikki4ResetCache` 只给回归用）。
+			// 2026-11-15 闪耀暖暖·国服：**卡池侧重做**；2026-11-26（活网审计 A）**活动侧也重做** ——
+			// 两侧现在同一套抓取形态：新闻 API（列表 `?section=1|0` + 详情 `/api/v1/news/{id}`）→
+			// 近 21 天候选 → 逐篇正文；卡池读「限时感应活动 / 主题活动·特别活动 + 活动时间」，
+			// 活动读「活动时间 / 感应时间 / 阁时间」锚点（感应档期由卡池侧出）。旧「首页 4 条精选」
+			// 活动路径及其 `homeOf` / `pageOf` / `nextDataOf` 已整段删除（不留死代码）。
+			// 回归可以分别钉住：列表/详情的失败语义（`ret != 0`、`data:{}`、`{}` ⇒ 抛错）、
+			// 新闻时间（ISO UTC 不按墙钟解释）、池名两种写法、当期逐字 + 绝对毫秒、
+			// 「更新后」锚 09:30、无当期 ⇒ null、请求数、两侧 `noOrigin`（403 反证）、
+			// 活动窗口的去重（同「名称 + 起止」只留一条）与 `nikki4ResetCache`。
 			"nikki4": {
 				NIKKI4_CACHE_TTL_MS: ns_nikki4_CACHE_TTL_MS,
-				NIKKI4_DETAIL_BASE: ns_nikki4_DETAIL_BASE,
-				NIKKI4_GACHA_MAX_DETAILS: ns_nikki4_GACHA_MAX_DETAILS,
 				NIKKI4_GACHA_SECTIONS: ns_nikki4_GACHA_SECTIONS,
-				NIKKI4_LIST_URL: ns_nikki4_LIST_URL,
 				NIKKI4_MAX_DETAILS: ns_nikki4_MAX_DETAILS,
 				NIKKI4_NEWS_API: ns_nikki4_NEWS_API,
 				NIKKI4_NEWSLIST_URL: ns_nikki4_NEWSLIST_URL,
@@ -1076,18 +1075,16 @@
 				gachaNikki4: ns_nikki4_gacha,
 				nikki4ApiBaseOf: ns_nikki4_apiBaseOf,
 				nikki4ApiTsOf: ns_nikki4_apiTsOf,
+				nikki4DedupeEventItems: ns_nikki4_dedupeEventItems,
 				nikki4EventItemsOf: ns_nikki4_eventItemsOf,
 				nikki4FactsOf: ns_nikki4_factsOf,
 				nikki4GachaPoolsOf: ns_nikki4_gachaPoolsOf,
-				nikki4HomeOf: ns_nikki4_homeOf,
 				nikki4KindOf: ns_nikki4_kindOf,
 				nikki4LinesOf: ns_nikki4_linesOf,
 				nikki4NameOf: ns_nikki4_nameOf,
+				nikki4NewsCandidates: ns_nikki4_newsCandidates,
 				nikki4NewsDetailOf: ns_nikki4_newsDetailOf,
-				nikki4NewsIdOf: ns_nikki4_newsIdOf,
 				nikki4NewsListOf: ns_nikki4_newsListOf,
-				nikki4PageOf: ns_nikki4_pageOf,
-				nikki4PublishTsOf: ns_nikki4_publishTsOf,
 				nikki4ResetCache: ns_nikki4_resetCache,
 				nikki4TitleNameOf: ns_nikki4_titleNameOf,
 				nikki4WindowOf: ns_nikki4_windowOf

@@ -1,6 +1,0 @@
-{
-  "url": "https://nikki4.papegames.cn/",
-  "status": 200,
-  "capturedAt": "2026-11-15T07:45:34.005Z",
-  "note": "闪耀暖暖·国服 官网首页（真抓整页 48,203 B，逐字未裁）。列表 = `__NEXT_DATA__` 的 `props.pageProps.pageData.newsbanner`（4 条：每条的新闻 id 在 `info` 的 `/news/{id}` 里）。响应无 ACAO ⇒ 走宿主代理。"
-}

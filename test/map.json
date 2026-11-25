@@ -251,12 +251,6 @@
   "https://bekr66d8pd-833ej8ymdl32y5zpbknx.microcms.io/api/v1/news/80995963": "pcr-jp-detail-80995963/response.txt",
   "https://gbf-wiki.com/?%E3%82%A4%E3%83%99%E3%83%B3%E3%83%88%2F%E9%96%8B%E5%82%AC%E4%BA%88%E5%AE%9A%E3%83%BB%E9%96%8B%E5%82%AC%E4%B8%AD": "gbf-events/response.txt",
   "https://wikiwiki.jp/kancolle/%E6%9C%9F%E9%96%93%E9%99%90%E5%AE%9A%E5%87%BA%E6%92%83": "kancolle-events/response.txt",
-  "https://nikki4.papegames.cn/": "nikki4-home/response.txt",
-  "https://nikki4.papegames.cn/news/102568": "nikki4-detail-102568/response.txt",
-  "https://nikki4.papegames.cn/news/102571": "nikki4-detail-102571/response.txt",
-  "https://nikki4.papegames.cn/news/102574": "nikki4-detail-102574/response.txt",
-  "https://nikki4.papegames.cn/news/102582": "nikki4-detail-102582/response.txt",
-  "https://nikki4.papegames.cn/news/102583": "nikki4-detail-102583/response.txt",
   "https://melonpapapapa-n.com/imas_gm_202611/": "imas-gakumas-202611/response.txt",
   "https://melonpapapapa-n.com/imas_gm_202610/": "imas-gakumas-202610/response.txt",
   "https://melonpapapapa-n.com/imas_sc_202611/": "imas-shinycolors-202611/response.txt",
@@ -290,5 +284,12 @@
   "https://www.taptap.cn/moment/871789417855977888": "p6-ddlezj-taptap-moment-871789417855977888/response.txt",
   "https://www.taptap.cn/moment/866691594919610832": "p6-ddlezj-taptap-moment-866691594919610832/response.txt",
   "https://www.taptap.cn/moment/811237759342608610": "p6-ddlezj-taptap-moment-811237759342608610/response.txt",
-  "https://yh.wanmei.com/news/gamebroad/20261104/264869.html": "pw-nte-detail-264869/response.txt"
+  "https://yh.wanmei.com/news/gamebroad/20261104/264869.html": "pw-nte-detail-264869/response.txt",
+  "https://nikki4.papegames.cn/api/v1/news/102588": "nikki4-news-detail-1126-102588/response.txt",
+  "https://nikki4.papegames.cn/api/v1/news/102589": "nikki4-news-detail-1126-102589/response.txt",
+  "https://nikki4.papegames.cn/api/v1/news/102590": "nikki4-news-detail-1126-102590/response.txt",
+  "https://nikki4.papegames.cn/api/v1/news/102591": "nikki4-news-detail-1126-102591/response.txt",
+  "https://nikki4.papegames.cn/api/v1/news/102592": "nikki4-news-detail-1126-102592/response.txt",
+  "https://nikki4.papegames.cn/api/v1/news/102593": "nikki4-news-detail-1126-102593/response.txt",
+  "https://nikki4.papegames.cn/api/v1/news/102594": "nikki4-news-detail-1126-102594/response.txt"
 }

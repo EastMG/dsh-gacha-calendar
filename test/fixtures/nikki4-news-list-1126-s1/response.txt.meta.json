@@ -1,0 +1,6 @@
+{
+  "url": "https://nikki4.papegames.cn/api/v1/news?section=1&offset=0&limit=40",
+  "status": 200,
+  "capturedAt": "2026-11-25T18:36:42.713Z",
+  "note": "真抓原样（2026-11-26 02:2x +08 活网审计修复时抓）。**故意不登记 test/map.json**：这条 URL 已映射 11-15 快照 `nikki4-news-list-s1`（旧卡池回归全套钉在那份上），同一 URL 不能有两条映射 ⇒ 本批新用例用 `fixtureBody(url, { [url]: \"nikki4-news-list-1126-s1/response.txt\" })` 显式覆盖。"
+}
