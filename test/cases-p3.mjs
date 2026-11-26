@@ -708,8 +708,13 @@ const P3B_PATHS = [
 		call: (t) => t.EVENT_FETCHERS["pjsk"].default("https://sekai-world.github.io/sekai-master-db-cn-diff/events.json", undefined, TZ_CN)
 	},
 	{
+		// ⚠️ 2026-11-26（活网审计 B）：OurNotes 日服活动默认源换成 **SPICA 活动页**
+		// （bushimo WP 公告 20 条全无档期 ⇒ 恒 nomatch），旧 WP 源降为备选。
+		// 这条 golden 钉的是**旧 bushimo 解析器**的输出 ⇒ 改走备选源 + 备选抓取器（先例：
+		// 2026-11-14 的 umaGlobalEvent 改走 `uma-global-official`）。
+		// SPICA 活动侧的有数据路径由 `test/cases-batch2.mjs` 第二批②B 单独钉。
 		key: "ournotesEvent", switched: true, id: "ournotes", side: "event", field: "events", now: Date.parse("2026-10-02T00:00:00.000Z"),
-		call: (t, s) => t.EVENT_FETCHERS[s.id].default(s.eventUrl, undefined, s.tz)
+		call: (t, s) => t.EVENT_FETCHERS[s.id]["ournotes-bushimo"](altUrlOf(s.eventAltSources, "ournotes-bushimo"), undefined, s.tz)
 	},
 	{
 		// OurNotes 国际服**默认未配置**（只挂备选源）→ 走备选活动抓取器；页面夹具换成"有内容"的那份
@@ -826,6 +831,9 @@ const P3B_PATHS = [
 	{
 		// 终末地卡池 = canmoe：页面 HTML → BannerCalendar 的 chunk → 期次数组。抓取器**倒序 + 每轮 6 路并发**
 		// ⇒ 夹具只放它第一轮真的抓到的那 6 份 chunk（数据 chunk 在其中，命中即早停，与真实请求数一致）。
+		// ⚠️ 2026-11-26：终末地卡池**默认源**已从 Canmoe 换成 FZ Wiki 卡池页（Canmoe 排期库停在 11-05~11-25），
+		//   这条路径仍钉 Canmoe 解析器本体（它现在是备选源 `endfield-canmoe`）—— golden 是改造前的存档，
+		//   换默认源不该改它的逐字值。
 		key: "endfieldGacha", switched: true, id: "endfield", side: "gacha", field: "gacha", now: Date.parse("2026-11-07T01:19:55.965Z"),
 		urlsOf: () => ({
 			"https://end.canmoe.com/zh-CN/banner-calendar": "p3c-endfield-canmoe-page",
@@ -836,7 +844,7 @@ const P3B_PATHS = [
 			"https://end.canmoe.com/_next/static/chunks/0oh.dd.dcudno.js": "p3c-endfield-canmoe-chunk-0oh_dd_dcudno",
 			"https://end.canmoe.com/_next/static/chunks/0g5.ugx67tnlm.js": "p3c-endfield-canmoe-chunk-0g5_ugx67tnlm"
 		}),
-		call: (t, s) => t.GACHA_FETCHERS[s.id](s.url, undefined, s.tz)
+		call: (t) => t.GACHA_FETCHERS["endfield-canmoe"]("https://end.canmoe.com/zh-CN/banner-calendar", undefined, "Asia/Shanghai")
 	},
 	{
 		// 终末地活动 = FZ Wiki：`eventUrl` 是给人看的页面地址，抓取器由它推出 api.fz.wiki 那条 REST 地址。
@@ -1420,10 +1428,70 @@ async function runP3b() {
 		};
 		T.setCoreEnv({ transport: makeFetchTransport(impl), timer: { setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (id) => clearTimeout(id) }, now: () => NOW_EF });
 		let data = null, err = null;
-		try { data = await T.GACHA_FETCHERS["endfield"](pageUrl, undefined, "Asia/Shanghai"); } catch (e) { err = e; }
+		try { data = await T.GACHA_FETCHERS["endfield-canmoe"](pageUrl, undefined, "Asia/Shanghai"); } catch (e) { err = e; }
 		check("终末地 canmoe（Turbopack flight）：符号 id 能解出 chunk —— 旧逻辑会抛 canmoe-no-chunk", err === null, err && err.message);
 		check("终末地 canmoe（Turbopack flight）：期次数组命中当期 ⇒ 外显 = 标题", !!data && data.banner === "测试寻访", JSON.stringify(data && data.banner));
 		check("终末地 canmoe（Turbopack flight）：档期来自期次数组真实起止（不是估算）", !!data && data.bannerDates === "11-26 12:00 ~ 12-10 06:00", JSON.stringify(data && data.bannerDates));
+	}
+
+	// ── 2026-11-26：终末地卡池默认源 Canmoe → FZ Wiki「卡池」页（真夹具，真解析）─────────
+	// 现场：Canmoe 排期库停在 11-05~11-25，页面自写「暂无卡池日历数据」；游戏 11-25 12:00 已开新池
+	//   （特许寻访「锻砧、行囊与蜜糖」UP 小刻 11-25 07:00~12-23 12:00；重构寻访「致每一个飘游之愿」UP 洁尔佩塔 11-25 07:00~12-16 12:00）
+	//   ⇒ 面板卡池一直挂过期旧值。FZ Wiki 的 entries 自带 schedule(+08)，一条请求拿全。
+	{
+		const NOW_EF_G = Date.parse("2026-11-26T12:00:00+08:00");
+		const gachaUrl = "https://fz.wiki/wiki/%E5%8D%A1%E6%B1%A0";
+		const apiUrl = "https://api.fz.wiki/api/v1/articles/by-title?ns=0&title=" + encodeURIComponent("卡池") + "&withRevision=1";
+		const FZ_BODY = readFileSync(path.join(FIXTURES_DIR, "p3c-endfield-fzwiki-gacha-1126", "response.txt"), "utf8");
+		const implOf = (nowTs) => {
+			const served = { [apiUrl]: FZ_BODY };
+			return async (url) => {
+				let target = String(url);
+				if (target.startsWith("/api/gacha-calendar-proxy")) {
+					try { target = new URL("http://x" + target).searchParams.get("url") || target; } catch { /* keep */ }
+				}
+				const body = served[target];
+				if (body == null) return { ok: false, status: 404, headers: { get: () => null }, text: async () => "", json: async () => ({}) };
+				if (String(url).startsWith("/api/gacha-calendar-proxy")) {
+					const wrapped = JSON.stringify({ status: 200, body });
+					return { ok: true, status: 200, headers: { get: () => "application/json" }, text: async () => wrapped, json: async () => JSON.parse(wrapped) };
+				}
+				return { ok: true, status: 200, headers: { get: () => "text/html" }, text: async () => body, json: async () => JSON.parse(body) };
+			};
+		};
+		T.setCoreEnv({ transport: makeFetchTransport(implOf(NOW_EF_G)), timer: { setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (id) => clearTimeout(id) }, now: () => NOW_EF_G });
+		const g = await T.GACHA_FETCHERS["endfield"](gachaUrl, undefined, "Asia/Shanghai");
+		check("终末地卡池（FZ Wiki）：外显 = 当期特许寻访「锻砧、行囊与蜜糖」，档期 11-25 07:00 ~ 12-23 12:00",
+			!!g && g.banner === "「锻砧、行囊与蜜糖」特许寻访" && g.bannerDates === "11-25 07:00 ~ 12-23 12:00",
+			JSON.stringify([g && g.banner, g && g.bannerDates]));
+		check("终末地卡池（FZ Wiki）：roles 合并当期**全部角色池**的 UP（小刻、洁尔佩塔）",
+			!!g && g.roles === "小刻、洁尔佩塔", JSON.stringify(g && g.roles));
+		// 数组顺序沿用仓库口径（结束时间升序）⇒ 重构池（12-16 结束）在前、特许池（12-23 结束）在后；
+		//   外显另按"档位优先"挑（所以外显仍是特许寻访，见上一条）。
+		check("终末地卡池（FZ Wiki）：gacha[] 两池逐条（按结束时间升序：重构 12-16 在前 / 特许 12-23 在后）",
+			!!g && Array.isArray(g.gacha) && g.gacha.length === 2
+			&& JSON.stringify(g.gacha.map((x) => x.title)) === JSON.stringify(["「致每一个飘游之愿」重构寻访", "「锻砧、行囊与蜜糖」特许寻访"]),
+			JSON.stringify(g && g.gacha && g.gacha.map((x) => [x.title, x.raw])));
+		check("终末地卡池（FZ Wiki）：反向 —— 武器/申领池（武库申领/篆玉申领等）不进卡池",
+			!!g && JSON.stringify(g.gacha.map((x) => x.title)).indexOf("申领") < 0,
+			JSON.stringify(g && g.gacha && g.gacha.map((x) => x.title)));
+		check("终末地卡池（FZ Wiki）：反向 —— 重构池结束更早（12-16）也不抢外显（档位优先：特许寻访）",
+			!!g && g.banner.indexOf("重构") < 0 && g.bannerDates === "11-25 07:00 ~ 12-23 12:00",
+			JSON.stringify([g && g.banner, g && g.bannerDates]));
+		// 悬停排版（仓库约定）：每个条目两行 = 池名行 + 档期行 ⇒ 两池共 4 行，且行内是**池名**不是只写类型
+		const hv = String((g && g.bannerHover) || "");
+		check("终末地卡池（FZ Wiki）：悬停两池各两行（池名 + 档期），行内含池名",
+			hv.split("\n").length === 4
+			&& /「锻砧、行囊与蜜糖」特许寻访/.test(hv) && /「致每一个飘游之愿」重构寻访/.test(hv)
+			&& /11-25 07:00 ~ 12-23 12:00/.test(hv) && /11-25 07:00 ~ 12-16 12:00/.test(hv),
+			JSON.stringify(hv));
+		// 反向：窗口都不覆盖 now（2027-02-01）⇒ nomatch（不是伪装成"未公布"的 down，也不是复用旧值）
+		T.setCoreEnv({ transport: makeFetchTransport(implOf(Date.parse("2027-02-01T00:00:00+08:00"))), timer: { setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (id) => clearTimeout(id) }, now: () => Date.parse("2027-02-01T00:00:00+08:00") });
+		const g2 = await T.GACHA_FETCHERS["endfield"](gachaUrl, undefined, "Asia/Shanghai");
+		check("终末地卡池（FZ Wiki）：同一份数据、now=2027-02-01（无覆盖）⇒ nomatch", g2 === null, JSON.stringify(g2));
+		// 用例结束把夹具 transport 与 now 还原（否则 2027 的注入时钟会污染后续用例）
+		useFixtures();
+		T.setCoreEnv({ now: () => Date.now() });
 	}
 
 	section("P3b ②：数组与改造前**合成结果**逐条相等（含 startTs / endTs）");
