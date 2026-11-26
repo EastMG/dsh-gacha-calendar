@@ -255,8 +255,17 @@ export default async function runCore() {
 			check("FGO：`gacha` = 4 条（主条 + 悬停解析出的 3 口并列池）",
 				Array.isArray(g) && g.length === 4, JSON.stringify(g.map((x) => x.title)));
 			const it = T.scheduleNormalize(Object.assign({ id: "fgo", name: "FGO" }, fgo.rec), "gacha", new Date(NOW_FGO));
-			check("FGO：主条 title = 池名原文、show = 显示层现算的外显名（去修饰的角色名）逐字相同",
-				!!g[0] && g[0].title === it.title && g[0].show === it.show && it.show !== it.title,
+			// ── **已批准差异**（2026-11-26 显示名缩短：剥源站体裁尾巴「推荐召唤」）──────────────
+			// 用户 2026-11-26 要求把过长的显示名缩短，硬约束是**不做程序截断** ⇒ 只剥白名单里的
+			// 页面体裁词。记录外显名 `banner` 因此由 34 字变成 28 字（剥掉尾部「推荐召唤」），
+			// 数组主条 `title` **仍是源站原文**（含「推荐召唤」）⇒ 两者不再逐字相同。
+			// 这里守的是三件事：① 数组 title 原文不动；② show 与显示层现算逐字相同；
+			// ③ 记录名 = 原文剥掉白名单尾巴（逐字证明，且是原文前缀 ⇒ 不是硬截断）。
+			check("FGO **已批准差异**：数组主条 title 仍原文、show = 显示层现算；记录名 = 原文剥掉「推荐召唤」",
+				!!g[0] && g[0].title === BASE_FGO.banner && /推荐召唤$/.test(g[0].title)
+				&& g[0].show === it.show && it.show !== it.title
+				&& it.title === "「OVER THE SAME SKY-SEPTEMBER-」"
+				&& g[0].title.indexOf(it.title) === 0,
 				JSON.stringify([g[0] && g[0].title, g[0] && g[0].show, it.title, it.show]));
 			check("FGO：roles 是 string[]（原始角色名，不做去修饰），startTs/endTs 是 number 且起点早于终点",
 				!!g[0] && Array.isArray(g[0].roles) && g[0].roles.length === 1
@@ -273,9 +282,15 @@ export default async function runCore() {
 			check("FGO：每一条并列池都能在悬停解析结果里找到同名行（展开没有凭空造条目）",
 				g.slice(1).every((x) => hoverTitles.indexOf(x.title) >= 0), JSON.stringify([hoverTitles, g.map((x) => x.title)]));
 			check("FGO：外显那条（悬停首行就是它自己）没有被重复列成并列池",
-				g.filter((x) => x.title === it.title).length === 1, JSON.stringify(g.map((x) => x.title)));
+				g.filter((x) => x.title === g[0].title).length === 1, JSON.stringify(g.map((x) => x.title)));
+			// ── **已批准差异**（2026-11-26 显示名缩短）：只有 `banner` 剥了体裁尾巴「推荐召唤」────
+			// 其余 11 个字段逐字不变；新值是原文的前缀（剥的是白名单尾巴，不是按字数砍）。
 			const changed = OLD_FIELDS.filter((f) => fgo.rec[f] !== BASE_FGO[f]);
-			check("FGO：12 个旧字符串字段与改造前（HEAD）逐字相同", changed.length === 0, JSON.stringify(changed));
+			check("FGO **已批准差异**：12 个旧字符串字段里只有 `banner` 剥了「推荐召唤」（其余 11 个逐字不变）",
+				JSON.stringify(changed) === JSON.stringify(["banner"])
+				&& fgo.rec.banner === T.stripDisplayTailOf(BASE_FGO.banner)
+				&& BASE_FGO.banner.indexOf(fgo.rec.banner) === 0,
+				JSON.stringify([changed, fgo.rec.banner]));
 		}
 
 		// ── ④-4 赛马娘国服：「数据层**不挑选**外显那条」的反证 ──────────────────────
@@ -319,9 +334,11 @@ export default async function runCore() {
 				Array.isArray(fgoBack.gacha) && fgoBack.gacha.length === 4
 				&& JSON.stringify(fgoBack.gacha) === JSON.stringify(fgo.rec.gacha),
 				JSON.stringify(fgoBack.gacha && fgoBack.gacha.map((x) => x.title)));
+			// 往返：旧字符串字段同时也在（数组没有「顶替」它们）。`banner` 的值 = 本轮合并后的
+			// 外显名（剥过白名单尾巴的**新值**，不是改造前基线 —— 2026-11-26 已批准差异，见 ④-3）。
 			check("往返：旧字符串字段同时也在（数组没有「顶替」它们）",
-				arkBack.event === BASE_ARK.event && fgoBack.banner === BASE_FGO.banner,
-				JSON.stringify([arkBack.event, fgoBack.banner]));
+				arkBack.event === BASE_ARK.event && fgoBack.banner === fgo.rec.banner && !!fgoBack.banner,
+				JSON.stringify([arkBack.event, fgoBack.banner, fgo.rec.banner]));
 		}
 
 		// ── ④-6 归一的最少校验 + 老缓存的固定形状 ────────────────────────────────
@@ -568,8 +585,27 @@ export default async function runCore() {
 				bandori: '[{"key":"bandori:gacha:0","title":"黄金周纪念·前篇Dream＆KIRAMEKI Festival招募","show":"丸山彩、CHU²、二叶筑紫、山吹沙绫、宇田川巴、大和麻弥","roles":["丸山彩","CHU²","二叶筑紫","山吹沙绫","宇田川巴","大和麻弥"],"startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"9月29日维护后~10月11日12:59","source":"primary"}]',
 				zzz: '[{"key":"zzz:gacha:0","title":"「烬夜安眠」频段","show":"洛克茜、普罗米娅","roles":["洛克茜（击破·风）","普罗米娅（异常·冰）"],"startTs":"number","endTs":"number","tz":"Asia/Shanghai","raw":"09-30 12:00 ~ 10-20 14:59","source":"primary"}]'
 			};
-			check("FGO：`gacha` 数组逐字不变（4 条并列池 + `source` 事实：主条 primary、其余 hover）",
-				sansTs(fgo.rec.gacha) === GOLDEN.fgo, sansTs(fgo.rec.gacha));
+			// ── **已批准差异**（2026-11-26 探头/并列条显示名缩短）：fgo 卡池的并列条（source=hover）
+			// 的 `show` 由**源站原文**改成**该池角色列**（源站卡池表第 3 列「推荐召唤从者」，
+			// 结构化给出）；`title` / `roles` / 顺序 / `source` / `raw` / ts 全等。
+			// 守法（两段，缺一不可）：① 把并列条 show 还原成 title 后，整段 JSON 必须与 golden **逐字相同**
+			// （= 其它键一个没动）；② 新 show 逐条写死，且必须是原文末尾「：」之后那段
+			// （= 有源站证据的归一，不是按字数硬砍）。golden 本身是改造前的存档，**不改**。
+			const FGO_EXTRA_SHOW = [
+				["唠唠叨叨新选组 THE END推荐召唤2：土方岁三、冲田总司、斋藤一、山南敬助、永仓新八", "土方岁三、冲田总司、斋藤一、山南敬助、永仓新八"],
+				["唠唠叨叨新选组 THE END 近藤勇推荐召唤：藤堂平助、近藤勇", "藤堂平助、近藤勇"],
+				["唠唠叨叨新选组 THE END 河上彦斋推荐召唤：河上彦斋、藤堂平助", "河上彦斋、藤堂平助"]
+			];
+			const restoreShow = (arr) => (arr || []).map((x) => (x.source === "hover" ? Object.assign({}, x, { show: x.title }) : x));
+			check("FGO **已批准差异**：除并列条 show 外 `gacha` 与改造前逐字相同（还原 show=title 后整段 JSON 相等）",
+				sansTs(restoreShow(fgo.rec.gacha)) === GOLDEN.fgo, sansTs(restoreShow(fgo.rec.gacha)));
+			{
+				const pairs = (fgo.rec.gacha || []).filter((x) => x.source === "hover").map((x) => [x.title, x.show]);
+				check("FGO **已批准差异**：并列条 show 逐条 = 源站角色列（title 仍是原文）",
+					JSON.stringify(pairs) === JSON.stringify(FGO_EXTRA_SHOW), JSON.stringify(pairs));
+				check("FGO **已批准差异**：新 show 是原文末尾「：」之后那段（有源站证据的归一，不是按字数硬砍）",
+					pairs.every(([t, s]) => t.endsWith("\uFF1A" + s) && s !== t), JSON.stringify(pairs));
+			}
 			check("FGO：`roles` / 主条 `show` 逐字不变",
 				fgo.rec.roles === "阿蒂拉 罗摩 兰斯洛特(Saber) 魁札尔·科亚特尔 反抗军的Rider 弗兰肯斯坦 谜之女主角X〔Alter〕 阿尔托莉雅·潘德拉贡(Ruler) 芦屋道满 妖精骑士兰斯洛特 库库尔坎 大和武尊 堤丰·厄斐墨洛斯"
 				&& ((fgo.rec.gacha || [])[0] || {}).show === "阿蒂拉 罗摩 兰斯洛特 魁札尔·科亚特尔 反抗军的Rider 弗兰肯斯坦 谜之女主角X〔Alter〕 阿尔托莉雅·潘德拉贡 芦屋道满 妖精骑士兰斯洛特 库库尔坎 大和武尊 堤丰·厄斐墨洛斯",
@@ -915,6 +951,11 @@ export default async function runCore() {
 		// golden 是改造前的存档 ⇒ 这 3 个侧的外显名与 golden 有意不同；**数组与悬停一个字没动**
 		// （由 ③ 的数组逐条相等照旧守着）。逐条"只剥了尾巴"的证明在 cases-display-name.mjs ①。
 		for (const k of ["genshin:event", "uma-jp:event", "gf2:event"]) APPROVED_DIFF.add(k);
+		// ⚠️ 2026-11-26（探头/并列条显示名缩短）：fgo 卡池的并列池那一行改用**该池角色列**
+		// （数组条目 `show`；`title` 仍是源站原文 `…推荐召唤：<角色列>`）。golden 是老路按原文出的行名
+		// ⇒ `fgo:gacha` 只有 3 条并列行的**名字**变了（行数 / 顺序 / 主行 / 档期文本全等，
+		// 由下面 fgo 专项逐字证明；数组 title/roles 的"只改 show"另由 ④-10 的还原法证明）。
+		APPROVED_DIFF.add("fgo:gacha");
 		// ⚠️ 2026-11-10（用户要求）：p5x 的「只有日期、没有时刻」窗口改成 00:00 起 / 23:59 止
 		// （仓库通用约定，见 `ns_bwiki_windowsFromCell` 注释）。golden 是改造前 04:00 / 03:59 的存档
 		// ⇒ 这两侧登记为**已批准差异**，并由下面的专项断言逐行证明"差异只是这条时间口径"。
@@ -922,7 +963,7 @@ export default async function runCore() {
 		const unapproved = diffs.filter((k) => !APPROVED_DIFF.has(k) && !DAY_ONLY_KEYS.has(k) && !BA_CN_REAL_EVENT_WINDOW.has(k));
 		check("等价性：17 款游戏（34 个侧）**全部逐字相等**（diffs = 0；名称 / 档期文本 / 探头行数 / 行顺序）",
 			unapproved.length === 0, JSON.stringify(unapproved));
-		check("等价性白名单 = 9 个已批准（星铁 2 + 星塔 1 + bandori 2 + 外显名尾巴 3 + nte 活动多窗口 1）+ p5x 2 个纯日期时间口径 + ba-cn 活动真实窗口 1（这些键都必须真的变了）",
+		check("等价性白名单 = 10 个已批准（星铁 2 + 星塔 1 + bandori 2 + 外显名尾巴 3 + nte 活动多窗口 1 + fgo 并列条显示名 1）+ p5x 2 个纯日期时间口径 + ba-cn 活动真实窗口 1（这些键都必须真的变了）",
 			diffs.length === APPROVED_DIFF.size + DAY_ONLY_KEYS.size + BA_CN_REAL_EVENT_WINDOW.size
 			&& [...APPROVED_DIFF].every((k) => diffs.indexOf(k) >= 0)
 			&& [...DAY_ONLY_KEYS].every((k) => diffs.indexOf(k) >= 0)
@@ -1001,6 +1042,25 @@ export default async function runCore() {
 				JSON.stringify([goldRow, nextRows.slice(1)]));
 		}
 
+		// fgo 专项（2026-11-26 已批准差异的**依据**）：同一份夹具，行的**数量 / 顺序 / 主行 / 档期文本**
+		// 全等，只有 3 条并列行的名字由"池名：角色列"整串变成角色列本身。
+		// 反向证明"不是硬截断"：新名字必须是**旧名字的末尾**（`…推荐召唤：` 之后那段）且更短。
+		{
+			const d = got.get("fgo:gacha");
+			check("等价性（fgo:gacha）已批准差异：行数 / 顺序 / 主行 / 档期文本全等，只有 3 条并列行的名字变短",
+				!!d && !!d.old && !!d.next && d.old.length === 4 && d.next.length === 4
+				&& d.old[0].name === d.next[0].name
+				&& d.old.map((r) => r.meta).join("\n") === d.next.map((r) => r.meta).join("\n"),
+				JSON.stringify([text(d && d.old), text(d && d.next)]));
+			check("等价性（fgo:gacha）已批准差异：新行名 = 原文末尾「：」之后那段（源站角色列，不是按字数砍）",
+				!!d && !!d.old && !!d.next
+				&& d.old.slice(1).every((r, i) => {
+					const n = d.next[i + 1];
+					return !!n && r.name !== n.name && r.name.endsWith("\uFF1A" + n.name);
+				}),
+				JSON.stringify(d && d.next.slice(1).map((r) => r.name)));
+		}
+
 		const STRICT = ["zzz", "arknights", "ba-cn", "bandori", "wuhuamixin", "zspms", "kedr", "uma-cn", "uma-jp", "uma-global", "p5x", "nte", "gf2", "fgo", "stellasora", "hsr", "genshin"];
 		const strictBad = [];
 		for (const id of STRICT) {
@@ -1014,7 +1074,7 @@ export default async function runCore() {
 		check("等价性：17 款游戏（34 个侧）逐侧再钉一遍同一条不变量（含「这一侧没有数据」的那些）",
 			strictBad.length === 0, JSON.stringify(strictBad));
 		// 反向证明：所有"已批准差异"确实**真的变了**（不是白名单把没变的键也放过）
-		check("反向证明：已批准差异（星铁 2 + 星塔 1 + bandori 2 + 外显名尾巴 3 + nte 活动多窗口 1）的老路与数组派生**确实不再相等**（口径变更真的生效了）",
+		check("反向证明：已批准差异（星铁 2 + 星塔 1 + bandori 2 + 外显名尾巴 3 + nte 活动多窗口 1 + fgo 并列条显示名 1）的老路与数组派生**确实不再相等**（口径变更真的生效了）",
 			[...APPROVED_DIFF].every((k) => {
 				const d = got.get(k);
 				return !!d && JSON.stringify(d.old) !== JSON.stringify(d.next);

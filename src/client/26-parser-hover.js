@@ -278,25 +278,26 @@
 			// 合并后（多条当期池用「、」拼接）再判重一次：同一角色可能同时出现在两口池里
 			if (dedupe) cur.roles = dedupeRoleNames(cur.roles);
 			const now = nowMs();
+			// `opts.extrasShowFromEntry`（opt-in，默认关；目前只有原神开）：并列条（探头里其余池）
+			// 的显示名用**该池自己的角色列**（源站「推荐召唤从者」列，结构化给出）——
+			// 池名那一行最长 34 字（`「呀吼吼博物志」109-2期角色活动祈愿：「博闻异旅·莉奈娅(岩)」`），
+			// 角色列只有 2~3 字（`莉奈娅`）。显式白名单，别的 bwiki 源（星铁备选 / 绝区零…）不受影响。
+			const extrasShowFromEntry = !!(opts && opts.extrasShowFromEntry === true);
 			const pools = snapshot
 				.filter((it) => it.isMain && coveredOrOpen(it, now))
-				.map((it) => ({
+				.map((it) => Object.assign({
 					name: it.banner,
 					label: `${it.banner}${it.roles ? `\uFF1A${cleanRoles(it.roles)}` : ""}`,
 					startTs: it.startTs,
 					endTs: it.endTs,
 					raw: it.raw
-				}));
+				}, extrasShowFromEntry ? { show: cleanRoleNames(it.roles, opts.id) } : {}));
 			// ── P3：条目事实（每口当期主池一行）→ 悬停 + 数组 ────────────────────
 			// 顺序 = `poolHoverOrderOf`（与 buildPoolHover 同一份排序）；去重也走 `poolHoverKept`，
 			// 所以"悬停里那几行"与"数组里的并列条目"从**同一份**结果出发。
-			const hoverItems = poolHoverKept(pools).map((p) => ({
-				title: p.label || p.name,
-				label: p.label || p.name,
-				startTs: p.startTs,
-				endTs: p.endTs,
-				raw: p.raw
-			}));
+			const hoverItems = poolHoverKept(pools).map((p) => Object.assign(
+				{ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw },
+				p.show ? { show: p.show } : {}));
 			const bannerHover = hoverTextFromItems(hoverItems, "gacha", tz);
 			// 主条：外显沿用 selectCurrent 的 banner/roles（显示名 = cleanRoleNames，与合成路径同一句）
 			// `tz` 必传（P4）：数组条目的 ts 是**绝对时刻**，按条目 tz 解析源站墙钟。
@@ -311,7 +312,7 @@
 				raw: cur.bannerDatesRaw,
 				source: "primary"
 			};
-			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "gacha", tz });
+			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "gacha", tz, id: opts.id, extrasShowFromEntry });
 			return {
 				...cur,
 				bannerHover,

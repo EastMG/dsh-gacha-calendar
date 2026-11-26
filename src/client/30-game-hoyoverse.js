@@ -496,11 +496,15 @@
 				.sort((a, b) => (a.endTs - b.endTs) || (startKey(a) - startKey(b)))
 				.map((w) => {
 					const label = `${w.pool ? `「${w.pool}」角色活动跃迁` : (w.annTitle || "活动跃迁")}：${w.role}`;
-					return { title: label, label, startTs: w.startTs, endTs: w.endTs, raw: w.raw };
+					// `show` = 冒号后半的角色名（源站同一条窗口事实里的 5★ 名）；`title` 仍是原文。
+					// 探头/并列条那一行用它（最长 37 字 ⇒ `星神★阿哈` 之类 5~6 字）；与主条同一处清洗
+					// （`extrasShowFromEntry` 会给它过 `cleanRoleNames`，去属性后缀「（欢愉•量子）」）。
+					return { title: label, label, startTs: w.startTs, endTs: w.endTs, raw: w.raw, show: w.role };
 				});
 			const hover = hoverTextFromItems(hoverItems, "gacha", tz);
 			if (hover) out.bannerHover = hover;
-			out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id: "hsr", tz }, at);
+			// `extrasShowFromEntry`：并列条（探头里其余池）显示各自 UP 角色名，`title` 仍是源站原文。
+			out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id: "hsr", tz, extrasShowFromEntry: true }, at);
 			out.gachaHoverItems = hoverItems;
 			return out;
 		}
@@ -1212,7 +1216,10 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 		// ── 抓取器登记 ──
 		// P3（2026-11-07）：原神改由解析器**直出** `gacha` 数组（`bwikiGachaPayload` 的 emitArrays 分支），
 		// 悬停文本由同一份条目反生成；星铁 **P3b** 起同样直出（叠上 `dedupeRoleNames`）。
-		GACHA_FETCHERS["genshin"] = mkMediaWiki((html, tz) => bwikiGachaPayload(html, tz, { emitArrays: true, id: "genshin" }));
+		// `extrasShowFromEntry`（2026-11-26）：探头/并列条那一行显示**该池自己的角色列**
+		// （`「呀吼吼博物志」109-2期角色活动祈愿：「博闻异旅·莉奈娅(岩)」` 34 字 ⇒ `莉奈娅`）；
+		// `title` 仍是源站原文。只开在原神这条上（星铁备选源 / 绝区零 逐字不变）。
+		GACHA_FETCHERS["genshin"] = mkMediaWiki((html, tz) => bwikiGachaPayload(html, tz, { emitArrays: true, id: "genshin", extrasShowFromEntry: true }));
 		// 星铁：bwiki「历史跃迁」的「5星角色」格子会把同一角色写两遍（缺图红链的名字 + 正常链接的
 		// 「名字（属性）」）⇒ 载荷按**角色名（去掉括号属性后缀）**判重，保留第一次出现的形式。
 		// 规则与理由见 26-parser-hover.js 的 dedupeRoleNames；**只在星铁这里开启**，
@@ -2088,7 +2095,11 @@ EVENT_FETCHERS["bh2"] = Object.assign(EVENT_FETCHERS["bh2"] || {}, {
 				.sort((a, b) => (a.endTs - b.endTs) || ((a.startTs == null ? Infinity : a.startTs) - (b.startTs == null ? Infinity : b.startTs)));
 			const hoverItems = hoverRows.map((r) => {
 				const label = r.roles ? `${r.name}\uFF1A${r.roles}` : r.name;
-				return { title: label, label, startTs: r.startTs, endTs: r.endTs, raw: r.raw };
+				// `show` = 冒号后半的**角色列**（源站同一条窗口事实里抽出的）；`title` 仍是原文。
+				// 探头/并列条那一行用它（最长 28 字 ⇒ 角色列 9~19 字）。
+				return Object.assign(
+					{ title: label, label, startTs: r.startTs, endTs: r.endTs, raw: r.raw },
+					r.roles ? { show: cleanRoleNames(r.roles, "wd") } : {});
 			});
 			const hover = hoverTextFromItems(hoverItems, "gacha", tz);
 			const out = {
@@ -2100,7 +2111,8 @@ EVENT_FETCHERS["bh2"] = Object.assign(EVENT_FETCHERS["bh2"] || {}, {
 				endTs: first.endTs,
 				...(hover ? { bannerHover: hover } : {})
 			};
-			out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id: "wd", tz }, at);
+			// `extrasShowFromEntry`：并列条（探头里其余池）显示各自的角色列，`title` 仍是源站原文。
+			out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id: "wd", tz, extrasShowFromEntry: true }, at);
 			out.gachaHoverItems = hoverItems;
 			return out;
 		}
@@ -2394,6 +2406,26 @@ function ns_batch2_bh3EventItemsOf(json, tz, now) {
 		});
 	}
 	return out;
+}
+
+// ── 外显名「取核心名」（2026-11-26，用户要求缩短过长的显示名；硬约束 = 不做程序截断）──────
+// 崩坏3 活动标题的排版是 `活动名丨参与方式与奖励说明` —— 实测当期 6 条里 4 条带「丨」：
+//   `畅游吼姆世界：好友成群丨参与得服装自选箱、水晶等奖励`（26 字，卡片格装不下）。
+// 「丨」后面那句是**奖励说明**，不是活动名 ⇒ 卡片外显取「丨」前那段（11 字）。
+// 判据（三条都成立才切，宁可不动也不切错）：
+//   ① 有**全角**「丨」（ASCII `|` 那条 `星愿祈礼 | 限时充值返晋升印章&…` 不切：后段是活动内容）；
+//   ② 「丨」前 ≥3 个码点；
+//   ③ 「丨」后那段是说明性文字（命中 参与/获取/领取/获得/奖励/自选箱/签到）。
+// ⚠️ 只被 `50-refresh.js` 的 `displayNameCoreOf`（活动外显名）调用；数组 title、`eventHover`、
+//    提醒标题仍读源站原文 —— 所以本函数不参与它们。
+const NS_BATCH2_BH3_EVENT_TAIL_RE = /参与|获取|领取|获得|奖励|自选箱|签到/;
+function ns_batch2_bh3EventCoreNameOf(title) {
+	const s = String(title == null ? "" : title);
+	const i = s.indexOf("\u4E28");                       // 丨
+	if (i < 0) return s;
+	const head = s.slice(0, i).replace(/[\s\u3000]+$/, "");
+	if ([...head].length < 3) return s;
+	return NS_BATCH2_BH3_EVENT_TAIL_RE.test(s.slice(i + 1)) ? head : s;
 }
 
 // 卡池正文里明确的角色写法：`S级角色「愈生佑翎」` / `A级女武神角色卡「午夜苦艾」`

@@ -316,6 +316,26 @@ export default async function runP3() {
 	// 只登记字段名；新值必须**恰好** = `displayNameNextOf(旧值, 该侧数组)`（同一份产品函数）。
 	// 数组与悬停**一个字没动**（下面 ③ 的数组逐条相等照旧守着）。
 	const P3_GOLDEN_DISPLAY = { wuwaGacha: ["banner"] };
+	// ── 2026-11-26（探头/并列条那一行显示名缩短）的**已批准差异登记** ─────────────────────
+	// 用户 2026-11-26 要求缩短过长的显示名，硬约束是**不做程序截断** ⇒ 并列条那一行改用
+	// **源站同一条条目事实里的结构化短名**（`池名：角色` 的冒号后半 / 角色列），`title` 仍是原文。
+	// 这两侧因此在解析器里开了数据层 opt-in `extrasShowFromEntry`（默认关）。
+	// 守法（两段，缺一不可）：
+	//   ① 把并列条（source=hover）的 show 还原成 title 后，数组必须与 golden **逐字相同**
+	//      （键序 / 顺序 / source / roles / raw 全等 —— 证明"只改了显示名"）；
+	//   ② 新 show 逐条写死，且必须是**原文末尾「：」之后那段**（有源站证据的归一，不是按字数硬砍）。
+	const P3_GOLDEN_EXTRA_SHOW = {
+		genshinGacha: [
+			["「万序衍盈」108期角色活动祈愿：「列律名虚·米提亚(雷)」", "米提亚"],
+			["「众水的颂诗」108-2期角色活动祈愿：「不休独舞·芙宁娜(水)」", "芙宁娜"]
+		],
+		wuwaGacha: [
+			["余心所向九死未悔：锁暝、灯灯、丹瑾、炽霞", "锁暝、灯灯、丹瑾、炽霞"],
+			["显影于明日：洛瑟菈、灯灯、丹瑾、炽霞", "洛瑟菈、灯灯、丹瑾、炽霞"],
+			["非定义光谱：琳奈、灯灯、丹瑾、炽霞", "琳奈、灯灯、丹瑾、炽霞"]
+		]
+	};
+	const p3RestoreShow = (arr) => (arr || []).map((x) => (x.source === "hover" ? Object.assign({}, x, { show: x.title }) : x));
 	// ── 2026-11-26（wuwa 活动判据失效）的**已批准差异登记** ──────────────────────────
 	// 活网审计 A：源站 `tag` 口径漂移（当期 5 条活动里 4 条 tag=3），而旧实现钉死 `tag === 5`
 	// ⇒ 活动侧 nomatch。修法 = 按内容特征（三组都扫 + 排除卡池/公告/商城/常驻 + 正文要有「活动时间」）
@@ -365,7 +385,18 @@ export default async function runP3() {
 		const arr = r.rec[p.field] || [];
 		// 被放宽的那一侧 = 活动侧（wuwaEvent 的 `events`）；wuwaGacha 的 `gacha` 不在放宽范围内
 		const arrRelaxed = p.key === "wuwaEvent" && p.field === "events";
-		if (!arrRelaxed) {
+		const extraShow = P3_GOLDEN_EXTRA_SHOW[p.key] || null;
+		if (extraShow) {
+			// **已批准差异**（2026-11-26 显示名缩短，见上方登记）：只有并列条 show 变，其余整段逐字相同。
+			check(`P3 golden（${p.key}）**已批准差异**：只改并列条 \`show\`（还原 show=title 后与 golden 逐字相同）`,
+				sansTs(p3RestoreShow(arr)) === sansCategoryTagsJson(g[p.field]), sansTs(p3RestoreShow(arr)));
+			const pairs = arr.filter((x) => x.source === "hover").map((x) => [x.title, x.show]);
+			check(`P3 golden（${p.key}）**已批准差异**：并列条 show 逐条 = 登记值（title 仍是原文）`,
+				JSON.stringify(pairs) === JSON.stringify(extraShow), JSON.stringify(pairs));
+			check(`P3 golden（${p.key}）**已批准差异**：新 show 取自原文末尾「：」之后那段（清洗后仍是其中连续子串 ⇒ 不是按字数硬砍）`,
+				pairs.every(([t, s]) => !!s && s !== t && t.length > s.length
+					&& t.lastIndexOf("\uFF1A") >= 0 && t.indexOf(s) > t.lastIndexOf("\uFF1A")), JSON.stringify(pairs));
+		} else if (!arrRelaxed) {
 			check(`P3 golden（${p.key}）：\`${p.field}\` 非时间字段逐字不变（键序 / 顺序 / source / phase 全等）`,
 				sansTs(arr) === sansCategoryTagsJson(g[p.field]), sansTs(arr));
 		} else {
@@ -390,11 +421,15 @@ export default async function runP3() {
 		if (relaxFields.length && p.key === "wuwaGacha") {
 			// 放宽只发生在一个侧面：卡池的 roles / bannerHover / gacha[] 仍与 golden 逐字相同，
 			// banner 只走已登记的「泛名让位」（`角色活动唤取` ⇒ 具体池名，见 P3_GOLDEN_DISPLAY）。
-			check("P3 golden（wuwaGacha）**已批准差异**：卡池侧 roles / bannerHover 与 gacha[] 仍 golden 逐字，banner 只做泛名让位（放宽只在活动侧）",
+			// ⚠️ 2026-11-26：gacha[] 与 golden 的比较改成**先把并列条 show 还原成 title** 再比
+			// （并列条显示名是本轮已批准差异，见 P3_GOLDEN_EXTRA_SHOW）。
+			check("P3 golden（wuwaGacha）**已批准差异**：卡池侧 roles / bannerHover 仍 golden 逐字、banner 只做泛名让位（放宽只在活动侧）",
 				textOf(r.rec.roles) === textOf(g.rec.roles)
 				&& textOf(r.rec.bannerHover) === textOf(g.rec.bannerHover)
-				&& textOf(r.rec.banner) === T.displayNameNextOf(textOf(g.rec.banner), r.rec.gacha)
-				&& sansTs(r.rec.gacha || []) === sansCategoryTagsJson(g.gacha));
+				&& textOf(r.rec.banner) === T.displayNameNextOf(textOf(g.rec.banner), r.rec.gacha));
+			check("P3 golden（wuwaGacha）**已批准差异**：卡池 `gacha[]` 还原并列条 show 后与 golden 逐字相同",
+				sansTs(p3RestoreShow(r.rec.gacha || [])) === sansCategoryTagsJson(g.gacha),
+				sansTs(p3RestoreShow(r.rec.gacha || [])));
 		}
 	}
 
@@ -405,13 +440,37 @@ export default async function runP3() {
 	//   · 多出来的条目全部是活动条目（标题命中真活动清单，见上 `WUWA_EVENTS_NEW`）；
 	//   · 反向证明：新旧 JSON 确实不等（口径变更真的生效，不是白名单放过没变的键）。
 	const P3_EQUIV_RELAXED = new Set(["wuwaGacha:event", "wuwaEvent:event"]);
+	// ── 2026-11-26（探头/并列条显示名缩短）的**已批准差异登记**（等价性侧）────────────────
+	// 这两侧的**并列条**（source=hover）`show` 由原文改成角色列（title 不变，见 P3_GOLDEN_EXTRA_SHOW）。
+	// 与改造前合成结果（oracle）相比 ⇒ 数组不再逐条相等。守法：
+	//   ① 把并列条 show 还原成 title 后，与 oracle **逐条相等**（含 ts；证明只改显示名）；
+	//   ② 新 show = 原文末尾「：」之后那段；且 oracle 里这几条确实是原样 show=title（差异真的发生了）；
+	//   ③ 反向证明：不还原时两者**确实不等**（不是白名单空转）。
+	const P3_EQUIV_EXTRA_SHOW = new Set(["genshinGacha:gacha", "wuwaGacha:gacha"]);
 	for (const p of paths) {
 		const r = got[p.key];
 		const other = p.field === "gacha" ? "events" : "gacha";
 		const otherSide = p.field === "gacha" ? "event" : "gacha";
 		const oldArr = legacySynthArrOf(p.key, p.side);
 		const oldOther = legacySynthArrOf(p.key, otherSide);
-		const checkEquiv = (sideName, fieldName, nowArr, oldOracle, relaxed) => {
+		const checkEquiv = (sideName, fieldName, nowArr, oldOracle, relaxed, showRelaxed) => {
+			if (showRelaxed) {
+				const norm = (arr) => sansCategoryTags(p3RestoreShow(arr));
+				check(`P3 等价（${p.key}）**已批准差异**：${sideName}除并列条 show 外与改造前合成结果逐条相等（含 ts）`,
+					JSON.stringify(norm(nowArr)) === JSON.stringify(norm(oldOracle)),
+					JSON.stringify([norm(nowArr), norm(oldOracle)]));
+				const nowHover = (nowArr || []).filter((x) => x.source === "hover");
+				const oldHover = (oldOracle || []).filter((x) => x.source === "hover");
+				check(`P3 等价（${p.key}）**已批准差异**：${sideName}并列条 show 取自原文「：」之后那段（oracle 是原样 show=title）`,
+					nowHover.length > 0 && oldHover.length === nowHover.length
+					&& nowHover.every((x) => x.show !== x.title && x.title.length > x.show.length
+						&& x.title.lastIndexOf("\uFF1A") >= 0 && x.title.indexOf(x.show) > x.title.lastIndexOf("\uFF1A"))
+					&& oldHover.every((x) => x.show === x.title),
+					JSON.stringify([nowHover.map((x) => [x.title, x.show]), oldHover.map((x) => x.show)]));
+				check(`P3 等价（${p.key}）**已批准差异**：${sideName}确实不再与改造前合成结果相等（反向证明）`,
+					JSON.stringify(sansCategoryTags(nowArr)) !== JSON.stringify(sansCategoryTags(oldOracle)));
+				return;
+			}
 			if (!relaxed) {
 				check(`P3 等价（${p.key}）：${sideName}与改造前的合成结果**逐条相等**（含 startTs / endTs）`,
 					JSON.stringify(sansCategoryTags(nowArr)) === JSON.stringify(sansCategoryTags(oldOracle)),
@@ -427,8 +486,10 @@ export default async function runP3() {
 			check(`P3 等价（${p.key}）**已批准差异**：${sideName}确实不再与改造前合成结果相等（反向证明）`,
 				JSON.stringify(sansCategoryTags(nowArr)) !== JSON.stringify(sansCategoryTags(oldOracle)));
 		};
-		checkEquiv(`\`${p.field}\` `, p.field, r.rec[p.field], oldArr, P3_EQUIV_RELAXED.has(p.key + ":" + p.side));
-		checkEquiv(`另一侧（${other}）`, other, r.rec[other], oldOther, P3_EQUIV_RELAXED.has(p.key + ":" + otherSide));
+		checkEquiv(`\`${p.field}\` `, p.field, r.rec[p.field], oldArr,
+			P3_EQUIV_RELAXED.has(p.key + ":" + p.side), P3_EQUIV_EXTRA_SHOW.has(p.key + ":" + p.side));
+		checkEquiv(`另一侧（${other}）`, other, r.rec[other], oldOther,
+			P3_EQUIV_RELAXED.has(p.key + ":" + otherSide), P3_EQUIV_EXTRA_SHOW.has(p.key + ":" + otherSide));
 	}
 
 	// ── ④ 同源：悬停文本 = 同一份条目事实的**生成结果**（不是另外手拼的）──────────
@@ -980,8 +1041,25 @@ const P3B_DISPLAY_NAME = {
 	baCnGacha: ["banner"],
 	baCnEvent: ["banner"],
 	baGlobalGacha: ["banner"],
-	baGlobalEvent: ["banner"]
+	baGlobalEvent: ["banner"],
+	// ③ 2026-11-26（用户要求缩短过长显示名）：白名单新增「推荐召唤」/「纪念活动」两个体裁尾巴。
+	// fgo 卡池 banner = `「OVER THE SAME SKY-SEPTEMBER-」推荐召唤` ⇒ 外显 34 字 ⇒ 28 字；
+	// 数组 title 仍是原文（下面 P3B_EXTRA_SHOW 与"只改 show"的还原法各守一遍）。
+	fgoGacha: ["banner"]
 };
+// ── 2026-11-26（探头/并列条那一行显示名缩短）的**已批准差异登记**（P3b 侧）───────────────
+// fgo 卡池的并列池那一行：`show` 由源站原文（`…推荐召唤：<角色列>`，最长 69 字）改成
+// **该池角色列**（源站卡池表第 3 列，结构化给出），`title` 仍是原文。
+// 守法与 P3 ② 的 `P3_GOLDEN_EXTRA_SHOW` 完全一致：还原 show=title 后必须与 golden 逐字相同 +
+// 新 show 逐条写死 + 必须是原文末尾「：」之后那段（有源站证据的归一，不是按字数硬砍）。
+const P3B_EXTRA_SHOW = {
+	fgoGacha: [
+		["唠唠叨叨新选组 THE END推荐召唤2：土方岁三、冲田总司、斋藤一、山南敬助、永仓新八", "土方岁三、冲田总司、斋藤一、山南敬助、永仓新八"],
+		["唠唠叨叨新选组 THE END 近藤勇推荐召唤：藤堂平助、近藤勇", "藤堂平助、近藤勇"],
+		["唠唠叨叨新选组 THE END 河上彦斋推荐召唤：河上彦斋、藤堂平助", "河上彦斋、藤堂平助"]
+	]
+};
+const p3bRestoreShowArr = (arr) => (arr || []).map((x) => (x.source === "hover" ? Object.assign({}, x, { show: x.title }) : x));
 // ── 2026-11-26（活网审计 B ②）：ba-global「只有日期」窗口统一 `00:00 ~ 23:59` + 补 `*DatesRaw` ──
 // 现场：卡池「特选招募」`11-24 00:00 ~ 12-08 00:00`、活动同窗口，`rawEmpty: true`。
 // 源站只有日期（GameKee 卡池表 `11月24日 ～ 12月8日`、活动标题 `【11/24～12/08】`）⇒ 按仓库通用约定
@@ -1281,7 +1359,17 @@ async function runP3b() {
 		// 2026-11-26 的两张登记表：数组侧的重建（ba-global 只换 raw；ba-jp 换 title/show/raw）
 		if (baGlobalDay) gArr = JSON.stringify(p3bBaGlobalDayArr(gArrRaw, p.field === "gacha" ? baGlobalDay.bannerDatesRaw : baGlobalDay.eventDatesRaw));
 		if (baJpEv) gArr = JSON.stringify(p3bBaJpEventOfficialArr(gArrRaw, baJpEv));
-		if (umaFb) {
+		const extraShow = P3B_EXTRA_SHOW[p.key] || null;
+		if (extraShow) {
+			// **已批准差异**（2026-11-26 显示名缩短，见上方 P3B_EXTRA_SHOW 登记）：只有并列条 show 变。
+			check(`P3b golden（${p.key}）**已批准差异**：只改并列条 \`show\`（还原 show=title 后与 golden 逐字相同）`,
+				p3bSansTs(p3bRestoreShowArr(arr)) === sansCategoryTagsJson(gArr), p3bSansTs(p3bRestoreShowArr(arr)));
+			const pairs = arr.filter((x) => x.source === "hover").map((x) => [x.title, x.show]);
+			check(`P3b golden（${p.key}）**已批准差异**：并列条 show 逐条 = 登记值（title 仍是原文）`,
+				JSON.stringify(pairs) === JSON.stringify(extraShow), JSON.stringify(pairs));
+			check(`P3b golden（${p.key}）**已批准差异**：新 show 是原文末尾「：」之后那段（不是按字数硬砍）`,
+				pairs.every(([t, s]) => !!s && s !== t && t.endsWith("\uFF1A" + s)), JSON.stringify(pairs));
+		} else if (umaFb) {
 			// ⚠️ 2026-11-26（活网审计 B）**已批准差异**：`events[]` 3 → 2 条，移除的**恰好**是
 			// fallback 那条（3483「10月～3月対戦レースイベント」）；其余两条逐字 / 逐键相同（key 序号也不变）。
 			check(`P3b golden（${p.key}）**已批准差异**：\`${p.field}\` 3 → 2 条（移除的恰好是 fallback「${P3B_UMA_JP_FALLBACK_ROW_TITLE}」），其余逐条逐字相同`,
@@ -1605,6 +1693,26 @@ async function runP3b() {
 			check(`P3b 等价（${p.key}）**已批准差异**：改造前 5 条 → 现在 4 条（起点未知不再算在期）`,
 				(r.rec[p.field] || []).length === 4 && oldArr.length === 5,
 				JSON.stringify([(r.rec[p.field] || []).length, oldArr.length]));
+			check(`P3b 等价（${p.key}）：另一侧也不会凭空多出条目`,
+				JSON.stringify(sansCategoryTags(r.rec[other])) === JSON.stringify(sansCategoryTags(oldOther)));
+			continue;
+		}
+		if (P3B_EXTRA_SHOW[p.key]) {
+			// ⚠️ 2026-11-26（探头/并列条显示名缩短）**已批准差异**：只有并列条 `show` 变
+			// （登记见 P3B_EXTRA_SHOW）。三段证据与 P3 ③ 的 `P3_EQUIV_EXTRA_SHOW` 完全一致。
+			const cur = r.rec[p.field] || [];
+			check(`P3b 等价（${p.key}）**已批准差异**：还原并列条 show=title 后与改造前合成结果逐条相等（含 ts）`,
+				JSON.stringify(sansCategoryTags(p3bRestoreShowArr(cur))) === JSON.stringify(sansCategoryTags(oldArr)),
+				JSON.stringify([sansCategoryTags(p3bRestoreShowArr(cur)), oldArr]));
+			const nowHover = cur.filter((x) => x.source === "hover");
+			const oldHover = (oldArr || []).filter((x) => x.source === "hover");
+			check(`P3b 等价（${p.key}）**已批准差异**：并列条 show = 原文「：」之后那段（oracle 是原样 show=title）`,
+				nowHover.length > 0 && oldHover.length === nowHover.length
+				&& nowHover.every((x) => x.show !== x.title && x.title.endsWith("\uFF1A" + x.show))
+				&& oldHover.every((x) => x.show === x.title),
+				JSON.stringify([nowHover.map((x) => [x.title, x.show]), oldHover.map((x) => x.show)]));
+			check(`P3b 等价（${p.key}）**已批准差异**：差异确实发生（新数组 ≠ 改造前合成结果，不是白名单空转）`,
+				JSON.stringify(sansCategoryTags(cur)) !== JSON.stringify(sansCategoryTags(oldArr)));
 			check(`P3b 等价（${p.key}）：另一侧也不会凭空多出条目`,
 				JSON.stringify(sansCategoryTags(r.rec[other])) === JSON.stringify(sansCategoryTags(oldOther)));
 			continue;
