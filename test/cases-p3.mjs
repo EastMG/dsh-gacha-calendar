@@ -1400,6 +1400,7 @@ async function runP3b() {
 		if (baGlobalDay) gArr = JSON.stringify(p3bBaGlobalDayArr(gArrRaw, p.field === "gacha" ? baGlobalDay.bannerDatesRaw : baGlobalDay.eventDatesRaw));
 		if (baJpEv) gArr = JSON.stringify(p3bBaJpEventOfficialArr(gArrRaw, baJpEv));
 		const extraShow = P3B_EXTRA_SHOW[p.key] || null;
+		const extrasShow = P3B_EXTRAS_SHOW[p.key] || null;
 		if (extraShow) {
 			// **已批准差异**（2026-11-26 显示名缩短，见上方 P3B_EXTRA_SHOW 登记）：只有并列条 show 变。
 			check(`P3b golden（${p.key}）**已批准差异**：只改并列条 \`show\`（还原 show=title 后与 golden 逐字相同）`,
@@ -1409,8 +1410,7 @@ async function runP3b() {
 				JSON.stringify(pairs) === JSON.stringify(extraShow), JSON.stringify(pairs));
 			check(`P3b golden（${p.key}）**已批准差异**：新 show 是原文末尾「：」之后那段（不是按字数硬砍）`,
 				pairs.every(([t, s]) => !!s && s !== t && t.endsWith("\uFF1A" + s)), JSON.stringify(pairs));
-		}
-		const extrasShow = P3B_EXTRAS_SHOW[p.key] || null;
+		} else {
 		if (extrasShow) gArr = JSON.stringify(p3bExtrasShowArr(gArrRaw, extrasShow));
 		if (umaFb) {
 			// ⚠️ 2026-11-26（活网审计 B）**已批准差异**：`events[]` 3 → 2 条，移除的**恰好**是
@@ -1423,6 +1423,7 @@ async function runP3b() {
 		} else {
 			check(`P3b golden（${p.key}）：\`${p.field}\` 非时间字段逐字不变（键序 / 顺序 / source / phase 全等）`,
 				p3bSansTs(arr) === sansCategoryTagsJson(gArr), p3bSansTs(arr));
+		}
 		}
 		if (stellaRoles) {
 			// 反向守卫：登记的"重建"必须真的改了东西（否则这条白名单会烂掉、将来真变了也发现不了）
