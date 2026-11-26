@@ -349,8 +349,14 @@ async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ, now = nowMs()) 
 //      不做这个区分的话，「结束最晚」会把 2030-07-30 才结束的常驻「ストーリー召喚」当成当期。
 //   ② 卡池外显取**结束最晚**（本仓库惯例「越晚结束越靠前」）；同结束再比开始（更晚的在前）、
 //      最后比 id（升序）—— 多池并行时只有一条能占外显，这条链保证同一份数据每次都选出同一条。
-//   ③ 角色名**不新造**：`featuredSvtIds` 是数字 id（译名要另一份 2MB 的 nice_servant.json）、
-//      `pickupId` 也不带名字 ⇒ `roles` 留空（与 pjsk 那种"源站没有角色名"的同构）。
+//   ③ 角色名**取源站自己写的池名行**（2026-11-26 起，用户报「卡池名称能否缩减」）：`featuredSvtIds`
+//      是数字 id（译名要另一份 2MB 的 nice_servant.json）、`pickupId` 也不带名字，但 `name` 的
+//      **末行**就是「<角色>ピックアップ召喚」——源站自己用换行把「活动名」和「池名」分开了。
+//      实测当期 11 个限时池 **11/11** 都符合 `活动名 ⏎ <角色>ピックアップ召喚`。
+//      ⇒ `roles` = 末行去掉「ピックアップ召喚」（多个角色按 ＆/&/、 归一成 、）；
+//      卡片按通用规则「有角色就显示角色」变成角色名，`banner` / 悬停 / 提醒标题**一个字不动**。
+//      ⚠️ 只有原文**带换行**时才取末行：单行名（如「「冠位名代戦」 タマモアリアピックアップ召喚」）
+//      分不清哪段是活动、哪段是角色 ⇒ roles 留空（宁可卡片显示完整池名，也不猜错角色）。
 //
 // 失败 vs 未公布：不是数组（含 `{}`）⇒ 抛 `fgo-jp-*-bad-shape`（抓取失败）；
 //   数组里没有一条覆盖 now ⇒ `null`（nomatch，源站没公布当期）。
@@ -375,6 +381,26 @@ function ns_fgo_jp_permanentEndMs(rows, endKey) {
 	return ends.filter((e) => e === max).length >= 2 ? max * 1000 : null;
 }
 
+// 卡池名的**池名行**：源站用换行把「活动名」和「池名」分开（`活动名 \n <角色>ピックアップ召喚`）。
+// 只有原文**带换行**时才取末行 —— 单行名分不清活动与角色，留空不猜（证据见文件头 ③）。
+function ns_fgo_jp_poolLineOf(name) {
+	if (typeof name !== "string" || !/[\r\n]/.test(name)) return "";
+	const lines = name.split(/[\r\n]+/).map((x) => x.trim()).filter(Boolean);
+	return lines.length > 1 ? lines[lines.length - 1] : "";
+}
+
+// 池名行 → 角色名：去掉尾巴「ピックアップ召喚」；多个角色（`卑弥呼＆壱与`）归一成顿号分隔，
+// 与全仓 `roles` 的写法一致（`dataArrayRolesOf` / `cleanRoleNames` 都按 、 切）。
+// 尾巴不是「ピックアップ召喚」的池名行 ⇒ 空串（不猜）。
+const ns_fgo_jp_ROLE_TAIL_RE = /\s*ピックアップ召喚\s*$/;
+function ns_fgo_jp_rolesOf(poolLine) {
+	const s = String(poolLine || "");
+	if (!ns_fgo_jp_ROLE_TAIL_RE.test(s)) return "";
+	const bare = s.replace(ns_fgo_jp_ROLE_TAIL_RE, "").trim();
+	if (!bare) return "";
+	return bare.split(/[＆&、，,]/).map((x) => x.trim()).filter(Boolean).join("、");
+}
+
 // 一张表 → 条目事实：epoch 秒 → 毫秒；起止缺失就留 null，不猜（null 过不了 `coversNow`）。
 function ns_fgo_jp_itemsOf(list, startKey, endKey, what) {
 	if (!Array.isArray(list)) throw ns_fgo_jp_badShape(what);
@@ -388,6 +414,8 @@ function ns_fgo_jp_itemsOf(list, startKey, endKey, what) {
 		out.push({
 			id: raw.id,
 			title,
+			// 池名行（活动名 ⏎ 池名 的末行）；活动侧不用它，只为卡池侧算 roles
+			poolLine: ns_fgo_jp_poolLineOf(raw.name),
 			startTs: s == null ? null : s * 1000,
 			endTs: e == null ? null : e * 1000,
 			permanent: e != null && perm != null && e * 1000 === perm
@@ -447,7 +475,7 @@ async function ns_fgo_jp_gachaFgoJp(url, signal, tz = ns_fgo_jp_TZ, now = nowMs(
 	const dates = fmtWindow(cur.startTs, cur.endTs, tz);
 	const out = {
 		banner: cur.title,
-		roles: "",                                  // 源站没有可用的角色名（见文件头 ③）
+		roles: ns_fgo_jp_rolesOf(cur.poolLine),      // 池名行 → 角色名（见文件头 ③）
 		bannerDates: dates,
 		bannerDatesRaw: dates,                      // 源站只有 epoch 秒、没有墙钟原文 ⇒ 同值
 		startTs: cur.startTs,

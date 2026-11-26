@@ -649,7 +649,65 @@ export default async function run() {
 				&& d.bannerDates === fmtWindow(row.openedAt * 1000, row.closedAt * 1000, "Asia/Tokyo")
 				&& d.bannerDatesRaw === d.bannerDates,
 				JSON.stringify([d.bannerDates, d.bannerDatesRaw]));
-			check("fgo-jp roles 留空（源站只有 featuredSvtIds 数字 id，不新造角色名）", d.roles === "", JSON.stringify(d.roles));
+			// ── 2026-11-26（用户要求「卡池名称缩减」，方案 C）──────────────────────────────
+			// 角色名取源站**自己写的池名行**（`活动名 ⏎ <角色>ピックアップ召喚` 的末行）：
+			// banner / 悬停 / 提醒标题一个字不动，只多一个 roles ⇒ 卡片格按通用规则显示角色名。
+			check("fgo-jp roles = 池名行去掉「ピックアップ召喚」⇒「高杉晋作」，banner 仍是完整原文",
+				d.roles === "高杉晋作"
+				&& d.banner === "真冬の水着スペシャル ぐだぐだぷにぷにウォーズ！ 高杉晋作ピックアップ召喚",
+				JSON.stringify([d.roles, d.banner]));
+			// ⚠️ 数组按结束时间升序，主条不在下标 0 ⇒ 按 `source === "primary"` 找
+			const mainOf = (arr) => (arr || []).find((x) => x && x.source === "primary") || null;
+			const mainJp = mainOf(d.gacha);
+			check("fgo-jp 数组主条：title = 源站原文 / show = 角色名（原文不被缩短）",
+				!!mainJp && mainJp.title === d.banner
+				&& mainJp.show === "高杉晋作"
+				&& JSON.stringify(mainJp.roles) === JSON.stringify(["高杉晋作"]),
+				JSON.stringify(mainJp));
+			check("fgo-jp 数组并列条（结算在别的池）title/show 都是源站原文（不被 roles 缩短）",
+				(d.gacha || []).filter((x) => x.source !== "primary").every((x) => x.title === x.show
+					&& /ピックアップ召喚$/.test(x.title)),
+				JSON.stringify((d.gacha || []).filter((x) => x.source !== "primary").map((x) => [x.title, x.show])));
+			// 反向：悬停文本仍是**完整池名**（roles 只影响卡片/数组 show，不改悬停）
+			check("fgo-jp 悬停仍含完整池名（roles 不参与悬停排版）",
+				(d.bannerHover || "").indexOf("真冬の水着スペシャル ぐだぐだぷにぷにウォーズ！ 高杉晋作ピックアップ召喚") >= 0,
+				JSON.stringify((d.bannerHover || "").slice(0, 120)));
+
+			// 多角色池：源站写 `卑弥呼＆壱与ピックアップ召喚` ⇒ roles 归一成顿号分隔
+			{
+				const only = gachaFx.filter((x) => x.id === 50044211);
+				installJp({ gacha: JSON.stringify(only) });
+				const m = await grab(() => runGacha());
+				check("fgo-jp 多角色池：roles =「卑弥呼、壱与」（源站 ＆ 归一成顿号）",
+					!!m.ok && m.data && m.data.roles === "卑弥呼、壱与"
+					&& JSON.stringify(m.data.gacha[0].roles) === JSON.stringify(["卑弥呼", "壱与"])
+					&& m.data.gacha[0].show === "卑弥呼、壱与",
+					JSON.stringify(m.ok ? [m.data.roles, m.data.gacha && m.data.gacha[0]] : m.err));
+			}
+			// 转职后缀：roles 保留源站写法（`沖田総司〔オルタ〕(セイバー)`），显示层才去括号
+			{
+				const only = gachaFx.filter((x) => x.id === 50044241);
+				installJp({ gacha: JSON.stringify(only) });
+				const m = await grab(() => runGacha());
+				const T2 = (await import("./load.mjs")).T;
+				check("fgo-jp roles 保留源站转职后缀「(セイバー)」，显示层（cleanRoleNames）才去掉",
+					!!m.ok && m.data && m.data.roles === "沖田総司〔オルタ〕(セイバー)"
+					&& m.data.gacha[0].show === "沖田総司〔オルタ〕",
+					JSON.stringify(m.ok ? [m.data.roles, m.data.gacha && m.data.gacha[0].show] : m.err));
+			}
+			// 反向守卫：单行池名（源站没写换行）**不猜**角色 ⇒ roles 留空，卡片显示完整池名
+			{
+				const only = gachaFx.filter((x) => x.id === 50044001);
+				installJp({ gacha: JSON.stringify(only) });
+				const m = await grab(() => runGacha(Date.parse("2026-10-26T00:00:00Z")));
+				check("fgo-jp 单行池名（无换行）⇒ roles 留空，不猜角色（卡片退回完整池名）",
+					!!m.ok && m.data && m.data.roles === ""
+					&& m.data.banner === "「冠位名代戦」 タマモアリアピックアップ召喚"
+					&& m.data.gacha[0].show === "「冠位名代戦」 タマモアリアピックアップ召喚",
+					JSON.stringify(m.ok ? [m.data.roles, m.data.banner] : m.err));
+			}
+			installJp();   // 还原默认夹具（后续 ③ 活动用例沿用）
+			
 
 			// 无结束哨兵：closedAt=1911653999（2030-07-30）的常驻池**不许**当当期，也不进悬停
 			const sentinelTitles = ["ストーリー召喚", "チュートリアル召喚", "スタートダッシュ期間限定★5確定召喚 第1弾"];
