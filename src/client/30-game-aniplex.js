@@ -354,6 +354,7 @@ async function ns_fgo_eventsFgo(url, signal, tz = ns_fgo_FGO_TZ, now = nowMs()) 
 //      **末行**就是「<角色>ピックアップ召喚」——源站自己用换行把「活动名」和「池名」分开了。
 //      实测当期 11 个限时池 **11/11** 都符合 `活动名 ⏎ <角色>ピックアップ召喚`。
 //      ⇒ `roles` = 末行去掉「ピックアップ召喚」（多个角色按 ＆/&/、 归一成 、）；
+//      **每一口在期池**也各自算一份 `show`（探头/并列条那一行同样显示角色名），`title` 仍原文；
 //      卡片按通用规则「有角色就显示角色」变成角色名，`banner` / 悬停 / 提醒标题**一个字不动**。
 //      ⚠️ 只有原文**带换行**时才取末行：单行名（如「「冠位名代戦」 タマモアリアピックアップ召喚」）
 //      分不清哪段是活动、哪段是角色 ⇒ roles 留空（宁可卡片显示完整池名，也不猜错角色）。
@@ -482,11 +483,19 @@ async function ns_fgo_jp_gachaFgoJp(url, signal, tz = ns_fgo_jp_TZ, now = nowMs(
 		endTs: cur.endTs
 	};
 	// ── P3b：条目事实 → 悬停 + `gacha` 数组（悬停 = 全部在期池；只有 1 条时不设 bannerHover）──
+	// `show` = 这一口池自己的角色名（探头/并列条那一行用它显示，`title` 仍是源站原文）；
+	// 取不到角色的池（单行名）不写 show ⇒ 显示退回原文。悬停排版只读 title，不受影响。
 	const hoverItems = live.slice().sort(ns_fgo_jp_hoverOrderOf)
-		.map((x) => ({ title: x.title, startTs: x.startTs, endTs: x.endTs, raw: "" }));
+		.map((x) => {
+			const show = ns_fgo_jp_rolesOf(x.poolLine);
+			const it = { title: x.title, startTs: x.startTs, endTs: x.endTs, raw: "" };
+			if (show) it.show = show;
+			return it;
+		});
 	const hover = hoverTextFromItems(hoverItems, "gacha", tz);
 	if (hover) out.bannerHover = hover;
-	out.gacha = dataArrayProducedGachaOf(out, hoverItems, { tz }, now);
+	// `extrasShowFromEntry`：并列条（探头里其余池）也显示各自的角色名；`title` 仍是源站原文。
+	out.gacha = dataArrayProducedGachaOf(out, hoverItems, { tz, extrasShowFromEntry: true }, now);
 	out.gachaHoverItems = hoverItems;
 	return out;
 }

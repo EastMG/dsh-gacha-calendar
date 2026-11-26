@@ -664,10 +664,16 @@ export default async function run() {
 				&& mainJp.show === "高杉晋作"
 				&& JSON.stringify(mainJp.roles) === JSON.stringify(["高杉晋作"]),
 				JSON.stringify(mainJp));
-			check("fgo-jp 数组并列条（结算在别的池）title/show 都是源站原文（不被 roles 缩短）",
-				(d.gacha || []).filter((x) => x.source !== "primary").every((x) => x.title === x.show
-					&& /ピックアップ召喚$/.test(x.title)),
-				JSON.stringify((d.gacha || []).filter((x) => x.source !== "primary").map((x) => [x.title, x.show])));
+			// 并列条（探头里其余池）**也**显示各自角色名：title 仍是源站原文，show = 该池的角色名。
+			// 走的是数据层 opt-in `extrasShowFromEntry`（默认关，只有 fgo-jp 开 ⇒ 其它 60 款逐字不变）。
+			check("fgo-jp 数组并列条：title = 源站原文 / show = 各自角色名（探头那几行也缩短）",
+				(d.gacha || []).filter((x) => x.source !== "primary").every((x) => /ピックアップ召喚$/.test(x.title)
+					&& x.show && x.show !== x.title && x.show.indexOf("ピックアップ召喚") < 0),
+				JSON.stringify((d.gacha || []).filter((x) => x.source !== "primary").map((x) => [x.title.slice(0, 18), x.show])));
+			check("fgo-jp 并列条 show 与主条同源清洗（去转职后缀括号）：沖田総司〔オルタ〕(セイバー) ⇒ 沖田総司〔オルタ〕",
+				(d.gacha || []).some((x) => x.source !== "primary" && x.show === "沖田総司〔オルタ〕"
+					&& /沖田総司〔オルタ〕\(セイバー\)ピックアップ召喚$/.test(x.title)),
+				JSON.stringify((d.gacha || []).filter((x) => /沖田/.test(x.title)).map((x) => [x.title.slice(-24), x.show])));
 			// 反向：悬停文本仍是**完整池名**（roles 只影响卡片/数组 show，不改悬停）
 			check("fgo-jp 悬停仍含完整池名（roles 不参与悬停排版）",
 				(d.bannerHover || "").indexOf("真冬の水着スペシャル ぐだぐだぷにぷにウォーズ！ 高杉晋作ピックアップ召喚") >= 0,

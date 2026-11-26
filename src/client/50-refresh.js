@@ -534,7 +534,16 @@
 				if (seen.has(identity)) continue;
 				seen.add(identity);
 				if (nt) seenTitle.add(nt);
-				out.push({ title, show: title, startTs: w.startTs, endTs: w.endTs, tz: dataArrayTextOf(o.tz), raw: win, source: "hover" });
+				// `extrasShowFromEntry`（opt-in，默认关）：并列条的显示名用**条目自己给的 show**，
+				// 没有才退回标题。默认关的原因：这条是共享数据层，全站口径是"并列条 = 源站原文"，
+				// 任何 parser 在条目上给了 show 都会因此改变探头/并列条那一行（当前 12 处）。
+				// 目前只有 FGO 日服开（源站池名行自带角色名，用户要求那几行也显示角色名）。
+				// 清洗规则与主条**同一处**（`cleanRoleNames`）：主条 show 也是它清洗出来的，
+				// 否则探头上会出现「沖田総司〔オルタ〕(セイバー)」而主条卡片是「沖田総司〔オルタ〕」。
+				const entryShow = o.extrasShowFromEntry === true
+					? cleanRoleNames(dataArrayTextOf(x.show), dataArrayTextOf(o.id))
+					: "";
+				out.push({ title, show: entryShow || title, startTs: w.startTs, endTs: w.endTs, tz: dataArrayTextOf(o.tz), raw: win, source: "hover" });
 			}
 			return out;
 		}
@@ -726,10 +735,12 @@
 			// `extrasStrictTitle`：并列条"同一口池"判据是否要求标题前缀 = 主条标题（默认关，见
 			//   `dataArrayExtrasFromEntriesOf` ③ 的说明；目前只有白荆回廊开）。
 			const extrasStrictTitle = !!(meta && meta.extrasStrictTitle === true);
+			// `extrasShowFromEntry`：并列条显示名是否用条目自己的 `show`（默认关；目前只有 FGO 日服开）。
+			const extrasShowFromEntry = !!(meta && meta.extrasShowFromEntry === true);
 			const main = dataArrayGachaMainOf(payload, id, tz, now);
 			if (!main) return [];
 			const facts = dataArrayFactsOf(payload);
-			const extras = dataArrayExtrasFromEntriesOf(entries, main, now, { kind: "gacha", tz, extrasStrictTitle });
+			const extras = dataArrayExtrasFromEntriesOf(entries, main, now, { kind: "gacha", tz, id, extrasStrictTitle, extrasShowFromEntry });
 			return dataArrayProducedListOf([main].concat(extras)
 				.map((x) => dataArrayAttachFactsOf(x, facts))
 				.map((x) => dataArrayProducedItemOf(x, "gacha")), id + ":gacha");
