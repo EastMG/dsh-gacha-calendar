@@ -1025,6 +1025,46 @@ const p3bDayArr = (arr, tsToo = true) => (arr || []).map((x) => {
 const P3B_STELLA_ROLES = {
 	stellasoraGacha: { roles: "艾蕾", show: "艾蕾" }
 };
+// ── 2026-11-26（names-B1）: pjsk 并列条显示短名（数据层 opt-in `extrasShowFromEntry`）────────────
+// 现场：PJSK 三服的探头/并列条那几行一直是源站长名（实测 pjsk-kr 最长 33 字）。
+// 修法：`ns_sekai_parseSekaiGachas` 给每条 hover item 算 `show`（剥**类别**标签 + 末尾体裁词；
+// 内容标签 —— 角色名 `[桐谷遥]` / 曲名 `[Little Maverick]` / 主题 `[侦探]` —— 保留），
+// 并给它那一侧开 `extrasShowFromEntry` ⇒ 数组**并列条**的 `show` 从「源站原文」变成短名。
+// **一个字不动**：`title` / `raw` / `startTs` / `endTs` / `key` / 条数 / 顺序 / 悬停文本
+// （悬停排版只读 title/label）—— 由下面两条路径的逐条比对 + 本条登记的反向守卫共同证明。
+// golden / oracle 是改造前的存档（`show === title`）⇒ 有意不同：按本表「标题 → 新 show」**逐条重建**
+// 后再比，不重采集、不放宽；重建必须真的改了东西（否则白名单空转 ⇒ 红）。
+const P3B_EXTRAS_SHOW = {
+	pjskGacha: {
+		"★4成员必出招募": "★4成员必出",
+		"世界入住任务招募": "世界入住任务",
+		"T恤服装特惠招募": "T恤服装特惠",
+		"[1.5周年纪念]绚烂节日招募 梦幻Pick": "绚烂节日招募 梦幻Pick",
+		"[1.5周年纪念]绚烂节日招募 金色热潮": "绚烂节日招募 金色热潮",
+		"缤纷月卡招募": "缤纷月卡",
+		"[桐谷遥]HAPPY BIRTHDAY Memories 招募": "[桐谷遥]HAPPY BIRTHDAY Memories",
+		"[复刻]Grace Marriage招募": "Grace Marriage",
+		"[1.5周年纪念][虚拟歌手]高级礼物招募": "[虚拟歌手]高级礼物",
+		"[1.5周年纪念][Leo/need]高级礼物招募": "[Leo/need]高级礼物",
+		"[1.5周年纪念][MORE MORE JUMP！]高级礼物招募": "[MORE MORE JUMP！]高级礼物",
+		"[1.5周年纪念][Vivid BAD SQUAD]高级礼物招募": "[Vivid BAD SQUAD]高级礼物",
+		"[1.5周年纪念][Wonderlands×Showtime]高级礼物招募": "[Wonderlands×Showtime]高级礼物",
+		"[1.5周年纪念][25点，Nightcord见。]高级礼物招募": "[25点、Nightcord见。]高级礼物",
+		"[1.5周年纪念]纪念自选招募": "纪念自选",
+		"[1.5周年纪念]阶梯招募": "[1.5周年纪念]阶梯",
+		"[1.5周年纪念]免费招募": "[1.5周年纪念]免费",
+		"[邀请朋友]★4成员必出招募": "★4成员必出",
+		"[新手应援]必定获得1名★4成员10连招募券招募": "必定获得1名★4成员10连招募券",
+		"欢迎回来★4自选阶梯招募": "欢迎回来★4自选阶梯",
+		"新手限定★4自选阶梯招募": "新手限定★4自选阶梯"
+	}
+};
+// 只改**并列条**（source !== "primary"）且登记过标题的那几条的 `show`；其余键（含键序）原样。
+// `Object.assign({}, x, {show})` 对已存在的键不改位置 ⇒ 与 `p3bSansTs` 的逐字比较口径一致。
+const p3bExtrasShowArr = (arr, map) => (arr || []).map((x) => {
+	if (!x || x.source === "primary" || !map[x.title]) return x;
+	return Object.assign({}, x, { show: map[x.title] });
+});
 // ── 2026-11-18（外显名 ①：源站体裁尾巴归一）的**已批准差异登记** ───────────────────────
 // `mergeEntryRecord` 只改**外显名**（`banner` / `event`），把白名单里的公告体裁尾巴剥掉
 // （「…開催中！」「…现已开启」）。golden 是改造前的存档、**不重采集** ⇒ 这几个字段有意不同。
@@ -1369,7 +1409,10 @@ async function runP3b() {
 				JSON.stringify(pairs) === JSON.stringify(extraShow), JSON.stringify(pairs));
 			check(`P3b golden（${p.key}）**已批准差异**：新 show 是原文末尾「：」之后那段（不是按字数硬砍）`,
 				pairs.every(([t, s]) => !!s && s !== t && t.endsWith("\uFF1A" + s)), JSON.stringify(pairs));
-		} else if (umaFb) {
+		}
+		const extrasShow = P3B_EXTRAS_SHOW[p.key] || null;
+		if (extrasShow) gArr = JSON.stringify(p3bExtrasShowArr(gArrRaw, extrasShow));
+		if (umaFb) {
 			// ⚠️ 2026-11-26（活网审计 B）**已批准差异**：`events[]` 3 → 2 条，移除的**恰好**是
 			// fallback 那条（3483「10月～3月対戦レースイベント」）；其余两条逐字 / 逐键相同（key 序号也不变）。
 			check(`P3b golden（${p.key}）**已批准差异**：\`${p.field}\` 3 → 2 条（移除的恰好是 fallback「${P3B_UMA_JP_FALLBACK_ROW_TITLE}」），其余逐条逐字相同`,
@@ -1402,6 +1445,30 @@ async function runP3b() {
 				&& gArrRaw[0].title === "Start Your Engines!" && gArrRaw[0].raw === ""
 				&& arr[0].title === baJpEv.event && arr[0].raw === baJpEv.eventDatesRaw,
 				JSON.stringify([gArrRaw.map((x) => [x.title, x.raw]), arr.map((x) => [x.title, x.raw])]));
+		}
+		if (extrasShow) {
+			// ⚠️ 2026-11-26（names-B1）**已批准差异**：并列条 `show` 由源站原文换成短名。
+			// 正向：登记的每条标题在旧数组里都在、新数组里 show 逐字 = 登记值；主条 show 仍是 banner 原文。
+			// 反向：重建结果必须与旧 golden 不同（白名单不许空转）；title / raw / ts / 条数 / 顺序不动。
+			const badRows = Object.keys(extrasShow).filter((t) => {
+				const cur = arr.filter((x) => x.title === t);
+				return !gArrRaw.some((x) => x.title === t) || cur.length === 0 || cur.some((x) => x.show !== extrasShow[t]);
+			});
+			const primary = arr.find((x) => x.source === "primary") || null;
+			check(`P3b golden（${p.key}）**已批准差异**：并列条 show 换成短名（${Object.keys(extrasShow).length} 条登记逐字命中；title 仍是源站原文）`,
+				badRows.length === 0
+				&& arr.filter((x) => x.source !== "primary").every((x) => !extrasShow[x.title] || (x.show === extrasShow[x.title] && x.title !== x.show)),
+				JSON.stringify([badRows, arr.map((x) => [x.title, x.show])]));
+			check(`P3b golden（${p.key}）**已批准差异**：主条 show / title 仍是源站原文（短名只作用于并列条）`,
+				!!primary && primary.show === primary.title && primary.title === p3bTextOf(g.rec.banner),
+				JSON.stringify(primary && [primary.title, primary.show, p3bTextOf(g.rec.banner)]));
+			check(`P3b golden（${p.key}）**已批准差异**：重建确实改了东西、且只改 show（title/raw/ts/key/顺序 全等；条数不变）`,
+				gArrRaw.length === arr.length
+				&& JSON.stringify(gArrRaw) !== JSON.stringify(p3bExtrasShowArr(gArrRaw, extrasShow))
+				// golden 里的 ts 是 "number" 占位（`p3bSansTs` 的产物）⇒ 重建那侧只摘 category/tags，不再归一 ts
+				&& p3bSansTs(arr) === sansCategoryTagsJson(JSON.stringify(p3bExtrasShowArr(gArrRaw, extrasShow)))
+				&& arr.every((x, i) => x.title === gArrRaw[i].title && x.raw === gArrRaw[i].raw && x.key === gArrRaw[i].key),
+				JSON.stringify([gArrRaw.length, arr.length, arr.map((x) => x.show)]));
 		}
 		check(`P3b golden（${p.key}）：数组非空（解析器真的直出了，而不是悄悄退回空数组）`,
 			arr.length > 0 || !!p.emptyOk, String(arr.length));
@@ -1722,7 +1789,16 @@ async function runP3b() {
 		// 星塔 roles（2026-11-09 B）：主条的 roles / show 按登记表重建（只动这两个键），
 		// 并由下面的反向守卫证明"重建后确实与旧值不同"（白名单不许空转）。
 		const stellaFix = P3B_STELLA_ROLES[p.key] || null;
+		const extrasFix = P3B_EXTRAS_SHOW[p.key] || null;
 		let expectArr = P3B_EVENT_NAME_TRIMMED[p.key] === true ? p3bStripTailArr(oldArr) : oldArr;
+		if (extrasFix) {
+			// 2026-11-26（names-B1）**已批准差异**：并列条 show 换短名（见 P3B_EXTRAS_SHOW）。
+			// 与 P3b ① 同一份重建函数 ⇒ 两条路径证的是同一件事（不各写一套判据）。
+			expectArr = p3bExtrasShowArr(expectArr, extrasFix);
+			check(`P3b 等价（${p.key}）**已批准差异**：改造前的合成结果重建后与旧值不同（短名如实生效）`,
+				JSON.stringify(oldArr) !== JSON.stringify(expectArr) && oldArr.length === expectArr.length,
+				JSON.stringify([oldArr.map((x) => x.show), expectArr.map((x) => x.show)]));
+		}
 		if (stellaFix) {
 			expectArr = p3bStellaRoleArr(oldArr, stellaFix);
 			check(`P3b 等价（${p.key}）**已批准差异**：改造前的合成结果重建后与旧值不同（roles 如实写出真的生效）`,

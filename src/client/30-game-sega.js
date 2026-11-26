@@ -59,6 +59,62 @@
 const ns_sekai_DEFAULT_GACHA = "https://gh-proxy.com/https://raw.githubusercontent.com/Sekai-World/sekai-master-db-cn-diff/main/gachas.json";
 const ns_sekai_DEFAULT_EVENT = "https://gh-proxy.com/https://raw.githubusercontent.com/Sekai-World/sekai-master-db-cn-diff/main/events.json";
 
+// ── 探头/并列条短名（2026-11-26 names-B1，**只给数组条目的 `show`，title 与悬停不动**）──
+// 源站 `gachas.json` 只有 `name`（没有角色/池型字段），但三服池名有**稳定词法结构**：
+//   `[标签] 核心名 + [体裁词]`
+//   · 体裁词 = 末尾的 `招募` / `Step-up招募` / `Step-up 뽑기` / `티켓 뽑기` / `뽑기`（= 抽卡/票券抽取），
+//     与日服的 `ガシャ` 是同一类体裁词（中/繁/韩三服各自的写法）—— **一定剥**；
+//   · 行首 `[...]` 标签分两种，**只剥类别标签**（栏目/批次标记：`[复刻]` / `[新手应援]` /
+//     `[邀請朋友]` / `[4.5주년 기념]` …，同一标签会在多口池上重复出现）；
+//     **内容标签保留**（角色名 / 曲名 / 主题：`[桐谷遥]` / `[Little Maverick]` / `[侦探]` /
+//     `[感谢有你的「世界」]`）—— 它们就是这口池的身份，剥掉会让多口池变成同一行。
+//     类别词表**只收真机 + 夹具里出现过的**（`TAG_CATEGORY_RE`，见下），没见过的标签默认**保留**
+//     （宁可少缩短，也不猜着删名字）。
+// 实测（2026-11-26 活网）：pjsk 并列条 18 条最长 24 字 / pjsk-tc 23 条最长 26 / pjsk-kr 28 条最长 33。
+// **不做字数截断**：剥完不足 3 码点就放弃该步（都放弃 ⇒ 返回 ""，调用方退回 title 原文）。
+// 长尾优先（`Step-up招募` 先于 `招募`），否则会剥出悬挂的 `Step-up`。
+const ns_sekai_POOL_TAG_RE = /^\s*[\[［【]\s*([^\]］】]{1,40}?)\s*[\]］】]\s*/u;
+const ns_sekai_POOL_TAG_LONE_RE = /^[\[［【]\s*([^\]］】]{1,40}?)\s*[\]］】]$/u;
+// 类别标签词表（证据：2026-11-26 活网 + 2026-10-02 夹具里**实际出现**的标签，逐个归类）。
+// 周年类是开区间（`1.5周年纪念` / `4.5주년 기념`），用两个数值模式覆盖，不枚举年份。
+const ns_sekai_POOL_TAG_CATEGORY_RE =
+	/^(?:复刻|復刻|재등장|新手应援|新手應援|초보자 응원|초보자 한정|邀请朋友|邀請朋友|친구 초대|欢迎回来|歡迎回來|복귀를 환영합니다|新手限定|세카이|\d+(?:\.\d+)?周年纪念|\d+(?:\.\d+)?주년 기념)$/u;
+const ns_sekai_POOL_TAIL_WORDS = [
+	"Step-up招募", "Step-up 招募", "Step-up뽑기", "Step-up 뽑기",
+	"티켓 뽑기", "招募", "뽑기"
+].sort((a, b) => b.length - a.length);
+function ns_sekai_poolShortOf(name) {
+	const orig = typeof name === "string" ? name.trim() : "";
+	if (!orig) return "";
+	let s = orig;
+	// ① 体裁词（可反复：`[Little Maverick]Step-up招募` ⇒ `[Little Maverick]`）
+	for (;;) {
+		const hit = ns_sekai_POOL_TAIL_WORDS.find((t) => s.length > t.length && s.endsWith(t));
+		if (!hit) break;
+		const next = s.slice(0, s.length - hit.length).replace(/[\s\u3000]+$/u, "");
+		if ([...next].length < 3) break;
+		s = next;
+	}
+	// ② 行首标签：**类别**且剥完仍 ≥3 码点 ⇒ 剥；整串只剩一个标签 ⇒ 取标签内文（`[]` 是记号，
+	//    里面的才是名字）；**内容**标签（角色名/曲名/主题）原样保留、不取内文（去掉方括号会丢辨识度）。
+	for (;;) {
+		const m = ns_sekai_POOL_TAG_RE.exec(s);
+		if (!m) break;
+		const content = m[1].trim();
+		const next = s.slice(m[0].length).trim();
+		if (ns_sekai_POOL_TAG_CATEGORY_RE.test(content) && [...next].length >= 3) { s = next; continue; }
+		// 整串只剩**一个**标签（`[Little Maverick]` / `[4.5주년 기념]`）⇒ 取标签内文：
+		// `[]` 只是记号，里面的才是名字（与「从『』取真正的名字」同一口径）。
+		const lone = ns_sekai_POOL_TAG_LONE_RE.exec(s);
+		if (lone) {
+			const inner = lone[1].trim();
+			if ([...inner].length >= 3) s = inner;
+		}
+		break;
+	}
+	return s !== orig ? s : "";
+}
+
 // ⚠️ 2026-10-03 收敛：本文件原有 `toTs`（**严格版**：只接受 number，数字字符串返回 null）
 //    与 `byNewestStart`（与 bestdori 那份逐字相同）。均已统一到 `27-parser-text.js` 的
 //    `numOrNull` / `byNewestStart`。取宽容版对本源无影响（`gachas.json`/`events.json` 里都是数字），
@@ -90,10 +146,17 @@ function ns_sekai_parseSekaiGachas(json, now = nowMs(), tz = "Asia/Shanghai") {
 	// 同名同窗的阶梯/高级礼物招募多条各自成行（源站如此，不再合并成 ×n）——
 	// 数组侧由 `dataArrayExtrasFromEntriesOf` 的「归一后同名只留第一条」收口（与悬停逆解析同一判据）。
 	// ── P3b：条目事实 → 悬停 + `gacha` 数组 ──────────────────────────────────
+	// `show` = 这一口池的**短名**（`ns_sekai_poolShortOf`：剥类别标签 + 体裁词）；取不到就不写
+	// ⇒ 显示退回原文。`title` / 悬停排版只读 title，逐字不变。
 	const hoverItems = active
 		.filter((p) => p.name)
 		.sort(poolHoverOrderOf)
-		.map((p) => ({ title: p.name, startTs: p.startTs, endTs: p.endTs, raw: "" }));
+		.map((p) => {
+			const it = { title: p.name, startTs: p.startTs, endTs: p.endTs, raw: "" };
+			const show = ns_sekai_poolShortOf(p.name);
+			if (show) it.show = show;
+			return it;
+		});
 	const hover = hoverTextFromItems(hoverItems, "gacha", tz);
 	// 只有 1 个当期池 → hover 为 ""，**不设 bannerHover**，由 UI 走默认两行式「banner ⏎ bannerDates」
 	const out = {
@@ -105,7 +168,9 @@ function ns_sekai_parseSekaiGachas(json, now = nowMs(), tz = "Asia/Shanghai") {
 		endTs: cur.endTs,
 		...(hover ? { bannerHover: hover } : {})
 	};
-	out.gacha = dataArrayProducedGachaOf(out, hoverItems, { tz }, now);
+	// `extrasShowFromEntry`：并列条（探头里其余池）显示**各自**的短名；`title` 仍是源站原文
+	// （与 FGO 日服 / 终末地同一套 opt-in，见 50-refresh.js 的说明）。
+	out.gacha = dataArrayProducedGachaOf(out, hoverItems, { tz, extrasShowFromEntry: true }, now);
 	out.gachaHoverItems = hoverItems;
 	return out;
 }
