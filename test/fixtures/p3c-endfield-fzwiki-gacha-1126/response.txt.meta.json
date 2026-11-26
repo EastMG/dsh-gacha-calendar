@@ -1,6 +1,0 @@
-{
-  "url": "https://api.fz.wiki/api/v1/articles/by-title?ns=0&title=%E5%8D%A1%E6%B1%A0&withRevision=1",
-  "status": 200,
-  "capturedAt": "2026-11-25T23:55:48.096Z",
-  "note": "FZ Wiki「卡池」页 REST 原文（含 wikiIndexTable.attrs.entries 46 条）；2026-11-26 02:0x +08 真抓"
-}

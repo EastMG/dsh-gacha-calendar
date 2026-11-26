@@ -4393,13 +4393,7 @@ export function createEngine(env) {
 		// ⚠️ 必须带 `\b` 词边界、**不许**写成裸 `Event`：
 		//    · `Other` 是第二档，不能被任何英文分支命中（词边界让它与 `Event`/`Campaign` 互不粘连）；
 		//    · `Events` / `Eventful` / `Pother` 这类更长或更怪的词也不该被当成分类词。
-		// ⚠️ 2026-11-26（用户报「终末地的活动有问题」）：终末地 FZ Wiki 把当期活动分成
-		//   叙事活动 / 建设活动 / 引入活动 / 限时签到 / 干员试用活动…；「阵列建设：旧伤弥合」是
-		//   官方版本 PV 里主推的**全新活动**（tags = 建设活动），而「蜜饼是我的祈愿」是挂在版本上的
-		//   叙事活动（实为支线包装）。旧词表只认「叙事」⇒ 外显被蜜饼占掉、主推的建设活动只进悬停。
-		//   把「建设/建造」并入第一档（同档内仍按结束时间升序）；建设活动目前只有终末地这类
-		//   "版本建设玩法"，不影响其它来源的既有口径。
-		const EVENT_TIER1_RE = /剧情|叙事|主线|故事|活动正篇|建设活动|建造活动|总力战|總力戰|大决战|大決戰|决战|決戰|危机合约|危機合約|制约解除|综合战术|綜合戰術|挑战|挑戰|深度巡防|极限|逆境深塔|冥歌海墟|全息|\bEvent\b|\bCampaign\b/;
+		const EVENT_TIER1_RE = /剧情|叙事|主线|故事|活动正篇|总力战|總力戰|大决战|大決戰|决战|決戰|危机合约|危機合約|制约解除|综合战术|綜合戰術|挑战|挑戰|深度巡防|极限|逆境深塔|冥歌海墟|全息|\bEvent\b|\bCampaign\b/;
 
 
 		// ⚠️ haystack 是 **OR 语义**（`category` / `tags` / `name` **三段都参与**，2026-11-08 用户拍板）。
@@ -21977,99 +21971,6 @@ EVENT_FETCHERS["ba-jp"] = {
 		// 改为请求 `api.fz.wiki/api/v1/articles/by-title?ns=0&title=<页面名>&withRevision=1`。
 		// 条目里的 `eventUrl` 仍是**给人看的页面地址**（设置页显示它）；标题由该地址的路径推出，
 		// 所以用户把 eventUrl 换成别的 wiki 页也能用。若直接把 eventUrl 配成 API 地址，则原样使用。
-		// ── 终末地卡池：FZ Wiki「卡池」页（2026-11-26 换成默认源）────────────────────────
-		// WHY 换（真机 2026-11-26）：默认源 Canmoe 的排期库停在 11-05~11-25 那期，
-		//   页面自己写着「暂无卡池日历数据」，而游戏 11-25 12:00 已经开了新池
-		//   （特许寻访「锻砧、行囊与蜜糖」UP 小刻 11-25 07:00~12-23 12:00、
-		//     重构寻访「致每一个飘游之愿」UP 洁尔佩塔 11-25 07:00~12-16 12:00）
-		//   ⇒ 面板卡池挂的是**已过期的上一期**（gachaFail=nomatch，展示层却留着旧值）。
-		//   FZ Wiki 的「卡池」页与活动页同站、同为中文，且 wikiIndexTable.attrs.entries
-		//   里直接带 schedule.open / schedule.close（带 +08 偏移），一条请求就能拿到全部池，
-		//   所以卡池默认源改成它；Canmoe 降为备选（它一旦恢复更新仍可手动切回）。
-		//
-		// 口径：
-		//   · 只收 kindLabel === "角色"（武器/申领池不进外显，与全站"只显角色池"一致）；
-		//   · permanent === true 或 schedule 缺一端 ⇒ 不收（不是限时池）；
-		//   · 外显 = 当期池里**档位优先**（特许/限定/特殊 > 重构 > 基础/启程），同档取结束最早；
-		//   · roles = 当期全部角色池的 UP 名合并；悬停/数组逐池一条（池名 + 档位 + 各自窗口）。
-		const FZ_WIKI_GACHA_KIND_MAIN = /特许寻访|限定寻访|特殊寻访|联动寻访/;
-		const FZ_WIKI_GACHA_KIND_RERUN = /重构寻访/;
-		function fzWikiGachaRankOf(typeLabel) {
-			const s = String(typeLabel || "");
-			if (FZ_WIKI_GACHA_KIND_MAIN.test(s)) return 0;
-			if (FZ_WIKI_GACHA_KIND_RERUN.test(s)) return 1;
-			return 2;
-		}
-		// FZ Wiki 的 schedule.open/close 是带偏移的 ISO（`2026-11-25T07:00:00+08:00`）：
-		// 直接 new Date() 即拿到与源站一致的绝对时刻（不按本机时区解释）。
-		function parseFzWikiTime(s, tz) {
-			const t = new Date(String(s)).getTime();
-			if (Number.isFinite(t)) return t;
-			const m = String(s).match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})[ T](\d{1,2}):(\d{2})/);
-			if (m) return sourceInstant(Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4]), Number(m[5]), tz);
-			return NaN;
-		}
-		function parseFzWikiGacha(json, now, tz) {
-			let obj = null;
-			try { obj = JSON.parse(String(json)); } catch { return null; }
-			const cj = obj && obj.revision && obj.revision.contentJson;
-			if (!cj) return null;
-			const entries = [];
-			(function walk(n) {
-				if (!n || typeof n !== "object") return;
-				if (Array.isArray(n)) return n.forEach(walk);
-				if (n.type === "wikiIndexTable" && n.attrs && Array.isArray(n.attrs.entries)) entries.push(...n.attrs.entries);
-				for (const k of Object.keys(n)) walk(n[k]);
-			})(cj);
-			if (entries.length === 0) throw new Error("fz-wiki-gacha-no-entries");
-			const t0 = now || nowMs();
-			const pools = [];
-			for (const e of entries) {
-				if (!e || e.kindLabel !== "角色") continue;
-				if (e.permanent === true) continue;
-				const o = e.schedule && e.schedule.open, c = e.schedule && e.schedule.close;
-				if (!o || !c) continue;
-				const startTs = parseFzWikiTime(o, tz), endTs = parseFzWikiTime(c, tz);
-				if (!(startTs <= t0 && t0 <= endTs)) continue;
-				const name = String(e.name || "").trim();
-				if (!name) continue;
-				const upNames = String(e.upNames || "").split(/[、,，/]/).map((x) => x.trim()).filter(Boolean);
-				pools.push({ name, typeLabel: String(e.typeLabel || "").trim(), upNames, startTs, endTs });
-			}
-			if (pools.length === 0) return null;   // 结构在、当期没有 → nomatch
-			pools.sort((a, b) => (fzWikiGachaRankOf(a.typeLabel) - fzWikiGachaRankOf(b.typeLabel)) || (a.endTs - b.endTs));
-			const primary = pools[0];
-			const items = pools.map((p) => ({
-				title: (`「${p.name}」${p.typeLabel}`).trim(),
-				show: p.upNames.join("、"),
-				startTs: p.startTs,
-				endTs: p.endTs,
-				raw: fmtWindow(p.startTs, p.endTs, tz)
-			}));
-			const win = fmtWindow(primary.startTs, primary.endTs, tz);
-			const out = {
-				banner: (`「${primary.name}」${primary.typeLabel}`).trim(),
-				roles: [...new Set(pools.flatMap((p) => p.upNames))].join("、"),
-				bannerDates: win,
-				bannerDatesRaw: win
-			};
-			const hover = hoverTextFromItems(items, "gacha", tz);
-			if (hover) out.bannerHover = hover;
-			out.gacha = dataArrayProducedGachaOf(out, items, { tz }, now);
-			out.gachaHoverItems = items;
-			return out;
-		}
-		async function fetchFzWikiEndfieldGacha(pageUrl, _signal, tz, now = nowMs()) {
-			let url = pageUrl;
-			if (!/api\.fz\.wiki/.test(pageUrl)) {
-				const m = /\/wiki\/([^/?#]+)/.exec(pageUrl);
-				const title = m ? decodeURIComponent(m[1]) : "卡池";
-				url = "https://api.fz.wiki/api/v1/articles/by-title?ns=0&title=" + encodeURIComponent(title) + "&withRevision=1";
-			}
-			const text = await proxyFetchText(url, "https://fz.wiki/");
-			return parseFzWikiGacha(text, now, tz);
-		}
-
 		async function fetchFzWikiEndfield(pageUrl, _signal, tz, now = nowMs()) {
 			let url = pageUrl;
 			if (!/api\.fz\.wiki/.test(pageUrl)) {
@@ -22252,17 +22153,12 @@ EVENT_FETCHERS["ba-jp"] = {
 				parserVersion: 2,
 				name: "明日方舟：终末地",
 				icon: "https://storage.moegirl.org.cn/moegirl/commons/f/f1/ArknightsEndfieldAppIcon.png!/fw/512",
-				// 2026-11-26：卡池默认源 Canmoe → **FZ Wiki 卡池页**（Canmoe 排期库停在 11-05~11-25，
-				//   页面自写「暂无卡池日历数据」，而 11-25 12:00 已开新池 ⇒ 面板卡池一直挂过期旧值）。
-				source: "FZ Wiki \u5361\u6C60",
-				url: "https://fz.wiki/wiki/%E5%8D%A1%E6%B1%A0",
-				// 卡池备选来源（设置页下拉可切换）：Canmoe（中文，排期库常滞后）/ GachaTracker（英文，直连）/ wiki.gg（英文，经 host 代理）
+				source: "Canmoe",
+				// 经 host 代理抓取（canmoe 无 CORS 头，浏览器直连会被拦截）；
+				// 数据在 Next.js 组件 chunk 的 JS 里，需先抓页面定位 chunk 再抓 chunk 解析
+				url: "https://end.canmoe.com/zh-CN/banner-calendar",
+				// 卡池备选来源（设置页下拉可切换；GachaTracker 浏览器直连，wiki.gg 经 host 代理）
 				altSources: [
-					{
-						label: "Canmoe\uff08\u5E38\u6EDE\u540E\uff09",
-						url: "https://end.canmoe.com/zh-CN/banner-calendar",
-						fetcher: "endfield-canmoe"
-					},
 					{
 						label: "GachaTracker\uff08\u82F1\u6587\uff09",
 						url: "https://gachatracker.app/games/endfield/banners/",
@@ -22293,10 +22189,9 @@ EVENT_FETCHERS["ba-jp"] = {
 			// `startTs <= now` 恒为 false → 解析结果恒为 null（静默"未公布"，极难查）。
 			// 所以这两个注册点必须**显式传 nowMs()**。
 GACHA_FETCHERS["arknights-prts"] = (url, signal, tz) => mkMediaWiki((text) => selectArknights(text, nowMs(), tz))(url, signal, tz);
-					// 终末地默认（2026-11-26 起）：FZ Wiki 卡池页（中文、带精确 schedule）
-GACHA_FETCHERS["endfield"] = (url, signal, tz) => fetchFzWikiEndfieldGacha(url, signal, tz);
-					// 终末地备选：Canmoe（中文，排期库常滞后）/ GachaTracker（英文，直连）/ wiki.gg（英文，经 host 代理）
-GACHA_FETCHERS["endfield-canmoe"] = (url, signal, tz) => fetchCanmoeEndfield(url, signal, tz);
+					// 终末地默认：Canmoe（中文，Next.js 数据经 host 代理两步抓取）
+GACHA_FETCHERS["endfield"] = (url, signal, tz) => fetchCanmoeEndfield(url, signal, tz);
+					// 终末地备选：GachaTracker（英文，浏览器直连）/ wiki.gg（英文，经 host 代理）
 GACHA_FETCHERS["endfield-gachatracker"] = mkRaw(parseGachaTracker);
 		GACHA_FETCHERS["endfield-wiki-gg"] = (url, signal, tz) => fetchEndfieldWikiGg(url, signal, tz);
 					// 明日方舟：**默认** = PRTS SMW **单请求**（活动类型 / 活动开始 / 活动结束 / 兑换结束）
