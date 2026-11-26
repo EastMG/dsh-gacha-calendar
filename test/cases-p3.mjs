@@ -1076,6 +1076,10 @@ const P3B_DISPLAY_NAME = {
 	umaJpEvent: ["event"],
 	gf2Gacha: ["banner"],
 	gf2Event: ["event"],
+	// 2026-11-26（B2：「新登場」领句）：uma-cn 卡池横幅 = `养成优俊少女新登场！自定义精选 协助卡招募同时`，
+	// 领句「…新登场！」是公告体裁（见 60-helpers.js ①b）⇒ 外显 = `自定义精选 协助卡招募同时`。
+	// 卡池格外显本来显示角色名（roles 非空）⇒ 面板上肉眼无变化；这条只影响记录里的 `banner`。
+	umaCnGacha: ["banner"],
 	// ② 泛名让位（2026-11-18）：`限时招募` / `特选招募` + 主条带角色名 ⇒ 外显改用角色名。
 	// 这四个路径的载荷都同时含两侧（GameKee 一次返回卡池 + 活动）⇒ 两条路径的 banner 都会变。
 	baCnGacha: ["banner"],
@@ -1100,6 +1104,18 @@ const P3B_EXTRA_SHOW = {
 	]
 };
 const p3bRestoreShowArr = (arr) => (arr || []).map((x) => (x.source === "hover" ? Object.assign({}, x, { show: x.title }) : x));
+// ── 2026-11-26（B2：探头/并列条那一行过长）的**已批准差异登记** ────────────────────────
+// 同类先例：终末地卡池（上面 ③ 的 endfield 块：`title` 原文 / `show` = 该池角色名）与 FGO 日服
+// （`extrasShowFromEntry` opt-in）。这里把**日服卡池的并列条 show** 从源站标题原文改成外显名同一套
+// 归一后的短名（`displayNameNextOf`：剥「…も開催！」体裁尾巴 + 剥「新登場」领句）。
+// 差异范围 = 只动并列条的 `show` 一列：条数 / 顺序 / key / title / raw / ts / source / 外显那条全等。
+const P3B_UMA_JP_POOL_SHOW = { umaJpGacha: true };
+// 把"改造前"的数组按新口径重建：**非主条**的 show 换成 `displayNameNextOf(title)`（其余字段原样）。
+const p3bUmaJpPoolShowArr = (arr) => (arr || []).map((x) => {
+	if (!x || x.source === "primary") return x;
+	const short = T.displayNameNextOf(p3bTextOf(x.title), []);
+	return short && short !== x.title ? Object.assign({}, x, { show: short }) : x;
+});
 // ── 2026-11-26（活网审计 B ②）：ba-global「只有日期」窗口统一 `00:00 ~ 23:59` + 补 `*DatesRaw` ──
 // 现场：卡池「特选招募」`11-24 00:00 ~ 12-08 00:00`、活动同窗口，`rawEmpty: true`。
 // 源站只有日期（GameKee 卡池表 `11月24日 ～ 12月8日`、活动标题 `【11/24～12/08】`）⇒ 按仓库通用约定
@@ -1412,6 +1428,7 @@ async function runP3b() {
 				pairs.every(([t, s]) => !!s && s !== t && t.endsWith("\uFF1A" + s)), JSON.stringify(pairs));
 		} else {
 		if (extrasShow) gArr = JSON.stringify(p3bExtrasShowArr(gArrRaw, extrasShow));
+		if (P3B_UMA_JP_POOL_SHOW[p.key] === true) gArr = JSON.stringify(p3bUmaJpPoolShowArr(gArrRaw));
 		if (umaFb) {
 			// ⚠️ 2026-11-26（活网审计 B）**已批准差异**：`events[]` 3 → 2 条，移除的**恰好**是
 			// fallback 那条（3483「10月～3月対戦レースイベント」）；其余两条逐字 / 逐键相同（key 序号也不变）。
@@ -1438,6 +1455,24 @@ async function runP3b() {
 				&& arr.every((x) => !!x.raw)
 				&& JSON.stringify(gArrRaw) !== JSON.stringify(p3bBaGlobalDayArr(gArrRaw, p.field === "gacha" ? baGlobalDay.bannerDatesRaw : baGlobalDay.eventDatesRaw)),
 				JSON.stringify([gArrRaw.map((x) => x.raw), arr.map((x) => x.raw)]));
+		}
+		if (P3B_UMA_JP_POOL_SHOW[p.key] === true) {
+			// 反向守卫（2026-11-26 B2）：登记必须**真的**改了东西，且只改并列条 `show` 那一列：
+			//   ① 重建结果 ≠ golden（白名单不是空转）；
+			//   ② 逐条只差 show，且新 show 恰好 = `displayNameNextOf(原文标题)`；
+			//   ③ title / raw / ts / source / 键序全等（用同一份重建后再逐条比）。
+			const stripShow = (list) => (list || []).map((x) => {
+				const o = Object.assign({}, x);
+				delete o.show;
+				return o;
+			});
+			const extras = gArrRaw.filter((x) => x.source !== "primary");
+			check(`P3b golden（${p.key}）**已批准差异**：\`${p.field}\` 并列条 show 换成短名（重建 ≠ golden，且其余字段逐条全等）`,
+				JSON.stringify(gArrRaw) !== JSON.stringify(p3bUmaJpPoolShowArr(gArrRaw))
+				&& extras.length > 0
+				&& JSON.stringify(stripShow(p3bUmaJpPoolShowArr(gArrRaw))) === JSON.stringify(stripShow(gArrRaw))
+				&& extras.every((x) => p3bUmaJpPoolShowArr([x])[0].show === T.displayNameNextOf(p3bTextOf(x.title), [])),
+				JSON.stringify([gArrRaw.map((x) => [x.title, x.show]), arr.map((x) => [x.title, x.show])]));
 		}
 		if (baJpEv) {
 			// 反向守卫：golden 的 title/raw 是 GameKee 口径、新数组是官方口径，且逐字等于登记值
@@ -1663,6 +1698,24 @@ async function runP3b() {
 		const otherSide = p.side === "gacha" ? "event" : "gacha";
 		const oldArr = P3B_DAY_ONLY[p.key] === true ? p3bDayArr(legacySynthArrOf(p.key, p.side)) : legacySynthArrOf(p.key, p.side);
 		const oldOther = P3B_DAY_ONLY[p.key] === true ? p3bDayArr(legacySynthArrOf(p.key, otherSide)) : legacySynthArrOf(p.key, otherSide);
+		if (P3B_UMA_JP_POOL_SHOW[p.key] === true) {
+			// ⚠️ 2026-11-26（B2）**已批准差异**：并列条 `show` = 短名（登记见 ① 上方）。
+			//   正向：把改造前的合成结果按**同一个产品函数**重建（非主条 show = displayNameNextOf(title)）
+			//        后逐条逐键相等 ⇒ 差异只有这一列；反向：与旧值确实不等（白名单没空转）。
+			const cur = r.rec[p.field] || [];
+			const rebuilt = p3bUmaJpPoolShowArr(oldArr);
+			check(`P3b 等价（${p.key}）**已批准差异**：改造前合成结果按「并列条 show = displayNameNextOf(title)」重建后逐条相等`,
+				rebuilt.length > 0 && JSON.stringify(sansCategoryTags(cur)) === JSON.stringify(sansCategoryTags(rebuilt)),
+				JSON.stringify([sansCategoryTags(cur), sansCategoryTags(rebuilt)]));
+			check(`P3b 等价（${p.key}）**已批准差异**：差异确实发生（新数组 ≠ 改造前合成结果，不是白名单空转）`,
+				JSON.stringify(sansCategoryTags(cur)) !== JSON.stringify(sansCategoryTags(oldArr)));
+			check(`P3b 等价（${p.key}）**已批准差异**：title / raw / ts 仍逐字是改造前的值（只改 show）`,
+				cur.length === oldArr.length
+				&& JSON.stringify(cur.map((x) => ({ title: x.title, raw: x.raw, startTs: x.startTs, endTs: x.endTs })))
+					=== JSON.stringify(oldArr.map((x) => ({ title: x.title, raw: x.raw, startTs: x.startTs, endTs: x.endTs }))),
+				JSON.stringify([cur.map((x) => x.title), oldArr.map((x) => x.title)]));
+			continue;
+		}
 		if (P3B_NTE_MULTI_WINDOW[p.key] === true) {
 			// 已批准差异（nte 多窗口，2026-11-26）的**反向证明**：
 			//   活动侧数组 1 → 2 条，新增的只有「夺金大作战」（源站同篇公告原文 10-19 05:00~11-02 04:59，

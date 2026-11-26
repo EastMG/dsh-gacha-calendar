@@ -309,12 +309,38 @@ async function ns_yslz_pagesOf(url, signal) {
 	}
 	return out;
 }
+// ── 2026-11-26（B2：探头/并列条那一行过长）────────────────────────────────────
+// 并列条条目名是 `追光·<阁名>：UP`（共享载荷 label，实测最长 26 字：
+// `追光·魔卡契约：透明序曲、封印解除、烟雨惊梦、顾苏澄`）。源站卡池页名固定是 `追光·<阁名>`
+// （文件头「池名 = 页面标题原文 `追光·时砂寄念`；`阁名` 只是去掉前缀的那半截」）
+// ⇒ 短名 = 去掉 `追光·` 前缀的阁名（源站自己那个字段就叫 `阁名`）。
+// ⚠️ 只写条目自己的 `show`（共享数据层 opt-in `extrasShowFromEntry` 把它带到并列条）；
+//    `title` / `raw` / 悬停仍逐字原文（提醒标题读数组 title）。opt-in 那条路对 show 过
+//    `cleanRoleNames`（面向角色名）⇒ 这里再把 show 逐字落回短名。
+function ns_yslz_poolShowOf(banner) {
+	const m = /^追光[·・]\s*(.+)$/.exec(String(banner == null ? "" : banner).trim());
+	return m ? m[1].trim() : "";
+}
+function ns_yslz_shortExtrasOf(payload, items, tz, now) {
+	const hoverItems = (payload.gachaHoverItems || []).map((x) => {
+		const src = (items || []).find((p) => x.title === `${p.banner}${p.roles ? `\uFF1A${p.roles}` : ""}`);
+		const show = src ? ns_yslz_poolShowOf(src.banner) : "";
+		return show ? Object.assign({}, x, { show }) : x;
+	});
+	const out = Object.assign({}, payload, { gachaHoverItems: hoverItems });
+	out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id: "yslz", tz, extrasShowFromEntry: true }, now);
+	const shown = new Map(hoverItems.filter((x) => x.show).map((x) => [x.title, x.show]));
+	out.gacha = out.gacha.map((x) => (x.source !== "primary" && shown.has(x.title)
+		? Object.assign({}, x, { show: shown.get(x.title) }) : x));
+	return out;
+}
 // 卡池侧：一页都解不出 ⇒ **抛**（源站改版），不是"当期没有"
 async function ns_yslz_gacha(url, signal, tz = ns_yslz_TZ, now) {
 	const items = ns_yslz_parsePools(await ns_yslz_pagesOf(url, signal), tz);
 	if (items.length === 0) throw new Error("yslz-gacha-changed:no-pools");
 	// 同批（endTs 相同）合并角色 + 悬停列在期全部：与白荆回廊 / 无期迷途同一份载荷生成器
-	return ns_bwiki_batchGachaPayloadOf(items, tz, ns_bwiki_nowOf(now), { id: "yslz" });
+	const payload = ns_bwiki_batchGachaPayloadOf(items, tz, ns_bwiki_nowOf(now), { id: "yslz" });
+	return payload ? ns_yslz_shortExtrasOf(payload, items, tz, ns_bwiki_nowOf(now)) : null;
 }
 // 活动：`|offset=` 续页（SMW 单页 500 行）。
 // ⚠️ 续页用 `ns_yslz_eventsUrlOf(offset)` 这条**规范地址**（offset 夹在编码过的 query 串里，

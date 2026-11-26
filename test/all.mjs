@@ -191,7 +191,7 @@ const batches = [
 	["BOM 守卫（钩子扫描改 Node：三平台一致 + 字面量修复命令 + setup:hooks 跨平台）", runBomHook],
 	["第五批第三方来源（棕色尘埃2 browndust2：bannerhistory.app 的 RSC flight 负载 `rows[].groups[]` —— 池名 + 角色 + 绝对毫秒起止；只有卡池侧、24h 缓存）", runBatch5],
 	["第五批新来源（2 款 bwiki：粉碎狂热 / 怪物弹珠；SMW ask + Data JSON + 活动日历 CALENDAR_DATA）", runBatch6],
-	["外显名（banner / event）：① 源站体裁尾巴归一（白名单 + 剥完 ≥3 码点保护）/ ② 泛名让位 / ③ 过长名只做有源站证据的归一（剥「推荐召唤 / 纪念活动」+ bh3 取核心名 + 探头/并列条显示各自短名，**不截断**）", runDisplayName],
+	["外显名（banner / event）：① 源站体裁尾巴归一（白名单 + 剥完 ≥3 码点保护）/ ② 泛名让位（原文先判一次）/ ③ 过长名的有源站措辞归一（加长体裁尾巴 /「新登場」领句 /「」真名 / 剥「推荐召唤 · 纪念活动」/ bh3 取核心名 / 探头与并列条显示各自短名；**不做程序截断**）", runDisplayName],
 	["2026-11-26 鸣潮（活网审计 A）：活动 tag 口径失效 + 「角色忆旅唤取」池被过滤", runWuwa20261126],
 	["2026-11-26 炽焰天穹（活网审计 A）：「维护后」起点活动被 coversNow 整条丢 —— 局部修复（只 cytq 开 coveredOrOpen）", runCytqMaintenance]
 ];

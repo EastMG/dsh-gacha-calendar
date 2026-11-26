@@ -1588,6 +1588,22 @@ export default async function runBatch2() {
 				+ "追光·月狩神谕：朔月神临、墨绛焚花、沉砂絮语、苏黎\n11-11 10:00 ~ 12-01 23:59",
 				JSON.stringify(g && g.bannerHover));
 			check("悬停合规（只含名称与档期）", assertHoverConvention("yslz 卡池", g && g.bannerHover, { requireSet: true }) !== false);
+			// ── 2026-11-26（B2：探头/并列条那一行过长）：并列条 `show` = **阁名** ─────────
+			// 并列条条目的 `title` 是 `追光·<阁名>：UP`（共享载荷 label 的写法，实测最长 26 字）；
+			// 源站卡池页名固定是 `追光·<阁名>`（文件头：`阁名` 只是去掉前缀那半截）⇒ 短名 = 阁名。
+			// 探头那一行读 `show`；`title` / `raw` / 悬停仍源站原文（上面那条悬停逐字就是反向证明）。
+			check("yslz 并列条 show = 阁名（`时砂寄念` / `月狩神谕`），title 仍是 `追光·<阁名>：UP` 原文",
+				arr[1].show === "时砂寄念" && arr[2].show === "月狩神谕"
+				&& arr[1].title === "追光·时砂寄念：逆时沙海、风翎叶信、珠幕摇星、落言"
+				&& arr[2].title === "追光·月狩神谕：朔月神临、墨绛焚花、沉砂絮语、苏黎",
+				JSON.stringify(arr.map((x) => [x.title, x.show])));
+			check("yslz 并列条短名只落在 show：source / raw / ts / category 与改动前逐字一致",
+				arr.map((x) => x.source).join(",") === "primary,hover,hover"
+				&& arr[0].show === "无烬之誓、隐刃破晓、馥心夜蔷、蓝殊"
+				&& arr[1].raw === "11-03 10:00 ~ 11-23 23:59" && arr[2].raw === "11-11 10:00 ~ 12-01 23:59"
+				&& arr[1].startTs === Date.UTC(2026, 10, 3, 2, 0) && arr[2].startTs === Date.UTC(2026, 10, 11, 2, 0)
+				&& arr[1].category === void 0 && arr[2].category === "复刻",
+				JSON.stringify(arr.map((x) => [x.source, x.raw, x.startTs, x.show])));
 			check("**2 个请求**：分类成员+正文（第 1 页）+ `rvcontinue` 续页（当期主档在续页里）",
 				calls.length === 2
 				&& /gcmtitle=Category%3A/.test(calls[0].url) && !/rvcontinue/.test(calls[0].url)

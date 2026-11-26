@@ -134,6 +134,32 @@ export default async function runCytqMaintenance() {
 			&& (rec.gacha || []).length === 4,
 			JSON.stringify([rec.banner, rec.bannerDates, (rec.gacha || []).length]));
 
+		// ── ⑦ 2026-11-26（B2：探头/并列条那一行过长）：并列条 show = 池名 ──────────────
+		// 并列条条目的 `title` 是 `池名：角色`（共享载荷 label 的写法，实测最长 36 字）；
+		// 探头/并列条那一行读的是 `show` ⇒ 这里落**池名**（源站帖子 h2 标题，剥「举办中！」这类
+		// 体裁尾巴）。`title` / `raw` / 悬停仍是源站原文（悬停下面那条就是反向证明）。
+		{
+			const ga = rec.gacha || [];
+			check("cytq 并列条 show = 池名（3 条逐字；title 仍是 `池名：角色` 源站原文）",
+				ga.length === 4
+				&& ga[1].show === "感谢庆典纪念 SS1.5倍扭蛋" && ga[1].title === "感谢庆典纪念 SS1.5倍扭蛋举办中！"
+				&& ga[2].show === "SS小笠原绯雨登场！精选白金扭蛋" && ga[2].title === "SS小笠原绯雨登场！精选白金扭蛋：小笠原绯雨、月城最中"
+				&& ga[3].show === "【仅限付费晶石】感谢庆典必得SS扭蛋" && ga[3].title === "【仅限付费晶石】感谢庆典必得SS扭蛋举办中！：小笠原绯雨、月城最中",
+				JSON.stringify(ga.map((x) => [x.title, x.show])));
+			check("cytq 并列条短名只落在 show：source / raw / ts 与改动前逐字一致（主条 show 仍是角色名）",
+				ga.map((x) => x.source).join(",") === "primary,hover,hover,hover"
+				&& ga[0].show === rec.roles
+				&& ga[1].raw === "11-11 11:00 ~ 11-25 10:59" && ga[1].startTs === Date.UTC(2026, 10, 11, 3, 0)
+				&& ga[2].raw === "2026/10/28 维护后 ~ 2026/11/18 12:59" && ga[2].startTs === null && ga[2].endTs === null
+				&& ga[3].raw === "2026/10/28 维护后 ~ 2026/11/18 12:59" && ga[3].startTs === null && ga[3].endTs === null,
+				JSON.stringify(ga.map((x) => [x.source, x.raw, x.startTs, x.endTs, x.show])));
+			check("cytq 反向证明：悬停逐字仍是 `池名：角色` 原文（短名只进数组的 show，不改悬停）",
+				String(rec.bannerHover).indexOf("感谢庆典纪念 SS1.5倍扭蛋举办中！") >= 0
+				&& String(rec.bannerHover).indexOf("SS小笠原绯雨登场！精选白金扭蛋：小笠原绯雨、月城最中") >= 0
+				&& String(rec.bannerHover).indexOf("【仅限付费晶石】感谢庆典必得SS扭蛋举办中！：小笠原绯雨、月城最中") >= 0,
+				JSON.stringify(rec.bannerHover));
+		}
+
 		// ── ⑥ 静态守卫：这是**局部**修复，共用函数默认语义没被放宽 ──
 		const srcDir = path.join(REPO, "src", "client");
 		const files = readdirSync(srcDir).filter((f) => f.endsWith(".js"));

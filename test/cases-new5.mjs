@@ -292,6 +292,23 @@ export default async function run() {
 		check("wqmt gacha[] 的 key 是 wqmt:gacha:0..2",
 			g.map((x) => x.key).join(",") === "wqmt:gacha:0,wqmt:gacha:1,wqmt:gacha:2",
 			g.map((x) => x.key).join(","));
+		// ── 2026-11-26（B2：探头/并列条那一行过长）：并列条 `show` = **池名** ─────────────
+		// 并列条条目的 `title` 是 `池名：UP`（共享载荷 label 的写法，实测最长 29 字）；
+		// 探头/并列条那一行读的是 `show` ⇒ 这里落池名（源站「追踪页面」列的原文），
+		// `title` / `raw` / 悬停仍是源站原文（悬停下面那条逐字断言就是反向证明）。
+		check("wqmt 并列条 show = 池名（`绛夜流光` / `真夜猫影`），title 仍是 `池名：角色` 源站原文",
+			g[1].show === "绛夜流光" && g[2].show === "真夜猫影"
+			&& g[1].title === "绛夜流光：来生泪、来生爱、普希拉、泰特拉"
+			&& g[2].title === "真夜猫影：来生瞳、来生爱、普希拉、泰特拉",
+			JSON.stringify(g.map((x) => [x.title, x.show])));
+		check("wqmt 并列条短名只落在 show：source / raw / ts / category 与改动前逐字一致",
+			g.map((x) => x.source).join(",") === "primary,hover,hover"
+			&& g.every((x) => x.category === "复刻·联动追踪")
+			&& g[1].raw === "10-27 14:00 ~ 11-11 09:59" && g[2].raw === "10-27 14:00 ~ 11-11 09:59",
+			JSON.stringify(g.map((x) => [x.source, x.category, x.raw])));
+		check("wqmt 主条 show 仍是**同批合并角色名**（外显那条不受并列条短名影响）",
+			g[0].show === wqmtGacha.roles && g[0].show === "来生泪、来生爱、普希拉、泰特拉、来生瞳",
+			JSON.stringify([g[0].show, wqmtGacha.roles]));
 		check("wqmt gacha[] 全部带 tz = Asia/Shanghai（数组条目自带源站时区）",
 			g.every((x) => x.tz === TZ_CN), JSON.stringify([...new Set(g.map((x) => x.tz))]));
 		// ⚠️ 2026-11-09 改（有意变化）：**主条** raw = 源站原文（`10-27 开服后 ~ 11-11 09:59`），

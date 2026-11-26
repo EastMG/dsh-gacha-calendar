@@ -385,6 +385,31 @@
 			}
 		}
 
+		// ── 2026-11-26（B2：探头/并列条那一行过长）────────────────────────────────
+		// 悬停/并列条上的条目名是 `池名：UP`（共享载荷 `ns_bwiki_batchGachaPayloadOf` 拼的 label，
+		// 实测最长 29 字：`隐秘深渊：格芮芙、渡鸦、阿黛拉、卡门奈特、克里斯蒂娜、莓丝`）。
+		// 短名 = **池名**（源站 bwiki「追踪一览」的「追踪页面」列就是池名；`：UP` 只是悬停排版后缀）。
+		// ⚠️ 只写条目自己的 `show`（共享数据层 opt-in `extrasShowFromEntry` 把它带到并列条）；
+		//    `title` / `raw` / 悬停仍逐字原文 ⇒ 提醒标题（读数组 title）一个字不动。
+		//    `extrasShowFromEntry` 那条路对 show 过 `cleanRoleNames`（面向角色名：把【】「」· 当修饰去掉）
+		//    ⇒ 这里再把 show 逐字落回短名，保证并列条上是源站自己的写法。
+		function ns_wqmt_poolShowOf(banner) {
+			return displayNameNextOf(String(banner == null ? "" : banner), []);
+		}
+		function ns_wqmt_shortExtrasOf(payload, items, tz, now) {
+			const hoverItems = (payload.gachaHoverItems || []).map((x) => {
+				const src = (items || []).find((p) => x.title === `${p.banner}${p.roles ? `\uFF1A${p.roles}` : ""}`);
+				const show = src ? ns_wqmt_poolShowOf(src.banner) : "";
+				return show ? Object.assign({}, x, { show }) : x;
+			});
+			const out = Object.assign({}, payload, { gachaHoverItems: hoverItems });
+			out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id: "wqmt", tz, extrasShowFromEntry: true }, now);
+			const shown = new Map(hoverItems.filter((x) => x.show).map((x) => [x.title, x.show]));
+			out.gacha = out.gacha.map((x) => (x.source !== "primary" && shown.has(x.title)
+				? Object.assign({}, x, { show: shown.get(x.title) }) : x));
+			return out;
+		}
+
 		// 卡池：bwiki（biligame 系主机 ⇒ 必须走宿主代理，见 15-env.js 的 CORS 收口点）
 		async function ns_wqmt_gachaWqmt(url, signal, tz = WQMT_TZ, now) {
 			const at = typeof now === "number" && Number.isFinite(now) ? now : nowMs();
@@ -393,7 +418,8 @@
 			const items = wqmtPoolsOf(html, tz, anchors);
 			// 页面拿到了却一行候选都没有 ⇒ 表结构变了（抛错 = 该侧"抓取失败"，与"未公布"分开）
 			if (items.length === 0) throw new Error("wqmt-no-table");
-			return ns_bwiki_batchGachaPayloadOf(items, tz, at, { id: "wqmt" });
+			const payload = ns_bwiki_batchGachaPayloadOf(items, tz, at, { id: "wqmt" });
+			return payload ? ns_wqmt_shortExtrasOf(payload, items, tz, at) : null;
 		}
 
 		// 活动：官方资讯 API（`ACAO:*` ⇒ 直连），列表 1 次 + 正文最多 10 次

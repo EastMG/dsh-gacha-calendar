@@ -463,9 +463,21 @@ export async function runUmaKr() {
 			/^픽업 프리티 더비 뽑기 & 픽업 서포트 카드 뽑기（\[맑은 섬에 핀 아름다운 꽃\] 사토노 크라운、\[잔잔한 여름의 네이비 드롭\] 슈발 그랑）$/.test(String(rec.banner))
 			&& rec.bannerDates === "11-19 12:00 ~ 12-03 11:59",
 			JSON.stringify([rec.banner, rec.bannerDates]));
-		check("记录里的当期活动与解析器逐字一致",
-			rec.event === "스토리 이벤트 「서머 데이즈 『You』 그라피티」" && rec.eventDates === "11-19 12:00 ~ 12-03 11:59",
+		// ⚠️ 2026-11-26（B2：过长的卡片外显名）**已批准差异**：活动外显名 = 「」里的真名。
+		//   `스토리 이벤트` 是**活动体裁前缀**（"剧情活动"），不是名字本身 —— 归一在共享显示层
+		//   （60-helpers.js ①c，白名单体裁前缀 + 「」整段），数组 title / 悬停仍逐字源站原文。
+		check("记录里的当期活动（**已批准差异**：外显名 = 剥掉活动体裁前缀后的「」真名，逐字 17 字）",
+			rec.event === "서머 데이즈 『You』 그라피티"
+			&& rec.event === T.displayNameNextOf("스토리 이벤트 「서머 데이즈 『You』 그라피티」", [])
+			&& rec.eventDates === "11-19 12:00 ~ 12-03 11:59",
 			JSON.stringify([rec.event, rec.eventDates]));
+		check("**反向证明**（uma-kr）：活动数组 title / show 仍是源站原文（外显归一不碰数组）",
+			!!(rec.events || [])[0] && rec.events[0].title === "스토리 이벤트 「서머 데이즈 『You』 그라피티」"
+			&& rec.events[0].show === "스토리 이벤트 「서머 데이즈 『You』 그라피티」",
+			JSON.stringify(rec.events && rec.events[0]));
+		check("**反向证明**（uma-kr）：活动悬停（eventHover）仍是源站原文（含活动名整串）",
+			String(rec.eventHover || "").indexOf("스토리 이벤트 「서머 데이즈 『You』 그라피티」") >= 0,
+			JSON.stringify(rec.eventHover));
 		check("记录数组的 key 带条目 id 前缀（uma-kr:gacha:i / uma-kr:event:i）",
 			(rec.gacha || []).every((x, i) => x.key === "uma-kr:gacha:" + i)
 			&& (rec.events || []).every((x, i) => x.key === "uma-kr:event:" + i),

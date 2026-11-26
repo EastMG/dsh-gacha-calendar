@@ -340,6 +340,35 @@ async function ns_cytq_postsOf(url, signal, tz, now) {
 	return out;
 }
 
+// ── 2026-11-26（B2：探头/并列条那一行过长）────────────────────────────────────
+// 悬停/并列条上的条目名是 `池名：角色`（`ns_bwiki_batchGachaPayloadOf` 拼的 label，实测最长 36 字）。
+// 短名 = **池名**（源站帖子自己的 h2 标题，`：角色` 只是悬停排版后缀），走与外显名同一套归一
+// （`displayNameNextOf`：剥「举办中！」这类体裁尾巴）。`title` / `raw` / 悬停仍逐字原文。
+function ns_cytq_poolShowOf(banner) {
+	const s = String(banner == null ? "" : banner);
+	// 短名 = 池名本身（剥完体裁尾巴；没有尾巴可剥的就原样用池名）——
+	// 悬停条目的 title 是 `池名：角色`，所以 show 恒短于 title，不需要"必须变短"才写。
+	return displayNameNextOf(s, []) || s;
+}
+// 把并列条的 `show` 落成条目自己的短名。两条路径叠加：
+//   ① `extrasShowFromEntry`（共享数据层的 opt-in）先让并列条读条目自己的 show；
+//   ② 再把 show **逐字**落回短名 —— ① 那条路对 show 过 `cleanRoleNames`（面向角色名：把【】「」当
+//      修饰去掉），会把池名里的 `【仅限付费晶石】` 吃成 `仅限付费晶石…`；短名要保留源站标点。
+// `title` / `raw` / 悬停一个字不动（仍然只改显示名）。
+function ns_cytq_shortExtrasOf(payload, items, tz, now) {
+	const hoverItems = (payload.gachaHoverItems || []).map((x) => {
+		const src = (items || []).find((p) => x.title === `${p.banner}${p.roles ? `\uFF1A${p.roles}` : ""}`);
+		const show = src ? ns_cytq_poolShowOf(src.banner) : "";
+		return show ? Object.assign({}, x, { show }) : x;
+	});
+	const out = Object.assign({}, payload, { gachaHoverItems: hoverItems });
+	out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id: "cytq", tz, extrasShowFromEntry: true }, now);
+	const shown = new Map(hoverItems.filter((x) => x.show).map((x) => [x.title, x.show]));
+	out.gacha = out.gacha.map((x) => (x.source !== "primary" && shown.has(x.title)
+		? Object.assign({}, x, { show: shown.get(x.title) }) : x));
+	return out;
+}
+
 // 卡池侧：is-gacha 帖里有窗口的 → 条目事实 → 共用载荷生成器（同批合并 + 悬停 + `gacha[]`）
 async function ns_cytq_gacha(url, signal, tz = ns_cytq_TZ, now = nowMs()) {
 	const posts = await ns_cytq_postsOf(url, signal, tz, now);
@@ -360,7 +389,8 @@ async function ns_cytq_gacha(url, signal, tz = ns_cytq_TZ, now = nowMs()) {
 		});
 	}
 	if (items.length === 0) return null;          // 列表里没有 is-gacha 帖 ⇒ 未公布（不是失败）
-	return ns_bwiki_batchGachaPayloadOf(items, tz, now, { id: "cytq" });
+	const payload = ns_bwiki_batchGachaPayloadOf(items, tz, now, { id: "cytq" });
+	return payload ? ns_cytq_shortExtrasOf(payload, items, tz, now) : null;
 }
 
 // 活动侧：is-event / is-campaign 帖里有窗口的 → 共用活动载荷
