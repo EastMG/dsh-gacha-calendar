@@ -459,6 +459,30 @@ export default async function run() {
 			&& !/共扫描|取详情|官网公告|tz=|推定|\[3470\]|開催期間|umamusume\.jp/.test(r1.data.bannerHover)
 			&& !/^\d{2}-\d{2} \d{2}:\d{2} {2}/m.test(r1.data.bannerHover),
 			JSON.stringify(r1.ok && r1.data && r1.data.bannerHover));
+		// ── 2026-11-26（B2：探头/并列条那一行过长）：并列条 show = 短名 ──────────────
+		// 日服卡池的并列条 = 当期各公告标题（源站**版面标题**，实战最长 41 字）；探头那一行读 `show`
+		// ⇒ 短名 = 外显名同一套归一（剥「…も開催！」体裁尾巴 + 剥「新登場」领句，见 60-helpers.js ①②）。
+		// `title` / 悬停仍源站原文（下面两条就是反向证明）。
+		{
+			const ujArr = (r1.ok && r1.data && r1.data.gacha) || [];
+			const ujExtra = ujArr.find((x) => x.source !== "primary");
+			check("uma-jp 并列条 show = 短名「ピックアップガチャ」（title 仍是源站版面标题原文）",
+				!!ujExtra && ujExtra.show === "ピックアップガチャ"
+				&& ujExtra.title === "育成ウマ娘&サポートカード新登場！ピックアップガチャ開催！",
+				JSON.stringify(ujExtra && [ujExtra.title, ujExtra.show]));
+			check("uma-jp 并列条短名只落在 show：外显 / 数组 title / 悬停仍是源站原文",
+				r1.data.banner === "トゥインクルコレクション プリティーダービーガチャとSSR確定スピードガチャ開催！"
+				&& ujArr.length === 3
+				&& JSON.stringify(ujArr.map((x) => x.title).sort()) === JSON.stringify([
+					"【予告】トゥインクルコレクション プリティーダービーガチャとSSR確定スピードガチャ開催決定！",
+					"トゥインクルコレクション プリティーダービーガチャとSSR確定スピードガチャ開催！",
+					"育成ウマ娘&サポートカード新登場！ピックアップガチャ開催！"
+				])
+				&& ujExtra.title !== ujExtra.show
+				&& String(r1.data.bannerHover).indexOf("育成ウマ娘&サポートカード新登場！ピックアップガチャ開催！") >= 0
+				&& String(r1.data.bannerHover).indexOf("【予告】トゥインクルコレクション プリティーダービーガチャとSSR確定スピードガチャ開催決定！") >= 0,
+				JSON.stringify([r1.data.banner, ujArr.map((x) => [x.title, x.show])]));
+		}
 
 		const r2 = await grab(() => jpSrc.event.fetcher(jpSrc.event.url, undefined, jpSrc.tz, SNAP));
 		check("uma-jp.event 抓取成功", r2.ok, r2.err);

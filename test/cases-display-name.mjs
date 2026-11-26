@@ -11,7 +11,8 @@
 //   悬停 / 复制 / 回归 oracle 读的是它们 ⇒ 每段都有一条"原文不动"的断言。
 //   应用点 = `50-refresh.js` 的 `mergeEntryRecord`；纯函数在 `60-helpers.js`（两个产物都包含）。
 //
-// 分段与两个 commit 对齐：① 尾巴归一 / ② 泛名让位。
+// 分段与两个 commit 对齐：① 尾巴归一 / ② 泛名让位 / ③ 2026-11-26 过长名的**有源站措辞证据**归一
+// （③ 仍**不做程序截断**：只剥加长体裁尾巴、剥「新登場」领句、取「」里的真名）。
 // （③ 超长截断曾实现后按用户 2026-11-18 要求回退：本文件已无 ③ 的用例。）
 
 import { check, section } from "./harness.mjs";
@@ -263,5 +264,139 @@ export default function runDisplayName() {
 		check("反向守卫：数组里没有更具体条目 ⇒ 泛名保持原样（不硬造 / 不改写）",
 			p5x.banner === "限定扭蛋复刻" && p5x.gacha[0].title === "限定扭蛋复刻",
 			JSON.stringify([p5x.banner, p5x.gacha[0].title]));
+	}
+
+	// ══════════════════════════════════════════════════════════════════════════
+	section("外显名 ③：过长的外显名 —— 有源站措辞证据的归一（剥加长体裁尾巴 / 剥「新登場」领句 / 取「」真名；数组与悬停不动）");
+	// 2026-11-26（B2）：用户要求缩短过长的卡片外显名，**硬约束 = 不做程序截断**（2026-11-18 口径），
+	// 只能做"源站措辞本身支持"的归一。本段三类各一条主线（都只改**外显名**）：
+	//   ①a 加长体裁尾巴：`…も開催！` / `…同時舉辦中！`（旧白名单的 `開催！`/`舉辦中！` 会留下悬挂的「も」/「同時」）
+	//   ①b 「新登場」领句：`…が新登場！<池名>`（领句是公告体裁，正文「開催期間」段落里逐字写着池名）
+	//   ①c 「」真名：`<活动体裁词>「<活动名>」`（体裁词是栏目名，名字在「」里；白名单前缀 + 裸「」才生效）
+	{
+		// ── 纯函数：加长体裁尾巴（正向逐字）──────────────────────────────────────
+		const STRIP2 = [
+			["育成ウマ娘が新登場！セレクトピックアップ サポートカードガチャも開催！", "セレクトピックアップ サポートカードガチャ"],
+			["【予告】育成ウマ娘が新登場！セレクトピックアップ サポートカードガチャも開催決定！", "【予告】セレクトピックアップ サポートカードガチャ"],
+			["培育賽馬娘新登場！自選特選支援卡片轉蛋同時舉辦中！", "自選特選支援卡片轉蛋"],
+			["养成优俊少女新登场！自定义精选 协助卡招募同时", "自定义精选 协助卡招募同时"],
+			["某活动も開催！", "某活动"],
+			["某活动同時舉辦中！", "某活动"],
+			["某活动同时举办中!", "某活动"]
+		];
+		const bad2 = STRIP2.filter(([input, want]) => T.displayNameNextOf(input, []) !== want);
+		check("③a 加长体裁尾巴 / 「新登場」领句：白名单逐条剥掉（7 条正向逐字）",
+			bad2.length === 0, JSON.stringify(bad2.map(([i]) => [i, T.displayNameNextOf(i, [])])));
+		// ── 纯函数：「」真名（正向逐字；含状态标记保留）────────────────────────────
+		const QUOTE = [
+			["レースイベント「リーグ オブ ヒーローズ」開催！", "リーグ オブ ヒーローズ"],
+			["ストーリーイベント「Banquet of Shadows」開催！", "Banquet of Shadows"],
+			["스토리 이벤트 「서머 데이즈 『You』 그라피티」", "서머 데이즈 『You』 그라피티"],
+			["イベント「因子研究」開催中！", "因子研究"],
+			["【予告】レースイベント「リーグ オブ ヒーローズ」", "【予告】リーグ オブ ヒーローズ"]
+		];
+		const badQuote = QUOTE.filter(([input, want]) => T.displayNameNextOf(input, []) !== want);
+		check("③c 「」真名：白名单活动体裁前缀 + 裸「」⇒ 取「」里的名字（5 条正向逐字，含保留【予告】）",
+			badQuote.length === 0, JSON.stringify(badQuote.map(([i]) => [i, T.displayNameNextOf(i, [])])));
+		// ── 反向守卫：真实标题里那些「」形态的名字**逐字不动** ─────────────────────
+		// 判据：前缀/后缀只要不是"纯体裁词"就不动（后缀不是体裁词 / 前缀不是体裁词 / 本来就只有真名 /
+		// 后缀是"活动开启"这类非白名单体裁词）。这些是真 lastData / 审计里出现过的原串。
+		const QUOTE_KEEP = [
+			"「万序衍盈」109期角色活动祈愿",
+			"协同补给丨协同者「薇塔」开放获取",
+			"「坏灭肇始之时」",
+			"「酣眠遐梦」活动开启",
+			"「11月戰隊競賽」舉辦預告&訓練模式",
+			"劇場アニメーション「魔法使いの夜」公開記念 蒼崎青子ピックアップ召喚",
+			"「冠位戴冠战：Rider」＆「冠位戴冠战：Assassin」推荐召唤"
+		];
+		const badQuoteKeep = QUOTE_KEEP.filter((s) => T.displayNameNextOf(s, []) !== s);
+		check("③c 反向守卫：「」外不是纯体裁词的名字逐字不动（7 条真实串）",
+			badQuoteKeep.length === 0, JSON.stringify(badQuoteKeep.map((s) => [s, T.displayNameNextOf(s, [])])));
+		// ── 反向守卫：ba-jp 的真活动名**判为不该改** ─────────────────────────────
+		// `踊らされし芸術～象牙の塔と招かれざる客～`：源站新闻标题就是完整活动名（无体裁前缀 / 无尾巴 /
+		// 无「」可剥），`～…～` 是名字自带的副标题 ⇒ 逐字不动（审计结论：判为不该改）。
+		check("③ 反向守卫：ba-jp 真活动名「踊らされし芸術～象牙の塔と招かれざる客～」逐字不动（判为不该改）",
+			T.displayNameNextOf("踊らされし芸術～象牙の塔と招かれざる客～", []) === "踊らされし芸術～象牙の塔と招かれざる客～");
+		// ── 反向守卫：白名单之外的加长尾巴形态逐字不动 ──────────────────────────
+		const TAIL_KEEP = [
+			"活動開催決定中",          // 「開催決定」后面还有字，不是尾巴
+			"同時開催中！",            // 不是「舉辦/举办中」
+			"新登場のイベント",        // 「新登場」后面不是「！」，是定语
+			"A！B新登場！C"           // 「新登場」不在领句位置（前面还有别的「！」）
+		];
+		const badTailKeep = TAIL_KEEP.filter((s) => T.displayNameNextOf(s, []) !== s);
+		check("③a/b 反向守卫：白名单之外的尾巴 / 非领句的「新登場！」逐字不动（4 条）",
+			badTailKeep.length === 0, JSON.stringify(badTailKeep.map((s) => [s, T.displayNameNextOf(s, [])])));
+
+		// ── mergeEntryRecord：uma-jp 卡池（35 字 ⇒ 21 字；数组 title / 悬停 / 提醒标题不动）──
+		const UJ_TITLE = "育成ウマ娘が新登場！セレクトピックアップ サポートカードガチャも開催！";
+		const UJ_PREVIEW = "【予告】育成ウマ娘が新登場！セレクトピックアップ サポートカードガチャも開催決定！";
+		const UJ_STAMP = "セレクトピックアップ スタンプシートガチャ開催！";
+		const UJ_HOVER = [UJ_TITLE, "11-16 12:00 ~ 11-30 11:59", UJ_PREVIEW, "11-16 12:00 ~ 11-30 11:59",
+			UJ_STAMP, "11-10 12:00 ~ 12-28 11:59"].join("\n");
+		const uj = merge({
+			banner: UJ_TITLE, bannerDates: "11-16 12:00 ~ 11-30 11:59", bannerDatesRaw: "11/16 12:00 ～ 11/30 11:59",
+			bannerHover: UJ_HOVER,
+			// 解析器直出形态：主条 title/show = 原文；并列条 title = 原文、show = 短名（见 30-game-cygames.js）
+			gacha: [
+				arrItem({ title: UJ_TITLE, show: UJ_TITLE, source: "primary", raw: "11/16 12:00 ～ 11/30 11:59" }),
+				arrItem({ title: UJ_PREVIEW, show: "【予告】セレクトピックアップ サポートカードガチャ", source: "hover", raw: "11-16 12:00 ~ 11-30 11:59" }),
+				arrItem({ title: UJ_STAMP, show: "セレクトピックアップ スタンプシートガチャ", source: "hover", raw: "11-10 12:00 ~ 12-28 11:59" })
+			]
+		}, "uma-jp");
+		check("③ mergeEntryRecord（uma-jp 卡池）：外显名 35 字 ⇒ 21 字（逐字）",
+			uj.banner === "セレクトピックアップ サポートカードガチャ"
+			&& uj.banner === T.displayNameNextOf(UJ_TITLE, []),
+			JSON.stringify([UJ_TITLE, uj.banner]));
+		check("③ mergeEntryRecord（uma-jp 卡池）：数组主条 title/show、并列条 title、悬停**全部仍是源站原文**",
+			uj.gacha[0].title === UJ_TITLE && uj.gacha[0].show === UJ_TITLE
+			&& uj.gacha[1].title === UJ_PREVIEW && uj.gacha[2].title === UJ_STAMP
+			&& uj.bannerHover === UJ_HOVER,
+			JSON.stringify([uj.gacha.map((x) => [x.title, x.show]), uj.bannerHover]));
+		check("③ 反向证明（uma-jp）：提醒标题读数组 `title` ⇒ 仍是源站原文（不是缩短后的外显名）",
+			(() => {
+				const items = T.remindItemsOf({ "uma-jp": Object.assign({ name: "uma-jp" }, uj) }, NOW, { "uma-jp": TZ_CN });
+				return items.some((x) => x.title === UJ_TITLE) && !items.some((x) => x.title === uj.banner);
+			})(),
+			JSON.stringify(T.remindItemsOf({ "uma-jp": Object.assign({ name: "uma-jp" }, uj) }, NOW, { "uma-jp": TZ_CN }).map((x) => x.title)));
+
+		// ── mergeEntryRecord：uma-kr 活动（27 字 ⇒ 17 字；数组 / 悬停不动）──────────────
+		const KR_EVENT = "스토리 이벤트 「서머 데이즈 『You』 그라피티」";
+		const KR_HOVER = KR_EVENT + "   11-19 12:00 ~ 12-03 11:59\n마스터즈 챌린지   2026-11-19 12:00 ~ 2027-02-17 11:59";
+		const kr = merge({
+			event: KR_EVENT, eventDates: "11-19 12:00 ~ 12-03 11:59", eventDatesRaw: "11-19 12:00 ~ 12-03 11:59",
+			eventHover: KR_HOVER,
+			events: [arrItem({ title: KR_EVENT, show: KR_EVENT, source: "primary", raw: "11-19 12:00 ~ 12-03 11:59" })]
+		}, "uma-kr");
+		check("③ mergeEntryRecord（uma-kr 活动）：外显名 27 字 ⇒ 17 字（剥 `스토리 이벤트` 体裁前缀，取「」真名）",
+			kr.event === "서머 데이즈 『You』 그라피티" && kr.event === T.displayNameNextOf(KR_EVENT, []),
+			JSON.stringify([KR_EVENT, kr.event]));
+		check("③ mergeEntryRecord（uma-kr 活动）：数组 title/show 与悬停逐字仍是源站原文",
+			kr.events[0].title === KR_EVENT && kr.events[0].show === KR_EVENT && kr.eventHover === KR_HOVER,
+			JSON.stringify([kr.events[0], kr.eventHover]));
+
+		// ── mergeEntryRecord：uma-tw 卡池（25 字 ⇒ 11 字）──────────────────────────
+		const TW_BANNER = "培育賽馬娘新登場！自選特選支援卡片轉蛋同時舉辦中！";
+		const tw = merge({
+			banner: TW_BANNER, bannerDates: "11-23 12:00 ~ 12-02 11:59", bannerDatesRaw: "11/23 12:00 ～ 12/2 11:59",
+			gacha: [arrItem({ title: TW_BANNER, show: TW_BANNER, source: "primary" })]
+		}, "uma-tw");
+		check("③ mergeEntryRecord（uma-tw 卡池）：外显名 25 字 ⇒ 11 字（剥 `同時舉辦中！` + `新登場` 领句）",
+			tw.banner === "自選特選支援卡片轉蛋" && tw.banner === T.displayNameNextOf(TW_BANNER, []),
+			JSON.stringify([TW_BANNER, tw.banner]));
+		check("③ mergeEntryRecord（uma-tw 卡池）：数组 title 仍是源站原文",
+			tw.gacha[0].title === TW_BANNER && tw.gacha[0].show === TW_BANNER,
+			JSON.stringify([tw.gacha[0].title, tw.gacha[0].show]));
+
+		// ── 反向：ba-jp 活动（20 字真活动名）经 mergeEntryRecord 后逐字不变 ──────────
+		const BA_JP_EVENT = "踊らされし芸術～象牙の塔と招かれざる客～";
+		const bajp = merge({
+			event: BA_JP_EVENT, eventDates: "11-25 19:00 ~ 12-09 10:59", eventDatesRaw: "11-25 19:00 ~ 12-09 10:59",
+			events: [arrItem({ title: BA_JP_EVENT, show: BA_JP_EVENT, source: "primary" })]
+		}, "ba-jp");
+		check("③ 反向守卫（ba-jp 活动）：真活动名 20 字经 mergeEntryRecord 后逐字不变（判为不该改）",
+			bajp.event === BA_JP_EVENT && bajp.events[0].title === BA_JP_EVENT,
+			JSON.stringify([BA_JP_EVENT, bajp.event]));
 	}
 }

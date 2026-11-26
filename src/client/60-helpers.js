@@ -41,6 +41,16 @@
 			"举办公告！", "举办公告",
 			"舉行公告！", "舉行公告",
 			"举行公告！", "举行公告",
+			// 2026-11-26（B2：过长的卡片外显名 / 并列条）：「…も開催！」「…同時舉辦中！」是同一族
+			//   体裁尾巴的**加长写法**。旧白名单里只有「開催！」「舉辦中！」，先命中的是短写法 ⇒
+			//   只吃掉后半截，留下悬挂的「も」/「同時」（实测 uma-jp 外显 =
+			//   `育成ウマ娘が新登場！…ガチャも`、uma-tw = `培育賽馬娘新登場！…轉蛋同時`）。
+			//   白名单按**码点长度降序**排序（见下方 sort）⇒ 加长写法自动优先，短写法仍然兜底。
+			//   反例守卫：`活動開催決定中`（「開催決定」后面还有字）、`同時開催中`（不是「舉辦/举办」）不动。
+			"も開催決定！", "も開催決定!",
+			"も開催！", "も開催!",
+			"同時舉辦中！", "同時舉辦中!", "同時舉辦中",
+			"同时举办中！", "同时举办中!", "同时举办中",
 			"现已开启！", "现已开启!", "现已开启",
 			"现已开始！", "现已开始!", "现已开始",
 			"即将开始！", "即将开始!", "即将开始",
@@ -68,6 +78,64 @@
 				s = rest;
 			}
 			return s;
+		}
+
+		// ── ①b 「新登場」领句（2026-11-26：B2 过长的卡片外显名）──────────────────────
+		// 源站标题形态（**实测原文**，2026-11-26 活网）：
+		//   `育成ウマ娘が新登場！セレクトピックアップ サポートカードガチャも開催！`（uma-jp 35 字）
+		//   `培育賽馬娘新登場！自選特選支援卡片轉蛋同時舉辦中！`（uma-tw 25 字）
+		//   `养成优俊少女新登场！自定义精选 协助卡招募同时`（uma-cn）
+		// 领句「…新登場！/…新登场！」是**公告体裁**（"有新角色登场"），不是这一期的名字 ——
+		// 正文里真正的池名是后半截（uma-jp 3547 正文逐字写着「セレクトピックアップ サポートカードガチャ」
+		// 这个池名，且它对应的正是外显档期 11/16~11/30）。所以只剥这一种领句。
+		// 反例守卫（必须逐字不动）：
+		//   · `新登場！` 不在领句位置（前面还有别的 `！`）⇒ 不动 —— 避免把复合标题的后半段当领句；
+		//   · 剥完不足 3 码点 ⇒ 不动（与 ① 的 ≥3 码点保护同口径）；
+		//   · `新登場` 后面不是 `！` ⇒ 不动（`新登場の…` 是定语，不是领句）。
+		// 领句前的**状态标记**（`【予告】` 这类）必须留下：它区分预告稿与正式稿，
+		// 丢掉会让探头并列条上"预告条 / 正式条"的显示名撞成同一串（看起来像重复行）。
+		const DISPLAY_NEWCOMER_CLAUSE_RE = /^((?:【[^】]{1,20}】\s*)*)([^！!]{1,24})(?:新登場|新登场)[！!]\s*(.+)$/u;
+		function stripDisplayNewcomerOf(name) {
+			if (typeof name !== "string" || !name) return name;
+			const m = DISPLAY_NEWCOMER_CLAUSE_RE.exec(name);
+			if (!m) return name;
+			const rest = m[3].trim();
+			if ([...rest].length < DISPLAY_TAIL_MIN_REST) return name;
+			return (m[1] || "") + rest;
+		}
+
+		// ── ①c 「」里的真名（2026-11-26：B2 过长的卡片外显名）─────────────────────────
+		// 源站标题形态：`<活动体裁词>「<活动名>」`（实测 uma-jp `レースイベント「リーグ オブ ヒーローズ」`、
+		// uma-kr `스토리 이벤트 「서머 데이즈 『You』 그라피티」`）。前面的体裁词是**栏目名**不是名字。
+		// 只认**白名单体裁前缀**（日 / 韩 / 简繁），且「」之外**只有这个前缀**（裸名 / 带后缀的一律不动）：
+		//   反例守卫：`「万序衍盈」109期角色活动祈愿`（后缀不是体裁词）/ `协同补给丨协同者「薇塔」开放获取`
+		//   （前缀不是体裁词）/ `「坏灭肇始之时」`（本来就只有真名，无名可剥）/ `「酣眠遐梦」活动开启`
+		//   （后缀是"活动开启"而不是纯体裁前缀形态）。
+		// 与 §② 泛名让位的关系：这里只把名字**归一**，之后仍走 `displaySpecificNameOf` 判泛名。
+		const DISPLAY_GENRE_PREFIXES = [
+			"レースイベント", "ストーリーイベント", "期間限定イベント", "アップデート記念", "キャンペーン", "イベント",
+			"스토리 이벤트", "이벤트", "캠페인",
+			"比赛活动", "剧情活动", "限时活动", "联动活动", "合作活动", "活动", "活動"
+		];
+		function stripDisplayGenreQuoteOf(name) {
+			if (typeof name !== "string" || !name) return name;
+			const open = name.indexOf("「");
+			if (open <= 0) return name;                                  // 没有体裁前缀 ⇒ 不动（裸名/不是「」形态）
+			const close = name.indexOf("」", open + 1);
+			if (close < 0 || close !== name.length - 1) return name;      // 「」后面还有字 ⇒ 不是纯体裁后缀形态
+			const inner = name.slice(open + 1, close).trim();
+			if ([...inner].length < 2) return name;
+			// 前缀 = 可选的状态标记（【…】）+ **一个**白名单体裁词 + 空白
+			let head = name.slice(0, open);
+			let marks = "";
+			for (;;) {
+				const m = /^(【[^】]{1,20}】)\s*/.exec(head);
+				if (!m) break;
+				marks += m[1];
+				head = head.slice(m[0].length);
+			}
+			if (DISPLAY_GENRE_PREFIXES.indexOf(head.trim()) < 0) return name;
+			return marks + inner;
 		}
 
 		// ── ② 泛名让位（2026-11-18 审计：泛名 11 条）──────────────────────────────
@@ -119,11 +187,16 @@
 			pool.sort((a, b) => (b.len - a.len) || (b.index - a.index));
 			return pool[0].label;
 		}
-		// 一条记录某一侧的最终外显名（① 尾巴归一 再 ② 泛名让位）。非字符串 / 空值 ⇒ 空串。
+		// 一条记录某一侧的最终外显名（① 尾巴归一 → ①b 「新登場」领句 → ①c 「」真名 → ② 泛名让位）。
+		// 非字符串 / 空值 ⇒ 空串。三步都只认**白名单形态**，白名单之外逐字不动（反向守卫见
+		// test/cases-display-name.mjs ①②③）；任何一步都只改**外显名**，数组 `title` / `show`、
+		// `raw`、悬停、提醒标题（读数组 `title`）一个字不动。
 		function displayNameNextOf(name, items) {
-			const stripped = stripDisplayTailOf(name);
-			if (typeof stripped !== "string") return "";
-			return displaySpecificNameOf(stripped, items) || stripped;
+			let next = stripDisplayTailOf(name);
+			if (typeof next !== "string") return "";
+			next = stripDisplayNewcomerOf(next);
+			next = stripDisplayGenreQuoteOf(next);
+			return displaySpecificNameOf(next, items) || next;
 		}
 
 		// 把外显名落到记录字段上（① 尾巴归一与 ② 泛名让位共用这一处）。

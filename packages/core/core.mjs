@@ -341,6 +341,16 @@
 			"举办公告！", "举办公告",
 			"舉行公告！", "舉行公告",
 			"举行公告！", "举行公告",
+			// 2026-11-26（B2：过长的卡片外显名 / 并列条）：「…も開催！」「…同時舉辦中！」是同一族
+			//   体裁尾巴的**加长写法**。旧白名单里只有「開催！」「舉辦中！」，先命中的是短写法 ⇒
+			//   只吃掉后半截，留下悬挂的「も」/「同時」（实测 uma-jp 外显 =
+			//   `育成ウマ娘が新登場！…ガチャも`、uma-tw = `培育賽馬娘新登場！…轉蛋同時`）。
+			//   白名单按**码点长度降序**排序（见下方 sort）⇒ 加长写法自动优先，短写法仍然兜底。
+			//   反例守卫：`活動開催決定中`（「開催決定」后面还有字）、`同時開催中`（不是「舉辦/举办」）不动。
+			"も開催決定！", "も開催決定!",
+			"も開催！", "も開催!",
+			"同時舉辦中！", "同時舉辦中!", "同時舉辦中",
+			"同时举办中！", "同时举办中!", "同时举办中",
 			"现已开启！", "现已开启!", "现已开启",
 			"现已开始！", "现已开始!", "现已开始",
 			"即将开始！", "即将开始!", "即将开始",
@@ -368,6 +378,64 @@
 				s = rest;
 			}
 			return s;
+		}
+
+		// ── ①b 「新登場」领句（2026-11-26：B2 过长的卡片外显名）──────────────────────
+		// 源站标题形态（**实测原文**，2026-11-26 活网）：
+		//   `育成ウマ娘が新登場！セレクトピックアップ サポートカードガチャも開催！`（uma-jp 35 字）
+		//   `培育賽馬娘新登場！自選特選支援卡片轉蛋同時舉辦中！`（uma-tw 25 字）
+		//   `养成优俊少女新登场！自定义精选 协助卡招募同时`（uma-cn）
+		// 领句「…新登場！/…新登场！」是**公告体裁**（"有新角色登场"），不是这一期的名字 ——
+		// 正文里真正的池名是后半截（uma-jp 3547 正文逐字写着「セレクトピックアップ サポートカードガチャ」
+		// 这个池名，且它对应的正是外显档期 11/16~11/30）。所以只剥这一种领句。
+		// 反例守卫（必须逐字不动）：
+		//   · `新登場！` 不在领句位置（前面还有别的 `！`）⇒ 不动 —— 避免把复合标题的后半段当领句；
+		//   · 剥完不足 3 码点 ⇒ 不动（与 ① 的 ≥3 码点保护同口径）；
+		//   · `新登場` 后面不是 `！` ⇒ 不动（`新登場の…` 是定语，不是领句）。
+		// 领句前的**状态标记**（`【予告】` 这类）必须留下：它区分预告稿与正式稿，
+		// 丢掉会让探头并列条上"预告条 / 正式条"的显示名撞成同一串（看起来像重复行）。
+		const DISPLAY_NEWCOMER_CLAUSE_RE = /^((?:【[^】]{1,20}】\s*)*)([^！!]{1,24})(?:新登場|新登场)[！!]\s*(.+)$/u;
+		function stripDisplayNewcomerOf(name) {
+			if (typeof name !== "string" || !name) return name;
+			const m = DISPLAY_NEWCOMER_CLAUSE_RE.exec(name);
+			if (!m) return name;
+			const rest = m[3].trim();
+			if ([...rest].length < DISPLAY_TAIL_MIN_REST) return name;
+			return (m[1] || "") + rest;
+		}
+
+		// ── ①c 「」里的真名（2026-11-26：B2 过长的卡片外显名）─────────────────────────
+		// 源站标题形态：`<活动体裁词>「<活动名>」`（实测 uma-jp `レースイベント「リーグ オブ ヒーローズ」`、
+		// uma-kr `스토리 이벤트 「서머 데이즈 『You』 그라피티」`）。前面的体裁词是**栏目名**不是名字。
+		// 只认**白名单体裁前缀**（日 / 韩 / 简繁），且「」之外**只有这个前缀**（裸名 / 带后缀的一律不动）：
+		//   反例守卫：`「万序衍盈」109期角色活动祈愿`（后缀不是体裁词）/ `协同补给丨协同者「薇塔」开放获取`
+		//   （前缀不是体裁词）/ `「坏灭肇始之时」`（本来就只有真名，无名可剥）/ `「酣眠遐梦」活动开启`
+		//   （后缀是"活动开启"而不是纯体裁前缀形态）。
+		// 与 §② 泛名让位的关系：这里只把名字**归一**，之后仍走 `displaySpecificNameOf` 判泛名。
+		const DISPLAY_GENRE_PREFIXES = [
+			"レースイベント", "ストーリーイベント", "期間限定イベント", "アップデート記念", "キャンペーン", "イベント",
+			"스토리 이벤트", "이벤트", "캠페인",
+			"比赛活动", "剧情活动", "限时活动", "联动活动", "合作活动", "活动", "活動"
+		];
+		function stripDisplayGenreQuoteOf(name) {
+			if (typeof name !== "string" || !name) return name;
+			const open = name.indexOf("「");
+			if (open <= 0) return name;                                  // 没有体裁前缀 ⇒ 不动（裸名/不是「」形态）
+			const close = name.indexOf("」", open + 1);
+			if (close < 0 || close !== name.length - 1) return name;      // 「」后面还有字 ⇒ 不是纯体裁后缀形态
+			const inner = name.slice(open + 1, close).trim();
+			if ([...inner].length < 2) return name;
+			// 前缀 = 可选的状态标记（【…】）+ **一个**白名单体裁词 + 空白
+			let head = name.slice(0, open);
+			let marks = "";
+			for (;;) {
+				const m = /^(【[^】]{1,20}】)\s*/.exec(head);
+				if (!m) break;
+				marks += m[1];
+				head = head.slice(m[0].length);
+			}
+			if (DISPLAY_GENRE_PREFIXES.indexOf(head.trim()) < 0) return name;
+			return marks + inner;
 		}
 
 		// ── ② 泛名让位（2026-11-18 审计：泛名 11 条）──────────────────────────────
@@ -419,11 +487,16 @@
 			pool.sort((a, b) => (b.len - a.len) || (b.index - a.index));
 			return pool[0].label;
 		}
-		// 一条记录某一侧的最终外显名（① 尾巴归一 再 ② 泛名让位）。非字符串 / 空值 ⇒ 空串。
+		// 一条记录某一侧的最终外显名（① 尾巴归一 → ①b 「新登場」领句 → ①c 「」真名 → ② 泛名让位）。
+		// 非字符串 / 空值 ⇒ 空串。三步都只认**白名单形态**，白名单之外逐字不动（反向守卫见
+		// test/cases-display-name.mjs ①②③）；任何一步都只改**外显名**，数组 `title` / `show`、
+		// `raw`、悬停、提醒标题（读数组 `title`）一个字不动。
 		function displayNameNextOf(name, items) {
-			const stripped = stripDisplayTailOf(name);
-			if (typeof stripped !== "string") return "";
-			return displaySpecificNameOf(stripped, items) || stripped;
+			let next = stripDisplayTailOf(name);
+			if (typeof next !== "string") return "";
+			next = stripDisplayNewcomerOf(next);
+			next = stripDisplayGenreQuoteOf(next);
+			return displaySpecificNameOf(next, items) || next;
 		}
 
 		// 把外显名落到记录字段上（① 尾巴归一与 ② 泛名让位共用这一处）。
@@ -10884,6 +10957,35 @@ async function ns_umamusume_official_collectSide({ side, kind, indexUrl, tz, now
 }
 
 // ── 日服 ────────────────────────────────────────────────────────────────────
+// ── 2026-11-26（B2：探头/并列条那一行过长）─────────────────────────────────────
+// 日服卡池的并列条 = 「当期各公告的标题」。源站标题是**版面标题**，不是池名本身：
+//   `育成ウマ娘が新登場！セレクトピックアップ サポートカードガチャも開催！`（35 字，实测 11-26）
+//   `【予告】育成ウマ娘が新登場！…も開催決定！`（并列条上实测 41 字）
+// 短名 = 与卡片外显**同一套归一**（`displayNameNextOf`：剥加长体裁尾巴 → 剥「新登場」领句）。
+// 逐字证据：3547 正文「開催期間」段落里就写着池名 `セレクトピックアップ サポートカードガチャ`，
+// 且它对应的正是被选中的那段窗口（11/16~11/30）。
+// ⚠️ 短名只写进条目自己的 `show`（并列条那一行读它）；`title` 仍是源站原文（悬停/数组/提醒读它）。
+function ns_umamusume_official_umaPoolShowOf(title) {
+	const short = displayNameNextOf(title, []);
+	return short && short !== title ? short : "";
+}
+// `dataArrayExtrasFromEntriesOf` 对 `show` 过的是 `cleanRoleNames`（那函数面向**角色名**：
+// 把「」【】当修饰去掉、按 `·` 去称号前缀）⇒ 池名里的 `【予告】` 会被吃成 `予告…`。
+// 并列条的短名要**逐字**保留源站标点 ⇒ 按 title 把 show 落回逐字短名（`title` / `raw` 一个不动）。
+function ns_umamusume_official_umaExtrasShowOf(arr, entries) {
+	const shown = new Map();
+	for (const x of entries || []) {
+		if (!x || !x.show) continue;
+		const label = String(x.title || x.label || "");
+		if (label) shown.set(label, x.show);
+	}
+	return (Array.isArray(arr) ? arr : []).map((x) => {
+		if (!x || x.source === "primary") return x;
+		const show = shown.get(String(x.title || ""));
+		return show && show !== x.show ? Object.assign({}, x, { show }) : x;
+	});
+}
+
 /**
  * 赛马娘 日服 官方公告 卡池侧。
  * @param {string} url 列表 URL（默认 ns_umamusume_official_UMA_JP_INDEX_URL；分页参数 `page`）
@@ -10904,7 +11006,12 @@ async function ns_umamusume_official_gachaUmaJpOfficial(url, signal, tz = ns_uma
 	if (!picked) return null;                       // 抓到公告但当期没有覆盖 now 的卡池期 = 未公布
 	// ≥2 个当期池才给悬停；只有 1 个 → **不设** bannerHover，交回 UI 默认两行式（`池名：角色` ⏎ 档期）
 	// ── P3b：条目事实 → 悬停 + `gacha` 数组（排序与 hoverPool 同一份：结束时间升序）──
-	const pools = ns_umamusume_official_umaCurrentItems(r.details, now).slice().sort(poolHoverOrderOf);
+	// `show` = 并列条上那一行要显示的短名（见上面 `umaPoolShowOf`）；悬停排版只读 title，不受影响。
+	const pools = ns_umamusume_official_umaCurrentItems(r.details, now).slice().sort(poolHoverOrderOf)
+		.map((x) => {
+			const show = ns_umamusume_official_umaPoolShowOf(x.title);
+			return show ? Object.assign({}, x, { show }) : x;
+		});
 	const bannerHover = hoverTextFromItems(pools, "gacha", tz);
 	const out = {
 		banner: picked.e.title,
@@ -10914,7 +11021,9 @@ async function ns_umamusume_official_gachaUmaJpOfficial(url, signal, tz = ns_uma
 		endTs: picked.w.endTs,
 		...(bannerHover ? { bannerHover } : {})
 	};
-	out.gacha = dataArrayProducedGachaOf(out, pools, { tz }, now);
+	// `extrasShowFromEntry`（opt-in）：并列条的显示名用条目自己的 `show`（没有 show 的条目仍是原文标题）。
+	out.gacha = ns_umamusume_official_umaExtrasShowOf(
+		dataArrayProducedGachaOf(out, pools, { tz, extrasShowFromEntry: true }, now), pools);
 	out.gachaHoverItems = pools;
 	return out;
 }
@@ -15603,12 +15712,38 @@ async function ns_yslz_pagesOf(url, signal) {
 	}
 	return out;
 }
+// ── 2026-11-26（B2：探头/并列条那一行过长）────────────────────────────────────
+// 并列条条目名是 `追光·<阁名>：UP`（共享载荷 label，实测最长 26 字：
+// `追光·魔卡契约：透明序曲、封印解除、烟雨惊梦、顾苏澄`）。源站卡池页名固定是 `追光·<阁名>`
+// （文件头「池名 = 页面标题原文 `追光·时砂寄念`；`阁名` 只是去掉前缀的那半截」）
+// ⇒ 短名 = 去掉 `追光·` 前缀的阁名（源站自己那个字段就叫 `阁名`）。
+// ⚠️ 只写条目自己的 `show`（共享数据层 opt-in `extrasShowFromEntry` 把它带到并列条）；
+//    `title` / `raw` / 悬停仍逐字原文（提醒标题读数组 title）。opt-in 那条路对 show 过
+//    `cleanRoleNames`（面向角色名）⇒ 这里再把 show 逐字落回短名。
+function ns_yslz_poolShowOf(banner) {
+	const m = /^追光[·・]\s*(.+)$/.exec(String(banner == null ? "" : banner).trim());
+	return m ? m[1].trim() : "";
+}
+function ns_yslz_shortExtrasOf(payload, items, tz, now) {
+	const hoverItems = (payload.gachaHoverItems || []).map((x) => {
+		const src = (items || []).find((p) => x.title === `${p.banner}${p.roles ? `\uFF1A${p.roles}` : ""}`);
+		const show = src ? ns_yslz_poolShowOf(src.banner) : "";
+		return show ? Object.assign({}, x, { show }) : x;
+	});
+	const out = Object.assign({}, payload, { gachaHoverItems: hoverItems });
+	out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id: "yslz", tz, extrasShowFromEntry: true }, now);
+	const shown = new Map(hoverItems.filter((x) => x.show).map((x) => [x.title, x.show]));
+	out.gacha = out.gacha.map((x) => (x.source !== "primary" && shown.has(x.title)
+		? Object.assign({}, x, { show: shown.get(x.title) }) : x));
+	return out;
+}
 // 卡池侧：一页都解不出 ⇒ **抛**（源站改版），不是"当期没有"
 async function ns_yslz_gacha(url, signal, tz = ns_yslz_TZ, now) {
 	const items = ns_yslz_parsePools(await ns_yslz_pagesOf(url, signal), tz);
 	if (items.length === 0) throw new Error("yslz-gacha-changed:no-pools");
 	// 同批（endTs 相同）合并角色 + 悬停列在期全部：与白荆回廊 / 无期迷途同一份载荷生成器
-	return ns_bwiki_batchGachaPayloadOf(items, tz, ns_bwiki_nowOf(now), { id: "yslz" });
+	const payload = ns_bwiki_batchGachaPayloadOf(items, tz, ns_bwiki_nowOf(now), { id: "yslz" });
+	return payload ? ns_yslz_shortExtrasOf(payload, items, tz, ns_bwiki_nowOf(now)) : null;
 }
 // 活动：`|offset=` 续页（SMW 单页 500 行）。
 // ⚠️ 续页用 `ns_yslz_eventsUrlOf(offset)` 这条**规范地址**（offset 夹在编码过的 query 串里，
@@ -25865,6 +26000,31 @@ async function ns_bwiki_eventsBjhl(url, signal, tz = BJHL_TZ, now) {
 			}
 		}
 
+		// ── 2026-11-26（B2：探头/并列条那一行过长）────────────────────────────────
+		// 悬停/并列条上的条目名是 `池名：UP`（共享载荷 `ns_bwiki_batchGachaPayloadOf` 拼的 label，
+		// 实测最长 29 字：`隐秘深渊：格芮芙、渡鸦、阿黛拉、卡门奈特、克里斯蒂娜、莓丝`）。
+		// 短名 = **池名**（源站 bwiki「追踪一览」的「追踪页面」列就是池名；`：UP` 只是悬停排版后缀）。
+		// ⚠️ 只写条目自己的 `show`（共享数据层 opt-in `extrasShowFromEntry` 把它带到并列条）；
+		//    `title` / `raw` / 悬停仍逐字原文 ⇒ 提醒标题（读数组 title）一个字不动。
+		//    `extrasShowFromEntry` 那条路对 show 过 `cleanRoleNames`（面向角色名：把【】「」· 当修饰去掉）
+		//    ⇒ 这里再把 show 逐字落回短名，保证并列条上是源站自己的写法。
+		function ns_wqmt_poolShowOf(banner) {
+			return displayNameNextOf(String(banner == null ? "" : banner), []);
+		}
+		function ns_wqmt_shortExtrasOf(payload, items, tz, now) {
+			const hoverItems = (payload.gachaHoverItems || []).map((x) => {
+				const src = (items || []).find((p) => x.title === `${p.banner}${p.roles ? `\uFF1A${p.roles}` : ""}`);
+				const show = src ? ns_wqmt_poolShowOf(src.banner) : "";
+				return show ? Object.assign({}, x, { show }) : x;
+			});
+			const out = Object.assign({}, payload, { gachaHoverItems: hoverItems });
+			out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id: "wqmt", tz, extrasShowFromEntry: true }, now);
+			const shown = new Map(hoverItems.filter((x) => x.show).map((x) => [x.title, x.show]));
+			out.gacha = out.gacha.map((x) => (x.source !== "primary" && shown.has(x.title)
+				? Object.assign({}, x, { show: shown.get(x.title) }) : x));
+			return out;
+		}
+
 		// 卡池：bwiki（biligame 系主机 ⇒ 必须走宿主代理，见 15-env.js 的 CORS 收口点）
 		async function ns_wqmt_gachaWqmt(url, signal, tz = WQMT_TZ, now) {
 			const at = typeof now === "number" && Number.isFinite(now) ? now : nowMs();
@@ -25873,7 +26033,8 @@ async function ns_bwiki_eventsBjhl(url, signal, tz = BJHL_TZ, now) {
 			const items = wqmtPoolsOf(html, tz, anchors);
 			// 页面拿到了却一行候选都没有 ⇒ 表结构变了（抛错 = 该侧"抓取失败"，与"未公布"分开）
 			if (items.length === 0) throw new Error("wqmt-no-table");
-			return ns_bwiki_batchGachaPayloadOf(items, tz, at, { id: "wqmt" });
+			const payload = ns_bwiki_batchGachaPayloadOf(items, tz, at, { id: "wqmt" });
+			return payload ? ns_wqmt_shortExtrasOf(payload, items, tz, at) : null;
 		}
 
 		// 活动：官方资讯 API（`ACAO:*` ⇒ 直连），列表 1 次 + 正文最多 10 次
@@ -26967,6 +27128,35 @@ async function ns_cytq_postsOf(url, signal, tz, now) {
 	return out;
 }
 
+// ── 2026-11-26（B2：探头/并列条那一行过长）────────────────────────────────────
+// 悬停/并列条上的条目名是 `池名：角色`（`ns_bwiki_batchGachaPayloadOf` 拼的 label，实测最长 36 字）。
+// 短名 = **池名**（源站帖子自己的 h2 标题，`：角色` 只是悬停排版后缀），走与外显名同一套归一
+// （`displayNameNextOf`：剥「举办中！」这类体裁尾巴）。`title` / `raw` / 悬停仍逐字原文。
+function ns_cytq_poolShowOf(banner) {
+	const s = String(banner == null ? "" : banner);
+	// 短名 = 池名本身（剥完体裁尾巴；没有尾巴可剥的就原样用池名）——
+	// 悬停条目的 title 是 `池名：角色`，所以 show 恒短于 title，不需要"必须变短"才写。
+	return displayNameNextOf(s, []) || s;
+}
+// 把并列条的 `show` 落成条目自己的短名。两条路径叠加：
+//   ① `extrasShowFromEntry`（共享数据层的 opt-in）先让并列条读条目自己的 show；
+//   ② 再把 show **逐字**落回短名 —— ① 那条路对 show 过 `cleanRoleNames`（面向角色名：把【】「」当
+//      修饰去掉），会把池名里的 `【仅限付费晶石】` 吃成 `仅限付费晶石…`；短名要保留源站标点。
+// `title` / `raw` / 悬停一个字不动（仍然只改显示名）。
+function ns_cytq_shortExtrasOf(payload, items, tz, now) {
+	const hoverItems = (payload.gachaHoverItems || []).map((x) => {
+		const src = (items || []).find((p) => x.title === `${p.banner}${p.roles ? `\uFF1A${p.roles}` : ""}`);
+		const show = src ? ns_cytq_poolShowOf(src.banner) : "";
+		return show ? Object.assign({}, x, { show }) : x;
+	});
+	const out = Object.assign({}, payload, { gachaHoverItems: hoverItems });
+	out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id: "cytq", tz, extrasShowFromEntry: true }, now);
+	const shown = new Map(hoverItems.filter((x) => x.show).map((x) => [x.title, x.show]));
+	out.gacha = out.gacha.map((x) => (x.source !== "primary" && shown.has(x.title)
+		? Object.assign({}, x, { show: shown.get(x.title) }) : x));
+	return out;
+}
+
 // 卡池侧：is-gacha 帖里有窗口的 → 条目事实 → 共用载荷生成器（同批合并 + 悬停 + `gacha[]`）
 async function ns_cytq_gacha(url, signal, tz = ns_cytq_TZ, now = nowMs()) {
 	const posts = await ns_cytq_postsOf(url, signal, tz, now);
@@ -26987,7 +27177,8 @@ async function ns_cytq_gacha(url, signal, tz = ns_cytq_TZ, now = nowMs()) {
 		});
 	}
 	if (items.length === 0) return null;          // 列表里没有 is-gacha 帖 ⇒ 未公布（不是失败）
-	return ns_bwiki_batchGachaPayloadOf(items, tz, now, { id: "cytq" });
+	const payload = ns_bwiki_batchGachaPayloadOf(items, tz, now, { id: "cytq" });
+	return payload ? ns_cytq_shortExtrasOf(payload, items, tz, now) : null;
 }
 
 // 活动侧：is-event / is-campaign 帖里有窗口的 → 共用活动载荷

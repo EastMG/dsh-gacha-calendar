@@ -915,6 +915,12 @@ export default async function runCore() {
 		// golden 是改造前的存档 ⇒ 这 3 个侧的外显名与 golden 有意不同；**数组与悬停一个字没动**
 		// （由 ③ 的数组逐条相等照旧守着）。逐条"只剥了尾巴"的证明在 cases-display-name.mjs ①。
 		for (const k of ["genshin:event", "uma-jp:event", "gf2:event"]) APPROVED_DIFF.add(k);
+		// ⚠️ 2026-11-26（B2：探头/并列条那一行过长）：日服卡池的并列条 `show` 不再写回标题原文，
+		//   改为**外显名同一套归一后的短名**（`displayNameNextOf`：剥「…も開催！」体裁尾巴 +
+		//   剥「新登場」领句，见 60-helpers.js ①b）。golden 是改造前存档 ⇒ `uma-jp:gacha` 这一侧
+		//   的**探头行内容**有意不同（名称那一列变短）；行数 / 行顺序 / 外显那条 / 档期文本一个字不动。
+		//   逐字证明在下面「uma-jp 并列条短名」专项（新值必须 = 老名经 `displayNameNextOf` 的结果）。
+		APPROVED_DIFF.add("uma-jp:gacha");
 		// ⚠️ 2026-11-10（用户要求）：p5x 的「只有日期、没有时刻」窗口改成 00:00 起 / 23:59 止
 		// （仓库通用约定，见 `ns_bwiki_windowsFromCell` 注释）。golden 是改造前 04:00 / 03:59 的存档
 		// ⇒ 这两侧登记为**已批准差异**，并由下面的专项断言逐行证明"差异只是这条时间口径"。
@@ -922,7 +928,7 @@ export default async function runCore() {
 		const unapproved = diffs.filter((k) => !APPROVED_DIFF.has(k) && !DAY_ONLY_KEYS.has(k) && !BA_CN_REAL_EVENT_WINDOW.has(k));
 		check("等价性：17 款游戏（34 个侧）**全部逐字相等**（diffs = 0；名称 / 档期文本 / 探头行数 / 行顺序）",
 			unapproved.length === 0, JSON.stringify(unapproved));
-		check("等价性白名单 = 9 个已批准（星铁 2 + 星塔 1 + bandori 2 + 外显名尾巴 3 + nte 活动多窗口 1）+ p5x 2 个纯日期时间口径 + ba-cn 活动真实窗口 1（这些键都必须真的变了）",
+		check("等价性白名单 = 10 个已批准（星铁 2 + 星塔 1 + bandori 2 + 外显名尾巴 3 + nte 活动多窗口 1 + uma-jp 并列条短名 1）+ p5x 2 个纯日期时间口径 + ba-cn 活动真实窗口 1（这些键都必须真的变了）",
 			diffs.length === APPROVED_DIFF.size + DAY_ONLY_KEYS.size + BA_CN_REAL_EVENT_WINDOW.size
 			&& [...APPROVED_DIFF].every((k) => diffs.indexOf(k) >= 0)
 			&& [...DAY_ONLY_KEYS].every((k) => diffs.indexOf(k) >= 0)
@@ -1014,7 +1020,7 @@ export default async function runCore() {
 		check("等价性：17 款游戏（34 个侧）逐侧再钉一遍同一条不变量（含「这一侧没有数据」的那些）",
 			strictBad.length === 0, JSON.stringify(strictBad));
 		// 反向证明：所有"已批准差异"确实**真的变了**（不是白名单把没变的键也放过）
-		check("反向证明：已批准差异（星铁 2 + 星塔 1 + bandori 2 + 外显名尾巴 3 + nte 活动多窗口 1）的老路与数组派生**确实不再相等**（口径变更真的生效了）",
+		check("反向证明：已批准差异（星铁 2 + 星塔 1 + bandori 2 + 外显名尾巴 3 + nte 活动多窗口 1 + uma-jp 并列条短名 1）的老路与数组派生**确实不再相等**（口径变更真的生效了）",
 			[...APPROVED_DIFF].every((k) => {
 				const d = got.get(k);
 				return !!d && JSON.stringify(d.old) !== JSON.stringify(d.next);
@@ -1064,7 +1070,32 @@ export default async function runCore() {
 		strictSide("wuhuamixin:event", "「寂夜长生」限时活动", 6);
 		strictSide("zspms:event", "回路演算", 9);
 		strictSide("uma-cn:event", "赛事活动“群英联赛 中距离”", 4);
-		strictSide("uma-jp:gacha", "【予告】トゥインクルコレクション プリティーダービーガチャとSSR確定スピードガチャ開催決定！", 2);
+		// ⚠️ 2026-11-26（B2）`uma-jp:gacha` 是**已批准差异**（见上面 `APPROVED_DIFF`），不再用
+		//   `strictSide`（它要求 old == next）。差异**只在并列条那一行的名称**：
+		//   改造前 = 源站标题原文 `育成ウマ娘&サポートカード新登場！ピックアップガチャ開催！`，
+		//   现在 = 同一套外显名归一的短名 `ピックアップガチャ`（新值必须**恰好** = 老名经产品函数的结果）。
+		//   外显那条（= 记录外显名）/ 行数 / 行顺序 / 档期文本（meta）逐字不变 —— 逐条证明：
+		{
+			const d = got.get("uma-jp:gacha");
+			const oldRows = (d && d.old) || [];
+			const nextRows = (d && d.next) || [];
+			check("已知差异（uma-jp:gacha）**已批准差异**：行数 2 / 顺序不变，外显那条（含档期文本）逐字相同",
+				!!d && oldRows.length === 2 && nextRows.length === 2
+				&& JSON.stringify(oldRows[0]) === JSON.stringify(nextRows[0]),
+				JSON.stringify([oldRows[0], nextRows[0]]));
+			check("已知差异（uma-jp:gacha）**已批准差异**：并列条名称 = `displayNameNextOf(源站标题)`（逐字 = 短名「ピックアップガチャ」），档期文本不变",
+				!!d && oldRows[1].name === "育成ウマ娘&サポートカード新登場！ピックアップガチャ開催！"
+				&& nextRows[1].name === T.displayNameNextOf(oldRows[1].name, [])
+				&& nextRows[1].name === "ピックアップガチャ"
+				&& nextRows[1].meta === oldRows[1].meta,
+				JSON.stringify([oldRows[1], nextRows[1], T.displayNameNextOf(oldRows[1].name, [])]));
+			const recUj = (records.find((x) => x.id === "uma-jp") || {}).rec || {};
+			check("已知差异（uma-jp:gacha）**反向证明**：数组 title / 悬停仍是源站原文（短名只落在 show 上）",
+				(recUj.gacha || []).some((x) => x.title === "育成ウマ娘&サポートカード新登場！ピックアップガチャ開催！"
+					&& x.show === "ピックアップガチャ")
+				&& String(recUj.bannerHover || "").indexOf("育成ウマ娘&サポートカード新登場！ピックアップガチャ開催！") >= 0,
+				JSON.stringify([(recUj.gacha || []).map((x) => [x.title, x.show]), recUj.bannerHover]));
+		}
 
 		// ── 反向证明：把特化规则还原成通用规则 ⇒ 对应侧必须变（"零可见变化"靠的是规则表）──
 		// 入口就是 `sideViewOf` 的 **gameId 省略**（= 通用规则）：同一份数组、同一个 now，

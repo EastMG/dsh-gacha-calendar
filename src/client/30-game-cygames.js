@@ -609,6 +609,35 @@ async function ns_umamusume_official_collectSide({ side, kind, indexUrl, tz, now
 }
 
 // ── 日服 ────────────────────────────────────────────────────────────────────
+// ── 2026-11-26（B2：探头/并列条那一行过长）─────────────────────────────────────
+// 日服卡池的并列条 = 「当期各公告的标题」。源站标题是**版面标题**，不是池名本身：
+//   `育成ウマ娘が新登場！セレクトピックアップ サポートカードガチャも開催！`（35 字，实测 11-26）
+//   `【予告】育成ウマ娘が新登場！…も開催決定！`（并列条上实测 41 字）
+// 短名 = 与卡片外显**同一套归一**（`displayNameNextOf`：剥加长体裁尾巴 → 剥「新登場」领句）。
+// 逐字证据：3547 正文「開催期間」段落里就写着池名 `セレクトピックアップ サポートカードガチャ`，
+// 且它对应的正是被选中的那段窗口（11/16~11/30）。
+// ⚠️ 短名只写进条目自己的 `show`（并列条那一行读它）；`title` 仍是源站原文（悬停/数组/提醒读它）。
+function ns_umamusume_official_umaPoolShowOf(title) {
+	const short = displayNameNextOf(title, []);
+	return short && short !== title ? short : "";
+}
+// `dataArrayExtrasFromEntriesOf` 对 `show` 过的是 `cleanRoleNames`（那函数面向**角色名**：
+// 把「」【】当修饰去掉、按 `·` 去称号前缀）⇒ 池名里的 `【予告】` 会被吃成 `予告…`。
+// 并列条的短名要**逐字**保留源站标点 ⇒ 按 title 把 show 落回逐字短名（`title` / `raw` 一个不动）。
+function ns_umamusume_official_umaExtrasShowOf(arr, entries) {
+	const shown = new Map();
+	for (const x of entries || []) {
+		if (!x || !x.show) continue;
+		const label = String(x.title || x.label || "");
+		if (label) shown.set(label, x.show);
+	}
+	return (Array.isArray(arr) ? arr : []).map((x) => {
+		if (!x || x.source === "primary") return x;
+		const show = shown.get(String(x.title || ""));
+		return show && show !== x.show ? Object.assign({}, x, { show }) : x;
+	});
+}
+
 /**
  * 赛马娘 日服 官方公告 卡池侧。
  * @param {string} url 列表 URL（默认 ns_umamusume_official_UMA_JP_INDEX_URL；分页参数 `page`）
@@ -629,7 +658,12 @@ async function ns_umamusume_official_gachaUmaJpOfficial(url, signal, tz = ns_uma
 	if (!picked) return null;                       // 抓到公告但当期没有覆盖 now 的卡池期 = 未公布
 	// ≥2 个当期池才给悬停；只有 1 个 → **不设** bannerHover，交回 UI 默认两行式（`池名：角色` ⏎ 档期）
 	// ── P3b：条目事实 → 悬停 + `gacha` 数组（排序与 hoverPool 同一份：结束时间升序）──
-	const pools = ns_umamusume_official_umaCurrentItems(r.details, now).slice().sort(poolHoverOrderOf);
+	// `show` = 并列条上那一行要显示的短名（见上面 `umaPoolShowOf`）；悬停排版只读 title，不受影响。
+	const pools = ns_umamusume_official_umaCurrentItems(r.details, now).slice().sort(poolHoverOrderOf)
+		.map((x) => {
+			const show = ns_umamusume_official_umaPoolShowOf(x.title);
+			return show ? Object.assign({}, x, { show }) : x;
+		});
 	const bannerHover = hoverTextFromItems(pools, "gacha", tz);
 	const out = {
 		banner: picked.e.title,
@@ -639,7 +673,9 @@ async function ns_umamusume_official_gachaUmaJpOfficial(url, signal, tz = ns_uma
 		endTs: picked.w.endTs,
 		...(bannerHover ? { bannerHover } : {})
 	};
-	out.gacha = dataArrayProducedGachaOf(out, pools, { tz }, now);
+	// `extrasShowFromEntry`（opt-in）：并列条的显示名用条目自己的 `show`（没有 show 的条目仍是原文标题）。
+	out.gacha = ns_umamusume_official_umaExtrasShowOf(
+		dataArrayProducedGachaOf(out, pools, { tz, extrasShowFromEntry: true }, now), pools);
 	out.gachaHoverItems = pools;
 	return out;
 }
