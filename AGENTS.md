@@ -40,15 +40,14 @@
   - 「重做这次commit **版本号改成v0.8.15**」（会话总结 T63）
 - **严禁自作主张跳号**：曾出现我改到 v0.9.0、用户要求 reset 改回 0.8.15（会话总结「反复重申的约定」第 3 条）。
 
-### 0.2 「发版」到底授权了哪几步（记录口径）
+### 0.2 「发版」授权范围（用户 2026-11-26 定：**「发版」含 npm**）
 
 | 用户说的 | 授权范围 |
 |---|---|
-| 「发 release」/「发版」 | 升号（问过之后）+ tag + GitHub Release；**不含 npm 发布** |
-| 「发release和npm」/「推 npm」 | 以上全部 + npm 发布 |
+| **「发版」** | 升号（问过之后）+ tag + GitHub Release + **npm 发布（`gacha-calendar-core` 与 `dsh-gacha-calendar` 两个包）** —— 一条龙，不必再单独问 npm |
+| 「发 release」（旧措辞） | 交接说明 2026-09-21 的记录是**不含 npm**；今天起以「发版」为准，听到旧措辞**先问一句**是不是也发 npm |
 
-依据：交接说明里 2026-09-21 的两次操作措辞不同、结果也不同 —— 用户只说「发 release」时记录的是 **npm 未发布**；用户说「发release和npm」时才发布。
-**拿不准就直接问**，不要替用户 presume。
+注意：说「发版」只授权**流程**，**不授权我挑版本号**（见 0.1）。
 
 ### 0.3 Release 说明：先审后发 + 固定格式
 
@@ -72,7 +71,7 @@
 5. `git tag -a vX.Y.Z -m "vX.Y.Z"` → `git push origin vX.Y.Z`
 6. 起草 release notes → **贴给用户审** → 等到「发」
 7. 在**仓库目录**执行 `gh release create vX.Y.Z --title "vX.Y.Z" --notes-file <utf8文件>`（`gh` 需要 git 仓库上下文，在别处执行会 `fatal: not a git repository`）
-8. npm 发布（仅当获授权）：**先 core 后 plugin**，见下节
+8. npm 发布（**「发版」已含，无需再问**）：**先 core 后 plugin**，见下节
 9. 核对四项再收工：`npm view <包> dist-tags` 两包都 = vX.Y.Z；`git describe --tags --exact-match` = vX.Y.Z；`origin/main` sha = 本地；`npm pack --dry-run` 的 shasum 与 registry 的 `dist.shasum` 一致
 
 ### 0.5 npm 发布的技术前提（踩过的坑，别再踩）
