@@ -654,6 +654,170 @@ export default async function run() {
 				"gacha", "gakumas", TZ_JP, Date.parse("2026-11-15T12:00:00+09:00")) === null);
 	}
 
+	// ═════════ ④b（2026-11-26 names-B1）imas 5 款：外显名去「体裁尾巴」＋并列条短名 ═════════
+	//
+	// 现场（2026-11-26 活网实测，见本批报告）：
+	//   · 卡片格过长：millisita 39 字 `マンスリー・オルタナティブ [EVOLVE]『VSミリオンファイター！』ガシャ`
+	//     / shinycolors 25 字 `有償限定 SSR以上10枚確定ステップアップガシャ`；
+	//   · 并列条过长：shinycolors 最长 62 / shanison 45 / gakumas 41。
+	// 口径（用户 2026-11-18）：**不做程序截断**，只做有源站措辞证据的归一 ——
+	//   ① 外显名（`banner` / `event`，只在 `mergeEntryRecord` 里改）：剥「…ガシャ / …ステップアップガシャ」
+	//      这类**体裁词**（= 抽卡类型，不是名字）；`…ガシャ` + 年份 这类不是尾巴的写法**逐字不动**。
+	//   ② 并列条（数组条目的 `show`）：`imasPoolShortOf` 剥**体裁尾巴 / 取得条件 / 保底规则**三类片段；
+	//      `title` / `raw` / `startTs` / `endTs` / 悬停文本**一个字不动**（悬停排版只读 title/label）。
+	section("第四批 ④b：imas 外显名去体裁尾巴（…ガシャ / …ステップアップガシャ）＋并列条短名（opt-in）");
+	{
+		const I = T.parsers.idolmaster;
+		const IMAS_NOW = Date.parse("2026-11-15T12:00:00+09:00");
+		const len = (s) => [...String(s == null ? "" : s)].length;
+		/** 夹具 → 抓取器 → `mergeEntryRecord`（外显名与数组的**唯一**应用点，与生产同一句）。 */
+		const recOf = async (id) => {
+			const e = engineAt(IMAS_NOW, id, []);
+			const s = e.__test.SOURCES.find((x) => x.id === id);
+			const payload = await e.__test.GACHA_FETCHERS[id](s.url, undefined, s.tz);
+			const rec = e.__test.mergeEntryRecord({ data: payload || {} }, null, IMAS_NOW, { id, tz: s.tz });
+			return { e, s, payload, rec };
+		};
+
+		// ── ① 外显名：真机两条（纯函数逐字；39→36 / 25→15）────────────────────────────
+		const LIVE_ML = "マンスリー・オルタナティブ [EVOLVE]『VSミリオンファイター！』ガシャ";
+		const LIVE_SC = "有償限定 SSR以上10枚確定ステップアップガシャ";
+		check("① 纯函数：真机 millisita 39 字名 ⇒ 剥「ガシャ」（36 字，逐字 = 核心名；不是截断）",
+			T.stripDisplayTailOf(LIVE_ML) === "マンスリー・オルタナティブ [EVOLVE]『VSミリオンファイター！』"
+			&& len(T.stripDisplayTailOf(LIVE_ML)) === 36 && len(LIVE_ML) === 39,
+			JSON.stringify([T.stripDisplayTailOf(LIVE_ML), len(T.stripDisplayTailOf(LIVE_ML))]));
+		check("① 纯函数：真机 shinycolors 25 字名 ⇒ 整段剥「ステップアップガシャ」（15 字，不留悬挂的「ステップアップ」）",
+			T.stripDisplayTailOf(LIVE_SC) === "有償限定 SSR以上10枚確定"
+			&& len(T.stripDisplayTailOf(LIVE_SC)) === 15 && len(LIVE_SC) === 25,
+			JSON.stringify([T.stripDisplayTailOf(LIVE_SC), len(T.stripDisplayTailOf(LIVE_SC))]));
+		check("① 反向守卫：**不是尾巴**的写法逐字不变（`…ガシャDAY2` / 池型在前 / 无体裁词 / 英文活动名 / 生日名）",
+			T.stripDisplayTailOf("LIVE TOUR -標-ファイナル公演記念ガシャDAY2") === "LIVE TOUR -標-ファイナル公演記念ガシャDAY2"
+			&& T.stripDisplayTailOf("プレミアムオーディションガシャ ブラン") === "プレミアムオーディションガシャ ブラン"
+			&& T.stripDisplayTailOf("トワイライツコレクション(めぐる・果穂)") === "トワイライツコレクション(めぐる・果穂)"
+			&& T.stripDisplayTailOf("Overcome one's limits") === "Overcome one's limits"
+			&& T.stripDisplayTailOf("小糸誕生日記念ガシャ2026") === "小糸誕生日記念ガシャ2026",
+			JSON.stringify(["LIVE TOUR -標-ファイナル公演記念ガシャDAY2", "プレミアムオーディションガシャ ブラン", "Overcome one's limits"].map((x) => [x, T.stripDisplayTailOf(x)])));
+		check("① 泛名让位不被剥尾巴破坏：整串泛名「ピックアップガチャ」仍让位给具体池（不剥成「ピックアップ」）",
+			T.displayNameNextOf("ピックアップガチャ", [
+				{ title: "ピックアップガチャ", show: "ピックアップガチャ", roles: [] },
+				{ title: "ラッキーライラック ピックアップガチャ", show: "ラッキーライラック", roles: ["ラッキーライラック"] }
+			]) === "ラッキーライラック",
+			JSON.stringify(T.displayNameNextOf("ピックアップガチャ", [
+				{ title: "ピックアップガチャ", show: "ピックアップガチャ", roles: [] },
+				{ title: "ラッキーライラック ピックアップガチャ", show: "ラッキーライラック", roles: ["ラッキーライラック"] }
+			])));
+
+		// ── ② 并列条短名：纯函数（真机 4 条 + 拿不到 / 太短两类反向）──────────────────
+		const SHORT_OK = [
+			["有償限定 SSR以上10枚確定ステップアップガシャ", "SSR以上10枚確定"],
+			["有償限定 SSR最大3倍! REFRAC7IONS～【ふたりタイムスリップ！】郁田 はるき～特別アイドルステップアップガシャ",
+				"REFRAC7IONS～ふたりタイムスリップ！ 郁田 はるき～"],
+			["有償限定 樹里誕生日記念ステップアップガシャ2026", "樹里誕生日記念"],
+			["2.5th アニバーサリーライブツアー限定 SSR SSRサポートカード確定ガシャ", "2.5th アニバーサリーライブツアー限定"],
+			["限定入り HAPPY BIRTHDAY 樹里スタンプガシャ", "HAPPY BIRTHDAY 樹里"],
+			["パラコレ&期間限定入りユニットセレクト特別ステップアップガシャ", "パラコレ&期間限定入りユニットセレクト"],
+			["『第3回 シャイニーアクト』特別アイドルスタンプガシャ", "『第3回 シャイニーアクト』"]
+		];
+		const badShort = SHORT_OK.filter(([input, want]) => I.imasPoolShortOf(input) !== want);
+		check("② imasPoolShortOf：体裁尾巴 / 取得条件 / 保底规则 三类片段剥掉（真机 7 条逐字）",
+			badShort.length === 0, JSON.stringify(badShort.map(([i]) => [i, I.imasPoolShortOf(i)])));
+		check("② imasPoolShortOf：真机 62 字并列条 ⇒ 31 字（只剥体裁尾巴与取得条件，不做字数截断）",
+			len(I.imasPoolShortOf("有償限定 SSR最大3倍! REFRAC7IONS～【ふたりタイムスリップ！】郁田 はるき～特別アイドルステップアップガシャ")) === 31,
+			String(len(I.imasPoolShortOf("有償限定 SSR最大3倍! REFRAC7IONS～【ふたりタイムスリップ！】郁田 はるき～特別アイドルステップアップガシャ"))));
+		check("② 反向守卫：没有可剥片段的池名 ⇒ 空串（调用方退回 title 原文，不硬造短名）",
+			I.imasPoolShortOf("LIVE TOUR -標-ファイナル公演記念ガシャDAY2") === ""
+			&& I.imasPoolShortOf("トワイライツコレクション(めぐる・果穂)") === ""
+			&& I.imasPoolShortOf("衣装ショップ「氷渡 香名江」の衣装追加") === ""
+			&& I.imasPoolShortOf("シンデレラフェス ブラン") === "",
+			JSON.stringify(["LIVE TOUR -標-ファイナル公演記念ガシャDAY2", "トワイライツコレクション(めぐる・果穂)", "衣装ショップ「氷渡 香名江」の衣装追加", "シンデレラフェス ブラン"].map((x) => [x, I.imasPoolShortOf(x)])));
+		check("② 反向守卫：剥完不足 3 码点 ⇒ 放弃该步（「ガシャ」这种整串体裁词不产出空名 / 两字名）",
+			I.imasPoolShortOf("ガシャ") === "" && I.imasPoolShortOf("ステップアップガシャ") === ""
+			&& I.imasPoolShortOf("ドミナントガシャ") === "ドミナント",
+			JSON.stringify(["ガシャ", "ステップアップガシャ", "ドミナントガシャ"].map((x) => [x, I.imasPoolShortOf(x)])));
+
+		// ── ③ 端到端（夹具）：卡片格外显名 / 并列条 show 逐字 + 数组 title / 悬停原文不动 ──
+		{
+			// millisita：夹具卡池名以体裁词结尾 ⇒ 外显剥掉；数组 title / hover 原文不动
+			const ml = await recOf("millisita");
+			check("③ 端到端（millisita 夹具）：外显名 `Snapshot Memoriesガシャ` ⇒ `Snapshot Memories`（数组 title 仍是原文）",
+				ml.payload.banner === "Snapshot Memoriesガシャ" && ml.rec.banner === "Snapshot Memories"
+				&& ml.rec.gacha.length === 1 && ml.rec.gacha[0].title === "Snapshot Memoriesガシャ",
+				JSON.stringify([ml.payload.banner, ml.rec.banner, ml.rec.gacha.map((x) => x.title)]));
+			// shinycolors：卡片格 36 → 29（剥「…スタンプガシャ」）；7 条数组的 show 逐条 = 登记短名
+			const sc = await recOf("shinycolors");
+			const SC_RAW = "【ふたりぶんわんだふる】市川 雛菜 特別ピンナップアイドルスタンプガシャ";
+			const SC_CARD = "【ふたりぶんわんだふる】市川 雛菜 特別ピンナップアイドル";
+			check("③ 端到端（shinycolors 夹具）：卡片格剥「…スタンプガシャ」⇒ 36 → 29 字（外显唯一入口仍是 banner）",
+				sc.payload.banner === SC_RAW && sc.rec.banner === SC_CARD && len(SC_RAW) === 36 && len(SC_CARD) === 29,
+				JSON.stringify([sc.payload.banner, sc.rec.banner, len(sc.rec.banner)]));
+			const scExtras = sc.rec.gacha.filter((x) => x.source !== "primary");
+			check("③ 端到端（shinycolors）：并列条 show 逐条 = 短名（title 一个字没动、原样可查）",
+				sc.rec.gacha.length === 7 && scExtras.length === 6
+				&& scExtras[0].show === "8.5th Anniversary後夜祭 SSR2倍!!限定入り1日1回10連無料"
+				&& scExtras[1].title === "有償限定 8.5th Anniversary後夜祭 トワコレ＆パラコレ＆マイコレ＆期間限定入りSSR最大85%ステップアップガシャ"
+				&& scExtras[1].show === "8.5th Anniversary後夜祭 トワコレ＆パラコレ＆マイコレ＆期間限定入りSSR最大85%"
+				&& scExtras[2].show === "ふたりぶんわんだふる 市川 雛菜 特別ピンナップアイドル"
+				&& scExtras[3].show === "『第3回 シャイニーアクト』"
+				&& scExtras[4].show === "『第3回 シャイニーアクト』"
+				&& scExtras[5].show === "トワイライツコレクション(めぐる・果穂)"
+				&& sc.rec.gacha[2].title === SC_RAW
+				// 主条 show 仍是**数组里的源站原文**（外显名归一发生在数组定稿之后，只落到记录 `banner`）
+				&& sc.rec.gacha[2].show === SC_RAW,
+				JSON.stringify(scExtras.map((x) => [x.title, x.show])));
+			check("③ 反向（shinycolors）：悬停文本仍是**全部源站长名**（短名只进数组 show，不进悬停）",
+				sc.rec.bannerHover === sc.payload.bannerHover
+				&& sc.payload.bannerHover.split("\n").includes(SC_RAW)
+				&& sc.payload.bannerHover.split("\n").includes("『第3回 シャイニーアクト』特別アイドルスタンプガシャ")
+				&& !sc.payload.bannerHover.split("\n").includes("『第3回 シャイニーアクト』"),
+				JSON.stringify(sc.payload.bannerHover.split("\n").slice(0, 6)));
+
+			// gakumas：`…ガシャ` 剥掉；`…ガシャDAY2` 不是尾巴 ⇒ 逐字不动（反证）
+			const gm = await recOf("gakumas");
+			const gmExtras = gm.rec.gacha.filter((x) => x.source !== "primary");
+			check("③ 端到端（gakumas 夹具）：并列条短名生效（ガラクタロード…）＋ `…ガシャDAY1` 不是尾巴 ⇒ 原样",
+				gmExtras.some((x) => x.title === "ガラクタロード Vol.7 千奈ガシャ" && x.show === "ガラクタロード Vol.7 千奈")
+				&& gmExtras.some((x) => x.title === "LIVE TOUR -標-ファイナル公演記念ガシャDAY1" && x.show === x.title)
+				&& gm.rec.banner === "LIVE TOUR -標-ファイナル公演記念ガシャDAY2",
+				JSON.stringify([gm.rec.banner, gmExtras.map((x) => [x.title, x.show])]));
+
+			// shanison：`…ガシャ2026`（体裁词 + 年份）剥掉；无体裁词的两条原样
+			const ss = await recOf("shanison");
+			const ssExtras = ss.rec.gacha.filter((x) => x.source !== "primary");
+			check("③ 端到端（シャニソン 夹具）：体裁词 + 年份一起剥（`…ステップアップガシャ2026` ⇒ `小糸誕生日記念`）",
+				ssExtras.length === 5
+				&& ssExtras[0].title === "有償限定 小糸誕生日記念ステップアップガシャ2026" && ssExtras[0].show === "小糸誕生日記念"
+				&& ssExtras[1].title === "夢と出逢えるワンコール" && ssExtras[1].show === "夢と出逢えるワンコール"
+				&& ssExtras[2].show === "夢と出逢えるワンコール"
+				&& ssExtras[3].title === "【復刻】月夜に揺れる宝石は" && ssExtras[3].show === "【復刻】月夜に揺れる宝石は"
+				&& ssExtras[4].show === "復刻 月夜に揺れる宝石は",
+				JSON.stringify(ssExtras.map((x) => [x.title, x.show])));
+
+			// deresute：卡片格只剥「プレミアムオーディションガシャ」的体裁词；并列条各剥各的体裁词
+			const cs = await recOf("deresute");
+			const csExtras = cs.rec.gacha.filter((x) => x.source !== "primary");
+			check("③ 端到端（デレステ 夹具）：卡片格 15 → 12；并列条 `ドミナントガシャ` ⇒ `ドミナント`",
+				cs.payload.banner === "プレミアムオーディションガシャ" && cs.rec.banner === "プレミアムオーディション"
+				&& csExtras.length === 2
+				&& csExtras[0].title === "ドミナントガシャ" && csExtras[0].show === "ドミナント"
+				&& csExtras[1].show === "リミテッドスキルピックアップ",
+				JSON.stringify([cs.rec.banner, csExtras.map((x) => [x.title, x.show])]));
+			check("③ 反向守卫：数组条目的 raw / startTs / endTs 与 key 前缀不变（短名只改 show 一个字段）",
+				[["millisita", ml], ["shinycolors", sc], ["gakumas", gm], ["shanison", ss], ["deresute", cs]].every(([id, r]) =>
+					r.rec.gacha.every((x, i) => x.key === id + ":gacha:" + i
+						&& typeof x.raw === "string" && (x.startTs === null || typeof x.startTs === "number")
+						&& (x.endTs === null || typeof x.endTs === "number"))),
+				JSON.stringify([ml, sc, gm, ss, cs].map((r) => r.rec.gacha.map((x) => x.key))));
+			// 提醒标题读数组 `title`（`65-remind.js` 的 `item.title || item.show`）⇒ 短名不进提醒
+			{
+				const rem = T.remindItemsOf({ shinycolors: Object.assign({ name: "shinycolors" }, sc.rec) }, IMAS_NOW, null)
+					.filter((x) => x.side === "gacha");
+				check("③ 反向守卫：提醒标题仍是数组 title（源站原文），短名不泄漏到提醒里",
+					rem.length > 0 && rem.every((x) => sc.rec.gacha.some((g) => g.title === x.title)),
+					JSON.stringify(rem.slice(0, 4).map((x) => x.title)));
+			}
+		}
+	}
+
 	// ═════════ ⑤（2026-11-18 真机修复）宿主代理「不发 Origin」开关 + nikki4 两侧启用 ═════════
 	//
 	// 真机依据（2026-11-18 实测，同一 IP / UA / Referer，只改 Origin）：

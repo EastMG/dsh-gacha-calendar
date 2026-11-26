@@ -226,6 +226,8 @@
 				gachaSekai: ns_sekai_gachaSekai,
 				parseSekaiEvents: ns_sekai_parseSekaiEvents,
 				parseSekaiGachas: ns_sekai_parseSekaiGachas,
+				// 2026-11-26 names-B1：并列条短名（剥类别标签 + 体裁词；纯字符串规则，单测可逐字断言）。
+				sekaiPoolShortOf: ns_sekai_poolShortOf,
 			},
 			"gf2": {
 				GF2_BASE: ns_gf2_GF2_BASE,
@@ -1134,6 +1136,8 @@
 				imasMonthUrlOf,
 				imasItemsFromTable,
 				imasMergeItems,
+				// 2026-11-26 names-B1：并列条短名（剥体裁尾巴 / 取得条件 / 保底规则；纯字符串规则）。
+				imasPoolShortOf,
 				imasPrevMonthOf,
 				imasSidePayloadOf,
 				imasTableOf,

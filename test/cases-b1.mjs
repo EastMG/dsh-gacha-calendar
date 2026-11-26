@@ -606,6 +606,137 @@ export default async function run() {
 		}
 	}
 
+	// ═════════ B1-6（2026-11-26 names-B1）PJSK 三服：探头/并列条短名（opt-in extrasShowFromEntry）═════════
+	//
+	// 现场（2026-11-26 活网实测）：探头里并列那几行一直是**源站长名** ——
+	//   pjsk 18 条最长 24 字 / pjsk-tc 23 条最长 26 / pjsk-kr 28 条最长 33。
+	// 源站 `gachas.json` 只有 `name`（没有角色/池型字段），但三服池名有**稳定词法结构**：
+	//   `[标签] 核心名 + [体裁词]`
+	//   · 末尾 `招募` / `Step-up招募` / `티켓 뽑기` / `뽑기` = 抽卡/票券体裁词（与日服 `ガシャ` 同类）—— 一定剥；
+	//   · 行首 `[...]` 只剥**类别标签**（`[复刻]` / `[新手应援]` / `[4.5주년 기념]`…，栏目/批次标记）；
+	//     **内容标签保留**（`[桐谷遥]` 角色名 / `[Little Maverick]` 曲名 / `[侦探]` 主题）——
+	//     那几口池的身份就在标签里，剥掉会让多口池变成同一行（`[1.5周年纪念][Leo/need]高级礼物` 等）。
+	// 修法：解析器给每条 hover item 算 `show`（`sekaiPoolShortOf`，纯字符串规则）+ 该侧开
+	// `extrasShowFromEntry` ⇒ 数组**并列条**的 `show` = 短名。口径（用户 2026-11-18）：
+	// **不做程序截断**；`title` / `raw` / ts / key / 条数 / 顺序 / 悬停文本**一个字不动**（下面逐条反证）。
+	section("B1-6（2026-11-26 names-B1）：PJSK 三服并列条短名 —— 剥「[类别标签] + 体裁词」，title/悬停原文不动");
+	{
+		const K = T.parsers.sekai.sekaiPoolShortOf;
+		const len = (x) => [...String(x == null ? "" : x)].length;
+
+		// ── ① 纯函数：真机 3 个服的长名逐字 ⇒ 短名（最长 33 → 18 / 26 → 15 / 24 → 16）────────
+		const SHORT_OK = [
+			["[초보자 응원] ★4 멤버 1명 확정 10회 연속 티켓 뽑기", "★4 멤버 1명 확정 10회 연속"],   // pjsk-kr 33 → 18
+			["[복귀를 환영합니다]★4 멤버 선택 Step-up 뽑기", "★4 멤버 선택"],                       // pjsk-kr 30 → 8
+			["[4.5주년 기념] Step-up 뽑기", "4.5주년 기념"],                                        // pjsk-kr 21 → 8
+			["[Little Maverick]Step-up招募", "Little Maverick"],                                    // pjsk-tc 26 → 15
+			["[新手應援]必中1名★4成員10連票券招募", "必中1名★4成員10連票券"],                        // pjsk-tc 21 → 13
+			["[复刻]奏响心愿的行进乐队巡游招募", "奏响心愿的行进乐队巡游"],                            // pjsk 17 → 11
+			["[新手应援]必定获得1名★4成员10连招募券招募", "必定获得1名★4成员10连招募券"],             // pjsk 24 → 16
+			["[侦探]服装特惠招募", "[侦探]服装特惠"],                                                // pjsk 10 → 8（内容标签保留）
+			["Good to go！招募", "Good to go！"],                                                    // pjsk 13 → 11
+			["Good to go! 뽑기", "Good to go!"],                                                     // pjsk-kr 14 → 11
+			["[复刻]於響起音樂的街角 招募", "於響起音樂的街角"],                                      // pjsk-tc 15 → 8
+			// 内容标签保留（角色名 / 曲名 / 主题）—— 面板上这几口池仍然分得开
+			["[桐谷遥]HAPPY BIRTHDAY 2026招募", "[桐谷遥]HAPPY BIRTHDAY 2026"],
+			["[感谢有你的「世界」]免费招募", "[感谢有你的「世界」]免费"],
+			["[1.5周年纪念][虚拟歌手]高级礼物招募", "[虚拟歌手]高级礼物"]
+		];
+		const badShort = SHORT_OK.filter(([input, want]) => K(input) !== want);
+		check("① sekaiPoolShortOf：三服长名逐字 ⇒ 短名（剥类别标签 + 末尾体裁词；真机 14 条）",
+			badShort.length === 0, JSON.stringify(badShort.map(([i]) => [i, K(i)])));
+		check("① 三服最长并列条真的缩短了（kr 33→18 / tc 26→15 / cn 24→16；不是截断，是剥标记与体裁词）",
+			len(K("[초보자 응원] ★4 멤버 1명 확정 10회 연속 티켓 뽑기")) === 18
+			&& len(K("[Little Maverick]Step-up招募")) === 15
+			&& len(K("[新手应援]必定获得1名★4成员10连招募券招募")) === 16,
+			JSON.stringify([
+				len(K("[초보자 응원] ★4 멤버 1명 확정 10회 연속 티켓 뽑기")),
+				len(K("[Little Maverick]Step-up招募")),
+				len(K("[新手应援]必定获得1名★4成员10连招募券招募"))
+			]));
+
+		// ── ② 反向守卫：没有「标签/体裁词」可剥的池名 ⇒ 空串（调用方退回 title 原文）──────
+		check("② 反向守卫：无标记可剥 / 剥完不足 3 码点 ⇒ 空串（不硬造短名、不把名字剥成两字）",
+			K("任务招募") === "" && K("미션 뽑기") === "" && K("「世界」入住任務") === ""
+			&& K("[新]") === "" && K("活動名") === "",
+			JSON.stringify(["任务招募", "미션 뽑기", "「世界」入住任務", "[新]", "活動名"].map((x) => [x, K(x)])));
+		check("② 反向守卫：`[复刻]於響起音樂的街角 招募` 只剥标记与体裁词 —— 「於響起音樂的街角」逐字保留",
+			K("[复刻]於響起音樂的街角 招募") === "於響起音樂的街角",
+			JSON.stringify(K("[复刻]於響起音樂的街角 招募")));
+
+		// ── ③ 端到端（国服夹具）：卡片格 17 字不变 / 并列条 show = 短名 / title + 悬停逐字原文 ────
+		const PJSK_GACHA_URL = "https://sekai-world.github.io/sekai-master-db-cn-diff/gachas.json";
+		const gachaBody = readFileSync(new URL("./fixtures/b1-sekai-gachas/response.txt", import.meta.url), "utf8");
+		const engine = createEngine({
+			transport: {
+				async fetchRaw(url) {
+					if (String(url) !== PJSK_GACHA_URL) return { ok: false, status: 404, headers: { get: () => null }, text: async () => "", json: async () => ({}) };
+					return { ok: true, status: 200, headers: { get: () => null }, text: async () => gachaBody, json: async () => JSON.parse(gachaBody) };
+				},
+				async fetchViaProxy() { throw new Error("pjsk 是 direct 源，不该走代理"); }
+			},
+			storage: { async get() { return undefined; }, async set() {} },
+			now: () => SNAP,
+			timer: { setTimeout, clearTimeout }
+		}).__test;
+		const skSrc = engine.SOURCES.find((x) => x.id === "pjsk");
+		const skPayload = await engine.GACHA_FETCHERS["pjsk"](PJSK_GACHA_URL, undefined, skSrc.tz);
+		const skRec = engine.mergeEntryRecord({ data: skPayload }, null, SNAP, { id: "pjsk", tz: skSrc.tz });
+		const extras = (skRec.gacha || []).filter((x) => x.source !== "primary");
+		const primary = (skRec.gacha || []).find((x) => x.source === "primary");
+		check("③ 端到端（国服夹具）：卡池数组 23 条不变，并列条 show 逐条 = 短名（登记 4 条逐字）",
+			(skRec.gacha || []).length === 23 && extras.length === 22
+			&& extras.some((x) => x.title === "★4成员必出招募" && x.show === "★4成员必出")
+			&& extras.some((x) => x.title === "[复刻]Grace Marriage招募" && x.show === "Grace Marriage")
+			&& extras.some((x) => x.title === "[1.5周年纪念][虚拟歌手]高级礼物招募" && x.show === "[虚拟歌手]高级礼物")
+			&& extras.some((x) => x.title === "任务招募" && x.show === "任务招募"),
+			JSON.stringify(extras.map((x) => [x.title, x.show])));
+		check("③ 端到端（国服夹具）：并列条最长 37 → 28 字；主条 title/show 仍是源站原文（外显名归一只落记录字段）",
+			Math.max(...extras.map((x) => len(x.title))) === 37
+			&& Math.max(...extras.map((x) => len(x.show))) === 28
+			&& !!primary && primary.title === "[桐谷遥]HAPPY BIRTHDAY 2026招募" && primary.show === primary.title
+			&& skRec.banner === "[桐谷遥]HAPPY BIRTHDAY 2026招募",
+			JSON.stringify([Math.max(...extras.map((x) => len(x.title))), Math.max(...extras.map((x) => len(x.show))), primary && [primary.title, primary.show]]));
+		check("③ 反向守卫：悬停文本仍是**全部源站长名**（短名只进数组 show，不进 bannerHover）",
+			skRec.bannerHover === skPayload.bannerHover
+			&& skPayload.bannerHover.split("\n").includes("[新手应援]必定获得1名★4成员10连招募券招募")
+			&& skPayload.bannerHover.split("\n").includes("[1.5周年纪念][虚拟歌手]高级礼物招募")
+			&& !skPayload.bannerHover.split("\n").includes("高级礼物"),
+			JSON.stringify(skPayload.bannerHover.split("\n").slice(0, 6)));
+		check("③ 反向守卫：数组 raw / startTs / endTs / key 与 title 全部原样（短名只改 show 一个字段）",
+			(skRec.gacha || []).every((x, i) => x.key === "pjsk:gacha:" + i
+				&& typeof x.title === "string" && x.title.length > 0
+				&& typeof x.raw === "string" && x.raw.length > 0
+				&& (x.startTs === null || typeof x.startTs === "number")
+				&& (x.endTs === null || typeof x.endTs === "number")),
+			JSON.stringify((skRec.gacha || []).map((x) => x.key)));
+		// 提醒标题读的是数组 `title`（`65-remind.js` 的 `item.title || item.show`）⇒ 短名不进提醒
+		{
+			const rem = T.remindItemsOf({ pjsk: Object.assign({ name: "pjsk" }, skRec) }, SNAP, null);
+			check("③ 反向守卫：提醒标题仍是数组 title（源站原文），短名不泄漏到提醒里",
+				rem.length > 0 && rem.every((x) => x.title !== "高级礼物" && skRec.gacha.some((g) => g.title === x.title)),
+				JSON.stringify(rem.slice(0, 4).map((x) => x.title)));
+		}
+
+		// ── ④ 繁中/韩服（夹具只有 1 口在期池 ⇒ 没有并列条，opt-in 是 no-op）──────────────
+		for (const R of PJSK) {
+			const gRaw = fixture(R.gachaFx);
+			const G = parseSekaiGachas(gRaw, PJSK_NOW, R.tz);
+			check(`④ ${R.id} 夹具单池：gacha[] 1 条、show 仍是源站原文（extrasShowFromEntry 对单池无副作用）`,
+				!!G && G.gacha.length === 1 && G.gacha[0].title === R.banner && G.gacha[0].show === R.banner,
+				JSON.stringify(G && G.gacha.map((x) => [x.title, x.show])));
+		}
+
+		// ── ⑤ 活动侧「判为不该改」的证据：`Overcome one's limits` 是**真活动名**（英文），不是体裁尾巴 ──
+		const EVENT_NAME = "Overcome one's limits";
+		check("⑤ 判为不该改：三服活动名 `Overcome one's limits`（21 字）逐字不变 —— 英文真名，白名单里没有任何可剥尾巴",
+			T.stripDisplayTailOf(EVENT_NAME) === EVENT_NAME
+			&& T.displayNameNextOf(EVENT_NAME, []) === EVENT_NAME
+			&& T.displayNameIsGenericOf(EVENT_NAME) === false
+			&& len(EVENT_NAME) === 21,
+			JSON.stringify([T.stripDisplayTailOf(EVENT_NAME), T.displayNameNextOf(EVENT_NAME, []), len(EVENT_NAME)]));
+	}
+
 	// run.mjs 会调用 summary()；直接 `node test/cases-b1.mjs` 时也自报结果
 	if (process.argv[1] && process.argv[1].endsWith("cases-b1.mjs")) summary();
 }

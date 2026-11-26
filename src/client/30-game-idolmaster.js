@@ -100,6 +100,65 @@
 		// cat-event 里的下半场子区间（同一活动重复一段，且与正篇同窗）。
 		const IMAS_EVENT_SKIP_RE = /折り返し期間\s*$/;
 
+		// ── 探头/并列条短名（2026-11-26 names-B1，**只给数组条目的 `show`，title 与悬停不动**）──
+		// 源站「概要」列是**自由文本**，没有独立的池名字段；但 5 款的写法有稳定的词法结构：
+		//   `[前缀修饰] 核心名 + [体裁尾巴]`
+		//   · 体裁尾巴（= 抽卡类型，不是名字）：`特別アイドルスタンプガシャ` / `特別アイドルステップアップガシャ`
+		//     / `特別ステップアップガシャ` / `ステップアップガシャ` / `スタンプガシャ` / `ガシャ` / `ガチャ`；
+		//     shanison 还会在尾巴后带年份（`…ガシャ2026`）⇒ 尾巴 + `20\d\d` 一起剥。
+		//   · 前缀修饰（= 取得条件，不是名字）：`有償限定` / `限定入り` / `SSR最大N%` / `SSR最大N倍`。
+		//   · 确定性尾巴（gakumas 实测）：`…限定 SSR Pアイドル確定` / `…限定 SSR SSRサポートカード確定`
+		//     —— `SSR … 確定` 这一段是"保底规则"，不是这口池的名字。
+		// 实测（2026-11-26 活网，见报告）：shinycolors 并列条最长 62 字、shanison 45、gakumas 41。
+		// **不做字数截断**（用户 2026-11-18 口径）：只剥上面这三类**有源站措辞证据**的片段；
+		// 剥完为空 / 不足 3 码点就**放弃这一步**（宁可留下原文，也不产出两字名）。
+		const IMAS_POOL_TAIL_RE =
+			/(?:特別アイドルステップアップガシャ|特別アイドルスタンプガシャ|特別ステップアップガシャ|ステップアップガシャ|スタンプガシャ|ガシャ|ガチャ)(?:20\d{2})?$/;
+		const IMAS_POOL_QUALIFIER_RES = [
+			/^有償限定\s+/u,
+			/^限定入り\s+/u,
+			/^SSR最大\d+%[!！]?\s*/u,
+			/^SSR最大\d+倍[!！]?\s*/u
+		];
+		const IMAS_POOL_SSR_CLAUSE_RE = /\s+SSR\s.*$/;
+		// 「」/【】是**装饰记号**（cleanRoleNames 对外显名也这么处理），不是名字的一部分。
+		// 开括号直接删、闭括号换空格再压空白 —— 不能全删（否则 `【ふたりぶんわんだふる】市川 雛菜`
+		// 会粘成 `ふたりぶんわんだふる市川 雛菜`）。『』不在内：那是作品/池的正式书名号。
+		const IMAS_POOL_DECOR_OPEN_RE = /[「【]/gu;
+		const IMAS_POOL_DECOR_CLOSE_RE = /[」】]/gu;
+		/**
+		 * 池名 → 并列条短名；拿不到（剥完与原文相同 / 只剩 <3 码点）⇒ `""`（调用方退回 title）。
+		 * 纯字符串规则，无网络、无 now —— 单测可直接断言逐字输入输出。
+		 */
+		function imasPoolShortOf(name) {
+			const orig = typeof name === "string" ? name.trim() : "";
+			if (!orig) return "";
+			let s = orig;
+			let changed = false;
+			for (;;) {
+				const next = s.replace(IMAS_POOL_TAIL_RE, "").trim();
+				if (next === s) break;
+				if ([...next].length < 3) break;
+				s = next;
+				changed = true;
+			}
+			for (let again = true; again;) {
+				again = false;
+				for (const re of IMAS_POOL_QUALIFIER_RES) {
+					const next = s.replace(re, "").trim();
+					if (next !== s && [...next].length >= 3) { s = next; changed = true; again = true; break; }
+				}
+			}
+			const noClause = s.replace(IMAS_POOL_SSR_CLAUSE_RE, "").trim();
+			if (noClause !== s && [...noClause].length >= 3) { s = noClause; changed = true; }
+			// 只有**结构上真的剥掉了什么**才给 show（避免「只是把【】换空格」也改变显示名）。
+			if (!changed) return "";
+			s = s.replace(IMAS_POOL_DECOR_OPEN_RE, "").replace(IMAS_POOL_DECOR_CLOSE_RE, " ")
+				.replace(/\s+/gu, " ").trim();
+			if ([...s].length < 3) return "";
+			return s !== orig ? s : "";
+		}
+
 		// 五款的 slug（月份页路径前缀）+ 表里的 brand class（`brand-<cls>`）+ 面板名（日文原名）
 		const IMAS_BRANDS = {
 			gakumas: { slug: "imas_gm", cls: "brand-gakumasu", name: "学园偶像大师·日服" },
@@ -328,9 +387,17 @@
 				.sort((a, b) => (a.endTs - b.endTs) || (b.startTs - a.startTs))[0] || null;
 			if (!primary) return null;
 			const entries = isGacha ? listed.slice().sort(poolHoverOrderOf) : sortEventItems(listed);
-			const hoverItems = entries.map((x) => (isGacha
-				? { title: x.name, label: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }
-				: { title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw }));
+			// `show` = 这一口池的**短名**（`imasPoolShortOf`：剥体裁尾巴/取得条件/保底规则）；
+			// 拿不到就**不写** `show` ⇒ 显示退回源站原文。`title` / `label` / 悬停一律原文。
+			const hoverItems = entries.map((x) => {
+				if (isGacha) {
+					const it = { title: x.name, label: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw };
+					const show = imasPoolShortOf(x.name);
+					if (show) it.show = show;
+					return it;
+				}
+				return { title: x.name, startTs: x.startTs, endTs: x.endTs, raw: x.raw };
+			});
 			const out = {};
 			if (isGacha) {
 				out.banner = primary.name;
@@ -350,7 +417,9 @@
 				else out.eventHover = hover;
 			}
 			if (isGacha) {
-				out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id, tz }, now);
+				// `extrasShowFromEntry`：并列条（探头里其余池）显示**各自**的短名；`title` 仍是源站原文
+				// （与 FGO 日服 / 终末地同一套 opt-in，见 50-refresh.js 的说明）。
+				out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id, tz, extrasShowFromEntry: true }, now);
 				out.gachaHoverItems = hoverItems;
 			} else {
 				out.events = dataArrayProducedEventsOf(out, hoverItems, { id, tz }, now);
