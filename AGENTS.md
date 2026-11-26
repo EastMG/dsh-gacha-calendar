@@ -25,6 +25,73 @@
 「明确指令」= 用户在当轮消息里**点名要求**发布 / 升级 / 打 tag。
 **"改完了"、"继续"、"可以" 这类不算。** 只报告"已改完并通过门禁"**不等于**授权发布。
 
+## 发版规范（完整版：权限 → 版本号 → 说明 → 流程 → 核对）
+
+> 本节把原本散在会话总结 / 交接说明里的发版规则收进仓库，**每条都注明出处**；
+> 与上文冲突时以本节为准（最近更新：2026-11-26）。
+
+### 0.1 每一次发版，版本号都**必须先问用户**
+
+用户 2026-11-26 原话：「**本来每一次发版就都要先问版本号**」。
+
+- 即使当轮已经说了「发版 / 发 release」，也**不等于**授权我挑号：先给「建议 vX.Y.Z + 依据（这批改了什么）」，**等用户拍板**再改 `version`。
+- 记录佐证（历史版本号都是用户点名的）：
+  - 「版本号按你指定升到 **v0.9.0**」（`_digest_dbfa9111.txt`）
+  - 「重做这次commit **版本号改成v0.8.15**」（会话总结 T63）
+- **严禁自作主张跳号**：曾出现我改到 v0.9.0、用户要求 reset 改回 0.8.15（会话总结「反复重申的约定」第 3 条）。
+
+### 0.2 「发版」到底授权了哪几步（记录口径）
+
+| 用户说的 | 授权范围 |
+|---|---|
+| 「发 release」/「发版」 | 升号（问过之后）+ tag + GitHub Release；**不含 npm 发布** |
+| 「发release和npm」/「推 npm」 | 以上全部 + npm 发布 |
+
+依据：交接说明里 2026-09-21 的两次操作措辞不同、结果也不同 —— 用户只说「发 release」时记录的是 **npm 未发布**；用户说「发release和npm」时才发布。
+**拿不准就直接问**，不要替用户 presume。
+
+### 0.3 Release 说明：先审后发 + 固定格式
+
+**先审后发**（同上文「对外文字」）：先把 notes 全文贴给用户，等「发」；发出去的必须逐字等于用户看过的那一版。
+
+**格式**（会话总结「反复重申的约定」第 1 条，原文口径）：
+
+- 首行 `<type>: vX.Y.Z <中文一句话>`，`type ∈ fix / feat / style / refactor / docs / chore / build / release …`
+- body 用 `- ` 分条，写「**改了什么 + 为什么**」
+- **以 `实测：<当期实际抓取结果>` 收尾**
+- release 说明与 commit 消息**同构**（纯文本，title = 版本号）
+- **隔版本发布**时，release 说明必须补**跳过版本的 changelog**，且**每项前缀版本号**
+
+**排版**（v0.14.1 起的实际写法，供对齐）：按 `## 主题` 分组（例：「## 修复」「## 外显名」），条目纯 `- ` 平铺；**不要**写成 `### 1./2./3.` 小标题 + 大段解释段落（2026-11-26 因自造排版被指出过一次）。
+
+### 0.4 发版流程（按序，缺一步不许做下一步）
+
+1. **问版本号** → 用户拍板
+2. 改 `package.json` 与 `packages/core/package.json` 的 `version`（同一个号）→ `node build.mjs` 重新注入 `PLUGIN_VERSION`
+3. 门禁 M=0：`node build.mjs --check`、`cd test && node all.mjs`（默认 TZ 与 `TZ=UTC` 各一次）、`node tools/check-host-allow.mjs`
+4. `git commit -m "chore(release): vX.Y.Z"` → `git push origin HEAD:main`
+5. `git tag -a vX.Y.Z -m "vX.Y.Z"` → `git push origin vX.Y.Z`
+6. 起草 release notes → **贴给用户审** → 等到「发」
+7. 在**仓库目录**执行 `gh release create vX.Y.Z --title "vX.Y.Z" --notes-file <utf8文件>`（`gh` 需要 git 仓库上下文，在别处执行会 `fatal: not a git repository`）
+8. npm 发布（仅当获授权）：**先 core 后 plugin**，见下节
+9. 核对四项再收工：`npm view <包> dist-tags` 两包都 = vX.Y.Z；`git describe --tags --exact-match` = vX.Y.Z；`origin/main` sha = 本地；`npm pack --dry-run` 的 shasum 与 registry 的 `dist.shasum` 一致
+
+### 0.5 npm 发布的技术前提（踩过的坑，别再踩）
+
+- 账号 `eastmorning` 用 **Passkey 2FA**、**没有 6 位 TOTP** ⇒ 发布必须用 **Automation 型 token**，写进 `~/.npmrc` 的 `//registry.npmjs.org/:_authToken=<automation token>`。
+- 动手前先验：`npm whoami` 与 `pnpm whoami` 都应回 `eastmorning`；**401 = token 失效** ⇒ 换 token，不要去猜 OTP 流程。
+- 用 **pnpm** 发布：`pnpm publish --cache "F:\DeepSeek\DeepSeek-Workplace\DSH-Workplace-01\.npm-cache"`（npm 11 的 staged 发布流程会给出 409 / 404 的混淆报错）。
+- 报 `409 Cannot publish over previously published/staged version` ⇒ 该版本**其实已在 registry**（Fastly 对 packument 有缓存延迟），用 `npm view <包> dist-tags` 复核，**不要重复发、也不要改号重发**。
+- 顺序：先 `packages/core`（`gacha-calendar-core`），再仓库根（`dsh-gacha-calendar`）。
+- `DSH_ALLOW_PUBLISH=1` 是**脚本级**硬门禁（`tools/require-publish-consent.mjs`），只拦 `npm run publish:*`；直接用 `pnpm publish` 可以绕过它 —— **能绕过 ≠ 获授权**。
+
+### 0.6 版本号与「已发布」的关系
+
+- 未获授权时：版本号**停在最后一次已发布的号上**，改代码不动 `version`。
+- **纯文档改动（README / AGENTS 等）不升版本号**（用户 2026-09-21 定，交接说明 §33）。
+- 代码改动才升号；**改了号必须重新 build**，否则产物里留着旧号、`build --check` 会红。
+- 版本号推进与代码改动一一对应，**不跳号**。
+
 ## 文档修改纪律
 
 用户 2026-10-28 明确要求：
