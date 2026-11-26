@@ -1,7 +1,0 @@
-{
-  "url": "https://spica.wiki/ournotes/events",
-  "status": 200,
-  "capturedAt": "2026-11-25T19:01:39.019Z",
-  "bytes": 45056,
-  "trim": "SPICA 活动列表页**原样**（服务端渲染 HTML；2026-11-26 活网抓取，6 期，未删未改）。列表只有名称，日期要进 `/ournotes/event/<id>` 详情页拿。"
-}

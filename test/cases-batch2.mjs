@@ -459,27 +459,17 @@ export default async function runBatch2() {
 		const s = T.SOURCES.find((x) => x.id === "ournotes") || null;
 		check("卡池 url = SPICA 列表（此前该侧无来源）", !!s && s.url === SPICA_LIST, s && String(s.url));
 		check("卡池来源标签 = SPICA", !!s && s.source === B.NS_BATCH2_SPICA_SOURCE_LABEL, s && s.source);
-		check("活动侧默认源 = SPICA 活动页（2026-11-26 审计 B 换源；此前是 bushimo WP 公告）",
-			!!s && s.eventUrl === "https://spica.wiki/ournotes/events" && s.eventSource === "SPICA",
-			s && JSON.stringify([s.eventUrl, s.eventSource]));
-		check("旧 bushimo WP 源降为**手动备选**（标签「官方公告（日文）」/ fetcher `ournotes-bushimo` 已登记）",
-			!!s && (s.eventAltSources || []).length === 1
-			&& s.eventAltSources[0].url === "https://bang-dream-on.bushimo.jp/wp-json/wp/v2/posts?per_page=20&page=1"
-			&& s.eventAltSources[0].label === "官方公告（日文）"
-			&& s.eventAltSources[0].fetcher === "ournotes-bushimo"
-			&& typeof (T.EVENT_FETCHERS["ournotes"] || {})["ournotes-bushimo"] === "function",
-			s ? JSON.stringify(s.eventAltSources) : "缺失");
+		check("活动侧原样不动（bushimo WP 公告 / 官方公告（日文））",
+			!!s && s.eventUrl === "https://bang-dream-on.bushimo.jp/wp-json/wp/v2/posts?per_page=20&page=1"
+			&& s.eventSource === "官方公告（日文）", s && JSON.stringify([s.eventUrl, s.eventSource]));
 		check("tz = Asia/Tokyo / defaultHidden 改为 false（与同款其它服一致）",
 			!!s && s.tz === "Asia/Tokyo" && s.defaultHidden === false, s && JSON.stringify([s.tz, s.defaultHidden]));
 		// ── 2026-11-17 用户口径（真机 bug 修复）：没有任何「覆盖 now」的区间时 ⇒ **null（nomatch）**，
 		//    不再 fallback 到"最新一篇的区间"（那会把已结束的活动当当期外显，且 eventFail=null 不会提示沿用）。
-		// ⚠️ 2026-11-26：活动默认源已换成 SPICA 活动页 ⇒ 这一段改走**旧 bushimo 备选源**（它才是本段要守的
-		//    那个"没有区间覆盖 now 就 null"的解析器；降为备选后仍要能用）。
 		{
-			const alt = (s.eventAltSources || []).find((a) => a.fetcher === "ournotes-bushimo");
 			const e2 = engineAt(NOW + 400 * 864e5, []);   // 固定夹具的所有区间都已过去
 			let fb = undefined, err = null;
-			try { fb = await e2.__test.EVENT_FETCHERS["ournotes"]["ournotes-bushimo"](alt.url, undefined, s.tz, NOW + 400 * 864e5); } catch (x) { err = x; }
+			try { fb = await e2.__test.EVENT_FETCHERS["ournotes"].default(s.eventUrl, undefined, s.tz, NOW + 400 * 864e5); } catch (x) { err = x; }
 			check("活动侧（无区间覆盖 now）：不抛错", err === null, err && err.message);
 			check("活动侧（无区间覆盖 now）：返回 null（nomatch），不拿过期活动顶",
 				fb === null, JSON.stringify(fb));
@@ -532,83 +522,6 @@ export default async function runBatch2() {
 			!!gp && gp.gacha.length === 4 && gp.gacha.findIndex((x) => x.source === "primary") === 1
 			&& gp.gacha.every((x) => x.tz === "Asia/Tokyo"),
 			JSON.stringify(gp && gp.gacha.map((x) => [x.title.slice(0, 12), x.source])));
-	}
-
-	// ── 2026-11-26（活网审计 B）：活动默认源 = **SPICA 活动页**（列表 → 每期详情 `開催期間`）──
-	section("第二批②B：OurNotes 日服活动 —— SPICA 活动页（列表 → 详情 開催期間 / 当期 きみはまるくん）");
-	{
-		const EV_LIST = B.NS_BATCH2_SPICA_EVENTS_URL;
-		const EV_DETAIL = B.NS_BATCH2_SPICA_EVENT_DETAIL_BASE;
-		// 审计当天时刻（2026-11-26 02:52 +08）：当期 = きみはまるくん 11-18 15:00 ~ 11-27 14:59（JST）
-		const NOW_EV = Date.parse("2026-11-26T02:52:37+08:00");
-		const s = T.SOURCES.find((x) => x.id === "ournotes") || null;
-
-		// ① 列表：6 期、只有名称（日期必须进详情页）
-		const ids = B.ns_batch2_spicaEventIdsOf(fixtureBody(EV_LIST));
-		check("活动列表解析出 6 期（源站顺序；首期 = きみはまるくん）",
-			ids.length === 6 && ids[0].id === "you-re-maru-kun" && ids[0].title === "きみはまるくん",
-			JSON.stringify(ids.slice(0, 2)));
-		check("列表本身**没有日期**（与卡池列表同形态 ⇒ 必须进详情页拿）",
-			ids.every((x) => x.title && !/\d{4}\.\d{1,2}\.\d{1,2}/.test(x.title)),
-			JSON.stringify(ids.map((x) => x.title.slice(0, 12))));
-
-		// ② 详情：名称 + 開催期間（源站原文 / 补全 display / 绝对时刻）
-		const d = B.ns_batch2_spicaEventDetailOf(fixtureBody(EV_DETAIL + "you-re-maru-kun"), "Asia/Tokyo");
-		check("详情 きみはまるくん：名称逐字 + 源站原文「2026.11.18 15:00 – 2026.11.27 14:59」",
-			d.title === "きみはまるくん" && d.raw === "2026.11.18 15:00 – 2026.11.27 14:59",
-			JSON.stringify([d.title, d.raw]));
-		check("详情补全文本 = 「11-18 15:00 ~ 11-27 14:59」（按条目 tz=JST 渲染源站墙钟）",
-			d.display === "11-18 15:00 ~ 11-27 14:59", JSON.stringify(d.display));
-		check("startTs = 2026-11-18 15:00 JST（UTC 06:00）/ endTs = 2026-11-27 14:59 JST（UTC 05:59）",
-			d.startTs === Date.UTC(2026, 10, 18, 6, 0) && d.endTs === Date.UTC(2026, 10, 27, 5, 59),
-			JSON.stringify([d.startTs, d.endTs]));
-
-		// ③ 窗口解析：**终点省略年份**的 `M.DD HH:MM` 写法也要解对（起点年补齐；跨年回绕 +1 年）
-		{
-			const w1 = B.ns_batch2_spicaEventWindowOf("2026.11.18 15:00 – 11.27 14:59", "Asia/Tokyo");
-			check("M.DD 写法（终点省年）：`2026.11.18 15:00 – 11.27 14:59` ⇒ 与带年写法同一对绝对时刻",
-				w1.startTs === d.startTs && w1.endTs === d.endTs, JSON.stringify(w1));
-			const w2 = B.ns_batch2_spicaEventWindowOf("2026.12.28 – 01.05", "Asia/Tokyo");
-			check("跨年回绕：`2026.12.28 – 01.05` ⇒ 终点在 2027-01-05（只有日期 ⇒ 起 00:00 / 止 23:59）",
-				w2.startTs === Date.UTC(2026, 11, 27, 15, 0) && w2.endTs === Date.UTC(2027, 0, 5, 14, 59),
-				JSON.stringify([w2.startTs, w2.endTs]));
-			const w3 = B.ns_batch2_spicaEventWindowOf("未定", "Asia/Tokyo");
-			check("反证：`未定` ⇒ 两端 null（不编时刻）", w3.startTs === null && w3.endTs === null, JSON.stringify(w3));
-		}
-
-		// ④ 抓取器（夹具）：外显 / 悬停 / 数组 / 请求量 / 代理
-		{
-			const calls = [];
-			const e = engineAt(NOW_EV, calls);
-			const ev = await e.__test.EVENT_FETCHERS["ournotes"].default(s.eventUrl, undefined, s.tz);
-			check("活动抓取器返回对象；外显 = きみはまるくん / 档期 = 11-18 15:00 ~ 11-27 14:59",
-				!!ev && ev.event === "きみはまるくん" && ev.eventDates === "11-18 15:00 ~ 11-27 14:59",
-				JSON.stringify(ev && [ev.event, ev.eventDates]));
-			check("源站原文 eventDatesRaw 逐字（raw 与 display 分开）",
-				!!ev && ev.eventDatesRaw === "2026.11.18 15:00 – 2026.11.27 14:59", JSON.stringify(ev && ev.eventDatesRaw));
-			check("`events[]` 1 条 = 当期（primary）+ tz Asia/Tokyo + 绝对时刻",
-				!!ev && Array.isArray(ev.events) && ev.events.length === 1
-				&& ev.events[0].source === "primary" && ev.events[0].tz === "Asia/Tokyo"
-				&& ev.events[0].startTs === d.startTs && ev.events[0].endTs === d.endTs,
-				JSON.stringify(ev && ev.events && ev.events.map((x) => [x.title, x.startTs, x.endTs])));
-			check("只有 1 条在期 ⇒ 不设 eventHover（交回 UI 默认两行式）",
-				!!ev && ev.eventHover === void 0, JSON.stringify(ev && ev.eventHover));
-			const listCalls = calls.filter((c) => /\/ournotes\/events$/.test(c.url));
-			const detailCalls = calls.filter((c) => /\/ournotes\/event\/[A-Za-z0-9_-]+$/.test(c.url));
-			check("请求 = 列表 1 次 + 详情 6 次（MAX_DETAILS=6；不是抓全站 / 不是 0 次）",
-				listCalls.length === 1 && detailCalls.length === 6 && B.NS_BATCH2_SPICA_EVENT_MAX_DETAILS === 6,
-				JSON.stringify([listCalls.length, detailCalls.length]));
-			check("全程经代理、带 Referer `https://spica.wiki/`",
-				proxyCallsOf(calls).length === calls.length && calls.every((c) => c.referer === "https://spica.wiki/"),
-				JSON.stringify(calls.slice(0, 2)));
-
-			// 反证：此刻全部活动都已结束（2026-12-20）⇒ null（不拿过期活动顶）
-			const eLate = engineAt(Date.parse("2026-12-20T00:00:00+08:00"), []);
-			let late;
-			try { late = await eLate.__test.EVENT_FETCHERS["ournotes"].default(s.eventUrl, undefined, s.tz); }
-			catch (err) { late = "throw:" + err.message; }
-			check("反证：所有期次都已结束 ⇒ 抓取器如实 null（nomatch，不是抛错）", late === null, JSON.stringify(late));
-		}
 	}
 
 	section("第二批②反证：详情缺「開催期間」⇒ null（不编时刻）");
