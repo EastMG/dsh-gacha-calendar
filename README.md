@@ -5,7 +5,7 @@
 [![release](https://img.shields.io/github/v/release/EastMG/dsh-gacha-calendar.svg)](https://github.com/EastMG/dsh-gacha-calendar/releases)
 [![license](https://img.shields.io/github/license/EastMG/dsh-gacha-calendar.svg)](./LICENSE)
 
-DeepSeek Harness 桌面端侧边栏插件：一键查看主流二游的**当期卡池与活动起止日历**，支持联网自动刷新，支持手动添加或删除条目。
+DeepSeek Harness 桌面端侧边栏插件：一键查看主流抽卡游戏的**当期卡池与活动起止日历**，支持联网自动刷新，支持手动添加或删除条目。
 全程使用 DeepSeek Harness 进行 Vibe Coding 开发。
 
 ## 截图
