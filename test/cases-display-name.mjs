@@ -12,11 +12,18 @@
 //   应用点 = `50-refresh.js` 的 `mergeEntryRecord`；纯函数在 `60-helpers.js`（两个产物都包含）。
 //
 // 分段与两个 commit 对齐：① 尾巴归一 / ② 泛名让位。
-// （③ 超长截断曾实现后按用户 2026-11-18 要求回退：本文件已无 ③ 的用例。）
+// （③ 超长截断曾实现后按用户 2026-11-18 要求回退：本文件已无"截断"的用例。）
+// ③（2026-11-26 新增）**过长的显示名缩短**：用户要求缩短，但硬约束仍是"不做程序截断"⇒
+//   只做有源站措辞证据的归一：共享白名单新增「推荐召唤 / 纪念活动」两个体裁词 +
+//   崩坏3 活动侧游戏专属的「取核心名」（`活动名丨奖励说明` ⇒ 取「丨」前那段）。
+//   同样只改外显名（banner / event），数组 title / 悬停 / 提醒标题一律原文。
+// ④（同批）**探头/并列条那一行显示各自的短名**（数据层 opt-in `extrasShowFromEntry`）：
+//   hsr / wd / bh3 三段真夹具在 `test/cases-names-a.mjs`（本文件末尾调用，不新增 all.mjs 段）。
 
 import { check, section } from "./harness.mjs";
 import { T } from "./load.mjs";
 import { createEngine } from "../packages/core/core.mjs";
+import runNamesA from "./cases-names-a.mjs";
 
 const TZ_CN = "Asia/Shanghai";
 // 固定时刻：2026-11-18 12:00 +08（与审计用的真 lastData 同一时段）
@@ -264,4 +271,127 @@ export default function runDisplayName() {
 			p5x.banner === "限定扭蛋复刻" && p5x.gacha[0].title === "限定扭蛋复刻",
 			JSON.stringify([p5x.banner, p5x.gacha[0].title]));
 	}
+
+	// ══════════════════════════════════════════════════════════════════════════
+	section("外显名 ③：过长显示名只做「有源站措辞证据的归一」（剥体裁尾巴 / 取核心名，**不截断**）");
+	// 用户 2026-11-26 要求把过长的显示名缩短；硬约束 = **不做程序截断**（2026-11-18 已回退过 ③ 截断）。
+	// 现场（2026-11-26 活网 `_names-audit.json` + 实测）：
+	//   · fgo/卡池 34 字：`「冠位戴冠战：Rider」＆「冠位戴冠战：Assassin」推荐召唤`
+	//   · fgo/活动 41 字：`…风暴罐消耗0！纪念活动`
+	//   · bh3/活动 26 字：`畅游吼姆世界：好友成群丨参与得服装自选箱、水晶等奖励`
+	// 解法只有两种**有源站证据**的归一：
+	//   ① 共享白名单新增两个页面体裁词（`推荐召唤` / `纪念活动`）—— 跨游戏通用，进 DISPLAY_TAIL_SUFFIXES；
+	//   ② 崩坏3 活动名的「丨」后面是**奖励说明**（只此一款、只活动侧）—— 放游戏文件（不进共享白名单），
+	//      由 `mergeEntryRecord` 的外显名入口 `displayNameCoreOf` 分派调用。
+	// 两者都只改**卡片外显名**（`banner` / `event`）；数组 `title` / 悬停 / 提醒标题一律原文（下面逐条反向守）。
+	{
+		// ── ① 共享白名单：两个体裁词的**逐字**缩短值 ─────────────────────────────
+		const FGO_G = "「冠位戴冠战：Rider」＆「冠位戴冠战：Assassin」推荐召唤";
+		const FGO_E = "「冠位戴冠战：Rider」＆「冠位戴冠战：Assassin」风暴罐消耗0！纪念活动";
+		check("③ 纯函数：剥「推荐召唤」尾巴（fgo 卡池 34 码点 ⇒ 30 码点，逐字）",
+			T.stripDisplayTailOf(FGO_G) === "「冠位戴冠战：Rider」＆「冠位戴冠战：Assassin」"
+			&& [...T.stripDisplayTailOf(FGO_G)].length === 30 && [...FGO_G].length === 34,
+			JSON.stringify([FGO_G, T.stripDisplayTailOf(FGO_G)]));
+		check("③ 纯函数：剥「纪念活动」尾巴（fgo 活动 41 码点 ⇒ 37 码点，逐字）",
+			T.stripDisplayTailOf(FGO_E) === "「冠位戴冠战：Rider」＆「冠位戴冠战：Assassin」风暴罐消耗0！"
+			&& [...T.stripDisplayTailOf(FGO_E)].length === 37 && [...FGO_E].length === 41,
+			JSON.stringify([FGO_E, T.stripDisplayTailOf(FGO_E)]));
+		// ── 反向：正常名 / 尾巴不在白名单 / 剥完 <3 码点 ⇒ **逐字不变**（不许误伤）──
+		const KEEP3 = [
+			"推荐召唤",                       // 名字恰好叫这个：剥完 0 码点 ⇒ 不剥
+			"纪念活动",                       // 同上
+			"限时推荐召唤",                   // 剥完只剩 2 码点 ⇒ 不剥（守卫：不许剥成两字名）
+			"活动纪念活动开启",               // 不以白名单尾巴结尾
+			"回忆纪念活动（第2弹）",          // 尾巴后面还有字 ⇒ 不是尾巴
+			"「坏灭肇始之时」",               // 普通活动名
+			"「华黍由仪」109期角色活动祈愿",  // 普通卡池名
+			"畅游吼姆世界：好友成群"          // 普通活动名（不含尾巴）
+		];
+		const badKeep3 = KEEP3.filter((s) => T.stripDisplayTailOf(s) !== s);
+		check("③ 反向守卫：白名单之外的文字逐字不变（8 条：名字就叫尾巴 / 剥完 <3 码点 / 尾巴后面还有字 / 普通名）",
+			badKeep3.length === 0, JSON.stringify(badKeep3.map((s) => [s, T.stripDisplayTailOf(s)])));
+
+		// ── ② fgo 两侧经 mergeEntryRecord：**只改卡片外显名** ─────────────────────
+		const fgoG = merge({
+			banner: FGO_G, roles: "",
+			bannerDates: "11-21 17:00 ~ 11-28 13:59",
+			bannerDatesRaw: "2026年11月21日(周六) 17:00 ~ 2026年11月28日(周六) 13:59",
+			bannerHover: FGO_G + "\n11-21 17:00 ~ 11-28 13:59",
+			gacha: [arrItem({ key: "fgo:gacha:0", title: FGO_G, show: FGO_G, roles: [] })]
+		}, "fgo");
+		check("③ mergeEntryRecord（fgo 卡池）：外显 34 ⇒ 30（数组 title / show 仍是原文）",
+			fgoG.banner === "「冠位戴冠战：Rider」＆「冠位戴冠战：Assassin」"
+			&& fgoG.gacha[0].title === FGO_G && fgoG.gacha[0].show === FGO_G,
+			JSON.stringify([fgoG.banner, fgoG.gacha[0].title]));
+		check("③ mergeEntryRecord（fgo 卡池）：悬停 / raw / roles 一个字未改",
+			fgoG.bannerHover === FGO_G + "\n11-21 17:00 ~ 11-28 13:59"
+			&& fgoG.bannerDatesRaw === "2026年11月21日(周六) 17:00 ~ 2026年11月28日(周六) 13:59"
+			&& fgoG.roles === "",
+			JSON.stringify([fgoG.bannerHover, fgoG.roles]));
+		const fgoE = merge({
+			event: FGO_E,
+			eventDates: "11-21 17:00 ~ 11-28 13:59",
+			eventDatesRaw: "2026年11月21日(周六)17:00 ~ 2026年11月28日(周六)13:59",
+			eventHover: FGO_E + "   11-21 17:00 ~ 11-28 13:59",
+			events: [arrItem({ key: "fgo:event:0", title: FGO_E, show: FGO_E })]
+		}, "fgo");
+		check("③ mergeEntryRecord（fgo 活动）：外显 41 ⇒ 37（数组 title / show 仍是原文）",
+			fgoE.event === "「冠位戴冠战：Rider」＆「冠位戴冠战：Assassin」风暴罐消耗0！"
+			&& fgoE.events[0].title === FGO_E && fgoE.events[0].show === FGO_E,
+			JSON.stringify([fgoE.event, fgoE.events[0].title]));
+		check("③ mergeEntryRecord（fgo 活动）：悬停原文一个字未改",
+			fgoE.eventHover === FGO_E + "   11-21 17:00 ~ 11-28 13:59", JSON.stringify(fgoE.eventHover));
+		// ── 反向：不含体裁尾巴的名字经 mergeEntryRecord 后逐字不变 ────────────────
+		const plain2 = merge({ event: "「坏灭肇始之时」", eventDates: "11-04 10:00 ~ 12-15 14:59", events: [] }, "fgo");
+		check("③ 反向守卫：不含体裁尾巴的外显名经 mergeEntryRecord 后逐字不变",
+			plain2.event === "「坏灭肇始之时」", JSON.stringify(plain2.event));
+
+		// ── ③ bh3 活动：游戏专属「取核心名」（「丨」后是奖励说明）────────────────────
+		const BH3_E = "畅游吼姆世界：好友成群丨参与得服装自选箱、水晶等奖励";
+		const bh3 = merge({
+			event: BH3_E,
+			eventDates: "10-22 10:00 ~ 12-03 04:00",
+			eventHover: BH3_E + "   10-22 10:00 ~ 12-03 04:00",
+			events: [arrItem({ key: "bh3:event:0", title: BH3_E, show: BH3_E })]
+		}, "bh3");
+		check("③ mergeEntryRecord（bh3 活动）：外显 26 ⇒ 11（「丨」前那段；数组 title / show 仍是原文）",
+			bh3.event === "畅游吼姆世界：好友成群"
+			&& bh3.events[0].title === BH3_E && bh3.events[0].show === BH3_E,
+			JSON.stringify([bh3.event, bh3.events[0].title]));
+		check("③ mergeEntryRecord（bh3 活动）：悬停原文一个字未改",
+			bh3.eventHover === BH3_E + "   10-22 10:00 ~ 12-03 04:00", JSON.stringify(bh3.eventHover));
+		// 反向 1：规则是**崩坏3 活动侧专属** —— 同一串名字换到别的游戏（uma-cn）逐字不变
+		const notBh3 = merge({
+			event: BH3_E, eventDates: "10-22 10:00 ~ 12-03 04:00",
+			events: [arrItem({ key: "uma-cn:event:0", title: BH3_E, show: BH3_E })]
+		}, "uma-cn");
+		check("③ 反向守卫（不外溢）：同一串名字在**别的游戏**的活动侧逐字不变（规则是 bh3 专属）",
+			notBh3.event === BH3_E && notBh3.events[0].title === BH3_E, JSON.stringify(notBh3.event));
+		// 反向 2：bh3 **卡池侧**不动（同一款游戏的另一半 side 不受影响）
+		const bh3G = merge({
+			banner: "协同补给丨协同者「薇塔」开放获取", roles: "",
+			bannerDates: "9.2版本更新后 ~ 2027年1月8日12:00",
+			gacha: [arrItem({ key: "bh3:gacha:0", title: "协同补给丨协同者「薇塔」开放获取", show: "协同补给丨协同者「薇塔」开放获取", roles: [] })]
+		}, "bh3");
+		check("③ 反向守卫（不碰卡池）：bh3 卡池名里的「丨」后面是**内容**（协同者「薇塔」）⇒ 逐字不变",
+			bh3G.banner === "协同补给丨协同者「薇塔」开放获取" && bh3G.gacha[0].title === "协同补给丨协同者「薇塔」开放获取",
+			JSON.stringify(bh3G.banner));
+		// 反向 3：判据②③ —— 半角 `|` / 「丨」后不是奖励说明 ⇒ 逐字不变（宁可不动也不切错）
+		const asciiPipe = merge({
+			event: "星愿祈礼 | 限时充值返晋升印章&商城特惠礼包上架", eventDates: "9.2版本更新后 ~ 2027年1月28日04:00",
+			events: [arrItem({ key: "bh3:event:0", title: "星愿祈礼 | 限时充值返晋升印章&商城特惠礼包上架", show: "星愿祈礼 | 限时充值返晋升印章&商城特惠礼包上架" })]
+		}, "bh3");
+		const noReward = merge({
+			event: "某某活动丨版本内容说明", eventDates: "10-01 00:00 ~ 10-31 23:59", events: []
+		}, "bh3");
+		check("③ 反向守卫（判据不命中）：半角 `|` / 「丨」后不是奖励说明（无 参与|获取|领取|获得|奖励|自选箱|签到）⇒ 逐字不变",
+			asciiPipe.event === "星愿祈礼 | 限时充值返晋升印章&商城特惠礼包上架"
+			&& noReward.event === "某某活动丨版本内容说明",
+			JSON.stringify([asciiPipe.event, noReward.event]));
+	}
+
+	// ── ④ 探头/并列条那一行：显示各自的短名（真夹具：hsr / wd / bh3）─────────────
+	// 独立文件 `test/cases-names-a.mjs`（本文件主体是"纯 mergeEntryRecord"，那一段要吃夹具），
+	// 但**并入本段**执行 —— 不新增 all.mjs 段（段数被 README 守卫钉死）。
+	return runNamesA();
 }

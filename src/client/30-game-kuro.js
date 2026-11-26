@@ -121,18 +121,18 @@
 			// ── P3（2026-11-07）：条目事实 → 悬停 + `gacha` 数组 ────────────────────
 			// 去重/排序走共用工具（`poolHoverKept`：与 buildPoolHover 同一份，结束时间升序），
 			// 悬停与数组的并列条目都从这一份出发。
-			const hoverItems = poolHoverKept(cur.map((p) => ({
+			const hoverItems = poolHoverKept(cur.map((p) => Object.assign({
 				name: p.name,
 				label: `${p.name}\uFF1A${p.roles || "-"}`,
 				startTs: p.startTs,
 				endTs: p.endTs
-			}))).map((x) => ({
+			}, p.roles ? { show: cleanRoleNames(p.roles, "wuwa") } : {}))).map((x) => Object.assign({
 				title: x.label || x.name,
 				label: x.label || x.name,
 				startTs: x.startTs,
 				endTs: x.endTs,
 				raw: x.raw
-			}));
+			}, x.show ? { show: x.show } : {}));
 			const poolHover = hoverTextFromItems(hoverItems, "gacha", tz);
 			const bannerHover = poolHover ? `${first.type}\n${poolHover}` : "";
 			// **外显用卡池类型**（`角色活动唤取`），不用某一个池名：
@@ -150,7 +150,10 @@
 				raw,
 				source: "primary"
 			};
-			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "gacha", tz });
+			// `extrasShowFromEntry`（2026-11-26）：探头/并列条那一行显示**该池自己的角色列**
+			// （`忆旅回响Ⅱ：椿、洛可可、菲比、布兰特、散华、丹瑾、炽霞` 27 字 ⇒ `椿、洛可可、…、炽霞` 22 字），
+			// `title` 仍是源站原文；清洗与主条同一处（`cleanRoleNames`）。
+			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "gacha", tz, id: "wuwa", extrasShowFromEntry: true });
 			return {
 				banner: first.type,
 				roles,

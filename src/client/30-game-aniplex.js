@@ -188,6 +188,10 @@ function ns_fgo_parseFgoBannerTable(html, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 			const short = names && names.split("、").length <= 8 ? names : "";
 			return {
 				name: r.banner,
+				// `show` = 这口池的**角色列**（源站卡池表第 3 列 = 结构化给出的「推荐召唤从者」）：
+				// 探头/并列条那一行用它（最长那条 69 码点 ⇒ 角色列 22 码点）；`title` 仍是源站原文。
+				// 与悬停同一条守卫：>8 骑时不放（会淹掉档期行）⇒ 不写 show，显示退回原文。
+				show: short || "",
 				label: short ? `${r.banner}：${short}` : r.banner,
 				startTs: r.startTs,
 				endTs: r.endTs,
@@ -201,7 +205,10 @@ function ns_fgo_parseFgoBannerTable(html, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 		...best,
 		openCount: rows.length,
 		// ── P3b：条目事实（悬停行）= 同一份 pools；数组由抓取器用它们收口 ──
-		hoverItems: pools.map((p) => ({ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw })),
+		// `show`（可选）= 这口池的角色列，只给"并列条那一行的显示名"用；悬停排版只读 title/label。
+		hoverItems: pools.map((p) => Object.assign(
+			{ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw },
+			p.show ? { show: p.show } : {})),
 		...(bannerHover ? { bannerHover } : {})
 	};
 }
@@ -301,6 +308,21 @@ async function ns_fgo_gachaFgo(url, signal, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 	};
 	// ── P3b：条目事实 → `gacha` 数组（主条 + 并列池）──
 	out.gacha = dataArrayProducedGachaOf(out, r.hoverItems || [], { tz }, now);
+	// 并列条那一行的显示名 = 这口池的**角色列**（源站表第 3 列，结构化给出）。
+	// ⚠️ 这里**不开**数据层的 `extrasShowFromEntry`（虽然那一行正是它的用途）：那条会把 show
+	//    再过一次 `cleanRoleNames`，而 FGO 角色名里的「·」是**姓名的一部分**
+	//    （`亚历山德罗·迪·卡利奥斯特罗`），会被「称号去前缀」规则切成 `迪·卡利奥斯特罗`。
+	//    这条侧的角色列是源站原样文本、不需要任何去修饰 ⇒ 直接把 show 写到并列条目上。
+	//    `title` / `raw` / 悬停一个字不动（数组是解析器自己的产物，这里只补显示名）。
+	const showByTitle = new Map();
+	for (const it of r.hoverItems || []) {
+		if (typeof it.show === "string" && it.show) showByTitle.set(it.title, it.show);
+	}
+	if (showByTitle.size) {
+		out.gacha = out.gacha.map((x) => (x.source === "hover" && showByTitle.has(x.title)
+			? Object.assign({}, x, { show: showByTitle.get(x.title) })
+			: x));
+	}
 	out.gachaHoverItems = r.hoverItems || [];
 	return out;
 }

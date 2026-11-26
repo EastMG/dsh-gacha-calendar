@@ -349,7 +349,14 @@
 			"上线预告！", "上线预告!", "上线预告",
 			"举办预告！", "举办预告!", "举办预告",
 			"のお知らせ",
-			"開催！", "開催!", "开启！", "开启!", "举办！", "举办!"
+			"開催！", "開催!", "开启！", "开启!", "举办！", "举办!",
+			// 2026-11-26（用户要求「把过长的显示名缩短」，硬约束 = **不做程序截断** ⇒ 只能剥体裁尾巴）：
+			//   `…推荐召唤`（FGO 国服卡池表第 1 列：34 码点 ⇒ 剥成 30 码点）、
+			//   `…纪念活动`（FGO 国服活动表「名称」列：41 码点 ⇒ 剥成 37 码点）。
+			// 两者都是**页面体裁词**（"这是一口推荐召唤池 / 一场纪念活动"），不是名字本身；
+			// 白名单里的尾巴一律套用同一条守卫（剥完剩余 ≥3 码点才剥）⇒ 名字恰好叫
+			// 「纪念活动」时不会被剥空。全站实测（2026-11-26 审计）：只有 fgo 两侧以它们结尾。
+			"推荐召唤", "纪念活动"
 		].sort((a, b) => b.length - a.length);
 		// 尾巴被剥掉后可能悬挂的标点 / 空白（**只在命中尾巴之后**清理；不含尾巴的名字不碰任何字符）
 		const DISPLAY_TAIL_TRIM_RE = /[\s\u3000，,、。．.；;：:·|｜/／~～\-—–…]+$/u;
@@ -4741,25 +4748,26 @@ export function createEngine(env) {
 			// 合并后（多条当期池用「、」拼接）再判重一次：同一角色可能同时出现在两口池里
 			if (dedupe) cur.roles = dedupeRoleNames(cur.roles);
 			const now = nowMs();
+			// `opts.extrasShowFromEntry`（opt-in，默认关；目前只有原神开）：并列条（探头里其余池）
+			// 的显示名用**该池自己的角色列**（源站「推荐召唤从者」列，结构化给出）——
+			// 池名那一行最长 34 字（`「呀吼吼博物志」109-2期角色活动祈愿：「博闻异旅·莉奈娅(岩)」`），
+			// 角色列只有 2~3 字（`莉奈娅`）。显式白名单，别的 bwiki 源（星铁备选 / 绝区零…）不受影响。
+			const extrasShowFromEntry = !!(opts && opts.extrasShowFromEntry === true);
 			const pools = snapshot
 				.filter((it) => it.isMain && coveredOrOpen(it, now))
-				.map((it) => ({
+				.map((it) => Object.assign({
 					name: it.banner,
 					label: `${it.banner}${it.roles ? `\uFF1A${cleanRoles(it.roles)}` : ""}`,
 					startTs: it.startTs,
 					endTs: it.endTs,
 					raw: it.raw
-				}));
+				}, extrasShowFromEntry ? { show: cleanRoleNames(it.roles, opts.id) } : {}));
 			// ── P3：条目事实（每口当期主池一行）→ 悬停 + 数组 ────────────────────
 			// 顺序 = `poolHoverOrderOf`（与 buildPoolHover 同一份排序）；去重也走 `poolHoverKept`，
 			// 所以"悬停里那几行"与"数组里的并列条目"从**同一份**结果出发。
-			const hoverItems = poolHoverKept(pools).map((p) => ({
-				title: p.label || p.name,
-				label: p.label || p.name,
-				startTs: p.startTs,
-				endTs: p.endTs,
-				raw: p.raw
-			}));
+			const hoverItems = poolHoverKept(pools).map((p) => Object.assign(
+				{ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw },
+				p.show ? { show: p.show } : {}));
 			const bannerHover = hoverTextFromItems(hoverItems, "gacha", tz);
 			// 主条：外显沿用 selectCurrent 的 banner/roles（显示名 = cleanRoleNames，与合成路径同一句）
 			// `tz` 必传（P4）：数组条目的 ts 是**绝对时刻**，按条目 tz 解析源站墙钟。
@@ -4774,7 +4782,7 @@ export function createEngine(env) {
 				raw: cur.bannerDatesRaw,
 				source: "primary"
 			};
-			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "gacha", tz });
+			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "gacha", tz, id: opts.id, extrasShowFromEntry });
 			return {
 				...cur,
 				bannerHover,
@@ -6751,11 +6759,15 @@ function ns_biligame_activity_yearHintOf(item, tz) {
 				.sort((a, b) => (a.endTs - b.endTs) || (startKey(a) - startKey(b)))
 				.map((w) => {
 					const label = `${w.pool ? `「${w.pool}」角色活动跃迁` : (w.annTitle || "活动跃迁")}：${w.role}`;
-					return { title: label, label, startTs: w.startTs, endTs: w.endTs, raw: w.raw };
+					// `show` = 冒号后半的角色名（源站同一条窗口事实里的 5★ 名）；`title` 仍是原文。
+					// 探头/并列条那一行用它（最长 37 字 ⇒ `星神★阿哈` 之类 5~6 字）；与主条同一处清洗
+					// （`extrasShowFromEntry` 会给它过 `cleanRoleNames`，去属性后缀「（欢愉•量子）」）。
+					return { title: label, label, startTs: w.startTs, endTs: w.endTs, raw: w.raw, show: w.role };
 				});
 			const hover = hoverTextFromItems(hoverItems, "gacha", tz);
 			if (hover) out.bannerHover = hover;
-			out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id: "hsr", tz }, at);
+			// `extrasShowFromEntry`：并列条（探头里其余池）显示各自 UP 角色名，`title` 仍是源站原文。
+			out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id: "hsr", tz, extrasShowFromEntry: true }, at);
 			out.gachaHoverItems = hoverItems;
 			return out;
 		}
@@ -7467,7 +7479,10 @@ async function ns_miyoushe_eventsMiyoushe(url, signal, tz = ns_miyoushe_MIYOUSHE
 		// ── 抓取器登记 ──
 		// P3（2026-11-07）：原神改由解析器**直出** `gacha` 数组（`bwikiGachaPayload` 的 emitArrays 分支），
 		// 悬停文本由同一份条目反生成；星铁 **P3b** 起同样直出（叠上 `dedupeRoleNames`）。
-		GACHA_FETCHERS["genshin"] = mkMediaWiki((html, tz) => bwikiGachaPayload(html, tz, { emitArrays: true, id: "genshin" }));
+		// `extrasShowFromEntry`（2026-11-26）：探头/并列条那一行显示**该池自己的角色列**
+		// （`「呀吼吼博物志」109-2期角色活动祈愿：「博闻异旅·莉奈娅(岩)」` 34 字 ⇒ `莉奈娅`）；
+		// `title` 仍是源站原文。只开在原神这条上（星铁备选源 / 绝区零 逐字不变）。
+		GACHA_FETCHERS["genshin"] = mkMediaWiki((html, tz) => bwikiGachaPayload(html, tz, { emitArrays: true, id: "genshin", extrasShowFromEntry: true }));
 		// 星铁：bwiki「历史跃迁」的「5星角色」格子会把同一角色写两遍（缺图红链的名字 + 正常链接的
 		// 「名字（属性）」）⇒ 载荷按**角色名（去掉括号属性后缀）**判重，保留第一次出现的形式。
 		// 规则与理由见 26-parser-hover.js 的 dedupeRoleNames；**只在星铁这里开启**，
@@ -8343,7 +8358,11 @@ EVENT_FETCHERS["bh2"] = Object.assign(EVENT_FETCHERS["bh2"] || {}, {
 				.sort((a, b) => (a.endTs - b.endTs) || ((a.startTs == null ? Infinity : a.startTs) - (b.startTs == null ? Infinity : b.startTs)));
 			const hoverItems = hoverRows.map((r) => {
 				const label = r.roles ? `${r.name}\uFF1A${r.roles}` : r.name;
-				return { title: label, label, startTs: r.startTs, endTs: r.endTs, raw: r.raw };
+				// `show` = 冒号后半的**角色列**（源站同一条窗口事实里抽出的）；`title` 仍是原文。
+				// 探头/并列条那一行用它（最长 28 字 ⇒ 角色列 9~19 字）。
+				return Object.assign(
+					{ title: label, label, startTs: r.startTs, endTs: r.endTs, raw: r.raw },
+					r.roles ? { show: cleanRoleNames(r.roles, "wd") } : {});
 			});
 			const hover = hoverTextFromItems(hoverItems, "gacha", tz);
 			const out = {
@@ -8355,7 +8374,8 @@ EVENT_FETCHERS["bh2"] = Object.assign(EVENT_FETCHERS["bh2"] || {}, {
 				endTs: first.endTs,
 				...(hover ? { bannerHover: hover } : {})
 			};
-			out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id: "wd", tz }, at);
+			// `extrasShowFromEntry`：并列条（探头里其余池）显示各自的角色列，`title` 仍是源站原文。
+			out.gacha = dataArrayProducedGachaOf(out, hoverItems, { id: "wd", tz, extrasShowFromEntry: true }, at);
 			out.gachaHoverItems = hoverItems;
 			return out;
 		}
@@ -8651,6 +8671,26 @@ function ns_batch2_bh3EventItemsOf(json, tz, now) {
 	return out;
 }
 
+// ── 外显名「取核心名」（2026-11-26，用户要求缩短过长的显示名；硬约束 = 不做程序截断）──────
+// 崩坏3 活动标题的排版是 `活动名丨参与方式与奖励说明` —— 实测当期 6 条里 4 条带「丨」：
+//   `畅游吼姆世界：好友成群丨参与得服装自选箱、水晶等奖励`（26 字，卡片格装不下）。
+// 「丨」后面那句是**奖励说明**，不是活动名 ⇒ 卡片外显取「丨」前那段（11 字）。
+// 判据（三条都成立才切，宁可不动也不切错）：
+//   ① 有**全角**「丨」（ASCII `|` 那条 `星愿祈礼 | 限时充值返晋升印章&…` 不切：后段是活动内容）；
+//   ② 「丨」前 ≥3 个码点；
+//   ③ 「丨」后那段是说明性文字（命中 参与/获取/领取/获得/奖励/自选箱/签到）。
+// ⚠️ 只被 `50-refresh.js` 的 `displayNameCoreOf`（活动外显名）调用；数组 title、`eventHover`、
+//    提醒标题仍读源站原文 —— 所以本函数不参与它们。
+const NS_BATCH2_BH3_EVENT_TAIL_RE = /参与|获取|领取|获得|奖励|自选箱|签到/;
+function ns_batch2_bh3EventCoreNameOf(title) {
+	const s = String(title == null ? "" : title);
+	const i = s.indexOf("\u4E28");                       // 丨
+	if (i < 0) return s;
+	const head = s.slice(0, i).replace(/[\s\u3000]+$/, "");
+	if ([...head].length < 3) return s;
+	return NS_BATCH2_BH3_EVENT_TAIL_RE.test(s.slice(i + 1)) ? head : s;
+}
+
 // 卡池正文里明确的角色写法：`S级角色「愈生佑翎」` / `A级女武神角色卡「午夜苦艾」`
 const NS_BATCH2_BH3_ROLE_RE = /([SA])级(?:女武神)?角色(?:卡)?\s*[「『]([^」』]+)[」』]/g;
 
@@ -8941,18 +8981,18 @@ EVENT_FETCHERS["bh3"] = Object.assign(EVENT_FETCHERS["bh3"] || {}, {
 			// ── P3（2026-11-07）：条目事实 → 悬停 + `gacha` 数组 ────────────────────
 			// 去重/排序走共用工具（`poolHoverKept`：与 buildPoolHover 同一份，结束时间升序），
 			// 悬停与数组的并列条目都从这一份出发。
-			const hoverItems = poolHoverKept(cur.map((p) => ({
+			const hoverItems = poolHoverKept(cur.map((p) => Object.assign({
 				name: p.name,
 				label: `${p.name}\uFF1A${p.roles || "-"}`,
 				startTs: p.startTs,
 				endTs: p.endTs
-			}))).map((x) => ({
+			}, p.roles ? { show: cleanRoleNames(p.roles, "wuwa") } : {}))).map((x) => Object.assign({
 				title: x.label || x.name,
 				label: x.label || x.name,
 				startTs: x.startTs,
 				endTs: x.endTs,
 				raw: x.raw
-			}));
+			}, x.show ? { show: x.show } : {}));
 			const poolHover = hoverTextFromItems(hoverItems, "gacha", tz);
 			const bannerHover = poolHover ? `${first.type}\n${poolHover}` : "";
 			// **外显用卡池类型**（`角色活动唤取`），不用某一个池名：
@@ -8970,7 +9010,10 @@ EVENT_FETCHERS["bh3"] = Object.assign(EVENT_FETCHERS["bh3"] || {}, {
 				raw,
 				source: "primary"
 			};
-			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "gacha", tz });
+			// `extrasShowFromEntry`（2026-11-26）：探头/并列条那一行显示**该池自己的角色列**
+			// （`忆旅回响Ⅱ：椿、洛可可、菲比、布兰特、散华、丹瑾、炽霞` 27 字 ⇒ `椿、洛可可、…、炽霞` 22 字），
+			// `title` 仍是源站原文；清洗与主条同一处（`cleanRoleNames`）。
+			const extras = dataArrayExtrasFromEntriesOf(hoverItems, main, now, { kind: "gacha", tz, id: "wuwa", extrasShowFromEntry: true });
 			return {
 				banner: first.type,
 				roles,
@@ -22510,6 +22553,10 @@ function ns_fgo_parseFgoBannerTable(html, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 			const short = names && names.split("、").length <= 8 ? names : "";
 			return {
 				name: r.banner,
+				// `show` = 这口池的**角色列**（源站卡池表第 3 列 = 结构化给出的「推荐召唤从者」）：
+				// 探头/并列条那一行用它（最长那条 69 码点 ⇒ 角色列 22 码点）；`title` 仍是源站原文。
+				// 与悬停同一条守卫：>8 骑时不放（会淹掉档期行）⇒ 不写 show，显示退回原文。
+				show: short || "",
 				label: short ? `${r.banner}：${short}` : r.banner,
 				startTs: r.startTs,
 				endTs: r.endTs,
@@ -22523,7 +22570,10 @@ function ns_fgo_parseFgoBannerTable(html, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 		...best,
 		openCount: rows.length,
 		// ── P3b：条目事实（悬停行）= 同一份 pools；数组由抓取器用它们收口 ──
-		hoverItems: pools.map((p) => ({ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw })),
+		// `show`（可选）= 这口池的角色列，只给"并列条那一行的显示名"用；悬停排版只读 title/label。
+		hoverItems: pools.map((p) => Object.assign(
+			{ title: p.label || p.name, label: p.label || p.name, startTs: p.startTs, endTs: p.endTs, raw: p.raw },
+			p.show ? { show: p.show } : {})),
 		...(bannerHover ? { bannerHover } : {})
 	};
 }
@@ -22623,6 +22673,21 @@ async function ns_fgo_gachaFgo(url, signal, tz = ns_fgo_FGO_TZ, now = nowMs()) {
 	};
 	// ── P3b：条目事实 → `gacha` 数组（主条 + 并列池）──
 	out.gacha = dataArrayProducedGachaOf(out, r.hoverItems || [], { tz }, now);
+	// 并列条那一行的显示名 = 这口池的**角色列**（源站表第 3 列，结构化给出）。
+	// ⚠️ 这里**不开**数据层的 `extrasShowFromEntry`（虽然那一行正是它的用途）：那条会把 show
+	//    再过一次 `cleanRoleNames`，而 FGO 角色名里的「·」是**姓名的一部分**
+	//    （`亚历山德罗·迪·卡利奥斯特罗`），会被「称号去前缀」规则切成 `迪·卡利奥斯特罗`。
+	//    这条侧的角色列是源站原样文本、不需要任何去修饰 ⇒ 直接把 show 写到并列条目上。
+	//    `title` / `raw` / 悬停一个字不动（数组是解析器自己的产物，这里只补显示名）。
+	const showByTitle = new Map();
+	for (const it of r.hoverItems || []) {
+		if (typeof it.show === "string" && it.show) showByTitle.set(it.title, it.show);
+	}
+	if (showByTitle.size) {
+		out.gacha = out.gacha.map((x) => (x.source === "hover" && showByTitle.has(x.title)
+			? Object.assign({}, x, { show: showByTitle.get(x.title) })
+			: x));
+	}
 	out.gachaHoverItems = r.hoverItems || [];
 	return out;
 }
@@ -30793,6 +30858,19 @@ async function ns_biligame_announce_eventsDdlezjTopic(url, signal, tz = ns_bilig
 			}
 		}
 
+		// ── 游戏专属「取核心名」（**只给外显名** banner / event 取值；数组 title、悬停、提醒一律不碰）──
+		// 有的源站把**非名字的说明**用固定分隔符接在名字后面（崩坏3 活动：`活动名丨参与得××奖励`，
+		// 卡片格装不下 26 字）。这种排版只在**一款游戏的某一侧**出现 ⇒ **不进** 60-helpers 的共享尾巴
+		// 白名单（那是全站口径，`丨` 在别的游戏里是名字的一部分），由该游戏自己的文件提供纯函数
+		// （见 30-game-hoyoverse.js 的 `ns_batch2_bh3EventCoreNameOf`）。这里只做 id + side 的分派；
+		// 没有规则 ⇒ 原样返回（其余 60 条一个字不动）。
+		// ⚠️ 引用得到游戏文件里的函数，是因为本文件与各 `30-game-*.js` 位于**同一个作用域**
+		//    （core 产物里都在 `createEngine` 内；客户端产物里都在模块工厂体内），函数声明会被提升。
+		function displayNameCoreOf(id, side, name) {
+			if (id === "bh3" && side === "event") return ns_batch2_bh3EventCoreNameOf(name);
+			return name;
+		}
+
 		// 合并本轮抓取结果与上次缓存（统一机制，不针对任何游戏）：
 		// - 展示字段按列兜底：本次某列没拿到就沿回旧值，并标记该列"显示的是旧值"（gachaStale/eventStale）
 		// - **但「该侧未配置」不沿回旧值**（`gachaNone` / `eventNone`）：未配置 = 用户主动关掉了这一侧，
@@ -30873,8 +30951,10 @@ async function ns_biligame_announce_eventsDdlezjTopic(url, signal, tz = ns_bilig
 			// （81-schedule-model.js 的 `scheduleItemOf` 对主条直接走 `scheduleNormalize`）⇒ 改这里
 			// 就是改外显，不需要也不允许回头改数组。
 			// 放在数组归一**之后**：② 泛名让位要靠已经归一过的数组判断"这条更具体"。
-			applyDisplayNameOf(rec, "gacha", displayNameNextOf(rec.banner, rec.gacha));
-			applyDisplayNameOf(rec, "event", displayNameNextOf(rec.event, rec.events));
+			// 游戏专属「取核心名」在最前（先切掉源站的说明尾巴，再套通用的尾巴归一 / 泛名让位）。
+			const displayId = (meta && meta.id) || "";
+			applyDisplayNameOf(rec, "gacha", displayNameNextOf(displayNameCoreOf(displayId, "gacha", rec.banner), rec.gacha));
+			applyDisplayNameOf(rec, "event", displayNameNextOf(displayNameCoreOf(displayId, "event", rec.event), rec.events));
 			// `itemFacts` / `gachaHoverItems` / `eventHoverItems` 只是"解析器 → 数组"的**通道**：
 			// 事实已经贴到数组条目上了、悬停文本也已经生成了，它们不进记录/缓存。
 			delete rec.itemFacts;

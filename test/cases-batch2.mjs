@@ -297,13 +297,23 @@ export default async function runBatch2() {
 			&& calls2.filter((c) => /iChanId=696/.test(c.url)).length === 1,
 			JSON.stringify(calls2.map((c) => c.url.slice(-40))));
 		check("整轮：两侧都不 fail", rec.gachaFail == null && rec.eventFail == null, JSON.stringify([rec.gachaFail, rec.eventFail]));
-		check("整轮记录：banner 逐字 / roles 留空 / 档期逐字 / 活动逐字",
+		// **已批准差异**（2026-11-26 显示名缩短）：bh3 活动名的「丨」后面是**参与方式/奖励说明**
+// （`双核协战丨参与活动获取活动勋章、水晶等奖励！`），不是名字的一部分 ⇒ 卡片外显取「丨」前那段
+// （26 字 ⇒ 11 字那种量级）。规则在 `30-game-hoyoverse.js` 的 `ns_batch2_bh3EventCoreNameOf`
+// （游戏专属、不进共享白名单），只由 `mergeEntryRecord` 的外显名入口调用 ⇒ 数组 title / 悬停 /
+// 提醒标题仍读源站原文（上面 `eventHover` 与下面数组断言各自守一遍）。
+		check("整轮记录：banner 逐字 / roles 留空 / 档期逐字 / 活动外显 = 「丨」前那段（bh3 取核心名）",
 			rec.banner === "装备补给丨琉璃朱燧&泣之哲人" && rec.roles === ""
 			&& rec.bannerDates === "11-06 12:00 ~ 11-26 04:00"
 			&& rec.bannerDatesRaw === "11月6日12:00~11月26日04:00"
-			&& rec.event === "双核协战丨参与活动获取活动勋章、水晶等奖励！"
+			&& rec.event === "双核协战"
 			&& rec.eventDates === "11-05 10:00 ~ 11-26 04:00",
 			JSON.stringify([rec.banner, rec.roles, rec.bannerDates, rec.event, rec.eventDates]));
+		check("整轮记录（bh3）**已批准差异**：外显 = 原文「丨」前那段；数组主条 title / 悬停仍是原文",
+			rec.event === "双核协战丨参与活动获取活动勋章、水晶等奖励！".split("丨")[0]
+			&& (rec.events || []).some((x) => x.title === "双核协战丨参与活动获取活动勋章、水晶等奖励！" && x.source === "primary")
+			&& (rec.eventHover || "").indexOf("双核协战丨参与活动获取活动勋章、水晶等奖励！") >= 0,
+			JSON.stringify([rec.event, (rec.events || []).map((x) => x.title).slice(0, 2)]));
 		check("整轮记录：gacha 5 条 / events 10 条，key 带 bh3 前缀",
 			rec.gacha.length === 5 && rec.events.length === 10
 			&& rec.gacha[0].key === "bh3:gacha:0" && rec.events[0].key === "bh3:event:0",

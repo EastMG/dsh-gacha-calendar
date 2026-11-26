@@ -204,6 +204,19 @@
 			}
 		}
 
+		// ── 游戏专属「取核心名」（**只给外显名** banner / event 取值；数组 title、悬停、提醒一律不碰）──
+		// 有的源站把**非名字的说明**用固定分隔符接在名字后面（崩坏3 活动：`活动名丨参与得××奖励`，
+		// 卡片格装不下 26 字）。这种排版只在**一款游戏的某一侧**出现 ⇒ **不进** 60-helpers 的共享尾巴
+		// 白名单（那是全站口径，`丨` 在别的游戏里是名字的一部分），由该游戏自己的文件提供纯函数
+		// （见 30-game-hoyoverse.js 的 `ns_batch2_bh3EventCoreNameOf`）。这里只做 id + side 的分派；
+		// 没有规则 ⇒ 原样返回（其余 60 条一个字不动）。
+		// ⚠️ 引用得到游戏文件里的函数，是因为本文件与各 `30-game-*.js` 位于**同一个作用域**
+		//    （core 产物里都在 `createEngine` 内；客户端产物里都在模块工厂体内），函数声明会被提升。
+		function displayNameCoreOf(id, side, name) {
+			if (id === "bh3" && side === "event") return ns_batch2_bh3EventCoreNameOf(name);
+			return name;
+		}
+
 		// 合并本轮抓取结果与上次缓存（统一机制，不针对任何游戏）：
 		// - 展示字段按列兜底：本次某列没拿到就沿回旧值，并标记该列"显示的是旧值"（gachaStale/eventStale）
 		// - **但「该侧未配置」不沿回旧值**（`gachaNone` / `eventNone`）：未配置 = 用户主动关掉了这一侧，
@@ -284,8 +297,10 @@
 			// （81-schedule-model.js 的 `scheduleItemOf` 对主条直接走 `scheduleNormalize`）⇒ 改这里
 			// 就是改外显，不需要也不允许回头改数组。
 			// 放在数组归一**之后**：② 泛名让位要靠已经归一过的数组判断"这条更具体"。
-			applyDisplayNameOf(rec, "gacha", displayNameNextOf(rec.banner, rec.gacha));
-			applyDisplayNameOf(rec, "event", displayNameNextOf(rec.event, rec.events));
+			// 游戏专属「取核心名」在最前（先切掉源站的说明尾巴，再套通用的尾巴归一 / 泛名让位）。
+			const displayId = (meta && meta.id) || "";
+			applyDisplayNameOf(rec, "gacha", displayNameNextOf(displayNameCoreOf(displayId, "gacha", rec.banner), rec.gacha));
+			applyDisplayNameOf(rec, "event", displayNameNextOf(displayNameCoreOf(displayId, "event", rec.event), rec.events));
 			// `itemFacts` / `gachaHoverItems` / `eventHoverItems` 只是"解析器 → 数组"的**通道**：
 			// 事实已经贴到数组条目上了、悬停文本也已经生成了，它们不进记录/缓存。
 			delete rec.itemFacts;
