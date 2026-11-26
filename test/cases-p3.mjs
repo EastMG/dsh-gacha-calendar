@@ -1485,6 +1485,12 @@ async function runP3b() {
 			&& /「锻砧、行囊与蜜糖」特许寻访/.test(hv) && /「致每一个飘游之愿」重构寻访/.test(hv)
 			&& /11-25 07:00 ~ 12-23 12:00/.test(hv) && /11-25 07:00 ~ 12-16 12:00/.test(hv),
 			JSON.stringify(hv));
+		// 并列条（探头里另一口池）也显示它自己的 UP 角色名：title 原文 / show = 该池角色
+		// （2026-11-26 显示名审计抓到的同类：解析器给了 show，但数据层默认写回 title）
+		const extraEf = (g.gacha || []).find((x) => x.source !== "primary");
+		check("终末地卡池（FZ Wiki）：并列条 title = 源站原文 / show = 该池角色名（探头那行也缩）",
+			!!extraEf && extraEf.title === "「致每一个飘游之愿」重构寻访" && extraEf.show === "洁尔佩塔",
+			JSON.stringify(extraEf && [extraEf.title, extraEf.show]));
 		// 反向：窗口都不覆盖 now（2027-02-01）⇒ nomatch（不是伪装成"未公布"的 down，也不是复用旧值）
 		T.setCoreEnv({ transport: makeFetchTransport(implOf(Date.parse("2027-02-01T00:00:00+08:00"))), timer: { setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (id) => clearTimeout(id) }, now: () => Date.parse("2027-02-01T00:00:00+08:00") });
 		const g2 = await T.GACHA_FETCHERS["endfield"](gachaUrl, undefined, "Asia/Shanghai");
