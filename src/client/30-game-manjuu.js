@@ -4,8 +4,10 @@
 //   「国服按顺序接官方 API（名称定为 官方公告）、promilia.wiki、TapTap，其中官方公告设为默认，
 //     各自独立不做兜底补全；国际服接官方公告」
 // ⇒ 国服卡池侧：默认 = 官方公告，备选 = promilia.wiki / TapTap（互不兜底、互不补全）；
-//   国服活动侧：官方公告里**没有游戏内活动公告**（只有创作激励/概率公示/测试档期，实测 30 条公告逐一读过）⇒
-//     默认 = promilia.wiki，备选 = TapTap / 官方公告（官方公告登记为备选，出现活动公告时即可用）；
+//   国服活动侧：官方公告**没有**游戏内活动公告（27 条 notice + 1 条 activity 逐条读过，只有创作激励/概率公示/测试档期），
+//     且游戏内活动公告走客户端签名通道（`prod-version-all-p3-cn.manjuu.com/version/client/v1_0/announce`，
+//     匿名请求回 `{"code":150002,"message":"签名错误"}`）⇒ 用户 2026-11-27 定：**活动侧不挂官方公告**；
+//     默认 = promilia.wiki（星原档案室），备选 = TapTap；
 //   国际服：卡池 + 活动两侧都用官方公告（rgn1 站，繁体），单一来源。
 //
 // ── 源站事实（2026-11-27 实测）────────────────────────────────────────────────
@@ -512,12 +514,12 @@ registerSource({
 		{ label: "星原档案室", url: NS_PRO_WIKI_URL, fetcher: "promilia-wiki-gacha" },
 		{ label: "TapTap", url: NS_PRO_TAPTAP_URL, fetcher: "promilia-taptap-gacha" }
 	],
-	// 活动侧：官方公告里没有游戏内活动（见文件头）⇒ 默认「星原档案室」（promilia.wiki）；TapTap / 官方公告 作备选。
+	// 活动侧：官方公告没有游戏内活动公告（见文件头）⇒ 用户 2026-11-27 定：**删掉活动侧的官方公告**，
+	// 活动 = 默认「星原档案室」（promilia.wiki）+ 备选 TapTap。
 	eventUrl: NS_PRO_WIKI_URL,
 	eventSource: "星原档案室",
 	eventAltSources: [
-		{ label: "TapTap", url: NS_PRO_TAPTAP_URL, fetcher: "promilia-taptap-event" },
-		{ label: "官方公告", url: NS_PRO_CN_LIST_URL, fetcher: "promilia-official-event" }
+		{ label: "TapTap", url: NS_PRO_TAPTAP_URL, fetcher: "promilia-taptap-event" }
 	]
 });
 
@@ -540,8 +542,7 @@ GACHA_FETCHERS["promilia-global"] = (url, signal, tz, now) => ns_pro_officialGac
 
 EVENT_FETCHERS["promilia"] = {
 	default: (url, signal, tz, now) => ns_pro_wikiEventsOf(url || NS_PRO_WIKI_URL, signal, tz, now),
-	"promilia-taptap-event": (url, signal, tz, now) => ns_pro_taptapEventsOf(url || NS_PRO_TAPTAP_URL, signal, tz, now),
-	"promilia-official-event": (url, signal, tz, now) => ns_pro_officialEventsOf(NS_PRO_CN_API, NS_PRO_CN_LANG, signal, tz, now)
+	"promilia-taptap-event": (url, signal, tz, now) => ns_pro_taptapEventsOf(url || NS_PRO_TAPTAP_URL, signal, tz, now)
 };
 EVENT_FETCHERS["promilia-global"] = {
 	default: (url, signal, tz, now) => ns_pro_officialEventsOf(NS_PRO_GL_API, NS_PRO_GL_LANG, signal, tz, now)

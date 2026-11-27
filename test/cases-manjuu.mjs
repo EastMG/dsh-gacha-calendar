@@ -100,9 +100,8 @@ export default async function runManjuu() {
 		check("国服官方公告·卡池：卡片外显不写灵子名到别池行",
 			!(cnGacha && cnGacha.gacha.some((x) => String(x.title).indexOf("桃笺为契") > 0 && String(x.title).indexOf("花之舞") > 0)));
 
-		// 国服官方公告的活动侧：实测没有游戏内活动公告 ⇒ 如实 null（不当成"抓取失败"）
-		const cnEv = await grab(T.EVENT_FETCHERS["promilia"]["promilia-official-event"], URL_CN_LIST);
-		check("国服官方公告·活动：没有活动公告 ⇒ null（如实未公布）", cnEv === null, JSON.stringify(cnEv));
+		// 国服官方公告**不再挂活动侧**（2026-11-27 用户定）：它只有创作激励/概率公示，没有游戏内活动公告。
+		check("国服活动侧没有官方公告抓取器（已删）", typeof (T.EVENT_FETCHERS["promilia"] || {})["promilia-official-event"] === "undefined");
 
 		// promilia.wiki
 		const wikiGacha = await grab(T.GACHA_FETCHERS["promilia-wiki-gacha"], URL_WIKI);
@@ -149,9 +148,11 @@ export default async function runManjuu() {
 			!!(s && s.altSources.length === 2 && s.altSources[0].label === "星原档案室" && s.altSources[1].label === "TapTap"),
 			s && JSON.stringify(s.altSources && s.altSources.map((x) => x.label)));
 		check("国服活动默认源 = 星原档案室（官方公告无游戏内活动公告）", s && s.eventSource === "星原档案室", s && s.eventSource);
-		check("国服活动备选 = TapTap → 官方公告",
-			!!(s && s.eventAltSources.length === 2 && s.eventAltSources[0].label === "TapTap" && s.eventAltSources[1].label === "官方公告"),
+		check("国服活动备选只有 TapTap（官方公告已按用户口径删掉）",
+			!!(s && s.eventAltSources.length === 1 && s.eventAltSources[0].label === "TapTap"),
 			s && JSON.stringify(s.eventAltSources && s.eventAltSources.map((x) => x.label)));
+		check("国服活动备选里不再出现「官方公告」（反证）",
+			!!(s && !s.eventAltSources.some((x) => x.label === "官方公告")));
 		check("国服出厂默认展示（两侧都有源）", s && s.defaultHidden === false);
 		check("国服 tz = Asia/Shanghai", s && s.tz === TZ, s && s.tz);
 
@@ -169,7 +170,7 @@ export default async function runManjuu() {
 		for (const key of ["promilia", "promilia-wiki-gacha", "promilia-taptap-gacha", "promilia-global"]) {
 			check(`GACHA_FETCHERS["${key}"] 已注册`, typeof T.GACHA_FETCHERS[key] === "function");
 		}
-		for (const key of ["promilia-official-event", "promilia-taptap-event"]) {
+		for (const key of ["promilia-taptap-event"]) {
 			check(`EVENT_FETCHERS["promilia"]["${key}"] 已注册`, typeof (T.EVENT_FETCHERS["promilia"] || {})[key] === "function");
 		}
 		check("EVENT_FETCHERS[\"promilia-global\"].default 已注册", typeof ((T.EVENT_FETCHERS["promilia-global"] || {}).default) === "function");
