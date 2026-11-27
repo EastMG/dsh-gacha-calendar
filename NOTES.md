@@ -7,12 +7,12 @@
 
 ---
 
-## 1. 当前状态（2026-11-26 记）
+## 1. 当前状态（2026-11-28 记）
 
 | 项 | 值 |
 |---|---|
-| 版本 | **0.15.0**（根包与 `packages/core/package.json` 同号，build 注入 `PLUGIN_VERSION`） |
-| 发布 | npm 两包 `latest` 都是 0.15.0；tag `v0.15.0`；GitHub Release 已发 |
+| 版本 | **0.15.1**（根包与 `packages/core/package.json` 同号，build 注入 `PLUGIN_VERSION`） |
+| 发布 | npm 两包 `latest` 都是 0.15.1；tag `v0.15.1`；GitHub Release 已发（2026-11-28） |
 | 分支 | `main` 干净，与 `origin/main` 同 sha |
 | 门禁 | `node build.mjs --check` ✓ · `cd test && node all.mjs` **7715 通过 / 0 失败**（默认 TZ 与 `TZ=UTC` 各一次）· `node tools/check-host-allow.mjs` 11/0 ✓ ← 数字会漂，写的是当时值 |
 | 规模 | 来源 **63 款**（卡池/活动两侧；2026-11-27 接入蓝色星原·国服 + 国际服）· `src/client` 64 个 `.js` + 11 个 `.css` · `test/` 51 个 `cases-*.mjs` + 506 个夹具目录 |
@@ -157,6 +157,7 @@
 
 18. **npm 11 的 staged publish**：`409 previously published/staged` 或 `404` 常常意味着**已经在 registry**（Fastly 缓存延迟）。判定看 `npm view <包> dist-tags`，别重复发、更别改号重发。
 19. **`gh release` 必须在仓库目录执行**，别处 `fatal: not a git repository`。
+20. **发布目录决定读哪个 `.npmrc`**：在 `packages/core` 里直接 `npm/pnpm publish` 会用**用户级** `~/.npmrc` 的旧 token（2026-11-28 实测触发 `EOTP`，要求浏览器 OTP）⇒ 一律回**仓库根**执行 `npm publish ./packages/core`（与 `publish:core` 脚本同一条路径，仓库 `.npmrc` 的 token 才是 `bypass_2fa` 的自动化令牌）。另：pnpm 11 已没有 `--cache` 选项（旧笔记里的写法失效）。
 20. **认证 401 = token 失效**：别猜 OTP 流程，先去翻记录找可用 token（细节见 `AGENTS.md` §0.5）。
 21. **PowerShell 中文/JSON 编码**：写含中文的文件用 Node/Python 的 UTF-8（PS 5.1 默认编码会写坏 `package.json`）；`git commit -m` 带中文引号会 pathspec 报错 ⇒ 用 `git commit -F <文件>`。
 22. **会话上下文爆掉后编造状态**（"网页已批准""已经提审"）：讲状态就贴命令输出，被质疑立刻复核。
@@ -287,7 +288,7 @@ sunborn gf2 | wfskey cytq | yostar stellasora
 
 ### D. 本仓库运维
 
-- npm token 收口：早期会话里在聊天中出现过两个 token，**应确认已在 npm 撤销**，并定期轮换现在 `~/.npmrc` 里那个。
+- npm token：仓库 `.npmrc` 现用的是 Access Token 3（`bypass_2fa`，**expiry 2026-11-30**）⇒ 到期前换 Automation token 并改仓库 `.npmrc`；用户级 `~/.npmrc` 里那个 `npm_zaGv…` 已不在 token 列表（疑似已撤销），可从用户级配置删掉，免得哪天又被误用触发 EOTP。
 - 每次 DSH 升级/重装后自检：profile 的 junction 是否还在、`dsh`/`pnpm` shim 是否指向旧安装。
 
 ### E. 浏览器扩展线（兄弟仓库）
