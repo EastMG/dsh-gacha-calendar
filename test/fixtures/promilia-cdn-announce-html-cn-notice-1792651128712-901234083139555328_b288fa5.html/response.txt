@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《蓝色星原：旅谣》公测正式定档11月26日！</title>
+</head>
+
+<body>
+<style type="text/css">
+        .image {
+          display: flex;
+          justify-content: center;
+        }
+
+        .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+        .image.image-style-block-align-left.image_resized{
+          margin-left: 0!important;
+          text-align:left;
+        }
+      </style><p><span style="color:hsl(0,0%,40%);font-size:16px;"><span>星跃始动，星光不息；星星指引之处，便是冒险的起点。</span></span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,40%);font-size:16px;"><span>《蓝色星原：旅谣》公测将于11月26日正式开启。</span></span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,40%);font-size:16px;"><span>✦ 预约地址 ✦</span></span></p><p><span style="color:hsl(0,0%,40%);font-size:16px;">https://azurpromilia.manjuu.com/home/</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,40%);font-size:16px;"><span>✦ 预约里程碑 ✦</span></span></p><p><span style="color:hsl(0,0%,40%);font-size:16px;"><span>公测预约里程碑现已解锁五重好礼，预约最高可领纯粹忆痕*20、角色「艾妮丝」、奇波「星彩·浮云」等奖励！</span></span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,40%);font-size:16px;"><span>星临者，让我们相约普罗米利亚大陆，并肩启程！</span></span></p><figure class="image image_resized" style="width:88.99%;"><img style="aspect-ratio:1920/1080;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/1ee30950a80e092040b390bb7ac393b7-1792651127802-0.jpeg" width="1920" height="1080"></figure>
+</body>
+
+</html>

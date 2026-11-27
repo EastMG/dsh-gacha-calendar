@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>「旅迹测试」iOS设备安装指引</title>
+</head>
+
+<body>
+<style type="text/css">
+        .image {
+          display: flex;
+          justify-content: center;
+        }
+
+        .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+        .image.image-style-block-align-left.image_resized{
+          margin-left: 0!important;
+          text-align:left;
+        }
+      </style><p><span style="color:hsl(0,0%,47%);font-size:16px;">亲爱的星临者，《蓝色星原：旅谣》「旅迹测试」将于2026年9月17日11:00（UTC+8）正式开服。持苹果iOS设备的玩家可参照下方指引，完成下载安装。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">为了保证游戏顺利运行，请您认真阅读该指引，并提前确认您的iOS设备满足以下配置，预留35GB以上的存储空间。</span></p><p>&nbsp;</p><h3><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>【本次测试支持的iOS机型配置要求】</strong></span></h3><p><span style="color:hsl(0,0%,47%);font-size:16px;">&lt;操作系统&gt;</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">iOS 15.0及以上版本</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">&lt;设备&gt;</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">推荐 iPhone 13 Pro及以上</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">最低 iPhone 12 Pro及以上</span></p><p>&nbsp;</p><h3><span style="color:hsl(0, 0%, 47%);font-size:16px;"><strong>第一步：查收TestFlight测试邀请邮件</strong></span></h3><p><span style="color:hsl(0, 0%, 47%);font-size:16px;">请登录您在填写「旅迹测试」招募问卷时预留接收资格用的邮箱，查找发件人为TestFlight，标题为《蛮啾游戏 has invited you to test 蓝色星原：旅谣》的邮件，如【图1】所示。确认收到邮件后，可继续进行第二步。</span></p><p><span style="color:hsl(0, 0%, 47%);font-size:16px;">若您已获得测试资格但并未收到邀请邮件，可能是被拦截，可尝试前往垃圾邮件中查找。</span></p><figure class="image"><img style="aspect-ratio:468/127;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/39ba31fcc8978781debe1fe51d880ea3-1788350430433-0.jpeg" width="468" height="127"></figure><p style="text-align:center;"><span style="color:hsl(0,0%,47%);font-size:16px;">【图1】</span></p><p style="text-align:center;">&nbsp;</p><h3><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>第二步：下载并安装TestFlight</strong></span></h3><p><span style="color:hsl(0,0%,47%);font-size:16px;">请打开邀请邮件，点击邮件里蓝色的 “View in TestFlight” 按钮，如【图2】所示。</span></p><figure class="image image_resized" style="width:25%;"><img style="aspect-ratio:799/1280;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/7133f8aee854cd9289deb1a99d4d9c02-1788350431442-1.jpeg" width="799" height="1280"></figure><p style="text-align:center;"><span style="color:hsl(0,0%,47%);font-size:16px;">【图2】</span></p><p style="text-align:center;">&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">点击按钮后将跳转至【图3】所示页面，若此时该设备上没有TestFlight，可以点击 “TestFlight from the App Store” 前往App Store下载，或直接前往App Store，搜索 “TestFlight” 进行下载，如【图4】所示。</span></p><figure class="image image_resized" style="width:25%;"><img style="aspect-ratio:1032/1280;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/de18e2ef5eeebc315d2a92c4225048e8-1788350431597-2.jpeg" width="1032" height="1280"></figure><p style="text-align:center;"><span style="color:hsl(0,0%,47%);font-size:16px;">【图3】</span></p><p style="text-align:center;">&nbsp;</p><figure class="image image_resized" style="width:25%;"><img style="aspect-ratio:1206/2622;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/4ea3ca9ddd57b45f0cdc65322ea8ea9e-1788350431787-3.png" width="1206" height="2622"></figure><p style="text-align:center;"><span style="color:hsl(0,0%,47%);font-size:16px;">【图4】</span></p><p style="text-align:center;">&nbsp;</p><h3><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>第三步：获取邀请码</strong></span></h3><p><span style="color:hsl(0,0%,47%);font-size:16px;">您在邀请邮件中可以获取到「旅迹测试」邀请码，如【图5】红框内所示。</span></p><figure class="image image_resized" style="width:25%;"><img style="aspect-ratio:1032/1280;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/4fd4494d6545650f251488406f8d227f-1788350432376-4.png" width="1032" height="1280"></figure><p style="text-align:center;"><span style="color:hsl(0,0%,47%);font-size:16px;">【图5】</span></p><p style="text-align:center;">&nbsp;</p><h3><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>第四步：下载并安装游戏</strong></span></h3><p><span style="color:hsl(0,0%,47%);font-size:16px;">复制【图5】邮件页面中的邀请码，运行TestFlight并登录苹果账号（此账号可以与接受邀请码的邮箱账号不同）。点击应用内右上角的【兑换】按钮，输入邀请码，并确认兑换，如【图6】所示。</span></p><figure class="image image_resized" style="width:25%;"><img style="aspect-ratio:1206/864;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/0d0bf5061e1d242b108cb906624ac9cb-1788350432876-5.jpeg" width="1206" height="864"></figure><p style="text-align:center;"><span style="color:hsl(0,0%,47%);font-size:16px;">【图6】</span></p><p style="text-align:center;">&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">兑换成功后，TestFlight应用内将出现《蓝色星原：旅谣》的安装按钮，如【图7】所示，点击即可下载安装。</span></p><figure class="image image_resized" style="width:25%;"><img style="aspect-ratio:1206/2471;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/84672a0effe89fe9ba7075637eba3e6c-1788350432988-6.png" width="1206" height="2471"></figure><p style="text-align:center;"><span style="color:hsl(0,0%,47%);font-size:16px;">【图7】</span></p><p style="text-align:center;">&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">注意：如果您出现提示邀请码已被兑换、再次点击邮件中的 “View in TestFlight” 出现如【图8】所示页面，导致无法安装游戏的情况，可前往官网并点击正上方「联系客服」按钮进行反馈。</span></p><figure class="image image_resized" style="width:25%;"><img style="aspect-ratio:710/814;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/bc9d2513cff88af01d8ce7a718528372-1788350433165-7.jpeg" width="710" height="814"></figure><p style="text-align:center;"><span style="color:hsl(0,0%,47%);font-size:16px;">【图8】</span></p><h3>&nbsp;</h3><h3><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>更多问题</strong></span></h3><p><span style="color:hsl(0,0%,47%);font-size:16px;">在安装或测试过程中，有任何问题均可前往官网并点击上方「联系客服」按钮进行反馈。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">✨更多测试相关详情请看「旅迹测试」招募常见问题解答，期待与您在普罗米利亚大陆相遇！</span></p>
+</body>
+
+</html>

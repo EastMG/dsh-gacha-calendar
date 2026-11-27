@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《蓝色星原：旅谣》「旅迹测试」现已开启！</title>
+</head>
+
+<body>
+<style type="text/css">
+        .image {
+          display: flex;
+          justify-content: center;
+        }
+
+        .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+        .image.image-style-block-align-left.image_resized{
+          margin-left: 0!important;
+          text-align:left;
+        }
+      </style><p><span style="color:hsl(0,0%,47%);font-size:16px;">✦ 测试信息</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">测试时间：2026年9月17日 11:00 （UTC+8）- 另行通知</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">测试类型：计费、删档、限量测试</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">测试平台：PC端、移动端</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">✦ 测试须知</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">1. 本次「旅迹测试」资格仅限获取资格的星临者本人使用，禁止售卖、共享、租借等任意形式的转让行为，上述行为一经查实将会被取消测试资格。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">2. 本次「旅迹测试」的PC端与移动端测试资格互通，获取资格的星临者将同时获得PC端与移动端登录权限。测试资格将会绑定星临者首次登录的PC端与移动端，且PC（Windows）、移动安卓端、移动iOS端均只可绑定一台设备。如果中途更换其他相同端的登录设备，该测试账号将无法正常登录，还请星临者注意。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">3. 若星临者在「旅迹测试」中遇到问题或有其他建议，可以通过官网或游戏内客服联系反馈。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">4. 本次「旅迹测试」所展示的内容均为开发中版本，测试内容不代表游戏的最终品质。</span></p><figure class="image image_resized" style="width:75%;"><img style="aspect-ratio:1280/720;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/5fdba91194cd03c782d92e9cf6b7fa39-1789365285902-0.jpeg" width="1280" height="720"></figure>
+</body>
+
+</html>

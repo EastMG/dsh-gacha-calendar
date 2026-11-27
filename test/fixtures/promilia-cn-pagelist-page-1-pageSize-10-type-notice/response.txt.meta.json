@@ -1,0 +1,5 @@
+{
+  "status": 200,
+  "url": "https://api-grp.manjuu.com/announce/web/announcement/pagelist?page=1&pageSize=10&type=notice",
+  "contentType": "application/json;charset=UTF-8"
+}

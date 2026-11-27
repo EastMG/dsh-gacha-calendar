@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《藍色星原：旅謠》公測正式定檔11月26日！</title>
+</head>
+
+<body>
+<style type="text/css">
+
+
+
+      .image {
+          display: flex;
+          justify-content: center;
+        }
+
+       .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+       .image.image-style-block-align-left.image_resized {
+          margin-left: 0 !important;
+          text-align: left;
+        }
+      </style><p><span>——星躍始動，星光不息；星星指引之處，便是冒險的起點。</span></p><p><span>《藍色星原：旅謠》將於 2026年11月26日 開啟全平台正式公測。</span></p><p><br><span>✦ 預約地址 ✦</span></p><p><span>➤ App Store 預約：</span><a href="https://apps.apple.com/tw/app/id6789139052" target="_blank" rel="noopener noreferrer">https://apps.apple.com/tw/app/id6789139052</a></p><p><span>➤ Google Play 預約：</span><a href="https://play.google.com/store/apps/details?id=com.jimi.azurpromilia" target="_blank" rel="noopener noreferrer">https://play.google.com/store/apps/details?id=com.jimi.azurpromilia</a></p><p><br><span>✦ 預約里程碑 ✦</span></p><p><span>公測預約里程碑現已解鎖五重好禮！預約最高可領取「純粹憶痕*20」、角色「艾妮絲」等獎勵。此外，全球社群平台關注數達成 500 萬，還可額外獲得奇波「星彩·浮雲」獎勵！</span></p><p><br><span>星臨者，讓我們相約普羅米利亞大陸，並肩啟程！</span></p>
+</body>
+
+</html>

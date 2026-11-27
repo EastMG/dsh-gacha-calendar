@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>羁点观测「绯影入怀」</title>
+</head>
+
+<body>
+<style type="text/css">
+        .image {
+          display: flex;
+          justify-content: center;
+        }
+
+        .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+        .image.image-style-block-align-left.image_resized{
+          margin-left: 0!important;
+          text-align:left;
+        }
+      </style><figure class="image"><img style="aspect-ratio:400/224;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/f2851be793a5e6bf041694e774334e60-1795178865439-0.png" width="400" height="224"></figure><p><span style="color:hsl(0,0%,47%);font-size:16px;">亲爱的星临者，</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">羁点观测「绯影入怀」即将开启。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">✦观测时间✦</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">2026年11月26日开服后 - 2026年12月17日 03:59（UTC+8）</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">✦观测说明✦</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●</span><span style="color:hsl(0,0%,47%);font-size:12px;"> </span><span style="color:hsl(0,0%,47%);font-size:16px;">活动期间，可通过「绯影入怀」观测获取当期限定五星灵子「花之舞（猛攻）」、限定四星灵子「折纸寄情（猛攻）」。如果连续60次观测未获得限定五星灵子，后续每次获得限定五星灵子概率都会进行递增，直至第80次观测必定获得限定五星灵子。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●</span><span style="color:hsl(0,0%,47%);font-size:12px;"> </span><span style="color:hsl(0,0%,47%);font-size:16px;">活动期间，通过「绯影入怀」观测获取四星灵子「折纸寄情（猛攻）」、「未来之星（增幅）」、「一点都不痛（赋予）」的概率将大幅提升。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">● 「绯影入怀」属于「羁点观测」，在「绯影入怀」的观测保底次数会一直累积在「羁点观测」中。所有「羁点观测」共享限定五星灵子保底次数，星临者未获得限定五星灵子的保底计数将在任意「羁点观测」活动中继承，并在获得限定五星灵子后重新计数。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">※更多详情，可前往游戏内观测详情页查看。</span></p>
+</body>
+
+</html>

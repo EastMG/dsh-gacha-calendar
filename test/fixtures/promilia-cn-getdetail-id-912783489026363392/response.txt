@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"notice","title":"《蓝色星原：旅谣》弦定观测（角色限定观测）玩法概率公示","contentUrl":"https://l1-all-plat-server.manjuu.com/announce/html/cn/notice/1795427283188/912783489026363392_1ca28dbf.html","startTime":1795658400000}}

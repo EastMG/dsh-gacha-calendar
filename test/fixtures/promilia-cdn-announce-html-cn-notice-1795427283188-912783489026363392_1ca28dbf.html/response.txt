@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《蓝色星原：旅谣》弦定观测（角色限定观测）玩法概率公示</title>
+</head>
+
+<body>
+<style type="text/css">
+        .image {
+          display: flex;
+          justify-content: center;
+        }
+
+        .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+        .image.image-style-block-align-left.image_resized{
+          margin-left: 0!important;
+          text-align:left;
+        }
+      </style><p><span style="color:hsl(0,0%,47%);font-size:16px;">弦定观测（角色限定观测）</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">「角色限定观测规则说明」</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">1. 星临者可使用「璀璨忆痕」进行观测，每10次观测必获得至少1个四星及以上内容（四星内容包括四星角色和四星灵子）</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">2. 所有「角色限定观测」中，如果连续70次观测未获得五星角色，后续每次获得五星角色概率都会进行递增，71次到80次每次获得五星角色概率提升2.000%，81次到89次每次获得五星角色概率提升8.000%，直至第90次观测必定获得五星角色，获取五星角色后，下一次观测获取五星角色的基础概率恢复为0.800%</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">3. 所有「角色限定观测」共享限定五星角色保底次数，星临者未获得限定五星角色的保底计数将在任意「角色限定观测」活动中继承，并在获得限定五星角色后重新计数</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">4. 所有「角色限定观测」中登场的限定五星角色及其对应的新增限定四星灵子，为限定观测内容，在观测结束后不会加入「角色常驻观测」和「灵子常驻观测」</span></p><p><br><span style="color:hsl(0,0%,47%);font-size:16px;">「角色限定观测概率说明」</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">1. 观测获得五星角色的基础概率为0.800%，其中限定五星占比100.000%，综合概率（含保底）为1.716%</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">2. 观测获得四星内容（四星内容包括四星角色和四星灵子）的基础概率为6.000%，综合概率（含保底）为12.000%</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">&nbsp;a. 当获得四星内容时，有50.000%的概率为任一概率提升的四星角色，有25.000%的概率为任一非概率提升的四星角色，有25.000%的概率为任一非概率提升的四星灵子。每个非概率提升的四星内容概率均等</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">3. 观测获得三星灵子的基础概率为93.200%</span></p><p><br><span style="color:hsl(0,0%,47%);font-size:16px;">「额外奖励及重复获取说明」</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">1. 星临者首次获得五星角色，将额外获得20个回归的星轨。如果重复获取已拥有的五星角色，则第2次至第7次，每次会获得该角色的1个定弦和20个回归的星轨。自第8次起，每次会获得50个回归的星轨</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">2. 星临者首次获得四星角色，将额外获得5个回归的星轨。如果重复获取已拥有的四星角色，则第2次至第7次，每次会获得该角色的1个定弦和5个回归的星轨。自第8次起，每次会获得10个回归的星轨</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">3. 星临者每次观测获得四星灵子时，将额外获得5个回归的星轨</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">4. 星临者每次观测获得三星灵子时，将额外获得20个游离的星轨</span></p><p><br><span style="color:hsl(0,0%,47%);font-size:16px;">「温馨提示」</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">1. 回归的星轨兑换中，当前可兑换的商品种类及限购次数以界面显示信息为准，界面倒计时结束后将随之更新</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">2. 游离的星轨兑换中，当前可兑换的商品种类及限购次数以界面显示信息为准，界面倒计时结束后将随之更新</span></p><p><br><span style="color:hsl(0,0%,47%);font-size:16px;">「观测内容一览」</span></p><figure class="image"><img style="aspect-ratio:1682/944;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/62cd36a4adcec933252b757bbc82ed8b-1795427282307-0.png" width="1682" height="944"></figure>
+</body>
+
+</html>

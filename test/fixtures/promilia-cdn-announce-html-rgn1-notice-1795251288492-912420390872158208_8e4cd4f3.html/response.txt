@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《藍色星原：旅謠》公平營運說明 </title>
+</head>
+
+<body>
+<style type="text/css">
+
+
+
+      .image {
+          display: flex;
+          justify-content: center;
+        }
+
+       .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+       .image.image-style-block-align-left.image_resized {
+          margin-left: 0 !important;
+          text-align: left;
+        }
+      </style><p>親愛的星臨者：</p><p>感謝您對《藍色星原：旅謠》的關注與支持。為維護良好、公平的遊戲環境，保障各位玩家的合法權益，特此提醒各位玩家：<br>&nbsp;</p><p>● 禁止在遊戲中使用外掛、第三方工具，或透過非正規管道儲值，不得以任何不正當方式破壞遊戲公平性或違反遊戲使用者協議。根據後台監控及玩家檢舉，如發現上述行為，我們將依據具體違規情節，採取扣除違規收益、凍結或封停遊戲帳號等一項或多項處置措施。</p><p>● 為維護各位玩家的合法權益，請勿轉讓、共享或交易遊戲帳號，也請勿以任何方式將帳號提供給他人使用；請勿購買他人的首儲號、代儲號、初始號等帳號，謹防受騙。若因上述行為導致帳號遭盜用或帳號內權益受損，官方將不予受理。</p><p>● 為確保玩家能獲得完整的遊戲體驗，請勿解析、修改遊戲安裝包，或散布相關解析素材。<br>&nbsp;</p><p>最後，打造良好的遊戲環境，也需要各位玩家共同努力。請各位玩家配合維護遊戲秩序，如發現違規行為，歡迎透過官方客服進行檢舉。<br>官方客服信箱：azurpromilia@nijigengames.com</p><figure class="image"><img style="aspect-ratio:800/448;" src="https://l1-prod-plat-server-rgn1.jimi-global.com/websiteManagementRgn1/img/notice/06e7d73306b66038b4ed1a9ec11f0097-1795250908034-0.png" width="800" height="448"></figure>
+</body>
+
+</html>

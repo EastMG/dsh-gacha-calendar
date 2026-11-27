@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"activity","title":"《藍色星原：旅謠》「集結，勇闖奇波巢穴」網頁活動限時開啟！","contentUrl":"https://l1-prod-plat-server-rgn1.jimi-global.com/announce/html/rgn1/activity/1795077688669/911692869390176256_45854b58.html","startTime":1795176000000}}

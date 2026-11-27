@@ -23,6 +23,7 @@ import runP8 from "./cases-p8.mjs";
 import runP9 from "./cases-p9.mjs";
 import runBa from "./cases-ba.mjs";
 import runPw from "./cases-pw.mjs";
+import runManjuu from "./cases-manjuu.mjs";
 import runUmaGt from "./cases-uma-gt.mjs";
 import runArknightsClaim from "./cases-arknights-claim.mjs";
 import runArknightsTimeline from "./cases-arknights-timeline.mjs";
@@ -137,7 +138,7 @@ section("夹具卫生");
 	// 2026-11-26：活网审计 A 的两款修复夹具（`wuwa-*`：鸣潮官方公告 11-26 快照 entrypoint + zh-Hans；
 	// `cytq-*` 前缀本来就在清单里）。前缀按来源 id 取名，一眼能看出属于哪一条。
 	check("夹具命名带批次前缀（便于溯源）",
-		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights|wqmt|pengpeng|wd|hlr|bh3|spica|czn|bjhl|yys|dhmmr|bh2|yslz|wxnn|cytq|hl|pcr-tw|reso|tof|gachaparty|gbf|kancolle|pcr-jp|longhun|nikki4|imas|bd2|b5|wuwa)/.test(f)),
+		fx.every((f) => /^(p3|p4|p5|p6|p7|p8|p9|p5x|pw|b1|bwiki|bandori|gf2|ournotes|fgo|uma|sekai|bestdori|ba|arknights|wqmt|pengpeng|wd|hlr|bh3|spica|czn|bjhl|yys|dhmmr|bh2|yslz|wxnn|cytq|hl|pcr-tw|reso|tof|gachaparty|gbf|kancolle|pcr-jp|longhun|nikki4|imas|bd2|b5|wuwa|promilia)/.test(f)),
 	);
 }
 //#endregion
@@ -193,7 +194,8 @@ const batches = [
 	["第五批新来源（2 款 bwiki：粉碎狂热 / 怪物弹珠；SMW ask + Data JSON + 活动日历 CALENDAR_DATA）", runBatch6],
 	["外显名（banner / event）：① 源站体裁尾巴归一（白名单 + 剥完 ≥3 码点保护）/ ② 泛名让位（原文先判一次）/ ③ 过长名的有源站措辞归一（加长体裁尾巴 /「新登場」领句 /「」真名 / 剥「推荐召唤 · 纪念活动」/ bh3 取核心名 / 探头与并列条显示各自短名；**不做程序截断**）", runDisplayName],
 	["2026-11-26 鸣潮（活网审计 A）：活动 tag 口径失效 + 「角色忆旅唤取」池被过滤", runWuwa20261126],
-	["2026-11-26 炽焰天穹（活网审计 A）：「维护后」起点活动被 coversNow 整条丢 —— 局部修复（只 cytq 开 coveredOrOpen）", runCytqMaintenance]
+	["2026-11-26 炽焰天穹（活网审计 A）：「维护后」起点活动被 coversNow 整条丢 —— 局部修复（只 cytq 开 coveredOrOpen）", runCytqMaintenance],
+	["蓝色星原：旅谣（2026-11-27 接入）：国服官方公告 API（默认）/ promilia.wiki / TapTap 三源各自独立、不兜底；国际服单一官方公告", runManjuu]
 ];
 const before = counts();
 for (const [label, fn] of batches) {

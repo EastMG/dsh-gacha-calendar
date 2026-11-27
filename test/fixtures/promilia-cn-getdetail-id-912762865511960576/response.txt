@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"notice","title":"《蓝色星原：旅谣》公测现已正式开启！","contentUrl":"https://l1-all-plat-server.manjuu.com/announce/html/cn/notice/1795333269529/912762865511960576_cea02381.html","startTime":1795658400000}}

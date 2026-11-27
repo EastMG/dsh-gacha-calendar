@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"activity","title":"《藍色星原：旅謠》宿舍介紹 | 春歸覓處 ","contentUrl":"https://l1-prod-plat-server-rgn1.jimi-global.com/announce/html/rgn1/activity/1795698560839/914293416437878784_5f9f3cef.html","startTime":1795698000000}}

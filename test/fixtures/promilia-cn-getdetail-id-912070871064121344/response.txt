@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"notice","title":"《蓝色星原：旅谣》公测常见问题说明","contentUrl":"https://l1-all-plat-server.manjuu.com/announce/html/cn/notice/1795427689773/912070871064121344_2abb3e6d.html","startTime":1795494600000}}

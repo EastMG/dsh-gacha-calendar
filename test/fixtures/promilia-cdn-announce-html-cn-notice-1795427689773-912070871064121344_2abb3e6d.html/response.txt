@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《蓝色星原：旅谣》公测常见问题说明</title>
+</head>
+
+<body>
+<style type="text/css">
+        .image {
+          display: flex;
+          justify-content: center;
+        }
+
+        .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+        .image.image-style-block-align-left.image_resized{
+          margin-left: 0!important;
+          text-align:left;
+        }
+      </style><p><span style="color:hsl(0,0%,47%);font-size:16px;">《蓝色星原：旅谣》预下载将于2026年11月24日 15:00（UTC+8）开启，公测将于2026年11月26日 10:00（UTC+8）正式开启。本次公测将开放PC、Android、iOS、鸿蒙四个平台。为帮助星临者顺利开启普罗米利亚之旅，我们整理了以下常见问题。如后续安排有调整，请以官方最新公告为准。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:20px;"><strong>一、开服信息</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：《蓝色星原：旅谣》公测何时开启？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：公测将于2026年11月26日 10:00（UTC+8）正式开启，开放PC、Android、iOS、鸿蒙四个平台。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：不同平台之间的数据是否互通？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：官方服务器支持PC、Android、iOS、鸿蒙四端数据互通，星临者可使用同一账号在多端登录，游戏进度同步。部分渠道服与官方服务器数据不互通，具体安排以对应渠道说明为准。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：游玩《蓝色星原：旅谣》需要怎样的设备配置？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：各平台配置要求如下。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>PC端</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;操作系统：Windows 10 64-bit 及以上版本</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;DirectX 版本：11.1 及以上版本</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;处理器：推荐 Intel Core i7-10700K 同级别及以上；最低 Intel Core i5-9400F 或同级别</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;显卡：推荐 NVIDIA GeForce RTX 2060 同等级及以上；最低 NVIDIA GeForce GTX 1060 或同等级</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;运行内存：推荐 16GB 及以上；最低 16GB</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;存储空间：推荐预留 120GB 以上</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>Android端</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;操作系统：Android 10.0 及以上版本</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;设备：推荐搭载骁龙8 Gen1 / 天玑9000+ 同等级及以上芯片的移动设备；最低搭载骁龙855 / 天玑1000+ / 麒麟990 同等级及以上芯片的移动设备</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;运行内存：推荐 8GB 及以上；最低 6GB</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;存储空间：推荐预留 55GB 以上</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>iOS端</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;操作系统：iOS 15.0 及以上版本</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;设备：推荐 iPhone 13 Pro 及以上；最低 iPhone 12 Pro 及以上</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;运行内存：推荐 8GB 及以上；最低 6GB</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;存储空间：推荐预留 55GB 以上</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>鸿蒙端</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;操作系统：HarmonyOS 5.0 及以上版本</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;设备：推荐搭载麒麟9020 同等级及以上芯片的移动设备</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;运行内存：推荐 12GB 及以上</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;存储空间：推荐预留 55GB 以上</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">※ PC端建议将游戏安装在固态硬盘（SSD）中。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">※ 使用低于最低配置要求的设备，可能出现卡顿、掉帧、发热等情况；建议使用满足推荐配置的设备进行体验。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：公测对实名认证有什么要求？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：根据相关规定，星临者需完成实名认证后方可登录游戏，未成年人防沉迷限制将按照有关规定执行。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:20px;"><strong>二、预下载与客户端</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：预下载何时开启？开放哪些平台？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：预下载将于2026年11月24日 15:00（UTC+8）开启，开放PC、Android、iOS、鸿蒙四个平台。预下载开启后，客户端与公测更新资源将同步开放下载。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：在哪里可以下载《蓝色星原：旅谣》客户端？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：预下载开启后，请前往《蓝色星原：旅谣》官网下载客户端。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：客户端安装完成后，还需要下载公测更新资源吗？大小是多少？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：需要。PC、Android、iOS、鸿蒙各端均需在<strong>客户端内</strong>下载并安装<strong>公测更新资源</strong>；该部分以增量方式提供，<strong>实际大小以客户端提示为准</strong>。安装完成后，请<strong>启动客户端</strong>，按提示完成下载与更新。建议在预下载期间完成更新，以减少公测开启当日的等待时间。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：完成预下载后可以直接登录游戏吗？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：暂不支持登录游戏。公测服务器将于2026年11月26日 10:00（UTC+8）开放，届时使用已完成更新的客户端即可进入游戏。已完成下载与安装的资源无需重复下载；后续新增内容以客户端提示为准。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：曾参与「旅迹测试」，此前的客户端能否直接更新？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：不支持。请先完全卸载「旅迹测试」客户端，再下载并安装公测正式客户端。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:20px;"><strong>三、充值与返还</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：「旅迹测试」期间的充值将如何返还？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：公测开启后，充值返还内容将发放至参与测试的账号的游戏内邮箱。星临者使用「旅迹测试」期间进行过充值的同一账号登录游戏，待游戏内邮件功能开放后即可领取。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">「旅迹测试」期间购买【星虹】、【飞信订约】、【普罗米利亚游记】，或购买装扮、商店礼包等产生的付费，均计入总充值金额，按1元人民币兑换10【星虹】的比例折算，并按以下梯度返还：</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;总充值金额不超过2000元：按200%的比例返还等价值的【星虹】。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;总充值金额超过2000元且不超过5000元：2000元以内（含2000元）的部分按200%返还，超过2000元至5000元的部分按150%返还。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;总充值金额超过5000元：2000元以内（含2000元）的部分按200%返还，超过2000元至5000元的部分按150%返还，超过5000元的部分按125%返还。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">各类活动赠送、充值附赠及系统赠送的内容（包括但不限于秘虹晶、首充双倍、礼包额外道具、运营邮件等）不计入返还范围。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：购买【飞信订约】、【普罗米利亚游记】的金额将如何返还？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：购买金额同样计入总充值金额，按上述【星虹】返还规则返还，同时根据购买情况返还对应凭证。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;【飞信订约】：返还对应数量的【飞信订约凭证】，上限3份。使用后【飞信订约】权益增加30天，并立即获得300【星虹】。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;【普罗米利亚游记】：根据解锁类型返还【豪华游记凭证】或【游记拾遗凭证】。使用后将立即激活当期对应类型的【普罗米利亚游记】。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">凭证领取后将保存至背包，需由星临者在背包内主动使用后激活，使用前不会失效。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：充值返还邮件的发放时间与领取期限是？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：充值返还内容将在公测开启后通过游戏内邮件发放。邮件收取期限为公测开启后的365天内（含第365天），星临者需在此期间注册并创建角色，逾期将无法收到返还邮件；邮件领取有效期为365天，请星临者及时登录游戏领取。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：能否使用其他账号领取？更换设备后是否仍可领取？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：不支持跨账号领取，也不支持将返还内容转移至其他账号。官方服务器支持PC、Android、iOS、鸿蒙四端数据互通，星临者使用与「旅迹测试」期间一致的账号登录即可领取；渠道服账号请使用对应渠道客户端登录领取。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：「旅迹测试」期间未在iOS端充值，公测后能否在iOS端领取返还？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：可以。受iOS平台政策影响，「旅迹测试」期间iOS端未开放充值；如星临者曾在PC端或Android官方服务器进行充值，公测后可使用同一账号在iOS端登录并领取返还。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：如何查询「旅迹测试」的充值金额和返还内容？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：星临者可前往《蓝色星原：旅谣》官网，通过「充值返还查询」入口登录查询。该入口仅支持蛮啾通行证账号，页面数据可能存在一定延迟。通过bilibili等渠道参与测试的星临者，请联系对应渠道客服查询。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：通过渠道服参与测试的星临者，如何领取充值返还？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：请在公测开启后，通过对应渠道下载并安装客户端，使用「旅迹测试」期间进行充值的同一账号登录，待游戏内邮件功能开放后领取充值返还。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:20px;"><strong>四、活动与福利</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：公测开启前有哪些福利活动？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：全球预约里程碑及社媒关注里程碑奖励已全部解锁。公测开启后，奖励将发放至账号对应的游戏内邮箱，星临者登录游戏并解锁邮箱功能后即可领取角色「艾妮丝」、奇波「星彩·浮云」、【纯粹忆痕】×20等奖励。具体活动安排与奖励内容以活动页面说明为准。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：使用不同设备或渠道账号，都能领取这些福利吗？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：预约里程碑及社媒关注里程碑奖励：星临者使用同一账号在PC、Android、iOS、鸿蒙任一平台登录，均可领取上述奖励。使用渠道账号参与预约的星临者，需以同一渠道账号登录对应渠道客户端领取；不同渠道的活动安排、奖励内容与领取方式可能有所不同，请以对应渠道说明为准。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:20px;"><strong>五、下载、安装与运行</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">如在下载、安装或运行过程中遇到问题，可参考以下解答。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：PC端安装或更新时提示磁盘空间不足怎么办？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：请确认游戏安装磁盘的剩余空间。PC端建议预留120GB以上存储空间；若剩余空间不足，可清理磁盘，或更换安装目录后重新尝试。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：PC端下载提示文件校验错误怎么办？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：请根据提示重试下载。若重试后仍出现失败提示，可尝试重启客户端；如问题仍未解决，可重新下载游戏客户端。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：下载安装过程中被杀毒软件拦截怎么办？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：请在杀毒软件提示中点击「允许」或「信任」，或将游戏安装目录加入信任列表。如仍未解决，可暂时关闭杀毒软件后重新尝试，并在操作完成后及时重新开启。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：PC端启动与加载缓慢怎么办？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：建议将游戏安装在固态硬盘（SSD）中，并确保安装磁盘保留充足的可用空间。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：游戏运行时出现闪退怎么办？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：建议重启设备后重新登录；PC端可尝试重启电脑。若仍频繁闪退，请通过游戏内客服反馈，并提供设备型号、系统版本、问题发生时间与相关截图，以便定位。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：启动游戏时提示资源下载失败怎么办？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：建议重启客户端后再次下载；若仍失败，可重新下载游戏客户端。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:20px;"><strong>六、客服与反馈</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：遇到问题如何联系客服？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：游戏内可通过 主页面 → 设置 → 账户 → 用户中心 → 联系客服进行反馈（以游戏内实际入口为准）。</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">此外，可通过《蓝色星原：旅谣》官网「客服中心」入口进行反馈。</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">通过渠道服游玩的星临者，如遇渠道账号相关问题，请联系对应渠道客服。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Q：反馈问题时建议提供哪些信息？</span><br><span style="color:hsl(0,0%,47%);font-size:16px;">A：建议提供用户UID、设备型号、系统版本、问题描述与相关截图，便于快速定位。</span></p>
+</body>
+
+</html>

@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"notice","title":"《蓝色星原：旅谣》恒常观测（角色常驻观测）玩法概率公示","contentUrl":"https://l1-all-plat-server.manjuu.com/announce/html/cn/notice/1795426767524/912772234182004736_9a65d978.html","startTime":1795658400000}}

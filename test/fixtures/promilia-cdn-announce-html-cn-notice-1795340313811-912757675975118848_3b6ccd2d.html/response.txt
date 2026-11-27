@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《云·蓝色星原》正式上线</title>
+</head>
+
+<body>
+<style type="text/css">
+        .image {
+          display: flex;
+          justify-content: center;
+        }
+
+        .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+        .image.image-style-block-align-left.image_resized{
+          margin-left: 0!important;
+          text-align:left;
+        }
+      </style><p><span style="color:hsl(0,0%,47%);font-size:16px;">亲爱的星临者：</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">《云·蓝色星原》Android、iOS及网页端（仅PC）正式上线！</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">《云·蓝色星原》是蛮啾旗下《蓝色星原：旅谣》的官方云游戏版本。仅需下载超小包体即可一键畅玩，获得高画质、高帧率、低延迟的畅快体验。</span></p><p>&nbsp;</p><h2><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>〓游玩方式〓</strong></span></h2><p><span style="color:hsl(0,0%,47%);font-size:16px;">网页端（仅PC）地址：</span><a href="https://azurpromilia.manjuu.com/cloudgame"><span style="color:#1890FF;font-size:16px;">https://azurpromilia.manjuu.com/cloudgame</span></a></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">Android及iOS端下载：</span></p><figure class="image"><img style="aspect-ratio:400/400;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/d370ab752dc00e1fbd19c1406373ef93-1795339202845-0.png" width="400" height="400"></figure><h2>&nbsp;</h2><h2><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>〓时长福利〓</strong></span></h2><p><span style="color:hsl(0,0%,47%);font-size:16px;">● 星临者首次登录《云·蓝色星原》即可领取600分钟免费时长，每日登录《云·蓝色星原》可获得15分钟免费时长，免费时长累积上限为600分钟，达到600分钟上限后则无法继续累积。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">● 在《蓝色星原：旅谣》、《云·蓝色星原》或网页商城中的任一渠道购买以下任意商品可获赠畅玩卡，具体规则如下：</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">¤ 购买【飞信订约】可获赠7天【畅玩卡】</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">¤&nbsp;购买【豪华版游记】可获赠21天【畅玩卡】</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">¤&nbsp;购买【游记拾遗】可获赠42天【畅玩卡】</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">¤&nbsp;通过购买【豪华版游记进阶】将【豪华版游记】升级为【游记拾遗】可获得21天【畅玩卡】</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;"><i>※登录高峰期可能出现排队时间较长的情况，建议星临者错峰使用《云·蓝色星原》体验游戏。</i></span></p><p>&nbsp;</p><h2><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>〓推荐配置〓</strong></span></h2><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;移动端</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">¤&nbsp;iOS：iOS 15及以上系统</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">¤&nbsp;安卓：Android 6.0及以上系统</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;网页版：</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">¤&nbsp;Windows端浏览器推荐使用Chrome、Firefox、Edge及Chromium内核的浏览器。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">¤&nbsp;macOS端浏览器推荐使用Safari、Chrome、Firefox、Edge及Chromium内核的浏览器。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;"><i>※为了保障星临者的游戏体验，网页版建议您使用上述浏览器运行，并将浏览器更新至最新版本。</i></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">感谢星临者对《蓝色星原：旅谣》的关注和支持！</span></p>
+</body>
+
+</html>

@@ -168,6 +168,7 @@ const ORDER = [
   "30-game-bluepoch.js",           // 深蓝互动：r1999
   "30-game-aojiao.js",             // 傲娇工作室：gachaparty
   "30-game-epidgames.js",          // EPIDGames：ddlezj
+	"30-game-manjuu.js",             // 蛮啾：promilia（国服）/ promilia-global（国际服）
   "44-test-exports.js",        // 回归出口：解析器 + env 工具 + 来源表（挂 exports.__regression，测试用）
   "50-refresh.js",             // 刷新编排、失败沿用旧值
   "60-helpers.js",             // 共用纯函数：状态归一 / 提示文案 / 显隐 / 格式化 / 排序 / 启动刷新判定
@@ -284,6 +285,7 @@ const CORE_ORDER = [
   "30-game-bluepoch.js",
   "30-game-aojiao.js",
   "30-game-epidgames.js",
+  "30-game-manjuu.js",             // 蛮啾：promilia（国服）/ promilia-global（国际服）
   "50-refresh.js",             // 刷新编排
   "engine-api.js",             // 注入 env + refresh() + 测试出口 + return
 ];

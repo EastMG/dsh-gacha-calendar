@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"notice","title":"弦定观测「桃笺为契」","contentUrl":"https://l1-all-plat-server.manjuu.com/announce/html/cn/notice/1795180155568/912104344520888320_b7458894.html","startTime":1795500000000}}

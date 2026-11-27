@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《藍色星原：旅謠》裝扮介紹 | 塗山小玉·桃兔綺樂</title>
+</head>
+
+<body>
+<style type="text/css">
+
+
+
+      .image {
+          display: flex;
+          justify-content: center;
+        }
+
+       .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+       .image.image-style-block-align-left.image_resized {
+          margin-left: 0 !important;
+          text-align: left;
+        }
+      </style><p><span>親愛的星臨者：</span></p><p><span>角色造型「塗山小玉·桃兔綺樂」現已上架。</span></p><p>&nbsp;</p><p><span>「一隻、兩隻、三隻……唔，好多耳朵。」</span></p><p>&nbsp;</p><p><span>● 折扣時間：2026年11月26日 開服後 - 2026年12月17日 4:00（UTC+8）</span></p><p><span>● 折扣價格：星虹*2180 或 840 TWD\ 200 HKD\ 200 MOP\ 25.99 USD直購</span></p><p><span>● 販售價格：星虹*2580 或 990 TWD\ 238 HKD\ 238 MOP\ 30.99 USD直購</span></p><p><span>● 在售時間：2026年11月26日 開服後 - 2027年1月5日 3:59（UTC+8）</span></p><p>&nbsp;</p><p><span>※造型購買後可前往對應角色的「裝扮」介面查看。</span></p><figure class="image"><img style="aspect-ratio:2400/1080;" src="https://l1-prod-plat-server-rgn1.jimi-global.com/websiteManagementRgn1/img/activity/d31a0aebbcb6b8091c2851da6ce5e1e2-1795747221907-0.png" width="2400" height="1080"></figure><p>&nbsp;</p>
+</body>
+
+</html>

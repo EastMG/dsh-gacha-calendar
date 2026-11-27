@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"notice","title":"《蓝色星原：旅谣》预下载现已开启","contentUrl":"https://l1-all-plat-server.manjuu.com/announce/html/cn/notice/1795427623398/912088789906755584_827d938e.html","startTime":1795503600000}}

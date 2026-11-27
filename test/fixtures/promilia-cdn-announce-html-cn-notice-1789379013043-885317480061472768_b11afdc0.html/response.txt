@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>「旅迹测试」充值返还规则说明</title>
+</head>
+
+<body>
+<style type="text/css">
+        .image {
+          display: flex;
+          justify-content: center;
+        }
+
+        .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+        .image.image-style-block-align-left.image_resized{
+          margin-left: 0!important;
+          text-align:left;
+        }
+      </style><p><span style="color:hsl(0,0%,47%);font-size:16px;">亲爱的星临者：</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">《蓝色星原：旅谣》「旅迹测试」为限量计费删档测试，本次测试将开启付费功能。星临者在「旅迹测试」期间充值的内容，将在《蓝色星原：旅谣》正式上线之后，按照「充值返还规则」，通过游戏内邮件返还至参与测试的同一账号内。具体返还规则见如下说明：</span></p><p>&nbsp;</p><h1><span style="color:hsl(0,0%,47%);font-size:20px;"><strong>✦ 充值返还规则 ✦</strong></span></h1><p><span style="color:hsl(0,0%,47%);font-size:16px;"><span>* </span><strong>【星虹】返还规则</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">「旅迹测试」期间，星临者购买【星虹】、【飞信订约】、【普罗米利亚游记】，或使用人民币购买任意装扮或商店礼包所产生的付费，总金额将在正式上线后按照<strong>1元</strong><span>：</span><strong>10【星虹】</strong>的比例进行梯度返还。具体梯度返还规则如下所示：</span></p><p>&nbsp;</p><figure class="image"><img style="aspect-ratio:394/81;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/e39db0d08ef2fac3d043dae1597b5fc8-1789364851537-0.jpeg" width="394" height="81"></figure><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>● 总充值金额≤2000元时，将按照200%的比例返还等价值的【星虹】。</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>● 总充值金额＞2000元且≤5000元时，2000元以内的部分将按照200%的比例返还等价值的【星虹】；2000元至5000元的部分，将按照150%的比例返还等价值的【星虹】。</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>● 总充值金额＞5000元时，2000元以内的部分将按照200%的比例返还等价值的【星虹】，2000元至5000元的部分，将按照150%的比例返还等价值的【星虹】；超过5000元的部分，将按照125%的比例返还等价值的【星虹】。</strong></span></p><p>&nbsp;</p><h2><span style="color:hsl(0,0%,47%);font-size:16px;"><span>* </span><strong>购买装扮与商店礼包返还规则</strong></span></h2><p><span style="color:hsl(0,0%,47%);font-size:16px;">「旅迹测试」期间，若星临者使用人民币购买了装扮或商店礼包，将按照以下规则进行返还：</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">购买装扮或商店礼包的金额将根据【星虹】返还规则，在正式上线后获得对应的【星虹】返还。</span></p><p>&nbsp;</p><h2><span style="color:hsl(0,0%,47%);font-size:16px;"><span>*</span><strong> 购买飞信订约返还规则</strong></span></h2><p><span style="color:hsl(0,0%,47%);font-size:16px;">「旅迹测试」期间，若星临者购买了【飞信订约】，将按照以下规则进行返还：</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">1. 购买【飞信订约】的金额将根据【星虹】返还规则，在正式上线后获得对应的【星虹】返还。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">2. 根据【飞信订约】购买的数量，星临者可以获得对应数量的【飞信订约凭证】，上限3份。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">3. 【飞信订约凭证】使用后，可以将【飞信订约】权益增加30天，并立即获得<span>300【星虹】</span>。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">※【飞信订约凭证】领取后将保存至背包，该道具需星临者前往背包主动使用后激活，使用前不会失效。</span></p><p>&nbsp;</p><h2><span style="color:hsl(0,0%,47%);font-size:16px;"><span>* </span><strong>购买普罗米利亚游记返还规则</strong></span></h2><p><span style="color:hsl(0,0%,47%);font-size:16px;">「旅迹测试」期间，若星临者购买了【普罗米利亚游记】中的【豪华版游记】、【游记拾遗】或将【豪华版游记】进阶为【游记拾遗】，将按照以下规则进行返还：</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">1. 购买【普罗米利亚游记】的金额将根据【星虹】返还规则，在正式上线后获得对应的【星虹】返还。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">2. 根据星临者解锁的普罗米利亚游记类型，返还相应的道具【豪华游记凭证】或【游记拾遗凭证】。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">3. 将【豪华版游记】进阶为【游记拾遗】后，星临者可以获得【游记拾遗凭证】。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">※【豪华游记凭证】或【游记拾遗凭证】领取后将保存至背包，该道具需星临者前往背包主动使用后激活，使用前不会失效。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">※【豪华游记凭证】或【游记拾遗凭证】使用后，将立即激活当期对应类型的【普罗米利亚游记】。</span></p><p>&nbsp;</p><h2><span style="color:hsl(0,0%,47%);font-size:16px;"><span>* </span><strong>返还举例说明</strong></span></h2><p><span style="color:hsl(0,0%,47%);font-size:16px;">● 若「旅迹测试」期间，星临者购买了一份【飞信订约】：</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">则星临者在正式上线后可享有：30×10×200%=600【星虹】的返还，以及一份【飞信订约凭证】。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">● 若「旅迹测试」期间，星临者充值了3000元的【星虹】并购买了两份【飞信订约】和一份【豪华版游记】：</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">则星临者在正式上线后可享有：2000×10×200%+[(3000-2000)+30+30+68]×10×150%=56920【星虹】的返还及2份【飞信订约凭证】和1份【豪华游记凭证】。</span></p><p>&nbsp;</p><h1><span style="color:hsl(0,0%,47%);font-size:20px;"><strong>✦ 领取方式 ✦</strong></span></h1><h2><span style="color:hsl(0,0%,47%);font-size:16px;"><span>* </span><strong>返还方式</strong></span></h2><p><span style="color:hsl(0,0%,47%);font-size:16px;">● 「旅迹测试」期间的充值返还内容将在《蓝色星原：旅谣》正式上线后，通过游戏内邮件的形式发放。星临者可以使用「旅迹测试」中进行过充值的同一蛮啾通行证，登录游戏并在开启邮件功能后，领取充值返还邮件。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">● 充值返还邮件的收取期限为《蓝色星原：旅谣》正式上线后的365天内（含第365天），超过365天注册创建角色的星临者将无法收到返还邮件，同时<strong>邮件领取有效期为365天</strong>，请星临者注意及时领取。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">※通过bilibili参与「旅迹测试」的星临者，可以使用「旅迹测试」中进行过充值的bilibili账号登录游戏，并在开启邮件功能后，领取充值返还邮件。</span></p><p>&nbsp;</p><h2><span style="color:hsl(0,0%,47%);font-size:16px;"><span>* </span><strong>返还查询</strong></span></h2><p><span style="color:hsl(0,0%,47%);font-size:16px;">「旅迹测试」充值返还查询页面将在「旅迹测试」期间上线。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">届时，星临者可前往游戏官网与专题页查询「旅迹测试」期间的充值总金额和可获得的返还内容，页面数据存在一定的延迟。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">※充值返还查询页面的具体上线时间请星临者关注后续社区和官方公告。页面支持蛮啾通行证账号登录查询，通过其他渠道参与测试的星临者，可联系对应渠道客服进行咨询。</span></p><p>&nbsp;</p><h1><span style="color:hsl(0,0%,47%);font-size:20px;"><strong>✦ 注意事项 ✦</strong></span></h1><p><span style="color:hsl(0,0%,47%);font-size:16px;">1. 「旅迹测试」仅PC端、Android端、鸿蒙端、网页商城开放充值功能。测试期间，同一蛮啾通行证在PC端、Android端、鸿蒙端及网页商城的充值金额数据互通。在上述任意平台的消费金额，均会合并计入累计充值总额，并按照公示规则返还。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">2. 「旅迹测试」充值返还不支持跨账号领取，仅在参与「旅迹测试」期间充值过的账号进行返还。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">3. 受iOS平台政策影响，iOS玩家可以使用PC端、Android官服端登录游戏并参与充值返还活动。游戏正式上线后，PC端、Android官服端、iOS端与鸿蒙端数据互通，可使用同一蛮啾通行证（互通角色）在多端任意切换设备，获得充值返还。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">4. 本次《测试充值返还规则》仅针对游戏内付费行为产生的<strong>现金支付金额</strong>进行返还，此外各类活动赠送的或使用商品后可领取的道具、秘虹晶、星虹等（包括但不限于：首充双倍或充值星虹时不同档位的额外附赠内容、飞信订约星虹与秘虹晶赠送、普罗米利亚游记内可领取的道具、使用礼包后额外获得的道具、系统赠送、运营邮件）均不计入返还范围。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">5. 「旅迹测试」仅限已开通实名认证且已满18周岁的星临者参与。未实名及未成年用户将无法登录、体验游戏。</span></p><p>&nbsp;</p><h1><span style="color:hsl(0,0%,47%);font-size:20px;"><strong>✦ 充值与返还常见问题查询 ✦</strong></span></h1><p><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>Q1：「旅迹测试」可选择哪些支付方式？</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">A1：「旅迹测试」支持使用支付宝与微信进行支付。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>Q2：完成支付后，等了很长时间还是没有收到所购买的商品？</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">A2：如您在完成支付后30分钟仍未收到所购买的商品，请通过游戏内 - ESC - 设置 - 账户 - 用户中心 - 联系客服协助处理。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">※通过bilibili参与测试的星临者如遇到充值后长时间未能到账的问题，请咨询bilibili客服。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>Q3：正式上线后，可以用其他账号领取「旅迹测试」期间的充值返还吗？</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">A3：不可以。「旅迹测试」充值返还内容不支持跨账号领取，也不支持将返还内容转移给其他账号。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>Q4：正式上线后，可以用不同平台的设备领取充值返还内容吗？</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">A4：可以。同一服务器下不同平台数据互通，星临者确保更换设备后登录的账号与「旅迹测试」期间一致即可领取。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>Q5：我通过bilibili进行了测试，并充值了一定金额，如何进行返还？</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">A5：通过bilibili测试的星临者，请在《蓝色星原：旅谣》正式上线后，通过bilibili游戏中心下载对应客户端，并登录「旅迹测试」期间进行充值的账号，领取对应的充值返还内容。</span></p><figure class="image image_resized" style="width:75%;"><img style="aspect-ratio:1920/1080;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/75b40494ca6ac1808935d3e5f2fd37e6-1788855112125-1.jpeg" width="1920" height="1080"></figure>
+</body>
+
+</html>

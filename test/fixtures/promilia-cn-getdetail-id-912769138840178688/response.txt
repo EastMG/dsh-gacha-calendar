@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"notice","title":"《蓝色星原：旅谣》未成年人防沉迷说明","contentUrl":"https://l1-all-plat-server.manjuu.com/announce/html/cn/notice/1795334083368/912769138840178688_db90cd2a.html","startTime":1795658400000}}

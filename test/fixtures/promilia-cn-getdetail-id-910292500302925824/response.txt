@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"notice","title":"《蓝色星原：旅谣》公测福利资源获取一览","contentUrl":"https://l1-all-plat-server.manjuu.com/announce/html/cn/notice/1795096998400/910292500302925824_6391b10c.html","startTime":1795176000000}}

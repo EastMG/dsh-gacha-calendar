@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>「旅迹测试」鸿蒙设备安装指引</title>
+</head>
+
+<body>
+<style type="text/css">
+        .image {
+          display: flex;
+          justify-content: center;
+        }
+
+        .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+        .image.image-style-block-align-left.image_resized{
+          margin-left: 0!important;
+          text-align:left;
+        }
+      </style><p><span style="color:hsl(0,0%,47%);font-size:16px;">亲爱的星临者，《蓝色星原：旅谣》「旅迹测试」将于2026年9月17日11:00（UTC+8）正式开服。持鸿蒙设备的玩家可参照下方指引，完成下载安装。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">为了保证游戏顺利运行，请您认真阅读该指引，并提前确认您的鸿蒙设备满足以下配置，预留35GB以上的存储空间。</span></p><p>&nbsp;</p><h3><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>【本次测试支持的鸿蒙机型配置要求】</strong></span></h3><p><span style="color:hsl(0,0%,47%);font-size:16px;">&lt;操作系统&gt;</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">HarmonyOS 5.0 及以上版本</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">&lt;设备&gt;</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">推荐 搭载麒麟9020同等级及以上芯片的移动设备</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">&lt;运行内存&gt;</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">推荐 12GB 及以上</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">&lt;存储空间&gt;</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">推荐预留空间：35GB 以上</span></p><p>&nbsp;</p><h3><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>第一步：查收「旅迹测试」邀请短信/邮件</strong></span></h3><p><span style="color:hsl(0,0%,47%);font-size:16px;">请查看您在填写「旅迹测试」招募问卷时预留用于接收资格通知的手机/邮箱，查找发件人为华为的测试邀请短信，如【图1】所示。或发件人为华为应用市场的测试邀请邮件，如【图2】所示。确认收到短信/邮件后，可继续进行第二步。</span></p><figure class="image image_resized" style="width:25%;"><img style="aspect-ratio:535/361;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/cb653e47bde85f82e24996e492913271-1788509056754-0.png" width="535" height="361"></figure><p style="text-align:center;"><span style="color:hsl(0,0%,47%);font-size:16px;">【图1】</span></p><p style="text-align:center;">&nbsp;</p><figure class="image image_resized" style="width:25%;"><img style="aspect-ratio:752/1032;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/e14ab8aa92acb053fd181931e3d90144-1788509057744-1.png" width="752" height="1032"></figure><p style="text-align:center;"><span style="color:hsl(0,0%,47%);font-size:16px;">【图2】</span></p><p style="text-align:center;">&nbsp;</p><h3><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>第二步：下载并安装游戏</strong></span></h3><p><span style="color:hsl(0,0%,47%);font-size:16px;">点击【图1】短信中的链接或【图2】邮件中的“接受邀请”按钮，进入测试任务页面，如【图3】所示。</span></p><figure class="image image_resized" style="width:25%;"><img style="aspect-ratio:802/1687;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/029204df43cd23bdef3b0147700d9dce-1788509057854-2.png" width="802" height="1687"></figure><p style="text-align:center;"><span style="color:hsl(0,0%,47%);font-size:16px;">【图3】</span></p><p style="text-align:center;">&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">点击【图3】页面中的“开始测试”按钮，进入应用测试详情页并加入测试群组，如【图4】所示。</span></p><figure class="image image_resized" style="width:25%;"><img style="aspect-ratio:1152/1348;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/0a6706a76b0cf9382d1c2087380681b1-1788509058047-3.png" width="1152" height="1348"></figure><p style="text-align:center;"><span style="color:hsl(0,0%,47%);font-size:16px;">【图4】</span></p><p style="text-align:center;">&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">加入测试群组后，在应用测试详情页中安装测试版本并参与测试，如【图5】所示。</span></p><figure class="image image_resized" style="width:25%;"><img style="aspect-ratio:1192/2476;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/ee328b63f54e623b628eeaa10d44e15e-1788509058224-4.png" width="1192" height="2476"></figure><p style="text-align:center;"><span style="color:hsl(0,0%,47%);font-size:16px;">【图5】</span></p><p style="text-align:center;">&nbsp;</p><h3><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>更多问题</strong></span></h3><p><span style="color:hsl(0,0%,47%);font-size:16px;">在安装或测试过程中，有任何问题均可前往官网并点击上方「联系客服」按钮进行反馈。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">✨更多测试相关详情请看「旅迹测试」招募常见问题解答，期待与您在普罗米利亚大陆相遇！</span></p>
+</body>
+
+</html>

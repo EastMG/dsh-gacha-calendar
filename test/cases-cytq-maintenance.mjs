@@ -134,7 +134,9 @@ export default async function runCytqMaintenance() {
 			&& (rec.gacha || []).length === 4,
 			JSON.stringify([rec.banner, rec.bannerDates, (rec.gacha || []).length]));
 
-		// ── ⑦ 2026-11-26（B2：探头/并列条那一行过长）：并列条 show = 池名 ──────────────
+		// 2026-11-27：蓝色星原（promilia）也显式开 includeOpenStart（它没有"版本更新后"能锚的绝对起点，
+	// 起点未知的活动只进悬停/数组、不进外显）⇒ 名单加一条，仍然**不是**全局放宽。
+	// ── ⑦ 2026-11-26（B2：探头/并列条那一行过长）：并列条 show = 池名 ──────────────
 		// 并列条条目的 `title` 是 `池名：角色`（共享载荷 label 的写法，实测最长 36 字）；
 		// 探头/并列条那一行读的是 `show` ⇒ 这里落**池名**（源站帖子 h2 标题，剥「举办中！」这类
 		// 体裁尾巴）。`title` / `raw` / 悬停仍是源站原文（悬停下面那条就是反向证明）。
@@ -173,8 +175,8 @@ export default async function runCytqMaintenance() {
 			return /ns_bwiki_eventPayload\([^)]*includeOpenStart/.test(text);
 		});
 		check("静态守卫：`includeOpenStart` 只出现在「共用生成器 + cytq 调用点」——其余 9 个 bwiki 源仍走严格 `coversNow`（局部修复，不是全局放宽）",
-			JSON.stringify(hits.sort()) === JSON.stringify(["30-game-bwiki-common.js", "30-game-wfskey.js"])
-			&& JSON.stringify(callers) === JSON.stringify(["30-game-wfskey.js"]),
+			JSON.stringify(hits.sort()) === JSON.stringify(["30-game-bwiki-common.js", "30-game-manjuu.js", "30-game-wfskey.js"])
+			&& JSON.stringify(callers) === JSON.stringify(["30-game-manjuu.js", "30-game-wfskey.js"]),
 			JSON.stringify({ hits, callers }));
 	}
 }

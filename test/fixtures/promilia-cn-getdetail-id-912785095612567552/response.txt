@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"notice","title":"《蓝色星原：旅谣》恒序观测（灵子常驻观测）玩法概率公示","contentUrl":"https://l1-all-plat-server.manjuu.com/announce/html/cn/notice/1795426995088/912785095612567552_fb58a0a3.html","startTime":1795658400000}}

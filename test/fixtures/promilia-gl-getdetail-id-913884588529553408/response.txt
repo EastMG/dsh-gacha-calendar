@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"activity","title":"《藍色星原：旅謠》「公測創作者招募計畫」正式啟動！","contentUrl":"https://l1-prod-plat-server-rgn1.jimi-global.com/announce/html/rgn1/activity/1795600128190/913884588529553408_6fd775d7.html","startTime":1795663800000}}

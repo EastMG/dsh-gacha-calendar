@@ -14,8 +14,8 @@
 | 版本 | **0.15.0**（根包与 `packages/core/package.json` 同号，build 注入 `PLUGIN_VERSION`） |
 | 发布 | npm 两包 `latest` 都是 0.15.0；tag `v0.15.0`；GitHub Release 已发 |
 | 分支 | `main` 干净，与 `origin/main` 同 sha |
-| 门禁 | `node build.mjs --check` ✓ · `cd test && node all.mjs` **7651 通过 / 0 失败**（默认 TZ 与 `TZ=UTC` 各一次）· `node tools/check-host-allow.mjs` 11/0 ✓ ← 数字会漂，写的是当时值 |
-| 规模 | 来源 **61 款**（卡池/活动两侧）· `src/client` 63 个 `.js` + 11 个 `.css` · `test/` 50 个 `cases-*.mjs` + 458 个夹具目录 |
+| 门禁 | `node build.mjs --check` ✓ · `cd test && node all.mjs` **7715 通过 / 0 失败**（默认 TZ 与 `TZ=UTC` 各一次）· `node tools/check-host-allow.mjs` 11/0 ✓ ← 数字会漂，写的是当时值 |
+| 规模 | 来源 **63 款**（卡池/活动两侧；2026-11-27 接入蓝色星原·国服 + 国际服）· `src/client` 64 个 `.js` + 11 个 `.css` · `test/` 51 个 `cases-*.mjs` + 506 个夹具目录 |
 | 兄弟仓库 | `gacha-calendar-extension`（浏览器扩展，**独立版本线**：GitHub 0.2.36 / 商店 0.2.35，core 跟随本仓库发布） |
 
 数据流（理解代码的主线）：
@@ -102,7 +102,15 @@
 - 出厂隐藏 = **至少一侧未配置**的 9 条（2026-11-18 定），其余默认展示。
 - 同名多来源**只显示当前选中的那个**，不做双条并列。
 
-### 3.8 工程与发布
+### 3.8 蓝色星原·旅谣（2026-11-27 接入，用户点名顺序）
+
+- 国服 = 一个条目 `promilia`：卡池默认 **官方公告**（官网公告 API）、备选 `promilia.wiki` → `TapTap`；活动默认 `promilia.wiki`、备选 `TapTap` → 官方公告。
+- **三源各自独立、不做兜底补全**（用户原话）：默认源失败就如实报失败，不自动切下一个源。
+- 国际服 = 另一个条目 `promilia-global`：卡池 + 活动都用 **官方公告**（rgn1 站，繁体），单一来源。
+- 官方公告 API 的鉴权是 **无密钥 md5 完整性签名**：`sign = md5(timestamp + 按键名排序的查询串)`（放请求头 sign/timestamp）；走宿主代理（自定义头由代理透传）。公告正文是静态 HTML（ACAO `*`，直连）。
+- 国服官方公告里**没有游戏内活动公告**（实测 30 条全读过）⇒ 活动侧默认源只能给 promilia.wiki；官方公告登记为活动备选（将来出现活动公告即可用）。
+
+### 3.9 工程与发布
 
 - `src/` 唯一真源；`lib/` 与 `packages/core/` 是产物，随源码提交。
 - 一个仓库出两个 npm 包，**不拆三仓库**（接口已冻结，出现第三个消费者再拆）。
@@ -175,7 +183,7 @@ src/client/                 63 个分片，build.mjs 按 ORDER 拼接成 lib/cli
   27-parser-text.js         文本工具（decodeEntities / numOrNull …）
   28-parser-hover-tools.js  悬停排版共用工具
   29-parser-register.js     中文/繁体时间解析 + 来源抓取器登记
-  30-game-*.js              按厂商分文件；共享工具在 30-game-*-common.js
+  30-game-*.js              按厂商分文件（含 30-game-manjuu.js：promilia 国服三源 + promilia-global 国际服单源）；共享工具在 30-game-*-common.js
   44-test-exports.js        纯函数测试出口（测试从这里拿 T.*）
   50-refresh.js             抓取收口 / mergeEntryRecord / 数据层数组
   60-helpers.js             通用工具（cleanRoleNames / 外显名归一 / 排序 / 默认设置）
@@ -201,7 +209,7 @@ test/all.mjs                总门禁（聚 50 段用例）
 test/harness.mjs            check / section / useFixtures / setFetchImpl
 test/load.mjs               引擎加载（T 导出）
 test/map.json               URL → 夹具 映射
-test/fixtures/              458 个夹具目录（response.txt + meta）
+test/fixtures/              506 个夹具目录（response.txt + meta）
 test/legacy-golden.mjs      冻结 oracle 读取器
 test/registry-shim.mjs      注册表测试侧快照（含来源条目形状）
 tools/                      check-host-allow / check-bom / require-publish-consent / setup-hooks
@@ -209,7 +217,7 @@ tools/                      check-host-allow / check-bom / require-publish-conse
 .github/workflows/          CI（build --check + test/all.mjs）
 ```
 
-厂商文件 → 来源 id（61 款）：
+厂商文件 → 来源 id（63 款；含 2026-11-27 的 promilia / promilia-global）：
 
 ```
 hoyoverse   genshin hsr zzz bh3 bh2 wd
@@ -226,6 +234,7 @@ hypergryph  arknights endfield
 aniplex     fgo fgo-jp
 hl          hl hl-jp
 wonderplanet crashfever | mixi gwdz | dmm kancolle | smilegate czn | longyuan wuhuamixin
+manjuu      promilia promilia-global
 naroda kedr | aurogan bjhl | aisno wqmt | aojiao gachaparty | baio pengpeng
 bluepoch r1999 | epidgames ddlezj | gongguo reso | neowiz browndust2
 sunborn gf2 | wfskey cytq | yostar stellasora

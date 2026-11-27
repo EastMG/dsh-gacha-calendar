@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"notice","title":"羁点观测「绯影入怀」","contentUrl":"https://l1-all-plat-server.manjuu.com/announce/html/cn/notice/1795180276884/912105412612984832_d04378db.html","startTime":1795500000000}}

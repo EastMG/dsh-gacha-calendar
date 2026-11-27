@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《蓝色星原：旅谣》预下载现已开启</title>
+</head>
+
+<body>
+<style type="text/css">
+        .image {
+          display: flex;
+          justify-content: center;
+        }
+
+        .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+        .image.image-style-block-align-left.image_resized{
+          margin-left: 0!important;
+          text-align:left;
+        }
+      </style><p><span style="color:hsl(0,0%,47%);font-size:16px;">《蓝色星原：旅谣》全平台公测将于2026年11月26日 10:00（UTC+8）正式开启。预下载已于2026年11月24日 15:00（UTC+8）开启，PC、Android、iOS、鸿蒙四个平台同步开放。星临者可提前完成客户端与公测更新资源的下载与安装，以便在公测开启后顺利进入游戏。</span></p><p>&nbsp;</p><h2><span style="color:hsl(0,0%,47%);font-size:20px;"><strong>一、预下载说明</strong></span></h2><p><span style="color:hsl(0,0%,47%);font-size:16px;">预下载开启后，客户端与公测更新资源将同步开放下载。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">官方服务器支持PC、Android、iOS、鸿蒙四端数据互通，星临者可使用同一账号在多端登录，游戏进度同步。渠道服与官方服务器数据不互通，具体安排以对应渠道说明为准。</span></p><p>&nbsp;</p><h2><span style="color:hsl(0,0%,47%);font-size:20px;"><strong>二、客户端与更新资源</strong></span></h2><p><span style="color:hsl(0,0%,47%);font-size:16px;">下载并安装完成后，请<strong>启动客户端</strong>，按提示完成<strong>公测更新资源</strong>的下载与安装。<strong>公测更新资源</strong>以增量方式提供，PC、Android、iOS、鸿蒙各端<strong>均需下载</strong>，无需重新下载完整客户端，<strong>实际大小以客户端提示为准</strong>。其中，<strong>PC端更新资源</strong>体积较大，建议提前预留充足的存储空间与下载时间。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">建议在网络稳定的环境下下载，并提前完成更新，以减少公测开启当日的等待时间。</span></p><p>&nbsp;</p><h2><span style="color:hsl(0,0%,47%);font-size:20px;"><strong>三、设备要求</strong></span></h2><p><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>PC端</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">● 操作系统：Windows 10 64-bit 及以上版本</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">● DirectX 版本：11.1 及以上版本</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;处理器：推荐 Intel Core i7-10700K 同级别及以上；最低 Intel Core i5-9400F 或同级别</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;显卡：推荐 NVIDIA GeForce RTX 2060 同等级及以上；最低 NVIDIA GeForce GTX 1060 或同等级</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;运行内存：推荐 16GB 及以上；最低 16GB</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;存储空间：推荐预留 120GB 以上</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>Android端</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;操作系统：Android 10.0 及以上版本</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;设备：推荐搭载骁龙8 Gen1 / 天玑9000+ 同等级及以上芯片的移动设备；最低搭载骁龙855 / 天玑1000+ / 麒麟990 同等级及以上芯片的移动设备</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;运行内存：推荐 8GB 及以上；最低 6GB</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;存储空间：推荐预留 55GB 以上</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>iOS端</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;操作系统：iOS 15.0 及以上版本</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;设备：推荐 iPhone 13 Pro 及以上；最低 iPhone 12 Pro 及以上</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;运行内存：推荐 8GB 及以上；最低 6GB</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;存储空间：推荐预留 55GB 以上</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;"><strong>鸿蒙端</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;操作系统：HarmonyOS 5.0 及以上版本</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;设备：推荐搭载麒麟9020 同等级及以上芯片的移动设备</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;运行内存：推荐 12GB 及以上</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">●&nbsp;存储空间：推荐预留 55GB 以上</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">※ PC端建议将游戏安装在固态硬盘（SSD）中。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">※ 使用低于最低配置要求的设备，可能出现卡顿、掉帧、发热等情况；建议使用满足推荐配置的设备进行体验。</span></p><p>&nbsp;</p><h2><span style="color:hsl(0,0%,47%);font-size:20px;"><strong>四、下载与安装</strong></span></h2><p><span style="color:hsl(0,0%,47%);font-size:16px;">预下载开启后，请前往《蓝色星原：旅谣》官网或对应渠道下载客户端。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">曾参与「旅迹测试」的星临者，请先完全卸载此前的测试客户端，再下载并安装公测正式客户端。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">如在下载、安装或启动过程中遇到问题，可通过《蓝色星原：旅谣》官网「客服中心」入口进行反馈。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">2026年11月26日 10:00（UTC+8），期待与星临者在普罗米利亚大陆相遇。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">《蓝色星原：旅谣》项目组</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">2026年11月24日</span></p>
+</body>
+
+</html>

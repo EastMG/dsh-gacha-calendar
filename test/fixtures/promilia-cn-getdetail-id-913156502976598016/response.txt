@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"notice","title":"《蓝色星原：旅谣》始源观测（新手观测）玩法概率公示","contentUrl":"https://l1-all-plat-server.manjuu.com/announce/html/cn/notice/1795426411939/913156502976598016_96297a6a.html","startTime":1795658400000}}

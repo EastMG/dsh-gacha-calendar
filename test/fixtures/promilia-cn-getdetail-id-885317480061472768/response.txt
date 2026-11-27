@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"notice","title":"「旅迹测试」充值返还规则说明","contentUrl":"https://l1-all-plat-server.manjuu.com/announce/html/cn/notice/1789379013043/885317480061472768_b11afdc0.html","startTime":1789445100000}}

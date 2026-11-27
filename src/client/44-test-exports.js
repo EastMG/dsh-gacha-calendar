@@ -1524,4 +1524,16 @@
 			// 来源标识归一（老配置的 proxy:/gk-*: 写法 → 真实地址 / 内部来源 id，见 60-helpers.js）
 			normalizeSourceId,
 			DEFAULT_SETTINGS,
+			// 蓝色星原（promilia）的纯函数出口：签名 / 窗口解析 / 标题与角色抽取 / wiki 卡片解析 / 卡池载荷。
+			// 全部是无副作用的纯函数（不联网），回归里直接喂夹具原文。
+			manjuu: {
+				md5: ns_pro_md5,
+				canonicalQueryOf: ns_pro_canonicalQueryOf,
+				apiHeadersOf: ns_pro_apiHeadersOf,
+				windowOf: ns_pro_windowOf,
+				poolOf: ns_pro_poolOf,
+				rolesOf: ns_pro_rolesOf,
+				wikiCardsOf: ns_pro_wikiCardsOf,
+				gachaPayloadOf: ns_pro_gachaPayloadOf
+			},
 		};

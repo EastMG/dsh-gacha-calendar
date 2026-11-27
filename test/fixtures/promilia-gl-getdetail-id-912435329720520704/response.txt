@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"notice","title":"《藍色星原：旅謠》羈點觀測「緋影入懷」公告","contentUrl":"https://l1-prod-plat-server-rgn1.jimi-global.com/announce/html/rgn1/notice/1795521506193/912435329720520704_971b703c.html","startTime":1795572000000}}

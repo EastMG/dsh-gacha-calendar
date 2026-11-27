@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《蓝色星原：旅谣》「旅迹测试」正式结束</title>
+</head>
+
+<body>
+<style type="text/css">
+        .image {
+          display: flex;
+          justify-content: center;
+        }
+
+        .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+        .image.image-style-block-align-left.image_resized{
+          margin-left: 0!important;
+          text-align:left;
+        }
+      </style><p><span style="color:hsl(0, 0%, 47%);font-size:16px;">亲爱的星临者，感谢您的关注与支持。</span></p><p>&nbsp;</p><p><span style="color:hsl(0, 0%, 47%);font-size:16px;">《蓝色星原：旅谣》「旅迹测试」已于2026年10月7日 16:00（UTC+8）结束，测试服务器现已关闭，星临者无法再登录游戏，本次测试产生的游戏数据将不再保留。</span></p><p>&nbsp;</p><p><span style="color:hsl(0, 0%, 47%);font-size:16px;">本次测试为限量计费删档测试。测试期间产生的累计充值金额，将在游戏正式公测后按照充值返还规则返还。</span></p><p><span style="color:hsl(0, 0%, 47%);font-size:16px;">感谢星临者参与本次测试，也感谢大家在测试期间提供的反馈与建议。</span></p><p>&nbsp;</p><p><span style="color:hsl(0, 0%, 47%);font-size:16px;">更多《蓝色星原：旅谣》资讯，可关注官方社媒账号与官方网站。</span></p><p style="text-align:right;"><span style="color:hsl(0, 0%, 47%);font-size:16px;">《蓝色星原：旅谣》项目组</span></p><figure class="image image_resized" style="width:75.66%;"><img style="aspect-ratio:1280/720;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/3a9a7e2706e2d31fe5d49a74ec398c54-1790565848202-0.jpeg" width="1280" height="720"></figure>
+</body>
+
+</html>

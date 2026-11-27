@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《藍色星原：旅謠》預下載現已開啟</title>
+</head>
+
+<body>
+<style type="text/css">
+
+
+
+      .image {
+          display: flex;
+          justify-content: center;
+        }
+
+       .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+       .image.image-style-block-align-left.image_resized {
+          margin-left: 0 !important;
+          text-align: left;
+        }
+      </style><p>親愛的星臨者，《藍色星原：旅謠》預下載已於2026年11月24日 15:00（UTC+8）開啟，全平台公測將於2026年11月26日 10:00（UTC+8）正式開啟，PC、Android、iOS三平台同步開放。星臨者可提前完成客戶端與公測更新資源的下載及安裝，以便在公測開啟後順利進入遊戲。<br>&nbsp;</p><h2><span style="font-size:20px;"><strong>一、預下載說明</strong></span></h2><p>預下載開啟後，客戶端與公測更新資源將同步開放下載。</p><p>官方伺服器支援PC、Android、iOS三端資料互通，星臨者可使用同一帳號在多端登入，遊戲進度同步。<br>&nbsp;</p><h2><span style="font-size:20px;"><strong>二、客戶端與更新資源</strong></span></h2><p>下載並安裝完成後，請啟動客戶端，依照提示完成公測更新資源的下載與安裝。公測更新資源將以增量方式提供，PC、Android、iOS各平台皆須下載，實際下載大小請以客戶端提示為準。其中，PC端更新資源較大，建議提前預留充足的儲存空間與下載時間。</p><p>公測伺服器開放前，遊戲暫不開放登入。已完成下載與安裝的公測更新資源無須重複下載；後續新增內容請以客戶端提示為準。建議在網路穩定的環境下進行下載，並提前完成遊戲更新，以減少公測開啟當日的等待時間。<br>&nbsp;</p><h2><span style="font-size:20px;"><strong>三、裝置需求</strong></span></h2><p><strong>PC 端</strong></p><ul><li data-list-item-id="ef750727ca94cc3a0ffb884e5ee636abf">作業系統：Windows 10 64-bit 及以上版本</li><li data-list-item-id="e9bed8f062948eadf082950c5efcfd05a">DirectX 版本：11.1 及以上版本</li><li data-list-item-id="e2e709f2b75cf9748b33831dcc7f72b70">處理器：推薦Intel Core i7-10700K 同級或以上；最低Intel Core i5-9400F或同級</li><li data-list-item-id="ec75852287fa585c915d0b1c4a76c5751">顯示卡：推薦NVIDIA GeForce RTX 2060同級或以上；最低NVIDIA GeForce GTX 1060或同級</li><li data-list-item-id="eaf8a3123b92f11dd82db8eba5fb687b6">記憶體：推薦16GB及以上；最低16GB</li><li data-list-item-id="eb6dbd58348a900df122a198b9394b407">儲存空間：建議預留120GB以上</li></ul><p><strong>Android 端</strong></p><ul><li data-list-item-id="e8e1a8ef5f829530435f45a36e4aa57d6">作業系統：Android 10.0 及以上版本</li><li data-list-item-id="ed01a61682486543074c1b343d250bb7b">裝置：推薦搭載Snapdragon 8 Gen1／天璣 9000+ 同級或以上晶片的行動裝置；最低搭載Snapdragon 855／天璣 1000+／麒麟 990 同級或以上晶片的行動裝置</li><li data-list-item-id="ed058e557d1ee8ae65696ec2794863e44">記憶體：推薦8GB及以上；最低6GB</li><li data-list-item-id="ec18f8f8df14b8a4d57e65f8df2f9c0cb">儲存空間：建議預留55GB以上</li></ul><p><strong>iOS 端</strong></p><ul><li data-list-item-id="e6afa3c669ac1279f996d6a6322236d9a">作業系統：iOS 15.0 及以上版本</li><li data-list-item-id="ec06a304cf6afbc11648ac78d78a2e692">裝置：推薦iPhone 13 Pro及以上；最低iPhone 12 Pro 及以上</li><li data-list-item-id="e3e5406e56f6ecc1d915d66414c419c31">記憶體：推薦8GB及以上；最低6GB</li><li data-list-item-id="e2dd417730b39cf06576027296662c9f2">儲存空間：建議預留55GB以上</li></ul><p>※ PC端建議將遊戲安裝於固態硬碟（SSD）中。</p><p>※ 使用低於最低配備需求的裝置，可能出現卡頓、掉幀、發熱等情況；建議使用符合推薦配備需求的裝置進行遊戲體驗。<br>&nbsp;</p><h2><span style="font-size:20px;"><strong>四、下載與安裝</strong></span></h2><p>預下載開啟後，請前往《藍色星原：旅謠》官方網站或對應商店下載客戶端。</p><p>如在下載、安裝或啟動過程中遇到問題，可透過《藍色星原：旅謠》官方網站的「聯絡客服」入口進行回報。</p><p>2026年11月26日 10:00（UTC+8），期待與星臨者在普羅米利亞大陸相遇。</p><figure class="image"><img style="aspect-ratio:1920/1080;" src="https://l1-prod-plat-server-rgn1.jimi-global.com/websiteManagementRgn1/img/notice/ec8b3fdd5fbf03756ab9a51038ee18e3-1795253174607-0.png" width="1920" height="1080"></figure>
+</body>
+
+</html>

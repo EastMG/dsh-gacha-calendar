@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《藍色星原：旅謠》「集結，勇闖奇波巢穴」網頁活動限時開啟！</title>
+</head>
+
+<body>
+<style type="text/css">
+
+
+
+      .image {
+          display: flex;
+          justify-content: center;
+        }
+
+       .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+       .image.image-style-block-align-left.image_resized {
+          margin-left: 0 !important;
+          text-align: left;
+        }
+      </style><p><span>親愛的星臨者，<strong>《集結，勇闖奇波巢穴》網頁活動限時開啟</strong>！活動連結：</span><a href="https://azurpromilia.jimi-global.com/" target="_blank" rel="noopener noreferrer">https://azurpromilia.jimi-global.com/</a><br><br><span>✦ 活動時間 ✦</span></p><p><span><strong>即日起 至 2026年12月31日 12:00</strong>（UTC+8）</span><br><span>✦ 參與條件 ✦</span></p><p><span><strong>登入JIMI通行證，即可參與活動。</strong></span></p><p><br><span>✦ 活動介紹及獎勵 ✦</span></p><p><span>* 活動分為【探索奇波巢穴】及【驚喜獎品寶箱】兩部分。</span></p><p><span>* 星臨者可以透過完成活動內的一系列「探索任務」獲取探索次數，在【探索奇波巢穴】玩法中獲得一系列遊戲道具獎勵，還可以獲得打開【驚喜獎品寶箱】的鑰匙。</span></p><p><span>* 使用活動取得的鑰匙可抽取 iPhone 18 Pro、PS5 數位版、遊戲周邊等獎勵。</span></p><p><br><span>✦ 注意事項 ✦</span></p><p><span>* 中獎的星臨者需在「探索背包」介面填寫收貨資訊，若星臨者未於活動結束前依規定完成填寫，將視為放棄獎勵，獎勵會自動失效，請星臨者儘早完成填寫。</span></p><p><span>* 此為機會中獎商品，消費者購買或參與活動不代表即可獲得特定商品，【驚喜獎品寶箱】內的獎品將於活動結束後90個工作日內陸續寄出，請中獎的星臨者耐心等候。</span></p><p><span>* 不得違反誠信原則、以作弊等方式參與，不得透過本活動或利用活動規則漏洞獲取不當收益。</span></p><p><span>* 本網頁活動僅供娛樂，一切以遊戲內實際狀況為準。</span><br>&nbsp;</p><figure class="image"><img style="aspect-ratio:1920/1080;" src="https://l1-prod-plat-server-rgn1.jimi-global.com/websiteManagementRgn1/img/activity/c4740c42c5327558b1fcc4f193e3a949-1795077422478-0.png" width="1920" height="1080"></figure>
+</body>
+
+</html>

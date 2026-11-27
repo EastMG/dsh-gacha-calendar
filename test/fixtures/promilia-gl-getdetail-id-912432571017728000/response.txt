@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"notice","title":"《藍色星原：旅謠》弦定觀測「桃箋為契」公告","contentUrl":"https://l1-prod-plat-server-rgn1.jimi-global.com/announce/html/rgn1/notice/1795254096587/912432571017728000_26df425a.html","startTime":1795500000000}}

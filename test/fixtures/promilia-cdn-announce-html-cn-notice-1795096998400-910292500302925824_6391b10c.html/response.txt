@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《蓝色星原：旅谣》公测福利资源获取一览</title>
+</head>
+
+<body>
+<style type="text/css">
+        .image {
+          display: flex;
+          justify-content: center;
+        }
+
+        .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+        .image.image-style-block-align-left.image_resized{
+          margin-left: 0!important;
+          text-align:left;
+        }
+      </style><p><span style="color:hsl(0, 0%, 47%);font-size:16px;">亲爱的星临者，</span></p><p><span style="color:hsl(0, 0%, 47%);font-size:16px;">《蓝色星原：旅谣》公测福利一览现已公开。</span></p><p><span style="color:hsl(0, 0%, 47%);font-size:16px;">登录即送66抽，探索与任务累计可得510抽+，完成指定任务还可免费获得五星角色与五星灵子。福利与获取方式已整理在下图中。</span></p><p><span style="color:hsl(0, 0%, 47%);font-size:16px;">※更多公测福利将在旅途中陆续呈现，等待星临者探索发现。</span></p><figure class="image"><img style="aspect-ratio:750/750;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/9acbf386fff8ce8e70b3dfa5048246df-1795095819207-0.jpeg" width="750" height="750"></figure><figure class="image"><img style="aspect-ratio:750/1347;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/808e4b4e760c8fbf7113121e737ae7a4-1795095819824-1.jpeg" width="750" height="1347"></figure><figure class="image"><img style="aspect-ratio:750/1330;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/36d072dcbae7feec9fe298c46cc806c7-1795095820330-2.jpeg" width="750" height="1330"></figure><figure class="image"><img style="aspect-ratio:750/1367;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/22436713c482e4a1c14355e8158a621c-1795095821102-3.jpeg" width="750" height="1367"></figure><figure class="image"><img style="aspect-ratio:750/1458;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/ea844fdfc3b14d7b02ea2dad2400b1a5-1795095821693-4.jpeg" width="750" height="1458"></figure><figure class="image"><img style="aspect-ratio:750/1581;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/b89456b76dc39f2b001e9f13aef7c439-1795095822364-5.jpeg" width="750" height="1581"></figure><figure class="image"><img style="aspect-ratio:750/750;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/9edd216b9d59ef97ff35aa79c8aac0fc-1795095823252-6.jpeg" width="750" height="750"></figure><figure class="image"><img style="aspect-ratio:750/645;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/02105d4868a0d0a08b367ddb7bf9ae3d-1795095823541-7.jpeg" width="750" height="645"></figure><figure class="image"><img style="aspect-ratio:750/1142;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/56892cc7ad85ce41285fa275d70dd9c8-1795095823933-8.jpeg" width="750" height="1142"></figure><figure class="image"><img style="aspect-ratio:750/1134;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/b19368b98c2cd0f2f936d1b2aad4fe1b-1795095824628-9.jpeg" width="750" height="1134"></figure><figure class="image"><img style="aspect-ratio:750/1239;" src="https://l1-all-plat-server.manjuu.com/websiteManagent/img/notice/8a3e3b7a65efd79f940a51c4e549d7f2-1795095825018-10.jpeg" width="750" height="1239"></figure><p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p>
+</body>
+
+</html>

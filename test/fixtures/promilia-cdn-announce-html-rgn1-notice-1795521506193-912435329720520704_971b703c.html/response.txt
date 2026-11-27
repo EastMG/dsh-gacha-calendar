@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《藍色星原：旅謠》羈點觀測「緋影入懷」公告</title>
+</head>
+
+<body>
+<style type="text/css">
+
+
+
+      .image {
+          display: flex;
+          justify-content: center;
+        }
+
+       .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+       .image.image-style-block-align-left.image_resized {
+          margin-left: 0 !important;
+          text-align: left;
+        }
+      </style><p>親愛的星臨者：</p><p>羈點觀測「緋影入懷」即將開啟。</p><p>▶ <strong>觀測時間</strong></p><p>2026年11月26日開服後－2026年12月17日 03:59（UTC+8）</p><p>▶ <strong>觀測說明</strong></p><p>● 活動期間，可透過「緋影入懷」觀測獲得當期限定五星靈子「花之舞（猛攻）」、限定四星靈子「摺紙寄情（猛攻）」。若連續60次觀測未獲得限定五星靈子，則後續每次觀測獲得限定五星靈子的機率將逐步提升，直至第80 次觀測必定獲得限定五星靈子。</p><p>● 活動期間，透過「緋影入懷」觀測獲得四星靈子「摺紙寄情（猛攻）」、「未來之星（增幅）」、「一點都不痛（賦予）」的機率將大幅提升。</p><p>● 「緋影入懷」屬於「羈點觀測」，在「緋影入懷」中的觀測保底次數將持續累積至「羈點觀測」中。所有「羈點觀測」共享限定五星靈子保底次數，星臨者尚未獲得限定五星靈子的保底計數，將繼承至任意「羈點觀測」活動中，並於獲得限定五星靈子後重新計算。</p><p>※ 更多詳情，請前往遊戲內觀測詳情頁查看。</p><p>※此為機會中獎商品，消費者購買或參與活動不代表即可獲得特定商品。</p><figure class="image"><img style="aspect-ratio:1920/1080;" src="https://l1-prod-plat-server-rgn1.jimi-global.com/websiteManagementRgn1/img/notice/6160c56a3a5a82f0bf48de283f730a83-1795254469571-0.png" width="1920" height="1080"></figure>
+</body>
+
+</html>

@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"notice","title":"《蓝色星原：旅谣》「旅迹测试」正式结束","contentUrl":"https://l1-all-plat-server.manjuu.com/announce/html/cn/notice/1790565849164/892769825091358720_2a1a341c.html","startTime":1791360000000}}

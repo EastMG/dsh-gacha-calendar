@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《蓝色星原：旅谣》未成年人防沉迷说明</title>
+</head>
+
+<body>
+<style type="text/css">
+        .image {
+          display: flex;
+          justify-content: center;
+        }
+
+        .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+        .image.image-style-block-align-left.image_resized{
+          margin-left: 0!important;
+          text-align:left;
+        }
+      </style><p><span style="color:hsl(0,0%,47%);font-size:16px;">为积极响应国家新闻出版署下发的《关于进一步严格管理切实防止未成年人沉迷网络游戏的通知》，为保护未成年人身心健康贡献一份力量，《蓝色星原：旅谣》游戏中已接入用户实名认证系统，认证为未成年人的用户将接受以下管理：</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">✦ <strong>未成年人在线时长限制</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">● 仅在周五、周六、周日和法定节假日每日20时至21时，向未成年人提供1小时游戏服务。其余时间未成年人将无法登录游戏。</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">✦ <strong>未成年人付费服务限制</strong></span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">为规范未成年人付费服务，对未成年人用户付费服务实行以下限制：</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">● 未满8周岁的用户不可充值</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">● 8周岁以上未满16周岁的用户，单次充值金额不得超过50元人民币，每月充值金额累计不得超过200元人民币</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">● 16周岁以上未满18周岁的用户，单次充值金额不得超过100元人民币，每月充值金额累计不得超过400元人民币</span></p><p>&nbsp;</p><p><span style="color:hsl(0,0%,47%);font-size:16px;">我们将积极承担企业社会责任，进一步加强对未成年人的保护，为未成年人健康成长营造良好环境。</span></p><p><span style="color:hsl(0,0%,47%);font-size:16px;">感谢各位玩家的理解和支持。</span></p>
+</body>
+
+</html>

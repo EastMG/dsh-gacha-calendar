@@ -1,0 +1,5 @@
+{
+  "status": 200,
+  "url": "https://api-grp.manjuu.com/announce/web/announcement/getdetail?id=901234083139555328",
+  "contentType": "application/json;charset=UTF-8"
+}

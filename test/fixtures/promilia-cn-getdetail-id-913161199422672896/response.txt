@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"notice","title":"《蓝色星原：旅谣》羁点观测（灵子限定观测）玩法概率公示","contentUrl":"https://l1-all-plat-server.manjuu.com/announce/html/cn/notice/1795427531658/913161199422672896_83ae87be.html","startTime":1795658400000}}

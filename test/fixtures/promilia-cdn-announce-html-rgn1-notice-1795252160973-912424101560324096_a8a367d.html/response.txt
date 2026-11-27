@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《藍色星原：旅謠》公測常見問題說明</title>
+</head>
+
+<body>
+<style type="text/css">
+
+
+
+      .image {
+          display: flex;
+          justify-content: center;
+        }
+
+       .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+       .image.image-style-block-align-left.image_resized {
+          margin-left: 0 !important;
+          text-align: left;
+        }
+      </style><p>親愛的星臨者，《藍色星原：旅謠》預下載將於 2026年11月24日15:00（UTC+8）開啟，公測將於2026年11月26日10:00（UTC+8）正式開啟。本次公測將開放PC、Android、iOS、三個平台。為幫助星臨者順利開啟普羅米利亞之旅，我們整理了以下常見問題。如後續安排有所調整，請以官方最新公告為準。<br>&nbsp;</p><h2><span style="font-size:20px;">一、<strong>開服資訊</strong></span></h2><p><strong>Q：《藍色星原：旅謠》公測何時開啟？</strong></p><p>A：公測將於2026年11月26日10:00（UTC+8）正式開啟，開放PC、Android、iOS三個平台。</p><p><strong>Q：不同平台之間的資料是否互通？</strong></p><p>A：官方伺服器支援PC、Android、iOS 三端資料互通，星臨者可使用同一帳號在多端登入，遊戲進度同步。</p><p><strong>Q：遊玩《藍色星原：旅謠》需要怎樣的裝置配置？</strong></p><p>A：各平台配置要求如下：</p><p><strong>PC 端</strong></p><ul><li data-list-item-id="eb86595eef63fb7d6f4bc9beb72885891">作業系統：Windows 10 64-bit及以上版本</li><li data-list-item-id="e2dd21b2335625d38d6d29d7f9f211a33">DirectX 版本：11.1及以上版本</li><li data-list-item-id="e318c0726b8e5230e737d4732bd4eb8a0">處理器：推薦 Intel Core i7-10700K 同級別及以上；最低 Intel Core i5-9400F或同級別</li><li data-list-item-id="e324a34a843e3969250bb8fa3a12f9d67">顯示卡：推薦 NVIDIA GeForce RTX 2060同等級及以上；最低 NVIDIA GeForce GTX 1060或同等級</li><li data-list-item-id="e1175fd1991fcadaf793449c02d37a1a3">記憶體：推薦16GB及以上；最低16GB</li><li data-list-item-id="e6db416c17f806de2a1a77312792a4eb3">儲存空間：推薦預留120GB以上</li></ul><p><strong>Android 端</strong></p><ul><li data-list-item-id="e9d94fe0a46239945e0467c809e89b960">作業系統：Android 10.0 及以上版本</li><li data-list-item-id="e9d09b71aa4c61df37ca7aa6edc0c0aa3">裝置：推薦搭載Snapdragon 8 Gen1 / 天璣 9000+ 同等級及以上晶片的行動裝置；最低搭載Snapdragon 855 / 天璣 1000+ / 麒麟 990 同等級及以上晶片的行動裝置</li><li data-list-item-id="e949d762466530773e54fcbaf8e840534">記憶體：推薦8GB及以上；最低6GB</li><li data-list-item-id="efabd0a51db55fdd5f47d985c1c611f73">儲存空間：推薦預留55GB以上</li></ul><p><strong>iOS 端</strong></p><ul><li data-list-item-id="eeebf1d79fc64aaa07c813559170930bb">作業系統：iOS 15.0 及以上版本</li><li data-list-item-id="e51d4c5f2dc7629ca40945b8a0d9f21d0">裝置：推薦 iPhone 13 Pro 及以上機型；最低 iPhone 12 Pro 及以上機型</li><li data-list-item-id="ed41511f4c41c4f6a6b7bc8e3e2ec40ed">記憶體：推薦8GB及以上；最低6GB</li><li data-list-item-id="eb4f043f005bea29be9daf4debfb1f4e8">儲存空間：推薦預留55GB 以上</li></ul><p>※ PC 端建議將遊戲安裝於固態硬碟（SSD）中。</p><p>※ 使用低於最低配置要求的裝置，可能會出現卡頓、掉幀、發熱等情況；建議使用符合推薦配置要求的裝置進行遊戲體驗。<br>&nbsp;</p><h2><span style="font-size:20px;"><strong>二、預下載與客戶端</strong></span></h2><p><strong>Q：預下載何時開啟？開放哪些平台？</strong></p><p>A：預下載將於2026年11月24日15:00（UTC+8）開啟，開放PC、Android、iOS三個平台。預下載開啟後，客戶端與公測更新資源將同步開放下載。</p><p><strong>Q：在哪裡可以下載《藍色星原：旅謠》客戶端？</strong></p><p>A：預下載開啟後，請前往《藍色星原：旅謠》官方網站下載客戶端。</p><p><strong>Q：客戶端安裝完成後，還需要下載公測更新資源嗎？大小是多少？</strong></p><p>A：需要。PC、Android、iOS 各端均需在客戶端內下載並安裝公測更新資源；該部分以增量方式提供，實際大小以客戶端提示為準。安裝完成後，請啟動客戶端，依照提示完成下載與安裝，再進入登入頁面登入對應帳號。建議在預下載期間完成更新，以減少公測開啟當日的等待時間。</p><p><strong>Q：完成預下載後可以直接登入遊戲嗎？</strong></p><p>A：暫不支援登入遊戲。公測伺服器將於2026年11月26日10:00（UTC+8）開放，屆時使用已完成更新的客戶端即可進入遊戲。已完成下載與安裝的資源無需重複下載；後續新增內容以客戶端提示為準。</p><p>&nbsp;</p><h2><span style="font-size:20px;"><strong>三、活動與福利</strong></span></h2><p><strong>Q：公測開啟前有哪些福利活動？</strong></p><p>A：全球預約里程碑及社群媒體關注里程碑獎勵皆已全數解鎖。公測開啟後，獎勵將發放至帳號對應的遊戲內信箱，星臨者登入遊戲並解鎖信箱功能後即可領取角色「艾妮絲」、奇波「星彩·浮雲」、【純粹憶痕】×20等獎勵。具體活動安排與獎勵內容請以活動頁面說明為準。</p><p><strong>Q：使用不同裝置，都能領取這些福利嗎？</strong></p><p>A：預約里程碑及社群媒體關注里程碑獎勵：星臨者使用同一帳號在PC、Android、iOS 任一平台登入，皆可領取上述獎勵。</p><h2><br><span style="font-size:20px;"><strong>四、下載、安裝與執行</strong></span></h2><p>如在下載、安裝或執行過程中遇到問題，可參考以下解答。</p><p><strong>Q：PC 端安裝或更新時提示磁碟空間不足，該怎麼辦？</strong></p><p>A：請確認遊戲安裝磁碟的剩餘空間。PC端建議預留120GB以上的儲存空間；若剩餘空間不足，可清理磁碟，或更換安裝目錄後重新嘗試。</p><p><strong>Q：PC 端下載時提示檔案驗證錯誤，該怎麼辦？</strong></p><p>A：請依照提示重新嘗試下載。若重試後仍出現失敗提示，可嘗試重新啟動客戶端；如問題仍未解決，可重新下載遊戲客戶端。</p><p><strong>Q：下載或安裝過程中遭防毒軟體攔截，該怎麼辦？</strong></p><p>A：請在防毒軟體的提示中點選「允許」或「信任」，或將遊戲安裝目錄加入信任清單。如仍未解決，可暫時關閉防毒軟體後重新嘗試，並在操作完成後及時重新開啟防毒軟體。</p><p><strong>Q：PC 端啟動或載入速度緩慢，該怎麼辦？</strong></p><p>A：建議將遊戲安裝在固態硬碟（SSD）中，並確保安裝磁碟保留充足的可用空間。</p><p><strong>Q：遊戲執行時發生閃退，該怎麼辦？</strong></p><p>A：建議重新啟動裝置後再次登入；PC端可嘗試重新啟動電腦。若仍頻繁發生閃退，請透過遊戲內客服回報問題，並提供裝置型號、系統版本、問題發生時間與相關截圖，以利問題排查。</p><p><strong>Q：啟動遊戲時提示資源下載失敗，該怎麼辦？</strong></p><p>A：建議重新啟動客戶端後再次下載；若仍下載失敗，可重新下載遊戲客戶端。<br>&nbsp;</p><h2><span style="font-size:20px;"><strong>五、客服與問題回報</strong></span></h2><p><strong>Q：遇到問題時，該如何聯絡客服？</strong></p><p>A：遊戲內可透過「主頁面 → 設定 → 帳號 → 使用者中心 → 聯絡客服」進行問題回報（實際入口請以遊戲內顯示為準）。</p><p>此外，也可透過《藍色星原：旅謠》官方網站的「客服中心」入口進行問題回報。</p><p><strong>Q：回報問題時，建議提供哪些資訊？</strong></p><p>A：建議提供使用者UID、裝置型號、系統版本、問題描述與相關截圖，以利客服快速排查問題。</p><figure class="image"><img style="aspect-ratio:800/448;" src="https://l1-prod-plat-server-rgn1.jimi-global.com/websiteManagementRgn1/img/notice/50668d006e66f75bd1f30cd60311a8e1-1795251792401-0.png" width="800" height="448"></figure>
+</body>
+
+</html>

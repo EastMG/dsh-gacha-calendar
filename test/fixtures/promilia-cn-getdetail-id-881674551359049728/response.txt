@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"notice","title":"「旅迹测试」iOS设备安装指引","contentUrl":"https://l1-all-plat-server.manjuu.com/announce/html/cn/notice/1788509242105/881674551359049728_f55bfc10.html","startTime":1789444800000}}

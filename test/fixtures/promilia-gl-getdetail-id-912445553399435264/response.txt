@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"notice","title":"《藍色星原：旅謠》公測現已正式開啟！","contentUrl":"https://l1-prod-plat-server-rgn1.jimi-global.com/announce/html/rgn1/notice/1795256908401/912445553399435264_38318002.html","startTime":1795658400000}}

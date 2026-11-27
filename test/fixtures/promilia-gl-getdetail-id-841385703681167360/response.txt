@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"notice","title":"《藍色星原：旅謠》「弦定觀測」玩法機率公告","contentUrl":"https://l1-prod-plat-server-rgn1.jimi-global.com/announce/html/rgn1/notice/1795511146487/841385703681167360_33c99be8.html","startTime":1795658400000}}

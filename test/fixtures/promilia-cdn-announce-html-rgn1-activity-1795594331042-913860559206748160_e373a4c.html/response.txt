@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《藍色星原：旅謠》「公測創作徵集活動」限時開啟！</title>
+</head>
+
+<body>
+<style type="text/css">
+
+
+
+      .image {
+          display: flex;
+          justify-content: center;
+        }
+
+       .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+       .image.image-style-block-align-left.image_resized {
+          margin-left: 0 !important;
+          text-align: left;
+        }
+      </style><p><span>親愛的星臨者： 為紀念《藍色星原：旅謠》公測開啟，「星躍始動 —— 公測創作徵集活動」現已正式開跑！現在，就請用你的創作，為這段冒險之旅留下閃耀的印記吧！✨ 參與投稿，即有機會贏取 Switch 2、AirPods Pro、6480 秘虹晶等豪華大獎！</span><br><br><span>【活動時間】 即日起 ～ 2027年1月4日 23:59&nbsp;</span><br><span>【參加步驟】 完成並發布作品：完成原創作品後，公開發布於個人社群平台（X、Facebook、Instagram、YouTube、Pixiv 等），並帶上活動專屬 tag <strong>#藍色星原旅謠</strong>、<strong>#星躍始動公測創作徵集</strong>。若您的作品與「塗山小玉」或「源千代」相關，請務必額外帶上 tag <strong>#塗山小玉</strong>、<strong>#源千代</strong>。 填寫報名表單：將作品連結與個人遊戲 UID 填寫至官方報名表單：</span><a href="https://forms.gle/ZaZYWFd6NWjaDEBp6" target="_blank" rel="noopener noreferrer">https://forms.gle/ZaZYWFd6NWjaDEBp6</a><span>&nbsp;</span><br><br><strong>溫馨</strong><span><strong>提醒</strong>：請星臨者留意，若投稿多件作品，請為每件作品分別填寫一次表單喔！</span><br><span>&nbsp;※ <strong>公測創作徵集活動完整規則請見活動長圖</strong></span></p><figure class="image"><img style="aspect-ratio:1920/6550;" src="https://l1-prod-plat-server-rgn1.jimi-global.com/websiteManagementRgn1/img/activity/3b49c09ec2a2c5b4a2afa30398491d2e-1795594270661-0.png" width="1920" height="6550"></figure>
+</body>
+
+</html>

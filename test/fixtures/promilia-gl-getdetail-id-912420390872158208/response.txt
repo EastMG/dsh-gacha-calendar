@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"notice","title":"《藍色星原：旅謠》公平營運說明 ","contentUrl":"https://l1-prod-plat-server-rgn1.jimi-global.com/announce/html/rgn1/notice/1795251288492/912420390872158208_8e4cd4f3.html","startTime":1795492800000}}

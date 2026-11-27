@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"activity","title":"《藍色星原：旅謠》「公測創作徵集活動」限時開啟！","contentUrl":"https://l1-prod-plat-server-rgn1.jimi-global.com/announce/html/rgn1/activity/1795594331042/913860559206748160_e373a4c.html","startTime":1795660200000}}

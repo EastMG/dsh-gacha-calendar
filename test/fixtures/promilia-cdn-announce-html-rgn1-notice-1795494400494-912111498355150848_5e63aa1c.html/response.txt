@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《藍色星原：旅謠》公測福利資源一覽</title>
+</head>
+
+<body>
+<style type="text/css">
+
+
+
+      .image {
+          display: flex;
+          justify-content: center;
+        }
+
+       .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+       .image.image-style-block-align-left.image_resized {
+          margin-left: 0 !important;
+          text-align: left;
+        }
+      </style><p><span>親愛的星臨者，《藍色星原：旅謠》公測福利資源一覽現已公開。</span></p><p><br><span>登入即送 66 抽，探索與任務累計可得 510 抽+，完成指定任務還可免費獲得五星角色與五星靈子。福利與獲取方式已整理在下圖中。</span></p><p><br><span>※更多公測福利將在旅途中陸續呈現，等待星臨者探索發現。</span></p><figure class="image"><img style="aspect-ratio:1080/11273;" src="https://l1-prod-plat-server-rgn1.jimi-global.com/websiteManagementRgn1/img/notice/0ad792db5d7b328cbd5497ed86a74499-1795177256561-0.jpeg" width="1080" height="11273"></figure><figure class="image"><img style="aspect-ratio:1080/7067;" src="https://l1-prod-plat-server-rgn1.jimi-global.com/websiteManagementRgn1/img/notice/17ba70516fd55024c1f07f69a27699e5-1795177260740-1.jpeg" width="1080" height="7067"></figure><p>&nbsp;</p>
+</body>
+
+</html>

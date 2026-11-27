@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《蓝色星原：旅谣》公平运营说明</title>
+</head>
+
+<body>
+<style type="text/css">
+        .image {
+          display: flex;
+          justify-content: center;
+        }
+
+        .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+        .image.image-style-block-align-left.image_resized{
+          margin-left: 0!important;
+          text-align:left;
+        }
+      </style><p><span style="color:hsl(0, 0%, 47%);font-size:16px;">亲爱的星临者，</span></p><p><span style="color:hsl(0, 0%, 47%);font-size:16px;">感谢您对《蓝色星原：旅谣》的关注与支持。为维护绿色、公平的游戏环境，保障各位玩家的合法权益，在此特意提醒各位玩家：</span></p><p><span style="color:hsl(0, 0%, 47%);font-size:16px;">● 禁止在游戏中使用外挂、第三方工具、非正规途径充值，不得以任何不正当方式破坏游戏公平性、违反游戏用户协议。根据后台监控和玩家举报，如发现以上行为，我们将根据具体违规情节采取扣除违规收益、冻结和封停游戏账号等一项或多项措施。</span></p><p><span style="color:hsl(0, 0%, 47%);font-size:16px;">● 为维护各位玩家的合法权益，请勿转让、共享、交易游戏账号，或以任何方式将账号提供给他人使用；请勿进行购买他人首充号、代充号、初始号等账号交易行为，谨防上当受骗。若发生因上述行为所造成的账号被盗或账号内权益受损等情况，官方将不予处理。</span></p><p><span style="color:hsl(0, 0%, 47%);font-size:16px;">● 为保证玩家完整的游戏体验，请勿解析、修改安装包及传播相关解析素材。</span></p><p><span style="color:hsl(0, 0%, 47%);font-size:16px;">最后，为打造良好的游戏环境，也需要各位玩家的共同努力。为此，请各位玩家配合维护游戏秩序，如发现违规行为，欢迎通过官方客服进行举报。</span></p>
+</body>
+
+</html>

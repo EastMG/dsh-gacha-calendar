@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"notice","title":"《藍色星原：旅謠》「恆序觀測」玩法機率公告","contentUrl":"https://l1-prod-plat-server-rgn1.jimi-global.com/announce/html/rgn1/notice/1795527706448/912439441941991424_15406fc8.html","startTime":1795658400000}}

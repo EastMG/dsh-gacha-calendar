@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《藍色星原：旅謠》宿舍介紹 | 春歸覓處 </title>
+</head>
+
+<body>
+<style type="text/css">
+
+
+
+      .image {
+          display: flex;
+          justify-content: center;
+        }
+
+       .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+       .image.image-style-block-align-left.image_resized {
+          margin-left: 0 !important;
+          text-align: left;
+        }
+      </style><p>親愛的星臨者：</p><p>塗山小玉專屬宿舍「春歸覓處」現已上架。</p><p>&nbsp;</p><p>「常恨春歸無覓處，不知轉入此中來。」</p><p>&nbsp;</p><p>● 販售價格：星虹*1180 或 420 TWD\ 108 HKD\ 108 MOP\ 13.99 USD直購</p><p>● 在售時間：2026年11月26日 開服後 - 2027年1月5日 3:59（UTC+8）</p><p>&nbsp;</p><p>※專屬宿舍購買後可前往家園中的「宿舍裝扮切換」介面查看。</p><figure class="image"><img style="aspect-ratio:900/1599;" src="https://scontent-hkg4-1.xx.fbcdn.net/v/t39.30808-6/932217063_1121057057595314_2454127188183528861_n.jpg?stp=dst-jpg_tt6&amp;cstp=mx900x1599&amp;ctp=s900x1599&amp;_nc_cat=100&amp;_nc_map=urlgen_bucketless&amp;ccb=1-7&amp;_nc_sid=127cfc&amp;_nc_ohc=YojldRNszAwQ7kNvwH4hS9x&amp;_nc_oc=AdpoQTPNKrVLxdhREV_eGhCr7Kc69LTl2nlOXC13u9gcbjPSyJ2spjLecJV7FLOucR0&amp;_nc_zt=23&amp;_nc_ht=scontent-hkg4-1.xx&amp;_nc_gid=d3BMNJkLSrCkUlmijJT9Nw&amp;_nc_ss=7b3a8&amp;oh=00_AQQRUkO9swoHt9lsl_EXfKc8UQvN9l01VA2ySmXvtahYdw&amp;oe=6B0E09C0" alt="可能是文字的插圖" width="900" height="1599"></figure>
+</body>
+
+</html>

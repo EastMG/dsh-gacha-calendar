@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《藍色星原：旅謠》「弦定觀測」玩法機率公告</title>
+</head>
+
+<body>
+<style type="text/css">
+
+
+
+      .image {
+          display: flex;
+          justify-content: center;
+        }
+
+       .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+       .image.image-style-block-align-left.image_resized {
+          margin-left: 0 !important;
+          text-align: left;
+        }
+      </style><p><span style="color:#000000;"><strong>「弦定觀測規則說明」</strong></span></p><p><span style="color:#000000;">1、星臨者可使用「璀璨憶痕」進行觀測，每<strong>10</strong>次觀測必獲得至少1個四星及以上內容（四星內容包含四星角色及四星靈子）</span></p><p><span style="color:#000000;">2、所有「<strong>弦定觀測</strong>」中，如果連續<strong>70</strong>次觀測未獲得五星角色，後續每次獲取五星角色機率都會進行遞增，71次到80次每次獲得五星角色機率提升<strong>2.000%，</strong>81次到89次每次獲得五星角色機率提升<strong>8.000%</strong>，直至第<strong>90</strong>次觀測必定獲得五星角色，獲得五星角色後，下一次觀測獲取五星角色的基礎機率恢復為<strong>0.800%</strong></span></p><p><span style="color:#000000;">3、所有「<strong>弦定觀測</strong>」共享限定五星角色保底次數，星臨者未獲得限定五星角色的保底計數將在任意「<strong>弦定觀測</strong>」活動中繼承，並在獲得限定五星角色後重新計數</span></p><p><span style="color:#000000;">4、所有「<strong>弦定觀測</strong>」中登場的限定五星角色及其對應的新增限定四星靈子，為限定觀測內容，在觀測結束後不會加入「恆常觀測」和「恆序觀測」</span></p><p>&nbsp;</p><p><span style="color:#000000;">「<strong>弦定觀測機率說明</strong>」</span></p><p><span style="color:#000000;">1、觀測獲得五星角色的基礎機率為<strong>0.800%</strong>，其中限定五星占比<strong>100.000%</strong>，綜合機率（含保底）為 <strong>1.716%</strong></span></p><p><span style="color:#000000;">2、觀測獲得四星內容（四星內容包含四星角色和四星靈子）的基礎機率為<strong>6.000%</strong>，綜合機率（含保底）為 <strong>12.000%</strong></span></p><p><span style="color:#000000;">3、當獲得四星內容時，有<strong>50.000%</strong>的機率為任一機率提升的四星角色，有<strong>25.000%</strong>的機率為任一非機率提升的四星角色，有<strong>25.000%</strong>的機率為任一非機率提升的四星靈子。每個非機率提升的四星內容獲得機率均等</span></p><p><span style="color:#000000;">4、觀測獲得三星靈子的基礎機率為<strong>93.200%</strong></span></p><p>&nbsp;</p><p><span style="color:#000000;"><strong>「額外獎勵及重複獲取說明」</strong></span></p><p><span style="color:#000000;">1、星臨者首次獲得五星角色，將額外獲得<strong>20</strong>個回歸的星軌。如果重複獲取已擁有的五星角色，則第2次至第7 次，每次會獲得該角色的<strong>1</strong>個定弦和<strong>20</strong>個回歸的星軌。自第8次起，每次會獲得<strong>50</strong>個回歸的星軌</span></p><p><span style="color:#000000;">2、星臨者首次獲得四星角色，將額外獲得<strong>5</strong>個回歸的星軌。如果重複獲取已擁有的四星角色，則第2次至第7次，每次會獲得該角色的<strong>1</strong>個定弦和<strong>5</strong>個回歸的星軌。自第8次起，每次會獲得<strong>10</strong>個回歸的星軌</span></p><p><span style="color:#000000;">3、星臨者每次觀測獲得四星靈子時，將額外獲得<strong>5</strong>個回歸的星軌</span></p><p><span style="color:#000000;">4、星臨者每次觀測獲得三星靈子時，將額外獲得<strong>20</strong>個游離的星軌</span></p><p>&nbsp;</p><p><span style="color:#000000;"><strong>「溫馨提醒」</strong></span></p><p><span style="color:#000000;">1、回歸的星軌兌換中，目前可兌換的商品種類及限購次數以介面顯示資訊為準，介面倒數結束後將隨之更新</span></p><p><span style="color:#000000;">2、游離的星軌兌換中，目前可兌換的商品種類及限購次數以介面顯示資訊為準，介面倒數結束後將隨之更新</span></p><p>&nbsp;</p><p><span style="color:#000000;"><strong>「觀測內容一覽」</strong></span></p><p><span style="color:#000000;">※此為機會中獎商品，消費者購買或參與活動不代表即可獲得特定商品</span></p><figure class="image"><img style="aspect-ratio:814/538;" src="https://l1-prod-plat-server-rgn1.jimi-global.com/websiteManagementRgn1/img/notice/c1433ee8a92da1cdfc1323709e1f0342-1795511113490-0.png" width="814" height="538"></figure>
+</body>
+
+</html>

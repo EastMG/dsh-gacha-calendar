@@ -1,0 +1,1 @@
+{"code":0,"msg":"success","data":{"type":"activity","title":"《藍色星原：旅謠》裝扮介紹 | 塗山小玉·桃兔綺樂","contentUrl":"https://l1-prod-plat-server-rgn1.jimi-global.com/announce/html/rgn1/activity/1795747246044/914502096332656640_60ef51a8.html","startTime":1795759200000}}

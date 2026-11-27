@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>《藍色星原：旅謠》「公測創作者招募計畫」正式啟動！</title>
+</head>
+
+<body>
+<style type="text/css">
+
+
+
+      .image {
+          display: flex;
+          justify-content: center;
+        }
+
+       .image_resized {
+          margin-left: 0;
+          margin-right: auto;
+        }
+
+        /* 右对齐样式 */
+        .image.image-style-block-align-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* 左对齐样式 */
+        .image.image-style-block-align-left {
+          display: flex;
+          justify-content: flex-start;
+        }
+
+        /* 调整大小后的图片样式 */
+        .image.image_resized {
+          max-width: 100%;
+          display: table;
+          clear: both;
+          text-align: center;
+          margin: 0.9em auto;
+        }
+
+        /* 关键：缩放后的 figure 宽度由 style 控制，img 需跟随父容器宽度 */
+        .image.image_resized img {
+          width: 100%;
+        }
+
+        /* 右对齐且调整大小的图片 */
+        .image.image-style-block-align-right.image_resized {
+          margin-right: 0;
+          margin-left: auto;
+          max-width: 100%;
+          display: block;
+          box-sizing: border-box;
+        }
+
+        .image.image-style-block-align-right.image_resized img {
+          width: 100%;
+        }
+
+        /* 左对齐且调整大小的图片 */
+       .image.image-style-block-align-left.image_resized {
+          margin-left: 0 !important;
+          text-align: left;
+        }
+      </style><p><span>普羅米利亞的冒險之旅已經拉開帷幕！為了邀請更多熱愛創作的星臨者一同參與這段旅程，我們正式開放公測創作者招募活動～🎉</span><br><br><span>無論你擅長插畫 🎨、影片 🎬、攻略 📖、實況 🎮 或其他遊戲相關二創內容，只要你熱愛《藍色星原：旅謠》，都歡迎報名加入我們！成功報名創作者招募並參與專屬創作活動，即有機會獲得精美周邊、線下活動參與機會與多種創作激勵 ，歡迎星臨者前來報名 (°▽°)ノ</span></p><p><br><strong>【報名時間】</strong></p><p><span>2026年11月26日 ～ 2026年12月21日</span></p><p><strong>【報名方式】</strong></p><p><span>點擊連結，填寫並提交報名問卷：👉</span><a href="https://forms.gle/WwsiB5ysayQHxK3o8" target="_blank" rel="noopener noreferrer">https://forms.gle/WwsiB5ysayQHxK3o8</a></p><p><br>*<strong>更多招募資訊，請見活動圖片說明～</strong></p><figure class="image"><img style="aspect-ratio:750/3050;" src="https://l1-prod-plat-server-rgn1.jimi-global.com/websiteManagementRgn1/img/activity/0510a300eb20db17ff635064242129ee-1795599997523-0.png" width="750" height="3050"></figure><p><span>趕快加入官方創作者社群，一起來創造屬於普羅米利亞的故事吧！✨</span></p>
+</body>
+
+</html>

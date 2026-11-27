@@ -149,14 +149,15 @@ export default async function run() {
 	// 2026-11-16 按厂商重排后：bwiki 家族只剩**公共层 / 按游戏 helper 4 段**（common / wikitext-common /
 	// html-fetchers / stellasora），其余 bwiki 解析器与注册都并进厂商文件（见 README_Dev 结构树）。
 	const bwikiFiles = files.filter((f) => f.startsWith("30-game-bwiki"));
+	// 2026-11-27：+1 厂商文件（`30-game-manjuu.js` 蓝色星原）⇒ 31。
 	// 2026-11-16 按厂商重排：`30-game-*.js` = **30 个厂商文件** + **1 个 biligame 官方新闻 API 公共层**
 	// （`30-game-biligame-common.js`；只放物华弥新 longyuan 与闪耀优俊少女国服 cygames 共用的 helper）
 	// + **bwiki 系 4 段**（common / wikitext-common / html-fetchers / stellasora）。
 	// 少一个 = 漏接线，多一个 = 忘了登记；厂商文件里每条的 registerSource 只有一处。
 	const commonFiles = files.filter((f) => f === "30-game-biligame-common.js");
 	const vendorFiles = files.filter((f) => !f.startsWith("30-game-bwiki") && f !== "30-game-biligame-common.js");
-	check("游戏文件齐备（30 个厂商/系列文件 + 1 个 biligame 公共层 + bwiki 系 4 段 = 35 个）",
-		vendorFiles.length === 30 && commonFiles.length === 1 && bwikiFiles.length === 4,
+	check("游戏文件齐备（31 个厂商/系列文件 + 1 个 biligame 公共层 + bwiki 系 4 段 = 36 个）",
+		vendorFiles.length === 31 && commonFiles.length === 1 && bwikiFiles.length === 4,
 		`厂商=${vendorFiles.length} 公共层=${commonFiles.length} bwiki=${bwikiFiles.length}`);
 	const hit = [];
 	// ⚠️ 重组后**条目声明也住在游戏文件里**（`registerSource({ … })`），而条目里的
