@@ -380,8 +380,8 @@
 						className: "gacha-cal-sched-cell gacha-cal-sched-cell--none", "data-t": side,
 						children: [
 							(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cn", children: "—" }),
-							// 该侧没有数据：日期格悬停给「（无数据）」；外显文案不变
-							(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cm gacha-cal-sched-num", title: scheduleDateHover(null, now), children: isG ? "暂无卡池数据" : "暂无活动数据" }),
+							// 该侧没有数据：日期格悬停为空串（不挂 title）；外显文案不变
+							(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cm gacha-cal-sched-num", title: scheduleDateHover(null), children: isG ? "暂无卡池数据" : "暂无活动数据" }),
 							scheduleBars(null, days)
 						]
 					});
@@ -428,9 +428,9 @@
 					key, className: "gacha-cal-sched-item", "data-u": scheduleUrgency(x),
 					children: [
 						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cn", title: hoverTextOf(x, key === "first"), children: (0, react_jsx_runtime.jsx)("span", { className: "gacha-cal-inner", children: x.show || x.title || x.raw || "—" }) }),
-						// 日期格悬停：失败 / 沿用旧值 / 无数据结论（正常态只有源站原文）
+						// 日期格悬停：失败/未命中给一行原因，其余只给源站原文（2026-11-27 删掉解释性旁白）
 						// P4：外显文本按条目 tz 渲染（源站墙钟），与探头 / 「近期」/ 留白卡同一口径。
-						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cm gacha-cal-sched-num", title: scheduleDateHover(x, now), children: scheduleMeta(x, now, x.tz) }),
+						(0, react_jsx_runtime.jsx)("div", { className: "gacha-cal-sched-cm gacha-cal-sched-num", title: scheduleDateHover(x), children: scheduleMeta(x, now, x.tz) }),
 						scheduleBars(x, days)
 					]
 				});

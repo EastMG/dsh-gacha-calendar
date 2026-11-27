@@ -600,34 +600,23 @@
 		}
 
 		// 日期格（表格里的「档期 · 状态」，.gacha-cal-sched-cm）的悬停。
-		// 名称格的悬停早已带失败/沿用旧值结论（hoverTextOf）；日期格此前只有外显文本、没有悬停，
-		// 用户看不出这个日期是**本轮正常拿到**的，还是抓取失败后**沿用上次成功**的数据。口径与名称格一致：
-		//   · 本轮该侧失败/未命中 ⇒ 复用 sideFailText 的既有文案（「卡池失败：网络不通」）；
-		//     该格显示的确实是沿回的旧值时，再补「，日期为沿用旧值」。
-		//   · 只是沿用旧值（本轮没拿到新内容、但也没有报错）⇒「数据来自上次成功抓取 X 前」
-		//     （X 取该行的 _okAt，与游戏名悬停的「刷新时间」同一时间来源）。
-		//   · 该侧根本没有数据（没有条目）⇒「（无数据）」。
-		//   · 正常 ⇒ **只有源站墙钟原文**（悬停 = 源站原文，与 scheduleHoverText 同口径），
-		//     不拼任何「（）」说明 —— 正常态不撑长 hover。
+		// 2026-11-27 用户口径：悬停只回答"这块是什么 / 为什么不对"，**不写解释性旁白** ——
+		// 已删三句幼教式文案：「，日期为沿用旧值」「数据来自上次成功抓取 X 前」「（无数据）」。
+		// 现口径：
+		//   · 本轮该侧失败/未命中 ⇒ 源站原文 + 一行「（卡池失败：网络不通）」/「（新卡池未公布）」；
+		//   · 沿用旧值但本轮没报错 ⇒ 只给源站原文（不再标注"这是旧数据"）；
+		//   · 该侧没有条目 ⇒ 空串（不挂 title、不外显任何说明）；
+		//   · 正常 ⇒ 只有源站墙钟原文（与 scheduleHoverText 同口径）。
 		// `x` 是 scheduleNormalize / scheduleHoverOnes 产出的条目（null = 该侧没有数据）。
-		function scheduleDateHover(x, now) {
-			if (!x) return "（无数据）";
+		function scheduleDateHover(x) {
+			if (!x) return "";
 			// 悬停一律给源站墙钟原文（rawSrc）；并列条目只有解析出的 win（raw）
 			const dates = String(x.rawSrc || x.raw || "").trim();
 			const g = x.g || {};
 			const isG = !!x.isG;
 			const failText = sideFailText(isG ? "gacha" : "event", isG ? g.gachaFail : g.eventFail, { userSupplied: false });
-			const stale = !!(isG ? g.gachaStale : g.eventStale);
-			const notes = [];
-			if (failText) notes.push(stale && dates ? failText + "，日期为沿用旧值" : failText);
-			if (stale) {
-				const okAt = Number(g._okAt || g.okAt) || 0;
-				const at = now && typeof now.getTime === "function" ? now.getTime() : 0;
-				const ago = okAt > 0 && at > okAt ? " " + tickerSpanText(at - okAt) + "前" : "";
-				notes.push("数据来自上次成功抓取" + ago);
-			}
-			if (!dates && !notes.length) return "（无数据）";
-			return dates ? dates + (notes.length ? "\n（" + notes.join("；") + "）" : "") : "（" + notes.join("；") + "）";
+			if (!dates) return failText ? "（" + failText + "）" : "";
+			return failText ? dates + "\n（" + failText + "）" : dates;
 		}
 
 		// 一格里"露哪一条"的次序：在期 > 即将开始 > 长期 > 已结束（横跨所有游戏排「近期」也用同一把尺）。

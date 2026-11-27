@@ -523,24 +523,30 @@ export default async function run() {
 			/title: \(isG && roles\) \? \(cleanRoleNames\(roles, g\.id\) \|\| title\) : title,/.test(comp));
 	}
 
-	// ── 新面板**日期格**悬停（原待办第 9 项，2026-10-28 已完成）：格子上真的接了新纯函数；正常态不补提示 ──
-	// 反向断言的是"渲染层没有另拼提示"与"备注只在失败/沿用两个分支 push"：
-	// 只要正常态被拼上任何一行（如硬编码「（）」），这里会红。
+	// ── 新面板**日期格**悬停（原待办第 9 项）：格子上真的接了新纯函数；正常态不补提示 ──
+	// 2026-11-27 用户口径：删掉解释性旁白（沿用旧值 / 上次成功 / 无数据），只剩失败原因一行。
+	// 反向断言：函数体里不许再出现这三类字样，且正常态直接回源站原文。
 	{
 		const raw = readComponentsSource();
 		const comp = codeOnly(raw);
 		check("日期格悬停已接线：有数据 / 无数据两处 .gacha-cal-sched-cm 的 title 都是 scheduleDateHover",
-			/className: "gacha-cal-sched-cm gacha-cal-sched-num", title: scheduleDateHover\(x, now\)/.test(raw)
-			&& /className: "gacha-cal-sched-cm gacha-cal-sched-num", title: scheduleDateHover\(null, now\)/.test(raw));
+			/className: "gacha-cal-sched-cm gacha-cal-sched-num", title: scheduleDateHover\(x\)/.test(raw)
+			&& /className: "gacha-cal-sched-cm gacha-cal-sched-num", title: scheduleDateHover\(null\)/.test(raw));
 		const from = comp.indexOf("function scheduleDateHover(");
 		const to = comp.indexOf("function scheduleRank(", from);
 		const body = from >= 0 && to > from ? comp.slice(from, to) : "";
-		check("日期格正常态不补提示：备注只在 fail / stale 两个分支 push，返回式在 notes 为空时只给原文",
-			((body.match(/notes\.push\(/g) || []).length === 2
-			&& /if \(failText\)/.test(body)
-			&& /if \(stale\) \{/.test(body)
-			&& /return dates \? dates \+ \(notes\.length/.test(body)),
-			`from=${from} to=${to} pushes=${(body.match(/notes\.push\(/g) || []).length}`);
+		// 字符串字面量会被 codeOnly 抹掉 ⇒ 否定断言用"原文去掉注释"的版本（否则注释里那句"已删…"会自打脸）。
+		const bodyNoComment = (() => {
+			const a = raw.indexOf("function scheduleDateHover(");
+			const b = raw.indexOf("function scheduleRank(", a);
+			return a >= 0 && b > a ? raw.slice(a, b).replace(/\/\/[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "") : "";
+		})();
+		const nanny = /沿用旧值|上次成功|无数据/.test(bodyNoComment);
+		check("日期格正常态不补提示：只剩 failText 一个来源，正常态直接回原文；不许再出现解释性旁白",
+			(/if \(!dates\) return failText/.test(body)
+			&& /return failText \? dates/.test(body)
+			&& !nanny),
+			`from=${from} to=${to} 旁白残留=${nanny}`);
 	}
 
 	// ── 漏逗号守卫（2026-11-08 真机事故）：数组元素之间漏逗号**不是语法错误** ──

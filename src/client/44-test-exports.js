@@ -1279,7 +1279,8 @@
 			localWinText,
 			localDatesOf,
 			// scheduleDateHover = 新面板**日期格**的悬停（81-schedule-model.js）：正常只给源站原文；
-			//   失败 ⇒ sideFailText 的既有文案（+「日期为沿用旧值」）；沿用旧值 ⇒「数据来自上次成功抓取 X 前」；
+	// 失败/未命中加一行「（卡池失败：X）」；该侧无数据 ⇒ 空串（2026-11-27 删掉「日期为沿用旧值」
+	// 「数据来自上次成功抓取 X 前」「（无数据）」三句解释性旁白，见 cases-tz.mjs ⑤）。
 			//   该侧没有数据 ⇒「（无数据）」。导出后四种情况都能用固定 now 逐字断言（见 cases-tz.mjs ⑤）。
 			scheduleDateHover,
 			// ⚠️ P5 清理（2026-11-08）：`scheduleHoverItems`（悬停文本 → [{ title, win }]）已删除 ——
