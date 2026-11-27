@@ -269,7 +269,7 @@
 				const view = mirror && typeof mirror.getSnapshot === "function" ? mirror.getSnapshot().view : null;
 				const rows = view && Array.isArray(view.namespaces) ? view.namespaces : [];
 				const names = rows.map((r) => r && r.ns).filter((ns) => typeof ns === "string");
-				return names.length ? "（宿主当前 serve：" + names.join(", ") + "）" : "（宿主当前一个设置条目都没 serve）";
+				return names.length ? "（宿主提供：" + names.join(", ") + "）" : "（宿主未提供任何设置项）";
 			} catch (e) {
 				return "";
 			}
