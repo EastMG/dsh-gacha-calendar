@@ -94,7 +94,7 @@ dsh-gacha-calendar/
 │       ├── 30-game-bluepoch.js    # 深蓝互动：重返未来：1999
 │       ├── 30-game-aojiao.js      # 傲娇工作室：盲盒派对（bwiki 卡池模板 + SMW 活动）
 │       ├── 30-game-epidgames.js   # EPIDGames：嘟嘟脸恶作剧（B 站公告备选 + TapTap tab SSR 活动）
-│       ├── 30-game-manjuu.js       # 蛮啾：蓝色星原：旅谣（国服官方公告 API / promilia.wiki / TapTap；国际服官方公告）
+│       ├── 30-game-manjuu.js       # 蛮啾：蓝色星原：旅谣（国服官方公告 API / 星原档案室 promilia.wiki / TapTap；国际服官方公告）
 │       #   30-game-*.js 合计 36 个 = 31 厂商文件 + 1 biligame 公共层 + 4 bwiki helper（与 test/cases-rule-lint.mjs 的计数守卫一致）
 │       ├── 44-test-exports.js # 回归出口：解析器 + env 工具 + 来源表
 │       ├── 50-refresh.js     # 刷新编排、失败沿用旧值、提示归类

@@ -145,10 +145,10 @@ export default async function runManjuu() {
 		check("国服条目存在", !!s);
 		check("国服条目名 = 蓝色星原：旅谣", s && s.name === "蓝色星原：旅谣", s && s.name);
 		check("国服卡池默认源 = 官方公告", s && s.source === "官方公告", s && s.source);
-		check("国服卡池备选顺序 = promilia.wiki → TapTap",
-			!!(s && s.altSources.length === 2 && s.altSources[0].label === "promilia.wiki" && s.altSources[1].label === "TapTap"),
+		check("国服卡池备选顺序 = 星原档案室 → TapTap",
+			!!(s && s.altSources.length === 2 && s.altSources[0].label === "星原档案室" && s.altSources[1].label === "TapTap"),
 			s && JSON.stringify(s.altSources && s.altSources.map((x) => x.label)));
-		check("国服活动默认源 = promilia.wiki（官方公告无游戏内活动公告）", s && s.eventSource === "promilia.wiki", s && s.eventSource);
+		check("国服活动默认源 = 星原档案室（官方公告无游戏内活动公告）", s && s.eventSource === "星原档案室", s && s.eventSource);
 		check("国服活动备选 = TapTap → 官方公告",
 			!!(s && s.eventAltSources.length === 2 && s.eventAltSources[0].label === "TapTap" && s.eventAltSources[1].label === "官方公告"),
 			s && JSON.stringify(s.eventAltSources && s.eventAltSources.map((x) => x.label)));
@@ -162,7 +162,7 @@ export default async function runManjuu() {
 		check("国际服没有备选源（单一来源）", !!(g && !g.altSources && !g.eventAltSources));
 
 		// 不兜底：默认源地址与其备选地址互不相同（不存在"同一条 URL 两套抓取器"）
-		check("官方公告 URL ≠ promilia.wiki URL", !!(s && s.url !== URL_WIKI));
+		check("官方公告 URL ≠ 星原档案室 URL", !!(s && s.url !== URL_WIKI));
 		check("官方公告 URL ≠ TapTap URL", !!(s && s.url !== URL_TAPTAP));
 
 		// 抓取器齐全（缺失会让设置页选了源却抓不了）

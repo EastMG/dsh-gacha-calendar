@@ -508,12 +508,13 @@ registerSource({
 	url: NS_PRO_CN_LIST_URL,
 	source: "官方公告",
 	altSources: [
-		{ label: "promilia.wiki", url: NS_PRO_WIKI_URL, fetcher: "promilia-wiki-gacha" },
+		// 用户 2026-11-27 定名：显示名 =「星原档案室」（站名），不写域名。
+		{ label: "星原档案室", url: NS_PRO_WIKI_URL, fetcher: "promilia-wiki-gacha" },
 		{ label: "TapTap", url: NS_PRO_TAPTAP_URL, fetcher: "promilia-taptap-gacha" }
 	],
-	// 活动侧：官方公告里没有游戏内活动（见文件头）⇒ 默认 promilia.wiki；TapTap / 官方公告 作备选。
+	// 活动侧：官方公告里没有游戏内活动（见文件头）⇒ 默认「星原档案室」（promilia.wiki）；TapTap / 官方公告 作备选。
 	eventUrl: NS_PRO_WIKI_URL,
-	eventSource: "promilia.wiki",
+	eventSource: "星原档案室",
 	eventAltSources: [
 		{ label: "TapTap", url: NS_PRO_TAPTAP_URL, fetcher: "promilia-taptap-event" },
 		{ label: "官方公告", url: NS_PRO_CN_LIST_URL, fetcher: "promilia-official-event" }
