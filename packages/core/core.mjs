@@ -555,7 +555,7 @@
 			const mode = snap && snap.mode ? snap.mode : "unknown";
 			const rev = snap && typeof snap.revision === "number" ? " (rev " + snap.revision + ")" : "";
 			const id = scope && scope.entryId ? scope.entryId : "(未解析)";
-			if (mode === "memory") return "本次连接不是本机，宿主不接受写入（只读模式）";
+			if (mode === "memory") return "只读模式：宿主不接受写入";
 			if (status === "loading") return "配置表单还没送到，请稍后重试";
 			if (status === "unavailable") return "宿主未 serve 条目「" + id + "」" + servedNamespacesText(scope.configForms);
 			return "宿主拒绝了该写入（表单状态 " + status + " / " + mode + rev + "）";
@@ -597,7 +597,7 @@
 			// 给一句比"抓取异常"更有信息量的归因 —— 让"源站改版"在面板上**看得见**，
 			// 而不是伪装成"新卡池未公布"（终末地上次长期静默失灵就是这么来的）
 			if (/shape-changed|layout-changed|no-table|no-timer|no-chunk|no-section|no-banner|no-dates|no-activities|parse-empty/.test(msg)) {
-				return "页面结构变了（解析出 0 条）";
+				return "源站改版（0 条）";
 			}
 			// 结构化内容接口（GameKee 编辑器 block / GameTora 数据文件）自带环节名，原样透出 ——
 			// 用户 2026-10-21 明确要求"错误文案要能看出是内容接口失败"，而不是被压成"抓取异常"。
@@ -1703,7 +1703,7 @@
 		const ICS_SIDE_LABEL = { gacha: "卡池", event: "活动" };
 		// 跳过的原因（给报告/用例看；**不导出**才是默认行为 —— 见 icsEventsOf）
 		const ICS_SKIP_TEXT = {
-			skipped: "本轮没抓（跳过）",
+			skipped: "跳过",
 			"no-title": "没有事项名",
 			"no-dates": "没有档期文本",
 			"bad-window": "档期不是「起 ~ 止」形态",

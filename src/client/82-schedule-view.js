@@ -605,7 +605,7 @@
 							value: findQuery,
 							placeholder: "搜卡池/角色/活动",
 							"aria-label": "搜索游戏名、卡池名、角色名或活动名",
-							title: "匹配游戏名 / 卡池名 / 角色名 / 活动名（只影响显示，不影响轮播与提醒）",
+							title: "匹配游戏名 / 卡池名 / 角色名 / 活动名",
 							onChange: (e) => setFindQuery(e.target.value),
 							onKeyDown: (e) => { if (e.key === "Escape") setFindQuery(""); }
 						}),
