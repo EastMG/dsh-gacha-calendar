@@ -76,6 +76,7 @@ dsh-gacha-calendar/
 │       ├── 30-game-bluearchive.js # 蔚蓝档案：国服 / 国际服 / 日服
 │       ├── 30-game-hypergryph.js  # 鹰角：明日方舟 / 终末地
 │       ├── 30-game-aniplex.js     # Aniplex / TYPE-MOON：Fate/Grand Order 国服 + 日服
+│       ├── 30-game-manjuu.js       # 蛮啾：蓝色星原：旅谣（国服官方公告 API / 星原档案室 promilia.wiki / TapTap；国际服官方公告）
 │       ├── 30-game-hl.js          # 碧蓝航线：国服（只接活动）/ 日服
 │       ├── 30-game-wonderplanet.js # WonderPlanet：粉碎狂热·日服（bwiki SMW ask）
 │       ├── 30-game-mixi.js        # MIXI：怪物弹珠·日服（Data:GachaConfig.json + 活动日历 CALENDAR_DATA）
@@ -94,7 +95,6 @@ dsh-gacha-calendar/
 │       ├── 30-game-bluepoch.js    # 深蓝互动：重返未来：1999
 │       ├── 30-game-aojiao.js      # 傲娇工作室：盲盒派对（bwiki 卡池模板 + SMW 活动）
 │       ├── 30-game-epidgames.js   # EPIDGames：嘟嘟脸恶作剧（B 站公告备选 + TapTap tab SSR 活动）
-│       ├── 30-game-manjuu.js       # 蛮啾：蓝色星原：旅谣（国服官方公告 API / 星原档案室 promilia.wiki / TapTap；国际服官方公告）
 │       #   30-game-*.js 合计 36 个 = 31 厂商文件 + 1 biligame 公共层 + 4 bwiki helper（与 test/cases-rule-lint.mjs 的计数守卫一致）
 │       ├── 44-test-exports.js # 回归出口：解析器 + env 工具 + 来源表
 │       ├── 50-refresh.js     # 刷新编排、失败沿用旧值、提示归类
