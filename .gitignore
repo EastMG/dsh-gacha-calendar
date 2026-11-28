@@ -6,3 +6,6 @@ node_modules/
 dist/
 
 .npmrc
+
+# 内部工作笔记：只在本地工作区，不入库（2026-11-28 用户口径）
+NOTES.md
